@@ -1,0 +1,1216 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>运筹马年 · 部门排行榜</title>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script>
+  var rankTab = 'person';
+
+  function switchRankTab(tab) {
+    rankTab = tab;
+    document.querySelectorAll('.rank-tab').forEach(function(el,i){ el.classList.toggle('active', (i===0 && tab==='person') || (i===1 && tab==='dept')); });
+    document.querySelectorAll('.rank-view').forEach(function(el){ el.style.display = 'none'; });
+    var target = document.getElementById('rank' + tab.charAt(0).toUpperCase() + tab.slice(1));
+    if (target) target.style.display = '';
+    var pc = document.getElementById('personCount'); if (pc) pc.style.display = tab === 'person' ? '' : 'none';
+    var dc = document.getElementById('deptCount'); if (dc) dc.style.display = tab === 'dept' ? '' : 'none';
+    renderActiveRank();
+  }
+
+  function renderActiveRank() {
+    if(rankTab === 'person') renderPersonRank();
+    else renderDeptRank();
+  }
+
+  function getRankData(period) {
+    var persons = [
+      {id:'王磊磊',name:'王磊磊',dept:'内蒙办'},{id:'李明',name:'李明',dept:'内蒙办'},
+      {id:'张三',name:'张三',dept:'太原办'},{id:'赵四',name:'赵四',dept:'内蒙办'},
+      {id:'马文杰',name:'马文杰',dept:'总部'}
+    ];
+    var scores = JSON.parse(localStorage.getItem('score_data') || '{}');
+    
+    persons.forEach(function(p){
+      var total = 0, files = 0;
+      Object.keys(scores).forEach(function(sk) {
+        if (period !== '全部' && sk.indexOf('_' + period) < 0) return;
+        var data = scores[sk];
+        Object.keys(data).forEach(function(ck) {
+          var parts = ck.split('_');
+          if (parts.length > 1 && parts.slice(1).join('_') === p.id) {
+            total += parseInt(data[ck]) || 0; files++;
+          }
+        });
+      });
+      p.score = total; p.files = files;
+    });
+    return persons;
+  }
+
+  function renderPersonRank() {
+    var period = document.getElementById('rankPeriod').value;
+    var data = getRankData(period);
+    data.sort(function(a,b){ return b.score - a.score; });
+    
+    var html = '';
+    data.forEach(function(r, i) {
+      var m = i===0 ? '🥇' : i===1 ? '🥈' : i===2 ? '🥉' : (i+1);
+      html += '<tr><td style="font-size:16px;">'+m+'</td><td style="font-weight:500;text-align:left;">'+r.name+'</td><td style="color:#8c8c8c;">'+r.dept+'</td><td style="font-weight:700;color:#1890ff;">'+r.score+'分</td><td>'+r.files+'个</td></tr>';
+    });
+    if(data.length===0) html = '<tr><td colspan="5" style="padding:30px;text-align:center;color:#bfbfbf;">暂无数据</td></tr>';
+    document.getElementById('personRankBody').innerHTML = html;
+    document.getElementById('personCount').textContent = data.length + '人';
+    lucide.createIcons();
+  }
+
+  function renderDeptRank() {
+    var period = document.getElementById('rankPeriod').value;
+    var persons = getRankData(period);
+    var deptMap = {};
+    persons.forEach(function(p){ if(!deptMap[p.dept]) deptMap[p.dept] = {score:0, persons:{}}; });
+    persons.forEach(function(p){ if(deptMap[p.dept]) { deptMap[p.dept].score += p.score; deptMap[p.dept].persons[p.name]=true; }});
+    var data = Object.keys(deptMap).map(function(d){ return {dept:d, score:deptMap[d].score, count:Object.keys(deptMap[d].persons).length}; });
+    data.sort(function(a,b){ return b.score - a.score; });
+    
+    var html = '';
+    data.forEach(function(r, i) {
+      var m = i===0 ? '🥇' : i===1 ? '🥈' : i===2 ? '🥉' : (i+1);
+      html += '<tr><td style="font-size:16px;">'+m+'</td><td style="font-weight:500;text-align:left;">'+r.dept+'</td><td style="font-weight:700;color:#1890ff;">'+r.score+'分</td><td>'+r.count+'人</td></tr>';
+    });
+    if(data.length===0) html = '<tr><td colspan="4" style="padding:30px;text-align:center;color:#bfbfbf;">暂无数据</td></tr>';
+    document.getElementById('deptRankBody').innerHTML = html;
+    document.getElementById('deptCount').textContent = data.length + '个部门';
+    lucide.createIcons();
+  }
+
+  function exportRankExcel() {
+    var period = document.getElementById('rankPeriod').value;
+    var data = getRankData(period);
+    var csv = '\uFEFF';
+    
+    if (rankTab === 'person') {
+      data.sort(function(a,b){ return b.score - a.score; });
+      csv += '排名,姓名,办事处,总积分,文件数\n';
+      data.forEach(function(r, i) {
+        csv += (i+1) + ',' + r.name + ',' + r.dept + ',' + r.score + ',' + r.files + '\n';
+      });
+    } else {
+      var deptMap = {};
+      data.forEach(function(p){ if(!deptMap[p.dept]) deptMap[p.dept] = {score:0, persons:{}}; });
+      data.forEach(function(p){ if(deptMap[p.dept]) { deptMap[p.dept].score += p.score; deptMap[p.dept].persons[p.name]=true; }});
+      var depts = Object.keys(deptMap).map(function(d){ return {dept:d, score:deptMap[d].score, count:Object.keys(deptMap[d].persons).length}; });
+      depts.sort(function(a,b){ return b.score - a.score; });
+      csv += '排名,部门,总积分,参与人数\n';
+      depts.forEach(function(r, i) {
+        csv += (i+1) + ',' + r.dept + ',' + r.score + ',' + r.count + '\n';
+      });
+    }
+    
+    var blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = (rankTab === 'person' ? '个人排行榜' : '部门排行榜') + '_' + period + '.csv';
+    a.click();
+  }
+
+  renderPersonRank();
+
+  function getRankData(period) {
+    var persons = [
+      {id:'王磊磊',name:'王磊磊',dept:'内蒙办'},{id:'李明',name:'李明',dept:'内蒙办'},
+      {id:'张三',name:'张三',dept:'太原办'},{id:'赵四',name:'赵四',dept:'内蒙办'},
+      {id:'马文杰',name:'马文杰',dept:'总部'}
+    ];
+    var scores = JSON.parse(localStorage.getItem('score_data') || '{}');
+    // Seed mock data if empty
+    if (Object.keys(scores).length === 0) {
+      scores = {
+        'share_2026Q2': { id1_王磊磊: 5, id2_李明: 3, id3_张三: 4, id4_赵四: 6, id5_马文杰: 2 },
+        'visit_2026Q2': { id1_王磊磊: 3, id2_李明: 5, id3_张三: 2, id4_赵四: 1, id5_马文杰: 4 },
+        'talk_2026Q2':  { id1_王磊磊: 4, id2_李明: 2, id3_张三: 5, id4_赵四: 3, id5_马文杰: 3 },
+        'product_2026Q2': { id1_王磊磊: 2, id2_李明: 4, id3_张三: 1, id4_趙四: 5, id5_马文杰: 6 }
+      };
+      localStorage.setItem('score_data', JSON.stringify(scores));
+    }
+    var prevScores = JSON.parse(localStorage.getItem('score_data_prev') || '{}');
+    // Seed prev period data if empty
+    if (Object.keys(prevScores).length === 0) {
+      prevScores = {
+        'share_2026Q1': { id1_王磊磊: 4, id2_李明: 2, id3_张三: 3, id4_赵四: 5, id5_马文杰: 1 },
+        'visit_2026Q1': { id1_王磊磊: 2, id2_李明: 4, id3_张三: 1, id4_赵四: 2, id5_马文杰: 3 },
+        'talk_2026Q1':  { id1_王磊磊: 3, id2_李明: 1, id3_张三: 4, id4_赵四: 2, id5_马文杰: 2 },
+        'product_2026Q1': { id1_王磊磊: 1, id2_李明: 3, id3_张三: 2, id4_赵四: 4, id5_马文杰: 5 }
+      };
+      localStorage.setItem('score_data_prev', JSON.stringify(prevScores));
+    }
+
+    persons.forEach(function(p){
+      var total = 0, files = 0;
+      Object.keys(scores).forEach(function(sk) {
+        if (period !== '全部' && sk.indexOf('_' + period) < 0) return;
+        var data = scores[sk];
+        Object.keys(data).forEach(function(ck) {
+          var parts = ck.split('_');
+          if (parts.length > 1 && parts.slice(1).join('_') === p.id) {
+            total += parseInt(data[ck]) || 0; files++;
+          }
+        });
+      });
+      p.score = total; p.files = files;
+      // Prev period score for trend
+      var prev = 0;
+      Object.keys(prevScores).forEach(function(sk) {
+        if (period !== '全部' && sk.indexOf('_' + period) < 0) return;
+        var data = prevScores[sk];
+        Object.keys(data).forEach(function(ck) {
+          var parts = ck.split('_');
+          if (parts.length > 1 && parts.slice(1).join('_') === p.id) {
+            prev += parseInt(data[ck]) || 0;
+          }
+        });
+      });
+      p.prevScore = prev;
+    });
+    return persons;
+  }
+
+  function renderRank() {
+    var period = document.getElementById('rankPeriod').value;
+    var data = getRankData(period);
+    // Sort: by score desc, then files desc
+    data.sort(function(a,b){ return b.score - a.score || b.files - a.files; });
+    
+    var html = '';
+    data.forEach(function(r, i) {
+      var rank = i + 1;
+      var medal = '';
+      var rowBg = '';
+      if(rank === 1) {
+        medal = '<span style="font-size:20px;">🥇</span>';
+        rowBg = ' style="background:#fffbe6;"';
+      } else if(rank === 2) {
+        medal = '<span style="font-size:20px;">🥈</span>';
+        rowBg = ' style="background:#fafafa;"';
+      } else if(rank === 3) {
+        medal = '<span style="font-size:20px;">🥉</span>';
+      } else {
+        medal = '<span class="rank-badge plain">'+rank+'</span>';
+      }
+      
+      var trend = '';
+      if(r.prevScore > 0) {
+        if(r.score > r.prevScore) trend = '<span class="trend-up">↑' + (r.score - r.prevScore) + '</span>';
+        else if(r.score < r.prevScore) trend = '<span class="trend-down">↓' + (r.prevScore - r.score) + '</span>';
+        else trend = '<span class="trend-flat">—</span>';
+      } else {
+        trend = '<span class="trend-flat">—</span>';
+      }
+      
+      html += '<tr' + rowBg + '><td style="text-align:center;">' + medal + '</td>' +
+        '<td style="text-align:left;font-weight:500;">' + r.name + '</td>' +
+        '<td style="color:#8c8c8c;">' + r.dept + '</td>' +
+        '<td style="font-weight:700;color:#1890ff;font-size:15px;">' + r.score + '</td>' +
+        '<td>' + r.files + '</td>' +
+        '<td>' + trend + '</td></tr>';
+    });
+    if(data.length === 0) {
+      html = '<tr><td colspan="6" style="padding:40px;text-align:center;color:#bfbfbf;"><i data-lucide="inbox" style="width:40px;height:40px;color:#d9d9d9;display:block;margin:0 auto 10px;"></i>暂无排行数据<div style="font-size:12px;margin-top:4px;">请先在积分录入中评分</div></td></tr>';
+    }
+    document.getElementById('rankBody').innerHTML = html;
+    lucide.createIcons();
+  }
+
+  // renderRank() skipped — DOM not ready; called later
+</script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", "Helvetica Neue", Arial, sans-serif; font-size: 14px; color: #333; background: #f0f2f5; }
+    .app { display: flex; height: 100vh; overflow: hidden; }
+    /* Sidebar */
+    .sidebar { width: 240px; min-width: 240px; background: #001629; color: #fff; display: flex; flex-direction: column; user-select: none; overflow-y: auto; }
+    .sidebar::-webkit-scrollbar { width: 4px; }
+    .sidebar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 2px; }
+    .logo-wrap { display: flex; align-items: center; height: 56px; padding: 0 20px; gap: 10px; border-bottom: 1px solid rgba(255,255,255,0.08); flex-shrink: 0; }
+    .logo-icon { width: 32px; height: 32px; background: #1890ff; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 700; color: #fff; }
+    .logo-text { font-size: 17px; font-weight: 700; letter-spacing: 1px; color: #fff; }
+    .nav { flex: 1; padding: 12px 0; }
+    .nav-group { padding: 8px 0; }
+    .nav-group-title { padding: 4px 20px 6px; font-size: 11px; color: rgba(255,255,255,0.35); text-transform: uppercase; letter-spacing: 1.5px; }
+    .nav-item { display: flex; align-items: center; padding: 0 20px; height: 40px; cursor: pointer; color: rgba(255,255,255,0.7); font-size: 14px; gap: 10px; position: relative; }
+    .nav-item:hover { background: rgba(255,255,255,0.06); color: #fff; }
+    .nav-item.active { background: rgba(24,144,255,0.18); color: #fff; }
+    .nav-item.active::before { content: ''; position: absolute; left: 0; top: 6px; bottom: 6px; width: 3px; background: #1890ff; border-radius: 0 2px 2px 0; }
+    .nav-item .nav-icon { width: 18px; height: 18px; flex-shrink: 0; opacity: 0.8; }
+    .nav-item.active .nav-icon { opacity: 1; }
+    .nav-item .nav-txt { flex: 1; }
+    .nav-badge { display: inline-flex; align-items: center; justify-content: center; min-width: 18px; height: 18px; border-radius: 9px; background: #ff4d4f; color: #fff; font-size: 11px; padding: 0 5px; font-weight: 600; line-height: 18px; }
+    .nav-badge.warn { background: #fa8c16; }
+    .nav-badge.primary { background: #1890ff; }
+    .sub-arrow { opacity: 0.5; font-size: 12px; }
+    .nav-sub { display: block; padding: 0 0 4px 0; }
+    .nav-sub-item { display: flex; align-items: center; padding: 0 20px 0 52px; height: 34px; cursor: pointer; color: rgba(255,255,255,0.55); font-size: 14px; gap: 8px; position: relative; }
+    .nav-sub-item:hover { background: rgba(255,255,255,0.06); color: #fff; }
+    .nav-sub-item.active { background: rgba(24,144,255,0.18); color: #fff; }
+    .nav-sub-item.active::before { content: ''; position: absolute; left: 0; top: 4px; bottom: 4px; width: 3px; background: #1890ff; border-radius: 0 2px 2px 0; }
+    /* Main */
+    .main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+    .topbar { height: 56px; background: #fff; border-bottom: 1px solid #e8e8e8; display: flex; align-items: center; justify-content: space-between; padding: 0 28px; flex-shrink: 0; }
+    .topbar-left { display: flex; align-items: center; gap: 16px; }
+    .topbar-title { font-size: 16px; font-weight: 600; color: #262626; }
+    .breadcrumb { display: flex; align-items: center; gap: 6px; font-size: 13px; color: #8c8c8c; }
+    .breadcrumb span { color: #595959; }
+    .topbar-right { display: flex; align-items: center; gap: 20px; }
+    .user-info { display: flex; align-items: center; gap: 8px; cursor: default; }
+    .user-avatar { width: 32px; height: 32px; border-radius: 50%; background: #1890ff; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 600; }
+    .user-name { font-size: 14px; font-weight: 500; color: #262626; }
+    .user-org { font-size: 12px; color: #8c8c8c; }
+    .content { flex: 1; overflow-y: auto; padding: 24px 28px; }
+
+    /* Page Header */
+    .page-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+
+    .bc { display:flex;align-items:center;gap:6px;font-size:12px;color:#8c8c8c;margin-bottom:14px; }
+    .bc-sep { color:#d9d9d9; }
+    .bc-current { color:#595959; }
+    .tb-row { display:flex;align-items:center;gap:10px;padding:8px 14px;background:#fff;border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,0.04);margin-bottom:12px;flex-wrap:wrap; }
+    .tb-left { display:flex;align-items:center;gap:8px; }
+    .tb-right { display:flex;align-items:center;gap:6px;margin-left:auto; }
+    .tb-row select { height:30px;padding:0 20px 0 8px;border:1px solid #d9d9d9;border-radius:4px;font-size:12px;color:#262626;outline:none;min-width:80px; }
+    .tb-row select:focus { border-color:#1890ff; }
+    .tb-hint { font-size:11px;color:#bfbfbf; }
+    .tb-row button { display:inline-flex;align-items:center;gap:3px;height:30px;padding:0 10px;background:#1890ff;color:#fff;border:none;border-radius:4px;font-size:12px;font-weight:500;cursor:pointer; }
+    .tb-row button:hover { background:#40a9ff; }
+    .tb-row button:focus-visible { outline:2px solid #1890ff;outline-offset:2px; }
+    .tb-row button:last-child { background:#fff;color:#8c8c8c;border:1px solid #d9d9d9;padding:0 8px; }
+    .tb-row button:last-child:hover { border-color:#1890ff;color:#1890ff; }
+    .btn-add-year { display:inline-flex;align-items:center;gap:3px;height:30px;padding:0 10px;background:#fff;color:#1890ff;border:1px solid #1890ff;border-radius:4px;font-size:12px;cursor:pointer;white-space:nowrap; }
+    .btn-add-year:hover { background:#e6f7ff; }
+        .page-header h2 { font-size: 20px; font-weight: 600; color: #262626; }
+
+    /* Stats Row */
+    .stats-row { display: flex; align-items: center; gap: 20px; padding: 10px 20px; background: #fff; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); margin-bottom: 16px; flex-wrap: wrap; }
+    .stats-item { display: flex; align-items: center; gap: 6px; font-size: 13px; color: #8c8c8c; }
+    .stats-item b { font-size: 18px; font-weight: 700; color: #262626; margin-left: 2px; }
+    .stats-item .si { width: 18px; height: 18px; }
+    .stats-item .si.blue { color: #1890ff; }
+    .stats-item .si.green { color: #52c41a; }
+    .stats-item .si.orange { color: #fa8c16; }
+    .stats-hint { font-size: 12px; color: #bfbfbf; margin-left: auto; }
+
+    /* Toolbar */
+    .toolbar-row { display: flex; align-items: center; gap: 12px; padding: 8px 16px; background: #fff; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); margin-bottom: 16px; flex-wrap: wrap; }
+    .toolbar-tabs { display: flex; gap: 4px; }
+    .toolbar-tab { padding: 6px 16px; font-size: 13px; font-weight: 500; color: #595959; border: none; background: transparent; cursor: pointer; border-radius: 4px; }
+    .toolbar-tab:hover { background: #f5f5f5; color: #1890ff; }
+    .toolbar-tab.active { background: #e6f7ff; color: #1890ff; font-weight: 600; }
+    .toolbar-tab:focus-visible { outline: 2px solid #1890ff; outline-offset: 2px; }
+    .toolbar-actions { display: flex; align-items: center; gap: 8px; flex: 1; justify-content: flex-start; flex-wrap: wrap; }
+    .toolbar-actions select { height: 30px; padding: 0 24px 0 10px; border: 1px solid #d9d9d9; border-radius: 4px; font-size: 12px; color: #262626; background: #fff; cursor: pointer; outline: none; min-width: 90px; appearance: auto; }
+    .toolbar-actions select:focus { border-color: #1890ff; }
+    .tb-sep { width: 1px; height: 20px; background: #e8e8e8; margin: 0 4px; }
+    .toolbar-actions button { display: inline-flex; align-items: center; gap: 4px; height: 30px; padding: 0 12px; background: #1890ff; color: #fff; border: none; border-radius: 4px; font-size: 12px; font-weight: 500; cursor: pointer; }
+    .toolbar-actions button:hover { background: #40a9ff; }
+    .toolbar-actions button:focus-visible { outline: 2px solid #1890ff; outline-offset: 2px; }
+    .toolbar-actions button.btn-icon { padding: 0 8px; background: #fff; color: #8c8c8c; border: 1px solid #d9d9d9; }
+    .toolbar-actions button.btn-icon:hover { border-color: #1890ff; color: #1890ff; }
+    .toolbar-actions button.btn-success { background: #52c41a; }
+    .toolbar-actions button.btn-success:hover { background: #73d13d; }
+    .toolbar-actions button.btn-outline-green { display: inline-flex; align-items: center; gap: 4px; height: 30px; padding: 0 10px; background: #fff; color: #52c41a; border: 1px solid #b7eb8f; border-radius: 4px; font-size: 12px; cursor: pointer; }
+    .toolbar-actions button.btn-outline-green:hover { background: #f6ffed; }
+    .toolbar-actions button.btn-outline-green:focus-visible { outline: 2px solid #52c41a; outline-offset: 2px; }
+
+    /* ---------- Scoring Matrix ---------- */
+        .mx-wrap { overflow-x: auto; overflow-y: visible; background: #fff; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.08), 0 1px 3px rgba(0,0,0,0.04); border: 1px solid #dde3eb; }
+    .mx-tb { width: max-content; min-width: 100%; border-collapse: separate; border-spacing: 0; font-size: 13px; table-layout: fixed; border: none; }
+    .mx-tb thead tr.row1 th { position: sticky; top: 0; z-index: 10; background: linear-gradient(180deg, #f5f7fa 0%, #eef1f5 100%); padding: 0; height: 46px; font-weight: 700; color: #1a1a2e; border-bottom: 2px solid #d0d4d8; text-align: center; font-size: 20px; letter-spacing: 0.8px; border-right: 1px solid #e0e4e8; }
+    .mx-tb thead tr.row1 th:last-child { border-right: none; }
+    .mx-tb thead tr.row2 th { position: sticky; top: 46px; z-index: 10; background: linear-gradient(180deg, #f8f9fb 0%, #f0f2f5 100%); padding: 0; height: 40px; font-weight: 700; color: #595959; border-bottom: 2px solid #d0d4d8; text-align: center; font-size: 17px; font-weight: 800; border-right: 1px solid #e8ecf0; }
+    .mx-tb thead tr.row2 th:last-child { border-right: none; }
+    .mx-tb thead th.pin { z-index: 11; }
+    .mx-tb thead th.c1 { left: 0; z-index: 12; min-width: 38px; width: 38px; font-size: 16px; border-bottom: 2px solid #c8ced6 !important; }
+    .mx-tb thead th.c2 { left: 38px; z-index: 12; min-width: 82px; width: 82px; font-size: 16px; border-bottom: 2px solid #c8ced6 !important; }
+    .mx-tb thead th.c3 { left: 120px; z-index: 12; min-width: 143px; width: 143px; font-size: 16px; border-bottom: 2px solid #c8ced6 !important; }
+    .mx-tb thead th.c4 { left: 263px; z-index: 12; min-width: 66px; width: 66px; font-size: 16px; border-right: 2px solid #b0b8c0; border-bottom: 2px solid #c8ced6 !important; }
+    .mx-tb thead th.pname { min-width: 75px; width: 75px; background: linear-gradient(180deg, #e4edf8 0%, #d8e4f4 100%); color: #0f4a8a; font-weight: 700; font-size: 16px; padding: 0 2px; border-bottom: 2px solid #b0c2d8 !important; }
+    .mx-tb thead th.share-hd { background: linear-gradient(180deg, #e8edf4 0%, #dce3ed 100%); color: #1a2a3a; font-size: 18px; font-weight: 700; text-align: center; border-right: 2px solid #b0b8c0; border-bottom: 2px solid #b8c4d4 !important; }
+    .mx-tb thead th.colleague-hd { background: linear-gradient(180deg, #f5f6f8 0%, #edf0f4 100%); color: #3d4a5a; font-size: 14px; font-weight: 700; text-align: center; border-bottom: 2px solid #c8ced6 !important; }
+    .mx-tb tbody td { padding: 0; height: 52px; border: 1px solid #eef0f2; text-align: center; font-size: 14px; color: #333; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; background: #fff; }
+    .mx-tb tbody td.pin { position: sticky; z-index: 2; background: #fff; }
+    .mx-tb tbody td.p1 { left: 0; z-index: 3; min-width: 38px; width: 38px; font-weight: 500; color: #8c8c8c; font-size: 11px; background: #f8f9fb; border-right: 1px solid #e8ecf0; }
+    .mx-tb tbody td.p2 { left: 38px; z-index: 3; min-width: 82px; width: 82px; font-weight: 600; color: #262626; font-size: 12px; padding: 0 4px !important; text-align: left; background: #f3f6fa; border-right: 1px solid #dce2ea; }
+    .mx-tb tbody td.p3 { left: 120px; z-index: 3; min-width: 143px; width: 143px; overflow: hidden; text-overflow: ellipsis; font-size: 12px; color: #595959; padding: 0 4px !important; text-align: left; background: #f3f6fa; border-right: 1px solid #dce2ea; }
+    .mx-tb tbody td.p4 { left: 263px; z-index: 3; min-width: 66px; width: 66px; border-right: 2px solid #b0b8c0; font-size: 11px; color: #bfbfbf; background: #f8f9fb; }
+    .mx-tb tbody td .si { width: 56px; height: 30px; border: 1px solid #c8ccd0; text-align: center; font-size: 12px; font-weight: 600; color: #262626; outline: none; background: #fff; border-radius: 4px; }
+    .mx-tb tbody td .si:focus { border-color: #1890ff; box-shadow: 0 0 0 2px rgba(24,144,255,0.15); }
+    .mx-tb tbody td .si.filled { border-color: #1890ff; background: #e6f7ff; color: #1890ff; }
+    .mx-tb tbody tr:hover td { background: #f0f4fa; }
+    .mx-tb tbody tr:last-child td { border-top: 3px solid #1677cc; background: #eaf2fa; font-weight: 800; }
+    .mx-tb tbody tr:hover td.pin { background: #e8ecf3; }
+    .mx-tb tfoot td { padding: 0; height: 48px; border: 1px solid #d0d4d8; text-align: center; font-size: 12px; font-weight: 700; color: #262626; background: #f0f5ff; border-top: 2px solid #1890ff; }
+    .mx-tb tfoot td.pin { position: sticky; z-index: 2; background: #f0f5ff; }
+    .mx-tb tfoot td.p1 { left: 0; z-index: 3; }
+    .mx-tb tfoot td.p2 { left: 38px; z-index: 3; min-width: 82px; }
+    .mx-tb tfoot td.p3 { left: 120px; z-index: 3; min-width: 143px; text-align: right; padding-right: 12px !important; }
+    .mx-tb tfoot td.p4 { left: 263px; z-index: 3; min-width: 66px; border-right: 2px solid #b0b8c0; }
+    .mx-tb tfoot td.pt { font-size: 17px; font-weight: 700; color: #1677cc; background: transparent; }
+
+    .mx-tb tbody tr:hover td.p1 { background: #edf2f8; }
+    .mx-tb tbody tr:hover td.p2 { background: #edf2f8; }
+    .mx-tb tbody tr:hover td.p3 { background: #edf2f8; }
+    .mx-tb tbody tr:hover td.p4 { background: #edf2f8; }
+
+    .rank-pos.gold { color: #faad14; }
+    .rank-pos.silver { color: #8c8c8c; }
+    .rank-pos.bronze { color: #d48806; }
+    .rank-name { font-weight: 500; color: #262626; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .rank-name .rank-dept { font-size: 11px; color: #8c8c8c; font-weight: 400; margin-left: 4px; }
+    .rank-score { font-size: 15px; font-weight: 700; color: #1890ff; min-width: 36px; text-align: right; }
+    .rank-label { font-size: 11px; color: #8c8c8c; min-width: 16px; }
+    .rank-bar-wrap { width: 100%; min-width: 50px; }
+    .score-bar-track { height: 8px; background: #f0f0f0; border-radius: 4px; overflow: hidden; }
+    .score-bar-fill { height: 100%; border-radius: 4px; }
+    .score-bar-fill.blue { background: linear-gradient(90deg, #1890ff, #40a9ff); }
+    .score-bar-fill.green { background: linear-gradient(90deg, #52c41a, #73d13d); }
+    .score-bar-fill.orange { background: linear-gradient(90deg, #fa8c16, #ffa940); }
+    .score-bar-fill.purple { background: linear-gradient(90deg, #722ed1, #9254de); }
+
+    /* Ranking Header */
+    .rank-header { display: grid; grid-template-columns: max-content 160px; align-items: center; justify-content: start; column-gap: 12px; margin-bottom: 16px; }
+    .rank-header label { font-size: 12px; color: #8c8c8c; white-space: nowrap; }
+    .rank-header select { height: 30px; padding: 0 24px 0 10px; border: 1px solid #d9d9d9; border-radius: 4px; font-size: 12px; color: #262626; background: #fff; cursor: pointer; outline: none; appearance: auto; }
+    .rank-header select:focus { border-color: #1890ff; }
+
+    .empty-state { text-align: center; padding: 40px 20px; color: #bfbfbf; font-size: 14px; }
+
+    /* Toast */
+    .toast { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: #262626; color: #fff; padding: 10px 24px; border-radius: 6px; font-size: 14px; z-index: 9999; opacity: 0; pointer-events: none; }
+    .toast.show { opacity: 1; }
+
+    @media (max-width: 768px) {
+      .sidebar { width: 200px; min-width: 200px; }
+      .rank-grid { flex-direction: column; }
+    }
+  
+    /* Scrollbar styling */
+    .mx-wrap::-webkit-scrollbar { height: 8px; background: transparent; }
+    .mx-wrap::-webkit-scrollbar-track { background: #f0f0f0; border-radius: 4px; }
+    .mx-wrap::-webkit-scrollbar-thumb { background: #c8ccd0; border-radius: 4px; min-width: 40px; }
+    .mx-wrap::-webkit-scrollbar-thumb:hover { background: #a0a4a8; }
+    
+    /* Toolbar refinement */
+    .tb-row { border: 1px solid #e8e8e8; }
+    .tb-row select { background: #fafafa; }
+    .tb-row select:hover { border-color: #1890ff; }
+    .tb-row button { box-shadow: 0 1px 2px rgba(0,0,0,0.06); }
+    .tb-row button:last-child { box-shadow: none; }
+    
+    /* Input focus glow */
+    .mx-tb tbody td .si:focus { border-color: #1890ff; box-shadow: 0 0 0 3px rgba(24,144,255,0.12); background: #fff; }
+    .mx-tb tbody td .si.filled { background: #eaf2fb; border-color: #1677cc; }
+    
+    /* Frozen cell background enhancement */
+    .mx-tb tbody td.p1 { background: #f8f9fb; }
+    .mx-tb tbody td.p2 { background: #f8f9fb; }
+    .mx-tb tbody td.p3 { background: #f8f9fb; }
+    .mx-tb tbody td.p4 { background: #f8f9fb; }
+    .mx-tb tbody tr:hover td.p1 { background: #eef0f5; }
+    .mx-tb tbody tr:hover td.p2 { background: #eef0f5; }
+    .mx-tb tbody tr:hover td.p3 { background: #eef0f5; }
+    .mx-tb tbody tr:hover td.p4 { background: #eef0f5; }
+    
+    /* Dropdown refinement */
+    .mx-tb tbody td select:hover { border-color: #1890ff !important; }
+    .mx-tb tbody td select:focus { border-color: #1890ff !important; box-shadow: 0 0 0 2px rgba(24,144,255,0.1); }
+    
+    /* Alternating row colors for data */
+    .mx-tb tbody tr:nth-child(even) td { background: #f9fafc; }
+    .mx-tb tbody tr:nth-child(even) td.p1 { background: #f5f6f8; }
+    .mx-tb tbody tr:nth-child(even) td.p2 { background: #f5f6f8; }
+    .mx-tb tbody tr:nth-child(even) td.p3 { background: #f5f6f8; }
+    .mx-tb tbody tr:nth-child(even) td.p4 { background: #f5f6f8; }
+    .mx-tb tbody tr:nth-child(even):hover td.p1 { background: #eaeef4; }
+    .mx-tb tbody tr:nth-child(even):hover td.p2 { background: #eaeef4; }
+    .mx-tb tbody tr:nth-child(even):hover td.p3 { background: #eaeef4; }
+    .mx-tb tbody tr:nth-child(even):hover td.p4 { background: #eaeef4; }
+    
+    /* Toast styling */
+    .toast { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: #262626; color: #fff; padding: 10px 24px; border-radius: 8px; font-size: 14px; z-index: 9999; opacity: 0; transition: opacity .3s; pointer-events: none; box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
+    .toast.show { opacity: 1; }
+  
+    .rank-tab { padding:6px 16px;border:none;border-radius:20px;background:#f5f5f5;color:#595959;font-size:13px;font-weight:500;cursor:pointer; }
+    .rank-tab:hover { background:#e8e8e8;color:#1890ff; }
+    .rank-tab.active { background:#e6f7ff;color:#1890ff;font-weight:600; }
+    .rank-tab:focus-visible { outline:2px solid #1890ff;outline-offset:2px; }
+    .rank-card { background:#fff;border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,0.04);overflow:hidden;border:1px solid #e8e8e8; }
+    .rank-card-hd { display:flex;align-items:center;gap:8px;padding:12px 16px;font-size:15px;font-weight:600;color:#262626;background:#f5f6f8;border-bottom:2px solid #e0e4e8; }
+    .rank-count { margin-left:auto;font-size:12px;color:#8c8c8c;font-weight:400; }
+    .rank-tb { width:100%;border-collapse:separate;border-spacing:0;table-layout:fixed; }
+    .rank-tb thead th { padding:0 12px;height:42px;background:#f5f6f8;font-weight:600;color:#595959;border-bottom:1px solid #e0e0e0;text-align:center;font-size:12px; }
+    .rank-tb thead th:first-child { border-radius:6px 0 0 0; }
+    .rank-tb thead th:last-child { border-radius:0 6px 0 0; }
+    .rank-tb tbody td { padding:0 12px;height:44px;border-bottom:1px solid #f0f0f0;font-size:13px;color:#333;text-align:center; }
+    .rank-tb tbody tr:hover td { background:#f5f7fa; }
+    .rank-tb tbody tr:last-child td { border-bottom:none; }
+  
+    .page-hd { margin-bottom:18px; }
+    .page-title { font-size:22px;font-weight:600;color:#262626;margin:0; }
+    .page-desc { font-size:13px;color:#8c8c8c;margin-top:4px; }
+  
+    .bc { display:flex;align-items:center;gap:6px;font-size:12px;color:#8c8c8c;margin-bottom:14px; }
+    .bc-sep { color:#d9d9d9; }
+    .bc-current { color:#595959; }
+    
+    .top-card { display:flex;align-items:flex-start;justify-content:space-between;padding:16px 20px;background:#fff;border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,0.04);margin-bottom:14px; }
+    .top-title { font-size:22px;font-weight:700;color:#262626;margin:0;line-height:1.3; }
+    .top-subtitle { font-size:12px;color:#8c8c8c;margin-top:2px; }
+    .top-card-right { display:flex;gap:8px; }
+    .top-btn { display:inline-flex;align-items:center;gap:4px;height:32px;padding:0 14px;border:1px solid #d9d9d9;border-radius:6px;background:#fff;color:#595959;font-size:12px;cursor:pointer; }
+    .top-btn:hover { border-color:#1890ff;color:#1890ff; }
+    .top-btn.primary { background:#1890ff;border-color:#1890ff;color:#fff; }
+    .top-btn.primary:hover { background:#40a9ff; }
+    .top-btn:focus-visible { outline:2px solid #1890ff;outline-offset:2px; }
+
+    .filter-row { display:flex;align-items:center;gap:8px;padding:8px 14px;background:#fff;border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,0.04);margin-bottom:14px; }
+    .filter-row label { font-size:12px;color:#8c8c8c; }
+    .filter-row select { height:30px;padding:0 20px 0 8px;border:1px solid #d9d9d9;border-radius:4px;font-size:12px;outline:none; }
+
+    .rank-badge { display:inline-flex;align-items:center;justify-content:center;min-width:24px;height:24px;border-radius:12px;font-size:11px;font-weight:600;color:#fff;padding:0 6px; }
+    .rank-badge.silver { background:linear-gradient(135deg,#e8e8e8,#d0d0d0);color:#666; }
+    .rank-badge.bronze { background:linear-gradient(135deg,#f5d6a8,#e8b870);color:#8b5e00; }
+    .rank-badge.plain { background:#f0f0f0;color:#999; }
+
+    .trend-up { color:#ff4d4f;font-weight:600; }
+    .trend-down { color:#52c41a;font-weight:600; }
+    .trend-flat { color:#d9d9d9; }
+
+    .rank-footer { display:flex;align-items:center;justify-content:space-between;padding:10px 16px;border-top:1px solid #f0f0f0;font-size:11px;color:#8c8c8c; }
+    .rank-footer span { display:flex;align-items:center;gap:4px; }
+  </style>
+</head>
+<body>
+<div class="app">
+
+  <!-- ===== Sidebar ===== -->
+  <aside class="sidebar">
+    <div class="logo-wrap">
+      <div class="logo-icon">运</div>
+      <span class="logo-text">运筹马年</span>
+    </div>
+    <nav class="nav">
+      <div class="nav-group">
+        <div class="nav-group-title">首页</div>
+        <div class="nav-item" onclick="location.href='02-工作台-菜单02.html'" style="cursor:pointer;">
+          <i class="nav-icon" data-lucide="layout-dashboard"></i>
+          <span class="nav-txt">工作台</span>
+        </div>
+      </div>
+      <div class="nav-group">
+        <div class="nav-group-title">业务核心</div>
+        <div class="nav-item" onclick="location.href='03_01-客户列表-菜单03.html'" style="cursor:pointer;">
+          <i class="nav-icon" data-lucide="users"></i>
+          <span class="nav-txt">客户管理</span>
+        </div>
+        <div class="nav-item" onclick="location.href='04-文件管理-菜单04.html'" style="cursor:pointer;">
+          <i class="nav-icon" data-lucide="folder"></i>
+          <span class="nav-txt">文件管理</span>
+        </div>
+        <div class="nav-item" onclick="toggleIncentiveSub(this)" style="cursor:pointer;">
+          <i class="nav-icon" data-lucide="database"></i>
+          <span class="nav-txt">四项激励Plus版</span>
+          <i class="sub-arrow" data-lucide="chevron-down" style="width:14px;height:14px;opacity:0.6;transition:transform .2s;"></i>
+        </div>
+        <div class="nav-sub" id="incentiveSub" style="display:none;">
+          <div class="nav-sub-item" onclick="location.href='05_02-激励上传-菜单05.html'">
+            <i data-lucide="upload-cloud" style="width:14px;height:14px;"></i> 激励上传
+          </div>
+          <div class="nav-sub-item" onclick="location.href='05_01-激励统计-菜单05.html'">
+            <i data-lucide="bar-chart-3" style="width:14px;height:14px;"></i> 激励统计
+          </div>
+        </div>
+        <div class="nav-item" onclick="location.href='06-提醒管理-菜单06.html'" style="cursor:pointer;">
+          <i class="nav-icon" data-lucide="bell"></i>
+          <span class="nav-txt">提醒管理</span>
+          <span class="nav-badge warn">3</span>
+        </div>
+        <div class="nav-item" onclick="location.href='07_01-公海池-菜单07.html'" style="cursor:pointer;">
+          <i class="nav-icon" data-lucide="sailboat"></i>
+          <span class="nav-txt">公海管理</span>
+        </div>
+        <div class="nav-item" onclick="location.href='08-审批管理-菜单08.html'" style="cursor:pointer;">
+          <i class="nav-icon" data-lucide="check-circle"></i>
+          <span class="nav-txt">审批管理</span>
+          <span class="nav-badge primary">2</span>
+        </div>
+      </div>
+      <div class="nav-group">
+        <div class="nav-group-title">考核与分析</div>
+        <div class="nav-item" onclick="location.href='09-统计分析-菜单09.html'" style="cursor:pointer;">
+          <i class="nav-icon" data-lucide="bar-chart-3"></i>
+          <span class="nav-txt">统计分析</span>
+        </div>
+        <div class="nav-item active" onclick="toggleScoreSub(this)" style="cursor:pointer;">
+          <i class="nav-icon" data-lucide="trophy"></i>
+          <span class="nav-txt">积分榜</span>
+          <i class="sub-arrow" data-lucide="chevron-down" style="width:14px;height:14px;opacity:0.6;transition:transform .2s;"></i>
+        </div>
+        <div class="nav-sub" id="scoreSub" style="display:block;">
+          <div class="nav-sub-item" onclick="location.href='10_01-积分录入-菜单10.html'">
+            <i data-lucide="edit-3" style="width:14px;height:14px;"></i> 📝 积分录入
+          </div>
+          <div class="nav-sub-item" onclick="location.href='10_02-积分排行-菜单10.html'">
+            <i data-lucide="bar-chart-3" style="width:14px;height:14px;"></i> 🏆 个人排行
+          </div>
+          <div class="nav-sub-item active" onclick="location.href='10_03-部门排行-菜单10.html'">
+            <i data-lucide="building-2" style="width:14px;height:14px;"></i> 🏅 部门排行
+          </div>
+        </div>
+      </div>
+      <div class="nav-group">
+        <div class="nav-group-title">系统管理</div>
+        <div class="nav-item" onclick="toggleOrgSub(this)" style="cursor:pointer;">
+          <i class="nav-icon" data-lucide="building-2"></i>
+          <span class="nav-txt">组织架构</span>
+          <i class="sub-arrow" data-lucide="chevron-down" style="width:14px;height:14px;opacity:0.6;transition:transform .2s;"></i>
+        </div>
+        <div class="nav-sub" id="orgSub" style="display:none;">
+          <div class="nav-sub-item" onclick="location.href='11-组织架构-菜单11.html'">
+            <i data-lucide="users" style="width:14px;height:14px;"></i> 人员列表
+          </div>
+          <div class="nav-sub-item" onclick="location.href='11-组织架构-菜单11.html'">
+            <i data-lucide="layers" style="width:14px;height:14px;"></i> 部门管理
+          </div>
+          <div class="nav-sub-item" onclick="location.href='11-组织架构-菜单11.html'">
+            <i data-lucide="briefcase" style="width:14px;height:14px;"></i> 岗位设置
+          </div>
+          <div class="nav-sub-item" onclick="location.href='11-组织架构-菜单11.html'">
+            <i data-lucide="shield" style="width:14px;height:14px;"></i> 权限设置
+          </div>
+        </div>
+        <div class="nav-item" onclick="location.href='12-系统设置-菜单12.html'" style="cursor:pointer;">
+          <i class="nav-icon" data-lucide="settings"></i>
+          <span class="nav-txt">系统设置</span>
+        </div>
+        <div class="nav-item" onclick="location.href='13-日志管理-菜单13.html'" style="cursor:pointer;">
+          <i class="nav-icon" data-lucide="file-text"></i>
+          <span class="nav-txt">日志管理</span>
+        </div>
+      </div>
+    </nav>
+  </aside>
+
+  <!-- ===== Main Area ===== -->
+  <div class="main">
+
+    <!-- ===== Topbar ===== -->
+    <header class="topbar">
+      <div class="topbar-left">
+        <span class="topbar-title">部门排行榜</span>
+        <div class="breadcrumb">
+          <i data-lucide="home" style="width:14px;height:14px;"></i>
+          <span>首页</span>
+          <span style="color:#bfbfbf;margin:0 4px;">/</span>
+          <span>考核与分析</span>
+          <span style="color:#bfbfbf;margin:0 4px;">/</span>
+          <span style="color:#262626;font-weight:500;">部门排行</span>
+        </div>
+      </div>
+      <div class="topbar-right">
+        <i data-lucide="bell" style="width:18px;height:18px;color:#8c8c8c;cursor:pointer;"></i>
+        <i data-lucide="help-circle" style="width:18px;height:18px;color:#8c8c8c;cursor:pointer;"></i>
+        <div class="user-info">
+          <div class="user-avatar">吴</div>
+          <span class="user-name">吴哲</span>
+          <span class="user-org">· 总部 系统管理员</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- ===== Content ===== -->
+    <div class="content">          <!-- Breadcrumb -->
+          <div class="bc"><span>考核与分析</span><span class="bc-sep">/</span><span class="bc-current">积分排行榜</span></div>
+
+          <!-- Top Card Header -->
+          <div class="top-card">
+            <div class="top-card-left">
+              <h1 class="top-title">积分排行榜</h1>
+              <p class="top-subtitle">本周数据 · 截止 2026-06-06 18:00</p>
+            </div>
+            <div class="top-card-right">
+              <button class="top-btn" onclick="alert('积分规则')" aria-label="积分规则"><i data-lucide="book-open" style="width:14px;height:14px;"></i> 积分规则</button>
+              <button class="top-btn primary" onclick="alert('导出')" aria-label="导出"><i data-lucide="download" style="width:14px;height:14px;"></i> 导出</button>
+            </div>
+          </div>
+
+          <!-- Filter -->
+          <div class="filter-row">
+            <label>评分周期</label>
+            <select id="rankPeriod" onchange="renderRank();renderActiveRank();" aria-label="周期">
+              <option>全部</option><option>2026上半年</option><option>2026下半年</option>
+            </select>
+          </div>
+
+          <!-- Ranking Table Card -->
+          <div class="rank-card">
+            <table class="rank-tb" id="rankTable">
+              <colgroup>
+                <col style="width:64px;"><col style="width:180px;"><col style="width:110px;">
+                <col style="width:90px;"><col style="width:90px;"><col style="width:70px;">
+              </colgroup>
+              <thead>
+                <tr>
+                  <th>排名</th>
+                  <th style="text-align:left;">姓名</th>
+                  <th>办事处</th>
+                  <th>总积分</th>
+                  <th>文件数</th>
+                  <th>趋势</th>
+                </tr>
+              </thead>
+              <tbody id="rankBody">
+              </tbody>
+            </table>
+
+            <!-- Footer -->
+            <div class="rank-footer">
+              <span>⚖️ 积分相同按文件数排序</span>
+              <span id="rankUpdated">📅 最近更新：2026-06-06 18:00</span>
+            </div>
+          </div><!-- /rank-card -->
+
+          <!-- Dept Ranking -->
+          <div class="rank-card" style="margin-top:14px;">
+            <div class="rank-card-hd">
+              <i data-lucide="building-2" style="width:16px;height:16px;color:#1890ff;"></i> 部门排行榜
+              <span class="rank-count" id="deptCount"></span>
+              <button class="top-btn" onclick="exportRankExcel()" style="margin-left:auto;height:30px;font-size:12px;" aria-label="导出Excel"><i data-lucide="download" style="width:13px;height:13px;"></i> 导出Excel</button>
+            </div>
+            <table class="rank-tb">
+              <colgroup>
+                <col style="width:64px;"><col style="width:180px;"><col style="width:100px;"><col style="width:100px;">
+              </colgroup>
+              <thead>
+                <tr>
+                  <th>排名</th>
+                  <th style="text-align:left;">部门</th>
+                  <th>总积分</th>
+                  <th>参与人数</th>
+                </tr>
+              </thead>
+              <tbody id="deptRankBody"></tbody>
+            </table>
+            <div class="rank-footer">
+              <span>⚖️ 积分相同按文件数排序</span>
+              <span>📅 最近更新：2026-06-06 18:00</span>
+            </div>
+          </div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+  // ===== Auto-seed mock data =====
+  (function() {
+    var existing = localStorage.getItem('score_data');
+    if (!existing || existing === '{}') {
+      var mock = {"吴哲_2026上半年":{"1_王磊磊":5,"1_李明":4,"1_张三":3,"1_赵四":4,"1_马文杰":2,"2_王磊磊":4,"2_李明":3,"2_张三":2,"2_赵四":5,"2_马文杰":1,"3_王磊磊":3,"3_李明":2,"3_张三":1,"3_赵四":4,"3_马文杰":0,"4_王磊磊":5,"4_李明":4,"4_张三":3,"4_赵四":3,"4_马文杰":2,"5_王磊磊":2,"5_李明":3,"5_张三":4,"5_赵四":3,"5_马文杰":1,"6_王磊磊":4,"6_李明":3,"6_张三":0,"6_赵四":2,"6_马文杰":0,"7_王磊磊":3,"7_李明":2,"7_张三":2,"7_赵四":1,"7_马文杰":1,"8_王磊磊":5,"8_李明":4,"8_张三":3,"8_赵四":4,"8_马文杰":2,"9_王磊磊":2,"9_李明":1,"9_张三":0,"9_赵四":3,"9_马文杰":0,"10_王磊磊":3,"10_李明":2,"10_张三":1,"10_赵四":4,"10_马文杰":0,"11_王磊磊":4,"11_李明":3,"11_张三":2,"11_赵四":2,"11_马文杰":1,"12_王磊磊":2,"12_李明":1,"12_张三":0,"12_赵四":3,"12_马文杰":0,"13_王磊磊":3,"13_李明":2,"13_张三":1,"13_赵四":4,"13_马文杰":0,"14_王磊磊":4,"14_李明":3,"14_张三":2,"14_赵四":2,"14_马文杰":1,"15_王磊磊":3,"15_李明":2,"15_张三":1,"15_赵四":2,"15_马文杰":0,"16_王磊磊":2,"16_李明":1,"16_张三":0,"16_赵四":3,"16_马文杰":0,"17_王磊磊":1,"17_李明":0,"17_张三":0,"17_赵四":2,"17_马文杰":0,"18_王磊磊":4,"18_李明":3,"18_张三":2,"18_赵四":5,"18_马文杰":1,"19_王磊磊":3,"19_李明":2,"19_张三":1,"19_赵四":4,"19_马文杰":0,"20_王磊磊":3,"20_李明":2,"20_张三":1,"20_赵四":3,"20_马文杰":0,"21_王磊磊":2,"21_李明":1,"21_张三":0,"21_赵四":3,"21_马文杰":0,"22_王磊磊":3,"22_李明":2,"22_张三":1,"22_赵四":2,"22_马文杰":0}};
+      localStorage.setItem('score_data', JSON.stringify(mock));
+    }
+  })();
+
+  function toggleOrgSub(el) {
+    var sub = document.getElementById('orgSub');
+    var arrow = el.querySelector('.sub-arrow');
+    if (!sub) return;
+    sub.style.display = sub.style.display === 'none' ? 'block' : 'none';
+    if (arrow) arrow.style.transform = sub.style.display === 'block' ? 'rotate(0deg)' : 'rotate(-90deg)';
+  }
+
+  // ===== Category Data (22 rows) =====
+  const CATS = [
+    {id:1, cat:'盘根类', sub:'盘根、成型环、填料及工具'},
+    {id:2, cat:'机封类', sub:'新机封'},
+    {id:3, cat:'机封类', sub:'机封维修、机封备件'},
+    {id:4, cat:'轴承保护器', sub:'轴承保护器'},
+    {id:5, cat:'橡胶密封类', sub:'液压支架'},
+    {id:6, cat:'橡胶密封类', sub:'液压气动密封及O圈'},
+    {id:7, cat:'橡胶密封类', sub:'CNC及备件、管/棒料'},
+    {id:8, cat:'修缸类', sub:'修缸/新缸'},
+    {id:9, cat:'垫片类', sub:'垫片类'},
+    {id:10, cat:'油封类', sub:'浮动油封、普通油封'},
+    {id:11, cat:'碟簧类', sub:'碟簧类'},
+    {id:12, cat:'润滑类', sub:'工业润滑油脂类（脂、油）'},
+    {id:13, cat:'润滑类', sub:'特种润滑剂类、加脂器及润滑工具类'},
+    {id:14, cat:'涂层类', sub:'防滑板'},
+    {id:15, cat:'涂层类', sub:'全固体聚合涂层'},
+    {id:16, cat:'冷缠防腐', sub:'冷缠防腐带及胶泥'},
+    {id:17, cat:'其他类', sub:'防喷溅、超级包加固、特润氟螺栓等'},
+    {id:18, cat:'公司宣传', sub:'集团介绍'},
+    {id:19, cat:'工艺流程', sub:'某行业客户的工艺流程图'},
+    {id:20, cat:'项目分享', sub:'某一设备或分厂的成功案例'},
+    {id:21, cat:'其他分享', sub:'读书、销售体会等'},
+    {id:22, cat:'成功分享', sub:'年会内容/等'},
+  ];
+
+  const PERSONS = [
+    {id:'李帮文',name:'李帮文'},{id:'朱莉莉',name:'朱莉莉'},
+    {id:'刘月起',name:'刘月起'},{id:'武乔',name:'武乔'},
+    {id:'赵柯',name:'赵柯'},{id:'王建平',name:'王建平'},
+    {id:'石力',name:'石力'},{id:'陈晓彬',name:'陈晓彬'},
+    {id:'王磊磊',name:'王磊磊'},{id:'李明',name:'李明'},
+    {id:'张三',name:'张三'},{id:'赵四',name:'赵四'},
+  ];
+
+  function loadScores() {
+    try { return JSON.parse(localStorage.getItem('score_data') || '{}'); } catch(e) { return {}; }
+  }
+  function saveScores(s) { localStorage.setItem('score_data', JSON.stringify(s)); }
+
+  function getPeriods() {
+    try { return JSON.parse(localStorage.getItem('score_periods') || '["2026上半年","2026下半年"]'); }
+    catch(e) { return ['2026上半年','2026下半年']; }
+  }
+  function savePeriods(ps) { localStorage.setItem('score_periods', JSON.stringify(ps)); }
+  function initPeriods() {
+    var ps = getPeriods();
+    var sel = document.getElementById('selPeriod');
+    sel.innerHTML = '';
+    ps.forEach(function(p) {
+      var opt = document.createElement('option');
+      opt.textContent = p;
+      sel.appendChild(opt);
+    });
+  }
+  function addYear() {
+    var year = prompt('请输入年份（如 2027）：');
+    if (!year || !/^\d{4}$/.test(year)) return;
+    var ps = getPeriods();
+    var news = [year+'上半年', year+'下半年'];
+    var added = false;
+    news.forEach(function(p) {
+      if (ps.indexOf(p) < 0) { ps.push(p); added = true; }
+    });
+    if (!added) { alert('该年份已存在'); return; }
+    ps.sort();
+    savePeriods(ps);
+    initPeriods();
+    document.getElementById('selPeriod').value = year+'上半年';
+    render();
+  }
+
+  function getPersonKey(p) { return p.id || p.name || p; }
+
+  function render() {
+    var period = document.getElementById('selPeriod').value;
+    var scorer = document.getElementById('selScorer').value;
+    var key = scorer + '_' + period;
+    var scores = loadScores();
+    if (!scores[key]) scores[key] = {};
+
+    // Build colgroup
+    var cg = '<colgroup>';
+    cg += '<col style="width:14px;"><col style="width:44px;"><col style="width:10px;"><col style="width:22px;">';
+    PERSONS.forEach(function(){ cg += '<col style="width:76px;">'; });
+    cg += '</colgroup>';
+    document.getElementById('mxColgroup').innerHTML = cg;
+
+    // Build header row 1
+    var h1 = '<tr class="row1">';
+    h1 += '<th class="pin c1 share-hd" colspan="4">分享内容</th>';
+    h1 += '<th class="pin c1 colleague-hd" colspan="' + PERSONS.length + '">同事姓名</th></tr>';
+    
+    // Build header row 2
+    var h2 = '<tr class="row2">';
+    h2 += '<th class="pin c1">#</th><th class="pin c2">大类</th><th class="pin c3">产品</th><th class="pin c4">区间</th>';
+    PERSONS.forEach(function(p){ h2 += '<th class="pname">' + p.name + '</th>'; });
+    h2 += '</tr>';
+    
+    document.getElementById('mxHead').innerHTML = h1 + h2;
+
+    // Build body rows
+    var body = '';
+    var totals = {};
+    PERSONS.forEach(function(p){ totals[getPersonKey(p)] = 0; });
+    
+    var prevCat = '';
+    CATS.forEach(function(cat, i){
+      var rowspan = 1;
+      // Count consecutive same cats for rowspan
+      var span = 1;
+      for(var j=i+1; j<CATS.length; j++) {
+        if(CATS[j].cat === cat.cat) span++; else break;
+      }
+      var isFirst = (i === 0 || CATS[i-1].cat !== cat.cat);
+      var showCat = isFirst ? cat.cat : '';
+      
+      body += '<tr>';
+        body += '<td class="pin p1" style="vertical-align:middle;">' + cat.id + '</td>';
+        // Category dropdown (each row independent)
+        var catOpts = getUniqueCats().map(function(c){ return '<option value="'+c+'" '+(c===cat.cat?'selected':'')+'>'+c+'</option>'; }).join('');
+        body += '<td class="pin p2" style="padding:2px !important;vertical-align:middle;"><select class="cs" data-rowid="'+cat.id+'" onchange="changeCat(this)" aria-label="选择大类" style="width:100%;height:24px;border:1px solid #d0d4d8;border-radius:4px;font-size:15px;color:#262626;background:#fff;padding:0 4px;outline:none;cursor:pointer;">'+catOpts+'</select></td>';
+      // Sub-category dropdown (each row independent)
+      var subOpts = CATS.filter(function(x){ return x.cat === cat.cat; }).map(function(x){ return '<option value="'+x.id+'" '+(x.id===cat.id?'selected':'')+'>'+x.sub+'</option>'; }).join('');
+      body += '<td class="pin p3" style="padding:2px !important;"><select class="ss" data-rowid="'+cat.id+'" data-cat="'+cat.cat+'" onchange="changeSub(this)" aria-label="选择产品" style="width:100%;height:24px;border:1px solid #d0d4d8;border-radius:4px;font-size:15px;color:#595959;background:#fff;padding:0 4px;outline:none;cursor:pointer;">'+subOpts+'</select></td>';
+      body += '<td class="pin p4">0~5</td>';
+      
+      PERSONS.forEach(function(p){
+        var pk = getPersonKey(p);
+        var cellKey = cat.id + '_' + pk;
+        var val = scores[key][cellKey];
+        var hasVal = (val !== undefined && val !== null && val !== '');
+        var filled = hasVal ? ' filled' : '';
+        body += '<td><input class="si' + filled + '" type="number" min="0" max="5" value="' + (hasVal ? val : '') + '" data-key="' + cellKey + '" onchange="updateScore(this)" aria-label="评分"></td>';
+        if(hasVal) totals[pk] += parseInt(val);
+      });
+      body += '</tr>';
+    });
+
+    // Total row
+    body += '<tr><td class="pin p1" colspan="4" style="font-weight:700;color:#262626;text-align:center;">合计</td>';
+    PERSONS.forEach(function(p){
+      body += '<td class="pt">' + (totals[getPersonKey(p)] || 0) + '</td>';
+    });
+    body += '</tr>';
+
+    document.getElementById('mxBody').innerHTML = body;
+
+    // Update hint
+    var maxScore = 0, maxPerson = '';
+    PERSONS.forEach(function(p){
+      var v = totals[getPersonKey(p)] || 0;
+      if(v > maxScore){ maxScore = v; maxPerson = p.name; }
+    });
+    var avg = Math.round(PERSONS.reduce(function(s,p){ return s + (totals[getPersonKey(p)]||0); }, 0) / PERSONS.length);
+    document.getElementById('hintMsg').textContent = maxScore > 0 ? '当前最高：' + maxPerson + '(' + maxScore + '分) · 平均：' + avg + '分' : '点击单元格输入 0-5 分';
+    
+    if (window.lucide) lucide.createIcons();
+  }
+
+  function updateScore(inp) {
+    var key = inp.getAttribute('data-key');
+    var val = inp.value;
+    var period = document.getElementById('selPeriod').value;
+    var scorer = document.getElementById('selScorer').value;
+    var scores = loadScores();
+    var sk = scorer + '_' + period;
+    if(!scores[sk]) scores[sk] = {};
+    if(val === '' || val < 0 || val > 5) { delete scores[sk][key]; inp.classList.remove('filled'); }
+    else { scores[sk][key] = parseInt(val); inp.classList.add('filled'); }
+    saveScores(scores);
+    render();
+  }
+
+  function saveAll() { alert('✅ 评分已保存'); }
+  function exportCSV() { 
+    var csv = '\uFEFF#,大类,产品,区间';
+    PERSONS.forEach(function(p){ csv += ',' + p.name; });
+    csv += '\n';
+    CATS.forEach(function(cat){
+      csv += cat.id + ',' + cat.cat + ',' + cat.sub + ',0~5';
+      var scores = loadScores();
+      var key = document.getElementById('selScorer').value + '_' + document.getElementById('selPeriod').value;
+      var data = scores[key] || {};
+      PERSONS.forEach(function(p){
+        csv += ',' + (data[cat.id + '_' + getPersonKey(p)] || '');
+      });
+      csv += '\n';
+    });
+    var blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = '评分矩阵.csv';
+    a.click();
+  }
+  function addRow() {
+    var newId = CATS.length + 1;
+    CATS.push({id:newId, cat:'新分类', sub:'请填写产品名称'});
+    render();
+    alert('✅ 已添加新行');
+  }
+  function resetAll() {
+    if(!confirm('确认重置所有评分？')) return;
+    var key = document.getElementById('selScorer').value + '_' + document.getElementById('selPeriod').value;
+    var scores = loadScores();
+    delete scores[key];
+    saveScores(scores);
+    render();
+  }
+
+  // 初始化排名渲染
+  renderRank();
+  renderDeptRank();
+
+  function getUniqueCats() {
+    var names = {}; CATS.forEach(function(c){ names[c.cat] = true; }); return Object.keys(names);
+  }
+  function changeCat(sel) {
+    var rowId = parseInt(sel.getAttribute('data-rowid'));
+    var newCat = sel.value;
+    // Find this item in CATS
+    for(var i=0; i<CATS.length; i++) {
+      if(CATS[i].id === rowId) { CATS[i].cat = newCat; break; }
+    }
+    render();
+  }
+  function changeSub(sel) {
+    var rowId = parseInt(sel.getAttribute('data-rowid'));
+    var newId = parseInt(sel.value);
+    var period = document.getElementById('selPeriod').value;
+    var scorer = document.getElementById('selScorer').value;
+    var scores = loadScores();
+    var key = scorer + '_' + period;
+    if(!scores[key]) scores[key] = {};
+    // Migrate scores
+    PERSONS.forEach(function(p){
+      var oldK = rowId + '_' + getPersonKey(p);
+      var newK = newId + '_' + getPersonKey(p);
+      if(scores[key][oldK] !== undefined) { scores[key][newK] = scores[key][oldK]; delete scores[key][oldK]; }
+    });
+    // Update CATS
+    var item = CATS.find(function(x){ return x.id === rowId; });
+    var newItem = CATS.find(function(x){ return x.id === newId; });
+    if(item && newItem) { item.cat = newItem.cat; item.sub = newItem.sub; }
+    saveScores(scores);
+    render();
+  }
+
+  function toggleIncentiveSub(el) {
+    var sub = document.getElementById('incentiveSub');
+    var arrow = el.querySelector('.sub-arrow');
+    if (!sub) return;
+    sub.style.display = sub.style.display === 'none' ? 'block' : 'none';
+    if (arrow) arrow.style.transform = sub.style.display === 'block' ? 'rotate(0deg)' : 'rotate(-90deg)';
+  }
+
+function toggleScoreSub(el) {
+  var sub = document.getElementById('scoreSub');
+  if (!sub) return;
+  var arrow = el.querySelector('.sub-arrow');
+  sub.style.display = sub.style.display === 'none' ? 'block' : 'none';
+  if (arrow) arrow.style.transform = sub.style.display === 'block' ? 'rotate(0deg)' : 'rotate(-90deg)';
+}
+
+  var rankTab = 'person';
+
+  function switchRankTab(tab) {
+    rankTab = tab;
+    document.querySelectorAll('.rank-tab').forEach(function(el,i){ el.classList.toggle('active', (i===0 && tab==='person') || (i===1 && tab==='dept')); });
+    document.querySelectorAll('.rank-view').forEach(function(el){ el.style.display = 'none'; });
+    var target = document.getElementById('rank' + tab.charAt(0).toUpperCase() + tab.slice(1));
+    if (target) target.style.display = '';
+    var pc = document.getElementById('personCount'); if (pc) pc.style.display = tab === 'person' ? '' : 'none';
+    var dc = document.getElementById('deptCount'); if (dc) dc.style.display = tab === 'dept' ? '' : 'none';
+    renderActiveRank();
+  }
+
+  function renderActiveRank() {
+    if(rankTab === 'person') renderPersonRank();
+    else renderDeptRank();
+  }
+
+  function getRankData(period) {
+    var persons = [
+      {id:'王磊磊',name:'王磊磊',dept:'内蒙办'},{id:'李明',name:'李明',dept:'内蒙办'},
+      {id:'张三',name:'张三',dept:'太原办'},{id:'赵四',name:'赵四',dept:'内蒙办'},
+      {id:'马文杰',name:'马文杰',dept:'总部'}
+    ];
+    var scores = JSON.parse(localStorage.getItem('score_data') || '{}');
+    
+    persons.forEach(function(p){
+      var total = 0, files = 0;
+      Object.keys(scores).forEach(function(sk) {
+        if (period !== '全部' && sk.indexOf('_' + period) < 0) return;
+        var data = scores[sk];
+        Object.keys(data).forEach(function(ck) {
+          var parts = ck.split('_');
+          if (parts.length > 1 && parts.slice(1).join('_') === p.id) {
+            total += parseInt(data[ck]) || 0; files++;
+          }
+        });
+      });
+      p.score = total; p.files = files;
+    });
+    return persons;
+  }
+
+  function renderPersonRank() {
+    var period = document.getElementById('rankPeriod').value;
+    var data = getRankData(period);
+    data.sort(function(a,b){ return b.score - a.score; });
+    
+    var html = '';
+    data.forEach(function(r, i) {
+      var m = i===0 ? '🥇' : i===1 ? '🥈' : i===2 ? '🥉' : (i+1);
+      html += '<tr><td style="font-size:16px;">'+m+'</td><td style="font-weight:500;text-align:left;">'+r.name+'</td><td style="color:#8c8c8c;">'+r.dept+'</td><td style="font-weight:700;color:#1890ff;">'+r.score+'分</td><td>'+r.files+'个</td></tr>';
+    });
+    if(data.length===0) html = '<tr><td colspan="5" style="padding:30px;text-align:center;color:#bfbfbf;">暂无数据</td></tr>';
+    document.getElementById('personRankBody').innerHTML = html;
+    document.getElementById('personCount').textContent = data.length + '人';
+    lucide.createIcons();
+  }
+
+  function renderDeptRank() {
+    var period = document.getElementById('rankPeriod').value;
+    var persons = getRankData(period);
+    var deptMap = {};
+    persons.forEach(function(p){ if(!deptMap[p.dept]) deptMap[p.dept] = {score:0, persons:{}}; });
+    persons.forEach(function(p){ if(deptMap[p.dept]) { deptMap[p.dept].score += p.score; deptMap[p.dept].persons[p.name]=true; }});
+    var data = Object.keys(deptMap).map(function(d){ return {dept:d, score:deptMap[d].score, count:Object.keys(deptMap[d].persons).length}; });
+    data.sort(function(a,b){ return b.score - a.score; });
+    
+    var html = '';
+    data.forEach(function(r, i) {
+      var m = i===0 ? '🥇' : i===1 ? '🥈' : i===2 ? '🥉' : (i+1);
+      html += '<tr><td style="font-size:16px;">'+m+'</td><td style="font-weight:500;text-align:left;">'+r.dept+'</td><td style="font-weight:700;color:#1890ff;">'+r.score+'分</td><td>'+r.count+'人</td></tr>';
+    });
+    if(data.length===0) html = '<tr><td colspan="4" style="padding:30px;text-align:center;color:#bfbfbf;">暂无数据</td></tr>';
+    document.getElementById('deptRankBody').innerHTML = html;
+    document.getElementById('deptCount').textContent = data.length + '个部门';
+    lucide.createIcons();
+  }
+
+  function exportRankExcel() {
+    var period = document.getElementById('rankPeriod').value;
+    var data = getRankData(period);
+    var csv = '\uFEFF';
+    
+    if (rankTab === 'person') {
+      data.sort(function(a,b){ return b.score - a.score; });
+      csv += '排名,姓名,办事处,总积分,文件数\n';
+      data.forEach(function(r, i) {
+        csv += (i+1) + ',' + r.name + ',' + r.dept + ',' + r.score + ',' + r.files + '\n';
+      });
+    } else {
+      var deptMap = {};
+      data.forEach(function(p){ if(!deptMap[p.dept]) deptMap[p.dept] = {score:0, persons:{}}; });
+      data.forEach(function(p){ if(deptMap[p.dept]) { deptMap[p.dept].score += p.score; deptMap[p.dept].persons[p.name]=true; }});
+      var depts = Object.keys(deptMap).map(function(d){ return {dept:d, score:deptMap[d].score, count:Object.keys(deptMap[d].persons).length}; });
+      depts.sort(function(a,b){ return b.score - a.score; });
+      csv += '排名,部门,总积分,参与人数\n';
+      depts.forEach(function(r, i) {
+        csv += (i+1) + ',' + r.dept + ',' + r.score + ',' + r.count + '\n';
+      });
+    }
+    
+    var blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = (rankTab === 'person' ? '个人排行榜' : '部门排行榜') + '_' + period + '.csv';
+    a.click();
+  }
+
+  renderPersonRank();
+
+  function getRankData(period) {
+    var persons = [
+      {id:'王磊磊',name:'王磊磊',dept:'内蒙办'},{id:'李明',name:'李明',dept:'内蒙办'},
+      {id:'张三',name:'张三',dept:'太原办'},{id:'赵四',name:'赵四',dept:'内蒙办'},
+      {id:'马文杰',name:'马文杰',dept:'总部'}
+    ];
+    var scores = JSON.parse(localStorage.getItem('score_data') || '{}');
+    // Seed mock data if empty
+    if (Object.keys(scores).length === 0) {
+      scores = {
+        'share_2026Q2': { id1_王磊磊: 5, id2_李明: 3, id3_张三: 4, id4_赵四: 6, id5_马文杰: 2 },
+        'visit_2026Q2': { id1_王磊磊: 3, id2_李明: 5, id3_张三: 2, id4_赵四: 1, id5_马文杰: 4 },
+        'talk_2026Q2':  { id1_王磊磊: 4, id2_李明: 2, id3_张三: 5, id4_赵四: 3, id5_马文杰: 3 },
+        'product_2026Q2': { id1_王磊磊: 2, id2_李明: 4, id3_张三: 1, id4_趙四: 5, id5_马文杰: 6 }
+      };
+      localStorage.setItem('score_data', JSON.stringify(scores));
+    }
+    var prevScores = JSON.parse(localStorage.getItem('score_data_prev') || '{}');
+    // Seed prev period data if empty
+    if (Object.keys(prevScores).length === 0) {
+      prevScores = {
+        'share_2026Q1': { id1_王磊磊: 4, id2_李明: 2, id3_张三: 3, id4_赵四: 5, id5_马文杰: 1 },
+        'visit_2026Q1': { id1_王磊磊: 2, id2_李明: 4, id3_张三: 1, id4_赵四: 2, id5_马文杰: 3 },
+        'talk_2026Q1':  { id1_王磊磊: 3, id2_李明: 1, id3_张三: 4, id4_赵四: 2, id5_马文杰: 2 },
+        'product_2026Q1': { id1_王磊磊: 1, id2_李明: 3, id3_张三: 2, id4_赵四: 4, id5_马文杰: 5 }
+      };
+      localStorage.setItem('score_data_prev', JSON.stringify(prevScores));
+    }
+
+    persons.forEach(function(p){
+      var total = 0, files = 0;
+      Object.keys(scores).forEach(function(sk) {
+        if (period !== '全部' && sk.indexOf('_' + period) < 0) return;
+        var data = scores[sk];
+        Object.keys(data).forEach(function(ck) {
+          var parts = ck.split('_');
+          if (parts.length > 1 && parts.slice(1).join('_') === p.id) {
+            total += parseInt(data[ck]) || 0; files++;
+          }
+        });
+      });
+      p.score = total; p.files = files;
+      // Prev period score for trend
+      var prev = 0;
+      Object.keys(prevScores).forEach(function(sk) {
+        if (period !== '全部' && sk.indexOf('_' + period) < 0) return;
+        var data = prevScores[sk];
+        Object.keys(data).forEach(function(ck) {
+          var parts = ck.split('_');
+          if (parts.length > 1 && parts.slice(1).join('_') === p.id) {
+            prev += parseInt(data[ck]) || 0;
+          }
+        });
+      });
+      p.prevScore = prev;
+    });
+    return persons;
+  }
+
+  function renderRank() {
+    var period = document.getElementById('rankPeriod').value;
+    var data = getRankData(period);
+    // Sort: by score desc, then files desc
+    data.sort(function(a,b){ return b.score - a.score || b.files - a.files; });
+    
+    var html = '';
+    data.forEach(function(r, i) {
+      var rank = i + 1;
+      var medal = '';
+      var rowBg = '';
+      if(rank === 1) {
+        medal = '<span style="font-size:20px;">🥇</span>';
+        rowBg = ' style="background:#fffbe6;"';
+      } else if(rank === 2) {
+        medal = '<span style="font-size:20px;">🥈</span>';
+        rowBg = ' style="background:#fafafa;"';
+      } else if(rank === 3) {
+        medal = '<span style="font-size:20px;">🥉</span>';
+      } else {
+        medal = '<span class="rank-badge plain">'+rank+'</span>';
+      }
+      
+      var trend = '';
+      if(r.prevScore > 0) {
+        if(r.score > r.prevScore) trend = '<span class="trend-up">↑' + (r.score - r.prevScore) + '</span>';
+        else if(r.score < r.prevScore) trend = '<span class="trend-down">↓' + (r.prevScore - r.score) + '</span>';
+        else trend = '<span class="trend-flat">—</span>';
+      } else {
+        trend = '<span class="trend-flat">—</span>';
+      }
+      
+      html += '<tr' + rowBg + '><td style="text-align:center;">' + medal + '</td>' +
+        '<td style="text-align:left;font-weight:500;">' + r.name + '</td>' +
+        '<td style="color:#8c8c8c;">' + r.dept + '</td>' +
+        '<td style="font-weight:700;color:#1890ff;font-size:15px;">' + r.score + '</td>' +
+        '<td>' + r.files + '</td>' +
+        '<td>' + trend + '</td></tr>';
+    });
+    if(data.length === 0) {
+      html = '<tr><td colspan="6" style="padding:40px;text-align:center;color:#bfbfbf;"><i data-lucide="inbox" style="width:40px;height:40px;color:#d9d9d9;display:block;margin:0 auto 10px;"></i>暂无排行数据<div style="font-size:12px;margin-top:4px;">请先在积分录入中评分</div></td></tr>';
+    }
+    document.getElementById('rankBody').innerHTML = html;
+    lucide.createIcons();
+  }
+
+  renderRank();
+</script>
+</body>
+</div>
+</div>
+</div>
+</html>

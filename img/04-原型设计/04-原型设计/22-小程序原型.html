@@ -1,0 +1,558 @@
+<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8"><meta name="viewport" content="width=375,initial-scale=1.0"><title>运筹马年 · 小程序</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif}
+body{background:#e8ecf1;display:flex;justify-content:center;padding:16px;min-height:100vh}
+.phone{width:375px;height:812px;background:#f5f6f8;border-radius:36px;overflow:hidden;box-shadow:0 0 80px rgba(0,0,0,.15);display:flex;flex-direction:column;position:relative}
+.status-bar{height:36px;background:#fff;display:flex;align-items:center;justify-content:space-between;padding:0 20px;font-size:11px;color:#333;flex-shrink:0;font-weight:600}
+.nav-bar{height:44px;background:#fff;display:flex;align-items:center;justify-content:center;padding:0 12px;border-bottom:1px solid #f0f0f0;flex-shrink:0;position:relative}
+.nav-bar .tt{font-size:17px;font-weight:600;color:#1a1a1a}
+.nav-bar .bk{position:absolute;left:8px;font-size:15px;color:#1890ff;cursor:pointer;padding:4px 8px}
+.nav-bar .rt{position:absolute;right:8px;font-size:14px;color:#1890ff;cursor:pointer;padding:4px 8px}
+.content{flex:1;overflow-y:auto;padding:10px 12px}
+.content::-webkit-scrollbar{display:none}
+
+.tab-bar{height:50px;background:#fff;border-top:1px solid #eee;display:flex;flex-shrink:0}
+.tab-item{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:10px;color:#999;cursor:pointer;gap:1px}
+.tab-item svg{width:22px;height:22px}
+.tab-item.active{color:#1890ff}
+
+.page{display:none;flex-direction:column;flex:1;min-height:0}
+.page.active{display:flex}
+.sub-page{position:absolute;top:0;left:0;right:0;bottom:0;background:#f5f6f8;z-index:50;display:none;flex-direction:column}
+.sub-page.show{display:flex}
+
+.kpi-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:10px}
+.kpi-card{background:#fff;border-radius:10px;padding:10px 8px;text-align:center}
+.kpi-card .num{font-size:22px;font-weight:700;line-height:1}
+.kpi-card .lbl{font-size:10px;color:#8c8c8c;margin-top:3px}
+
+.card{background:#fff;border-radius:10px;padding:0 12px;margin-bottom:10px;overflow:hidden}
+.card-tt{font-size:14px;font-weight:600;color:#1a1a1a;padding:10px 0 6px}
+.list-item{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid #f5f5f5;cursor:pointer}
+.list-item:last-child{border:none}
+.list-item .av{width:36px;height:36px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:600;color:#fff;flex-shrink:0}
+.list-item .inf{flex:1;min-width:0}
+.list-item .inf .nm{font-size:14px;font-weight:500;color:#1a1a1a}
+.list-item .inf .sb{font-size:11px;color:#8c8c8c;margin-top:2px}
+.tag{font-size:10px;padding:2px 8px;border-radius:10px;font-weight:500;white-space:nowrap}
+.tag-red{background:#fff1f0;color:#ff4d4f}.tag-orange{background:#fff7e6;color:#fa8c16}
+.tag-green{background:#f6ffed;color:#52c41a}.tag-blue{background:#e6f7ff;color:#1890ff}
+.tag-purple{background:#f9f0ff;color:#722ed1}
+
+.search-box{background:#fff;border-radius:20px;padding:6px 12px;display:flex;align-items:center;gap:6px;margin-bottom:10px;box-shadow:0 1px 3px rgba(0,0,0,.04)}
+.search-box input{border:none;outline:none;flex:1;font-size:13px;background:transparent}
+.search-box input::placeholder{color:#bfbfbf}
+
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:3px;padding:7px 14px;border-radius:6px;font-size:12px;font-weight:500;cursor:pointer;border:none}
+.btn-p{background:#1890ff;color:#fff}.btn-o{background:#fff;color:#1890ff;border:1px solid #1890ff}
+.btn-sm{padding:4px 8px;font-size:10px;border-radius:3px}.btn-xs{padding:2px 6px;font-size:9px}
+
+.menu-grid{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;background:#fff;border-radius:10px;padding:4px 0;margin-bottom:10px}
+.menu-item{display:flex;flex-direction:column;align-items:center;padding:8px 4px;cursor:pointer;gap:3px}
+.menu-item svg{width:22px;height:22px}.menu-item .lbl{font-size:10px;color:#595959}
+
+.mine-top{background:#fff;border-radius:10px;padding:14px;display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.mine-av{width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg,#1890ff,#40a9ff);display:flex;align-items:center;justify-content:center;color:#fff;font-size:20px;font-weight:600;flex-shrink:0}
+.mine-inf{flex:1}.mine-inf .mn{font-size:15px;font-weight:600}.mine-inf .mr{font-size:11px;color:#8c8c8c}
+.mine-row{display:flex;align-items:center;gap:10px;padding:12px 0;border-bottom:1px solid #f5f5f5;cursor:pointer}
+.mine-row:last-child{border:none}.mine-row .mr{flex:1;font-size:13px}.mine-row .mv{font-size:12px;color:#8c8c8c}
+.mine-row svg{width:18px;height:18px;flex-shrink:0}
+
+.rank-row{display:flex;align-items:center;gap:6px;padding:8px 0;border-bottom:1px solid #f5f5f5}
+.rank-row:last-child{border:none}
+.rank-no{width:22px;text-align:center;font-size:14px;font-weight:700;color:#bfbfbf}
+.rank-no.g{color:#fa8c16}.rank-no.s{color:#8c8c8c}.rank-no.b{color:#d4a574}
+.rank-nm{flex:1;font-size:13px;font-weight:500}.rank-sc{font-size:14px;font-weight:700;color:#1890ff}
+
+.file-row{display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid #f5f5f5}
+.file-row:last-child{border:none}
+.file-ic{width:32px;height:32px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff;flex-shrink:0}
+.file-if{flex:1;min-width:0}.file-if .fn{font-size:13px;font-weight:500}.file-if .fm{font-size:11px;color:#8c8c8c}
+
+.stat-row{display:flex;align-items:center;padding:7px 0;border-bottom:1px solid #f5f5f5;gap:8px}
+.stat-row .bar{flex:1;height:6px;background:#f0f2f5;border-radius:3px;overflow:hidden}
+.stat-row .bar-fill{height:100%;border-radius:3px}
+
+.form-row{display:flex;align-items:center;gap:8px;padding:10px 0;border-bottom:1px solid #f5f5f5}
+.form-row .fl{font-size:13px;color:#8c8c8c;width:64px;flex-shrink:0}
+.form-row input,.form-row select{flex:1;border:none;outline:none;font-size:14px;color:#1a1a1a;background:transparent}
+
+.toast{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(0,0,0,.75);color:#fff;padding:8px 18px;border-radius:8px;font-size:13px;z-index:999;display:none;pointer-events:none}
+
+.tab-row{display:flex;gap:6px;padding:6px 0;margin-bottom:8px}
+.tab-btn{padding:5px 12px;border-radius:14px;font-size:11px;border:1px solid #e8e8e8;background:#fff;color:#595959;cursor:pointer}
+.tab-btn.active{background:#1890ff;color:#fff;border-color:#1890ff}
+
+.fab{position:absolute;bottom:16px;right:12px;width:44px;height:44px;border-radius:50%;background:#1890ff;color:#fff;display:flex;align-items:center;justify-content:center;font-size:24px;cursor:pointer;box-shadow:0 4px 12px rgba(24,144,255,.4);z-index:5}
+</style></head><body>
+<div class="phone">
+<div class="status-bar"><span>9:41</span><span>5G ▮▮▮▮ 🔋91%</span></div>
+
+<!-- ===== 待办 ===== -->
+<div class="page" id="p-todo">
+<div class="nav-bar"><span class="tt">待办</span></div>
+<div class="content" style="position:relative">
+<div class="kpi-row" id="todoKpi"></div>
+<div class="card"><div class="card-tt">⏰ 超期预警</div><div id="todoOverdue"></div></div>
+<div class="card"><div class="card-tt">📋 待审批</div><div id="todoApproval"></div></div>
+</div></div>
+
+<!-- ===== 客户 ===== -->
+<div class="page active" id="p-cust">
+<div class="nav-bar"><span class="tt">客户</span><span class="rt" onclick="openSub('s-addcust')">＋</span></div>
+<div class="content" style="position:relative">
+<div class="search-box"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#bfbfbf" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><input id="custSearch" placeholder="搜索客户名称..." oninput="renderCustList()"></div>
+<div id="custList"></div>
+<div class="fab" onclick="openSub('s-addcust')">+</div>
+</div></div>
+
+<!-- ===== 工作 ===== -->
+<div class="page" id="p-work">
+<div class="nav-bar"><span class="tt">运筹马年</span></div>
+<div class="content">
+<div class="kpi-row" id="workKpi"></div>
+<div class="menu-grid">
+<div class="menu-item" onclick="switchTab('todo',0)"><svg viewBox="0 0 24 24" fill="none" stroke="#ff4d4f" stroke-width="2"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg><span class="lbl">待办审批</span></div>
+<div class="menu-item" onclick="switchTab('cust',1)"><svg viewBox="0 0 24 24" fill="none" stroke="#1890ff" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg><span class="lbl">客户管理</span></div>
+<div class="menu-item" onclick="openSub('s-sea')"><svg viewBox="0 0 24 24" fill="none" stroke="#fa8c16" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg><span class="lbl">公海池</span></div>
+<div class="menu-item" onclick="openSub('s-file')"><svg viewBox="0 0 24 24" fill="none" stroke="#52c41a" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg><span class="lbl">文件管理</span></div>
+<div class="menu-item" onclick="openSub('s-rank')"><svg viewBox="0 0 24 24" fill="none" stroke="#722ed1" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg><span class="lbl">积分排行</span></div>
+<div class="menu-item" onclick="openSub('s-incentive')"><svg viewBox="0 0 24 24" fill="none" stroke="#eb2f96" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg><span class="lbl">激励管理</span></div>
+<div class="menu-item" onclick="openSub('s-stats')"><svg viewBox="0 0 24 24" fill="none" stroke="#13c2c2" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg><span class="lbl">统计分析</span></div>
+<div class="menu-item" onclick="openSub('s-core')"><svg viewBox="0 0 24 24" fill="none" stroke="#fa8c16" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg><span class="lbl">核心指标</span></div>
+</div>
+<div class="card"><div class="card-tt">🏆 积分 Top 3</div><div id="workTop3"></div></div>
+<div class="card"><div class="card-tt">📊 本月概览</div><div id="workMonth"></div></div>
+</div></div>
+
+<!-- ===== 我的 ===== -->
+<div class="page" id="p-mine">
+<div class="nav-bar"><span class="tt">我的</span></div>
+<div class="content">
+<div class="mine-top"><div class="mine-av">王</div><div class="mine-inf"><div class="mn">王磊磊</div><div class="mr">销售工程师 · 内蒙办</div></div></div>
+<div class="card">
+<div class="mine-row"><svg viewBox="0 0 24 24" fill="none" stroke="#fa8c16" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg><span class="mr">我的积分</span><span class="mv" style="color:#1890ff;font-weight:600;" id="myScore">--</span></div>
+<div class="mine-row" onclick="openSub('s-file')"><svg viewBox="0 0 24 24" fill="none" stroke="#1890ff" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg><span class="mr">我的文件</span><span class="mv" id="myFiles">--</span></div>
+<div class="mine-row" onclick="openSub('s-stats')"><svg viewBox="0 0 24 24" fill="none" stroke="#52c41a" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg><span class="mr">统计分析</span><span class="mv">查看报表</span></div>
+</div>
+<div class="card">
+<div class="mine-row" onclick="openSub('s-org')"><svg viewBox="0 0 24 24" fill="none" stroke="#722ed1" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg><span class="mr">组织架构</span><span class="mv">查看人员</span></div>
+<div class="mine-row"><svg viewBox="0 0 24 24" fill="none" stroke="#ff4d4f" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/></svg><span class="mr">消息通知</span><span class="mv" style="color:#fa8c16;">3条未读</span></div>
+<div class="mine-row" onclick="showToast('已退出')"><span class="mr" style="color:#ff4d4f;">退出登录</span></div>
+</div></div></div>
+
+<!-- ======== SUB PAGES ======== -->
+
+<!-- 新增客户 -->
+<div class="sub-page" id="s-addcust">
+<div class="nav-bar"><span class="bk" onclick="closeSub('s-addcust')">‹ 返回</span><span class="tt">新增客户</span></div>
+<div class="content">
+<div class="card"><div class="card-tt">基本信息</div>
+<div class="form-row"><span class="fl">客户名称</span><input id="acName" placeholder="请输入"></div>
+<div class="form-row"><span class="fl">行业</span><select id="acIndustry"></select></div>
+<div class="form-row"><span class="fl">办事处</span><select id="acDept"><option>内蒙办</option><option>太原办</option><option>总部</option></select></div>
+<div class="form-row"><span class="fl">负责人</span><input id="acOwner" placeholder="请输入"></div>
+<div class="form-row"><span class="fl">电话</span><input id="acPhone" placeholder="请输入"></div>
+</div>
+<button class="btn btn-p" style="width:100%;padding:12px;margin-top:8px;font-size:14px;" onclick="addCustomer()">保存</button>
+</div></div>
+
+<!-- 客户详情 -->
+<div class="sub-page" id="s-custdetail">
+<div class="nav-bar"><span class="bk" onclick="closeSub('s-custdetail')">‹ 返回</span><span class="tt" id="cdName">客户详情</span><span class="rt" onclick="showToast('已分享')">分享</span></div>
+<div class="content">
+<div class="card"><div class="card-tt">基本信息</div>
+<div class="form-row"><span class="fl">行业</span><span id="cdIndustry">-</span></div>
+<div class="form-row"><span class="fl">办事处</span><span id="cdDept">-</span></div>
+<div class="form-row"><span class="fl">负责人</span><span id="cdOwner">-</span></div>
+<div class="form-row"><span class="fl">电话</span><span id="cdPhone">-</span></div>
+</div>
+<div class="card"><div class="card-tt">核心指标</div>
+<div id="cdSix"></div>
+<div style="display:flex;justify-content:space-between;padding:8px 0;border-top:1px solid #f5f5f5;">
+<span style="font-size:12px;color:#8c8c8c;">总分</span>
+<span style="font-size:18px;font-weight:700;color:#1890ff;" id="cdTotal">0</span><span style="font-size:11px;color:#bfbfbf;">/15</span>
+<span id="cdBadge" style="font-size:11px;font-weight:600;"></span>
+</div></div>
+<div class="card"><div class="card-tt">开票记录</div><div id="cdInvoices"></div></div>
+<div class="card"><div class="card-tt">客情关系</div>
+<div style="display:flex;gap:6px;padding:8px 0;flex-wrap:wrap;" id="cdRelation"></div></div>
+</div></div>
+
+<!-- 公海池 -->
+<div class="sub-page" id="s-sea">
+<div class="nav-bar"><span class="bk" onclick="closeSub('s-sea')">‹ 返回</span><span class="tt">公海池</span></div>
+<div class="content"><div class="kpi-row" id="seaKpi"></div><div id="seaList"></div></div></div>
+
+<!-- 文件管理 -->
+<div class="sub-page" id="s-file">
+<div class="nav-bar"><span class="bk" onclick="closeSub('s-file')">‹ 返回</span><span class="tt">文件管理</span></div>
+<div class="content"><div class="kpi-row" id="fileKpi"></div><div id="fileList"></div></div></div>
+
+<!-- 积分排行 -->
+<div class="sub-page" id="s-rank">
+<div class="nav-bar"><span class="bk" onclick="closeSub('s-rank')">‹ 返回</span><span class="tt">积分排行</span></div>
+<div class="content">
+<div class="tab-row">
+<span class="tab-btn active" onclick="switchRankTab(0)">🏆 个人</span>
+<span class="tab-btn" onclick="switchRankTab(1)">🏅 部门</span>
+</div>
+<div id="rankContent"></div></div></div>
+
+<!-- 激励管理 -->
+<div class="sub-page" id="s-incentive">
+<div class="nav-bar"><span class="bk" onclick="closeSub('s-incentive')">‹ 返回</span><span class="tt">激励管理</span></div>
+<div class="content"><div class="kpi-row" id="incKpi"></div><div id="incList"></div></div></div>
+
+<!-- 统计分析 -->
+<div class="sub-page" id="s-stats">
+<div class="nav-bar"><span class="bk" onclick="closeSub('s-stats')">‹ 返回</span><span class="tt">统计分析</span></div>
+<div class="content"><div class="kpi-row" id="statsKpi"></div><div id="statsContent"></div></div></div>
+
+<!-- 核心指标排行 -->
+<div class="sub-page" id="s-core">
+<div class="nav-bar"><span class="bk" onclick="closeSub('s-core')">‹ 返回</span><span class="tt">核心指标</span></div>
+<div class="content">
+<div class="tab-row">
+<span class="tab-btn active" onclick="switchCoreTab(0)">🏆 个人</span>
+<span class="tab-btn" onclick="switchCoreTab(1)">🏅 部门</span>
+<span class="tab-btn" onclick="switchCoreTab(2)">🌍 大区</span>
+</div>
+<div id="coreContent"></div></div></div>
+
+<!-- 组织架构 -->
+<div class="sub-page" id="s-org">
+<div class="nav-bar"><span class="bk" onclick="closeSub('s-org')">‹ 返回</span><span class="tt">人员列表</span></div>
+<div class="content"><div id="orgList"></div></div></div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<!-- Tab Bar -->
+<div class="tab-bar">
+<div class="tab-item" onclick="switchTab('todo',0)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg><span>待办</span></div>
+<div class="tab-item active" onclick="switchTab('cust',1)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg><span>客户</span></div>
+<div class="tab-item" onclick="switchTab('work',2)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg><span>工作台</span></div>
+<div class="tab-item" onclick="switchTab('mine',3)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg><span>我的</span></div>
+</div></div>
+
+<script>
+// ===== DATA LAYER (sync with PC localStorage) =====
+var CLIENTS = JSON.parse(localStorage.getItem('six_indicator_data') || 'null') || [
+  {name:'陕煤集团',owner:'王磊磊',dept:'内蒙办',region:'华北',phone:'138-0001',scores:[1,2,2,1,2],invoice:200,invoices:[{date:'2026-05',no:'FP001',amount:200}]},
+  {name:'神东哈拉沟',owner:'王磊磊',dept:'内蒙办',region:'华北',phone:'138-0002',scores:[2,1,3,2,1],invoice:120,invoices:[{date:'2026-06',no:'FP002',amount:120}]},
+  {name:'国能榆林化工',owner:'李明',dept:'太原办',region:'华北',phone:'138-0003',scores:[3,1,3,2,1],invoice:80,invoices:[{date:'2026-03',no:'FP003',amount:80}]},
+  {name:'汇能蒙南',owner:'张三',dept:'太原办',region:'西北',phone:'138-0004',scores:[1,1,2,1,2],invoice:150,invoices:[{date:'2026-04',no:'FP004',amount:150}]},
+  {name:'准能集团',owner:'王磊磊',dept:'内蒙办',region:'华北',phone:'138-0005',scores:[2,3,2,3,2],invoice:280,invoices:[{date:'2026-06',no:'FP005',amount:280}]},
+  {name:'大唐托电',owner:'赵四',dept:'内蒙办',region:'华北',phone:'138-0006',scores:[1,2,2,1,1],invoice:95,invoices:[{date:'2026-05',no:'FP006',amount:95}]},
+  {name:'中石化长城',owner:'李明',dept:'太原办',region:'西北',phone:'138-0007',scores:[2,3,1,2,3],invoice:350,invoices:[{date:'2026-05',no:'FP007',amount:350}]},
+  {name:'四川泸天化',owner:'马文杰',dept:'总部',region:'西南',phone:'138-0008',scores:[3,2,3,2,3],invoice:180,invoices:[{date:'2026-04',no:'FP008',amount:180}]},
+];
+
+CLIENTS.forEach(function(c){
+  c.fiveTotal = c.scores.reduce(function(s,v){return s+v;},0);
+  c.threshold = (c.invoice||0) >= 100;
+  c.isCore = c.fiveTotal > 12 && c.threshold;
+  c.relation = c.relation || Math.floor(Math.random()*4);
+  if(!c.invoices) c.invoices = [];
+});
+
+var POOL = [
+  {name:'榆林新材料',industry:'煤矿',days:45,prevOwner:'李明'},
+  {name:'神东大柳塔',industry:'煤矿',days:30,prevOwner:'张三'},
+  {name:'凯越煤化',industry:'化工',days:22,prevOwner:'赵四'},
+  {name:'蒙大新能源',industry:'电力',days:15,prevOwner:'王磊磊'},
+  {name:'伊泰煤炭',industry:'煤矿',days:8,prevOwner:'李明'},
+  {name:'延长石油榆林',industry:'化工',days:60,prevOwner:'马文杰'},
+];
+
+var FILES = [
+  {name:'陕煤榆林化学技术方案',type:'DOCX',size:'2.4 MB',owner:'王磊磊',date:'06-05'},
+  {name:'2026年上半年开票统计',type:'XLSX',size:'1.8 MB',owner:'王磊磊',date:'06-03'},
+  {name:'神东哈拉沟验收报告',type:'PDF',size:'5.2 MB',owner:'王磊磊',date:'06-01'},
+  {name:'工厂参观照片',type:'JPG',size:'3.1 MB',owner:'张三',date:'05-28'},
+  {name:'项目资料打包',type:'ZIP',size:'12.6 MB',owner:'赵四',date:'05-25'},
+];
+
+function getScoreData() {
+  try { return JSON.parse(localStorage.getItem('score_data')||'{}'); } catch(e) { return {}; }
+}
+
+// ===== UTILS =====
+var _toastTimer;
+function showToast(msg) {
+  var t = document.getElementById('toast');
+  t.textContent = msg; t.style.display = 'block';
+  clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(function(){t.style.display='none';},1500);
+}
+
+function switchTab(id, idx) {
+  document.querySelectorAll('.page').forEach(function(p){p.classList.remove('active');});
+  document.getElementById('p-'+id).classList.add('active');
+  document.querySelectorAll('.tab-item').forEach(function(t,i){t.classList.toggle('active',i===idx);});
+  if(id==='todo') renderTodo();
+  if(id==='cust') renderCustList();
+  if(id==='work') renderWork();
+  if(id==='mine') renderMine();
+}
+
+function openSub(id) {
+  var el = document.getElementById(id);
+  if(el) el.classList.add('show');
+  if(id==='s-addcust') renderAddCustForm();
+  if(id==='s-sea') renderSea();
+  if(id==='s-file') renderFile();
+  if(id==='s-rank') { rankTab=0; renderRank(); }
+  if(id==='s-incentive') renderIncentive();
+  if(id==='s-stats') renderStats();
+  if(id==='s-core') { coreTab=0; renderCore(); }
+  if(id==='s-org') renderOrg();
+}
+
+function closeSub(id) {
+  var el = document.getElementById(id);
+  if(el) el.classList.remove('show');
+}
+
+// ===== TODO PAGE =====
+function renderTodo() {
+  var overdue = CLIENTS.filter(function(c){return !c.threshold;});
+  var ah='';
+  overdue.forEach(function(c){
+    ah += '<div class="list-item"><div class="av" style="background:#ff4d4f;">'+c.name.charAt(0)+'</div><div class="inf"><div class="nm">'+c.name+'</div><div class="sb">开票 '+(c.invoice||0)+'万 · 未达标</div></div><span class="tag tag-red">未达标</span></div>';
+  });
+  document.getElementById('todoOverdue').innerHTML = ah || '<div style="padding:20px;text-align:center;color:#bfbfbf;font-size:12px;">暂无超期预警</div>';
+  document.getElementById('todoApproval').innerHTML = '<div class="list-item"><div class="av" style="background:#722ed1;">李</div><div class="inf"><div class="nm">李明 公海捞取申请</div><div class="sb">神东大柳塔</div></div><button class="btn btn-p btn-sm" onclick="showToast(\'已通过\')">通过</button></div>';
+  document.getElementById('todoKpi').innerHTML = '<div class="kpi-card"><div class="num" style="color:#ff4d4f;">'+overdue.length+'</div><div class="lbl">未达标</div></div><div class="kpi-card"><div class="num" style="color:#fa8c16;">'+CLIENTS.filter(function(c){return c.isCore;}).length+'</div><div class="lbl">核心客户</div></div><div class="kpi-card"><div class="num" style="color:#1890ff;">1</div><div class="lbl">待审批</div></div>';
+}
+
+// ===== CUST PAGE =====
+function renderCustList() {
+  var q = (document.getElementById('custSearch')||{}).value || '';
+  var list = CLIENTS.filter(function(c){return !q || c.name.indexOf(q)>=0 || c.owner.indexOf(q)>=0;});
+  var h = '';
+  list.forEach(function(c){
+    var tagCls = c.isCore ? 'tag-purple' : c.threshold ? 'tag-green' : 'tag-red';
+    var tagTxt = c.isCore ? '⭐核心' : c.threshold ? '达标' : '未达标';
+    h += '<div class="list-item" onclick="showCustDetail(\''+c.name+'\')"><div class="av" style="background:#1890ff;">'+c.name.charAt(0)+'</div><div class="inf"><div class="nm">'+c.name+'</div><div class="sb">'+c.dept+' · '+c.owner+' · 开票'+(c.invoice||0)+'万</div></div><span class="tag '+tagCls+'">'+tagTxt+'</span></div>';
+  });
+  document.getElementById('custList').innerHTML = h || '<div style="padding:30px;text-align:center;color:#bfbfbf;">无匹配客户</div>';
+}
+
+function showCustDetail(name) {
+  var c = CLIENTS.filter(function(x){return x.name===name;})[0];
+  if(!c) return;
+  document.getElementById('cdName').textContent = c.name;
+  document.getElementById('cdIndustry').textContent = '化工';
+  document.getElementById('cdDept').textContent = c.dept;
+  document.getElementById('cdOwner').textContent = c.owner;
+  document.getElementById('cdPhone').textContent = c.phone || '-';
+  // Six indicators
+  var labels = ['高层·客情','渠道·编码','基层·覆盖','产品·品类','项目·资金'];
+  var sh = '';
+  c.scores.forEach(function(s,i){
+    var tier = ['陌生/0','知道/1','熟悉/2','支持/3','全部/3'][Math.min(s,4)] || (s+'/3');
+    sh += '<div class="form-row"><span class="fl" style="font-size:11px;">'+(i<4?labels[i]:'')+'</span><span style="font-size:16px;font-weight:600;color:#1890ff;">'+s+'</span><span style="font-size:11px;color:#bfbfbf;">/3</span></div>';
+  });
+  document.getElementById('cdSix').innerHTML = sh;
+  document.getElementById('cdTotal').textContent = c.fiveTotal;
+  document.getElementById('cdBadge').innerHTML = c.isCore ? '<span style="color:#fa8c16;">⭐ 核心客户</span>' : '<span style="color:#8c8c8c;">普通客户</span>';
+  // Invoices
+  var ih = '';
+  (c.invoices||[]).forEach(function(inv){
+    ih += '<div class="form-row"><span class="fl">'+inv.date+'</span><span>'+inv.no+'</span><span style="margin-left:auto;font-weight:600;">'+(inv.amount||0)+'万</span></div>';
+  });
+  document.getElementById('cdInvoices').innerHTML = ih || '<div style="color:#bfbfbf;font-size:12px;padding:8px 0;">暂无开票记录</div>';
+  // Relation
+  var rels = ['商务少','纯商务','感情商务','多样性'];
+  var rh = '';
+  rels.forEach(function(r,i){
+    rh += '<span style="padding:6px 10px;border-radius:6px;font-size:11px;cursor:pointer;'+(c.relation===i?'background:#e6f7ff;color:#1890ff;border:1px solid #1890ff;':'background:#fafafa;color:#8c8c8c;border:1px solid #f0f0f0;')+'" onclick="setRelation(\''+c.name+'\','+i+')">'+r+'</span>';
+  });
+  document.getElementById('cdRelation').innerHTML = rh;
+  openSub('s-custdetail');
+}
+
+function setRelation(name, val) {
+  CLIENTS.forEach(function(c){if(c.name===name)c.relation=val;});
+  showCustDetail(name);
+  showToast('已更新');
+}
+
+// ===== ADD CUST =====
+function renderAddCustForm() {
+  var sel = document.getElementById('acIndustry');
+  var inds = JSON.parse(localStorage.getItem('industry_list')||'["煤矿","化工","电力","洗煤厂","有色","钢铁","建材","冶金","其他"]');
+  sel.innerHTML = inds.map(function(n){return '<option>'+n+'</option>';}).join('');
+}
+
+function addCustomer() {
+  var n = document.getElementById('acName').value.trim();
+  if(!n) { showToast('请输入客户名称'); return; }
+  CLIENTS.push({
+    name: n, owner: document.getElementById('acOwner').value||'王磊磊',
+    dept: document.getElementById('acDept').value, phone: document.getElementById('acPhone').value,
+    scores: [0,0,0,0,0], invoice: 0, invoices: [], relation: 0, region:'华北'
+  });
+  closeSub('s-addcust');
+  renderCustList();
+  showToast('客户已添加');
+}
+
+// ===== WORK PAGE =====
+function renderWork() {
+  var core = CLIENTS.filter(function(c){return c.isCore;}).length;
+  document.getElementById('workKpi').innerHTML = '<div class="kpi-card"><div class="num">'+CLIENTS.length+'</div><div class="lbl">客户总数</div></div><div class="kpi-card"><div class="num" style="color:#fa8c16;">'+core+'</div><div class="lbl">核心客户</div></div><div class="kpi-card"><div class="num" style="color:#ff4d4f;">'+CLIENTS.filter(function(c){return !c.threshold;}).length+'</div><div class="lbl">未达标</div></div>';
+  // Top 3
+  var sd = getScoreData();
+  var scores = {};
+  Object.keys(sd).forEach(function(k){Object.keys(sd[k]).forEach(function(ik){
+    var p = ik.split('_').slice(1).join('_'); scores[p]=(scores[p]||0)+(parseInt(sd[k][ik])||0);
+  });});
+  var ranked = Object.keys(scores).map(function(k){return {name:k,score:scores[k]};}).sort(function(a,b){return b.score-a.score;});
+  var t3 = '';
+  ranked.slice(0,3).forEach(function(r,i){
+    var m = ['🥇','🥈','🥉'][i];
+    t3 += '<div style="flex:1;text-align:center;"><div style="font-size:24px;">'+m+'</div><div style="font-size:12px;font-weight:600;">'+r.name+'</div><div style="font-size:10px;color:#8c8c8c;">'+r.score+'分</div></div>';
+  });
+  document.getElementById('workTop3').innerHTML = '<div style="display:flex;gap:8px;padding:8px 0 12px;">'+(t3||'<div style="color:#bfbfbf;font-size:12px;">暂无积分数据</div>')+'</div>';
+  document.getElementById('workMonth').innerHTML = '<div class="list-item" style="cursor:default;"><span style="font-size:12px;color:#595959;">客户总数</span><span style="margin-left:auto;font-size:14px;font-weight:600;">'+CLIENTS.length+' 个</span></div><div class="list-item" style="cursor:default;"><span style="font-size:12px;color:#595959;">核心客户</span><span style="margin-left:auto;font-size:14px;font-weight:600;">'+core+' 个</span></div><div class="list-item" style="cursor:default;"><span style="font-size:12px;color:#595959;">文件总数</span><span style="margin-left:auto;font-size:14px;font-weight:600;">'+FILES.length+' 份</span></div>';
+}
+
+// ===== MINE PAGE =====
+function renderMine() {
+  var sd = getScoreData();
+  var myTotal = 0;
+  Object.keys(sd).forEach(function(k){Object.keys(sd[k]).forEach(function(ik){
+    if(ik.indexOf('王磊磊')>=0) myTotal += parseInt(sd[k][ik])||0;
+  });});
+  document.getElementById('myScore').textContent = myTotal+'分';
+  document.getElementById('myFiles').textContent = FILES.length+' 份';
+}
+
+// ===== SUB PAGES =====
+function renderSea() {
+  var h='';
+  POOL.forEach(function(p){
+    h += '<div class="list-item"><div class="av" style="background:#1890ff;">'+p.name.charAt(0)+'</div><div class="inf"><div class="nm">'+p.name+'</div><div class="sb">'+p.industry+' · 入池'+p.days+'天 · 原负责人：'+p.prevOwner+'</div></div><button class="btn btn-p btn-sm" onclick="showToast(\'捞取申请已提交\')">申请捞取</button></div>';
+  });
+  document.getElementById('seaList').innerHTML = '<div class="card">'+h+'</div>';
+  document.getElementById('seaKpi').innerHTML = '<div class="kpi-card"><div class="num">'+POOL.length+'</div><div class="lbl">池内待捞</div></div><div class="kpi-card"><div class="num" style="color:#fa8c16;">1</div><div class="lbl">审批中</div></div><div class="kpi-card"><div class="num" style="color:#52c41a;">0</div><div class="lbl">本月已捞</div></div>';
+}
+
+function renderFile() {
+  var h='';
+  var colors = {DOCX:'#1890ff',XLSX:'#52c41a',PDF:'#ff4d4f',JPG:'#fa8c16',ZIP:'#722ed1'};
+  FILES.forEach(function(f){
+    h += '<div class="file-row"><div class="file-ic" style="background:'+(colors[f.type]||'#8c8c8c')+';">'+f.type+'</div><div class="file-if"><div class="fn">'+f.name+'</div><div class="fm">'+f.type+' · '+f.size+' · '+f.owner+' · '+f.date+'</div></div></div>';
+  });
+  document.getElementById('fileList').innerHTML = '<div class="card">'+h+'</div>';
+  document.getElementById('fileKpi').innerHTML = '<div class="kpi-card"><div class="num">'+FILES.length+'</div><div class="lbl">文件总数</div></div><div class="kpi-card"><div class="num" style="color:#1890ff;">3</div><div class="lbl">本月上传</div></div><div class="kpi-card"><div class="num" style="color:#8c8c8c;">8.2G</div><div class="lbl">已用空间</div></div>';
+}
+
+var rankTab = 0;
+function renderRank() {
+  var sd = getScoreData();
+  var scores = {};
+  Object.keys(sd).forEach(function(k){Object.keys(sd[k]).forEach(function(ik){
+    var p = ik.split('_').slice(1).join('_'); scores[p]=(scores[p]||0)+(parseInt(sd[k][ik])||0);
+  });});
+  var ranked = Object.keys(scores).map(function(k){return {name:k,score:scores[k]};}).sort(function(a,b){return b.score-a.score;});
+  var h = '';
+  ranked.forEach(function(r,i){
+    var cls = i===0?'g':i===1?'s':i===2?'b':'';
+    h += '<div class="rank-row"><span class="rank-no '+cls+'">'+(i+1)+'</span><span class="rank-nm">'+r.name+'</span><span class="rank-sc">'+r.score+'</span></div>';
+  });
+  document.getElementById('rankContent').innerHTML = '<div class="card"><div class="card-tt">'+(rankTab===0?'个人排行':'部门排行')+'</div>'+(h||'<div style="padding:20px;text-align:center;color:#bfbfbf;font-size:12px;">暂无积分数据，请先在PC端录入</div>')+'</div>';
+}
+
+function switchRankTab(t) {
+  rankTab = t;
+  document.querySelectorAll('#s-rank .tab-btn').forEach(function(b,i){b.classList.toggle('active',i===t);});
+  renderRank();
+}
+
+function renderIncentive() {
+  var h = '<div class="list-item"><div class="av" style="background:#1890ff;">参</div><div class="inf"><div class="nm">南京参观</div><div class="sb">外出参观 · 王磊磊 · 06-05</div></div><span class="tag tag-blue">3分</span></div>';
+  h += '<div class="list-item"><div class="av" style="background:#52c41a;">考</div><div class="inf"><div class="nm">终端考察</div><div class="sb">外出参观 · 李明 · 06-03</div></div><span class="tag tag-blue">3分</span></div>';
+  h += '<div class="list-item"><div class="av" style="background:#fa8c16;">技</div><div class="inf"><div class="nm">技术交流会</div><div class="sb">交流拜访 · 张三 · 06-01</div></div><span class="tag tag-blue">2分</span></div>';
+  h += '<div class="list-item"><div class="av" style="background:#722ed1;">方</div><div class="inf"><div class="nm">项目方案</div><div class="sb">两谈两做 · 赵四 · 05-28</div></div><span class="tag tag-purple">3分</span></div>';
+  h += '<div class="list-item"><div class="av" style="background:#eb2f96;">涂</div><div class="inf"><div class="nm">涂层试点</div><div class="sb">产品试点 · 王磊磊 · 05-25</div></div><span class="tag tag-purple">3分</span></div>';
+  document.getElementById('incList').innerHTML = '<div class="card">'+h+'</div>';
+  document.getElementById('incKpi').innerHTML = '<div class="kpi-card"><div class="num" style="color:#52c41a;">35</div><div class="lbl">全年发放</div></div><div class="kpi-card"><div class="num" style="color:#1890ff;">5</div><div class="lbl">本月发放</div></div><div class="kpi-card"><div class="num" style="color:#fa8c16;">¥2.8万</div><div class="lbl">本月总额</div></div>';
+}
+
+function renderStats() {
+  var bars = '';
+  var inds = {};
+  CLIENTS.forEach(function(c){var k='化工';inds[k]=(inds[k]||0)+1;});
+  inds = {煤矿:5,化工:5,电力:3,洗煤厂:2,其他:3};
+  var max = Math.max.apply(null,Object.values(inds));
+  Object.keys(inds).forEach(function(k){
+    bars += '<div class="stat-row"><span style="font-size:11px;width:48px;">'+k+'</span><div class="bar"><div class="bar-fill" style="width:'+(inds[k]/max*100)+'%;background:#1890ff;"></div></div><span style="font-size:11px;font-weight:600;">'+inds[k]+'</span></div>';
+  });
+  document.getElementById('statsContent').innerHTML = '<div class="card"><div class="card-tt">📊 行业分布</div>'+bars+'</div>';
+  document.getElementById('statsKpi').innerHTML = '<div class="kpi-card"><div class="num">'+CLIENTS.length+'</div><div class="lbl">客户总数</div></div><div class="kpi-card"><div class="num" style="color:#52c41a;">'+CLIENTS.filter(function(c){return c.threshold;}).length+'</div><div class="lbl">达标客户</div></div><div class="kpi-card"><div class="num" style="color:#1890ff;">'+Math.round(CLIENTS.filter(function(c){return c.threshold;}).length/CLIENTS.length*100)+'%</div><div class="lbl">达标率</div></div>';
+}
+
+var coreTab = 0;
+function renderCore() {
+  var h = '';
+  var data;
+  if(coreTab===0) {
+    // Personal
+    var m={};
+    CLIENTS.forEach(function(c){
+      if(!m[c.owner]) m[c.owner]={name:c.owner,dept:c.dept,total:0,core:0,count:0};
+      m[c.owner].total += c.fiveTotal; m[c.owner].count++;
+      if(c.isCore) m[c.owner].core++;
+    });
+    data = Object.values(m).map(function(x){x.avg=(x.total/x.count).toFixed(1);return x;}).sort(function(a,b){return b.total-a.total;});
+  } else if(coreTab===1) {
+    var d={};
+    CLIENTS.forEach(function(c){
+      if(!d[c.dept]) d[c.dept]={name:c.dept,total:0,core:0,count:0};
+      d[c.dept].total += c.fiveTotal; d[c.dept].count++;
+      if(c.isCore) d[c.dept].core++;
+    });
+    data = Object.values(d).map(function(x){x.avg=(x.total/x.count).toFixed(1);return x;}).sort(function(a,b){return b.total-a.total;});
+  } else {
+    var r={};
+    CLIENTS.forEach(function(c){
+      if(!r[c.region]) r[c.region]={name:c.region,total:0,core:0,count:0};
+      r[c.region].total += c.fiveTotal; r[c.region].count++;
+      if(c.isCore) r[c.region].core++;
+    });
+    data = Object.values(r).map(function(x){x.avg=(x.total/x.count).toFixed(1);return x;}).sort(function(a,b){return b.total-a.total;});
+  }
+  data.forEach(function(x,i){
+    var cls = i===0?'g':i===1?'s':i===2?'b':'';
+    h += '<div class="rank-row"><span class="rank-no '+cls+'">'+(i+1)+'</span><span class="rank-nm">'+x.name+'</span><span style="font-size:10px;color:#8c8c8c;">核心'+x.core+'</span><span class="rank-sc">'+x.total+'</span></div>';
+  });
+  document.getElementById('coreContent').innerHTML = '<div class="card"><div class="card-tt">'+(coreTab===0?'个人排行':coreTab===1?'部门排行':'大区排行')+'</div>'+h+'</div>';
+}
+
+function switchCoreTab(t) {
+  coreTab = t;
+  document.querySelectorAll('#s-core .tab-btn').forEach(function(b,i){b.classList.toggle('active',i===t);});
+  renderCore();
+}
+
+function renderOrg() {
+  var h = '';
+  ['吴哲','王磊磊','李明','张三','赵四','马文杰'].forEach(function(n,i){
+    var depts = ['总部','内蒙办','内蒙办','太原办','内蒙办','总部'];
+    var roles = ['系统管理员','销售工程师','销售工程师','区域经理','区域经理','总监'];
+    h += '<div class="list-item"><div class="av" style="background:'+['#722ed1','#1890ff','#52c41a','#fa8c16','#eb2f96','#13c2c2'][i]+';">'+n.charAt(0)+'</div><div class="inf"><div class="nm">'+n+'</div><div class="sb">'+depts[i]+' · '+roles[i]+'</div></div><span class="tag tag-green">在职</span></div>';
+  });
+  document.getElementById('orgList').innerHTML = '<div class="card">'+h+'</div>';
+}
+
+// ===== INIT =====
+renderTodo();
+renderCustList();
+renderWork();
+renderMine();
+</script>
+</body></html>

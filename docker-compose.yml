@@ -1,0 +1,71 @@
+version: '3.8'
+
+services:
+  # MySQL 数据库（使用已有容器时可注释此服务）
+  mysql:
+    image: mysql:8.0.28
+    container_name: ycmn-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: '123456'
+      MYSQL_DATABASE: ycmn
+      TZ: Asia/Shanghai
+    ports:
+      - "3308:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ./sql/init.sql:/docker-entrypoint-initdb.d/init.sql
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_general_ci
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis 缓存
+  redis:
+    image: redis:7-alpine
+    container_name: ycmn-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+
+  # 后端服务
+  backend:
+    build:
+      context: ./ycmn-backend
+      dockerfile: Dockerfile
+    container_name: ycmn-backend
+    ports:
+      - "8080:8080"
+    environment:
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_USER: root
+      DB_PASSWORD: '123456'
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      OSS_ENDPOINT: ${OSS_ENDPOINT:-oss-cn-beijing.aliyuncs.com}
+      OSS_ACCESS_KEY_ID: ${OSS_ACCESS_KEY_ID:-your-key}
+      OSS_ACCESS_KEY_SECRET: ${OSS_ACCESS_KEY_SECRET:-your-secret}
+      OSS_BUCKET_NAME: ${OSS_BUCKET_NAME:-ycmn-files}
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_started
+
+  # 前端服务
+  frontend:
+    build:
+      context: ./ycmn-ui
+      dockerfile: Dockerfile
+    container_name: ycmn-frontend
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+
+volumes:
+  mysql-data:
+  redis-data:

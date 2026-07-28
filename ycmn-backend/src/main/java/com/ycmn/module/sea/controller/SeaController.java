@@ -1,0 +1,217 @@
+package com.ycmn.module.sea.controller;
+
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.ycmn.common.BusinessException;
+import com.ycmn.common.Result;
+import com.ycmn.module.customer.dto.CustomerImportResult;
+import com.ycmn.module.approval.entity.BizApproval;
+import com.ycmn.module.approval.entity.BizApprovalNode;
+import com.ycmn.module.approval.mapper.BizApprovalMapper;
+import com.ycmn.module.approval.mapper.BizApprovalNodeMapper;
+import com.ycmn.module.customer.entity.BizCustomer;
+import com.ycmn.module.customer.mapper.BizCustomerMapper;
+import com.ycmn.module.sea.entity.BizSeaConfig;
+import com.ycmn.module.sea.entity.BizSeaPool;
+import com.ycmn.module.sea.service.SeaConfigService;
+import com.ycmn.module.sea.service.SeaService;
+import com.ycmn.module.system.entity.SysUser;
+import com.ycmn.module.system.mapper.SysUserMapper;
+import com.ycmn.security.SecurityUtils;
+import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.util.StringUtils;
+import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.*;
+
+@RestController
+@RequestMapping("/api/sea")
+@RequiredArgsConstructor
+public class SeaController {
+
+    private final SeaService seaService;
+    private final SeaConfigService seaConfigService;
+    private final BizApprovalMapper approvalMapper;
+    private final BizApprovalNodeMapper approvalNodeMapper;
+    private final BizCustomerMapper customerMapper;
+    private final SysUserMapper userMapper;
+
+    // ===== 公海池列表 =====
+
+    @GetMapping("/list")
+    public Result<IPage<BizSeaPool>> page(
+            @RequestParam(defaultValue = "1") int current,
+            @RequestParam(defaultValue = "15") int size,
+            @RequestParam(required = false) String industry,
+            @RequestParam(required = false) Long officeId,
+            @RequestParam(required = false) String enterReason,
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) Long poolId) {
+        return Result.ok(seaService.page(current, size, industry, officeId, enterReason, keyword, poolId));
+    }
+
+    @GetMapping("/statistics")
+    public Result<Map<String, Long>> statistics() {
+        return Result.ok(seaService.statistics());
+    }
+
+    /** 删除公海池客户（仅待捞取状态可删，逻辑删客户+删公海记录） */
+    @DeleteMapping("/pool/{id}")
+    @PreAuthorize("hasAuthority('sea:pool:delete')")
+    public Result<Void> deletePool(@PathVariable Long id) {
+        seaService.deletePool(id);
+        return Result.ok();
+    }
+
+    /** 公海池批量导入（模板同客户导入，导入即新建客户并直接入公海） */
+    @PostMapping("/import")
+    @PreAuthorize("hasAuthority('sea:pool:import')")
+    public Result<CustomerImportResult> importToSea(@RequestParam("file") MultipartFile file) {
+        if (file.isEmpty()) {
+            throw new BusinessException("请选择要导入的文件");
+        }
+        String filename = file.getOriginalFilename();
+        if (filename == null || !(filename.endsWith(".xlsx") || filename.endsWith(".xls"))) {
+            throw new BusinessException("仅支持 .xlsx 或 .xls 格式的文件");
+        }
+        return Result.ok(seaService.importToSea(file));
+    }
+
+    // ===== 公海池配置 =====
+
+    @GetMapping("/configs")
+    public Result<List<BizSeaConfig>> listConfigs() {
+        return Result.ok(seaConfigService.list());
+    }
+
+    /** 当前用户可见的公海池(公海池页面选择器/列表用) */
+    @GetMapping("/configs/visible")
+    public Result<List<BizSeaConfig>> listVisibleConfigs() {
+        return Result.ok(seaConfigService.listVisible());
+    }
+
+    /** 组织机构树(部门+人员可选,办事处/总部灰显),供"可见部门/人员"树选择器 */
+    @GetMapping("/org-tree")
+    public Result<List<Map<String, Object>>> orgTree() {
+        return Result.ok(seaConfigService.buildOrgTree());
+    }
+
+    @PostMapping("/configs")
+    public Result<Void> createConfig(@RequestBody BizSeaConfig config) {
+        seaConfigService.create(config);
+        return Result.ok();
+    }
+
+    @PutMapping("/configs/{id}")
+    public Result<Void> updateConfig(@PathVariable Long id, @RequestBody BizSeaConfig config) {
+        config.setId(id);
+        seaConfigService.update(config);
+        return Result.ok();
+    }
+
+    @DeleteMapping("/configs/{id}")
+    public Result<Void> deleteConfig(@PathVariable Long id) {
+        seaConfigService.delete(id);
+        return Result.ok();
+    }
+
+    // ===== 捞取记录 =====
+
+    @GetMapping("/claim-records")
+    public Result<Map<String, Object>> claimRecords(
+            @RequestParam(defaultValue = "1") int current,
+            @RequestParam(defaultValue = "15") int size,
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) String dateFrom,
+            @RequestParam(required = false) String dateTo,
+            @RequestParam(required = false) String keyword) {
+
+        LambdaQueryWrapper<BizApproval> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(BizApproval::getApprovalType, "claim")
+                .eq(BizApproval::getApplicantId, SecurityUtils.getCurrentUserId())
+                .orderByDesc(BizApproval::getCreatedAt);
+
+        if (StringUtils.hasText(status)) {
+            wrapper.eq(BizApproval::getStatus, status);
+        }
+        if (StringUtils.hasText(dateFrom)) {
+            wrapper.ge(BizApproval::getCreatedAt, dateFrom + " 00:00:00");
+        }
+        if (StringUtils.hasText(dateTo)) {
+            wrapper.le(BizApproval::getCreatedAt, dateTo + " 23:59:59");
+        }
+
+        IPage<BizApproval> page = approvalMapper.selectPage(new Page<>(current, size), wrapper);
+
+        List<Map<String, Object>> records = new ArrayList<>();
+        for (BizApproval a : page.getRecords()) {
+            Map<String, Object> record = new HashMap<>();
+            record.put("id", a.getId());
+            record.put("applyDate", a.getCreatedAt());
+            record.put("status", a.getStatus());
+
+            // 客户信息
+            if (a.getCustomerId() != null) {
+                BizCustomer c = customerMapper.selectById(a.getCustomerId());
+                if (c != null) {
+                    record.put("customerName", c.getCustomerName());
+                    record.put("industry", c.getIndustry());
+                }
+            }
+
+            // 申请人
+            if (a.getApplicantId() != null) {
+                SysUser applicant = userMapper.selectById(a.getApplicantId());
+                if (applicant != null) record.put("applicantName", applicant.getRealName());
+            }
+
+            // 审批人（取第一个审批节点）
+            List<BizApprovalNode> nodes = approvalNodeMapper.selectList(
+                    new LambdaQueryWrapper<BizApprovalNode>()
+                            .eq(BizApprovalNode::getApprovalId, a.getId())
+                            .orderByAsc(BizApprovalNode::getNodeOrder));
+            if (!nodes.isEmpty()) {
+                BizApprovalNode node = nodes.get(0);
+                if (node.getApproverId() != null) {
+                    SysUser approver = userMapper.selectById(node.getApproverId());
+                    if (approver != null) record.put("approverName", approver.getRealName());
+                }
+                record.put("approveTime", node.getOperatedAt());
+            }
+
+            records.add(record);
+        }
+
+        // 关键字过滤
+        if (StringUtils.hasText(keyword)) {
+            records.removeIf(r -> {
+                String cn = (String) r.get("customerName");
+                String an = (String) r.get("applicantName");
+                String avn = (String) r.get("approverName");
+                return (cn == null || !cn.contains(keyword))
+                        && (an == null || !an.contains(keyword))
+                        && (avn == null || !avn.contains(keyword));
+            });
+        }
+
+        // 统计
+        long totalAll = approvalMapper.selectCount(
+                new LambdaQueryWrapper<BizApproval>().eq(BizApproval::getApprovalType, "claim"));
+        long approved = approvalMapper.selectCount(
+                new LambdaQueryWrapper<BizApproval>().eq(BizApproval::getApprovalType, "claim").eq(BizApproval::getStatus, "approved"));
+        long rejected = approvalMapper.selectCount(
+                new LambdaQueryWrapper<BizApproval>().eq(BizApproval::getApprovalType, "claim").eq(BizApproval::getStatus, "rejected"));
+        long pending = approvalMapper.selectCount(
+                new LambdaQueryWrapper<BizApproval>().eq(BizApproval::getApprovalType, "claim").eq(BizApproval::getStatus, "reviewing"));
+
+        Map<String, Object> result = new HashMap<>();
+        result.put("records", records);
+        result.put("total", page.getTotal());
+        result.put("stats", Map.of("total", totalAll, "approved", approved, "rejected", rejected, "pending", pending));
+
+        return Result.ok(result);
+    }
+}

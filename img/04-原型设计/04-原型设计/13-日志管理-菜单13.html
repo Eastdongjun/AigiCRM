@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>运筹马年 · 日志管理</title>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", "Helvetica Neue", Arial, sans-serif; font-size: 14px; color: #333; background: #f0f2f5; }
+    .app { display: flex; height: 100vh; overflow: hidden; }
+    /* Sidebar */
+    .sidebar { width: 240px; min-width: 240px; background: #001629; color: #fff; display: flex; flex-direction: column; user-select: none; overflow-y: auto; }
+    .logo-wrap { display: flex; align-items: center; height: 56px; padding: 0 20px; gap: 10px; border-bottom: 1px solid rgba(255,255,255,0.08); flex-shrink: 0; }
+    .logo-icon { width: 32px; height: 32px; background: #1890ff; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 700; color: #fff; }
+    .logo-text { font-size: 17px; font-weight: 700; letter-spacing: 1px; color: #fff; }
+    .nav { flex: 1; padding: 12px 0; }
+    .nav-group { padding: 8px 0; }
+    .nav-group-title { padding: 4px 20px 6px; font-size: 11px; color: rgba(255,255,255,0.35); text-transform: uppercase; letter-spacing: 1.5px; }
+    .nav-item { display: flex; align-items: center; padding: 0 20px; height: 40px; cursor: pointer; color: rgba(255,255,255,0.7); font-size: 14px; gap: 10px; position: relative; }
+    .nav-item:hover { background: rgba(255,255,255,0.06); color: #fff; }
+    .nav-item.active { background: rgba(24,144,255,0.18); color: #fff; }
+    .nav-item.active::before { content: ''; position: absolute; left: 0; top: 6px; bottom: 6px; width: 3px; background: #1890ff; border-radius: 0 2px 2px 0; }
+    .nav-icon { width: 18px; height: 18px; flex-shrink: 0; opacity: 0.8; }
+    .nav-item.active .nav-icon { opacity: 1; }
+    .nav-txt { flex: 1; }
+    .nav-badge { display: inline-flex; align-items: center; justify-content: center; min-width: 18px; height: 18px; border-radius: 9px; background: #ff4d4f; color: #fff; font-size: 11px; padding: 0 5px; font-weight: 600; line-height: 18px; }
+    .nav-badge.warn { background: #fa8c16; }
+    .nav-badge.primary { background: #1890ff; }
+    .nav-sub { padding: 0 0 4px 0; }
+    .nav-sub-item { display: flex; align-items: center; padding: 0 20px 0 52px; height: 34px; cursor: pointer; color: rgba(255,255,255,0.55); font-size: 13px; gap: 8px; position: relative; }
+    .nav-sub-item:hover { background: rgba(255,255,255,0.06); color: #fff; }
+    .nav-sub-item.active { background: rgba(24,144,255,0.18); color: #fff; }
+    .nav-sub-item.active::before { content: ''; position: absolute; left: 0; top: 4px; bottom: 4px; width: 3px; background: #1890ff; border-radius: 0 2px 2px 0; }
+    .sub-arrow { transition: transform .2s; }
+    /* Main */
+    .main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+    .topbar { height: 56px; background: #fff; border-bottom: 1px solid #e8e8e8; display: flex; align-items: center; justify-content: space-between; padding: 0 28px; flex-shrink: 0; }
+    .topbar-left { display: flex; align-items: center; gap: 16px; }
+    .topbar-title { font-size: 16px; font-weight: 600; color: #262626; }
+    .breadcrumb { display: flex; align-items: center; gap: 6px; font-size: 13px; color: #8c8c8c; }
+    .topbar-right { display: flex; align-items: center; gap: 20px; }
+    .user-info { display: flex; align-items: center; gap: 8px; cursor: default; }
+    .user-avatar { width: 32px; height: 32px; border-radius: 50%; background: #1890ff; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 600; }
+    .user-name { font-size: 14px; font-weight: 500; color: #262626; }
+    .user-org { font-size: 12px; color: #8c8c8c; }
+    .content { flex: 1; overflow-y: auto; padding: 24px 28px; }
+    /* Toolbar */
+    .tb-bar { display: flex; align-items: center; gap: 12px; padding: 10px 16px; background: #fff; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); margin-bottom: 14px; flex-wrap: wrap; }
+    .tb-tabs { display: flex; gap: 4px; flex-wrap: wrap; }
+    .tb-tab { display: inline-flex; align-items: center; gap: 4px; padding: 6px 14px; border: none; border-radius: 20px; background: #f5f5f5; color: #595959; font-size: 13px; font-weight: 500; cursor: pointer; }
+    .tb-tab:hover { background: #e8e8e8; }
+    .tb-tab.active { background: #e6f7ff; color: #1890ff; font-weight: 600; }
+    .tb-badge { display: inline-flex; align-items: center; justify-content: center; min-width: 18px; height: 18px; border-radius: 9px; background: rgba(0,0,0,0.06); color: inherit; font-size: 10px; padding: 0 4px; }
+    .tb-tab.active .tb-badge { background: rgba(24,144,255,0.12); color: #1890ff; }
+    .tb-filters { display: flex; align-items: center; gap: 8px; flex: 1; justify-content: flex-end; flex-wrap: wrap; }
+    .tb-input { height: 34px; padding: 0 10px; border: 1px solid #d9d9d9; border-radius: 6px; font-size: 12px; color: #262626; outline: none; }
+    .tb-input:focus { border-color: #1890ff; }
+    .tb-search { display: flex; align-items: center; border: 1px solid #d9d9d9; border-radius: 6px; padding: 0 10px; height: 34px; gap: 4px; }
+    .tb-search input { border: none; outline: none; font-size: 12px; color: #333; background: transparent; width: 150px; }
+    .tb-search input::placeholder { color: #bfbfbf; }
+    .tb-btn { height: 34px; padding: 0 14px; border: 1px solid #d9d9d9; border-radius: 6px; background: #fff; color: #595959; font-size: 12px; cursor: pointer; }
+    .tb-btn:hover { border-color: #1890ff; color: #1890ff; }
+    .tb-pbtn { display: inline-flex; align-items: center; gap: 4px; height: 34px; padding: 0 16px; background: #1890ff; color: #fff; border: none; border-radius: 6px; font-size: 12px; font-weight: 500; cursor: pointer; }
+    .tb-pbtn:hover { background: #40a9ff; }
+    /* Log Card */
+    .log-card { background: #fff; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); overflow: hidden; border: 1px solid #e8e8e8; }
+    .info-bar { display: flex; align-items: center; gap: 20px; padding: 10px 16px; background: #fafafa; border-bottom: 1px solid #f0f0f0; font-size: 12px; color: #595959; }
+    .info-bar strong { color: #262626; }
+    .log-tb { width: 100%; border-collapse: separate; border-spacing: 0; table-layout: fixed; }
+    .log-tb thead th { background: #f5f6f8; padding: 0 12px; height: 42px; font-weight: 600; color: #595959; border-bottom: 1px solid #e0e0e0; text-align: center; font-size: 12px; white-space: nowrap; }
+    .log-tb tbody td { padding: 0 12px; height: 44px; border-bottom: 1px solid #f5f5f5; font-size: 13px; color: #333; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: center; }
+    .log-tb tbody td:first-child, .log-tb thead th:first-child { text-align: left; }
+    .log-tb tbody tr:hover td { background: #f5f7fa; }
+    .log-tb tbody tr:last-child td { border-bottom: none; }
+    .td-time { color: #8c8c8c; font-size: 12px; }
+    .td-obj { color: #262626; font-weight: 500; max-width: 200px; }
+    .td-action { border: none; background: none; color: #1890ff; cursor: pointer; font-size: 13px; padding: 2px 8px; border-radius: 4px; }
+    .td-action:hover { background: #e6f7ff; }
+    /* Tags */
+    .tg { display: inline-flex; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 500; white-space: nowrap; }
+    .tg-blue { background: #e6f7ff; color: #1890ff; }
+    .tg-green { background: #f6ffed; color: #52c41a; }
+    .tg-orange { background: #fff7e6; color: #fa8c16; }
+    .tg-purple { background: #f9f0ff; color: #722ed1; }
+    .tg-red { background: #fff2f0; color: #ff4d4f; }
+    /* Footer */
+    .pg { display: flex; align-items: center; justify-content: space-between; padding: 10px 16px; border-top: 1px solid #f0f0f0; }
+    .pg-info { font-size: 12px; color: #8c8c8c; }
+    .pg-btns { display: flex; gap: 4px; }
+    .pg-btn { display: inline-flex; align-items: center; justify-content: center; min-width: 28px; height: 28px; border: 1px solid #e8e8e8; border-radius: 6px; background: #fff; color: #595959; font-size: 12px; cursor: pointer; }
+    .pg-btn:hover { border-color: #1890ff; color: #1890ff; }
+    .pg-btn.active { background: #1890ff; border-color: #1890ff; color: #fff; }
+    .pg-btn.disabled { opacity: 0.4; cursor: not-allowed; }
+  </style>
+</head>
+<body>
+<div class="app">
+
+  <!-- ===== Sidebar ===== -->
+    <aside class="sidebar">
+    <div class="logo-wrap">
+      <div class="logo-icon">运</div>
+      <span class="logo-text">运筹马年</span>
+    </div>
+    <nav class="nav">
+      <div class="nav-group">
+        <div class="nav-group-title">首页</div>
+        <div class="nav-item" onclick="location.href='02-工作台-菜单02.html'" style="cursor:pointer;">
+          <i class="nav-icon" data-lucide="layout-dashboard"></i>
+          <span class="nav-txt">工作台</span>
+        </div>
+      </div>
+      <div class="nav-group">
+        <div class="nav-group-title">业务核心</div>
+        <div class="nav-item" onclick="location.href='03_01-客户列表-菜单03.html'" style="cursor:pointer;">
+          <i class="nav-icon" data-lucide="users"></i>
+          <span class="nav-txt">客户管理</span>
+          <span class="nav-badge">24</span>
+        </div>
+        <div class="nav-sub" style="display:none;">
+          <div class="nav-sub-item" onclick="location.href='03_01-客户列表-菜单03.html'">
+            <span class="nav-txt">客户列表</span>
+          </div>
+          <div class="nav-sub-item" onclick="location.href='03_03-新增客户-菜单03.html'" style="cursor:pointer;">
+            <span class="nav-txt">新增客户</span>
+          </div>
+          <div class="nav-sub-item" onclick="location.href='03_02-客户详情-菜单03.html'" style="cursor:pointer;">
+            <span class="nav-txt">客户详情</span>
+          </div>
+        </div>
+
+        <div class="nav-item" onclick="location.href='04-文件管理-菜单04.html'" style="cursor:pointer;">
+          <i class="nav-icon" data-lucide="folder"></i>
+          <span class="nav-txt">文件管理</span>
+        </div>
+        <div class="nav-item" onclick="location.href='05_02-激励上传-菜单05.html'" style="cursor:pointer;">
+          <i class="nav-icon" data-lucide="database"></i>
+          <span class="nav-txt">四项激励Plus版</span>
+        </div>
+        <div class="nav-item" onclick="location.href='06-提醒管理-菜单06.html'" style="cursor:pointer;">
+          <i class="nav-icon" data-lucide="bell"></i>
+          <span class="nav-txt">提醒管理</span>
+          <span class="nav-badge warn">3</span>
+        </div>
+        <div class="nav-item" onclick="location.href='07_01-公海池-菜单07.html'" style="cursor:pointer;">
+          <i class="nav-icon" data-lucide="sailboat"></i>
+          <span class="nav-txt">公海管理</span>
+        </div>
+        <div class="nav-item" onclick="location.href='08-审批管理-菜单08.html'" style="cursor:pointer;">
+          <i class="nav-icon" data-lucide="check-circle"></i>
+          <span class="nav-txt">审批管理</span>
+          <span class="nav-badge primary">2</span>
+        </div>
+      </div>
+      <div class="nav-group">
+        <div class="nav-group-title">考核与分析</div>
+        <div class="nav-item" onclick="location.href='09-统计分析-菜单09.html'" style="cursor:pointer;">
+          <i class="nav-icon" data-lucide="bar-chart-3"></i>
+          <span class="nav-txt">统计分析</span>
+        </div>
+        <div class="nav-item" onclick="toggleScoreSub(this)" style="cursor:pointer;">
+          <i class="nav-icon" data-lucide="trophy"></i>
+          <span class="nav-txt">积分榜</span>
+          <i class="sub-arrow" data-lucide="chevron-down" style="width:14px;height:14px;opacity:0.6;transition:transform .2s;"></i>
+        </div>
+        <div class="nav-sub" id="scoreSub" style="display:none;">
+          <div class="nav-sub-item" onclick="location.href='10_01-积分录入-菜单10.html'">
+            <i data-lucide="edit-3" style="width:14px;height:14px;"></i> 积分录入
+          </div>
+          <div class="nav-sub-item" onclick="location.href='10_02-积分排行-菜单10.html'">
+            <i data-lucide="bar-chart-3" style="width:14px;height:14px;"></i> 🏆 个人排行
+          </div>
+          <div class="nav-sub-item" onclick="location.href='10_03-部门排行-菜单10.html'">
+            <i data-lucide="building-2" style="width:14px;height:14px;"></i> 🏅 部门排行
+          </div>
+        </div>
+        <div class="nav-item" onclick="toggleSixSub(this)" style="cursor:pointer;">
+          <i class="nav-icon" data-lucide="target"></i>
+          <span class="nav-txt">核心客户六项指标</span>
+          <i class="sub-arrow" data-lucide="chevron-down" style="width:14px;height:14px;opacity:0.6;transition:transform .2s;"></i>
+        </div>
+        <div class="nav-sub" id="sixSub" style="display:none;">
+          <div class="nav-sub-item" onclick="location.href='09_02-核心客户指标排行-菜单09.html'">
+            <i data-lucide="pie-chart" style="width:14px;height:14px;"></i> 统计总览
+          </div>
+          <div class="nav-sub-item" onclick="location.href='09_02-核心客户指标排行-菜单09.html'">
+            <i data-lucide="user-check" style="width:14px;height:14px;"></i> 🏆 个人排行
+          </div>
+          <div class="nav-sub-item" onclick="location.href='09_02-核心客户指标排行-菜单09.html'">
+            <i data-lucide="building-2" style="width:14px;height:14px;"></i> 🏅 部门排行
+          </div>
+          <div class="nav-sub-item" onclick="location.href='09_02-核心客户指标排行-菜单09.html'">
+            <i data-lucide="globe" style="width:14px;height:14px;"></i> 🌍 大区排行
+          </div>
+        </div>
+      </div>
+      <div class="nav-group">
+        <div class="nav-group-title">系统管理</div>
+        <div class="nav-item" onclick="toggleOrgSub(this)" style="cursor:pointer;">
+          <i class="nav-icon" data-lucide="building-2"></i>
+          <span class="nav-txt">组织架构</span>
+          <i class="sub-arrow" data-lucide="chevron-down" style="width:14px;height:14px;opacity:0.6;transition:transform .2s;"></i>
+        </div>
+        <div class="nav-sub" id="orgSub" style="display:none;">
+          <div class="nav-sub-item" onclick="location.href='11-组织架构-菜单11.html#personnel'">
+            <i data-lucide="users" style="width:14px;height:14px;"></i> 人员列表
+          </div>
+          <div class="nav-sub-item" onclick="location.href='11-组织架构-菜单11.html#dept'">
+            <i data-lucide="layers" style="width:14px;height:14px;"></i> 部门管理
+          </div>
+          <div class="nav-sub-item" onclick="location.href='11-组织架构-菜单11.html#position'">
+            <i data-lucide="briefcase" style="width:14px;height:14px;"></i> 岗位设置
+          </div>
+          <div class="nav-sub-item" onclick="location.href='11-组织架构-菜单11.html#permission'">
+            <i data-lucide="shield" style="width:14px;height:14px;"></i> 权限设置
+          </div>
+        </div>
+        <div class="nav-item" onclick="location.href='12-系统设置-菜单12.html'" style="cursor:pointer;">
+          <i class="nav-icon" data-lucide="settings"></i>
+          <span class="nav-txt">系统设置</span>
+        </div>
+        <div class="nav-item active" onclick="location.href='13-日志管理-菜单13.html'" style="cursor:pointer;">
+          <i class="nav-icon" data-lucide="file-text"></i>
+          <span class="nav-txt">日志管理</span>
+        </div>
+      </div>
+    </nav>
+  </aside>
+
+  <!-- ===== Main Area ===== -->
+  <div class="main">
+    <header class="topbar">
+      <div class="topbar-left">
+        <span class="topbar-title">日志管理</span>
+        <div class="breadcrumb">
+          <i data-lucide="home" style="width:14px;height:14px;"></i>
+          <span>首页</span>
+          <span style="color:#bfbfbf;margin:0 4px;">/</span>
+          <span>系统管理</span>
+          <span style="color:#bfbfbf;margin:0 4px;">/</span>
+          <span style="color:#262626;font-weight:500;">日志管理</span>
+        </div>
+      </div>
+      <div class="topbar-right">
+        <i data-lucide="bell" style="width:18px;height:18px;color:#8c8c8c;cursor:pointer;"></i>
+        <i data-lucide="help-circle" style="width:18px;height:18px;color:#8c8c8c;cursor:pointer;"></i>
+        <div class="user-info">
+          <div class="user-avatar">吴</div>
+          <span class="user-name">吴哲</span>
+          <span class="user-org">· 总部 系统管理员</span>
+        </div>
+      </div>
+    </header>
+
+    <div class="content">
+      <div style="margin-bottom:18px;">
+        <h1 style="font-size:22px;font-weight:600;color:#262626;margin:0;">日志管理</h1>
+        <p style="font-size:13px;color:#8c8c8c;margin-top:4px;">查看系统全模块的操作、登录、文件、人员与系统事件记录</p>
+      </div>
+
+      <!-- Toolbar -->
+      <div class="tb-bar">
+        <div class="tb-tabs">
+          <button class="tb-tab active" onclick="switchLogTab('all')">全部日志 <span class="tb-badge">68</span></button>
+          <button class="tb-tab" onclick="switchLogTab('operation')">操作日志 <span class="tb-badge">12</span></button>
+          <button class="tb-tab" onclick="switchLogTab('login')">登录日志 <span class="tb-badge">46</span></button>
+          <button class="tb-tab" onclick="switchLogTab('file')">文件日志 <span class="tb-badge">10</span></button>
+          <button class="tb-tab" onclick="switchLogTab('personnel')">人员日志 <span class="tb-badge">5</span></button>
+          <button class="tb-tab" onclick="switchLogTab('system')">系统日志 <span class="tb-badge">3</span></button>
+        </div>
+        <div class="tb-filters">
+          <input type="date" class="tb-input" value="2026-06-01" style="width:125px;">
+          <span style="color:#bfbfbf;">~</span>
+          <input type="date" class="tb-input" value="2026-06-07" style="width:125px;">
+          <div class="tb-search">
+            <i data-lucide="search" style="width:14px;height:14px;color:#bfbfbf;"></i>
+            <input type="text" placeholder="搜索操作人/对象...">
+          </div>
+          <button class="tb-btn" onclick="alert('导出日志')"><i data-lucide="download" style="width:13px;height:13px;"></i> 导出</button>
+        </div>
+      </div>
+
+      <!-- Log Card -->
+      <div class="log-card">
+        <div class="info-bar">
+          <span>共 <strong id="logTotal">68</strong> 条日志</span>
+          <span style="color:#8c8c8c;">2026-06-01 ~ 2026-06-07</span>
+          <span style="color:#8c8c8c;">按时间倒序</span>
+        </div>
+
+        <!-- Tab: 全部日志 -->
+        <div class="log-view" id="tab-all">
+          <table class="log-tb">
+            <colgroup><col style="width:144px;"><col style="width:82px;"><col style="width:136px;"><col style="width:78px;"><col style="width:180px;"><col style="width:80px;"></colgroup>
+            <thead><tr><th>时间</th><th>操作人</th><th>模块/类型</th><th>动作</th><th>操作对象</th><th>详情</th></tr></thead>
+            <tbody>
+              <tr><td class="td-time">06-07 14:32</td><td>王磊磊</td><td><span class="tg tg-blue">客户管理</span></td><td>创建</td><td class="td-obj">陕煤榆林化学有限公司</td><td><button class="td-action">查看</button></td></tr>
+              <tr><td class="td-time">06-07 14:30</td><td>王磊磊</td><td><span class="tg tg-green">登录认证</span></td><td>登录</td><td class="td-obj">Chrome / macOS</td><td><button class="td-action">查看</button></td></tr>
+              <tr><td class="td-time">06-07 11:10</td><td>李明</td><td><span class="tg tg-blue">客户管理</span></td><td>编辑</td><td class="td-obj">内蒙古汇能煤化工</td><td><button class="td-action">查看</button></td></tr>
+              <tr><td class="td-time">06-07 10:20</td><td>吴哲</td><td><span class="tg tg-purple">人员管理</span></td><td>新增</td><td class="td-obj">新增用户：陈晓彬（太原办）</td><td><button class="td-action">查看</button></td></tr>
+              <tr><td class="td-time">06-07 09:45</td><td>李明</td><td><span class="tg tg-orange">文件管理</span></td><td>上传</td><td class="td-obj">神东哈拉沟-技术方案V3.pdf</td><td><button class="td-action">查看</button></td></tr>
+              <tr><td class="td-time">06-06 18:22</td><td>赵四</td><td><span class="tg tg-green">登录认证</span></td><td>登录</td><td class="td-obj">企业微信 / iOS</td><td><button class="td-action">查看</button></td></tr>
+              <tr><td class="td-time">06-06 16:08</td><td>张三</td><td><span class="tg tg-blue">客户管理</span></td><td>创建</td><td class="td-obj">神东哈拉沟煤矿</td><td><button class="td-action">查看</button></td></tr>
+              <tr><td class="td-time">06-06 15:30</td><td>吴哲</td><td><span class="tg tg-purple">权限管理</span></td><td>修改</td><td class="td-obj">区域经理角色权限配置</td><td><button class="td-action">查看</button></td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Tab: 操作日志 -->
+        <div class="log-view" id="tab-operation" style="display:none;">
+          <table class="log-tb">
+            <colgroup><col style="width:144px;"><col style="width:80px;"><col style="width:80px;"><col style="width:180px;"><col style="width:80px;"></colgroup>
+            <thead><tr><th>时间</th><th>操作人</th><th>动作</th><th>操作对象</th><th>详情</th></tr></thead>
+            <tbody>
+              <tr><td class="td-time">06-07 14:32</td><td>王磊磊</td><td><span class="tg tg-blue">创建客户</span></td><td class="td-obj">陕煤榆林化学有限公司</td><td><button class="td-action">查看</button></td></tr>
+              <tr><td class="td-time">06-07 11:10</td><td>李明</td><td><span class="tg tg-green">编辑客户</span></td><td class="td-obj">内蒙古汇能煤化工</td><td><button class="td-action">查看</button></td></tr>
+              <tr><td class="td-time">06-06 16:08</td><td>张三</td><td><span class="tg tg-blue">创建客户</span></td><td class="td-obj">神东哈拉沟煤矿</td><td><button class="td-action">查看</button></td></tr>
+              <tr><td class="td-time">06-06 14:22</td><td>赵四</td><td><span class="tg tg-orange">捞取客户</span></td><td class="td-obj">国能榆林化工</td><td><button class="td-action">查看</button></td></tr>
+              <tr><td class="td-time">06-05 09:15</td><td>王磊磊</td><td><span class="tg tg-purple">审批通过</span></td><td class="td-obj">客户保护期延期 SP-003</td><td><button class="td-action">查看</button></td></tr>
+              <tr><td class="td-time">06-05 08:30</td><td>李明</td><td><span class="tg tg-red">审批驳回</span></td><td class="td-obj">客户捞取申请 SP-009</td><td><button class="td-action">查看</button></td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Tab: 登录日志 -->
+        <div class="log-view" id="tab-login" style="display:none;">
+          <table class="log-tb">
+            <colgroup><col style="width:144px;"><col style="width:80px;"><col style="width:120px;"><col style="width:180px;"><col style="width:80px;"></colgroup>
+            <thead><tr><th>时间</th><th>用户</th><th>IP 地址</th><th>设备/浏览器</th><th>结果</th></tr></thead>
+            <tbody>
+              <tr><td class="td-time">06-07 14:30</td><td>王磊磊</td><td style="color:#8c8c8c;">192.168.1.101</td><td>Chrome 120 / macOS</td><td><span class="tg tg-green">成功</span></td></tr>
+              <tr><td class="td-time">06-07 10:15</td><td>李明</td><td style="color:#8c8c8c;">192.168.1.102</td><td>Edge 118 / Windows 11</td><td><span class="tg tg-green">成功</span></td></tr>
+              <tr><td class="td-time">06-07 08:30</td><td>吴哲</td><td style="color:#8c8c8c;">10.0.0.1</td><td>Chrome 122 / macOS</td><td><span class="tg tg-green">成功</span></td></tr>
+              <tr><td class="td-time">06-06 18:22</td><td>赵四</td><td style="color:#8c8c8c;">10.0.0.55</td><td>企业微信 / iOS</td><td><span class="tg tg-red">失败</span></td></tr>
+              <tr><td class="td-time">06-06 09:00</td><td>张三</td><td style="color:#8c8c8c;">192.168.1.103</td><td>Firefox 120 / Windows 10</td><td><span class="tg tg-green">成功</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Tab: 文件日志 -->
+        <div class="log-view" id="tab-file" style="display:none;">
+          <table class="log-tb">
+            <colgroup><col style="width:144px;"><col style="width:80px;"><col style="width:80px;"><col style="width:200px;"><col style="width:80px;"></colgroup>
+            <thead><tr><th>时间</th><th>操作人</th><th>动作</th><th>文件名称</th><th>详情</th></tr></thead>
+            <tbody>
+              <tr><td class="td-time">06-07 09:45</td><td>李明</td><td><span class="tg tg-green">上传</span></td><td class="td-obj">神东哈拉沟-技术方案V3.pdf</td><td><button class="td-action">查看</button></td></tr>
+              <tr><td class="td-time">06-06 15:20</td><td>王磊磊</td><td><span class="tg tg-blue">下载</span></td><td class="td-obj">陕煤榆林-产品选型手册.docx</td><td><button class="td-action">查看</button></td></tr>
+              <tr><td class="td-time">06-06 11:00</td><td>赵四</td><td><span class="tg tg-green">上传</span></td><td class="td-obj">国能榆林-润滑方案报价.xlsx</td><td><button class="td-action">查看</button></td></tr>
+              <tr><td class="td-time">06-05 16:30</td><td>吴哲</td><td><span class="tg tg-red">删除</span></td><td class="td-obj">测试文件_draft_v1.pdf</td><td><button class="td-action">查看</button></td></tr>
+              <tr><td class="td-time">06-05 14:10</td><td>张三</td><td><span class="tg tg-orange">分享</span></td><td class="td-obj">太原办-季度总结报告.pdf</td><td><button class="td-action">查看</button></td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Tab: 人员日志 -->
+        <div class="log-view" id="tab-personnel" style="display:none;">
+          <table class="log-tb">
+            <colgroup><col style="width:144px;"><col style="width:80px;"><col style="width:80px;"><col style="width:200px;"><col style="width:80px;"></colgroup>
+            <thead><tr><th>时间</th><th>操作人</th><th>动作</th><th>变更内容</th><th>详情</th></tr></thead>
+            <tbody>
+              <tr><td class="td-time">06-07 10:20</td><td>吴哲</td><td><span class="tg tg-blue">新增人员</span></td><td class="td-obj">陈晓彬 · 销售工程师 · 太原办</td><td><button class="td-action">查看</button></td></tr>
+              <tr><td class="td-time">06-06 15:30</td><td>吴哲</td><td><span class="tg tg-purple">修改权限</span></td><td class="td-obj">区域经理角色 → 新增审批管理权限</td><td><button class="td-action">查看</button></td></tr>
+              <tr><td class="td-time">06-05 11:00</td><td>吴哲</td><td><span class="tg tg-orange">调整部门</span></td><td class="td-obj">赵四 从太原办 → 内蒙办</td><td><button class="td-action">查看</button></td></tr>
+              <tr><td class="td-time">06-04 09:30</td><td>吴哲</td><td><span class="tg tg-green">重置密码</span></td><td class="td-obj">李明 · 销售工程师 · 内蒙办</td><td><button class="td-action">查看</button></td></tr>
+              <tr><td class="td-time">06-03 16:00</td><td>吴哲</td><td><span class="tg tg-red">禁用账号</span></td><td class="td-obj">李帮文 · 已离职</td><td><button class="td-action">查看</button></td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Tab: 系统日志 -->
+        <div class="log-view" id="tab-system" style="display:none;">
+          <table class="log-tb">
+            <colgroup><col style="width:144px;"><col style="width:210px;"><col style="width:100px;"><col style="width:80px;"></colgroup>
+            <thead><tr><th>时间</th><th>事件描述</th><th>级别</th><th>详情</th></tr></thead>
+            <tbody>
+              <tr><td class="td-time">06-07 02:00</td><td class="td-obj">数据库自动备份完成 · backup_20260607.sql</td><td><span class="tg tg-green">正常</span></td><td><button class="td-action">查看</button></td></tr>
+              <tr><td class="td-time">06-05 08:00</td><td class="td-obj">系统版本升级 v3.2.1 → v3.3.0</td><td><span class="tg tg-blue">信息</span></td><td><button class="td-action">查看</button></td></tr>
+              <tr><td class="td-time">06-03 14:22</td><td class="td-obj">磁盘使用率预警 · /data 分区 87%</td><td><span class="tg tg-orange">警告</span></td><td><button class="td-action">查看</button></td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="pg">
+          <span class="pg-info" id="pgInfo">共 8 条 · 第 1/12 页</span>
+          <div class="pg-btns">
+            <button class="pg-btn disabled"><i data-lucide="chevron-left" style="width:14px;height:14px;"></i></button>
+            <button class="pg-btn active">1</button>
+            <button class="pg-btn">2</button>
+            <button class="pg-btn">3</button>
+            <button class="pg-btn"><i data-lucide="chevron-right" style="width:14px;height:14px;"></i></button>
+          </div>
+        </div>
+      </div>
+    </div><!-- /content -->
+  </div><!-- /main -->
+</div><!-- /app -->
+
+<script>
+  function switchLogTab(tab) {
+    document.querySelectorAll('.tb-tab').forEach(function(t){ t.classList.remove('active'); });
+    var tabs = ['all','operation','login','file','personnel','system'];
+    var idx = tabs.indexOf(tab);
+    if (idx >= 0) document.querySelectorAll('.tb-tab')[idx].classList.add('active');
+    document.querySelectorAll('.log-view').forEach(function(t){ t.style.display = 'none'; });
+    var target = document.getElementById('tab-' + tab);
+    if (target) target.style.display = '';
+  }
+
+  function toggleOrgSub(el) {
+    var sub = document.getElementById('orgSub');
+    if (!sub) return;
+    sub.style.display = sub.style.display === 'none' ? 'block' : 'none';
+    var arrow = el.querySelector('.sub-arrow');
+    if (arrow) arrow.style.transform = sub.style.display === 'block' ? 'rotate(0deg)' : 'rotate(-90deg)';
+  }
+
+  function toggleSixSub(el) {
+    var sub = document.getElementById('sixSub');
+    if (!sub) return;
+    sub.style.display = sub.style.display === 'none' ? 'block' : 'none';
+    var arrow = el.querySelector('.sub-arrow');
+    if (arrow) arrow.style.transform = sub.style.display === 'block' ? 'rotate(0deg)' : 'rotate(-90deg)';
+  }
+
+  function toggleScoreSub(el) {
+    var sub = document.getElementById('scoreSub');
+    if (!sub) return;
+    sub.style.display = sub.style.display === 'none' ? 'block' : 'none';
+    var arrow = el.querySelector('.sub-arrow');
+    if (arrow) arrow.style.transform = sub.style.display === 'block' ? 'rotate(0deg)' : 'rotate(-90deg)';
+  }
+
+  lucide.createIcons();
+</script>
+</body>
+</html>

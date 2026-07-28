@@ -1,0 +1,245 @@
+package com.ycmn.module.sea.service;
+
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.alibaba.excel.EasyExcel;
+import com.ycmn.common.BusinessException;
+import com.ycmn.module.customer.dto.CustomerImportDTO;
+import com.ycmn.module.customer.dto.CustomerImportResult;
+import com.ycmn.module.customer.entity.BizCustomer;
+import com.ycmn.module.customer.mapper.BizCustomerMapper;
+import com.ycmn.module.customer.service.CustomerService;
+import com.ycmn.module.sea.listener.SeaImportListener;
+import org.springframework.web.multipart.MultipartFile;
+import com.ycmn.module.sea.entity.BizSeaConfig;
+import com.ycmn.module.sea.entity.BizSeaPool;
+import com.ycmn.module.sea.mapper.BizSeaConfigMapper;
+import com.ycmn.module.sea.mapper.BizSeaPoolMapper;
+import com.ycmn.module.system.entity.SysDept;
+import com.ycmn.module.system.entity.SysUser;
+import com.ycmn.module.system.mapper.SysDeptMapper;
+import com.ycmn.module.system.mapper.SysUserMapper;
+import com.ycmn.security.SecurityUtils;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
+
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+
+@Service
+@RequiredArgsConstructor
+public class SeaService {
+
+    private final BizSeaPoolMapper seaPoolMapper;
+    private final BizSeaConfigMapper seaConfigMapper;
+    private final BizCustomerMapper customerMapper;
+    private final SysUserMapper userMapper;
+    private final SysDeptMapper deptMapper;
+    private final SeaConfigService seaConfigService;
+    private final CustomerService customerService;
+
+    /** 当前用户可见的公海池ID; 返回 null 表示 all 数据范围(不过滤) */
+    private List<Long> visiblePoolIdsOrNull() {
+        if ("all".equals(SecurityUtils.getCurrentDataScope())) return null;
+        return seaConfigService.listVisible().stream().map(BizSeaConfig::getId).collect(Collectors.toList());
+    }
+
+    public IPage<BizSeaPool> page(int current, int size, String industry, Long officeId, String enterReason, String keyword, Long poolId) {
+        List<Long> visiblePoolIds = visiblePoolIdsOrNull();
+        if (visiblePoolIds != null && visiblePoolIds.isEmpty()) {
+            return new Page<>(current, size); // 无可见公海池
+        }
+
+        LambdaQueryWrapper<BizSeaPool> wrapper = new LambdaQueryWrapper<>();
+        wrapper.ne(BizSeaPool::getStatus, "claimed")
+                .orderByDesc(BizSeaPool::getEnterDate);
+        // enterReason 是 biz_sea_pool 自身字段，直接在 DB 层过滤（保证分页与总数正确）
+        if (StringUtils.hasText(enterReason)) {
+            wrapper.eq(BizSeaPool::getEnterReason, enterReason);
+        }
+        if (visiblePoolIds != null) {
+            wrapper.in(BizSeaPool::getPoolId, visiblePoolIds);
+        }
+        if (poolId != null) {
+            if (visiblePoolIds != null && !visiblePoolIds.contains(poolId)) {
+                return new Page<>(current, size); // 指定了不可见的池
+            }
+            wrapper.eq(BizSeaPool::getPoolId, poolId);
+        }
+
+        IPage<BizSeaPool> page = seaPoolMapper.selectPage(new Page<>(current, size), wrapper);
+
+        for (BizSeaPool sp : page.getRecords()) {
+            BizCustomer customer = customerMapper.selectById(sp.getCustomerId());
+            if (customer != null) {
+                sp.setCustomerName(customer.getCustomerName());
+                sp.setCustomerCode(customer.getCustomerCode());
+                sp.setIndustry(customer.getIndustry());
+                if (customer.getOfficeId() != null) {
+                    SysDept dept = deptMapper.selectById(customer.getOfficeId());
+                    if (dept != null) sp.setRegion(dept.getDeptName());
+                }
+            }
+            if (sp.getOriginalOwnerId() != null) {
+                SysUser owner = userMapper.selectById(sp.getOriginalOwnerId());
+                if (owner != null) sp.setOriginalOwnerName(owner.getRealName());
+            }
+        }
+
+        // keyword/industry 涉及关联客户字段，仍在内存中过滤；enterReason 已在 DB 层过滤
+        if (StringUtils.hasText(keyword) || StringUtils.hasText(industry)) {
+            page.getRecords().removeIf(sp -> {
+                if (StringUtils.hasText(keyword) && (sp.getCustomerName() == null || !sp.getCustomerName().contains(keyword))) return true;
+                if (StringUtils.hasText(industry) && !industry.equals(sp.getIndustry())) return true;
+                return false;
+            });
+        }
+
+        return page;
+    }
+
+    public Map<String, Long> statistics() {
+        Map<String, Long> stats = new HashMap<>();
+        List<Long> visiblePoolIds = visiblePoolIdsOrNull();
+        if (visiblePoolIds != null && visiblePoolIds.isEmpty()) {
+            stats.put("total", 0L);
+            stats.put("newThisMonth", 0L);
+            stats.put("pendingApproval", 0L);
+            stats.put("claimedThisMonth", 0L);
+            return stats;
+        }
+
+        LocalDateTime monthStart = LocalDate.now().withDayOfMonth(1).atStartOfDay();
+        stats.put("total", seaPoolMapper.selectCount(scoped(visiblePoolIds).eq(BizSeaPool::getStatus, "available")));
+        stats.put("newThisMonth", seaPoolMapper.selectCount(scoped(visiblePoolIds).ge(BizSeaPool::getEnterDate, monthStart)));
+        stats.put("pendingApproval", seaPoolMapper.selectCount(scoped(visiblePoolIds).eq(BizSeaPool::getStatus, "pending_approval")));
+        stats.put("claimedThisMonth", seaPoolMapper.selectCount(scoped(visiblePoolIds)
+                .eq(BizSeaPool::getStatus, "claimed").ge(BizSeaPool::getClaimDate, monthStart)));
+        return stats;
+    }
+
+    /** 构造带可见池范围的查询条件(null 表示不限) */
+    private LambdaQueryWrapper<BizSeaPool> scoped(List<Long> visiblePoolIds) {
+        LambdaQueryWrapper<BizSeaPool> w = new LambdaQueryWrapper<>();
+        if (visiblePoolIds != null) w.in(BizSeaPool::getPoolId, visiblePoolIds);
+        return w;
+    }
+
+    @Transactional
+    public void addToSea(Long customerId, String reason) {
+        BizCustomer customer = customerMapper.selectById(customerId);
+        if (customer == null) return;
+
+        BizSeaPool pool = new BizSeaPool();
+        pool.setCustomerId(customerId);
+        pool.setPoolId(matchSeaConfig(customer.getOfficeId()));
+        pool.setOriginalOwnerId(customer.getOwnerId());
+        pool.setEnterReason(reason);
+        pool.setEnterDate(LocalDateTime.now());
+        pool.setStatus("available");
+        seaPoolMapper.insert(pool);
+
+        // 更新客户状态
+        customer.setStatus("sea");
+        customer.setProtectionStatus("expired");
+        customerMapper.updateById(customer);
+    }
+
+    /**
+     * 根据客户所属办事处ID匹配公海池配置
+     */
+    public Long matchSeaConfig(Long officeId) {
+        if (officeId == null) return null;
+        String officeIdStr = String.valueOf(officeId);
+        List<BizSeaConfig> configs = seaConfigMapper.selectList(
+                new LambdaQueryWrapper<BizSeaConfig>().eq(BizSeaConfig::getStatus, 1));
+        for (BizSeaConfig config : configs) {
+            if (config.getRegionIds() != null) {
+                List<String> ids = Arrays.asList(config.getRegionIds().split(","));
+                if (ids.stream().map(String::trim).anyMatch(id -> id.equals(officeIdStr))) {
+                    return config.getId();
+                }
+            }
+        }
+        return null;
+    }
+
+    @Transactional
+    public void completeClaim(Long customerId, Long claimUserId) {
+        // 按 customer_id + 审批中 定位公海行（与 submit/reject 的查法一致）；
+        // 历史脏数据可能出现同客户多条审批中记录，取最近一条兜底，避免 selectOne 抛异常
+        BizSeaPool pool = seaPoolMapper.selectOne(new LambdaQueryWrapper<BizSeaPool>()
+                .eq(BizSeaPool::getCustomerId, customerId)
+                .eq(BizSeaPool::getStatus, "pending_approval")
+                .orderByDesc(BizSeaPool::getEnterDate)
+                .last("LIMIT 1"));
+        if (pool == null) return;
+
+        pool.setClaimUserId(claimUserId);
+        pool.setClaimDate(LocalDateTime.now());
+        pool.setStatus("claimed");
+        seaPoolMapper.updateById(pool);
+
+        // 更新客户归属
+        BizCustomer customer = customerMapper.selectById(pool.getCustomerId());
+        if (customer != null) {
+            customer.setOwnerId(claimUserId);
+            customer.setStatus("normal");
+            customer.setProtectionStatus("active");
+            customer.setRegisterDate(LocalDate.now());
+            customer.setExpireDate(LocalDate.now().plusDays(360));
+            customer.setAdjustDate(LocalDate.now().plusDays(180));
+            customerMapper.updateById(customer);
+        }
+    }
+
+    /**
+     * 删除公海池中的客户。
+     * 客户超期后从客户列表转入公海池，二者互斥；当客户处于"待捞取(available)"状态时可整体删除：
+     * 逻辑删除该客户 + 物理删除对应公海池记录。已进入审批或已被捞取的记录不允许删除。
+     */
+    @Transactional
+    public void deletePool(Long seaPoolId) {
+        BizSeaPool pool = seaPoolMapper.selectById(seaPoolId);
+        if (pool == null) {
+            throw new BusinessException("公海记录不存在");
+        }
+        if (!"available".equals(pool.getStatus())) {
+            throw new BusinessException("仅待捞取状态的客户可删除");
+        }
+        // 逻辑删除客户（biz_customer 有 deleted 列，走 MyBatis-Plus 逻辑删除）
+        if (pool.getCustomerId() != null) {
+            customerMapper.deleteById(pool.getCustomerId());
+        }
+        // 物理删除公海池记录（biz_sea_pool 无 deleted 列）
+        seaPoolMapper.deleteById(seaPoolId);
+    }
+
+    /**
+     * 公海池批量导入：模板与客户导入一致，每行新建客户并直接释放进公海。
+     */
+    public CustomerImportResult importToSea(MultipartFile file) {
+        Long currentUserId = SecurityUtils.getCurrentUserId();
+        Long currentOfficeId = SecurityUtils.getCurrentOfficeId();
+
+        CustomerImportResult result = new CustomerImportResult();
+        SeaImportListener listener = new SeaImportListener(
+                customerService, this, currentUserId, currentOfficeId, result);
+        try {
+            EasyExcel.read(file.getInputStream(), CustomerImportDTO.class, listener)
+                    .sheet()
+                    .doRead();
+        } catch (Exception e) {
+            throw new BusinessException("文件读取失败: " + e.getMessage());
+        }
+        return result;
+    }
+}
