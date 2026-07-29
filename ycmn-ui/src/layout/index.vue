@@ -54,6 +54,10 @@
               <el-icon><TrendCharts /></el-icon>
               <span>激励统计</span>
             </el-menu-item>
+            <el-menu-item index="/incentive/search">
+              <el-icon><Search /></el-icon>
+              <span>激励查询</span>
+            </el-menu-item>
           </el-sub-menu>
 
           <el-menu-item v-if="hasPerm('reminder:view')" index="/reminder">

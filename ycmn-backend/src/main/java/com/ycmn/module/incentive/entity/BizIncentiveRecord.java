@@ -20,6 +20,7 @@ public class BizIncentiveRecord {
     private Long filePreId;
     private Long fileMidId;
     private Long filePostId;
+    private Long fileTrackId;
     private String remark;
     private Integer score;
     private Integer shared;
@@ -41,4 +42,10 @@ public class BizIncentiveRecord {
     private String fileMidName;
     @TableField(exist = false)
     private String filePostName;
+    @TableField(exist = false)
+    private String fileTrackName;
+    @TableField(exist = false)
+    private java.time.LocalDate lastInvoiceDate;
+    @TableField(exist = false)
+    private Long overdueDays;
 }

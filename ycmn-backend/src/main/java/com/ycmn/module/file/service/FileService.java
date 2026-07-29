@@ -19,6 +19,12 @@ import com.ycmn.module.system.mapper.SysUserMapper;
 import com.ycmn.security.SecurityUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.io.Resource;
+import org.springframework.core.io.UrlResource;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.MediaTypeFactory;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -277,6 +283,28 @@ public class FileService {
 
     public Path getLocalFilePath(String fileKey) {
         return Paths.get(uploadDir, fileKey);
+    }
+
+    public ResponseEntity<?> downloadById(Long fileId) {
+        BizFile file = fileMapper.selectById(fileId);
+        if (file == null) return ResponseEntity.notFound().build();
+        try {
+            Path filePath = Paths.get(uploadDir, file.getOssKey());
+            Resource resource = new UrlResource(filePath.toUri());
+            if (resource.exists()) {
+                String filename = file.getFileName();
+                String encoded = java.net.URLEncoder.encode(filename, java.nio.charset.StandardCharsets.UTF_8).replace("+", "%20");
+                MediaType mt = MediaTypeFactory.getMediaType(filename).orElse(MediaType.APPLICATION_OCTET_STREAM);
+                String disp = filename.matches("(?i).*\\.(jpg|jpeg|png|gif|webp|bmp|svg|mp4|webm)$") ? "inline" : "attachment";
+                return ResponseEntity.ok()
+                        .header(HttpHeaders.CONTENT_DISPOSITION, disp + "; filename*=UTF-8''" + encoded)
+                        .contentType(mt).body(resource);
+            }
+            if (file.getOssUrl() != null && file.getOssUrl().startsWith("http")) {
+                return ResponseEntity.status(302).header(HttpHeaders.LOCATION, file.getOssUrl()).build();
+            }
+        } catch (Exception e) {}
+        return ResponseEntity.notFound().build();
     }
 
     public String getOssUrlByKey(String fileKey) {

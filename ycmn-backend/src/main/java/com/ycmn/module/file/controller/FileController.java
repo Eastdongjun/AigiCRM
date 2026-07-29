@@ -80,6 +80,11 @@ public class FileController {
         return Result.ok(fileService.getStorageInfo(SecurityUtils.getCurrentUserId()));
     }
 
+    @GetMapping("/download/{id}")
+    public ResponseEntity<?> downloadById(@PathVariable Long id) {
+        return fileService.downloadById(id);
+    }
+
     @GetMapping("/download/**")
     public ResponseEntity<Resource> download(jakarta.servlet.http.HttpServletRequest request) {
         try {

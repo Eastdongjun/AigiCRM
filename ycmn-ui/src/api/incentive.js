@@ -32,6 +32,11 @@ export function getScoreboard(params) {
   return request.get('/incentive/scoreboard', { params })
 }
 
+// 激励统计查询（全员可见）：支持大类/子类/行业/产品/周期筛选
+export function queryRecords(params) {
+  return request.get('/incentive/records/query', { params })
+}
+
 // 激励统计表(全员口径): 按子类聚合文件数/总学分 + 周期总计
 export function getCategoryStats(params) {
   return request.get('/incentive/category-stats', { params })

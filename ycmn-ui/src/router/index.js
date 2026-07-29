@@ -64,6 +64,12 @@ const routes = [
         component: () => import('@/views/incentive/stats.vue'),
         meta: { title: '激励统计', parentTitle: '四项激励Plus', icon: 'TrendCharts' }
       },
+      {
+        path: 'incentive/search',
+        name: 'IncentiveSearch',
+        component: () => import('@/views/incentive/search.vue'),
+        meta: { title: '激励查询', parentTitle: '四项激励Plus', icon: 'Search' }
+      },
       // 提醒管理
       {
         path: 'reminder',

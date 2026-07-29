@@ -132,71 +132,74 @@
     </div>
 
     <!-- 关联客户 + 安装文件 弹窗 -->
-    <el-dialog v-model="showCustomerDialog" :title="(pendingReplace ? '替换 · ' : '关联客户 · ') + (pendingChild?.categoryName || '')" width="520px" :close-on-click-modal="false">
-      <div class="upload-dialog">
-        <div class="dialog-field">
-          <div class="field-label">选择行业</div>
-          <el-select v-model="selectedIndustry" placeholder="请选择行业" clearable filterable style="width:100%">
-            <el-option v-for="i in industryOptions" :key="i" :label="i" :value="i" />
-          </el-select>
-        </div>
-
-        <div class="dialog-field">
-          <div class="field-label">相关产品</div>
-          <el-input v-model="relatedProducts" type="textarea" :rows="3" placeholder="请填写相关产品(每行一个或逗号分隔)..." maxlength="1000" show-word-limit />
-        </div>
-
-        <div class="dialog-field">
-          <div class="field-label">关联客户</div>
-          <el-select
-            v-model="selectedCustomerId"
-            filterable
-            remote
-            :remote-method="searchCustomers"
-            placeholder="搜索客户名称..."
-            style="width:100%"
-            :loading="customerLoading"
-          >
-            <el-option v-for="c in customerOptions" :key="c.id" :label="c.customerName" :value="c.id" />
-          </el-select>
-          <div v-if="selectedCustomerName" class="field-value">{{ selectedCustomerName }}</div>
-        </div>
-
-        <div class="dialog-field">
-          <div class="field-label">安装前问题</div>
-          <el-input v-model="preInstallQuestion" type="textarea" :rows="3" placeholder="请描述安装前存在的问题..." maxlength="1000" show-word-limit />
-        </div>
-
-        <div class="dialog-field">
-          <div class="field-label">安装文件 <span class="label-hint">(安装前/中/后，至少选 1 个)</span></div>
-          <div v-for="slot in fileSlots" :key="slot.key" class="file-row">
-            <span class="file-row-label">{{ slot.label }}</span>
-            <span class="file-row-name" :class="{ empty: !installFiles[slot.key] }">
-              {{ installFiles[slot.key] ? installFiles[slot.key].name : '未选择文件' }}
-            </span>
-            <el-button v-if="!installFiles[slot.key]" circle size="small" type="primary" :icon="Plus" @click="pickFile(slot.key)" />
-            <el-button v-else circle size="small" type="danger" plain :icon="Delete" @click="installFiles[slot.key] = null" />
+    <el-dialog v-model="showCustomerDialog" width="700px" top="2vh" :close-on-click-modal="false" class="upload-dlg">
+      <template #header>
+        <span style="font-size:17px;font-weight:700">{{ pendingReplace ? '替换文件' : '上传激励文件' }}</span>
+        <el-tag v-if="pendingChild" size="small" type="warning" style="margin-left:8px">{{ pendingChild.categoryName }}</el-tag>
+      </template>
+      <div class="up-body">
+        <!-- 基本信息卡 -->
+        <div class="up-card-box">
+          <div class="up-box-title">📋 基本信息</div>
+          <div class="up-row">
+            <div class="up-field flex-2"><label>关联客户 <i>*</i></label>
+              <el-select v-model="selectedCustomerId" filterable remote :remote-method="searchCustomers" placeholder="搜索客户名称..." :loading="customerLoading">
+                <el-option v-for="c in customerOptions" :key="c.id" :label="c.customerName" :value="c.id" />
+              </el-select>
+              <div v-if="selectedCustomerName" class="up-hint">✅ {{ selectedCustomerName }}</div>
+            </div>
+            <div class="up-field flex-1"><label>行业</label>
+              <el-select v-model="selectedIndustry" placeholder="选择" clearable><el-option v-for="i in industryOptions" :key="i" :label="i" :value="i" /></el-select>
+            </div>
+          </div>
+          <div class="up-row">
+            <div class="up-field flex-1"><label>相关产品</label><el-input v-model="relatedProducts" placeholder="填写产品名称" /></div>
+            <div class="up-field flex-1"><label>安装前问题</label><el-input v-model="preInstallQuestion" placeholder="描述安装前问题" /></div>
           </div>
         </div>
 
-        <div class="dialog-field">
-          <div class="field-label">备注</div>
-          <el-input v-model="remarkText" type="textarea" :rows="2" placeholder="备注(选填)..." maxlength="500" show-word-limit />
+        <!-- 安装文件卡 -->
+        <div class="up-card-box highlight">
+          <div class="up-box-title">📸 安装文件 <span>前 / 中 / 后 · 计学分</span></div>
+          <div class="up-cards">
+            <div v-for="slot in fileSlots" :key="slot.key" class="up-card" :class="{has:installFiles[slot.key]}" @click="!installFiles[slot.key]&&pickFile(slot.key)">
+              <template v-if="installFiles[slot.key]">
+                <div class="up-card-preview"><img v-if="isImage(installFiles[slot.key].name)" :src="getObjectURL(installFiles[slot.key])" /><span v-else class="up-card-icon">📄</span></div>
+                <div class="up-card-name">{{ installFiles[slot.key].name }}</div>
+                <span class="up-card-del" @click.stop="installFiles[slot.key]=null">✕</span>
+              </template>
+              <template v-else><span class="up-card-plus">+</span><span class="up-card-lbl">{{ slot.label }}</span></template>
+            </div>
+          </div>
         </div>
 
-        <div class="dialog-field share-field">
-          <span class="field-label">共享给团队</span>
-          <el-switch v-model="shareToTeam" />
-          <span v-if="shareToTeam" class="share-tag">● 共享</span>
+        <!-- 跟踪记录卡 -->
+        <div class="up-card-box">
+          <div class="up-box-title">📝 跟踪记录 <span>不加分</span></div>
+          <div class="up-card" :class="{has:trackFile}" style="width:200px" @click="!trackFile&&pickTrackFile()">
+            <template v-if="trackFile">
+              <div class="up-card-preview"><img v-if="isImage(trackFile.name)" :src="getObjectURL(trackFile)" /><span v-else class="up-card-icon">📄</span></div>
+              <div class="up-card-name">{{ trackFile.name }}</div>
+              <span class="up-card-del" @click.stop="trackFile=null">✕</span>
+            </template>
+            <template v-else><span class="up-card-plus">+</span><span class="up-card-lbl">选择文件</span></template>
+          </div>
         </div>
 
-        <p class="upload-hint">支持 PDF、Word、Excel、图片，单文件 ≤ 50MB · 每个文件计 1 份学分</p>
+        <!-- 备注 -->
+        <div class="up-card-box">
+          <div class="up-row">
+            <div class="up-field flex-1"><label>备注</label><el-input v-model="remarkText" placeholder="备注(选填)" /></div>
+            <div class="up-field" style="display:flex;align-items:flex-end;gap:10px;min-width:140px">
+              <div><label>共享</label><el-switch v-model="shareToTeam" /></div>
+            </div>
+          </div>
+        </div>
       </div>
       <template #footer>
-        <el-button @click="showCustomerDialog = false">取消</el-button>
-        <el-button type="primary" :icon="Upload" :loading="uploading" :disabled="!canSubmit" @click="confirmUpload">
-          {{ pendingReplace ? '替换并提交' : '上传并提交' }}
-        </el-button>
+        <span style="font-size:12px;color:#999;margin-right:auto">安装文件计学分 · 跟踪记录不计分</span>
+        <el-button @click="showCustomerDialog=false">取消</el-button>
+        <el-button type="primary" :loading="uploading" :disabled="!canSubmit" @click="confirmUpload">{{ pendingReplace?'替换并提交':'上传并提交' }}</el-button>
       </template>
     </el-dialog>
 
@@ -251,6 +254,7 @@ const fileSlots = [
   { key: 'post', label: '安装后' },
 ]
 const installFiles = reactive({ pre: null, mid: null, post: null })
+const trackFile = ref(null)
 const preInstallQuestion = ref('')
 const remarkText = ref('')
 const currentSlot = ref(null)
@@ -261,7 +265,7 @@ const selectedIndustry = ref('')
 const relatedProducts = ref('')
 
 const canSubmit = computed(() =>
-  !!selectedCustomerId.value && (installFiles.pre || installFiles.mid || installFiles.post))
+  !!selectedCustomerId.value && (installFiles.pre || installFiles.mid || installFiles.post || trackFile.value))
 
 const selectedCustomerName = computed(() => {
   if (!selectedCustomerId.value) return ''
@@ -383,6 +387,7 @@ const resetDialogFields = () => {
   installFiles.pre = null
   installFiles.mid = null
   installFiles.post = null
+  trackFile.value = null
   preInstallQuestion.value = ''
   remarkText.value = ''
   shareToTeam.value = false
@@ -437,14 +442,24 @@ const searchCustomers = async (query) => {
 }
 
 // 选择某个安装文件槽的文件
+const isImage = (name) => /\.(jpg|jpeg|png|gif|webp|bmp)$/i.test(name||'')
+const getObjectURL = (file) => file ? URL.createObjectURL(file) : ''
+
 const pickFile = (slotKey) => {
   currentSlot.value = slotKey
   fileInputRef.value?.click()
 }
 
+const pickTrackFile = () => {
+  currentSlot.value = 'track'
+  fileInputRef.value?.click()
+}
+
 const handleFileSelected = (event) => {
   const file = event.target.files[0]
-  if (file && currentSlot.value) {
+  if (file && currentSlot.value === 'track') {
+    trackFile.value = file
+  } else if (file && currentSlot.value) {
     installFiles[currentSlot.value] = file
   }
   currentSlot.value = null
@@ -467,6 +482,11 @@ const confirmUpload = async () => {
   if (!canSubmit.value) return
   uploading.value = true
   try {
+    const trackId = trackFile.value ? await uploadOne(trackFile.value) : null
+    if (trackFile.value && !trackId) {
+      ElMessage.error('跟踪记录文件上传失败，请重试')
+      return
+    }
     const [filePreId, fileMidId, filePostId] = await Promise.all([
       installFiles.pre ? uploadOne(installFiles.pre) : Promise.resolve(null),
       installFiles.mid ? uploadOne(installFiles.mid) : Promise.resolve(null),
@@ -476,7 +496,6 @@ const confirmUpload = async () => {
       ElMessage.error('部分文件上传失败，请重试')
       return
     }
-    // 替换：先删旧记录，再新增一条
     if (pendingReplace.value) {
       await deleteRecord(pendingReplace.value.id)
     }
@@ -490,6 +509,7 @@ const confirmUpload = async () => {
       filePreId,
       fileMidId,
       filePostId,
+      fileTrackId: trackId,
       remark: remarkText.value || null,
       shared: shareToTeam.value ? 1 : 0
     })
@@ -595,4 +615,37 @@ onMounted(() => {
 .install-files { display: flex; flex-direction: column; gap: 2px; }
 .file-tag { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; color: #333; }
 .file-tag b { display: inline-block; min-width: 16px; height: 16px; line-height: 16px; text-align: center; background: #ecf5ff; color: #409eff; border-radius: 3px; font-weight: 600; font-size: 11px; }
+
+/* 上传弹窗 */
+.up-card-box{background:#fafbfd;border:1px solid #eef0f4;border-radius:8px;padding:12px 14px;margin-bottom:8px}
+.up-card-box.highlight{background:linear-gradient(135deg,#f8faff,#f0f4ff);border-color:#d4e0f8}
+.up-box-title{font-size:13px;font-weight:700;color:#1a1a2e;margin-bottom:10px;display:flex;align-items:center;gap:6px}
+.up-box-title span{font-weight:400;font-size:11px;color:#909399}
+.up-row{display:flex;gap:12px}
+.up-row+.up-row{margin-top:8px}
+.up-field{min-width:0}.up-field label{display:block;font-size:11px;font-weight:600;color:#555;margin-bottom:3px}.up-field label i{color:#f56c6c;font-style:normal}
+.up-field .el-select{width:100%}.up-field .el-input{width:100%}
+.up-hint{color:#409eff;font-weight:600;font-size:13px;margin-top:4px}
+.flex-1{flex:1}.flex-2{flex:2}
+.up-cards{display:flex;gap:16px;margin-top:4px}
+.up-card{width:180px;min-height:140px;border:2px dashed #dcdfe6;border-radius:12px;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;transition:all .25s;position:relative;overflow:hidden;background:#fff}
+.up-card:hover{border-color:#409eff;background:#f0f6ff;box-shadow:0 2px 8px rgba(64,158,255,.08)}
+.up-card.has{border-style:solid;border-color:#d4e8d4;background:#f6fdf6;cursor:default;padding:8px}
+.up-card.has:hover{border-color:#a3d9a3}
+.up-card-plus{font-size:32px;color:#c0c4cc;line-height:1;transition:color .2s}
+.up-card:hover .up-card-plus{color:#409eff}
+.up-card-lbl{font-size:12px;color:#909399;margin-top:6px}
+.up-card-preview{width:100%;height:90px;overflow:hidden;display:flex;align-items:center;justify-content:center;background:#f5f5f5;border-radius:6px;margin-bottom:6px}
+.up-card-preview img{width:100%;height:100%;object-fit:cover}
+.up-card-icon{font-size:36px}
+.up-card-name{font-size:11px;color:#555;text-align:center;word-break:break-all;max-width:100%;padding:0 4px}
+.up-card-del{position:absolute;top:6px;right:6px;width:22px;height:22px;border-radius:50%;background:rgba(0,0,0,.5);color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;cursor:pointer;transition:background .2s}
+.up-card-del:hover{background:#f56c6c}
+
+.upload-dlg :deep(.el-dialog){display:flex;flex-direction:column;max-height:92vh;margin-top:4vh!important;margin-bottom:4vh!important}
+.upload-dlg :deep(.el-dialog__header){flex-shrink:0}
+.upload-dlg :deep(.el-dialog__body){flex:1;overflow-y:auto;min-height:0}
+.upload-dlg :deep(.el-dialog__footer){flex-shrink:0}
+@media (max-height:800px){.upload-dlg :deep(.el-dialog){max-height:96vh;margin-top:2vh!important;margin-bottom:2vh!important;width:95vw!important}}
+@media (max-width:720px){.upload-dlg :deep(.el-dialog){width:96vw!important}}
 </style>

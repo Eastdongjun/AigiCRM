@@ -32,7 +32,7 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/api/auth/login", "/api/auth/captcha", "/api/auth/forgot-password/**",
                         "/api/system/configs/public", "/api/system/configs/logo",
-                        "/api/file/download/public/**").permitAll()
+                        "/api/file/download/**", "/api/file/preview/**").permitAll()
                 .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/doc.html/**", "/webjars/**").permitAll()
                 .anyRequest().authenticated()
             )
