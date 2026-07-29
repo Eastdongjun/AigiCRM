@@ -1,36 +1,29 @@
 <template>
   <div class="incentive-page">
-    <h3 class="section-title"><span class="title-bar"></span>激励文件上传</h3>
-
-    <div class="top-bar">
-      <span class="top-label">人员</span>
-      <el-select v-model="selectedUser" style="width:120px">
-        <el-option :label="userStore.realName || '当前用户'" :value="null" />
-      </el-select>
-      <span class="top-label" style="margin-left:16px">周期</span>
-      <el-select v-model="selectedPeriod" style="width:140px">
-        <el-option v-for="p in periodOptions" :key="p" :label="p" :value="p" />
-      </el-select>
-    </div>
-
-    <!-- 四项 Tab -->
-    <div class="category-tabs">
-      <div
-        v-for="cat in parentCategories"
-        :key="cat.id"
-        class="tab-item"
-        :class="{ active: activeTab === String(cat.id) }"
-        @click="activeTab = String(cat.id)"
-      >
-        <el-icon v-if="cat.categoryCode === 'visit'"><Location /></el-icon>
-        <el-icon v-else-if="cat.categoryCode === 'exchange'"><ChatDotSquare /></el-icon>
-        <el-icon v-else-if="cat.categoryCode === 'plan'"><Document /></el-icon>
-        <el-icon v-else><Box /></el-icon>
-        <span>{{ cat.categoryName }}</span>
+    <!-- 框1: 顶部 -->
+    <div class="section-box">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
+        <span class="top-label">人员</span>
+        <el-select v-model="selectedUser" size="small" style="width:130px">
+          <el-option :label="userStore.realName || '当前用户'" :value="null" />
+        </el-select>
+        <span class="top-label">周期</span>
+        <el-select v-model="selectedPeriod" size="small" style="width:150px">
+          <el-option v-for="p in periodOptions" :key="p" :label="p" :value="p" />
+        </el-select>
+      </div>
+      <div class="category-tabs">
+        <div v-for="cat in parentCategories" :key="cat.id" class="tab-item" :class="{ active: activeTab === String(cat.id) }" @click="activeTab = String(cat.id)">
+          <el-icon v-if="cat.categoryCode === 'visit'"><Location /></el-icon>
+          <el-icon v-else-if="cat.categoryCode === 'exchange'"><ChatDotSquare /></el-icon>
+          <el-icon v-else-if="cat.categoryCode === 'plan'"><Document /></el-icon>
+          <el-icon v-else><Box /></el-icon>
+          <span>{{ cat.categoryName }}</span>
+        </div>
       </div>
     </div>
 
-    <!-- 主体左右布局 -->
+    <!-- 框2+3: 左右布局 -->
     <div class="main-layout" v-if="groupedChildren.length">
       <!-- 左侧：子分类列表 -->
       <div class="left-panel">
@@ -69,17 +62,18 @@
         <div class="right-header">
           <span class="right-title">已上传文件</span>
           <div class="right-filters">
-            <el-input v-model="searchText" placeholder="搜索文件名..." clearable size="small" style="width:160px" :prefix-icon="Search" />
-            <el-select v-model="filterGroup" placeholder="全部分类" clearable size="small" style="width:120px">
+            <el-input v-model="searchText" placeholder="搜索文件名..." clearable size="small" style="width:140px" :prefix-icon="Search" />
+            <el-input v-model="filterCustomer" placeholder="客户名称" clearable size="small" style="width:140px" />
+            <el-select v-model="filterGroup" placeholder="全部分类" clearable size="small" style="width:110px">
               <el-option v-for="c in filterGroupOptions" :key="c" :label="c" :value="c" />
             </el-select>
-            <el-select v-model="filterTier" placeholder="全部子类" clearable size="small" style="width:120px">
+            <el-select v-model="filterTier" placeholder="全部子类" clearable size="small" style="width:110px">
               <el-option v-for="c in filterTierOptions" :key="c" :label="c" :value="c" />
             </el-select>
             <span class="file-count">{{ filteredRecords.length }} 个文件</span>
           </div>
         </div>
-        <el-table :data="filteredRecords" stripe style="width:100%" empty-text="暂无已上传文件" size="small">
+        <el-table :data="filteredRecords" stripe style="width:100%" empty-text="暂无已上传文件" size="small" @row-click="startReplace" :row-style="{cursor:'pointer'}">
           <el-table-column label="大类·子类" min-width="120" show-overflow-tooltip>
             <template #default="{ row }">{{ row.majorMinor }}</template>
           </el-table-column>
@@ -123,7 +117,7 @@
           <el-table-column prop="userName" label="操作人" min-width="65" />
           <el-table-column label="操作" width="110" fixed="right" align="center">
             <template #default="{ row }">
-              <el-button link type="primary" size="small" @click="startReplace(row)">替换</el-button>
+              <el-button link type="primary" size="small" @click="startReplace(row)">追加</el-button>
               <el-button link type="danger" size="small" @click="handleDeleteRecord(row)">删除</el-button>
             </template>
           </el-table-column>
@@ -134,7 +128,7 @@
     <!-- 关联客户 + 安装文件 弹窗 -->
     <el-dialog v-model="showCustomerDialog" width="700px" top="2vh" :close-on-click-modal="false" class="upload-dlg">
       <template #header>
-        <span style="font-size:17px;font-weight:700">{{ pendingReplace ? '替换文件' : '上传激励文件' }}</span>
+        <span style="font-size:17px;font-weight:700">{{ pendingReplace ? '追加文件' : '上传激励文件' }}</span>
         <el-tag v-if="pendingChild" size="small" type="warning" style="margin-left:8px">{{ pendingChild.categoryName }}</el-tag>
       </template>
       <div class="up-body">
@@ -152,15 +146,19 @@
               <el-select v-model="selectedIndustry" placeholder="选择" clearable><el-option v-for="i in industryOptions" :key="i" :label="i" :value="i" /></el-select>
             </div>
           </div>
-          <div class="up-row">
-            <div class="up-field flex-1"><label>相关产品</label><el-input v-model="relatedProducts" placeholder="填写产品名称" /></div>
-            <div class="up-field flex-1"><label>安装前问题</label><el-input v-model="preInstallQuestion" placeholder="描述安装前问题" /></div>
-          </div>
+          <div class="up-field flex-1"><label>相关产品</label><el-input v-model="relatedProducts" placeholder="填写产品名称" /></div>
+        </div>
+
+        <!-- 安装详情 -->
+        <div class="up-card-box">
+          <div class="up-box-title">📝 安装详情</div>
+          <div class="up-field" style="margin-bottom:10px"><label>安装前问题</label><el-input v-model="preInstallQuestion" type="textarea" :rows="3" placeholder="描述安装前存在的问题..." /></div>
+          <div class="up-field"><label>安装备注</label><el-input v-model="remarkText" type="textarea" :rows="2" placeholder="安装备注..." /></div>
         </div>
 
         <!-- 安装文件卡 -->
         <div class="up-card-box highlight">
-          <div class="up-box-title">📸 安装文件 <span>前 / 中 / 后 · 计学分</span></div>
+          <div class="up-box-title">📸 安装文件 <span>前 / 中 / 后 全部上传后计分</span></div>
           <div class="up-cards">
             <div v-for="slot in fileSlots" :key="slot.key" class="up-card" :class="{has:installFiles[slot.key]}" @click="!installFiles[slot.key]&&pickFile(slot.key)">
               <template v-if="installFiles[slot.key]">
@@ -186,20 +184,20 @@
           </div>
         </div>
 
-        <!-- 备注 -->
+        <!-- 共享 -->
         <div class="up-card-box">
           <div class="up-row">
-            <div class="up-field flex-1"><label>备注</label><el-input v-model="remarkText" placeholder="备注(选填)" /></div>
-            <div class="up-field" style="display:flex;align-items:flex-end;gap:10px;min-width:140px">
-              <div><label>共享</label><el-switch v-model="shareToTeam" /></div>
+            <div class="up-field" style="display:flex;align-items:center;gap:10px">
+              <label style="margin-bottom:0">共享给团队</label><el-switch v-model="shareToTeam" />
+              <span v-if="shareToTeam" style="color:#67c23a;font-size:12px">● 已共享</span>
             </div>
           </div>
         </div>
       </div>
       <template #footer>
-        <span style="font-size:12px;color:#999;margin-right:auto">安装文件计学分 · 跟踪记录不计分</span>
+        <span style="font-size:12px;color:#999;margin-right:auto">任意文件即可提交 · 三文件齐全后自动计分</span>
         <el-button @click="showCustomerDialog=false">取消</el-button>
-        <el-button type="primary" :loading="uploading" :disabled="!canSubmit" @click="confirmUpload">{{ pendingReplace?'替换并提交':'上传并提交' }}</el-button>
+        <el-button type="primary" :loading="uploading" :disabled="!canSubmit" @click="confirmUpload">{{ pendingReplace?'追加提交':'上传并提交' }}</el-button>
       </template>
     </el-dialog>
 
@@ -233,6 +231,7 @@ const records = ref([])
 
 // 右侧筛选
 const searchText = ref('')
+const filterCustomer = ref('')
 const filterGroup = ref('')
 const filterTier = ref('')
 
@@ -265,7 +264,7 @@ const selectedIndustry = ref('')
 const relatedProducts = ref('')
 
 const canSubmit = computed(() =>
-  !!selectedCustomerId.value && (installFiles.pre || installFiles.mid || installFiles.post || trackFile.value))
+  !!selectedCustomerId.value && (installFiles.pre || installFiles.mid || installFiles.post))
 
 const selectedCustomerName = computed(() => {
   if (!selectedCustomerId.value) return ''
@@ -338,6 +337,10 @@ const filteredRecords = computed(() => {
   if (searchText.value) {
     const kw = searchText.value.toLowerCase()
     list = list.filter(r => r.fileName?.toLowerCase().includes(kw))
+  }
+  if (filterCustomer.value) {
+    const kw = filterCustomer.value.toLowerCase()
+    list = list.filter(r => (r.customerName || '').toLowerCase().includes(kw))
   }
   if (filterGroup.value) list = list.filter(r => r.groupName === filterGroup.value)
   if (filterTier.value) list = list.filter(r => r.tier === filterTier.value)
@@ -415,12 +418,17 @@ const handleDeleteRecord = async (row) => {
   } catch (e) {}
 }
 
-// 替换流程：打开同一弹窗，预填客户，提交时先删旧记录再新增
+// 追加流程：打开弹窗，保留已有文件，只补传缺失的文件槽
 const startReplace = (row) => {
   pendingChild.value = categoryMap.value[row.categoryId] || null
   pendingReplace.value = row
   selectedCustomerId.value = row.customerId
   resetDialogFields()
+  // 保留已有文件，标记为已上传（不可删除但可替换）
+  if (row.filePreId) installFiles.pre = { name: row.filePreName || '已上传', _existing: true }
+  if (row.fileMidId) installFiles.mid = { name: row.fileMidName || '已上传', _existing: true }
+  if (row.filePostId) installFiles.post = { name: row.filePostName || '已上传', _existing: true }
+  if (row.fileTrackId) trackFile.value = { name: row.fileTrackName || '已上传', _existing: true }
   preInstallQuestion.value = row.preInstallQuestion || ''
   remarkText.value = row.remark || ''
   shareToTeam.value = !!row.shared
@@ -435,7 +443,7 @@ const startReplace = (row) => {
 const searchCustomers = async (query) => {
   customerLoading.value = true
   try {
-    const res = await getCustomerList({ current: 1, size: 50, keyword: query || '' })
+    const res = await getCustomerList({ current: 1, size: 200, keyword: query || '' })
     customerOptions.value = res.data?.records || []
   } catch (e) {}
   customerLoading.value = false
@@ -443,7 +451,7 @@ const searchCustomers = async (query) => {
 
 // 选择某个安装文件槽的文件
 const isImage = (name) => /\.(jpg|jpeg|png|gif|webp|bmp)$/i.test(name||'')
-const getObjectURL = (file) => file ? URL.createObjectURL(file) : ''
+const getObjectURL = (file) => (file && !file._existing) ? URL.createObjectURL(file) : ''
 
 const pickFile = (slotKey) => {
   currentSlot.value = slotKey
@@ -482,38 +490,61 @@ const confirmUpload = async () => {
   if (!canSubmit.value) return
   uploading.value = true
   try {
-    const trackId = trackFile.value ? await uploadOne(trackFile.value) : null
-    if (trackFile.value && !trackId) {
+    const trackId = (trackFile.value && !trackFile.value._existing) ? await uploadOne(trackFile.value) : null
+    if (trackFile.value && !trackFile.value._existing && !trackId) {
       ElMessage.error('跟踪记录文件上传失败，请重试')
       return
     }
     const [filePreId, fileMidId, filePostId] = await Promise.all([
-      installFiles.pre ? uploadOne(installFiles.pre) : Promise.resolve(null),
-      installFiles.mid ? uploadOne(installFiles.mid) : Promise.resolve(null),
-      installFiles.post ? uploadOne(installFiles.post) : Promise.resolve(null),
+      (installFiles.pre && !installFiles.pre._existing) ? uploadOne(installFiles.pre) : Promise.resolve(null),
+      (installFiles.mid && !installFiles.mid._existing) ? uploadOne(installFiles.mid) : Promise.resolve(null),
+      (installFiles.post && !installFiles.post._existing) ? uploadOne(installFiles.post) : Promise.resolve(null),
     ])
-    if ((installFiles.pre && !filePreId) || (installFiles.mid && !fileMidId) || (installFiles.post && !filePostId)) {
-      ElMessage.error('部分文件上传失败，请重试')
+    const hasNewFile = (installFiles.pre && !installFiles.pre._existing) || (installFiles.mid && !installFiles.mid._existing) || (installFiles.post && !installFiles.post._existing)
+    if (hasNewFile && ((installFiles.pre && !installFiles.pre._existing && !filePreId) || (installFiles.mid && !installFiles.mid._existing && !fileMidId) || (installFiles.post && !installFiles.post._existing && !filePostId))) {
+      ElMessage.error('文件上传失败，请重试')
+      uploading.value = false
       return
     }
     if (pendingReplace.value) {
+      // 追加模式：保留未被删除的已有文件，只替换新上传的文件槽
+      const old = pendingReplace.value
+      const finalPreId = installFiles.pre && !installFiles.pre._existing ? filePreId : (installFiles.pre && installFiles.pre._existing ? old.filePreId : null)
+      const finalMidId = installFiles.mid && !installFiles.mid._existing ? fileMidId : (installFiles.mid && installFiles.mid._existing ? old.fileMidId : null)
+      const finalPostId = installFiles.post && !installFiles.post._existing ? filePostId : (installFiles.post && installFiles.post._existing ? old.filePostId : null)
+      const finalTrackId = trackFile.value && !trackFile.value._existing ? trackId : (trackFile.value && trackFile.value._existing ? old.fileTrackId : null)
       await deleteRecord(pendingReplace.value.id)
+      await addRecord({
+        categoryId: pendingChild.value.id,
+        customerId: selectedCustomerId.value,
+        period: selectedPeriod.value,
+        industry: selectedIndustry.value || null,
+        relatedProducts: relatedProducts.value || null,
+        preInstallQuestion: preInstallQuestion.value || null,
+        filePreId: finalPreId,
+        fileMidId: finalMidId,
+        filePostId: finalPostId,
+        fileTrackId: finalTrackId,
+        remark: remarkText.value || null,
+        shared: shareToTeam.value ? 1 : 0
+      })
+    } else {
+      await addRecord({
+        categoryId: pendingChild.value.id,
+        customerId: selectedCustomerId.value,
+        period: selectedPeriod.value,
+        industry: selectedIndustry.value || null,
+        relatedProducts: relatedProducts.value || null,
+        preInstallQuestion: preInstallQuestion.value || null,
+        filePreId,
+        fileMidId,
+        filePostId,
+        fileTrackId: trackId,
+        remark: remarkText.value || null,
+        shared: shareToTeam.value ? 1 : 0
+      })
     }
-    await addRecord({
-      categoryId: pendingChild.value.id,
-      customerId: selectedCustomerId.value,
-      period: selectedPeriod.value,
-      industry: selectedIndustry.value || null,
-      relatedProducts: relatedProducts.value || null,
-      preInstallQuestion: preInstallQuestion.value || null,
-      filePreId,
-      fileMidId,
-      filePostId,
-      fileTrackId: trackId,
-      remark: remarkText.value || null,
-      shared: shareToTeam.value ? 1 : 0
-    })
-    ElMessage.success(pendingReplace.value ? '替换成功' : '上传成功，已关联客户')
+    ElMessage.success(pendingReplace.value ? '追加成功' : '上传成功，三文件齐全后自动计分')
     showCustomerDialog.value = false
     pendingReplace.value = null
     loadRecords()
@@ -543,48 +574,40 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.incentive-page { padding: 0; }
-.section-title { font-size: 16px; font-weight: 600; margin: 0 0 20px; display: flex; align-items: center; gap: 8px; }
-.title-bar { display: inline-block; width: 4px; height: 18px; background: #409eff; border-radius: 2px; }
-.top-bar { display: flex; align-items: center; gap: 8px; margin-bottom: 20px; font-size: 14px; }
-.top-label { color: #333; }
+.incentive-page { padding: 0; height: calc(100vh - 80px); display: flex; flex-direction: column; gap: 10px }
+.section-box { background:#fff; border:1px solid #e4e7ed; border-radius:10px; padding:14px 20px; flex-shrink:0 }
+.top-label { color: #555; font-weight: 500; font-size:13px }
 
-/* Tab 区 */
-.category-tabs { display: flex; background: #f5f7fa; border-radius: 8px; overflow: hidden; }
-.tab-item { flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px; padding: 14px 0; font-size: 14px; color: #666; cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.2s; background: transparent; }
-.tab-item:hover { color: #409eff; }
-.tab-item.active { color: #409eff; font-weight: 600; background: #fff; border-bottom-color: #409eff; }
+.category-tabs { display: flex; gap: 4px; padding: 4px; background: #f2f4f7; border-radius: 10px; }
+.tab-item { flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px; padding: 10px 0; font-size: 14px; color: #666; cursor: pointer; border-radius: 8px; transition: all .2s; font-weight: 500; }
+.tab-item:hover { opacity: .8 }
+.tab-item.active { font-weight: 700; color: #fff; box-shadow: 0 1px 4px rgba(0,0,0,.1) }
+.tab-item:nth-child(1).active { background: #f59e0b }
+.tab-item:nth-child(2).active { background: #3b82f6 }
+.tab-item:nth-child(3).active { background: #8b5cf6 }
+.tab-item:nth-child(4).active { background: #10b981 }
 
-/* 主体左右布局 */
-.main-layout { display: flex; margin-top: 16px; border: 1px solid #ebeef5; border-radius: 8px; overflow: hidden; min-height: 500px; }
-
-/* 左侧面板 */
-.left-panel { flex: 0 0 42%; background: #fafbfc; padding: 20px; border-right: 1px solid #ebeef5; overflow-y: auto; max-height: 600px; }
-.sub-hint { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; color: #999; font-size: 13px; }
-
-/* 分组标题 */
-.sub-group { margin-bottom: 4px; }
-.group-header { font-size: 15px; font-weight: 600; color: #303133; padding: 12px 0 8px 12px; border-left: 3px solid #409eff; margin-top: 8px; }
-
-/* 子项行 */
-.sub-item { display: flex; justify-content: space-between; align-items: center; padding: 12px 0 12px 16px; border-bottom: 1px solid #f0f0f0; }
+.main-layout { display: flex; border: 1px solid #e4e7ed; border-radius: 10px; overflow: hidden; flex: 1; min-height: 0; }
+.left-panel { flex: 0 0 20%; background: #fafbfd; padding: 14px; border-right: 1px solid #f0f2f5; overflow-y: auto; }
+.sub-hint { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; color: #999; font-size: 13px; }
+.sub-group { margin-bottom: 2px; }
+.group-header { font-size: 14px; font-weight: 700; color: #1f2329; padding: 10px 0 6px 10px; border-left: 3px solid #409eff; margin-top: 6px; }
+.sub-item { display: flex; justify-content: space-between; align-items: center; padding: 10px 0 10px 12px; border-bottom: 1px solid #f5f5f5; }
 .sub-item.flat { padding-left: 0; }
-.sub-name { font-size: 14px; color: #333; }
-.sub-actions { display: flex; align-items: center; gap: 16px; }
-
-/* 分数徽标（左侧） */
-.score-badge { display: inline-block; min-width: 32px; text-align: center; padding: 2px 8px; border-radius: 10px; font-size: 12px; font-weight: 600; }
-.score-0 { color: #c0c4cc; background: #f4f4f5; }
-.score-1 { color: #e6a23c; background: #fdf6ec; }
+.sub-name { font-size: 13px; color: #444; font-weight: 500 }
+.sub-actions { display: flex; align-items: center; gap: 12px; }
+.score-badge { display: inline-block; min-width: 30px; text-align: center; padding: 2px 8px; border-radius: 10px; font-size: 12px; font-weight: 600; }
+.score-0 { color: #bbb; background: #f5f5f5; }
+.score-1 { color: #e6a23c; background: #fff7ed; }
 .score-2 { color: #67c23a; background: #f0f9eb; }
 .score-3 { color: #f56c6c; background: #fef0f0; }
 
 /* 右侧面板 */
-.right-panel { flex: 1; background: #fff; padding: 20px; overflow-y: auto; max-height: 600px; }
-.right-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 8px; }
-.right-title { font-size: 16px; font-weight: 600; color: #303133; }
-.right-filters { display: flex; align-items: center; gap: 8px; }
-.file-count { color: #909399; font-size: 13px; white-space: nowrap; }
+.right-panel { flex: 1; background: #fff; padding: 18px; overflow-y: auto; }
+.right-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; flex-wrap: wrap; gap: 8px; }
+.right-title { font-size: 15px; font-weight: 700; color: #1f2329; }
+.right-filters { display: flex; align-items: center; gap: 8px; flex-wrap: wrap }
+.file-count { color: #999; font-size: 12px; white-space: nowrap; }
 
 /* 表格内样式 */
 .file-cell { display: inline-flex; align-items: center; gap: 4px; }

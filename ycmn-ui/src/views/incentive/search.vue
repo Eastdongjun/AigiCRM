@@ -10,11 +10,10 @@
         <el-button type="primary" @click="doSearch">查询</el-button>
         <el-button @click="doReset">重置</el-button>
         <span class="cnt">{{ custs.length }} 客户</span>
-        <el-radio-group v-model="cols" size="small"><el-radio-button :value="2">两列</el-radio-button><el-radio-button :value="3">三列</el-radio-button><el-radio-button :value="4">四列</el-radio-button></el-radio-group>
       </div>
     </div>
 
-    <div :style="{display:'grid',gridTemplateColumns:'repeat('+cols+',1fr)',gap:'16px',padding:'20px'}">
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;padding:20px">
       <div v-if="custs.length===0" style="grid-column:1/-1;text-align:center;padding:80px 0;color:#bbb">暂无数据</div>
       <div v-for="c in custs" :key="c.customerId" class="card">
         <div class="card-hd">
@@ -43,22 +42,47 @@
 
     <el-dialog v-model="previewVisible" width="90vw" :close-on-click-modal="true"><img :src="previewUrl" style="width:100%;max-height:85vh;object-fit:contain" /></el-dialog>
 
-    <el-dialog v-model="detailVisible" width="80%" top="2vh" :close-on-click-modal="true" destroy-on-close>
-      <template #header><span style="font-size:20px;font-weight:800">{{ detailCust?.customerName }}</span><span style="font-size:13px;color:#999;margin-left:12px">{{ detailCust?.industry }} · {{ detailCust?.count }}项 · {{ detailCust?.totalScore }}分</span></template>
-      <div v-if="detailCust" v-for="(r,i) in detailCust.records" :key="r.id" style="padding:22px 0;border-bottom:1px solid #f0f0f0">
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap;font-size:14px">
-          <span class="rec-tag" :class="'rec-tag-'+getCls(r)">{{ getMain(r) }}</span><span>{{ r.categoryName }}</span>
-          <span style="color:#999;font-size:13px">{{ r.period }} · {{ r.userName }}</span>
-          <span v-if="r.industry" style="color:#999;font-size:12px">· {{ r.industry }}</span>
-          <span v-if="r.relatedProducts" style="color:#999;font-size:12px">· {{ r.relatedProducts }}</span>
-          <span style="margin-left:auto;font-weight:700;font-size:18px" :style="{color:scoreColor(getCls(r))}">+{{ r.score }}</span>
+    <el-dialog v-model="detailVisible" width="1000px" top="4vh" :close-on-click-modal="true" destroy-on-close class="detail-dlg">
+      <template #header></template>
+      <div class="dtl-wrap" v-if="detailCust">
+        <div class="dtl-back" @click="detailVisible=false">← 返回列表</div>
+        <div class="dtl-summary">
+          <div class="dtl-sum-name">{{ detailCust.customerName }}</div>
+          <div class="dtl-sum-meta">
+            <span>{{ detailCust.industry }}</span>
+            <span class="dtl-sum-sep">|</span>
+            <span>{{ detailCust.count }}项激励</span>
+            <span class="dtl-sum-sep">|</span>
+            <span class="dtl-sum-pts">{{ detailCust.totalScore }}分</span>
+            <span class="dtl-sum-sep">|</span>
+            <span>最近更新 {{ detailCust.records[0] ? fmtDt(detailCust.records[0].createdAt) : '-' }}</span>
+          </div>
         </div>
-        <div v-if="getFiles(r).length" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px">
-          <div v-for="f in getFiles(r)" :key="f.id">
-            <div style="font-size:11px;color:#999;margin-bottom:4px">{{ f.tag }}</div>
-            <template v-if="f.type==='image'"><img :src="'/api/file/download/'+f.id" @click="preview(f.id)" style="width:100%;max-height:360px;object-fit:contain;border-radius:8px;border:1px solid #eee;background:#fafafa;cursor:pointer" /></template>
-            <div v-else-if="f.type==='video'" @click="preview(f.id)" style="width:100%;aspect-ratio:16/9;background:#1a1a2e;border-radius:8px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#fff;font-size:24px">▶</div>
-            <a v-else :href="'/api/file/download/'+f.id" target="_blank" style="display:block;padding:20px;background:#fdf6ec;border-radius:8px;text-align:center;text-decoration:none;color:#a16207;font-size:12px">📄 {{ f.label }}</a>
+        <div class="dtl-timeline">
+          <div v-for="(r,i) in detailCust.records" :key="r.id" class="dtl-item" :class="{first:i===0}">
+            <div class="dtl-dot"></div>
+            <div class="dtl-head">
+              <span class="dtl-date">{{ fmtDt(r.createdAt) }}</span>
+              <span class="rec-tag" :class="'rec-tag-'+getCls(r)">{{ getMain(r) }}</span>
+            </div>
+            <div class="dtl-content">
+              <div class="dtl-info-line">
+                <span>{{ r.categoryName }}</span>
+                <span>· {{ r.userName }}</span>
+                <span>· {{ r.period }}</span>
+                <span v-if="r.industry">· {{ r.industry }}</span>
+                <span v-if="r.relatedProducts">· {{ r.relatedProducts }}</span>
+                <span class="dtl-info-pts" :style="{color:scoreColor(getCls(r))}">+{{ r.score }}分</span>
+              </div>
+              <div v-if="getFiles(r).length" class="dtl-files">
+                <div v-for="f in getFiles(r)" :key="f.id" class="dtl-file">
+                  <div class="dtl-file-tag">{{ f.tag }}</div>
+                  <img v-if="f.type==='image'" :src="'/api/file/download/'+f.id" @click="preview(f.id)" />
+                  <div v-else-if="f.type==='video'" class="dtl-file-vid" @click="preview(f.id)">▶</div>
+                  <div v-else class="dtl-file-doc" @click="window.open('/api/file/download/'+f.id)">📄 {{ f.label }}</div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -73,7 +97,7 @@ import { Search, User } from '@element-plus/icons-vue'
 import request from '@/utils/request'
 import { ElMessage } from 'element-plus'
 
-const fCustomer=ref(''),fSales=ref(''),fIndustry=ref(''),fType=ref(''),fDateRange=ref(null),cols=ref(3)
+const fCustomer=ref(''),fSales=ref(''),fIndustry=ref(''),fType=ref(''),fDateRange=ref(null)
 const custs=ref([]),catMap=ref({}),previewVisible=ref(false),previewUrl=ref('')
 const detailVisible=ref(false),detailCust=ref(null)
 const industries=['冶金','煤矿','化工','电力','有色金属','机械','工程公司','维修厂','其他终端客户']
@@ -94,6 +118,7 @@ function detectType(n){if(!n)return'doc';if(/\.(jpg|jpeg|png|gif|webp|bmp)$/i.te
 function getMain(r){const c=catMap.value[r.categoryId];if(!c)return'';if(c.parentId===0)return c.categoryName;const p=catMap.value[c.parentId];if(!p)return c.categoryName;const gp=catMap.value[p.parentId];return gp&&gp.parentId===0?gp.categoryName:p.categoryName}
 function getCls(r){const c=catMap.value[r.categoryId];if(!c)return'';if(c.parentId===0)return c.categoryCode||'';const p=catMap.value[c.parentId];if(!p)return'';const gp=catMap.value[p.parentId];return(gp&&gp.parentId===0?gp.categoryCode:p.categoryCode)||''}
 function scoreColor(c){return{visit:'#d97706',exchange:'#2563eb',plan:'#7c3aed',trial:'#059669'}[c]||'#303133'}
+function fmtDt(t){if(!t)return'';const d=new Date(t);return d.getFullYear()+'-'+(d.getMonth()+1).toString().padStart(2,'0')+'-'+d.getDate().toString().padStart(2,'0')+' '+d.getHours().toString().padStart(2,'0')+':'+d.getMinutes().toString().padStart(2,'0')}
 
 async function doSearch(){
   const p={};if(fCustomer.value)p.customerName=fCustomer.value;if(fSales.value)p.salesperson=fSales.value;if(fIndustry.value)p.industry=fIndustry.value
@@ -134,4 +159,63 @@ onMounted(()=>{loadCats();doSearch()})
 .rec-tag{display:inline-block;padding:3px 10px;border-radius:4px;font-size:12px;font-weight:600}
 .rec-tag-visit{background:#fef3c7;color:#b45309}.rec-tag-exchange{background:#dbeafe;color:#1e40af}
 .rec-tag-plan{background:#ede9fe;color:#6d28d9}.rec-tag-trial{background:#d1fae5;color:#065f46}
+
+.d-page{max-width:1000px;margin:0 auto;padding:40px 20px}
+.d-top{margin-bottom:40px}
+.d-back{font-size:14px;color:#999;cursor:pointer;display:inline-block;margin-bottom:16px}
+.d-back:hover{color:#555}
+.d-name{font-size:24px;font-weight:700;margin-bottom:4px}
+.d-subt{font-size:14px;color:#888}
+
+.d-list{position:relative;padding-left:140px}
+.d-list::before{content:'';position:absolute;left:8px;top:0;bottom:0;width:2px;background:#e8eaed}
+
+.d-node{position:relative;margin-bottom:40px}
+.d-node:last-child{margin-bottom:0}
+.d-node-left{position:absolute;left:-132px;top:0;width:120px;text-align:right}
+.d-node-dot{position:absolute;right:-16px;top:5px;width:10px;height:10px;border-radius:50%;background:#409eff;border:2px solid #fff;box-shadow:0 0 0 2px #409eff;z-index:1}
+.d-node-time{font-size:13px;color:#333;font-weight:500}
+
+.d-node-right{}
+.d-node-tags{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px;font-size:14px}
+.d-node-sub{color:#333;font-weight:600}
+.d-node-who{color:#999;font-size:13px}
+
+.d-node-imgs{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px}
+.d-node-img{position:relative;border-radius:8px;overflow:hidden;border:1px solid #eee}
+.d-node-img img{width:100%;height:220px;object-fit:cover;display:block;cursor:pointer}
+.d-node-vid{width:100%;height:220px;background:#111;display:flex;align-items:center;justify-content:center;color:#fff;font-size:28px;cursor:pointer}
+.d-node-doc{width:100%;height:220px;background:#fefce8;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#a16207;cursor:pointer;font-size:13px;text-align:center;padding:16px}
+.d-node-lbl{position:absolute;bottom:0;left:0;right:0;padding:4px 10px;background:rgba(0,0,0,.55);color:#fff;font-size:10px;font-weight:600;text-align:center}
+
+.detail-dlg :deep(.el-dialog__header){display:none}
+.detail-dlg :deep(.el-dialog__body){padding:0}
+.dtl-wrap{max-width:900px;margin:0 auto;padding:32px 0}
+.dtl-back{font-size:15px;color:#999;cursor:pointer;margin-bottom:32px}
+.dtl-back:hover{color:#555}
+.dtl-title{font-size:22px;font-weight:700;color:#1f2329;margin-bottom:8px}
+.dtl-subtitle{font-size:15px;color:#8f959e;margin-bottom:40px}
+.dtl-summary{margin-bottom:40px;padding:24px 28px;background:#f7f8fa;border-radius:10px}
+.dtl-sum-name{font-size:22px;font-weight:800;color:#1f2329;margin-bottom:12px}
+.dtl-sum-meta{display:flex;align-items:center;gap:6px;font-size:14px;color:#646a73;flex-wrap:wrap}
+.dtl-sum-sep{color:#d0d3d8}
+.dtl-sum-pts{color:#0052d9;font-weight:700;font-size:15px}
+.dtl-timeline{position:relative}
+.dtl-timeline::before{content:'';position:absolute;left:6px;top:0;bottom:0;width:2px;background:#e5e6eb}
+.dtl-item{position:relative;padding:0 0 0 36px;margin-bottom:44px}
+.dtl-item.first .dtl-dot{background:#0052d9;box-shadow:0 0 0 4px rgba(0,82,217,.15)}
+.dtl-item.first .dtl-date{color:#0052d9}
+.dtl-dot{position:absolute;left:-1px;top:5px;width:16px;height:16px;border-radius:50%;background:#c9cdd4;border:3px solid #fff;box-shadow:0 0 0 1px #c9cdd4}
+.dtl-head{display:flex;align-items:center;gap:12px;margin-bottom:8px}
+.dtl-date{font-size:18px;font-weight:700;color:#1f2329}
+.dtl-content{margin-top:8px}
+.dtl-info-line{font-size:15px;color:#646a73;margin-bottom:12px}
+.dtl-info-pts{font-weight:700;font-size:16px;margin-left:auto}
+.dtl-files{display:flex;gap:14px;flex-wrap:wrap;margin-top:14px}
+.dtl-file{width:260px}
+.dtl-file-tag{font-size:12px;color:#8f959e;margin-bottom:6px}
+.dtl-file img{width:100%;height:220px;object-fit:cover;border-radius:6px;cursor:pointer;border:1px solid #e5e6eb;display:block}
+.dtl-file img:hover{opacity:.85}
+.dtl-file-vid{width:100%;height:220px;background:#1a1a2e;border-radius:6px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#fff;font-size:26px}
+.dtl-file-doc{width:100%;height:220px;background:#f5f6f7;border:1px solid #e5e6eb;border-radius:6px;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;color:#646a73;font-size:13px;text-align:center;gap:4px;padding:8px}
 </style>

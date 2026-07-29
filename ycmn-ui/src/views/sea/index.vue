@@ -1,19 +1,13 @@
 <template>
   <div class="sea-manage">
-    <div class="page-header">
-      <div>
-        <h2>公海池</h2>
-        <p class="page-desc">管理公海中的客户资源</p>
-      </div>
-      <el-button v-if="canImport" :icon="Upload" @click="showImportDialog = true">批量导入</el-button>
-    </div>
-
-    <!-- 公海池选择器 -->
-    <div class="pool-selector">
-      <span class="pool-label">选择公海池：</span>
-      <el-select v-model="selectedPool" placeholder="全部公海池" clearable style="width: 220px" @change="loadData">
+    <!-- 框1: 筛选 -->
+    <div class="section-box" style="display:flex;align-items:center;gap:12px">
+      <span style="font-weight:700;color:#1f2329">公海池</span>
+      <span style="color:#888;font-size:13px">选择公海池</span>
+      <el-select v-model="selectedPool" placeholder="全部" clearable size="small" style="width:200px" @change="loadData">
         <el-option v-for="p in pools" :key="p.id" :label="`${p.poolName} (${p.regionNames || ''})`" :value="p.id" />
       </el-select>
+      <el-button v-if="canImport" size="small" :icon="Upload" @click="showImportDialog=true" style="margin-left:auto">批量导入</el-button>
     </div>
 
     <!-- 统计卡片 -->

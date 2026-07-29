@@ -38,8 +38,10 @@ public class CustomerController {
             @RequestParam(required = false) Long regionId,
             @RequestParam(required = false) String status,
             @RequestParam(required = false) Long ownerId,
-            @RequestParam(required = false) String scope) {
-        return Result.ok(customerService.page(current, size, keyword, industry, officeId, regionId, status, ownerId, scope));
+            @RequestParam(required = false) String scope,
+            @RequestParam(required = false) String devType,
+            @RequestParam(required = false) String groupName) {
+        return Result.ok(customerService.page(current, size, keyword, industry, officeId, regionId, status, ownerId, scope, devType, groupName));
     }
 
     @GetMapping("/list/counts")

@@ -1,10 +1,7 @@
 <template>
   <div class="config-page">
-    <div class="page-header">
-      <h2>系统设置</h2>
-    </div>
 
-    <el-card shadow="never">
+    <div class="section-box">
       <el-tabs v-model="activeTab">
         <!-- 基本设置 -->
         <el-tab-pane label="基本设置" name="basic">
@@ -60,8 +57,9 @@
                 <el-button type="primary" size="small" :icon="Plus" @click="handleAddType">新增</el-button>
               </div>
               <el-table :data="dictTypes" highlight-current-row @current-change="handleTypeSelect" size="small" style="width: 100%">
-                <el-table-column prop="dictName" label="名称" />
-                <el-table-column prop="dictCode" label="编码" width="120" />
+                <el-table-column type="index" label="#" width="40" />
+                <el-table-column prop="dictName" label="名称" min-width="100" />
+                <el-table-column prop="dictCode" label="编码" width="100" show-overflow-tooltip />
                 <el-table-column label="操作" width="100" align="center">
                   <template #default="{ row }">
                     <el-button link size="small" @click.stop="handleEditType(row)">编辑</el-button>
@@ -152,7 +150,7 @@
           </el-table>
         </el-tab-pane>
       </el-tabs>
-    </el-card>
+    </div>
 
     <!-- 公海池编辑弹窗 -->
     <el-dialog v-model="poolDialogVisible" :title="poolForm.id ? '编辑公海池' : '新增公海池'" width="500px">
@@ -552,6 +550,10 @@ onMounted(() => {
 </script>
 
 <style scoped>
+.config-page { height: calc(100vh - 80px); display: flex; flex-direction: column }
+.section-box { background: #fff; border: 1px solid #e4e7ed; border-radius: 10px; padding: 20px 24px; flex: 1; overflow: hidden; display: flex; flex-direction: column }
+.section-box :deep(.el-tabs) { flex: 1; display: flex; flex-direction: column }
+.section-box :deep(.el-tabs__content) { flex: 1; overflow: auto }
 .page-header { margin-bottom: 16px; }
 .page-header h2 { font-size: 20px; }
 
@@ -570,24 +572,39 @@ onMounted(() => {
 
 .dict-layout {
   display: flex;
-  gap: 16px;
-  min-height: 400px;
+  gap: 20px;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
 }
 .dict-types {
-  width: 400px;
+  width: 360px;
   flex-shrink: 0;
+  background: #fafbfd;
+  border-radius: 8px;
+  padding: 12px;
+  border: 1px solid #f0f2f5;
+  overflow: auto;
 }
 .dict-data {
   flex: 1;
   min-width: 0;
+  background: #fafbfd;
+  border-radius: 8px;
+  padding: 12px;
+  border: 1px solid #f0f2f5;
+  overflow: auto;
 }
 .dict-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 12px;
+  margin-bottom: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #f0f2f5;
   font-weight: 600;
   font-size: 14px;
+  color: #1f2329;
 }
 .form-tip {
   font-size: 12px;

@@ -1,10 +1,5 @@
 <template>
   <div class="dashboard">
-    <!-- 标题 & 问候 -->
-    <div class="page-header">
-      <h2 class="page-title">工作台</h2>
-      <p class="greeting">{{ greetingText }}</p>
-    </div>
 
     <!-- 统计卡片 -->
     <div class="stat-row">
@@ -110,12 +105,14 @@
           <span class="panel-title"><el-icon class="pt-icon pt-blue"><ChatDotSquare /></el-icon>团队动态</span>
         </div>
         <div v-if="activities.length === 0" class="empty-tip">暂无团队动态</div>
+        <div class="act-list">
         <div v-for="(a, i) in activities" :key="i" class="act-row">
           <span class="a-dot"></span>
           <div class="a-body">
             <div class="a-main">{{ a.title }}</div>
             <div class="a-meta">{{ a.user }} · {{ a.dept }} · {{ formatRelativeTime(a.time) }}</div>
           </div>
+        </div>
         </div>
       </div>
     </div>
@@ -345,6 +342,7 @@ onMounted(loadData)
 .r-extra { font-size: 12px; color: #999; }
 
 /* —— 团队动态 —— */
+.act-list { max-height: 320px; overflow-y: auto }
 .act-row { display: flex; align-items: flex-start; gap: 12px; padding: 14px 0; border-bottom: 1px solid #f5f5f5; }
 .act-row:last-child { border-bottom: none; }
 .a-dot { width: 8px; height: 8px; border-radius: 50%; background: #409eff; margin-top: 6px; flex-shrink: 0; }

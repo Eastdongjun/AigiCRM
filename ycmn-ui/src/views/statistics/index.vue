@@ -1,24 +1,18 @@
 <template>
   <div class="statistics-page">
-    <!-- 标题栏 -->
-    <div class="page-top">
-      <h2 class="page-title">统计分析</h2>
-      <div class="top-actions">
-        <el-button @click="loadAll">刷新</el-button>
-      </div>
-    </div>
-
-    <!-- 筛选栏 -->
-    <div class="filter-bar">
-      <span class="filter-label">年份</span>
-      <el-select v-model="filterYear" style="width:100px" @change="loadAll">
+    <!-- 框1: 筛选 -->
+    <div class="section-box" style="display:flex;align-items:center;gap:12px">
+      <span style="font-weight:700;color:#1f2329">数据概览</span>
+      <span style="color:#888;font-size:13px">年份</span>
+      <el-select v-model="filterYear" size="small" style="width:100px" @change="loadAll">
         <el-option v-for="y in yearOptions" :key="y" :label="y+'年'" :value="y" />
       </el-select>
-      <span class="filter-label">办事处</span>
-      <el-select v-model="filterOffice" style="width:120px" clearable placeholder="全部" @change="loadAll">
+      <span style="color:#888;font-size:13px">办事处</span>
+      <el-select v-model="filterOffice" size="small" style="width:120px" clearable placeholder="全部" @change="loadAll">
         <el-option label="全部" :value="null" />
         <el-option v-for="o in officeList" :key="o.id" :label="o.deptName" :value="o.id" />
       </el-select>
+      <el-button size="small" @click="loadAll" style="margin-left:auto">刷新</el-button>
     </div>
 
     <!-- 4张概览卡片 -->
@@ -279,7 +273,8 @@ onMounted(loadAll)
 </script>
 
 <style scoped>
-.statistics-page { }
+.statistics-page { height: calc(100vh - 80px); display: flex; flex-direction: column; gap: 10px; overflow-y: auto }
+.section-box { background: #fff; border: 1px solid #e4e7ed; border-radius: 10px; padding: 14px 20px; flex-shrink: 0 }
 
 /* 顶部 */
 .page-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }

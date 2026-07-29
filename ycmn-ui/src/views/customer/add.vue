@@ -1,7 +1,6 @@
 <template>
   <div class="customer-add">
-    <div class="page-header">
-      <h2>{{ isEdit ? '编辑客户' : '新增客户' }}</h2>
+    <div style="margin-bottom:12px">
       <el-button link @click="goBack">← 返回</el-button>
     </div>
 
@@ -9,18 +8,22 @@
       <div class="card-title"><el-icon><InfoFilled /></el-icon> 客户信息登记</div>
 
       <el-form ref="formRef" :model="form" :rules="rules" label-position="top" class="add-form">
-        <!-- 客户全称 -->
-        <el-form-item label="订货客户全称" prop="customerName">
-          <el-input v-model="form.customerName" placeholder="请输入订货客户全称" />
-        </el-form-item>
+        <div class="form-grid col-1">
+          <el-form-item label="订货客户全称" prop="customerName">
+            <el-input v-model="form.customerName" placeholder="请输入订货客户全称" />
+          </el-form-item>
+        </div>
 
-        <!-- 开票名称 -->
-        <el-form-item label="开票名称">
-          <el-input v-model="form.invoiceName" placeholder="请输入开票名称" />
-        </el-form-item>
+        <div class="form-grid col-2">
+          <el-form-item label="开票名称">
+            <el-input v-model="form.invoiceName" placeholder="请输入开票名称" />
+          </el-form-item>
+          <el-form-item label="产能（万吨）">
+            <el-input v-model="form.capacity" placeholder="请输入数字" />
+          </el-form-item>
+        </div>
 
-        <!-- 行业 / 开发类型 / 大区 / 办事处 -->
-        <div class="form-grid col-4">
+        <div class="form-grid col-2">
           <el-form-item label="行业">
             <el-select v-model="form.industry" placeholder="请选择行业">
               <el-option v-for="i in industryOptions" :key="i" :label="i" :value="i" />
@@ -31,20 +34,22 @@
               <el-option v-for="t in devTypeOptions" :key="t" :label="t" :value="t" />
             </el-select>
           </el-form-item>
+        </div>
+
+        <div class="form-grid col-2">
           <el-form-item label="所属大区" prop="regionId">
             <el-select v-model="form.regionId" placeholder="请选择大区" @change="onRegionChange">
               <el-option v-for="d in regions" :key="d.id" :label="d.deptName" :value="d.id" />
             </el-select>
           </el-form-item>
           <el-form-item label="所属办事处" prop="officeId">
-            <el-select v-model="form.officeId" :placeholder="form.regionId ? '请选择办事处' : '请先选择大区'" :disabled="!form.regionId">
+            <el-select v-model="form.officeId" placeholder="请选择办事处" filterable :disabled="!form.regionId">
               <el-option v-for="o in filteredOffices" :key="o.id" :label="o.deptName" :value="o.id" />
             </el-select>
           </el-form-item>
         </div>
 
-        <!-- 负责人 / 集团 / 分公司 / 单位 -->
-        <div class="form-grid col-4">
+        <div class="form-grid col-2">
           <el-form-item label="第一负责人">
             <el-select v-model="form.ownerId" placeholder="请选择负责人" filterable>
               <el-option v-for="u in users" :key="u.id" :label="u.realName" :value="u.id" />
@@ -53,6 +58,9 @@
           <el-form-item label="所属集团">
             <el-input v-model="form.groupName" placeholder="例如：陕煤集团" />
           </el-form-item>
+        </div>
+
+        <div class="form-grid col-2">
           <el-form-item label="所属分公司">
             <el-input v-model="form.branchCompany" placeholder="例如：榆林化学" />
           </el-form-item>
@@ -61,38 +69,24 @@
           </el-form-item>
         </div>
 
-        <!-- 产能 + 省市区 + 厂址 -->
         <div class="form-grid col-3">
-          <el-form-item label="产能（万吨）">
-            <el-input v-model="form.capacity" placeholder="请输入数字" />
-          </el-form-item>
           <el-form-item label="省/市/区">
-            <el-cascader
-              v-model="regionValue"
-              :options="regionData"
-              :props="{ expandTrigger: 'hover' }"
-              placeholder="请选择省/市/区"
-              clearable
-              filterable
-              style="width: 100%"
-              @change="handleRegionChange"
-            />
+            <el-cascader v-model="regionValue" :options="regionData" :props="{ expandTrigger: 'hover' }" placeholder="请选择省/市/区" clearable filterable style="width:100%" @change="handleRegionChange" />
           </el-form-item>
           <el-form-item label="厂址">
             <el-input v-model="form.address" placeholder="如：榆神工业区" />
           </el-form-item>
+          <el-form-item label="保护期">
+            <div class="protect-hint"><el-icon><Timer /></el-icon> 注册日/开票日 + 360天</div>
+          </el-form-item>
         </div>
 
-        <!-- 注册日 / 开票日 / 保护期 -->
-        <div class="form-grid col-3">
+        <div class="form-grid col-2">
           <el-form-item label="注册日">
             <el-date-picker v-model="form.registerDate" type="date" value-format="YYYY-MM-DD" placeholder="选择日期" style="width:100%" />
           </el-form-item>
           <el-form-item label="最近开票日">
             <el-date-picker v-model="form.lastInvoiceDate" type="date" value-format="YYYY-MM-DD" placeholder="选择日期" style="width:100%" />
-          </el-form-item>
-          <el-form-item label="保护期">
-            <div class="protect-hint"><el-icon><Timer /></el-icon> 注册日/开票日 + 360天</div>
           </el-form-item>
         </div>
 
@@ -151,6 +145,7 @@ const filteredOffices = computed(() => {
   if (!form.regionId) return []
   return offices.value.filter(o => o.parentId === form.regionId)
 })
+const allOffices = computed(() => offices.value)
 const regionValue = ref([])
 const industryOptions = ref([])
 const devTypeOptions = ref([])
@@ -295,34 +290,39 @@ const handleSubmit = async () => {
 
 .form-card {
   background: #fff;
-  border-radius: 8px;
-  border: 1px solid #ebeef5;
-  padding: 24px 32px;
+  border-radius: 10px;
+  border: 1px solid #e4e7ed;
+  padding: 28px 36px;
+  box-shadow: 0 1px 3px rgba(0,0,0,.04);
 }
 .card-title {
   display: flex;
   align-items: center;
-  gap: 6px;
-  font-size: 16px;
-  font-weight: 600;
-  color: #333;
-  margin-bottom: 24px;
+  gap: 8px;
+  font-size: 17px;
+  font-weight: 700;
+  color: #1f2329;
+  margin-bottom: 28px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #f0f2f5;
 }
-.card-title .el-icon { color: #e6a23c; }
+.card-title .el-icon { color: #409eff; font-size: 18px; }
 
-/* 表单网格布局 */
 .form-grid {
   display: grid;
-  gap: 0 20px;
+  gap: 0 24px;
+  margin-bottom: 4px;
 }
+.form-grid.col-1 { grid-template-columns: 1fr; }
 .form-grid.col-2 { grid-template-columns: 1fr 1fr; }
 .form-grid.col-3 { grid-template-columns: 1fr 1fr 1fr; }
 .form-grid.col-4 { grid-template-columns: 1fr 1fr 1fr 1fr; }
 
 .form-grid :deep(.el-select),
-.form-grid :deep(.el-cascader) {
-  width: 100%;
-}
+.form-grid :deep(.el-cascader) { width: 100%; }
+
+:deep(.el-form-item__label) { font-size: 13px; color: #555; font-weight: 600; padding-bottom: 4px }
+:deep(.el-input__inner) { font-size: 14px }
 
 .protect-hint {
   display: flex;
@@ -337,9 +337,9 @@ const handleSubmit = async () => {
   display: flex;
   justify-content: center;
   gap: 16px;
-  margin-top: 24px;
+  margin-top: 28px;
   padding-top: 24px;
-  border-top: 1px solid #ebeef5;
+  border-top: 1px solid #f0f2f5;
 }
 
 /* 联系人 */

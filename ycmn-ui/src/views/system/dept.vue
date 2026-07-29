@@ -1,42 +1,36 @@
 <template>
   <div class="dept-manage">
-    <div class="page-header">
-      <h2>组织架构</h2>
+    <div class="section-box" style="display:flex;align-items:center;justify-content:space-between;padding:12px 20px">
+      <span style="font-size:15px;font-weight:700;color:#1f2329">组织架构</span>
       <el-button type="primary" :icon="Plus" @click="openDialog()">新增部门</el-button>
     </div>
 
-    <el-card shadow="never">
-      <el-table :data="deptTree" stripe border row-key="id" default-expand-all :tree-props="{ children: 'children' }">
-        <el-table-column prop="deptName" label="部门名称" min-width="200" />
-        <el-table-column label="类型" width="100" align="center">
+    <div class="section-box table-box">
+      <div style="flex:1;overflow:auto">
+      <el-table :data="deptTree" row-key="id" default-expand-all :tree-props="{ children: 'children' }" size="small">
+        <el-table-column prop="deptName" label="部门名称" min-width="160" />
+        <el-table-column label="类型" width="75" align="center">
           <template #default="{ row }">
             <el-tag size="small" :type="{ 1: 'danger', 2: 'warning', 3: 'primary', 4: 'info' }[row.deptType] || 'info'">
               {{ { 1: '总部', 2: '大区', 3: '办事处', 4: '部门' }[row.deptType] || '—' }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="大区编码" width="90" align="center">
+        <el-table-column label="大区编码" width="80" align="center">
           <template #default="{ row }">
             <span v-if="row.deptType === 2 && row.deptCode">{{ row.deptCode }}</span>
             <span v-else-if="row.deptType === 2" style="color: #f56c6c">未设置</span>
             <span v-else style="color: #c0c4cc">—</span>
           </template>
         </el-table-column>
-        <el-table-column label="负责人" width="100" align="center">
-          <template #default="{ row }">
-            <span v-if="row.leaderName">{{ row.leaderName }}</span>
-            <span v-else style="color: #c0c4cc">未设置</span>
-          </template>
+        <el-table-column label="负责人" width="80" align="center">
+          <template #default="{ row }"><span v-if="row.leaderName">{{ row.leaderName }}</span><span v-else style="color:#c0c4cc">—</span></template>
         </el-table-column>
-        <el-table-column prop="sortOrder" label="排序" width="80" align="center" />
-        <el-table-column label="状态" width="80" align="center">
-          <template #default="{ row }">
-            <el-tag :type="row.status === 1 ? 'success' : 'danger'" size="small">
-              {{ row.status === 1 ? '正常' : '禁用' }}
-            </el-tag>
-          </template>
+        <el-table-column prop="sortOrder" label="排序" width="60" align="center" />
+        <el-table-column label="状态" width="65" align="center">
+          <template #default="{ row }"><el-tag :type="row.status===1?'success':'danger'" size="small">{{ row.status===1?'正常':'禁用' }}</el-tag></template>
         </el-table-column>
-        <el-table-column label="操作" width="220" align="center">
+        <el-table-column label="操作" width="200" align="center">
           <template #default="{ row }">
             <el-button link type="primary" size="small" @click="openDialog(row)">编辑</el-button>
             <el-button link type="primary" size="small" @click="openDialog(null, row.id)">添加子部门</el-button>
@@ -44,7 +38,8 @@
           </template>
         </el-table-column>
       </el-table>
-    </el-card>
+      </div>
+    </div>
 
     <el-dialog v-model="dialogVisible" :title="editForm.id ? '编辑部门' : '新增部门'" width="500px">
       <el-form :model="editForm" label-width="80px">
@@ -148,6 +143,11 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
-.page-header h2 { font-size: 20px; }
+.dept-manage { height: calc(100vh - 80px); display: flex; flex-direction: column; gap: 10px }
+.section-box { background: #fff; border: 1px solid #e4e7ed; border-radius: 10px; padding: 16px 20px; flex-shrink: 0 }
+.section-box.table-box { flex: 1; padding: 0; display: flex; flex-direction: column; overflow: hidden }
+.section-box.table-box > div:first-child { flex: 1; overflow: auto; padding: 4px 0 }
+.section-box.table-box :deep(.el-table th) { font-size: 14px; font-weight: 700; color: #1f2329; background: #f8f9fb }
+.section-box.table-box :deep(.el-table td) { font-size: 13px }
+.section-box.table-box :deep(.el-table__row) { height: 44px }
 </style>

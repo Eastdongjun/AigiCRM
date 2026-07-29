@@ -111,20 +111,17 @@ public class IncentiveService {
     public void addRecord(BizIncentiveRecord record) {
         BizIncentiveCategory category = categoryMapper.selectById(record.getCategoryId());
         int base = (category != null && category.getScore() != null) ? category.getScore() : 0;
-        // 学分按文件数计：子类分值 × 本条记录的文件数(安装前/中/后中非空者)
-        record.setScore(base * fileCountOf(record));
+        // 三文件齐全才计分，积分 = 子类分值（不乘文件数）
+        record.setScore(fileCountOf(record) > 0 ? base : 0);
         record.setUserId(SecurityUtils.getCurrentUserId());
         recordMapper.insert(record);
     }
 
-    /** 单条记录的文件数(安装前/中/后非空者; 兼容旧版单文件 fileId 算 1; 跟踪记录不计分) */
+    /** 单条记录是否计分(安装前/中/后全部非空才算; 兼容旧版单文件 fileId) */
     private int fileCountOf(BizIncentiveRecord r) {
-        int n = 0;
-        if (r.getFilePreId() != null) n++;
-        if (r.getFileMidId() != null) n++;
-        if (r.getFilePostId() != null) n++;
-        if (n == 0 && r.getFileId() != null) n = 1;
-        return n;
+        if (r.getFilePreId() != null && r.getFileMidId() != null && r.getFilePostId() != null) return 1;
+        if (r.getFileId() != null) return 1;
+        return 0;
     }
 
     /** 激励统计表(全员口径): 按子类聚合文件数/总学分, 并给出周期总文件数/总学分 */
@@ -137,7 +134,7 @@ public class IncentiveService {
         int totalFiles = 0, totalScore = 0;
         for (BizIncentiveRecord r : records) {
             int fc = fileCountOf(r);
-            int sc = r.getScore() != null ? r.getScore() : 0;
+            int sc = fc > 0 ? (r.getScore() != null ? r.getScore() : 0) : 0;
             int[] agg = byCat.computeIfAbsent(r.getCategoryId(), k -> new int[2]);
             agg[0] += fc;
             agg[1] += sc;
@@ -168,7 +165,8 @@ public class IncentiveService {
         Map<Long, Integer> userScores = new HashMap<>();
         Map<Long, Integer> userCounts = new HashMap<>();
         for (BizIncentiveRecord r : records) {
-            userScores.merge(r.getUserId(), r.getScore() != null ? r.getScore() : 0, Integer::sum);
+            int sc = fileCountOf(r) > 0 ? (r.getScore() != null ? r.getScore() : 0) : 0;
+            userScores.merge(r.getUserId(), sc, Integer::sum);
             userCounts.merge(r.getUserId(), 1, Integer::sum);
         }
 

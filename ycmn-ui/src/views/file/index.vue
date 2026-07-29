@@ -1,16 +1,22 @@
 <template>
   <div class="file-manage">
-    <!-- 标题行 -->
-    <div class="page-header">
-      <h2>文件管理</h2>
-      <div class="header-actions">
-        <el-input v-model="keyword" placeholder="搜索文件名称..." style="width: 220px" clearable prefix-icon="Search" @keyup.enter="loadFiles" />
-        <el-button v-if="activeTab !== 'incentive' && activeTab !== 'shared_to_me'" type="primary" :icon="Upload" @click="uploadVisible = true">上传文件</el-button>
+    <!-- 框1: 统计 -->
+    <div class="section-box" style="display:flex;align-items:center;gap:32px">
+      <div class="stat-item">
+        <div class="stat-icon c-blue"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div>
+        <div><div class="s-num">{{ storage?.usedFormatted || '0' }}</div><div class="s-lbl">已使用</div></div>
       </div>
+      <div class="stat-item">
+        <div class="stat-icon c-green"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/></svg></div>
+        <div><div class="s-num">{{ storage?.quotaFormatted || '10GB' }}</div><div class="s-lbl">总容量</div></div>
+      </div>
+      <el-input v-model="keyword" placeholder="搜索文件名称..." style="width:220px;margin-left:auto" clearable prefix-icon="Search" @keyup.enter="loadFiles" />
+      <el-button v-if="activeTab!=='incentive'&&activeTab!=='shared_to_me'" type="primary" :icon="Upload" @click="uploadVisible=true">上传文件</el-button>
     </div>
 
-    <!-- 主卡片 -->
-    <el-card shadow="never" class="main-card">
+    <!-- 框2: 主内容 -->
+    <div class="section-box table-box">
+      <el-card shadow="never" class="main-card" style="border:none;border-radius:0;box-shadow:none;flex:1;display:flex;flex-direction:column">
       <!-- Tab栏 -->
       <div class="tab-bar">
         <div
@@ -131,6 +137,7 @@
         </div>
       </div>
     </el-card>
+    </div>
 
     <!-- 上传对话框 -->
     <el-dialog v-model="uploadVisible" title="上传文件" width="500px">
@@ -491,16 +498,17 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.page-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 16px;
-}
-.page-header h2 { font-size: 18px; font-weight: 600; }
-.header-actions { display: flex; gap: 10px; }
+.file-manage { height: calc(100vh - 80px); display: flex; flex-direction: column; gap: 10px }
+.section-box { background: #fff; border: 1px solid #e4e7ed; border-radius: 10px; padding: 14px 20px; flex-shrink: 0 }
+.section-box.table-box { flex: 1; padding: 0; display: flex; flex-direction: column; overflow: hidden }
+.stat-item { display: flex; align-items: center; gap: 12px }
+.stat-icon { width: 42px; height: 42px; border-radius: 10px; display: flex; align-items: center; justify-content: center }
+.stat-icon svg { width: 20px; height: 20px }
+.stat-icon.c-blue { background: #eff6ff; color: #3b82f6 }
+.stat-icon.c-green { background: #ecfdf5; color: #10b981 }
+.s-num { font-size: 20px; font-weight: 800; color: #1f2329; line-height: 1.2 }
+.s-lbl { font-size: 12px; color: #999 }
 
-/* 主卡片 */
 .main-card { border-radius: 10px; }
 .main-card :deep(.el-card__body) { padding: 0; }
 

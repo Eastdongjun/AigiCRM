@@ -1,135 +1,93 @@
 <template>
   <div class="customer-list">
-    <!-- 顶部标题行 -->
-    <div class="page-header">
-      <h2>客户管理</h2>
+    <!-- 框1: 统计 -->
+    <div class="section-box">
+      <div class="stats-bar">
+        <div class="stat-item">
+          <div class="stat-icon c-blue"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 4-7 8-7s8 3 8 7"/></svg></div>
+          <div><div class="stat-num">{{ customerStats.total || 0 }}</div><div class="stat-lbl">客户数</div></div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-icon c-green"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg></div>
+          <div><div class="stat-num">{{ industryOptions.length || 0 }}</div><div class="stat-lbl">行业</div></div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-icon c-orange"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="16" rx="2"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="2" y1="10" x2="22" y2="10"/></svg></div>
+          <div><div class="stat-num">{{ customerStats.invoiced || 0 }}</div><div class="stat-lbl">已开票</div></div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-icon c-purple"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div>
+          <div><div class="stat-num">{{ (customerStats.total || 0) - (customerStats.invoiced || 0) }}</div><div class="stat-lbl">未开票</div></div>
+        </div>
+      </div>
     </div>
 
-    <!-- 搜索栏 + 按钮 同行 -->
-    <div class="toolbar">
-      <div class="toolbar-left">
-        <el-input v-model="query.keyword" placeholder="搜索客户名称/编号..." clearable prefix-icon="Search" style="width: 200px" @keyup.enter="search" />
-        <el-select v-model="query.industry" placeholder="全部行业" clearable style="width: 130px" @change="search">
-          <el-option v-for="i in industryOptions" :key="i" :label="i" :value="i" />
+    <!-- 框2: 搜索 -->
+    <div class="section-box">
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+        <el-input v-model="query.keyword" placeholder="搜索客户名称/编号..." clearable prefix-icon="Search" style="width: 260px" @keyup.enter="search" @change="search" />
+        <el-select v-model="newFilterField" placeholder="添加筛选" size="default" style="width:130px" @change="onAddFilter">
+          <el-option label="行业" value="industry" /><el-option label="开发类型" value="devType" /><el-option label="所属集团" value="groupName" /><el-option label="状态" value="status" /><el-option label="大区" value="regionId" />
         </el-select>
-        <el-select v-model="query.regionId" placeholder="全部大区" clearable style="width: 130px" @change="search">
-          <el-option v-for="o in regionList" :key="o.id" :label="o.deptName" :value="o.id" />
-        </el-select>
-        <el-select v-model="query.status" placeholder="全部状态" clearable style="width: 120px" @change="search">
-          <el-option label="正常" value="normal" />
-          <el-option label="预警" value="warning" />
-          <el-option label="超期" value="expired" />
-        </el-select>
-      </div>
-      <div class="toolbar-right">
+        <template v-for="(f,i) in query.filters" :key="i">
+          <el-tag closable size="default" @close="query.filters.splice(i,1);search()" @click="editFilter(f)" style="cursor:pointer">{{ f.label }}: {{ f.valueLabel || f.value }}</el-tag>
+        </template>
+        <el-button type="primary" @click="search">查询</el-button>
+
         <el-popover v-model:visible="colPickerVisible" placement="bottom-end" :width="280" trigger="click">
-          <template #reference>
-            <el-button :icon="Setting">列设置</el-button>
-          </template>
           <div class="col-picker">
-            <div class="col-picker-header">
-              <span>自定义显示列</span>
-              <el-button link type="primary" size="small" @click="tempChecked = [...defaultKeys]">重置</el-button>
-            </div>
-            <el-checkbox-group v-model="tempChecked">
-              <div v-for="col in allColumns" :key="col.key" class="col-picker-item">
-                <el-checkbox :value="col.key" :disabled="col.disabled">{{ col.label }}</el-checkbox>
-              </div>
-            </el-checkbox-group>
-            <div class="col-picker-footer">
-              <el-button size="small" @click="colPickerVisible = false">取消</el-button>
-              <el-button type="primary" size="small" @click="confirmColumns">确定</el-button>
-            </div>
+            <div class="col-picker-header"><span>自定义显示列</span><el-button link type="primary" size="small" @click="tempChecked = [...defaultKeys]">重置</el-button></div>
+            <el-checkbox-group v-model="tempChecked"><div v-for="col in allColumns" :key="col.key" class="col-picker-item"><el-checkbox :value="col.key" :disabled="col.disabled">{{ col.label }}</el-checkbox></div></el-checkbox-group>
+            <div class="col-picker-footer"><el-button size="small" @click="colPickerVisible=false">取消</el-button><el-button type="primary" size="small" @click="confirmColumns">确定</el-button></div>
           </div>
         </el-popover>
-        <el-button :icon="Download" @click="handleExport">导出</el-button>
-        <el-button :icon="Upload" @click="showImportDialog = true">批量导入</el-button>
-        <el-button type="primary" :icon="Plus" @click="$router.push('/customer/add')">新客户</el-button>
+        <div style="margin-left:auto;display:flex;gap:8px">
+          <el-button :icon="Setting" @click="colPickerVisible=true">列设置</el-button>
+          <el-button :icon="Upload" @click="showImportDialog=true">批量导入</el-button>
+          <el-button :icon="Download" @click="handleExport">导出</el-button>
+          <el-button type="primary" :icon="Plus" @click="$router.push('/customer/add')">新客户</el-button>
+        </div>
       </div>
     </div>
+
+    <!-- 筛选值选择弹窗 -->
+    <el-dialog v-model="filterDialogVisible" :title="'选择' + (filterFieldOptions[filterDialogField]?.label || '')" width="400px" :close-on-click-modal="true">
+      <el-checkbox-group v-model="filterDialogValues">
+        <el-checkbox v-for="o in (filterFieldOptions[filterDialogField]?.options || [])" :key="o.value" :label="o.value" :value="o.value" style="display:block;margin-bottom:8px">{{ o.label }}</el-checkbox>
+      </el-checkbox-group>
+      <template #footer>
+        <el-button @click="filterDialogVisible=false">取消</el-button>
+        <el-button type="primary" @click="confirmFilter">确定</el-button>
+      </template>
+    </el-dialog>
 
     <!-- 筛选标签栏 -->
-    <div class="scope-tabs">
-      <span class="scope-tab" :class="{ active: query.scope === '' }" @click="switchScope('')">
-        全部 <b>{{ scopeCounts.all || 0 }}</b>
-      </span>
-      <span class="scope-tab" :class="{ active: query.scope === 'mine' }" @click="switchScope('mine')">
-        我的客户 <b>{{ scopeCounts.mine || 0 }}</b>
-      </span>
-      <span class="scope-tab" :class="{ active: query.scope === 'shared_by_me' }" @click="switchScope('shared_by_me')">
-        我分享的 <b>{{ scopeCounts.sharedByMe || 0 }}</b>
-      </span>
-      <span class="scope-tab" :class="{ active: query.scope === 'shared_to_me' }" @click="switchScope('shared_to_me')">
-        分享给我 <b>{{ scopeCounts.sharedToMe || 0 }}</b>
-      </span>
-    </div>
 
-    <!-- 主体: 左侧面板 + 右侧表格 -->
-    <div class="main-body">
-      <!-- 左侧区域面板 -->
-      <div class="side-panel">
-        <div class="region-card">
-          <div class="region-header">
-            <el-icon><Location /></el-icon>
-            <span>我的区域</span>
-          </div>
-          <div class="user-card">
-            <el-avatar :size="32" class="user-avatar">{{ userStore.realName?.charAt(0) }}</el-avatar>
-            <div class="user-meta">
-              <div class="user-name">{{ userStore.realName }}</div>
-              <div class="user-role">{{ userStore.roleName }} · {{ userStore.officeName }}</div>
-            </div>
-          </div>
-        </div>
-
-        <div class="stat-section">
-          <div class="stat-row" :class="{ active: !query.industry }" @click="handleFilterIndustry(null)">
-            <el-icon><Connection /></el-icon>
-            <span class="stat-name">全部</span>
-            <span class="stat-count">{{ customerStats.total || 0 }}</span>
-          </div>
-
-          <div class="stat-divider">— 行业分类 —</div>
-
-          <div
-            v-for="(item, index) in industryList"
-            :key="item.name"
-            class="stat-row"
-            :class="{ active: query.industry === item.name }"
-            @click="handleFilterIndustry(item.name)"
-          >
-            <span class="color-dot" :style="{ background: industryColors[index % industryColors.length] }"></span>
-            <span class="stat-name">{{ item.name }}</span>
-            <span class="stat-count">{{ item.count }}</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- 右侧表格 -->
-      <div class="table-area">
-        <div class="table-wrap" ref="tableWrapRef">
-        <el-table :data="tableData" :height="tableHeight" stripe style="width: 100%" @row-click="viewDetail" :row-style="{ cursor: 'pointer' }" size="small" :key="tableKey">
-          <el-table-column prop="customerCode" label="编号" min-width="110" fixed show-overflow-tooltip />
+    <!-- 框3: 表格 -->
+    <div class="section-box table-box" style="margin-bottom:0">
+      <div ref="tableWrapRef" style="flex:1;overflow:auto">
+        <el-table :data="tableData" height="100%" stripe style="width: 100%" @row-click="viewDetail" :row-style="{ cursor: 'pointer' }" size="small" :key="tableKey">
+          <el-table-column prop="customerCode" label="编号" width="120" fixed show-overflow-tooltip sortable />
           <el-table-column prop="customerName" label="订货客户全称" min-width="160" fixed show-overflow-tooltip />
           <el-table-column v-if="colVisible('invoiceName')" prop="invoiceName" label="开票名称" min-width="120" show-overflow-tooltip />
-          <el-table-column v-if="colVisible('groupName')" prop="groupName" label="所属集团" min-width="90" show-overflow-tooltip />
+          <el-table-column v-if="colVisible('groupName')" prop="groupName" label="所属集团" width="100" show-overflow-tooltip sortable />
           <el-table-column v-if="colVisible('branchCompany')" prop="branchCompany" label="所属分公司" min-width="100" show-overflow-tooltip />
           <el-table-column v-if="colVisible('unitName')" prop="unitName" label="所属单位" min-width="100" show-overflow-tooltip />
-          <el-table-column v-if="colVisible('industry')" prop="industry" label="行业" min-width="60" />
-          <el-table-column v-if="colVisible('devType')" prop="devType" label="开发类型" min-width="70" />
+          <el-table-column v-if="colVisible('industry')" prop="industry" label="行业" min-width="70" sortable />
+          <el-table-column v-if="colVisible('devType')" prop="devType" label="开发类型" width="95" sortable />
           <el-table-column v-if="colVisible('capacity')" prop="capacity" label="产能" min-width="60" />
           <el-table-column v-if="colVisible('province')" label="省市县" min-width="80" show-overflow-tooltip>
             <template #default="{ row }">{{ row.province }}{{ row.city }}</template>
           </el-table-column>
-          <el-table-column v-if="colVisible('registerDate')" prop="registerDate" label="注册日" min-width="95" />
-          <el-table-column v-if="colVisible('lastInvoiceDate')" prop="lastInvoiceDate" label="最近开票" min-width="95" />
+          <el-table-column v-if="colVisible('registerDate')" prop="registerDate" label="注册日" min-width="100" sortable />
+          <el-table-column v-if="colVisible('lastInvoiceDate')" prop="lastInvoiceDate" label="最近开票" min-width="100" sortable />
           <el-table-column v-if="colVisible('transferDate')" prop="transferDate" label="转移日" min-width="95" />
-          <el-table-column v-if="colVisible('expireDate')" label="到期日(360)" min-width="100">
+          <el-table-column v-if="colVisible('expireDate')" label="到期日(360)" min-width="110" sortable prop="expireDate">
             <template #default="{ row }">
               <span :style="{ color: getExpireColor(row), fontWeight: 'bold' }">{{ row.expireDate }}</span>
             </template>
           </el-table-column>
-          <el-table-column v-if="colVisible('adjustDate')" label="调整日(180)" min-width="100">
+          <el-table-column v-if="colVisible('adjustDate')" label="调整日(180)" min-width="110" sortable prop="adjustDate">
             <template #default="{ row }">
               <span v-if="row.adjustDate">{{ row.adjustDate }}</span>
               <span v-else>—</span>
@@ -139,7 +97,7 @@
           <el-table-column v-if="colVisible('officeName')" prop="officeName" label="办事处" min-width="80" />
           <el-table-column v-if="colVisible('ownerName')" prop="ownerName" label="负责人" min-width="65" />
           <el-table-column v-if="colVisible('managerName')" prop="managerName" label="管理上级" min-width="70" />
-          <el-table-column label="状态" width="65" align="center" fixed="right">
+          <el-table-column label="状态" width="75" align="center" fixed="right" sortable prop="status">
             <template #default="{ row }">
               <el-tag :type="getStatusType(row)" size="small" effect="dark" round>
                 {{ getStatusText(row) }}
@@ -151,7 +109,7 @@
               <span class="protect-tag" :class="getProtectClass(row)">{{ getProtectText(row) }}</span>
             </template>
           </el-table-column>
-          <el-table-column label="操作" :width="canDelete ? 100 : 70" align="center" fixed="right">
+          <el-table-column v-if="colVisible('action')" label="操作" :width="canDelete ? 100 : 70" align="center" fixed="right">
             <template #default="{ row }">
               <el-button
                 v-if="query.scope !== 'shared_to_me'"
@@ -171,20 +129,22 @@
             </template>
           </el-table-column>
         </el-table>
-        </div>
+      </div>
+    </div>
 
-        <div class="pagination">
-          <span>{{ total > 0 ? (query.current - 1) * query.size + 1 : 0 }}-{{ Math.min(query.current * query.size, total) }}条 / 共{{ total }}条</span>
-          <el-pagination
-            v-model:current-page="query.current"
-            v-model:page-size="query.size"
-            :total="total"
-            :page-sizes="[15, 30, 50]"
-            layout="prev, pager, next"
-            small
-            @change="loadData"
-          />
-        </div>
+    <!-- 框4: 翻页 -->
+    <div class="section-box" style="padding:4px 20px;margin-bottom:0">
+      <div class="pagination" style="padding:0;border:none">
+        <span style="font-size:13px;color:#666">{{ total > 0 ? (query.current - 1) * query.size + 1 : 0 }}-{{ Math.min(query.current * query.size, total) }}条 / 共{{ total }}条</span>
+        <el-pagination
+          v-model:current-page="query.current"
+          v-model:page-size="query.size"
+          :total="total"
+          :page-sizes="[30, 50, 100, 200]"
+          layout="total, sizes, prev, pager, next"
+          background
+          @change="loadData"
+        />
       </div>
     </div>
 
@@ -311,9 +271,9 @@ const allColumns = [
   { key: 'managerName', label: '管理上级' },
   { key: 'status', label: '状态', disabled: true },
   { key: 'protect', label: '保护措施', disabled: true },
-  { key: 'action', label: '操作', disabled: true },
+  { key: 'action', label: '操作' },
 ]
-const defaultKeys = allColumns.map(c => c.key)
+const defaultKeys = allColumns.filter(c => !['action','transferDate'].includes(c.key)).map(c => c.key)
 const lockedKeys = allColumns.filter(c => c.disabled).map(c => c.key)
 
 const loadSavedColumns = () => {
@@ -458,13 +418,68 @@ const closeImportDialog = () => {
 
 const query = reactive({
   current: 1,
-  size: 15,
+  size: 100,
   keyword: '',
   industry: '',
+  industries: [],
   regionId: '',
+  regionIds: [],
   status: '',
-  scope: ''
+  statuses: [],
+  scope: '',
+  filters: []
 })
+
+// 多条件筛选
+const newFilterField = ref('')
+const filterDialogVisible = ref(false)
+const filterDialogField = ref('')
+const filterDialogValue = ref('')
+const filterDialogValues = ref([])
+
+const filterFieldOptions = reactive({
+  industry: { label: '行业', options: [] },
+  devType: { label: '开发类型', options: [{label:'成熟',value:'成熟'},{label:'突破',value:'突破'}] },
+  groupName: { label: '所属集团', options: [] },
+  status: { label: '状态', options: [{label:'正常',value:'normal'},{label:'预警',value:'warning'},{label:'超期',value:'expired'}] },
+  regionId: { label: '大区', options: [] }
+})
+
+const loadFilterOptions = async () => {
+  try {
+    const res = await getCustomerList({ current:1, size:9999 })
+    const all = res.data.records || []
+    filterFieldOptions.groupName.options = [...new Set(all.map(r=>r.groupName).filter(Boolean))].sort().map(v=>({label:v,value:v}))
+    filterFieldOptions.industry.options = [...new Set(all.map(r=>r.industry).filter(Boolean))].sort().map(v=>({label:v,value:v}))
+    filterFieldOptions.regionId.options = regionList.value.map(o=>({label:o.deptName,value:o.id}))
+  } catch(e) {}
+}
+
+const editFilter = (f) => {
+  filterDialogField.value = f.field
+  filterDialogValues.value = [...f.value]
+  filterDialogVisible.value = true
+}
+
+const onAddFilter = (field) => {
+  if (!field) return
+  filterDialogField.value = field
+  filterDialogValues.value = (query.filters.find(f=>f.field===field)?.value || []).slice()
+  filterDialogVisible.value = true
+  newFilterField.value = ''
+}
+
+const confirmFilter = () => {
+  const field = filterDialogField.value
+  query.filters = query.filters.filter(f => f.field !== field)
+  if (filterDialogValues.value.length > 0) {
+    const opts = filterFieldOptions[field].options
+    const labels = filterDialogValues.value.map(v => { const o = opts.find(o=>o.value===v); return o?o.label:v })
+    query.filters.push({ field, label: filterFieldOptions[field].label, value: [...filterDialogValues.value], valueLabel: labels.join(',') })
+  }
+  filterDialogVisible.value = false
+  search()
+}
 
 const industryList = computed(() => {
   const stats = customerStats.value.industryStats || {}
@@ -492,7 +507,19 @@ const handleFilterIndustry = (industry) => {
 
 const loadData = async () => {
   try {
-    const res = await getCustomerList(query)
+    const params = { current: query.current, size: query.size, keyword: query.keyword, scope: query.scope }
+    if (query.industry) params.industry = query.industry
+    if (query.industries && query.industries.length) params.industry = query.industries.join(',')
+    if (query.regionId) params.regionId = query.regionId
+    if (query.regionIds && query.regionIds.length) params.regionId = query.regionIds[0]
+    if (query.status) params.status = query.status
+    if (query.statuses && query.statuses.length) params.status = query.statuses.join(',')
+    if (query.filters && query.filters.length) {
+      query.filters.forEach(f => {
+        params[f.field] = Array.isArray(f.value) ? f.value.join(',') : f.value
+      })
+    }
+    const res = await getCustomerList(params)
     tableData.value = res.data.records
     total.value = res.data.total
   } catch (e) {}
@@ -520,8 +547,17 @@ const handleExport = () => {
   const params = new URLSearchParams()
   if (query.keyword) params.append('keyword', query.keyword)
   if (query.industry) params.append('industry', query.industry)
+  if (query.industries && query.industries.length) query.industries.forEach(v => params.append('industries', v))
   if (query.regionId) params.append('regionId', query.regionId)
+  if (query.regionIds && query.regionIds.length) query.regionIds.forEach(v => params.append('regionIds', v))
   if (query.status) params.append('status', query.status)
+  if (query.statuses && query.statuses.length) query.statuses.forEach(v => params.append('statuses', v))
+  if (query.filters && query.filters.length) {
+    query.filters.forEach(f => {
+      if (Array.isArray(f.value)) f.value.forEach(v => params.append('filter_'+f.field, v))
+      else params.append('filter_'+f.field, f.value)
+    })
+  }
   const token = localStorage.getItem('token')
   const url = `/api/customer/export?${params.toString()}`
   // 用隐藏 a 标签下载（带 token）
@@ -605,6 +641,7 @@ onMounted(() => {
   loadScopeCounts()
   loadRegions()
   loadIndustryOptions()
+  loadFilterOptions()
   nextTick(updateTableHeight)
   if (tableWrapRef.value) {
     resizeObserver = new ResizeObserver(updateTableHeight)
@@ -640,6 +677,9 @@ onBeforeUnmount(() => {
 }
 
 /* 筛选标签栏 */
+.filter-row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-bottom:10px; padding:0 }
+.filter-row .el-tag { cursor:default }
+
 .scope-tabs {
   display: flex;
   align-items: center;
@@ -746,17 +786,29 @@ onBeforeUnmount(() => {
   padding: 4px 0;
 }
 
-/* 页面撑满视口 */
-.customer-list {
-  height: calc(100vh - 100px);
-  display: flex;
-  flex-direction: column;
-}
+.customer-list { display:flex; flex-direction:column; height:calc(100vh - 90px) }
+.section-box { background:#fff; border:1px solid #e4e7ed; border-radius:8px; padding:14px 20px; margin-bottom:8px; box-shadow:0 1px 3px rgba(0,0,0,.04); flex-shrink:0 }
+.section-box.table-box { flex:1; padding:0; display:flex; flex-direction:column; overflow:hidden; min-height:0 }
+.section-box.table-box > div:first-child { flex:1; overflow:auto }
+.stats-bar { display:flex; gap:40px; align-items:center; flex-wrap:wrap; padding:4px 0 }
+.stat-item { display:flex; align-items:center; gap:14px }
+.stat-icon { width:48px; height:48px; border-radius:12px; display:flex; align-items:center; justify-content:center }
+.stat-icon svg { width:22px; height:22px }
+.stat-icon.c-blue { background:#e8f0fe; color:#1a73e8 }
+.stat-icon.c-green { background:#e6f4ea; color:#137333 }
+.stat-icon.c-orange { background:#fef0e0; color:#e37400 }
+.stat-icon.c-purple { background:#f0e8fd; color:#7627bf }
+.stat-num { font-size:24px; font-weight:800; color:#1f2329; line-height:1.2 }
+.stat-lbl { font-size:13px; color:#888; margin-top:2px }
 
-/* 右侧表格 */
 .table-area {
   flex: 1;
   min-width: 0;
+  background:#fff;
+  border:1px solid #e4e7ed;
+  border-radius:10px;
+  overflow:hidden;
+  box-shadow:0 1px 3px rgba(0,0,0,.04);
   min-height: 0;
   display: flex;
   flex-direction: column;
@@ -772,15 +824,18 @@ onBeforeUnmount(() => {
   padding: 4px 0;
   box-sizing: border-box;
 }
+.table-area :deep(.el-table th.el-table__cell) { font-size:14px; font-weight:700; color:#1f2329 }
+.table-area :deep(.el-table td.el-table__cell) { font-size:13px }
 .pagination {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 10px 0;
+  padding: 6px 20px;
   border-top: 1px solid #ebeef5;
   color: #999;
   font-size: 12px;
   flex-shrink: 0;
+  line-height: 1;
 }
 
 /* 列选择器 */

@@ -1,38 +1,23 @@
 <template>
   <div class="user-manage">
-    <div class="page-header">
-      <h2>人员管理</h2>
-      <el-button type="primary" :icon="Plus" @click="openDialog()">新增用户</el-button>
-    </div>
 
-    <!-- 筛选栏 -->
-    <div class="toolbar">
-      <div class="toolbar-left">
+    <!-- 框1: 筛选 -->
+    <div class="section-box">
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
         <el-input v-model="query.keyword" placeholder="搜索姓名/账号..." clearable prefix-icon="Search" style="width: 200px" @keyup.enter="loadData" />
-        <el-tree-select
-          v-model="query.deptId"
-          :data="deptTree"
-          :props="{ label: 'deptName', value: 'id', children: 'children' }"
-          check-strictly
-          :render-after-expand="false"
-          default-expand-all
-          clearable
-          filterable
-          placeholder="全部部门"
-          style="width: 200px"
-          @change="onDeptFilterChange"
-        />
+        <el-tree-select v-model="query.deptId" :data="deptTree" :props="{ label: 'deptName', value: 'id', children: 'children' }" check-strictly :render-after-expand="false" default-expand-all clearable filterable placeholder="全部部门" style="width: 200px" @change="onDeptFilterChange" />
         <el-select v-model="query.status" placeholder="全部状态" clearable style="width: 120px" @change="loadData">
-          <el-option label="正常" :value="1" />
-          <el-option label="禁用" :value="0" />
+          <el-option label="正常" :value="1" /><el-option label="禁用" :value="0" />
         </el-select>
+        <el-button type="primary" :icon="Plus" @click="openDialog()" style="margin-left:auto">新增用户</el-button>
       </div>
     </div>
 
-    <!-- 表格区域 -->
-    <div class="table-area">
-      <div class="table-wrap" ref="tableWrapRef">
+    <!-- 框2: 表格 -->
+    <div class="section-box table-box">
+      <div ref="tableWrapRef" style="flex:1;overflow:auto">
       <el-table :data="tableData" stripe style="width: 100%" size="small" :height="tableHeight">
+        <el-table-column type="index" label="#" width="45" />
         <el-table-column prop="username" label="账号" min-width="100" />
         <el-table-column prop="realName" label="姓名" min-width="80" />
         <el-table-column prop="phone" label="手机号" min-width="110" />
@@ -62,10 +47,13 @@
         </el-table-column>
       </el-table>
       </div>
+    </div>
 
-      <div class="pagination">
+    <!-- 框3: 翻页 -->
+    <div class="section-box" style="padding:6px 20px">
+      <div class="pagination" style="padding:0;border:none">
         <span>{{ total > 0 ? (query.current - 1) * query.size + 1 : 0 }}-{{ Math.min(query.current * query.size, total) }}条 / 共{{ total }}条</span>
-        <el-pagination v-model:current-page="query.current" v-model:page-size="query.size" :total="total" :page-sizes="[15, 30, 50]" layout="prev, pager, next" small @change="loadData" />
+        <el-pagination v-model:current-page="query.current" v-model:page-size="query.size" :total="total" :page-sizes="[30, 50, 100]" layout="prev, pager, next" small @change="loadData" />
       </div>
     </div>
 
@@ -301,25 +289,13 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
-.user-manage { height: calc(100vh - 100px); display: flex; flex-direction: column; }
-.page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
-.page-header h2 { font-size: 18px; font-weight: 600; color: #333; }
-.toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
-.toolbar-left { display: flex; gap: 8px; }
+.user-manage { height: calc(100vh - 80px); display: flex; flex-direction: column; gap: 10px }
+.section-box { background: #fff; border: 1px solid #e4e7ed; border-radius: 10px; padding: 14px 20px; flex-shrink: 0 }
+.section-box.table-box { flex: 1; padding: 0; display: flex; flex-direction: column; overflow: hidden }
+.section-box.table-box > div:first-child { flex: 1; overflow: auto }
 .org-hint { font-size: 12px; color: #909399; line-height: 1.5; margin-top: 2px; }
-.table-area {
-  flex: 1;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-}
-.table-wrap { flex: 1; min-height: 0; }
-.table-area :deep(.el-table td.el-table__cell),
-.table-area :deep(.el-table th.el-table__cell) {
-  height: 40px;
-  padding: 4px 0;
-  box-sizing: border-box;
-}
+.section-box.table-box :deep(.el-table th) { font-size: 14px; font-weight: 700; color: #1f2329 }
+.section-box.table-box :deep(.el-table td) { font-size: 13px }
 .pagination {
   display: flex;
   justify-content: space-between;

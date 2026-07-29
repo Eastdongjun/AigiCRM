@@ -46,11 +46,17 @@ public class CustomerService {
 
     public IPage<BizCustomer> page(int current, int size, String keyword, String industry,
                                     Long officeId, Long regionId, String status, Long ownerId) {
-        return page(current, size, keyword, industry, officeId, regionId, status, ownerId, null);
+        return page(current, size, keyword, industry, officeId, regionId, status, ownerId, null, null, null);
     }
 
     public IPage<BizCustomer> page(int current, int size, String keyword, String industry,
                                     Long officeId, Long regionId, String status, Long ownerId, String scope) {
+        return page(current, size, keyword, industry, officeId, regionId, status, ownerId, scope, null, null);
+    }
+
+    public IPage<BizCustomer> page(int current, int size, String keyword, String industry,
+                                    Long officeId, Long regionId, String status, Long ownerId, String scope,
+                                    String devType, String groupName) {
         Long currentUserId = SecurityUtils.getCurrentUserId();
 
         // scope 筛选: mine / shared_by_me / shared_to_me
@@ -76,7 +82,9 @@ public class CustomerService {
                     .or().like(BizCustomer::getCustomerCode, keyword));
         }
         if (StringUtils.hasText(industry)) {
-            wrapper.eq(BizCustomer::getIndustry, industry);
+            String[] arr = industry.split(",");
+            if (arr.length > 1) wrapper.in(BizCustomer::getIndustry, arr);
+            else wrapper.eq(BizCustomer::getIndustry, industry);
         }
         if (officeId != null) {
             wrapper.eq(BizCustomer::getOfficeId, officeId);
@@ -85,12 +93,20 @@ public class CustomerService {
             wrapper.eq(BizCustomer::getRegionId, regionId);
         }
         if (StringUtils.hasText(status)) {
-            wrapper.eq(BizCustomer::getStatus, status);
+            String[] arr = status.split(",");
+            if (arr.length > 1) wrapper.in(BizCustomer::getStatus, arr);
+            else wrapper.eq(BizCustomer::getStatus, status);
         } else {
             wrapper.ne(BizCustomer::getStatus, "sea");
         }
         if (ownerId != null) {
             wrapper.eq(BizCustomer::getOwnerId, ownerId);
+        }
+        if (StringUtils.hasText(devType)) {
+            wrapper.eq(BizCustomer::getDevType, devType);
+        }
+        if (StringUtils.hasText(groupName)) {
+            wrapper.eq(BizCustomer::getGroupName, groupName);
         }
         wrapper.orderByDesc(BizCustomer::getCreatedAt);
 
@@ -144,7 +160,9 @@ public class CustomerService {
         if (officeId != null) wrapper.eq(BizCustomer::getOfficeId, officeId);
         if (regionId != null) wrapper.eq(BizCustomer::getRegionId, regionId);
         if (StringUtils.hasText(status)) {
-            wrapper.eq(BizCustomer::getStatus, status);
+            String[] arr = status.split(",");
+            if (arr.length > 1) wrapper.in(BizCustomer::getStatus, arr);
+            else wrapper.eq(BizCustomer::getStatus, status);
         } else {
             wrapper.ne(BizCustomer::getStatus, "sea");
         }
