@@ -21,15 +21,19 @@ public class ApprovalController {
     public Result<IPage<BizApproval>> page(
             @RequestParam(defaultValue = "1") int current,
             @RequestParam(defaultValue = "15") int size,
-            @RequestParam(defaultValue = "pending") String tab,
+            @RequestParam(defaultValue = "all") String tab,
             @RequestParam(required = false) String type) {
         return Result.ok(approvalService.page(current, size, tab, type, SecurityUtils.getCurrentUserId()));
     }
 
     @PostMapping("/submit")
     public Result<Void> submit(@RequestBody Map<String, String> params) {
+        String type = params.get("type") != null ? params.get("type") : params.get("approvalType");
+        if (type == null || type.isBlank()) {
+            return Result.error(400, "审批类型不能为空");
+        }
         approvalService.submit(
-                params.get("type"),
+                type,
                 params.get("customerId") != null ? Long.valueOf(params.get("customerId")) : null,
                 params.get("actionAfterApprove"),
                 params.get("extraData")

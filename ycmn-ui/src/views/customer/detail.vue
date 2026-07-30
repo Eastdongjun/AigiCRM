@@ -9,7 +9,7 @@
         <el-button @click="handleEdit"><el-icon><Edit /></el-icon> 编辑</el-button>
         <el-button @click="showShareDialog = true"><el-icon><Share /></el-icon> 分享</el-button>
       </div>
-      <el-tag v-else type="info" size="large">只读模式 · 公海客户</el-tag>
+      <el-tag v-else type="info" size="large">{{ readonlyTag }}</el-tag>
     </div>
 
     <!-- 头部卡片 -->
@@ -383,10 +383,25 @@ import {
 import { getDictData } from '@/api/system'
 import { submitApproval } from '@/api/approval'
 import { getScoreByCustomer } from '@/api/incentive'
+import { useUserStore } from '@/store/user'
 
 const route = useRoute()
 const router = useRouter()
-const readonly = computed(() => route.query.from === 'sea')
+const userStore = useUserStore()
+const isAdmin = computed(() => userStore.roleName === '系统管理员' || (userStore.roles || []).includes('admin'))
+const readonly = computed(() => {
+  if (route.query.from === 'sea') return true
+  // 共享客户（非负责人也非管理员）→ 只读
+  if (customer.value && userStore.userId && !isAdmin.value) {
+    if (customer.value.ownerId && customer.value.ownerId !== userStore.userId) return true
+  }
+  return false
+})
+
+const readonlyTag = computed(() => {
+  if (route.query.from === 'sea') return '只读模式 · 公海客户'
+  return '只读模式 · 共享客户'
+})
 const loading = ref(true)
 const customer = ref(null)
 const logs = ref([])

@@ -119,38 +119,116 @@
             </el-table-column>
           </el-table>
         </el-tab-pane>
-        <!-- 激励类别 -->
-        <el-tab-pane label="激励类别" name="incentiveCategory">
-          <div class="dict-header">
-            <span>激励类别管理</span>
-            <el-button type="primary" size="small" :icon="Plus" @click="openCategoryDialog()">新增类别</el-button>
+        <!-- 激励类别与权限 -->
+        <el-tab-pane label="激励类别与权限" name="incentiveCategory">
+          <!-- 激励类别管理 -->
+          <div class="incentive-card">
+            <div class="dict-header">
+              <span>激励类别管理</span>
+              <el-button type="primary" size="small" :icon="Plus" @click="openCategoryDialog()">新增类别</el-button>
+            </div>
+            <el-table :data="categoryTree" stripe size="small" row-key="id" default-expand-all :tree-props="{ children: 'children' }" max-height="360" style="width:100%">
+              <el-table-column prop="categoryName" label="类别名称" min-width="180" />
+              <el-table-column prop="categoryCode" label="编码" width="120" />
+              <el-table-column label="分值" width="60" align="center">
+                <template #default="{ row }">
+                  <span v-if="row.score > 0">{{ row.score }}分</span>
+                  <span v-else style="color:#c0c4cc">—</span>
+                </template>
+              </el-table-column>
+              <el-table-column prop="sortOrder" label="排序" width="60" align="center" />
+              <el-table-column label="状态" width="70" align="center">
+                <template #default="{ row }">
+                  <el-tag :type="row.status === 1 ? 'success' : 'danger'" size="small">{{ row.status === 1 ? '启用' : '禁用' }}</el-tag>
+                </template>
+              </el-table-column>
+              <el-table-column label="操作" width="195" align="center">
+                <template #default="{ row }">
+                  <div class="action-btns">
+                    <el-button link type="primary" size="small" @click="openCategoryDialog(row)">编辑</el-button>
+                    <el-button link type="primary" size="small" v-if="row.parentId === 0" @click="openCategoryDialog(null, row.id)">子项</el-button>
+                    <el-button link type="primary" size="small" v-else disabled style="visibility:hidden">子项</el-button>
+                    <el-button link type="danger" size="small" @click="handleDeleteCategory(row)">删除</el-button>
+                  </div>
+                </template>
+              </el-table-column>
+            </el-table>
           </div>
-          <el-table :data="categoryTree" stripe size="small" row-key="id" default-expand-all :tree-props="{ children: 'children' }">
-            <el-table-column prop="categoryName" label="类别名称" min-width="200" />
-            <el-table-column prop="categoryCode" label="编码" width="120" />
-            <el-table-column label="分值" width="70" align="center">
-              <template #default="{ row }">
-                <span v-if="row.score > 0">{{ row.score }}分</span>
-                <span v-else style="color:#c0c4cc">—</span>
-              </template>
+
+          <!-- 四项激励权限 -->
+          <div class="incentive-card">
+            <div class="dict-header">
+              <span>授权人员</span>
+              <el-button type="primary" size="small" :icon="Plus" @click="showPermDialog=true">添加</el-button>
+            </div>
+            <el-table :data="permList" size="small" style="width:100%">
+            <el-table-column type="index" label="序号" width="55" align="center" />
+            <el-table-column prop="username" label="账号" min-width="90" />
+            <el-table-column prop="realName" label="姓名" min-width="80" />
+            <el-table-column prop="officeName" label="大区" min-width="120" show-overflow-tooltip />
+            <el-table-column prop="roleName" label="岗位" min-width="80" />
+            <el-table-column label="编辑" width="60" align="center">
+              <template #default="{row}"><el-tag :type="row.can_edit?'success':'info'" size="small">{{row.can_edit?'是':'否'}}</el-tag></template>
             </el-table-column>
-            <el-table-column prop="sortOrder" label="排序" width="60" align="center" />
-            <el-table-column label="状态" width="70" align="center">
-              <template #default="{ row }">
-                <el-tag :type="row.status === 1 ? 'success' : 'danger'" size="small">{{ row.status === 1 ? '启用' : '禁用' }}</el-tag>
-              </template>
+            <el-table-column label="删除" width="55" align="center">
+              <template #default="{row}"><el-tag :type="row.can_delete?'success':'info'" size="small">{{row.can_delete?'是':'否'}}</el-tag></template>
             </el-table-column>
-            <el-table-column label="操作" width="180" align="center">
-              <template #default="{ row }">
-                <el-button link type="primary" size="small" @click="openCategoryDialog(row)">编辑</el-button>
-                <el-button link type="primary" size="small" v-if="row.parentId === 0" @click="openCategoryDialog(null, row.id)">添加子项</el-button>
-                <el-button link type="danger" size="small" @click="handleDeleteCategory(row)">删除</el-button>
-              </template>
+            <el-table-column label="操作" width="65" align="center">
+              <template #default="{row}"><el-button link type="danger" size="small" @click="revokePerm(row.id)">撤销</el-button></template>
             </el-table-column>
           </el-table>
+          </div>
+        </el-tab-pane>
+
+        <!-- 权限矩阵 -->
+        <el-tab-pane label="权限矩阵" name="perm">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+            <span style="font-size:13px;color:#666">按角色分配菜单权限：✓ 表示该角色拥有此权限</span>
+            <el-button size="small" @click="loadPermData">刷新</el-button>
+          </div>
+          <div class="perm-table-wrap">
+            <table class="perm-table">
+              <thead>
+                <tr>
+                  <th class="perm-module">模块</th>
+                  <th class="perm-item-col">权限项</th>
+                  <th v-for="r in allRoles" :key="r.id" class="perm-role-col">{{ r.roleName }}</th>
+                </tr>
+              </thead>
+              <tbody>
+                <template v-for="mod in permModules" :key="mod.name">
+                  <tr v-for="(item, idx) in mod.items" :key="item.id" :class="{ 'first-in-group': idx === 0 }">
+                    <td v-if="idx === 0" :rowspan="mod.items.length" class="perm-module perm-module-name">{{ mod.name }}</td>
+                    <td class="perm-item-col">{{ item.label }}</td>
+                    <td v-for="r in allRoles" :key="r.id" class="perm-role-col" @click="togglePerm(r, item)">
+                      <span v-if="hasPerm(r, item)" class="perm-yes">✓</span>
+                      <span v-else class="perm-no">—</span>
+                    </td>
+                  </tr>
+                </template>
+              </tbody>
+            </table>
+          </div>
         </el-tab-pane>
       </el-tabs>
     </div>
+
+    <!-- 四项激励权限弹窗 -->
+    <el-dialog v-model="showPermDialog" title="添加权限" width="420px">
+      <el-form label-width="70px">
+        <el-form-item label="选择人员">
+          <el-select v-model="permForm.userId" placeholder="请选择" filterable style="width:100%">
+            <el-option v-for="u in allUsers" :key="u.id" :label="u.realName+' ('+u.username+')'" :value="u.id" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="编辑权限"><el-switch v-model="permForm.canEdit" /></el-form-item>
+        <el-form-item label="删除权限"><el-switch v-model="permForm.canDelete" /></el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="showPermDialog=false">取消</el-button>
+        <el-button type="primary" @click="grantPerm">确定</el-button>
+      </template>
+    </el-dialog>
 
     <!-- 公海池编辑弹窗 -->
     <el-dialog v-model="poolDialogVisible" :title="poolForm.id ? '编辑公海池' : '新增公海池'" width="500px">
@@ -266,20 +344,118 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus } from '@element-plus/icons-vue'
 import { useUserStore } from '@/store/user'
 import {
   getConfigList, updateConfigs,
   getDictTypes, createDictType, updateDictType, deleteDictType,
-  getDictDataByTypeId, createDictData, updateDictData, deleteDictData
+  getDictDataByTypeId, createDictData, updateDictData, deleteDictData,
+  getRoleList, getMenuTree, updateRole
 } from '@/api/system'
 import { getSeaConfigs, createSeaConfig, updateSeaConfig, deleteSeaConfig, getOrgTree } from '@/api/sea'
 import { getCategoryTree, createCategory, updateCategory, deleteCategory } from '@/api/incentive'
+import request from '@/utils/request'
 
 const userStore = useUserStore()
 const activeTab = ref('basic')
+
+// ===== 权限矩阵 =====
+const allRoles = ref([])
+const menuTree = ref([])
+const rolePermMap = ref({}) // roleId -> Set of menuIds
+
+const permModules = computed(() => {
+  const groups = [
+    { name: '工作台', items: [] },
+    { name: '客户管理', items: [] },
+    { name: '文件管理', items: [] },
+    { name: '四项激励', items: [] },
+    { name: '提醒管理', items: [] },
+    { name: '公海管理', items: [] },
+    { name: '审批管理', items: [] },
+    { name: '统计分析', items: [] },
+    { name: '学分管理', items: [] },
+    { name: '核心客户指标', items: [] },
+    { name: '系统管理', items: [] },
+  ]
+  const labelMap = {
+    'dashboard': '工作台', 'customer': '客户管理', 'file': '文件管理', 'incentive': '四项激励',
+    'reminder': '提醒管理', 'sea': '公海管理', 'approval': '审批管理', 'statistics': '统计分析',
+    'score': '学分管理', 'indicator': '核心客户指标', 'system': '系统管理',
+  }
+  const flatten = (nodes) => {
+    for (const n of nodes) {
+      if (n.permission) {
+        const prefix = n.permission.split(':')[0]
+        const group = groups.find(g => {
+          for (const [k, v] of Object.entries(labelMap)) {
+            if (prefix === k) return g.name === v
+          }
+          return false
+        })
+        const target = group || groups[groups.length - 1]
+        target.items.push({ id: n.id, label: n.menuName, permission: n.permission })
+      }
+      if (n.children) flatten(n.children)
+    }
+  }
+  flatten(menuTree.value)
+  return groups.filter(g => g.items.length > 0)
+})
+
+const hasPerm = (role, item) => {
+  const set = rolePermMap.value[role.id]
+  return set ? set.has(item.id) : false
+}
+
+const togglePerm = async (role, item) => {
+  const set = rolePermMap.value[role.id]
+  if (!set) return
+  if (set.has(item.id)) {
+    set.delete(item.id)
+  } else {
+    set.add(item.id)
+  }
+  try {
+    await updateRole(role.id, { menuIds: [...set] })
+  } catch (e) {}
+}
+
+const loadPermData = async () => {
+  try { const res = await getRoleList(); allRoles.value = res.data || [] } catch {}
+  try { const res = await getMenuTree(); menuTree.value = res.data || [] } catch {}
+  // 加载每个角色的菜单权限
+  for (const role of allRoles.value) {
+    try {
+      const r = await request.get(`/system/roles/${role.id}`)
+      rolePermMap.value[role.id] = new Set(r.data?.menuIds || [])
+    } catch {}
+  }
+}
+
+// 四项激励权限
+const permList = ref([])
+const showPermDialog = ref(false)
+const permForm = reactive({ userId: null, canEdit: true, canDelete: true })
+const allUsers = ref([])
+const loadPermList = async () => {
+  try { const res = await request.get('/incentive/permission/list'); permList.value = res.data || [] } catch(e) {}
+}
+const loadAllUsers = async () => {
+  try { const res = await request.get('/system/users', { params: { current:1, size:9999 }}); allUsers.value = res.data?.records || [] } catch(e) {}
+}
+const grantPerm = async () => {
+  if (!permForm.userId) { ElMessage.warning('请选择人员'); return }
+  try {
+    await request.post('/incentive/permission/grant', permForm)
+    ElMessage.success('授权成功'); showPermDialog.value = false; loadPermList()
+  } catch(e) { ElMessage.error('授权失败') }
+}
+const revokePerm = async (id) => {
+  try { await ElMessageBox.confirm('确认撤销该权限？','提示',{type:'warning'}); await request.delete('/incentive/permission/'+id); ElMessage.success('已撤销'); loadPermList() } catch(e) {}
+}
 const token = localStorage.getItem('token')
 
 // ===== 基本设置 =====
@@ -540,8 +716,12 @@ const handleDeleteCategory = async (row) => {
   } catch (e) {}
 }
 
+watch(activeTab, (tab) => { if (tab === 'perm') loadPermData() })
+
 onMounted(() => {
   loadConfigs()
+  loadPermList()
+  loadAllUsers()
   loadDictTypes()
   loadSeaPools()
   loadOrgTree()
@@ -612,4 +792,39 @@ onMounted(() => {
   line-height: 1.4;
   margin-top: 4px;
 }
+
+.incentive-card {
+  background: #fff;
+  border: 1px solid #e4e7ed;
+  border-radius: 10px;
+  padding: 16px 20px;
+  margin-bottom: 14px;
+}
+.incentive-card .dict-header {
+  padding-bottom: 12px;
+  margin-bottom: 8px;
+}
+
+.action-btns {
+  display: flex;
+  justify-content: center;
+  gap: 2px;
+}
+.action-btns .el-button {
+  min-width: 44px;
+}
+
+/* 权限矩阵 */
+.perm-table-wrap { overflow-x: auto; max-height: calc(100vh - 280px); overflow-y: auto }
+.perm-table { width: 100%; border-collapse: collapse; font-size: 13px }
+.perm-table th { position: sticky; top: 0; background: #f5f7fa; padding: 10px 12px; border-bottom: 2px solid #e4e7ed; text-align: center; font-weight: 600; color: #333; z-index: 1 }
+.perm-table td { padding: 6px 12px; border-bottom: 1px solid #f0f0f0; text-align: center }
+.perm-module { background: #fafbfc; font-weight: 600; color: #1f2329 }
+.perm-module-name { text-align: left !important }
+.perm-item-col { text-align: left !important; color: #555; min-width: 100px }
+.perm-role-col { width: 70px; cursor: pointer; user-select: none }
+.perm-role-col:hover { background: #f0f5ff }
+.perm-yes { color: #409eff; font-weight: 700; font-size: 16px }
+.perm-no { color: #ddd }
+.first-in-group td { border-top: 2px solid #e8eaed }
 </style>

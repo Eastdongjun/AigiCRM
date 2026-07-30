@@ -22,7 +22,7 @@
           <el-form ref="formRef" :model="form" :rules="rules" size="large">
             <el-form-item prop="username">
               <label class="form-label">账号</label>
-              <el-input v-model="form.username" placeholder="请输入账号" prefix-icon="User" />
+              <el-input ref="userInputRef" v-model="form.username" placeholder="请输入账号" prefix-icon="User" @keyup.enter="focusPassword" />
             </el-form-item>
             <el-form-item prop="password">
               <label class="form-label">密码</label>
@@ -51,6 +51,7 @@ import ForgotPasswordDialog from './ForgotPasswordDialog.vue'
 
 const router = useRouter()
 const formRef = ref(null)
+const userInputRef = ref(null)
 const loading = ref(false)
 const forgotPwdVisible = ref(false)
 const systemName = ref('运筹马年')
@@ -81,12 +82,20 @@ const rules = {
   password: [{ required: true, message: '请输入密码', trigger: 'blur' }]
 }
 
+const focusPassword = () => {
+  const pwdInput = document.querySelector('input[type="password"]')
+  if (pwdInput) pwdInput.focus()
+}
+
 const handleLogin = async () => {
+  if (loading.value) return
+  if (!formRef.value) return
   const valid = await formRef.value.validate().catch(() => false)
-  if (!valid) return
+  if (!valid) { ElMessage.warning('请填写完整信息'); return }
 
   loading.value = true
   try {
+    form.username = form.username.trim()
     const res = await login(form)
     localStorage.setItem('token', res.data.token)
     if (form.rememberMe) {
@@ -97,7 +106,9 @@ const handleLogin = async () => {
     ElMessage.success('登录成功')
     router.push('/dashboard')
   } catch (e) {
-    // error handled by interceptor
+    // 显示后端返回的具体错误（如"用户名或密码错误"）
+    const msg = e?.response?.data?.message || e?.message
+    if (msg && msg !== 'Error') ElMessage.error(msg)
   } finally {
     loading.value = false
   }

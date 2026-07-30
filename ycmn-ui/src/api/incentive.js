@@ -53,3 +53,20 @@ export function getIncentiveRanking(params) {
 export function getIncentiveRankingStats(params) {
   return request.get('/incentive/ranking/stats', { params })
 }
+
+// 四项激励权限
+export function checkIncentivePermission() {
+  return request.get('/incentive/permission/check')
+}
+
+export function getIncentivePermissionList() {
+  return request.get('/incentive/permission/list')
+}
+
+export function grantIncentivePermission(data) {
+  return request.post('/incentive/permission/grant', data)
+}
+
+export function revokeIncentivePermission(id) {
+  return request.delete(`/incentive/permission/${id}`)
+}

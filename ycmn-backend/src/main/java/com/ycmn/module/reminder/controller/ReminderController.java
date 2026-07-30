@@ -33,8 +33,9 @@ public class ReminderController {
             @RequestParam(required = false) String type,
             @RequestParam(required = false) String keyword,
             @RequestParam(required = false) Long officeId,
-            @RequestParam(required = false) Long ownerId) {
-        return Result.ok(reminderService.page(current, size, type, keyword, officeId, ownerId));
+            @RequestParam(required = false) Long ownerId,
+            @RequestParam(required = false) String status) {
+        return Result.ok(reminderService.page(current, size, type, keyword, officeId, ownerId, status));
     }
 
     @GetMapping("/pending-count")

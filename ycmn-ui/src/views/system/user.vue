@@ -20,7 +20,8 @@
         <el-table-column type="index" label="#" width="45" />
         <el-table-column prop="username" label="账号" min-width="100" />
         <el-table-column prop="realName" label="姓名" min-width="80" />
-        <el-table-column prop="phone" label="手机号" min-width="110" />
+        <el-table-column prop="phone" label="手机号" width="120" />
+        <el-table-column prop="managerName" label="直接上级" width="80" />
         <el-table-column prop="email" label="邮箱" min-width="140" show-overflow-tooltip />
         <el-table-column prop="officeName" label="办事处" min-width="80" />
         <el-table-column prop="deptName" label="部门" min-width="90" />
@@ -58,59 +59,85 @@
     </div>
 
     <!-- 新增/编辑对话框 -->
-    <el-dialog v-model="dialogVisible" :title="editForm.id ? '编辑用户' : '新增用户'" width="500px">
-      <el-form ref="formRef" :model="editForm" :rules="formRules" label-width="80px">
-        <el-form-item label="账号" v-if="!editForm.id">
-          <el-input v-model="editForm.username" />
-        </el-form-item>
-        <el-form-item label="姓名">
-          <el-input v-model="editForm.realName" />
-        </el-form-item>
-        <el-form-item label="手机号" prop="phone">
-          <el-input v-model="editForm.phone" placeholder="请输入手机号" />
-        </el-form-item>
-        <el-form-item label="邮箱" prop="email">
-          <el-input v-model="editForm.email" placeholder="请输入邮箱" />
-        </el-form-item>
+    <el-dialog v-model="dialogVisible" :title="editForm.id ? '编辑用户' : '新增用户'" width="680px" :close-on-click-modal="false">
+      <el-form ref="formRef" :model="editForm" :rules="formRules" label-width="90px" class="user-form">
         <el-form-item label="所属组织">
           <el-cascader
             v-model="orgPath"
             :options="deptTree"
             :props="cascaderProps"
             placeholder="选择组织(总部 / 大区 / 办事处)"
-            clearable
-            filterable
-            style="width:100%"
+            clearable filterable style="width:100%"
             @change="onOrgChange"
           />
           <div class="org-hint">
-            <template v-if="editForm.officeId">已归属办事处,将参与公海池路由与客户归属</template>
-            <template v-else>选到办事处层级才会归属公海池;大区/总部岗位可只选到上级</template>
+            <template v-if="editForm.officeId">已归属 {{ orgHintText }}</template>
+            <template v-else>选到办事处层级才会归属公海池</template>
           </div>
         </el-form-item>
-        <el-form-item label="角色">
-          <el-select v-model="editForm.roleId" style="width:100%">
-            <el-option v-for="r in roles" :key="r.id" :label="r.roleName" :value="r.id" />
-          </el-select>
-        </el-form-item>
+        <el-row :gutter="24">
+          <el-col :span="12">
+            <el-form-item label="账号" v-if="!editForm.id">
+              <div class="acct-hint" v-if="latestAccountHint">{{ latestAccountHint }}</div>
+              <el-input v-model="editForm.username" placeholder="大区缩写+流水号" />
+            </el-form-item>
+            <el-form-item label="账号" v-else>
+              <el-input :model-value="editForm.username" disabled />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="姓名">
+              <el-input v-model="editForm.realName" placeholder="真实姓名" />
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-row :gutter="24">
+          <el-col :span="12">
+            <el-form-item label="手机号" prop="phone">
+              <el-input v-model="editForm.phone" placeholder="手机号" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="邮箱">
+              <el-input v-model="editForm.email" placeholder="邮箱地址" />
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-row :gutter="24">
+          <el-col :span="12">
+            <el-form-item label="角色">
+              <el-select v-model="editForm.roleId" style="width:100%" placeholder="选择角色">
+                <el-option v-for="r in roles" :key="r.id" :label="r.roleName" :value="r.id" />
+              </el-select>
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="直接上级">
+              <el-select v-model="editForm.managerId" style="width:100%" placeholder="选择上级" clearable filterable>
+                <el-option v-for="u in userOptions" :key="u.id" :label="u.realName" :value="u.id" />
+              </el-select>
+            </el-form-item>
+          </el-col>
+        </el-row>
         <el-form-item label="状态">
-          <el-switch v-model="editForm.status" :active-value="1" :inactive-value="0" />
+          <el-switch v-model="editForm.status" :active-value="1" :inactive-value="0" active-text="正常" inactive-text="禁用" />
         </el-form-item>
       </el-form>
       <template #footer>
         <el-button @click="dialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="handleSave">保存</el-button>
+        <el-button type="primary" @click="handleSave" :loading="saving">保存</el-button>
       </template>
     </el-dialog>
   </div>
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, onBeforeUnmount, nextTick } from 'vue'
+import { ref, reactive, computed, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { Plus } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { getUserList, createUser, updateUser, resetPassword, deleteUser } from '@/api/system'
 import { getDeptList, getRoleList } from '@/api/system'
+import { getSimpleUserList } from '@/api/customer'
 
 const tableData = ref([])
 const total = ref(0)
@@ -120,11 +147,13 @@ const orgPath = ref([])
 let deptMap = new Map()
 const cascaderProps = { label: 'deptName', value: 'id', children: 'children', checkStrictly: true, emitPath: true }
 const roles = ref([])
+const userOptions = ref([])
 const dialogVisible = ref(false)
+const saving = ref(false)
 const formRef = ref(null)
 
 const query = reactive({ current: 1, size: 15, keyword: '', deptId: null, status: null })
-const editForm = reactive({ id: null, username: '', realName: '', phone: '', email: '', deptId: null, officeId: null, roleId: null, status: 1 })
+const editForm = reactive({ id: null, username: '', realName: '', phone: '', email: '', deptId: null, officeId: null, roleId: null, managerId: null, status: 1 })
 const formRules = {
   phone: [{ required: true, message: '请输入手机号', trigger: 'blur' }],
   email: [
@@ -183,6 +212,50 @@ const pathOf = (deptId) => {
   return path
 }
 
+// 根据所选组织建议账号前缀
+const suggestedUsername = computed(() => {
+  if (!orgPath.value?.length) return ''
+  const ids = orgPath.value
+  // 路径中最深的节点
+  const lastId = ids[ids.length - 1]
+  const node = deptMap.get(lastId)
+  if (!node?.deptCode) {
+    // 没有 dept_code 则尝试找上级大区
+    for (let i = ids.length - 1; i >= 0; i--) {
+      const n = deptMap.get(ids[i])
+      if (n?.deptCode) return n.deptCode + '0'
+    }
+    return ''
+  }
+  return node.deptCode + '0'
+})
+
+const orgHintText = computed(() => {
+  const node = deptMap.get(editForm.officeId)
+  return node ? (node.deptCode || node.deptName) : ''
+})
+
+// 根据所选组织查找当前最大账号
+const latestAccountHint = computed(() => {
+  const officeId = editForm.officeId || (orgPath.value?.length && orgPath.value[orgPath.value.length - 1])
+  if (!officeId) return ''
+  // 同级办事处的用户
+  const sameOffice = tableData.value.filter(u => u.officeId === officeId && u.username)
+  if (!sameOffice.length) return ''
+  // 取第一个用户的账号前缀（去掉末尾数字）
+  const sample = sameOffice[0].username
+  const prefix = sample.replace(/\d+$/, '')
+  if (!prefix) return ''
+  // 找最大编号
+  const nums = sameOffice
+    .map(u => parseInt(u.username.replace(prefix, '')))
+    .filter(n => !isNaN(n))
+  const maxNum = nums.length > 0 ? Math.max(...nums) : 0
+  const node = deptMap.get(officeId)
+  const deptName = node?.deptName || ''
+  return `当前 ${deptName} 最大账号: ${prefix}${String(maxNum).padStart(2, '0')}`
+})
+
 // 从级联路径取办事处:路径中最浅的 type=3 节点(直属大区/总部的那个办事处)。
 // 子部门(无论 type=4 部门,还是被建成 type=3 的子办事处)都不覆盖顶层办事处,保证公海池路由稳定。
 const officeFromPath = (ids) => {
@@ -202,12 +275,11 @@ const onOrgChange = (path) => {
 
 const openDialog = (row) => {
   if (row) {
-    Object.assign(editForm, { id: row.id, username: row.username, realName: row.realName, phone: row.phone, email: row.email || '', deptId: row.deptId, officeId: row.officeId, roleId: row.roleId, status: row.status })
+    Object.assign(editForm, { id: row.id, username: row.username, realName: row.realName, phone: row.phone, email: row.email || '', deptId: row.deptId, officeId: row.officeId, roleId: row.roleId, managerId: row.managerId || null, status: row.status })
     orgPath.value = pathOf(row.deptId)
-    // 以级联路径为唯一事实源,按 dept 层级重算办事处,自动修正历史不一致数据(下次保存即对齐)
     editForm.officeId = officeFromPath(orgPath.value)
   } else {
-    Object.assign(editForm, { id: null, username: '', realName: '', phone: '', email: '', deptId: null, officeId: null, roleId: null, status: 1 })
+    Object.assign(editForm, { id: null, username: '', realName: '', phone: '', email: '', deptId: null, officeId: null, roleId: null, managerId: null, status: 1 })
     orgPath.value = []
   }
   dialogVisible.value = true
@@ -216,6 +288,7 @@ const openDialog = (row) => {
 const handleSave = async () => {
   const valid = await formRef.value.validate().catch(() => false)
   if (!valid) return
+  saving.value = true
   try {
     if (editForm.id) {
       await updateUser(editForm.id, editForm)
@@ -225,7 +298,7 @@ const handleSave = async () => {
     ElMessage.success('保存成功')
     dialogVisible.value = false
     loadData()
-  } catch (e) {}
+  } catch (e) {} finally { saving.value = false }
 }
 
 const handleResetPwd = async (row) => {
@@ -276,6 +349,10 @@ onMounted(async () => {
     const res = await getRoleList()
     roles.value = res.data || []
   } catch (e) {}
+  try {
+    const res = await getSimpleUserList()
+    userOptions.value = res.data || []
+  } catch (e) {}
   nextTick(updateTableHeight)
   if (tableWrapRef.value) {
     resizeObserver = new ResizeObserver(updateTableHeight)
@@ -294,6 +371,8 @@ onBeforeUnmount(() => {
 .section-box.table-box { flex: 1; padding: 0; display: flex; flex-direction: column; overflow: hidden }
 .section-box.table-box > div:first-child { flex: 1; overflow: auto }
 .org-hint { font-size: 12px; color: #909399; line-height: 1.5; margin-top: 2px; }
+.acct-hint { font-size: 11px; color: #67c23a; margin-bottom: 6px }
+.user-form :deep(.el-form-item) { margin-bottom: 18px }
 .section-box.table-box :deep(.el-table th) { font-size: 14px; font-weight: 700; color: #1f2329 }
 .section-box.table-box :deep(.el-table td) { font-size: 13px }
 .pagination {

@@ -4,6 +4,7 @@ import com.ycmn.common.Result;
 import com.ycmn.module.incentive.entity.BizIncentiveCategory;
 import com.ycmn.module.incentive.entity.BizIncentiveRecord;
 import com.ycmn.module.incentive.service.IncentiveService;
+import com.ycmn.security.SecurityUser;
 import com.ycmn.security.SecurityUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
@@ -47,7 +48,16 @@ public class IncentiveController {
             @RequestParam(required = false) Long userId,
             @RequestParam(required = false) String period,
             @RequestParam(required = false) Long parentCategoryId) {
-        if (userId == null) userId = SecurityUtils.getCurrentUserId();
+        if (userId == null) {
+            SecurityUser user = SecurityUtils.getCurrentUser();
+            if (user != null) {
+                // admin 或有激励权限的人可看全部数据
+                boolean canSeeAll = "admin".equals(user.getRoleCode())
+                    || incentiveService.canEdit(user.getUserId(), user.getRoleCode())
+                    || incentiveService.canDelete(user.getUserId(), user.getRoleCode());
+                userId = canSeeAll ? null : user.getUserId();
+            }
+        }
         return Result.ok(incentiveService.getRecords(userId, period, parentCategoryId));
     }
 
@@ -59,6 +69,15 @@ public class IncentiveController {
 
     @DeleteMapping("/records/{id}")
     public Result<Void> deleteRecord(@PathVariable Long id) {
+        SecurityUser user = SecurityUtils.getCurrentUser();
+        boolean isAdmin = "admin".equals(user.getRoleCode());
+        // 检查激励权限表：admin 或 有 can_delete 权限的可删除任意记录
+        if (!isAdmin && !incentiveService.canDelete(user.getUserId(), user.getRoleCode())) {
+            BizIncentiveRecord record = incentiveService.getRecordById(id);
+            if (record == null || !record.getUserId().equals(user.getUserId())) {
+                return Result.error(403, "无权删除他人记录");
+            }
+        }
         incentiveService.deleteRecord(id);
         return Result.ok();
     }
@@ -127,5 +146,11 @@ public class IncentiveController {
     @GetMapping("/category-stats")
     public Result<Map<String, Object>> categoryStats(@RequestParam(required = false) String period) {
         return Result.ok(incentiveService.categoryStats(period));
+    }
+
+    /** 人员选择列表(公开): 用于筛选下拉框 */
+    @GetMapping("/users")
+    public Result<List<Map<String, Object>>> userList() {
+        return Result.ok(incentiveService.getUserList());
     }
 }

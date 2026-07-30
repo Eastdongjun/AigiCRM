@@ -1,17 +1,7 @@
 <template>
   <div class="incentive-page">
-    <!-- 框1: 顶部 -->
+    <!-- 框1: 分类Tab -->
     <div class="section-box">
-      <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
-        <span class="top-label">人员</span>
-        <el-select v-model="selectedUser" size="small" style="width:130px">
-          <el-option :label="userStore.realName || '当前用户'" :value="null" />
-        </el-select>
-        <span class="top-label">周期</span>
-        <el-select v-model="selectedPeriod" size="small" style="width:150px">
-          <el-option v-for="p in periodOptions" :key="p" :label="p" :value="p" />
-        </el-select>
-      </div>
       <div class="category-tabs">
         <div v-for="cat in parentCategories" :key="cat.id" class="tab-item" :class="{ active: activeTab === String(cat.id) }" @click="activeTab = String(cat.id)">
           <el-icon v-if="cat.categoryCode === 'visit'"><Location /></el-icon>
@@ -23,7 +13,31 @@
       </div>
     </div>
 
-    <!-- 框2+3: 左右布局 -->
+    <!-- 框2: 统一筛选栏 -->
+    <div class="section-box filter-bar">
+      <div class="filter-row">
+        <span class="flabel">人员</span>
+        <el-select v-model="selectedUser" size="small" style="width:140px" clearable placeholder="全部人员" @change="selectedUser=$event||null">
+          <el-option v-for="u in userList" :key="u.id" :label="u.realName" :value="u.id" />
+        </el-select>
+        <span class="flabel">周期</span>
+        <el-select v-model="selectedPeriod" size="small" style="width:130px">
+          <el-option v-for="p in periodOptions" :key="p" :label="p" :value="p" />
+        </el-select>
+        <span class="fsep"></span>
+        <el-input v-model="searchText" placeholder="搜索文件名..." clearable size="small" style="width:150px" :prefix-icon="Search" />
+        <el-input v-model="filterCustomer" placeholder="客户名称" clearable size="small" style="width:140px" />
+        <el-select v-model="filterGroup" placeholder="全部分类" clearable size="small" style="width:110px">
+          <el-option v-for="c in filterGroupOptions" :key="c" :label="c" :value="c" />
+        </el-select>
+        <el-select v-model="filterTier" placeholder="全部子类" clearable size="small" style="width:110px">
+          <el-option v-for="c in filterTierOptions" :key="c" :label="c" :value="c" />
+        </el-select>
+        <span class="file-count">{{ filteredRecords.length }} 个文件</span>
+      </div>
+    </div>
+
+    <!-- 框3: 左右布局 -->
     <div class="main-layout" v-if="groupedChildren.length">
       <!-- 左侧：子分类列表 -->
       <div class="left-panel">
@@ -33,7 +47,6 @@
         </div>
 
         <div v-for="group in groupedChildren" :key="group.id" class="sub-group">
-          <!-- 三级结构：group 是分组标题，items 是子项 -->
           <template v-if="group.items">
             <div class="group-header">{{ group.categoryName }}</div>
             <div v-for="item in group.items" :key="item.id" class="sub-item">
@@ -44,7 +57,6 @@
               </div>
             </div>
           </template>
-          <!-- 二级结构：直接展示 -->
           <template v-else>
             <div class="sub-item flat">
               <span class="sub-name">{{ group.categoryName }}</span>
@@ -59,20 +71,6 @@
 
       <!-- 右侧：已上传文件表格 -->
       <div class="right-panel">
-        <div class="right-header">
-          <span class="right-title">已上传文件</span>
-          <div class="right-filters">
-            <el-input v-model="searchText" placeholder="搜索文件名..." clearable size="small" style="width:140px" :prefix-icon="Search" />
-            <el-input v-model="filterCustomer" placeholder="客户名称" clearable size="small" style="width:140px" />
-            <el-select v-model="filterGroup" placeholder="全部分类" clearable size="small" style="width:110px">
-              <el-option v-for="c in filterGroupOptions" :key="c" :label="c" :value="c" />
-            </el-select>
-            <el-select v-model="filterTier" placeholder="全部子类" clearable size="small" style="width:110px">
-              <el-option v-for="c in filterTierOptions" :key="c" :label="c" :value="c" />
-            </el-select>
-            <span class="file-count">{{ filteredRecords.length }} 个文件</span>
-          </div>
-        </div>
         <el-table :data="filteredRecords" stripe style="width:100%" empty-text="暂无已上传文件" size="small" @row-click="startReplace" :row-style="{cursor:'pointer'}">
           <el-table-column label="大类·子类" min-width="120" show-overflow-tooltip>
             <template #default="{ row }">{{ row.majorMinor }}</template>
@@ -117,8 +115,8 @@
           <el-table-column prop="userName" label="操作人" min-width="65" />
           <el-table-column label="操作" width="110" fixed="right" align="center">
             <template #default="{ row }">
-              <el-button link type="primary" size="small" @click="startReplace(row)">追加</el-button>
-              <el-button link type="danger" size="small" @click="handleDeleteRecord(row)">删除</el-button>
+              <el-button v-if="canEdit" link type="primary" size="small" @click="startReplace(row)">追加</el-button>
+              <el-button v-if="canDelete" link type="danger" size="small" @click="handleDeleteRecord(row)">删除</el-button>
             </template>
           </el-table-column>
         </el-table>
@@ -215,7 +213,7 @@
 import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Upload, Search, Refresh, Delete, Plus } from '@element-plus/icons-vue'
-import { getCategoryTree, getRecords, addRecord, deleteRecord } from '@/api/incentive'
+import { getCategoryTree, getRecords, addRecord, deleteRecord, checkIncentivePermission } from '@/api/incentive'
 import { getCustomerList } from '@/api/customer'
 import { getDictData } from '@/api/system'
 import { useUserStore } from '@/store/user'
@@ -224,12 +222,17 @@ import request from '@/utils/request'
 const userStore = useUserStore()
 const activeTab = ref('')
 const selectedUser = ref(null)
+const userList = ref([])
 const periodOptions = (() => { const l = []; for (let y = 2030; y >= 2025; y--) { l.push(y + '下半年', y + '上半年') } return l })()
 const selectedPeriod = ref('2026上半年')
 const categories = ref([])
 const records = ref([])
 
-// 右侧筛选
+// 权限
+const canEdit = ref(false)
+const canDelete = ref(false)
+
+// 统一筛选
 const searchText = ref('')
 const filterCustomer = ref('')
 const filterGroup = ref('')
@@ -293,7 +296,7 @@ const groupedChildren = computed(() => {
   })
 })
 
-// 记录增强：计算大类·子类、档位
+// 记录增强：从分类树计算 大类·子类 和 所属分组
 const enrichedRecords = computed(() => {
   return records.value.map(r => {
     const cat = categoryMap.value[r.categoryId]
@@ -306,14 +309,15 @@ const enrichedRecords = computed(() => {
       if (parent) {
         const grandparent = categoryMap.value[parent.parentId]
         if (grandparent && grandparent.parentId === 0) {
-          // 三级：grandparent(tab) · parent(组) — cat(档位)
+          // 三级：grandparent(tab) · parent(组) — cat(子类)
           majorMinor = grandparent.categoryName + ' · ' + parent.categoryName
+          groupName = grandparent.categoryName
           tier = cat.categoryName
-          groupName = parent.categoryName
         } else if (parent.parentId === 0) {
           // 二级：parent(tab) · cat(子类)
           majorMinor = parent.categoryName + ' · ' + cat.categoryName
-          groupName = cat.categoryName
+          groupName = parent.categoryName
+          tier = cat.categoryName
         }
       }
     }
@@ -321,14 +325,15 @@ const enrichedRecords = computed(() => {
   })
 })
 
-// 筛选选项
+// 筛选选项 — 从分类树生成，不是从记录推算
 const filterGroupOptions = computed(() => {
-  return [...new Set(enrichedRecords.value.map(r => r.groupName).filter(Boolean))]
+  return parentCategories.value.map(c => c.categoryName)
 })
 const filterTierOptions = computed(() => {
-  let list = enrichedRecords.value
-  if (filterGroup.value) list = list.filter(r => r.groupName === filterGroup.value)
-  return [...new Set(list.map(r => r.tier).filter(Boolean))]
+  if (!filterGroup.value) return []
+  const group = parentCategories.value.find(c => c.categoryName === filterGroup.value)
+  if (!group) return []
+  return categories.value.filter(c => c.parentId === group.id).map(c => c.categoryName)
 })
 
 // 过滤后的记录
@@ -378,10 +383,14 @@ const loadCategories = async () => {
   } catch (e) {}
 }
 
+const loadUsers = async () => {
+  try { const res = await request.get('/incentive/users'); userList.value = res.data || [] } catch(e) {}
+}
+
 const loadRecords = async () => {
   try {
     const parentId = activeTab.value ? Number(activeTab.value) : null
-    const res = await getRecords({ period: selectedPeriod.value, parentCategoryId: parentId })
+    const res = await getRecords({ userId: selectedUser.value, period: selectedPeriod.value, parentCategoryId: parentId })
     records.value = res.data || []
   } catch (e) {}
 }
@@ -557,6 +566,7 @@ const confirmUpload = async () => {
 
 watch(activeTab, () => { filterGroup.value = ''; filterTier.value = ''; loadRecords() })
 watch(selectedPeriod, loadRecords)
+watch(selectedUser, loadRecords)
 
 const loadIndustries = async () => {
   try {
@@ -567,16 +577,33 @@ const loadIndustries = async () => {
   }
 }
 
+const loadPermission = async () => {
+  try {
+    const res = await checkIncentivePermission()
+    if (res.data) {
+      canEdit.value = res.data.canEdit || false
+      canDelete.value = res.data.canDelete || false
+    }
+  } catch (e) {}
+}
+
 onMounted(() => {
   loadCategories()
   loadIndustries()
+  loadPermission()
+  loadUsers()
 })
 </script>
 
 <style scoped>
-.incentive-page { padding: 0; height: calc(100vh - 80px); display: flex; flex-direction: column; gap: 10px }
+.incentive-page { padding: 0; height: calc(100vh - 80px); display: flex; flex-direction: column; gap: 8px }
 .section-box { background:#fff; border:1px solid #e4e7ed; border-radius:10px; padding:14px 20px; flex-shrink:0 }
-.top-label { color: #555; font-weight: 500; font-size:13px }
+
+/* 筛选栏 */
+.filter-bar { padding: 10px 20px }
+.filter-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap }
+.flabel { color: #555; font-weight: 500; font-size: 13px; white-space: nowrap }
+.fsep { width: 1px; height: 20px; background: #e4e7ed; margin: 0 4px }
 
 .category-tabs { display: flex; gap: 4px; padding: 4px; background: #f2f4f7; border-radius: 10px; }
 .tab-item { flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px; padding: 10px 0; font-size: 14px; color: #666; cursor: pointer; border-radius: 8px; transition: all .2s; font-weight: 500; }
@@ -603,11 +630,8 @@ onMounted(() => {
 .score-3 { color: #f56c6c; background: #fef0f0; }
 
 /* 右侧面板 */
-.right-panel { flex: 1; background: #fff; padding: 18px; overflow-y: auto; }
-.right-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; flex-wrap: wrap; gap: 8px; }
-.right-title { font-size: 15px; font-weight: 700; color: #1f2329; }
-.right-filters { display: flex; align-items: center; gap: 8px; flex-wrap: wrap }
-.file-count { color: #999; font-size: 12px; white-space: nowrap; }
+.right-panel { flex: 1; background: #fff; padding: 12px 18px; overflow-y: auto; }
+.file-count { color: #409eff; font-size: 13px; font-weight: 600; white-space: nowrap; margin-left: auto }
 
 /* 表格内样式 */
 .file-cell { display: inline-flex; align-items: center; gap: 4px; }

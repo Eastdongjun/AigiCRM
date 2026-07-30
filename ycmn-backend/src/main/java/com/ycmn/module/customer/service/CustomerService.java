@@ -12,6 +12,8 @@ import com.ycmn.module.customer.listener.CustomerImportListener;
 import com.ycmn.module.customer.mapper.*;
 import com.ycmn.module.system.entity.SysDept;
 import com.ycmn.module.system.entity.SysUser;
+import com.ycmn.module.reminder.entity.BizReminder;
+import com.ycmn.module.reminder.mapper.BizReminderMapper;
 import com.ycmn.module.system.mapper.SysDeptMapper;
 import com.ycmn.module.system.mapper.SysUserMapper;
 import com.ycmn.module.system.service.SysConfigService;
@@ -42,6 +44,7 @@ public class CustomerService {
     private final BizPaymentMapper paymentMapper;
     private final SysUserMapper userMapper;
     private final SysDeptMapper deptMapper;
+    private final BizReminderMapper reminderMapper;
     private final SysConfigService configService;
 
     public IPage<BizCustomer> page(int current, int size, String keyword, String industry,
@@ -72,8 +75,19 @@ public class CustomerService {
 
         if ("mine".equals(scope)) {
             wrapper.eq(BizCustomer::getOwnerId, currentUserId);
+        } else if (!"admin".equals(SecurityUtils.getCurrentRoleCode())) {
+            // 默认：自己的客户 + 分享给我的客户
+            List<BizCustomerShare> shares = shareMapper.selectList(
+                    new LambdaQueryWrapper<BizCustomerShare>().eq(BizCustomerShare::getSharedToUserId, currentUserId));
+            List<Long> sharedIds = shares.stream().map(BizCustomerShare::getCustomerId).toList();
+            if (!sharedIds.isEmpty()) {
+                wrapper.and(w -> w.eq(BizCustomer::getOwnerId, currentUserId)
+                        .or().in(BizCustomer::getId, sharedIds));
+            } else {
+                wrapper.eq(BizCustomer::getOwnerId, currentUserId);
+            }
         } else {
-            // 全部 - 数据范围过滤
+            // 管理员 - 数据范围过滤
             applyDataScope(wrapper);
         }
 
@@ -308,12 +322,27 @@ public class CustomerService {
     public void update(BizCustomer customer) {
         BizCustomer existing = customerMapper.selectById(customer.getId());
         if (existing == null) throw new BusinessException("客户不存在");
+        // 权限检查：只有负责人和管理员可以编辑
+        checkOwnerOrAdmin(existing, "只能编辑自己的客户");
         calculateExpireDates(customer);
         customerMapper.updateById(customer);
     }
 
     public void delete(Long id) {
+        BizCustomer existing = customerMapper.selectById(id);
+        if (existing == null) return;
+        // 权限检查：只有负责人和管理员可以删除
+        checkOwnerOrAdmin(existing, "只能删除自己的客户");
         customerMapper.deleteById(id);
+    }
+
+    /** 检查当前用户是否为客户负责人或系统管理员 */
+    private void checkOwnerOrAdmin(BizCustomer customer, String msg) {
+        Long userId = SecurityUtils.getCurrentUserId();
+        boolean isAdmin = "admin".equals(SecurityUtils.getCurrentRoleCode());
+        if (!isAdmin && (customer.getOwnerId() == null || !customer.getOwnerId().equals(userId))) {
+            throw new BusinessException(msg);
+        }
     }
 
     public List<BizCustomerLog> getLogs(Long customerId) {
@@ -396,6 +425,29 @@ public class CustomerService {
             wn++;
         }
         return weeks;
+    }
+
+    /** 按天统计本月新增客户（受数据范围控制） */
+    public java.util.List<java.util.Map<String, Object>> dailyNewCustomers() {
+        java.time.LocalDate today = java.time.LocalDate.now();
+        java.time.LocalDate start = today.withDayOfMonth(1);
+        java.util.List<java.util.Map<String, Object>> days = new java.util.ArrayList<>();
+        java.time.LocalDate cursor = start;
+        while (!cursor.isAfter(today)) {
+            LambdaQueryWrapper<BizCustomer> w = new LambdaQueryWrapper<>();
+            w.eq(BizCustomer::getDeleted, 0).ne(BizCustomer::getStatus, "sea")
+                    .ge(BizCustomer::getCreatedAt, cursor.atStartOfDay())
+                    .lt(BizCustomer::getCreatedAt, cursor.plusDays(1).atStartOfDay());
+            applyDataScope(w);
+            long count = customerMapper.selectCount(w);
+            java.util.Map<String, Object> item = new java.util.HashMap<>();
+            item.put("day", cursor.getDayOfMonth());
+            item.put("date", cursor.toString());
+            item.put("value", count);
+            days.add(item);
+            cursor = cursor.plusDays(1);
+        }
+        return days;
     }
 
     /**
@@ -684,6 +736,12 @@ public class CustomerService {
     @Transactional
     public void addShares(Long customerId, List<Long> userIds) {
         Long currentUserId = SecurityUtils.getCurrentUserId();
+        BizCustomer customer = customerMapper.selectById(customerId);
+        if (customer == null) throw new BusinessException("客户不存在");
+        String custName = customer.getCustomerName();
+        SysUser sharer = userMapper.selectById(currentUserId);
+        String sharerName = sharer != null ? sharer.getRealName() : "未知";
+
         for (Long uid : userIds) {
             // 检查是否已存在
             Long count = shareMapper.selectCount(
@@ -697,7 +755,36 @@ public class CustomerService {
                 share.setSharedByUserId(currentUserId);
                 share.setCreatedAt(LocalDateTime.now());
                 shareMapper.insert(share);
+
+                // 1. 通知被分享人
+                BizReminder r = new BizReminder();
+                r.setCustomerId(customerId);
+                r.setReminderType("share_to");
+                r.setOwnerId(uid);
+                r.setStatus("pending");
+                r.setCreatedAt(LocalDateTime.now());
+                reminderMapper.insert(r);
+
+                // 2. 通知分享人
+                BizReminder r2 = new BizReminder();
+                r2.setCustomerId(customerId);
+                r2.setReminderType("share_by");
+                r2.setOwnerId(currentUserId);
+                r2.setStatus("pending");
+                r2.setCreatedAt(LocalDateTime.now());
+                reminderMapper.insert(r2);
             }
+        }
+
+        // 3. 通知客户负责人（如果不是分享人自己）
+        if (customer.getOwnerId() != null && !customer.getOwnerId().equals(currentUserId)) {
+            BizReminder r3 = new BizReminder();
+            r3.setCustomerId(customerId);
+            r3.setReminderType("share_owner");
+            r3.setOwnerId(customer.getOwnerId());
+            r3.setStatus("pending");
+            r3.setCreatedAt(LocalDateTime.now());
+            reminderMapper.insert(r3);
         }
     }
 

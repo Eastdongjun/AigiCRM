@@ -36,10 +36,13 @@ public class ReminderService {
     private final SysConfigService configService;
 
     public IPage<BizReminder> page(int current, int size, String type, String keyword,
-                                    Long officeId, Long ownerId) {
+                                    Long officeId, Long ownerId, String status) {
         LambdaQueryWrapper<BizReminder> wrapper = new LambdaQueryWrapper<>();
         if (StringUtils.hasText(type)) {
             wrapper.eq(BizReminder::getReminderType, type);
+        }
+        if (StringUtils.hasText(status)) {
+            wrapper.eq(BizReminder::getStatus, status);
         }
         if (officeId != null) {
             wrapper.eq(BizReminder::getOfficeId, officeId);
@@ -47,7 +50,7 @@ public class ReminderService {
         if (ownerId != null) {
             wrapper.eq(BizReminder::getOwnerId, ownerId);
         }
-        wrapper.orderByDesc(BizReminder::getOverdueDays);
+        wrapper.orderByDesc(BizReminder::getCreatedAt);
 
         IPage<BizReminder> page = reminderMapper.selectPage(new Page<>(current, size), wrapper);
         for (BizReminder r : page.getRecords()) {
@@ -188,7 +191,19 @@ public class ReminderService {
         }
         Long processedToday = reminderMapper.selectCount(remWrapper);
 
-        return Math.max(0, totalExpiring - processedToday);
+        long sharePending = reminderMapper.selectCount(
+                new LambdaQueryWrapper<BizReminder>()
+                        .in(BizReminder::getReminderType, List.of("share_to", "share_by", "share_owner"))
+                        .eq(BizReminder::getStatus, "pending"));
+        if (!"admin".equals(roleCode) && currentUserId != null) {
+            sharePending = reminderMapper.selectCount(
+                new LambdaQueryWrapper<BizReminder>()
+                        .in(BizReminder::getReminderType, List.of("share_to", "share_by", "share_owner"))
+                        .eq(BizReminder::getStatus, "pending")
+                        .eq(BizReminder::getOwnerId, currentUserId));
+        }
+
+        return Math.max(0, totalExpiring - processedToday + sharePending);
     }
 
     public void process(Long id) {

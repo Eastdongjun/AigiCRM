@@ -17,6 +17,7 @@ public class SysUser {
     private String avatar;
     private Long deptId;
     private Long officeId;
+    private Long managerId;
     private Long storageQuota;
     private Long storageUsed;
     private Integer status;
@@ -35,4 +36,6 @@ public class SysUser {
     private String roleName;
     @TableField(exist = false)
     private Long roleId;
+    @TableField(exist = false)
+    private String managerName;
 }

@@ -77,6 +77,7 @@ public class SysUserService {
         existing.setEmail(user.getEmail());
         existing.setDeptId(user.getDeptId());
         existing.setOfficeId(user.getOfficeId());
+        existing.setManagerId(user.getManagerId());
         existing.setStatus(user.getStatus());
         userMapper.updateById(existing);
 

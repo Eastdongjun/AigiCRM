@@ -15,6 +15,7 @@ import com.ycmn.module.system.mapper.SysDeptMapper;
 import com.ycmn.module.system.mapper.SysUserMapper;
 import com.ycmn.security.SecurityUtils;
 import lombok.RequiredArgsConstructor;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -31,6 +32,45 @@ public class IncentiveService {
     private final BizFileMapper fileMapper;
     private final BizCustomerMapper customerMapper;
     private final SysDeptMapper deptMapper;
+    private final JdbcTemplate jdbc;
+
+    /** 查询用户是否有编辑权限（admin 始终有权限） */
+    public boolean canEdit(Long userId, String roleCode) {
+        if ("admin".equals(roleCode)) return true;
+        try {
+            Map<String, Object> row = jdbc.queryForMap(
+                "SELECT can_edit FROM biz_incentive_permission WHERE user_id=?", userId);
+            return row != null && ((Number) row.get("can_edit")).intValue() == 1;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    /** 人员列表（公开）：激励页下拉框用 */
+    public List<Map<String, Object>> getUserList() {
+        List<Map<String, Object>> list = new ArrayList<>();
+        List<SysUser> users = userMapper.selectList(null);
+        for (SysUser u : users) {
+            Map<String, Object> m = new HashMap<>();
+            m.put("id", u.getId());
+            m.put("realName", u.getRealName());
+            list.add(m);
+        }
+        list.sort(Comparator.comparing(m -> (String) m.getOrDefault("realName", "")));
+        return list;
+    }
+
+    /** 查询用户是否有删除权限（admin 始终有权限） */
+    public boolean canDelete(Long userId, String roleCode) {
+        if ("admin".equals(roleCode)) return true;
+        try {
+            Map<String, Object> row = jdbc.queryForMap(
+                "SELECT can_delete FROM biz_incentive_permission WHERE user_id=?", userId);
+            return row != null && ((Number) row.get("can_delete")).intValue() == 1;
+        } catch (Exception e) {
+            return false;
+        }
+    }
 
     public List<BizIncentiveCategory> getCategoryTree() {
         List<BizIncentiveCategory> all = categoryMapper.selectList(
@@ -55,7 +95,7 @@ public class IncentiveService {
 
     public List<BizIncentiveRecord> getRecords(Long userId, String period, Long parentCategoryId) {
         LambdaQueryWrapper<BizIncentiveRecord> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(BizIncentiveRecord::getUserId, userId);
+        if (userId != null) wrapper.eq(BizIncentiveRecord::getUserId, userId);
         if (period != null) wrapper.eq(BizIncentiveRecord::getPeriod, period);
         if (parentCategoryId != null) {
             List<BizIncentiveCategory> children = categoryMapper.selectList(
@@ -101,6 +141,10 @@ public class IncentiveService {
             }
         }
         return records;
+    }
+
+    public BizIncentiveRecord getRecordById(Long id) {
+        return recordMapper.selectById(id);
     }
 
     public void deleteRecord(Long id) {

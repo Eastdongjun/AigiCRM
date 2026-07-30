@@ -56,25 +56,31 @@
       </div>
     </div>
 
-    <!-- 图表行 -->
-    <div class="chart-row">
-      <div class="chart-card">
-        <div class="chart-head"><el-icon class="ch-icon"><TrendCharts /></el-icon><span>本月新增客户</span></div>
-        <div class="bars-wrap">
-          <div v-for="b in customerBars" :key="b.label" class="bar-col">
-            <span class="bar-val">{{ b.value }}</span>
-            <div class="bar" :class="b.cls" :style="{ height: b.h + 'px' }"></div>
-            <span class="bar-lbl">{{ b.label }}</span>
+    <!-- 每周统计 -->
+    <div class="weekchart-section">
+      <div class="wchart-card">
+        <div class="wchart-head"><span class="wch-dot c-blue"></span>本月新增客户 <span class="wchart-total">{{ weeklyCustomerTotal }}</span></div>
+        <div class="hbar-list">
+          <div v-for="(b,i) in weeklyCustomer" :key="'c'+i" class="hbar-row">
+            <span class="hbar-lbl" :class="{ 'hb-now': b.isCurrent }">{{ b.label }}</span>
+            <div class="hbar-track">
+              <div class="hbar-fill hbar-blue" :class="{ 'hb-now': b.isCurrent }"
+                :style="{ width: maxWC > 0 ? (b.value / maxWC * 100).toFixed(1) + '%' : '0%' }"></div>
+            </div>
+            <span class="hbar-val" :class="{ 'hb-now': b.isCurrent }">{{ b.value }}</span>
           </div>
         </div>
       </div>
-      <div class="chart-card">
-        <div class="chart-head"><el-icon class="ch-icon"><Document /></el-icon><span>本月文件上传</span></div>
-        <div class="bars-wrap">
-          <div v-for="b in fileBars" :key="b.label" class="bar-col">
-            <span class="bar-val">{{ b.value }}</span>
-            <div class="bar" :class="b.cls" :style="{ height: b.h + 'px' }"></div>
-            <span class="bar-lbl">{{ b.label }}</span>
+      <div class="wchart-card">
+        <div class="wchart-head"><span class="wch-dot c-green"></span>本月文件上传 <span class="wchart-total">{{ weeklyFileTotal }}</span></div>
+        <div class="hbar-list">
+          <div v-for="(b,i) in weeklyFile" :key="'f'+i" class="hbar-row">
+            <span class="hbar-lbl" :class="{ 'hb-now': b.isCurrent }">{{ b.label }}</span>
+            <div class="hbar-track">
+              <div class="hbar-fill hbar-green" :class="{ 'hb-now': b.isCurrent }"
+                :style="{ width: maxWF > 0 ? (b.value / maxWF * 100).toFixed(1) + '%' : '0%' }"></div>
+            </div>
+            <span class="hbar-val" :class="{ 'hb-now': b.isCurrent }">{{ b.value }}</span>
           </div>
         </div>
       </div>
@@ -88,6 +94,7 @@
           <a class="panel-link" @click="$router.push('/reminder')">全部 →</a>
         </div>
         <div v-if="reminders.length === 0" class="empty-tip">暂无待处理提醒</div>
+        <div class="remind-list">
         <div v-for="item in reminders" :key="item.id" class="remind-row">
           <span class="r-dot" :class="item.dotCls"></span>
           <div class="r-body">
@@ -97,6 +104,7 @@
               <span class="r-extra">{{ item.extra || '' }}</span>
             </div>
           </div>
+        </div>
         </div>
       </div>
 
@@ -142,8 +150,8 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { useUserStore } from '@/store/user'
-import { getDashboardData, getTeamActivities, getWeeklyStats } from '@/api/statistics'
-import { getReminderList, getExpiringList } from '@/api/reminder'
+import { getDashboardData, getTeamActivities, getWeeklyStats, getDailyStats } from '@/api/statistics'
+import { getReminderList, getExpiringList, getPendingCount } from '@/api/reminder'
 import { getApprovalList, approve as apiApprove, reject as apiReject } from '@/api/approval'
 
 const router = useRouter()
@@ -178,20 +186,47 @@ const protectionRate = computed(() => {
   return ((stats.value.inProtection || 0) / total * 100).toFixed(1)
 })
 
-// ——— 柱状图 ———
-const weeklyData = ref({ customerWeeks: [], fileWeeks: [] })
+// ——— 每周柱状图 ———
+const dailyCustomer = ref([])
+const dailyFile = ref([])
+const today2 = new Date().getDate()
 
-const makeBars = (data) => {
-  if (!data || !data.length) return []
-  const max = Math.max(...data.map(d => d.value), 1)
-  return data.map((d, i) => ({
-    ...d,
-    h: Math.max(Math.round((d.value / max) * 80), 4),
-    cls: i === data.length - 1 ? 'bar-green' : 'bar-blue',
-  }))
+const toWeeks = (days) => {
+  if (!days || !days.length) return []
+  const weeks = []
+  let week = []
+  for (const d of days) {
+    week.push(d)
+    const dow = new Date(d.date + 'T00:00:00').getDay() || 7
+    if (dow === 7 || d.day === today2) {
+      const total = week.reduce((s, x) => s + x.value, 0)
+      const isCurrent = week.some(x => x.day === today2)
+      weeks.push({ label: 'W' + (weeks.length + 1), value: total, isCurrent })
+      week = []
+    }
+  }
+  if (week.length) {
+    const total = week.reduce((s, x) => s + x.value, 0)
+    const isCurrent = week.some(x => x.day === today2)
+    weeks.push({ label: '本周', value: total, isCurrent })
+  }
+  // 去重标记：只有最后一个isCurrent为true
+  let found = false
+  for (let i = weeks.length - 1; i >= 0; i--) {
+    if (weeks[i].isCurrent) {
+      if (found) weeks[i].isCurrent = false
+      else found = true
+    }
+  }
+  return weeks
 }
-const customerBars = computed(() => makeBars(weeklyData.value.customerWeeks))
-const fileBars = computed(() => makeBars(weeklyData.value.fileWeeks))
+
+const weeklyCustomer = computed(() => toWeeks(dailyCustomer.value))
+const weeklyFile = computed(() => toWeeks(dailyFile.value))
+const maxWC = computed(() => Math.max(...weeklyCustomer.value.map(d => d.value), 1))
+const maxWF = computed(() => Math.max(...weeklyFile.value.map(d => d.value), 1))
+const weeklyCustomerTotal = computed(() => weeklyCustomer.value.reduce((s, d) => s + d.value, 0))
+const weeklyFileTotal = computed(() => weeklyFile.value.reduce((s, d) => s + d.value, 0))
 
 // ——— 审批类型标签 ———
 const typeLabel = (t) => ({ claim: '客户捞取申请', transfer: '客户转让申请', extend: '保护期延长申请', storage: '入库申请' }[t] || t)
@@ -203,22 +238,50 @@ const loadData = async () => {
     const r = await getExpiringList({ current: 1, size: 5 })
     const list = r.data?.records || []
     reminders.value = list.map(item => ({
-      id: item.id || item.customerName,
+      id: item.customerId || item.id,
       customerName: item.customerName,
-      desc: item.daysLeft <= 7 ? '保护期即将到期' : '',
+      desc: item.daysLeft != null ? (item.daysLeft <= 7 ? '保护期即将到期' : '') : '',
       daysTag: item.daysLeft != null ? item.daysLeft + '天' : '',
       daysTagCls: item.daysLeft <= 7 ? 'dt-orange' : 'dt-red',
       extra: item.overdueDays > 300 ? item.overdueDays + '天无开票' : '',
       dotCls: item.daysLeft <= 7 ? 'dot-red' : 'dot-orange',
+      isShare: false,
     }))
-    pendingReminderCount.value = r.data?.total || list.length
+    // 追加分享提醒（分开查三种类型）
+    try {
+      const types = ['share_to', 'share_by', 'share_owner']
+      const labelMap = { share_to: '客户已分享给你', share_by: '你分享了客户', share_owner: '你的客户被分享' }
+      for (const t of types) {
+        try {
+          const sr = await getReminderList({ current: 1, size: 5, type: t, status: 'pending' })
+          for (const item of (sr.data?.records || [])) {
+            reminders.value.unshift({
+              id: item.id,
+              customerName: item.customerName,
+              desc: labelMap[item.reminderType] || '分享提醒',
+              daysTag: '分享',
+              daysTagCls: 'dt-blue',
+              extra: '',
+              dotCls: 'dot-blue',
+              isShare: true,
+            })
+          }
+        } catch {}
+      }
+    } catch {}
+    try { const pc = await getPendingCount(); pendingReminderCount.value = pc.data || 0 } catch {}
   } catch {}
   try { const r = await getTeamActivities(); activities.value = r.data || [] } catch {}
   try {
     const r = await getApprovalList({ current: 1, size: 3, tab: 'pending' })
     approvals.value = r.data?.records || []
   } catch {}
-  try { const r = await getWeeklyStats(); weeklyData.value = r.data || { customerWeeks: [], fileWeeks: [] } } catch {}
+  try {
+    const r = await getDailyStats()
+    const fmt = (arr) => (arr || []).map(d => ({ ...d, isToday: d.day === today2 }))
+    dailyCustomer.value = fmt(r.data?.customerDays)
+    dailyFile.value = fmt(r.data?.fileDays)
+  } catch {}
 }
 
 // ——— 审批操作 ———
@@ -300,18 +363,25 @@ onMounted(loadData)
 .quick-item:hover { border-color: #409eff; color: #409eff; box-shadow: 0 2px 8px rgba(64,158,255,.12); }
 .quick-item span { font-size: 13px; }
 
-/* —— 图表 —— */
-.chart-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
-.chart-card { background: #fff; border: 1px solid #ebeef5; border-radius: 12px; padding: 24px; }
-.chart-head { display: flex; align-items: center; gap: 6px; font-size: 15px; font-weight: 600; color: #1d2129; margin-bottom: 16px; }
-.ch-icon { color: #86909c; }
-.bars-wrap { display: flex; align-items: flex-end; justify-content: center; gap: 48px; height: 120px; padding-top: 10px; }
-.bar-col { display: flex; flex-direction: column; align-items: center; gap: 6px; }
-.bar-val { font-size: 12px; font-weight: 600; color: #1d2129; }
-.bar { width: 44px; border-radius: 6px 6px 0 0; transition: height .4s; }
-.bar-blue { background: #409eff; }
-.bar-green { background: #67c23a; }
-.bar-lbl { font-size: 12px; color: #86909c; }
+/* —— 每周横向进度条 —— */
+.weekchart-section { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+.wchart-card { background: #fff; border: 1px solid #ebeef5; border-radius: 12px; padding: 18px 20px 16px; }
+.wchart-head { display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 700; color: #1d2129; margin-bottom: 16px; }
+.wchart-total { font-weight: 700; font-size: 18px; color: #1d2129; margin-left: auto }
+.wch-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0 }
+.c-blue { background: #409eff; }
+.c-green { background: #67c23a; }
+.hbar-list { display: flex; flex-direction: column; gap: 10px }
+.hbar-row { display: flex; align-items: center; gap: 10px }
+.hbar-lbl { width: 32px; font-size: 12px; color: #86909c; font-weight: 500; text-align: right; flex-shrink: 0 }
+.hbar-track { flex: 1; height: 20px; background: #f5f6f7; border-radius: 10px; overflow: hidden }
+.hbar-fill { height: 100%; border-radius: 10px; transition: width .6s ease }
+.hbar-blue { background: linear-gradient(90deg, #66b1ff, #409eff) }
+.hbar-green { background: linear-gradient(90deg, #95d475, #67c23a) }
+.hbar-fill.hb-now { background: linear-gradient(90deg, #ff9a76, #e8684a) }
+.hbar-val { width: 36px; font-size: 13px; font-weight: 700; color: #1d2129; flex-shrink: 0 }
+.hbar-lbl.hb-now { color: #e8684a; font-weight: 700 }
+.hbar-val.hb-now { color: #e8684a }
 
 /* —— 双列面板 —— */
 .twin-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
@@ -326,19 +396,21 @@ onMounted(loadData)
 .panel-link:hover { text-decoration: underline; }
 .empty-tip { text-align: center; color: #c0c4cc; padding: 32px 0; font-size: 14px; }
 
-/* —— 提醒列表 —— */
+.remind-list { max-height: 320px; overflow-y: auto }
 .remind-row { display: flex; align-items: flex-start; gap: 12px; padding: 14px 0; border-bottom: 1px solid #f5f5f5; }
 .remind-row:last-child { border-bottom: none; }
 .r-dot { width: 8px; height: 8px; border-radius: 50%; margin-top: 6px; flex-shrink: 0; }
 .dot-red { background: #f56c6c; }
 .dot-orange { background: #e6a23c; }
 .dot-gray { background: #c0c4cc; }
+.dot-blue { background: #409eff; }
 .r-body { flex: 1; min-width: 0; }
 .r-main { font-size: 14px; color: #1d2129; font-weight: 500; }
 .r-sub { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
 .days-tag { font-size: 12px; padding: 1px 6px; border-radius: 4px; font-weight: 600; }
 .dt-orange { color: #e6a23c; background: #fdf6ec; }
 .dt-red { color: #f56c6c; background: #fef0f0; }
+.dt-blue { color: #409eff; background: #ecf5ff; }
 .r-extra { font-size: 12px; color: #999; }
 
 /* —— 团队动态 —— */

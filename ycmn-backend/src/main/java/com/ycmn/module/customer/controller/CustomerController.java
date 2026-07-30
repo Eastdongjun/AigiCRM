@@ -255,9 +255,60 @@ public class CustomerController {
         response.setContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
         response.setHeader("Content-Disposition", "attachment;filename=" +
                 URLEncoder.encode("客户导入模板.xlsx", StandardCharsets.UTF_8));
-        EasyExcel.write(response.getOutputStream(), CustomerImportDTO.class)
-                .sheet("客户导入模板")
-                .doWrite(List.of());
+
+        // 示意数据行
+        CustomerImportDTO sample = new CustomerImportDTO();
+        sample.setCustomerName("示例：山西XX钢铁有限公司");
+        sample.setInvoiceName("山西XX钢铁有限公司");
+        sample.setIndustry("冶金");
+        sample.setDevType("突破开拓");
+        sample.setGroupName("XX钢铁集团");
+        sample.setBranchCompany("XX分公司");
+        sample.setUnitName("XX厂矿");
+        sample.setCapacity("500万吨/年");
+        sample.setProvince("山西省");
+        sample.setCity("太原市");
+        sample.setDistrict("清徐县");
+        sample.setAddress("XX工业园区XX路XX号");
+        sample.setHasTerminal(1);
+        sample.setRegisterDate(java.time.LocalDate.of(2026, 1, 15));
+        sample.setLastInvoiceDate(java.time.LocalDate.of(2026, 6, 20));
+        sample.setRemark("此为示意数据，导入时请删除此行");
+
+        // 填写说明数据（3列：字段/类型/填写说明）
+        List<List<String>> refData = new java.util.ArrayList<>();
+        refData.add(List.of("客户名称", "必填", "订货客户的全称，如'山西XX钢铁有限公司'"));
+        refData.add(List.of("开票名称", "选填", "发票抬头，与客户名称相同可留空"));
+        refData.add(List.of("行业", "必填", "可选: 冶金/煤矿/化工/电力/有色金属/机械/工程公司/维修厂/其他终端客户"));
+        refData.add(List.of("开发类型", "必填", "可选: 成熟创新/突破开拓/铺垫宣传"));
+        refData.add(List.of("所属集团", "选填", "集团公司名称，如'XX钢铁集团'"));
+        refData.add(List.of("所属分公司", "选填", "分公司名称"));
+        refData.add(List.of("所属单位", "选填", "厂矿单位名称"));
+        refData.add(List.of("产能", "选填", "如'500万吨/年'"));
+        refData.add(List.of("省", "选填", "如'山西省'"));
+        refData.add(List.of("市", "选填", "如'太原市'"));
+        refData.add(List.of("县", "选填", "如'清徐县'"));
+        refData.add(List.of("厂址", "选填", "详细地址"));
+        refData.add(List.of("终端", "选填", "1=是 0=否"));
+        refData.add(List.of("注册日", "选填", "日期格式: 2026-01-15"));
+        refData.add(List.of("最近开票日", "选填", "日期格式: 2026-06-20"));
+        refData.add(List.of("备注", "选填", "任何补充信息，导入时删除示例行"));
+
+        // 填写说明表头
+        List<List<String>> refHeaders = new java.util.ArrayList<>();
+        refHeaders.add(List.of("字段"));
+        refHeaders.add(List.of("类型"));
+        refHeaders.add(List.of("填写说明"));
+
+        // 用 DTO 模型写模板 sheet
+        com.alibaba.excel.ExcelWriter writer = EasyExcel.write(response.getOutputStream(), CustomerImportDTO.class).build();
+        com.alibaba.excel.write.metadata.WriteSheet sheet1 = EasyExcel.writerSheet(0, "客户导入模板").build();
+        writer.write(List.of(sample), sheet1);
+
+        // 填写说明 sheet（无模型，手动头）
+        com.alibaba.excel.write.metadata.WriteSheet sheet2 = EasyExcel.writerSheet(1, "填写说明").head(refHeaders).build();
+        writer.write(refData, sheet2);
+        writer.finish();
     }
 
     @GetMapping("/export")

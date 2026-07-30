@@ -12,13 +12,11 @@ export function clearToken() {
 function decodeJwt(token) {
   try {
     const payload = token.split('.')[1]
-    const json = decodeURIComponent(
-      atob(payload.replace(/-/g, '+').replace(/_/g, '/'))
-        .split('')
-        .map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
-        .join('')
-    )
-    return JSON.parse(json)
+    const base64 = payload.replace(/-/g, '+').replace(/_/g, '/')
+    const binary = atob(base64)
+    const bytes = new Uint8Array(binary.length)
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i)
+    return JSON.parse(new TextDecoder().decode(bytes))
   } catch {
     return null
   }

@@ -216,9 +216,9 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElNotification } from 'element-plus'
 import { useUserStore } from '@/store/user'
 import { changePassword } from '@/api/system'
 
@@ -274,10 +274,28 @@ const submitPassword = async () => {
   pwdLoading.value = false
 }
 
+// ===== 30分钟无操作自动退出 =====
+const INACTIVE_TIMEOUT = 30 * 60 * 1000 // 30分钟
+const WARNING_BEFORE = 2 * 60 * 1000   // 提前2分钟提醒
+let inactivityTimer = null
+let warningTimer = null
+
+const resetInactivityTimer = () => {
+  clearTimeout(inactivityTimer)
+  clearTimeout(warningTimer)
+  warningTimer = setTimeout(() => {
+    ElNotification({ title: '即将退出', message: '2分钟无操作将自动退出登录', type: 'warning', duration: 10000 })
+  }, INACTIVE_TIMEOUT - WARNING_BEFORE)
+  inactivityTimer = setTimeout(() => {
+    userStore.logout()
+    router.push('/login')
+    ElMessage.warning('30分钟无操作，已自动退出')
+  }, INACTIVE_TIMEOUT)
+}
+
 onMounted(async () => {
   try {
     await userStore.fetchUserInfo()
-    // 无工作台权限却落在工作台页(登录默认跳转或直接访问URL) → 跳到首个可访问页
     if (route.path === '/dashboard' && !userStore.hasPermission('dashboard:view')) {
       router.replace(firstAccessiblePath())
     }
@@ -286,6 +304,17 @@ onMounted(async () => {
   } catch (e) {
     router.push('/login')
   }
+  // 启动无操作计时
+  const events = ['mousemove', 'keydown', 'click', 'scroll', 'touchstart']
+  events.forEach(e => window.addEventListener(e, resetInactivityTimer, { passive: true }))
+  resetInactivityTimer()
+})
+
+onBeforeUnmount(() => {
+  const events = ['mousemove', 'keydown', 'click', 'scroll', 'touchstart']
+  events.forEach(e => window.removeEventListener(e, resetInactivityTimer))
+  clearTimeout(inactivityTimer)
+  clearTimeout(warningTimer)
 })
 
 const hasPerm = (p) => userStore.hasPermission(p)

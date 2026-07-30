@@ -302,13 +302,13 @@ onMounted(loadAll)
 .card-unit { font-size: 12px; color: #c0c4cc; font-weight: normal; }
 
 /* 行业分布 */
-.ind-row { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
-.ind-name { width: 50px; text-align: right; font-size: 13px; color: #333; flex-shrink: 0; }
-.ind-track { flex: 1; height: 30px; background: #f5f7fa; border-radius: 6px; overflow: hidden; }
-.ind-fill { height: 100%; border-radius: 6px; display: flex; align-items: center; justify-content: flex-end; padding-right: 10px; transition: width .5s; }
-.ind-pct { color: #fff; font-size: 12px; font-weight: 600; }
-.ind-count { width: 28px; font-size: 16px; font-weight: 700; color: #333; text-align: center; }
-.ind-pct-r { width: 45px; font-size: 12px; color: #999; }
+.ind-row { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+.ind-name { width: 80px; text-align: right; font-size: 13px; color: #333; flex-shrink: 0; white-space: nowrap }
+.ind-track { flex: 1; height: 28px; background: #f5f7fa; border-radius: 6px; overflow: hidden; }
+.ind-fill { height: 100%; border-radius: 6px; display: flex; align-items: center; justify-content: flex-end; padding-right: 10px; transition: width .5s; min-width: 40px }
+.ind-pct { color: #fff; font-size: 11px; font-weight: 600; white-space: nowrap }
+.ind-count { width: 32px; font-size: 16px; font-weight: 700; color: #333; text-align: center; flex-shrink: 0 }
+.ind-pct-r { width: 40px; font-size: 11px; color: #999; text-align: right; flex-shrink: 0 }
 
 /* 办事处表格 */
 .office-table { width: 100%; border-collapse: collapse; font-size: 13px; }

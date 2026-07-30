@@ -12,6 +12,10 @@ export function getWeeklyStats() {
   return request.get('/statistics/weekly-stats')
 }
 
+export function getDailyStats() {
+  return request.get('/statistics/daily-stats')
+}
+
 export function getAnalysis(params) {
   return request.get('/statistics/analysis', { params })
 }

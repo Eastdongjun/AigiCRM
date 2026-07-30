@@ -16,54 +16,60 @@
         </el-select>
       </div>
       <div class="toolbar-right">
-        <el-button @click="resetQuery">重置</el-button>
+        <el-button type="danger" plain size="small" @click="handleClearAll">一键清空</el-button>
       </div>
     </div>
 
     <!-- 表格区域 -->
     <div class="table-area">
       <div class="table-wrap" ref="tableWrapRef">
-      <el-table :data="tableData" stripe style="width: 100%" size="small" :height="tableHeight">
+      <el-table :data="pagedData" stripe style="width:100%" size="default" :height="tableHeight">
+        <el-table-column label="类型" width="70" align="center">
+          <template #default="{ row }">
+            <el-tag v-if="row._type === 'share'" type="warning" size="small" effect="dark">分享</el-tag>
+            <el-tag v-else type="info" size="small">到期</el-tag>
+          </template>
+        </el-table-column>
         <el-table-column prop="customerName" label="客户名称" min-width="160" show-overflow-tooltip />
-        <el-table-column prop="officeName" label="办事处" min-width="80" />
-        <el-table-column prop="expireDate" label="到期日" min-width="100" />
-        <el-table-column label="剩余天数" min-width="80" align="center">
+        <el-table-column label="提示内容" min-width="160" show-overflow-tooltip>
           <template #default="{ row }">
-            <span :class="getDaysClass(row.remainingDays)">{{ row.remainingDays }}天</span>
+            <span v-if="row._type === 'share'">{{ row._shareLabel }}</span>
+            <span v-else>{{ row.remainingDays }}天后到期</span>
           </template>
         </el-table-column>
-        <el-table-column prop="ownerName" label="负责人" min-width="70" />
-        <el-table-column label="状态" min-width="80" align="center">
+        <el-table-column prop="expireDate" label="到期日" width="100">
+          <template #default="{ row }"><span v-if="row._type !== 'share'">{{ row.expireDate || '—' }}</span><span v-else>—</span></template>
+        </el-table-column>
+        <el-table-column prop="ownerName" label="负责人" width="80" />
+        <el-table-column label="状态" width="90" align="center">
           <template #default="{ row }">
-            <el-tag :type="getStatusType(row.remainingDays)" size="small">{{ getStatusText(row.remainingDays) }}</el-tag>
+            <el-tag v-if="row._type === 'share'" type="warning" size="small">待查看</el-tag>
+            <el-tag v-else :type="getStatusType(row.remainingDays)" size="small">{{ getStatusText(row.remainingDays) }}</el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="今日跟进" min-width="80" align="center">
+        <el-table-column label="操作" width="140" align="center" fixed="right">
           <template #default="{ row }">
-            <span v-if="row.todayFollowedUp" class="followed-tag">✓ 已跟进</span>
-            <span v-else class="unfollowed-tag">未跟进</span>
-          </template>
-        </el-table-column>
-        <el-table-column label="操作" width="150" align="center" fixed="right">
-          <template #default="{ row }">
-            <el-button v-if="!row.todayFollowedUp" link type="primary" size="small" @click="handleFollowUp(row)">已跟进</el-button>
-            <el-button v-else link type="info" size="small" disabled>已跟进</el-button>
-            <el-button link type="warning" size="small" @click="handleExtend(row)">申请延期</el-button>
+            <template v-if="row._type === 'share'">
+              <el-button link type="primary" size="small" @click="handleProcessShare(row)">已读</el-button>
+            </template>
+            <template v-else>
+              <el-button v-if="!row.todayFollowedUp" link type="primary" size="small" @click="handleFollowUp(row)">已跟进</el-button>
+              <el-button v-else link type="info" size="small" disabled>已跟进</el-button>
+              <el-button link type="warning" size="small" @click="handleExtend(row)">申请延期</el-button>
+            </template>
           </template>
         </el-table-column>
       </el-table>
       </div>
 
       <div class="pagination">
-        <span>{{ total > 0 ? (query.current - 1) * query.size + 1 : 0 }}-{{ Math.min(query.current * query.size, total) }}条 / 共{{ total }}条</span>
         <el-pagination
           v-model:current-page="query.current"
           v-model:page-size="query.size"
           :total="total"
           :page-sizes="[15, 30, 50]"
-          layout="prev, pager, next"
-          small
-          @change="loadData"
+          layout="total, sizes, prev, pager, next"
+          background
         />
       </div>
     </div>
@@ -71,9 +77,9 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, onBeforeUnmount, nextTick } from 'vue'
-import { ElMessage } from 'element-plus'
-import { getExpiringList, processReminder } from '@/api/reminder'
+import { ref, reactive, computed, onMounted, onBeforeUnmount, nextTick } from 'vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { getExpiringList, getReminderList, processReminder } from '@/api/reminder'
 import { submitApproval } from '@/api/approval'
 import { getDeptList } from '@/api/system'
 import { getSimpleUserList } from '@/api/customer'
@@ -97,8 +103,29 @@ const query = reactive({
 const loadData = async () => {
   try {
     const res = await getExpiringList(query)
-    tableData.value = res.data?.records || []
-    total.value = res.data?.total || 0
+    const expiring = (res.data?.records || []).map(r => ({ ...r, _type: 'expiring' }))
+    // 追加分享提醒
+    let shareRecords = []
+    try {
+      const types = ['share_to', 'share_by', 'share_owner']
+      const labelMap = { share_to: '客户已分享给你', share_by: '你分享了客户', share_owner: '你的客户被分享' }
+      for (const t of types) {
+        const sr = await getReminderList({ current: 1, size: 20, type: t, status: 'pending' })
+        for (const item of (sr.data?.records || [])) {
+          shareRecords.push({
+            reminderId: item.id,
+            customerId: item.customerId,
+            customerName: item.customerName,
+            ownerName: item.ownerName,
+            officeName: item.officeName || '',
+            _type: 'share',
+            _shareLabel: labelMap[item.reminderType] || item.reminderType,
+          })
+        }
+      }
+    } catch {}
+    tableData.value = [...shareRecords, ...expiring]
+    total.value = tableData.value.length
   } catch (e) {}
 }
 
@@ -108,6 +135,35 @@ const resetQuery = () => {
   query.ownerId = null
   query.current = 1
   loadData()
+}
+
+// 客户端分页
+const pagedData = computed(() => {
+  const start = (query.current - 1) * query.size
+  return tableData.value.slice(start, start + query.size)
+})
+
+const handleClearAll = async () => {
+  try {
+    await ElMessageBox.confirm('确认清空所有提醒？分享提醒标记已读，到期提醒标记已跟进。', '一键清空', { type: 'warning' })
+  } catch { return }
+  const all = tableData.value.filter(r => r.reminderId)
+  let done = 0
+  for (const r of all) {
+    try { await processReminder(r.reminderId); done++ } catch {}
+  }
+  ElMessage.success(`已处理 ${done} 条提醒`)
+  loadData()
+  userStore.refreshBadges()
+}
+
+const handleProcessShare = async (row) => {
+  try {
+    await processReminder(row.reminderId)
+    ElMessage.success('已标记已读')
+    loadData()
+    userStore.refreshBadges()
+  } catch (e) {}
 }
 
 const handleFollowUp = async (row) => {
@@ -183,32 +239,24 @@ onBeforeUnmount(() => {
 .toolbar-left { display: flex; gap: 8px; }
 .toolbar-right { display: flex; gap: 8px; }
 .reminder-manage { height: calc(100vh - 100px); display: flex; flex-direction: column; }
-.table-area {
-  flex: 1;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-}
+.table-area { flex: 1; min-height: 0; display: flex; flex-direction: column; background: #fff; border: 1px solid #e4e7ed; border-radius: 8px; overflow: hidden }
 .table-wrap { flex: 1; min-height: 0; }
-.table-area :deep(.el-table td.el-table__cell),
-.table-area :deep(.el-table th.el-table__cell) {
-  height: 40px;
-  padding: 4px 0;
-  box-sizing: border-box;
-}
 .pagination {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 10px 0;
+  padding: 8px 16px;
   border-top: 1px solid #ebeef5;
   color: #999;
   font-size: 12px;
   flex-shrink: 0;
+  background: #fff;
 }
 .days-danger { color: #f56c6c; font-weight: bold; }
 .days-warning { color: #e6a23c; font-weight: bold; }
 .days-normal { color: #67c23a; }
-.followed-tag { color: #67c23a; font-size: 12px; font-weight: 500; }
-.unfollowed-tag { color: #e6a23c; font-size: 12px; }
+.followed-tag { color: #67c23a; font-size: 13px; font-weight: 500; }
+.unfollowed-tag { color: #e6a23c; font-size: 13px; }
+.table-area :deep(.el-table td.el-table__cell) { font-size: 14px; padding: 10px 0 }
+.table-area :deep(.el-table th.el-table__cell) { font-size: 14px; font-weight: 600; padding: 10px 0 }
 </style>

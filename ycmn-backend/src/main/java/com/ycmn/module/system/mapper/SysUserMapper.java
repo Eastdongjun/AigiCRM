@@ -11,6 +11,7 @@ public interface SysUserMapper extends BaseMapper<SysUser> {
 
     @Select("SELECT u.*, d.dept_name, " +
             "(SELECT d2.dept_name FROM sys_dept d2 WHERE d2.id = u.office_id) as office_name, " +
+            "(SELECT su.real_name FROM sys_user su WHERE su.id = u.manager_id) as manager_name, " +
             "(SELECT r.role_name FROM sys_role r JOIN sys_user_role ur ON r.id = ur.role_id WHERE ur.user_id = u.id LIMIT 1) as role_name, " +
             "(SELECT ur.role_id FROM sys_user_role ur WHERE ur.user_id = u.id LIMIT 1) as role_id " +
             "FROM sys_user u LEFT JOIN sys_dept d ON u.dept_id = d.id " +

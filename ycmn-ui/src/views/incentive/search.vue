@@ -30,8 +30,12 @@
           </div>
           <div v-if="getFiles(c.records[0]).length" class="card-imgs">
             <div v-for="f in getFiles(c.records[0]).slice(0,4)" :key="f.id" class="card-img">
-              <div v-if="f.tag" class="img-tag">{{ f.tag }}</div>
-              <template v-if="f.type==='image'"><img :src="'/api/file/download/'+f.id" @click="preview(f.id)" /></template>
+              <template v-if="f.type==='image'">
+                <div class="img-wrap">
+                  <img :src="'/api/file/download/'+f.id" @click="preview(f.id)" @error="onImgError" />
+                  <div v-if="f.tag" class="img-tag">{{ f.tag }}</div>
+                </div>
+              </template>
               <div v-else-if="f.type==='video'" class="img-vid" @click="preview(f.id)">▶</div>
             </div>
           </div>
@@ -40,7 +44,7 @@
       </div>
     </div>
 
-    <el-dialog v-model="previewVisible" width="90vw" :close-on-click-modal="true"><img :src="previewUrl" style="width:100%;max-height:85vh;object-fit:contain" /></el-dialog>
+    <el-dialog v-model="previewVisible" width="90vw" :close-on-click-modal="true"><img :src="previewUrl" style="width:100%;max-height:85vh;object-fit:contain" @error="onImgError" /></el-dialog>
 
     <el-dialog v-model="detailVisible" width="1000px" top="4vh" :close-on-click-modal="true" destroy-on-close class="detail-dlg">
       <template #header></template>
@@ -74,10 +78,22 @@
                 <span v-if="r.relatedProducts">· {{ r.relatedProducts }}</span>
                 <span class="dtl-info-pts" :style="{color:scoreColor(getCls(r))}">+{{ r.score }}分</span>
               </div>
+              <div v-if="r.preInstallQuestion" class="dtl-field">
+                <div class="dtl-field-label">安装前问题</div>
+                <div class="dtl-field-text">{{ r.preInstallQuestion }}</div>
+              </div>
+              <div v-if="r.remark" class="dtl-field">
+                <div class="dtl-field-label">安装备注</div>
+                <div class="dtl-field-text">{{ r.remark }}</div>
+              </div>
               <div v-if="getFiles(r).length" class="dtl-files">
                 <div v-for="f in getFiles(r)" :key="f.id" class="dtl-file">
-                  <div class="dtl-file-tag">{{ f.tag }}</div>
-                  <img v-if="f.type==='image'" :src="'/api/file/download/'+f.id" @click="preview(f.id)" />
+                  <template v-if="f.type==='image'">
+                    <div class="dtl-img-wrap">
+                      <img :src="'/api/file/download/'+f.id" @click="preview(f.id)" @error="onImgError" />
+                      <div v-if="f.tag" class="dtl-file-tag">{{ f.tag }}</div>
+                    </div>
+                  </template>
                   <div v-else-if="f.type==='video'" class="dtl-file-vid" @click="preview(f.id)">▶</div>
                   <div v-else class="dtl-file-doc" @click="window.open('/api/file/download/'+f.id)">📄 {{ f.label }}</div>
                 </div>
@@ -102,7 +118,7 @@ const custs=ref([]),catMap=ref({}),previewVisible=ref(false),previewUrl=ref('')
 const detailVisible=ref(false),detailCust=ref(null)
 const industries=['冶金','煤矿','化工','电力','有色金属','机械','工程公司','维修厂','其他终端客户']
 
-function preview(id){previewUrl.value='/api/file/download/'+id;previewVisible.value=true}
+function onImgError(e){e.target.src='data:image/svg+xml,'+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="320" height="240" viewBox="0 0 320 240"><rect fill="#f5f6f7" width="320" height="240"/><text fill="#c0c4cc" font-size="14" font-family="sans-serif" text-anchor="middle" x="160" y="120">图片加载失败</text></svg>')}
 function showDetail(c){detailCust.value=c;detailVisible.value=true}
 
 function getFiles(r){
@@ -149,8 +165,9 @@ onMounted(()=>{loadCats();doSearch()})
 .card-pts{margin-left:auto;font-weight:600;font-size:15px}
 .card-imgs{display:flex;gap:8px;flex-wrap:wrap}
 .card-img{flex:1;min-width:90px;max-width:calc(50% - 4px)}
-.img-tag{font-size:10px;color:#999;margin-bottom:3px}
-.card-img img{width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:6px;cursor:pointer;transition:transform .3s}
+.img-wrap{position:relative;border:1px solid rgba(0,0,0,.06);border-radius:6px;overflow:hidden}
+.img-tag{position:absolute;top:0;left:50%;transform:translateX(-50%);font-size:10px;color:#999;background:rgba(255,255,255,.85);padding:2px 8px;border-radius:0 0 4px 4px;white-space:nowrap;z-index:1}
+.card-img img{width:100%;aspect-ratio:4/3;object-fit:cover;cursor:pointer;transition:transform .3s;display:block}
 .card-img img:hover{transform:scale(1.06)}
 .img-vid{width:100%;aspect-ratio:4/3;background:#1a1a2e;border-radius:6px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:24px;cursor:pointer}
 .card-ft{text-align:center;padding:12px;border-top:1px solid #f0f2f5;font-size:13px;color:#409eff;cursor:pointer;font-weight:600}
@@ -211,10 +228,14 @@ onMounted(()=>{loadCats();doSearch()})
 .dtl-content{margin-top:8px}
 .dtl-info-line{font-size:15px;color:#646a73;margin-bottom:12px}
 .dtl-info-pts{font-weight:700;font-size:16px;margin-left:auto}
+.dtl-field{margin-bottom:14px;padding:12px 16px;background:#fafbfc;border-radius:6px;border-left:3px solid #e5e6eb}
+.dtl-field-label{font-size:12px;color:#8f959e;margin-bottom:6px;letter-spacing:.5px}
+.dtl-field-text{font-size:14px;color:#1f2329;line-height:1.8;white-space:pre-wrap;word-break:break-word}
 .dtl-files{display:flex;gap:14px;flex-wrap:wrap;margin-top:14px}
 .dtl-file{width:260px}
-.dtl-file-tag{font-size:12px;color:#8f959e;margin-bottom:6px}
-.dtl-file img{width:100%;height:220px;object-fit:cover;border-radius:6px;cursor:pointer;border:1px solid #e5e6eb;display:block}
+.dtl-img-wrap{position:relative;border:1px solid rgba(0,0,0,.06);border-radius:6px;overflow:hidden}
+.dtl-file-tag{position:absolute;top:0;left:50%;transform:translateX(-50%);font-size:11px;color:#8f959e;background:rgba(255,255,255,.85);padding:2px 10px;border-radius:0 0 4px 4px;white-space:nowrap;z-index:1}
+.dtl-file img{width:100%;height:220px;object-fit:cover;cursor:pointer;display:block}
 .dtl-file img:hover{opacity:.85}
 .dtl-file-vid{width:100%;height:220px;background:#1a1a2e;border-radius:6px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#fff;font-size:26px}
 .dtl-file-doc{width:100%;height:220px;background:#f5f6f7;border:1px solid #e5e6eb;border-radius:6px;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;color:#646a73;font-size:13px;text-align:center;gap:4px;padding:8px}

@@ -41,7 +41,9 @@ request.interceptors.response.use(
     sessionExpiredHandled = false // 有成功响应说明会话正常，重置标记
     const res = response.data
     if (res.code !== 200) {
-      if (res.code === 401) {
+      // 登录接口的 401 是密码错误，不是会话过期
+      const isLoginApi = response.config.url?.includes('/auth/login')
+      if (res.code === 401 && !isLoginApi) {
         handleSessionExpired()
       } else {
         notify(res.message || '请求失败')

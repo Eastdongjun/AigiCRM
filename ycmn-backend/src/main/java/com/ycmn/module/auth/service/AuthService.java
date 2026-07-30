@@ -47,20 +47,20 @@ public class AuthService {
     private final SmsConfig smsConfig;
 
     public LoginResponse login(LoginRequest request) {
+        String username = request.getUsername() != null ? request.getUsername().trim() : "";
         SysUser user = userMapper.selectOne(
                 new LambdaQueryWrapper<SysUser>()
-                        .eq(SysUser::getUsername, request.getUsername())
-                        .eq(SysUser::getDeleted, 0)
+                        .eq(SysUser::getUsername, username)
         );
 
         if (user == null) {
-            throw new BusinessException(401, "用户名或密码错误");
+            throw new BusinessException(401, "账号不存在");
         }
         if (user.getStatus() == 0) {
             throw new BusinessException(401, "账号已被禁用");
         }
         if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
-            throw new BusinessException(401, "用户名或密码错误");
+            throw new BusinessException(401, "密码错误");
         }
 
         String token = jwtTokenProvider.generateToken(user.getId(), user.getUsername(),

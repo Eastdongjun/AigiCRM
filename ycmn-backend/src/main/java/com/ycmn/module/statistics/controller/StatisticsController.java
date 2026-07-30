@@ -87,6 +87,33 @@ public class StatisticsController {
         return Result.ok(data);
     }
 
+    @GetMapping("/daily-stats")
+    public Result<Map<String, Object>> dailyStats() {
+        Map<String, Object> result = new HashMap<>();
+        // 按天统计本月新增客户
+        result.put("customerDays", customerService.dailyNewCustomers());
+
+        // 按天统计本月文件上传
+        LocalDate today = LocalDate.now();
+        LocalDate cursor = today.withDayOfMonth(1);
+        List<Map<String, Object>> fileDays = new ArrayList<>();
+        while (!cursor.isAfter(today)) {
+            LambdaQueryWrapper<BizFile> fw = new LambdaQueryWrapper<>();
+            fw.ge(BizFile::getCreatedAt, cursor.atStartOfDay())
+              .lt(BizFile::getCreatedAt, cursor.plusDays(1).atStartOfDay());
+            long count = fileMapper.selectCount(fw);
+            Map<String, Object> item = new HashMap<>();
+            item.put("day", cursor.getDayOfMonth());
+            item.put("date", cursor.toString());
+            item.put("value", count);
+            fileDays.add(item);
+            cursor = cursor.plusDays(1);
+        }
+        result.put("fileDays", fileDays);
+
+        return Result.ok(result);
+    }
+
     @GetMapping("/weekly-stats")
     public Result<Map<String, Object>> weeklyStats() {
         Map<String, Object> result = new HashMap<>();
@@ -395,7 +422,7 @@ public class StatisticsController {
 
         LambdaQueryWrapper<BizCustomer> expW = new LambdaQueryWrapper<BizCustomer>()
                 .eq(BizCustomer::getDeleted, 0).ne(BizCustomer::getStatus, "sea")
-                .eq(BizCustomer::getProtectionStatus, "expired");
+                .lt(BizCustomer::getExpireDate, today);
         if (officeId != null) expW.eq(BizCustomer::getOfficeId, officeId);
         long expired = customerMapper.selectCount(expW);
 
