@@ -201,6 +201,7 @@
           </div>
         </div>
       </div>
+      <div style="margin-top:8px;font-size:12px;color:#909399">💡 提示：单文件最大 100MB，支持图片、PDF、Word、Excel、压缩包等格式</div>
       <template #footer>
         <span style="font-size:12px;color:#999;margin-right:auto">任意文件即可提交 · 每槽最多5张</span>
         <el-button @click="showCustomerDialog=false">取消</el-button>
