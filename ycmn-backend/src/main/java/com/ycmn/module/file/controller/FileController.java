@@ -46,7 +46,7 @@ public class FileController {
         return Result.ok(fileService.pageFiles(current, size, folderId, scope, keyword, SecurityUtils.getCurrentUserId()));
     }
 
-    @PreAuthorize("hasAuthority('file:view')")
+    @PreAuthorize("hasAuthority('file:upload')")
     @PostMapping("/upload")
     public Result<BizFile> upload(
             @RequestParam("file") MultipartFile file,
@@ -69,7 +69,7 @@ public class FileController {
         return Result.ok();
     }
 
-    @PreAuthorize("hasAuthority('file:view')")
+    @PreAuthorize("hasAuthority('file:delete')")
     @DeleteMapping("/folders/{id}")
     public Result<Void> deleteFolder(@PathVariable Long id) {
         fileService.deleteFolder(id);
