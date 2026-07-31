@@ -145,10 +145,43 @@ public class IncentiveService {
     public void addRecord(BizIncentiveRecord record) {
         BizIncentiveCategory category = categoryMapper.selectById(record.getCategoryId());
         int base = (category != null && category.getScore() != null) ? category.getScore() : 0;
-        // 三文件齐全才计分，积分 = 子类分值（不乘文件数）
-        record.setScore(fileCountOf(record) > 0 ? base : 0);
+        record.setScore(calcScore(record, category, base));
         record.setUserId(SecurityUtils.getCurrentUserId());
         recordMapper.insert(record);
+    }
+
+    /**
+     * 积分规则：
+     * 1. 两谈两做方案(plan)：安装前/中/后 任意一个文件上传 → 得分
+     * 2. 其他分类：安装前+安装中+安装后 三文件齐全 → 得分
+     * 3. 否则 0 分
+     */
+    private int calcScore(BizIncentiveRecord r, BizIncentiveCategory category, int base) {
+        if (category == null || base <= 0) return 0;
+
+        boolean isPlan = isPlanCategory(category);
+        boolean hasPre  = r.hasFiles(r.getFilePreId() != null ? r.getFilePreId() : null);
+        boolean hasMid  = r.hasFiles(r.getFileMidId() != null ? r.getFileMidId() : null);
+        boolean hasPost = r.hasFiles(r.getFilePostId() != null ? r.getFilePostId() : null);
+
+        if (isPlan) {
+            // 两谈两做：三阶段任意一个即可
+            return (hasPre || hasMid || hasPost) ? base : 0;
+        } else {
+            // 其他：三文件齐全
+            return (hasPre && hasMid && hasPost) ? base : 0;
+        }
+    }
+
+    /** 判断子类是否属于"两谈两做方案"大类（category_code = 'plan'） */
+    private boolean isPlanCategory(BizIncentiveCategory category) {
+        if (category == null) return false;
+        if ("plan".equals(category.getCategoryCode())) return true;
+        if (category.getParentId() != null) {
+            BizIncentiveCategory parent = categoryMapper.selectById(category.getParentId());
+            return parent != null && "plan".equals(parent.getCategoryCode());
+        }
+        return false;
     }
 
     /** 单条记录是否计分(任意文件槽位有文件即算; 兼容旧版 fileId) */
