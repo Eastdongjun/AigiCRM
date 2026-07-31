@@ -1,0 +1,8 @@
+# 项目级 Codex 配置（ycmn 权限升级）
+[projects."/Users/donglai/源代码/01-客户管理-权限升级/01-源代码备份"]
+trust_level = "trusted"
+
+# 会话启动时自动跑 code-review 三个交叉核对脚本（只告警，不阻塞）
+[hooks.session_start]
+command = "bash .codex/session-check.sh"
+timeout = 180

@@ -162,24 +162,24 @@ INSERT IGNORE INTO `sys_legal_entity` (`id`, `entity_name`, `entity_code`, `grou
 -- 给 admin 角色（id=1）绑定所有新权限
 -- ============================================================
 
--- 岗位管理菜单
-INSERT IGNORE INTO `sys_menu` (`id`, `parent_id`, `menu_name`, `perms`, `menu_type`, `path`, `component`, `icon`, `sort_order`, `status`, `visible`) VALUES
-(51, 2, '岗位管理', 'system:position:view', 'C', '/system/position', 'system/position/index', 'post', 7, 1, '0'),
-(52, 51, '岗位新增', 'system:position:add', 'F', NULL, NULL, NULL, 1, 1, '0'),
-(53, 51, '岗位编辑', 'system:position:edit', 'F', NULL, NULL, NULL, 2, 1, '0');
+-- 岗位管理菜单（parent_id=30 系统管理，menu_type: 1=目录 2=菜单 3=按钮）
+INSERT IGNORE INTO `sys_menu` (`id`, `parent_id`, `menu_name`, `permission`, `menu_type`, `path`, `component`, `icon`, `sort_order`, `status`, `visible`) VALUES
+(71, 30, '岗位管理', 'system:position:view', 2, '/system/position', 'system/position/index', 'post', 7, 1, 1),
+(72, 71, '岗位新增', 'system:position:add', 3, NULL, NULL, NULL, 1, 1, 0),
+(73, 71, '岗位编辑', 'system:position:edit', 3, NULL, NULL, NULL, 2, 1, 0);
 
 -- 权限规则管理菜单
-INSERT IGNORE INTO `sys_menu` (`id`, `parent_id`, `menu_name`, `perms`, `menu_type`, `path`, `component`, `icon`, `sort_order`, `status`, `visible`) VALUES
-(54, 2, '权限规则', 'system:rule:view', 'C', '/system/rule', 'system/rule/index', 'lock', 8, 1, '0'),
-(55, 54, '规则新增', 'system:rule:add', 'F', NULL, NULL, NULL, 1, 1, '0'),
-(56, 54, '规则编辑', 'system:rule:edit', 'F', NULL, NULL, NULL, 2, 1, '0');
+INSERT IGNORE INTO `sys_menu` (`id`, `parent_id`, `menu_name`, `permission`, `menu_type`, `path`, `component`, `icon`, `sort_order`, `status`, `visible`) VALUES
+(74, 30, '权限规则', 'system:rule:view', 2, '/system/rule', 'system/rule/index', 'lock', 8, 1, 1),
+(75, 74, '规则新增', 'system:rule:add', 3, NULL, NULL, NULL, 1, 1, 0),
+(76, 74, '规则编辑', 'system:rule:edit', 3, NULL, NULL, NULL, 2, 1, 0);
 
 -- 集团管理菜单
-INSERT IGNORE INTO `sys_menu` (`id`, `parent_id`, `menu_name`, `perms`, `menu_type`, `path`, `component`, `icon`, `sort_order`, `status`, `visible`) VALUES
-(57, 2, '集团管理', 'system:group:view', 'C', '/system/group', 'system/group/index', 'apartment', 9, 1, '0'),
-(58, 57, '集团新增', 'system:group:add', 'F', NULL, NULL, NULL, 1, 1, '0'),
-(59, 57, '集团编辑', 'system:group:edit', 'F', NULL, NULL, NULL, 2, 1, '0');
+INSERT IGNORE INTO `sys_menu` (`id`, `parent_id`, `menu_name`, `permission`, `menu_type`, `path`, `component`, `icon`, `sort_order`, `status`, `visible`) VALUES
+(77, 30, '集团管理', 'system:group:view', 2, '/system/group', 'system/group/index', 'apartment', 9, 1, 1),
+(78, 77, '集团新增', 'system:group:add', 3, NULL, NULL, NULL, 1, 1, 0),
+(79, 77, '集团编辑', 'system:group:edit', 3, NULL, NULL, NULL, 2, 1, 0);
 
 -- admin 角色绑定所有新权限
 INSERT IGNORE INTO `sys_role_menu` (`role_id`, `menu_id`) VALUES
-(1, 51),(1, 52),(1, 53),(1, 54),(1, 55),(1, 56),(1, 57),(1, 58),(1, 59);
+(1, 71),(1, 72),(1, 73),(1, 74),(1, 75),(1, 76),(1, 77),(1, 78),(1, 79);
