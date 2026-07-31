@@ -7,6 +7,8 @@ import com.ycmn.common.BusinessException;
 import com.ycmn.module.approval.entity.BizApproval;
 import com.ycmn.module.approval.entity.BizApprovalFlow;
 import com.ycmn.module.approval.entity.BizApprovalNode;
+import com.ycmn.module.approval.entity.BizApprovalConfig;
+import com.ycmn.module.approval.mapper.BizApprovalConfigMapper;
 import com.ycmn.module.approval.mapper.BizApprovalFlowMapper;
 import com.ycmn.module.approval.mapper.BizApprovalMapper;
 import com.ycmn.module.approval.mapper.BizApprovalNodeMapper;
@@ -39,6 +41,7 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class ApprovalService {
 
+    private final BizApprovalConfigMapper approvalConfigMapper;
     private final BizApprovalMapper approvalMapper;
     private final BizApprovalNodeMapper approvalNodeMapper;
     private final BizApprovalFlowMapper approvalFlowMapper;
@@ -128,48 +131,106 @@ public class ApprovalService {
         approval.setStatus("reviewing");
         approvalMapper.insert(approval);
 
-        // 查找审批流程
-        List<BizApprovalFlow> flows = approvalFlowMapper.selectList(
-                new LambdaQueryWrapper<BizApprovalFlow>()
-                        .eq(BizApprovalFlow::getFlowType, type)
-                        .eq(BizApprovalFlow::getStatus, 1)
-                        .orderByAsc(BizApprovalFlow::getSortOrder)
+        // 1. 优先查找管理员配置的审批流程（BizApprovalConfig）
+        BizApprovalConfig config = approvalConfigMapper.selectOne(
+                new LambdaQueryWrapper<BizApprovalConfig>()
+                        .eq(BizApprovalConfig::getFlowType, type)
+                        .eq(BizApprovalConfig::getStatus, 1)
+                        .orderByAsc(BizApprovalConfig::getSortOrder)
+                        .last("LIMIT 1")
         );
 
-        // 优先找申请人的直属领导作为审批人
-        SysUser applicant = userMapper.selectById(applicantId);
-        Long leaderId = findDirectLeader(applicant != null ? applicant.getDeptId() : null);
-
-        for (BizApprovalFlow flow : flows) {
-            if (leaderId != null) {
-                // 直属领导审批
+        if (config != null) {
+            // 管理员配置模式：按 approverType + approverIds 确定审批人
+            List<Long> approverUserIds = resolveApproverUserIds(config);
+            for (int i = 0; i < approverUserIds.size(); i++) {
                 BizApprovalNode node = new BizApprovalNode();
                 node.setApprovalId(approval.getId());
-                node.setApproverId(leaderId);
-                node.setNodeOrder(flow.getSortOrder());
+                node.setApproverId(approverUserIds.get(i));
+                node.setNodeOrder(i + 1);
                 node.setStatus("pending");
                 approvalNodeMapper.insert(node);
-            } else {
-                // 兜底: 没有直属领导时，按角色找审批人（原逻辑）
-                List<SysUserRole> userRoles = userRoleMapper.selectList(
-                        new LambdaQueryWrapper<SysUserRole>().eq(SysUserRole::getRoleId, flow.getApproverRoleId())
-                );
-                for (SysUserRole ur : userRoles) {
+            }
+            approval.setCurrentNode(config.getFlowName());
+        } else {
+            // 2. 兜底：旧版流程配置（BizApprovalFlow），按角色+直属领导
+            List<BizApprovalFlow> flows = approvalFlowMapper.selectList(
+                    new LambdaQueryWrapper<BizApprovalFlow>()
+                            .eq(BizApprovalFlow::getFlowType, type)
+                            .eq(BizApprovalFlow::getStatus, 1)
+                            .orderByAsc(BizApprovalFlow::getSortOrder)
+            );
+
+            SysUser applicant = userMapper.selectById(applicantId);
+            Long leaderId = findDirectLeader(applicant != null ? applicant.getDeptId() : null);
+
+            for (BizApprovalFlow flow : flows) {
+                if (leaderId != null) {
                     BizApprovalNode node = new BizApprovalNode();
                     node.setApprovalId(approval.getId());
-                    node.setApproverId(ur.getUserId());
+                    node.setApproverId(leaderId);
                     node.setNodeOrder(flow.getSortOrder());
                     node.setStatus("pending");
                     approvalNodeMapper.insert(node);
+                } else {
+                    List<SysUserRole> userRoles = userRoleMapper.selectList(
+                            new LambdaQueryWrapper<SysUserRole>().eq(SysUserRole::getRoleId, flow.getApproverRoleId())
+                    );
+                    for (SysUserRole ur : userRoles) {
+                        BizApprovalNode node = new BizApprovalNode();
+                        node.setApprovalId(approval.getId());
+                        node.setApproverId(ur.getUserId());
+                        node.setNodeOrder(flow.getSortOrder());
+                        node.setStatus("pending");
+                        approvalNodeMapper.insert(node);
+                    }
                 }
             }
+            approval.setCurrentNode(flows.isEmpty() ? "" : flows.get(0).getFlowName());
         }
-
-        approval.setCurrentNode(flows.isEmpty() ? "" : flows.get(0).getFlowName());
         approvalMapper.updateById(approval);
     }
 
     @Transactional
+    /** 根据审批配置解析出实际审批人用户ID列表 */
+    private List<Long> resolveApproverUserIds(BizApprovalConfig config) {
+        List<Long> ids = parseJsonArray(config.getApproverIds());
+        if (ids.isEmpty()) return List.of();
+
+        return switch (config.getApproverType()) {
+            case "USER" -> ids; // 直接指定用户
+            case "ROLE" -> {
+                // 按角色找所有该角色下的用户
+                List<SysUserRole> userRoles = userRoleMapper.selectList(
+                        new LambdaQueryWrapper<SysUserRole>().in(SysUserRole::getRoleId, ids)
+                );
+                yield userRoles.stream().map(SysUserRole::getUserId).distinct().toList();
+            }
+            case "DEPT" -> {
+                // 按部门找所有该部门下的用户
+                List<SysUser> deptUsers = userMapper.selectList(
+                        new LambdaQueryWrapper<SysUser>().in(SysUser::getDeptId, ids)
+                );
+                yield deptUsers.stream().map(SysUser::getId).distinct().toList();
+            }
+            default -> ids;
+        };
+    }
+
+    /** 简单 JSON 数组解析: "[1,2,3]" → [1,2,3] */
+    private List<Long> parseJsonArray(String json) {
+        if (json == null || json.isBlank()) return List.of();
+        try {
+            return java.util.Arrays.stream(
+                    json.replaceAll("[\\[\\]\\s]", "").split(","))
+                    .filter(s -> !s.isEmpty())
+                    .map(Long::parseLong)
+                    .toList();
+        } catch (Exception e) {
+            return List.of();
+        }
+    }
+
     public void approve(Long approvalId, String comment) {
         Long approverId = SecurityUtils.getCurrentUserId();
         BizApproval approval = approvalMapper.selectById(approvalId);
