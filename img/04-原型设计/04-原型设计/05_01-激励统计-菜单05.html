@@ -1,0 +1,862 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>运筹马年 · 四项激励Plus版</title>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    /* ===== Reset & Base ===== */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", "Helvetica Neue", Arial, sans-serif; font-size: 14px; color: #333; background: #f0f2f5; }
+    .app { display: flex; height: 100vh; overflow: hidden; }
+    /* ===== Sidebar ===== */
+    .sidebar { width: 240px; min-width: 240px; background: #001629; color: #fff; display: flex; flex-direction: column; user-select: none; overflow-y: auto; }
+    .sidebar::-webkit-scrollbar { width: 4px; }
+    .sidebar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 2px; }
+    .logo-wrap { display: flex; align-items: center; height: 56px; padding: 0 20px; gap: 10px; border-bottom: 1px solid rgba(255,255,255,0.08); flex-shrink: 0; }
+    .logo-icon { width: 32px; height: 32px; background: #1890ff; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 700; color: #fff; }
+    .logo-text { font-size: 17px; font-weight: 700; letter-spacing: 1px; color: #fff; }
+    .nav { flex: 1; padding: 12px 0; }
+    .nav-group { padding: 8px 0; }
+    .nav-group-title { padding: 4px 20px 6px; font-size: 11px; color: rgba(255,255,255,0.35); text-transform: uppercase; letter-spacing: 1.5px; }
+    .nav-item { display: flex; align-items: center; padding: 0 20px; height: 40px; cursor: pointer; color: rgba(255,255,255,0.7); font-size: 14px; gap: 10px; position: relative; text-decoration: none; }
+    .nav-item:hover { background: rgba(255,255,255,0.06); color: #fff; }
+    .nav-item.active { background: rgba(24,144,255,0.18); color: #fff; }
+    .nav-item.active::before { content: ''; position: absolute; left: 0; top: 6px; bottom: 6px; width: 3px; background: #1890ff; border-radius: 0 2px 2px 0; }
+    .nav-item .nav-icon { width: 18px; height: 18px; flex-shrink: 0; opacity: 0.8; }
+    .nav-item.active .nav-icon { opacity: 1; }
+    .nav-item .nav-txt { flex: 1; }
+    .nav-badge { display: inline-flex; align-items: center; justify-content: center; min-width: 18px; height: 18px; border-radius: 9px; background: #ff4d4f; color: #fff; font-size: 11px; padding: 0 5px; font-weight: 600; line-height: 18px; }
+    .sub-arrow { transition: transform .2s; }
+    .nav-sub { padding: 0 0 4px 0; }
+    .nav-sub-item { display:flex;align-items:center;padding:0 20px 0 52px;height:34px;cursor:pointer;color:rgba(255,255,255,0.55);font-size:13px;gap:8px;transition:color .15s,background .15s;position:relative;text-decoration:none; }
+    .nav-sub-item:hover { background:rgba(255,255,255,0.06);color:#fff;text-decoration:none; }
+    .nav-sub-item.active { background:rgba(24,144,255,0.18);color:#fff; }
+    .nav-sub-item.active::before { content:'';position:absolute;left:0;top:4px;bottom:4px;width:3px;background:#1890ff;border-radius:0 2px 2px 0; }
+    /* ===== Main ===== */
+    .main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+    .topbar { height: 56px; background: #fff; border-bottom: 1px solid #e8e8e8; display: flex; align-items: center; justify-content: space-between; padding: 0 28px; flex-shrink: 0; }
+    .topbar-left { display: flex; align-items: center; gap: 16px; }
+    .topbar-title { font-size: 16px; font-weight: 600; color: #262626; }
+    .breadcrumb { display: flex; align-items: center; gap: 6px; font-size: 13px; color: #8c8c8c; }
+    .breadcrumb span { color: #595959; }
+    .topbar-right { display: flex; align-items: center; gap: 20px; }
+    .user-info { display: flex; align-items: center; gap: 8px; cursor: default; }
+    .user-avatar { width: 32px; height: 32px; border-radius: 50%; background: #1890ff; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 600; }
+    .user-name { font-size: 14px; font-weight: 500; color: #262626; }
+    .user-org { font-size: 12px; color: #8c8c8c; }
+    .content { flex: 1; overflow-y: auto; padding: 24px 28px; }
+    /* ===== Page Header ===== */
+    .page-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; flex-wrap: wrap; gap: 12px; }
+    .page-header-left h1 { font-size: 20px; font-weight: 600; color: #262626; }
+    .page-header-left h1 small { font-size: 14px; font-weight: 400; color: #8c8c8c; margin-left: 8px; }
+    .page-header-right { display: flex; align-items: center; gap: 12px; }
+    .page-header-right label { font-size: 13px; color: #595959; font-weight: 500; }
+    .page-header-right select { height: 32px; padding: 0 28px 0 10px; border: 1px solid #d9d9d9; border-radius: 6px; font-size: 13px; color: #262626; background: #fff; cursor: pointer; outline: none; }
+    .page-header-right select:focus { border-color: #1890ff; box-shadow: 0 0 0 2px rgba(24,144,255,0.08); }
+    /* ===== KPI Cards ===== */
+    .kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
+    .kpi-card { background: #fff; border-radius: 8px; padding: 20px; box-shadow: 0 1px 4px rgba(0,0,0,0.04); display: flex; flex-direction: column; gap: 8px; }
+    .kpi-card-top { display: flex; justify-content: space-between; align-items: flex-start; }
+    .kpi-card-label { font-size: 14px; color: #595959; }
+    .kpi-card-value { font-size: 32px; font-weight: 700; line-height: 1.1; }
+    .kpi-card-value.blue { color: #1890ff; }
+    .kpi-card-value.green { color: #52c41a; }
+    .kpi-card-value.orange { color: #fa8c16; }
+    .kpi-card-value.purple { color: #722ed1; }
+    .kpi-icon-wrap { width: 40px; height: 40px; border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .kpi-icon-wrap.blue-bg { background: #e6f7ff; color: #1890ff; }
+    .kpi-icon-wrap.green-bg { background: #f6ffed; color: #52c41a; }
+    .kpi-icon-wrap.orange-bg { background: #fff7e6; color: #fa8c16; }
+    .kpi-icon-wrap.purple-bg { background: #f9f0ff; color: #722ed1; }
+    .kpi-icon-wrap .lucide { width: 20px; height: 20px; }
+    .kpi-card-sub { font-size: 12px; color: #8c8c8c; }
+    /* ===== Tabs ===== */
+    .tab-bar { display: flex; gap: 0; margin-bottom: 20px; background: #fff; border-radius: 8px; padding: 4px; box-shadow: 0 1px 4px rgba(0,0,0,0.04); }
+    .tab-btn { flex: 1; height: 40px; border: none; background: transparent; font-size: 14px; font-weight: 500; color: #595959; border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; transition: color .2s, background .2s, border-color .2s; }
+    .tab-btn:hover { background: #f5f5f5; }
+    .tab-btn.active { background: #e6f7ff; color: #1890ff; box-shadow: 0 0 0 1px #bae7ff; }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+    /* ===== Stats Table ===== */
+    .rules-section { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,0.04); overflow: hidden; margin-bottom: 24px; }
+    .rules-toolbar { display: flex; align-items: center; justify-content: space-between; padding: 14px 20px; border-bottom: 1px solid #f0f0f0; background: #fafafa; }
+    .rules-toolbar .result-count { font-size: 13px; color: #8c8c8c; }
+    .rules-toolbar .result-count strong { color: #262626; }
+    .rules-table-wrap { overflow-x: auto; }
+    .rules-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+    .rules-table colgroup .col-cat { width: 110px; }
+    .rules-table colgroup .col-name { width: 140px; }
+    .rules-table colgroup .col-pts { width: 85px; }
+    .rules-table colgroup .col-qty { width: 75px; }
+    .rules-table colgroup .col-total { width: 90px; }
+    .rules-table thead th { padding: 11px 14px; font-size: 14px; font-weight: 700; color: #333; background: #f5f5f5; border-bottom: 2px solid #d9d9d9; text-align: left; white-space: nowrap; }
+    .rules-table thead th.c { text-align: center; }
+    .rules-table tbody td { padding: 10px 14px; font-size: 13px; color: #595959; border-bottom: 1px solid #e8e8e8; }
+    .rules-table tbody td.c { text-align: center; }
+    .rules-table tbody tr:hover td { background: #fafafa; }
+    .rules-table .cat-cell { vertical-align: middle; }
+    .cat-badge { display: inline-flex; align-items: center; gap: 4px; padding: 3px 10px; border-radius: 4px; font-size: 12px; font-weight: 500; white-space: nowrap; }
+    .cat-badge.blue { background: #e6f7ff; color: #1890ff; }
+    .cat-badge.green { background: #f6ffed; color: #52c41a; }
+    .cat-badge.orange { background: #fff7e6; color: #fa8c16; }
+    .cat-badge.purple { background: #f9f0ff; color: #722ed1; }
+    .rules-table .item-name { font-weight: 500; color: #262626; }
+    .rules-table .item-pts { color: #8c8c8c; }
+    .rules-table .item-qty { font-weight: 600; font-size: 15px; }
+    .rules-table .item-total { font-weight: 600; color: #1890ff; }
+    .rules-table .row-total td { border-top: 2px solid #1890ff; background: #f0f5ff; font-weight: 700; font-size: 15px; text-align: center; }
+    .rules-table .row-total td.c { color: #1890ff; }
+    /* ===== Ranking ===== */
+    .rank-grid { display: flex; gap: 16px; }
+    .rank-card { flex: 1; background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,0.04); overflow: hidden; border: 1px solid #e8e8e8; }
+    .rank-card-title { padding: 12px 16px; font-size: 14px; font-weight: 600; color: #262626; border-bottom: 1px solid #f0f0f0; background: #fafafa; display: flex; align-items: center; gap: 8px; }
+
+        .rank-table { width: 100%; border-collapse: collapse; table-layout: fixed; font-size: 14px; }
+    .rank-table thead th { padding: 0 16px; height: 50px; font-size: 13px; font-weight: 700; color: #262626; background: #f0f2f5; border-bottom: 2px solid #d9d9d9; text-align: center; white-space: nowrap; letter-spacing: 0.5px; }
+    .rank-table thead th.rp { width: 48px; text-align: center; }
+    .rank-table thead th.rn { text-align: left; width: 140px; }
+    .rank-table thead th.ro { width: 80px; text-align: center; }
+    .rank-table thead th.rs { width: 75px; }
+    .rank-table thead th.rf { width: 80px; }
+    .rank-table thead th.rd-rs { width: 75px; }
+    .rank-table thead th.rd-rf { width: 90px; }
+    .rank-table tbody td { padding: 0 16px; height: 50px; border-bottom: 1px solid #e8e8e8; text-align: center; font-size: 14px; color: #333; white-space: nowrap; }
+    .rank-table tbody td.left { text-align: left; font-weight: 600; color: #262626; }
+    .rank-table tbody td.score { font-weight: 700; color: #1890ff; font-size: 15px; }
+    .rank-table tbody tr:hover td { background: #f0f5ff; }
+    .rank-table tbody tr:nth-child(even) td { background: #fafafa; }
+    .rank-table tbody tr:nth-child(even):hover td { background: #eaf3ff; }
+    .rank-table .medal { font-size: 18px; }
+    .rank-empty { padding: 30px; text-align: center; color: #bfbfbf; font-size: 13px; }
+
+    /* ===== Button ===== */
+    .btn { display: inline-flex; align-items: center; gap: 6px; padding: 6px 16px; border: 1px solid #d9d9d9; border-radius: 6px; background: #fff; color: #595959; font-size: 13px; cursor: pointer; }
+    .btn:hover { border-color: #1890ff; color: #1890ff; }
+    .btn-primary { background: #1890ff; border-color: #1890ff; color: #fff; }
+    .btn-primary:hover { background: #40a9ff; border-color: #40a9ff; color: #fff; }
+    /* ===== Empty State ===== */
+    .empty-state { text-align: center; padding: 40px 20px; color: #bfbfbf; }
+    .empty-state .lucide { width: 48px; height: 48px; margin-bottom: 12px; opacity: 0.4; }
+    .empty-state p { font-size: 14px; }
+    /* ===== Toast ===== */
+    .toast { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: #262626; color: #fff; padding: 10px 24px; border-radius: 6px; font-size: 14px; z-index: 9999; opacity: 0; pointer-events: none; }
+    .toast.show { opacity: 1; }
+  
+    button:focus-visible, a:focus-visible, select:focus-visible, input:focus-visible { outline: 2px solid #1890ff; outline-offset: 2px; }
+  </style>
+</head>
+<body>
+<div class="app">
+
+  <!-- ===== Sidebar ===== -->
+    <aside class="sidebar">
+    <div class="logo-wrap">
+      <div class="logo-icon">运</div>
+      <span class="logo-text">运筹马年</span>
+    </div>
+    <nav class="nav">
+      <div class="nav-group">
+        <div class="nav-group-title">首页</div>
+        <div class="nav-item" onclick="location.href='02-工作台-菜单02.html'" style="cursor:pointer;">
+          <i class="nav-icon" data-lucide="layout-dashboard"></i>
+          <span class="nav-txt">工作台</span>
+        </div>
+      </div>
+      <div class="nav-group">
+        <div class="nav-group-title">业务核心</div>
+        <div class="nav-item" onclick="location.href='03_01-客户列表-菜单03.html'" style="cursor:pointer;">
+          <i class="nav-icon" data-lucide="users"></i>
+          <span class="nav-txt">客户管理</span>
+          <span class="nav-badge">24</span>
+        </div>
+        <div class="nav-sub" style="display:none;">
+          <div class="nav-sub-item" onclick="location.href='03_01-客户列表-菜单03.html'">
+            <span class="nav-txt">客户列表</span>
+          </div>
+          <div class="nav-sub-item" onclick="location.href='03_03-新增客户-菜单03.html'" style="cursor:pointer;">
+            <span class="nav-txt">新增客户</span>
+          </div>
+          <div class="nav-sub-item" onclick="location.href='03_02-客户详情-菜单03.html'" style="cursor:pointer;">
+            <span class="nav-txt">客户详情</span>
+          </div>
+        </div>
+
+        <div class="nav-item" onclick="location.href='04-文件管理-菜单04.html'" style="cursor:pointer;">
+          <i class="nav-icon" data-lucide="folder"></i>
+          <span class="nav-txt">文件管理</span>
+        </div>
+        <div class="nav-item active" onclick="location.href='05_02-激励上传-菜单05.html'" style="cursor:pointer;">
+          <i class="nav-icon" data-lucide="database"></i>
+          <span class="nav-txt">四项激励Plus版</span>
+        </div>
+        <div class="nav-item" onclick="location.href='06-提醒管理-菜单06.html'" style="cursor:pointer;">
+          <i class="nav-icon" data-lucide="bell"></i>
+          <span class="nav-txt">提醒管理</span>
+          <span class="nav-badge warn">3</span>
+        </div>
+        <div class="nav-item" onclick="location.href='07_01-公海池-菜单07.html'" style="cursor:pointer;">
+          <i class="nav-icon" data-lucide="sailboat"></i>
+          <span class="nav-txt">公海管理</span>
+        </div>
+        <div class="nav-item" onclick="location.href='08-审批管理-菜单08.html'" style="cursor:pointer;">
+          <i class="nav-icon" data-lucide="check-circle"></i>
+          <span class="nav-txt">审批管理</span>
+          <span class="nav-badge primary">2</span>
+        </div>
+      </div>
+      <div class="nav-group">
+        <div class="nav-group-title">考核与分析</div>
+        <div class="nav-item" onclick="location.href='09-统计分析-菜单09.html'" style="cursor:pointer;">
+          <i class="nav-icon" data-lucide="bar-chart-3"></i>
+          <span class="nav-txt">统计分析</span>
+        </div>
+        <div class="nav-item" onclick="toggleScoreSub(this)" style="cursor:pointer;">
+          <i class="nav-icon" data-lucide="trophy"></i>
+          <span class="nav-txt">积分榜</span>
+          <i class="sub-arrow" data-lucide="chevron-down" style="width:14px;height:14px;opacity:0.6;transition:transform .2s;"></i>
+        </div>
+        <div class="nav-sub" id="scoreSub" style="display:none;">
+          <div class="nav-sub-item" onclick="location.href='10_01-积分录入-菜单10.html'">
+            <i data-lucide="edit-3" style="width:14px;height:14px;"></i> 积分录入
+          </div>
+          <div class="nav-sub-item" onclick="location.href='10_02-积分排行-菜单10.html'">
+            <i data-lucide="bar-chart-3" style="width:14px;height:14px;"></i> 🏆 个人排行
+          </div>
+          <div class="nav-sub-item" onclick="location.href='10_03-部门排行-菜单10.html'">
+            <i data-lucide="building-2" style="width:14px;height:14px;"></i> 🏅 部门排行
+          </div>
+        </div>
+        <div class="nav-item" onclick="toggleSixSub(this)" style="cursor:pointer;">
+          <i class="nav-icon" data-lucide="target"></i>
+          <span class="nav-txt">核心客户六项指标</span>
+          <i class="sub-arrow" data-lucide="chevron-down" style="width:14px;height:14px;opacity:0.6;transition:transform .2s;"></i>
+        </div>
+        <div class="nav-sub" id="sixSub" style="display:none;">
+          <div class="nav-sub-item" onclick="location.href='09_02-核心客户指标排行-菜单09.html'">
+            <i data-lucide="pie-chart" style="width:14px;height:14px;"></i> 统计总览
+          </div>
+          <div class="nav-sub-item" onclick="location.href='09_02-核心客户指标排行-菜单09.html'">
+            <i data-lucide="user-check" style="width:14px;height:14px;"></i> 🏆 个人排行
+          </div>
+          <div class="nav-sub-item" onclick="location.href='09_02-核心客户指标排行-菜单09.html'">
+            <i data-lucide="building-2" style="width:14px;height:14px;"></i> 🏅 部门排行
+          </div>
+          <div class="nav-sub-item" onclick="location.href='09_02-核心客户指标排行-菜单09.html'">
+            <i data-lucide="globe" style="width:14px;height:14px;"></i> 🌍 大区排行
+          </div>
+        </div>
+      </div>
+      <div class="nav-group">
+        <div class="nav-group-title">系统管理</div>
+        <div class="nav-item" onclick="toggleOrgSub(this)" style="cursor:pointer;">
+          <i class="nav-icon" data-lucide="building-2"></i>
+          <span class="nav-txt">组织架构</span>
+          <i class="sub-arrow" data-lucide="chevron-down" style="width:14px;height:14px;opacity:0.6;transition:transform .2s;"></i>
+        </div>
+        <div class="nav-sub" id="orgSub" style="display:none;">
+          <div class="nav-sub-item" onclick="location.href='11-组织架构-菜单11.html#personnel'">
+            <i data-lucide="users" style="width:14px;height:14px;"></i> 人员列表
+          </div>
+          <div class="nav-sub-item" onclick="location.href='11-组织架构-菜单11.html#dept'">
+            <i data-lucide="layers" style="width:14px;height:14px;"></i> 部门管理
+          </div>
+          <div class="nav-sub-item" onclick="location.href='11-组织架构-菜单11.html#position'">
+            <i data-lucide="briefcase" style="width:14px;height:14px;"></i> 岗位设置
+          </div>
+          <div class="nav-sub-item" onclick="location.href='11-组织架构-菜单11.html#permission'">
+            <i data-lucide="shield" style="width:14px;height:14px;"></i> 权限设置
+          </div>
+        </div>
+        <div class="nav-item" onclick="location.href='12-系统设置-菜单12.html'" style="cursor:pointer;">
+          <i class="nav-icon" data-lucide="settings"></i>
+          <span class="nav-txt">系统设置</span>
+        </div>
+        <div class="nav-item" onclick="location.href='13-日志管理-菜单13.html'" style="cursor:pointer;">
+          <i class="nav-icon" data-lucide="file-text"></i>
+          <span class="nav-txt">日志管理</span>
+        </div>
+      </div>
+    </nav>
+  </aside>
+
+  <!-- ===== Main Area ===== -->
+  <div class="main">
+
+    <!-- ===== Topbar ===== -->
+    <header class="topbar">
+      <div class="topbar-left">
+        <span class="topbar-title">四项激励Plus版</span>
+        <div class="breadcrumb">
+          <i data-lucide="home" style="width:14px;height:14px;"></i>
+          <span>激励模块</span>
+        </div>
+      </div>
+      <div class="topbar-right">
+        <i data-lucide="bell" style="width:18px;height:18px;color:#8c8c8c;cursor:pointer;"></i>
+        <i data-lucide="help-circle" style="width:18px;height:18px;color:#8c8c8c;cursor:pointer;"></i>
+        <div class="user-info">
+          <div class="user-avatar">王</div>
+          <span class="user-name">王磊磊</span>
+          <span class="user-org">· 内蒙办 销售工程师</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- ===== Content ===== -->
+    <div class="content">
+
+      <!-- Page Header -->
+      <div class="page-header">
+        <div class="page-header-left">
+          <h1>四项激励Plus版 <small>激励统计 · 上传文件自动计分</small></h1>
+        </div>
+        <div class="page-header-right">
+          <label for="selPerson">人员</label>
+          <select id="selPerson" onchange="renderAll()">
+            <option>王磊磊</option>
+            <option>李明</option>
+            <option>张三</option>
+            <option>赵四</option>
+          </select>
+          <label for="selPeriod">周期</label>
+          <select id="selPeriod" onchange="renderAll()">
+            <option>2026上半年</option>
+            <option>2026下半年</option>
+            <option>2025下半年</option>
+          </select>
+          <button class="btn btn-primary" onclick="exportExcel()" aria-label="导出Excel">
+            <i data-lucide="file-spreadsheet" style="width:14px;height:14px;"></i>
+            导出Excel
+          </button>
+        </div>
+      </div>
+
+      <!-- 4 KPI Cards -->
+      <div class="kpi-grid" id="kpiGrid">
+        <div class="kpi-card">
+          <div class="kpi-card-top">
+            <div>
+              <div class="kpi-card-label">📁 激励事项数</div>
+              <div class="kpi-card-value blue" id="kpiItems">0</div>
+            </div>
+            <div class="kpi-icon-wrap blue-bg"><i data-lucide="list"></i></div>
+          </div>
+          <div class="kpi-card-sub">从激励配置读取</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-card-top">
+            <div>
+              <div class="kpi-card-label">📤 可共享项数</div>
+              <div class="kpi-card-value green" id="kpiShareable">0</div>
+            </div>
+            <div class="kpi-icon-wrap green-bg"><i data-lucide="share-2"></i></div>
+          </div>
+          <div class="kpi-card-sub">名称含"可共享"的项</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-card-top">
+            <div>
+              <div class="kpi-card-label">📊 本周期文件</div>
+              <div class="kpi-card-value orange" id="kpiFiles">0</div>
+            </div>
+            <div class="kpi-icon-wrap orange-bg"><i data-lucide="file-text"></i></div>
+          </div>
+          <div class="kpi-card-sub" id="kpiFilesSub">已上传文件数量</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-card-top">
+            <div>
+              <div class="kpi-card-label">🏆 总积分</div>
+              <div class="kpi-card-value purple" id="kpiScore">0</div>
+            </div>
+            <div class="kpi-icon-wrap purple-bg"><i data-lucide="award"></i></div>
+          </div>
+          <div class="kpi-card-sub">1文件 = 1积分</div>
+        </div>
+      </div>
+
+      <!-- Tab Bar: 激励统计表 | 激励排行 -->
+      <div class="tab-bar">
+        <button class="tab-btn active" onclick="switchTab('tab1')">
+          <i data-lucide="table" style="width:16px;height:16px;"></i> 激励统计表
+        </button>
+        <button class="tab-btn" onclick="switchTab('tab2')">
+          <i data-lucide="trophy" style="width:16px;height:16px;"></i> 激励排行
+        </button>
+      </div>
+
+      <!-- Tab1: 激励统计表 -->
+      <div class="tab-content active" id="tab1">
+        <div class="rules-section">
+          <div class="rules-toolbar">
+            <span class="result-count">共 <strong id="ruleCount">0</strong> 项激励规则</span>
+            <button class="btn" onclick="exportExcel()" aria-label="导出Excel">
+              <i data-lucide="file-spreadsheet" style="width:14px;height:14px;"></i>
+              导出Excel
+            </button>
+          </div>
+          <div class="rules-table-wrap">
+            <table class="rules-table" id="rulesTable">
+              <colgroup>
+                <col class="col-cat">
+                <col class="col-name">
+                <col class="col-pts">
+                <col class="col-qty">
+                <col class="col-total">
+              </colgroup>
+              <thead>
+                <tr>
+                  <th>激励大类</th>
+                  <th>激励细分</th>
+                  <th class="c">激励积分</th>
+                  <th class="c">数量</th>
+                  <th class="c">总积分</th>
+                </tr>
+              </thead>
+              <tbody id="rulesBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab2: 激励排行 -->
+      <div class="tab-content" id="tab2">
+        <div class="rank-grid">
+          <!-- 个人排行 -->
+          <div class="rank-card">
+            <div class="rank-card-title"><i data-lucide="user" style="width:16px;height:16px;"></i> 个人排行</div>
+            <table class="rank-table">
+              <colgroup>
+                <col class="rp"><col class="rn"><col class="ro"><col class="rs"><col class="rf">
+              </colgroup>
+              <thead>
+                <tr><th class="rp">排名</th><th class="rn">姓名</th><th class="ro">办事处</th><th class="rs">总积分</th><th class="rf">文件数</th></tr>
+              </thead>
+              <tbody id="rankPersonBody"></tbody>
+            </table>
+          </div>
+          <!-- 部门排行 -->
+          <div class="rank-card">
+            <div class="rank-card-title"><i data-lucide="building-2" style="width:16px;height:16px;"></i> 部门排行</div>
+            <table class="rank-table">
+              <colgroup>
+                <col class="rp"><col class="rn"><col class="rd-rs"><col class="rd-rf">
+              </colgroup>
+              <thead>
+                <tr><th class="rp">排名</th><th class="rn">部门</th><th class="rd-rs">总积分</th><th class="rd-rf">参与人数</th></tr>
+              </thead>
+              <tbody id="rankDeptBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /content -->
+  </div><!-- /main -->
+</div><!-- /app -->
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+  // ===== 四项激励Plus版 · 激励统计首页（配置化）=====
+
+  // ===== 基础数据 =====
+  var PERSONS = ['王磊磊','李明','张三','赵四'];
+  var DEPT_MAP = {'王磊磊':'内蒙办','李明':'内蒙办','张三':'太原办','赵四':'内蒙办'};
+  var DEPTS = ['内蒙办','太原办'];
+
+  // 大类颜色映射
+  var CAT_COLORS = {
+    '外出参观': 'blue',
+    '交流拜访': 'green',
+    '两谈两做方案': 'orange',
+    '产品试点': 'purple'
+  };
+  var CAT_ICONS = {
+    '外出参观': 'map-pin',
+    '交流拜访': 'users',
+    '两谈两做方案': 'file-text',
+    '产品试点': 'flask'
+  };
+
+  // ===== 从localStorage读取 incentive_config =====
+  function getIncentiveConfig() {
+    try {
+      var s = localStorage.getItem('incentive_config');
+      if (!s) {
+        // 默认配置
+        var defaults = [
+          {id:1, cat:'外出参观',name:'南京参观【可共享】',pts:10,sort:1},
+          {id:2, cat:'外出参观',name:'终端考察【可共享】',pts:10,sort:2},
+          {id:3, cat:'交流拜访',name:'技术交流会【可共享】',pts:5,sort:3},
+          {id:4, cat:'交流拜访',name:'高层拜访【可共享】',pts:5,sort:4},
+          {id:5, cat:'两谈两做方案',name:'项目方案',pts:2,sort:5},
+          {id:6, cat:'两谈两做方案',name:'价值服务手册',pts:2,sort:6},
+          {id:7, cat:'两谈两做方案',name:'使用报告【可共享】',pts:2,sort:7},
+          {id:8, cat:'产品试点',name:'涂层类【都可共享】',pts:1,sort:8},
+          {id:9, cat:'产品试点',name:'楼梯板类【都可共享】',pts:1,sort:9},
+          {id:10,cat:'产品试点',name:'机封类【都可共享】',pts:1,sort:10},
+          {id:11,cat:'产品试点',name:'密封类【都可共享】',pts:1,sort:11},
+          {id:12,cat:'产品试点',name:'润滑类【都可共享】',pts:1,sort:12}
+        ];
+        localStorage.setItem('incentive_config', JSON.stringify(defaults));
+        return defaults;
+      }
+      return JSON.parse(s);
+    } catch(e) { return []; }
+  }
+
+  // ===== 从incentive_config中提取分类列表（保持顺序）=====
+  function getCategories(config) {
+    var cats = [];
+    var seen = {};
+    config.forEach(function(item) {
+      if (!seen[item.cat]) {
+        seen[item.cat] = true;
+        cats.push(item.cat);
+      }
+    });
+    return cats;
+  }
+
+  // ===== localStorage 数据存取 =====
+  function loadFiles() {
+    try { var s = localStorage.getItem('istats_files'); var all = s ? JSON.parse(s) : []; return all; }
+    catch(e) { return []; }
+  }
+  // Permission-aware file access
+  var _adminRoles = ['系统管理员', '总监'];
+  var _currentUser = { name: '王磊磊', role: '销售工程师' };
+  function getVisibleFiles() {
+    var all = loadFiles();
+    if (_adminRoles.indexOf(_currentUser.role) >= 0) return all;
+    return all.filter(function(f) { return f.person === _currentUser.name || f.shared !== false; });
+  }
+  function saveFiles(files) {
+    localStorage.setItem('istats_files', JSON.stringify(files));
+  }
+  function getFiles(person, period) {
+    return loadFiles().filter(function(f) { return f.person === person && f.period === period; });
+  }
+
+  // ===== KPI动画 =====
+  function animateKPI(el, target, duration) {
+    duration = duration || 600;
+    var start = 0, startTime = null;
+    function step(timestamp) {
+      if (!startTime) startTime = timestamp;
+      var progress = Math.min((timestamp - startTime) / duration, 1);
+      var current = Math.round(progress * target);
+      el.textContent = current;
+      if (progress < 1) { requestAnimationFrame(step); }
+      else { el.textContent = target; }
+    }
+    requestAnimationFrame(step);
+  }
+
+  // ===== Tab切换 =====
+  function switchTab(tabId) {
+    document.querySelectorAll('.tab-btn').forEach(function(b) { b.classList.remove('active'); });
+    document.querySelectorAll('.tab-content').forEach(function(c) { c.classList.remove('active'); });
+    if (tabId === 'tab1') {
+      document.querySelectorAll('.tab-btn')[0].classList.add('active');
+    } else {
+      document.querySelectorAll('.tab-btn')[1].classList.add('active');
+    }
+    document.getElementById(tabId).classList.add('active');
+    if (tabId === 'tab2') renderRanking();
+  }
+
+  // ===== 渲染全部 =====
+  function renderAll() {
+    renderKPIAndTable();
+    if (document.getElementById('tab2').classList.contains('active')) {
+      renderRanking();
+    }
+    lucide.createIcons();
+  }
+
+  // ===== 渲染KPI + 统计表 =====
+  function renderKPIAndTable() {
+    var person = document.getElementById('selPerson').value;
+    var period = document.getElementById('selPeriod').value;
+    var config = getIncentiveConfig();
+    var files = getFiles(person, period);
+
+    // 按itemIdx统计数量 (注意:istats_files中itemIdx对应config中的id)
+    var counts = {};
+    files.forEach(function(f) {
+      counts[f.itemIdx] = (counts[f.itemIdx] || 0) + 1;
+    });
+
+    // 从config中提取分类和排序
+    var categories = getCategories(config);
+    // 按类别分组
+    var catGroups = {};
+    categories.forEach(function(cat) {
+      catGroups[cat] = config.filter(function(item) { return item.cat === cat; });
+    });
+
+    var totalQty = 0;
+    var totalScore = 0;
+    var totalItems = config.length;
+    var shareableCount = 0;
+    var html = '';
+
+    categories.forEach(function(cat) {
+      var items = catGroups[cat];
+      var catQty = 0;
+      var catScore = 0;
+
+      items.forEach(function(item, idx) {
+        var q = counts[item.id] || 0;
+        var s = q * item.pts;
+        catQty += q;
+        catScore += s;
+        totalQty += q;
+        totalScore += s;
+
+        // 统计可共享项
+        if (item.name.indexOf('可共享') >= 0 || item.name.indexOf('都可共享') >= 0) {
+          shareableCount++;
+        }
+
+        if (idx === 0) {
+          var color = CAT_COLORS[cat] || 'blue';
+          html += '<tr><td class="cat-cell" rowspan="' + items.length + '"><span class="cat-badge ' + color + '">' +
+            getCatIcon(cat) + ' ' + cat + '</span></td>';
+        }
+
+        html += '<td class="item-name">' + escapeHtml(item.name) + '</td>' +
+          '<td class="c item-pts">' + item.pts + '</td>' +
+          '<td class="c item-qty">' + q + '</td>' +
+          '<td class="c item-total">' + s + '</td></tr>';
+      });
+    });
+
+    // 合计行
+    html += '<tr class="row-total"><td colspan="2">合计</td>' +
+      '<td class="c">' + totalItems + '项</td>' +
+      '<td class="c">' + totalQty + '</td>' +
+      '<td class="c">' + totalScore + '</td></tr>';
+
+    document.getElementById('rulesBody').innerHTML = html;
+    document.getElementById('ruleCount').textContent = totalItems;
+
+    // KPI 卡片
+    animateKPI(document.getElementById('kpiItems'), totalItems);
+    animateKPI(document.getElementById('kpiShareable'), shareableCount);
+    animateKPI(document.getElementById('kpiFiles'), totalQty);
+    animateKPI(document.getElementById('kpiScore'), totalScore);
+
+    document.getElementById('kpiFilesSub').textContent = person + ' · ' + period + ' 共上传 ' + totalQty + ' 个文件';
+  }
+
+  // ===== 渲染排行 =====
+  function renderRanking() {
+    var period = document.getElementById('selPeriod').value;
+    var config = getIncentiveConfig();
+    var allFiles = getVisibleFiles().filter(function(f) { return f.period === period; });
+
+    // --- 个人排行 ---
+    var personScores = {};
+    PERSONS.forEach(function(p) {
+      personScores[p] = { files: 0, score: 0 };
+    });
+
+    allFiles.forEach(function(f) {
+      var item = config.find(function(c) { return c.id === f.itemIdx; });
+      if (personScores[f.person]) {
+        personScores[f.person].files += 1;
+        personScores[f.person].score += 1;
+      }
+    });
+
+    var personRank = PERSONS.map(function(p) {
+      return { person: p, org: DEPT_MAP[p], files: personScores[p].files, score: personScores[p].score };
+    });
+    personRank.sort(function(a, b) { return b.score - a.score; });
+
+    var ph = '';
+    personRank.forEach(function(r, i) {
+      var medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : (i + 1);
+      ph += '<tr>' +
+        '<td class="medal">' + medal + '</td>' +
+        '<td class="left">' + r.person + '</td>' +
+        '<td>' + r.org + '</td>' +
+        '<td class="score">' + r.score + '分</td>' +
+        '<td>' + r.files + '个文件</td></tr>';
+    });
+    if (PERSONS.length === 0) ph = '<tr><td colspan="5" class="rank-empty">暂无数据</td></tr>';
+    document.getElementById('rankPersonBody').innerHTML = ph;
+
+    // --- 部门排行 ---
+    var deptScores = {};
+    DEPTS.forEach(function(d) {
+      deptScores[d] = { files: 0, score: 0, persons: {} };
+    });
+
+    allFiles.forEach(function(f) {
+      var dept = DEPT_MAP[f.person];
+      if (!dept) return;
+      if (!deptScores[dept]) deptScores[dept] = { files: 0, score: 0, persons: {} };
+      deptScores[dept].files += 1;
+      deptScores[dept].score += 1;
+      deptScores[dept].persons[f.person] = true;
+    });
+
+    var deptRank = Object.keys(deptScores).map(function(d) {
+      return {
+        dept: d,
+        score: deptScores[d].score,
+        files: deptScores[d].files,
+        participants: Object.keys(deptScores[d].persons).length
+      };
+    });
+    deptRank.sort(function(a, b) { return b.score - a.score; });
+
+    // 也包含零分部门
+    DEPTS.forEach(function(d) {
+      var found = deptRank.some(function(r) { return r.dept === d; });
+      if (!found) deptRank.push({ dept: d, score: 0, files: 0, participants: 0 });
+    });
+    deptRank.sort(function(a, b) { return b.score - a.score; });
+
+    var dh = '';
+    deptRank.forEach(function(r, i) {
+      var medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : (i + 1);
+      dh += '<tr>' +
+        '<td class="medal">' + medal + '</td>' +
+        '<td class="left">' + r.dept + '</td>' +
+        '<td class="score">' + r.score + '分</td>' +
+        '<td>' + r.participants + '人参与</td></tr>';
+    });
+    if (deptRank.length === 0) dh = '<tr><td colspan="4" class="rank-empty">暂无数据</td></tr>';
+    document.getElementById('rankDeptBody').innerHTML = dh;
+  }
+
+  // ===== 工具函数 =====
+  function getCatIcon(cat) {
+    var icon = CAT_ICONS[cat] || 'circle';
+    return '<i data-lucide="' + icon + '" style="width:12px;height:12px;"></i>';
+  }
+
+  function escapeHtml(s) {
+    var d = document.createElement('div');
+    d.appendChild(document.createTextNode(s));
+    return d.innerHTML;
+  }
+
+  function toast(msg) {
+    var el = document.getElementById('toast');
+    el.textContent = msg;
+    el.classList.add('show');
+    clearTimeout(el._timer);
+    el._timer = setTimeout(function() { el.classList.remove('show'); }, 2000);
+  }
+
+  function toggleSubMenu(el) {
+    var sub = document.getElementById('navSub');
+    var arrow = el.querySelector('.sub-arrow');
+    if (!sub) return;
+    var isHidden = sub.style.display === 'none' || !sub.style.display;
+    sub.style.display = isHidden ? 'block' : 'none';
+    if (arrow) arrow.style.transform = isHidden ? 'rotate(0deg)' : 'rotate(-90deg)';
+  }
+
+  // ===== 导出Excel（SheetJS CDN）=====
+  function exportExcel() {
+    if (typeof XLSX !== 'undefined') { doExportExcel(); }
+    else {
+      var sc = document.getElementById('xlsxScript');
+      if (!sc) {
+        sc = document.createElement('script');
+        sc.id = 'xlsxScript';
+        sc.src = 'https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js';
+        sc.onload = doExportExcel;
+        document.head.appendChild(sc);
+      }
+    }
+  }
+
+  function doExportExcel() {
+    var person = document.getElementById('selPerson').value;
+    var period = document.getElementById('selPeriod').value;
+    var config = getIncentiveConfig();
+    var files = getFiles(person, period);
+
+    var counts = {};
+    files.forEach(function(f) { counts[f.itemIdx] = (counts[f.itemIdx] || 0) + 1; });
+
+    var data = [['激励大类', '激励细分', '激励积分', '数量', '总积分']];
+    var tq = 0, ts = 0;
+    config.forEach(function(item) {
+      var q = counts[item.id] || 0;
+      var s = q * item.pts;
+      tq += q; ts += s;
+      data.push([item.cat, item.name, item.pts, q, s]);
+    });
+    data.push([]);
+    data.push(['合计', '', config.length + '项', tq, ts]);
+
+    var wb = XLSX.utils.book_new();
+    var ws = XLSX.utils.aoa_to_sheet(data);
+    XLSX.utils.book_append_sheet(wb, ws, '四项激励统计');
+    XLSX.writeFile(wb, person + '_' + period + '_四项激励统计.xlsx');
+    toast('✅ 已导出Excel');
+  }
+
+  // ===== Init =====
+  lucide.createIcons();
+
+  // Initialize sample incentive data for demo
+  function initSampleIncentive() {
+    var files = loadFiles();
+    if(files.length > 0) return; // Don't overwrite existing data
+    var demo = [
+      {id:'demo_1', person:'王磊磊', period:'2026上半年', itemIdx:0, fileName:'南京参观报告.pdf', fileSize:2048000, uploadDate:'2026-05-15'},
+      {id:'demo_2', person:'王磊磊', period:'2026上半年', itemIdx:0, fileName:'南京考察照片.zip', fileSize:5120000, uploadDate:'2026-05-20'},
+      {id:'demo_3', person:'王磊磊', period:'2026上半年', itemIdx:2, fileName:'技术交流会纪要.docx', fileSize:1024000, uploadDate:'2026-05-18'},
+      {id:'demo_4', person:'李明', period:'2026上半年', itemIdx:0, fileName:'南京参观总结.pdf', fileSize:1536000, uploadDate:'2026-05-12'},
+      {id:'demo_5', person:'李明', period:'2026上半年', itemIdx:4, fileName:'项目方案.docx', fileSize:2048000, uploadDate:'2026-05-10'},
+      {id:'demo_6', person:'张三', period:'2026上半年', itemIdx:1, fileName:'终端考察报告.pdf', fileSize:3072000, uploadDate:'2026-05-22'},
+      {id:'demo_7', person:'张三', period:'2026上半年', itemIdx:2, fileName:'技术交流PPT.pptx', fileSize:8192000, uploadDate:'2026-05-16'},
+      {id:'demo_8', person:'张三', period:'2026上半年', itemIdx:3, fileName:'高层拜访纪要.docx', fileSize:512000, uploadDate:'2026-05-14'},
+      {id:'demo_9', person:'赵四', period:'2026上半年', itemIdx:6, fileName:'使用报告.pdf', fileSize:1024000, uploadDate:'2026-05-08'},
+      {id:'demo_10', person:'赵四', period:'2026上半年', itemIdx:7, fileName:'涂层测试数据.xlsx', fileSize:2048000, uploadDate:'2026-05-05'},
+      {id:'demo_11', person:'王磊磊', period:'2026上半年', itemIdx:10, fileName:'密封方案.pptx', fileSize:5120000, uploadDate:'2026-05-25'},
+      {id:'demo_12', person:'李明', period:'2026上半年', itemIdx:10, fileName:'密封案例.docx', fileSize:768000, uploadDate:'2026-05-21'},
+    ];
+    saveFiles(demo);
+  }
+  initSampleIncentive();
+    renderAll();
+
+  function toggleOrgSub(el) {
+    var sub = document.getElementById('orgSub');
+    var arrow = el.querySelector('.sub-arrow');
+    if (!sub) return;
+    sub.style.display = sub.style.display === 'none' ? 'block' : 'none';
+    if (arrow) arrow.style.transform = sub.style.display === 'block' ? 'rotate(0deg)' : 'rotate(-90deg)';
+  }
+
+  function toggleSixSub(el) {
+    var sub = document.getElementById('sixSub');
+    if (!sub) return;
+    sub.style.display = sub.style.display === 'none' ? 'block' : 'none';
+    var arrow = el.querySelector('.sub-arrow');
+    if (arrow) arrow.style.transform = sub.style.display === 'block' ? 'rotate(0deg)' : 'rotate(-90deg)';
+  }
+  function toggleScoreSub(el) {
+    var sub = document.getElementById('scoreSub');
+    if (!sub) return;
+    sub.style.display = sub.style.display === 'none' ? 'block' : 'none';
+    var arrow = el.querySelector('.sub-arrow');
+    if (arrow) arrow.style.transform = sub.style.display === 'block' ? 'rotate(0deg)' : 'rotate(-90deg)';
+  }
+</script>
+</body>
+</html>

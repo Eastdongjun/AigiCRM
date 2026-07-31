@@ -1,0 +1,265 @@
+package com.ycmn.common.engine;
+
+import com.ycmn.module.system.entity.SysPermissionRule;
+import com.ycmn.security.SecurityUser;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+import java.util.*;
+
+/**
+ * 权限规则引擎 — 将数据库配置的规则转换为运行时的过滤条件
+ *
+ * 支持五种规则类型：
+ *   column_filter   → SQL WHERE 子句
+ *   org_filter      → 组织ID过滤
+ *   field_visible   → 响应字段可见性
+ *   action_control  → 操作权限
+ *   time_range      → 时间范围过滤
+ */
+public class PermissionRuleEngine {
+
+    /**
+     * 对一批规则求值，生成合并后的过滤结果
+     *
+     * @param rules 用户所有生效的权限规则
+     * @param user  当前登录用户（提供变量值）
+     */
+    public static RuleResult evaluate(List<SysPermissionRule> rules, SecurityUser user) {
+        if (rules == null || rules.isEmpty()) {
+            return RuleResult.EMPTY;
+        }
+
+        VariableContext ctx = VariableContext.from(user);
+        List<String> whereClauses = new ArrayList<>();
+        Set<String> hiddenFields = new LinkedHashSet<>();
+        Set<String> visibleFields = new LinkedHashSet<>();
+        Map<String, Boolean> actions = new LinkedHashMap<>();
+
+        for (SysPermissionRule rule : rules) {
+            if (rule.getStatus() == null || rule.getStatus() != 1) continue;
+
+            switch (rule.getRuleType()) {
+                case "column_filter" -> evaluateColumnFilter(rule, ctx, whereClauses);
+                case "org_filter"    -> evaluateOrgFilter(rule, ctx, whereClauses);
+                case "time_range"    -> evaluateTimeRange(rule, ctx, whereClauses);
+                case "field_visible" -> evaluateFieldVisible(rule, hiddenFields, visibleFields);
+                case "action_control" -> evaluateActionControl(rule, actions);
+            }
+        }
+
+        return RuleResult.builder()
+                .whereClauses(Collections.unmodifiableList(whereClauses))
+                .hiddenFields(Collections.unmodifiableSet(hiddenFields))
+                .visibleFields(Collections.unmodifiableSet(visibleFields))
+                .actions(Collections.unmodifiableMap(actions))
+                .build();
+    }
+
+    // ======================== 各类型求值 ========================
+
+    /** 字段值过滤：WHERE dept_id = 5 或 WHERE owner_id IN (1,2,3) */
+    private static void evaluateColumnFilter(SysPermissionRule rule, VariableContext ctx,
+                                              List<String> clauses) {
+        String value = resolve(rule.getRuleValue(), ctx);
+        if (value == null || value.isEmpty()) return;
+
+        String op = rule.getOperator();
+        String col = escapeColumn(rule.getTargetColumn());
+
+        switch (op) {
+            case "eq"  -> clauses.add(col + " = " + quoteValue(value));
+            case "ne"  -> clauses.add(col + " != " + quoteValue(value));
+            case "in"  -> clauses.add(col + " IN (" + value + ")");
+            case "like" -> clauses.add(col + " LIKE " + quoteValue("%" + value + "%"));
+            case "is_null" -> clauses.add(col + " IS NULL");
+        }
+    }
+
+    /** 组织过滤：WHERE org_id IN (递归子节点) 或 WHERE org_id = ? */
+    private static void evaluateOrgFilter(SysPermissionRule rule, VariableContext ctx,
+                                           List<String> clauses) {
+        String value = resolve(rule.getRuleValue(), ctx);
+        if (value == null || value.isEmpty()) return;
+
+        String op = rule.getOperator();
+        String col = escapeColumn(rule.getTargetColumn());
+
+        if ("in".equals(op)) {
+            // 此时 value 已是 "1,2,3" 格式的 ID 列表
+            clauses.add(col + " IN (" + value + ")");
+        } else if ("eq".equals(op)) {
+            clauses.add(col + " = " + quoteValue(value));
+        }
+    }
+
+    /** 时间范围：WHERE create_time BETWEEN '2024-01-01' AND '2024-01-31' */
+    private static void evaluateTimeRange(SysPermissionRule rule, VariableContext ctx,
+                                           List<String> clauses) {
+        String value = resolve(rule.getRuleValue(), ctx);
+        if (value == null || value.isEmpty()) return;
+
+        String col = escapeColumn(rule.getTargetColumn());
+
+        if ("between".equals(rule.getOperator())) {
+            String[] parts = value.split(",");
+            if (parts.length == 2) {
+                clauses.add(col + " BETWEEN " + quoteValue(parts[0].trim())
+                        + " AND " + quoteValue(parts[1].trim()));
+            }
+        }
+    }
+
+    /** 字段可见性：读取 rule_value JSON 中的 hidden/visible 列表 */
+    private static void evaluateFieldVisible(SysPermissionRule rule,
+                                              Set<String> hidden, Set<String> visible) {
+        String raw = rule.getRuleValue();
+        if (raw == null) return;
+        try {
+            parseFieldPermissions(raw, hidden, visible);
+        } catch (Exception ignored) {}
+    }
+
+    /** 操作控制：读取 rule_value JSON 中的操作权限 */
+    private static void evaluateActionControl(SysPermissionRule rule,
+                                               Map<String, Boolean> actions) {
+        String raw = rule.getRuleValue();
+        if (raw == null) return;
+        try {
+            parseActionPermissions(raw, actions);
+        } catch (Exception ignored) {}
+    }
+
+    // ======================== 变量替换 ========================
+
+    /** 替换规则值中的 ${变量} */
+    static String resolve(String template, VariableContext ctx) {
+        if (template == null) return null;
+        String result = template;
+        for (Map.Entry<String, String> entry : ctx.variables.entrySet()) {
+            result = result.replace("${" + entry.getKey() + "}", entry.getValue());
+        }
+        return result;
+    }
+
+    // ======================== 安全工具 ========================
+
+    /** 列名校验，防SQL注入 */
+    static String escapeColumn(String col) {
+        if (col == null) return null;
+        if (!col.matches("^[a-zA-Z_][a-zA-Z0-9_\\.]*$")) {
+            throw new IllegalArgumentException("非法列名: " + col);
+        }
+        return col;
+    }
+
+    /** 值加引号，防SQL注入 */
+    static String quoteValue(String val) {
+        return "'" + val.replace("'", "''") + "'";
+    }
+
+    /** 简版 JSON 解析字段权限 {"hidden":["a","b"],"visible":["c"]} */
+    static void parseFieldPermissions(String json, Set<String> hidden, Set<String> visible) {
+        extractArray(json, "hidden", hidden);
+        extractArray(json, "visible", visible);
+    }
+
+    private static void extractArray(String json, String key, Set<String> target) {
+        int keyIdx = json.indexOf("\"" + key + "\"");
+        if (keyIdx < 0) return;
+        int arrStart = json.indexOf("[", keyIdx);
+        int arrEnd = json.indexOf("]", arrStart);
+        if (arrStart > 0 && arrEnd > arrStart) {
+            String arr = json.substring(arrStart + 1, arrEnd);
+            for (String item : arr.split(",")) {
+                String cleaned = item.trim().replace("\"", "");
+                if (!cleaned.isEmpty()) target.add(cleaned);
+            }
+        }
+    }
+
+    /** 简版 JSON 解析操作权限 {"create":false,"delete":true} */
+    static void parseActionPermissions(String json, Map<String, Boolean> actions) {
+        String content = json.replace("{", "").replace("}", "");
+        for (String pair : content.split(",")) {
+            String[] kv = pair.split(":");
+            if (kv.length == 2) {
+                String k = kv[0].trim().replace("\"", "");
+                boolean v = Boolean.parseBoolean(kv[1].trim());
+                actions.put(k, v);
+            }
+        }
+    }
+
+    // ======================== 内部类 ========================
+
+    /** 变量上下文 — 提供规则变量值 */
+    @Data
+    public static class VariableContext {
+        Map<String, String> variables = new LinkedHashMap<>();
+
+        static VariableContext from(SecurityUser user) {
+            VariableContext ctx = new VariableContext();
+            if (user == null) return ctx;
+
+            ctx.put("user.userId",   String.valueOf(user.getUserId()));
+            ctx.put("user.username", user.getUsername());
+            ctx.put("user.realName", nvl(user.getRealName()));
+            ctx.put("user.orgId",    nvl(user.getOrgId()));
+            ctx.put("user.deptId",   nvl(user.getDeptId()));
+
+            // 组织ID列表（含下级）
+            List<Long> managed = user.getManagedOrgIds();
+            if (managed != null && !managed.isEmpty()) {
+                ctx.put("user.orgIdsAndChildren",
+                        String.join(",", managed.stream().map(String::valueOf).toList()));
+            } else {
+                ctx.put("user.orgIdsAndChildren", "0");
+            }
+
+            // 时间变量
+            java.time.LocalDate today = java.time.LocalDate.now();
+            ctx.put("time.today", today.toString());
+            ctx.put("time.thisMonthStart", today.withDayOfMonth(1).toString());
+            ctx.put("time.thisMonthEnd",
+                    today.withDayOfMonth(today.lengthOfMonth()).toString());
+            ctx.put("time.thisQuarterStart",
+                    today.withMonth(((today.getMonthValue() - 1) / 3) * 3 + 1)
+                            .withDayOfMonth(1).toString());
+            java.time.LocalDate quarterEnd = today
+                    .withMonth(((today.getMonthValue() - 1) / 3) * 3 + 3)
+                    .withDayOfMonth(1).plusMonths(1).minusDays(1);
+            ctx.put("time.thisQuarterEnd", quarterEnd.toString());
+
+            return ctx;
+        }
+
+        void put(String key, String value) { variables.put(key, value); }
+
+        private static String nvl(Object obj) {
+            return obj != null ? String.valueOf(obj) : "";
+        }
+    }
+
+    /** 规则求值结果 */
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class RuleResult {
+        public static final RuleResult EMPTY = RuleResult.builder().build();
+
+        @Builder.Default List<String> whereClauses = Collections.emptyList();
+        @Builder.Default Set<String> hiddenFields = Collections.emptySet();
+        @Builder.Default Set<String> visibleFields = Collections.emptySet();
+        @Builder.Default Map<String, Boolean> actions = Collections.emptyMap();
+
+        /** 生成完整的 WHERE 子句 */
+        public String toWhereClause() {
+            if (whereClauses.isEmpty()) return "";
+            return String.join(" AND ", whereClauses);
+        }
+    }
+}

@@ -1,0 +1,880 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>运筹马年 · 审批管理</title>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    /* ===== Reset & Base ===== */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", "Helvetica Neue", Arial, sans-serif; font-size: 14px; color: #333; background: #f0f2f5; }
+
+    /* ===== Layout ===== */
+    .app { display: flex; height: 100vh; overflow: hidden; }
+
+    /* ===== Sidebar ===== */
+    .sidebar { width: 240px; min-width: 240px; background: #001629; color: #fff; display: flex; flex-direction: column; user-select: none; overflow-y: auto; }
+    .sidebar::-webkit-scrollbar { width: 4px; }
+    .sidebar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 2px; }
+
+    .logo-wrap { display: flex; align-items: center; height: 56px; padding: 0 20px; gap: 10px; border-bottom: 1px solid rgba(255,255,255,0.08); flex-shrink: 0; }
+    .logo-icon { width: 32px; height: 32px; background: #1890ff; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 700; color: #fff; }
+    .logo-text { font-size: 17px; font-weight: 700; letter-spacing: 1px; color: #fff; }
+
+    .nav { flex: 1; padding: 12px 0; }
+    .nav-group { padding: 8px 0; }
+    .nav-group-title { padding: 4px 20px 6px; font-size: 11px; color: rgba(255,255,255,0.35); text-transform: uppercase; letter-spacing: 1.5px; }
+    .nav-item { display: flex; align-items: center; padding: 0 20px; height: 40px; cursor: pointer; color: rgba(255,255,255,0.7); font-size: 14px; gap: 10px; position: relative; }
+    .nav-item:hover { background: rgba(255,255,255,0.06); color: #fff; }
+    .nav-item.active { background: rgba(24,144,255,0.18); color: #fff; }
+    .nav-item.active::before { content: ''; position: absolute; left: 0; top: 6px; bottom: 6px; width: 3px; background: #1890ff; border-radius: 0 2px 2px 0; }
+    .nav-item .nav-icon { width: 18px; height: 18px; flex-shrink: 0; opacity: 0.8; }
+    .nav-item.active .nav-icon { opacity: 1; }
+    .nav-item .nav-txt { flex: 1; }
+    .nav-badge { display: inline-flex; align-items: center; justify-content: center; min-width: 18px; height: 18px; border-radius: 9px; background: #ff4d4f; color: #fff; font-size: 11px; padding: 0 5px; font-weight: 600; line-height: 18px; }
+    .nav-badge.warn { background: #fa8c16; }
+    .nav-badge.primary { background: #1890ff; }
+    .sub-arrow { transition: transform .2s; }
+    .nav-sub { padding: 0 0 4px 0; }
+    .nav-sub-item { display: flex; align-items: center; padding: 0 20px 0 52px; height: 34px; cursor: pointer; color: rgba(255,255,255,0.55); font-size: 13px; gap: 8px; position: relative; }
+    .nav-sub-item:hover { background: rgba(255,255,255,0.06); color: #fff; }
+    .nav-sub-item.active { background: rgba(24,144,255,0.18); color: #fff; }
+    .nav-sub-item.active::before { content: ''; position: absolute; left: 0; top: 4px; bottom: 4px; width: 3px; background: #1890ff; border-radius: 0 2px 2px 0; }
+
+    /* ===== focus-visible ===== */
+    button:focus-visible, a:focus-visible, select:focus-visible, input:focus-visible {
+      outline: 2px solid #1890ff;
+      outline-offset: 2px;
+    }
+
+    /* ===== Main ===== */
+    .main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+
+    /* ===== Topbar ===== */
+    .topbar { height: 56px; background: #fff; border-bottom: 1px solid #e8e8e8; display: flex; align-items: center; justify-content: space-between; padding: 0 28px; flex-shrink: 0; }
+    .topbar-left { display: flex; align-items: center; gap: 16px; }
+    .topbar-title { font-size: 16px; font-weight: 600; color: #262626; }
+    .breadcrumb { display: flex; align-items: center; gap: 6px; font-size: 13px; color: #8c8c8c; }
+    .breadcrumb span { color: #595959; }
+    .topbar-right { display: flex; align-items: center; gap: 20px; }
+    .user-info { display: flex; align-items: center; gap: 8px; cursor: default; }
+    .user-avatar { width: 32px; height: 32px; border-radius: 50%; background: #1890ff; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 600; }
+    .user-name { font-size: 14px; font-weight: 500; color: #262626; }
+    .user-org { font-size: 12px; color: #8c8c8c; }
+
+    /* ===== Content ===== */
+    .content { flex: 1; overflow-y: auto; padding: 24px 28px; }
+
+    /* ===== Page Header ===== */
+    .page-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; padding: 0; }
+    .page-header h1 { font-size: 20px; font-weight: 600; color: #262626; }
+    .page-header h1 small { font-size: 14px; font-weight: 400; color: #8c8c8c; margin-left: 8px; }
+    .page-header-sub { font-size: 13px; color: #8c8c8c; display: flex; align-items: center; gap: 6px; }
+
+    /* ===== KPI Cards ===== */
+    .kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 20px; }
+    .kpi-card { background: #fff; border-radius: 8px; padding: 20px; box-shadow: 0 1px 4px rgba(0,0,0,0.04); display: flex; align-items: center; gap: 16px; }
+    .kpi-icon-wrap { width: 48px; height: 48px; border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .kpi-icon-wrap.blue-bg { background: #e6f7ff; }
+    .kpi-icon-wrap.green-bg { background: #f6ffed; }
+    .kpi-icon-wrap.orange-bg { background: #fff7e6; }
+    .kpi-icon-wrap.red-bg { background: #fff1f0; }
+    .kpi-icon-wrap .lucide { width: 22px; height: 22px; }
+    .kpi-icon-wrap.blue-bg .lucide { color: #1890ff; }
+    .kpi-icon-wrap.green-bg .lucide { color: #52c41a; }
+    .kpi-icon-wrap.orange-bg .lucide { color: #fa8c16; }
+    .kpi-icon-wrap.red-bg .lucide { color: #ff4d4f; }
+    .kpi-info { flex: 1; }
+    .kpi-label { font-size: 13px; color: #8c8c8c; }
+    .kpi-value { font-size: 28px; font-weight: 700; line-height: 1.2; }
+    .kpi-value.blue { color: #1890ff; }
+    .kpi-value.green { color: #52c41a; }
+    .kpi-value.orange { color: #fa8c16; }
+    .kpi-value.red { color: #ff4d4f; }
+
+    /* ===== Card container (Tabs + Filter + Table) ===== */
+    .approve-card { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,0.04); overflow: hidden; }
+
+    /* ===== Tabs ===== */
+    .approve-tabs { display: flex; gap: 0; border-bottom: 1px solid #f0f0f0; padding: 0 4px; }
+    .approve-tab { padding: 14px 18px; font-size: 14px; color: #595959; border: none; background: transparent; border-bottom: 2px solid transparent; margin-bottom: -1px; display: flex; align-items: center; gap: 6px; cursor: pointer; user-select: none; transition: color .15s, border-color .15s; }
+    .approve-tab:hover { color: #1890ff; }
+    .approve-tab.active { color: #1890ff; border-bottom-color: #1890ff; font-weight: 500; }
+    .approve-tab .tab-badge { display: inline-flex; align-items: center; justify-content: center; min-width: 20px; height: 20px; border-radius: 10px; background: #f0f0f0; color: #595959; font-size: 11px; padding: 0 6px; font-weight: 400; line-height: 20px; transition: color .15s, background .15s; }
+    .approve-tab.active .tab-badge { background: #e6f7ff; color: #1890ff; }
+    .tab-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; background: #d9d9d9; flex-shrink: 0; }
+    .tab-dot.pending { background: #fa8c16; }
+    .tab-dot.apply { background: #1890ff; }
+    .tab-dot.in-progress { background: #722ed1; }
+    .tab-dot.approved { background: #52c41a; }
+    .tab-dot.rejected { background: #ff4d4f; }
+
+    /* ===== Filter Bar ===== */
+    .filter-bar { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; border-bottom: 1px solid #f0f0f0; }
+    .filter-group { display: flex; gap: 10px; align-items: center; }
+    .filter-select { height: 32px; padding: 0 28px 0 10px; border: 1px solid #d9d9d9; border-radius: 6px; font-size: 12px; color: #262626; background: #fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath fill='%23999' d='M0 0l5 6 5-6z'/%3E%3C/svg%3E") no-repeat right 10px center; appearance: none; cursor: pointer; min-width: 110px; transition: border-color .15s; }
+    .filter-select:focus { border-color: #1890ff; outline: none; }
+    .filter-search { display: flex; align-items: center; background: #fff; border: 1px solid #d9d9d9; border-radius: 6px; padding: 0 10px; height: 32px; width: 220px; gap: 6px; transition: border-color .15s; }
+    .filter-search:focus-within { border-color: #1890ff; }
+    .filter-search .lucide { width: 14px; height: 14px; color: #bfbfbf; flex-shrink: 0; }
+    .filter-search input { border: none; outline: none; flex: 1; font-size: 12px; color: #262626; background: transparent; }
+    .filter-search input::placeholder { color: #bfbfbf; }
+    .filter-result-count { font-size: 12px; color: #8c8c8c; padding: 0 6px; }
+
+    /* ===== Type Tags ===== */
+    .atype-tag { display: inline-flex; align-items: center; gap: 3px; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 500; }
+    .atype-blue { background: #e6f7ff; color: #1890ff; }
+    .atype-orange { background: #fff7e6; color: #fa8c16; }
+    .atype-green { background: #f6ffed; color: #52c41a; }
+    .atype-purple { background: #f9f0ff; color: #722ed1; }
+    .atype-brown { background: #fef7e0; color: #d48806; }
+
+    /* ===== Status Tags ===== */
+    .astatus { display: inline-flex; padding: 2px 10px; border-radius: 10px; font-size: 12px; font-weight: 500; }
+    .astatus-pending { background: #fff7e6; color: #fa8c16; }
+    .astatus-approved { background: #f6ffed; color: #52c41a; }
+    .astatus-rejected { background: #fff2f0; color: #ff4d4f; }
+
+    /* ===== Table ===== */
+    .table-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 13px; table-layout: fixed; }
+    thead th { background: #f5f6f8; padding: 0 14px; height: 44px; font-weight: 600; color: #595959; border-bottom: 1px solid #e0e0e0; text-align: center; font-size: 13px; white-space: nowrap; }
+    thead th:first-child { border-radius: 8px 0 0 0; }
+    thead th:last-child { border-radius: 0 8px 0 0; }
+    tbody td { padding: 0 14px; height: 48px; border-bottom: 1px solid #f0f0f0; font-size: 13px; color: #333; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: center; }
+    tbody td:first-child { text-align: left; }
+    tbody tr:last-child td { border-bottom: none; }
+    tbody tr { transition: background .15s; }
+    tbody tr:hover { background: #e6f7ff; }
+    tbody tr:last-child td { border-bottom: none; }
+    .td-id { text-align:left;font-weight:500;color:#1890ff;cursor:pointer;white-space:nowrap; }
+    .td-id:hover { text-decoration: underline; }
+    .td-client { text-align:left;font-weight:500;color:#262626;overflow:hidden;text-overflow:ellipsis;white-space:nowrap; }
+    .td-client-sub { font-size: 11px; color: #8c8c8c; }
+    .industry-tag { display: inline-flex; padding: 1px 8px; border-radius: 4px; font-size: 11px; background: #f0f5ff; color: #1890ff; }
+    .td-cell-muted { font-size: 12px; color: #8c8c8c; }
+    .td-cell-date { color: #8c8c8c; font-size: 12px; white-space: nowrap; }
+
+    /* ===== Operation Buttons ===== */
+    .op-group { display: flex; gap: 4px; white-space: nowrap; }
+    .op-btn { display: inline-flex; align-items: center; justify-content: center; gap: 4px; height: 30px; padding: 0 8px; font-size: 12px; border: 1px solid #d9d9d9; border-radius: 6px; background: #fff; color: #595959; cursor: pointer; transition: color .15s, border-color .15s, background .15s; }
+    .op-btn:hover { border-color: #1890ff; color: #1890ff; }
+    .op-btn.approve-yes { color: #52c41a; border-color: #b7eb8f; }
+    .op-btn.approve-yes:hover { background: #f6ffed; border-color: #73d13d; color: #389e0d; }
+    .op-btn.approve-no { color: #ff4d4f; border-color: #ffa39e; }
+    .op-btn.approve-no:hover { background: #fff1f0; border-color: #ff7875; color: #cf1322; }
+    .op-btn .lucide { width: 14px; height: 14px; }
+
+    /* ===== Pagination ===== */
+    .pagination { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; border-top: 1px solid #f0f0f0; font-size: 13px; color: #8c8c8c; }
+    .pagination-left { color: #8c8c8c; font-size: 13px; }
+    .pagination-right { display: flex; align-items: center; gap: 4px; }
+    .page-btn { display: inline-flex; align-items: center; justify-content: center; min-width: 32px; height: 32px; padding: 0 8px; border: 1px solid #d9d9d9; border-radius: 6px; background: #fff; color: #595959; font-size: 13px; cursor: pointer; transition: color .15s, border-color .15s, background .15s; }
+    .page-btn:hover { border-color: #1890ff; color: #1890ff; }
+    .page-btn.active { border-color: #1890ff; background: #1890ff; color: #fff; }
+    .page-btn.disabled { color: #d9d9d9; border-color: #d9d9d9; cursor: not-allowed; pointer-events: none; }
+    .page-btn .lucide { width: 14px; height: 14px; }
+
+    /* ===== Drawer ===== */
+    .drawer-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.45); z-index: 1000; }
+    .drawer { position: fixed; top: 0; right: -480px; bottom: 0; width: 480px; background: #fff; z-index: 1001; box-shadow: -4px 0 12px rgba(0,0,0,0.08); display: flex; flex-direction: column; transition: right .3s cubic-bezier(.23,1,.32,1); }
+    .drawer.open { right: 0; }
+    .drawer-header { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; border-bottom: 1px solid #f0f0f0; flex-shrink: 0; }
+    .drawer-header h3 { font-size: 16px; font-weight: 600; color: #262626; }
+    .drawer-close { width: 28px; height: 28px; border: none; border-radius: 4px; background: transparent; color: #8c8c8c; cursor: pointer; font-size: 16px; display: flex; align-items: center; justify-content: center; transition: color .15s, background .15s; }
+    .drawer-close:hover { background: #f5f5f5; color: #262626; }
+    .drawer-body { flex: 1; overflow-y: auto; padding: 20px; }
+    .drawer-section { margin-bottom: 20px; }
+    .drawer-section-title { font-size: 13px; font-weight: 600; color: #262626; margin-bottom: 10px; padding-bottom: 6px; border-bottom: 1px solid #f0f0f0; }
+    .drawer-field { display: flex; margin-bottom: 8px; font-size: 13px; }
+    .drawer-field-label { width: 80px; color: #8c8c8c; flex-shrink: 0; }
+    .drawer-field-value { flex: 1; color: #262626; word-break: break-all; }
+    .drawer-actions { display: flex; gap: 10px; margin-top: 20px; padding-top: 16px; border-top: 1px solid #f0f0f0; }
+
+    /* ===== Buttons ===== */
+    .btn { display: inline-flex; align-items: center; gap: 6px; padding: 0 16px; height: 34px; border: 1px solid #d9d9d9; border-radius: 6px; background: #fff; color: #595959; font-size: 13px; cursor: pointer; transition: color .15s, border-color .15s, background .15s; white-space: nowrap; }
+    .btn:hover { border-color: #1890ff; color: #1890ff; }
+    .btn-primary { background: #1890ff; border-color: #1890ff; color: #fff; }
+    .btn-primary:hover { background: #40a9ff; border-color: #40a9ff; color: #fff; }
+    .btn-danger { color: #ff4d4f; border-color: #ffa39e; }
+    .btn-danger:hover { background: #fff1f0; border-color: #ff7875; color: #cf1322; }
+    .btn .lucide { width: 15px; height: 15px; }
+
+    /* ===== Empty State ===== */
+    .empty-state { text-align: center; padding: 60px 20px; color: #bfbfbf; }
+    .empty-state .lucide { width: 56px; height: 56px; color: #d9d9d9; margin-bottom: 12px; }
+    .empty-state p { font-size: 14px; margin-top: 8px; }
+    .empty-state .hint { font-size: 12px; color: #d9d9d9; margin-top: 4px; }
+
+    /* ===== Toast ===== */
+    .toast { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); z-index: 2000; padding: 10px 24px; border-radius: 6px; font-size: 14px; box-shadow: 0 4px 12px rgba(0,0,0,0.12); animation: toastIn .25s ease-out; pointer-events: none; }
+    .toast-success { background: #f6ffed; border: 1px solid #b7eb8f; color: #389e0d; }
+    .toast-error { background: #fff1f0; border: 1px solid #ffa39e; color: #cf1322; }
+    @keyframes toastIn { from { opacity: 0; transform: translateX(-50%) translateY(-12px); } to { opacity: 1; transform: translateX(-50%) translateY(0); } }
+
+    /* ===== Responsive ===== */
+    @media (max-width: 900px) {
+      .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+      .filter-bar { flex-direction: column; gap: 8px; align-items: stretch; }
+      .filter-group { flex-wrap: wrap; }
+      .filter-search { width: 100%; }
+      .drawer { width: 100%; right: -100%; }
+    }
+    @media (max-width: 768px) {
+      .sidebar { width: 200px; min-width: 200px; }
+      .pagination { flex-direction: column; gap: 8px; }
+    }
+  </style>
+</head>
+<body>
+<div class="app">
+
+  <!-- ===== Sidebar ===== -->
+  <aside class="sidebar">
+    <div class="logo-wrap">
+      <div class="logo-icon">运</div>
+      <span class="logo-text">运筹马年</span>
+    </div>
+    <nav class="nav">
+      <div class="nav-group">
+        <div class="nav-group-title">首页</div>
+        <div class="nav-item" onclick="location.href='02-工作台-菜单02.html'" style="cursor:pointer;">
+          <i class="nav-icon" data-lucide="layout-dashboard"></i>
+          <span class="nav-txt">工作台</span>
+        </div>
+      </div>
+      <div class="nav-group">
+        <div class="nav-group-title">业务核心</div>
+        <div class="nav-item" onclick="location.href='03_01-客户列表-菜单03.html'" style="cursor:pointer;">
+          <i class="nav-icon" data-lucide="users"></i>
+          <span class="nav-txt">客户管理</span>
+          <span class="nav-badge">24</span>
+        </div>
+        <div class="nav-sub">
+          <div class="nav-sub-item" onclick="location.href='03_03-新增客户-菜单03.html'">
+            <span class="nav-txt">客户列表</span>
+          </div>
+          <div class="nav-sub-item" onclick="location.href='03_03-新增客户-菜单03.html'" style="cursor:pointer;">
+            <span class="nav-txt">新增客户</span>
+          </div>
+          <div class="nav-sub-item" onclick="location.href='03_02-客户详情-菜单03.html'" style="cursor:pointer;">
+            <span class="nav-txt">客户详情</span>
+          </div>
+        </div>
+        <div class="nav-item" onclick="location.href='04-文件管理-菜单04.html'" style="cursor:pointer;">
+          <i class="nav-icon" data-lucide="folder"></i>
+          <span class="nav-txt">文件管理</span>
+        </div>
+        <div class="nav-item" onclick="location.href='05_02-激励上传-菜单05.html'" style="cursor:pointer;">
+          <i class="nav-icon" data-lucide="database"></i>
+          <span class="nav-txt">四项激励Plus版</span>
+        </div>
+        <div class="nav-item" onclick="location.href='06-提醒管理-菜单06.html'" style="cursor:pointer;">
+          <i class="nav-icon" data-lucide="bell"></i>
+          <span class="nav-txt">提醒管理</span>
+          <span class="nav-badge warn">3</span>
+        </div>
+        <div class="nav-item" onclick="location.href='07_01-公海池-菜单07.html'" style="cursor:pointer;">
+          <i class="nav-icon" data-lucide="sailboat"></i>
+          <span class="nav-txt">公海管理</span>
+        </div>
+        <div class="nav-item active">
+          <i class="nav-icon" data-lucide="check-circle"></i>
+          <span class="nav-txt">审批管理</span>
+          <span class="nav-badge primary">2</span>
+        </div>
+      </div>
+      <div class="nav-group">
+        <div class="nav-group-title">考核与分析</div>
+        <div class="nav-item" onclick="location.href='09-统计分析-菜单09.html'" style="cursor:pointer;">
+          <i class="nav-icon" data-lucide="bar-chart-3"></i>
+          <span class="nav-txt">统计分析</span>
+        </div>
+                <div class="nav-item" onclick="toggleScoreSub(this)" style="cursor:pointer;">
+          <i class="nav-icon" data-lucide="trophy"></i>
+          <span class="nav-txt">积分榜</span>
+          <i class="sub-arrow" data-lucide="chevron-down" style="width:14px;height:14px;opacity:0.6;transition:transform .2s;"></i>
+        </div>
+        <div class="nav-sub" id="scoreSub" style="display:block;">
+          <div class="nav-sub-item" onclick="location.href='10_01-积分录入-菜单10.html'">
+            <i data-lucide="edit-3" style="width:14px;height:14px;"></i> 积分录入
+          </div>
+          <div class="nav-sub-item" onclick="location.href='10_02-积分排行-菜单10.html'">
+            <i data-lucide="bar-chart-3" style="width:14px;height:14px;"></i> 🏆 个人排行
+          </div>
+          <div class="nav-sub-item" onclick="location.href='10_03-部门排行-菜单10.html'">
+            <i data-lucide="building-2" style="width:14px;height:14px;"></i> 🏅 部门排行
+          </div>
+        </div>
+      </div>
+      <div class="nav-group">
+        <div class="nav-group-title">系统管理</div>
+        <div class="nav-item active" onclick="toggleOrgSub(this)" style="cursor:pointer;">
+          <i class="nav-icon" data-lucide="building-2"></i>
+          <span class="nav-txt">组织架构</span>
+          <i class="sub-arrow" data-lucide="chevron-down" style="width:14px;height:14px;opacity:0.6;transition:transform .2s;"></i>
+        </div>
+        <div class="nav-sub" id="orgSub" style="display:none;">
+          <div class="nav-sub-item" onclick="location.href='11-组织架构-菜单11.html'">
+            <i data-lucide="users" style="width:14px;height:14px;"></i> 人员列表
+          </div>
+          <div class="nav-sub-item" onclick="location.href='11-组织架构-菜单11.html'">
+            <i data-lucide="layers" style="width:14px;height:14px;"></i> 部门管理
+          </div>
+          <div class="nav-sub-item" onclick="location.href='11-组织架构-菜单11.html'">
+            <i data-lucide="briefcase" style="width:14px;height:14px;"></i> 岗位设置
+          </div>
+          <div class="nav-sub-item" onclick="location.href='11-组织架构-菜单11.html'">
+            <i data-lucide="shield" style="width:14px;height:14px;"></i> 权限设置
+          </div>
+        </div>
+        <div class="nav-item" onclick="location.href='12-系统设置-菜单12.html'" style="cursor:pointer;">
+          <i class="nav-icon" data-lucide="settings"></i>
+          <span class="nav-txt">系统设置</span>
+        </div>
+        <div class="nav-item" onclick="location.href='13-日志管理-菜单13.html'" style="cursor:pointer;">
+          <i class="nav-icon" data-lucide="file-text"></i>
+          <span class="nav-txt">日志管理</span>
+        </div>
+      </div>
+    </nav>
+  </aside>
+
+  <!-- ===== Main Area ===== -->
+  <div class="main">
+
+    <!-- ===== Topbar ===== -->
+    <header class="topbar">
+      <div class="topbar-left">
+        <span class="topbar-title">审批管理</span>
+        <div class="breadcrumb">
+          <i data-lucide="home" style="width:14px;height:14px;"></i>
+          <span>首页</span>
+          <span style="color:#bfbfbf;margin:0 4px;">/</span>
+          <span>业务核心</span>
+          <span style="color:#bfbfbf;margin:0 4px;">/</span>
+          <span style="color:#262626;font-weight:500;">审批管理</span>
+        </div>
+      </div>
+      <div class="topbar-right">
+        <i data-lucide="bell" style="width:18px;height:18px;color:#8c8c8c;cursor:pointer;" aria-label="通知"></i>
+        <i data-lucide="help-circle" style="width:18px;height:18px;color:#8c8c8c;cursor:pointer;" aria-label="帮助"></i>
+        <div class="user-info">
+          <div class="user-avatar">吴</div>
+          <span class="user-name">吴哲</span>
+          <span class="user-org">· 总部 系统管理员</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- ===== Content ===== -->
+    <div class="content">
+
+      <!-- Page Header -->
+      <div class="page-header">
+        <h1>审批管理 <small>客户资源归属与保护期管控</small></h1>
+      </div>
+
+      <!-- 4 KPI Cards -->
+      <div class="kpi-grid">
+        <div class="kpi-card">
+          <div class="kpi-icon-wrap orange-bg"><i data-lucide="clock"></i></div>
+          <div class="kpi-info">
+            <div class="kpi-label">待我审批</div>
+            <div class="kpi-value orange" id="kpiPending">3</div>
+          </div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-icon-wrap blue-bg"><i data-lucide="send"></i></div>
+          <div class="kpi-info">
+            <div class="kpi-label">我发起的</div>
+            <div class="kpi-value blue" id="kpiMyApply">6</div>
+          </div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-icon-wrap green-bg"><i data-lucide="check-circle"></i></div>
+          <div class="kpi-info">
+            <div class="kpi-label">本月通过</div>
+            <div class="kpi-value green" id="kpiApproved">12</div>
+          </div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-icon-wrap red-bg"><i data-lucide="x-circle"></i></div>
+          <div class="kpi-info">
+            <div class="kpi-label">本月驳回</div>
+            <div class="kpi-value red" id="kpiRejected">3</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Approve Card -->
+      <div class="approve-card">
+
+        <!-- Tabs (5 state-only tabs) -->
+        <div class="approve-tabs" role="tablist">
+          <button class="approve-tab active" role="tab" aria-selected="true" data-tab="0">
+            <span class="tab-dot" style="background:#595959;"></span> 全部 <span class="tab-badge" id="tab0Count">18</span>
+          </button>
+          <button class="approve-tab" role="tab" aria-selected="false" data-tab="1">
+            <span class="tab-dot pending"></span> 待我审批 <span class="tab-badge" id="tab1Count">3</span>
+          </button>
+          <button class="approve-tab" role="tab" aria-selected="false" data-tab="2">
+            <span class="tab-dot in-progress"></span> 审批中 <span class="tab-badge" id="tab2Count">2</span>
+          </button>
+          <button class="approve-tab" role="tab" aria-selected="false" data-tab="3">
+            <span class="tab-dot approved"></span> 已通过 <span class="tab-badge" id="tab3Count">11</span>
+          </button>
+          <button class="approve-tab" role="tab" aria-selected="false" data-tab="4">
+            <span class="tab-dot rejected"></span> 已驳回 <span class="tab-badge" id="tab4Count">3</span>
+          </button>
+        </div>
+
+        <!-- Filter Bar -->
+        <div class="filter-bar">
+          <div class="filter-group">
+            <select class="filter-select" id="filterType" aria-label="审批类型筛选">
+              <option value="">全部类型</option>
+              <option value="捞取">🔵 捞取</option>
+              <option value="转移">🟠 转移</option>
+              <option value="延期">🟢 延期</option>
+              <option value="查看">🟣 查看</option>
+              <option value="协作">🟤 协作</option>
+            </select>
+            <select class="filter-select" id="filterPerson" aria-label="人员筛选">
+              <option value="">全部人员</option>
+              <option value="王磊磊">王磊磊</option>
+              <option value="李明">李明</option>
+              <option value="张三">张三</option>
+              <option value="赵四">赵四</option>
+            </select>
+            <span class="filter-result-count" id="resultCount">找到 18 条</span>
+          </div>
+          <div class="filter-search">
+            <i data-lucide="search"></i>
+            <input type="text" id="searchInput" placeholder="搜索编号、客户名..." aria-label="搜索审批记录">
+          </div>
+        </div>
+
+        <!-- Table -->
+        <div class="table-wrap">
+          <table style="table-layout:fixed;border-collapse:separate;border-spacing:0;">
+            <colgroup>
+              <col style="width:90px;">
+              <col style="width:64px;">
+              <col style="width:120px;">
+              <col style="width:50px;">
+              <col style="width:62px;">
+              <col style="width:72px;">
+              <col style="width:118px;">
+              <col style="width:78px;">
+              <col style="width:78px;">
+              <col style="width:130px;">
+            </colgroup>
+            <thead>
+              <tr>
+                <th style="text-align:left;">编号</th>
+                <th>类型</th>
+                <th style="text-align:left;">客户名称</th>
+                <th>行业</th>
+                <th>申请人</th>
+                <th>当前节点</th>
+                <th>通过后动作</th>
+                <th>状态</th>
+                <th>时间</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody id="approveBody"></tbody>
+          </table>
+        </div>
+
+        <!-- Pagination -->
+        <div class="pagination">
+          <span class="pagination-left">共 <strong id="totalCount">18</strong> 条</span>
+          <div class="pagination-right" id="pagination"></div>
+        </div>
+      </div>
+
+    </div><!-- /content -->
+  </div><!-- /main -->
+
+  <!-- Detail Drawer -->
+  <div class="drawer-overlay" id="drawerOverlay" style="display:none;" onclick="closeDrawer()"></div>
+  <div class="drawer" id="approvalDrawer">
+    <div class="drawer-header">
+      <h3>审批详情</h3>
+      <button class="drawer-close" onclick="closeDrawer()" aria-label="关闭抽屉">✕</button>
+    </div>
+    <div class="drawer-body" id="drawerBody">
+      <div style="text-align:center;padding:40px;color:#bfbfbf;">加载中...</div>
+    </div>
+  </div>
+
+</div><!-- /app -->
+
+<script>
+  lucide.createIcons();
+
+  // ===== DATA =====
+  const APPROVE_DATA = [
+    { id: 'P2026-001', type: '捞取', typeCls: 'atype-blue', date: '2026-06-01', person: '王磊磊', client: '陕煤榆林化学·煤化工', applyNode: '王磊磊', action: '客户归属→本人', status: 'pending', desc: '该客户已有初步接触意向，计划本月高层拜访' },
+    { id: 'P2026-002', type: '转移', typeCls: 'atype-orange', date: '2026-06-01', person: '李明', client: '内蒙古汇能·煤化工', applyNode: '赵四审批', action: '负责人变更→李明', status: 'pending', desc: '客户区域调整为内蒙办，需变更负责人' },
+    { id: 'P2026-003', type: '延期', typeCls: 'atype-green', date: '2026-05-31', person: '张三', client: '神东哈拉沟·煤矿', applyNode: '张三', action: '保护期+360天', status: 'pending', desc: '客户尚在推进中，需要延长保护期' },
+    { id: 'P2026-004', type: '查看', typeCls: 'atype-purple', date: '2026-05-30', person: '王磊磊', client: '准能集团·煤矿', applyNode: '已完成', action: '获得查看权限', status: 'approved', desc: '跨区域查看客户基本信息' },
+    { id: 'P2026-005', type: '转移', typeCls: 'atype-orange', date: '2026-05-29', person: '赵四', client: '国能榆林·煤化工', applyNode: '已完成', action: '负责人变更→赵四', status: 'approved', desc: '离职交接，客户重新分配' },
+    { id: 'P2026-006', type: '协作', typeCls: 'atype-brown', date: '2026-05-28', person: '李明', client: '凯越煤化·煤化工', applyNode: '已完成', action: '协作人可记录跟进', status: 'approved', desc: '跨区域协作开发' },
+    { id: 'P2026-007', type: '捞取', typeCls: 'atype-blue', date: '2026-05-27', person: '张三', client: '榆林新材料·有色', applyNode: '已完成', action: '客户归属→张三', status: 'approved', desc: '公海客户捞取' },
+    { id: 'P2026-008', type: '延期', typeCls: 'atype-green', date: '2026-05-26', person: '王磊磊', client: '陕煤榆林化学·煤化工', applyNode: '已完成', action: '保护期+360天', status: 'approved', desc: '客户项目延期' },
+    { id: 'P2026-009', type: '转移', typeCls: 'atype-orange', date: '2026-05-25', person: '李明', client: '内蒙古汇能·煤化工', applyNode: '已完成', action: '负责人变更', status: 'rejected', desc: '理由：当前负责人可继续跟进' },
+    { id: 'P2026-010', type: '查看', typeCls: 'atype-purple', date: '2026-05-24', person: '赵四', client: '准能集团·煤矿', applyNode: '已完成', action: '获得查看权限', status: 'rejected', desc: '理由：已有权限无需重复申请' },
+    { id: 'P2026-011', type: '捞取', typeCls: 'atype-blue', date: '2026-05-23', person: '王磊磊', client: '陕煤榆林化学·煤化工', applyNode: '已完成', action: '客户归属→本人', status: 'approved', desc: '公海客户捞取' },
+    { id: 'P2026-012', type: '协作', typeCls: 'atype-brown', date: '2026-05-22', person: '张三', client: '神东哈拉沟·煤矿', applyNode: '已完成', action: '协作人可记录跟进', status: 'approved', desc: '协助销售共同开发' },
+    { id: 'P2026-013', type: '延期', typeCls: 'atype-green', date: '2026-05-21', person: '李明', client: '内蒙古汇能·煤化工', applyNode: '已完成', action: '保护期+360天', status: 'approved', desc: '客户推进中需延期' },
+    { id: 'P2026-014', type: '转移', typeCls: 'atype-orange', date: '2026-05-20', person: '赵四', client: '国能榆林·煤化工', applyNode: '已完成', action: '负责人变更→赵四', status: 'approved', desc: '区域调整' },
+    { id: 'P2026-015', type: '查看', typeCls: 'atype-purple', date: '2026-05-19', person: '王磊磊', client: '准能集团·煤矿', applyNode: '已完成', action: '获得查看权限', status: 'approved', desc: '竞品分析需要' },
+    { id: 'P2026-016', type: '捞取', typeCls: 'atype-blue', date: '2026-05-18', person: '李明', client: '凯越煤化·煤化工', applyNode: '已完成', action: '客户归属→李明', status: 'approved', desc: '新客户开发' },
+    { id: 'P2026-017', type: '协作', typeCls: 'atype-brown', date: '2026-05-17', person: '张三', client: '榆林新材料·有色', applyNode: '已完成', action: '协作人可记录跟进', status: 'approved', desc: '协同开发' },
+    { id: 'P2026-018', type: '延期', typeCls: 'atype-green', date: '2026-05-16', person: '王磊磊', client: '陕煤榆林化学·煤化工', applyNode: '已完成', action: '保护期+360天', status: 'rejected', desc: '理由：客户已超期两次' },
+  ];
+
+  // ===== State =====
+  let curTab = 0;
+  let curPage = 1;
+  const PAGE_SIZE = 6;
+
+  // ===== Utility =====
+  function getStatusLabel(status) {
+    return { pending: '⏳ 审批中', approved: '✅ 已通过', rejected: '❌ 已驳回' }[status] || status;
+  }
+  function getStatusClass(status) {
+    return 'astatus astatus-' + status;
+  }
+
+  // ===== Filter Logic =====
+  function getFiltered() {
+    const typeVal = document.getElementById('filterType').value;
+    const personVal = document.getElementById('filterPerson').value;
+    const searchVal = document.getElementById('searchInput').value.toLowerCase().trim();
+
+    // Tab filter: 0=全部, 1=待我审批(pending), 2=审批中(pending且未完成), 3=已通过(approved), 4=已驳回(rejected)
+    let data = [];
+    if (curTab === 0) {
+      data = APPROVE_DATA.slice();
+    } else if (curTab === 1) {
+      data = APPROVE_DATA.filter(function(d) { return d.status === 'pending'; });
+    } else if (curTab === 2) {
+      data = APPROVE_DATA.filter(function(d) { return d.status === 'pending' && d.applyNode !== '已完成'; });
+    } else if (curTab === 3) {
+      data = APPROVE_DATA.filter(function(d) { return d.status === 'approved'; });
+    } else if (curTab === 4) {
+      data = APPROVE_DATA.filter(function(d) { return d.status === 'rejected'; });
+    }
+
+    // Apply type filter
+    if (typeVal) {
+      data = data.filter(function(d) { return d.type === typeVal; });
+    }
+    // Apply person filter
+    if (personVal) {
+      data = data.filter(function(d) { return d.person === personVal; });
+    }
+    // Apply search filter
+    if (searchVal) {
+      data = data.filter(function(d) {
+        return d.id.toLowerCase().includes(searchVal) ||
+               d.client.toLowerCase().includes(searchVal);
+      });
+    }
+    return data;
+  }
+
+  // ===== KPI Animation =====
+  function animateKPI(el, target) {
+    const duration = 800;
+    const startTime = performance.now();
+    const startVal = 0;
+
+    function step(now) {
+      const elapsed = now - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      // Ease-out cubic
+      const eased = 1 - Math.pow(1 - progress, 3);
+      const current = Math.round(startVal + (target - startVal) * eased);
+      el.textContent = current;
+      if (progress < 1) {
+        requestAnimationFrame(step);
+      } else {
+        el.textContent = target;
+      }
+    }
+    requestAnimationFrame(step);
+  }
+
+  function updateAllKPIs(dataForTab) {
+    // Calculate from the full dataset regardless of current filter
+    const pending = APPROVE_DATA.filter(function(d) { return d.status === 'pending'; }).length;
+    const my = APPROVE_DATA.filter(function(d) { return d.person === '王磊磊'; }).length;
+    const approved = APPROVE_DATA.filter(function(d) { return d.status === 'approved'; }).length;
+    const rejected = APPROVE_DATA.filter(function(d) { return d.status === 'rejected'; }).length;
+
+    const kpis = [
+      { id: 'kpiPending', target: pending },
+      { id: 'kpiMyApply', target: my },
+      { id: 'kpiApproved', target: approved },
+      { id: 'kpiRejected', target: rejected },
+    ];
+
+    kpis.forEach(function(k) {
+      const el = document.getElementById(k.id);
+      if (el) animateKPI(el, k.target);
+    });
+  }
+
+  // ===== Tab Badge Updates =====
+  function updateTabBadges() {
+    const counts = [
+      APPROVE_DATA.length,
+      APPROVE_DATA.filter(function(d) { return d.status === 'pending'; }).length,
+      APPROVE_DATA.filter(function(d) { return d.status === 'pending' && d.applyNode !== '已完成'; }).length,
+      APPROVE_DATA.filter(function(d) { return d.status === 'approved'; }).length,
+      APPROVE_DATA.filter(function(d) { return d.status === 'rejected'; }).length,
+    ];
+    counts.forEach(function(c, i) {
+      const el = document.getElementById('tab' + i + 'Count');
+      if (el) el.textContent = c;
+    });
+  }
+
+  // ===== Render =====
+  function renderApprove() {
+    const data = getFiltered();
+    const total = data.length;
+    const totalPages = Math.ceil(total / PAGE_SIZE) || 1;
+
+    if (curPage > totalPages) curPage = totalPages;
+    const start = (curPage - 1) * PAGE_SIZE;
+    const pageData = data.slice(start, start + PAGE_SIZE);
+
+    // Update result count
+    document.getElementById('resultCount').textContent = '找到 ' + total + ' 条';
+
+    // Render table body
+    const tbody = document.getElementById('approveBody');
+    let html = '';
+    if (pageData.length === 0) {
+      html = '<tr><td colspan="10">' +
+        '<div class="empty-state">' +
+          '<i data-lucide="inbox" style="width:56px;height:56px;color:#d9d9d9;"></i>' +
+          '<p>暂无匹配的审批记录</p>' +
+          '<div class="hint">尝试调整筛选条件或切换Tab查看其他审批</div>' +
+        '</div></td></tr>';
+    } else {
+      pageData.forEach(function(d) {
+        const clientParts = d.client.split('·');
+        const clientName = clientParts[0] || d.client;
+        const clientSub = clientParts[1] || '';
+        var statusLabel = getStatusLabel(d.status);
+        var statusCls = getStatusClass(d.status);
+
+        html += '<tr>' +
+          '<td class="td-id" onclick="showDetail(\'' + d.id + '\')">' + d.id + '</td>' +
+          '<td><span class="atype-tag ' + d.typeCls + '">' + d.type + '</span></td>' +
+          '<td class="td-client">' + clientName + '</td>' +
+          '<td><span class="industry-tag">' + (clientSub || '—') + '</span></td>' +
+          '<td>' + d.person + '</td>' +
+          '<td class="td-cell-muted">' + d.applyNode + '</td>' +
+          '<td style="font-size:12px;color:#595959;">' + d.action + '</td>' +
+          '<td><span class="' + statusCls + '">' + statusLabel + '</span></td>' +
+          '<td class="td-cell-date">' + d.date + '</td>' +
+          '<td>';
+        if (d.status === 'pending') {
+          html += '<div class="op-group">' +
+            '<button class="op-btn approve-yes" onclick="approve(\'' + d.id + '\')" title="通过" aria-label="通过审批 ' + d.id + '"><i data-lucide="check"></i> 通过</button>' +
+            '<button class="op-btn approve-no" onclick="reject(\'' + d.id + '\')" title="驳回" aria-label="驳回审批 ' + d.id + '"><i data-lucide="x"></i> 驳回</button>' +
+            '</div>';
+        } else {
+          html += '<button class="op-btn" onclick="showDetail(\'' + d.id + '\')" title="查看详情" aria-label="查看审批详情 ' + d.id + '"><i data-lucide="eye"></i> 查看</button>';
+        }
+        html += '</td></tr>';
+      });
+    }
+    tbody.innerHTML = html;
+    lucide.createIcons();
+
+    // Update total count
+    document.getElementById('totalCount').textContent = total;
+
+    // Render pagination
+    renderPagination(totalPages);
+  }
+
+  function renderPagination(totalPages) {
+    var html = '';
+    html += '<button class="page-btn ' + (curPage <= 1 ? 'disabled' : '') + '" onclick="goPage(' + (curPage - 1) + ')" aria-label="上一页"' + (curPage <= 1 ? ' disabled' : '') + '><i data-lucide="chevron-left"></i></button>';
+    for (var i = 1; i <= totalPages; i++) {
+      html += '<button class="page-btn' + (i === curPage ? ' active' : '') + '" onclick="goPage(' + i + ')" aria-label="第' + i + '页">' + i + '</button>';
+    }
+    html += '<button class="page-btn ' + (curPage >= totalPages ? 'disabled' : '') + '" onclick="goPage(' + (curPage + 1) + ')" aria-label="下一页"' + (curPage >= totalPages ? ' disabled' : '') + '><i data-lucide="chevron-right"></i></button>';
+    document.getElementById('pagination').innerHTML = html;
+    lucide.createIcons();
+  }
+
+  function goPage(p) {
+    const total = getFiltered().length;
+    const totalPages = Math.ceil(total / PAGE_SIZE) || 1;
+    if (p < 1 || p > totalPages) return;
+    curPage = p;
+    renderApprove();
+  }
+
+  // ===== Tab Switching =====
+  function switchTab(n) {
+    curTab = n;
+    curPage = 1;
+    const tabs = document.querySelectorAll('.approve-tab');
+    tabs.forEach(function(el, i) {
+      el.classList.toggle('active', i === n);
+      el.setAttribute('aria-selected', i === n ? 'true' : 'false');
+    });
+    renderApprove();
+  }
+
+  // Bind tab clicks
+  document.querySelectorAll('.approve-tab').forEach(function(tab) {
+    tab.addEventListener('click', function() {
+      const n = parseInt(this.getAttribute('data-tab'));
+      switchTab(n);
+    });
+  });
+
+  // ===== Filter events =====
+  document.getElementById('filterType').addEventListener('change', function() {
+    curPage = 1;
+    renderApprove();
+  });
+  document.getElementById('filterPerson').addEventListener('change', function() {
+    curPage = 1;
+    renderApprove();
+  });
+  document.getElementById('searchInput').addEventListener('input', function() {
+    curPage = 1;
+    renderApprove();
+  });
+
+  // ===== Approve / Reject =====
+  function approve(id) {
+    if (!confirm('确认通过 ' + id + '？')) return;
+    var item = APPROVE_DATA.find(function(d) { return d.id === id; });
+    if (item) { item.status = 'approved'; item.applyNode = '已完成'; }
+    renderApprove();
+    updateTabBadges();
+    updateAllKPIs();
+    showToast('✅ 已通过 ' + id, 'success');
+  }
+
+  function reject(id) {
+    if (!confirm('确认驳回 ' + id + '？')) return;
+    var item = APPROVE_DATA.find(function(d) { return d.id === id; });
+    if (item) { item.status = 'rejected'; item.applyNode = '已完成'; }
+    renderApprove();
+    updateTabBadges();
+    updateAllKPIs();
+    showToast('❌ 已驳回 ' + id, 'error');
+  }
+
+  // ===== Toast =====
+  function showToast(msg, type) {
+    const existing = document.querySelector('.toast');
+    if (existing) existing.remove();
+    var toast = document.createElement('div');
+    toast.className = 'toast toast-' + type;
+    toast.textContent = msg;
+    document.body.appendChild(toast);
+    setTimeout(function() { toast.remove(); }, 2500);
+  }
+
+  // ===== Drawer =====
+  function showDetail(id) {
+    var item = APPROVE_DATA.find(function(d) { return d.id === id; });
+    if (!item) return;
+    var statusLabel = getStatusLabel(item.status);
+    var statusCls = getStatusClass(item.status);
+    var clientParts = item.client.split('·');
+    var clientName = clientParts[0] || item.client;
+    var clientSub = clientParts[1] || '';
+
+    var body = '' +
+      '<div class="drawer-section">' +
+        '<div class="drawer-section-title">基本信息</div>' +
+        '<div class="drawer-field"><span class="drawer-field-label">编号</span><span class="drawer-field-value" style="color:#1890ff;font-weight:500;">' + item.id + '</span></div>' +
+        '<div class="drawer-field"><span class="drawer-field-label">类型</span><span class="drawer-field-value"><span class="atype-tag ' + item.typeCls + '">' + item.type + '</span></span></div>' +
+        '<div class="drawer-field"><span class="drawer-field-label">申请人</span><span class="drawer-field-value">' + item.person + '</span></div>' +
+        '<div class="drawer-field"><span class="drawer-field-label">状态</span><span class="drawer-field-value"><span class="' + statusCls + '">' + statusLabel + '</span></span></div>' +
+        '<div class="drawer-field"><span class="drawer-field-label">时间</span><span class="drawer-field-value" style="color:#8c8c8c;">' + item.date + '</span></div>' +
+      '</div>' +
+      '<div class="drawer-section">' +
+        '<div class="drawer-section-title">客户摘要</div>' +
+        '<div class="drawer-field"><span class="drawer-field-label">客户</span><span class="drawer-field-value" style="font-weight:500;">' + clientName + '</span></div>' +
+        (clientSub ? '<div class="drawer-field"><span class="drawer-field-label">行业</span><span class="drawer-field-value">' + clientSub + '</span></div>' : '') +
+        '<div class="drawer-field"><span class="drawer-field-label">通过后</span><span class="drawer-field-value" style="color:#1890ff;">' + item.action + '</span></div>' +
+      '</div>' +
+      '<div class="drawer-section">' +
+        '<div class="drawer-section-title">申请内容</div>' +
+        '<div style="font-size:13px;color:#595959;line-height:1.6;">' + item.desc + '</div>' +
+      '</div>' +
+      '<div class="drawer-section">' +
+        '<div class="drawer-section-title">审批记录</div>' +
+        '<div style="font-size:13px;color:#595959;padding:10px 14px;background:#fafafa;border-radius:6px;">' +
+          '<div style="margin-bottom:6px;"><span style="color:#1890ff;">●</span> ' + item.person + ' 于 ' + item.date + ' 发起申请</div>' +
+          (item.status === 'approved' ? '<div><span style="color:#52c41a;">✅</span> 审批通过</div>' : '') +
+          (item.status === 'rejected' ? '<div><span style="color:#ff4d4f;">❌</span> 已驳回</div>' : '') +
+        '</div>' +
+      '</div>';
+    if (item.status === 'pending') {
+      body += '<div class="drawer-actions">' +
+        '<button class="btn btn-primary" onclick="approve(\'' + item.id + '\')" aria-label="通过审批 ' + item.id + '"><i data-lucide="check"></i> 通过</button>' +
+        '<button class="btn btn-danger" onclick="reject(\'' + item.id + '\')" aria-label="驳回审批 ' + item.id + '"><i data-lucide="x"></i> 驳回</button>' +
+        '</div>';
+    }
+    document.getElementById('drawerBody').innerHTML = body;
+    document.getElementById('drawerOverlay').style.display = 'block';
+    document.getElementById('approvalDrawer').classList.add('open');
+    lucide.createIcons();
+  }
+
+  function closeDrawer() {
+    document.getElementById('drawerOverlay').style.display = 'none';
+    document.getElementById('approvalDrawer').classList.remove('open');
+  }
+
+  // Close drawer on Escape key
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') closeDrawer();
+  });
+
+  // ===== Init =====
+  function init() {
+    updateTabBadges();
+    updateAllKPIs();
+    renderApprove();
+  }
+  init();
+
+  function toggleOrgSub(el) {
+    var sub = document.getElementById('orgSub');
+    var arrow = el.querySelector('.sub-arrow');
+    if (!sub) return;
+    sub.style.display = sub.style.display === 'none' ? 'block' : 'none';
+    if (arrow) arrow.style.transform = sub.style.display === 'block' ? 'rotate(0deg)' : 'rotate(-90deg)';
+  }
+  function toggleScoreSub(el) {
+    var sub = document.getElementById('scoreSub');
+    if (!sub) return;
+    sub.style.display = sub.style.display === 'none' ? 'block' : 'none';
+    var arrow = el.querySelector('.sub-arrow');
+    if (arrow) arrow.style.transform = sub.style.display === 'block' ? 'rotate(0deg)' : 'rotate(-90deg)';
+  }
+</script>
+</body>
+</html>

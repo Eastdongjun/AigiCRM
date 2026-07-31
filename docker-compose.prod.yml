@@ -1,0 +1,70 @@
+version: '3.8'
+
+services:
+  # MySQL 数据库
+  mysql:
+    image: mysql:8.0.28
+    container_name: ycmn-mysql
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: '<redacted>'
+      MYSQL_DATABASE: ycmn
+      TZ: Asia/Shanghai
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ./sql/init.sql:/docker-entrypoint-initdb.d/init.sql
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_general_ci
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis 缓存
+  redis:
+    image: redis:7-alpine
+    container_name: ycmn-redis
+    restart: always
+    volumes:
+      - redis-data:/data
+
+  # 后端服务
+  backend:
+    image: ycmn-backend:1.0.0
+    container_name: ycmn-backend
+    restart: always
+    ports:
+      - "8080:8080"
+    environment:
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_USER: root
+      DB_PASSWORD: '<redacted>'
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      STORAGE_TYPE: local
+      UPLOAD_DIR: /app/uploads
+    volumes:
+      - upload-data:/app/uploads
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_started
+
+  # 前端服务
+  frontend:
+    image: ycmn-frontend:1.0.0
+    container_name: ycmn-frontend
+    restart: always
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+
+volumes:
+  mysql-data:
+  redis-data:
+  upload-data:

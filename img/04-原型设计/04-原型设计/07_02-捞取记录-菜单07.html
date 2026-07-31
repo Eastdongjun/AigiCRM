@@ -1,0 +1,599 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>运筹马年 · 捞取记录</title>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    /* ===== Reset & Base ===== */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", "Helvetica Neue", Arial, sans-serif; font-size: 14px; color: #333; background: #f0f2f5; }
+
+    /* ===== Layout ===== */
+    .app { display: flex; height: 100vh; overflow: hidden; }
+
+    /* ===== Sidebar ===== */
+    .sidebar { width: 240px; min-width: 240px; background: #001629; color: #fff; display: flex; flex-direction: column; user-select: none; overflow-y: auto; }
+    .sidebar::-webkit-scrollbar { width: 4px; }
+    .sidebar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 2px; }
+    .logo-wrap { display: flex; align-items: center; height: 56px; padding: 0 20px; gap: 10px; border-bottom: 1px solid rgba(255,255,255,0.08); flex-shrink: 0; }
+    .logo-icon { width: 32px; height: 32px; background: #1890ff; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 700; color: #fff; }
+    .logo-text { font-size: 17px; font-weight: 700; letter-spacing: 1px; color: #fff; }
+    .nav { flex: 1; padding: 12px 0; }
+    .nav-group { padding: 8px 0; }
+    .nav-group-title { padding: 4px 20px 6px; font-size: 11px; color: rgba(255,255,255,0.35); text-transform: uppercase; letter-spacing: 1.5px; }
+    .nav-item { display: flex; align-items: center; padding: 0 20px; height: 40px; cursor: pointer; color: rgba(255,255,255,0.7); font-size: 14px; gap: 10px; position: relative; }
+    .nav-item:hover { background: rgba(255,255,255,0.06); color: #fff; }
+    .nav-item.active { background: rgba(24,144,255,0.18); color: #fff; }
+    .nav-item.active::before { content: ''; position: absolute; left: 0; top: 6px; bottom: 6px; width: 3px; background: #1890ff; border-radius: 0 2px 2px 0; }
+    .nav-item .nav-icon { width: 18px; height: 18px; flex-shrink: 0; opacity: 0.8; }
+    .nav-item.active .nav-icon { opacity: 1; }
+    .nav-item .nav-txt { flex: 1; }
+    .nav-badge { display: inline-flex; align-items: center; justify-content: center; min-width: 18px; height: 18px; border-radius: 9px; background: #ff4d4f; color: #fff; font-size: 11px; padding: 0 5px; font-weight: 600; line-height: 18px; }
+    .nav-badge.warn { background: #fa8c16; }
+    .nav-badge.primary { background: #1890ff; }
+    .sub-arrow { transition: transform .2s; }
+    .nav-sub { padding: 0 0 4px 0; }
+    .nav-sub-item { display: flex; align-items: center; padding: 0 20px 0 52px; height: 34px; cursor: pointer; color: rgba(255,255,255,0.55); font-size: 13px; gap: 8px; position: relative; }
+    .nav-sub-item:hover { background: rgba(255,255,255,0.06); color: #fff; }
+    .nav-sub-item.active { background: rgba(24,144,255,0.18); color: #fff; }
+    .nav-sub-item.active::before { content: ''; position: absolute; left: 0; top: 4px; bottom: 4px; width: 3px; background: #1890ff; border-radius: 0 2px 2px 0; }
+
+    /* ===== focus-visible ===== */
+    button:focus-visible, a:focus-visible, select:focus-visible, input:focus-visible {
+      outline: 2px solid #1890ff;
+      outline-offset: 2px;
+    }
+
+    /* ===== Main ===== */
+    .main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+
+    /* ===== Topbar ===== */
+    .topbar { height: 56px; background: #fff; border-bottom: 1px solid #e8e8e8; display: flex; align-items: center; justify-content: space-between; padding: 0 28px; flex-shrink: 0; }
+    .topbar-left { display: flex; align-items: center; gap: 16px; }
+    .topbar-title { font-size: 16px; font-weight: 600; color: #262626; }
+    .breadcrumb { display: flex; align-items: center; gap: 6px; font-size: 13px; color: #8c8c8c; }
+    .breadcrumb span { color: #595959; }
+    .topbar-right { display: flex; align-items: center; gap: 20px; }
+    .user-info { display: flex; align-items: center; gap: 8px; cursor: default; }
+    .user-avatar { width: 32px; height: 32px; border-radius: 50%; background: #1890ff; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 600; }
+    .user-name { font-size: 14px; font-weight: 500; color: #262626; }
+    .user-org { font-size: 12px; color: #8c8c8c; }
+
+    /* ===== Content ===== */
+    .content { flex: 1; overflow-y: auto; padding: 24px 28px; }
+
+    /* ===== Page Header ===== */
+    
+    .page-header { display:flex;align-items:center;justify-content:flex-end;margin-bottom:16px; }
+    .page-header h1 { font-size:20px;font-weight:600;color:#262626; }
+    .page-header-sub { display:flex;align-items:center;gap:6px;font-size:12px;color:#8c8c8c;margin-top:2px; }
+
+    .role-bar { display:flex;align-items:center;gap:12px;padding:10px 16px;background:#fff;border-radius:6px;box-shadow:0 1px 3px rgba(0,0,0,0.04);margin-bottom:10px;flex-wrap:wrap; }
+    .role-selector { display:flex;align-items:center;gap:6px; }
+    .role-selector label { font-size:12px;color:#8c8c8c;font-weight:500; }
+    .role-selector select { height:30px;padding:0 24px 0 10px;border:1px solid #d9d9d9;border-radius:4px;font-size:13px;color:#262626;background:#fff;cursor:pointer;outline:none;min-width:160px; }
+    .role-selector select:focus { border-color:#1890ff; }
+    .role-hint { font-size:11px;color:#bfbfbf; }
+    .stats-pill { display:flex;align-items:center;gap:4px;font-size:12px;color:#8c8c8c; }
+
+    .filter-bar { display:flex;align-items:center;justify-content:flex-end;padding:10px 16px;background:#fff;border-radius:6px;box-shadow:0 1px 3px rgba(0,0,0,0.04);margin-bottom:1px;flex-wrap:wrap;gap:8px; }
+    .filter-group { display:flex;align-items:center;gap:8px;flex-wrap:wrap; }
+    .filter-date { height:30px;padding:0 8px;border:1px solid #d9d9d9;border-radius:4px;font-size:12px;color:#262626;outline:none; }
+    .filter-date:focus { border-color:#1890ff; }
+    .filter-select { height:30px;padding:0 24px 0 8px;border:1px solid #d9d9d9;border-radius:4px;font-size:12px;color:#262626;background:#fff;cursor:pointer;outline:none;appearance:auto; }
+    .filter-select:focus { border-color:#1890ff; }
+    .tb-sep { width:1px;height:20px;background:#e8e8e8; }
+    .search-box { display:flex;align-items:center;border:1px solid #d9d9d9;border-radius:4px;background:#fff;padding:0 8px;height:30px;gap:4px; }
+    .search-box input { border:none;outline:none;flex:1;font-size:12px;color:#333;background:transparent;min-width:100px; }
+    .search-box input::placeholder { color:#bfbfbf; }
+
+    .table-wrap { overflow-x:auto; }
+    .record-table { width:100%;border-collapse:collapse;font-size:13px;table-layout:fixed; }
+    .record-table thead th { background:#f5f5f5;padding:9px 10px;font-weight:600;color:#333;border-bottom:2px solid #d9d9d9;text-align:center;font-size:12px;white-space:nowrap; }
+    .record-table tbody td { padding:9px 10px;border-bottom:1px solid #e8e8e8;font-size:13px;color:#333;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
+    .record-table tbody tr:hover td { background:#f0f5ff; }
+    .record-table tbody tr:nth-child(even) td { background:#fafafa; }
+    .record-table tbody tr:nth-child(even):hover td { background:#eaf3ff; }
+
+    .status-tag { display:inline-flex;padding:2px 10px;border-radius:10px;font-size:12px;font-weight:500; }
+    .status-approved { background:#f6ffed;color:#52c41a; }
+    .status-rejected { background:#fff2f0;color:#ff4d4f; }
+
+    .pagination { display:flex;align-items:center;justify-content:flex-end;padding:10px 16px;border-top:1px solid #f0f0f0;background:#fff; }
+    .page-info { font-size:12px;color:#8c8c8c; }
+    .page-btns { display:flex;gap:4px; }
+    .page-btn { display:inline-flex;align-items:center;justify-content:center;min-width:28px;height:28px;border:1px solid #e8e8e8;border-radius:4px;background:#fff;color:#595959;font-size:12px;cursor:pointer; }
+    .page-btn:hover { border-color:#1890ff;color:#1890ff; }
+    .page-btn.active { background:#1890ff;border-color:#1890ff;color:#fff; }
+    .page-btn.disabled { opacity:0.4;cursor:not-allowed; }
+    .page-btn:focus-visible { outline:2px solid #1890ff;outline-offset:2px; }.filter-bar { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; border-bottom: 1px solid #f0f0f0; gap: 12px; flex-wrap: wrap; }
+    .filter-group { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+    .filter-select { height: 32px; padding: 0 28px 0 10px; border: 1px solid #d9d9d9; border-radius: 6px; font-size: 12px; color: #262626; background: #fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath fill='%23999' d='M0 0l5 6 5-6z'/%3E%3C/svg%3E") no-repeat right 10px center; appearance: none; cursor: pointer; min-width: 110px; }
+    .filter-select:focus { border-color: #1890ff; outline: none; }
+    .filter-date { height: 32px; padding: 0 10px; border: 1px solid #d9d9d9; border-radius: 6px; font-size: 12px; color: #262626; background: #fff; cursor: pointer; min-width: 130px; }
+    .filter-date:focus { border-color: #1890ff; outline: none; }
+
+    /* ===== Tags ===== */
+    .status-tag { display: inline-flex; padding: 2px 10px; border-radius: 10px; font-size: 12px; font-weight: 500; }
+    .status-tag.approved { background: #f6ffed; color: #52c41a; }
+    .status-tag.rejected { background: #fff1f0; color: #ff4d4f; }
+
+    /* ===== Table ===== */
+    .table-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+    thead th { background: #fafafa; padding: 12px 12px; text-align: left; font-weight: 600; color: #595959; border-bottom: 1px solid #f0f0f0; white-space: nowrap; font-size: 12px; }
+    tbody td { padding: 11px 12px; border-bottom: 1px solid #f0f0f0; vertical-align: middle; font-size: 13px; }
+    tbody tr:hover { background: #e6f7ff; }
+    tbody tr:last-child td { border-bottom: none; }
+    .td-client { font-weight: 500; color: #262626; }
+    .td-date { color: #8c8c8c; font-size: 12px; }
+    .industry-tag { display: inline-flex; padding: 1px 8px; border-radius: 4px; font-size: 11px; background: #f0f5ff; color: #1890ff; }
+
+    /* ===== Pagination ===== */
+    .pagination { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; border-top: 1px solid #f0f0f0; font-size: 13px; color: #8c8c8c; }
+    .pagination-left { color: #8c8c8c; font-size: 13px; }
+    .pagination-right { display: flex; align-items: center; gap: 4px; }
+    .page-btn { display: inline-flex; align-items: center; justify-content: center; min-width: 32px; height: 32px; padding: 0 8px; border: 1px solid #d9d9d9; border-radius: 6px; background: #fff; color: #595959; font-size: 13px; cursor: pointer; }
+    .page-btn:hover { border-color: #1890ff; color: #1890ff; }
+    .page-btn.active { border-color: #1890ff; background: #1890ff; color: #fff; }
+    .page-btn.disabled { color: #d9d9d9; border-color: #d9d9d9; cursor: not-allowed; pointer-events: none; }
+    .page-btn .lucide { width: 14px; height: 14px; }
+
+    /* ===== Result count ===== */
+    .filter-result-count { font-size: 12px; color: #8c8c8c; padding: 0 6px; white-space: nowrap; }
+
+    /* ===== Responsive ===== */
+    @media (max-width: 900px) {
+      .filter-bar { flex-direction: column; align-items: stretch; }
+      .filter-group { flex-wrap: wrap; }
+    }
+    @media (max-width: 768px) {
+      .sidebar { width: 200px; min-width: 200px; }
+      .pagination { flex-direction: column; gap: 8px; }
+    }
+  </style>
+</head>
+<body>
+<div class="app">
+
+  <!-- ===== Sidebar ===== -->
+    <aside class="sidebar">
+    <div class="logo-wrap">
+      <div class="logo-icon">运</div>
+      <span class="logo-text">运筹马年</span>
+    </div>
+    <nav class="nav">
+      <div class="nav-group">
+        <div class="nav-group-title">首页</div>
+        <div class="nav-item" onclick="location.href='02-工作台-菜单02.html'" style="cursor:pointer;">
+          <i class="nav-icon" data-lucide="layout-dashboard"></i>
+          <span class="nav-txt">工作台</span>
+        </div>
+      </div>
+      <div class="nav-group">
+        <div class="nav-group-title">业务核心</div>
+        <div class="nav-item" onclick="location.href='03_01-客户列表-菜单03.html'" style="cursor:pointer;">
+          <i class="nav-icon" data-lucide="users"></i>
+          <span class="nav-txt">客户管理</span>
+          <span class="nav-badge">24</span>
+        </div>
+        <div class="nav-sub" style="display:none;">
+          <div class="nav-sub-item" onclick="location.href='03_01-客户列表-菜单03.html'">
+            <span class="nav-txt">客户列表</span>
+          </div>
+          <div class="nav-sub-item" onclick="location.href='03_03-新增客户-菜单03.html'" style="cursor:pointer;">
+            <span class="nav-txt">新增客户</span>
+          </div>
+          <div class="nav-sub-item" onclick="location.href='03_02-客户详情-菜单03.html'" style="cursor:pointer;">
+            <span class="nav-txt">客户详情</span>
+          </div>
+        </div>
+
+        <div class="nav-item" onclick="location.href='04-文件管理-菜单04.html'" style="cursor:pointer;">
+          <i class="nav-icon" data-lucide="folder"></i>
+          <span class="nav-txt">文件管理</span>
+        </div>
+        <div class="nav-item" onclick="location.href='05_02-激励上传-菜单05.html'" style="cursor:pointer;">
+          <i class="nav-icon" data-lucide="database"></i>
+          <span class="nav-txt">四项激励Plus版</span>
+        </div>
+        <div class="nav-item" onclick="location.href='06-提醒管理-菜单06.html'" style="cursor:pointer;">
+          <i class="nav-icon" data-lucide="bell"></i>
+          <span class="nav-txt">提醒管理</span>
+          <span class="nav-badge warn">3</span>
+        </div>
+        <div class="nav-item active" onclick="location.href='07_01-公海池-菜单07.html'" style="cursor:pointer;">
+          <i class="nav-icon" data-lucide="sailboat"></i>
+          <span class="nav-txt">公海管理</span>
+        </div>
+        <div class="nav-item" onclick="location.href='08-审批管理-菜单08.html'" style="cursor:pointer;">
+          <i class="nav-icon" data-lucide="check-circle"></i>
+          <span class="nav-txt">审批管理</span>
+          <span class="nav-badge primary">2</span>
+        </div>
+      </div>
+      <div class="nav-group">
+        <div class="nav-group-title">考核与分析</div>
+        <div class="nav-item" onclick="location.href='09-统计分析-菜单09.html'" style="cursor:pointer;">
+          <i class="nav-icon" data-lucide="bar-chart-3"></i>
+          <span class="nav-txt">统计分析</span>
+        </div>
+        <div class="nav-item" onclick="toggleScoreSub(this)" style="cursor:pointer;">
+          <i class="nav-icon" data-lucide="trophy"></i>
+          <span class="nav-txt">积分榜</span>
+          <i class="sub-arrow" data-lucide="chevron-down" style="width:14px;height:14px;opacity:0.6;transition:transform .2s;"></i>
+        </div>
+        <div class="nav-sub" id="scoreSub" style="display:none;">
+          <div class="nav-sub-item" onclick="location.href='10_01-积分录入-菜单10.html'">
+            <i data-lucide="edit-3" style="width:14px;height:14px;"></i> 积分录入
+          </div>
+          <div class="nav-sub-item" onclick="location.href='10_02-积分排行-菜单10.html'">
+            <i data-lucide="bar-chart-3" style="width:14px;height:14px;"></i> 🏆 个人排行
+          </div>
+          <div class="nav-sub-item" onclick="location.href='10_03-部门排行-菜单10.html'">
+            <i data-lucide="building-2" style="width:14px;height:14px;"></i> 🏅 部门排行
+          </div>
+        </div>
+        <div class="nav-item" onclick="toggleSixSub(this)" style="cursor:pointer;">
+          <i class="nav-icon" data-lucide="target"></i>
+          <span class="nav-txt">核心客户六项指标</span>
+          <i class="sub-arrow" data-lucide="chevron-down" style="width:14px;height:14px;opacity:0.6;transition:transform .2s;"></i>
+        </div>
+        <div class="nav-sub" id="sixSub" style="display:none;">
+          <div class="nav-sub-item" onclick="location.href='09_02-核心客户指标排行-菜单09.html'">
+            <i data-lucide="pie-chart" style="width:14px;height:14px;"></i> 统计总览
+          </div>
+          <div class="nav-sub-item" onclick="location.href='09_02-核心客户指标排行-菜单09.html'">
+            <i data-lucide="user-check" style="width:14px;height:14px;"></i> 🏆 个人排行
+          </div>
+          <div class="nav-sub-item" onclick="location.href='09_02-核心客户指标排行-菜单09.html'">
+            <i data-lucide="building-2" style="width:14px;height:14px;"></i> 🏅 部门排行
+          </div>
+          <div class="nav-sub-item" onclick="location.href='09_02-核心客户指标排行-菜单09.html'">
+            <i data-lucide="globe" style="width:14px;height:14px;"></i> 🌍 大区排行
+          </div>
+        </div>
+      </div>
+      <div class="nav-group">
+        <div class="nav-group-title">系统管理</div>
+        <div class="nav-item" onclick="toggleOrgSub(this)" style="cursor:pointer;">
+          <i class="nav-icon" data-lucide="building-2"></i>
+          <span class="nav-txt">组织架构</span>
+          <i class="sub-arrow" data-lucide="chevron-down" style="width:14px;height:14px;opacity:0.6;transition:transform .2s;"></i>
+        </div>
+        <div class="nav-sub" id="orgSub" style="display:none;">
+          <div class="nav-sub-item" onclick="location.href='11-组织架构-菜单11.html#personnel'">
+            <i data-lucide="users" style="width:14px;height:14px;"></i> 人员列表
+          </div>
+          <div class="nav-sub-item" onclick="location.href='11-组织架构-菜单11.html#dept'">
+            <i data-lucide="layers" style="width:14px;height:14px;"></i> 部门管理
+          </div>
+          <div class="nav-sub-item" onclick="location.href='11-组织架构-菜单11.html#position'">
+            <i data-lucide="briefcase" style="width:14px;height:14px;"></i> 岗位设置
+          </div>
+          <div class="nav-sub-item" onclick="location.href='11-组织架构-菜单11.html#permission'">
+            <i data-lucide="shield" style="width:14px;height:14px;"></i> 权限设置
+          </div>
+        </div>
+        <div class="nav-item" onclick="location.href='12-系统设置-菜单12.html'" style="cursor:pointer;">
+          <i class="nav-icon" data-lucide="settings"></i>
+          <span class="nav-txt">系统设置</span>
+        </div>
+        <div class="nav-item" onclick="location.href='13-日志管理-菜单13.html'" style="cursor:pointer;">
+          <i class="nav-icon" data-lucide="file-text"></i>
+          <span class="nav-txt">日志管理</span>
+        </div>
+      </div>
+    </nav>
+  </aside>
+
+  <!-- ===== Main Area ===== -->
+  <div class="main">
+
+    <!-- ===== Topbar ===== -->
+    <header class="topbar">
+      <div class="topbar-left">
+        <span class="topbar-title">公海管理</span>
+        <div class="breadcrumb">
+          <i data-lucide="home" style="width:14px;height:14px;" aria-hidden="true"></i>
+          <span>首页</span>
+          <span style="color:#bfbfbf;margin:0 4px;">/</span>
+          <span>业务核心</span>
+          <span style="color:#bfbfbf;margin:0 4px;">/</span>
+          <span style="color:#262626;font-weight:500;">捞取记录</span>
+        </div>
+      </div>
+      <div class="topbar-right">
+        <button style="background:none;border:none;cursor:pointer;display:flex;align-items:center;" aria-label="通知">
+          <i data-lucide="bell" style="width:18px;height:18px;color:#8c8c8c;"></i>
+        </button>
+        <button style="background:none;border:none;cursor:pointer;display:flex;align-items:center;" aria-label="帮助">
+          <i data-lucide="help-circle" style="width:18px;height:18px;color:#8c8c8c;"></i>
+        </button>
+        <div class="user-info">
+          <div class="user-avatar">吴</div>
+          <span class="user-name">吴哲</span>
+          <span class="user-org">· 总部 系统管理员</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- ===== Content ===== -->
+    <div class="content">
+
+      <!-- Page Header -->
+      <div class="page-header" style="justify-content:space-between;margin-bottom:16px;">
+        <div>
+          <h1 style="font-size:20px;font-weight:600;color:#262626;">📜 捞取审批记录</h1>
+          <div style="font-size:12px;color:#8c8c8c;margin-top:2px;">查看客户捞取申请与审批结果</div>
+        </div>
+        <div class="role-bar" style="margin:0;padding:8px 14px;gap:8px;">
+          <div class="role-selector">
+            <label style="font-size:12px;color:#8c8c8c;">👤 当前角色</label>
+            <select id="selRole" onchange="renderRecords()" style="height:30px;padding:0 24px 0 10px;border:1px solid #d9d9d9;border-radius:4px;font-size:13px;">
+              <option value="马文杰">马文杰（总监）</option>
+              <option value="赵四">赵四（区域经理-太原办）</option>
+              <option value="张三">张三（区域经理-内蒙办）</option>
+              <option value="王磊磊">王磊磊（销售工程师-内蒙办）</option>
+              <option value="李明">李明（销售工程师-内蒙办）</option>
+            </select>
+          </div>
+          <span style="flex:1;"></span>
+          <span style="font-size:12px;color:#8c8c8c;"><b id="totalCount">0</b> 条记录</span>
+        </div>
+      </div>
+
+      <!-- KPI Cards -->
+      <div class="kpi-bar" style="display:flex;background:#fff;border-radius:8px;box-shadow:0 1px 4px rgba(0,0,0,0.04);margin-bottom:12px;overflow:hidden;">
+        <div class="kpi-bar-item" style="flex:1;display:flex;align-items:center;gap:12px;padding:14px 20px;">
+          <div class="kpi-bar-icon blue" style="width:36px;height:36px;border-radius:8px;background:#e6f7ff;display:flex;align-items:center;justify-content:center;"><i data-lucide="file-text"></i></div>
+          <div><div style="font-size:22px;font-weight:700;color:#1890ff;" id="kpiTotal">0</div><div style="font-size:12px;color:#8c8c8c;">总记录</div></div>
+        </div>
+        <div style="width:1px;background:#f0f0f0;margin:14px 0;"></div>
+        <div class="kpi-bar-item" style="flex:1;display:flex;align-items:center;gap:12px;padding:14px 20px;">
+          <div class="kpi-bar-icon green" style="width:36px;height:36px;border-radius:8px;background:#f6ffed;display:flex;align-items:center;justify-content:center;"><i data-lucide="check-circle"></i></div>
+          <div><div style="font-size:22px;font-weight:700;color:#52c41a;" id="kpiApproved">0</div><div style="font-size:12px;color:#8c8c8c;">已通过</div></div>
+        </div>
+        <div style="width:1px;background:#f0f0f0;margin:14px 0;"></div>
+        <div class="kpi-bar-item" style="flex:1;display:flex;align-items:center;gap:12px;padding:14px 20px;">
+          <div class="kpi-bar-icon red" style="width:36px;height:36px;border-radius:8px;background:#fff1f0;display:flex;align-items:center;justify-content:center;"><i data-lucide="x-circle"></i></div>
+          <div><div style="font-size:22px;font-weight:700;color:#ff4d4f;" id="kpiRejected">0</div><div style="font-size:12px;color:#8c8c8c;">已驳回</div></div>
+        </div>
+        <div style="width:1px;background:#f0f0f0;margin:14px 0;"></div>
+        <div class="kpi-bar-item" style="flex:1;display:flex;align-items:center;gap:12px;padding:14px 20px;">
+          <div class="kpi-bar-icon orange" style="width:36px;height:36px;border-radius:8px;background:#fff7e6;display:flex;align-items:center;justify-content:center;"><i data-lucide="clock"></i></div>
+          <div><div style="font-size:22px;font-weight:700;color:#fa8c16;" id="kpiPending">0</div><div style="font-size:12px;color:#8c8c8c;">待审批</div></div>
+        </div>
+      </div>
+
+      <!-- Filter Bar -->
+      <div class="filter-bar" style="display:flex;align-items:center;gap:10px;padding:10px 16px;background:#fff;border-radius:8px;box-shadow:0 1px 4px rgba(0,0,0,0.04);margin-bottom:12px;flex-wrap:wrap;">
+        <span style="font-size:12px;color:#8c8c8c;white-space:nowrap;">申请日期</span>
+        <input type="date" class="filter-date" id="filterDateFrom" value="2026-04-01" onchange="renderRecords()" style="height:32px;padding:0 8px;border:1px solid #d9d9d9;border-radius:6px;font-size:12px;">
+        <span style="color:#bfbfbf;">~</span>
+        <input type="date" class="filter-date" id="filterDateTo" value="2026-06-05" onchange="renderRecords()" style="height:32px;padding:0 8px;border:1px solid #d9d9d9;border-radius:6px;font-size:12px;">
+        <span style="width:1px;height:20px;background:#e8e8e8;"></span>
+        <select class="filter-select" id="filterRegion" onchange="renderRecords()" style="height:32px;padding:0 24px 0 10px;border:1px solid #d9d9d9;border-radius:6px;font-size:12px;">
+          <option value="">全部办事处</option>
+          <option>内蒙办</option><option>太原办</option><option>总部</option>
+        </select>
+        <select class="filter-select" id="filterStatus" onchange="renderRecords()" style="height:32px;padding:0 24px 0 10px;border:1px solid #d9d9d9;border-radius:6px;font-size:12px;">
+          <option value="">全部状态</option>
+          <option>已通过</option><option>已驳回</option><option>待审批</option>
+        </select>
+        <select class="filter-select" id="filterClaimer" onchange="renderRecords()" style="height:32px;padding:0 24px 0 10px;border:1px solid #d9d9d9;border-radius:6px;font-size:12px;">
+          <option value="">全部捞取人</option>
+          <option>王磊磊</option><option>李明</option><option>张三</option>
+        </select>
+        <select class="filter-select" id="filterApprover" onchange="renderRecords()" style="height:32px;padding:0 24px 0 10px;border:1px solid #d9d9d9;border-radius:6px;font-size:12px;">
+          <option value="">全部审批人</option>
+          <option>马文杰</option><option>赵四</option><option>张三</option>
+        </select>
+        <div style="flex:1;"></div>
+        <div class="search-box" style="display:flex;align-items:center;border:1px solid #d9d9d9;border-radius:6px;background:#fff;padding:0 10px;height:32px;gap:4px;">
+          <i data-lucide="search" style="width:14px;height:14px;color:#bfbfbf;"></i>
+          <input type="text" placeholder="搜索客户/捞取人/审批人..." oninput="renderRecords()" style="border:none;outline:none;flex:1;font-size:13px;min-width:160px;">
+        </div>
+      </div>
+
+      <!-- Table -->
+      <div class="list-card" style="background:#fff;border-radius:8px;box-shadow:0 1px 4px rgba(0,0,0,0.04);overflow:hidden;">
+        <div class="table-wrap">
+          <table style="width:100%;border-collapse:separate;border-spacing:0;table-layout:fixed;">
+            <colgroup>
+              <col style="width:90px;">
+              <col style="width:150px;">
+              <col style="width:55px;">
+              <col style="width:70px;">
+              <col style="width:70px;">
+              <col style="width:70px;">
+              <col style="width:90px;">
+            </colgroup>
+            <thead>
+              <tr>
+                <th style="background:#f5f6f8;padding:10px 12px;font-weight:600;color:#595959;border-bottom:1px solid #e0e0e0;font-size:12px;white-space:nowrap;text-align:left;">申请日期</th>
+                <th style="background:#f5f6f8;padding:10px 12px;font-weight:600;color:#595959;border-bottom:1px solid #e0e0e0;font-size:12px;white-space:nowrap;text-align:left;">客户名称</th>
+                <th style="background:#f5f6f8;padding:10px 12px;font-weight:600;color:#595959;border-bottom:1px solid #e0e0e0;font-size:12px;white-space:nowrap;text-align:center;">行业</th>
+                <th style="background:#f5f6f8;padding:10px 12px;font-weight:600;color:#595959;border-bottom:1px solid #e0e0e0;font-size:12px;white-space:nowrap;text-align:center;">捞取人</th>
+                <th style="background:#f5f6f8;padding:10px 12px;font-weight:600;color:#595959;border-bottom:1px solid #e0e0e0;font-size:12px;white-space:nowrap;text-align:center;">审批人</th>
+                <th style="background:#f5f6f8;padding:10px 12px;font-weight:600;color:#595959;border-bottom:1px solid #e0e0e0;font-size:12px;white-space:nowrap;text-align:center;">状态</th>
+                <th style="background:#f5f6f8;padding:10px 12px;font-weight:600;color:#595959;border-bottom:1px solid #e0e0e0;font-size:12px;white-space:nowrap;text-align:center;">审批时间</th>
+              </tr>
+            </thead>
+            <tbody id="recordBody"></tbody>
+          </table>
+        </div>
+        <div class="pagination" style="display:flex;align-items:center;justify-content:space-between;padding:10px 16px;border-top:1px solid #f0f0f0;background:#fff;">
+          <span class="page-info" style="font-size:12px;color:#8c8c8c;">共 <b id="pageTotal">0</b> 条</span>
+          <div class="page-btns" id="pageBtns" style="display:flex;gap:4px;"></div>
+        </div>
+      </div>
+
+    </div><!-- /content -->
+  </div><!-- /main -->
+
+</div><!-- /app -->
+
+<script>
+  lucide.createIcons();
+
+  // ===== Claim Records Data =====
+  var CLAIM_DATA = [
+    { date: '2026-06-05', client: '国能榆林化工', industry: '化工', claimer: '张三', approver: '王磊磊', status: 'approved', time: '09:32' },
+    { date: '2026-06-04', client: '神东哈拉沟煤矿', industry: '煤矿', claimer: '李四', approver: '王磊磊', status: 'approved', time: '14:15' },
+    { date: '2026-06-03', client: '凯越煤化', industry: '化工', claimer: '赵四', approver: '李明', status: 'rejected', time: '10:48' },
+    { date: '2026-06-02', client: '陕煤榆林化学', industry: '化工', claimer: '吴哲', approver: '王磊磊', status: 'approved', time: '16:20' },
+    { date: '2026-06-01', client: '准能集团', industry: '煤矿', claimer: '张三', approver: '周五', status: 'approved', time: '11:05' },
+    { date: '2026-05-30', client: '中煤蒙大', industry: '化工', claimer: '李四', approver: '郑六', status: 'rejected', time: '09:00' },
+    { date: '2026-05-28', client: '大唐托电', industry: '电力', claimer: '吴哲', approver: '王磊磊', status: 'approved', time: '15:30' },
+    { date: '2026-05-25', client: '伊泰煤炭', industry: '煤矿', claimer: '张三', approver: '李明', status: 'approved', time: '13:45' }
+  ];
+
+  var curPage = 1;
+  var PAGE_SIZE = 8;
+
+  function renderRecords() {
+    curPage = 1;
+    render();
+  }
+
+  function getFiltered() {
+    var data = CLAIM_DATA.slice();
+    var from = document.getElementById('filterDateFrom').value;
+    var to = document.getElementById('filterDateTo').value;
+    var region = document.getElementById('filterRegion').value;
+    var status = document.getElementById('filterStatus').value;
+    var claimer = document.getElementById('filterClaimer').value;
+    var approver = document.getElementById('filterApprover').value;
+    var searchVal = document.querySelector('.search-box input').value.toLowerCase().trim();
+
+    if (from) data = data.filter(function(d) { return d.date >= from; });
+    if (to) data = data.filter(function(d) { return d.date <= to; });
+    if (region) data = data.filter(function(d) { return d.region === region; });
+    if (status) data = data.filter(function(d) {
+      var s = status === '已通过' ? 'approved' : (status === '已驳回' ? 'rejected' : status);
+      return d.status === s;
+    });
+    if (claimer) data = data.filter(function(d) { return d.claimer === claimer; });
+    if (approver) data = data.filter(function(d) { return d.approver === approver; });
+    if (searchVal) data = data.filter(function(d) {
+      return d.client.indexOf(searchVal) !== -1 || d.claimer.indexOf(searchVal) !== -1 || d.approver.indexOf(searchVal) !== -1;
+    });
+    return data;
+  }
+
+  function render() {
+    var data = getFiltered();
+    var total = data.length;
+    var totalPages = Math.ceil(total / PAGE_SIZE) || 1;
+
+    if (curPage > totalPages) curPage = totalPages;
+    var start = (curPage - 1) * PAGE_SIZE;
+    var pageData = data.slice(start, start + PAGE_SIZE);
+
+    // Update counts
+    document.getElementById('totalCount').textContent = total;
+    document.getElementById('pageTotal').textContent = total;
+
+    // KPI
+    document.getElementById('kpiTotal').textContent = CLAIM_DATA.length;
+    document.getElementById('kpiApproved').textContent = CLAIM_DATA.filter(function(d){return d.status==='approved';}).length;
+    document.getElementById('kpiRejected').textContent = CLAIM_DATA.filter(function(d){return d.status==='rejected';}).length;
+    document.getElementById('kpiPending').textContent = '0';
+
+    var tbody = document.getElementById('recordBody');
+    var html = '';
+
+    if (pageData.length === 0) {
+      html = '<tr><td colspan="7">' +
+        '<div style="text-align:center;padding:60px 20px;">' +
+          '<i data-lucide="inbox" style="width:56px;height:56px;color:#d9d9d9;"></i>' +
+          '<p style="color:#bfbfbf;font-size:14px;margin-top:12px;">暂无匹配的捞取记录</p>' +
+          '<p style="color:#d9d9d9;font-size:12px;margin-top:4px;">当前筛选条件下没有数据，请尝试调整筛选条件</p>' +
+          '<button onclick="resetFilters()" style="margin-top:12px;padding:6px 16px;border:1px solid #d9d9d9;border-radius:6px;background:#fff;color:#595959;font-size:13px;cursor:pointer;">重置筛选</button>' +
+        '</div></td></tr>';
+    } else {
+      for (var i = 0; i < pageData.length; i++) {
+        var d = pageData[i];
+        var statusLabel = d.status === 'approved' ? '✅ 已通过' : '❌ 已驳回';
+        var statusClass = d.status === 'approved' ? 'status-approved' : 'status-rejected';
+        html += '<tr>' +
+          '<td style="color:#8c8c8c;font-size:12px;text-align:left;padding:10px 12px;border-bottom:1px solid #f0f0f0;">' + d.date + '</td>' +
+          '<td style="text-align:left;font-weight:500;color:#262626;padding:10px 12px;border-bottom:1px solid #f0f0f0;">' + d.client + '</td>' +
+          '<td style="text-align:center;padding:10px 12px;border-bottom:1px solid #f0f0f0;"><span class="industry-tag">' + d.industry + '</span></td>' +
+          '<td style="text-align:center;color:#595959;padding:10px 12px;border-bottom:1px solid #f0f0f0;">' + d.claimer + '</td>' +
+          '<td style="text-align:center;color:#595959;padding:10px 12px;border-bottom:1px solid #f0f0f0;">' + d.approver + '</td>' +
+          '<td style="text-align:center;padding:10px 12px;border-bottom:1px solid #f0f0f0;"><span class="status-tag ' + statusClass + '">' + statusLabel + '</span></td>' +
+          '<td style="text-align:center;color:#8c8c8c;font-size:12px;padding:10px 12px;border-bottom:1px solid #f0f0f0;">' + d.time + '</td>' +
+        '</tr>';
+      }
+    }
+
+    tbody.innerHTML = html;
+    lucide.createIcons();
+    renderPagination(totalPages);
+  }
+
+  function resetFilters() {
+    document.getElementById('filterDateFrom').value = '';
+    document.getElementById('filterDateTo').value = '';
+    document.getElementById('filterRegion').value = '';
+    document.getElementById('filterStatus').value = '';
+    document.getElementById('filterClaimer').value = '';
+    document.getElementById('filterApprover').value = '';
+    document.querySelector('.search-box input').value = '';
+    curPage = 1;
+    render();
+  }
+
+  function renderPagination(totalPages) {
+    var html = '';
+    html += '<button class="page-btn ' + (curPage <= 1 ? 'disabled' : '') + '" onclick="goPage(' + (curPage - 1) + ')"' + (curPage <= 1 ? ' disabled' : '') + '><i data-lucide="chevron-left"></i></button>';
+    for (var i = 1; i <= totalPages; i++) {
+      html += '<button class="page-btn' + (i === curPage ? ' active' : '') + '" onclick="goPage(' + i + ')">' + i + '</button>';
+    }
+    html += '<button class="page-btn ' + (curPage >= totalPages ? 'disabled' : '') + '" onclick="goPage(' + (curPage + 1) + ')"' + (curPage >= totalPages ? ' disabled' : '') + '><i data-lucide="chevron-right"></i></button>';
+    document.getElementById('pageBtns').innerHTML = html;
+    lucide.createIcons();
+  }
+
+  function goPage(p) {
+    var total = getFiltered().length;
+    var totalPages = Math.ceil(total / PAGE_SIZE) || 1;
+    if (p < 1 || p > totalPages) return;
+    curPage = p;
+    render();
+  }
+
+  function toggleOrgSub(el) {
+    var sub = document.getElementById('orgSub');
+    var arrow = el.querySelector('.sub-arrow');
+    if (!sub) return;
+    sub.style.display = sub.style.display === 'none' ? 'block' : 'none';
+    if (arrow) arrow.style.transform = sub.style.display === 'block' ? 'rotate(0deg)' : 'rotate(-90deg)';
+  }
+
+  function toggleSixSub(el) {
+    var sub = document.getElementById('sixSub');
+    if (!sub) return;
+    sub.style.display = sub.style.display === 'none' ? 'block' : 'none';
+    var arrow = el.querySelector('.sub-arrow');
+    if (arrow) arrow.style.transform = sub.style.display === 'block' ? 'rotate(0deg)' : 'rotate(-90deg)';
+  }
+
+  function toggleScoreSub(el) {
+    var sub = document.getElementById('scoreSub');
+    if (!sub) return;
+    var arrow = el.querySelector('.sub-arrow');
+    sub.style.display = sub.style.display === 'none' ? 'block' : 'none';
+    if (arrow) arrow.style.transform = sub.style.display === 'block' ? 'rotate(0deg)' : 'rotate(-90deg)';
+  }
+
+  render();
+</script>
+
+</body>
+</html>
+</html>

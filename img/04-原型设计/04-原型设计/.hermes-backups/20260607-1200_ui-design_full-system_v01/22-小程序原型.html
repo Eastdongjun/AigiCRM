@@ -1,0 +1,187 @@
+<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8"><meta name="viewport" content="width=375,initial-scale=1.0"><title>运筹马年 · 小程序端原型</title>
+<script src="https://unpkg.com/lucide@latest"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif}
+body{background:#f5f5f5;display:flex;justify-content:center;padding:20px;min-height:100vh}
+.phone{width:375px;height:812px;background:#fff;border-radius:40px;overflow:hidden;box-shadow:0 0 60px rgba(0,0,0,.12);display:flex;flex-direction:column;position:relative}
+.status-bar{height:44px;background:#fff;display:flex;align-items:center;justify-content:flex-end;padding:0 24px;font-size:12px;color:#333;flex-shrink:0}
+.status-bar .time{font-weight:600}.status-bar .icons{display:flex;gap:4px}
+.header{height:44px;background:#fff;display:flex;align-items:center;justify-content:flex-end;padding:0 16px;border-bottom:1px solid #f0f0f0;flex-shrink:0}
+.header .title{font-size:17px;font-weight:600}
+.header .back{font-size:22px;color:#1890ff;cursor:pointer;width:28px}
+.header .right{width:28px}
+.content{flex:1;overflow-y:auto;padding:12px 16px;background:#f7f8fa}
+.content::-webkit-scrollbar{display:none}
+.tab-bar{height:50px;background:#fff;border-top:1px solid #eee;display:flex;flex-shrink:0}
+.tab-item{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:10px;color:#999;cursor:pointer;gap:2px}
+.tab-item i{width:20px;height:20px}
+.tab-item.active{color:#1890ff}
+.tab-item.active i{color:#1890ff}
+.page{display:none;flex-direction:column;flex:1;min-height:0}
+.page.active{display:flex}
+.badge{position:absolute;top:-2px;right:-6px;background:#ff4d4f;color:#fff;font-size:9px;padding:1px 5px;border-radius:10px;min-width:16px;text-align:center}
+.kpi-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:12px}
+.kpi-card{background:#fff;border-radius:10px;padding:12px 10px;text-align:center;border:1px solid #f0f0f0}
+.kpi-card .num{font-size:20px;font-weight:700;color:#1890ff}
+.kpi-card .lbl{font-size:10px;color:#999;margin-top:2px}
+.reminder-item{display:flex;align-items:center;gap:10px;padding:12px 0;border-bottom:1px solid #f0f0f0;cursor:pointer}
+.reminder-item:last-child{border:none}
+.reminder-item .dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.reminder-item .dot.red{background:#ff4d4f}
+.reminder-item .dot.orange{background:#faad14}
+.customer-item{display:flex;align-items:center;gap:10px;padding:12px 0;border-bottom:1px solid #f0f0f0;cursor:pointer}
+.customer-item .avatar{width:40px;height:40px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:600;color:#fff;flex-shrink:0}
+.menu-grid{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:0;margin-bottom:12px;background:#fff;border-radius:10px;padding:12px 0}
+.menu-grid .item{text-align:center;padding:8px}
+.menu-grid .item i{width:24px;height:24px;color:#1890ff}
+.menu-grid .item .lbl{font-size:11px;color:#333;margin-top:4px}
+.mine-card{background:#fff;border-radius:10px;padding:16px;display:flex;align-items:center;gap:12px;margin-bottom:12px}
+.mine-card .big-avatar{width:50px;height:50px;border-radius:50%;background:linear-gradient(135deg,#1890ff,#40a9ff);display:flex;align-items:center;justify-content:center;color:#fff;font-size:22px;font-weight:600}
+.mine-card .info{flex:1}
+.mine-card .info .name{font-size:16px;font-weight:600}
+.mine-card .info .role{font-size:12px;color:#999}
+.upload-btn{display:flex;align-items:center;gap:6px;padding:10px 16px;background:#1890ff;color:#fff;border-radius:20px;font-size:13px;cursor:pointer;border:none;margin:12px 0}
+
+    button:focus-visible, a:focus-visible, select:focus-visible, input:focus-visible { outline: 2px solid #1890ff; outline-offset: 2px; }
+  </style>
+</head><body>
+<div class="phone">
+<!-- 登录页 -->
+<div class="page active" id="page-login" style="display:flex;flex-direction:column;position:absolute;top:0;left:0;right:0;bottom:0;z-index:100;background:linear-gradient(180deg,#001529 0%,#003a70 40%,#1890ff 100%);">
+<div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:0 40px;">
+<div style="width:72px;height:72px;background:linear-gradient(135deg,#1890ff,#40a9ff);border-radius:18px;display:flex;align-items:center;justify-content:center;font-size:32px;font-weight:700;color:#fff;margin-bottom:16px;box-shadow:0 6px 24px rgba(24,144,255,.4);">运</div>
+<h1 style="font-size:24px;font-weight:700;color:#fff;margin-bottom:4px;">运筹马年</h1>
+<p style="font-size:13px;color:rgba(255,255,255,.55);margin-bottom:40px;">市场资源管理系统</p>
+<button onclick="mpLogin()" style="width:100%;max-width:280px;height:48px;background:#fff;color:#1890ff;border:none;border-radius:24px;font-size:16px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 4px 16px rgba(0,0,0,.15);">
+<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+  微信一键登录
+</button>
+<p style="font-size:11px;color:rgba(255,255,255,.35);margin-top:16px;">首次使用将自动创建账号</p>
+</div>
+<div style="padding:20px;text-align:center;font-size:10px;color:rgba(255,255,255,.25);">登录即代表同意《用户协议》和《隐私政策》</div>
+</div>
+
+<div class="status-bar"><span class="time">9:41</span><span class="icons">📶 🔋</span></div>
+
+<!-- Tab1: 待办 -->
+<div class="page" id="page-todo">
+<div class="header"><span class="back"></span><span class="title">待办</span><span class="right"></span></div>
+<div class="content">
+<div class="kpi-row">
+<div class="kpi-card"><div class="num" style="color:#ff4d4f;">3</div><div class="lbl">开票超一年</div></div>
+<div class="kpi-card"><div class="num" style="color:#faad14;">4</div><div class="lbl">即将到期</div></div>
+<div class="kpi-card"><div class="num" style="color:#1890ff;">1</div><div class="lbl">审批待办</div></div>
+</div>
+<div style="background:#fff;border-radius:10px;padding:0 12px;">
+<div class="reminder-item" onclick="showCustDetail('陕煤榆林化学')"><span class="dot red"></span><div style="flex:1;"><span style="font-size:13px;font-weight:500;">陕煤榆林化学</span><br><span style="font-size:11px;color:#999;">开票超一年 · 剩余7天</span></div><button style="padding:4px 10px;background:#1890ff;color:#fff;border:none;border-radius:4px;font-size:11px;">去跟进</button></div>
+<div class="reminder-item" onclick="showCustDetail('陕煤榆林化学')"><span class="dot red"></span><div style="flex:1;"><span style="font-size:13px;font-weight:500;">国能榆林化工</span><br><span style="font-size:11px;color:#999;">开票超一年 · 已超期</span></div><span style="font-size:11px;color:#ff4d4f;">超期</span></div>
+<div class="reminder-item" onclick="showCustDetail('内蒙古汇能')"><span class="dot orange"></span><div style="flex:1;"><span style="font-size:13px;font-weight:500;">内蒙古汇能</span><br><span style="font-size:11px;color:#999;">即将到期 · 剩余15天</span></div><button style="padding:4px 10px;background:#faad14;color:#fff;border:none;border-radius:4px;font-size:11px;">去开票</button></div>
+<div class="reminder-item" onclick="toast('发送祝福')"><span class="dot" style="background:#52c41a;"></span><div style="flex:1;"><span style="font-size:13px;font-weight:500;">张建国（陕煤）</span><br><span style="font-size:11px;color:#999;">生日提醒 · 08-15</span></div></div>
+<div class="reminder-item" onclick="toast('审批待处理')"><span class="dot" style="background:#1890ff;"></span><div style="flex:1;"><span style="font-size:13px;font-weight:500;">王磊磊 公海捞取申请</span><br><span style="font-size:11px;color:#999;">审批待处理 · 神东乌兰木伦</span></div><button style="padding:4px 10px;background:#1890ff;color:#fff;border:none;border-radius:4px;font-size:11px;">去审批</button></div>
+</div></div></div>
+
+<!-- Tab2: 客户 -->
+<div class="page" id="page-cust">
+<div class="header"><span class="back"></span><span class="title">客户</span><span class="right" style="font-size:22px;color:#1890ff;cursor:pointer;">＋</span></div>
+<div class="content">
+<div style="position:relative;margin-bottom:10px;"><input placeholder="搜索客户名称..." style="width:100%;padding:10px 14px;border:none;border-radius:20px;background:#fff;font-size:13px;outline:none;box-shadow:0 1px 4px rgba(0,0,0,.06);"></div>
+<div class="customer-item" onclick="showCustDetail('陕煤榆林化学')"><div class="avatar" style="background:#1890ff;">陕</div><div style="flex:1;"><span style="font-size:14px;font-weight:500;">陕煤榆林化学</span><br><span style="font-size:11px;color:#999;">化工 · 王磊磊</span></div><span style="font-size:11px;color:#ff4d4f;font-weight:500;">7天</span></div>
+<div class="customer-item" onclick="showCustDetail('神东哈拉沟煤矿')"><div class="avatar" style="background:#52c41a;">神</div><div style="flex:1;"><span style="font-size:14px;font-weight:500;">神东哈拉沟煤矿</span><br><span style="font-size:11px;color:#999;">煤矿 · 王磊磊</span></div><span style="font-size:11px;color:#52c41a;font-weight:500;">在保</span></div>
+<div class="customer-item" onclick="showCustDetail('汇能蒙南煤化工')"><div class="avatar" style="background:#faad14;">汇</div><div style="flex:1;"><span style="font-size:14px;font-weight:500;">汇能蒙南煤化工</span><br><span style="font-size:11px;color:#999;">化工 · 李明</span></div><span style="font-size:11px;color:#faad14;font-weight:500;">15天</span></div>
+<div class="customer-item" onclick="showCustDetail('鄂尔多斯煤制油')"><div class="avatar" style="background:#722ed1;">鄂</div><div style="flex:1;"><span style="font-size:14px;font-weight:500;">鄂尔多斯煤制油</span><br><span style="font-size:11px;color:#999;">化工 · 王磊磊</span></div><span style="font-size:11px;color:#52c41a;font-weight:500;">在保</span></div>
+<button class="upload-btn" style="margin-top:8px;">➕ 新建客户</button>
+</div></div>
+
+<!-- 客户详情浮层 -->
+<div class="page" id="page-cust-detail" style="display:none;flex-direction:column;flex:1;min-height:0;position:absolute;top:44px;left:0;right:0;bottom:50px;background:#fff;z-index:10;">
+<div class="header"><span class="back" onclick="hideCustDetail()" style="font-size:22px;color:#1890ff;cursor:pointer;width:28px;">‹</span><span class="title" id="custDetailName">客户详情</span><span class="right"></span></div>
+<div class="content">
+<div style="background:#fff;border-radius:10px;padding:16px;margin-bottom:12px;">
+<div style="font-size:16px;font-weight:600;margin-bottom:12px;">基本信息</div>
+<div style="font-size:13px;padding:8px 0;border-bottom:1px solid #f0f0f0;"><span style="color:#999;display:inline-block;width:70px;">联系人</span><span>王磊磊</span></div>
+<div style="font-size:13px;padding:8px 0;border-bottom:1px solid #f0f0f0;"><span style="color:#999;display:inline-block;width:70px;">所属行业</span><span>化工</span></div>
+<div style="font-size:13px;padding:8px 0;border-bottom:1px solid #f0f0f0;"><span style="color:#999;display:inline-block;width:70px;">当前阶段</span><span style="color:#1890ff;font-weight:500;">参观工厂 (60%)</span></div>
+<div style="font-size:13px;padding:8px 0;border-bottom:1px solid #f0f0f0;"><span style="color:#999;display:inline-block;width:70px;">保护期</span><span style="color:#52c41a;font-weight:500;">在保 · 剩余23天</span></div>
+<div style="font-size:13px;padding:8px 0;"><span style="color:#999;display:inline-block;width:70px;">最近跟进</span><span>2026-05-28</span></div>
+</div>
+<div style="background:#fff;border-radius:10px;padding:16px;margin-bottom:12px;">
+<div style="font-size:16px;font-weight:600;margin-bottom:12px;">客户描述</div>
+<div style="font-size:13px;color:#666;line-height:1.6;">大型煤化工项目，年采购额约5000万元，已建立初步合作关系，需持续推进高层对接。</div>
+</div>
+<div style="display:flex;gap:12px;">
+<button onclick="toast('跟进中')" style="flex:1;padding:12px;background:#1890ff;color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:500;cursor:pointer;">去跟进</button>
+<button onclick="toast('开票中')" style="flex:1;padding:12px;background:#fff;color:#1890ff;border:1px solid #1890ff;border-radius:8px;font-size:14px;font-weight:500;cursor:pointer;">去开票</button>
+</div>
+</div></div>
+
+<!-- Tab3: 工作台 -->
+<div class="page" id="page-work">
+<div class="header"><span class="back"></span><span class="title">工作台</span><span class="right"></span></div>
+<div class="content">
+<div class="kpi-row">
+<div class="kpi-card"><div class="num">24</div><div class="lbl">我的客户</div></div>
+<div class="kpi-card"><div class="num" style="color:#faad14;">3</div><div class="lbl">即将到期</div></div>
+<div class="kpi-card"><div class="num" style="color:#ff4d4f;">10</div><div class="lbl">已超期</div></div>
+</div>
+<div class="menu-grid">
+<div class="item" onclick="switchTab('cust',document.querySelector('.tab-item:nth-child(2)'))"><i data-lucide="users"></i><div class="lbl">客户管理</div></div>
+<div class="item" onclick="toast('文件管理')"><i data-lucide="folder-open"></i><div class="lbl">文件管理</div></div>
+<div class="item" onclick="toast('统计分析')"><i data-lucide="bar-chart-3"></i><div class="lbl">统计分析</div></div>
+<div class="item" onclick="toast('审批管理')"><i data-lucide="check-circle"></i><div class="lbl">审批管理</div></div>
+</div>
+<div style="background:#fff;border-radius:10px;padding:12px;margin-bottom:12px;">
+<div style="font-size:13px;font-weight:600;margin-bottom:8px;">🏆 积分排名</div>
+<div style="font-size:12px;padding:6px 0;display:flex;gap:6px;"><span>🥇 张三 22分</span><span style="color:#999;">|</span><span>🥈 王磊磊 21分</span><span style="color:#999;">|</span><span>🥉 李明 21分</span></div>
+</div>
+<div style="background:#fff;border-radius:10px;padding:12px;">
+<div style="font-size:13px;font-weight:600;margin-bottom:8px;">📋 我的阶段任务</div>
+<div style="font-size:12px;padding:6px 0;border-bottom:1px solid #f0f0f0;display:flex;gap:8px;"><span style="width:6px;height:6px;border-radius:50%;background:#1890ff;margin-top:5px;"></span><span>陕煤榆林化学 · 参观工厂 (60%)</span></div>
+<div style="font-size:12px;padding:6px 0;border-bottom:1px solid #f0f0f0;display:flex;gap:8px;"><span style="width:6px;height:6px;border-radius:50%;background:#52c41a;margin-top:5px;"></span><span>神东哈拉沟 · 高层拜访 (100%)</span></div>
+<div style="font-size:12px;padding:6px 0;display:flex;gap:8px;"><span style="width:6px;height:6px;border-radius:50%;background:#faad14;margin-top:5px;"></span><span>神东大柳塔 · 高层拜访 (50%)</span></div>
+</div>
+</div></div>
+
+<!-- Tab4: 我的 -->
+<div class="page" id="page-mine">
+<div class="header"><span class="back"></span><span class="title">我的</span><span class="right"><i data-lucide="settings" style="width:20px;height:20px;color:#999;"></i></span></div>
+<div class="content">
+<div class="mine-card"><div class="big-avatar">王</div><div class="info"><div class="name">王磊磊</div><div class="role">销售工程师 · 内蒙办</div></div></div>
+<div style="background:#fff;border-radius:10px;padding:0 12px;margin-bottom:12px;">
+<div style="display:flex;align-items:center;gap:10px;padding:14px 0;border-bottom:1px solid #f0f0f0;"><i data-lucide="star" style="width:20px;height:20px;color:#faad14;"></i><span style="font-size:14px;flex:1;">我的积分</span><span style="font-size:14px;font-weight:600;color:#1890ff;">21分</span><span style="font-size:11px;color:#999;">排名第2</span></div>
+<div style="display:flex;align-items:center;gap:10px;padding:14px 0;border-bottom:1px solid #f0f0f0;"><i data-lucide="folder-open" style="width:20px;height:20px;color:#1890ff;"></i><span style="font-size:14px;flex:1;">我的文件</span><span style="font-size:12px;color:#999;">3个</span></div>
+<div style="display:flex;align-items:center;gap:10px;padding:14px 0;"><i data-lucide="bell" style="width:20px;height:20px;color:#ff4d4f;"></i><span style="font-size:14px;flex:1;">消息设置</span></div>
+</div>
+<div style="background:#fff;border-radius:10px;padding:0 12px;">
+<div style="display:flex;align-items:center;gap:10px;padding:14px 0;border-bottom:1px solid #f0f0f0;"><i data-lucide="file-text" style="width:20px;height:20px;color:#666;"></i><span style="font-size:14px;flex:1;">操作记录</span></div>
+<div style="display:flex;align-items:center;gap:10px;padding:14px 0;border-bottom:1px solid #f0f0f0;"><i data-lucide="help-circle" style="width:20px;height:20px;color:#666;"></i><span style="font-size:14px;flex:1;">帮助与反馈</span></div>
+<div style="display:flex;align-items:center;gap:10px;padding:14px 0;"><i data-lucide="log-out" style="width:20px;height:20px;color:#ff4d4f;"></i><span style="font-size:14px;color:#ff4d4f;">退出登录</span></div>
+</div></div></div>
+
+<!-- Bottom Tab Bar -->
+<div class="tab-bar">
+<div class="tab-item active" onclick="switchTab('todo',this)"><i data-lucide="list-checks"></i><span>待办</span></div>
+<div class="tab-item" onclick="switchTab('cust',this)"><i data-lucide="users"></i><span>客户</span></div>
+<div class="tab-item" onclick="switchTab('work',this)"><i data-lucide="layout-dashboard"></i><span>工作台</span></div>
+<div class="tab-item" onclick="switchTab('mine',this)"><i data-lucide="user"></i><span>我的</span></div>
+</div></div>
+
+<script>
+lucide.createIcons();
+function mpLogin(){document.getElementById('page-login').style.display='none';document.getElementById('page-todo').classList.add('active');lucide.createIcons()}
+function switchTab(id,el){document.querySelectorAll('.page').forEach(function(p){p.classList.remove('active')});document.getElementById('page-'+id).classList.add('active');document.querySelectorAll('.tab-item').forEach(function(x){x.classList.remove('active')});el.classList.add('active')}
+function showCustDetail(name){
+  var detail = document.getElementById('page-cust-detail');
+  detail.style.display = 'flex';
+  detail.classList.add('active');
+  document.getElementById('page-cust').classList.remove('active');
+  document.getElementById('custDetailName').textContent = name;
+}
+function hideCustDetail(){
+  var detail = document.getElementById('page-cust-detail');
+  detail.style.display = 'none';
+  detail.classList.remove('active');
+  document.getElementById('page-cust').classList.add('active');
+}
+function toast(msg){alert(msg)}
+</script>
+</body></html>
