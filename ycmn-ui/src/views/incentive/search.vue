@@ -32,7 +32,7 @@
             <div v-for="f in getFiles(c.records[0]).slice(0,4)" :key="f.id" class="card-img">
               <template v-if="f.type==='image'">
                 <div class="img-wrap">
-                  <img :src="'/api/file/download/'+f.id" @click="preview(f.id)" @error="onImgError" />
+                  <img :src="fileUrl(f.id)" @click="preview(f.id)" @error="onImgError" />
                   <div v-if="f.tag" class="img-tag">{{ f.tag }}</div>
                 </div>
               </template>
@@ -90,12 +90,12 @@
                 <div v-for="f in getFiles(r)" :key="f.id" class="dtl-file">
                   <template v-if="f.type==='image'">
                     <div class="dtl-img-wrap">
-                      <img :src="'/api/file/download/'+f.id" @click="preview(f.id)" @error="onImgError" />
+                      <img :src="fileUrl(f.id)" @click="preview(f.id)" @error="onImgError" />
                       <div v-if="f.tag" class="dtl-file-tag">{{ f.tag }}</div>
                     </div>
                   </template>
                   <div v-else-if="f.type==='video'" class="dtl-file-vid" @click="preview(f.id)">▶</div>
-                  <div v-else class="dtl-file-doc" @click="window.open('/api/file/download/'+f.id)">📄 {{ f.label }}</div>
+                  <div v-else class="dtl-file-doc" @click="window.open(fileUrl(f.id))">📄 {{ f.label }}</div>
                 </div>
               </div>
             </div>
@@ -109,6 +109,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { getCategoryTree } from '@/api/incentive'
+import { getToken } from '@/utils/token'
 import { Search, User } from '@element-plus/icons-vue'
 import request from '@/utils/request'
 import { ElMessage } from 'element-plus'
@@ -119,6 +120,8 @@ const detailVisible=ref(false),detailCust=ref(null)
 const industries=['冶金','煤矿','化工','电力','有色金属','机械','工程公司','维修厂','其他终端客户']
 
 function onImgError(e){e.target.src='data:image/svg+xml,'+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="320" height="240" viewBox="0 0 320 240"><rect fill="#f5f6f7" width="320" height="240"/><text fill="#c0c4cc" font-size="14" font-family="sans-serif" text-anchor="middle" x="160" y="120">图片加载失败</text></svg>')}
+function fileUrl(id){return'/api/file/download/'+id+'?token='+(getToken()||'')}
+function preview(id){previewUrl.value=fileUrl(id);previewVisible.value=true}
 function showDetail(c){detailCust.value=c;detailVisible.value=true}
 
 function getFiles(r){

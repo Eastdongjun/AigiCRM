@@ -48,11 +48,11 @@
           <div v-if="getFiles(r).length" style="display:flex;gap:6px;flex-wrap:wrap">
             <div v-for="f in getFiles(r)" :key="f.id" style="flex:1;min-width:100px;max-width:calc(50% - 3px)">
               <div v-if="f.tag" style="font-size:10px;color:#909399;margin-bottom:2px">{{ f.tag }}</div>
-              <img v-if="f.type==='image'" :src="'/api/file/download/'+f.id" style="width:100%;max-height:180px;border-radius:4px;border:1px solid #e8e8e8;object-fit:cover;cursor:pointer" @click="preview(f.id)" @error="onImgError" />
+              <img v-if="f.type==='image'" :src="fileUrl(f.id)" style="width:100%;max-height:180px;border-radius:4px;border:1px solid #e8e8e8;object-fit:cover;cursor:pointer" @click="preview(f.id)" @error="onImgError" />
               <div v-else-if="f.type==='video'" style="width:100%;height:120px;background:#1e1b4b;border-radius:4px;display:flex;align-items:center;justify-content:center;cursor:pointer" @click="preview(f.id)">
                 <div style="width:36px;height:36px;background:rgba(255,255,255,.2);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;color:#fff">▶</div>
               </div>
-              <a v-else :href="'/api/file/download/'+f.id" target="_blank" style="display:block;padding:8px 10px;background:#fdf6ec;border-radius:4px;color:#e6a23c;text-decoration:none;font-size:11px;text-align:center">📄 {{ f.label }}</a>
+              <a v-else :href="fileUrl(f.id)" target="_blank" style="display:block;padding:8px 10px;background:#fdf6ec;border-radius:4px;color:#e6a23c;text-decoration:none;font-size:11px;text-align:center">📄 {{ f.label }}</a>
             </div>
           </div>
         </div>
@@ -71,6 +71,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { getCategoryTree } from '@/api/incentive'
+import { getToken } from '@/utils/token'
 import request from '@/utils/request'
 import { ElMessage } from 'element-plus'
 
@@ -83,7 +84,8 @@ const industries = ['冶金','煤矿','化工','电力','有色金属','机械',
 const totalR = computed(() => custs.value.reduce((s,c) => s + c.count, 0))
 
 function onImgError(e){e.target.src='data:image/svg+xml,'+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="320" height="240" viewBox="0 0 320 240"><rect fill="#f5f6f7" width="320" height="240"/><text fill="#c0c4cc" font-size="14" font-family="sans-serif" text-anchor="middle" x="160" y="120">图片已丢失</text></svg>')}
-function preview(id) { previewUrl.value = '/api/file/download/' + id; previewVisible.value = true }
+function fileUrl(id) { return '/api/file/download/' + id + '?token=' + (getToken() || '') }
+function preview(id) { previewUrl.value = fileUrl(id); previewVisible.value = true }
 
 function getFiles(r) {
   const f = []
