@@ -38,7 +38,8 @@ public class SecurityConfig {
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> {
                 auth.requestMatchers("/api/auth/login", "/api/auth/captcha", "/api/auth/forgot-password/**",
-                        "/api/system/configs/public", "/api/system/configs/logo").permitAll();
+                        "/api/system/configs/public", "/api/system/configs/logo",
+                        "/api/file/download/public/**").permitAll();
 
                 // Swagger 仅非生产环境开放
                 if (!isProd) {

@@ -1,5 +1,5 @@
 # 项目级 Codex 配置（ycmn 权限升级）
-[projects."/Users/donglai/源代码/01-客户管理-权限升级/01-源代码备份"]
+[projects."/Users/donglai/东来/01-Projects/01-aigicrm/04-源码"]
 trust_level = "trusted"
 
 # ⚠️ yolo 模式：不弹任何审批、不沙盒（等价 copilot --yolo / claude --dangerously-skip-permissions）

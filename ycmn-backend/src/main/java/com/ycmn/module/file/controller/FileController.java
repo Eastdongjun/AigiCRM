@@ -95,6 +95,40 @@ public class FileController {
         return fileService.downloadById(id);
     }
 
+    /** 公开文件下载 — 无需登录，仅限 public 范围 */
+    @GetMapping("/download/public/**")
+    public ResponseEntity<Resource> downloadPublic(jakarta.servlet.http.HttpServletRequest request) {
+        try {
+            String rawKey = java.net.URLDecoder.decode(
+                    request.getRequestURI().substring("/api/file/download/".length()),
+                    java.nio.charset.StandardCharsets.UTF_8);
+
+            // 只允许 public/ 前缀的文件
+            if (!rawKey.startsWith("public/")) {
+                return ResponseEntity.status(403).build();
+            }
+
+            Path uploadRoot = fileService.getLocalFilePath("").toAbsolutePath().normalize();
+            Path resolved = uploadRoot.resolve(rawKey).normalize();
+            if (!resolved.startsWith(uploadRoot)) {
+                return ResponseEntity.badRequest().build();
+            }
+
+            Resource resource = new UrlResource(resolved.toUri());
+            if (resource.exists()) {
+                String filename = resolved.getFileName().toString();
+                String encodedFilename = java.net.URLEncoder.encode(filename, java.nio.charset.StandardCharsets.UTF_8).replace("+", "%20");
+                MediaType mediaType = MediaTypeFactory.getMediaType(filename).orElse(MediaType.APPLICATION_OCTET_STREAM);
+                return ResponseEntity.ok()
+                        .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename*=UTF-8''" + encodedFilename)
+                        .contentType(mediaType).body(resource);
+            }
+            return ResponseEntity.notFound().build();
+        } catch (Exception e) {
+            return ResponseEntity.notFound().build();
+        }
+    }
+
     @PreAuthorize("hasAuthority('file:view')")
     @GetMapping("/download/**")
     public ResponseEntity<Resource> download(jakarta.servlet.http.HttpServletRequest request) {
