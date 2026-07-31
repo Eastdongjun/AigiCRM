@@ -20,7 +20,19 @@ YCMN（运筹马年）内部 CRM：客户/审批/激励/文件/公海池/提醒 
 - 全新部署执行顺序：基线 → V2 → V3 → migration，缺步或乱序会挂。
 - `biz_incentive_record.file_pre_id` 已从 BIGINT 改为 VARCHAR（存 JSON 数组），新代码不要再按数字处理。
 
+## 编译与测试（强制，代码改动必须过这一关）
+
+```bash
+export JAVA_HOME=/opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home
+cd ycmn-backend && mvn -q test    # 全部单测（当前 12 个：积分规则 + 权限引擎）
+mvn -q compile                    # 快速编译检查
+```
+
+- 本机默认 JDK 是 25（Lombok 不兼容），必须用上面的 JAVA_HOME=17 才能编译。
+- 任何代码改动交付前必须 `mvn compile` + `mvn test` 全绿；改动涉及积分/规则引擎时须补充对应单测。
+
 ## 代码审查协议（用户要求检查/审查代码时强制执行）
+
 
 先跑交叉核对脚本，再叠手工清单，最后报告：
 

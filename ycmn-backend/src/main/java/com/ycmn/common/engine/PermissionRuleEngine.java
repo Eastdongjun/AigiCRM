@@ -168,7 +168,9 @@ public class PermissionRuleEngine {
         if (template == null) return null;
         String result = template;
         for (Map.Entry<String, String> entry : ctx.variables.entrySet()) {
-            result = result.replace("${" + entry.getKey() + "}", entry.getValue());
+            String value = entry.getValue();
+            if (value == null) continue; // 防御：变量值为 null 时跳过，避免 NPE
+            result = result.replace("${" + entry.getKey() + "}", value);
         }
         return result;
     }
@@ -234,7 +236,7 @@ public class PermissionRuleEngine {
             if (user == null) return ctx;
 
             ctx.put("user.userId",   String.valueOf(user.getUserId()));
-            ctx.put("user.username", user.getUsername());
+            ctx.put("user.username", nvl(user.getUsername()));
             ctx.put("user.realName", nvl(user.getRealName()));
             ctx.put("user.orgId",    nvl(user.getOrgId()));
             ctx.put("user.deptId",   nvl(user.getDeptId()));

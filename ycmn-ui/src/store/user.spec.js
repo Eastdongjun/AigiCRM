@@ -1,0 +1,51 @@
+import { describe, it, expect, beforeEach, vi } from 'vitest'
+
+vi.mock('@/api/auth', () => ({ getUserInfo: vi.fn() }))
+vi.mock('@/api/reminder', () => ({ getPendingCount: vi.fn() }))
+vi.mock('@/api/approval', () => ({ getApprovalStatistics: vi.fn() }))
+vi.mock('@/api/system', () => ({ getPublicConfig: vi.fn() }))
+
+import { createPinia, setActivePinia } from 'pinia'
+import { useUserStore } from './user'
+import { getUserInfo } from '@/api/auth'
+
+describe('user store', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia())
+    localStorage.clear()
+  })
+
+  it('hasPermission 基于权限集合判断', () => {
+    const store = useUserStore()
+    expect(store.hasPermission('customer:view')).toBe(false)
+    store.permissions = new Set(['customer:view', 'customer:add'])
+    expect(store.hasPermission('customer:view')).toBe(true)
+    expect(store.hasPermission('customer:delete')).toBe(false)
+  })
+
+  it('fetchUserInfo 将后端权限数组转为 Set', async () => {
+    getUserInfo.mockResolvedValue({ data: {
+      userId: 1, username: 'admin', realName: '管理员', avatar: '',
+      deptName: '总部', officeName: '',
+      roles: ['admin'], roleName: '管理员', dataScope: 'dept',
+      permissions: ['a:view', 'a:add'], menus: []
+    } })
+    const store = useUserStore()
+    await store.fetchUserInfo()
+    expect(store.username).toBe('admin')
+    expect(store.dataScope).toBe('dept')
+    expect(store.permissions).toBeInstanceOf(Set)
+    expect(store.hasPermission('a:add')).toBe(true)
+  })
+
+  it('logout 重置状态并清除 token', () => {
+    localStorage.setItem('token', 'abc')
+    const store = useUserStore()
+    store.username = 'admin'
+    store.permissions = new Set(['x'])
+    store.logout()
+    expect(store.username).toBe('')
+    expect(store.permissions.size).toBe(0)
+    expect(localStorage.getItem('token')).toBeNull()
+  })
+})
