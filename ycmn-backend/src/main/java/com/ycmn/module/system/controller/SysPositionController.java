@@ -45,8 +45,8 @@ public class SysPositionController {
         return Result.ok();
     }
 
+    @PreAuthorize("hasAuthority('system:position:delete')")
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasAuthority('system:position:edit')")
     public Result<Void> delete(@PathVariable Long id) {
         positionService.delete(id);
         return Result.ok();

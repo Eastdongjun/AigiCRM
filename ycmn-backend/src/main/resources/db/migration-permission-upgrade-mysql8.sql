@@ -194,6 +194,16 @@ INSERT IGNORE INTO `sys_menu` (`parent_id`, `menu_name`, `permission`, `menu_typ
 (30, '菜单编辑', 'system:menu:edit', 3, 13, 1, 0),
 (30, '组织管理员', 'system:org:admin', 3, 14, 1, 0);
 
+-- 拆分系统管理 edit 权限为独立的 add/delete
+INSERT IGNORE INTO `sys_menu` (`parent_id`, `menu_name`, `permission`, `menu_type`, `sort_order`, `status`, `visible`) VALUES
+(31, '删除用户', 'system:user:delete', 3, 5, 1, 0),
+(33, '删除角色', 'system:role:delete', 3, 5, 1, 0),
+(32, '新增组织', 'system:dept:add', 3, 5, 1, 0),
+(32, '删除组织', 'system:dept:delete', 3, 6, 1, 0),
+(71, '删除岗位', 'system:position:delete', 3, 5, 1, 0),
+(74, '删除规则', 'system:rule:delete', 3, 5, 1, 0),
+(77, '删除集团', 'system:group:delete', 3, 5, 1, 0);
+
 -- admin 角色绑定所有新权限（岗位/规则/集团 + 补全的权限码）
 INSERT IGNORE INTO `sys_role_menu` (`role_id`, `menu_id`) VALUES
 (1, 71),(1, 72),(1, 73),(1, 74),(1, 75),(1, 76),(1, 77),(1, 78),(1, 79);
@@ -201,5 +211,7 @@ INSERT IGNORE INTO `sys_role_menu` (`role_id`, `menu_id`)
 SELECT 1, id FROM `sys_menu` WHERE `permission` IN (
   'customer:import','file:edit','score:view','score:manage',
   'sea:config:view','sea:config:edit','system:config:edit',
-  'system:dept:edit','system:menu:view','system:menu:edit','system:org:admin'
+  'system:dept:edit','system:menu:view','system:menu:edit','system:org:admin',
+  'system:user:delete','system:role:delete','system:dept:add','system:dept:delete',
+  'system:position:delete','system:rule:delete','system:group:delete'
 );

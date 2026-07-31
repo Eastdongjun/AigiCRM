@@ -25,8 +25,8 @@ public class SysOrgController {
     }
 
     /** 创建组织 */
+    @PreAuthorize("hasAuthority('system:dept:add')")
     @PostMapping
-    @PreAuthorize("hasAuthority('system:dept:edit')")
     public Result<SysOrg> create(@RequestBody SysOrg org) {
         return Result.ok(orgService.create(org));
     }
@@ -41,8 +41,8 @@ public class SysOrgController {
     }
 
     /** 删除组织 */
+    @PreAuthorize("hasAuthority('system:dept:delete')")
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasAuthority('system:dept:edit')")
     public Result<Void> delete(@PathVariable Long id) {
         orgService.delete(id);
         return Result.ok();

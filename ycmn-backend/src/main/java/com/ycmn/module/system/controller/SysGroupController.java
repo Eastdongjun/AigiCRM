@@ -43,8 +43,8 @@ public class SysGroupController {
         return Result.ok();
     }
 
+    @PreAuthorize("hasAuthority('system:group:delete')")
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasAuthority('system:group:edit')")
     public Result<Void> delete(@PathVariable Long id) {
         groupService.delete(id);
         return Result.ok();

@@ -71,8 +71,8 @@ public class SysUserController {
         return Result.ok();
     }
 
+    @PreAuthorize("hasAnyAuthority('system:user:delete','system:org:admin')")
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasAnyAuthority('system:user:edit','system:org:admin')")
     public Result<Void> delete(@PathVariable Long id) {
         userService.deleteUser(id);
         return Result.ok();
@@ -102,8 +102,8 @@ public class SysUserController {
         return Result.ok(userService.transferCustomers(id, toUserId));
     }
 
+    @PreAuthorize("hasAnyAuthority('system:user:delete','system:org:admin')")
     @DeleteMapping("/{id}/permanent")
-    @PreAuthorize("hasAnyAuthority('system:user:edit','system:org:admin')")
     public Result<Void> permanentDelete(@PathVariable Long id, @RequestParam(defaultValue = "") String reason) {
         userService.permanentDelete(id, reason);
         return Result.ok();

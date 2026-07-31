@@ -43,8 +43,8 @@ public class SysRoleController {
         return Result.ok();
     }
 
+    @PreAuthorize("hasAuthority('system:role:delete')")
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasAuthority('system:role:edit')")
     public Result<Void> delete(@PathVariable Long id) {
         roleService.delete(id);
         return Result.ok();

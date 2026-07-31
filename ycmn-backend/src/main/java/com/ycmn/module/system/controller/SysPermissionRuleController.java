@@ -43,8 +43,8 @@ public class SysPermissionRuleController {
         return Result.ok();
     }
 
+    @PreAuthorize("hasAuthority('system:rule:delete')")
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasAuthority('system:rule:edit')")
     public Result<Void> delete(@PathVariable Long id) {
         ruleService.delete(id);
         return Result.ok();
