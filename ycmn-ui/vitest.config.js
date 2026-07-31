@@ -9,6 +9,10 @@ export default defineConfig({
   },
   test: {
     environment: 'jsdom',
+    environmentOptions: {
+      jsdom: { url: 'http://localhost/' }
+    },
+    setupFiles: ['vitest.setup.js'],
     include: ['src/**/*.spec.js']
   }
 })

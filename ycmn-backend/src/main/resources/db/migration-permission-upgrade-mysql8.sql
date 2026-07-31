@@ -180,6 +180,26 @@ INSERT IGNORE INTO `sys_menu` (`id`, `parent_id`, `menu_name`, `permission`, `me
 (78, 77, '集团新增', 'system:group:add', 3, NULL, NULL, NULL, 1, 1, 0),
 (79, 77, '集团编辑', 'system:group:edit', 3, NULL, NULL, NULL, 2, 1, 0);
 
--- admin 角色绑定所有新权限
+-- 补全代码中已使用但 sys_menu 缺失的权限码
+INSERT IGNORE INTO `sys_menu` (`parent_id`, `menu_name`, `permission`, `menu_type`, `sort_order`, `status`, `visible`) VALUES
+(10, '客户导入', 'customer:import', 3, 10, 1, 0),
+(14, '文件编辑', 'file:edit', 3, 2, 1, 0),
+(20, '积分查看', 'score:view', 2, 3, 1, 1),
+(20, '积分管理', 'score:manage', 3, 4, 1, 0),
+(17, '公海配置查看', 'sea:config:view', 3, 5, 1, 0),
+(17, '公海配置编辑', 'sea:config:edit', 3, 6, 1, 0),
+(30, '系统配置编辑', 'system:config:edit', 3, 10, 1, 0),
+(30, '部门编辑', 'system:dept:edit', 3, 11, 1, 0),
+(30, '菜单查看', 'system:menu:view', 3, 12, 1, 0),
+(30, '菜单编辑', 'system:menu:edit', 3, 13, 1, 0),
+(30, '组织管理员', 'system:org:admin', 3, 14, 1, 0);
+
+-- admin 角色绑定所有新权限（岗位/规则/集团 + 补全的权限码）
 INSERT IGNORE INTO `sys_role_menu` (`role_id`, `menu_id`) VALUES
 (1, 71),(1, 72),(1, 73),(1, 74),(1, 75),(1, 76),(1, 77),(1, 78),(1, 79);
+INSERT IGNORE INTO `sys_role_menu` (`role_id`, `menu_id`)
+SELECT 1, id FROM `sys_menu` WHERE `permission` IN (
+  'customer:import','file:edit','score:view','score:manage',
+  'sea:config:view','sea:config:edit','system:config:edit',
+  'system:dept:edit','system:menu:view','system:menu:edit','system:org:admin'
+);
