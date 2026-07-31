@@ -141,6 +141,46 @@ public class IncentiveService {
         recordMapper.deleteById(id);
     }
 
+    /** 更新记录（追加/删除文件时调用），自动重算积分 */
+    @Transactional
+    public void updateRecord(Long id, BizIncentiveRecord update) {
+        BizIncentiveRecord existing = recordMapper.selectById(id);
+        if (existing == null) return;
+
+        // 只更新文件字段
+        if (update.getFilePreId() != null) existing.setFilePreId(update.getFilePreId());
+        if (update.getFileMidId() != null) existing.setFileMidId(update.getFileMidId());
+        if (update.getFilePostId() != null) existing.setFilePostId(update.getFilePostId());
+        if (update.getFileId() != null) existing.setFileId(update.getFileId());
+        if (update.getFileTrackId() != null) existing.setFileTrackId(update.getFileTrackId());
+        if (update.getRemark() != null) existing.setRemark(update.getRemark());
+
+        // 重算积分
+        BizIncentiveCategory category = categoryMapper.selectById(existing.getCategoryId());
+        int base = (category != null && category.getScore() != null) ? category.getScore() : 0;
+        existing.setScore(calcScore(existing, category, base));
+
+        recordMapper.updateById(existing);
+    }
+
+    /** 批量重算所有历史记录的积分（按新规则） */
+    @Transactional
+    public int recalculateAllScores() {
+        List<BizIncentiveRecord> all = recordMapper.selectList(null);
+        int changed = 0;
+        for (BizIncentiveRecord r : all) {
+            BizIncentiveCategory category = categoryMapper.selectById(r.getCategoryId());
+            int base = (category != null && category.getScore() != null) ? category.getScore() : 0;
+            int newScore = calcScore(r, category, base);
+            if (!Integer.valueOf(newScore).equals(r.getScore())) {
+                r.setScore(newScore);
+                recordMapper.updateById(r);
+                changed++;
+            }
+        }
+        return changed;
+    }
+
     @Transactional
     public void addRecord(BizIncentiveRecord record) {
         BizIncentiveCategory category = categoryMapper.selectById(record.getCategoryId());

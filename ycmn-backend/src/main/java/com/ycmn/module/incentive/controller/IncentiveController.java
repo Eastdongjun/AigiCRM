@@ -74,6 +74,22 @@ public class IncentiveController {
         return Result.ok();
     }
 
+    /** 更新记录（追加/删除文件时调用，自动重算积分） */
+    @PreAuthorize("hasAuthority('incentive:edit')")
+    @PutMapping("/records/{id}")
+    public Result<Void> updateRecord(@PathVariable Long id, @RequestBody BizIncentiveRecord record) {
+        incentiveService.updateRecord(id, record);
+        return Result.ok();
+    }
+
+    /** 批量重算所有历史记录积分（按最新规则） */
+    @PreAuthorize("hasAuthority('incentive:edit')")
+    @PostMapping("/records/recalculate")
+    public Result<java.util.Map<String, Object>> recalculateAll() {
+        int changed = incentiveService.recalculateAllScores();
+        return Result.ok(java.util.Map.of("changed", changed));
+    }
+
     @PreAuthorize("hasAuthority('incentive:delete')")
     @DeleteMapping("/records/{id}")
     public Result<Void> deleteRecord(@PathVariable Long id) {
