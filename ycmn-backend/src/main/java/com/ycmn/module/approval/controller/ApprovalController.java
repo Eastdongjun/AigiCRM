@@ -44,14 +44,14 @@ public class ApprovalController {
         return Result.ok();
     }
 
-    @PreAuthorize("hasAuthority('approval:edit')")
+    @PreAuthorize("hasAuthority('approval:approve')")
     @PostMapping("/{id}/approve")
     public Result<Void> approve(@PathVariable Long id, @RequestBody(required = false) Map<String, String> params) {
         approvalService.approve(id, params != null ? params.get("comment") : null);
         return Result.ok();
     }
 
-    @PreAuthorize("hasAuthority('approval:edit')")
+    @PreAuthorize("hasAuthority('approval:reject')")
     @PostMapping("/{id}/reject")
     public Result<Void> reject(@PathVariable Long id, @RequestBody(required = false) Map<String, String> params) {
         approvalService.reject(id, params != null ? params.get("comment") : null);

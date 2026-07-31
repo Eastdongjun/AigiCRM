@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.alibaba.excel.EasyExcel;
 import com.ycmn.common.BusinessException;
+import com.ycmn.common.engine.PermissionRuleEngine;
 import com.ycmn.module.customer.dto.CustomerImportResult;
 import com.ycmn.module.customer.dto.CustomerImportDTO;
 import com.ycmn.module.customer.entity.*;
@@ -644,11 +645,12 @@ public class CustomerService {
         applyRuleEngineFilter(wrapper);
     }
 
-    /** 注入权限规则引擎的 WHERE 条件 */
+    /** 注入权限规则引擎的 WHERE 条件（仅注入 target_entity='customer' 的规则） */
     private void applyRuleEngineFilter(LambdaQueryWrapper<BizCustomer> wrapper) {
-        var ruleResult = SecurityUtils.getCurrentRuleResult();
-        if (ruleResult == null) return;
-        String ruleWhere = ruleResult.toWhereClause();
+        var user = SecurityUtils.getCurrentUser();
+        if (user == null || user.getPermissionRules() == null || user.getPermissionRules().isEmpty()) return;
+        // 按 target_entity 过滤，只取 customer 的 column_filter/org_filter/time_range 规则
+        String ruleWhere = PermissionRuleEngine.evaluateForEntity(user.getPermissionRules(), user, "customer");
         if (ruleWhere != null && !ruleWhere.isEmpty()) {
             wrapper.apply(ruleWhere);
         }
@@ -656,18 +658,6 @@ public class CustomerService {
 
     /** 递归获取所有下级组织ID */
         private List<Long> getDescendantOrgIds(Long parentId) {
-        try {
-            List<Long> ids = orgMapper.selectDescendantIds(parentId);
-            System.err.println("DEBUG getDescendantOrgIds("+parentId+") = " + ids);
-            return ids != null ? ids : new java.util.ArrayList<>();
-        } catch (Exception e) {
-            System.err.println("DEBUG getDescendantOrgIds ERROR: " + e.getMessage());
-            e.printStackTrace();
-            return new java.util.ArrayList<>();
-        }
-    }
-
-    private List<Long> XXXgetDescendantOrgIds(Long parentId) {
         try {
             return orgMapper.selectDescendantIds(parentId);
         } catch (Exception e) {

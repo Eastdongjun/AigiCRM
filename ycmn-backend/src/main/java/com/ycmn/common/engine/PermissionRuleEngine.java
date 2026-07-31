@@ -58,6 +58,35 @@ public class PermissionRuleEngine {
                 .build();
     }
 
+    /**
+     * 按实体过滤求值，只返回 WHERE 子句（用于 SQL 注入点避免跨实体污染）
+     *
+     * @param rules       用户所有生效的权限规则
+     * @param user        当前登录用户
+     * @param targetEntity 目标实体（如 "customer"），只取匹配的规则
+     * @return 合并后的 WHERE 子句字符串，无匹配时返回空串
+     */
+    public static String evaluateForEntity(List<SysPermissionRule> rules, SecurityUser user, String targetEntity) {
+        if (rules == null || rules.isEmpty() || targetEntity == null) return "";
+
+        VariableContext ctx = VariableContext.from(user);
+        List<String> whereClauses = new ArrayList<>();
+
+        for (SysPermissionRule rule : rules) {
+            if (rule.getStatus() == null || rule.getStatus() != 1) continue;
+            if (!targetEntity.equals(rule.getTargetEntity())) continue; // 跨实体过滤
+
+            switch (rule.getRuleType()) {
+                case "column_filter" -> evaluateColumnFilter(rule, ctx, whereClauses);
+                case "org_filter"    -> evaluateOrgFilter(rule, ctx, whereClauses);
+                case "time_range"    -> evaluateTimeRange(rule, ctx, whereClauses);
+                // field_visible 和 action_control 不生成 WHERE，跳过
+            }
+        }
+
+        return whereClauses.isEmpty() ? "" : String.join(" AND ", whereClauses);
+    }
+
     // ======================== 各类型求值 ========================
 
     /** 字段值过滤：WHERE dept_id = 5 或 WHERE owner_id IN (1,2,3) */

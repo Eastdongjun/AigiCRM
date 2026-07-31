@@ -103,13 +103,13 @@ INSERT INTO `sys_position` (`name`, `code`, `description`, `sort`) VALUES
 -- 权限规则示例
 INSERT INTO `sys_permission_rule` (`name`, `code`, `target_entity`, `rule_type`, `target_column`, `operator`, `rule_value`, `description`) VALUES
 -- 组织过滤类
-('仅看本组织及下级客户', 'org_and_children', 'customer', 'org_filter', 'org_id', 'in', '${user.orgIdsAndChildren}', '查看本组织及所有下级组织的客户'),
-('仅看本组织客户',       'org_only',         'customer', 'org_filter', 'org_id', 'eq', '${user.orgId}',           '仅查看本组织客户'),
+('仅看本组织及下级客户', 'org_and_children', 'customer', 'org_filter', 'owner_id', 'in', '${user.orgIdsAndChildren}', '查看本组织及所有下级组织的客户'),
+('仅看本组织客户',       'org_only',         'customer', 'org_filter', 'owner_id', 'eq', '${user.orgId}',           '仅查看本组织客户'),
 ('仅看自己客户',         'self_only',        'customer', 'column_filter', 'owner_id', 'eq', '${user.userId}',     '仅查看自己负责的客户'),
 
 -- 时间范围类
-('本月数据',             'this_month',       'customer', 'time_range', 'create_time', 'between', '${time.thisMonthStart},${time.thisMonthEnd}', '仅查看本月创建的数据'),
-('本季度数据',           'this_quarter',     'customer', 'time_range', 'create_time', 'between', '${time.thisQuarterStart},${time.thisQuarterEnd}', '仅查看本季度数据'),
+('本月数据',             'this_month',       'customer', 'time_range', 'created_at', 'between', '${time.thisMonthStart},${time.thisMonthEnd}', '仅查看本月创建的数据'),
+('本季度数据',           'this_quarter',     'customer', 'time_range', 'created_at', 'between', '${time.thisQuarterStart},${time.thisQuarterEnd}', '仅查看本季度数据'),
 
 -- 字段可见性类
 ('隐藏客户财务数据',     'hide_finance',     'customer', 'field_visible', NULL, NULL, '{"hidden":["revenue","profit","debt"]}', '隐藏财务相关字段'),
