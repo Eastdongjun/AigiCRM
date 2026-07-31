@@ -21,7 +21,7 @@ export const useUserStore = defineStore('user', {
     badgeReminder: 0,
     badgeApproval: 0,
     // 系统配置
-    systemName: '运筹马年',
+    systemName: 'AigiCRM',
     systemLogo: ''
   }),
   actions: {

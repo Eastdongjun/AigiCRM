@@ -4,7 +4,7 @@ services:
   # MySQL 数据库（使用已有容器时可注释此服务）
   mysql:
     image: mysql:8.0.28
-    container_name: ycmn-mysql
+    container_name: aigicrm-mysql
     environment:
       MYSQL_ROOT_PASSWORD: '<redacted>'
       MYSQL_DATABASE: ycmn
@@ -24,7 +24,7 @@ services:
   # Redis 缓存
   redis:
     image: redis:7-alpine
-    container_name: ycmn-redis
+    container_name: aigicrm-redis
     ports:
       - "6379:6379"
     volumes:

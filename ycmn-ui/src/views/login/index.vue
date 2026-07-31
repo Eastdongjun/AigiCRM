@@ -54,7 +54,7 @@ const formRef = ref(null)
 const userInputRef = ref(null)
 const loading = ref(false)
 const forgotPwdVisible = ref(false)
-const systemName = ref('运筹马年')
+const systemName = ref('AigiCRM')
 const systemLogo = ref('')
 
 const form = reactive({
@@ -64,7 +64,7 @@ const form = reactive({
 })
 
 onMounted(async () => {
-  const saved = localStorage.getItem('ycmn_remember_username')
+  const saved = localStorage.getItem('aigicrm_remember_username')
   if (saved) {
     form.username = saved
     form.rememberMe = true
@@ -99,9 +99,9 @@ const handleLogin = async () => {
     const res = await login(form)
     localStorage.setItem('token', res.data.token)
     if (form.rememberMe) {
-      localStorage.setItem('ycmn_remember_username', form.username)
+      localStorage.setItem('aigicrm_remember_username', form.username)
     } else {
-      localStorage.removeItem('ycmn_remember_username')
+      localStorage.removeItem('aigicrm_remember_username')
     }
     ElMessage.success('登录成功')
     router.push('/dashboard')

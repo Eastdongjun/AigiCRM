@@ -52,7 +52,7 @@ aliyun:
     endpoint: ${OSS_ENDPOINT:oss-cn-beijing.aliyuncs.com}
     access-key-id: ${OSS_ACCESS_KEY_ID:}
     access-key-secret: ${OSS_ACCESS_KEY_SECRET:}
-    bucket-name: ${OSS_BUCKET_NAME:ycmn-files}
+    bucket-name: ${OSS_BUCKET_NAME:aigicrm-files}
   sms:
     sign-name: ${SMS_SIGN_NAME:陕西青阳耀东科技}
     template-code: ${SMS_TEMPLATE_CODE:SMS_335400207}

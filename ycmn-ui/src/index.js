@@ -165,7 +165,7 @@ const router = createRouter({
 
 // 路由守卫
 router.beforeEach((to, from, next) => {
-  document.title = (to.meta.title ? to.meta.title + ' - ' : '') + '运筹马年'
+  document.title = (to.meta.title ? to.meta.title + ' - ' : '') + 'AigiCRM'
   if (to.path === '/login') {
     next()
   } else if (!isTokenValid()) {

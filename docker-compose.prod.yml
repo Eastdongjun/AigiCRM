@@ -4,7 +4,7 @@ services:
   # MySQL 数据库
   mysql:
     image: mysql:8.0.28
-    container_name: ycmn-mysql
+    container_name: aigicrm-mysql
     restart: always
     environment:
       MYSQL_ROOT_PASSWORD: '<redacted>'
@@ -25,14 +25,14 @@ services:
   # Redis 缓存
   redis:
     image: redis:7-alpine
-    container_name: ycmn-redis
+    container_name: aigicrm-redis
     restart: always
     volumes:
       - redis-data:/data
 
   # 后端服务
   backend:
-    image: ycmn-backend:1.0.0
+    image: aigicrm-backend:1.0.0
     container_name: ycmn-backend
     restart: always
     ports:
@@ -56,7 +56,7 @@ services:
 
   # 前端服务
   frontend:
-    image: ycmn-frontend:1.0.0
+    image: aigicrm-frontend:1.0.0
     container_name: ycmn-frontend
     restart: always
     ports:

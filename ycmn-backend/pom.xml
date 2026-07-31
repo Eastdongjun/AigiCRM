@@ -12,9 +12,9 @@
     </parent>
 
     <groupId>com.ycmn</groupId>
-    <artifactId>ycmn-backend</artifactId>
+    <artifactId>aigicrm-backend</artifactId>
     <version>1.0.0</version>
-    <name>ycmn-backend</name>
+    <name>aigicrm-backend</name>
     <description>运筹马年 - 市场资源管理系统</description>
 
     <properties>
