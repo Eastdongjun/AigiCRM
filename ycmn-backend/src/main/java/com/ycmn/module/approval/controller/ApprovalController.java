@@ -18,6 +18,7 @@ public class ApprovalController {
 
     private final ApprovalService approvalService;
 
+    @PreAuthorize("hasAuthority('approval:view')")
     @GetMapping("/list")
     public Result<IPage<BizApproval>> page(
             @RequestParam(defaultValue = "1") int current,
@@ -43,18 +44,21 @@ public class ApprovalController {
         return Result.ok();
     }
 
+    @PreAuthorize("hasAuthority('approval:edit')")
     @PostMapping("/{id}/approve")
     public Result<Void> approve(@PathVariable Long id, @RequestBody(required = false) Map<String, String> params) {
         approvalService.approve(id, params != null ? params.get("comment") : null);
         return Result.ok();
     }
 
+    @PreAuthorize("hasAuthority('approval:edit')")
     @PostMapping("/{id}/reject")
     public Result<Void> reject(@PathVariable Long id, @RequestBody(required = false) Map<String, String> params) {
         approvalService.reject(id, params != null ? params.get("comment") : null);
         return Result.ok();
     }
 
+    @PreAuthorize("hasAuthority('approval:view')")
     @GetMapping("/statistics")
     public Result<Map<String, Long>> statistics() {
         return Result.ok(approvalService.statistics(SecurityUtils.getCurrentUserId()));

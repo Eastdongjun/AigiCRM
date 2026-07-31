@@ -16,6 +16,7 @@ public class IncentivePermissionController {
 
     private final JdbcTemplate jdbc;
 
+    @PreAuthorize("hasAuthority('system:config:view')")
     @GetMapping("/list")
     public Result<List<Map<String, Object>>> list() {
         List<Map<String, Object>> list = jdbc.queryForList(

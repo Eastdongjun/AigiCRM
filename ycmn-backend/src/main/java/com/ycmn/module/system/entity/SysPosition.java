@@ -35,4 +35,8 @@ public class SysPosition {
 
     @TableField(fill = FieldFill.INSERT_UPDATE)
     private LocalDateTime updateTime;
+
+    /** 关联的规则ID列表（非数据库字段） */
+    @TableField(exist = false)
+    private java.util.List<Long> ruleIds;
 }

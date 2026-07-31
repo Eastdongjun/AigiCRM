@@ -17,6 +17,7 @@ public class ApprovalConfigController {
     private final ApprovalConfigService configService;
 
     /** 获取所有审批流程配置 */
+    @PreAuthorize("hasAuthority('system:config:view')")
     @GetMapping("/list")
     public Result<List<BizApprovalConfig>> list() {
         return Result.ok(configService.list());

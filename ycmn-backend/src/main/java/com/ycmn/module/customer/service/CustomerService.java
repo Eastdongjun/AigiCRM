@@ -639,6 +639,19 @@ public class CustomerService {
                 wrapper.eq(BizCustomer::getOwnerId, userId);
                 break;
         }
+
+        // 规则引擎：追加运行时 WHERE 条件（与枚举引擎 AND 合并）
+        applyRuleEngineFilter(wrapper);
+    }
+
+    /** 注入权限规则引擎的 WHERE 条件 */
+    private void applyRuleEngineFilter(LambdaQueryWrapper<BizCustomer> wrapper) {
+        var ruleResult = SecurityUtils.getCurrentRuleResult();
+        if (ruleResult == null) return;
+        String ruleWhere = ruleResult.toWhereClause();
+        if (ruleWhere != null && !ruleWhere.isEmpty()) {
+            wrapper.apply(ruleWhere);
+        }
     }
 
     /** 递归获取所有下级组织ID */

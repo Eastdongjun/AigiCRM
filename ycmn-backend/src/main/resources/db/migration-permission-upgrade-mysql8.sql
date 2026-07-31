@@ -11,7 +11,7 @@
 DROP VIEW IF EXISTS `sys_org`;
 CREATE VIEW `sys_org` AS
 SELECT
-    `id`, `parent_id`,
+    `id`, `parent_id`, `group_id`, `legal_entity_id`,
     `dept_name` AS `org_name`, `dept_code` AS `org_code`, `dept_type` AS `org_type`,
     `leader_id`, `sort_order`, `status`, `created_at`, `updated_at`
 FROM `sys_dept`;
@@ -134,10 +134,11 @@ BEGIN
 END//
 DELIMITER ;
 
-CALL `add_column_if_not_exists`('sys_org', 'group_id',        'ADD COLUMN `group_id` BIGINT DEFAULT NULL COMMENT ''所属集团ID'' AFTER `parent_id`');
-CALL `add_column_if_not_exists`('sys_org', 'legal_entity_id', 'ADD COLUMN `legal_entity_id` BIGINT DEFAULT NULL COMMENT ''所属法人公司ID'' AFTER `group_id`');
-CALL `add_index_if_not_exists`('sys_org', 'idx_group_id',         'ADD INDEX `idx_group_id` (`group_id`)');
-CALL `add_index_if_not_exists`('sys_org', 'idx_legal_entity_id',  'ADD INDEX `idx_legal_entity_id` (`legal_entity_id`)');
+-- sys_org 是视图（基于 sys_dept），列加到基表 sys_dept，视图自动透传新列
+CALL `add_column_if_not_exists`('sys_dept', 'group_id',        'ADD COLUMN `group_id` BIGINT DEFAULT NULL COMMENT ''所属集团ID'' AFTER `parent_id`');
+CALL `add_column_if_not_exists`('sys_dept', 'legal_entity_id', 'ADD COLUMN `legal_entity_id` BIGINT DEFAULT NULL COMMENT ''所属法人公司ID'' AFTER `group_id`');
+CALL `add_index_if_not_exists`('sys_dept', 'idx_group_id',         'ADD INDEX `idx_group_id` (`group_id`)');
+CALL `add_index_if_not_exists`('sys_dept', 'idx_legal_entity_id',  'ADD INDEX `idx_legal_entity_id` (`legal_entity_id`)');
 
 CALL `add_column_if_not_exists`('biz_customer', 'group_id',        'ADD COLUMN `group_id` BIGINT DEFAULT NULL COMMENT ''所属集团ID'' AFTER `region_id`');
 CALL `add_column_if_not_exists`('biz_customer', 'legal_entity_id', 'ADD COLUMN `legal_entity_id` BIGINT DEFAULT NULL COMMENT ''所属法人公司ID'' AFTER `group_id`');

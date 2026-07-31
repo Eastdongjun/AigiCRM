@@ -41,8 +41,9 @@ CREATE TABLE IF NOT EXISTS `sys_legal_entity` (
 
 -- ============================================================
 -- 三、组织表扩展 — 增加集团和法人公司归属
+-- sys_org 是视图（基于 sys_dept），列加到基表 sys_dept，视图自动透传
 -- ============================================================
-ALTER TABLE `sys_org`
+ALTER TABLE `sys_dept`
     ADD COLUMN IF NOT EXISTS `group_id`         BIGINT DEFAULT NULL COMMENT '所属集团ID' AFTER `parent_id`,
     ADD COLUMN IF NOT EXISTS `legal_entity_id`  BIGINT DEFAULT NULL COMMENT '所属法人公司ID' AFTER `group_id`,
     ADD INDEX IF NOT EXISTS `idx_group_id` (`group_id`),

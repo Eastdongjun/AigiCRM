@@ -20,6 +20,7 @@ public class IncentiveController {
 
     private final IncentiveService incentiveService;
 
+    @PreAuthorize("hasAuthority('incentive:view')")
     @GetMapping("/categories")
     public Result<List<BizIncentiveCategory>> getCategoryTree() {
         return Result.ok(incentiveService.getCategoryTree());
@@ -47,6 +48,7 @@ public class IncentiveController {
         return Result.ok();
     }
 
+    @PreAuthorize("hasAuthority('incentive:view')")
     @GetMapping("/records")
     public Result<List<BizIncentiveRecord>> getRecords(
             @RequestParam(required = false) Long userId,
@@ -88,16 +90,19 @@ public class IncentiveController {
         return Result.ok();
     }
 
+    @PreAuthorize("hasAuthority('incentive:view')")
     @GetMapping("/score/customer/{customerId}")
     public Result<Integer> getScoreByCustomer(@PathVariable Long customerId) {
         return Result.ok(incentiveService.getScoreByCustomerId(customerId));
     }
 
+    @PreAuthorize("hasAuthority('incentive:view')")
     @GetMapping("/scoreboard")
     public Result<List<Map<String, Object>>> scoreboard(@RequestParam(required = false) String period) {
         return Result.ok(incentiveService.scoreboard(period));
     }
 
+    @PreAuthorize("hasAuthority('incentive:view')")
     @GetMapping("/ranking")
     public Result<List<Map<String, Object>>> ranking(
             @RequestParam(defaultValue = "personal") String type,
@@ -108,12 +113,14 @@ public class IncentiveController {
         return Result.ok(incentiveService.scoreboard(period));
     }
 
+    @PreAuthorize("hasAuthority('incentive:view')")
     @GetMapping("/ranking/stats")
     public Result<Map<String, Object>> rankingStats(@RequestParam(required = false) String period) {
         return Result.ok(incentiveService.rankingStats(period));
     }
 
     /** 时间线查询：按上传时间排序 */
+    @PreAuthorize("hasAuthority('incentive:view')")
     @GetMapping("/timeline")
     public Result<List<Map<String, Object>>> timeline(
             @RequestParam(required = false) String customerName,
@@ -126,6 +133,7 @@ public class IncentiveController {
     }
 
     /** 按客户分组查询激励记录（全员可见）— 支持多维度筛选 */
+    @PreAuthorize("hasAuthority('incentive:view')")
     @GetMapping("/customer-records")
     public Result<List<Map<String, Object>>> customerRecords(
             @RequestParam(required = false) String industry,
@@ -138,6 +146,7 @@ public class IncentiveController {
     }
 
     /** 激励统计查询（全员可见）：支持大类/子类/行业/产品/周期筛选 */
+    @PreAuthorize("hasAuthority('incentive:view')")
     @GetMapping("/records/query")
     public Result<List<BizIncentiveRecord>> queryRecords(
             @RequestParam(required = false) Long mainCategoryId,
@@ -149,12 +158,14 @@ public class IncentiveController {
     }
 
     /** 激励统计表(全员口径): 按子类聚合文件数/总学分 + 周期总计 */
+    @PreAuthorize("hasAuthority('incentive:view')")
     @GetMapping("/category-stats")
     public Result<Map<String, Object>> categoryStats(@RequestParam(required = false) String period) {
         return Result.ok(incentiveService.categoryStats(period));
     }
 
     /** 人员选择列表(公开): 用于筛选下拉框 */
+    @PreAuthorize("hasAuthority('incentive:view')")
     @GetMapping("/users")
     public Result<List<Map<String, Object>>> userList() {
         return Result.ok(incentiveService.getUserList());

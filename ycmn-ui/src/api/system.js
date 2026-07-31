@@ -170,3 +170,45 @@ export function getPositionRules(positionId) {
 export function updatePositionRules(positionId, data) {
   return request.put(`/system/positions/${positionId}/rules`, data)
 }
+
+// 集团管理
+export function getGroupList() {
+  return request.get('/system/groups')
+}
+export function getGroup(id) {
+  return request.get(`/system/groups/${id}`)
+}
+export function createGroup(data) {
+  return request.post('/system/groups', data)
+}
+export function updateGroup(id, data) {
+  return request.put(`/system/groups/${id}`, data)
+}
+export function deleteGroup(id) {
+  return request.delete(`/system/groups/${id}`)
+}
+
+// 法人公司管理
+export function getLegalEntityList(groupId) {
+  return request.get('/system/legal-entities', { params: groupId ? { groupId } : {} })
+}
+export function getLegalEntity(id) {
+  return request.get(`/system/legal-entities/${id}`)
+}
+export function createLegalEntity(data) {
+  return request.post('/system/legal-entities', data)
+}
+export function updateLegalEntity(id, data) {
+  return request.put(`/system/legal-entities/${id}`, data)
+}
+export function deleteLegalEntity(id) {
+  return request.delete(`/system/legal-entities/${id}`)
+}
+
+// 用户-岗位分配
+export function getUserPositions(userId) {
+  return request.get(`/system/positions/users/${userId}`)
+}
+export function assignUserPositions(userId, positionIds) {
+  return request.put(`/system/positions/users/${userId}`, { positionIds })
+}

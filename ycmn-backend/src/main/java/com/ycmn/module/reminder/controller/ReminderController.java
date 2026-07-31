@@ -17,6 +17,7 @@ public class ReminderController {
 
     private final ReminderService reminderService;
 
+    @PreAuthorize("hasAuthority('reminder:view')")
     @GetMapping("/expiring-list")
     public Result<IPage<Map<String, Object>>> expiringList(
             @RequestParam(defaultValue = "1") int current,
@@ -27,6 +28,7 @@ public class ReminderController {
         return Result.ok(reminderService.expiringPage(current, size, keyword, officeId, ownerId));
     }
 
+    @PreAuthorize("hasAuthority('reminder:view')")
     @GetMapping("/list")
     public Result<IPage<BizReminder>> page(
             @RequestParam(defaultValue = "1") int current,
@@ -39,6 +41,7 @@ public class ReminderController {
         return Result.ok(reminderService.page(current, size, type, keyword, officeId, ownerId, status));
     }
 
+    @PreAuthorize("hasAuthority('reminder:view')")
     @GetMapping("/pending-count")
     public Result<Long> pendingCount() {
         return Result.ok(reminderService.pendingCount());
