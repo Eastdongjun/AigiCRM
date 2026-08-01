@@ -1,0 +1,60 @@
+#!/bin/bash
+# YCMN 交付门禁: 部署/交付前必须通过的全部确定性检查
+# 用途: 防止"代码写不对、验证不足"的交付 —— 任一 FAIL 即阻止交付
+set -uo pipefail
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+source "$SCRIPT_DIR/deploy-lib.sh"
+
+PASS=0; FAIL=0
+ok()   { echo "✅ $1"; PASS=$((PASS+1)); }
+bad()  { echo "❌ $1"; FAIL=$((FAIL+1)); }
+
+echo "════════ YCMN 交付门禁 $(date '+%Y-%m-%d %H:%M:%S') ════════"
+
+# [1] git 状态: 工作区干净 + 本地=远程
+echo "--- [1] git 一致性 ---"
+cd "/Users/donglai/东来/01-Projects/01-aigicrm/04-源码" || { bad "源码目录不可达"; exit 1; }
+[ -z "$(git status --porcelain)" ] && ok "工作区干净" || bad "工作区有未提交修改: $(git status --porcelain | head -2)"
+L=$(git rev-parse --short HEAD); R=$(git rev-parse --short origin/main)
+[ "$L" = "$R" ] && ok "本地=远程 ($L)" || bad "未推送: 本地 $L vs 远程 $R"
+
+# [2] 生产健康: 首页 + 登录(带 Origin,防 CORS 回归)
+echo "--- [2] 生产 API 健康 ---"
+HOME_CODE=$(curl -sk -o /dev/null -w "%{http_code}" --connect-timeout 10 https://www.aigicrm.com/)
+LOGIN_CODE=$(curl -sk -o /dev/null -w "%{http_code}" --connect-timeout 10 -X POST https://www.aigicrm.com/api/auth/login \
+  -H "Origin: https://www.aigicrm.com" -H "Content-Type: application/json" \
+  -d '{"username":"admin","password":"admin123"}')
+[ "$HOME_CODE" = "200" ] && ok "首页 200" || bad "首页 $HOME_CODE"
+[ "$LOGIN_CODE" = "200" ] && ok "登录(含Origin) 200" || bad "登录(含Origin) $LOGIN_CODE —— 检查 CORS_ORIGINS"
+
+# [3] 生产配置: compose 与实况一致
+echo "--- [3] compose 一致性 ---"
+COMPOSE_IMG=$(ssh_prod "grep -A1 'backend:' /root/ycmn/docker-compose.yml | grep image | awk '{print \$2}'" 2>/dev/null)
+RUN_IMG=$(ssh_prod "docker inspect ycmn-backend --format '{{.Config.Image}}'" 2>/dev/null)
+[ "$COMPOSE_IMG" = "$RUN_IMG" ] && ok "compose 镜像=$RUN_IMG 与运行一致" || bad "compose($COMPOSE_IMG) ≠ 运行($RUN_IMG)"
+CORS_OK=$(ssh_prod "docker inspect ycmn-backend --format '{{range .Config.Env}}{{println .}}{{end}}' | grep -c CORS_ORIGINS" 2>/dev/null)
+[ "$CORS_OK" -ge 1 ] && ok "CORS_ORIGINS 已配置" || bad "CORS_ORIGINS 缺失"
+
+# [4] 存储挂载
+echo "--- [4] 存储 ---"
+NAS_OK=$(ssh_prod "mountpoint -q /Aigicrm/files && echo yes || echo no" 2>/dev/null)
+DATA_OK=$(ssh_prod "mountpoint -q /data && echo yes || echo no" 2>/dev/null)
+[ "$NAS_OK" = "yes" ] && ok "NAS 已挂载" || bad "NAS 未挂载"
+[ "$DATA_OK" = "yes" ] && ok "数据盘已挂载" || bad "数据盘未挂载"
+
+# [5] 备份机制
+echo "--- [5] 备份 ---"
+CRON_OK=$(ssh_prod "crontab -l 2>/dev/null | grep -c ycmn-daily-backup" 2>/dev/null)
+TODAY_BACKUP=$(ssh_prod "ls /Aigicrm/files/backup/daily/$(date +%Y%m%d)/ycmn-db-*.sql 2>/dev/null | wc -l" 2>/dev/null)
+[ "$CRON_OK" -ge 1 ] && ok "每日备份 cron 已配置" || bad "备份 cron 缺失"
+[ "${TODAY_BACKUP:-0}" -ge 1 ] && ok "今日数据库备份存在" || bad "今日备份缺失(注意:凌晨 02:30 前运行属正常)"
+
+echo "══════════════════════════════════════════════════"
+echo "结果: PASS=$PASS FAIL=$FAIL"
+if [ "$FAIL" -gt 0 ]; then
+  echo "❌ 交付门禁未通过 —— 修复上方 FAIL 项后再交付"
+  exit 1
+else
+  echo "✅ 交付门禁全部通过 —— 可以交付"
+  exit 0
+fi
