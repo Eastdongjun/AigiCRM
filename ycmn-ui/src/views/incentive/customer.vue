@@ -87,13 +87,14 @@ function onImgError(e){e.target.src='data:image/svg+xml,'+encodeURIComponent('<s
 function fileUrl(id) { return '/api/file/download/' + id + '?token=' + (getToken() || '') }
 function preview(id) { previewUrl.value = fileUrl(id); previewVisible.value = true }
 
+function parseId(v){if(!v)return null;if(typeof v==='number')return v;try{const a=JSON.parse(v);return Array.isArray(a)?a[0]:v}catch{return v}}
 function getFiles(r) {
   const f = []
-  if (r.filePreId) f.push({ id: r.filePreId, label: r.filePreName || '', type: detectType(r.filePreName), tag: '安装前' })
-  if (r.fileMidId) f.push({ id: r.fileMidId, label: r.fileMidName || '', type: detectType(r.fileMidName), tag: '安装中' })
-  if (r.filePostId) f.push({ id: r.filePostId, label: r.filePostName || '', type: detectType(r.filePostName), tag: '安装后' })
-  if (r.fileId) f.push({ id: r.fileId, label: r.fileName || '', type: detectType(r.fileName), tag: '' })
-  return f
+  if (r.filePreId) f.push({ id: parseId(r.filePreId), label: r.filePreName || '', type: detectType(r.filePreName), tag: '安装前' })
+  if (r.fileMidId) f.push({ id: parseId(r.fileMidId), label: r.fileMidName || '', type: detectType(r.fileMidName), tag: '安装中' })
+  if (r.filePostId) f.push({ id: parseId(r.filePostId), label: r.filePostName || '', type: detectType(r.filePostName), tag: '安装后' })
+  if (r.fileId) f.push({ id: parseId(r.fileId), label: r.fileName || '', type: detectType(r.fileName), tag: '' })
+  return f.filter(x => x.id)
 }
 function detectType(n) { if(!n)return 'doc'; if(/\.(jpg|jpeg|png|gif|webp|bmp)$/i.test(n))return 'image'; if(/\.(mp4|mov|avi|webm)$/i.test(n))return 'video'; return 'doc' }
 
