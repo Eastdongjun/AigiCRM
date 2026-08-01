@@ -44,11 +44,11 @@
             <label class="adv-field-label"><el-icon><PriceTag /></el-icon> 开发类型</label>
             <el-select v-model="fDevType" placeholder="全部类型" clearable @change="doSearch" size="small"><el-option v-for="d in devTypes" :key="d" :label="d" :value="d" /></el-select>
           </div>
-          <div class="adv-field">
+          <div class="adv-field span-2">
             <label class="adv-field-label"><el-icon><Calendar /></el-icon> 日期范围</label>
             <el-date-picker v-model="fDateRange" type="daterange" range-separator="~" start-placeholder="开始" end-placeholder="截止" value-format="YYYY-MM-DD" @change="doSearch" size="small" style="width:100%" />
           </div>
-          <div class="adv-field span-4">
+          <div class="adv-field span-2">
             <label class="adv-field-label"><el-icon><MapLocation /></el-icon> 组织筛选</label>
             <el-tree-select v-model="fOrgIds" :data="orgTree" :props="{label:'deptName',value:'id',children:'children'}" placeholder="选择大区 / 办事处" clearable filterable multiple check-strictly show-checkbox collapse-tags collapse-tags-tooltip @change="doSearch" size="small" style="width:100%" />
           </div>
