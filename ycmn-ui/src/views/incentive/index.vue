@@ -124,93 +124,130 @@
     </div>
 
     <!-- 关联客户 + 安装文件 弹窗 -->
-    <el-dialog v-model="showCustomerDialog" width="700px" top="2vh" :close-on-click-modal="false" class="upload-dlg">
+    <el-dialog v-model="showCustomerDialog" width="780px" top="2vh" :close-on-click-modal="false" class="upload-dlg">
       <template #header>
-        <span style="font-size:17px;font-weight:700">{{ pendingReplace ? '追加文件' : '上传激励文件' }}</span>
-        <el-tag v-if="pendingChild" size="small" type="warning" style="margin-left:8px">{{ pendingChild.categoryName }}</el-tag>
+        <div class="dlg-header">
+          <div class="dlg-header-left">
+            <span class="dlg-title">{{ pendingReplace ? '追加文件' : '上传激励文件' }}</span>
+            <el-tag v-if="pendingChild" size="small" effect="dark" type="warning">{{ pendingChild.categoryName }}</el-tag>
+          </div>
+        </div>
       </template>
-      <div class="up-body">
-        <!-- 基本信息卡 -->
-        <div class="up-card-box">
-          <div class="up-box-title">📋 基本信息</div>
-          <div class="up-row">
-            <div class="up-field flex-2"><label>关联客户 <i>*</i></label>
-              <el-select v-model="selectedCustomerId" filterable remote :remote-method="searchCustomers" placeholder="搜索客户名称..." :loading="customerLoading">
+
+      <div class="dlg-body">
+        <!-- 基本信息 -->
+        <div class="dlg-section">
+          <div class="dlg-sec-head">
+            <span class="dlg-sec-icon" style="background:#ecf5ff;color:#409eff"><el-icon><User /></el-icon></span>
+            <span class="dlg-sec-title">基本信息</span>
+          </div>
+          <div class="dlg-row cols-3-2">
+            <div class="dlg-field span-2">
+              <label>关联客户 <i>*</i></label>
+              <el-select v-model="selectedCustomerId" filterable remote :remote-method="searchCustomers" placeholder="搜索客户名称..." :loading="customerLoading" size="large">
                 <el-option v-for="c in customerOptions" :key="c.id" :label="c.customerName" :value="c.id">
                   <span>{{ c.customerName }}<el-tag v-if="c._shared" size="small" type="warning" style="margin-left:6px">分享</el-tag></span>
                 </el-option>
               </el-select>
-              <div v-if="selectedCustomerName" class="up-hint">✅ {{ selectedCustomerName }}</div>
+              <div v-if="selectedCustomerName" class="dlg-confirm">✅ {{ selectedCustomerName }}</div>
             </div>
-            <div class="up-field flex-1"><label>行业</label>
-              <el-select v-model="selectedIndustry" placeholder="选择" clearable><el-option v-for="i in industryOptions" :key="i" :label="i" :value="i" /></el-select>
+            <div class="dlg-field"><label>行业</label>
+              <el-select v-model="selectedIndustry" placeholder="选择" clearable size="large"><el-option v-for="i in industryOptions" :key="i" :label="i" :value="i" /></el-select>
             </div>
           </div>
-          <div class="up-field flex-1"><label>相关产品</label><el-input v-model="relatedProducts" placeholder="填写产品名称" /></div>
+          <div class="dlg-field"><label>相关产品</label><el-input v-model="relatedProducts" placeholder="填写产品名称" size="large" /></div>
         </div>
 
         <!-- 安装详情 -->
-        <div class="up-card-box">
-          <div class="up-box-title">📝 安装详情</div>
-          <div class="up-field" style="margin-bottom:10px"><label>安装前问题</label><el-input v-model="preInstallQuestion" type="textarea" :rows="3" placeholder="描述安装前存在的问题..." /></div>
-          <div class="up-field"><label>安装备注</label><el-input v-model="remarkText" type="textarea" :rows="2" placeholder="安装备注..." /></div>
+        <div class="dlg-section">
+          <div class="dlg-sec-head">
+            <span class="dlg-sec-icon" style="background:#fef0f0;color:#f56c6c"><el-icon><Edit /></el-icon></span>
+            <span class="dlg-sec-title">安装详情</span>
+          </div>
+          <div class="dlg-field"><label>安装前问题</label><el-input v-model="preInstallQuestion" type="textarea" :rows="2" placeholder="描述安装前存在的问题..." /></div>
+          <div class="dlg-field"><label>安装备注</label><el-input v-model="remarkText" type="textarea" :rows="2" placeholder="安装备注..." /></div>
         </div>
 
-        <!-- 安装文件卡 -->
-        <div class="up-card-box highlight">
-          <div class="up-box-title">📸 安装文件 <span>每槽位最多5张 · 任意文件即可计分</span></div>
-          <div class="up-cards">
-            <div v-for="slot in fileSlots" :key="slot.key" class="up-slot-group">
-              <div class="up-slot-label">{{ slot.label }}</div>
-              <div class="up-slot-files">
-                <div v-for="(file, idx) in installFiles[slot.key]" :key="idx" class="up-card has" style="width:80px;height:80px;margin:2px">
-                  <img v-if="!file._existing && isImage(file.name)" :src="getObjectURL(file)" style="width:100%;height:100%;object-fit:cover;border-radius:6px" />
-                  <span v-else class="up-card-icon" style="font-size:20px">{{ file._existing ? '📎' : '📄' }}</span>
-                  <span class="up-card-del" @click.stop="installFiles[slot.key].splice(idx,1)">✕</span>
+        <!-- 安装文件 -->
+        <div class="dlg-section highlight">
+          <div class="dlg-sec-head">
+            <span class="dlg-sec-icon" style="background:#f0f9eb;color:#67c23a"><el-icon><Picture /></el-icon></span>
+            <span class="dlg-sec-title">安装文件</span>
+            <span class="dlg-sec-tip">每槽位最多 5 个文件</span>
+          </div>
+          <div class="file-slots">
+            <div v-for="slot in fileSlots" :key="slot.key" class="file-slot">
+              <div class="file-slot-head">
+                <span class="file-slot-dot" :class="'dot-'+slot.key"></span>
+                <span class="file-slot-label">{{ slot.label }}</span>
+                <span class="file-slot-count">{{ installFiles[slot.key].length }}/{{ MAX_FILES }}</span>
+              </div>
+              <div class="file-slot-cards">
+                <div v-for="(file, idx) in installFiles[slot.key]" :key="idx" class="file-card has" @click.stop>
+                  <img v-if="!file._existing && isImage(file.name)" :src="getObjectURL(file)" class="file-card-img" />
+                  <div v-else class="file-card-icon">
+                    <el-icon :size="file._existing?20:24"><Document /></el-icon>
+                  </div>
+                  <span class="file-card-del" @click.stop="installFiles[slot.key].splice(idx,1)"><el-icon><Close /></el-icon></span>
+                  <span class="file-card-name">{{ file.name?.substring(0, 8) }}{{ file.name?.length > 8 ? '…' : '' }}</span>
                 </div>
-                <div v-if="installFiles[slot.key].length < MAX_FILES" class="up-card" style="width:80px;height:80px;margin:2px" @click="pickFile(slot.key)">
-                  <span class="up-card-plus">+</span>
+                <div v-if="installFiles[slot.key].length < MAX_FILES" class="file-card add" @click="pickFile(slot.key)">
+                  <el-icon :size="28"><Plus /></el-icon>
                 </div>
               </div>
             </div>
           </div>
         </div>
 
-        <!-- 跟踪记录卡 -->
-        <div class="up-card-box">
-          <div class="up-box-title">📝 跟踪记录 <span>不加分</span></div>
-          <div class="up-slot-files" style="display:flex;flex-wrap:wrap;gap:4px">
-            <div v-for="(file, idx) in trackFile" :key="idx" class="up-card has" style="width:80px;height:80px;margin:2px">
-              <img v-if="!file._existing && isImage(file.name)" :src="getObjectURL(file)" style="width:100%;height:100%;object-fit:cover;border-radius:6px" />
-              <span v-else class="up-card-icon" style="font-size:20px">{{ file._existing ? '📎' : '📄' }}</span>
-              <span class="up-card-del" @click.stop="trackFile.splice(idx,1)">✕</span>
+        <!-- 跟踪记录 -->
+        <div class="dlg-section">
+          <div class="dlg-sec-head">
+            <span class="dlg-sec-icon" style="background:#f5f0ff;color:#9c27b0"><el-icon><Notebook /></el-icon></span>
+            <span class="dlg-sec-title">跟踪记录</span>
+            <span class="dlg-sec-tip">不加分</span>
+          </div>
+          <div class="file-slot-cards">
+            <div v-for="(file, idx) in trackFile" :key="idx" class="file-card has" @click.stop>
+              <img v-if="!file._existing && isImage(file.name)" :src="getObjectURL(file)" class="file-card-img" />
+              <div v-else class="file-card-icon"><el-icon :size="20"><Document /></el-icon></div>
+              <span class="file-card-del" @click.stop="trackFile.splice(idx,1)"><el-icon><Close /></el-icon></span>
+              <span class="file-card-name">{{ file.name?.substring(0, 8) }}{{ file.name?.length > 8 ? '…' : '' }}</span>
             </div>
-            <div v-if="trackFile.length < MAX_FILES" class="up-card" style="width:80px;height:80px;margin:2px" @click="pickTrackFile()">
-              <span class="up-card-plus">+</span><span class="up-card-lbl">选择文件</span>
+            <div v-if="trackFile.length < MAX_FILES" class="file-card add" @click="pickTrackFile()">
+              <el-icon :size="28"><Plus /></el-icon>
+              <span style="font-size:11px;color:#909399;margin-top:4px">选择文件</span>
             </div>
           </div>
         </div>
 
-        <!-- 共享 -->
-        <div class="up-card-box">
-          <div class="up-row">
-            <div class="up-field" style="display:flex;align-items:center;gap:10px">
-              <label style="margin-bottom:0">共享给团队</label><el-switch v-model="shareToTeam" />
-              <span v-if="shareToTeam" style="color:#67c23a;font-size:12px">● 已共享</span>
+        <!-- 共享 + 提示 -->
+        <div class="dlg-section last">
+          <div class="dlg-row">
+            <div style="display:flex;align-items:center;gap:10px">
+              <label style="font-size:13px;font-weight:600;color:#4e5969">共享给团队</label>
+              <el-switch v-model="shareToTeam" />
+              <span v-if="shareToTeam" class="shared-on">● 已共享</span>
+            </div>
+            <div class="dlg-tip">
+              <el-icon><InfoFilled /></el-icon> 单文件最大 100MB，支持图片、PDF、Word、Excel、压缩包等格式
             </div>
           </div>
         </div>
       </div>
-      <div style="margin-top:8px;font-size:12px;color:#909399">💡 提示：单文件最大 100MB，支持图片、PDF、Word、Excel、压缩包等格式</div>
+
       <template #footer>
-        <span style="font-size:12px;color:#999;margin-right:auto">任意文件即可提交 · 每槽最多5张</span>
-        <el-button @click="showCustomerDialog=false">取消</el-button>
-        <!-- 上传进度条 -->
-        <div v-if="uploading && totalNewFiles > 0" class="upload-progress">
-          <div class="progress-bar"><div class="progress-fill" :style="{width:uploadProgress+'%'}"></div></div>
-          <div class="progress-text">{{ uploadProgressText }} — {{ uploadProgress }}%</div>
+        <div class="dlg-footer">
+          <div v-if="uploading && totalNewFiles > 0" class="upload-progress">
+            <div class="progress-bar"><div class="progress-fill" :style="{width:uploadProgress+'%'}"></div></div>
+            <div class="progress-text">{{ uploadProgressText }} — {{ uploadProgress }}%</div>
+          </div>
+          <div class="dlg-footer-btns">
+            <el-button size="large" @click="showCustomerDialog=false">取消</el-button>
+            <el-button type="primary" size="large" :loading="uploading" :disabled="!canSubmit" @click="confirmUpload">
+              {{ pendingReplace?'追加提交':'上传并提交' }}
+            </el-button>
+          </div>
         </div>
-        <el-button type="primary" :loading="uploading" :disabled="!canSubmit" @click="confirmUpload">{{ pendingReplace?'追加提交':'上传并提交' }}</el-button>
       </template>
     </el-dialog>
 
@@ -726,47 +763,58 @@ onMounted(() => {
 .shared-yes { color: #67c23a; font-size: 12px; font-weight: 500; }
 .shared-no { color: #c0c4cc; }
 
-/* 上传弹窗 */
-.upload-dialog { padding: 4px 0; }
-.dialog-field { margin-bottom: 16px; }
-.field-label { font-size: 13px; color: #86909c; margin-bottom: 6px; }
-.field-value { font-size: 15px; color: #409eff; font-weight: 600; margin-top: 6px; }
-.share-field { display: flex; align-items: center; gap: 12px; }
-.share-tag { color: #67c23a; font-size: 13px; font-weight: 500; }
-.upload-hint { text-align: center; color: #c0c4cc; font-size: 12px; margin-top: 8px; }
-.share-more { color: #c0c4cc; margin-left: 2px; }
-.label-hint { color: #c0c4cc; font-weight: 400; }
+/* === Dialog Redesign === */
+.dlg-header { display:flex; align-items:center; justify-content:space-between }
+.dlg-header-left { display:flex; align-items:center; gap:10px }
+.dlg-title { font-size:18px; font-weight:700; color:#1f2329 }
+.dlg-body { max-height:62vh; overflow-y:auto; padding-right:4px }
 
-/* 弹窗内 安装文件 行 */
-.file-row { display: flex; align-items: center; gap: 10px; padding: 6px 0; }
-.file-row-label { flex: 0 0 48px; font-size: 13px; color: #606266; }
-.file-row-name { flex: 1; font-size: 13px; color: #409eff; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.file-row-name.empty { color: #c0c4cc; }
+.dlg-section { background:#fff; border:1px solid #e8ecf1; border-radius:12px; padding:18px 20px; margin-bottom:12px }
+.dlg-section.highlight { background:linear-gradient(135deg,#f6fdf9,#f0f7ff); border-color:#c8e0d8 }
+.dlg-section.last { border:none; background:transparent; padding:8px 0 0 }
+.dlg-sec-head { display:flex; align-items:center; gap:8px; margin-bottom:14px }
+.dlg-sec-icon { width:28px; height:28px; border-radius:7px; display:flex; align-items:center; justify-content:center; font-size:14px; flex-shrink:0 }
+.dlg-sec-title { font-size:14px; font-weight:700; color:#1f2329 }
+.dlg-sec-tip { font-size:11px; color:#909399; margin-left:auto }
 
-/* 列表内 安装文件 标签 */
-.install-files { display: flex; flex-direction: column; gap: 2px; }
-.file-tag { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; color: #333; }
-.file-tag b { display: inline-block; min-width: 16px; height: 16px; line-height: 16px; text-align: center; background: #ecf5ff; color: #409eff; border-radius: 3px; font-weight: 600; font-size: 11px; }
+.dlg-row { display:flex; gap:12px }
+.dlg-row.cols-3-2 { display:grid; grid-template-columns:2fr 1fr; gap:12px }
+.dlg-field { min-width:0 }
+.dlg-field+.dlg-field { margin-top:10px }
+.dlg-field label { display:block; font-size:12px; font-weight:600; color:#4e5969; margin-bottom:4px }
+.dlg-field label i { color:#f56c6c; font-style:normal }
+.dlg-field .el-select,.dlg-field .el-input { width:100% }
+.dlg-confirm { color:#67c23a; font-weight:600; font-size:13px; margin-top:4px }
+.span-2 { grid-column:span 1 }
 
-/* 上传弹窗 */
-.up-card-box{background:#fafbfd;border:1px solid #eef0f4;border-radius:8px;padding:12px 14px;margin-bottom:8px}
-.up-card-box.highlight{background:linear-gradient(135deg,#f8faff,#f0f4ff);border-color:#d4e0f8}
-.up-box-title{font-size:13px;font-weight:700;color:#1a1a2e;margin-bottom:10px;display:flex;align-items:center;gap:6px}
-.up-box-title span{font-weight:400;font-size:11px;color:#909399}
-.up-row{display:flex;gap:12px}
-.up-row+.up-row{margin-top:8px}
-.up-field{min-width:0}.up-field label{display:block;font-size:11px;font-weight:600;color:#555;margin-bottom:3px}.up-field label i{color:#f56c6c;font-style:normal}
-.up-field .el-select{width:100%}.up-field .el-input{width:100%}
-.up-hint{color:#409eff;font-weight:600;font-size:13px;margin-top:4px}
-.flex-1{flex:1}.flex-2{flex:2}
-.up-cards{display:flex;gap:16px;margin-top:4px}
-.up-card{width:180px;min-height:140px;border:2px dashed #dcdfe6;border-radius:12px;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;transition:all .25s;position:relative;overflow:hidden;background:#fff}
-.up-card:hover{border-color:#409eff;background:#f0f6ff;box-shadow:0 2px 8px rgba(64,158,255,.08)}
-.up-card.has{border-style:solid;border-color:#d4e8d4;background:#f6fdf6;cursor:default;padding:8px}
-.up-card.has:hover{border-color:#a3d9a3}
-.up-card-plus{font-size:32px;color:#c0c4cc;line-height:1;transition:color .2s}
-.up-card:hover .up-card-plus{color:#409eff}
-.up-card-lbl{font-size:12px;color:#909399;margin-top:6px}
+.dlg-tip { display:flex; align-items:center; gap:4px; font-size:12px; color:#909399; margin-top:8px }
+.shared-on { color:#67c23a; font-size:12px; font-weight:500 }
+
+/* File Slots */
+.file-slots { display:flex; gap:12px }
+.file-slot { flex:1; min-width:0 }
+.file-slot-head { display:flex; align-items:center; gap:6px; margin-bottom:8px }
+.file-slot-dot { width:8px; height:8px; border-radius:50%; flex-shrink:0 }
+.dot-pre { background:#409eff } .dot-mid { background:#e6a23c } .dot-post { background:#67c23a }
+.file-slot-label { font-size:13px; font-weight:600; color:#333 }
+.file-slot-count { font-size:11px; color:#909399; margin-left:auto }
+
+.file-slot-cards { display:flex; flex-wrap:wrap; gap:8px }
+.file-card { width:88px; height:100px; border:2px dashed #dcdfe6; border-radius:10px; display:flex; flex-direction:column; align-items:center; justify-content:center; cursor:pointer; transition:all .2s; position:relative; overflow:hidden; background:#fff }
+.file-card:hover { border-color:#409eff; background:#f0f6ff }
+.file-card.add { gap:2px }
+.file-card.add .el-icon { color:#c0c4cc } .file-card.add:hover .el-icon { color:#409eff }
+.file-card.has { border-style:solid; border-color:#d4e8d4; background:#f6fdf6; cursor:default }
+.file-card.has:hover { border-color:#a3d9a3 }
+.file-card-img { width:100%; height:100%; object-fit:cover; border-radius:8px }
+.file-card-icon { display:flex; align-items:center; justify-content:center; color:#909399 }
+.file-card-del { position:absolute; top:2px; right:2px; width:20px; height:20px; border-radius:50%; background:rgba(0,0,0,.5); color:#fff; display:flex; align-items:center; justify-content:center; font-size:12px; opacity:0; transition:opacity .15s }
+.file-card:hover .file-card-del { opacity:1 }
+.file-card-name { font-size:10px; color:#606266; text-align:center; margin-top:2px; max-width:80px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; padding:0 2px }
+.file-card-del:hover { background:#f56c6c }
+
+.dlg-footer { }
+.dlg-footer-btns { display:flex; justify-content:flex-end; gap:10px; margin-top:8px }
 .up-card-preview{width:100%;height:90px;overflow:hidden;display:flex;align-items:center;justify-content:center;background:#f5f5f5;border-radius:6px;margin-bottom:6px}
 .up-card-preview img{width:100%;height:100%;object-fit:cover}
 .up-card-icon{font-size:36px}
