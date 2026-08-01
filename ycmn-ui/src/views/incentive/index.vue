@@ -448,15 +448,18 @@ const startReplace = (row) => {
   pendingReplace.value = row
   selectedCustomerId.value = row.customerId
   resetDialogFields()
-  // 保留已有文件，标记为已上传
-  const parseExisting = (namesStr) => {
+  // 保留已有文件，标记为已上传（name + id + _existing）
+  const parseExisting = (namesStr, idsJson) => {
     if (!namesStr) return []
-    return namesStr.split(', ').map(name => ({ name, _existing: true }))
+    const names = namesStr.split(', ')
+    let ids = []
+    try { ids = idsJson ? JSON.parse(idsJson) : [] } catch { ids = [] }
+    return names.map((name, i) => ({ name, id: ids[i] || null, _existing: true }))
   }
-  installFiles.pre = parseExisting(row.filePreName)
-  installFiles.mid = parseExisting(row.fileMidName)
-  installFiles.post = parseExisting(row.filePostName)
-  trackFile.value = parseExisting(row.fileTrackName)
+  installFiles.pre = parseExisting(row.filePreName, row.filePreId)
+  installFiles.mid = parseExisting(row.fileMidName, row.fileMidId)
+  installFiles.post = parseExisting(row.filePostName, row.filePostId)
+  trackFile.value = parseExisting(row.fileTrackName, row.fileTrackId)
   preInstallQuestion.value = row.preInstallQuestion || ''
   remarkText.value = row.remark || ''
   shareToTeam.value = !!row.shared
@@ -553,40 +556,37 @@ const confirmUpload = async () => {
     let finalPreId, finalMidId, finalPostId, finalTrackId
 
     if (pendingReplace.value) {
-      // 追加模式：合并新文件ID与已有文件ID
-      // 简化：只保留未被删除的已有文件 + 新上传文件
+      // 追加模式：只保留 UI 中未被删除的已有文件 + 新上传文件
       const old = pendingReplace.value
-      const parseExistingIds = (json) => {
-        try { return json ? JSON.parse(json) : [] } catch { return json ? [json] : [] }
-      }
       const getNewIds = (slotFiles) => slotFiles.filter(f => !f._existing)
+      const getKeptIds = (slotFiles) => slotFiles.filter(f => f._existing && f.id).map(f => f.id)
 
       // pre
       const preNewIds = getNewIds(installFiles.pre).length
         ? (await Promise.all(getNewIds(installFiles.pre).map(f => uploadOne(f))))
         : []
-      const preOldIds = parseExistingIds(old.filePreId)
+      const preOldIds = getKeptIds(installFiles.pre)
       finalPreId = [...preOldIds, ...preNewIds].length ? `[${[...preOldIds, ...preNewIds].join(',')}]` : null
 
       // mid
       const midNewIds = getNewIds(installFiles.mid).length
         ? (await Promise.all(getNewIds(installFiles.mid).map(f => uploadOne(f))))
         : []
-      const midOldIds = parseExistingIds(old.fileMidId)
+      const midOldIds = getKeptIds(installFiles.mid)
       finalMidId = [...midOldIds, ...midNewIds].length ? `[${[...midOldIds, ...midNewIds].join(',')}]` : null
 
       // post
       const postNewIds = getNewIds(installFiles.post).length
         ? (await Promise.all(getNewIds(installFiles.post).map(f => uploadOne(f))))
         : []
-      const postOldIds = parseExistingIds(old.filePostId)
+      const postOldIds = getKeptIds(installFiles.post)
       finalPostId = [...postOldIds, ...postNewIds].length ? `[${[...postOldIds, ...postNewIds].join(',')}]` : null
 
       // track
       const trackNewIds = getNewIds(trackFile.value).length
         ? (await Promise.all(getNewIds(trackFile.value).map(f => uploadOne(f))))
         : []
-      const trackOldIds = parseExistingIds(old.fileTrackId)
+      const trackOldIds = getKeptIds(trackFile.value)
       finalTrackId = [...trackOldIds, ...trackNewIds].length ? `[${[...trackOldIds, ...trackNewIds].join(',')}]` : null
 
       await deleteRecord(pendingReplace.value.id)
