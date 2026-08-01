@@ -1,39 +1,37 @@
 <template>
   <div class="incentive-page">
-    <!-- 框1: 分类Tab -->
-    <div class="section-box">
-      <div class="category-tabs">
-        <div v-for="cat in parentCategories" :key="cat.id" class="tab-item" :class="{ active: activeTab === String(cat.id) }" @click="activeTab = String(cat.id)">
-          <el-icon v-if="cat.categoryCode === 'visit'"><Location /></el-icon>
-          <el-icon v-else-if="cat.categoryCode === 'exchange'"><ChatDotSquare /></el-icon>
-          <el-icon v-else-if="cat.categoryCode === 'plan'"><Document /></el-icon>
-          <el-icon v-else><Box /></el-icon>
-          <span>{{ cat.categoryName }}</span>
+    <!-- 分类Tab -->
+    <div class="cat-tabs-bar">
+      <div class="cat-tabs">
+        <div v-for="cat in parentCategories" :key="cat.id" class="cat-tab" :class="{ active: activeTab === String(cat.id) }" @click="activeTab = String(cat.id)">
+          <span class="cat-tab-icon"><el-icon><component :is="catIcons[cat.categoryCode] || Box" /></el-icon></span>
+          <span class="cat-tab-name">{{ cat.categoryName }}</span>
+          <span class="cat-tab-badge">{{ cat._recordCount || 0 }}</span>
         </div>
       </div>
     </div>
 
-    <!-- 框2: 统一筛选栏 -->
-    <div class="section-box filter-bar">
-      <div class="filter-row">
-        <span class="flabel">人员</span>
-        <el-select v-model="selectedUser" size="small" style="width:140px" clearable placeholder="全部人员" @change="selectedUser=$event||null">
-          <el-option v-for="u in userList" :key="u.id" :label="u.realName" :value="u.id" />
-        </el-select>
-        <span class="flabel">周期</span>
-        <el-select v-model="selectedPeriod" size="small" style="width:130px">
-          <el-option v-for="p in periodOptions" :key="p" :label="p" :value="p" />
-        </el-select>
-        <span class="fsep"></span>
-        <el-input v-model="searchText" placeholder="搜索文件名..." clearable size="small" style="width:150px" :prefix-icon="Search" />
-        <el-input v-model="filterCustomer" placeholder="客户名称" clearable size="small" style="width:140px" />
-        <el-select v-model="filterGroup" placeholder="全部分类" clearable size="small" style="width:110px">
-          <el-option v-for="c in filterGroupOptions" :key="c" :label="c" :value="c" />
-        </el-select>
-        <el-select v-model="filterTier" placeholder="全部子类" clearable size="small" style="width:110px">
-          <el-option v-for="c in filterTierOptions" :key="c" :label="c" :value="c" />
-        </el-select>
-        <span class="file-count">{{ filteredRecords.length }} 个文件</span>
+    <!-- 筛选栏 -->
+    <div class="filter-strip">
+      <div class="filter-left">
+        <div class="filter-group">
+          <span class="filter-label">人员</span>
+          <el-select v-model="selectedUser" size="default" style="width:130px" clearable placeholder="全部" @change="selectedUser=$event||null">
+            <el-option v-for="u in userList" :key="u.id" :label="u.realName" :value="u.id" />
+          </el-select>
+        </div>
+        <div class="filter-group">
+          <span class="filter-label">周期</span>
+          <el-select v-model="selectedPeriod" size="default" style="width:120px">
+            <el-option v-for="p in periodOptions" :key="p" :label="p" :value="p" />
+          </el-select>
+        </div>
+        <div class="filter-divider"></div>
+        <el-input v-model="searchText" placeholder="搜索文件名..." clearable size="default" style="width:160px" :prefix-icon="Search" />
+        <el-input v-model="filterCustomer" placeholder="客户名称" clearable size="default" style="width:140px" />
+      </div>
+      <div class="filter-right">
+        <span class="file-count"><el-icon><Folder /></el-icon> {{ filteredRecords.length }} 个文件</span>
       </div>
     </div>
 
@@ -265,7 +263,7 @@
 <script setup>
 import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Upload, Search, Refresh, Delete, Plus } from '@element-plus/icons-vue'
+import { Upload, Search, Refresh, Delete, Plus, Box, Location, ChatDotSquare, Document, Folder } from '@element-plus/icons-vue'
 import { getCategoryTree, getRecords, addRecord, deleteRecord, checkIncentivePermission } from '@/api/incentive'
 import { getCustomerList } from '@/api/customer'
 import { getDictData } from '@/api/system'
@@ -332,6 +330,7 @@ const selectedCustomerName = computed(() => {
 })
 
 const parentCategories = computed(() => categories.value.filter(c => c.parentId === 0))
+const catIcons = { visit: Location, exchange: ChatDotSquare, plan: Document, trial: Box }
 const activeParent = computed(() => parentCategories.value.find(c => String(c.id) === activeTab.value))
 
 // 分类 id → 对象 映射
@@ -718,42 +717,45 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.incentive-page { padding: 0; height: calc(100vh - 80px); display: flex; flex-direction: column; gap: 8px }
-.section-box { background:#fff; border:1px solid #e4e7ed; border-radius:10px; padding:14px 20px; flex-shrink:0 }
+.incentive-page { padding: 0; height: calc(100vh - 80px); display: flex; flex-direction: column; gap: 10px }
 
-/* 筛选栏 */
-.filter-bar { padding: 10px 20px }
-.filter-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap }
-.flabel { color: #555; font-weight: 500; font-size: 13px; white-space: nowrap }
-.fsep { width: 1px; height: 20px; background: #e4e7ed; margin: 0 4px }
+/* Cat Tabs */
+.cat-tabs-bar { flex-shrink:0 }
+.cat-tabs { display:flex; gap:0; background:#f2f4f7; border-radius:12px; padding:4px; overflow:hidden }
+.cat-tab { flex:1; display:flex; align-items:center; justify-content:center; gap:8px; padding:12px 8px; font-size:14px; color:#606266; cursor:pointer; border-radius:10px; transition:all .25s; font-weight:500; position:relative }
+.cat-tab:hover { background:rgba(255,255,255,.6) }
+.cat-tab.active { font-weight:700; color:#fff; box-shadow:0 2px 8px rgba(0,0,0,.12) }
+.cat-tab:nth-child(1).active { background:#f59e0b }
+.cat-tab:nth-child(2).active { background:#3b82f6 }
+.cat-tab:nth-child(3).active { background:#8b5cf6 }
+.cat-tab:nth-child(4).active { background:#10b981 }
+.cat-tab-icon { font-size:16px; display:flex }
+.cat-tab-badge { font-size:11px; padding:1px 7px; border-radius:10px; background:rgba(0,0,0,.08); font-weight:600 }
+.cat-tab.active .cat-tab-badge { background:rgba(255,255,255,.25) }
 
-.category-tabs { display: flex; gap: 4px; padding: 4px; background: #f2f4f7; border-radius: 10px; }
-.tab-item { flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px; padding: 10px 0; font-size: 14px; color: #666; cursor: pointer; border-radius: 8px; transition: all .2s; font-weight: 500; }
-.tab-item:hover { opacity: .8 }
-.tab-item.active { font-weight: 700; color: #fff; box-shadow: 0 1px 4px rgba(0,0,0,.1) }
-.tab-item:nth-child(1).active { background: #f59e0b }
-.tab-item:nth-child(2).active { background: #3b82f6 }
-.tab-item:nth-child(3).active { background: #8b5cf6 }
-.tab-item:nth-child(4).active { background: #10b981 }
+/* Filter */
+.filter-strip { display:flex; align-items:center; justify-content:space-between; background:#fff; border:1px solid #e8ecf1; border-radius:10px; padding:10px 16px; flex-shrink:0 }
+.filter-left { display:flex; align-items:center; gap:8px; flex-wrap:wrap }
+.filter-group { display:flex; align-items:center; gap:6px }
+.filter-label { font-size:12px; font-weight:600; color:#4e5969; white-space:nowrap }
+.filter-divider { width:1px; height:22px; background:#e8ecf1; margin:0 4px }
+.filter-right { display:flex; align-items:center }
+.file-count { display:flex; align-items:center; gap:4px; font-size:13px; font-weight:600; color:#409eff; white-space:nowrap }
 
-.main-layout { display: flex; border: 1px solid #e4e7ed; border-radius: 10px; overflow: hidden; flex: 1; min-height: 0; }
-.left-panel { flex: 0 0 20%; background: #fafbfd; padding: 14px; border-right: 1px solid #f0f2f5; overflow-y: auto; }
-.sub-hint { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; color: #999; font-size: 13px; }
-.sub-group { margin-bottom: 2px; }
-.group-header { font-size: 14px; font-weight: 700; color: #1f2329; padding: 10px 0 6px 10px; border-left: 3px solid #409eff; margin-top: 6px; }
-.sub-item { display: flex; justify-content: space-between; align-items: center; padding: 10px 0 10px 12px; border-bottom: 1px solid #f5f5f5; }
-.sub-item.flat { padding-left: 0; }
-.sub-name { font-size: 13px; color: #444; font-weight: 500 }
-.sub-actions { display: flex; align-items: center; gap: 12px; }
-.score-badge { display: inline-block; min-width: 30px; text-align: center; padding: 2px 8px; border-radius: 10px; font-size: 12px; font-weight: 600; }
-.score-0 { color: #bbb; background: #f5f5f5; }
-.score-1 { color: #e6a23c; background: #fff7ed; }
-.score-2 { color: #67c23a; background: #f0f9eb; }
-.score-3 { color: #f56c6c; background: #fef0f0; }
+.main-layout { display:flex; border:1px solid #e8ecf1; border-radius:12px; overflow:hidden; flex:1; min-height:0; background:#fff }
+.left-panel { flex:0 0 240px; background:#fafbfd; padding:16px; border-right:1px solid #f0f2f5; overflow-y:auto }
+.sub-hint { display:flex; align-items:center; gap:8px; margin-bottom:12px; color:#909399; font-size:13px }
+.sub-group { margin-bottom:4px }
+.group-header { font-size:13px; font-weight:700; color:#1f2329; padding:10px 0 6px 12px; border-left:3px solid #409eff; margin-top:8px }
+.sub-item { display:flex; justify-content:space-between; align-items:center; padding:10px 0 10px 12px; border-bottom:1px solid #f5f5f5; transition:background .15s }
+.sub-item:hover { background:#f0f4ff }
+.sub-item.flat { padding-left:0 }
+.sub-name { font-size:13px; color:#333; font-weight:500 }
+.sub-actions { display:flex; align-items:center; gap:10px }
+.score-badge { display:inline-block; min-width:28px; text-align:center; padding:2px 8px; border-radius:10px; font-size:12px; font-weight:600 }
+.score-0 { color:#bbb; background:#f5f5f5 } .score-1 { color:#e6a23c; background:#fff7ed } .score-2 { color:#67c23a; background:#f0f9eb } .score-3 { color:#f56c6c; background:#fef0f0 }
 
-/* 右侧面板 */
-.right-panel { flex: 1; background: #fff; padding: 12px 18px; overflow-y: auto; }
-.file-count { color: #409eff; font-size: 13px; font-weight: 600; white-space: nowrap; margin-left: auto }
+.right-panel { flex:1; background:#fff; padding:14px 18px; overflow-y:auto }
 
 /* 表格内样式 */
 .file-cell { display: inline-flex; align-items: center; gap: 4px; }
