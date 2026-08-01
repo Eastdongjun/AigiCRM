@@ -633,7 +633,7 @@ const confirmUpload = async () => {
         shared: shareToTeam.value ? 1 : 0
       })
     }
-    ElMessage.success(pendingReplace.value ? '追加成功' : '上传成功，任意文件即可计分')
+    ElMessage.success(pendingReplace.value ? '追加成功' : '提交成功')
     showCustomerDialog.value = false
     pendingReplace.value = null
     loadRecords()
