@@ -279,8 +279,13 @@ const industryOptions = ref([])
 const selectedIndustry = ref('')
 const relatedProducts = ref('')
 
-const canSubmit = computed(() =>
-  !!selectedCustomerId.value && (installFiles.pre.length || installFiles.mid.length || installFiles.post.length))
+const canSubmit = computed(() => {
+  if (!selectedCustomerId.value) return false
+  // 追加模式：允许清空文件后提交（积分重算为0）
+  if (pendingReplace.value) return true
+  // 新建模式：至少一个文件槽有文件
+  return installFiles.pre.length || installFiles.mid.length || installFiles.post.length
+})
 
 const selectedCustomerName = computed(() => {
   if (!selectedCustomerId.value) return ''
