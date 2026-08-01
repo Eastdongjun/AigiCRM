@@ -216,7 +216,10 @@ async function loadCats(){try{const res=await getCategoryTree();const walk=l=>{l
 async function loadUsers(){try{const res=await request.get('/incentive/users');userList.value=res.data||[]}catch(e){}}
 async function loadOrgs(){try{const res=await request.get('/system/depts');const list=res.data||[]
   const build=(list,pId=0)=>list.filter(d=>Number(d.parentId)===Number(pId)).sort((a,b)=>(a.sortOrder||0)-(b.sortOrder||0)).map(d=>{const ch=build(list,d.id);return ch.length?{...d,children:ch}:{...d}})
-  orgTree.value=build(list)}catch(e){}}
+  const filtered=list.filter(d=>d.deptType!==1) // 跳过总部级
+  const rootIds=new Set(filtered.map(d=>d.id))
+  const fixed=filtered.map(d=>({...d,parentId:rootIds.has(d.parentId)?d.parentId:0}))
+  orgTree.value=build(fixed)}catch(e){}}
 onMounted(()=>{loadCats();loadUsers();loadOrgs();doSearch()})
 </script>
 
