@@ -51,6 +51,15 @@ else
   echo "⏭️  权限隔离测试跳过(无 $TEST_USER 测试账号, 生产可用 SMOKE_TEST_USER/SMOKE_TEST_PASS 配置)"
 fi
 
+# [3.5] 核心业务回归用例(激励/审批/文件/公海)
+echo "--- [3.5] 业务回归 ---"
+for item in "incentive/categories" "incentive/records?page=1&size=2" "approval/list?page=1&size=2" \
+            "file/folders" "reminder/list?page=1&size=2" "sea/statistics"; do
+  RESP=$(curl -sk -X GET "$BASE/api/$item" -H "$AUTH" --connect-timeout 8)
+  CODE=$(echo "$RESP" | python3 -c "import sys,json;print(json.load(sys.stdin).get('code','x'))" 2>/dev/null)
+  [ "$CODE" = "200" ] && ok "回归: $item" || bad "回归: $item → code=$CODE"
+done
+
 # [4] 页面可用性
 PAGE=$(curl -sk -o /dev/null -w "%{http_code}" "$BASE/" --connect-timeout 8)
 [ "$PAGE" = "200" ] && ok "首页 $PAGE" || bad "首页 $PAGE"
