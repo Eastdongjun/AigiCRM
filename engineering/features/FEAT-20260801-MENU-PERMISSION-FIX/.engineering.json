@@ -4,9 +4,9 @@
   "title": "菜单权限修复：学分录入等菜单项对无权限角色隐藏（403 修复）",
   "project_root": "/Users/donglai/东来/01-Projects/01-aigicrm/04-源码",
   "ui_scope": "none",
-  "current_state": "PROTOTYPE_READY",
+  "current_state": "PLAN_READY",
   "created_at": "2026-08-01T21:47:56+08:00",
-  "updated_at": "2026-08-01T21:48:26+08:00",
+  "updated_at": "2026-08-01T21:48:37+08:00",
   "required_kinds": [
     "build",
     "typecheck"
@@ -56,7 +56,13 @@
       "to": "PROTOTYPE_READY",
       "at": "2026-08-01T21:48:26+08:00",
       "evidence": "ui_scope=none"
+    },
+    {
+      "from": "PROTOTYPE_READY",
+      "to": "PLAN_READY",
+      "at": "2026-08-01T21:48:37+08:00",
+      "evidence": "04-technical-plan.md"
     }
   ],
-  "fingerprint_sha256": "d6b5bfe513e03358dc36341fe45d4f6f72bee3076fdd281dc8122e4de34c8f80"
+  "fingerprint_sha256": "20d0ea4fa08d8a52d080b7a85741322c955054161af319ef623de743324034c7"
 }
