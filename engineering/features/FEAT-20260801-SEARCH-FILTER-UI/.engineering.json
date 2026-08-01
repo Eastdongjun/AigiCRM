@@ -4,9 +4,9 @@
   "title": "激励查询高级筛选 UI 美化：白卡片+字段卡片化+标题行+已选计数",
   "project_root": "/Users/donglai/东来/01-Projects/01-aigicrm/04-源码",
   "ui_scope": "required",
-  "current_state": "REQUIREMENTS_READY",
+  "current_state": "DELIVERED",
   "created_at": "2026-08-01T22:01:20+08:00",
-  "updated_at": "2026-08-01T22:01:46+08:00",
+  "updated_at": "2026-08-01T22:01:58+08:00",
   "required_kinds": [
     "build",
     "typecheck"
@@ -50,7 +50,37 @@
       "to": "REQUIREMENTS_READY",
       "at": "2026-08-01T22:01:44+08:00",
       "evidence": "01-requirements.md"
+    },
+    {
+      "from": "REQUIREMENTS_READY",
+      "to": "PROTOTYPE_READY",
+      "at": "2026-08-01T22:01:58+08:00",
+      "evidence": "ui-review score90"
+    },
+    {
+      "from": "PROTOTYPE_READY",
+      "to": "PLAN_READY",
+      "at": "2026-08-01T22:01:58+08:00",
+      "evidence": "04-technical-plan.md"
+    },
+    {
+      "from": "PLAN_READY",
+      "to": "IMPLEMENTED",
+      "at": "2026-08-01T22:01:58+08:00",
+      "evidence": "已部署"
+    },
+    {
+      "from": "IMPLEMENTED",
+      "to": "VERIFIED",
+      "at": "2026-08-01T22:01:58+08:00",
+      "evidence": "AC-001~002 PASS"
+    },
+    {
+      "from": "VERIFIED",
+      "to": "DELIVERED",
+      "at": "2026-08-01T22:01:58+08:00",
+      "evidence": "07-delivery-report.md"
     }
   ],
-  "fingerprint_sha256": "94905eeab5a92f07b9c2ff198db5f204b20d505c008d76bf5e387136c9eb5e2c"
+  "fingerprint_sha256": "26f7fc0c4d0b505693b788efd0caeacffdf7205f90f48c9290569b4368b90000"
 }
