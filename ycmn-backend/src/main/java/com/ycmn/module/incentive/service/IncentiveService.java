@@ -192,8 +192,12 @@ public class IncentiveService {
 
     /**
      * 积分规则：
-     * 1. 两谈两做方案(plan)：安装前/中/后 任意一个文件上传 → 得分
-     * 2. 其他分类：安装前+安装中+安装后 三文件齐全 → 得分
+     * 1. 两谈两做方案(plan)：每个阶段独立计分
+     *    - 安装前有文件 → +base 分
+     *    - 安装中有文件 → +base 分
+     *    - 安装后有文件 → +base 分
+     *    - 删除某阶段文件 → 对应分值去除
+     * 2. 其他分类：安装前+安装中+安装后 三文件齐全 → +base 分
      * 3. 否则 0 分
      */
     private int calcScore(BizIncentiveRecord r, BizIncentiveCategory category, int base) {
@@ -205,8 +209,8 @@ public class IncentiveService {
         boolean hasPost = r.hasFiles(r.getFilePostId() != null ? r.getFilePostId() : null);
 
         if (isPlan) {
-            // 两谈两做：三阶段任意一个即可
-            return (hasPre || hasMid || hasPost) ? base : 0;
+            // 两谈两做：每个阶段独立得分
+            return (hasPre ? base : 0) + (hasMid ? base : 0) + (hasPost ? base : 0);
         } else {
             // 其他：三文件齐全
             return (hasPre && hasMid && hasPost) ? base : 0;
