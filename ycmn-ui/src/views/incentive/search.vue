@@ -160,14 +160,15 @@ function preview(id,type){previewUrl.value=fileUrl(id);previewType.value=type===
 function downloadPreview(){if(previewUrl.value)window.open(previewUrl.value)}
 function showDetail(c){detailCust.value=c;detailVisible.value=true}
 
+function parseId(v){if(!v)return null;if(typeof v==='number')return v;try{const a=JSON.parse(v);return Array.isArray(a)?a[0]:v}catch{return v}}
 function getFiles(r){
   const f=[]
-  if(r.filePreId)f.push({id:r.filePreId,label:r.filePreName||'文件',type:detectType(r.filePreName),tag:'安装前'})
-  if(r.fileMidId)f.push({id:r.fileMidId,label:r.fileMidName||'文件',type:detectType(r.fileMidName),tag:'安装中'})
-  if(r.filePostId)f.push({id:r.filePostId,label:r.filePostName||'文件',type:detectType(r.filePostName),tag:'安装后'})
-  if(r.fileId)f.push({id:r.fileId,label:r.fileName||'文件',type:detectType(r.fileName),tag:''})
-  if(r.fileTrackId)f.push({id:r.fileTrackId,label:r.fileTrackName||'',type:detectType(r.fileTrackName),tag:'跟踪'})
-  return f
+  if(r.filePreId)f.push({id:parseId(r.filePreId),label:r.filePreName||'文件',type:detectType(r.filePreName),tag:'安装前'})
+  if(r.fileMidId)f.push({id:parseId(r.fileMidId),label:r.fileMidName||'文件',type:detectType(r.fileMidName),tag:'安装中'})
+  if(r.filePostId)f.push({id:parseId(r.filePostId),label:r.filePostName||'文件',type:detectType(r.filePostName),tag:'安装后'})
+  if(r.fileId)f.push({id:parseId(r.fileId),label:r.fileName||'文件',type:detectType(r.fileName),tag:''})
+  if(r.fileTrackId)f.push({id:parseId(r.fileTrackId),label:r.fileTrackName||'',type:detectType(r.fileTrackName),tag:'跟踪'})
+  return f.filter(x => x.id)
 }
 function detectType(n){if(!n)return'doc';if(/\.(jpg|jpeg|png|gif|webp|bmp)$/i.test(n))return'image';if(/\.(mp4|mov|avi|webm)$/i.test(n))return'video';return'doc'}
 function getMain(r){const c=catMap.value[r.categoryId];if(!c)return'';if(c.parentId===0)return c.categoryName;const p=catMap.value[c.parentId];if(!p)return c.categoryName;const gp=catMap.value[p.parentId];return gp&&gp.parentId===0?gp.categoryName:p.categoryName}
