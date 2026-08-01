@@ -11,31 +11,29 @@
         <span class="cnt"><el-icon><Folder /></el-icon> {{ custs.length }} 客户</span>
       </div>
       <div v-if="showFilter" class="bar-adv">
-        <div class="adv-row">
-          <div class="adv-group">
-            <span class="adv-label">销售人员</span>
-            <el-select v-model="fSales" placeholder="全部" clearable filterable @change="doSearch">
+        <div class="adv-grid">
+          <div class="adv-field">
+            <label class="adv-field-label"><el-icon><User /></el-icon> 销售人员</label>
+            <el-select v-model="fSales" placeholder="全部人员" clearable filterable @change="doSearch" size="default">
               <el-option v-for="u in userList" :key="u.id" :label="u.realName" :value="u.realName" />
             </el-select>
           </div>
-          <div class="adv-group">
-            <span class="adv-label">行业</span>
-            <el-select v-model="fIndustry" placeholder="全部" clearable @change="doSearch"><el-option v-for="i in industries" :key="i" :label="i" :value="i" /></el-select>
+          <div class="adv-field">
+            <label class="adv-field-label"><el-icon><OfficeBuilding /></el-icon> 行业</label>
+            <el-select v-model="fIndustry" placeholder="全部行业" clearable @change="doSearch" size="default"><el-option v-for="i in industries" :key="i" :label="i" :value="i" /></el-select>
           </div>
-          <div class="adv-group">
-            <span class="adv-label">开发类型</span>
-            <el-select v-model="fDevType" placeholder="全部" clearable @change="doSearch"><el-option v-for="d in devTypes" :key="d" :label="d" :value="d" /></el-select>
+          <div class="adv-field">
+            <label class="adv-field-label"><el-icon><PriceTag /></el-icon> 开发类型</label>
+            <el-select v-model="fDevType" placeholder="全部类型" clearable @change="doSearch" size="default"><el-option v-for="d in devTypes" :key="d" :label="d" :value="d" /></el-select>
           </div>
-        </div>
-        <div class="adv-row">
-          <div class="adv-group">
-            <span class="adv-label">日期范围</span>
-            <el-date-picker v-model="fDateRange" type="daterange" range-separator="~" start-placeholder="开始" end-placeholder="截止" value-format="YYYY-MM-DD" @change="doSearch" style="width:230px" />
+          <div class="adv-field">
+            <label class="adv-field-label"><el-icon><Calendar /></el-icon> 日期范围</label>
+            <el-date-picker v-model="fDateRange" type="daterange" range-separator="~" start-placeholder="开始" end-placeholder="截止" value-format="YYYY-MM-DD" @change="doSearch" size="default" style="width:100%" />
           </div>
-          <div class="adv-group flex-1">
-            <span class="adv-label">组织筛选</span>
-            <el-select v-model="fOrgIds" placeholder="选择大区/办事处/部门" multiple clearable filterable collapse-tags collapse-tags-tooltip @change="doSearch" style="width:100%;max-width:420px">
-              <el-option-group v-for="group in orgGroups" :key="group.label" :label="group.label">
+          <div class="adv-field span-2">
+            <label class="adv-field-label"><el-icon><MapLocation /></el-icon> 组织筛选</label>
+            <el-select v-model="fOrgIds" placeholder="选择大区 / 办事处 / 部门" multiple clearable filterable collapse-tags collapse-tags-tooltip @change="doSearch" size="default" style="width:100%">
+              <el-option-group v-for="group in orgGroups" :key="group.label" :label="'─ ' + group.label">
                 <el-option v-for="item in group.options" :key="item.id" :label="item.deptName" :value="item.id" />
               </el-option-group>
             </el-select>
@@ -176,7 +174,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { getCategoryTree } from '@/api/incentive'
 import { getToken } from '@/utils/token'
-import { Search, User, VideoPlay, Document, ZoomIn, Download, Filter, Folder } from '@element-plus/icons-vue'
+import { Search, User, VideoPlay, Document, ZoomIn, Download, Filter, Folder, OfficeBuilding, PriceTag, Calendar, MapLocation } from '@element-plus/icons-vue'
 import request from '@/utils/request'
 import { ElMessage } from 'element-plus'
 
@@ -230,15 +228,15 @@ onMounted(()=>{loadCats();loadUsers();loadOrgs();doSearch()})
 <style scoped>
 .bar{background:#fff;border-bottom:1px solid #ebeef5;padding:12px 20px}
 .bar-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-.bar-adv{margin-top:12px;padding-top:12px;border-top:1px solid #f0f0f0}
-.adv-row{display:flex;gap:16px;align-items:center;flex-wrap:wrap;margin-bottom:10px}
-.adv-row:last-child{margin-bottom:0}
-.adv-group{display:flex;align-items:center;gap:6px}
-.adv-label{font-size:12px;font-weight:600;color:#4e5969;white-space:nowrap;min-width:50px}
-.adv-group .el-select{width:130px}
-.kw-main{width:220px}.kw2{width:140px}.sel{width:110px}.dt{width:200px}.org-sel{width:180px}
+.bar-adv{margin-top:14px;padding:18px 20px;background:#f8f9fb;border-radius:10px;border:1px solid #eef0f4}
+.adv-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px 16px}
+.adv-field{min-width:0}
+.adv-field.span-2{grid-column:span 2}
+.adv-field-label{display:flex;align-items:center;gap:5px;font-size:12px;font-weight:600;color:#4e5969;margin-bottom:5px}
+.adv-field-label .el-icon{font-size:13px;color:#909399}
+.adv-field :deep(.el-select),.adv-field :deep(.el-date-picker){width:100%}
+.kw-main{width:240px}
 .cnt{display:flex;align-items:center;gap:4px;font-size:13px;color:#409eff;font-weight:600;white-space:nowrap;margin-left:auto}
-.flex-1{flex:1}
 
 .card{background:#fff;border:1px solid #e4e7ed;border-radius:10px;overflow:hidden;display:flex;flex-direction:column;transition:box-shadow .2s}
 .card:hover{box-shadow:0 4px 16px rgba(0,0,0,.06)}
