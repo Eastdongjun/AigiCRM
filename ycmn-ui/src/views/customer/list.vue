@@ -332,8 +332,9 @@ const loadFilterData = async () => {
         filterOrgTree.value = orgRes?.data || []
       }
       if (user.dataScope === 'all' || user.dataScope === 'org_and_children' || (user.managedOrgIds||[]).length > 0) {
-        const userRes = await fetch('/api/system/users?size=9999', {headers:{Authorization:'Bearer '+token}}).then(r=>r.json())
-        filterUserOptions.value = (userRes?.data?.records || []).map(u => ({id:u.id, realName:u.realName}))
+        // 用简易用户接口（只需 customer:view，不需要 system:user:view——避免销售员等角色 403）
+        const userRes = await fetch('/api/customer/users/simple', {headers:{Authorization:'Bearer '+token}}).then(r=>r.json())
+        filterUserOptions.value = (userRes?.data || []).map(u => ({id:u.id, realName:u.realName}))
         canFilterByUsers.value = filterUserOptions.value.length > 1
       }
     }
