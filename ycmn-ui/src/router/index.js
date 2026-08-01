@@ -56,7 +56,7 @@ const routes = [
         path: 'incentive',
         name: 'Incentive',
         component: () => import('@/views/incentive/index.vue'),
-        meta: { title: '四项激励', parentTitle: '四项激励', icon: 'Trophy' }
+        meta: { title: '四项激励', icon: 'Trophy' }
       },
       {
         path: 'incentive/stats',
