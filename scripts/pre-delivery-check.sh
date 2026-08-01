@@ -26,7 +26,7 @@ if [ -n "$FEATURE_DIR" ]; then
   echo "--- [2] 功能包衔接: $FEATURE_DIR ---"
   REQ="$FEATURE_DIR/01-requirements.md"
   if [ -f "$REQ" ]; then
-    CONFIRMED=$(grep -A1 "## 需求确认" "$REQ" | grep -oE "是|否" | head -1)
+    CONFIRMED=$(grep -E "用户确认" "$REQ" | grep -oE "是|否" | head -1)
     [ "$CONFIRMED" = "是" ] && ok "需求已确认(用户确认=是)" || bad "需求未确认 —— 先与用户确认需求再交付"
     grep -q "<!-- FILL" "$REQ" && bad "需求文档仍有占位符" || ok "需求文档无占位符"
   else
