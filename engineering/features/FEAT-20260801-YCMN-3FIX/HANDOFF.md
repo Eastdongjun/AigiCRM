@@ -18,7 +18,7 @@
 ## 关键事实（勿再踩坑）
 
 - 源码基准：`/Users/donglai/东来/01-Projects/01-aigicrm/04-源码`（git main，领先 origin/backup-20260731 52 commits）
-- 测试服：111.229.37.220，sshpass -p 'redacted-ssh-password' ssh ubuntu@；容器 ycmn-frontend/ycmn-backend/shared-mysql/shared-redis
+- 测试服：111.229.37.220，sshpass -p '********' ssh ubuntu@；容器 ycmn-frontend/ycmn-backend/shared-mysql/shared-redis
 - **服务器项目副本（/home/ubuntu/projects/ycmn/）是旧基线，不能直接构建部署**
 - **本机 JDK25 与 Lombok 不兼容**：后端构建需 JDK17。已配 `~/.mavenrc` → JAVA_HOME=/tmp/jdk-17.0.20+8/Contents/Home（临时目录，重启后可能消失）
 - 后端 jar 已在服务器 JDK17 构建部署（17:33）；前端 dist 17:18 构建部署（容器内备份 /tmp/html-backup-*.tgz）

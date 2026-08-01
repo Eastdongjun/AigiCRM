@@ -36,7 +36,7 @@
 
 ## 约束
 
-- 测试服 111.229.37.220（ubuntu/redacted-ssh-password，sshpass），MySQL 容器 shared-mysql，库 ycmn
+- 测试服 111.229.37.220（ubuntu/********，sshpass），MySQL 容器 shared-mysql，库 ycmn
 - 生产未部署；测试服数据修改可逆（备份 + UPDATE 可回滚）
 
 ## 初始风险

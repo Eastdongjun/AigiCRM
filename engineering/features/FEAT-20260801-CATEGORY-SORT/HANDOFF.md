@@ -13,7 +13,7 @@
 
 - 消费方均取 getCategoryTree（IncentiveService.java:81-85 orderByAsc sortOrder），无独立硬编码
 - 记录表格内排序为 code 权重（index.vue:450-452 trial→plan→exchange→visit），本来即是目标顺序，未动
-- 测试服 111.229.37.220（ubuntu/redacted-ssh-password，sshpass）；MySQL 容器 shared-mysql；浏览器已验证（/incentive 与 /system/config）
+- 测试服 111.229.37.220（ubuntu/********，sshpass）；MySQL 容器 shared-mysql；浏览器已验证（/incentive 与 /system/config）
 - 功能包 evidence/ 含：备份 SQL、ui-1440x900.png、ui-1280x720.png、ui-review.json（score 90）、preflight/gate-report
 
 ## 残余风险（待用户确认）
