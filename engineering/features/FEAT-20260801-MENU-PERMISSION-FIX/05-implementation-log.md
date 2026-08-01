@@ -4,9 +4,17 @@
 
 - layout/index.vue：学分录入/学分排行加权限 v-if；岗位管理改 system:position:view
 
+## 实现决策
+
+- 与计划一致：菜单项权限判断对齐接口权限码，接口层 403 保护保留
+
+## 新增或更新的测试
+
+- 浏览器断言：王磊磊菜单无"学分录入"；admin 菜单含岗位管理
+
 ## 实际执行命令
 
-- npm build → 部署；browser-use 王磊磊菜单断言：学分录入消失 ✓
+- npm build → 部署；browser-use 王磊磊菜单断言
 
 ## 失败与纠正
 
