@@ -4,9 +4,9 @@
   "title": "文件管理上传失败修复：folderId null 400 + el-upload on-success 不触发，改自定义上传",
   "project_root": "/Users/donglai/东来/01-Projects/01-aigicrm/04-源码",
   "ui_scope": "required",
-  "current_state": "REQUIREMENTS_READY",
+  "current_state": "DELIVERED",
   "created_at": "2026-08-01T21:35:42+08:00",
-  "updated_at": "2026-08-01T21:36:42+08:00",
+  "updated_at": "2026-08-01T21:37:00+08:00",
   "required_kinds": [
     "build",
     "typecheck"
@@ -50,7 +50,37 @@
       "to": "REQUIREMENTS_READY",
       "at": "2026-08-01T21:36:42+08:00",
       "evidence": "01-requirements.md"
+    },
+    {
+      "from": "REQUIREMENTS_READY",
+      "to": "PROTOTYPE_READY",
+      "at": "2026-08-01T21:37:00+08:00",
+      "evidence": "ui-review score88"
+    },
+    {
+      "from": "PROTOTYPE_READY",
+      "to": "PLAN_READY",
+      "at": "2026-08-01T21:37:00+08:00",
+      "evidence": "04-technical-plan.md"
+    },
+    {
+      "from": "PLAN_READY",
+      "to": "IMPLEMENTED",
+      "at": "2026-08-01T21:37:00+08:00",
+      "evidence": "已部署"
+    },
+    {
+      "from": "IMPLEMENTED",
+      "to": "VERIFIED",
+      "at": "2026-08-01T21:37:00+08:00",
+      "evidence": "AC-001~004 PASS"
+    },
+    {
+      "from": "VERIFIED",
+      "to": "DELIVERED",
+      "at": "2026-08-01T21:37:00+08:00",
+      "evidence": "07-delivery-report.md"
     }
   ],
-  "fingerprint_sha256": "fb73b65ba146104e74fb8154fd50b7ef5478d8e3721b093160968bfa7369a464"
+  "fingerprint_sha256": "b6258225ec089c109d3b34138ff4224e9c06145a3ef2462043df7567a1eed481"
 }

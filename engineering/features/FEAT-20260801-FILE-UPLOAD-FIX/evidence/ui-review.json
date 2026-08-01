@@ -1,17 +1,19 @@
 {
   "feature_id": "FEAT-20260801-FILE-UPLOAD-FIX",
-  "created_at": "2026-08-01T21:36:42+08:00",
+  "created_at": "2026-08-01T21:37:00+08:00",
   "feature_revision": 1,
   "score": 88,
   "console_errors": 0,
   "interaction_passed": true,
   "blocking_findings": [],
   "screenshot_dimensions": {
+    "ui-baseline-1440x900.png": "1440x900",
     "ui-1440x900.png": "1440x900",
     "ui-1280x720.png": "1280x720"
   },
   "screenshot_sha256": {
-    "ui-1440x900.png": "780343602a8005d49128982427cec7b9504edbfb5248797f3ab6ccbe8ff07d7b",
+    "ui-baseline-1440x900.png": "8d75f8a8795851b233168e78af658b66fa8ece6bf52009e557bc18c8e306fd64",
+    "ui-1440x900.png": "8d75f8a8795851b233168e78af658b66fa8ece6bf52009e557bc18c8e306fd64",
     "ui-1280x720.png": "7b514aa8167eeddcf9d594d8ce382d35a76b244b9496149fae6c64419adcb91c"
   }
 }
