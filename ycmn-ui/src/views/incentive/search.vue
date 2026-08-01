@@ -48,7 +48,7 @@
             <label class="adv-field-label"><el-icon><Calendar /></el-icon> 日期范围</label>
             <el-date-picker v-model="fDateRange" type="daterange" range-separator="~" start-placeholder="开始" end-placeholder="截止" value-format="YYYY-MM-DD" @change="doSearch" size="small" style="width:100%" />
           </div>
-          <div class="adv-field span-2">
+          <div class="adv-field span-4">
             <label class="adv-field-label"><el-icon><MapLocation /></el-icon> 组织筛选</label>
             <el-tree-select v-model="fOrgIds" :data="orgTree" :props="{label:'deptName',value:'id',children:'children'}" placeholder="选择大区 / 办事处" clearable filterable multiple check-strictly show-checkbox collapse-tags collapse-tags-tooltip @change="doSearch" size="small" style="width:100%" />
           </div>
@@ -258,10 +258,11 @@ onMounted(()=>{loadCats();loadUsers();loadOrgs();doSearch()})
 .adv-title{display:flex;align-items:center;gap:6px;font-size:14px;font-weight:600;color:#1f2329}
 .adv-title .el-icon{color:#409eff;font-size:15px}
 .adv-header-right{display:flex;align-items:center;gap:10px}
-.adv-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px 18px}
+.adv-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px 14px}
 .adv-field{min-width:0;background:#f7f9fc;border:1px solid #f0f2f5;border-radius:8px;padding:6px 10px 8px;transition:border-color .2s, box-shadow .2s}
 .adv-field:hover{border-color:#d3e3f7;box-shadow:0 2px 6px rgba(64,158,255,.06)}
 .adv-field.span-2{grid-column:span 2}
+.adv-field.span-4{grid-column:1/-1}
 .adv-field-label{display:flex;align-items:center;gap:5px;font-size:12px;font-weight:600;color:#3a4a5a;margin-bottom:5px}
 .adv-field-label .el-icon{font-size:13px;color:#409eff}
 .adv-field :deep(.el-select),.adv-field :deep(.el-date-picker){width:100%}
