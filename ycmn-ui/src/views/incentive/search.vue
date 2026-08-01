@@ -32,7 +32,7 @@
           </div>
           <div class="adv-field span-2">
             <label class="adv-field-label"><el-icon><MapLocation /></el-icon> 组织筛选</label>
-            <el-cascader v-model="fOrgIds" :options="orgTree" :props="{label:'deptName',value:'id',children:'children',checkStrictly:true,emitPath:false}" :show-all-levels="false" placeholder="点击逐级展开：总部 → 大区 → 办事处" clearable filterable collapse-tags collapse-tags-tooltip @change="doSearch" size="default" style="width:100%" />
+            <el-tree-select v-model="fOrgIds" :data="orgTree" :props="{label:'deptName',value:'id',children:'children'}" placeholder="选择大区 / 办事处" clearable filterable multiple check-strictly show-checkbox collapse-tags collapse-tags-tooltip @change="doSearch" size="default" style="width:100%" />
           </div>
         </div>
       </div>
