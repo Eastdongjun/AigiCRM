@@ -32,11 +32,7 @@
           </div>
           <div class="adv-field span-2">
             <label class="adv-field-label"><el-icon><MapLocation /></el-icon> 组织筛选</label>
-            <el-select v-model="fOrgIds" placeholder="选择大区 / 办事处 / 部门" multiple clearable filterable collapse-tags collapse-tags-tooltip @change="doSearch" size="default" style="width:100%">
-              <el-option-group v-for="group in orgGroups" :key="group.label" :label="'─ ' + group.label">
-                <el-option v-for="item in group.options" :key="item.id" :label="item.deptName" :value="item.id" />
-              </el-option-group>
-            </el-select>
+            <el-cascader v-model="fOrgIds" :options="orgTree" :props="{label:'deptName',value:'id',children:'children',multiple:true,checkStrictly:true,expandTrigger:'hover'}" placeholder="选择大区 / 办事处 / 部门" clearable filterable collapse-tags collapse-tags-tooltip @change="doSearch" size="default" style="width:100%" />
           </div>
         </div>
       </div>
@@ -183,7 +179,7 @@ const custs=ref([]),catMap=ref({}),previewVisible=ref(false),previewUrl=ref(''),
 const detailVisible=ref(false),detailCust=ref(null)
 const industries=['冶金','煤矿','化工','电力','有色金属','机械','工程公司','维修厂','其他终端客户']
 const devTypes=['成熟创新','突破开拓','铺垫宣传']
-const userList=ref([]),orgGroups=ref([])
+const userList=ref([]),orgTree=ref([])
 const activeFilterCount=computed(()=>[fSales.value,fIndustry.value,fDevType.value,fDateRange.value,fOrgIds.value?.length>0].filter(v=>!!v).length)
 
 function onImgError(e){e.target.src='data:image/svg+xml,'+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="320" height="240" viewBox="0 0 320 240"><rect fill="#f5f6f7" width="320" height="240"/><text fill="#c0c4cc" font-size="14" font-family="sans-serif" text-anchor="middle" x="160" y="120">图片加载失败</text></svg>')}
@@ -212,16 +208,15 @@ async function doSearch(){
   const p={};if(fCustomer.value)p.customerName=fCustomer.value;if(fSales.value)p.salesperson=fSales.value;if(fIndustry.value)p.industry=fIndustry.value
   if(fDevType.value)p.devType=fDevType.value
   if(fDateRange.value?.length===2){p.startDate=fDateRange.value[0];p.endDate=fDateRange.value[1]}
-  if(fOrgIds.value?.length){p.orgIds=fOrgIds.value.join(',')}
+  if(fOrgIds.value?.length){p.orgIds=fOrgIds.value.map(v=>Array.isArray(v)?v[v.length-1]:v).join(',')}
   try{const res=await request.get('/incentive/customer-records',{params:p});custs.value=(res.data||[]).filter(c=>c.records?.length>0&&c.customerName)}catch(e){ElMessage.error('查询失败')}
 }
 function doReset(){fCustomer.value='';fSales.value='';fIndustry.value='';fDevType.value='';fDateRange.value=null;fOrgIds.value=[];doSearch()}
 async function loadCats(){try{const res=await getCategoryTree();const walk=l=>{l.forEach(c=>{catMap.value[c.id]=c;if(c.children)walk(c.children)})};walk(res.data||[])}catch(e){}}
 async function loadUsers(){try{const res=await request.get('/incentive/users');userList.value=res.data||[]}catch(e){}}
 async function loadOrgs(){try{const res=await request.get('/system/depts');const list=res.data||[]
-  const typeMap={1:'总部',2:'大区',3:'办事处'}
-  const groups={};list.forEach(d=>{const k=typeMap[d.deptType]||'其他';if(!groups[k])groups[k]=[];groups[k].push(d)})
-  const order=['总部','大区','办事处'];orgGroups.value=order.filter(k=>groups[k]).map(label=>({label,options:groups[label].sort((a,b)=>(a.sortOrder||0)-(b.sortOrder||0))}))}catch(e){}}
+  const build=(list,pId=0)=>list.filter(d=>Number(d.parentId)===Number(pId)).sort((a,b)=>(a.sortOrder||0)-(b.sortOrder||0)).map(d=>{const ch=build(list,d.id);return ch.length?{...d,children:ch}:{...d}})
+  orgTree.value=build(list)}catch(e){}}
 onMounted(()=>{loadCats();loadUsers();loadOrgs();doSearch()})
 </script>
 
