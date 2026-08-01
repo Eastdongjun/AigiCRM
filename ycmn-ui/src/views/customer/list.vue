@@ -256,14 +256,18 @@ const visibleCols = ref(allCols.map(c => c.key))
 const vis = (key) => visibleCols.value.includes(key)
 
 const tabs = computed(() => {
+  const all = [
+    { type: 'all', label: '全部', color: '#303133', count: filteredAllData.value.length, data: filteredAllData.value }
+  ]
   const types = { '成熟创新': { type: 'innovate', label: '成熟创新', color: '#409eff' },
     '突破开拓': { type: 'break', label: '突破开拓', color: '#e6a23c' },
     '铺垫宣传': { type: 'found', label: '铺垫宣传', color: '#67c23a' } }
-  return Object.entries(types).map(([devType, cfg]) => ({
+  const grouped = Object.entries(types).map(([devType, cfg]) => ({
     ...cfg,
     count: filteredAllData.value.filter(c => c.devType === devType).length,
     data: filteredAllData.value.filter(c => c.devType === devType)
   }))
+  return [...all, ...grouped]
 })
 
 
