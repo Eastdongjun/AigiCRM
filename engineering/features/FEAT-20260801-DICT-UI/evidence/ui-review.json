@@ -1,16 +1,18 @@
 {
   "feature_id": "FEAT-20260801-DICT-UI",
-  "created_at": "2026-08-01T20:32:24+08:00",
+  "created_at": "2026-08-01T20:32:48+08:00",
   "feature_revision": 1,
   "score": 90,
   "console_errors": 0,
   "interaction_passed": true,
   "blocking_findings": [],
   "screenshot_dimensions": {
+    "ui-baseline-1440x900.png": "1440x900",
     "ui-1440x900.png": "1440x900",
     "ui-1280x720.png": "1280x720"
   },
   "screenshot_sha256": {
+    "ui-baseline-1440x900.png": "640879c3257ccc836892db20c1644beae2fc4fca6b788e469932ad70f56612a6",
     "ui-1440x900.png": "b64fc1da123545b6d16afe04cf86344e7bca7789ea8178c8de7287b21e825d42",
     "ui-1280x720.png": "f0d18b065475cc9b04166d071701cf430bc9189ae689ce14fe208e9a82320e3e"
   }

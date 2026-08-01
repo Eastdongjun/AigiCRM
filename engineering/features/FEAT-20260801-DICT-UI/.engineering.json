@@ -4,9 +4,9 @@
   "title": "字典管理页面 UI 美化：经典左右布局（类型卡片列表+数据卡片表格+空态引导）",
   "project_root": "/Users/donglai/东来/01-Projects/01-aigicrm/04-源码",
   "ui_scope": "required",
-  "current_state": "REQUIREMENTS_READY",
+  "current_state": "DELIVERED",
   "created_at": "2026-08-01T20:31:50+08:00",
-  "updated_at": "2026-08-01T20:32:27+08:00",
+  "updated_at": "2026-08-01T20:32:48+08:00",
   "required_kinds": [
     "build",
     "typecheck"
@@ -50,7 +50,37 @@
       "to": "REQUIREMENTS_READY",
       "at": "2026-08-01T20:32:24+08:00",
       "evidence": "01-requirements.md REQ-001~003/AC-001~003"
+    },
+    {
+      "from": "REQUIREMENTS_READY",
+      "to": "PROTOTYPE_READY",
+      "at": "2026-08-01T20:32:48+08:00",
+      "evidence": "ui-review score90; 三截图"
+    },
+    {
+      "from": "PROTOTYPE_READY",
+      "to": "PLAN_READY",
+      "at": "2026-08-01T20:32:48+08:00",
+      "evidence": "04-technical-plan.md"
+    },
+    {
+      "from": "PLAN_READY",
+      "to": "IMPLEMENTED",
+      "at": "2026-08-01T20:32:48+08:00",
+      "evidence": "config.vue 已改已部署"
+    },
+    {
+      "from": "IMPLEMENTED",
+      "to": "VERIFIED",
+      "at": "2026-08-01T20:32:48+08:00",
+      "evidence": "06-test-matrix AC-001~003 PASS"
+    },
+    {
+      "from": "VERIFIED",
+      "to": "DELIVERED",
+      "at": "2026-08-01T20:32:48+08:00",
+      "evidence": "07-delivery-report.md"
     }
   ],
-  "fingerprint_sha256": "a10043ba8340a28ba269663aac9c6ae1b7151d4af0666c72d744512220e120e5"
+  "fingerprint_sha256": "d4de57d421e06e219f01d253a359663185a09f83f7441dbb3c7d63a308ef19d4"
 }
