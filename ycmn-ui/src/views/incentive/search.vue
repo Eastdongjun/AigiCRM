@@ -223,7 +223,7 @@ async function loadUsers(){try{const res=await request.get('/incentive/users');u
 async function loadOrgs(){try{const res=await request.get('/system/depts');const list=res.data||[]
   const typeMap={1:'总部',2:'大区',3:'办事处'}
   const groups={};list.forEach(d=>{const k=typeMap[d.deptType]||'其他';if(!groups[k])groups[k]=[];groups[k].push(d)})
-  orgGroups.value=Object.entries(groups).map(([label,options])=>({label,options:options.sort((a,b)=>(a.sortOrder||0)-(b.sortOrder||0))}))}catch(e){}}
+  const order=['总部','大区','办事处'];orgGroups.value=order.filter(k=>groups[k]).map(label=>({label,options:groups[label].sort((a,b)=>(a.sortOrder||0)-(b.sortOrder||0))}))}catch(e){}}
 onMounted(()=>{loadCats();loadUsers();loadOrgs();doSearch()})
 </script>
 
