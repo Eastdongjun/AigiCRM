@@ -1,13 +1,12 @@
 # HANDOFF — FEAT-20260801-CATEGORY-2LEVEL（已完成）
 
-> 新会话接手提示：读本文件即可恢复上下文。AC-001~007 全 PASS，已部署测试服。
+> 新会话接手提示：读本文件即可恢复上下文。AC-001~008 全 PASS，已部署测试服。
 
-## 当前状态（2026-08-01 19:40，v2）
+## 当前状态（2026-08-01 19:40，v2 → 19:38 状态收尾完成）
 
 - 代码完成并已部署测试服：**有子项的一级禁止删除**（前端 ElMessage.warning 不发请求 + 后端 400"该类别下有 N 个子项，请先删除子项"），AC-008 已验证
-- **git 已提交**：f4cb079（20 文件，含功能包），未 push
-- **未完成**：reopen 后 gate 状态停在 REQUIREMENTS_READY，PROTOTYPE_READY advance 失败（原因未查看完整输出，疑为 ui-review 被 invalidate）。**新会话第一步**：重跑 record-ui-review（score 88）→ preflight → run-gates → 逐级 advance 至 DELIVERED（代码与部署已完成，纯状态收尾）
-- 其余事实见下方（交付报告/测试矩阵已含 v2 追加记录）
+- **gate 状态收尾完成**：record-ui-review rev2（score 88）→ preflight → run-gates（build/typecheck 全过）→ 逐级 advance，`status --require-delivered` 返回 DELIVERED（completion_authorized=true）
+- **git 已提交**：f4cb079（20 文件，含功能包）+ 收尾状态文件提交，未 push
 
 ## 目标与结果
 
@@ -35,6 +34,6 @@
 
 ## 下一步（若用户要求）
 
-1. 确认删除一级是否级联子项 → 实现并回归
+1. 确认删除一级是否级联子项 → 实现并回归（当前仅删自身，子项变孤儿）
 2. 用户实测页面满意度 → 不满意则重做视觉层级
-3. git commit（与 ee6fc71/c61acb0/e0a803c 批次一致，未 push）
+3. ✅ 已完成（收尾会话）：git commit 状态收尾文件，未 push

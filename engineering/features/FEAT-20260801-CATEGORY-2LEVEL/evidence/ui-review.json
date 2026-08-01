@@ -1,7 +1,7 @@
 {
   "feature_id": "FEAT-20260801-CATEGORY-2LEVEL",
-  "created_at": "2026-08-01T19:14:29+08:00",
-  "feature_revision": 1,
+  "created_at": "2026-08-01T19:32:33+08:00",
+  "feature_revision": 2,
   "score": 88,
   "console_errors": 0,
   "interaction_passed": true,
