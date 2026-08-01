@@ -4,9 +4,9 @@
   "title": "新增公海池组织架构可选大区（dept_type=2）",
   "project_root": "/Users/donglai/东来/01-Projects/01-aigicrm/04-源码",
   "ui_scope": "required",
-  "current_state": "REQUIREMENTS_READY",
+  "current_state": "DELIVERED",
   "created_at": "2026-08-01T20:20:16+08:00",
-  "updated_at": "2026-08-01T20:29:22+08:00",
+  "updated_at": "2026-08-01T20:29:52+08:00",
   "required_kinds": [
     "build",
     "typecheck"
@@ -50,7 +50,37 @@
       "to": "REQUIREMENTS_READY",
       "at": "2026-08-01T20:29:18+08:00",
       "evidence": "01-requirements.md REQ-001~004/AC-001~004"
+    },
+    {
+      "from": "REQUIREMENTS_READY",
+      "to": "PROTOTYPE_READY",
+      "at": "2026-08-01T20:29:52+08:00",
+      "evidence": "ui-review rev 绑定三截图"
+    },
+    {
+      "from": "PROTOTYPE_READY",
+      "to": "PLAN_READY",
+      "at": "2026-08-01T20:29:52+08:00",
+      "evidence": "04-technical-plan.md"
+    },
+    {
+      "from": "PLAN_READY",
+      "to": "IMPLEMENTED",
+      "at": "2026-08-01T20:29:52+08:00",
+      "evidence": "代码已改已部署"
+    },
+    {
+      "from": "IMPLEMENTED",
+      "to": "VERIFIED",
+      "at": "2026-08-01T20:29:52+08:00",
+      "evidence": "06-test-matrix AC-001~004 PASS"
+    },
+    {
+      "from": "VERIFIED",
+      "to": "DELIVERED",
+      "at": "2026-08-01T20:29:52+08:00",
+      "evidence": "07-delivery-report.md"
     }
   ],
-  "fingerprint_sha256": "dc7b434703fbcccfa17ba9ea8f8d88cf4ff9a266a61ba23e52c5bfbca31e2381"
+  "fingerprint_sha256": "061b57a8ccb7bf099a40f7c366532d55e9a5c8621c19f8b70c5bc988e55b22d7"
 }
