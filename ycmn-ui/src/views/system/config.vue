@@ -70,32 +70,45 @@
             <!-- 左侧: 字典类型 -->
             <div class="dict-types">
               <div class="dict-header">
-                <span>字典类型</span>
+                <span><el-icon style="vertical-align:middle"><Files /></el-icon> 字典类型 <el-tag size="small" type="info" effect="plain">{{ dictTypes.length }}</el-tag></span>
                 <el-button type="primary" size="small" :icon="Plus" @click="handleAddType">新增</el-button>
               </div>
-              <el-table :data="dictTypes" highlight-current-row @current-change="handleTypeSelect" size="small" style="width: 100%">
-                <el-table-column type="index" label="#" width="40" />
-                <el-table-column prop="dictName" label="名称" min-width="100" />
-                <el-table-column prop="dictCode" label="编码" width="100" show-overflow-tooltip />
-                <el-table-column label="操作" width="100" align="center">
-                  <template #default="{ row }">
-                    <el-button link size="small" @click.stop="handleEditType(row)">编辑</el-button>
-                    <el-button v-if="!row.builtIn" link size="small" type="danger" @click.stop="handleDeleteType(row)">删除</el-button>
-                    <el-tag v-else size="small" type="info" effect="plain">内置</el-tag>
-                  </template>
-                </el-table-column>
-              </el-table>
+              <div class="dict-type-list">
+                <div
+                  v-for="t in dictTypes"
+                  :key="t.id"
+                  class="dict-type-item"
+                  :class="{ active: currentType && currentType.id === t.id }"
+                  @click="handleTypeSelect(t)"
+                >
+                  <div class="dict-type-name">
+                    <el-icon class="dict-type-ico"><Collection /></el-icon>
+                    <span class="dict-type-title">{{ t.dictName }}</span>
+                    <el-tag v-if="t.builtIn" size="small" type="info" effect="plain">内置</el-tag>
+                  </div>
+                  <div class="dict-type-code">{{ t.dictCode }}</div>
+                  <div class="dict-type-acts">
+                    <el-button link size="small" @click.stop="handleEditType(t)">编辑</el-button>
+                    <el-button v-if="!t.builtIn" link size="small" type="danger" @click.stop="handleDeleteType(t)">删除</el-button>
+                  </div>
+                </div>
+                <el-empty v-if="!dictTypes.length" description="暂无字典类型" :image-size="60" />
+              </div>
             </div>
 
             <!-- 右侧: 字典数据 -->
             <div class="dict-data">
               <div class="dict-header">
-                <span>{{ currentType ? currentType.dictName + ' - 数据列表' : '请选择字典类型' }}</span>
+                <span>
+                  <el-icon style="vertical-align:middle"><PriceTag /></el-icon>
+                  {{ currentType ? currentType.dictName + ' · 数据列表' : '请选择字典类型' }}
+                  <el-tag v-if="currentType" size="small" type="success" effect="plain">{{ dictDataList.length }} 项</el-tag>
+                </span>
                 <el-button type="primary" size="small" :icon="Plus" :disabled="!currentType" @click="handleAddData">新增</el-button>
               </div>
-              <el-table :data="dictDataList" size="small" style="width: 100%">
-                <el-table-column prop="dictLabel" label="显示标签" />
-                <el-table-column prop="dictValue" label="数据值" />
+              <el-table v-if="currentType" :data="dictDataList" size="small" stripe style="width: 100%">
+                <el-table-column prop="dictLabel" label="显示标签" min-width="120" />
+                <el-table-column prop="dictValue" label="数据值" min-width="120" />
                 <el-table-column prop="sortOrder" label="排序" width="60" align="center" />
                 <el-table-column label="状态" width="70" align="center">
                   <template #default="{ row }">
@@ -109,6 +122,9 @@
                   </template>
                 </el-table-column>
               </el-table>
+              <div v-else class="dict-empty-tip">
+                <el-empty description="从左侧选择字典类型查看数据" :image-size="90" />
+              </div>
             </div>
           </div>
         </el-tab-pane>
@@ -445,7 +461,7 @@ import ApprovalConfig from '@/views/system/approvalConfig.vue'
 import { ref, reactive, computed, onMounted, watch, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Plus } from '@element-plus/icons-vue'
+import { Plus, Files, Collection, PriceTag } from '@element-plus/icons-vue'
 import { useUserStore } from '@/store/user'
 import {
   getConfigList, updateConfigs,
@@ -931,40 +947,67 @@ onMounted(() => {
 
 .dict-layout {
   display: flex;
-  gap: 20px;
+  gap: 16px;
   flex: 1;
   min-height: 0;
   overflow: hidden;
 }
 .dict-types {
-  width: 360px;
+  width: 380px;
   flex-shrink: 0;
-  background: #fafbfd;
-  border-radius: 8px;
-  padding: 12px;
-  border: 1px solid #f0f2f5;
-  overflow: auto;
+  background: #fff;
+  border-radius: 10px;
+  padding: 14px;
+  border: 1px solid #e4e7ed;
+  box-shadow: 0 1px 3px rgba(0,0,0,.04);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 .dict-data {
   flex: 1;
   min-width: 0;
-  background: #fafbfd;
-  border-radius: 8px;
-  padding: 12px;
-  border: 1px solid #f0f2f5;
+  background: #fff;
+  border-radius: 10px;
+  padding: 14px;
+  border: 1px solid #e4e7ed;
+  box-shadow: 0 1px 3px rgba(0,0,0,.04);
   overflow: auto;
 }
 .dict-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 10px;
-  padding-bottom: 8px;
+  margin-bottom: 12px;
+  padding-bottom: 10px;
   border-bottom: 1px solid #f0f2f5;
   font-weight: 600;
   font-size: 14px;
   color: #1f2329;
 }
+.dict-type-list { flex: 1; min-height: 0; overflow: auto; display: flex; flex-direction: column; gap: 8px; padding-right: 2px }
+.dict-type-item {
+  border: 1px solid #ebeef5;
+  border-radius: 8px;
+  padding: 10px 12px;
+  cursor: pointer;
+  transition: all .18s;
+  background: #fafbfc;
+}
+.dict-type-item:hover { border-color: #b3d3f8; background: #f5f9ff }
+.dict-type-item.active {
+  border-color: #409eff;
+  background: #ecf5ff;
+  box-shadow: 0 0 0 1px #409eff inset;
+}
+.dict-type-name { display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; color: #1f2329 }
+.dict-type-ico { color: #409eff; font-size: 15px }
+.dict-type-item.active .dict-type-ico { color: #1f6fd6 }
+.dict-type-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+.dict-type-code { font-size: 11px; color: #a8abb2; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; margin: 3px 0 4px 21px }
+.dict-type-acts { margin-left: 21px; display: flex; gap: 2px; opacity: 0; transition: opacity .15s }
+.dict-type-item:hover .dict-type-acts, .dict-type-item.active .dict-type-acts { opacity: 1 }
+.dict-empty-tip { display: flex; align-items: center; justify-content: center; height: 100%; min-height: 260px }
 .form-tip {
   font-size: 12px;
   color: #909399;
