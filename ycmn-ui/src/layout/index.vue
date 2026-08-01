@@ -303,6 +303,12 @@ onMounted(async () => {
     if (route.path === '/dashboard' && !userStore.hasPermission('dashboard:view')) {
       router.replace(firstAccessiblePath())
     }
+    // 路由级权限守卫：直接输 URL 访问无权限页面 → 跳回首页（菜单已隐藏的页面此处兜底）
+    const needPerm = route.meta.permission
+    if (needPerm && !userStore.hasPermission(needPerm)) {
+      ElMessage.warning('没有访问权限')
+      router.replace('/dashboard')
+    }
     userStore.refreshBadges()
     userStore.loadSystemConfig()
   } catch (e) {

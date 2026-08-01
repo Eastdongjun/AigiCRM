@@ -102,63 +102,63 @@ const routes = [
         path: 'statistics',
         name: 'Statistics',
         component: () => import('@/views/statistics/index.vue'),
-        meta: { title: '统计分析', icon: 'TrendCharts' }
+        meta: { title: '统计分析', icon: 'TrendCharts', permission: 'statistics:view' }
       },
       {
         path: 'score/entry',
         name: 'ScoreEntry',
         component: () => import('@/views/score/entry.vue'),
-        meta: { title: '学分录入', parentTitle: '学分管理', icon: 'Edit' }
+        meta: { title: '学分录入', parentTitle: '学分管理', icon: 'Edit', permission: 'score:entry' }
       },
       {
         path: 'score/ranking',
         name: 'ScoreRanking',
         component: () => import('@/views/score/ranking.vue'),
-        meta: { title: '学分排行', parentTitle: '学分管理', icon: 'Medal' }
+        meta: { title: '学分排行', parentTitle: '学分管理', icon: 'Medal', permission: 'score:ranking' }
       },
       // 核心客户六项指标
       {
         path: 'indicator',
         name: 'Indicator',
         component: () => import('@/views/indicator/index.vue'),
-        meta: { title: '统计总览', parentTitle: '核心客户六项指标', icon: 'Aim' }
+        meta: { title: '统计总览', parentTitle: '核心客户六项指标', icon: 'Aim', permission: 'statistics:view' }
       },
       // 系统管理
       {
         path: 'system/user',
         name: 'UserManage',
         component: () => import('@/views/system/user.vue'),
-        meta: { title: '人员管理', icon: 'UserFilled' }
+        meta: { title: '人员管理', icon: 'UserFilled', permission: 'system:user:view' }
       },
       {
         path: 'system/org',
         name: 'DeptManage',
         component: () => import('@/views/system/org.vue'),
-        meta: { title: '组织架构', icon: 'OfficeBuilding' }
+        meta: { title: '组织架构', icon: 'OfficeBuilding', permission: 'system:dept:view' }
       },
       {
         path: 'system/role',
         name: 'RoleManage',
         component: () => import('@/views/system/role.vue'),
-        meta: { title: '角色管理', icon: 'Key' }
+        meta: { title: '角色管理', icon: 'Key', permission: 'system:role:view' }
       },
       {
         path: 'system/position',
         name: 'PositionManage',
         component: () => import('@/views/system/position.vue'),
-        meta: { title: '岗位管理', icon: 'Avatar' }
+        meta: { title: '岗位管理', icon: 'Avatar', permission: 'system:position:view' }
       },
       {
         path: 'system/config',
         name: 'SystemConfig',
         component: () => import('@/views/system/config.vue'),
-        meta: { title: '系统设置', icon: 'Tools' }
+        meta: { title: '系统设置', icon: 'Tools', permission: 'system:config:view' }
       },
       {
         path: 'system/log',
         name: 'SystemLog',
         component: () => import('@/views/system/log.vue'),
-        meta: { title: '日志管理', icon: 'Notebook' }
+        meta: { title: '日志管理', icon: 'Notebook', permission: 'system:log:view' }
       }
     ]
   }
