@@ -268,6 +268,35 @@
         </div>
       </el-tab-pane>
 
+      <!-- 四项激励 -->
+      <el-tab-pane name="incentive">
+        <template #label>
+          <span>四项激励 <el-tag size="small" type="warning">{{ incentiveRecords.length }}</el-tag></span>
+        </template>
+        <div v-if="incentiveRecords.length" class="incentive-list">
+          <div v-for="r in incentiveRecords" :key="r.id" class="incentive-item">
+            <div class="inc-top">
+              <span class="inc-category">{{ getMainCategory(r) }} · {{ getSubCategory(r) }}</span>
+              <span class="inc-score" :style="{color: scoreColor(r)}">+{{ r.score }}分</span>
+            </div>
+            <div class="inc-meta">
+              <span>{{ r.period }}</span><span>·</span><span>{{ r.userName }}</span>
+              <span v-if="r.customerName">· {{ r.customerName }}</span>
+              <span class="inc-time">{{ fmtDate(r.createdAt) }}</span>
+            </div>
+            <div class="inc-files" v-if="getFiles(r).length">
+              <div v-for="f in getFiles(r)" :key="f.id" class="inc-file" @click="previewIncentiveFile(f)">
+                <span class="inc-file-tag">{{ f.tag }}</span>
+                <span class="inc-file-name">{{ f.label }}</span>
+                <span class="inc-file-type">{{ f.type === 'image' ? '🖼' : f.type === 'video' ? '🎬' : '📄' }}</span>
+              </div>
+            </div>
+            <div v-if="r.remark" class="inc-remark">{{ r.remark }}</div>
+          </div>
+        </div>
+        <div v-else class="empty-text" style="padding:40px">该客户暂无四项激励记录</div>
+      </el-tab-pane>
+
       <!-- 跟进日志 -->
       <el-tab-pane label="跟进日志" name="logs">
         <div class="log-panel">
@@ -335,7 +364,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { getCustomer, getCustomerLogs, addCustomerLog, updateCustomer,
@@ -346,7 +375,8 @@ import { getCustomer, getCustomerLogs, addCustomerLog, updateCustomer,
   getShares, addShares, removeShare, getSimpleUserList } from '@/api/customer'
 import { getDictData } from '@/api/system'
 import { submitApproval } from '@/api/approval'
-import { getScoreByCustomer } from '@/api/incentive'
+import { getScoreByCustomer, getCategoryTree } from '@/api/incentive'
+import request from '@/utils/request'
 import { useUserStore } from '@/store/user'
 
 const route = useRoute(); const router = useRouter(); const userStore = useUserStore()
@@ -363,6 +393,8 @@ const customer = ref(null); const logs = ref([]); const newLog = ref(''); const 
 const invoiceSummary = ref({ totalCount: 0, totalAmount: 0 }); const payments = ref([])
 const paymentSummary = ref({ totalCount: 0, totalAmount: 0 }); const contacts = ref([])
 const indicator = ref(null); const shares = ref([]); const allUsers = ref([]); const incentiveScore = ref(0)
+const incentiveRecords = ref([])
+const catMap = ref({})
 
 const showInvoiceDialog = ref(false); const showPaymentDialog = ref(false)
 const showContactDialog = ref(false); const showShareDialog = ref(false)
@@ -424,6 +456,26 @@ const loadDicts = async () => {
 }
 const loadUsers = async () => { try { allUsers.value = (await getSimpleUserList()).data||[] } catch(e) {} }
 
+const loadIncentiveRecords = async () => {
+  if (!customer.value?.customerName) return
+  try {
+    const res = await request.get('/incentive/customer-records', { params: { customerName: customer.value.customerName } })
+    incentiveRecords.value = (res.data || []).flatMap(c => (c.records || []).map(r => ({ ...r, customerName: c.customerName })))
+    // 加载品类树
+    const catRes = await getCategoryTree()
+    const walk = (list) => { list.forEach(c => { catMap.value[c.id] = c; if (c.children) walk(c.children) }) }
+    walk(catRes.data || [])
+  } catch(e) {}
+}
+
+const getMainCategory = (r) => { const c = catMap.value[r.categoryId]; if (!c) return ''; const p = catMap.value[c.parentId]; return p ? p.categoryName : c.categoryName }
+const getSubCategory = (r) => { const c = catMap.value[r.categoryId]; return c ? c.categoryName : '' }
+const scoreColor = (r) => { const c = catMap.value[r.categoryId]; if (!c) return '#333'; const p = catMap.value[c.parentId]; const gp = p ? catMap.value[p.parentId] : null; const code = (gp && gp.parentId === 0 ? gp.categoryCode : p?.categoryCode) || ''; return { visit: '#e6a23c', exchange: '#409eff', plan: '#9c27b0', trial: '#67c23a' }[code] || '#333' }
+const getFiles = (r) => { const f = []; if (r.filePreId) f.push({ id: r.filePreId, label: r.filePreName || '文件', type: detectType(r.filePreName), tag: '安装前' }); if (r.fileMidId) f.push({ id: r.fileMidId, label: r.fileMidName || '文件', type: detectType(r.fileMidName), tag: '安装中' }); if (r.filePostId) f.push({ id: r.filePostId, label: r.filePostName || '文件', type: detectType(r.filePostName), tag: '安装后' }); if (r.fileId) f.push({ id: r.fileId, label: r.fileName || '文件', type: detectType(r.fileName), tag: '' }); return f }
+const detectType = (n) => { if (!n) return 'doc'; if (/\.(jpg|jpeg|png|gif|webp|bmp)$/i.test(n)) return 'image'; if (/\.(mp4|mov|avi|webm)$/i.test(n)) return 'video'; return 'doc' }
+const fmtDate = (t) => { if (!t) return ''; const d = new Date(t); return d.getFullYear()+'-'+(d.getMonth()+1).toString().padStart(2,'0')+'-'+d.getDate().toString().padStart(2,'0') }
+const previewIncentiveFile = (f) => { const token = localStorage.getItem('token') || ''; window.open('/api/file/download/' + f.id + '?token=' + token, '_blank') }
+
 const submitLog = async () => { if(!newLog.value.trim()) return; try { await addCustomerLog(customerId.value,{content:newLog.value}); ElMessage.success('已记录'); newLog.value=''; logs.value = (await getCustomerLogs(customerId.value)).data||[] } catch(e) {} }
 const handleExtend = async () => { try { await ElMessageBox.confirm('确认申请延期？审批通过后保护期延长360天','申请延期'); await submitApproval({type:'extend',customerId:String(customer.value.id),actionAfterApprove:'保护期+360天'}); ElMessage.success('延期申请已提交') } catch(e) {} }
 const handleEdit = () => router.push(`/customer/edit/${customerId.value}`)
@@ -440,6 +492,7 @@ const selectRelationship = async (score) => { try { await saveRelationship(custo
 const handleAddShare = async () => { if(!shareUserIds.value.length) return; try { await addShares(customerId.value,shareUserIds.value); ElMessage.success('已分享'); shareUserIds.value=[]; showShareDialog.value=false; shares.value = (await getShares(customerId.value)).data||[] } catch(e) {} }
 const handleRemoveShare = async (s) => { try { await removeShare(customerId.value,s.sharedToUserId); shares.value = (await getShares(customerId.value)).data||[] } catch(e) {} }
 onMounted(() => { loadAll(); loadDicts(); loadUsers() })
+watch(customer, (v) => { if (v?.customerName) loadIncentiveRecords() })
 </script>
 
 <style scoped>
@@ -527,7 +580,7 @@ onMounted(() => { loadAll(); loadDicts(); loadUsers() })
 .fin-summary b { color:#333 }.fin-summary .red { color:#f56c6c; font-size:15px }
 
 /* === Indicator === */
-.indicator-panel { max-width:680px }
+.indicator-panel { }
 .ind-row { display:flex; align-items:center; gap:14px; padding:12px 0; border-bottom:1px solid #f5f5f5 }
 .ind-row:last-child { border-bottom:none }
 .ind-num { width:28px; height:28px; border-radius:50%; background:#409eff; color:#fff; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; flex-shrink:0 }
@@ -553,4 +606,20 @@ onMounted(() => { loadAll(); loadDicts(); loadUsers() })
 
 /* === Main threshold === */
 .main-threshold { background:#fafbfc; border-radius:8px; padding:14px 16px; margin-bottom:4px }
+
+/* === Incentive === */
+.incentive-list { display:flex; flex-direction:column; gap:12px }
+.incentive-item { background:#fafbfc; border:1px solid #f0f1f3; border-radius:10px; padding:16px 18px }
+.inc-top { display:flex; justify-content:space-between; align-items:center; margin-bottom:6px }
+.inc-category { font-size:14px; font-weight:600; color:#333 }
+.inc-score { font-size:18px; font-weight:700 }
+.inc-meta { display:flex; gap:8px; font-size:12px; color:#909399; margin-bottom:10px }
+.inc-time { margin-left:auto }
+.inc-files { display:flex; gap:8px; flex-wrap:wrap }
+.inc-file { display:flex; align-items:center; gap:6px; padding:6px 12px; background:#fff; border:1px solid #e8e8e8; border-radius:6px; cursor:pointer; font-size:13px; transition:all .15s }
+.inc-file:hover { border-color:#409eff; background:#ecf5ff }
+.inc-file-tag { font-size:11px; padding:1px 6px; border-radius:3px; background:#ecf5ff; color:#409eff; font-weight:500 }
+.inc-file-name { color:#333; max-width:200px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap }
+.inc-file-type { font-size:14px }
+.inc-remark { font-size:12px; color:#909399; margin-top:8px; padding:8px; background:#fff; border-radius:6px }
 </style>
