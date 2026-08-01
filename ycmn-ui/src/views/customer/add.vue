@@ -1,123 +1,170 @@
 <template>
   <div class="customer-add">
-    <div style="margin-bottom:12px">
-      <el-button link @click="goBack">← 返回</el-button>
+    <div class="breadcrumb-bar">
+      <el-button link @click="goBack" class="back-btn">
+        <el-icon><ArrowLeft /></el-icon> 返回
+      </el-button>
+      <span class="page-subtitle">{{ isEdit ? '编辑客户信息' : '新增客户' }}</span>
     </div>
 
     <div class="form-card">
-      <div class="card-title"><el-icon><InfoFilled /></el-icon> 客户信息登记</div>
-
       <el-form ref="formRef" :model="form" :rules="rules" label-position="top" class="add-form">
-        <div class="form-grid col-1">
-          <el-form-item label="订货客户全称" prop="customerName">
-            <el-input v-model="form.customerName" placeholder="请输入订货客户全称" @blur="checkDup" />
-            <div v-if="dupInfo.exists" style="color:#f56c6c;font-size:12px;margin-top:4px;line-height:1.5">
-              ⚠ 此客户已在 {{ dupInfo.createdAt }} 由 {{ dupInfo.createdBy }} 创建，请更换名称
+
+        <!-- ======== 基本信息 ======== -->
+        <div class="section-block">
+          <div class="section-head">
+            <span class="section-icon"><el-icon><Document /></el-icon></span>
+            <span class="section-label">基本信息</span>
+          </div>
+
+          <el-form-item label="订货客户全称" prop="customerName" class="full-width">
+            <el-input v-model="form.customerName" placeholder="请输入订货客户全称" size="large" @blur="checkDup" />
+            <div v-if="dupInfo.exists" class="dup-warning">
+              <el-icon><WarningFilled /></el-icon>
+              此客户已在 {{ dupInfo.createdAt }} 由 {{ dupInfo.createdBy }} 创建，请更换名称
             </div>
           </el-form-item>
-        </div>
 
-        <div class="form-grid col-2">
-          <el-form-item label="开票名称">
-            <el-input v-model="form.invoiceName" placeholder="请输入开票名称" />
-          </el-form-item>
-          <el-form-item label="产能（万吨）">
-            <el-input v-model="form.capacity" placeholder="请输入数字" />
-          </el-form-item>
-        </div>
-
-        <div class="form-grid col-2">
-          <el-form-item label="行业">
-            <el-select v-model="form.industry" placeholder="请选择行业">
-              <el-option v-for="i in industryOptions" :key="i" :label="i" :value="i" />
-            </el-select>
-          </el-form-item>
-          <el-form-item label="开发类型">
-            <el-select v-model="form.devType" placeholder="请选择开发类型">
-              <el-option v-for="t in devTypeOptions" :key="t" :label="t" :value="t" />
-            </el-select>
-          </el-form-item>
-        </div>
-
-        <div class="form-grid col-2">
-          <el-form-item label="所属大区" prop="regionId">
-            <el-select v-model="form.regionId" placeholder="请选择大区" @change="onRegionChange">
-              <el-option v-for="d in regions" :key="d.id" :label="d.deptName" :value="d.id" />
-            </el-select>
-          </el-form-item>
-          <el-form-item label="所属办事处" prop="officeId">
-            <el-select v-model="form.officeId" placeholder="请选择办事处" filterable :disabled="!form.regionId">
-              <el-option v-for="o in filteredOffices" :key="o.id" :label="o.deptName" :value="o.id" />
-            </el-select>
-          </el-form-item>
-        </div>
-
-        <div class="form-grid col-2">
-          <el-form-item label="第一负责人">
-            <el-select v-model="form.ownerId" placeholder="请选择负责人" filterable>
-              <el-option v-for="u in users" :key="u.id" :label="u.realName" :value="u.id" />
-            </el-select>
-          </el-form-item>
-          <el-form-item label="所属集团">
-            <el-input v-model="form.groupName" placeholder="例如：陕煤集团" />
-          </el-form-item>
-        </div>
-
-        <div class="form-grid col-2">
-          <el-form-item label="所属分公司">
-            <el-input v-model="form.branchCompany" placeholder="例如：榆林化学" />
-          </el-form-item>
-          <el-form-item label="所属单位">
-            <el-input v-model="form.unitName" placeholder="例如：选煤厂" />
-          </el-form-item>
-        </div>
-
-        <div class="form-grid col-3">
-          <el-form-item label="省/市/区">
-            <el-cascader v-model="regionValue" :options="regionData" :props="{ expandTrigger: 'hover' }" placeholder="请选择省/市/区" clearable filterable style="width:100%" @change="handleRegionChange" />
-          </el-form-item>
-          <el-form-item label="厂址">
-            <el-input v-model="form.address" placeholder="如：榆神工业区" />
-          </el-form-item>
-          <el-form-item label="保护期">
-            <div class="protect-hint"><el-icon><Timer /></el-icon> 注册日/开票日 + 360天</div>
-          </el-form-item>
-        </div>
-
-        <div class="form-grid col-2">
-          <el-form-item label="注册日">
-            <el-date-picker v-model="form.registerDate" type="date" value-format="YYYY-MM-DD" placeholder="选择日期" style="width:100%" />
-          </el-form-item>
-          <el-form-item label="最近开票日">
-            <el-date-picker v-model="form.lastInvoiceDate" type="date" value-format="YYYY-MM-DD" placeholder="选择日期" style="width:100%" />
-          </el-form-item>
-        </div>
-
-        <!-- 联系人 -->
-        <div class="contacts-section">
-          <div class="section-header">
-            <span class="section-title"><el-icon><User /></el-icon> 联系人</span>
-            <el-button type="primary" link @click="addContactRow">+ 添加联系人</el-button>
+          <div class="form-row two">
+            <el-form-item label="开票名称">
+              <el-input v-model="form.invoiceName" placeholder="请输入开票名称" />
+            </el-form-item>
+            <el-form-item label="产能（万吨）">
+              <el-input v-model="form.capacity" placeholder="请输入数字" />
+            </el-form-item>
           </div>
-          <div v-for="(c, idx) in contacts" :key="idx" class="contact-row">
-            <el-input v-model="c.name" placeholder="姓名" style="width:120px" />
-            <el-input v-model="c.position" placeholder="职位" style="width:120px" />
-            <el-input v-model="c.phone" placeholder="电话" style="width:160px" />
-            <el-input v-model="c.remark" placeholder="备注" style="flex:1" />
-            <el-button type="danger" link @click="contacts.splice(idx, 1)">删除</el-button>
+
+          <div class="form-row two">
+            <el-form-item label="所属集团">
+              <el-input v-model="form.groupName" placeholder="例如：陕煤集团" />
+            </el-form-item>
+            <el-form-item label="所属分公司">
+              <el-input v-model="form.branchCompany" placeholder="例如：榆林化学" />
+            </el-form-item>
           </div>
-          <div v-if="!contacts.length" class="empty-hint">暂无联系人，点击上方添加</div>
+
+          <div class="form-row two">
+            <el-form-item label="所属单位">
+              <el-input v-model="form.unitName" placeholder="例如：选煤厂" />
+            </el-form-item>
+          </div>
         </div>
 
-        <!-- 备注 -->
-        <el-form-item label="备注">
+        <!-- ======== 业务分类 ======== -->
+        <div class="section-block">
+          <div class="section-head">
+            <span class="section-icon accent"><el-icon><PriceTag /></el-icon></span>
+            <span class="section-label">业务分类</span>
+            <span class="section-tip">必填项，决定客户归属的 Tab 分类</span>
+          </div>
+
+          <div class="form-row two">
+            <el-form-item label="开发类型" prop="devType" required>
+              <el-select v-model="form.devType" placeholder="请选择开发类型" size="large">
+                <el-option v-for="t in devTypeOptions" :key="t" :label="t" :value="t">
+                  <span>{{ t }}</span>
+                  <span class="opt-tag" :style="devTypeTagStyle(t)">{{ devTypeTagText(t) }}</span>
+                </el-option>
+              </el-select>
+            </el-form-item>
+            <el-form-item label="行业" prop="industry" required>
+              <el-select v-model="form.industry" placeholder="请选择行业" size="large">
+                <el-option v-for="i in industryOptions" :key="i" :label="i" :value="i" />
+              </el-select>
+            </el-form-item>
+          </div>
+        </div>
+
+        <!-- ======== 归属与负责人 ======== -->
+        <div class="section-block">
+          <div class="section-head">
+            <span class="section-icon warn"><el-icon><MapLocation /></el-icon></span>
+            <span class="section-label">归属与负责人</span>
+          </div>
+
+          <div class="form-row two">
+            <el-form-item label="所属大区" prop="regionId">
+              <el-select v-model="form.regionId" placeholder="请选择大区" size="large" @change="onRegionChange">
+                <el-option v-for="d in regions" :key="d.id" :label="d.deptName" :value="d.id" />
+              </el-select>
+            </el-form-item>
+            <el-form-item label="所属办事处" prop="officeId">
+              <el-select v-model="form.officeId" placeholder="请选择办事处" size="large" filterable :disabled="!form.regionId">
+                <el-option v-for="o in filteredOffices" :key="o.id" :label="o.deptName" :value="o.id" />
+              </el-select>
+            </el-form-item>
+          </div>
+
+          <div class="form-row two">
+            <el-form-item label="第一负责人" prop="ownerId" required>
+              <el-select v-model="form.ownerId" placeholder="请选择负责人" size="large" filterable>
+                <el-option v-for="u in users" :key="u.id" :label="u.realName" :value="u.id" />
+              </el-select>
+            </el-form-item>
+          </div>
+        </div>
+
+        <!-- ======== 地址信息 ======== -->
+        <div class="section-block">
+          <div class="section-head">
+            <span class="section-icon info"><el-icon><Location /></el-icon></span>
+            <span class="section-label">地址信息</span>
+          </div>
+
+          <div class="form-row three">
+            <el-form-item label="省/市/区">
+              <el-cascader v-model="regionValue" :options="regionData" :props="{ expandTrigger: 'hover' }" placeholder="请选择省/市/区" clearable filterable style="width:100%" @change="handleRegionChange" />
+            </el-form-item>
+            <el-form-item label="厂址">
+              <el-input v-model="form.address" placeholder="如：榆神工业区" />
+            </el-form-item>
+            <el-form-item label="保护期">
+              <div class="protect-hint"><el-icon><Timer /></el-icon> 注册日/开票日 + 360天</div>
+            </el-form-item>
+          </div>
+
+          <div class="form-row two">
+            <el-form-item label="注册日">
+              <el-date-picker v-model="form.registerDate" type="date" value-format="YYYY-MM-DD" placeholder="选择日期" style="width:100%" />
+            </el-form-item>
+            <el-form-item label="最近开票日">
+              <el-date-picker v-model="form.lastInvoiceDate" type="date" value-format="YYYY-MM-DD" placeholder="选择日期" style="width:100%" />
+            </el-form-item>
+          </div>
+        </div>
+
+        <!-- ======== 联系人 ======== -->
+        <div class="section-block">
+          <div class="section-head">
+            <span class="section-icon success"><el-icon><User /></el-icon></span>
+            <span class="section-label">联系人</span>
+            <el-button type="primary" link size="small" @click="addContactRow">
+              <el-icon><Plus /></el-icon> 添加联系人
+            </el-button>
+          </div>
+          <div v-if="contacts.length" class="contacts-list">
+            <div v-for="(c, idx) in contacts" :key="idx" class="contact-row">
+              <el-input v-model="c.name" placeholder="姓名" />
+              <el-input v-model="c.position" placeholder="职位" />
+              <el-input v-model="c.phone" placeholder="电话" />
+              <el-input v-model="c.remark" placeholder="备注" />
+              <el-button type="danger" link size="small" @click="contacts.splice(idx, 1)">
+                <el-icon><Delete /></el-icon>
+              </el-button>
+            </div>
+          </div>
+          <div v-else class="empty-hint">暂无联系人，点击上方按钮添加</div>
+        </div>
+
+        <!-- ======== 备注 ======== -->
+        <el-form-item label="备注" class="remark-field">
           <el-input v-model="form.remark" type="textarea" :rows="3" placeholder="备注信息（选填）" />
         </el-form-item>
 
-        <!-- 按钮 -->
+        <!-- ======== 提交按钮 ======== -->
         <div class="form-actions">
-          <el-button @click="goBack">取消</el-button>
-          <el-button type="primary" :loading="loading" @click="handleSubmit">
+          <el-button size="large" @click="goBack">取消</el-button>
+          <el-button type="primary" size="large" :loading="loading" @click="handleSubmit">
             <el-icon><Document /></el-icon> {{ isEdit ? '更新客户' : '保存客户' }}
           </el-button>
         </div>
@@ -145,19 +192,22 @@ const loading = ref(false)
 const regions = ref([])
 const offices = ref([])
 const users = ref([])
-// 办事处联动: 只显示所选大区下面的办事处(parentId===regionId); 未选大区时为空
 const filteredOffices = computed(() => {
   if (!form.regionId) return []
   return offices.value.filter(o => o.parentId === form.regionId)
 })
-const allOffices = computed(() => offices.value)
 const regionValue = ref([])
 const industryOptions = ref([])
 const devTypeOptions = ref([])
 const isEdit = computed(() => !!route.params.id)
-// 来源(如从公海池进入 from=sea),保存/返回时透传,保证详情页返回按钮回到公海池
 const detailQuery = computed(() => (route.query.from ? { from: route.query.from } : {}))
 const contacts = ref([])
+
+const devTypeTagStyle = (t) => {
+  const m = { '成熟创新': 'background:#ecf5ff;color:#409eff', '突破开拓': 'background:#fdf6ec;color:#e6a23c', '铺垫宣传': 'background:#f0f9eb;color:#67c23a' }
+  return m[t] || 'background:#f5f7fa;color:#909399'
+}
+const devTypeTagText = (t) => ({ '成熟创新': '创新', '突破开拓': '突破', '铺垫宣传': '铺垫' }[t] || '')
 
 const addContactRow = () => {
   contacts.value.push({ name: '', position: '', phone: '', remark: '' })
@@ -186,11 +236,13 @@ const form = reactive({
 
 const rules = {
   customerName: [{ required: true, message: '请输入客户全称', trigger: 'blur' }],
+  devType: [{ required: true, message: '请选择开发类型', trigger: 'change' }],
+  industry: [{ required: true, message: '请选择行业', trigger: 'change' }],
   regionId: [{ required: true, message: '请选择所属大区', trigger: 'change' }],
-  officeId: [{ required: true, message: '请选择所属办事处', trigger: 'change' }]
+  officeId: [{ required: true, message: '请选择所属办事处', trigger: 'change' }],
+  ownerId: [{ required: true, message: '请选择第一负责人', trigger: 'change' }]
 }
 
-// 切换大区时, 若已选办事处不属于新大区则清空
 const onRegionChange = () => {
   if (form.officeId && !filteredOffices.value.some(o => o.id === form.officeId)) {
     form.officeId = null
@@ -198,9 +250,9 @@ const onRegionChange = () => {
 }
 
 const handleRegionChange = (val) => {
-  form.province = val[0] || ''
-  form.city = val[1] || ''
-  form.district = val[2] || ''
+  form.province = val?.[0] || ''
+  form.city = val?.[1] || ''
+  form.district = val?.[2] || ''
 }
 
 onMounted(async () => {
@@ -214,7 +266,6 @@ onMounted(async () => {
     const res = await getSimpleUserList()
     users.value = res.data || []
   } catch (e) {}
-  // 新增模式: 第一负责人默认为当前登录用户
   if (!isEdit.value && userStore.userId) {
     form.ownerId = userStore.userId
   }
@@ -225,9 +276,8 @@ onMounted(async () => {
   try {
     const res = await getDictData('dev_type')
     devTypeOptions.value = (res.data || []).map(d => d.dictValue)
-  } catch (e) { devTypeOptions.value = ['成熟','成熟创新','突破'] }
+  } catch (e) { devTypeOptions.value = ['成熟创新','突破开拓','铺垫宣传'] }
 
-  // 编辑模式: 加载已有数据
   if (isEdit.value) {
     try {
       const res = await getCustomer(route.params.id)
@@ -250,7 +300,6 @@ const goBack = () => {
   }
 }
 
-
 const checkDup = async () => {
   const n = form.customerName?.trim()
   if (!n || n.length < 2) { dupInfo.exists = false; return }
@@ -268,7 +317,6 @@ const handleSubmit = async () => {
   try {
     if (isEdit.value) {
       await updateCustomer(route.params.id, form)
-      // 保存联系人（编辑模式下新增的联系人没有id）
       for (const c of contacts.value) {
         if (c.name && !c.id) {
           await addContact(route.params.id, c)
@@ -279,7 +327,6 @@ const handleSubmit = async () => {
     } else {
       const res = await addCustomer(form)
       const newId = res.data
-      // 保存联系人
       if (newId && contacts.value.length) {
         for (const c of contacts.value) {
           if (c.name) await addContact(newId, c)
@@ -295,100 +342,153 @@ const handleSubmit = async () => {
 </script>
 
 <style scoped>
-.page-header {
+.breadcrumb-bar {
   display: flex;
-  justify-content: space-between;
   align-items: center;
+  gap: 12px;
   margin-bottom: 16px;
 }
-.page-header h2 { font-size: 20px; font-weight: 600; }
+.back-btn { font-size: 14px; color: #606266; }
+.page-subtitle { font-size: 13px; color: #909399; }
 
 .form-card {
   background: #fff;
-  border-radius: 10px;
-  border: 1px solid #e4e7ed;
-  padding: 28px 36px;
-  box-shadow: 0 1px 3px rgba(0,0,0,.04);
+  border-radius: 12px;
+  border: 1px solid #e8ecf1;
+  padding: 32px 40px;
+  box-shadow: 0 1px 4px rgba(0,0,0,.03);
 }
-.card-title {
+
+/* ===== Sections ===== */
+.section-block {
+  margin-bottom: 28px;
+  padding-bottom: 24px;
+  border-bottom: 1px solid #f2f3f5;
+}
+.section-block:last-of-type { border-bottom: none; margin-bottom: 12px; }
+
+.section-head {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 17px;
+  margin-bottom: 18px;
+}
+.section-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px; height: 30px;
+  border-radius: 8px;
+  background: #ecf5ff;
+  color: #409eff;
+  font-size: 16px;
+}
+.section-icon.accent { background: #fef0f0; color: #f56c6c; }
+.section-icon.warn { background: #fdf6ec; color: #e6a23c; }
+.section-icon.info { background: #ecf5ff; color: #409eff; }
+.section-icon.success { background: #f0f9eb; color: #67c23a; }
+
+.section-label {
+  font-size: 15px;
   font-weight: 700;
   color: #1f2329;
-  margin-bottom: 28px;
-  padding-bottom: 16px;
-  border-bottom: 1px solid #f0f2f5;
 }
-.card-title .el-icon { color: #409eff; font-size: 18px; }
+.section-tip {
+  font-size: 12px;
+  color: #909399;
+  margin-left: auto;
+}
 
-.form-grid {
+/* ===== Form Rows ===== */
+.form-row {
   display: grid;
   gap: 0 24px;
   margin-bottom: 4px;
 }
-.form-grid.col-1 { grid-template-columns: 1fr; }
-.form-grid.col-2 { grid-template-columns: 1fr 1fr; }
-.form-grid.col-3 { grid-template-columns: 1fr 1fr 1fr; }
-.form-grid.col-4 { grid-template-columns: 1fr 1fr 1fr 1fr; }
+.form-row.two { grid-template-columns: 1fr 1fr; }
+.form-row.three { grid-template-columns: 1fr 1fr 1fr; }
+.full-width { grid-column: 1 / -1; }
 
-.form-grid :deep(.el-select),
-.form-grid :deep(.el-cascader) { width: 100%; }
+.form-row :deep(.el-select),
+.form-row :deep(.el-cascader) { width: 100%; }
 
-:deep(.el-form-item__label) { font-size: 13px; color: #555; font-weight: 600; padding-bottom: 4px }
-:deep(.el-input__inner) { font-size: 14px }
+:deep(.el-form-item__label) {
+  font-size: 13px;
+  color: #4e5969;
+  font-weight: 600;
+  padding-bottom: 6px;
+}
+:deep(.el-input__wrapper) { box-shadow: 0 0 0 1px #e5e6eb inset; }
+:deep(.el-input__wrapper:hover) { box-shadow: 0 0 0 1px #c9cdd4 inset; }
 
+/* ===== Dup Warning ===== */
+.dup-warning {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: #f56c6c;
+  font-size: 12px;
+  margin-top: 6px;
+  padding: 8px 12px;
+  background: #fef0f0;
+  border-radius: 6px;
+}
+
+/* ===== DevType Option Tags ===== */
+.opt-tag {
+  font-size: 11px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  margin-left: 8px;
+}
+
+/* ===== Protect Hint ===== */
 .protect-hint {
   display: flex;
   align-items: center;
   gap: 4px;
   color: #409eff;
-  font-size: 14px;
+  font-size: 13px;
   height: 32px;
-}
-
-.form-actions {
-  display: flex;
-  justify-content: center;
-  gap: 16px;
-  margin-top: 28px;
-  padding-top: 24px;
-  border-top: 1px solid #f0f2f5;
-}
-
-/* 联系人 */
-.contacts-section {
-  margin-bottom: 18px;
-  padding: 16px;
-  background: #fafafa;
+  padding: 0 12px;
+  background: #ecf5ff;
   border-radius: 6px;
-  border: 1px solid #ebeef5;
 }
-.section-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 12px;
-}
-.section-title {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 14px;
-  font-weight: 600;
-  color: #333;
-}
+
+/* ===== Contacts ===== */
+.contacts-list { margin-top: 4px; }
 .contact-row {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin-bottom: 8px;
+  gap: 10px;
+  margin-bottom: 10px;
+  padding: 10px 12px;
+  background: #fafbfc;
+  border-radius: 8px;
+  border: 1px solid #f0f1f3;
 }
+.contact-row .el-input { width: 130px; }
+.contact-row .el-input:last-of-type { flex: 1; }
 .empty-hint {
   color: #c0c4cc;
   font-size: 13px;
   text-align: center;
-  padding: 8px 0;
+  padding: 16px 0;
+  background: #fafbfc;
+  border-radius: 8px;
+}
+
+.remark-field {
+  margin-top: 8px;
+}
+
+/* ===== Actions ===== */
+.form-actions {
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+  margin-top: 32px;
+  padding-top: 24px;
+  border-top: 1px solid #f2f3f5;
 }
 </style>
