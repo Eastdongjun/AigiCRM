@@ -1,0 +1,42 @@
+{
+  "feature_id": "FEAT-20260801-SEARCH-FILTER-UI",
+  "project_root": "/Users/donglai/东来/01-Projects/01-aigicrm/04-源码",
+  "created_at": "2026-08-01T22:01:46+08:00",
+  "feature_revision": 1,
+  "after_change": "",
+  "results": [
+    {
+      "kind": "build",
+      "argv": [
+        "npm",
+        "--prefix",
+        "ycmn-ui",
+        "run",
+        "build"
+      ],
+      "required": true,
+      "started_at": "2026-08-01T22:01:44+08:00",
+      "finished_at": "2026-08-01T22:01:45+08:00",
+      "returncode": 0,
+      "timed_out": false,
+      "output_tail": "    5.25 kB │ gzip:   2.39 kB\ndist/assets/records-COg4aYoF.js          5.41 kB │ gzip:   2.17 kB\ndist/assets/indicator-BArbHS8F.js        6.00 kB │ gzip:   1.83 kB\ndist/assets/reminder-DCCcdG8y.js         6.03 kB │ gzip:   2.55 kB\ndist/assets/ranking-CAG2OBWJ.js          6.32 kB │ gzip:   2.44 kB\ndist/assets/org-BoxPnwvI.js              6.40 kB │ gzip:   2.44 kB\ndist/assets/position-Rmm4OPJg.js         6.49 kB │ gzip:   2.59 kB\ndist/assets/entry-CKU_lxWj.js            7.77 kB │ gzip:   3.00 kB\ndist/assets/stats-4-1suyrh.js            7.82 kB │ gzip:   2.84 kB\ndist/assets/role-CzZ5ci-_.js             7.97 kB │ gzip:   3.18 kB\ndist/assets/approval-BHkJGwP7.js         8.14 kB │ gzip:   2.99 kB\ndist/assets/login-Cx9xVD4r.js            9.73 kB │ gzip:   3.53 kB\ndist/assets/dashboard-Cqu7AUIE.js        9.87 kB │ gzip:   3.69 kB\ndist/assets/statistics-67F1Sr_x.js      10.50 kB │ gzip:   3.60 kB\ndist/assets/sea-Da-CQl8z.js             10.65 kB │ gzip:   4.19 kB\ndist/assets/user-cB7CYwUs.js            10.93 kB │ gzip:   4.19 kB\ndist/assets/layout-Cbwrwy8B.js          11.94 kB │ gzip:   3.92 kB\ndist/assets/file-XYu9LNDP.js            14.63 kB │ gzip:   5.40 kB\ndist/assets/search-CqASY7te.js          16.14 kB │ gzip:   5.62 kB\ndist/assets/incentive-B2YmbpfT.js       23.11 kB │ gzip:   7.75 kB\ndist/assets/detail-BRGLbDbo.js          29.42 kB │ gzip:   8.73 kB\ndist/assets/list-DAP7O_sd.js            30.87 kB │ gzip:   8.86 kB\ndist/assets/config-kVqx8A8R.js          38.22 kB │ gzip:  10.65 kB\ndist/assets/request-FS7nK7Rk.js         42.88 kB │ gzip:  16.71 kB\ndist/assets/add-DrxTy3r6.js            154.77 kB │ gzip:  31.94 kB\ndist/assets/index-Dlef2AJM.js        1,155.37 kB │ gzip: 365.73 kB\n\n\u001b[33m\u001b[31m[INVALID_ANNOTATION] \u001b[0mA comment \"/* #__PURE__ */\" in \"node_modules/@vueuse/core/dist/index.js\" contains an annotation that Rolldown cannot interpret due to the position of the comment.\n      \u001b[38;5;246m╭\u001b[0m\u001b[38;5;246m─\u001b[0m\u001b[38;5;246m[\u001b[0m node_modules/@vueuse/core/dist/index.js:3362:1 \u001b[38;5;246m]\u001b[0m\n      \u001b[38;5;246m│\u001b[0m\n \u001b[38;5;246m3362 │\u001b[0m /* #__PURE__ */\n \u001b[38;5;240m     │\u001b[0m ───────┬───────  \n \u001b[38;5;240m     │\u001b[0m        ╰───────── comment ignored due to position\n \u001b[38;5;240m     │\u001b[0m \n \u001b[38;5;240m     │\u001b[0m \u001b[38;5;115mHelp\u001b[0m: For more information on how to use pure annotations correctly, check the documentation: https://rolldown.rs/in-depth/dead-code-elimination#pure\n\u001b[38;5;246m──────╯\u001b[0m\n\u001b[39m\n\u001b[33m[plugin builtin:vite-reporter] \n(!) Some chunks are larger than 500 kB after minification. Consider:\n- Using dynamic import() to code-split the application\n- Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting\n- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.\u001b[39m\n\u001b[33m\u001b[31m[INVALID_ANNOTATION] \u001b[0mA comment \"/* #__PURE__ */\" in \"node_modules/@vueuse/core/dist/index.js\" contains an annotation that Rolldown cannot interpret due to the position of the comment.\n      \u001b[38;5;246m╭\u001b[0m\u001b[38;5;246m─\u001b[0m\u001b[38;5;246m[\u001b[0m node_modules/@vueuse/core/dist/index.js:5780:23 \u001b[38;5;246m]\u001b[0m\n      \u001b[38;5;246m│\u001b[0m\n \u001b[38;5;246m5780 │\u001b[0m \u001b[38;5;249mc\u001b[0m\u001b[38;5;249mo\u001b[0m\u001b[38;5;249mn\u001b[0m\u001b[38;5;249ms\u001b[0m\u001b[38;5;249mt\u001b[0m\u001b[38;5;249m \u001b[0m\u001b[38;5;249md\u001b[0m\u001b[38;5;249me\u001b[0m\u001b[38;5;249mf\u001b[0m\u001b[38;5;249ma\u001b[0m\u001b[38;5;249mu\u001b[0m\u001b[38;5;249ml\u001b[0m\u001b[38;5;249mt\u001b[0m\u001b[38;5;249mS\u001b[0m\u001b[38;5;249mt\u001b[0m\u001b[38;5;249ma\u001b[0m\u001b[38;5;249mt\u001b[0m\u001b[38;5;249me\u001b[0m\u001b[38;5;249m \u001b[0m\u001b[38;5;249m=\u001b[0m\u001b[38;5;249m \u001b[0m\u001b[38;5;249m(\u001b[0m/* #__PURE__ */\u001b[38;5;249m \u001b[0m\u001b[38;5;249m{\u001b[0m\n \u001b[38;5;240m     │\u001b[0m                       ───────┬───────  \n \u001b[38;5;240m     │\u001b[0m                              ╰───────── comment ignored due to position\n \u001b[38;5;240m     │\u001b[0m \n \u001b[38;5;240m     │\u001b[0m \u001b[38;5;115mHelp\u001b[0m: For more information on how to use pure annotations correctly, check the documentation: https://rolldown.rs/in-depth/dead-code-elimination#pure\n\u001b[38;5;246m──────╯\u001b[0m\n\u001b[39m\n\u001b[32m✓ built in 331ms\u001b[39m\n"
+    },
+    {
+      "kind": "typecheck",
+      "argv": [
+        "mvn",
+        "-f",
+        "ycmn-backend/pom.xml",
+        "-q",
+        "package",
+        "-DskipTests"
+      ],
+      "required": true,
+      "started_at": "2026-08-01T22:01:45+08:00",
+      "finished_at": "2026-08-01T22:01:46+08:00",
+      "returncode": 0,
+      "timed_out": false,
+      "output_tail": ""
+    }
+  ]
+}
