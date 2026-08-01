@@ -32,7 +32,7 @@
           </div>
           <div class="adv-field span-2">
             <label class="adv-field-label"><el-icon><MapLocation /></el-icon> 组织筛选</label>
-            <el-cascader v-model="fOrgIds" :options="orgTree" :props="{label:'deptName',value:'id',children:'children',multiple:true,checkStrictly:true,expandTrigger:'hover'}" placeholder="选择大区 / 办事处 / 部门" clearable filterable collapse-tags collapse-tags-tooltip @change="doSearch" size="default" style="width:100%" />
+            <el-cascader v-model="fOrgIds" :options="orgTree" :props="{label:'deptName',value:'id',children:'children',checkStrictly:true,emitPath:false}" :show-all-levels="false" placeholder="点击逐级展开：总部 → 大区 → 办事处" clearable filterable collapse-tags collapse-tags-tooltip @change="doSearch" size="default" style="width:100%" />
           </div>
         </div>
       </div>
@@ -208,7 +208,7 @@ async function doSearch(){
   const p={};if(fCustomer.value)p.customerName=fCustomer.value;if(fSales.value)p.salesperson=fSales.value;if(fIndustry.value)p.industry=fIndustry.value
   if(fDevType.value)p.devType=fDevType.value
   if(fDateRange.value?.length===2){p.startDate=fDateRange.value[0];p.endDate=fDateRange.value[1]}
-  if(fOrgIds.value?.length){p.orgIds=fOrgIds.value.map(v=>Array.isArray(v)?v[v.length-1]:v).join(',')}
+  if(fOrgIds.value?.length){p.orgIds=fOrgIds.value.join(',')}
   try{const res=await request.get('/incentive/customer-records',{params:p});custs.value=(res.data||[]).filter(c=>c.records?.length>0&&c.customerName)}catch(e){ElMessage.error('查询失败')}
 }
 function doReset(){fCustomer.value='';fSales.value='';fIndustry.value='';fDevType.value='';fDateRange.value=null;fOrgIds.value=[];doSearch()}
