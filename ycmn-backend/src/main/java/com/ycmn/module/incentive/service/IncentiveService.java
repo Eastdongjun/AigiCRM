@@ -644,7 +644,7 @@ public class IncentiveService {
 
     /** 按客户分组查询激励记录 — 多维度筛选 */
     public List<Map<String, Object>> getCustomerRecords(String industry, Long mainCategoryId,
-            String customerName, String salesperson, String startDate, String endDate) {
+            String customerName, String salesperson, String startDate, String endDate, String orgIds, String devType) {
         LambdaQueryWrapper<BizIncentiveRecord> wrapper = new LambdaQueryWrapper<>();
         wrapper.isNotNull(BizIncentiveRecord::getCustomerId);
         applyIncentiveDataScope(wrapper);
@@ -678,6 +678,25 @@ public class IncentiveService {
                 for (BizIncentiveCategory g : grands) catIds.add(g.getId());
             }
             wrapper.in(BizIncentiveRecord::getCategoryId, catIds);
+        }
+        if (orgIds != null && !orgIds.isBlank()) {
+            List<Long> oids = java.util.Arrays.stream(orgIds.split(",")).map(String::trim).filter(s -> !s.isEmpty()).map(Long::parseLong).toList();
+            if (!oids.isEmpty()) {
+                List<SysUser> orgUsers = userMapper.selectList(
+                    new LambdaQueryWrapper<SysUser>().in(SysUser::getOfficeId, oids)
+                );
+                List<Long> uids = orgUsers.stream().map(SysUser::getId).distinct().toList();
+                if (!uids.isEmpty()) wrapper.in(BizIncentiveRecord::getUserId, uids);
+                else return List.of();
+            }
+        }
+        if (devType != null && !devType.isBlank()) {
+            List<BizCustomer> devCustomers = customerMapper.selectList(
+                new LambdaQueryWrapper<BizCustomer>().eq(BizCustomer::getDevType, devType)
+            );
+            if (!devCustomers.isEmpty()) {
+                wrapper.in(BizIncentiveRecord::getCustomerId, devCustomers.stream().map(BizCustomer::getId).toList());
+            } else { return List.of(); }
         }
         if (startDate != null && !startDate.isBlank()) wrapper.ge(BizIncentiveRecord::getCreatedAt, startDate + " 00:00:00");
         if (endDate != null && !endDate.isBlank()) wrapper.le(BizIncentiveRecord::getCreatedAt, endDate + " 23:59:59");

@@ -3,10 +3,13 @@
     <div class="bar">
       <div class="bar-row">
         <el-input v-model="fCustomer" placeholder="客户名称" clearable class="kw" @change="doSearch"><template #prefix><el-icon><Search /></el-icon></template></el-input>
-        <el-input v-model="fSales" placeholder="销售人员" clearable class="kw2" @change="doSearch"><template #prefix><el-icon><User /></el-icon></template></el-input>
+        <el-select v-model="fSales" placeholder="销售人员" clearable filterable class="kw2" @change="doSearch">
+          <el-option v-for="u in userList" :key="u.id" :label="u.realName" :value="u.realName" />
+        </el-select>
         <el-select v-model="fIndustry" placeholder="行业" clearable class="sel" @change="doSearch"><el-option v-for="i in industries" :key="i" :label="i" :value="i" /></el-select>
-        <el-select v-model="fType" placeholder="类型" clearable class="sel" @change="doSearch"><el-option label="外出参观" value="visit" /><el-option label="交流拜访" value="exchange" /><el-option label="两谈两做方案" value="plan" /><el-option label="产品试点" value="trial" /></el-select>
+        <el-select v-model="fDevType" placeholder="开发类型" clearable class="sel" @change="doSearch"><el-option v-for="d in devTypes" :key="d" :label="d" :value="d" /></el-select>
         <el-date-picker v-model="fDateRange" type="daterange" range-separator="~" start-placeholder="开始" end-placeholder="截止" value-format="YYYY-MM-DD" class="dt" @change="doSearch" />
+        <el-cascader v-model="fOrgIds" :options="orgTree" :props="{label:'deptName',value:'id',children:'children',multiple:true,checkStrictly:true}" placeholder="组织筛选" clearable class="org-sel" @change="doSearch" collapse-tags />
         <el-button type="primary" @click="doSearch">查询</el-button>
         <el-button @click="doReset">重置</el-button>
         <span class="cnt">{{ custs.length }} 客户</span>
@@ -149,10 +152,12 @@ import { Search, User, VideoPlay, Document, ZoomIn, Download } from '@element-pl
 import request from '@/utils/request'
 import { ElMessage } from 'element-plus'
 
-const fCustomer=ref(''),fSales=ref(''),fIndustry=ref(''),fType=ref(''),fDateRange=ref(null)
+const fCustomer=ref(''),fSales=ref(''),fIndustry=ref(''),fDevType=ref(''),fDateRange=ref(null),fOrgIds=ref([])
 const custs=ref([]),catMap=ref({}),previewVisible=ref(false),previewUrl=ref(''),previewType=ref('image'),previewId=ref(null)
 const detailVisible=ref(false),detailCust=ref(null)
 const industries=['冶金','煤矿','化工','电力','有色金属','机械','工程公司','维修厂','其他终端客户']
+const devTypes=['成熟创新','突破开拓','铺垫宣传']
+const userList=ref([]),orgTree=ref([])
 
 function onImgError(e){e.target.src='data:image/svg+xml,'+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="320" height="240" viewBox="0 0 320 240"><rect fill="#f5f6f7" width="320" height="240"/><text fill="#c0c4cc" font-size="14" font-family="sans-serif" text-anchor="middle" x="160" y="120">图片加载失败</text></svg>')}
 function fileUrl(id){return'/api/file/download/'+id+'?token='+(getToken()||'')}
@@ -178,19 +183,24 @@ function fmtDt(t){if(!t)return'';const d=new Date(t);return d.getFullYear()+'-'+
 
 async function doSearch(){
   const p={};if(fCustomer.value)p.customerName=fCustomer.value;if(fSales.value)p.salesperson=fSales.value;if(fIndustry.value)p.industry=fIndustry.value
-  if(fType.value)p.mainCategoryId=fType.value==='visit'?1:fType.value==='exchange'?2:fType.value==='plan'?3:4
+  if(fDevType.value)p.devType=fDevType.value
   if(fDateRange.value?.length===2){p.startDate=fDateRange.value[0];p.endDate=fDateRange.value[1]}
+  if(fOrgIds.value?.length){p.orgIds=fOrgIds.value.map(v=>Array.isArray(v)?v[v.length-1]:v).join(',')}
   try{const res=await request.get('/incentive/customer-records',{params:p});custs.value=(res.data||[]).filter(c=>c.records?.length>0&&c.customerName)}catch(e){ElMessage.error('查询失败')}
 }
-function doReset(){fCustomer.value='';fSales.value='';fIndustry.value='';fType.value='';fDateRange.value=null;doSearch()}
+function doReset(){fCustomer.value='';fSales.value='';fIndustry.value='';fDevType.value='';fDateRange.value=null;fOrgIds.value=[];doSearch()}
 async function loadCats(){try{const res=await getCategoryTree();const walk=l=>{l.forEach(c=>{catMap.value[c.id]=c;if(c.children)walk(c.children)})};walk(res.data||[])}catch(e){}}
-onMounted(()=>{loadCats();doSearch()})
+async function loadUsers(){try{const res=await request.get('/incentive/users');userList.value=res.data||[]}catch(e){}}
+async function loadOrgs(){try{const res=await request.get('/system/depts');const list=res.data||[]
+  const build=(list,pId=0)=>list.filter(d=>Number(d.parentId)===Number(pId)).sort((a,b)=>(a.sortOrder||0)-(b.sortOrder||0)).map(d=>{const ch=build(list,d.id);return ch.length?{...d,children:ch}:{...d}})
+  orgTree.value=build(list)}catch(e){}}
+onMounted(()=>{loadCats();loadUsers();loadOrgs();doSearch()})
 </script>
 
 <style scoped>
 .bar{background:#fff;border-bottom:1px solid #ebeef5;padding:12px 24px}
 .bar-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-.kw{width:170px}.kw2{width:130px}.sel{width:110px}.dt{width:200px}
+.kw{width:170px}.kw2{width:140px}.sel{width:110px}.dt{width:200px}.org-sel{width:180px}
 .cnt{font-size:12px;color:#999;white-space:nowrap;margin-left:auto}
 
 .card{background:#fff;border:1px solid #e4e7ed;border-radius:10px;overflow:hidden;display:flex;flex-direction:column;transition:box-shadow .2s}
