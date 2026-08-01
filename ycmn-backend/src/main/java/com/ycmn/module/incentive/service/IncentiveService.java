@@ -1,6 +1,7 @@
 package com.ycmn.module.incentive.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.ycmn.common.BusinessException;
 import com.ycmn.module.customer.entity.BizCustomer;
 import com.ycmn.module.customer.entity.BizCustomerShare;
 import com.ycmn.module.customer.mapper.BizCustomerMapper;
@@ -86,15 +87,37 @@ public class IncentiveService {
         return buildTree(all, 0L);
     }
 
+    /**
+     * 校验类别层级：只允许两级（一级 parentId=0，二级 parentId 为现存顶级类别 id）
+     */
+    private void validateCategoryLevel(BizIncentiveCategory category) {
+        Long parentId = category.getParentId();
+        if (parentId == null || parentId == 0L) {
+            category.setParentId(0L);
+            return;
+        }
+        BizIncentiveCategory parent = categoryMapper.selectById(parentId);
+        if (parent == null || (parent.getParentId() != null && parent.getParentId() != 0L)) {
+            throw new BusinessException("上级类别不存在或不允许三级嵌套，最多支持一级/二级");
+        }
+    }
+
     public void createCategory(BizIncentiveCategory category) {
+        validateCategoryLevel(category);
         categoryMapper.insert(category);
     }
 
     public void updateCategory(BizIncentiveCategory category) {
+        validateCategoryLevel(category);
         categoryMapper.updateById(category);
     }
 
     public void deleteCategory(Long id) {
+        Long childCount = categoryMapper.selectCount(
+                new LambdaQueryWrapper<BizIncentiveCategory>().eq(BizIncentiveCategory::getParentId, id));
+        if (childCount != null && childCount > 0) {
+            throw new BusinessException("该类别下有 " + childCount + " 个子项，请先删除子项");
+        }
         categoryMapper.deleteById(id);
     }
 

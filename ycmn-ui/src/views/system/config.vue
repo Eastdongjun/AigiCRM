@@ -143,38 +143,54 @@
         </el-tab-pane>
         <!-- 激励类别与权限 -->
         <el-tab-pane label="激励类别与权限" name="incentiveCategory">
-          <!-- 激励类别管理 -->
+          <!-- 激励类别管理：一级卡片 + 二级子项 -->
           <div class="incentive-card">
             <div class="dict-header">
               <span>激励类别管理</span>
               <el-button type="primary" size="small" :icon="Plus" @click="openCategoryDialog()">新增类别</el-button>
             </div>
-            <el-table :data="categoryTree" stripe size="small" row-key="id" default-expand-all :tree-props="{ children: 'children' }" max-height="360" style="width:100%">
-              <el-table-column prop="categoryName" label="类别名称" min-width="180" />
-              <el-table-column prop="categoryCode" label="编码" width="120" />
-              <el-table-column label="分值" width="60" align="center">
-                <template #default="{ row }">
-                  <span v-if="row.score > 0">{{ row.score }}分</span>
-                  <span v-else style="color:#c0c4cc">—</span>
-                </template>
-              </el-table-column>
-              <el-table-column prop="sortOrder" label="排序" width="60" align="center" />
-              <el-table-column label="状态" width="70" align="center">
-                <template #default="{ row }">
-                  <el-tag :type="row.status === 1 ? 'success' : 'danger'" size="small">{{ row.status === 1 ? '启用' : '禁用' }}</el-tag>
-                </template>
-              </el-table-column>
-              <el-table-column label="操作" width="195" align="center">
-                <template #default="{ row }">
-                  <div class="action-btns">
-                    <el-button link type="primary" size="small" @click="openCategoryDialog(row)">编辑</el-button>
-                    <el-button link type="primary" size="small" v-if="row.parentId === 0" @click="openCategoryDialog(null, row.id)">子项</el-button>
-                    <el-button link type="primary" size="small" v-else disabled style="visibility:hidden">子项</el-button>
-                    <el-button link type="danger" size="small" @click="handleDeleteCategory(row)">删除</el-button>
-                  </div>
-                </template>
-              </el-table-column>
-            </el-table>
+            <div v-if="!categoryTree.length" class="cat-empty">暂无类别，点击"新增类别"创建</div>
+            <div v-for="top in categoryTree" :key="top.id" class="cat-group">
+              <div class="cat-group-head" @click="toggleCategory(top.id)">
+                <span class="cat-group-name">{{ top.categoryName }}</span>
+                <span class="cat-group-code">{{ top.categoryCode }}</span>
+                <el-tag :type="top.status === 1 ? 'success' : 'danger'" size="small">{{ top.status === 1 ? '启用' : '禁用' }}</el-tag>
+                <span class="cat-group-count">{{ (top.children || []).length }} 个子项</span>
+                <span class="cat-arrow" :class="{ expanded: !collapsed.has(top.id) }">▾</span>
+                <div class="cat-group-actions" @click.stop>
+                  <el-button link type="primary" size="small" @click="openCategoryDialog(top)">编辑</el-button>
+                  <el-button link type="primary" size="small" @click="openCategoryDialog(null, top.id)">子项</el-button>
+                  <el-button link type="danger" size="small" @click="handleDeleteCategory(top)">删除</el-button>
+                </div>
+              </div>
+              <div v-show="!collapsed.has(top.id)" class="cat-group-body">
+                <el-table v-if="top.children && top.children.length" :data="top.children" stripe size="small" style="width:100%">
+                  <el-table-column prop="categoryName" label="类别名称" min-width="160" />
+                  <el-table-column prop="categoryCode" label="编码" width="130" />
+                  <el-table-column label="分值" width="60" align="center">
+                    <template #default="{ row }">
+                      <span v-if="row.score > 0">{{ row.score }}分</span>
+                      <span v-else style="color:#c0c4cc">—</span>
+                    </template>
+                  </el-table-column>
+                  <el-table-column prop="sortOrder" label="排序" width="60" align="center" />
+                  <el-table-column label="状态" width="70" align="center">
+                    <template #default="{ row }">
+                      <el-tag :type="row.status === 1 ? 'success' : 'danger'" size="small">{{ row.status === 1 ? '启用' : '禁用' }}</el-tag>
+                    </template>
+                  </el-table-column>
+                  <el-table-column label="操作" width="130" align="center">
+                    <template #default="{ row }">
+                      <div class="action-btns">
+                        <el-button link type="primary" size="small" @click="openCategoryDialog(row)">编辑</el-button>
+                        <el-button link type="danger" size="small" @click="handleDeleteCategory(row)">删除</el-button>
+                      </div>
+                    </template>
+                  </el-table-column>
+                </el-table>
+                <div v-else class="cat-no-child">暂无子项</div>
+              </div>
+            </div>
           </div>
 
           <!-- 四项激励权限 -->
@@ -789,12 +805,19 @@ const submitPool = async () => {
 
 // ===== 激励类别 =====
 const categoryTree = ref([])
+const collapsed = ref(new Set())
 const categoryDialogVisible = ref(false)
 const categoryForm = reactive({ id: null, parentId: 0, categoryName: '', categoryCode: '', score: 0, sortOrder: 0, status: 1 })
 
 const categoryParentOptions = computed(() =>
   categoryTree.value.map(c => ({ id: c.id, categoryName: c.categoryName }))
 )
+
+const toggleCategory = (id) => {
+  const s = new Set(collapsed.value)
+  s.has(id) ? s.delete(id) : s.add(id)
+  collapsed.value = s
+}
 
 const loadCategoryTree = async () => {
   try {
@@ -828,7 +851,11 @@ const submitCategory = async () => {
 
 const handleDeleteCategory = async (row) => {
   const hasChildren = row.children && row.children.length > 0
-  const msg = hasChildren ? `"${row.categoryName}" 下有 ${row.children.length} 个子项，确认删除？` : `确认删除 "${row.categoryName}"？`
+  if (hasChildren) {
+    ElMessage.warning(`"${row.categoryName}" 下有 ${row.children.length} 个子项，请先删除子项`)
+    return
+  }
+  const msg = `确认删除 "${row.categoryName}"？`
   try {
     await ElMessageBox.confirm(msg, '删除确认', { type: 'warning' })
     await deleteCategory(row.id)
@@ -924,6 +951,62 @@ onMounted(() => {
 .incentive-card .dict-header {
   padding-bottom: 12px;
   margin-bottom: 8px;
+}
+.cat-empty {
+  color: #909399;
+  font-size: 13px;
+  padding: 24px 0;
+  text-align: center;
+}
+.cat-group {
+  border: 1px solid #e4e7ed;
+  border-radius: 6px;
+  margin-bottom: 10px;
+  overflow: hidden;
+}
+.cat-group-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  background: #f5f7fa;
+  cursor: pointer;
+  user-select: none;
+}
+.cat-group-name {
+  font-size: 15px;
+  font-weight: 600;
+  color: #303133;
+}
+.cat-group-code {
+  font-size: 12px;
+  color: #909399;
+}
+.cat-group-count {
+  font-size: 12px;
+  color: #909399;
+}
+.cat-arrow {
+  margin-left: auto;
+  font-size: 12px;
+  color: #909399;
+  transition: transform 0.2s;
+}
+.cat-arrow.expanded {
+  transform: rotate(180deg);
+}
+.cat-group-actions {
+  display: flex;
+  gap: 2px;
+}
+.cat-group-body {
+  padding: 4px 0;
+}
+.cat-no-child {
+  color: #c0c4cc;
+  font-size: 13px;
+  text-align: center;
+  padding: 16px 0;
 }
 
 .action-btns {

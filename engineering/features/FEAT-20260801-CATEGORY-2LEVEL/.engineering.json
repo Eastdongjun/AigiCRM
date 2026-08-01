@@ -1,0 +1,92 @@
+{
+  "schema_version": "1.0",
+  "feature_id": "FEAT-20260801-CATEGORY-2LEVEL",
+  "title": "激励类别管理一级/二级结构改造（展示形态+数据整理）",
+  "project_root": "/Users/donglai/东来/01-Projects/01-aigicrm/04-源码",
+  "ui_scope": "required",
+  "current_state": "REQUIREMENTS_READY",
+  "created_at": "2026-08-01T19:08:10+08:00",
+  "updated_at": "2026-08-01T19:20:50+08:00",
+  "required_kinds": [
+    "build",
+    "typecheck"
+  ],
+  "quality_commands": {
+    "build": {
+      "argv": [
+        "npm",
+        "--prefix",
+        "ycmn-ui",
+        "run",
+        "build"
+      ],
+      "required": true
+    },
+    "typecheck": {
+      "argv": [
+        "mvn",
+        "-f",
+        "ycmn-backend/pom.xml",
+        "-q",
+        "package",
+        "-DskipTests"
+      ],
+      "required": true
+    }
+  },
+  "latest_gate_report": null,
+  "latest_preflight_report": null,
+  "config_revision": 5,
+  "feature_revision": 2,
+  "transitions": [
+    {
+      "from": null,
+      "to": "INTAKE",
+      "at": "2026-08-01T19:08:10+08:00",
+      "evidence": "feature initialized"
+    },
+    {
+      "from": "INTAKE",
+      "to": "REQUIREMENTS_READY",
+      "at": "2026-08-01T19:09:33+08:00",
+      "evidence": ""
+    },
+    {
+      "from": "REQUIREMENTS_READY",
+      "to": "PROTOTYPE_READY",
+      "at": "2026-08-01T19:14:37+08:00",
+      "evidence": ""
+    },
+    {
+      "from": "PROTOTYPE_READY",
+      "to": "PLAN_READY",
+      "at": "2026-08-01T19:15:24+08:00",
+      "evidence": ""
+    },
+    {
+      "from": "PLAN_READY",
+      "to": "IMPLEMENTED",
+      "at": "2026-08-01T19:15:50+08:00",
+      "evidence": ""
+    },
+    {
+      "from": "IMPLEMENTED",
+      "to": "VERIFIED",
+      "at": "2026-08-01T19:17:08+08:00",
+      "evidence": ""
+    },
+    {
+      "from": "VERIFIED",
+      "to": "DELIVERED",
+      "at": "2026-08-01T19:17:35+08:00",
+      "evidence": ""
+    },
+    {
+      "from": "DELIVERED",
+      "to": "REQUIREMENTS_READY",
+      "at": "2026-08-01T19:20:50+08:00",
+      "evidence": "reopened: 用户确认：有子项的一级类别禁止删除（提示先删子项），替代原确认+仅删自身行为"
+    }
+  ],
+  "fingerprint_sha256": "76b10181b007f522112529619558e73d2993e9bdc116f8e3552c7481fbf28c49"
+}

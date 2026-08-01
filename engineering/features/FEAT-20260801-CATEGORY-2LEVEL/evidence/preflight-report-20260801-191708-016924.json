@@ -1,0 +1,48 @@
+{
+  "feature_id": "FEAT-20260801-CATEGORY-2LEVEL",
+  "project_root": "/Users/donglai/东来/01-Projects/01-aigicrm/04-源码",
+  "created_at": "2026-08-01T19:17:08+08:00",
+  "config_revision": 5,
+  "feature_revision": 1,
+  "passed": true,
+  "checks": [
+    {
+      "check": "project_root",
+      "passed": true,
+      "detail": "/Users/donglai/东来/01-Projects/01-aigicrm/04-源码"
+    },
+    {
+      "check": "command:build",
+      "passed": true,
+      "executable": "/opt/homebrew/bin/npm",
+      "argv": [
+        "npm",
+        "--prefix",
+        "ycmn-ui",
+        "run",
+        "build"
+      ]
+    },
+    {
+      "check": "command:typecheck",
+      "passed": true,
+      "executable": "/opt/homebrew/bin/mvn",
+      "argv": [
+        "mvn",
+        "-f",
+        "ycmn-backend/pom.xml",
+        "-q",
+        "package",
+        "-DskipTests"
+      ]
+    },
+    {
+      "check": "project_markers",
+      "passed": true,
+      "detail": [
+        ".git"
+      ]
+    }
+  ],
+  "errors": []
+}
