@@ -2,7 +2,7 @@
   <div style="margin:-20px">
     <div class="bar">
       <div class="bar-row">
-        <el-input v-model="fCustomer" placeholder="搜索客户名称..." clearable class="kw-main" @change="doSearch"><template #prefix><el-icon><Search /></el-icon></template></el-input>
+        <el-input v-model="fCustomer" placeholder="搜索客户名称 / 关键字（如：煤气管道）..." clearable class="kw-main" @change="doSearch"><template #prefix><el-icon><Search /></el-icon></template></el-input>
         <el-button :type="showFilter?'primary':'default'" size="default" @click="showFilter=!showFilter">
           <el-icon><Filter /></el-icon> 高级筛选 <el-tag v-if="activeFilterCount" size="small" type="danger" effect="dark" style="margin-left:4px">{{ activeFilterCount }}</el-tag>
         </el-button>

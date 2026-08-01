@@ -1,0 +1,19 @@
+{
+  "feature_id": "FEAT-20260801-INCENTIVE-SEARCH",
+  "created_at": "2026-08-01T20:06:27+08:00",
+  "feature_revision": 1,
+  "score": 90,
+  "console_errors": 0,
+  "interaction_passed": true,
+  "blocking_findings": [],
+  "screenshot_dimensions": {
+    "ui-baseline-1440x900.png": "1440x900",
+    "ui-1440x900.png": "1440x900",
+    "ui-1280x720.png": "1280x720"
+  },
+  "screenshot_sha256": {
+    "ui-baseline-1440x900.png": "780343602a8005d49128982427cec7b9504edbfb5248797f3ab6ccbe8ff07d7b",
+    "ui-1440x900.png": "780343602a8005d49128982427cec7b9504edbfb5248797f3ab6ccbe8ff07d7b",
+    "ui-1280x720.png": "2827eac7698b489f38551be5c2abcf5de1009628715cbdb4497a166fb0b7904d"
+  }
+}
