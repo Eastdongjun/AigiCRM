@@ -175,8 +175,8 @@ onMounted(() => { loadDicts(); loadGrid() })
 .se-table th,.se-table td { border:1px solid #f0f1f3; padding:8px 6px; text-align:center; white-space:nowrap }
 .se-table thead th { background:#f8f9fb; color:#4e5969; font-weight:500; position:sticky; top:0; z-index:2 }
 
-.col-idx { width:36px; color:#909399 } .col-cat { width:11% } .col-prod { width:14% } .col-range { width:7% }
-.col-op { width:44px } .col-user { width:80px } .col-add-user { width:36px }
+.col-idx { width:36px; color:#909399 } .col-cat { min-width:110px; width:110px } .col-prod { min-width:200px; width:200px } .col-range { min-width:90px; width:90px }
+.col-op { width:44px } .col-user { min-width:72px; width:72px } .col-add-user { width:36px }
 
 .se-th-group th { background:#f2f4f7; font-size:13px; font-weight:600; color:#1f2329; padding:10px 6px }
 .se-th-label { font-size:13px; font-weight:600 }
