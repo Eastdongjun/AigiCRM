@@ -98,8 +98,8 @@
               <el-icon><Medal /></el-icon>
               <span>学分管理</span>
             </template>
-            <el-menu-item index="/score/entry">学分录入</el-menu-item>
-            <el-menu-item index="/score/ranking">学分排行</el-menu-item>
+            <el-menu-item v-if="hasPerm('score:entry')" index="/score/entry">学分录入</el-menu-item>
+            <el-menu-item v-if="hasPerm('score:ranking')" index="/score/ranking">学分排行</el-menu-item>
           </el-sub-menu>
 
           <el-sub-menu index="indicator-group" v-if="hasPerm('statistics:view')">
@@ -121,7 +121,7 @@
               <el-icon><Key /></el-icon>
               <template #title>角色管理</template>
             </el-menu-item>
-            <el-menu-item v-if="hasPerm('system:role:view')" index="/system/position">
+            <el-menu-item v-if="hasPerm('system:position:view')" index="/system/position">
               <el-icon><Avatar /></el-icon>
               <template #title>岗位管理</template>
             </el-menu-item>
