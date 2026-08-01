@@ -153,7 +153,15 @@
               <el-select v-model="selectedIndustry" placeholder="选择" clearable size="large"><el-option v-for="i in industryOptions" :key="i" :label="i" :value="i" /></el-select>
             </div>
           </div>
-          <div class="dlg-field"><label>相关产品</label><el-input v-model="relatedProducts" placeholder="填写产品名称" size="large" /></div>
+          <div class="dlg-field"><label>相关产品</label>
+              <div style="display:flex;gap:8px">
+                <el-select v-model="relatedCat" placeholder="选择大类" size="large" style="flex:1" @change="relatedSub=''">
+                  <el-option v-for="k in productCatKeys" :key="k" :label="k" :value="k" />
+                </el-select>
+                <el-select v-model="relatedSub" placeholder="选择小类" size="large" style="flex:1" :disabled="!relatedCat">
+                  <el-option v-for="s in (productCats[relatedCat] || [])" :key="s" :label="s" :value="s" />
+                </el-select>
+              </div></div>
         </div>
 
         <!-- 安装详情 -->
@@ -162,12 +170,32 @@
             <span class="dlg-sec-icon" style="background:#fef0f0;color:#f56c6c"><el-icon><Edit /></el-icon></span>
             <span class="dlg-sec-title">安装详情</span>
           </div>
-          <div class="dlg-field"><label>安装前问题</label><el-input v-model="preInstallQuestion" type="textarea" :rows="2" placeholder="描述安装前存在的问题..." /></div>
+          <div class="dlg-field"><label>{{ detailLabel }}</label><el-input v-model="preInstallQuestion" type="textarea" :rows="2" :placeholder="isSingleSlot ? '描述本次详情...' : '描述安装前存在的问题...'" /></div>
           <div class="dlg-field"><label>安装备注</label><el-input v-model="remarkText" type="textarea" :rows="2" placeholder="安装备注..." /></div>
         </div>
 
-        <!-- 安装文件 -->
-        <div class="dlg-section highlight">
+        <!-- 安装文件：单槽（visit/exchange/plan） -->
+        <div v-if="isSingleSlot" class="dlg-section highlight">
+          <div class="dlg-sec-head">
+            <span class="dlg-sec-icon" style="background:#f0f9eb;color:#67c23a"><el-icon><Picture /></el-icon></span>
+            <span class="dlg-sec-title">{{ slotLabel }}</span>
+            <span class="dlg-sec-tip">至少 1 个，最多 {{ MAX_FILES }} 个</span>
+          </div>
+          <div class="file-slot-cards">
+            <div v-for="(file, idx) in installFiles.pre" :key="idx" class="file-card has" @click.stop>
+              <img v-if="!file._existing && isImage(file.name)" :src="getObjectURL(file)" class="file-card-img" />
+              <div v-else class="file-card-icon"><el-icon :size="file._existing?20:24"><Document /></el-icon></div>
+              <span class="file-card-del" @click.stop="installFiles.pre.splice(idx,1)"><el-icon><Close /></el-icon></span>
+              <span class="file-card-name">{{ file.name?.substring(0, 8) }}{{ file.name?.length > 8 ? '…' : '' }}</span>
+            </div>
+            <div v-if="installFiles.pre.length < MAX_FILES" class="file-card add" @click="pickFile('pre')">
+              <el-icon :size="28"><Plus /></el-icon>
+            </div>
+          </div>
+        </div>
+
+        <!-- 安装文件：三槽（trial） -->
+        <div v-else class="dlg-section highlight">
           <div class="dlg-sec-head">
             <span class="dlg-sec-icon" style="background:#f0f9eb;color:#67c23a"><el-icon><Picture /></el-icon></span>
             <span class="dlg-sec-title">安装文件</span>
@@ -197,8 +225,8 @@
           </div>
         </div>
 
-        <!-- 跟踪记录 -->
-        <div class="dlg-section">
+        <!-- 跟踪记录（仅 trial 保留） -->
+        <div v-if="!isSingleSlot" class="dlg-section">
           <div class="dlg-sec-head">
             <span class="dlg-sec-icon" style="background:#f5f0ff;color:#9c27b0"><el-icon><Notebook /></el-icon></span>
             <span class="dlg-sec-title">跟踪记录</span>
@@ -320,8 +348,36 @@ const currentSlot = ref(null)
 const industryOptions = ref([])
 const selectedIndustry = ref('')
 const relatedProducts = ref('')
+const productCats = { '涂层类': ['防腐','加固','钢结构','煤气管道','其他'], '防滑板类': ['公共区','装置区'], '机封类': ['水泵','渣泵','介质泵'], '密封类': ['静密封','动密封','橡胶密封'], '润滑类': ['润滑油','润滑脂','润滑剂'] }
+const productCatKeys = Object.keys(productCats)
+const relatedCat = ref('')
+const relatedSub = ref('')
+watch([relatedCat, relatedSub], () => { relatedProducts.value = relatedCat.value && relatedSub.value ? relatedCat.value + '-' + relatedSub.value : relatedCat.value || relatedSub.value })
 
-const canSubmit = computed(() => !!selectedCustomerId.value)
+// 分类 code：子分类 code 为 visit_factory/exchange_tech/plan_tech 等带前缀值，
+// 须上溯到顶层父级（visit/exchange/plan/trial）才能判定品类；无父级（顶层直接上传）用自身 code
+const categoryCodeOf = (cat) => {
+  if (!cat) return ''
+  let cur = cat
+  while (cur.parentId && categoryMap.value[cur.parentId]) cur = categoryMap.value[cur.parentId]
+  return cur.categoryCode || cat.categoryCode || ''
+}
+
+// 品类分支：visit/exchange/plan 单槽模式（现场照片/安装文件 1~5，无跟踪记录）；trial 三槽
+const isSingleSlot = computed(() => ['visit', 'exchange', 'plan'].includes(categoryCodeOf(pendingChild.value)))
+const slotLabel = computed(() => categoryCodeOf(pendingChild.value) === 'plan' ? '安装文件' : '现场照片')
+const detailLabel = computed(() => {
+  const code = categoryCodeOf(pendingChild.value)
+  if (code === 'plan') return '文件详情描述'
+  if (code === 'visit' || code === 'exchange') return '参观交流详情描述'
+  return '安装前问题'
+})
+
+const canSubmit = computed(() => {
+  if (!selectedCustomerId.value) return false
+  if (isSingleSlot.value) return installFiles.pre.length >= 1
+  return true
+})
 
 const selectedCustomerName = computed(() => {
   if (!selectedCustomerId.value) return ''
@@ -391,7 +447,18 @@ const filterTierOptions = computed(() => {
   return categories.value.filter(c => c.parentId === group.id).map(c => c.categoryName)
 })
 
-// 过滤后的记录
+// 顶层品类 code（用于四区排序）：试点(0)→两谈两做(1)→交流拜访(2)→外出参观(3)，未知(4)
+// 子类 code 为 "trial_seal" 等带前缀值，需查父级顶层 code
+const orderOfCode = (code) => ({ trial: 0, plan: 1, exchange: 2, visit: 3 }[code] ?? 4)
+const mainOrderOf = (row) => {
+  const cat = categoryMap.value[row.categoryId]
+  if (!cat) return 4
+  let order = orderOfCode(cat.categoryCode)
+  if (order === 4 && cat.parentId && categoryMap.value[cat.parentId]) order = orderOfCode(categoryMap.value[cat.parentId].categoryCode)
+  return order
+}
+
+// 过滤后的记录（四区排序，同品类按时间倒序）
 const filteredRecords = computed(() => {
   let list = enrichedRecords.value
   if (searchText.value) {
@@ -404,7 +471,11 @@ const filteredRecords = computed(() => {
   }
   if (filterGroup.value) list = list.filter(r => r.groupName === filterGroup.value)
   if (filterTier.value) list = list.filter(r => r.tier === filterTier.value)
-  return list
+  return [...list].sort((a, b) => {
+    const d = mainOrderOf(a) - mainOrderOf(b)
+    if (d !== 0) return d
+    return String(b.createdAt || '').localeCompare(String(a.createdAt || ''))
+  })
 })
 
 const scoreColor = (score) => {
@@ -460,6 +531,8 @@ const resetDialogFields = () => {
   shareToTeam.value = false
   selectedIndustry.value = ''
   relatedProducts.value = ''
+  relatedCat.value = ''
+  relatedSub.value = ''
 }
 
 // 上传流程
@@ -507,6 +580,10 @@ const startReplace = (row) => {
   shareToTeam.value = !!row.shared
   selectedIndustry.value = row.industry || ''
   relatedProducts.value = row.relatedProducts || ''
+  const _rp = row.relatedProducts || ''
+  const _i = _rp.indexOf('-')
+  relatedCat.value = _i > 0 ? _rp.slice(0, _i) : ''
+  relatedSub.value = _i > 0 ? _rp.slice(_i + 1) : _rp
   if (row.customerId) {
     customerOptions.value = [{ id: row.customerId, customerName: row.customerName, industry: row.industry, _shared: sharedCustomerIds.value.has(row.customerId) }]
   }
@@ -638,6 +715,14 @@ const confirmUpload = async () => {
       const trackOldIds = getKeptIds(trackFile.value)
       finalTrackId = [...trackOldIds, ...trackNewIds].length ? `[${[...trackOldIds, ...trackNewIds].join(',')}]` : null
 
+      // 单槽品类：保留旧记录的中/后/跟踪槽文件（不提供编辑入口，避免历史数据丢失）
+      if (isSingleSlot.value) {
+        const oldRow = pendingReplace.value
+        finalMidId = oldRow.fileMidId || null
+        finalPostId = oldRow.filePostId || null
+        finalTrackId = oldRow.fileTrackId || null
+      }
+
       await deleteRecord(pendingReplace.value.id)
       await addRecord({
         categoryId: pendingChild.value.id,
@@ -662,9 +747,10 @@ const confirmUpload = async () => {
         relatedProducts: relatedProducts.value || null,
         preInstallQuestion: preInstallQuestion.value || null,
         filePreId: toJson(preIds),
-        fileMidId: toJson(midIds),
-        filePostId: toJson(postIds),
-        fileTrackId: toJson(trackIds),
+        // 单槽品类（visit/exchange/plan）：不提交中/后/跟踪槽
+        fileMidId: isSingleSlot.value ? null : toJson(midIds),
+        filePostId: isSingleSlot.value ? null : toJson(postIds),
+        fileTrackId: isSingleSlot.value ? null : toJson(trackIds),
         remark: remarkText.value || null,
         shared: shareToTeam.value ? 1 : 0
       })
@@ -769,7 +855,9 @@ onMounted(() => {
 .dlg-header { display:flex; align-items:center; justify-content:space-between }
 .dlg-header-left { display:flex; align-items:center; gap:10px }
 .dlg-title { font-size:18px; font-weight:700; color:#1f2329 }
-.dlg-body { max-height:62vh; overflow-y:auto; padding-right:4px }
+/* 滚动统一由 .upload-dlg :deep(.el-dialog__body)（flex:1 overflow-y:auto）处理，
+   此处不再限制 62vh，避免双重滚动导致文件槽位初始折叠、卡片被底部按钮覆盖 */
+.dlg-body { padding-right:4px }
 
 .dlg-section { background:#fff; border:1px solid #e8ecf1; border-radius:12px; padding:18px 20px; margin-bottom:12px }
 .dlg-section.highlight { background:linear-gradient(135deg,#f6fdf9,#f0f7ff); border-color:#c8e0d8 }

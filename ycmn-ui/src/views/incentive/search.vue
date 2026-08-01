@@ -13,10 +13,21 @@
       <div v-if="showFilter" class="bar-adv">
         <div class="adv-grid">
           <div class="adv-field">
-            <label class="adv-field-label"><el-icon><User /></el-icon> 销售人员</label>
-            <el-select v-model="fSales" placeholder="全部人员" clearable filterable @change="doSearch" size="default">
+            <label class="adv-field-label"><el-icon><User /></el-icon> 同事姓名</label>
+            <el-select v-model="fSales" placeholder="输入或选择同事" clearable filterable allow-create default-first-option @change="doSearch" size="default">
               <el-option v-for="u in userList" :key="u.id" :label="u.realName" :value="u.realName" />
             </el-select>
+          </div>
+          <div class="adv-field">
+            <label class="adv-field-label"><el-icon><PriceTag /></el-icon> 产品小类</label>
+            <div style="display:flex;gap:8px">
+              <el-select v-model="fProdCat" placeholder="大类" clearable @change="fProdSub='';doSearch()" size="default" style="flex:1">
+                <el-option v-for="k in productCatKeys" :key="k" :label="k" :value="k" />
+              </el-select>
+              <el-select v-model="fProdSub" placeholder="小类" clearable :disabled="!fProdCat" @change="doSearch" size="default" style="flex:1">
+                <el-option v-for="s in (productCats[fProdCat] || [])" :key="s" :label="s" :value="s" />
+              </el-select>
+            </div>
           </div>
           <div class="adv-field">
             <label class="adv-field-label"><el-icon><OfficeBuilding /></el-icon> 行业</label>
@@ -104,7 +115,7 @@
             <span class="dtl-sum-sep">|</span>
             <span class="dtl-sum-pts">{{ detailCust.totalScore }}分</span>
             <span class="dtl-sum-sep">|</span>
-            <span>最近更新 {{ detailCust.records[0] ? fmtDt(detailCust.records[0].createdAt) : '-' }}</span>
+            <span>最近更新 {{ latestRecord(detailCust) ? fmtDt(latestRecord(detailCust).createdAt) : '-' }}</span>
           </div>
         </div>
         <div class="dtl-timeline">
@@ -175,6 +186,9 @@ import request from '@/utils/request'
 import { ElMessage } from 'element-plus'
 
 const fCustomer=ref(''),fSales=ref(''),fIndustry=ref(''),fDevType=ref(''),fDateRange=ref(null),fOrgIds=ref([]),showFilter=ref(false)
+const fProdCat=ref(''),fProdSub=ref('')
+const productCats={ '涂层类':['防腐','加固','钢结构','煤气管道','其他'], '防滑板类':['公共区','装置区'], '机封类':['水泵','渣泵','介质泵'], '密封类':['静密封','动密封','橡胶密封'], '润滑类':['润滑油','润滑脂','润滑剂'] }
+const productCatKeys=Object.keys(productCats)
 const custs=ref([]),catMap=ref({}),previewVisible=ref(false),previewUrl=ref(''),previewType=ref('image'),previewId=ref(null)
 const detailVisible=ref(false),detailCust=ref(null)
 const industries=['冶金','煤矿','化工','电力','有色金属','机械','工程公司','维修厂','其他终端客户']
@@ -183,6 +197,8 @@ const userList=ref([]),orgTree=ref([])
 const activeFilterCount=computed(()=>[fSales.value,fIndustry.value,fDevType.value,fDateRange.value,fOrgIds.value?.length>0].filter(v=>!!v).length)
 
 function onImgError(e){e.target.src='data:image/svg+xml,'+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="320" height="240" viewBox="0 0 320 240"><rect fill="#f5f6f7" width="320" height="240"/><text fill="#c0c4cc" font-size="14" font-family="sans-serif" text-anchor="middle" x="160" y="120">图片加载失败</text></svg>')}
+// 取客户记录中最新一条（排序已按品类，不与时间线顺序绑定）
+function latestRecord(c){let best=null;for(const r of (c?.records||[])){if(!best||String(r.createdAt||'')>String(best.createdAt||''))best=r}return best}
 function fileUrl(id){return'/api/file/download/'+id+'?token='+(getToken()||'')}
 function preview(id,type){previewUrl.value=fileUrl(id);previewType.value=type==='video'?'video':'image';previewVisible.value=true}
 function downloadPreview(){if(previewUrl.value)window.open(previewUrl.value)}
@@ -205,13 +221,17 @@ function scoreColor(c){return{visit:'#d97706',exchange:'#2563eb',plan:'#7c3aed',
 function fmtDt(t){if(!t)return'';const d=new Date(t);return d.getFullYear()+'-'+(d.getMonth()+1).toString().padStart(2,'0')+'-'+d.getDate().toString().padStart(2,'0')+' '+d.getHours().toString().padStart(2,'0')+':'+d.getMinutes().toString().padStart(2,'0')}
 
 async function doSearch(){
-  const p={};if(fCustomer.value)p.customerName=fCustomer.value;if(fSales.value)p.salesperson=fSales.value;if(fIndustry.value)p.industry=fIndustry.value
+  const p={}
+  // 主搜索框：客户名 + 关键字（相关产品）双匹配（后端 OR 组合）
+  if(fCustomer.value){p.customerName=fCustomer.value;p.keyword=fCustomer.value}
+  if(fSales.value)p.salesperson=fSales.value;if(fIndustry.value)p.industry=fIndustry.value
   if(fDevType.value)p.devType=fDevType.value
   if(fDateRange.value?.length===2){p.startDate=fDateRange.value[0];p.endDate=fDateRange.value[1]}
   if(fOrgIds.value?.length){p.orgIds=fOrgIds.value.join(',')}
+  if(fProdSub.value)p.product=fProdSub.value
   try{const res=await request.get('/incentive/customer-records',{params:p});custs.value=(res.data||[]).filter(c=>c.records?.length>0&&c.customerName)}catch(e){ElMessage.error('查询失败')}
 }
-function doReset(){fCustomer.value='';fSales.value='';fIndustry.value='';fDevType.value='';fDateRange.value=null;fOrgIds.value=[];doSearch()}
+function doReset(){fCustomer.value='';fSales.value='';fIndustry.value='';fDevType.value='';fDateRange.value=null;fOrgIds.value=[];fProdCat.value='';fProdSub.value='';doSearch()}
 async function loadCats(){try{const res=await getCategoryTree();const walk=l=>{l.forEach(c=>{catMap.value[c.id]=c;if(c.children)walk(c.children)})};walk(res.data||[])}catch(e){}}
 async function loadUsers(){try{const res=await request.get('/incentive/users');userList.value=res.data||[]}catch(e){}}
 async function loadOrgs(){try{const res=await request.get('/system/depts');const list=res.data||[]

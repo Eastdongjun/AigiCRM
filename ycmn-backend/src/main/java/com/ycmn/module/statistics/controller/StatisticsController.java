@@ -56,7 +56,7 @@ public class StatisticsController {
     private final BizApprovalMapper approvalMapper;
 
     @GetMapping("/dashboard")
-    @PreAuthorize("hasAuthority('statistics:view')")
+    @PreAuthorize("hasAnyAuthority('statistics:view','dashboard:view')")
     public Result<Map<String, Object>> dashboard() {
         Long userId = SecurityUtils.getCurrentUserId();
         Map<String, Object> data = new HashMap<>();
@@ -90,7 +90,7 @@ public class StatisticsController {
     }
 
     @GetMapping("/daily-stats")
-    @PreAuthorize("hasAuthority('statistics:view')")
+    @PreAuthorize("hasAnyAuthority('statistics:view','dashboard:view')")
     public Result<Map<String, Object>> dailyStats() {
         Map<String, Object> result = new HashMap<>();
         // 按天统计本月新增客户
@@ -118,7 +118,7 @@ public class StatisticsController {
     }
 
     @GetMapping("/weekly-stats")
-    @PreAuthorize("hasAuthority('statistics:view')")
+    @PreAuthorize("hasAnyAuthority('statistics:view','dashboard:view')")
     public Result<Map<String, Object>> weeklyStats() {
         Map<String, Object> result = new HashMap<>();
 
@@ -464,7 +464,7 @@ public class StatisticsController {
     }
 
     @GetMapping("/team-activities")
-    @PreAuthorize("hasAuthority('statistics:view')")
+    @PreAuthorize("hasAnyAuthority('statistics:view','dashboard:view')")
     public Result<List<Map<String, Object>>> teamActivities() {
         List<Map<String, Object>> activities = new ArrayList<>();
         Long currentUserId = SecurityUtils.getCurrentUserId();

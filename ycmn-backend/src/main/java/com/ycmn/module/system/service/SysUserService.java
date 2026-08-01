@@ -24,6 +24,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 @Service
 @RequiredArgsConstructor
@@ -49,6 +50,19 @@ public class SysUserService {
 
     @Transactional
     public void create(SysUser user) {
+        // 必填兜底校验（前端表单校验的接口层防线）
+        if (!StringUtils.hasText(user.getUsername())) {
+            throw new BusinessException("账号不能为空");
+        }
+        if (!StringUtils.hasText(user.getRealName())) {
+            throw new BusinessException("姓名不能为空");
+        }
+        if (user.getRoleId() == null) {
+            throw new BusinessException("角色不能为空");
+        }
+        if (!StringUtils.hasText(user.getPhone())) {
+            throw new BusinessException("手机号不能为空");
+        }
         // 检查用户名唯一性
         Long count = userMapper.selectCount(
                 new LambdaQueryWrapper<SysUser>().eq(SysUser::getUsername, user.getUsername()).eq(SysUser::getDeleted, 0)

@@ -191,30 +191,64 @@ public class IncentiveService {
     }
 
     /**
-     * 积分规则：
-     * 1. 两谈两做方案(plan)：每个阶段独立计分
-     *    - 安装前有文件 → +base 分
-     *    - 安装中有文件 → +base 分
-     *    - 安装后有文件 → +base 分
-     *    - 删除某阶段文件 → 对应分值去除
-     * 2. 其他分类：安装前+安装中+安装后 三文件齐全 → +base 分
-     * 3. 否则 0 分
+     * 积分规则（2026-08-01 单槽化改造后）：
+     * 1. 两谈两做方案(plan)：按文件总数计分，每 1 个文件 +base，上限 5×base
+     * 2. 外出参观(visit)/交流拜访(exchange)：安装文件任一槽有文件 → +base
+     * 3. 其他（含产品试点 trial）：安装前+安装中+安装后 三文件齐全 → +base
+     * 4. 否则 0 分
      */
     private int calcScore(BizIncentiveRecord r, BizIncentiveCategory category, int base) {
         if (category == null || base <= 0) return 0;
 
-        boolean isPlan = isPlanCategory(category);
         boolean hasPre  = r.hasFiles(r.getFilePreId() != null ? r.getFilePreId() : null);
         boolean hasMid  = r.hasFiles(r.getFileMidId() != null ? r.getFileMidId() : null);
         boolean hasPost = r.hasFiles(r.getFilePostId() != null ? r.getFilePostId() : null);
 
-        if (isPlan) {
-            // 两谈两做：每个阶段独立得分
-            return (hasPre ? base : 0) + (hasMid ? base : 0) + (hasPost ? base : 0);
+        if (isPlanCategory(category)) {
+            // 两谈两做：文件总数 × base（上限 5×base）
+            int fileCount = r.getFilePreIds().size() + r.getFileMidIds().size() + r.getFilePostIds().size();
+            return Math.min(fileCount, 5) * base;
+        } else if (isVisitExchangeCategory(category)) {
+            // 外出参观/交流拜访：任一槽有文件即得分
+            return (hasPre || hasMid || hasPost) ? base : 0;
         } else {
-            // 其他：三文件齐全
+            // 其他（含产品试点）：三文件齐全
             return (hasPre && hasMid && hasPost) ? base : 0;
         }
+    }
+
+    /** 判断子类是否属于"外出参观/交流拜访"大类（category_code = 'visit'/'exchange'） */
+    private boolean isVisitExchangeCategory(BizIncentiveCategory category) {
+        if (category == null) return false;
+        if ("visit".equals(category.getCategoryCode()) || "exchange".equals(category.getCategoryCode())) return true;
+        if (category.getParentId() != null) {
+            BizIncentiveCategory parent = categoryMapper.selectById(category.getParentId());
+            return parent != null && ("visit".equals(parent.getCategoryCode()) || "exchange".equals(parent.getCategoryCode()));
+        }
+        return false;
+    }
+
+    /** 四区排序权重：试点(0)→两谈两做(1)→交流拜访(2)→外出参观(3)，未知排最后(4) */
+    private int categoryMainOrder(BizIncentiveCategory cat, Map<Long, BizIncentiveCategory> catMap) {
+        if (cat == null) return 4;
+        int order = mainOrderOfCode(cat.getCategoryCode());
+        // 子类 code 为 "trial_seal" 等带前缀值：查父级顶层 code
+        if (order == 4 && cat.getParentId() != null) {
+            BizIncentiveCategory parent = catMap.get(cat.getParentId());
+            if (parent != null) order = mainOrderOfCode(parent.getCategoryCode());
+        }
+        return order;
+    }
+
+    private int mainOrderOfCode(String code) {
+        if (code == null) return 4;
+        return switch (code) {
+            case "trial" -> 0;
+            case "plan" -> 1;
+            case "exchange" -> 2;
+            case "visit" -> 3;
+            default -> 4;
+        };
     }
 
     /** 判断子类是否属于"两谈两做方案"大类（category_code = 'plan'） */
@@ -642,21 +676,44 @@ public class IncentiveService {
         return result;
     }
 
-    /** 按客户分组查询激励记录 — 多维度筛选 */
+    /** 按客户分组查询激励记录 — 多维度筛选（2026-08-01 新增 product/keyword 搜索与四区排序） */
     public List<Map<String, Object>> getCustomerRecords(String industry, Long mainCategoryId,
-            String customerName, String salesperson, String startDate, String endDate, String orgIds, String devType) {
+            String customerName, String salesperson, String startDate, String endDate, String orgIds, String devType,
+            String product, String keyword) {
         LambdaQueryWrapper<BizIncentiveRecord> wrapper = new LambdaQueryWrapper<>();
         wrapper.isNotNull(BizIncentiveRecord::getCustomerId);
         applyIncentiveDataScope(wrapper);
         if (industry != null && !industry.isBlank()) wrapper.eq(BizIncentiveRecord::getIndustry, industry);
-        if (customerName != null && !customerName.isBlank()) {
-            // 需要JOIN客户表，这里先查出匹配的客户ID
+        // 客户名 OR 关键字（相关产品）匹配：搜客户=该客户共享内容；搜关键字=相关案例全出
+        if (customerName != null && !customerName.isBlank()
+                && (keyword == null || keyword.isBlank())) {
+            // 仅客户名匹配：保持原行为
             List<BizCustomer> matched = customerMapper.selectList(
                 new LambdaQueryWrapper<BizCustomer>().like(BizCustomer::getCustomerName, customerName)
             );
             if (!matched.isEmpty()) {
                 wrapper.in(BizIncentiveRecord::getCustomerId, matched.stream().map(BizCustomer::getId).toList());
             } else { return List.of(); }
+        }
+        if (product != null && !product.isBlank()) {
+            wrapper.like(BizIncentiveRecord::getRelatedProducts, product);
+        }
+        if (keyword != null && !keyword.isBlank()) {
+            if (customerName != null && !customerName.isBlank()) {
+                // 主搜索框同时匹配客户名与相关产品
+                List<BizCustomer> matched = customerMapper.selectList(
+                    new LambdaQueryWrapper<BizCustomer>().like(BizCustomer::getCustomerName, customerName)
+                );
+                if (matched.isEmpty()) {
+                    wrapper.like(BizIncentiveRecord::getRelatedProducts, keyword);
+                } else {
+                    List<Long> cids = matched.stream().map(BizCustomer::getId).toList();
+                    wrapper.and(w -> w.in(BizIncentiveRecord::getCustomerId, cids)
+                        .or().like(BizIncentiveRecord::getRelatedProducts, keyword));
+                }
+            } else {
+                wrapper.like(BizIncentiveRecord::getRelatedProducts, keyword);
+            }
         }
         if (salesperson != null && !salesperson.isBlank()) {
             List<SysUser> users = userMapper.selectList(
@@ -740,6 +797,17 @@ public class IncentiveService {
             Long cid = r.getCustomerId();
             if (cid == null) continue;
             grouped.computeIfAbsent(cid, k -> new ArrayList<>()).add(r);
+        }
+
+        // 组内四区排序：试点→两谈两做→交流拜访→外出参观，同品类按时间倒序
+        // 注意：需全量分类映射（含父级），catMap2 只含记录引用的子类
+        Map<Long, BizIncentiveCategory> allCatMap = new HashMap<>();
+        categoryMapper.selectList(null).forEach(c -> allCatMap.put(c.getId(), c));
+        for (List<BizIncentiveRecord> recs : grouped.values()) {
+            recs.sort(Comparator
+                .comparingInt((BizIncentiveRecord r) -> categoryMainOrder(allCatMap.get(r.getCategoryId()), allCatMap))
+                .thenComparing(Comparator.comparing(BizIncentiveRecord::getCreatedAt,
+                    Comparator.nullsLast(Comparator.reverseOrder()))));
         }
 
         // 行业排序

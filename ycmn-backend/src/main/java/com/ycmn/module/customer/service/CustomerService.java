@@ -611,6 +611,11 @@ public class CustomerService {
                 }
                 break;
             case "org":
+                if (orgId == null) {
+                    // org_id 未维护时降级为仅本人数据，避免 List.of(null) NPE
+                    wrapper.eq(BizCustomer::getOwnerId, userId);
+                    break;
+                }
                 List<Long> orgOnlyUserIds = getUserIdsByOrgIds(List.of(orgId));
                 if (!orgOnlyUserIds.isEmpty()) {
                     wrapper.in(BizCustomer::getOwnerId, orgOnlyUserIds);
@@ -629,6 +634,10 @@ public class CustomerService {
                 }
                 break;
             case "dept":
+                if (deptId == null) {
+                    wrapper.eq(BizCustomer::getOwnerId, userId);
+                    break;
+                }
                 List<Long> sameDeptUserIds = getUserIdsByDeptIds(List.of(deptId));
                 if (!sameDeptUserIds.isEmpty()) {
                     wrapper.in(BizCustomer::getOwnerId, sameDeptUserIds);

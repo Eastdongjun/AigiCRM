@@ -159,8 +159,10 @@ public class IncentiveController {
             @RequestParam(required = false) String startDate,
             @RequestParam(required = false) String endDate,
             @RequestParam(required = false) String orgIds,
-            @RequestParam(required = false) String devType) {
-        return Result.ok(incentiveService.getCustomerRecords(industry, mainCategoryId, customerName, salesperson, startDate, endDate, orgIds, devType));
+            @RequestParam(required = false) String devType,
+            @RequestParam(required = false) String product,
+            @RequestParam(required = false) String keyword) {
+        return Result.ok(incentiveService.getCustomerRecords(industry, mainCategoryId, customerName, salesperson, startDate, endDate, orgIds, devType, product, keyword));
     }
 
     /** 激励统计查询（全员可见）：支持大类/子类/行业/产品/周期筛选 */

@@ -16,6 +16,7 @@ import com.ycmn.module.customer.entity.BizCustomer;
 import com.ycmn.module.customer.mapper.BizCustomerMapper;
 import com.ycmn.module.sea.entity.BizSeaPool;
 import com.ycmn.module.sea.mapper.BizSeaPoolMapper;
+import com.ycmn.module.sea.service.SeaConfigService;
 import com.ycmn.module.sea.service.SeaService;
 import com.ycmn.module.system.entity.SysDept;
 import com.ycmn.module.system.entity.SysUser;
@@ -51,6 +52,7 @@ public class ApprovalService {
     private final SysDeptMapper deptMapper;
     private final BizSeaPoolMapper seaPoolMapper;
     private final SeaService seaService;
+    private final SeaConfigService seaConfigService;
     private final SysUserService userService;
 
     public IPage<BizApproval> page(int current, int size, String tab, String type, Long userId) {
@@ -106,6 +108,12 @@ public class ApprovalService {
             );
             if (pool == null) {
                 throw new BusinessException("该客户不在公海中");
+            }
+            // 可见范围校验：非 all 数据范围用户，必须可见该客户所在公海池，防止绕过前端捞取不可见池客户
+            if (!"all".equals(SecurityUtils.getCurrentDataScope())
+                    && (pool.getPoolId() == null || seaConfigService.listVisible().stream()
+                            .noneMatch(c -> c.getId().equals(pool.getPoolId())))) {
+                throw new BusinessException("您没有该公海池的可见权限，无法捞取");
             }
             if ("pending_approval".equals(pool.getStatus())) {
                 throw new BusinessException("该客户已被他人申请捞取，正在审批中");

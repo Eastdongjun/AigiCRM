@@ -77,7 +77,7 @@
         </el-form-item>
         <el-row :gutter="24">
           <el-col :span="12">
-            <el-form-item label="账号" v-if="!editForm.id">
+            <el-form-item label="账号" prop="username" v-if="!editForm.id">
               <div class="acct-hint" v-if="latestAccountHint">{{ latestAccountHint }}</div>
               <el-input v-model="editForm.username" placeholder="大区缩写+流水号" />
             </el-form-item>
@@ -86,7 +86,7 @@
             </el-form-item>
           </el-col>
           <el-col :span="12">
-            <el-form-item label="姓名">
+            <el-form-item label="姓名" prop="realName">
               <el-input v-model="editForm.realName" placeholder="真实姓名" />
             </el-form-item>
           </el-col>
@@ -105,7 +105,7 @@
         </el-row>
         <el-row :gutter="24">
           <el-col :span="12">
-            <el-form-item label="角色">
+            <el-form-item label="角色" prop="roleId">
               <el-select v-model="editForm.roleId" style="width:100%" placeholder="选择角色">
                 <el-option v-for="r in roles" :key="r.id" :label="r.roleName" :value="r.id" />
               </el-select>
