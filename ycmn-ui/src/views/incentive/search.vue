@@ -2,17 +2,41 @@
   <div style="margin:-20px">
     <div class="bar">
       <div class="bar-row">
-        <el-input v-model="fCustomer" placeholder="客户名称" clearable class="kw" @change="doSearch"><template #prefix><el-icon><Search /></el-icon></template></el-input>
-        <el-select v-model="fSales" placeholder="销售人员" clearable filterable class="kw2" @change="doSearch">
-          <el-option v-for="u in userList" :key="u.id" :label="u.realName" :value="u.realName" />
-        </el-select>
-        <el-select v-model="fIndustry" placeholder="行业" clearable class="sel" @change="doSearch"><el-option v-for="i in industries" :key="i" :label="i" :value="i" /></el-select>
-        <el-select v-model="fDevType" placeholder="开发类型" clearable class="sel" @change="doSearch"><el-option v-for="d in devTypes" :key="d" :label="d" :value="d" /></el-select>
-        <el-date-picker v-model="fDateRange" type="daterange" range-separator="~" start-placeholder="开始" end-placeholder="截止" value-format="YYYY-MM-DD" class="dt" @change="doSearch" />
-        <el-cascader v-model="fOrgIds" :options="orgTree" :props="{label:'deptName',value:'id',children:'children',multiple:true,checkStrictly:true}" placeholder="组织筛选" clearable class="org-sel" @change="doSearch" collapse-tags />
+        <el-input v-model="fCustomer" placeholder="搜索客户名称..." clearable class="kw-main" @change="doSearch"><template #prefix><el-icon><Search /></el-icon></template></el-input>
+        <el-button :type="showFilter?'primary':'default'" size="default" @click="showFilter=!showFilter">
+          <el-icon><Filter /></el-icon> 高级筛选 <el-tag v-if="activeFilterCount" size="small" type="danger" effect="dark" style="margin-left:4px">{{ activeFilterCount }}</el-tag>
+        </el-button>
         <el-button type="primary" @click="doSearch">查询</el-button>
         <el-button @click="doReset">重置</el-button>
-        <span class="cnt">{{ custs.length }} 客户</span>
+        <span class="cnt"><el-icon><Folder /></el-icon> {{ custs.length }} 客户</span>
+      </div>
+      <div v-if="showFilter" class="bar-adv">
+        <div class="adv-row">
+          <div class="adv-group">
+            <span class="adv-label">销售人员</span>
+            <el-select v-model="fSales" placeholder="全部" clearable filterable @change="doSearch">
+              <el-option v-for="u in userList" :key="u.id" :label="u.realName" :value="u.realName" />
+            </el-select>
+          </div>
+          <div class="adv-group">
+            <span class="adv-label">行业</span>
+            <el-select v-model="fIndustry" placeholder="全部" clearable @change="doSearch"><el-option v-for="i in industries" :key="i" :label="i" :value="i" /></el-select>
+          </div>
+          <div class="adv-group">
+            <span class="adv-label">开发类型</span>
+            <el-select v-model="fDevType" placeholder="全部" clearable @change="doSearch"><el-option v-for="d in devTypes" :key="d" :label="d" :value="d" /></el-select>
+          </div>
+        </div>
+        <div class="adv-row">
+          <div class="adv-group">
+            <span class="adv-label">日期范围</span>
+            <el-date-picker v-model="fDateRange" type="daterange" range-separator="~" start-placeholder="开始" end-placeholder="截止" value-format="YYYY-MM-DD" @change="doSearch" style="width:230px" />
+          </div>
+          <div class="adv-group flex-1">
+            <span class="adv-label">组织筛选</span>
+            <el-cascader v-model="fOrgIds" :options="orgTree" :props="{label:'deptName',value:'id',children:'children',multiple:true,checkStrictly:true}" placeholder="选择大区/办事处/部门" clearable @change="doSearch" collapse-tags style="width:100%;max-width:400px" />
+          </div>
+        </div>
       </div>
     </div>
 
@@ -145,19 +169,20 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { getCategoryTree } from '@/api/incentive'
 import { getToken } from '@/utils/token'
-import { Search, User, VideoPlay, Document, ZoomIn, Download } from '@element-plus/icons-vue'
+import { Search, User, VideoPlay, Document, ZoomIn, Download, Filter, Folder } from '@element-plus/icons-vue'
 import request from '@/utils/request'
 import { ElMessage } from 'element-plus'
 
-const fCustomer=ref(''),fSales=ref(''),fIndustry=ref(''),fDevType=ref(''),fDateRange=ref(null),fOrgIds=ref([])
+const fCustomer=ref(''),fSales=ref(''),fIndustry=ref(''),fDevType=ref(''),fDateRange=ref(null),fOrgIds=ref([]),showFilter=ref(false)
 const custs=ref([]),catMap=ref({}),previewVisible=ref(false),previewUrl=ref(''),previewType=ref('image'),previewId=ref(null)
 const detailVisible=ref(false),detailCust=ref(null)
 const industries=['冶金','煤矿','化工','电力','有色金属','机械','工程公司','维修厂','其他终端客户']
 const devTypes=['成熟创新','突破开拓','铺垫宣传']
 const userList=ref([]),orgTree=ref([])
+const activeFilterCount=computed(()=>[fSales.value,fIndustry.value,fDevType.value,fDateRange.value,fOrgIds.value?.length].filter(v=>!!v).length)
 
 function onImgError(e){e.target.src='data:image/svg+xml,'+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="320" height="240" viewBox="0 0 320 240"><rect fill="#f5f6f7" width="320" height="240"/><text fill="#c0c4cc" font-size="14" font-family="sans-serif" text-anchor="middle" x="160" y="120">图片加载失败</text></svg>')}
 function fileUrl(id){return'/api/file/download/'+id+'?token='+(getToken()||'')}
@@ -198,10 +223,17 @@ onMounted(()=>{loadCats();loadUsers();loadOrgs();doSearch()})
 </script>
 
 <style scoped>
-.bar{background:#fff;border-bottom:1px solid #ebeef5;padding:12px 24px}
+.bar{background:#fff;border-bottom:1px solid #ebeef5;padding:12px 20px}
 .bar-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-.kw{width:170px}.kw2{width:140px}.sel{width:110px}.dt{width:200px}.org-sel{width:180px}
-.cnt{font-size:12px;color:#999;white-space:nowrap;margin-left:auto}
+.bar-adv{margin-top:12px;padding-top:12px;border-top:1px solid #f0f0f0}
+.adv-row{display:flex;gap:16px;align-items:center;flex-wrap:wrap;margin-bottom:10px}
+.adv-row:last-child{margin-bottom:0}
+.adv-group{display:flex;align-items:center;gap:6px}
+.adv-label{font-size:12px;font-weight:600;color:#4e5969;white-space:nowrap;min-width:50px}
+.adv-group .el-select{width:130px}
+.kw-main{width:220px}.kw2{width:140px}.sel{width:110px}.dt{width:200px}.org-sel{width:180px}
+.cnt{display:flex;align-items:center;gap:4px;font-size:13px;color:#409eff;font-weight:600;white-space:nowrap;margin-left:auto}
+.flex-1{flex:1}
 
 .card{background:#fff;border:1px solid #e4e7ed;border-radius:10px;overflow:hidden;display:flex;flex-direction:column;transition:box-shadow .2s}
 .card:hover{box-shadow:0 4px 16px rgba(0,0,0,.06)}
