@@ -11,6 +11,13 @@
         <span class="cnt"><el-icon><Folder /></el-icon> {{ custs.length }} 客户</span>
       </div>
       <div v-if="showFilter" class="bar-adv">
+        <div class="adv-header">
+          <span class="adv-title"><el-icon><Filter /></el-icon> 筛选条件</span>
+          <span class="adv-header-right">
+            <el-tag v-if="activeFilterCount" size="small" type="primary" effect="light" round>{{ activeFilterCount }} 项已选</el-tag>
+            <el-button link size="small" @click="doReset" :disabled="activeFilterCount === 0">清空筛选</el-button>
+          </span>
+        </div>
         <div class="adv-grid">
           <div class="adv-field">
             <label class="adv-field-label"><el-icon><User /></el-icon> 同事姓名</label>
@@ -246,12 +253,17 @@ onMounted(()=>{loadCats();loadUsers();loadOrgs();doSearch()})
 <style scoped>
 .bar{background:#fff;border-bottom:1px solid #ebeef5;padding:12px 20px}
 .bar-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-.bar-adv{margin-top:14px;padding:18px 20px;background:#f8f9fb;border-radius:10px;border:1px solid #eef0f4}
-.adv-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px 16px}
-.adv-field{min-width:0}
+.bar-adv{margin-top:14px;padding:16px 20px 18px;background:#fff;border-radius:12px;border:1px solid #e8ecf1;border-top:3px solid #409eff;box-shadow:0 2px 10px rgba(31,45,61,.05)}
+.adv-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
+.adv-title{display:flex;align-items:center;gap:6px;font-size:14px;font-weight:600;color:#1f2329}
+.adv-title .el-icon{color:#409eff;font-size:15px}
+.adv-header-right{display:flex;align-items:center;gap:10px}
+.adv-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px 18px}
+.adv-field{min-width:0;background:#f7f9fc;border:1px solid #f0f2f5;border-radius:8px;padding:10px 12px;transition:border-color .2s, box-shadow .2s}
+.adv-field:hover{border-color:#d3e3f7;box-shadow:0 2px 6px rgba(64,158,255,.06)}
 .adv-field.span-2{grid-column:span 2}
-.adv-field-label{display:flex;align-items:center;gap:5px;font-size:12px;font-weight:600;color:#4e5969;margin-bottom:5px}
-.adv-field-label .el-icon{font-size:13px;color:#909399}
+.adv-field-label{display:flex;align-items:center;gap:6px;font-size:13px;font-weight:600;color:#3a4a5a;margin-bottom:8px}
+.adv-field-label .el-icon{font-size:14px;color:#409eff}
 .adv-field :deep(.el-select),.adv-field :deep(.el-date-picker){width:100%}
 .kw-main{width:240px}
 .cnt{display:flex;align-items:center;gap:4px;font-size:13px;color:#409eff;font-weight:600;white-space:nowrap;margin-left:auto}
