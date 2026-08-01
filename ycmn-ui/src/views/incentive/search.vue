@@ -32,11 +32,18 @@
             <div v-for="f in getFiles(c.records[0]).slice(0,4)" :key="f.id" class="card-img">
               <template v-if="f.type==='image'">
                 <div class="img-wrap">
-                  <img :src="fileUrl(f.id)" @click="preview(f.id)" @error="onImgError" />
+                  <img :src="fileUrl(f.id)" @click="preview(f.id, f.type)" @error="onImgError" />
                   <div v-if="f.tag" class="img-tag">{{ f.tag }}</div>
                 </div>
               </template>
-              <div v-else-if="f.type==='video'" class="img-vid" @click="preview(f.id)">▶</div>
+              <div v-else-if="f.type==='video'" class="img-vid" @click="preview(f.id, f.type)">
+                <div class="vid-overlay"><el-icon :size="28"><VideoPlay /></el-icon></div>
+                <div v-if="f.tag" class="img-tag">{{ f.tag }}</div>
+              </div>
+              <div v-else class="img-doc" @click="window.open(fileUrl(f.id))">
+                <el-icon :size="24"><Document /></el-icon>
+                <div class="doc-name">{{ f.label?.substring(0,6) }}</div>
+              </div>
             </div>
           </div>
         </div>
@@ -44,7 +51,20 @@
       </div>
     </div>
 
-    <el-dialog v-model="previewVisible" width="90vw" :close-on-click-modal="true"><img :src="previewUrl" style="width:100%;max-height:85vh;object-fit:contain" @error="onImgError" /></el-dialog>
+    <!-- 预览弹窗：支持图片和视频 -->
+    <el-dialog v-model="previewVisible" width="90vw" :close-on-click-modal="true" destroy-on-close>
+      <template v-if="previewType==='video'">
+        <video :src="previewUrl" controls autoplay style="width:100%;max-height:80vh;background:#000;border-radius:8px" />
+      </template>
+      <template v-else>
+        <div style="text-align:center">
+          <img :src="previewUrl" style="max-width:100%;max-height:80vh;object-fit:contain;border-radius:8px" @error="onImgError" />
+        </div>
+      </template>
+      <div style="text-align:center;margin-top:12px">
+        <el-button type="primary" size="small" @click="downloadPreview"><el-icon><Download /></el-icon> 下载文件</el-button>
+      </div>
+    </el-dialog>
 
     <el-dialog v-model="detailVisible" width="1000px" top="4vh" :close-on-click-modal="true" destroy-on-close class="detail-dlg">
       <template #header></template>
@@ -90,12 +110,27 @@
                 <div v-for="f in getFiles(r)" :key="f.id" class="dtl-file">
                   <template v-if="f.type==='image'">
                     <div class="dtl-img-wrap">
-                      <img :src="fileUrl(f.id)" @click="preview(f.id)" @error="onImgError" />
+                      <img :src="fileUrl(f.id)" @click="preview(f.id, f.type)" @error="onImgError" />
                       <div v-if="f.tag" class="dtl-file-tag">{{ f.tag }}</div>
+                      <div class="dtl-file-acts">
+                        <el-button size="small" circle type="primary" @click.stop="preview(f.id, f.type)"><el-icon><ZoomIn /></el-icon></el-button>
+                        <el-button size="small" circle @click.stop="window.open(fileUrl(f.id))"><el-icon><Download /></el-icon></el-button>
+                      </div>
                     </div>
                   </template>
-                  <div v-else-if="f.type==='video'" class="dtl-file-vid" @click="preview(f.id)">▶</div>
-                  <div v-else class="dtl-file-doc" @click="window.open(fileUrl(f.id))">📄 {{ f.label }}</div>
+                  <div v-else-if="f.type==='video'" class="dtl-file-vid" @click="preview(f.id, f.type)">
+                    <div class="vid-overlay"><el-icon :size="36"><VideoPlay /></el-icon></div>
+                    <div v-if="f.tag" class="dtl-file-tag">{{ f.tag }}</div>
+                    <div class="dtl-file-acts">
+                      <el-button size="small" circle type="primary" @click.stop="preview(f.id, f.type)"><el-icon><VideoPlay /></el-icon></el-button>
+                      <el-button size="small" circle @click.stop="window.open(fileUrl(f.id))"><el-icon><Download /></el-icon></el-button>
+                    </div>
+                  </div>
+                  <div v-else class="dtl-file-doc" @click="window.open(fileUrl(f.id))">
+                    <el-icon :size="28"><Document /></el-icon>
+                    <span class="doc-label">{{ f.label }}</span>
+                    <el-button size="small" circle @click.stop="window.open(fileUrl(f.id))"><el-icon><Download /></el-icon></el-button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -110,18 +145,19 @@
 import { ref, onMounted } from 'vue'
 import { getCategoryTree } from '@/api/incentive'
 import { getToken } from '@/utils/token'
-import { Search, User } from '@element-plus/icons-vue'
+import { Search, User, VideoPlay, Document, ZoomIn, Download } from '@element-plus/icons-vue'
 import request from '@/utils/request'
 import { ElMessage } from 'element-plus'
 
 const fCustomer=ref(''),fSales=ref(''),fIndustry=ref(''),fType=ref(''),fDateRange=ref(null)
-const custs=ref([]),catMap=ref({}),previewVisible=ref(false),previewUrl=ref('')
+const custs=ref([]),catMap=ref({}),previewVisible=ref(false),previewUrl=ref(''),previewType=ref('image'),previewId=ref(null)
 const detailVisible=ref(false),detailCust=ref(null)
 const industries=['冶金','煤矿','化工','电力','有色金属','机械','工程公司','维修厂','其他终端客户']
 
 function onImgError(e){e.target.src='data:image/svg+xml,'+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="320" height="240" viewBox="0 0 320 240"><rect fill="#f5f6f7" width="320" height="240"/><text fill="#c0c4cc" font-size="14" font-family="sans-serif" text-anchor="middle" x="160" y="120">图片加载失败</text></svg>')}
 function fileUrl(id){return'/api/file/download/'+id+'?token='+(getToken()||'')}
-function preview(id){previewUrl.value=fileUrl(id);previewVisible.value=true}
+function preview(id,type){previewUrl.value=fileUrl(id);previewType.value=type==='video'?'video':'image';previewVisible.value=true}
+function downloadPreview(){if(previewUrl.value)window.open(previewUrl.value)}
 function showDetail(c){detailCust.value=c;detailVisible.value=true}
 
 function getFiles(r){
@@ -172,7 +208,12 @@ onMounted(()=>{loadCats();doSearch()})
 .img-tag{position:absolute;top:0;left:50%;transform:translateX(-50%);font-size:10px;color:#999;background:rgba(255,255,255,.85);padding:2px 8px;border-radius:0 0 4px 4px;white-space:nowrap;z-index:1}
 .card-img img{width:100%;aspect-ratio:4/3;object-fit:cover;cursor:pointer;transition:transform .3s;display:block}
 .card-img img:hover{transform:scale(1.06)}
-.img-vid{width:100%;aspect-ratio:4/3;background:#1a1a2e;border-radius:6px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:24px;cursor:pointer}
+.img-vid{width:100%;aspect-ratio:4/3;background:linear-gradient(135deg,#1a1a2e,#2d2d44);border-radius:6px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:24px;cursor:pointer;position:relative;overflow:hidden}
+.vid-overlay{width:48px;height:48px;border-radius:50%;background:rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px);transition:transform .2s}
+.img-vid:hover .vid-overlay{transform:scale(1.1)}
+.img-doc{width:100%;aspect-ratio:4/3;background:#fafbfc;border:1px solid #e8ecf1;border-radius:6px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;cursor:pointer;color:#909399;transition:all .15s}
+.img-doc:hover{background:#ecf5ff;border-color:#409eff;color:#409eff}
+.doc-name{font-size:10px;max-width:80px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:center}
 .card-ft{text-align:center;padding:12px;border-top:1px solid #f0f2f5;font-size:13px;color:#409eff;cursor:pointer;font-weight:600}
 .card-ft:hover{background:#ecf5ff}
 
@@ -240,6 +281,12 @@ onMounted(()=>{loadCats();doSearch()})
 .dtl-file-tag{position:absolute;top:0;left:50%;transform:translateX(-50%);font-size:11px;color:#8f959e;background:rgba(255,255,255,.85);padding:2px 10px;border-radius:0 0 4px 4px;white-space:nowrap;z-index:1}
 .dtl-file img{width:100%;height:220px;object-fit:cover;cursor:pointer;display:block}
 .dtl-file img:hover{opacity:.85}
-.dtl-file-vid{width:100%;height:220px;background:#1a1a2e;border-radius:6px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#fff;font-size:26px}
-.dtl-file-doc{width:100%;height:220px;background:#f5f6f7;border:1px solid #e5e6eb;border-radius:6px;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;color:#646a73;font-size:13px;text-align:center;gap:4px;padding:8px}
+.dtl-file-vid{width:100%;height:220px;background:linear-gradient(135deg,#1a1a2e,#2d2d44);border-radius:8px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#fff;font-size:26px;position:relative;overflow:hidden}
+.dtl-file-vid .vid-overlay{width:56px;height:56px;border-radius:50%;background:rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;transition:transform .2s}
+.dtl-file-vid:hover .vid-overlay{transform:scale(1.12)}
+.dtl-file-doc{width:100%;height:220px;background:#fafbfc;border:1px solid #e5e6eb;border-radius:8px;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;color:#646a73;font-size:13px;text-align:center;gap:8px;padding:8px;position:relative;transition:all .15s}
+.dtl-file-doc:hover{background:#ecf5ff;border-color:#409eff;color:#409eff}
+.doc-label{color:#333;font-weight:500;font-size:14px;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dtl-file-acts{position:absolute;top:10px;right:10px;display:flex;gap:6px;opacity:0;transition:opacity .2s;z-index:2}
+.dtl-img-wrap:hover .dtl-file-acts,.dtl-file-vid:hover .dtl-file-acts,.dtl-file-doc:hover .dtl-file-acts{opacity:1}
 </style>
