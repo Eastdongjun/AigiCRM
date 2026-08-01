@@ -4,9 +4,9 @@
   "title": "文件管理上传失败修复：folderId null 400 + el-upload on-success 不触发，改自定义上传",
   "project_root": "/Users/donglai/东来/01-Projects/01-aigicrm/04-源码",
   "ui_scope": "required",
-  "current_state": "INTAKE",
+  "current_state": "REQUIREMENTS_READY",
   "created_at": "2026-08-01T21:35:42+08:00",
-  "updated_at": "2026-08-01T21:36:25+08:00",
+  "updated_at": "2026-08-01T21:36:42+08:00",
   "required_kinds": [
     "build",
     "typecheck"
@@ -44,7 +44,13 @@
       "to": "INTAKE",
       "at": "2026-08-01T21:35:42+08:00",
       "evidence": "feature initialized"
+    },
+    {
+      "from": "INTAKE",
+      "to": "REQUIREMENTS_READY",
+      "at": "2026-08-01T21:36:42+08:00",
+      "evidence": "01-requirements.md"
     }
   ],
-  "fingerprint_sha256": "130158dafc6591bf9ab81e7f23da399b977836198e3eae76ea0d5077cc1d8b01"
+  "fingerprint_sha256": "fb73b65ba146104e74fb8154fd50b7ef5478d8e3721b093160968bfa7369a464"
 }

@@ -4,7 +4,7 @@
 
 修复文件管理页（/file）上传失败问题。
 
-## 当前行为（2026-08-01 21:20 实测）
+## 当前行为
 
 - **根因 1（确定性 400）**：el-upload 的 `:data="{ folderId: selectedFolderId }"` 在未选文件夹时把 `null` 序列化成字符串 `"null"` → 后端 `@RequestParam Long folderId` 类型转换失败 → **400 "参数类型不正确：folderId 应为Long"** → 上传失败（curl 复现：folderId=null → 400；folderId= 空 → 200）
 - **根因 2（on-success 不触发）**：即使参数修好，el-upload 自动上传的 XHR 返回 200 后 on-success 回调不触发（getFile 找不到内部文件 → handleSuccess 直接 return；element-plus 2.14.1 的 fileList/on-success 交互为已知问题区）→ 无成功提示、弹窗不关、列表不刷新 → 用户感知"上传失败"
