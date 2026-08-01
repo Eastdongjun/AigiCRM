@@ -2,10 +2,12 @@
 
 > 新会话接手提示：读本文件即可恢复上下文。AC-001~007 全 PASS，已部署测试服。
 
-## 当前状态（2026-08-01 19:20）
+## 当前状态（2026-08-01 19:40，v2）
 
-- **DELIVERED**（status --require-delivered exit=0，completion_authorized=true）
-- 未做：git 提交（与 8-1 其他功能包一致，待用户确认）；生产未部署（未授权）
+- 代码完成并已部署测试服：**有子项的一级禁止删除**（前端 ElMessage.warning 不发请求 + 后端 400"该类别下有 N 个子项，请先删除子项"），AC-008 已验证
+- **git 已提交**：f4cb079（20 文件，含功能包），未 push
+- **未完成**：reopen 后 gate 状态停在 REQUIREMENTS_READY，PROTOTYPE_READY advance 失败（原因未查看完整输出，疑为 ui-review 被 invalidate）。**新会话第一步**：重跑 record-ui-review（score 88）→ preflight → run-gates → 逐级 advance 至 DELIVERED（代码与部署已完成，纯状态收尾）
+- 其余事实见下方（交付报告/测试矩阵已含 v2 追加记录）
 
 ## 目标与结果
 
