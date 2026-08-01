@@ -322,6 +322,7 @@
                 @check="onSeaTreeCheck"
                 style="max-height:360px;overflow:auto;padding:8px"
               />
+              <div class="tree-card-tip">总部不可选；大区/办事处/部门/人员均可选</div>
             </div>
           </el-col>
           <el-col :span="10">
@@ -441,7 +442,7 @@
 
 <script setup>
 import ApprovalConfig from '@/views/system/approvalConfig.vue'
-import { ref, reactive, computed, onMounted, watch } from 'vue'
+import { ref, reactive, computed, onMounted, watch, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus } from '@element-plus/icons-vue'
@@ -757,6 +758,35 @@ const buildVisibleKeys = (deptIds, userIds) => {
   return keys
 }
 
+const seaTreeRef = ref(null)
+// 扁平化组织树用于 key → 标签映射
+const flattenOrgTree = (nodes, out = []) => {
+  for (const n of nodes) { out.push(n); if (n.children) flattenOrgTree(n.children, out) }
+  return out
+}
+// 已选范围标签（同步树勾选态）
+const selectedSeaNodes = computed(() => {
+  const all = flattenOrgTree(orgTree.value)
+  return (poolForm.visibleKeys || []).map(k => {
+    const n = all.find(x => String(x.id) === k)
+    if (n) return { key: k, label: n.label, type: String(k).startsWith('d_') ? 'warning' : 'primary' }
+    return { key: k, label: k, type: 'info' }
+  })
+})
+// 树勾选变化 → 同步 visibleKeys
+const onSeaTreeCheck = () => {
+  if (!seaTreeRef.value) return
+  poolForm.visibleKeys = seaTreeRef.value.getCheckedKeys().map(String)
+}
+const removeSeaNode = (item) => {
+  poolForm.visibleKeys = (poolForm.visibleKeys || []).filter(k => k !== item.key)
+  if (seaTreeRef.value) seaTreeRef.value.setCheckedKeys(poolForm.visibleKeys)
+}
+const clearSeaSelection = () => {
+  poolForm.visibleKeys = []
+  if (seaTreeRef.value) seaTreeRef.value.setCheckedKeys([])
+}
+
 const handleAddPool = () => {
   Object.assign(poolForm, { id: null, poolName: '', visibleKeys: [], sortOrder: 0 })
   poolDialogVisible.value = true
@@ -770,6 +800,7 @@ const handleEditPool = (row) => {
     sortOrder: row.sortOrder || 0
   })
   poolDialogVisible.value = true
+  nextTick(() => { if (seaTreeRef.value) seaTreeRef.value.setCheckedKeys(poolForm.visibleKeys) })
 }
 
 const handleDeletePool = async (row) => {
@@ -1031,4 +1062,9 @@ onMounted(() => {
 .perm-yes { color: #409eff; font-weight: 700; font-size: 16px }
 .perm-no { color: #ddd }
 .first-in-group td { border-top: 2px solid #e8eaed }
+
+/* 公海池可见范围树 */
+.tree-card { border: 1px solid #e4e7ed; border-radius: 8px; padding: 10px 12px; background: #fafbfc }
+.tree-card-header { display: flex; align-items: center; gap: 5px; font-size: 13px; font-weight: 600; color: #4e5969; margin-bottom: 6px }
+.tree-card-tip { font-size: 11px; color: #909399; margin-top: 6px; line-height: 1.5 }
 </style>

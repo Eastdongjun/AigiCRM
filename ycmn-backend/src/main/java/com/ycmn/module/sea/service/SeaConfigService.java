@@ -81,12 +81,24 @@ public class SeaConfigService {
         configMapper.deleteById(id);
     }
 
-    /** 公海池是否对该用户可见: all数据范围全可见; 本人在可见人员中; 本人部门在可见部门中 */
+    /** 公海池是否对该用户可见: all数据范围全可见; 本人在可见人员中; 本人部门(或上级链含大区)在可见部门中 */
     public boolean isVisibleTo(BizSeaConfig config, SecurityUser user) {
         if (user == null) return false;
         if ("all".equals(user.getDataScope())) return true;
         if (csvContains(config.getVisibleUserIds(), user.getUserId())) return true;
-        if (csvContains(config.getVisibleDeptIds(), user.getDeptId())) return true;
+        if (user.getDeptId() != null && csvContains(config.getVisibleDeptIds(), user.getDeptId())) return true;
+        // 大区可见性: 用户部门向上追溯, 命中可见部门(如大区 id)即可见
+        if (user.getDeptId() != null && StringUtils.hasText(config.getVisibleDeptIds())) {
+            Set<Long> visible = parseIds(config.getVisibleDeptIds()).stream().collect(Collectors.toSet());
+            Map<Long, SysDept> deptMap = deptMapper.selectList(null).stream()
+                    .collect(Collectors.toMap(SysDept::getId, d -> d, (a, b) -> a));
+            SysDept cur = deptMap.get(user.getDeptId());
+            int guard = 0;
+            while (cur != null && guard++ < 20) {
+                if (visible.contains(cur.getId())) return true;
+                cur = cur.getParentId() != null ? deptMap.get(cur.getParentId()) : null;
+            }
+        }
         return false;
     }
 
@@ -94,10 +106,20 @@ public class SeaConfigService {
     private String deriveRegionIds(String deptIdsCsv, String userIdsCsv) {
         Map<Long, SysDept> deptMap = deptMapper.selectList(null).stream()
                 .collect(Collectors.toMap(SysDept::getId, d -> d, (a, b) -> a));
+        Map<Long, List<SysDept>> childrenMap = new HashMap<>();
+        for (SysDept d : deptMap.values()) {
+            childrenMap.computeIfAbsent(d.getParentId() == null ? 0L : d.getParentId(), k -> new ArrayList<>()).add(d);
+        }
         LinkedHashSet<Long> offices = new LinkedHashSet<>();
-        // 部门 → 向上找最近 dept_type=3 办事处
+        // 部门 → 大区(type=2)向下收集其子树所有办事处(3); 其他部门向上找最近 type=3 办事处
         for (Long deptId : parseIds(deptIdsCsv)) {
-            SysDept cur = deptMap.get(deptId);
+            SysDept dept = deptMap.get(deptId);
+            if (dept == null) continue;
+            if (dept.getDeptType() != null && dept.getDeptType() == 2) {
+                collectOfficesUnder(dept.getId(), childrenMap, offices);
+                continue;
+            }
+            SysDept cur = dept;
             int guard = 0;
             while (cur != null && (cur.getDeptType() == null || cur.getDeptType() != 3) && guard++ < 20) {
                 cur = cur.getParentId() != null ? deptMap.get(cur.getParentId()) : null;
@@ -112,6 +134,17 @@ public class SeaConfigService {
             if (u != null && u.getOfficeId() != null) offices.add(u.getOfficeId());
         }
         return offices.stream().map(String::valueOf).collect(Collectors.joining(","));
+    }
+
+    /** 收集某部门(如大区)子树中所有办事处(dept_type=3) */
+    private void collectOfficesUnder(Long deptId, Map<Long, List<SysDept>> childrenMap, Set<Long> offices) {
+        for (SysDept child : childrenMap.getOrDefault(deptId, Collections.emptyList())) {
+            if (child.getDeptType() != null && child.getDeptType() == 3) {
+                offices.add(child.getId());
+            } else {
+                collectOfficesUnder(child.getId(), childrenMap, offices);
+            }
+        }
     }
 
     private void fillNames(BizSeaConfig config) {
@@ -136,7 +169,7 @@ public class SeaConfigService {
     }
 
     /**
-     * 组织机构树: 部门(type=4)与人员可选, 办事处/大区/总部(type<=3)灰显禁选仅作层级.
+     * 组织机构树: 大区/办事处/部门(type=2/3/4)与人员均可选, 总部(type=1)灰显禁选仅作层级.
      * 节点: { id:"d_<id>"/"u_<id>", label, disabled, children }
      */
     public List<Map<String, Object>> buildOrgTree() {
@@ -175,7 +208,7 @@ public class SeaConfigService {
                 Map<String, Object> node = new LinkedHashMap<>();
                 node.put("id", "d_" + d.getId());
                 node.put("label", d.getDeptName());
-                boolean selectable = d.getDeptType() != null && d.getDeptType() == 4;
+                boolean selectable = d.getDeptType() != null && d.getDeptType() != 1;
                 node.put("disabled", !selectable);
                 List<Map<String, Object>> children = buildDeptNodes(all, d.getId(), usersByDept);
                 List<SysUser> us = usersByDept.get(d.getId());

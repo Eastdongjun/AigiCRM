@@ -58,10 +58,10 @@
         </el-form-item>
         <el-form-item label="类型">
           <el-select v-model="form.orgType">
-            <el-option label="🏢 总部" value="HQ" />
-            <el-option label="🏭 大区" value="BRANCH" />
-            <el-option label="🏬 办事处" value="OFFICE" />
-            <el-option label="📂 部门" value="DEPT" />
+            <el-option label="🏢 总部" value="1" />
+            <el-option label="🏭 大区" value="2" />
+            <el-option label="🏬 办事处" value="3" />
+            <el-option label="📂 部门" value="4" />
           </el-select>
         </el-form-item>
         <el-form-item label="排序">
@@ -111,7 +111,7 @@ const treeData = ref([])
 const dialogVisible = ref(false)
 const dialogTitle = ref('')
 const parentName = ref('')
-const form = ref({ parentId: null, orgName: '', orgCode: '', orgType: 'DEPT', sortOrder: 0 })
+const form = ref({ parentId: null, orgName: '', orgCode: '', orgType: '3', sortOrder: 0 })
 const editId = ref(null)
 
 const adminDialogVisible = ref(false)
@@ -145,18 +145,18 @@ function flatten(nodes) {
 }
 
 function typeLabel(type) {
-  const map = { HQ: '总部', BRANCH: '大区', OFFICE: '办事处', DEPT: '部门' }
+  const map = { 1: '总部', 2: '大区', 3: '办事处', 4: '部门' }
   return map[type] || type
 }
 
 function typeTag(type) {
-  const map = { HQ: '', BRANCH: 'warning', SUBSIDIARY: 'success', OFFICE: 'info', DEPT: '' }
+  const map = { 1: 'danger', 2: 'warning', 3: 'primary', 4: 'info' }
   return map[type] || ''
 }
 
 function handleAdd(parent) {
   editId.value = null
-  form.value = { parentId: parent ? parent.id : 0, orgName: '', orgCode: '', orgType: 'DEPT', sortOrder: 0 }
+  form.value = { parentId: parent ? parent.id : 0, orgName: '', orgCode: '', orgType: '3', sortOrder: 0 }
   parentName.value = parent ? parent.orgName : '根级'
   dialogTitle.value = '添加组织'
   dialogVisible.value = true

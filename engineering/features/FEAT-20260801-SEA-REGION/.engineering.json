@@ -1,0 +1,56 @@
+{
+  "schema_version": "1.0",
+  "feature_id": "FEAT-20260801-SEA-REGION",
+  "title": "新增公海池组织架构可选大区（dept_type=2）",
+  "project_root": "/Users/donglai/东来/01-Projects/01-aigicrm/04-源码",
+  "ui_scope": "required",
+  "current_state": "REQUIREMENTS_READY",
+  "created_at": "2026-08-01T20:20:16+08:00",
+  "updated_at": "2026-08-01T20:29:22+08:00",
+  "required_kinds": [
+    "build",
+    "typecheck"
+  ],
+  "quality_commands": {
+    "build": {
+      "argv": [
+        "npm",
+        "--prefix",
+        "ycmn-ui",
+        "run",
+        "build"
+      ],
+      "required": true
+    },
+    "typecheck": {
+      "argv": [
+        "mvn",
+        "-f",
+        "ycmn-backend/pom.xml",
+        "-q",
+        "package",
+        "-DskipTests"
+      ],
+      "required": true
+    }
+  },
+  "latest_gate_report": "evidence/gate-report-20260801-202922-049962.json",
+  "latest_preflight_report": "evidence/preflight-report-20260801-202918-558791.json",
+  "config_revision": 3,
+  "feature_revision": 1,
+  "transitions": [
+    {
+      "from": null,
+      "to": "INTAKE",
+      "at": "2026-08-01T20:20:16+08:00",
+      "evidence": "feature initialized"
+    },
+    {
+      "from": "INTAKE",
+      "to": "REQUIREMENTS_READY",
+      "at": "2026-08-01T20:29:18+08:00",
+      "evidence": "01-requirements.md REQ-001~004/AC-001~004"
+    }
+  ],
+  "fingerprint_sha256": "dc7b434703fbcccfa17ba9ea8f8d88cf4ff9a266a61ba23e52c5bfbca31e2381"
+}
