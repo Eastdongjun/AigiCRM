@@ -76,8 +76,8 @@
 | GET | `/api/incentive/customer-records` | `incentive:view` | customerRecords | IncentiveController.java |
 | ANY | `/api/incentive/permission` | `system:config:view` | list | IncentivePermissionController.java |
 | GET | `/api/incentive/permission/check` | `登录即可` | check | IncentivePermissionController.java |
-| POST | `/api/incentive/permission/grant` | `system:config:view` | grant | IncentivePermissionController.java |
-| DELETE | `/api/incentive/permission/{id}` | `system:config:view` | revoke | IncentivePermissionController.java |
+| POST | `/api/incentive/permission/grant` | `system:config:edit` | grant | IncentivePermissionController.java |
+| DELETE | `/api/incentive/permission/{id}` | `system:config:edit` | revoke | IncentivePermissionController.java |
 | GET | `/api/incentive/ranking` | `incentive:view` | ranking | IncentiveController.java |
 | GET | `/api/incentive/ranking/stats` | `incentive:view` | rankingStats | IncentiveController.java |
 | GET | `/api/incentive/records` | `incentive:view` | getRecords | IncentiveController.java |

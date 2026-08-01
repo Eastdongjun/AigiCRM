@@ -1,6 +1,6 @@
 # YCMN 权限码字典(自动生成)
 
-> 生成时间: 2026-08-02 | 来源: 生产 sys_menu + sys_role_menu
+> 生成时间: 2026-08-02 | 来源: 测试 sys_menu + sys_role_menu
 > 本文件由 scripts/gen-permission-dict.sh 自动生成,**禁止手改**;权限变更后重新运行。
 > 格式约定: 权限码 = `模块:动作`(如 customer:view / system:user:add)
 
@@ -35,7 +35,7 @@
 | `sea:config:view` | 公海配置查看 | 3 | `NULL` | 系统管理员,行政,销售员 |
 | `sea:pool:delete` | 公海删除 | 3 | `` | 系统管理员 |
 | `sea:pool:edit` | 公海编辑 | 3 | `` | 系统管理员 |
-| `sea:pool:import` | 公海导入 | 3 | `` | 系统管理员,销售员 |
+| `sea:pool:import` | 公海导入 | 3 | `` | 系统管理员 |
 | `sea:view` | 公海管理 | 2 | `/sea` | 系统管理员,行政,销售员,销售总监 |
 | `statistics:scoreboard` | 积分榜 | 2 | `/scoreboard` | 系统管理员,行政,销售员,销售总监 |
 | `statistics:view` | 统计分析 | 2 | `/statistics` | 系统管理员,行政,销售总监 |
@@ -101,7 +101,7 @@
 | `sea:config:view` | ✅ | ✅ | ✅ |   |
 | `sea:pool:delete` | ✅ |   |   |   |
 | `sea:pool:edit` | ✅ |   |   |   |
-| `sea:pool:import` | ✅ |   | ✅ |   |
+| `sea:pool:import` | ✅ |   |   |   |
 | `sea:view` | ✅ | ✅ | ✅ | ✅ |
 | `statistics:scoreboard` | ✅ | ✅ | ✅ | ✅ |
 | `statistics:view` | ✅ | ✅ |   | ✅ |

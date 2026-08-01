@@ -28,9 +28,11 @@
 | **OSS_ACCESS_KEY_SECRET** | your-secret(占位) | dummy | **同上** |
 | OSS_BUCKET_NAME | your-bucket | 占位 | 本地存储下不实际使用 |
 | **CORS_ORIGINS** | https://www.aigicrm.com,http://localhost:5173,http://localhost:3000 | (无) | **缺失则登录 403 Invalid CORS request** |
+| **JWT_SECRET** | 必配(256位随机,存 ~/.ycmn-deploy.env) | 必配(测试服务器 .jwt-secret) | **缺失则启动失败**(安全失败,2026-08-02 H9 修复后无默认值) |
+| TRUSTED_PROXY_CIDRS | 默认 10/8,172.16/12,192.168/16 | 同 | 登录限流取真实 IP 的代理网段,默认私有网段即可 |
 | TZ | Asia/Shanghai | — | 时区 |
 
-> 说明:OSS 为 bean 初始化必需(非空即可),本地存储模式下不真正调用;CORS 白名单按环境配置,HTTPS 下后端同源判断依赖白名单(不依赖 X-Forwarded-Proto)。
+> 说明:OSS 为 bean 初始化必需(非空即可),本地存储模式下不真正调用;CORS 白名单按环境配置,HTTPS 下后端同源判断依赖白名单(不依赖 X-Forwarded-Proto)。JWT_SECRET 变更后**全员需重新登录**(旧 token 失效)。
 
 ## 三、数据库差异
 

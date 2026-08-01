@@ -1,6 +1,6 @@
 # YCMN 数据字典(自动生成)
 
-> 生成时间: 2026-08-02 | 来源: 生产 39.99.35.218 MySQL information_schema
+> 生成时间: 2026-08-02 | 来源: 测试 111.229.37.220 MySQL information_schema
 > 共 50 张表。本文件由 scripts/gen-data-dictionary.sh 自动生成,**禁止手改**;库结构变更后重新运行脚本。
 
 ## biz_approval 审批记录
@@ -57,9 +57,9 @@
 | `action` | varchar(20) | YES | NULL |  | 操作: approve/reject |
 | `comment` | varchar(500) | YES | NULL |  | 审批意见 |
 | `operated_at` | datetime | YES | NULL |  | 操作时间 |
-| `status` | varchar(20) | YES | pending |  | 状态 |
 | `config_id` | bigint | YES | NULL |  |  |
 | `sign_mode` | varchar(20) | YES | NULL |  |  |
+| `status` | varchar(20) | YES | pending |  | 状态 |
 
 ## biz_contact 客户联系人
 
@@ -103,6 +103,8 @@
 | `manager_id` | bigint | YES | NULL |  | 管理上级ID |
 | `office_id` | bigint | YES | NULL | MUL | 所属办事处ID |
 | `region_id` | bigint | YES | NULL | MUL | 所属大区ID(dept_type=2) |
+| `group_id` | bigint | YES | NULL |  | 所属集团ID |
+| `legal_entity_id` | bigint | YES | NULL |  | 所属法人公司ID |
 | `remark` | text | YES | NULL |  | 备注 |
 | `status` | varchar(20) | YES | normal | MUL | 状态: normal/warning/expired/sea |
 | `protection_status` | varchar(20) | YES | active |  | 保护状态: active/expiring/expired |
@@ -112,8 +114,6 @@
 | `relationship_score` | int | YES | 0 |  |  |
 | `is_core` | tinyint | YES | 0 |  |  |
 | `tags` | varchar(500) | YES | NULL |  |  |
-| `group_id` | bigint | YES | NULL |  |  |
-| `legal_entity_id` | bigint | YES | NULL |  |  |
 
 ## biz_customer_bak_0624 
 
@@ -274,12 +274,12 @@
 | `period` | varchar(20) | YES | NULL | MUL | 周期(如2026上半年) |
 | `industry` | varchar(50) | YES | NULL |  | 行业(取字典 industry) |
 | `related_products` | varchar(1000) | YES | NULL |  | 相关产品(多行文本) |
-| `file_id` | bigint | YES | NULL |  | 关联文件ID |
+| `file_id` | varchar(500) | YES | NULL |  | 安装后文件ID |
 | `pre_install_question` | text | YES | NULL |  | 安装前问题 |
-| `file_pre_id` | bigint | YES | NULL |  | 安装前文件ID |
-| `file_mid_id` | bigint | YES | NULL |  | 安装中文件ID |
-| `file_post_id` | bigint | YES | NULL |  | 安装后文件ID |
-| `file_track_id` | bigint | YES | NULL |  |  |
+| `file_pre_id` | varchar(500) | YES | NULL |  | 安装前文件ID |
+| `file_mid_id` | varchar(500) | YES | NULL |  | 安装中文件ID |
+| `file_post_id` | varchar(500) | YES | NULL |  | 安装后文件ID |
+| `file_track_id` | varchar(500) | YES | NULL |  | 跟踪文件ID |
 | `remark` | varchar(500) | YES | NULL |  | 备注 |
 | `score` | int | YES | 0 |  | 得分 |
 | `shared` | tinyint | YES | 0 |  |  |
@@ -487,16 +487,16 @@
 |---|---|---|---|---|---|
 | `id` | bigint | NO | NULL | PRI |  |
 | `parent_id` | bigint | YES | 0 |  | 父部门ID |
-| `dept_name` | varchar(100) | NO | NULL |  | 部门名称 |
+| `group_id` | bigint | YES | NULL |  | 所属集团ID |
+| `legal_entity_id` | bigint | YES | NULL |  | 所属法人公司ID |
+| `dept_name` | varchar(100) | NO | NULL |  |  |
 | `dept_code` | varchar(50) | YES | NULL |  |  |
-| `dept_type` | tinyint | YES | NULL |  | 类型 1总部 2大区 3办事处 |
+| `dept_type` | tinyint | YES | NULL |  |  |
 | `leader_id` | bigint | YES | NULL |  | 负责人ID |
 | `sort_order` | int | YES | 0 |  |  |
 | `status` | tinyint | YES | 1 |  |  |
 | `created_at` | datetime | YES | CURRENT_TIMESTAMP |  |  |
 | `updated_at` | datetime | YES | CURRENT_TIMESTAMP |  |  |
-| `group_id` | bigint | YES | NULL |  |  |
-| `legal_entity_id` | bigint | YES | NULL |  |  |
 
 ## sys_dict_data 
 
@@ -590,11 +590,11 @@
 |---|---|---|---|---|---|
 | `id` | bigint | NO | 0 |  |  |
 | `parent_id` | bigint | YES | 0 |  | 父部门ID |
-| `group_id` | bigint | YES | NULL |  |  |
-| `legal_entity_id` | bigint | YES | NULL |  |  |
-| `org_name` | varchar(100) | NO | NULL |  | 部门名称 |
+| `group_id` | bigint | YES | NULL |  | 所属集团ID |
+| `legal_entity_id` | bigint | YES | NULL |  | 所属法人公司ID |
+| `org_name` | varchar(100) | NO | NULL |  |  |
 | `org_code` | varchar(50) | YES | NULL |  |  |
-| `org_type` | tinyint | YES | NULL |  | 类型 1总部 2大区 3办事处 |
+| `org_type` | tinyint | YES | NULL |  |  |
 | `leader_id` | bigint | YES | NULL |  | 负责人ID |
 | `sort_order` | int | YES | 0 |  |  |
 | `status` | tinyint | YES | 1 |  |  |
@@ -660,11 +660,11 @@
 | `role_code` | varchar(50) | NO | NULL | UNI | 角色编码 |
 | `description` | varchar(200) | YES | NULL |  | 描述 |
 | `data_scope` | varchar(20) | YES | self |  | 数据范围 all全部 dept_and_children本部门及下级 dept本部门 self仅自己 |
+| `org_id` | bigint | YES | NULL |  |  |
 | `sort_order` | int | YES | 0 |  |  |
 | `status` | tinyint | YES | 1 |  |  |
 | `created_at` | datetime | YES | CURRENT_TIMESTAMP |  |  |
 | `updated_at` | datetime | YES | CURRENT_TIMESTAMP |  |  |
-| `org_id` | bigint | YES | NULL |  |  |
 
 ## sys_role_menu 角色菜单关联表
 
@@ -703,6 +703,7 @@
 | `email` | varchar(100) | YES | NULL |  | 邮箱 |
 | `avatar` | varchar(500) | YES | NULL |  | 头像URL |
 | `dept_id` | bigint | YES | NULL | MUL | 所属部门ID |
+| `org_id` | bigint | YES | NULL |  |  |
 | `office_id` | bigint | YES | NULL | MUL | 所属办事处ID |
 | `manager_id` | bigint | YES | NULL |  | 直接上级 |
 | `storage_quota` | bigint | YES | 10737418240 |  | 私人存储空间配额(字节,默认10GB) |
@@ -711,10 +712,9 @@
 | `created_at` | datetime | YES | CURRENT_TIMESTAMP |  |  |
 | `updated_at` | datetime | YES | CURRENT_TIMESTAMP |  |  |
 | `deleted` | tinyint | YES | 0 |  |  |
-| `org_id` | bigint | YES | NULL |  |  |
-| `leave_status` | varchar(20) | YES | NULL |  |  |
-| `leave_date` | datetime | YES | NULL |  |  |
-| `leave_reason` | varchar(500) | YES | NULL |  |  |
+| `leave_status` | varchar(20) | YES | NULL |  | 离职状态 |
+| `leave_date` | datetime | YES | NULL |  | 离职日期 |
+| `leave_reason` | varchar(500) | YES | NULL |  | 离职原因 |
 
 ## sys_user_bak_wll_0721 
 
