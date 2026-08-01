@@ -244,7 +244,7 @@ public class FileService {
      */
     private void checkFolderManagePermission(BizFileFolder folder) {
         if ("public".equals(folder.getFolderType())) {
-            if (!"admin".equals(SecurityUtils.getCurrentRoleCode())) {
+            if (!SecurityUtils.isAdmin()) {
                 throw new BusinessException("公共文件夹只有管理员才能管理");
             }
         } else if ("private".equals(folder.getFolderType())) {
@@ -259,18 +259,17 @@ public class FileService {
         if (file == null) return;
 
         Long userId = SecurityUtils.getCurrentUserId();
-        String role = SecurityUtils.getCurrentRoleCode();
 
         // 公共文件只有管理员能删除
         if ("public".equals(file.getFileScope())) {
-            if (!"admin".equals(role)) {
+            if (!SecurityUtils.isAdmin()) {
                 throw new BusinessException("公共文件只有管理员才能删除");
             }
         }
 
         // 私有文件：只有上传者或管理员能删除
         if ("private".equals(file.getFileScope())) {
-            if (!"admin".equals(role) && !userId.equals(file.getUploaderId())) {
+            if (!SecurityUtils.isAdmin() && !userId.equals(file.getUploaderId())) {
                 throw new BusinessException("无权删除该文件");
             }
         }
@@ -330,11 +329,16 @@ public class FileService {
         return ResponseEntity.notFound().build();
     }
 
-    public String getOssUrlByKey(String fileKey) {
-        BizFile file = fileMapper.selectOne(
+    /** 按 oss_key 查询文件记录（key 下载路由的归属校验依据） */
+    public BizFile getFileByKey(String fileKey) {
+        return fileMapper.selectOne(
                 new LambdaQueryWrapper<BizFile>()
                         .eq(BizFile::getOssKey, fileKey)
                         .last("LIMIT 1"));
+    }
+
+    public String getOssUrlByKey(String fileKey) {
+        BizFile file = getFileByKey(fileKey);
         if (file != null && file.getOssUrl() != null && file.getOssUrl().startsWith("http")) {
             return file.getOssUrl();
         }
@@ -399,9 +403,9 @@ public class FileService {
         return String.format("%.1fGB", bytes / (1024.0 * 1024 * 1024));
     }
 
-    /** 文件访问权限校验：上传者 / 被分享者 / 管理员 / 公共文件 */
-    private boolean canAccessFile(BizFile file, Long userId) {
-        if ("admin".equals(SecurityUtils.getCurrentRoleCode())) return true;
+    /** 文件访问权限校验：上传者 / 被分享者 / 管理员 / 公共文件（/download/{id} 与 /download/{key} 同权） */
+    public boolean canAccessFile(BizFile file, Long userId) {
+        if (SecurityUtils.isAdmin()) return true;
         if ("public".equals(file.getFileScope())) return true;
         if (userId.equals(file.getUploaderId())) return true;
         // 检查是否被分享
@@ -419,7 +423,7 @@ public class FileService {
         // 只有文件上传者或管理员可以分享
         BizFile file = fileMapper.selectById(fileId);
         if (file == null) throw new BusinessException("文件不存在");
-        if (!"admin".equals(SecurityUtils.getCurrentRoleCode())
+        if (!SecurityUtils.isAdmin()
                 && !currentUserId.equals(file.getUploaderId())) {
             throw new BusinessException("无权分享该文件");
         }

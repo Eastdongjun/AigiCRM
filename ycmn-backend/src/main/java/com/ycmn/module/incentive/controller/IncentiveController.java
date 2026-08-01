@@ -59,8 +59,8 @@ public class IncentiveController {
             if (user != null) {
                 // admin 或有激励权限的人可看全部数据
                 boolean canSeeAll = SecurityUtils.isAdmin()
-                    || incentiveService.canEdit(user.getUserId(), SecurityUtils.getCurrentRoleCode())
-                    || incentiveService.canDelete(user.getUserId(), SecurityUtils.getCurrentRoleCode());
+                    || incentiveService.canEdit(user.getUserId())
+                    || incentiveService.canDelete(user.getUserId());
                 userId = canSeeAll ? null : user.getUserId();
             }
         }
@@ -96,7 +96,7 @@ public class IncentiveController {
         SecurityUser user = SecurityUtils.getCurrentUser();
         boolean isAdmin = SecurityUtils.isAdmin();
         // 检查激励权限表：admin 或 有 can_delete 权限的可删除任意记录
-        if (!isAdmin && !incentiveService.canDelete(user.getUserId(), SecurityUtils.getCurrentRoleCode())) {
+        if (!isAdmin && !incentiveService.canDelete(user.getUserId())) {
             BizIncentiveRecord record = incentiveService.getRecordById(id);
             if (record == null || !record.getUserId().equals(user.getUserId())) {
                 return Result.error(403, "无权删除他人记录");

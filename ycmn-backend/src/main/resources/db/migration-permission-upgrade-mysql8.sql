@@ -8,12 +8,12 @@
 -- 一、激励文件 ID 列 BIGINT -> VARCHAR(500)
 -- 实体为 String 存 JSON 数组字符串，BIGINT 严格模式下写入会报错
 -- ============================================================
+-- 注意：file_track_id 在旧库可能不存在，不能 MODIFY（报错），由下方存储过程 ADD（幂等）
 ALTER TABLE `biz_incentive_record`
     MODIFY COLUMN `file_id`      VARCHAR(500) NULL COMMENT '安装后文件ID',
     MODIFY COLUMN `file_pre_id`  VARCHAR(500) NULL COMMENT '安装前文件ID',
     MODIFY COLUMN `file_mid_id`  VARCHAR(500) NULL COMMENT '安装中文件ID',
-    MODIFY COLUMN `file_post_id` VARCHAR(500) NULL COMMENT '安装后文件ID',
-    MODIFY COLUMN `file_track_id` VARCHAR(500) NULL COMMENT '跟踪文件ID';
+    MODIFY COLUMN `file_post_id` VARCHAR(500) NULL COMMENT '安装后文件ID';
 
 -- ============================================================
 -- 二、V2 权限表（CREATE TABLE IF NOT EXISTS 幂等，种子数据用 INSERT IGNORE 防重复）
@@ -124,6 +124,9 @@ BEGIN
     END IF;
 END//
 DELIMITER ;
+
+-- biz_incentive_record 补 file_track_id（旧库缺列，ADD 幂等；新基线 init.sql 已含）
+CALL `add_column_if_not_exists`('biz_incentive_record', 'file_track_id', 'ADD COLUMN `file_track_id` VARCHAR(500) NULL COMMENT ''跟踪文件ID'' AFTER `file_post_id`');
 
 -- sys_org 是视图（基于 sys_dept），列加到基表 sys_dept
 CALL `add_column_if_not_exists`('sys_dept', 'group_id',        'ADD COLUMN `group_id` BIGINT DEFAULT NULL COMMENT ''所属集团ID'' AFTER `parent_id`');

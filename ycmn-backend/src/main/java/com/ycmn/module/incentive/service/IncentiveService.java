@@ -40,9 +40,9 @@ public class IncentiveService {
     private final SysOrgMapper orgMapper;
     private final JdbcTemplate jdbc;
 
-    /** 查询用户是否有编辑权限（admin 始终有权限） */
-    public boolean canEdit(Long userId, String roleCode) {
-        if ("admin".equals(roleCode)) return true;
+    /** 查询用户是否有编辑权限（admin 始终有权限；多角色任一含 admin 即真） */
+    public boolean canEdit(Long userId) {
+        if (SecurityUtils.isAdmin()) return true;
         try {
             Map<String, Object> row = jdbc.queryForMap(
                 "SELECT can_edit FROM biz_incentive_permission WHERE user_id=?", userId);
@@ -66,9 +66,9 @@ public class IncentiveService {
         return list;
     }
 
-    /** 查询用户是否有删除权限（admin 始终有权限） */
-    public boolean canDelete(Long userId, String roleCode) {
-        if ("admin".equals(roleCode)) return true;
+    /** 查询用户是否有删除权限（admin 始终有权限；多角色任一含 admin 即真） */
+    public boolean canDelete(Long userId) {
+        if (SecurityUtils.isAdmin()) return true;
         try {
             Map<String, Object> row = jdbc.queryForMap(
                 "SELECT can_delete FROM biz_incentive_permission WHERE user_id=?", userId);
@@ -528,10 +528,9 @@ public class IncentiveService {
     private Map<String, Object> computeVisibility() {
         Long userId = SecurityUtils.getCurrentUserId();
         boolean isAdmin = SecurityUtils.isAdmin();
-        String roleCode = SecurityUtils.getCurrentRoleCode();
 
         // admin、有激励编辑/删除权限的人：看全部
-        if (isAdmin || canEdit(userId, roleCode) || canDelete(userId, roleCode)) {
+        if (isAdmin || canEdit(userId) || canDelete(userId)) {
             return Map.of("type", "all");
         }
 

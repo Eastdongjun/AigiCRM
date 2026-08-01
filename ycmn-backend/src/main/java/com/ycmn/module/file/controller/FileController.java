@@ -144,6 +144,15 @@ public class FileController {
                 return ResponseEntity.badRequest().build();
             }
 
+            // 归属校验：按 oss_key 解析文件记录，与 /download/{id} 同权（admin/上传者/被分享者/public 文件）
+            BizFile file = fileService.getFileByKey(rawKey);
+            if (file == null) {
+                return ResponseEntity.notFound().build();
+            }
+            if (!fileService.canAccessFile(file, SecurityUtils.getCurrentUserId())) {
+                return ResponseEntity.status(403).build();
+            }
+
             // 优先尝试本地文件
             Resource resource = new UrlResource(resolved.toUri());
             if (resource.exists()) {
@@ -156,11 +165,10 @@ public class FileController {
                         .body(resource);
             }
 
-            // 本地不存在，查数据库看是否有 OSS URL
-            String ossUrl = fileService.getOssUrlByKey(rawKey);
-            if (ossUrl != null && !ossUrl.isBlank()) {
+            // 本地不存在，OSS 文件 302（已过归属校验）
+            if (file.getOssUrl() != null && file.getOssUrl().startsWith("http")) {
                 return ResponseEntity.status(302)
-                        .header(HttpHeaders.LOCATION, ossUrl)
+                        .header(HttpHeaders.LOCATION, file.getOssUrl())
                         .build();
             }
 

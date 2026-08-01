@@ -7,9 +7,11 @@ import org.junit.jupiter.api.Test;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class PermissionRuleEngineTest {
 
@@ -77,6 +79,38 @@ class PermissionRuleEngineTest {
                 rule("customer", "org_filter", "org_id", "in", "${user.orgIdsAndChildren}", 1));
         PermissionRuleEngine.RuleResult result = PermissionRuleEngine.evaluate(rules, u);
         assertEquals("org_id IN (0)", result.toWhereClause());
+    }
+
+    @Test
+    void evaluate_actionControl_groupsByTargetEntity() {
+        List<SysPermissionRule> rules = Arrays.asList(
+                rule("customer", "action_control", null, null, "{\"create\":false,\"delete\":true}", 1),
+                rule("incentive", "action_control", null, null, "{\"delete\":false}", 1)
+        );
+        PermissionRuleEngine.RuleResult result = PermissionRuleEngine.evaluate(rules, user());
+        Map<String, Map<String, Boolean>> actions = result.getActionsByEntity();
+        assertEquals(Boolean.FALSE, actions.get("customer").get("create"));
+        assertEquals(Boolean.TRUE, actions.get("customer").get("delete"));
+        assertEquals(Boolean.FALSE, actions.get("incentive").get("delete"));
+        // 实体间不互相污染：customer 无 delete=false 之外的其他实体动作
+        assertEquals(2, actions.get("customer").size());
+        assertEquals(1, actions.get("incentive").size());
+    }
+
+    @Test
+    void evaluate_actionControl_ignoresRuleWithoutTargetEntity() {
+        List<SysPermissionRule> rules = Collections.singletonList(
+                rule(null, "action_control", null, null, "{\"create\":false}", 1));
+        PermissionRuleEngine.RuleResult result = PermissionRuleEngine.evaluate(rules, user());
+        // 未声明实体的 action_control 不生效，防止全局一刀切误伤
+        assertTrue(result.getActionsByEntity().isEmpty());
+    }
+
+    @Test
+    void evaluate_noActionControlRules_hasEmptyActions() {
+        PermissionRuleEngine.RuleResult result =
+                PermissionRuleEngine.evaluate(Collections.emptyList(), user());
+        assertTrue(result.getActionsByEntity().isEmpty());
     }
 
     @Test

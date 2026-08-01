@@ -1,6 +1,7 @@
 package com.ycmn.module.auth.controller;
 
 import com.ycmn.common.Result;
+import com.ycmn.common.util.ClientIpUtils;
 import com.ycmn.module.auth.dto.*;
 import com.ycmn.module.auth.service.AuthService;
 import com.ycmn.module.system.entity.SysLog;
@@ -22,9 +23,8 @@ public class AuthController {
 
     @PostMapping("/login")
     public Result<LoginResponse> login(@Valid @RequestBody LoginRequest request, HttpServletRequest httpRequest) {
-        String ip = httpRequest.getHeader("X-Forwarded-For");
-        if (ip == null || ip.isEmpty()) ip = httpRequest.getHeader("X-Real-IP");
-        if (ip == null || ip.isEmpty()) ip = httpRequest.getRemoteAddr();
+        // 客户端 IP 只取可信源（防伪造头绕过限流），限流与审计日志同源
+        String ip = ClientIpUtils.getClientIp(httpRequest);
         LoginResponse resp = authService.login(request, ip);
         // 记录登录日志
         try {
@@ -34,9 +34,7 @@ public class AuthController {
             log.setAction("登录");
             String ua = httpRequest.getHeader("User-Agent");
             log.setDetail(parseUserAgent(ua));
-            String ipLog = httpRequest.getHeader("X-Forwarded-For");
-            if (ipLog == null || ipLog.isEmpty()) ipLog = httpRequest.getHeader("X-Real-IP");
-            if (ipLog == null || ipLog.isEmpty()) ipLog = httpRequest.getRemoteAddr();
+            String ipLog = ClientIpUtils.getClientIp(httpRequest);
             log.setIp(ipLog);
             logMapper.insert(log);
         } catch (Exception ignored) {}

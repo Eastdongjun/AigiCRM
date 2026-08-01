@@ -46,6 +46,7 @@ services:
       REDIS_PORT: 6379
       STORAGE_TYPE: local
       UPLOAD_DIR: /app/uploads
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET 未设置（必须注入 256 位随机密钥）}
     volumes:
       - upload-data:/app/uploads
     depends_on:

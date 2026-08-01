@@ -18,6 +18,7 @@ services:
       REDIS_PORT: 6379
       UPLOAD_DIR: /app/uploads
       OSS_ENDPOINT: ${OSS_ENDPOINT:-oss-cn-beijing.aliyuncs.com}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET 未设置（必须注入 256 位随机密钥）}
       OSS_ACCESS_KEY_ID: ${OSS_ACCESS_KEY_ID:-your-key}
       OSS_ACCESS_KEY_SECRET: ${OSS_ACCESS_KEY_SECRET:-your-secret}
       OSS_BUCKET_NAME: ${OSS_BUCKET_NAME:-aigicrm-files}

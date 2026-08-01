@@ -136,7 +136,7 @@ public class CustomerController {
     @DeleteMapping("/{id}/invoices/{invoiceId}")
     public Result<Void> deleteInvoice(@PathVariable Long id, @PathVariable Long invoiceId) {
         accessService.assertCanEdit(id);
-        customerService.deleteInvoice(invoiceId);
+        customerService.deleteInvoice(id, invoiceId);
         return Result.ok();
     }
 
@@ -289,7 +289,7 @@ public class CustomerController {
     @DeleteMapping("/{id}/payments/{paymentId}")
     public Result<Void> deletePayment(@PathVariable Long id, @PathVariable Long paymentId) {
         accessService.assertCanEdit(id);
-        customerService.deletePayment(paymentId);
+        customerService.deletePayment(id, paymentId);
         return Result.ok();
     }
 

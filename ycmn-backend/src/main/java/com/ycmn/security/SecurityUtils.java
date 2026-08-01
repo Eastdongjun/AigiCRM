@@ -50,16 +50,7 @@ public class SecurityUtils {
         return user != null ? user.getOrgId() : null;
     }
 
-    /** 获取首个角色编码（兼容旧代码） */
-    public static String getCurrentRoleCode() {
-        SecurityUser user = getCurrentUser();
-        if (user != null && user.getRoleCodes() != null && !user.getRoleCodes().isEmpty()) {
-            return user.getRoleCodes().get(0);
-        }
-        return null;
-    }
-
-    /** 获取所有角色编码 */
+    /** 获取所有角色编码（权限判断请用 isAdmin()/isOrgAdmin()，勿按首角色判定） */
     public static List<String> getCurrentRoleCodes() {
         SecurityUser user = getCurrentUser();
         return user != null ? user.getRoleCodes() : Collections.emptyList();

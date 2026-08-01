@@ -10,11 +10,20 @@ import com.ycmn.module.incentive.mapper.BizIncentiveRecordMapper;
 import com.ycmn.module.system.mapper.SysDeptMapper;
 import com.ycmn.module.system.mapper.SysOrgMapper;
 import com.ycmn.module.system.mapper.SysUserMapper;
+import com.ycmn.security.SecurityUser;
 import org.junit.jupiter.api.Test;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.test.util.ReflectionTestUtils;
 
+import java.util.Map;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -99,5 +108,53 @@ class IncentiveScoreTest {
         child.setParentId(1L);
         child.setScore(100);
         assertEquals(100, calcScore(service, record("[1]", null, null), child, 100));
+    }
+
+    // ======================== H6：多角色权限判定（不再依赖首角色） ========================
+
+    private void setCurrentUser(SecurityUser u) {
+        Authentication auth = mock(Authentication.class);
+        when(auth.getPrincipal()).thenReturn(u);
+        SecurityContextHolder.getContext().setAuthentication(auth);
+    }
+
+    @Test
+    void canEdit_adminRoleInAnyPosition_grantsFullPermission() {
+        // admin 在角色列表第二位：修复前取首角色会误判为销售员
+        SecurityUser u = new SecurityUser();
+        u.setUserId(5L);
+        u.setRoleCodes(java.util.Arrays.asList("sales_engineer", "admin"));
+        setCurrentUser(u);
+
+        IncentiveService service = newService(mock(BizIncentiveCategoryMapper.class));
+        assertTrue(service.canEdit(5L));
+        assertTrue(service.canDelete(5L));
+    }
+
+    @Test
+    void canEdit_nonAdmin_queriesPermissionTableByUserId() {
+        SecurityUser u = new SecurityUser();
+        u.setUserId(5L);
+        u.setRoleCodes(java.util.Collections.singletonList("sales_engineer"));
+        setCurrentUser(u);
+
+        JdbcTemplate jdbc = mock(JdbcTemplate.class);
+        Map<String, Object> row = new java.util.HashMap<>();
+        row.put("can_edit", 1);
+        when(jdbc.queryForMap(anyString(), eq(5L))).thenReturn(row);
+
+        IncentiveService service = new IncentiveService(
+                mock(BizIncentiveCategoryMapper.class),
+                mock(BizIncentiveRecordMapper.class),
+                mock(SysUserMapper.class),
+                mock(BizFileMapper.class),
+                mock(BizCustomerMapper.class),
+                mock(BizCustomerShareMapper.class),
+                mock(SysDeptMapper.class),
+                mock(SysOrgMapper.class),
+                jdbc);
+        assertTrue(service.canEdit(5L));
+        // can_delete 表无记录 → false（biz_incentive_permission 按 user_id 查询语义不变）
+        assertFalse(service.canDelete(5L));
     }
 }

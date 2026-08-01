@@ -95,8 +95,7 @@ public class ReminderService {
         }
 
         // 非管理员只看自己负责的客户
-        String roleCode = SecurityUtils.getCurrentRoleCode();
-        if (!"admin".equals(roleCode)) {
+        if (!SecurityUtils.isAdmin()) {
             Long currentUserId = SecurityUtils.getCurrentUserId();
             if (currentUserId != null) {
                 wrapper.eq(BizCustomer::getOwnerId, currentUserId);
@@ -166,14 +165,13 @@ public class ReminderService {
         LocalDate deadline = today.plusDays(warningDays);
 
         // 非管理员只统计自己负责的客户
-        String roleCode = SecurityUtils.getCurrentRoleCode();
         Long currentUserId = SecurityUtils.getCurrentUserId();
 
         LambdaQueryWrapper<BizCustomer> custWrapper = new LambdaQueryWrapper<BizCustomer>()
                 .isNotNull(BizCustomer::getExpireDate)
                 .le(BizCustomer::getExpireDate, deadline)
                 .ne(BizCustomer::getStatus, "sea");
-        if (!"admin".equals(roleCode) && currentUserId != null) {
+        if (!SecurityUtils.isAdmin() && currentUserId != null) {
             custWrapper.eq(BizCustomer::getOwnerId, currentUserId);
         }
         Long totalExpiring = customerMapper.selectCount(custWrapper);
@@ -186,7 +184,7 @@ public class ReminderService {
                 .eq(BizReminder::getStatus, "processed")
                 .ge(BizReminder::getCreatedAt, todayStart)
                 .lt(BizReminder::getCreatedAt, todayEnd);
-        if (!"admin".equals(roleCode) && currentUserId != null) {
+        if (!SecurityUtils.isAdmin() && currentUserId != null) {
             remWrapper.eq(BizReminder::getOwnerId, currentUserId);
         }
         Long processedToday = reminderMapper.selectCount(remWrapper);
@@ -195,7 +193,7 @@ public class ReminderService {
                 new LambdaQueryWrapper<BizReminder>()
                         .in(BizReminder::getReminderType, List.of("share_to", "share_by", "share_owner"))
                         .eq(BizReminder::getStatus, "pending"));
-        if (!"admin".equals(roleCode) && currentUserId != null) {
+        if (!SecurityUtils.isAdmin() && currentUserId != null) {
             sharePending = reminderMapper.selectCount(
                 new LambdaQueryWrapper<BizReminder>()
                         .in(BizReminder::getReminderType, List.of("share_to", "share_by", "share_owner"))

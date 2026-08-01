@@ -36,7 +36,8 @@ public class PermissionRuleEngine {
         List<String> whereClauses = new ArrayList<>();
         Set<String> hiddenFields = new LinkedHashSet<>();
         Set<String> visibleFields = new LinkedHashSet<>();
-        Map<String, Boolean> actions = new LinkedHashMap<>();
+        // 操作控制按 target_entity 分组：{entity: {action: bool}}，避免跨实体一刀切误伤
+        Map<String, Map<String, Boolean>> actionsByEntity = new LinkedHashMap<>();
 
         for (SysPermissionRule rule : rules) {
             if (rule.getStatus() == null || rule.getStatus() != 1) continue;
@@ -46,7 +47,7 @@ public class PermissionRuleEngine {
                 case "org_filter"    -> evaluateOrgFilter(rule, ctx, whereClauses);
                 case "time_range"    -> evaluateTimeRange(rule, ctx, whereClauses);
                 case "field_visible" -> evaluateFieldVisible(rule, hiddenFields, visibleFields);
-                case "action_control" -> evaluateActionControl(rule, actions);
+                case "action_control" -> evaluateActionControl(rule, actionsByEntity);
             }
         }
 
@@ -54,7 +55,7 @@ public class PermissionRuleEngine {
                 .whereClauses(Collections.unmodifiableList(whereClauses))
                 .hiddenFields(Collections.unmodifiableSet(hiddenFields))
                 .visibleFields(Collections.unmodifiableSet(visibleFields))
-                .actions(Collections.unmodifiableMap(actions))
+                .actionsByEntity(Collections.unmodifiableMap(actionsByEntity))
                 .build();
     }
 
@@ -151,12 +152,16 @@ public class PermissionRuleEngine {
         } catch (Exception ignored) {}
     }
 
-    /** 操作控制：读取 rule_value JSON 中的操作权限 */
+    /** 操作控制：读取 rule_value JSON 中的操作权限，按 target_entity 分组。
+     *  target_entity 为空/未声明的规则不生效（守卫必须显式绑定实体，防止全局误伤） */
     private static void evaluateActionControl(SysPermissionRule rule,
-                                               Map<String, Boolean> actions) {
+                                               Map<String, Map<String, Boolean>> actionsByEntity) {
+        if (rule.getTargetEntity() == null || rule.getTargetEntity().isBlank()) return;
         String raw = rule.getRuleValue();
         if (raw == null) return;
         try {
+            Map<String, Boolean> actions = actionsByEntity
+                    .computeIfAbsent(rule.getTargetEntity().trim(), k -> new LinkedHashMap<>());
             parseActionPermissions(raw, actions);
         } catch (Exception ignored) {}
     }
@@ -285,7 +290,7 @@ public class PermissionRuleEngine {
         @Builder.Default List<String> whereClauses = Collections.emptyList();
         @Builder.Default Set<String> hiddenFields = Collections.emptySet();
         @Builder.Default Set<String> visibleFields = Collections.emptySet();
-        @Builder.Default Map<String, Boolean> actions = Collections.emptyMap();
+        @Builder.Default Map<String, Map<String, Boolean>> actionsByEntity = Collections.emptyMap();
 
         /** 生成完整的 WHERE 子句 */
         public String toWhereClause() {

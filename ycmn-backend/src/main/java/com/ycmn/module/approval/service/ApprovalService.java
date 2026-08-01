@@ -1,6 +1,7 @@
 package com.ycmn.module.approval.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.ycmn.common.BusinessException;
@@ -72,14 +73,20 @@ public class ApprovalService {
             wrapper.in(BizApproval::getId, approvalIds);
         } else if ("mine".equals(tab)) {
             wrapper.eq(BizApproval::getApplicantId, userId);
-        } else if ("reviewing".equals(tab)) {
-            wrapper.eq(BizApproval::getStatus, "reviewing");
-        } else if ("approved".equals(tab)) {
-            wrapper.eq(BizApproval::getStatus, "approved");
-        } else if ("rejected".equals(tab)) {
-            wrapper.eq(BizApproval::getStatus, "rejected");
+        } else if ("reviewing".equals(tab) || "approved".equals(tab) || "rejected".equals(tab)) {
+            wrapper.eq(BizApproval::getStatus, tab);
+            // 历史/进行中数据范围：非 admin 仅见本人申请或本人参与审批的记录
+            if (!SecurityUtils.isAdmin()) {
+                wrapper.and(w -> w.eq(BizApproval::getApplicantId, userId)
+                        .or().in(BizApproval::getId, myInvolvedApprovalIds(userId)));
+            }
+        } else if ("all".equals(tab)) {
+            // 非 admin 仅见本人申请或本人参与审批的记录
+            if (!SecurityUtils.isAdmin()) {
+                wrapper.and(w -> w.eq(BizApproval::getApplicantId, userId)
+                        .or().in(BizApproval::getId, myInvolvedApprovalIds(userId)));
+            }
         }
-        // "all" tab - no additional filter
 
         if (StringUtils.hasText(type)) {
             wrapper.eq(BizApproval::getApprovalType, type);
@@ -118,10 +125,15 @@ public class ApprovalService {
             if ("pending_approval".equals(pool.getStatus())) {
                 throw new BusinessException("该客户已被他人申请捞取，正在审批中");
             }
-            // 锁定：改为审批中状态
-            pool.setStatus("pending_approval");
-            pool.setClaimUserId(applicantId);
-            seaPoolMapper.updateById(pool);
+            // 原子锁定：条件更新防止并发双捞（仅 status=available 可更新，affected==1 才成功）
+            int locked = seaPoolMapper.update(null, new LambdaUpdateWrapper<BizSeaPool>()
+                    .set(BizSeaPool::getStatus, "pending_approval")
+                    .set(BizSeaPool::getClaimUserId, applicantId)
+                    .eq(BizSeaPool::getId, pool.getId())
+                    .eq(BizSeaPool::getStatus, "available"));
+            if (locked != 1) {
+                throw new BusinessException("该客户已被他人申请捞取，正在审批中");
+            }
         }
 
         // 生成审批编号
@@ -239,6 +251,7 @@ public class ApprovalService {
         }
     }
 
+    @Transactional
     public void approve(Long approvalId, String comment) {
         Long approverId = SecurityUtils.getCurrentUserId();
         BizApproval approval = approvalMapper.selectById(approvalId);
@@ -324,21 +337,34 @@ public class ApprovalService {
         stats.put("mine", approvalMapper.selectCount(
                 new LambdaQueryWrapper<BizApproval>().eq(BizApproval::getApplicantId, userId)));
 
-        stats.put("reviewing", approvalMapper.selectCount(
-                new LambdaQueryWrapper<BizApproval>().eq(BizApproval::getStatus, "reviewing")));
+        // 数据范围：非 admin 仅统计本人申请或本人参与审批的记录（与列表口径一致）
+        LambdaQueryWrapper<BizApproval> scoped = new LambdaQueryWrapper<>();
+        if (!SecurityUtils.isAdmin()) {
+            scoped.and(w -> w.eq(BizApproval::getApplicantId, userId)
+                    .or().in(BizApproval::getId, myInvolvedApprovalIds(userId)));
+        }
 
-        stats.put("all", approvalMapper.selectCount(new LambdaQueryWrapper<>()));
+        stats.put("reviewing", approvalMapper.selectCount(
+                scoped.clone().eq(BizApproval::getStatus, "reviewing")));
+
+        stats.put("all", approvalMapper.selectCount(scoped.clone()));
 
         LocalDateTime monthStart = LocalDate.now().withDayOfMonth(1).atStartOfDay();
         stats.put("approvedThisMonth", approvalMapper.selectCount(
-                new LambdaQueryWrapper<BizApproval>()
-                        .eq(BizApproval::getStatus, "approved")
+                scoped.clone().eq(BizApproval::getStatus, "approved")
                         .ge(BizApproval::getUpdatedAt, monthStart)));
         stats.put("rejectedThisMonth", approvalMapper.selectCount(
-                new LambdaQueryWrapper<BizApproval>()
-                        .eq(BizApproval::getStatus, "rejected")
+                scoped.clone().eq(BizApproval::getStatus, "rejected")
                         .ge(BizApproval::getUpdatedAt, monthStart)));
         return stats;
+    }
+
+    /** 当前用户参与过的审批ID（任一审批节点归属），用于数据范围过滤 */
+    private List<Long> myInvolvedApprovalIds(Long userId) {
+        return approvalNodeMapper.selectList(
+                        new LambdaQueryWrapper<BizApprovalNode>()
+                                .eq(BizApprovalNode::getApproverId, userId))
+                .stream().map(BizApprovalNode::getApprovalId).distinct().toList();
     }
 
     private void executeApprovalAction(BizApproval approval) {
@@ -358,7 +384,7 @@ public class ApprovalService {
                 }
             }
             case "transfer" -> {
-                // 转移 - 负责人变更
+                // 转移 - 负责人变更（解析失败必须显式报错，随事务回滚，不得静默成功）
                 if (approval.getExtraData() != null) {
                     try {
                         com.fasterxml.jackson.databind.ObjectMapper om = new com.fasterxml.jackson.databind.ObjectMapper();
@@ -370,18 +396,22 @@ public class ApprovalService {
                             customer.setTransferDate(LocalDate.now());
                             customerMapper.updateById(customer);
                         }
-                    } catch (Exception ignored) {}
+                    } catch (Exception e) {
+                        throw new BusinessException("审批通过后客户转移处理失败: " + e.getMessage());
+                    }
                 }
             }
             case "storage" -> {
-                // 存储空间 - 配额调整
+                // 存储空间 - 配额调整（解析失败必须显式报错，随事务回滚，不得静默成功）
                 if (approval.getExtraData() != null) {
                     try {
                         com.fasterxml.jackson.databind.ObjectMapper om = new com.fasterxml.jackson.databind.ObjectMapper();
                         Map<String, Object> data = om.readValue(approval.getExtraData(), Map.class);
                         Long newQuota = Long.valueOf(data.get("quota").toString());
                         userService.updateStorageQuota(approval.getApplicantId(), newQuota);
-                    } catch (Exception ignored) {}
+                    } catch (Exception e) {
+                        throw new BusinessException("审批通过后存储配额调整失败: " + e.getMessage());
+                    }
                 }
             }
         }

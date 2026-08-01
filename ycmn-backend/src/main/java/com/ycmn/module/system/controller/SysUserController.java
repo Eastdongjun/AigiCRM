@@ -44,6 +44,10 @@ public class SysUserController {
     @PostMapping
     @PreAuthorize("hasAnyAuthority('system:user:add','system:org:admin')")
     public Result<Void> create(@RequestBody SysUser user) {
+        // 组织管理员只能在管理范围内创建用户（新用户无 id，按目标组织校验）
+        if (SecurityUtils.isOrgAdmin() && user.getOrgId() != null && !orgService.canManageOrg(user.getOrgId())) {
+            throw new BusinessException("无权在该组织下创建用户");
+        }
         userService.create(user);
         return Result.ok();
     }
@@ -60,6 +64,7 @@ public class SysUserController {
     @PostMapping("/{id}/reset-password")
     @PreAuthorize("hasAnyAuthority('system:user:edit','system:org:admin')")
     public Result<Void> resetPassword(@PathVariable Long id) {
+        if (SecurityUtils.isOrgAdmin() && !orgService.canManageUser(id)) throw new BusinessException("无权操作该用户");
         userService.resetPassword(id);
         return Result.ok();
     }
@@ -74,6 +79,7 @@ public class SysUserController {
     @PreAuthorize("hasAnyAuthority('system:user:delete','system:org:admin')")
     @DeleteMapping("/{id}")
     public Result<Void> delete(@PathVariable Long id) {
+        if (SecurityUtils.isOrgAdmin() && !orgService.canManageUser(id)) throw new BusinessException("无权操作该用户");
         userService.deleteUser(id);
         return Result.ok();
     }
@@ -83,6 +89,7 @@ public class SysUserController {
     @PostMapping("/{id}/leave")
     @PreAuthorize("hasAnyAuthority('system:user:edit','system:org:admin')")
     public Result<Map<String, Object>> leave(@PathVariable Long id, @RequestBody Map<String, Object> body) {
+        if (SecurityUtils.isOrgAdmin() && !orgService.canManageUser(id)) throw new BusinessException("无权操作该用户");
         Long transferToUserId = body.get("transferToUserId") != null ? Long.valueOf(body.get("transferToUserId").toString()) : null;
         String reason = (String) body.getOrDefault("reason", "");
         return Result.ok(userService.markLeave(id, transferToUserId, reason));
@@ -91,6 +98,7 @@ public class SysUserController {
     @PostMapping("/{id}/rehire")
     @PreAuthorize("hasAnyAuthority('system:user:edit','system:org:admin')")
     public Result<Void> rehire(@PathVariable Long id) {
+        if (SecurityUtils.isOrgAdmin() && !orgService.canManageUser(id)) throw new BusinessException("无权操作该用户");
         userService.markRehire(id);
         return Result.ok();
     }
@@ -98,6 +106,7 @@ public class SysUserController {
     @PostMapping("/{id}/transfer-customers")
     @PreAuthorize("hasAnyAuthority('system:user:edit','system:org:admin')")
     public Result<Map<String, Object>> transferCustomers(@PathVariable Long id, @RequestBody Map<String, Object> body) {
+        if (SecurityUtils.isOrgAdmin() && !orgService.canManageUser(id)) throw new BusinessException("无权操作该用户");
         Long toUserId = Long.valueOf(body.get("toUserId").toString());
         return Result.ok(userService.transferCustomers(id, toUserId));
     }
@@ -105,6 +114,7 @@ public class SysUserController {
     @PreAuthorize("hasAnyAuthority('system:user:delete','system:org:admin')")
     @DeleteMapping("/{id}/permanent")
     public Result<Void> permanentDelete(@PathVariable Long id, @RequestParam(defaultValue = "") String reason) {
+        if (SecurityUtils.isOrgAdmin() && !orgService.canManageUser(id)) throw new BusinessException("无权操作该用户");
         userService.permanentDelete(id, reason);
         return Result.ok();
     }

@@ -12,10 +12,10 @@ import java.util.*;
 /**
  * 操作控制切面
  *
- * 根据规则引擎计算的 actions（如 {"create":false,"delete":false}），
- * 拦截 Controller 方法，拒绝无权限的操作。
+ * 根据规则引擎按 target_entity 分组的 actions（如 {"create":false,"delete":false}），
+ * 拦截对应实体 Controller 的方法，拒绝无权限的操作。未配置守卫规则的实体不受影响。
  *
- * 用法：Controller 方法名需匹配权限 action 名称
+ * 用法：Controller 类名推断实体（CustomerController → customer），方法名匹配 action
  *   createXxx  → 需要 actions.create = true
  *   deleteXxx  → 需要 actions.delete = true
  *   exportXxx  → 需要 actions.export = true
@@ -28,12 +28,21 @@ public class ActionGuardAspect {
     @Around("execution(* com.ycmn.module..controller.*.*(..))")
     public Object guard(ProceedingJoinPoint joinPoint) throws Throwable {
         RuleResult ruleResult = SecurityUtils.getCurrentRuleResult();
-        if (ruleResult == null || ruleResult.getActions().isEmpty()) {
+        if (ruleResult == null || ruleResult.getActionsByEntity().isEmpty()) {
+            return joinPoint.proceed();
+        }
+
+        // 按当前 Controller 推断 target_entity，未配置该实体的守卫规则则放行
+        String entity = resolveEntity(joinPoint.getSignature().getDeclaringType().getSimpleName());
+        if (entity.isEmpty()) {
+            return joinPoint.proceed();
+        }
+        Map<String, Boolean> actions = ruleResult.getActionsByEntity().get(entity);
+        if (actions == null || actions.isEmpty()) {
             return joinPoint.proceed();
         }
 
         String methodName = joinPoint.getSignature().getName();
-        Map<String, Boolean> actions = ruleResult.getActions();
 
         // 检查是否需要拦截
         String action = extractAction(methodName);
@@ -45,6 +54,16 @@ public class ActionGuardAspect {
         }
 
         return joinPoint.proceed();
+    }
+
+    /** 从 Controller 类名推断 target_entity：CustomerController → customer */
+    private String resolveEntity(String className) {
+        if (className == null || className.isBlank()) return "";
+        String name = className.endsWith("Controller")
+                ? className.substring(0, className.length() - "Controller".length())
+                : className;
+        if (name.isEmpty()) return "";
+        return Character.toLowerCase(name.charAt(0)) + name.substring(1);
     }
 
     /** 从方法名提取操作类型 */

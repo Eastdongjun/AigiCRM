@@ -29,7 +29,7 @@ public class IncentivePermissionController {
         return Result.ok(list);
     }
 
-    @PreAuthorize("hasAuthority('system:config:view')")
+    @PreAuthorize("hasAuthority('system:config:edit')")
     @PostMapping("/grant")
     public Result<Void> grant(@RequestBody Map<String, Object> body) {
         Long userId = Long.valueOf(body.get("userId").toString());
@@ -47,7 +47,7 @@ public class IncentivePermissionController {
         return 1;
     }
 
-    @PreAuthorize("hasAuthority('system:config:view')")
+    @PreAuthorize("hasAuthority('system:config:edit')")
     @DeleteMapping("/{id}")
     public Result<Void> revoke(@PathVariable Long id) {
         jdbc.update("DELETE FROM biz_incentive_permission WHERE id=?", id);

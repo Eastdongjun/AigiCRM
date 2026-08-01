@@ -790,9 +790,12 @@ public class CustomerService {
     }
 
     @Transactional
-    public void deleteInvoice(Long invoiceId) {
+    public void deleteInvoice(Long customerId, Long invoiceId) {
         BizInvoice invoice = invoiceMapper.selectById(invoiceId);
-        if (invoice == null) return;
+        // 归属校验：记录必须属于请求路径中的客户，防止跨客户删除（IDOR）
+        if (invoice == null || !customerId.equals(invoice.getCustomerId())) {
+            throw new BusinessException("发票不存在或不属于该客户");
+        }
         invoiceMapper.deleteById(invoiceId);
         refreshLastInvoiceDate(invoice.getCustomerId());
         recalculateCoreStatus(invoice.getCustomerId());
@@ -1011,9 +1014,12 @@ public class CustomerService {
     }
 
     @Transactional
-    public void deletePayment(Long paymentId) {
+    public void deletePayment(Long customerId, Long paymentId) {
         BizPayment payment = paymentMapper.selectById(paymentId);
-        if (payment == null) return;
+        // 归属校验：记录必须属于请求路径中的客户，防止跨客户删除（IDOR）
+        if (payment == null || !customerId.equals(payment.getCustomerId())) {
+            throw new BusinessException("回款不存在或不属于该客户");
+        }
         paymentMapper.deleteById(paymentId);
         recalculateCoreStatus(payment.getCustomerId());
     }
