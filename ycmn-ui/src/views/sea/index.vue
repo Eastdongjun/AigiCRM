@@ -4,7 +4,6 @@
     <div class="sea-hero">
       <div class="sea-hero-left">
         <h1>公海池</h1>
-        <span class="sea-hero-sub">客户公海管理 · 捞取需审批</span>
       </div>
       <div class="sea-hero-right">
         <el-select v-model="selectedPool" placeholder="选择公海池" clearable style="width:240px" @change="loadData">
