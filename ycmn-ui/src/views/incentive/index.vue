@@ -633,8 +633,8 @@ const handleFileSelected = (event) => {
   if (currentSlot.value === 'track') {
     trackFile.value = [...trackFile.value, ...files].slice(0, MAX_FILES)
   } else if (currentSlot.value) {
-    const existing = installFiles[currentSlot.value].filter(f => f._existing)
-    installFiles[currentSlot.value] = [...existing, ...files].slice(0, MAX_FILES)
+    // 追加到槽位：保留槽内已有文件（含此前已选未上传的新文件），再拼接本次选择，最多 MAX_FILES
+    installFiles[currentSlot.value] = [...installFiles[currentSlot.value], ...files].slice(0, MAX_FILES)
   }
   currentSlot.value = null
   event.target.value = ''
