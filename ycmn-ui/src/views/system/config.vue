@@ -11,7 +11,7 @@
             </el-form-item>
             <el-form-item label="系统Logo">
               <div style="display: flex; align-items: center; gap: 12px">
-                <img v-if="configMap['system.logo']" :src="configMap['system.logo']" class="logo-preview" />
+                <img v-if="configMap['system.logo']" :src="logoPreviewSrc" class="logo-preview" />
                 <el-upload
                   :action="'/api/file/upload'"
                   :headers="{ Authorization: 'Bearer ' + token }"
@@ -624,11 +624,18 @@ const loadConfigs = async () => {
   } catch (e) {}
 }
 
+// Logo 预览统一走匿名可读的代理端点:配置值为路径式(如 /api/file/download/public/1/logo.jpg)
+// 或 by-id 格式时,后端 /api/system/configs/logo 会解析 fileKey 并读磁盘返回,避免 404/403
+// logoVersion 在保存完成后自增,强制 img 重新加载(上传时 configMap 先更新而 DB 仍是旧值,存在竞态)
+const logoVersion = ref(0)
+const logoPreviewSrc = computed(() => configMap['system.logo'] ? '/api/system/configs/logo?t=' + Date.now() + '-' + logoVersion.value : '')
+
 const handleLogoUpload = async (res) => {
   if (res.code === 200 && res.data) {
     configMap['system.logo'] = res.data.ossUrl || res.data.url || ''
     ElMessage.success('Logo上传成功，正在保存...')
     await handleSave()
+    logoVersion.value++ // 保存完成后强制预览重新加载新图
   } else {
     ElMessage.error('上传失败')
   }
