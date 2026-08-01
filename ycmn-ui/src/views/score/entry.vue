@@ -73,7 +73,7 @@
               </td>
               <td class="col-prod">
                 <el-select v-model="item.product" size="small" :disabled="!isAdmin" placeholder="选择产品">
-                  <el-option v-for="p in getProductOptions(item.category)" :key="p.dictLabel" :label="p.dictLabel" :value="p.dictLabel" />
+                  <el-option v-for="p in allProductOptions" :key="p.dictLabel" :label="p.dictLabel" :value="p.dictLabel" />
                 </el-select>
               </td>
               <td class="col-range">
@@ -133,6 +133,7 @@ const categoryOptions = ref([]), productOptions = ref([]), rangeOptions = ref([]
 const maxRange = computed(() => Math.max(...items.value.map(i => i.scoreMax || 5), 5))
 
 const loadDicts = async () => { try { categoryOptions.value = (await getDictData('score_category')).data||[] } catch{}; try { productOptions.value = (await getDictData('score_product')).data||[] } catch{}; try { rangeOptions.value = (await getDictData('score_range')).data||[] } catch{} }
+const allProductOptions = computed(() => productOptions.value)
 const getProductOptions = (catCode) => catCode ? productOptions.value.filter(p => p.dictValue === catCode) : productOptions.value
 const onCategoryChange = (item) => { item.product = '' }
 const onRangeChange = async (item, val) => { const p=val.split('-'); item.scoreMin=parseInt(p[0])||0; item.scoreMax=parseInt(p[1])||5; if(item.id) try{await updateScoreItem(item.id,{scoreMin:item.scoreMin,scoreMax:item.scoreMax})}catch{} }
