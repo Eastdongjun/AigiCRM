@@ -67,17 +67,17 @@
             <tr v-for="(item, idx) in items" :key="item.id||idx" class="se-data-row">
               <td class="col-idx">{{ idx+1 }}</td>
               <td class="col-cat">
-                <el-select v-model="item.category" size="small" :disabled="!isAdmin" @change="onCategoryChange(item)">
+                <el-select v-model="item.category" size="small" :disabled="!isAdmin" placeholder="选择大类" @change="onCategoryChange(item)">
                   <el-option v-for="c in categoryOptions" :key="c.dictValue" :label="c.dictLabel" :value="c.dictValue" />
                 </el-select>
               </td>
               <td class="col-prod">
-                <el-select v-model="item.product" size="small" :disabled="!isAdmin">
+                <el-select v-model="item.product" size="small" :disabled="!isAdmin" placeholder="选择产品">
                   <el-option v-for="p in getProductOptions(item.category)" :key="p.dictLabel" :label="p.dictLabel" :value="p.dictLabel" />
                 </el-select>
               </td>
               <td class="col-range">
-                <el-select :model-value="item.scoreMin+'-'+item.scoreMax" size="small" :disabled="!isAdmin" @change="onRangeChange(item,$event)">
+                <el-select :model-value="item.scoreMin+'-'+item.scoreMax" size="small" :disabled="!isAdmin" placeholder="选择区间" @change="onRangeChange(item,$event)">
                   <el-option v-for="r in rangeOptions" :key="r.dictValue" :label="r.dictLabel" :value="r.dictValue" />
                 </el-select>
               </td>
@@ -186,7 +186,7 @@ onMounted(() => { loadDicts(); loadGrid() })
 .se-add-user-btn { font-size:18px; color:#409eff }
 
 .se-data-row:hover { background:#fafbfc }
-.se-data-row :deep(.el-select) { width:100% }
+.se-data-row :deep(.el-select) { width:100% } .se-data-row :deep(.el-input__inner) { font-size:13px; color:#1f2329 }
 
 .se-input { width:54px; height:30px; border:1px solid #e5e6eb; border-radius:6px; text-align:center; font-size:13px; outline:none; transition:border-color .15s }
 .se-input:focus { border-color:#409eff; box-shadow:0 0 0 3px rgba(64,158,255,.1) }
