@@ -1,0 +1,56 @@
+{
+  "schema_version": "1.0",
+  "feature_id": "FEAT-20260801-CUSTOMER-USERS-FIX",
+  "title": "客户列表负责人下拉改用简易用户接口（修复销售员 403）",
+  "project_root": "/Users/donglai/东来/01-Projects/01-aigicrm/04-源码",
+  "ui_scope": "none",
+  "current_state": "REQUIREMENTS_READY",
+  "created_at": "2026-08-01T23:02:37+08:00",
+  "updated_at": "2026-08-01T23:02:58+08:00",
+  "required_kinds": [
+    "build",
+    "typecheck"
+  ],
+  "quality_commands": {
+    "build": {
+      "argv": [
+        "npm",
+        "--prefix",
+        "ycmn-ui",
+        "run",
+        "build"
+      ],
+      "required": true
+    },
+    "typecheck": {
+      "argv": [
+        "mvn",
+        "-f",
+        "ycmn-backend/pom.xml",
+        "-q",
+        "package",
+        "-DskipTests"
+      ],
+      "required": true
+    }
+  },
+  "latest_gate_report": "evidence/gate-report-20260801-230258-861958.json",
+  "latest_preflight_report": "evidence/preflight-report-20260801-230256-543935.json",
+  "config_revision": 3,
+  "feature_revision": 1,
+  "transitions": [
+    {
+      "from": null,
+      "to": "INTAKE",
+      "at": "2026-08-01T23:02:37+08:00",
+      "evidence": "feature initialized"
+    },
+    {
+      "from": "INTAKE",
+      "to": "REQUIREMENTS_READY",
+      "at": "2026-08-01T23:02:56+08:00",
+      "evidence": "01-requirements.md"
+    }
+  ],
+  "fingerprint_sha256": "8fc0e713d4fe97875283dde49a43cde7141562088f7decd5f65706e7985d2bb5"
+}
