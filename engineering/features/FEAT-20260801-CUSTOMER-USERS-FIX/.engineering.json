@@ -4,9 +4,9 @@
   "title": "客户列表负责人下拉改用简易用户接口（修复销售员 403）",
   "project_root": "/Users/donglai/东来/01-Projects/01-aigicrm/04-源码",
   "ui_scope": "none",
-  "current_state": "IMPLEMENTED",
+  "current_state": "DELIVERED",
   "created_at": "2026-08-01T23:02:37+08:00",
-  "updated_at": "2026-08-01T23:03:18+08:00",
+  "updated_at": "2026-08-01T23:03:27+08:00",
   "required_kinds": [
     "build",
     "typecheck"
@@ -68,7 +68,19 @@
       "to": "IMPLEMENTED",
       "at": "2026-08-01T23:03:18+08:00",
       "evidence": "已部署"
+    },
+    {
+      "from": "IMPLEMENTED",
+      "to": "VERIFIED",
+      "at": "2026-08-01T23:03:27+08:00",
+      "evidence": "AC-001 PASS"
+    },
+    {
+      "from": "VERIFIED",
+      "to": "DELIVERED",
+      "at": "2026-08-01T23:03:27+08:00",
+      "evidence": "07-delivery-report.md"
     }
   ],
-  "fingerprint_sha256": "1f5f5c1da899e427a4ca859db70a1cfb002ddbb063175d7e817c3994a36b6a97"
+  "fingerprint_sha256": "db71c1520b1b831b39db70ea00a1ea6199997258b700ae7e80b0b6e7e2f622a7"
 }

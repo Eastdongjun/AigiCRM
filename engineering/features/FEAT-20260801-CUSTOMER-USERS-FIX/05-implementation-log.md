@@ -12,6 +12,10 @@
 
 - wangleilei 6 页面 XHR 监控 0 403
 
+## 新增或更新的测试
+
+- wangleilei 6 页面 XHR 监控 0 403
+
 ## 实际执行命令
 
 - npm build → 部署 → browser-use 验证

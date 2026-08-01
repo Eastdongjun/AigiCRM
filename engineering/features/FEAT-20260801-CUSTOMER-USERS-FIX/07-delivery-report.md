@@ -9,6 +9,10 @@
 - REQ-001 → AC-001；前端接口替换
 - 明确排除：statistics/analysis（预期 403）；生产
 
+## 安装与启动
+
+- 测试服已部署；生产需授权
+
 ## 变更清单
 
 - customer/list.vue 1 文件
