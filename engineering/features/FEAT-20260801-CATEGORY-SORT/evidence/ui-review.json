@@ -1,0 +1,19 @@
+{
+  "feature_id": "FEAT-20260801-CATEGORY-SORT",
+  "created_at": "2026-08-01T19:52:23+08:00",
+  "feature_revision": 1,
+  "score": 90,
+  "console_errors": 0,
+  "interaction_passed": true,
+  "blocking_findings": [],
+  "screenshot_dimensions": {
+    "ui-baseline-1440x900.png": "1440x900",
+    "ui-1440x900.png": "1440x900",
+    "ui-1280x720.png": "1280x720"
+  },
+  "screenshot_sha256": {
+    "ui-baseline-1440x900.png": "a742f7deed9e4f6db6b8fbdddcf763126346b97e4d7f885fb2960845af9dd267",
+    "ui-1440x900.png": "a742f7deed9e4f6db6b8fbdddcf763126346b97e4d7f885fb2960845af9dd267",
+    "ui-1280x720.png": "9449ca8e52815b103cf264c1e162522ad25e485ddfb5d63085e52060f2d12966"
+  }
+}
