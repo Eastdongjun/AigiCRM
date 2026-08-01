@@ -205,6 +205,11 @@
       <template #footer>
         <span style="font-size:12px;color:#999;margin-right:auto">任意文件即可提交 · 每槽最多5张</span>
         <el-button @click="showCustomerDialog=false">取消</el-button>
+        <!-- 上传进度条 -->
+        <div v-if="uploading && totalNewFiles > 0" class="upload-progress">
+          <div class="progress-bar"><div class="progress-fill" :style="{width:uploadProgress+'%'}"></div></div>
+          <div class="progress-text">{{ uploadProgressText }} — {{ uploadProgress }}%</div>
+        </div>
         <el-button type="primary" :loading="uploading" :disabled="!canSubmit" @click="confirmUpload">{{ pendingReplace?'追加提交':'上传并提交' }}</el-button>
       </template>
     </el-dialog>
@@ -260,6 +265,8 @@ const pendingReplace = ref(null)
 const fileInputRef = ref(null)
 const shareToTeam = ref(false)
 const uploading = ref(false)
+const uploadProgress = ref(0)
+const uploadProgressText = ref('')
 
 // 安装前/中/后 文件槽 + 文本
 const fileSlots = [
@@ -279,13 +286,7 @@ const industryOptions = ref([])
 const selectedIndustry = ref('')
 const relatedProducts = ref('')
 
-const canSubmit = computed(() => {
-  if (!selectedCustomerId.value) return false
-  // 追加模式：允许清空文件后提交（积分重算为0）
-  if (pendingReplace.value) return true
-  // 新建模式：至少一个文件槽有文件
-  return installFiles.pre.length || installFiles.mid.length || installFiles.post.length
-})
+const canSubmit = computed(() => !!selectedCustomerId.value)
 
 const selectedCustomerName = computed(() => {
   if (!selectedCustomerId.value) return ''
@@ -527,13 +528,23 @@ const handleFileSelected = (event) => {
 }
 
 // 上传单个文件，返回 fileId
-const uploadOne = async (file) => {
+const totalNewFiles = computed(() => {
+  const count = (arr) => arr.filter(f => !f._existing).length
+  return count(installFiles.pre) + count(installFiles.mid) + count(installFiles.post) + count(trackFile.value)
+})
+const uploadOne = async (file, idx, total) => {
+  uploadProgressText.value = file.name
   const formData = new FormData()
   formData.append('file', file)
   formData.append('scope', 'incentive')
   const res = await request.post('/file/upload', formData, {
-    headers: { 'Content-Type': 'multipart/form-data' }
+    headers: { 'Content-Type': 'multipart/form-data' },
+    onUploadProgress: (e) => {
+      const filePct = e.total ? Math.round((e.loaded / e.total) * 100) : 0
+      uploadProgress.value = Math.round(((idx + filePct / 100) / total) * 100)
+    }
   })
+  uploadProgress.value = Math.round(((idx + 1) / total) * 100)
   return res.code === 200 ? (res.data?.id ?? null) : null
 }
 
@@ -541,13 +552,21 @@ const uploadOne = async (file) => {
 const confirmUpload = async () => {
   if (!canSubmit.value) return
   uploading.value = true
+  uploadProgress.value = 0
   try {
     // 批量上传所有新文件，收集每个槽位的文件ID列表
+    const allNew = totalNewFiles.value
+    let uploaded = 0
     const uploadSlot = async (files) => {
       const newFiles = files.filter(f => !f._existing)
       if (!newFiles.length) return []
-      const ids = await Promise.all(newFiles.map(f => uploadOne(f)))
-      if (ids.some(id => id === null)) throw new Error('文件上传失败')
+      const ids = []
+      for (const f of newFiles) {
+        const id = await uploadOne(f, uploaded, allNew)
+        if (id === null) throw new Error('文件上传失败')
+        ids.push(id)
+        uploaded++
+      }
       return ids
     }
     const preIds = await uploadSlot(installFiles.pre)
@@ -563,34 +582,23 @@ const confirmUpload = async () => {
     if (pendingReplace.value) {
       // 追加模式：只保留 UI 中未被删除的已有文件 + 新上传文件
       const old = pendingReplace.value
-      const getNewIds = (slotFiles) => slotFiles.filter(f => !f._existing)
       const getKeptIds = (slotFiles) => slotFiles.filter(f => f._existing && f.id).map(f => f.id)
 
-      // pre
-      const preNewIds = getNewIds(installFiles.pre).length
-        ? (await Promise.all(getNewIds(installFiles.pre).map(f => uploadOne(f))))
-        : []
+      // 用 uploadSlot 统一上传（含进度条）
+      const preNewIds = await uploadSlot(installFiles.pre)
+      const midNewIds = await uploadSlot(installFiles.mid)
+      const postNewIds = await uploadSlot(installFiles.post)
+      const trackNewIds = await uploadSlot(trackFile.value)
+
       const preOldIds = getKeptIds(installFiles.pre)
       finalPreId = [...preOldIds, ...preNewIds].length ? `[${[...preOldIds, ...preNewIds].join(',')}]` : null
 
-      // mid
-      const midNewIds = getNewIds(installFiles.mid).length
-        ? (await Promise.all(getNewIds(installFiles.mid).map(f => uploadOne(f))))
-        : []
       const midOldIds = getKeptIds(installFiles.mid)
       finalMidId = [...midOldIds, ...midNewIds].length ? `[${[...midOldIds, ...midNewIds].join(',')}]` : null
 
-      // post
-      const postNewIds = getNewIds(installFiles.post).length
-        ? (await Promise.all(getNewIds(installFiles.post).map(f => uploadOne(f))))
-        : []
       const postOldIds = getKeptIds(installFiles.post)
       finalPostId = [...postOldIds, ...postNewIds].length ? `[${[...postOldIds, ...postNewIds].join(',')}]` : null
 
-      // track
-      const trackNewIds = getNewIds(trackFile.value).length
-        ? (await Promise.all(getNewIds(trackFile.value).map(f => uploadOne(f))))
-        : []
       const trackOldIds = getKeptIds(trackFile.value)
       finalTrackId = [...trackOldIds, ...trackNewIds].length ? `[${[...trackOldIds, ...trackNewIds].join(',')}]` : null
 
@@ -775,4 +783,9 @@ onMounted(() => {
 .upload-dlg :deep(.el-dialog__footer){flex-shrink:0}
 @media (max-height:800px){.upload-dlg :deep(.el-dialog){max-height:96vh;margin-top:2vh!important;margin-bottom:2vh!important;width:95vw!important}}
 @media (max-width:720px){.upload-dlg :deep(.el-dialog){width:96vw!important}}
+
+.upload-progress { margin: 8px 0 12px }
+.progress-bar { height: 6px; background: #e8e8e8; border-radius: 3px; overflow: hidden }
+.progress-fill { height: 100%; background: linear-gradient(90deg, #409eff, #66b1ff); border-radius: 3px; transition: width .3s ease }
+.progress-text { font-size: 12px; color: #909399; margin-top: 4px; text-align: center }
 </style>
