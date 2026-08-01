@@ -142,7 +142,7 @@
             <span class="dlg-sec-title">基本信息</span>
           </div>
           <div class="dlg-row cols-3-2">
-            <div class="dlg-field span-2">
+            <div class="dlg-field">
               <label>关联客户 <i>*</i></label>
               <el-select v-model="selectedCustomerId" filterable remote :remote-method="searchCustomers" placeholder="搜索客户名称..." :loading="customerLoading" size="large">
                 <el-option v-for="c in customerOptions" :key="c.id" :label="c.customerName" :value="c.id">
@@ -778,9 +778,10 @@ onMounted(() => {
 .dlg-sec-tip { font-size:11px; color:#909399; margin-left:auto }
 
 .dlg-row { display:flex; gap:12px }
-.dlg-row.cols-3-2 { display:grid; grid-template-columns:2fr 1fr; gap:12px }
+.dlg-row.cols-3-2 { display:grid; grid-template-columns:2fr 1fr; gap:12px; align-items:start }
 .dlg-field { min-width:0 }
 .dlg-field+.dlg-field { margin-top:10px }
+.dlg-row .dlg-field { margin-top:0 }
 .dlg-field label { display:block; font-size:12px; font-weight:600; color:#4e5969; margin-bottom:4px }
 .dlg-field label i { color:#f56c6c; font-style:normal }
 .dlg-field .el-select,.dlg-field .el-input { width:100% }
