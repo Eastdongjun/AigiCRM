@@ -65,7 +65,15 @@ public class SysConfigController {
             }
             if (logoUrl.startsWith("/api/file/download/")) {
                 String fileKey = logoUrl.substring("/api/file/download/".length());
-                Path filePath = Paths.get(uploadDir, fileKey);
+                // 安全(REV-20260802-01): 只允许 public/ 前缀 + 路径包含校验, 防止路径穿越与私密文件匿名泄露
+                if (!fileKey.startsWith("public/")) {
+                    return transparentSvg();
+                }
+                Path uploadRoot = Paths.get(uploadDir).toAbsolutePath().normalize();
+                Path filePath = uploadRoot.resolve(fileKey).normalize();
+                if (!filePath.startsWith(uploadRoot)) {
+                    return transparentSvg();
+                }
                 Resource resource = new UrlResource(filePath.toUri());
                 if (resource.exists()) {
                     return ResponseEntity.ok()

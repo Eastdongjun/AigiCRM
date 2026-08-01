@@ -30,6 +30,7 @@
 ### 交付
 - [ ] 交付门禁通过(verify-delivery.sh)
 - [ ] 阶段衔接检查通过(pre-delivery-check.sh)
+- [ ] 独立代码审查通过(code-reviewer + security-reviewer,审查记录存档 docs/reviews/)
 - [ ] 残余风险已披露(交付报告"已知限制与残余风险")
 - [ ] 回滚方案明确(rollback.sh 路径)
 

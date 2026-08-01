@@ -36,6 +36,13 @@ if [ -n "$FEATURE_DIR" ]; then
     [ -f "$FEATURE_DIR/$f" ] || bad "缺少 $f"
   done
   ok "功能包文档齐全"
+  # 独立审查记录(代码审查+安全审查)
+  REVIEW_DIR="${FEATURE_DIR%/}/evidence"
+  if [ -f "$REVIEW_DIR/review.md" ] || grep -q "独立代码审查" "$FEATURE_DIR/07-delivery-report.md" 2>/dev/null; then
+    ok "独立代码审查记录存在"
+  else
+    bad "缺独立审查记录 —— 交付前用 code-reviewer/security-reviewer 审查并存档 evidence/review.md"
+  fi
   DELIVERY="$FEATURE_DIR/07-delivery-report.md"
   grep -q "已知限制与残余风险" "$DELIVERY" 2>/dev/null && ok "交付报告含残余风险披露" || bad "交付报告缺残余风险披露"
 else

@@ -59,3 +59,31 @@ python3 ~/.codex/skills/code-review/scripts/check_permission_strings.py \
 - 客户状态用中文标签（正常/预警/超期/注意/开发）
 - 权限注解 `@PreAuthorize("hasAuthority('xxx')")`，权限字符串必须在 sys_menu 有对应行，否则全用户（含 admin）403
 - 侧边栏徽标用 `.menu-count` 类，不用 el-badge
+
+## 工程规则(与 CLAUDE.md 同等强制)
+
+### 编码原则
+- 禁止复制粘贴重复业务逻辑;禁止吞异常/空 catch
+- 禁止硬编码密码、密钥、生产地址
+- 禁止绕过权限校验(所有写接口必须 @PreAuthorize,权限码先查 sys_menu)
+- 禁止删除已有测试来让构建通过;禁止关闭规则消除错误
+- 优先修复根因,不掩盖错误
+
+### 数据库原则
+- 所有数据库变更必须用迁移脚本(见 sql/migration/),已在生产执行的迁移不得修改
+- 删除字段/表必须单独审批;迁移前必须备份+回滚方案
+- 唯一性由数据库约束保证,不靠应用层
+
+### 测试要求(每次修改至少)
+- 单元测试/静态检查/构建(后端 mvn,前端 npm run build)
+- 涉及接口:冒烟回归(scripts/smoke-test.sh)
+- 涉及权限:越权测试(销售员访问管理接口应 403)
+- 涉及数据库:迁移演练(先临时库再生产)
+- 涉及页面:浏览器实测+截图
+
+### 完成定义(DoD,全部满足才算完成)
+- 验收标准全部满足(需求确认=是)
+- 冒烟+回归+门禁通过(scripts/pre-delivery-check.sh)
+- 知识资产同步(数据字典/权限字典/API清单/配置矩阵)
+- 残余风险披露;回滚方案明确
+- 独立代码审查通过(code-reviewer/security-reviewer)

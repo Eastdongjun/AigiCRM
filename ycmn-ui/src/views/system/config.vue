@@ -634,8 +634,14 @@ const handleLogoUpload = async (res) => {
   if (res.code === 200 && res.data) {
     configMap['system.logo'] = res.data.ossUrl || res.data.url || ''
     ElMessage.success('Logo上传成功，正在保存...')
-    await handleSave()
-    logoVersion.value++ // 保存完成后强制预览重新加载新图
+    // REV-20260802-02: 保存失败时回滚预览并提示, 不再无条件自增版本号
+    const saved = await handleSave()
+    if (saved) {
+      logoVersion.value++ // 保存成功后强制预览重新加载新图
+    } else {
+      configMap['system.logo'] = ''
+      ElMessage.error('Logo保存失败，请重试')
+    }
   } else {
     ElMessage.error('上传失败')
   }
@@ -656,7 +662,11 @@ const handleSave = async () => {
     ElMessage.success('设置已保存')
     await loadConfigs()
     userStore.loadSystemConfig()
-  } catch (e) {}
+    return true
+  } catch (e) {
+    ElMessage.error('保存失败，请重试')
+    return false
+  }
 }
 
 // ===== 字典类型 =====

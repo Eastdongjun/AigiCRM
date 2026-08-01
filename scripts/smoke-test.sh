@@ -53,6 +53,8 @@ fi
 
 # [3.5] 核心业务回归用例(激励/审批/文件/公海)
 echo "--- [3.5] 业务回归 ---"
+LOGO_CODE=$(curl -sk -o /dev/null -w "%{http_code}" "$BASE/api/system/configs/logo" --connect-timeout 8)
+[ "$LOGO_CODE" = "200" ] && ok "回归: logo 匿名端点 200" || bad "回归: logo 端点 $LOGO_CODE"
 for item in "incentive/categories" "incentive/records?page=1&size=2" "approval/list?page=1&size=2" \
             "file/folders" "reminder/list?page=1&size=2" "sea/statistics"; do
   RESP=$(curl -sk -X GET "$BASE/api/$item" -H "$AUTH" --connect-timeout 8)
