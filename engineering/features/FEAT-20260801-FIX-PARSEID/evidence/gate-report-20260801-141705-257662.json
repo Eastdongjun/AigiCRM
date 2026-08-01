@@ -1,0 +1,40 @@
+{
+  "feature_id": "FEAT-20260801-FIX-PARSEID",
+  "project_root": "/Users/donglai/东来/01-Projects/01-aigicrm/04-源码",
+  "created_at": "2026-08-01T14:17:05+08:00",
+  "feature_revision": 1,
+  "after_change": "",
+  "results": [
+    {
+      "kind": "test",
+      "argv": [
+        "npm",
+        "test",
+        "--prefix",
+        "ycmn-ui"
+      ],
+      "required": true,
+      "started_at": "2026-08-01T14:17:04+08:00",
+      "finished_at": "2026-08-01T14:17:04+08:00",
+      "returncode": 0,
+      "timed_out": false,
+      "output_tail": "\n> ycmn-ui@0.0.0 test\n> vitest run\n\n\n RUN  v4.1.10 /Users/donglai/东来/01-Projects/01-aigicrm/04-源码/ycmn-ui\n\n(node:62120) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.\n(Use `node --trace-warnings ...` to show where the warning was created)\n(node:62121) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.\n(Use `node --trace-warnings ...` to show where the warning was created)\n\n Test Files  2 passed (2)\n      Tests  8 passed (8)\n   Start at  14:17:04\n   Duration  332ms (transform 34ms, setup 16ms, import 53ms, tests 5ms, environment 442ms)\n\n"
+    },
+    {
+      "kind": "build",
+      "argv": [
+        "npm",
+        "run",
+        "build",
+        "--prefix",
+        "ycmn-ui"
+      ],
+      "required": true,
+      "started_at": "2026-08-01T14:17:04+08:00",
+      "finished_at": "2026-08-01T14:17:05+08:00",
+      "returncode": 0,
+      "timed_out": false,
+      "output_tail": "    5.25 kB │ gzip:   2.39 kB\ndist/assets/records-Bp-tV_vu.js          5.41 kB │ gzip:   2.16 kB\ndist/assets/indicator-Cc3PaiBH.js        6.00 kB │ gzip:   1.83 kB\ndist/assets/reminder-D1XKzbJK.js         6.02 kB │ gzip:   2.54 kB\ndist/assets/ranking-BfVA3-5_.js          6.32 kB │ gzip:   2.45 kB\ndist/assets/org-Dkb3rBJW.js              6.46 kB │ gzip:   2.47 kB\ndist/assets/position-DY4eTkYj.js         6.49 kB │ gzip:   2.59 kB\ndist/assets/entry-BrSOFwZe.js            7.76 kB │ gzip:   2.99 kB\ndist/assets/stats-JgHnnfG2.js            7.81 kB │ gzip:   2.83 kB\ndist/assets/role-CHDXb6U5.js             7.97 kB │ gzip:   3.17 kB\ndist/assets/approval-BmYTdhYn.js         8.13 kB │ gzip:   2.98 kB\ndist/assets/login-DjB6lv1y.js            9.73 kB │ gzip:   3.55 kB\ndist/assets/dashboard-yKd_xE69.js        9.87 kB │ gzip:   3.69 kB\ndist/assets/statistics-BBO7M8WE.js      10.51 kB │ gzip:   3.59 kB\ndist/assets/sea-DLJT8Uva.js             10.64 kB │ gzip:   4.19 kB\ndist/assets/user-CSvSXFBQ.js            10.89 kB │ gzip:   4.18 kB\ndist/assets/layout-C6CTizzJ.js          11.86 kB │ gzip:   3.92 kB\ndist/assets/file-LQyaRQ1K.js            13.26 kB │ gzip:   4.89 kB\ndist/assets/search-BbipBY2n.js          14.28 kB │ gzip:   4.98 kB\ndist/assets/incentive-unDNd7Jm.js       20.02 kB │ gzip:   6.91 kB\ndist/assets/detail-C4-iKj8e.js          29.42 kB │ gzip:   8.73 kB\ndist/assets/list-go8l7yRK.js            30.87 kB │ gzip:   8.85 kB\ndist/assets/config-HrNQBjCV.js          35.70 kB │ gzip:   9.89 kB\ndist/assets/request-BzY7MDOk.js         42.88 kB │ gzip:  16.71 kB\ndist/assets/add-BIXZ-Dm2.js            154.77 kB │ gzip:  31.95 kB\ndist/assets/index-kRdOxczh.js        1,155.35 kB │ gzip: 365.72 kB\n\n\u001b[33m\u001b[31m[INVALID_ANNOTATION] \u001b[0mA comment \"/* #__PURE__ */\" in \"node_modules/@vueuse/core/dist/index.js\" contains an annotation that Rolldown cannot interpret due to the position of the comment.\n      \u001b[38;5;246m╭\u001b[0m\u001b[38;5;246m─\u001b[0m\u001b[38;5;246m[\u001b[0m node_modules/@vueuse/core/dist/index.js:3362:1 \u001b[38;5;246m]\u001b[0m\n      \u001b[38;5;246m│\u001b[0m\n \u001b[38;5;246m3362 │\u001b[0m /* #__PURE__ */\n \u001b[38;5;240m     │\u001b[0m ───────┬───────  \n \u001b[38;5;240m     │\u001b[0m        ╰───────── comment ignored due to position\n \u001b[38;5;240m     │\u001b[0m \n \u001b[38;5;240m     │\u001b[0m \u001b[38;5;115mHelp\u001b[0m: For more information on how to use pure annotations correctly, check the documentation: https://rolldown.rs/in-depth/dead-code-elimination#pure\n\u001b[38;5;246m──────╯\u001b[0m\n\u001b[39m\n\u001b[33m[plugin builtin:vite-reporter] \n(!) Some chunks are larger than 500 kB after minification. Consider:\n- Using dynamic import() to code-split the application\n- Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting\n- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.\u001b[39m\n\u001b[33m\u001b[31m[INVALID_ANNOTATION] \u001b[0mA comment \"/* #__PURE__ */\" in \"node_modules/@vueuse/core/dist/index.js\" contains an annotation that Rolldown cannot interpret due to the position of the comment.\n      \u001b[38;5;246m╭\u001b[0m\u001b[38;5;246m─\u001b[0m\u001b[38;5;246m[\u001b[0m node_modules/@vueuse/core/dist/index.js:5780:23 \u001b[38;5;246m]\u001b[0m\n      \u001b[38;5;246m│\u001b[0m\n \u001b[38;5;246m5780 │\u001b[0m \u001b[38;5;249mc\u001b[0m\u001b[38;5;249mo\u001b[0m\u001b[38;5;249mn\u001b[0m\u001b[38;5;249ms\u001b[0m\u001b[38;5;249mt\u001b[0m\u001b[38;5;249m \u001b[0m\u001b[38;5;249md\u001b[0m\u001b[38;5;249me\u001b[0m\u001b[38;5;249mf\u001b[0m\u001b[38;5;249ma\u001b[0m\u001b[38;5;249mu\u001b[0m\u001b[38;5;249ml\u001b[0m\u001b[38;5;249mt\u001b[0m\u001b[38;5;249mS\u001b[0m\u001b[38;5;249mt\u001b[0m\u001b[38;5;249ma\u001b[0m\u001b[38;5;249mt\u001b[0m\u001b[38;5;249me\u001b[0m\u001b[38;5;249m \u001b[0m\u001b[38;5;249m=\u001b[0m\u001b[38;5;249m \u001b[0m\u001b[38;5;249m(\u001b[0m/* #__PURE__ */\u001b[38;5;249m \u001b[0m\u001b[38;5;249m{\u001b[0m\n \u001b[38;5;240m     │\u001b[0m                       ───────┬───────  \n \u001b[38;5;240m     │\u001b[0m                              ╰───────── comment ignored due to position\n \u001b[38;5;240m     │\u001b[0m \n \u001b[38;5;240m     │\u001b[0m \u001b[38;5;115mHelp\u001b[0m: For more information on how to use pure annotations correctly, check the documentation: https://rolldown.rs/in-depth/dead-code-elimination#pure\n\u001b[38;5;246m──────╯\u001b[0m\n\u001b[39m\n\u001b[32m✓ built in 321ms\u001b[39m\n"
+    }
+  ]
+}

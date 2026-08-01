@@ -1,0 +1,86 @@
+{
+  "schema_version": "1.0",
+  "feature_id": "FEAT-20260801-YCMN-3FIX",
+  "title": "YCMN 测试服三问题修复：激励安装文件上传/公海池可见范围/新增用户必填",
+  "project_root": "/Users/donglai/东来/01-Projects/01-aigicrm/04-源码",
+  "ui_scope": "required",
+  "current_state": "DELIVERED",
+  "created_at": "2026-08-01T17:03:03+08:00",
+  "updated_at": "2026-08-01T17:48:00+08:00",
+  "required_kinds": [
+    "build",
+    "typecheck"
+  ],
+  "quality_commands": {
+    "build": {
+      "argv": [
+        "npm",
+        "--prefix",
+        "ycmn-ui",
+        "run",
+        "build"
+      ],
+      "required": true
+    },
+    "typecheck": {
+      "argv": [
+        "mvn",
+        "-f",
+        "ycmn-backend/pom.xml",
+        "-q",
+        "package",
+        "-DskipTests"
+      ],
+      "required": true
+    }
+  },
+  "latest_gate_report": "evidence/gate-report-20260801-174746-865566.json",
+  "latest_preflight_report": "evidence/preflight-report-20260801-174800-887079.json",
+  "config_revision": 9,
+  "feature_revision": 1,
+  "transitions": [
+    {
+      "from": null,
+      "to": "INTAKE",
+      "at": "2026-08-01T17:03:03+08:00",
+      "evidence": "feature initialized"
+    },
+    {
+      "from": "INTAKE",
+      "to": "REQUIREMENTS_READY",
+      "at": "2026-08-01T17:16:40+08:00",
+      "evidence": ""
+    },
+    {
+      "from": "REQUIREMENTS_READY",
+      "to": "PROTOTYPE_READY",
+      "at": "2026-08-01T17:35:41+08:00",
+      "evidence": ""
+    },
+    {
+      "from": "PROTOTYPE_READY",
+      "to": "PLAN_READY",
+      "at": "2026-08-01T17:35:41+08:00",
+      "evidence": ""
+    },
+    {
+      "from": "PLAN_READY",
+      "to": "IMPLEMENTED",
+      "at": "2026-08-01T17:35:41+08:00",
+      "evidence": ""
+    },
+    {
+      "from": "IMPLEMENTED",
+      "to": "VERIFIED",
+      "at": "2026-08-01T17:48:00+08:00",
+      "evidence": ""
+    },
+    {
+      "from": "VERIFIED",
+      "to": "DELIVERED",
+      "at": "2026-08-01T17:48:00+08:00",
+      "evidence": ""
+    }
+  ],
+  "fingerprint_sha256": "74524f237bcaeaa4d1c790e0677440ea989efb928b9498ce24038c78defdb2e1"
+}

@@ -1,0 +1,19 @@
+{
+  "feature_id": "FEAT-20260801-INCENTIVE-UPGRADE",
+  "created_at": "2026-08-01T15:15:46+08:00",
+  "feature_revision": 2,
+  "score": 88,
+  "console_errors": 0,
+  "interaction_passed": true,
+  "blocking_findings": [],
+  "screenshot_dimensions": {
+    "ui-baseline-1440x900.png": "1440x900",
+    "ui-1440x900.png": "1440x900",
+    "ui-1280x720.png": "1280x720"
+  },
+  "screenshot_sha256": {
+    "ui-baseline-1440x900.png": "7dcb3a2158915d5b6d43bcb79ccf52566dcb9496fde4b5a64c3b5cb15d36ee0e",
+    "ui-1440x900.png": "7dcb3a2158915d5b6d43bcb79ccf52566dcb9496fde4b5a64c3b5cb15d36ee0e",
+    "ui-1280x720.png": "d38341157536ee53884cab5b37bbafe219657b5c962b516c0a1ac033399f1cc2"
+  }
+}

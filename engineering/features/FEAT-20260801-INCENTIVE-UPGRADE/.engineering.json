@@ -1,0 +1,102 @@
+{
+  "schema_version": "1.0",
+  "feature_id": "FEAT-20260801-INCENTIVE-UPGRADE",
+  "title": "四项激励改造：相关产品下拉/安装详情/排序/查询搜索",
+  "project_root": "/Users/donglai/东来/01-Projects/01-aigicrm/04-源码",
+  "ui_scope": "required",
+  "current_state": "DELIVERED",
+  "created_at": "2026-08-01T14:30:48+08:00",
+  "updated_at": "2026-08-01T15:15:46+08:00",
+  "required_kinds": [
+    "build",
+    "test"
+  ],
+  "quality_commands": {
+    "build": {
+      "argv": [
+        "npm",
+        "run",
+        "build",
+        "--prefix",
+        "ycmn-ui"
+      ],
+      "required": true
+    },
+    "test": {
+      "argv": [
+        "npm",
+        "test",
+        "--prefix",
+        "ycmn-ui"
+      ],
+      "required": true
+    }
+  },
+  "latest_gate_report": "evidence/gate-report-20260801-151514-763197.json",
+  "latest_preflight_report": "evidence/preflight-report-20260801-151504-190743.json",
+  "config_revision": 5,
+  "feature_revision": 2,
+  "transitions": [
+    {
+      "from": null,
+      "to": "INTAKE",
+      "at": "2026-08-01T14:30:48+08:00",
+      "evidence": "feature initialized"
+    },
+    {
+      "from": "INTAKE",
+      "to": "REQUIREMENTS_READY",
+      "at": "2026-08-01T14:34:11+08:00",
+      "evidence": ""
+    },
+    {
+      "from": "REQUIREMENTS_READY",
+      "to": "PROTOTYPE_READY",
+      "at": "2026-08-01T14:38:26+08:00",
+      "evidence": ""
+    },
+    {
+      "from": "PROTOTYPE_READY",
+      "to": "PLAN_READY",
+      "at": "2026-08-01T14:38:26+08:00",
+      "evidence": ""
+    },
+    {
+      "from": "PLAN_READY",
+      "to": "IMPLEMENTED",
+      "at": "2026-08-01T14:40:38+08:00",
+      "evidence": ""
+    },
+    {
+      "from": "IMPLEMENTED",
+      "to": "VERIFIED",
+      "at": "2026-08-01T14:48:28+08:00",
+      "evidence": ""
+    },
+    {
+      "from": "VERIFIED",
+      "to": "DELIVERED",
+      "at": "2026-08-01T14:48:40+08:00",
+      "evidence": ""
+    },
+    {
+      "from": "DELIVERED",
+      "to": "IMPLEMENTED",
+      "at": "2026-08-01T15:15:01+08:00",
+      "evidence": "reopened: 清缓存浏览器复核 AC-201~206 失败：isSingleSlot 判定未上溯子分类 code（visit_factory 等），弹窗走旧 UI 分支；已修复并重新构建部署测试环境，需重新验证"
+    },
+    {
+      "from": "IMPLEMENTED",
+      "to": "VERIFIED",
+      "at": "2026-08-01T15:15:46+08:00",
+      "evidence": "AC-201~206 浏览器直验全通过；AC-401~405 搜索实测通过；AC-101~105 顺带实测通过"
+    },
+    {
+      "from": "VERIFIED",
+      "to": "DELIVERED",
+      "at": "2026-08-01T15:15:46+08:00",
+      "evidence": "详见 06-test-matrix.md/07-delivery-report.md 更新"
+    }
+  ],
+  "fingerprint_sha256": "127fb5f2229348f332007738ccd0246914e046d0ba3dad9b7c3b79dfde931139"
+}

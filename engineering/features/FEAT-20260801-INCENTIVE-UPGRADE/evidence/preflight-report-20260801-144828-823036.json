@@ -1,0 +1,46 @@
+{
+  "feature_id": "FEAT-20260801-INCENTIVE-UPGRADE",
+  "project_root": "/Users/donglai/东来/01-Projects/01-aigicrm/04-源码",
+  "created_at": "2026-08-01T14:48:28+08:00",
+  "config_revision": 5,
+  "feature_revision": 1,
+  "passed": true,
+  "checks": [
+    {
+      "check": "project_root",
+      "passed": true,
+      "detail": "/Users/donglai/东来/01-Projects/01-aigicrm/04-源码"
+    },
+    {
+      "check": "command:build",
+      "passed": true,
+      "executable": "/opt/homebrew/bin/npm",
+      "argv": [
+        "npm",
+        "run",
+        "build",
+        "--prefix",
+        "ycmn-ui"
+      ]
+    },
+    {
+      "check": "command:test",
+      "passed": true,
+      "executable": "/opt/homebrew/bin/npm",
+      "argv": [
+        "npm",
+        "test",
+        "--prefix",
+        "ycmn-ui"
+      ]
+    },
+    {
+      "check": "project_markers",
+      "passed": true,
+      "detail": [
+        ".git"
+      ]
+    }
+  ],
+  "errors": []
+}
