@@ -1,6 +1,7 @@
 #!/bin/bash
 # YCMN 部署公共库: 凭据加载 + ssh/scp 封装 + 健康检查
-set -euo pipefail
+# 注意: 库文件不设 errexit(调用方自行控制); 仅 unset 变量与管道检查
+set -uo pipefail
 
 # 加载凭据(不入 git)
 ENV_FILE="$HOME/.ycmn-deploy.env"
