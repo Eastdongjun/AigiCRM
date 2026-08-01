@@ -179,7 +179,7 @@ onMounted(() => { loadDicts(); loadGrid() })
 
 .se-th-group th { background:#f2f4f7; font-size:13px; font-weight:600; color:#1f2329; padding:10px 6px }
 .se-th-label { font-size:13px; font-weight:600 }
-.se-th-row th { font-weight:500; font-size:12px }
+.se-th-row th { font-weight:600; font-size:13px; color:#4e5969 }
 
 .se-user-head { display:flex; align-items:center; justify-content:center; gap:2px; font-size:12px }
 .se-user-rm { cursor:pointer; color:#c0c4cc; font-size:14px } .se-user-rm:hover { color:#f56c6c }
