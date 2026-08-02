@@ -49,8 +49,8 @@
       <el-table :data="filteredList" stripe :default-sort="{ prop: 'customerCode', order: 'descending' }"
         @row-click="viewDetail" :row-style="{ cursor: 'pointer' }" style="width:100%">
         <el-table-column type="index" width="50" label="#" sortable />
-        <el-table-column v-if="vis('customerCode')" prop="customerCode" label="编号" width="110" show-overflow-tooltip sortable />
-        <el-table-column v-if="vis('customerName')" prop="customerName" label="客户全称" width="150" show-overflow-tooltip sortable />
+        <el-table-column v-if="vis('customerCode')" prop="customerCode" label="编号" min-width="140" sortable />
+        <el-table-column v-if="vis('customerName')" prop="customerName" label="客户全称" min-width="220" sortable />
         <el-table-column v-if="vis('invoiceName')" prop="invoiceName" label="开票名称" width="130" show-overflow-tooltip sortable />        <el-table-column v-if="vis('groupName')" prop="groupName" label="集团" width="100" show-overflow-tooltip sortable />
         <el-table-column v-if="vis('branchCompany')" prop="branchCompany" label="分公司" width="100" show-overflow-tooltip sortable />
         <el-table-column v-if="vis('unitName')" prop="unitName" label="所属单位" width="100" show-overflow-tooltip sortable />
@@ -861,16 +861,14 @@ onBeforeUnmount(() => {
 .filter-bar { display: flex; gap: 8px; align-items: center; padding: 8px 0; flex-wrap: wrap; }
 .filter-count { font-size: 12px; color: #909399; margin-left: auto; }
 .main-card :deep(.el-table) { max-height: calc(100vh - 358px); }
-.main-card :deep(.el-table__body-wrapper) { overflow-y: auto; }
+.main-card :deep(.el-table__inner-wrapper) { min-height: 0; }
+.main-card :deep(.el-table__body-wrapper) { flex: 1; min-height: 0; max-height: calc(100vh - 358px - 57px); overflow-y: auto; }
+.main-card :deep(.el-table__header-wrapper) { flex-shrink: 0; }
+.main-card :deep(.el-table__empty-block) { flex: 1; }
 
 .customer-list :deep(.el-table th) { white-space: nowrap; }
 .customer-list :deep(.el-table th .cell) { display: flex !important; align-items: center !important; gap: 2px; white-space: nowrap; }
 .customer-list :deep(.el-table .caret-wrapper) { flex-shrink: 0; margin-left: 0; }
 
 </style>
-.customer-list :deep(.el-table) { flex: 1; min-height: 0; display: flex; flex-direction: column; }
-.customer-list :deep(.el-table__inner-wrapper) { flex: 1; min-height: 0; display: flex; flex-direction: column; }
-.customer-list :deep(.el-table__body-wrapper) { flex: 1; min-height: 0; overflow-y: auto; }
-.customer-list :deep(.el-table__header-wrapper) { flex-shrink: 0; }
-.customer-list :deep(.el-table__empty-block) { flex: 1; }
 
