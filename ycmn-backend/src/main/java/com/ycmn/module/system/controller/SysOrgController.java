@@ -9,6 +9,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.HashMap;
 import java.util.Map;
 
 @RestController
@@ -74,10 +75,10 @@ public class SysOrgController {
     /** 获取当前用户管理范围 */
     @GetMapping("/my-scope")
     public Result<Map<String, Object>> getMyScope() {
-        return Result.ok(Map.of(
-                "orgId", SecurityUtils.getCurrentOrgId(),
-                "dataScope", SecurityUtils.getCurrentDataScope(),
-                "managedOrgIds", SecurityUtils.getCurrentManagedOrgIds()
-        ));
+        Map<String, Object> scope = new HashMap<>();
+        scope.put("orgId", SecurityUtils.getCurrentOrgId());
+        scope.put("dataScope", SecurityUtils.getCurrentDataScope());
+        scope.put("managedOrgIds", SecurityUtils.getCurrentManagedOrgIds());
+        return Result.ok(scope);
     }
 }

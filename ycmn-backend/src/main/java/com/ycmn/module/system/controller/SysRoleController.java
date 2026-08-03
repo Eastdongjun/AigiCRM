@@ -31,7 +31,11 @@ public class SysRoleController {
     @GetMapping("/{id}/orgs")
     @PreAuthorize("hasAuthority('system:role:view')")
     public Result<List<Long>> getOrgs(@PathVariable Long id) {
-        return Result.ok(roleService.getById(id).getOrgIds());
+        com.ycmn.module.system.entity.SysRole role = roleService.getById(id);
+        if (role == null) {
+            throw new com.ycmn.common.BusinessException("角色不存在");
+        }
+        return Result.ok(role.getOrgIds());
     }
 
     @PutMapping("/{id}/orgs")
