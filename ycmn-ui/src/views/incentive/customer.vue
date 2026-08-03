@@ -48,8 +48,8 @@
           <div v-if="getFiles(r).length" style="display:flex;gap:6px;flex-wrap:wrap">
             <div v-for="f in getFiles(r)" :key="f.id" style="flex:1;min-width:100px;max-width:calc(50% - 3px)">
               <div v-if="f.tag" style="font-size:10px;color:#909399;margin-bottom:2px">{{ f.tag }}</div>
-              <img v-if="f.type==='image'" :src="fileUrl(f.id)" style="width:100%;max-height:180px;border-radius:4px;border:1px solid #e8e8e8;object-fit:cover;cursor:pointer" @click="preview(f.id)" @error="onImgError" />
-              <div v-else-if="f.type==='video'" style="width:100%;height:120px;background:#1e1b4b;border-radius:4px;display:flex;align-items:center;justify-content:center;cursor:pointer" @click="preview(f.id)">
+              <img v-if="f.type==='image'" :src="fileUrl(f.id)" style="width:100%;max-height:180px;border-radius:4px;border:1px solid #e8e8e8;object-fit:cover;cursor:pointer" @click="preview(f.id, f.type)" @error="onImgError" />
+              <div v-else-if="f.type==='video'" style="width:100%;height:120px;background:#1e1b4b;border-radius:4px;display:flex;align-items:center;justify-content:center;cursor:pointer" @click="preview(f.id, f.type)">
                 <div style="width:36px;height:36px;background:rgba(255,255,255,.2);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;color:#fff">▶</div>
               </div>
               <a v-else :href="fileUrl(f.id)" target="_blank" style="display:block;padding:8px 10px;background:#fdf6ec;border-radius:4px;color:#e6a23c;text-decoration:none;font-size:11px;text-align:center">📄 {{ f.label }}</a>
@@ -61,9 +61,10 @@
 
     </div>
 
-    <!-- 图片预览大图 -->
+    <!-- 图片/视频预览 -->
     <el-dialog v-model="previewVisible" title="预览" width="80%" :close-on-click-modal="true">
-      <img :src="previewUrl" style="width:100%;max-height:80vh;object-fit:contain" @error="onImgError" />
+      <video v-if="previewType==='video'" :src="previewUrl" controls autoplay style="width:100%;max-height:80vh;background:#000" />
+      <img v-else :src="previewUrl" style="width:100%;max-height:80vh;object-fit:contain" @error="onImgError" />
     </el-dialog>
   </div>
 </template>
@@ -78,14 +79,14 @@ import { ElMessage } from 'element-plus'
 const fCustomer = ref(''), fSales = ref(''), fIndustry = ref(''), fType = ref(''), fDateRange = ref(null)
 const cols = ref(2)
 const custs = ref([]), catMap = ref({})
-const previewVisible = ref(false), previewUrl = ref('')
+const previewVisible = ref(false), previewUrl = ref(''), previewType = ref('image')
 const industries = ['冶金','煤矿','化工','电力','有色金属','机械','工程公司','维修厂','其他终端客户']
 
 const totalR = computed(() => custs.value.reduce((s,c) => s + c.count, 0))
 
 function onImgError(e){e.target.src='data:image/svg+xml,'+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="320" height="240" viewBox="0 0 320 240"><rect fill="#f5f6f7" width="320" height="240"/><text fill="#c0c4cc" font-size="14" font-family="sans-serif" text-anchor="middle" x="160" y="120">图片已丢失</text></svg>')}
 function fileUrl(id) { return '/api/file/download/' + id + '?token=' + (getToken() || '') }
-function preview(id) { previewUrl.value = fileUrl(id); previewVisible.value = true }
+function preview(id, type) { previewUrl.value = fileUrl(id); previewType.value = type || 'image'; previewVisible.value = true }
 
 function parseId(v){if(!v)return null;if(typeof v==='number')return v;try{const a=JSON.parse(v);return Array.isArray(a)?a[0]:v}catch{return v}}
 function getFiles(r) {

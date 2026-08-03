@@ -301,14 +301,18 @@ public class FileService {
         return Paths.get(uploadDir, fileKey);
     }
 
-    public ResponseEntity<?> downloadById(Long fileId) {
+    public void downloadById(Long fileId, String range, jakarta.servlet.http.HttpServletResponse response) {
         BizFile file = fileMapper.selectById(fileId);
-        if (file == null) return ResponseEntity.notFound().build();
+        if (file == null) {
+            response.setStatus(404);
+            return;
+        }
 
         // 归属校验：只有上传者、被分享者、管理员可以下载
         Long userId = SecurityUtils.getCurrentUserId();
         if (!canAccessFile(file, userId)) {
-            return ResponseEntity.status(403).build();
+            response.setStatus(403);
+            return;
         }
         try {
             Path filePath = Paths.get(uploadDir, file.getOssKey());
@@ -318,15 +322,56 @@ public class FileService {
                 String encoded = java.net.URLEncoder.encode(filename, java.nio.charset.StandardCharsets.UTF_8).replace("+", "%20");
                 MediaType mt = MediaTypeFactory.getMediaType(filename).orElse(MediaType.APPLICATION_OCTET_STREAM);
                 String disp = filename.matches("(?i).*\\.(jpg|jpeg|png|gif|webp|bmp|svg|mp4|webm)$") ? "inline" : "attachment";
-                return ResponseEntity.ok()
-                        .header(HttpHeaders.CONTENT_DISPOSITION, disp + "; filename*=UTF-8''" + encoded)
-                        .contentType(mt).body(resource);
+
+                long fileSize = resource.contentLength();
+                long start = 0, end = fileSize - 1;
+                boolean ranged = range != null && range.startsWith("bytes=");
+                if (ranged) {
+                    java.util.regex.Matcher m = java.util.regex.Pattern
+                            .compile("bytes=(\\d*)-(\\d*)").matcher(range);
+                    if (m.find()) {
+                        if (!m.group(1).isEmpty()) start = Long.parseLong(m.group(1));
+                        if (!m.group(2).isEmpty()) end = Math.min(Long.parseLong(m.group(2)), fileSize - 1);
+                    }
+                    if (start > end || start >= fileSize) {
+                        response.setStatus(416);
+                        response.setHeader("Content-Range", "bytes */" + fileSize);
+                        return;
+                    }
+                }
+                long length = end - start + 1;
+
+                response.setStatus(ranged ? 206 : 200);
+                response.setHeader("Accept-Ranges", "bytes");
+                if (ranged) {
+                    response.setHeader("Content-Range", "bytes " + start + "-" + end + "/" + fileSize);
+                }
+                response.setContentType(mt.toString());
+                response.setContentLengthLong(length);
+                response.setHeader(HttpHeaders.CONTENT_DISPOSITION, disp + "; filename*=UTF-8''" + encoded);
+
+                try (java.io.InputStream is = resource.getInputStream()) {
+                    is.skipNBytes(start);
+                    java.io.OutputStream out = response.getOutputStream();
+                    byte[] buf = new byte[8192];
+                    long remaining = length;
+                    int n;
+                    while (remaining > 0 && (n = is.read(buf, 0, (int) Math.min(buf.length, remaining))) != -1) {
+                        out.write(buf, 0, n);
+                        remaining -= n;
+                    }
+                    out.flush();
+                }
+                return;
             }
             if (file.getOssUrl() != null && file.getOssUrl().startsWith("http")) {
-                return ResponseEntity.status(302).header(HttpHeaders.LOCATION, file.getOssUrl()).build();
+                response.setStatus(302);
+                response.setHeader(HttpHeaders.LOCATION, file.getOssUrl());
+                return;
             }
-        } catch (Exception e) {}
-        return ResponseEntity.notFound().build();
+        } catch (Exception ignored) {
+        }
+        response.setStatus(404);
     }
 
     /** 按 oss_key 查询文件记录（key 下载路由的归属校验依据） */

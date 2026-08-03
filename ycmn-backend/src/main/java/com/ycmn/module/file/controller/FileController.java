@@ -91,8 +91,10 @@ public class FileController {
 
     @PreAuthorize("hasAuthority('file:view')")
     @GetMapping("/download/{id}")
-    public ResponseEntity<?> downloadById(@PathVariable Long id) {
-        return fileService.downloadById(id);
+    public void downloadById(@PathVariable Long id,
+                             @RequestHeader(value = "Range", required = false) String range,
+                             jakarta.servlet.http.HttpServletResponse response) {
+        fileService.downloadById(id, range, response);
     }
 
     /** 公开文件下载 — 无需登录，仅限 public 范围 */

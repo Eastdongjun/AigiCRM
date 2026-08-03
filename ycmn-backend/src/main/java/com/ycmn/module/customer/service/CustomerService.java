@@ -132,9 +132,7 @@ public class CustomerService {
 
         IPage<BizCustomer> page = customerMapper.selectPage(new Page<>(current, size), wrapper);
 
-        for (BizCustomer c : page.getRecords()) {
-            fillCustomerNames(c);
-        }
+        fillCustomerNames(page.getRecords());
         return page;
     }
 
@@ -150,7 +148,7 @@ public class CustomerService {
         applyCommonFilters(wrapper, keyword, industry, officeId, regionId, status);
         wrapper.orderByDesc(BizCustomer::getCreatedAt);
         IPage<BizCustomer> page = customerMapper.selectPage(new Page<>(current, size), wrapper);
-        page.getRecords().forEach(this::fillCustomerNames);
+        fillCustomerNames(page.getRecords());
         return page;
     }
 
@@ -166,7 +164,7 @@ public class CustomerService {
         applyCommonFilters(wrapper, keyword, industry, officeId, regionId, status);
         wrapper.orderByDesc(BizCustomer::getCreatedAt);
         IPage<BizCustomer> page = customerMapper.selectPage(new Page<>(current, size), wrapper);
-        page.getRecords().forEach(this::fillCustomerNames);
+        fillCustomerNames(page.getRecords());
         return page;
     }
 
@@ -233,7 +231,7 @@ public class CustomerService {
     public BizCustomer getById(Long id) {
         BizCustomer customer = customerMapper.selectById(id);
         if (customer != null) {
-            fillCustomerNames(customer);
+            fillCustomerNames(java.util.List.of(customer));
         }
         return customer;
     }
@@ -551,7 +549,7 @@ public class CustomerService {
                 .orderByAsc(BizCustomer::getExpireDate).last("LIMIT " + limit);
         applyDataScope(w);
         List<BizCustomer> list = customerMapper.selectList(w);
-        list.forEach(this::fillCustomerNames);
+        fillCustomerNames(list);
         return list;
     }
 
@@ -738,22 +736,41 @@ public class CustomerService {
         return defaultValue;
     }
 
-    private void fillCustomerNames(BizCustomer customer) {
-        if (customer.getOwnerId() != null) {
-            SysUser owner = userMapper.selectById(customer.getOwnerId());
-            if (owner != null) customer.setOwnerName(owner.getRealName());
+    /**
+     * 批量填充客户关联名称
+     *
+     * 【需求】列表页展示负责人/上级/办事处/大区名称；原逐条查询导致 N+1（15 条=60 次查询）
+     * 【方法】收集页面全部 userId/deptId，IN 批量查询两次，内存映射填充
+     * 【业务规则】null id 跳过；查不到的名称保持 null（前端兜底显示空）
+     */
+    private void fillCustomerNames(List<BizCustomer> customers) {
+        if (customers == null || customers.isEmpty()) return;
+
+        Set<Long> userIds = new HashSet<>();
+        Set<Long> deptIds = new HashSet<>();
+        for (BizCustomer c : customers) {
+            if (c.getOwnerId() != null) userIds.add(c.getOwnerId());
+            if (c.getManagerId() != null) userIds.add(c.getManagerId());
+            if (c.getOfficeId() != null) deptIds.add(c.getOfficeId());
+            if (c.getRegionId() != null) deptIds.add(c.getRegionId());
         }
-        if (customer.getManagerId() != null) {
-            SysUser manager = userMapper.selectById(customer.getManagerId());
-            if (manager != null) customer.setManagerName(manager.getRealName());
+
+        Map<Long, String> userNames = new HashMap<>();
+        if (!userIds.isEmpty()) {
+            userMapper.selectBatchIds(userIds)
+                    .forEach(u -> userNames.put(u.getId(), u.getRealName()));
         }
-        if (customer.getOfficeId() != null) {
-            var dept = deptMapper.selectById(customer.getOfficeId());
-            if (dept != null) customer.setOfficeName(dept.getDeptName());
+        Map<Long, String> deptNames = new HashMap<>();
+        if (!deptIds.isEmpty()) {
+            deptMapper.selectBatchIds(deptIds)
+                    .forEach(d -> deptNames.put(d.getId(), d.getDeptName()));
         }
-        if (customer.getRegionId() != null) {
-            var region = deptMapper.selectById(customer.getRegionId());
-            if (region != null) customer.setRegionName(region.getDeptName());
+
+        for (BizCustomer c : customers) {
+            if (c.getOwnerId() != null) c.setOwnerName(userNames.get(c.getOwnerId()));
+            if (c.getManagerId() != null) c.setManagerName(userNames.get(c.getManagerId()));
+            if (c.getOfficeId() != null) c.setOfficeName(deptNames.get(c.getOfficeId()));
+            if (c.getRegionId() != null) c.setRegionName(deptNames.get(c.getRegionId()));
         }
     }
 

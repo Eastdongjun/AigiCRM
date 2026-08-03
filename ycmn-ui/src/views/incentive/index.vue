@@ -87,9 +87,9 @@
           <el-table-column label="安装文件" min-width="180" show-overflow-tooltip>
             <template #default="{ row }">
               <div class="install-files">
-                <span v-if="row.filePreName" class="file-tag"><b>前</b>{{ row.filePreName }}</span>
-                <span v-if="row.fileMidName" class="file-tag"><b>中</b>{{ row.fileMidName }}</span>
-                <span v-if="row.filePostName" class="file-tag"><b>后</b>{{ row.filePostName }}</span>
+                <span v-if="row.filePreName" class="file-tag" :class="{previewable: fileType(row.filePreName)!=='doc'}" @click="previewFile(row.filePreId, row.filePreName)"><b>前</b>{{ row.filePreName }}</span>
+                <span v-if="row.fileMidName" class="file-tag" :class="{previewable: fileType(row.fileMidName)!=='doc'}" @click="previewFile(row.fileMidId, row.fileMidName)"><b>中</b>{{ row.fileMidName }}</span>
+                <span v-if="row.filePostName" class="file-tag" :class="{previewable: fileType(row.filePostName)!=='doc'}" @click="previewFile(row.filePostId, row.filePostName)"><b>后</b>{{ row.filePostName }}</span>
                 <span v-if="!row.filePreName && !row.fileMidName && !row.filePostName" class="file-cell">
                   <el-icon class="file-icon"><Document /></el-icon>{{ row.fileName || '—' }}
                 </span>
@@ -286,6 +286,11 @@
       @change="handleFileSelected"
     />
   </div>
+    <!-- 安装文件预览（图片/视频） -->
+    <el-dialog v-model="previewVisible" title="安装文件预览" width="70%" :close-on-click-modal="true" destroy-on-close>
+      <video v-if="previewType==='video'" :src="previewUrl" controls autoplay style="width:100%;max-height:75vh;background:#000" />
+      <img v-else :src="previewUrl" style="width:100%;max-height:75vh;object-fit:contain" @error="previewErr" />
+    </el-dialog>
 </template>
 
 <script setup>
@@ -297,6 +302,7 @@ import { getCustomerList } from '@/api/customer'
 import { getDictData } from '@/api/system'
 import { useUserStore } from '@/store/user'
 import request from '@/utils/request'
+import { getToken } from '@/utils/token'
 
 const userStore = useUserStore()
 const activeTab = ref('')
@@ -310,6 +316,20 @@ const records = ref([])
 // 权限
 const canEdit = ref(false)
 const canDelete = ref(false)
+
+// ===== 安装文件预览 =====
+const previewVisible = ref(false), previewUrl = ref(''), previewType = ref('image')
+function fileUrl(id) { return '/api/file/download/' + id + '?token=' + (getToken() || '') }
+function parseFid(v) { if (!v) return null; if (typeof v === 'number') return v; try { const a = JSON.parse(v); return Array.isArray(a) ? a[0] : v } catch { return v } }
+function fileType(n) { if (!n) return 'doc'; if (/\.(jpg|jpeg|png|gif|webp|bmp)$/i.test(n)) return 'image'; if (/\.(mp4|mov|avi|webm)$/i.test(n)) return 'video'; return 'doc' }
+function previewFile(id, name) {
+  const fid = parseFid(id)
+  if (!fid) return
+  const t = fileType(name)
+  if (t === 'doc') { window.open(fileUrl(fid), '_blank'); return }
+  previewUrl.value = fileUrl(fid); previewType.value = t; previewVisible.value = true
+}
+function previewErr(e) { e.target.src = 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="320" height="240"><rect fill="#f5f6f7" width="320" height="240"/><text fill="#c0c4cc" font-size="14" text-anchor="middle" x="160" y="120">文件已丢失</text></svg>') }
 
 // 统一筛选
 const searchText = ref('')
@@ -803,6 +823,8 @@ onMounted(() => {
 </script>
 
 <style scoped>
+.install-files .file-tag.previewable { cursor: pointer; text-decoration: underline; }
+.install-files .file-tag.previewable:hover { color: #409eff; }
 .incentive-page { padding: 0; height: calc(100vh - 80px); display: flex; flex-direction: column; gap: 10px }
 
 /* Cat Tabs */
