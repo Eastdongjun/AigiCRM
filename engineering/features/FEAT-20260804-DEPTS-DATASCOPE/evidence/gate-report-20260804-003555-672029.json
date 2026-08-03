@@ -1,0 +1,39 @@
+{
+  "feature_id": "FEAT-20260804-DEPTS-DATASCOPE",
+  "project_root": "/Users/donglai/东来/01-Projects/01-aigicrm/04-源码",
+  "created_at": "2026-08-04T00:35:55+08:00",
+  "feature_revision": 1,
+  "after_change": "",
+  "results": [
+    {
+      "kind": "test",
+      "argv": [
+        "mvn",
+        "-f",
+        "/Users/donglai/东来/01-Projects/01-aigicrm/04-源码/ycmn-backend/pom.xml",
+        "test"
+      ],
+      "required": true,
+      "started_at": "2026-08-04T00:35:50+08:00",
+      "finished_at": "2026-08-04T00:35:54+08:00",
+      "returncode": 0,
+      "timed_out": false,
+      "output_tail": "ule.customer.entity.BizCustomer', name='getId', desc='()Ljava/lang/Long;'}, lineNumber=90, declaredInLambda=false}\n00:35:53.995 [main] WARN com.tngtech.archunit.core.importer.ClassFileImportRecord -- Could not find matching origin for synthetic method RawAccessRecord{origin=CodeUnit{name='lambda$page$0', descriptor=(Ljava/lang/Long;Ljava/util/List;Lcom/baomidou/mybatisplus/core/conditions/query/LambdaQueryWrapper;)V, declaringClassName='com.ycmn.module.customer.service.CustomerService'}, target=TargetInfo{owner='com.ycmn.module.customer.entity.BizCustomer', name='getOwnerId', desc='()Ljava/lang/Long;'}, lineNumber=90, declaredInLambda=false}\n00:35:54.325 [main] WARN com.tngtech.archunit.core.importer.ClassFileImportRecord -- Could not find matching origin for synthetic method RawAccessRecord{origin=CodeUnit{name='lambda$page$0', descriptor=(Ljava/lang/Long;Ljava/util/List;Lcom/baomidou/mybatisplus/core/conditions/query/LambdaQueryWrapper;)V, declaringClassName='com.ycmn.module.customer.service.CustomerService'}, target=TargetInfo{owner='com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper', name='in', desc='(Ljava/lang/Object;Ljava/util/Collection;)Ljava/lang/Object;'}, lineNumber=90, declaredInLambda=false}\n00:35:54.326 [main] WARN com.tngtech.archunit.core.importer.ClassFileImportRecord -- Could not find matching origin for synthetic method RawAccessRecord{origin=CodeUnit{name='lambda$page$0', descriptor=(Ljava/lang/Long;Ljava/util/List;Lcom/baomidou/mybatisplus/core/conditions/query/LambdaQueryWrapper;)V, declaringClassName='com.ycmn.module.customer.service.CustomerService'}, target=TargetInfo{owner='com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper', name='or', desc='()Ljava/lang/Object;'}, lineNumber=90, declaredInLambda=false}\n00:35:54.327 [main] WARN com.tngtech.archunit.core.importer.ClassFileImportRecord -- Could not find matching origin for synthetic method RawAccessRecord{origin=CodeUnit{name='lambda$page$0', descriptor=(Ljava/lang/Long;Ljava/util/List;Lcom/baomidou/mybatisplus/core/conditions/query/LambdaQueryWrapper;)V, declaringClassName='com.ycmn.module.customer.service.CustomerService'}, target=TargetInfo{owner='com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper', name='eq', desc='(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;'}, lineNumber=89, declaredInLambda=false}\n00:35:54.331 [main] WARN com.tngtech.archunit.core.importer.ClassFileImportRecord -- Could not find matching origin for synthetic method RawAccessRecord{origin=CodeUnit{name='lambda$page$0', descriptor=(Ljava/lang/Long;Ljava/util/List;Lcom/baomidou/mybatisplus/core/conditions/query/LambdaQueryWrapper;)V, declaringClassName='com.ycmn.module.customer.service.CustomerService'}, target=TargetInfo{owner='com.ycmn.module.customer.entity.BizCustomer', name='getOwnerId', desc='()Ljava/lang/Long;'}, lineNumber=90, declaredInLambda=false}\n00:35:54.332 [main] WARN com.tngtech.archunit.core.importer.ClassFileImportRecord -- Could not find matching origin for synthetic method RawAccessRecord{origin=CodeUnit{name='lambda$page$0', descriptor=(Ljava/lang/Long;Ljava/util/List;Lcom/baomidou/mybatisplus/core/conditions/query/LambdaQueryWrapper;)V, declaringClassName='com.ycmn.module.customer.service.CustomerService'}, target=TargetInfo{owner='com.ycmn.module.customer.entity.BizCustomer', name='getId', desc='()Ljava/lang/Long;'}, lineNumber=90, declaredInLambda=false}\n[INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 1.667 s -- in com.ycmn.architecture.ArchitectureTest\n[INFO] \n[INFO] Results:\n[INFO] \n[INFO] Tests run: 34, Failures: 0, Errors: 0, Skipped: 0\n[INFO] \n[INFO] ------------------------------------------------------------------------\n[INFO] BUILD SUCCESS\n[INFO] ------------------------------------------------------------------------\n[INFO] Total time:  3.246 s\n[INFO] Finished at: 2026-08-04T00:35:54+08:00\n[INFO] ------------------------------------------------------------------------\n"
+    },
+    {
+      "kind": "build",
+      "argv": [
+        "mvn",
+        "-f",
+        "/Users/donglai/东来/01-Projects/01-aigicrm/04-源码/ycmn-backend/pom.xml",
+        "compile"
+      ],
+      "required": true,
+      "started_at": "2026-08-04T00:35:54+08:00",
+      "finished_at": "2026-08-04T00:35:55+08:00",
+      "returncode": 0,
+      "timed_out": false,
+      "output_tail": "[INFO] Scanning for projects...\n[INFO] \n[INFO] ----------------------< com.ycmn:aigicrm-backend >----------------------\n[INFO] Building aigicrm-backend 1.0.0\n[INFO]   from pom.xml\n[INFO] --------------------------------[ jar ]---------------------------------\n[INFO] \n[INFO] --- resources:3.3.1:resources (default-resources) @ aigicrm-backend ---\n[INFO] Copying 1 resource from src/main/resources to target/classes\n[INFO] Copying 4 resources from src/main/resources to target/classes\n[INFO] \n[INFO] --- compiler:3.11.0:compile (default-compile) @ aigicrm-backend ---\n[INFO] Nothing to compile - all classes are up to date\n[INFO] ------------------------------------------------------------------------\n[INFO] BUILD SUCCESS\n[INFO] ------------------------------------------------------------------------\n[INFO] Total time:  0.382 s\n[INFO] Finished at: 2026-08-04T00:35:55+08:00\n[INFO] ------------------------------------------------------------------------\n"
+    }
+  ]
+}

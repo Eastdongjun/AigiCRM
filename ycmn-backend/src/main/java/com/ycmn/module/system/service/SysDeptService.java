@@ -1,6 +1,7 @@
 package com.ycmn.module.system.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.ycmn.security.SecurityUtils;
 import com.ycmn.common.BusinessException;
 import com.ycmn.module.system.entity.SysDept;
 import com.ycmn.module.system.entity.SysUser;
@@ -20,9 +21,9 @@ public class SysDeptService {
     private final SysUserMapper userMapper;
 
     public List<SysDept> tree() {
-        List<SysDept> all = deptMapper.selectList(
+        List<SysDept> all = scopeFilter(deptMapper.selectList(
                 new LambdaQueryWrapper<SysDept>().eq(SysDept::getStatus, 1).orderByAsc(SysDept::getSortOrder)
-        );
+        ));
         // 填充负责人名称
         for (SysDept dept : all) {
             if (dept.getLeaderId() != null) {
@@ -34,9 +35,33 @@ public class SysDeptService {
     }
 
     public List<SysDept> list() {
-        return deptMapper.selectList(
+        return scopeFilter(deptMapper.selectList(
                 new LambdaQueryWrapper<SysDept>().eq(SysDept::getStatus, 1).orderByAsc(SysDept::getSortOrder)
-        );
+        ));
+    }
+
+    /** 【需求】部门查询数据范围收窄(FEAT-20260804-DEPTS-DATASCOPE)
+     *  【方法】管理员返回全部;非管理员仅返回本人部门及其祖先链(按 parentId 上溯至根),
+     *          与销售员 self 数据范围一致,避免组织架构全量可见
+     *  【参数】all 全量启用部门
+     *  【返回】过滤后的部门列表;dept_id 为空时返回空列表 */
+    private List<SysDept> scopeFilter(List<SysDept> all) {
+        if (SecurityUtils.isAdmin()) {
+            return all;
+        }
+        Long myDeptId = SecurityUtils.getCurrentDeptId();
+        if (myDeptId == null) {
+            return Collections.emptyList();
+        }
+        Map<Long, SysDept> byId = all.stream()
+                .collect(Collectors.toMap(SysDept::getId, d -> d, (a, b) -> a));
+        Set<Long> keep = new HashSet<>();
+        Long cur = myDeptId;
+        while (cur != null && byId.containsKey(cur)) {
+            keep.add(cur);
+            cur = byId.get(cur).getParentId();
+        }
+        return all.stream().filter(d -> keep.contains(d.getId())).collect(Collectors.toList());
     }
 
     public void create(SysDept dept) {

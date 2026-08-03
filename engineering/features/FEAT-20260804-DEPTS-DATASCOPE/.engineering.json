@@ -1,0 +1,77 @@
+{
+  "schema_version": "1.0",
+  "feature_id": "FEAT-20260804-DEPTS-DATASCOPE",
+  "title": "部门接口数据范围收窄:非管理员仅可见本人部门(修复depts越权)",
+  "project_root": "/Users/donglai/东来/01-Projects/01-aigicrm/04-源码",
+  "ui_scope": "none",
+  "current_state": "VERIFIED",
+  "created_at": "2026-08-04T00:27:11+08:00",
+  "updated_at": "2026-08-04T00:37:06+08:00",
+  "required_kinds": [
+    "build",
+    "test"
+  ],
+  "quality_commands": {
+    "test": {
+      "argv": [
+        "mvn",
+        "-f",
+        "/Users/donglai/东来/01-Projects/01-aigicrm/04-源码/ycmn-backend/pom.xml",
+        "test"
+      ],
+      "required": true
+    },
+    "build": {
+      "argv": [
+        "mvn",
+        "-f",
+        "/Users/donglai/东来/01-Projects/01-aigicrm/04-源码/ycmn-backend/pom.xml",
+        "compile"
+      ],
+      "required": true
+    }
+  },
+  "latest_gate_report": "evidence/gate-report-20260804-003643-558905.json",
+  "latest_preflight_report": "evidence/preflight-report-20260804-003550-385048.json",
+  "config_revision": 3,
+  "feature_revision": 1,
+  "transitions": [
+    {
+      "from": null,
+      "to": "INTAKE",
+      "at": "2026-08-04T00:27:11+08:00",
+      "evidence": "feature initialized"
+    },
+    {
+      "from": "INTAKE",
+      "to": "REQUIREMENTS_READY",
+      "at": "2026-08-04T00:27:35+08:00",
+      "evidence": ""
+    },
+    {
+      "from": "REQUIREMENTS_READY",
+      "to": "PROTOTYPE_READY",
+      "at": "2026-08-04T00:27:35+08:00",
+      "evidence": ""
+    },
+    {
+      "from": "PROTOTYPE_READY",
+      "to": "PLAN_READY",
+      "at": "2026-08-04T00:27:57+08:00",
+      "evidence": ""
+    },
+    {
+      "from": "PLAN_READY",
+      "to": "IMPLEMENTED",
+      "at": "2026-08-04T00:36:17+08:00",
+      "evidence": ""
+    },
+    {
+      "from": "IMPLEMENTED",
+      "to": "VERIFIED",
+      "at": "2026-08-04T00:37:06+08:00",
+      "evidence": ""
+    }
+  ],
+  "fingerprint_sha256": "344d5ef1d53c21382db4881dace179678f99aca2c12d7e03150159d7b2078651"
+}

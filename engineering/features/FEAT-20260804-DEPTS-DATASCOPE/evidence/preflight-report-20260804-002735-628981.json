@@ -1,0 +1,24 @@
+{
+  "feature_id": "FEAT-20260804-DEPTS-DATASCOPE",
+  "project_root": "/Users/donglai/东来/01-Projects/01-aigicrm/04-源码",
+  "created_at": "2026-08-04T00:27:35+08:00",
+  "config_revision": 1,
+  "feature_revision": 1,
+  "passed": true,
+  "checks": [
+    {
+      "check": "project_root",
+      "passed": true,
+      "detail": "/Users/donglai/东来/01-Projects/01-aigicrm/04-源码"
+    },
+    {
+      "check": "project_markers",
+      "passed": true,
+      "detail": [
+        ".git",
+        ".claude"
+      ]
+    }
+  ],
+  "errors": []
+}
