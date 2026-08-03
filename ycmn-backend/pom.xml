@@ -27,6 +27,13 @@
     </properties>
 
     <dependencies>
+        <!-- 分层架构约束（Controller/Service/Mapper 依赖方向） -->
+        <dependency>
+            <groupId>com.tngtech.archunit</groupId>
+            <artifactId>archunit-junit5</artifactId>
+            <version>1.3.0</version>
+            <scope>test</scope>
+        </dependency>
         <!-- Spring Boot -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
