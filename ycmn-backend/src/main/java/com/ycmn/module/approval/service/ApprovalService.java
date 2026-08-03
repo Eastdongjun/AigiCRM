@@ -77,14 +77,12 @@ public class ApprovalService {
             wrapper.eq(BizApproval::getStatus, tab);
             // 历史/进行中数据范围：非 admin 仅见本人申请或本人参与审批的记录
             if (!SecurityUtils.isAdmin()) {
-                wrapper.and(w -> w.eq(BizApproval::getApplicantId, userId)
-                        .or().in(BizApproval::getId, myInvolvedApprovalIds(userId)));
+                applyDataScope(wrapper, userId);
             }
         } else if ("all".equals(tab)) {
             // 非 admin 仅见本人申请或本人参与审批的记录
             if (!SecurityUtils.isAdmin()) {
-                wrapper.and(w -> w.eq(BizApproval::getApplicantId, userId)
-                        .or().in(BizApproval::getId, myInvolvedApprovalIds(userId)));
+                applyDataScope(wrapper, userId);
             }
         }
 
@@ -324,6 +322,23 @@ public class ApprovalService {
         }
     }
 
+    /**
+     * 应用审批数据范围
+     *
+     * 【需求】非 admin 仅见本人申请或本人参与的审批；空范围时不生成 IN () 语法错误
+     * 【方法】本人参与列表为空时退化为"仅本人申请"，保证 SQL 合法且语义正确
+     * 【业务规则】admin 不走本方法（全量可见）
+     */
+    private void applyDataScope(LambdaQueryWrapper<BizApproval> w, Long userId) {
+        List<Long> involved = myInvolvedApprovalIds(userId);
+        if (involved.isEmpty()) {
+            w.eq(BizApproval::getApplicantId, userId);
+        } else {
+            w.and(x -> x.eq(BizApproval::getApplicantId, userId)
+                    .or().in(BizApproval::getId, involved));
+        }
+    }
+
     public Map<String, Long> statistics(Long userId) {
         Map<String, Long> stats = new HashMap<>();
 
@@ -340,8 +355,7 @@ public class ApprovalService {
         // 数据范围：非 admin 仅统计本人申请或本人参与审批的记录（与列表口径一致）
         LambdaQueryWrapper<BizApproval> scoped = new LambdaQueryWrapper<>();
         if (!SecurityUtils.isAdmin()) {
-            scoped.and(w -> w.eq(BizApproval::getApplicantId, userId)
-                    .or().in(BizApproval::getId, myInvolvedApprovalIds(userId)));
+            applyDataScope(scoped, userId);
         }
 
         stats.put("reviewing", approvalMapper.selectCount(
