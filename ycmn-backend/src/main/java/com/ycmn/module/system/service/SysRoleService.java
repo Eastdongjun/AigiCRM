@@ -73,6 +73,24 @@ public class SysRoleService {
         }
     }
 
+    /**
+     * 更新角色-组织数据范围关联
+     *
+     * 【需求】角色管理页面维护 custom 数据范围的组织集合
+     * 【方法】清空后按 orgIds 重建关联（saveRoleOrgs 幂等）
+     * 【业务规则】仅 custom 数据范围生效；orgIds 为空则清空
+     * 【参数】roleId 角色ID；orgIds 选中组织ID集合
+     * 【注意】调用方需有 system:role:edit 权限
+     */
+    @Transactional
+    public void updateOrgs(Long roleId, List<Long> orgIds) {
+        SysRole role = new SysRole();
+        role.setId(roleId);
+        role.setDataScope(DataScopeType.CUSTOM.getCode());
+        role.setOrgIds(orgIds);
+        saveRoleOrgs(role);
+    }
+
     @Transactional
     public void delete(Long id) {
         roleMapper.deleteById(id);

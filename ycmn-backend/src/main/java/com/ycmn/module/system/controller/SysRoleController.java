@@ -28,6 +28,19 @@ public class SysRoleController {
         return Result.ok(roleService.getById(id));
     }
 
+    @GetMapping("/{id}/orgs")
+    @PreAuthorize("hasAuthority('system:role:view')")
+    public Result<List<Long>> getOrgs(@PathVariable Long id) {
+        return Result.ok(roleService.getById(id).getOrgIds());
+    }
+
+    @PutMapping("/{id}/orgs")
+    @PreAuthorize("hasAuthority('system:role:edit')")
+    public Result<Void> updateOrgs(@PathVariable Long id, @RequestBody List<Long> orgIds) {
+        roleService.updateOrgs(id, orgIds);
+        return Result.ok();
+    }
+
     @PostMapping
     @PreAuthorize("hasAuthority('system:role:add')")
     public Result<Void> create(@RequestBody SysRole role) {

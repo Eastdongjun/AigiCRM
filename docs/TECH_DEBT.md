@@ -73,3 +73,9 @@ cd ycmn-backend && mvn -q -Dtest=ArchitectureTest test
 - ✅ Schema：8 张缺表 + 2 表补列 + sys_org/sys_permission_rule 列名修正 + 3 张关联表，0 错误
 - ⏳ API：剩 2 个（GET/PUT /system/roles/{roleId}/orgs）——**后端无此端点**，前端调用了不存在的接口，需业务确认（删前端或补后端）
 - ℹ️ 5 个警告：sys_dept/sys_user_bak_wll_0721 为备份表无实体（正常噪音）
+
+## 剩余问题闭环（2026-08-03 第三轮）
+
+- ✅ role-orgs 2 个接口已补齐（SysRoleController GET/PUT /{id}/orgs + SysRoleService.updateOrgs）
+- ✅ check_api_wiring 158/158 全匹配
+- ✅ mvn 全量测试通过
