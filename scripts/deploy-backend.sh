@@ -38,6 +38,7 @@ ssh_prod "
     -e CORS_ORIGINS=https://www.aigicrm.com,http://localhost:5173,http://localhost:3000 \
     -e JWT_SECRET="$JWT_SECRET" \
     -v upload-data:/app/uploads \
+    -v ycmn-logs:/app/logs \
     ycmn-backend:2.7.0
   echo '等待启动...'
 "

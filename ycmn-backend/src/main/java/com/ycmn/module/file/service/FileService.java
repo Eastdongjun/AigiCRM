@@ -158,6 +158,12 @@ public class FileService {
                 Path filePath = Paths.get(uploadDir, fileKey);
                 Files.createDirectories(filePath.getParent());
                 Files.copy(file.getInputStream(), filePath, StandardCopyOption.REPLACE_EXISTING);
+                // 【需求】落盘校验:防止"数据库有记录但磁盘无文件"的静默失败(FEAT-20260804-FILE-INTEGRITY)
+                // 【方法】写盘后回读文件大小,与上传大小不一致说明写盘异常,删除已写文件并报错
+                if (Files.size(filePath) != file.getSize()) {
+                    Files.deleteIfExists(filePath);
+                    throw new BusinessException("文件写入校验失败,请重试");
+                }
                 fileUrl = "/api/file/download/" + fileKey;
             } else {
                 // OSS 存储

@@ -1,0 +1,83 @@
+{
+  "schema_version": "1.0",
+  "feature_id": "FEAT-20260804-FILE-INTEGRITY",
+  "title": "生产文件安全加固:统一双卷/落盘校验/日志持久化/安全头/激励记录清理/完整性巡检",
+  "project_root": "/Users/donglai/东来/01-Projects/01-aigicrm/04-源码",
+  "ui_scope": "none",
+  "current_state": "DELIVERED",
+  "created_at": "2026-08-04T00:10:15+08:00",
+  "updated_at": "2026-08-04T00:23:26+08:00",
+  "required_kinds": [
+    "build",
+    "test"
+  ],
+  "quality_commands": {
+    "test": {
+      "argv": [
+        "mvn",
+        "-f",
+        "/Users/donglai/东来/01-Projects/01-aigicrm/04-源码/ycmn-backend/pom.xml",
+        "test"
+      ],
+      "required": true
+    },
+    "build": {
+      "argv": [
+        "mvn",
+        "-f",
+        "/Users/donglai/东来/01-Projects/01-aigicrm/04-源码/ycmn-backend/pom.xml",
+        "compile"
+      ],
+      "required": true
+    }
+  },
+  "latest_gate_report": "evidence/gate-report-20260804-002303-220817.json",
+  "latest_preflight_report": "evidence/preflight-report-20260804-002311-538105.json",
+  "config_revision": 7,
+  "feature_revision": 1,
+  "transitions": [
+    {
+      "from": null,
+      "to": "INTAKE",
+      "at": "2026-08-04T00:10:15+08:00",
+      "evidence": "feature initialized"
+    },
+    {
+      "from": "INTAKE",
+      "to": "REQUIREMENTS_READY",
+      "at": "2026-08-04T00:13:09+08:00",
+      "evidence": ""
+    },
+    {
+      "from": "REQUIREMENTS_READY",
+      "to": "PROTOTYPE_READY",
+      "at": "2026-08-04T00:13:30+08:00",
+      "evidence": ""
+    },
+    {
+      "from": "PROTOTYPE_READY",
+      "to": "PLAN_READY",
+      "at": "2026-08-04T00:14:00+08:00",
+      "evidence": ""
+    },
+    {
+      "from": "PLAN_READY",
+      "to": "IMPLEMENTED",
+      "at": "2026-08-04T00:22:11+08:00",
+      "evidence": ""
+    },
+    {
+      "from": "IMPLEMENTED",
+      "to": "VERIFIED",
+      "at": "2026-08-04T00:23:11+08:00",
+      "evidence": ""
+    },
+    {
+      "from": "VERIFIED",
+      "to": "DELIVERED",
+      "at": "2026-08-04T00:23:26+08:00",
+      "evidence": ""
+    }
+  ],
+  "fingerprint_sha256": "6a0a66252351a1f6286b31873c1ec04c88b6f6784eec179b13ffca6bbcb483d1"
+}
