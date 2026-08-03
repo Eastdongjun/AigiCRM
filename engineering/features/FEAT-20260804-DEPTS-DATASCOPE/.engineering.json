@@ -4,9 +4,9 @@
   "title": "部门接口数据范围收窄:非管理员仅可见本人部门(修复depts越权)",
   "project_root": "/Users/donglai/东来/01-Projects/01-aigicrm/04-源码",
   "ui_scope": "none",
-  "current_state": "VERIFIED",
+  "current_state": "DELIVERED",
   "created_at": "2026-08-04T00:27:11+08:00",
-  "updated_at": "2026-08-04T00:37:06+08:00",
+  "updated_at": "2026-08-04T00:37:16+08:00",
   "required_kinds": [
     "build",
     "test"
@@ -71,7 +71,13 @@
       "to": "VERIFIED",
       "at": "2026-08-04T00:37:06+08:00",
       "evidence": ""
+    },
+    {
+      "from": "VERIFIED",
+      "to": "DELIVERED",
+      "at": "2026-08-04T00:37:16+08:00",
+      "evidence": ""
     }
   ],
-  "fingerprint_sha256": "344d5ef1d53c21382db4881dace179678f99aca2c12d7e03150159d7b2078651"
+  "fingerprint_sha256": "283b60561cb292d6f29b0dcbb80a62dd93aebf3843e0aa4f48da1885ac7fa9f4"
 }
