@@ -544,6 +544,9 @@ const loadRecords = async () => {
 }
 
 const resetDialogFields = () => {
+  // 关闭/重置弹窗时释放未提交文件的预览 blob,避免内存泄漏
+  const release = (list) => { for (const f of list) { if (f && f._url) { URL.revokeObjectURL(f._url); f._url = null } } }
+  release(installFiles.pre); release(installFiles.mid); release(installFiles.post); release(trackFile.value)
   installFiles.pre = []
   installFiles.mid = []
   installFiles.post = []
@@ -685,11 +688,22 @@ const uploadOne = async (file, idx, total) => {
   const formData = new FormData()
   formData.append('file', file)
   formData.append('scope', 'incentive')
+  // 上传进度节流:axios progress 事件高频触发,直接更新组件级 ref 会导致整个大组件
+  // (分类/筛选/表格/弹窗)反复重渲染,上传时主线程卡顿(FEAT 0804 性能修复)
+  let lastAt = 0
+  let lastPct = -1
   const res = await request.post('/file/upload', formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
     onUploadProgress: (e) => {
       const filePct = e.total ? Math.round((e.loaded / e.total) * 100) : 0
-      uploadProgress.value = Math.round(((idx + filePct / 100) / total) * 100)
+      const pct = Math.round(((idx + filePct / 100) / total) * 100)
+      const now = Date.now()
+      // 间隔 >=150ms 或进度变化 >=2% 才更新 UI
+      if (pct !== lastPct && (now - lastAt >= 150 || pct - lastPct >= 2)) {
+        lastAt = now
+        lastPct = pct
+        uploadProgress.value = pct
+      }
     }
   })
   uploadProgress.value = Math.round(((idx + 1) / total) * 100)
