@@ -137,18 +137,27 @@ public class IncentiveService {
         wrapper.orderByDesc(BizIncentiveRecord::getCreatedAt);
         List<BizIncentiveRecord> records = recordMapper.selectList(wrapper);
 
-        // 填充关联名称
+        // 批量填充关联名称(替代逐条 selectById 的 N+1,一次 IN 查询按 id 建 Map)
+        java.util.Set<Long> catIds = records.stream().map(BizIncentiveRecord::getCategoryId).filter(java.util.Objects::nonNull).collect(java.util.stream.Collectors.toSet());
+        java.util.Set<Long> uidSet = records.stream().map(BizIncentiveRecord::getUserId).filter(java.util.Objects::nonNull).collect(java.util.stream.Collectors.toSet());
+        java.util.Set<Long> custIdSet = records.stream().map(BizIncentiveRecord::getCustomerId).filter(java.util.Objects::nonNull).collect(java.util.stream.Collectors.toSet());
+        java.util.Map<Long, BizIncentiveCategory> catMap = catIds.isEmpty() ? java.util.Map.of()
+                : categoryMapper.selectBatchIds(catIds).stream().collect(java.util.stream.Collectors.toMap(BizIncentiveCategory::getId, c -> c));
+        java.util.Map<Long, SysUser> userMap = uidSet.isEmpty() ? java.util.Map.of()
+                : userMapper.selectBatchIds(uidSet).stream().collect(java.util.stream.Collectors.toMap(SysUser::getId, u -> u));
+        java.util.Map<Long, BizCustomer> custMap = custIdSet.isEmpty() ? java.util.Map.of()
+                : customerMapper.selectBatchIds(custIdSet).stream().collect(java.util.stream.Collectors.toMap(BizCustomer::getId, c -> c));
         for (BizIncentiveRecord r : records) {
             if (r.getCategoryId() != null) {
-                BizIncentiveCategory cat = categoryMapper.selectById(r.getCategoryId());
+                BizIncentiveCategory cat = catMap.get(r.getCategoryId());
                 if (cat != null) r.setCategoryName(cat.getCategoryName());
             }
             if (r.getUserId() != null) {
-                SysUser user = userMapper.selectById(r.getUserId());
+                SysUser user = userMap.get(r.getUserId());
                 if (user != null) r.setUserName(user.getRealName());
             }
             if (r.getCustomerId() != null) {
-                BizCustomer cust = customerMapper.selectById(r.getCustomerId());
+                BizCustomer cust = custMap.get(r.getCustomerId());
                 if (cust != null) r.setCustomerName(cust.getCustomerName());
             }
         }
