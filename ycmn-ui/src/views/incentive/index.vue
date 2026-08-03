@@ -185,7 +185,7 @@
             <div v-for="(file, idx) in installFiles.pre" :key="idx" class="file-card has" @click.stop>
               <img v-if="!file._existing && isImage(file.name)" :src="getObjectURL(file)" class="file-card-img" />
               <div v-else class="file-card-icon"><el-icon :size="file._existing?20:24"><Document /></el-icon></div>
-              <span class="file-card-del" @click.stop="installFiles.pre.splice(idx,1)"><el-icon><Close /></el-icon></span>
+              <span class="file-card-del" @click.stop="removeSlotFile('pre', idx)"><el-icon><Close /></el-icon></span>
               <span class="file-card-name">{{ file.name?.substring(0, 8) }}{{ file.name?.length > 8 ? '…' : '' }}</span>
             </div>
             <div v-if="installFiles.pre.length < MAX_FILES" class="file-card add" @click="pickFile('pre')">
@@ -214,7 +214,7 @@
                   <div v-else class="file-card-icon">
                     <el-icon :size="file._existing?20:24"><Document /></el-icon>
                   </div>
-                  <span class="file-card-del" @click.stop="installFiles[slot.key].splice(idx,1)"><el-icon><Close /></el-icon></span>
+                  <span class="file-card-del" @click.stop="removeSlotFile(slot.key, idx)"><el-icon><Close /></el-icon></span>
                   <span class="file-card-name">{{ file.name?.substring(0, 8) }}{{ file.name?.length > 8 ? '…' : '' }}</span>
                 </div>
                 <div v-if="installFiles[slot.key].length < MAX_FILES" class="file-card add" @click="pickFile(slot.key)">
@@ -236,7 +236,7 @@
             <div v-for="(file, idx) in trackFile" :key="idx" class="file-card has" @click.stop>
               <img v-if="!file._existing && isImage(file.name)" :src="getObjectURL(file)" class="file-card-img" />
               <div v-else class="file-card-icon"><el-icon :size="20"><Document /></el-icon></div>
-              <span class="file-card-del" @click.stop="trackFile.splice(idx,1)"><el-icon><Close /></el-icon></span>
+              <span class="file-card-del" @click.stop="removeSlotFile('track', idx)"><el-icon><Close /></el-icon></span>
               <span class="file-card-name">{{ file.name?.substring(0, 8) }}{{ file.name?.length > 8 ? '…' : '' }}</span>
             </div>
             <div v-if="trackFile.length < MAX_FILES" class="file-card add" @click="pickTrackFile()">
@@ -320,14 +320,16 @@ const canDelete = ref(false)
 // ===== 安装文件预览 =====
 const previewVisible = ref(false), previewUrl = ref(''), previewType = ref('image')
 function fileUrl(id) { return '/api/file/download/' + id + '?token=' + (getToken() || '') }
-function parseFid(v) { if (!v) return null; if (typeof v === 'number') return v; try { const a = JSON.parse(v); return Array.isArray(a) ? a[0] : v } catch { return v } }
+function parseFids(v) { if (!v) return []; if (typeof v === 'number') return [v]; try { const a = JSON.parse(v); return Array.isArray(a) ? a.map(x => Number(x)) : [v] } catch { return String(v).split(',').map(s => s.trim()).filter(Boolean) } }
+function splitNames(n) { if (!n) return []; return String(n).split(',').map(s => s.trim()).filter(Boolean) }
 function fileType(n) { if (!n) return 'doc'; if (/\.(jpg|jpeg|png|gif|webp|bmp)$/i.test(n)) return 'image'; if (/\.(mp4|mov|avi|webm)$/i.test(n)) return 'video'; return 'doc' }
 function previewFile(id, name) {
-  const fid = parseFid(id)
-  if (!fid) return
-  const t = fileType(name)
-  if (t === 'doc') { window.open(fileUrl(fid), '_blank'); return }
-  previewUrl.value = fileUrl(fid); previewType.value = t; previewVisible.value = true
+  const ids = parseFids(id), names = splitNames(name)
+  ids.forEach((fid, i) => {
+    const t = fileType(names[i] || '')
+    if (t === 'doc') { window.open(fileUrl(fid), '_blank'); return }
+    previewUrl.value = fileUrl(fid); previewType.value = t; previewVisible.value = true
+  })
 }
 function previewErr(e) { e.target.src = 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="320" height="240"><rect fill="#f5f6f7" width="320" height="240"/><text fill="#c0c4cc" font-size="14" text-anchor="middle" x="160" y="120">文件已丢失</text></svg>') }
 
@@ -634,7 +636,20 @@ const loadSharedCustomerIds = async () => {
 
 // 选择某个安装文件槽的文件
 const isImage = (name) => /\.(jpg|jpeg|png|gif|webp|bmp)$/i.test(name||'')
-const getObjectURL = (file) => (file && !file._existing) ? URL.createObjectURL(file) : (file?._existing ? '' : '')
+// 【需求】文件预览 blob URL 缓存:模板渲染时若每次 createObjectURL 会反复创建大 blob 且不释放,
+// 导致上传后 UI 重渲染卡顿/内存泄漏(FEAT 0804 性能修复)。改为首次创建缓存,移除时 revoke。
+const getObjectURL = (file) => {
+  if (!file || file._existing) return ''
+  if (!file._url) file._url = URL.createObjectURL(file)
+  return file._url
+}
+// 移除槽位文件:先释放预览 blob 再删除
+const removeSlotFile = (slotKey, idx) => {
+  const list = slotKey === 'track' ? trackFile.value : installFiles[slotKey]
+  const f = list[idx]
+  if (f && f._url) { URL.revokeObjectURL(f._url); f._url = null }
+  list.splice(idx, 1)
+}
 
 const pickFile = (slotKey) => {
   console.log('[pickFile] slot:', slotKey, 'fileInputRef:', fileInputRef.value)
@@ -714,26 +729,21 @@ const confirmUpload = async () => {
 
     if (pendingReplace.value) {
       // 追加模式：只保留 UI 中未被删除的已有文件 + 新上传文件
+      // 新文件已在上面(707-710)统一上传完成，此处不再重复上传
       const old = pendingReplace.value
       const getKeptIds = (slotFiles) => slotFiles.filter(f => f._existing && f.id).map(f => f.id)
 
-      // 用 uploadSlot 统一上传（含进度条）
-      const preNewIds = await uploadSlot(installFiles.pre)
-      const midNewIds = await uploadSlot(installFiles.mid)
-      const postNewIds = await uploadSlot(installFiles.post)
-      const trackNewIds = await uploadSlot(trackFile.value)
-
       const preOldIds = getKeptIds(installFiles.pre)
-      finalPreId = [...preOldIds, ...preNewIds].length ? `[${[...preOldIds, ...preNewIds].join(',')}]` : null
+      finalPreId = [...preOldIds, ...preIds].length ? `[${[...preOldIds, ...preIds].join(',')}]` : null
 
       const midOldIds = getKeptIds(installFiles.mid)
-      finalMidId = [...midOldIds, ...midNewIds].length ? `[${[...midOldIds, ...midNewIds].join(',')}]` : null
+      finalMidId = [...midOldIds, ...midIds].length ? `[${[...midOldIds, ...midIds].join(',')}]` : null
 
       const postOldIds = getKeptIds(installFiles.post)
-      finalPostId = [...postOldIds, ...postNewIds].length ? `[${[...postOldIds, ...postNewIds].join(',')}]` : null
+      finalPostId = [...postOldIds, ...postIds].length ? `[${[...postOldIds, ...postIds].join(',')}]` : null
 
       const trackOldIds = getKeptIds(trackFile.value)
-      finalTrackId = [...trackOldIds, ...trackNewIds].length ? `[${[...trackOldIds, ...trackNewIds].join(',')}]` : null
+      finalTrackId = [...trackOldIds, ...trackIds].length ? `[${[...trackOldIds, ...trackIds].join(',')}]` : null
 
       // 单槽品类：保留旧记录的中/后/跟踪槽文件（不提供编辑入口，避免历史数据丢失）
       if (isSingleSlot.value) {

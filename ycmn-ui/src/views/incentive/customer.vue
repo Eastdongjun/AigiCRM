@@ -49,8 +49,8 @@
             <div v-for="f in getFiles(r)" :key="f.id" style="flex:1;min-width:100px;max-width:calc(50% - 3px)">
               <div v-if="f.tag" style="font-size:10px;color:#909399;margin-bottom:2px">{{ f.tag }}</div>
               <img v-if="f.type==='image'" :src="fileUrl(f.id)" style="width:100%;max-height:180px;border-radius:4px;border:1px solid #e8e8e8;object-fit:cover;cursor:pointer" @click="preview(f.id, f.type)" @error="onImgError" />
-              <div v-else-if="f.type==='video'" style="width:100%;height:120px;background:#1e1b4b;border-radius:4px;display:flex;align-items:center;justify-content:center;cursor:pointer" @click="preview(f.id, f.type)">
-                <div style="width:36px;height:36px;background:rgba(255,255,255,.2);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;color:#fff">▶</div>
+              <div v-else-if="f.type==='video'" style="width:100%">
+                <video :src="fileUrl(f.id)" controls preload="metadata" style="width:100%;max-height:220px;background:#000;border-radius:4px"></video>
               </div>
               <a v-else :href="fileUrl(f.id)" target="_blank" style="display:block;padding:8px 10px;background:#fdf6ec;border-radius:4px;color:#e6a23c;text-decoration:none;font-size:11px;text-align:center">📄 {{ f.label }}</a>
             </div>
@@ -88,13 +88,18 @@ function onImgError(e){e.target.src='data:image/svg+xml,'+encodeURIComponent('<s
 function fileUrl(id) { return '/api/file/download/' + id + '?token=' + (getToken() || '') }
 function preview(id, type) { previewUrl.value = fileUrl(id); previewType.value = type || 'image'; previewVisible.value = true }
 
-function parseId(v){if(!v)return null;if(typeof v==='number')return v;try{const a=JSON.parse(v);return Array.isArray(a)?a[0]:v}catch{return v}}
+function parseIds(v){if(!v)return[];if(typeof v==='number')return[v];try{const a=JSON.parse(v);return Array.isArray(a)?a.map(x=>Number(x)):[v]}catch{return String(v).split(',').map(s=>s.trim()).filter(Boolean)}}
+function splitNames(n){if(!n)return[];return String(n).split(',').map(s=>s.trim()).filter(Boolean)}
+function pushFiles(f, ids, names, tag){
+  const idList=parseIds(ids), nameList=splitNames(names)
+  idList.forEach((id,i)=>{f.push({id:Number(id),label:nameList[i]||'',type:detectType(nameList[i]||''),tag})})
+}
 function getFiles(r) {
   const f = []
-  if (r.filePreId) f.push({ id: parseId(r.filePreId), label: r.filePreName || '', type: detectType(r.filePreName), tag: '安装前' })
-  if (r.fileMidId) f.push({ id: parseId(r.fileMidId), label: r.fileMidName || '', type: detectType(r.fileMidName), tag: '安装中' })
-  if (r.filePostId) f.push({ id: parseId(r.filePostId), label: r.filePostName || '', type: detectType(r.filePostName), tag: '安装后' })
-  if (r.fileId) f.push({ id: parseId(r.fileId), label: r.fileName || '', type: detectType(r.fileName), tag: '' })
+  pushFiles(f, r.filePreId, r.filePreName, '安装前')
+  pushFiles(f, r.fileMidId, r.fileMidName, '安装中')
+  pushFiles(f, r.filePostId, r.filePostName, '安装后')
+  pushFiles(f, r.fileId, r.fileName, '')
   return f.filter(x => x.id)
 }
 function detectType(n) { if(!n)return 'doc'; if(/\.(jpg|jpeg|png|gif|webp|bmp)$/i.test(n))return 'image'; if(/\.(mp4|mov|avi|webm)$/i.test(n))return 'video'; return 'doc' }

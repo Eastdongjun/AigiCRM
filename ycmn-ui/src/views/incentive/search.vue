@@ -161,11 +161,11 @@
                       </div>
                     </div>
                   </template>
-                  <div v-else-if="f.type==='video'" class="dtl-file-vid" @click="preview(f.id, f.type)">
-                    <div class="vid-overlay"><el-icon :size="36"><VideoPlay /></el-icon></div>
-                    <div v-if="f.tag" class="dtl-file-tag">{{ f.tag }}</div>
-                    <div class="dtl-file-acts">
-                      <el-button size="small" circle type="primary" @click.stop="preview(f.id, f.type)"><el-icon><VideoPlay /></el-icon></el-button>
+                  <div v-else-if="f.type==='video'" class="dtl-file-vid">
+                    <video :src="fileUrl(f.id)" controls preload="metadata" style="width:100%;max-height:240px;background:#000;border-radius:6px"></video>
+                    <div style="display:flex;align-items:center;gap:8px;margin-top:4px">
+                      <span v-if="f.tag" class="dtl-file-tag">{{ f.tag }}</span>
+                      <span class="doc-label" style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ f.label }}</span>
                       <el-button size="small" circle @click.stop="window.open(fileUrl(f.id))"><el-icon><Download /></el-icon></el-button>
                     </div>
                   </div>
@@ -211,14 +211,19 @@ function preview(id,type){previewUrl.value=fileUrl(id);previewType.value=type===
 function downloadPreview(){if(previewUrl.value)window.open(previewUrl.value)}
 function showDetail(c){detailCust.value=c;detailVisible.value=true}
 
-function parseId(v){if(!v)return null;if(typeof v==='number')return v;try{const a=JSON.parse(v);return Array.isArray(a)?a[0]:v}catch{return v}}
+function parseIds(v){if(!v)return[];if(typeof v==='number')return[v];try{const a=JSON.parse(v);return Array.isArray(a)?a.map(x=>Number(x)):[v]}catch{return String(v).split(',').map(s=>s.trim()).filter(Boolean)}}
+function splitNames(n){if(!n)return[];return String(n).split(',').map(s=>s.trim()).filter(Boolean)}
+function pushFiles(f, ids, names, tag){
+  const idList=parseIds(ids), nameList=splitNames(names)
+  idList.forEach((id,i)=>{f.push({id:Number(id),label:nameList[i]||'文件',type:detectType(nameList[i]||''),tag})})
+}
 function getFiles(r){
   const f=[]
-  if(r.filePreId)f.push({id:parseId(r.filePreId),label:r.filePreName||'文件',type:detectType(r.filePreName),tag:'安装前'})
-  if(r.fileMidId)f.push({id:parseId(r.fileMidId),label:r.fileMidName||'文件',type:detectType(r.fileMidName),tag:'安装中'})
-  if(r.filePostId)f.push({id:parseId(r.filePostId),label:r.filePostName||'文件',type:detectType(r.filePostName),tag:'安装后'})
-  if(r.fileId)f.push({id:parseId(r.fileId),label:r.fileName||'文件',type:detectType(r.fileName),tag:''})
-  if(r.fileTrackId)f.push({id:parseId(r.fileTrackId),label:r.fileTrackName||'',type:detectType(r.fileTrackName),tag:'跟踪'})
+  pushFiles(f, r.filePreId, r.filePreName, '安装前')
+  pushFiles(f, r.fileMidId, r.fileMidName, '安装中')
+  pushFiles(f, r.filePostId, r.filePostName, '安装后')
+  pushFiles(f, r.fileId, r.fileName, '')
+  pushFiles(f, r.fileTrackId, r.fileTrackName, '跟踪')
   return f.filter(x => x.id)
 }
 function detectType(n){if(!n)return'doc';if(/\.(jpg|jpeg|png|gif|webp|bmp)$/i.test(n))return'image';if(/\.(mp4|mov|avi|webm)$/i.test(n))return'video';return'doc'}
