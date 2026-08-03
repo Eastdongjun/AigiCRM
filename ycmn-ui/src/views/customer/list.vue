@@ -570,9 +570,13 @@ const filterFieldOptions = reactive({
   regionId: { label: '大区', options: [] }
 })
 
+// 筛选选项懒加载:页面初始不再全量拉客户(省一个 200KB+ 请求),首次打开筛选面板时才加载并缓存
+let filterOptionsLoaded = false
 const loadFilterOptions = async () => {
+  if (filterOptionsLoaded) return
+  filterOptionsLoaded = true
   try {
-    const res = await getCustomerList({ current:1, size:9999 })
+    const res = await getCustomerList({ current:1, size:500 })
     const all = res.data.records || []
     filterFieldOptions.groupName.options = [...new Set(all.map(r=>r.groupName).filter(Boolean))].sort().map(v=>({label:v,value:v}))
     filterFieldOptions.industry.options = [...new Set(all.map(r=>r.industry).filter(Boolean))].sort().map(v=>({label:v,value:v}))
@@ -588,6 +592,7 @@ const editFilter = (f) => {
 
 const onAddFilter = (field) => {
   if (!field) return
+  loadFilterOptions()
   filterDialogField.value = field
   filterDialogValues.value = (query.filters.find(f=>f.field===field)?.value || []).slice()
   filterDialogVisible.value = true
@@ -633,7 +638,7 @@ const handleFilterIndustry = (industry) => {
 
 const loadData = async () => {
   try {
-    const params = { current: 1, size: 9999, keyword: query.keyword, scope: query.scope }
+    const params = { current: 1, size: 500, keyword: query.keyword, scope: query.scope }
     if (query.industry) params.industry = query.industry
     if (query.industries && query.industries.length) params.industry = query.industries.join(',')
     if (query.regionId) params.regionId = query.regionId
@@ -825,7 +830,6 @@ onMounted(() => {
   loadScopeCounts()
   loadRegions()
   loadIndustryOptions()
-  loadFilterOptions()
   loadFilterData()
   nextTick(updateTableHeight)
   if (tableWrapRef.value) {
