@@ -36,6 +36,18 @@ for ep in "auth/info" "customer/list?page=1&size=2" "incentive/categories" "file
   if [ "$CODE" = "200" ]; then ok "/api/$ep"; else bad "/api/$ep → code=$CODE"; fi
 done
 
+# [2.5] 角色-组织数据范围接口（2026-08-03 新增）
+echo "--- [2.5] role-orgs ---"
+FIRST_ROLE=$(curl -sk -X GET "$BASE/api/system/roles" -H "$AUTH" --connect-timeout 8 \
+  | python3 -c "import sys,json;d=json.load(sys.stdin).get('data',[]);print(d[0]['id'] if d else '')" 2>/dev/null)
+if [ -n "$FIRST_ROLE" ]; then
+  RO=$(curl -sk -X GET "$BASE/api/system/roles/$FIRST_ROLE/orgs" -H "$AUTH" --connect-timeout 8)
+  RCODE=$(echo "$RO" | python3 -c "import sys,json;print(json.load(sys.stdin).get('code','x'))" 2>/dev/null)
+  [ "$RCODE" = "200" ] && ok "role-orgs GET (role=$FIRST_ROLE)" || bad "role-orgs GET → code=$RCODE"
+else
+  bad "role-orgs 前置: 无法获取角色列表"
+fi
+
 # [3] 权限隔离: 销售员访问 users 应 403(账号密码可用环境变量覆盖)
 # 生产环境无通用测试账号时, 通过 SMOKE_TEST_USER/SMOKE_TEST_PASS 配置, 否则跳过并提示
 TEST_USER="${SMOKE_TEST_USER:-wangleilei}"

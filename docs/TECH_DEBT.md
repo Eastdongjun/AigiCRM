@@ -79,3 +79,9 @@ cd ycmn-backend && mvn -q -Dtest=ArchitectureTest test
 - ✅ role-orgs 2 个接口已补齐（SysRoleController GET/PUT /{id}/orgs + SysRoleService.updateOrgs）
 - ✅ check_api_wiring 158/158 全匹配
 - ✅ mvn 全量测试通过
+
+## role-orgs 端到端验证（2026-08-03 第四轮）
+
+- ✅ 后端接口已部署到测试环境（jar 替换 + 重启，健康检查 200）
+- ✅ 冒烟测试 21/21 全过（含 role-orgs GET 断言，role=10 返回 200）
+- ✅ 真实库无需迁移（新表与权限码均已存在）
