@@ -5,6 +5,12 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 source "$SCRIPT_DIR/deploy-lib.sh"
 
 COMMIT=$(git_commit)
+# JWT_SECRET 必须存在（否则应用启动失败）
+if [ -z "${JWT_SECRET:-}" ]; then
+  echo "错误: 缺少 JWT_SECRET（请在 ~/.ycmn-deploy.env 配置）" >&2
+  exit 1
+fi
+
 echo "=== [1/5] 从测试服务器提取已验证 jar (commit: $COMMIT) ==="
 ssh_test "docker cp ycmn-backend:/app/app.jar /tmp/ycmn-backend-new.jar"
 scp_test "${TEST_USER}@${TEST_HOST}:/tmp/ycmn-backend-new.jar" /tmp/ycmn-backend-new.jar
@@ -30,6 +36,7 @@ ssh_prod "
     -e OSS_ENDPOINT=oss-cn-beijing.aliyuncs.com -e OSS_ACCESS_KEY_ID=your-key \
     -e OSS_ACCESS_KEY_SECRET=your-secret -e OSS_BUCKET_NAME=your-bucket \
     -e CORS_ORIGINS=https://www.aigicrm.com,http://localhost:5173,http://localhost:3000 \
+    -e JWT_SECRET="$JWT_SECRET" \
     -v upload-data:/app/uploads \
     ycmn-backend:2.7.0
   echo '等待启动...'
