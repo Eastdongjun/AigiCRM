@@ -45,3 +45,31 @@
 ```bash
 cd ycmn-backend && mvn -q -Dtest=ArchitectureTest test
 ```
+
+## 三脚本交叉核对发现（2026-08-03 完整检查）
+
+> CI 中三脚本为必跑步骤；以下问题需修复后 CI 才能绿。
+
+### 1. Schema/Entity 漂移（12+ 处）— ycmn_database_test.sql 落后于实体
+
+- SQL 缺表：biz_approval_config、sys_group、sys_legal_entity、sys_org、sys_org_admin、sys_permission_rule、sys_position、sys_position_rule
+- SQL 缺列：biz_approval_node.config_id/sign_mode、biz_customer.group_id/legal_entity_id
+- 处置：确认是否有对应迁移脚本（sql/migration-*.sql）；有则并入测试 SQL，无则补迁移
+
+### 2. API Wiring 缺口（12 个 PUT 接口）
+
+- /api/system/depts|dict|groups|legal-entities|menus|positions|roles|rules|users/{id} 等后端存在但前端 api 封装缺失
+- 处置：前端补封装或确认前端使用方式后排除
+
+### 3. 权限码未同步（system:rule:*、system:user:delete）
+
+- SysPermissionRuleController / SysUserController 的 @PreAuthorize 权限码在 SQL 权限表中无对应记录
+- 风险：与历史权限 403 事故同类（score:view 未绑角色）
+- 处置：SQL 权限表补记录 + 绑定角色，测试环境验证
+
+## 三脚本修复进展（2026-08-03 第二轮）
+
+- ✅ 权限码：27 个缺失权限码已全部补入 sys_menu（含 score:view 历史 403 事故码）+ admin 角色绑定
+- ✅ Schema：8 张缺表 + 2 表补列 + sys_org/sys_permission_rule 列名修正 + 3 张关联表，0 错误
+- ⏳ API：剩 2 个（GET/PUT /system/roles/{roleId}/orgs）——**后端无此端点**，前端调用了不存在的接口，需业务确认（删前端或补后端）
+- ℹ️ 5 个警告：sys_dept/sys_user_bak_wll_0721 为备份表无实体（正常噪音）

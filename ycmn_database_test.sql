@@ -90,8 +90,10 @@ DROP TABLE IF EXISTS `biz_approval_node`;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `biz_approval_node` (
   `id` bigint NOT NULL AUTO_INCREMENT,
+  `config_id` bigint DEFAULT NULL COMMENT '审批配置ID',
   `approval_id` bigint NOT NULL,
   `approver_id` bigint NOT NULL COMMENT '审批人ID',
+  `sign_mode` varchar(10) DEFAULT NULL COMMENT 'ALL=会签 / ANY=非会签',
   `node_order` int DEFAULT NULL COMMENT '节点顺序',
   `action` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL COMMENT '操作: approve/reject',
   `comment` varchar(500) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL COMMENT '审批意见',
@@ -154,6 +156,8 @@ DROP TABLE IF EXISTS `biz_customer`;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `biz_customer` (
   `id` bigint NOT NULL AUTO_INCREMENT,
+  `group_id` bigint DEFAULT NULL COMMENT '集团ID',
+  `legal_entity_id` bigint DEFAULT NULL COMMENT '法人公司ID',
   `customer_code` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL COMMENT '客户编号(C001)',
   `customer_name` varchar(200) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL COMMENT '订货客户全称',
   `invoice_name` varchar(200) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL COMMENT '开票名称',
@@ -1130,7 +1134,11 @@ CREATE TABLE `sys_menu` (
 
 LOCK TABLES `sys_menu` WRITE;
 /*!40000 ALTER TABLE `sys_menu` DISABLE KEYS */;
-INSERT INTO `sys_menu` VALUES (1,0,'首页',1,'','','','HomeFilled',0,1,1,'2026-06-10 09:44:24'),(2,1,'工作台',2,'/dashboard','dashboard/index','dashboard:view','Monitor',1,1,1,'2026-06-10 09:44:24'),(10,0,'业务核心',1,'','','','Briefcase',1,1,1,'2026-06-10 09:44:24'),(11,10,'客户管理',2,'/customer','customer/list','customer:view','User',1,1,1,'2026-06-10 09:44:24'),(12,10,'新增客户',2,'/customer/add','customer/add','customer:add','Plus',2,1,1,'2026-06-10 09:44:24'),(13,10,'客户详情',2,'/customer/detail/:id','customer/detail','customer:view','Document',3,0,1,'2026-06-10 09:44:24'),(14,10,'文件管理',2,'/file','file/index','file:view','Folder',4,1,1,'2026-06-10 09:44:24'),(15,10,'四项激励',2,'/incentive','incentive/index','incentive:view','Trophy',5,1,1,'2026-06-10 09:44:24'),(16,10,'提醒管理',2,'/reminder','reminder/index','reminder:view','Bell',6,1,1,'2026-06-10 09:44:24'),(17,10,'公海管理',2,'/sea','sea/index','sea:view','Ship',7,1,1,'2026-06-10 09:44:24'),(18,10,'审批管理',2,'/approval','approval/index','approval:view','CircleCheck',8,1,1,'2026-06-10 09:44:24'),(20,0,'考核与分析',1,'','','','DataAnalysis',2,1,1,'2026-06-10 09:44:24'),(21,20,'统计分析',2,'/statistics','statistics/index','statistics:view','TrendCharts',1,1,1,'2026-06-10 09:44:24'),(22,20,'积分榜',2,'/scoreboard','statistics/scoreboard','statistics:scoreboard','Medal',2,1,1,'2026-06-10 09:44:24'),(30,0,'系统管理',1,'','','','Setting',3,1,1,'2026-06-10 09:44:24'),(31,30,'人员管理',2,'/system/user','system/user','system:user:view','UserFilled',1,1,1,'2026-06-10 09:44:24'),(32,30,'组织架构',2,'/system/dept','system/dept','system:dept:view','OfficeBuilding',2,1,1,'2026-06-10 09:44:24'),(33,30,'角色管理',2,'/system/role','system/role','system:role:view','Key',3,1,1,'2026-06-10 09:44:24'),(34,30,'系统设置',2,'/system/config','system/config','system:config:view','Tools',4,1,1,'2026-06-10 09:44:24'),(35,30,'日志管理',2,'/system/log','system/log','system:log:view','Notebook',5,1,1,'2026-06-10 09:44:24'),(40,11,'客户新增',3,'','','customer:add','',1,1,1,'2026-06-10 09:44:24'),(41,11,'客户编辑',3,'','','customer:edit','',2,1,1,'2026-06-10 09:44:24'),(42,11,'客户删除',3,'','','customer:delete','',3,1,1,'2026-06-10 09:44:24'),(43,11,'客户导出',3,'','','customer:export','',4,1,1,'2026-06-10 09:44:24'),(44,17,'公海捞取',3,'','','sea:claim','',1,1,1,'2026-06-10 09:44:24'),(45,18,'审批通过',3,'','','approval:approve','',1,1,1,'2026-06-10 09:44:24'),(46,18,'审批驳回',3,'','','approval:reject','',2,1,1,'2026-06-10 09:44:24'),(47,14,'文件上传',3,'','','file:upload','',1,1,1,'2026-06-10 09:44:24'),(48,14,'文件删除',3,'','','file:delete','',2,1,1,'2026-06-10 09:44:24'),(49,31,'用户新增',3,'','','system:user:add','',1,1,1,'2026-06-10 09:44:24'),(50,31,'用户编辑',3,'','','system:user:edit','',2,1,1,'2026-06-10 09:44:24'),(51,33,'角色新增',3,'','','system:role:add','',1,1,1,'2026-06-10 09:44:24'),(52,33,'角色编辑',3,'','','system:role:edit','',2,1,1,'2026-06-10 09:44:24'),(53,17,'公海编辑',3,'','','sea:pool:edit','',2,1,1,'2026-07-06 06:35:15'),(54,17,'公海删除',3,'','','sea:pool:delete','',3,1,1,'2026-07-06 06:35:15'),(55,17,'公海导入',3,'','','sea:pool:import','',4,1,1,'2026-07-06 06:35:15'),(60,20,'积分录入',2,'/score/entry','score/entry','score:entry','Edit',3,1,1,'2026-06-12 16:39:57'),(61,20,'积分排行',2,'/score/ranking','score/ranking','score:ranking','Medal',4,1,1,'2026-06-12 16:39:57'),(62,15,'激励修改',3,NULL,NULL,'incentive:edit',NULL,1,1,1,'2026-07-30 18:52:55'),(63,15,'激励删除',3,NULL,NULL,'incentive:delete',NULL,2,1,1,'2026-07-30 18:52:55');
+INSERT INTO `sys_menu` VALUES (1,0,'首页',1,'','','','HomeFilled',0,1,1,'2026-06-10 09:44:24'),(2,1,'工作台',2,'/dashboard','dashboard/index','dashboard:view','Monitor',1,1,1,'2026-06-10 09:44:24'),(10,0,'业务核心',1,'','','','Briefcase',1,1,1,'2026-06-10 09:44:24'),(11,10,'客户管理',2,'/customer','customer/list','customer:view','User',1,1,1,'2026-06-10 09:44:24'),(12,10,'新增客户',2,'/customer/add','customer/add','customer:add','Plus',2,1,1,'2026-06-10 09:44:24'),(13,10,'客户详情',2,'/customer/detail/:id','customer/detail','customer:view','Document',3,0,1,'2026-06-10 09:44:24'),(14,10,'文件管理',2,'/file','file/index','file:view','Folder',4,1,1,'2026-06-10 09:44:24'),(15,10,'四项激励',2,'/incentive','incentive/index','incentive:view','Trophy',5,1,1,'2026-06-10 09:44:24'),(16,10,'提醒管理',2,'/reminder','reminder/index','reminder:view','Bell',6,1,1,'2026-06-10 09:44:24'),(17,10,'公海管理',2,'/sea','sea/index','sea:view','Ship',7,1,1,'2026-06-10 09:44:24'),(18,10,'审批管理',2,'/approval','approval/index','approval:view','CircleCheck',8,1,1,'2026-06-10 09:44:24'),(20,0,'考核与分析',1,'','','','DataAnalysis',2,1,1,'2026-06-10 09:44:24'),(21,20,'统计分析',2,'/statistics','statistics/index','statistics:view','TrendCharts',1,1,1,'2026-06-10 09:44:24'),(22,20,'积分榜',2,'/scoreboard','statistics/scoreboard','statistics:scoreboard','Medal',2,1,1,'2026-06-10 09:44:24'),(30,0,'系统管理',1,'','','','Setting',3,1,1,'2026-06-10 09:44:24'),(31,30,'人员管理',2,'/system/user','system/user','system:user:view','UserFilled',1,1,1,'2026-06-10 09:44:24'),(32,30,'组织架构',2,'/system/dept','system/dept','system:dept:view','OfficeBuilding',2,1,1,'2026-06-10 09:44:24'),(33,30,'角色管理',2,'/system/role','system/role','system:role:view','Key',3,1,1,'2026-06-10 09:44:24'),(34,30,'系统设置',2,'/system/config','system/config','system:config:view','Tools',4,1,1,'2026-06-10 09:44:24'),(35,30,'日志管理',2,'/system/log','system/log','system:log:view','Notebook',5,1,1,'2026-06-10 09:44:24'),(40,11,'客户新增',3,'','','customer:add','',1,1,1,'2026-06-10 09:44:24'),(41,11,'客户编辑',3,'','','customer:edit','',2,1,1,'2026-06-10 09:44:24'),(42,11,'客户删除',3,'','','customer:delete','',3,1,1,'2026-06-10 09:44:24'),(43,11,'客户导出',3,'','','customer:export','',4,1,1,'2026-06-10 09:44:24'),(44,17,'公海捞取',3,'','','sea:claim','',1,1,1,'2026-06-10 09:44:24'),(45,18,'审批通过',3,'','','approval:approve','',1,1,1,'2026-06-10 09:44:24'),(46,18,'审批驳回',3,'','','approval:reject','',2,1,1,'2026-06-10 09:44:24'),(47,14,'文件上传',3,'','','file:upload','',1,1,1,'2026-06-10 09:44:24'),(48,14,'文件删除',3,'','','file:delete','',2,1,1,'2026-06-10 09:44:24'),(49,31,'用户新增',3,'','','system:user:add','',1,1,1,'2026-06-10 09:44:24'),(50,31,'用户编辑',3,'','','system:user:edit','',2,1,1,'2026-06-10 09:44:24'),(51,33,'角色新增',3,'','','system:role:add','',1,1,1,'2026-06-10 09:44:24'),(52,33,'角色编辑',3,'','','system:role:edit','',2,1,1,'2026-06-10 09:44:24'),(53,17,'公海编辑',3,'','','sea:pool:edit','',2,1,1,'2026-07-06 06:35:15'),(54,17,'公海删除',3,'','','sea:pool:delete','',3,1,1,'2026-07-06 06:35:15'),(55,17,'公海导入',3,'','','sea:pool:import','',4,1,1,'2026-07-06 06:35:15'),(60,20,'积分录入',2,'/score/entry','score/entry','score:entry','Edit',3,1,1,'2026-06-12 16:39:57'),(61,20,'积分排行',2,'/score/ranking','score/ranking','score:ranking','Medal',4,1,1,'2026-06-12 16:39:57'),(62,15,'激励修改',3,NULL,NULL,'incentive:edit',NULL,1,1,1,'2026-07-30 18:52:55'),(63,15,'激励删除',3,NULL,NULL,'incentive:delete',NULL,2,1,1,'2026-07-30 18:52:55')
+,(64,31,'用户删除',3,NULL,NULL,'system:user:delete',NULL,3,1,1,'2026-08-03 14:30:00')
+,(65,33,'权限规则查看',3,NULL,NULL,'system:rule:view',NULL,3,1,1,'2026-08-03 14:30:00')
+,(66,33,'权限规则编辑',3,NULL,NULL,'system:rule:edit',NULL,4,1,1,'2026-08-03 14:30:00')
+,(67,33,'权限规则删除',3,NULL,NULL,'system:rule:delete',NULL,5,1,1,'2026-08-03 14:30:00'),(68,41,'客户导入',3,NULL,NULL,'customer:import',NULL,4,1,1,'2026-08-03 14:30:00'),(69,14,'文件编辑',3,NULL,NULL,'file:edit',NULL,3,1,1,'2026-08-03 14:30:00'),(70,60,'积分管理',3,NULL,NULL,'score:manage',NULL,2,1,1,'2026-08-03 14:30:00'),(71,20,'积分查看',3,NULL,NULL,'score:view',NULL,5,1,1,'2026-08-03 14:30:00'),(72,17,'公海配置编辑',3,NULL,NULL,'sea:config:edit',NULL,5,1,1,'2026-08-03 14:30:00'),(73,17,'公海配置查看',3,NULL,NULL,'sea:config:view',NULL,6,1,1,'2026-08-03 14:30:00'),(74,34,'系统设置编辑',3,NULL,NULL,'system:config:edit',NULL,2,1,1,'2026-08-03 14:30:00'),(75,32,'部门新增',3,NULL,NULL,'system:dept:add',NULL,3,1,1,'2026-08-03 14:30:00'),(76,32,'部门编辑',3,NULL,NULL,'system:dept:edit',NULL,4,1,1,'2026-08-03 14:30:00'),(77,32,'部门删除',3,NULL,NULL,'system:dept:delete',NULL,5,1,1,'2026-08-03 14:30:00'),(78,30,'集团查看',3,NULL,NULL,'system:group:view',NULL,6,1,1,'2026-08-03 14:30:00'),(79,30,'集团新增',3,NULL,NULL,'system:group:add',NULL,7,1,1,'2026-08-03 14:30:00'),(80,30,'集团编辑',3,NULL,NULL,'system:group:edit',NULL,8,1,1,'2026-08-03 14:30:00'),(81,30,'集团删除',3,NULL,NULL,'system:group:delete',NULL,9,1,1,'2026-08-03 14:30:00'),(82,30,'菜单查看',3,NULL,NULL,'system:menu:view',NULL,10,1,1,'2026-08-03 14:30:00'),(83,30,'菜单编辑',3,NULL,NULL,'system:menu:edit',NULL,11,1,1,'2026-08-03 14:30:00'),(84,32,'组织管理员',3,NULL,NULL,'system:org:admin',NULL,6,1,1,'2026-08-03 14:30:00'),(85,32,'岗位查看',3,NULL,NULL,'system:position:view',NULL,7,1,1,'2026-08-03 14:30:00'),(86,32,'岗位新增',3,NULL,NULL,'system:position:add',NULL,8,1,1,'2026-08-03 14:30:00'),(87,32,'岗位编辑',3,NULL,NULL,'system:position:edit',NULL,9,1,1,'2026-08-03 14:30:00'),(88,32,'岗位删除',3,NULL,NULL,'system:position:delete',NULL,10,1,1,'2026-08-03 14:30:00'),(89,33,'角色删除',3,NULL,NULL,'system:role:delete',NULL,4,1,1,'2026-08-03 14:30:00'),(90,33,'权限规则新增',3,NULL,NULL,'system:rule:add',NULL,6,1,1,'2026-08-03 14:30:00');
 /*!40000 ALTER TABLE `sys_menu` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -1143,6 +1151,7 @@ DROP TABLE IF EXISTS `sys_role`;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `sys_role` (
   `id` bigint NOT NULL AUTO_INCREMENT,
+  `org_id` bigint DEFAULT NULL COMMENT '组织ID',
   `role_name` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL COMMENT '角色名称',
   `role_code` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL COMMENT '角色编码',
   `description` varchar(200) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL COMMENT '描述',
@@ -1188,7 +1197,7 @@ CREATE TABLE `sys_role_menu` (
 
 LOCK TABLES `sys_role_menu` WRITE;
 /*!40000 ALTER TABLE `sys_role_menu` DISABLE KEYS */;
-INSERT INTO `sys_role_menu` VALUES (818,1,1),(855,1,2),(819,1,10),(820,1,11),(821,1,12),(822,1,13),(823,1,14),(824,1,15),(825,1,16),(826,1,17),(827,1,18),(828,1,20),(829,1,21),(830,1,22),(831,1,30),(832,1,31),(833,1,32),(834,1,33),(835,1,34),(836,1,35),(837,1,40),(838,1,41),(839,1,42),(840,1,43),(841,1,44),(842,1,45),(843,1,46),(844,1,47),(845,1,48),(846,1,49),(847,1,50),(848,1,51),(849,1,52),(850,1,53),(851,1,54),(852,1,55),(853,1,60),(854,1,61),(856,1,62),(863,1,63),(358,9,1),(359,9,2),(382,9,10),(360,9,11),(365,9,12),(366,9,13),(367,9,14),(370,9,15),(371,9,16),(372,9,17),(374,9,20),(375,9,21),(376,9,22),(383,9,30),(379,9,31),(361,9,40),(362,9,41),(363,9,42),(364,9,43),(373,9,44),(368,9,47),(369,9,48),(380,9,49),(381,9,50),(377,9,60),(378,9,61),(857,9,62),(864,9,63),(746,10,1),(780,10,2),(747,10,10),(748,10,11),(749,10,12),(750,10,13),(751,10,14),(752,10,15),(753,10,16),(754,10,17),(755,10,18),(756,10,20),(757,10,21),(758,10,22),(759,10,30),(760,10,31),(761,10,32),(762,10,33),(763,10,34),(764,10,35),(765,10,40),(766,10,41),(767,10,42),(768,10,43),(769,10,44),(770,10,45),(771,10,46),(772,10,47),(773,10,48),(774,10,49),(775,10,50),(776,10,51),(777,10,52),(778,10,60),(779,10,61),(858,10,62),(865,10,63),(642,11,2),(639,11,10),(620,11,11),(625,11,12),(626,11,13),(627,11,14),(630,11,15),(631,11,16),(640,11,17),(634,11,18),(641,11,20),(637,11,22),(621,11,40),(622,11,41),(623,11,42),(624,11,43),(632,11,44),(635,11,45),(636,11,46),(628,11,47),(629,11,48),(633,11,55),(638,11,61),(859,11,62),(866,11,63);
+INSERT INTO `sys_role_menu` VALUES (818,1,1),(855,1,2),(819,1,10),(820,1,11),(821,1,12),(822,1,13),(823,1,14),(824,1,15),(825,1,16),(826,1,17),(827,1,18),(828,1,20),(829,1,21),(830,1,22),(831,1,30),(832,1,31),(833,1,32),(834,1,33),(835,1,34),(836,1,35),(837,1,40),(838,1,41),(839,1,42),(840,1,43),(841,1,44),(842,1,45),(843,1,46),(844,1,47),(845,1,48),(846,1,49),(847,1,50),(848,1,51),(849,1,52),(850,1,53),(851,1,54),(852,1,55),(853,1,60),(854,1,61),(856,1,62),(863,1,63),(358,9,1),(359,9,2),(382,9,10),(360,9,11),(365,9,12),(366,9,13),(367,9,14),(370,9,15),(371,9,16),(372,9,17),(374,9,20),(375,9,21),(376,9,22),(383,9,30),(379,9,31),(361,9,40),(362,9,41),(363,9,42),(364,9,43),(373,9,44),(368,9,47),(369,9,48),(380,9,49),(381,9,50),(377,9,60),(378,9,61),(857,9,62),(864,9,63),(746,10,1),(780,10,2),(747,10,10),(748,10,11),(749,10,12),(750,10,13),(751,10,14),(752,10,15),(753,10,16),(754,10,17),(755,10,18),(756,10,20),(757,10,21),(758,10,22),(759,10,30),(760,10,31),(761,10,32),(762,10,33),(763,10,34),(764,10,35),(765,10,40),(766,10,41),(767,10,42),(768,10,43),(769,10,44),(770,10,45),(771,10,46),(772,10,47),(773,10,48),(774,10,49),(775,10,50),(776,10,51),(777,10,52),(778,10,60),(779,10,61),(858,10,62),(865,10,63),(642,11,2),(639,11,10),(620,11,11),(625,11,12),(626,11,13),(627,11,14),(630,11,15),(631,11,16),(640,11,17),(634,11,18),(641,11,20),(637,11,22),(621,11,40),(622,11,41),(623,11,42),(624,11,43),(632,11,44),(635,11,45),(636,11,46),(628,11,47),(629,11,48),(633,11,55),(638,11,61),(859,11,62),(866,11,63),(867,1,64),(868,1,65),(869,1,66),(870,1,67),(871,1,68),(872,1,69),(873,1,70),(874,1,71),(875,1,72),(876,1,73),(877,1,74),(878,1,75),(879,1,76),(880,1,77),(881,1,78),(882,1,79),(883,1,80),(884,1,81),(885,1,82),(886,1,83),(887,1,84),(888,1,85),(889,1,86),(890,1,87),(891,1,88),(892,1,89),(893,1,90);
 /*!40000 ALTER TABLE `sys_role_menu` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -1201,6 +1210,10 @@ DROP TABLE IF EXISTS `sys_user`;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `sys_user` (
   `id` bigint NOT NULL AUTO_INCREMENT,
+  `org_id` bigint DEFAULT NULL COMMENT '组织ID',
+  `leave_status` int DEFAULT NULL COMMENT '离职状态',
+  `leave_date` date DEFAULT NULL COMMENT '离职日期',
+  `leave_reason` varchar(500) DEFAULT NULL COMMENT '离职原因',
   `username` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL COMMENT '登录账号',
   `password` varchar(200) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL COMMENT '密码(BCrypt)',
   `real_name` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL COMMENT '真实姓名',
@@ -1305,3 +1318,131 @@ UNLOCK TABLES;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
 -- Dump completed on 2026-07-30 19:03:42
+
+
+-- ===== 以下表由实体反向生成（权限升级/组织架构功能），2026-08-03 补齐测试 SQL =====
+CREATE TABLE `sys_org` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `parent_id` bigint DEFAULT NULL,
+  `group_id` bigint DEFAULT NULL,
+  `legal_entity_id` bigint DEFAULT NULL,
+  `org_name` varchar(100) NOT NULL,
+  `org_code` varchar(50) DEFAULT NULL,
+  `org_type` int DEFAULT NULL,
+  `leader_id` bigint DEFAULT NULL,
+  `sort_order` int DEFAULT 0,
+  `status` tinyint DEFAULT 1,
+  `created_at` datetime DEFAULT NULL,
+  `updated_at` datetime DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE `sys_group` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `group_name` varchar(100) NOT NULL,
+  `group_code` varchar(50) DEFAULT NULL,
+  `description` varchar(500) DEFAULT NULL,
+  `sort_order` int DEFAULT 0,
+  `status` tinyint DEFAULT 1,
+  `created_at` datetime DEFAULT NULL,
+  `updated_at` datetime DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE `sys_legal_entity` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `entity_name` varchar(200) NOT NULL,
+  `entity_code` varchar(100) DEFAULT NULL,
+  `group_id` bigint DEFAULT NULL,
+  `credit_code` varchar(50) DEFAULT NULL,
+  `description` varchar(500) DEFAULT NULL,
+  `sort_order` int DEFAULT 0,
+  `status` tinyint DEFAULT 1,
+  `created_at` datetime DEFAULT NULL,
+  `updated_at` datetime DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE `sys_org_admin` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `org_id` bigint NOT NULL,
+  `user_id` bigint NOT NULL,
+  `created_at` datetime DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE `sys_permission_rule` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `name` varchar(100) NOT NULL,
+  `code` varchar(100) NOT NULL,
+  `target_entity` varchar(100) DEFAULT NULL,
+  `rule_type` varchar(50) DEFAULT NULL,
+  `target_column` varchar(100) DEFAULT NULL,
+  `operator` varchar(20) DEFAULT NULL,
+  `rule_value` varchar(255) DEFAULT NULL,
+  `extra_config` text,
+  `description` varchar(500) DEFAULT NULL,
+  `priority` int DEFAULT 0,
+  `status` tinyint DEFAULT 1,
+  `create_time` datetime DEFAULT NULL,
+  `update_time` datetime DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE `sys_position` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `name` varchar(100) NOT NULL,
+  `code` varchar(50) DEFAULT NULL,
+  `description` varchar(500) DEFAULT NULL,
+  `org_id` bigint DEFAULT NULL,
+  `status` tinyint DEFAULT 1,
+  `sort` int DEFAULT 0,
+  `create_time` datetime DEFAULT NULL,
+  `update_time` datetime DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE `sys_position_rule` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `position_id` bigint NOT NULL,
+  `rule_id` bigint NOT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE `biz_approval_config` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `flow_name` varchar(100) NOT NULL,
+  `flow_type` varchar(50) DEFAULT NULL,
+  `approver_type` varchar(20) DEFAULT NULL COMMENT 'USER / ROLE / DEPT',
+  `approver_ids` varchar(500) DEFAULT NULL COMMENT 'JSON: [1,2,3]',
+  `sign_mode` varchar(10) DEFAULT NULL COMMENT 'ALL=会签 / ANY=非会签',
+  `sort_order` int DEFAULT 0,
+  `status` tinyint DEFAULT 1,
+  `created_at` datetime DEFAULT NULL,
+  `updated_at` datetime DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE `sys_role_org` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `role_id` bigint NOT NULL,
+  `org_id` bigint NOT NULL,
+  `include_children` int DEFAULT 0,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE `sys_role_rule` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `role_id` bigint NOT NULL,
+  `rule_id` bigint NOT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE `sys_user_position` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `user_id` bigint NOT NULL,
+  `position_id` bigint NOT NULL,
+  `is_primary` int DEFAULT 0,
+  `create_time` datetime DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
