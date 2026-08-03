@@ -287,10 +287,8 @@
     />
   </div>
     <!-- 安装文件预览（图片/视频） -->
-    <el-dialog v-model="previewVisible" title="安装文件预览" width="70%" :close-on-click-modal="true" destroy-on-close>
-      <video v-if="previewType==='video'" :src="previewUrl" controls autoplay style="width:100%;max-height:75vh;background:#000" />
-      <img v-else :src="previewUrl" style="width:100%;max-height:75vh;object-fit:contain" @error="previewErr" />
-    </el-dialog>
+    <!-- 文件预览器:图片放大预览+下载,视频播放+下载,文档下载 -->
+    <FilePreview v-model:visible="previewVisible" :url="previewUrl" :type="previewType" :file-name="previewName" />
 </template>
 
 <script setup>
@@ -298,6 +296,7 @@ import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Upload, Search, Refresh, Delete, Plus, Box, Location, ChatDotSquare, Document, Folder } from '@element-plus/icons-vue'
 import { getCategoryTree, getRecords, addRecord, deleteRecord, checkIncentivePermission } from '@/api/incentive'
+import FilePreview from '@/components/FilePreview.vue'
 import { getCustomerList } from '@/api/customer'
 import { getDictData } from '@/api/system'
 import { useUserStore } from '@/store/user'
@@ -318,18 +317,20 @@ const canEdit = ref(false)
 const canDelete = ref(false)
 
 // ===== 安装文件预览 =====
-const previewVisible = ref(false), previewUrl = ref(''), previewType = ref('image')
+const previewVisible = ref(false), previewUrl = ref(''), previewType = ref('image'), previewName = ref('')
 function fileUrl(id) { return '/api/file/download/' + id + '?token=' + (getToken() || '') }
 function parseFids(v) { if (!v) return []; if (typeof v === 'number') return [v]; try { const a = JSON.parse(v); return Array.isArray(a) ? a.map(x => Number(x)) : [v] } catch { return String(v).split(',').map(s => s.trim()).filter(Boolean) } }
 function splitNames(n) { if (!n) return []; return String(n).split(',').map(s => s.trim()).filter(Boolean) }
 function fileType(n) { if (!n) return 'doc'; if (/\.(jpg|jpeg|png|gif|webp|bmp)$/i.test(n)) return 'image'; if (/\.(mp4|mov|avi|webm)$/i.test(n)) return 'video'; return 'doc' }
+// 安装文件预览:统一走 FilePreview(图片/视频预览+下载,文档显示下载入口);多文件取第一个
 function previewFile(id, name) {
   const ids = parseFids(id), names = splitNames(name)
-  ids.forEach((fid, i) => {
-    const t = fileType(names[i] || '')
-    if (t === 'doc') { window.open(fileUrl(fid), '_blank'); return }
-    previewUrl.value = fileUrl(fid); previewType.value = t; previewVisible.value = true
-  })
+  const fid = ids[0], fname = names[0] || ''
+  if (!fid) return
+  previewUrl.value = fileUrl(fid)
+  previewType.value = fileType(fname)
+  previewName.value = fname
+  previewVisible.value = true
 }
 function previewErr(e) { e.target.src = 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="320" height="240"><rect fill="#f5f6f7" width="320" height="240"/><text fill="#c0c4cc" font-size="14" text-anchor="middle" x="160" y="120">文件已丢失</text></svg>') }
 

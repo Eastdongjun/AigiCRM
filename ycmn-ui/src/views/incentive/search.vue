@@ -83,7 +83,7 @@
                 <div class="vid-overlay"><el-icon :size="28"><VideoPlay /></el-icon></div>
                 <div v-if="f.tag" class="img-tag">{{ f.tag }}</div>
               </div>
-              <div v-else class="img-doc" @click="window.open(fileUrl(f.id))">
+              <div v-else class="img-doc" @click="downloadFile(f.id, f.label)">
                 <el-icon :size="24"><Document /></el-icon>
                 <div class="doc-name">{{ f.label?.substring(0,6) }}</div>
               </div>
@@ -157,7 +157,7 @@
                       <div v-if="f.tag" class="dtl-file-tag">{{ f.tag }}</div>
                       <div class="dtl-file-acts">
                         <el-button size="small" circle type="primary" @click.stop="preview(f.id, f.type)"><el-icon><ZoomIn /></el-icon></el-button>
-                        <el-button size="small" circle @click.stop="window.open(fileUrl(f.id))"><el-icon><Download /></el-icon></el-button>
+                        <el-button size="small" circle @click.stop="downloadFile(f.id, f.label)"><el-icon><Download /></el-icon></el-button>
                       </div>
                     </div>
                   </template>
@@ -166,13 +166,13 @@
                     <div style="display:flex;align-items:center;gap:8px;margin-top:4px">
                       <span v-if="f.tag" class="dtl-file-tag">{{ f.tag }}</span>
                       <span class="doc-label" style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ f.label }}</span>
-                      <el-button size="small" circle @click.stop="window.open(fileUrl(f.id))"><el-icon><Download /></el-icon></el-button>
+                      <el-button size="small" circle @click.stop="downloadFile(f.id, f.label)"><el-icon><Download /></el-icon></el-button>
                     </div>
                   </div>
-                  <div v-else class="dtl-file-doc" @click="window.open(fileUrl(f.id))">
+                  <div v-else class="dtl-file-doc" @click="downloadFile(f.id, f.label)">
                     <el-icon :size="28"><Document /></el-icon>
                     <span class="doc-label">{{ f.label }}</span>
-                    <el-button size="small" circle @click.stop="window.open(fileUrl(f.id))"><el-icon><Download /></el-icon></el-button>
+                    <el-button size="small" circle @click.stop="downloadFile(f.id, f.label)"><el-icon><Download /></el-icon></el-button>
                   </div>
                 </div>
               </div>
@@ -208,7 +208,24 @@ function onImgError(e){e.target.src='data:image/svg+xml,'+encodeURIComponent('<s
 function latestRecord(c){let best=null;for(const r of (c?.records||[])){if(!best||String(r.createdAt||'')>String(best.createdAt||''))best=r}return best}
 function fileUrl(id){return'/api/file/download/'+id+'?token='+(getToken()||'')}
 function preview(id,type){previewUrl.value=fileUrl(id);previewType.value=type==='video'?'video':'image';previewVisible.value=true}
-function downloadPreview(){if(previewUrl.value)window.open(previewUrl.value)}
+// 【需求】文件下载(FEAT 0804):window.open 下载在新标签闪开/被拦截时表现为"没反应";
+// 改为 fetch blob + a.download 强制保存,任何浏览器/任何状态下可靠触发
+async function downloadFile(id, name) {
+  if (!id) return
+  try {
+    const res = await fetch(fileUrl(id), { headers: { 'Authorization': 'Bearer ' + (getToken() || '') } })
+    if (!res.ok) { ElMessage.error('下载失败(' + res.status + ')'); return }
+    const blob = await res.blob()
+    const a = document.createElement('a')
+    a.href = URL.createObjectURL(blob)
+    a.download = name || ('file-' + id)
+    document.body.appendChild(a)
+    a.click()
+    URL.revokeObjectURL(a.href)
+    a.remove()
+  } catch (e) { ElMessage.error('下载失败: ' + (e.message || e)) }
+}
+function downloadPreview(){ if (previewUrl.value) { const m = previewUrl.value.match(/\/download\/(\d+)/); downloadFile(m ? m[1] : null, previewName.value) } }
 function showDetail(c){detailCust.value=c;detailVisible.value=true}
 
 function parseIds(v){if(!v)return[];if(typeof v==='number')return[v];try{const a=JSON.parse(v);return Array.isArray(a)?a.map(x=>Number(x)):[v]}catch{return String(v).split(',').map(s=>s.trim()).filter(Boolean)}}

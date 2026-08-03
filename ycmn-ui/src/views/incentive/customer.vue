@@ -48,11 +48,14 @@
           <div v-if="getFiles(r).length" style="display:flex;gap:6px;flex-wrap:wrap">
             <div v-for="f in getFiles(r)" :key="f.id" style="flex:1;min-width:100px;max-width:calc(50% - 3px)">
               <div v-if="f.tag" style="font-size:10px;color:#909399;margin-bottom:2px">{{ f.tag }}</div>
-              <img v-if="f.type==='image'" :src="fileUrl(f.id)" style="width:100%;max-height:180px;border-radius:4px;border:1px solid #e8e8e8;object-fit:cover;cursor:pointer" @click="preview(f.id, f.type)" @error="onImgError" />
-              <div v-else-if="f.type==='video'" style="width:100%">
+              <img v-if="f.type==='image'" :src="fileUrl(f.id)" style="width:100%;max-height:180px;border-radius:4px;border:1px solid #e8e8e8;object-fit:cover;cursor:pointer" @click="preview(f.id, f.type, f.label)" @error="onImgError" />
+              <div v-else-if="f.type==='video'" style="width:100%;cursor:pointer" @click="preview(f.id, f.type, f.label)">
                 <video :src="fileUrl(f.id)" controls preload="metadata" style="width:100%;max-height:220px;background:#000;border-radius:4px"></video>
               </div>
-              <a v-else :href="fileUrl(f.id)" target="_blank" style="display:block;padding:8px 10px;background:#fdf6ec;border-radius:4px;color:#e6a23c;text-decoration:none;font-size:11px;text-align:center">📄 {{ f.label }}</a>
+              <div v-else style="display:flex;gap:4px;align-items:center;padding:8px 10px;background:#fdf6ec;border-radius:4px;font-size:11px;color:#e6a23c;cursor:pointer" @click="preview(f.id, 'doc', f.label)">
+                <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1">📄 {{ f.label }}</span>
+                <span style="color:#409eff;flex-shrink:0">下载</span>
+              </div>
             </div>
           </div>
         </div>
@@ -61,16 +64,14 @@
 
     </div>
 
-    <!-- 图片/视频预览 -->
-    <el-dialog v-model="previewVisible" title="预览" width="80%" :close-on-click-modal="true">
-      <video v-if="previewType==='video'" :src="previewUrl" controls autoplay style="width:100%;max-height:80vh;background:#000" />
-      <img v-else :src="previewUrl" style="width:100%;max-height:80vh;object-fit:contain" @error="onImgError" />
-    </el-dialog>
+    <!-- 文件预览器:图片放大预览+下载,视频播放+下载,文档下载 -->
+    <FilePreview v-model:visible="previewVisible" :url="previewUrl" :type="previewType" :file-name="previewName" />
   </div>
 </template>
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
+import FilePreview from '@/components/FilePreview.vue'
 import { getCategoryTree } from '@/api/incentive'
 import { getToken } from '@/utils/token'
 import request from '@/utils/request'
@@ -79,14 +80,14 @@ import { ElMessage } from 'element-plus'
 const fCustomer = ref(''), fSales = ref(''), fIndustry = ref(''), fType = ref(''), fDateRange = ref(null)
 const cols = ref(2)
 const custs = ref([]), catMap = ref({})
-const previewVisible = ref(false), previewUrl = ref(''), previewType = ref('image')
+const previewVisible = ref(false), previewUrl = ref(''), previewType = ref('image'), previewName = ref('')
 const industries = ['冶金','煤矿','化工','电力','有色金属','机械','工程公司','维修厂','其他终端客户']
 
 const totalR = computed(() => custs.value.reduce((s,c) => s + c.count, 0))
 
 function onImgError(e){e.target.src='data:image/svg+xml,'+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="320" height="240" viewBox="0 0 320 240"><rect fill="#f5f6f7" width="320" height="240"/><text fill="#c0c4cc" font-size="14" font-family="sans-serif" text-anchor="middle" x="160" y="120">图片已丢失</text></svg>')}
 function fileUrl(id) { return '/api/file/download/' + id + '?token=' + (getToken() || '') }
-function preview(id, type) { previewUrl.value = fileUrl(id); previewType.value = type || 'image'; previewVisible.value = true }
+function preview(id, type, name) { previewUrl.value = fileUrl(id); previewType.value = type || 'image'; previewName.value = name || ''; previewVisible.value = true }
 
 function parseIds(v){if(!v)return[];if(typeof v==='number')return[v];try{const a=JSON.parse(v);return Array.isArray(a)?a.map(x=>Number(x)):[v]}catch{return String(v).split(',').map(s=>s.trim()).filter(Boolean)}}
 function splitNames(n){if(!n)return[];return String(n).split(',').map(s=>s.trim()).filter(Boolean)}
