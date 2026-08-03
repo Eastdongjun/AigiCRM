@@ -630,7 +630,7 @@ const searchCustomers = async (query) => {
 
 const loadSharedCustomerIds = async () => {
   try {
-    const res = await getCustomerList({ scope: 'shared_to_me', size: 9999 })
+    const res = await getCustomerList({ scope: 'shared_to_me', size: 500 })
     sharedCustomerIds.value = new Set((res.data?.records || []).map(c => c.id))
   } catch (e) {
     sharedCustomerIds.value = new Set()

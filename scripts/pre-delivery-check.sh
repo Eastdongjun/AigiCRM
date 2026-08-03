@@ -65,6 +65,16 @@ else
   bad "交付门禁未通过"; tail -5 /tmp/verify-out.txt | sed 's/^/    /'
 fi
 
+echo "--- [5] 前端质量检查(FEAT-20260804-QA-GATES) ---"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+if bash "$SCRIPT_DIR/check-frontend-quality.sh" >/tmp/qagate.log 2>&1; then
+  echo "  ✅ 前端反模式扫描通过"
+else
+  echo "  ❌ 前端反模式扫描失败:"; sed 's/^/     /' /tmp/qagate.log | head -10
+  FAIL=$((FAIL+1))
+fi
+rm -f /tmp/qagate.log
+
 echo "══════════════════════════════════════════════════"
 echo "结果: PASS=$PASS FAIL=$FAIL"
 [ "$FAIL" -gt 0 ] && { echo "❌ 阶段衔接检查未通过 —— 补齐 FAIL 项后再交付"; exit 1; } || { echo "✅ 阶段衔接检查全部通过 —— 可以交付"; exit 0; }

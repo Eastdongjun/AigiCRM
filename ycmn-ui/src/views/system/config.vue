@@ -597,7 +597,7 @@ const loadPermList = async () => {
   try { const res = await request.get('/incentive/permission/list'); permList.value = res.data || [] } catch(e) {}
 }
 const loadAllUsers = async () => {
-  try { const res = await request.get('/system/users', { params: { current:1, size:9999 }}); allUsers.value = res.data?.records || [] } catch(e) {}
+  try { const res = await request.get('/system/users', { params: { current:1, size:500 }}); allUsers.value = res.data?.records || [] } catch(e) {}
 }
 const grantPerm = async () => {
   if (!permForm.userId) { ElMessage.warning('请选择人员'); return }
