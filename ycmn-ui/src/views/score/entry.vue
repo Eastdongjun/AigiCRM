@@ -148,7 +148,21 @@ const handleAddRow = async () => { try { const r=await addScoreItem({category:''
 const handleDeleteRow = async (item, idx) => { try { await ElMessageBox.confirm('确定删除？所有周期数据一并删除。','提示',{type:'warning'}); await deleteScoreItem(item.id); items.value.splice(idx,1); ElMessage.success('已删除') } catch{} }
 const handleRemoveUser = (user) => { visibleUsers.value = visibleUsers.value.filter(u => u.id !== user.id) }
 const handleAddUser = (user) => { if(!visibleUsers.value.some(u=>u.id===user.id)) visibleUsers.value=[...visibleUsers.value,{id:user.id,realName:user.realName}] }
-const handleExport = () => { const t=localStorage.getItem('token'); window.open(`/api/score/export/grid?period=${encodeURIComponent(period.value)}&token=${encodeURIComponent(t)}`,'_blank') }
+// 【需求】导出(FEAT 0804):window.open 被拦截时"没反应",改 fetch blob + a.download 强制下载
+const handleExport = async () => {
+  const t = localStorage.getItem('token') || ''
+  try {
+    const url = `/api/score/export/grid?period=${encodeURIComponent(period.value)}&token=${encodeURIComponent(t)}`
+    const res = await fetch(url)
+    if (!res.ok) { ElMessage.error('导出失败(' + res.status + ')'); return }
+    const blob = await res.blob()
+    const a = document.createElement('a')
+    a.href = URL.createObjectURL(blob)
+    a.download = '学分统计-' + (period.value || '') + '.xlsx'
+    document.body.appendChild(a); a.click()
+    URL.revokeObjectURL(a.href); a.remove()
+  } catch (e) { ElMessage.error('导出失败: ' + (e.message || e)) }
+}
 
 watch(period, loadGrid)
 onMounted(() => { loadDicts(); loadGrid() })

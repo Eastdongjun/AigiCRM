@@ -562,9 +562,10 @@ public class CustomerService {
 
         List<BizCustomer> customers = customerMapper.selectList(wrapper);
 
+        // 空白行业归类为"未填写",避免统计出现无前缀空键(与 StatisticsQueryService 口径一致)
         Map<String, Long> industryStats = customers.stream()
-                .filter(c -> c.getIndustry() != null)
-                .collect(Collectors.groupingBy(BizCustomer::getIndustry, Collectors.counting()));
+                .map(c -> (c.getIndustry() == null || c.getIndustry().isBlank()) ? "未填写" : c.getIndustry().trim())
+                .collect(Collectors.groupingBy(s -> s, Collectors.counting()));
 
         Map<Long, Long> officeStats = customers.stream()
                 .filter(c -> c.getOfficeId() != null)

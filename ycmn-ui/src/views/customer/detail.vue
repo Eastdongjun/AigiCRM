@@ -285,7 +285,7 @@
               <span class="inc-time">{{ fmtDate(r.createdAt) }}</span>
             </div>
             <div class="inc-files" v-if="getFiles(r).length">
-              <div v-for="f in getFiles(r)" :key="f.id" class="inc-file" @click="previewIncentiveFile(f)">
+              <div v-for="f in getFiles(r)" :key="f.id" class="inc-file" @click="downloadIncentiveFile(f)">
                 <span class="inc-file-tag">{{ f.tag }}</span>
                 <span class="inc-file-name">{{ f.label }}</span>
                 <span class="inc-file-type">{{ f.type === 'image' ? '🖼' : f.type === 'video' ? '🎬' : '📄' }}</span>
@@ -475,7 +475,21 @@ function parseId(v){if(!v)return null;if(typeof v==='number')return v;try{const 
 const getFiles = (r) => { const f = []; if (r.filePreId) f.push({ id: parseId(r.filePreId), label: r.filePreName || '文件', type: detectType(r.filePreName), tag: '安装前' }); if (r.fileMidId) f.push({ id: parseId(r.fileMidId), label: r.fileMidName || '文件', type: detectType(r.fileMidName), tag: '安装中' }); if (r.filePostId) f.push({ id: parseId(r.filePostId), label: r.filePostName || '文件', type: detectType(r.filePostName), tag: '安装后' }); if (r.fileId) f.push({ id: parseId(r.fileId), label: r.fileName || '文件', type: detectType(r.fileName), tag: '' }); return f }
 const detectType = (n) => { if (!n) return 'doc'; if (/\.(jpg|jpeg|png|gif|webp|bmp)$/i.test(n)) return 'image'; if (/\.(mp4|mov|avi|webm)$/i.test(n)) return 'video'; return 'doc' }
 const fmtDate = (t) => { if (!t) return ''; const d = new Date(t); return d.getFullYear()+'-'+(d.getMonth()+1).toString().padStart(2,'0')+'-'+d.getDate().toString().padStart(2,'0') }
-const previewIncentiveFile = (f) => { const token = localStorage.getItem('token') || ''; window.open('/api/file/download/' + f.id + '?token=' + token, '_blank') }
+// 【需求】文件下载(FEAT 0804):window.open 被拦截时"没反应",改 fetch blob + a.download 强制下载
+const downloadIncentiveFile = async (f) => {
+  if (!f?.id) return
+  try {
+    const url = '/api/file/download/' + f.id + '?token=' + (localStorage.getItem('token') || '')
+    const res = await fetch(url)
+    if (!res.ok) { ElMessage.error('下载失败(' + res.status + ')'); return }
+    const blob = await res.blob()
+    const a = document.createElement('a')
+    a.href = URL.createObjectURL(blob)
+    a.download = f.label || ('file-' + f.id)
+    document.body.appendChild(a); a.click()
+    URL.revokeObjectURL(a.href); a.remove()
+  } catch (e) { ElMessage.error('下载失败: ' + (e.message || e)) }
+}
 
 const submitLog = async () => { if(!newLog.value.trim()) return; try { await addCustomerLog(customerId.value,{content:newLog.value}); ElMessage.success('已记录'); newLog.value=''; logs.value = (await getCustomerLogs(customerId.value)).data||[] } catch(e) {} }
 const handleExtend = async () => { try { await ElMessageBox.confirm('确认申请延期？审批通过后保护期延长360天','申请延期'); await submitApproval({type:'extend',customerId:String(customer.value.id),actionAfterApprove:'保护期+360天'}); ElMessage.success('延期申请已提交') } catch(e) {} }

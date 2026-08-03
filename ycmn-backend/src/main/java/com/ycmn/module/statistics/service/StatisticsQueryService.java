@@ -451,7 +451,9 @@ public class StatisticsQueryService {
         List<BizCustomer> indCustomers = customerMapper.selectList(indW);
         Map<String, Long> industryStats = new LinkedHashMap<>();
         for (BizCustomer c : indCustomers) {
-            industryStats.merge(c.getIndustry(), 1L, Long::sum);
+            // 空白行业归类为"未填写",避免统计图出现无前缀的空名条目
+            String ind = (c.getIndustry() == null || c.getIndustry().isBlank()) ? "未填写" : c.getIndustry().trim();
+            industryStats.merge(ind, 1L, Long::sum);
         }
         data.put("industryStats", industryStats);
 
