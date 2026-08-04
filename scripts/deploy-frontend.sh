@@ -25,6 +25,9 @@ ssh_prod "
   echo \"回滚备份: $NAS_BACKUP_DIR/dist-rollback-\$TS\"
 "
 
+echo "=== [3.5/5] 写入版本号(前端版本检测用) ==="
+ssh_prod "echo '$(date +%Y%m%d-%H%M%S)' > $NAS_DIST_DIR/version.txt"
+
 echo "=== [4/5] 验证 ==="
 sleep 2
 curl -sk -o /dev/null -w "公网首页: HTTP %{http_code}\n" https://www.aigicrm.com/
