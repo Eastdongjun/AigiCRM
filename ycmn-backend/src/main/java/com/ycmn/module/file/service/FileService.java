@@ -47,6 +47,7 @@ public class FileService {
     private final SysUserMapper userMapper;
     private final OSS ossClient;
     private final OssConfig ossConfig;
+    private final FolderPermissionService folderPermissionService;
 
     @Value("${file.storage-type:local}")
     private String storageType;
@@ -63,11 +64,23 @@ public class FileService {
         if ("public".equals(scope)) {
             wrapper.eq(BizFileFolder::getFolderType, "public");
         } else if ("private".equals(scope)) {
-            wrapper.eq(BizFileFolder::getFolderType, "private")
-                    .eq(BizFileFolder::getOwnerId, userId);
+            // 【文件权限体系】私有树候选集扩展为全部私有文件夹，
+            // 可见性（本人创建/上级链/ACL view）在下方内存过滤，支持上级与 ACL 授权用户查看他人私有树。
+            wrapper.eq(BizFileFolder::getFolderType, "private");
+        } else {
+            // 【安全修复 FEAT-20260804-FILE-AUTHZ】未识别的 scope 默认拒绝(返回空)，
+            // 而不是默认放行返回全部文件夹(此前会泄露他人私有文件夹信息)。
+            // 文件夹功能目前只服务于 public/private 两个 Tab，incentive/shared_to_me 不走文件夹树。
+            return Collections.emptyList();
         }
         wrapper.orderByAsc(BizFileFolder::getSortOrder);
         List<BizFileFolder> folders = folderMapper.selectList(wrapper);
+
+        // 【文件权限体系】可见性过滤：本人创建 / 上级链 / ACL 含 view / public（管理员全部可见）
+        Set<Long> visibleIds = visibleFolderIds(folders, userId);
+        folders = folders.stream()
+                .filter(f -> visibleIds.contains(f.getId()))
+                .collect(Collectors.toList());
 
         for (BizFileFolder folder : folders) {
             long count = fileMapper.selectCount(
@@ -117,6 +130,24 @@ public class FileService {
                 }
             }
         }
+        // 【文件权限体系】可见性过滤：夹内文件仅返回用户可见文件夹中的（本人创建/上级链/ACL view/public），
+        // 无文件夹文件保持原 scope 规则不变；folderId 指定查询时若文件夹不可见则返回空页
+        if ("public".equals(scope) || "private".equals(scope)) {
+            List<BizFileFolder> folders = folderMapper.selectList(
+                    new LambdaQueryWrapper<BizFileFolder>()
+                            .eq(BizFileFolder::getFolderType, scope));
+            Set<Long> visibleIds = visibleFolderIds(folders, userId);
+            if (folderId != null) {
+                if (!visibleIds.contains(folderId)) {
+                    return new Page<>(current, size, 0);
+                }
+            } else if (visibleIds.isEmpty()) {
+                wrapper.isNull(BizFile::getFolderId);
+            } else {
+                wrapper.and(w -> w.isNull(BizFile::getFolderId)
+                        .or().in(BizFile::getFolderId, visibleIds));
+            }
+        }
         if (keyword != null && !keyword.isEmpty()) {
             wrapper.like(BizFile::getFileName, keyword);
         }
@@ -134,6 +165,11 @@ public class FileService {
 
     public BizFile upload(MultipartFile file, Long folderId, String scope) {
         Long userId = SecurityUtils.getCurrentUserId();
+
+        // 【文件权限体系】上传到文件夹需文件夹上传权限（管理员/本人/上级链/ACL upload）
+        if (folderId != null && !folderPermissionService.check(folderId, FolderPermissionService.P_UPLOAD, userId)) {
+            throw new BusinessException(403, "没有访问权限，请联系管理员授权");
+        }
 
         // 检查存储空间
         if ("private".equals(scope)) {
@@ -201,7 +237,21 @@ public class FileService {
     }
 
     public void createFolder(BizFileFolder folder) {
-        if ("private".equals(folder.getFolderType())) {
+        String type = folder.getFolderType();
+        // 【安全修复 FEAT-20260804-FILE-AUTHZ】folderType 白名单校验，避免传入未识别类型
+        // 绕过 checkFolderManagePermission 的默认拒绝逻辑（此前会被后续接口当成"未识别类型"处理）。
+        if (!"public".equals(type) && !"private".equals(type)) {
+            throw new BusinessException("不支持的文件夹类型");
+        }
+        // 【文件权限体系】创建子文件夹需父文件夹上传权限（管理员/本人/上级链/ACL upload）
+        if (folder.getParentId() != null
+                && !folderPermissionService.check(folder.getParentId(), FolderPermissionService.P_UPLOAD, SecurityUtils.getCurrentUserId())) {
+            throw new BusinessException(403, "没有访问权限，请联系管理员授权");
+        }
+        if ("public".equals(type) && !SecurityUtils.isAdmin()) {
+            throw new BusinessException("公共文件夹只有管理员才能创建");
+        }
+        if ("private".equals(type)) {
             folder.setOwnerId(SecurityUtils.getCurrentUserId());
         }
         folderMapper.insert(folder);
@@ -215,6 +265,10 @@ public class FileService {
         if (folder == null) {
             throw new BusinessException("文件夹不存在");
         }
+        // 【文件权限体系】ACL/上级链/本人 编辑权限（管理员恒通过），与 checkFolderManagePermission 并存
+        if (!folderPermissionService.check(folder.getId(), FolderPermissionService.P_EDIT, SecurityUtils.getCurrentUserId())) {
+            throw new BusinessException(403, "没有访问权限，请联系管理员授权");
+        }
         checkFolderManagePermission(folder);
         folder.setFolderName(newName.trim());
         folderMapper.updateById(folder);
@@ -224,6 +278,10 @@ public class FileService {
         BizFileFolder folder = folderMapper.selectById(folderId);
         if (folder == null) {
             throw new BusinessException("文件夹不存在");
+        }
+        // 【文件权限体系】ACL/上级链/本人 删除权限（管理员恒通过），与 checkFolderManagePermission 并存
+        if (!folderPermissionService.check(folder.getId(), FolderPermissionService.P_DELETE, SecurityUtils.getCurrentUserId())) {
+            throw new BusinessException(403, "没有访问权限，请联系管理员授权");
         }
         checkFolderManagePermission(folder);
 
@@ -249,14 +307,18 @@ public class FileService {
      * 文件夹改名/删除权限：公共文件夹仅管理员，私人文件夹仅所有者本人
      */
     private void checkFolderManagePermission(BizFileFolder folder) {
+        if (SecurityUtils.isAdmin()) {
+            return;
+        }
         if ("public".equals(folder.getFolderType())) {
-            if (!SecurityUtils.isAdmin()) {
-                throw new BusinessException("公共文件夹只有管理员才能管理");
-            }
+            throw new BusinessException("公共文件夹只有管理员才能管理");
         } else if ("private".equals(folder.getFolderType())) {
             if (!Objects.equals(folder.getOwnerId(), SecurityUtils.getCurrentUserId())) {
                 throw new BusinessException("只能管理自己的文件夹");
             }
+        } else {
+            // 【安全修复 FEAT-20260804-FILE-AUTHZ】未识别的文件夹类型默认拒绝，而不是默认放行。
+            throw new BusinessException("无权管理该文件夹");
         }
     }
 
@@ -265,17 +327,25 @@ public class FileService {
         if (file == null) return;
 
         Long userId = SecurityUtils.getCurrentUserId();
+        String scope = file.getFileScope();
 
-        // 公共文件只有管理员能删除
-        if ("public".equals(file.getFileScope())) {
-            if (!SecurityUtils.isAdmin()) {
+        // 【安全修复 FEAT-20260804-FILE-AUTHZ】此前只对 public/private 两种 scope 做归属校验，
+        // incentive 等其它 scope 完全未校验，导致任何拥有 file:delete 权限的用户都能删除他人的
+        // 激励文件（IDOR）。现在改为白名单放行、默认拒绝，且新增 incentive scope 的归属校验。
+        // 【文件权限体系】夹内文件（folderId 非空）改按文件夹权限判定（管理员/本人/上级链/ACL delete），
+        // 无文件夹文件沿用下方 scope 白名单归属校验。
+        if (!SecurityUtils.isAdmin()) {
+            if (file.getFolderId() != null) {
+                if (!folderPermissionService.checkFile(fileId, FolderPermissionService.P_DELETE, userId)) {
+                    throw new BusinessException(403, "没有访问权限，请联系管理员授权");
+                }
+            } else if ("public".equals(scope)) {
                 throw new BusinessException("公共文件只有管理员才能删除");
-            }
-        }
-
-        // 私有文件：只有上传者或管理员能删除
-        if ("private".equals(file.getFileScope())) {
-            if (!SecurityUtils.isAdmin() && !userId.equals(file.getUploaderId())) {
+            } else if ("private".equals(scope) || "incentive".equals(scope)) {
+                if (!userId.equals(file.getUploaderId())) {
+                    throw new BusinessException("无权删除该文件");
+                }
+            } else {
                 throw new BusinessException("无权删除该文件");
             }
         }
@@ -319,6 +389,18 @@ public class FileService {
         if (!canAccessFile(file, userId)) {
             response.setStatus(403);
             return;
+        }
+        // 【文件权限体系】夹内文件追加文件夹下载权限与下载开关校验（开关 1=允许下载，0/空=仅预览）
+        if (file.getFolderId() != null) {
+            if (!folderPermissionService.checkFile(fileId, FolderPermissionService.P_DOWNLOAD, userId)) {
+                response.setStatus(403);
+                return;
+            }
+            BizFileFolder folder = folderMapper.selectById(file.getFolderId());
+            if (folder != null && (folder.getDownloadable() == null || folder.getDownloadable() != 1)) {
+                response.setStatus(403);
+                return;
+            }
         }
         try {
             Path filePath = Paths.get(uploadDir, file.getOssKey());
@@ -408,6 +490,38 @@ public class FileService {
         return info;
     }
 
+    /**
+     * 【文件权限体系】批量计算用户可见文件夹集合：本人创建 / 上级链可见 / ACL 含 view / public（管理员全部可见）。
+     * 先按 ownerId 缓存上级链结果避免重复查询，剩余文件夹复用 FolderPermissionService.permsFor 判定
+     * （ACL 逻辑单一来源），供树/列表一次性过滤，避免在文件循环内逐文件 checkFile 的 N+1。
+     */
+    private Set<Long> visibleFolderIds(List<BizFileFolder> folders, Long userId) {
+        if (folders.isEmpty()) return Collections.emptySet();
+        Set<Long> visible = new HashSet<>();
+        List<BizFileFolder> pending = new ArrayList<>();
+        Map<Long, Boolean> ownerVisibleCache = new HashMap<>();
+        for (BizFileFolder f : folders) {
+            if (Objects.equals(f.getOwnerId(), userId)) {
+                visible.add(f.getId());
+                continue;
+            }
+            Boolean managerVisible = ownerVisibleCache.computeIfAbsent(f.getOwnerId(),
+                    oid -> oid != null && folderPermissionService.isManagerChain(userId, oid));
+            if (Boolean.TRUE.equals(managerVisible)) {
+                visible.add(f.getId());
+            } else {
+                pending.add(f);
+            }
+        }
+        for (BizFileFolder f : pending) {
+            if (folderPermissionService.permsFor(f.getId(), userId)
+                    .contains(FolderPermissionService.P_VIEW)) {
+                visible.add(f.getId());
+            }
+        }
+        return visible;
+    }
+
     private List<BizFileFolder> buildFolderTree(List<BizFileFolder> folders, Long parentId) {
         return folders.stream()
                 .filter(f -> Objects.equals(f.getParentId(), parentId))
@@ -474,9 +588,16 @@ public class FileService {
         // 只有文件上传者或管理员可以分享
         BizFile file = fileMapper.selectById(fileId);
         if (file == null) throw new BusinessException("文件不存在");
-        if (!SecurityUtils.isAdmin()
-                && !currentUserId.equals(file.getUploaderId())) {
-            throw new BusinessException("无权分享该文件");
+        // 【文件权限体系】夹内文件按文件夹权限判定分享（管理员/本人/上级链/ACL share）；
+        // 无文件夹文件沿用下方上传者归属校验
+        if (!SecurityUtils.isAdmin()) {
+            if (file.getFolderId() != null) {
+                if (!folderPermissionService.checkFile(fileId, FolderPermissionService.P_SHARE, currentUserId)) {
+                    throw new BusinessException(403, "没有访问权限，请联系管理员授权");
+                }
+            } else if (!currentUserId.equals(file.getUploaderId())) {
+                throw new BusinessException("无权分享该文件");
+            }
         }
         for (Long uid : userIds) {
             Long count = fileShareMapper.selectCount(
