@@ -173,7 +173,8 @@
               </el-card>
             </el-col>
           </el-row>
-          <el-empty v-if="!seaPools.length" description="暂无公海池，点击上方按钮创建" />
+          <el-empty v-if="seaLoadError" description="无权限查看公海配置（缺少 sea:config:view 权限）或加载失败" />
+          <el-empty v-else-if="!seaPools.length" description="暂无公海池，点击上方按钮创建" />
         </el-tab-pane>
         <!-- 激励类别与权限 -->
         <el-tab-pane label="激励类别与权限" name="incentiveCategory">
@@ -183,7 +184,8 @@
               <span>激励类别管理</span>
               <el-button type="primary" size="small" :icon="Plus" @click="openCategoryDialog()">新增类别</el-button>
             </div>
-            <div v-if="!categoryTree.length" class="cat-empty">暂无类别，点击"新增类别"创建</div>
+            <div v-if="catLoadError" class="cat-empty" style="color:#f56c6c">无权限查看激励类别（缺少 incentive:view 权限）或加载失败</div>
+            <div v-else-if="!categoryTree.length" class="cat-empty">暂无类别，点击"新增类别"创建</div>
             <div v-for="top in categoryTree" :key="top.id" class="cat-group">
               <div class="cat-group-head" @click="toggleCategory(top.id)">
                 <span class="cat-group-name">{{ top.categoryName }}</span>
@@ -283,7 +285,8 @@
             <span style="font-size:13px;color:#666">【菜单权限】按角色分配：✓ 表示该角色能访问此页面/功能</span>
             <el-button size="small" @click="loadPermData">刷新</el-button>
           </div>
-          <div class="perm-table-wrap">
+          <el-empty v-if="permLoadError" description="无权限查看权限矩阵（缺少 system:menu:view / system:role:view 权限）或加载失败" />
+          <div v-else class="perm-table-wrap">
             <table class="perm-table">
               <thead>
                 <tr>
@@ -584,19 +587,25 @@ const hasPerm = (role, item) => {
 const togglePerm = async (role, item) => {
   const set = rolePermMap.value[role.id]
   if (!set) return
-  if (set.has(item.id)) {
+  const had = set.has(item.id)
+  if (had) {
     set.delete(item.id)
   } else {
     set.add(item.id)
   }
   try {
     await updateRole(role.id, { menuIds: [...set] })
-  } catch (e) {}
+  } catch (e) {
+    // 保存失败:回滚本地勾选状态,避免"界面已改、数据库没变"的假成功
+    if (had) set.add(item.id); else set.delete(item.id)
+    ElMessage.error('权限保存失败,已还原勾选')
+  }
 }
 
 const loadPermData = async () => {
-  try { const res = await getRoleList(); allRoles.value = res.data || [] } catch {}
-  try { const res = await getMenuTree(); menuTree.value = res.data || [] } catch {}
+  permLoadError.value = false
+  try { const res = await getRoleList(); allRoles.value = res.data || [] } catch { permLoadError.value = true }
+  try { const res = await getMenuTree(); menuTree.value = res.data || [] } catch { permLoadError.value = true }
   // 加载每个角色的菜单权限
   for (const role of allRoles.value) {
     try {
@@ -634,6 +643,10 @@ const configs = ref([])
 const router = useRouter()
 const configMap = reactive({})
 const autoShare = reactive({ superior: true, admin: true, roles: [], users: [] })
+// Tab 加载失败标志:区分"无权限/加载失败"与"暂无数据",避免静默空白
+const permLoadError = ref(false)
+const seaLoadError = ref(false)
+const catLoadError = ref(false)
 const loadConfigs = async () => {
   try {
     const res = await getConfigList()
@@ -815,10 +828,11 @@ const poolDialogVisible = ref(false)
 const poolForm = reactive({ id: null, poolName: '', visibleKeys: [], sortOrder: 0 })
 
 const loadSeaPools = async () => {
+  seaLoadError.value = false
   try {
     const res = await getSeaConfigs()
     seaPools.value = res.data || []
-  } catch (e) {}
+  } catch (e) { seaLoadError.value = true }
 }
 
 const loadOrgTree = async () => {
@@ -929,10 +943,11 @@ const toggleCategory = (id) => {
 }
 
 const loadCategoryTree = async () => {
+  catLoadError.value = false
   try {
     const res = await getCategoryTree()
     categoryTree.value = res.data || []
-  } catch (e) {}
+  } catch (e) { catLoadError.value = true }
 }
 
 const openCategoryDialog = (row, parentId) => {
