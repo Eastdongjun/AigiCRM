@@ -342,7 +342,7 @@ const loadFilterData = async () => {
 }
 const clearAdvFilter = () => { Object.assign(advFilter, {industry:'',province:'',city:'',status:'',protect:'',owner:'',regDate:null,expDate:null,orgIds:[],userIds:[]}) }
 const onTabChange = () => { page.value = 1; filters.search = ''; filters.industry = ''; filters.status = '' }
-import { getDeptList, getDictData } from '@/api/system'
+import { getDeptList, getDictData, getPublicConfig } from '@/api/system'
 import { useUserStore } from '@/store/user'
 
 const router = useRouter()
@@ -387,8 +387,8 @@ const allColumns = [
   { key: 'registerDate', label: '注册日' },
   { key: 'lastInvoiceDate', label: '最近开票' },
   { key: 'transferDate', label: '转移日' },
-  { key: 'expireDate', label: '到期日(360)' },
-  { key: 'adjustDate', label: '调整日(180)' },
+  { key: 'expireDate', label: `到期日(${protectionDays})` },
+  { key: 'adjustDate', label: `调整日(${adjustDays})` },
   { key: 'regionName', label: '大区' },
   { key: 'officeName', label: '办事处' },
   { key: 'ownerName', label: '负责人' },
@@ -796,8 +796,8 @@ const getProtectClass = (row) => {
   if (!row.expireDate) return 'protect-normal'
   const days = getDaysLeft(row)
   if (days < 0) return 'protect-danger'
-  if (days <= 30) return 'protect-warning'
-  if (days <= 180) return 'protect-watch'
+  if (days <= warningDays) return 'protect-warning'
+  if (days <= adjustDays) return 'protect-watch'
   return 'protect-normal'
 }
 
@@ -805,9 +805,23 @@ const getProtectText = (row) => {
   if (!row.expireDate) return '—'
   const days = getDaysLeft(row)
   if (days < 0) return `超期(${Math.abs(days)}天)`
-  if (days <= 30) return `预警(${days}天)`
-  if (days <= 180) return '开发'
+  if (days <= warningDays) return `预警(${days}天)`
+  if (days <= adjustDays) return '开发'
   return '年年持续'
+}
+
+// 客户业务参数:从公开配置读取(保护期/提醒/调整期),配置改动即时生效,不再硬编码
+const protectionDays = ref(360)
+const warningDays = ref(30)
+const adjustDays = ref(180)
+const loadBizConfig = async () => {
+  try {
+    const res = await getPublicConfig()
+    const cfg = res.data || {}
+    if (cfg['customer.protection.days']) protectionDays.value = Number(cfg['customer.protection.days'])
+    if (cfg['customer.warning.days']) warningDays.value = Number(cfg['customer.warning.days'])
+    if (cfg['customer.adjust.days']) adjustDays.value = Number(cfg['customer.adjust.days'])
+  } catch (e) {}
 }
 
 const loadRegions = async () => {
@@ -825,6 +839,7 @@ const loadIndustryOptions = async () => {
 }
 
 onMounted(() => {
+  loadBizConfig()
   loadData()
   loadStats()
   loadScopeCounts()

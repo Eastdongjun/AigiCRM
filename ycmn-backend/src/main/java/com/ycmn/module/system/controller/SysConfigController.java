@@ -48,8 +48,13 @@ public class SysConfigController {
     public Result<Map<String, String>> publicConfig() {
         List<SysConfig> all = configService.list();
         Map<String, String> result = new HashMap<>();
+        // 匿名可读的公开配置:登录页品牌 + 客户保护/提醒/调整/开票超期(前端列表展示与状态判断依赖)
+        java.util.Set<String> publicKeys = java.util.Set.of(
+                "system.name", "system.logo", "system.subtitle",
+                "customer.protection.days", "customer.warning.days", "customer.adjust.days",
+                "invoice.overdue.days");
         for (SysConfig c : all) {
-            if ("system.name".equals(c.getConfigKey()) || "system.logo".equals(c.getConfigKey())) {
+            if (publicKeys.contains(c.getConfigKey())) {
                 result.put(c.getConfigKey(), c.getConfigValue());
             }
         }

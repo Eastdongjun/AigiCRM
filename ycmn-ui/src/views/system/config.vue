@@ -9,6 +9,9 @@
             <el-form-item label="系统名称">
               <el-input v-model="configMap['system.name']" style="width: 300px" />
             </el-form-item>
+            <el-form-item label="系统副标题">
+              <el-input v-model="configMap['system.subtitle']" style="width: 300px" placeholder="如：市场资源管理系统" />
+            </el-form-item>
             <el-form-item label="系统Logo">
               <div style="display: flex; align-items: center; gap: 12px">
                 <img v-if="configMap['system.logo']" :src="logoPreviewSrc" class="logo-preview" />
@@ -38,6 +41,16 @@
             <el-form-item label="调整期天数">
               <el-input v-model="configMap['customer.adjust.days']" style="width: 300px">
                 <template #suffix>天</template>
+              </el-input>
+            </el-form-item>
+            <el-form-item label="开票超期天数">
+              <el-input v-model="configMap['invoice.overdue.days']" style="width: 300px">
+                <template #suffix>天</template>
+              </el-input>
+            </el-form-item>
+            <el-form-item label="默认存储空间">
+              <el-input :model-value="storageGb" @update:model-value="onStorageGb" style="width: 300px">
+                <template #suffix>GB</template>
               </el-input>
             </el-form-item>
             <el-form-item label="编号规则">
@@ -663,6 +676,15 @@ const handleLogoUpload = async (res) => {
   }
 }
 
+// 默认存储空间:配置存字节,UI 以 GB 展示/输入(1024^3 换算)
+const storageGb = computed(() => {
+  const v = Number(configMap['user.default.storage']) || 0
+  return v > 0 ? String(Math.round(v / 1073741824 * 10) / 10) : '10'
+})
+const onStorageGb = (v) => {
+  const gb = Number(v)
+  if (!isNaN(gb) && gb > 0) configMap['user.default.storage'] = String(Math.round(gb * 1073741824))
+}
 const handleSave = async () => {
   try {
     // 客户默认共享规则:把 autoShare 序列化写回 configMap,随保存一并提交(否则该配置永不更新)

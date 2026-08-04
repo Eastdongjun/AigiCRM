@@ -7,7 +7,7 @@
           <span v-else class="brand-icon">{{ systemName?.charAt(0) || '运' }}</span>
         </div>
         <h1 class="system-title">{{ systemName }}</h1>
-        <p class="system-subtitle">市场资源管理系统</p>
+        <p class="system-subtitle">{{ systemSubtitle }}</p>
         <ul class="features">
           <li>客户管理</li>
           <li>阶段推进</li>
@@ -73,6 +73,7 @@ onMounted(async () => {
     const res = await getPublicConfig()
     const cfg = res.data || {}
     if (cfg['system.name']) systemName.value = cfg['system.name']
+    if (cfg['system.subtitle']) systemSubtitle.value = cfg['system.subtitle']
     if (cfg['system.logo']) systemLogo.value = '/api/system/configs/logo?t=' + Date.now()
   } catch {}
 })
