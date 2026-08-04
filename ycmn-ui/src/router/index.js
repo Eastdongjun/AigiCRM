@@ -183,4 +183,15 @@ router.beforeEach((to, from, next) => {
   }
 })
 
+// 【需求】旧版页面自愈(FEAT 0804):浏览器停留在旧版时,点击菜单动态加载已删除的 chunk 会失败
+// (表现:点击没反应/内容空白)。捕获懒加载失败后强制刷新——no-cache 保证刷新加载新版,无需用户清缓存
+router.onError((error) => {
+  if (String(error).includes('Failed to fetch dynamically imported module')
+      || String(error).includes('dynamically imported module')
+      || String(error).includes('Importing a module script failed')) {
+    try { localStorage.removeItem('app_version') } catch (e) {}
+    location.reload()
+  }
+})
+
 export default router
