@@ -46,6 +46,29 @@ public class FolderAclService {
         }).collect(Collectors.toList());
     }
 
+    /**
+     * 【Task 5 审查遗留】controller 原始 body 解析入口：body/roleId/perms 缺省或类型非法
+     * （roleId 非数字 / perms 非数组）一律抛 BusinessException("参数错误")，
+     * 避免 NumberFormatException/ClassCastException/NPE 冒泡成 500；解析成功后走 saveAcl 原有校验。
+     */
+    public void saveAclFromBody(Long folderId, Map<String, Object> body) {
+        if (body == null) throw new BusinessException("参数错误");
+        Object rawRoleId = body.get("roleId");
+        if (rawRoleId == null) throw new BusinessException("参数错误");
+        Long roleId;
+        try {
+            roleId = Long.valueOf(rawRoleId.toString().trim());
+        } catch (NumberFormatException e) {
+            throw new BusinessException("参数错误");
+        }
+        Object rawPerms = body.get("perms");
+        if (!(rawPerms instanceof List)) {
+            throw new BusinessException("参数错误");
+        }
+        List<String> perms = ((List<?>) rawPerms).stream().map(String::valueOf).collect(Collectors.toList());
+        saveAcl(folderId, roleId, perms);
+    }
+
     public void saveAcl(Long folderId, Long roleId, List<String> perms) {
         requireEdit(folderId);
         if (roleId == null) throw new BusinessException("角色不能为空");

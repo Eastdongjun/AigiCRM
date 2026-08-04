@@ -9,7 +9,6 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/file/folders")
@@ -23,9 +22,10 @@ public class FolderAclController {
 
     @PostMapping("/{id}/acl")
     @PreAuthorize("isAuthenticated()")
-    public Result<Void> saveAcl(@PathVariable Long id, @RequestBody Map<String, Object> body) {
-        aclService.saveAcl(id, Long.valueOf(body.get("roleId").toString()),
-                ((List<?>) body.get("perms")).stream().map(String::valueOf).collect(Collectors.toList()));
+    public Result<Void> saveAcl(@PathVariable Long id, @RequestBody(required = false) Map<String, Object> body) {
+        // 【Task 5 审查遗留】畸形输入（缺 roleId/非数字/perms 缺失或非数组）由 service 解析抛 BusinessException，
+        // 不再冒泡 500
+        aclService.saveAclFromBody(id, body);
         return Result.ok();
     }
 

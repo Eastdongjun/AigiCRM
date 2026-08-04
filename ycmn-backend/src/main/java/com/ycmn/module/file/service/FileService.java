@@ -33,6 +33,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
+import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -195,26 +196,11 @@ public class FileService {
             if (originalFilename == null || originalFilename.isBlank()) {
                 originalFilename = "unnamed";
             }
-            String dir = scope + "/" + userId;
-            String fileKey = dir + "/" + resolveUniqueFilename(dir, originalFilename);
+            String fileKey = uploadStorage(file, scope, userId);
             String fileUrl;
-
             if (isLocal()) {
-                // 本地存储
-                Path filePath = Paths.get(uploadDir, fileKey);
-                Files.createDirectories(filePath.getParent());
-                Files.copy(file.getInputStream(), filePath, StandardCopyOption.REPLACE_EXISTING);
-                // 【需求】落盘校验:防止"数据库有记录但磁盘无文件"的静默失败(FEAT-20260804-FILE-INTEGRITY)
-                // 【方法】写盘后回读文件大小,与上传大小不一致说明写盘异常,删除已写文件并报错
-                if (Files.size(filePath) != file.getSize()) {
-                    Files.deleteIfExists(filePath);
-                    throw new BusinessException("文件写入校验失败,请重试");
-                }
                 fileUrl = "/api/file/download/" + fileKey;
             } else {
-                // OSS 存储
-                InputStream inputStream = file.getInputStream();
-                ossClient.putObject(ossConfig.getBucketName(), fileKey, inputStream);
                 fileUrl = "https://" + ossConfig.getBucketName() + "." + ossConfig.getEndpoint() + "/" + fileKey;
             }
 
@@ -361,14 +347,7 @@ public class FileService {
         }
 
         // 删除实际文件
-        try {
-            if (isLocal()) {
-                Path filePath = Paths.get(uploadDir, file.getOssKey());
-                Files.deleteIfExists(filePath);
-            } else {
-                ossClient.deleteObject(ossConfig.getBucketName(), file.getOssKey());
-            }
-        } catch (Exception ignored) {}
+        deleteStorage(file.getOssKey());
 
         // 逻辑删除
         fileMapper.deleteById(fileId);
@@ -381,6 +360,101 @@ public class FileService {
                 userMapper.updateById(user);
             }
         }
+    }
+
+    /**
+     * 【文件权限体系 Task 6】覆盖替换：新文件先存后删旧（避免先删旧后存储失败导致文件丢失）。
+     * 更新 oss_key/oss_url/file_size/file_type/version+1/replace_by/replaced_at；
+     * 私人文件按差额调整配额（storageUsed = 原已用 - 旧size + 新size，最小 0）。
+     * 权限：文件夹 edit 权限（管理员/本人/上级链/ACL edit，见 FolderPermissionService.checkFile）。
+     */
+    public BizFile replaceFile(Long fileId, MultipartFile newFile) {
+        BizFile file = fileMapper.selectById(fileId);
+        if (file == null) throw new BusinessException("文件不存在");
+        Long userId = SecurityUtils.getCurrentUserId();
+        if (!folderPermissionService.checkFile(fileId, FolderPermissionService.P_EDIT, userId)) {
+            throw new BusinessException(403, "没有访问权限，请联系管理员授权");
+        }
+        String scope = file.getFileScope() != null ? file.getFileScope() : "private";
+        try {
+            // 先存新文件（沿用原文件的 scope/uploaderId 目录，保证 key 下载路由语义一致）
+            String newKey = uploadStorage(newFile, scope, file.getUploaderId());
+            String oldKey = file.getOssKey();
+            long oldSize = file.getFileSize() != null ? file.getFileSize() : 0L;
+            // ossUrl 与 upload 的 URL 方案一致：本地走 key 下载路由，OSS 走桶地址（保证替换后两种模式均可下载）
+            String newOssUrl = isLocal()
+                    ? "/api/file/download/" + newKey
+                    : "https://" + ossConfig.getBucketName() + "." + ossConfig.getEndpoint() + "/" + newKey;
+            file.setOssKey(newKey);
+            file.setOssUrl(newFile.getOriginalFilename() != null ? newOssUrl : file.getOssUrl());
+            file.setFileSize(newFile.getSize());
+            file.setFileType(newFile.getContentType());
+            file.setVersion((file.getVersion() == null ? 0 : file.getVersion()) + 1);
+            file.setReplaceBy(userId);
+            file.setReplacedAt(LocalDateTime.now());
+            fileMapper.updateById(file);
+            deleteStorage(oldKey);
+            // 私人文件存储差额（最小 0）
+            if ("private".equals(scope)) {
+                SysUser user = userMapper.selectById(file.getUploaderId());
+                if (user != null) {
+                    long delta = newFile.getSize() - oldSize;
+                    user.setStorageUsed(Math.max(0, user.getStorageUsed() + delta));
+                    userMapper.updateById(user);
+                }
+            }
+            return file;
+        } catch (BusinessException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new BusinessException("文件替换失败: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 实际存储写入（从 upload 抽出复用）：本地落盘回读校验 / OSS putObject。
+     * 返回存储 key（scope/userId 目录 + 唯一文件名），供 upload 与 replaceFile 共用，行为与原先一致。
+     */
+    private String uploadStorage(MultipartFile file, String scope, Long userId) throws Exception {
+        String originalFilename = file.getOriginalFilename();
+        if (originalFilename == null || originalFilename.isBlank()) {
+            originalFilename = "unnamed";
+        }
+        String dir = scope + "/" + userId;
+        String fileKey = dir + "/" + resolveUniqueFilename(dir, originalFilename);
+        if (isLocal()) {
+            // 本地存储
+            Path filePath = Paths.get(uploadDir, fileKey);
+            Files.createDirectories(filePath.getParent());
+            Files.copy(file.getInputStream(), filePath, StandardCopyOption.REPLACE_EXISTING);
+            // 【需求】落盘校验:防止"数据库有记录但磁盘无文件"的静默失败(FEAT-20260804-FILE-INTEGRITY)
+            // 【方法】写盘后回读文件大小,与上传大小不一致说明写盘异常,删除已写文件并报错
+            if (Files.size(filePath) != file.getSize()) {
+                Files.deleteIfExists(filePath);
+                throw new BusinessException("文件写入校验失败,请重试");
+            }
+        } else {
+            // OSS 存储
+            InputStream inputStream = file.getInputStream();
+            ossClient.putObject(ossConfig.getBucketName(), fileKey, inputStream);
+        }
+        return fileKey;
+    }
+
+    /**
+     * 物理删除存储中的文件（从 deleteFile 抽出复用）：本地 deleteIfExists / OSS deleteObject，
+     * 异常吞掉与 deleteFile 原行为一致；null/空 key 直接跳过。
+     */
+    private void deleteStorage(String fileKey) {
+        if (fileKey == null || fileKey.isEmpty()) return;
+        try {
+            if (isLocal()) {
+                Path filePath = Paths.get(uploadDir, fileKey);
+                Files.deleteIfExists(filePath);
+            } else {
+                ossClient.deleteObject(ossConfig.getBucketName(), fileKey);
+            }
+        } catch (Exception ignored) {}
     }
 
     public Path getLocalFilePath(String fileKey) {

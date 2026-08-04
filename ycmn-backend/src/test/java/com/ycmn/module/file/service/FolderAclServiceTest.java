@@ -229,4 +229,46 @@ class FolderAclServiceTest {
         assertEquals(List.of(), row.get("perms"));
         assertEquals(1, row.get("downloadable"));
     }
+
+    // ---------- saveAclFromBody：controller 畸形输入解析（Task 5 审查遗留）----------
+
+    @Test
+    void saveAclFromBody_malformedBody_throwsParamErrorWithoutTouchingMappers() {
+        when(permissionService.check(FOLDER_ID, FolderPermissionService.P_EDIT, USER_ID)).thenReturn(true);
+        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
+            m.when(SecurityUtils::getCurrentUserId).thenReturn(USER_ID);
+            // body 缺失
+            assertThrows(BusinessException.class, () -> svc.saveAclFromBody(FOLDER_ID, null));
+            // roleId 缺失
+            assertThrows(BusinessException.class, () -> svc.saveAclFromBody(FOLDER_ID, Map.of("perms", List.of("view"))));
+            // roleId 非数字
+            assertThrows(BusinessException.class, () -> svc.saveAclFromBody(FOLDER_ID,
+                    Map.<String, Object>of("roleId", "abc", "perms", List.of("view"))));
+            // perms 缺失
+            assertThrows(BusinessException.class, () -> svc.saveAclFromBody(FOLDER_ID,
+                    Map.<String, Object>of("roleId", 3)));
+            // perms 非数组
+            assertThrows(BusinessException.class, () -> svc.saveAclFromBody(FOLDER_ID,
+                    Map.<String, Object>of("roleId", 3, "perms", "view")));
+            // 不触碰任何 mapper
+            verify(aclMapper, never()).insert(any());
+            verify(aclMapper, never()).updateById(any());
+            verify(aclMapper, never()).selectOne(any());
+        }
+    }
+
+    @Test
+    void saveAclFromBody_validBody_parsesAndSaves() {
+        when(permissionService.check(FOLDER_ID, FolderPermissionService.P_EDIT, USER_ID)).thenReturn(true);
+        when(aclMapper.selectOne(any())).thenReturn(null);
+        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
+            m.when(SecurityUtils::getCurrentUserId).thenReturn(USER_ID);
+            svc.saveAclFromBody(FOLDER_ID, Map.<String, Object>of("roleId", 3, "perms", List.of("view", "upload")));
+            ArgumentCaptor<BizFolderAcl> cap = ArgumentCaptor.forClass(BizFolderAcl.class);
+            verify(aclMapper).insert(cap.capture());
+            assertEquals(3L, cap.getValue().getRoleId());
+            assertEquals("view,upload", cap.getValue().getPerms());
+            assertEquals(USER_ID, cap.getValue().getCreatedBy());
+        }
+    }
 }

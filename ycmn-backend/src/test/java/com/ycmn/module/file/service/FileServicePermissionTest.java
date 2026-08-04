@@ -23,11 +23,13 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.MockedStatic;
+import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.ByteArrayInputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -54,7 +56,9 @@ class FileServicePermissionTest {
 
     @BeforeEach
     void setUp() {
-        // 绕过 @Value 注入，避免下载路径 Paths.get(null,...) 依赖异常吞掉的巧合
+        // 绕过 @Value 注入：storageType 固定 local（与生产默认一致，使存储走真实本地落盘路径，替换/下载用例可验证文件内容），
+        // uploadDir 指向临时目录，避免下载路径 Paths.get(null,...) 依赖异常吞掉的巧合
+        ReflectionTestUtils.setField(svc, "storageType", "local");
         ReflectionTestUtils.setField(svc, "uploadDir", System.getProperty("java.io.tmpdir"));
         // 纯 mock 环境初始化 Lambda 缓存，使 LambdaQueryWrapper.getSqlSegment() 可用
         TableInfoHelper.initTableInfo(new MapperBuilderAssistant(new MybatisConfiguration(), ""), BizFile.class);
@@ -423,6 +427,102 @@ class FileServicePermissionTest {
         try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
             m.when(SecurityUtils::isAdmin).thenReturn(false);
             assertFalse(svc.canDownloadFile(file, 2L));
+        }
+    }
+
+    // ====== Task 6：覆盖替换接口 ======
+
+    private BizFile aReplaceableFile() {
+        BizFile file = new BizFile();
+        file.setId(9L);
+        file.setFolderId(100L);
+        file.setUploaderId(1L);
+        file.setFileScope("private");
+        file.setOssKey("private/1/old.txt");
+        file.setFileName("old.txt");
+        file.setFileSize(10L);
+        file.setVersion(1);
+        return file;
+    }
+
+    @Test
+    void replaceFile_withoutEditPermission_throws403() {
+        when(fileMapper.selectById(9L)).thenReturn(aReplaceableFile());
+        MultipartFile mf = new MockMultipartFile("file", "new.txt", "text/plain", new byte[25]);
+        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
+            m.when(SecurityUtils::getCurrentUserId).thenReturn(2L);
+            when(folderPermissionService.checkFile(9L, FolderPermissionService.P_EDIT, 2L)).thenReturn(false);
+            BusinessException ex = assertThrows(BusinessException.class, () -> svc.replaceFile(9L, mf));
+            assertEquals(403, ex.getCode());
+            verify(fileMapper, never()).updateById(any());
+            verify(userMapper, never()).updateById(any());
+        }
+    }
+
+    @Test
+    void replaceFile_fileNotFound_throws() {
+        when(fileMapper.selectById(9L)).thenReturn(null);
+        MultipartFile mf = new MockMultipartFile("file", "new.txt", "text/plain", new byte[25]);
+        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
+            m.when(SecurityUtils::getCurrentUserId).thenReturn(1L);
+            BusinessException ex = assertThrows(BusinessException.class, () -> svc.replaceFile(9L, mf));
+            assertEquals("文件不存在", ex.getMessage());
+            verify(folderPermissionService, never()).checkFile(any(), any(), any());
+            verify(fileMapper, never()).updateById(any());
+        }
+    }
+
+    @Test
+    void replaceFile_success_versionIncrementsAndStorageDelta() {
+        when(fileMapper.selectById(9L)).thenReturn(aReplaceableFile());
+        SysUser user = new SysUser();
+        user.setId(1L);
+        user.setStorageUsed(100L);
+        user.setStorageQuota(1024L * 1024L);
+        when(userMapper.selectById(1L)).thenReturn(user);
+        MultipartFile mf = new MockMultipartFile("file", "new.txt", "text/plain", new byte[25]);
+        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
+            m.when(SecurityUtils::getCurrentUserId).thenReturn(1L);
+            when(folderPermissionService.checkFile(9L, FolderPermissionService.P_EDIT, 1L)).thenReturn(true);
+            BizFile result = svc.replaceFile(9L, mf);
+            // 版本+1 / replace_by / replaced_at / file_size / oss_key 更新
+            assertEquals(2, result.getVersion());
+            assertEquals(1L, result.getReplaceBy());
+            assertNotNull(result.getReplacedAt());
+            assertEquals(25L, result.getFileSize());
+            assertNotEquals("private/1/old.txt", result.getOssKey());
+            assertTrue(result.getOssKey().startsWith("private/1/"));
+            ArgumentCaptor<BizFile> fileCap = ArgumentCaptor.forClass(BizFile.class);
+            verify(fileMapper).updateById(fileCap.capture());
+            assertNotEquals("private/1/old.txt", fileCap.getValue().getOssKey());
+            assertTrue(fileCap.getValue().getOssKey().startsWith("private/1/"));
+            // 存储差额：100 - 10 + 25 = 115
+            ArgumentCaptor<SysUser> userCap = ArgumentCaptor.forClass(SysUser.class);
+            verify(userMapper).updateById(userCap.capture());
+            assertEquals(115L, userCap.getValue().getStorageUsed());
+        }
+    }
+
+    @Test
+    void replaceFile_afterReplace_downloadReturnsNewContent() throws Exception {
+        when(fileMapper.selectById(9L)).thenReturn(aReplaceableFile());
+        BizFileFolder folder = new BizFileFolder();
+        folder.setId(100L);
+        folder.setDownloadable(1);
+        when(folderMapper.selectById(100L)).thenReturn(folder);
+        String newContent = "new content v2";
+        MultipartFile mf = new MockMultipartFile("file", "new.txt", "text/plain",
+                newContent.getBytes(StandardCharsets.UTF_8));
+        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
+            m.when(SecurityUtils::getCurrentUserId).thenReturn(1L);
+            m.when(SecurityUtils::isAdmin).thenReturn(false);
+            when(folderPermissionService.checkFile(9L, FolderPermissionService.P_EDIT, 1L)).thenReturn(true);
+            svc.replaceFile(9L, mf);
+            // 替换后同一 fileId 下载返回新内容（走更新后的 ossKey）
+            MockHttpServletResponse response = new MockHttpServletResponse();
+            svc.downloadById(9L, null, response);
+            assertEquals(200, response.getStatus());
+            assertEquals(newContent, response.getContentAsString());
         }
     }
 }
