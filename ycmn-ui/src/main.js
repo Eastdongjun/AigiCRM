@@ -21,6 +21,21 @@ app.use(router)
 app.use(ElementPlus, { locale: zhCn })
 app.mount('#app')
 
+// 【需求】页面切换提速(FEAT 0804):路由 chunk 零预加载,首次点击菜单需现场下载(网络往返→卡顿);
+// 应用空闲时预加载常用页面 chunk,点击菜单时秒开
+window.addEventListener('load', () => {
+  if ('requestIdleCallback' in window) {
+    requestIdleCallback(() => {
+      import('@/views/customer/list.vue')
+      import('@/views/incentive/index.vue')
+      import('@/views/incentive/stats.vue')
+      import('@/views/incentive/search.vue')
+      import('@/views/statistics/index.vue')
+      import('@/views/system/user.vue')
+    }, { timeout: 3000 })
+  }
+})
+
 // 【需求】版本自动检测(FEAT 0804):部署新版本后旧页面引用的 JS 已被删除,点击菜单会"没反应";
 // 启动时对比 version.txt,发现新版本提示刷新,避免用户停留在失效旧版
 ;(async () => {
