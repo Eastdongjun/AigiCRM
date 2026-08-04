@@ -44,9 +44,15 @@ window.addEventListener('load', () => {
     if (!res.ok) return
     const v = (await res.text()).trim()
     const old = localStorage.getItem('app_version')
-    if (old && old !== v && confirm('系统已更新到新版本，点击"确定"刷新页面')) {
-      location.reload()
+    if (old && old !== v) {
+      // 版本不一致 = 当前页面引用已删除的旧 chunk,点击菜单会"没反应/空白";
+      // 必须刷新到新版才能恢复。用户取消则不写入版本号,下次打开继续提示
+      if (confirm('系统已更新到新版本，点击"确定"刷新页面（不刷新将无法正常使用）')) {
+        localStorage.setItem('app_version', v)
+        location.reload()
+      }
+    } else {
+      localStorage.setItem('app_version', v)
     }
-    localStorage.setItem('app_version', v)
   } catch (e) { /* 网络异常静默 */ }
 })()
