@@ -13,5 +13,6 @@ public class BizFolderAcl {
     private Long roleId;
     private String perms;
     private Long createdBy;
+    @TableField(fill = FieldFill.INSERT)
     private LocalDateTime createdAt;
 }
