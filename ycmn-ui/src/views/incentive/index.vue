@@ -513,9 +513,18 @@ const formatDate = (dt) => {
   return String(dt).substring(0, 10)
 }
 
+// 分类树缓存:不常变数据,避免每次进入页面重复请求(慢网络下可省 400-700ms)
+let categoriesCache = { at: 0, data: null }
 const loadCategories = async () => {
   try {
-    const res = await getCategoryTree()
+    let res = null
+    if (categoriesCache.data && Date.now() - categoriesCache.at < 600000) {
+      res = { data: categoriesCache.data }
+    } else {
+      const r = await getCategoryTree()
+      categoriesCache = { at: Date.now(), data: r.data || [] }
+      res = r
+    }
     const flat = []
     const flatten = (list) => {
       for (const item of list) {
@@ -532,8 +541,20 @@ const loadCategories = async () => {
   } catch (e) {}
 }
 
+// 用户列表缓存(与分类树同策略,10分钟)
+let usersCache = { at: 0, data: null }
 const loadUsers = async () => {
-  try { const res = await request.get('/incentive/users'); userList.value = res.data || [] } catch(e) {}
+  try {
+    let data = null
+    if (usersCache.data && Date.now() - usersCache.at < 600000) {
+      data = usersCache.data
+    } else {
+      const res = await request.get('/incentive/users')
+      usersCache = { at: Date.now(), data: res.data || [] }
+      data = res.data || []
+    }
+    userList.value = data
+  } catch(e) {}
 }
 
 const loadRecords = async () => {
@@ -829,9 +850,18 @@ const loadIndustries = async () => {
   }
 }
 
+// 激励权限检查短缓存(60秒)
+let permCache = { at: 0, data: null }
 const loadPermission = async () => {
   try {
-    const res = await checkIncentivePermission()
+    let res = null
+    if (permCache.data && Date.now() - permCache.at < 60000) {
+      res = { data: permCache.data }
+    } else {
+      const r = await checkIncentivePermission()
+      permCache = { at: Date.now(), data: r.data || {} }
+      res = r
+    }
     if (res.data) {
       canEdit.value = res.data.canEdit || false
       canDelete.value = res.data.canDelete || false
