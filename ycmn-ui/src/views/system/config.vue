@@ -35,6 +35,11 @@
                 <template #suffix>天</template>
               </el-input>
             </el-form-item>
+            <el-form-item label="调整期天数">
+              <el-input v-model="configMap['customer.adjust.days']" style="width: 300px">
+                <template #suffix>天</template>
+              </el-input>
+            </el-form-item>
             <el-form-item label="编号规则">
               <el-select v-model="configMap['customer.code.rule']" style="width: 300px">
                 <el-option label="大区首字母-年月-顺序号 (如 NM-202606-001)" value="region_date_seq" />
@@ -621,6 +626,17 @@ const loadConfigs = async () => {
     const res = await getConfigList()
     configs.value = res.data || []
     configs.value.forEach(c => { configMap[c.configKey] = c.configValue })
+    // 客户默认共享规则:从 customer.auto_share(JSON 字符串)回填到 autoShare
+    const asRaw = configMap['customer.auto_share']
+    if (asRaw) {
+      try {
+        const parsed = JSON.parse(asRaw)
+        autoShare.superior = !!parsed.superior
+        autoShare.admin = !!parsed.admin
+        autoShare.roles = parsed.roles || []
+        autoShare.users = parsed.users || []
+      } catch (e) { /* 历史脏值忽略,使用默认 */ }
+    }
   } catch (e) {}
 }
 
@@ -649,6 +665,13 @@ const handleLogoUpload = async (res) => {
 
 const handleSave = async () => {
   try {
+    // 客户默认共享规则:把 autoShare 序列化写回 configMap,随保存一并提交(否则该配置永不更新)
+    configMap['customer.auto_share'] = JSON.stringify({
+      superior: autoShare.superior,
+      admin: autoShare.admin,
+      roles: autoShare.roles || [],
+      users: autoShare.users || []
+    })
     // 以 configMap 为准提交所有键(含 DB 中尚不存在的键),后端按 configKey upsert
     const metaByKey = {}
     configs.value.forEach(c => { metaByKey[c.configKey] = c })

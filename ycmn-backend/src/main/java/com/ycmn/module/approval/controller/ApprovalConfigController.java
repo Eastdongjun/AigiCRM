@@ -24,14 +24,14 @@ public class ApprovalConfigController {
     }
 
     /** 创建审批配置 */
-    @PreAuthorize("hasAuthority('system:config:view')")
+    @PreAuthorize("hasAuthority('system:config:edit')")
     @PostMapping
     public Result<BizApprovalConfig> create(@RequestBody BizApprovalConfig config) {
         return Result.ok(configService.create(config));
     }
 
     /** 更新审批配置 */
-    @PreAuthorize("hasAuthority('system:config:view')")
+    @PreAuthorize("hasAuthority('system:config:edit')")
     @PutMapping("/{id}")
     public Result<Void> update(@PathVariable Long id, @RequestBody BizApprovalConfig config) {
         config.setId(id);
@@ -40,7 +40,7 @@ public class ApprovalConfigController {
     }
 
     /** 删除审批配置 */
-    @PreAuthorize("hasAuthority('system:config:view')")
+    @PreAuthorize("hasAuthority('system:config:edit')")
     @DeleteMapping("/{id}")
     public Result<Void> delete(@PathVariable Long id) {
         configService.delete(id);

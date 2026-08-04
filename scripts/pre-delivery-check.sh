@@ -65,6 +65,15 @@ else
   bad "交付门禁未通过"; tail -5 /tmp/verify-out.txt | sed 's/^/    /'
 fi
 
+echo "--- [4.5] 权限粒度检查(FEAT-20260804-QA-GATES) ---"
+if python3 "$SCRIPT_DIR/check_permission_granularity.py" >/tmp/permcheck.log 2>&1; then
+  echo "  ✅ 写操作权限粒度检查通过"
+else
+  echo "  ❌ 权限粒度检查失败:"; sed 's/^/     /' /tmp/permcheck.log | head -8
+  FAIL=$((FAIL+1))
+fi
+rm -f /tmp/permcheck.log
+
 echo "--- [5] 前端质量检查(FEAT-20260804-QA-GATES) ---"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 if bash "$SCRIPT_DIR/check-frontend-quality.sh" >/tmp/qagate.log 2>&1; then
