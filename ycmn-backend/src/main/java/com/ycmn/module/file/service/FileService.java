@@ -103,9 +103,7 @@ public class FileService {
         }
         if (scope != null && !scope.isEmpty()) {
             wrapper.eq(BizFile::getFileScope, scope);
-            if ("private".equals(scope)) {
-                wrapper.eq(BizFile::getUploaderId, userId);
-            } else if ("incentive".equals(scope)) {
+            if ("incentive".equals(scope)) {
                 // 自己的 + 其他人共享的激励文件
                 List<BizIncentiveRecord> sharedRecords = incentiveRecordMapper.selectList(
                         new LambdaQueryWrapper<BizIncentiveRecord>()
@@ -130,9 +128,12 @@ public class FileService {
                 }
             }
         }
-        // 【文件权限体系】可见性过滤：夹内文件仅返回用户可见文件夹中的（本人创建/上级链/ACL view/public），
-        // 无文件夹文件保持原 scope 规则不变；folderId 指定查询时若文件夹不可见则返回空页
-        if ("public".equals(scope) || "private".equals(scope)) {
+        // 【文件权限体系】统一文件夹可见性过滤（除 incentive 外的所有 scope 生效）：
+        // 夹内文件仅返回用户可见文件夹中的（本人创建/上级链/ACL view/public），上级可查看下级私有文件夹内文件；
+        // private scope 的无文件夹文件仍需本人上传；未知/空 scope 候选集为空 → 夹内文件一律不可见
+        // （与 getFolderTree 的 scope 默认拒绝对称，封堵"任意 file:view 用户枚举任意文件夹文件"）。
+        // incentive scope 已有文件级归属约束（本人上传/被分享），不在此过滤。
+        if (!"incentive".equals(scope)) {
             List<BizFileFolder> folders = folderMapper.selectList(
                     new LambdaQueryWrapper<BizFileFolder>()
                             .eq(BizFileFolder::getFolderType, scope));
@@ -142,7 +143,16 @@ public class FileService {
                     return new Page<>(current, size, 0);
                 }
             } else if (visibleIds.isEmpty()) {
-                wrapper.isNull(BizFile::getFolderId);
+                if ("private".equals(scope)) {
+                    wrapper.and(w -> w.isNull(BizFile::getFolderId)
+                            .and(w2 -> w2.eq(BizFile::getUploaderId, userId)));
+                } else {
+                    wrapper.isNull(BizFile::getFolderId);
+                }
+            } else if ("private".equals(scope)) {
+                wrapper.and(w -> w.isNull(BizFile::getFolderId)
+                        .and(w2 -> w2.eq(BizFile::getUploaderId, userId))
+                        .or().in(BizFile::getFolderId, visibleIds));
             } else {
                 wrapper.and(w -> w.isNull(BizFile::getFolderId)
                         .or().in(BizFile::getFolderId, visibleIds));
@@ -386,16 +396,18 @@ public class FileService {
 
         // 归属校验：只有上传者、被分享者、管理员可以下载
         Long userId = SecurityUtils.getCurrentUserId();
-        if (!canAccessFile(file, userId)) {
+        boolean canDownload = canAccessFile(file, userId);
+        // 【文件权限体系】夹内文件：老语义（上传者/被分享者/管理员/公共文件）通过即可下载，
+        // 其余用户再按文件夹权限判定（上级链/ACL download，公共文件夹兜底 view/download 全员可下载）
+        if (!canDownload && file.getFolderId() != null) {
+            canDownload = folderPermissionService.checkFile(fileId, FolderPermissionService.P_DOWNLOAD, userId);
+        }
+        if (!canDownload) {
             response.setStatus(403);
             return;
         }
-        // 【文件权限体系】夹内文件追加文件夹下载权限与下载开关校验（开关 1=允许下载，0/空=仅预览）
-        if (file.getFolderId() != null) {
-            if (!folderPermissionService.checkFile(fileId, FolderPermissionService.P_DOWNLOAD, userId)) {
-                response.setStatus(403);
-                return;
-            }
+        // 【文件权限体系】夹内文件下载开关（1=允许下载，0/空=仅预览）：仅约束非管理员，管理员全权
+        if (file.getFolderId() != null && !SecurityUtils.isAdmin()) {
             BizFileFolder folder = folderMapper.selectById(file.getFolderId());
             if (folder != null && (folder.getDownloadable() == null || folder.getDownloadable() != 1)) {
                 response.setStatus(403);

@@ -1,6 +1,12 @@
 package com.ycmn.module.file.service;
 
 import com.aliyun.oss.OSS;
+import com.baomidou.mybatisplus.core.MybatisConfiguration;
+import com.baomidou.mybatisplus.core.conditions.Wrapper;
+import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import org.apache.ibatis.builder.MapperBuilderAssistant;
 import com.ycmn.common.BusinessException;
 import com.ycmn.config.OssConfig;
 import com.ycmn.module.file.entity.BizFile;
@@ -15,12 +21,14 @@ import com.ycmn.security.SecurityUtils;
 import jakarta.servlet.http.HttpServletResponse;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.mockito.MockedStatic;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.ByteArrayInputStream;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -48,6 +56,8 @@ class FileServicePermissionTest {
     void setUp() {
         // 绕过 @Value 注入，避免下载路径 Paths.get(null,...) 依赖异常吞掉的巧合
         ReflectionTestUtils.setField(svc, "uploadDir", System.getProperty("java.io.tmpdir"));
+        // 纯 mock 环境初始化 Lambda 缓存，使 LambdaQueryWrapper.getSqlSegment() 可用
+        TableInfoHelper.initTableInfo(new MapperBuilderAssistant(new MybatisConfiguration(), ""), BizFile.class);
     }
 
     @Test
@@ -178,5 +188,146 @@ class FileServicePermissionTest {
             assertEquals(1L, result.getUploaderId());
             verify(fileMapper).insert(any(BizFile.class));
         }
+    }
+
+    // ====== 修复轮（I-1/I-4/I-7）：下载语义 ======
+
+    @Test
+    void download_sharedRecipient_allowedWhenSwitchOn() throws Exception {
+        // I-1：B 被 A 分享夹内文件，开关允许时 B 可下载（不被 checkFile 拦截）
+        BizFile file = new BizFile();
+        file.setId(9L);
+        file.setFolderId(100L);
+        file.setUploaderId(1L);
+        file.setFileScope("private");
+        file.setOssKey("private/1/x.txt");
+        BizFileFolder folder = new BizFileFolder();
+        folder.setId(100L);
+        folder.setDownloadable(1);
+        HttpServletResponse response = mock(HttpServletResponse.class);
+        when(fileMapper.selectById(9L)).thenReturn(file);
+        when(folderMapper.selectById(100L)).thenReturn(folder);
+        when(fileShareMapper.selectCount(any())).thenReturn(1L); // B 是被分享者
+        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
+            m.when(SecurityUtils::getCurrentUserId).thenReturn(2L);
+            m.when(SecurityUtils::isAdmin).thenReturn(false);
+            svc.downloadById(9L, null, response);
+            verify(response).setStatus(404);
+            verify(response, never()).setStatus(403);
+        }
+    }
+
+    @Test
+    void download_admin_bypassesDownloadableSwitch() throws Exception {
+        // I-4b：管理员不受下载开关约束
+        BizFile file = new BizFile();
+        file.setId(9L);
+        file.setFolderId(100L);
+        file.setUploaderId(1L);
+        file.setFileScope("private");
+        file.setOssKey("private/1/x.txt");
+        BizFileFolder folder = new BizFileFolder();
+        folder.setId(100L);
+        folder.setDownloadable(0);
+        HttpServletResponse response = mock(HttpServletResponse.class);
+        when(fileMapper.selectById(9L)).thenReturn(file);
+        when(folderMapper.selectById(100L)).thenReturn(folder);
+        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
+            m.when(SecurityUtils::getCurrentUserId).thenReturn(1L);
+            m.when(SecurityUtils::isAdmin).thenReturn(true);
+            svc.downloadById(9L, null, response);
+            verify(response).setStatus(404);
+            verify(response, never()).setStatus(403);
+        }
+    }
+
+    @Test
+    void download_managerOfOwner_allowedWhenSwitchOn() throws Exception {
+        // 上级链用户：canAccessFile 不通过（非上传者/非被分享），checkFile 走文件夹权限放行
+        BizFile file = new BizFile();
+        file.setId(9L);
+        file.setFolderId(100L);
+        file.setUploaderId(1L);
+        file.setFileScope("private");
+        file.setOssKey("private/1/x.txt");
+        BizFileFolder folder = new BizFileFolder();
+        folder.setId(100L);
+        folder.setDownloadable(1);
+        HttpServletResponse response = mock(HttpServletResponse.class);
+        when(fileMapper.selectById(9L)).thenReturn(file);
+        when(folderMapper.selectById(100L)).thenReturn(folder);
+        when(fileShareMapper.selectCount(any())).thenReturn(0L);
+        when(folderPermissionService.checkFile(9L, FolderPermissionService.P_DOWNLOAD, 2L)).thenReturn(true);
+        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
+            m.when(SecurityUtils::getCurrentUserId).thenReturn(2L);
+            m.when(SecurityUtils::isAdmin).thenReturn(false);
+            svc.downloadById(9L, null, response);
+            verify(response).setStatus(404);
+            verify(response, never()).setStatus(403);
+        }
+    }
+
+    // ====== 修复轮（I-2/I-5/I-7）：列表可见性过滤 ======
+
+    @Test
+    void pageFiles_privateFolder_visibleToManager_returnsFiles() {
+        // I-2：上级打开下级私有文件夹，列表不再强制 uploaderId=本人
+        BizFileFolder folder = new BizFileFolder();
+        folder.setId(100L);
+        folder.setOwnerId(9L);
+        when(folderMapper.selectList(any())).thenReturn(List.of(folder));
+        when(folderPermissionService.isManagerChain(2L, 9L)).thenReturn(true);
+        BizFile f = new BizFile();
+        f.setId(1L);
+        f.setFolderId(100L);
+        f.setFileScope("private");
+        f.setUploaderId(9L);
+        Page<BizFile> p = new Page<>(1, 10, 1);
+        p.setRecords(List.of(f));
+        when(fileMapper.selectPage(any(), any())).thenReturn(p);
+        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
+            IPage<BizFile> result = svc.pageFiles(1, 10, 100L, "private", null, 2L);
+            assertEquals(1, result.getTotal());
+            assertEquals(9L, result.getRecords().get(0).getUploaderId());
+            verify(fileMapper).selectPage(any(), any());
+        }
+    }
+
+    @Test
+    void pageFiles_folderNotVisible_returnsEmptyPage() {
+        // 非公共 scope 过滤生效：不可见文件夹 → 空页，不查文件
+        BizFileFolder folder = new BizFileFolder();
+        folder.setId(100L);
+        folder.setOwnerId(9L);
+        when(folderMapper.selectList(any())).thenReturn(List.of(folder));
+        when(folderPermissionService.isManagerChain(2L, 9L)).thenReturn(false);
+        when(folderPermissionService.permsFor(100L, 2L)).thenReturn(List.of());
+        IPage<BizFile> result = svc.pageFiles(1, 10, 100L, "private", null, 2L);
+        assertEquals(0, result.getTotal());
+        verify(fileMapper, never()).selectPage(any(), any());
+    }
+
+    @Test
+    void pageFiles_unknownScope_cannotEnumerateFolderFiles() {
+        // I-5：scope 为空/未知时候选集为空，夹内文件一律不可见，封堵枚举
+        when(folderMapper.selectList(any())).thenReturn(List.of());
+        IPage<BizFile> result = svc.pageFiles(1, 10, 100L, null, null, 2L);
+        assertEquals(0, result.getTotal());
+        verify(fileMapper, never()).selectPage(any(), any());
+    }
+
+    @Test
+    void pageFiles_privateFolderless_onlyOwnFiles() {
+        // 私有 scope 无文件夹文件仍需本人上传（isNull(folder_id) AND uploader_id=本人）
+        when(folderMapper.selectList(any())).thenReturn(List.of());
+        Page<BizFile> p = new Page<>(1, 10, 0);
+        when(fileMapper.selectPage(any(), any())).thenReturn(p);
+        svc.pageFiles(1, 10, null, "private", null, 2L);
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<Wrapper<BizFile>> cap = ArgumentCaptor.forClass(Wrapper.class);
+        verify(fileMapper).selectPage(any(), cap.capture());
+        String segment = cap.getValue().getSqlSegment();
+        assertTrue(segment.contains("uploader_id"), "应约束本人上传: " + segment);
+        assertTrue(segment.contains("folder_id IS NULL"), "应限定无文件夹文件: " + segment);
     }
 }

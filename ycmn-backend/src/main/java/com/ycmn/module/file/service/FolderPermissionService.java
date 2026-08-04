@@ -47,7 +47,9 @@ public class FolderPermissionService {
         if (Objects.equals(folder.getOwnerId(), userId)) return true;
         if (isManagerChain(userId, folder.getOwnerId())) return true;
         if (aclGranted(folderId, userId, action)) return true;
-        return P_VIEW.equals(action) && "public".equals(folder.getFolderType());
+        // 【文件权限体系】公共文件夹兜底扩展至 download：全员可见，下载开关允许时全员可下载
+        // （开关在 downloadById 控制，管理员全权不受开关约束）
+        return (P_VIEW.equals(action) || P_DOWNLOAD.equals(action)) && "public".equals(folder.getFolderType());
     }
 
     /** 文件权限判定：取 folderId 判定；无文件夹按上传者归属 */
@@ -97,7 +99,12 @@ public class FolderPermissionService {
                 for (String p : acl.getPerms().split(",")) if (!result.contains(p)) result.add(p);
             }
         }
-        if (result.isEmpty() && "public".equals(folder.getFolderType())) result.add(P_VIEW);
+        // 【文件权限体系】公共文件夹对全员始终可见（ACL 只叠加管理权限，未匹配角色的用户同样可见），
+        // 下载权限一并兜底（是否实际可下载由下载接口的开关约束）
+        if ("public".equals(folder.getFolderType())) {
+            if (!result.contains(P_VIEW)) result.add(P_VIEW);
+            if (!result.contains(P_DOWNLOAD)) result.add(P_DOWNLOAD);
+        }
         return result;
     }
 

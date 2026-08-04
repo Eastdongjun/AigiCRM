@@ -98,6 +98,18 @@ class FolderPermissionServiceTest {
             m.when(SecurityUtils::isAdmin).thenReturn(false);
             assertTrue(svc.check(100L, FolderPermissionService.P_VIEW, 42L));
             assertFalse(svc.check(100L, FolderPermissionService.P_EDIT, 42L));
+            assertFalse(svc.check(100L, FolderPermissionService.P_UPLOAD, 42L));
+        }
+    }
+
+    @Test
+    void publicFolder_downloadAllowedForOthers() {
+        // 修复轮 I-4a：公共文件夹 download 兜底（实际是否可下载由 downloadById 开关约束）
+        BizFileFolder folder = new BizFileFolder(); folder.setId(100L); folder.setOwnerId(99L); folder.setFolderType("public");
+        when(folderMapper.selectById(100L)).thenReturn(folder);
+        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
+            m.when(SecurityUtils::isAdmin).thenReturn(false);
+            assertTrue(svc.check(100L, FolderPermissionService.P_DOWNLOAD, 42L));
         }
     }
 
@@ -172,12 +184,35 @@ class FolderPermissionServiceTest {
     }
 
     @Test
-    void permsFor_publicWithoutAcl_returnsView() {
+    void permsFor_publicWithoutAcl_returnsViewAndDownload() {
         BizFileFolder folder = new BizFileFolder(); folder.setId(100L); folder.setOwnerId(99L); folder.setFolderType("public");
         when(folderMapper.selectById(100L)).thenReturn(folder);
         try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
             m.when(SecurityUtils::isAdmin).thenReturn(false);
-            assertEquals(List.of("view"), svc.permsFor(100L, 42L));
+            assertEquals(List.of("view", "download"), svc.permsFor(100L, 42L));
+        }
+    }
+
+    @Test
+    void permsFor_publicWithAclWithoutView_userStillSeesFolder() {
+        // 修复轮 I-3：公共文件夹配置 ACL（无 view）后，未匹配/匹配角色的普通用户仍必须可见
+        BizFileFolder folder = new BizFileFolder(); folder.setId(100L); folder.setOwnerId(99L); folder.setFolderType("public");
+        BizFolderAcl acl = new BizFolderAcl();
+        acl.setFolderId(100L); acl.setRoleId(3L); acl.setPerms("upload,edit");
+        SysRole role = new SysRole(); role.setId(3L); role.setRoleCode("sales");
+        when(folderMapper.selectById(100L)).thenReturn(folder);
+        when(aclMapper.selectList(any())).thenReturn(List.of(acl));
+        when(roleMapper.selectById(3L)).thenReturn(role);
+        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
+            m.when(SecurityUtils::isAdmin).thenReturn(false);
+            // 角色匹配：ACL 权限 + 公共兜底 view/download
+            m.when(SecurityUtils::getCurrentRoleCodes).thenReturn(List.of("sales"));
+            List<String> matched = svc.permsFor(100L, 42L);
+            assertTrue(matched.containsAll(List.of(FolderPermissionService.P_VIEW, FolderPermissionService.P_DOWNLOAD, "upload", "edit")));
+            // 角色不匹配：公共兜底仍保证可见
+            m.when(SecurityUtils::getCurrentRoleCodes).thenReturn(List.of("other"));
+            List<String> unmatched = svc.permsFor(100L, 42L);
+            assertEquals(List.of("view", "download"), unmatched);
         }
     }
 
