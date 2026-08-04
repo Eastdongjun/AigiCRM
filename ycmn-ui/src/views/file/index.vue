@@ -11,7 +11,7 @@
         <div><div class="s-num">{{ storage?.quotaFormatted || '10GB' }}</div><div class="s-lbl">总容量</div></div>
       </div>
       <el-input v-model="keyword" placeholder="搜索文件名称..." style="width:220px;margin-left:auto" clearable prefix-icon="Search" @keyup.enter="loadFiles" />
-      <el-button v-if="activeTab!=='incentive'&&activeTab!=='shared_to_me'" type="primary" :icon="Upload" @click="uploadVisible=true">上传文件</el-button>
+      <el-button v-if="activeTab!=='incentive'&&activeTab!=='shared_to_me' && folderPerms.includes('upload')" type="primary" :icon="Upload" @click="uploadVisible=true">上传文件</el-button>
     </div>
 
     <!-- 框2: 主内容 -->
@@ -38,7 +38,7 @@
             <h4 class="folder-title">文件夹</h4>
 
             <!-- 全部文件 -->
-            <div class="folder-root" :class="{ active: !selectedFolderId }" @click="selectedFolderId = null; loadFiles()">
+            <div class="folder-root" :class="{ active: !selectedFolderId }" @click="selectedFolderId = null; loadFolderPerms(); loadFiles()">
               <el-icon color="#409eff"><FolderOpened /></el-icon>
               <span class="folder-root-name">全部文件</span>
               <span class="folder-count-badge">{{ fileTotal }}</span>
@@ -55,17 +55,20 @@
               <el-icon><Folder /></el-icon>
               <span class="folder-name">{{ folder.folderName }}</span>
               <span class="folder-count">{{ folder.fileCount || 0 }}</span>
-              <span v-if="canManageFolder(folder)" class="folder-actions">
-                <el-tooltip content="重命名" placement="top">
+              <span v-if="folderPerms.includes('edit') || folderPerms.includes('delete')" class="folder-actions">
+                <el-tooltip v-if="folderPerms.includes('edit')" content="重命名" placement="top">
                   <el-icon class="folder-act" @click.stop="openRenameFolder(folder)"><EditPen /></el-icon>
                 </el-tooltip>
-                <el-tooltip content="删除" placement="top">
+                <el-tooltip v-if="folderPerms.includes('edit')" content="权限设置" placement="top">
+                  <el-icon class="folder-act" @click.stop="openAclDialog(folder)"><Setting /></el-icon>
+                </el-tooltip>
+                <el-tooltip v-if="folderPerms.includes('delete')" content="删除" placement="top">
                   <el-icon class="folder-act folder-act-danger" @click.stop="handleDeleteFolder(folder)"><Delete /></el-icon>
                 </el-tooltip>
               </span>
             </div>
 
-            <!-- 新建文件夹（公共Tab仅管理员，私人Tab仅自己） -->
+            <!-- 新建文件夹（公共/私人 Tab 按当前文件夹 upload 权限显示） -->
             <el-button v-if="canCreateFolder" class="new-folder-btn" @click="createFolderVisible = true">
               <el-icon><FolderAdd /></el-icon> 新建文件夹
             </el-button>
@@ -108,13 +111,16 @@
             <el-table-column label="操作" min-width="100" align="center">
               <template #default="{ row }">
                 <div class="action-icons">
-                  <el-tooltip content="下载" placement="top">
+                  <el-tooltip v-if="folderPerms.includes('download') && folderDownloadable === 1" content="下载" placement="top">
                     <el-icon class="act-icon" @click.stop="handleDownload(row)"><Download /></el-icon>
                   </el-tooltip>
-                  <el-tooltip v-if="activeTab !== 'public' && activeTab !== 'shared_to_me'" content="分享" placement="top">
+                  <el-tooltip v-if="activeTab !== 'public' && activeTab !== 'shared_to_me' && folderPerms.includes('share')" content="分享" placement="top">
                     <el-icon class="act-icon" @click.stop="openShareDialog(row)"><Share /></el-icon>
                   </el-tooltip>
-                  <el-tooltip v-if="canDelete(row)" content="删除" placement="top">
+                  <el-tooltip v-if="folderPerms.includes('edit')" content="替换" placement="top">
+                    <el-icon class="act-icon" @click.stop="openReplaceFile(row)"><Refresh /></el-icon>
+                  </el-tooltip>
+                  <el-tooltip v-if="folderPerms.includes('delete')" content="删除" placement="top">
                     <el-icon class="act-icon act-danger" @click.stop="handleDelete(row)"><Delete /></el-icon>
                   </el-tooltip>
                 </div>
@@ -206,6 +212,51 @@
         <el-button type="primary" @click="confirmShare">确认分享</el-button>
       </template>
     </el-dialog>
+
+    <!-- 权限设置对话框 -->
+    <el-dialog v-model="aclDialogVisible" :title="'权限设置：' + (aclFolder?.folderName || '')" width="560px">
+      <div class="acl-block">
+        <div class="acl-block-title">授权角色</div>
+        <el-select v-model="aclSelectedRoles" multiple filterable placeholder="选择要授权的角色..." style="width:100%">
+          <el-option v-for="r in allRoles" :key="r.id" :label="r.roleName" :value="r.id" />
+        </el-select>
+        <div class="acl-perms">
+          <el-checkbox-group v-model="aclSelectedPerms">
+            <el-checkbox v-for="p in PERM_OPTIONS" :key="p.value" :value="p.value">{{ p.label }}</el-checkbox>
+          </el-checkbox-group>
+        </div>
+        <div>
+          <el-button type="primary" :loading="aclSaving" :disabled="!aclSelectedRoles.length" @click="saveAcl">
+            保存授权
+          </el-button>
+        </div>
+      </div>
+      <el-divider />
+      <div class="acl-block">
+        <div class="acl-block-title">下载开关</div>
+        <div class="acl-download-row">
+          <span>允许下载该文件夹下的文件</span>
+          <el-switch v-model="aclDownloadable" @change="handleDownloadableChange" />
+        </div>
+      </div>
+      <el-divider />
+      <div class="acl-block">
+        <div class="acl-block-title">已授权角色</div>
+        <div v-if="aclList.length" class="acl-list">
+          <div v-for="row in aclList" :key="row.roleId" class="acl-item">
+            <span class="acl-role">{{ row.roleName }}</span>
+            <span class="acl-tags">
+              <el-tag v-for="p in row.perms" :key="p" size="small" type="info">{{ permLabel(p) }}</el-tag>
+            </span>
+            <el-button type="danger" link size="small" @click="removeAcl(row)">移除</el-button>
+          </div>
+        </div>
+        <el-empty v-else description="暂无授权角色" :image-size="50" />
+      </div>
+    </el-dialog>
+
+    <!-- 替换文件隐藏选择器 -->
+    <input ref="replaceFileInputRef" type="file" style="display:none" @change="handleReplaceChosen" />
   </div>
 </template>
 
@@ -213,7 +264,8 @@
 import { ref, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Upload } from '@element-plus/icons-vue'
-import { getFolderTree, getFileList, createFolder, renameFolder, deleteFolder, deleteFile, getStorageInfo, shareFile, getSharedToMe, getSharedToMeCount } from '@/api/file'
+import { getFolderTree, getFileList, createFolder, renameFolder, deleteFolder, deleteFile, getStorageInfo, shareFile, getSharedToMe, getSharedToMeCount, getFolderAcl, saveFolderAcl, removeFolderAcl, setFolderDownloadable, getFolderPermissions, replaceFile } from '@/api/file'
+import { getRoleList } from '@/api/system'
 import { getSimpleUserList } from '@/api/customer'
 import { useUserStore } from '@/store/user'
 import request from '@/utils/request'
@@ -239,6 +291,36 @@ const storageQuota = ref('10GB')
 const storagePercent = ref(0)
 const token = localStorage.getItem('token')
 const allFolders = ref([])
+
+// 当前文件夹权限（按钮显隐控制）
+const folderPerms = ref([])
+const folderDownloadable = ref(1)
+
+// 权限设置弹窗
+const aclDialogVisible = ref(false)
+const aclFolder = ref(null)
+const aclList = ref([])
+const allRoles = ref([])
+const aclSelectedRoles = ref([])
+const aclSelectedPerms = ref([])
+const aclDownloadable = ref(true)
+const aclSaving = ref(false)
+
+// 文件替换
+const replaceFileTarget = ref(null)
+const replaceFileInputRef = ref(null)
+const replacing = ref(false)
+
+// 6 项权限选项
+const PERM_OPTIONS = [
+  { value: 'view', label: '查看' },
+  { value: 'upload', label: '上传' },
+  { value: 'edit', label: '编辑（重命名/替换）' },
+  { value: 'delete', label: '删除' },
+  { value: 'share', label: '分享' },
+  { value: 'download', label: '下载' }
+]
+const permLabel = (v) => PERM_OPTIONS.find(p => p.value === v)?.label || v
 
 // Tab 文件计数
 const publicCount = ref(0)
@@ -268,26 +350,38 @@ const currentFolders = computed(() => {
   return allFolders.value.filter(f => f.folderType === activeTab.value)
 })
 
-// 公共文件夹仅管理员可创建，私人文件夹任何人可创建
+// 新建文件夹：公共/私人 Tab 按当前文件夹 upload 权限显示（不再仅管理员/本人写死）
 const canCreateFolder = computed(() => {
-  if (activeTab.value === 'public') return isAdmin.value
-  if (activeTab.value === 'private') return true
-  return false
+  if (activeTab.value === 'incentive' || activeTab.value === 'shared_to_me') return false
+  return folderPerms.value.includes('upload')
 })
 
-// 文件夹管理权限（重命名/删除）：公共文件夹仅管理员，私人文件夹仅所有者本人
-const canManageFolder = (folder) => {
-  if (folder.folderType === 'public') return isAdmin.value
-  if (folder.folderType === 'private') return folder.ownerId === userStore.userId
-  return false
-}
-
-// 删除权限：公共文件仅管理员，私人文件仅上传者本人，激励/分享不可删
-const canDelete = (row) => {
-  if (activeTab.value === 'incentive' || activeTab.value === 'shared_to_me') return false
-  if (isAdmin.value) return true
-  if (activeTab.value === 'public' || row.fileScope === 'public') return false
-  return row.uploaderId === userStore.userId
+// 当前文件夹权限加载：
+//  - 激励/分享给我 Tab 无文件夹树：只读 + 可下载（保持原有行为）
+//  - 根目录（全部文件）无 ACL：公共根目录保持"所有人可上传/下载、管理操作仅管理员"，
+//    私人根目录本人全量
+//  - 选中文件夹：调 permissions 接口（管理员/本人/ACL 角色/公共兜底由后端判定）
+const loadFolderPerms = async () => {
+  if (activeTab.value === 'incentive' || activeTab.value === 'shared_to_me') {
+    folderPerms.value = ['view', 'download']
+    folderDownloadable.value = 1
+    return
+  }
+  const id = selectedFolderId.value
+  if (id == null) {
+    folderPerms.value = isAdmin.value
+      ? ['view', 'upload', 'edit', 'delete', 'share', 'download']
+      : activeTab.value === 'public'
+        ? ['view', 'upload', 'download']
+        : ['view', 'upload', 'edit', 'delete', 'share', 'download']
+    folderDownloadable.value = 1
+    return
+  }
+  try {
+    const res = await getFolderPermissions(id)
+    folderPerms.value = res.data?.perms || []
+    folderDownloadable.value = res.data?.downloadable ?? 1
+  } catch (e) {}
 }
 
 const switchTab = (tab) => {
@@ -295,11 +389,13 @@ const switchTab = (tab) => {
   selectedFolderId.value = null
   query.value.current = 1
   if (tab !== 'incentive' && tab !== 'shared_to_me') loadFolders()
+  loadFolderPerms()
   loadFiles()
 }
 
 const selectFolder = (folder) => {
   selectedFolderId.value = folder.id
+  loadFolderPerms()
   loadFiles()
 }
 
@@ -403,6 +499,106 @@ const confirmShare = async () => {
     shareDialogVisible.value = false
     loadTabCounts()
   } catch (e) {}
+}
+
+// === 权限设置 ===
+
+const openAclDialog = async (folder) => {
+  aclFolder.value = folder
+  aclSelectedRoles.value = []
+  aclSelectedPerms.value = []
+  aclDialogVisible.value = true
+  if (!allRoles.value.length) {
+    try {
+      const res = await getRoleList()
+      allRoles.value = res.data || []
+    } catch (e) {}
+  }
+  await Promise.all([loadAclList(folder.id), loadAclDownloadable(folder.id)])
+}
+
+const loadAclList = async (id) => {
+  try {
+    const res = await getFolderAcl(id)
+    aclList.value = res.data || []
+  } catch (e) {}
+}
+
+const loadAclDownloadable = async (id) => {
+  try {
+    const res = await getFolderPermissions(id)
+    aclDownloadable.value = (res.data?.downloadable ?? 1) === 1
+  } catch (e) {}
+}
+
+const saveAcl = async () => {
+  if (!aclSelectedRoles.value.length || !aclFolder.value) return
+  aclSaving.value = true
+  try {
+    for (const roleId of aclSelectedRoles.value) {
+      await saveFolderAcl(aclFolder.value.id, { roleId, perms: aclSelectedPerms.value })
+    }
+    ElMessage.success('权限已保存')
+    aclSelectedRoles.value = []
+    aclSelectedPerms.value = []
+    await loadAclList(aclFolder.value.id)
+  } catch (e) {
+    // 错误提示由 request 拦截器统一处理
+  } finally {
+    aclSaving.value = false
+  }
+}
+
+const removeAcl = async (row) => {
+  if (!aclFolder.value) return
+  try {
+    await removeFolderAcl(aclFolder.value.id, row.roleId)
+    ElMessage.success('已移除该角色授权')
+    await loadAclList(aclFolder.value.id)
+  } catch (e) {}
+}
+
+const handleDownloadableChange = async (val) => {
+  if (!aclFolder.value) return
+  try {
+    await setFolderDownloadable(aclFolder.value.id, val ? 1 : 0)
+    ElMessage.success(val ? '已允许下载' : '已关闭下载')
+    // 若正是当前选中文件夹，同步列表页按钮状态
+    if (selectedFolderId.value === aclFolder.value.id) {
+      folderDownloadable.value = val ? 1 : 0
+    }
+  } catch (e) {
+    aclDownloadable.value = !val
+  }
+}
+
+// === 文件替换 ===
+
+const openReplaceFile = (row) => {
+  replaceFileTarget.value = row
+  replaceFileInputRef.value?.click()
+}
+
+const handleReplaceChosen = async (e) => {
+  const file = e.target.files?.[0]
+  e.target.value = ''
+  if (!file || !replaceFileTarget.value || replacing.value) return
+  const target = replaceFileTarget.value
+  replaceFileTarget.value = null
+  replacing.value = true
+  const formData = new FormData()
+  formData.append('file', file)
+  try {
+    const res = await replaceFile(target.id, formData)
+    ElMessage.success('替换成功，版本 ' + (res.data?.version ?? ''))
+    loadFiles()
+    loadFolders()
+    loadTabCounts()
+  } catch (err) {
+    // 错误提示由 request 拦截器统一处理
+  } finally {
+    replacing.value = false
+  }
 }
 
 const handleDelete = async (row) => {
@@ -536,6 +732,7 @@ const getFileType = (name) => {
 
 onMounted(() => {
   loadFolders()
+  loadFolderPerms()
   loadFiles()
   loadTabCounts()
   loadStorage()
@@ -759,4 +956,14 @@ onMounted(() => {
 .upload-pending { margin-top: 10px; text-align: left; max-height: 160px; overflow: auto }
 .upload-pending-item { display: flex; justify-content: space-between; gap: 10px; font-size: 12px; color: #303133; padding: 4px 8px; background: #f0f2f5; border-radius: 4px; margin-bottom: 4px }
 .upload-pending-size { color: #909399; flex-shrink: 0 }
+
+/* 权限设置弹窗 */
+.acl-block { display: flex; flex-direction: column; gap: 10px }
+.acl-block-title { font-size: 13px; font-weight: 600; color: #333 }
+.acl-perms { display: flex; flex-wrap: wrap; gap: 4px 16px; padding: 4px 0 }
+.acl-download-row { display: flex; align-items: center; justify-content: space-between; font-size: 13px; color: #666 }
+.acl-list { max-height: 260px; overflow: auto; display: flex; flex-direction: column; gap: 6px }
+.acl-item { display: flex; align-items: center; gap: 8px; padding: 8px 10px; background: #f5f7fa; border-radius: 6px }
+.acl-role { font-size: 13px; font-weight: 500; color: #303133; min-width: 80px; flex-shrink: 0 }
+.acl-tags { flex: 1; display: flex; flex-wrap: wrap; gap: 4px }
 </style>

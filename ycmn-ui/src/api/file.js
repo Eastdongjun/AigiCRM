@@ -39,3 +39,35 @@ export function getSharedToMe(params) {
 export function getSharedToMeCount() {
   return request.get('/file/shared-to-me/count')
 }
+
+// === 文件权限体系（Task 5/6 接口）===
+
+// 文件夹角色授权列表 [{roleId, roleName, perms[]}]
+export function getFolderAcl(id) {
+  return request.get(`/file/folders/${id}/acl`)
+}
+
+// 保存某角色的权限 {roleId, perms: []}
+export function saveFolderAcl(id, data) {
+  return request.post(`/file/folders/${id}/acl`, data)
+}
+
+// 移除某角色的授权
+export function removeFolderAcl(id, roleId) {
+  return request.delete(`/file/folders/${id}/acl/${roleId}`)
+}
+
+// 下载开关 {downloadable: 0|1}
+export function setFolderDownloadable(id, downloadable) {
+  return request.put(`/file/folders/${id}/download`, { downloadable })
+}
+
+// 当前用户对文件夹的权限视图 {perms: [], downloadable: 0|1}
+export function getFolderPermissions(id) {
+  return request.get(`/file/folders/${id}/permissions`)
+}
+
+// 文件覆盖替换（multipart "file"），返回更新后文件（含 version）
+export function replaceFile(id, formData) {
+  return request.post(`/file/${id}/replace`, formData, { headers: { 'Content-Type': 'multipart/form-data' } })
+}
