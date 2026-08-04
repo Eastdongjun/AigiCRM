@@ -21,6 +21,9 @@ public class BizFile {
     private LocalDateTime createdAt;
     @TableField(fill = FieldFill.INSERT_UPDATE)
     private LocalDateTime updatedAt;
+    private Integer version;        // 新增：版本号，覆盖替换+1，默认1
+    private Long replaceBy;         // 新增：最近替换人
+    private LocalDateTime replacedAt; // 新增：最近替换时间
     @TableLogic
     private Integer deleted;
 

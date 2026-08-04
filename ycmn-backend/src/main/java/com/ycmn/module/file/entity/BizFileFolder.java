@@ -15,6 +15,7 @@ public class BizFileFolder {
     private String folderType;
     private Long ownerId;
     private Integer sortOrder;
+    private Integer downloadable;   // 新增：下载开关 1=允许 0=仅预览（默认1）
     private LocalDateTime createdAt;
 
     @TableField(exist = false)
