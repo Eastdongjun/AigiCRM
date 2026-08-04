@@ -18,7 +18,7 @@
 |---|---|
 | 授权对象 | 按角色（folder 级 ACL） |
 | 授权层级 | 文件夹授权 + 文件继承 |
-| 上级权限 | 直属上级可见 + 可管理（`sys_user.manager_id` 链，兼认 `sys_dept.leader_id`） |
+| 上级权限 | 直属上级可见 + 可管理（**个人上级 `sys_user.manager_id` 优先，未设置时用部门 leader 链**：`dept_id` 沿部门树向上逐级找 `sys_dept.leader_id`） |
 | 下载控制 | 文件夹"允许下载"开关（关闭 → 仅预览不可下载） |
 | 替换功能 | 覆盖替换（保留文件记录，内容更新，版本号+1） |
 | 分享控制 | 有"分享"权限的角色才能分享文件给个人 |
@@ -40,7 +40,7 @@
 **权限判定优先级**（高→低，命中即止）：
 1. 管理员（`SecurityUtils.isAdmin()`）= 一切权限（现状不变）
 2. 上传者本人 = 自己文件/文件夹的完全权限
-3. 直属上级（`manager_id` 递归向上 + 部门 `leader_id`）= 下级完全权限
+3. 直属上级 = 下级完全权限（判定见 §6：`manager_id` 优先，未设时沿部门树向上找 `leader_id`）
 4. 用户所在角色命中文件夹 ACL 且含该权限 = 通过
 5. 公共文件夹且动作为 `view` = 通过（仅查看）
 6. 其余 = 拒绝（403）
@@ -112,13 +112,17 @@ ALTER TABLE biz_file
 boolean check(folderId, action, userId):
   admin → true
   folder.ownerId == userId → true
-  isManagerChain(userId, folder.ownerId) → true        // manager_id 递归 + dept.leader_id
+  isManagerChain(userId, folder.ownerId) → true        // 个人上级优先 + 部门leader链兜底
   folder_acl 中存在 (folderId, 用户任一角色) 且 perms 含 action → true
   action == view 且 folder.folderType == public → true
   else → false
 ```
 
-- `isManagerChain(upper, lower)`：从 lower 沿 `manager_id` 向上递归（限 5 层），任一节点==upper 或该节点部门的 `leader_id`==upper 即 true；管理员直接 true。
+- `isManagerChain(upper, lower)`：
+  1. **个人上级优先**：从 lower 沿 `sys_user.manager_id` 向上递归（限 5 层），任一节点==upper 即 true；
+  2. **部门 leader 链兜底**：若 lower 的 `manager_id` 为空，从 lower 的 `dept_id` 沿部门树（parent_id）向上逐级，任一级部门 `leader_id`==upper 即 true（限 5 层）；
+  3. 管理员直接 true。
+- 数据前提：当前生产库 `manager_id` 全空（需在人员管理中逐步维护个人上级）；`dept.leader_id` 为部门负责人（销售部门由销售总监统管，行政部各有负责人，2026-08-05 已修正行政用户部门归属）。
 - 文件操作先取 `file.folderId` 再走 `check`；无文件夹的文件（folderId 空）按 uploaderId 归属判定（本人/上级/管理员）。
 
 ## 7. 前端交互
@@ -165,3 +169,5 @@ boolean check(folderId, action, userId):
 - 权限校验改动触及所有文件操作，需完整回归（现有 20 页全测）
 - 公共文件夹"默认仅查看"改变现有行为（现全员可看不变，管理操作从"仅管理员"变为"ACL 授权"）——需向用户确认过渡策略
 - 上级链递归有性能上限（限 5 层，且仅登录用户触发）
+- **数据前提**：`manager_id` 当前全空，个人上级需逐步维护（人员管理增加字段）；`dept.leader_id` 语义为部门负责人（销售总监统管销售部门），2026-08-05 已修正 3 名行政用户部门归属（毛颖娜→7、李艳梅→5、肖赟→38，回滚：NM100→6/TY100→4/TY200→44）
+- 行政数据范围变化：修正后行政用户 `dept_and_children` 范围=各自行政部（原=销售部），客户业务数据可见性收窄——已告知用户并确认
