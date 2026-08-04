@@ -25,6 +25,23 @@ ssh_prod "
   echo \"回滚备份: $NAS_BACKUP_DIR/dist-rollback-\$TS\"
 "
 
+echo "=== [3.4/5] 注入常用页面 chunk prefetch(浏览器解析 HTML 即后台预取,首次点击菜单秒开) ==="
+# 在服务器 NAS dist 上注入:chunk 文件名与本地构建一致,部署后修改 index.html
+ssh_prod "python3 - <<'PYIN'
+import os, re
+idx = '$NAS_DIST_DIR/index.html'
+s = open(idx, encoding='utf-8').read()
+if 'rel=\"prefetch\"' in s:
+    print('index.html 已含 prefetch,跳过')
+else:
+    assets = '$NAS_DIST_DIR/assets'
+    files = sorted(f for f in os.listdir(assets) if re.match(r'^(customer|incentive|stats|search|statistics|user)-[A-Za-z0-9_-]+\\.js$', f))
+    links = ''.join(f'<link rel=\"prefetch\" href=\"/assets/{f}\">' for f in files[:8])
+    s = s.replace('</head>', links + '</head>')
+    open(idx, 'w', encoding='utf-8').write(s)
+    print('prefetch 已注入:', len(files), '个')
+PYIN"
+
 echo "=== [3.5/5] 写入版本号(前端版本检测用) ==="
 ssh_prod "echo '$(date +%Y%m%d-%H%M%S)' > $NAS_DIST_DIR/version.txt"
 
