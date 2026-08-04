@@ -330,4 +330,99 @@ class FileServicePermissionTest {
         assertTrue(segment.contains("uploader_id"), "应约束本人上传: " + segment);
         assertTrue(segment.contains("folder_id IS NULL"), "应限定无文件夹文件: " + segment);
     }
+
+    // ====== 修复轮 2/5（ossKey 下载路由 /download/** 与 downloadById 同权）======
+
+    private BizFile aFolderFile(Long id, Long folderId, Long uploaderId) {
+        BizFile file = new BizFile();
+        file.setId(id);
+        file.setFolderId(folderId);
+        file.setUploaderId(uploaderId);
+        file.setFileScope("private");
+        file.setOssKey("private/" + uploaderId + "/x.txt");
+        return file;
+    }
+
+    @Test
+    void canDownloadFile_switchOff_deniedForNonAdmin() {
+        // key 路由同权：非管理员 + 夹内文件开关关 → 拒绝
+        BizFile file = aFolderFile(9L, 100L, 1L);
+        BizFileFolder folder = new BizFileFolder();
+        folder.setId(100L);
+        folder.setDownloadable(0);
+        when(folderMapper.selectById(100L)).thenReturn(folder);
+        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
+            m.when(SecurityUtils::getCurrentUserId).thenReturn(1L);
+            m.when(SecurityUtils::isAdmin).thenReturn(false);
+            assertFalse(svc.canDownloadFile(file, 1L));
+        }
+    }
+
+    @Test
+    void canDownloadFile_switchOn_allowedForUploader() {
+        BizFile file = aFolderFile(9L, 100L, 1L);
+        BizFileFolder folder = new BizFileFolder();
+        folder.setId(100L);
+        folder.setDownloadable(1);
+        when(folderMapper.selectById(100L)).thenReturn(folder);
+        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
+            m.when(SecurityUtils::isAdmin).thenReturn(false);
+            assertTrue(svc.canDownloadFile(file, 1L));
+        }
+    }
+
+    @Test
+    void canDownloadFile_shareeAllowedWhenSwitchOn() {
+        // 被分享者：canAccessFile 通过，开关开 → 放行
+        BizFile file = aFolderFile(9L, 100L, 1L);
+        BizFileFolder folder = new BizFileFolder();
+        folder.setId(100L);
+        folder.setDownloadable(1);
+        when(folderMapper.selectById(100L)).thenReturn(folder);
+        when(fileShareMapper.selectCount(any())).thenReturn(1L);
+        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
+            m.when(SecurityUtils::isAdmin).thenReturn(false);
+            assertTrue(svc.canDownloadFile(file, 2L));
+        }
+    }
+
+    @Test
+    void canDownloadFile_adminBypassesSwitch() {
+        BizFile file = aFolderFile(9L, 100L, 1L);
+        BizFileFolder folder = new BizFileFolder();
+        folder.setId(100L);
+        folder.setDownloadable(0);
+        when(folderMapper.selectById(100L)).thenReturn(folder);
+        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
+            m.when(SecurityUtils::isAdmin).thenReturn(true);
+            assertTrue(svc.canDownloadFile(file, 1L));
+        }
+    }
+
+    @Test
+    void canDownloadFile_managerChainViaCheckFile() {
+        // 上级链用户：canAccessFile 不通过，checkFile 走文件夹权限放行（开关开）
+        BizFile file = aFolderFile(9L, 100L, 1L);
+        BizFileFolder folder = new BizFileFolder();
+        folder.setId(100L);
+        folder.setDownloadable(1);
+        when(folderMapper.selectById(100L)).thenReturn(folder);
+        when(fileShareMapper.selectCount(any())).thenReturn(0L);
+        when(folderPermissionService.checkFile(9L, FolderPermissionService.P_DOWNLOAD, 2L)).thenReturn(true);
+        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
+            m.when(SecurityUtils::isAdmin).thenReturn(false);
+            assertTrue(svc.canDownloadFile(file, 2L));
+        }
+    }
+
+    @Test
+    void canDownloadFile_noPermission_denied() {
+        BizFile file = aFolderFile(9L, 100L, 1L);
+        when(fileShareMapper.selectCount(any())).thenReturn(0L);
+        when(folderPermissionService.checkFile(9L, FolderPermissionService.P_DOWNLOAD, 2L)).thenReturn(false);
+        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
+            m.when(SecurityUtils::isAdmin).thenReturn(false);
+            assertFalse(svc.canDownloadFile(file, 2L));
+        }
+    }
 }

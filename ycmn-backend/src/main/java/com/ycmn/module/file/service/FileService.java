@@ -396,23 +396,9 @@ public class FileService {
 
         // 归属校验：只有上传者、被分享者、管理员可以下载
         Long userId = SecurityUtils.getCurrentUserId();
-        boolean canDownload = canAccessFile(file, userId);
-        // 【文件权限体系】夹内文件：老语义（上传者/被分享者/管理员/公共文件）通过即可下载，
-        // 其余用户再按文件夹权限判定（上级链/ACL download，公共文件夹兜底 view/download 全员可下载）
-        if (!canDownload && file.getFolderId() != null) {
-            canDownload = folderPermissionService.checkFile(fileId, FolderPermissionService.P_DOWNLOAD, userId);
-        }
-        if (!canDownload) {
+        if (!canDownloadFile(file, userId)) {
             response.setStatus(403);
             return;
-        }
-        // 【文件权限体系】夹内文件下载开关（1=允许下载，0/空=仅预览）：仅约束非管理员，管理员全权
-        if (file.getFolderId() != null && !SecurityUtils.isAdmin()) {
-            BizFileFolder folder = folderMapper.selectById(file.getFolderId());
-            if (folder != null && (folder.getDownloadable() == null || folder.getDownloadable() != 1)) {
-                response.setStatus(403);
-                return;
-            }
         }
         try {
             Path filePath = Paths.get(uploadDir, file.getOssKey());
@@ -590,6 +576,29 @@ public class FileService {
                 new LambdaQueryWrapper<BizFileShare>()
                         .eq(BizFileShare::getFileId, file.getId())
                         .eq(BizFileShare::getSharedToUserId, userId)) > 0;
+    }
+
+    /**
+     * 【文件权限体系】下载权限判定（downloadById 与 ossKey 下载路由 /download/** 同权）：
+     * canAccessFile（上传者/被分享者/管理员/公共文件）通过即可下载；
+     * 夹内文件其余用户按文件夹权限判定（上级链/ACL download，公共文件夹兜底可下载）；
+     * 非管理员还受夹内文件下载开关约束（1=允许下载，0/空=仅预览，管理员全权）。
+     */
+    public boolean canDownloadFile(BizFile file, Long userId) {
+        boolean canDownload = canAccessFile(file, userId);
+        if (!canDownload && file.getFolderId() != null) {
+            canDownload = folderPermissionService.checkFile(file.getId(), FolderPermissionService.P_DOWNLOAD, userId);
+        }
+        if (!canDownload) {
+            return false;
+        }
+        if (file.getFolderId() != null && !SecurityUtils.isAdmin()) {
+            BizFileFolder folder = folderMapper.selectById(file.getFolderId());
+            if (folder != null && (folder.getDownloadable() == null || folder.getDownloadable() != 1)) {
+                return false;
+            }
+        }
+        return true;
     }
 
     // ====== 文件分享 ======

@@ -146,12 +146,14 @@ public class FileController {
                 return ResponseEntity.badRequest().build();
             }
 
-            // 归属校验：按 oss_key 解析文件记录，与 /download/{id} 同权（admin/上传者/被分享者/public 文件）
+            // 归属校验：按 oss_key 解析文件记录，与 /download/{id} 同权
+            // （canDownloadFile = canAccessFile(上传者/被分享者/管理员/公共文件) 或夹内文件文件夹下载权限，
+            //   非管理员还受夹内文件下载开关约束；biz_file 查不到的文件保持现状不阻断）
             BizFile file = fileService.getFileByKey(rawKey);
             if (file == null) {
                 return ResponseEntity.notFound().build();
             }
-            if (!fileService.canAccessFile(file, SecurityUtils.getCurrentUserId())) {
+            if (!fileService.canDownloadFile(file, SecurityUtils.getCurrentUserId())) {
                 return ResponseEntity.status(403).build();
             }
 
