@@ -28,3 +28,8 @@ __pycache__/
 # graphify 图谱产物（本地重建，不提交）
 graphify-out/
 .backup-*/
+
+# 数据库 dump/备份(含密码哈希与业务数据,禁止入库)
+ycmn_database_test.sql
+sql/init.sql
+*.dump
