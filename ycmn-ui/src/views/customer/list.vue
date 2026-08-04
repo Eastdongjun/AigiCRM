@@ -373,6 +373,10 @@ const industryColors = ['#409eff', '#67c23a', '#e6a23c', '#9b59b6', '#e91e63', '
 
 // ===== 自定义列 =====
 const COLUMN_STORAGE_KEY = 'customer_list_visible_columns'
+// 客户业务参数(声明必须先于列设置数组使用,避免 TDZ)
+const protectionDays = ref(360)
+const warningDays = ref(30)
+const adjustDays = ref(180)
 const allColumns = [
   { key: 'customerCode', label: '编号', disabled: true },
   { key: 'customerName', label: '订货客户全称', disabled: true },
@@ -811,9 +815,6 @@ const getProtectText = (row) => {
 }
 
 // 客户业务参数:从公开配置读取(保护期/提醒/调整期),配置改动即时生效,不再硬编码
-const protectionDays = ref(360)
-const warningDays = ref(30)
-const adjustDays = ref(180)
 const loadBizConfig = async () => {
   try {
     const res = await getPublicConfig()
