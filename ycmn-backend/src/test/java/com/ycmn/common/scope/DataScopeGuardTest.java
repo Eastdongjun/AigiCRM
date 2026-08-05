@@ -47,6 +47,13 @@ class DataScopeGuardTest {
         assertDoesNotThrow(() -> DataScopeGuard.checkOwnerInScope(7L, List.of(1L), true));
     }
 
+    @Test
+    void nullOwnerIsNotVisible() {
+        // M1：ownerId 为 null 优先拒绝（对齐注入版「记录归属缺失」语义）
+        assertFalse(DataScopeGuard.isVisible(null, List.of(1L), false));
+        assertFalse(DataScopeGuard.isVisible(null, null, true));
+    }
+
     // ---- Spring 注入实例方法 checkOwner（核心守卫） ----
 
     /** resolver 桩：固定可见范围（null=all 不过滤；不走 Spring/DB） */
@@ -85,6 +92,22 @@ class DataScopeGuardTest {
         // 分享等额外可见集合：owner 在 override 中（即使不在 resolver 范围）也放行
         DataScopeGuard guard = guardWithScope(List.of(1L, 2L));
         assertDoesNotThrow(() -> guard.checkOwner(9L, List.of(9L)));
+    }
+
+    @Test
+    void injectedCheckOwnerRejectsOutOfOverrideAndResolver() {
+        // C1 回归：owner 既不在 resolver 范围也不在 override → 必须拒绝（旧实现 fail-open 恒放行）
+        DataScopeGuard guard = guardWithScope(List.of(1L, 2L));
+        BusinessException ex = assertThrows(BusinessException.class,
+                () -> guard.checkOwner(9L, List.of(5L)));
+        assertEquals(403, ex.getCode());
+    }
+
+    @Test
+    void injectedCheckOwnerAllowsOwnerInResolverDespiteOverride() {
+        // 并集语义锁定：owner ∈ resolver 但 ∉ override → 放行（两集合取并，不互斥）
+        DataScopeGuard guard = guardWithScope(List.of(1L, 2L));
+        assertDoesNotThrow(() -> guard.checkOwner(2L, List.of(5L)));
     }
 
     @Test
