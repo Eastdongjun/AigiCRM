@@ -159,6 +159,18 @@ const routes = [
         name: 'SystemLog',
         component: () => import('@/views/system/log.vue'),
         meta: { title: '日志管理', icon: 'Notebook', permission: 'system:log:view' }
+      },
+      {
+        path: 'system/rule',
+        name: 'PermissionRule',
+        component: () => import('@/views/system/rule.vue'),
+        meta: { title: '权限规则', icon: 'SetUp', permission: 'system:rule:view' }
+      },
+      {
+        path: 'system/group',
+        name: 'GroupManage',
+        component: () => import('@/views/system/group.vue'),
+        meta: { title: '集团管理', icon: 'OfficeBuilding', permission: 'system:group:view' }
       }
     ]
   }
