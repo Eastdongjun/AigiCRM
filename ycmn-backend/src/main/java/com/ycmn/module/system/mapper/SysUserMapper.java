@@ -19,6 +19,8 @@ public interface SysUserMapper extends BaseMapper<SysUser> {
             "AND (#{keyword} IS NULL OR #{keyword} = '' OR u.real_name LIKE CONCAT('%', #{keyword}, '%') OR u.username LIKE CONCAT('%', #{keyword}, '%')) " +
             "AND (#{deptIds} IS NULL OR #{deptIds} = '' OR FIND_IN_SET(u.dept_id, #{deptIds})) " +
             "AND (#{status} IS NULL OR u.status = #{status}) " +
-            "ORDER BY u.created_at DESC")
+            // 【2026-08-05】人员编号从总负责人开始：销售总监(0)最前，其次系统管理员(admin)/行政(05)，再按账号升序
+            "ORDER BY CASE (SELECT r.role_code FROM sys_role r JOIN sys_user_role ur ON r.id = ur.role_id WHERE ur.user_id = u.id LIMIT 1) " +
+            "WHEN '0' THEN 0 WHEN 'admin' THEN 1 WHEN '05' THEN 2 ELSE 3 END, u.username ASC")
     IPage<SysUser> selectUserPage(Page<SysUser> page, @Param("keyword") String keyword, @Param("deptIds") String deptIds, @Param("status") Integer status);
 }

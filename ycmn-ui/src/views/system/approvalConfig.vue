@@ -10,7 +10,7 @@
         <el-table-column prop="flowName" label="流程名称" width="180" />
         <el-table-column prop="flowType" label="流程类型" width="150" />
         <el-table-column label="审批人类型" width="120">
-          <template #default="{ row }">{{ {USER:'指定人员',ROLE:'指定角色',DEPT:'指定部门'}[row.approverType] }}</template>
+          <template #default="{ row }">{{ {USER:'指定人员',ROLE:'指定角色'}[row.approverType] || row.approverType }}</template>
         </el-table-column>
         <el-table-column label="签署方式" width="100">
           <template #default="{ row }">
@@ -46,17 +46,15 @@
           <el-radio-group v-model="form.approverType">
             <el-radio value="USER">指定人员</el-radio>
             <el-radio value="ROLE">指定角色</el-radio>
-            <el-radio value="DEPT">指定部门</el-radio>
           </el-radio-group>
         </el-form-item>
-        <el-form-item :label="form.approverType==='ROLE'?'选择角色':form.approverType==='DEPT'?'选择部门':'选择人员'" required>
+        <el-form-item :label="form.approverType==='ROLE'?'选择角色':'选择人员'" required>
           <el-select v-if="form.approverType==='USER'" v-model="approverIds" multiple filterable placeholder="可多选" style="width:100%">
             <el-option v-for="u in userOptions" :key="u.id" :label="u.realName" :value="u.id" />
           </el-select>
-          <el-select v-else-if="form.approverType==='ROLE'" v-model="approverIds" multiple placeholder="可多选" style="width:100%">
+          <el-select v-else v-model="approverIds" multiple placeholder="可多选" style="width:100%">
             <el-option v-for="r in roleOptions" :key="r.id" :label="r.roleName" :value="r.id" />
           </el-select>
-          <el-tree-select v-else v-model="approverIds" :data="orgTree" multiple check-strictly node-key="id" :props="{label:'orgName',value:'id',children:'children'}" placeholder="可多选部门" style="width:100%" />
         </el-form-item>
         <el-form-item label="签署方式" required>
           <el-radio-group v-model="form.signMode">
@@ -88,7 +86,6 @@ const form = reactive({ id:null, flowName:'', flowType:'', approverType:'USER', 
 const approverIds = ref([])
 const userOptions = ref([])
 const roleOptions = ref([])
-const orgTree = ref([])
 
 onMounted(() => { loadConfigs(); loadOptions() })
 
@@ -99,7 +96,6 @@ async function loadConfigs() {
 
 async function loadOptions() {
   try { const r1 = await request.get('/system/roles'); roleOptions.value = r1.data || [] } catch(e){}
-  try { const r2 = await request.get('/org/tree'); orgTree.value = r2.data || [] } catch(e){}
   try { const r3 = await request.get('/customer/users/simple'); userOptions.value = (r3.data||[]).map(u=>({id:u.id, realName:u.realName})) } catch(e){}
 }
 

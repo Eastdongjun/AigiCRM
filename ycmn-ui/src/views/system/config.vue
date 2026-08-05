@@ -998,6 +998,9 @@ onMounted(() => {
   loadSeaPools()
   loadOrgTree()
   loadCategoryTree()
+  // 【修复 20260805】基本设置页"指定角色"下拉依赖 allRoles，此前仅在切到"权限矩阵"Tab 时才加载
+  // （watch activeTab），导致基本设置打开时角色下拉为空。挂载即加载，与权限 Tab 共用数据源。
+  try { getRoleList().then(res => { allRoles.value = res.data || [] }) } catch {}
 })
 </script>
 
