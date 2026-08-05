@@ -12,6 +12,7 @@ import com.ycmn.module.customer.mapper.BizCustomerMapper;
 import com.ycmn.module.customer.mapper.BizCustomerShareMapper;
 import com.ycmn.module.sea.service.SeaService;
 import com.ycmn.module.system.entity.SysUser;
+import com.ycmn.module.system.mapper.SysDeptMapper;
 import com.ycmn.module.system.mapper.SysRoleMapper;
 import com.ycmn.module.system.mapper.SysUserMapper;
 import com.ycmn.module.system.mapper.SysUserRoleMapper;
@@ -53,6 +54,7 @@ class SysUserDataScopeOverrideTest {
     @Mock JdbcTemplate jdbc;
     @Mock SysRoleMapper roleMapper;
     @Mock SeaService seaService;
+    @Mock SysDeptMapper deptMapper;
 
     @BeforeAll
     static void initTableInfo() {
@@ -93,7 +95,7 @@ class SysUserDataScopeOverrideTest {
 
     private SysUserService newService() {
         return new SysUserService(userMapper, userRoleMapper, passwordEncoder, configService,
-                customerMapper, shareMapper, jdbc, roleMapper, seaService);
+                customerMapper, shareMapper, jdbc, roleMapper, seaService, deptMapper);
     }
 
     private SysUser validCreatePayload() {

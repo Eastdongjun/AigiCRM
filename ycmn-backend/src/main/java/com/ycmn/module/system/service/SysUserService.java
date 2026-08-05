@@ -51,9 +51,49 @@ public class SysUserService {
     private final JdbcTemplate jdbc;
     private final SysRoleMapper roleMapper;
     private final SeaService seaService;
+    private final com.ycmn.module.system.mapper.SysDeptMapper deptMapper;
 
     public IPage<SysUser> page(int current, int size, String keyword, String deptIds, Integer status) {
-        return userMapper.selectUserPage(new Page<>(current, size), keyword, deptIds, status);
+        String scopedDeptIds = applyGroupScope(deptIds);
+        if (scopedDeptIds == null) {
+            // 越权请求或本集团确无可见组织：直接返回空页，不下发任何记录
+            return new Page<>(current, size, 0);
+        }
+        return userMapper.selectUserPage(new Page<>(current, size), keyword, scopedDeptIds, status);
+    }
+
+    /**
+     * 【修复 系统管理页无集团边界】人员列表此前不区分集团，任何持有 system:user:view 权限的
+     * 账号都能看到全部集团的人员架构（当前测试/生产库仅 1 个集团在用，暂无实际数据泄漏，但
+     * sys_group/sys_legal_entity 架构已经就绪，先补边界，避免后续真正接入第二个集团时才发现）。
+     * 平台超管（isAdmin，即 hasRole("admin")）不受限，可跨集团管理/审计；其余账号按
+     * SecurityUtils.getCurrentGroupIds() 限定到本集团的组织(部门)集合内；取不到集团归属时按
+     * 与 MybatisPlusConfig.resolveTenantId 一致的口径退回主集团(1)。若调用方已经传了 deptIds
+     * 筛选，取与"本集团允许集合"的交集（防止前端手改参数越权查询其他集团部门）。
+     * 返回 null 表示本次查询无任何可见部门，调用方应直接返回空结果。
+     */
+    private String applyGroupScope(String deptIds) {
+        if (SecurityUtils.isAdmin()) return deptIds;
+        java.util.List<Long> groupIds = SecurityUtils.getCurrentGroupIds();
+        if (groupIds == null || groupIds.isEmpty()) groupIds = java.util.List.of(1L);
+        java.util.List<Long> allowedDeptIds = deptMapper.selectList(
+                        new LambdaQueryWrapper<com.ycmn.module.system.entity.SysDept>()
+                                .in(com.ycmn.module.system.entity.SysDept::getGroupId, groupIds))
+                .stream().map(com.ycmn.module.system.entity.SysDept::getId)
+                .collect(java.util.stream.Collectors.toList());
+        if (allowedDeptIds.isEmpty()) return null;
+        if (!StringUtils.hasText(deptIds)) {
+            return allowedDeptIds.stream().map(String::valueOf)
+                    .collect(java.util.stream.Collectors.joining(","));
+        }
+        java.util.Set<Long> requested = java.util.Arrays.stream(deptIds.split(","))
+                .map(String::trim)
+                .filter(StringUtils::hasText)
+                .map(Long::parseLong)
+                .collect(java.util.stream.Collectors.toSet());
+        requested.retainAll(new java.util.HashSet<>(allowedDeptIds));
+        if (requested.isEmpty()) return null;
+        return requested.stream().map(String::valueOf).collect(java.util.stream.Collectors.joining(","));
     }
 
     public SysUser getById(Long id) {

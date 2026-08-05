@@ -34,6 +34,31 @@ public class ReminderService {
     private final SysUserMapper userMapper;
     private final SysDeptMapper deptMapper;
     private final SysConfigService configService;
+    private final com.ycmn.common.scope.OrgScopeResolver scopeResolver;
+
+    /**
+     * 【修复 提醒模块越权】此前 page()/expiringPage()/pendingCount() 的 ownerId 仅在调用方
+     * 显式传参时才生效，不传 ownerId 即返回全公司提醒（含客户开票日期等信息）——任何持有
+     * reminder:view 的角色都能看到他人数据。统一改为按 OrgScopeResolver 六级数据范围过滤，
+     * all 范围不过滤；其余范围恒含"本人"；显式指定 ownerId 时需落在可见范围内，否则返回空集
+     * （防手改参数绕过，同客户模块 §6.3 双重保险原则）。
+     */
+    private void applyOwnerScope(LambdaQueryWrapper<BizReminder> wrapper, Long ownerId) {
+        List<Long> visible = scopeResolver.resolve(SecurityUtils.getCurrentUser());
+        if (visible == null) { // all：不过滤
+            if (ownerId != null) wrapper.eq(BizReminder::getOwnerId, ownerId);
+            return;
+        }
+        if (ownerId != null) {
+            if (visible.contains(ownerId)) {
+                wrapper.eq(BizReminder::getOwnerId, ownerId);
+            } else {
+                wrapper.eq(BizReminder::getOwnerId, -1L); // 越权请求：返回空集
+            }
+        } else {
+            wrapper.in(BizReminder::getOwnerId, visible.isEmpty() ? List.of(-1L) : visible);
+        }
+    }
 
     public IPage<BizReminder> page(int current, int size, String type, String keyword,
                                     Long officeId, Long ownerId, String status, Long deptId) {
@@ -50,9 +75,7 @@ public class ReminderService {
         if (deptId != null) {
             wrapper.in(BizReminder::getOfficeId, com.ycmn.common.util.DeptTreeUtils.expandSubtree(deptMapper, deptId));
         }
-        if (ownerId != null) {
-            wrapper.eq(BizReminder::getOwnerId, ownerId);
-        }
+        applyOwnerScope(wrapper, ownerId);
         wrapper.orderByDesc(BizReminder::getCreatedAt);
 
         IPage<BizReminder> page = reminderMapper.selectPage(new Page<>(current, size), wrapper);
@@ -95,16 +118,19 @@ public class ReminderService {
         } else if (officeId != null) {
             wrapper.eq(BizCustomer::getOfficeId, officeId);
         }
-        if (ownerId != null) {
-            wrapper.eq(BizCustomer::getOwnerId, ownerId);
-        }
 
-        // 非管理员只看自己负责的客户
-        if (!SecurityUtils.isAdmin()) {
-            Long currentUserId = SecurityUtils.getCurrentUserId();
-            if (currentUserId != null) {
-                wrapper.eq(BizCustomer::getOwnerId, currentUserId);
+        // 按数据范围过滤负责人（同 page() 修复，替换原"非管理员只看自己"的粗粒度判断）
+        List<Long> visibleOwners = scopeResolver.resolve(SecurityUtils.getCurrentUser());
+        if (visibleOwners == null) { // all：不过滤
+            if (ownerId != null) wrapper.eq(BizCustomer::getOwnerId, ownerId);
+        } else if (ownerId != null) {
+            if (visibleOwners.contains(ownerId)) {
+                wrapper.eq(BizCustomer::getOwnerId, ownerId);
+            } else {
+                wrapper.eq(BizCustomer::getOwnerId, -1L); // 越权请求：返回空集
             }
+        } else {
+            wrapper.in(BizCustomer::getOwnerId, visibleOwners.isEmpty() ? List.of(-1L) : visibleOwners);
         }
 
         IPage<BizCustomer> customerPage = customerMapper.selectPage(new Page<>(current, size), wrapper);
@@ -169,15 +195,15 @@ public class ReminderService {
         LocalDate today = LocalDate.now();
         LocalDate deadline = today.plusDays(warningDays);
 
-        // 非管理员只统计自己负责的客户
-        Long currentUserId = SecurityUtils.getCurrentUserId();
+        // 按数据范围统计（同 page()/expiringPage() 修复；null=all 不过滤）
+        List<Long> visibleOwners = scopeResolver.resolve(SecurityUtils.getCurrentUser());
 
         LambdaQueryWrapper<BizCustomer> custWrapper = new LambdaQueryWrapper<BizCustomer>()
                 .isNotNull(BizCustomer::getExpireDate)
                 .le(BizCustomer::getExpireDate, deadline)
                 .ne(BizCustomer::getStatus, "sea");
-        if (!SecurityUtils.isAdmin() && currentUserId != null) {
-            custWrapper.eq(BizCustomer::getOwnerId, currentUserId);
+        if (visibleOwners != null) {
+            custWrapper.in(BizCustomer::getOwnerId, visibleOwners.isEmpty() ? List.of(-1L) : visibleOwners);
         }
         Long totalExpiring = customerMapper.selectCount(custWrapper);
 
@@ -189,22 +215,18 @@ public class ReminderService {
                 .eq(BizReminder::getStatus, "processed")
                 .ge(BizReminder::getCreatedAt, todayStart)
                 .lt(BizReminder::getCreatedAt, todayEnd);
-        if (!SecurityUtils.isAdmin() && currentUserId != null) {
-            remWrapper.eq(BizReminder::getOwnerId, currentUserId);
+        if (visibleOwners != null) {
+            remWrapper.in(BizReminder::getOwnerId, visibleOwners.isEmpty() ? List.of(-1L) : visibleOwners);
         }
         Long processedToday = reminderMapper.selectCount(remWrapper);
 
-        long sharePending = reminderMapper.selectCount(
-                new LambdaQueryWrapper<BizReminder>()
-                        .in(BizReminder::getReminderType, List.of("share_to", "share_by", "share_owner"))
-                        .eq(BizReminder::getStatus, "pending"));
-        if (!SecurityUtils.isAdmin() && currentUserId != null) {
-            sharePending = reminderMapper.selectCount(
-                new LambdaQueryWrapper<BizReminder>()
-                        .in(BizReminder::getReminderType, List.of("share_to", "share_by", "share_owner"))
-                        .eq(BizReminder::getStatus, "pending")
-                        .eq(BizReminder::getOwnerId, currentUserId));
+        LambdaQueryWrapper<BizReminder> shareWrapper = new LambdaQueryWrapper<BizReminder>()
+                .in(BizReminder::getReminderType, List.of("share_to", "share_by", "share_owner"))
+                .eq(BizReminder::getStatus, "pending");
+        if (visibleOwners != null) {
+            shareWrapper.in(BizReminder::getOwnerId, visibleOwners.isEmpty() ? List.of(-1L) : visibleOwners);
         }
+        long sharePending = reminderMapper.selectCount(shareWrapper);
 
         return Math.max(0, totalExpiring - processedToday + sharePending);
     }

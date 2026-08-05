@@ -124,7 +124,12 @@ public class AuthService {
         response.setOfficeName(officeName);
         response.setRoles(roles.stream().map(SysRole::getRoleCode).collect(Collectors.toList()));
         response.setRoleName(roles.isEmpty() ? "" : roles.get(0).getRoleName());
-        response.setDataScope(roles.isEmpty() ? "self" : (roles.get(0).getDataScope() != null ? roles.get(0).getDataScope() : "self"));
+        // 【修复 登录响应 dataScope 展示错误】此前取 roles.get(0)（数据库返回顺序的第一个角色），
+        // 与多角色实际生效的"并集/用户级覆盖"后有效范围不一致，仅影响前端展示文案，不影响后端
+        // 鉴权（鉴权已经过 UserDetailsServiceImpl 正确计算）。这里改为直接读取当前登录态已计算
+        // 好的有效 dataScope，与实际生效范围保持一致。
+        String effectiveDataScope = SecurityUtils.getCurrentDataScope();
+        response.setDataScope(effectiveDataScope != null ? effectiveDataScope : "self");
         response.setPermissions(permissions);
         response.setMenus(menuTree);
         return response;

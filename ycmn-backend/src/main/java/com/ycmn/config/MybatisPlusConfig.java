@@ -112,7 +112,19 @@ public class MybatisPlusConfig {
         if (groupIds.size() == 1) {
             return new LongValue(groupIds.get(0));
         }
-        return new LongValue(groupIds.stream().sorted().findFirst().get());
+        // 【修复 多集团 fail-closed 可观测性】一人多集团时目前只能取一个集团做 tenant_id 等值比较
+        // （MyBatis-Plus 3.5.6 TenantLineHandler.getTenantId() 契约固定生成 `tenant_id = <expr>`，
+        // 不支持返回 IN 谓词——见类注释里已验证的 InExpression/NullExpression 实验记录）。这不是
+        // 权限放宽（不会让用户看到不该看的集团），而是收紧过度：该用户其余集团的合法数据会被
+        // 静默过滤掉。之前完全没有任何提示，运维/开发很难定位"为什么这个人某个集团的数据不见了"。
+        // 这里先加日志留痕，真正支持多集团并集查询需升级 MyBatis-Plus 3.5.7+ 或对多集团用户的查询
+        // 改走 @InterceptorIgnore + 业务层手动 IN 过滤（设计文档 §4.3 / §10 项6，属阶段外改造，
+        // 不在本次修复范围内，需要在真实多集团数据上验证后再动，此处不贸然改写）。
+        Long chosen = groupIds.stream().sorted().findFirst().get();
+        log.warn("用户所属集团数={}，租户插件当前仅按最小集团ID={}过滤，其余集团(={})数据本次请求不可见"
+                        + "（fail-closed，非安全问题；如需多集团并集可见需先完成 Task 12 多集团表达改造）",
+                groupIds.size(), chosen, groupIds);
+        return new LongValue(chosen);
     }
 
     @Bean

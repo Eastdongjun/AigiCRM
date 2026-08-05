@@ -3,6 +3,7 @@ package com.ycmn.module.system.service;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.ycmn.common.BusinessException;
 import com.ycmn.common.enums.DataScopeType;
+import com.ycmn.common.scope.GroupScopeUtil;
 import com.ycmn.module.system.entity.SysRole;
 import com.ycmn.module.system.entity.SysRoleMenu;
 import com.ycmn.module.system.entity.SysRoleOrg;
@@ -25,10 +26,21 @@ public class SysRoleService {
     private final SysMenuMapper menuMapper;
     private final SysRoleOrgMapper roleOrgMapper;
 
+    /**
+     * 角色列表（按集团边界过滤）。
+     * 【修复 角色列表集团边界】非 admin 仅见本集团角色;admin 全量。
+     * 口径见 {@link GroupScopeUtil}（与人员列表 applyGroupScope 一致）。
+     */
     public List<SysRole> list() {
-        return roleMapper.selectList(new LambdaQueryWrapper<SysRole>().orderByAsc(SysRole::getSortOrder));
+        LambdaQueryWrapper<SysRole> wrapper = new LambdaQueryWrapper<SysRole>().orderByAsc(SysRole::getSortOrder);
+        List<Long> groupIds = GroupScopeUtil.visibleGroupIds();
+        if (groupIds != null) {
+            wrapper.in(SysRole::getGroupId, groupIds);
+        }
+        return roleMapper.selectList(wrapper);
     }
 
+    /** 角色详情（含菜单权限与 custom 数据范围的组织集合） */
     public SysRole getById(Long id) {
         SysRole role = roleMapper.selectById(id);
         if (role != null) {
@@ -43,6 +55,7 @@ public class SysRoleService {
         return role;
     }
 
+    /** 新增角色（编码唯一校验 + 菜单/组织关联保存） */
     @Transactional
     public void create(SysRole role) {
         Long count = roleMapper.selectCount(
@@ -54,6 +67,7 @@ public class SysRoleService {
         saveRoleOrgs(role);
     }
 
+    /** 更新角色（有实际字段才更新；菜单/dataScope 变更时同步重建关联） */
     @Transactional
     public void update(SysRole role) {
         // 仅当有实际字段需要更新时才执行 updateById
@@ -91,6 +105,7 @@ public class SysRoleService {
         saveRoleOrgs(role);
     }
 
+    /** 删除角色（连带清理菜单/组织关联） */
     @Transactional
     public void delete(Long id) {
         roleMapper.deleteById(id);

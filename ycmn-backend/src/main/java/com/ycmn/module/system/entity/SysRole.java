@@ -14,6 +14,10 @@ public class SysRole {
     private String description;
     private String dataScope;
     private Long orgId;
+
+    /** 集团归属ID(默认1=主集团;列表按集团边界过滤) */
+    private Long groupId;
+
     private Integer sortOrder;
     private Integer status;
     private LocalDateTime createdAt;

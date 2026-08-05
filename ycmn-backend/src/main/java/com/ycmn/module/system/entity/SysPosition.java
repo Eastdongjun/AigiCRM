@@ -24,6 +24,9 @@ public class SysPosition {
     /** 所属组织ID */
     private Long orgId;
 
+    /** 集团归属ID(默认1=主集团;列表按集团边界过滤) */
+    private Long groupId;
+
     /** 状态 0=禁用 1=启用 */
     private Integer status;
 

@@ -2,6 +2,7 @@ package com.ycmn.module.system.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.ycmn.common.BusinessException;
+import com.ycmn.common.scope.GroupScopeUtil;
 import com.ycmn.module.system.entity.*;
 import com.ycmn.module.system.mapper.*;
 import lombok.RequiredArgsConstructor;
@@ -22,11 +23,21 @@ public class SysPositionService {
 
     // ==================== 岗位 CRUD ====================
 
+    /**
+     * 岗位列表（按集团边界过滤）。
+     * 【修复 岗位列表集团边界】非 admin 仅见本集团岗位;admin 全量。
+     * 口径见 {@link GroupScopeUtil}（与人员列表 applyGroupScope 一致）。
+     */
     public List<SysPosition> list() {
-        return positionMapper.selectList(
-                new LambdaQueryWrapper<SysPosition>().orderByAsc(SysPosition::getSort));
+        LambdaQueryWrapper<SysPosition> wrapper = new LambdaQueryWrapper<SysPosition>().orderByAsc(SysPosition::getSort);
+        List<Long> groupIds = GroupScopeUtil.visibleGroupIds();
+        if (groupIds != null) {
+            wrapper.in(SysPosition::getGroupId, groupIds);
+        }
+        return positionMapper.selectList(wrapper);
     }
 
+    /** 岗位详情（含关联规则ID列表） */
     public SysPosition getById(Long id) {
         SysPosition pos = positionMapper.selectById(id);
         if (pos != null) {
@@ -37,6 +48,7 @@ public class SysPositionService {
         return pos;
     }
 
+    /** 新增岗位（编码唯一校验） */
     @Transactional
     public void create(SysPosition position) {
         Long count = positionMapper.selectCount(
@@ -45,6 +57,7 @@ public class SysPositionService {
         positionMapper.insert(position);
     }
 
+    /** 更新岗位（规则列表变更时同步重建绑定） */
     @Transactional
     public void update(SysPosition position) {
         positionMapper.updateById(position);
@@ -53,6 +66,7 @@ public class SysPositionService {
         }
     }
 
+    /** 删除岗位（连带清理规则绑定与用户分配） */
     @Transactional
     public void delete(Long id) {
         positionRuleMapper.delete(new LambdaQueryWrapper<SysPositionRule>().eq(SysPositionRule::getPositionId, id));
@@ -62,10 +76,12 @@ public class SysPositionService {
 
     // ==================== 岗位-规则绑定 ====================
 
+    /** 岗位关联的权限规则列表 */
     public List<SysPermissionRule> getRules(Long positionId) {
         return ruleMapper.selectByPositionId(positionId);
     }
 
+    /** 保存岗位-规则绑定（清空重建，幂等） */
     @Transactional
     public void saveRules(Long positionId, List<Long> ruleIds) {
         positionRuleMapper.delete(new LambdaQueryWrapper<SysPositionRule>().eq(SysPositionRule::getPositionId, positionId));
@@ -80,10 +96,12 @@ public class SysPositionService {
 
     // ==================== 用户-岗位分配 ====================
 
+    /** 用户已分配的岗位列表 */
     public List<SysPosition> getUserPositions(Long userId) {
         return positionMapper.selectByUserId(userId);
     }
 
+    /** 分配用户岗位（清空重建；第一个设为主岗位） */
     @Transactional
     public void assignUserPositions(Long userId, List<Long> positionIds) {
         userPositionMapper.delete(new LambdaQueryWrapper<SysUserPosition>().eq(SysUserPosition::getUserId, userId));
