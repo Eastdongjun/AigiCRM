@@ -153,22 +153,38 @@
         <span>{{ period || '全部' }} 部门排行</span>
         <span class="rank-count">{{ deptList.length }}个部门</span>
       </div>
-      <el-table :data="deptList" style="width:100%" empty-text="暂无数据">
-        <el-table-column label="排名" width="80" align="center">
+      <el-table :data="deptList" style="width:100%" empty-text="暂无数据" class="rank-matrix"
+        :header-cell-style="{ background: '#f7f9fc', color: '#1f2329', fontWeight: 600, borderBottom: '1px solid #e8ebf0' }"
+        :row-style="{ height: '46px' }">
+        <el-table-column label="排名" width="64" align="center">
           <template #default="{ row }">
-            <span v-if="row.rank <= 3" class="medal">{{ ['🥇','🥈','🥉'][row.rank - 1] }}</span>
+            <span v-if="row.rank <= 3" :class="'rank-medal rank-medal-' + row.rank">{{ ['🥇','🥈','🥉'][row.rank - 1] }}</span>
             <span v-else class="rank-num">{{ row.rank }}</span>
           </template>
         </el-table-column>
-        <el-table-column prop="deptName" label="部门" min-width="160" />
-        <el-table-column label="总学分" width="120" align="center">
-          <template #default="{ row }"><strong>{{ row.totalScore }}分</strong></template>
+        <el-table-column label="部门" min-width="140">
+          <template #default="{ row }">
+            <div class="name-wrap">
+              <span class="name-avatar" :class="'av-' + (row.rank <= 3 ? row.rank : 4)">{{ row.deptName?.charAt(0) }}</span>
+              <span :class="row.rank <= 3 ? 'name-top' : 'name-cell'">{{ row.deptName }}</span>
+            </div>
+          </template>
         </el-table-column>
-        <el-table-column label="参与人数" width="120" align="center">
-          <template #default="{ row }">{{ row.participantCount }}人</template>
+        <el-table-column label="激励总额" width="92" align="center">
+          <template #default="{ row }"><span class="score-pill">{{ row.totalScore }}<em>分</em></span></template>
         </el-table-column>
-        <el-table-column label="人均学分" width="120" align="center">
-          <template #default="{ row }">{{ row.avgScore }}分</template>
+        <template v-for="(parent, pi) in rankParents" :key="'p' + parent.id">
+          <el-table-column :label="parent.categoryName" align="center" :class-name="'cat-group cat-group-' + (pi % 4)">
+            <el-table-column v-for="child in parent.children" :key="child.id" :label="child.categoryName" min-width="64" align="center">
+              <template #default="{ row }">
+                <span v-if="(row.byCategory?.[child.id] || 0) > 0" class="cell-pill">{{ row.byCategory[child.id] }}</span>
+                <span v-else class="cell-dash">—</span>
+              </template>
+            </el-table-column>
+          </el-table-column>
+        </template>
+        <el-table-column label="参与人数" width="84" align="center">
+          <template #default="{ row }"><span class="num-cell">{{ row.participantCount }}人</span></template>
         </el-table-column>
       </el-table>
     </div>

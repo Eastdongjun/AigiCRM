@@ -499,11 +499,18 @@ public class IncentiveService {
     public List<Map<String, Object>> deptRanking(String period) {
         List<Map<String, Object>> personal = scoreboard(period);
         Map<String, int[]> deptAgg = new LinkedHashMap<>();
+        Map<String, java.util.Map<Long, Integer>> deptByCat = new HashMap<>();
         for (Map<String, Object> p : personal) {
             String dept = (String) p.getOrDefault("officeName", "未知");
             int[] agg = deptAgg.computeIfAbsent(dept, k -> new int[]{0, 0});
             agg[0] += ((Number) p.getOrDefault("totalScore", 0)).intValue();
             agg[1] += 1;
+            // 部门品类聚合（个人 byCategory 求和）
+            @SuppressWarnings("unchecked")
+            java.util.Map<Long, Integer> pbc = (java.util.Map<Long, Integer>) p.getOrDefault("byCategory", java.util.Map.of());
+            for (Map.Entry<Long, Integer> en : pbc.entrySet()) {
+                deptByCat.computeIfAbsent(dept, k -> new HashMap<>()).merge(en.getKey(), en.getValue(), Integer::sum);
+            }
         }
 
         List<Map.Entry<String, int[]>> sorted = new ArrayList<>(deptAgg.entrySet());
@@ -518,6 +525,7 @@ public class IncentiveService {
             row.put("deptName", e.getKey());
             row.put("totalScore", e.getValue()[0]);
             row.put("participantCount", e.getValue()[1]);
+            row.put("byCategory", deptByCat.getOrDefault(e.getKey(), java.util.Map.of()));
             row.put("avgScore", e.getValue()[1] > 0
                     ? Math.round((double) e.getValue()[0] / e.getValue()[1] * 10) / 10.0 : 0);
             result.add(row);
