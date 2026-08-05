@@ -67,15 +67,20 @@ public class IncentiveController {
         return Result.ok(incentiveService.getRecords(userId, period, parentCategoryId));
     }
 
-    @PreAuthorize("hasAuthority('incentive:edit')")
+    /** 上传新记录：incentive:add 独立权限码（设计 §3.2：上传语义从 edit 拆出） */
+    @PreAuthorize("hasAuthority('incentive:add')")
     @PostMapping("/records")
     public Result<Void> addRecord(@RequestBody BizIncentiveRecord record) {
         incentiveService.addRecord(record);
         return Result.ok();
     }
 
-    /** 更新记录（追加/删除文件时调用，自动重算积分） */
-    @PreAuthorize("hasAuthority('incentive:edit')")
+    /**
+     * 更新记录（追加/删除文件时调用，自动重算积分）。
+     * 设计 §6：归属校验全部交给方法内守卫（isAdmin ∨ can_edit 迁移授权 ∨ 记录本人）——
+     * 去掉方法级 @PreAuthorize 硬码，已卸 edit 码的销售员仍可改本人记录（本人恒可）。
+     * 登录保护由 SecurityConfig anyRequest().authenticated() 兜底。
+     */
     @PutMapping("/records/{id}")
     public Result<Void> updateRecord(@PathVariable Long id, @RequestBody BizIncentiveRecord record) {
         SecurityUser user = SecurityUtils.getCurrentUser();
@@ -99,7 +104,7 @@ public class IncentiveController {
         return Result.ok(java.util.Map.of("changed", changed));
     }
 
-    @PreAuthorize("hasAuthority('incentive:delete')")
+    /** 同 updateRecord：归属校验在方法内（admin ∨ can_delete 迁移授权 ∨ 记录本人），去方法级硬码 */
     @DeleteMapping("/records/{id}")
     public Result<Void> deleteRecord(@PathVariable Long id) {
         SecurityUser user = SecurityUtils.getCurrentUser();

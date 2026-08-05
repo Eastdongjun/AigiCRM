@@ -11,8 +11,15 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockedStatic;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.security.access.prepost.PreAuthorize;
+
+import java.lang.reflect.Method;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -127,6 +134,96 @@ class IncentiveControllerPermissionTest {
             verify(incentiveService).updateRecord(79L, new BizIncentiveRecord());
             verify(incentiveService, never()).getRecordById(79L);
             verify(incentiveService, never()).canEdit(2L);
+        }
+    }
+
+    // ==================== C1：POST /records 权限码 ====================
+
+    /** 上传新记录必须挂 incentive:add 独立权限码（设计 §3.2：上传语义从 edit 拆出） */
+    @Test
+    void addRecordRequiresIncentiveAddAuthority() throws Exception {
+        Method m = IncentiveController.class.getMethod("addRecord", BizIncentiveRecord.class);
+        PreAuthorize pa = m.getAnnotation(PreAuthorize.class);
+        assertNotNull(pa, "POST /records 必须带 @PreAuthorize");
+        assertTrue(pa.value().contains("incentive:add"),
+                "上传权限码应为 incentive:add（销售员仅持 add 可上传），实际: " + pa.value());
+    }
+
+    /** 行为冒烟：有权限时走服务层（403 由 Spring Security @PreAuthorize 在集成层强制） */
+    @Test
+    void addRecordCallsService() {
+        Result<Void> result = controller.addRecord(new BizIncentiveRecord());
+        assertEquals(200, result.getCode());
+        verify(incentiveService).addRecord(any(BizIncentiveRecord.class));
+    }
+
+    // ==================== C2：PUT/DELETE 去方法级硬码 ====================
+
+    /** PUT /records/{id} 不得有方法级 @PreAuthorize：已卸 edit 码的销售员改本人记录靠方法内归属守卫放行 */
+    @Test
+    void updateRecordHasNoMethodLevelPreAuthorize() throws Exception {
+        Method m = IncentiveController.class.getMethod("updateRecord", Long.class, BizIncentiveRecord.class);
+        assertNull(m.getAnnotation(PreAuthorize.class),
+                "PUT 归属校验必须在方法内守卫（isAdmin ∨ can_edit 迁移授权 ∨ 记录本人），去掉硬码");
+    }
+
+    /** DELETE /records/{id} 同 PUT：去方法级硬码，方法内守卫 */
+    @Test
+    void deleteRecordHasNoMethodLevelPreAuthorize() throws Exception {
+        Method m = IncentiveController.class.getMethod("deleteRecord", Long.class);
+        assertNull(m.getAnnotation(PreAuthorize.class),
+                "DELETE 归属校验必须在方法内守卫（isAdmin ∨ can_delete 迁移授权 ∨ 记录本人），去掉硬码");
+    }
+
+    /** 普通销售员（无 delete 码）删他人记录 → 403 */
+    @Test
+    void deleteRejectsOthersRecordForPlainUser() {
+        SecurityUser su = plainUser(2L);
+        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
+            m.when(SecurityUtils::getCurrentUser).thenReturn(su);
+            m.when(SecurityUtils::isAdmin).thenReturn(false);
+            when(incentiveService.canDelete(2L)).thenReturn(false);
+            when(incentiveService.getRecordById(79L)).thenReturn(recordOf(79L, 1L));
+
+            Result<Void> result = controller.deleteRecord(79L);
+
+            assertEquals(403, result.getCode());
+            assertEquals("无权删除他人记录", result.getMessage());
+            verify(incentiveService, never()).deleteRecord(79L);
+        }
+    }
+
+    /** 普通销售员（无 delete 码）删本人记录 → 放行（本人恒可，设计 §6） */
+    @Test
+    void deleteAllowsOwnRecordForPlainUser() {
+        SecurityUser su = plainUser(2L);
+        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
+            m.when(SecurityUtils::getCurrentUser).thenReturn(su);
+            m.when(SecurityUtils::isAdmin).thenReturn(false);
+            when(incentiveService.canDelete(2L)).thenReturn(false);
+            when(incentiveService.getRecordById(79L)).thenReturn(recordOf(79L, 2L));
+
+            Result<Void> result = controller.deleteRecord(79L);
+
+            assertEquals(200, result.getCode());
+            verify(incentiveService).deleteRecord(79L);
+        }
+    }
+
+    /** 有 delete 迁移授权 → 可删任意记录，跳过归属查询 */
+    @Test
+    void deleteAllowsAnyRecordForUserWithDeletePermission() {
+        SecurityUser su = plainUser(2L);
+        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
+            m.when(SecurityUtils::getCurrentUser).thenReturn(su);
+            m.when(SecurityUtils::isAdmin).thenReturn(false);
+            when(incentiveService.canDelete(2L)).thenReturn(true);
+
+            Result<Void> result = controller.deleteRecord(79L);
+
+            assertEquals(200, result.getCode());
+            verify(incentiveService).deleteRecord(79L);
+            verify(incentiveService, never()).getRecordById(79L);
         }
     }
 }
