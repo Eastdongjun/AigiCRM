@@ -17,6 +17,7 @@ import org.junit.jupiter.api.Test;
 import org.mockito.MockedStatic;
 
 import java.util.List;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -213,6 +214,72 @@ class FolderPermissionServiceTest {
             m.when(SecurityUtils::getCurrentRoleCodes).thenReturn(List.of("other"));
             List<String> unmatched = svc.permsFor(100L, 42L);
             assertEquals(List.of("view", "download"), unmatched);
+        }
+    }
+
+    // === permsForBatch（getFolderTree 批量权限，修复轮 I-2a）===
+
+    @Test
+    void permsForBatch_admin_returnsAllForEveryFolder() {
+        BizFileFolder f1 = new BizFileFolder(); f1.setId(100L); f1.setOwnerId(99L); f1.setFolderType("private");
+        BizFileFolder f2 = new BizFileFolder(); f2.setId(101L); f2.setOwnerId(98L); f2.setFolderType("public");
+        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
+            m.when(SecurityUtils::isAdmin).thenReturn(true);
+            Map<Long, List<String>> res = svc.permsForBatch(List.of(f1, f2), 1L);
+            assertEquals(2, res.size());
+            assertTrue(res.get(100L).containsAll(List.of(FolderPermissionService.P_VIEW, FolderPermissionService.P_UPLOAD,
+                    FolderPermissionService.P_EDIT, FolderPermissionService.P_DELETE,
+                    FolderPermissionService.P_SHARE, FolderPermissionService.P_DOWNLOAD)));
+            assertTrue(res.get(101L).containsAll(List.of(FolderPermissionService.P_VIEW, FolderPermissionService.P_UPLOAD,
+                    FolderPermissionService.P_EDIT, FolderPermissionService.P_DELETE,
+                    FolderPermissionService.P_SHARE, FolderPermissionService.P_DOWNLOAD)));
+        }
+    }
+
+    @Test
+    void permsForBatch_ownerGetsAll_sameOwnerCachedOnce() {
+        BizFileFolder f1 = new BizFileFolder(); f1.setId(100L); f1.setOwnerId(42L); f1.setFolderType("private");
+        BizFileFolder f2 = new BizFileFolder(); f2.setId(101L); f2.setOwnerId(42L); f2.setFolderType("private");
+        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
+            m.when(SecurityUtils::isAdmin).thenReturn(false);
+            Map<Long, List<String>> res = svc.permsForBatch(List.of(f1, f2), 42L);
+            assertEquals(6, res.get(100L).size());
+            assertEquals(6, res.get(101L).size());
+            // 同一 owner 只做一次链判断（避免 N+1 的防回归）
+            verify(userMapper, atMost(1)).selectById(42L);
+        }
+    }
+
+    @Test
+    void permsForBatch_aclUnionAndPublicFallback() {
+        BizFileFolder pub = new BizFileFolder(); pub.setId(100L); pub.setOwnerId(99L); pub.setFolderType("public");
+        BizFileFolder priv = new BizFileFolder(); priv.setId(101L); priv.setOwnerId(99L); priv.setFolderType("private");
+        BizFolderAcl acl1 = new BizFolderAcl(); acl1.setFolderId(100L); acl1.setRoleId(3L); acl1.setPerms("upload,edit");
+        BizFolderAcl acl2 = new BizFolderAcl(); acl2.setFolderId(101L); acl2.setRoleId(3L); acl2.setPerms("view,download");
+        SysRole role = new SysRole(); role.setId(3L); role.setRoleCode("sales");
+        when(aclMapper.selectList(any())).thenReturn(List.of(acl1, acl2));
+        when(roleMapper.selectById(3L)).thenReturn(role);
+        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
+            m.when(SecurityUtils::isAdmin).thenReturn(false);
+            m.when(SecurityUtils::getCurrentRoleCodes).thenReturn(List.of("sales"));
+            Map<Long, List<String>> res = svc.permsForBatch(List.of(pub, priv), 42L);
+            // 公共：ACL(upload/edit) + 兜底 view/download
+            assertTrue(res.get(100L).containsAll(List.of("upload", "edit", "view", "download")));
+            // 私有：仅 ACL 授权
+            assertEquals(List.of("view", "download"), res.get(101L));
+            // 角色不匹配 → 公共兜底 view/download，私有空
+            m.when(SecurityUtils::getCurrentRoleCodes).thenReturn(List.of("other"));
+            res = svc.permsForBatch(List.of(pub, priv), 42L);
+            assertEquals(List.of("view", "download"), res.get(100L));
+            assertTrue(res.get(101L).isEmpty());
+        }
+    }
+
+    @Test
+    void permsForBatch_emptyInput_returnsEmptyMap() {
+        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
+            m.when(SecurityUtils::isAdmin).thenReturn(false);
+            assertTrue(svc.permsForBatch(List.of(), 42L).isEmpty());
         }
     }
 

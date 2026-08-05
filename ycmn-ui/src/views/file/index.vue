@@ -55,14 +55,14 @@
               <el-icon><Folder /></el-icon>
               <span class="folder-name">{{ folder.folderName }}</span>
               <span class="folder-count">{{ folder.fileCount || 0 }}</span>
-              <span v-if="folderPerms.includes('edit') || folderPerms.includes('delete')" class="folder-actions">
-                <el-tooltip v-if="folderPerms.includes('edit')" content="重命名" placement="top">
+              <span v-if="folder.perms?.includes('edit') || folder.perms?.includes('delete')" class="folder-actions">
+                <el-tooltip v-if="folder.perms?.includes('edit')" content="重命名" placement="top">
                   <el-icon class="folder-act" @click.stop="openRenameFolder(folder)"><EditPen /></el-icon>
                 </el-tooltip>
-                <el-tooltip v-if="folderPerms.includes('edit')" content="权限设置" placement="top">
+                <el-tooltip v-if="folder.perms?.includes('edit')" content="权限设置" placement="top">
                   <el-icon class="folder-act" @click.stop="openAclDialog(folder)"><Setting /></el-icon>
                 </el-tooltip>
-                <el-tooltip v-if="folderPerms.includes('delete')" content="删除" placement="top">
+                <el-tooltip v-if="folder.perms?.includes('delete')" content="删除" placement="top">
                   <el-icon class="folder-act folder-act-danger" @click.stop="handleDeleteFolder(folder)"><Delete /></el-icon>
                 </el-tooltip>
               </span>
@@ -226,7 +226,7 @@
           </el-checkbox-group>
         </div>
         <div>
-          <el-button type="primary" :loading="aclSaving" :disabled="!aclSelectedRoles.length" @click="saveAcl">
+          <el-button type="primary" :loading="aclSaving" :disabled="!aclSelectedRoles.length || !aclSelectedPerms.length" @click="saveAcl">
             保存授权
           </el-button>
         </div>
@@ -542,6 +542,8 @@ const saveAcl = async () => {
     aclSelectedRoles.value = []
     aclSelectedPerms.value = []
     await loadAclList(aclFolder.value.id)
+    // 授权变更影响当前选中文件夹时同步刷新列表页按钮状态
+    if (selectedFolderId.value === aclFolder.value.id) loadFolderPerms()
   } catch (e) {
     // 错误提示由 request 拦截器统一处理
   } finally {
@@ -555,6 +557,8 @@ const removeAcl = async (row) => {
     await removeFolderAcl(aclFolder.value.id, row.roleId)
     ElMessage.success('已移除该角色授权')
     await loadAclList(aclFolder.value.id)
+    // 授权变更影响当前选中文件夹时同步刷新列表页按钮状态
+    if (selectedFolderId.value === aclFolder.value.id) loadFolderPerms()
   } catch (e) {}
 }
 
@@ -695,6 +699,8 @@ const handleDeleteFolder = async (folder) => {
       selectedFolderId.value = null
     }
     loadFolders()
+    // 删除选中文件夹后回到根目录：刷新权限，避免 edit/delete 按钮状态过期
+    loadFolderPerms()
     loadFiles()
   } catch (e) {}
 }

@@ -22,4 +22,6 @@ public class BizFileFolder {
     private List<BizFileFolder> children;
     @TableField(exist = false)
     private Integer fileCount;
+    @TableField(exist = false)
+    private List<String> perms;   // 当前用户对该文件夹的权限列表（前端逐行按钮控制）
 }

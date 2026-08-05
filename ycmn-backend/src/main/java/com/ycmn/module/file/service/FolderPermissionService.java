@@ -18,6 +18,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -29,6 +30,8 @@ public class FolderPermissionService {
     public static final String P_DELETE = "delete";
     public static final String P_SHARE = "share";
     public static final String P_DOWNLOAD = "download";
+    private static final List<String> ALL_PERMS =
+            List.of(P_VIEW, P_UPLOAD, P_EDIT, P_DELETE, P_SHARE, P_DOWNLOAD);
     private static final int MAX_HOP = 5;
 
     private final BizFolderAclMapper aclMapper;
@@ -104,6 +107,46 @@ public class FolderPermissionService {
         if ("public".equals(folder.getFolderType())) {
             if (!result.contains(P_VIEW)) result.add(P_VIEW);
             if (!result.contains(P_DOWNLOAD)) result.add(P_DOWNLOAD);
+        }
+        return result;
+    }
+
+    /** 批量权限视图：getFolderTree 组装时使用。ACL 一次批量查询，上级链按 owner 缓存，避免逐文件夹 N+1 */
+    public Map<Long, List<String>> permsForBatch(Collection<BizFileFolder> folders, Long userId) {
+        Map<Long, List<String>> result = new HashMap<>();
+        if (folders == null || folders.isEmpty()) return result;
+        if (SecurityUtils.isAdmin()) {
+            for (BizFileFolder f : folders) result.put(f.getId(), ALL_PERMS);
+            return result;
+        }
+        Set<Long> ids = folders.stream().map(BizFileFolder::getId).collect(Collectors.toSet());
+        Map<Long, List<BizFolderAcl>> aclByFolder = new HashMap<>();
+        for (BizFolderAcl acl : aclMapper.selectList(
+                new LambdaQueryWrapper<BizFolderAcl>().in(BizFolderAcl::getFolderId, ids))) {
+            aclByFolder.computeIfAbsent(acl.getFolderId(), k -> new ArrayList<>()).add(acl);
+        }
+        // 上级链按 owner 缓存：同一 owner 的多个文件夹只爬一次链
+        Map<Long, Boolean> manageCache = new HashMap<>();
+        for (BizFileFolder folder : folders) {
+            Long ownerId = folder.getOwnerId();
+            boolean privileged = manageCache.computeIfAbsent(ownerId, oid ->
+                    oid != null && (oid.equals(userId) || isManagerChain(userId, oid)));
+            List<String> perms = new ArrayList<>();
+            if (privileged) {
+                perms.addAll(ALL_PERMS);
+            } else {
+                for (BizFolderAcl acl : aclByFolder.getOrDefault(folder.getId(), Collections.emptyList())) {
+                    if (userHasRole(userId, acl.getRoleId())) {
+                        for (String p : acl.getPerms().split(",")) if (!perms.contains(p)) perms.add(p);
+                    }
+                }
+                // 公共文件夹对全员始终可见，下载权限一并兜底（是否可下载由下载接口开关约束）
+                if ("public".equals(folder.getFolderType())) {
+                    if (!perms.contains(P_VIEW)) perms.add(P_VIEW);
+                    if (!perms.contains(P_DOWNLOAD)) perms.add(P_DOWNLOAD);
+                }
+            }
+            result.put(folder.getId(), perms);
         }
         return result;
     }

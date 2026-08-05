@@ -83,6 +83,9 @@ public class FileService {
                 .filter(f -> visibleIds.contains(f.getId()))
                 .collect(Collectors.toList());
 
+        // 【文件权限体系】批量填充每个文件夹的当前用户权限（前端逐行控制按钮显隐），
+        // ACL 一次批量查询 + 上级链按 owner 缓存，避免逐文件夹 N+1
+        Map<Long, List<String>> permsMap = folderPermissionService.permsForBatch(folders, userId);
         for (BizFileFolder folder : folders) {
             long count = fileMapper.selectCount(
                     new LambdaQueryWrapper<BizFile>()
@@ -90,6 +93,7 @@ public class FileService {
                             .eq(BizFile::getDeleted, 0)
             );
             folder.setFileCount((int) count);
+            folder.setPerms(permsMap.getOrDefault(folder.getId(), Collections.emptyList()));
         }
 
         return buildFolderTree(folders, 0L);
