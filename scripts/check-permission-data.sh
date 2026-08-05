@@ -123,8 +123,8 @@ check_tenant() { # $1=表名
 }
 
 echo "== 权限数据前提体检: $DB_HOST / $DB_NAME ($MODE_TAG) =="
-report_count "deptType 为空的组织数" "SELECT COUNT(*) FROM sys_dept WHERE deleted=0 AND (dept_type IS NULL OR dept_type=0);"
-report_count "group_id 为空的业务组织数" "SELECT COUNT(*) FROM sys_dept WHERE deleted=0 AND group_id IS NULL;"
+report_count "deptType 为空的组织数" "SELECT COUNT(*) FROM sys_dept WHERE (dept_type IS NULL OR dept_type=0);"
+report_count "group_id 为空的业务组织数" "SELECT COUNT(*) FROM sys_dept WHERE group_id IS NULL;"
 report_warn "manager_id 为空的启用用户数" "SELECT COUNT(*) FROM sys_user WHERE deleted=0 AND status=1 AND manager_id IS NULL;"
 echo "-- 白名单表 tenant_id 覆盖(未迁移时输出未迁移) --"
 for t in biz_customer biz_incentive_record; do check_tenant "$t"; done
@@ -133,11 +133,11 @@ for t in biz_customer biz_incentive_record; do check_tenant "$t"; done
 if [ -n "$EXPORT_FILE" ]; then
   if : > "$EXPORT_FILE" 2>/dev/null; then
     {
-      echo "# deptType 缺失部门 (dept_id, dept_name)"
-      "$RUN_CMD" "SELECT dept_id, dept_name FROM sys_dept WHERE deleted=0 AND (dept_type IS NULL OR dept_type=0);" || true
+      echo "# deptType 缺失部门 (id, dept_name)"
+      "$RUN_CMD" "SELECT id, dept_name FROM sys_dept WHERE (dept_type IS NULL OR dept_type=0);" || true
       echo ""
-      echo "# group_id 缺失部门 (dept_id, dept_name)"
-      "$RUN_CMD" "SELECT dept_id, dept_name FROM sys_dept WHERE deleted=0 AND group_id IS NULL;" || true
+      echo "# group_id 缺失部门 (id, dept_name)"
+      "$RUN_CMD" "SELECT id, dept_name FROM sys_dept WHERE group_id IS NULL;" || true
     } >> "$EXPORT_FILE"
     echo "已导出缺失明细: $EXPORT_FILE"
   else
