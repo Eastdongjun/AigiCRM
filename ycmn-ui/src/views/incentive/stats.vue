@@ -105,41 +105,34 @@
       </table>
     </div>
 
-    <!-- 个人排行 -->
+    <!-- 个人排行：团队激励统计矩阵（按模板：基础信息 + 激励政策分列） -->
     <div v-if="activeTab === 'rank'" class="card">
       <div class="table-header">
-        <span>{{ period || '全部' }} 个人排行</span>
+        <span class="matrix-title">{{ period || '全部周期' }} 团队激励统计</span>
         <span class="rank-count">{{ scoreboard.length }}人</span>
       </div>
-      <el-table :data="scoreboard" style="width:100%" empty-text="暂无数据">
-        <el-table-column label="排名" width="80" align="center">
+      <el-table :data="scoreboard" style="width:100%" empty-text="暂无数据" border :header-cell-style="{ background: '#f5f7fa', color: '#1f2329', fontWeight: 600 }">
+        <el-table-column label="序号" width="64" align="center" fixed>
           <template #default="{ row }">
             <span v-if="row.rank <= 3" class="medal">{{ ['🥇','🥈','🥉'][row.rank - 1] }}</span>
             <span v-else class="rank-num">{{ row.rank }}</span>
           </template>
         </el-table-column>
-        <el-table-column prop="realName" label="姓名" min-width="120" />
-        <el-table-column prop="officeName" label="办事处" min-width="100" />
-        <el-table-column label="总学分" width="100" align="center">
-          <template #default="{ row }"><strong>{{ row.totalScore }}分</strong></template>
+        <el-table-column prop="realName" label="姓名" width="96" fixed />
+        <template v-for="parent in rankParents" :key="'p' + parent.id">
+          <el-table-column :label="parent.categoryName" align="center">
+            <el-table-column v-for="child in parent.children" :key="child.id" :label="child.categoryName" width="88" align="center">
+              <template #default="{ row }">
+                <span :class="(row.byCategory?.[child.id] || 0) > 0 ? 'cell-active' : 'cell-zero'">{{ row.byCategory?.[child.id] || 0 }}</span>
+              </template>
+            </el-table-column>
+          </el-table-column>
+        </template>
+        <el-table-column label="上传数" width="84" align="center" fixed="right">
+          <template #default="{ row }">{{ row.recordCount || 0 }}</template>
         </el-table-column>
-        <el-table-column label="上传数" width="90" align="center">
-          <template #default="{ row }">{{ row.recordCount || 0 }}个</template>
-        </el-table-column>
-        <el-table-column label="安装前" width="80" align="center">
-          <template #default="{ row }">
-            <span :class="(row.preCount || 0) > 0 ? 'stage-active' : 'stage-zero'">{{ row.preCount || 0 }}</span>
-          </template>
-        </el-table-column>
-        <el-table-column label="安装中" width="80" align="center">
-          <template #default="{ row }">
-            <span :class="(row.midCount || 0) > 0 ? 'stage-active' : 'stage-zero'">{{ row.midCount || 0 }}</span>
-          </template>
-        </el-table-column>
-        <el-table-column label="安装后" width="80" align="center">
-          <template #default="{ row }">
-            <span :class="(row.postCount || 0) > 0 ? 'stage-active' : 'stage-zero'">{{ row.postCount || 0 }}</span>
-          </template>
+        <el-table-column label="总学分" width="92" align="center" fixed="right">
+          <template #default="{ row }"><strong class="score-active">{{ row.totalScore }}</strong></template>
         </el-table-column>
       </el-table>
     </div>
@@ -222,6 +215,14 @@ const catStatMap = computed(() => {
   const m = {}
   for (const s of catStat.value.byCategory || []) m[s.categoryId] = s
   return m
+})
+
+// 个人排行矩阵表头：按大类分组的子分类列（模板：激励政策分列）
+const rankParents = computed(() => {
+  return categories.value
+    .filter(c => c.parentId === 0)
+    .map(parent => ({ id: parent.id, categoryName: parent.categoryName, children: categories.value.filter(c => c.parentId === parent.id) }))
+    .filter(g => g.children.length > 0)
 })
 
 // 分组数据：按大类分组，统计每个子类的文件数(=学分数量)、总学分与阶段分布（按数据范围）
@@ -337,6 +338,10 @@ onMounted(loadData)
 .score-zero { color: #c0c4cc; }
 .stage-active { color: #10b981; font-weight: 600; }
 .stage-zero { color: #c0c4cc; }
+/* 个人排行矩阵（模板风格） */
+.matrix-title { font-size: 16px; font-weight: 700; color: #1f2329; }
+.cell-active { color: #10b981; font-weight: 600; }
+.cell-zero { color: #c0c4cc; }
 
 /* 合计行 */
 .total-row { background: #fafafa; }

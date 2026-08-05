@@ -444,6 +444,7 @@ public class IncentiveService {
         List<BizIncentiveRecord> records = recordMapper.selectList(wrapper);
 
         Map<Long, int[]> userAgg = new LinkedHashMap<>(); // userId -> [score, recordCount, pre, mid, post]
+        Map<Long, java.util.Map<Long, Integer>> userByCat = new HashMap<>(); // userId -> categoryId -> 记录数
         for (BizIncentiveRecord r : records) {
             int sc = fileCountOf(r) > 0 ? (r.getScore() != null ? r.getScore() : 0) : 0;
             int pre = r.hasFiles(r.getFilePreId()) ? 1 : 0;
@@ -455,6 +456,10 @@ public class IncentiveService {
             agg[2] += pre;
             agg[3] += mid;
             agg[4] += post;
+            if (r.getCategoryId() != null) {
+                userByCat.computeIfAbsent(r.getUserId(), k -> new HashMap<>())
+                        .merge(r.getCategoryId(), 1, Integer::sum);
+            }
         }
 
         List<Map<String, Object>> result = new ArrayList<>();
@@ -473,6 +478,7 @@ public class IncentiveService {
             item.put("preCount", agg[2]);
             item.put("midCount", agg[3]);
             item.put("postCount", agg[4]);
+            item.put("byCategory", userByCat.getOrDefault(e.getKey(), java.util.Map.of()));
             SysUser user = userMapper.selectById(e.getKey());
             if (user != null) {
                 item.put("realName", user.getRealName());
