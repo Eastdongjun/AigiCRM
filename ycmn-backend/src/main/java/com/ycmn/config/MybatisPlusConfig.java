@@ -7,6 +7,8 @@ import com.baomidou.mybatisplus.extension.plugins.handler.TenantLineHandler;
 import com.baomidou.mybatisplus.extension.plugins.inner.PaginationInnerInterceptor;
 import com.baomidou.mybatisplus.extension.plugins.inner.TenantLineInnerInterceptor;
 import com.ycmn.security.SecurityUtils;
+import jakarta.annotation.PostConstruct;
+import lombok.extern.slf4j.Slf4j;
 import net.sf.jsqlparser.expression.Expression;
 import net.sf.jsqlparser.expression.LongValue;
 import org.apache.ibatis.reflection.MetaObject;
@@ -19,6 +21,7 @@ import java.util.List;
 import java.util.Set;
 
 @Configuration
+@Slf4j
 public class MybatisPlusConfig {
 
     /**
@@ -33,6 +36,19 @@ public class MybatisPlusConfig {
     /** 租户插件开关（默认关闭；环境变量 TENANT_ENABLE 可覆盖） */
     @Value("${ycmn.tenant.enable:false}")
     private boolean tenantEnable;
+
+    /**
+     * 租户开关启用前置校验（设计文档 §4.3 + ledger Task 4 前置验收）：
+     * 开启前必须完成——平台管理员锁定集团1、多集团收敛（resolveTenantId 暂取最小集团 fail-closed）、
+     * 无集团用户泄漏面收口。此处仅警示日志提示前置验收，不做强制逻辑（前置验收属启用阶段）。
+     */
+    @PostConstruct
+    public void warnTenantEnablePrerequisites() {
+        if (tenantEnable) {
+            log.warn("ycmn.tenant.enable=true：租户插件已启用。请确认前置验收（设计 §4.3 + ledger Task 4）："
+                    + "平台管理员锁定集团1 / 多集团收敛 / 无集团用户泄漏面；未完成请勿联调。");
+        }
+    }
 
     @Bean
     public MybatisPlusInterceptor mybatisPlusInterceptor() {
