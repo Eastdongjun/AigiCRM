@@ -114,20 +114,20 @@
       <el-table :data="scoreboard" style="width:100%" empty-text="暂无数据" class="rank-matrix"
         :header-cell-style="{ background: '#f7f9fc', color: '#1f2329', fontWeight: 600, borderBottom: '1px solid #e8ebf0' }"
         :row-style="{ height: '46px' }">
-        <el-table-column label="序号" width="60" align="center" fixed>
+        <el-table-column label="序号" width="60" align="center">
           <template #default="{ row }">
             <span v-if="row.rank <= 3" class="medal">{{ ['🥇','🥈','🥉'][row.rank - 1] }}</span>
             <span v-else class="rank-num">{{ row.rank }}</span>
           </template>
         </el-table-column>
-        <el-table-column prop="realName" label="姓名" width="92" fixed>
+        <el-table-column prop="realName" label="姓名" width="92">
           <template #default="{ row }">
             <span :class="row.rank <= 3 ? 'name-top' : 'name-cell'">{{ row.realName }}</span>
           </template>
         </el-table-column>
         <template v-for="(parent, pi) in rankParents" :key="'p' + parent.id">
           <el-table-column :label="parent.categoryName" align="center" :class-name="'cat-group cat-group-' + (pi % 4)">
-            <el-table-column v-for="child in parent.children" :key="child.id" :label="child.categoryName" width="72" align="center">
+            <el-table-column v-for="child in parent.children" :key="child.id" :label="child.categoryName" min-width="64" align="center">
               <template #default="{ row }">
                 <span v-if="(row.byCategory?.[child.id] || 0) > 0" class="cell-pill">{{ row.byCategory[child.id] }}</span>
                 <span v-else class="cell-dash">—</span>
@@ -135,10 +135,10 @@
             </el-table-column>
           </el-table-column>
         </template>
-        <el-table-column label="上传数" width="76" align="center" fixed="right">
+        <el-table-column label="上传数" min-width="70" align="center">
           <template #default="{ row }"><span class="num-cell">{{ row.recordCount || 0 }}</span></template>
         </el-table-column>
-        <el-table-column label="总学分" width="86" align="center" fixed="right">
+        <el-table-column label="总学分" min-width="80" align="center">
           <template #default="{ row }"><strong class="score-total">{{ row.totalScore }}</strong></template>
         </el-table-column>
       </el-table>
