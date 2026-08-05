@@ -76,6 +76,20 @@ class FolderPermissionServiceTest {
     }
 
     @Test
+    void managerChain_managerIdSet_deptLeaderNotConsulted() {
+        // M-3：设计 §6 收紧——lower 的 manager_id 非空时不再走部门 leader 链（此前为超集更宽松）
+        // upper=8：manager 链（7→null 不命中）；dept9.leader=8 本可命中，但因 manager_id 非空被跳过 → false
+        SysUser lower = new SysUser(); lower.setId(42L); lower.setManagerId(7L); lower.setDeptId(9L);
+        SysUser manager = new SysUser(); manager.setId(7L); manager.setManagerId(null);
+        SysDept dept9 = new SysDept(); dept9.setId(9L); dept9.setLeaderId(8L);
+        when(userMapper.selectById(42L)).thenReturn(lower);
+        when(userMapper.selectById(7L)).thenReturn(manager);
+        when(deptMapper.selectById(9L)).thenReturn(dept9);
+        assertFalse(svc.isManagerChain(8L, 42L));
+        verify(deptMapper, never()).selectById(any());
+    }
+
+    @Test
     void aclRole_grantsConfiguredPermission() {
         BizFileFolder folder = new BizFileFolder(); folder.setId(100L); folder.setOwnerId(99L); folder.setFolderType("private");
         BizFolderAcl acl = new BizFolderAcl();

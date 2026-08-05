@@ -14,6 +14,7 @@ import com.ycmn.module.file.entity.BizFileFolder;
 import com.ycmn.module.file.mapper.BizFileFolderMapper;
 import com.ycmn.module.file.mapper.BizFileMapper;
 import com.ycmn.module.file.mapper.BizFileShareMapper;
+import com.ycmn.module.file.mapper.BizFolderAclMapper;
 import com.ycmn.module.incentive.mapper.BizIncentiveRecordMapper;
 import com.ycmn.module.system.entity.SysUser;
 import com.ycmn.module.system.mapper.SysUserMapper;
@@ -51,7 +52,8 @@ class FileServicePermissionTest {
     private final OSS ossClient = mock(OSS.class);
     private final OssConfig ossConfig = mock(OssConfig.class);
     private final FolderPermissionService folderPermissionService = mock(FolderPermissionService.class);
-    private final FileService svc = new FileService(fileMapper, folderMapper, fileShareMapper,
+    private final BizFolderAclMapper folderAclMapper = mock(BizFolderAclMapper.class);
+    private final FileService svc = new FileService(fileMapper, folderMapper, fileShareMapper, folderAclMapper,
             incentiveRecordMapper, userMapper, ossClient, ossConfig, folderPermissionService);
 
     @BeforeEach
@@ -523,6 +525,115 @@ class FileServicePermissionTest {
             svc.downloadById(9L, null, response);
             assertEquals(200, response.getStatus());
             assertEquals(newContent, response.getContentAsString());
+        }
+    }
+
+    // ====== 最终修复轮（I-1 文件夹管理接入 ACL 判定 / M-1 删除级联 / M-2② ossUrl 修正）======
+
+    @Test
+    void renameFolder_aclGranted_succeeds() {
+        // I-1：ACL 授权角色重命名成功——check(P_EDIT)=true 即放行，
+        // 不再被遗留 checkFolderManagePermission（"只能管理自己的文件夹"）拦截
+        BizFileFolder folder = new BizFileFolder();
+        folder.setId(100L);
+        folder.setFolderType("private");
+        folder.setOwnerId(99L);
+        when(folderMapper.selectById(100L)).thenReturn(folder);
+        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
+            m.when(SecurityUtils::getCurrentUserId).thenReturn(2L);
+            m.when(SecurityUtils::isAdmin).thenReturn(false);
+            when(folderPermissionService.check(100L, FolderPermissionService.P_EDIT, 2L)).thenReturn(true);
+            svc.renameFolder(100L, "新名字");
+            ArgumentCaptor<BizFileFolder> cap = ArgumentCaptor.forClass(BizFileFolder.class);
+            verify(folderMapper).updateById(cap.capture());
+            assertEquals("新名字", cap.getValue().getFolderName());
+        }
+    }
+
+    @Test
+    void deleteFolder_aclGranted_succeedsAndCascadesAclDeletion() {
+        // I-1 + M-1：ACL 授权角色删除成功（不再被遗留门槛拦截），
+        // 且同步删除该文件夹的 biz_folder_acl 记录（设计 §8 删除级联）
+        BizFileFolder folder = new BizFileFolder();
+        folder.setId(100L);
+        folder.setFolderType("private");
+        folder.setOwnerId(99L);
+        when(folderMapper.selectById(100L)).thenReturn(folder);
+        when(fileMapper.selectCount(any())).thenReturn(0L);
+        when(folderMapper.selectCount(any())).thenReturn(0L);
+        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
+            m.when(SecurityUtils::getCurrentUserId).thenReturn(2L);
+            m.when(SecurityUtils::isAdmin).thenReturn(false);
+            when(folderPermissionService.check(100L, FolderPermissionService.P_DELETE, 2L)).thenReturn(true);
+            svc.deleteFolder(100L);
+            verify(folderMapper).deleteById(100L);
+            verify(folderAclMapper).delete(any());
+        }
+    }
+
+    @Test
+    void deleteFolder_managerChainUser_deletesDownstreamPrivateFolder() {
+        // I-1：上级链用户删除下级私有文件夹成功（check 由 isManagerChain 放行，模拟上级对下级的判定）
+        BizFileFolder folder = new BizFileFolder();
+        folder.setId(100L);
+        folder.setFolderType("private");
+        folder.setOwnerId(9L);
+        when(folderMapper.selectById(100L)).thenReturn(folder);
+        when(fileMapper.selectCount(any())).thenReturn(0L);
+        when(folderMapper.selectCount(any())).thenReturn(0L);
+        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
+            m.when(SecurityUtils::getCurrentUserId).thenReturn(2L);
+            m.when(SecurityUtils::isAdmin).thenReturn(false);
+            when(folderPermissionService.check(100L, FolderPermissionService.P_DELETE, 2L)).thenReturn(true);
+            svc.deleteFolder(100L);
+            verify(folderMapper).deleteById(100L);
+        }
+    }
+
+    @Test
+    void createFolder_publicSubfolder_aclGranted_succeeds() {
+        // I-1：非管理员在已授权（ACL upload）公共父夹下创建公共子文件夹成功
+        BizFileFolder folder = new BizFileFolder();
+        folder.setFolderType("public");
+        folder.setParentId(100L);
+        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
+            m.when(SecurityUtils::getCurrentUserId).thenReturn(2L);
+            m.when(SecurityUtils::isAdmin).thenReturn(false);
+            when(folderPermissionService.check(100L, FolderPermissionService.P_UPLOAD, 2L)).thenReturn(true);
+            svc.createFolder(folder);
+            verify(folderMapper).insert(folder);
+        }
+    }
+
+    @Test
+    void createFolder_publicRoot_nonAdmin_throws403() {
+        // I-1：根级公共文件夹（无 parentId）仍保留管理员门槛
+        BizFileFolder folder = new BizFileFolder();
+        folder.setFolderType("public");
+        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
+            m.when(SecurityUtils::isAdmin).thenReturn(false);
+            BusinessException ex = assertThrows(BusinessException.class, () -> svc.createFolder(folder));
+            assertEquals("公共文件夹只有管理员才能创建", ex.getMessage());
+            verify(folderMapper, never()).insert(any());
+        }
+    }
+
+    @Test
+    void replaceFile_withoutOriginalFilename_ossUrlStillUpdated() {
+        // M-2②：originalFilename==null 时 ossUrl 也更新为新 key 的 URL（不保留指向已删旧文件的旧值）
+        when(fileMapper.selectById(9L)).thenReturn(aReplaceableFile());
+        SysUser user = new SysUser();
+        user.setId(1L);
+        user.setStorageUsed(100L);
+        user.setStorageQuota(1024L * 1024L);
+        when(userMapper.selectById(1L)).thenReturn(user);
+        MultipartFile mf = new MockMultipartFile("file", (String) null, "text/plain", new byte[25]);
+        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
+            m.when(SecurityUtils::getCurrentUserId).thenReturn(1L);
+            when(folderPermissionService.checkFile(9L, FolderPermissionService.P_EDIT, 1L)).thenReturn(true);
+            BizFile result = svc.replaceFile(9L, mf);
+            assertNotNull(result.getOssUrl());
+            assertTrue(result.getOssUrl().contains(result.getOssKey()), "ossUrl 应指向新 key: " + result.getOssUrl());
         }
     }
 }

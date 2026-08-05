@@ -9,9 +9,11 @@ import com.ycmn.config.OssConfig;
 import com.ycmn.module.file.entity.BizFile;
 import com.ycmn.module.file.entity.BizFileFolder;
 import com.ycmn.module.file.entity.BizFileShare;
+import com.ycmn.module.file.entity.BizFolderAcl;
 import com.ycmn.module.file.mapper.BizFileMapper;
 import com.ycmn.module.file.mapper.BizFileFolderMapper;
 import com.ycmn.module.file.mapper.BizFileShareMapper;
+import com.ycmn.module.file.mapper.BizFolderAclMapper;
 import com.ycmn.module.incentive.entity.BizIncentiveRecord;
 import com.ycmn.module.incentive.mapper.BizIncentiveRecordMapper;
 import com.ycmn.module.system.entity.SysUser;
@@ -44,6 +46,7 @@ public class FileService {
     private final BizFileMapper fileMapper;
     private final BizFileFolderMapper folderMapper;
     private final BizFileShareMapper fileShareMapper;
+    private final BizFolderAclMapper folderAclMapper;
     private final BizIncentiveRecordMapper incentiveRecordMapper;
     private final SysUserMapper userMapper;
     private final OSS ossClient;
@@ -100,6 +103,12 @@ public class FileService {
     }
 
     public IPage<BizFile> pageFiles(int current, int size, Long folderId, String scope, String keyword, Long userId) {
+        // 【安全修复 FEAT-20260804-FILE-AUTHZ】scope 白名单：缺省/空串/未知 scope 一律返回空页，
+        // 在查询前拒绝，避免未识别 scope 落入下方 folderType=scope 空候选集 → isNull(folder_id)
+        // 分支后跨 scope 枚举他人私有无文件夹文件的元数据。
+        if (scope == null || !("public".equals(scope) || "private".equals(scope) || "incentive".equals(scope))) {
+            return new Page<>(current, size, 0);
+        }
         LambdaQueryWrapper<BizFile> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(BizFile::getDeleted, 0);
 
@@ -243,12 +252,14 @@ public class FileService {
         if (!"public".equals(type) && !"private".equals(type)) {
             throw new BusinessException("不支持的文件夹类型");
         }
-        // 【文件权限体系】创建子文件夹需父文件夹上传权限（管理员/本人/上级链/ACL upload）
+        // 【文件权限体系】创建子文件夹需父文件夹上传权限（管理员/本人/上级链/ACL upload），
+        // public 类型带 parentId 同样按父夹 P_UPLOAD 判定（ACL 授权角色可在已授权公共夹下建子夹）；
+        // 根级公共文件夹（无 parentId）保留管理员门槛。
         if (folder.getParentId() != null
                 && !folderPermissionService.check(folder.getParentId(), FolderPermissionService.P_UPLOAD, SecurityUtils.getCurrentUserId())) {
             throw new BusinessException(403, "没有访问权限，请联系管理员授权");
         }
-        if ("public".equals(type) && !SecurityUtils.isAdmin()) {
+        if ("public".equals(type) && folder.getParentId() == null && !SecurityUtils.isAdmin()) {
             throw new BusinessException("公共文件夹只有管理员才能创建");
         }
         if ("private".equals(type)) {
@@ -265,11 +276,11 @@ public class FileService {
         if (folder == null) {
             throw new BusinessException("文件夹不存在");
         }
-        // 【文件权限体系】ACL/上级链/本人 编辑权限（管理员恒通过），与 checkFolderManagePermission 并存
+        // 【文件权限体系】ACL/上级链/本人 编辑权限（管理员恒通过），
+        // 为操作唯一仲裁（已覆盖 admin>本人>上级链>ACL 优先级且 folder==null 已拒绝）
         if (!folderPermissionService.check(folder.getId(), FolderPermissionService.P_EDIT, SecurityUtils.getCurrentUserId())) {
             throw new BusinessException(403, "没有访问权限，请联系管理员授权");
         }
-        checkFolderManagePermission(folder);
         folder.setFolderName(newName.trim());
         folderMapper.updateById(folder);
     }
@@ -279,11 +290,11 @@ public class FileService {
         if (folder == null) {
             throw new BusinessException("文件夹不存在");
         }
-        // 【文件权限体系】ACL/上级链/本人 删除权限（管理员恒通过），与 checkFolderManagePermission 并存
+        // 【文件权限体系】ACL/上级链/本人 删除权限（管理员恒通过），
+        // 为操作唯一仲裁（已覆盖 admin>本人>上级链>ACL 优先级且 folder==null 已拒绝）
         if (!folderPermissionService.check(folder.getId(), FolderPermissionService.P_DELETE, SecurityUtils.getCurrentUserId())) {
             throw new BusinessException(403, "没有访问权限，请联系管理员授权");
         }
-        checkFolderManagePermission(folder);
 
         // 夹内有文件 → 拒绝删除
         long fileCount = fileMapper.selectCount(
@@ -300,26 +311,10 @@ public class FileService {
             throw new BusinessException("文件夹内还有子文件夹，请先清空后再删除");
         }
 
-        folderMapper.deleteById(folderId);
-    }
+        // 【文件权限体系 设计§8 删除级联】同步删除该文件夹的 ACL 记录（防孤儿）
+        folderAclMapper.delete(new LambdaQueryWrapper<BizFolderAcl>().eq(BizFolderAcl::getFolderId, folderId));
 
-    /**
-     * 文件夹改名/删除权限：公共文件夹仅管理员，私人文件夹仅所有者本人
-     */
-    private void checkFolderManagePermission(BizFileFolder folder) {
-        if (SecurityUtils.isAdmin()) {
-            return;
-        }
-        if ("public".equals(folder.getFolderType())) {
-            throw new BusinessException("公共文件夹只有管理员才能管理");
-        } else if ("private".equals(folder.getFolderType())) {
-            if (!Objects.equals(folder.getOwnerId(), SecurityUtils.getCurrentUserId())) {
-                throw new BusinessException("只能管理自己的文件夹");
-            }
-        } else {
-            // 【安全修复 FEAT-20260804-FILE-AUTHZ】未识别的文件夹类型默认拒绝，而不是默认放行。
-            throw new BusinessException("无权管理该文件夹");
-        }
+        folderMapper.deleteById(folderId);
     }
 
     public void deleteFile(Long fileId) {
@@ -390,7 +385,9 @@ public class FileService {
                     ? "/api/file/download/" + newKey
                     : "https://" + ossConfig.getBucketName() + "." + ossConfig.getEndpoint() + "/" + newKey;
             file.setOssKey(newKey);
-            file.setOssUrl(newFile.getOriginalFilename() != null ? newOssUrl : file.getOssUrl());
+            // 【安全修复】ossUrl 无条件更新为新 key 的 URL：旧对象已随 deleteStorage 删除，
+            // 保留旧 URL 会指向已删除文件（M-2②：originalFilename==null 时同样更新）
+            file.setOssUrl(newOssUrl);
             file.setFileSize(newFile.getSize());
             file.setFileType(newFile.getContentType());
             file.setVersion((file.getVersion() == null ? 0 : file.getVersion()) + 1);

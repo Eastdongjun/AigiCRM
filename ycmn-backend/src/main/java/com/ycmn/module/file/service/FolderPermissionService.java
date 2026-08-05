@@ -65,18 +65,20 @@ public class FolderPermissionService {
         return isManagerChain(userId, file.getUploaderId());
     }
 
-    /** 个人上级(manager_id)优先，部门 leader 链兜底，各限 5 层 */
+    /** 个人上级(manager_id)优先，部门 leader 链兜底（仅当 lower 的 manager_id 为空），各限 5 层（设计 §6） */
     public boolean isManagerChain(Long upperId, Long lowerId) {
         if (upperId == null || lowerId == null) return false;
-        SysUser cur = userMapper.selectById(lowerId);
+        SysUser lower = userMapper.selectById(lowerId);
+        if (lower == null) return false;
+        SysUser cur = lower;
         for (int i = 0; i < MAX_HOP && cur != null; i++) {
             if (cur.getManagerId() != null) {
                 if (cur.getManagerId().equals(upperId)) return true;
                 cur = userMapper.selectById(cur.getManagerId());
             } else break;
         }
-        SysUser lower = userMapper.selectById(lowerId);
-        if (lower != null && lower.getDeptId() != null) {
+        // 部门 leader 链兜底：仅当 lower 的 manager_id 为空（设计 §6：个人上级优先，未设置才走部门链）
+        if (lower.getManagerId() == null && lower.getDeptId() != null) {
             SysDept dept = deptMapper.selectById(lower.getDeptId());
             for (int i = 0; i < MAX_HOP && dept != null; i++) {
                 if (dept.getLeaderId() != null && dept.getLeaderId().equals(upperId)) return true;
