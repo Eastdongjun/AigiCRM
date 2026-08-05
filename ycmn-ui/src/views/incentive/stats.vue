@@ -114,16 +114,22 @@
       <el-table :data="scoreboard" style="width:100%" empty-text="暂无数据" class="rank-matrix"
         :header-cell-style="{ background: '#f7f9fc', color: '#1f2329', fontWeight: 600, borderBottom: '1px solid #e8ebf0' }"
         :row-style="{ height: '46px' }">
-        <el-table-column label="序号" width="60" align="center">
+        <el-table-column label="排名" width="64" align="center">
           <template #default="{ row }">
-            <span v-if="row.rank <= 3" class="medal">{{ ['🥇','🥈','🥉'][row.rank - 1] }}</span>
+            <span v-if="row.rank <= 3" :class="'rank-medal rank-medal-' + row.rank">{{ ['🥇','🥈','🥉'][row.rank - 1] }}</span>
             <span v-else class="rank-num">{{ row.rank }}</span>
           </template>
         </el-table-column>
-        <el-table-column prop="realName" label="姓名" width="92">
+        <el-table-column label="姓名" width="104">
           <template #default="{ row }">
-            <span :class="row.rank <= 3 ? 'name-top' : 'name-cell'">{{ row.realName }}</span>
+            <div class="name-wrap">
+              <span class="name-avatar" :class="'av-' + (row.rank <= 3 ? row.rank : 4)">{{ row.realName?.charAt(0) }}</span>
+              <span :class="row.rank <= 3 ? 'name-top' : 'name-cell'">{{ row.realName }}</span>
+            </div>
           </template>
+        </el-table-column>
+        <el-table-column label="激励总额" width="92" align="center">
+          <template #default="{ row }"><span class="score-pill">{{ row.totalScore }}<em>分</em></span></template>
         </el-table-column>
         <template v-for="(parent, pi) in rankParents" :key="'p' + parent.id">
           <el-table-column :label="parent.categoryName" align="center" :class-name="'cat-group cat-group-' + (pi % 4)">
@@ -137,9 +143,6 @@
         </template>
         <el-table-column label="上传数" min-width="70" align="center">
           <template #default="{ row }"><span class="num-cell">{{ row.recordCount || 0 }}</span></template>
-        </el-table-column>
-        <el-table-column label="总学分" min-width="80" align="center">
-          <template #default="{ row }"><strong class="score-total">{{ row.totalScore }}</strong></template>
         </el-table-column>
       </el-table>
     </div>
@@ -345,32 +348,77 @@ onMounted(loadData)
 .score-zero { color: #c0c4cc; }
 .stage-active { color: #10b981; font-weight: 600; }
 .stage-zero { color: #c0c4cc; }
-/* 个人排行矩阵（模板风格，版面优化） */
+/* 个人排行矩阵（排行榜风格） */
 .matrix-title { font-size: 16px; font-weight: 700; color: #1f2329; }
-.rank-matrix.el-table { --el-table-border-color: #eceff3; --el-table-header-bg-color: #f7f9fc; }
+.rank-matrix.el-table { --el-table-border-color: #eceff3; --el-table-header-bg-color: #f7f9fc; border-radius: 10px; overflow: hidden; }
 .rank-matrix .el-table__row:hover > td { background: #f5f9ff !important; }
-.rank-matrix .el-table__body td { padding: 6px 0; }
+.rank-matrix .el-table__body td { padding: 5px 0; }
+/* 排名：前三渐变奖牌底 */
+.rank-medal {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  font-size: 15px;
+  box-shadow: 0 2px 6px rgba(0,0,0,.12);
+}
+.rank-medal-1 { background: linear-gradient(135deg, #fbbf24, #f59e0b); }
+.rank-medal-2 { background: linear-gradient(135deg, #e2e8f0, #cbd5e1); }
+.rank-medal-3 { background: linear-gradient(135deg, #fcd7b6, #d97706); }
+.rank-num { color: #94a3b8; font-weight: 600; font-size: 13px; }
+/* 姓名：首字头像 + 加粗 */
+.name-wrap { display: flex; align-items: center; gap: 8px; }
+.name-avatar {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 700;
+  color: #fff;
+  flex-shrink: 0;
+}
+.av-1 { background: linear-gradient(135deg, #f59e0b, #fbbf24); }
+.av-2 { background: linear-gradient(135deg, #94a3b8, #cbd5e1); }
+.av-3 { background: linear-gradient(135deg, #d97706, #f59e0b); }
+.av-4 { background: linear-gradient(135deg, #3b82f6, #6366f1); }
 .name-cell { font-weight: 500; color: #1f2329; }
 .name-top { font-weight: 700; color: #1f2329; }
-.cat-group { }
-.cat-group-0 .el-table__header th { background: rgba(64,158,255,.06) !important; }
-.cat-group-1 .el-table__header th { background: rgba(249,115,22,.05) !important; }
-.cat-group-2 .el-table__header th { background: rgba(139,92,246,.05) !important; }
-.cat-group-3 .el-table__header th { background: rgba(16,185,129,.05) !important; }
+/* 大类分组表头：左侧色条区分 */
+.cat-group-0 .el-table__header th { background: rgba(64,158,255,.07) !important; box-shadow: inset 3px 0 0 #3b82f6; }
+.cat-group-1 .el-table__header th { background: rgba(249,115,22,.06) !important; box-shadow: inset 3px 0 0 #f97316; }
+.cat-group-2 .el-table__header th { background: rgba(139,92,246,.06) !important; box-shadow: inset 3px 0 0 #8b5cf6; }
+.cat-group-3 .el-table__header th { background: rgba(16,185,129,.06) !important; box-shadow: inset 3px 0 0 #10b981; }
+/* 品类单元格：绿色徽章 */
 .cell-pill {
   display: inline-block;
   min-width: 26px;
   padding: 2px 8px;
   border-radius: 10px;
-  background: rgba(16,185,129,.12);
+  background: linear-gradient(135deg, rgba(16,185,129,.14), rgba(16,185,129,.08));
   color: #0d9e6e;
   font-weight: 700;
   font-size: 13px;
   text-align: center;
 }
-.cell-dash { color: #cdd2d9; }
+.cell-dash { color: #d5dae1; }
 .num-cell { color: #5f6672; font-weight: 500; }
-.score-total { color: #409eff; font-size: 14px; }
+/* 总学分：蓝色徽章 */
+.score-pill {
+  display: inline-block;
+  min-width: 42px;
+  padding: 3px 10px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, rgba(64,158,255,.14), rgba(64,158,255,.06));
+  color: #2f7fe0;
+  font-weight: 700;
+  font-size: 14px;
+}
+.score-pill em { font-style: normal; font-size: 11px; font-weight: 500; opacity: .7; margin-left: 1px; }
 
 /* 合计行 */
 .total-row { background: #fafafa; }
