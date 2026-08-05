@@ -1,6 +1,7 @@
 #!/bin/bash
 # scripts/check-permission-data.sh — 权限数据前提体检(设计文档 §12.2, 统一权限体系)
 # 检查 sys_dept.dept_type / sys_dept.group_id / sys_user.manager_id / 核心业务表 tenant_id 完整性
+# manager_id 为渐进维护项(设计 §12.2): 非零仅告警, 不计失败; 其余检查非零需人工介入计失败
 # tenant_id 由 Task 12 迁移后才有列: 列不存在时输出"未迁移", 不视为失败
 # 用法:
 #   check-permission-data.sh <DB_HOST> <DB_USER> <DB_PASS> <DB_NAME> [选项]
@@ -13,7 +14,7 @@
 #   缺省自动判定模式: 本机有 mysql 客户端 → local; 否则 → remote
 # remote 模式 SSH 目标: DB_HOST 匹配 ~/.ycmn-deploy.env 的 PROD_HOST/TEST_HOST 时自动复用
 #   ssh_prod/ssh_test 凭据; 否则需 DB_SSH_HOST/DB_SSH_USER/DB_SSH_PASS 环境变量
-# 退出码: 0=全部检查项为零(数据前提完备); 1=存在非零缺失项(需人工介入)或执行失败
+# 退出码: 0=检查通过(manager_id 渐进项告警不计失败); 1=存在非零缺失项(需人工介入)或执行失败
 set -uo pipefail
 
 usage() {
@@ -51,8 +52,9 @@ fi
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 # local: 本机 mysql 客户端直连
 mysql_direct() { mysql -h"$DB_HOST" -u"$DB_USER" -p"$DB_PASS" "$DB_NAME" -N -e "$1" 2>/dev/null; }
-# remote: 经 ssh + docker exec -i 从 stdin 喂 SQL, 免去远程引号转义(同 deploy-db.sh 迁移执行模式)
-mysql_remote() { printf '%s' "$1" | "$SSH_FN" "docker exec -i $CONTAINER mysql -h127.0.0.1 -u$DB_USER -p$DB_PASS $DB_NAME -N --default-character-set=utf8mb4 2>/dev/null"; }
+# remote: 经 ssh + docker exec -i 从 stdin 喂 SQL, 免去远程引号转义;
+# 无 -h 走容器默认 socket(同 deploy-db.sh 的连接模式, 不依赖 TCP 监听)
+mysql_remote() { printf '%s' "$1" | "$SSH_FN" "docker exec -i $CONTAINER mysql -u$DB_USER -p$DB_PASS $DB_NAME -N --default-character-set=utf8mb4 2>/dev/null"; }
 
 if [ "$MODE" = "auto" ]; then
   if command -v mysql >/dev/null 2>&1; then MODE=local; else MODE=remote; fi
@@ -92,6 +94,17 @@ report_count() { # $1=标签 $2=SQL
   fi
 }
 
+# 渐进维护项(设计 §12.2): 非零仅告警, 不计失败(老数据大量为空, 计失败会持续拦交付)
+report_warn() { # $1=标签 $2=SQL
+  local cnt
+  cnt=$("$RUN_CMD" "$2") || { echo "  ❌ $1: 查询失败"; BAD=$((BAD+1)); return; }
+  if [ "$cnt" -eq 0 ]; then
+    echo "  ✅ $1: 0"
+  else
+    echo "  ⚠️ $1: $cnt —— 渐进维护项, 不计失败"
+  fi
+}
+
 # tenant_id 检查: 列不存在(未迁移)不视为失败
 check_tenant() { # $1=表名
   local t="$1" cols cnt
@@ -112,7 +125,7 @@ check_tenant() { # $1=表名
 echo "== 权限数据前提体检: $DB_HOST / $DB_NAME ($MODE_TAG) =="
 report_count "deptType 为空的组织数" "SELECT COUNT(*) FROM sys_dept WHERE deleted=0 AND (dept_type IS NULL OR dept_type=0);"
 report_count "group_id 为空的业务组织数" "SELECT COUNT(*) FROM sys_dept WHERE deleted=0 AND group_id IS NULL;"
-report_count "manager_id 为空的启用用户数" "SELECT COUNT(*) FROM sys_user WHERE deleted=0 AND status=1 AND manager_id IS NULL;"
+report_warn "manager_id 为空的启用用户数" "SELECT COUNT(*) FROM sys_user WHERE deleted=0 AND status=1 AND manager_id IS NULL;"
 echo "-- 白名单表 tenant_id 覆盖(未迁移时输出未迁移) --"
 for t in biz_customer biz_incentive_record; do check_tenant "$t"; done
 
