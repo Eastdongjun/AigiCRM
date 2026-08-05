@@ -7,6 +7,7 @@ import com.ycmn.security.SecurityUser;
 import net.sf.jsqlparser.expression.LongValue;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 
@@ -55,6 +56,34 @@ class MybatisPlusConfigTest {
         assertTrue(interceptor.getInterceptors().get(1) instanceof PaginationInnerInterceptor);
     }
 
+    // ---- 配置绑定（@Value ycmn.tenant.enable 真实验证，轻量上下文无数据源） ----
+
+    private final ApplicationContextRunner contextRunner =
+            new ApplicationContextRunner().withUserConfiguration(MybatisPlusConfig.class);
+
+    @Test
+    void configBindingOnRegistersTenantInterceptor() {
+        contextRunner.withPropertyValues("ycmn.tenant.enable=true").run(ctx -> {
+            MybatisPlusInterceptor interceptor = ctx.getBean(MybatisPlusInterceptor.class);
+            assertTrue(interceptor.getInterceptors().stream()
+                            .anyMatch(i -> i instanceof TenantLineInnerInterceptor),
+                    "enable=true 应注册租户拦截器");
+            assertTrue(interceptor.getInterceptors().stream()
+                            .anyMatch(i -> i instanceof PaginationInnerInterceptor),
+                    "分页拦截器应始终存在");
+        });
+    }
+
+    @Test
+    void configBindingOffRegistersOnlyPagination() {
+        contextRunner.withPropertyValues("ycmn.tenant.enable=false").run(ctx -> {
+            MybatisPlusInterceptor interceptor = ctx.getBean(MybatisPlusInterceptor.class);
+            assertEquals(1, interceptor.getInterceptors().size(), "enable=false 只应注册分页");
+            assertFalse(interceptor.getInterceptors().stream()
+                    .anyMatch(i -> i instanceof TenantLineInnerInterceptor));
+        });
+    }
+
     // ---- 集团过滤表达式分支 ----
 
     @Test
@@ -101,5 +130,42 @@ class MybatisPlusConfigTest {
         String out = MybatisPlusConfig.buildTenantInterceptor().parserSingle(
                 "SELECT * FROM biz_customer WHERE id = 1", null);
         assertTrue(out.contains("tenant_id = 1"), "空集团应退回主集团默认值，实际: " + out);
+    }
+
+    // ---- 写入路径（隔离写入关键路径） ----
+
+    @Test
+    void whitelistInsertGetsTenantColumnAndValue() {
+        authAs(List.of(7L));
+        String out = MybatisPlusConfig.buildTenantInterceptor().parserSingle(
+                "INSERT INTO biz_customer (id, name) VALUES (1, 'x')", null);
+        assertTrue(out.contains("tenant_id"), "INSERT 应自动填充 tenant_id 列，实际: " + out);
+        assertTrue(out.contains("7"), "INSERT 应填充集团值 7，实际: " + out);
+        assertTrue(out.startsWith("INSERT INTO biz_customer"), "表名不应被改写，实际: " + out);
+    }
+
+    @Test
+    void nonWhitelistInsertIsIgnored() {
+        authAs(List.of(7L));
+        String out = MybatisPlusConfig.buildTenantInterceptor().parserSingle(
+                "INSERT INTO sys_user (id, name) VALUES (1, 'x')", null);
+        assertFalse(out.contains("tenant_id"), "非白名单表 INSERT 不应填充，实际: " + out);
+    }
+
+    @Test
+    void whitelistUpdateGetsTenantCondition() {
+        authAs(List.of(7L));
+        String out = MybatisPlusConfig.buildTenantInterceptor().parserSingle(
+                "UPDATE biz_customer SET name = 'y' WHERE id = 1", null);
+        assertTrue(out.contains("tenant_id = 7"), "UPDATE 应附加 tenant_id = 7，实际: " + out);
+        assertTrue(out.contains("id = 1"), "原有 WHERE 条件应保留，实际: " + out);
+    }
+
+    @Test
+    void nonWhitelistUpdateIsIgnored() {
+        authAs(List.of(7L));
+        String out = MybatisPlusConfig.buildTenantInterceptor().parserSingle(
+                "UPDATE sys_user SET name = 'y' WHERE id = 1", null);
+        assertFalse(out.contains("tenant_id"), "非白名单表 UPDATE 不应附加条件，实际: " + out);
     }
 }
