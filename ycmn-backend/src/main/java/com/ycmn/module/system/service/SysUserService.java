@@ -117,7 +117,8 @@ public class SysUserService {
         existing.setEmail(user.getEmail());
         existing.setDeptId(user.getDeptId());
         existing.setOfficeId(user.getOfficeId());
-        existing.setManagerId(user.getManagerId());
+        // managerId 归一：null/0（前端"无上级"）→ null，配合 ALWAYS 策略落库回写 NULL
+        existing.setManagerId(user.getManagerId() != null && user.getManagerId() > 0 ? user.getManagerId() : null);
         existing.setDataScopeOverride(StringUtils.hasText(user.getDataScopeOverride()) ? user.getDataScopeOverride() : null);
         existing.setStatus(user.getStatus());
         userMapper.updateById(existing);

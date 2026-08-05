@@ -22,6 +22,13 @@ public class SysUser {
     private Long deptId;
     private Long officeId;
     private Long orgId;
+    /**
+     * 直接上级（team 数据范围按 manager_id 反向递归）。
+     * updateStrategy=ALWAYS：updateById 时 null 也进入 SET 子句，
+     * 保证"清空上级"能真正回写 NULL（同 dataScopeOverride 的缺陷修复模式，
+     * 默认 NOT_NULL 策略下 null 被跳过导致旧值残留）
+     */
+    @TableField(updateStrategy = FieldStrategy.ALWAYS)
     private Long managerId;
     /**
      * 用户级数据范围覆盖（空/NULL=跟随角色默认；取值见 DataScopeType.code）
