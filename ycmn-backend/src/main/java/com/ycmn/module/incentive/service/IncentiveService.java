@@ -876,8 +876,14 @@ public class IncentiveService {
         if (orgIds != null && !orgIds.isBlank()) {
             List<Long> oids = java.util.Arrays.stream(orgIds.split(",")).map(String::trim).filter(s -> !s.isEmpty()).map(Long::parseLong).toList();
             if (!oids.isEmpty()) {
+                // 组织筛选含全部子部门（部门可无限嵌套）：展开所选组织为子树集合
+                java.util.Set<Long> orgSet = new java.util.LinkedHashSet<>();
+                for (Long oid : oids) {
+                    orgSet.add(oid);
+                    orgSet.addAll(getDescendantDeptIds(oid));
+                }
                 List<SysUser> orgUsers = userMapper.selectList(
-                    new LambdaQueryWrapper<SysUser>().in(SysUser::getOfficeId, oids)
+                    new LambdaQueryWrapper<SysUser>().in(SysUser::getOfficeId, orgSet)
                 );
                 List<Long> uids = orgUsers.stream().map(SysUser::getId).distinct().toList();
                 if (!uids.isEmpty()) wrapper.in(BizIncentiveRecord::getUserId, uids);
