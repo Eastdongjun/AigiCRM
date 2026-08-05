@@ -89,8 +89,13 @@
               </el-select>
             </el-form-item>
             <el-form-item label="所属办事处" prop="officeId">
-              <el-select v-model="form.officeId" placeholder="请选择办事处" size="large" filterable :disabled="!form.regionId">
+              <el-select v-model="form.officeId" placeholder="请选择办事处" size="large" filterable :disabled="!form.regionId" @change="onOfficeChange">
                 <el-option v-for="o in filteredOffices" :key="o.id" :label="o.deptName" :value="o.id" />
+              </el-select>
+            </el-form-item>
+            <el-form-item label="所属部门" prop="deptId">
+              <el-select v-model="form.deptId" placeholder="选择部门（可留空）" size="large" filterable clearable :disabled="!form.officeId">
+                <el-option v-for="d in filteredDepts" :key="d.id" :label="d.deptName" :value="d.id" />
               </el-select>
             </el-form-item>
           </div>
@@ -196,6 +201,21 @@ const filteredOffices = computed(() => {
   if (!form.regionId) return []
   return offices.value.filter(o => o.parentId === form.regionId)
 })
+// 所属部门：选中办事处下的全部子部门（部门可无限嵌套，递归收集）
+const filteredDepts = computed(() => {
+  if (!form.officeId) return []
+  const res = []
+  const collect = (pid) => {
+    for (const d of offices.value) {
+      if (d.parentId === pid) { res.push(d); collect(d.id) }
+    }
+  }
+  collect(form.officeId)
+  return res
+})
+const onOfficeChange = () => {
+  form.deptId = null
+}
 const regionValue = ref([])
 const industryOptions = ref([])
 const devTypeOptions = ref([])
@@ -220,6 +240,7 @@ const form = reactive({
   devType: '',
   officeId: null,
   regionId: null,
+  deptId: null,
   ownerId: null,
   groupName: '',
   branchCompany: '',

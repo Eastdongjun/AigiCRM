@@ -73,6 +73,12 @@ public class BizCustomer {
     private Long officeId;
     @ExcelIgnore
     private Long regionId;
+    @ExcelIgnore
+    private Long deptId;
+    /** 所属部门名（列表展示用，非表字段） */
+    @TableField(exist = false)
+    @ExcelIgnore
+    private String deptName;
 
     @ExcelProperty("备注")
     private String remark;

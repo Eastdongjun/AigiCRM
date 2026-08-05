@@ -55,17 +55,23 @@ public class CustomerService {
 
     public IPage<BizCustomer> page(int current, int size, String keyword, String industry,
                                     Long officeId, Long regionId, String status, Long ownerId) {
-        return page(current, size, keyword, industry, officeId, regionId, status, ownerId, null, null, null);
+        return page(current, size, keyword, industry, officeId, regionId, status, ownerId, null, null, null, null);
     }
 
     public IPage<BizCustomer> page(int current, int size, String keyword, String industry,
                                     Long officeId, Long regionId, String status, Long ownerId, String scope) {
-        return page(current, size, keyword, industry, officeId, regionId, status, ownerId, scope, null, null);
+        return page(current, size, keyword, industry, officeId, regionId, status, ownerId, scope, null, null, null);
     }
 
     public IPage<BizCustomer> page(int current, int size, String keyword, String industry,
                                     Long officeId, Long regionId, String status, Long ownerId, String scope,
                                     String devType, String groupName) {
+        return page(current, size, keyword, industry, officeId, regionId, status, ownerId, scope, devType, groupName, null);
+    }
+
+    public IPage<BizCustomer> page(int current, int size, String keyword, String industry,
+                                    Long officeId, Long regionId, String status, Long ownerId, String scope,
+                                    String devType, String groupName, Long deptId) {
         Long currentUserId = SecurityUtils.getCurrentUserId();
 
         // scope 筛选: mine / shared_by_me / shared_to_me
@@ -112,6 +118,12 @@ public class CustomerService {
         }
         if (regionId != null) {
             wrapper.eq(BizCustomer::getRegionId, regionId);
+        }
+        if (deptId != null) {
+            // 部门筛选：含该部门全部子部门（部门可无限嵌套）
+            java.util.List<Long> deptIds = getDescendantDeptIds(deptId);
+            deptIds.add(deptId);
+            wrapper.in(BizCustomer::getDeptId, deptIds);
         }
         if (StringUtils.hasText(status)) {
             String[] arr = status.split(",");
@@ -646,14 +658,14 @@ public class CustomerService {
                     wrapper.eq(BizCustomer::getOwnerId, userId);
                 }
                 break;
-            // 新六级码（team/office/region/dept/self/custom；dept=本部门含子部门，设计 §4.1）：
+            // 新六级码（team/office/region/dept/self；dept=本部门含子部门，设计 §4.1）：
             // 统一路由 OrgScopeResolver（设计 §4.2；多角色并集在 resolver 内生效）
+            // 注：custom 由上方既有 case 处理（managedOrgIds 部门树，语义一致）
             case "team":
             case "office":
             case "region":
             case "dept":
-            case "self":
-            case "custom": {
+            case "self": {
                 List<Long> visible = scopeResolver.resolve(SecurityUtils.getCurrentUser());
                 if (visible != null) { // null=all：本集团不过滤
                     wrapper.in(BizCustomer::getOwnerId, visible);
@@ -821,6 +833,7 @@ public class CustomerService {
             if (c.getManagerId() != null) userIds.add(c.getManagerId());
             if (c.getOfficeId() != null) deptIds.add(c.getOfficeId());
             if (c.getRegionId() != null) deptIds.add(c.getRegionId());
+            if (c.getDeptId() != null) deptIds.add(c.getDeptId());
         }
 
         Map<Long, String> userNames = new HashMap<>();
@@ -839,6 +852,7 @@ public class CustomerService {
             if (c.getManagerId() != null) c.setManagerName(userNames.get(c.getManagerId()));
             if (c.getOfficeId() != null) c.setOfficeName(deptNames.get(c.getOfficeId()));
             if (c.getRegionId() != null) c.setRegionName(deptNames.get(c.getRegionId()));
+            if (c.getDeptId() != null) c.setDeptName(deptNames.get(c.getDeptId()));
         }
     }
 
