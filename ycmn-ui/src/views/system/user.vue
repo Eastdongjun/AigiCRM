@@ -153,9 +153,27 @@
             </el-form-item>
           </el-col>
         </el-row>
-        <el-form-item label="状态">
-          <el-switch v-model="editForm.status" :active-value="1" :inactive-value="0" active-text="正常" inactive-text="禁用" />
-        </el-form-item>
+        <el-row :gutter="24">
+          <el-col :span="12">
+            <el-form-item label="数据范围">
+              <el-select v-model="editForm.dataScopeOverride" clearable style="width:100%" placeholder="默认跟随角色">
+                <el-option label="跟随角色" value="" />
+                <el-option label="仅本人" value="self" />
+                <el-option label="本人及下级" value="team" />
+                <el-option label="本部门及以下" value="dept" />
+                <el-option label="本办事处及以下" value="office" />
+                <el-option label="本大区及以下" value="region" />
+                <el-option label="全部(本集团)" value="all" />
+                <el-option label="自定义组织" value="custom" />
+              </el-select>
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="状态">
+              <el-switch v-model="editForm.status" :active-value="1" :inactive-value="0" active-text="正常" inactive-text="禁用" />
+            </el-form-item>
+          </el-col>
+        </el-row>
       </el-form>
       <template #footer>
         <el-button @click="dialogVisible = false">取消</el-button>
@@ -187,7 +205,7 @@ const saving = ref(false)
 const formRef = ref(null)
 
 const query = reactive({ current: 1, size: 15, keyword: '', deptId: null, status: null })
-const editForm = reactive({ id: null, username: '', realName: '', phone: '', email: '', deptId: null, officeId: null, roleId: null, managerId: null, status: 1 })
+const editForm = reactive({ id: null, username: '', realName: '', phone: '', email: '', deptId: null, officeId: null, roleId: null, managerId: null, dataScopeOverride: '', status: 1 })
 const formRules = {
   realName: [{ required: true, message: '请输入姓名', trigger: 'blur' }],
   username: [{ required: true, message: '请输入账号', trigger: 'blur' }],
@@ -312,11 +330,11 @@ const onOrgChange = (path) => {
 
 const openDialog = (row) => {
   if (row) {
-    Object.assign(editForm, { id: row.id, username: row.username, realName: row.realName, phone: row.phone, email: row.email || '', deptId: row.deptId, officeId: row.officeId, roleId: row.roleId, managerId: row.managerId || null, status: row.status })
+    Object.assign(editForm, { id: row.id, username: row.username, realName: row.realName, phone: row.phone, email: row.email || '', deptId: row.deptId, officeId: row.officeId, roleId: row.roleId, managerId: row.managerId || null, dataScopeOverride: row.dataScopeOverride || '', status: row.status })
     orgPath.value = pathOf(row.deptId)
     editForm.officeId = officeFromPath(orgPath.value)
   } else {
-    Object.assign(editForm, { id: null, username: '', realName: '', phone: '', email: '', deptId: null, officeId: null, roleId: null, managerId: null, status: 1 })
+    Object.assign(editForm, { id: null, username: '', realName: '', phone: '', email: '', deptId: null, officeId: null, roleId: null, managerId: null, dataScopeOverride: '', status: 1 })
     orgPath.value = []
   }
   dialogVisible.value = true
