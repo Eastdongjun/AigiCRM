@@ -33,3 +33,6 @@ graphify-out/
 ycmn_database_test.sql
 sql/init.sql
 *.dump
+
+# Superpowers worktrees
+.worktrees/
