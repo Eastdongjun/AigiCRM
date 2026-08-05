@@ -22,6 +22,8 @@ public class SysUser {
     private Long officeId;
     private Long orgId;
     private Long managerId;
+    /** 用户级数据范围覆盖（空/NULL=跟随角色默认；取值见 DataScopeType.code） */
+    private String dataScopeOverride;
     private Integer leaveStatus;
     private LocalDate leaveDate;
     private String leaveReason;

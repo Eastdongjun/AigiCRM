@@ -94,6 +94,13 @@ public class UserDetailsServiceImpl implements UserDetailsService {
             }
         }
 
+        // ======================== 1b. 用户级数据范围覆盖（层2：用户级 > 角色级） ========================
+        // 仅覆盖 dataScope 字符串，不影响角色聚合的其他产物；空/未配置则跟随角色默认
+        String override = user.getDataScopeOverride();
+        if (override != null && !override.isBlank()) {
+            securityUser.setDataScope(override);
+        }
+
         // ======================== 2. 加载岗位（一人多岗） ========================
         List<SysPosition> positions = positionMapper.selectByUserId(uid);
         securityUser.setPositions(positions);

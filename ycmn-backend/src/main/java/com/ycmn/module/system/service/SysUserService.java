@@ -79,6 +79,9 @@ public class SysUserService {
         }
         user.setStorageQuota(defaultStorage);
         user.setStorageUsed(0L);
+        if (!StringUtils.hasText(user.getDataScopeOverride())) {
+            user.setDataScopeOverride(null); // 空=跟随角色，与 update 归一一致
+        }
         userMapper.insert(user);
 
         // 分配角色
@@ -101,6 +104,7 @@ public class SysUserService {
         existing.setDeptId(user.getDeptId());
         existing.setOfficeId(user.getOfficeId());
         existing.setManagerId(user.getManagerId());
+        existing.setDataScopeOverride(StringUtils.hasText(user.getDataScopeOverride()) ? user.getDataScopeOverride() : null);
         existing.setStatus(user.getStatus());
         userMapper.updateById(existing);
 
