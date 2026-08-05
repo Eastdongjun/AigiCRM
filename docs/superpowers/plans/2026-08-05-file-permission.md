@@ -43,10 +43,11 @@ CREATE TABLE IF NOT EXISTS biz_folder_acl (
   UNIQUE KEY uk_folder_role (folder_id, role_id)
 ) COMMENT='文件夹-角色授权表';
 
-ALTER TABLE biz_file_folder ADD COLUMN IF NOT EXISTS downloadable TINYINT NOT NULL DEFAULT 1 COMMENT '下载开关:1=允许下载,0=仅预览';
-ALTER TABLE biz_file ADD COLUMN IF NOT EXISTS version INT NOT NULL DEFAULT 1 COMMENT '版本号,覆盖替换+1';
-ALTER TABLE biz_file ADD COLUMN IF NOT EXISTS replace_by BIGINT NULL COMMENT '最近替换人';
-ALTER TABLE biz_file ADD COLUMN IF NOT EXISTS replaced_at DATETIME NULL COMMENT '最近替换时间';
+-- 注意：MySQL 8.0 不支持 ADD COLUMN IF NOT EXISTS（MariaDB 语法），迁移只执行一次，直接 ALTER
+ALTER TABLE biz_file_folder ADD COLUMN downloadable TINYINT NOT NULL DEFAULT 1 COMMENT '下载开关:1=允许下载,0=仅预览';
+ALTER TABLE biz_file ADD COLUMN version INT NOT NULL DEFAULT 1 COMMENT '版本号,覆盖替换+1';
+ALTER TABLE biz_file ADD COLUMN replace_by BIGINT NULL COMMENT '最近替换人';
+ALTER TABLE biz_file ADD COLUMN replaced_at DATETIME NULL COMMENT '最近替换时间';
 ```
 
 - [ ] **Step 2: 在生产库执行迁移**
@@ -188,7 +189,10 @@ class FolderPermissionServiceTest {
     private final BizFolderAclMapper aclMapper = mock(BizFolderAclMapper.class);
     private final SysUserMapper userMapper = mock(SysUserMapper.class);
     private final SysDeptMapper deptMapper = mock(SysDeptMapper.class);
-    private final FolderPermissionService svc = new FolderPermissionService(aclMapper, userMapper, deptMapper);
+    private final BizFileFolderMapper folderMapper = mock(BizFileFolderMapper.class);
+    private final BizFileMapper fileMapper = mock(BizFileMapper.class);
+    private final SysRoleMapper roleMapper = mock(SysRoleMapper.class);
+    private final FolderPermissionService svc = new FolderPermissionService(aclMapper, folderMapper, fileMapper, userMapper, deptMapper, roleMapper);
 
     @Test
     void admin_hasAllPermissions() {
@@ -203,11 +207,10 @@ class FolderPermissionServiceTest {
     @Test
     void owner_hasFullPermissions() {
         BizFileFolder folder = new BizFileFolder(); folder.setId(100L); folder.setOwnerId(42L);
-        SysUser owner = new SysUser(); owner.setId(42L);
-        when(userMapper.selectById(42L)).thenReturn(owner);
+        when(folderMapper.selectById(100L)).thenReturn(folder);
         try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
             m.when(SecurityUtils::isAdmin).thenReturn(false);
-            assertTrue(svc.check(100L, FolderPermissionService.P_EDIT, 42L)); // 用反射注入 folder 查询或调整签名
+            assertTrue(svc.check(100L, FolderPermissionService.P_EDIT, 42L));
         }
     }
 
@@ -238,15 +241,17 @@ class FolderPermissionServiceTest {
         BizFileFolder folder = new BizFileFolder(); folder.setId(100L); folder.setOwnerId(99L); folder.setFolderType("private");
         BizFolderAcl acl = new BizFolderAcl();
         acl.setFolderId(100L); acl.setRoleId(3L); acl.setPerms("view,upload");
-        when(userMapper.selectById(42L)).thenReturn(aUser(42L));
+        SysRole role = new SysRole(); role.setId(3L); role.setRoleCode("sales");
+        when(folderMapper.selectById(100L)).thenReturn(folder);
         when(aclMapper.selectList(any())).thenReturn(List.of(acl));
+        when(roleMapper.selectById(3L)).thenReturn(role);
         try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
             m.when(SecurityUtils::isAdmin).thenReturn(false);
-            // 42 用户角色=3，且当前用户即 folder.ownerId 判断为假时 → ACL 生效
+            m.when(SecurityUtils::getCurrentRoleCodes).thenReturn(List.of("sales")); // 用户角色含 sales → ACL 生效
             assertTrue(svc.check(100L, FolderPermissionService.P_UPLOAD, 42L));
         }
     }
-    // 辅助: 构造带角色 id 的用户（实现时按 SysUser/角色解析方式补全）
+    // 辅助: 构造用户
 
     private SysUser aUser(Long id) { SysUser u = new SysUser(); u.setId(id); return u; }
 }
@@ -298,6 +303,7 @@ public class FolderPermissionService {
     private final BizFileMapper fileMapper;
     private final SysUserMapper userMapper;
     private final SysDeptMapper deptMapper;
+    private final SysRoleMapper roleMapper;
 
     /** 文件夹权限判定：管理员>本人>直属上级>ACL角色>公共仅查看 */
     public boolean check(Long folderId, String action, Long userId) {
@@ -372,13 +378,15 @@ public class FolderPermissionService {
     }
 
     private boolean userHasRole(Long userId, Long roleId) {
-        // 用户角色通过 SecurityUtils 当前用户或 userMapper 查询（实现时按项目 SysUserRole 关系补齐）
-        return SecurityUtils.getCurrentUserRoles().contains(roleId);
+        // SecurityUser 只携带 roleCodes（角色 code），ACL 存 roleId → 解析 roleId 为 code 后比对
+        SysRole role = roleMapper.selectById(roleId);
+        if (role == null || role.getRoleCode() == null) return false;
+        return SecurityUtils.getCurrentRoleCodes().contains(role.getRoleCode());
     }
 }
 ```
 
-> 说明：`userHasRole` 依赖 `SecurityUtils` 暴露当前用户角色 ID 集合（若不存在则新增 `getCurrentUserRoles()` 或在 Service 内注入 `SysUserRoleMapper` 查询——实现时按项目实际选择，测试用 MockedStatic 覆盖）。
+> 说明：`userHasRole` 通过 `SysRoleMapper` 把 ACL 的 roleId 解析为 roleCode，与 `SecurityUtils.getCurrentRoleCodes()`（已有）比对；不新增 SecurityUtils 方法。测试中 `aclRole_grantsConfiguredPermission` 需 mock `roleMapper.selectById(3L)` 返回 roleCode="sales" 且 MockedStatic `getCurrentRoleCodes()` 返回含 "sales"。
 
 - [ ] **Step 4: 运行测试至通过**
 
