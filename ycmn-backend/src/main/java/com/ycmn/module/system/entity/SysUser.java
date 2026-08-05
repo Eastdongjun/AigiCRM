@@ -3,6 +3,7 @@ package com.ycmn.module.system.entity;
 import com.baomidou.mybatisplus.annotation.*;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.Data;
+import com.baomidou.mybatisplus.annotation.FieldStrategy;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
@@ -22,7 +23,12 @@ public class SysUser {
     private Long officeId;
     private Long orgId;
     private Long managerId;
-    /** 用户级数据范围覆盖（空/NULL=跟随角色默认；取值见 DataScopeType.code） */
+    /**
+     * 用户级数据范围覆盖（空/NULL=跟随角色默认；取值见 DataScopeType.code）
+     * updateStrategy=ALWAYS：updateById 时 null 也进入 SET 子句，
+     * 保证"清空=跟随角色"能真正回写 NULL，而非 NOT_NULL 默认策略下被跳过残留旧值
+     */
+    @TableField(updateStrategy = FieldStrategy.ALWAYS)
     private String dataScopeOverride;
     private Integer leaveStatus;
     private LocalDate leaveDate;

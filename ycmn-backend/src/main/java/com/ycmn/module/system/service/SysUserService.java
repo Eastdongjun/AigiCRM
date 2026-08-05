@@ -30,6 +30,18 @@ import org.springframework.util.StringUtils;
 @RequiredArgsConstructor
 public class SysUserService {
 
+    /** 用户级数据范围合法取值（DataScopeType 七大主码；不含 @Deprecated 的 org/org_and_children） */
+    private static final java.util.Set<String> VALID_DATA_SCOPES = java.util.Set.of(
+            "self", "team", "dept", "office", "region", "all", "custom");
+
+    /** 校验数据范围覆盖取值：空=跟随角色合法；非空必须在合法集合内，否则拒绝 */
+    private static void validateDataScopeOverride(String override) {
+        if (StringUtils.hasText(override) && !VALID_DATA_SCOPES.contains(override)) {
+            throw new BusinessException("数据范围取值非法: " + override);
+        }
+    }
+
+
     private final SysUserMapper userMapper;
     private final SysUserRoleMapper userRoleMapper;
     private final PasswordEncoder passwordEncoder;
@@ -63,6 +75,7 @@ public class SysUserService {
         if (!StringUtils.hasText(user.getPhone())) {
             throw new BusinessException("手机号不能为空");
         }
+        validateDataScopeOverride(user.getDataScopeOverride());
         // 检查用户名唯一性
         Long count = userMapper.selectCount(
                 new LambdaQueryWrapper<SysUser>().eq(SysUser::getUsername, user.getUsername()).eq(SysUser::getDeleted, 0)
@@ -97,6 +110,7 @@ public class SysUserService {
     public void update(SysUser user) {
         SysUser existing = userMapper.selectById(user.getId());
         if (existing == null) throw new BusinessException("用户不存在");
+        validateDataScopeOverride(user.getDataScopeOverride());
 
         existing.setRealName(user.getRealName());
         existing.setPhone(user.getPhone());
