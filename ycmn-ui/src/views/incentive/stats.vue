@@ -111,28 +111,35 @@
         <span class="matrix-title">{{ period || '全部周期' }} 团队激励统计</span>
         <span class="rank-count">{{ scoreboard.length }}人</span>
       </div>
-      <el-table :data="scoreboard" style="width:100%" empty-text="暂无数据" border :header-cell-style="{ background: '#f5f7fa', color: '#1f2329', fontWeight: 600 }">
-        <el-table-column label="序号" width="64" align="center" fixed>
+      <el-table :data="scoreboard" style="width:100%" empty-text="暂无数据" class="rank-matrix"
+        :header-cell-style="{ background: '#f7f9fc', color: '#1f2329', fontWeight: 600, borderBottom: '1px solid #e8ebf0' }"
+        :row-style="{ height: '46px' }">
+        <el-table-column label="序号" width="60" align="center" fixed>
           <template #default="{ row }">
             <span v-if="row.rank <= 3" class="medal">{{ ['🥇','🥈','🥉'][row.rank - 1] }}</span>
             <span v-else class="rank-num">{{ row.rank }}</span>
           </template>
         </el-table-column>
-        <el-table-column prop="realName" label="姓名" width="96" fixed />
-        <template v-for="parent in rankParents" :key="'p' + parent.id">
-          <el-table-column :label="parent.categoryName" align="center">
-            <el-table-column v-for="child in parent.children" :key="child.id" :label="child.categoryName" width="88" align="center">
+        <el-table-column prop="realName" label="姓名" width="92" fixed>
+          <template #default="{ row }">
+            <span :class="row.rank <= 3 ? 'name-top' : 'name-cell'">{{ row.realName }}</span>
+          </template>
+        </el-table-column>
+        <template v-for="(parent, pi) in rankParents" :key="'p' + parent.id">
+          <el-table-column :label="parent.categoryName" align="center" :class-name="'cat-group cat-group-' + (pi % 4)">
+            <el-table-column v-for="child in parent.children" :key="child.id" :label="child.categoryName" width="72" align="center">
               <template #default="{ row }">
-                <span :class="(row.byCategory?.[child.id] || 0) > 0 ? 'cell-active' : 'cell-zero'">{{ row.byCategory?.[child.id] || 0 }}</span>
+                <span v-if="(row.byCategory?.[child.id] || 0) > 0" class="cell-pill">{{ row.byCategory[child.id] }}</span>
+                <span v-else class="cell-dash">—</span>
               </template>
             </el-table-column>
           </el-table-column>
         </template>
-        <el-table-column label="上传数" width="84" align="center" fixed="right">
-          <template #default="{ row }">{{ row.recordCount || 0 }}</template>
+        <el-table-column label="上传数" width="76" align="center" fixed="right">
+          <template #default="{ row }"><span class="num-cell">{{ row.recordCount || 0 }}</span></template>
         </el-table-column>
-        <el-table-column label="总学分" width="92" align="center" fixed="right">
-          <template #default="{ row }"><strong class="score-active">{{ row.totalScore }}</strong></template>
+        <el-table-column label="总学分" width="86" align="center" fixed="right">
+          <template #default="{ row }"><strong class="score-total">{{ row.totalScore }}</strong></template>
         </el-table-column>
       </el-table>
     </div>
@@ -338,10 +345,32 @@ onMounted(loadData)
 .score-zero { color: #c0c4cc; }
 .stage-active { color: #10b981; font-weight: 600; }
 .stage-zero { color: #c0c4cc; }
-/* 个人排行矩阵（模板风格） */
+/* 个人排行矩阵（模板风格，版面优化） */
 .matrix-title { font-size: 16px; font-weight: 700; color: #1f2329; }
-.cell-active { color: #10b981; font-weight: 600; }
-.cell-zero { color: #c0c4cc; }
+.rank-matrix.el-table { --el-table-border-color: #eceff3; --el-table-header-bg-color: #f7f9fc; }
+.rank-matrix .el-table__row:hover > td { background: #f5f9ff !important; }
+.rank-matrix .el-table__body td { padding: 6px 0; }
+.name-cell { font-weight: 500; color: #1f2329; }
+.name-top { font-weight: 700; color: #1f2329; }
+.cat-group { }
+.cat-group-0 .el-table__header th { background: rgba(64,158,255,.06) !important; }
+.cat-group-1 .el-table__header th { background: rgba(249,115,22,.05) !important; }
+.cat-group-2 .el-table__header th { background: rgba(139,92,246,.05) !important; }
+.cat-group-3 .el-table__header th { background: rgba(16,185,129,.05) !important; }
+.cell-pill {
+  display: inline-block;
+  min-width: 26px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  background: rgba(16,185,129,.12);
+  color: #0d9e6e;
+  font-weight: 700;
+  font-size: 13px;
+  text-align: center;
+}
+.cell-dash { color: #cdd2d9; }
+.num-cell { color: #5f6672; font-weight: 500; }
+.score-total { color: #409eff; font-size: 14px; }
 
 /* 合计行 */
 .total-row { background: #fafafa; }
