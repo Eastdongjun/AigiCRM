@@ -42,6 +42,11 @@ public class SysLogService {
 
     private LambdaQueryWrapper<SysLog> buildBase(String module, String startDate, String endDate) {
         LambdaQueryWrapper<SysLog> w = new LambdaQueryWrapper<>();
+        // 数据范围：非管理员只看自己的操作日志（管理员/总监看全部）
+        if (!SecurityUtils.isAdmin()) {
+            String me = SecurityUtils.getCurrentUsername();
+            if (me != null) w.eq(SysLog::getUsername, me);
+        }
         if (module != null && !module.isEmpty()) w.eq(SysLog::getModule, module);
         if (startDate != null && !startDate.isEmpty())
             w.ge(SysLog::getCreatedAt, java.time.LocalDate.parse(startDate).atStartOfDay());
