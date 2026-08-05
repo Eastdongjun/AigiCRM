@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.ycmn.common.annotation.DataScope;
 import com.ycmn.common.engine.PermissionRuleEngine.RuleResult;
 import com.ycmn.common.enums.DataScopeType;
+import com.ycmn.common.scope.OrgScopeResolver;
 import com.ycmn.module.system.entity.SysRoleOrg;
 import com.ycmn.module.system.mapper.SysOrgMapper;
 import com.ycmn.module.system.mapper.SysRoleOrgMapper;
@@ -37,6 +38,7 @@ public class DataScopeAspect {
 
     private final SysOrgMapper orgMapper;
     private final SysRoleOrgMapper roleOrgMapper;
+    private final OrgScopeResolver resolver;
 
     @Pointcut("@annotation(com.ycmn.common.annotation.DataScope)")
     public void dataScopePointcut() {
@@ -97,9 +99,22 @@ public class DataScopeAspect {
             case CUSTOM -> applyCustomScope(wrapper, user, orgField);
             case ORG_AND_CHILDREN -> applyOrgChildrenScope(wrapper, user, orgField, true);
             case ORG -> applyOrgScope(wrapper, user, orgField);
+            // 新六级码（team/office/region/dept）：统一经 OrgScopeResolver 取可见 userIds
+            // （多角色并集在 resolver 内自动生效）；null=all 不过滤（本集团）
+            case REGION, OFFICE, DEPT, TEAM -> applyResolverScope(wrapper, user, annotation);
             case SELF -> applySelfScope(wrapper, user, annotation);
-            default -> {}
+            // fail-closed：未匹配范围一律仅本人，禁止无过滤放行（修复 default→{} 泄漏面）
+            default -> applySelfScope(wrapper, user, annotation);
         }
+    }
+
+    /** 新六级码：resolver 可见 userIds → user_id IN (…)（null=all 不过滤） */
+    private void applyResolverScope(QueryWrapper<Object> wrapper, SecurityUser user, DataScope annotation) {
+        List<Long> visible = resolver.resolve(user);
+        if (visible == null) return; // all：本集团不过滤
+        String userField = annotation.userAlias().isEmpty()
+                ? "user_id" : annotation.userAlias() + ".user_id";
+        wrapper.in(userField, visible);
     }
 
     /** 自定义：查 sys_role_org 矩阵 */

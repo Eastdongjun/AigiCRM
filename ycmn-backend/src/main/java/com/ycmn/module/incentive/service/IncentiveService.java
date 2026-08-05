@@ -39,6 +39,7 @@ public class IncentiveService {
     private final SysDeptMapper deptMapper;
     private final SysOrgMapper orgMapper;
     private final JdbcTemplate jdbc;
+    private final com.ycmn.common.scope.OrgScopeResolver scopeResolver;
 
     /** 查询用户是否有编辑权限（admin 始终有权限；多角色任一含 admin 即真） */
     public boolean canEdit(Long userId) {
@@ -543,8 +544,12 @@ public class IncentiveService {
             return Map.of("type", "all");
         }
 
-        // 获取数据范围内的用户ID
+        // 获取数据范围内的用户ID（null=范围覆盖全集团，无限制）
         Set<Long> visibleUserIds = getDataScopeUserIds();
+        if (visibleUserIds == null) {
+            // all 级范围（非 admin/无激励授权）：本集团全部数据
+            return Map.of("type", "all");
+        }
 
         // 获取分享给我的客户ID
         Set<Long> sharedCustomerIds = new HashSet<>();
@@ -589,9 +594,20 @@ public class IncentiveService {
                 deptIds.add(deptId);
                 userIds.addAll(getUserIdsByDeptIds(deptIds));
                 break;
+            // 新六级码（team/office/region/dept/all/custom）：统一路由 OrgScopeResolver
+            // （设计 §4.2；dept=本部门含子部门；多角色并集在 resolver 内生效）；
+            // null=all → 返回 null 表示全集团无限制
+            case "team":
+            case "office":
+            case "region":
             case "dept":
-                userIds.addAll(getUserIdsByDeptIds(List.of(deptId)));
+            case "all":
+            case "custom": {
+                List<Long> visible = scopeResolver.resolve(SecurityUtils.getCurrentUser());
+                if (visible == null) return null;
+                userIds.addAll(visible);
                 break;
+            }
         }
         return userIds;
     }

@@ -39,7 +39,8 @@ class IncentiveScoreTest {
                 mock(BizCustomerShareMapper.class),
                 mock(SysDeptMapper.class),
                 mock(SysOrgMapper.class),
-                mock(JdbcTemplate.class));
+                mock(JdbcTemplate.class),
+                mock(com.ycmn.common.scope.OrgScopeResolver.class));
     }
 
     private int calcScore(IncentiveService service, BizIncentiveRecord record,
@@ -152,7 +153,8 @@ class IncentiveScoreTest {
                 mock(BizCustomerShareMapper.class),
                 mock(SysDeptMapper.class),
                 mock(SysOrgMapper.class),
-                jdbc);
+                jdbc,
+                mock(com.ycmn.common.scope.OrgScopeResolver.class));
         assertTrue(service.canEdit(5L));
         // can_delete 表无记录 → false（biz_incentive_permission 按 user_id 查询语义不变）
         assertFalse(service.canDelete(5L));
