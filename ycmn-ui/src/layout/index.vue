@@ -8,6 +8,10 @@
         <span v-show="!isCollapse" class="logo-text">{{ userStore.systemName }}</span>
       </div>
       <el-scrollbar>
+        <!-- 【修复 FEAT-20260804-DYNAMIC-MENU】侧边栏改为按后端 /api/auth/info 下发的 menus 树
+             （即"角色管理->菜单权限"里实际勾选的内容）动态渲染，不再是与权限完全脱节的硬编码结构。
+             menus 是两层：顶层(menuType=1)是分组标签，子节点(menuType=2)是可点击页面；
+             按钮权限点(menuType=3)和隐藏路由(visible=0)后端已经过滤掉，这里不用再处理。 -->
         <el-menu
           :default-active="$route.path"
           :collapse="isCollapse"
@@ -17,125 +21,16 @@
           active-text-color="#409eff"
           :collapse-transition="false"
         >
-          <!-- 首页 -->
-          <template v-if="hasPerm('dashboard:view')">
-            <div class="menu-group-label" v-show="!isCollapse">首页</div>
-            <el-menu-item index="/dashboard">
-              <el-icon><Monitor /></el-icon>
-              <template #title>工作台</template>
-            </el-menu-item>
-          </template>
-
-          <!-- 业务核心 -->
-          <div class="menu-group-label" v-if="!isCollapse && (hasPerm('customer:view')||hasPerm('incentive:view')||hasPerm('sea:view')||hasPerm('file:view')||hasPerm('approval:view')||hasPerm('reminder:view'))">业务核心</div>
-          <el-sub-menu v-if="hasPerm('customer:view')" index="customer-group">
-            <template #title>
-              <el-icon><User /></el-icon>
-              <span>客户管理</span>
-            </template>
-            <el-menu-item index="/customer">客户列表</el-menu-item>
-            <el-menu-item v-if="hasPerm('customer:add')" index="/customer/add">新增客户</el-menu-item>
-          </el-sub-menu>
-          <el-menu-item v-if="hasPerm('file:view')" index="/file">
-            <el-icon><Folder /></el-icon>
-            <template #title>文件管理</template>
-          </el-menu-item>
-
-          <el-sub-menu v-if="hasPerm('incentive:view')" index="incentive-group">
-            <template #title>
-              <el-icon><Document /></el-icon>
-              <span>四项激励</span>
-            </template>
-            <el-menu-item index="/incentive">
-              <el-icon><Upload /></el-icon>
-              <span>激励上传</span>
-            </el-menu-item>
-            <el-menu-item index="/incentive/stats">
-              <el-icon><TrendCharts /></el-icon>
-              <span>激励统计</span>
-            </el-menu-item>
-            <el-menu-item index="/incentive/search">
-              <el-icon><Search /></el-icon>
-              <span>激励查询</span>
-            </el-menu-item>
-          </el-sub-menu>
-
-          <el-menu-item v-if="hasPerm('reminder:view')" index="/reminder">
-            <el-icon><Bell /></el-icon>
-            <template #title>
-              <span class="menu-title-row">
-                <span>提醒管理</span>
-                <span class="menu-count" v-if="userStore.badgeReminder > 0">{{ userStore.badgeReminder }}</span>
-              </span>
-            </template>
-          </el-menu-item>
-          <el-sub-menu v-if="hasPerm('sea:view')" index="sea-group">
-            <template #title>
-              <el-icon><Ship /></el-icon>
-              <span>公海管理</span>
-            </template>
-            <el-menu-item index="/sea">公海池</el-menu-item>
-            <el-menu-item index="/sea/records">捞取记录</el-menu-item>
-          </el-sub-menu>
-          <el-menu-item v-if="hasPerm('approval:view')" index="/approval">
-            <el-icon><CircleCheck /></el-icon>
-            <template #title>
-              <span class="menu-title-row">
-                <span>审批管理</span>
-                <span class="menu-count" v-if="userStore.badgeApproval > 0">{{ userStore.badgeApproval }}</span>
-              </span>
-            </template>
-          </el-menu-item>
-
-          <!-- 考核与分析 -->
-          <div class="menu-group-label" v-if="!isCollapse && (hasPerm('statistics:view')||hasPerm('statistics:scoreboard')||hasPerm('score:entry')||hasPerm('score:ranking'))">考核与分析</div>
-          <el-menu-item v-if="hasPerm('statistics:view')" index="/statistics">
-            <el-icon><TrendCharts /></el-icon>
-            <template #title>统计分析</template>
-          </el-menu-item>
-          <el-sub-menu index="score-group" v-if="hasPerm('score:entry')||hasPerm('score:ranking')">
-            <template #title>
-              <el-icon><Medal /></el-icon>
-              <span>学分管理</span>
-            </template>
-            <el-menu-item v-if="hasPerm('score:entry')" index="/score/entry">学分录入</el-menu-item>
-            <el-menu-item v-if="hasPerm('score:ranking')" index="/score/ranking">学分排行</el-menu-item>
-          </el-sub-menu>
-
-          <el-sub-menu index="indicator-group" v-if="hasPerm('statistics:view')">
-            <template #title>
-              <el-icon><Aim /></el-icon>
-              <span>核心客户六项指标</span>
-            </template>
-            <el-menu-item index="/indicator">统计总览</el-menu-item>
-          </el-sub-menu>
-
-          <!-- 系统管理（仅管理员可见） -->
-          <template v-if="hasPerm('system:user:view')">
-            <div class="menu-group-label" v-if="!isCollapse && (hasPerm('system:user:view')||hasPerm('system:dept:view')||hasPerm('system:role:view')||hasPerm('system:config:view')||hasPerm('system:log:view'))">系统管理</div>
-            <el-menu-item v-if="hasPerm('system:user:view')" index="/system/user">
-              <el-icon><UserFilled /></el-icon>
-              <template #title>人员管理</template>
-            </el-menu-item>
-            <el-menu-item v-if="hasPerm('system:role:view')" index="/system/role">
-              <el-icon><Key /></el-icon>
-              <template #title>角色管理</template>
-            </el-menu-item>
-            <el-menu-item v-if="hasPerm('system:position:view')" index="/system/position">
-              <el-icon><Avatar /></el-icon>
-              <template #title>岗位管理</template>
-            </el-menu-item>
-            <el-menu-item v-if="hasPerm('system:dept:view')" index="/system/org">
-              <el-icon><OfficeBuilding /></el-icon>
-              <template #title>组织架构</template>
-            </el-menu-item>
-            <el-menu-item v-if="hasPerm('system:config:view')" index="/system/config">
-              <el-icon><Tools /></el-icon>
-              <template #title>系统设置</template>
-            </el-menu-item>
-            <el-menu-item v-if="hasPerm('system:log:view')" index="/system/log">
-              <el-icon><Notebook /></el-icon>
-              <template #title>日志管理</template>
+          <template v-for="group in menuGroups" :key="group.id">
+            <div class="menu-group-label" v-show="!isCollapse">{{ group.menuName }}</div>
+            <el-menu-item v-for="item in group.children" :key="item.id" :index="item.path">
+              <el-icon v-if="item.icon"><component :is="item.icon" /></el-icon>
+              <template #title>
+                <span class="menu-title-row">
+                  <span>{{ item.menuName }}</span>
+                  <span class="menu-count" v-if="badgeFor(item.path)">{{ badgeFor(item.path) }}</span>
+                </span>
+              </template>
             </el-menu-item>
           </template>
         </el-menu>
@@ -209,18 +104,18 @@
 
       <!-- 内容区 -->
       <el-main class="main-content">
-        <router-view v-slot="{ Component }">
-          <transition name="fade" mode="out-in">
-            <component :is="Component" />
-          </transition>
-        </router-view>
+        <!-- 【修复 20260804 路由切换卡死】原 <transition fade out-in> 包裹 router-view，
+             从激励上传页(含 el-dialog/teleport 子树)切出时过渡永不完成 → 新页面组件挂载但 DOM 永远空白
+             ("点击菜单没反应")，且任何 duration/超时配置都无法兜底。
+             修复：移除 transition 直接渲染（无切换动画，功能优先）。 -->
+        <router-view />
       </el-main>
     </el-container>
   </el-container>
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, onBeforeUnmount } from 'vue'
+import { ref, reactive, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage, ElNotification } from 'element-plus'
 import { useUserStore } from '@/store/user'
@@ -229,6 +124,20 @@ import { changePassword } from '@/api/system'
 const router = useRouter()
 const route = useRoute()
 const userStore = useUserStore()
+
+// 【修复 FEAT-20260804-DYNAMIC-MENU】把后端下发的两层 menus 树整理成"分组+可点击页面"，
+// 过滤掉没有任何可见子页面的空分组（比如角色没被授权该分组下任何页面时）
+const menuGroups = computed(() => {
+  return (userStore.menus || [])
+    .map(group => ({ ...group, children: (group.children || []).filter(c => c.menuType === 2 && c.path) }))
+    .filter(group => group.children.length > 0)
+})
+// 提醒/审批两个菜单项的角标数量走独立的未读计数接口，不属于菜单树本身的数据
+const badgeFor = (path) => {
+  if (path === '/reminder') return userStore.badgeReminder > 0 ? userStore.badgeReminder : 0
+  if (path === '/approval') return userStore.badgeApproval > 0 ? userStore.badgeApproval : 0
+  return 0
+}
 
 // 无工作台权限时的兜底落地页(按菜单顺序取首个有权限的页面)
 const firstAccessiblePath = () => {

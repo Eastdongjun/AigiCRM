@@ -229,8 +229,22 @@ public class SysUserService {
     }
 
     private int transferAllCustomers(Long fromUserId, Long toUserId) {
+        // 【修复 FEAT-20260804-SHARE-CLEANUP】转移前先取出即将转移的客户ID，转移后清理这些客户的
+        // 分享记录——此前只把 shared_by_user_id 改成新负责人，没有清理 shared_to_user_id 指向的
+        // 第三方，导致客户批量转移负责人后，原来被分享查看的同事仍长期保留访问权限。
+        List<Long> customerIds = customerMapper.selectList(
+                new LambdaQueryWrapper<BizCustomer>()
+                        .select(BizCustomer::getId)
+                        .eq(BizCustomer::getOwnerId, fromUserId)
+                        .eq(BizCustomer::getDeleted, 0))
+                .stream().map(BizCustomer::getId).toList();
+
         int c = jdbc.update("UPDATE biz_customer SET owner_id=? WHERE owner_id=? AND deleted=0", toUserId, fromUserId);
         jdbc.update("UPDATE biz_customer_share SET shared_by_user_id=? WHERE shared_by_user_id=?", toUserId, fromUserId);
+        if (!customerIds.isEmpty()) {
+            shareMapper.delete(new LambdaQueryWrapper<BizCustomerShare>()
+                    .in(BizCustomerShare::getCustomerId, customerIds));
+        }
         jdbc.update("UPDATE biz_incentive_record SET user_id=? WHERE user_id=?", toUserId, fromUserId);
         return c;
     }

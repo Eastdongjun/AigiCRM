@@ -151,6 +151,10 @@ public class SeaService {
         customer.setStatus("sea");
         customer.setProtectionStatus("expired");
         customerMapper.updateById(customer);
+
+        // 【修复 FEAT-20260804-SHARE-CLEANUP】客户进入公海即失去原负责人归属，此前不清理
+        // biz_customer_share，导致原来被分享查看的同事在客户易主后仍长期保留访问权限。
+        customerService.removeAllShares(customerId);
     }
 
     /**
@@ -198,6 +202,10 @@ public class SeaService {
             customer.setExpireDate(LocalDate.now().plusDays(360));
             customer.setAdjustDate(LocalDate.now().plusDays(180));
             customerMapper.updateById(customer);
+
+            // 【修复 FEAT-20260804-SHARE-CLEANUP】客户被捞取后归属新负责人，清理原有分享记录，
+            // 避免原负责人分享出去的同事在客户易主后仍长期保留访问权限
+            customerService.removeAllShares(customerId);
         }
     }
 

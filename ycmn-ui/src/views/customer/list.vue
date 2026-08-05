@@ -48,7 +48,7 @@
       <!-- 表格 -->
       <el-table :data="filteredList" stripe :default-sort="{ prop: 'customerCode', order: 'descending' }"
         @row-click="viewDetail" :row-style="{ cursor: 'pointer' }" style="width:100%">
-        <el-table-column type="index" width="50" label="#" sortable />
+        <el-table-column type="index" width="50" label="#" sortable :index="(i) => (page - 1) * pageSize + i + 1" />
         <el-table-column v-if="vis('customerCode')" prop="customerCode" label="编号" min-width="140" sortable />
         <el-table-column v-if="vis('customerName')" prop="customerName" label="客户全称" min-width="220" sortable />
         <el-table-column v-if="vis('invoiceName')" prop="invoiceName" label="开票名称" width="130" show-overflow-tooltip sortable />        <el-table-column v-if="vis('groupName')" prop="groupName" label="集团" width="100" show-overflow-tooltip sortable />

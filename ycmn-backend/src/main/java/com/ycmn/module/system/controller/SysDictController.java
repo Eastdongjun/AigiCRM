@@ -48,15 +48,22 @@ public class SysDictController {
     }
 
     // ===== 字典数据 =====
+    // 【修复 FEAT-20260804-DICT-READ-SCOPE】listData/listDataByTypeId 是给普通业务表单(新增客户/
+    // 四项激励/学分录入/公海等 7+ 个页面)读字典下拉选项用的，此前要求 system:config:view——这是"系统
+    // 设置"模块的权限，销售员/行政等非管理岗角色只要没被额外补授权(通过菜单99这个 workaround)就会在打开
+    // 新增客户等页面时,组件里 getDictData() 静默 403,但全局响应拦截器仍会弹出"没有访问权限,请联系管理
+    // 员授权"的提示——这正是本次收到的生产报错。读字典值本质和读部门列表(system:depts,isAuthenticated
+    // 即可)一样,是任何已登录用户都该能读的基础参考数据,不应该绑定管理员专属权限。改为仅要求登录态;
+    // 字典类型/数据的增删改仍保持 system:config:view/edit 管理员权限不变。
 
     @GetMapping("/data/{dictCode}")
-    @PreAuthorize("hasAuthority('system:config:view')")
+    @PreAuthorize("isAuthenticated()")
     public Result<List<SysDictData>> listData(@PathVariable String dictCode) {
         return Result.ok(dictService.listDataByCode(dictCode));
     }
 
     @GetMapping("/data/type/{typeId}")
-    @PreAuthorize("hasAuthority('system:config:view')")
+    @PreAuthorize("isAuthenticated()")
     public Result<List<SysDictData>> listDataByTypeId(@PathVariable Long typeId) {
         return Result.ok(dictService.listDataByTypeId(typeId));
     }

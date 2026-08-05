@@ -75,11 +75,11 @@
             <div v-for="f in getFiles(c.records[0]).slice(0,4)" :key="f.id" class="card-img">
               <template v-if="f.type==='image'">
                 <div class="img-wrap">
-                  <img :src="fileUrl(f.id)" @click="preview(f.id, f.type)" @error="onImgError" />
+                  <img :src="fileUrl(f.id)" @click="preview(f.id, f.type, f.label)" @error="onImgError" />
                   <div v-if="f.tag" class="img-tag">{{ f.tag }}</div>
                 </div>
               </template>
-              <div v-else-if="f.type==='video'" class="img-vid" @click="preview(f.id, f.type)">
+              <div v-else-if="f.type==='video'" class="img-vid" @click="preview(f.id, f.type, f.label)">
                 <div class="vid-overlay"><el-icon :size="28"><VideoPlay /></el-icon></div>
                 <div v-if="f.tag" class="img-tag">{{ f.tag }}</div>
               </div>
@@ -153,10 +153,10 @@
                 <div v-for="f in getFiles(r)" :key="f.id" class="dtl-file">
                   <template v-if="f.type==='image'">
                     <div class="dtl-img-wrap">
-                      <img :src="fileUrl(f.id)" @click="preview(f.id, f.type)" @error="onImgError" />
+                      <img :src="fileUrl(f.id)" @click="preview(f.id, f.type, f.label)" @error="onImgError" />
                       <div v-if="f.tag" class="dtl-file-tag">{{ f.tag }}</div>
                       <div class="dtl-file-acts">
-                        <el-button size="small" circle type="primary" @click.stop="preview(f.id, f.type)"><el-icon><ZoomIn /></el-icon></el-button>
+                        <el-button size="small" circle type="primary" @click.stop="preview(f.id, f.type, f.label)"><el-icon><ZoomIn /></el-icon></el-button>
                         <el-button size="small" circle @click.stop="downloadFile(f.id, f.label)"><el-icon><Download /></el-icon></el-button>
                       </div>
                     </div>
@@ -196,7 +196,7 @@ const fCustomer=ref(''),fSales=ref(''),fIndustry=ref(''),fDevType=ref(''),fDateR
 const fProdCat=ref(''),fProdSub=ref('')
 const productCats={ '涂层类':['防腐','加固','钢结构','煤气管道','其他'], '防滑板类':['公共区','装置区'], '机封类':['水泵','渣泵','介质泵'], '密封类':['静密封','动密封','橡胶密封'], '润滑类':['润滑油','润滑脂','润滑剂'] }
 const productCatKeys=Object.keys(productCats)
-const custs=ref([]),catMap=ref({}),previewVisible=ref(false),previewUrl=ref(''),previewType=ref('image'),previewId=ref(null)
+const custs=ref([]),catMap=ref({}),previewVisible=ref(false),previewUrl=ref(''),previewType=ref('image'),previewId=ref(null),previewName=ref('')
 const detailVisible=ref(false),detailCust=ref(null)
 const industries=['冶金','煤矿','化工','电力','有色金属','机械','工程公司','维修厂','其他终端客户']
 const devTypes=['成熟创新','突破开拓','铺垫宣传']
@@ -207,7 +207,7 @@ function onImgError(e){e.target.src='data:image/svg+xml,'+encodeURIComponent('<s
 // 取客户记录中最新一条（排序已按品类，不与时间线顺序绑定）
 function latestRecord(c){let best=null;for(const r of (c?.records||[])){if(!best||String(r.createdAt||'')>String(best.createdAt||''))best=r}return best}
 function fileUrl(id){return'/api/file/download/'+id+'?token='+(getToken()||'')}
-function preview(id,type){previewUrl.value=fileUrl(id);previewType.value=type==='video'?'video':'image';previewVisible.value=true}
+function preview(id,type,name){previewUrl.value=fileUrl(id);previewType.value=type==='video'?'video':'image';previewVisible.value=true;previewName.value=name||''}
 // 【需求】文件下载(FEAT 0804):window.open 下载在新标签闪开/被拦截时表现为"没反应";
 // 改为 fetch blob + a.download 强制保存,任何浏览器/任何状态下可靠触发
 async function downloadFile(id, name) {

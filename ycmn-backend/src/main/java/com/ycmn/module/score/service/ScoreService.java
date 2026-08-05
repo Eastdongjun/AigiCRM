@@ -119,27 +119,64 @@ public class ScoreService {
     public void batchSave(String period, List<Map<String, Object>> entries, List<Long> participantIds) {
         Long scorerId = SecurityUtils.getCurrentUserId();
 
-        // 原生SQL物理删除（绕过MyBatis-Plus全局逻辑删除）
-        entryMapper.physicalDeleteByPeriod(period);
+        // 【修复 FEAT-20260804-SCORE-DATA-LOSS】此前会整体物理删除该周期所有分数记录、再按前端
+        // 当前可见的同事名单重新插入。一旦管理员把某同事临时移出可见列表后保存，该同事本期已录入的
+        // 历史分数会被永久删除且不可恢复；两个管理员并发编辑不同子集时也会互相覆盖对方的保存。
+        // 改为增量 upsert：只处理"当前参与名单"范围内的记录，名单外（被移出可见列表）的同事历史
+        // 数据保持不动；名单内但本次提交未包含分数的单元格（被显式清空）才删除对应记录。
+        Set<Long> participantSet = new HashSet<>();
+        if (participantIds != null) {
+            for (Long uid : participantIds) if (uid != null) participantSet.add(uid);
+        }
 
-        // 批量插入新数据
+        Map<String, Integer> submitted = new LinkedHashMap<>();
         for (Map<String, Object> e : entries) {
             Long itemId = toLong(e.get("itemId"));
             Long userId = toLong(e.get("userId"));
             Integer score = toInt(e.get("score"));
             if (itemId == null || userId == null) continue;
-
-            BizScoreEntry entry = new BizScoreEntry();
-            entry.setPeriod(period);
-            entry.setItemId(itemId);
-            entry.setUserId(userId);
-            entry.setScore(score != null ? score : 0);
-            entry.setScorerId(scorerId);
-            entry.setDeleted(0);
-            entryMapper.insert(entry);
+            submitted.put(itemId + "_" + userId, score != null ? score : 0);
         }
 
-        // 持久化该周期参与同事名单（保证下次打开列数量/顺序一致）
+        List<BizScoreEntry> existingEntries = entryMapper.selectList(
+                new LambdaQueryWrapper<BizScoreEntry>().eq(BizScoreEntry::getPeriod, period));
+        Map<String, BizScoreEntry> existingMap = new HashMap<>();
+        for (BizScoreEntry ex : existingEntries) {
+            existingMap.put(ex.getItemId() + "_" + ex.getUserId(), ex);
+        }
+
+        // 1) upsert 本次提交的分数
+        for (Map.Entry<String, Integer> se : submitted.entrySet()) {
+            String[] parts = se.getKey().split("_");
+            Long itemId = Long.parseLong(parts[0]);
+            Long userId = Long.parseLong(parts[1]);
+            BizScoreEntry existing = existingMap.get(se.getKey());
+            if (existing != null) {
+                existing.setScore(se.getValue());
+                existing.setScorerId(scorerId);
+                entryMapper.updateById(existing);
+            } else {
+                BizScoreEntry entry = new BizScoreEntry();
+                entry.setPeriod(period);
+                entry.setItemId(itemId);
+                entry.setUserId(userId);
+                entry.setScore(se.getValue());
+                entry.setScorerId(scorerId);
+                entry.setDeleted(0);
+                entryMapper.insert(entry);
+            }
+        }
+
+        // 2) 参与名单内、本次提交未包含（即被显式清空）的记录 → 删除该条；
+        //    不在参与名单内（被移出可见列表）的同事历史记录保持不动
+        for (BizScoreEntry ex : existingEntries) {
+            String key = ex.getItemId() + "_" + ex.getUserId();
+            if (participantSet.contains(ex.getUserId()) && !submitted.containsKey(key)) {
+                entryMapper.deleteById(ex.getId());
+            }
+        }
+
+        // 持久化该周期参与同事名单（仅用于列显示顺序，不再联动删除分数记录）
         participantMapper.physicalDeleteByPeriod(period);
         if (participantIds != null) {
             int sort = 0;

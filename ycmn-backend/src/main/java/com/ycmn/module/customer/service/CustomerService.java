@@ -554,6 +554,18 @@ public class CustomerService {
         return list;
     }
 
+    /**
+     * 获取当前用户数据范围内的有效客户（未删除、非公海）
+     * 【修复 FEAT-20260804-INDICATOR-SCOPE】供 StatisticsQueryService 等跨模块聚合报表复用，
+     * 避免各处各自直接 selectList(null) 绕过数据范围导致全公司数据越权可见
+     */
+    public List<BizCustomer> getScopedActiveCustomers() {
+        LambdaQueryWrapper<BizCustomer> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(BizCustomer::getDeleted, 0).ne(BizCustomer::getStatus, "sea");
+        applyDataScope(wrapper);
+        return customerMapper.selectList(wrapper);
+    }
+
     public Map<String, Object> getStatistics() {
         LambdaQueryWrapper<BizCustomer> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(BizCustomer::getDeleted, 0).ne(BizCustomer::getStatus, "sea");
@@ -595,33 +607,34 @@ public class CustomerService {
         String dataScope = SecurityUtils.getCurrentDataScope();
         Long userId = SecurityUtils.getCurrentUserId();
         Long deptId = SecurityUtils.getCurrentDeptId();
-        Long orgId = SecurityUtils.getCurrentOrgId();
+        List<Long> managedOrgIds = SecurityUtils.getCurrentManagedOrgIds();
 
         switch (dataScope == null ? "self" : dataScope) {
             case "all":
                 break;
-            case "org_and_children":
-                List<Long> orgAndChildIds = getDescendantOrgIds(orgId);
-                orgAndChildIds.add(orgId);
-                List<Long> orgUserIds = getUserIdsByOrgIds(orgAndChildIds);
-                if (!orgUserIds.isEmpty()) {
-                    wrapper.in(BizCustomer::getOwnerId, orgUserIds);
-                } else {
-                    wrapper.eq(BizCustomer::getOwnerId, userId);
-                }
+            case "custom":
+                // 【修复 FEAT-20260804-ORG-DEPT-UNIFY】此前 switch 没有 custom 分支，落入 default
+                // 静默降级为"仅本人"，与详情页 CustomerAccessService 的 CUSTOM 判断不一致。
+                // custom = 角色在"组织矩阵"(sys_role_org)里勾选的组织，含组织管理员额外授权组织；
+                // sys_org 是 sys_dept 的兼容视图、ID 同一空间，直接按部门ID解析用户即可。
+                applyDeptIdScope(wrapper, managedOrgIds, userId);
                 break;
+            case "org_and_children":
             case "org":
-                if (orgId == null) {
-                    // org_id 未维护时降级为仅本人数据，避免 List.of(null) NPE
-                    wrapper.eq(BizCustomer::getOwnerId, userId);
-                    break;
+                // 【修复 FEAT-20260804-ORG-DEPT-UNIFY】org/org_and_children 此前依赖从未被任何代码
+                // 写入的 sys_user.org_id，恒定降级为"仅本人"。现统一改用部门体系解析（org 与 dept
+                // 本就同一 ID 空间），org_and_children 额外并入组织管理员的额外授权组织，
+                // 顺带修复"组织管理员被授权的组织在客户列表主查询中被忽略"的问题。
+                List<Long> orgScopeIds = new ArrayList<>();
+                if ("org_and_children".equals(dataScope)) {
+                    List<Long> deptAndChildIds = getDescendantDeptIds(deptId);
+                    if (deptId != null) deptAndChildIds.add(deptId);
+                    orgScopeIds.addAll(deptAndChildIds);
+                } else if (deptId != null) {
+                    orgScopeIds.add(deptId);
                 }
-                List<Long> orgOnlyUserIds = getUserIdsByOrgIds(List.of(orgId));
-                if (!orgOnlyUserIds.isEmpty()) {
-                    wrapper.in(BizCustomer::getOwnerId, orgOnlyUserIds);
-                } else {
-                    wrapper.eq(BizCustomer::getOwnerId, userId);
-                }
+                orgScopeIds.addAll(managedOrgIds);
+                applyDeptIdScope(wrapper, orgScopeIds, userId);
                 break;
             case "dept_and_children":
                 List<Long> deptIds = getDescendantDeptIds(deptId);
@@ -667,25 +680,76 @@ public class CustomerService {
         }
     }
 
-    /** 递归获取所有下级组织ID */
-        private List<Long> getDescendantOrgIds(Long parentId) {
-        try {
-            return orgMapper.selectDescendantIds(parentId);
-        } catch (Exception e) {
-            return new java.util.ArrayList<>();
+    /**
+     * 按部门ID列表解析可见用户并应用到查询条件（custom/org/org_and_children 共用）
+     * 【修复 FEAT-20260804-ORG-DEPT-UNIFY】org 体系统一改用部门体系解析，见 applyDataScope 说明
+     */
+    private void applyDeptIdScope(LambdaQueryWrapper<BizCustomer> wrapper, List<Long> deptIds, Long userId) {
+        if (deptIds == null || deptIds.isEmpty()) {
+            wrapper.eq(BizCustomer::getOwnerId, userId);
+            return;
+        }
+        List<Long> scopedUserIds = getUserIdsByDeptIds(deptIds);
+        if (!scopedUserIds.isEmpty()) {
+            wrapper.in(BizCustomer::getOwnerId, scopedUserIds);
+        } else {
+            wrapper.eq(BizCustomer::getOwnerId, userId);
         }
     }
 
-    /** 获取指定组织列表中所有用户的ID */
-    private List<Long> getUserIdsByOrgIds(List<Long> orgIds) {
-        if (orgIds.isEmpty()) return new java.util.ArrayList<>();
-        List<SysUser> users = userMapper.selectList(
-                new LambdaQueryWrapper<SysUser>()
-                        .in(SysUser::getOrgId, orgIds)
-                        .eq(SysUser::getStatus, 1)
-                        .eq(SysUser::getDeleted, 0));
-        return users.stream().map(SysUser::getId).collect(java.util.stream.Collectors.toList());
+    /**
+     * 解析当前用户按数据范围可见的用户 ID 集合；返回 null 表示全部可见（all 范围）
+     * 【用途】统计/报表等跨实体查询复用与 applyDataScope 同一口径（self/dept/dept_and_children/org/custom）
+     * 【修复 FEAT-20260804-DICT-DEPT-READ】经营分析/日报周报此前全量查询，销售员可见全公司数据
+     */
+    public List<Long> getCurrentScopeUserIds() {
+        String dataScope = SecurityUtils.getCurrentDataScope();
+        Long userId = SecurityUtils.getCurrentUserId();
+        Long deptId = SecurityUtils.getCurrentDeptId();
+        List<Long> managedOrgIds = SecurityUtils.getCurrentManagedOrgIds();
+
+        switch (dataScope == null ? "self" : dataScope) {
+            case "all":
+                return null;
+            case "custom":
+                if (managedOrgIds == null || managedOrgIds.isEmpty()) return List.of(userId);
+                return applyDeptScopeUserIds(managedOrgIds, userId);
+            case "org_and_children":
+            case "org": {
+                List<Long> orgScopeIds = new ArrayList<>();
+                if ("org_and_children".equals(dataScope)) {
+                    List<Long> deptAndChildIds = getDescendantDeptIds(deptId);
+                    if (deptId != null) deptAndChildIds.add(deptId);
+                    orgScopeIds.addAll(deptAndChildIds);
+                } else if (deptId != null) {
+                    orgScopeIds.add(deptId);
+                }
+                orgScopeIds.addAll(managedOrgIds);
+                if (orgScopeIds.isEmpty()) return List.of(userId);
+                return applyDeptScopeUserIds(orgScopeIds, userId);
+            }
+            case "dept_and_children": {
+                List<Long> deptIds = getDescendantDeptIds(deptId);
+                deptIds.add(deptId);
+                List<Long> userIds = getUserIdsByDeptIds(deptIds);
+                return userIds.isEmpty() ? List.of(userId) : userIds;
+            }
+            case "dept":
+                if (deptId == null) return List.of(userId);
+                {
+                    List<Long> userIds = getUserIdsByDeptIds(List.of(deptId));
+                    return userIds.isEmpty() ? List.of(userId) : userIds;
+                }
+            default:
+                return List.of(userId);
+        }
     }
+
+    private List<Long> applyDeptScopeUserIds(List<Long> deptIds, Long userId) {
+        List<Long> scopedUserIds = getUserIdsByDeptIds(deptIds);
+        return scopedUserIds.isEmpty() ? List.of(userId) : scopedUserIds;
+    }
+
     /**
      * 递归获取所有下级部门ID
      */

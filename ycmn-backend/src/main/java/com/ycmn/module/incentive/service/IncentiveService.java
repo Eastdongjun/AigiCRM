@@ -85,7 +85,50 @@ public class IncentiveService {
                         .eq(BizIncentiveCategory::getStatus, 1)
                         .orderByAsc(BizIncentiveCategory::getSortOrder)
         );
-        return buildTree(all, 0L);
+        List<BizIncentiveCategory> tree = buildTree(all, 0L);
+        fillRecordCounts(tree, all);
+        return tree;
+    }
+
+    /**
+     * 分类角标统计：按当前账号权限可见范围（admin/有激励编辑删除授权 → 全量；
+     * 否则 resolver 可见集合 U），每个分类含子分类聚合。
+     */
+    private void fillRecordCounts(List<BizIncentiveCategory> tree, List<BizIncentiveCategory> all) {
+        com.ycmn.security.SecurityUser user = SecurityUtils.getCurrentUser();
+        if (user == null || all.isEmpty()) return;
+        boolean canSeeAll = SecurityUtils.isAdmin()
+                || canEdit(user.getUserId()) || canDelete(user.getUserId());
+        List<Long> visible = canSeeAll ? null : scopeResolver.resolve(user);
+
+        java.util.Map<Long, Long> countByCat = recordMapper.selectList(
+                        new LambdaQueryWrapper<BizIncentiveRecord>()
+                                .select(BizIncentiveRecord::getCategoryId)
+                                .in(visible != null && !visible.isEmpty(), BizIncentiveRecord::getUserId, visible))
+                .stream()
+                .filter(r -> r.getCategoryId() != null)
+                .collect(java.util.stream.Collectors.groupingBy(BizIncentiveRecord::getCategoryId,
+                        java.util.stream.Collectors.counting()));
+
+        java.util.Map<Long, BizIncentiveCategory> byId = all.stream()
+                .collect(java.util.stream.Collectors.toMap(BizIncentiveCategory::getId, c -> c));
+        for (BizIncentiveCategory cat : all) {
+            long total = countByCat.getOrDefault(cat.getId(), 0L);
+            total += countDescendants(cat.getId(), byId, countByCat);
+            cat.setRecordCount((int) total);
+        }
+    }
+
+    private long countDescendants(Long parentId, java.util.Map<Long, BizIncentiveCategory> byId,
+                                  java.util.Map<Long, Long> countByCat) {
+        long sum = 0;
+        for (BizIncentiveCategory c : byId.values()) {
+            if (java.util.Objects.equals(c.getParentId(), parentId)) {
+                sum += countByCat.getOrDefault(c.getId(), 0L);
+                sum += countDescendants(c.getId(), byId, countByCat);
+            }
+        }
+        return sum;
     }
 
     /**
@@ -571,7 +614,7 @@ public class IncentiveService {
         String dataScope = SecurityUtils.getCurrentDataScope();
         Long userId = SecurityUtils.getCurrentUserId();
         Long deptId = SecurityUtils.getCurrentDeptId();
-        Long orgId = SecurityUtils.getCurrentOrgId();
+        List<Long> managedOrgIds = SecurityUtils.getCurrentManagedOrgIds();
 
         Set<Long> userIds = new HashSet<>();
         userIds.add(userId); // 始终包含自己
@@ -581,28 +624,38 @@ public class IncentiveService {
         }
 
         switch (dataScope) {
+            case "custom":
+                // 【修复 FEAT-20260804-ORG-DEPT-UNIFY】此前 switch 没有 custom 分支，静默降级为
+                // "仅本人"。custom = 角色组织矩阵(sys_role_org)勾选的组织，与 CustomerService 保持一致。
+                userIds.addAll(getUserIdsByDeptIds(managedOrgIds));
+                break;
             case "org_and_children":
-                List<Long> orgAndChildIds = getDescendantOrgIds(orgId);
-                orgAndChildIds.add(orgId);
-                userIds.addAll(getUserIdsByOrgIds(orgAndChildIds));
+                // 【修复 FEAT-20260804-ORG-DEPT-UNIFY】org 体系统一改用部门体系解析（sys_user.org_id
+                // 从未被写入，此前恒定降级为仅本人）；org/dept 同一 ID 空间，并入组织管理员额外授权组织。
+                List<Long> orgAndChildIds = deptId != null ? getDescendantDeptIds(deptId) : new ArrayList<>();
+                if (deptId != null) orgAndChildIds.add(deptId);
+                orgAndChildIds.addAll(managedOrgIds);
+                userIds.addAll(getUserIdsByDeptIds(orgAndChildIds));
                 break;
             case "org":
-                userIds.addAll(getUserIdsByOrgIds(List.of(orgId)));
+                List<Long> orgIds = new ArrayList<>();
+                if (deptId != null) orgIds.add(deptId);
+                orgIds.addAll(managedOrgIds);
+                userIds.addAll(getUserIdsByDeptIds(orgIds));
                 break;
             case "dept_and_children":
                 List<Long> deptIds = getDescendantDeptIds(deptId);
                 deptIds.add(deptId);
                 userIds.addAll(getUserIdsByDeptIds(deptIds));
                 break;
-            // 新六级码（team/office/region/dept/all/custom）：统一路由 OrgScopeResolver
+            // 新六级码（team/office/region/dept/all）：统一路由 OrgScopeResolver
             // （设计 §4.2；dept=本部门含子部门；多角色并集在 resolver 内生效）；
-            // null=all → 返回 null 表示全集团无限制
+            // null=all → 返回 null 表示全集团无限制；custom 由上方既有 case 处理
             case "team":
             case "office":
             case "region":
             case "dept":
-            case "all":
-            case "custom": {
+            case "all": {
                 List<Long> visible = scopeResolver.resolve(SecurityUtils.getCurrentUser());
                 if (visible == null) return null;
                 userIds.addAll(visible);
@@ -610,21 +663,6 @@ public class IncentiveService {
             }
         }
         return userIds;
-    }
-
-    /** 递归获取所有下级组织ID */
-    private List<Long> getDescendantOrgIds(Long parentId) {
-        return orgMapper.selectDescendantIds(parentId);
-    }
-
-    /** 获取指定组织列表中所有活跃用户的ID */
-    private Set<Long> getUserIdsByOrgIds(List<Long> orgIds) {
-        if (orgIds.isEmpty()) return new HashSet<>();
-        return userMapper.selectList(new LambdaQueryWrapper<SysUser>()
-                .in(SysUser::getOrgId, orgIds)
-                .eq(SysUser::getStatus, 1)
-                .eq(SysUser::getDeleted, 0))
-            .stream().map(SysUser::getId).collect(Collectors.toSet());
     }
 
     /** 递归获取所有下级部门ID */

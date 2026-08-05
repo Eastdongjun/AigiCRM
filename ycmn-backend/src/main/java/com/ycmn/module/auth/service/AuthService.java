@@ -130,9 +130,18 @@ public class AuthService {
         return response;
     }
 
+    /**
+     * 【修复 FEAT-20260804-DYNAMIC-MENU】构建下发给前端渲染侧边栏的菜单树。
+     * selectMenusByUserId 返回的是该用户角色在 sys_role_menu 里勾选的全部菜单行，
+     * 其中包含 menu_type=3 的按钮权限点（只用于 selectPermissionsByUserId 生成权限字符串，
+     * 不应作为可点击的导航节点）以及 visible=0 的隐藏路由（如客户详情页）。
+     * 这里过滤掉这两类，只把"目录(1)/菜单(2)"且 visible=1 的节点组成树返回给前端。
+     */
     private List<SysMenu> buildMenuTree(List<SysMenu> menus, Long parentId) {
         return menus.stream()
                 .filter(m -> Objects.equals(m.getParentId(), parentId))
+                .filter(m -> m.getMenuType() != null && m.getMenuType() != 3)
+                .filter(m -> m.getVisible() == null || m.getVisible() == 1)
                 .peek(m -> m.setChildren(buildMenuTree(menus, m.getId())))
                 .sorted(Comparator.comparingInt(m -> m.getSortOrder() != null ? m.getSortOrder() : 0))
                 .collect(Collectors.toList());

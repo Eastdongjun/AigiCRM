@@ -16,14 +16,19 @@ public class SysDeptController {
 
     private final SysDeptService deptService;
 
+    // 【修复 FEAT-20260804-DICT-DEPT-READ】list/tree 是给普通业务表单(新增客户等页面)读
+    // 部门树(大区/办事处下拉)用的，此前要求 system:dept:view——"系统管理"模块权限，销售员/行政等
+    // 非管理岗角色未勾选时打开新增客户页即 403 弹"没有访问权限"。部门树是基础参考数据，与字典
+    // (system:dict) 同口径，改为仅要求登录态；部门增删改仍保持 system:dept:edit 管理员权限不变。
+
     @GetMapping("/tree")
-    @PreAuthorize("hasAuthority('system:dept:view')")
+    @PreAuthorize("isAuthenticated()")
     public Result<List<SysDept>> tree() {
         return Result.ok(deptService.tree());
     }
 
     @GetMapping
-    @PreAuthorize("hasAuthority('system:dept:view')")
+    @PreAuthorize("isAuthenticated()")
     public Result<List<SysDept>> list() {
         return Result.ok(deptService.list());
     }

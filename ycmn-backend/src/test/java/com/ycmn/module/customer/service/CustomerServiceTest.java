@@ -17,14 +17,15 @@ import com.ycmn.module.customer.mapper.BizContactMapper;
 import com.ycmn.module.customer.mapper.BizInvoiceMapper;
 import com.ycmn.module.customer.mapper.BizPaymentMapper;
 import com.ycmn.module.reminder.mapper.BizReminderMapper;
+import com.ycmn.module.system.entity.SysDept;
+import com.ycmn.module.system.entity.SysUser;
 import com.ycmn.module.system.mapper.SysDeptMapper;
 import com.ycmn.module.system.mapper.SysOrgMapper;
 import com.ycmn.module.system.mapper.SysUserMapper;
 import com.ycmn.module.system.service.SysConfigService;
 import com.ycmn.security.SecurityUser;
 import com.ycmn.security.SecurityUtils;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.BeforeAll;import org.junit.jupiter.api.Test;
 import org.mockito.MockedStatic;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -36,16 +37,14 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertNull;import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.verify;import static org.mockito.Mockito.when;
 
 class CustomerServiceTest {
 
@@ -201,6 +200,75 @@ class CustomerServiceTest {
 
             // 旧分支走 org 树查询；断言完全不调用 resolver
             verify(resolver, never()).resolve(any());
+
+    // ===== 数据范围解析（FEAT-20260804-DICT-DEPT-READ 统计复用） =====
+
+    private CustomerService newScopedService(SysUserMapper userMapper, SysDeptMapper deptMapper) {
+        return new CustomerService(
+                mock(BizCustomerMapper.class),
+                mock(BizCustomerLogMapper.class),
+                mock(BizInvoiceMapper.class),
+                mock(BizCustomerShareMapper.class),
+                mock(BizCustomerIndicatorMapper.class),
+                mock(BizContactMapper.class),
+                mock(BizPaymentMapper.class),
+                userMapper,
+                mock(SysOrgMapper.class),
+                deptMapper,
+                mock(BizReminderMapper.class),
+                mock(JdbcTemplate.class),
+                mock(SysConfigService.class));
+    }
+
+    @Test
+    void getCurrentScopeUserIds_self_returnsOnlyOwnId() {
+        try (MockedStatic<SecurityUtils> mocked = mockStatic(SecurityUtils.class)) {
+            mocked.when(SecurityUtils::getCurrentDataScope).thenReturn("self");
+            mocked.when(SecurityUtils::getCurrentUserId).thenReturn(42L);
+            CustomerService svc = newScopedService(mock(SysUserMapper.class), mock(SysDeptMapper.class));
+            assertEquals(List.of(42L), svc.getCurrentScopeUserIds());
+        }
+    }
+
+    @Test
+    void getCurrentScopeUserIds_nullScope_defaultsToSelf() {
+        try (MockedStatic<SecurityUtils> mocked = mockStatic(SecurityUtils.class)) {
+            mocked.when(SecurityUtils::getCurrentDataScope).thenReturn(null);
+            mocked.when(SecurityUtils::getCurrentUserId).thenReturn(42L);
+            CustomerService svc = newScopedService(mock(SysUserMapper.class), mock(SysDeptMapper.class));
+            assertEquals(List.of(42L), svc.getCurrentScopeUserIds());
+        }
+    }
+
+    @Test
+    void getCurrentScopeUserIds_all_returnsNull() {
+        try (MockedStatic<SecurityUtils> mocked = mockStatic(SecurityUtils.class)) {
+            mocked.when(SecurityUtils::getCurrentDataScope).thenReturn("all");
+            CustomerService svc = newScopedService(mock(SysUserMapper.class), mock(SysDeptMapper.class));
+            assertNull(svc.getCurrentScopeUserIds());
+        }
+    }
+
+    @Test
+    void getCurrentScopeUserIds_deptAndChildren_returnsDeptAndDescendantUsers() {
+        SysDept dept2 = new SysDept(); dept2.setId(2L); dept2.setParentId(0L); dept2.setStatus(1);
+        SysDept dept4 = new SysDept(); dept4.setId(4L); dept4.setParentId(2L); dept4.setStatus(1);
+        SysDept dept9 = new SysDept(); dept9.setId(9L); dept9.setParentId(4L); dept9.setStatus(1);
+        SysUser user10 = new SysUser(); user10.setId(10L); user10.setDeptId(4L);
+        SysUser user11 = new SysUser(); user11.setId(11L); user11.setDeptId(9L);
+
+        SysDeptMapper deptMapper = mock(SysDeptMapper.class);
+        when(deptMapper.selectList(any())).thenReturn(List.of(dept2, dept4, dept9));
+        SysUserMapper userMapper = mock(SysUserMapper.class);
+        when(userMapper.selectList(any())).thenReturn(List.of(user10, user11));
+
+        try (MockedStatic<SecurityUtils> mocked = mockStatic(SecurityUtils.class)) {
+            mocked.when(SecurityUtils::getCurrentDataScope).thenReturn("dept_and_children");
+            mocked.when(SecurityUtils::getCurrentUserId).thenReturn(42L);
+            mocked.when(SecurityUtils::getCurrentDeptId).thenReturn(2L);
+            CustomerService svc = newScopedService(userMapper, deptMapper);
+            // 部门 2 及子部门 4/9 下的用户 10/11（含自身部门 2 下的用户）
+            assertEquals(List.of(10L, 11L), svc.getCurrentScopeUserIds());
         }
     }
 }

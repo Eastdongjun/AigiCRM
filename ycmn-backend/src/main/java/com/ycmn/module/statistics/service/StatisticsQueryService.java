@@ -120,6 +120,7 @@ public class StatisticsQueryService {
             LambdaQueryWrapper<BizFile> fw = new LambdaQueryWrapper<>();
             fw.ge(BizFile::getCreatedAt, cursor.atStartOfDay())
               .lt(BizFile::getCreatedAt, cursor.plusDays(1).atStartOfDay());
+            applyFileScope(fw);
             long count = fileMapper.selectCount(fw);
             Map<String, Object> item = new HashMap<>();
             item.put("day", cursor.getDayOfMonth());
@@ -153,6 +154,7 @@ public class StatisticsQueryService {
             LambdaQueryWrapper<BizFile> fw = new LambdaQueryWrapper<>();
             fw.ge(BizFile::getCreatedAt, start.atStartOfDay())
               .lt(BizFile::getCreatedAt, end.plusDays(1).atStartOfDay());
+            applyFileScope(fw);
             long count = fileMapper.selectCount(fw);
             Map<String, Object> item = new HashMap<>();
             item.put("label", isCurrent ? "本周" : "W" + wn);
@@ -176,8 +178,11 @@ public class StatisticsQueryService {
         Map<String, Object> data = new HashMap<>();
 
         List<BizCustomerIndicator> indicators = indicatorMapper.selectList(null);
-        List<BizCustomer> allCustomers = customerMapper.selectList(
-                new LambdaQueryWrapper<BizCustomer>().eq(BizCustomer::getDeleted, 0).ne(BizCustomer::getStatus, "sea"));
+        // 【修复 FEAT-20260804-INDICATOR-SCOPE】此前直接全表查询客户，个人/部门/大区排行会把全公司
+        // 数据都暴露给任何有 statistics:view 权限的用户，与顶部卡片(myCustomers/myIndicators)的
+        // 数据范围口径不一致。改为复用 CustomerService 的数据范围过滤，下面 ownerScores/officeAgg
+        // 的聚合循环本身已经通过 customerMap.get(...)==null 跳过范围外客户，这里收窄源头即可。
+        List<BizCustomer> allCustomers = customerService.getScopedActiveCustomers();
         Map<Long, BizCustomer> customerMap = new HashMap<>();
         for (BizCustomer c : allCustomers) customerMap.put(c.getId(), c);
 
@@ -242,13 +247,23 @@ public class StatisticsQueryService {
         Set<Long> allOwnerIds = new HashSet<>(ownerCustomerCounts.keySet());
         allOwnerIds.addAll(ownerScores.keySet());
 
+        // 【修复 FEAT-20260804-INDICATOR-N1】批量预取用户和部门，避免循环内逐条 selectById
+        Map<Long, SysUser> userById = allOwnerIds.isEmpty() ? Map.of()
+                : userMapper.selectBatchIds(allOwnerIds).stream()
+                        .collect(java.util.stream.Collectors.toMap(SysUser::getId, u -> u));
+        Set<Long> deptIdsNeeded = new HashSet<>();
+        for (SysUser u : userById.values()) if (u.getDeptId() != null) deptIdsNeeded.add(u.getDeptId());
+        Map<Long, SysDept> deptById = deptIdsNeeded.isEmpty() ? Map.of()
+                : deptMapper.selectBatchIds(deptIdsNeeded).stream()
+                        .collect(java.util.stream.Collectors.toMap(SysDept::getId, d -> d));
+
         List<Map<String, Object>> personalRanking = new ArrayList<>();
         for (Long uid : allOwnerIds) {
-            SysUser user = userMapper.selectById(uid);
+            SysUser user = userById.get(uid);
             if (user == null) continue;
             String deptName = "";
             if (user.getDeptId() != null) {
-                var dept = deptMapper.selectById(user.getDeptId());
+                var dept = deptById.get(user.getDeptId());
                 if (dept != null) deptName = dept.getDeptName();
             }
             List<int[]> scores = ownerScores.getOrDefault(uid, List.of());
@@ -300,13 +315,20 @@ public class StatisticsQueryService {
         deptRanking.sort((a, b) -> Integer.compare(((Number) b.get("totalScore")).intValue(), ((Number) a.get("totalScore")).intValue()));
         data.put("deptRanking", deptRanking);
 
+        // 批量预取办事处，避免循环内逐条 selectById
+        Set<Long> officeIdsNeeded = new HashSet<>();
+        for (BizCustomer c : allCustomers) if (c.getOfficeId() != null) officeIdsNeeded.add(c.getOfficeId());
+        Map<Long, SysDept> officeById = officeIdsNeeded.isEmpty() ? Map.of()
+                : deptMapper.selectBatchIds(officeIdsNeeded).stream()
+                        .collect(java.util.stream.Collectors.toMap(SysDept::getId, d -> d));
+
         Map<String, int[]> officeAgg = new LinkedHashMap<>();
         for (BizCustomerIndicator ind : indicators) {
             BizCustomer c = customerMap.get(ind.getCustomerId());
             if (c == null) continue;
             String officeName = "";
             if (c.getOfficeId() != null) {
-                var dept = deptMapper.selectById(c.getOfficeId());
+                var dept = officeById.get(c.getOfficeId());
                 if (dept != null) officeName = dept.getDeptName();
             }
             int s = safe(ind.getIndicator02()) + safe(ind.getIndicator03()) + safe(ind.getIndicator04())
@@ -351,6 +373,7 @@ public class StatisticsQueryService {
             cw.eq(BizCustomer::getDeleted, 0).ne(BizCustomer::getStatus, "sea")
               .ge(BizCustomer::getCreatedAt, from).lt(BizCustomer::getCreatedAt, to);
             if (officeId != null) cw.eq(BizCustomer::getOfficeId, officeId);
+            applyCustomerScope(cw);
             monthlyCustomers[m - 1] = customerMapper.selectCount(cw).intValue();
         }
         data.put("monthlyCustomers", monthlyCustomers);
@@ -361,6 +384,7 @@ public class StatisticsQueryService {
             LocalDateTime to = (m < 12) ? LocalDateTime.of(year, m + 1, 1, 0, 0) : LocalDateTime.of(year + 1, 1, 1, 0, 0);
             LambdaQueryWrapper<BizFile> fw = new LambdaQueryWrapper<>();
             fw.ge(BizFile::getCreatedAt, from).lt(BizFile::getCreatedAt, to);
+            applyFileScope(fw);
             monthlyFiles[m - 1] = fileMapper.selectCount(fw).intValue();
         }
         data.put("monthlyFiles", monthlyFiles);
@@ -374,18 +398,21 @@ public class StatisticsQueryService {
             LambdaQueryWrapper<BizCustomer> w = new LambdaQueryWrapper<>();
             w.eq(BizCustomer::getDeleted, 0).ne(BizCustomer::getStatus, "sea")
              .eq(BizCustomer::getOfficeId, dept.getId());
+            applyCustomerScope(w);
             long total = customerMapper.selectCount(w);
             if (total == 0) continue;
 
             LambdaQueryWrapper<BizCustomer> aw = new LambdaQueryWrapper<>();
             aw.eq(BizCustomer::getDeleted, 0).eq(BizCustomer::getProtectionStatus, "active")
               .eq(BizCustomer::getOfficeId, dept.getId());
+            applyCustomerScope(aw);
             long active = customerMapper.selectCount(aw);
 
             LambdaQueryWrapper<BizCustomer> nw = new LambdaQueryWrapper<>();
             nw.eq(BizCustomer::getDeleted, 0).ne(BizCustomer::getStatus, "sea")
               .eq(BizCustomer::getOfficeId, dept.getId())
               .ge(BizCustomer::getCreatedAt, monthStart);
+            applyCustomerScope(nw);
             long monthNew = customerMapper.selectCount(nw);
 
             int[] recent5 = new int[5];
@@ -397,6 +424,7 @@ public class StatisticsQueryService {
                 rw.eq(BizCustomer::getDeleted, 0).ne(BizCustomer::getStatus, "sea")
                   .eq(BizCustomer::getOfficeId, dept.getId())
                   .ge(BizCustomer::getCreatedAt, mf).lt(BizCustomer::getCreatedAt, mt);
+                applyCustomerScope(rw);
                 recent5[4 - i] = customerMapper.selectCount(rw).intValue();
             }
 
@@ -415,24 +443,28 @@ public class StatisticsQueryService {
         LambdaQueryWrapper<BizCustomer> baseW = new LambdaQueryWrapper<BizCustomer>()
                 .eq(BizCustomer::getDeleted, 0).ne(BizCustomer::getStatus, "sea");
         if (officeId != null) baseW.eq(BizCustomer::getOfficeId, officeId);
+        applyCustomerScope(baseW);
         long totalCustomers = customerMapper.selectCount(baseW);
 
         LambdaQueryWrapper<BizCustomer> protW = new LambdaQueryWrapper<BizCustomer>()
                 .eq(BizCustomer::getDeleted, 0).ne(BizCustomer::getStatus, "sea")
                 .eq(BizCustomer::getProtectionStatus, "active");
         if (officeId != null) protW.eq(BizCustomer::getOfficeId, officeId);
+        applyCustomerScope(protW);
         long inProtection = customerMapper.selectCount(protW);
 
         LambdaQueryWrapper<BizCustomer> expingW = new LambdaQueryWrapper<BizCustomer>()
                 .eq(BizCustomer::getDeleted, 0).ne(BizCustomer::getStatus, "sea")
                 .eq(BizCustomer::getProtectionStatus, "expiring");
         if (officeId != null) expingW.eq(BizCustomer::getOfficeId, officeId);
+        applyCustomerScope(expingW);
         long expiring = customerMapper.selectCount(expingW);
 
         LambdaQueryWrapper<BizCustomer> expW = new LambdaQueryWrapper<BizCustomer>()
                 .eq(BizCustomer::getDeleted, 0).ne(BizCustomer::getStatus, "sea")
                 .lt(BizCustomer::getExpireDate, today);
         if (officeId != null) expW.eq(BizCustomer::getOfficeId, officeId);
+        applyCustomerScope(expW);
         long expired = customerMapper.selectCount(expW);
 
         final int finalYear = year;
@@ -442,12 +474,14 @@ public class StatisticsQueryService {
                 .eq(BizCustomer::getDeleted, 0).ne(BizCustomer::getStatus, "sea")
                 .ge(BizCustomer::getCreatedAt, yearStart).lt(BizCustomer::getCreatedAt, yearEnd);
         if (officeId != null) newW.eq(BizCustomer::getOfficeId, officeId);
+        applyCustomerScope(newW);
         long yearNew = customerMapper.selectCount(newW);
 
         LambdaQueryWrapper<BizCustomer> indW = new LambdaQueryWrapper<BizCustomer>()
                 .eq(BizCustomer::getDeleted, 0).ne(BizCustomer::getStatus, "sea")
                 .isNotNull(BizCustomer::getIndustry);
         if (officeId != null) indW.eq(BizCustomer::getOfficeId, officeId);
+        applyCustomerScope(indW);
         List<BizCustomer> indCustomers = customerMapper.selectList(indW);
         Map<String, Long> industryStats = new LinkedHashMap<>();
         for (BizCustomer c : indCustomers) {
@@ -565,6 +599,23 @@ public class StatisticsQueryService {
         }
 
         return activities;
+    }
+
+    /**
+     * 对客户查询应用当前用户数据范围（ownerId IN 可见用户；getCurrentScopeUserIds 返回 null=全部）
+     * 【修复 FEAT-20260804-DICT-DEPT-READ】经营分析此前全量查询，销售员/行政可见全公司数据
+     */
+    private void applyCustomerScope(LambdaQueryWrapper<BizCustomer> wrapper) {
+        List<Long> userIds = customerService.getCurrentScopeUserIds();
+        if (userIds != null) wrapper.in(BizCustomer::getOwnerId, userIds);
+    }
+
+    /**
+     * 对文件查询应用当前用户数据范围（uploaderId IN 可见用户；null=全部）
+     */
+    private void applyFileScope(LambdaQueryWrapper<BizFile> wrapper) {
+        List<Long> userIds = customerService.getCurrentScopeUserIds();
+        if (userIds != null) wrapper.in(BizFile::getUploaderId, userIds);
     }
 
     private int safe(Integer v) { return v != null ? v : 0; }

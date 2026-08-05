@@ -21,4 +21,9 @@ public class BizIncentiveCategory {
 
     @TableField(exist = false)
     private List<BizIncentiveCategory> children;
+
+    /** 分类角标：当前账号权限可见范围内的记录数（含子分类聚合，前端 cat._recordCount 展示） */
+    @TableField(exist = false)
+    @com.fasterxml.jackson.annotation.JsonProperty("_recordCount")
+    private Integer recordCount;
 }
