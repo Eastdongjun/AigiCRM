@@ -41,10 +41,10 @@ public class OrgScopeResolver {
         switch (scope) {
             case "all": return null;
             case "custom": return resolveCustom(user, userId);
-            case "region": return resolveByAncestorType(user, userId, deptId, TYPE_REGION, true);
-            case "office": return resolveByAncestorType(user, userId, deptId, TYPE_OFFICE, false);
-            case "dept": return resolveDeptTree(user, userId, deptId, false);
-            case "team": return resolveTeam(user, userId);
+            case "region": return resolveByAncestorType(userId, deptId, TYPE_REGION);
+            case "office": return resolveByAncestorType(userId, deptId, TYPE_OFFICE);
+            case "dept": return resolveDeptTree(userId, deptId);
+            case "team": return resolveTeam(userId);
             case "self":
             default: return List.of(userId);
         }
@@ -67,14 +67,15 @@ public class OrgScopeResolver {
 
     // ---- 各级别实现 ----
 
-    private List<Long> resolveTeam(SecurityUser user, Long userId) {
+    private List<Long> resolveTeam(Long userId) {
         Set<Long> result = new LinkedHashSet<>();
         result.add(userId);
         List<Long> currentLevel = List.of(userId);
         for (int depth = 0; depth < TEAM_MAX_DEPTH && !currentLevel.isEmpty(); depth++) {
             List<Long> subs = userMapper.selectList(new LambdaQueryWrapper<SysUser>()
                             .in(SysUser::getManagerId, currentLevel)
-                            .eq(SysUser::getDeleted, 0))
+                            .eq(SysUser::getDeleted, 0)
+                            .eq(SysUser::getStatus, 1))
                     .stream().map(SysUser::getId).toList();
             List<Long> fresh = subs.stream().filter(id -> result.add(id)).toList();
             currentLevel = fresh;
@@ -82,7 +83,7 @@ public class OrgScopeResolver {
         return new ArrayList<>(result);
     }
 
-    private List<Long> resolveDeptTree(SecurityUser user, Long userId, Long deptId, boolean includeSelfTree) {
+    private List<Long> resolveDeptTree(Long userId, Long deptId) {
         if (deptId == null) return List.of(userId);
         Set<Long> deptIds = collectSubtree(deptId, null);
         List<Long> u = usersInDepts(deptIds);
@@ -90,14 +91,14 @@ public class OrgScopeResolver {
         return u;
     }
 
-    private List<Long> resolveByAncestorType(SecurityUser user, Long userId, Long deptId, int targetType, boolean fallbackToRoot) {
+    private List<Long> resolveByAncestorType(Long userId, Long deptId, int targetType) {
         if (deptId == null) return List.of(userId);
         Long anchor = findAncestorOfType(deptId, targetType);
         if (anchor == null) {
             // 无标记：office 退化 dept 树；region 退化集团根（沿祖先链到 parent 为 null 的根）
             return targetType == TYPE_OFFICE
-                    ? resolveDeptTree(user, userId, deptId, false)
-                    : resolveDeptTree(user, userId, findRoot(deptId), false);
+                    ? resolveDeptTree(userId, deptId)
+                    : resolveDeptTree(userId, findRoot(deptId));
         }
         Set<Long> deptIds = collectSubtree(anchor, null);
         List<Long> u = usersInDepts(deptIds);
@@ -109,7 +110,10 @@ public class OrgScopeResolver {
         List<Long> managed = user.getManagedOrgIds();
         if (managed == null || managed.isEmpty()) return List.of(userId);
         Set<Long> deptIds = new LinkedHashSet<>();
-        for (Long orgId : managed) deptIds.addAll(collectSubtree(orgId, null));
+        for (Long orgId : managed) {
+            if (orgId == null) continue; // 脏数据防御
+            deptIds.addAll(collectSubtree(orgId, null));
+        }
         List<Long> u = usersInDepts(deptIds);
         if (!u.contains(userId)) u.add(userId);
         return u;
