@@ -44,9 +44,10 @@ SELECT r.id, m.id FROM sys_role r CROSS JOIN sys_menu m
 WHERE m.permission IN ('customer:share','file:share','sea:export','sea:import')
   AND r.id IN (1,9,10);
 
--- 2.2 incentive:add 额外绑定销售员(11)（销售员可自行上传激励记录）
+-- 2.2 incentive:add 绑定 admin(1)/行政(9)/销售总监(10)/销售员(11)（设计文档 §3.2 矩阵对四角色全 ✅）
 INSERT IGNORE INTO sys_role_menu (role_id, menu_id)
-SELECT 11, m.id FROM sys_menu m WHERE m.permission='incentive:add';
+SELECT r.id, m.id FROM sys_role r CROSS JOIN sys_menu m
+WHERE m.permission='incentive:add' AND r.id IN (1,9,10,11);
 
 -- 3. 备份查询（务必在 DELETE 之前执行，记录 incentive:edit/incentive:delete 的现有绑定，供回滚使用）
 SELECT role_id, menu_id, permission
@@ -65,7 +66,7 @@ WHERE rm.role_id = 11 AND m.permission IN ('incentive:edit','incentive:delete');
 --    DELETE rm FROM sys_role_menu rm JOIN sys_menu m ON rm.menu_id=m.id
 --      WHERE m.permission IN ('customer:share','file:share','sea:export','sea:import','incentive:add');
 --    DELETE FROM sys_menu WHERE permission IN ('customer:share','file:share','sea:export','sea:import','incentive:add');
--- 2. 恢复销售员(11) 的 incentive:edit / incentive:delete 绑定（menu_id 以第 3 步备份查询结果为准）
+-- 2. 恢复销售员(11) 的 incentive:edit / incentive:delete 绑定（menu_id 按权限实时查询自动定位，无需手工填 id；第 3 步备份查询结果仅作核对参考）
 --    INSERT IGNORE INTO sys_role_menu (role_id, menu_id)
 --      SELECT 11, id FROM sys_menu WHERE permission IN ('incentive:edit','incentive:delete');
 -- ==================================================================
