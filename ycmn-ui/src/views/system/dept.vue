@@ -47,9 +47,14 @@
           <el-tree-select v-model="editForm.parentId" :data="deptTree" :props="{ label: 'deptName', value: 'id', children: 'children' }" check-strictly placeholder="根节点" style="width:100%" clearable />
         </el-form-item>
         <el-form-item label="部门名称"><el-input v-model="editForm.deptName" /></el-form-item>
-        <el-form-item label="类型">
+        <el-form-item label="集团归属" prop="groupId" required>
+          <el-select v-model="editForm.groupId" placeholder="选择所属集团" style="width:100%">
+            <el-option v-for="g in groupList" :key="g.id" :label="g.groupName" :value="g.id" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="组织类型" prop="deptType" required>
           <el-select v-model="editForm.deptType" style="width:100%">
-            <el-option label="总部" :value="1" />
+            <el-option label="公司/总部" :value="1" />
             <el-option label="大区" :value="2" />
             <el-option label="办事处" :value="3" />
             <el-option label="部门" :value="4" />
@@ -80,12 +85,13 @@
 import { ref, reactive, onMounted } from 'vue'
 import { Plus } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { getDeptTree, createDept, updateDept, deleteDept, getUserList } from '@/api/system'
+import { getDeptTree, createDept, updateDept, deleteDept, getUserList, getGroupList } from '@/api/system'
 
 const deptTree = ref([])
 const userList = ref([])
+const groupList = ref([])
 const dialogVisible = ref(false)
-const editForm = reactive({ id: null, parentId: 0, deptName: '', deptType: 3, deptCode: '', leaderId: null, sortOrder: 0 })
+const editForm = reactive({ id: null, parentId: 0, groupId: null, deptName: '', deptType: 1, deptCode: '', leaderId: null, sortOrder: 0 })
 
 const loadData = async () => {
   try {
@@ -96,14 +102,50 @@ const loadData = async () => {
 
 const openDialog = (row, parentId) => {
   if (row) {
-    Object.assign(editForm, { id: row.id, parentId: row.parentId, deptName: row.deptName, deptType: row.deptType, deptCode: row.deptCode || '', leaderId: row.leaderId, sortOrder: row.sortOrder })
+    Object.assign(editForm, { id: row.id, parentId: row.parentId, groupId: row.groupId ?? null, deptName: row.deptName, deptType: row.deptType, deptCode: row.deptCode || '', leaderId: row.leaderId, sortOrder: row.sortOrder })
   } else {
-    Object.assign(editForm, { id: null, parentId: parentId || 0, deptName: '', deptType: 3, deptCode: '', leaderId: null, sortOrder: 0 })
+    // 新建：按父节点类型预选下级类型（根节点默认为公司/总部）
+    const pid = parentId || 0
+    const parent = flattenTree(deptTree.value).find(n => n.id === pid)
+    const defaultType = parent ? (parent.deptType + 1) : 1
+    Object.assign(editForm, { id: null, parentId: pid, groupId: parent?.groupId ?? null, deptName: '', deptType: defaultType, deptCode: '', leaderId: null, sortOrder: 0 })
   }
   dialogVisible.value = true
 }
 
+// 组织层级校验：1=公司/总部 2=大区 3=办事处 4=部门；子级类型必须等于父级类型+1
+const typeRank = { 1: 0, 2: 1, 3: 2, 4: 3 }
+const flattenTree = (nodes, acc = []) => {
+  for (const n of nodes || []) {
+    acc.push(n)
+    if (n.children?.length) flattenTree(n.children, acc)
+  }
+  return acc
+}
+const validateDeptHierarchy = () => {
+  const pid = editForm.parentId
+  if (!pid) {
+    // 根节点必须是公司/总部
+    return editForm.deptType === 1
+  }
+  const parent = flattenTree(deptTree.value).find(n => n.id === pid)
+  if (!parent) return true // 父节点未找到（异常数据），交由后端处理
+  return (typeRank[editForm.deptType] ?? -1) === (typeRank[parent.deptType] ?? -1) + 1
+}
+
 const handleSave = async () => {
+  if (!editForm.deptType) {
+    ElMessage.warning('请选择组织类型')
+    return
+  }
+  if (!editForm.groupId) {
+    ElMessage.warning('请选择集团归属')
+    return
+  }
+  if (!validateDeptHierarchy()) {
+    ElMessage.warning('组织类型层级不合法：根节点须为公司/总部，大区须挂在公司/总部下，办事处须挂在大区下，部门须挂在办事处下')
+    return
+  }
   try {
     if (editForm.id) {
       await updateDept(editForm.id, editForm)
@@ -136,9 +178,17 @@ const loadUsers = async () => {
   } catch (e) {}
 }
 
+const loadGroups = async () => {
+  try {
+    const res = await getGroupList()
+    groupList.value = res.data || []
+  } catch (e) {}
+}
+
 onMounted(() => {
   loadData()
   loadUsers()
+  loadGroups()
 })
 </script>
 

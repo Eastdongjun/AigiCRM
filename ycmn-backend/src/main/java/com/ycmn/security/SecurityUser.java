@@ -25,6 +25,8 @@ public class SecurityUser implements UserDetails {
     private List<String> roleCodes = new ArrayList<>();
     private List<SysPosition> positions = new ArrayList<>();        // 用户所有岗位
     private String dataScope = DataScopeType.SELF.getCode();
+    /** 所有角色各自的 dataScope code（多角色并集解析用；单角色/空时走 dataScope 单值路径） */
+    private List<String> dataScopes = new ArrayList<>();
     private List<Long> managedOrgIds = new ArrayList<>();
 
     // 集团制扩展：从岗位关联的组织推导出的集团和法人公司归属

@@ -1,0 +1,6 @@
+# 测试环境租户开关：与主配置一致默认关闭（Task 12 迁移 tenant_id 列完成后开启）
+# 注意：本文件会遮蔽主 application.yml（test-classes 优先），当前测试套件均为纯单元测试
+# 不加载 Spring 上下文；如需 @SpringBootTest，请在此补齐测试所需的数据源等配置
+ycmn:
+  tenant:
+    enable: false

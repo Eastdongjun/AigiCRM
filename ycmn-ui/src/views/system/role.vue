@@ -12,7 +12,8 @@
         <el-table-column prop="description" label="描述" min-width="150" />
         <el-table-column label="数据范围" width="130" align="center">
           <template #default="{ row }">
-            <el-tag size="small" :type="{ all: 'danger', org_and_children: 'warning', org: '', dept_and_children: 'warning', dept: '', self: 'info' }[row.dataScope] || 'info'">
+            <el-tag size="small" :type="{ all: 'danger', custom: 'success', region: 'warning', office: 'warning', dept: 'warning', team: 'info', self: 'info' }[row.dataScope] || 'info'">
+              {{ scopeLabel(row.dataScope) }}
             </el-tag>
           </template>
         </el-table-column>
@@ -49,21 +50,15 @@
         </el-form-item>
 
         <el-divider content-position="left">权限设置</el-divider>
-        <el-form-item label="数据范围" required>
+        <el-form-item label="数据范围" prop="dataScope" required>
           <el-select v-model="editForm.dataScope" style="width:100%" placeholder="选择数据可见范围" @change="onScopeChange">
-            <el-option-group label="全局">
-              <el-option label="🌐 全部数据 — 不受任何限制" value="all" />
-            </el-option-group>
-            <el-option-group label="自定义">
-              <el-option label="⚙️ 自定义 — 按组织矩阵配置" value="custom" />
-            </el-option-group>
-            <el-option-group label="组织级">
-              <el-option label="🏢 本组织及下级 — 本公司+所有子公司/部门" value="org_and_children" />
-              <el-option label="🏢 仅本组织 — 仅本公司" value="org" />
-            </el-option-group>
-            <el-option-group label="个人">
-              <el-option label="👤 仅本人 — 只看自己的数据" value="self" />
-            </el-option-group>
+            <el-option label="仅本人" value="self" />
+            <el-option label="本人及下级" value="team" />
+            <el-option label="本部门及以下" value="dept" />
+            <el-option label="本办事处及以下" value="office" />
+            <el-option label="本大区及以下" value="region" />
+            <el-option label="全部数据(本集团)" value="all" />
+            <el-option label="自定义组织" value="custom" />
           </el-select>
         </el-form-item>
 
@@ -148,6 +143,10 @@ const saving = ref(false)
 const orgMatrix = reactive({})
 
 const editForm = reactive({ id: null, roleName: '', roleCode: '', description: '', dataScope: 'self', orgId: null, sortOrder: 0 })
+
+/** 数据范围中文标签映射（与后端 DataScopeType 六级范围一致） */
+const scopeMap = { self: '仅本人', team: '本人及下级', dept: '本部门及以下', office: '本办事处及以下', region: '本大区及以下', all: '全部', custom: '自定义' }
+const scopeLabel = s => scopeMap[s] || s || '仅本人'
 
 const loadData = async () => {
   try {

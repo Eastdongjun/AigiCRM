@@ -74,6 +74,14 @@ public class UserDetailsServiceImpl implements UserDetailsService {
                     .collect(Collectors.toList());
             securityUser.setRoleCodes(roleCodes);
 
+            // 多角色并集基础（设计 §4.2）：收集所有角色各自的 dataScope code，
+            // OrgScopeResolver 对 size>1 逐 code 解析后并集合并；dataScope 单值（min-rank）保留向后兼容
+            List<String> scopeCodes = roles.stream()
+                    .map(SysRole::getDataScope)
+                    .filter(Objects::nonNull)
+                    .collect(Collectors.toList());
+            securityUser.setDataScopes(scopeCodes);
+
             DataScopeType bestScope = roles.stream()
                     .map(r -> DataScopeType.fromCode(r.getDataScope()))
                     .min(Comparator.comparingInt(DataScopeType::rank))
@@ -92,6 +100,15 @@ public class UserDetailsServiceImpl implements UserDetailsService {
                 }
                 securityUser.setManagedOrgIds(customOrgIds);
             }
+        }
+
+        // ======================== 1b. 用户级数据范围覆盖（层2：用户级 > 角色级） ========================
+        // 仅覆盖 dataScope 字符串，不影响角色聚合的其他产物；空/未配置则跟随角色默认
+        // 覆盖存在时清空 dataScopes → OrgScopeResolver 走单值路径（用户级覆盖整体取代角色并集）
+        String override = user.getDataScopeOverride();
+        if (override != null && !override.isBlank()) {
+            securityUser.setDataScope(override);
+            securityUser.setDataScopes(new ArrayList<>());
         }
 
         // ======================== 2. 加载岗位（一人多岗） ========================
@@ -157,6 +174,12 @@ public class UserDetailsServiceImpl implements UserDetailsService {
                 DataScopeType currentScope = DataScopeType.fromCode(securityUser.getDataScope());
                 if (currentScope.rank() > DataScopeType.ORG_AND_CHILDREN.rank()) {
                     securityUser.setDataScope(DataScopeType.ORG_AND_CHILDREN.getCode());
+                    // 多角色并集路径同样生效：把升级后的 org_and_children 并入并集列表
+                    List<String> scopes = new ArrayList<>(securityUser.getDataScopes());
+                    if (!scopes.contains(DataScopeType.ORG_AND_CHILDREN.getCode())) {
+                        scopes.add(DataScopeType.ORG_AND_CHILDREN.getCode());
+                    }
+                    securityUser.setDataScopes(scopes);
                 }
             }
         } catch (Exception ignored) {}

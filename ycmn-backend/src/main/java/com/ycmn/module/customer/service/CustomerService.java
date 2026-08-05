@@ -51,6 +51,7 @@ public class CustomerService {
     private final BizReminderMapper reminderMapper;
     private final JdbcTemplate jdbc;
     private final SysConfigService configService;
+    private final com.ycmn.common.scope.OrgScopeResolver scopeResolver;
 
     public IPage<BizCustomer> page(int current, int size, String keyword, String industry,
                                     Long officeId, Long regionId, String status, Long ownerId) {
@@ -632,18 +633,20 @@ public class CustomerService {
                     wrapper.eq(BizCustomer::getOwnerId, userId);
                 }
                 break;
+            // 新六级码（team/office/region/dept/self/custom；dept=本部门含子部门，设计 §4.1）：
+            // 统一路由 OrgScopeResolver（设计 §4.2；多角色并集在 resolver 内生效）
+            case "team":
+            case "office":
+            case "region":
             case "dept":
-                if (deptId == null) {
-                    wrapper.eq(BizCustomer::getOwnerId, userId);
-                    break;
-                }
-                List<Long> sameDeptUserIds = getUserIdsByDeptIds(List.of(deptId));
-                if (!sameDeptUserIds.isEmpty()) {
-                    wrapper.in(BizCustomer::getOwnerId, sameDeptUserIds);
-                } else {
-                    wrapper.eq(BizCustomer::getOwnerId, userId);
+            case "self":
+            case "custom": {
+                List<Long> visible = scopeResolver.resolve(SecurityUtils.getCurrentUser());
+                if (visible != null) { // null=all：本集团不过滤
+                    wrapper.in(BizCustomer::getOwnerId, visible);
                 }
                 break;
+            }
             default:
                 wrapper.eq(BizCustomer::getOwnerId, userId);
                 break;

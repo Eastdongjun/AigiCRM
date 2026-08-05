@@ -51,7 +51,7 @@
               <span class="sub-name">{{ item.categoryName }}</span>
               <div class="sub-actions">
                 <span class="score-badge" :class="'score-' + Math.min(item.score, 3)">{{ item.score }}分</span>
-                <el-button size="small" plain :icon="Upload" @click="startUpload(item)">上传文件</el-button>
+                <el-button v-if="userStore.hasPermission('incentive:add')" size="small" plain :icon="Upload" @click="startUpload(item)">上传文件</el-button>
               </div>
             </div>
           </template>
@@ -60,7 +60,7 @@
               <span class="sub-name">{{ group.categoryName }}</span>
               <div class="sub-actions">
                 <span class="score-badge" :class="'score-' + Math.min(group.score, 3)">{{ group.score }}分</span>
-                <el-button size="small" plain :icon="Upload" @click="startUpload(group)">上传文件</el-button>
+                <el-button v-if="userStore.hasPermission('incentive:add')" size="small" plain :icon="Upload" @click="startUpload(group)">上传文件</el-button>
               </div>
             </div>
           </template>
