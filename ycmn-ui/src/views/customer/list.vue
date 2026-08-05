@@ -73,6 +73,7 @@
         </el-table-column>
         <el-table-column v-if="vis('regionName')" prop="regionName" label="大区" width="70" sortable />
         <el-table-column v-if="vis('officeName')" prop="officeName" label="办事处" width="80" sortable />
+        <el-table-column v-if="vis('deptName')" prop="deptName" label="部门" width="80" sortable />
         <el-table-column v-if="vis('ownerName')" prop="ownerName" label="负责人" width="70" sortable />
         <el-table-column v-if="vis('managerName')" prop="managerName" label="上级" width="70" sortable />
         <el-table-column label="状态" width="90" align="center" sortable prop="status">
@@ -145,6 +146,18 @@
 
         <el-tab-pane label="组织/人员" name="org">
           <el-form label-width="70px">
+            <el-form-item label="所属部门" v-if="canFilterByOrg">
+              <el-tree-select
+                v-model="advFilter.deptId"
+                :data="filterOrgTree"
+                clearable
+                check-strictly
+                node-key="id"
+                :props="{ label: 'deptName', children: 'children' }"
+                placeholder="选择部门（含全部子部门）"
+                style="width:100%"
+                @change="onDeptFilterChange" />
+            </el-form-item>
             <el-form-item label="组织" v-if="canFilterByOrg">
               <el-tree-select
                 v-model="advFilter.orgIds"
@@ -242,7 +255,31 @@ const canFilterByOrg = ref(false)
 const canFilterByUsers = ref(false)
 const filterOrgTree = ref([])
 const filterUserOptions = ref([])
-const advFilter = reactive({ industry:'', province:'', city:'', status:'', protect:'', owner:'', regDate:null, expDate:null, orgIds:[], userIds:[] })
+const advFilter = reactive({ industry:'', province:'', city:'', status:'', protect:'', owner:'', regDate:null, expDate:null, orgIds:[], userIds:[], deptId:null, deptIds:[] })
+
+// 部门筛选：选中部门 → 收集其全部子部门 id（部门可无限嵌套）
+const onDeptFilterChange = (val) => {
+  const ids = []
+  const collect = (nodes) => {
+    for (const n of nodes || []) {
+      ids.push(n.id)
+      if (n.children?.length) collect(n.children)
+    }
+  }
+  if (val) {
+    const find = (nodes) => {
+      for (const n of nodes || []) {
+        if (n.id === val) return n
+        const hit = find(n.children)
+        if (hit) return hit
+      }
+      return null
+    }
+    const node = find(filterOrgTree.value)
+    collect(node ? [node] : [])
+  }
+  advFilter.deptIds = ids
+}
 
 const allCols = [
   { key: 'customerCode', label: '编号' },{ key: 'customerName', label: '客户全称' },{ key: 'invoiceName', label: '开票名称' },
@@ -251,6 +288,7 @@ const allCols = [
   { key: 'province', label: '省市' },{ key: 'address', label: '厂址' },{ key: 'registerDate', label: '注册日' },
   { key: 'lastInvoiceDate', label: '最近开票' },{ key: 'transferDate', label: '转移日' },{ key: 'expireDate', label: '到期日' },
   { key: 'adjustDate', label: '调整日' },{ key: 'regionName', label: '大区' },{ key: 'officeName', label: '办事处' },
+  { key: 'deptName', label: '部门' },
 ]
 const visibleCols = ref(allCols.map(c => c.key))
 const vis = (key) => visibleCols.value.includes(key)
@@ -286,6 +324,7 @@ const filteredAllData = computed(() => {
   if (advFilter.regDate && advFilter.regDate.length === 2) data = data.filter(c => c.registerDate >= advFilter.regDate[0] && c.registerDate <= advFilter.regDate[1])
   if (advFilter.expDate && advFilter.expDate.length === 2) data = data.filter(c => c.expireDate >= advFilter.expDate[0] && c.expireDate <= advFilter.expDate[1])
   if (advFilter.orgIds && advFilter.orgIds.length > 0) { const uids = tableData.value.filter(r => advFilter.orgIds.includes(r.officeId) || advFilter.orgIds.includes(r.orgId)).map(r => r.ownerId); data = data.filter(c => uids.includes(c.ownerId)) }
+  if (advFilter.deptIds && advFilter.deptIds.length > 0) data = data.filter(c => advFilter.deptIds.includes(c.deptId))
   if (advFilter.userIds && advFilter.userIds.length > 0) data = data.filter(c => advFilter.userIds.includes(c.ownerId))
   return data
 })
@@ -308,6 +347,7 @@ const currentTabData = computed(() => {
   if (advFilter.regDate?.length===2) { data = data.filter(c => c.registerDate >= advFilter.regDate[0] && c.registerDate <= advFilter.regDate[1]) }
   if (advFilter.expDate?.length===2) { data = data.filter(c => c.expireDate >= advFilter.expDate[0] && c.expireDate <= advFilter.expDate[1]) }
   if (advFilter.orgIds?.length) { const usersInOrgs = tableData.value.filter(r => advFilter.orgIds.includes(r.officeId) || advFilter.orgIds.includes(r.deptId)).map(r => r.ownerId); data = data.filter(c => usersInOrgs.includes(c.ownerId)) }
+  if (advFilter.deptIds?.length) data = data.filter(c => advFilter.deptIds.includes(c.deptId))
   if (advFilter.userIds?.length) { data = data.filter(c => advFilter.userIds.includes(c.ownerId)) }
   return data
 })
