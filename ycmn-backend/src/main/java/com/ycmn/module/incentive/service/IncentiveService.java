@@ -90,6 +90,16 @@ public class IncentiveService {
         return tree;
     }
 
+    /** 统计查询统一数据范围过滤：admin/有激励编辑删除授权 → 全部；否则 resolver 可见集合 U */
+    private void applyScopeToWrapper(LambdaQueryWrapper<BizIncentiveRecord> wrapper) {
+        com.ycmn.security.SecurityUser user = SecurityUtils.getCurrentUser();
+        if (user == null) return;
+        boolean canSeeAll = SecurityUtils.isAdmin()
+                || canEdit(user.getUserId()) || canDelete(user.getUserId());
+        List<Long> visible = canSeeAll ? null : scopeResolver.resolve(user);
+        if (visible != null) wrapper.in(BizIncentiveRecord::getUserId, visible);
+    }
+
     /**
      * 分类角标统计：按当前账号权限可见范围（admin/有激励编辑删除授权 → 全量；
      * 否则 resolver 可见集合 U），每个分类含子分类聚合。
@@ -381,18 +391,29 @@ public class IncentiveService {
     public Map<String, Object> categoryStats(String period) {
         LambdaQueryWrapper<BizIncentiveRecord> wrapper = new LambdaQueryWrapper<>();
         if (period != null && !period.isBlank()) wrapper.eq(BizIncentiveRecord::getPeriod, period);
+        applyScopeToWrapper(wrapper); // 统计按数据范围整体（设计定稿）
         List<BizIncentiveRecord> records = recordMapper.selectList(wrapper);
 
-        Map<Long, int[]> byCat = new LinkedHashMap<>(); // categoryId -> [fileCount, totalScore]
+        Map<Long, int[]> byCat = new LinkedHashMap<>(); // categoryId -> [fileCount, totalScore, pre, mid, post]
         int totalFiles = 0, totalScore = 0;
+        int totalPre = 0, totalMid = 0, totalPost = 0;
         for (BizIncentiveRecord r : records) {
             int fc = fileCountOf(r);
             int sc = fc > 0 ? (r.getScore() != null ? r.getScore() : 0) : 0;
-            int[] agg = byCat.computeIfAbsent(r.getCategoryId(), k -> new int[2]);
+            int pre = r.hasFiles(r.getFilePreId()) ? 1 : 0;
+            int mid = r.hasFiles(r.getFileMidId()) ? 1 : 0;
+            int post = r.hasFiles(r.getFilePostId()) ? 1 : 0;
+            int[] agg = byCat.computeIfAbsent(r.getCategoryId(), k -> new int[5]);
             agg[0] += fc;
             agg[1] += sc;
+            agg[2] += pre;
+            agg[3] += mid;
+            agg[4] += post;
             totalFiles += fc;
             totalScore += sc;
+            totalPre += pre;
+            totalMid += mid;
+            totalPost += post;
         }
         List<Map<String, Object>> byCategory = new ArrayList<>();
         for (Map.Entry<Long, int[]> e : byCat.entrySet()) {
@@ -400,12 +421,18 @@ public class IncentiveService {
             m.put("categoryId", e.getKey());
             m.put("fileCount", e.getValue()[0]);
             m.put("totalScore", e.getValue()[1]);
+            m.put("preCount", e.getValue()[2]);
+            m.put("midCount", e.getValue()[3]);
+            m.put("postCount", e.getValue()[4]);
             byCategory.add(m);
         }
         Map<String, Object> result = new HashMap<>();
         result.put("byCategory", byCategory);
         result.put("totalFiles", totalFiles);
         result.put("totalScore", totalScore);
+        result.put("totalPre", totalPre);
+        result.put("totalMid", totalMid);
+        result.put("totalPost", totalPost);
         return result;
     }
 
@@ -413,28 +440,39 @@ public class IncentiveService {
     public List<Map<String, Object>> scoreboard(String period) {
         LambdaQueryWrapper<BizIncentiveRecord> wrapper = new LambdaQueryWrapper<>();
         if (period != null && !period.isBlank()) wrapper.eq(BizIncentiveRecord::getPeriod, period);
+        applyScopeToWrapper(wrapper); // 统计按数据范围整体
         List<BizIncentiveRecord> records = recordMapper.selectList(wrapper);
 
-        Map<Long, Integer> userScores = new HashMap<>();
-        Map<Long, Integer> userCounts = new HashMap<>();
+        Map<Long, int[]> userAgg = new LinkedHashMap<>(); // userId -> [score, recordCount, pre, mid, post]
         for (BizIncentiveRecord r : records) {
             int sc = fileCountOf(r) > 0 ? (r.getScore() != null ? r.getScore() : 0) : 0;
-            userScores.merge(r.getUserId(), sc, Integer::sum);
-            userCounts.merge(r.getUserId(), 1, Integer::sum);
+            int pre = r.hasFiles(r.getFilePreId()) ? 1 : 0;
+            int mid = r.hasFiles(r.getFileMidId()) ? 1 : 0;
+            int post = r.hasFiles(r.getFilePostId()) ? 1 : 0;
+            int[] agg = userAgg.computeIfAbsent(r.getUserId(), k -> new int[5]);
+            agg[0] += sc;
+            agg[1] += 1;
+            agg[2] += pre;
+            agg[3] += mid;
+            agg[4] += post;
         }
 
         List<Map<String, Object>> result = new ArrayList<>();
         int rank = 0;
-        List<Map.Entry<Long, Integer>> sorted = new ArrayList<>(userScores.entrySet());
-        sorted.sort((a, b) -> b.getValue() - a.getValue());
+        List<Map.Entry<Long, int[]>> sorted = new ArrayList<>(userAgg.entrySet());
+        sorted.sort((a, b) -> b.getValue()[0] - a.getValue()[0]);
 
-        for (Map.Entry<Long, Integer> e : sorted) {
+        for (Map.Entry<Long, int[]> e : sorted) {
             rank++;
+            int[] agg = e.getValue();
             Map<String, Object> item = new LinkedHashMap<>();
             item.put("rank", rank);
             item.put("userId", e.getKey());
-            item.put("totalScore", e.getValue());
-            item.put("recordCount", userCounts.getOrDefault(e.getKey(), 0));
+            item.put("totalScore", agg[0]);
+            item.put("recordCount", agg[1]);
+            item.put("preCount", agg[2]);
+            item.put("midCount", agg[3]);
+            item.put("postCount", agg[4]);
             SysUser user = userMapper.selectById(e.getKey());
             if (user != null) {
                 item.put("realName", user.getRealName());

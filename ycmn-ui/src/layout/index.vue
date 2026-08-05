@@ -55,17 +55,30 @@
         <div class="header-right">
           <el-icon class="header-icon"><Bell /></el-icon>
           <el-icon class="header-icon"><QuestionFilled /></el-icon>
-          <el-dropdown @command="handleCommand">
+          <el-dropdown @command="handleCommand" trigger="click" class="user-dropdown">
             <div class="user-info">
-              <el-avatar :size="32" class="user-avatar">{{ userStore.realName?.charAt(0) }}</el-avatar>
-              <span class="user-name">{{ userStore.realName }}</span>
-              <span class="user-dept">· {{ userStore.officeName }} {{ userStore.roleName }}</span>
+              <div class="user-avatar-wrap">
+                <el-avatar :size="34" class="user-avatar">{{ userStore.realName?.charAt(0) }}</el-avatar>
+                <span class="online-dot"></span>
+              </div>
+              <div class="user-meta">
+                <span class="user-name">{{ userStore.realName }}</span>
+                <span class="user-dept">{{ userStore.officeName }}<i class="dot-sep">·</i>{{ userStore.roleName }}</span>
+              </div>
+              <el-icon class="user-caret"><ArrowDown /></el-icon>
             </div>
             <template #dropdown>
-              <el-dropdown-menu>
-                <el-dropdown-item command="profile">个人信息</el-dropdown-item>
-                <el-dropdown-item command="password">修改密码</el-dropdown-item>
-                <el-dropdown-item divided command="logout">退出登录</el-dropdown-item>
+              <el-dropdown-menu class="user-menu">
+                <div class="user-menu-head">
+                  <el-avatar :size="40" class="user-avatar-lg">{{ userStore.realName?.charAt(0) }}</el-avatar>
+                  <div class="user-menu-meta">
+                    <span class="um-name">{{ userStore.realName }}</span>
+                    <span class="um-role">{{ userStore.roleName }} · {{ userStore.officeName }}</span>
+                  </div>
+                </div>
+                <el-dropdown-item command="profile"><el-icon class="menu-ico"><User /></el-icon>个人信息</el-dropdown-item>
+                <el-dropdown-item command="password"><el-icon class="menu-ico"><Lock /></el-icon>修改密码</el-dropdown-item>
+                <el-dropdown-item divided command="logout" class="logout-item"><el-icon class="menu-ico"><SwitchButton /></el-icon>退出登录</el-dropdown-item>
               </el-dropdown-menu>
             </template>
           </el-dropdown>
@@ -359,30 +372,137 @@ const handleCommand = (command) => {
 .header-right {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 12px;
 }
 .header-icon {
-  font-size: 20px;
+  font-size: 19px;
   cursor: pointer;
-  color: #666;
+  color: #5f6672;
+  padding: 7px;
+  border-radius: 8px;
+  transition: all .2s;
+}
+.header-icon:hover {
+  color: #409eff;
+  background: rgba(64,158,255,.1);
+}
+.user-dropdown {
+  outline: none;
 }
 .user-info {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 9px;
   cursor: pointer;
+  padding: 5px 10px;
+  border-radius: 10px;
+  transition: background .2s;
+}
+.user-info:hover {
+  background: rgba(64,158,255,.09);
+}
+.user-avatar-wrap {
+  position: relative;
+  display: inline-flex;
 }
 .user-avatar {
-  background: #409eff;
+  background: linear-gradient(135deg, #409eff, #6366f1);
   color: #fff;
+  font-weight: 600;
+  box-shadow: 0 2px 6px rgba(64,158,255,.35);
+}
+.online-dot {
+  position: absolute;
+  right: -1px;
+  bottom: -1px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #22c55e;
+  border: 2px solid #fff;
+}
+.user-meta {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.25;
 }
 .user-name {
-  font-weight: 500;
-  color: #333;
+  font-weight: 600;
+  color: #1f2329;
+  font-size: 13px;
 }
 .user-dept {
-  color: #999;
+  color: #8f959e;
+  font-size: 11px;
+  white-space: nowrap;
+}
+.dot-sep {
+  font-style: normal;
+  margin: 0 4px;
+  color: #c0c4cc;
+}
+.user-caret {
   font-size: 12px;
+  color: #a8abb2;
+  transition: transform .2s;
+}
+.user-dropdown:hover .user-caret {
+  transform: rotate(180deg);
+}
+/* 下拉菜单：账号区 + 图标菜单项 */
+.user-menu {
+  padding: 6px;
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(31,35,41,.12);
+}
+.user-menu-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  margin-bottom: 4px;
+  background: #f5f7fa;
+  border-radius: 8px;
+}
+.user-avatar-lg {
+  background: linear-gradient(135deg, #409eff, #6366f1);
+  color: #fff;
+  font-weight: 600;
+}
+.user-menu-meta {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.3;
+  min-width: 0;
+}
+.um-name {
+  font-weight: 600;
+  color: #1f2329;
+  font-size: 13px;
+}
+.um-role {
+  color: #8f959e;
+  font-size: 11px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.user-menu .el-dropdown-menu__item {
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-size: 13px;
+}
+.menu-ico {
+  margin-right: 8px;
+  font-size: 15px;
+  vertical-align: -2px;
+}
+.logout-item {
+  color: #f56c6c;
+}
+.logout-item:hover {
+  color: #f56c6c !important;
+  background: #fef0f0 !important;
 }
 .main-content {
   background: #f5f7fa;

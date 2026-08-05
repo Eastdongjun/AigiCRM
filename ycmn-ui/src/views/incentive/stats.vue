@@ -55,6 +55,9 @@
             <th class="col-sub">激励细分</th>
             <th class="col-score">激励学分</th>
             <th class="col-count">数量</th>
+            <th class="col-stage">安装前</th>
+            <th class="col-stage">安装中</th>
+            <th class="col-stage">安装后</th>
             <th class="col-total">总学分</th>
           </tr>
         </thead>
@@ -73,6 +76,15 @@
               <td class="col-sub">{{ child.categoryName }}</td>
               <td class="col-score">{{ child.score }}</td>
               <td class="col-count">{{ child.uploadCount }}</td>
+              <td class="col-stage">
+                <span :class="child.preCount > 0 ? 'stage-active' : 'stage-zero'">{{ child.preCount }}</span>
+              </td>
+              <td class="col-stage">
+                <span :class="child.midCount > 0 ? 'stage-active' : 'stage-zero'">{{ child.midCount }}</span>
+              </td>
+              <td class="col-stage">
+                <span :class="child.postCount > 0 ? 'stage-active' : 'stage-zero'">{{ child.postCount }}</span>
+              </td>
               <td class="col-total">
                 <span :class="child.totalScore > 0 ? 'score-active' : 'score-zero'">{{ child.totalScore }}</span>
               </td>
@@ -84,6 +96,9 @@
             <td colspan="2"><strong>合计</strong></td>
             <td><strong class="purple">{{ totalCategories }}项</strong></td>
             <td><strong>{{ tableTotalFiles }}</strong></td>
+            <td><strong class="blue">{{ tableTotalPre }}</strong></td>
+            <td><strong class="blue">{{ tableTotalMid }}</strong></td>
+            <td><strong class="blue">{{ tableTotalPost }}</strong></td>
             <td><strong class="blue">{{ tableTotalScore }}</strong></td>
           </tr>
         </tfoot>
@@ -105,11 +120,26 @@
         </el-table-column>
         <el-table-column prop="realName" label="姓名" min-width="120" />
         <el-table-column prop="officeName" label="办事处" min-width="100" />
-        <el-table-column label="总学分" width="120" align="center">
+        <el-table-column label="总学分" width="100" align="center">
           <template #default="{ row }"><strong>{{ row.totalScore }}分</strong></template>
         </el-table-column>
-        <el-table-column label="上传数" width="100" align="center">
+        <el-table-column label="上传数" width="90" align="center">
           <template #default="{ row }">{{ row.recordCount || 0 }}个</template>
+        </el-table-column>
+        <el-table-column label="安装前" width="80" align="center">
+          <template #default="{ row }">
+            <span :class="(row.preCount || 0) > 0 ? 'stage-active' : 'stage-zero'">{{ row.preCount || 0 }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column label="安装中" width="80" align="center">
+          <template #default="{ row }">
+            <span :class="(row.midCount || 0) > 0 ? 'stage-active' : 'stage-zero'">{{ row.midCount || 0 }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column label="安装后" width="80" align="center">
+          <template #default="{ row }">
+            <span :class="(row.postCount || 0) > 0 ? 'stage-active' : 'stage-zero'">{{ row.postCount || 0 }}</span>
+          </template>
         </el-table-column>
       </el-table>
     </div>
@@ -183,15 +213,18 @@ const totalScore = computed(() => records.value.reduce((s, r) => s + (r.score ||
 // 激励统计表合计：全员口径
 const tableTotalFiles = computed(() => catStat.value.totalFiles || 0)
 const tableTotalScore = computed(() => catStat.value.totalScore || 0)
+const tableTotalPre = computed(() => catStat.value.totalPre || 0)
+const tableTotalMid = computed(() => catStat.value.totalMid || 0)
+const tableTotalPost = computed(() => catStat.value.totalPost || 0)
 
-// 激励统计表：全员口径 categoryId -> { fileCount, totalScore }
+// 激励统计表：全员口径 categoryId -> { fileCount, totalScore, preCount, midCount, postCount }
 const catStatMap = computed(() => {
   const m = {}
   for (const s of catStat.value.byCategory || []) m[s.categoryId] = s
   return m
 })
 
-// 分组数据：按大类分组，统计每个子类的文件数(=学分数量)和总学分（全员）
+// 分组数据：按大类分组，统计每个子类的文件数(=学分数量)、总学分与阶段分布（按数据范围）
 const groupedData = computed(() => {
   const parents = categories.value.filter(c => c.parentId === 0)
   return parents.map((parent) => {
@@ -199,6 +232,9 @@ const groupedData = computed(() => {
       ...child,
       uploadCount: catStatMap.value[child.id]?.fileCount || 0,
       totalScore: catStatMap.value[child.id]?.totalScore || 0,
+      preCount: catStatMap.value[child.id]?.preCount || 0,
+      midCount: catStatMap.value[child.id]?.midCount || 0,
+      postCount: catStatMap.value[child.id]?.postCount || 0,
     }))
     return {
       parentId: parent.id,
@@ -286,6 +322,7 @@ onMounted(loadData)
 .col-sub { }
 .col-score { width: 100px; text-align: center; }
 .col-count { width: 80px; text-align: center; }
+.col-stage { width: 80px; text-align: center; }
 .col-total { width: 100px; text-align: center; }
 
 /* 大类标签 */
@@ -298,6 +335,8 @@ onMounted(loadData)
 /* 学分数字 */
 .score-active { color: #409eff; font-weight: 600; }
 .score-zero { color: #c0c4cc; }
+.stage-active { color: #10b981; font-weight: 600; }
+.stage-zero { color: #c0c4cc; }
 
 /* 合计行 */
 .total-row { background: #fafafa; }
