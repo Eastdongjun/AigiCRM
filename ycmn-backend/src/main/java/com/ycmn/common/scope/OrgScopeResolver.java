@@ -34,7 +34,29 @@ public class OrgScopeResolver {
     /** 解析当前用户可见 userIds（恒含本人；all 返回 null） */
     public List<Long> resolve(SecurityUser user) {
         if (user == null) return List.of();
-        String scope = user.getDataScope() != null ? user.getDataScope() : "self";
+        List<String> scopes = user.getDataScopes();
+        // 多角色并集（设计 §4.2）：所有角色各自的 code 逐解析后并集合并；任一 all → null 短路
+        if (scopes != null && scopes.size() > 1) {
+            return resolveUnion(user, scopes);
+        }
+        return resolveSingle(user, user.getDataScope() != null ? user.getDataScope() : "self");
+    }
+
+    /** 多角色并集合并（逐 code 各自解析；任一角色为 all → 本集团不过滤） */
+    private List<Long> resolveUnion(SecurityUser user, List<String> scopes) {
+        Set<Long> merged = new LinkedHashSet<>();
+        for (String code : scopes) {
+            if (code == null) continue;
+            List<Long> part = resolveSingle(user, code);
+            if (part == null) return null; // all：短路
+            merged.addAll(part);
+        }
+        if (user.getUserId() != null) merged.add(user.getUserId()); // 恒含本人
+        return new ArrayList<>(merged);
+    }
+
+    /** 单 code 解析（resolve 与并集共用） */
+    private List<Long> resolveSingle(SecurityUser user, String scope) {
         Long userId = user.getUserId();
         Long deptId = user.getDeptId() != null ? user.getDeptId() : user.getOfficeId();
 
@@ -45,9 +67,21 @@ public class OrgScopeResolver {
             case "office": return resolveByAncestorType(userId, deptId, TYPE_OFFICE);
             case "dept": return resolveDeptTree(userId, deptId);
             case "team": return resolveTeam(userId);
+            // 旧码兼容（DataScopeType @Deprecated）：org_and_children=本组织及下级 → 部门树含子级；
+            // org=仅本部门（不含子级）。组织管理员升级路径仍产出 org_and_children，必须可解析。
+            case "org_and_children": return resolveDeptTree(userId, deptId);
+            case "org": return resolveDeptOnly(userId, deptId);
             case "self":
             default: return List.of(userId);
         }
+    }
+
+    /** 仅本部门（不含子级）—— 旧码 org 语义 */
+    private List<Long> resolveDeptOnly(Long userId, Long deptId) {
+        if (deptId == null) return List.of(userId);
+        List<Long> u = usersInDepts(new LinkedHashSet<>(List.of(deptId)));
+        if (!u.contains(userId)) u.add(userId);
+        return u;
     }
 
     /** 可见部门集合（scope 接口用）：U 中用户所属 deptId 去重 + 本人部门 */

@@ -13,6 +13,7 @@ import java.util.List;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.when;
 
 /**
@@ -104,5 +105,59 @@ class UserDetailsServiceImplTest {
 
         // 空白 override 视为未配置 → 跟随角色聚合结果
         assertEquals("dept", securityUser.getDataScope());
+    }
+
+    // ==================== I2：多角色并集数据收集（设计 §4.2） ====================
+
+    /** 双角色（dept+team）：dataScopes 收集所有角色 code；dataScope 单值保留 min-rank（dept） */
+    @Test
+    void multiRoleCollectsAllScopeCodes() {
+        SysUser user = baseUser();
+        SysRole deptRole = roleWithDeptScope();
+        SysRole teamRole = new SysRole();
+        teamRole.setId(11L);
+        teamRole.setRoleCode("manager");
+        teamRole.setDataScope("team");
+
+        when(userMapper.selectById(1L)).thenReturn(user);
+        when(menuMapper.selectPermissionsByUserId(1L)).thenReturn(Set.of("system:user:view"));
+        when(roleMapper.selectRolesByUserId(1L)).thenReturn(List.of(deptRole, teamRole));
+        when(positionMapper.selectByUserId(1L)).thenReturn(List.of());
+        when(permissionRuleMapper.selectByRoleId(deptRole.getId())).thenReturn(List.of());
+        when(permissionRuleMapper.selectByRoleId(teamRole.getId())).thenReturn(List.of());
+        when(orgAdminMapper.selectManagedOrgIds(1L)).thenReturn(List.of());
+
+        SecurityUser securityUser = (SecurityUser) service.loadUserByUsername("1");
+
+        assertEquals(List.of("dept", "team"), securityUser.getDataScopes(),
+                "dataScopes 必须收集所有角色的 code（OrgScopeResolver 并集用）");
+        assertEquals("dept", securityUser.getDataScope(),
+                "单值兼容字段保留 min-rank 结果：dept(4) < team(7)");
+    }
+
+    /** 用户级覆盖存在 → dataScopes 清空，并集路径失效（用户级 > 角色级，整体取代） */
+    @Test
+    void overrideClearsMultiRoleDataScopes() {
+        SysUser user = baseUser();
+        user.setDataScopeOverride("team");
+        SysRole deptRole = roleWithDeptScope();
+        SysRole teamRole = new SysRole();
+        teamRole.setId(11L);
+        teamRole.setRoleCode("manager");
+        teamRole.setDataScope("team");
+
+        when(userMapper.selectById(1L)).thenReturn(user);
+        when(menuMapper.selectPermissionsByUserId(1L)).thenReturn(Set.of("system:user:view"));
+        when(roleMapper.selectRolesByUserId(1L)).thenReturn(List.of(deptRole, teamRole));
+        when(positionMapper.selectByUserId(1L)).thenReturn(List.of());
+        when(permissionRuleMapper.selectByRoleId(deptRole.getId())).thenReturn(List.of());
+        when(permissionRuleMapper.selectByRoleId(teamRole.getId())).thenReturn(List.of());
+        when(orgAdminMapper.selectManagedOrgIds(1L)).thenReturn(List.of());
+
+        SecurityUser securityUser = (SecurityUser) service.loadUserByUsername("1");
+
+        assertEquals("team", securityUser.getDataScope());
+        assertTrue(securityUser.getDataScopes().isEmpty(),
+                "用户级覆盖应清空并集列表，OrgScopeResolver 走单值路径（覆盖整体取代角色并集）");
     }
 }

@@ -221,4 +221,117 @@ class OrgScopeResolverTest {
         OrgScopeResolver r = new OrgScopeResolver(userMapper, deptMapper);
         assertEquals(Set.of(1L), new HashSet<>(r.resolve(su(1L, "self", 11L))));
     }
+
+    // ---- 多角色并集（设计 §4.2）----
+
+    private SecurityUser suMulti(Long userId, List<String> scopes, Long deptId) {
+        SecurityUser s = new SecurityUser();
+        s.setUserId(userId);
+        s.setDataScope(scopes.get(0)); // 单值兼容字段（min-rank 结果，仅向后兼容）
+        s.setDataScopes(new ArrayList<>(scopes));
+        s.setDeptId(deptId);
+        return s;
+    }
+
+    /** team+dept 双角色：并集 = team 下级集 ∪ dept 部门树集（各自解析后合并去重） */
+    @Test
+    void unionOfTeamAndDeptMergesBothSets() {
+        // user1 deptId=11。team：1→2→3（manager 链）；dept：部门 11 子树 {11,12}
+        when(userMapper.selectList(any(LambdaQueryWrapper.class))).thenAnswer(inv -> {
+            LambdaQueryWrapper<SysUser> w = inv.getArgument(0);
+            assertStatusFiltered(w);
+            Map<String, List<Long>> cols = columnValues(w);
+            if (cols.containsKey("manager_id")) {
+                Set<Long> managers = new HashSet<>(cols.get("manager_id"));
+                if (managers.contains(1L)) return List.of(user(2, 12L, 1L));
+                if (managers.contains(2L)) return List.of(user(3, 12L, 2L));
+                return List.of();
+            }
+            Set<Long> deptIds = new HashSet<>(cols.getOrDefault("dept_id", List.of()));
+            assertTrue(deptIds.contains(11L) && deptIds.contains(12L),
+                    "dept 分支必须按子树 deptIds 查询");
+            return List.of(user(2, 12L, 1L), user(5, 11L, null));
+        });
+        when(deptMapper.selectList(any(LambdaQueryWrapper.class))).thenAnswer(inv -> {
+            LambdaQueryWrapper<SysDept> w = inv.getArgument(0);
+            assertStatusFiltered(w);
+            Set<Long> parents = new HashSet<>(columnValues(w).getOrDefault("parent_id", List.of()));
+            if (parents.contains(11L)) return List.of(dept(12, 11L));
+            return List.of();
+        });
+        OrgScopeResolver r = new OrgScopeResolver(userMapper, deptMapper);
+        List<Long> u = r.resolve(suMulti(1L, List.of("team", "dept"), 11L));
+        // team={1,2,3} ∪ dept={1,2,5} = {1,2,3,5}
+        assertEquals(Set.of(1L, 2L, 3L, 5L), new HashSet<>(u), "并集=两角色各自可见集合并集");
+    }
+
+    /** 任一角色 all → 本集团不过滤（null 短路），不做无谓解析 */
+    @Test
+    void unionShortCircuitsOnAll() {
+        OrgScopeResolver r = new OrgScopeResolver(userMapper, deptMapper);
+        assertNull(r.resolve(suMulti(1L, List.of("all", "team"), 11L)));
+        verify(userMapper, never()).selectList(any(LambdaQueryWrapper.class));
+    }
+
+    /** 单角色（dataScopes 空/单码）仍走单值路径，不受并集影响 */
+    @Test
+    void singleRoleIgnoresUnionPath() {
+        SecurityUser s = suMulti(1L, List.of("dept"), 11L);
+        when(deptMapper.selectList(any(LambdaQueryWrapper.class))).thenAnswer(inv -> {
+            LambdaQueryWrapper<SysDept> w = inv.getArgument(0);
+            assertStatusFiltered(w);
+            Set<Long> parents = new HashSet<>(columnValues(w).getOrDefault("parent_id", List.of()));
+            if (parents.contains(11L)) return List.of(dept(12, 11L));
+            return List.of();
+        });
+        when(userMapper.selectList(any(LambdaQueryWrapper.class))).thenAnswer(inv -> {
+            LambdaQueryWrapper<SysUser> w = inv.getArgument(0);
+            assertStatusFiltered(w);
+            return List.of(user(2, 12L, null));
+        });
+        OrgScopeResolver r = new OrgScopeResolver(userMapper, deptMapper);
+        List<Long> u = r.resolve(s); // dataScopes size=1 → 单值路径 dataScope=dept
+        assertEquals(Set.of(1L, 2L), new HashSet<>(u));
+    }
+
+    // ---- 旧码兼容：org / org_and_children（组织管理员升级路径仍产出，必须可解析）----
+
+    @Test
+    void orgAndChildrenResolvesDeptTreeIncludingSubdepts() {
+        // 旧码 org_and_children = 本组织及下级 → 部门树含子级（与 dept 同口径）
+        when(deptMapper.selectList(any(LambdaQueryWrapper.class))).thenAnswer(inv -> {
+            LambdaQueryWrapper<SysDept> w = inv.getArgument(0);
+            assertStatusFiltered(w);
+            Set<Long> parents = new HashSet<>(columnValues(w).getOrDefault("parent_id", List.of()));
+            if (parents.contains(11L)) return List.of(dept(12, 11L));
+            return List.of();
+        });
+        when(userMapper.selectList(any(LambdaQueryWrapper.class))).thenAnswer(inv -> {
+            LambdaQueryWrapper<SysUser> w = inv.getArgument(0);
+            assertStatusFiltered(w);
+            Set<Long> deptIds = new HashSet<>(columnValues(w).getOrDefault("dept_id", List.of()));
+            assertTrue(deptIds.containsAll(List.of(11L, 12L)),
+                    "org_and_children 必须按子树 deptIds 查询");
+            return List.of(user(2, 12L, null));
+        });
+        OrgScopeResolver r = new OrgScopeResolver(userMapper, deptMapper);
+        List<Long> u = r.resolve(su(1L, "org_and_children", 11L));
+        assertEquals(Set.of(1L, 2L), new HashSet<>(u), "org_and_children 组织管理员可见部门树（含子级）");
+    }
+
+    @Test
+    void orgResolvesDeptOnlyWithoutChildren() {
+        // 旧码 org = 仅本部门（不含子级）：部门 11 有子 12，但 org 不得包含 12 的用户
+        when(userMapper.selectList(any(LambdaQueryWrapper.class))).thenAnswer(inv -> {
+            LambdaQueryWrapper<SysUser> w = inv.getArgument(0);
+            assertStatusFiltered(w);
+            Set<Long> deptIds = new HashSet<>(columnValues(w).getOrDefault("dept_id", List.of()));
+            assertEquals(Set.of(11L), deptIds, "org 只查询本部门，不递归子部门");
+            return List.of(user(7, 11L, null));
+        });
+        OrgScopeResolver r = new OrgScopeResolver(userMapper, deptMapper);
+        List<Long> u = r.resolve(su(1L, "org", 11L));
+        assertEquals(Set.of(1L, 7L), new HashSet<>(u), "org 仅本部门，不含子部门用户");
+        verify(deptMapper, never()).selectList(any(LambdaQueryWrapper.class));
+    }
 }
