@@ -293,7 +293,6 @@
 
 <script setup>
 import { ref, reactive, computed, onMounted, watch } from 'vue'
-import { useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Upload, Search, Refresh, Delete, Plus, Box, Location, ChatDotSquare, Document, Folder } from '@element-plus/icons-vue'
 import { getCategoryTree, getRecords, addRecord, deleteRecord, checkIncentivePermission } from '@/api/incentive'
@@ -539,20 +538,8 @@ const loadCategories = async () => {
     if (parentCategories.value.length > 0 && !activeTab.value) {
       activeTab.value = String(parentCategories.value[0].id)
     }
-    // 侧边栏"激励上传"菜单：?upload=1 自动打开上传弹窗（默认选第一个子分类）
-    openUploadFromMenu()
   } catch (e) {}
 }
-
-const route = useRoute()
-const openUploadFromMenu = () => {
-  if (route.query.upload === '1') {
-    const firstSub = categories.value.find(c => c.parentId && c.parentId !== 0)
-    if (firstSub) startUpload(firstSub)
-  }
-}
-// 已在激励页时再次点击"激励上传"菜单（同路由不同 query）也触发
-watch(() => route.query.upload, openUploadFromMenu)
 
 // 用户列表缓存(与分类树同策略,10分钟)
 let usersCache = { at: 0, data: null }
