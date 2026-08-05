@@ -127,7 +127,9 @@ report_count "deptType 为空的组织数" "SELECT COUNT(*) FROM sys_dept WHERE 
 report_count "group_id 为空的业务组织数" "SELECT COUNT(*) FROM sys_dept WHERE group_id IS NULL;"
 report_warn "manager_id 为空的启用用户数" "SELECT COUNT(*) FROM sys_user WHERE deleted=0 AND status=1 AND manager_id IS NULL;"
 echo "-- 白名单表 tenant_id 覆盖(未迁移时输出未迁移) --"
-for t in biz_customer biz_incentive_record; do check_tenant "$t"; done
+# 白名单 8 表与 MybatisPlusConfig.TENANT_TABLES 对齐（含已迁移的 share/file/sea_pool/approval/reminder）
+TENANT_TABLES="biz_customer biz_customer_share biz_file_folder biz_file biz_incentive_record biz_sea_pool biz_approval biz_reminder"
+for t in $TENANT_TABLES; do check_tenant "$t"; done
 
 # 缺失明细导出(供数据清洗, Task 10 审查衔接项)
 if [ -n "$EXPORT_FILE" ]; then
