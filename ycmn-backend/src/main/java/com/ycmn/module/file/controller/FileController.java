@@ -46,7 +46,7 @@ public class FileController {
         return Result.ok(fileService.pageFiles(current, size, folderId, scope, keyword, SecurityUtils.getCurrentUserId()));
     }
 
-    @PreAuthorize("hasAuthority('file:upload')")
+    @PreAuthorize("hasAuthority('file:view')")
     @PostMapping("/upload")
     public Result<BizFile> upload(
             @RequestParam("file") MultipartFile file,
@@ -55,28 +55,28 @@ public class FileController {
         return Result.ok(fileService.upload(file, folderId, scope));
     }
 
-    @PreAuthorize("hasAuthority('file:edit')")
+    @PreAuthorize("hasAuthority('file:view')")
     @PostMapping("/folders")
     public Result<Void> createFolder(@RequestBody BizFileFolder folder) {
         fileService.createFolder(folder);
         return Result.ok();
     }
 
-    @PreAuthorize("hasAuthority('file:edit')")
+    @PreAuthorize("hasAuthority('file:view')")
     @PutMapping("/folders/{id}")
     public Result<Void> renameFolder(@PathVariable Long id, @RequestBody Map<String, String> body) {
         fileService.renameFolder(id, body.get("folderName"));
         return Result.ok();
     }
 
-    @PreAuthorize("hasAuthority('file:delete')")
+    @PreAuthorize("hasAuthority('file:view')")
     @DeleteMapping("/folders/{id}")
     public Result<Void> deleteFolder(@PathVariable Long id) {
         fileService.deleteFolder(id);
         return Result.ok();
     }
 
-    @PreAuthorize("hasAuthority('file:delete')")
+    @PreAuthorize("hasAuthority('file:view')")
     @DeleteMapping("/{id}")
     public Result<Void> deleteFile(@PathVariable Long id) {
         fileService.deleteFile(id);
@@ -84,7 +84,7 @@ public class FileController {
     }
 
     /** 【文件权限体系 Task 6】覆盖替换：multipart file，版本+1（细粒度权限在 service 层 checkFile(P_EDIT)） */
-    @PreAuthorize("hasAuthority('file:edit')")
+    @PreAuthorize("hasAuthority('file:view')")
     @PostMapping("/{id}/replace")
     public Result<BizFile> replaceFile(@PathVariable Long id, @RequestParam("file") MultipartFile file) {
         return Result.ok(fileService.replaceFile(id, file));
@@ -191,7 +191,7 @@ public class FileController {
 
     // ====== 文件分享 ======
 
-    @PreAuthorize("hasAuthority('file:edit')")
+    @PreAuthorize("hasAuthority('file:view')")
     @PostMapping("/{id}/share")
     public Result<Void> shareFile(@PathVariable Long id, @RequestBody Map<String, List<Long>> body) {
         fileService.shareFile(id, body.getOrDefault("userIds", List.of()));
