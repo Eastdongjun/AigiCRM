@@ -53,8 +53,17 @@
           </el-breadcrumb>
         </div>
         <div class="header-right">
-          <el-icon class="header-icon"><Bell /></el-icon>
-          <el-icon class="header-icon"><QuestionFilled /></el-icon>
+          <el-tooltip content="提醒" placement="bottom" :show-after="300">
+            <div class="icon-btn" @click="router.push('/reminder')">
+              <el-icon class="header-icon"><Bell /></el-icon>
+              <span v-if="userStore.badgeReminder > 0" class="badge-dot">{{ userStore.badgeReminder > 99 ? '99+' : userStore.badgeReminder }}</span>
+            </div>
+          </el-tooltip>
+          <el-tooltip content="帮助" placement="bottom" :show-after="300">
+            <div class="icon-btn">
+              <el-icon class="header-icon"><QuestionFilled /></el-icon>
+            </div>
+          </el-tooltip>
           <el-dropdown @command="handleCommand" trigger="click" class="user-dropdown">
             <div class="user-info">
               <div class="user-avatar-wrap">
@@ -86,14 +95,34 @@
       </el-header>
 
       <!-- 个人信息弹窗 -->
-      <el-dialog v-model="showProfile" title="个人信息" width="420px">
-        <el-descriptions :column="1" border>
-          <el-descriptions-item label="用户名">{{ userStore.username }}</el-descriptions-item>
-          <el-descriptions-item label="姓名">{{ userStore.realName }}</el-descriptions-item>
-          <el-descriptions-item label="部门">{{ userStore.deptName }}</el-descriptions-item>
-          <el-descriptions-item label="办事处">{{ userStore.officeName }}</el-descriptions-item>
-          <el-descriptions-item label="角色">{{ userStore.roleName }}</el-descriptions-item>
-        </el-descriptions>
+      <el-dialog v-model="showProfile" title="个人信息" width="460px" class="profile-dialog">
+        <div class="profile-head">
+          <el-avatar :size="56" class="profile-avatar">{{ userStore.realName?.charAt(0) }}</el-avatar>
+          <div class="profile-head-meta">
+            <div class="profile-name">{{ userStore.realName }}</div>
+            <div class="profile-tags">
+              <span class="role-tag">{{ userStore.roleName }}</span>
+              <span class="scope-tag">{{ scopeLabel(userStore.dataScope) }}</span>
+            </div>
+          </div>
+        </div>
+        <div class="profile-group">
+          <div class="profile-group-title">基本信息</div>
+          <div class="profile-rows">
+            <div class="profile-row"><span class="pl">用户名</span><span class="pv">{{ userStore.username }}</span></div>
+            <div class="profile-row"><span class="pl">所属部门</span><span class="pv">{{ userStore.deptName || '—' }}</span></div>
+            <div class="profile-row"><span class="pl">办事处</span><span class="pv">{{ userStore.officeName || '—' }}</span></div>
+          </div>
+        </div>
+        <div class="profile-group">
+          <div class="profile-group-title">账号信息</div>
+          <div class="profile-rows">
+            <div class="profile-row"><span class="pl">用户ID</span><span class="pv">{{ userStore.userId }}</span></div>
+            <div class="profile-row"><span class="pl">角色</span><span class="pv">{{ userStore.roleName || '—' }}</span></div>
+            <div class="profile-row"><span class="pl">数据范围</span><span class="pv">{{ scopeLabel(userStore.dataScope) }}</span></div>
+            <div class="profile-row"><span class="pl">功能权限</span><span class="pv">{{ userStore.permissions?.size || 0 }} 项</span></div>
+          </div>
+        </div>
       </el-dialog>
 
       <!-- 修改密码弹窗 -->
@@ -171,6 +200,10 @@ const isCollapse = ref(false)
 
 // 个人信息
 const showProfile = ref(false)
+
+// 数据范围中文映射（个人信息展示）
+const scopeMap = { self: '仅本人', team: '本人及下级', dept: '本部门及以下', office: '本办事处及以下', region: '本大区及以下', all: '全部数据', custom: '自定义', org: '本部门', org_and_children: '本部门及子级', dept_and_children: '本部门及子级' }
+const scopeLabel = (s) => scopeMap[s] || s || '—'
 
 // 修改密码
 const showPassword = ref(false)
@@ -372,19 +405,47 @@ const handleCommand = (command) => {
 .header-right {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 6px;
+}
+.icon-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all .2s;
+}
+.icon-btn:hover {
+  background: rgba(64,158,255,.1);
+}
+.icon-btn:hover .header-icon {
+  color: #409eff;
+  transform: scale(1.08);
 }
 .header-icon {
   font-size: 19px;
-  cursor: pointer;
   color: #5f6672;
-  padding: 7px;
-  border-radius: 8px;
   transition: all .2s;
 }
-.header-icon:hover {
-  color: #409eff;
-  background: rgba(64,158,255,.1);
+.badge-dot {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 8px;
+  background: #f56c6c;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 16px;
+  text-align: center;
+  border: 1.5px solid #fff;
+  box-sizing: border-box;
 }
 .user-dropdown {
   outline: none;
@@ -503,6 +564,86 @@ const handleCommand = (command) => {
 .logout-item:hover {
   color: #f56c6c !important;
   background: #fef0f0 !important;
+}
+/* 个人信息弹窗 */
+.profile-head {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 18px 20px 16px;
+  background: linear-gradient(135deg, rgba(64,158,255,.08), rgba(99,102,241,.06));
+  border-radius: 12px;
+  margin-bottom: 16px;
+}
+.profile-avatar {
+  background: linear-gradient(135deg, #409eff, #6366f1);
+  color: #fff;
+  font-size: 22px;
+  font-weight: 600;
+  box-shadow: 0 4px 12px rgba(64,158,255,.35);
+}
+.profile-head-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.profile-name {
+  font-size: 18px;
+  font-weight: 700;
+  color: #1f2329;
+}
+.profile-tags {
+  display: flex;
+  gap: 8px;
+}
+.role-tag {
+  font-size: 11px;
+  color: #409eff;
+  background: rgba(64,158,255,.12);
+  padding: 2px 10px;
+  border-radius: 10px;
+  font-weight: 600;
+}
+.scope-tag {
+  font-size: 11px;
+  color: #10b981;
+  background: rgba(16,185,129,.12);
+  padding: 2px 10px;
+  border-radius: 10px;
+  font-weight: 600;
+}
+.profile-group {
+  margin-bottom: 14px;
+}
+.profile-group-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: #8f959e;
+  margin-bottom: 6px;
+  padding-left: 2px;
+}
+.profile-rows {
+  border: 1px solid #ebeef5;
+  border-radius: 10px;
+  overflow: hidden;
+}
+.profile-row {
+  display: flex;
+  align-items: center;
+  padding: 10px 14px;
+  font-size: 13px;
+}
+.profile-row + .profile-row {
+  border-top: 1px solid #f2f3f5;
+}
+.pl {
+  width: 84px;
+  color: #8f959e;
+  flex-shrink: 0;
+}
+.pv {
+  color: #1f2329;
+  font-weight: 500;
 }
 .main-content {
   background: #f5f7fa;
