@@ -37,10 +37,14 @@ public class SysPositionService {
         return positionMapper.selectList(wrapper);
     }
 
-    /** 岗位详情（含关联规则ID列表） */
+    /** 岗位详情（含关联规则ID列表；非 admin 越权集团返回 null，防 id 枚举） */
     public SysPosition getById(Long id) {
         SysPosition pos = positionMapper.selectById(id);
         if (pos != null) {
+            // 【修复 岗位详情集团边界】与列表同口径：非 admin 无权读取其他集团岗位
+            if (!GroupScopeUtil.canAccessGroup(pos.getGroupId())) {
+                return null;
+            }
             List<SysPositionRule> rules = positionRuleMapper.selectList(
                     new LambdaQueryWrapper<SysPositionRule>().eq(SysPositionRule::getPositionId, id));
             pos.setRuleIds(rules.stream().map(SysPositionRule::getRuleId).collect(Collectors.toList()));
@@ -48,27 +52,49 @@ public class SysPositionService {
         return pos;
     }
 
-    /** 新增岗位（编码唯一校验） */
+    /** 新增岗位（编码唯一校验；集团归属兜底，越权集团拒绝） */
     @Transactional
     public void create(SysPosition position) {
+        // 【修复 岗位创建集团边界】未传 groupId 时显式兜底：非 admin=当前用户集团，admin=主集团 1；越权拒绝
+        if (position.getGroupId() == null) {
+            List<Long> g = GroupScopeUtil.visibleGroupIds();
+            position.setGroupId(g == null ? 1L : g.get(0));
+        } else if (!GroupScopeUtil.canAccessGroup(position.getGroupId())) {
+            throw new BusinessException("无权在该集团创建岗位");
+        }
         Long count = positionMapper.selectCount(
                 new LambdaQueryWrapper<SysPosition>().eq(SysPosition::getCode, position.getCode()));
         if (count > 0) throw new BusinessException("岗位编码已存在");
         positionMapper.insert(position);
     }
 
-    /** 更新岗位（规则列表变更时同步重建绑定） */
+    /** 更新岗位（规则列表变更时同步重建绑定；越权集团拒绝） */
     @Transactional
     public void update(SysPosition position) {
+        // 【修复 岗位更新集团边界】目标岗位越权不可操作；新 groupId 越权不可归属
+        if (position.getId() != null) {
+            SysPosition existing = positionMapper.selectById(position.getId());
+            if (existing != null && !GroupScopeUtil.canAccessGroup(existing.getGroupId())) {
+                throw new BusinessException("无权操作其他集团的岗位");
+            }
+        }
+        if (position.getGroupId() != null && !GroupScopeUtil.canAccessGroup(position.getGroupId())) {
+            throw new BusinessException("无权将岗位归属到其他集团");
+        }
         positionMapper.updateById(position);
         if (position.getRuleIds() != null) {
             saveRules(position.getId(), position.getRuleIds());
         }
     }
 
-    /** 删除岗位（连带清理规则绑定与用户分配） */
+    /** 删除岗位（连带清理规则绑定与用户分配；越权集团拒绝） */
     @Transactional
     public void delete(Long id) {
+        // 【修复 岗位删除集团边界】非 admin 无权删除其他集团岗位
+        SysPosition existing = positionMapper.selectById(id);
+        if (existing != null && !GroupScopeUtil.canAccessGroup(existing.getGroupId())) {
+            throw new BusinessException("无权删除其他集团的岗位");
+        }
         positionRuleMapper.delete(new LambdaQueryWrapper<SysPositionRule>().eq(SysPositionRule::getPositionId, id));
         userPositionMapper.delete(new LambdaQueryWrapper<SysUserPosition>().eq(SysUserPosition::getPositionId, id));
         positionMapper.deleteById(id);

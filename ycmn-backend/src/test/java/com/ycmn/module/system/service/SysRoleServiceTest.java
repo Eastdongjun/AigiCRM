@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.MybatisConfiguration;
 import com.baomidou.mybatisplus.core.MybatisMapperBuilderAssistant;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
+import com.ycmn.common.BusinessException;
 import com.ycmn.module.system.entity.SysRole;
 import com.ycmn.module.system.mapper.SysMenuMapper;
 import com.ycmn.module.system.mapper.SysRoleMapper;
@@ -17,7 +18,11 @@ import org.mockito.MockedStatic;
 
 import java.util.List;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
@@ -25,13 +30,17 @@ import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 /**
  * SysRoleService 单元测试（纯 mock，无 Spring 上下文）。
- * 覆盖两类行为：
+ * 覆盖三类行为：
  * - updateOrgs：custom 数据范围的组织集合保存（清空重建，幂等）；
  * - list：集团边界过滤（非 admin 仅本集团 / admin 全量 / 空集团退主集团 1，
- *   仿 SysUserService.applyGroupScope 口径，断言 LambdaQueryWrapper 条件）。
+ *   仿 SysUserService.applyGroupScope 口径，断言 LambdaQueryWrapper 条件）；
+ * - CRUD 集团校验（REQ-005 残余收口）：getById 越权集团→null（防 id 枚举）、
+ *   create 越权集团→BusinessException 且未传 groupId 时兜底当前集团（admin 兜底主集团 1）、
+ *   update 目标记录/新归属越权→拒绝、delete 越权→拒绝；admin 恒放行。
  */
 class SysRoleServiceTest {
 
@@ -146,6 +155,171 @@ class SysRoleServiceTest {
             assertTrue(expr.contains("group_id"), "集团为空也应过滤到主集团，实际: " + expr);
             assertTrue(captor.getValue().getParamNameValuePairs().containsValue(1L),
                     "应退回主集团 1，实际: " + captor.getValue().getParamNameValuePairs());
+        }
+    }
+
+    // ---- 单条读写集团校验（REQ-005 残余收口：getById 越权→null；create/update/delete 越权→拒绝） ----
+    // 校验统一走 GroupScopeUtil.canAccessGroup：admin 恒放行；非 admin 仅允许本集团（空集合退主集团 1）。
+    // 每个拒绝用例都断言底层 mapper 未被调用，证明拦截发生在写入之前（fail-closed）。
+
+    private static SysRole roleOf(Long id, Long groupId) {
+        SysRole r = new SysRole();
+        r.setId(id);
+        r.setGroupId(groupId);
+        return r;
+    }
+
+    @Test
+    void getById_otherGroupRole_returnsNull() {
+        // 非 admin 读其他集团角色 → null（与列表同口径，防 id 枚举）
+        SysRoleMapper roleMapper = mock(SysRoleMapper.class);
+        SysRoleService service = newServiceWith(roleMapper);
+        when(roleMapper.selectById(5L)).thenReturn(roleOf(5L, 2L));
+        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
+            m.when(SecurityUtils::isAdmin).thenReturn(false);
+            m.when(SecurityUtils::getCurrentGroupIds).thenReturn(List.of(1L));
+
+            assertNull(service.getById(5L));
+        }
+    }
+
+    @Test
+    void getById_sameGroupRole_returnsRoleWithMenus() {
+        SysRoleMapper roleMapper = mock(SysRoleMapper.class);
+        SysMenuMapper menuMapper = mock(SysMenuMapper.class);
+        SysRoleService service = new SysRoleService(roleMapper,
+                mock(SysRoleMenuMapper.class), menuMapper, mock(SysRoleOrgMapper.class));
+        when(roleMapper.selectById(5L)).thenReturn(roleOf(5L, 1L));
+        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
+            m.when(SecurityUtils::isAdmin).thenReturn(false);
+            m.when(SecurityUtils::getCurrentGroupIds).thenReturn(List.of(1L));
+
+            assertNotNull(service.getById(5L));
+            verify(menuMapper).selectMenuIdsByRoleId(5L);
+        }
+    }
+
+    @Test
+    void getById_adminSeesAnyGroup() {
+        SysRoleMapper roleMapper = mock(SysRoleMapper.class);
+        SysRoleService service = newServiceWith(roleMapper);
+        when(roleMapper.selectById(5L)).thenReturn(roleOf(5L, 2L));
+        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
+            m.when(SecurityUtils::isAdmin).thenReturn(true);
+
+            assertNotNull(service.getById(5L));
+        }
+    }
+
+    @Test
+    void create_otherGroupRejected() {
+        SysRoleMapper roleMapper = mock(SysRoleMapper.class);
+        SysRoleService service = newServiceWith(roleMapper);
+        SysRole role = roleOf(null, 2L);
+        role.setRoleCode("r2");
+        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
+            m.when(SecurityUtils::isAdmin).thenReturn(false);
+            m.when(SecurityUtils::getCurrentGroupIds).thenReturn(List.of(1L));
+
+            assertThrows(BusinessException.class, () -> service.create(role));
+            verify(roleMapper, never()).insert(any());
+        }
+    }
+
+    @Test
+    void create_noGroupId_defaultsToCurrentGroup() {
+        SysRoleMapper roleMapper = mock(SysRoleMapper.class);
+        SysRoleService service = newServiceWith(roleMapper);
+        SysRole role = new SysRole();
+        role.setRoleCode("r9");
+        role.setRoleName("测试角色");
+        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
+            m.when(SecurityUtils::isAdmin).thenReturn(false);
+            m.when(SecurityUtils::getCurrentGroupIds).thenReturn(List.of(1L));
+
+            service.create(role);
+
+            ArgumentCaptor<SysRole> captor = ArgumentCaptor.forClass(SysRole.class);
+            verify(roleMapper).insert(captor.capture());
+            assertEquals(1L, captor.getValue().getGroupId(), "未传 groupId 应默认当前用户集团");
+        }
+    }
+
+    @Test
+    void create_admin_noGroupId_defaultsToMainGroup() {
+        SysRoleMapper roleMapper = mock(SysRoleMapper.class);
+        SysRoleService service = newServiceWith(roleMapper);
+        SysRole role = new SysRole();
+        role.setRoleCode("r9");
+        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
+            m.when(SecurityUtils::isAdmin).thenReturn(true);
+
+            service.create(role);
+
+            ArgumentCaptor<SysRole> captor = ArgumentCaptor.forClass(SysRole.class);
+            verify(roleMapper).insert(captor.capture());
+            assertEquals(1L, captor.getValue().getGroupId(), "admin 未传 groupId 应默认主集团 1");
+        }
+    }
+
+    @Test
+    void update_otherGroupRoleRejected() {
+        SysRoleMapper roleMapper = mock(SysRoleMapper.class);
+        SysRoleService service = newServiceWith(roleMapper);
+        when(roleMapper.selectById(5L)).thenReturn(roleOf(5L, 2L));
+        SysRole payload = roleOf(5L, null);
+        payload.setRoleName("改名");
+        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
+            m.when(SecurityUtils::isAdmin).thenReturn(false);
+            m.when(SecurityUtils::getCurrentGroupIds).thenReturn(List.of(1L));
+
+            assertThrows(BusinessException.class, () -> service.update(payload));
+            verify(roleMapper, never()).updateById(any());
+        }
+    }
+
+    @Test
+    void update_groupIdMoveToOtherGroupRejected() {
+        SysRoleMapper roleMapper = mock(SysRoleMapper.class);
+        SysRoleService service = newServiceWith(roleMapper);
+        when(roleMapper.selectById(5L)).thenReturn(roleOf(5L, 1L));
+        SysRole payload = roleOf(5L, 2L);
+        payload.setRoleName("改名");
+        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
+            m.when(SecurityUtils::isAdmin).thenReturn(false);
+            m.when(SecurityUtils::getCurrentGroupIds).thenReturn(List.of(1L));
+
+            assertThrows(BusinessException.class, () -> service.update(payload));
+            verify(roleMapper, never()).updateById(any());
+        }
+    }
+
+    @Test
+    void delete_otherGroupRoleRejected() {
+        SysRoleMapper roleMapper = mock(SysRoleMapper.class);
+        SysRoleService service = newServiceWith(roleMapper);
+        when(roleMapper.selectById(5L)).thenReturn(roleOf(5L, 2L));
+        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
+            m.when(SecurityUtils::isAdmin).thenReturn(false);
+            m.when(SecurityUtils::getCurrentGroupIds).thenReturn(List.of(1L));
+
+            assertThrows(BusinessException.class, () -> service.delete(5L));
+            verify(roleMapper, never()).deleteById(5L);
+        }
+    }
+
+    @Test
+    void delete_sameGroupRoleAllowed() {
+        SysRoleMapper roleMapper = mock(SysRoleMapper.class);
+        SysRoleService service = newServiceWith(roleMapper);
+        when(roleMapper.selectById(5L)).thenReturn(roleOf(5L, 1L));
+        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
+            m.when(SecurityUtils::isAdmin).thenReturn(false);
+            m.when(SecurityUtils::getCurrentGroupIds).thenReturn(List.of(1L));
+
+            service.delete(5L);
+
+            verify(roleMapper).deleteById(5L);
         }
     }
 }
