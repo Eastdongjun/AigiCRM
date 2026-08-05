@@ -23,7 +23,22 @@
         >
           <template v-for="group in menuGroups" :key="group.id">
             <div class="menu-group-label" v-show="!isCollapse">{{ group.menuName }}</div>
-            <el-menu-item v-for="item in group.children" :key="item.id" :index="item.path">
+            <!-- 二级菜单：页面带子页面时用 el-sub-menu 展开 -->
+            <el-sub-menu v-for="item in group.children.filter(c => c.subChildren.length)" :key="item.id" :index="item.path">
+              <template #title>
+                <el-icon v-if="item.icon"><component :is="item.icon" /></el-icon>
+                <span class="menu-title-row">
+                  <span>{{ item.menuName }}</span>
+                  <span class="menu-count" v-if="badgeFor(item.path)">{{ badgeFor(item.path) }}</span>
+                </span>
+              </template>
+              <el-menu-item v-for="sub in item.subChildren" :key="sub.id" :index="sub.path">
+                <template #title>
+                  <span>{{ sub.menuName }}</span>
+                </template>
+              </el-menu-item>
+            </el-sub-menu>
+            <el-menu-item v-for="item in group.children.filter(c => !c.subChildren.length)" :key="item.id" :index="item.path">
               <el-icon v-if="item.icon"><component :is="item.icon" /></el-icon>
               <template #title>
                 <span class="menu-title-row">
@@ -171,7 +186,16 @@ const userStore = useUserStore()
 // 过滤掉没有任何可见子页面的空分组（比如角色没被授权该分组下任何页面时）
 const menuGroups = computed(() => {
   return (userStore.menus || [])
-    .map(group => ({ ...group, children: (group.children || []).filter(c => c.menuType === 2 && c.path) }))
+    .map(group => ({
+      ...group,
+      children: (group.children || [])
+        .filter(c => c.menuType === 2 && c.path)
+        .map(c => ({
+          ...c,
+          // 二级子页面：子级中可见的页面级菜单（客户详情 visible=0 不显示）
+          subChildren: (c.children || []).filter(s => s.menuType === 2 && s.path && s.visible !== 0)
+        }))
+    }))
     .filter(group => group.children.length > 0)
 })
 // 提醒/审批两个菜单项的角标数量走独立的未读计数接口，不属于菜单树本身的数据
