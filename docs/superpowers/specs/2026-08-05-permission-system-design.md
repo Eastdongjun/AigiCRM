@@ -59,6 +59,18 @@
 | 新增 | `file:share` | 文件分享兜底开关（与 ACL 双轨） |
 | 新增 | `sea:export` / `sea:import` | 公海导出/导入 |
 | 调整 | `incentive:add` | 上传语义从 incentive:edit 拆出（新增记录）；incentive:edit 仅管编辑/追加/分类 |
+
+**incentive 拆分后的角色绑定矩阵**（拆分前 view/edit/delete 全员绑定）：
+| 角色 | incentive:view | incentive:add | incentive:edit | incentive:delete |
+|------|:--:|:--:|:--:|:--:|
+| 系统管理员 | ✅ | ✅ | ✅ | ✅ |
+| 行政 | ✅ | ✅ | ✅ | ✅ |
+| 销售总监 | ✅ | ✅ | ✅ | ✅ |
+| 销售员 | ✅ | ✅ | — | — |
+| 用户级授权例外 | — | — | can_edit 迁移授权 | can_delete 迁移授权 |
+
+销售员无 edit/delete 码时：上传自己的记录（add）✅、追加/删除**自己的**记录由归属校验放行（§6）、改/删**他人**记录被拦截。用户级授权（原 biz_incentive_permission 迁移）恢复"可操作任意记录"。
+
 | 调整 | 命名规范检查 | 全库权限码对齐 `模块:动作`，违例（如 sea:pool:edit）保留兼容不改名 |
 
 ### 3.3 前端控制
@@ -73,7 +85,7 @@
 | 本人 | self | 仅自己 | 现有 |
 | 团队 | team | 本人 + 全部下级（manager_id 递归，限5层） | 新增 |
 | 部门 | dept | 本部门 + 子部门（org 树递归） | 改造（现 org 级） |
-| 大区 | region | 本大区下全部部门 | 新增 |
+| 大区 | region | 本大区下全部部门 | 新增；大区节点判定用 `sys_dept.deptType` 类型标记（阶段0 需盘点现有 deptType 值并定类型字典：公司/大区/办…） |
 | 总部 | all | 本集团全部 | 改造（现全系统） |
 | 自定义 | custom | sys_role_org 配置的组织集合 | 保留 |
 
@@ -84,19 +96,19 @@
 输入: SecurityUser（角色级别 + dept_id/org_id/manager_id + 集团归属）
 输出: 可见 userIds 集合（all 级别输出 null = 本集团不过滤）
 ```
-- team: `sys_user.manager_id` 反向递归（B.manager_id=A → A 可见 B），限 5 层，SQL: `manager_id IN (...)` 递归或代码 BFS
-- dept: 本人 dept_id 沿 org 树（parent_id）取子树 orgIds → 子树内全部用户（org_id/dept_id ∈ 子树）
-- region: 本人 org 沿祖先链找最近 `org_type=region` 节点；无标记则上溯至集团根；该节点子树全部用户
+- team: `sys_user.manager_id` 反向递归（B.manager_id=A → A 可见 B），限 5 层，代码 BFS 或 SQL 递归；**升级现有 auto_share.superior 规则**（CustomerService.getAutoShareOwnerIds 已实现"直接上级看直属下级"一层，team 级=递归扩展+纳入统一解析器，避免双轨冲突）
+- dept: 本人 dept_id 沿部门树（parent_id）取子树 deptIds → 子树内全部用户（dept_id ∈ 子树；兼容 office_id 归属）
+- region: 本人 dept 沿祖先链找最近 `deptType=大区` 节点；无标记则上溯至集团根；该节点子树全部用户
 - all: null（本集团内不过滤）
-- 多角色叠加: 取最宽（沿用 DataScopeType.rank 机制）
+- 多角色叠加: **并集合并**（每个角色各自解析 userIds，合并去重；任一角色为 all 则不过滤）。注意：team 与 dept 的范围可能互相包含（下级的部门不同），**不能再用 rank 单值比较"取最宽"**——DataScopeType.rank() 仅保留用于"是否 all"快速判断
 - 实时性: 每次请求实时解析（不缓存），结果仅请求内复用——延续已验证的"调整立即生效"
-- 结果复用: 各模块查询统一调用 `applyDataScope()` → 生成 `owner_id IN (...)` 条件（客户 owner_id、激励 user_id、文件 uploader_id、公海 owner_id、审批/提醒 owner_id）
+- 结果复用: 各模块查询统一调用 `applyDataScope()` → 生成 `owner_id IN (... ∪ 本人)` 条件（客户 owner_id、激励 user_id、文件 uploader_id、公海 owner_id、审批/提醒 owner_id）；"或本人"= 各模块现有 `ownerIds.add(currentUserId)` 模式（getAutoShareOwnerIds 已用）
 
 ### 4.3 集团边界（借鉴 JeecgBoot 多租户）
-- 核心业务表加 `tenant_id BIGINT`（=集团 group_id）+ 索引；MyBatis-Plus `TenantLineInnerInterceptor` 自动附加 `tenant_id = ?`
-- 租户值来源: 登录时经岗位 org 推导的 `groupIds`（UserDetailsServiceImpl 已实现）；一人多集团取全部所属（IN）
-- 平台管理员（系统超管）: 无集团归属 → 跳过租户过滤（跨集团审计/配置）
-- 集团管理员: 本集团租户过滤 + 数据范围 all → 本集团全部可见；跨集团数据不可见
+- 核心业务表加 `tenant_id BIGINT`（=集团 group_id）+ 索引；MyBatis-Plus 3.5.6 `TenantLineInnerInterceptor` 自动附加 `tenant_id = ?`；**插件配置 tenantTable 白名单**（仅迁移过的核心表），其余表 ignore——未迁移表不配置会导致所有查询报"列不存在"
+- 租户值来源: 登录时经岗位 org 推导的 `groupIds`（UserDetailsServiceImpl 已实现）；一人多集团取全部所属（多租户值 IN，3.5.x 支持）
+- 平台管理员（系统超管，isAdmin=hasRole("admin")）: 跳过租户过滤（跨集团审计/配置）
+- 集团管理员: 现有 org_admin（managedOrgIds 非空）机制——本集团租户过滤 + 范围自动升级；跨集团数据不可见
 - 与五级模型的关系: 五级在租户过滤后的数据上生效（先租户后范围）
 
 ## 五、分享体系（两轨）
@@ -106,7 +118,7 @@
 | 手动分享 | 现有客户分享机制（share 记录表） | 记录所有者/管理员可分享给用户 |
 | 规则化共享 | sys_permission_rule 扩展 `share` 类型规则 | 按条件自动共享（如"本月新增客户自动共享给大区经理角色"），对应 Salesforce criteria-based sharing |
 
-- 分享目标: 用户 / 角色 / 公共组（角色+下级集合）
+- 分享目标: 首版 = 用户（现有 biz_customer_share 即分享给 userId）/ 角色（新增，扩展小）；**公共组（角色+下级集合）列为后续**（新增概念，需建表）
 - 权限: 被分享者获得该记录的可见权（view），分享方需持有对应模块 `share` 权限码
 - 分享独立于数据范围（显式授权 > 范围过滤），但仍受租户边界约束（不能跨集团分享）
 
@@ -115,7 +127,7 @@
 - 新增 `DataScopeGuard` 公共工具：`canAccess(ownerId)` / `checkOwner(ownerId)` / `checkVisible(ownerId)`
 - 规则: 所有修改/删除/分享类接口（PUT/DELETE/share），校验目标记录 owner ∈ 当前用户可见范围，不在则拒绝（403）
 - 可见范围 = 数据范围解析结果 ∪ 分享授予 ∪ 本人
-- 首批修复: 激励 PUT /records/{id}（对齐 DELETE 校验模式）
+- 首批修复: 激励 PUT /records/{id}——校验模式与 DELETE 对齐但语义按 edit 授权：`非admin 且 无激励编辑授权(can_edit迁移) 且 记录非本人 → 拒绝(403)`；本人恒可改自己的记录（"或本人"原则）
 - 原则: 显式调用，不引入魔法注解（可读性优先）
 
 ## 七、灵活后台配置（三层次）
@@ -128,12 +140,30 @@
 
 所有配置落库即生效（无缓存，已实测）。
 
+### 7.1 新增角色 / 新增用户接入流程（零代码）
+
+**新增角色**（如新设"大区经理"）：
+| 步骤 | 动作 | 位置 |
+|------|------|------|
+| ① 建角色 | 名称/编码/状态 | 角色管理页（现有） |
+| ② 数据范围 | 下拉选级别（self/team/dept/region/all/custom）；custom 时配置组织集合 | 角色管理页（阶段0 新增下拉） |
+| ③ 权限矩阵 | 勾选该角色可用的模块动作码（如 region 级大区经理 = 客户/激励/审批 view+add+edit+export + statistics:view） | 角色管理页权限矩阵 Tab（现有） |
+| ④ 绑定用户 | 人员管理页给用户选新角色 | 人员管理页（现有） |
+
+- **新角色默认安全值**：数据范围 self、零权限码——按业务逐项放宽，避免"建角色顺手给全量"
+- **生效**：绑定即实时生效（无缓存，已实测），无需重登/清缓存
+- **多角色叠加**：用户持多个角色时，可见范围 = 各角色范围**并集**（任一角色授予即可见），all 角色用户不过滤
+
+**新增用户**：建用户 → 选部门/办事处 → 选角色（级别随之而来）→ 可选用户级覆盖（§7 层2）/组织管理员授权。
+
+**新增角色上线检查**：重跑 scripts/gen-permission-dict.sh 更新权限码字典 → 新角色 × 核心模块 API 实测（对照 §12 验收矩阵）。
+
 ## 八、迁移方案（存量数据）
 
 | 现状 | 迁移 |
 |------|------|
-| 角色 data_scope: org / org_and_children | org→dept；org_and_children→dept（含子级）；按业务实际逐角色定级 |
-| biz_incentive_permission（can_edit/can_delete） | 并入层2 用户级覆盖（转换为数据范围覆盖），表废弃（保留数据备份） |
+| 角色 data_scope: org / org_and_children | org→dept（**注意：现有 org=仅本部门不含子级，dept=含子级，迁移后可见范围扩大，需业务确认**）；org_and_children→dept（含子级）；逐角色按业务定级，拿不准的用 custom 精确配置 |
+| biz_incentive_permission（can_edit/can_delete） | **迁移为"用户级操作授权"（可操作任意记录），不是数据范围**——can_edit/can_delete 语义是"改/删任意记录"，与"看哪些数据"（数据范围）正交。落点为层2 用户级配置新增"激励编辑/删除授权"开关，表废弃（保留数据备份） |
 | 核心业务表 | 加 tenant_id 列（默认=1 主集团）+ 索引，迁移脚本演练后执行 |
 | manager_id 全空 | 人员管理页新增"直属上级"字段，逐步维护（团队级生效前提） |
 | 统计全员可见 | 模块接入时显式声明默认范围（激励统计=汇总口径全员、明细按范围），由业务确认 |
@@ -156,7 +186,8 @@
 3. **team 级依赖 manager_id 数据**：上线初期 manager_id 未维护时 team 退化为 self（安全侧默认）
 4. **tenant_id 迁移**：核心表加列影响面大，演练+回滚脚本先行；非核心表可先不迁移（用户归属推导兜底）
 5. **规则化共享的循环/性能**：条件规则评估走现有 PermissionRuleEngine，限制规则数量与评估频率
-6. 一人多集团（多岗位）取交集 or 并集需业务确认（默认：并集可见，写操作按记录 tenant 校验）
+6. 一人多集团（多岗位）取交集 or 并集需业务确认（默认：并集可见，写操作按记录 tenant 校验；租户插件多租户值 IN 已支持）
+7. **多角色数据范围叠加已改为并集合并**（§4.2），原 rank 单值比较仅保留"是否 all"判断；实现时注意 team（跨部门下级）与 dept（部门内人员）范围天然交集非空，并集语义符合"任一角色授予即可见"
 
 ## 十一、模块分类与新增模块接入规范
 
