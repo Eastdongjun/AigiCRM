@@ -36,7 +36,7 @@ public class ReminderService {
     private final SysConfigService configService;
 
     public IPage<BizReminder> page(int current, int size, String type, String keyword,
-                                    Long officeId, Long ownerId, String status) {
+                                    Long officeId, Long ownerId, String status, Long deptId) {
         LambdaQueryWrapper<BizReminder> wrapper = new LambdaQueryWrapper<>();
         if (StringUtils.hasText(type)) {
             wrapper.eq(BizReminder::getReminderType, type);
@@ -46,6 +46,9 @@ public class ReminderService {
         }
         if (officeId != null) {
             wrapper.eq(BizReminder::getOfficeId, officeId);
+        }
+        if (deptId != null) {
+            wrapper.in(BizReminder::getOfficeId, com.ycmn.common.util.DeptTreeUtils.expandSubtree(deptMapper, deptId));
         }
         if (ownerId != null) {
             wrapper.eq(BizReminder::getOwnerId, ownerId);
@@ -74,7 +77,7 @@ public class ReminderService {
     }
 
     public IPage<Map<String, Object>> expiringPage(int current, int size, String keyword,
-                                                     Long officeId, Long ownerId) {
+                                                     Long officeId, Long ownerId, Long deptId) {
         LambdaQueryWrapper<BizCustomer> wrapper = new LambdaQueryWrapper<>();
         int warningDays = 30;
         String val = configService.getValue("customer.warning.days");
@@ -87,7 +90,9 @@ public class ReminderService {
         if (StringUtils.hasText(keyword)) {
             wrapper.like(BizCustomer::getCustomerName, keyword);
         }
-        if (officeId != null) {
+        if (deptId != null) {
+            wrapper.in(BizCustomer::getOfficeId, com.ycmn.common.util.DeptTreeUtils.expandSubtree(deptMapper, deptId));
+        } else if (officeId != null) {
             wrapper.eq(BizCustomer::getOfficeId, officeId);
         }
         if (ownerId != null) {

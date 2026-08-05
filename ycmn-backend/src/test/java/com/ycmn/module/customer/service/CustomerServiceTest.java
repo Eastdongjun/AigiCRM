@@ -200,6 +200,8 @@ class CustomerServiceTest {
 
             // 旧分支走 org 树查询；断言完全不调用 resolver
             verify(resolver, never()).resolve(any());
+        }
+    }
 
     // ===== 数据范围解析（FEAT-20260804-DICT-DEPT-READ 统计复用） =====
 
@@ -217,7 +219,8 @@ class CustomerServiceTest {
                 deptMapper,
                 mock(BizReminderMapper.class),
                 mock(JdbcTemplate.class),
-                mock(SysConfigService.class));
+                mock(SysConfigService.class),
+                mock(com.ycmn.common.scope.OrgScopeResolver.class));
     }
 
     @Test

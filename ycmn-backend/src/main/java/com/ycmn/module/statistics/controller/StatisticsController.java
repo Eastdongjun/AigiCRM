@@ -50,8 +50,9 @@ public class StatisticsController {
     @GetMapping("/analysis")
     @PreAuthorize("hasAuthority('statistics:view')")
     public Result<Map<String, Object>> analysis(@RequestParam(defaultValue = "0") int year,
-                                                @RequestParam(required = false) Long officeId) {
-        return Result.ok(statisticsQueryService.analysis(year, officeId));
+                                                @RequestParam(required = false) Long officeId,
+                                                @RequestParam(required = false) Long deptId) {
+        return Result.ok(statisticsQueryService.analysis(year, officeId, deptId));
     }
 
     @GetMapping("/team-activities")

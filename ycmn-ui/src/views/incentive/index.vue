@@ -15,6 +15,19 @@
     <div class="filter-strip">
       <div class="filter-left">
         <div class="filter-group">
+          <span class="filter-label">部门</span>
+          <el-tree-select
+            v-model="selectedDeptId"
+            :data="deptTree"
+            clearable
+            check-strictly
+            node-key="id"
+            :props="{ label: 'deptName', children: 'children' }"
+            placeholder="选择部门（含全部子部门）"
+            style="width:180px"
+            @change="onDeptChange" />
+        </div>
+        <div class="filter-group">
           <span class="filter-label">人员</span>
           <el-select v-model="selectedUser" size="default" style="width:130px" clearable placeholder="全部" @change="selectedUser=$event||null">
             <el-option v-for="u in userList" :key="u.id" :label="u.realName" :value="u.id" />
@@ -307,6 +320,8 @@ const userStore = useUserStore()
 const activeTab = ref('')
 const selectedUser = ref(null)
 const userList = ref([])
+const selectedDeptId = ref(null)
+const deptTree = ref([])
 const periodOptions = (() => { const l = []; for (let y = 2030; y >= 2025; y--) { l.push(y + '下半年', y + '上半年') } return l })()
 const selectedPeriod = ref('2026上半年')
 const categories = ref([])
@@ -555,6 +570,30 @@ const loadUsers = async () => {
     }
     userList.value = data
   } catch(e) {}
+}
+
+// 部门树（范围感知接口：当前用户可见部门树，含子部门）
+const loadDeptTree = async () => {
+  try {
+    const res = await request.get('/common/scope/depts')
+    deptTree.value = res.data || []
+  } catch (e) {}
+}
+
+// 部门变更：人员下拉数据源切换为该部门（含子部门）可见用户；清空部门恢复原数据源
+const onDeptChange = async (deptId) => {
+  if (deptId) {
+    try {
+      const res = await request.get('/common/scope/users', { params: { deptId } })
+      userList.value = res.data || []
+      // 已选人员不在新范围内时清空，避免列表过滤无结果（watch selectedUser 自动刷新列表）
+      if (selectedUser.value && !userList.value.some(u => u.id === selectedUser.value)) {
+        selectedUser.value = null
+      }
+    } catch (e) {}
+  } else {
+    loadUsers()
+  }
 }
 
 const loadRecords = async () => {
@@ -874,6 +913,7 @@ onMounted(() => {
   loadIndustries()
   loadPermission()
   loadUsers()
+  loadDeptTree()
 })
 </script>
 

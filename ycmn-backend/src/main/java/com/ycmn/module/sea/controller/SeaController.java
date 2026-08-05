@@ -48,10 +48,11 @@ public class SeaController {
             @RequestParam(defaultValue = "15") int size,
             @RequestParam(required = false) String industry,
             @RequestParam(required = false) Long officeId,
+            @RequestParam(required = false) Long deptId,
             @RequestParam(required = false) String enterReason,
             @RequestParam(required = false) String keyword,
             @RequestParam(required = false) Long poolId) {
-        return Result.ok(seaService.page(current, size, industry, officeId, enterReason, keyword, poolId));
+        return Result.ok(seaService.page(current, size, industry, officeId, enterReason, keyword, poolId, deptId));
     }
 
     @PreAuthorize("hasAuthority('sea:view')")

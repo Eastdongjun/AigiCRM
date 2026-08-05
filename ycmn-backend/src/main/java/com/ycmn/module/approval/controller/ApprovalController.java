@@ -24,8 +24,9 @@ public class ApprovalController {
             @RequestParam(defaultValue = "1") int current,
             @RequestParam(defaultValue = "15") int size,
             @RequestParam(defaultValue = "all") String tab,
-            @RequestParam(required = false) String type) {
-        return Result.ok(approvalService.page(current, size, tab, type, SecurityUtils.getCurrentUserId()));
+            @RequestParam(required = false) String type,
+            @RequestParam(required = false) Long deptId) {
+        return Result.ok(approvalService.page(current, size, tab, type, SecurityUtils.getCurrentUserId(), deptId));
     }
 
     @PreAuthorize("hasAuthority('approval:view')")

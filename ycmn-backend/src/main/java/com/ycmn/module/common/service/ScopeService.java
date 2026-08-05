@@ -22,19 +22,22 @@ public class ScopeService {
     private final SysUserMapper userMapper;
     private final SysDeptMapper deptMapper;
 
-    /** 当前用户可见人员列表；deptId 非空时限定该部门 ∩ U */
+    /** 当前用户可见人员列表；deptId 非空时限定该部门子树（含全部子部门）∩ U */
     public List<Map<String, Object>> visibleUsers(SecurityUser user, Long deptId) {
+        java.util.Set<Long> deptScope = deptId != null
+                ? new java.util.LinkedHashSet<>(com.ycmn.common.util.DeptTreeUtils.expandSubtree(deptMapper, deptId))
+                : null;
         List<Long> u = resolver.resolve(user);
         if (u == null) { // all：全部启用用户
             return userMapper.selectList(new LambdaQueryWrapper<SysUser>()
                             .eq(SysUser::getDeleted, 0).eq(SysUser::getStatus, 1)
-                            .eq(deptId != null, SysUser::getDeptId, deptId)
+                            .in(deptScope != null, SysUser::getDeptId, deptScope)
                             .orderByAsc(SysUser::getRealName))
                     .stream().map(this::toUserMap).toList();
         }
         if (u.isEmpty()) return List.of();
         return userMapper.selectBatchIds(u).stream()
-                .filter(x -> deptId == null || deptId.equals(x.getDeptId()))
+                .filter(x -> deptScope == null || deptScope.contains(x.getDeptId()))
                 .map(this::toUserMap)
                 .sorted(Comparator.comparing(m -> String.valueOf(m.get("realName"))))
                 .toList();

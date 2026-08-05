@@ -109,6 +109,16 @@
     <!-- 筛选栏 -->
     <div class="toolbar">
       <div class="toolbar-left">
+        <el-tree-select
+          v-model="query.deptId"
+          :data="deptTree"
+          clearable
+          check-strictly
+          node-key="id"
+          :props="{ label: 'deptName', children: 'children' }"
+          placeholder="选择部门（含全部子部门）"
+          style="width: 180px"
+          @change="loadData" />
         <el-select v-model="query.type" placeholder="全部类型" clearable style="width: 130px" @change="loadData">
           <el-option label="捞取" value="claim" />
           <el-option label="转移" value="transfer" />
@@ -186,6 +196,7 @@ import { ref, reactive, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useUserStore } from '@/store/user'
 import { getApprovalList, approve, reject, getApprovalStatistics } from '@/api/approval'
+import request from '@/utils/request'
 
 const userStore = useUserStore()
 const activeTab = ref('pending')
@@ -194,7 +205,16 @@ const total = ref(0)
 const stats = ref({})
 const searchText = ref('')
 
-const query = reactive({ current: 1, size: 15, type: '', person: '' })
+const query = reactive({ current: 1, size: 15, type: '', person: '', deptId: null })
+const deptTree = ref([])
+
+// 部门树（范围感知接口：当前用户可见部门树，含子部门；列表接口后端按 deptId 递归展开）
+const loadDeptTree = async () => {
+  try {
+    const res = await request.get('/common/scope/depts')
+    deptTree.value = res.data || []
+  } catch (e) {}
+}
 
 const loadData = async () => {
   try {
@@ -264,6 +284,7 @@ const updateTableHeight = () => {
 onMounted(() => {
   loadData()
   loadStats()
+  loadDeptTree()
   nextTick(updateTableHeight)
   if (tableWrapRef.value) {
     resizeObserver = new ResizeObserver(updateTableHeight)

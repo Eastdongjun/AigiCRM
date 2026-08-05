@@ -56,7 +56,7 @@ public class ApprovalService {
     private final SeaConfigService seaConfigService;
     private final SysUserService userService;
 
-    public IPage<BizApproval> page(int current, int size, String tab, String type, Long userId) {
+    public IPage<BizApproval> page(int current, int size, String tab, String type, Long userId, Long deptId) {
         LambdaQueryWrapper<BizApproval> wrapper = new LambdaQueryWrapper<>();
 
         if ("pending".equals(tab)) {
@@ -88,6 +88,15 @@ public class ApprovalService {
 
         if (StringUtils.hasText(type)) {
             wrapper.eq(BizApproval::getApprovalType, type);
+        }
+        if (deptId != null) {
+            // 部门筛选：申请人所属组织在子树内（含全部子部门）
+            java.util.List<Long> deptIds = com.ycmn.common.util.DeptTreeUtils.expandSubtree(deptMapper, deptId);
+            java.util.List<Long> uids = userMapper.selectList(
+                    new LambdaQueryWrapper<SysUser>().in(SysUser::getDeptId, deptIds))
+                    .stream().map(SysUser::getId).toList();
+            if (uids.isEmpty()) return new Page<>(current, size);
+            wrapper.in(BizApproval::getApplicantId, uids);
         }
         wrapper.orderByDesc(BizApproval::getCreatedAt);
 

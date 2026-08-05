@@ -24,8 +24,9 @@ public class ReminderController {
             @RequestParam(defaultValue = "15") int size,
             @RequestParam(required = false) String keyword,
             @RequestParam(required = false) Long officeId,
-            @RequestParam(required = false) Long ownerId) {
-        return Result.ok(reminderService.expiringPage(current, size, keyword, officeId, ownerId));
+            @RequestParam(required = false) Long ownerId,
+            @RequestParam(required = false) Long deptId) {
+        return Result.ok(reminderService.expiringPage(current, size, keyword, officeId, ownerId, deptId));
     }
 
     @PreAuthorize("hasAuthority('reminder:view')")
@@ -37,8 +38,9 @@ public class ReminderController {
             @RequestParam(required = false) String keyword,
             @RequestParam(required = false) Long officeId,
             @RequestParam(required = false) Long ownerId,
-            @RequestParam(required = false) String status) {
-        return Result.ok(reminderService.page(current, size, type, keyword, officeId, ownerId, status));
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) Long deptId) {
+        return Result.ok(reminderService.page(current, size, type, keyword, officeId, ownerId, status, deptId));
     }
 
     @PreAuthorize("hasAuthority('reminder:view')")

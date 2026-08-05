@@ -54,6 +54,17 @@
         <span :class="['sea-tab',{active:statusFilter==='claimed'}]" @click="setStatus('claimed')">已捞取</span>
       </div>
       <div class="sea-filters">
+        <el-tree-select
+          v-model="query.deptId"
+          :data="deptTree"
+          check-strictly
+          clearable
+          node-key="id"
+          :props="{ label: 'deptName', children: 'children' }"
+          placeholder="选择部门（含全部子部门）"
+          class="f-dept"
+          @change="loadData"
+        />
         <el-select v-model="query.industry" placeholder="全行业" clearable class="f-sel" @change="loadData">
           <el-option v-for="i in industryOptions" :key="i" :label="i" :value="i" />
         </el-select>
@@ -139,7 +150,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { Upload, Right, Clock, CircleCheck, Document } from '@element-plus/icons-vue'
 import { getSeaList, getSeaStatistics, getVisibleSeaConfigs, deleteSeaPool, importSeaCustomers } from '@/api/sea'
 import { downloadImportTemplate } from '@/api/customer'
-import { getDictData } from '@/api/system'
+import { getDictData, getScopeDepts } from '@/api/system'
 import { submitApproval } from '@/api/approval'
 import { useUserStore } from '@/store/user'
 
@@ -155,8 +166,8 @@ const handleDownloadTemplate = async () => { try { await downloadImportTemplate(
 const handleImport = async () => { if(!importFile.value) return; importLoading.value=true; importResult.value=null; try { const res=await importSeaCustomers(importFile.value); importResult.value=res.data; if(res.data.successCount>0){loadData();loadStats()} } catch(e) {} finally { importLoading.value=false } }
 const closeImportDialog = () => { importFile.value=null; importResult.value=null; if(uploadRef.value) uploadRef.value.clearFiles() }
 
-const tableData = ref([]); const total = ref(0); const stats = ref({}); const pools = ref([]); const selectedPool = ref(null); const statusFilter = ref(''); const industryOptions = ref([])
-const query = reactive({ current:1, size:15, industry:'', enterReason:'', keyword:'' })
+const tableData = ref([]); const total = ref(0); const stats = ref({}); const pools = ref([]); const selectedPool = ref(null); const statusFilter = ref(''); const industryOptions = ref([]); const deptTree = ref([])
+const query = reactive({ current:1, size:15, industry:'', enterReason:'', keyword:'', deptId:null })
 const setStatus = (s) => { statusFilter.value=s; query.current=1; loadData() }
 
 const loadData = async () => {
@@ -178,6 +189,7 @@ const tableWrapRef = ref(null); const tableHeight = ref(300); let resizeObserver
 const updateTableHeight = () => { if(tableWrapRef.value) tableHeight.value = tableWrapRef.value.clientHeight }
 onMounted(async () => {
   loadPools(); loadData(); loadStats()
+  try { const res=await getScopeDepts(); deptTree.value=res.data||[] } catch(e) {}
   try { const res=await getDictData('industry'); industryOptions.value=(res.data||[]).map(d=>d.dictValue) } catch(e) { industryOptions.value=['煤矿','化工','电力','洗煤厂','有色'] }
   nextTick(updateTableHeight); if(tableWrapRef.value) { resizeObserver=new ResizeObserver(updateTableHeight); resizeObserver.observe(tableWrapRef.value) }
 })
@@ -210,7 +222,7 @@ onBeforeUnmount(() => { if(resizeObserver) resizeObserver.disconnect() })
 .sea-tab:hover { background:rgba(255,255,255,.6) }
 .sea-tab.active { background:#fff; color:#409eff; font-weight:600; box-shadow:0 1px 3px rgba(0,0,0,.08) }
 .sea-filters { display:flex; gap:8px; align-items:center }
-.f-sel { width:120px } .f-kw { width:200px }
+.f-sel { width:120px } .f-kw { width:200px } .f-dept { width:180px }
 
 /* Table */
 .sea-table-wrap { flex:1; min-height:0; display:flex; flex-direction:column; background:#fff; border-radius:10px; box-shadow:0 1px 3px rgba(0,0,0,.04); overflow:hidden }

@@ -52,7 +52,7 @@ public class SeaService {
         return seaConfigService.listVisible().stream().map(BizSeaConfig::getId).collect(Collectors.toList());
     }
 
-    public IPage<BizSeaPool> page(int current, int size, String industry, Long officeId, String enterReason, String keyword, Long poolId) {
+    public IPage<BizSeaPool> page(int current, int size, String industry, Long officeId, String enterReason, String keyword, Long poolId, Long deptId) {
         List<Long> visiblePoolIds = visiblePoolIdsOrNull();
         if (visiblePoolIds != null && visiblePoolIds.isEmpty()) {
             return new Page<>(current, size); // 无可见公海池
@@ -73,6 +73,15 @@ public class SeaService {
                 return new Page<>(current, size); // 指定了不可见的池
             }
             wrapper.eq(BizSeaPool::getPoolId, poolId);
+        }
+        if (deptId != null) {
+            // 部门筛选：客户所属组织在子树内（含全部子部门）
+            java.util.List<Long> deptIds = com.ycmn.common.util.DeptTreeUtils.expandSubtree(deptMapper, deptId);
+            java.util.List<Long> custIds = customerMapper.selectList(
+                    new LambdaQueryWrapper<BizCustomer>().in(BizCustomer::getOfficeId, deptIds))
+                    .stream().map(BizCustomer::getId).toList();
+            if (custIds.isEmpty()) return new Page<>(current, size);
+            wrapper.in(BizSeaPool::getCustomerId, custIds);
         }
 
         IPage<BizSeaPool> page = seaPoolMapper.selectPage(new Page<>(current, size), wrapper);

@@ -7,11 +7,19 @@
       <el-select v-model="filterYear" size="small" style="width:100px" @change="loadAll">
         <el-option v-for="y in yearOptions" :key="y" :label="y+'年'" :value="y" />
       </el-select>
-      <span style="color:#888;font-size:13px">办事处</span>
-      <el-select v-model="filterOffice" size="small" style="width:120px" clearable placeholder="全部" @change="loadAll">
-        <el-option label="全部" :value="null" />
-        <el-option v-for="o in officeList" :key="o.id" :label="o.deptName" :value="o.id" />
-      </el-select>
+      <span style="color:#888;font-size:13px">部门</span>
+      <el-tree-select
+        v-model="filterOffice"
+        :data="officeList"
+        check-strictly
+        clearable
+        node-key="id"
+        :props="{ label: 'deptName', children: 'children' }"
+        placeholder="选择部门（含全部子部门）"
+        size="small"
+        style="width:190px"
+        @change="loadAll"
+      />
       <el-button size="small" @click="loadAll" style="margin-left:auto">刷新</el-button>
     </div>
 
@@ -192,7 +200,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { getAnalysis } from '@/api/statistics'
 import { getScoreRanking } from '@/api/score'
-import { getDeptList } from '@/api/system'
+import { getScopeDepts } from '@/api/system'
 
 const currentYear = new Date().getFullYear()
 const currentMonth = new Date().getMonth() + 1
@@ -264,9 +272,9 @@ const trendCls = (o) => {
 }
 
 const loadAll = async () => {
-  try { const r = await getAnalysis({ year: filterYear.value, officeId: filterOffice.value }); analysis.value = r.data || {} } catch {}
+  try { const r = await getAnalysis({ year: filterYear.value, deptId: filterOffice.value, officeId: null }); analysis.value = r.data || {} } catch {}
   try { const r = await getScoreRanking({ type: 'personal' }); scoreTop5.value = (r.data || []).slice(0, 5) } catch {}
-  try { const r = await getDeptList(); officeList.value = (r.data || []).filter(d => d.deptType === 3) } catch {}
+  try { const r = await getScopeDepts(); officeList.value = r.data || [] } catch {}
 }
 
 onMounted(loadAll)

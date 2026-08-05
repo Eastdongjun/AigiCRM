@@ -8,9 +8,17 @@
     <div class="toolbar">
       <div class="toolbar-left">
         <el-input v-model="query.keyword" placeholder="搜索客户名称..." clearable prefix-icon="Search" style="width: 200px" @change="loadData" />
-        <el-select v-model="query.officeId" placeholder="全部办事处" clearable style="width: 140px" @change="loadData">
-          <el-option v-for="d in offices" :key="d.id" :label="d.deptName" :value="d.id" />
-        </el-select>
+        <el-tree-select
+          v-model="query.deptId"
+          :data="offices"
+          check-strictly
+          clearable
+          node-key="id"
+          :props="{ label: 'deptName', children: 'children' }"
+          placeholder="选择部门（含全部子部门）"
+          style="width: 190px"
+          @change="loadData"
+        />
         <el-select v-model="query.ownerId" placeholder="全部负责人" clearable filterable style="width: 140px" @change="loadData">
           <el-option v-for="u in owners" :key="u.id" :label="u.realName" :value="u.id" />
         </el-select>
@@ -81,7 +89,7 @@ import { ref, reactive, computed, onMounted, onBeforeUnmount, nextTick } from 'v
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { getExpiringList, getReminderList, processReminder } from '@/api/reminder'
 import { submitApproval } from '@/api/approval'
-import { getDeptList } from '@/api/system'
+import { getScopeDepts } from '@/api/system'
 import { getSimpleUserList } from '@/api/customer'
 import { useUserStore } from '@/store/user'
 
@@ -96,7 +104,7 @@ const query = reactive({
   current: 1,
   size: 15,
   keyword: '',
-  officeId: null,
+  deptId: null,
   ownerId: null
 })
 
@@ -110,7 +118,7 @@ const loadData = async () => {
       const types = ['share_to', 'share_by', 'share_owner']
       const labelMap = { share_to: '客户已分享给你', share_by: '你分享了客户', share_owner: '你的客户被分享' }
       for (const t of types) {
-        const sr = await getReminderList({ current: 1, size: 20, type: t, status: 'pending' })
+        const sr = await getReminderList({ current: 1, size: 20, type: t, status: 'pending', deptId: query.deptId })
         for (const item of (sr.data?.records || [])) {
           shareRecords.push({
             reminderId: item.id,
@@ -131,7 +139,7 @@ const loadData = async () => {
 
 const resetQuery = () => {
   query.keyword = ''
-  query.officeId = null
+  query.deptId = null
   query.ownerId = null
   query.current = 1
   loadData()
@@ -213,8 +221,8 @@ const updateTableHeight = () => {
 onMounted(async () => {
   loadData()
   try {
-    const res = await getDeptList()
-    offices.value = (res.data || []).filter(d => d.deptType === 3)
+    const res = await getScopeDepts()
+    offices.value = res.data || []
   } catch (e) {}
   try {
     const res = await getSimpleUserList()

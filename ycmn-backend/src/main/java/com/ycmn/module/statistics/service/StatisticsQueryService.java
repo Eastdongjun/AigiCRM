@@ -361,7 +361,7 @@ public class StatisticsQueryService {
      * 【需求】年度月度新增/文件、办事处对比、概览统计、行业分布
      * 【方法】按年/办事处条件查询并聚合；officeId 筛选时所有统计同步收窄
      */
-    public Map<String, Object> analysis(int year, Long officeId) {
+    public Map<String, Object> analysis(int year, Long officeId, Long deptId) {
         if (year == 0) year = LocalDate.now().getYear();
         Map<String, Object> data = new HashMap<>();
 
@@ -372,7 +372,8 @@ public class StatisticsQueryService {
             LambdaQueryWrapper<BizCustomer> cw = new LambdaQueryWrapper<>();
             cw.eq(BizCustomer::getDeleted, 0).ne(BizCustomer::getStatus, "sea")
               .ge(BizCustomer::getCreatedAt, from).lt(BizCustomer::getCreatedAt, to);
-            if (officeId != null) cw.eq(BizCustomer::getOfficeId, officeId);
+            if (deptId != null) cw.in(BizCustomer::getOfficeId, com.ycmn.common.util.DeptTreeUtils.expandSubtree(deptMapper, deptId));
+            else if (officeId != null) cw.eq(BizCustomer::getOfficeId, officeId);
             applyCustomerScope(cw);
             monthlyCustomers[m - 1] = customerMapper.selectCount(cw).intValue();
         }
@@ -442,7 +443,8 @@ public class StatisticsQueryService {
         LocalDate today = LocalDate.now();
         LambdaQueryWrapper<BizCustomer> baseW = new LambdaQueryWrapper<BizCustomer>()
                 .eq(BizCustomer::getDeleted, 0).ne(BizCustomer::getStatus, "sea");
-        if (officeId != null) baseW.eq(BizCustomer::getOfficeId, officeId);
+        if (deptId != null) baseW.in(BizCustomer::getOfficeId, com.ycmn.common.util.DeptTreeUtils.expandSubtree(deptMapper, deptId));
+        else if (officeId != null) baseW.eq(BizCustomer::getOfficeId, officeId);
         applyCustomerScope(baseW);
         long totalCustomers = customerMapper.selectCount(baseW);
 

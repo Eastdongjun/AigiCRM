@@ -44,6 +44,10 @@ export function getDeptTree() {
 export function getDeptList() {
   return request.get('/system/depts')
 }
+// 当前用户可见部门树（deptName/children/id），供"选择部门（含全部子部门）"筛选
+export function getScopeDepts() {
+  return request.get('/common/scope/depts')
+}
 export function createDept(data) {
   return request.post('/system/depts', data)
 }
