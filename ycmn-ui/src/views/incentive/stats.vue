@@ -109,7 +109,10 @@
     <div v-if="activeTab === 'rank'" class="card">
       <div class="table-header">
         <span class="matrix-title">{{ period || '全部周期' }} 团队激励统计</span>
-        <span class="rank-count">{{ scoreboard.length }}人</span>
+        <span class="header-right-actions">
+          <span class="rank-count">{{ scoreboard.length }}人</span>
+          <el-button size="small" type="primary" plain :icon="Download" @click="exportRank('personal')">导出</el-button>
+        </span>
       </div>
       <el-table :data="scoreboard" style="width:100%" empty-text="暂无数据" class="rank-matrix"
         :header-cell-style="{ background: '#f7f9fc', color: '#1f2329', fontWeight: 600, borderBottom: '1px solid #e8ebf0' }"
@@ -151,7 +154,10 @@
     <div v-if="activeTab === 'dept'" class="card">
       <div class="table-header">
         <span>{{ period || '全部' }} 部门排行</span>
-        <span class="rank-count">{{ deptList.length }}个部门</span>
+        <span class="header-right-actions">
+          <span class="rank-count">{{ deptList.length }}个部门</span>
+          <el-button size="small" type="primary" plain :icon="Download" @click="exportRank('dept')">导出</el-button>
+        </span>
       </div>
       <el-table :data="deptList" style="width:100%" empty-text="暂无数据" class="rank-matrix"
         :header-cell-style="{ background: '#f7f9fc', color: '#1f2329', fontWeight: 600, borderBottom: '1px solid #e8ebf0' }"
@@ -193,6 +199,7 @@
 
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
+import { Download } from '@element-plus/icons-vue'
 import { getCategoryTree, getRecords, getCategoryStats, getScoreboard, getIncentiveRanking } from '@/api/incentive'
 import { useUserStore } from '@/store/user'
 
@@ -242,6 +249,34 @@ const catStatMap = computed(() => {
   for (const s of catStat.value.byCategory || []) m[s.categoryId] = s
   return m
 })
+
+// 排行导出（CSV，含 BOM 防中文乱码）
+const exportRank = (type) => {
+  const periodLabel = period.value || '全部周期'
+  const cats = rankParents.value.flatMap(g => g.children.map(c => c.categoryName))
+  let header, rows
+  if (type === 'personal') {
+    header = ['排名', '姓名', '激励总额', ...cats, '上传数']
+    rows = scoreboard.value.map((r, i) => [i + 1, r.realName, r.totalScore, ...rankParents.value.flatMap(g => g.children.map(c => r.byCategory?.[c.id] || 0)), r.recordCount || 0])
+  } else {
+    header = ['排名', '部门', '激励总额', ...cats, '参与人数']
+    rows = deptList.value.map((r, i) => [i + 1, r.deptName, r.totalScore, ...rankParents.value.flatMap(g => g.children.map(c => r.byCategory?.[c.id] || 0)), r.participantCount])
+  }
+  const esc = (v) => {
+    const s = String(v ?? '')
+    return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s
+  }
+  const csv = '﻿' + [header, ...rows].map(row => row.map(esc).join(',')).join('\n')
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `激励${type === 'personal' ? '个人' : '部门'}排行_${periodLabel}.csv`
+  document.body.appendChild(a)
+  a.click()
+  URL.revokeObjectURL(url)
+  a.remove()
+}
 
 // 个人排行矩阵表头：按大类分组的子分类列（模板：激励政策分列）
 const rankParents = computed(() => {
@@ -338,6 +373,7 @@ onMounted(loadData)
 /* 卡片 */
 .card { background: #fff; border: 1px solid #ebeef5; border-radius: 12px; padding: 24px; }
 .table-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; font-size: 14px; color: #86909c; }
+.header-right-actions { display: flex; align-items: center; gap: 10px; }
 
 /* 统计表 */
 .stats-table { width: 100%; border-collapse: collapse; font-size: 14px; }
