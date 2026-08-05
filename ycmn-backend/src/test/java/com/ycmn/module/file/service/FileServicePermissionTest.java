@@ -15,6 +15,7 @@ import com.ycmn.module.file.mapper.BizFileFolderMapper;
 import com.ycmn.module.file.mapper.BizFileMapper;
 import com.ycmn.module.file.mapper.BizFileShareMapper;
 import com.ycmn.module.file.mapper.BizFolderAclMapper;
+import com.ycmn.module.incentive.entity.BizIncentiveRecord;
 import com.ycmn.module.incentive.mapper.BizIncentiveRecordMapper;
 import com.ycmn.module.system.entity.SysUser;
 import com.ycmn.module.system.mapper.SysUserMapper;
@@ -634,6 +635,70 @@ class FileServicePermissionTest {
             BizFile result = svc.replaceFile(9L, mf);
             assertNotNull(result.getOssUrl());
             assertTrue(result.getOssUrl().contains(result.getOssKey()), "ossUrl 应指向新 key: " + result.getOssUrl());
+        }
+    }
+
+    // ====== 激励下载放开：shared=1 激励记录中的文件"列表可见即可下载"（与 pageFiles incentive 分支同规则）======
+
+    private BizFile anIncentiveFile(Long id, Long uploaderId) {
+        BizFile file = new BizFile();
+        file.setId(id);
+        file.setFolderId(null);
+        file.setUploaderId(uploaderId);
+        file.setFileScope("incentive");
+        file.setOssKey("incentive/" + uploaderId + "/x.txt");
+        return file;
+    }
+
+    @Test
+    void canDownloadFile_incentiveInSharedRecord_visibleToOthers() {
+        // 激励文件在 shared=1 的他人记录 file_ids 中 → 非上传者可下载（销售总监下载下属激励材料）
+        BizIncentiveRecord record = new BizIncentiveRecord();
+        record.setUserId(3L);
+        record.setShared(1);
+        record.setFileIds(List.of(9L));
+        when(incentiveRecordMapper.selectList(any())).thenReturn(List.of(record));
+        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
+            m.when(SecurityUtils::isAdmin).thenReturn(false);
+            assertTrue(svc.canDownloadFile(anIncentiveFile(9L, 1L), 2L));
+        }
+    }
+
+    @Test
+    void canDownloadFile_incentiveInSharedRecord_trackSlotVisible() {
+        // 激励文件出现在他人共享记录的 file_track_ids 槽位中 → 同样可见可下载（五个槽位任一命中）
+        BizIncentiveRecord record = new BizIncentiveRecord();
+        record.setUserId(3L);
+        record.setShared(1);
+        record.setFileTrackIds(List.of(9L));
+        when(incentiveRecordMapper.selectList(any())).thenReturn(List.of(record));
+        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
+            m.when(SecurityUtils::isAdmin).thenReturn(false);
+            assertTrue(svc.canDownloadFile(anIncentiveFile(9L, 1L), 2L));
+        }
+    }
+
+    @Test
+    void download_incentiveNotInSharedRecord_returns403() {
+        // 激励文件不在任何 shared 记录中（且非本人/被分享/管理员）→ 非上传者下载 403
+        HttpServletResponse response = mock(HttpServletResponse.class);
+        when(fileMapper.selectById(9L)).thenReturn(anIncentiveFile(9L, 1L));
+        when(incentiveRecordMapper.selectList(any())).thenReturn(List.of());
+        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
+            m.when(SecurityUtils::getCurrentUserId).thenReturn(2L);
+            m.when(SecurityUtils::isAdmin).thenReturn(false);
+            svc.downloadById(9L, null, response);
+            verify(response).setStatus(403);
+        }
+    }
+
+    @Test
+    void canDownloadFile_incentiveOwnUpload_stillAllowed() {
+        // 本人上传的激励文件仍可下载（canAccessFile 路径不回归，不触发 shared 记录查询）
+        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
+            m.when(SecurityUtils::isAdmin).thenReturn(false);
+            assertTrue(svc.canDownloadFile(anIncentiveFile(9L, 1L), 1L));
+            verify(incentiveRecordMapper, never()).selectList(any());
         }
     }
 }

@@ -657,12 +657,17 @@ public class FileService {
      * 【文件权限体系】下载权限判定（downloadById 与 ossKey 下载路由 /download/** 同权）：
      * canAccessFile（上传者/被分享者/管理员/公共文件）通过即可下载；
      * 夹内文件其余用户按文件夹权限判定（上级链/ACL download，公共文件夹兜底可下载）；
-     * 非管理员还受夹内文件下载开关约束（1=允许下载，0/空=仅预览，管理员全权）。
+     * 激励文件（fileScope=incentive）额外按"列表可见即可下载"判定——shared=1 且非本人名下的
+     * 激励记录中的文件，全员可下载（与 pageFiles incentive 分支同规则，销售总监可下载下属激励材料）；
+     * 非管理员还受夹内文件下载开关约束（1=允许下载，0/空=仅预览，管理员全权；激励文件 folderId=null 不受开关约束）。
      */
     public boolean canDownloadFile(BizFile file, Long userId) {
         boolean canDownload = canAccessFile(file, userId);
         if (!canDownload && file.getFolderId() != null) {
             canDownload = folderPermissionService.checkFile(file.getId(), FolderPermissionService.P_DOWNLOAD, userId);
+        }
+        if (!canDownload && "incentive".equals(file.getFileScope())) {
+            canDownload = isIncentiveFileVisible(file.getId(), userId);
         }
         if (!canDownload) {
             return false;
@@ -674,6 +679,29 @@ public class FileService {
             }
         }
         return true;
+    }
+
+    /**
+     * 【激励文件可见性】与 pageFiles incentive 分支同规则：
+     * shared=1 且非本人名下的激励记录中，fileIds/filePreIds/fileMidIds/filePostIds/fileTrackIds
+     * 任一集合包含 fileId 即视为列表可见，列表可见即可下载。
+     */
+    private boolean isIncentiveFileVisible(Long fileId, Long userId) {
+        List<BizIncentiveRecord> sharedRecords = incentiveRecordMapper.selectList(
+                new LambdaQueryWrapper<BizIncentiveRecord>()
+                        .eq(BizIncentiveRecord::getShared, 1)
+                        .ne(BizIncentiveRecord::getUserId, userId)
+        );
+        for (BizIncentiveRecord r : sharedRecords) {
+            if (r.getFileIds().contains(fileId)
+                    || r.getFilePreIds().contains(fileId)
+                    || r.getFileMidIds().contains(fileId)
+                    || r.getFilePostIds().contains(fileId)
+                    || r.getFileTrackIds().contains(fileId)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     // ====== 文件分享 ======
