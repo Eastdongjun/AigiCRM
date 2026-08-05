@@ -15,6 +15,7 @@ import org.springframework.stereotype.Service;
 public class SysLogService {
 
     private final SysLogMapper logMapper;
+    private final com.ycmn.common.scope.OrgScopeResolver scopeResolver;
 
     public IPage<SysLog> page(int current, int size, String module, String username,
                               String startDate, String endDate, String keyword) {
@@ -42,10 +43,17 @@ public class SysLogService {
 
     private LambdaQueryWrapper<SysLog> buildBase(String module, String startDate, String endDate) {
         LambdaQueryWrapper<SysLog> w = new LambdaQueryWrapper<>();
-        // 数据范围：非管理员只看自己的操作日志（管理员/总监看全部）
+        // 数据范围（与业务模块一致，含子部门递归）：admin 全量；
+        // 非管理员 = Resolver 可见用户集合（self 仅自己 / dept 本部门及子部门 / region 大区 / team 本人及下级 / all 全量）
         if (!SecurityUtils.isAdmin()) {
-            String me = SecurityUtils.getCurrentUsername();
-            if (me != null) w.eq(SysLog::getUsername, me);
+            java.util.List<Long> uids = scopeResolver.resolve(SecurityUtils.getCurrentUser());
+            if (uids == null) {
+                // all 范围：本集团全部
+            } else if (uids.isEmpty()) {
+                w.eq(SysLog::getUserId, Long.MIN_VALUE); // 空集
+            } else {
+                w.in(SysLog::getUserId, uids);
+            }
         }
         if (module != null && !module.isEmpty()) w.eq(SysLog::getModule, module);
         if (startDate != null && !startDate.isEmpty())
