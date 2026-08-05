@@ -42,19 +42,22 @@ public class ScopeService {
 
     /**
      * 当前用户可见部门树（U 聚合）。
-     * null=all 返回完整树（组装与 SysDeptService.tree 一致）；空=空树；
-     * 否则 resolveVisibleDeptIds 取可见部门集合 → selectBatchIds 批量查详情 →
+     * null=all：admin 返回完整树，非 admin 收窄为本人部门+祖先链（组织架构不向非管理员全量暴露，
+     * 与 SysDeptService.tree 的 FEAT-20260804-DEPTS-DATASCOPE 收窄口径一致）；空=空树；
+     * 否则 resolveVisibleDeptIds 取可见部门集合 → selectBatchIds 批量查详情（过滤 status=1，与 all 分支口径一致）→
      * 按 parent_id 组装树，层内按 sortOrder 升序；parent 不可见的节点提升为顶层。
      */
     public List<SysDept> visibleDeptTree(SecurityUser user) {
         List<Long> deptIds = resolver.resolveVisibleDeptIds(user);
-        if (deptIds == null) { // all：完整部门树
-            return buildTree(deptMapper.selectList(new LambdaQueryWrapper<SysDept>()
-                            .eq(SysDept::getStatus, 1).orderByAsc(SysDept::getSortOrder)),
-                    0L);
+        if (deptIds == null) { // all
+            List<SysDept> all = deptMapper.selectList(new LambdaQueryWrapper<SysDept>()
+                    .eq(SysDept::getStatus, 1).orderByAsc(SysDept::getSortOrder));
+            return buildPartialTree(narrowToOwnChain(user, all));
         }
         if (deptIds.isEmpty()) return List.of();
         List<SysDept> depts = new ArrayList<>(deptMapper.selectBatchIds(deptIds));
+        // 与 all 分支口径一致：禁用部门不进入可见树
+        depts.removeIf(d -> !Objects.equals(d.getStatus(), 1));
         depts.sort(Comparator.comparing(SysDept::getSortOrder, Comparator.nullsLast(Comparator.naturalOrder()))
                 .thenComparing(SysDept::getId));
         return buildPartialTree(depts);
@@ -68,12 +71,24 @@ public class ScopeService {
         return m;
     }
 
-    /** 完整树组装（与 SysDeptService.tree 相同模式：根 parentId=0） */
-    private List<SysDept> buildTree(List<SysDept> list, Long parentId) {
-        return list.stream()
-                .filter(d -> Objects.equals(d.getParentId(), parentId))
-                .peek(d -> d.setChildren(buildTree(list, d.getId())))
-                .collect(Collectors.toList());
+    /**
+     * 非 admin 收窄：仅本人部门+祖先链（与 SysDeptService.scopeFilter 同口径，
+     * FEAT-20260804-DEPTS-DATASCOPE；以传入 user 为准而非 SecurityContext，可单测）。
+     * admin 返回全量；deptId 为空返回空列表。
+     */
+    private List<SysDept> narrowToOwnChain(SecurityUser user, List<SysDept> all) {
+        if (user != null && user.hasRole("admin")) return all;
+        Long myDeptId = user != null ? user.getDeptId() : null;
+        if (myDeptId == null) return Collections.emptyList();
+        Map<Long, SysDept> byId = all.stream()
+                .collect(Collectors.toMap(SysDept::getId, d -> d, (a, b) -> a));
+        Set<Long> keep = new HashSet<>();
+        Long cur = myDeptId;
+        while (cur != null && byId.containsKey(cur)) {
+            keep.add(cur);
+            cur = byId.get(cur).getParentId();
+        }
+        return all.stream().filter(d -> keep.contains(d.getId())).collect(Collectors.toList());
     }
 
     /** 部分集合树组装：parent 不可见的节点提升为顶层；入参已按 sortOrder 排序，挂接顺序即层级顺序 */

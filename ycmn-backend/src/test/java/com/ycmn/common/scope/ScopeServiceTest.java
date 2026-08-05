@@ -64,12 +64,17 @@ class ScopeServiceTest {
     }
 
     private SysDept dept(long id, Long parentId, String name) {
-        return dept(id, parentId, name, 0);
+        return dept(id, parentId, name, 0, 1);
     }
 
     private SysDept dept(long id, Long parentId, String name, int sortOrder) {
+        return dept(id, parentId, name, sortOrder, 1);
+    }
+
+    private SysDept dept(long id, Long parentId, String name, int sortOrder, int status) {
         SysDept d = new SysDept();
-        d.setId(id); d.setParentId(parentId); d.setDeptName(name); d.setSortOrder(sortOrder);
+        d.setId(id); d.setParentId(parentId); d.setDeptName(name);
+        d.setSortOrder(sortOrder); d.setStatus(status);
         return d;
     }
 
@@ -180,20 +185,40 @@ class ScopeServiceTest {
 
     // ---- visibleDeptTree ----
 
-    /** all：完整部门树（status=1，根 parentId=0） */
+    /** all + admin：完整部门树（status=1，根 parentId=0） */
     @Test
-    void deptTreeAllReturnsFullTree() {
+    void deptTreeAllReturnsFullTreeForAdmin() {
         when(resolver.resolveVisibleDeptIds(any())).thenReturn(null);
         when(deptMapper.selectList(any(LambdaQueryWrapper.class))).thenAnswer(inv -> {
             LambdaQueryWrapper<SysDept> w = inv.getArgument(0);
             assertEquals(List.of(1L), columnValues(w).get("status"), "部门查询必须过滤 status=1");
             return List.of(dept(1L, 0L, "集团"), dept(11L, 1L, "大区"), dept(12L, 1L, "办事处"));
         });
+        SecurityUser su = su(1L, "all", 11L);
+        su.setRoleCodes(List.of("admin"));
         ScopeService svc = new ScopeService(resolver, userMapper, deptMapper);
-        List<SysDept> tree = svc.visibleDeptTree(su(1L, "all", 11L));
+        List<SysDept> tree = svc.visibleDeptTree(su);
         assertEquals(1, tree.size());
         assertEquals("集团", tree.get(0).getDeptName());
         assertEquals(2, tree.get(0).getChildren().size());
+    }
+
+    /** all + 非 admin：收窄为本人部门+祖先链，远处部门不出现（FEAT-20260804-DEPTS-DATASCOPE 口径） */
+    @Test
+    void deptTreeAllNarrowedForNonAdmin() {
+        when(resolver.resolveVisibleDeptIds(any())).thenReturn(null);
+        when(deptMapper.selectList(any(LambdaQueryWrapper.class))).thenAnswer(inv -> {
+            LambdaQueryWrapper<SysDept> w = inv.getArgument(0);
+            assertEquals(List.of(1L), columnValues(w).get("status"), "部门查询必须过滤 status=1");
+            return List.of(dept(1L, 0L, "集团"), dept(11L, 1L, "大区A"), dept(12L, 1L, "大区B"));
+        });
+        SecurityUser su = su(1L, "all", 11L); // 无 admin 角色
+        ScopeService svc = new ScopeService(resolver, userMapper, deptMapper);
+        List<SysDept> tree = svc.visibleDeptTree(su);
+        assertEquals(1, tree.size());
+        assertEquals("集团", tree.get(0).getDeptName());
+        assertEquals(1, tree.get(0).getChildren().size());
+        assertEquals("大区A", tree.get(0).getChildren().get(0).getDeptName(), "远处部门 12 不得出现");
     }
 
     /** 部分可见集合：selectBatchIds 批量查 + 按 parent_id 组装（children 挂接） */
@@ -236,6 +261,20 @@ class ScopeServiceTest {
         List<SysDept> tree = svc.visibleDeptTree(su(1L, "dept", 11L));
         assertEquals("A部", tree.get(0).getChildren().get(0).getDeptName());
         assertEquals("B部", tree.get(0).getChildren().get(1).getDeptName());
+    }
+
+    /** partial 分支必须过滤 status=1：禁用部门不进入可见树（与 all 分支口径一致） */
+    @Test
+    void deptTreePartialExcludesDisabledDept() {
+        when(resolver.resolveVisibleDeptIds(any())).thenReturn(List.of(1L, 11L));
+        when(deptMapper.selectBatchIds(anyList())).thenReturn(List.of(
+                dept(1L, 0L, "集团"), dept(11L, 1L, "禁用大区", 0, 0)));
+        ScopeService svc = new ScopeService(resolver, userMapper, deptMapper);
+        List<SysDept> tree = svc.visibleDeptTree(su(1L, "dept", 11L));
+        assertEquals(1, tree.size());
+        assertEquals("集团", tree.get(0).getDeptName());
+        List<SysDept> children = tree.get(0).getChildren();
+        assertTrue(children == null || children.isEmpty(), "禁用部门 11 不得出现在可见树");
     }
 
     /** 空可见集合：空树，不查库 */
