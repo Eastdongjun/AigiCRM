@@ -267,8 +267,6 @@ onBeforeUnmount(() => {
   background: #fafbfc;
 }
 .pagination-info { color: #909399; white-space: nowrap; }
-  background: #fff;
-}
 .days-danger { color: #f56c6c; font-weight: bold; }
 .days-warning { color: #e6a23c; font-weight: bold; }
 .days-normal { color: #67c23a; }
