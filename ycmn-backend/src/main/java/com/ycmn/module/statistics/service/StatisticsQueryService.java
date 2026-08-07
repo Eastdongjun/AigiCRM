@@ -509,9 +509,13 @@ public class StatisticsQueryService {
      */
     public List<Map<String, Object>> teamActivities() {
         List<Map<String, Object>> activities = new ArrayList<>();
-        // 【2026-08-08 设计规则：统计全员可见】团队动态展示全公司动态，不过滤（原只看自己，已放开）
+        // 【2026-08-08 设计规则（最终）：统计按账号数据范围】团队动态按当前账号数据范围过滤
+        // （管理员全量 / 负责人本组织 / 销售本人）。visible=null 表示全量不过滤。
+        List<Long> visibleUserIds = customerService.getCurrentScopeUserIds();
+        boolean scopeAll = (visibleUserIds == null);
 
         LambdaQueryWrapper<BizCustomerLog> logWrapper = new LambdaQueryWrapper<>();
+        if (!scopeAll) logWrapper.in(BizCustomerLog::getUserId, visibleUserIds);
         logWrapper.orderByDesc(BizCustomerLog::getCreatedAt).last("LIMIT 8");
         for (BizCustomerLog log : customerLogMapper.selectList(logWrapper)) {
             SysUser user = userMapper.selectById(log.getUserId());
@@ -523,6 +527,7 @@ public class StatisticsQueryService {
         }
 
         LambdaQueryWrapper<BizIncentiveRecord> incWrapper = new LambdaQueryWrapper<>();
+        if (!scopeAll) incWrapper.in(BizIncentiveRecord::getUserId, visibleUserIds);
         incWrapper.orderByDesc(BizIncentiveRecord::getCreatedAt).last("LIMIT 5");
         for (BizIncentiveRecord record : incentiveRecordMapper.selectList(incWrapper)) {
             SysUser user = userMapper.selectById(record.getUserId());
@@ -533,6 +538,7 @@ public class StatisticsQueryService {
         }
 
         LambdaQueryWrapper<BizFile> fileWrapper = new LambdaQueryWrapper<>();
+        if (!scopeAll) fileWrapper.in(BizFile::getUploaderId, visibleUserIds);
         fileWrapper.orderByDesc(BizFile::getCreatedAt).last("LIMIT 5");
         for (BizFile file : fileMapper.selectList(fileWrapper)) {
             SysUser user = file.getUploaderId() != null ? userMapper.selectById(file.getUploaderId()) : null;
@@ -542,6 +548,7 @@ public class StatisticsQueryService {
         }
 
         LambdaQueryWrapper<BizApproval> apprWrapper = new LambdaQueryWrapper<>();
+        if (!scopeAll) apprWrapper.in(BizApproval::getApplicantId, visibleUserIds);
         apprWrapper.orderByDesc(BizApproval::getCreatedAt).last("LIMIT 5");
         for (BizApproval appr : approvalMapper.selectList(apprWrapper)) {
             SysUser user = appr.getApplicantId() != null ? userMapper.selectById(appr.getApplicantId()) : null;
@@ -559,6 +566,7 @@ public class StatisticsQueryService {
         }
 
         LambdaQueryWrapper<BizCustomer> custWrapper = new LambdaQueryWrapper<>();
+        if (!scopeAll) custWrapper.in(BizCustomer::getOwnerId, visibleUserIds);
         custWrapper.orderByDesc(BizCustomer::getCreatedAt).last("LIMIT 5");
         for (BizCustomer cust : customerMapper.selectList(custWrapper)) {
             SysUser user = cust.getOwnerId() != null ? userMapper.selectById(cust.getOwnerId()) : null;
@@ -568,6 +576,7 @@ public class StatisticsQueryService {
         }
 
         LambdaQueryWrapper<SysLog> sysWrapper = new LambdaQueryWrapper<>();
+        if (!scopeAll) sysWrapper.in(SysLog::getUserId, visibleUserIds);
         sysWrapper.orderByDesc(SysLog::getCreatedAt).last("LIMIT 5");
         for (SysLog log : sysLogMapper.selectList(sysWrapper)) {
             SysUser user = log.getUserId() != null ? userMapper.selectById(log.getUserId()) : null;
@@ -598,16 +607,18 @@ public class StatisticsQueryService {
     }
 
     /**
-     * 【2026-08-08 设计规则：统计全员可见】统计模块数据对所有员工开放，不按数据范围过滤。
-     * 覆盖：dashboard/经营分析/日报周报/核心客户指标 等全部统计查询。
-     * （原 0804 起对统计做过数据范围过滤，现用户明确要求统计全员可见，故恢复全量。）
+     * 【2026-08-08 设计规则（最终）：统计按账号数据范围】统计模块数据按当前账号数据范围过滤
+     * （管理员全量 / 负责人本组织 / 销售本人，含系统级开关）。覆盖 dashboard/经营分析/
+     * 日报周报/核心客户指标 等全部统计查询。getCurrentScopeUserIds 返回 null=全量不过滤。
      */
     private void applyCustomerScope(LambdaQueryWrapper<BizCustomer> wrapper) {
-        // 全员可见：不过滤
+        List<Long> userIds = customerService.getCurrentScopeUserIds();
+        if (userIds != null) wrapper.in(BizCustomer::getOwnerId, userIds);
     }
 
     private void applyFileScope(LambdaQueryWrapper<BizFile> wrapper) {
-        // 全员可见：不过滤
+        List<Long> userIds = customerService.getCurrentScopeUserIds();
+        if (userIds != null) wrapper.in(BizFile::getUploaderId, userIds);
     }
 
     private int safe(Integer v) { return v != null ? v : 0; }

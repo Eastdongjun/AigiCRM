@@ -1,6 +1,7 @@
 package com.ycmn.module.score.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.ycmn.common.scope.OrgScopeResolver;
 import com.ycmn.module.score.entity.BizScoreEntry;
 import com.ycmn.module.score.entity.BizScoreItem;
 import com.ycmn.module.score.entity.BizScoreParticipant;
@@ -36,6 +37,12 @@ public class ScoreService {
     private final SysUserMapper userMapper;
     private final SysDeptMapper deptMapper;
     private final SysDictService dictService;
+    private final OrgScopeResolver scopeResolver;
+
+    /** 【2026-08-08 设计规则：积分按账号数据范围】当前用户可见用户集合（null=全量不过滤） */
+    private List<Long> visibleUserIds() {
+        return scopeResolver.resolve(SecurityUtils.getCurrentUser());
+    }
 
     // ====== 积分项 CRUD ======
 
@@ -72,9 +79,11 @@ public class ScoreService {
         List<BizScoreItem> items = listItems();
         result.put("items", items);
 
-        // 全部启用用户（用于"添加同事"下拉的候选池）【积分全员可见，保持全量】
-        List<SysUser> activeUsers = userMapper.selectList(
-                new LambdaQueryWrapper<SysUser>().eq(SysUser::getStatus, 1));
+        // 全部启用用户（用于"添加同事"下拉的候选池）【2026-08-08 按账号数据范围过滤】
+        LambdaQueryWrapper<SysUser> userWrapper = new LambdaQueryWrapper<SysUser>().eq(SysUser::getStatus, 1);
+        List<Long> visible = visibleUserIds();
+        if (visible != null) userWrapper.in(SysUser::getId, visible);
+        List<SysUser> activeUsers = userMapper.selectList(userWrapper);
         result.put("pool", activeUsers.stream().map(this::toUserMap).collect(Collectors.toList()));
 
         // 该周期已保存的参与同事名单
@@ -201,11 +210,13 @@ public class ScoreService {
     // ====== 排行榜 ======
 
     public List<Map<String, Object>> ranking(String period) {
-        // 查所有条目【积分全员可见，保持全量】
+        // 查条目【2026-08-08 按账号数据范围过滤】
         LambdaQueryWrapper<BizScoreEntry> w = new LambdaQueryWrapper<>();
         if (period != null && !period.isEmpty() && !"全部".equals(period)) {
             w.eq(BizScoreEntry::getPeriod, period);
         }
+        List<Long> visible = visibleUserIds();
+        if (visible != null) w.in(BizScoreEntry::getUserId, visible);
         List<BizScoreEntry> entries = entryMapper.selectList(w);
 
         // 按 userId 汇总
@@ -329,14 +340,17 @@ public class ScoreService {
     // ====== 导出 ======
 
     public void exportGrid(String period, HttpServletResponse response) throws Exception {
-        // 加载数据【积分全员可见，保持全量导出】
+        // 加载数据【2026-08-08 按账号数据范围导出】
         List<BizScoreItem> items = listItems();
-        List<SysUser> allUsers = userMapper.selectList(
-                new LambdaQueryWrapper<SysUser>().eq(SysUser::getStatus, 1));
+        LambdaQueryWrapper<SysUser> userWrapper = new LambdaQueryWrapper<SysUser>().eq(SysUser::getStatus, 1);
+        List<Long> visible = visibleUserIds();
+        if (visible != null) userWrapper.in(SysUser::getId, visible);
+        List<SysUser> allUsers = userMapper.selectList(userWrapper);
         Map<String, Integer> scoreMap = new HashMap<>();
         if (period != null && !period.isEmpty()) {
             LambdaQueryWrapper<BizScoreEntry> ew = new LambdaQueryWrapper<>();
             ew.eq(BizScoreEntry::getPeriod, period);
+            if (visible != null) ew.in(BizScoreEntry::getUserId, visible);
             for (BizScoreEntry e : entryMapper.selectList(ew)) {
                 scoreMap.put(e.getItemId() + "_" + e.getUserId(), e.getScore());
             }
