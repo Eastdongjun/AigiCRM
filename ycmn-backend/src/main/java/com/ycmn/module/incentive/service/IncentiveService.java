@@ -177,7 +177,16 @@ public class IncentiveService {
 
     public List<BizIncentiveRecord> getRecords(Long userId, String period, Long parentCategoryId) {
         LambdaQueryWrapper<BizIncentiveRecord> wrapper = new LambdaQueryWrapper<>();
-        if (userId != null) wrapper.eq(BizIncentiveRecord::getUserId, userId);
+        if (userId != null) {
+            // 【修复 2026-08-07 激励查询越权 + 上级可见下级】显式指定查看某人：必须在本用户可见范围内，否则拒。
+            // 原先控制器对普通用户强制 userId=本人、且显式传 userId 不做校验（可越权看任意人记录）。
+            if (!canViewIncentiveUser(userId)) return List.of();
+            wrapper.eq(BizIncentiveRecord::getUserId, userId);
+        } else {
+            // 【修复 2026-08-07 激励查询数据范围】未指定人时按数据范围过滤（含系统级开关），
+            // 上级/组织负责人默认可见下级记录（开关默认开启）。
+            applyIncentiveDataScope(wrapper);
+        }
         if (period != null) wrapper.eq(BizIncentiveRecord::getPeriod, period);
         if (parentCategoryId != null) {
             List<BizIncentiveCategory> children = categoryMapper.selectList(
@@ -636,6 +645,15 @@ public class IncentiveService {
      * 获取当前用户可见的用户ID列表（数据权限范围）
      * 同时包含通过客户分享可见的客户ID集合
      */
+    /** 【2026-08-07】显式指定查看某人是否在本用户可见范围内（admin/激励授权→全部；否则可见集合） */
+    private boolean canViewIncentiveUser(Long targetUserId) {
+        Map<String, Object> vis = computeVisibility();
+        if ("all".equals(vis.get("type"))) return true;
+        @SuppressWarnings("unchecked")
+        Set<Long> userIds = (Set<Long>) vis.get("userIds");
+        return userIds != null && userIds.contains(targetUserId);
+    }
+
     private Map<String, Object> computeVisibility() {
         Long userId = SecurityUtils.getCurrentUserId();
         boolean isAdmin = SecurityUtils.isAdmin();

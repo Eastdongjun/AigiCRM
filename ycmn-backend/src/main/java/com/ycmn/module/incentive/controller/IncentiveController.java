@@ -54,16 +54,9 @@ public class IncentiveController {
             @RequestParam(required = false) Long userId,
             @RequestParam(required = false) String period,
             @RequestParam(required = false) Long parentCategoryId) {
-        if (userId == null) {
-            SecurityUser user = SecurityUtils.getCurrentUser();
-            if (user != null) {
-                // admin 或有激励权限的人可看全部数据
-                boolean canSeeAll = SecurityUtils.isAdmin()
-                    || incentiveService.canEdit(user.getUserId())
-                    || incentiveService.canDelete(user.getUserId());
-                userId = canSeeAll ? null : user.getUserId();
-            }
-        }
+        // 【修复 2026-08-07】不再对普通用户强制 userId=本人：
+        // - 未传 userId → service 按数据范围过滤（含系统级开关，上级/负责人可见下级）
+        // - 显式传 userId → service 内校验是否在可见范围内（防越权看任意人）
         return Result.ok(incentiveService.getRecords(userId, period, parentCategoryId));
     }
 
