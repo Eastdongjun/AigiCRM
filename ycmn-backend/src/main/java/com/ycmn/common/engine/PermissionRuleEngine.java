@@ -102,7 +102,7 @@ public class PermissionRuleEngine {
         switch (op) {
             case "eq"  -> clauses.add(col + " = " + quoteValue(value));
             case "ne"  -> clauses.add(col + " != " + quoteValue(value));
-            case "in"  -> clauses.add(col + " IN (" + value + ")");
+            case "in"  -> clauses.add(col + " IN (" + quoteInList(value) + ")");
             case "like" -> clauses.add(col + " LIKE " + quoteValue("%" + value + "%"));
             case "is_null" -> clauses.add(col + " IS NULL");
         }
@@ -119,10 +119,19 @@ public class PermissionRuleEngine {
 
         if ("in".equals(op)) {
             // 此时 value 已是 "1,2,3" 格式的 ID 列表
-            clauses.add(col + " IN (" + value + ")");
+            clauses.add(col + " IN (" + quoteInList(value) + ")");
         } else if ("eq".equals(op)) {
             clauses.add(col + " = " + quoteValue(value));
         }
+    }
+
+    /** IN 列表安全拼装：纯数字不加引号（保持原 ID 列表行为），非数字逐项 quoteValue 转义，防 SQL 注入 */
+    static String quoteInList(String value) {
+        return java.util.Arrays.stream(value.split(","))
+                .map(String::trim)
+                .filter(s -> !s.isEmpty())
+                .map(s -> s.matches("\\d+") ? s : quoteValue(s))
+                .collect(java.util.stream.Collectors.joining(","));
     }
 
     /** 时间范围：WHERE create_time BETWEEN '2024-01-01' AND '2024-01-31' */

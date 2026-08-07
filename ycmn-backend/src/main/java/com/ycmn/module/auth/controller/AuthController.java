@@ -1,5 +1,6 @@
 package com.ycmn.module.auth.controller;
 
+import com.ycmn.common.BusinessException;
 import com.ycmn.common.Result;
 import com.ycmn.common.util.ClientIpUtils;
 import com.ycmn.module.auth.dto.*;
@@ -71,7 +72,11 @@ public class AuthController {
 
     @PostMapping("/forgot-password/lookup")
     public Result<ForgotPasswordLookupResponse> forgotPasswordLookup(
-            @Valid @RequestBody ForgotPasswordLookupRequest request) {
+            @Valid @RequestBody ForgotPasswordLookupRequest request, HttpServletRequest httpRequest) {
+        // 【安全 2026-08-08 匿名枚举防护】IP 60s 限流，只取可信代理后的真实 IP
+        if (authService.lookupRateLimited(ClientIpUtils.getClientIp(httpRequest))) {
+            throw new BusinessException(429, "操作太频繁，请稍后再试");
+        }
         return Result.ok(authService.lookupUser(request.getUsername()));
     }
 

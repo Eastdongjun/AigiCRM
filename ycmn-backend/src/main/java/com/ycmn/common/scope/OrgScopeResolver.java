@@ -38,6 +38,27 @@ public class OrgScopeResolver {
     private final SysDeptMapper deptMapper;
     private final SysConfigService configService;
 
+    /** 开关配置短 TTL 缓存：避免每次数据范围解析都查库（多页面累计卡顿） */
+    private static final long SWITCH_CACHE_TTL_MS = 30_000L;
+    private volatile long switchCacheExpire = 0L;
+    private volatile boolean cachedSuperior = true;
+    private volatile boolean cachedLeader = true;
+
+    /** 读取两个开关（30s 缓存；切换开关最长 30s 生效，与"即时生效"权衡取短 TTL） */
+    private boolean[] readSwitchFlags() {
+        long now = System.currentTimeMillis();
+        if (now >= switchCacheExpire) {
+            synchronized (this) {
+                if (now >= switchCacheExpire) {
+                    cachedSuperior = configService.getBooleanValue(KEY_SUPERIOR_SEE_SUBORDINATE, true);
+                    cachedLeader = configService.getBooleanValue(KEY_ORG_LEADER_SEE_ORG, true);
+                    switchCacheExpire = now + SWITCH_CACHE_TTL_MS;
+                }
+            }
+        }
+        return new boolean[]{cachedSuperior, cachedLeader};
+    }
+
     /** 解析当前用户可见 userIds（恒含本人；all 返回 null） */
     public List<Long> resolve(SecurityUser user) {
         if (user == null) return List.of();
@@ -66,8 +87,9 @@ public class OrgScopeResolver {
         if (user == null || user.getUserId() == null) return new ArrayList<>(base);
         if (configService == null) return new ArrayList<>(base); // 防御（测试匿名子类）
 
-        boolean superiorOn = configService.getBooleanValue(KEY_SUPERIOR_SEE_SUBORDINATE, true);
-        boolean leaderOn = configService.getBooleanValue(KEY_ORG_LEADER_SEE_ORG, true);
+        boolean[] switches = readSwitchFlags();
+        boolean superiorOn = switches[0];
+        boolean leaderOn = switches[1];
         if (!superiorOn && !leaderOn) return new ArrayList<>(base);
 
         Set<Long> merged = new LinkedHashSet<>(base);

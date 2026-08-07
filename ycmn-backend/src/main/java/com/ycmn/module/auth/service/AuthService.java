@@ -35,9 +35,18 @@ public class AuthService {
     private static final String RESET_RATE_PREFIX = "pwd_reset_rate:";
     private static final String RESET_ERROR_PREFIX = "pwd_reset_error:";
     private static final String LOGIN_FAIL_PREFIX = "login_fail:";
+    private static final String LOOKUP_RATE_PREFIX = "pwd_lookup_rate:"; // 忘记密码查询限流（IP）
     private static final long CODE_TTL_SECONDS = 300;
     private static final long RATE_LIMIT_SECONDS = 60;
     private static final int MAX_LOGIN_FAILS = 5;          // 同一IP+用户名最大失败次数
+
+    /** 【安全 2026-08-08】忘记密码查询 IP 限流（60s，防匿名批量枚举用户名）；true=已限流 */
+    public boolean lookupRateLimited(String ip) {
+        String rateKey = LOOKUP_RATE_PREFIX + ip;
+        if (Boolean.TRUE.equals(redisTemplate.hasKey(rateKey))) return true;
+        redisTemplate.opsForValue().set(rateKey, 1, RATE_LIMIT_SECONDS, TimeUnit.SECONDS);
+        return false;
+    }
     private static final long LOGIN_LOCK_SECONDS = 900;    // 锁定时间 15 分钟
     private static final int MAX_RESET_ERRORS = 5;         // 验证码最大错误次数
 
@@ -155,8 +164,14 @@ public class AuthService {
     // ── 忘记密码 ──
 
     public ForgotPasswordLookupResponse lookupUser(String username) {
-        SysUser user = findActiveUser(username);
         ForgotPasswordLookupResponse resp = new ForgotPasswordLookupResponse();
+        SysUser user;
+        try {
+            user = findActiveUser(username);
+        } catch (BusinessException e) {
+            // 【安全 2026-08-08 匿名枚举防护】账号不存在也返回中性响应，不暴露账号是否存在
+            return resp;
+        }
         resp.setHasPhone(user.getPhone() != null && !user.getPhone().isBlank());
         resp.setHasEmail(user.getEmail() != null && !user.getEmail().isBlank());
         if (resp.isHasPhone()) {

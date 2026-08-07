@@ -1,6 +1,7 @@
 package com.ycmn.common.engine;
 
 import com.fasterxml.jackson.databind.*;
+import com.ycmn.common.Result;
 import com.ycmn.common.engine.PermissionRuleEngine.RuleResult;
 import com.ycmn.security.SecurityUtils;
 import org.springframework.core.MethodParameter;
@@ -53,41 +54,36 @@ public class FieldFilterAdvice implements ResponseBodyAdvice<Object> {
 
     @SuppressWarnings("unchecked")
     private Object filterFields(Object body, Set<String> hiddenFields, Set<String> visibleFields) {
-        // 单对象 → Map
-        if (!(body instanceof Collection) && !(body instanceof Map)) {
-            Map<String, Object> map = objectToMap(body);
-            if (map == null) return body;
-            applyFieldFilter(map, hiddenFields, visibleFields);
-            return map;
+        if (body == null) return null;
+        // 站内响应几乎都是 Result{code,message,data}——必须在 data 内部过滤（原实现过滤顶层，脱敏完全失效）
+        if (body instanceof Result) {
+            Result<Object> result = (Result<Object>) body;
+            Object data = result.getData();
+            if (data != null) result.setData(filterFields(data, hiddenFields, visibleFields));
+            return result;
         }
-
-        // 列表 → 每个元素过滤
         if (body instanceof Collection) {
             List<Object> result = new ArrayList<>();
             for (Object item : (Collection<?>) body) {
-                if (item instanceof Map) {
-                    Map<String, Object> map = (Map<String, Object>) item;
-                    applyFieldFilter(map, hiddenFields, visibleFields);
-                    result.add(map);
-                } else {
-                    Map<String, Object> map = objectToMap(item);
-                    if (map != null) {
-                        applyFieldFilter(map, hiddenFields, visibleFields);
-                        result.add(map);
-                    } else {
-                        result.add(item);
-                    }
-                }
+                result.add(filterFields(item, hiddenFields, visibleFields));
             }
             return result;
         }
-
-        // Map
         if (body instanceof Map) {
-            applyFieldFilter((Map<String, Object>) body, hiddenFields, visibleFields);
-            return body;
+            Map<String, Object> map = (Map<String, Object>) body;
+            applyFieldFilter(map, hiddenFields, visibleFields);
+            // 递归处理嵌套值（分页 records、嵌套对象/数组），保证深层字段也被过滤
+            for (Map.Entry<String, Object> e : new ArrayList<>(map.entrySet())) {
+                Object v = e.getValue();
+                if (v instanceof Map || v instanceof Collection) {
+                    e.setValue(filterFields(v, hiddenFields, visibleFields));
+                }
+            }
+            return map;
         }
-
+        // 单对象 → Map 后再过滤
+        Map<String, Object> map = objectToMap(body);
+        if (map != null) return filterFields(map, hiddenFields, visibleFields);
         return body;
     }
 
@@ -96,6 +92,13 @@ public class FieldFilterAdvice implements ResponseBodyAdvice<Object> {
                                    Set<String> hiddenFields,
                                    Set<String> visibleFields) {
         if (map == null) return;
+
+        // 分页包装（{records:[业务对象], total, size...}）：过滤 records 内的业务对象，保留包装字段
+        Object records = map.get("records");
+        if (records instanceof Collection) {
+            filterFields(records, hiddenFields, visibleFields);
+            return;
+        }
 
         // 有明确可见列表 → 只保留可见的
         if (!visibleFields.isEmpty()) {

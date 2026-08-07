@@ -1,6 +1,7 @@
 package com.ycmn.module.incentive.controller;
 
 import com.ycmn.common.Result;
+import com.ycmn.common.BusinessException;
 import com.ycmn.security.SecurityUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -32,6 +33,9 @@ public class IncentivePermissionController {
     @PreAuthorize("hasAuthority('system:config:edit')")
     @PostMapping("/grant")
     public Result<Void> grant(@RequestBody Map<String, Object> body) {
+        // 【安全 2026-08-08】授予激励编辑/删除权限=授予"看全公司激励记录"，仅超管可操作
+        // （防 system:config:edit 落到非超管角色后形成局部提权）
+        if (!SecurityUtils.isAdmin()) throw new BusinessException("仅系统管理员可授予激励权限");
         Long userId = Long.valueOf(body.get("userId").toString());
         int canEdit = toInt(body.get("canEdit"));
         int canDelete = toInt(body.get("canDelete"));
@@ -50,6 +54,8 @@ public class IncentivePermissionController {
     @PreAuthorize("hasAuthority('system:config:edit')")
     @DeleteMapping("/{id}")
     public Result<Void> revoke(@PathVariable Long id) {
+        // 【安全 2026-08-08】撤销激励权限同 grant，仅超管可操作
+        if (!SecurityUtils.isAdmin()) throw new BusinessException("仅系统管理员可撤销激励权限");
         jdbc.update("DELETE FROM biz_incentive_permission WHERE id=?", id);
         return Result.ok();
     }

@@ -1,9 +1,11 @@
 package com.ycmn.module.system.controller;
 
+import com.ycmn.common.BusinessException;
 import com.ycmn.common.Result;
 import com.ycmn.module.system.entity.SysPermissionRule;
 import com.ycmn.module.system.entity.SysPosition;
 import com.ycmn.module.system.service.SysPositionService;
+import com.ycmn.security.SecurityUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -78,7 +80,15 @@ public class SysPositionController {
     @PutMapping("/users/{userId}")
     @PreAuthorize("hasAuthority('system:user:edit')")
     public Result<Void> assignUserPositions(@PathVariable Long userId, @RequestBody Map<String, List<Long>> body) {
-        positionService.assignUserPositions(userId, body.get("positionIds"));
+        // 【安全 2026-08-08 提权防护】岗位携带权限规则视为特权：仅超管可指派。
+        // 防"先给岗位配宽松规则、再指派给自己"的提权路径（规则在登录时并入 RuleResult 生效）。
+        List<Long> positionIds = body.get("positionIds");
+        if (positionIds != null && !positionIds.isEmpty() && !SecurityUtils.isAdmin()) {
+            boolean hasRulePosition = positionIds.stream()
+                    .anyMatch(id -> !positionService.getRules(id).isEmpty());
+            if (hasRulePosition) throw new BusinessException("无权指派携带权限规则的岗位");
+        }
+        positionService.assignUserPositions(userId, positionIds);
         return Result.ok();
     }
 }

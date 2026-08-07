@@ -123,4 +123,14 @@ class PermissionRuleEngineTest {
         assertThrows(IllegalArgumentException.class,
                 () -> PermissionRuleEngine.escapeColumn("org_id; DROP TABLE"));
     }
+
+    /** 安全 2026-08-08：in 操作符非数字值必须转义，注入片段被锁在引号内 */
+    @Test
+    void quoteInList_neutralizesSqlInjection() {
+        String sql = PermissionRuleEngine.quoteInList("1,2'); DROP TABLE users;--");
+        // 纯数字保留不加引号；注入片段整体被单引号包裹且单引号转义 → DROP 不再可执行
+        assertTrue(sql.startsWith("1,"), "纯数字不应加引号: " + sql);
+        assertTrue(sql.contains("'2''); DROP TABLE users;--'"),
+                "注入片段应被转义包裹, 实际: " + sql);
+    }
 }
