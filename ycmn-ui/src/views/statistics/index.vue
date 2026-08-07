@@ -57,7 +57,7 @@
         <div class="card-head"><span>行业分布</span></div>
         <div class="industry-bars">
           <div v-for="(item, i) in industryData" :key="item.name" class="ind-row">
-            <span class="ind-name">{{ item.name || '未填写' }}</span>
+            <span class="ind-name">{{ item.name }}</span>
             <div class="ind-track">
               <div class="ind-fill" :style="{ width: item.pct + '%', background: barColors[i % barColors.length] }">
                 <span class="ind-pct">{{ item.pctLabel }}%</span>

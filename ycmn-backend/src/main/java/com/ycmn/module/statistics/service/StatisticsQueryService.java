@@ -487,9 +487,9 @@ public class StatisticsQueryService {
         List<BizCustomer> indCustomers = customerMapper.selectList(indW);
         Map<String, Long> industryStats = new LinkedHashMap<>();
         for (BizCustomer c : indCustomers) {
-            // 空白行业归类为"未填写",避免统计图出现无前缀的空名条目
-            String ind = (c.getIndustry() == null || c.getIndustry().isBlank()) ? "未填写" : c.getIndustry().trim();
-            industryStats.merge(ind, 1L, Long::sum);
+            // 行业为空不参与分布统计(待用户补全后自动计入), 图表不显示"未填写"
+            if (c.getIndustry() == null || c.getIndustry().isBlank()) continue;
+            industryStats.merge(c.getIndustry().trim(), 1L, Long::sum);
         }
         data.put("industryStats", industryStats);
 
