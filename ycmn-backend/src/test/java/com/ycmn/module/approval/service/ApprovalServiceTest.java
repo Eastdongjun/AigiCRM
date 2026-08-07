@@ -66,6 +66,7 @@ class ApprovalServiceTest {
                 mock(SysDeptMapper.class),
                 seaPoolMapper,
                 mock(SeaService.class),
+                mock(com.ycmn.common.scope.OrgScopeResolver.class),
                 mock(SeaConfigService.class),
                 mock(SysUserService.class));
     }

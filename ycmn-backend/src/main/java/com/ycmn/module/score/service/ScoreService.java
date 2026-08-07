@@ -72,7 +72,7 @@ public class ScoreService {
         List<BizScoreItem> items = listItems();
         result.put("items", items);
 
-        // 全部启用用户（用于"添加同事"下拉的候选池）
+        // 全部启用用户（用于"添加同事"下拉的候选池）【积分全员可见，保持全量】
         List<SysUser> activeUsers = userMapper.selectList(
                 new LambdaQueryWrapper<SysUser>().eq(SysUser::getStatus, 1));
         result.put("pool", activeUsers.stream().map(this::toUserMap).collect(Collectors.toList()));
@@ -201,7 +201,7 @@ public class ScoreService {
     // ====== 排行榜 ======
 
     public List<Map<String, Object>> ranking(String period) {
-        // 查所有条目
+        // 查所有条目【积分全员可见，保持全量】
         LambdaQueryWrapper<BizScoreEntry> w = new LambdaQueryWrapper<>();
         if (period != null && !period.isEmpty() && !"全部".equals(period)) {
             w.eq(BizScoreEntry::getPeriod, period);
@@ -329,7 +329,7 @@ public class ScoreService {
     // ====== 导出 ======
 
     public void exportGrid(String period, HttpServletResponse response) throws Exception {
-        // 加载数据
+        // 加载数据【积分全员可见，保持全量导出】
         List<BizScoreItem> items = listItems();
         List<SysUser> allUsers = userMapper.selectList(
                 new LambdaQueryWrapper<SysUser>().eq(SysUser::getStatus, 1));

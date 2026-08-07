@@ -229,8 +229,12 @@ public class CustomerService {
     }
 
     public List<Map<String, Object>> getSimpleUserList() {
-        List<SysUser> users = userMapper.selectList(
-                new LambdaQueryWrapper<SysUser>().eq(SysUser::getStatus, 1).orderByAsc(SysUser::getId));
+        // 【修复 2026-08-08 全量用户下拉】按数据范围(含系统级开关)过滤，不再返回全部用户
+        LambdaQueryWrapper<SysUser> wrapper = new LambdaQueryWrapper<SysUser>()
+                .eq(SysUser::getStatus, 1).orderByAsc(SysUser::getId);
+        List<Long> visible = scopeResolver.resolve(SecurityUtils.getCurrentUser());
+        if (visible != null) wrapper.in(SysUser::getId, visible);
+        List<SysUser> users = userMapper.selectList(wrapper);
         List<Map<String, Object>> result = new ArrayList<>();
         for (SysUser u : users) {
             Map<String, Object> m = new HashMap<>();

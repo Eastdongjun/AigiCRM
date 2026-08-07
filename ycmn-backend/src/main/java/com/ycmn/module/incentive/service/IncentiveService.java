@@ -56,7 +56,12 @@ public class IncentiveService {
     /** 人员列表（公开）：激励页下拉框用 */
     public List<Map<String, Object>> getUserList() {
         List<Map<String, Object>> list = new ArrayList<>();
-        List<SysUser> users = userMapper.selectList(null);
+        // 【修复 2026-08-08 全量用户下拉】不再返回全部用户，按数据范围(含系统级开关)过滤
+        LambdaQueryWrapper<SysUser> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(SysUser::getDeleted, 0).eq(SysUser::getStatus, 1);
+        List<Long> visible = scopeResolver.resolve(SecurityUtils.getCurrentUser());
+        if (visible != null) wrapper.in(SysUser::getId, visible);
+        List<SysUser> users = userMapper.selectList(wrapper);
         for (SysUser u : users) {
             Map<String, Object> m = new HashMap<>();
             m.put("id", u.getId());
@@ -583,16 +588,24 @@ public class IncentiveService {
      * 获取客户关联的激励积分总分
      */
     public int getScoreByCustomerId(Long customerId) {
+        // 【修复 2026-08-08 防越权】客户不在当前用户可见范围内时拒给积分（可枚举 customerId 越权）
+        BizCustomer customer = customerMapper.selectById(customerId);
+        if (customer == null) return 0;
+        List<Long> visible = scopeResolver.resolve(SecurityUtils.getCurrentUser());
+        if (visible != null && !visible.contains(customer.getOwnerId())) return 0;
         LambdaQueryWrapper<BizIncentiveRecord> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(BizIncentiveRecord::getCustomerId, customerId);
         List<BizIncentiveRecord> records = recordMapper.selectList(wrapper);
         return records.stream().mapToInt(r -> r.getScore() != null ? r.getScore() : 0).sum();
     }
 
-    /** 激励统计查询（全员可见）：支持大类/子类/行业/产品/周期筛选，返回完整明细 */
+    /** 激励统计查询：支持大类/子类/行业/产品/周期筛选，按数据范围(含系统级开关)过滤返回明细 */
     public List<BizIncentiveRecord> queryRecords(Long mainCategoryId, Long subCategoryId,
                                                   String industry, String product, String period) {
         LambdaQueryWrapper<BizIncentiveRecord> wrapper = new LambdaQueryWrapper<>();
+        // 【修复 2026-08-08 数据范围】原"全员可见"绕过数据范围，任何激励权限用户可拉全量明细；
+        // 统一按 computeVisibility 过滤（admin/激励授权→全部，否则可见集合+开关）
+        applyIncentiveDataScope(wrapper);
         if (period != null && !period.isBlank()) wrapper.eq(BizIncentiveRecord::getPeriod, period);
         if (industry != null && !industry.isBlank()) wrapper.eq(BizIncentiveRecord::getIndustry, industry);
         if (product != null && !product.isBlank()) wrapper.like(BizIncentiveRecord::getRelatedProducts, product);

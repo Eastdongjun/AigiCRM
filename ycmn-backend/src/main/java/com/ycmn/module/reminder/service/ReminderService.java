@@ -3,6 +3,7 @@ package com.ycmn.module.reminder.service;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.ycmn.common.BusinessException;
 import com.ycmn.module.customer.entity.BizCustomer;
 import com.ycmn.module.customer.mapper.BizCustomerMapper;
 import com.ycmn.module.reminder.entity.BizReminder;
@@ -233,10 +234,16 @@ public class ReminderService {
 
     public void process(Long id) {
         BizReminder reminder = reminderMapper.selectById(id);
-        if (reminder != null) {
-            reminder.setStatus("processed");
-            reminder.setProcessedAt(LocalDateTime.now());
-            reminderMapper.updateById(reminder);
+        if (reminder == null) return;
+        // 【修复 2026-08-08 IDOR 写】非 admin 仅可处理自己可见范围内(含系统级开关)的提醒，防按 ID 处理他人提醒
+        if (!SecurityUtils.isAdmin()) {
+            List<Long> visible = scopeResolver.resolve(SecurityUtils.getCurrentUser());
+            if (visible != null && (reminder.getOwnerId() == null || !visible.contains(reminder.getOwnerId()))) {
+                throw new BusinessException("无权处理该提醒");
+            }
         }
+        reminder.setStatus("processed");
+        reminder.setProcessedAt(LocalDateTime.now());
+        reminderMapper.updateById(reminder);
     }
 }

@@ -509,11 +509,10 @@ public class StatisticsQueryService {
      */
     public List<Map<String, Object>> teamActivities() {
         List<Map<String, Object>> activities = new ArrayList<>();
-        Long currentUserId = SecurityUtils.getCurrentUserId();
+        // 【2026-08-08 设计规则：统计全员可见】团队动态展示全公司动态，不过滤（原只看自己，已放开）
 
         LambdaQueryWrapper<BizCustomerLog> logWrapper = new LambdaQueryWrapper<>();
-        logWrapper.eq(BizCustomerLog::getUserId, currentUserId)
-                .orderByDesc(BizCustomerLog::getCreatedAt).last("LIMIT 8");
+        logWrapper.orderByDesc(BizCustomerLog::getCreatedAt).last("LIMIT 8");
         for (BizCustomerLog log : customerLogMapper.selectList(logWrapper)) {
             SysUser user = userMapper.selectById(log.getUserId());
             BizCustomer customer = customerMapper.selectById(log.getCustomerId());
@@ -524,8 +523,7 @@ public class StatisticsQueryService {
         }
 
         LambdaQueryWrapper<BizIncentiveRecord> incWrapper = new LambdaQueryWrapper<>();
-        incWrapper.eq(BizIncentiveRecord::getUserId, currentUserId)
-                .orderByDesc(BizIncentiveRecord::getCreatedAt).last("LIMIT 5");
+        incWrapper.orderByDesc(BizIncentiveRecord::getCreatedAt).last("LIMIT 5");
         for (BizIncentiveRecord record : incentiveRecordMapper.selectList(incWrapper)) {
             SysUser user = userMapper.selectById(record.getUserId());
             BizIncentiveCategory cat = incentiveCategoryMapper.selectById(record.getCategoryId());
@@ -535,8 +533,7 @@ public class StatisticsQueryService {
         }
 
         LambdaQueryWrapper<BizFile> fileWrapper = new LambdaQueryWrapper<>();
-        fileWrapper.eq(BizFile::getUploaderId, currentUserId)
-                .orderByDesc(BizFile::getCreatedAt).last("LIMIT 5");
+        fileWrapper.orderByDesc(BizFile::getCreatedAt).last("LIMIT 5");
         for (BizFile file : fileMapper.selectList(fileWrapper)) {
             SysUser user = file.getUploaderId() != null ? userMapper.selectById(file.getUploaderId()) : null;
             activities.add(buildActivity(
@@ -545,8 +542,7 @@ public class StatisticsQueryService {
         }
 
         LambdaQueryWrapper<BizApproval> apprWrapper = new LambdaQueryWrapper<>();
-        apprWrapper.eq(BizApproval::getApplicantId, currentUserId)
-                .orderByDesc(BizApproval::getCreatedAt).last("LIMIT 5");
+        apprWrapper.orderByDesc(BizApproval::getCreatedAt).last("LIMIT 5");
         for (BizApproval appr : approvalMapper.selectList(apprWrapper)) {
             SysUser user = appr.getApplicantId() != null ? userMapper.selectById(appr.getApplicantId()) : null;
             BizCustomer customer = appr.getCustomerId() != null ? customerMapper.selectById(appr.getCustomerId()) : null;
@@ -563,8 +559,7 @@ public class StatisticsQueryService {
         }
 
         LambdaQueryWrapper<BizCustomer> custWrapper = new LambdaQueryWrapper<>();
-        custWrapper.eq(BizCustomer::getOwnerId, currentUserId)
-                .orderByDesc(BizCustomer::getCreatedAt).last("LIMIT 5");
+        custWrapper.orderByDesc(BizCustomer::getCreatedAt).last("LIMIT 5");
         for (BizCustomer cust : customerMapper.selectList(custWrapper)) {
             SysUser user = cust.getOwnerId() != null ? userMapper.selectById(cust.getOwnerId()) : null;
             activities.add(buildActivity(
@@ -573,8 +568,7 @@ public class StatisticsQueryService {
         }
 
         LambdaQueryWrapper<SysLog> sysWrapper = new LambdaQueryWrapper<>();
-        sysWrapper.eq(SysLog::getUserId, currentUserId)
-                .orderByDesc(SysLog::getCreatedAt).last("LIMIT 5");
+        sysWrapper.orderByDesc(SysLog::getCreatedAt).last("LIMIT 5");
         for (SysLog log : sysLogMapper.selectList(sysWrapper)) {
             SysUser user = log.getUserId() != null ? userMapper.selectById(log.getUserId()) : null;
             if (user == null && log.getUsername() != null) {
@@ -604,20 +598,16 @@ public class StatisticsQueryService {
     }
 
     /**
-     * 对客户查询应用当前用户数据范围（ownerId IN 可见用户；getCurrentScopeUserIds 返回 null=全部）
-     * 【修复 FEAT-20260804-DICT-DEPT-READ】经营分析此前全量查询，销售员/行政可见全公司数据
+     * 【2026-08-08 设计规则：统计全员可见】统计模块数据对所有员工开放，不按数据范围过滤。
+     * 覆盖：dashboard/经营分析/日报周报/核心客户指标 等全部统计查询。
+     * （原 0804 起对统计做过数据范围过滤，现用户明确要求统计全员可见，故恢复全量。）
      */
     private void applyCustomerScope(LambdaQueryWrapper<BizCustomer> wrapper) {
-        List<Long> userIds = customerService.getCurrentScopeUserIds();
-        if (userIds != null) wrapper.in(BizCustomer::getOwnerId, userIds);
+        // 全员可见：不过滤
     }
 
-    /**
-     * 对文件查询应用当前用户数据范围（uploaderId IN 可见用户；null=全部）
-     */
     private void applyFileScope(LambdaQueryWrapper<BizFile> wrapper) {
-        List<Long> userIds = customerService.getCurrentScopeUserIds();
-        if (userIds != null) wrapper.in(BizFile::getUploaderId, userIds);
+        // 全员可见：不过滤
     }
 
     private int safe(Integer v) { return v != null ? v : 0; }

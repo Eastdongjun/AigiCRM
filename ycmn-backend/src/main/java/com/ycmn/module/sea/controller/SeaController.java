@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.ycmn.common.BusinessException;
 import com.ycmn.common.Result;
+import com.ycmn.common.scope.OrgScopeResolver;
 import com.ycmn.module.customer.dto.CustomerImportResult;
 import com.ycmn.module.approval.entity.BizApproval;
 import com.ycmn.module.approval.entity.BizApprovalNode;
@@ -38,6 +39,7 @@ public class SeaController {
     private final BizApprovalNodeMapper approvalNodeMapper;
     private final BizCustomerMapper customerMapper;
     private final SysUserMapper userMapper;
+    private final OrgScopeResolver scopeResolver;
 
     // ===== 公海池列表 =====
 
@@ -208,15 +210,21 @@ public class SeaController {
             });
         }
 
-        // 统计
-        long totalAll = approvalMapper.selectCount(
-                new LambdaQueryWrapper<BizApproval>().eq(BizApproval::getApprovalType, "claim"));
-        long approved = approvalMapper.selectCount(
-                new LambdaQueryWrapper<BizApproval>().eq(BizApproval::getApprovalType, "claim").eq(BizApproval::getStatus, "approved"));
-        long rejected = approvalMapper.selectCount(
-                new LambdaQueryWrapper<BizApproval>().eq(BizApproval::getApprovalType, "claim").eq(BizApproval::getStatus, "rejected"));
-        long pending = approvalMapper.selectCount(
-                new LambdaQueryWrapper<BizApproval>().eq(BizApproval::getApprovalType, "claim").eq(BizApproval::getStatus, "reviewing"));
+        // 统计（【修复 2026-08-08 统计泄漏】按数据范围过滤申请人，上级/负责人可见下级捞取统计）
+        LambdaQueryWrapper<BizApproval> claimBase = new LambdaQueryWrapper<BizApproval>()
+                .eq(BizApproval::getApprovalType, "claim");
+        List<Long> visibleApplicants = scopeResolver.resolve(SecurityUtils.getCurrentUser());
+        if (visibleApplicants != null) claimBase.in(BizApproval::getApplicantId, visibleApplicants);
+        long totalAll = approvalMapper.selectCount(claimBase);
+        long approved = approvalMapper.selectCount(new LambdaQueryWrapper<BizApproval>()
+                .eq(BizApproval::getApprovalType, "claim").eq(BizApproval::getStatus, "approved")
+                .in(visibleApplicants != null, BizApproval::getApplicantId, visibleApplicants));
+        long rejected = approvalMapper.selectCount(new LambdaQueryWrapper<BizApproval>()
+                .eq(BizApproval::getApprovalType, "claim").eq(BizApproval::getStatus, "rejected")
+                .in(visibleApplicants != null, BizApproval::getApplicantId, visibleApplicants));
+        long pending = approvalMapper.selectCount(new LambdaQueryWrapper<BizApproval>()
+                .eq(BizApproval::getApprovalType, "claim").eq(BizApproval::getStatus, "reviewing")
+                .in(visibleApplicants != null, BizApproval::getApplicantId, visibleApplicants));
 
         Map<String, Object> result = new HashMap<>();
         result.put("records", records);

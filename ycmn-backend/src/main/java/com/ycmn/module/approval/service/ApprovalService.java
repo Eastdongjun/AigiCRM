@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.ycmn.common.BusinessException;
+import com.ycmn.common.scope.OrgScopeResolver;
 import com.ycmn.module.approval.entity.BizApproval;
 import com.ycmn.module.approval.entity.BizApprovalFlow;
 import com.ycmn.module.approval.entity.BizApprovalNode;
@@ -53,6 +54,7 @@ public class ApprovalService {
     private final SysDeptMapper deptMapper;
     private final BizSeaPoolMapper seaPoolMapper;
     private final SeaService seaService;
+    private final OrgScopeResolver scopeResolver;
     private final SeaConfigService seaConfigService;
     private final SysUserService userService;
 
@@ -339,13 +341,13 @@ public class ApprovalService {
      * 【业务规则】admin 不走本方法（全量可见）
      */
     private void applyDataScope(LambdaQueryWrapper<BizApproval> w, Long userId) {
+        // 【修复 2026-08-08 审批范围】在"本人申请 ∨ 本人参与"基础上并入数据范围可见用户(含系统级开关)，
+        // 上级/组织负责人可见下级审批；all 范围(null)不过滤。
+        List<Long> visible = scopeResolver.resolve(SecurityUtils.getCurrentUser());
+        if (visible == null) return; // all：全量可见
         List<Long> involved = myInvolvedApprovalIds(userId);
-        if (involved.isEmpty()) {
-            w.eq(BizApproval::getApplicantId, userId);
-        } else {
-            w.and(x -> x.eq(BizApproval::getApplicantId, userId)
-                    .or().in(BizApproval::getId, involved));
-        }
+        w.and(x -> x.in(BizApproval::getApplicantId, visible) // 本人恒在 visible 中
+                .or().in(BizApproval::getId, involved));       // 本人参与的审批
     }
 
     public Map<String, Long> statistics(Long userId) {
