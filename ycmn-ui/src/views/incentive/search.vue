@@ -136,18 +136,19 @@
             </div>
             <div class="dtl-content" :style="{borderLeftColor:scoreColor(getCls(r))}">
               <div class="dtl-upload-chips">
+                <span class="dtl-chip"><i>客户</i>{{ r.customerName || detailCust.customerName }}</span>
                 <span class="dtl-chip" v-if="r.industry"><i>行业</i>{{ r.industry }}</span>
                 <span class="dtl-chip" v-if="r.relatedProducts"><i>相关产品</i>{{ r.relatedProducts }}</span>
                 <span class="dtl-chip" v-if="r.specificProduct"><i>具体产品</i>{{ r.specificProduct }}</span>
                 <span class="dtl-chip"><i>上传人</i>{{ r.userName }}</span>
                 <span class="dtl-chip"><i>周期</i>{{ r.period }}</span>
               </div>
-              <div v-if="r.preInstallQuestion" class="dtl-field">
-                <div class="dtl-field-label">{{ detailLabelOf(r) }}</div>
+              <div v-if="r.preInstallQuestion" class="dtl-field desc" :style="{borderLeftColor:scoreColor(getCls(r))}">
+                <div class="dtl-field-label"><el-icon style="vertical-align:-2px;margin-right:4px"><Notebook /></el-icon>{{ detailLabelOf(r) }}</div>
                 <div class="dtl-field-text">{{ r.preInstallQuestion }}</div>
               </div>
-              <div v-if="r.remark && isTrialRec(r)" class="dtl-field">
-                <div class="dtl-field-label">{{ r.categoryName }}安装备注</div>
+              <div v-if="r.remark && isTrialRec(r)" class="dtl-field remark">
+                <div class="dtl-field-label"><el-icon style="vertical-align:-2px;margin-right:4px"><Warning /></el-icon>{{ r.categoryName }}安装备注</div>
                 <div class="dtl-field-text">{{ r.remark }}</div>
               </div>
               <div v-if="getFiles(r).length" class="dtl-files">
@@ -155,7 +156,7 @@
                   <template v-if="f.type==='image'">
                     <div class="dtl-img-wrap">
                       <img :src="fileUrl(f.id)" @click="preview(f.id, f.type, f.label)" @error="onImgError" />
-                      <div v-if="f.tag" class="dtl-file-tag">{{ f.tag }}</div>
+                      <div v-if="f.tag" class="dtl-file-tag" :style="{color:tagColor(f.tag), borderColor:tagColor(f.tag)}">{{ f.tag }}</div>
                       <div class="dtl-file-acts">
                         <el-button size="small" circle type="primary" @click.stop="preview(f.id, f.type, f.label)"><el-icon><ZoomIn /></el-icon></el-button>
                         <el-button size="small" circle @click.stop="downloadFile(f.id, f.label)"><el-icon><Download /></el-icon></el-button>
@@ -165,7 +166,7 @@
                   <div v-else-if="f.type==='video'" class="dtl-file-vid">
                     <video :src="fileUrl(f.id)" controls preload="metadata" style="width:100%;max-height:240px;background:#000;border-radius:6px"></video>
                     <div style="display:flex;align-items:center;gap:8px;margin-top:4px">
-                      <span v-if="f.tag" class="dtl-file-tag">{{ f.tag }}</span>
+                      <span v-if="f.tag" class="dtl-file-tag" :style="{color:tagColor(f.tag), borderColor:tagColor(f.tag)}">{{ f.tag }}</span>
                       <span class="doc-label" style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ f.label }}</span>
                       <el-button size="small" circle @click.stop="downloadFile(f.id, f.label)"><el-icon><Download /></el-icon></el-button>
                     </div>
@@ -189,7 +190,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { getCategoryTree } from '@/api/incentive'
 import { getToken } from '@/utils/token'
-import { Search, User, VideoPlay, Document, ZoomIn, Download, Filter, Folder, OfficeBuilding, PriceTag, Calendar, MapLocation } from '@element-plus/icons-vue'
+import { Search, User, VideoPlay, Document, ZoomIn, Download, Filter, Folder, OfficeBuilding, PriceTag, Calendar, MapLocation, Notebook, Warning } from '@element-plus/icons-vue'
 import request from '@/utils/request'
 import { ElMessage } from 'element-plus'
 
@@ -248,6 +249,8 @@ function detectType(n){if(!n)return'doc';if(/\.(jpg|jpeg|png|gif|webp|bmp)$/i.te
 function getMain(r){const c=catMap.value[r.categoryId];if(!c)return'';if(c.parentId===0)return c.categoryName;const p=catMap.value[c.parentId];if(!p)return c.categoryName;const gp=catMap.value[p.parentId];return gp&&gp.parentId===0?gp.categoryName:p.categoryName}
 function getCls(r){const c=catMap.value[r.categoryId];if(!c)return'';if(c.parentId===0)return c.categoryCode||'';const p=catMap.value[c.parentId];if(!p)return'';const gp=catMap.value[p.parentId];return(gp&&gp.parentId===0?gp.categoryCode:p.categoryCode)||''}
 function scoreColor(c){return{visit:'#d97706',exchange:'#2563eb',plan:'#7c3aed',trial:'#059669'}[c]||'#303133'}
+// 文件槽位标签颜色（安装前蓝/安装中绿/安装后橙/跟踪紫）
+function tagColor(t){return{安装前:'#2563eb',安装中:'#059669',安装后:'#f59e0b',跟踪:'#7c3aed'}[t]||'#6b7280'}
 // 详情字段标签 = 子分类名 + 阶段词（与上传弹窗一致）
 function detailLabelOf(r){const code=getCls(r);const sub=r.categoryName||'';if(code==='plan')return sub+'文件详情描述';if(code==='visit'||code==='exchange')return sub+'详情描述';return sub+'安装详情'}
 // 是否产品试点记录（安装备注仅试点有）
@@ -380,12 +383,16 @@ onMounted(()=>{loadCats();loadUsers();loadOrgs();doSearch()})
 .dtl-chip{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:#4e5969;background:#fff;border:1px solid #e8ebef;border-radius:6px;padding:3px 10px}
 .dtl-chip i{font-style:normal;font-size:12px;color:#9aa0a8}
 .dtl-field{margin-bottom:12px;padding:10px 14px;background:#f7f8fa;border-radius:6px;border-left:3px solid #d5d9e0}
+.dtl-field.desc{background:#fff;border:1px solid #eef0f3;border-left:4px solid #d5d9e0;padding:14px 16px}
+.dtl-field.desc .dtl-field-label{color:#4e5969;font-size:13px;font-weight:600}
+.dtl-field.remark{background:#fffaf5;border-left:4px solid #f59e0b;border-color:#fde6c8}
+.dtl-field.remark .dtl-field-label{color:#b45309}
 .dtl-field-label{font-size:12px;color:#8f959e;margin-bottom:6px;letter-spacing:.5px}
 .dtl-field-text{font-size:14px;color:#1f2329;line-height:1.8;white-space:pre-wrap;word-break:break-word}
 .dtl-files{display:flex;gap:14px;flex-wrap:wrap;margin-top:14px;padding-top:12px;border-top:1px solid #f0f2f5}
 .dtl-file{width:260px}
 .dtl-img-wrap{position:relative;border:1px solid rgba(0,0,0,.06);border-radius:6px;overflow:hidden}
-.dtl-file-tag{position:absolute;top:0;left:50%;transform:translateX(-50%);font-size:11px;color:#8f959e;background:rgba(255,255,255,.85);padding:2px 10px;border-radius:0 0 4px 4px;white-space:nowrap;z-index:1}
+.dtl-file-tag{position:absolute;top:0;left:50%;transform:translateX(-50%);font-size:11px;font-weight:600;background:rgba(255,255,255,.94);padding:2px 10px;border-radius:0 0 4px 4px;white-space:nowrap;z-index:1;border:1px solid transparent;border-top:none}
 .dtl-file img{width:100%;height:220px;object-fit:cover;cursor:pointer;display:block}
 .dtl-file img:hover{opacity:.85}
 .dtl-file-vid{width:100%;height:220px;background:linear-gradient(135deg,#1a1a2e,#2d2d44);border-radius:8px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#fff;font-size:26px;position:relative;overflow:hidden}
