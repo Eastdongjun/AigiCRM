@@ -1,7 +1,9 @@
 package com.ycmn.module.approval.service;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.ycmn.common.BusinessException;
+import com.ycmn.module.approval.entity.BizApproval;
 import com.ycmn.module.approval.mapper.BizApprovalConfigMapper;
 import com.ycmn.module.approval.mapper.BizApprovalFlowMapper;
 import com.ycmn.module.approval.mapper.BizApprovalMapper;
@@ -35,6 +37,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.mock;
+import org.mockito.ArgumentCaptor;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -45,6 +48,7 @@ class ApprovalServiceTest {
     static void initMybatisPlusTableInfo() {
         // 单测环境无 Spring 容器：手动初始化 MyBatis-Plus lambda 缓存（LambdaUpdateWrapper 依赖）
         TableInfoHelper.initTableInfo(new MapperBuilderAssistant(new MybatisConfiguration(), ""), BizSeaPool.class);
+        TableInfoHelper.initTableInfo(new MapperBuilderAssistant(new MybatisConfiguration(), ""), BizApproval.class);
     }
 
     private void setCurrentUser(SecurityUser u) {
@@ -140,5 +144,32 @@ class ApprovalServiceTest {
         assertEquals(3L, stats.get("mine"));
         // mine/reviewing/all/approvedThisMonth/rejectedThisMonth 共 5 次，均带数据范围过滤
         verify(approvalMapper, times(5)).selectCount(any());
+    }
+
+    /** 回归：参与审批列表为空时不得生成 IN ()（原代码无空守卫导致 SQL 语法错误，生产已出故障） */
+    @Test
+    void statistics_emptyInvolved_noEmptyInClause() {
+        SecurityUser u = new SecurityUser();
+        u.setUserId(7L);
+        u.setRoleCodes(Collections.singletonList("sales_engineer"));
+        u.setDataScope("self");
+        setCurrentUser(u);
+
+        BizApprovalNodeMapper nodeMapper = mock(BizApprovalNodeMapper.class);
+        when(nodeMapper.selectList(any())).thenReturn(Collections.emptyList()); // 无参与审批
+        when(nodeMapper.selectCount(any())).thenReturn(1L);
+
+        BizApprovalMapper approvalMapper = mock(BizApprovalMapper.class);
+        when(approvalMapper.selectCount(any())).thenReturn(3L);
+
+        ApprovalService svc = newService(mock(BizSeaPoolMapper.class), approvalMapper, nodeMapper);
+        svc.statistics(7L);
+
+        ArgumentCaptor<LambdaQueryWrapper<BizApproval>> cap = ArgumentCaptor.forClass(LambdaQueryWrapper.class);
+        verify(approvalMapper, times(5)).selectCount(cap.capture());
+        for (LambdaQueryWrapper<BizApproval> w : cap.getAllValues()) {
+            String sql = w.getSqlSegment();
+            assertTrue(sql == null || !sql.contains("IN ()"), "空参与列表不得生成 IN ()，实际: " + sql);
+        }
     }
 }

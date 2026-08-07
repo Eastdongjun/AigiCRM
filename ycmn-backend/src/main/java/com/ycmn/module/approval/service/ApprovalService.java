@@ -344,10 +344,18 @@ public class ApprovalService {
         // 【修复 2026-08-08 审批范围】在"本人申请 ∨ 本人参与"基础上并入数据范围可见用户(含系统级开关)，
         // 上级/组织负责人可见下级审批；all 范围(null)不过滤。
         List<Long> visible = scopeResolver.resolve(SecurityUtils.getCurrentUser());
-        if (visible == null) return; // all：全量可见
+        if (visible == null) return; // all 范围：全量可见
         List<Long> involved = myInvolvedApprovalIds(userId);
-        w.and(x -> x.in(BizApproval::getApplicantId, visible) // 本人恒在 visible 中
-                .or().in(BizApproval::getId, involved));       // 本人参与的审批
+        boolean hasVisible = !visible.isEmpty();
+        boolean hasInvolved = !involved.isEmpty();
+        if (!hasVisible && !hasInvolved) return; // 防御：两者皆空时不生成 IN () 语法错误
+        w.and(x -> {
+            if (hasVisible) x.in(BizApproval::getApplicantId, visible); // 本人恒在 visible 中
+            if (hasInvolved) {
+                if (hasVisible) x.or().in(BizApproval::getId, involved); // 本人参与的审批
+                else x.in(BizApproval::getId, involved);
+            }
+        });
     }
 
     public Map<String, Long> statistics(Long userId) {
