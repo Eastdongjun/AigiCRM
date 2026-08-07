@@ -252,7 +252,7 @@ onBeforeUnmount(() => {
 .table-wrap { flex: 1; min-height: 0; }
 .pagination {
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-end;
   align-items: center;
   padding: 8px 16px;
   border-top: 1px solid #ebeef5;

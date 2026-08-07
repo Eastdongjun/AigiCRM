@@ -459,7 +459,7 @@ onBeforeUnmount(() => {
 .create-time { color: #909399; font-size: 12px }
 .pagination {
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-end;
   align-items: center;
   padding: 10px 0;
   border-top: 1px solid #ebeef5;
