@@ -189,79 +189,99 @@
         </el-tab-pane>
         <!-- 激励类别与权限 -->
         <el-tab-pane label="激励类别与权限" name="incentiveCategory">
-          <!-- 激励类别管理：一级卡片 + 二级子项 -->
-          <div class="incentive-card">
-            <div class="dict-header">
-              <span>激励类别管理</span>
-              <el-button type="primary" size="small" :icon="Plus" @click="openCategoryDialog()">新增类别</el-button>
-            </div>
-            <div v-if="catLoadError" class="cat-empty" style="color:#f56c6c">无权限查看激励类别（缺少 incentive:view 权限）或加载失败</div>
-            <div v-else-if="!categoryTree.length" class="cat-empty">暂无类别，点击"新增类别"创建</div>
-            <div v-for="top in categoryTree" :key="top.id" class="cat-group">
-              <div class="cat-group-head" @click="toggleCategory(top.id)">
-                <span class="cat-group-name">{{ top.categoryName }}</span>
-                <span class="cat-group-code">{{ top.categoryCode }}</span>
-                <el-tag :type="top.status === 1 ? 'success' : 'danger'" size="small">{{ top.status === 1 ? '启用' : '禁用' }}</el-tag>
-                <span class="cat-group-count">{{ (top.children || []).length }} 个子项</span>
-                <span class="cat-arrow" :class="{ expanded: !collapsed.has(top.id) }">▾</span>
-                <div class="cat-group-actions" @click.stop>
-                  <el-button link type="primary" size="small" @click="openCategoryDialog(top)">编辑</el-button>
-                  <el-button link type="primary" size="small" @click="openCategoryDialog(null, top.id)">子项</el-button>
-                  <el-button link type="danger" size="small" @click="handleDeleteCategory(top)">删除</el-button>
+          <!-- 激励类别与权限：区块化布局（2026-08-08 重排，保证两个区块可靠显示） -->
+          <div class="perm-page">
+            <!-- 区块一：激励类别管理 -->
+            <section class="perm-sec">
+              <header class="perm-sec-head">
+                <div class="perm-sec-title">
+                  <span class="perm-sec-icon icon-cat">🗂</span>
+                  <div class="perm-sec-text">
+                    <h3>激励类别管理</h3>
+                    <p>维护激励的一级 / 二级分类，配置名称、编码、分值与启用状态</p>
+                  </div>
+                </div>
+                <el-button type="primary" size="small" :icon="Plus" @click="openCategoryDialog()">新增类别</el-button>
+              </header>
+              <div class="perm-sec-body">
+                <div v-if="catLoadError" class="cat-empty cat-error">无权限查看激励类别（缺少 incentive:view 权限）或加载失败</div>
+                <el-empty v-else-if="!categoryTree.length" description="暂无类别，点击「新增类别」创建" :image-size="72" />
+                <div v-for="top in categoryTree" :key="top.id" class="cat-group">
+                  <div class="cat-group-head" @click="toggleCategory(top.id)">
+                    <span class="cat-group-name">{{ top.categoryName }}</span>
+                    <span class="cat-group-code">{{ top.categoryCode }}</span>
+                    <el-tag :type="top.status === 1 ? 'success' : 'danger'" size="small" effect="light">{{ top.status === 1 ? '启用' : '禁用' }}</el-tag>
+                    <span class="cat-group-count">{{ (top.children || []).length }} 个子项</span>
+                    <span class="cat-arrow" :class="{ expanded: !collapsed.has(top.id) }">▾</span>
+                    <div class="cat-group-actions" @click.stop>
+                      <el-button link type="primary" size="small" @click="openCategoryDialog(top)">编辑</el-button>
+                      <el-button link type="primary" size="small" @click="openCategoryDialog(null, top.id)">子项</el-button>
+                      <el-button link type="danger" size="small" @click="handleDeleteCategory(top)">删除</el-button>
+                    </div>
+                  </div>
+                  <div v-show="!collapsed.has(top.id)" class="cat-group-body">
+                    <el-table v-if="top.children && top.children.length" :data="top.children" size="small" style="width:100%">
+                      <el-table-column prop="categoryName" label="类别名称" min-width="160" />
+                      <el-table-column prop="categoryCode" label="编码" width="130" />
+                      <el-table-column label="分值" width="60" align="center">
+                        <template #default="{ row }">
+                          <span v-if="row.score > 0" class="cat-score">{{ row.score }}分</span>
+                          <span v-else style="color:#c0c4cc">—</span>
+                        </template>
+                      </el-table-column>
+                      <el-table-column prop="sortOrder" label="排序" width="60" align="center" />
+                      <el-table-column label="状态" width="70" align="center">
+                        <template #default="{ row }">
+                          <el-tag :type="row.status === 1 ? 'success' : 'danger'" size="small">{{ row.status === 1 ? '启用' : '禁用' }}</el-tag>
+                        </template>
+                      </el-table-column>
+                      <el-table-column label="操作" width="130" align="center">
+                        <template #default="{ row }">
+                          <div class="action-btns">
+                            <el-button link type="primary" size="small" @click="openCategoryDialog(row)">编辑</el-button>
+                            <el-button link type="danger" size="small" @click="handleDeleteCategory(row)">删除</el-button>
+                          </div>
+                        </template>
+                      </el-table-column>
+                    </el-table>
+                    <div v-else class="cat-no-child">暂无子项</div>
+                  </div>
                 </div>
               </div>
-              <div v-show="!collapsed.has(top.id)" class="cat-group-body">
-                <el-table v-if="top.children && top.children.length" :data="top.children" stripe size="small" style="width:100%">
-                  <el-table-column prop="categoryName" label="类别名称" min-width="160" />
-                  <el-table-column prop="categoryCode" label="编码" width="130" />
-                  <el-table-column label="分值" width="60" align="center">
-                    <template #default="{ row }">
-                      <span v-if="row.score > 0">{{ row.score }}分</span>
-                      <span v-else style="color:#c0c4cc">—</span>
-                    </template>
+            </section>
+
+            <!-- 区块二：激励专项权限 -->
+            <section class="perm-sec">
+              <header class="perm-sec-head">
+                <div class="perm-sec-title">
+                  <span class="perm-sec-icon icon-perm">🔑</span>
+                  <div class="perm-sec-text">
+                    <h3>激励专项权限</h3>
+                    <p>独立于菜单权限，按人授予激励记录的编辑 / 删除能力</p>
+                  </div>
+                </div>
+                <el-button type="primary" size="small" :icon="Plus" @click="showPermDialog=true">添加授权</el-button>
+              </header>
+              <div class="perm-sec-body">
+                <el-table :data="permList" size="small" style="width:100%">
+                  <el-table-column type="index" label="序号" width="55" align="center" />
+                  <el-table-column prop="username" label="账号" min-width="90" />
+                  <el-table-column prop="realName" label="姓名" min-width="80" />
+                  <el-table-column prop="officeName" label="大区" min-width="120" show-overflow-tooltip />
+                  <el-table-column prop="roleName" label="岗位" min-width="80" />
+                  <el-table-column label="编辑" width="60" align="center">
+                    <template #default="{row}"><el-tag :type="row.can_edit?'success':'info'" size="small">{{row.can_edit?'是':'否'}}</el-tag></template>
                   </el-table-column>
-                  <el-table-column prop="sortOrder" label="排序" width="60" align="center" />
-                  <el-table-column label="状态" width="70" align="center">
-                    <template #default="{ row }">
-                      <el-tag :type="row.status === 1 ? 'success' : 'danger'" size="small">{{ row.status === 1 ? '启用' : '禁用' }}</el-tag>
-                    </template>
+                  <el-table-column label="删除" width="55" align="center">
+                    <template #default="{row}"><el-tag :type="row.can_delete?'success':'info'" size="small">{{row.can_delete?'是':'否'}}</el-tag></template>
                   </el-table-column>
-                  <el-table-column label="操作" width="130" align="center">
-                    <template #default="{ row }">
-                      <div class="action-btns">
-                        <el-button link type="primary" size="small" @click="openCategoryDialog(row)">编辑</el-button>
-                        <el-button link type="danger" size="small" @click="handleDeleteCategory(row)">删除</el-button>
-                      </div>
-                    </template>
+                  <el-table-column label="操作" width="65" align="center">
+                    <template #default="{row}"><el-button link type="danger" size="small" @click="revokePerm(row.id)">撤销</el-button></template>
                   </el-table-column>
                 </el-table>
-                <div v-else class="cat-no-child">暂无子项</div>
+                <el-empty v-if="!permList.length" description="暂无授权人员，点击「添加授权」配置" :image-size="72" />
               </div>
-            </div>
-          </div>
-
-          <!-- 四项激励权限 -->
-          <div class="incentive-card">
-            <div class="dict-header">
-              <span>【激励专项权限】授权人员 — 独立于菜单权限，按人控制编辑/删除能力</span>
-              <el-button type="primary" size="small" :icon="Plus" @click="showPermDialog=true">添加</el-button>
-            </div>
-            <el-table :data="permList" size="small" style="width:100%">
-            <el-table-column type="index" label="序号" width="55" align="center" />
-            <el-table-column prop="username" label="账号" min-width="90" />
-            <el-table-column prop="realName" label="姓名" min-width="80" />
-            <el-table-column prop="officeName" label="大区" min-width="120" show-overflow-tooltip />
-            <el-table-column prop="roleName" label="岗位" min-width="80" />
-            <el-table-column label="编辑" width="60" align="center">
-              <template #default="{row}"><el-tag :type="row.can_edit?'success':'info'" size="small">{{row.can_edit?'是':'否'}}</el-tag></template>
-            </el-table-column>
-            <el-table-column label="删除" width="55" align="center">
-              <template #default="{row}"><el-tag :type="row.can_delete?'success':'info'" size="small">{{row.can_delete?'是':'否'}}</el-tag></template>
-            </el-table-column>
-            <el-table-column label="操作" width="65" align="center">
-              <template #default="{row}"><el-button link type="danger" size="small" @click="revokePerm(row.id)">撤销</el-button></template>
-            </el-table-column>
-          </el-table>
+            </section>
           </div>
         </el-tab-pane>
 
@@ -1109,16 +1129,57 @@ onMounted(() => {
   margin-top: 4px;
 }
 
-.incentive-card {
+/* 激励类别与权限：区块化布局（2026-08-08 重排） */
+.perm-page {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.perm-sec {
   background: #fff;
   border: 1px solid #e4e7ed;
   border-radius: 10px;
-  padding: 16px 20px;
-  margin-bottom: 14px;
+  overflow: hidden;
 }
-.incentive-card .dict-header {
-  padding-bottom: 12px;
-  margin-bottom: 8px;
+.perm-sec-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 18px;
+  background: linear-gradient(90deg, #f5f7fa, #fff);
+  border-bottom: 1px solid #ebeef5;
+}
+.perm-sec-title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.perm-sec-icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 9px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 19px;
+  flex-shrink: 0;
+}
+.perm-sec-icon.icon-cat { background: #ecf5ff; }
+.perm-sec-icon.icon-perm { background: #f0f0ff; }
+.perm-sec-text h3 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: #1f2329;
+}
+.perm-sec-text p {
+  margin: 2px 0 0;
+  font-size: 12px;
+  color: #909399;
+}
+.perm-sec-body {
+  padding: 14px 18px 16px;
 }
 .cat-empty {
   color: #909399;
@@ -1126,6 +1187,8 @@ onMounted(() => {
   padding: 24px 0;
   text-align: center;
 }
+.cat-error { color: #f56c6c; }
+.cat-score { color: #409eff; font-weight: 600; }
 .cat-group {
   border: 1px solid #e4e7ed;
   border-radius: 6px;
