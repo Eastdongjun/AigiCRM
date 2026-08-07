@@ -185,10 +185,10 @@
         <div class="dlg-section">
           <div class="dlg-sec-head">
             <span class="dlg-sec-icon" style="background:#fef0f0;color:#f56c6c"><el-icon><Edit /></el-icon></span>
-            <span class="dlg-sec-title">安装详情</span>
+            <span class="dlg-sec-title">{{ secTitle }}</span>
           </div>
           <div class="dlg-field"><label>{{ detailLabel }}</label><el-input v-model="preInstallQuestion" type="textarea" :rows="2" :placeholder="isSingleSlot ? '描述本次详情...' : '描述安装前存在的问题...'" /></div>
-          <div class="dlg-field"><label>安装备注</label><el-input v-model="remarkText" type="textarea" :rows="2" placeholder="安装备注..." /></div>
+          <div class="dlg-field" v-if="isTrial"><label>{{ remarkLabel }}</label><el-input v-model="remarkText" type="textarea" :rows="2" placeholder="安装备注..." /></div>
         </div>
 
         <!-- 安装文件：单槽（visit/exchange/plan） -->
@@ -408,13 +408,25 @@ const categoryCodeOf = (cat) => {
 
 // 品类分支：visit/exchange/plan 单槽模式（现场照片/安装文件 1~5，无跟踪记录）；trial 三槽
 const isSingleSlot = computed(() => ['visit', 'exchange', 'plan'].includes(categoryCodeOf(pendingChild.value)))
-const slotLabel = computed(() => categoryCodeOf(pendingChild.value) === 'plan' ? '安装文件' : '现场照片')
+const slotLabel = computed(() => categoryCodeOf(pendingChild.value) === 'plan' ? '方案文件' : '现场照片')
+// 详情字段标签 = 子分类名 + 阶段词（如 涂层类安装详情 / 项目方案文件详情描述 / 南京工厂参观详情描述）
 const detailLabel = computed(() => {
   const code = categoryCodeOf(pendingChild.value)
-  if (code === 'plan') return '文件详情描述'
-  if (code === 'visit' || code === 'exchange') return '参观交流详情描述'
-  return '安装前问题'
+  const sub = pendingChild.value?.categoryName || ''
+  if (code === 'plan') return sub + '文件详情描述'
+  if (code === 'visit' || code === 'exchange') return sub + '详情描述'
+  return sub + '安装详情'
 })
+// 安装详情区块标题（随阶段变）
+const secTitle = computed(() => {
+  const code = categoryCodeOf(pendingChild.value)
+  if (code === 'plan') return '方案详情'
+  if (code === 'visit' || code === 'exchange') return '参观详情'
+  return '安装详情'
+})
+// 备注仅产品试点保留，标签也带子分类名
+const isTrial = computed(() => categoryCodeOf(pendingChild.value).startsWith('trial'))
+const remarkLabel = computed(() => (pendingChild.value?.categoryName || '') + '安装备注')
 
 const canSubmit = computed(() => {
   if (!selectedCustomerId.value) return false
