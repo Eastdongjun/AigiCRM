@@ -76,7 +76,8 @@
           v-model:page-size="query.size"
           :total="total"
           :page-sizes="[15, 30, 50]"
-          layout="total, sizes, prev, pager, next"
+          layout="total, prev, pager, next"
+          small
           background
         />
       </div>
