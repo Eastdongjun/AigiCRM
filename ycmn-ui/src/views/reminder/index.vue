@@ -70,8 +70,8 @@
       </el-table>
       </div>
 
-      <div class="pagination">
-        <span class="pagination-info">{{ total > 0 ? (query.current - 1) * query.size + 1 : 0 }}-{{ Math.min(query.current * query.size, total) }} / 共 {{ total }} 条</span>
+      <div class="rem-pager">
+        <span class="rem-pager-info">{{ total > 0 ? (query.current - 1) * query.size + 1 : 0 }}-{{ Math.min(query.current * query.size, total) }} / 共 {{ total }} 条</span>
         <el-pagination
           v-model:current-page="query.current"
           v-model:page-size="query.size"
@@ -253,7 +253,7 @@ onBeforeUnmount(() => {
 .reminder-manage { height: calc(100vh - 100px); display: flex; flex-direction: column; }
 .table-area { flex: 1; min-height: 0; display: flex; flex-direction: column; background: #fff; border: 1px solid #e4e7ed; border-radius: 8px; overflow: hidden }
 .table-wrap { flex: 1; min-height: 0; }
-.pagination {
+.rem-pager {
   display: flex;
   justify-content: flex-end;
   align-items: center;
@@ -270,8 +270,8 @@ onBeforeUnmount(() => {
   background: #fafbfc;
   overflow-x: auto;
 }
-.pagination-info { color: #909399; white-space: nowrap; margin-right: auto; }
-.pagination .el-pagination { flex-shrink: 0; }
+.rem-pager-info { color: #909399; white-space: nowrap; margin-right: auto; }
+.rem-pager .el-pagination { flex-shrink: 0; }
 .days-danger { color: #f56c6c; font-weight: bold; }
 .days-warning { color: #e6a23c; font-weight: bold; }
 .days-normal { color: #67c23a; }
