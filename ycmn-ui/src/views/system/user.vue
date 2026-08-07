@@ -8,7 +8,7 @@
           <span class="filter-title-text">人员管理</span>
           <span class="filter-title-count">共 {{ total }} 人</span>
         </div>
-        <el-button type="primary" :icon="Plus" @click="openDialog()">新增用户</el-button>
+        <el-button v-if="userStore.hasPermission('system:user:add')" type="primary" :icon="Plus" @click="openDialog()">新增用户</el-button>
       </div>
       <div class="filter-row">
         <el-input v-model="query.keyword" placeholder="搜索姓名 / 账号 / 手机号..." clearable prefix-icon="Search" class="filter-search" @keyup.enter="search" />
@@ -75,9 +75,9 @@
         </el-table-column>
         <el-table-column label="操作" width="180" align="center" fixed="right">
           <template #default="{ row }">
-            <el-button link type="primary" size="small" @click="openDialog(row)">编辑</el-button>
-            <el-button link type="warning" size="small" @click="handleResetPwd(row)">重置密码</el-button>
-            <el-button link type="danger" size="small" @click="handleDelete(row)">删除</el-button>
+            <el-button v-if="userStore.hasPermission('system:user:edit')" link type="primary" size="small" @click="openDialog(row)">编辑</el-button>
+            <el-button v-if="userStore.hasPermission('system:user:edit')" link type="warning" size="small" @click="handleResetPwd(row)">重置密码</el-button>
+            <el-button v-if="userStore.hasPermission('system:user:delete')" link type="danger" size="small" @click="handleDelete(row)">删除</el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -190,11 +190,13 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { getUserList, createUser, updateUser, resetPassword, deleteUser } from '@/api/system'
 import { getDeptList, getRoleList } from '@/api/system'
 import { getSimpleUserList } from '@/api/customer'
+import { useUserStore } from '@/store/user'
 
 const tableData = ref([])
 const total = ref(0)
 const depts = ref([])
 const deptTree = ref([])
+const userStore = useUserStore()
 const orgPath = ref([])
 let deptMap = new Map()
 const cascaderProps = { label: 'deptName', value: 'id', children: 'children', checkStrictly: true, emitPath: true }
