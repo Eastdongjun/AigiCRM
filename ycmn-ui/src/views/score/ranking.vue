@@ -132,7 +132,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { getScoreRanking, getScoreRankingStats } from '@/api/score'
 
 const activeTab = ref('personal')
