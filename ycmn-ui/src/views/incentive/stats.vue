@@ -136,9 +136,12 @@
         </el-table-column>
         <template v-for="(parent, pi) in rankParents" :key="'p' + parent.id">
           <el-table-column :label="parent.categoryName" align="center" :class-name="'cat-group cat-group-' + (pi % 4)">
-            <el-table-column v-for="child in parent.children" :key="child.id" :label="child.categoryName" min-width="64" align="center">
+            <el-table-column v-for="child in parent.children" :key="child.id" :label="child.categoryName" min-width="72" align="center">
               <template #default="{ row }">
-                <span v-if="(row.byCategory?.[child.id] || 0) > 0" class="cell-pill">{{ row.byCategory[child.id] }}</span>
+                <span v-if="row.byCategory?.[child.id]" class="cell-pill">
+                  <b class="cell-cnt">{{ row.byCategory[child.id][0] }}</b><span class="cell-unit">条</span>
+                  <span class="cell-score" :class="{ zero: row.byCategory[child.id][1] === 0 }">{{ row.byCategory[child.id][1] }}分</span>
+                </span>
                 <span v-else class="cell-dash">—</span>
               </template>
             </el-table-column>
@@ -182,9 +185,12 @@
         </el-table-column>
         <template v-for="(parent, pi) in rankParents" :key="'p' + parent.id">
           <el-table-column :label="parent.categoryName" align="center" :class-name="'cat-group cat-group-' + (pi % 4)">
-            <el-table-column v-for="child in parent.children" :key="child.id" :label="child.categoryName" min-width="64" align="center">
+            <el-table-column v-for="child in parent.children" :key="child.id" :label="child.categoryName" min-width="72" align="center">
               <template #default="{ row }">
-                <span v-if="(row.byCategory?.[child.id] || 0) > 0" class="cell-pill">{{ row.byCategory[child.id] }}</span>
+                <span v-if="row.byCategory?.[child.id]" class="cell-pill">
+                  <b class="cell-cnt">{{ row.byCategory[child.id][0] }}</b><span class="cell-unit">条</span>
+                  <span class="cell-score" :class="{ zero: row.byCategory[child.id][1] === 0 }">{{ row.byCategory[child.id][1] }}分</span>
+                </span>
                 <span v-else class="cell-dash">—</span>
               </template>
             </el-table-column>
@@ -262,10 +268,10 @@ const exportRank = (type) => {
   let header, rows
   if (type === 'personal') {
     header = ['排名', '姓名', '激励总额', ...cats, '上传数']
-    rows = scoreboard.value.map((r, i) => [i + 1, r.realName, r.totalScore, ...rankParents.value.flatMap(g => g.children.map(c => r.byCategory?.[c.id] || 0)), r.recordCount || 0])
+    rows = scoreboard.value.map((r, i) => [i + 1, r.realName, r.totalScore, ...rankParents.value.flatMap(g => g.children.map(c => r.byCategory?.[c.id]?.[0] || 0)), r.recordCount || 0])
   } else {
     header = ['排名', '部门', '激励总额', ...cats, '参与人数']
-    rows = deptList.value.map((r, i) => [i + 1, r.deptName, r.totalScore, ...rankParents.value.flatMap(g => g.children.map(c => r.byCategory?.[c.id] || 0)), r.participantCount])
+    rows = deptList.value.map((r, i) => [i + 1, r.deptName, r.totalScore, ...rankParents.value.flatMap(g => g.children.map(c => r.byCategory?.[c.id]?.[0] || 0)), r.participantCount])
   }
   const esc = (v) => {
     const s = String(v ?? '')
@@ -453,16 +459,23 @@ onMounted(loadData)
 .cat-group-3 .el-table__header th { background: rgba(16,185,129,.06) !important; box-shadow: inset 3px 0 0 #10b981; }
 /* 品类单元格：绿色徽章 */
 .cell-pill {
-  display: inline-block;
-  min-width: 26px;
-  padding: 2px 8px;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 40px;
+  padding: 3px 8px;
   border-radius: 10px;
   background: linear-gradient(135deg, rgba(16,185,129,.14), rgba(16,185,129,.08));
   color: #0d9e6e;
   font-weight: 700;
   font-size: 13px;
   text-align: center;
+  line-height: 1.35;
 }
+.cell-cnt { font-size: 14px; }
+.cell-unit { font-size: 10px; font-weight: 400; color: #7b8a83; margin-left: 1px; }
+.cell-score { font-size: 11px; font-weight: 600; color: #0d9e6e; }
+.cell-score.zero { color: #f59e0b; }
 .cell-dash { color: #d5dae1; }
 .num-cell { color: #5f6672; font-weight: 500; }
 /* 总学分：蓝色徽章 */

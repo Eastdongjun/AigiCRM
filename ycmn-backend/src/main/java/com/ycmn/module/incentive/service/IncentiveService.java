@@ -445,7 +445,7 @@ public class IncentiveService {
         List<BizIncentiveRecord> records = recordMapper.selectList(wrapper);
 
         Map<Long, int[]> userAgg = new LinkedHashMap<>(); // userId -> [score, recordCount, pre, mid, post]
-        Map<Long, java.util.Map<Long, Integer>> userByCat = new HashMap<>(); // userId -> categoryId -> 记录数
+        Map<Long, java.util.Map<Long, int[]>> userByCat = new HashMap<>(); // userId -> categoryId -> [记录数, 分值]
         for (BizIncentiveRecord r : records) {
             int sc = fileCountOf(r) > 0 ? (r.getScore() != null ? r.getScore() : 0) : 0;
             int pre = r.hasFiles(r.getFilePreId()) ? 1 : 0;
@@ -458,8 +458,10 @@ public class IncentiveService {
             agg[3] += mid;
             agg[4] += post;
             if (r.getCategoryId() != null) {
-                userByCat.computeIfAbsent(r.getUserId(), k -> new HashMap<>())
-                        .merge(r.getCategoryId(), 1, Integer::sum);
+                int[] cagg = userByCat.computeIfAbsent(r.getUserId(), k -> new HashMap<>())
+                        .computeIfAbsent(r.getCategoryId(), k -> new int[2]);
+                cagg[0] += 1;  // 记录数
+                cagg[1] += sc; // 分值
             }
         }
 
@@ -500,17 +502,20 @@ public class IncentiveService {
     public List<Map<String, Object>> deptRanking(String period) {
         List<Map<String, Object>> personal = scoreboard(period);
         Map<String, int[]> deptAgg = new LinkedHashMap<>();
-        Map<String, java.util.Map<Long, Integer>> deptByCat = new HashMap<>();
+        Map<String, java.util.Map<Long, int[]>> deptByCat = new HashMap<>();
         for (Map<String, Object> p : personal) {
             String dept = (String) p.getOrDefault("officeName", "未知");
             int[] agg = deptAgg.computeIfAbsent(dept, k -> new int[]{0, 0});
             agg[0] += ((Number) p.getOrDefault("totalScore", 0)).intValue();
             agg[1] += 1;
-            // 部门品类聚合（个人 byCategory 求和）
+            // 部门品类聚合（个人 byCategory 求和: [记录数, 分值]）
             @SuppressWarnings("unchecked")
-            java.util.Map<Long, Integer> pbc = (java.util.Map<Long, Integer>) p.getOrDefault("byCategory", java.util.Map.of());
-            for (Map.Entry<Long, Integer> en : pbc.entrySet()) {
-                deptByCat.computeIfAbsent(dept, k -> new HashMap<>()).merge(en.getKey(), en.getValue(), Integer::sum);
+            java.util.Map<Long, int[]> pbc = (java.util.Map<Long, int[]>) p.getOrDefault("byCategory", java.util.Map.of());
+            for (Map.Entry<Long, int[]> en : pbc.entrySet()) {
+                int[] dagg = deptByCat.computeIfAbsent(dept, k -> new HashMap<>())
+                        .computeIfAbsent(en.getKey(), k -> new int[2]);
+                dagg[0] += en.getValue()[0];
+                dagg[1] += en.getValue()[1];
             }
         }
 
