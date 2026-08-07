@@ -175,6 +175,10 @@
                   <el-option v-for="s in (productCats[relatedCat] || [])" :key="s" :label="s" :value="s" />
                 </el-select>
               </div></div>
+          <div v-if="categoryCodeOf(pendingChild.value) === 'trial'" class="dlg-field">
+            <label>具体产品 <span class="dlg-opt">选填</span></label>
+            <el-input v-model="specificProduct" placeholder="填写具体产品名称/型号，选填" size="large" maxlength="200" show-word-limit clearable />
+          </div>
         </div>
 
         <!-- 安装详情 -->
@@ -386,6 +390,7 @@ const currentSlot = ref(null)
 const industryOptions = ref([])
 const selectedIndustry = ref('')
 const relatedProducts = ref('')
+const specificProduct = ref('')
 const productCats = { '涂层类': ['防腐','加固','钢结构','煤气管道','其他'], '防滑板类': ['公共区','装置区'], '机封类': ['水泵','渣泵','介质泵'], '密封类': ['静密封','动密封','橡胶密封'], '润滑类': ['润滑油','润滑脂','润滑剂'] }
 const productCatKeys = Object.keys(productCats)
 const relatedCat = ref('')
@@ -617,6 +622,7 @@ const resetDialogFields = () => {
   shareToTeam.value = false
   selectedIndustry.value = ''
   relatedProducts.value = ''
+  specificProduct.value = ''
   relatedCat.value = ''
   relatedSub.value = ''
 }
@@ -666,6 +672,7 @@ const startReplace = (row) => {
   shareToTeam.value = !!row.shared
   selectedIndustry.value = row.industry || ''
   relatedProducts.value = row.relatedProducts || ''
+  specificProduct.value = row.specificProduct || ''
   const _rp = row.relatedProducts || ''
   const _i = _rp.indexOf('-')
   relatedCat.value = _i > 0 ? _rp.slice(0, _i) : ''
@@ -835,6 +842,7 @@ const confirmUpload = async () => {
         period: selectedPeriod.value,
         industry: selectedIndustry.value || null,
         relatedProducts: relatedProducts.value || null,
+        specificProduct: specificProduct.value || null,
         preInstallQuestion: preInstallQuestion.value || null,
         filePreId: finalPreId,
         fileMidId: finalMidId,
@@ -850,6 +858,7 @@ const confirmUpload = async () => {
         period: selectedPeriod.value,
         industry: selectedIndustry.value || null,
         relatedProducts: relatedProducts.value || null,
+        specificProduct: specificProduct.value || null,
         preInstallQuestion: preInstallQuestion.value || null,
         filePreId: toJson(preIds),
         // 单槽品类（visit/exchange/plan）：不提交中/后/跟踪槽
@@ -991,6 +1000,7 @@ onMounted(() => {
 .dlg-row .dlg-field { margin-top:0 }
 .dlg-field label { display:block; font-size:12px; font-weight:600; color:#4e5969; margin-bottom:4px }
 .dlg-field label i { color:#f56c6c; font-style:normal }
+.dlg-opt { font-size:12px; font-weight:400; color:#a8abb2; margin-left:4px }
 .dlg-field .el-select,.dlg-field .el-input { width:100% }
 .dlg-confirm { color:#67c23a; font-weight:600; font-size:13px; margin-top:4px }
 .span-2 { grid-column:span 1 }
