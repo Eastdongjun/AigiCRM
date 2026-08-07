@@ -127,20 +127,20 @@
         </div>
         <div class="dtl-timeline">
           <div v-for="(r,i) in detailCust.records" :key="r.id" class="dtl-item" :class="{first:i===0}">
-            <div class="dtl-dot"></div>
+            <div class="dtl-dot" :style="{background:scoreColor(getCls(r)), boxShadow:'0 0 0 3px '+scoreColor(getCls(r))+'22'}"></div>
             <div class="dtl-head">
               <span class="dtl-date">{{ fmtDt(r.createdAt) }}</span>
               <span class="rec-tag" :class="'rec-tag-'+getCls(r)">{{ getMain(r) }}</span>
+              <span class="dtl-subcat">{{ r.categoryName }}</span>
+              <span class="dtl-head-score" :style="{color:scoreColor(getCls(r))}">+{{ r.score }}分</span>
             </div>
-            <div class="dtl-content">
-              <div class="dtl-info-line">
-                <span>{{ r.categoryName }}</span>
-                <span>· {{ r.userName }}</span>
-                <span>· {{ r.period }}</span>
-                <span v-if="r.industry">· {{ r.industry }}</span>
-                <span v-if="r.relatedProducts">· {{ r.relatedProducts }}</span>
-                <span v-if="r.specificProduct">· {{ r.specificProduct }}</span>
-                <span class="dtl-info-pts" :style="{color:scoreColor(getCls(r))}">+{{ r.score }}分</span>
+            <div class="dtl-content" :style="{borderLeftColor:scoreColor(getCls(r))}">
+              <div class="dtl-upload-chips">
+                <span class="dtl-chip" v-if="r.industry"><i>行业</i>{{ r.industry }}</span>
+                <span class="dtl-chip" v-if="r.relatedProducts"><i>相关产品</i>{{ r.relatedProducts }}</span>
+                <span class="dtl-chip" v-if="r.specificProduct"><i>具体产品</i>{{ r.specificProduct }}</span>
+                <span class="dtl-chip"><i>上传人</i>{{ r.userName }}</span>
+                <span class="dtl-chip"><i>周期</i>{{ r.period }}</span>
               </div>
               <div v-if="r.preInstallQuestion" class="dtl-field">
                 <div class="dtl-field-label">{{ detailLabelOf(r) }}</div>
@@ -368,15 +368,17 @@ onMounted(()=>{loadCats();loadUsers();loadOrgs();doSearch()})
 .dtl-timeline{position:relative}
 .dtl-timeline::before{content:'';position:absolute;left:6px;top:6px;bottom:6px;width:2px;background:#e5e6eb}
 .dtl-item{position:relative;padding:0 0 0 36px;margin-bottom:24px}
-.dtl-item.first .dtl-dot{background:#0052d9;box-shadow:0 0 0 4px rgba(0,82,217,.15)}
 .dtl-item.first .dtl-date{color:#0052d9}
-.dtl-dot{position:absolute;left:-1px;top:18px;width:16px;height:16px;border-radius:50%;background:#c9cdd4;border:3px solid #fff;box-shadow:0 0 0 1px #c9cdd4}
-.dtl-head{display:flex;align-items:center;gap:12px;margin-bottom:10px}
+.dtl-dot{position:absolute;left:-1px;top:20px;width:16px;height:16px;border-radius:50%;background:#c9cdd4;border:3px solid #fff;transition:transform .2s}
+.dtl-head{display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap}
 .dtl-date{font-size:17px;font-weight:700;color:#1f2329}
-.dtl-content{margin-top:0;padding:14px 18px;border:1px solid #edf0f4;border-radius:10px;background:#fcfcfd;transition:box-shadow .2s}
-.dtl-item:hover .dtl-content{box-shadow:0 2px 10px rgba(0,0,0,.05)}
-.dtl-info-line{font-size:15px;color:#646a73;margin-bottom:12px;padding-bottom:10px;border-bottom:1px dashed #eef0f3}
-.dtl-info-pts{font-weight:700;font-size:16px;margin-left:auto}
+.dtl-subcat{font-size:14px;color:#8f959e;font-weight:500}
+.dtl-head-score{font-weight:700;font-size:15px;margin-left:auto}
+.dtl-content{margin-top:0;padding:14px 18px;border:1px solid #edf0f4;border-left:4px solid #e3e6ec;border-radius:10px;background:#fcfcfd;transition:box-shadow .2s,transform .2s}
+.dtl-item:hover .dtl-content{box-shadow:0 3px 12px rgba(0,0,0,.06);transform:translateX(2px)}
+.dtl-upload-chips{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px}
+.dtl-chip{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:#4e5969;background:#fff;border:1px solid #e8ebef;border-radius:6px;padding:3px 10px}
+.dtl-chip i{font-style:normal;font-size:12px;color:#9aa0a8}
 .dtl-field{margin-bottom:12px;padding:10px 14px;background:#f7f8fa;border-radius:6px;border-left:3px solid #d5d9e0}
 .dtl-field-label{font-size:12px;color:#8f959e;margin-bottom:6px;letter-spacing:.5px}
 .dtl-field-text{font-size:14px;color:#1f2329;line-height:1.8;white-space:pre-wrap;word-break:break-word}
