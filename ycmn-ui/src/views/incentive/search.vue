@@ -139,6 +139,7 @@
                 <span>· {{ r.period }}</span>
                 <span v-if="r.industry">· {{ r.industry }}</span>
                 <span v-if="r.relatedProducts">· {{ r.relatedProducts }}</span>
+                <span v-if="r.specificProduct">· {{ r.specificProduct }}</span>
                 <span class="dtl-info-pts" :style="{color:scoreColor(getCls(r))}">+{{ r.score }}分</span>
               </div>
               <div v-if="r.preInstallQuestion" class="dtl-field">
