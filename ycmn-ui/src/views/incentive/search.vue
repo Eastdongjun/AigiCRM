@@ -136,7 +136,7 @@
             </div>
             <div class="dtl-content" :style="{borderLeftColor:scoreColor(getCls(r))}">
               <div class="dtl-upload-chips">
-                <span class="dtl-chip"><i>客户</i>{{ r.customerName || detailCust.customerName }}</span>
+                <span class="dtl-chip cust"><i>客户</i><b :style="{color:scoreColor(getCls(r))}">{{ r.customerName || detailCust.customerName }}</b></span>
                 <span class="dtl-chip" v-if="r.industry"><i>行业</i>{{ r.industry }}</span>
                 <span class="dtl-chip" v-if="r.relatedProducts"><i>相关产品</i>{{ r.relatedProducts }}</span>
                 <span class="dtl-chip" v-if="r.specificProduct"><i>具体产品</i>{{ r.specificProduct }}</span>
@@ -382,6 +382,7 @@ onMounted(()=>{loadCats();loadUsers();loadOrgs();doSearch()})
 .dtl-upload-chips{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px}
 .dtl-chip{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:#4e5969;background:#fff;border:1px solid #e8ebef;border-radius:6px;padding:3px 10px}
 .dtl-chip i{font-style:normal;font-size:12px;color:#9aa0a8}
+.dtl-chip.cust b{font-weight:700}
 .dtl-field{margin-bottom:12px;padding:10px 14px;background:#f7f8fa;border-radius:6px;border-left:3px solid #d5d9e0}
 .dtl-field.desc{background:#fff;border:1px solid #eef0f3;border-left:4px solid #d5d9e0;padding:14px 16px}
 .dtl-field.desc .dtl-field-label{color:#4e5969;font-size:13px;font-weight:600}
