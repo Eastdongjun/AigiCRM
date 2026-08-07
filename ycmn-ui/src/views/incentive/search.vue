@@ -143,11 +143,11 @@
                 <span class="dtl-info-pts" :style="{color:scoreColor(getCls(r))}">+{{ r.score }}分</span>
               </div>
               <div v-if="r.preInstallQuestion" class="dtl-field">
-                <div class="dtl-field-label">安装前问题</div>
+                <div class="dtl-field-label">{{ detailLabelOf(r) }}</div>
                 <div class="dtl-field-text">{{ r.preInstallQuestion }}</div>
               </div>
-              <div v-if="r.remark" class="dtl-field">
-                <div class="dtl-field-label">安装备注</div>
+              <div v-if="r.remark && isTrialRec(r)" class="dtl-field">
+                <div class="dtl-field-label">{{ r.categoryName }}安装备注</div>
                 <div class="dtl-field-text">{{ r.remark }}</div>
               </div>
               <div v-if="getFiles(r).length" class="dtl-files">
@@ -248,6 +248,10 @@ function detectType(n){if(!n)return'doc';if(/\.(jpg|jpeg|png|gif|webp|bmp)$/i.te
 function getMain(r){const c=catMap.value[r.categoryId];if(!c)return'';if(c.parentId===0)return c.categoryName;const p=catMap.value[c.parentId];if(!p)return c.categoryName;const gp=catMap.value[p.parentId];return gp&&gp.parentId===0?gp.categoryName:p.categoryName}
 function getCls(r){const c=catMap.value[r.categoryId];if(!c)return'';if(c.parentId===0)return c.categoryCode||'';const p=catMap.value[c.parentId];if(!p)return'';const gp=catMap.value[p.parentId];return(gp&&gp.parentId===0?gp.categoryCode:p.categoryCode)||''}
 function scoreColor(c){return{visit:'#d97706',exchange:'#2563eb',plan:'#7c3aed',trial:'#059669'}[c]||'#303133'}
+// 详情字段标签 = 子分类名 + 阶段词（与上传弹窗一致）
+function detailLabelOf(r){const code=getCls(r);const sub=r.categoryName||'';if(code==='plan')return sub+'文件详情描述';if(code==='visit'||code==='exchange')return sub+'详情描述';return sub+'安装详情'}
+// 是否产品试点记录（安装备注仅试点有）
+function isTrialRec(r){return (getCls(r)||'').startsWith('trial')}
 function fmtDt(t){if(!t)return'';const d=new Date(t);return d.getFullYear()+'-'+(d.getMonth()+1).toString().padStart(2,'0')+'-'+d.getDate().toString().padStart(2,'0')+' '+d.getHours().toString().padStart(2,'0')+':'+d.getMinutes().toString().padStart(2,'0')}
 
 async function doSearch(){

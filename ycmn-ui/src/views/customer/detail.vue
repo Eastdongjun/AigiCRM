@@ -287,6 +287,9 @@
             <div v-if="r.specificProduct" class="inc-meta" style="margin-top:2px">
               <span style="color:#909399">具体产品：</span><span>{{ r.specificProduct }}</span>
             </div>
+            <div v-if="r.preInstallQuestion" class="inc-remark" style="margin-top:6px">
+              <span style="color:#909399">{{ detailLabelOf(r) }}：</span><span>{{ r.preInstallQuestion }}</span>
+            </div>
             <div class="inc-files" v-if="getFiles(r).length">
               <div v-for="f in getFiles(r)" :key="f.id" class="inc-file" @click="downloadIncentiveFile(f)">
                 <span class="inc-file-tag">{{ f.tag }}</span>
@@ -294,7 +297,9 @@
                 <span class="inc-file-type">{{ f.type === 'image' ? '🖼' : f.type === 'video' ? '🎬' : '📄' }}</span>
               </div>
             </div>
-            <div v-if="r.remark" class="inc-remark">{{ r.remark }}</div>
+            <div v-if="r.remark && isTrialRec(r)" class="inc-remark">
+              <span style="color:#909399">{{ getSubCategory(r) || r.categoryName }}安装备注：</span><span>{{ r.remark }}</span>
+            </div>
           </div>
         </div>
         <div v-else class="empty-text" style="padding:40px">该客户暂无四项激励记录</div>
@@ -473,6 +478,12 @@ const loadIncentiveRecords = async () => {
 
 const getMainCategory = (r) => { const c = catMap.value[r.categoryId]; if (!c) return ''; const p = catMap.value[c.parentId]; return p ? p.categoryName : c.categoryName }
 const getSubCategory = (r) => { const c = catMap.value[r.categoryId]; return c ? c.categoryName : '' }
+// 上溯顶层 code（阶段）
+const parentCodeOf = (r) => { let c = catMap.value[r.categoryId]; if (!c) return ''; while (c.parentId && catMap.value[c.parentId]) c = catMap.value[c.parentId]; return c.categoryCode || '' }
+// 详情字段标签 = 子分类名 + 阶段词（与上传弹窗一致）
+const detailLabelOf = (r) => { const code = parentCodeOf(r); const sub = getSubCategory(r) || r.categoryName || ''; if (code === 'plan') return sub + '文件详情描述'; if (code === 'visit' || code === 'exchange') return sub + '详情描述'; return sub + '安装详情' }
+// 是否产品试点记录（安装备注仅试点有）
+const isTrialRec = (r) => parentCodeOf(r).startsWith('trial')
 const scoreColor = (r) => { const c = catMap.value[r.categoryId]; if (!c) return '#333'; const p = catMap.value[c.parentId]; const gp = p ? catMap.value[p.parentId] : null; const code = (gp && gp.parentId === 0 ? gp.categoryCode : p?.categoryCode) || ''; return { visit: '#e6a23c', exchange: '#409eff', plan: '#9c27b0', trial: '#67c23a' }[code] || '#333' }
 function parseId(v){if(!v)return null;if(typeof v==='number')return v;try{const a=JSON.parse(v);return Array.isArray(a)?a[0]:v}catch{return v}}
 const getFiles = (r) => { const f = []; if (r.filePreId) f.push({ id: parseId(r.filePreId), label: r.filePreName || '文件', type: detectType(r.filePreName), tag: '安装前' }); if (r.fileMidId) f.push({ id: parseId(r.fileMidId), label: r.fileMidName || '文件', type: detectType(r.fileMidName), tag: '安装中' }); if (r.filePostId) f.push({ id: parseId(r.filePostId), label: r.filePostName || '文件', type: detectType(r.filePostName), tag: '安装后' }); if (r.fileId) f.push({ id: parseId(r.fileId), label: r.fileName || '文件', type: detectType(r.fileName), tag: '' }); return f }
