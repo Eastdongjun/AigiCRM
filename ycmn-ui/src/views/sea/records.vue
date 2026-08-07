@@ -101,7 +101,7 @@
       </el-table>
       </div>
 
-      <div class="pagination">
+      <div class="list-pager">
         <span>{{ total > 0 ? (query.current - 1) * query.size + 1 : 0 }}-{{ Math.min(query.current * query.size, total) }}条 / 共{{ total }}条</span>
         <el-pagination v-model:current-page="query.current" v-model:page-size="query.size" :total="total" :page-sizes="[15, 30, 50]" layout="prev, pager, next" size="small" @change="loadData" />
       </div>
@@ -197,7 +197,7 @@ onBeforeUnmount(() => {
   padding: 4px 0;
   box-sizing: border-box;
 }
-.pagination {
+.list-pager {
   display: flex;
   justify-content: space-between;
   align-items: center;

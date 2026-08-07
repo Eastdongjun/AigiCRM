@@ -86,7 +86,7 @@
 
     <!-- 框3: 翻页 -->
     <div class="section-box" style="padding:6px 20px">
-      <div class="pagination" style="padding:0;border:none">
+      <div class="list-pager" style="padding:0;border:none">
         <span>{{ total > 0 ? (query.current - 1) * query.size + 1 : 0 }}-{{ Math.min(query.current * query.size, total) }}条 / 共{{ total }}条</span>
         <el-pagination v-model:current-page="query.current" v-model:page-size="query.size" :total="total" :page-sizes="[30, 50, 100]" layout="prev, pager, next" size="small" @change="loadData" />
       </div>
@@ -457,7 +457,7 @@ onBeforeUnmount(() => {
 .section-box.table-box :deep(.el-table td) { font-size: 13px; padding: 6px 0 }
 .section-box.table-box :deep(.el-table__row) { height: 44px }
 .create-time { color: #909399; font-size: 12px }
-.pagination {
+.list-pager {
   display: flex;
   justify-content: flex-end;
   align-items: center;
