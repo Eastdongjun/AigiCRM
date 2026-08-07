@@ -144,6 +144,9 @@ public class SysUserService {
         if (!StringUtils.hasText(user.getPhone())) {
             throw new BusinessException("手机号不能为空");
         }
+        if (!StringUtils.hasText(user.getDataScopeOverride())) {
+            throw new BusinessException("数据范围不能为空");
+        }
         validateDataScopeOverride(user.getDataScopeOverride());
         validateGrantableRoleAndScope(user.getRoleId(), user.getDataScopeOverride());
         // 检查用户名唯一性
@@ -180,6 +183,9 @@ public class SysUserService {
     public void update(SysUser user) {
         SysUser existing = userMapper.selectById(user.getId());
         if (existing == null) throw new BusinessException("用户不存在");
+        if (!StringUtils.hasText(user.getDataScopeOverride())) {
+            throw new BusinessException("数据范围不能为空");
+        }
         validateDataScopeOverride(user.getDataScopeOverride());
         validateGrantableRoleAndScope(user.getRoleId(), user.getDataScopeOverride());
 

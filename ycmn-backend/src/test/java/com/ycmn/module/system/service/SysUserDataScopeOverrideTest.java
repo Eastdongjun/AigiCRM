@@ -107,6 +107,7 @@ class SysUserDataScopeOverrideTest {
         user.setRealName("测试用户");
         user.setRoleId(10L);
         user.setPhone("13800000000");
+        user.setDataScopeOverride("self"); // 【2026-08-08】数据范围必选
         return user;
     }
 
@@ -195,22 +196,18 @@ class SysUserDataScopeOverrideTest {
     }
 
     @Test
-    void updateClearsOverrideWithNull() {
+    void updateRejectsBlankOverride() {
+        // 【2026-08-08 数据范围必选】空白/空 override 不再允许（"跟随角色/清空回写 NULL"行为已移除）
         SysUserService service = newService();
         SysUser existing = new SysUser();
         existing.setId(1L);
         existing.setDataScopeOverride("team");
         when(userMapper.selectById(1L)).thenReturn(existing);
 
-        // 前端"跟随角色"提交空字符串 → 服务层归一为 null 透传 updateById
         SysUser user = new SysUser();
         user.setId(1L);
         user.setDataScopeOverride("  ");
-        service.update(user);
-
-        ArgumentCaptor<SysUser> captor = ArgumentCaptor.forClass(SysUser.class);
-        verify(userMapper).updateById(captor.capture());
-        assertNull(captor.getValue().getDataScopeOverride(),
-                "空白 override 应归一为 null；配合 ALWAYS 策略落库回写 NULL");
+        assertThrows(BusinessException.class, () -> service.update(user));
+        verify(userMapper, never()).updateById(any());
     }
 }

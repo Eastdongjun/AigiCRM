@@ -102,6 +102,7 @@ class SysUserManagerIdUpdateTest {
         SysUser user = new SysUser();
         user.setId(1L);
         user.setManagerId(0L); // 前端"无上级"归一值
+        user.setDataScopeOverride("self"); // 【2026-08-08】数据范围必选
         service.update(user);
 
         ArgumentCaptor<SysUser> captor = ArgumentCaptor.forClass(SysUser.class);
@@ -122,6 +123,7 @@ class SysUserManagerIdUpdateTest {
         SysUser user = new SysUser();
         user.setId(1L);
         user.setManagerId(5L);
+        user.setDataScopeOverride("self"); // 【2026-08-08】数据范围必选
         service.update(user);
 
         ArgumentCaptor<SysUser> captor = ArgumentCaptor.forClass(SysUser.class);

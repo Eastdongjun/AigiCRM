@@ -155,9 +155,8 @@
         </el-row>
         <el-row :gutter="24">
           <el-col :span="12">
-            <el-form-item label="数据范围">
-              <el-select v-model="editForm.dataScopeOverride" clearable style="width:100%" placeholder="默认跟随角色">
-                <el-option label="跟随角色" value="" />
+            <el-form-item label="数据范围" required>
+              <el-select v-model="editForm.dataScopeOverride" style="width:100%" placeholder="请选择数据范围">
                 <el-option label="仅本人" value="self" />
                 <el-option label="本人及下级" value="team" />
                 <el-option label="本部门及以下" value="dept" />
@@ -347,6 +346,8 @@ const openDialog = (row) => {
 const handleSave = async () => {
   const valid = await formRef.value.validate().catch(() => false)
   if (!valid) return
+  // 【2026-08-08 需求】数据范围必选，不允许跟随角色/留空
+  if (!editForm.dataScopeOverride) { ElMessage.warning('请选择数据范围'); return }
   saving.value = true
   try {
     if (editForm.id) {
