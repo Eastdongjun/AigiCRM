@@ -121,9 +121,12 @@ const loadData = async () => {
     try {
       const types = ['share_to', 'share_by', 'share_owner']
       const labelMap = { share_to: '客户已分享给你', share_by: '你分享了客户', share_owner: '你的客户被分享' }
-      for (const t of types) {
-        const sr = await getReminderList({ current: 1, size: 20, type: t, status: 'pending', deptId: query.deptId })
-        for (const item of (sr.data?.records || [])) {
+      // 【性能 2026-08-08】三个分享类型互不依赖，串行 for 改为 Promise.all 并发
+      const srs = await Promise.all(types.map(t =>
+        getReminderList({ current: 1, size: 20, type: t, status: 'pending', deptId: query.deptId })))
+      for (let i = 0; i < types.length; i++) {
+        const t = types[i]
+        for (const item of (srs[i]?.data?.records || [])) {
           shareRecords.push({
             reminderId: item.id,
             customerId: item.customerId,

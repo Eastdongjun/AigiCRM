@@ -193,6 +193,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { getCategoryTree } from '@/api/incentive'
+import { cachedGet } from '@/utils/layout-cache'
 import { getToken } from '@/utils/token'
 import { Search, User, VideoPlay, Document, ZoomIn, Download, Filter, Folder, OfficeBuilding, PriceTag, Calendar, MapLocation, Notebook, Warning } from '@element-plus/icons-vue'
 import request from '@/utils/request'
@@ -281,9 +282,9 @@ async function doSearch(){
   try{const res=await request.get('/incentive/customer-records',{params:p});custs.value=(res.data||[]).filter(c=>c.records?.length>0&&c.customerName)}catch(e){ElMessage.error('查询失败')}
 }
 function doReset(){fCustomer.value='';fSales.value='';fIndustry.value='';fDevType.value='';fDateRange.value=null;fOrgIds.value=[];fProdCat.value='';fProdSub.value='';doSearch()}
-async function loadCats(){try{const res=await getCategoryTree();const walk=l=>{l.forEach(c=>{catMap.value[c.id]=c;if(c.children)walk(c.children)})};walk(res.data||[])}catch(e){}}
-async function loadUsers(){try{const res=await request.get('/incentive/users');userList.value=res.data||[]}catch(e){}}
-async function loadOrgs(){try{const res=await request.get('/system/depts');const list=res.data||[]
+async function loadCats(){try{const res=await cachedGet('categoryTree',getCategoryTree);const walk=l=>{l.forEach(c=>{catMap.value[c.id]=c;if(c.children)walk(c.children)})};walk(res.data||[])}catch(e){}}
+async function loadUsers(){try{const res=await cachedGet('incentiveUsers',()=>request.get('/incentive/users'));userList.value=res.data||[]}catch(e){}}
+async function loadOrgs(){try{const res=await cachedGet('depts',()=>request.get('/system/depts'));const list=res.data||[]
   const build=(list,pId=0)=>list.filter(d=>Number(d.parentId)===Number(pId)).sort((a,b)=>(a.sortOrder||0)-(b.sortOrder||0)).map(d=>{const ch=build(list,d.id);return ch.length?{...d,children:ch}:{...d}})
   const filtered=list.filter(d=>d.deptType!==1) // 跳过总部级
   const rootIds=new Set(filtered.map(d=>d.id))

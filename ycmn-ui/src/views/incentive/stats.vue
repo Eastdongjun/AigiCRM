@@ -208,6 +208,7 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { Download } from '@element-plus/icons-vue'
 import { getCategoryTree, getRecords, getCategoryStats, getScoreboard, getIncentiveRanking } from '@/api/incentive'
+import { cachedGet } from '@/utils/layout-cache'
 import { useUserStore } from '@/store/user'
 
 const userStore = useUserStore()
@@ -320,8 +321,18 @@ const groupedData = computed(() => {
 
 const loadData = async () => {
   pageNum.value = 1
-  try {
-    const catRes = await getCategoryTree()
+  const p = period.value
+  // 【性能 2026-08-08】五个接口相互独立，由串行 await 改为并发 Promise.allSettled
+  // （单页从 ~5×RTT 降到 ~1×max(RTT)，缓解激励统计页卡顿）；各接口独立容错。
+  const [catRes, recRes, csRes, sbRes, drRes] = await Promise.allSettled([
+    cachedGet('categoryTree', getCategoryTree),
+    getRecords({ period: p }),
+    getCategoryStats({ period: p }),
+    getScoreboard({ period: p }),
+    getIncentiveRanking({ type: 'dept', period: p }),
+  ])
+
+  if (catRes.status === 'fulfilled') {
     const flat = []
     const flatten = (list) => {
       for (const item of list) {
@@ -329,31 +340,15 @@ const loadData = async () => {
         if (item.children) flatten(item.children)
       }
     }
-    flatten(catRes.data || [])
+    flatten(catRes.value?.data || [])
     categories.value = flat
-  } catch {}
-
-  try {
-    // 顶部卡片：当前登录人的个人记录
-    const res = await getRecords({ period: period.value })
-    records.value = res.data || []
-  } catch {}
-
-  try {
-    // 激励统计表：全员聚合
-    const res = await getCategoryStats({ period: period.value })
-    catStat.value = res.data || { byCategory: [], totalFiles: 0, totalScore: 0 }
-  } catch {}
-
-  try {
-    const res = await getScoreboard({ period: period.value })
-    scoreboard.value = res.data || []
-  } catch {}
-
-  try {
-    const res = await getIncentiveRanking({ type: 'dept', period: period.value })
-    deptList.value = res.data || []
-  } catch {}
+  }
+  // 顶部卡片：当前登录人的个人记录
+  if (recRes.status === 'fulfilled') records.value = recRes.value?.data || []
+  // 激励统计表：全员聚合
+  if (csRes.status === 'fulfilled') catStat.value = csRes.value?.data || { byCategory: [], totalFiles: 0, totalScore: 0 }
+  if (sbRes.status === 'fulfilled') scoreboard.value = sbRes.value?.data || []
+  if (drRes.status === 'fulfilled') deptList.value = drRes.value?.data || []
 }
 
 watch(period, loadData)
