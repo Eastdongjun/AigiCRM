@@ -240,6 +240,7 @@ public class IncentiveService {
         if (update.getFileId() != null) existing.setFileId(update.getFileId());
         if (update.getFileTrackId() != null) existing.setFileTrackId(update.getFileTrackId());
         if (update.getRemark() != null) existing.setRemark(update.getRemark());
+        if (update.getSpecificProduct() != null) existing.setSpecificProduct(update.getSpecificProduct());
 
         // 重算积分
         BizIncentiveCategory category = categoryMapper.selectById(existing.getCategoryId());

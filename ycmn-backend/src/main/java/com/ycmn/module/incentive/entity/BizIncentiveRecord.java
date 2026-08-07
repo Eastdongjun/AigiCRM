@@ -17,6 +17,7 @@ public class BizIncentiveRecord {
     private String period;
     private String industry;            // 行业(取字典 industry)
     private String relatedProducts;     // 相关产品(多行文本)
+    private String specificProduct;   // 具体产品（可选，仅 trial 分类使用）
     private String fileId;
     private String preInstallQuestion;
     private String filePreId;
