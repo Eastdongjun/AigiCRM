@@ -184,6 +184,10 @@ public class AuthService {
     }
 
     public void sendResetCode(ForgotPasswordSendCodeRequest request) {
+        // 【对齐 2026-08-08】DTO 声明支持 email 但后端从未实现邮件发送；明确拒绝而非静默降级
+        if ("email".equals(request.getMethod())) {
+            throw new BusinessException(400, "邮箱验证暂未开通，请使用手机验证");
+        }
         SysUser user = findActiveUser(request.getUsername());
 
         if (user.getPhone() == null || user.getPhone().isBlank()) {
