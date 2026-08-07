@@ -2,9 +2,11 @@
   <div class="config-page">
 
     <div class="section-box">
-      <el-tabs v-model="activeTab">
+      <!-- 2026-08-08 布局重构：左侧导航 + 右侧内容 -->
+      <el-tabs v-model="activeTab" tab-position="left" class="settings-tabs">
         <!-- 基本设置 -->
-        <el-tab-pane label="基本设置" name="basic">
+        <el-tab-pane name="basic">
+          <template #label><span class="tab-label">⚙️ 基本设置</span></template>
           <el-form label-width="120px" class="basic-form">
             <el-form-item label="系统名称">
               <el-input v-model="configMap['system.name']" style="width: 300px" />
@@ -94,7 +96,8 @@
         </el-tab-pane>
 
         <!-- 字典管理 -->
-        <el-tab-pane label="字典管理" name="dict">
+        <el-tab-pane name="dict">
+          <template #label><span class="tab-label">📋 字典管理</span></template>
           <div class="dict-layout">
             <!-- 左侧: 字典类型 -->
             <div class="dict-types">
@@ -158,8 +161,9 @@
           </div>
         </el-tab-pane>
         <!-- 公海配置 -->
-        <el-tab-pane label="审批配置" name="approvalConfig"><ApprovalConfig /></el-tab-pane>
-        <el-tab-pane label="公海配置" name="sea">
+        <el-tab-pane name="approvalConfig"><template #label><span class="tab-label">✅ 审批配置</span></template><ApprovalConfig /></el-tab-pane>
+        <el-tab-pane name="sea">
+          <template #label><span class="tab-label">🌊 公海配置</span></template>
           <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">
             <span style="font-size:15px;font-weight:600">公海池列表</span>
             <el-tag size="small" type="info">{{ seaPools.length }} 个池</el-tag>
@@ -188,7 +192,8 @@
           <el-empty v-else-if="!seaPools.length" description="暂无公海池，点击上方按钮创建" />
         </el-tab-pane>
         <!-- 激励类别与权限 -->
-        <el-tab-pane label="激励类别与权限" name="incentiveCategory">
+        <el-tab-pane name="incentiveCategory">
+          <template #label><span class="tab-label">🗂️ 激励类别与权限</span></template>
           <!-- 激励类别与权限：区块化布局（2026-08-08 重排，保证两个区块可靠显示） -->
           <div class="perm-page">
             <!-- 区块一：激励类别管理 -->
@@ -286,7 +291,8 @@
         </el-tab-pane>
 
         <!-- 权限体系总览 -->
-        <el-tab-pane label="权限体系" name="permOverview">
+        <el-tab-pane name="permOverview">
+          <template #label><span class="tab-label">🔐 权限体系</span></template>
           <el-alert type="info" :closable="false" style="margin-bottom:16px">
             <template #title>系统包含5种权限：菜单权限（能进哪个页面）、数据权限（能看到多少数据）、操作权限（能改/删数据）、组织管理权限（能管哪个组织的人）、激励专项权限（能编辑/删除激励）</template>
           </el-alert>
@@ -311,7 +317,8 @@
         </el-tab-pane>
 
         <!-- 权限矩阵 -->
-        <el-tab-pane label="权限矩阵" name="perm">
+        <el-tab-pane name="perm">
+          <template #label><span class="tab-label">🗄️ 权限矩阵</span></template>
           <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
             <span style="font-size:13px;color:#666">【菜单权限】按角色分配：✓ 表示该角色能访问此页面/功能</span>
             <el-button size="small" @click="loadPermData">刷新</el-button>
@@ -1040,9 +1047,18 @@ onMounted(() => {
 
 <style scoped>
 .config-page { height: calc(100vh - 80px); display: flex; flex-direction: column }
-.section-box { background: #fff; border: 1px solid #e4e7ed; border-radius: 10px; padding: 20px 24px; flex: 1; overflow: hidden; display: flex; flex-direction: column }
-.section-box :deep(.el-tabs) { flex: 1; display: flex; flex-direction: column }
-.section-box :deep(.el-tabs__content) { flex: 1; overflow: auto }
+.section-box { background: #fff; border: 1px solid #e4e7ed; border-radius: 10px; padding: 16px; flex: 1; overflow: hidden; display: flex; flex-direction: column }
+/* 左侧导航布局（2026-08-08 重构） */
+.section-box :deep(.el-tabs) { flex: 1; display: flex; flex-direction: row; overflow: hidden }
+.section-box :deep(.el-tabs__header) { width: 200px; flex-shrink: 0; margin: 0; border-right: 1px solid #ebeef5; padding: 8px 0 8px 0 }
+.section-box :deep(.el-tabs__nav-wrap) { padding: 0 10px }
+.section-box :deep(.el-tabs__nav) { float: none }
+.section-box :deep(.el-tabs__active-bar) { display: none }
+.section-box :deep(.el-tabs__item) { height: 42px; line-height: 42px; padding: 0 12px; margin: 3px 0; border-radius: 8px; font-size: 14px; color: #4b5563; transition: all .2s }
+.section-box :deep(.el-tabs__item.is-active) { background: #ecf5ff; color: #409eff; font-weight: 600 }
+.section-box :deep(.el-tabs__item:hover) { color: #409eff; background: #f5f7fa }
+.section-box :deep(.el-tabs__content) { flex: 1; overflow: auto; padding: 4px 20px 16px; min-width: 0 }
+.tab-label { display: inline-flex; align-items: center; gap: 7px; white-space: nowrap }
 .page-header { margin-bottom: 16px; }
 .page-header h2 { font-size: 20px; }
 
