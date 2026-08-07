@@ -64,7 +64,7 @@
         <span class="rank-title"><el-icon><User /></el-icon> 个人排行</span>
         <span class="rank-count">{{ personalList.length }}人</span>
       </div>
-      <el-table :data="personalList" style="width:100%" empty-text="暂无数据">
+      <el-table :data="pagedPersonal" style="width:100%" empty-text="暂无数据">
         <el-table-column label="排名" width="80" align="center">
           <template #default="{ row }">
             <span v-if="row.rank === 1" class="medal gold">&#x1F947;</span>
@@ -82,6 +82,7 @@
           <template #default="{ row }">{{ row.recordCount || 0 }}个</template>
         </el-table-column>
       </el-table>
+      <el-pagination v-if="personalList.length > pageSize" v-model:current-page="pageNum" :page-size="pageSize" :total="personalList.length" layout="prev, pager, next" small background style="justify-content:flex-end;margin-top:12px" />
       <div class="rank-footer">
         <span class="footer-note">按总学分降序排列，学分相同按上传数排序</span>
         <span class="footer-time">最近更新：{{ new Date().toLocaleString() }}</span>
@@ -94,7 +95,7 @@
         <span class="rank-title"><el-icon><OfficeBuilding /></el-icon> 部门排行</span>
         <span class="rank-count">{{ deptList.length }}个部门</span>
       </div>
-      <el-table :data="deptList" style="width:100%" empty-text="暂无数据">
+      <el-table :data="pagedDept" style="width:100%" empty-text="暂无数据">
         <el-table-column label="排名" width="80" align="center">
           <template #default="{ row }">
             <span v-if="row.rank <= 3" class="medal" :class="['gold','silver','bronze'][row.rank-1]">
@@ -114,6 +115,7 @@
           <template #default="{ row }">{{ row.avgScore }}分</template>
         </el-table-column>
       </el-table>
+      <el-pagination v-if="deptList.length > pageSize" v-model:current-page="pageNum" :page-size="pageSize" :total="deptList.length" layout="prev, pager, next" small background style="justify-content:flex-end;margin-top:12px" />
       <div class="rank-footer">
         <span class="footer-note">按部门总学分降序排列，人均学分 = 总学分 / 参与人数</span>
         <span class="footer-time">最近更新：{{ new Date().toLocaleString() }}</span>
@@ -132,8 +134,14 @@ const selectedPeriod = ref('')
 const personalList = ref([])
 const deptList = ref([])
 const stats = ref({})
+// 排行分页（前端切片，团队增长后仍可浏览）
+const pageNum = ref(1)
+const pageSize = ref(15)
+const pagedPersonal = computed(() => personalList.value.slice((pageNum.value - 1) * pageSize.value, pageNum.value * pageSize.value))
+const pagedDept = computed(() => deptList.value.slice((pageNum.value - 1) * pageSize.value, pageNum.value * pageSize.value))
 
 const loadData = async () => {
+  pageNum.value = 1
   try {
     const params = { period: selectedPeriod.value }
     const [r1, r2, r3] = await Promise.all([

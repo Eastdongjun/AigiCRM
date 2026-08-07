@@ -23,7 +23,7 @@
 
     <!-- 完整排行榜 -->
     <el-card shadow="never" style="margin-top: 16px">
-      <el-table :data="list" stripe :row-class-name="getRowClass">
+      <el-table :data="pagedList" stripe :row-class-name="getRowClass">
         <el-table-column label="排名" width="80" align="center">
           <template #default="{ $index }">
             <div class="rank-badge" :class="'rank-' + ($index + 1)">
@@ -61,6 +61,7 @@
           </template>
         </el-table-column>
       </el-table>
+      <el-pagination v-if="list.length > pageSize" v-model:current-page="pageNum" :page-size="pageSize" :total="list.length" layout="prev, pager, next" small background style="justify-content:flex-end;margin-top:12px" />
     </el-card>
   </div>
 </template>
@@ -72,6 +73,10 @@ import { getScoreboard } from '@/api/incentive'
 const periodOptions = (() => { const l = []; for (let y = 2030; y >= 2025; y--) { l.push(y + '下半年', y + '上半年') } return l })()
 const period = ref('2026上半年')
 const list = ref([])
+// 积分榜分页（前端切片）
+const pageNum = ref(1)
+const pageSize = ref(15)
+const pagedList = computed(() => list.value.slice((pageNum.value - 1) * pageSize.value, pageNum.value * pageSize.value))
 
 const maxScore = computed(() => {
   if (list.value.length === 0) return 0
@@ -79,6 +84,7 @@ const maxScore = computed(() => {
 })
 
 const loadData = async () => {
+  pageNum.value = 1
   try {
     const res = await getScoreboard({ period: period.value })
     list.value = res.data || []

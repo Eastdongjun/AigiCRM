@@ -114,7 +114,7 @@
           <el-button size="small" type="primary" plain :icon="Download" @click="exportRank('personal')">导出</el-button>
         </span>
       </div>
-      <el-table :data="scoreboard" style="width:100%" empty-text="暂无数据" class="rank-matrix"
+      <el-table :data="pagedScoreboard" style="width:100%" empty-text="暂无数据" class="rank-matrix"
         :header-cell-style="{ background: '#f7f9fc', color: '#1f2329', fontWeight: 600, borderBottom: '1px solid #e8ebf0' }"
         :row-style="{ height: '46px' }">
         <el-table-column label="排名" width="64" align="center">
@@ -148,6 +148,7 @@
           <template #default="{ row }"><span class="num-cell">{{ row.recordCount || 0 }}</span></template>
         </el-table-column>
       </el-table>
+      <el-pagination v-if="scoreboard.length > pageSize" v-model:current-page="pageNum" :page-size="pageSize" :total="scoreboard.length" layout="prev, pager, next" small background style="justify-content:flex-end;margin-top:12px" />
     </div>
 
     <!-- 部门排行 -->
@@ -211,6 +212,10 @@ const catStat = ref({ byCategory: [], totalFiles: 0, totalScore: 0 })  // 全员
 const categories = ref([])
 const scoreboard = ref([])
 const deptList = ref([])
+// 个人排行矩阵分页（前端切片）
+const pageNum = ref(1)
+const pageSize = ref(15)
+const pagedScoreboard = computed(() => scoreboard.value.slice((pageNum.value - 1) * pageSize.value, pageNum.value * pageSize.value))
 const periodOptions = (() => {
   const list = []
   for (let y = 2030; y >= 2025; y--) { list.push(y + '下半年', y + '上半年') }
@@ -308,6 +313,7 @@ const groupedData = computed(() => {
 })
 
 const loadData = async () => {
+  pageNum.value = 1
   try {
     const catRes = await getCategoryTree()
     const flat = []

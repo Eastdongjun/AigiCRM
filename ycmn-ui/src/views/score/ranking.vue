@@ -61,7 +61,7 @@
         <span class="rank-title"><el-icon><User /></el-icon> 个人排行</span>
         <span class="rank-count">{{ personalList.length }}人</span>
       </div>
-      <el-table :data="personalList" stripe style="width:100%" size="small" empty-text="暂无数据">
+      <el-table :data="pagedPersonal" stripe style="width:100%" size="small" empty-text="暂无数据">
         <el-table-column label="排名" min-width="60" align="center">
           <template #default="{ row }">
             <span v-if="row.rank === 1" class="medal gold">&#x1F947;</span>
@@ -86,6 +86,7 @@
           </template>
         </el-table-column>
       </el-table>
+      <el-pagination v-if="personalList.length > pageSize" v-model:current-page="pageNum" :page-size="pageSize" :total="personalList.length" layout="prev, pager, next" small background style="justify-content:flex-end;margin-top:12px" />
       <div class="rank-footer">
         <span class="footer-note">同分时按文件数排序，文件数相同则按姓名排序</span>
         <span class="footer-time">最近更新：{{ new Date().toLocaleString() }}</span>
@@ -97,7 +98,7 @@
       <div class="rank-header">
         <span class="rank-title"><el-icon><OfficeBuilding /></el-icon> 部门排行</span>
       </div>
-      <el-table :data="deptList" stripe style="width:100%" size="small" empty-text="暂无数据">
+      <el-table :data="pagedDept" stripe style="width:100%" size="small" empty-text="暂无数据">
         <el-table-column label="排名" min-width="60" align="center">
           <template #default="{ row }">
             <span v-if="row.rank <= 3" class="medal" :class="['gold','silver','bronze'][row.rank-1]">
@@ -117,6 +118,7 @@
           <template #default="{ row }">{{ row.avgScore }}分</template>
         </el-table-column>
       </el-table>
+      <el-pagination v-if="deptList.length > pageSize" v-model:current-page="pageNum" :page-size="pageSize" :total="deptList.length" layout="prev, pager, next" small background style="justify-content:flex-end;margin-top:12px" />
     </div>
 
     <!-- 学分规则弹窗 -->
@@ -139,9 +141,15 @@ const selectedPeriod = ref('')
 const personalList = ref([])
 const deptList = ref([])
 const stats = ref({})
+// 排行分页（前端切片）
+const pageNum = ref(1)
+const pageSize = ref(15)
+const pagedPersonal = computed(() => personalList.value.slice((pageNum.value - 1) * pageSize.value, pageNum.value * pageSize.value))
+const pagedDept = computed(() => deptList.value.slice((pageNum.value - 1) * pageSize.value, pageNum.value * pageSize.value))
 const showRules = ref(false)
 
 const loadData = async () => {
+  pageNum.value = 1
   try {
     const params = { period: selectedPeriod.value }
     const [r1, r2, r3] = await Promise.all([
