@@ -701,4 +701,23 @@ class FileServicePermissionTest {
             verify(incentiveRecordMapper, never()).selectList(any());
         }
     }
+
+    // ===== 安全 2026-08-08：上传路径穿越防护 =====
+
+    @Test
+    void sanitizeFilename_blocksPathTraversal() {
+        // Unix 绝对/相对路径 → 只保留文件名
+        assertEquals("passwd", FileService.sanitizeFilename("../../etc/passwd"));
+        assertEquals("passwd", FileService.sanitizeFilename("/etc/passwd"));
+        // Windows 路径分隔符 → 只保留最后一段
+        assertEquals("x.exe", FileService.sanitizeFilename("C:\\..\\..\\evil\\x.exe"));
+        // 纯 .. 序列 → 兜底 unnamed
+        assertEquals("unnamed", FileService.sanitizeFilename("../../.."));
+        // 含 .. 的混合文件名 → 移除 .. 但保留文件名
+        assertEquals("a1b.pdf", FileService.sanitizeFilename("a..1b.pdf"));
+        // 正常文件名不受影响
+        assertEquals("报告.pdf", FileService.sanitizeFilename("报告.pdf"));
+        // null → 兜底
+        assertEquals("unnamed", FileService.sanitizeFilename(null));
+    }
 }

@@ -322,4 +322,49 @@ class SysRoleServiceTest {
             verify(roleMapper).deleteById(5L);
         }
     }
+
+    // ===== 安全 2026-08-08：提权防护（角色授予不得超过调用者自身权限） =====
+
+    /** 非超管创建 admin 角色 → 拒绝 */
+    @Test
+    void create_rejectsAdminRoleForNonAdmin() {
+        SysRole role = new SysRole();
+        role.setRoleCode("admin");
+        role.setDataScope("all");
+        SysRoleService service = newServiceWith(mock(SysRoleMapper.class));
+        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
+            m.when(SecurityUtils::isAdmin).thenReturn(false);
+            assertThrows(BusinessException.class, () -> service.create(role),
+                    "非超管不可创建系统管理员角色");
+        }
+    }
+
+    /** 非超管创建 dataScope 宽于自身(self) 的角色 → 拒绝 */
+    @Test
+    void create_rejectsBroaderScopeForNonAdmin() {
+        SysRole role = new SysRole();
+        role.setRoleCode("sales_manager");
+        role.setDataScope("all");
+        SysRoleService service = newServiceWith(mock(SysRoleMapper.class));
+        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
+            m.when(SecurityUtils::isAdmin).thenReturn(false);
+            m.when(SecurityUtils::getCurrentDataScope).thenReturn("self");
+            assertThrows(BusinessException.class, () -> service.create(role),
+                    "非超管不可创建比自身数据范围更宽的角色");
+        }
+    }
+
+    /** 超管可创建 admin 角色（validateGrantableRole 直接放行） */
+    @Test
+    void create_allowsAdminRoleForAdmin() {
+        SysRole role = new SysRole();
+        role.setRoleCode("admin");
+        role.setDataScope("all");
+        SysRoleService service = newServiceWith(mock(SysRoleMapper.class));
+        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
+            m.when(SecurityUtils::isAdmin).thenReturn(true);
+            role.setGroupId(1L); // 跳过 visibleGroupIds 默认分支
+            service.create(role); // 不应抛异常
+        }
+    }
 }

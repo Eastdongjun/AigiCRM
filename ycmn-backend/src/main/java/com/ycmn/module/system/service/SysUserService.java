@@ -7,6 +7,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.ycmn.common.BusinessException;
+import com.ycmn.common.enums.DataScopeType;
 import com.ycmn.module.customer.entity.BizCustomer;
 import com.ycmn.module.customer.mapper.BizCustomerMapper;
 import com.ycmn.module.customer.mapper.BizCustomerShareMapper;
@@ -103,6 +104,31 @@ public class SysUserService {
         return userMapper.selectById(id);
     }
 
+    /**
+     * 【安全 2026-08-08 提权防护】授予的角色/数据范围不得超过调用者自身权限（超管不受限）。
+     * 防"持有 system:org:admin / system:user:edit 的账号把自己或他人提升为系统超管"。
+     * 规则：非超管不可授予 admin 角色；授予角色的数据范围与 dataScopeOverride 不得宽于调用者自身范围。
+     */
+    private void validateGrantableRoleAndScope(Long roleId, String dataScopeOverride) {
+        if (SecurityUtils.isAdmin()) return;
+        DataScopeType callerScope = DataScopeType.fromCode(SecurityUtils.getCurrentDataScope());
+        if (roleId != null) {
+            SysRole role = roleMapper.selectById(roleId);
+            if (role == null) throw new BusinessException("角色不存在");
+            if ("admin".equals(role.getRoleCode())) throw new BusinessException("无权授予系统管理员角色");
+            DataScopeType grantScope = DataScopeType.fromCode(role.getDataScope());
+            if (grantScope.rank() < callerScope.rank()) {
+                throw new BusinessException("无权授予超出自身数据范围的角色");
+            }
+        }
+        if (StringUtils.hasText(dataScopeOverride)) {
+            DataScopeType overrideScope = DataScopeType.fromCode(dataScopeOverride);
+            if (overrideScope.rank() < callerScope.rank()) {
+                throw new BusinessException("无权设置超出自身数据范围的数据范围");
+            }
+        }
+    }
+
     @Transactional
     public void create(SysUser user) {
         // 必填兜底校验（前端表单校验的接口层防线）
@@ -119,6 +145,7 @@ public class SysUserService {
             throw new BusinessException("手机号不能为空");
         }
         validateDataScopeOverride(user.getDataScopeOverride());
+        validateGrantableRoleAndScope(user.getRoleId(), user.getDataScopeOverride());
         // 检查用户名唯一性
         Long count = userMapper.selectCount(
                 new LambdaQueryWrapper<SysUser>().eq(SysUser::getUsername, user.getUsername()).eq(SysUser::getDeleted, 0)
@@ -154,6 +181,7 @@ public class SysUserService {
         SysUser existing = userMapper.selectById(user.getId());
         if (existing == null) throw new BusinessException("用户不存在");
         validateDataScopeOverride(user.getDataScopeOverride());
+        validateGrantableRoleAndScope(user.getRoleId(), user.getDataScopeOverride());
 
         existing.setRealName(user.getRealName());
         existing.setPhone(user.getPhone());

@@ -45,6 +45,10 @@ public class SysOrgService {
     /** 创建组织 */
     @Transactional
     public SysOrg create(SysOrg org) {
+        // 【安全 2026-08-08】仅在调用者管辖范围内创建（父组织必须可管理；根组织仅超管）
+        if (!canManageOrg(org.getParentId() != null ? org.getParentId() : 0L)) {
+            throw new com.ycmn.common.BusinessException("无权在该组织下创建组织");
+        }
         orgMapper.insert(org);
         return org;
     }
@@ -52,12 +56,18 @@ public class SysOrgService {
     /** 更新组织 */
     @Transactional
     public void update(SysOrg org) {
+        if (!canManageOrg(org.getId())) {
+            throw new com.ycmn.common.BusinessException("无权修改该组织");
+        }
         orgMapper.updateById(org);
     }
 
     /** 删除组织（软删除） */
     @Transactional
     public void delete(Long id) {
+        if (!canManageOrg(id)) {
+            throw new com.ycmn.common.BusinessException("无权删除该组织");
+        }
         SysOrg org = new SysOrg();
         org.setId(id);
         org.setStatus(0);
@@ -84,6 +94,10 @@ public class SysOrgService {
     /** 添加组织管理员 */
     @Transactional
     public void addOrgAdmin(Long orgId, Long userId) {
+        // 【安全 2026-08-08】仅能在调用者管辖的组织内任命管理员
+        if (!canManageOrg(orgId)) {
+            throw new com.ycmn.common.BusinessException("无权在该组织任命管理员");
+        }
         // 检查是否已存在
         Long count = orgAdminMapper.selectCount(
                 new LambdaQueryWrapper<SysOrgAdmin>()
@@ -100,6 +114,12 @@ public class SysOrgService {
     /** 移除组织管理员 */
     @Transactional
     public void removeOrgAdmin(Long id) {
+        // 【安全 2026-08-08】移除前校验被移除记录的 org 在调用者管辖范围内
+        SysOrgAdmin existing = orgAdminMapper.selectById(id);
+        if (existing == null) return;
+        if (!canManageOrg(existing.getOrgId())) {
+            throw new com.ycmn.common.BusinessException("无权移除该组织的管理员");
+        }
         orgAdminMapper.deleteById(id);
     }
 

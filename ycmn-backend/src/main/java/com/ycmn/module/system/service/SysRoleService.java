@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.ycmn.common.BusinessException;
 import com.ycmn.common.enums.DataScopeType;
 import com.ycmn.common.scope.GroupScopeUtil;
+import com.ycmn.module.system.entity.SysMenu;
 import com.ycmn.module.system.entity.SysRole;
 import com.ycmn.module.system.entity.SysRoleMenu;
 import com.ycmn.module.system.entity.SysRoleOrg;
@@ -11,11 +12,13 @@ import com.ycmn.module.system.mapper.SysMenuMapper;
 import com.ycmn.module.system.mapper.SysRoleMapper;
 import com.ycmn.module.system.mapper.SysRoleMenuMapper;
 import com.ycmn.module.system.mapper.SysRoleOrgMapper;
+import com.ycmn.security.SecurityUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
@@ -59,9 +62,39 @@ public class SysRoleService {
         return role;
     }
 
+    /**
+     * 【安全 2026-08-08 提权防护】非超管创建/修改角色时：
+     * 1) 不可创建/篡改 admin 角色；2) dataScope 不得宽于调用者自身；3) 授予的菜单权限必须是自身权限子集。
+     * @param existing 更新场景的目标角色（create 传 null）
+     */
+    private void validateGrantableRole(SysRole role, SysRole existing) {
+        if (SecurityUtils.isAdmin()) return;
+        if ("admin".equals(role.getRoleCode())
+                || (existing != null && "admin".equals(existing.getRoleCode()))) {
+            throw new BusinessException("无权操作系统管理员角色");
+        }
+        if (role.getDataScope() != null) {
+            DataScopeType caller = DataScopeType.fromCode(SecurityUtils.getCurrentDataScope());
+            if (DataScopeType.fromCode(role.getDataScope()).rank() < caller.rank()) {
+                throw new BusinessException("无权授予超出自身数据范围的角色");
+            }
+        }
+        if (role.getMenuIds() != null && !role.getMenuIds().isEmpty()) {
+            Set<String> callerPerms = SecurityUtils.getCurrentUser() != null
+                    ? SecurityUtils.getCurrentUser().getPermissions() : Set.of();
+            for (SysMenu m : menuMapper.selectBatchIds(role.getMenuIds())) {
+                if (m.getPermission() != null && !m.getPermission().isBlank()
+                        && !callerPerms.contains(m.getPermission())) {
+                    throw new BusinessException("无权授予权限: " + m.getPermission());
+                }
+            }
+        }
+    }
+
     /** 新增角色（编码唯一校验 + 菜单/组织关联保存；集团归属兜底，越权集团拒绝） */
     @Transactional
     public void create(SysRole role) {
+        validateGrantableRole(role, null);
         // 【修复 角色创建集团边界】未传 groupId 时显式兜底：非 admin=当前用户集团，admin=主集团 1；
         // 传了但越权（非 admin 建到其他集团）→ 拒绝
         if (role.getGroupId() == null) {
@@ -83,12 +116,14 @@ public class SysRoleService {
     @Transactional
     public void update(SysRole role) {
         // 【修复 角色更新集团边界】目标角色越权不可操作；新 groupId 越权不可归属
+        SysRole existing = null;
         if (role.getId() != null) {
-            SysRole existing = roleMapper.selectById(role.getId());
+            existing = roleMapper.selectById(role.getId());
             if (existing != null && !GroupScopeUtil.canAccessGroup(existing.getGroupId())) {
                 throw new BusinessException("无权操作其他集团的角色");
             }
         }
+        validateGrantableRole(role, existing);
         if (role.getGroupId() != null && !GroupScopeUtil.canAccessGroup(role.getGroupId())) {
             throw new BusinessException("无权将角色归属到其他集团");
         }

@@ -21,9 +21,12 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
+import org.mockito.MockedStatic;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import com.ycmn.security.SecurityUtils;
+import com.ycmn.module.system.entity.SysRole;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
@@ -115,6 +118,64 @@ class SysUserDataScopeOverrideTest {
 
         assertThrows(BusinessException.class, () -> service.create(user));
         verify(userMapper, never()).insert(any());
+    }
+
+    // ===== 安全 2026-08-08：提权防护（授予角色/范围不得超过调用者自身权限） =====
+
+    /** 非超管授予 admin 角色 → 拒绝（防自我提权为系统超管） */
+    @Test
+    void createRejectsAdminRoleForNonAdmin() {
+        SysRole adminRole = new SysRole();
+        adminRole.setId(99L);
+        adminRole.setRoleCode("admin");
+        adminRole.setDataScope("all");
+        when(roleMapper.selectById(99L)).thenReturn(adminRole);
+
+        SysUserService service = newService();
+        SysUser user = validCreatePayload();
+        user.setRoleId(99L);
+        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
+            m.when(SecurityUtils::isAdmin).thenReturn(false);
+            assertThrows(BusinessException.class, () -> service.create(user),
+                    "非超管不可授予系统管理员角色");
+        }
+        verify(userMapper, never()).insert(any());
+    }
+
+    /** 非超管把 dataScopeOverride 设成比自身更宽(all) → 拒绝 */
+    @Test
+    void createRejectsBroaderScopeOverrideForNonAdmin() {
+        SysRole salesRole = new SysRole();
+        salesRole.setId(11L);
+        salesRole.setRoleCode("sales");
+        salesRole.setDataScope("self");
+        when(roleMapper.selectById(11L)).thenReturn(salesRole);
+
+        SysUserService service = newService();
+        SysUser user = validCreatePayload();
+        user.setRoleId(11L);
+        user.setDataScopeOverride("all");
+        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
+            m.when(SecurityUtils::isAdmin).thenReturn(false);
+            m.when(SecurityUtils::getCurrentDataScope).thenReturn("self");
+            assertThrows(BusinessException.class, () -> service.create(user),
+                    "非超管不可把数据范围设为比自身更宽");
+        }
+        verify(userMapper, never()).insert(any());
+    }
+
+    /** 超管可授予 admin 角色（不受限；validateGrantableRoleAndScope 对超管直接放行，不查角色） */
+    @Test
+    void createAllowsAdminRoleForAdmin() {
+        SysUserService service = newService();
+        SysUser user = validCreatePayload();
+        user.setRoleId(99L);
+        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
+            m.when(SecurityUtils::isAdmin).thenReturn(true);
+            service.create(user); // 不应抛异常
+        }
+        verify(userMapper).insert(any());
+        verify(roleMapper, never()).selectById(99L); // 超管不查角色直接放行
     }
 
     @Test

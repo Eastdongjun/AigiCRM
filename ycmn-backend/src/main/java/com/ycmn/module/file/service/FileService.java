@@ -417,10 +417,8 @@ public class FileService {
      * 返回存储 key（scope/userId 目录 + 唯一文件名），供 upload 与 replaceFile 共用，行为与原先一致。
      */
     private String uploadStorage(MultipartFile file, String scope, Long userId) throws Exception {
-        String originalFilename = file.getOriginalFilename();
-        if (originalFilename == null || originalFilename.isBlank()) {
-            originalFilename = "unnamed";
-        }
+        // 【安全 2026-08-08 上传路径穿越】originalFilename 可能含 ../ 或路径分隔符，消毒后再拼落盘路径
+        String originalFilename = sanitizeFilename(file.getOriginalFilename());
         String dir = scope + "/" + userId;
         String fileKey = dir + "/" + resolveUniqueFilename(dir, originalFilename);
         if (isLocal()) {
@@ -600,6 +598,21 @@ public class FileService {
                 .filter(f -> Objects.equals(f.getParentId(), parentId))
                 .peek(f -> f.setChildren(buildFolderTree(folders, f.getId())))
                 .collect(Collectors.toList());
+    }
+
+    /**
+     * 【安全 2026-08-08 上传路径穿越】文件名消毒：只保留最后一段文件名，去掉路径分隔符(/ \)、
+     * .. 序列与控制字符，防止 originalFilename 含 ../../ 时写出 uploadDir 之外。
+     * 与下载路径的 normalize+前缀校验（FileController）同等级防护。
+     */
+    static String sanitizeFilename(String filename) {
+        if (filename == null) return "unnamed";
+        String safe = filename.replace('\\', '/');
+        int slash = safe.lastIndexOf('/');
+        if (slash >= 0) safe = safe.substring(slash + 1); // 只取最后一段，忽略一切目录
+        safe = safe.replace("..", "");                     // 移除 .. 序列
+        safe = safe.replaceAll("[\\x00-\\x1f]", "");       // 移除控制字符
+        return safe.isBlank() ? "unnamed" : safe;
     }
 
     /**
