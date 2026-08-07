@@ -73,7 +73,10 @@ public class SysUserService {
      * 返回 null 表示本次查询无任何可见部门，调用方应直接返回空结果。
      */
     private String applyGroupScope(String deptIds) {
-        if (SecurityUtils.isAdmin()) return deptIds;
+        // 【修复 2026-08-07 生产回归】admin 未传 deptIds 时透传 null，会被上层 page() 误判为
+        // "本集团无可见部门"直接返回空页（管理员看不到人员数据）。归一为空串：mapper SQL 中
+        // `#{deptIds} = ''` 与 IS NULL 等价（均视为"不按部门过滤"），且区别于"确无可见部门"的 null。
+        if (SecurityUtils.isAdmin()) return StringUtils.hasText(deptIds) ? deptIds : "";
         java.util.List<Long> groupIds = SecurityUtils.getCurrentGroupIds();
         if (groupIds == null || groupIds.isEmpty()) groupIds = java.util.List.of(1L);
         java.util.List<Long> allowedDeptIds = deptMapper.selectList(
