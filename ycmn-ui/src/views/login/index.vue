@@ -3,8 +3,7 @@
     <div class="login-box">
       <div class="login-left">
         <div class="brand">
-          <img v-if="systemLogo" :src="systemLogo" class="brand-logo-img" />
-          <span v-else class="brand-icon">{{ systemName?.charAt(0) || '运' }}</span>
+          <img :src="systemLogo || '/favicon.png'" class="brand-logo-img" />
         </div>
         <h1 class="system-title">{{ systemName }}</h1>
         <p class="system-subtitle">{{ systemSubtitle }}</p>

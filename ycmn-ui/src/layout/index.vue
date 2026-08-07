@@ -3,8 +3,7 @@
     <!-- 侧边栏 -->
     <el-aside :width="isCollapse ? '64px' : '200px'" class="sidebar">
       <div class="logo">
-        <img v-if="userStore.systemLogo" :src="userStore.systemLogo" class="logo-img" />
-        <span v-else class="logo-icon">{{ userStore.systemName?.charAt(0) || '运' }}</span>
+        <img :src="userStore.systemLogo || '/favicon.png'" class="logo-img" />
         <span v-show="!isCollapse" class="logo-text">{{ userStore.systemName }}</span>
       </div>
       <el-scrollbar>
