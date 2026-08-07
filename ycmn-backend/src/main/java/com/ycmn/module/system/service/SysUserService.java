@@ -53,6 +53,22 @@ public class SysUserService {
     private final SysRoleMapper roleMapper;
     private final SeaService seaService;
     private final com.ycmn.module.system.mapper.SysDeptMapper deptMapper;
+    private final com.ycmn.module.system.mapper.SysUserOrgMapper userOrgMapper;
+
+    /** 【2026-08-08 用户级 custom 授权】保存用户授权组织（清空重建） */
+    private void saveUserOrgs(Long userId, List<Long> orgIds) {
+        if (userId == null) return;
+        userOrgMapper.deleteByUserId(userId);
+        if (orgIds == null) return;
+        for (Long orgId : orgIds) {
+            if (orgId == null) continue;
+            com.ycmn.module.system.entity.SysUserOrg uo = new com.ycmn.module.system.entity.SysUserOrg();
+            uo.setUserId(userId);
+            uo.setOrgId(orgId);
+            uo.setIncludeChildren(1); // 默认含子级
+            userOrgMapper.insert(uo);
+        }
+    }
 
     public IPage<SysUser> page(int current, int size, String keyword, String deptIds, Integer status) {
         String scopedDeptIds = applyGroupScope(deptIds);
@@ -101,7 +117,13 @@ public class SysUserService {
     }
 
     public SysUser getById(Long id) {
-        return userMapper.selectById(id);
+        SysUser u = userMapper.selectById(id);
+        if (u != null && "custom".equals(u.getDataScopeOverride())) {
+            // 【2026-08-08 用户级 custom 授权】回填个人授权组织，供编辑表单回显
+            u.setOrgIds(userOrgMapper.selectByUserId(id).stream()
+                    .map(com.ycmn.module.system.entity.SysUserOrg::getOrgId).toList());
+        }
+        return u;
     }
 
     /**
@@ -177,6 +199,10 @@ public class SysUserService {
             ur.setRoleId(user.getRoleId());
             userRoleMapper.insert(ur);
         }
+        // 【2026-08-08 用户级 custom 授权】custom 时保存个人授权组织
+        if ("custom".equals(user.getDataScopeOverride())) {
+            saveUserOrgs(user.getId(), user.getOrgIds());
+        }
     }
 
     @Transactional
@@ -207,6 +233,10 @@ public class SysUserService {
             ur.setUserId(user.getId());
             ur.setRoleId(user.getRoleId());
             userRoleMapper.insert(ur);
+        }
+        // 【2026-08-08 用户级 custom 授权】custom 时保存个人授权组织（未传 orgIds 不清空，仅当显式传了才更新）
+        if ("custom".equals(existing.getDataScopeOverride()) && user.getOrgIds() != null) {
+            saveUserOrgs(existing.getId(), user.getOrgIds());
         }
     }
 

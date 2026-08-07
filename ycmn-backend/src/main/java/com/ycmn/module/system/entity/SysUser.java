@@ -6,6 +6,7 @@ import lombok.Data;
 import com.baomidou.mybatisplus.annotation.FieldStrategy;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Data
 @TableName("sys_user")
@@ -60,4 +61,7 @@ public class SysUser {
     private Long roleId;
     @TableField(exist = false)
     private String managerName;
+    /** 【2026-08-08 用户级 custom 授权】自定义数据范围时勾选的组织ID（瞬态，不入库） */
+    @TableField(exist = false)
+    private List<Long> orgIds;
 }

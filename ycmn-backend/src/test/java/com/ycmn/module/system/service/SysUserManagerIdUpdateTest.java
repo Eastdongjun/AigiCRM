@@ -27,6 +27,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -87,7 +88,7 @@ class SysUserManagerIdUpdateTest {
 
     private SysUserService newService() {
         return new SysUserService(userMapper, userRoleMapper, passwordEncoder, configService,
-                customerMapper, shareMapper, jdbc, roleMapper, seaService, deptMapper);
+                customerMapper, shareMapper, jdbc, roleMapper, seaService, deptMapper, mock(com.ycmn.module.system.mapper.SysUserOrgMapper.class));
     }
 
     /** 前端"无上级"提交 0/null → 服务层归一为 null 透传 updateById（配合 ALWAYS 落库回写 NULL） */

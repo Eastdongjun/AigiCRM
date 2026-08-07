@@ -26,6 +26,7 @@ public class UserDetailsServiceImpl implements UserDetailsService {
     private final SysOrgMapper orgMapper;
     private final SysOrgAdminMapper orgAdminMapper;
     private final SysRoleOrgMapper roleOrgMapper;
+    private final com.ycmn.module.system.mapper.SysUserOrgMapper userOrgMapper;
     private final SysPositionMapper positionMapper;
     private final SysPermissionRuleMapper permissionRuleMapper;
 
@@ -109,6 +110,23 @@ public class UserDetailsServiceImpl implements UserDetailsService {
         if (override != null && !override.isBlank()) {
             securityUser.setDataScope(override);
             securityUser.setDataScopes(new ArrayList<>());
+        }
+        // 【2026-08-08 用户级自定义授权组织】override=custom 时加载个人授权组织（sys_user_org），
+        // 优先于角色级 sys_role_org（多个行政各配不同部门）。无个人授权则回退角色级。
+        if ("custom".equals(override)) {
+            List<com.ycmn.module.system.entity.SysUserOrg> userOrgs = userOrgMapper.selectByUserId(uid);
+            if (userOrgs != null && !userOrgs.isEmpty()) {
+                List<Long> customOrgIds = new ArrayList<>();
+                for (com.ycmn.module.system.entity.SysUserOrg uo : userOrgs) {
+                    if (uo.getOrgId() == null) continue;
+                    if (uo.getIncludeChildren() != null && uo.getIncludeChildren() == 1) {
+                        customOrgIds.addAll(orgMapper.selectDescendantIds(uo.getOrgId()));
+                    } else {
+                        customOrgIds.add(uo.getOrgId());
+                    }
+                }
+                securityUser.setManagedOrgIds(customOrgIds);
+            }
         }
 
         // ======================== 2. 加载岗位（一人多岗） ========================

@@ -4,6 +4,9 @@ import request from '@/utils/request'
 export function getUserList(params) {
   return request.get('/system/users', { params })
 }
+export function getUserById(id) {
+  return request.get(`/system/users/${id}`)
+}
 export function createUser(data) {
   return request.post('/system/users', data)
 }

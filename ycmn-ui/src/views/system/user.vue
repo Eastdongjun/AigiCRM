@@ -173,6 +173,16 @@
             </el-form-item>
           </el-col>
         </el-row>
+        <!-- 2026-08-08 用户级自定义授权组织：数据范围=custom 时勾选可见组织 -->
+        <el-form-item v-if="editForm.dataScopeOverride === 'custom'" label="授权组织">
+          <el-tree-select
+            v-model="editForm.orgIds"
+            :data="deptTree"
+            :props="{ label: 'deptName', value: 'id', children: 'children' }"
+            placeholder="勾选该人员可见的组织（含子级）"
+            multiple check-strictly show-checkbox collapse-tags collapse-tags-tooltip
+            style="width:100%" />
+        </el-form-item>
       </el-form>
       <template #footer>
         <el-button @click="dialogVisible = false">取消</el-button>
@@ -186,7 +196,7 @@
 import { ref, reactive, computed, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { Plus } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { getUserList, createUser, updateUser, resetPassword, deleteUser } from '@/api/system'
+import { getUserList, getUserById, createUser, updateUser, resetPassword, deleteUser } from '@/api/system'
 import { getDeptList, getRoleList } from '@/api/system'
 import { getSimpleUserList } from '@/api/customer'
 import { useUserStore } from '@/store/user'
@@ -206,7 +216,7 @@ const saving = ref(false)
 const formRef = ref(null)
 
 const query = reactive({ current: 1, size: 15, keyword: '', deptId: null, status: null })
-const editForm = reactive({ id: null, username: '', realName: '', phone: '', email: '', deptId: null, officeId: null, roleId: null, managerId: null, dataScopeOverride: '', status: 1 })
+const editForm = reactive({ id: null, username: '', realName: '', phone: '', email: '', deptId: null, officeId: null, roleId: null, managerId: null, dataScopeOverride: '', status: 1, orgIds: [] })
 const formRules = {
   realName: [{ required: true, message: '请输入姓名', trigger: 'blur' }],
   username: [{ required: true, message: '请输入账号', trigger: 'blur' }],
@@ -331,13 +341,20 @@ const onOrgChange = (path) => {
   editForm.officeId = officeFromPath(ids)
 }
 
-const openDialog = (row) => {
+const openDialog = async (row) => {
   if (row) {
-    Object.assign(editForm, { id: row.id, username: row.username, realName: row.realName, phone: row.phone, email: row.email || '', deptId: row.deptId, officeId: row.officeId, roleId: row.roleId, managerId: row.managerId || null, dataScopeOverride: row.dataScopeOverride || '', status: row.status })
+    Object.assign(editForm, { id: row.id, username: row.username, realName: row.realName, phone: row.phone, email: row.email || '', deptId: row.deptId, officeId: row.officeId, roleId: row.roleId, managerId: row.managerId || null, dataScopeOverride: row.dataScopeOverride || '', status: row.status, orgIds: row.orgIds || [] })
     orgPath.value = pathOf(row.deptId)
     editForm.officeId = officeFromPath(orgPath.value)
+    // 2026-08-08 用户级 custom 授权：拉取个人授权组织回显
+    if (row.dataScopeOverride === 'custom') {
+      try {
+        const res = await getUserById(row.id)
+        editForm.orgIds = (res.data?.orgIds) || []
+      } catch (e) {}
+    }
   } else {
-    Object.assign(editForm, { id: null, username: '', realName: '', phone: '', email: '', deptId: null, officeId: null, roleId: null, managerId: null, dataScopeOverride: '', status: 1 })
+    Object.assign(editForm, { id: null, username: '', realName: '', phone: '', email: '', deptId: null, officeId: null, roleId: null, managerId: null, dataScopeOverride: '', status: 1, orgIds: [] })
     orgPath.value = []
   }
   dialogVisible.value = true

@@ -14,6 +14,7 @@ import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 /**
@@ -39,7 +40,8 @@ class UserDetailsServiceImplTest {
     @BeforeEach
     void setUp() {
         service = new UserDetailsServiceImpl(userMapper, menuMapper, roleMapper, orgMapper,
-                orgAdminMapper, roleOrgMapper, positionMapper, permissionRuleMapper);
+                orgAdminMapper, roleOrgMapper, mock(com.ycmn.module.system.mapper.SysUserOrgMapper.class),
+                positionMapper, permissionRuleMapper);
     }
 
     /** 构造基础用户：id=1、正常状态、无组织归属（跳过 2b 的 org 查询） */
