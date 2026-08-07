@@ -58,7 +58,7 @@
 
     <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;padding:20px">
       <div v-if="custs.length===0" style="grid-column:1/-1;text-align:center;padding:80px 0;color:#bbb">暂无数据</div>
-      <div v-for="c in custs" :key="c.customerId" class="card">
+      <div v-for="c in pagedCusts" :key="c.customerId" class="card">
         <div class="card-hd">
           <span class="card-name">{{ c.customerName }}</span>
           <span class="card-ind">{{ c.industry }}</span>
@@ -92,6 +92,10 @@
         </div>
         <div class="card-ft" @click="showDetail(c)">查看详情 →</div>
       </div>
+    </div>
+    <div v-if="custs.length > pageSize" class="search-pager">
+      <span class="search-pager-count">共 <b>{{ custs.length }}</b> 个客户</span>
+      <el-pagination v-model:current-page="pageNum" :page-size="pageSize" :total="custs.length" layout="prev, pager, next" small background />
     </div>
 
     <!-- 预览弹窗：支持图片和视频 -->
@@ -199,6 +203,13 @@ const fProdCat=ref(''),fProdSub=ref('')
 const productCats={ '涂层类':['防腐','加固','钢结构','煤气管道','其他'], '防滑板类':['公共区','装置区'], '机封类':['水泵','渣泵','介质泵'], '密封类':['静密封','动密封','橡胶密封'], '润滑类':['润滑油','润滑脂','润滑剂'] }
 const productCatKeys=Object.keys(productCats)
 const custs=ref([]),catMap=ref({}),previewVisible=ref(false),previewUrl=ref(''),previewType=ref('image'),previewId=ref(null),previewName=ref('')
+// 客户卡片网格分页（前端切片）
+const pageNum = ref(1)
+const pageSize = ref(8)
+const pagedCusts = computed(() => {
+  const start = (pageNum.value - 1) * pageSize.value
+  return custs.value.slice(start, start + pageSize.value)
+})
 const detailVisible=ref(false),detailCust=ref(null)
 const industries=['冶金','煤矿','化工','电力','有色金属','机械','工程公司','维修厂','其他终端客户']
 const devTypes=['成熟创新','突破开拓','铺垫宣传']
@@ -258,6 +269,7 @@ function isTrialRec(r){return (getCls(r)||'').startsWith('trial')}
 function fmtDt(t){if(!t)return'';const d=new Date(t);return d.getFullYear()+'-'+(d.getMonth()+1).toString().padStart(2,'0')+'-'+d.getDate().toString().padStart(2,'0')+' '+d.getHours().toString().padStart(2,'0')+':'+d.getMinutes().toString().padStart(2,'0')}
 
 async function doSearch(){
+  pageNum.value = 1
   const p={}
   // 主搜索框：客户名 + 关键字（相关产品）双匹配（后端 OR 组合）
   if(fCustomer.value){p.customerName=fCustomer.value;p.keyword=fCustomer.value}
@@ -390,6 +402,9 @@ onMounted(()=>{loadCats();loadUsers();loadOrgs();doSearch()})
 .dtl-field.remark .dtl-field-label{color:#b45309}
 .dtl-field-label{font-size:12px;color:#8f959e;margin-bottom:6px;letter-spacing:.5px}
 .dtl-field-text{font-size:14px;color:#1f2329;line-height:1.8;white-space:pre-wrap;word-break:break-word}
+.search-pager{display:flex;align-items:center;justify-content:flex-end;gap:12px;padding:8px 20px 16px}
+.search-pager-count{font-size:13px;color:#606266}
+.search-pager-count b{color:#409eff;font-weight:700;margin:0 2px}
 .dtl-files{display:flex;gap:14px;flex-wrap:wrap;margin-top:14px;padding-top:12px;border-top:1px solid #f0f2f5}
 .dtl-file{width:260px}
 .dtl-img-wrap{position:relative;border:1px solid rgba(0,0,0,.06);border-radius:6px;overflow:hidden}
