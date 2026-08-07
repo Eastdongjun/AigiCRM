@@ -76,6 +76,17 @@
                 <el-option v-for="u in allUsers" :key="u.id" :label="u.realName" :value="u.id" />
               </el-select>
             </el-form-item>
+            <el-divider content-position="left">系统级数据范围</el-divider>
+            <el-form-item label="上级看下属">
+              <el-switch v-model="configMap['perm.superior.see.subordinate']"
+                active-value="true" inactive-value="false"
+                active-text="直接上级默认可见递归下属链数据（最多5层）" />
+            </el-form-item>
+            <el-form-item label="组织负责人">
+              <el-switch v-model="configMap['perm.org.leader.see.org']"
+                active-value="true" inactive-value="false"
+                active-text="组织负责人默认可见本组织整棵子树全部数据" />
+            </el-form-item>
             <el-form-item>
               <el-button type="primary" @click="handleSave">保存设置</el-button>
             </el-form-item>
@@ -652,6 +663,9 @@ const loadConfigs = async () => {
     const res = await getConfigList()
     configs.value = res.data || []
     configs.value.forEach(c => { configMap[c.configKey] = c.configValue })
+    // 系统级数据范围开关:DB 无行时默认开启(与后端 getBooleanValue 缺省 true 一致),首存即持久化
+    configMap['perm.superior.see.subordinate'] = configMap['perm.superior.see.subordinate'] ?? 'true'
+    configMap['perm.org.leader.see.org'] = configMap['perm.org.leader.see.org'] ?? 'true'
     // 客户默认共享规则:从 customer.auto_share(JSON 字符串)回填到 autoShare
     const asRaw = configMap['customer.auto_share']
     if (asRaw) {

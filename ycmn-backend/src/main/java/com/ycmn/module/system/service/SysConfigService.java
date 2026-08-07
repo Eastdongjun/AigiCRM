@@ -25,6 +25,17 @@ public class SysConfigService {
         return config != null ? config.getConfigValue() : null;
     }
 
+    /**
+     * 布尔配置读取：缺失/空白 → 返回 defaultValue（用于"开关缺失视为默认开启"）。
+     * 兼容 "true"/"1"/"on"/"yes" 任一真值写法。
+     */
+    public boolean getBooleanValue(String key, boolean defaultValue) {
+        String v = getValue(key);
+        if (v == null || v.isBlank()) return defaultValue;
+        return "1".equals(v) || "true".equalsIgnoreCase(v)
+                || "on".equalsIgnoreCase(v) || "yes".equalsIgnoreCase(v);
+    }
+
     public void update(SysConfig config) {
         configMapper.updateById(config);
     }

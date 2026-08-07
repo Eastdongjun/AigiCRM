@@ -674,12 +674,18 @@ public class IncentiveService {
         Long deptId = SecurityUtils.getCurrentDeptId();
         List<Long> managedOrgIds = SecurityUtils.getCurrentManagedOrgIds();
 
+        // self/team/office/region/dept/all：统一路由 OrgScopeResolver（含系统级开关并集；all→null 短路）
+        // 【2026-08-07 系统级开关】self 不再提前 return 仅本人——开关1(上级看下级)/开关2(负责人看本组织)
+        // 对 self 等范围同样生效；同时消除激励与客户列表口径不一致。
+        if (dataScope == null || "self".equals(dataScope) || "team".equals(dataScope)
+                || "office".equals(dataScope) || "region".equals(dataScope)
+                || "dept".equals(dataScope) || "all".equals(dataScope)) {
+            List<Long> visible = scopeResolver.resolve(SecurityUtils.getCurrentUser());
+            return visible == null ? null : new HashSet<>(visible);
+        }
+
         Set<Long> userIds = new HashSet<>();
         userIds.add(userId); // 始终包含自己
-
-        if (dataScope == null || "self".equals(dataScope)) {
-            return userIds;
-        }
 
         switch (dataScope) {
             case "custom":
@@ -706,21 +712,12 @@ public class IncentiveService {
                 deptIds.add(deptId);
                 userIds.addAll(getUserIdsByDeptIds(deptIds));
                 break;
-            // 新六级码（team/office/region/dept/all）：统一路由 OrgScopeResolver
-            // （设计 §4.2；dept=本部门含子部门；多角色并集在 resolver 内生效）；
-            // null=all → 返回 null 表示全集团无限制；custom 由上方既有 case 处理
-            case "team":
-            case "office":
-            case "region":
-            case "dept":
-            case "all": {
-                List<Long> visible = scopeResolver.resolve(SecurityUtils.getCurrentUser());
-                if (visible == null) return null;
-                userIds.addAll(visible);
-                break;
-            }
+            default:
+                break; // 未知码保留仅本人
         }
-        return userIds;
+        // 【2026-08-07 系统级开关】本地分支(custom/org/org_and_children/dept_and_children)末尾统一追加开关集合
+        List<Long> withSystem = scopeResolver.appendSystemLevelScopes(SecurityUtils.getCurrentUser(), userIds);
+        return withSystem == null ? null : new HashSet<>(withSystem);
     }
 
     /** 递归获取所有下级部门ID */

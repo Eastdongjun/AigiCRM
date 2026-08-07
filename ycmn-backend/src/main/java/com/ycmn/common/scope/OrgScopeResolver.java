@@ -5,6 +5,7 @@ import com.ycmn.module.system.entity.SysDept;
 import com.ycmn.module.system.entity.SysUser;
 import com.ycmn.module.system.mapper.SysDeptMapper;
 import com.ycmn.module.system.mapper.SysUserMapper;
+import com.ycmn.module.system.service.SysConfigService;
 import com.ycmn.security.SecurityUser;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -28,18 +29,76 @@ public class OrgScopeResolver {
     public static final int TYPE_OFFICE = 3;
     public static final int TYPE_DEPT = 4;
 
+    /** 系统级开关配置键：直接上级默认可见递归下属链 */
+    public static final String KEY_SUPERIOR_SEE_SUBORDINATE = "perm.superior.see.subordinate";
+    /** 系统级开关配置键：组织负责人默认可见本组织整棵子树 */
+    public static final String KEY_ORG_LEADER_SEE_ORG = "perm.org.leader.see.org";
+
     private final SysUserMapper userMapper;
     private final SysDeptMapper deptMapper;
+    private final SysConfigService configService;
 
     /** 解析当前用户可见 userIds（恒含本人；all 返回 null） */
     public List<Long> resolve(SecurityUser user) {
         if (user == null) return List.of();
         List<String> scopes = user.getDataScopes();
         // 多角色并集（设计 §4.2）：所有角色各自的 code 逐解析后并集合并；任一 all → null 短路
+        List<Long> base;
         if (scopes != null && scopes.size() > 1) {
-            return resolveUnion(user, scopes);
+            base = resolveUnion(user, scopes);
+        } else {
+            base = resolveSingle(user, user.getDataScope() != null ? user.getDataScope() : "self");
         }
-        return resolveSingle(user, user.getDataScope() != null ? user.getDataScope() : "self");
+        if (base == null) return null; // all：不过滤，开关不生效
+        return appendSystemLevelScopes(user, base);
+    }
+
+    /**
+     * 【系统级默认规则 2026-08-07】在数据范围基础上并集追加系统开关集合：
+     * <ul>
+     *   <li>开关1 KEY_SUPERIOR_SEE_SUBORDINATE（默认开）：直接上级默认可见递归下属链（≤5层，复用 resolveTeam）。</li>
+     *   <li>开关2 KEY_ORG_LEADER_SEE_ORG（默认开）：组织负责人（任意层级 leader_id=本人）默认可见本组织整棵子树。</li>
+     * </ul>
+     * base 为 null（全量不过滤）时原样返回；供旁路（激励/客户统计的本地分支）显式调用以统一生效。
+     */
+    public List<Long> appendSystemLevelScopes(SecurityUser user, Collection<Long> base) {
+        if (base == null) return null;
+        if (user == null || user.getUserId() == null) return new ArrayList<>(base);
+        if (configService == null) return new ArrayList<>(base); // 防御（测试匿名子类）
+
+        boolean superiorOn = configService.getBooleanValue(KEY_SUPERIOR_SEE_SUBORDINATE, true);
+        boolean leaderOn = configService.getBooleanValue(KEY_ORG_LEADER_SEE_ORG, true);
+        if (!superiorOn && !leaderOn) return new ArrayList<>(base);
+
+        Set<Long> merged = new LinkedHashSet<>(base);
+        Long userId = user.getUserId();
+        // 开关1：team 范围已含整条链，守卫避免重复解析
+        if (superiorOn && !isTeamScoped(user)) merged.addAll(resolveTeam(userId));
+        // 开关2：组织负责人子树
+        if (leaderOn) merged.addAll(resolveLedOrgs(userId));
+        return new ArrayList<>(merged);
+    }
+
+    /** 用户是否已按 team 范围解析（此时开关1 的集合已含在 base，无需重复查询） */
+    private boolean isTeamScoped(SecurityUser user) {
+        return "team".equals(user.getDataScope())
+                || (user.getDataScopes() != null && user.getDataScopes().contains("team"));
+    }
+
+    /** 本人负责的组织（任意层级 leader_id=本人）整棵子树全部用户 */
+    private List<Long> resolveLedOrgs(Long userId) {
+        List<Long> roots = deptMapper.selectList(new LambdaQueryWrapper<SysDept>()
+                        .eq(SysDept::getLeaderId, userId)
+                        .eq(SysDept::getStatus, 1))
+                .stream().map(SysDept::getId).toList();
+        Set<Long> deptIds = new LinkedHashSet<>();
+        for (Long root : roots) {
+            if (root == null) continue; // 脏数据防御
+            collectSubtree(root, deptIds); // 环保护 + Set 天然去重
+        }
+        List<Long> u = usersInDepts(deptIds);
+        if (!u.contains(userId)) u.add(userId);
+        return u;
     }
 
     /** 多角色并集合并（逐 code 各自解析；任一角色为 all → 本集团不过滤） */

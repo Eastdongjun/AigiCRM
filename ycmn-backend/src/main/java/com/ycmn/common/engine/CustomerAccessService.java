@@ -3,6 +3,7 @@ package com.ycmn.common.engine;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.ycmn.common.BusinessException;
 import com.ycmn.common.enums.DataScopeType;
+import com.ycmn.common.scope.OrgScopeResolver;
 import com.ycmn.module.customer.entity.BizCustomer;
 import com.ycmn.module.customer.entity.BizCustomerShare;
 import com.ycmn.module.customer.mapper.BizCustomerMapper;
@@ -41,6 +42,7 @@ public class CustomerAccessService {
     private final BizCustomerShareMapper shareMapper;
     private final SysOrgMapper orgMapper;
     private final SysUserMapper userMapper;
+    private final OrgScopeResolver scopeResolver;
 
     // ==================== 判断方法 ====================
 
@@ -151,15 +153,13 @@ public class CustomerAccessService {
                 new LambdaQueryWrapper<BizCustomerShare>().eq(BizCustomerShare::getSharedToUserId, userId));
         shares.forEach(s -> ids.add(s.getCustomerId()));
 
-        // 数据范围内的客户（根据部门下用户的客户）
-        DataScopeType scopeType = SecurityUtils.getCurrentDataScopeType();
-        if (scopeType == DataScopeType.ORG_AND_CHILDREN || scopeType == DataScopeType.ORG) {
-            List<Long> deptUserIds = getDeptUserIds(scopeType);
-            if (!deptUserIds.isEmpty()) {
-                List<BizCustomer> deptCustomers = customerMapper.selectList(
-                        new LambdaQueryWrapper<BizCustomer>().in(BizCustomer::getOwnerId, deptUserIds));
-                deptCustomers.forEach(c -> ids.add(c.getId()));
-            }
+        // 数据范围内的客户（统一走 OrgScopeResolver，含系统级开关并集；null=all 不过滤）
+        // 【2026-08-07】由"仅 ORG/ORG_AND_CHILDREN"扩展为全范围，team/office/region/self+开关 一并生效
+        List<Long> visible = scopeResolver.resolve(SecurityUtils.getCurrentUser());
+        if (visible != null && !visible.isEmpty()) {
+            List<BizCustomer> scopedCustomers = customerMapper.selectList(
+                    new LambdaQueryWrapper<BizCustomer>().in(BizCustomer::getOwnerId, visible));
+            scopedCustomers.forEach(c -> ids.add(c.getId()));
         }
 
         return ids;
@@ -200,36 +200,16 @@ public class CustomerAccessService {
         return passGroup && passEntity;
     }
 
-    /** 组织数据范围检查（向下兼容旧逻辑）：客户的负责人是否在用户的数据范围内 */
+    /** 组织数据范围检查：客户的负责人是否在用户可见范围内（统一走 OrgScopeResolver，含系统级开关） */
     private boolean isInOrgDataScope(BizCustomer customer) {
-        DataScopeType scopeType = SecurityUtils.getCurrentDataScopeType();
-        if (scopeType == DataScopeType.ALL) return true;
-        if (scopeType == DataScopeType.SELF) {
-            return SecurityUtils.getCurrentUserId().equals(customer.getOwnerId());
-        }
+        Long ownerId = customer.getOwnerId();
+        if (ownerId == null) return false;
+        Long me = SecurityUtils.getCurrentUserId();
+        if (me != null && me.equals(ownerId)) return true;
 
-        // 获取客户负责人的部门
-        Long ownerDeptId = getOwnerDeptId(customer.getOwnerId());
-        if (ownerDeptId == null) return false;
-
-        Long userDeptId = SecurityUtils.getCurrentDeptId();
-        if (userDeptId == null) return false;
-
-        if (scopeType == DataScopeType.ORG) {
-            return ownerDeptId.equals(userDeptId);
-        }
-
-        if (scopeType == DataScopeType.ORG_AND_CHILDREN) {
-            List<Long> descendantIds = orgMapper.selectDescendantIds(userDeptId);
-            return descendantIds.contains(ownerDeptId);
-        }
-
-        if (scopeType == DataScopeType.CUSTOM) {
-            List<Long> managedOrgIds = SecurityUtils.getCurrentManagedOrgIds();
-            return managedOrgIds.contains(ownerDeptId);
-        }
-
-        return false;
+        List<Long> visible = scopeResolver.resolve(SecurityUtils.getCurrentUser());
+        if (visible == null) return true; // all：不过滤
+        return visible.contains(ownerId);
     }
 
     /** 获取负责人所属部门 ID */

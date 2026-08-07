@@ -41,6 +41,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyCollection;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.never;
@@ -205,7 +206,8 @@ class CustomerServiceTest {
 
     // ===== 数据范围解析（FEAT-20260804-DICT-DEPT-READ 统计复用） =====
 
-    private CustomerService newScopedService(SysUserMapper userMapper, SysDeptMapper deptMapper) {
+    private CustomerService newScopedService(SysUserMapper userMapper, SysDeptMapper deptMapper,
+                                             OrgScopeResolver resolver) {
         return new CustomerService(
                 mock(BizCustomerMapper.class),
                 mock(BizCustomerLogMapper.class),
@@ -220,7 +222,16 @@ class CustomerServiceTest {
                 mock(BizReminderMapper.class),
                 mock(JdbcTemplate.class),
                 mock(SysConfigService.class),
-                mock(com.ycmn.common.scope.OrgScopeResolver.class));
+                resolver);
+    }
+
+    /** 开关默认关的 resolver 桩：resolve 透传 scope；appendSystemLevelScopes 原样返回 base */
+    private OrgScopeResolver scopedResolver(org.mockito.stubbing.Answer<List<Long>> resolveAnswer) {
+        OrgScopeResolver resolver = mock(OrgScopeResolver.class);
+        when(resolver.resolve(any())).thenAnswer(resolveAnswer);
+        when(resolver.appendSystemLevelScopes(any(), anyCollection()))
+                .thenAnswer(inv -> new ArrayList<>((java.util.Collection<? extends Long>) inv.getArgument(1)));
+        return resolver;
     }
 
     @Test
@@ -228,7 +239,8 @@ class CustomerServiceTest {
         try (MockedStatic<SecurityUtils> mocked = mockStatic(SecurityUtils.class)) {
             mocked.when(SecurityUtils::getCurrentDataScope).thenReturn("self");
             mocked.when(SecurityUtils::getCurrentUserId).thenReturn(42L);
-            CustomerService svc = newScopedService(mock(SysUserMapper.class), mock(SysDeptMapper.class));
+            CustomerService svc = newScopedService(mock(SysUserMapper.class), mock(SysDeptMapper.class),
+                    scopedResolver(inv -> List.of(42L)));
             assertEquals(List.of(42L), svc.getCurrentScopeUserIds());
         }
     }
@@ -238,7 +250,8 @@ class CustomerServiceTest {
         try (MockedStatic<SecurityUtils> mocked = mockStatic(SecurityUtils.class)) {
             mocked.when(SecurityUtils::getCurrentDataScope).thenReturn(null);
             mocked.when(SecurityUtils::getCurrentUserId).thenReturn(42L);
-            CustomerService svc = newScopedService(mock(SysUserMapper.class), mock(SysDeptMapper.class));
+            CustomerService svc = newScopedService(mock(SysUserMapper.class), mock(SysDeptMapper.class),
+                    scopedResolver(inv -> List.of(42L)));
             assertEquals(List.of(42L), svc.getCurrentScopeUserIds());
         }
     }
@@ -247,7 +260,8 @@ class CustomerServiceTest {
     void getCurrentScopeUserIds_all_returnsNull() {
         try (MockedStatic<SecurityUtils> mocked = mockStatic(SecurityUtils.class)) {
             mocked.when(SecurityUtils::getCurrentDataScope).thenReturn("all");
-            CustomerService svc = newScopedService(mock(SysUserMapper.class), mock(SysDeptMapper.class));
+            CustomerService svc = newScopedService(mock(SysUserMapper.class), mock(SysDeptMapper.class),
+                    scopedResolver(inv -> null));
             assertNull(svc.getCurrentScopeUserIds());
         }
     }
@@ -269,7 +283,8 @@ class CustomerServiceTest {
             mocked.when(SecurityUtils::getCurrentDataScope).thenReturn("dept_and_children");
             mocked.when(SecurityUtils::getCurrentUserId).thenReturn(42L);
             mocked.when(SecurityUtils::getCurrentDeptId).thenReturn(2L);
-            CustomerService svc = newScopedService(userMapper, deptMapper);
+            CustomerService svc = newScopedService(userMapper, deptMapper,
+                    scopedResolver(inv -> List.of(42L)));
             // 部门 2 及子部门 4/9 下的用户 10/11（含自身部门 2 下的用户）
             assertEquals(List.of(10L, 11L), svc.getCurrentScopeUserIds());
         }

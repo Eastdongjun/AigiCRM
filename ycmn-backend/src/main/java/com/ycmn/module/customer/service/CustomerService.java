@@ -720,12 +720,21 @@ public class CustomerService {
         Long deptId = SecurityUtils.getCurrentDeptId();
         List<Long> managedOrgIds = SecurityUtils.getCurrentManagedOrgIds();
 
-        switch (dataScope == null ? "self" : dataScope) {
-            case "all":
-                return null;
+        // 【2026-08-07 系统级开关 + 统计口径修复】self/team/office/region/dept/all 统一走 resolver
+        // （含系统级开关并集；all→null 短路）。此前 team/office/region/self 落 default 仅本人，
+        // 统计与客户主列表口径不一致；dept 从"仅本部门"修正为"本部门及子部门"（与 DataScopeType 设计一致）。
+        if (dataScope == null || "self".equals(dataScope) || "team".equals(dataScope)
+                || "office".equals(dataScope) || "region".equals(dataScope)
+                || "dept".equals(dataScope) || "all".equals(dataScope)) {
+            return scopeResolver.resolve(SecurityUtils.getCurrentUser());
+        }
+
+        List<Long> userIds;
+        switch (dataScope) {
             case "custom":
-                if (managedOrgIds == null || managedOrgIds.isEmpty()) return List.of(userId);
-                return applyDeptScopeUserIds(managedOrgIds, userId);
+                userIds = (managedOrgIds == null || managedOrgIds.isEmpty())
+                        ? List.of(userId) : applyDeptScopeUserIds(managedOrgIds, userId);
+                break;
             case "org_and_children":
             case "org": {
                 List<Long> orgScopeIds = new ArrayList<>();
@@ -737,24 +746,21 @@ public class CustomerService {
                     orgScopeIds.add(deptId);
                 }
                 orgScopeIds.addAll(managedOrgIds);
-                if (orgScopeIds.isEmpty()) return List.of(userId);
-                return applyDeptScopeUserIds(orgScopeIds, userId);
+                userIds = orgScopeIds.isEmpty() ? List.of(userId) : applyDeptScopeUserIds(orgScopeIds, userId);
+                break;
             }
             case "dept_and_children": {
                 List<Long> deptIds = getDescendantDeptIds(deptId);
                 deptIds.add(deptId);
-                List<Long> userIds = getUserIdsByDeptIds(deptIds);
-                return userIds.isEmpty() ? List.of(userId) : userIds;
+                List<Long> u = getUserIdsByDeptIds(deptIds);
+                userIds = u.isEmpty() ? List.of(userId) : u;
+                break;
             }
-            case "dept":
-                if (deptId == null) return List.of(userId);
-                {
-                    List<Long> userIds = getUserIdsByDeptIds(List.of(deptId));
-                    return userIds.isEmpty() ? List.of(userId) : userIds;
-                }
             default:
-                return List.of(userId);
+                userIds = List.of(userId);
         }
+        // 【2026-08-07 系统级开关】本地分支(custom/org/org_and_children/dept_and_children)末尾统一追加
+        return scopeResolver.appendSystemLevelScopes(SecurityUtils.getCurrentUser(), userIds);
     }
 
     private List<Long> applyDeptScopeUserIds(List<Long> deptIds, Long userId) {
