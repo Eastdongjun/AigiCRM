@@ -56,8 +56,8 @@
       </div>
     </div>
 
-    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;padding:20px">
-      <div v-if="custs.length===0" style="grid-column:1/-1;text-align:center;padding:80px 0;color:#bbb">暂无数据</div>
+    <div v-loading="loading" element-loading-text="加载中..." style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;padding:20px;min-height:200px">
+      <div v-if="!loading && custs.length===0" style="grid-column:1/-1;text-align:center;padding:80px 0;color:#bbb">暂无数据</div>
       <div v-for="c in pagedCusts" :key="c.customerId" class="card">
         <div class="card-hd">
           <span class="card-name">{{ c.customerName }}</span>
@@ -204,6 +204,7 @@ const fProdCat=ref(''),fProdSub=ref('')
 const productCats={ '涂层类':['防腐','加固','钢结构','煤气管道','其他'], '防滑板类':['公共区','装置区'], '机封类':['水泵','渣泵','介质泵'], '密封类':['静密封','动密封','橡胶密封'], '润滑类':['润滑油','润滑脂','润滑剂'] }
 const productCatKeys=Object.keys(productCats)
 const custs=ref([]),catMap=ref({}),previewVisible=ref(false),previewUrl=ref(''),previewType=ref('image'),previewId=ref(null),previewName=ref('')
+const loading=ref(false)
 // 客户卡片网格分页（前端切片）
 const pageNum = ref(1)
 const pageSize = ref(8)
@@ -279,7 +280,9 @@ async function doSearch(){
   if(fDateRange.value?.length===2){p.startDate=fDateRange.value[0];p.endDate=fDateRange.value[1]}
   if(fOrgIds.value?.length){p.orgIds=fOrgIds.value.join(',')}
   if(fProdSub.value)p.product=fProdSub.value
-  try{const res=await request.get('/incentive/customer-records',{params:p});custs.value=(res.data||[]).filter(c=>c.records?.length>0&&c.customerName)}catch(e){ElMessage.error('查询失败')}
+  // 【2026-08-08 首次加载体验】加 loading 态，避免首次并发请求时误显示"暂无数据"
+  loading.value = true
+  try{const res=await request.get('/incentive/customer-records',{params:p});custs.value=(res.data||[]).filter(c=>c.records?.length>0&&c.customerName)}catch(e){ElMessage.error('查询失败')}finally{loading.value=false}
 }
 function doReset(){fCustomer.value='';fSales.value='';fIndustry.value='';fDevType.value='';fDateRange.value=null;fOrgIds.value=[];fProdCat.value='';fProdSub.value='';doSearch()}
 async function loadCats(){try{const res=await cachedGet('categoryTree',getCategoryTree);const walk=l=>{l.forEach(c=>{catMap.value[c.id]=c;if(c.children)walk(c.children)})};walk(res.data||[])}catch(e){}}
