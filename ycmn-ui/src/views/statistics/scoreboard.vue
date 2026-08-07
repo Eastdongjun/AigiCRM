@@ -61,7 +61,7 @@
           </template>
         </el-table-column>
       </el-table>
-      <el-pagination v-if="list.length > pageSize" v-model:current-page="pageNum" :page-size="pageSize" :total="list.length" layout="prev, pager, next" small background style="justify-content:flex-end;margin-top:12px" />
+      <el-pagination v-if="list.length > pageSize" v-model:current-page="pageNum" :page-size="pageSize" :total="list.length" layout="prev, pager, next" size="small" background style="justify-content:flex-end;margin-top:12px" />
     </el-card>
   </div>
 </template>

@@ -77,7 +77,8 @@
           :total="total"
           :page-sizes="[15, 30, 50]"
           layout="total, prev, pager, next"
-          small
+          :pager-count="5"
+          size="small"
           background
         />
       </div>
@@ -255,10 +256,13 @@ onBeforeUnmount(() => {
   display: flex;
   justify-content: flex-end;
   align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
   padding: 8px 16px;
   border-top: 1px solid #ebeef5;
   color: #999;
   font-size: 12px;
+  overflow-x: auto;
   flex-shrink: 0;
   background: #fff;
 }

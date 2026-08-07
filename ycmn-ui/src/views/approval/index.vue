@@ -183,7 +183,7 @@
           :total="total"
           :page-sizes="[15, 30, 50]"
           layout="prev, pager, next"
-          small
+          size="small"
           @change="loadData"
         />
       </div>

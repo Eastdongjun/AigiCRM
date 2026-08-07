@@ -136,7 +136,7 @@
               :total="fileTotal"
               :page-sizes="[10, 20, 50]"
               layout="prev, pager, next, sizes"
-              small
+              size="small"
               @change="loadFiles"
             />
           </div>

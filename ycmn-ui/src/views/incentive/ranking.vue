@@ -82,7 +82,7 @@
           <template #default="{ row }">{{ row.recordCount || 0 }}个</template>
         </el-table-column>
       </el-table>
-      <el-pagination v-if="personalList.length > pageSize" v-model:current-page="pageNum" :page-size="pageSize" :total="personalList.length" layout="prev, pager, next" small background style="justify-content:flex-end;margin-top:12px" />
+      <el-pagination v-if="personalList.length > pageSize" v-model:current-page="pageNum" :page-size="pageSize" :total="personalList.length" layout="prev, pager, next" size="small" background style="justify-content:flex-end;margin-top:12px" />
       <div class="rank-footer">
         <span class="footer-note">按总学分降序排列，学分相同按上传数排序</span>
         <span class="footer-time">最近更新：{{ new Date().toLocaleString() }}</span>
@@ -115,7 +115,7 @@
           <template #default="{ row }">{{ row.avgScore }}分</template>
         </el-table-column>
       </el-table>
-      <el-pagination v-if="deptList.length > pageSize" v-model:current-page="pageNum" :page-size="pageSize" :total="deptList.length" layout="prev, pager, next" small background style="justify-content:flex-end;margin-top:12px" />
+      <el-pagination v-if="deptList.length > pageSize" v-model:current-page="pageNum" :page-size="pageSize" :total="deptList.length" layout="prev, pager, next" size="small" background style="justify-content:flex-end;margin-top:12px" />
       <div class="rank-footer">
         <span class="footer-note">按部门总学分降序排列，人均学分 = 总学分 / 参与人数</span>
         <span class="footer-time">最近更新：{{ new Date().toLocaleString() }}</span>

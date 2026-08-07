@@ -148,7 +148,7 @@
           <template #default="{ row }"><span class="num-cell">{{ row.recordCount || 0 }}</span></template>
         </el-table-column>
       </el-table>
-      <el-pagination v-if="scoreboard.length > pageSize" v-model:current-page="pageNum" :page-size="pageSize" :total="scoreboard.length" layout="prev, pager, next" small background style="justify-content:flex-end;margin-top:12px" />
+      <el-pagination v-if="scoreboard.length > pageSize" v-model:current-page="pageNum" :page-size="pageSize" :total="scoreboard.length" layout="prev, pager, next" size="small" background style="justify-content:flex-end;margin-top:12px" />
     </div>
 
     <!-- 部门排行 -->

@@ -95,7 +95,7 @@
     </div>
     <div v-if="custs.length > pageSize" class="search-pager">
       <span class="search-pager-count">共 <b>{{ custs.length }}</b> 个客户</span>
-      <el-pagination v-model:current-page="pageNum" :page-size="pageSize" :total="custs.length" layout="prev, pager, next" small background />
+      <el-pagination v-model:current-page="pageNum" :page-size="pageSize" :total="custs.length" layout="prev, pager, next" size="small" background />
     </div>
 
     <!-- 预览弹窗：支持图片和视频 -->
