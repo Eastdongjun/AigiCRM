@@ -71,12 +71,13 @@
       </div>
 
       <div class="pagination">
+        <span class="pagination-info">{{ total > 0 ? (query.current - 1) * query.size + 1 : 0 }}-{{ Math.min(query.current * query.size, total) }} / 共 {{ total }} 条</span>
         <el-pagination
           v-model:current-page="query.current"
           v-model:page-size="query.size"
           :total="total"
           :page-sizes="[15, 30, 50]"
-          layout="total, prev, pager, next"
+          layout="prev, pager, next"
           :pager-count="5"
           size="small"
           background
@@ -254,16 +255,18 @@ onBeforeUnmount(() => {
 .table-wrap { flex: 1; min-height: 0; }
 .pagination {
   display: flex;
-  justify-content: flex-end;
+  justify-content: space-between;
   align-items: center;
   flex-wrap: wrap;
-  gap: 6px;
-  padding: 8px 16px;
-  border-top: 1px solid #ebeef5;
-  color: #999;
+  gap: 8px;
+  padding: 10px 16px;
+  border-top: 1px solid #f0f2f5;
+  color: #909399;
   font-size: 12px;
-  overflow-x: auto;
   flex-shrink: 0;
+  background: #fafbfc;
+}
+.pagination-info { color: #909399; white-space: nowrap; }
   background: #fff;
 }
 .days-danger { color: #f56c6c; font-weight: bold; }

@@ -232,8 +232,8 @@ onBeforeUnmount(() => { if(resizeObserver) resizeObserver.disconnect() })
 .sea-page :deep(.el-table td.el-table__cell), .sea-page :deep(.el-table th.el-table__cell) { height:38px; padding:3px 0 }
 .sea-link { color:#409eff; cursor:pointer; font-weight:500 } .sea-link:hover { color:#66b1ff; text-decoration:underline }
 .sea-days { color:#e6a23c; font-weight:700 }
-.sea-pager { display:flex; justify-content:space-between; align-items:center; padding:10px 16px; border-top:1px solid #f0f2f5; color:#909399; font-size:12px; flex-shrink:0 }
-.sea-pager-info { color:#909399 }
+.sea-pager { display:flex; justify-content:space-between; align-items:center; padding:10px 16px; border-top:1px solid #f0f2f5; color:#909399; font-size:12px; flex-shrink:0; background:#fafbfc }
+.sea-pager-info { color:#909399; white-space:nowrap }
 
 .import-step { margin-bottom:16px } .step-label { font-size:14px; font-weight:600; color:#333; margin-bottom:8px }
 .import-result { margin-top:16px } .fail-list { max-height:200px; overflow-y:auto; margin-top:8px; border:1px solid #ebeef5; border-radius:4px; padding:8px; background:#fafafa }

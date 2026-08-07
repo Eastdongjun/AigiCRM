@@ -201,8 +201,9 @@ onBeforeUnmount(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 10px 0;
-  border-top: 1px solid #ebeef5;
+  padding: 10px 16px;
+  border-top: 1px solid #f0f2f5;
+  background: #fafbfc;
   color: #999;
   font-size: 12px;
   flex-shrink: 0;
