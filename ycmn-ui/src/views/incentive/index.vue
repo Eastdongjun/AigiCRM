@@ -175,7 +175,7 @@
                   <el-option v-for="s in (productCats[relatedCat] || [])" :key="s" :label="s" :value="s" />
                 </el-select>
               </div></div>
-          <div v-if="categoryCodeOf(pendingChild.value) === 'trial'" class="dlg-field">
+          <div v-if="categoryCodeOf(pendingChild.value).startsWith('trial')" class="dlg-field">
             <label>具体产品 <span class="dlg-opt">选填</span></label>
             <el-input v-model="specificProduct" placeholder="填写具体产品名称/型号，选填" size="large" maxlength="200" show-word-limit clearable />
           </div>
