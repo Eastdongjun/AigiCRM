@@ -806,6 +806,7 @@ public class IncentiveService {
             m.put("id", r.getId()); m.put("customerId", r.getCustomerId()); m.put("customerName", r.getCustomerName());
             m.put("categoryId", r.getCategoryId()); m.put("categoryName", r.getCategoryName());
             m.put("period", r.getPeriod()); m.put("industry", r.getIndustry()); m.put("relatedProducts", r.getRelatedProducts());
+            m.put("specificProduct", r.getSpecificProduct());
             m.put("score", r.getScore()); m.put("userName", r.getUserName());
             m.put("fileId", r.getFileId()); m.put("filePreId", r.getFilePreId()); m.put("fileMidId", r.getFileMidId()); m.put("filePostId", r.getFilePostId()); m.put("fileTrackId", r.getFileTrackId());
             m.put("createdAt", r.getCreatedAt() != null ? r.getCreatedAt().toString() : null);
@@ -838,19 +839,21 @@ public class IncentiveService {
         }
         if (keyword != null && !keyword.isBlank()) {
             if (customerName != null && !customerName.isBlank()) {
-                // 主搜索框同时匹配客户名与相关产品
                 List<BizCustomer> matched = customerMapper.selectList(
                     new LambdaQueryWrapper<BizCustomer>().like(BizCustomer::getCustomerName, customerName)
                 );
                 if (matched.isEmpty()) {
-                    wrapper.like(BizIncentiveRecord::getRelatedProducts, keyword);
+                    wrapper.and(w -> w.like(BizIncentiveRecord::getRelatedProducts, keyword)
+                            .or().like(BizIncentiveRecord::getSpecificProduct, keyword));
                 } else {
                     List<Long> cids = matched.stream().map(BizCustomer::getId).toList();
                     wrapper.and(w -> w.in(BizIncentiveRecord::getCustomerId, cids)
-                        .or().like(BizIncentiveRecord::getRelatedProducts, keyword));
+                        .or().like(BizIncentiveRecord::getRelatedProducts, keyword)
+                        .or().like(BizIncentiveRecord::getSpecificProduct, keyword));
                 }
             } else {
-                wrapper.like(BizIncentiveRecord::getRelatedProducts, keyword);
+                wrapper.and(w -> w.like(BizIncentiveRecord::getRelatedProducts, keyword)
+                        .or().like(BizIncentiveRecord::getSpecificProduct, keyword));
             }
         }
         if (salesperson != null && !salesperson.isBlank()) {
