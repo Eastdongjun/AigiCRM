@@ -171,7 +171,7 @@ const query = reactive({ current:1, size:15, industry:'', enterReason:'', keywor
 const setStatus = (s) => { statusFilter.value=s; query.current=1; loadData() }
 
 const loadData = async () => {
-  try { const res=await getSeaList({...query, poolId:selectedPool.value||undefined}); let records=res.data?.records||[]; if(statusFilter.value) records=records.filter(r=>r.status===statusFilter.value); tableData.value=records; total.value=res.data?.total||0 } catch(e) {}
+  try { const res=await getSeaList({...query, poolId:selectedPool.value||undefined, status:statusFilter.value||undefined}); tableData.value=res.data?.records||[]; total.value=res.data?.total||0 } catch(e) {}
 }
 const loadStats = async () => { try { const res=await getSeaStatistics(); stats.value=res.data||{} } catch(e) {} }
 const loadPools = async () => { try { const res=await getVisibleSeaConfigs(); pools.value=res.data||[] } catch(e) {} }

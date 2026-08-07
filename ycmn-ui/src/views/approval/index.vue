@@ -67,7 +67,7 @@
     </el-row>
 
     <!-- Tab 栏 -->
-    <el-tabs v-model="activeTab" @tab-change="loadData" style="margin-bottom: 0">
+    <el-tabs v-model="activeTab" @tab-change="search" style="margin-bottom: 0">
       <el-tab-pane name="pending">
         <template #label>
           <span class="tab-dot dot-orange"></span>
@@ -118,14 +118,14 @@
           :props="{ label: 'deptName', children: 'children' }"
           placeholder="选择部门（含全部子部门）"
           style="width: 180px"
-          @change="loadData" />
-        <el-select v-model="query.type" placeholder="全部类型" clearable style="width: 130px" @change="loadData">
+          @change="search" />
+        <el-select v-model="query.type" placeholder="全部类型" clearable style="width: 130px" @change="search">
           <el-option label="捞取" value="claim" />
           <el-option label="转移" value="transfer" />
           <el-option label="延期" value="extend" />
           <el-option label="存储空间" value="storage" />
         </el-select>
-        <el-input v-model="searchText" placeholder="搜索编号、客户名..." clearable prefix-icon="Search" style="width: 220px" @keyup.enter="loadData" />
+        <el-input v-model="searchText" placeholder="搜索编号、客户名..." clearable prefix-icon="Search" style="width: 220px" @keyup.enter="search" />
       </div>
     </div>
 
@@ -223,6 +223,8 @@ const loadData = async () => {
     total.value = res.data?.total || 0
   } catch (e) {}
 }
+// 筛选/Tab 变化回到第 1 页（分页 @change 仍用 loadData 保持当前页）
+const search = () => { query.current = 1; loadData() }
 
 const loadStats = async () => {
   try {

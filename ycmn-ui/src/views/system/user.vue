@@ -11,9 +11,9 @@
         <el-button type="primary" :icon="Plus" @click="openDialog()">新增用户</el-button>
       </div>
       <div class="filter-row">
-        <el-input v-model="query.keyword" placeholder="搜索姓名 / 账号 / 手机号..." clearable prefix-icon="Search" class="filter-search" @keyup.enter="loadData" />
+        <el-input v-model="query.keyword" placeholder="搜索姓名 / 账号 / 手机号..." clearable prefix-icon="Search" class="filter-search" @keyup.enter="search" />
         <el-tree-select v-model="query.deptId" :data="deptTree" :props="{ label: 'deptName', value: 'id', children: 'children' }" check-strictly :render-after-expand="false" default-expand-all clearable filterable placeholder="全部部门" class="filter-select" @change="onDeptFilterChange" />
-        <el-select v-model="query.status" placeholder="全部状态" clearable class="filter-select filter-status" @change="loadData">
+        <el-select v-model="query.status" placeholder="全部状态" clearable class="filter-select filter-status" @change="search">
           <el-option label="正常" :value="1" /><el-option label="禁用" :value="0" />
         </el-select>
       </div>
@@ -233,6 +233,8 @@ const onDeptFilterChange = () => {
   query.current = 1
   loadData()
 }
+// 搜索/状态筛选回到第 1 页（分页 @change 仍用 loadData 保持当前页）
+const search = () => { query.current = 1; loadData() }
 
 const loadData = async () => {
   try {

@@ -51,8 +51,9 @@ public class SeaController {
             @RequestParam(required = false) Long deptId,
             @RequestParam(required = false) String enterReason,
             @RequestParam(required = false) String keyword,
-            @RequestParam(required = false) Long poolId) {
-        return Result.ok(seaService.page(current, size, industry, officeId, enterReason, keyword, poolId, deptId));
+            @RequestParam(required = false) Long poolId,
+            @RequestParam(required = false) String status) {
+        return Result.ok(seaService.page(current, size, industry, officeId, enterReason, keyword, poolId, deptId, status));
     }
 
     @PreAuthorize("hasAuthority('sea:view')")

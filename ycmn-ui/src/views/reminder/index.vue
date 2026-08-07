@@ -7,7 +7,7 @@
     <!-- 搜索栏 -->
     <div class="toolbar">
       <div class="toolbar-left">
-        <el-input v-model="query.keyword" placeholder="搜索客户名称..." clearable prefix-icon="Search" style="width: 200px" @change="loadData" />
+        <el-input v-model="query.keyword" placeholder="搜索客户名称..." clearable prefix-icon="Search" style="width: 200px" @change="search" />
         <el-tree-select
           v-model="query.deptId"
           :data="offices"
@@ -17,9 +17,9 @@
           :props="{ label: 'deptName', children: 'children' }"
           placeholder="选择部门（含全部子部门）"
           style="width: 190px"
-          @change="loadData"
+          @change="search"
         />
-        <el-select v-model="query.ownerId" placeholder="全部负责人" clearable filterable style="width: 140px" @change="loadData">
+        <el-select v-model="query.ownerId" placeholder="全部负责人" clearable filterable style="width: 140px" @change="search">
           <el-option v-for="u in owners" :key="u.id" :label="u.realName" :value="u.id" />
         </el-select>
       </div>
@@ -108,6 +108,7 @@ const query = reactive({
   ownerId: null
 })
 
+const search = () => { query.current = 1; loadData() }
 const loadData = async () => {
   try {
     const res = await getExpiringList(query)

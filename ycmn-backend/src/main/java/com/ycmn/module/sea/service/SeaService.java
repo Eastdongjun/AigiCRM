@@ -52,15 +52,20 @@ public class SeaService {
         return seaConfigService.listVisible().stream().map(BizSeaConfig::getId).collect(Collectors.toList());
     }
 
-    public IPage<BizSeaPool> page(int current, int size, String industry, Long officeId, String enterReason, String keyword, Long poolId, Long deptId) {
+    public IPage<BizSeaPool> page(int current, int size, String industry, Long officeId, String enterReason, String keyword, Long poolId, Long deptId, String status) {
         List<Long> visiblePoolIds = visiblePoolIdsOrNull();
         if (visiblePoolIds != null && visiblePoolIds.isEmpty()) {
             return new Page<>(current, size); // 无可见公海池
         }
 
         LambdaQueryWrapper<BizSeaPool> wrapper = new LambdaQueryWrapper<>();
-        wrapper.ne(BizSeaPool::getStatus, "claimed")
-                .orderByDesc(BizSeaPool::getEnterDate);
+        // 未指定 status 时默认排除已捞取（全部/待捞取/审批中）；指定 status 则精确过滤（保证分页与总数正确）
+        if (StringUtils.hasText(status)) {
+            wrapper.eq(BizSeaPool::getStatus, status);
+        } else {
+            wrapper.ne(BizSeaPool::getStatus, "claimed");
+        }
+        wrapper.orderByDesc(BizSeaPool::getEnterDate);
         // enterReason 是 biz_sea_pool 自身字段，直接在 DB 层过滤（保证分页与总数正确）
         if (StringUtils.hasText(enterReason)) {
             wrapper.eq(BizSeaPool::getEnterReason, enterReason);

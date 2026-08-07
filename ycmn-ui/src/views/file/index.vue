@@ -10,7 +10,7 @@
         <div class="stat-icon c-green"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/></svg></div>
         <div><div class="s-num">{{ storage?.quotaFormatted || '10GB' }}</div><div class="s-lbl">总容量</div></div>
       </div>
-      <el-input v-model="keyword" placeholder="搜索文件名称..." style="width:220px;margin-left:auto" clearable prefix-icon="Search" @keyup.enter="loadFiles" />
+      <el-input v-model="keyword" placeholder="搜索文件名称..." style="width:220px;margin-left:auto" clearable prefix-icon="Search" @keyup.enter="searchFiles" />
       <el-button v-if="activeTab!=='incentive'&&activeTab!=='shared_to_me' && folderPerms.includes('upload')" type="primary" :icon="Upload" @click="uploadVisible=true">上传文件</el-button>
     </div>
 
@@ -38,7 +38,7 @@
             <h4 class="folder-title">文件夹</h4>
 
             <!-- 全部文件 -->
-            <div class="folder-root" :class="{ active: !selectedFolderId }" @click="selectedFolderId = null; loadFolderPerms(); loadFiles()">
+            <div class="folder-root" :class="{ active: !selectedFolderId }" @click="selectedFolderId = null; query.value.current = 1; loadFolderPerms(); loadFiles()">
               <el-icon color="#409eff"><FolderOpened /></el-icon>
               <span class="folder-root-name">全部文件</span>
               <span class="folder-count-badge">{{ fileTotal }}</span>
@@ -395,9 +395,12 @@ const switchTab = (tab) => {
 
 const selectFolder = (folder) => {
   selectedFolderId.value = folder.id
+  query.value.current = 1
   loadFolderPerms()
   loadFiles()
 }
+// 关键字搜索回到第 1 页（分页 @change 仍用 loadFiles 保持当前页）
+const searchFiles = () => { query.value.current = 1; loadFiles() }
 
 const loadFolders = async () => {
   try {
