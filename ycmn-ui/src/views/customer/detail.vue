@@ -284,6 +284,9 @@
               <span v-if="r.customerName">· {{ r.customerName }}</span>
               <span class="inc-time">{{ fmtDate(r.createdAt) }}</span>
             </div>
+            <div v-if="r.specificProduct" class="inc-meta" style="margin-top:2px">
+              <span style="color:#909399">具体产品：</span><span>{{ r.specificProduct }}</span>
+            </div>
             <div class="inc-files" v-if="getFiles(r).length">
               <div v-for="f in getFiles(r)" :key="f.id" class="inc-file" @click="downloadIncentiveFile(f)">
                 <span class="inc-file-tag">{{ f.tag }}</span>
