@@ -325,17 +325,24 @@ onMounted(loadData)
 .stat-card {
   background: #fff; border: 1px solid #ebeef5; border-radius: 12px; padding: 20px 24px;
   display: flex; justify-content: space-between; align-items: flex-start;
+  position: relative; overflow: hidden; transition: all .25s;
 }
-.stat-label { font-size: 14px; color: #86909c; margin-bottom: 8px; }
+.stat-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; }
+.stat-card:nth-child(1)::before { background: linear-gradient(90deg, #e8684a, #f59e0b); }
+.stat-card:nth-child(2)::before { background: linear-gradient(90deg, #409eff, #66b1ff); }
+.stat-card:nth-child(3)::before { background: linear-gradient(90deg, #f59e0b, #fbbf24); }
+.stat-card:nth-child(4)::before { background: linear-gradient(90deg, #f56c6c, #fc8181); }
+.stat-card:hover { box-shadow: 0 6px 20px rgba(0,0,0,.08); transform: translateY(-2px); border-color: #e0e4eb; }
+.stat-label { font-size: 14px; color: #86909c; margin-bottom: 8px; font-weight: 500; }
 .stat-num { font-size: 36px; font-weight: 700; line-height: 1.1; }
 .stat-num.orange { color: #e8684a; }
 .stat-num.blue { color: #409eff; }
 .stat-num.red { color: #f56c6c; }
 .stat-sub { font-size: 12px; color: #999; margin-top: 6px; }
-.stat-icon { flex-shrink: 0; opacity: 0.35; }
-.icon-blue { color: #409eff; }
-.icon-orange { color: #e6a23c; }
-.icon-red { color: #f56c6c; }
+.stat-icon { flex-shrink: 0; width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; }
+.icon-blue { background: #ecf5ff; color: #409eff; }
+.icon-orange { background: #fdf6ec; color: #e6a23c; }
+.icon-red { background: #fef0f0; color: #f56c6c; }
 
 /* 进度条 */
 .progress-track { height: 6px; background: #f0f2f5; border-radius: 3px; margin-top: 8px; overflow: hidden; }

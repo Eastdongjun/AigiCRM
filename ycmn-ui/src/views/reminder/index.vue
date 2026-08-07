@@ -255,18 +255,23 @@ onBeforeUnmount(() => {
 .table-wrap { flex: 1; min-height: 0; }
 .pagination {
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-end;
   align-items: center;
   flex-wrap: wrap;
   gap: 8px;
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
   padding: 10px 16px;
   border-top: 1px solid #f0f2f5;
   color: #909399;
   font-size: 12px;
   flex-shrink: 0;
   background: #fafbfc;
+  overflow-x: auto;
 }
-.pagination-info { color: #909399; white-space: nowrap; }
+.pagination-info { color: #909399; white-space: nowrap; margin-right: auto; }
+.pagination .el-pagination { flex-shrink: 0; }
 .days-danger { color: #f56c6c; font-weight: bold; }
 .days-warning { color: #e6a23c; font-weight: bold; }
 .days-normal { color: #67c23a; }
