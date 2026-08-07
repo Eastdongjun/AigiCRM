@@ -82,7 +82,7 @@
 
       <!-- 右侧：已上传文件表格 -->
       <div class="right-panel">
-        <el-table :data="filteredRecords" stripe style="width:100%" empty-text="暂无已上传文件" size="small" @row-click="startReplace" :row-style="{cursor:'pointer'}">
+        <el-table :data="pagedRecords" stripe style="width:100%" empty-text="暂无已上传文件" size="small" @row-click="startReplace" :row-style="{cursor:'pointer'}">
           <el-table-column label="大类·子类" min-width="120" show-overflow-tooltip>
             <template #default="{ row }">{{ row.majorMinor }}</template>
           </el-table-column>
@@ -126,11 +126,15 @@
           <el-table-column prop="userName" label="操作人" min-width="65" />
           <el-table-column label="操作" width="110" fixed="right" align="center">
             <template #default="{ row }">
-              <el-button v-if="canEdit" link type="primary" size="small" @click="startReplace(row)">追加</el-button>
-              <el-button v-if="canDelete" link type="danger" size="small" @click="handleDeleteRecord(row)">删除</el-button>
+              <el-button v-if="userStore.hasPermission('incentive:edit') || canEdit || row.userId === userStore.userId" link type="primary" size="small" @click="startReplace(row)">追加</el-button>
+              <el-button v-if="userStore.hasPermission('incentive:delete') || canDelete || row.userId === userStore.userId" link type="danger" size="small" @click="handleDeleteRecord(row)">删除</el-button>
             </template>
           </el-table-column>
         </el-table>
+        <div class="list-footer">
+          <span class="list-footer-count">共 <b>{{ filteredRecords.length }}</b> 条</span>
+          <el-pagination v-model:current-page="pageNum" :page-size="pageSize" :total="filteredRecords.length" layout="prev, pager, next" small background />
+        </div>
       </div>
     </div>
 
@@ -334,6 +338,9 @@ const records = ref([])
 // 权限
 const canEdit = ref(false)
 const canDelete = ref(false)
+// 右侧文件列表分页（前端切片）
+const pageNum = ref(1)
+const pageSize = ref(10)
 
 // ===== 安装文件预览 =====
 const previewVisible = ref(false), previewUrl = ref(''), previewType = ref('image'), previewName = ref('')
@@ -514,6 +521,14 @@ const mainOrderOf = (row) => {
 }
 
 // 过滤后的记录（四区排序，同品类按时间倒序）
+// 分页切片（filteredRecords 是过滤后的全量，切当前页）
+const pagedRecords = computed(() => {
+  const start = (pageNum.value - 1) * pageSize.value
+  return filteredRecords.value.slice(start, start + pageSize.value)
+})
+// 筛选条件变化时回到第 1 页
+watch([searchText, filterCustomer, filterGroup, filterTier, activeTab, selectedUser, selectedPeriod], () => { pageNum.value = 1 })
+
 const filteredRecords = computed(() => {
   let list = enrichedRecords.value
   if (searchText.value) {
@@ -979,7 +994,11 @@ onMounted(() => {
 .score-badge { display:inline-block; min-width:28px; text-align:center; padding:2px 8px; border-radius:10px; font-size:12px; font-weight:600 }
 .score-0 { color:#bbb; background:#f5f5f5 } .score-1 { color:#e6a23c; background:#fff7ed } .score-2 { color:#67c23a; background:#f0f9eb } .score-3 { color:#f56c6c; background:#fef0f0 }
 
-.right-panel { flex:1; background:#fff; padding:14px 18px; overflow-y:auto }
+.right-panel { flex:1; background:#fff; padding:14px 18px; display:flex; flex-direction:column; min-height:0 }
+.right-panel .el-table { flex:1; min-height:0 }
+.list-footer { display:flex; align-items:center; justify-content:space-between; padding:10px 2px 0; margin-top:8px; border-top:1px solid #f0f2f5 }
+.list-footer-count { font-size:13px; color:#606266 }
+.list-footer-count b { color:#409eff; font-weight:700; margin:0 2px }
 
 /* 表格内样式 */
 .file-cell { display: inline-flex; align-items: center; gap: 4px; }

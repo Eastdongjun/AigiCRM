@@ -85,8 +85,9 @@ public class IncentiveController {
     public Result<Void> updateRecord(@PathVariable Long id, @RequestBody BizIncentiveRecord record) {
         SecurityUser user = SecurityUtils.getCurrentUser();
         boolean isAdmin = SecurityUtils.isAdmin();
-        // 检查激励权限表：admin 或 有 can_edit 权限的可编辑任意记录
-        if (!isAdmin && !incentiveService.canEdit(user.getUserId())) {
+        // 授权判定：admin ∨ 矩阵 incentive:edit 码 ∨ 用户级 can_edit ∨ 本人记录（四选一，混合双轨 2026-08-07）
+        boolean hasMatrixEdit = user.getPermissions() != null && user.getPermissions().contains("incentive:edit");
+        if (!isAdmin && !hasMatrixEdit && !incentiveService.canEdit(user.getUserId())) {
             BizIncentiveRecord existing = incentiveService.getRecordById(id);
             if (existing == null || !existing.getUserId().equals(user.getUserId())) {
                 return Result.error(403, "无权编辑他人记录");
@@ -109,8 +110,9 @@ public class IncentiveController {
     public Result<Void> deleteRecord(@PathVariable Long id) {
         SecurityUser user = SecurityUtils.getCurrentUser();
         boolean isAdmin = SecurityUtils.isAdmin();
-        // 检查激励权限表：admin 或 有 can_delete 权限的可删除任意记录
-        if (!isAdmin && !incentiveService.canDelete(user.getUserId())) {
+        // 授权判定：admin ∨ 矩阵 incentive:delete 码 ∨ 用户级 can_delete ∨ 本人记录（四选一，混合双轨 2026-08-07）
+        boolean hasMatrixDelete = user.getPermissions() != null && user.getPermissions().contains("incentive:delete");
+        if (!isAdmin && !hasMatrixDelete && !incentiveService.canDelete(user.getUserId())) {
             BizIncentiveRecord record = incentiveService.getRecordById(id);
             if (record == null || !record.getUserId().equals(user.getUserId())) {
                 return Result.error(403, "无权删除他人记录");

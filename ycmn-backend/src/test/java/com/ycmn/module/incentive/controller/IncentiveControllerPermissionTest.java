@@ -51,6 +51,16 @@ class IncentiveControllerPermissionTest {
         return r;
     }
 
+    /** 带权限码集合的用户（模拟矩阵授予的 incentive:edit/delete 等） */
+    private SecurityUser userWithPerm(Long userId, String... perms) {
+        SecurityUser su = new SecurityUser();
+        su.setUserId(userId);
+        if (perms.length > 0) {
+            su.setPermissions(new java.util.HashSet<>(java.util.Arrays.asList(perms)));
+        }
+        return su;
+    }
+
     /** 普通销售员（无编辑授权）改他人记录 → 403 */
     @Test
     void updateRejectsOthersRecordForPlainUser() {
@@ -117,6 +127,23 @@ class IncentiveControllerPermissionTest {
             assertEquals(200, result.getCode());
             verify(incentiveService).updateRecord(79L, new BizIncentiveRecord());
             verify(incentiveService, never()).getRecordById(79L);
+        }
+    }
+
+    /** 矩阵 incentive:edit 码（无用户级 can_edit）→ 可改任意记录，跳过归属查询（混合双轨 B） */
+    @Test
+    void updateAllowsAnyRecordWithMatrixEditCode() {
+        SecurityUser su = userWithPerm(2L, "incentive:edit");
+        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
+            m.when(SecurityUtils::getCurrentUser).thenReturn(su);
+            m.when(SecurityUtils::isAdmin).thenReturn(false);
+
+            Result<Void> result = controller.updateRecord(79L, new BizIncentiveRecord());
+
+            assertEquals(200, result.getCode());
+            verify(incentiveService).updateRecord(79L, new BizIncentiveRecord());
+            verify(incentiveService, never()).getRecordById(79L);
+            verify(incentiveService, never()).canEdit(2L);
         }
     }
 
@@ -207,6 +234,23 @@ class IncentiveControllerPermissionTest {
 
             assertEquals(200, result.getCode());
             verify(incentiveService).deleteRecord(79L);
+        }
+    }
+
+    /** 矩阵 incentive:delete 码（无用户级 can_delete）→ 可删任意记录，跳过归属查询（混合双轨 B） */
+    @Test
+    void deleteAllowsAnyRecordWithMatrixDeleteCode() {
+        SecurityUser su = userWithPerm(2L, "incentive:delete");
+        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
+            m.when(SecurityUtils::getCurrentUser).thenReturn(su);
+            m.when(SecurityUtils::isAdmin).thenReturn(false);
+
+            Result<Void> result = controller.deleteRecord(79L);
+
+            assertEquals(200, result.getCode());
+            verify(incentiveService).deleteRecord(79L);
+            verify(incentiveService, never()).getRecordById(79L);
+            verify(incentiveService, never()).canDelete(2L);
         }
     }
 
