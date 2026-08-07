@@ -24,7 +24,7 @@
         <el-date-picker v-model="dateRange" type="daterange" start-placeholder="开始" end-placeholder="结束"
           value-format="YYYY-MM-DD" style="width:240px" size="small" @change="onDateChange" />
         <el-input v-model="keyword" placeholder="搜索操作人/对象..." clearable size="small" style="width:180px"
-          @keyup.enter="loadData" @clear="loadData" />
+          @keyup.enter="search" @clear="search" />
       </div>
     </div>
 
@@ -106,6 +106,8 @@ const switchTab = (key) => {
   query.current = 1
   loadData()
 }
+
+const search = () => { query.current = 1; loadData() }
 
 const onDateChange = () => {
   query.current = 1

@@ -84,6 +84,15 @@ else
 fi
 rm -f /tmp/qagate.log
 
+echo "--- [5.5] 分页反模式扫描(FEAT-20260807-PAGINATION-GATE) ---"
+if bash "$SCRIPT_DIR/check-pagination-anti-patterns.sh" >/tmp/pagegate.log 2>&1; then
+  echo "  ✅ 分页反模式扫描通过"
+else
+  echo "  ❌ 分页反模式扫描失败:"; sed 's/^/     /' /tmp/pagegate.log | head -15
+  FAIL=$((FAIL+1))
+fi
+rm -f /tmp/pagegate.log
+
 # [6] 权限数据前提体检(统一权限体系): deptType/group_id/manager_id/tenant_id 完整性
 # 非零列需人工介入; 依赖 ~/.ycmn-deploy.env 中 DB_HOST/DB_USER/DB_PASS/DB_NAME(缺 DB_PASS 时无法执行)
 # 执行模式自动: 本机无 mysql 客户端时经 SSH+docker exec(ycmn-mysql 容器) 执行, 同 deploy-db.sh

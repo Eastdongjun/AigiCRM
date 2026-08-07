@@ -6,7 +6,7 @@
         <h1>公海池</h1>
       </div>
       <div class="sea-hero-right">
-        <el-select v-model="selectedPool" placeholder="选择公海池" clearable style="width:240px" @change="loadData">
+        <el-select v-model="selectedPool" placeholder="选择公海池" clearable style="width:240px" @change="search">
           <el-option v-for="p in pools" :key="p.id" :label="`${p.poolName} (${p.regionNames || ''})`" :value="p.id" />
         </el-select>
         <el-button v-if="canImport" type="primary" @click="showImportDialog=true"><el-icon><Upload /></el-icon> 批量导入</el-button>
@@ -63,17 +63,17 @@
           :props="{ label: 'deptName', children: 'children' }"
           placeholder="选择部门（含全部子部门）"
           class="f-dept"
-          @change="loadData"
+          @change="search"
         />
-        <el-select v-model="query.industry" placeholder="全行业" clearable class="f-sel" @change="loadData">
+        <el-select v-model="query.industry" placeholder="全行业" clearable class="f-sel" @change="search">
           <el-option v-for="i in industryOptions" :key="i" :label="i" :value="i" />
         </el-select>
-        <el-select v-model="query.enterReason" placeholder="全部原因" clearable class="f-sel" @change="loadData">
+        <el-select v-model="query.enterReason" placeholder="全部原因" clearable class="f-sel" @change="search">
           <el-option label="保护期满" value="保护期满" />
           <el-option label="放弃客户" value="放弃客户" />
           <el-option label="离职交接" value="离职交接" />
         </el-select>
-        <el-input v-model="query.keyword" placeholder="搜索客户名称..." clearable prefix-icon="Search" class="f-kw" @keyup.enter="loadData" />
+        <el-input v-model="query.keyword" placeholder="搜索客户名称..." clearable prefix-icon="Search" class="f-kw" @keyup.enter="search" />
       </div>
     </div>
 
@@ -173,6 +173,8 @@ const setStatus = (s) => { statusFilter.value=s; query.current=1; loadData() }
 const loadData = async () => {
   try { const res=await getSeaList({...query, poolId:selectedPool.value||undefined, status:statusFilter.value||undefined}); tableData.value=res.data?.records||[]; total.value=res.data?.total||0 } catch(e) {}
 }
+// 筛选变化回到第 1 页（分页 @change 仍用 loadData 保持当前页）
+const search = () => { query.current = 1; loadData() }
 const loadStats = async () => { try { const res=await getSeaStatistics(); stats.value=res.data||{} } catch(e) {} }
 const loadPools = async () => { try { const res=await getVisibleSeaConfigs(); pools.value=res.data||[] } catch(e) {} }
 
