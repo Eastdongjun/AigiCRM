@@ -35,6 +35,7 @@
         <el-table-column label="类型" width="70" align="center">
           <template #default="{ row }">
             <el-tag v-if="row._type === 'share'" type="warning" size="small" effect="dark">分享</el-tag>
+            <el-tag v-else-if="row._type === 'invoice'" :type="row._invoiceTagType" size="small" effect="dark">开票</el-tag>
             <el-tag v-else type="info" size="small">到期</el-tag>
           </template>
         </el-table-column>
@@ -42,6 +43,7 @@
         <el-table-column label="提示内容" min-width="160" show-overflow-tooltip>
           <template #default="{ row }">
             <span v-if="row._type === 'share'">{{ row._shareLabel }}</span>
+            <span v-else-if="row._type === 'invoice'">{{ row._invoiceLabel }}</span>
             <span v-else>{{ row.remainingDays }}天后到期</span>
           </template>
         </el-table-column>
@@ -52,12 +54,16 @@
         <el-table-column label="状态" width="90" align="center">
           <template #default="{ row }">
             <el-tag v-if="row._type === 'share'" type="warning" size="small">待查看</el-tag>
+            <el-tag v-else-if="row._type === 'invoice'" :type="row._invoiceTagType" size="small">待处理</el-tag>
             <el-tag v-else :type="getStatusType(row.remainingDays)" size="small">{{ getStatusText(row.remainingDays) }}</el-tag>
           </template>
         </el-table-column>
         <el-table-column label="操作" width="140" align="center" fixed="right">
           <template #default="{ row }">
             <template v-if="row._type === 'share'">
+              <el-button link type="primary" size="small" @click="handleProcessShare(row)">已读</el-button>
+            </template>
+            <template v-else-if="row._type === 'invoice'">
               <el-button link type="primary" size="small" @click="handleProcessShare(row)">已读</el-button>
             </template>
             <template v-else>
@@ -139,7 +145,31 @@ const loadData = async () => {
         }
       }
     } catch {}
-    tableData.value = [...shareRecords, ...expiring]
+    // 追加开票提醒（超期 invoice_overdue + 待首次开票 invoice_never）
+    let invoiceRecords = []
+    try {
+      const itypes = ['invoice_overdue', 'invoice_never']
+      const irs = await Promise.all(itypes.map(t =>
+        getReminderList({ current: 1, size: 20, type: t, status: 'pending', deptId: query.deptId })))
+      for (let i = 0; i < itypes.length; i++) {
+        const t = itypes[i]
+        for (const item of (irs[i]?.data?.records || [])) {
+          invoiceRecords.push({
+            reminderId: item.id,
+            customerId: item.customerId,
+            customerName: item.customerName,
+            ownerName: item.ownerName,
+            officeName: item.officeName || '',
+            _type: 'invoice',
+            _invoiceTagType: t === 'invoice_overdue' ? 'danger' : 'warning',
+            _invoiceLabel: t === 'invoice_overdue'
+              ? `已超期 ${(item.overdueDays || 0)} 天未开票`
+              : '待首次开票',
+          })
+        }
+      }
+    } catch {}
+    tableData.value = [...shareRecords, ...invoiceRecords, ...expiring]
     total.value = tableData.value.length
   } catch (e) {}
 }
@@ -160,7 +190,7 @@ const pagedData = computed(() => {
 
 const handleClearAll = async () => {
   try {
-    await ElMessageBox.confirm('确认清空所有提醒？分享提醒标记已读，到期提醒标记已跟进。', '一键清空', { type: 'warning' })
+    await ElMessageBox.confirm('确认清空所有提醒？分享/开票提醒标记已读，到期提醒标记已跟进。', '一键清空', { type: 'warning' })
   } catch { return }
   const all = tableData.value.filter(r => r.reminderId)
   let done = 0
