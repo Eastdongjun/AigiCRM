@@ -1,16 +1,20 @@
 <template>
-  <!-- 全局路由加载指示:点击菜单后立即显示,消除"切换空白无反馈"的卡顿体感 -->
-  <div v-if="routeLoading" class="route-loading">
-    <div class="route-loading-box">
-      <span class="route-spinner"></span>
-      <span>页面加载中...</span>
+  <!-- 【性能 2026-08-08】Element Plus 按需引入后无全局 locale，用 el-config-provider 提供中文 -->
+  <el-config-provider :locale="zhCn">
+    <!-- 全局路由加载指示:点击菜单后立即显示,消除"切换空白无反馈"的卡顿体感 -->
+    <div v-if="routeLoading" class="route-loading">
+      <div class="route-loading-box">
+        <span class="route-spinner"></span>
+        <span>页面加载中...</span>
+      </div>
     </div>
-  </div>
-  <router-view />
+    <router-view />
+  </el-config-provider>
 </template>
 
 <script setup>
 import { ref } from 'vue'
+import zhCn from 'element-plus/dist/locale/zh-cn.mjs'
 import router from '@/router'
 
 const routeLoading = ref(false)

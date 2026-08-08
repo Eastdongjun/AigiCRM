@@ -1,7 +1,9 @@
 import { createApp } from 'vue'
-import ElementPlus from 'element-plus'
-import 'element-plus/dist/index.css'
-import zhCn from 'element-plus/dist/locale/zh-cn.mjs'
+// 【性能 2026-08-08】Element Plus 按需引入：组件由 unplugin-vue-components 按模板自动注入，
+// 样式按组件自动引入；此处仅保留全局图标注册与 v-loading 指令注册。
+import { ElLoading } from 'element-plus'
+// v-loading 指令样式（按需模式不会随组件自动引入，手动补样式）
+import 'element-plus/es/components/loading/style/css'
 import * as ElementPlusIconsVue from '@element-plus/icons-vue'
 import App from './App.vue'
 import router from './router'
@@ -11,14 +13,15 @@ import './style.css'
 const app = createApp(App)
 const pinia = createPinia()
 
-// 注册 Element Plus Icons
+// 注册 Element Plus Icons（菜单/角标等动态图标按名称渲染，需全局注册）
 for (const [key, component] of Object.entries(ElementPlusIconsVue)) {
   app.component(key, component)
 }
+// v-loading 指令（按需模式不会自动注册指令，手动挂载 ElLoading）
+app.directive('loading', ElLoading.directive)
 
 app.use(pinia)
 app.use(router)
-app.use(ElementPlus, { locale: zhCn })
 app.mount('#app')
 
 // 【需求】页面切换提速(FEAT 0804):路由 chunk 零预加载,首次点击菜单需现场下载(网络往返→卡顿);

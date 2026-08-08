@@ -36,13 +36,25 @@ public class IncentivePermissionController {
         // 【安全 2026-08-08】授予激励专项权限=授予"看全公司激励记录"，仅超管可操作
         // （防 system:config:edit 落到非超管角色后形成局部提权）
         if (!SecurityUtils.isAdmin()) throw new BusinessException("仅系统管理员可授予激励权限");
-        Long userId = Long.valueOf(body.get("userId").toString());
         int canViewAll = toInt(body.get("canViewAll"));
         int canEdit = toInt(body.get("canEdit"));
         int canDelete = toInt(body.get("canDelete"));
-        jdbc.update("INSERT INTO biz_incentive_permission (user_id, can_view_all, can_edit, can_delete) VALUES (?,?,?,?) " +
-                    "ON DUPLICATE KEY UPDATE can_view_all=?, can_edit=?, can_delete=?",
-                    userId, canViewAll, canEdit, canDelete, canViewAll, canEdit, canDelete);
+        // 批量授权：userIds 数组优先；兼容单用户 userId（向后兼容）
+        java.util.List<Long> userIds = new java.util.ArrayList<>();
+        Object uids = body.get("userIds");
+        if (uids instanceof java.util.List && !((java.util.List<?>) uids).isEmpty()) {
+            for (Object o : (java.util.List<?>) uids) {
+                if (o != null) userIds.add(Long.valueOf(o.toString()));
+            }
+        } else if (body.get("userId") != null) {
+            userIds.add(Long.valueOf(body.get("userId").toString()));
+        }
+        if (userIds.isEmpty()) throw new BusinessException("请选择要授权的人员");
+        for (Long userId : userIds) {
+            jdbc.update("INSERT INTO biz_incentive_permission (user_id, can_view_all, can_edit, can_delete) VALUES (?,?,?,?) " +
+                        "ON DUPLICATE KEY UPDATE can_view_all=?, can_edit=?, can_delete=?",
+                        userId, canViewAll, canEdit, canDelete, canViewAll, canEdit, canDelete);
+        }
         return Result.ok();
     }
 

@@ -355,10 +355,10 @@
     </div>
 
     <!-- 四项激励权限弹窗 -->
-    <el-dialog v-model="showPermDialog" title="添加权限" width="420px">
+    <el-dialog v-model="showPermDialog" title="添加权限" width="460px">
       <el-form label-width="70px">
         <el-form-item label="选择人员">
-          <el-select v-model="permForm.userId" placeholder="请选择" filterable style="width:100%">
+          <el-select v-model="permForm.userIds" placeholder="可多选（支持搜索）" filterable multiple collapse-tags collapse-tags-tooltip style="width:100%">
             <el-option v-for="u in allUsers" :key="u.id" :label="u.realName+' ('+u.username+')'" :value="u.id" />
           </el-select>
         </el-form-item>
@@ -660,7 +660,7 @@ const loadPermData = async () => {
 // 四项激励权限
 const permList = ref([])
 const showPermDialog = ref(false)
-const permForm = reactive({ userId: null, canViewAll: true, canEdit: true, canDelete: true })
+const permForm = reactive({ userIds: [], canViewAll: true, canEdit: true, canDelete: true })
 const allUsers = ref([])
 const loadPermList = async () => {
   try { const res = await request.get('/incentive/permission/list'); permList.value = res.data || [] } catch(e) {}
@@ -669,10 +669,15 @@ const loadAllUsers = async () => {
   try { const res = await request.get('/system/users', { params: { current:1, size:500 }}); allUsers.value = res.data?.records || [] } catch(e) {}
 }
 const grantPerm = async () => {
-  if (!permForm.userId) { ElMessage.warning('请选择人员'); return }
+  if (!permForm.userIds || !permForm.userIds.length) { ElMessage.warning('请选择人员'); return }
   try {
-    await request.post('/incentive/permission/grant', permForm)
-    ElMessage.success('授权成功'); showPermDialog.value = false; loadPermList()
+    await request.post('/incentive/permission/grant', {
+      userIds: permForm.userIds,
+      canViewAll: permForm.canViewAll,
+      canEdit: permForm.canEdit,
+      canDelete: permForm.canDelete
+    })
+    ElMessage.success(`已授权 ${permForm.userIds.length} 人`); showPermDialog.value = false; permForm.userIds = []; loadPermList()
   } catch(e) { ElMessage.error('授权失败') }
 }
 const revokePerm = async (id) => {

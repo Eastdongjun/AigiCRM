@@ -1,5 +1,5 @@
 <template>
-  <div class="incentive-stats">
+  <div class="incentive-stats" v-loading="loading" element-loading-text="正在加载激励统计…">
     <!-- 概览卡片 -->
     <div class="stat-row">
       <div class="stat-card">
@@ -212,6 +212,7 @@ import { cachedGet } from '@/utils/layout-cache'
 import { useUserStore } from '@/store/user'
 
 const userStore = useUserStore()
+const loading = ref(false)
 const period = ref('2026上半年')
 const activeTab = ref('table')
 const records = ref([])            // 个人记录(当前登录人) — 仅供顶部卡片
@@ -321,9 +322,11 @@ const groupedData = computed(() => {
 
 const loadData = async () => {
   pageNum.value = 1
+  loading.value = true
   const p = period.value
   // 【性能 2026-08-08】五个接口相互独立，由串行 await 改为并发 Promise.allSettled
   // （单页从 ~5×RTT 降到 ~1×max(RTT)，缓解激励统计页卡顿）；各接口独立容错。
+  try {
   const [catRes, recRes, csRes, sbRes, drRes] = await Promise.allSettled([
     cachedGet('categoryTree', getCategoryTree),
     // 【2026-08-08 分享制】顶部"我的"卡片只统计本人上传记录（显式传本人 userId）
@@ -350,6 +353,9 @@ const loadData = async () => {
   if (csRes.status === 'fulfilled') catStat.value = csRes.value?.data || { byCategory: [], totalFiles: 0, totalScore: 0 }
   if (sbRes.status === 'fulfilled') scoreboard.value = sbRes.value?.data || []
   if (drRes.status === 'fulfilled') deptList.value = drRes.value?.data || []
+  } finally {
+    loading.value = false
+  }
 }
 
 watch(period, loadData)
