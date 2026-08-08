@@ -29,7 +29,8 @@
 - B2/B6、H7/H10/H12、M1-M3/M5/M6/M8：未逐条深挖，建议下轮核查
 - M7/M10/M11：技术债保留，按 TECH_DEBT.md 节奏推进
 
-## 遗留待决策（非技术债）
+## 遗留决策处置（2026-08-08 已全部结案）
 
-- **数据范围过滤锚点**（owner 部门归属 vs 客户自身 office_id）：当前按 owner 语义正确，建议保持；如确有"按客户所属组织看"诉求单独立项
-- 测试库 root 未轮换（与 ShopJoy 共享 shared-mysql，改密需先评估）；git 历史 filter-repo（prod root 已失效，建议不做）
+- ✅ **数据范围过滤锚点**：保持 owner 部门归属（六级范围语义正确），客户自身 office_id 是属性筛选；如确有"按客户所属组织看"诉求单独立项。已记设计记忆。
+- ✅ **测试库 root**：YCMN 测试运维改专用 `ycmn_admin`（commit `13f557d`，测试脚本不再用共享 root）；共享 root/<redacted> 保留（ShopJoy 微服务已停止 8 天但配置依赖，重启需兼容）。
+- ✅ **git filter-repo**：**决定不做**。prod root 已轮换（123456 失效，安全收益 0）；全局 scrub 会改写当前 AGENTS.md/CLAUDE.md/运维手册等多处文档需修复；force-push 不可逆且重写全部远端分支。仅当需要"干净历史"作为独立立项时再做。
