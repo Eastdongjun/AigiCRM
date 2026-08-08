@@ -97,38 +97,58 @@ public class CustomerExpireTask {
         return defaultValue;
     }
 
+    /**
+     * 【2026-08-08 设计规则：从未开票与开票超期分开处理】
+     * - 已开票但超过 invoice.overdue.days 未再开票 → invoice_overdue（超期提醒，实际超期天数）
+     * - 从未开票（last_invoice_date 为 NULL）→ invoice_never（待首次开票，独立类型，不进超期告警）
+     * 修复：此前 NULL 被并入超期查询并写死 9999 天，误报"超期 9999 天"。
+     */
     private void checkInvoiceOverdue(LocalDate today) {
         int overdueDaysConfig = getConfigInt("invoice.overdue.days", 365);
         LocalDate oneYearAgo = today.minusDays(overdueDaysConfig);
+
         List<BizCustomer> overdueCustomers = customerMapper.selectList(
                 new LambdaQueryWrapper<BizCustomer>()
                         .eq(BizCustomer::getDeleted, 0)
                         .ne(BizCustomer::getStatus, "sea")
-                        .and(w -> w.lt(BizCustomer::getLastInvoiceDate, oneYearAgo)
-                                .or().isNull(BizCustomer::getLastInvoiceDate))
+                        .isNotNull(BizCustomer::getLastInvoiceDate)
+                        .lt(BizCustomer::getLastInvoiceDate, oneYearAgo)
         );
-
         for (BizCustomer customer : overdueCustomers) {
-            // 检查是否已有未处理的提醒
-            long existCount = reminderMapper.selectCount(
-                    new LambdaQueryWrapper<BizReminder>()
-                            .eq(BizReminder::getCustomerId, customer.getId())
-                            .eq(BizReminder::getReminderType, "invoice_overdue")
-                            .eq(BizReminder::getStatus, "pending")
-            );
-            if (existCount == 0) {
-                long overdueDays = customer.getLastInvoiceDate() != null
-                        ? ChronoUnit.DAYS.between(customer.getLastInvoiceDate(), today)
-                        : 9999;
-                BizReminder reminder = new BizReminder();
-                reminder.setCustomerId(customer.getId());
-                reminder.setReminderType("invoice_overdue");
-                reminder.setOwnerId(customer.getOwnerId());
-                reminder.setOfficeId(customer.getOfficeId());
-                reminder.setOverdueDays((int) overdueDays);
-                reminder.setStatus("pending");
-                reminderMapper.insert(reminder);
-            }
+            int overdueDays = (int) ChronoUnit.DAYS.between(customer.getLastInvoiceDate(), today);
+            createInvoiceReminder(customer, "invoice_overdue", overdueDays);
         }
+
+        List<BizCustomer> neverInvoiced = customerMapper.selectList(
+                new LambdaQueryWrapper<BizCustomer>()
+                        .eq(BizCustomer::getDeleted, 0)
+                        .ne(BizCustomer::getStatus, "sea")
+                        .isNull(BizCustomer::getLastInvoiceDate)
+        );
+        for (BizCustomer customer : neverInvoiced) {
+            createInvoiceReminder(customer, "invoice_never", 0);
+        }
+    }
+
+    private void createInvoiceReminder(BizCustomer customer, String type, int overdueDays) {
+        // 检查是否已有未处理的提醒（按类型去重）
+        long existCount = reminderMapper.selectCount(
+                new LambdaQueryWrapper<BizReminder>()
+                        .eq(BizReminder::getCustomerId, customer.getId())
+                        .eq(BizReminder::getReminderType, type)
+                        .eq(BizReminder::getStatus, "pending")
+        );
+        if (existCount > 0) {
+            return;
+        }
+        BizReminder reminder = new BizReminder();
+        reminder.setCustomerId(customer.getId());
+        reminder.setReminderType(type);
+        reminder.setOwnerId(customer.getOwnerId());
+        reminder.setOfficeId(customer.getOfficeId());
+        reminder.setOverdueDays(overdueDays);
+        reminder.setStatus("pending");
+        reminderMapper.insert(reminder);
+        log.info("客户 {} 创建提醒 type={} overdueDays={}", customer.getCustomerName(), type, overdueDays);
     }
 }
