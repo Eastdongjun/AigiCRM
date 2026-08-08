@@ -380,7 +380,7 @@ const sharedCustomerIds = ref(new Set())
 const pendingChild = ref(null)
 const pendingReplace = ref(null)
 const fileInputRef = ref(null)
-const shareToTeam = ref(false)
+const shareToTeam = ref(true) // 【2026-08-08】新上传默认共享给团队(全员可见)，上传人可取消变私有
 const uploading = ref(false)
 const uploadProgress = ref(0)
 const uploadProgressText = ref('')
@@ -651,7 +651,7 @@ const resetDialogFields = () => {
   trackFile.value = []
   preInstallQuestion.value = ''
   remarkText.value = ''
-  shareToTeam.value = false
+  shareToTeam.value = true // 【2026-08-08】新上传默认全员可见，上传人可取消变私有
   selectedIndustry.value = ''
   relatedProducts.value = ''
   specificProduct.value = ''
