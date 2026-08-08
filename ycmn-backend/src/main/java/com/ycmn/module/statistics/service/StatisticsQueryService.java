@@ -178,11 +178,8 @@ public class StatisticsQueryService {
         Map<String, Object> data = new HashMap<>();
 
         List<BizCustomerIndicator> indicators = indicatorMapper.selectList(null);
-        // 【修复 FEAT-20260804-INDICATOR-SCOPE】此前直接全表查询客户，个人/部门/大区排行会把全公司
-        // 数据都暴露给任何有 statistics:view 权限的用户，与顶部卡片(myCustomers/myIndicators)的
-        // 数据范围口径不一致。改为复用 CustomerService 的数据范围过滤，下面 ownerScores/officeAgg
-        // 的聚合循环本身已经通过 customerMap.get(...)==null 跳过范围外客户，这里收窄源头即可。
-        List<BizCustomer> allCustomers = customerService.getScopedActiveCustomers();
+        // 【2026-08-08 设计规则：核心客户六项指标全员可见】公司级指标展示，不做数据范围过滤。
+        List<BizCustomer> allCustomers = customerService.getAllActiveCustomers();
         Map<Long, BizCustomer> customerMap = new HashMap<>();
         for (BizCustomer c : allCustomers) customerMap.put(c.getId(), c);
 

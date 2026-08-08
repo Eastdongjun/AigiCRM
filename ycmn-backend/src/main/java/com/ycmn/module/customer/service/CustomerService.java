@@ -582,6 +582,13 @@ public class CustomerService {
         return customerMapper.selectList(wrapper);
     }
 
+    /** 【2026-08-08 全员可见】全部启用客户（核心客户六项指标等公司级展示用，不做数据范围过滤） */
+    public List<BizCustomer> getAllActiveCustomers() {
+        LambdaQueryWrapper<BizCustomer> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(BizCustomer::getDeleted, 0).ne(BizCustomer::getStatus, "sea");
+        return customerMapper.selectList(wrapper);
+    }
+
     public Map<String, Object> getStatistics() {
         LambdaQueryWrapper<BizCustomer> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(BizCustomer::getDeleted, 0).ne(BizCustomer::getStatus, "sea");

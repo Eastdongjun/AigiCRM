@@ -854,7 +854,7 @@ public class IncentiveService {
             String product, String keyword) {
         LambdaQueryWrapper<BizIncentiveRecord> wrapper = new LambdaQueryWrapper<>();
         wrapper.isNotNull(BizIncentiveRecord::getCustomerId);
-        applyIncentiveDataScope(wrapper);
+        // 【2026-08-08 设计规则：激励查询全员可见】不做数据范围过滤（公司级激励数据展示）
         if (industry != null && !industry.isBlank()) wrapper.eq(BizIncentiveRecord::getIndustry, industry);
         // 客户名 OR 关键字（相关产品）匹配：搜客户=该客户共享内容；搜关键字=相关案例全出
         if (customerName != null && !customerName.isBlank()

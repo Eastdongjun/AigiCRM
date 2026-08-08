@@ -210,13 +210,11 @@ public class ScoreService {
     // ====== 排行榜 ======
 
     public List<Map<String, Object>> ranking(String period) {
-        // 查条目【2026-08-08 按账号数据范围过滤】
+        // 【2026-08-08 设计规则：积分排行全员可见】查全部条目，不做数据范围过滤（公司级排行）
         LambdaQueryWrapper<BizScoreEntry> w = new LambdaQueryWrapper<>();
         if (period != null && !period.isEmpty() && !"全部".equals(period)) {
             w.eq(BizScoreEntry::getPeriod, period);
         }
-        List<Long> visible = visibleUserIds();
-        if (visible != null) w.in(BizScoreEntry::getUserId, visible);
         List<BizScoreEntry> entries = entryMapper.selectList(w);
 
         // 按 userId 汇总
