@@ -11,7 +11,7 @@ if [ "$ENV" = "prod" ]; then
 else
   SSH_FN=ssh_test; MYSQL_C=shared-mysql; LABEL="测试 111.229.37.220"; DB_PASS="$TEST_DB_ROOT_PASSWORD"
 fi
-OUT="/Users/donglai/东来/01-Projects/01-aigicrm/04-源码/docs/database/data-dictionary.md"
+OUT="${OUT:-/Users/donglai/东来/01-Projects/01-aigicrm/04-源码/docs/database/data-dictionary.md}"
 mkdir -p "$(dirname "$OUT")"
 
 echo "=== 从 $LABEL 提取表结构 ==="

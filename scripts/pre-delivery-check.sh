@@ -112,6 +112,15 @@ else
   FAIL=$((FAIL+1))
 fi
 
+# [7] 文档新鲜度(2026-08-08, 审查发现 #3): 重新生成自动文档 diff 已提交版本
+echo "--- [7] 文档新鲜度(自动生成文档须与当前库/源码一致) ---"
+if "$SCRIPT_DIR/check-doc-freshness.sh"; then
+  echo "  ✅ 文档新鲜度通过"
+else
+  echo "  ❌ 存在滞后文档 —— 运行 scripts/check-doc-freshness.sh 查看差异并更新"
+  FAIL=$((FAIL+1))
+fi
+
 echo "══════════════════════════════════════════════════"
 echo "结果: PASS=$PASS FAIL=$FAIL"
 [ "$FAIL" -gt 0 ] && { echo "❌ 阶段衔接检查未通过 —— 补齐 FAIL 项后再交付"; exit 1; } || { echo "✅ 阶段衔接检查全部通过 —— 可以交付"; exit 0; }

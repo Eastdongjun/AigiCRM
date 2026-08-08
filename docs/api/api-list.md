@@ -1,18 +1,18 @@
 # YCMN API 清单(自动生成)
 
-> 生成时间: 2026-08-02 | 来源: 后端 controller 源码扫描
+> 生成时间: 2026-08-08 | 来源: 后端 controller 源码扫描
 > 本文件由 scripts/gen-api.py 自动生成,**禁止手改**;接口变更后重新运行。
 > 权限码与 docs/permission/permission-dict.md 对应。
 
-## 接口清单(183 个)
+## 接口清单(194 个)
 
 | 方法 | 路径 | 权限码 | 方法名 | 文件 |
 |---|---|---|---|---|
 | ANY | `/api/approval` | `approval:view` | page | ApprovalController.java |
 | ANY | `/api/approval/config` | `system:config:view` | list | ApprovalConfigController.java |
-| POST | `/api/approval/config` | `system:config:view` | create | ApprovalConfigController.java |
-| DELETE | `/api/approval/config/{id}` | `system:config:view` | delete | ApprovalConfigController.java |
-| PUT | `/api/approval/config/{id}` | `system:config:view` | update | ApprovalConfigController.java |
+| POST | `/api/approval/config` | `system:config:edit` | create | ApprovalConfigController.java |
+| DELETE | `/api/approval/config/{id}` | `system:config:edit` | delete | ApprovalConfigController.java |
+| PUT | `/api/approval/config/{id}` | `system:config:edit` | update | ApprovalConfigController.java |
 | GET | `/api/approval/statistics` | `approval:view` | statistics | ApprovalController.java |
 | POST | `/api/approval/submit` | `approval:view` | submit | ApprovalController.java |
 | POST | `/api/approval/{id}/approve` | `approval:approve` | approve | ApprovalController.java |
@@ -23,6 +23,8 @@
 | POST | `/api/auth/forgot-password/send-code` | `匿名` | forgotPasswordSendCode | AuthController.java |
 | GET | `/api/auth/info` | `登录即可` | getUserInfo | AuthController.java |
 | POST | `/api/auth/logout` | `登录即可` | logout | AuthController.java |
+| ANY | `/api/common/scope` | `登录即可` | users | ScopeController.java |
+| GET | `/api/common/scope/depts` | `登录即可` | depts | ScopeController.java |
 | ANY | `/api/customer` | `customer:view` | page | CustomerController.java |
 | POST | `/api/customer/add` | `customer:add` | create | CustomerController.java |
 | GET | `/api/customer/export` | `customer:export` | export | CustomerController.java |
@@ -57,17 +59,24 @@
 | DELETE | `/api/customer/{id}/shares/{userId}` | `customer:edit` | removeShare | CustomerController.java |
 | ANY | `/api/file` | `file:view` | getFolderTree | FileController.java |
 | GET | `/api/file/download/**` | `file:view` | download | FileController.java |
-| GET | `/api/file/download/{id}` | `file:view` | downloadPublic | FileController.java |
-| POST | `/api/file/folders` | `file:edit` | createFolder | FileController.java |
-| DELETE | `/api/file/folders/{id}` | `file:delete` | deleteFolder | FileController.java |
-| PUT | `/api/file/folders/{id}` | `file:edit` | renameFolder | FileController.java |
+| GET | `/api/file/download/public/**` | `匿名` | downloadPublic | FileController.java |
+| GET | `/api/file/download/{id}` | `file:view` | downloadById | FileController.java |
+| ANY | `/api/file/folders` | `登录即可` | listAcl | FolderAclController.java |
+| POST | `/api/file/folders` | `file:view` | createFolder | FileController.java |
+| DELETE | `/api/file/folders/{id}` | `file:view` | deleteFolder | FileController.java |
+| PUT | `/api/file/folders/{id}` | `file:view` | renameFolder | FileController.java |
+| POST | `/api/file/folders/{id}/acl` | `登录即可` | saveAcl | FolderAclController.java |
+| DELETE | `/api/file/folders/{id}/acl/{roleId}` | `登录即可` | removeAcl | FolderAclController.java |
+| PUT | `/api/file/folders/{id}/download` | `登录即可` | setDownloadable | FolderAclController.java |
+| GET | `/api/file/folders/{id}/permissions` | `登录即可` | permissions | FolderAclController.java |
 | GET | `/api/file/list` | `file:view` | pageFiles | FileController.java |
 | GET | `/api/file/shared-to-me` | `file:view` | sharedToMe | FileController.java |
 | GET | `/api/file/shared-to-me/count` | `file:view` | sharedToMeCount | FileController.java |
 | GET | `/api/file/storage` | `file:view` | getStorageInfo | FileController.java |
-| POST | `/api/file/upload` | `file:upload` | upload | FileController.java |
-| DELETE | `/api/file/{id}` | `file:delete` | deleteFile | FileController.java |
-| POST | `/api/file/{id}/share` | `file:edit` | shareFile | FileController.java |
+| POST | `/api/file/upload` | `file:view` | upload | FileController.java |
+| DELETE | `/api/file/{id}` | `file:view` | deleteFile | FileController.java |
+| POST | `/api/file/{id}/replace` | `file:view` | replaceFile | FileController.java |
+| POST | `/api/file/{id}/share` | `file:view` | shareFile | FileController.java |
 | ANY | `/api/incentive` | `incentive:view` | getCategoryTree | IncentiveController.java |
 | POST | `/api/incentive/categories` | `incentive:edit` | createCategory | IncentiveController.java |
 | DELETE | `/api/incentive/categories/{id}` | `incentive:edit` | deleteCategory | IncentiveController.java |
@@ -81,10 +90,10 @@
 | GET | `/api/incentive/ranking` | `incentive:view` | ranking | IncentiveController.java |
 | GET | `/api/incentive/ranking/stats` | `incentive:view` | rankingStats | IncentiveController.java |
 | GET | `/api/incentive/records` | `incentive:view` | getRecords | IncentiveController.java |
-| POST | `/api/incentive/records` | `incentive:edit` | addRecord | IncentiveController.java |
+| POST | `/api/incentive/records` | `incentive:add` | addRecord | IncentiveController.java |
 | GET | `/api/incentive/records/query` | `incentive:view` | queryRecords | IncentiveController.java |
 | POST | `/api/incentive/records/recalculate` | `incentive:edit` | deleteRecord | IncentiveController.java |
-| PUT | `/api/incentive/records/{id}` | `incentive:edit` | updateRecord | IncentiveController.java |
+| PUT | `/api/incentive/records/{id}` | `登录即可` | updateRecord | IncentiveController.java |
 | GET | `/api/incentive/score/customer/{customerId}` | `incentive:view` | getScoreByCustomer | IncentiveController.java |
 | GET | `/api/incentive/scoreboard` | `incentive:view` | scoreboard | IncentiveController.java |
 | GET | `/api/incentive/timeline` | `incentive:view` | timeline | IncentiveController.java |
@@ -130,15 +139,15 @@
 | ANY | `/api/system/configs` | `system:config:view` | list | SysConfigController.java |
 | PUT | `/api/system/configs` | `system:config:edit` | batchUpdate | SysConfigController.java |
 | GET | `/api/system/configs/public` | `匿名` | publicConfig | SysConfigController.java |
-| ANY | `/api/system/depts` | `system:dept:view` | tree | SysDeptController.java |
-| GET | `/api/system/depts` | `system:dept:view` | list | SysDeptController.java |
+| ANY | `/api/system/depts` | `登录即可` | tree | SysDeptController.java |
+| GET | `/api/system/depts` | `登录即可` | list | SysDeptController.java |
 | POST | `/api/system/depts` | `system:dept:edit` | create | SysDeptController.java |
 | DELETE | `/api/system/depts/{id}` | `system:dept:edit` | delete | SysDeptController.java |
 | PUT | `/api/system/depts/{id}` | `system:dept:edit` | update | SysDeptController.java |
 | ANY | `/api/system/dict` | `system:config:view` | listTypes | SysDictController.java |
 | POST | `/api/system/dict/data` | `system:config:edit` | createData | SysDictController.java |
-| GET | `/api/system/dict/data/type/{typeId}` | `system:config:view` | listDataByTypeId | SysDictController.java |
-| GET | `/api/system/dict/data/{dictCode}` | `system:config:view` | listData | SysDictController.java |
+| GET | `/api/system/dict/data/type/{typeId}` | `登录即可` | listDataByTypeId | SysDictController.java |
+| GET | `/api/system/dict/data/{dictCode}` | `登录即可` | listData | SysDictController.java |
 | DELETE | `/api/system/dict/data/{id}` | `system:config:edit` | deleteData | SysDictController.java |
 | PUT | `/api/system/dict/data/{id}` | `system:config:edit` | updateData | SysDictController.java |
 | POST | `/api/system/dict/types` | `system:config:edit` | createType | SysDictController.java |
@@ -174,6 +183,8 @@
 | DELETE | `/api/system/roles/{id}` | `system:role:delete` | delete | SysRoleController.java |
 | GET | `/api/system/roles/{id}` | `system:role:view` | getById | SysRoleController.java |
 | PUT | `/api/system/roles/{id}` | `system:role:edit` | update | SysRoleController.java |
+| GET | `/api/system/roles/{id}/orgs` | `system:role:view` | getOrgs | SysRoleController.java |
+| PUT | `/api/system/roles/{id}/orgs` | `system:role:edit` | updateOrgs | SysRoleController.java |
 | ANY | `/api/system/rules` | `system:rule:view` | list | SysPermissionRuleController.java |
 | POST | `/api/system/rules` | `system:rule:add` | create | SysPermissionRuleController.java |
 | DELETE | `/api/system/rules/{id}` | `system:rule:delete` | delete | SysPermissionRuleController.java |
