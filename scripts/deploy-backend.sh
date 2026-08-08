@@ -10,6 +10,11 @@ if [ -z "${JWT_SECRET:-}" ]; then
   echo "错误: 缺少 JWT_SECRET（请在 ~/.ycmn-deploy.env 配置）" >&2
   exit 1
 fi
+# 应用最小权限 DB 账号必须存在（2026-08-08 N1-B：应用不再用 root 连库）
+if [ -z "${APP_DB_USER:-}" ] || [ -z "${APP_DB_PASSWORD:-}" ]; then
+  echo "错误: 缺少 APP_DB_USER/APP_DB_PASSWORD（应用最小权限账号，请在 ~/.ycmn-deploy.env 配置）" >&2
+  exit 1
+fi
 
 echo "=== [1/5] 从测试服务器提取已验证 jar (commit: $COMMIT) ==="
 ssh_test "docker cp ycmn-backend:/app/app.jar /tmp/ycmn-backend-new.jar"
@@ -30,7 +35,7 @@ ssh_prod "
   docker stop ycmn-backend && docker rm ycmn-backend
   docker run -d --name ycmn-backend --network ycmn_default --restart always \
     -p 127.0.0.1:8080:8080 \
-    -e DB_HOST=mysql -e DB_PORT=3306 -e DB_USER=root -e DB_PASSWORD="$DB_PASSWORD" \
+    -e DB_HOST=mysql -e DB_PORT=3306 -e DB_USER="$APP_DB_USER" -e DB_PASSWORD="$APP_DB_PASSWORD" \
     -e REDIS_HOST=redis -e REDIS_PORT=6379 \
     -e UPLOAD_DIR=/app/uploads -e STORAGE_TYPE=local -e TZ=Asia/Shanghai \
     -e OSS_ENDPOINT=oss-cn-beijing.aliyuncs.com -e OSS_ACCESS_KEY_ID=your-key \

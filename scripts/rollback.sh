@@ -7,6 +7,8 @@ source "$SCRIPT_DIR/deploy-lib.sh"
 
 TARGET="${1:-all}"
 TS="${2:-latest}"
+# 应用最小权限 DB 账号必须存在（N1-B：应用不用 root 连库）
+[ -n "${APP_DB_USER:-}" ] && [ -n "${APP_DB_PASSWORD:-}" ] || { echo "错误: 缺少 APP_DB_USER/APP_DB_PASSWORD（请在 ~/.ycmn-deploy.env 配置）" >&2; exit 1; }
 
 rollback_db() {
   echo "=== 回滚数据库 (从 NAS 备份) ==="
@@ -40,12 +42,13 @@ rollback_backend() {
     docker stop ycmn-backend && docker rm ycmn-backend
     docker run -d --name ycmn-backend --network ycmn_default --restart always \
       -p 127.0.0.1:8080:8080 \
-      -e DB_HOST=mysql -e DB_PORT=3306 -e DB_USER=root -e DB_PASSWORD="$DB_PASSWORD" \
+      -e DB_HOST=mysql -e DB_PORT=3306 -e DB_USER="$APP_DB_USER" -e DB_PASSWORD="$APP_DB_PASSWORD" \
       -e REDIS_HOST=redis -e REDIS_PORT=6379 \
       -e UPLOAD_DIR=/app/uploads -e STORAGE_TYPE=local -e TZ=Asia/Shanghai \
       -e OSS_ENDPOINT=oss-cn-beijing.aliyuncs.com -e OSS_ACCESS_KEY_ID=your-key \
       -e OSS_ACCESS_KEY_SECRET=your-secret -e OSS_BUCKET_NAME=your-bucket \
       -e CORS_ORIGINS=https://www.aigicrm.com,http://localhost:5173,http://localhost:3000 \
+      -e JWT_SECRET="$JWT_SECRET" \
       -v upload-data:/app/uploads \
       ycmn-backend:2.7.0
     echo '后端容器已重建'
