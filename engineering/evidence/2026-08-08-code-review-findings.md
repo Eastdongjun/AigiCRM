@@ -15,7 +15,7 @@
 | 文档滞后 | data-dictionary/api-list/permission-dict 滞后 3-6 天 | **文档新鲜度门禁**：`check-doc-freshness.sh` 接入 pre-delivery-check `[7]`，重新生成 3 文档 | ✅ commit `709bc38` |
 | 操作手册过时 | 品牌"运筹马年"、权限模型过时 | 重写至 v4.1.0（AigiCRM + 六级数据范围 + 新功能） | ✅ commit `300b7f7` |
 | 越权回归测试缺口 | canManageUser（H3）、approve/reject（H4）无测试 | 新增 2 个测试文件 10 用例 | ✅ commit `f5384db`，全量 258 tests |
-| **数据库零外键**（下季度项） | FK 是 IDOR 土壤 | **孤儿审计全 0** → FK 迁移已准备 `sql/migration/20260808/db-foreign-keys.sql`（6 个强归属 FK） | ⏳ 迁移已备，**应用生产待确认** |
+| **数据库零外键**（下季度项） | FK 是 IDOR 土壤 | **孤儿审计全 0** → FK 迁移 `sql/migration/20260808/db-foreign-keys.sql` 6 个强归属 FK，测试库 canary + 生产库**已应用**（用户确认），FK 强制生效验证（孤儿插入被 1452 拒绝） | ✅ commit `de5d3ae`，已应用测试+生产 |
 | **6 张备份表混 schema** | biz_*_bak_* 等（0-31 行） | 已核：**全部无代码引用**；TECH_DEBT 既定"正常噪音"放行，暂不动 | 📋 保留，可归档待定 |
 
 ## 新增防复发机制

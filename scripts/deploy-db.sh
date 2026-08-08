@@ -19,7 +19,7 @@ scp_prod "$MIGRATION_SQL" "${PROD_USER}@${PROD_HOST}:/root/ycmn/migration-curren
 
 echo "=== [3/4] 执行迁移 ==="
 ssh_prod "
-  echo '迁移前: 表数 \$(docker exec ycmn-mysql mysql -uroot -p"$DB_PASSWORD" -N -e \"SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='ycmn'\" 2>/dev/null)'
+  echo '迁移前: 表数 \$(docker exec ycmn-mysql mysql -uroot -p<密码已掩码> -N -e \"SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='ycmn'\" 2>/dev/null)'
   # 必须带库名 ycmn（否则 UPDATE/ALTER 报 1046 No database selected）
   OUT=\$(docker exec -i ycmn-mysql mysql -uroot -p"$DB_PASSWORD" --default-character-set=utf8mb4 ycmn < /root/ycmn/migration-current.sql 2>&1)
   if echo \"\$OUT\" | grep -qi 'error'; then
