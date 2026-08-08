@@ -7,8 +7,10 @@
 
 - ✅ **Step 1 测试环境最小权限账号（2026-08-08 完成）**：测试库建 `ycmn_app`（SELECT/INSERT/UPDATE/DELETE on ycmn.*），测试后端容器切 `DB_USER=ycmn_app`（凭据存 `~/.ycmn-deploy.env` 的 `TEST_DB_USER/TEST_DB_PASSWORD`）。验证：6 关键接口 200 + 写操作（INSERT 自动提醒 / UPDATE process 提醒）均通过，jar 保持 `c7d2837e`。
 - ✅ **Step 2 生产切换（2026-08-08 完成）**：生产库建 `ycmn_app`（独立强密码，存 `~/.ycmn-deploy.env` 的 `APP_DB_USER/APP_DB_PASSWORD`）；deploy-backend.sh/rollback.sh 改 `APP_DB_*`（含守卫）；生产容器已切 `DB_USER=ycmn_app`，4 关键接口 200。commit `7dc3119`，已 push origin/main。**顺带修复**：rollback.sh 缺 JWT_SECRET 的回滚断链 bug。
-- ⏳ **Step 3 备份 cron 切换**（待授权）：服务器 `/usr/local/bin/ycmn-daily-backup.sh` 4 处 `root/<redacted>` → 建 `ycmn_backup` 专用账号（mysqldump 权限），改脚本用 env 注入。
-- ⏳ **Step 4 root 轮换**（待授权）：`ALTER USER root` → 新强密码；须在 Step 3 完成后执行。
+- ✅ **Step 3 备份 cron 切换（2026-08-08 完成）**：服务器建 `ycmn_backup`（SELECT/LOCK TABLES/SHOW VIEW/TRIGGER/EVENT on ycmn.* + 全局 PROCESS），凭据 `/usr/local/bin/.ycmn-backup.env`(600)；`ycmn-daily-backup.sh` 4 处改 env 注入（备份 .bak）。手动跑备份 `db=OK login=200 missing=0`。
+- ✅ **Step 4 root 轮换（2026-08-08 完成）**：生产 root（`%` + `localhost` 两 host）改新强密码（28 位字母数字）；`~/.ycmn-deploy.env` 的 `DB_PASSWORD` 更新为新 root。验证三链路：应用 ycmn_app 登录 200 / Mac 脚本新 root 读 574 / 备份 ycmn_backup db=OK。旧 `123456` 已拒绝。
+- ✅ **测试环境密码分离**：脚本测试模式改用 `TEST_DB_ROOT_PASSWORD`（测试 root 不变）。commit `8731677`。
+- ⚠️ **遗留**：① git 历史仍含 `123456` 明文（已轮换失效；`git filter-repo` 清理可选）；② 测试库 root 未轮换（与 ShopJoy 共享 shared-mysql，改密可能影响 ShopJoy，需单独评估）；③ 服务器 `.ycmn-backup.env` 与 Mac `~/.ycmn-deploy.env` 是本机凭证，勿入 git。
 
 ## 一、目标
 
