@@ -1,7 +1,14 @@
 # 生产 MySQL 密码最小权限 + 轮换方案（N1-B，2026-08-08）
 
-> 状态：**规划待确认，未执行**。执行任何一步前需单独授权。
+> 状态：**执行中**。Step 1 已完成，Step 2-4 待单独授权。
 > 前置：N1-A（密码移出 git 文件）已完成，commit `084ac65`。
+
+## 执行进度
+
+- ✅ **Step 1 测试环境最小权限账号（2026-08-08 完成）**：测试库建 `ycmn_app`（SELECT/INSERT/UPDATE/DELETE on ycmn.*），测试后端容器切 `DB_USER=ycmn_app`（凭据存 `~/.ycmn-deploy.env` 的 `TEST_DB_USER/TEST_DB_PASSWORD`）。验证：6 关键接口 200 + 写操作（INSERT 自动提醒 / UPDATE process 提醒）均通过，jar 保持 `c7d2837e`。
+- ⏳ **Step 2 生产切换**（待授权）：建生产 `ycmn_app`（独立强密码）→ 改 deploy-backend.sh/rollback.sh 用 `APP_DB_USER/APP_DB_PASSWORD` → 重建生产后端 → 验证。
+- ⏳ **Step 3 备份 cron 切换**（待授权）
+- ⏳ **Step 4 root 轮换**（待授权）
 
 ## 一、目标
 
