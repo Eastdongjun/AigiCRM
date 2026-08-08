@@ -265,7 +265,7 @@
                     <p>独立于菜单权限，按人授予：看全部 / 编辑 / 删除。编辑或删除开启时自动含「看全部」</p>
                   </div>
                 </div>
-                <el-button type="primary" size="small" :icon="Plus" @click="showPermDialog=true">添加授权</el-button>
+                <el-button type="primary" size="small" :icon="Plus" @click="openPermDialog">添加授权</el-button>
               </header>
               <div class="perm-sec-body">
                 <el-table :data="permList" size="small" style="width:100%">
@@ -355,12 +355,23 @@
     </div>
 
     <!-- 四项激励权限弹窗 -->
-    <el-dialog v-model="showPermDialog" title="添加权限" width="460px">
+    <el-dialog v-model="showPermDialog" title="添加权限" width="520px">
       <el-form label-width="70px">
         <el-form-item label="选择人员">
-          <el-select v-model="permForm.userIds" placeholder="可多选（支持搜索）" filterable multiple collapse-tags collapse-tags-tooltip style="width:100%">
-            <el-option v-for="u in allUsers" :key="u.id" :label="u.realName+' ('+u.username+')'" :value="u.id" />
-          </el-select>
+          <div class="perm-tree-wrap">
+            <div class="perm-tree-tools">
+              <el-button size="small" :icon="Plus" @click="checkAllUsers">全选</el-button>
+              <el-button size="small" @click="clearUsers">清空</el-button>
+              <span class="perm-tree-count">已选 <b>{{ selectedUserCount }}</b> 人</span>
+            </div>
+            <el-scrollbar height="280px" class="perm-tree-scroll">
+              <el-tree ref="userTreeRef" :data="orgUserTree" show-checkbox node-key="key"
+                :props="{ label: 'label', children: 'children' }"
+                :expand-on-click-node="false" default-expand-all
+                @check="onTreeCheck" />
+            </el-scrollbar>
+            <div class="perm-tree-hint">按 大区 → 办事处 → 部门 → 人员 勾选，勾选上级自动选中其下所有人</div>
+          </div>
         </el-form-item>
         <el-form-item label="看全部"><el-switch v-model="permForm.canViewAll" /></el-form-item>
         <el-form-item label="编辑权限"><el-switch v-model="permForm.canEdit" /></el-form-item>
@@ -660,24 +671,84 @@ const loadPermData = async () => {
 // 四项激励权限
 const permList = ref([])
 const showPermDialog = ref(false)
-const permForm = reactive({ userIds: [], canViewAll: true, canEdit: true, canDelete: true })
+const permForm = reactive({ canViewAll: true, canEdit: true, canDelete: true })
 const allUsers = ref([])
+// 层级人员树：大区 → 办事处 → 部门 → 人员（节点 key: 'd'+orgId / 'u'+userId）
+const orgUserTree = ref([])
+const userTreeRef = ref(null)
+const selectedUserCount = ref(0)
 const loadPermList = async () => {
   try { const res = await request.get('/incentive/permission/list'); permList.value = res.data || [] } catch(e) {}
 }
 const loadAllUsers = async () => {
   try { const res = await request.get('/system/users', { params: { current:1, size:500 }}); allUsers.value = res.data?.records || [] } catch(e) {}
 }
+// 构建层级人员树（人员挂到 deptId 匹配的组织节点，其次 officeId，其余归"未分部门"）
+const loadOrgUserTree = async () => {
+  try {
+    const [dRes, uRes] = await Promise.all([
+      request.get('/common/scope/depts'),
+      allUsers.value.length ? Promise.resolve({ data: { records: allUsers.value } }) : request.get('/system/users', { params: { current: 1, size: 500 } }),
+    ])
+    const depts = dRes.data || []
+    const users = uRes.data?.records || allUsers.value || []
+    const nodeIds = new Set()
+    const collect = (nodes) => { for (const n of nodes) { nodeIds.add(n.id); collect(n.children || []) } }
+    collect(depts)
+    const attach = {}
+    const orphans = []
+    for (const u of users) {
+      if (u.deptId && nodeIds.has(u.deptId)) (attach[u.deptId] ||= []).push(u)
+      else if (u.officeId && nodeIds.has(u.officeId)) (attach[u.officeId] ||= []).push(u)
+      else orphans.push(u)
+    }
+    const walk = (nodes) => nodes.map(n => {
+      const children = [
+        ...(attach[n.id] || []).map(u => ({ key: 'u' + u.id, label: `${u.realName} (${u.username})`, isUser: true })),
+        ...walk(n.children || []),
+      ]
+      if (!children.length) return null
+      return { key: 'd' + n.id, label: n.deptName || n.orgName || ('组织' + n.id), children }
+    }).filter(Boolean)
+    const tree = walk(depts)
+    if (orphans.length) {
+      tree.push({ key: 'd-orphan', label: '未分部门', children: orphans.map(u => ({ key: 'u' + u.id, label: `${u.realName} (${u.username})`, isUser: true })) })
+    }
+    orgUserTree.value = tree
+  } catch (e) {}
+}
+const checkAllUsers = () => {
+  if (!userTreeRef.value) return
+  const keys = []
+  const collect = (nodes) => { for (const n of nodes) { if (n.isUser) keys.push(n.key); collect(n.children || []) } }
+  collect(orgUserTree.value)
+  userTreeRef.value.setCheckedKeys(keys)
+  selectedUserCount.value = keys.length
+}
+const clearUsers = () => {
+  userTreeRef.value?.setCheckedKeys([])
+  selectedUserCount.value = 0
+}
+const onTreeCheck = () => {
+  selectedUserCount.value = (userTreeRef.value?.getCheckedKeys() || []).filter(k => String(k).startsWith('u')).length
+}
+const openPermDialog = async () => {
+  showPermDialog.value = true
+  await loadOrgUserTree()
+  clearUsers()
+}
 const grantPerm = async () => {
-  if (!permForm.userIds || !permForm.userIds.length) { ElMessage.warning('请选择人员'); return }
+  const checked = userTreeRef.value ? (userTreeRef.value.getCheckedKeys() || []).filter(k => String(k).startsWith('u')) : []
+  const userIds = checked.map(k => Number(String(k).slice(1)))
+  if (!userIds.length) { ElMessage.warning('请选择人员'); return }
   try {
     await request.post('/incentive/permission/grant', {
-      userIds: permForm.userIds,
+      userIds,
       canViewAll: permForm.canViewAll,
       canEdit: permForm.canEdit,
       canDelete: permForm.canDelete
     })
-    ElMessage.success(`已授权 ${permForm.userIds.length} 人`); showPermDialog.value = false; permForm.userIds = []; loadPermList()
+    ElMessage.success(`已授权 ${userIds.length} 人`); showPermDialog.value = false; loadPermList()
   } catch(e) { ElMessage.error('授权失败') }
 }
 const revokePerm = async (id) => {
@@ -1292,4 +1363,12 @@ onMounted(() => {
 .tree-card { border: 1px solid #e4e7ed; border-radius: 8px; padding: 10px 12px; background: #fafbfc }
 .tree-card-header { display: flex; align-items: center; gap: 5px; font-size: 13px; font-weight: 600; color: #4e5969; margin-bottom: 6px }
 .tree-card-tip { font-size: 11px; color: #909399; margin-top: 6px; line-height: 1.5 }
+
+/* 激励授权层级人员树 */
+.perm-tree-wrap { width: 100%; border: 1px solid #e4e7ed; border-radius: 8px; overflow: hidden }
+.perm-tree-tools { display: flex; align-items: center; gap: 8px; padding: 8px 10px; background: #fafbfc; border-bottom: 1px solid #eef0f4 }
+.perm-tree-count { font-size: 12px; color: #909399; margin-left: auto }
+.perm-tree-count b { color: #409eff; font-size: 14px }
+.perm-tree-scroll :deep(.el-tree) { padding: 6px 4px }
+.perm-tree-hint { font-size: 11px; color: #a0a6b0; padding: 6px 10px; border-top: 1px solid #eef0f4; background: #fcfcfd }
 </style>
