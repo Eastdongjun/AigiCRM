@@ -114,10 +114,15 @@
               <span class="customer-link">{{ row.customerName || '—' }}</span>
             </template>
           </el-table-column>
-          <el-table-column label="共享" min-width="55" align="center">
+          <el-table-column label="共享" min-width="66" align="center">
             <template #default="{ row }">
-              <span v-if="row.shared" class="shared-yes">● 共享</span>
-              <span v-else class="shared-no">—</span>
+              <el-switch
+                v-if="userStore.isAdmin() || canEdit || row.userId === userStore.userId"
+                :model-value="!!row.shared"
+                size="small"
+                @change="(v) => toggleShare(row, v)"
+              />
+              <span v-else :class="row.shared ? 'shared-yes' : 'shared-no'">{{ row.shared ? '● 共享' : '—' }}</span>
             </template>
           </el-table-column>
           <el-table-column label="上传时间" min-width="90">
@@ -126,8 +131,8 @@
           <el-table-column prop="userName" label="操作人" min-width="65" />
           <el-table-column label="操作" width="110" fixed="right" align="center">
             <template #default="{ row }">
-              <el-button v-if="userStore.hasPermission('incentive:edit') || canEdit || row.userId === userStore.userId" link type="primary" size="small" @click="startReplace(row)">追加</el-button>
-              <el-button v-if="userStore.hasPermission('incentive:delete') || canDelete || row.userId === userStore.userId" link type="danger" size="small" @click="handleDeleteRecord(row)">删除</el-button>
+              <el-button v-if="userStore.isAdmin() || canEdit || row.userId === userStore.userId" link type="primary" size="small" @click="startReplace(row)">追加</el-button>
+              <el-button v-if="userStore.isAdmin() || canDelete || row.userId === userStore.userId" link type="danger" size="small" @click="handleDeleteRecord(row)">删除</el-button>
             </template>
           </el-table-column>
         </el-table>
@@ -316,7 +321,7 @@
 import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Upload, Search, Refresh, Delete, Plus, Box, Location, ChatDotSquare, Document, Folder } from '@element-plus/icons-vue'
-import { getCategoryTree, getRecords, addRecord, deleteRecord, checkIncentivePermission } from '@/api/incentive'
+import { getCategoryTree, getRecords, addRecord, deleteRecord, updateRecord, checkIncentivePermission } from '@/api/incentive'
 import FilePreview from '@/components/FilePreview.vue'
 import { getCustomerList } from '@/api/customer'
 import { getDictData } from '@/api/system'
@@ -674,6 +679,18 @@ const handleDeleteRecord = async (row) => {
     ElMessage.success('删除成功')
     loadRecords()
   } catch (e) {}
+}
+
+// 【2026-08-08 分享制】开关记录分享：开→全员可见，关→仅本人+管理员+专项授权可见
+const toggleShare = async (row, val) => {
+  const target = val ? 1 : 0
+  try {
+    await updateRecord(row.id, { shared: target })
+    row.shared = target
+    ElMessage.success(val ? '已分享（全员可见）' : '已取消分享')
+  } catch (e) {
+    ElMessage.error('操作失败：' + (e.message || '请检查权限'))
+  }
 }
 
 // 追加流程：打开弹窗，保留已有文件，只补传缺失的文件槽

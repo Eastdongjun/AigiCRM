@@ -206,7 +206,7 @@
                     <p>维护激励的一级 / 二级分类，配置名称、编码、分值与启用状态</p>
                   </div>
                 </div>
-                <el-button type="primary" size="small" :icon="Plus" @click="openCategoryDialog()">新增类别</el-button>
+                <el-button v-if="userStore.hasPermission('incentive:edit')" type="primary" size="small" :icon="Plus" @click="openCategoryDialog()">新增类别</el-button>
               </header>
               <div class="perm-sec-body">
                 <div v-if="catLoadError" class="cat-empty cat-error">无权限查看激励类别（缺少 incentive:view 权限）或加载失败</div>
@@ -219,9 +219,9 @@
                     <span class="cat-group-count">{{ (top.children || []).length }} 个子项</span>
                     <span class="cat-arrow" :class="{ expanded: !collapsed.has(top.id) }">▾</span>
                     <div class="cat-group-actions" @click.stop>
-                      <el-button link type="primary" size="small" @click="openCategoryDialog(top)">编辑</el-button>
-                      <el-button link type="primary" size="small" @click="openCategoryDialog(null, top.id)">子项</el-button>
-                      <el-button link type="danger" size="small" @click="handleDeleteCategory(top)">删除</el-button>
+                      <el-button v-if="userStore.hasPermission('incentive:edit')" link type="primary" size="small" @click="openCategoryDialog(top)">编辑</el-button>
+                      <el-button v-if="userStore.hasPermission('incentive:edit')" link type="primary" size="small" @click="openCategoryDialog(null, top.id)">子项</el-button>
+                      <el-button v-if="userStore.hasPermission('incentive:edit')" link type="danger" size="small" @click="handleDeleteCategory(top)">删除</el-button>
                     </div>
                   </div>
                   <div v-show="!collapsed.has(top.id)" class="cat-group-body">
@@ -243,8 +243,8 @@
                       <el-table-column label="操作" width="130" align="center">
                         <template #default="{ row }">
                           <div class="action-btns">
-                            <el-button link type="primary" size="small" @click="openCategoryDialog(row)">编辑</el-button>
-                            <el-button link type="danger" size="small" @click="handleDeleteCategory(row)">删除</el-button>
+                            <el-button v-if="userStore.hasPermission('incentive:edit')" link type="primary" size="small" @click="openCategoryDialog(row)">编辑</el-button>
+                            <el-button v-if="userStore.hasPermission('incentive:edit')" link type="danger" size="small" @click="handleDeleteCategory(row)">删除</el-button>
                           </div>
                         </template>
                       </el-table-column>
@@ -262,7 +262,7 @@
                   <span class="perm-sec-icon icon-perm">🔑</span>
                   <div class="perm-sec-text">
                     <h3>激励专项权限</h3>
-                    <p>独立于菜单权限，按人授予激励记录的编辑 / 删除能力</p>
+                    <p>独立于菜单权限，按人授予：看全部 / 编辑 / 删除。编辑或删除开启时自动含「看全部」</p>
                   </div>
                 </div>
                 <el-button type="primary" size="small" :icon="Plus" @click="showPermDialog=true">添加授权</el-button>
@@ -274,6 +274,9 @@
                   <el-table-column prop="realName" label="姓名" min-width="80" />
                   <el-table-column prop="officeName" label="大区" min-width="120" show-overflow-tooltip />
                   <el-table-column prop="roleName" label="岗位" min-width="80" />
+                  <el-table-column label="看全部" width="70" align="center">
+                    <template #default="{row}"><el-tag :type="row.can_view_all?'success':'info'" size="small">{{row.can_view_all?'是':'否'}}</el-tag></template>
+                  </el-table-column>
                   <el-table-column label="编辑" width="60" align="center">
                     <template #default="{row}"><el-tag :type="row.can_edit?'success':'info'" size="small">{{row.can_edit?'是':'否'}}</el-tag></template>
                   </el-table-column>
@@ -359,6 +362,7 @@
             <el-option v-for="u in allUsers" :key="u.id" :label="u.realName+' ('+u.username+')'" :value="u.id" />
           </el-select>
         </el-form-item>
+        <el-form-item label="看全部"><el-switch v-model="permForm.canViewAll" /></el-form-item>
         <el-form-item label="编辑权限"><el-switch v-model="permForm.canEdit" /></el-form-item>
         <el-form-item label="删除权限"><el-switch v-model="permForm.canDelete" /></el-form-item>
       </el-form>
@@ -570,7 +574,7 @@ const permOverview = [
     icon: '⭐', title: '激励专项权限',
     tag: '激励类别与权限',
     tagType: 'warning',
-    desc: '独立于菜单权限，按人配置能否编辑/删除激励记录。有权限的人能看全部数据。',
+    desc: '独立于菜单权限，按人配置 看全部/编辑/删除。看全部=含未分享也可见；编辑或删除开启时自动含看全部。分享的记录对全员默认可见。',
     buttons: [{ label: '前往配置 →', type: 'warning', tab: 'incentiveCategory' }]
   }
 ]
@@ -656,7 +660,7 @@ const loadPermData = async () => {
 // 四项激励权限
 const permList = ref([])
 const showPermDialog = ref(false)
-const permForm = reactive({ userId: null, canEdit: true, canDelete: true })
+const permForm = reactive({ userId: null, canViewAll: true, canEdit: true, canDelete: true })
 const allUsers = ref([])
 const loadPermList = async () => {
   try { const res = await request.get('/incentive/permission/list'); permList.value = res.data || [] } catch(e) {}

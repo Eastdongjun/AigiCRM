@@ -21,7 +21,7 @@ public class IncentivePermissionController {
     @GetMapping("/list")
     public Result<List<Map<String, Object>>> list() {
         List<Map<String, Object>> list = jdbc.queryForList(
-            "SELECT p.id, p.user_id, p.can_edit, p.can_delete, u.real_name AS realName, u.username, " +
+            "SELECT p.id, p.user_id, p.can_edit, p.can_delete, p.can_view_all, u.real_name AS realName, u.username, " +
             "COALESCE(d.org_name,'—') AS officeName, COALESCE(r.role_name,'—') AS roleName " +
             "FROM biz_incentive_permission p JOIN sys_user u ON p.user_id = u.id " +
             "LEFT JOIN sys_org d ON u.office_id = d.id " +
@@ -33,15 +33,16 @@ public class IncentivePermissionController {
     @PreAuthorize("hasAuthority('system:config:edit')")
     @PostMapping("/grant")
     public Result<Void> grant(@RequestBody Map<String, Object> body) {
-        // 【安全 2026-08-08】授予激励编辑/删除权限=授予"看全公司激励记录"，仅超管可操作
+        // 【安全 2026-08-08】授予激励专项权限=授予"看全公司激励记录"，仅超管可操作
         // （防 system:config:edit 落到非超管角色后形成局部提权）
         if (!SecurityUtils.isAdmin()) throw new BusinessException("仅系统管理员可授予激励权限");
         Long userId = Long.valueOf(body.get("userId").toString());
+        int canViewAll = toInt(body.get("canViewAll"));
         int canEdit = toInt(body.get("canEdit"));
         int canDelete = toInt(body.get("canDelete"));
-        jdbc.update("INSERT INTO biz_incentive_permission (user_id, can_edit, can_delete) VALUES (?,?,?) " +
-                    "ON DUPLICATE KEY UPDATE can_edit=?, can_delete=?",
-                    userId, canEdit, canDelete, canEdit, canDelete);
+        jdbc.update("INSERT INTO biz_incentive_permission (user_id, can_view_all, can_edit, can_delete) VALUES (?,?,?,?) " +
+                    "ON DUPLICATE KEY UPDATE can_view_all=?, can_edit=?, can_delete=?",
+                    userId, canViewAll, canEdit, canDelete, canViewAll, canEdit, canDelete);
         return Result.ok();
     }
 
@@ -65,9 +66,10 @@ public class IncentivePermissionController {
         Long userId = SecurityUtils.getCurrentUserId();
         Map<String, Object> row = null;
         try {
-            row = jdbc.queryForMap("SELECT can_edit, can_delete FROM biz_incentive_permission WHERE user_id=?", userId);
+            row = jdbc.queryForMap("SELECT can_view_all, can_edit, can_delete FROM biz_incentive_permission WHERE user_id=?", userId);
         } catch (Exception e) {}
         Map<String, Boolean> result = new HashMap<>();
+        result.put("canViewAll", row != null && ((Number)row.get("can_view_all")).intValue() == 1);
         result.put("canEdit", row != null && ((Number)row.get("can_edit")).intValue() == 1);
         result.put("canDelete", row != null && ((Number)row.get("can_delete")).intValue() == 1);
         return Result.ok(result);

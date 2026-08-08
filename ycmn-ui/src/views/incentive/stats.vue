@@ -326,7 +326,8 @@ const loadData = async () => {
   // （单页从 ~5×RTT 降到 ~1×max(RTT)，缓解激励统计页卡顿）；各接口独立容错。
   const [catRes, recRes, csRes, sbRes, drRes] = await Promise.allSettled([
     cachedGet('categoryTree', getCategoryTree),
-    getRecords({ period: p }),
+    // 【2026-08-08 分享制】顶部"我的"卡片只统计本人上传记录（显式传本人 userId）
+    getRecords({ period: p, userId: userStore.userId }),
     getCategoryStats({ period: p }),
     getScoreboard({ period: p }),
     getIncentiveRanking({ type: 'dept', period: p }),

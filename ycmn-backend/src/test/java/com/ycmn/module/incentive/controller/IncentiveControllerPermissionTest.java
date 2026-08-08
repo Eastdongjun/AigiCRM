@@ -130,20 +130,20 @@ class IncentiveControllerPermissionTest {
         }
     }
 
-    /** 矩阵 incentive:edit 码（无用户级 can_edit）→ 可改任意记录，跳过归属查询（混合双轨 B） */
+    /** 矩阵 incentive:edit 码（无用户级 can_edit）→ 不可改他人记录（【2026-08-08 分享制】矩阵码不再放行非本人编辑） */
     @Test
-    void updateAllowsAnyRecordWithMatrixEditCode() {
+    void updateRejectsOtherRecordWithMatrixEditCodeOnly() {
         SecurityUser su = userWithPerm(2L, "incentive:edit");
         try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
             m.when(SecurityUtils::getCurrentUser).thenReturn(su);
             m.when(SecurityUtils::isAdmin).thenReturn(false);
+            when(incentiveService.canEdit(2L)).thenReturn(false);
+            when(incentiveService.getRecordById(79L)).thenReturn(recordOf(79L, 1L));
 
             Result<Void> result = controller.updateRecord(79L, new BizIncentiveRecord());
 
-            assertEquals(200, result.getCode());
-            verify(incentiveService).updateRecord(79L, new BizIncentiveRecord());
-            verify(incentiveService, never()).getRecordById(79L);
-            verify(incentiveService, never()).canEdit(2L);
+            assertEquals(403, result.getCode());
+            verify(incentiveService, never()).updateRecord(79L, new BizIncentiveRecord());
         }
     }
 
@@ -191,7 +191,7 @@ class IncentiveControllerPermissionTest {
     void updateRecordHasNoMethodLevelPreAuthorize() throws Exception {
         Method m = IncentiveController.class.getMethod("updateRecord", Long.class, BizIncentiveRecord.class);
         assertNull(m.getAnnotation(PreAuthorize.class),
-                "PUT 归属校验必须在方法内守卫（isAdmin ∨ can_edit 迁移授权 ∨ 记录本人），去掉硬码");
+                "PUT 归属校验必须在方法内守卫（isAdmin ∨ 用户级 can_edit ∨ 记录本人），去掉硬码与矩阵码分支");
     }
 
     /** DELETE /records/{id} 同 PUT：去方法级硬码，方法内守卫 */
@@ -199,7 +199,7 @@ class IncentiveControllerPermissionTest {
     void deleteRecordHasNoMethodLevelPreAuthorize() throws Exception {
         Method m = IncentiveController.class.getMethod("deleteRecord", Long.class);
         assertNull(m.getAnnotation(PreAuthorize.class),
-                "DELETE 归属校验必须在方法内守卫（isAdmin ∨ can_delete 迁移授权 ∨ 记录本人），去掉硬码");
+                "DELETE 归属校验必须在方法内守卫（isAdmin ∨ 用户级 can_delete ∨ 记录本人），去掉硬码与矩阵码分支");
     }
 
     /** 普通销售员（无 delete 码）删他人记录 → 403 */
@@ -237,20 +237,20 @@ class IncentiveControllerPermissionTest {
         }
     }
 
-    /** 矩阵 incentive:delete 码（无用户级 can_delete）→ 可删任意记录，跳过归属查询（混合双轨 B） */
+    /** 矩阵 incentive:delete 码（无用户级 can_delete）→ 不可删他人记录（【2026-08-08 分享制】矩阵码不再放行非本人删除） */
     @Test
-    void deleteAllowsAnyRecordWithMatrixDeleteCode() {
+    void deleteRejectsOtherRecordWithMatrixDeleteCodeOnly() {
         SecurityUser su = userWithPerm(2L, "incentive:delete");
         try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
             m.when(SecurityUtils::getCurrentUser).thenReturn(su);
             m.when(SecurityUtils::isAdmin).thenReturn(false);
+            when(incentiveService.canDelete(2L)).thenReturn(false);
+            when(incentiveService.getRecordById(79L)).thenReturn(recordOf(79L, 1L));
 
             Result<Void> result = controller.deleteRecord(79L);
 
-            assertEquals(200, result.getCode());
-            verify(incentiveService).deleteRecord(79L);
-            verify(incentiveService, never()).getRecordById(79L);
-            verify(incentiveService, never()).canDelete(2L);
+            assertEquals(403, result.getCode());
+            verify(incentiveService, never()).deleteRecord(79L);
         }
     }
 

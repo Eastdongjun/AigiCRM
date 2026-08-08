@@ -61,6 +61,9 @@ export const useUserStore = defineStore('user', {
     hasPermission(permission) {
       return this.permissions.has(permission)
     },
+    isAdmin() {
+      return this.roles.includes('admin') || this.username === 'admin'
+    },
     logout() {
       this.$reset()
       localStorage.removeItem('token')

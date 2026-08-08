@@ -28,6 +28,11 @@ export function deleteRecord(id) {
   return request.delete(`/incentive/records/${id}`)
 }
 
+// 更新记录（追加/编辑文件、开关分享），后端按 本人∨admin∨专项授权 校验归属
+export function updateRecord(id, data) {
+  return request.put(`/incentive/records/${id}`, data)
+}
+
 export function getScoreboard(params) {
   return request.get('/incentive/scoreboard', { params })
 }

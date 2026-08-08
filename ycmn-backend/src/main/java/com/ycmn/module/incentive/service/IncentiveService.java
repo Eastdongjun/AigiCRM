@@ -3,7 +3,6 @@ package com.ycmn.module.incentive.service;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.ycmn.common.BusinessException;
 import com.ycmn.module.customer.entity.BizCustomer;
-import com.ycmn.module.customer.entity.BizCustomerShare;
 import com.ycmn.module.customer.mapper.BizCustomerMapper;
 import com.ycmn.module.customer.mapper.BizCustomerShareMapper;
 import com.ycmn.module.file.entity.BizFile;
@@ -40,6 +39,18 @@ public class IncentiveService {
     private final SysOrgMapper orgMapper;
     private final JdbcTemplate jdbc;
     private final com.ycmn.common.scope.OrgScopeResolver scopeResolver;
+
+    /** 【2026-08-08 分享制】独立"看全部"开关：can_view_all=1 可看全部激励(含未分享)，但不含编辑/删除他人 */
+    public boolean canViewAll(Long userId) {
+        if (SecurityUtils.isAdmin()) return true;
+        try {
+            Map<String, Object> row = jdbc.queryForMap(
+                "SELECT can_view_all FROM biz_incentive_permission WHERE user_id=?", userId);
+            return row != null && ((Number) row.get("can_view_all")).intValue() == 1;
+        } catch (Exception e) {
+            return false;
+        }
+    }
 
     /** 查询用户是否有编辑权限（admin 始终有权限；多角色任一含 admin 即真） */
     public boolean canEdit(Long userId) {
@@ -95,14 +106,24 @@ public class IncentiveService {
         return tree;
     }
 
-    /** 统计查询统一数据范围过滤：admin/有激励编辑删除授权 → 全部；否则 resolver 可见集合 U */
-    private void applyScopeToWrapper(LambdaQueryWrapper<BizIncentiveRecord> wrapper) {
-        com.ycmn.security.SecurityUser user = SecurityUtils.getCurrentUser();
-        if (user == null) return;
-        boolean canSeeAll = SecurityUtils.isAdmin()
-                || canEdit(user.getUserId()) || canDelete(user.getUserId());
-        List<Long> visible = canSeeAll ? null : scopeResolver.resolve(user);
-        if (visible != null) wrapper.in(BizIncentiveRecord::getUserId, visible);
+    /**
+     * 【2026-08-08 分享制】看全部资格：系统管理员 ∨ 独立"看全部"开关 ∨ 激励专项授权(can_edit/can_delete)。
+     * 激励模块可见性统一为分享制，不再使用 data_scope/上级可见下级/负责人可见本组织/客户分享。
+     */
+    private boolean canSeeAllIncentive() {
+        Long userId = SecurityUtils.getCurrentUserId();
+        return SecurityUtils.isAdmin() || canViewAll(userId) || canEdit(userId) || canDelete(userId);
+    }
+
+    /**
+     * 【2026-08-08 分享制】记录列表可见性统一：canSeeAllIncentive → 全部；
+     * 否则仅"本人记录 ∨ 已分享(shared=1)"，其余人不可见（未分享仅本人+管理员+专项授权可见）。
+     */
+    private void applyShareVisibility(LambdaQueryWrapper<BizIncentiveRecord> wrapper) {
+        if (canSeeAllIncentive()) return;
+        Long userId = SecurityUtils.getCurrentUserId();
+        wrapper.and(w -> w.eq(BizIncentiveRecord::getUserId, userId)
+                .or().eq(BizIncentiveRecord::getShared, 1));
     }
 
     /**
@@ -112,14 +133,13 @@ public class IncentiveService {
     private void fillRecordCounts(List<BizIncentiveCategory> tree, List<BizIncentiveCategory> all) {
         com.ycmn.security.SecurityUser user = SecurityUtils.getCurrentUser();
         if (user == null || all.isEmpty()) return;
-        boolean canSeeAll = SecurityUtils.isAdmin()
-                || canEdit(user.getUserId()) || canDelete(user.getUserId());
-        List<Long> visible = canSeeAll ? null : scopeResolver.resolve(user);
 
-        java.util.Map<Long, Long> countByCat = recordMapper.selectList(
-                        new LambdaQueryWrapper<BizIncentiveRecord>()
-                                .select(BizIncentiveRecord::getCategoryId)
-                                .in(visible != null && !visible.isEmpty(), BizIncentiveRecord::getUserId, visible))
+        // 【2026-08-08 分享制】分类角标按分享制计数：admin/专项授权→全量，否则本人+已分享
+        LambdaQueryWrapper<BizIncentiveRecord> q = new LambdaQueryWrapper<BizIncentiveRecord>()
+                .select(BizIncentiveRecord::getCategoryId);
+        applyShareVisibility(q);
+
+        java.util.Map<Long, Long> countByCat = recordMapper.selectList(q)
                 .stream()
                 .filter(r -> r.getCategoryId() != null)
                 .collect(java.util.stream.Collectors.groupingBy(BizIncentiveRecord::getCategoryId,
@@ -183,14 +203,16 @@ public class IncentiveService {
     public List<BizIncentiveRecord> getRecords(Long userId, String period, Long parentCategoryId) {
         LambdaQueryWrapper<BizIncentiveRecord> wrapper = new LambdaQueryWrapper<>();
         if (userId != null) {
-            // 【修复 2026-08-07 激励查询越权 + 上级可见下级】显式指定查看某人：必须在本用户可见范围内，否则拒。
-            // 原先控制器对普通用户强制 userId=本人、且显式传 userId 不做校验（可越权看任意人记录）。
+            // 【2026-08-08 分享制】显式指定查看某人：admin/专项授权→全部；本人→自己全部；他人→仅其已分享记录。
             if (!canViewIncentiveUser(userId)) return List.of();
             wrapper.eq(BizIncentiveRecord::getUserId, userId);
+            Long self = SecurityUtils.getCurrentUserId();
+            if (!canSeeAllIncentive() && (self == null || !self.equals(userId))) {
+                wrapper.eq(BizIncentiveRecord::getShared, 1);
+            }
         } else {
-            // 【修复 2026-08-07 激励查询数据范围】未指定人时按数据范围过滤（含系统级开关），
-            // 上级/组织负责人默认可见下级记录（开关默认开启）。
-            applyIncentiveDataScope(wrapper);
+            // 【2026-08-08 分享制】未指定人时按分享制过滤：本人 + shared=1（数据范围/上级可见不再作用）。
+            applyShareVisibility(wrapper);
         }
         if (period != null) wrapper.eq(BizIncentiveRecord::getPeriod, period);
         if (parentCategoryId != null) {
@@ -247,7 +269,7 @@ public class IncentiveService {
         BizIncentiveRecord existing = recordMapper.selectById(id);
         if (existing == null) return;
 
-        // 只更新文件字段
+        // 只更新文件字段 + 分享开关（【2026-08-08 分享制】本人随时可开关分享）
         if (update.getFilePreId() != null) existing.setFilePreId(update.getFilePreId());
         if (update.getFileMidId() != null) existing.setFileMidId(update.getFileMidId());
         if (update.getFilePostId() != null) existing.setFilePostId(update.getFilePostId());
@@ -255,6 +277,7 @@ public class IncentiveService {
         if (update.getFileTrackId() != null) existing.setFileTrackId(update.getFileTrackId());
         if (update.getRemark() != null) existing.setRemark(update.getRemark());
         if (update.getSpecificProduct() != null) existing.setSpecificProduct(update.getSpecificProduct());
+        if (update.getShared() != null) existing.setShared(update.getShared());
 
         // 重算积分
         BizIncentiveCategory category = categoryMapper.selectById(existing.getCategoryId());
@@ -406,7 +429,7 @@ public class IncentiveService {
     public Map<String, Object> categoryStats(String period) {
         LambdaQueryWrapper<BizIncentiveRecord> wrapper = new LambdaQueryWrapper<>();
         if (period != null && !period.isBlank()) wrapper.eq(BizIncentiveRecord::getPeriod, period);
-        applyScopeToWrapper(wrapper); // 统计按数据范围整体（设计定稿）
+        // 【2026-08-08 分享制】激励统计表=公司级展示，不做可见性过滤，全员看到全公司聚合（含未分享）
         List<BizIncentiveRecord> records = recordMapper.selectList(wrapper);
 
         Map<Long, int[]> byCat = new LinkedHashMap<>(); // categoryId -> [fileCount, totalScore, pre, mid, post]
@@ -455,7 +478,7 @@ public class IncentiveService {
     public List<Map<String, Object>> scoreboard(String period) {
         LambdaQueryWrapper<BizIncentiveRecord> wrapper = new LambdaQueryWrapper<>();
         if (period != null && !period.isBlank()) wrapper.eq(BizIncentiveRecord::getPeriod, period);
-        applyScopeToWrapper(wrapper); // 统计按数据范围整体
+        // 【2026-08-08 分享制】个人排行=公司级展示，不做可见性过滤，全员看到全公司排行（含未分享）
         List<BizIncentiveRecord> records = recordMapper.selectList(wrapper);
 
         Map<Long, int[]> userAgg = new LinkedHashMap<>(); // userId -> [score, recordCount, pre, mid, post]
@@ -588,13 +611,10 @@ public class IncentiveService {
      * 获取客户关联的激励积分总分
      */
     public int getScoreByCustomerId(Long customerId) {
-        // 【修复 2026-08-08 防越权】客户不在当前用户可见范围内时拒给积分（可枚举 customerId 越权）
-        BizCustomer customer = customerMapper.selectById(customerId);
-        if (customer == null) return 0;
-        List<Long> visible = scopeResolver.resolve(SecurityUtils.getCurrentUser());
-        if (visible != null && !visible.contains(customer.getOwnerId())) return 0;
+        // 【2026-08-08 分享制 防越权】积分只按当前用户可见记录计算（admin/专项授权→全部，否则本人+已分享）
         LambdaQueryWrapper<BizIncentiveRecord> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(BizIncentiveRecord::getCustomerId, customerId);
+        applyShareVisibility(wrapper);
         List<BizIncentiveRecord> records = recordMapper.selectList(wrapper);
         return records.stream().mapToInt(r -> r.getScore() != null ? r.getScore() : 0).sum();
     }
@@ -603,9 +623,8 @@ public class IncentiveService {
     public List<BizIncentiveRecord> queryRecords(Long mainCategoryId, Long subCategoryId,
                                                   String industry, String product, String period) {
         LambdaQueryWrapper<BizIncentiveRecord> wrapper = new LambdaQueryWrapper<>();
-        // 【修复 2026-08-08 数据范围】原"全员可见"绕过数据范围，任何激励权限用户可拉全量明细；
-        // 统一按 computeVisibility 过滤（admin/激励授权→全部，否则可见集合+开关）
-        applyIncentiveDataScope(wrapper);
+        // 【2026-08-08 分享制】激励统计查询明细统一按分享制过滤（admin/专项授权→全部，否则本人+已分享）
+        applyShareVisibility(wrapper);
         if (period != null && !period.isBlank()) wrapper.eq(BizIncentiveRecord::getPeriod, period);
         if (industry != null && !industry.isBlank()) wrapper.eq(BizIncentiveRecord::getIndustry, industry);
         if (product != null && !product.isBlank()) wrapper.like(BizIncentiveRecord::getRelatedProducts, product);
@@ -652,106 +671,22 @@ public class IncentiveService {
         return records;
     }
 
-    // ======================== 数据权限过滤 ========================
+    // ======================== 分享制可见性（2026-08-08） ========================
 
     /**
-     * 获取当前用户可见的用户ID列表（数据权限范围）
-     * 同时包含通过客户分享可见的客户ID集合
+     * 【2026-08-08 分享制】显式指定查看某人是否可见：admin/专项授权→全部；本人→是；
+     * 他人→仅当其存在已分享(shared=1)记录时可见（非授权视角只能看该用户已分享内容）。
      */
-    /** 【2026-08-07】显式指定查看某人是否在本用户可见范围内（admin/激励授权→全部；否则可见集合） */
     private boolean canViewIncentiveUser(Long targetUserId) {
-        Map<String, Object> vis = computeVisibility();
-        if ("all".equals(vis.get("type"))) return true;
-        @SuppressWarnings("unchecked")
-        Set<Long> userIds = (Set<Long>) vis.get("userIds");
-        return userIds != null && userIds.contains(targetUserId);
+        if (canSeeAllIncentive()) return true;
+        Long self = SecurityUtils.getCurrentUserId();
+        if (targetUserId != null && targetUserId.equals(self)) return true;
+        return recordMapper.selectCount(new LambdaQueryWrapper<BizIncentiveRecord>()
+                .eq(BizIncentiveRecord::getUserId, targetUserId)
+                .eq(BizIncentiveRecord::getShared, 1)) > 0;
     }
 
-    private Map<String, Object> computeVisibility() {
-        Long userId = SecurityUtils.getCurrentUserId();
-        boolean isAdmin = SecurityUtils.isAdmin();
-
-        // admin、有激励编辑/删除权限的人：看全部
-        if (isAdmin || canEdit(userId) || canDelete(userId)) {
-            return Map.of("type", "all");
-        }
-
-        // 获取数据范围内的用户ID（null=范围覆盖全集团，无限制）
-        Set<Long> visibleUserIds = getDataScopeUserIds();
-        if (visibleUserIds == null) {
-            // all 级范围（非 admin/无激励授权）：本集团全部数据
-            return Map.of("type", "all");
-        }
-
-        // 获取分享给我的客户ID
-        Set<Long> sharedCustomerIds = new HashSet<>();
-        List<BizCustomerShare> shares = customerShareMapper.selectList(
-            new LambdaQueryWrapper<BizCustomerShare>().eq(BizCustomerShare::getSharedToUserId, userId));
-        for (BizCustomerShare s : shares) {
-            sharedCustomerIds.add(s.getCustomerId());
-        }
-
-        Map<String, Object> result = new HashMap<>();
-        result.put("type", "limited");
-        result.put("userIds", visibleUserIds);
-        result.put("sharedCustomerIds", sharedCustomerIds);
-        return result;
-    }
-
-    /** 根据数据权限获取可见的用户ID列表 */
-    private Set<Long> getDataScopeUserIds() {
-        String dataScope = SecurityUtils.getCurrentDataScope();
-        Long userId = SecurityUtils.getCurrentUserId();
-        Long deptId = SecurityUtils.getCurrentDeptId();
-        List<Long> managedOrgIds = SecurityUtils.getCurrentManagedOrgIds();
-
-        // self/team/office/region/dept/all：统一路由 OrgScopeResolver（含系统级开关并集；all→null 短路）
-        // 【2026-08-07 系统级开关】self 不再提前 return 仅本人——开关1(上级看下级)/开关2(负责人看本组织)
-        // 对 self 等范围同样生效；同时消除激励与客户列表口径不一致。
-        if (dataScope == null || "self".equals(dataScope) || "team".equals(dataScope)
-                || "office".equals(dataScope) || "region".equals(dataScope)
-                || "dept".equals(dataScope) || "all".equals(dataScope)) {
-            List<Long> visible = scopeResolver.resolve(SecurityUtils.getCurrentUser());
-            return visible == null ? null : new HashSet<>(visible);
-        }
-
-        Set<Long> userIds = new HashSet<>();
-        userIds.add(userId); // 始终包含自己
-
-        switch (dataScope) {
-            case "custom":
-                // 【修复 FEAT-20260804-ORG-DEPT-UNIFY】此前 switch 没有 custom 分支，静默降级为
-                // "仅本人"。custom = 角色组织矩阵(sys_role_org)勾选的组织，与 CustomerService 保持一致。
-                userIds.addAll(getUserIdsByDeptIds(managedOrgIds));
-                break;
-            case "org_and_children":
-                // 【修复 FEAT-20260804-ORG-DEPT-UNIFY】org 体系统一改用部门体系解析（sys_user.org_id
-                // 从未被写入，此前恒定降级为仅本人）；org/dept 同一 ID 空间，并入组织管理员额外授权组织。
-                List<Long> orgAndChildIds = deptId != null ? getDescendantDeptIds(deptId) : new ArrayList<>();
-                if (deptId != null) orgAndChildIds.add(deptId);
-                orgAndChildIds.addAll(managedOrgIds);
-                userIds.addAll(getUserIdsByDeptIds(orgAndChildIds));
-                break;
-            case "org":
-                List<Long> orgIds = new ArrayList<>();
-                if (deptId != null) orgIds.add(deptId);
-                orgIds.addAll(managedOrgIds);
-                userIds.addAll(getUserIdsByDeptIds(orgIds));
-                break;
-            case "dept_and_children":
-                List<Long> deptIds = getDescendantDeptIds(deptId);
-                deptIds.add(deptId);
-                userIds.addAll(getUserIdsByDeptIds(deptIds));
-                break;
-            default:
-                break; // 未知码保留仅本人
-        }
-        // 【2026-08-07 系统级开关】本地分支(custom/org/org_and_children/dept_and_children)末尾统一追加开关集合
-        List<Long> withSystem = scopeResolver.appendSystemLevelScopes(SecurityUtils.getCurrentUser(), userIds);
-        return withSystem == null ? null : new HashSet<>(withSystem);
-    }
-
-    /** 递归获取所有下级部门ID */
+    /** 递归获取所有下级部门ID（激励查询组织筛选用，非权限判定） */
     private List<Long> getDescendantDeptIds(Long parentId) {
         List<Long> result = new ArrayList<>();
         List<SysDept> children = deptMapper.selectList(
@@ -763,44 +698,11 @@ public class IncentiveService {
         return result;
     }
 
-    /** 获取指定部门列表中所有活跃用户的ID */
-    private Set<Long> getUserIdsByDeptIds(List<Long> deptIds) {
-        if (deptIds.isEmpty()) return new HashSet<>();
-        return userMapper.selectList(new LambdaQueryWrapper<SysUser>()
-                .in(SysUser::getDeptId, deptIds)
-                .eq(SysUser::getStatus, 1)
-                .eq(SysUser::getDeleted, 0))
-            .stream().map(SysUser::getId).collect(Collectors.toSet());
-    }
-
-    /**
-     * 为激励记录查询添加数据权限过滤
-     * 返回 true 表示无限制（看全部），false 表示已应用限制
-     */
-    private boolean applyIncentiveDataScope(LambdaQueryWrapper<BizIncentiveRecord> wrapper) {
-        Map<String, Object> visibility = computeVisibility();
-        if ("all".equals(visibility.get("type"))) {
-            return true; // 无限制
-        }
-        @SuppressWarnings("unchecked")
-        Set<Long> userIds = (Set<Long>) visibility.get("userIds");
-        @SuppressWarnings("unchecked")
-        Set<Long> sharedCustomerIds = (Set<Long>) visibility.get("sharedCustomerIds");
-
-        if (sharedCustomerIds.isEmpty()) {
-            wrapper.in(BizIncentiveRecord::getUserId, userIds);
-        } else {
-            wrapper.and(w -> w.in(BizIncentiveRecord::getUserId, userIds)
-                .or().in(BizIncentiveRecord::getCustomerId, sharedCustomerIds));
-        }
-        return false;
-    }
-
     /** 时间线查询：按上传时间排序的扁平列表 */
     public List<Map<String, Object>> timeline(String customerName, String salesperson,
             String industry, Long mainCategoryId, String startDate, String endDate) {
         LambdaQueryWrapper<BizIncentiveRecord> wrapper = new LambdaQueryWrapper<>();
-        applyIncentiveDataScope(wrapper);
+        applyShareVisibility(wrapper); // 【2026-08-08 分享制】时间线明细按分享制可见
         if (customerName != null && !customerName.isBlank()) {
             List<BizCustomer> m = customerMapper.selectList(new LambdaQueryWrapper<BizCustomer>().like(BizCustomer::getCustomerName, customerName));
             if (!m.isEmpty()) wrapper.in(BizIncentiveRecord::getCustomerId, m.stream().map(BizCustomer::getId).toList());
@@ -854,7 +756,8 @@ public class IncentiveService {
             String product, String keyword) {
         LambdaQueryWrapper<BizIncentiveRecord> wrapper = new LambdaQueryWrapper<>();
         wrapper.isNotNull(BizIncentiveRecord::getCustomerId);
-        // 【2026-08-08 设计规则：激励查询全员可见】不做数据范围过滤（公司级激励数据展示）
+        // 【2026-08-08 分享制】激励查询明细按分享制可见：admin/专项授权→全部，否则本人+已分享（未分享对他人不可见）
+        applyShareVisibility(wrapper);
         if (industry != null && !industry.isBlank()) wrapper.eq(BizIncentiveRecord::getIndustry, industry);
         // 客户名 OR 关键字（相关产品）匹配：搜客户=该客户共享内容；搜关键字=相关案例全出
         if (customerName != null && !customerName.isBlank()
