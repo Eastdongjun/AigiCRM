@@ -245,6 +245,8 @@ import { useRouter } from 'vue-router'
 import { Plus, Download, Upload, Setting } from '@element-plus/icons-vue'
 import { getCustomerList, getCustomerStatistics, getCustomerListCounts, releaseCustomer, importCustomers, downloadImportTemplate, deleteCustomer } from '@/api/customer'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { paginate } from '@/utils/pagination'
+import { filterCustomers } from '@/utils/list-filter'
 
 const colPickerVisible = ref(false)
 const activeTab = ref('innovate')
@@ -259,6 +261,8 @@ const advFilter = reactive({ industry:'', province:'', city:'', status:'', prote
 
 // 部门筛选：选中部门 → 收集其全部子部门 id（部门可无限嵌套）
 const onDeptFilterChange = (val) => {
+  // 筛选变化必须重置页码，否则过滤后停在旧页码可能越界白屏（分页最佳实践）
+  page.value = 1
   const ids = []
   const collect = (nodes) => {
     for (const n of nodes || []) {
@@ -309,55 +313,23 @@ const tabs = computed(() => {
 })
 
 
-const filteredAllData = computed(() => {
-  const s = searchText.value.toLowerCase()
-  let data = tableData.value
-  if (s) data = data.filter(c => (c.customerName||'').toLowerCase().includes(s) || (c.customerCode||'').toLowerCase().includes(s))
-  if (filters.industry) data = data.filter(c => c.industry === filters.industry)
-  if (filters.status) data = data.filter(c => c.status === filters.status)
-  if (advFilter.industry) data = data.filter(c => c.industry === advFilter.industry)
-  if (advFilter.province) data = data.filter(c => (c.province||'').includes(advFilter.province))
-  if (advFilter.city) data = data.filter(c => (c.city||'').includes(advFilter.city))
-  if (advFilter.status) data = data.filter(c => c.status === advFilter.status)
-  if (advFilter.protect) data = data.filter(c => c.protectionStatus === advFilter.protect)
-  if (advFilter.owner) data = data.filter(c => (c.ownerName||'').includes(advFilter.owner))
-  if (advFilter.regDate && advFilter.regDate.length === 2) data = data.filter(c => c.registerDate >= advFilter.regDate[0] && c.registerDate <= advFilter.regDate[1])
-  if (advFilter.expDate && advFilter.expDate.length === 2) data = data.filter(c => c.expireDate >= advFilter.expDate[0] && c.expireDate <= advFilter.expDate[1])
-  if (advFilter.orgIds && advFilter.orgIds.length > 0) { const uids = tableData.value.filter(r => advFilter.orgIds.includes(r.officeId) || advFilter.orgIds.includes(r.orgId)).map(r => r.ownerId); data = data.filter(c => uids.includes(c.ownerId)) }
-  if (advFilter.deptIds && advFilter.deptIds.length > 0) data = data.filter(c => advFilter.deptIds.includes(c.deptId))
-  if (advFilter.userIds && advFilter.userIds.length > 0) data = data.filter(c => advFilter.userIds.includes(c.ownerId))
-  return data
-})
+const filteredAllData = computed(() =>
+  filterCustomers(tableData.value, searchText.value, filters, advFilter, {
+    uidsSource: tableData.value, orgKeys: ['officeId', 'orgId'],
+  })
+)
 
 const currentTabData = computed(() => {
   const tab = tabs.value.find(t => t.type === activeTab.value)
   if (!tab) return []
-  let data = tab.data
-  if (filters.search) { const s = filters.search.toLowerCase(); data = data.filter(c => (c.customerName||'').toLowerCase().includes(s) || (c.customerCode||'').toLowerCase().includes(s)) }
-  if (filters.industry) data = data.filter(c => c.industry === filters.industry)
-  if (filters.status === 'normal') data = data.filter(c => c.status === 'normal')
-  if (filters.status === 'warning') data = data.filter(c => c.status === 'warning')
-  if (filters.status === 'expired') data = data.filter(c => c.status === 'expired')
-  if (advFilter.industry) data = data.filter(c => c.industry === advFilter.industry)
-  if (advFilter.province) data = data.filter(c => (c.province||'').includes(advFilter.province))
-  if (advFilter.city) data = data.filter(c => (c.city||'').includes(advFilter.city))
-  if (advFilter.status) data = data.filter(c => c.status === advFilter.status)
-  if (advFilter.protect) data = data.filter(c => c.protectionStatus === advFilter.protect)
-  if (advFilter.owner) data = data.filter(c => (c.ownerName||'').includes(advFilter.owner))
-  if (advFilter.regDate?.length===2) { data = data.filter(c => c.registerDate >= advFilter.regDate[0] && c.registerDate <= advFilter.regDate[1]) }
-  if (advFilter.expDate?.length===2) { data = data.filter(c => c.expireDate >= advFilter.expDate[0] && c.expireDate <= advFilter.expDate[1]) }
-  if (advFilter.orgIds?.length) { const usersInOrgs = tableData.value.filter(r => advFilter.orgIds.includes(r.officeId) || advFilter.orgIds.includes(r.deptId)).map(r => r.ownerId); data = data.filter(c => usersInOrgs.includes(c.ownerId)) }
-  if (advFilter.deptIds?.length) data = data.filter(c => advFilter.deptIds.includes(c.deptId))
-  if (advFilter.userIds?.length) { data = data.filter(c => advFilter.userIds.includes(c.ownerId)) }
-  return data
+  return filterCustomers(tab.data, filters.search, filters, advFilter, {
+    uidsSource: tableData.value, orgKeys: ['officeId', 'deptId'],
+  })
 })
 
 const page = ref(1)
 const pageSize = ref(30)
-const filteredList = computed(() => {
-  const start = (page.value - 1) * pageSize.value
-  return currentTabData.value.slice(start, start + pageSize.value)
-})
+const filteredList = computed(() => paginate(currentTabData.value, page.value, pageSize.value))
 
 const advFilterCount = computed(() => { let n=0; for(const k in advFilter){ const v=advFilter[k]; if(v){ if(k==='orgIds'||k==='userIds'){ if(v.length)n++ } else if(typeof v==='string' && v.trim())n++ } } return n })
 const loadFilterData = async () => {
@@ -672,6 +644,9 @@ const switchScope = (scope) => {
 const search = () => {
   query.keyword = searchText.value
   query.current = 1
+  // 显示分页变量是 page（el-pagination v-model:current-page="page"），筛选后必须重置，
+  // 否则过滤结果变少时停在旧页码可能越界白屏（分页最佳实践）
+  page.value = 1
   loadData()
 }
 

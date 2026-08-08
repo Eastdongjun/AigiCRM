@@ -101,6 +101,7 @@ import { submitApproval } from '@/api/approval'
 import { getScopeDepts } from '@/api/system'
 import { getSimpleUserList } from '@/api/customer'
 import { useUserStore } from '@/store/user'
+import { paginate } from '@/utils/pagination'
 
 const userStore = useUserStore()
 
@@ -183,10 +184,7 @@ const resetQuery = () => {
 }
 
 // 客户端分页
-const pagedData = computed(() => {
-  const start = (query.current - 1) * query.size
-  return tableData.value.slice(start, start + query.size)
-})
+const pagedData = computed(() => paginate(tableData.value, query.current, query.size))
 
 const handleClearAll = async () => {
   try {

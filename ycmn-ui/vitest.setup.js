@@ -30,3 +30,22 @@ if (typeof window !== 'undefined') {
     })
   }
 }
+
+// jsdom 无 ResizeObserver，7 个 views 在 onMounted 里 new ResizeObserver 会直接抛错。
+// 组件测试挂载必需的最小 polyfill。
+if (typeof globalThis.ResizeObserver === 'undefined') {
+  globalThis.ResizeObserver = class ResizeObserver {
+    constructor(cb) { this._cb = cb }
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  }
+}
+
+// 页面里的原生 fetch()（customer/list 的 loadFilterData、incentive/search 的 downloadFile 等）
+// 在测试环境会打真实网络。默认 stub 为空实现，各组件测试用 vi.stubGlobal 覆盖具体返回值。
+if (typeof globalThis.fetch === 'undefined') {
+  globalThis.fetch = async () => {
+    throw new Error('fetch not stubbed in test — use vi.stubGlobal("fetch", ...)')
+  }
+}

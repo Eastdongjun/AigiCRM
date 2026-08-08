@@ -121,6 +121,17 @@ else
   FAIL=$((FAIL+1))
 fi
 
+# [8] 前端自动化测试(2026-08-08 进化: 前端测试从零到一)
+# 覆盖 pagination/list-filter 纯函数 + reminder/system.user/incentive.search 组件冒烟
+echo "--- [8] 前端自动化测试(vitest) ---"
+if ( cd "$REPO/ycmn-ui" && npm test > /tmp/fetest.log 2>&1 ); then
+  echo "  ✅ 前端自动化测试通过($(grep -cE '^\s*Tests ' /tmp/fetest.log >/dev/null && echo ok))"
+else
+  echo "  ❌ 前端自动化测试失败:"; tail -15 /tmp/fetest.log | sed 's/^/     /'
+  FAIL=$((FAIL+1))
+fi
+rm -f /tmp/fetest.log
+
 echo "══════════════════════════════════════════════════"
 echo "结果: PASS=$PASS FAIL=$FAIL"
 [ "$FAIL" -gt 0 ] && { echo "❌ 阶段衔接检查未通过 —— 补齐 FAIL 项后再交付"; exit 1; } || { echo "✅ 阶段衔接检查全部通过 —— 可以交付"; exit 0; }

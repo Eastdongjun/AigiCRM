@@ -198,6 +198,7 @@ import { getToken } from '@/utils/token'
 import { Search, User, VideoPlay, Document, ZoomIn, Download, Filter, Folder, OfficeBuilding, PriceTag, Calendar, MapLocation, Notebook, Warning } from '@element-plus/icons-vue'
 import request from '@/utils/request'
 import { ElMessage } from 'element-plus'
+import { paginate } from '@/utils/pagination'
 
 const fCustomer=ref(''),fSales=ref(''),fIndustry=ref(''),fDevType=ref(''),fDateRange=ref(null),fOrgIds=ref([]),showFilter=ref(false)
 const fProdCat=ref(''),fProdSub=ref('')
@@ -208,10 +209,7 @@ const loading=ref(false)
 // 客户卡片网格分页（前端切片）
 const pageNum = ref(1)
 const pageSize = ref(8)
-const pagedCusts = computed(() => {
-  const start = (pageNum.value - 1) * pageSize.value
-  return custs.value.slice(start, start + pageSize.value)
-})
+const pagedCusts = computed(() => paginate(custs.value, pageNum.value, pageSize.value))
 const detailVisible=ref(false),detailCust=ref(null)
 const industries=['冶金','煤矿','化工','电力','有色金属','机械','工程公司','维修厂','其他终端客户']
 const devTypes=['成熟创新','突破开拓','铺垫宣传']
