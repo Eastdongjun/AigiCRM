@@ -7,6 +7,9 @@
 -- 幂等: WHERE 条件限定, 重复执行无副作用。
 -- 执行: 建议先备份(biz_reminder), 再执行。
 --   mysqldump --single-transaction ycmn biz_reminder > backup-biz_reminder-pre-invoice-cleanup.sql
+-- 带库名（deploy-db.sh 已带 ycmn；独立执行亦无需手动选库）
+
+USE ycmn;
 
 UPDATE biz_reminder
 SET reminder_type = 'invoice_never', overdue_days = 0
