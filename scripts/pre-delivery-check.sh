@@ -132,6 +132,39 @@ else
 fi
 rm -f /tmp/fetest.log
 
+# [9] 质量防自欺门禁(2026-08-09 进化: 37层质量体系 → 测试弱化/同源/契约)
+CONTROL="/Users/donglai/Agent/0-Claude/control-plane"
+echo "--- [9] 质量防自欺门禁(测试弱化/同源/契约) ---"
+# 9.1 测试弱化: 断言降级/跳过/阈值放宽不得混入
+if python3 "$CONTROL/tools/test-weakening-scan" "$REPO/ycmn-ui/src" >/tmp/tw.log 2>&1; then
+  echo "  ✅ 测试弱化扫描通过(前端)"
+else
+  echo "  ❌ 测试弱化扫描发现降级:"; sed 's/^/     /' /tmp/tw.log | head -10
+  FAIL=$((FAIL+1))
+fi
+rm -f /tmp/tw.log
+# 9.2 Oracle 同源: 测试不得 import 生产实现算 expected
+if python3 "$CONTROL/tools/oracle-source-scan" "$REPO/ycmn-backend/src/test" >/tmp/oss.log 2>&1; then
+  echo "  ✅ Oracle 同源扫描通过(后端)"
+else
+  echo "  ❌ Oracle 同源扫描发现同源:"; sed 's/^/     /' /tmp/oss.log | head -10
+  FAIL=$((FAIL+1))
+fi
+rm -f /tmp/oss.log
+# 9.3 需求契约: 存在 spec.yaml 契约时校验其合法性(尚无契约不强制,避免误阻)
+CONTRACT_SPEC=$(find "$REPO" -name "*.spec.yaml" -not -path "*/node_modules/*" 2>/dev/null | head -1)
+if [ -n "$CONTRACT_SPEC" ]; then
+  if python3 "$CONTROL/tools/contract-check" "$CONTRACT_SPEC" >/tmp/cc.log 2>&1; then
+    echo "  ✅ 需求契约校验通过: $CONTRACT_SPEC"
+  else
+    echo "  ❌ 需求契约校验失败:"; sed 's/^/     /' /tmp/cc.log | head -10
+    FAIL=$((FAIL+1))
+  fi
+  rm -f /tmp/cc.log
+else
+  echo "  ⚠️ 暂无 spec.yaml 需求契约(高风险模块可建,见 contract-engineering skill)"
+fi
+
 echo "══════════════════════════════════════════════════"
 echo "结果: PASS=$PASS FAIL=$FAIL"
 [ "$FAIL" -gt 0 ] && { echo "❌ 阶段衔接检查未通过 —— 补齐 FAIL 项后再交付"; exit 1; } || { echo "✅ 阶段衔接检查全部通过 —— 可以交付"; exit 0; }

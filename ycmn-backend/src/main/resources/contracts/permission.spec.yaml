@@ -1,0 +1,57 @@
+{
+  "schema_version": "2.0",
+  "id": "YCMN-PERMISSION-MATRIX",
+  "version": "1.0",
+  "scope": "YCMN 权限矩阵 SSOT —— 与 sys_menu/sys_role_menu/@PreAuthorize 一致(来源: permission-dict.md 67码)",
+  "provenance": {
+    "source": "docs/permission/permission-dict.md(自动生成,生产 sys_menu+sys_role_menu)",
+    "authority": "business",
+    "last_verified": "2026-08-08T00:00:00Z"
+  },
+  "domains": ["permission", "state-machine", "failure"],
+  "permission": {
+    "matrix": [
+      {"role": "系统管理员", "resource": "customer", "actions": ["view", "add", "edit", "delete", "export", "import", "share"], "data_scope": "all"},
+      {"role": "销售员", "resource": "customer", "actions": ["view", "add", "edit", "delete", "export", "import", "share"], "data_scope": "own"},
+      {"role": "销售总监", "resource": "customer", "actions": ["view", "add", "edit", "delete", "export", "import", "share"], "data_scope": "dept"},
+      {"role": "行政", "resource": "customer", "actions": ["view", "edit", "share"], "data_scope": "shared"},
+      {"role": "系统管理员", "resource": "incentive", "actions": ["view", "add", "edit", "delete"], "data_scope": "all"},
+      {"role": "销售员", "resource": "incentive", "actions": ["view", "add"], "data_scope": "own"},
+      {"role": "销售总监", "resource": "incentive", "actions": ["view", "add", "edit"], "data_scope": "dept"},
+      {"role": "系统管理员", "resource": "system:user", "actions": ["add", "edit", "delete", "reset-password"], "data_scope": "all"},
+      {"role": "销售总监", "resource": "system:user", "actions": ["edit"], "data_scope": "dept"}
+    ],
+    "must_not": [
+      "行政 不得删除/导入客户(仅 view/edit/share)",
+      "销售员 不得编辑/删除激励(仅 view/add, 数据范围 own)",
+      "销售员 不得管理系统用户(system:user 仅管理员/总监)",
+      "非管理员 不得查看全公司数据(data_scope 限制, 非 all 必须经 scopeFilter)",
+      "激励:delete 已全解除, 仅 admin 保留类别管理(incentive:edit)"
+    ]
+  },
+  "states": {
+    "states": [
+      {"id": "ACTIVE", "description": "账号正常"},
+      {"id": "DISABLED", "description": "账号停用"}
+    ],
+    "transitions": [
+      {"from": "ACTIVE", "to": "DISABLED", "trigger": "管理员停用", "must_have_evidence": true},
+      {"from": "DISABLED", "to": "ACTIVE", "trigger": "管理员恢复", "must_have_evidence": true}
+    ],
+    "forbidden_collapse": [
+      "数据查询失败 → 空列表(必须区分 UNKNOWN 与 无数据)"
+    ]
+  },
+  "failure": {
+    "outcomes": [
+      {"condition": "数据库查询超时", "semantic_outcome": "UNKNOWN_OUTCOME", "requires_evidence": true},
+      {"condition": "无权限访问", "semantic_outcome": "FAILED"},
+      {"condition": "查询成功无数据", "semantic_outcome": "SUCCESS"}
+    ]
+  },
+  "invariants": [
+    {"id": "INV-CONTROLLER-AUTH", "expression": "每个写 Controller 方法必须有 @PreAuthorize 且码 ∈ 权限字典", "severity": "safety"},
+    {"id": "INV-DATA-SCOPE", "expression": "data_scope != all 的接口必须经 scopeFilter, 不得全表返回", "severity": "safety"},
+    {"id": "INV-ROLE-MENU", "expression": "离职/恢复/批量用户操作后 role_menu 绑定完整性必须保持", "severity": "correctness"}
+  ]
+}
