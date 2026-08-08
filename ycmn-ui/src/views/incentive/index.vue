@@ -320,6 +320,7 @@
 <script setup>
 import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { confirmAction } from '@/utils/confirm'
 import { Upload, Search, Refresh, Delete, Plus, Box, Location, ChatDotSquare, Document, Folder } from '@element-plus/icons-vue'
 import { getCategoryTree, getRecords, addRecord, deleteRecord, updateRecord, checkIncentivePermission } from '@/api/incentive'
 import FilePreview from '@/components/FilePreview.vue'
@@ -674,7 +675,7 @@ const startUpload = (child) => {
 // 删除记录
 const handleDeleteRecord = async (row) => {
   try {
-    await ElMessageBox.confirm(`确定删除「${row.fileName || '该记录'}」？`, '删除确认', { type: 'warning' })
+    await confirmAction(`确定删除「${row.fileName || '该记录'}」？删除后不可恢复，积分将随之移除。`, '删除激励记录', { confirmText: '确认删除' })
     await deleteRecord(row.id)
     ElMessage.success('删除成功')
     loadRecords()

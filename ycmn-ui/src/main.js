@@ -2,8 +2,11 @@ import { createApp } from 'vue'
 // 【性能 2026-08-08】Element Plus 按需引入：组件由 unplugin-vue-components 按模板自动注入，
 // 样式按组件自动引入；此处仅保留全局图标注册与 v-loading 指令注册。
 import { ElLoading } from 'element-plus'
-// v-loading 指令样式（按需模式不会随组件自动引入，手动补样式）
+// 按需模式下 JS 调用组件（非模板）样式需手动补：v-loading 指令 + 消息/确认弹窗/通知
 import 'element-plus/es/components/loading/style/css'
+import 'element-plus/es/components/message/style/css'
+import 'element-plus/es/components/message-box/style/css'
+import 'element-plus/es/components/notification/style/css'
 import * as ElementPlusIconsVue from '@element-plus/icons-vue'
 import App from './App.vue'
 import router from './router'

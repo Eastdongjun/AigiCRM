@@ -614,6 +614,7 @@ import ApprovalConfig from '@/views/system/approvalConfig.vue'
 import { ref, reactive, computed, onMounted, watch, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { confirmAction } from '@/utils/confirm'
 import { Plus, Files, Collection, PriceTag } from '@element-plus/icons-vue'
 import { useUserStore } from '@/store/user'
 import {
@@ -832,7 +833,7 @@ const grantPerm = async () => {
   } catch(e) { ElMessage.error('授权失败') }
 }
 const revokePerm = async (id) => {
-  try { await ElMessageBox.confirm('确认撤销该权限？','提示',{type:'warning'}); await request.delete('/incentive/permission/'+id); ElMessage.success('已撤销'); loadPermList() } catch(e) {}
+  try { await confirmAction('撤销后该人员将回到基础可见范围：只能看到已分享的记录与本人上传内容。', '撤销激励授权', { confirmText: '确认撤销' }); await request.delete('/incentive/permission/'+id); ElMessage.success('已撤销'); loadPermList() } catch(e) {}
 }
 const token = localStorage.getItem('token')
 
@@ -1203,9 +1204,8 @@ const handleDeleteCategory = async (row) => {
     ElMessage.warning(`"${row.categoryName}" 下有 ${row.children.length} 个子项，请先删除子项`)
     return
   }
-  const msg = `确认删除 "${row.categoryName}"？`
   try {
-    await ElMessageBox.confirm(msg, '删除确认', { type: 'warning' })
+    await confirmAction(`确认删除 "${row.categoryName}"？删除后不可恢复。`, '删除激励类别', { confirmText: '确认删除' })
     await deleteCategory(row.id)
     ElMessage.success('删除成功')
     loadCategoryTree()
