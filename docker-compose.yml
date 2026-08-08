@@ -13,7 +13,7 @@ services:
       DB_HOST: shared-mysql
       DB_PORT: 3306
       DB_USER: root
-      DB_PASSWORD: '<redacted>'
+      DB_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD 未设置（凭据经 ~/.ycmn-deploy.env 注入）}
       REDIS_HOST: shared-redis
       REDIS_PORT: 6379
       UPLOAD_DIR: /app/uploads

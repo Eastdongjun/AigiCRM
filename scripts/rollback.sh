@@ -14,7 +14,7 @@ rollback_db() {
     latest=\$(ls -t $NAS_BACKUP_DIR/daily/*/ycmn-db-*.sql 2>/dev/null | head -1)
     [ -z \"\$latest\" ] && { echo '❌ 无可用数据库备份'; exit 1; }
     echo \"使用备份: \$latest\"
-    docker exec -i ycmn-mysql mysql -uroot -p<redacted> --default-character-set=utf8mb4 < \"\$latest\"
+    docker exec -i ycmn-mysql mysql -uroot -p"$DB_PASSWORD" --default-character-set=utf8mb4 < \"\$latest\"
     echo '数据库已恢复'
   "
 }
@@ -40,7 +40,7 @@ rollback_backend() {
     docker stop ycmn-backend && docker rm ycmn-backend
     docker run -d --name ycmn-backend --network ycmn_default --restart always \
       -p 127.0.0.1:8080:8080 \
-      -e DB_HOST=mysql -e DB_PORT=3306 -e DB_USER=root -e DB_PASSWORD=<redacted> \
+      -e DB_HOST=mysql -e DB_PORT=3306 -e DB_USER=root -e DB_PASSWORD="$DB_PASSWORD" \
       -e REDIS_HOST=redis -e REDIS_PORT=6379 \
       -e UPLOAD_DIR=/app/uploads -e STORAGE_TYPE=local -e TZ=Asia/Shanghai \
       -e OSS_ENDPOINT=oss-cn-beijing.aliyuncs.com -e OSS_ACCESS_KEY_ID=your-key \

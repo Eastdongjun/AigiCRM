@@ -7,7 +7,7 @@ services:
     container_name: aigicrm-mysql
     restart: always
     environment:
-      MYSQL_ROOT_PASSWORD: '<redacted>'
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD 未设置}  # 经 ~/.ycmn-deploy.env 注入
       MYSQL_DATABASE: ycmn
       TZ: Asia/Shanghai
     ports:
@@ -41,7 +41,7 @@ services:
       DB_HOST: mysql
       DB_PORT: 3306
       DB_USER: root
-      DB_PASSWORD: '<redacted>'
+      DB_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD 未设置}
       REDIS_HOST: redis
       REDIS_PORT: 6379
       STORAGE_TYPE: local

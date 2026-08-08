@@ -30,7 +30,7 @@ ssh_prod "
   docker stop ycmn-backend && docker rm ycmn-backend
   docker run -d --name ycmn-backend --network ycmn_default --restart always \
     -p 127.0.0.1:8080:8080 \
-    -e DB_HOST=mysql -e DB_PORT=3306 -e DB_USER=root -e DB_PASSWORD=<redacted> \
+    -e DB_HOST=mysql -e DB_PORT=3306 -e DB_USER=root -e DB_PASSWORD="$DB_PASSWORD" \
     -e REDIS_HOST=redis -e REDIS_PORT=6379 \
     -e UPLOAD_DIR=/app/uploads -e STORAGE_TYPE=local -e TZ=Asia/Shanghai \
     -e OSS_ENDPOINT=oss-cn-beijing.aliyuncs.com -e OSS_ACCESS_KEY_ID=your-key \

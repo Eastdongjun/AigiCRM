@@ -15,8 +15,8 @@ OUT="/Users/donglai/东来/01-Projects/01-aigicrm/04-源码/docs/database/data-d
 mkdir -p "$(dirname "$OUT")"
 
 echo "=== 从 $LABEL 提取表结构 ==="
-"$SSH_FN" "docker exec $MYSQL_C mysql -uroot -p<redacted> -N --default-character-set=utf8mb4 -e \"SELECT t.table_name, t.table_comment FROM information_schema.tables t WHERE t.table_schema='ycmn' ORDER BY t.table_name;\" 2>/dev/null" > /tmp/dict-tables.txt
-"$SSH_FN" "docker exec $MYSQL_C mysql -uroot -p<redacted> -N --default-character-set=utf8mb4 -e \"SELECT c.table_name, c.column_name, c.column_type, c.is_nullable, c.column_default, c.column_key, c.column_comment FROM information_schema.columns c WHERE c.table_schema='ycmn' ORDER BY c.table_name, c.ordinal_position;\" 2>/dev/null" > /tmp/dict-cols.txt
+"$SSH_FN" "docker exec $MYSQL_C mysql -uroot -p"$DB_PASSWORD" -N --default-character-set=utf8mb4 -e \"SELECT t.table_name, t.table_comment FROM information_schema.tables t WHERE t.table_schema='ycmn' ORDER BY t.table_name;\" 2>/dev/null" > /tmp/dict-tables.txt
+"$SSH_FN" "docker exec $MYSQL_C mysql -uroot -p"$DB_PASSWORD" -N --default-character-set=utf8mb4 -e \"SELECT c.table_name, c.column_name, c.column_type, c.is_nullable, c.column_default, c.column_key, c.column_comment FROM information_schema.columns c WHERE c.table_schema='ycmn' ORDER BY c.table_name, c.ordinal_position;\" 2>/dev/null" > /tmp/dict-cols.txt
 echo "表数: $(wc -l < /tmp/dict-tables.txt) | 字段行数: $(wc -l < /tmp/dict-cols.txt)"
 
 echo "=== 生成 markdown ==="
