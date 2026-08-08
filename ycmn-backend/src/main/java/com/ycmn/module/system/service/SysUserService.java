@@ -234,9 +234,14 @@ public class SysUserService {
             ur.setRoleId(user.getRoleId());
             userRoleMapper.insert(ur);
         }
-        // 【2026-08-08 用户级 custom 授权】custom 时保存个人授权组织（未传 orgIds 不清空，仅当显式传了才更新）
-        if ("custom".equals(existing.getDataScopeOverride()) && user.getOrgIds() != null) {
+        // 【2026-08-08 用户级 custom 授权】custom 时保存个人授权组织（未传 orgIds 不清空，仅当显式传了才更新）。
+        // 【修复 2026-08-08】必须用"新值"user.getDataScopeOverride() 判断——若旧值非 custom、本次改 custom，
+        // 用 existing 旧值会跳过保存导致授权组织为空（毛颖娜实际案例）。
+        if ("custom".equals(user.getDataScopeOverride()) && user.getOrgIds() != null) {
             saveUserOrgs(existing.getId(), user.getOrgIds());
+        } else if (!"custom".equals(user.getDataScopeOverride())) {
+            // 不再是 custom：清空个人授权组织，避免残留
+            userOrgMapper.deleteByUserId(existing.getId());
         }
     }
 
