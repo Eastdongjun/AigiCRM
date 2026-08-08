@@ -17,6 +17,20 @@ export default defineConfig({
       '@': resolve(__dirname, 'src')
     }
   },
+  build: {
+    rolldownOptions: {
+      output: {
+        // 【性能 2026-08-08】按需引入把 element-plus 拆成几十个小 chunk → 慢网请求数爆炸。
+        // 合并成少数 vendor chunk：请求数 90+ → ~10，慢网提速明显
+        codeSplitting: {
+          groups: [
+            { name: 'el-plus', test: /node_modules[/\\](element-plus|@element-plus)/ },
+            { name: 'vue-core', test: /node_modules[/\\](vue|@vue|pinia|vue-router)/ },
+          ],
+        },
+      },
+    },
+  },
   server: {
     port: 3000,
     proxy: {
