@@ -64,7 +64,7 @@ MYSQL_CT=$(ssh_test "docker ps --format '{{.Names}}'" | grep -i mysql | head -1)
 echo "检测到测试库容器: $MYSQL_CT"
 for sql in fix-permission-rule-org-id.sql fix-menu-dynamic-sidebar.sql; do
   scp_test "sql/migration/20260804/$sql" "${TEST_USER}@${TEST_HOST}:/tmp/$sql" || die "上传 $sql 失败"
-  ssh_test "docker exec -i $MYSQL_CT mysql -uroot -p"$TEST_DB_ROOT_PASSWORD" --default-character-set=utf8mb4 ycmn < /tmp/$sql" \
+  ssh_test "docker exec -i $MYSQL_CT mysql -u"$TEST_DB_ADMIN_USER" -p"$TEST_DB_ADMIN_PASSWORD" --default-character-set=utf8mb4 ycmn < /tmp/$sql" \
     && echo "✅ $sql 执行完成" || die "$sql 执行失败"
 done
 
