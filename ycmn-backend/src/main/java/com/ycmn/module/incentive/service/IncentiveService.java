@@ -52,6 +52,18 @@ public class IncentiveService {
         }
     }
 
+    /** 【2026-08-08 双勾选】查看已分享记录资格：面板未配置(无行)→默认可见(基础)；配置后按其勾选收窄 */
+    public boolean canViewShared(Long userId) {
+        if (SecurityUtils.isAdmin()) return true;
+        try {
+            Map<String, Object> row = jdbc.queryForMap(
+                "SELECT can_view_shared FROM biz_incentive_permission WHERE user_id=?", userId);
+            return ((Number) row.get("can_view_shared")).intValue() == 1;
+        } catch (Exception e) {
+            return true; // 无面板行 → 基础可见（分享仍默认全员）
+        }
+    }
+
     /** 查询用户是否有编辑权限（admin 始终有权限；多角色任一含 admin 即真） */
     public boolean canEdit(Long userId) {
         if (SecurityUtils.isAdmin()) return true;
@@ -116,14 +128,17 @@ public class IncentiveService {
     }
 
     /**
-     * 【2026-08-08 分享制】记录列表可见性统一：canSeeAllIncentive → 全部；
-     * 否则仅"本人记录 ∨ 已分享(shared=1)"，其余人不可见（未分享仅本人+管理员+专项授权可见）。
+     * 【2026-08-08 分享制+双勾选】记录列表可见性统一：canSeeAllIncentive → 全部；
+     * 否则"本人 ∨ (已分享 AND canViewShared)"——面板取消"查看已分享"的用户不可见他人分享记录。
      */
     private void applyShareVisibility(LambdaQueryWrapper<BizIncentiveRecord> wrapper) {
         if (canSeeAllIncentive()) return;
         Long userId = SecurityUtils.getCurrentUserId();
-        wrapper.and(w -> w.eq(BizIncentiveRecord::getUserId, userId)
-                .or().eq(BizIncentiveRecord::getShared, 1));
+        boolean canShared = canViewShared(userId);
+        wrapper.and(w -> {
+            w.eq(BizIncentiveRecord::getUserId, userId);
+            if (canShared) w.or().eq(BizIncentiveRecord::getShared, 1);
+        });
     }
 
     /**
@@ -681,6 +696,8 @@ public class IncentiveService {
         if (canSeeAllIncentive()) return true;
         Long self = SecurityUtils.getCurrentUserId();
         if (targetUserId != null && targetUserId.equals(self)) return true;
+        // 【2026-08-08 双勾选】被取消"查看已分享"的用户无法查看他人的分享记录
+        if (!canViewShared(self)) return false;
         return recordMapper.selectCount(new LambdaQueryWrapper<BizIncentiveRecord>()
                 .eq(BizIncentiveRecord::getUserId, targetUserId)
                 .eq(BizIncentiveRecord::getShared, 1)) > 0;

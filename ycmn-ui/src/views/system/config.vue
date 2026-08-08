@@ -274,7 +274,10 @@
                   <el-table-column prop="realName" label="姓名" min-width="80" />
                   <el-table-column prop="officeName" label="大区" min-width="120" show-overflow-tooltip />
                   <el-table-column prop="roleName" label="岗位" min-width="80" />
-                  <el-table-column label="看全部" width="70" align="center">
+                  <el-table-column label="查看已分享" width="82" align="center">
+                    <template #default="{row}"><el-tag :type="row.can_view_shared?'success':'info'" size="small">{{row.can_view_shared?'是':'否'}}</el-tag></template>
+                  </el-table-column>
+                  <el-table-column label="查看全部" width="70" align="center">
                     <template #default="{row}"><el-tag :type="row.can_view_all?'success':'info'" size="small">{{row.can_view_all?'是':'否'}}</el-tag></template>
                   </el-table-column>
                   <el-table-column label="编辑" width="60" align="center">
@@ -373,7 +376,8 @@
             <div class="perm-tree-hint">按 大区 → 办事处 → 部门 → 人员 勾选，勾选上级自动选中其下所有人</div>
           </div>
         </el-form-item>
-        <el-form-item label="看全部"><el-switch v-model="permForm.canViewAll" /></el-form-item>
+        <el-form-item label="查看已分享"><el-checkbox v-model="permForm.canViewShared">默认全员可见，可单独收窄</el-checkbox></el-form-item>
+        <el-form-item label="查看全部"><el-checkbox v-model="permForm.canViewAll">含未分享记录</el-checkbox></el-form-item>
         <el-form-item label="编辑权限"><el-switch v-model="permForm.canEdit" /></el-form-item>
         <el-form-item label="删除权限"><el-switch v-model="permForm.canDelete" /></el-form-item>
       </el-form>
@@ -671,7 +675,7 @@ const loadPermData = async () => {
 // 四项激励权限
 const permList = ref([])
 const showPermDialog = ref(false)
-const permForm = reactive({ canViewAll: true, canEdit: true, canDelete: true })
+const permForm = reactive({ canViewShared: true, canViewAll: true, canEdit: true, canDelete: true })
 const allUsers = ref([])
 // 层级人员树：大区 → 办事处 → 部门 → 人员（节点 key: 'd'+orgId / 'u'+userId）
 const orgUserTree = ref([])
@@ -744,6 +748,7 @@ const grantPerm = async () => {
   try {
     await request.post('/incentive/permission/grant', {
       userIds,
+      canViewShared: permForm.canViewShared,
       canViewAll: permForm.canViewAll,
       canEdit: permForm.canEdit,
       canDelete: permForm.canDelete

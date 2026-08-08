@@ -76,23 +76,28 @@ class IncentiveShareVisibilityTest {
                 resolver);
     }
 
-    private Map<String, Object> permRow(int viewAll, int edit, int del) {
-        return Map.of("can_view_all", viewAll, "can_edit", edit, "can_delete", del);
+    private Map<String, Object> permRow(int viewAll, int shared, int edit, int del) {
+        return Map.of("can_view_all", viewAll, "can_view_shared", shared, "can_edit", edit, "can_delete", del);
     }
 
-    /** 未授权：三项全关 */
+    /** 未授权：查看已分享默认开(基础)，无查看全部/编辑/删除 */
     private void stubJdbcAsUnauthorized() {
-        when(jdbc.queryForMap(anyString(), any(Object[].class))).thenReturn(permRow(0, 0, 0));
+        when(jdbc.queryForMap(anyString(), any(Object[].class))).thenReturn(permRow(0, 1, 0, 0));
     }
 
     /** 仅"看全部"独立开关：可看全部(含未分享)，但不含编辑/删除他人 */
     private void stubJdbcAsViewAllOnly() {
-        when(jdbc.queryForMap(anyString(), any(Object[].class))).thenReturn(permRow(1, 0, 0));
+        when(jdbc.queryForMap(anyString(), any(Object[].class))).thenReturn(permRow(1, 1, 0, 0));
     }
 
     /** 编辑授权（隐含看全部） */
     private void stubJdbcAsEditor() {
-        when(jdbc.queryForMap(anyString(), any(Object[].class))).thenReturn(permRow(1, 1, 0));
+        when(jdbc.queryForMap(anyString(), any(Object[].class))).thenReturn(permRow(1, 1, 1, 0));
+    }
+
+    /** 面板收窄：取消"查看已分享"（连分享记录也不可见） */
+    private void stubJdbcAsNoShared() {
+        when(jdbc.queryForMap(anyString(), any(Object[].class))).thenReturn(permRow(0, 0, 0, 0));
     }
 
     private String visibleSqlOf(boolean canSeeAll, Long self) {
@@ -165,6 +170,22 @@ class IncentiveShareVisibilityTest {
         String sql = visibleSqlOf(false, 1L);
         assertTrue(sql.contains("user_id") && sql.contains("shared") && sql.contains("OR"),
                 "未授权用户应过滤为 本人 OR shared=1，实际: " + sql);
+    }
+
+    /** 面板收窄(取消"查看已分享") → applyShareVisibility 只过滤本人，不再含 shared 条件 */
+    @Test
+    void noSharedPermissionFiltersOnlyOwn() {
+        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
+            m.when(SecurityUtils::isAdmin).thenReturn(false);
+            m.when(SecurityUtils::getCurrentUserId).thenReturn(1L);
+            stubJdbcAsNoShared();
+            IncentiveService svc = newService();
+            LambdaQueryWrapper<BizIncentiveRecord> wrapper = new LambdaQueryWrapper<>();
+            ReflectionTestUtils.invokeMethod(svc, "applyShareVisibility", wrapper);
+            String sql = wrapper.getSqlSegment();
+            assertTrue(sql.contains("user_id"), "应过滤本人，实际: " + sql);
+            assertFalse(sql.contains("shared"), "取消查看已分享后不应含 shared 条件，实际: " + sql);
+        }
     }
 
     // ==================== canViewIncentiveUser ====================
