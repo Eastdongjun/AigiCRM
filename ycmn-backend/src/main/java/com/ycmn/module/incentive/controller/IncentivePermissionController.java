@@ -52,9 +52,12 @@ public class IncentivePermissionController {
         }
         if (userIds.isEmpty()) throw new BusinessException("请选择要授权的人员");
         for (Long userId : userIds) {
+            // 【2026-08-08 防覆盖】批量授权/全选可能包含已授权用户 → UPSERT 用 GREATEST 保护：
+            // can_edit/can_delete 只升不降（避免全选把特权用户编辑/删除覆盖成 0）。需收回用"撤销"整行删除后重授。
             jdbc.update("INSERT INTO biz_incentive_permission (user_id, can_view_all, can_view_shared, can_edit, can_delete) VALUES (?,?,?,?,?) " +
-                        "ON DUPLICATE KEY UPDATE can_view_all=?, can_view_shared=?, can_edit=?, can_delete=?",
-                        userId, canViewAll, canViewShared, canEdit, canDelete, canViewAll, canViewShared, canEdit, canDelete);
+                        "ON DUPLICATE KEY UPDATE can_view_all=VALUES(can_view_all), can_view_shared=VALUES(can_view_shared), " +
+                        "can_edit=GREATEST(can_edit, VALUES(can_edit)), can_delete=GREATEST(can_delete, VALUES(can_delete))",
+                        userId, canViewAll, canViewShared, canEdit, canDelete);
         }
         return Result.ok();
     }

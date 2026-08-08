@@ -193,14 +193,14 @@
         </el-tab-pane>
         <!-- 激励类别与权限 -->
         <el-tab-pane name="incentiveCategory">
-          <template #label><span class="tab-label">🗂️ 激励类别与权限</span></template>
+          <template #label><span class="tab-label"><el-icon style="vertical-align:-2px;margin-right:4px"><Coin /></el-icon>激励类别与权限</span></template>
           <!-- 激励类别与权限：区块化布局（2026-08-08 重排，保证两个区块可靠显示） -->
           <div class="perm-page">
             <!-- 区块一：激励类别管理 -->
             <section class="perm-sec">
               <header class="perm-sec-head">
                 <div class="perm-sec-title">
-                  <span class="perm-sec-icon icon-cat">🗂</span>
+                  <span class="perm-sec-icon icon-cat"><el-icon :size="19"><FolderOpened /></el-icon></span>
                   <div class="perm-sec-text">
                     <h3>激励类别管理</h3>
                     <p>维护激励的一级 / 二级分类，配置名称、编码、分值与启用状态</p>
@@ -211,36 +211,47 @@
               <div class="perm-sec-body">
                 <div v-if="catLoadError" class="cat-empty cat-error">无权限查看激励类别（缺少 incentive:view 权限）或加载失败</div>
                 <el-empty v-else-if="!categoryTree.length" description="暂无类别，点击「新增类别」创建" :image-size="72" />
-                <div v-for="top in categoryTree" :key="top.id" class="cat-group">
+                <div v-for="(top, gi) in categoryTree" :key="top.id" class="cat-group" :style="{ '--cat-accent': catAccents[gi % catAccents.length] }">
                   <div class="cat-group-head" @click="toggleCategory(top.id)">
-                    <span class="cat-group-name">{{ top.categoryName }}</span>
-                    <span class="cat-group-code">{{ top.categoryCode }}</span>
-                    <el-tag :type="top.status === 1 ? 'success' : 'danger'" size="small" effect="light">{{ top.status === 1 ? '启用' : '禁用' }}</el-tag>
-                    <span class="cat-group-count">{{ (top.children || []).length }} 个子项</span>
-                    <span class="cat-arrow" :class="{ expanded: !collapsed.has(top.id) }">▾</span>
+                    <div class="cat-group-title">
+                      <span class="cat-name">{{ top.categoryName }}</span>
+                      <span class="cat-code">{{ top.categoryCode }}</span>
+                      <el-tag :type="top.status === 1 ? 'success' : 'danger'" size="small" effect="light" round>{{ top.status === 1 ? '启用' : '禁用' }}</el-tag>
+                      <span class="cat-count"><el-icon><Collection /></el-icon> {{ (top.children || []).length }} 个子项</span>
+                    </div>
                     <div class="cat-group-actions" @click.stop>
                       <el-button v-if="userStore.hasPermission('incentive:edit')" link type="primary" size="small" @click="openCategoryDialog(top)">编辑</el-button>
                       <el-button v-if="userStore.hasPermission('incentive:edit')" link type="primary" size="small" @click="openCategoryDialog(null, top.id)">子项</el-button>
                       <el-button v-if="userStore.hasPermission('incentive:edit')" link type="danger" size="small" @click="handleDeleteCategory(top)">删除</el-button>
                     </div>
+                    <span class="cat-arrow" :class="{ expanded: !collapsed.has(top.id) }"><el-icon><ArrowDown /></el-icon></span>
                   </div>
                   <div v-show="!collapsed.has(top.id)" class="cat-group-body">
-                    <el-table v-if="top.children && top.children.length" :data="top.children" size="small" style="width:100%">
-                      <el-table-column prop="categoryName" label="类别名称" min-width="160" />
-                      <el-table-column prop="categoryCode" label="编码" width="130" />
-                      <el-table-column label="分值" width="60" align="center">
+                    <el-table v-if="top.children && top.children.length" :data="top.children" size="small" style="width:100%"
+                      :header-cell-style="{ background: '#f7f9fc', color: '#4e5969', fontWeight: 600, borderBottom: '1px solid #eef0f4' }">
+                      <el-table-column label="类别名称" min-width="160">
                         <template #default="{ row }">
-                          <span v-if="row.score > 0" class="cat-score">{{ row.score }}分</span>
-                          <span v-else style="color:#c0c4cc">—</span>
+                          <span class="cat-child-name">{{ row.categoryName }}</span>
                         </template>
                       </el-table-column>
-                      <el-table-column prop="sortOrder" label="排序" width="60" align="center" />
-                      <el-table-column label="状态" width="70" align="center">
+                      <el-table-column prop="categoryCode" label="编码" width="120">
+                        <template #default="{ row }"><span class="cat-child-code">{{ row.categoryCode }}</span></template>
+                      </el-table-column>
+                      <el-table-column label="分值" width="80" align="center">
                         <template #default="{ row }">
-                          <el-tag :type="row.status === 1 ? 'success' : 'danger'" size="small">{{ row.status === 1 ? '启用' : '禁用' }}</el-tag>
+                          <span v-if="row.score > 0" class="cat-score-pill">{{ row.score }} 分</span>
+                          <span v-else class="cat-score-zero">—</span>
                         </template>
                       </el-table-column>
-                      <el-table-column label="操作" width="130" align="center">
+                      <el-table-column label="排序" width="64" align="center">
+                        <template #default="{ row }"><span class="cat-order">{{ row.sortOrder }}</span></template>
+                      </el-table-column>
+                      <el-table-column label="状态" width="76" align="center">
+                        <template #default="{ row }">
+                          <span :class="row.status === 1 ? 'cat-status-on' : 'cat-status-off'"><i></i>{{ row.status === 1 ? '启用' : '禁用' }}</span>
+                        </template>
+                      </el-table-column>
+                      <el-table-column label="操作" width="128" align="center">
                         <template #default="{ row }">
                           <div class="action-btns">
                             <el-button v-if="userStore.hasPermission('incentive:edit')" link type="primary" size="small" @click="openCategoryDialog(row)">编辑</el-button>
@@ -259,34 +270,56 @@
             <section class="perm-sec">
               <header class="perm-sec-head">
                 <div class="perm-sec-title">
-                  <span class="perm-sec-icon icon-perm">🔑</span>
+                  <span class="perm-sec-icon icon-perm"><el-icon :size="19"><Key /></el-icon></span>
                   <div class="perm-sec-text">
                     <h3>激励专项权限</h3>
-                    <p>独立于菜单权限，按人授予：看全部 / 编辑 / 删除。编辑或删除开启时自动含「看全部」</p>
+                    <p>独立于菜单权限，按人授予：查看已分享 / 查看全部 / 编辑 / 删除</p>
                   </div>
                 </div>
                 <el-button type="primary" size="small" :icon="Plus" @click="openPermDialog">添加授权</el-button>
               </header>
               <div class="perm-sec-body">
-                <el-table :data="permList" size="small" style="width:100%">
-                  <el-table-column type="index" label="序号" width="55" align="center" />
-                  <el-table-column prop="username" label="账号" min-width="90" />
-                  <el-table-column prop="realName" label="姓名" min-width="80" />
-                  <el-table-column prop="officeName" label="大区" min-width="120" show-overflow-tooltip />
-                  <el-table-column prop="roleName" label="岗位" min-width="80" />
-                  <el-table-column label="查看已分享" width="82" align="center">
-                    <template #default="{row}"><el-tag :type="row.can_view_shared?'success':'info'" size="small">{{row.can_view_shared?'是':'否'}}</el-tag></template>
+                <el-table :data="permList" size="small" style="width:100%"
+                  :header-cell-style="{ background: '#f7f9fc', color: '#4e5969', fontWeight: 600, borderBottom: '1px solid #eef0f4' }"
+                  :row-style="{ height: '54px' }">
+                  <el-table-column type="index" label="序号" width="56" align="center">
+                    <template #default="{ $index }"><span class="perm-index">{{ $index + 1 }}</span></template>
                   </el-table-column>
-                  <el-table-column label="查看全部" width="70" align="center">
-                    <template #default="{row}"><el-tag :type="row.can_view_all?'success':'info'" size="small">{{row.can_view_all?'是':'否'}}</el-tag></template>
+                  <el-table-column label="人员" min-width="160">
+                    <template #default="{ row }">
+                      <div class="perm-person">
+                        <span class="perm-avatar" :style="avatarStyle(row.realName)">{{ (row.realName || '?').charAt(0) }}</span>
+                        <div class="perm-person-text">
+                          <span class="perm-name">{{ row.realName }}</span>
+                          <span class="perm-username">{{ row.username }}</span>
+                        </div>
+                      </div>
+                    </template>
                   </el-table-column>
-                  <el-table-column label="编辑" width="60" align="center">
-                    <template #default="{row}"><el-tag :type="row.can_edit?'success':'info'" size="small">{{row.can_edit?'是':'否'}}</el-tag></template>
+                  <el-table-column label="组织 / 岗位" min-width="170">
+                    <template #default="{ row }">
+                      <div class="perm-org">
+                        <span class="perm-office">{{ row.officeName || '—' }}</span>
+                        <span class="perm-role" :class="roleClass(row.roleName)">{{ row.roleName || '—' }}</span>
+                      </div>
+                    </template>
                   </el-table-column>
-                  <el-table-column label="删除" width="55" align="center">
-                    <template #default="{row}"><el-tag :type="row.can_delete?'success':'info'" size="small">{{row.can_delete?'是':'否'}}</el-tag></template>
+                  <el-table-column label="查看范围" min-width="150">
+                    <template #default="{ row }">
+                      <div class="perm-view">
+                        <span v-if="row.can_view_shared" class="perm-pill pill-shared">已分享</span>
+                        <span v-if="row.can_view_all" class="perm-pill pill-all">全部</span>
+                        <span v-if="!row.can_view_shared && !row.can_view_all" class="perm-pill-off">仅本人</span>
+                      </div>
+                    </template>
                   </el-table-column>
-                  <el-table-column label="操作" width="65" align="center">
+                  <el-table-column label="编辑" width="78" align="center">
+                    <template #default="{row}"><span :class="row.can_edit ? 'perm-ok' : 'perm-off'" :title="row.can_edit ? '可编辑激励' : '不可编辑'">{{ row.can_edit ? '✓ 可编辑' : '—' }}</span></template>
+                  </el-table-column>
+                  <el-table-column label="删除" width="78" align="center">
+                    <template #default="{row}"><span :class="row.can_delete ? 'perm-ok perm-ok-danger' : 'perm-off'" :title="row.can_delete ? '可删除激励' : '不可删除'">{{ row.can_delete ? '✓ 可删除' : '—' }}</span></template>
+                  </el-table-column>
+                  <el-table-column label="操作" width="70" align="center">
                     <template #default="{row}"><el-button link type="danger" size="small" @click="revokePerm(row.id)">撤销</el-button></template>
                   </el-table-column>
                 </el-table>
@@ -358,16 +391,27 @@
     </div>
 
     <!-- 四项激励权限弹窗 -->
-    <el-dialog v-model="showPermDialog" title="添加权限" width="520px">
-      <el-form label-width="70px">
-        <el-form-item label="选择人员">
+    <el-dialog v-model="showPermDialog" width="540px" class="perm-grant-dlg">
+      <template #header>
+        <div class="perm-grant-header">
+          <span class="perm-grant-header-icon"><el-icon :size="18"><Key /></el-icon></span>
+          <div>
+            <div class="perm-grant-header-title">添加激励专项授权</div>
+            <div class="perm-grant-header-sub">选择人员并配置可见范围与操作权限</div>
+          </div>
+        </div>
+      </template>
+      <div class="perm-grant-body">
+        <!-- 选择人员 -->
+        <div class="perm-grant-sec">
+          <div class="perm-grant-sec-title"><el-icon><User /></el-icon> 选择人员</div>
           <div class="perm-tree-wrap">
             <div class="perm-tree-tools">
               <el-button size="small" :icon="Plus" @click="checkAllUsers">全选</el-button>
               <el-button size="small" @click="clearUsers">清空</el-button>
               <span class="perm-tree-count">已选 <b>{{ selectedUserCount }}</b> 人</span>
             </div>
-            <el-scrollbar height="280px" class="perm-tree-scroll">
+            <el-scrollbar height="240px" class="perm-tree-scroll">
               <el-tree ref="userTreeRef" :data="orgUserTree" show-checkbox node-key="key"
                 :props="{ label: 'label', children: 'children' }"
                 :expand-on-click-node="false" default-expand-all
@@ -375,15 +419,46 @@
             </el-scrollbar>
             <div class="perm-tree-hint">按 大区 → 办事处 → 部门 → 人员 勾选，勾选上级自动选中其下所有人</div>
           </div>
-        </el-form-item>
-        <el-form-item label="查看已分享"><el-checkbox v-model="permForm.canViewShared">默认全员可见，可单独收窄</el-checkbox></el-form-item>
-        <el-form-item label="查看全部"><el-checkbox v-model="permForm.canViewAll">含未分享记录</el-checkbox></el-form-item>
-        <el-form-item label="编辑权限"><el-switch v-model="permForm.canEdit" /></el-form-item>
-        <el-form-item label="删除权限"><el-switch v-model="permForm.canDelete" /></el-form-item>
-      </el-form>
+        </div>
+        <!-- 权限配置 -->
+        <div class="perm-grant-sec">
+          <div class="perm-grant-sec-title"><el-icon><Lock /></el-icon> 权限配置</div>
+          <div class="perm-grant-opts">
+            <div class="perm-grant-opt">
+              <el-checkbox v-model="permForm.canViewShared" />
+              <div class="perm-grant-opt-text">
+                <span class="perm-grant-opt-name">查看已分享</span>
+                <span class="perm-grant-opt-desc">默认全员可见，可单独收窄</span>
+              </div>
+            </div>
+            <div class="perm-grant-opt">
+              <el-checkbox v-model="permForm.canViewAll" />
+              <div class="perm-grant-opt-text">
+                <span class="perm-grant-opt-name">查看全部</span>
+                <span class="perm-grant-opt-desc">含未分享记录</span>
+              </div>
+            </div>
+            <div class="perm-grant-opt">
+              <el-switch v-model="permForm.canEdit" size="small" />
+              <div class="perm-grant-opt-text">
+                <span class="perm-grant-opt-name">编辑</span>
+                <span class="perm-grant-opt-desc">可编辑他人激励记录</span>
+              </div>
+            </div>
+            <div class="perm-grant-opt">
+              <el-switch v-model="permForm.canDelete" size="small" />
+              <div class="perm-grant-opt-text">
+                <span class="perm-grant-opt-name">删除</span>
+                <span class="perm-grant-opt-desc">可删除他人激励记录</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
       <template #footer>
+        <span class="perm-grant-footer-count">已选 <b>{{ selectedUserCount }}</b> 人</span>
         <el-button @click="showPermDialog=false">取消</el-button>
-        <el-button type="primary" @click="grantPerm">确定</el-button>
+        <el-button type="primary" :icon="Check" @click="grantPerm">确认授权</el-button>
       </template>
     </el-dialog>
 
@@ -1057,6 +1132,29 @@ const categoryTree = ref([])
 const collapsed = ref(new Set())
 const categoryDialogVisible = ref(false)
 const categoryForm = reactive({ id: null, parentId: 0, categoryName: '', categoryCode: '', score: 0, sortOrder: 0, status: 1 })
+// 类别卡片彩色边条
+const catAccents = ['#409eff', '#f97316', '#8b5cf6', '#10b981', '#f59e0b', '#ef4444']
+// 权限人员头像渐变（按姓名哈希取色）
+const avatarPalette = [
+  'linear-gradient(135deg,#409eff,#36cfc9)',
+  'linear-gradient(135deg,#f59e0b,#f97316)',
+  'linear-gradient(135deg,#8b5cf6,#6366f1)',
+  'linear-gradient(135deg,#10b981,#34d399)',
+  'linear-gradient(135deg,#f43f5e,#f97316)',
+]
+const avatarStyle = (name) => {
+  let h = 0
+  for (const c of (name || '?')) h = (h * 31 + c.charCodeAt(0)) % 997
+  return { background: avatarPalette[h % avatarPalette.length] }
+}
+// 岗位样式分类
+const roleClass = (role) => {
+  const r = role || ''
+  if (r.includes('管理员')) return 'role-admin'
+  if (r.includes('总监')) return 'role-director'
+  if (r.includes('行政')) return 'role-admin'
+  return 'role-sale'
+}
 
 const categoryParentOptions = computed(() =>
   categoryTree.value.map(c => ({ id: c.id, categoryName: c.categoryName }))
@@ -1239,17 +1337,18 @@ onMounted(() => {
 .perm-sec {
   background: #fff;
   border: 1px solid #e4e7ed;
-  border-radius: 10px;
+  border-radius: 12px;
   overflow: hidden;
+  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.03);
 }
 .perm-sec-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 14px 18px;
-  background: linear-gradient(90deg, #f5f7fa, #fff);
-  border-bottom: 1px solid #ebeef5;
+  padding: 16px 20px;
+  background: linear-gradient(90deg, #f8fafc, #fff);
+  border-bottom: 1px solid #eef0f4;
 }
 .perm-sec-title {
   display: flex;
@@ -1257,17 +1356,17 @@ onMounted(() => {
   gap: 12px;
 }
 .perm-sec-icon {
-  width: 38px;
-  height: 38px;
-  border-radius: 9px;
+  width: 40px;
+  height: 40px;
+  border-radius: 11px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 19px;
   flex-shrink: 0;
+  color: #fff;
 }
-.perm-sec-icon.icon-cat { background: #ecf5ff; }
-.perm-sec-icon.icon-perm { background: #f0f0ff; }
+.perm-sec-icon.icon-cat { background: linear-gradient(135deg, #409eff, #3a7afe); box-shadow: 0 4px 10px rgba(64, 158, 255, 0.22); }
+.perm-sec-icon.icon-perm { background: linear-gradient(135deg, #8b5cf6, #6366f1); box-shadow: 0 4px 10px rgba(139, 92, 246, 0.22); }
 .perm-sec-text h3 {
   margin: 0;
   font-size: 15px;
@@ -1275,12 +1374,12 @@ onMounted(() => {
   color: #1f2329;
 }
 .perm-sec-text p {
-  margin: 2px 0 0;
+  margin: 3px 0 0;
   font-size: 12px;
-  color: #909399;
+  color: #86909c;
 }
 .perm-sec-body {
-  padding: 14px 18px 16px;
+  padding: 16px 20px 20px;
 }
 .cat-empty {
   color: #909399;
@@ -1289,57 +1388,139 @@ onMounted(() => {
   text-align: center;
 }
 .cat-error { color: #f56c6c; }
-.cat-score { color: #409eff; font-weight: 600; }
+
+/* 类别卡片（左侧彩色边条） */
 .cat-group {
-  border: 1px solid #e4e7ed;
-  border-radius: 6px;
+  position: relative;
+  border: 1px solid #e9ecf1;
+  border-radius: 10px;
   margin-bottom: 10px;
   overflow: hidden;
+  background: #fff;
+  transition: border-color 0.18s, box-shadow 0.18s;
+}
+.cat-group:hover { border-color: #d6dce4; box-shadow: 0 2px 8px rgba(16, 24, 40, 0.05); }
+.cat-group::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 4px;
+  background: var(--cat-accent, #409eff);
 }
 .cat-group-head {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 10px 14px;
-  background: #f5f7fa;
+  padding: 12px 16px 12px 20px;
+  background: #f8fafc;
   cursor: pointer;
   user-select: none;
+  transition: background 0.15s;
 }
-.cat-group-name {
-  font-size: 15px;
-  font-weight: 600;
-  color: #303133;
+.cat-group-head:hover { background: #f2f6fb; }
+.cat-group-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  flex: 1;
+  flex-wrap: wrap;
 }
-.cat-group-code {
+.cat-name { font-size: 14px; font-weight: 600; color: #1f2329; }
+.cat-code {
+  font-size: 11px;
+  color: #7c8695;
+  background: #e9edf3;
+  border-radius: 5px;
+  padding: 2px 7px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+.cat-count {
   font-size: 12px;
   color: #909399;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
 }
-.cat-group-count {
-  font-size: 12px;
-  color: #909399;
-}
-.cat-arrow {
-  margin-left: auto;
-  font-size: 12px;
-  color: #909399;
-  transition: transform 0.2s;
-}
-.cat-arrow.expanded {
-  transform: rotate(180deg);
-}
+.cat-count .el-icon { font-size: 13px; }
 .cat-group-actions {
   display: flex;
   gap: 2px;
+  opacity: 0;
+  transition: opacity 0.15s;
 }
-.cat-group-body {
-  padding: 4px 0;
+.cat-group-head:hover .cat-group-actions { opacity: 1; }
+.cat-arrow {
+  font-size: 14px;
+  color: #a8abb2;
+  transition: transform 0.2s, color 0.2s;
+  display: inline-flex;
 }
-.cat-no-child {
-  color: #c0c4cc;
-  font-size: 13px;
-  text-align: center;
-  padding: 16px 0;
+.cat-arrow.expanded { transform: rotate(180deg); color: #409eff; }
+.cat-group-body { padding: 8px 12px 10px; }
+.cat-no-child { color: #c0c4cc; font-size: 13px; text-align: center; padding: 16px 0; }
+
+/* 子类别表格 */
+.cat-child-name { font-size: 13px; font-weight: 500; color: #303133; }
+.cat-child-code {
+  font-size: 11px;
+  color: #7c8695;
+  background: #f2f4f8;
+  border-radius: 5px;
+  padding: 2px 7px;
+  font-family: ui-monospace, Menlo, monospace;
 }
+.cat-score-pill {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, rgba(64, 158, 255, 0.12), rgba(64, 158, 255, 0.05));
+  color: #2f7fe0;
+  font-size: 12px;
+  font-weight: 600;
+}
+.cat-score-zero { color: #c0c4cc; }
+.cat-order { color: #86909c; font-size: 12px; }
+.cat-status-on, .cat-status-off { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; }
+.cat-status-on { color: #10b981; font-weight: 600; }
+.cat-status-on i, .cat-status-off i { width: 6px; height: 6px; border-radius: 50%; display: inline-block; }
+.cat-status-on i { background: #10b981; box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.15); }
+.cat-status-off { color: #a8abb2; }
+.cat-status-off i { background: #c0c4cc; }
+
+/* 权限人员列表 */
+.perm-index { color: #c0c4cc; font-size: 12px; }
+.perm-person { display: flex; align-items: center; gap: 10px; }
+.perm-avatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  flex-shrink: 0;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+}
+.perm-person-text { display: flex; flex-direction: column; min-width: 0; }
+.perm-name { font-size: 13px; font-weight: 600; color: #1f2329; }
+.perm-username { font-size: 11px; color: #a8abb2; }
+.perm-org { display: flex; flex-direction: column; gap: 2px; }
+.perm-office { font-size: 12px; color: #4e5969; }
+.perm-role { align-self: flex-start; font-size: 11px; padding: 1px 8px; border-radius: 10px; }
+.perm-role.role-admin { background: #ecf5ff; color: #409eff; }
+.perm-role.role-director { background: #fdf2e6; color: #e6a23c; }
+.perm-role.role-sale { background: #f0f9eb; color: #67c23a; }
+.perm-view { display: flex; gap: 6px; flex-wrap: wrap; }
+.perm-pill { font-size: 11px; padding: 2px 9px; border-radius: 10px; font-weight: 600; }
+.pill-shared { background: #ecf5ff; color: #409eff; }
+.pill-all { background: #f0f0ff; color: #8b5cf6; }
+.perm-pill-off { font-size: 11px; color: #c0c4cc; }
+.perm-ok { color: #10b981; font-size: 12px; font-weight: 600; }
+.perm-ok-danger { color: #f56c6c; }
+.perm-off { color: #d5dbe3; font-size: 13px; }
 
 .action-btns {
   display: flex;
@@ -1376,4 +1557,43 @@ onMounted(() => {
 .perm-tree-count b { color: #409eff; font-size: 14px }
 .perm-tree-scroll :deep(.el-tree) { padding: 6px 4px }
 .perm-tree-hint { font-size: 11px; color: #a0a6b0; padding: 6px 10px; border-top: 1px solid #eef0f4; background: #fcfcfd }
+
+/* 添加授权弹窗 */
+.perm-grant-header { display: flex; align-items: center; gap: 12px; }
+.perm-grant-header-icon {
+  width: 38px; height: 38px; border-radius: 10px;
+  display: inline-flex; align-items: center; justify-content: center;
+  color: #fff;
+  background: linear-gradient(135deg, #8b5cf6, #6366f1);
+  box-shadow: 0 4px 10px rgba(139, 92, 246, 0.22);
+  flex-shrink: 0;
+}
+.perm-grant-header-title { font-size: 15px; font-weight: 600; color: #1f2329; }
+.perm-grant-header-sub { font-size: 12px; color: #909399; margin-top: 2px; }
+.perm-grant-body { display: flex; flex-direction: column; gap: 14px; padding-top: 4px; }
+.perm-grant-sec-title {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 13px; font-weight: 600; color: #303133;
+  margin-bottom: 8px;
+}
+.perm-grant-sec-title .el-icon { color: #409eff; }
+.perm-grant-opts {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px 16px;
+}
+.perm-grant-opt {
+  display: flex; align-items: center; gap: 8px;
+  padding: 9px 12px;
+  border: 1px solid #e9ecf1;
+  border-radius: 8px;
+  background: #fafbfc;
+  transition: border-color 0.15s, background 0.15s;
+}
+.perm-grant-opt:hover { border-color: #b3d3f8; background: #f5f9ff; }
+.perm-grant-opt-text { display: flex; flex-direction: column; min-width: 0; }
+.perm-grant-opt-name { font-size: 13px; font-weight: 600; color: #1f2329; }
+.perm-grant-opt-desc { font-size: 11px; color: #a0a6b0; margin-top: 1px; }
+.perm-grant-footer-count { font-size: 12px; color: #909399; margin-right: auto; }
+.perm-grant-footer-count b { color: #409eff; font-size: 14px; }
 </style>
