@@ -104,32 +104,7 @@
         <el-tab-pane name="approvalConfig"><template #label><span class="tab-label">✅ 审批配置</span></template><ApprovalConfig /></el-tab-pane>
         <el-tab-pane name="sea">
           <template #label><span class="tab-label">🌊 公海配置</span></template>
-          <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">
-            <span style="font-size:15px;font-weight:600">公海池列表</span>
-            <el-tag size="small" type="info">{{ seaPools.length }} 个池</el-tag>
-            <el-button type="primary" size="small" :icon="Plus" @click="handleAddPool">新增公海池</el-button>
-          </div>
-          <el-row :gutter="16">
-            <el-col v-for="pool in seaPools" :key="pool.id" :span="8" style="margin-bottom:16px">
-              <el-card shadow="hover" :body-style="{ padding: '16px' }">
-                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
-                  <span style="font-weight:600;font-size:14px">{{ pool.poolName }}</span>
-                  <el-tag :type="pool.status===1?'success':'info'" size="small">{{ pool.status===1?'启用':'禁用' }}</el-tag>
-                </div>
-                <div style="color:#909399;font-size:12px;line-height:1.8">
-                  <div><el-icon style="vertical-align:middle"><OfficeBuilding /></el-icon> {{ pool.regionNames || '未设置' }}</div>
-                  <div><el-icon style="vertical-align:middle"><View /></el-icon> {{ pool.visibleNames || '未设置' }}</div>
-                  <div><el-icon style="vertical-align:middle"><Sort /></el-icon> 排序: {{ pool.sortOrder }}</div>
-                </div>
-                <div style="margin-top:12px;display:flex;gap:8px">
-                  <el-button size="small" @click="handleEditPool(pool)">编辑</el-button>
-                  <el-button size="small" type="danger" @click="handleDeletePool(pool)">删除</el-button>
-                </div>
-              </el-card>
-            </el-col>
-          </el-row>
-          <el-empty v-if="seaLoadError" description="无权限查看公海配置（缺少 sea:config:view 权限）或加载失败" />
-          <el-empty v-else-if="!seaPools.length" description="暂无公海池，点击上方按钮创建" />
+          <SeaConfigManager />
         </el-tab-pane>
         <!-- 激励类别与权限 -->
         <el-tab-pane name="incentiveCategory">
@@ -403,73 +378,6 @@
     </el-dialog>
 
     <!-- 公海池编辑弹窗 -->
-    <el-dialog v-model="poolDialogVisible" :title="poolForm.id ? '编辑公海池' : '新增公海池'" width="700px" destroy-on-close top="5vh">
-      <el-form :model="poolForm" label-width="100px" label-position="right">
-        <el-form-item label="公海池名称" required>
-          <el-input v-model="poolForm.poolName" placeholder="如：内蒙办公海" maxlength="30" show-word-limit />
-        </el-form-item>
-
-        <el-divider content-position="left">
-          <el-icon><View /></el-icon> 可见范围
-          <el-tag size="small" type="warning" style="margin-left:8px">{{ poolForm.visibleKeys.length }} 项已选</el-tag>
-        </el-divider>
-
-        <el-row :gutter="16" style="margin-bottom:8px">
-          <el-col :span="14">
-            <div class="tree-card">
-              <div class="tree-card-header">
-                <el-icon><OfficeBuilding /></el-icon> 组织架构
-              </div>
-              <el-tree
-                ref="seaTreeRef"
-                :data="orgTree"
-                show-checkbox
-                node-key="id"
-                :props="{ label: 'label', children: 'children', disabled: 'disabled' }"
-                default-expand-all
-                check-strictly
-                @check="onSeaTreeCheck"
-                style="max-height:360px;overflow:auto;padding:8px"
-              />
-              <div class="tree-card-tip">总部不可选；大区/办事处/部门/人员均可选</div>
-            </div>
-          </el-col>
-          <el-col :span="10">
-            <div class="tree-card">
-              <div class="tree-card-header">
-                <el-icon><Select /></el-icon> 已选范围
-                <el-button link size="small" @click="clearSeaSelection" style="margin-left:auto">清空</el-button>
-              </div>
-              <div style="max-height:360px;overflow:auto;padding:8px">
-                <el-tag
-                  v-for="item in selectedSeaNodes"
-                  :key="item.key"
-                  :type="item.type"
-                  closable
-                  size="small"
-                  @close="removeSeaNode(item)"
-                  style="margin:2px;display:block;text-align:left"
-                >
-                  <el-icon style="vertical-align:middle"><component :is="item.key.startsWith('d_') ? 'OfficeBuilding' : 'User'" /></el-icon>
-                  {{ item.label }}
-                </el-tag>
-                <el-empty v-if="!selectedSeaNodes.length" description="未选择" :image-size="40" />
-              </div>
-            </div>
-          </el-col>
-        </el-row>
-
-        <el-divider content-position="left"><el-icon><Setting /></el-icon> 其他设置</el-divider>
-        <el-form-item label="排序">
-          <el-input-number v-model="poolForm.sortOrder" :min="0" />
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="poolDialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="submitPool">确定</el-button>
-      </template>
-    </el-dialog>
-
     <!-- 激励类别编辑弹窗 -->
     <el-dialog v-model="categoryDialogVisible" :title="categoryForm.id ? '编辑类别' : '新增类别'" width="500px">
       <el-form :model="categoryForm" label-width="80px">
@@ -521,9 +429,9 @@ import {
   getConfigList, updateConfigs,
   getRoleList, getMenuTree, updateRole
 } from '@/api/system'
-import { getSeaConfigs, createSeaConfig, updateSeaConfig, deleteSeaConfig, getOrgTree } from '@/api/sea'
 import { getCategoryTree, createCategory, updateCategory, deleteCategory } from '@/api/incentive'
 import DictManager from './DictManager.vue'
+import SeaConfigManager from './SeaConfigManager.vue'
 import request from '@/utils/request'
 
 const userStore = useUserStore()
@@ -743,7 +651,6 @@ const configMap = reactive({})
 const autoShare = reactive({ superior: true, admin: true, roles: [], users: [] })
 // Tab 加载失败标志:区分"无权限/加载失败"与"暂无数据",避免静默空白
 const permLoadError = ref(false)
-const seaLoadError = ref(false)
 const catLoadError = ref(false)
 const loadConfigs = async () => {
   try {
@@ -830,110 +737,6 @@ const handleSave = async () => {
 
 // ===== 字典类型 =====
 // ===== 公海池配置 =====
-const seaPools = ref([])
-const orgTree = ref([])
-const poolDialogVisible = ref(false)
-const poolForm = reactive({ id: null, poolName: '', visibleKeys: [], sortOrder: 0 })
-
-const loadSeaPools = async () => {
-  seaLoadError.value = false
-  try {
-    const res = await getSeaConfigs()
-    seaPools.value = res.data || []
-  } catch (e) { seaLoadError.value = true }
-}
-
-const loadOrgTree = async () => {
-  try {
-    const res = await getOrgTree()
-    orgTree.value = res.data || []
-  } catch (e) {}
-}
-
-// 由 visibleDeptIds/visibleUserIds 还原树节点 key (d_<id> / u_<id>)
-const buildVisibleKeys = (deptIds, userIds) => {
-  const keys = []
-  if (deptIds) deptIds.split(',').filter(Boolean).forEach(id => keys.push('d_' + id.trim()))
-  if (userIds) userIds.split(',').filter(Boolean).forEach(id => keys.push('u_' + id.trim()))
-  return keys
-}
-
-const seaTreeRef = ref(null)
-// 扁平化组织树用于 key → 标签映射
-const flattenOrgTree = (nodes, out = []) => {
-  for (const n of nodes) { out.push(n); if (n.children) flattenOrgTree(n.children, out) }
-  return out
-}
-// 已选范围标签（同步树勾选态）
-const selectedSeaNodes = computed(() => {
-  const all = flattenOrgTree(orgTree.value)
-  return (poolForm.visibleKeys || []).map(k => {
-    const n = all.find(x => String(x.id) === k)
-    if (n) return { key: k, label: n.label, type: String(k).startsWith('d_') ? 'warning' : 'primary' }
-    return { key: k, label: k, type: 'info' }
-  })
-})
-// 树勾选变化 → 同步 visibleKeys
-const onSeaTreeCheck = () => {
-  if (!seaTreeRef.value) return
-  poolForm.visibleKeys = seaTreeRef.value.getCheckedKeys().map(String)
-}
-const removeSeaNode = (item) => {
-  poolForm.visibleKeys = (poolForm.visibleKeys || []).filter(k => k !== item.key)
-  if (seaTreeRef.value) seaTreeRef.value.setCheckedKeys(poolForm.visibleKeys)
-}
-const clearSeaSelection = () => {
-  poolForm.visibleKeys = []
-  if (seaTreeRef.value) seaTreeRef.value.setCheckedKeys([])
-}
-
-const handleAddPool = () => {
-  Object.assign(poolForm, { id: null, poolName: '', visibleKeys: [], sortOrder: 0 })
-  poolDialogVisible.value = true
-}
-
-const handleEditPool = (row) => {
-  Object.assign(poolForm, {
-    id: row.id,
-    poolName: row.poolName,
-    visibleKeys: buildVisibleKeys(row.visibleDeptIds, row.visibleUserIds),
-    sortOrder: row.sortOrder || 0
-  })
-  poolDialogVisible.value = true
-  nextTick(() => { if (seaTreeRef.value) seaTreeRef.value.setCheckedKeys(poolForm.visibleKeys) })
-}
-
-const handleDeletePool = async (row) => {
-  await ElMessageBox.confirm(`确定删除公海池「${row.poolName}」？`, '提示', { type: 'warning' })
-  await deleteSeaConfig(row.id)
-  ElMessage.success('删除成功')
-  loadSeaPools()
-}
-
-const submitPool = async () => {
-  if (!poolForm.poolName) { ElMessage.warning('请输入公海池名称'); return }
-  if (!poolForm.visibleKeys.length) { ElMessage.warning('请选择可见部门/人员'); return }
-  try {
-    // 拆分树节点 key 为可见部门ID / 可见人员ID
-    const deptIds = poolForm.visibleKeys.filter(k => k.startsWith('d_')).map(k => k.slice(2))
-    const userIds = poolForm.visibleKeys.filter(k => k.startsWith('u_')).map(k => k.slice(2))
-    const payload = {
-      poolName: poolForm.poolName,
-      visibleDeptIds: deptIds.join(','),
-      visibleUserIds: userIds.join(','),
-      sortOrder: poolForm.sortOrder
-    }
-    if (poolForm.id) {
-      await updateSeaConfig(poolForm.id, payload)
-    } else {
-      await createSeaConfig(payload)
-    }
-    ElMessage.success('保存成功')
-    poolDialogVisible.value = false
-    loadSeaPools()
-  } catch (e) {}
-}
-
 // ===== 激励类别 =====
 const categoryTree = ref([])
 const collapsed = ref(new Set())
@@ -1024,8 +827,6 @@ onMounted(() => {
   loadConfigs()
   loadPermList()
   loadAllUsers()
-  loadSeaPools()
-  loadOrgTree()
   loadCategoryTree()
   // 【修复 20260805】基本设置页"指定角色"下拉依赖 allRoles，此前仅在切到"权限矩阵"Tab 时才加载
   // （watch activeTab），导致基本设置打开时角色下拉为空。挂载即加载，与权限 Tab 共用数据源。
@@ -1288,9 +1089,6 @@ onMounted(() => {
 .first-in-group td { border-top: 2px solid #e8eaed }
 
 /* 公海池可见范围树 */
-.tree-card { border: 1px solid #e4e7ed; border-radius: 8px; padding: 10px 12px; background: #fafbfc }
-.tree-card-header { display: flex; align-items: center; gap: 5px; font-size: 13px; font-weight: 600; color: #4e5969; margin-bottom: 6px }
-.tree-card-tip { font-size: 11px; color: #909399; margin-top: 6px; line-height: 1.5 }
 
 /* 激励授权层级人员树 */
 .perm-tree-wrap { width: 100%; border: 1px solid #e4e7ed; border-radius: 8px; overflow: hidden }
