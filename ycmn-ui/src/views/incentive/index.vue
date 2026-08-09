@@ -768,13 +768,11 @@ const removeSlotFile = (slotKey, idx) => {
 }
 
 const pickFile = (slotKey) => {
-  console.log('[pickFile] slot:', slotKey, 'fileInputRef:', fileInputRef.value)
   currentSlot.value = slotKey
   fileInputRef.value?.click()
 }
 
 const pickTrackFile = () => {
-  console.log('[pickTrackFile] fileInputRef:', fileInputRef.value)
   currentSlot.value = 'track'
   fileInputRef.value?.click()
 }
