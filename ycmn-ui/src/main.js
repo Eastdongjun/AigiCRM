@@ -1,4 +1,5 @@
 import { createApp } from 'vue'
+import { getDownloadToken } from '@/utils/token'
 // 【性能 2026-08-08】Element Plus 按需引入：组件由 unplugin-vue-components 按模板自动注入，
 // 样式按组件自动引入；此处仅保留全局图标注册与 v-loading 指令注册。
 import { ElLoading } from 'element-plus'
@@ -30,6 +31,7 @@ app.mount('#app')
 // 【需求】页面切换提速(FEAT 0804):路由 chunk 零预加载,首次点击菜单需现场下载(网络往返→卡顿);
 // 应用空闲时预加载常用页面 chunk,点击菜单时秒开
 window.addEventListener('load', () => {
+  getDownloadToken() // F2: 预热下载专用 token，列表缩略图用短时 token 而非主 JWT
   if ('requestIdleCallback' in window) {
     requestIdleCallback(() => {
       import('@/views/customer/list.vue')

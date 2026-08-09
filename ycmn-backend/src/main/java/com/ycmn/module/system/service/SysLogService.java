@@ -79,13 +79,7 @@ public class SysLogService {
     }
 
     private String getClientIp(HttpServletRequest request) {
-        String ip = request.getHeader("X-Forwarded-For");
-        if (ip == null || ip.isEmpty() || "unknown".equalsIgnoreCase(ip)) {
-            ip = request.getHeader("X-Real-IP");
-        }
-        if (ip == null || ip.isEmpty() || "unknown".equalsIgnoreCase(ip)) {
-            ip = request.getRemoteAddr();
-        }
-        return ip;
+        // M2: 统一走可信代理校验，避免直信 X-Forwarded-For 导致审计 IP 可伪造（与登录限流 ClientIpUtils 同源）
+        return com.ycmn.common.util.ClientIpUtils.getClientIp(request);
     }
 }

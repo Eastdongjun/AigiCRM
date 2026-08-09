@@ -29,6 +29,11 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         String token = getTokenFromRequest(request);
 
         if (StringUtils.hasText(token) && jwtTokenProvider.validateToken(token)) {
+            // F2: 下载专用 token(scope=download)仅允许用于下载/导出路径，防泄漏后被当作会话滥用
+            if ("download".equals(jwtTokenProvider.getScopeFromToken(token)) && !isDownloadPath(request)) {
+                filterChain.doFilter(request, response);
+                return;
+            }
             Long userId = jwtTokenProvider.getUserIdFromToken(token);
             UserDetails userDetails = userDetailsService.loadUserByUsername(String.valueOf(userId));
 
@@ -55,5 +60,11 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             }
         }
         return null;
+    }
+
+    /** 下载专用 token 允许访问的路径（文件下载/缩略图 + 导出） */
+    private boolean isDownloadPath(HttpServletRequest request) {
+        String uri = request.getRequestURI();
+        return uri.startsWith("/api/file/download/") || uri.startsWith("/api/score/export/");
     }
 }

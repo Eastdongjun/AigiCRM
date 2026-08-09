@@ -73,7 +73,7 @@
 import { ref, computed, onMounted } from 'vue'
 import FilePreview from '@/components/FilePreview.vue'
 import { getCategoryTree } from '@/api/incentive'
-import { getToken } from '@/utils/token'
+import { getDownloadToken } from '@/utils/token'
 import request from '@/utils/request'
 import { ElMessage } from 'element-plus'
 
@@ -86,8 +86,8 @@ const industries = ['冶金','煤矿','化工','电力','有色金属','机械',
 const totalR = computed(() => custs.value.reduce((s,c) => s + c.count, 0))
 
 function onImgError(e){e.target.src='data:image/svg+xml,'+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="320" height="240" viewBox="0 0 320 240"><rect fill="#f5f6f7" width="320" height="240"/><text fill="#c0c4cc" font-size="14" font-family="sans-serif" text-anchor="middle" x="160" y="120">图片已丢失</text></svg>')}
-function fileUrl(id) { return '/api/file/download/' + id + '?token=' + (getToken() || '') }
-function thumbUrl(id) { return '/api/file/download/' + id + '?token=' + (getToken() || '') + '&thumbnail=1' }
+function fileUrl(id) { return '/api/file/download/' + id + '?token=' + (getDownloadToken() || '') }
+function thumbUrl(id) { return '/api/file/download/' + id + '?token=' + (getDownloadToken() || '') + '&thumbnail=1' }
 function preview(id, type, name) { previewUrl.value = fileUrl(id); previewType.value = type || 'image'; previewName.value = name || ''; previewVisible.value = true }
 
 function parseIds(v){if(!v)return[];if(typeof v==='number')return[v];try{const a=JSON.parse(v);return Array.isArray(a)?a.map(x=>Number(x)):[v]}catch{return String(v).split(',').map(s=>s.trim()).filter(Boolean)}}

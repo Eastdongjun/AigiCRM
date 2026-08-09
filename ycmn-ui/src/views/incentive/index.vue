@@ -328,7 +328,7 @@ import { getCustomerList } from '@/api/customer'
 import { getDictData } from '@/api/system'
 import { useUserStore } from '@/store/user'
 import request from '@/utils/request'
-import { getToken } from '@/utils/token'
+import { getToken, getDownloadToken } from '@/utils/token'
 
 const userStore = useUserStore()
 const activeTab = ref('')
@@ -350,7 +350,7 @@ const pageSize = ref(10)
 
 // ===== 安装文件预览 =====
 const previewVisible = ref(false), previewUrl = ref(''), previewType = ref('image'), previewName = ref('')
-function fileUrl(id) { return '/api/file/download/' + id + '?token=' + (getToken() || '') }
+function fileUrl(id) { return '/api/file/download/' + id + '?token=' + (getDownloadToken() || '') }
 function parseFids(v) { if (!v) return []; if (typeof v === 'number') return [v]; try { const a = JSON.parse(v); return Array.isArray(a) ? a.map(x => Number(x)) : [v] } catch { return String(v).split(',').map(s => s.trim()).filter(Boolean) } }
 function splitNames(n) { if (!n) return []; return String(n).split(',').map(s => s.trim()).filter(Boolean) }
 function fileType(n) { if (!n) return 'doc'; if (/\.(jpg|jpeg|png|gif|webp|bmp)$/i.test(n)) return 'image'; if (/\.(mp4|mov|avi|webm)$/i.test(n)) return 'video'; return 'doc' }

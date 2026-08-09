@@ -82,16 +82,12 @@ public class ActionGuardAspect {
         return null;
     }
 
-    /** 构造权限拒绝响应 */
+    /** 构造权限拒绝响应（HTTP 403，与 GlobalExceptionHandler 语义一致） */
     private Object buildDeniedResponse(String action) {
-        try {
-            Map<String, Object> result = new LinkedHashMap<>();
-            result.put("code", 403);
-            result.put("message", "操作被禁止: " + action + " 权限不足");
-            result.put("data", null);
-            return result;
-        } catch (Exception e) {
-            return Map.of("code", 403, "message", "操作被禁止: " + action + " 权限不足");
-        }
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("code", 403);
+        result.put("message", "操作被禁止: " + action + " 权限不足");
+        result.put("data", null);
+        return org.springframework.http.ResponseEntity.status(403).body(result);
     }
 }

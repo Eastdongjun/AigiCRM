@@ -22,7 +22,15 @@ public class RedisConfig {
 
         ObjectMapper om = new ObjectMapper();
         om.setVisibility(PropertyAccessor.ALL, JsonAutoDetect.Visibility.ANY);
-        om.activateDefaultTyping(LaissezFaireSubTypeValidator.instance, ObjectMapper.DefaultTyping.NON_FINAL);
+        // M5: 多态反序列化从 LaissezFaire(任意类型)收紧为项目+JDK 白名单，防外部污染 Redis 触发 gadget
+        om.activateDefaultTyping(
+                com.fasterxml.jackson.databind.jsontype.BasicPolymorphicTypeValidator.builder()
+                        .allowIfSubType("com.ycmn.")
+                        .allowIfSubType("java.util.")
+                        .allowIfSubType("java.time.")
+                        .allowIfSubType("java.lang.")
+                        .build(),
+                ObjectMapper.DefaultTyping.NON_FINAL);
         om.registerModule(new JavaTimeModule());
 
         Jackson2JsonRedisSerializer<Object> serializer = new Jackson2JsonRedisSerializer<>(om, Object.class);

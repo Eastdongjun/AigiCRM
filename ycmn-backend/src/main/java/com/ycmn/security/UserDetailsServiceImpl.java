@@ -30,6 +30,14 @@ public class UserDetailsServiceImpl implements UserDetailsService {
     private final SysPositionMapper positionMapper;
     private final SysPermissionRuleMapper permissionRuleMapper;
 
+    // S2: 权限上下文短 TTL 本地缓存（每请求全量重查→60s 命中；权限变更/封号 60s 内生效延迟可接受）
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(UserDetailsServiceImpl.class);
+    private final com.github.benmanes.caffeine.cache.Cache<String, SecurityUser> userContextCache =
+            com.github.benmanes.caffeine.cache.Caffeine.newBuilder()
+                    .expireAfterWrite(60, java.util.concurrent.TimeUnit.SECONDS)
+                    .maximumSize(10000)
+                    .build();
+
     @Override
     public UserDetails loadUserByUsername(String usernameOrId) throws UsernameNotFoundException {
         SysUser user;
@@ -46,6 +54,12 @@ public class UserDetailsServiceImpl implements UserDetailsService {
 
         if (user == null || user.getStatus() == 0) {
             throw new UsernameNotFoundException("用户不存在或已禁用");
+        }
+
+        // S2: 命中缓存直接返回（构建 SecurityUser 需 10+ 条 SQL）
+        SecurityUser cached = userContextCache.getIfPresent(user.getUsername());
+        if (cached != null) {
+            return cached;
         }
 
         Set<String> permissions = menuMapper.selectPermissionsByUserId(user.getId());
@@ -200,8 +214,12 @@ public class UserDetailsServiceImpl implements UserDetailsService {
                     securityUser.setDataScopes(scopes);
                 }
             }
-        } catch (Exception ignored) {}
+        } catch (Exception e) {
+            // S4: 组织管理员 dataScope 提升查询失败不得静默——记录日志（当前未提升，保守 fail-closed）
+            log.error("查询组织管理员 dataScope 失败 userId={}", securityUser.getUserId(), e);
+        }
 
+        userContextCache.put(user.getUsername(), securityUser);
         return securityUser;
     }
 }

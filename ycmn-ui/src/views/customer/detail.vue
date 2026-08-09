@@ -385,6 +385,7 @@ import { getDictData } from '@/api/system'
 import { submitApproval } from '@/api/approval'
 import { getScoreByCustomer, getCategoryTree } from '@/api/incentive'
 import request from '@/utils/request'
+import { getDownloadToken } from '@/utils/token'
 import { useUserStore } from '@/store/user'
 
 const route = useRoute(); const router = useRouter(); const userStore = useUserStore()
@@ -493,7 +494,7 @@ const fmtDate = (t) => { if (!t) return ''; const d = new Date(t); return d.getF
 const downloadIncentiveFile = async (f) => {
   if (!f?.id) return
   try {
-    const url = '/api/file/download/' + f.id + '?token=' + (localStorage.getItem('token') || '')
+    const url = '/api/file/download/' + f.id + '?token=' + (getDownloadToken() || '')
     const res = await fetch(url)
     if (!res.ok) { ElMessage.error('下载失败(' + res.status + ')'); return }
     const blob = await res.blob()

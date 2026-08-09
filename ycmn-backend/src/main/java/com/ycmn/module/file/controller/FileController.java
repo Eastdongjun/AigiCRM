@@ -27,6 +27,15 @@ import java.util.Map;
 public class FileController {
 
     private final FileService fileService;
+    private final com.ycmn.security.JwtTokenProvider jwtTokenProvider;
+
+    /** F2: 签发短时下载专用 token（1h，scope=download，仅下载/导出路径可用）——主 JWT 不再进 URL/日志 */
+    @GetMapping("/download-token")
+    public Result<Map<String, Object>> downloadToken() {
+        Map<String, Object> data = new java.util.HashMap<>();
+        data.put("token", jwtTokenProvider.generateDownloadToken(SecurityUtils.getCurrentUserId()));
+        return Result.ok(data);
+    }
 
     @PreAuthorize("hasAuthority('file:view')")
     @GetMapping("/folders")

@@ -24,6 +24,7 @@ public class ApprovalConfigService {
     private final SysUserMapper userMapper;
     private final SysRoleMapper roleMapper;
     private final ObjectMapper objectMapper = new ObjectMapper();
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(ApprovalConfigService.class);
 
     public List<BizApprovalConfig> list() {
         return configMapper.selectList(
@@ -91,25 +92,14 @@ public class ApprovalConfigService {
                 case "USER":
                     return ids.stream().map(Long::valueOf).toList();
                 case "ROLE": {
-                    // 通过 sys_user_role 表找用户
+                    // 通过 sys_user_role 关联表找用户(单条 JOIN 查询,消除"全量用户+逐用户查角色"的 N+1 全表扫描)
                     java.util.Set<Long> uids = new java.util.LinkedHashSet<>();
                     for (Integer rid : ids) {
-                        List<com.ycmn.module.system.entity.SysUser> roleUsers = userMapper.selectList(
-                            new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<com.ycmn.module.system.entity.SysUser>()
-                                .eq(com.ycmn.module.system.entity.SysUser::getStatus, 1)
-                                .eq(com.ycmn.module.system.entity.SysUser::getDeleted, 0));
-                        for (com.ycmn.module.system.entity.SysUser u : roleUsers) {
-                            List<Long> rids = new ArrayList<>();
-                            try {
-                                var roles = roleMapper.selectRolesByUserId(u.getId());
-                                if (roles != null) {
-                                    for (var r : roles) {
-                                        if (r.getId() != null && r.getId().equals(rid.longValue())) {
-                                            uids.add(u.getId());
-                                        }
-                                    }
-                                }
-                            } catch(Exception ignored) {}
+                        try {
+                            List<Long> matched = roleMapper.selectUserIdsByRoleId(rid.longValue());
+                            if (matched != null) uids.addAll(matched);
+                        } catch (Exception e) {
+                            log.warn("解析审批人 ROLE 失败 roleId={}: {}", rid, e.getMessage());
                         }
                     }
                     return new ArrayList<>(uids);

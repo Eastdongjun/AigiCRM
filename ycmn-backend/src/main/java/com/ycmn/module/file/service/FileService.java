@@ -42,6 +42,7 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 public class FileService {
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(FileService.class);
 
     private final BizFileMapper fileMapper;
     private final BizFileFolderMapper folderMapper;
@@ -533,7 +534,9 @@ public class FileService {
                 response.setHeader(HttpHeaders.LOCATION, file.getOssUrl());
                 return;
             }
-        } catch (Exception ignored) {
+        } catch (Exception e) {
+            // S4: 下载写响应异常不得静默吞成 404——记录日志便于排查
+            log.error("文件下载失败 fileId={}", fileId, e);
         }
         response.setStatus(404);
     }

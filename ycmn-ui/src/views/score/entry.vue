@@ -117,6 +117,7 @@ import { Plus, Delete } from '@element-plus/icons-vue'
 import { getScoreGrid, batchSaveEntries, addScoreItem, updateScoreItem, deleteScoreItem } from '@/api/score'
 import { getDictData } from '@/api/system'
 import { useUserStore } from '@/store/user'
+import { getDownloadToken } from '@/utils/token'
 
 const userStore = useUserStore()
 const isAdmin = computed(() => userStore.roles?.includes('admin'))
@@ -150,7 +151,7 @@ const handleRemoveUser = (user) => { visibleUsers.value = visibleUsers.value.fil
 const handleAddUser = (user) => { if(!visibleUsers.value.some(u=>u.id===user.id)) visibleUsers.value=[...visibleUsers.value,{id:user.id,realName:user.realName}] }
 // 【需求】导出(FEAT 0804):window.open 被拦截时"没反应",改 fetch blob + a.download 强制下载
 const handleExport = async () => {
-  const t = localStorage.getItem('token') || ''
+  const t = getDownloadToken() || ''
   try {
     const url = `/api/score/export/grid?period=${encodeURIComponent(period.value)}&token=${encodeURIComponent(t)}`
     const res = await fetch(url)
