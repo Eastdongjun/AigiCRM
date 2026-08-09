@@ -335,26 +335,26 @@ const advFilterCount = computed(() => { let n=0; for(const k in advFilter){ cons
 const loadFilterData = async () => {
   try {
     const token = localStorage.getItem('token')
-    const infoRes = await fetch('/api/auth/info', {headers:{Authorization:'Bearer '+token}}).then(r=>r.json())
-    const user = infoRes?.data
-    if (user) {
-      canFilterByOrg.value = user.dataScope === 'all' || (user.managedOrgIds||[]).length > 0
-      if (canFilterByOrg.value) {
-        const orgRes = await fetch('/api/system/depts/tree', {headers:{Authorization:'Bearer '+token}}).then(r=>r.json())
-        filterOrgTree.value = orgRes?.data || []
-      }
-      if (user.dataScope === 'all' || user.dataScope === 'org_and_children' || (user.managedOrgIds||[]).length > 0) {
-        // 用简易用户接口（只需 customer:view，不需要 system:user:view——避免销售员等角色 403）
-        const userRes = await fetch('/api/customer/users/simple', {headers:{Authorization:'Bearer '+token}}).then(r=>r.json())
-        filterUserOptions.value = (userRes?.data || []).map(u => ({id:u.id, realName:u.realName}))
-        canFilterByUsers.value = filterUserOptions.value.length > 1
-      }
+    // 【布局级缓存】auth/info 由布局加载并缓存 30s，这里直接读 store，避免每页重复请求
+    await userStore.fetchUserInfo()
+    const ds = userStore.dataScope
+    const mgd = userStore.managedOrgIds || []
+    canFilterByOrg.value = ds === 'all' || mgd.length > 0
+    if (canFilterByOrg.value) {
+      const orgRes = await fetch('/api/system/depts/tree', {headers:{Authorization:'Bearer '+token}}).then(r=>r.json())
+      filterOrgTree.value = orgRes?.data || []
+    }
+    if (ds === 'all' || ds === 'org_and_children' || mgd.length > 0) {
+      // 用简易用户接口（只需 customer:view，不需要 system:user:view——避免销售员等角色 403）
+      const userRes = await fetch('/api/customer/users/simple', {headers:{Authorization:'Bearer '+token}}).then(r=>r.json())
+      filterUserOptions.value = (userRes?.data || []).map(u => ({id:u.id, realName:u.realName}))
+      canFilterByUsers.value = filterUserOptions.value.length > 1
     }
   } catch(e) {}
 }
 const clearAdvFilter = () => { Object.assign(advFilter, {industry:'',province:'',city:'',status:'',protect:'',owner:'',regDate:null,expDate:null,orgIds:[],userIds:[]}) }
 const onTabChange = () => { page.value = 1; filters.search = ''; filters.industry = ''; filters.status = '' }
-import { getDeptList, getDictData, getPublicConfig } from '@/api/system'
+import { getDeptList, getDictData } from '@/api/system'
 import { useUserStore } from '@/store/user'
 
 const router = useRouter()
@@ -832,8 +832,9 @@ const getProtectText = (row) => {
 // 客户业务参数:从公开配置读取(保护期/提醒/调整期),配置改动即时生效,不再硬编码
 const loadBizConfig = async () => {
   try {
-    const res = await getPublicConfig()
-    const cfg = res.data || {}
+    // 【布局级缓存】configs/public 由布局加载并缓存 60s，这里直接读 store
+    await userStore.loadSystemConfig()
+    const cfg = userStore.publicConfig || {}
     if (cfg['customer.protection.days']) protectionDays.value = Number(cfg['customer.protection.days'])
     if (cfg['customer.warning.days']) warningDays.value = Number(cfg['customer.warning.days'])
     if (cfg['customer.adjust.days']) adjustDays.value = Number(cfg['customer.adjust.days'])
