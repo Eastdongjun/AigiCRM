@@ -12,6 +12,7 @@ import com.ycmn.module.system.mapper.SysMenuMapper;
 import com.ycmn.module.system.mapper.SysRoleMapper;
 import com.ycmn.module.system.mapper.SysRoleMenuMapper;
 import com.ycmn.module.system.mapper.SysRoleOrgMapper;
+import com.ycmn.security.PermissionCacheService;
 import com.ycmn.security.SecurityUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -28,6 +29,7 @@ public class SysRoleService {
     private final SysRoleMenuMapper roleMenuMapper;
     private final SysMenuMapper menuMapper;
     private final SysRoleOrgMapper roleOrgMapper;
+    private final PermissionCacheService permissionCacheService;
 
     /**
      * 角色列表（按集团边界过滤）。
@@ -110,6 +112,8 @@ public class SysRoleService {
         roleMapper.insert(role);
         saveRoleMenus(role.getId(), role.getMenuIds());
         saveRoleOrgs(role);
+        // 【Redis 权限缓存】新角色已绑定用户（前端可能同时授用户），立即失效该角色下用户缓存
+        permissionCacheService.evictByRole(role.getId());
     }
 
     /** 更新角色（有实际字段才更新；菜单/dataScope 变更时同步重建关联；越权集团拒绝） */
@@ -143,6 +147,8 @@ public class SysRoleService {
         if (role.getDataScope() != null) {
             saveRoleOrgs(role);
         }
+        // 【Redis 权限缓存】角色菜单/dataScope 变更影响该角色下所有用户，立即失效
+        permissionCacheService.evictByRole(role.getId());
     }
 
     /**
@@ -161,6 +167,8 @@ public class SysRoleService {
         role.setDataScope(DataScopeType.CUSTOM.getCode());
         role.setOrgIds(orgIds);
         saveRoleOrgs(role);
+        // 【Redis 权限缓存】custom 数据范围组织集变更立即失效
+        permissionCacheService.evictByRole(roleId);
     }
 
     /** 删除角色（连带清理菜单/组织关联；越权集团拒绝） */
@@ -174,6 +182,8 @@ public class SysRoleService {
         roleMapper.deleteById(id);
         roleMenuMapper.delete(new LambdaQueryWrapper<SysRoleMenu>().eq(SysRoleMenu::getRoleId, id));
         roleOrgMapper.deleteByRoleId(id);
+        // 【Redis 权限缓存】删除角色立即失效其用户缓存
+        permissionCacheService.evictByRole(id);
     }
 
     private void saveRoleMenus(Long roleId, List<Long> menuIds) {

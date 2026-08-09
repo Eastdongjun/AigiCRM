@@ -29,14 +29,9 @@ public class UserDetailsServiceImpl implements UserDetailsService {
     private final com.ycmn.module.system.mapper.SysUserOrgMapper userOrgMapper;
     private final SysPositionMapper positionMapper;
     private final SysPermissionRuleMapper permissionRuleMapper;
+    private final PermissionCacheService permissionCacheService;
 
-    // S2: 权限上下文短 TTL 本地缓存（每请求全量重查→60s 命中；权限变更/封号 60s 内生效延迟可接受）
     private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(UserDetailsServiceImpl.class);
-    private final com.github.benmanes.caffeine.cache.Cache<String, SecurityUser> userContextCache =
-            com.github.benmanes.caffeine.cache.Caffeine.newBuilder()
-                    .expireAfterWrite(60, java.util.concurrent.TimeUnit.SECONDS)
-                    .maximumSize(10000)
-                    .build();
 
     @Override
     public UserDetails loadUserByUsername(String usernameOrId) throws UsernameNotFoundException {
@@ -56,10 +51,10 @@ public class UserDetailsServiceImpl implements UserDetailsService {
             throw new UsernameNotFoundException("用户不存在或已禁用");
         }
 
-        // S2: 命中缓存直接返回（构建 SecurityUser 需 10+ 条 SQL）
-        SecurityUser cached = userContextCache.getIfPresent(user.getUsername());
+        // 【2026-08-09 Redis 权限缓存】命中缓存直接从 PermissionContext 重组返回（构建需 10+ 条 SQL）
+        PermissionContext cached = permissionCacheService.get(user.getId());
         if (cached != null) {
-            return cached;
+            return rebuildFromContext(cached);
         }
 
         Set<String> permissions = menuMapper.selectPermissionsByUserId(user.getId());
@@ -219,7 +214,55 @@ public class UserDetailsServiceImpl implements UserDetailsService {
             log.error("查询组织管理员 dataScope 失败 userId={}", securityUser.getUserId(), e);
         }
 
-        userContextCache.put(user.getUsername(), securityUser);
+        permissionCacheService.put(user.getId(), toContext(securityUser));
         return securityUser;
+    }
+
+    /** 从 SecurityUser 提取可序列化的 PermissionContext（不含 password/authorities——由 permissions 重建） */
+    private PermissionContext toContext(SecurityUser su) {
+        PermissionContext ctx = new PermissionContext();
+        ctx.setUserId(su.getUserId());
+        ctx.setUsername(su.getUsername());
+        ctx.setRealName(su.getRealName());
+        ctx.setDeptId(su.getDeptId());
+        ctx.setOfficeId(su.getOfficeId());
+        ctx.setOrgId(su.getOrgId());
+        ctx.setRoleCodes(su.getRoleCodes() != null ? su.getRoleCodes() : new ArrayList<>());
+        ctx.setDataScope(su.getDataScope());
+        ctx.setDataScopes(su.getDataScopes() != null ? su.getDataScopes() : new ArrayList<>());
+        ctx.setManagedOrgIds(su.getManagedOrgIds() != null ? su.getManagedOrgIds() : new ArrayList<>());
+        ctx.setGroupIds(su.getGroupIds() != null ? su.getGroupIds() : new ArrayList<>());
+        ctx.setLegalEntityIds(su.getLegalEntityIds() != null ? su.getLegalEntityIds() : new ArrayList<>());
+        ctx.setPositions(su.getPositions() != null ? su.getPositions() : new ArrayList<>());
+        ctx.setPermissionRules(su.getPermissionRules() != null ? su.getPermissionRules() : new ArrayList<>());
+        ctx.setRuleResult(su.getRuleResult());
+        ctx.setPermissions(su.getPermissions() != null ? su.getPermissions() : new java.util.HashSet<>());
+        return ctx;
+    }
+
+    /** 从缓存 PermissionContext 重组 SecurityUser（authorities 由 permissions 重建；password 登录路径单独查库，此处置 null 安全） */
+    private SecurityUser rebuildFromContext(PermissionContext ctx) {
+        SecurityUser su = new SecurityUser();
+        su.setUserId(ctx.getUserId());
+        su.setUsername(ctx.getUsername());
+        su.setPassword(null); // 登录验证不走 loadUserByUsername（AuthService 直接查库）
+        su.setRealName(ctx.getRealName());
+        su.setDeptId(ctx.getDeptId());
+        su.setOfficeId(ctx.getOfficeId());
+        su.setOrgId(ctx.getOrgId());
+        su.setRoleCodes(ctx.getRoleCodes());
+        su.setDataScope(ctx.getDataScope());
+        su.setDataScopes(ctx.getDataScopes());
+        su.setManagedOrgIds(ctx.getManagedOrgIds());
+        su.setGroupIds(ctx.getGroupIds());
+        su.setLegalEntityIds(ctx.getLegalEntityIds());
+        su.setPositions(ctx.getPositions());
+        su.setPermissionRules(ctx.getPermissionRules());
+        su.setRuleResult(ctx.getRuleResult());
+        su.setPermissions(ctx.getPermissions());
+        su.setAuthorities(ctx.getPermissions().stream()
+                .map(SimpleGrantedAuthority::new)
+                .collect(Collectors.toList()));
+        return su;
     }
 }

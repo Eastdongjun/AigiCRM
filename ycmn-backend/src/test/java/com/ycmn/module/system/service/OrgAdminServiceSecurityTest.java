@@ -23,7 +23,8 @@ import static org.mockito.Mockito.when;
 class OrgAdminServiceSecurityTest {
 
     private final SysUserMapper userMapper = mock(SysUserMapper.class);
-    private final OrgAdminService svc = new OrgAdminService(mock(SysOrgAdminMapper.class), userMapper);
+    private final OrgAdminService svc = new OrgAdminService(mock(SysOrgAdminMapper.class), userMapper,
+            mock(com.ycmn.security.PermissionCacheService.class));
 
     private SysUser user(long id, Long orgId) {
         SysUser u = new SysUser();

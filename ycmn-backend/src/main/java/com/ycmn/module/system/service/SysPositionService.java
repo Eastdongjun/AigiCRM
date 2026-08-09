@@ -20,6 +20,7 @@ public class SysPositionService {
     private final SysPositionRuleMapper positionRuleMapper;
     private final SysUserPositionMapper userPositionMapper;
     private final SysPermissionRuleMapper ruleMapper;
+    private final com.ycmn.security.PermissionCacheService permissionCacheService;
 
     // ==================== 岗位 CRUD ====================
 
@@ -85,6 +86,8 @@ public class SysPositionService {
         if (position.getRuleIds() != null) {
             saveRules(position.getId(), position.getRuleIds());
         }
+        // 【Redis 权限缓存】岗位字段/规则变更影响该岗位用户，立即失效
+        permissionCacheService.evictByPosition(position.getId());
     }
 
     /** 删除岗位（连带清理规则绑定与用户分配；越权集团拒绝） */
@@ -95,6 +98,9 @@ public class SysPositionService {
         if (existing != null && !GroupScopeUtil.canAccessGroup(existing.getGroupId())) {
             throw new BusinessException("无权删除其他集团的岗位");
         }
+        // 【复核修复 2026-08-09】evictByPosition 反查 sys_user_position 表——必须先于删除绑定行执行，
+        // 否则反查返回空导致 evict 失效(已删岗位的规则最长残留 10min TTL)
+        permissionCacheService.evictByPosition(id);
         positionRuleMapper.delete(new LambdaQueryWrapper<SysPositionRule>().eq(SysPositionRule::getPositionId, id));
         userPositionMapper.delete(new LambdaQueryWrapper<SysUserPosition>().eq(SysUserPosition::getPositionId, id));
         positionMapper.deleteById(id);
@@ -118,6 +124,8 @@ public class SysPositionService {
             pr.setRuleId(ruleId);
             positionRuleMapper.insert(pr);
         }
+        // 【Redis 权限缓存】规则绑定变更立即失效该岗位用户缓存
+        permissionCacheService.evictByPosition(positionId);
     }
 
     // ==================== 用户-岗位分配 ====================
@@ -139,5 +147,7 @@ public class SysPositionService {
             up.setIsPrimary(i == 0 ? 1 : 0); // 第一个设为主岗位
             userPositionMapper.insert(up);
         }
+        // 【Redis 权限缓存】用户岗位分配变更立即失效该用户
+        permissionCacheService.evict(userId);
     }
 }

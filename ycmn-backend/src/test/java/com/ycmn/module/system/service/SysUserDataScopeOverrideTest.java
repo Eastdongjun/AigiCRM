@@ -98,7 +98,8 @@ class SysUserDataScopeOverrideTest {
 
     private SysUserService newService() {
         return new SysUserService(userMapper, userRoleMapper, passwordEncoder, configService,
-                customerMapper, shareMapper, jdbc, roleMapper, seaService, deptMapper, mock(com.ycmn.module.system.mapper.SysUserOrgMapper.class));
+                customerMapper, shareMapper, jdbc, roleMapper, seaService, deptMapper, mock(com.ycmn.module.system.mapper.SysUserOrgMapper.class),
+                mock(com.ycmn.security.PermissionCacheService.class));
     }
 
     private SysUser validCreatePayload() {

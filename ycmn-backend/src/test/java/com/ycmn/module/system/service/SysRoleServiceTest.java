@@ -57,7 +57,8 @@ class SysRoleServiceTest {
                 mock(SysRoleMapper.class),
                 mock(SysRoleMenuMapper.class),
                 mock(SysMenuMapper.class),
-                orgMapper);
+                orgMapper,
+                mock(com.ycmn.security.PermissionCacheService.class));
     }
 
     /** 显式构造以便捕获 roleMapper 的查询条件（集团边界断言） */
@@ -65,7 +66,8 @@ class SysRoleServiceTest {
         return new SysRoleService(roleMapper,
                 mock(SysRoleMenuMapper.class),
                 mock(SysMenuMapper.class),
-                mock(SysRoleOrgMapper.class));
+                mock(SysRoleOrgMapper.class),
+                mock(com.ycmn.security.PermissionCacheService.class));
     }
 
     @Test
@@ -188,7 +190,8 @@ class SysRoleServiceTest {
         SysRoleMapper roleMapper = mock(SysRoleMapper.class);
         SysMenuMapper menuMapper = mock(SysMenuMapper.class);
         SysRoleService service = new SysRoleService(roleMapper,
-                mock(SysRoleMenuMapper.class), menuMapper, mock(SysRoleOrgMapper.class));
+                mock(SysRoleMenuMapper.class), menuMapper, mock(SysRoleOrgMapper.class),
+                mock(com.ycmn.security.PermissionCacheService.class));
         when(roleMapper.selectById(5L)).thenReturn(roleOf(5L, 1L));
         try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
             m.when(SecurityUtils::isAdmin).thenReturn(false);

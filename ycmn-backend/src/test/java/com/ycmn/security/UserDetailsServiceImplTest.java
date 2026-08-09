@@ -34,6 +34,7 @@ class UserDetailsServiceImplTest {
     @Mock SysRoleOrgMapper roleOrgMapper;
     @Mock SysPositionMapper positionMapper;
     @Mock SysPermissionRuleMapper permissionRuleMapper;
+    @Mock PermissionCacheService permissionCacheService;
 
     private UserDetailsServiceImpl service;
 
@@ -41,7 +42,7 @@ class UserDetailsServiceImplTest {
     void setUp() {
         service = new UserDetailsServiceImpl(userMapper, menuMapper, roleMapper, deptMapper,
                 orgAdminMapper, roleOrgMapper, mock(com.ycmn.module.system.mapper.SysUserOrgMapper.class),
-                positionMapper, permissionRuleMapper);
+                positionMapper, permissionRuleMapper, permissionCacheService);
     }
 
     /** 构造基础用户：id=1、正常状态、无组织归属（跳过 2b 的 org 查询） */
@@ -161,5 +162,36 @@ class UserDetailsServiceImplTest {
         assertEquals("team", securityUser.getDataScope());
         assertTrue(securityUser.getDataScopes().isEmpty(),
                 "用户级覆盖应清空并集列表，OrgScopeResolver 走单值路径（覆盖整体取代角色并集）");
+    }
+
+    // ==================== Redis 权限缓存：命中重组（2026-08-09） ====================
+
+    /** cache-hit 时从 PermissionContext 重组 SecurityUser：authorities 由 permissions 重建、字段完整 */
+    @Test
+    void cacheHit_rebuildsSecurityUserFromContext() {
+        SysUser user = baseUser();
+        when(userMapper.selectById(1L)).thenReturn(user);
+
+        // 构造缓存上下文（模拟已缓存）
+        PermissionContext ctx = new PermissionContext();
+        ctx.setUserId(1L);
+        ctx.setUsername("test01");
+        ctx.setRealName("测试");
+        ctx.setDataScope("team");
+        ctx.setRoleCodes(List.of("sales"));
+        ctx.setPermissions(Set.of("system:user:view", "customer:view"));
+        when(permissionCacheService.get(1L)).thenReturn(ctx);
+
+        SecurityUser securityUser = (SecurityUser) service.loadUserByUsername("1");
+
+        // 重组字段正确
+        assertEquals("team", securityUser.getDataScope());
+        assertEquals(1L, securityUser.getUserId());
+        assertEquals("test01", securityUser.getUsername());
+        assertEquals(1, securityUser.getRoleCodes().size());
+        // authorities 由 permissions 重建（SimpleGrantedAuthority 不落 Redis）
+        assertEquals(2, securityUser.getAuthorities().size());
+        assertTrue(securityUser.getAuthorities().stream()
+                .anyMatch(a -> "customer:view".equals(a.getAuthority())));
     }
 }

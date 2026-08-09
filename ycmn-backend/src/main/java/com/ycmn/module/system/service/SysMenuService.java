@@ -14,6 +14,7 @@ import java.util.stream.Collectors;
 public class SysMenuService {
 
     private final SysMenuMapper menuMapper;
+    private final com.ycmn.security.PermissionCacheService permissionCacheService;
 
     public List<SysMenu> tree() {
         List<SysMenu> all = menuMapper.selectList(
@@ -24,14 +25,18 @@ public class SysMenuService {
 
     public void create(SysMenu menu) {
         menuMapper.insert(menu);
+        // 【Redis 权限缓存】菜单定义影响所有用户权限集合，全量失效（低频操作）
+        permissionCacheService.evictAll();
     }
 
     public void update(SysMenu menu) {
         menuMapper.updateById(menu);
+        permissionCacheService.evictAll();
     }
 
     public void delete(Long id) {
         menuMapper.deleteById(id);
+        permissionCacheService.evictAll();
     }
 
     private List<SysMenu> buildTree(List<SysMenu> list, Long parentId) {

@@ -27,6 +27,7 @@ public class OrgAdminService {
 
     private final SysOrgAdminMapper orgAdminMapper;
     private final SysUserMapper userMapper;
+    private final com.ycmn.security.PermissionCacheService permissionCacheService;
 
     /** 获取组织管理员列表 */
     public List<Map<String, Object>> getOrgAdmins(Long orgId) {
@@ -63,6 +64,8 @@ public class OrgAdminService {
         admin.setOrgId(orgId);
         admin.setUserId(userId);
         orgAdminMapper.insert(admin);
+        // 【Redis 权限缓存】组织管理员变更影响该用户 managedOrgIds/dataScope 升级，立即失效
+        permissionCacheService.evict(userId);
     }
 
     /** 移除组织管理员 */
@@ -75,6 +78,8 @@ public class OrgAdminService {
             throw new com.ycmn.common.BusinessException("无权移除该组织的管理员");
         }
         orgAdminMapper.deleteById(id);
+        // 【Redis 权限缓存】组织管理员移除立即失效该用户
+        permissionCacheService.evict(existing.getUserId());
     }
 
     /** 获取用户管理的组织ID列表（含下级） */

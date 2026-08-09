@@ -15,6 +15,7 @@ import java.util.List;
 public class SysPermissionRuleService {
 
     private final SysPermissionRuleMapper ruleMapper;
+    private final com.ycmn.security.PermissionCacheService permissionCacheService;
 
     public List<SysPermissionRule> list() {
         return ruleMapper.selectList(
@@ -31,15 +32,19 @@ public class SysPermissionRuleService {
                 new LambdaQueryWrapper<SysPermissionRule>().eq(SysPermissionRule::getCode, rule.getCode()));
         if (count > 0) throw new BusinessException("规则编码已存在");
         ruleMapper.insert(rule);
+        // 【Redis 权限缓存】规则定义影响所有引用用户，全量失效（低频操作）
+        permissionCacheService.evictAll();
     }
 
     @Transactional
     public void update(SysPermissionRule rule) {
         ruleMapper.updateById(rule);
+        permissionCacheService.evictAll();
     }
 
     @Transactional
     public void delete(Long id) {
         ruleMapper.deleteById(id);
+        permissionCacheService.evictAll();
     }
 }

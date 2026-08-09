@@ -54,7 +54,8 @@ class SysPositionServiceTest {
         return new SysPositionService(positionMapper,
                 mock(SysPositionRuleMapper.class),
                 mock(SysUserPositionMapper.class),
-                mock(SysPermissionRuleMapper.class));
+                mock(SysPermissionRuleMapper.class),
+                mock(com.ycmn.security.PermissionCacheService.class));
     }
 
     @Test

@@ -54,6 +54,7 @@ public class SysUserService {
     private final SeaService seaService;
     private final com.ycmn.module.system.mapper.SysDeptMapper deptMapper;
     private final com.ycmn.module.system.mapper.SysUserOrgMapper userOrgMapper;
+    private final com.ycmn.security.PermissionCacheService permissionCacheService;
 
     /** 【2026-08-08 用户级 custom 授权】保存用户授权组织（清空重建） */
     private void saveUserOrgs(Long userId, List<Long> orgIds) {
@@ -243,6 +244,8 @@ public class SysUserService {
             // 不再是 custom：清空个人授权组织，避免残留
             userOrgMapper.deleteByUserId(existing.getId());
         }
+        // 【Redis 权限缓存】用户角色/数据范围/部门变更立即失效
+        permissionCacheService.evict(existing.getId());
     }
 
     public void resetPassword(Long userId) {
@@ -304,6 +307,8 @@ public class SysUserService {
 
         // 4. 软删除用户
         userMapper.deleteById(userId);
+        // 【Redis 权限缓存】删除用户立即失效，避免软删用户在 TTL 内仍可访问
+        permissionCacheService.evict(userId);
     }
 
     // ====== 离职/返聘/转移 ======
@@ -323,6 +328,10 @@ public class SysUserService {
         user.setLeaveReason(reason);
         user.setStatus(0);
         userMapper.updateById(user);
+        // 【Redis 权限缓存】禁用用户立即失效——保持"权限调整立即生效"语义。
+        // (loadUserByUsername 每次请求先查库校验 status==0 再查缓存，禁用用户在缓存命中下也会被拒；
+        //  evict 是保证缓存内不残留禁用前上下文的卫生操作)
+        permissionCacheService.evict(userId);
         Map<String, Object> r = new java.util.HashMap<>();
         r.put("transferred", transferred);
         return r;
@@ -336,6 +345,8 @@ public class SysUserService {
         user.setLeaveReason(null);
         user.setStatus(1);
         userMapper.updateById(user);
+        // 【Redis 权限缓存】返聘启用立即失效（恢复其访问）
+        permissionCacheService.evict(userId);
     }
 
     public Map<String, Object> transferCustomers(Long fromUserId, Long toUserId) {
@@ -382,6 +393,8 @@ public class SysUserService {
             SecurityUtils.getCurrentUserId(), reason, user.getCreatedAt());
         jdbc.update("DELETE FROM sys_user_role WHERE user_id=?", userId);
         userMapper.deleteById(userId);
+        // 【Redis 权限缓存】永久删除立即失效（与 deleteUser 一致，杜绝残留缓存访问）
+        permissionCacheService.evict(userId);
     }
 
     public java.util.List<Map<String, Object>> listArchived() {
