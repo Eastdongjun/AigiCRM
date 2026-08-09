@@ -172,6 +172,7 @@ const permSections = [
   { key: 'claim', label: '捞取权限', keys: 'claimKeys', deptField: 'claimDeptIds', userField: 'claimUserIds' }
 ]
 const permOpenSections = ref([]) // 默认全部折叠, 管理员按需展开
+const permInitKeys = ref({ edit: [], delete: [], import: [], claim: [] }) // 编辑时各权限初始值(提交对比防误清空)
 
 const loadSeaPools = async () => {
   seaLoadError.value = false
@@ -265,29 +266,45 @@ const bindSecTree = (secKey, el) => {
 
 const handleAddPool = () => {
   Object.assign(poolForm, { id: null, poolName: '', visibleKeys: [], editKeys: [], deleteKeys: [], importKeys: [], claimKeys: [], sortOrder: 0, status: 1 })
+  permOpenSections.value = permSections.map(s => s.key) // 新增也展开权限区块
+  permInitKeys.value = { edit: [], delete: [], import: [], claim: [] } // 新增默认全空
   poolDialogVisible.value = true
 }
 
 const handleEditPool = (row) => {
+  const newEdit = buildVisibleKeys(row.editDeptIds, row.editUserIds)
+  const newDelete = buildVisibleKeys(row.deleteDeptIds, row.deleteUserIds)
+  const newImport = buildVisibleKeys(row.importDeptIds, row.importUserIds)
+  const newClaim = buildVisibleKeys(row.claimDeptIds, row.claimUserIds)
   Object.assign(poolForm, {
     id: row.id,
     poolName: row.poolName,
     visibleKeys: buildVisibleKeys(row.visibleDeptIds, row.visibleUserIds),
-    editKeys: buildVisibleKeys(row.editDeptIds, row.editUserIds),
-    deleteKeys: buildVisibleKeys(row.deleteDeptIds, row.deleteUserIds),
-    importKeys: buildVisibleKeys(row.importDeptIds, row.importUserIds),
-    claimKeys: buildVisibleKeys(row.claimDeptIds, row.claimUserIds),
+    editKeys: newEdit,
+    deleteKeys: newDelete,
+    importKeys: newImport,
+    claimKeys: newClaim,
     sortOrder: row.sortOrder || 0,
     status: row.status === 0 ? 0 : 1
   })
+  // 记录权限初始值: 提交时仅提交被修改的权限区块(未改动保留旧值, 防误清空)
+  permInitKeys.value = { edit: [...newEdit], delete: [...newDelete], import: [...newImport], claim: [...newClaim] }
   poolDialogVisible.value = true
+  // 【2026-08-10 修复】编辑时展开所有权限区块——确保树渲染挂载后回填可靠, 避免折叠时回填失效导致误清空池权限
+  permOpenSections.value = permSections.map(s => s.key)
   nextTick(() => {
     if (seaTreeRef.value) seaTreeRef.value.setCheckedKeys(poolForm.visibleKeys)
-    // 各权限树回填(若已展开)
     permSections.forEach(sec => {
       const tree = secTreeMap[sec.key]
       if (tree) tree.setCheckedKeys(poolForm[sec.keys])
     })
+    // 双保险: 展开动画后再次回填(树在 collapse-item 展开后完整渲染)
+    setTimeout(() => {
+      permSections.forEach(sec => {
+        const tree = secTreeMap[sec.key]
+        if (tree) tree.setCheckedKeys(poolForm[sec.keys])
+      })
+    }, 100)
   })
 }
 
@@ -319,18 +336,19 @@ const submitPool = async () => {
     const del = splitKeys(poolForm.deleteKeys)
     const imp = splitKeys(poolForm.importKeys)
     const claim = splitKeys(poolForm.claimKeys)
+    // 仅提交被修改的权限区块(未改动不传字段→后端保留旧值, 防误清空); 显式清空(clearSecSelection)会提交空串实现清空
+    const permVal = (secKey, split) => {
+      const changed = JSON.stringify(poolForm[secKey + 'Keys'] || []) !== JSON.stringify(permInitKeys.value[secKey] || [])
+      return changed ? split : undefined
+    }
     const payload = {
       poolName: poolForm.poolName,
       visibleDeptIds: visible.dept,
       visibleUserIds: visible.user,
-      editDeptIds: edit.dept || '',
-      editUserIds: edit.user || '',
-      deleteDeptIds: del.dept || '',
-      deleteUserIds: del.user || '',
-      importDeptIds: imp.dept || '',
-      importUserIds: imp.user || '',
-      claimDeptIds: claim.dept || '',
-      claimUserIds: claim.user || '',
+      ...(permVal('edit', edit) !== undefined ? { editDeptIds: edit.dept || '', editUserIds: edit.user || '' } : {}),
+      ...(permVal('delete', del) !== undefined ? { deleteDeptIds: del.dept || '', deleteUserIds: del.user || '' } : {}),
+      ...(permVal('import', imp) !== undefined ? { importDeptIds: imp.dept || '', importUserIds: imp.user || '' } : {}),
+      ...(permVal('claim', claim) !== undefined ? { claimDeptIds: claim.dept || '', claimUserIds: claim.user || '' } : {}),
       sortOrder: poolForm.sortOrder,
       status: poolForm.status
     }
