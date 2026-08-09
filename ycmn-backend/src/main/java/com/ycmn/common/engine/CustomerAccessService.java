@@ -8,7 +8,7 @@ import com.ycmn.module.customer.entity.BizCustomer;
 import com.ycmn.module.customer.entity.BizCustomerShare;
 import com.ycmn.module.customer.mapper.BizCustomerMapper;
 import com.ycmn.module.customer.mapper.BizCustomerShareMapper;
-import com.ycmn.module.system.mapper.SysOrgMapper;
+import com.ycmn.module.system.mapper.SysDeptMapper;
 import com.ycmn.module.system.mapper.SysUserMapper;
 import com.ycmn.security.SecurityUtils;
 import lombok.RequiredArgsConstructor;
@@ -40,7 +40,7 @@ public class CustomerAccessService {
 
     private final BizCustomerMapper customerMapper;
     private final BizCustomerShareMapper shareMapper;
-    private final SysOrgMapper orgMapper;
+    private final SysDeptMapper deptMapper;
     private final SysUserMapper userMapper;
     private final OrgScopeResolver scopeResolver;
 
@@ -226,7 +226,7 @@ public class CustomerAccessService {
 
         List<Long> deptIds;
         if (scopeType == DataScopeType.ORG_AND_CHILDREN) {
-            deptIds = orgMapper.selectDescendantIds(deptId);
+            deptIds = deptMapper.selectDescendantIds(deptId);
         } else {
             deptIds = List.of(deptId);
         }

@@ -29,7 +29,7 @@ class UserDetailsServiceImplTest {
     @Mock SysUserMapper userMapper;
     @Mock SysMenuMapper menuMapper;
     @Mock SysRoleMapper roleMapper;
-    @Mock SysOrgMapper orgMapper;
+    @Mock SysDeptMapper deptMapper;
     @Mock SysOrgAdminMapper orgAdminMapper;
     @Mock SysRoleOrgMapper roleOrgMapper;
     @Mock SysPositionMapper positionMapper;
@@ -39,7 +39,7 @@ class UserDetailsServiceImplTest {
 
     @BeforeEach
     void setUp() {
-        service = new UserDetailsServiceImpl(userMapper, menuMapper, roleMapper, orgMapper,
+        service = new UserDetailsServiceImpl(userMapper, menuMapper, roleMapper, deptMapper,
                 orgAdminMapper, roleOrgMapper, mock(com.ycmn.module.system.mapper.SysUserOrgMapper.class),
                 positionMapper, permissionRuleMapper);
     }

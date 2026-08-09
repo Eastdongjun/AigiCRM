@@ -2,7 +2,6 @@ package com.ycmn.module.system.service;
 
 import com.ycmn.module.system.entity.SysUser;
 import com.ycmn.module.system.mapper.SysOrgAdminMapper;
-import com.ycmn.module.system.mapper.SysOrgMapper;
 import com.ycmn.module.system.mapper.SysUserMapper;
 import com.ycmn.security.SecurityUtils;
 import org.junit.jupiter.api.Test;
@@ -21,10 +20,10 @@ import static org.mockito.Mockito.when;
  * 管理员的"改密/删除/离职"操作必须校验目标用户是否在本人可管理组织内，
  * 非管理员/非组织管理员一律拒绝。防止组织管理员越权操作其他组织用户。
  */
-class SysOrgServiceSecurityTest {
+class OrgAdminServiceSecurityTest {
 
     private final SysUserMapper userMapper = mock(SysUserMapper.class);
-    private final SysOrgService svc = new SysOrgService(mock(SysOrgMapper.class), mock(SysOrgAdminMapper.class), userMapper);
+    private final OrgAdminService svc = new OrgAdminService(mock(SysOrgAdminMapper.class), userMapper);
 
     private SysUser user(long id, Long orgId) {
         SysUser u = new SysUser();

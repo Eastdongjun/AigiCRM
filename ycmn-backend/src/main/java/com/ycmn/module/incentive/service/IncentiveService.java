@@ -14,7 +14,6 @@ import com.ycmn.module.incentive.mapper.BizIncentiveRecordMapper;
 import com.ycmn.module.system.entity.SysDept;
 import com.ycmn.module.system.entity.SysUser;
 import com.ycmn.module.system.mapper.SysDeptMapper;
-import com.ycmn.module.system.mapper.SysOrgMapper;
 import com.ycmn.module.system.mapper.SysUserMapper;
 import com.ycmn.security.SecurityUtils;
 import lombok.RequiredArgsConstructor;
@@ -36,7 +35,6 @@ public class IncentiveService {
     private final BizCustomerMapper customerMapper;
     private final BizCustomerShareMapper customerShareMapper;
     private final SysDeptMapper deptMapper;
-    private final SysOrgMapper orgMapper;
     private final JdbcTemplate jdbc;
     private final com.ycmn.common.scope.OrgScopeResolver scopeResolver;
 

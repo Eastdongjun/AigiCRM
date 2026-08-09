@@ -23,7 +23,7 @@ public class UserDetailsServiceImpl implements UserDetailsService {
     private final SysUserMapper userMapper;
     private final SysMenuMapper menuMapper;
     private final SysRoleMapper roleMapper;
-    private final SysOrgMapper orgMapper;
+    private final SysDeptMapper deptMapper;
     private final SysOrgAdminMapper orgAdminMapper;
     private final SysRoleOrgMapper roleOrgMapper;
     private final com.ycmn.module.system.mapper.SysUserOrgMapper userOrgMapper;
@@ -94,7 +94,7 @@ public class UserDetailsServiceImpl implements UserDetailsService {
                 List<SysRoleOrg> roleOrgs = roleOrgMapper.selectByUserId(uid);
                 for (SysRoleOrg ro : roleOrgs) {
                     if (ro.getIncludeChildren() != null && ro.getIncludeChildren() == 1) {
-                        customOrgIds.addAll(orgMapper.selectDescendantIds(ro.getOrgId()));
+                        customOrgIds.addAll(deptMapper.selectDescendantIds(ro.getOrgId()));
                     } else {
                         customOrgIds.add(ro.getOrgId());
                     }
@@ -120,7 +120,7 @@ public class UserDetailsServiceImpl implements UserDetailsService {
                 for (com.ycmn.module.system.entity.SysUserOrg uo : userOrgs) {
                     if (uo.getOrgId() == null) continue;
                     if (uo.getIncludeChildren() != null && uo.getIncludeChildren() == 1) {
-                        customOrgIds.addAll(orgMapper.selectDescendantIds(uo.getOrgId()));
+                        customOrgIds.addAll(deptMapper.selectDescendantIds(uo.getOrgId()));
                     } else {
                         customOrgIds.add(uo.getOrgId());
                     }
@@ -138,18 +138,18 @@ public class UserDetailsServiceImpl implements UserDetailsService {
         Set<Long> allLegalEntityIds = new HashSet<>();
         for (SysPosition pos : positions) {
             if (pos.getOrgId() != null) {
-                SysOrg posOrg = orgMapper.selectById(pos.getOrgId());
-                if (posOrg != null) {
-                    if (posOrg.getGroupId() != null) allGroupIds.add(posOrg.getGroupId());
-                    if (posOrg.getLegalEntityId() != null) allLegalEntityIds.add(posOrg.getLegalEntityId());
+                SysDept posDept = deptMapper.selectById(pos.getOrgId());
+                if (posDept != null) {
+                    if (posDept.getGroupId() != null) allGroupIds.add(posDept.getGroupId());
+                    if (posDept.getLegalEntityId() != null) allLegalEntityIds.add(posDept.getLegalEntityId());
                 }
             }
         }
         // 如果岗位没有组织，用用户默认组织
         if (allGroupIds.isEmpty() && user.getOrgId() != null) {
-            SysOrg userOrg = orgMapper.selectById(user.getOrgId());
-            if (userOrg != null && userOrg.getGroupId() != null) allGroupIds.add(userOrg.getGroupId());
-            if (userOrg != null && userOrg.getLegalEntityId() != null) allLegalEntityIds.add(userOrg.getLegalEntityId());
+            SysDept userDept = deptMapper.selectById(user.getOrgId());
+            if (userDept != null && userDept.getGroupId() != null) allGroupIds.add(userDept.getGroupId());
+            if (userDept != null && userDept.getLegalEntityId() != null) allLegalEntityIds.add(userDept.getLegalEntityId());
         }
         securityUser.setGroupIds(new ArrayList<>(allGroupIds));
         securityUser.setLegalEntityIds(new ArrayList<>(allLegalEntityIds));

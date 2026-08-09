@@ -11,11 +11,11 @@ public interface SysOrgAdminMapper extends BaseMapper<SysOrgAdmin> {
 
     /** 查询用户管理的组织ID列表（含递归下级） */
     @Select("WITH RECURSIVE org_tree AS (" +
-            "  SELECT o.id FROM sys_org o " +
-            "  JOIN sys_org_admin a ON o.id = a.org_id " +
-            "  WHERE a.user_id = #{userId} AND o.status = 1 " +
+            "  SELECT d.id FROM sys_dept d " +
+            "  JOIN sys_org_admin a ON d.id = a.org_id " +
+            "  WHERE a.user_id = #{userId} AND d.status = 1 " +
             "  UNION ALL " +
-            "  SELECT o2.id FROM sys_org o2 INNER JOIN org_tree t ON o2.parent_id = t.id AND o2.status = 1" +
+            "  SELECT d2.id FROM sys_dept d2 INNER JOIN org_tree t ON d2.parent_id = t.id AND d2.status = 1" +
             ") SELECT id FROM org_tree")
     List<Long> selectManagedOrgIds(Long userId);
 }

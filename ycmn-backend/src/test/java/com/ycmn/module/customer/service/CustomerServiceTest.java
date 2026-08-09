@@ -20,7 +20,6 @@ import com.ycmn.module.reminder.mapper.BizReminderMapper;
 import com.ycmn.module.system.entity.SysDept;
 import com.ycmn.module.system.entity.SysUser;
 import com.ycmn.module.system.mapper.SysDeptMapper;
-import com.ycmn.module.system.mapper.SysOrgMapper;
 import com.ycmn.module.system.mapper.SysUserMapper;
 import com.ycmn.module.system.service.SysConfigService;
 import com.ycmn.security.SecurityUser;
@@ -93,7 +92,6 @@ class CustomerServiceTest {
                 mock(BizContactMapper.class),
                 paymentMapper,
                 mock(SysUserMapper.class),
-                mock(SysOrgMapper.class),
                 mock(SysDeptMapper.class),
                 mock(BizReminderMapper.class),
                 mock(JdbcTemplate.class),
@@ -217,7 +215,6 @@ class CustomerServiceTest {
                 mock(BizContactMapper.class),
                 mock(BizPaymentMapper.class),
                 userMapper,
-                mock(SysOrgMapper.class),
                 deptMapper,
                 mock(BizReminderMapper.class),
                 mock(JdbcTemplate.class),

@@ -8,7 +8,6 @@ import com.ycmn.module.incentive.entity.BizIncentiveRecord;
 import com.ycmn.module.incentive.mapper.BizIncentiveCategoryMapper;
 import com.ycmn.module.incentive.mapper.BizIncentiveRecordMapper;
 import com.ycmn.module.system.mapper.SysDeptMapper;
-import com.ycmn.module.system.mapper.SysOrgMapper;
 import com.ycmn.module.system.mapper.SysUserMapper;
 import com.ycmn.security.SecurityUser;
 import org.junit.jupiter.api.Test;
@@ -38,7 +37,6 @@ class IncentiveScoreTest {
                 mock(BizCustomerMapper.class),
                 mock(BizCustomerShareMapper.class),
                 mock(SysDeptMapper.class),
-                mock(SysOrgMapper.class),
                 mock(JdbcTemplate.class),
                 mock(com.ycmn.common.scope.OrgScopeResolver.class));
     }
@@ -152,7 +150,6 @@ class IncentiveScoreTest {
                 mock(BizCustomerMapper.class),
                 mock(BizCustomerShareMapper.class),
                 mock(SysDeptMapper.class),
-                mock(SysOrgMapper.class),
                 jdbc,
                 mock(com.ycmn.common.scope.OrgScopeResolver.class));
         assertTrue(service.canEdit(5L));

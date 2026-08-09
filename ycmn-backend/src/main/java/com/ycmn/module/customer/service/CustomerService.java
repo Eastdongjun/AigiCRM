@@ -16,7 +16,6 @@ import com.ycmn.module.system.entity.SysUser;
 import com.ycmn.module.reminder.entity.BizReminder;
 import com.ycmn.module.reminder.mapper.BizReminderMapper;
 import com.ycmn.module.system.mapper.SysDeptMapper;
-import com.ycmn.module.system.mapper.SysOrgMapper;
 import com.ycmn.module.system.mapper.SysUserMapper;
 import com.ycmn.module.system.service.SysConfigService;
 import com.ycmn.security.SecurityUtils;
@@ -46,7 +45,6 @@ public class CustomerService {
     private final BizContactMapper contactMapper;
     private final BizPaymentMapper paymentMapper;
     private final SysUserMapper userMapper;
-    private final SysOrgMapper orgMapper;
     private final SysDeptMapper deptMapper;
     private final BizReminderMapper reminderMapper;
     private final JdbcTemplate jdbc;
@@ -639,7 +637,7 @@ public class CustomerService {
                 // 【修复 FEAT-20260804-ORG-DEPT-UNIFY】此前 switch 没有 custom 分支，落入 default
                 // 静默降级为"仅本人"，与详情页 CustomerAccessService 的 CUSTOM 判断不一致。
                 // custom = 角色在"组织矩阵"(sys_role_org)里勾选的组织，含组织管理员额外授权组织；
-                // sys_org 是 sys_dept 的兼容视图、ID 同一空间，直接按部门ID解析用户即可。
+                // 【收口】sys_org 兼容视图已废弃，统一 sys_dept，直接按部门ID解析用户即可。
                 applyDeptIdScope(wrapper, managedOrgIds, userId);
                 break;
             case "org_and_children":

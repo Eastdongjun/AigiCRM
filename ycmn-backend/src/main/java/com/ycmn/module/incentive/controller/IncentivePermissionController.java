@@ -22,9 +22,9 @@ public class IncentivePermissionController {
     public Result<List<Map<String, Object>>> list() {
         List<Map<String, Object>> list = jdbc.queryForList(
             "SELECT p.id, p.user_id, p.can_edit, p.can_delete, p.can_view_all, p.can_view_shared, u.real_name AS realName, u.username, " +
-            "COALESCE(d.org_name,'—') AS officeName, COALESCE(r.role_name,'—') AS roleName " +
+            "COALESCE(d.dept_name,'—') AS officeName, COALESCE(r.role_name,'—') AS roleName " +
             "FROM biz_incentive_permission p JOIN sys_user u ON p.user_id = u.id " +
-            "LEFT JOIN sys_org d ON u.office_id = d.id " +
+            "LEFT JOIN sys_dept d ON u.office_id = d.id " +
             "LEFT JOIN sys_user_role ur ON u.id = ur.user_id " +
             "LEFT JOIN sys_role r ON ur.role_id = r.id ORDER BY p.id");
         return Result.ok(list);

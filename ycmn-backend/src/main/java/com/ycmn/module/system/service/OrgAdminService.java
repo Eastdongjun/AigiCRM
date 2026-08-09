@@ -1,78 +1,32 @@
 package com.ycmn.module.system.service;
-import com.ycmn.security.SecurityUtils;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.ycmn.module.system.entity.SysOrg;
 import com.ycmn.module.system.entity.SysOrgAdmin;
+import com.ycmn.module.system.entity.SysUser;
 import com.ycmn.module.system.mapper.SysOrgAdminMapper;
-import com.ycmn.module.system.mapper.SysOrgMapper;
 import com.ycmn.module.system.mapper.SysUserMapper;
+import com.ycmn.security.SecurityUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
+/**
+ * 组织管理员服务（sys_org_admin）。
+ * 自旧 SysOrgService 迁移：只保留组织管理员相关方法，组织树 CRUD 已并入 SysDeptService。
+ * 守卫逻辑、去重、返回结构与原实现完全一致。
+ */
 @Service
 @RequiredArgsConstructor
-public class SysOrgService {
+public class OrgAdminService {
 
-    private final SysOrgMapper orgMapper;
     private final SysOrgAdminMapper orgAdminMapper;
     private final SysUserMapper userMapper;
-
-    /** 获取组织树 */
-    public List<SysOrg> getOrgTree() {
-        List<SysOrg> all = orgMapper.selectList(
-                new LambdaQueryWrapper<SysOrg>()
-                        .eq(SysOrg::getStatus, 1)
-                        .orderByAsc(SysOrg::getSortOrder));
-        return buildTree(all, 0L);
-    }
-
-    private List<SysOrg> buildTree(List<SysOrg> all, Long parentId) {
-        List<SysOrg> result = new ArrayList<>();
-        for (SysOrg org : all) {
-            if (Objects.equals(org.getParentId(), parentId)) {
-                org.setChildren(buildTree(all, org.getId()));
-                result.add(org);
-            }
-        }
-        return result;
-    }
-
-    /** 创建组织 */
-    @Transactional
-    public SysOrg create(SysOrg org) {
-        // 【安全 2026-08-08】仅在调用者管辖范围内创建（父组织必须可管理；根组织仅超管）
-        if (!canManageOrg(org.getParentId() != null ? org.getParentId() : 0L)) {
-            throw new com.ycmn.common.BusinessException("无权在该组织下创建组织");
-        }
-        orgMapper.insert(org);
-        return org;
-    }
-
-    /** 更新组织 */
-    @Transactional
-    public void update(SysOrg org) {
-        if (!canManageOrg(org.getId())) {
-            throw new com.ycmn.common.BusinessException("无权修改该组织");
-        }
-        orgMapper.updateById(org);
-    }
-
-    /** 删除组织（软删除） */
-    @Transactional
-    public void delete(Long id) {
-        if (!canManageOrg(id)) {
-            throw new com.ycmn.common.BusinessException("无权删除该组织");
-        }
-        SysOrg org = new SysOrg();
-        org.setId(id);
-        org.setStatus(0);
-        orgMapper.updateById(org);
-    }
 
     /** 获取组织管理员列表 */
     public List<Map<String, Object>> getOrgAdmins(Long orgId) {
@@ -132,7 +86,7 @@ public class SysOrgService {
     public boolean canManageUser(Long targetUserId) {
         if (SecurityUtils.isAdmin()) return true;
         if (!SecurityUtils.isOrgAdmin()) return false;
-        com.ycmn.module.system.entity.SysUser target = userMapper.selectById(targetUserId);
+        SysUser target = userMapper.selectById(targetUserId);
         if (target == null || target.getOrgId() == null) return false;
         return SecurityUtils.getCurrentManagedOrgIds().contains(target.getOrgId());
     }
@@ -148,12 +102,12 @@ public class SysOrgService {
     public java.util.List<Long> getManageableUserIds() {
         if (SecurityUtils.isAdmin()) return java.util.Collections.emptyList();
         if (!SecurityUtils.isOrgAdmin()) return java.util.List.of(SecurityUtils.getCurrentUserId());
-        java.util.List<Long> orgIds = SecurityUtils.getCurrentManagedOrgIds();
+        List<Long> orgIds = SecurityUtils.getCurrentManagedOrgIds();
         return userMapper.selectList(
-            new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<com.ycmn.module.system.entity.SysUser>()
-                .in(com.ycmn.module.system.entity.SysUser::getOrgId, orgIds)
-                .eq(com.ycmn.module.system.entity.SysUser::getStatus, 1)
-                .eq(com.ycmn.module.system.entity.SysUser::getDeleted, 0)
-        ).stream().map(com.ycmn.module.system.entity.SysUser::getId).collect(java.util.stream.Collectors.toList());
+                new LambdaQueryWrapper<SysUser>()
+                        .in(SysUser::getOrgId, orgIds)
+                        .eq(SysUser::getStatus, 1)
+                        .eq(SysUser::getDeleted, 0)
+        ).stream().map(SysUser::getId).collect(Collectors.toList());
     }
 }

@@ -12,7 +12,6 @@ import com.ycmn.module.incentive.entity.BizIncentiveRecord;
 import com.ycmn.module.incentive.mapper.BizIncentiveCategoryMapper;
 import com.ycmn.module.incentive.mapper.BizIncentiveRecordMapper;
 import com.ycmn.module.system.mapper.SysDeptMapper;
-import com.ycmn.module.system.mapper.SysOrgMapper;
 import com.ycmn.module.system.mapper.SysUserMapper;
 import com.ycmn.security.SecurityUtils;
 import org.junit.jupiter.api.BeforeAll;
@@ -71,7 +70,6 @@ class IncentiveShareVisibilityTest {
                 mock(BizCustomerMapper.class),
                 shareMapper,
                 mock(SysDeptMapper.class),
-                mock(SysOrgMapper.class),
                 jdbc,
                 resolver);
     }

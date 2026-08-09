@@ -40,6 +40,13 @@ public class SysDeptService {
         ));
     }
 
+    /** 全量组织树（不套数据范围过滤）——/api/org 兼容层使用，语义=旧 SysOrgService.getOrgTree */
+    public List<SysDept> treeAll() {
+        return buildTree(deptMapper.selectList(
+                new LambdaQueryWrapper<SysDept>().eq(SysDept::getStatus, 1).orderByAsc(SysDept::getSortOrder)
+        ), 0L);
+    }
+
     /** 【需求】部门查询数据范围收窄(FEAT-20260804-DEPTS-DATASCOPE)
      *  【方法】管理员返回全部;非管理员仅返回本人部门及其祖先链(按 parentId 上溯至根),
      *          与销售员 self 数据范围一致,避免组织架构全量可见
@@ -86,6 +93,14 @@ public class SysDeptService {
             throw new BusinessException("该部门下存在用户，请先转移用户后再删除");
         }
         deptMapper.deleteById(id);
+    }
+
+    /** 软删除（置 status=0，保留记录）——/api/org 兼容层使用，语义=旧 SysOrgService.delete */
+    public void softDelete(Long id) {
+        SysDept dept = new SysDept();
+        dept.setId(id);
+        dept.setStatus(0);
+        deptMapper.updateById(dept);
     }
 
     private List<SysDept> buildTree(List<SysDept> list, Long parentId) {
