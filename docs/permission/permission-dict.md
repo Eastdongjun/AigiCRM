@@ -41,7 +41,6 @@
 | `sea:import` | 公海导入 | 3 | `` | 系统管理员,行政,销售总监 |
 | `sea:pool:delete` | 公海删除 | 3 | `` | 系统管理员,销售员,销售总监 |
 | `sea:pool:edit` | 公海编辑 | 3 | `` | 系统管理员,销售员,销售总监 |
-| `sea:pool:import` | 公海导入 | 3 | `` | 系统管理员,销售员,销售总监 |
 | `sea:view` | 公海管理 / 捞取记录 | 2 | `/sea / /sea/records` | 系统管理员,行政,销售员,销售总监 |
 | `statistics:scoreboard` | 积分榜 | 2 | `/scoreboard` | 系统管理员,行政 |
 | `statistics:view` | 核心客户六项指标 / 统计分析 | 2 | `/indicator / /statistics` | 系统管理员,行政,销售员,销售总监 |
@@ -113,7 +112,6 @@
 | `sea:import` | ✅ | ✅ |   | ✅ |
 | `sea:pool:delete` | ✅ |   | ✅ | ✅ |
 | `sea:pool:edit` | ✅ |   | ✅ | ✅ |
-| `sea:pool:import` | ✅ |   | ✅ | ✅ |
 | `sea:view` | ✅ | ✅ | ✅ | ✅ |
 | `statistics:scoreboard` | ✅ | ✅ |   |   |
 | `statistics:view` | ✅ | ✅ | ✅ | ✅ |

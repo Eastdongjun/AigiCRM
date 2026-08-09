@@ -84,6 +84,10 @@
         </el-row>
 
         <el-divider content-position="left"><el-icon><Setting /></el-icon> 其他设置</el-divider>
+        <el-form-item label="启用状态">
+          <el-switch v-model="poolForm.status" :active-value="1" :inactive-value="0" active-text="启用" inactive-text="禁用" />
+          <div style="font-size:12px;color:#909399;margin-top:4px">禁用的公海池不在公海页面展示，也不再接收新释放的客户</div>
+        </el-form-item>
         <el-form-item label="排序">
           <el-input-number v-model="poolForm.sortOrder" :min="0" />
         </el-form-item>
@@ -105,7 +109,7 @@ import { getSeaConfigs, createSeaConfig, updateSeaConfig, deleteSeaConfig, getOr
 const seaPools = ref([])
 const orgTree = ref([])
 const poolDialogVisible = ref(false)
-const poolForm = reactive({ id: null, poolName: '', visibleKeys: [], sortOrder: 0 })
+const poolForm = reactive({ id: null, poolName: '', visibleKeys: [], sortOrder: 0, status: 1 })
 const seaLoadError = ref(false)
 
 const loadSeaPools = async () => {
@@ -161,7 +165,7 @@ const clearSeaSelection = () => {
 }
 
 const handleAddPool = () => {
-  Object.assign(poolForm, { id: null, poolName: '', visibleKeys: [], sortOrder: 0 })
+  Object.assign(poolForm, { id: null, poolName: '', visibleKeys: [], sortOrder: 0, status: 1 })
   poolDialogVisible.value = true
 }
 
@@ -170,17 +174,25 @@ const handleEditPool = (row) => {
     id: row.id,
     poolName: row.poolName,
     visibleKeys: buildVisibleKeys(row.visibleDeptIds, row.visibleUserIds),
-    sortOrder: row.sortOrder || 0
+    sortOrder: row.sortOrder || 0,
+    status: row.status === 0 ? 0 : 1
   })
   poolDialogVisible.value = true
   nextTick(() => { if (seaTreeRef.value) seaTreeRef.value.setCheckedKeys(poolForm.visibleKeys) })
 }
 
 const handleDeletePool = async (row) => {
-  await ElMessageBox.confirm(`确定删除公海池「${row.poolName}」？`, '提示', { type: 'warning' })
-  await deleteSeaConfig(row.id)
-  ElMessage.success('删除成功')
-  loadSeaPools()
+  try {
+    await ElMessageBox.confirm(`确定删除公海池「${row.poolName}」？`, '提示', { type: 'warning' })
+    await deleteSeaConfig(row.id)
+    ElMessage.success('删除成功')
+    loadSeaPools()
+  } catch (e) {
+    // 【修复 2026-08-09 B8】区分"用户取消"与"后端拒绝",不再静默吞错
+    if (e !== 'cancel' && e !== 'close') {
+      ElMessage.error(e?.response?.data?.message || e?.message || '删除失败')
+    }
+  }
 }
 
 const submitPool = async () => {
@@ -194,7 +206,8 @@ const submitPool = async () => {
       poolName: poolForm.poolName,
       visibleDeptIds: deptIds.join(','),
       visibleUserIds: userIds.join(','),
-      sortOrder: poolForm.sortOrder
+      sortOrder: poolForm.sortOrder,
+      status: poolForm.status
     }
     if (poolForm.id) {
       await updateSeaConfig(poolForm.id, payload)
@@ -204,7 +217,10 @@ const submitPool = async () => {
     ElMessage.success('保存成功')
     poolDialogVisible.value = false
     loadSeaPools()
-  } catch (e) {}
+  } catch (e) {
+    // 【修复 2026-08-09 B8】后端错误(如办事处重叠/权限不足)显式提示,不再静默
+    ElMessage.error(e?.response?.data?.message || e?.message || '保存失败')
+  }
 }
 
 onMounted(() => { loadSeaPools(); loadOrgTree() })

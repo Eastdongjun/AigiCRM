@@ -102,8 +102,9 @@ public class SeaController {
         return Result.ok(seaConfigService.listVisible());
     }
 
-    /** 组织机构树(部门+人员可选,办事处/总部灰显),供"可见部门/人员"树选择器 */
-    @PreAuthorize("hasAuthority('sea:view')")
+    /** 组织机构树(部门+人员可选,办事处/总部灰显),供"可见部门/人员"树选择器。
+     *  【修复 2026-08-09 B3】仅公海配置编辑者可用——返回全组织+全人员,原 sea:view 会泄露给普通销售员 */
+    @PreAuthorize("hasAuthority('sea:config:view')")
     @GetMapping("/org-tree")
     public Result<List<Map<String, Object>>> orgTree() {
         return Result.ok(seaConfigService.buildOrgTree());

@@ -120,8 +120,8 @@
 | GET | `/api/sea/configs/visible` | `sea:config:view` | listVisibleConfigs | SeaController.java |
 | DELETE | `/api/sea/configs/{id}` | `sea:config:edit` | deleteConfig | SeaController.java |
 | PUT | `/api/sea/configs/{id}` | `sea:config:edit` | updateConfig | SeaController.java |
-| POST | `/api/sea/import` | `sea:pool:import` | importToSea | SeaController.java |
-| GET | `/api/sea/org-tree` | `sea:view` | orgTree | SeaController.java |
+| POST | `/api/sea/import` | `sea:import` | importToSea | SeaController.java |
+| GET | `/api/sea/org-tree` | `sea:config:view` | orgTree | SeaController.java |
 | DELETE | `/api/sea/pool/{id}` | `sea:pool:delete` | deletePool | SeaController.java |
 | GET | `/api/sea/statistics` | `sea:view` | statistics | SeaController.java |
 | ANY | `/api/statistics` | `statistics:view` | dashboard | StatisticsController.java |

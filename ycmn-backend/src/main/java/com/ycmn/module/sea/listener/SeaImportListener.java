@@ -50,6 +50,12 @@ public class SeaImportListener implements ReadListener<CustomerImportDTO> {
             customer.setOwnerId(currentUserId);
             customer.setOfficeId(currentOfficeId);
 
+            // 【修复 2026-08-09 复核 Low】先预检导入人所在办事处是否有启用公海池,
+            // 无池则整行记为失败且不创建客户——避免"客户已创建但报导入失败"的部分状态。
+            if (seaService.matchSeaConfig(currentOfficeId) == null) {
+                addFailure(rowNum, dto.getCustomerName(), "导入人所在办事处未配置启用的公海池");
+                return;
+            }
             // 1. 新建客户
             customerService.create(customer);
             // 2. 直接释放进公海(原负责人=导入人所在办事处路由匹配公海池)

@@ -108,7 +108,7 @@
           </el-table-column>
           <el-table-column label="操作" width="140" align="center" fixed="right">
             <template #default="{row}">
-              <el-button v-if="row.status==='available'" type="primary" size="small" @click="handleClaim(row)">捞取</el-button>
+              <el-button v-if="row.status==='available'&&canClaim" type="primary" size="small" @click="handleClaim(row)">捞取</el-button>
               <el-button v-if="canEdit" link type="primary" size="small" @click="handleEdit(row)">编辑</el-button>
               <el-button v-if="canDelete&&row.status==='available'" link type="danger" size="small" @click="handleDelete(row)">删除</el-button>
             </template>
@@ -158,6 +158,7 @@ const router = useRouter(); const userStore = useUserStore()
 const canEdit = computed(() => userStore.hasPermission('sea:pool:edit'))
 const canDelete = computed(() => userStore.hasPermission('sea:pool:delete'))
 const canImport = computed(() => userStore.hasPermission('sea:import'))
+const canClaim = computed(() => userStore.hasPermission('sea:claim'))
 
 const showImportDialog = ref(false); const importFile = ref(null); const importLoading = ref(false); const importResult = ref(null); const uploadRef = ref(null)
 const handleFileChange = (file) => { importFile.value = file.raw }
@@ -178,7 +179,18 @@ const search = () => { query.current = 1; loadData() }
 const loadStats = async () => { try { const res=await getSeaStatistics(); stats.value=res.data||{} } catch(e) {} }
 const loadPools = async () => { try { const res=await getVisibleSeaConfigs(); pools.value=res.data||[] } catch(e) {} }
 
-const handleClaim = async (row) => { try { await ElMessageBox.confirm(`确定捞取「${row.customerName}」？将发起审批申请`,'捞取确认'); await submitApproval({type:'claim',customerId:String(row.customerId),actionAfterApprove:'客户归属→本人'}); ElMessage.success('捞取申请已提交'); loadData(); loadStats() } catch(e) {} }
+const handleClaim = async (row) => {
+  try {
+    await ElMessageBox.confirm(`确定捞取「${row.customerName}」？将发起审批申请`,'捞取确认')
+    await submitApproval({type:'claim',customerId:String(row.customerId),actionAfterApprove:'客户归属→本人'})
+    ElMessage.success('捞取申请已提交'); loadData(); loadStats()
+  } catch(e) {
+    // 【修复 2026-08-09 B5】区分用户取消与后端 403/失败,不再静默吞错
+    if (e !== 'cancel' && e !== 'close') {
+      ElMessage.error(e?.response?.data?.message || e?.message || '捞取失败')
+    }
+  }
+}
 const handleEdit = (row) => router.push(`/customer/edit/${row.customerId}?from=sea`)
 const handleDelete = async (row) => { try { await ElMessageBox.confirm(`确定删除「${row.customerName}」？不可恢复。`,'删除确认',{type:'warning'}); await deleteSeaPool(row.id); ElMessage.success('已删除'); loadData(); loadStats() } catch(e) {} }
 

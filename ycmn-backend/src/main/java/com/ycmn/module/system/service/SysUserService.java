@@ -281,6 +281,13 @@ public class SysUserService {
                         .ne(BizCustomer::getStatus, "sea")
                         .eq(BizCustomer::getDeleted, 0));
         for (BizCustomer c : customers) {
+            // 【修复 2026-08-09 B4】客户所属办事处无启用公海池时不入池,跳过并继续(避免单客户中断整个离职事务)
+            if (seaService.matchSeaConfig(c.getOfficeId()) == null) {
+                // 【复核 Low】跳过入池也清理分享——无池客户的分享不再指向离职用户(FEAT-20260804 分享清理原则)
+                shareMapper.delete(new LambdaQueryWrapper<BizCustomerShare>()
+                        .eq(BizCustomerShare::getCustomerId, c.getId()));
+                continue;
+            }
             seaService.addToSea(c.getId(), "离职交接");
             // 清除该客户的分享记录
             shareMapper.delete(new LambdaQueryWrapper<BizCustomerShare>()

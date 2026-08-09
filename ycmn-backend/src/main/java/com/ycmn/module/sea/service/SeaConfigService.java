@@ -3,7 +3,9 @@ package com.ycmn.module.sea.service;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.ycmn.common.BusinessException;
 import com.ycmn.module.sea.entity.BizSeaConfig;
+import com.ycmn.module.sea.entity.BizSeaPool;
 import com.ycmn.module.sea.mapper.BizSeaConfigMapper;
+import com.ycmn.module.sea.mapper.BizSeaPoolMapper;
 import com.ycmn.module.system.entity.SysDept;
 import com.ycmn.module.system.entity.SysUser;
 import com.ycmn.module.system.mapper.SysDeptMapper;
@@ -22,10 +24,11 @@ import java.util.stream.Collectors;
 public class SeaConfigService {
 
     private final BizSeaConfigMapper configMapper;
+    private final BizSeaPoolMapper seaPoolMapper;
     private final SysDeptMapper deptMapper;
     private final SysUserMapper userMapper;
 
-    /** 全部公海池(供管理页面) */
+    /** 全部公海池(供管理页面,含禁用池——禁用池也需可查看/重新启用) */
     public List<BizSeaConfig> list() {
         List<BizSeaConfig> list = configMapper.selectList(
                 new LambdaQueryWrapper<BizSeaConfig>().orderByAsc(BizSeaConfig::getSortOrder));
@@ -35,19 +38,32 @@ public class SeaConfigService {
         return list;
     }
 
-    /** 当前用户可见的公海池(供公海池页面选择器/列表过滤) */
+    /**
+     * 当前用户可见且启用的公海池(供公海池页面选择器/列表过滤/统计)。
+     * 禁用池(status=0)不出现在业务页面——与 matchSeaConfig 释放路由口径一致,
+     * 且可捞取/删除可见池记录时才不会被禁用池的存量客户误导。
+     */
     public List<BizSeaConfig> listVisible() {
         SecurityUser user = SecurityUtils.getCurrentUser();
-        return list().stream().filter(c -> isVisibleTo(c, user)).collect(Collectors.toList());
+        return list().stream()
+                .filter(c -> c.getStatus() != null && c.getStatus() == 1)
+                .filter(c -> isVisibleTo(c, user))
+                .collect(Collectors.toList());
     }
 
     public void create(BizSeaConfig config) {
+        // 【修复 2026-08-09 B2】新池默认启用(status=1),与 DB 默认值一致;前端可显式传 0 建禁用池
+        if (config.getStatus() == null) {
+            config.setStatus(1);
+        }
         config.setRegionIds(deriveRegionIds(config.getVisibleDeptIds(), config.getVisibleUserIds()));
         checkOfficeOverlap(config);
         configMapper.insert(config);
     }
 
     public void update(BizSeaConfig config) {
+        // 【修复 2026-08-09 B2】status 为 null 时 updateById 按 MP 默认 NOT_NULL 策略跳过该列(保留原值),
+        // 只有前端显式传 0/1 时才变更启用/禁用状态——语义正确,无需特殊分支。
         config.setRegionIds(deriveRegionIds(config.getVisibleDeptIds(), config.getVisibleUserIds()));
         checkOfficeOverlap(config);
         configMapper.updateById(config);
@@ -77,7 +93,15 @@ public class SeaConfigService {
         }
     }
 
+    @org.springframework.transaction.annotation.Transactional
     public void delete(Long id) {
+        // 【修复 2026-08-09 B9】删除前检查池内是否仍有客户记录,避免客户关联已删池(孤儿)。
+        // 校验与删除同一事务,消除 TOCTOU 竞态(复核 Low: 窗口期定时/手动释放可能插入新记录)。
+        Long poolCount = seaPoolMapper.selectCount(
+                new LambdaQueryWrapper<BizSeaPool>().eq(BizSeaPool::getPoolId, id));
+        if (poolCount != null && poolCount > 0) {
+            throw new BusinessException("该公海池下仍有 " + poolCount + " 条客户记录，无法删除");
+        }
         configMapper.deleteById(id);
     }
 

@@ -52,8 +52,13 @@ class ApprovalServiceTest {
     }
 
     private void setCurrentUser(SecurityUser u) {
-        Authentication auth = mock(Authentication.class);
-        when(auth.getPrincipal()).thenReturn(u);
+        // 【修复 2026-08-09】9c6e72a 给捞取加了 sea:claim 方法内校验,测试用户需持该权限
+        // (否则 submit("claim",...) 在到达业务分支前就抛"没有公海捞取权限")
+        Authentication auth = new org.springframework.security.authentication.UsernamePasswordAuthenticationToken(
+                u, null,
+                java.util.List.of(
+                        new org.springframework.security.core.authority.SimpleGrantedAuthority("sea:claim"),
+                        new org.springframework.security.core.authority.SimpleGrantedAuthority("approval:view")));
         SecurityContextHolder.getContext().setAuthentication(auth);
     }
 

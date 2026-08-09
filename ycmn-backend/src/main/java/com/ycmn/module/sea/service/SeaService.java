@@ -46,9 +46,13 @@ public class SeaService {
     private final SeaConfigService seaConfigService;
     private final CustomerService customerService;
 
-    /** 当前用户可见的公海池ID; 返回 null 表示 all 数据范围(不过滤) */
+    /**
+     * 当前用户可见且启用的公海池ID。
+     * 【修复 2026-08-09 复核 B1】不再对 all 数据范围返回 null(不过滤)——否则禁用池(status=0)的
+     * 存量客户仍会出现在管理员的公海列表/统计/可捞取,与"禁用池不在业务页展示"语义冲突。
+     * all 用户 = 全部启用池(保留其全量可见性,但排除禁用池); 非 all 用户 = 可见且启用池。
+     */
     private List<Long> visiblePoolIdsOrNull() {
-        if ("all".equals(SecurityUtils.getCurrentDataScope())) return null;
         return seaConfigService.listVisible().stream().map(BizSeaConfig::getId).collect(Collectors.toList());
     }
 
@@ -151,9 +155,17 @@ public class SeaService {
         BizCustomer customer = customerMapper.selectById(customerId);
         if (customer == null) return;
 
+        // 【修复 2026-08-09 B4】客户所属办事处必须能匹配到启用公海池,否则拒绝入池。
+        // 与 CustomerController.release/CustomerExpireTask 的既有守卫对齐,
+        // 统一收口在此处覆盖全部 4 个调用点(导入/离职/手动释放/定时释放),杜绝 pool_id=NULL 孤儿。
+        Long poolId = matchSeaConfig(customer.getOfficeId());
+        if (poolId == null) {
+            throw new BusinessException("客户所属办事处未配置启用的公海池，无法进入公海");
+        }
+
         BizSeaPool pool = new BizSeaPool();
         pool.setCustomerId(customerId);
-        pool.setPoolId(matchSeaConfig(customer.getOfficeId()));
+        pool.setPoolId(poolId);
         pool.setOriginalOwnerId(customer.getOwnerId());
         pool.setEnterReason(reason);
         pool.setEnterDate(LocalDateTime.now());
@@ -171,13 +183,18 @@ public class SeaService {
     }
 
     /**
-     * 根据客户所属办事处ID匹配公海池配置
+     * 根据客户所属办事处ID匹配公海池配置。
+     * 【修复 2026-08-09 B10】按 sortOrder 排序后取第一个命中,使"多池命中"结果确定
+     * (sortOrder 小的优先);checkOfficeOverlap 已在配置层拦重叠,此排序兜底存量/手改数据歧义。
      */
     public Long matchSeaConfig(Long officeId) {
         if (officeId == null) return null;
         String officeIdStr = String.valueOf(officeId);
         List<BizSeaConfig> configs = seaConfigMapper.selectList(
-                new LambdaQueryWrapper<BizSeaConfig>().eq(BizSeaConfig::getStatus, 1));
+                new LambdaQueryWrapper<BizSeaConfig>()
+                        .eq(BizSeaConfig::getStatus, 1)
+                        .orderByAsc(BizSeaConfig::getSortOrder)
+                        .orderByAsc(BizSeaConfig::getId));
         for (BizSeaConfig config : configs) {
             if (config.getRegionIds() != null) {
                 List<String> ids = Arrays.asList(config.getRegionIds().split(","));
