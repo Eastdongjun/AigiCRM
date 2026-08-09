@@ -77,6 +77,18 @@
             <scope>runtime</scope>
         </dependency>
 
+        <!-- Flyway 迁移工具（2026-08-09 引入，版本由 Spring Boot 3.2.5 BOM 管理 10.x）
+             MySQL 8 需 flyway-mysql 分离模块；应用运行时 spring.flyway.enabled=false(生产 ycmn_app 无 DDL 权限)，
+             迁移经 Maven 插件 / CLI 以管理账号执行(deploy-db.sh)。 -->
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-core</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-mysql</artifactId>
+        </dependency>
+
         <!-- JWT -->
         <dependency>
             <groupId>io.jsonwebtoken</groupId>
@@ -165,6 +177,16 @@
                             <artifactId>lombok</artifactId>
                         </exclude>
                     </excludes>
+                </configuration>
+            </plugin>
+            <!-- Flyway 迁移插件（2026-08-09 引入）: 经 deploy-db.sh 以管理账号执行迁移。
+                 生产/测试连接参数由 deploy-db.sh 传入(-Dflyway.*), 不在此硬编码。 -->
+            <plugin>
+                <groupId>org.flywaydb</groupId>
+                <artifactId>flyway-maven-plugin</artifactId>
+                <version>9.22.3</version>
+                <configuration>
+                    <locations>filesystem:${project.basedir}/src/main/resources/db/migration</locations>
                 </configuration>
             </plugin>
         </plugins>
