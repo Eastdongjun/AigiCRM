@@ -95,8 +95,10 @@ public class SeaController {
         return Result.ok(seaConfigService.list());
     }
 
-    /** 当前用户可见的公海池(公海池页面选择器/列表用) */
-    @PreAuthorize("hasAuthority('sea:config:view')")
+    /** 当前用户可见的公海池(公海池页面选择器/列表用)
+     *  【修复 2026-08-10】sea:config:view → sea:view——此接口是公海页(销售员用)的池选择器,
+     *  非配置管理; 原 sea:config:view 门槛使销售员(无配置权限)公海页池下拉 403/空 */
+    @PreAuthorize("hasAuthority('sea:view')")
     @GetMapping("/configs/visible")
     public Result<List<BizSeaConfig>> listVisibleConfigs() {
         return Result.ok(seaConfigService.listVisible());
