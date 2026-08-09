@@ -1,0 +1,123 @@
+// C4 拆组件后为激励上传/管理页共享态 composable 补回归测试（2026-08-09）
+// 覆盖: 品类判定(categoryCodeOf/isSingleSlot)、canSubmit、confirmUpload 槽位 ID 序列化(单槽/三槽)
+import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { createPinia, setActivePinia } from 'pinia'
+
+vi.mock('@/api/incentive', () => ({
+  getCategoryTree: vi.fn(),
+  getRecords: vi.fn(),
+  addRecord: vi.fn(),
+  deleteRecord: vi.fn(),
+  updateRecord: vi.fn(),
+  checkIncentivePermission: vi.fn(),
+}))
+vi.mock('@/api/customer', () => ({ getCustomerList: vi.fn() }))
+vi.mock('@/api/system', () => ({ getDictData: vi.fn() }))
+vi.mock('@/utils/layout-cache', () => ({ cachedGet: vi.fn() }))
+vi.mock('@/utils/token', () => ({ getDownloadToken: vi.fn(() => 't') }))
+vi.mock('@/utils/confirm', () => ({ confirmAction: vi.fn() }))
+vi.mock('@/utils/request', () => ({ default: { post: vi.fn() } }))
+
+import { useIncentiveUpload } from './useIncentiveUpload'
+import { addRecord, deleteRecord } from '@/api/incentive'
+import request from '@/utils/request'
+
+const cats = [
+  { id: 1, parentId: 0, categoryCode: 'visit', categoryName: '交流拜访', score: 1 },
+  { id: 2, parentId: 1, categoryCode: 'visit_factory', categoryName: '工厂参观', score: 2 },
+  { id: 3, parentId: 0, categoryCode: 'trial', categoryName: '产品试点', score: 1 },
+  { id: 4, parentId: 3, categoryCode: 'trial_seal', categoryName: '密封试点', score: 3 },
+]
+
+describe('useIncentiveUpload 品类判定与提交序列化', () => {
+  let list
+  beforeEach(() => {
+    setActivePinia(createPinia())
+    vi.clearAllMocks()
+    list = useIncentiveUpload()
+    list.categories.value = cats
+  })
+
+  it('categoryCodeOf 子分类上溯到顶层品类 code', () => {
+    expect(list.categoryCodeOf(cats[1])).toBe('visit')   // visit_factory → visit
+    expect(list.categoryCodeOf(cats[3])).toBe('trial')   // trial_seal → trial
+    expect(list.categoryCodeOf(cats[0])).toBe('visit')   // 顶层自身
+  })
+
+  it('isSingleSlot: visit/exchange/plan 单槽, trial 三槽', () => {
+    list.pendingChild.value = cats[1]   // visit 子类
+    expect(list.isSingleSlot.value).toBe(true)
+    list.pendingChild.value = cats[3]   // trial 子类
+    expect(list.isSingleSlot.value).toBe(false)
+  })
+
+  it('canSubmit: 无客户不可提交; 单槽需至少 1 个文件', () => {
+    list.pendingChild.value = cats[1]   // visit 单槽
+    list.selectedCustomerId.value = null
+    expect(list.canSubmit.value).toBe(false)
+    list.selectedCustomerId.value = 5
+    expect(list.canSubmit.value).toBe(false)   // 单槽无文件
+    list.installFiles.pre = [{ name: 'a.jpg' }]
+    expect(list.canSubmit.value).toBe(true)
+  })
+
+  it('confirmUpload 新上传(单槽 visit): filePreId 序列化 JSON, 中/后/跟踪槽置 null', async () => {
+    list.pendingChild.value = cats[1]           // visit 单槽
+    list.selectedCustomerId.value = 5
+    list.installFiles.pre = [{ name: 'a.jpg' }] // 新文件
+    request.post.mockResolvedValue({ code: 200, data: { id: 100 } })
+    addRecord.mockResolvedValue({})
+
+    await list.confirmUpload()
+
+    expect(addRecord).toHaveBeenCalledTimes(1)
+    const payload = addRecord.mock.calls[0][0]
+    expect(payload.categoryId).toBe(2)   // cats[1].id = 2 (visit_factory)
+    expect(payload.customerId).toBe(5)
+    expect(payload.filePreId).toBe('[100]')     // 新文件 id 序列化为 JSON 数组
+    expect(payload.fileMidId).toBeNull()        // 单槽: 中槽不提交
+    expect(payload.filePostId).toBeNull()
+    expect(payload.fileTrackId).toBeNull()
+    expect(payload.shared).toBe(1)              // 默认共享
+    // 弹窗关闭 + 记录刷新
+    expect(list.showCustomerDialog.value).toBe(false)
+  })
+
+  it('confirmUpload 新上传(三槽 trial): pre/mid/post/track 各自序列化', async () => {
+    list.pendingChild.value = cats[3]           // trial 三槽
+    list.selectedCustomerId.value = 6
+    list.installFiles.pre = [{ name: 'a.jpg' }]
+    list.installFiles.mid = [{ name: 'b.jpg' }, { name: 'c.jpg' }]
+    list.installFiles.post = [{ name: 'd.jpg' }]
+    list.trackFile.value = [{ name: 'e.jpg' }]
+    let seq = 0
+    request.post.mockImplementation(() => Promise.resolve({ code: 200, data: { id: 200 + (seq++) } }))
+    addRecord.mockResolvedValue({})
+
+    await list.confirmUpload()
+
+    const payload = addRecord.mock.calls[0][0]
+    expect(payload.filePreId).toBe('[200]')
+    expect(payload.fileMidId).toBe('[201,202]')   // 两个中槽文件
+    expect(payload.filePostId).toBe('[203]')
+    expect(payload.fileTrackId).toBe('[204]')
+  })
+
+  it('confirmUpload 追加模式: 保留已有文件 id + 新文件 id, 且先删除旧记录再新增', async () => {
+    list.pendingChild.value = cats[1]
+    list.pendingReplace.value = { id: 9, filePreId: '[50]', fileMidId: null, filePostId: null, fileTrackId: null }
+    list.selectedCustomerId.value = 5
+    // 已有文件(_existing, id=50) + 一个新文件
+    list.installFiles.pre = [{ name: 'old.jpg', id: 50, _existing: true }, { name: 'new.jpg' }]
+    request.post.mockResolvedValue({ code: 200, data: { id: 100 } })
+    addRecord.mockResolvedValue({})
+    deleteRecord.mockResolvedValue({})
+
+    await list.confirmUpload()
+
+    expect(deleteRecord).toHaveBeenCalledWith(9)   // 追加: 先删旧记录
+    const payload = addRecord.mock.calls[0][0]
+    expect(payload.filePreId).toBe('[50,100]')     // 保留旧 + 新
+    expect(payload.fileMidId).toBeNull()
+  })
+})
