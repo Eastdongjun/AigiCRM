@@ -118,6 +118,7 @@ import { getScoreGrid, batchSaveEntries, addScoreItem, updateScoreItem, deleteSc
 import { getDictData } from '@/api/system'
 import { useUserStore } from '@/store/user'
 import { getDownloadToken } from '@/utils/token'
+import { downloadFile } from '@/utils/download'
 
 const userStore = useUserStore()
 const isAdmin = computed(() => userStore.roles?.includes('admin'))
@@ -152,17 +153,8 @@ const handleAddUser = (user) => { if(!visibleUsers.value.some(u=>u.id===user.id)
 // 【需求】导出(FEAT 0804):window.open 被拦截时"没反应",改 fetch blob + a.download 强制下载
 const handleExport = async () => {
   const t = getDownloadToken() || ''
-  try {
-    const url = `/api/score/export/grid?period=${encodeURIComponent(period.value)}&token=${encodeURIComponent(t)}`
-    const res = await fetch(url)
-    if (!res.ok) { ElMessage.error('导出失败(' + res.status + ')'); return }
-    const blob = await res.blob()
-    const a = document.createElement('a')
-    a.href = URL.createObjectURL(blob)
-    a.download = '学分统计-' + (period.value || '') + '.xlsx'
-    document.body.appendChild(a); a.click()
-    URL.revokeObjectURL(a.href); a.remove()
-  } catch (e) { ElMessage.error('导出失败: ' + (e.message || e)) }
+  const url = `/api/score/export/grid?period=${encodeURIComponent(period.value)}&token=${encodeURIComponent(t)}`
+  await downloadFile(url, { name: '学分统计-' + (period.value || '') + '.xlsx' })
 }
 
 watch(period, loadGrid)

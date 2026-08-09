@@ -1,4 +1,5 @@
 import request from '@/utils/request'
+import { downloadFile } from '@/utils/download'
 
 export function getCustomerList(params) {
   return request.get('/customer/list', { params })
@@ -120,14 +121,8 @@ export function importCustomers(file) {
 
 export function downloadImportTemplate() {
   const token = localStorage.getItem('token')
-  return fetch('/api/customer/import/template', {
+  return downloadFile('/api/customer/import/template', {
+    name: '客户导入模板.xlsx',
     headers: { Authorization: `Bearer ${token}` }
-  }).then(res => res.blob()).then(blob => {
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = url
-    link.download = '客户导入模板.xlsx'
-    link.click()
-    URL.revokeObjectURL(url)
   })
 }

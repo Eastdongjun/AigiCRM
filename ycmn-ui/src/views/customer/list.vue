@@ -244,6 +244,7 @@ import { ref, reactive, computed, onMounted, onBeforeUnmount, watch, nextTick } 
 import { useRouter } from 'vue-router'
 import { Plus, Download, Upload, Setting } from '@element-plus/icons-vue'
 import { getCustomerList, getCustomerStatistics, getCustomerListCounts, releaseCustomer, importCustomers, downloadImportTemplate, deleteCustomer } from '@/api/customer'
+import { downloadFile } from '@/utils/download'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { paginate } from '@/utils/pagination'
 import { filterCustomers } from '@/utils/list-filter'
@@ -751,7 +752,7 @@ const viewDetail = (row) => {
   router.push(`/customer/detail/${row.id}`)
 }
 
-const handleExport = () => {
+const handleExport = async () => {
   const params = new URLSearchParams()
   if (query.keyword) params.append('keyword', query.keyword)
   if (query.industry) params.append('industry', query.industry)
@@ -768,19 +769,8 @@ const handleExport = () => {
   }
   const token = localStorage.getItem('token')
   const url = `/api/customer/export?${params.toString()}`
-  // 用隐藏 a 标签下载（带 token）
-  const link = document.createElement('a')
-  link.href = url
-  // 通过 fetch + blob 方式下载（支持 Authorization header）
-  fetch(url, { headers: { Authorization: `Bearer ${token}` } })
-    .then(res => res.blob())
-    .then(blob => {
-      const blobUrl = URL.createObjectURL(blob)
-      link.href = blobUrl
-      link.download = '客户列表.xlsx'
-      link.click()
-      URL.revokeObjectURL(blobUrl)
-    })
+  // F3/F4: 统一下载工具（带 Authorization header + 超时 + 失败提示，原实现无 .catch 且含死代码）
+  await downloadFile(url, { name: '客户列表.xlsx', headers: { Authorization: `Bearer ${token}` } })
 }
 
 const getExpireColor = (row) => {

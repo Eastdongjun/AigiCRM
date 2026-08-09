@@ -158,9 +158,12 @@ public class SeaController {
         }
 
         IPage<BizApproval> page = approvalMapper.selectPage(new Page<>(current, size), wrapper);
+        // S7: keyword 涉及申请人/客户/审批人名(关联字段+嵌套审批节点),无法下推 SQL;本接口仅"我的捞取申请"(数据量小),
+        //      keyword 场景改为全量构建→内存过滤→手工分页,保证 total 与记录一致
+        List<BizApproval> source = StringUtils.hasText(keyword) ? approvalMapper.selectList(wrapper) : page.getRecords();
 
         List<Map<String, Object>> records = new ArrayList<>();
-        for (BizApproval a : page.getRecords()) {
+        for (BizApproval a : source) {
             Map<String, Object> record = new HashMap<>();
             record.put("id", a.getId());
             record.put("applyDate", a.getCreatedAt());
@@ -208,6 +211,12 @@ public class SeaController {
                         && (an == null || !an.contains(keyword))
                         && (avn == null || !avn.contains(keyword));
             });
+            // 手工分页（全量过滤后）：total = 匹配数
+            int from = (current - 1) * size;
+            int total = records.size();
+            records = from >= total ? new ArrayList<>()
+                    : new ArrayList<>(records.subList(from, Math.min(from + size, total)));
+            page = new Page<>(current, size, total);
         }
 
         // 统计（【修复 2026-08-08 统计泄漏】按数据范围过滤申请人，上级/负责人可见下级捞取统计）

@@ -46,6 +46,7 @@
 import { Download, Document } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import { getToken } from '@/utils/token'
+import { downloadFile } from '@/utils/download'
 
 const props = defineProps({
   visible: { type: Boolean, default: false },
@@ -56,20 +57,9 @@ const props = defineProps({
 const emit = defineEmits(['update:visible'])
 
 // 【需求】文件下载(FEAT 0804):window.open 在新标签闪开/被拦截时表现为"没反应";
-// 改为 fetch blob + a.download 强制保存,任何浏览器/任何状态下可靠触发
+// 改为 fetch blob + a.download 强制保存（F4: 统一走 downloadFile，带超时/失败提示）
 async function download() {
   if (!props.url) return
-  try {
-    const res = await fetch(props.url, { headers: { 'Authorization': 'Bearer ' + (getToken() || '') } })
-    if (!res.ok) { ElMessage.error('下载失败(' + res.status + ')'); return }
-    const blob = await res.blob()
-    const a = document.createElement('a')
-    a.href = URL.createObjectURL(blob)
-    a.download = props.fileName || 'file'
-    document.body.appendChild(a)
-    a.click()
-    URL.revokeObjectURL(a.href)
-    a.remove()
-  } catch (e) { ElMessage.error('下载失败: ' + (e.message || e)) }
+  await downloadFile(props.url, { name: props.fileName || 'file', headers: { 'Authorization': 'Bearer ' + (getToken() || '') } })
 }
 </script>

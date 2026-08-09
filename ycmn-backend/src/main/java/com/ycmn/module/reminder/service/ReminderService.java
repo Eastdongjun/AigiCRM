@@ -164,19 +164,9 @@ public class ReminderService {
                             .lt(BizReminder::getCreatedAt, todayEnd)
                             .last("LIMIT 1")
             );
-            if (todayReminder == null) {
-                // 自动创建今日提醒记录
-                todayReminder = new BizReminder();
-                todayReminder.setCustomerId(c.getId());
-                todayReminder.setReminderType("expiring");
-                todayReminder.setOwnerId(c.getOwnerId());
-                todayReminder.setOfficeId(c.getOfficeId());
-                todayReminder.setOverdueDays((int) ChronoUnit.DAYS.between(today, c.getExpireDate()));
-                todayReminder.setStatus("pending");
-                reminderMapper.insert(todayReminder);
-            }
-            row.put("reminderId", todayReminder.getId());
-            row.put("todayFollowedUp", "processed".equals(todayReminder.getStatus()));
+            // S8: GET 只读，不再自动建提醒——今日提醒物化由 POST /ensure-expiring 显式触发
+            row.put("reminderId", todayReminder == null ? null : todayReminder.getId());
+            row.put("todayFollowedUp", todayReminder != null && "processed".equals(todayReminder.getStatus()));
 
             return row;
         }).collect(Collectors.toList());
@@ -184,6 +174,45 @@ public class ReminderService {
         IPage<Map<String, Object>> result = new Page<>(current, size, customerPage.getTotal());
         result.setRecords(records);
         return result;
+    }
+
+    /** S8: 物化今日到期的 expiring 提醒（幂等，POST 显式触发，GET 分页不再写库） */
+    @org.springframework.transaction.annotation.Transactional
+    public void ensureExpiring() {
+        int warningDays = 30;
+        String val = configService.getValue("customer.warning.days");
+        if (val != null) { try { warningDays = Integer.parseInt(val.trim()); } catch (NumberFormatException ignored) {} }
+        LocalDate deadline = LocalDate.now().plusDays(warningDays);
+        LocalDate today = LocalDate.now();
+        LocalDateTime todayStart = today.atStartOfDay();
+        LocalDateTime todayEnd = today.plusDays(1).atStartOfDay();
+
+        LambdaQueryWrapper<BizCustomer> wrapper = new LambdaQueryWrapper<>();
+        wrapper.isNotNull(BizCustomer::getExpireDate)
+                .le(BizCustomer::getExpireDate, deadline)
+                .ne(BizCustomer::getStatus, "sea");
+        List<Long> visibleOwners = scopeResolver.resolve(SecurityUtils.getCurrentUser());
+        if (visibleOwners != null) {
+            wrapper.in(BizCustomer::getOwnerId, visibleOwners.isEmpty() ? List.of(-1L) : visibleOwners);
+        }
+
+        for (BizCustomer c : customerMapper.selectList(wrapper)) {
+            Long exist = reminderMapper.selectCount(new LambdaQueryWrapper<BizReminder>()
+                    .eq(BizReminder::getCustomerId, c.getId())
+                    .eq(BizReminder::getReminderType, "expiring")
+                    .ge(BizReminder::getCreatedAt, todayStart)
+                    .lt(BizReminder::getCreatedAt, todayEnd));
+            if (exist == null || exist == 0) {
+                BizReminder r = new BizReminder();
+                r.setCustomerId(c.getId());
+                r.setReminderType("expiring");
+                r.setOwnerId(c.getOwnerId());
+                r.setOfficeId(c.getOfficeId());
+                r.setOverdueDays((int) ChronoUnit.DAYS.between(today, c.getExpireDate()));
+                r.setStatus("pending");
+                reminderMapper.insert(r);
+            }
+        }
     }
 
     /**

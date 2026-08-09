@@ -50,6 +50,13 @@ public class ReminderController {
     }
 
     @PreAuthorize("hasAuthority('reminder:view')")
+    @PostMapping("/ensure-expiring")
+    public Result<Void> ensureExpiring() {
+        reminderService.ensureExpiring();
+        return Result.ok();
+    }
+
+    @PreAuthorize("hasAuthority('reminder:view')")
     @PostMapping("/{id}/process")
     public Result<Void> process(@PathVariable Long id) {
         reminderService.process(id);

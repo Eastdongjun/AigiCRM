@@ -96,7 +96,7 @@
 <script setup>
 import { ref, reactive, computed, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { getExpiringList, getReminderList, processReminder } from '@/api/reminder'
+import { getExpiringList, getReminderList, processReminder, ensureExpiring } from '@/api/reminder'
 import { submitApproval } from '@/api/approval'
 import { getScopeDepts } from '@/api/system'
 import { getSimpleUserList } from '@/api/customer'
@@ -254,7 +254,7 @@ const updateTableHeight = () => {
 }
 
 onMounted(async () => {
-  loadData()
+  ensureExpiring().finally(loadData) // S8: 先物化今日到期提醒,再加载列表(GET 不再写库)
   try {
     const res = await getScopeDepts()
     offices.value = res.data || []

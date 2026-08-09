@@ -386,6 +386,7 @@ import { submitApproval } from '@/api/approval'
 import { getScoreByCustomer, getCategoryTree } from '@/api/incentive'
 import request from '@/utils/request'
 import { getDownloadToken } from '@/utils/token'
+import { downloadFile } from '@/utils/download'
 import { useUserStore } from '@/store/user'
 
 const route = useRoute(); const router = useRouter(); const userStore = useUserStore()
@@ -493,17 +494,8 @@ const fmtDate = (t) => { if (!t) return ''; const d = new Date(t); return d.getF
 // 【需求】文件下载(FEAT 0804):window.open 被拦截时"没反应",改 fetch blob + a.download 强制下载
 const downloadIncentiveFile = async (f) => {
   if (!f?.id) return
-  try {
-    const url = '/api/file/download/' + f.id + '?token=' + (getDownloadToken() || '')
-    const res = await fetch(url)
-    if (!res.ok) { ElMessage.error('下载失败(' + res.status + ')'); return }
-    const blob = await res.blob()
-    const a = document.createElement('a')
-    a.href = URL.createObjectURL(blob)
-    a.download = f.label || ('file-' + f.id)
-    document.body.appendChild(a); a.click()
-    URL.revokeObjectURL(a.href); a.remove()
-  } catch (e) { ElMessage.error('下载失败: ' + (e.message || e)) }
+  const url = '/api/file/download/' + f.id + '?token=' + (getDownloadToken() || '')
+  await downloadFile(url, { name: f.label || ('file-' + f.id) })
 }
 
 const submitLog = async () => { if(!newLog.value.trim()) return; try { await addCustomerLog(customerId.value,{content:newLog.value}); ElMessage.success('已记录'); newLog.value=''; logs.value = (await getCustomerLogs(customerId.value)).data||[] } catch(e) {} }

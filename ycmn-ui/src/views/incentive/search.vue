@@ -195,6 +195,7 @@ import { ref, computed, onMounted } from 'vue'
 import { getCategoryTree } from '@/api/incentive'
 import { cachedGet } from '@/utils/layout-cache'
 import { getToken, getDownloadToken } from '@/utils/token'
+import { downloadFile as downloadFileUtil } from '@/utils/download'
 import { Search, User, VideoPlay, Document, ZoomIn, Download, Filter, Folder, OfficeBuilding, PriceTag, Calendar, MapLocation, Notebook, Warning } from '@element-plus/icons-vue'
 import request from '@/utils/request'
 import { ElMessage } from 'element-plus'
@@ -226,18 +227,7 @@ function preview(id,type,name){previewUrl.value=fileUrl(id);previewType.value=ty
 // 改为 fetch blob + a.download 强制保存,任何浏览器/任何状态下可靠触发
 async function downloadFile(id, name) {
   if (!id) return
-  try {
-    const res = await fetch(fileUrl(id), { headers: { 'Authorization': 'Bearer ' + (getToken() || '') } })
-    if (!res.ok) { ElMessage.error('下载失败(' + res.status + ')'); return }
-    const blob = await res.blob()
-    const a = document.createElement('a')
-    a.href = URL.createObjectURL(blob)
-    a.download = name || ('file-' + id)
-    document.body.appendChild(a)
-    a.click()
-    URL.revokeObjectURL(a.href)
-    a.remove()
-  } catch (e) { ElMessage.error('下载失败: ' + (e.message || e)) }
+  await downloadFileUtil(fileUrl(id), { name: name || ('file-' + id), headers: { 'Authorization': 'Bearer ' + (getToken() || '') } })
 }
 function downloadPreview(){ if (previewUrl.value) { const m = previewUrl.value.match(/\/download\/(\d+)/); downloadFile(m ? m[1] : null, previewName.value) } }
 function showDetail(c){detailCust.value=c;detailVisible.value=true}

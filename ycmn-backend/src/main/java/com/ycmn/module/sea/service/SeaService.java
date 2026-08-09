@@ -88,6 +88,14 @@ public class SeaService {
             if (custIds.isEmpty()) return new Page<>(current, size);
             wrapper.in(BizSeaPool::getCustomerId, custIds);
         }
+        // S7: keyword/industry 是客户关联字段，下沉 SQL（客户 id 子查询）保证分页与 total 正确（原内存 removeIf 后 total 失真）
+        if (StringUtils.hasText(keyword) || StringUtils.hasText(industry)) {
+            LambdaQueryWrapper<BizCustomer> cw = new LambdaQueryWrapper<>();
+            if (StringUtils.hasText(keyword)) cw.like(BizCustomer::getCustomerName, keyword);
+            if (StringUtils.hasText(industry)) cw.eq(BizCustomer::getIndustry, industry);
+            List<Long> custIds = customerMapper.selectList(cw).stream().map(BizCustomer::getId).toList();
+            wrapper.in(BizSeaPool::getCustomerId, custIds.isEmpty() ? List.of(-1L) : custIds);
+        }
 
         IPage<BizSeaPool> page = seaPoolMapper.selectPage(new Page<>(current, size), wrapper);
 
@@ -106,15 +114,6 @@ public class SeaService {
                 SysUser owner = userMapper.selectById(sp.getOriginalOwnerId());
                 if (owner != null) sp.setOriginalOwnerName(owner.getRealName());
             }
-        }
-
-        // keyword/industry 涉及关联客户字段，仍在内存中过滤；enterReason 已在 DB 层过滤
-        if (StringUtils.hasText(keyword) || StringUtils.hasText(industry)) {
-            page.getRecords().removeIf(sp -> {
-                if (StringUtils.hasText(keyword) && (sp.getCustomerName() == null || !sp.getCustomerName().contains(keyword))) return true;
-                if (StringUtils.hasText(industry) && !industry.equals(sp.getIndustry())) return true;
-                return false;
-            });
         }
 
         return page;

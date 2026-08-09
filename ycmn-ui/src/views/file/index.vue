@@ -269,6 +269,7 @@ import { getRoleList } from '@/api/system'
 import { getSimpleUserList } from '@/api/customer'
 import { useUserStore } from '@/store/user'
 import request from '@/utils/request'
+import { downloadFile } from '@/utils/download'
 
 const userStore = useUserStore()
 const activeTab = ref('public')
@@ -468,16 +469,7 @@ const loadStorage = async () => {
 
 const handleDownload = (row) => {
   const url = row.ossUrl || `/api/file/download/${row.ossKey}`
-  fetch(url, { headers: { Authorization: `Bearer ${token}` } })
-    .then(res => res.blob())
-    .then(blob => {
-      const blobUrl = URL.createObjectURL(blob)
-      const link = document.createElement('a')
-      link.href = blobUrl
-      link.download = row.fileName
-      link.click()
-      URL.revokeObjectURL(blobUrl)
-    })
+  downloadFile(url, { name: row.fileName, headers: { Authorization: `Bearer ${token}` } })
 }
 
 const openShareDialog = (row) => {
