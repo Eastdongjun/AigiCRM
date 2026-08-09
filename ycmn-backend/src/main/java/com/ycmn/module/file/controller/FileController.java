@@ -100,8 +100,9 @@ public class FileController {
     @GetMapping("/download/{id}")
     public void downloadById(@PathVariable Long id,
                              @RequestHeader(value = "Range", required = false) String range,
+                             @RequestParam(value = "thumbnail", required = false, defaultValue = "false") boolean thumbnail,
                              jakarta.servlet.http.HttpServletResponse response) {
-        fileService.downloadById(id, range, response);
+        fileService.downloadById(id, range, thumbnail, response);
     }
 
     /** 公开文件下载 — 无需登录，仅限 public 范围 */

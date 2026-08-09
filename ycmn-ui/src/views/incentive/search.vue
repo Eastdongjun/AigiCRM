@@ -75,7 +75,7 @@
             <div v-for="f in getFiles(c.records[0]).slice(0,4)" :key="f.id" class="card-img">
               <template v-if="f.type==='image'">
                 <div class="img-wrap">
-                  <img :src="fileUrl(f.id)" @click="preview(f.id, f.type, f.label)" @error="onImgError" />
+                  <img :src="thumbUrl(f.id)" @click="preview(f.id, f.type, f.label)" @error="onImgError" />
                   <div v-if="f.tag" class="img-tag">{{ f.tag }}</div>
                 </div>
               </template>
@@ -159,7 +159,7 @@
                 <div v-for="f in getFiles(r)" :key="f.id" class="dtl-file">
                   <template v-if="f.type==='image'">
                     <div class="dtl-img-wrap">
-                      <img :src="fileUrl(f.id)" @click="preview(f.id, f.type, f.label)" @error="onImgError" />
+                      <img :src="thumbUrl(f.id)" @click="preview(f.id, f.type, f.label)" @error="onImgError" />
                       <div v-if="f.tag" class="dtl-file-tag" :style="{color:tagColor(f.tag), borderColor:tagColor(f.tag)}">{{ f.tag }}</div>
                       <div class="dtl-file-acts">
                         <el-button size="small" circle type="primary" @click.stop="preview(f.id, f.type, f.label)"><el-icon><ZoomIn /></el-icon></el-button>
@@ -220,6 +220,7 @@ function onImgError(e){e.target.src='data:image/svg+xml,'+encodeURIComponent('<s
 // 取客户记录中最新一条（排序已按品类，不与时间线顺序绑定）
 function latestRecord(c){let best=null;for(const r of (c?.records||[])){if(!best||String(r.createdAt||'')>String(best.createdAt||''))best=r}return best}
 function fileUrl(id){return'/api/file/download/'+id+'?token='+(getToken()||'')}
+function thumbUrl(id){return'/api/file/download/'+id+'?token='+(getToken()||'')+'&thumbnail=1'}
 function preview(id,type,name){previewUrl.value=fileUrl(id);previewType.value=type==='video'?'video':'image';previewVisible.value=true;previewName.value=name||''}
 // 【需求】文件下载(FEAT 0804):window.open 下载在新标签闪开/被拦截时表现为"没反应";
 // 改为 fetch blob + a.download 强制保存,任何浏览器/任何状态下可靠触发

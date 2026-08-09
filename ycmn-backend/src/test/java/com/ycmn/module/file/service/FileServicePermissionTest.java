@@ -146,7 +146,7 @@ class FileServicePermissionTest {
             m.when(SecurityUtils::getCurrentUserId).thenReturn(1L);
             m.when(SecurityUtils::isAdmin).thenReturn(false);
             when(folderPermissionService.checkFile(9L, FolderPermissionService.P_DOWNLOAD, 1L)).thenReturn(true);
-            svc.downloadById(9L, null, response);
+            svc.downloadById(9L, null, false, response);
             verify(response).setStatus(403);
         }
     }
@@ -169,7 +169,7 @@ class FileServicePermissionTest {
             m.when(SecurityUtils::getCurrentUserId).thenReturn(1L);
             m.when(SecurityUtils::isAdmin).thenReturn(false);
             when(folderPermissionService.checkFile(9L, FolderPermissionService.P_DOWNLOAD, 1L)).thenReturn(true);
-            svc.downloadById(9L, null, response);
+            svc.downloadById(9L, null, false, response);
             // 未在权限/开关处拦截：落到文件不存在 → 404，而不是 403
             verify(response).setStatus(404);
             verify(response, never()).setStatus(403);
@@ -218,7 +218,7 @@ class FileServicePermissionTest {
         try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
             m.when(SecurityUtils::getCurrentUserId).thenReturn(2L);
             m.when(SecurityUtils::isAdmin).thenReturn(false);
-            svc.downloadById(9L, null, response);
+            svc.downloadById(9L, null, false, response);
             verify(response).setStatus(404);
             verify(response, never()).setStatus(403);
         }
@@ -242,7 +242,7 @@ class FileServicePermissionTest {
         try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
             m.when(SecurityUtils::getCurrentUserId).thenReturn(1L);
             m.when(SecurityUtils::isAdmin).thenReturn(true);
-            svc.downloadById(9L, null, response);
+            svc.downloadById(9L, null, false, response);
             verify(response).setStatus(404);
             verify(response, never()).setStatus(403);
         }
@@ -268,7 +268,7 @@ class FileServicePermissionTest {
         try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
             m.when(SecurityUtils::getCurrentUserId).thenReturn(2L);
             m.when(SecurityUtils::isAdmin).thenReturn(false);
-            svc.downloadById(9L, null, response);
+            svc.downloadById(9L, null, false, response);
             verify(response).setStatus(404);
             verify(response, never()).setStatus(403);
         }
@@ -523,7 +523,7 @@ class FileServicePermissionTest {
             svc.replaceFile(9L, mf);
             // 替换后同一 fileId 下载返回新内容（走更新后的 ossKey）
             MockHttpServletResponse response = new MockHttpServletResponse();
-            svc.downloadById(9L, null, response);
+            svc.downloadById(9L, null, false, response);
             assertEquals(200, response.getStatus());
             assertEquals(newContent, response.getContentAsString());
         }
@@ -687,7 +687,7 @@ class FileServicePermissionTest {
         try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
             m.when(SecurityUtils::getCurrentUserId).thenReturn(2L);
             m.when(SecurityUtils::isAdmin).thenReturn(false);
-            svc.downloadById(9L, null, response);
+            svc.downloadById(9L, null, false, response);
             verify(response).setStatus(403);
         }
     }

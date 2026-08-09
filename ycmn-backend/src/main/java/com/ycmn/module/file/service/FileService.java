@@ -460,7 +460,7 @@ public class FileService {
         return Paths.get(uploadDir, fileKey);
     }
 
-    public void downloadById(Long fileId, String range, jakarta.servlet.http.HttpServletResponse response) {
+    public void downloadById(Long fileId, String range, boolean thumbnail, jakarta.servlet.http.HttpServletResponse response) {
         BizFile file = fileMapper.selectById(fileId);
         if (file == null) {
             response.setStatus(404);
@@ -475,6 +475,11 @@ public class FileService {
         }
         try {
             Path filePath = Paths.get(uploadDir, file.getOssKey());
+            // 【缩略图 2026-08-09】列表预览场景：图片返回 ≤300px 缩略图，避免激励查询等页首屏全尺寸下载
+            if (thumbnail) {
+                if (writeThumbnail(filePath, file.getFileName(), response)) return;
+                // 非图片/读取失败 → 回退完整下载
+            }
             Resource resource = new UrlResource(filePath.toUri());
             if (resource.exists()) {
                 String filename = file.getFileName();
@@ -531,6 +536,38 @@ public class FileService {
         } catch (Exception ignored) {
         }
         response.setStatus(404);
+    }
+
+    /** 生成缩略图并写入响应；仅图片返回 true。非图片或读取失败返回 false（调用方回退完整下载）。 */
+    private boolean writeThumbnail(Path filePath, String filename, jakarta.servlet.http.HttpServletResponse response) {
+        try {
+            String lower = filename == null ? "" : filename.toLowerCase();
+            if (!lower.matches(".*\\.(jpg|jpeg|png|gif|webp|bmp)$")) return false;
+            java.awt.image.BufferedImage img = javax.imageio.ImageIO.read(filePath.toFile());
+            if (img == null) return false;
+            int maxDim = 300;
+            int w = img.getWidth(), h = img.getHeight();
+            if (w > 0 && h > 0 && (w > maxDim || h > maxDim)) {
+                double scale = Math.min((double) maxDim / w, (double) maxDim / h);
+                int nw = Math.max(1, (int) (w * scale)), nh = Math.max(1, (int) (h * scale));
+                // PNG 保留透明通道，其余转 JPG
+                boolean png = lower.endsWith(".png");
+                java.awt.image.BufferedImage scaled = new java.awt.image.BufferedImage(
+                        nw, nh, png ? java.awt.image.BufferedImage.TYPE_INT_ARGB : java.awt.image.BufferedImage.TYPE_INT_RGB);
+                java.awt.Graphics2D g = scaled.createGraphics();
+                g.setRenderingHint(java.awt.RenderingHints.KEY_INTERPOLATION, java.awt.RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+                g.drawImage(img, 0, 0, nw, nh, null);
+                g.dispose();
+                img = scaled;
+            }
+            String fmt = lower.endsWith(".png") ? "png" : "jpg";
+            response.setContentType(fmt.equals("png") ? "image/png" : "image/jpeg");
+            response.setHeader(HttpHeaders.CACHE_CONTROL, "public, max-age=3600");
+            javax.imageio.ImageIO.write(img, fmt, response.getOutputStream());
+            return true;
+        } catch (Exception ignored) {
+            return false;
+        }
     }
 
     /** 按 oss_key 查询文件记录（key 下载路由的归属校验依据） */
