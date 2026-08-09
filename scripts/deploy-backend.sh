@@ -23,9 +23,11 @@ SIZE=$(stat -f%z /tmp/ycmn-backend-new.jar)
 echo "jar 大小: $SIZE 字节 ($(echo "scale=1; $SIZE/1024/1024" | bc)MB)"
 [ "$SIZE" -lt 50000000 ] && { echo "❌ jar 异常偏小,中止"; exit 1; }
 
-echo "=== [2/5] 上传生产并备份旧 jar ==="
+echo "=== [2/5] 备份旧 jar 并上传生产 ==="
+# 先备份旧 jar 再覆盖（2026-08-09 复盘：原顺序先覆盖后备份，备份到的是新 jar）
+ssh_prod "cp /root/ycmn/ycmn-backend-1.0.0.jar $NAS_BACKUP_DIR/ycmn-backend-jar-$(date +%Y%m%d-%H%M%S).jar 2>/dev/null && echo '旧 jar 已备份到 NAS' || echo '(无旧 jar 可备份,首次部署)'"
 scp_prod /tmp/ycmn-backend-new.jar "${PROD_USER}@${PROD_HOST}:/root/ycmn/ycmn-backend-1.0.0.jar"
-ssh_prod "cp /root/ycmn/ycmn-backend-1.0.0.jar $NAS_BACKUP_DIR/ycmn-backend-jar-$(date +%Y%m%d-%H%M%S).jar 2>/dev/null; ls -la /root/ycmn/ycmn-backend-1.0.0.jar"
+ssh_prod "ls -la /root/ycmn/ycmn-backend-1.0.0.jar"
 
 echo "=== [3/5] 重建镜像 ==="
 ssh_prod "cd /root/ycmn && docker build -q -t ycmn-backend:2.7.0 -f Dockerfile-run . 2>&1 | tail -1"

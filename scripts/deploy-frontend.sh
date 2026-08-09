@@ -21,7 +21,7 @@ ssh_prod "
   mkdir -p $NAS_BACKUP_DIR/dist-rollback-\$TS
   cp -r $NAS_DIST_DIR/* $NAS_BACKUP_DIR/dist-rollback-\$TS/ 2>/dev/null
   rm -rf $NAS_DIST_DIR/* && tar xzf /tmp/ycmn-dist-new.tgz -C $NAS_DIST_DIR
-  echo '新入口: \$(grep -oE \"assets/index-[A-Za-z0-9_-]+\.js\" $NAS_DIST_DIR/index.html)'
+  echo \"新入口: \$(grep -oE \"assets/index-[A-Za-z0-9_-]+\.js\" $NAS_DIST_DIR/index.html)\"
   echo \"回滚备份: $NAS_BACKUP_DIR/dist-rollback-\$TS\"
 "
 
