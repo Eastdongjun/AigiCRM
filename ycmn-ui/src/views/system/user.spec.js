@@ -17,6 +17,8 @@ vi.mock('@/api/customer', () => ({ getSimpleUserList: vi.fn() }))
 import UserView from './user.vue'
 import { getUserList, getDeptList, getRoleList } from '@/api/system'
 import { getSimpleUserList } from '@/api/customer'
+// C4 拆组件后 search/descendantIds/buildTree 移入共享态 composable，逻辑测试直接测 composable
+import { useUserList } from '@/composables/useUserList'
 
 const stubs = {
   'el-button': { template: '<button><slot /></button>' },
@@ -72,29 +74,29 @@ describe('system/user.vue 服务端分页测试', () => {
   })
 
   it('search 重置页码到 1 后重新加载', async () => {
-    const wrapper = mount(UserView, { global: { stubs } })
-    await flushPromises()
-    await wrapper.vm.search()
+    const list = useUserList()
+    await list.loadData()
+    list.query.current = 2
+    await list.search()
     expect(getUserList).toHaveBeenCalledTimes(2)
     expect(getUserList.mock.calls[1][0].current).toBe(1)
   })
 
   it('descendantIds 收集选中部门的全部子树 id', async () => {
-    const wrapper = mount(UserView, { global: { stubs } })
-    await flushPromises()
+    const list = useUserList()
+    list.depts.value = depts
     // 选中"公司"(id=1) → 自身 + 山西大区 + 太原办
-    const ids = wrapper.vm.descendantIds(1)
+    const ids = list.descendantIds(1)
     expect(ids).toContain(1)
     expect(ids).toContain(2)
     expect(ids).toContain(3)
     // 选中"太原办"(id=3) → 仅自身
-    expect(wrapper.vm.descendantIds(3)).toEqual([3])
+    expect(list.descendantIds(3)).toEqual([3])
   })
 
   it('buildTree 由扁平部门构建层级', async () => {
-    const wrapper = mount(UserView, { global: { stubs } })
-    await flushPromises()
-    const tree = wrapper.vm.buildTree(depts)
+    const list = useUserList()
+    const tree = list.buildTree(depts)
     expect(tree).toHaveLength(1)
     expect(tree[0].children[0].deptName).toBe('山西大区')
     expect(tree[0].children[0].children[0].deptName).toBe('太原办销售部')
