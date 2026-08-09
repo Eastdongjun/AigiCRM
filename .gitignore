@@ -36,3 +36,6 @@ sql/init.sql
 
 # Superpowers worktrees
 .worktrees/
+
+# ycmn-ui/engineering 有意不提交（记忆决策保留，非 .gitignore 疏漏）
+ycmn-ui/engineering/

@@ -1,0 +1,84 @@
+{
+  "schema_version": "1.0",
+  "feature_id": "FEAT-20260804-DICT-DEPT-READ",
+  "title": "字典/部门只读接口放开为登录可读，修复销售员/行政新增客户403",
+  "project_root": "/Users/donglai/东来/01-Projects/01-aigicrm/04-源码",
+  "ui_scope": "none",
+  "current_state": "DELIVERED",
+  "created_at": "2026-08-04T22:04:48+08:00",
+  "updated_at": "2026-08-04T22:46:56+08:00",
+  "required_kinds": [
+    "build",
+    "test"
+  ],
+  "quality_commands": {
+    "test": {
+      "argv": [
+        "mvn",
+        "-f",
+        "ycmn-backend/pom.xml",
+        "test"
+      ],
+      "required": true
+    },
+    "build": {
+      "argv": [
+        "mvn",
+        "-f",
+        "ycmn-backend/pom.xml",
+        "package",
+        "-DskipTests"
+      ],
+      "required": true
+    }
+  },
+  "latest_gate_report": "evidence/gate-report-20260804-224627-683546.json",
+  "latest_preflight_report": "evidence/preflight-report-20260804-224634-914192.json",
+  "config_revision": 5,
+  "feature_revision": 1,
+  "transitions": [
+    {
+      "from": null,
+      "to": "INTAKE",
+      "at": "2026-08-04T22:04:48+08:00",
+      "evidence": "feature initialized"
+    },
+    {
+      "from": "INTAKE",
+      "to": "REQUIREMENTS_READY",
+      "at": "2026-08-04T22:06:50+08:00",
+      "evidence": "01-requirements.md 含 REQ-001~007/AC-001~013，用户已确认方案B并补充数据范围规则(个人/上级看下级)"
+    },
+    {
+      "from": "REQUIREMENTS_READY",
+      "to": "PROTOTYPE_READY",
+      "at": "2026-08-04T22:07:22+08:00",
+      "evidence": "非UI路径：02/03 已填不适用说明（后端权限+数据范围修复，前端零改动），影响接口清单已列"
+    },
+    {
+      "from": "PROTOTYPE_READY",
+      "to": "PLAN_READY",
+      "at": "2026-08-04T22:07:57+08:00",
+      "evidence": "04-technical-plan.md 完整（含回滚/风险盲区）；preflight 通过 (evidence/preflight-report-20260804-220521-979618.json)"
+    },
+    {
+      "from": "PLAN_READY",
+      "to": "IMPLEMENTED",
+      "at": "2026-08-04T22:45:41+08:00",
+      "evidence": "4 文件改动+4 单测；mvn test 38/38 通过；测试环境部署验证通过"
+    },
+    {
+      "from": "IMPLEMENTED",
+      "to": "VERIFIED",
+      "at": "2026-08-04T22:46:38+08:00",
+      "evidence": "06-test-matrix.md AC 全 PASS；preflight+run-gates 0 failed；测试+生产实测通过"
+    },
+    {
+      "from": "VERIFIED",
+      "to": "DELIVERED",
+      "at": "2026-08-04T22:46:56+08:00",
+      "evidence": "07-delivery-report.md 完整（部署/回滚/证据/风险）；生产已部署并实测；run-gates 0 failed"
+    }
+  ],
+  "fingerprint_sha256": "b2edf4423be9eeb51e9ee7bc58fd582d45e2a82fa0e169d6e7eac627023b5516"
+}
