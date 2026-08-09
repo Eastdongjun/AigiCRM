@@ -1,7 +1,7 @@
 # YCMN 数据字典(自动生成)
 
-> 生成时间: 2026-08-08 | 来源: 生产 39.99.35.218 MySQL information_schema
-> 共 55 张表。本文件由 scripts/gen-data-dictionary.sh 自动生成,**禁止手改**;库结构变更后重新运行脚本。
+> 生成时间: 2026-08-09 | 来源: 生产 39.99.35.218 MySQL information_schema
+> 共 54 张表。本文件由 scripts/gen-data-dictionary.sh 自动生成,**禁止手改**;库结构变更后重新运行脚本。
 
 ## biz_approval 审批记录
 
@@ -282,6 +282,8 @@
 | `user_id` | bigint | NO | NULL | UNI |  |
 | `can_edit` | tinyint | YES | 0 |  |  |
 | `can_delete` | tinyint | YES | 0 |  |  |
+| `can_view_all` | tinyint | NO | 0 |  | 看全部激励(含未分享)独立开关 |
+| `can_view_shared` | tinyint | NO | 1 |  | 查看已分享(默认1) |
 | `created_at` | datetime | YES | CURRENT_TIMESTAMP |  |  |
 
 ## biz_incentive_record 激励上传记录
@@ -292,7 +294,7 @@
 | `tenant_id` | bigint | NO | 1 | MUL | 集团ID |
 | `user_id` | bigint | NO | NULL | MUL | 用户ID |
 | `category_id` | bigint | NO | NULL | MUL | 分类ID |
-| `customer_id` | bigint | YES | NULL |  |  |
+| `customer_id` | bigint | YES | NULL | MUL |  |
 | `period` | varchar(20) | YES | NULL | MUL | 周期(如2026上半年) |
 | `industry` | varchar(50) | YES | NULL |  | 行业(取字典 industry) |
 | `related_products` | varchar(1000) | YES | NULL |  | 相关产品(多行文本) |
@@ -315,7 +317,7 @@
 | 字段 | 类型 | 可空 | 默认 | 键 | 说明 |
 |---|---|---|---|---|---|
 | `id` | bigint | NO | NULL | PRI |  |
-| `customer_id` | bigint | NO | NULL |  |  |
+| `customer_id` | bigint | NO | NULL | MUL |  |
 | `invoice_date` | date | YES | NULL |  |  |
 | `amount` | decimal(12,2) | YES | NULL |  |  |
 | `invoice_no` | varchar(100) | YES | NULL |  |  |
@@ -608,23 +610,6 @@
 | `visible` | tinyint | YES | 1 |  |  |
 | `status` | tinyint | YES | 1 |  |  |
 | `created_at` | datetime | YES | CURRENT_TIMESTAMP |  |  |
-
-## sys_org VIEW
-
-| 字段 | 类型 | 可空 | 默认 | 键 | 说明 |
-|---|---|---|---|---|---|
-| `id` | bigint | NO | 0 |  |  |
-| `parent_id` | bigint | YES | 0 |  | 父部门ID |
-| `group_id` | bigint | YES | NULL |  |  |
-| `legal_entity_id` | bigint | YES | NULL |  |  |
-| `org_name` | varchar(100) | NO | NULL |  | 部门名称 |
-| `org_code` | varchar(50) | YES | NULL |  |  |
-| `org_type` | tinyint | YES | NULL |  | 类型 1总部 2大区 3办事处 |
-| `leader_id` | bigint | YES | NULL |  | 负责人ID |
-| `sort_order` | int | YES | 0 |  |  |
-| `status` | tinyint | YES | 1 |  |  |
-| `created_at` | datetime | YES | CURRENT_TIMESTAMP |  |  |
-| `updated_at` | datetime | YES | CURRENT_TIMESTAMP |  |  |
 
 ## sys_org_admin 
 

@@ -43,6 +43,15 @@ while [ $# -gt 0 ]; do
       shift ;;
   esac
 done
+# C6: 未显式提供时从 ~/.ycmn-deploy.env 派生默认（生产 root + 已轮换 DB_PASSWORD，复用 ssh_prod 凭据）
+if [ -z "$DB_HOST" ] || [ -z "$DB_USER" ] || [ -z "$DB_PASS" ] || [ -z "$DB_NAME" ]; then
+  ENV_FILE="$HOME/.ycmn-deploy.env"
+  [ -f "$ENV_FILE" ] && source "$ENV_FILE"
+  DB_HOST="${DB_HOST:-$PROD_HOST}"
+  DB_USER="${DB_USER:-root}"
+  DB_PASS="${DB_PASS:-$DB_PASSWORD}"
+  DB_NAME="${DB_NAME:-ycmn}"
+fi
 if [ -z "$DB_HOST" ] || [ -z "$DB_USER" ] || [ -z "$DB_PASS" ] || [ -z "$DB_NAME" ]; then
   echo "错误: 缺少 DB 连接参数(host/user/pass/db)" >&2; usage; exit 2
 fi

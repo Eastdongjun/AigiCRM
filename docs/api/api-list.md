@@ -1,10 +1,10 @@
 # YCMN API 清单(自动生成)
 
-> 生成时间: 2026-08-08 | 来源: 后端 controller 源码扫描
+> 生成时间: 2026-08-09 | 来源: 后端 controller 源码扫描
 > 本文件由 scripts/gen-api.py 自动生成,**禁止手改**;接口变更后重新运行。
 > 权限码与 docs/permission/permission-dict.md 对应。
 
-## 接口清单(194 个)
+## 接口清单(191 个)
 
 | 方法 | 路径 | 权限码 | 方法名 | 文件 |
 |---|---|---|---|---|
@@ -57,11 +57,12 @@
 | GET | `/api/customer/{id}/shares` | `customer:view` | getShares | CustomerController.java |
 | POST | `/api/customer/{id}/shares` | `customer:edit` | addShares | CustomerController.java |
 | DELETE | `/api/customer/{id}/shares/{userId}` | `customer:edit` | removeShare | CustomerController.java |
-| ANY | `/api/file` | `file:view` | getFolderTree | FileController.java |
+| ANY | `/api/file` | `登录即可` | downloadToken | FileController.java |
 | GET | `/api/file/download/**` | `file:view` | download | FileController.java |
 | GET | `/api/file/download/public/**` | `匿名` | downloadPublic | FileController.java |
 | GET | `/api/file/download/{id}` | `file:view` | downloadById | FileController.java |
 | ANY | `/api/file/folders` | `登录即可` | listAcl | FolderAclController.java |
+| GET | `/api/file/folders` | `file:view` | getFolderTree | FileController.java |
 | POST | `/api/file/folders` | `file:view` | createFolder | FileController.java |
 | DELETE | `/api/file/folders/{id}` | `file:view` | deleteFolder | FileController.java |
 | PUT | `/api/file/folders/{id}` | `file:view` | renameFolder | FileController.java |
@@ -98,15 +99,8 @@
 | GET | `/api/incentive/scoreboard` | `incentive:view` | scoreboard | IncentiveController.java |
 | GET | `/api/incentive/timeline` | `incentive:view` | timeline | IncentiveController.java |
 | GET | `/api/incentive/users` | `incentive:view` | userList | IncentiveController.java |
-| ANY | `/api/org` | `登录即可` | getOrgTree | SysOrgController.java |
-| POST | `/api/org` | `system:dept:add` | create | SysOrgController.java |
-| GET | `/api/org/my-scope` | `登录即可` | getMyScope | SysOrgController.java |
-| DELETE | `/api/org/{id}` | `system:dept:delete` | delete | SysOrgController.java |
-| PUT | `/api/org/{id}` | `system:dept:edit` | update | SysOrgController.java |
-| GET | `/api/org/{orgId}/admins` | `system:dept:view` | getAdmins | SysOrgController.java |
-| POST | `/api/org/{orgId}/admins` | `system:dept:edit` | addAdmin | SysOrgController.java |
-| DELETE | `/api/org/{orgId}/admins/{id}` | `system:dept:edit` | removeAdmin | SysOrgController.java |
 | ANY | `/api/reminder` | `reminder:view` | expiringList | ReminderController.java |
+| POST | `/api/reminder/ensure-expiring` | `reminder:view` | ensureExpiring | ReminderController.java |
 | GET | `/api/reminder/list` | `reminder:view` | page | ReminderController.java |
 | GET | `/api/reminder/pending-count` | `reminder:view` | pendingCount | ReminderController.java |
 | POST | `/api/reminder/{id}/process` | `reminder:view` | process | ReminderController.java |
@@ -142,6 +136,9 @@
 | ANY | `/api/system/depts` | `登录即可` | tree | SysDeptController.java |
 | GET | `/api/system/depts` | `登录即可` | list | SysDeptController.java |
 | POST | `/api/system/depts` | `system:dept:edit` | create | SysDeptController.java |
+| GET | `/api/system/depts/{deptId}/admins` | `system:dept:view` | getAdmins | SysDeptController.java |
+| POST | `/api/system/depts/{deptId}/admins` | `system:dept:edit` | addAdmin | SysDeptController.java |
+| DELETE | `/api/system/depts/{deptId}/admins/{id}` | `system:dept:edit` | removeAdmin | SysDeptController.java |
 | DELETE | `/api/system/depts/{id}` | `system:dept:edit` | delete | SysDeptController.java |
 | PUT | `/api/system/depts/{id}` | `system:dept:edit` | update | SysDeptController.java |
 | ANY | `/api/system/dict` | `system:config:view` | listTypes | SysDictController.java |
