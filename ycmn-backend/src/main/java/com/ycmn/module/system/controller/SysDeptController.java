@@ -2,12 +2,14 @@ package com.ycmn.module.system.controller;
 
 import com.ycmn.common.Result;
 import com.ycmn.module.system.entity.SysDept;
+import com.ycmn.module.system.service.OrgAdminService;
 import com.ycmn.module.system.service.SysDeptService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/system/depts")
@@ -15,6 +17,7 @@ import java.util.List;
 public class SysDeptController {
 
     private final SysDeptService deptService;
+    private final OrgAdminService orgAdminService;
 
     // 【修复 FEAT-20260804-DICT-DEPT-READ】list/tree 是给普通业务表单(新增客户等页面)读
     // 部门树(大区/办事处下拉)用的，此前要求 system:dept:view——"系统管理"模块权限，销售员/行政等
@@ -52,6 +55,28 @@ public class SysDeptController {
     @PreAuthorize("hasAuthority('system:dept:edit')")
     public Result<Void> delete(@PathVariable Long id) {
         deptService.delete(id);
+        return Result.ok();
+    }
+
+    // ===== 组织管理员（原 /api/org/{orgId}/admins 迁入，SysOrgController 已删除） =====
+
+    @GetMapping("/{deptId}/admins")
+    @PreAuthorize("hasAuthority('system:dept:view')")
+    public Result<List<Map<String, Object>>> getAdmins(@PathVariable Long deptId) {
+        return Result.ok(orgAdminService.getOrgAdmins(deptId));
+    }
+
+    @PostMapping("/{deptId}/admins")
+    @PreAuthorize("hasAuthority('system:dept:edit')")
+    public Result<Void> addAdmin(@PathVariable Long deptId, @RequestParam Long userId) {
+        orgAdminService.addOrgAdmin(deptId, userId);
+        return Result.ok();
+    }
+
+    @DeleteMapping("/{deptId}/admins/{id}")
+    @PreAuthorize("hasAuthority('system:dept:edit')")
+    public Result<Void> removeAdmin(@PathVariable Long deptId, @PathVariable Long id) {
+        orgAdminService.removeOrgAdmin(id);
         return Result.ok();
     }
 }

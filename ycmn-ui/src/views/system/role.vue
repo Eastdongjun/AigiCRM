@@ -73,7 +73,7 @@
               <el-checkbox
                 :model-value="orgMatrix[org.id] !== undefined"
                 @change="(checked) => toggleOrg(org.id, checked)">
-                <span :style="{ paddingLeft: (org._level || 0) * 16 + 'px' }">{{ org.orgName }}</span>
+                <span :style="{ paddingLeft: (org._level || 0) * 16 + 'px' }">{{ org.deptName }}</span>
               </el-checkbox>
               <el-checkbox
                 v-if="orgMatrix[org.id] !== undefined"
@@ -89,7 +89,7 @@
 
         <el-form-item label="归属组织">
           <el-select v-model="editForm.orgId" style="width:100%" clearable placeholder="留空=全局角色，不限组织">
-            <el-option v-for="org in flatOrgs" :key="org.id" :label="org.orgName" :value="org.id" />
+            <el-option v-for="org in flatOrgs" :key="org.id" :label="org.deptName" :value="org.id" />
           </el-select>
           <div class="form-tip">选择后该角色只在指定组织范围内可用；留空则全局通用</div>
         </el-form-item>
@@ -126,7 +126,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import { Plus } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { getRoleList, getRole, createRole, updateRole, deleteRole, getMenuTree, getOrgTree, getRoleOrgs, updateRoleOrgs } from '@/api/system'
+import { getRoleList, getRole, createRole, updateRole, deleteRole, getMenuTree, getDeptTree, getRoleOrgs, updateRoleOrgs } from '@/api/system'
 
 const roles = ref([])
 const menuTree = ref([])
@@ -158,7 +158,7 @@ const loadData = async () => {
 /** 加载组织树 */
 const loadOrgs = async () => {
   try {
-    const res = await getOrgTree()
+    const res = await getDeptTree()
     flattenOrg(res.data || [], 0)
   } catch (e) {}
 }

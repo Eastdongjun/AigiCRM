@@ -111,27 +111,15 @@ export function deleteDictData(id) {
   return request.delete(`/system/dict/data/${id}`)
 }
 
-// 组织管理
-export function getOrgTree() {
-  return request.get('/org/tree')
+// 组织/部门管理员
+export function getDeptAdmins(deptId) {
+  return request.get(`/system/depts/${deptId}/admins`)
 }
-export function createOrg(data) {
-  return request.post('/org', data)
+export function addDeptAdmin(deptId, userId) {
+  return request.post(`/system/depts/${deptId}/admins`, null, { params: { userId } })
 }
-export function updateOrg(id, data) {
-  return request.put(`/org/${id}`, data)
-}
-export function deleteOrg(id) {
-  return request.delete(`/org/${id}`)
-}
-export function getOrgAdmins(orgId) {
-  return request.get(`/org/${orgId}/admins`)
-}
-export function addOrgAdmin(orgId, userId) {
-  return request.post(`/org/${orgId}/admins`, null, { params: { userId } })
-}
-export function removeOrgAdmin(orgId, adminId) {
-  return request.delete(`/org/${orgId}/admins/${adminId}`)
+export function removeDeptAdmin(deptId, adminId) {
+  return request.delete(`/system/depts/${deptId}/admins/${adminId}`)
 }
 
 // 岗位管理

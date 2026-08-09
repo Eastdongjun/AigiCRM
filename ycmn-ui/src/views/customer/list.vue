@@ -340,7 +340,7 @@ const loadFilterData = async () => {
     if (user) {
       canFilterByOrg.value = user.dataScope === 'all' || (user.managedOrgIds||[]).length > 0
       if (canFilterByOrg.value) {
-        const orgRes = await fetch('/api/org/tree', {headers:{Authorization:'Bearer '+token}}).then(r=>r.json())
+        const orgRes = await fetch('/api/system/depts/tree', {headers:{Authorization:'Bearer '+token}}).then(r=>r.json())
         filterOrgTree.value = orgRes?.data || []
       }
       if (user.dataScope === 'all' || user.dataScope === 'org_and_children' || (user.managedOrgIds||[]).length > 0) {

@@ -133,7 +133,7 @@ const routes = [
       {
         path: 'system/org',
         name: 'DeptManage',
-        component: () => import('@/views/system/org.vue'),
+        component: () => import('@/views/system/dept.vue'),
         meta: { title: '组织架构', icon: 'OfficeBuilding', permission: 'system:dept:view' }
       },
       {

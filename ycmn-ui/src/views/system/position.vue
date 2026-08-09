@@ -12,7 +12,7 @@
         <el-table-column prop="description" label="描述" min-width="200" show-overflow-tooltip />
         <el-table-column label="所属组织" width="150">
           <template #default="{ row }">
-            {{ row.orgName || '-' }}
+            {{ row.deptName || '-' }}
           </template>
         </el-table-column>
         <el-table-column label="权限规则" width="100" align="center">
@@ -54,7 +54,7 @@
           <el-tree-select
             v-model="editForm.orgId"
             :data="orgOptions"
-            :props="{ label: 'orgName', value: 'id', children: 'children' }"
+            :props="{ label: 'deptName', value: 'id', children: 'children' }"
             check-strictly
             clearable
             placeholder="选择组织（可选）"
@@ -106,7 +106,7 @@
 import { ref, reactive, onMounted, computed } from 'vue'
 import { Plus } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { getPositionList, createPosition, updatePosition, deletePosition, getRuleList, getPositionRules, updatePositionRules, getOrgTree } from '@/api/system'
+import { getPositionList, createPosition, updatePosition, deletePosition, getRuleList, getPositionRules, updatePositionRules, getDeptTree } from '@/api/system'
 
 const positions = ref([])
 const allRules = ref([])
@@ -148,7 +148,7 @@ const loadRules = async () => {
 
 const loadOrgs = async () => {
   try {
-    const res = await getOrgTree()
+    const res = await getDeptTree()
     orgOptions.value = res.data || []
   } catch (e) {}
 }

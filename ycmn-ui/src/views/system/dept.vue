@@ -30,8 +30,9 @@
         <el-table-column label="状态" width="65" align="center">
           <template #default="{ row }"><el-tag :type="row.status===1?'success':'danger'" size="small">{{ row.status===1?'正常':'禁用' }}</el-tag></template>
         </el-table-column>
-        <el-table-column label="操作" width="200" align="center">
+        <el-table-column label="操作" width="250" align="center">
           <template #default="{ row }">
+            <el-button link type="primary" size="small" @click="showAdmins(row)">管理{{ adminCounts[row.id] ? ` (${adminCounts[row.id]})` : '' }}</el-button>
             <el-button link type="primary" size="small" @click="openDialog(row)">编辑</el-button>
             <el-button link type="primary" size="small" @click="openDialog(null, row.id)">添加子部门</el-button>
             <el-button link type="danger" size="small" @click="handleDelete(row)">删除</el-button>
@@ -78,6 +79,31 @@
         <el-button type="primary" @click="handleSave">保存</el-button>
       </template>
     </el-dialog>
+
+    <!-- 组织管理员弹窗 -->
+    <el-dialog v-model="adminDialogVisible" title="组织管理员" width="500px">
+      <el-form :inline="true">
+        <el-form-item label="添加用户">
+          <el-select v-model="selectedUserId" filterable placeholder="搜索用户"
+            :filter-method="searchUsers" @focus="searchUsers('')">
+            <el-option v-for="u in userOptions" :key="u.id" :label="u.realName" :value="u.id" />
+          </el-select>
+          <el-button type="primary" @click="doAddAdmin" style="margin-left: 8px">添加</el-button>
+        </el-form-item>
+      </el-form>
+      <el-table :data="currentAdmins" border stripe>
+        <el-table-column prop="userName" label="用户名" />
+        <el-table-column label="操作" width="80">
+          <template #default="{ row }">
+            <el-popconfirm title="确定移除？" @confirm="doRemoveAdmin(row)">
+              <template #reference>
+                <el-button link type="danger" size="small">移除</el-button>
+              </template>
+            </el-popconfirm>
+          </template>
+        </el-table-column>
+      </el-table>
+    </el-dialog>
   </div>
 </template>
 
@@ -85,7 +111,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import { Plus } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { getDeptTree, createDept, updateDept, deleteDept, getUserList, getGroupList } from '@/api/system'
+import { getDeptTree, createDept, updateDept, deleteDept, getUserList, getGroupList, getDeptAdmins, addDeptAdmin, removeDeptAdmin } from '@/api/system'
 
 const deptTree = ref([])
 const userList = ref([])
@@ -93,10 +119,25 @@ const groupList = ref([])
 const dialogVisible = ref(false)
 const editForm = reactive({ id: null, parentId: 0, groupId: null, deptName: '', deptType: 1, deptCode: '', leaderId: null, sortOrder: 0 })
 
+// 组织管理员
+const adminDialogVisible = ref(false)
+const currentOrg = ref(null)
+const currentAdmins = ref([])
+const selectedUserId = ref(null)
+const userOptions = ref([])
+const adminCounts = reactive({})
+
 const loadData = async () => {
   try {
     const res = await getDeptTree()
     deptTree.value = res.data || []
+    // 加载管理员计数
+    for (const node of flattenTree(deptTree.value)) {
+      try {
+        const r = await getDeptAdmins(node.id)
+        adminCounts[node.id] = (r.data || []).length
+      } catch (e) { adminCounts[node.id] = 0 }
+    }
   } catch (e) {}
 }
 
@@ -183,6 +224,41 @@ const loadGroups = async () => {
     const res = await getGroupList()
     groupList.value = res.data || []
   } catch (e) {}
+}
+
+// ===== 组织管理员 =====
+const showAdmins = async (node) => {
+  currentOrg.value = node
+  adminDialogVisible.value = true
+  try {
+    const res = await getDeptAdmins(node.id)
+    currentAdmins.value = res.data || []
+  } catch (e) { currentAdmins.value = [] }
+}
+
+const searchUsers = async (query) => {
+  try {
+    const res = await getUserList({ keyword: query, size: 50 })
+    userOptions.value = (res.data?.records || []).map(u => ({ id: u.id, realName: u.realName }))
+  } catch (e) {}
+}
+
+const doAddAdmin = async () => {
+  if (!selectedUserId.value) return
+  try {
+    await addDeptAdmin(currentOrg.value.id, selectedUserId.value)
+    ElMessage.success('添加成功')
+    selectedUserId.value = null
+    showAdmins(currentOrg.value)
+  } catch (e) { ElMessage.error('添加失败') }
+}
+
+const doRemoveAdmin = async (row) => {
+  try {
+    await removeDeptAdmin(currentOrg.value.id, row.id)
+    ElMessage.success('移除成功')
+    showAdmins(currentOrg.value)
+  } catch (e) { ElMessage.error('移除失败') }
 }
 
 onMounted(() => {
