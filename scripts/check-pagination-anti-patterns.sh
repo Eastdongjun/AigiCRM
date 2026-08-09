@@ -77,6 +77,52 @@ while IFS= read -r f; do
   fi
 done < <(find $SRC -name "*.vue" | grep -v "\.bak")
 
+# 反模式 D: 默认分页 size 与 page-sizes 首选项不一致（2026-08-10 人员管理教训）
+# 用户报"人员管理只有15条": useUserList 默认 size=15 但 UserPager page-sizes=[30,50,100] 不一致,
+# 导致默认每页15条, 数据多时翻页/误以为数据少。检查: 有 el-pagination 的页面/共享文件里
+# 若 page-sizes 不含其默认 size, 即命中。
+echo "  [D] 默认分页 size 与 page-sizes 首选项一致性检查"
+# 扫描所有含 el-pagination 的页面及其依赖的 composable(共享分页状态文件)
+while IFS= read -r f; do
+  has_pager=$(grep -c "el-pagination" "$f")
+  [ "$has_pager" = "0" ] && continue
+  # 提取 page-sizes 首选项
+  ps=$(grep -oE 'page-sizes="\[[0-9, ]+\]"' "$f" | head -1 | grep -oE '[0-9]+' | head -1)
+  [ -z "$ps" ] && continue
+  # 提取默认 size —— 以 el-pagination 实际绑定的 page-size 变量为准。
+  # 实现: 页面取 `v-model:page-size="X"` 的变量名 X(常见 query.size / pageSize),
+  #       在页面或共享 composable 中找 X 的默认值(ref(N) 或 query={size:N})。
+  # 排除: 模板 :size="...", CSS font-size/line-height 等。
+  size_def=""
+  # 1. 取绑定变量名
+  var=$(grep -oE 'v-model:page-size="[A-Za-z0-9_.]+"' "$f" | grep -oE '"[A-Za-z0-9_.]+"' | tr -d '"' | head -1)
+  # 2. 找变量默认值所在文件: 页面自身或引用的 composable
+  def_src="$f"
+  if ! grep -qE "(const|let|var)[[:space:]]+${var}[[:space:]]*=" "$f"; then
+    comp=$(grep -oE "use[A-Za-z]+List|injectUserList|use[A-Za-z]+Page" "$f" | head -1)
+    [ -n "$comp" ] && [ -f "ycmn-ui/src/composables/${comp}.js" ] && def_src="ycmn-ui/src/composables/${comp}.js"
+  fi
+  if [ -n "$var" ]; then
+    # 匹配 ref(N) 或 query 对象内 size: N
+    size_def=$(grep -oE "${var}[[:space:]]*=[[:space:]]*ref\([0-9]+\)|${var}[[:space:]]*:[[:space:]]*[0-9]+" "$def_src" | grep -oE '[0-9]+' | head -1)
+    # 若 query.size 形式(var=query.size), 匹配 query 对象定义
+    if [ -z "$size_def" ] && echo "$var" | grep -q "query"; then
+      size_def=$(grep -E "query[[:space:]]*=[[:space:]]*reactive" "$def_src" \
+        | sed 's/.*reactive(//' | sed 's/).*//' \
+        | grep -oE "size:[[:space:]]*[0-9]+" | grep -oE '[0-9]+' | head -1)
+      if [ -z "$size_def" ]; then
+        line=$(grep -nE "query[[:space:]]*=[[:space:]]*reactive" "$def_src" | head -1 | cut -d: -f1)
+        [ -n "$line" ] && size_def=$(sed -n "${line},$((line+5))p" "$def_src" \
+          | grep -oE "size:[[:space:]]*[0-9]+" | grep -oE '[0-9]+' | head -1)
+      fi
+    fi
+  fi
+  if [ -n "$size_def" ] && [ "$size_def" != "$ps" ]; then
+    echo -e "${RED}  [D] $f: 默认分页 size=$size_def 与 page-sizes 首项=$ps 不一致(默认每页应=page-sizes 首项)${NC}"
+    FAIL=1
+  fi
+done < <(find $SRC -name "*.vue" | grep -v "\.bak")
+
 if [ "$FAIL" = "0" ]; then
   echo -e "${GREEN}  ✅ 分页反模式扫描通过${NC}"
 else
