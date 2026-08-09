@@ -25,18 +25,16 @@ public class BizCustomer {
     @ExcelProperty("开发类型")
     private String devType;
     @ExcelProperty("所属集团")
-    @TableField(exist = false)
     private String groupName;
 
-    /** 所属集团ID（FK → sys_group） */
+    /** 集团ID外键（废弃：08-02迁移加列但从未回填，全表NULL；集团名直接存 group_name） */
     @ExcelIgnore
     private Long groupId;
 
     @ExcelProperty("所属分公司")
-    @TableField(exist = false)
     private String branchCompany;
 
-    /** 所属法人公司ID（FK → sys_legal_entity） */
+    /** 法人公司ID外键（废弃：从未回填；分公司名直接存 branch_company） */
     @ExcelIgnore
     private Long legalEntityId;
 
