@@ -109,4 +109,12 @@ public class SecurityUtils {
         SecurityUser user = getCurrentUser();
         return user != null && user.hasRole("admin");
     }
+
+    /** 是否持有指定权限码（方法内校验用，等价 @PreAuthorize hasAuthority） */
+    public static boolean hasAuthority(String authority) {
+        var auth = org.springframework.security.core.context.SecurityContextHolder
+                .getContext().getAuthentication();
+        return auth != null && auth.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals(authority));
+    }
 }

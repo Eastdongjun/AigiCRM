@@ -236,6 +236,12 @@ public class SeaService {
         if (!"available".equals(pool.getStatus())) {
             throw new BusinessException("仅待捞取状态的客户可删除");
         }
+        // 【安全修复 2026-08-09】池可见性校验：非 all 用户只能删除自己可见公海池的记录
+        // （此前无任何 scope 判断，持 sea:pool:delete 者可删任意池客户——横向越权）
+        List<Long> visiblePoolIds = visiblePoolIdsOrNull();
+        if (visiblePoolIds != null && !visiblePoolIds.contains(pool.getPoolId())) {
+            throw new BusinessException(403, "没有访问权限");
+        }
         // 逻辑删除客户（biz_customer 有 deleted 列，走 MyBatis-Plus 逻辑删除）
         if (pool.getCustomerId() != null) {
             customerMapper.deleteById(pool.getCustomerId());

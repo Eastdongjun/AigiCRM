@@ -157,7 +157,7 @@ import { useUserStore } from '@/store/user'
 const router = useRouter(); const userStore = useUserStore()
 const canEdit = computed(() => userStore.hasPermission('sea:pool:edit'))
 const canDelete = computed(() => userStore.hasPermission('sea:pool:delete'))
-const canImport = computed(() => userStore.hasPermission('sea:pool:import'))
+const canImport = computed(() => userStore.hasPermission('sea:import'))
 
 const showImportDialog = ref(false); const importFile = ref(null); const importLoading = ref(false); const importResult = ref(null); const uploadRef = ref(null)
 const handleFileChange = (file) => { importFile.value = file.raw }

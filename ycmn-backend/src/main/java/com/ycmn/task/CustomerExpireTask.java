@@ -52,8 +52,14 @@ public class CustomerExpireTask {
                 }
                 // 确保进了公海（防止状态已更新但未入池的情况）
                 if (!"sea".equals(customer.getStatus())) {
-                    seaService.addToSea(customer.getId(), "保护期满");
-                    log.info("客户 {} 保护期已到，进入公海", customer.getCustomerName());
+                    // 【安全修复 2026-08-09】无公海池配置的办事处不自动入池（与手动释放一致），
+                    // 避免产生 pool_id=NULL 的孤儿公海记录（普通用户不可见、也捞不了，变死数据）
+                    if (seaService.matchSeaConfig(customer.getOfficeId()) != null) {
+                        seaService.addToSea(customer.getId(), "保护期满");
+                        log.info("客户 {} 保护期已到，进入公海", customer.getCustomerName());
+                    } else {
+                        log.info("客户 {} 所在办事处未配置公海池，保持过期状态", customer.getCustomerName());
+                    }
                 }
             } else if (expireDate.isBefore(warningDate)) {
                 // 即将到期（30天内）

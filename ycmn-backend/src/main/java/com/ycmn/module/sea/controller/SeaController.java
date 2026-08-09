@@ -74,7 +74,8 @@ public class SeaController {
 
     /** 公海池批量导入（模板同客户导入，导入即新建客户并直接入公海） */
     @PostMapping("/import")
-    @PreAuthorize("hasAuthority('sea:pool:import')")
+    // 【权限修复 2026-08-09】统一导入权限码为 sea:import（0805 新增码），废弃旧的 sea:pool:import 双轨
+    @PreAuthorize("hasAuthority('sea:import')")
     public Result<CustomerImportResult> importToSea(@RequestParam("file") MultipartFile file) {
         if (file.isEmpty()) {
             throw new BusinessException("请选择要导入的文件");
