@@ -68,7 +68,7 @@ describe('system/user.vue 服务端分页测试', () => {
     expect(getUserList).toHaveBeenCalled()
     const call = getUserList.mock.calls[0][0]
     expect(call.current).toBe(1)
-    expect(call.size).toBe(15)
+    expect(call.size).toBe(30) // 默认30/页, 与 UserPager page-sizes=[30,50,100] 一致
     // total 显示
     expect(wrapper.text()).toContain('共2条')
   })

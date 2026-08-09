@@ -31,7 +31,7 @@ export function useUserList() {
   const userOptions = ref([])
 
   // ---- 查询参数 ----
-  const query = reactive({ current: 1, size: 15, keyword: '', deptId: null, status: null })
+  const query = reactive({ current: 1, size: 30, keyword: '', deptId: null, status: null }) // 默认30/页与 UserPager page-sizes=[30,50,100] 一致
 
   // ---- 新增/编辑弹窗态 ----
   const dialogVisible = ref(false)
