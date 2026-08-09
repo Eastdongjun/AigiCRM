@@ -32,7 +32,8 @@ docker-compose up -d               # MySQL:3308, Redis:6379, Backend:8080, Front
 ### Database
 ```bash
 # Import with explicit charset to avoid Chinese double-encoding
-mysql -h localhost -P 3308 -u root -p<redacted> --default-character-set=utf8mb4 ycmn < sql/init.sql
+# 凭据经 ~/.ycmn-deploy.env 注入（DB_PASSWORD），勿硬编码密码
+source ~/.ycmn-deploy.env && mysql -h localhost -P 3308 -u root -p"$DB_PASSWORD" --default-character-set=utf8mb4 ycmn < sql/init.sql
 ```
 
 ## Architecture

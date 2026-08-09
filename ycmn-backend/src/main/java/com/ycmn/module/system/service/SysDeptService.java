@@ -19,6 +19,7 @@ public class SysDeptService {
 
     private final SysDeptMapper deptMapper;
     private final SysUserMapper userMapper;
+    private final com.ycmn.security.PermissionCacheService permissionCacheService;
 
     public List<SysDept> tree() {
         List<SysDept> all = scopeFilter(deptMapper.selectList(
@@ -77,6 +78,9 @@ public class SysDeptService {
 
     public void update(SysDept dept) {
         deptMapper.updateById(dept);
+        // 【Redis 权限缓存】部门 groupId/legalEntityId/层级变更影响用户缓存的派生值(集团/法人/范围)，
+        // 全量失效(低频操作)避免旧上下文残留。
+        permissionCacheService.evictAll();
     }
 
     public void delete(Long id) {

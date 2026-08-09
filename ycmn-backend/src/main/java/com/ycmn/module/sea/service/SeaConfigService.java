@@ -64,8 +64,12 @@ public class SeaConfigService {
     public void update(BizSeaConfig config) {
         // 【修复 2026-08-09 B2】status 为 null 时 updateById 按 MP 默认 NOT_NULL 策略跳过该列(保留原值),
         // 只有前端显式传 0/1 时才变更启用/禁用状态——语义正确,无需特殊分支。
-        config.setRegionIds(deriveRegionIds(config.getVisibleDeptIds(), config.getVisibleUserIds()));
-        checkOfficeOverlap(config);
+        // 【修复 2026-08-09 P3-9】visibleDeptIds/visibleUserIds 均未传(部分更新)时不重算 region_ids,
+        // 避免 deriveRegionIds(null,null) 返回空串把路由信息清空。
+        if (StringUtils.hasText(config.getVisibleDeptIds()) || StringUtils.hasText(config.getVisibleUserIds())) {
+            config.setRegionIds(deriveRegionIds(config.getVisibleDeptIds(), config.getVisibleUserIds()));
+            checkOfficeOverlap(config);
+        }
         configMapper.updateById(config);
     }
 

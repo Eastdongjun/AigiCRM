@@ -44,6 +44,7 @@ ssh_prod "
     flyway/flyway:latest-alpine \
     -url='jdbc:mysql://ycmn-mysql:3306/ycmn?useSSL=false&allowPublicKeyRetrieval=true' \
     -user=root -password=\"$DB_PASSWORD\" \
+    -baselineOnMigrate=true \
     migrate 2>&1) || true
   if echo \"\$OUT\" | grep -qi 'error\|failed'; then
     echo '❌ Flyway 迁移失败:'; echo \"\$OUT\" | grep -i 'error\|failed' | head -5; exit 1

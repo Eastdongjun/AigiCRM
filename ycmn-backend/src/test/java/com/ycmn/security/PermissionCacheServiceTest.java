@@ -142,6 +142,13 @@ class PermissionCacheServiceTest {
         pos.setName("销售岗");
         ctx.setPositions(List.of(pos));
 
+        // 非空 permissionRules（与 UserDetailsServiceImpl:186 同用 stream().toList() → ImmutableCollections$ListN）
+        com.ycmn.module.system.entity.SysPermissionRule rule = new com.ycmn.module.system.entity.SysPermissionRule();
+        rule.setId(9L);
+        rule.setCode("dept_visible");
+        rule.setRuleType("column_filter");
+        ctx.setPermissionRules(java.util.List.of(rule).stream().collect(java.util.stream.Collectors.toUnmodifiableList()));
+
         byte[] bytes = ser.serialize(ctx);
         Object roundTripped = ser.deserialize(bytes);
 
@@ -154,5 +161,7 @@ class PermissionCacheServiceTest {
         assertEquals("owner_id = 7", restored.getRuleResult().getWhereClauses().get(0));
         assertEquals(1, restored.getPositions().size());
         assertEquals("sales_pos", restored.getPositions().get(0).getCode());
+        assertEquals(1, restored.getPermissionRules().size());
+        assertEquals("dept_visible", restored.getPermissionRules().get(0).getCode());
     }
 }

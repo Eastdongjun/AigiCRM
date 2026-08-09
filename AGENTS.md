@@ -11,13 +11,13 @@ YCMN（运筹马年）内部 CRM：客户/审批/激励/文件/公海池/提醒 
 - 后端：Spring Boot 3.2.5 / Java 17 / Maven / MyBatis-Plus；`cd ycmn-backend && mvn clean spring-boot:run`（端口 8080）；打包 `mvn clean package -DskipTests`
 - 前端：Vue 3 / Vite / npm；`cd ycmn-ui && npm run dev`（端口 3000，/api 代理到 8080）；`npm run build`
 - 全栈：`docker-compose up -d`（MySQL:3308 / Redis:6379 / 后端:8080 / 前端:80）
-- 数据库导入：`mysql -h localhost -P 3308 -u root -p<redacted> --default-character-set=utf8mb4 ycmn < sql/init.sql`
+- 数据库导入（本地）：`source ~/.ycmn-deploy.env && mysql -h localhost -P 3308 -u root -p"$DB_PASSWORD" --default-character-set=utf8mb4 ycmn < sql/init.sql`（凭据经 env 注入，勿硬编码）
 
 ## 数据库事实（排查前必读）
 
-- `sys_org` 不是表，是基于 `sys_dept` 的**视图**（见 ycmn-backend/src/main/resources/db/migration-permission-upgrade-mysql8.sql，视图创建在加列之后）。看到 "table sys_org doesn't exist" 先确认是不是视图/执行顺序问题。
-- schema 真相链：`sql/init.sql` = 基线；`ycmn-backend/src/main/resources/db/` = V2/V3 + 迁移增量；`ycmn_database_test.sql` = 真实库 dump（最接近线上）。
-- 全新部署执行顺序：基线 → V2 → V3 → migration，缺步或乱序会挂。
+- `sys_org` 视图已于 0809 sys_dept/sys_org 双表收口时删除——物理数据只在 `sys_dept` 表（含 dept_type），无 sys_org。
+- schema 真相链：**Flyway 迁移** = `ycmn-backend/src/main/resources/db/migration/V1__baseline.sql`（生产 54 表基线）+ 未来 V2+；历史日期脚本归档 `sql/migration/archive/`（不再登记）；`ycmn_database_test.sql` = 真实库 dump（最接近线上）。
+- 数据库变更：**必须经 Flyway**（新迁移 V2__xxx.sql 放 `db/migration/`，用 `scripts/deploy-db.sh` 部署）；`sql/migration/` 下已有日期目录仅作历史参考，不得再手工执行。
 - `biz_incentive_record.file_pre_id` 已从 BIGINT 改为 VARCHAR（存 JSON 数组），新代码不要再按数字处理。
 
 ## 编译与测试（强制，代码改动必须过这一关）

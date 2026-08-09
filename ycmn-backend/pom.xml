@@ -51,12 +51,6 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-data-redis</artifactId>
         </dependency>
-        <!-- 权限上下文短 TTL 本地缓存（S2：每请求全量重查 → 60s 缓存，版本由 Spring Boot BOM 管理） -->
-        <dependency>
-            <groupId>com.github.ben-manes.caffeine</groupId>
-            <artifactId>caffeine</artifactId>
-        </dependency>
-
         <!-- MyBatis-Plus -->
         <dependency>
             <groupId>com.baomidou</groupId>
