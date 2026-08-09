@@ -43,6 +43,8 @@ public class CustomerAccessService {
     private final SysDeptMapper deptMapper;
     private final SysUserMapper userMapper;
     private final OrgScopeResolver scopeResolver;
+    private final com.ycmn.module.sea.mapper.BizSeaPoolMapper seaPoolMapper;
+    private final com.ycmn.module.sea.service.SeaConfigService seaConfigService;
 
     // ==================== 判断方法 ====================
 
@@ -67,6 +69,21 @@ public class CustomerAccessService {
         // 4. 组织数据范围
         if (isInOrgDataScope(customer)) return true;
 
+        // 【2026-08-10 池级权限】客户在公海池内(status!=claimed)且当前用户有该池编辑/捞取权限时, 允许查看
+        // (能操作公海客户者必须能加载其详情; 否则池编辑者编辑页加载不出)
+        com.ycmn.module.sea.entity.BizSeaPool pool = seaPoolMapper.selectOne(
+                new LambdaQueryWrapper<com.ycmn.module.sea.entity.BizSeaPool>()
+                        .eq(com.ycmn.module.sea.entity.BizSeaPool::getCustomerId, customerId)
+                        .ne(com.ycmn.module.sea.entity.BizSeaPool::getStatus, "claimed")
+                        .orderByDesc(com.ycmn.module.sea.entity.BizSeaPool::getEnterDate)
+                        .last("LIMIT 1"));
+        if (pool != null && pool.getPoolId() != null) {
+            var user = SecurityUtils.getCurrentUser();
+            return seaConfigService.hasPoolPerm(pool.getPoolId(), com.ycmn.module.sea.service.SeaConfigService.PERM_EDIT, user)
+                    || seaConfigService.hasPoolPerm(pool.getPoolId(), com.ycmn.module.sea.service.SeaConfigService.PERM_CLAIM, user)
+                    || seaConfigService.hasPoolPerm(pool.getPoolId(), com.ycmn.module.sea.service.SeaConfigService.PERM_DELETE, user);
+        }
+
         return false;
     }
 
@@ -79,6 +96,18 @@ public class CustomerAccessService {
 
         Long userId = SecurityUtils.getCurrentUserId();
 
+        // 【2026-08-10 池级权限】客户在公海池内(status!=claimed)时, 编辑按池的编辑权限判定;
+        // 否则回退"负责人才能编辑"(owner-only)
+        com.ycmn.module.sea.entity.BizSeaPool pool = seaPoolMapper.selectOne(
+                new LambdaQueryWrapper<com.ycmn.module.sea.entity.BizSeaPool>()
+                        .eq(com.ycmn.module.sea.entity.BizSeaPool::getCustomerId, customerId)
+                        .ne(com.ycmn.module.sea.entity.BizSeaPool::getStatus, "claimed")
+                        .orderByDesc(com.ycmn.module.sea.entity.BizSeaPool::getEnterDate)
+                        .last("LIMIT 1"));
+        if (pool != null && pool.getPoolId() != null) {
+            return seaConfigService.hasPoolPerm(pool.getPoolId(), com.ycmn.module.sea.service.SeaConfigService.PERM_EDIT,
+                    SecurityUtils.getCurrentUser());
+        }
         // 只有负责人能编辑
         return userId.equals(customer.getOwnerId());
     }

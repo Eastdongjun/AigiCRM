@@ -96,7 +96,8 @@ class CustomerServiceTest {
                 mock(BizReminderMapper.class),
                 mock(JdbcTemplate.class),
                 mock(SysConfigService.class),
-                resolver);
+                resolver,
+                mock(com.ycmn.common.engine.CustomerAccessService.class));
     }
 
     @Test
@@ -219,7 +220,8 @@ class CustomerServiceTest {
                 mock(BizReminderMapper.class),
                 mock(JdbcTemplate.class),
                 mock(SysConfigService.class),
-                resolver);
+                resolver,
+                mock(com.ycmn.common.engine.CustomerAccessService.class));
     }
 
     /** 开关默认关的 resolver 桩：resolve 透传 scope；appendSystemLevelScopes 原样返回 base */

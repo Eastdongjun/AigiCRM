@@ -30,4 +30,11 @@ public class BizSeaPool {
     private String originalOwnerName;
     @TableField(exist = false)
     private String region;
+    // 【2026-08-10 池级权限】当前用户对该池的操作权限(前端按钮用)
+    @TableField(exist = false)
+    private Boolean canEdit;
+    @TableField(exist = false)
+    private Boolean canDelete;
+    @TableField(exist = false)
+    private Boolean canClaim;
 }

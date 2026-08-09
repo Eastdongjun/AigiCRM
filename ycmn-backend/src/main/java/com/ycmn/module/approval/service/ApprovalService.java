@@ -115,11 +115,6 @@ public class ApprovalService {
 
         // 公海捞取：检查是否已被他人申请
         if ("claim".equals(type) && customerId != null) {
-            // 【权限修复 2026-08-09】捞取需 sea:claim 权限码（此前只依赖 approval:view,
-            // 通过撤角色 sea:claim 无法阻止捞取——权限模型失效）
-            if (!SecurityUtils.hasAuthority("sea:claim")) {
-                throw new BusinessException(403, "没有公海捞取权限");
-            }
             BizSeaPool pool = seaPoolMapper.selectOne(
                     new LambdaQueryWrapper<BizSeaPool>()
                             .eq(BizSeaPool::getCustomerId, customerId)
@@ -129,6 +124,11 @@ public class ApprovalService {
             );
             if (pool == null) {
                 throw new BusinessException("该客户不在公海中");
+            }
+            // 【2026-08-10 池级权限】捞取权限按池判定(admin 恒有; 兼容存量 sea:claim 角色码)
+            if (!seaConfigService.hasPoolPerm(pool.getPoolId(), SeaConfigService.PERM_CLAIM, SecurityUtils.getCurrentUser())
+                    && !SecurityUtils.hasAuthority("sea:claim")) {
+                throw new BusinessException(403, "没有公海捞取权限");
             }
             // 可见范围校验：非 all 数据范围用户，必须可见该客户所在公海池，防止绕过前端捞取不可见池客户
             if (!"all".equals(SecurityUtils.getCurrentDataScope())

@@ -118,6 +118,11 @@ public class SeaService {
                 SysUser owner = userMapper.selectById(sp.getOriginalOwnerId());
                 if (owner != null) sp.setOriginalOwnerName(owner.getRealName());
             }
+            // 【2026-08-10 池级权限】当前用户对该池的操作权限(前端按钮显示用)
+            var currentUser = SecurityUtils.getCurrentUser();
+            sp.setCanEdit(seaConfigService.hasPoolPerm(sp.getPoolId(), SeaConfigService.PERM_EDIT, currentUser));
+            sp.setCanDelete(seaConfigService.hasPoolPerm(sp.getPoolId(), SeaConfigService.PERM_DELETE, currentUser));
+            sp.setCanClaim(seaConfigService.hasPoolPerm(sp.getPoolId(), SeaConfigService.PERM_CLAIM, currentUser));
         }
 
         return page;
@@ -253,8 +258,10 @@ public class SeaService {
         if (!"available".equals(pool.getStatus())) {
             throw new BusinessException("仅待捞取状态的客户可删除");
         }
-        // 【安全修复 2026-08-09】池可见性校验：非 all 用户只能删除自己可见公海池的记录
-        // （此前无任何 scope 判断，持 sea:pool:delete 者可删任意池客户——横向越权）
+        // 【2026-08-10 池级权限】删除权限按池判定(admin 恒有)；同时保留可见性校验防横向越权
+        if (!seaConfigService.hasPoolPerm(pool.getPoolId(), SeaConfigService.PERM_DELETE, SecurityUtils.getCurrentUser())) {
+            throw new BusinessException(403, "没有该公海池的删除权限");
+        }
         List<Long> visiblePoolIds = visiblePoolIdsOrNull();
         if (visiblePoolIds != null && !visiblePoolIds.contains(pool.getPoolId())) {
             throw new BusinessException(403, "没有访问权限");
@@ -273,6 +280,15 @@ public class SeaService {
     public CustomerImportResult importToSea(MultipartFile file) {
         Long currentUserId = SecurityUtils.getCurrentUserId();
         Long currentOfficeId = SecurityUtils.getCurrentOfficeId();
+
+        // 【2026-08-10 池级权限】导入权限按目标池判定：导入人 office 路由到的池必须有导入权限
+        Long targetPoolId = matchSeaConfig(currentOfficeId);
+        if (targetPoolId == null) {
+            throw new BusinessException("导入人所在办事处未配置启用的公海池");
+        }
+        if (!seaConfigService.hasPoolPerm(targetPoolId, SeaConfigService.PERM_IMPORT, SecurityUtils.getCurrentUser())) {
+            throw new BusinessException(403, "没有该公海池的导入权限");
+        }
 
         CustomerImportResult result = new CustomerImportResult();
         SeaImportListener listener = new SeaImportListener(

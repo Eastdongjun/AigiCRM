@@ -50,6 +50,7 @@ public class CustomerService {
     private final JdbcTemplate jdbc;
     private final SysConfigService configService;
     private final com.ycmn.common.scope.OrgScopeResolver scopeResolver;
+    private final com.ycmn.common.engine.CustomerAccessService customerAccessService;
 
     public IPage<BizCustomer> page(int current, int size, String keyword, String industry,
                                     Long officeId, Long regionId, String status, Long ownerId) {
@@ -341,8 +342,10 @@ public class CustomerService {
     public void update(BizCustomer customer) {
         BizCustomer existing = customerMapper.selectById(customer.getId());
         if (existing == null) throw new BusinessException("客户不存在");
-        // 权限检查：只有负责人和管理员可以编辑
-        checkOwnerOrAdmin(existing, "只能编辑自己的客户");
+        // 【2026-08-10 池级权限】编辑校验: 客户在公海池内用池编辑权限, 否则负责人/管理员(checkOwnerOrAdmin 语义由 canEdit 覆盖)
+        if (!customerAccessService.canEdit(customer.getId())) {
+            throw new org.springframework.security.access.AccessDeniedException("只能编辑自己的客户");
+        }
         calculateExpireDates(customer);
         customerMapper.updateById(customer);
     }

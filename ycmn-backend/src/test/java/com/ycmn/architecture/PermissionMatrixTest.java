@@ -69,6 +69,7 @@ public class PermissionMatrixTest {
             "SysUserController.changePassword",
             "IncentiveController.updateRecord",
             "IncentiveController.deleteRecord",
+            "SeaController.deletePool", // 2026-08-10 池级权限: 删除权限在 SeaService 内按池判定, 角色码 sea:pool:delete 不作硬门
             "FolderAclController.saveAcl",
             "FolderAclController.removeAcl",
             "FolderAclController.setDownloadable",

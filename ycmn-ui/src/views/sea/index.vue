@@ -108,9 +108,9 @@
           </el-table-column>
           <el-table-column label="操作" width="140" align="center" fixed="right">
             <template #default="{row}">
-              <el-button v-if="row.status==='available'&&canClaim" type="primary" size="small" @click="handleClaim(row)">捞取</el-button>
-              <el-button v-if="canEdit" link type="primary" size="small" @click="handleEdit(row)">编辑</el-button>
-              <el-button v-if="canDelete&&row.status==='available'" link type="danger" size="small" @click="handleDelete(row)">删除</el-button>
+              <el-button v-if="row.status==='available'&&row.canClaim" type="primary" size="small" @click="handleClaim(row)">捞取</el-button>
+              <el-button v-if="row.canEdit" link type="primary" size="small" @click="handleEdit(row)">编辑</el-button>
+              <el-button v-if="row.canDelete&&row.status==='available'" link type="danger" size="small" @click="handleDelete(row)">删除</el-button>
             </template>
           </el-table-column>
         </el-table>
@@ -155,10 +155,7 @@ import { submitApproval } from '@/api/approval'
 import { useUserStore } from '@/store/user'
 
 const router = useRouter(); const userStore = useUserStore()
-const canEdit = computed(() => userStore.hasPermission('sea:pool:edit'))
-const canDelete = computed(() => userStore.hasPermission('sea:pool:delete'))
 const canImport = computed(() => userStore.hasPermission('sea:import'))
-const canClaim = computed(() => userStore.hasPermission('sea:claim'))
 
 const showImportDialog = ref(false); const importFile = ref(null); const importLoading = ref(false); const importResult = ref(null); const uploadRef = ref(null)
 const handleFileChange = (file) => { importFile.value = file.raw }

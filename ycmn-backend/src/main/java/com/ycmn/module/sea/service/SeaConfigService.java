@@ -56,6 +56,15 @@ public class SeaConfigService {
         if (config.getStatus() == null) {
             config.setStatus(1);
         }
+        // 【2026-08-10 池级权限 M2】新池四个操作权限默认等于可见范围(需求), 未显式传时回填
+        if (config.getEditDeptIds() == null) config.setEditDeptIds(config.getVisibleDeptIds());
+        if (config.getEditUserIds() == null) config.setEditUserIds(config.getVisibleUserIds());
+        if (config.getDeleteDeptIds() == null) config.setDeleteDeptIds(config.getVisibleDeptIds());
+        if (config.getDeleteUserIds() == null) config.setDeleteUserIds(config.getVisibleUserIds());
+        if (config.getImportDeptIds() == null) config.setImportDeptIds(config.getVisibleDeptIds());
+        if (config.getImportUserIds() == null) config.setImportUserIds(config.getVisibleUserIds());
+        if (config.getClaimDeptIds() == null) config.setClaimDeptIds(config.getVisibleDeptIds());
+        if (config.getClaimUserIds() == null) config.setClaimUserIds(config.getVisibleUserIds());
         config.setRegionIds(deriveRegionIds(config.getVisibleDeptIds(), config.getVisibleUserIds()));
         checkOfficeOverlap(config);
         configMapper.insert(config);
@@ -109,21 +118,57 @@ public class SeaConfigService {
         configMapper.deleteById(id);
     }
 
+    /** 公海池权限类型 */
+    public static final String PERM_VIEW = "view";
+    public static final String PERM_EDIT = "edit";
+    public static final String PERM_DELETE = "delete";
+    public static final String PERM_IMPORT = "import";
+    public static final String PERM_CLAIM = "claim";
+
     /** 公海池是否对该用户可见: all数据范围全可见; 本人在可见人员中; 本人部门(或上级链含大区)在可见部门中 */
     public boolean isVisibleTo(BizSeaConfig config, SecurityUser user) {
+        return isInScope(config.getVisibleDeptIds(), config.getVisibleUserIds(), user, true);
+    }
+
+    /**
+     * 池级权限判定（2026-08-10）: 用户是否对该池持有某操作权限。
+     * admin 恒 true; 否则按 permType 取对应 *_dept_ids/*_user_ids 组织递归判定。
+     */
+    public boolean hasPoolPerm(Long poolId, String permType, SecurityUser user) {
+        if (poolId == null || user == null) return false;
+        if (SecurityUtils.isAdmin()) return true;
+        BizSeaConfig config = configMapper.selectById(poolId);
+        if (config == null) return false;
+        return switch (permType) {
+            case PERM_VIEW -> isInScope(config.getVisibleDeptIds(), config.getVisibleUserIds(), user, true);
+            case PERM_EDIT -> isInScope(config.getEditDeptIds(), config.getEditUserIds(), user, false);
+            case PERM_DELETE -> isInScope(config.getDeleteDeptIds(), config.getDeleteUserIds(), user, false);
+            case PERM_IMPORT -> isInScope(config.getImportDeptIds(), config.getImportUserIds(), user, false);
+            case PERM_CLAIM -> isInScope(config.getClaimDeptIds(), config.getClaimUserIds(), user, false);
+            default -> false;
+        };
+    }
+
+    /**
+     * 通用组织范围判定: 人员直命; 部门/上级链递归命中授权组织。
+     * @param allowDataScopeAll dataScope=all 是否视为全放行——仅 VIEW(可见范围)允许(与旧 isVisibleTo 一致);
+     *                          操作权限(edit/delete/import/claim)不因 all 放行, 必须命中池配置或 admin(上层短路)。
+     * deptIdsCsv/userIdsCsv 为空 → 无该权限(除 admin)。
+     */
+    private boolean isInScope(String deptIdsCsv, String userIdsCsv, SecurityUser user, boolean allowDataScopeAll) {
         if (user == null) return false;
-        if ("all".equals(user.getDataScope())) return true;
-        if (csvContains(config.getVisibleUserIds(), user.getUserId())) return true;
-        if (user.getDeptId() != null && csvContains(config.getVisibleDeptIds(), user.getDeptId())) return true;
-        // 大区可见性: 用户部门向上追溯, 命中可见部门(如大区 id)即可见
-        if (user.getDeptId() != null && StringUtils.hasText(config.getVisibleDeptIds())) {
-            Set<Long> visible = parseIds(config.getVisibleDeptIds()).stream().collect(Collectors.toSet());
+        if (allowDataScopeAll && "all".equals(user.getDataScope())) return true;
+        if (csvContains(userIdsCsv, user.getUserId())) return true;
+        if (user.getDeptId() != null && csvContains(deptIdsCsv, user.getDeptId())) return true;
+        // 上级链递归: 用户部门向上追溯, 命中授权组织(如大区 id)即可
+        if (user.getDeptId() != null && StringUtils.hasText(deptIdsCsv)) {
+            Set<Long> authorized = parseIds(deptIdsCsv).stream().collect(Collectors.toSet());
             Map<Long, SysDept> deptMap = deptMapper.selectList(null).stream()
                     .collect(Collectors.toMap(SysDept::getId, d -> d, (a, b) -> a));
             SysDept cur = deptMap.get(user.getDeptId());
             int guard = 0;
             while (cur != null && guard++ < 20) {
-                if (visible.contains(cur.getId())) return true;
+                if (authorized.contains(cur.getId())) return true;
                 cur = cur.getParentId() != null ? deptMap.get(cur.getParentId()) : null;
             }
         }
@@ -184,16 +229,25 @@ public class SeaConfigService {
                     })
                     .collect(Collectors.joining(", ")));
         }
+        config.setVisibleNames(namesOf(config.getVisibleDeptIds(), config.getVisibleUserIds()));
+        // 【2026-08-10 池级权限】各操作权限名称(展示用)
+        config.setEditNames(namesOf(config.getEditDeptIds(), config.getEditUserIds()));
+        config.setDeleteNames(namesOf(config.getDeleteDeptIds(), config.getDeleteUserIds()));
+        config.setImportNames(namesOf(config.getImportDeptIds(), config.getImportUserIds()));
+        config.setClaimNames(namesOf(config.getClaimDeptIds(), config.getClaimUserIds()));
+    }
+
+    private String namesOf(String deptIdsCsv, String userIdsCsv) {
         List<String> names = new ArrayList<>();
-        for (Long id : parseIds(config.getVisibleDeptIds())) {
+        for (Long id : parseIds(deptIdsCsv)) {
             SysDept dept = deptMapper.selectById(id);
             if (dept != null) names.add(dept.getDeptName());
         }
-        for (Long id : parseIds(config.getVisibleUserIds())) {
+        for (Long id : parseIds(userIdsCsv)) {
             SysUser u = userMapper.selectById(id);
             if (u != null) names.add(u.getRealName());
         }
-        config.setVisibleNames(String.join(", ", names));
+        return String.join(", ", names);
     }
 
     /**
