@@ -19,7 +19,7 @@
 |---|---|---|---|
 | DB_HOST | mysql | shared-mysql | 连不上库 |
 | DB_PORT | 3306 | 3306 | — |
-| DB_USER / DB_PASSWORD | root / <redacted> | root / <redacted> | — |
+| DB_USER / DB_PASSWORD | ycmn_app / ${APP_DB_PASSWORD}（经 ~/.ycmn-deploy.env 注入，不落明文；生产 root 已轮换） | root / <redacted>（测试库已接受风险） | — |
 | REDIS_HOST / PORT | redis / 6379 | shared-redis / 6379 | — |
 | STORAGE_TYPE | local | (无,默认) | local=本地存储 |
 | UPLOAD_DIR | /app/uploads | /app/uploads | — |

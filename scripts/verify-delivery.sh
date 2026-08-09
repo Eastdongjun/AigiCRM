@@ -29,7 +29,7 @@ LOGIN_CODE=$(curl -sk -o /dev/null -w "%{http_code}" --connect-timeout 10 -X POS
 
 # [3] 生产配置: compose 与实况一致
 echo "--- [3] compose 一致性 ---"
-COMPOSE_IMG=$(ssh_prod "grep -A1 'backend:' /root/ycmn/docker-compose.yml | grep image | awk '{print \$2}'" 2>/dev/null)
+COMPOSE_IMG=$(ssh_prod "grep -E '^  backend:' -A 5 /root/ycmn/docker-compose.yml | grep 'image:' | awk '{print \$2}' | head -1" 2>/dev/null)
 RUN_IMG=$(ssh_prod "docker inspect ycmn-backend --format '{{.Config.Image}}'" 2>/dev/null)
 [ "$COMPOSE_IMG" = "$RUN_IMG" ] && ok "compose 镜像=$RUN_IMG 与运行一致" || bad "compose($COMPOSE_IMG) ≠ 运行($RUN_IMG)"
 CORS_OK=$(ssh_prod "docker inspect ycmn-backend --format '{{range .Config.Env}}{{println .}}{{end}}' | grep -c CORS_ORIGINS" 2>/dev/null)
