@@ -17,7 +17,7 @@
         </el-tab-pane>
         <!-- 公海配置 -->
         <el-tab-pane name="approvalConfig"><template #label><span class="tab-label">✅ 审批配置</span></template><ApprovalConfig /></el-tab-pane>
-        <el-tab-pane name="sea">
+        <el-tab-pane v-if="userStore.hasPermission('sea:config:view')" name="sea">
           <template #label><span class="tab-label">🌊 公海配置</span></template>
           <SeaConfigManager />
         </el-tab-pane>
@@ -57,6 +57,10 @@ import PermMatrixManager from './PermMatrixManager.vue'
 // 权限状态为模块级单例(composables/usePermissionData.js),各 tab 子组件共享;切到"权限矩阵"时加载
 const { activeTab, loadPermData } = usePermissionData()
 watch(activeTab, (tab) => { if (tab === 'perm') loadPermData() })
+
+// 权限判断(公海配置 tab 按 sea:config:view 门控, 销售员等无配置权限者不显示该 tab, 避免空态报错)
+import { useUserStore } from '@/store/user'
+const userStore = useUserStore()
 </script>
 
 
