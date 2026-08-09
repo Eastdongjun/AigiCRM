@@ -540,31 +540,55 @@ public class FileService {
 
     /** 生成缩略图并写入响应；仅图片返回 true。非图片或读取失败返回 false（调用方回退完整下载）。 */
     private boolean writeThumbnail(Path filePath, String filename, jakarta.servlet.http.HttpServletResponse response) {
-        try {
-            String lower = filename == null ? "" : filename.toLowerCase();
-            if (!lower.matches(".*\\.(jpg|jpeg|png|gif|webp|bmp)$")) return false;
-            java.awt.image.BufferedImage img = javax.imageio.ImageIO.read(filePath.toFile());
-            if (img == null) return false;
-            int maxDim = 300;
-            int w = img.getWidth(), h = img.getHeight();
-            if (w > 0 && h > 0 && (w > maxDim || h > maxDim)) {
-                double scale = Math.min((double) maxDim / w, (double) maxDim / h);
-                int nw = Math.max(1, (int) (w * scale)), nh = Math.max(1, (int) (h * scale));
-                // PNG 保留透明通道，其余转 JPG
-                boolean png = lower.endsWith(".png");
-                java.awt.image.BufferedImage scaled = new java.awt.image.BufferedImage(
-                        nw, nh, png ? java.awt.image.BufferedImage.TYPE_INT_ARGB : java.awt.image.BufferedImage.TYPE_INT_RGB);
-                java.awt.Graphics2D g = scaled.createGraphics();
-                g.setRenderingHint(java.awt.RenderingHints.KEY_INTERPOLATION, java.awt.RenderingHints.VALUE_INTERPOLATION_BILINEAR);
-                g.drawImage(img, 0, 0, nw, nh, null);
-                g.dispose();
-                img = scaled;
+        String lower = filename == null ? "" : filename.toLowerCase();
+        if (!lower.matches(".*\\.(jpg|jpeg|png|gif|webp|bmp)$")) return false;
+        int maxDim = 300;
+        boolean png = lower.endsWith(".png");
+        try (javax.imageio.stream.ImageInputStream iis = javax.imageio.ImageIO.createImageInputStream(filePath.toFile())) {
+            if (iis == null) return false;
+            java.util.Iterator<javax.imageio.ImageReader> readers = javax.imageio.ImageIO.getImageReaders(iis);
+            if (!readers.hasNext()) return false;
+            javax.imageio.ImageReader reader = readers.next();
+            try {
+                reader.setInput(iis, true, true);
+                int w = reader.getWidth(0), h = reader.getHeight(0);
+                if (w <= 0 || h <= 0) return false;
+
+                // 大图子采样解码：只解码部分像素（解码尺寸≈2×目标），避免整图解码——5MB+ JPEG 解码后
+                // 原始像素 ~96MB/张，激励查询页首屏并发生成缩略图时撑爆 -Xmx512m 堆（2026-08-09 OOM 复盘）。
+                int nw = w, nh = h;
+                boolean needScale = w > maxDim || h > maxDim;
+                javax.imageio.ImageReadParam param = reader.getDefaultReadParam();
+                if (needScale) {
+                    double scale = Math.min((double) maxDim / w, (double) maxDim / h);
+                    nw = Math.max(1, (int) (w * scale));
+                    nh = Math.max(1, (int) (h * scale));
+                    int sub = 1;
+                    while (Math.max(w, h) / sub > maxDim * 2 && sub < 64) sub <<= 1;
+                    if (sub > 1) param.setSourceSubsampling(sub, sub, 0, 0);
+                }
+
+                java.awt.image.BufferedImage img = reader.read(0, param);
+                if (img == null) return false;
+
+                java.awt.image.BufferedImage out = img;
+                if (needScale && (img.getWidth() != nw || img.getHeight() != nh)) {
+                    // PNG 保留透明通道，其余转 JPG
+                    out = new java.awt.image.BufferedImage(
+                            nw, nh, png ? java.awt.image.BufferedImage.TYPE_INT_ARGB : java.awt.image.BufferedImage.TYPE_INT_RGB);
+                    java.awt.Graphics2D g = out.createGraphics();
+                    g.setRenderingHint(java.awt.RenderingHints.KEY_INTERPOLATION, java.awt.RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+                    g.drawImage(img, 0, 0, nw, nh, null);
+                    g.dispose();
+                }
+
+                response.setContentType(png ? "image/png" : "image/jpeg");
+                response.setHeader(HttpHeaders.CACHE_CONTROL, "public, max-age=3600");
+                javax.imageio.ImageIO.write(out, png ? "png" : "jpg", response.getOutputStream());
+                return true;
+            } finally {
+                reader.dispose();
             }
-            String fmt = lower.endsWith(".png") ? "png" : "jpg";
-            response.setContentType(fmt.equals("png") ? "image/png" : "image/jpeg");
-            response.setHeader(HttpHeaders.CACHE_CONTROL, "public, max-age=3600");
-            javax.imageio.ImageIO.write(img, fmt, response.getOutputStream());
-            return true;
         } catch (Exception ignored) {
             return false;
         }

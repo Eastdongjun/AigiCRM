@@ -720,4 +720,80 @@ class FileServicePermissionTest {
         // null → 兜底
         assertEquals("unnamed", FileService.sanitizeFilename(null));
     }
+
+    // ====== 缩略图子采样解码回归（2026-08-09 生产 OOM 复盘）======
+    // 原实现 ImageIO.read() 整图解码 5MB+ JPEG（~96MB/张），激励查询页首屏并发生成时撑爆 -Xmx512m 堆 → 500。
+    // 修复改为 ImageReader 子采样解码（只解码 ~2×目标像素）。以下用例锁死大图/PNG透明/小图/非图片各分支行为。
+    @Test
+    void writeThumbnail_largeJpeg_subsamplingReturns300px() throws Exception {
+        java.nio.file.Path f = java.nio.file.Files.createTempFile("thumb-big", ".jpg");
+        java.awt.image.BufferedImage big = new java.awt.image.BufferedImage(4000, 3000, java.awt.image.BufferedImage.TYPE_INT_RGB);
+        java.awt.Graphics2D g = big.createGraphics();
+        g.setPaint(new java.awt.GradientPaint(0, 0, java.awt.Color.RED, 4000, 3000, java.awt.Color.BLUE));
+        g.fillRect(0, 0, 4000, 3000);
+        g.dispose();
+        javax.imageio.ImageIO.write(big, "jpg", f.toFile());
+
+        MockHttpServletResponse resp = new MockHttpServletResponse();
+        Boolean ok = ReflectionTestUtils.invokeMethod(svc, "writeThumbnail", f, "big.jpg", resp);
+        assertNotNull(ok);
+        assertTrue(ok);
+        assertEquals("image/jpeg", resp.getContentType());
+        java.awt.image.BufferedImage thumb = javax.imageio.ImageIO.read(new ByteArrayInputStream(resp.getContentAsByteArray()));
+        assertTrue(thumb.getWidth() <= 300 && thumb.getHeight() <= 300);
+        assertEquals(4000.0 / 3000.0, (double) thumb.getWidth() / thumb.getHeight(), 0.05);
+        java.nio.file.Files.deleteIfExists(f);
+    }
+
+    @Test
+    void writeThumbnail_largePng_preservesTransparencyFormat() throws Exception {
+        java.nio.file.Path f = java.nio.file.Files.createTempFile("thumb-big", ".png");
+        java.awt.image.BufferedImage big = new java.awt.image.BufferedImage(3500, 3500, java.awt.image.BufferedImage.TYPE_INT_ARGB);
+        java.awt.Graphics2D g = big.createGraphics();
+        g.setColor(new java.awt.Color(0, 0, 0, 0)); // 全透明背景
+        g.fillRect(0, 0, 3500, 3500);
+        g.dispose();
+        javax.imageio.ImageIO.write(big, "png", f.toFile());
+
+        MockHttpServletResponse resp = new MockHttpServletResponse();
+        Boolean ok = ReflectionTestUtils.invokeMethod(svc, "writeThumbnail", f, "big.png", resp);
+        assertNotNull(ok);
+        assertTrue(ok);
+        assertEquals("image/png", resp.getContentType());
+        java.awt.image.BufferedImage thumb = javax.imageio.ImageIO.read(new ByteArrayInputStream(resp.getContentAsByteArray()));
+        assertTrue(thumb.getWidth() <= 300 && thumb.getHeight() <= 300);
+        assertTrue(thumb.getColorModel().hasAlpha());
+        java.nio.file.Files.deleteIfExists(f);
+    }
+
+    @Test
+    void writeThumbnail_smallImage_passesThrough() throws Exception {
+        java.nio.file.Path f = java.nio.file.Files.createTempFile("thumb-small", ".png");
+        java.awt.image.BufferedImage small = new java.awt.image.BufferedImage(120, 80, java.awt.image.BufferedImage.TYPE_INT_ARGB);
+        java.awt.Graphics2D g = small.createGraphics();
+        g.setColor(java.awt.Color.RED);
+        g.fillRect(0, 0, 120, 80);
+        g.dispose();
+        javax.imageio.ImageIO.write(small, "png", f.toFile());
+
+        MockHttpServletResponse resp = new MockHttpServletResponse();
+        Boolean ok = ReflectionTestUtils.invokeMethod(svc, "writeThumbnail", f, "small.png", resp);
+        assertNotNull(ok);
+        assertTrue(ok);
+        java.awt.image.BufferedImage thumb = javax.imageio.ImageIO.read(new ByteArrayInputStream(resp.getContentAsByteArray()));
+        assertEquals(120, thumb.getWidth());
+        assertEquals(80, thumb.getHeight());
+        java.nio.file.Files.deleteIfExists(f);
+    }
+
+    @Test
+    void writeThumbnail_nonImage_returnsFalse() throws Exception {
+        java.nio.file.Path f = java.nio.file.Files.createTempFile("doc", ".txt");
+        java.nio.file.Files.writeString(f, "not an image");
+        MockHttpServletResponse resp = new MockHttpServletResponse();
+        Boolean ok = ReflectionTestUtils.invokeMethod(svc, "writeThumbnail", f, "doc.txt", resp);
+        assertNotNull(ok);
+        assertFalse(ok);
+        java.nio.file.Files.deleteIfExists(f);
+    }
 }
