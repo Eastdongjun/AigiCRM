@@ -16,7 +16,6 @@ import com.ycmn.module.customer.mapper.BizCustomerMapper;
 import com.ycmn.module.sea.entity.BizSeaConfig;
 import com.ycmn.module.sea.entity.BizSeaPool;
 import com.ycmn.module.sea.service.SeaConfigService;
-import com.ycmn.module.sea.service.SeaPermissionService;
 import com.ycmn.module.sea.service.SeaService;
 import com.ycmn.module.system.entity.SysUser;
 import com.ycmn.module.system.mapper.SysUserMapper;
@@ -36,7 +35,6 @@ public class SeaController {
 
     private final SeaService seaService;
     private final SeaConfigService seaConfigService;
-    private final SeaPermissionService seaPermissionService;
     private final BizApprovalMapper approvalMapper;
     private final BizApprovalNodeMapper approvalNodeMapper;
     private final BizCustomerMapper customerMapper;
@@ -57,29 +55,19 @@ public class SeaController {
             @RequestParam(required = false) String keyword,
             @RequestParam(required = false) Long poolId,
             @RequestParam(required = false) String status) {
-        // 【2026-08-10 公海专项权限】view 专项为准——未勾选组织的用户即便持 sea:view 角色码也不可读公海数据
-        if (!seaPermissionService.currentUserHasPerm(SeaPermissionService.VIEW)) {
-            throw new BusinessException(403, "没有公海查看权限");
-        }
         return Result.ok(seaService.page(current, size, industry, officeId, enterReason, keyword, poolId, deptId, status));
     }
 
     @PreAuthorize("hasAuthority('sea:view')")
     @GetMapping("/statistics")
     public Result<Map<String, Long>> statistics() {
-        if (!seaPermissionService.currentUserHasPerm(SeaPermissionService.VIEW)) {
-            throw new BusinessException(403, "没有公海查看权限");
-        }
         return Result.ok(seaService.statistics());
     }
 
     /** 删除公海池客户（仅待捞取状态可删，逻辑删客户+删公海记录） */
     @DeleteMapping("/pool/{id}")
-    // 【2026-08-10 公海专项权限】专项为准，存量角色码 sea:pool:delete 失效——方法内 isAdmin ∨ hasPerm('delete')
+    @PreAuthorize("hasAuthority('sea:pool:delete')")
     public Result<Void> deletePool(@PathVariable Long id) {
-        if (!seaPermissionService.currentUserHasPerm(SeaPermissionService.DELETE)) {
-            throw new BusinessException(403, "没有公海删除权限");
-        }
         seaService.deletePool(id);
         return Result.ok();
     }

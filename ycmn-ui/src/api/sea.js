@@ -48,17 +48,3 @@ export function deleteSeaConfig(id) {
 export function getClaimRecords(params) {
   return request.get('/sea/claim-records', { params })
 }
-
-// 公海专项权限(按组织架构层级勾选 view/edit/delete/claim)
-export function getSeaPermissionList() {
-  return request.get('/sea/permission/list')
-}
-export function checkSeaPermission() {
-  return request.get('/sea/permission/check')
-}
-export function grantSeaPermission(data) {
-  return request.post('/sea/permission/grant', data)
-}
-export function revokeSeaPermission(permType) {
-  return request.delete(`/sea/permission/${permType}`)
-}

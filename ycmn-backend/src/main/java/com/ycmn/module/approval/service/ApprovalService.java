@@ -54,7 +54,6 @@ public class ApprovalService {
     private final SysDeptMapper deptMapper;
     private final BizSeaPoolMapper seaPoolMapper;
     private final SeaService seaService;
-    private final com.ycmn.module.sea.service.SeaPermissionService seaPermissionService;
     private final OrgScopeResolver scopeResolver;
     private final SeaConfigService seaConfigService;
     private final SysUserService userService;
@@ -116,8 +115,9 @@ public class ApprovalService {
 
         // 公海捞取：检查是否已被他人申请
         if ("claim".equals(type) && customerId != null) {
-            // 【2026-08-10 公海专项权限】捞取专项为准（admin 恒有），存量角色码 sea:claim 失效
-            if (!seaPermissionService.currentUserHasPerm(com.ycmn.module.sea.service.SeaPermissionService.CLAIM)) {
+            // 【权限修复 2026-08-09】捞取需 sea:claim 权限码（此前只依赖 approval:view,
+            // 通过撤角色 sea:claim 无法阻止捞取——权限模型失效）
+            if (!SecurityUtils.hasAuthority("sea:claim")) {
                 throw new BusinessException(403, "没有公海捞取权限");
             }
             BizSeaPool pool = seaPoolMapper.selectOne(

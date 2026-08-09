@@ -1,8 +1,5 @@
 <template>
   <div class="sea-page">
-    <!-- 无查看权限空态 -->
-    <el-empty v-if="!canView" description="无公海查看权限，请联系管理员按组织配置授权" style="padding:80px 0" />
-    <template v-else>
     <!-- 头部 -->
     <div class="sea-hero">
       <div class="sea-hero-left">
@@ -123,7 +120,6 @@
         <el-pagination v-model:current-page="query.current" v-model:page-size="query.size" :total="total" :page-sizes="[15,30,50]" layout="prev,pager,next" size="small" @change="loadData" />
       </div>
     </div>
-    </template>
 
     <!-- 导入弹窗 保持不变 -->
     <el-dialog v-model="showImportDialog" title="批量导入到公海池" width="520px" :close-on-click-modal="false" @close="closeImportDialog">
@@ -152,36 +148,17 @@ import { ref, reactive, computed, onMounted, onBeforeUnmount, nextTick } from 'v
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Upload, Right, Clock, CircleCheck, Document } from '@element-plus/icons-vue'
-import { getSeaList, getSeaStatistics, getVisibleSeaConfigs, deleteSeaPool, importSeaCustomers, checkSeaPermission as checkSeaPermApi } from '@/api/sea'
+import { getSeaList, getSeaStatistics, getVisibleSeaConfigs, deleteSeaPool, importSeaCustomers } from '@/api/sea'
 import { downloadImportTemplate } from '@/api/customer'
 import { getDictData, getScopeDepts } from '@/api/system'
 import { submitApproval } from '@/api/approval'
 import { useUserStore } from '@/store/user'
 
 const router = useRouter(); const userStore = useUserStore()
-// 【2026-08-10 公海专项权限】查看/编辑/删除/捞取按组织层级勾选, 角色码失效; admin 恒有
-const canView = ref(true)
-const canEdit = ref(false)
-const canDelete = ref(false)
-const canClaim = ref(false)
+const canEdit = computed(() => userStore.hasPermission('sea:pool:edit'))
+const canDelete = computed(() => userStore.hasPermission('sea:pool:delete'))
 const canImport = computed(() => userStore.hasPermission('sea:import'))
-let seaPermCacheTime = 0
-const checkSeaPermission = async () => {
-  // 60s 短缓存, 防频繁请求
-  const now = Date.now()
-  if (now - seaPermCacheTime < 60000 && seaPermCacheTime > 0) return
-  try {
-    const res = await checkSeaPermApi()
-    const d = res.data || {}
-    canView.value = d.canView !== false
-    canEdit.value = !!d.canEdit
-    canDelete.value = !!d.canDelete
-    canClaim.value = !!d.canClaim
-    seaPermCacheTime = now
-    // 无查看权限时不加载数据
-    if (!canView.value) { tableData.value = []; total.value = 0 }
-  } catch (e) {}
-}
+const canClaim = computed(() => userStore.hasPermission('sea:claim'))
 
 const showImportDialog = ref(false); const importFile = ref(null); const importLoading = ref(false); const importResult = ref(null); const uploadRef = ref(null)
 const handleFileChange = (file) => { importFile.value = file.raw }
@@ -214,13 +191,7 @@ const handleClaim = async (row) => {
     }
   }
 }
-const handleEdit = (row) => {
-  // 【2026-08-10】公海专项编辑放行, 但保存客户需 customer:edit 权限——缺则提前提示
-  if (!userStore.hasPermission('customer:edit')) {
-    ElMessage.warning('您有公海编辑权限，但缺少客户编辑权限，保存修改可能失败')
-  }
-  router.push(`/customer/edit/${row.customerId}?from=sea`)
-}
+const handleEdit = (row) => router.push(`/customer/edit/${row.customerId}?from=sea`)
 const handleDelete = async (row) => { try { await ElMessageBox.confirm(`确定删除「${row.customerName}」？不可恢复。`,'删除确认',{type:'warning'}); await deleteSeaPool(row.id); ElMessage.success('已删除'); loadData(); loadStats() } catch(e) {} }
 
 const getDays = (row) => { if(!row.enterDate) return 0; return Math.floor((new Date()-new Date(row.enterDate))/(86400000)) }
@@ -231,8 +202,6 @@ const getStatusType = (s) => ({available:'primary',pending_approval:'warning',cl
 const tableWrapRef = ref(null); const tableHeight = ref(300); let resizeObserver = null
 const updateTableHeight = () => { if(tableWrapRef.value) tableHeight.value = tableWrapRef.value.clientHeight }
 onMounted(async () => {
-  await checkSeaPermission() // 先查公海专项权限
-  if (!canView.value) return // 无 view 权限: 显示空态, 不加载任何数据
   loadPools(); loadData(); loadStats()
   try { const res=await getScopeDepts(); deptTree.value=res.data||[] } catch(e) {}
   try { const res=await getDictData('industry'); industryOptions.value=(res.data||[]).map(d=>d.dictValue) } catch(e) { industryOptions.value=['煤矿','化工','电力','洗煤厂','有色'] }
