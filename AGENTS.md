@@ -24,7 +24,7 @@ YCMN（运筹马年）内部 CRM：客户/审批/激励/文件/公海池/提醒 
 
 ```bash
 export JAVA_HOME=/opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home
-cd ycmn-backend && mvn -q test    # 全部单测（当前 12 个：积分规则 + 权限引擎）
+cd ycmn-backend && mvn -q test    # 全部单测（当前 285 个）
 mvn -q compile                    # 快速编译检查
 ```
 

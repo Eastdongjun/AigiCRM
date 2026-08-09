@@ -67,6 +67,21 @@ public class PermissionCacheService {
     /** 单用户失效（用户级写点：角色绑定/dataScopeOverride/orgs/禁用/返聘） */
     public void evict(Long userId) {
         if (userId == null) return;
+        // 【修复 2026-08-09 P2-3】事务内延后到 afterCommit 再 evict：
+        // 避免"evict→commit"窗口内并发请求用旧提交数据重建缓存，导致本次 evict 失效、旧上下文残留到 TTL。
+        if (org.springframework.transaction.support.TransactionSynchronizationManager.isSynchronizationActive()) {
+            Long uid = userId;
+            org.springframework.transaction.support.TransactionSynchronizationManager.registerSynchronization(
+                    new org.springframework.transaction.support.TransactionSynchronization() {
+                        @Override
+                        public void afterCommit() { doEvict(uid); }
+                    });
+        } else {
+            doEvict(userId);
+        }
+    }
+
+    private void doEvict(Long userId) {
         try {
             redisTemplate.delete(KEY_PREFIX + userId);
         } catch (Exception e) {
@@ -100,6 +115,19 @@ public class PermissionCacheService {
 
     /** 全量失效（规则/菜单定义等爆炸半径最大的写点，低频操作） */
     public void evictAll() {
+        // 【修复 2026-08-09 P2-3】与 evict 同理，事务内延后到 afterCommit
+        if (org.springframework.transaction.support.TransactionSynchronizationManager.isSynchronizationActive()) {
+            org.springframework.transaction.support.TransactionSynchronizationManager.registerSynchronization(
+                    new org.springframework.transaction.support.TransactionSynchronization() {
+                        @Override
+                        public void afterCommit() { doEvictAll(); }
+                    });
+        } else {
+            doEvictAll();
+        }
+    }
+
+    private void doEvictAll() {
         try {
             java.util.Set<String> keys = redisTemplate.keys(KEY_PREFIX + "*");
             if (keys != null && !keys.isEmpty()) {

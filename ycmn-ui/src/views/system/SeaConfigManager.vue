@@ -86,7 +86,7 @@
         <el-divider content-position="left"><el-icon><Setting /></el-icon> 其他设置</el-divider>
         <el-form-item label="启用状态">
           <el-switch v-model="poolForm.status" :active-value="1" :inactive-value="0" active-text="启用" inactive-text="禁用" />
-          <div style="font-size:12px;color:#909399;margin-top:4px">禁用的公海池不在公海页面展示，也不再接收新释放的客户</div>
+          <div style="font-size:12px;color:#909399;margin-top:4px">禁用的公海池不在公海页面展示，也不再接收新释放的客户。<span v-if="poolForm.status === 0" style="color:#e6a23c">⚠️ 池内已有的客户记录将不可见且不可删除，重新启用后恢复。</span></div>
         </el-form-item>
         <el-form-item label="排序">
           <el-input-number v-model="poolForm.sortOrder" :min="0" />

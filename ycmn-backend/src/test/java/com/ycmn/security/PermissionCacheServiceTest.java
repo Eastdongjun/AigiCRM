@@ -52,6 +52,24 @@ class PermissionCacheServiceTest {
         verify(valueOps).set(eq("perm:ctx:7"), eq(ctx), any());
     }
 
+    /** 【修复 2026-08-09 P2-3】事务内 evict 延后到 afterCommit——避免 evict→commit 窗口重建旧缓存 */
+    @Test
+    void evict_inTransaction_defersToAfterCommit() {
+        // 开启事务同步
+        org.springframework.transaction.support.TransactionSynchronizationManager.initSynchronization();
+        try {
+            svc.evict(7L);
+            // 事务未提交前不应立即 delete
+            verify(redisTemplate, never()).delete("perm:ctx:7");
+            // afterCommit 触发后应 delete
+            org.springframework.transaction.support.TransactionSynchronizationManager.getSynchronizations()
+                    .forEach(s -> s.afterCommit());
+            verify(redisTemplate).delete("perm:ctx:7");
+        } finally {
+            org.springframework.transaction.support.TransactionSynchronizationManager.clearSynchronization();
+        }
+    }
+
     @Test
     void evict_deletesPrefixedKey() {
         svc.evict(7L);
