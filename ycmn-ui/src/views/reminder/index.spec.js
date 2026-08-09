@@ -6,13 +6,14 @@ vi.mock('@/api/reminder', () => ({
   getExpiringList: vi.fn(),
   getReminderList: vi.fn(),
   processReminder: vi.fn(),
+  ensureExpiring: vi.fn(),
 }))
 vi.mock('@/api/approval', () => ({ submitApproval: vi.fn() }))
 vi.mock('@/api/system', () => ({ getScopeDepts: vi.fn() }))
 vi.mock('@/api/customer', () => ({ getSimpleUserList: vi.fn() }))
 
 import ReminderIndex from './index.vue'
-import { getExpiringList, getReminderList } from '@/api/reminder'
+import { getExpiringList, getReminderList, ensureExpiring } from '@/api/reminder'
 import { getScopeDepts } from '@/api/system'
 import { getSimpleUserList } from '@/api/customer'
 
@@ -32,6 +33,7 @@ const stubs = {
 }
 
 function mockData() {
+  ensureExpiring.mockResolvedValue({})
   getExpiringList.mockResolvedValue({ data: { records: [
     { id: 1, customerId: 101, customerName: '到期客户A', remainingDays: 5, expireDate: '2026-08-13', ownerName: '张三' },
     { id: 2, customerId: 102, customerName: '到期客户B', remainingDays: 45, expireDate: '2026-09-22', ownerName: '李四' },
