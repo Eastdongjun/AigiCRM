@@ -22,6 +22,7 @@ import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
 import com.ycmn.security.SecurityUser;
 import org.apache.ibatis.builder.MapperBuilderAssistant;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -43,6 +44,16 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class ApprovalServiceTest {
+
+    private final com.ycmn.module.sea.service.SeaPermissionService seaPermissionService =
+            mock(com.ycmn.module.sea.service.SeaPermissionService.class);
+
+    @BeforeEach
+    void stubSeaPermission() {
+        // claim 测试聚焦并发分支, 假设用户有捞取权限
+        when(seaPermissionService.currentUserHasPerm(com.ycmn.module.sea.service.SeaPermissionService.CLAIM))
+                .thenReturn(true);
+    }
 
     @BeforeAll
     static void initMybatisPlusTableInfo() {
@@ -75,6 +86,7 @@ class ApprovalServiceTest {
                 mock(SysDeptMapper.class),
                 seaPoolMapper,
                 mock(SeaService.class),
+                seaPermissionService,
                 mock(com.ycmn.common.scope.OrgScopeResolver.class),
                 mock(SeaConfigService.class),
                 mock(SysUserService.class));

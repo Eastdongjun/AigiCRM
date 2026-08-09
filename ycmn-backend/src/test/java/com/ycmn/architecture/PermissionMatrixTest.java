@@ -69,6 +69,7 @@ public class PermissionMatrixTest {
             "SysUserController.changePassword",
             "IncentiveController.updateRecord",
             "IncentiveController.deleteRecord",
+            "SeaController.deletePool", // 2026-08-10 公海专项权限: 方法内 isAdmin ∨ hasPerm('delete') 判定, 角色码失效
             "FolderAclController.saveAcl",
             "FolderAclController.removeAcl",
             "FolderAclController.setDownloadable",

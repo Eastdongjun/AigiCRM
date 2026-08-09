@@ -33,15 +33,15 @@
 | `score:manage` | 积分管理 | 3 | `NULL` | 系统管理员,销售员,销售总监 |
 | `score:ranking` | 积分排行 | 2 | `/score/ranking` | 系统管理员,行政,销售员,销售总监 |
 | `score:view` | 积分查看 | 2 | `NULL` | 系统管理员,行政,销售员,销售总监 |
-| `sea:claim` | 公海捞取 | 3 | `` | 系统管理员,行政,销售员,销售总监 |
+| `sea:claim` | 公海捞取（**已废弃**，2026-08-10 由公海专项权限 claim 取代） | 3 | `` | — |
 | `sea:config:edit` | 公海配置编辑 | 3 | `NULL` | 系统管理员,销售总监 |
 | `sea:config:view` | 公海配置查看 | 3 | `NULL` | 系统管理员,行政,销售总监 |
 | `sea:export` | 公海导出 | 3 | `` | 系统管理员,行政,销售总监 |
 | `sea:home` | 公海主页 | 2 | `/sea` | 系统管理员,行政,销售员,销售总监 |
 | `sea:import` | 公海导入 | 3 | `` | 系统管理员,行政,销售总监 |
-| `sea:pool:delete` | 公海删除 | 3 | `` | 系统管理员,销售员,销售总监 |
-| `sea:pool:edit` | 公海编辑 | 3 | `` | 系统管理员,销售员,销售总监 |
-| `sea:view` | 公海管理 / 捞取记录 | 2 | `/sea / /sea/records` | 系统管理员,行政,销售员,销售总监 |
+| `sea:pool:delete` | 公海删除（**已废弃**，2026-08-10 由公海专项权限 delete 取代） | 3 | `` | — |
+| `sea:pool:edit` | 公海编辑（**已废弃**，2026-08-10 由公海专项权限 edit 取代） | 3 | `` | — |
+| `sea:view` | 公海管理 / 捞取记录（登录门；数据可见性由公海专项权限 view 控制） | 2 | `/sea / /sea/records` | 系统管理员,行政,销售员,销售总监 |
 | `statistics:scoreboard` | 积分榜 | 2 | `/scoreboard` | 系统管理员,行政 |
 | `statistics:view` | 核心客户六项指标 / 统计分析 | 2 | `/indicator / /statistics` | 系统管理员,行政,销售员,销售总监 |
 | `system:config:edit` | 系统配置编辑 | 3 | `NULL` | 系统管理员,销售总监 |

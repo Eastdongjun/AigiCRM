@@ -27,6 +27,35 @@
     <el-empty v-if="seaLoadError" description="无权限查看公海配置（缺少 sea:config:view 权限）或加载失败" />
     <el-empty v-else-if="!seaPools.length" description="暂无公海池，点击上方按钮创建" />
 
+    <!-- 公海专项权限(按组织架构层级勾选) -->
+    <div style="display:flex;align-items:center;gap:12px;margin:24px 0 12px">
+      <span style="font-size:15px;font-weight:600">公海专项权限</span>
+      <el-tag size="small" type="info">按组织层级勾选，勾选上级含下级</el-tag>
+    </div>
+    <el-table :data="seaPermRows" size="small" border style="width:100%">
+      <el-table-column label="权限" width="140">
+        <template #default="{ row }">
+          <span style="font-weight:600">{{ row.label }}</span>
+        </template>
+      </el-table-column>
+      <el-table-column label="授权范围">
+        <template #default="{ row }">
+          <template v-if="row.deptNames || row.userNames">
+            <el-tag v-for="n in splitNames(row.deptNames)" :key="'d'+n" size="small" type="warning" style="margin:1px 3px 1px 0">{{ n }}</el-tag>
+            <el-tag v-for="n in splitNames(row.userNames)" :key="'u'+n" size="small" type="primary" style="margin:1px 3px 1px 0">{{ n }}</el-tag>
+          </template>
+          <span v-else style="color:#c0c4cc">未授权</span>
+        </template>
+      </el-table-column>
+      <el-table-column label="操作" width="160" align="center">
+        <template #default="{ row }">
+          <el-button size="small" @click="openPermDialog(row)">配置授权</el-button>
+          <el-button size="small" type="danger" link @click="clearSeaPerm(row)">清空</el-button>
+        </template>
+      </el-table-column>
+    </el-table>
+    <el-divider />
+
     <el-dialog v-model="poolDialogVisible" :title="poolForm.id ? '编辑公海池' : '新增公海池'" width="700px" destroy-on-close top="5vh">
       <el-form :model="poolForm" label-width="100px" label-position="right">
         <el-form-item label="公海池名称" required>
@@ -97,6 +126,28 @@
         <el-button type="primary" @click="submitPool">确定</el-button>
       </template>
     </el-dialog>
+
+    <!-- 公海专项授权弹窗(按组织架构层级勾选) -->
+    <el-dialog v-model="permDialogVisible" :title="`配置「${permForm.label}」授权`" width="680px" destroy-on-close top="6vh">
+      <div style="margin-bottom:8px;color:#606266">
+        <el-icon style="vertical-align:middle"><OfficeBuilding /></el-icon> 勾选组织/人员（勾选上级自动含下级）
+        <el-tag size="small" type="warning" style="margin-left:8px">{{ permForm.keys.length }} 项已选</el-tag>
+      </div>
+      <el-tree
+        ref="permTreeRef"
+        :data="orgTree"
+        show-checkbox
+        node-key="id"
+        :props="{ label: 'label', children: 'children', disabled: 'disabled' }"
+        default-expand-all
+        check-strictly
+        style="max-height:400px;overflow:auto;border:1px solid #e4e7ed;border-radius:8px;padding:8px"
+      />
+      <template #footer>
+        <el-button @click="permDialogVisible = false">取消</el-button>
+        <el-button type="primary" @click="submitPerm">保存授权</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -104,7 +155,8 @@
 import { ref, reactive, computed, onMounted, nextTick } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, OfficeBuilding, View, Sort, Select, Setting, User } from '@element-plus/icons-vue'
-import { getSeaConfigs, createSeaConfig, updateSeaConfig, deleteSeaConfig, getOrgTree } from '@/api/sea'
+import { getSeaConfigs, createSeaConfig, updateSeaConfig, deleteSeaConfig, getOrgTree,
+         getSeaPermissionList, grantSeaPermission, revokeSeaPermission } from '@/api/sea'
 
 const seaPools = ref([])
 const orgTree = ref([])
@@ -125,6 +177,68 @@ const loadOrgTree = async () => {
     const res = await getOrgTree()
     orgTree.value = res.data || []
   } catch (e) {}
+}
+
+// ===== 公海专项权限(按组织架构层级勾选) =====
+const seaPermRows = ref([])
+const permDialogVisible = ref(false)
+const permForm = reactive({ permType: '', label: '', keys: [], existingDeptIds: [], existingUserIds: [] })
+const permTreeRef = ref(null)
+const PERM_LABELS = { view: '查看公海', edit: '编辑公海', delete: '删除公海', claim: '捞取公海' }
+
+const loadSeaPerms = async () => {
+  try {
+    const res = await getSeaPermissionList()
+    seaPermRows.value = (res.data || []).map(r => ({ ...r, label: PERM_LABELS[r.permType] || r.permType }))
+  } catch (e) {}
+}
+
+const splitNames = (csv) => (csv || '').split(',').filter(Boolean)
+
+const openPermDialog = (row) => {
+  Object.assign(permForm, {
+    permType: row.permType,
+    label: row.label,
+    keys: buildPermKeys(row.deptIds, row.userIds),
+    existingDeptIds: (row.deptIds || '').split(',').filter(Boolean),
+    existingUserIds: (row.userIds || '').split(',').filter(Boolean)
+  })
+  permDialogVisible.value = true
+  nextTick(() => {
+    if (permTreeRef.value) permTreeRef.value.setCheckedKeys(permForm.keys)
+  })
+}
+
+const buildPermKeys = (deptIds, userIds) => {
+  const keys = []
+  if (deptIds) deptIds.split(',').filter(Boolean).forEach(id => keys.push('d_' + id.trim()))
+  if (userIds) userIds.split(',').filter(Boolean).forEach(id => keys.push('u_' + id.trim()))
+  return keys
+}
+
+const submitPerm = async () => {
+  try {
+    const keys = permTreeRef.value ? permTreeRef.value.getCheckedKeys().map(String) : []
+    const deptIds = keys.filter(k => k.startsWith('d_')).map(k => k.slice(2))
+    const userIds = keys.filter(k => k.startsWith('u_')).map(k => k.slice(2))
+    await grantSeaPermission({ permType: permForm.permType, deptIds, userIds })
+    ElMessage.success('授权已保存')
+    permDialogVisible.value = false
+    loadSeaPerms()
+  } catch (e) {
+    ElMessage.error(e?.response?.data?.message || e?.message || '保存失败')
+  }
+}
+
+const clearSeaPerm = async (row) => {
+  try {
+    await ElMessageBox.confirm(`确定清空「${row.label}」的全部授权？`, '提示', { type: 'warning' })
+    await revokeSeaPermission(row.permType)
+    ElMessage.success('已清空')
+    loadSeaPerms()
+  } catch (e) {
+    if (e !== 'cancel' && e !== 'close') ElMessage.error(e?.response?.data?.message || e?.message || '清空失败')
+  }
 }
 
 // 由 visibleDeptIds/visibleUserIds 还原树节点 key (d_<id> / u_<id>)
@@ -223,7 +337,7 @@ const submitPool = async () => {
   }
 }
 
-onMounted(() => { loadSeaPools(); loadOrgTree() })
+onMounted(() => { loadSeaPools(); loadOrgTree(); loadSeaPerms() })
 </script>
 
 <style scoped>

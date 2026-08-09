@@ -46,6 +46,7 @@ class ApprovalApproveRejectSecurityTest {
             mock(BizApprovalFlowMapper.class), mock(BizCustomerMapper.class),
             mock(SysUserMapper.class), mock(SysUserRoleMapper.class), mock(SysDeptMapper.class),
             mock(BizSeaPoolMapper.class), mock(SeaService.class),
+            mock(com.ycmn.module.sea.service.SeaPermissionService.class),
             mock(com.ycmn.common.scope.OrgScopeResolver.class), mock(SeaConfigService.class),
             mock(SysUserService.class));
 
