@@ -191,6 +191,12 @@ public class FileService {
     public BizFile upload(MultipartFile file, Long folderId, String scope) {
         Long userId = SecurityUtils.getCurrentUserId();
 
+        // 【安全加固】scope 白名单：仅允许 public/private/incentive，未识别 scope 直接拒绝
+        // （与 pageFiles/getFolderTree 的 scope 白名单对称，防止任意 scope 落盘后绕过查询过滤/占用存储）
+        if (scope == null || !("public".equals(scope) || "private".equals(scope) || "incentive".equals(scope))) {
+            throw new BusinessException(403, "非法的文件范围");
+        }
+
         // 【文件权限体系】上传到文件夹需文件夹上传权限（管理员/本人/上级链/ACL upload）
         if (folderId != null && !folderPermissionService.check(folderId, FolderPermissionService.P_UPLOAD, userId)) {
             throw new BusinessException(403, "没有访问权限，请联系管理员授权");

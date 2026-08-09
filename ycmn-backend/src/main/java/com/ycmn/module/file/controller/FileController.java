@@ -187,7 +187,9 @@ public class FileController {
             }
 
             // 本地不存在，OSS 文件 302（已过归属校验）
-            if (file.getOssUrl() != null && file.getOssUrl().startsWith("http")) {
+            // 【安全加固】重定向仅限 http:// 或 https:// 域（原 startsWith("http") 可被 httpx://evil 绕过）
+            if (file.getOssUrl() != null
+                    && (file.getOssUrl().startsWith("http://") || file.getOssUrl().startsWith("https://"))) {
                 return ResponseEntity.status(302)
                         .header(HttpHeaders.LOCATION, file.getOssUrl())
                         .build();

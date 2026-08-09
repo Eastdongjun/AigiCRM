@@ -69,9 +69,12 @@ export function useFilePage() {
     return allFolders.value.filter(f => f.folderType === activeTab.value)
   })
 
-  // 新建文件夹：公共/私人 Tab 按当前文件夹 upload 权限显示（不再仅管理员/本人写死）
+  // 新建文件夹：公共/私人 Tab 按当前文件夹 upload 权限显示（不再仅管理员/本人写死）。
+  // 公共根目录对齐后端"仅管理员可建夹"门槛（非管理员公共根 upload=传文件权限,不授予建夹）；
+  // 子夹按当前文件夹 upload 权限（ACL 判定）。
   const canCreateFolder = computed(() => {
     if (activeTab.value === 'incentive' || activeTab.value === 'shared_to_me') return false
+    if (activeTab.value === 'public' && selectedFolderId.value == null) return isAdmin.value
     return folderPerms.value.includes('upload')
   })
 
