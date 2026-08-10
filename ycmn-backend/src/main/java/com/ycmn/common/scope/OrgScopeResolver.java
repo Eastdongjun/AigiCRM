@@ -74,6 +74,14 @@ public class OrgScopeResolver {
         return appendSystemLevelScopes(user, base);
     }
 
+    /** 按指定范围 code 解析可见 userIds（null=全部；含系统级开关）——权限体系重构: 每模块/动作独立范围 */
+    public List<Long> resolveScope(SecurityUser user, String scope) {
+        if (user == null || scope == null) return List.of();
+        List<Long> base = resolveSingle(user, scope);
+        if (base == null) return null; // all
+        return appendSystemLevelScopes(user, base);
+    }
+
     /**
      * 【系统级默认规则 2026-08-07】在数据范围基础上并集追加系统开关集合：
      * <ul>

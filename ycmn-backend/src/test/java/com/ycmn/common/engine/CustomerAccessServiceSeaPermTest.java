@@ -38,9 +38,17 @@ class CustomerAccessServiceSeaPermTest {
     private final OrgScopeResolver scopeResolver = mock(OrgScopeResolver.class);
     private final BizSeaPoolMapper seaPoolMapper = mock(BizSeaPoolMapper.class);
     private final SeaConfigService seaConfigService = mock(SeaConfigService.class);
+    private final com.ycmn.module.system.service.RolePermScopeService rolePermScopeService =
+            mock(com.ycmn.module.system.service.RolePermScopeService.class);
     private final CustomerAccessService svc = new CustomerAccessService(
             customerMapper, shareMapper, deptMapper, userMapper,
-            scopeResolver, seaPoolMapper, seaConfigService);
+            scopeResolver, seaPoolMapper, seaConfigService, rolePermScopeService);
+
+    /** 默认范围桩: 编辑/删除等未配置 → self; resolveScope 空集 → 非本人不在范围内 */
+    private void stubDefaultScope() {
+        when(rolePermScopeService.effectiveScopes(any(), any(), any())).thenReturn(List.of("self"));
+        when(scopeResolver.resolveScope(any(), any())).thenReturn(List.of());
+    }
 
     /** 当前用户: id=100, 无集团/法人归属, 组织可见范围为空(自见范围) */
     private SecurityUser viewer() {
@@ -83,6 +91,7 @@ class CustomerAccessServiceSeaPermTest {
             when(customerMapper.selectById(1L)).thenReturn(cust);
             when(shareMapper.selectCount(any())).thenReturn(0L);
             when(scopeResolver.resolve(any())).thenReturn(List.of()); // 组织范围不含原负责人
+            stubDefaultScope();
             when(seaPoolMapper.selectOne(any())).thenReturn(pool);
             when(seaConfigService.hasPoolPerm(10L, SeaConfigService.PERM_VIEW, viewer())).thenReturn(true);
 
@@ -103,6 +112,7 @@ class CustomerAccessServiceSeaPermTest {
             when(customerMapper.selectById(1L)).thenReturn(cust);
             when(shareMapper.selectCount(any())).thenReturn(0L);
             when(scopeResolver.resolve(any())).thenReturn(List.of());
+            stubDefaultScope();
             when(seaPoolMapper.selectOne(any())).thenReturn(pool);
             // 四种池权限均未命中
 
@@ -169,6 +179,7 @@ class CustomerAccessServiceSeaPermTest {
             ms.when(() -> SecurityUtils.hasAuthority("customer:edit")).thenReturn(true);
             when(customerMapper.selectById(1L)).thenReturn(cust);
             when(seaPoolMapper.selectOne(any())).thenReturn(null);
+            stubDefaultScope();
 
             assertFalse(svc.canEdit(1L));
         }
@@ -230,6 +241,7 @@ class CustomerAccessServiceSeaPermTest {
             ms.when(SecurityUtils::getCurrentUserId).thenReturn(100L);
             when(customerMapper.selectById(1L)).thenReturn(cust);
             when(seaPoolMapper.selectOne(any())).thenReturn(null);
+            stubDefaultScope();
 
             assertFalse(svc.canDelete(1L));
         }

@@ -179,3 +179,11 @@ export function updateGroup(id, data) {
 export function deleteGroup(id) {
   return request.delete(`/system/groups/${id}`)
 }
+
+// ---- 角色-模块-动作 数据范围(权限体系重构 2026-08-10) ----
+export function getRolePermScopes(roleCode) {
+  return request.get(`/system/perm-scopes/${roleCode}`)
+}
+export function updateRolePermScopes(roleCode, configs) {
+  return request.put(`/system/perm-scopes/${roleCode}`, configs)
+}

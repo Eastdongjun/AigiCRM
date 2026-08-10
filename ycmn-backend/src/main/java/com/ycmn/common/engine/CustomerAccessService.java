@@ -45,6 +45,7 @@ public class CustomerAccessService {
     private final OrgScopeResolver scopeResolver;
     private final com.ycmn.module.sea.mapper.BizSeaPoolMapper seaPoolMapper;
     private final com.ycmn.module.sea.service.SeaConfigService seaConfigService;
+    private final com.ycmn.module.system.service.RolePermScopeService rolePermScopeService;
 
     // ==================== 判断方法 ====================
 
@@ -99,10 +100,10 @@ public class CustomerAccessService {
             return seaConfigService.hasPoolPerm(pool.getPoolId(), com.ycmn.module.sea.service.SeaConfigService.PERM_EDIT,
                     SecurityUtils.getCurrentUser());
         }
-        // 非池客户: 需具备 customer:edit 能力 且 是负责人。
-        // 原 @PreAuthorize("hasAuthority('customer:edit')") 移到方法内(SecurityUtils.hasAuthority 等价),
-        // 使"池内客户"可绕过角色码、按池级编辑权限判定(池编辑者缺 customer:edit 角色时仍可保存)
-        return SecurityUtils.hasAuthority("customer:edit") && userId.equals(customer.getOwnerId());
+        // 非池客户: 需具备 customer:edit 能力 且 负责人在"编辑范围"内。
+        // 默认范围 self=仅本人(兼容现状); 角色可配置更宽范围(如 行政=本组织及下级 可编辑其范围内客户的)
+        if (!SecurityUtils.hasAuthority("customer:edit")) return false;
+        return isOwnerInScope(SecurityUtils.getCurrentUser(), "customer", "edit", customer.getOwnerId());
     }
 
     /** 客户是否在公海池内(存在未捞取的池记录) */
@@ -136,8 +137,25 @@ public class CustomerAccessService {
             return seaConfigService.hasPoolPerm(pool.getPoolId(), com.ycmn.module.sea.service.SeaConfigService.PERM_DELETE,
                     SecurityUtils.getCurrentUser());
         }
-        // 只有负责人能删除
-        return userId.equals(customer.getOwnerId());
+        // 非池客户: 负责人在"删除范围"内(默认 self=仅本人; 角色可配置更宽)
+        return isOwnerInScope(SecurityUtils.getCurrentUser(), "customer", "delete", customer.getOwnerId());
+    }
+
+    /** 负责人是否在当前用户对 (module,action) 的有效范围内(多角色并集; all=全放行; 默认 self=本人) */
+    private boolean isOwnerInScope(com.ycmn.security.SecurityUser user, String module, String action, Long ownerId) {
+        if (ownerId == null) return false;
+        Long myId = user != null ? user.getUserId() : SecurityUtils.getCurrentUserId();
+        if (ownerId.equals(myId)) return true; // 本人恒可
+        if (user == null) return false;
+        List<String> scopes = rolePermScopeService.effectiveScopes(user, module, action);
+        if (scopes == null || scopes.isEmpty()) scopes = List.of("self");
+        for (String scope : scopes) {
+            if ("all".equals(scope)) return true;
+            List<Long> visible = scopeResolver.resolveScope(user, scope);
+            if (visible == null) return true; // all
+            if (visible.contains(ownerId)) return true;
+        }
+        return false;
     }
 
     /** 是否有权限导出该客户（敏感字段如营收等） */
@@ -244,16 +262,13 @@ public class CustomerAccessService {
         return passGroup && passEntity;
     }
 
-    /** 组织数据范围检查：客户的负责人是否在用户可见范围内（统一走 OrgScopeResolver，含系统级开关） */
+    /** 组织数据范围检查：客户的负责人是否在"客户查看范围"内(支持每模块/动作配置; 未配置沿用角色 data_scope) */
     private boolean isInOrgDataScope(BizCustomer customer) {
         Long ownerId = customer.getOwnerId();
         if (ownerId == null) return false;
         Long me = SecurityUtils.getCurrentUserId();
         if (me != null && me.equals(ownerId)) return true;
-
-        List<Long> visible = scopeResolver.resolve(SecurityUtils.getCurrentUser());
-        if (visible == null) return true; // all：不过滤
-        return visible.contains(ownerId);
+        return isOwnerInScope(SecurityUtils.getCurrentUser(), "customer", "view", ownerId);
     }
 
     /** 获取负责人所属部门 ID */
