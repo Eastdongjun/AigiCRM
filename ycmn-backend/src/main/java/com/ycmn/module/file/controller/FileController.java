@@ -138,8 +138,10 @@ public class FileController {
                 String filename = resolved.getFileName().toString();
                 String encodedFilename = java.net.URLEncoder.encode(filename, java.nio.charset.StandardCharsets.UTF_8).replace("+", "%20");
                 MediaType mediaType = MediaTypeFactory.getMediaType(filename).orElse(MediaType.APPLICATION_OCTET_STREAM);
+                // 安全修复 2026-08-10: 与 FileService.dispositionFor 一致——SVG/HTML 等活性内容强制 attachment, 防匿名存储型XSS
+                String disp = com.ycmn.module.file.service.FileService.dispositionFor(filename);
                 return ResponseEntity.ok()
-                        .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename*=UTF-8''" + encodedFilename)
+                        .header(HttpHeaders.CONTENT_DISPOSITION, disp + "; filename*=UTF-8''" + encodedFilename)
                         .contentType(mediaType).body(resource);
             }
             return ResponseEntity.notFound().build();

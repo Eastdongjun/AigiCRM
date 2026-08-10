@@ -467,6 +467,15 @@ public class FileService {
         return Paths.get(uploadDir, fileKey);
     }
 
+    /** 安全内联判定: 仅纯图片(不含 SVG——可内嵌脚本执行, 存存储型XSS)与视频可 inline, 其余一律 attachment。
+     *  2026-08-10 安全修复: 原先 svg 也在 inline 名单, 配合任意上传可被匿名/分享 URL 直接执行窃取 localStorage JWT。 */
+    private static final java.util.regex.Pattern SAFE_INLINE_EXT =
+            java.util.regex.Pattern.compile("(?i).*\\.(jpg|jpeg|png|gif|webp|bmp|mp4|webm)$");
+
+    public static String dispositionFor(String filename) {
+        return filename != null && SAFE_INLINE_EXT.matcher(filename).matches() ? "inline" : "attachment";
+    }
+
     public void downloadById(Long fileId, String range, boolean thumbnail, jakarta.servlet.http.HttpServletResponse response) {
         BizFile file = fileMapper.selectById(fileId);
         if (file == null) {
@@ -492,7 +501,7 @@ public class FileService {
                 String filename = file.getFileName();
                 String encoded = java.net.URLEncoder.encode(filename, java.nio.charset.StandardCharsets.UTF_8).replace("+", "%20");
                 MediaType mt = MediaTypeFactory.getMediaType(filename).orElse(MediaType.APPLICATION_OCTET_STREAM);
-                String disp = filename.matches("(?i).*\\.(jpg|jpeg|png|gif|webp|bmp|svg|mp4|webm)$") ? "inline" : "attachment";
+                String disp = dispositionFor(filename);
 
                 long fileSize = resource.contentLength();
                 long start = 0, end = fileSize - 1;
