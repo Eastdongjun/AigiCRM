@@ -650,95 +650,39 @@ public class CustomerService {
     // ====== 数据范围核心方法（升级版：支持组织层级） ======
 
     private void applyDataScope(LambdaQueryWrapper<BizCustomer> wrapper) {
-        // 【修复 2026-08-10 P1-02】新模型"功能×范围"接入列表:
-        // 若当前用户任一角色在 role_perm_scope 显式配置了 (customer, view) 范围,
-        // 列表/统计/导出统一按配置范围过滤(与详情/编辑/删除判定同口径)——
-        // 此前配置仅详情判定生效而列表仍走旧 dataScope, 造成"配了 view=all 列表不生效"。
-        // 未配置任何 (customer,view) 的角色走旧 dataScope 路径(兼容现状)。
+        // 【批② 2026-08-10 统一数据访问层】列表/统计/导出统一走 OrgScopeResolver.resolveScope(ScopeRequest),
+        // 与详情/编辑/删除判定(CustomerAccessService.canAccess)共用同一链路, 根治 P1-05 口径分裂。
+        // 旧 dataScope switch(org/org_and_children/dept_and_children/custom 各分支)已整体删除,
+        // 全部由统一层的 OWNER/ORG 双锚点解析取代; 未配置 role_perm_scope 时回退 dataScope 默认语义。
         var scopeUser = SecurityUtils.getCurrentUser();
-        if (scopeUser != null && !SecurityUtils.isAdmin()
-                && rolePermScopeService.hasConfigured(scopeUser, "customer", "view")) {
-            java.util.List<String> scopes = rolePermScopeService.effectiveScopes(scopeUser, "customer", "view");
-            java.util.List<Long> visible = null; // null=all 不过滤
-            for (String scope : scopes) {
-                java.util.List<Long> part = scopeResolver.resolveScope(scopeUser, scope);
-                if (part == null) { visible = null; break; } // 任一 all → 全量
-                if (visible == null) visible = new ArrayList<>(part);
-                else visible.addAll(part);
-            }
-            if (visible != null && !visible.isEmpty()) {
-                wrapper.in(BizCustomer::getOwnerId, visible);
-            } else if (visible == null) {
-                // all: 本集团不过滤
-            } else {
-                wrapper.eq(BizCustomer::getOwnerId, SecurityUtils.getCurrentUserId());
-            }
+        if (scopeUser == null) {
+            wrapper.eq(BizCustomer::getOwnerId, -1L);
+            return;
+        }
+        if (SecurityUtils.isAdmin()) {
             applyRuleEngineFilter(wrapper);
             return;
         }
-
-        String dataScope = SecurityUtils.getCurrentDataScope();
-        Long userId = SecurityUtils.getCurrentUserId();
-        Long deptId = SecurityUtils.getCurrentDeptId();
-        List<Long> managedOrgIds = SecurityUtils.getCurrentManagedOrgIds();
-
-        switch (dataScope == null ? "self" : dataScope) {
-            case "all":
-                break;
-            case "custom":
-                // 【修复 FEAT-20260804-ORG-DEPT-UNIFY】此前 switch 没有 custom 分支，落入 default
-                // 静默降级为"仅本人"，与详情页 CustomerAccessService 的 CUSTOM 判断不一致。
-                // custom = 角色在"组织矩阵"(sys_role_org)里勾选的组织，含组织管理员额外授权组织；
-                // 【收口】sys_org 兼容视图已废弃，统一 sys_dept，直接按部门ID解析用户即可。
-                applyDeptIdScope(wrapper, managedOrgIds, userId);
-                break;
-            case "org_and_children":
-            case "org":
-                // 【修复 FEAT-20260804-ORG-DEPT-UNIFY】org/org_and_children 此前依赖从未被任何代码
-                // 写入的 sys_user.org_id，恒定降级为"仅本人"。现统一改用部门体系解析（org 与 dept
-                // 本就同一 ID 空间），org_and_children 额外并入组织管理员的额外授权组织，
-                // 顺带修复"组织管理员被授权的组织在客户列表主查询中被忽略"的问题。
-                List<Long> orgScopeIds = new ArrayList<>();
-                if ("org_and_children".equals(dataScope)) {
-                    List<Long> deptAndChildIds = getDescendantDeptIds(deptId);
-                    if (deptId != null) deptAndChildIds.add(deptId);
-                    orgScopeIds.addAll(deptAndChildIds);
-                } else if (deptId != null) {
-                    orgScopeIds.add(deptId);
-                }
-                orgScopeIds.addAll(managedOrgIds);
-                applyDeptIdScope(wrapper, orgScopeIds, userId);
-                break;
-            case "dept_and_children":
-                List<Long> deptIds = getDescendantDeptIds(deptId);
-                deptIds.add(deptId);
-                List<Long> userIds = getUserIdsByDeptIds(deptIds);
-                if (!userIds.isEmpty()) {
-                    wrapper.in(BizCustomer::getOwnerId, userIds);
-                } else {
-                    wrapper.eq(BizCustomer::getOwnerId, userId);
-                }
-                break;
-            // 新六级码（team/office/region/dept/self；dept=本部门含子部门，设计 §4.1）：
-            // 统一路由 OrgScopeResolver（设计 §4.2；多角色并集在 resolver 内生效）
-            // 注：custom 由上方既有 case 处理（managedOrgIds 部门树，语义一致）
-            case "team":
-            case "office":
-            case "region":
-            case "dept":
-            case "self": {
-                List<Long> visible = scopeResolver.resolve(SecurityUtils.getCurrentUser());
-                if (visible != null) { // null=all：本集团不过滤
-                    wrapper.in(BizCustomer::getOwnerId, visible);
-                }
-                break;
-            }
-            default:
-                wrapper.eq(BizCustomer::getOwnerId, userId);
-                break;
+        com.ycmn.common.scope.ScopeRequest req = com.ycmn.common.scope.ScopeRequest.builder()
+                .user(scopeUser)
+                .module("customer")
+                .action("view")
+                .anchor(rolePermScopeService.anchorOf(scopeUser, "customer", "view"))
+                .build();
+        com.ycmn.common.scope.ScopeDecision d = scopeResolver.resolveScope(req);
+        if (d.isAll()) {
+            // all: 本集团不过滤
+        } else if (req.getAnchor() == com.ycmn.common.scope.ScopeRequest.AnchorType.ORG) {
+            java.util.List<Long> deptIds = d.getVisibleDeptIds();
+            if (deptIds != null && !deptIds.isEmpty()) wrapper.in(BizCustomer::getDeptId, deptIds);
+            else if (deptIds != null) wrapper.eq(BizCustomer::getDeptId, -1L); // 空集合: 不可见
+        } else {
+            java.util.List<Long> userIds = d.getVisibleUserIds();
+            if (userIds != null && !userIds.isEmpty()) wrapper.in(BizCustomer::getOwnerId, userIds);
+            else if (userIds != null) wrapper.eq(BizCustomer::getOwnerId, -1L); // 空集合: 不可见
         }
 
-        // 规则引擎：追加运行时 WHERE 条件（与枚举引擎 AND 合并）
+        // 规则引擎：追加运行时 WHERE 条件（与统一层 AND 合并，追加条件层）
         applyRuleEngineFilter(wrapper);
     }
 
@@ -776,52 +720,20 @@ public class CustomerService {
      * 【修复 FEAT-20260804-DICT-DEPT-READ】经营分析/日报周报此前全量查询，销售员可见全公司数据
      */
     public List<Long> getCurrentScopeUserIds() {
-        String dataScope = SecurityUtils.getCurrentDataScope();
-        Long userId = SecurityUtils.getCurrentUserId();
-        Long deptId = SecurityUtils.getCurrentDeptId();
-        List<Long> managedOrgIds = SecurityUtils.getCurrentManagedOrgIds();
-
-        // 【2026-08-07 系统级开关 + 统计口径修复】self/team/office/region/dept/all 统一走 resolver
-        // （含系统级开关并集；all→null 短路）。此前 team/office/region/self 落 default 仅本人，
-        // 统计与客户主列表口径不一致；dept 从"仅本部门"修正为"本部门及子部门"（与 DataScopeType 设计一致）。
-        if (dataScope == null || "self".equals(dataScope) || "team".equals(dataScope)
-                || "office".equals(dataScope) || "region".equals(dataScope)
-                || "dept".equals(dataScope) || "all".equals(dataScope)) {
-            return scopeResolver.resolve(SecurityUtils.getCurrentUser());
-        }
-
-        List<Long> userIds;
-        switch (dataScope) {
-            case "custom":
-                userIds = (managedOrgIds == null || managedOrgIds.isEmpty())
-                        ? List.of(userId) : applyDeptScopeUserIds(managedOrgIds, userId);
-                break;
-            case "org_and_children":
-            case "org": {
-                List<Long> orgScopeIds = new ArrayList<>();
-                if ("org_and_children".equals(dataScope)) {
-                    List<Long> deptAndChildIds = getDescendantDeptIds(deptId);
-                    if (deptId != null) deptAndChildIds.add(deptId);
-                    orgScopeIds.addAll(deptAndChildIds);
-                } else if (deptId != null) {
-                    orgScopeIds.add(deptId);
-                }
-                orgScopeIds.addAll(managedOrgIds);
-                userIds = orgScopeIds.isEmpty() ? List.of(userId) : applyDeptScopeUserIds(orgScopeIds, userId);
-                break;
-            }
-            case "dept_and_children": {
-                List<Long> deptIds = getDescendantDeptIds(deptId);
-                deptIds.add(deptId);
-                List<Long> u = getUserIdsByDeptIds(deptIds);
-                userIds = u.isEmpty() ? List.of(userId) : u;
-                break;
-            }
-            default:
-                userIds = List.of(userId);
-        }
-        // 【2026-08-07 系统级开关】本地分支(custom/org/org_and_children/dept_and_children)末尾统一追加
-        return scopeResolver.appendSystemLevelScopes(SecurityUtils.getCurrentUser(), userIds);
+        // 【批② 2026-08-10 统一数据访问层】统计/报表口径: OWNER 锚点走统一解析。
+        // 语义与旧实现完全一致(未配置 role_perm_scope 时回退 dataScope 多角色并集+系统开关),
+        // 但实现单一化——不再有第二套 switch 分支(旧 org/org_and_children/dept_and_children/custom
+        // 分支已删除, 全部由 OrgScopeResolver.resolveScope 的 OWNER 解析覆盖)。
+        var user = SecurityUtils.getCurrentUser();
+        if (user == null) return List.of();
+        if (SecurityUtils.isAdmin()) return null; // null=全部
+        com.ycmn.common.scope.ScopeRequest req = com.ycmn.common.scope.ScopeRequest.builder()
+                .user(user)
+                .module("statistics")
+                .action("view")
+                .anchor(com.ycmn.common.scope.ScopeRequest.AnchorType.OWNER)
+                .build();
+        return scopeResolver.resolveScope(req).getVisibleUserIds();
     }
 
     private List<Long> applyDeptScopeUserIds(List<Long> deptIds, Long userId) {

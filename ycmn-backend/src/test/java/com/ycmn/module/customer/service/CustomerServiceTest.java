@@ -341,16 +341,21 @@ class CustomerServiceTest {
     // ===== I1：新六级 code 统一路由 OrgScopeResolver（设计 §4.2） =====
 
     /** team 码 → resolver 可见 userIds 生成 owner_id IN 条件（修复 default 仅本人的降级） */
+    /** 【批② 统一数据访问层】team 码 → 统一层 OWNER 解析生成 owner_id IN 条件 */
     @Test
     void applyDataScope_teamCodeRoutesThroughResolver() {
         SecurityUser su = new SecurityUser();
         su.setUserId(1L);
+        su.setDataScope("team");
         try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
-            m.when(SecurityUtils::getCurrentDataScope).thenReturn("team");
             m.when(SecurityUtils::getCurrentUser).thenReturn(su);
+            m.when(SecurityUtils::isAdmin).thenReturn(false);
 
             OrgScopeResolver resolver = mock(OrgScopeResolver.class);
-            when(resolver.resolve(su)).thenReturn(List.of(1L, 2L, 3L));
+            com.ycmn.common.scope.ScopeDecision d = new com.ycmn.common.scope.ScopeDecision();
+            d.setVisibleUserIds(List.of(1L, 2L, 3L));
+            d.setVisibleDeptIds(List.of());
+            when(resolver.resolveScope(any(com.ycmn.common.scope.ScopeRequest.class))).thenReturn(d);
             CustomerService svc = newService(mock(BizInvoiceMapper.class), mock(BizPaymentMapper.class),
                     mock(BizCustomerMapper.class), resolver);
 
@@ -358,7 +363,7 @@ class CustomerServiceTest {
             ReflectionTestUtils.invokeMethod(svc, "applyDataScope", w);
 
             assertEquals(List.of(1L, 2L, 3L), columnValues(w).get("owner_id"),
-                    "team 码必须经 resolver 生成 owner_id IN 条件");
+                    "team 码必须经统一层生成 owner_id IN 条件");
         }
     }
 
@@ -367,41 +372,47 @@ class CustomerServiceTest {
     void applyDataScope_allCodeSkipsOwnerFilter() {
         SecurityUser su = new SecurityUser();
         su.setUserId(1L);
+        su.setDataScope("all");
         try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
-            m.when(SecurityUtils::getCurrentDataScope).thenReturn("all");
             m.when(SecurityUtils::getCurrentUser).thenReturn(su);
+            m.when(SecurityUtils::isAdmin).thenReturn(false);
 
             OrgScopeResolver resolver = mock(OrgScopeResolver.class);
-            when(resolver.resolve(su)).thenReturn(null);
+            when(resolver.resolveScope(any(com.ycmn.common.scope.ScopeRequest.class)))
+                    .thenReturn(com.ycmn.common.scope.ScopeDecision.all());
             CustomerService svc = newService(mock(BizInvoiceMapper.class), mock(BizPaymentMapper.class),
                     mock(BizCustomerMapper.class), resolver);
 
             LambdaQueryWrapper<BizCustomer> w = new LambdaQueryWrapper<>();
             ReflectionTestUtils.invokeMethod(svc, "applyDataScope", w);
 
-            assertFalse(columnValues(w).containsKey("owner_id"), "all（null）不过滤 owner_id");
+            assertFalse(columnValues(w).containsKey("owner_id"), "all 不过滤 owner_id");
         }
     }
 
-    /** 旧码 org 分支保留（现有角色在用，不走 resolver，仅本部门 org 树语义不变） */
+    /** 【批② 统一数据访问层】旧码 org 语义由统一层覆盖(仅本部门用户), 不再有第二套分支 */
     @Test
     void applyDataScope_legacyOrgBranchKept() {
         SecurityUser su = new SecurityUser();
         su.setUserId(1L);
+        su.setDataScope("org");
         try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
-            m.when(SecurityUtils::getCurrentDataScope).thenReturn("org");
             m.when(SecurityUtils::getCurrentUser).thenReturn(su);
-            m.when(SecurityUtils::getCurrentOrgId).thenReturn(5L);
+            m.when(SecurityUtils::isAdmin).thenReturn(false);
 
             OrgScopeResolver resolver = mock(OrgScopeResolver.class);
+            com.ycmn.common.scope.ScopeDecision d = new com.ycmn.common.scope.ScopeDecision();
+            d.setVisibleUserIds(List.of(1L, 9L));
+            d.setVisibleDeptIds(List.of());
+            when(resolver.resolveScope(any(com.ycmn.common.scope.ScopeRequest.class))).thenReturn(d);
             CustomerService svc = newService(mock(BizInvoiceMapper.class), mock(BizPaymentMapper.class),
                     mock(BizCustomerMapper.class), resolver);
 
             LambdaQueryWrapper<BizCustomer> w = new LambdaQueryWrapper<>();
             ReflectionTestUtils.invokeMethod(svc, "applyDataScope", w);
 
-            // 旧分支走 org 树查询；断言完全不调用 resolver
-            verify(resolver, never()).resolve(any());
+            assertEquals(List.of(1L, 9L), columnValues(w).get("owner_id"),
+                    "org 语义(仅本部门用户)由统一层 OWNER 解析覆盖");
         }
     }
 
@@ -427,67 +438,76 @@ class CustomerServiceTest {
                 mock(com.ycmn.module.system.service.RolePermScopeService.class));
     }
 
-    /** 开关默认关的 resolver 桩：resolve 透传 scope；appendSystemLevelScopes 原样返回 base */
-    private OrgScopeResolver scopedResolver(org.mockito.stubbing.Answer<List<Long>> resolveAnswer) {
+    /** 【批② 统一数据访问层】resolver 桩: 统一入口 resolveScope(ScopeRequest) 返回指定 userIds */
+    private OrgScopeResolver scopedResolver(java.util.function.Function<com.ycmn.common.scope.ScopeRequest, com.ycmn.common.scope.ScopeDecision> fn) {
         OrgScopeResolver resolver = mock(OrgScopeResolver.class);
-        when(resolver.resolve(any())).thenAnswer(resolveAnswer);
-        when(resolver.appendSystemLevelScopes(any(), anyCollection()))
-                .thenAnswer(inv -> new ArrayList<>((java.util.Collection<? extends Long>) inv.getArgument(1)));
+        when(resolver.resolveScope(any(com.ycmn.common.scope.ScopeRequest.class)))
+                .thenAnswer(inv -> fn.apply(inv.getArgument(0)));
         return resolver;
+    }
+
+    private static com.ycmn.common.scope.ScopeDecision decisionOf(List<Long> userIds) {
+        com.ycmn.common.scope.ScopeDecision d = new com.ycmn.common.scope.ScopeDecision();
+        d.setVisibleUserIds(userIds);
+        d.setVisibleDeptIds(List.of());
+        return d;
     }
 
     @Test
     void getCurrentScopeUserIds_self_returnsOnlyOwnId() {
+        SecurityUser su = new SecurityUser();
+        su.setUserId(42L);
+        su.setDataScope("self");
         try (MockedStatic<SecurityUtils> mocked = mockStatic(SecurityUtils.class)) {
-            mocked.when(SecurityUtils::getCurrentDataScope).thenReturn("self");
-            mocked.when(SecurityUtils::getCurrentUserId).thenReturn(42L);
+            mocked.when(SecurityUtils::getCurrentUser).thenReturn(su);
+            mocked.when(SecurityUtils::isAdmin).thenReturn(false);
             CustomerService svc = newScopedService(mock(SysUserMapper.class), mock(SysDeptMapper.class),
-                    scopedResolver(inv -> List.of(42L)));
+                    scopedResolver(req -> decisionOf(List.of(42L))));
             assertEquals(List.of(42L), svc.getCurrentScopeUserIds());
         }
     }
 
     @Test
     void getCurrentScopeUserIds_nullScope_defaultsToSelf() {
+        SecurityUser su = new SecurityUser();
+        su.setUserId(42L);
+        su.setDataScope(null); // 未配置 → 统一层回退 self
         try (MockedStatic<SecurityUtils> mocked = mockStatic(SecurityUtils.class)) {
-            mocked.when(SecurityUtils::getCurrentDataScope).thenReturn(null);
-            mocked.when(SecurityUtils::getCurrentUserId).thenReturn(42L);
+            mocked.when(SecurityUtils::getCurrentUser).thenReturn(su);
+            mocked.when(SecurityUtils::isAdmin).thenReturn(false);
             CustomerService svc = newScopedService(mock(SysUserMapper.class), mock(SysDeptMapper.class),
-                    scopedResolver(inv -> List.of(42L)));
+                    scopedResolver(req -> decisionOf(List.of(42L))));
             assertEquals(List.of(42L), svc.getCurrentScopeUserIds());
         }
     }
 
     @Test
     void getCurrentScopeUserIds_all_returnsNull() {
+        SecurityUser su = new SecurityUser();
+        su.setUserId(1L);
+        su.setDataScope("all");
         try (MockedStatic<SecurityUtils> mocked = mockStatic(SecurityUtils.class)) {
-            mocked.when(SecurityUtils::getCurrentDataScope).thenReturn("all");
+            mocked.when(SecurityUtils::getCurrentUser).thenReturn(su);
+            mocked.when(SecurityUtils::isAdmin).thenReturn(false);
             CustomerService svc = newScopedService(mock(SysUserMapper.class), mock(SysDeptMapper.class),
-                    scopedResolver(inv -> null));
+                    scopedResolver(req -> com.ycmn.common.scope.ScopeDecision.all()));
             assertNull(svc.getCurrentScopeUserIds());
         }
     }
 
+    /** 【批② 统一数据访问层】dept_and_children 由统一层解析(本部门及子部门用户集合) */
     @Test
     void getCurrentScopeUserIds_deptAndChildren_returnsDeptAndDescendantUsers() {
-        SysDept dept2 = new SysDept(); dept2.setId(2L); dept2.setParentId(0L); dept2.setStatus(1);
-        SysDept dept4 = new SysDept(); dept4.setId(4L); dept4.setParentId(2L); dept4.setStatus(1);
-        SysDept dept9 = new SysDept(); dept9.setId(9L); dept9.setParentId(4L); dept9.setStatus(1);
-        SysUser user10 = new SysUser(); user10.setId(10L); user10.setDeptId(4L);
-        SysUser user11 = new SysUser(); user11.setId(11L); user11.setDeptId(9L);
-
-        SysDeptMapper deptMapper = mock(SysDeptMapper.class);
-        when(deptMapper.selectList(any())).thenReturn(List.of(dept2, dept4, dept9));
-        SysUserMapper userMapper = mock(SysUserMapper.class);
-        when(userMapper.selectList(any())).thenReturn(List.of(user10, user11));
-
+        SecurityUser su = new SecurityUser();
+        su.setUserId(42L);
+        su.setDeptId(2L);
+        su.setDataScope("dept_and_children");
         try (MockedStatic<SecurityUtils> mocked = mockStatic(SecurityUtils.class)) {
-            mocked.when(SecurityUtils::getCurrentDataScope).thenReturn("dept_and_children");
-            mocked.when(SecurityUtils::getCurrentUserId).thenReturn(42L);
-            mocked.when(SecurityUtils::getCurrentDeptId).thenReturn(2L);
-            CustomerService svc = newScopedService(userMapper, deptMapper,
-                    scopedResolver(inv -> List.of(42L)));
-            // 部门 2 及子部门 4/9 下的用户 10/11（含自身部门 2 下的用户）
+            mocked.when(SecurityUtils::getCurrentUser).thenReturn(su);
+            mocked.when(SecurityUtils::isAdmin).thenReturn(false);
+            CustomerService svc = newScopedService(mock(SysUserMapper.class), mock(SysDeptMapper.class),
+                    scopedResolver(req -> decisionOf(List.of(10L, 11L))));
+            // 部门 2 及子部门 4/9 下的用户 10/11
             assertEquals(List.of(10L, 11L), svc.getCurrentScopeUserIds());
         }
     }

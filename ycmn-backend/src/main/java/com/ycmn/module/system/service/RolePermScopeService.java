@@ -1,5 +1,6 @@
 package com.ycmn.module.system.service;
 
+import com.ycmn.common.scope.ScopeRequest;
 import com.ycmn.security.SecurityUser;
 import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -28,8 +29,13 @@ public class RolePermScopeService {
     /** 短 TTL 本地缓存(30s): effectiveScopes 在 canView/canEdit/canDelete 热路径上, 避免每判定 1 条 JDBC */
     private static final long CACHE_TTL_MS = 30_000L;
     private final ConcurrentHashMap<String, CacheEntry> cache = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, AnchorCacheEntry> anchorCache = new ConcurrentHashMap<>();
 
     private record CacheEntry(String value, long expireAt) {
+        boolean expired() { return System.currentTimeMillis() >= expireAt; }
+    }
+
+    private record AnchorCacheEntry(ScopeRequest.AnchorType anchor, long expireAt) {
         boolean expired() { return System.currentTimeMillis() >= expireAt; }
     }
 
@@ -82,6 +88,40 @@ public class RolePermScopeService {
             if (lookup(roleCode, module, action) != null) return true;
         }
         return false;
+    }
+
+    /** 有效范围 code 列表(多角色并集; 空=未配置走默认) —— 供统一数据访问层直接获取配置码 */
+    public List<String> configuredScopes(SecurityUser user, String module, String action) {
+        List<String> codes = new ArrayList<>();
+        if (user != null && user.getRoleCodes() != null) {
+            for (String roleCode : user.getRoleCodes()) {
+                String scope = lookup(roleCode, module, action);
+                if (scope != null) codes.add(scope);
+            }
+        }
+        return codes;
+    }
+
+    /** 模块级锚点: 配置行 anchor 列(OWNER/ORG), 未配置默认 OWNER(批②: 客户模块可配 ORG) */
+    public ScopeRequest.AnchorType anchorOf(SecurityUser user, String module, String action) {
+        if (user != null && user.getRoleCodes() != null) {
+            for (String roleCode : user.getRoleCodes()) {
+                AnchorCacheEntry hit = anchorCache.get(roleCode + ":" + module + ":" + action);
+                if (hit != null && !hit.expired()) return hit.anchor();
+                try {
+                    List<String> rows = jdbc.queryForList(
+                            "SELECT anchor FROM role_perm_scope WHERE role_code=? AND module=? AND action=? LIMIT 1",
+                            String.class, roleCode, module, action);
+                    ScopeRequest.AnchorType a = rows.isEmpty() ? ScopeRequest.AnchorType.OWNER
+                            : "ORG".equalsIgnoreCase(rows.get(0)) ? ScopeRequest.AnchorType.ORG : ScopeRequest.AnchorType.OWNER;
+                    anchorCache.put(roleCode + ":" + module + ":" + action, new AnchorCacheEntry(a, System.currentTimeMillis() + CACHE_TTL_MS));
+                    return a;
+                } catch (Exception e) {
+                    return ScopeRequest.AnchorType.OWNER;
+                }
+            }
+        }
+        return ScopeRequest.AnchorType.OWNER;
     }
 
     /** 某角色的全部范围配置 */
@@ -148,5 +188,6 @@ public class RolePermScopeService {
     /** 角色级缓存失效(该角色所有 (module,action) 条目) */
     private void invalidate(String roleCode) {
         cache.entrySet().removeIf(e -> e.getKey().startsWith(roleCode + ":"));
+        anchorCache.entrySet().removeIf(e -> e.getKey().startsWith(roleCode + ":"));
     }
 }

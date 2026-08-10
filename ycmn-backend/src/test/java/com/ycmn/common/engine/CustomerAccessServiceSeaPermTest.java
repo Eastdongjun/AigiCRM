@@ -148,9 +148,11 @@ class CustomerAccessServiceSeaPermTest {
         try (MockedStatic<SecurityUtils> ms = mockStatic(SecurityUtils.class)) {
             ms.when(SecurityUtils::isAdmin).thenReturn(false);
             ms.when(SecurityUtils::getCurrentUserId).thenReturn(100L);
+            ms.when(SecurityUtils::getCurrentUser).thenAnswer(inv -> { var u = new com.ycmn.security.SecurityUser(); u.setUserId(100L); return u; });
             ms.when(() -> SecurityUtils.hasAuthority("customer:edit")).thenReturn(true);
             when(customerMapper.selectById(1L)).thenReturn(cust);
             when(seaPoolMapper.selectOne(any())).thenReturn(null); // 不在公海池
+            when(scopeResolver.canAccess(any(com.ycmn.common.scope.ScopeRequest.class))).thenReturn(true);
 
             assertTrue(svc.canEdit(1L));
         }
@@ -176,6 +178,7 @@ class CustomerAccessServiceSeaPermTest {
         try (MockedStatic<SecurityUtils> ms = mockStatic(SecurityUtils.class)) {
             ms.when(SecurityUtils::isAdmin).thenReturn(false);
             ms.when(SecurityUtils::getCurrentUserId).thenReturn(100L);
+            ms.when(SecurityUtils::getCurrentUser).thenAnswer(inv -> { var u = new com.ycmn.security.SecurityUser(); u.setUserId(100L); return u; });
             ms.when(() -> SecurityUtils.hasAuthority("customer:edit")).thenReturn(true);
             when(customerMapper.selectById(1L)).thenReturn(cust);
             when(seaPoolMapper.selectOne(any())).thenReturn(null);
@@ -226,8 +229,10 @@ class CustomerAccessServiceSeaPermTest {
         try (MockedStatic<SecurityUtils> ms = mockStatic(SecurityUtils.class)) {
             ms.when(SecurityUtils::isAdmin).thenReturn(false);
             ms.when(SecurityUtils::getCurrentUserId).thenReturn(100L);
+            ms.when(SecurityUtils::getCurrentUser).thenAnswer(inv -> { var u = new com.ycmn.security.SecurityUser(); u.setUserId(100L); return u; });
             when(customerMapper.selectById(1L)).thenReturn(cust);
             when(seaPoolMapper.selectOne(any())).thenReturn(null);
+            when(scopeResolver.canAccess(any(com.ycmn.common.scope.ScopeRequest.class))).thenReturn(true);
 
             assertTrue(svc.canDelete(1L));
         }

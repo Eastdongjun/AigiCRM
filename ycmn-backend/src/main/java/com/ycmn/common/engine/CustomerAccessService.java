@@ -61,14 +61,11 @@ public class CustomerAccessService {
         // 1. 是负责人
         if (userId.equals(customer.getOwnerId())) return true;
 
-        // 2. 被共享
+        // 2. 被共享(共享制专属授权模型, 不并入统一层)
         if (isSharedWith(customerId, userId)) return true;
 
-        // 3. 集团/法人公司数据范围
-        if (isInGroupScope(customer)) return true;
-
-        // 4. 组织数据范围
-        if (isInOrgDataScope(customer)) return true;
+        // 3. 【批② 统一数据访问层】数据范围判定(OWNER/ORG 双锚点, 与列表同一链路)
+        if (canAccessCustomer(SecurityUtils.getCurrentUser(), "view", customer)) return true;
 
         // 【2026-08-10 池级权限】客户在公海池内(status!=claimed)时, 池"可见"即可读详情——
         // 与列表可见范围一致(列表按 PERM_VIEW 过滤且客户名可点); 编辑/捞取/删除者自然可读。
@@ -91,19 +88,16 @@ public class CustomerAccessService {
         BizCustomer customer = customerMapper.selectById(customerId);
         if (customer == null) return false;
 
-        Long userId = SecurityUtils.getCurrentUserId();
-
         // 【2026-08-10 池级权限】客户在公海池内(status!=claimed)时, 编辑按池的编辑权限判定;
-        // 否则回退"负责人才能编辑"(owner-only)
+        // 否则回退统一层判定
         com.ycmn.module.sea.entity.BizSeaPool pool = findActivePool(customerId);
         if (pool != null && pool.getPoolId() != null) {
             return seaConfigService.hasPoolPerm(pool.getPoolId(), com.ycmn.module.sea.service.SeaConfigService.PERM_EDIT,
                     SecurityUtils.getCurrentUser());
         }
-        // 非池客户: 需具备 customer:edit 能力 且 负责人在"编辑范围"内。
-        // 默认范围 self=仅本人(兼容现状); 角色可配置更宽范围(如 行政=本组织及下级 可编辑其范围内客户的)
+        // 非池客户: 需具备 customer:edit 能力 且 目标在"编辑范围"内(统一层判定, 与列表同源)
         if (!SecurityUtils.hasAuthority("customer:edit")) return false;
-        return isOwnerInScope(SecurityUtils.getCurrentUser(), "customer", "edit", customer.getOwnerId());
+        return canAccessCustomer(SecurityUtils.getCurrentUser(), "edit", customer);
     }
 
     /** 客户是否在公海池内(存在未捞取的池记录) */
@@ -128,34 +122,29 @@ public class CustomerAccessService {
         BizCustomer customer = customerMapper.selectById(customerId);
         if (customer == null) return false;
 
-        Long userId = SecurityUtils.getCurrentUserId();
-
         // 【2026-08-10 池级权限】客户在公海池内时, 删除按池的删除权限判定(与 SeaController.deletePool/PERM_DELETE 一致);
-        // 否则回退"负责人才能删除"(owner-only)——防止原负责人(释放未清 ownerId)经客户模块 DELETE 绕过公海删除治理
+        // 否则回退统一层判定——防止原负责人(释放未清 ownerId)经客户模块 DELETE 绕过公海删除治理
         com.ycmn.module.sea.entity.BizSeaPool pool = findActivePool(customerId);
         if (pool != null && pool.getPoolId() != null) {
             return seaConfigService.hasPoolPerm(pool.getPoolId(), com.ycmn.module.sea.service.SeaConfigService.PERM_DELETE,
                     SecurityUtils.getCurrentUser());
         }
-        // 非池客户: 负责人在"删除范围"内(默认 self=仅本人; 角色可配置更宽)
-        return isOwnerInScope(SecurityUtils.getCurrentUser(), "customer", "delete", customer.getOwnerId());
+        // 非池客户: 目标在"删除范围"内(统一层判定)
+        return canAccessCustomer(SecurityUtils.getCurrentUser(), "delete", customer);
     }
 
-    /** 负责人是否在当前用户对 (module,action) 的有效范围内(多角色并集; all=全放行; 默认 self=本人) */
-    private boolean isOwnerInScope(com.ycmn.security.SecurityUser user, String module, String action, Long ownerId) {
-        if (ownerId == null) return false;
-        Long myId = user != null ? user.getUserId() : SecurityUtils.getCurrentUserId();
-        if (ownerId.equals(myId)) return true; // 本人恒可
+    /** 【批② 统一数据访问层】单条客户访问判定: 与列表 applyDataScope 共用 OrgScopeResolver 同一链路 */
+    private boolean canAccessCustomer(com.ycmn.security.SecurityUser user, String action, BizCustomer customer) {
         if (user == null) return false;
-        List<String> scopes = rolePermScopeService.effectiveScopes(user, module, action);
-        if (scopes == null || scopes.isEmpty()) scopes = List.of("self");
-        for (String scope : scopes) {
-            if ("all".equals(scope)) return true;
-            List<Long> visible = scopeResolver.resolveScope(user, scope);
-            if (visible == null) return true; // all
-            if (visible.contains(ownerId)) return true;
-        }
-        return false;
+        com.ycmn.common.scope.ScopeRequest req = com.ycmn.common.scope.ScopeRequest.builder()
+                .user(user)
+                .module("customer")
+                .action(action)
+                .anchor(rolePermScopeService.anchorOf(user, "customer", action))
+                .targetOwnerId(customer.getOwnerId())
+                .targetDeptId(customer.getDeptId())
+                .build();
+        return scopeResolver.canAccess(req);
     }
 
     /** 是否有权限导出该客户（敏感字段如营收等） */
@@ -236,65 +225,7 @@ public class CustomerAccessService {
                 .eq(BizCustomerShare::getSharedToUserId, userId)) > 0;
     }
 
-    /** 集团/法人公司数据范围检查
-     *  如果用户有岗位绑定到某集团/法人公司，则只允许访问同集团/法人公司的客户 */
-    private boolean isInGroupScope(BizCustomer customer) {
-        List<Long> userGroupIds = SecurityUtils.getCurrentGroupIds();
-        List<Long> userLegalEntityIds = SecurityUtils.getCurrentLegalEntityIds();
-
-        // 如果没有配置集团/法人公司归属 → 不限制（向下兼容）
-        boolean hasNewScope = !userGroupIds.isEmpty() || !userLegalEntityIds.isEmpty();
-        if (!hasNewScope) return false;
-
-        boolean passGroup = true;
-        boolean passEntity = true;
-
-        // 检查集团
-        if (!userGroupIds.isEmpty() && customer.getGroupId() != null) {
-            passGroup = userGroupIds.contains(customer.getGroupId());
-        }
-
-        // 检查法人公司
-        if (!userLegalEntityIds.isEmpty() && customer.getLegalEntityId() != null) {
-            passEntity = userLegalEntityIds.contains(customer.getLegalEntityId());
-        }
-
-        return passGroup && passEntity;
-    }
-
-    /** 组织数据范围检查：客户的负责人是否在"客户查看范围"内(支持每模块/动作配置; 未配置沿用角色 data_scope) */
-    private boolean isInOrgDataScope(BizCustomer customer) {
-        Long ownerId = customer.getOwnerId();
-        if (ownerId == null) return false;
-        Long me = SecurityUtils.getCurrentUserId();
-        if (me != null && me.equals(ownerId)) return true;
-        return isOwnerInScope(SecurityUtils.getCurrentUser(), "customer", "view", ownerId);
-    }
-
-    /** 获取负责人所属部门 ID */
-    private Long getOwnerDeptId(Long ownerId) {
-        if (ownerId == null) return null;
-        var user = userMapper.selectById(ownerId);
-        return user != null ? user.getDeptId() : null;
-    }
-
-    /** 获取范围内用户 ID 列表 */
-    private List<Long> getDeptUserIds(DataScopeType scopeType) {
-        Long deptId = SecurityUtils.getCurrentDeptId();
-        if (deptId == null) return List.of();
-
-        List<Long> deptIds;
-        if (scopeType == DataScopeType.ORG_AND_CHILDREN) {
-            deptIds = deptMapper.selectDescendantIds(deptId);
-        } else {
-            deptIds = List.of(deptId);
-        }
-
-        return userMapper.selectList(
-                new LambdaQueryWrapper<com.ycmn.module.system.entity.SysUser>()
-                        .in(com.ycmn.module.system.entity.SysUser::getDeptId, deptIds))
-                .stream()
-                .map(com.ycmn.module.system.entity.SysUser::getId)
-                .toList();
-    }
+    /** 【批② 2026-08-10】废弃方法已删除: isInGroupScope(基于从未回填的 group_id, 由租户插件物理隔离取代)、
+     *  isInOrgDataScope/isOwnerInScope(由统一层 canAccess 取代, 与列表同源)、
+     *  getOwnerDeptId/getDeptUserIds(未被统一层使用, 语义由 OrgScopeResolver.resolveDeptScope 覆盖) */
 }

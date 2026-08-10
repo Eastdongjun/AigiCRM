@@ -267,4 +267,81 @@ class PermissionSecurityFixTest {
         assertNotNull(visible);
         assertTrue(visible.containsAll(List.of(1L, 2L)), "dept_and_children 应按部门树解析而非降级 self: " + visible);
     }
+    // ==================== P1-05 根治: 列表与详情同一解析链路 ====================
+
+    @Test
+    void listAndDetail_useSameScopeRequestResolution() {
+        // 列表(applyDataScope)与详情(canView)必须走同一 ScopeRequest 解析——
+        // 若各自实现范围逻辑, 必然再次口径分裂(组织管理员"列表可见、详情 403"历史缺陷)。
+        com.ycmn.security.SecurityUser su = new com.ycmn.security.SecurityUser();
+        su.setUserId(1L);
+        su.setDataScope("org_and_children");
+        su.setManagedOrgIds(List.of(22L));
+        try (org.mockito.MockedStatic<com.ycmn.security.SecurityUtils> m =
+                     mockStatic(com.ycmn.security.SecurityUtils.class)) {
+            m.when(com.ycmn.security.SecurityUtils::isAdmin).thenReturn(false);
+            m.when(com.ycmn.security.SecurityUtils::getCurrentUser).thenReturn(su);
+
+            // 列表侧: CustomerService.applyDataScope → resolveScope(ScopeRequest)
+            com.ycmn.common.scope.OrgScopeResolver resolver = mock(com.ycmn.common.scope.OrgScopeResolver.class);
+            when(resolver.resolveScope(any(com.ycmn.common.scope.ScopeRequest.class)))
+                    .thenReturn(com.ycmn.common.scope.ScopeDecision.all());
+            com.ycmn.module.system.service.RolePermScopeService rps = mock(com.ycmn.module.system.service.RolePermScopeService.class);
+            when(rps.anchorOf(any(), any(), any())).thenReturn(com.ycmn.common.scope.ScopeRequest.AnchorType.OWNER);
+            com.ycmn.module.customer.service.CustomerService cs = new com.ycmn.module.customer.service.CustomerService(
+                    mock(com.ycmn.module.customer.mapper.BizCustomerMapper.class),
+                    mock(com.ycmn.module.customer.mapper.BizCustomerLogMapper.class),
+                    mock(com.ycmn.module.customer.mapper.BizInvoiceMapper.class),
+                    mock(com.ycmn.module.customer.mapper.BizCustomerShareMapper.class),
+                    mock(com.ycmn.module.customer.mapper.BizCustomerIndicatorMapper.class),
+                    mock(com.ycmn.module.customer.mapper.BizContactMapper.class),
+                    mock(com.ycmn.module.customer.mapper.BizPaymentMapper.class),
+                    mock(com.ycmn.module.system.mapper.SysUserMapper.class),
+                    mock(com.ycmn.module.system.mapper.SysDeptMapper.class),
+                    mock(com.ycmn.module.reminder.mapper.BizReminderMapper.class),
+                    mock(org.springframework.jdbc.core.JdbcTemplate.class),
+                    mock(com.ycmn.module.system.service.SysConfigService.class),
+                    resolver,
+                    mock(com.ycmn.common.engine.CustomerAccessService.class),
+                    rps);
+            com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<com.ycmn.module.customer.entity.BizCustomer> w =
+                    new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<>();
+            org.springframework.test.util.ReflectionTestUtils.invokeMethod(cs, "applyDataScope", w);
+
+            org.mockito.ArgumentCaptor<com.ycmn.common.scope.ScopeRequest> listReq =
+                    org.mockito.ArgumentCaptor.forClass(com.ycmn.common.scope.ScopeRequest.class);
+            verify(resolver).resolveScope(listReq.capture());
+            assertEquals("customer", listReq.getValue().getModule());
+            assertEquals("view", listReq.getValue().getAction());
+            assertEquals(com.ycmn.common.scope.ScopeRequest.AnchorType.OWNER, listReq.getValue().getAnchor());
+
+            // 详情侧: CustomerAccessService.canView → canAccess(同 req 构造)
+            com.ycmn.module.customer.entity.BizCustomer cust = new com.ycmn.module.customer.entity.BizCustomer();
+            cust.setId(9L);
+            cust.setOwnerId(22L);
+            cust.setDeptId(22L);
+            com.ycmn.module.customer.mapper.BizCustomerMapper cm = mock(com.ycmn.module.customer.mapper.BizCustomerMapper.class);
+            when(cm.selectById(9L)).thenReturn(cust);
+            when(rps.anchorOf(any(), any(), any())).thenReturn(com.ycmn.common.scope.ScopeRequest.AnchorType.OWNER);
+            com.ycmn.common.engine.CustomerAccessService cas = new com.ycmn.common.engine.CustomerAccessService(
+                    cm,
+                    mock(com.ycmn.module.customer.mapper.BizCustomerShareMapper.class),
+                    mock(com.ycmn.module.system.mapper.SysDeptMapper.class),
+                    mock(com.ycmn.module.system.mapper.SysUserMapper.class),
+                    resolver,
+                    mock(com.ycmn.module.sea.mapper.BizSeaPoolMapper.class),
+                    mock(com.ycmn.module.sea.service.SeaConfigService.class),
+                    rps);
+            when(resolver.canAccess(any(com.ycmn.common.scope.ScopeRequest.class))).thenReturn(true);
+            m.when(com.ycmn.security.SecurityUtils::getCurrentUserId).thenReturn(1L);
+            cas.canView(9L);
+
+            org.mockito.ArgumentCaptor<com.ycmn.common.scope.ScopeRequest> detailReq =
+                    org.mockito.ArgumentCaptor.forClass(com.ycmn.common.scope.ScopeRequest.class);
+            verify(resolver).canAccess(detailReq.capture());
+            assertEquals("customer", detailReq.getValue().getModule());
+            assertEquals("view", detailReq.getValue().getAction());
+            assertEquals(com.ycmn.common.scope.ScopeRequest.AnchorType.OWNER, detailReq.getValue().getAnchor());
+        }
+    }
 }

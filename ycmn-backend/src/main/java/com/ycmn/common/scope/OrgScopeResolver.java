@@ -83,6 +83,143 @@ public class OrgScopeResolver {
         return appendSystemLevelScopes(user, base);
     }
 
+    // ==================== 统一数据访问层入口(批② 2026-08-10) ====================
+
+    /**
+     * 统一解析: 列表/统计/单条判定共用。
+     * OWNER 锚点 → visibleUserIds(负责人集合, null=全部); ORG 锚点 → visibleDeptIds(部门集合)。
+     * 多角色并集; 任一 all → 全量; 系统开关仅 OWNER 锚点生效(ORG 由部门树天然覆盖)。
+     */
+    public ScopeDecision resolveScope(ScopeRequest req) {
+        if (req == null || req.getUser() == null) return ScopeDecision.none();
+        SecurityUser user = req.getUser();
+        ScopeRequest.AnchorType anchor = req.getAnchor() != null ? req.getAnchor() : ScopeRequest.AnchorType.OWNER;
+        if (anchor == ScopeRequest.AnchorType.ORG) {
+            List<Long> deptIds = null;
+            List<String> scopes = scopeCodes(req);
+            for (String scope : scopes) {
+                List<Long> part = resolveDeptScope(user, scope);
+                if (part == null) { deptIds = null; break; } // all
+                if (deptIds == null) deptIds = new ArrayList<>(part);
+                else deptIds.addAll(part);
+            }
+            ScopeDecision d = new ScopeDecision();
+            d.setVisibleDeptIds(deptIds);
+            d.setVisibleUserIds(deptIds == null ? null : List.of());
+            return d;
+        }
+        // OWNER 锚点
+        List<Long> visible = null;
+        List<String> scopes = scopeCodes(req);
+        for (String scope : scopes) {
+            List<Long> part = resolveScope(user, scope);
+            if (part == null) { visible = null; break; }
+            if (visible == null) visible = new ArrayList<>(part);
+            else visible.addAll(part);
+        }
+        ScopeDecision d = new ScopeDecision();
+        d.setVisibleUserIds(visible);
+        d.setVisibleDeptIds(visible == null ? null : List.of());
+        return d;
+    }
+
+    /** 单条访问判定: 与列表解析共用同一链路(根治 P1-05 口径分裂) */
+    public boolean canAccess(ScopeRequest req) {
+        if (req == null || req.getUser() == null) return false;
+        ScopeDecision d = resolveScope(req);
+        if (d == null) return false;
+        if (d.isAll()) return true;
+        ScopeRequest.AnchorType anchor = req.getAnchor() != null ? req.getAnchor() : ScopeRequest.AnchorType.OWNER;
+        if (anchor == ScopeRequest.AnchorType.ORG) {
+            return d.canAccessDept(req.getTargetDeptId());
+        }
+        // OWNER: 本人恒可(兼容现状)
+        Long ownerId = req.getTargetOwnerId();
+        if (ownerId != null && ownerId.equals(req.getUser().getUserId())) return true;
+        return d.canAccessOwner(ownerId);
+    }
+
+    /** 范围 code 列表: 批② 直接取 SecurityUser.dataScopes(配置层批③替换为 scopeConfigs) */
+    private List<String> scopeCodes(ScopeRequest req) {
+        SecurityUser user = req.getUser();
+        if (user.getDataScopes() != null && user.getDataScopes().size() > 1) {
+            return user.getDataScopes();
+        }
+        return List.of(user.getDataScope() != null ? user.getDataScope() : "self");
+    }
+
+    /**
+     * ORG 锚点: 按组织维度解析可见部门集合(null=全部; 空=不可见; 非空=可见部门)。
+     * 直接部门树解析, 不依赖部门内是否有用户("部门无人则客户不可见"的坑)。
+     */
+    public List<Long> resolveDeptScope(SecurityUser user, String scope) {
+        if (user == null || scope == null) return List.of();
+        Long deptId = user.getDeptId();
+        switch (scope) {
+            case "all": return null;
+            case "custom": {
+                List<Long> managed = user.getManagedOrgIds();
+                if (managed == null || managed.isEmpty()) {
+                    managed = loadRoleOrgs(user); // P1-06 回退(与 OWNER 口径一致)
+                }
+                if (managed == null || managed.isEmpty()) return List.of();
+                Set<Long> deptIds = new LinkedHashSet<>();
+                for (Long orgId : managed) {
+                    if (orgId == null) continue;
+                    collectSubtree(orgId, deptIds);
+                }
+                return new ArrayList<>(deptIds);
+            }
+            case "region": {
+                Long anchor = deptId == null ? null : findAncestorOfType(deptId, TYPE_REGION);
+                if (anchor == null) return deptId == null ? List.of() : collectSubtreeList(findRoot(deptId));
+                return collectSubtreeList(anchor);
+            }
+            case "office": {
+                Long anchor = deptId == null ? null : findAncestorOfType(deptId, TYPE_OFFICE);
+                if (anchor == null) return deptId == null ? List.of() : collectSubtreeList(deptId);
+                return collectSubtreeList(anchor);
+            }
+            case "dept":
+            case "dept_and_children":
+            case "org_and_children": {
+                if (deptId == null) return List.of();
+                Set<Long> deptIds = new LinkedHashSet<>();
+                collectSubtree(deptId, deptIds);
+                if ("org_and_children".equals(scope) && user.getManagedOrgIds() != null) {
+                    for (Long orgId : user.getManagedOrgIds()) {
+                        if (orgId != null) collectSubtree(orgId, deptIds);
+                    }
+                }
+                return new ArrayList<>(deptIds);
+            }
+            case "org": {
+                return deptId == null ? List.of() : List.of(deptId);
+            }
+            case "team": {
+                if (deptId == null) return List.of();
+                List<Long> teamUsers = resolveTeam(user.getUserId());
+                Set<Long> deptIds = new LinkedHashSet<>();
+                if (!teamUsers.isEmpty()) {
+                    List<SysUser> users = userMapper.selectBatchIds(teamUsers);
+                    for (SysUser u : users) {
+                        if (u.getDeptId() != null) deptIds.add(u.getDeptId());
+                    }
+                }
+                if (!deptIds.contains(deptId)) deptIds.add(deptId); // 恒含本人部门
+                return new ArrayList<>(deptIds);
+            }
+            case "self":
+            default: return deptId == null ? List.of() : List.of(deptId);
+        }
+    }
+
+    private List<Long> collectSubtreeList(Long rootId) {
+        Set<Long> acc = new LinkedHashSet<>();
+        collectSubtree(rootId, acc);
+        return new ArrayList<>(acc);
+    }
+
     /**
      * 【系统级默认规则 2026-08-07】在数据范围基础上并集追加系统开关集合：
      * <ul>
