@@ -375,18 +375,12 @@ public class CustomerService {
     public void delete(Long id) {
         BizCustomer existing = customerMapper.selectById(id);
         if (existing == null) return;
-        // 权限检查：只有负责人和管理员可以删除
-        checkOwnerOrAdmin(existing, "只能删除自己的客户");
-        customerMapper.deleteById(id);
-    }
-
-    /** 检查当前用户是否为客户负责人或系统管理员 */
-    private void checkOwnerOrAdmin(BizCustomer customer, String msg) {
-        Long userId = SecurityUtils.getCurrentUserId();
-        boolean isAdmin = SecurityUtils.isAdmin();
-        if (!isAdmin && (customer.getOwnerId() == null || !customer.getOwnerId().equals(userId))) {
-            throw new org.springframework.security.access.AccessDeniedException(msg);
+        // 【2026-08-10 权限体系重构】删除校验统一走 canDelete(池级PERM_DELETE / 非池按"删除范围"):
+        // 取代旧的 checkOwnerOrAdmin(仅负责人/admin)——否则删除范围配置不生效
+        if (!customerAccessService.canDelete(id)) {
+            throw new org.springframework.security.access.AccessDeniedException("只能删除自己范围内的客户");
         }
+        customerMapper.deleteById(id);
     }
 
     // ====== 自动共享规则 ======
