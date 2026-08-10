@@ -1,10 +1,10 @@
 # YCMN 权限码字典(自动生成)
 
-> 生成时间: 2026-08-09 | 来源: 生产 sys_menu + sys_role_menu
+> 生成时间: 2026-08-10 | 来源: 生产 sys_menu + sys_role_menu
 > 本文件由 scripts/gen-permission-dict.sh 自动生成,**禁止手改**;权限变更后重新运行。
 > 格式约定: 权限码 = `模块:动作`(如 customer:view / system:user:add)
 
-## 一、权限码清单(67 条)
+## 一、权限码清单(63 条)
 
 | 权限码 | 菜单名 | 类型 | 路径 | 绑定的角色 |
 |---|---|---|---|---|
@@ -36,24 +36,21 @@
 | `sea:claim` | 公海捞取 | 3 | `` | 系统管理员,行政,销售员,销售总监 |
 | `sea:config:edit` | 公海配置编辑 | 3 | `NULL` | 系统管理员,销售总监 |
 | `sea:config:view` | 公海配置查看 | 3 | `NULL` | 系统管理员,行政,销售总监 |
-| `sea:export` | 公海导出 | 3 | `` | 系统管理员,行政,销售总监 |
-| `sea:home` | 公海主页 | 2 | `/sea` | 系统管理员,行政,销售员,销售总监 |
 | `sea:import` | 公海导入 | 3 | `` | 系统管理员,行政,销售总监 |
 | `sea:pool:delete` | 公海删除 | 3 | `` | 系统管理员,销售员,销售总监 |
-| `sea:pool:edit` | 公海编辑 | 3 | `` | 系统管理员,销售员,销售总监 |
 | `sea:view` | 公海管理 / 捞取记录 | 2 | `/sea / /sea/records` | 系统管理员,行政,销售员,销售总监 |
 | `statistics:scoreboard` | 积分榜 | 2 | `/scoreboard` | 系统管理员,行政 |
 | `statistics:view` | 核心客户六项指标 / 统计分析 | 2 | `/indicator / /statistics` | 系统管理员,行政,销售员,销售总监 |
 | `system:config:edit` | 系统配置编辑 | 3 | `NULL` | 系统管理员,销售总监 |
-| `system:config:view` | 基础数据-字典 / 系统设置 | 2 | `/system/config / NULL` | 系统管理员,行政,销售员,销售总监 |
+| `system:config:view` | 基础数据-字典 / 系统设置 | 2 | `/system/config / NULL` | 系统管理员,行政,销售总监 |
 | `system:dept:add` | 新增组织 | 3 | `NULL` | 系统管理员,销售总监 |
 | `system:dept:delete` | 删除组织 | 3 | `NULL` | 系统管理员,销售总监 |
 | `system:dept:edit` | 部门编辑 | 3 | `NULL` | 系统管理员,销售总监 |
-| `system:dept:view` | 基础数据-部门 / 组织架构 / 部门管理 | 2 | `/system/org / NULL` | 系统管理员,行政,销售员,销售总监 |
-| `system:group:add` | 集团新增 | 3 | `NULL` | 系统管理员,销售员 |
-| `system:group:delete` | 删除集团 | 3 | `NULL` | 系统管理员,销售员 |
-| `system:group:edit` | 集团编辑 | 3 | `NULL` | 系统管理员,销售员 |
-| `system:group:view` | 集团管理 | 2 | `/system/group` | 系统管理员,销售员 |
+| `system:dept:view` | 基础数据-部门 / 组织架构 / 部门管理 | 2 | `/system/org / NULL` | 系统管理员,行政,销售总监 |
+| `system:group:add` | 集团新增 | 3 | `NULL` | 系统管理员 |
+| `system:group:delete` | 删除集团 | 3 | `NULL` | 系统管理员 |
+| `system:group:edit` | 集团编辑 | 3 | `NULL` | 系统管理员 |
+| `system:group:view` | 集团管理 | 2 | `/system/group` | 系统管理员 |
 | `system:log:view` | 日志管理 | 2 | `/system/log` | 系统管理员,销售总监 |
 | `system:menu:edit` | 菜单编辑 | 3 | `NULL` | 系统管理员,销售总监 |
 | `system:menu:view` | 菜单查看 | 3 | `NULL` | 系统管理员,销售总监 |
@@ -70,10 +67,10 @@
 | `system:rule:delete` | 删除规则 | 3 | `NULL` | 系统管理员 |
 | `system:rule:edit` | 规则编辑 | 3 | `NULL` | 系统管理员 |
 | `system:rule:view` | 权限规则 | 2 | `/system/rule` | 系统管理员 |
-| `system:user:add` | 用户新增 | 3 | `` | 系统管理员,行政,销售员,销售总监 |
-| `system:user:delete` | 删除用户 | 3 | `NULL` | 系统管理员,销售员,销售总监 |
-| `system:user:edit` | 用户编辑 | 3 | `` | 系统管理员,行政,销售员,销售总监 |
-| `system:user:view` | 人员管理 / 基础数据-用户 | 2 | `/system/user / NULL` | 系统管理员,行政,销售员,销售总监 |
+| `system:user:add` | 用户新增 | 3 | `` | 系统管理员,行政,销售总监 |
+| `system:user:delete` | 删除用户 | 3 | `NULL` | 系统管理员,销售总监 |
+| `system:user:edit` | 用户编辑 | 3 | `` | 系统管理员,行政,销售总监 |
+| `system:user:view` | 人员管理 / 基础数据-用户 | 2 | `/system/user / NULL` | 系统管理员,行政,销售总监 |
 
 ## 二、角色权限矩阵
 
@@ -107,24 +104,21 @@
 | `sea:claim` | ✅ | ✅ | ✅ | ✅ |
 | `sea:config:edit` | ✅ |   |   | ✅ |
 | `sea:config:view` | ✅ | ✅ |   | ✅ |
-| `sea:export` | ✅ | ✅ |   | ✅ |
-| `sea:home` | ✅ | ✅ | ✅ | ✅ |
 | `sea:import` | ✅ | ✅ |   | ✅ |
 | `sea:pool:delete` | ✅ |   | ✅ | ✅ |
-| `sea:pool:edit` | ✅ |   | ✅ | ✅ |
 | `sea:view` | ✅ | ✅ | ✅ | ✅ |
 | `statistics:scoreboard` | ✅ | ✅ |   |   |
 | `statistics:view` | ✅ | ✅ | ✅ | ✅ |
 | `system:config:edit` | ✅ |   |   | ✅ |
-| `system:config:view` | ✅ | ✅ | ✅ | ✅ |
+| `system:config:view` | ✅ | ✅ |   | ✅ |
 | `system:dept:add` | ✅ |   |   | ✅ |
 | `system:dept:delete` | ✅ |   |   | ✅ |
 | `system:dept:edit` | ✅ |   |   | ✅ |
-| `system:dept:view` | ✅ | ✅ | ✅ | ✅ |
-| `system:group:add` | ✅ |   | ✅ |   |
-| `system:group:delete` | ✅ |   | ✅ |   |
-| `system:group:edit` | ✅ |   | ✅ |   |
-| `system:group:view` | ✅ |   | ✅ |   |
+| `system:dept:view` | ✅ | ✅ |   | ✅ |
+| `system:group:add` | ✅ |   |   |   |
+| `system:group:delete` | ✅ |   |   |   |
+| `system:group:edit` | ✅ |   |   |   |
+| `system:group:view` | ✅ |   |   |   |
 | `system:log:view` | ✅ |   |   | ✅ |
 | `system:menu:edit` | ✅ |   |   | ✅ |
 | `system:menu:view` | ✅ |   |   | ✅ |
@@ -141,8 +135,8 @@
 | `system:rule:delete` | ✅ |   |   |   |
 | `system:rule:edit` | ✅ |   |   |   |
 | `system:rule:view` | ✅ |   |   |   |
-| `system:user:add` | ✅ | ✅ | ✅ | ✅ |
-| `system:user:delete` | ✅ |   | ✅ | ✅ |
-| `system:user:edit` | ✅ | ✅ | ✅ | ✅ |
-| `system:user:view` | ✅ | ✅ | ✅ | ✅ |
+| `system:user:add` | ✅ | ✅ |   | ✅ |
+| `system:user:delete` | ✅ |   |   | ✅ |
+| `system:user:edit` | ✅ | ✅ |   | ✅ |
+| `system:user:view` | ✅ | ✅ |   | ✅ |
 
