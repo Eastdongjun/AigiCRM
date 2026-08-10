@@ -4,6 +4,7 @@
 // 共享内容：周期/Tab/加载态 + 分类树/个人记录/全员聚合/排行数据 + 各计算派生 + 导出动作。
 import { ref, computed, inject } from 'vue'
 import { getCategoryTree, getRecords, getCategoryStats, getScoreboard, getIncentiveRanking } from '@/api/incentive'
+import { getMyStatsPermission } from '@/api/system'
 import { cachedGet } from '@/utils/layout-cache'
 import { useUserStore } from '@/store/user'
 
@@ -21,6 +22,7 @@ export function useIncentiveStats() {
   const loading = ref(false)
   const period = ref('2026上半年')
   const activeTab = ref('table')
+  const noPermission = ref(false) // M5: 未获公司级统计可见授权
   const records = ref([])            // 个人记录(当前登录人) — 仅供顶部卡片
   const catStat = ref({ byCategory: [], totalFiles: 0, totalScore: 0 })  // 全员聚合 — 供激励统计表
   const categories = ref([])
@@ -130,6 +132,11 @@ export function useIncentiveStats() {
     pageNum.value = 1
     loading.value = true
     const p = period.value
+    // M5 2026-08-10: 未获公司级统计可见授权 → 空态, 不加载全公司聚合
+    try {
+      const me = await cachedGet('myStatsPerm', getMyStatsPermission)
+      if (!me.data?.canViewCompany) { noPermission.value = true; loading.value = false; return }
+    } catch {}
     // 【性能 2026-08-08】五个接口相互独立，由串行 await 改为并发 Promise.allSettled
     // （单页从 ~5×RTT 降到 ~1×max(RTT)，缓解激励统计页卡顿）；各接口独立容错。
     try {
@@ -165,7 +172,7 @@ export function useIncentiveStats() {
   }
 
   return {
-    userStore, loading, period, activeTab, records, catStat, categories,
+    userStore, loading, noPermission, period, activeTab, records, catStat, categories,
     scoreboard, deptList, pageNum, pageSize, pagedScoreboard, periodOptions,
     catColors, catIcons,
     totalCategories, shareableCount, fileCountOf, totalRecords, totalScore,

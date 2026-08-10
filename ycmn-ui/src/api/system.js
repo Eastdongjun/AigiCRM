@@ -179,3 +179,14 @@ export function updateGroup(id, data) {
 export function deleteGroup(id) {
   return request.delete(`/system/groups/${id}`)
 }
+
+// ---- 公司级统计可见授权(M5 2026-08-10) ----
+export function getStatsPermissionList() {
+  return request.get('/stats-permission/list')
+}
+export function syncStatsPermission(userIds) {
+  return request.post('/stats-permission/sync', { userIds })
+}
+export function getMyStatsPermission() {
+  return request.get('/stats-permission/me')
+}

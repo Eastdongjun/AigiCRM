@@ -1,5 +1,10 @@
 <template>
   <div class="indicator-page">
+    <!-- M5 2026-08-10: 未获公司级统计可见授权 → 空态提示 -->
+    <div v-if="noPermission" class="no-perm">
+      <el-empty description="无权限查看公司级统计，请联系管理员授权" />
+    </div>
+    <template v-else>
     <!-- 标题 -->
     <h3 class="page-title">统计总览</h3>
 
@@ -133,12 +138,14 @@
         </el-table-column>
       </el-table>
     </div>
+    </template>
   </div>
 </template>
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { getIndicatorStats } from '@/api/statistics'
+import { getMyStatsPermission } from '@/api/system'
 
 const tab = ref('personal')
 const data = ref({})
@@ -146,13 +153,17 @@ const personalRanking = computed(() => data.value.personalRanking || [])
 const deptRanking = computed(() => data.value.deptRanking || [])
 const regionRanking = computed(() => data.value.regionRanking || [])
 
+const noPermission = ref(false)
 const loadData = async () => {
+  // M5 2026-08-10: 未获公司级统计可见授权 → 空态
+  try { const me = await getMyStatsPermission(); if (!me.data?.canViewCompany) { noPermission.value = true; return } } catch {}
   try { const r = await getIndicatorStats(); data.value = r.data || {} } catch {}
 }
 onMounted(loadData)
 </script>
 
 <style scoped>
+.no-perm { display: flex; align-items: center; justify-content: center; min-height: calc(100vh - 200px); }
 .indicator-page { min-height: calc(100vh - 100px); display: flex; flex-direction: column; }
 .page-title { font-size: 18px; font-weight: 600; color: #333; margin: 0 0 12px; }
 

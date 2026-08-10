@@ -1,5 +1,10 @@
 <template>
   <div class="incentive-stats" v-loading="loading" element-loading-text="正在加载激励统计…">
+    <!-- M5 2026-08-10: 未获公司级统计可见授权 → 空态 -->
+    <div v-if="noPermission" class="no-perm">
+      <el-empty description="无权限查看全公司激励统计，请联系管理员授权" />
+    </div>
+    <template v-else>
     <!-- 概览卡片 -->
     <StatsCards />
 
@@ -29,6 +34,7 @@
 
     <!-- 部门排行 -->
     <DeptRankTableView v-if="activeTab === 'dept'" />
+    </template>
   </div>
 </template>
 
@@ -44,13 +50,14 @@ import DeptRankTableView from './DeptRankTableView.vue'
 const stats = useIncentiveStats()
 provide(IncentiveStatsKey, stats)
 
-const { loading, activeTab, period, periodOptions, loadData } = stats
+const { loading, noPermission, activeTab, period, periodOptions, loadData } = stats
 
 watch(period, loadData)
 onMounted(loadData)
 </script>
 
 <style scoped>
+.no-perm { display: flex; align-items: center; justify-content: center; min-height: calc(100vh - 200px); }
 .incentive-stats { }
 .tab-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
 .tabs { display: flex; gap: 0; }
