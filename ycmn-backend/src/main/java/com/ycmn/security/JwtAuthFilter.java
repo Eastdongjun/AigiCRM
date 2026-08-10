@@ -34,6 +34,11 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                 filterChain.doFilter(request, response);
                 return;
             }
+            // M2 2026-08-10: 已拉黑(注销/泄露后踢下线)的 token 立即失效, 不建立会话
+            if (jwtTokenProvider.isBlacklisted(jwtTokenProvider.getJtiFromToken(token))) {
+                filterChain.doFilter(request, response);
+                return;
+            }
             Long userId = jwtTokenProvider.getUserIdFromToken(token);
             UserDetails userDetails = userDetailsService.loadUserByUsername(String.valueOf(userId));
 

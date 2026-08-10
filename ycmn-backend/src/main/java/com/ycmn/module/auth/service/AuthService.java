@@ -35,10 +35,12 @@ public class AuthService {
     private static final String RESET_RATE_PREFIX = "pwd_reset_rate:";
     private static final String RESET_ERROR_PREFIX = "pwd_reset_error:";
     private static final String LOGIN_FAIL_PREFIX = "login_fail:";
+    private static final String LOGIN_FAIL_IP_PREFIX = "login_fail_ip:";
     private static final String LOOKUP_RATE_PREFIX = "pwd_lookup_rate:"; // 忘记密码查询限流（IP）
     private static final long CODE_TTL_SECONDS = 300;
     private static final long RATE_LIMIT_SECONDS = 60;
     private static final int MAX_LOGIN_FAILS = 5;          // 同一IP+用户名最大失败次数
+    private static final int MAX_IP_LOGIN_FAILS = 20;      // 同一IP最大失败次数(防跨用户名分布式爆破)
 
     /** 【安全 2026-08-08】忘记密码查询 IP 限流（60s，防匿名批量枚举用户名）；true=已限流 */
     public boolean lookupRateLimited(String ip) {
@@ -49,6 +51,9 @@ public class AuthService {
     }
     private static final long LOGIN_LOCK_SECONDS = 900;    // 锁定时间 15 分钟
     private static final int MAX_RESET_ERRORS = 5;         // 验证码最大错误次数
+    private static final String RESET_IP_PREFIX = "pwd_reset_ip:";
+    private static final int MAX_RESET_IP = 10;            // 同一IP窗口内最大发码次数(防短信轰炸/枚举驱动)
+    private static final long RESET_IP_LOCK_SECONDS = 3600;
 
     private final SysUserMapper userMapper;
     private final SysRoleMapper roleMapper;
@@ -71,6 +76,14 @@ public class AuthService {
             throw new BusinessException(401, "登录失败次数过多，请15分钟后再试");
         }
 
+        // 【安全 2026-08-10】IP 级限流：防跨用户名分布式爆破(同一 IP 换不同账号试密码绕过用户名级计数)
+        String ipFailKey = LOGIN_FAIL_IP_PREFIX + clientIp;
+        Object ipFailObj = redisTemplate.opsForValue().get(ipFailKey);
+        int ipFailCount = ipFailObj != null ? Integer.parseInt(ipFailObj.toString()) : 0;
+        if (ipFailCount >= MAX_IP_LOGIN_FAILS) {
+            throw new BusinessException(401, "登录尝试过于频繁，请稍后再试");
+        }
+
         SysUser user = userMapper.selectOne(
                 new LambdaQueryWrapper<SysUser>()
                         .eq(SysUser::getUsername, username)
@@ -81,11 +94,14 @@ public class AuthService {
                 || !passwordEncoder.matches(request.getPassword(), user.getPassword())) {
             failCount++;
             redisTemplate.opsForValue().set(failKey, failCount, LOGIN_LOCK_SECONDS, TimeUnit.SECONDS);
+            ipFailCount++;
+            redisTemplate.opsForValue().set(ipFailKey, ipFailCount, LOGIN_LOCK_SECONDS, TimeUnit.SECONDS);
             throw new BusinessException(401, "账号或密码错误");
         }
 
         // 登录成功，清除失败计数
         redisTemplate.delete(failKey);
+        redisTemplate.delete(ipFailKey);
 
         String token = jwtTokenProvider.generateToken(user.getId(), user.getUsername(),
                 request.getRememberMe() != null && request.getRememberMe());
@@ -96,6 +112,13 @@ public class AuthService {
         response.setUsername(user.getUsername());
         response.setRealName(user.getRealName());
         return response;
+    }
+
+    /** 【安全 2026-08-10 M2】注销：按 jti 拉黑当前 token, 立即失效(即使 token 被窃也无法复用) */
+    public void logout(String token) {
+        if (token != null && !token.isBlank()) {
+            jwtTokenProvider.blacklistToken(token);
+        }
     }
 
     public UserInfoResponse getUserInfo() {
@@ -183,21 +206,31 @@ public class AuthService {
         return resp;
     }
 
-    public void sendResetCode(ForgotPasswordSendCodeRequest request) {
+    public void sendResetCode(ForgotPasswordSendCodeRequest request, String clientIp) {
         // 【对齐 2026-08-08】DTO 声明支持 email 但后端从未实现邮件发送；明确拒绝而非静默降级
         if ("email".equals(request.getMethod())) {
             throw new BusinessException(400, "邮箱验证暂未开通，请使用手机验证");
         }
+        // 【安全 2026-08-10 M4】限流前置(在查用户之前) + IP 级计数每次请求:
+        //   防枚举驱动短信轰炸(原来先查用户暴露存在性, 且仅按用户名限流, 换用户名可绕)
+        String rateKey = RESET_RATE_PREFIX + request.getUsername() + ":phone";
+        if (Boolean.TRUE.equals(redisTemplate.hasKey(rateKey))) {
+            throw new BusinessException(429, "操作太频繁，请稍后再试");
+        }
+        String ipRateKey = RESET_IP_PREFIX + clientIp;
+        Object ipRateObj = redisTemplate.opsForValue().get(ipRateKey);
+        int ipSendCount = ipRateObj != null ? Integer.parseInt(ipRateObj.toString()) : 0;
+        if (ipSendCount >= MAX_RESET_IP) {
+            throw new BusinessException(429, "操作太频繁，请稍后再试");
+        }
+        // 每次请求都计 IP 次数(窗口滑动 1h), 无论用户是否存在——封死枚举/轰炸
+        redisTemplate.opsForValue().increment(ipRateKey);
+        redisTemplate.expire(ipRateKey, RESET_IP_LOCK_SECONDS, TimeUnit.SECONDS);
+
         SysUser user = findActiveUser(request.getUsername());
 
         if (user.getPhone() == null || user.getPhone().isBlank()) {
             throw new BusinessException(400, "该账号未绑定手机号");
-        }
-
-        // 限流检查
-        String rateKey = RESET_RATE_PREFIX + request.getUsername() + ":phone";
-        if (Boolean.TRUE.equals(redisTemplate.hasKey(rateKey))) {
-            throw new BusinessException(429, "操作太频繁，请稍后再试");
         }
 
         // 生成6位验证码

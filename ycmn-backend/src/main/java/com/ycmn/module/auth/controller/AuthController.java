@@ -64,7 +64,12 @@ public class AuthController {
     }
 
     @PostMapping("/logout")
-    public Result<Void> logout() {
+    public Result<Void> logout(HttpServletRequest httpRequest) {
+        // 【安全 2026-08-10 M2】拉黑当前 token(按 jti)——注销即失效, 防被盗 token 复用
+        String auth = httpRequest.getHeader("Authorization");
+        if (auth != null && auth.startsWith("Bearer ")) {
+            authService.logout(auth.substring(7));
+        }
         return Result.ok();
     }
 
@@ -82,8 +87,9 @@ public class AuthController {
 
     @PostMapping("/forgot-password/send-code")
     public Result<Void> forgotPasswordSendCode(
-            @Valid @RequestBody ForgotPasswordSendCodeRequest request) {
-        authService.sendResetCode(request);
+            @Valid @RequestBody ForgotPasswordSendCodeRequest request, HttpServletRequest httpRequest) {
+        // 【安全 2026-08-10 M4】传可信 IP 做发码限流(防枚举驱动短信轰炸)
+        authService.sendResetCode(request, ClientIpUtils.getClientIp(httpRequest));
         return Result.ok();
     }
 
