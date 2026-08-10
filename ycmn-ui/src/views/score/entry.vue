@@ -121,7 +121,9 @@ import { getDownloadToken } from '@/utils/token'
 import { downloadFile } from '@/utils/download'
 
 const userStore = useUserStore()
-const isAdmin = computed(() => userStore.roles?.includes('admin'))
+// 【修复 2026-08-10 P2-07】与后端 score:manage 权限码对齐(此前仅 admin 可操作, 与权限字典矛盾:
+// 字典中 score:manage 已授销售员/总监, 后端也放行, 前端却隐藏)
+const isAdmin = computed(() => userStore.hasPermission('score:manage'))
 
 const currentYear = new Date().getFullYear()
 const year = ref(currentYear)

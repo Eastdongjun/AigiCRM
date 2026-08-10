@@ -128,7 +128,8 @@ class OrgScopeResolverTest {
             if (managers.contains(3L)) return List.of(user(4, 12L, 3L));
             return List.of();
         });
-        OrgScopeResolver r = new OrgScopeResolver(userMapper, deptMapper, configService);
+        OrgScopeResolver r = new OrgScopeResolver(userMapper, deptMapper, configService,
+                mock(com.ycmn.module.system.mapper.SysRoleOrgMapper.class));
         List<Long> u = r.resolve(su(1L, "team", 11L));
         assertEquals(Set.of(1L, 2L, 3L, 4L), new HashSet<>(u));
         // 4 层链：in(1) → in(2) → in(3) → in(4) 空，逐层各查一次
@@ -147,7 +148,8 @@ class OrgScopeResolverTest {
             }
             return List.of();
         });
-        OrgScopeResolver r = new OrgScopeResolver(userMapper, deptMapper, configService);
+        OrgScopeResolver r = new OrgScopeResolver(userMapper, deptMapper, configService,
+                mock(com.ycmn.module.system.mapper.SysRoleOrgMapper.class));
         List<Long> u = r.resolve(su(1L, "team", 11L));
         assertEquals(Set.of(1L, 2L, 3L, 4L, 5L, 6L), new HashSet<>(u));
         assertFalse(u.contains(7L), "第 6 级下级（本人+6）不可见");
@@ -163,7 +165,8 @@ class OrgScopeResolverTest {
             assertStatusFiltered(w);
             return List.of();
         });
-        OrgScopeResolver r = new OrgScopeResolver(userMapper, deptMapper, configService);
+        OrgScopeResolver r = new OrgScopeResolver(userMapper, deptMapper, configService,
+                mock(com.ycmn.module.system.mapper.SysRoleOrgMapper.class));
         assertEquals(Set.of(1L), new HashSet<>(r.resolve(su(1L, "team", 11L))));
         verify(userMapper, times(1)).selectList(any(LambdaQueryWrapper.class));
     }
@@ -188,7 +191,8 @@ class OrgScopeResolverTest {
                     "usersInDepts 必须按收集到的子树 deptIds 查询");
             return List.of(user(2, 12L, null));
         });
-        OrgScopeResolver r = new OrgScopeResolver(userMapper, deptMapper, configService);
+        OrgScopeResolver r = new OrgScopeResolver(userMapper, deptMapper, configService,
+                mock(com.ycmn.module.system.mapper.SysRoleOrgMapper.class));
         List<Long> u = r.resolve(su(1L, "dept", 11L));
         assertEquals(Set.of(1L, 2L), new HashSet<>(u));
         verify(deptMapper, times(2)).selectList(any(LambdaQueryWrapper.class)); // 查 11、12 的子
@@ -212,7 +216,8 @@ class OrgScopeResolverTest {
             assertStatusFiltered(w);
             return List.of(user(2, 12L, null), user(3, 13L, null));
         });
-        OrgScopeResolver r = new OrgScopeResolver(userMapper, deptMapper, configService);
+        OrgScopeResolver r = new OrgScopeResolver(userMapper, deptMapper, configService,
+                mock(com.ycmn.module.system.mapper.SysRoleOrgMapper.class));
         List<Long> u = r.resolve(su(1L, "dept", 11L));
         assertEquals(Set.of(1L, 2L, 3L), new HashSet<>(u), "环数据不误伤、不无限递归");
         // 恰 3 次子树查询（13 的子 11 已收集，不再递归查 11）
@@ -224,13 +229,15 @@ class OrgScopeResolverTest {
 
     @Test
     void allReturnsNull() {
-        OrgScopeResolver r = new OrgScopeResolver(userMapper, deptMapper, configService);
+        OrgScopeResolver r = new OrgScopeResolver(userMapper, deptMapper, configService,
+                mock(com.ycmn.module.system.mapper.SysRoleOrgMapper.class));
         assertNull(r.resolve(su(1L, "all", 11L)));
     }
 
     @Test
     void selfReturnsOnlySelf() {
-        OrgScopeResolver r = new OrgScopeResolver(userMapper, deptMapper, configService);
+        OrgScopeResolver r = new OrgScopeResolver(userMapper, deptMapper, configService,
+                mock(com.ycmn.module.system.mapper.SysRoleOrgMapper.class));
         assertEquals(Set.of(1L), new HashSet<>(r.resolve(su(1L, "self", 11L))));
     }
 
@@ -271,7 +278,8 @@ class OrgScopeResolverTest {
             if (parents.contains(11L)) return List.of(dept(12, 11L));
             return List.of();
         });
-        OrgScopeResolver r = new OrgScopeResolver(userMapper, deptMapper, configService);
+        OrgScopeResolver r = new OrgScopeResolver(userMapper, deptMapper, configService,
+                mock(com.ycmn.module.system.mapper.SysRoleOrgMapper.class));
         List<Long> u = r.resolve(suMulti(1L, List.of("team", "dept"), 11L));
         // team={1,2,3} ∪ dept={1,2,5} = {1,2,3,5}
         assertEquals(Set.of(1L, 2L, 3L, 5L), new HashSet<>(u), "并集=两角色各自可见集合并集");
@@ -280,7 +288,8 @@ class OrgScopeResolverTest {
     /** 任一角色 all → 本集团不过滤（null 短路），不做无谓解析 */
     @Test
     void unionShortCircuitsOnAll() {
-        OrgScopeResolver r = new OrgScopeResolver(userMapper, deptMapper, configService);
+        OrgScopeResolver r = new OrgScopeResolver(userMapper, deptMapper, configService,
+                mock(com.ycmn.module.system.mapper.SysRoleOrgMapper.class));
         assertNull(r.resolve(suMulti(1L, List.of("all", "team"), 11L)));
         verify(userMapper, never()).selectList(any(LambdaQueryWrapper.class));
     }
@@ -301,7 +310,8 @@ class OrgScopeResolverTest {
             assertStatusFiltered(w);
             return List.of(user(2, 12L, null));
         });
-        OrgScopeResolver r = new OrgScopeResolver(userMapper, deptMapper, configService);
+        OrgScopeResolver r = new OrgScopeResolver(userMapper, deptMapper, configService,
+                mock(com.ycmn.module.system.mapper.SysRoleOrgMapper.class));
         List<Long> u = r.resolve(s); // dataScopes size=1 → 单值路径 dataScope=dept
         assertEquals(Set.of(1L, 2L), new HashSet<>(u));
     }
@@ -326,7 +336,8 @@ class OrgScopeResolverTest {
                     "org_and_children 必须按子树 deptIds 查询");
             return List.of(user(2, 12L, null));
         });
-        OrgScopeResolver r = new OrgScopeResolver(userMapper, deptMapper, configService);
+        OrgScopeResolver r = new OrgScopeResolver(userMapper, deptMapper, configService,
+                mock(com.ycmn.module.system.mapper.SysRoleOrgMapper.class));
         List<Long> u = r.resolve(su(1L, "org_and_children", 11L));
         assertEquals(Set.of(1L, 2L), new HashSet<>(u), "org_and_children 组织管理员可见部门树（含子级）");
     }
@@ -341,7 +352,8 @@ class OrgScopeResolverTest {
             assertEquals(Set.of(11L), deptIds, "org 只查询本部门，不递归子部门");
             return List.of(user(7, 11L, null));
         });
-        OrgScopeResolver r = new OrgScopeResolver(userMapper, deptMapper, configService);
+        OrgScopeResolver r = new OrgScopeResolver(userMapper, deptMapper, configService,
+                mock(com.ycmn.module.system.mapper.SysRoleOrgMapper.class));
         List<Long> u = r.resolve(su(1L, "org", 11L));
         assertEquals(Set.of(1L, 7L), new HashSet<>(u), "org 仅本部门，不含子部门用户");
         verify(deptMapper, never()).selectList(any(LambdaQueryWrapper.class));
@@ -362,7 +374,8 @@ class OrgScopeResolverTest {
             if (managers.contains(2L)) return List.of(user(3, 11L, 2L));
             return List.of();
         });
-        OrgScopeResolver r = new OrgScopeResolver(userMapper, deptMapper, configService);
+        OrgScopeResolver r = new OrgScopeResolver(userMapper, deptMapper, configService,
+                mock(com.ycmn.module.system.mapper.SysRoleOrgMapper.class));
         List<Long> u = r.resolve(su(1L, "self", 11L));
         assertEquals(Set.of(1L, 2L, 3L), new HashSet<>(u), "self+上级开关: 可见递归下属链(≤5层)");
         verify(userMapper, times(3)).selectList(any(LambdaQueryWrapper.class)); // in(1)→in(2)→in(3)空
@@ -389,7 +402,8 @@ class OrgScopeResolverTest {
             assertTrue(deptIds.containsAll(List.of(11L, 12L)), "负责人子树必须含全部子部门");
             return List.of(user(2, 12L, null), user(3, 11L, null));
         });
-        OrgScopeResolver r = new OrgScopeResolver(userMapper, deptMapper, configService);
+        OrgScopeResolver r = new OrgScopeResolver(userMapper, deptMapper, configService,
+                mock(com.ycmn.module.system.mapper.SysRoleOrgMapper.class));
         List<Long> u = r.resolve(su(1L, "self", 11L));
         assertEquals(Set.of(1L, 2L, 3L), new HashSet<>(u), "self+负责人开关: 可见负责组织整棵子树");
     }
@@ -416,7 +430,8 @@ class OrgScopeResolverTest {
             assertTrue(deptIds.containsAll(List.of(21L, 22L, 23L)), "负责人整棵子树递归");
             return List.of(user(4, 21L, null), user(5, 22L, null), user(6, 23L, null));
         });
-        OrgScopeResolver r = new OrgScopeResolver(userMapper, deptMapper, configService);
+        OrgScopeResolver r = new OrgScopeResolver(userMapper, deptMapper, configService,
+                mock(com.ycmn.module.system.mapper.SysRoleOrgMapper.class));
         List<Long> u = r.resolve(su(1L, "self", 21L));
         assertEquals(Set.of(1L, 4L, 5L, 6L), new HashSet<>(u), "大区负责人看整棵子树(递归)");
     }
@@ -437,7 +452,8 @@ class OrgScopeResolverTest {
             assertStatusFiltered(w);
             return List.of(); // 无负责组织
         });
-        OrgScopeResolver r = new OrgScopeResolver(userMapper, deptMapper, configService);
+        OrgScopeResolver r = new OrgScopeResolver(userMapper, deptMapper, configService,
+                mock(com.ycmn.module.system.mapper.SysRoleOrgMapper.class));
         List<Long> u = r.resolve(su(1L, "self", 11L));
         assertEquals(Set.of(1L, 2L), new HashSet<>(u), "配置缺失→默认 ON，上级可见下级");
         verify(configService).getBooleanValue(OrgScopeResolver.KEY_SUPERIOR_SEE_SUBORDINATE, true);
@@ -446,7 +462,8 @@ class OrgScopeResolverTest {
     @Test
     void bothSwitchesOffKeepsBase() {
         switchesOff();
-        OrgScopeResolver r = new OrgScopeResolver(userMapper, deptMapper, configService);
+        OrgScopeResolver r = new OrgScopeResolver(userMapper, deptMapper, configService,
+                mock(com.ycmn.module.system.mapper.SysRoleOrgMapper.class));
         assertEquals(Set.of(1L), new HashSet<>(r.resolve(su(1L, "self", 11L))), "两开关关: self 保持仅本人");
         verify(userMapper, never()).selectList(any(LambdaQueryWrapper.class));
         verify(deptMapper, never()).selectList(any(LambdaQueryWrapper.class));
@@ -455,7 +472,8 @@ class OrgScopeResolverTest {
     @Test
     void allScopeIgnoresSwitches() {
         // all 在追加开关前短路 → 不读开关、不产生任何查询（即便开关配置存在）
-        OrgScopeResolver r = new OrgScopeResolver(userMapper, deptMapper, configService);
+        OrgScopeResolver r = new OrgScopeResolver(userMapper, deptMapper, configService,
+                mock(com.ycmn.module.system.mapper.SysRoleOrgMapper.class));
         assertNull(r.resolve(su(1L, "all", 11L)), "all 范围忽略开关仍不过滤");
         verify(userMapper, never()).selectList(any(LambdaQueryWrapper.class));
         verify(deptMapper, never()).selectList(any(LambdaQueryWrapper.class));
@@ -478,7 +496,8 @@ class OrgScopeResolverTest {
             assertStatusFiltered(w);
             return List.of(); // 无负责组织
         });
-        OrgScopeResolver r = new OrgScopeResolver(userMapper, deptMapper, configService);
+        OrgScopeResolver r = new OrgScopeResolver(userMapper, deptMapper, configService,
+                mock(com.ycmn.module.system.mapper.SysRoleOrgMapper.class));
         List<Long> u = r.resolve(su(1L, "team", 11L));
         assertEquals(Set.of(1L, 2L, 3L), new HashSet<>(u));
         // team 解析一次: in(1)→in(2)→in(3) 3次；守卫避免第2次 team 查询
@@ -507,7 +526,8 @@ class OrgScopeResolverTest {
             }
             return List.of(user(5, 11L, null)); // dept 子树用户
         });
-        OrgScopeResolver r = new OrgScopeResolver(userMapper, deptMapper, configService);
+        OrgScopeResolver r = new OrgScopeResolver(userMapper, deptMapper, configService,
+                mock(com.ycmn.module.system.mapper.SysRoleOrgMapper.class));
         List<Long> u = r.resolve(suMulti(1L, List.of("self", "dept"), 11L));
         assertEquals(Set.of(1L, 5L, 2L), new HashSet<>(u), "并集 base 上追加开关集合");
     }

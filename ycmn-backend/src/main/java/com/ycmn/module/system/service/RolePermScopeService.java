@@ -10,6 +10,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * 角色-模块-动作 数据范围(权限体系重构 2026-08-10)。
@@ -19,6 +20,18 @@ import java.util.Map;
 @Service
 @RequiredArgsConstructor
 public class RolePermScopeService {
+
+    /** 合法范围级别(与 DataScopeType 主码一致; dept_and_children 为 V7 注释遗留值, 解析器按 dept 语义降级) */
+    private static final java.util.Set<String> VALID_SCOPES = java.util.Set.of(
+            "all", "custom", "region", "office", "dept", "dept_and_children", "org", "org_and_children", "team", "self");
+
+    /** 短 TTL 本地缓存(30s): effectiveScopes 在 canView/canEdit/canDelete 热路径上, 避免每判定 1 条 JDBC */
+    private static final long CACHE_TTL_MS = 30_000L;
+    private final ConcurrentHashMap<String, CacheEntry> cache = new ConcurrentHashMap<>();
+
+    private record CacheEntry(String value, long expireAt) {
+        boolean expired() { return System.currentTimeMillis() >= expireAt; }
+    }
 
     private final JdbcTemplate jdbc;
 
@@ -43,16 +56,32 @@ public class RolePermScopeService {
         return codes;
     }
 
-    /** 查询单个 (角色,模块,动作) 的范围; 无配置返回 null */
+    /** 查询单个 (角色,模块,动作) 的范围; 无配置返回 null(30s 本地缓存) */
     public String lookup(String roleCode, String module, String action) {
+        String key = roleCode + ":" + module + ":" + action;
+        CacheEntry hit = cache.get(key);
+        if (hit != null && !hit.expired()) {
+            return hit.value();
+        }
         try {
             List<String> rows = jdbc.queryForList(
                     "SELECT scope_level FROM role_perm_scope WHERE role_code=? AND module=? AND action=? LIMIT 1",
                     String.class, roleCode, module, action);
-            return rows.isEmpty() ? null : rows.get(0);
+            String value = rows.isEmpty() ? null : rows.get(0);
+            cache.put(key, new CacheEntry(value, System.currentTimeMillis() + CACHE_TTL_MS));
+            return value;
         } catch (Exception e) {
             return null;
         }
+    }
+
+    /** 当前用户任一角色是否显式配置了 (module,action) 范围(用于区分"配置了"与"未配置走默认") */
+    public boolean hasConfigured(SecurityUser user, String module, String action) {
+        if (user == null || user.getRoleCodes() == null) return false;
+        for (String roleCode : user.getRoleCodes()) {
+            if (lookup(roleCode, module, action) != null) return true;
+        }
+        return false;
     }
 
     /** 某角色的全部范围配置 */
@@ -62,19 +91,32 @@ public class RolePermScopeService {
                 roleCode);
     }
 
-    /** 保存某角色的范围配置(UPSERT); configs = [{module, action, scopeLevel}] */
+    /**
+     * 保存某角色的范围配置(UPSERT); configs = [{module, action, scopeLevel}]。
+     * 【修复 2026-08-10 P2-07】configs 为空列表 = 删除该角色全部配置(恢复"未配置"默认语义);
+     * 【修复 P2-05】scopeLevel 不在合法集合内直接拒绝, 防止非法值静默降级 self 造成"配置了不生效"困惑。
+     */
     @Transactional
     public void updateRoleScopes(String roleCode, List<Map<String, Object>> configs) {
         if (configs == null) return;
+        if (configs.isEmpty()) {
+            deleteRoleScopes(roleCode);
+            return;
+        }
         for (Map<String, Object> cfg : configs) {
             Object module = cfg.get("module");
             Object action = cfg.get("action");
             Object scopeLevel = cfg.get("scopeLevel");
             if (module == null || action == null || scopeLevel == null) continue;
+            String scope = scopeLevel.toString();
+            if (!VALID_SCOPES.contains(scope)) {
+                throw new com.ycmn.common.BusinessException("非法的数据范围取值: " + scope);
+            }
             jdbc.update(
                     "INSERT INTO role_perm_scope (role_code, module, action, scope_level) VALUES (?,?,?,?) " +
                     "ON DUPLICATE KEY UPDATE scope_level=VALUES(scope_level)",
-                    roleCode, module.toString(), action.toString(), scopeLevel.toString());
+                    roleCode, module.toString(), action.toString(), scope);
+            invalidate(roleCode);
         }
     }
 
@@ -82,6 +124,15 @@ public class RolePermScopeService {
     @Transactional
     public void deleteRoleScopes(String roleCode) {
         jdbc.update("DELETE FROM role_perm_scope WHERE role_code=?", roleCode);
+        invalidate(roleCode);
+    }
+
+    /** role_code 改名时迁移其全部范围配置(防止旧 code 孤儿化, 新 code 意外收紧) */
+    @Transactional
+    public void renameRoleCode(String oldCode, String newCode) {
+        jdbc.update("UPDATE role_perm_scope SET role_code=? WHERE role_code=?", newCode, oldCode);
+        invalidate(oldCode);
+        invalidate(newCode);
     }
 
     /** 是否有任意范围配置(判断"是否已进入新模式") */
@@ -92,5 +143,10 @@ public class RolePermScopeService {
         } catch (Exception e) {
             return false;
         }
+    }
+
+    /** 角色级缓存失效(该角色所有 (module,action) 条目) */
+    private void invalidate(String roleCode) {
+        cache.entrySet().removeIf(e -> e.getKey().startsWith(roleCode + ":"));
     }
 }

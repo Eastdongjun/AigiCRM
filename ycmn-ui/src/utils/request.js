@@ -17,6 +17,12 @@ const handleSessionExpired = () => {
   clearToken()
   if (sessionExpiredHandled) return
   sessionExpiredHandled = true
+  // 【修复 2026-08-10 P1-08】会话过期必须重置 user store——
+  // 否则 30s TTL 内换账号重登, fetchUserInfo 命中缓存渲染上一账号身份/菜单/权限。
+  // 动态 import 避免 request.js ↔ store/user.js 循环依赖。
+  import('@/store/user').then(({ useUserStore }) => {
+    try { useUserStore().$reset() } catch (e) { /* store 未初始化时忽略 */ }
+  }).catch(() => {})
   if (router.currentRoute.value.path !== '/login') {
     notify('登录已过期，请重新登录')
     router.push('/login')

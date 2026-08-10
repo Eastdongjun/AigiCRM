@@ -107,7 +107,8 @@ class CustomerServiceTest {
                 mock(JdbcTemplate.class),
                 mock(SysConfigService.class),
                 resolver,
-                accessService);
+                accessService,
+                mock(com.ycmn.module.system.service.RolePermScopeService.class));
     }
 
     @Test
@@ -422,7 +423,8 @@ class CustomerServiceTest {
                 mock(JdbcTemplate.class),
                 mock(SysConfigService.class),
                 resolver,
-                mock(com.ycmn.common.engine.CustomerAccessService.class));
+                mock(com.ycmn.common.engine.CustomerAccessService.class),
+                mock(com.ycmn.module.system.service.RolePermScopeService.class));
     }
 
     /** 开关默认关的 resolver 桩：resolve 透传 scope；appendSystemLevelScopes 原样返回 base */

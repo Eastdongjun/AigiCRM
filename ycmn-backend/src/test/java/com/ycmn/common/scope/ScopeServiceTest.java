@@ -109,7 +109,8 @@ class ScopeServiceTest {
     /** self：真实 resolver 集成，仅返回本人（brief Step1 用例，补齐 selectBatchIds stub） */
     @Test
     void selfScopeReturnsOnlySelf() {
-        OrgScopeResolver realResolver = new OrgScopeResolver(userMapper, deptMapper, null); // configService=null → 开关不生效，保持仅本人
+        OrgScopeResolver realResolver = new OrgScopeResolver(userMapper, deptMapper, null,
+                mock(com.ycmn.module.system.mapper.SysRoleOrgMapper.class)); // configService=null → 开关不生效，保持仅本人
         when(userMapper.selectBatchIds(anyList())).thenReturn(List.of(user(1L, 11L, "本人")));
         ScopeService svc = new ScopeService(realResolver, userMapper, deptMapper);
         List<Map<String, Object>> users = svc.visibleUsers(su(1L, "self", 11L), null);

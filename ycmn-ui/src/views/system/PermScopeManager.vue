@@ -20,7 +20,11 @@
             <thead>
               <tr>
                 <th class="perm-item">权限项</th>
-                <th v-for="r in allRoles" :key="r.id" class="ps-role-col">{{ r.roleName }}</th>
+                <th v-for="r in allRoles" :key="r.id" class="ps-role-col">
+                  {{ r.roleName }}
+                  <!-- 【修复 2026-08-10 P2-07】恢复默认: 删除该角色全部范围配置(查看回角色 data_scope, 编辑/删除回仅本人) -->
+                  <el-link type="primary" :underline="false" style="font-size:11px" @click="resetRole(r)">恢复默认</el-link>
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -77,6 +81,17 @@ const moduleOf = (permission) => (permission || '').split(':')[0] || ''
 
 const scopeOf = (role, item) => {
   return scopeMap.value[role.roleCode]?.[item.permission] || 'self'
+}
+
+// 【修复 2026-08-10 P2-07】恢复默认: 空列表=后端删除该角色全部范围配置
+const resetRole = async (role) => {
+  try {
+    await updateRolePermScopes(role.roleCode, [])
+    scopeMap.value[role.roleCode] = {}
+    ElMessage.success(`${role.roleName} 范围已恢复默认`)
+  } catch (e) {
+    ElMessage.error('恢复默认失败')
+  }
 }
 
 const saveScope = async (role, item, scopeLevel) => {

@@ -55,6 +55,8 @@ public class SysUserService {
     private final com.ycmn.module.system.mapper.SysDeptMapper deptMapper;
     private final com.ycmn.module.system.mapper.SysUserOrgMapper userOrgMapper;
     private final com.ycmn.security.PermissionCacheService permissionCacheService;
+    private final com.ycmn.security.JwtTokenProvider jwtTokenProvider;
+    private final com.ycmn.common.scope.OrgScopeResolver scopeResolver;
 
     /** 【2026-08-08 用户级 custom 授权】保存用户授权组织（清空重建） */
     private void saveUserOrgs(Long userId, List<Long> orgIds) {
@@ -119,7 +121,37 @@ public class SysUserService {
 
     public SysUser getById(Long id) {
         SysUser u = userMapper.selectById(id);
-        if (u != null && "custom".equals(u.getDataScopeOverride())) {
+        if (u == null) return null;
+        // 【修复 2026-08-10 P1-01】读详情按"可见组织"校验——此前仅列表有集团边界、详情无任何校验,
+        // 持 system:user:view/org:admin 者可按 ID 枚举任意用户全量 PII(0801 泄漏事件同源残留)。
+        // 守卫: admin 全量; 本人恒可读; 其余目标用户必须落在当前用户的数据范围可见部门内
+        // (self/team/office/region/dept/custom 各范围经 OrgScopeResolver 解析)。
+        if (!SecurityUtils.isAdmin() && !id.equals(SecurityUtils.getCurrentUserId())) {
+            Long targetDeptId = u.getDeptId();
+            java.util.List<Long> visibleDeptIds = scopeResolver.resolveVisibleDeptIds(SecurityUtils.getCurrentUser());
+            boolean allowed;
+            if (visibleDeptIds == null) {
+                // all 范围(总监等): 补集团边界——与列表 applyGroupScope 同口径, 防跨集团枚举
+                allowed = targetDeptId != null;
+                if (allowed) {
+                    String scoped = applyGroupScope(String.valueOf(targetDeptId));
+                    allowed = scoped != null && java.util.Arrays.asList(scoped.split(",")).contains(String.valueOf(targetDeptId));
+                }
+            } else {
+                allowed = targetDeptId != null && visibleDeptIds.contains(targetDeptId);
+                if (!allowed && targetDeptId != null && SecurityUtils.isOrgAdmin()) {
+                    // 组织管理员兜底: 目标在其管辖组织子树内也可读(与写操作 canManageUser 同权)
+                    for (Long orgId : SecurityUtils.getCurrentManagedOrgIds()) {
+                        if (orgId == null) continue;
+                        if (deptMapper.selectDescendantIds(orgId).contains(targetDeptId)) { allowed = true; break; }
+                    }
+                }
+            }
+            if (!allowed) {
+                throw new BusinessException("无权查看该用户");
+            }
+        }
+        if ("custom".equals(u.getDataScopeOverride())) {
             // 【2026-08-08 用户级 custom 授权】回填个人授权组织，供编辑表单回显
             u.setOrgIds(userOrgMapper.selectByUserId(id).stream()
                     .map(com.ycmn.module.system.entity.SysUserOrg::getOrgId).toList());
@@ -253,6 +285,8 @@ public class SysUserService {
         if (user == null) throw new BusinessException("用户不存在");
         user.setPassword(passwordEncoder.encode("123456"));
         userMapper.updateById(user);
+        // 【修复 2026-08-10 P2-13】改密后旧 token 立即失效(含"记住我"7 天 token)
+        jwtTokenProvider.markPasswordChanged(userId);
     }
 
     public void changePassword(Long userId, String oldPassword, String newPassword) {
@@ -263,6 +297,8 @@ public class SysUserService {
         }
         user.setPassword(passwordEncoder.encode(newPassword));
         userMapper.updateById(user);
+        // 【修复 2026-08-10 P2-13】改密后旧 token 立即失效
+        jwtTokenProvider.markPasswordChanged(userId);
     }
 
     public void updateStorageQuota(Long userId, Long quota) {
@@ -304,6 +340,12 @@ public class SysUserService {
         // 3. 删除角色关联
         userRoleMapper.delete(new LambdaQueryWrapper<SysUserRole>()
                 .eq(SysUserRole::getUserId, userId));
+
+        // 3b. 【修复 2026-08-10 P2-08】软删除同样清理用户级孤儿关联(与 permanentDelete 一致)
+        jdbc.update("DELETE FROM sys_user_position WHERE user_id=?", userId);
+        jdbc.update("DELETE FROM sys_user_org WHERE user_id=?", userId);
+        jdbc.update("DELETE FROM biz_incentive_permission WHERE user_id=?", userId);
+        jdbc.update("DELETE FROM sys_org_admin WHERE user_id=?", userId);
 
         // 4. 软删除用户
         userMapper.deleteById(userId);
@@ -392,6 +434,12 @@ public class SysUserService {
             user.getLeaveStatus(), user.getLeaveDate(), user.getLeaveReason(),
             SecurityUtils.getCurrentUserId(), reason, user.getCreatedAt());
         jdbc.update("DELETE FROM sys_user_role WHERE user_id=?", userId);
+        // 【修复 2026-08-10 P2-08】物理删除级联清理用户级孤儿关联, 防止 ID 复用场景权限复活
+        // (biz_folder_acl 是角色维度授权, 不随用户删除; 角色本身由 SysRoleService.delete 清理)
+        jdbc.update("DELETE FROM sys_user_position WHERE user_id=?", userId);
+        jdbc.update("DELETE FROM sys_user_org WHERE user_id=?", userId);
+        jdbc.update("DELETE FROM biz_incentive_permission WHERE user_id=?", userId);
+        jdbc.update("DELETE FROM sys_org_admin WHERE user_id=?", userId);
         userMapper.deleteById(userId);
         // 【Redis 权限缓存】永久删除立即失效（与 deleteUser 一致，杜绝残留缓存访问）
         permissionCacheService.evict(userId);

@@ -8,6 +8,7 @@ import com.ycmn.module.system.entity.SysMenu;
 import com.ycmn.module.system.entity.SysRole;
 import com.ycmn.module.system.entity.SysRoleMenu;
 import com.ycmn.module.system.entity.SysRoleOrg;
+import com.ycmn.module.system.entity.SysUserRole;
 import com.ycmn.module.system.mapper.SysMenuMapper;
 import com.ycmn.module.system.mapper.SysRoleMapper;
 import com.ycmn.module.system.mapper.SysRoleMenuMapper;
@@ -30,6 +31,9 @@ public class SysRoleService {
     private final SysMenuMapper menuMapper;
     private final SysRoleOrgMapper roleOrgMapper;
     private final PermissionCacheService permissionCacheService;
+    private final RolePermScopeService rolePermScopeService;
+    private final com.ycmn.module.system.mapper.SysUserRoleMapper userRoleMapper;
+    private final org.springframework.jdbc.core.JdbcTemplate jdbc;
 
     /**
      * 角色列表（按集团边界过滤）。
@@ -137,6 +141,12 @@ public class SysRoleService {
                 || role.getSortOrder() != null || role.getStatus() != null
                 || role.getGroupId() != null;
         if (hasRoleFields) {
+            // 【修复 2026-08-10 P2-09】role_code 改名时同步迁移 role_perm_scope 范围配置,
+            // 否则旧 code 配置成孤儿、新 code 无配置回落默认(edit/delete 意外收紧为 self)
+            if (role.getRoleCode() != null && existing != null && existing.getRoleCode() != null
+                    && !existing.getRoleCode().equals(role.getRoleCode())) {
+                rolePermScopeService.renameRoleCode(existing.getRoleCode(), role.getRoleCode());
+            }
             roleMapper.updateById(role);
         }
         if (role.getMenuIds() != null) {
@@ -171,7 +181,7 @@ public class SysRoleService {
         permissionCacheService.evictByRole(roleId);
     }
 
-    /** 删除角色（连带清理菜单/组织关联；越权集团拒绝） */
+    /** 删除角色（连带清理菜单/组织/范围配置/用户绑定；越权集团拒绝） */
     @Transactional
     public void delete(Long id) {
         // 【修复 角色删除集团边界】非 admin 无权删除其他集团角色
@@ -182,13 +192,35 @@ public class SysRoleService {
         roleMapper.deleteById(id);
         roleMenuMapper.delete(new LambdaQueryWrapper<SysRoleMenu>().eq(SysRoleMenu::getRoleId, id));
         roleOrgMapper.deleteByRoleId(id);
+        // 【修复 2026-08-10 P2-06/P2-08】删除角色连带清理:
+        // 1. role_perm_scope 范围配置(否则同 role_code 重建角色时旧范围复活)
+        // 2. sys_user_role 用户绑定(无外键残留, 返聘/重建 ID 场景埋雷)
+        if (existing != null && existing.getRoleCode() != null) {
+            rolePermScopeService.deleteRoleScopes(existing.getRoleCode());
+        }
+        userRoleMapper.delete(new LambdaQueryWrapper<SysUserRole>().eq(SysUserRole::getRoleId, id));
+        // 【修复 2026-08-10 P3-06】角色删除连带清理 biz_folder_acl(角色维度授权, 防 ID 复用权限复活)
+        jdbc.update("DELETE FROM biz_folder_acl WHERE role_id=?", id);
         // 【Redis 权限缓存】删除角色立即失效其用户缓存
         permissionCacheService.evictByRole(id);
     }
 
     private void saveRoleMenus(Long roleId, List<Long> menuIds) {
         if (menuIds == null || menuIds.isEmpty()) return;
+        // 【修复 2026-08-10 P1-10】祖先闭包: 勾选子菜单未勾父分组时, 权限生效但菜单不显示(孤儿菜单)。
+        // 保存时把每个选中节点的父链一并补入, 根治"权限有但菜单消失"与矩阵页系统性复现。
+        java.util.Set<Long> expanded = new java.util.LinkedHashSet<>(menuIds);
         for (Long menuId : menuIds) {
+            Long cur = menuId;
+            int guard = 0;
+            while (cur != null && guard++ < 20) { // 环保护
+                com.ycmn.module.system.entity.SysMenu m = menuMapper.selectById(cur);
+                if (m == null || m.getParentId() == null || m.getParentId() == 0L) break;
+                if (!expanded.add(m.getParentId())) break; // 已包含则父链已完整
+                cur = m.getParentId();
+            }
+        }
+        for (Long menuId : expanded) {
             SysRoleMenu rm = new SysRoleMenu();
             rm.setRoleId(roleId);
             rm.setMenuId(menuId);

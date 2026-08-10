@@ -37,6 +37,7 @@ public class OrgScopeResolver {
     private final SysUserMapper userMapper;
     private final SysDeptMapper deptMapper;
     private final SysConfigService configService;
+    private final com.ycmn.module.system.mapper.SysRoleOrgMapper roleOrgMapper;
 
     /** 开关配置短 TTL 缓存：避免每次数据范围解析都查库（多页面累计卡顿） */
     private static final long SWITCH_CACHE_TTL_MS = 30_000L;
@@ -155,10 +156,13 @@ public class OrgScopeResolver {
             case "region": return resolveByAncestorType(userId, deptId, TYPE_REGION);
             case "office": return resolveByAncestorType(userId, deptId, TYPE_OFFICE);
             case "dept": return resolveDeptTree(userId, deptId);
+            // 【修复 2026-08-10 P2-03】dept_and_children 是 V7 注释允许值, 此前落入 default 静默降级 self;
+            // 与 applyDataScope 的 dept_and_children 分支同语义(本部门及子部门)
+            case "dept_and_children": return resolveDeptTree(userId, deptId);
             case "team": return resolveTeam(userId);
             // 旧码兼容（DataScopeType @Deprecated）：org_and_children=本组织及下级 → 部门树含子级；
             // org=仅本部门（不含子级）。组织管理员升级路径仍产出 org_and_children，必须可解析。
-            case "org_and_children": return resolveDeptTree(userId, deptId);
+            case "org_and_children": return resolveOrgAndChildren(user, userId, deptId);
             case "org": return resolveDeptOnly(userId, deptId);
             case "self":
             default: return List.of(userId);
@@ -231,12 +235,51 @@ public class OrgScopeResolver {
 
     private List<Long> resolveCustom(SecurityUser user, Long userId) {
         List<Long> managed = user.getManagedOrgIds();
-        if (managed == null || managed.isEmpty()) return List.of(userId);
+        if (managed == null || managed.isEmpty()) {
+            // 【修复 2026-08-10 P1-06】新模型 role_perm_scope 配 custom 时 managedOrgIds 未装载
+            // (装载仅在 dataScope=custom / override=custom 时发生)——按用户角色现查 sys_role_org 回退,
+            // 否则自定义范围对新模型配置静默退化为仅本人
+            managed = loadRoleOrgs(user);
+            if (managed == null || managed.isEmpty()) return List.of(userId);
+        }
         Set<Long> deptIds = new LinkedHashSet<>();
         for (Long orgId : managed) {
             if (orgId == null) continue; // 脏数据防御
             deptIds.addAll(collectSubtree(orgId, null));
         }
+        List<Long> u = usersInDepts(deptIds);
+        if (!u.contains(userId)) u.add(userId);
+        return u;
+    }
+
+    /** 按用户全部角色现查 sys_role_org 授权组织(含 include_children 展开)——custom 范围装载回退 */
+    private List<Long> loadRoleOrgs(SecurityUser user) {
+        if (user.getUserId() == null) return null;
+        java.util.List<com.ycmn.module.system.entity.SysRoleOrg> rows = roleOrgMapper.selectByUserId(user.getUserId());
+        if (rows == null || rows.isEmpty()) return null;
+        Set<Long> orgIds = new LinkedHashSet<>();
+        for (com.ycmn.module.system.entity.SysRoleOrg ro : rows) {
+            if (ro.getOrgId() == null) continue;
+            if (ro.getIncludeChildren() != null && ro.getIncludeChildren() == 1) {
+                orgIds.addAll(deptMapper.selectDescendantIds(ro.getOrgId()));
+            } else {
+                orgIds.add(ro.getOrgId());
+            }
+        }
+        return new ArrayList<>(orgIds);
+    }
+
+    /** org_and_children = 本人部门树 ∪ 组织管理员/自定义授权组织子树(与列表 applyDataScope 同口径) */
+    private List<Long> resolveOrgAndChildren(SecurityUser user, Long userId, Long deptId) {
+        Set<Long> deptIds = new LinkedHashSet<>();
+        if (deptId != null) collectSubtree(deptId, deptIds);
+        if (user.getManagedOrgIds() != null) {
+            for (Long orgId : user.getManagedOrgIds()) {
+                if (orgId == null) continue; // 脏数据防御
+                collectSubtree(orgId, deptIds);
+            }
+        }
+        if (deptIds.isEmpty()) return List.of(userId);
         List<Long> u = usersInDepts(deptIds);
         if (!u.contains(userId)) u.add(userId);
         return u;

@@ -75,7 +75,9 @@ class SysUserPageGroupScopeTest {
     private SysUserService newService() {
         return new SysUserService(userMapper, userRoleMapper, passwordEncoder, configService,
                 customerMapper, shareMapper, jdbc, roleMapper, seaService, deptMapper, mock(com.ycmn.module.system.mapper.SysUserOrgMapper.class),
-                mock(com.ycmn.security.PermissionCacheService.class));
+                mock(com.ycmn.security.PermissionCacheService.class),
+                mock(com.ycmn.security.JwtTokenProvider.class),
+                mock(com.ycmn.common.scope.OrgScopeResolver.class));
     }
 
     @Test

@@ -1,0 +1,19 @@
+YCMN 权限修复批次验证记录(2026-08-10, 测试环境 111.229.37.220)
+==============================================================
+[1] 后端全量测试: 332 tests / 0 failures / 0 errors (clean surefire)
+    PermissionSecurityFixTest 12 例(下载token jti/改密失效/Redis降级/枚举校验/空列表删除/
+    rename/custom回退/org_and_children并入/getById守卫正反例/本人特判/dept_and_children)
+[2] 前端: vitest 50/50, vite build 通过
+[3] 测试服实测(修复后):
+    - TY101(销售员) GET /api/system/users/1(admin)        → 400 无权查看该用户 (P1-01)
+    - TY101 GET users/69(本人)                             → 200
+    - TY101 GET users/38(同部门)                           → 200
+    - admin GET users/1                                    → 200
+    - TY101 GET /api/customer/575(他人客户)                → 400 无权查看该客户
+    - TY101 check-name 范围外真实客户                      → exists:false (P2-01, 不再泄露创建人)
+    - 配 06 customer:view=all → TY101 列表 1→249; 还原→1  (P1-02 列表接入生效)
+    - admin reset TY101 密码 → 旧 token 403, 新 token 200  (P2-13 改密吊销生效)
+    - V8 biz_customer_transfer 建表已应用                  (P1-04)
+[4] 回归矩阵 18/18(越权读/改/删拦截、各模块 200、匿名登录、admin 全量)
+[5] 数据副作用: 测试密码已全部还原并抽查哈希一致; 573 状态/池记录/子资源已清理;
+    admin 角色名还原「系统管理员」; 06 view=all 配置已删除

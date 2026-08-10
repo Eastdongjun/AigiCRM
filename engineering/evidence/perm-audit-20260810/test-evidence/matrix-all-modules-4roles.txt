@@ -1,0 +1,123 @@
+模块      端点                                                     方法      admin     0    05    06
+customer/api/customer/list?page=1&size=5                       GET       200   200   200   200
+customer/api/customer/573                                      GET       200   200   400   200
+customer/api/customer/575                                      GET       200   200   200   400
+customer/api/customer/check-name?name=不存在客户XYZ                 GET       400   400   400   400
+customer/api/customer/list/counts                              GET       200   200   200   200
+customer/api/customer/export?page=1                            GET       200   200   200   200
+customer/api/customer/import/template                          GET       200   200   403   200
+customer/api/customer/users/simple                             GET       200   200   200   200
+customer/api/customer/573/logs                                 GET       200   200   400   200
+customer/api/customer/573/indicator                            GET       200   200   400   200
+customer/api/customer/573/invoices/summary                     GET       200   200   400   200
+customer/api/customer/573/payments/summary                     GET       200   200   400   200
+customer/api/customer/999999                                   GET       200   400   400   400
+customer/api/customer/573/logs                                 POST      200   200   400   200
+customer/api/customer/573/contacts                             POST      200   200   400   200
+customer/api/customer/573/shares                               POST      200   200   400   200
+customer/api/customer/573/payments                             POST      200   200   400   200
+customer/api/customer/573/invoices                             POST      200   200   400   200
+customer/api/customer/573/release                              POST      200   400   400   200
+customer/api/customer/573/relationship                         PUT       400   400   400   400
+customer/api/customer/999999                                   PUT       400   400   400   400
+customer/api/customer/999999                                   DELETE    200   400   400   400
+incentive/api/incentive/records?page=1&size=5                   GET       200   200   200   200
+incentive/api/incentive/records/query?page=1&size=5             GET       200   200   200   200
+incentive/api/incentive/categories                              GET       200   200   200   200
+incentive/api/incentive/customer-records?customerId=573         GET       200   200   200   200
+incentive/api/incentive/users                                   GET       200   200   200   200
+incentive/api/incentive/ranking                                 GET       200   200   200   200
+incentive/api/incentive/ranking/stats                           GET       200   200   200   200
+incentive/api/incentive/scoreboard                              GET       200   200   200   200
+incentive/api/incentive/timeline?userId=38                      GET       200   200   200   200
+incentive/api/incentive/records/999999                          PUT       200   200   200   200
+incentive/api/incentive/records/999999                          DELETE    200   200   200   200
+incentive/api/incentive/categories                              POST      200   403   403   403
+incentive/api/incentive/records/recalculate                     POST      200   403   403   403
+incentive/api/incentive/permission/list                         GET       200   200   200   200
+incentive/api/incentive/permission/check?userId=38              GET       200   200   200   200
+sea     /api/sea/list?page=1&size=5                            GET       200   200   200   200
+sea     /api/sea/statistics                                    GET       200   200   200   200
+sea     /api/sea/configs                                       GET       200   200   200   403
+sea     /api/sea/configs/visible                               GET       200   200   200   200
+sea     /api/sea/org-tree                                      GET       200   200   200   403
+sea     /api/sea/claim-records                                 GET       200   200   200   200
+sea     /api/sea/configs/999999                                PUT       200   200   403   403
+sea     /api/sea/configs/999999                                DELETE    200   200   403   403
+sea     /api/sea/pool/999999                                   DELETE    400   400   400   400
+approval/api/approval/list?page=1&size=5                       GET       200   200   200   200
+approval/api/approval/statistics                               GET       200   200   200   200
+approval/api/approval/submit                                   POST      200   200   200   200
+approval/api/approval/999999/approve                           POST      400   400   400   400
+approval/api/approval/999999/reject                            POST      400   400   400   400
+approval/api/approval/config/list                              GET       200   200   200   200
+reminder/api/reminder/list?page=1&size=5                       GET       200   200   200   200
+reminder/api/reminder/pending-count                            GET       200   200   200   200
+reminder/api/reminder/expiring-list                            GET       200   200   200   200
+reminder/api/reminder/ensure-expiring                          POST      200   200   200   200
+reminder/api/reminder/999999/process                           POST      200   200   200   200
+statistics/api/statistics/dashboard                              GET       200   200   200   200
+statistics/api/statistics/analysis                               GET       200   200   200   200
+statistics/api/statistics/daily-stats                            GET       200   200   200   200
+statistics/api/statistics/weekly-stats                           GET       200   200   200   200
+statistics/api/statistics/indicator-stats                        GET       200   200   200   200
+statistics/api/statistics/team-activities                        GET       200   200   200   200
+score   /api/score/items                                       GET       200   200   200   200
+score   /api/score/items                                       POST      200   200   403   200
+score   /api/score/items/999999                                PUT       200   200   403   200
+score   /api/score/items/999999                                DELETE    200   200   403   200
+score   /api/score/grid?period=2026-08                         GET       200   200   200   200
+score   /api/score/ranking?period=2026-08                      GET       200   200   200   200
+score   /api/score/entries/batch                               POST      200   200   200   403
+score   /api/score/export/grid?period=2026-08                  GET       200   200   200   200
+file    /api/file/folders                                      GET       200   200   200   200
+file    /api/file/list?page=1&size=5                           GET       200   200   200   200
+file    /api/file/storage                                      GET       200   200   200   200
+file    /api/file/shared-to-me                                 GET       200   200   200   200
+file    /api/file/download-token                               GET       200   200   200   200
+file    /api/file/folders                                      POST      400   400   400   400
+file    /api/file/folders/999999                               DELETE    400   400   400   400
+file    /api/file/999999                                       DELETE    200   200   200   200
+system  /api/system/users?page=1&size=5                        GET       200   200   200   200
+system  /api/system/users/1                                    GET       200   200   200   200
+system  /api/system/users/999999                               PUT       400   400   400   400
+system  /api/system/users/999999                               DELETE    400   400   403   400
+system  /api/system/users/999999/permanent                     DELETE    200   400   403   200
+system  /api/system/users/999999/reset-password                POST      400   400   400   400
+system  /api/system/roles/1                                    GET       200   200   403   403
+system  /api/system/roles/1/orgs                               GET       200   200   403   403
+system  /api/system/roles/1                                    PUT       200   400   403   403
+system  /api/system/depts/tree                                 GET       200   200   200   200
+system  /api/system/depts/1                                    GET       405   405   405   405
+system  /api/system/menus/tree                                 GET       200   200   403   403
+system  /api/system/groups/1                                   GET       200   403   403   200
+system  /api/system/positions/1                                GET       200   403   403   403
+system  /api/system/positions/1/rules                          GET       200   403   403   403
+system  /api/system/rules/1                                    GET       200   403   403   403
+system  /api/system/logs/counts                                GET       200   200   403   403
+system  /api/system/perm-scopes/06                             GET       200   200   200   200
+system  /api/system/dict/data/industry                         GET       200   200   200   200
+system  /api/common/scope/users                                GET       200   200   200   200
+system  /api/common/scope/depts                                GET       200   200   200   200
+auth    /api/auth/info                                         GET       200   200   200   200
+auth    /api/system/configs/public                             GET       200   200   200   200
+auth    /api/system/configs/logo                               GET       200   200   200   200
+
+# 创建类操作 200 的端点(需检查清理):
+  POST /api/customer/573/logs -> ['200', '200', '400', '200']
+  POST /api/customer/573/contacts -> ['200', '200', '400', '200']
+  POST /api/customer/573/shares -> ['200', '200', '400', '200']
+  POST /api/customer/573/payments -> ['200', '200', '400', '200']
+  POST /api/customer/573/invoices -> ['200', '200', '400', '200']
+  POST /api/customer/573/release -> ['200', '400', '400', '200']
+  PUT /api/incentive/records/999999 -> ['200', '200', '200', '200']
+  POST /api/incentive/categories -> ['200', '403', '403', '403']
+  POST /api/incentive/records/recalculate -> ['200', '403', '403', '403']
+  PUT /api/sea/configs/999999 -> ['200', '200', '403', '403']
+  POST /api/approval/submit -> ['200', '200', '200', '200']
+  POST /api/reminder/ensure-expiring -> ['200', '200', '200', '200']
+  POST /api/reminder/999999/process -> ['200', '200', '200', '200']
+  POST /api/score/items -> ['200', '200', '403', '200']
+  PUT /api/score/items/999999 -> ['200', '200', '403', '200']
+  POST /api/score/entries/batch -> ['200', '200', '200', '403']
+  PUT /api/system/roles/1 -> ['200', '400', '403', '403']

@@ -88,7 +88,15 @@ public class JwtTokenProvider {
 
     /** jti 是否已被拉黑(注销后的会话立即失效) */
     public boolean isBlacklisted(String jti) {
-        return jti != null && Boolean.TRUE.equals(redisTemplate.hasKey(BLACKLIST_PREFIX + jti));
+        if (jti == null) return false;
+        try {
+            return Boolean.TRUE.equals(redisTemplate.hasKey(BLACKLIST_PREFIX + jti));
+        } catch (Exception e) {
+            // 【修复 2026-08-10 P2-12】Redis 故障时降级为"不拉黑"并告警，
+            // 避免全站带 token 请求 500(与 PermissionCacheService.get 降级语义一致)
+            log.warn("isBlacklisted 查询失败(降级不拉黑): {}", e.getMessage());
+            return false;
+        }
     }
 
     /** 拉黑一个 token(按 jti, TTL=剩余有效期)——注销即失效, 被盗 token 无法复用 */
@@ -109,12 +117,49 @@ public class JwtTokenProvider {
     public String generateDownloadToken(Long userId) {
         Date now = new Date();
         return Jwts.builder()
+                .id(UUID.randomUUID().toString()) // 【修复 2026-08-10 P1-07】补充 jti，黑名单机制对下载 token 生效
                 .subject(String.valueOf(userId))
                 .claim("scope", "download")
                 .issuedAt(now)
                 .expiration(new Date(now.getTime() + DOWNLOAD_TOKEN_TTL_MS))
                 .signWith(getSigningKey())
                 .compact();
+    }
+
+    // ==================== 改密后旧 token 失效 (P2-13 2026-08-10) ====================
+
+    private static final String PWD_CHANGED_PREFIX = "jwt:pwd-changed:";
+    /** 改密标记 TTL：覆盖"记住我"最长有效期，防 Redis 残留永久失效 */
+    private static final long PWD_CHANGED_TTL_MS = 8L * 24 * 3600_000L;
+
+    /** 记录用户密码变更时间(变更后所有早于该时刻签发的 token 立即失效) */
+    public void markPasswordChanged(Long userId) {
+        if (userId == null) return;
+        try {
+            redisTemplate.opsForValue().set(PWD_CHANGED_PREFIX + userId,
+                    String.valueOf(System.currentTimeMillis()), PWD_CHANGED_TTL_MS, TimeUnit.MILLISECONDS);
+        } catch (Exception e) {
+            log.warn("markPasswordChanged 失败(降级: 旧 token 继续有效): {}", e.getMessage());
+        }
+    }
+
+    /** token 是否因"改密时间晚于签发时间"而失效(Redis 故障降级为不失效，与黑名单降级一致) */
+    public boolean isInvalidatedByPasswordChange(String token) {
+        try {
+            Claims claims = getClaims(token);
+            Long userId = Long.parseLong(claims.getSubject());
+            Date iat = claims.getIssuedAt();
+            if (iat == null) return false;
+            Object changedAt = redisTemplate.opsForValue().get(PWD_CHANGED_PREFIX + userId);
+            if (changedAt == null) return false;
+            long changed = Long.parseLong(String.valueOf(changedAt));
+            // 【修复 2026-08-10 P3-05】changed 毫秒精度 vs iat 秒精度: 下取整到秒, 防"改密后同秒内新登录被误判失效"
+            changed = changed / 1000 * 1000;
+            return iat.getTime() < changed;
+        } catch (Exception e) {
+            log.warn("isInvalidatedByPasswordChange 检查失败(降级不失效): {}", e.getMessage());
+            return false;
+        }
     }
 
     /** token 的 scope 声明（无则返回 null） */

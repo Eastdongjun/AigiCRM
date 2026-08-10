@@ -51,6 +51,7 @@ public class CustomerService {
     private final SysConfigService configService;
     private final com.ycmn.common.scope.OrgScopeResolver scopeResolver;
     private final com.ycmn.common.engine.CustomerAccessService customerAccessService;
+    private final com.ycmn.module.system.service.RolePermScopeService rolePermScopeService;
 
     public IPage<BizCustomer> page(int current, int size, String keyword, String industry,
                                     Long officeId, Long regionId, String status, Long ownerId) {
@@ -270,10 +271,15 @@ public class CustomerService {
     }
 
     public boolean existsByName(String customerName) {
-        return customerMapper.selectCount(
-                new LambdaQueryWrapper<BizCustomer>()
-                        .eq(BizCustomer::getCustomerName, customerName)
-        ) > 0;
+        // 【修复 2026-08-10 P2-01】重名探测限定在当前用户数据范围内——
+        // 此前任何登录用户可探测全公司任意客户名并获知创建人(跨范围信息泄露)
+        LambdaQueryWrapper<BizCustomer> w = new LambdaQueryWrapper<BizCustomer>()
+                .eq(BizCustomer::getCustomerName, customerName);
+        List<Long> scopeUserIds = getCurrentScopeUserIds();
+        if (scopeUserIds != null) {
+            w.in(BizCustomer::getOwnerId, scopeUserIds);
+        }
+        return customerMapper.selectCount(w) > 0;
     }
 
     public CustomerImportResult importCustomers(MultipartFile file) {
@@ -644,6 +650,33 @@ public class CustomerService {
     // ====== 数据范围核心方法（升级版：支持组织层级） ======
 
     private void applyDataScope(LambdaQueryWrapper<BizCustomer> wrapper) {
+        // 【修复 2026-08-10 P1-02】新模型"功能×范围"接入列表:
+        // 若当前用户任一角色在 role_perm_scope 显式配置了 (customer, view) 范围,
+        // 列表/统计/导出统一按配置范围过滤(与详情/编辑/删除判定同口径)——
+        // 此前配置仅详情判定生效而列表仍走旧 dataScope, 造成"配了 view=all 列表不生效"。
+        // 未配置任何 (customer,view) 的角色走旧 dataScope 路径(兼容现状)。
+        var scopeUser = SecurityUtils.getCurrentUser();
+        if (scopeUser != null && !SecurityUtils.isAdmin()
+                && rolePermScopeService.hasConfigured(scopeUser, "customer", "view")) {
+            java.util.List<String> scopes = rolePermScopeService.effectiveScopes(scopeUser, "customer", "view");
+            java.util.List<Long> visible = null; // null=all 不过滤
+            for (String scope : scopes) {
+                java.util.List<Long> part = scopeResolver.resolveScope(scopeUser, scope);
+                if (part == null) { visible = null; break; } // 任一 all → 全量
+                if (visible == null) visible = new ArrayList<>(part);
+                else visible.addAll(part);
+            }
+            if (visible != null && !visible.isEmpty()) {
+                wrapper.in(BizCustomer::getOwnerId, visible);
+            } else if (visible == null) {
+                // all: 本集团不过滤
+            } else {
+                wrapper.eq(BizCustomer::getOwnerId, SecurityUtils.getCurrentUserId());
+            }
+            applyRuleEngineFilter(wrapper);
+            return;
+        }
+
         String dataScope = SecurityUtils.getCurrentDataScope();
         Long userId = SecurityUtils.getCurrentUserId();
         Long deptId = SecurityUtils.getCurrentDeptId();
@@ -1171,11 +1204,25 @@ public class CustomerService {
     }
 
     public java.util.Map<String, Object> getDuplicateInfo(String customerName) {
+        // 【修复 2026-08-10 P2-01】创建人/创建时间信息同样限定在数据范围内(与 existsByName 同口径)
         try {
-            return jdbc.queryForMap(
-                "SELECT u.real_name AS createdBy, DATE_FORMAT(c.created_at, '%Y-%m-%d %H:%i') AS createdAt " +
-                "FROM biz_customer c JOIN sys_user u ON c.owner_id = u.id " +
-                "WHERE c.customer_name = ? AND c.deleted = 0 ORDER BY c.created_at DESC LIMIT 1", customerName);
+            List<Long> scopeUserIds = getCurrentScopeUserIds();
+            java.util.List<java.util.Map<String, Object>> rows;
+            if (scopeUserIds == null) {
+                rows = jdbc.queryForList(
+                    "SELECT u.real_name AS createdBy, DATE_FORMAT(c.created_at, '%Y-%m-%d %H:%i') AS createdAt " +
+                    "FROM biz_customer c JOIN sys_user u ON c.owner_id = u.id " +
+                    "WHERE c.customer_name = ? AND c.deleted = 0 ORDER BY c.created_at DESC LIMIT 1", customerName);
+            } else {
+                rows = jdbc.queryForList(
+                    "SELECT u.real_name AS createdBy, DATE_FORMAT(c.created_at, '%Y-%m-%d %H:%i') AS createdAt " +
+                    "FROM biz_customer c JOIN sys_user u ON c.owner_id = u.id " +
+                    "WHERE c.customer_name = ? AND c.deleted = 0 AND c.owner_id IN (" +
+                    String.join(",", java.util.Collections.nCopies(scopeUserIds.size(), "?")) +
+                    ") ORDER BY c.created_at DESC LIMIT 1",
+                    customerName, scopeUserIds.toArray());
+            }
+            return rows.isEmpty() ? null : rows.get(0);
         } catch (Exception e) {
             return null;
         }

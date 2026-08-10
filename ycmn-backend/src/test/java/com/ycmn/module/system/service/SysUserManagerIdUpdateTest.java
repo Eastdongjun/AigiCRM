@@ -89,7 +89,9 @@ class SysUserManagerIdUpdateTest {
     private SysUserService newService() {
         return new SysUserService(userMapper, userRoleMapper, passwordEncoder, configService,
                 customerMapper, shareMapper, jdbc, roleMapper, seaService, deptMapper, mock(com.ycmn.module.system.mapper.SysUserOrgMapper.class),
-                mock(com.ycmn.security.PermissionCacheService.class));
+                mock(com.ycmn.security.PermissionCacheService.class),
+                mock(com.ycmn.security.JwtTokenProvider.class),
+                mock(com.ycmn.common.scope.OrgScopeResolver.class));
     }
 
     /** 前端"无上级"提交 0/null → 服务层归一为 null 透传 updateById（配合 ALWAYS 落库回写 NULL） */

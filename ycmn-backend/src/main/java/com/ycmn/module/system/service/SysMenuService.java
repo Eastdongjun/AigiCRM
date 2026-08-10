@@ -2,7 +2,9 @@ package com.ycmn.module.system.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.ycmn.module.system.entity.SysMenu;
+import com.ycmn.module.system.entity.SysRoleMenu;
 import com.ycmn.module.system.mapper.SysMenuMapper;
+import com.ycmn.module.system.mapper.SysRoleMenuMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -14,6 +16,7 @@ import java.util.stream.Collectors;
 public class SysMenuService {
 
     private final SysMenuMapper menuMapper;
+    private final com.ycmn.module.system.mapper.SysRoleMenuMapper roleMenuMapper;
     private final com.ycmn.security.PermissionCacheService permissionCacheService;
 
     public List<SysMenu> tree() {
@@ -36,6 +39,10 @@ public class SysMenuService {
 
     public void delete(Long id) {
         menuMapper.deleteById(id);
+        // 【修复 2026-08-10 P2-08】删除菜单连带清理 role_menu 绑定(与 V2 迁移"先解绑再删菜单"同模式),
+        // 避免孤儿绑定残留并在菜单 ID 复用场景复活权限
+        roleMenuMapper.delete(new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<SysRoleMenu>()
+                .eq(SysRoleMenu::getMenuId, id));
         permissionCacheService.evictAll();
     }
 

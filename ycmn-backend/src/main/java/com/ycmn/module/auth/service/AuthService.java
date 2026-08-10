@@ -284,6 +284,8 @@ public class AuthService {
 
         user.setPassword(passwordEncoder.encode(request.getNewPassword()));
         userMapper.updateById(user);
+        // 【修复 2026-08-10 P2-13】忘记密码重置后旧 token 立即失效
+        jwtTokenProvider.markPasswordChanged(user.getId());
         redisTemplate.delete(codeKey);
         redisTemplate.delete(errorKey);
     }

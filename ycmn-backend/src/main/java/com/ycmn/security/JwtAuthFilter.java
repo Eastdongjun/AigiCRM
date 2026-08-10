@@ -39,6 +39,11 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                 filterChain.doFilter(request, response);
                 return;
             }
+            // 【修复 2026-08-10 P2-13】改密后早于改密时刻签发的旧 token 立即失效(含"记住我"7 天 token)
+            if (jwtTokenProvider.isInvalidatedByPasswordChange(token)) {
+                filterChain.doFilter(request, response);
+                return;
+            }
             Long userId = jwtTokenProvider.getUserIdFromToken(token);
             UserDetails userDetails = userDetailsService.loadUserByUsername(String.valueOf(userId));
 
@@ -56,9 +61,9 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         if (StringUtils.hasText(bearerToken) && bearerToken.startsWith("Bearer ")) {
             return bearerToken.substring(7);
         }
-        // 仅允许 GET 请求（导出下载等场景）通过 query param 传 token
-        // 注意：URL 参数 token 会被服务器日志记录，生产环境建议关闭或使用临时下载令牌
-        if ("GET".equalsIgnoreCase(request.getMethod())) {
+        // 【修复 2026-08-10 P2-14】URL query token 仅限下载/导出路径(<img>/导出无法带 header)——
+        // 主 JWT 即使出现在 URL 中也不会被本过滤器接受，防止泄漏进日志后被复用
+        if ("GET".equalsIgnoreCase(request.getMethod()) && isDownloadPath(request)) {
             String queryToken = request.getParameter("token");
             if (StringUtils.hasText(queryToken)) {
                 return queryToken;

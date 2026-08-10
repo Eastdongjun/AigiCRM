@@ -1,0 +1,7 @@
+username | login | roles | perms | dataScope | customerTotal | incentiveTotal
+username | FAIL(401) | - | - | - | - | -
+Traceback (most recent call last):
+  File "/private/tmp/per-user-test.py", line 32, in <module>
+    incent_total = (incent.get("data") or {}).get("total")
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'list' object has no attribute 'get'
