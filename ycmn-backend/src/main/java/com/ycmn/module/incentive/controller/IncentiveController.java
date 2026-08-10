@@ -123,8 +123,8 @@ public class IncentiveController {
     @PreAuthorize("hasAuthority('incentive:view')")
     @GetMapping("/scoreboard")
     public Result<List<Map<String, Object>>> scoreboard(@RequestParam(required = false) String period) {
-        // M5 2026-08-10: 全公司积分排行仅管理员勾选的用户可见
-        if (!statsPermissionService.canViewCompany()) {
+        // M5 2026-08-10: 全公司积分排行仅管理员勾选的用户可见(激励模块)
+        if (!statsPermissionService.canView("incentive")) {
             throw new com.ycmn.common.BusinessException(403, "无权限查看全员积分排行");
         }
         return Result.ok(incentiveService.scoreboard(period));
@@ -193,8 +193,8 @@ public class IncentiveController {
     @PreAuthorize("hasAuthority('incentive:view')")
     @GetMapping("/category-stats")
     public Result<Map<String, Object>> categoryStats(@RequestParam(required = false) String period) {
-        // M5 2026-08-10: 全公司激励统计表仅管理员勾选的用户可见
-        if (!statsPermissionService.canViewCompany()) {
+        // M5 2026-08-10: 全公司激励统计表仅管理员勾选的用户可见(激励模块)
+        if (!statsPermissionService.canView("incentive")) {
             throw new com.ycmn.common.BusinessException(403, "无权限查看全公司激励统计");
         }
         return Result.ok(incentiveService.categoryStats(period));

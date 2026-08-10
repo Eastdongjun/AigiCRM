@@ -13,54 +13,65 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.when;
 
-/** M5 公司级统计可见授权: canViewCompany 三态(admin恒真/未配置默认全员/已配置仅勾选) */
+/** M5 公司级统计可见授权(按模块): canView 三态(admin恒真/未配置默认全员/已配置仅勾选) */
 class StatsPermissionServiceTest {
 
     @Test
-    void canViewCompany_adminAlwaysTrue() {
+    void canView_adminAlwaysTrue() {
         JdbcTemplate jdbc = mock(JdbcTemplate.class);
         StatsPermissionService svc = new StatsPermissionService(jdbc);
         try (MockedStatic<SecurityUtils> ms = mockStatic(SecurityUtils.class)) {
             ms.when(SecurityUtils::isAdmin).thenReturn(true);
-            assertTrue(svc.canViewCompany(), "admin 恒可见");
+            assertTrue(svc.canView("indicator"), "admin 恒可见");
         }
     }
 
     @Test
-    void canViewCompany_emptyConfig_defaultEveryone() {
+    void canView_invalidModule_returnsFalse() {
+        JdbcTemplate jdbc = mock(JdbcTemplate.class);
+        StatsPermissionService svc = new StatsPermissionService(jdbc);
+        try (MockedStatic<SecurityUtils> ms = mockStatic(SecurityUtils.class)) {
+            ms.when(SecurityUtils::isAdmin).thenReturn(false);
+            ms.when(SecurityUtils::getCurrentUserId).thenReturn(100L);
+            assertFalse(svc.canView("user; DROP TABLE"), "非法模块码必须拒绝(防注入)");
+        }
+    }
+
+    @Test
+    void canView_emptyConfig_defaultEveryone() {
         JdbcTemplate jdbc = mock(JdbcTemplate.class);
         when(jdbc.queryForObject(eq("SELECT COUNT(*) FROM biz_stats_permission"), eq(Integer.class))).thenReturn(0);
         StatsPermissionService svc = new StatsPermissionService(jdbc);
         try (MockedStatic<SecurityUtils> ms = mockStatic(SecurityUtils.class)) {
             ms.when(SecurityUtils::isAdmin).thenReturn(false);
             ms.when(SecurityUtils::getCurrentUserId).thenReturn(100L);
-            assertTrue(svc.canViewCompany(), "未配置授权 → 默认全员可见(兼容现状)");
+            assertTrue(svc.canView("score"), "未配置授权 → 默认全员可见(兼容现状)");
         }
     }
 
     @Test
-    void canViewCompany_configuredNotGranted_false() {
+    void canView_configuredNotGranted_false() {
         JdbcTemplate jdbc = mock(JdbcTemplate.class);
         when(jdbc.queryForObject(eq("SELECT COUNT(*) FROM biz_stats_permission"), eq(Integer.class))).thenReturn(3);
-        when(jdbc.queryForObject(contains("can_view_company=1"), eq(Integer.class), eq(100L))).thenReturn(0);
+        when(jdbc.queryForObject(contains("can_view_incentive=1"), eq(Integer.class), eq(100L))).thenReturn(0);
         StatsPermissionService svc = new StatsPermissionService(jdbc);
         try (MockedStatic<SecurityUtils> ms = mockStatic(SecurityUtils.class)) {
             ms.when(SecurityUtils::isAdmin).thenReturn(false);
             ms.when(SecurityUtils::getCurrentUserId).thenReturn(100L);
-            assertFalse(svc.canViewCompany(), "已配置授权且该用户未勾选 → 不可见");
+            assertFalse(svc.canView("incentive"), "已配置授权且该用户未勾选 → 不可见");
         }
     }
 
     @Test
-    void canViewCompany_configuredGranted_true() {
+    void canView_configuredGranted_true() {
         JdbcTemplate jdbc = mock(JdbcTemplate.class);
         when(jdbc.queryForObject(eq("SELECT COUNT(*) FROM biz_stats_permission"), eq(Integer.class))).thenReturn(3);
-        when(jdbc.queryForObject(contains("can_view_company=1"), eq(Integer.class), eq(100L))).thenReturn(1);
+        when(jdbc.queryForObject(contains("can_view_indicator=1"), eq(Integer.class), eq(100L))).thenReturn(1);
         StatsPermissionService svc = new StatsPermissionService(jdbc);
         try (MockedStatic<SecurityUtils> ms = mockStatic(SecurityUtils.class)) {
             ms.when(SecurityUtils::isAdmin).thenReturn(false);
             ms.when(SecurityUtils::getCurrentUserId).thenReturn(100L);
-            assertTrue(svc.canViewCompany(), "已配置授权且该用户已勾选 → 可见");
+            assertTrue(svc.canView("indicator"), "已配置授权且该用户已勾选 → 可见");
         }
     }
 }

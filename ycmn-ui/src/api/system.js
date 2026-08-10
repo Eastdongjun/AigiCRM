@@ -180,12 +180,12 @@ export function deleteGroup(id) {
   return request.delete(`/system/groups/${id}`)
 }
 
-// ---- 公司级统计可见授权(M5 2026-08-10) ----
+// ---- 公司级统计可见授权(M5 2026-08-10, V5 按模块) ----
 export function getStatsPermissionList() {
   return request.get('/stats-permission/list')
 }
-export function syncStatsPermission(userIds) {
-  return request.post('/stats-permission/sync', { userIds })
+export function syncStatsPermission(module, userIds) {
+  return request.post('/stats-permission/sync', { module, userIds })
 }
 export function getMyStatsPermission() {
   return request.get('/stats-permission/me')

@@ -70,67 +70,6 @@
       </div>
     </section>
 
-    <!-- 区块二：激励专项权限 -->
-    <section class="perm-sec">
-      <header class="perm-sec-head">
-        <div class="perm-sec-title">
-          <span class="perm-sec-icon icon-perm"><el-icon :size="19"><Key /></el-icon></span>
-          <div class="perm-sec-text">
-            <h3>激励专项权限</h3>
-            <p>独立于菜单权限，按人授予：查看已分享 / 查看全部 / 编辑 / 删除</p>
-          </div>
-        </div>
-        <el-button type="primary" size="small" :icon="Plus" @click="openPermDialog">添加授权</el-button>
-      </header>
-      <div class="perm-sec-body">
-        <el-table :data="permList" size="small" style="width:100%"
-          :header-cell-style="{ background: '#f7f9fc', color: '#4e5969', fontWeight: 600, borderBottom: '1px solid #eef0f4' }"
-          :row-style="{ height: '54px' }">
-          <el-table-column type="index" label="序号" width="56" align="center">
-            <template #default="{ $index }"><span class="perm-index">{{ $index + 1 }}</span></template>
-          </el-table-column>
-          <el-table-column label="人员" min-width="160">
-            <template #default="{ row }">
-              <div class="perm-person">
-                <span class="perm-avatar" :style="avatarStyle(row.realName)">{{ (row.realName || '?').charAt(0) }}</span>
-                <div class="perm-person-text">
-                  <span class="perm-name">{{ row.realName }}</span>
-                  <span class="perm-username">{{ row.username }}</span>
-                </div>
-              </div>
-            </template>
-          </el-table-column>
-          <el-table-column label="组织 / 岗位" min-width="170">
-            <template #default="{ row }">
-              <div class="perm-org">
-                <span class="perm-office">{{ row.officeName || '—' }}</span>
-                <span class="perm-role" :class="roleClass(row.roleName)">{{ row.roleName || '—' }}</span>
-              </div>
-            </template>
-          </el-table-column>
-          <el-table-column label="查看范围" min-width="150">
-            <template #default="{ row }">
-              <div class="perm-view">
-                <span v-if="row.can_view_shared" class="perm-pill pill-shared">已分享</span>
-                <span v-if="row.can_view_all" class="perm-pill pill-all">全部</span>
-                <span v-if="!row.can_view_shared && !row.can_view_all" class="perm-pill-off">仅本人</span>
-              </div>
-            </template>
-          </el-table-column>
-          <el-table-column label="编辑" width="78" align="center">
-            <template #default="{row}"><span :class="row.can_edit ? 'perm-ok' : 'perm-off'" :title="row.can_edit ? '可编辑激励' : '不可编辑'">{{ row.can_edit ? '✓ 可编辑' : '—' }}</span></template>
-          </el-table-column>
-          <el-table-column label="删除" width="78" align="center">
-            <template #default="{row}"><span :class="row.can_delete ? 'perm-ok perm-ok-danger' : 'perm-off'" :title="row.can_delete ? '可删除激励' : '不可删除'">{{ row.can_delete ? '✓ 可删除' : '—' }}</span></template>
-          </el-table-column>
-          <el-table-column label="操作" width="70" align="center">
-            <template #default="{row}"><el-button link type="danger" size="small" @click="revokePerm(row.id)">撤销</el-button></template>
-          </el-table-column>
-        </el-table>
-        <el-empty v-if="!permList.length" description="暂无授权人员，点击「添加授权」配置" :image-size="72" />
-      </div>
-    </section>
-
     <!-- 激励类别编辑弹窗 -->
     <el-dialog v-model="categoryDialogVisible" :title="categoryForm.id ? '编辑类别' : '新增类别'" width="500px">
       <el-form :model="categoryForm" label-width="80px">
@@ -179,13 +118,10 @@ import { Plus, FolderOpened, Key, Collection, ArrowDown } from '@element-plus/ic
 import { getCategoryTree, createCategory, updateCategory, deleteCategory } from '@/api/incentive'
 import { confirmAction } from '@/utils/confirm'
 import { useUserStore } from '@/store/user'
-import { usePermissionData } from '@/composables/usePermissionData'
 import PermGrantDialog from './PermGrantDialog.vue'
 import './perm-common.css'
 
 const userStore = useUserStore()
-// 激励专项权限(区块二)复用共享 composable: permList/openPermDialog/revokePerm + 授权弹窗联动
-const { permList, openPermDialog, revokePerm, loadPermList } = usePermissionData()
 
 const catLoadError = ref(false)
 const categoryTree = ref([])
@@ -273,6 +209,5 @@ const handleDeleteCategory = async (row) => {
 
 onMounted(() => {
   loadCategoryTree()
-  loadPermList()
 })
 </script>

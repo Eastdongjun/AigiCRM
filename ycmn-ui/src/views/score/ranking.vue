@@ -159,7 +159,7 @@ const showRules = ref(false)
 const loadData = async () => {
   pageNum.value = 1
   // M5 2026-08-10: 未获公司级统计可见授权 → 空态
-  try { const me = await getMyStatsPermission(); if (!me.data?.canViewCompany) { noPermission.value = true; return } } catch {}
+  try { const me = await getMyStatsPermission(); if (!me.data?.canViewScore) { noPermission.value = true; return } } catch {}
   try {
     const params = { period: selectedPeriod.value }
     const [r1, r2, r3] = await Promise.all([

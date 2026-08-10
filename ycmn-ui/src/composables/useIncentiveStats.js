@@ -135,7 +135,7 @@ export function useIncentiveStats() {
     // M5 2026-08-10: 未获公司级统计可见授权 → 空态, 不加载全公司聚合
     try {
       const me = await cachedGet('myStatsPerm', getMyStatsPermission)
-      if (!me.data?.canViewCompany) { noPermission.value = true; loading.value = false; return }
+      if (!me.data?.canViewIncentive) { noPermission.value = true; loading.value = false; return }
     } catch {}
     // 【性能 2026-08-08】五个接口相互独立，由串行 await 改为并发 Promise.allSettled
     // （单页从 ~5×RTT 降到 ~1×max(RTT)，缓解激励统计页卡顿）；各接口独立容错。

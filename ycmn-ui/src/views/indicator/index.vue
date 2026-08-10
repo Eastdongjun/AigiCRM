@@ -156,7 +156,7 @@ const regionRanking = computed(() => data.value.regionRanking || [])
 const noPermission = ref(false)
 const loadData = async () => {
   // M5 2026-08-10: 未获公司级统计可见授权 → 空态
-  try { const me = await getMyStatsPermission(); if (!me.data?.canViewCompany) { noPermission.value = true; return } } catch {}
+  try { const me = await getMyStatsPermission(); if (!me.data?.canViewIndicator) { noPermission.value = true; return } } catch {}
   try { const r = await getIndicatorStats(); data.value = r.data || {} } catch {}
 }
 onMounted(loadData)
