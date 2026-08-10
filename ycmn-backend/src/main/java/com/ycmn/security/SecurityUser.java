@@ -40,6 +40,9 @@ public class SecurityUser implements UserDetails {
     private Set<String> permissions;
     private Collection<? extends GrantedAuthority> authorities;
 
+    /** 【批③ 2026-08-10 正交配置层】role_perm_scope 全量配置(登录装载, 热路径零 DB) */
+    private List<com.ycmn.common.scope.ScopeConfig> scopeConfigs = new ArrayList<>();
+
     /** 获取最高数据范围（多角色取最宽松） */
     public String getEffectiveDataScope() {
         if (dataScope == null) return DataScopeType.SELF.getCode();

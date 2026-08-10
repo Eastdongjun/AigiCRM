@@ -42,7 +42,8 @@ class UserDetailsServiceImplTest {
     void setUp() {
         service = new UserDetailsServiceImpl(userMapper, menuMapper, roleMapper, deptMapper,
                 orgAdminMapper, roleOrgMapper, mock(com.ycmn.module.system.mapper.SysUserOrgMapper.class),
-                positionMapper, permissionRuleMapper, permissionCacheService);
+                positionMapper, permissionRuleMapper, permissionCacheService,
+                mock(com.ycmn.module.system.service.RolePermScopeService.class));
     }
 
     /** 构造基础用户：id=1、正常状态、无组织归属（跳过 2b 的 org 查询） */

@@ -43,4 +43,7 @@ public class PermissionContext {
     private RuleResult ruleResult;
 
     private Set<String> permissions = new HashSet<>();
+
+    /** 【批③ 2026-08-10】数据范围配置(随权限上下文缓存, 任何新增派生字段必须同步到此 DTO) */
+    private List<com.ycmn.common.scope.ScopeConfig> scopeConfigs = new ArrayList<>();
 }

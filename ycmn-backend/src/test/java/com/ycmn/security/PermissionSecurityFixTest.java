@@ -83,7 +83,7 @@ class PermissionSecurityFixTest {
     @Test
     void updateRoleScopes_invalidScopeLevel_rejected() {
         JdbcTemplate jdbc = mock(JdbcTemplate.class);
-        RolePermScopeService svc = new RolePermScopeService(jdbc);
+        RolePermScopeService svc = new RolePermScopeService(jdbc, mock(com.ycmn.security.PermissionCacheService.class));
         assertThrows(BusinessException.class,
                 () -> svc.updateRoleScopes("06", List.of(Map.of("module", "customer", "action", "view", "scopeLevel", "xxx"))),
                 "非法范围值必须拒绝, 不得静默降级 self");
@@ -92,17 +92,18 @@ class PermissionSecurityFixTest {
     @Test
     void updateRoleScopes_emptyList_deletesAllConfig() {
         JdbcTemplate jdbc = mock(JdbcTemplate.class);
-        RolePermScopeService svc = new RolePermScopeService(jdbc);
+        RolePermScopeService svc = new RolePermScopeService(jdbc, mock(com.ycmn.security.PermissionCacheService.class));
         svc.updateRoleScopes("06", List.of());
-        verify(jdbc).update("DELETE FROM role_perm_scope WHERE role_code=?", "06");
+        verify(jdbc).update("DELETE FROM role_perm_scope WHERE assignee_type=? AND assignee_key=?", "ROLE", "06");
     }
 
     @Test
     void renameRoleCode_migratesScopes() {
         JdbcTemplate jdbc = mock(JdbcTemplate.class);
-        RolePermScopeService svc = new RolePermScopeService(jdbc);
+        RolePermScopeService svc = new RolePermScopeService(jdbc, mock(com.ycmn.security.PermissionCacheService.class));
         svc.renameRoleCode("old", "new");
-        verify(jdbc).update("UPDATE role_perm_scope SET role_code=? WHERE role_code=?", "new", "old");
+        verify(jdbc).update("UPDATE role_perm_scope SET role_code=?, assignee_key=? WHERE assignee_type='ROLE' AND assignee_key=?",
+                "new", "new", "old");
     }
 
     // ==================== P1-05: org_and_children 并入 managedOrgIds(与列表同口径) ====================

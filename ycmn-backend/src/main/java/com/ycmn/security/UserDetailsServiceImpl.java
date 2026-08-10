@@ -30,6 +30,7 @@ public class UserDetailsServiceImpl implements UserDetailsService {
     private final SysPositionMapper positionMapper;
     private final SysPermissionRuleMapper permissionRuleMapper;
     private final PermissionCacheService permissionCacheService;
+    private final com.ycmn.module.system.service.RolePermScopeService rolePermScopeService;
 
     private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(UserDetailsServiceImpl.class);
 
@@ -142,6 +143,11 @@ public class UserDetailsServiceImpl implements UserDetailsService {
         List<SysPosition> positions = positionMapper.selectByUserId(uid);
         securityUser.setPositions(positions);
 
+        // ======================== 2c. 【批③ 正交配置层】装载数据范围配置(USER>POSITION>ROLE 三级) ========================
+        java.util.List<Long> positionIds = positions.stream().map(SysPosition::getId).toList();
+        securityUser.setScopeConfigs(rolePermScopeService.loadScopeConfigs(uid,
+                securityUser.getRoleCodes(), positionIds));
+
         // ======================== 2b. 从岗位推导集团和法人公司归属 ========================
         Set<Long> allGroupIds = new HashSet<>();
         Set<Long> allLegalEntityIds = new HashSet<>();
@@ -237,6 +243,7 @@ public class UserDetailsServiceImpl implements UserDetailsService {
         ctx.setPermissionRules(su.getPermissionRules() != null ? su.getPermissionRules() : new ArrayList<>());
         ctx.setRuleResult(su.getRuleResult());
         ctx.setPermissions(su.getPermissions() != null ? su.getPermissions() : new java.util.HashSet<>());
+        ctx.setScopeConfigs(su.getScopeConfigs() != null ? su.getScopeConfigs() : new java.util.ArrayList<>());
         return ctx;
     }
 
@@ -260,6 +267,7 @@ public class UserDetailsServiceImpl implements UserDetailsService {
         su.setPermissionRules(ctx.getPermissionRules());
         su.setRuleResult(ctx.getRuleResult());
         su.setPermissions(ctx.getPermissions());
+        su.setScopeConfigs(ctx.getScopeConfigs() != null ? ctx.getScopeConfigs() : new java.util.ArrayList<>());
         su.setAuthorities(ctx.getPermissions().stream()
                 .map(SimpleGrantedAuthority::new)
                 .collect(Collectors.toList()));

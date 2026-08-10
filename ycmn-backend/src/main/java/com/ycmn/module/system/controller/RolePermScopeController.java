@@ -32,13 +32,39 @@ public class RolePermScopeController {
     @PutMapping("/{roleCode}")
     public Result<Void> updateScopes(@PathVariable String roleCode,
                                      @RequestBody List<Map<String, Object>> configs) {
+        requireAdmin();
+        rolePermScopeService.updateRoleScopes(roleCode, configs);
+        return Result.ok();
+    }
+
+    // ==================== 【批③ 正交配置层】主体三级通用端点 ====================
+
+    /** 岗位级范围配置(assigneeType=POSITION, key=岗位ID) */
+    @PreAuthorize("hasAuthority('system:config:view')")
+    @GetMapping("/assignee/{type}/{key}")
+    public Result<List<Map<String, Object>>> getAssigneeScopes(@PathVariable String type, @PathVariable String key) {
+        return Result.ok(rolePermScopeService.getAssigneeScopes(type, key));
+    }
+
+    /** 岗位级/用户级范围配置保存(assigneeType=POSITION/USER; 角色级走 /{roleCode}) */
+    @PreAuthorize("hasAuthority('system:config:edit')")
+    @PutMapping("/assignee/{type}/{key}")
+    public Result<Void> updateAssigneeScopes(@PathVariable String type, @PathVariable String key,
+                                             @RequestBody List<Map<String, Object>> configs) {
+        requireAdmin();
+        if (!com.ycmn.common.scope.ScopeConfig.ASSIGNEE_POSITION.equals(type)
+                && !com.ycmn.common.scope.ScopeConfig.ASSIGNEE_USER.equals(type)) {
+            throw new BusinessException("仅支持岗位(POSITION)/用户(USER)级配置, 角色级请走 /{roleCode}");
+        }
+        rolePermScopeService.updateScopes(type, key, configs);
+        return Result.ok();
+    }
+
+    private void requireAdmin() {
         // 【修复 2026-08-10 P1-03】范围配置=数据权限放大,必须超管本人才能写——
         // 否则 system:config:edit 落到非超管角色时可将自己角色 customer edit/delete 配成 all 提权。
-        // 与 IncentivePermissionController.grant/revoke 的 isAdmin 门禁一致。
         if (!SecurityUtils.isAdmin()) {
             throw new BusinessException("仅系统管理员可配置数据范围");
         }
-        rolePermScopeService.updateRoleScopes(roleCode, configs);
-        return Result.ok();
     }
 }

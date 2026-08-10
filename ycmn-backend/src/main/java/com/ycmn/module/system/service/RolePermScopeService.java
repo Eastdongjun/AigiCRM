@@ -1,5 +1,6 @@
 package com.ycmn.module.system.service;
 
+import com.ycmn.common.scope.ScopeConfig;
 import com.ycmn.common.scope.ScopeRequest;
 import com.ycmn.security.SecurityUser;
 import lombok.RequiredArgsConstructor;
@@ -40,11 +41,69 @@ public class RolePermScopeService {
     }
 
     private final JdbcTemplate jdbc;
+    private final com.ycmn.security.PermissionCacheService permissionCacheService;
 
-    /** 有效范围 code 列表(多角色并集; 空=未配置走默认) */
+    /** 【批③ 正交配置层】按用户装载全量范围配置(USER>POSITION>ROLE 三级; 登录时写入 SecurityUser.scopeConfigs) */
+    public List<ScopeConfig> loadScopeConfigs(Long userId, List<String> roleCodes, List<Long> positionIds) {
+        List<ScopeConfig> all = new ArrayList<>();
+        try {
+            if (userId != null) {
+                all.addAll(queryConfigs("assignee_type='USER' AND assignee_key=?", String.valueOf(userId)));
+            }
+            if (positionIds != null) {
+                for (Long pid : positionIds) {
+                    all.addAll(queryConfigs("assignee_type='POSITION' AND assignee_key=?", String.valueOf(pid)));
+                }
+            }
+            if (roleCodes != null) {
+                for (String rc : roleCodes) {
+                    all.addAll(queryConfigs("assignee_type='ROLE' AND assignee_key=?", rc));
+                }
+            }
+        } catch (Exception e) {
+            // 配置表缺失/查询失败降级为空(范围走 dataScope 回退, 不阻断登录)
+            return all;
+        }
+        return all;
+    }
+
+    private List<ScopeConfig> queryConfigs(String where, String key) {
+        return jdbc.query("SELECT assignee_type, assignee_key, module, action, scope_level, anchor FROM role_perm_scope WHERE " + where,
+                (rs, i) -> {
+                    ScopeConfig c = new ScopeConfig();
+                    c.setAssigneeType(rs.getString("assignee_type"));
+                    c.setAssigneeKey(rs.getString("assignee_key"));
+                    c.setModule(rs.getString("module"));
+                    c.setAction(rs.getString("action"));
+                    c.setScopeLevel(rs.getString("scope_level"));
+                    c.setAnchor(rs.getString("anchor"));
+                    return c;
+                }, key);
+    }
+
+    /** 从 SecurityUser 内存配置读取 (module,action) 的显式配置(优先 USER>POSITION>ROLE, 同主体并集) */
+    public List<ScopeConfig> configsFor(SecurityUser user, String module, String action) {
+        if (user == null || user.getScopeConfigs() == null) return List.of();
+        List<ScopeConfig> out = new ArrayList<>();
+        for (ScopeConfig c : user.getScopeConfigs()) {
+            if (module.equals(c.getModule()) && action.equals(c.getAction())) out.add(c);
+        }
+        return out;
+    }
+
+    /** 有效范围 code 列表(多主体并集; 空=未配置走默认) */
     public List<String> effectiveScopes(SecurityUser user, String module, String action) {
         List<String> codes = new ArrayList<>();
-        if (user != null && user.getRoleCodes() != null) {
+        // 【批③ 正交配置层】优先内存配置(登录装载的 scopeConfigs, USER>POSITION>ROLE 三级并集)——热路径零 DB
+        if (user != null && user.getScopeConfigs() != null) {
+            for (ScopeConfig c : user.getScopeConfigs()) {
+                if (module.equals(c.getModule()) && action.equals(c.getAction())) {
+                    codes.add(c.getScopeLevel());
+                }
+            }
+        }
+        // 内存未命中(如缓存重组前/规则引擎直调)回退查库(30s JDBC 缓存)
+        if (codes.isEmpty() && user != null && user.getRoleCodes() != null) {
             for (String roleCode : user.getRoleCodes()) {
                 String scope = lookup(roleCode, module, action);
                 if (scope != null) codes.add(scope);
@@ -104,6 +163,14 @@ public class RolePermScopeService {
 
     /** 模块级锚点: 配置行 anchor 列(OWNER/ORG), 未配置默认 OWNER(批②: 客户模块可配 ORG) */
     public ScopeRequest.AnchorType anchorOf(SecurityUser user, String module, String action) {
+        // 【批③】优先内存配置(登录装载)
+        if (user != null && user.getScopeConfigs() != null) {
+            for (ScopeConfig c : user.getScopeConfigs()) {
+                if (module.equals(c.getModule()) && action.equals(c.getAction())) {
+                    return "ORG".equalsIgnoreCase(c.getAnchor()) ? ScopeRequest.AnchorType.ORG : ScopeRequest.AnchorType.OWNER;
+                }
+            }
+        }
         if (user != null && user.getRoleCodes() != null) {
             for (String roleCode : user.getRoleCodes()) {
                 AnchorCacheEntry hit = anchorCache.get(roleCode + ":" + module + ":" + action);
@@ -127,20 +194,35 @@ public class RolePermScopeService {
     /** 某角色的全部范围配置 */
     public List<Map<String, Object>> getRoleScopes(String roleCode) {
         return jdbc.queryForList(
-                "SELECT id, module, action, scope_level FROM role_perm_scope WHERE role_code=? ORDER BY module, action",
+                "SELECT id, module, action, scope_level, anchor FROM role_perm_scope WHERE role_code=? ORDER BY module, action",
                 roleCode);
     }
 
+    /** 【批③】按主体(岗位/用户)查范围配置(含锚点) */
+    public List<Map<String, Object>> getAssigneeScopes(String assigneeType, String assigneeKey) {
+        return jdbc.queryForList(
+                "SELECT id, module, action, scope_level, anchor FROM role_perm_scope WHERE assignee_type=? AND assignee_key=? ORDER BY module, action",
+                assigneeType, assigneeKey);
+    }
+
     /**
-     * 保存某角色的范围配置(UPSERT); configs = [{module, action, scopeLevel}]。
+     * 保存某角色的范围配置(UPSERT, 角色级兼容入口); configs = [{module, action, scopeLevel, anchor?}]。
      * 【修复 2026-08-10 P2-07】configs 为空列表 = 删除该角色全部配置(恢复"未配置"默认语义);
-     * 【修复 P2-05】scopeLevel 不在合法集合内直接拒绝, 防止非法值静默降级 self 造成"配置了不生效"困惑。
+     * 【修复 P2-05】scopeLevel 不在合法集合内直接拒绝。
      */
     @Transactional
     public void updateRoleScopes(String roleCode, List<Map<String, Object>> configs) {
+        updateScopes(ScopeConfig.ASSIGNEE_ROLE, roleCode, configs);
+    }
+
+    /** 【批③ 正交配置层】通用保存(主体三级 ROLE/POSITION/USER + 锚点) */
+    @Transactional
+    public void updateScopes(String assigneeType, String assigneeKey, List<Map<String, Object>> configs) {
         if (configs == null) return;
         if (configs.isEmpty()) {
-            deleteRoleScopes(roleCode);
+            jdbc.update("DELETE FROM role_perm_scope WHERE assignee_type=? AND assignee_key=?", assigneeType, assigneeKey);
+            invalidate(assigneeKey);
+            permissionCacheService.evictAll();
             return;
         }
         for (Map<String, Object> cfg : configs) {
@@ -152,27 +234,37 @@ public class RolePermScopeService {
             if (!VALID_SCOPES.contains(scope)) {
                 throw new com.ycmn.common.BusinessException("非法的数据范围取值: " + scope);
             }
+            String anchor = cfg.get("anchor") != null ? cfg.get("anchor").toString() : "OWNER";
+            if (!"OWNER".equalsIgnoreCase(anchor) && !"ORG".equalsIgnoreCase(anchor)) {
+                throw new com.ycmn.common.BusinessException("非法的范围锚点取值: " + anchor);
+            }
+            // role_code 列同步写(兼容 V7 查询/回滚窗口)
+            String roleCode = ScopeConfig.ASSIGNEE_ROLE.equals(assigneeType) ? assigneeKey : "";
             jdbc.update(
-                    "INSERT INTO role_perm_scope (role_code, module, action, scope_level) VALUES (?,?,?,?) " +
-                    "ON DUPLICATE KEY UPDATE scope_level=VALUES(scope_level)",
-                    roleCode, module.toString(), action.toString(), scope);
-            invalidate(roleCode);
+                    "INSERT INTO role_perm_scope (role_code, assignee_type, assignee_key, module, action, scope_level, anchor) VALUES (?,?,?,?,?,?,?) " +
+                    "ON DUPLICATE KEY UPDATE scope_level=VALUES(scope_level), anchor=VALUES(anchor), role_code=VALUES(role_code)",
+                    roleCode, assigneeType, assigneeKey, module.toString(), action.toString(), scope, anchor.toUpperCase());
+            invalidate(assigneeKey);
+            permissionCacheService.evictAll(); // 配置低频管理操作: 全量失效保证即时生效(简单无漏)
         }
     }
 
     /** 删除某角色的全部范围配置(角色删除/重置时) */
     @Transactional
     public void deleteRoleScopes(String roleCode) {
-        jdbc.update("DELETE FROM role_perm_scope WHERE role_code=?", roleCode);
+        jdbc.update("DELETE FROM role_perm_scope WHERE assignee_type='ROLE' AND assignee_key=?", roleCode);
         invalidate(roleCode);
+        permissionCacheService.evictAll();
     }
 
     /** role_code 改名时迁移其全部范围配置(防止旧 code 孤儿化, 新 code 意外收紧) */
     @Transactional
     public void renameRoleCode(String oldCode, String newCode) {
-        jdbc.update("UPDATE role_perm_scope SET role_code=? WHERE role_code=?", newCode, oldCode);
+        jdbc.update("UPDATE role_perm_scope SET role_code=?, assignee_key=? WHERE assignee_type='ROLE' AND assignee_key=?",
+                newCode, newCode, oldCode);
         invalidate(oldCode);
         invalidate(newCode);
+        permissionCacheService.evictAll();
     }
 
     /** 是否有任意范围配置(判断"是否已进入新模式") */
