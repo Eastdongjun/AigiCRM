@@ -1,9 +1,5 @@
 import request from '@/utils/request'
 
-export function getScoreItems() {
-  return request.get('/score/items')
-}
-
 export function addScoreItem(data) {
   return request.post('/score/items', data)
 }

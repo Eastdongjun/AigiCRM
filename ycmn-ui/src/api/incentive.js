@@ -37,11 +37,6 @@ export function getScoreboard(params) {
   return request.get('/incentive/scoreboard', { params })
 }
 
-// 激励统计查询（全员可见）：支持大类/子类/行业/产品/周期筛选
-export function queryRecords(params) {
-  return request.get('/incentive/records/query', { params })
-}
-
 // 激励统计表(全员口径): 按子类聚合文件数/总学分 + 周期总计
 export function getCategoryStats(params) {
   return request.get('/incentive/category-stats', { params })
@@ -55,23 +50,7 @@ export function getIncentiveRanking(params) {
   return request.get('/incentive/ranking', { params })
 }
 
-export function getIncentiveRankingStats(params) {
-  return request.get('/incentive/ranking/stats', { params })
-}
-
 // 四项激励权限
 export function checkIncentivePermission() {
   return request.get('/incentive/permission/check')
-}
-
-export function getIncentivePermissionList() {
-  return request.get('/incentive/permission/list')
-}
-
-export function grantIncentivePermission(data) {
-  return request.post('/incentive/permission/grant', data)
-}
-
-export function revokeIncentivePermission(id) {
-  return request.delete(`/incentive/permission/${id}`)
 }
