@@ -22,7 +22,6 @@ import java.util.Map;
 public class StatisticsController {
 
     private final StatisticsQueryService statisticsQueryService;
-    private final com.ycmn.module.system.service.StatsPermissionService statsPermissionService;
 
     @GetMapping("/dashboard")
     @PreAuthorize("hasAnyAuthority('statistics:view','dashboard:view')")
@@ -45,10 +44,6 @@ public class StatisticsController {
     @GetMapping("/indicator-stats")
     @PreAuthorize("hasAuthority('statistics:view')")
     public Result<Map<String, Object>> indicatorStats() {
-        // M5 2026-08-10: 全公司统计总览(核心客户指标)仅管理员勾选的用户可见
-        if (!statsPermissionService.canView("indicator")) {
-            throw new com.ycmn.common.BusinessException(403, "无权限查看公司级统计");
-        }
         return Result.ok(statisticsQueryService.indicatorStats());
     }
 

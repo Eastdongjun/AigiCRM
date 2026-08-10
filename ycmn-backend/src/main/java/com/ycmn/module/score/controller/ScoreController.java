@@ -17,7 +17,6 @@ import java.util.Map;
 public class ScoreController {
 
     private final ScoreService scoreService;
-    private final com.ycmn.module.system.service.StatsPermissionService statsPermissionService;
 
     // ====== 积分项 ======
 
@@ -80,10 +79,6 @@ public class ScoreController {
     public Result<List<Map<String, Object>>> ranking(
             @RequestParam(required = false) String period,
             @RequestParam(defaultValue = "personal") String type) {
-        // M5 2026-08-10: 全员学分排行仅管理员勾选的用户可见(积分模块)
-        if (!statsPermissionService.canView("score")) {
-            throw new com.ycmn.common.BusinessException(403, "无权限查看全员学分排行");
-        }
         if ("dept".equals(type)) {
             return Result.ok(scoreService.deptRanking(period));
         }
@@ -94,10 +89,6 @@ public class ScoreController {
     @PreAuthorize("hasAuthority('score:view')")
     public Result<Map<String, Object>> rankingStats(
             @RequestParam(required = false) String period) {
-        // M5 2026-08-10: 全员学分排行仅管理员勾选的用户可见(积分模块)
-        if (!statsPermissionService.canView("score")) {
-            throw new com.ycmn.common.BusinessException(403, "无权限查看全员学分排行");
-        }
         return Result.ok(scoreService.rankingStats(period));
     }
 

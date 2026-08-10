@@ -1,10 +1,5 @@
 <template>
   <div class="score-ranking">
-    <!-- M5 2026-08-10: 未获公司级统计可见授权 → 空态 -->
-    <div v-if="noPermission" class="no-perm">
-      <el-empty description="无权限查看全员学分排行，请联系管理员授权" />
-    </div>
-    <template v-else>
     <!-- 顶部卡片 -->
     <div class="header-card">
       <div class="header-left">
@@ -133,17 +128,14 @@
       <p>3. 总学分 = 所有评分项得分之和</p>
       <p>4. 排名按总学分降序，同分按评分项数降序</p>
     </el-dialog>
-    </template>
   </div>
 </template>
 
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
 import { getScoreRanking, getScoreRankingStats } from '@/api/score'
-import { getMyStatsPermission } from '@/api/system'
 
 const activeTab = ref('personal')
-const noPermission = ref(false)
 const periodOptions = (() => { const l = []; for (let y = 2030; y >= 2025; y--) { l.push(y + '下半年', y + '上半年') } return l })()
 const selectedPeriod = ref('')
 const personalList = ref([])
@@ -158,8 +150,6 @@ const showRules = ref(false)
 
 const loadData = async () => {
   pageNum.value = 1
-  // M5 2026-08-10: 未获公司级统计可见授权 → 空态
-  try { const me = await getMyStatsPermission(); if (!me.data?.canViewScore) { noPermission.value = true; return } } catch {}
   try {
     const params = { period: selectedPeriod.value }
     const [r1, r2, r3] = await Promise.all([
@@ -189,7 +179,6 @@ onMounted(loadData)
 </script>
 
 <style scoped>
-.no-perm { display: flex; align-items: center; justify-content: center; min-height: calc(100vh - 200px); }
 .score-ranking { min-height: calc(100vh - 100px); display: flex; flex-direction: column; }
 
 /* 顶部卡片 */

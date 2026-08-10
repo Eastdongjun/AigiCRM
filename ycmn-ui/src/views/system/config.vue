@@ -34,8 +34,8 @@
           <PermMatrixManager mode="overview" />
         </el-tab-pane>
         <el-tab-pane name="perm">
-          <template #label><span class="tab-label">🗄️ 权限管理</span></template>
-          <PermModuleManager />
+          <template #label><span class="tab-label">🗄️ 权限矩阵</span></template>
+          <PermMatrixManager mode="matrix" />
         </el-tab-pane>
 
       </el-tabs>
@@ -53,7 +53,6 @@ import SeaConfigManager from './SeaConfigManager.vue'
 import BasicSettings from './BasicSettings.vue'
 import CategoryManager from './CategoryManager.vue'
 import PermMatrixManager from './PermMatrixManager.vue'
-import PermModuleManager from './PermModuleManager.vue'
 
 // 权限状态为模块级单例(composables/usePermissionData.js),各 tab 子组件共享;切到"权限矩阵"时加载
 const { activeTab, loadPermData } = usePermissionData()
