@@ -168,4 +168,44 @@ class MybatisPlusConfigTest {
                 "UPDATE sys_user SET name = 'y' WHERE id = 1", null);
         assertFalse(out.contains("tenant_id"), "非白名单表 UPDATE 不应附加条件，实际: " + out);
     }
+
+    // ---- 批① 2026-08-10: admin 忽略租户 + 26 表白名单 ----
+
+    @Test
+    void admin_ignoresTenantCondition() {
+        SecurityUser user = new SecurityUser();
+        user.setRoleCodes(List.of("admin"));
+        SecurityContextHolder.getContext().setAuthentication(
+                new UsernamePasswordAuthenticationToken(user, null, Collections.emptyList()));
+        TenantLineInnerInterceptor it = MybatisPlusConfig.buildTenantInterceptor();
+        String rewritten = it.parserSingle("SELECT * FROM biz_customer WHERE id = 1", "id");
+        assertFalse(rewritten.toLowerCase().contains("tenant_id"), "平台管理员不应附加租户条件: " + rewritten);
+    }
+
+    @Test
+    void nonAdmin_appliesTenantCondition() {
+        authAs(List.of(1L));
+        TenantLineInnerInterceptor it = MybatisPlusConfig.buildTenantInterceptor();
+        String rewritten = it.parserSingle("SELECT * FROM biz_customer WHERE id = 1", "id");
+        assertTrue(rewritten.toLowerCase().contains("tenant_id = 1"), "非管理员应附加当前集团条件: " + rewritten);
+    }
+
+    @Test
+    void tenantTables_includeNewBusinessTables() {
+        // 26 张业务表全部在白名单(8 张原有 + 18 张 V9 新增); 快照表与废弃表排除
+        for (String t : List.of("biz_customer", "biz_sea_pool", "biz_contact", "biz_invoice",
+                "biz_payment", "biz_score_entry", "biz_folder_acl", "biz_incentive_category",
+                "biz_customer_transfer", "biz_approval_node", "biz_file_permission")) {
+            authAs(List.of(1L));
+            TenantLineInnerInterceptor it = MybatisPlusConfig.buildTenantInterceptor();
+            String rewritten = it.parserSingle("SELECT * FROM " + t + " WHERE id = 1", "id");
+            assertTrue(rewritten.toLowerCase().contains("tenant_id"),
+                    "业务表 " + t + " 应附加租户条件: " + rewritten);
+        }
+        // 快照表不加租户条件(无 tenant_id 列)
+        authAs(List.of(1L));
+        TenantLineInnerInterceptor it = MybatisPlusConfig.buildTenantInterceptor();
+        String bak = it.parserSingle("SELECT * FROM biz_customer_bak_0624 WHERE id = 1", "id");
+        assertFalse(bak.toLowerCase().contains("tenant_id"), "快照表不应附加租户条件: " + bak);
+    }
 }

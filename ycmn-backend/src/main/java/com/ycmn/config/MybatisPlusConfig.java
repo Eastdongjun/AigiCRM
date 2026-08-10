@@ -8,6 +8,7 @@ import com.baomidou.mybatisplus.extension.plugins.inner.PaginationInnerIntercept
 import com.baomidou.mybatisplus.extension.plugins.inner.TenantLineInnerInterceptor;
 import com.ycmn.security.SecurityUtils;
 import jakarta.annotation.PostConstruct;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.sf.jsqlparser.expression.Expression;
 import net.sf.jsqlparser.expression.LongValue;
@@ -22,32 +23,51 @@ import java.util.Set;
 
 @Configuration
 @Slf4j
+@RequiredArgsConstructor
 public class MybatisPlusConfig {
 
     /**
-     * 租户白名单：仅已迁移 tenant_id 列的核心业务表（Task 12 迁移后开启 ycmn.tenant.enable）。
-     * 开关关闭时本类不注册 TenantLineInnerInterceptor——未迁移列的表一旦被附加 tenant_id
-     * 条件会直接报"列不存在"，因此默认关闭是本任务合入不破坏现有功能的前提。
+     * 租户白名单：全部 26 张业务表(V9 迁移后全部含 tenant_id 列; 5 张 *_bak_* 快照表
+     * 与废弃空表 biz_stats_permission 排除)。启动自检 {@link #verifyTenantColumns} 保证
+     * 白名单每张表都有 tenant_id 列, 缺失即 fail-fast——防止漏配迁移导致 SQL 报错。
      */
-    private static final Set<String> TENANT_TABLES =
-            Set.of("biz_customer", "biz_customer_share", "biz_file_folder", "biz_file",
-                    "biz_incentive_record", "biz_sea_pool", "biz_approval", "biz_reminder");
+    private static final Set<String> TENANT_TABLES = Set.of(
+            "biz_approval", "biz_approval_config", "biz_approval_flow", "biz_approval_node",
+            "biz_contact", "biz_customer", "biz_customer_indicator", "biz_customer_log",
+            "biz_customer_share", "biz_customer_transfer", "biz_file", "biz_file_folder",
+            "biz_file_permission", "biz_file_share", "biz_folder_acl", "biz_incentive_category",
+            "biz_incentive_permission", "biz_incentive_record", "biz_invoice", "biz_payment",
+            "biz_reminder", "biz_score_entry", "biz_score_item", "biz_score_participant",
+            "biz_sea_config", "biz_sea_pool");
 
     /** 租户插件开关（默认关闭；环境变量 TENANT_ENABLE 可覆盖） */
     @Value("${ycmn.tenant.enable:false}")
     private boolean tenantEnable;
 
+    /** 懒获取 JdbcTemplate(测试上下文无数据源时 getIfAvailable 返回 null, 自检降级跳过) */
+    private final org.springframework.beans.factory.ObjectProvider<org.springframework.jdbc.core.JdbcTemplate> jdbcTemplateProvider;
+
     /**
-     * 租户开关启用前置校验（设计文档 §4.3 + ledger Task 4 前置验收）：
-     * 开启前必须完成——平台管理员锁定集团1、多集团收敛（resolveTenantId 暂取最小集团 fail-closed）、
-     * 无集团用户泄漏面收口。此处仅警示日志提示前置验收，不做强制逻辑（前置验收属启用阶段）。
+     * 启动自检：租户开启时校验白名单每张表都有 tenant_id 列, 缺失即启动失败。
+     * 防止"迁移未执行 / 新表漏配"导致运行时 SQL 报错(历史教训: V7 迁移遗漏致生产 500)。
      */
     @PostConstruct
-    public void warnTenantEnablePrerequisites() {
-        if (tenantEnable) {
-            log.warn("ycmn.tenant.enable=true：租户插件已启用。请确认前置验收（设计 §4.3 + ledger Task 4）："
-                    + "平台管理员锁定集团1 / 多集团收敛 / 无集团用户泄漏面；未完成请勿联调。");
+    public void verifyTenantColumns() {
+        if (!tenantEnable) return;
+        org.springframework.jdbc.core.JdbcTemplate jdbc = jdbcTemplateProvider.getIfAvailable();
+        if (jdbc == null) {
+            log.warn("租户启动自检跳过(JdbcTemplate 不可用)");
+            return;
         }
+        for (String table : TENANT_TABLES) {
+            Integer cnt = jdbc.queryForObject(
+                    "SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = 'tenant_id'",
+                    Integer.class, table);
+            if (cnt == null || cnt == 0) {
+                throw new IllegalStateException("租户白名单表缺少 tenant_id 列, 请先执行 V9 迁移: " + table);
+            }
+        }
+        log.info("租户插件启动自检通过: {} 张白名单表全部含 tenant_id 列", TENANT_TABLES.size());
     }
 
     @Bean
@@ -70,7 +90,8 @@ public class MybatisPlusConfig {
 
     /**
      * 集团租户拦截器：对白名单表自动附加 tenant_id 条件。
-     * 平台管理员（groupIds 为空）走 {@link #resolveTenantId} 的默认值分支。
+     * 平台管理员(admin 角色)跨集团管理, 跳过全部租户条件(ignoreTable 动态判断, 与 MP 版本无关);
+     * 其余用户走 {@link #resolveTenantId}(批④起读会话级 currentGroupId, 当前读集团集合取最小 fail-closed)。
      */
     static TenantLineInnerInterceptor buildTenantInterceptor() {
         return new TenantLineInnerInterceptor(new TenantLineHandler() {
@@ -86,6 +107,7 @@ public class MybatisPlusConfig {
 
             @Override
             public boolean ignoreTable(String tableName) {
+                if (SecurityUtils.isAdmin()) return true; // 平台管理员跨集团: 不附加租户条件
                 return !TENANT_TABLES.contains(tableName);
             }
         });
