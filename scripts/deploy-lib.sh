@@ -16,8 +16,25 @@ source "$ENV_FILE"
 
 SSH_OPTS="${SSH_OPTS:--o ConnectTimeout=20 -o StrictHostKeyChecking=no}"
 
-ssh_prod()  { sshpass -p "$PROD_PASS" ssh $SSH_OPTS "${PROD_USER}@${PROD_HOST}" "$@"; }
-ssh_test()  { sshpass -p "$TEST_PASS" ssh $SSH_OPTS "${TEST_USER}@${TEST_HOST}" "$@"; }
+# ssh 封装带重试(连接建立类瞬时失败自动重试; 3 次后放弃)。
+# 注: 重试仅对"连接未建立"的失败安全——绝大多数瞬时失败(连接重置/拒绝)发生在此阶段, 远程命令未执行;
+# 部署类命令自身幂等(备份覆盖/rm -rf 先行/容器重启), 重试不会造成重复副作用。
+ssh_prod() {
+  local attempt
+  for attempt in 1 2 3; do
+    sshpass -p "$PROD_PASS" ssh $SSH_OPTS "${PROD_USER}@${PROD_HOST}" "$@" && return 0
+    sleep 2
+  done
+  return 1
+}
+ssh_test() {
+  local attempt
+  for attempt in 1 2 3; do
+    sshpass -p "$TEST_PASS" ssh $SSH_OPTS "${TEST_USER}@${TEST_HOST}" "$@" && return 0
+    sleep 2
+  done
+  return 1
+}
 scp_prod()  { sshpass -p "$PROD_PASS" scp $SSH_OPTS "$@"; }
 scp_test()  { sshpass -p "$TEST_PASS" scp $SSH_OPTS "$@"; }
 

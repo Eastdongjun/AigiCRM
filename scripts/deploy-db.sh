@@ -27,7 +27,7 @@ fi
 
 echo "=== [1/4] 生产数据库备份 ==="
 ssh_prod "
-  docker exec ycmn-mysql mysqldump -uroot -p"$DB_PASSWORD" --default-character-set=utf8mb4 --single-transaction ycmn > /root/ycmn/backup-pre-migrate-$(date +%Y%m%d-%H%M%S).sql
+  docker exec -e MYSQL_PWD=\"$DB_PASSWORD\" ycmn-mysql mysqldump -uroot --default-character-set=utf8mb4 --single-transaction ycmn > /root/ycmn/backup-pre-migrate-$(date +%Y%m%d-%H%M%S).sql
   echo '备份完成:'; ls -t /root/ycmn/backup-pre-migrate-*.sql | head -1
 "
 
@@ -39,7 +39,8 @@ echo "迁移文件: $(ssh_prod "ls /root/ycmn/flyway-sql/ | wc -l") 个"
 
 echo "=== [3/4] Flyway migrate ==="
 ssh_prod "
-  echo '迁移前: 表数 \$(docker exec ycmn-mysql mysql -uroot -p"$DB_PASSWORD" -N -e \"SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='ycmn'\" 2>/dev/null)'
+  TABLE_CNT=\$(docker exec -e MYSQL_PWD=\"$DB_PASSWORD\" ycmn-mysql mysql -uroot -N -e \"SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='ycmn'\" 2>/dev/null)
+  echo \"迁移前: 表数 \$TABLE_CNT\"
   OUT=\$(docker run --rm --network ycmn_default -v /root/ycmn/flyway-sql:/flyway/sql \
     flyway/flyway:latest-alpine \
     -url='jdbc:mysql://ycmn-mysql:3306/ycmn?useSSL=false&allowPublicKeyRetrieval=true' \
@@ -55,7 +56,7 @@ ssh_prod "
 
 echo "=== [4/4] 结构验证 ==="
 ssh_prod "
-  docker exec ycmn-mysql mysql -uroot -p"$DB_PASSWORD" -N --default-character-set=utf8mb4 -e \"
+  docker exec -e MYSQL_PWD="$DB_PASSWORD" ycmn-mysql mysql -uroot -N --default-character-set=utf8mb4 -e \"
     SELECT '表数', COUNT(*) FROM information_schema.tables WHERE table_schema='ycmn';
     SELECT '菜单', COUNT(*) FROM ycmn.sys_menu;
     SELECT '客户', COUNT(*) FROM ycmn.biz_customer;

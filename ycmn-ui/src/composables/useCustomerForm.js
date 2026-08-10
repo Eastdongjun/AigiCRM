@@ -28,6 +28,7 @@ export function useCustomerForm() {
   const formRef = ref(null)
   const dupInfo = reactive({ exists: false, createdBy: "", createdAt: "" })
   const loading = ref(false)
+  const customerStatus = ref('') // 编辑加载时记录的客户状态(sea=公海池内, 负责人字段需禁用)
   const regions = ref([])
   const offices = ref([])
   const users = ref([])
@@ -51,6 +52,8 @@ export function useCustomerForm() {
   const industryOptions = ref([])
   const devTypeOptions = ref([])
   const isEdit = computed(() => !!route.params.id)
+  // 【2026-08-10 池级权限】公海池内客户(status=sea)负责人不可改——后端会拒绝, 前端直接禁用防误导
+  const isPoolCustomer = computed(() => customerStatus.value === 'sea')
   const detailQuery = computed(() => (route.query.from ? { from: route.query.from } : {}))
   const contacts = ref([])
 
@@ -192,6 +195,7 @@ export function useCustomerForm() {
         const res = await getCustomer(route.params.id)
         const c = res.data
         Object.keys(form).forEach(k => { if (c[k] !== undefined && c[k] !== null) form[k] = c[k] })
+        customerStatus.value = c.status || ''
         if (c.province) regionValue.value = [c.province, c.city, c.district].filter(Boolean)
       } catch (e) {}
       try {
@@ -204,7 +208,7 @@ export function useCustomerForm() {
   return {
     formRef, dupInfo, loading, regions, offices, users,
     filteredOffices, filteredDepts, regionValue, industryOptions, devTypeOptions,
-    isEdit, detailQuery, contacts, form, rules,
+    isEdit, isPoolCustomer, detailQuery, contacts, form, rules,
     devTypeTagStyle, devTypeTagText, onRegionChange, onOfficeChange,
     handleRegionChange, addContactRow, goBack, checkDup, handleSubmit, loadFormData,
     regionData,

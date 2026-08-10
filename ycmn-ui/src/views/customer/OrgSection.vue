@@ -26,9 +26,10 @@
 
     <div class="form-row two">
       <el-form-item label="第一负责人" prop="ownerId" required>
-        <el-select v-model="form.ownerId" placeholder="请选择负责人" size="large" filterable>
+        <el-select v-model="form.ownerId" placeholder="请选择负责人" size="large" filterable :disabled="isPoolCustomer">
           <el-option v-for="u in users" :key="u.id" :label="u.realName" :value="u.id" />
         </el-select>
+        <div v-if="isPoolCustomer" class="field-hint">公海池内客户负责人不可修改，请通过捞取流程变更</div>
       </el-form-item>
     </div>
   </div>
@@ -40,6 +41,15 @@ import './add-common.css'
 
 const {
   form, regions, filteredOffices, filteredDepts, users,
-  onRegionChange, onOfficeChange,
+  onRegionChange, onOfficeChange, isPoolCustomer,
 } = injectCustomerForm()
 </script>
+
+<style scoped>
+.field-hint {
+  font-size: 12px;
+  line-height: 1.4;
+  color: #909399;
+  margin-top: 4px;
+}
+</style>
