@@ -70,6 +70,23 @@ public class PermissionMatrixTest {
             "IncentiveController.updateRecord",
             "IncentiveController.deleteRecord",
             "SeaController.deletePool", // 2026-08-10 池级权限: 删除权限在 SeaService 内按池判定, 角色码 sea:pool:delete 不作硬门
+            // 2026-08-10 池级编辑权限: 客户编辑流(update/日志/开票/指标/关系/分享/释放/联系人/回款)改为
+            //   CustomerAccessService.canEdit 行级判定——池内客户按池级 PERM_EDIT(缺 customer:edit 角色也可保存),
+            //   非池客户需 customer:edit 能力 + 负责人; 注解角色码不再作硬门
+            "CustomerController.update",
+            "CustomerController.addLog",
+            "CustomerController.addInvoice",
+            "CustomerController.deleteInvoice",
+            "CustomerController.saveIndicator",
+            "CustomerController.saveRelationship",
+            "CustomerController.addShares",
+            "CustomerController.removeShare",
+            "CustomerController.release",
+            "CustomerController.addContact",
+            "CustomerController.updateContact",
+            "CustomerController.deleteContact",
+            "CustomerController.addPayment",
+            "CustomerController.deletePayment",
             "FolderAclController.saveAcl",
             "FolderAclController.removeAcl",
             "FolderAclController.setDownloadable",
@@ -141,6 +158,38 @@ public class PermissionMatrixTest {
         }
         assertTrue(failures.isEmpty(),
                 () -> "权限矩阵违规（写方法缺权限码或引用未知权限码）：\n" + String.join("\n", failures));
+    }
+
+    /** 防止白名单静默腐化: CustomerController 白名单写方法须仍在方法体内调用行级守卫 assertCanEdit(见上白名单注释) */
+    @Test
+    void whitelistedCustomerEditMethods_mustRetainAssertCanEditGuard() {
+        long whitelisted = WHITELIST.stream().filter(k -> k.startsWith("CustomerController.")).count();
+        if (whitelisted == 0) {
+            return; // 无该类白名单时跳过
+        }
+        Path src = Paths.get("src/main/java/com/ycmn/module/customer/controller/CustomerController.java")
+                .toAbsolutePath().normalize();
+        assertTrue(Files.exists(src), "CustomerController 源文件不存在: " + src);
+        String body;
+        try {
+            body = Files.readString(src);
+        } catch (IOException e) {
+            throw new IllegalStateException("读取 CustomerController 源码失败", e);
+        }
+        long guards = countSubstring(body, "assertCanEdit(");
+        assertTrue(guards >= whitelisted,
+                () -> "白名单 CustomerController 写方法 " + whitelisted + " 个, 但源码仅 " + guards
+                        + " 处 assertCanEdit( 调用——白名单方法体内行级守卫缺失, 权限将无兜底");
+    }
+
+    private static long countSubstring(String haystack, String needle) {
+        long count = 0;
+        int idx = 0;
+        while ((idx = haystack.indexOf(needle, idx)) != -1) {
+            count++;
+            idx += needle.length();
+        }
+        return count;
     }
 
     // ==================== 反向规则（warning 级，不断言失败） ====================

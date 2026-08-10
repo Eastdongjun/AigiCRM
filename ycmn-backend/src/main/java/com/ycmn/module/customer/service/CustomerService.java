@@ -346,8 +346,25 @@ public class CustomerService {
         if (!customerAccessService.canEdit(customer.getId())) {
             throw new org.springframework.security.access.AccessDeniedException("只能编辑自己的客户");
         }
+        // 【2026-08-10 安全】公海池内客户禁止经编辑接口改属主/状态——防止池编辑者直接 ownerId=self 自领客户绕过捞取审批。
+        // 属主/状态变更只能走释放/捞取流程(release/claim)。请求未显式传该字段(null)视为不修改, 以库内值为准。
+        if (customerAccessService.isInSeaPool(customer.getId())) {
+            if (fieldChanged(existing.getOwnerId(), customer.getOwnerId())
+                    || fieldChanged(existing.getStatus(), customer.getStatus())
+                    || fieldChanged(existing.getProtectionStatus(), customer.getProtectionStatus())) {
+                throw new BusinessException("公海池内客户不允许修改负责人/状态，请通过捞取/释放流程操作");
+            }
+            customer.setOwnerId(existing.getOwnerId());
+            customer.setStatus(existing.getStatus());
+            customer.setProtectionStatus(existing.getProtectionStatus());
+        }
         calculateExpireDates(customer);
         customerMapper.updateById(customer);
+    }
+
+    /** 请求字段是否显式变更(null 视为未指定, 不判定为变更) */
+    private boolean fieldChanged(Object existing, Object requested) {
+        return requested != null && !requested.equals(existing);
     }
 
     public void delete(Long id) {
@@ -1085,11 +1102,24 @@ public class CustomerService {
         contactMapper.insert(contact);
     }
 
-    public void updateContact(BizContact contact) {
+    @Transactional
+    public void updateContact(Long customerId, Long contactId, BizContact contact) {
+        BizContact existing = contactMapper.selectById(contactId);
+        // 归属校验: 联系人必须属于请求路径中的客户, 防止跨客户改挂/删除(IDOR)
+        if (existing == null || !customerId.equals(existing.getCustomerId())) {
+            throw new BusinessException("联系人不存在或不属于该客户");
+        }
+        contact.setId(contactId);
+        contact.setCustomerId(customerId);
         contactMapper.updateById(contact);
     }
 
-    public void deleteContact(Long contactId) {
+    public void deleteContact(Long customerId, Long contactId) {
+        BizContact existing = contactMapper.selectById(contactId);
+        // 归属校验: 联系人必须属于请求路径中的客户, 防止跨客户删除(IDOR)
+        if (existing == null || !customerId.equals(existing.getCustomerId())) {
+            throw new BusinessException("联系人不存在或不属于该客户");
+        }
         contactMapper.deleteById(contactId);
     }
 

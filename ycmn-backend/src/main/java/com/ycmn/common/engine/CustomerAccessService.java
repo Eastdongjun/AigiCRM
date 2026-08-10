@@ -69,17 +69,13 @@ public class CustomerAccessService {
         // 4. 组织数据范围
         if (isInOrgDataScope(customer)) return true;
 
-        // 【2026-08-10 池级权限】客户在公海池内(status!=claimed)且当前用户有该池编辑/捞取权限时, 允许查看
-        // (能操作公海客户者必须能加载其详情; 否则池编辑者编辑页加载不出)
-        com.ycmn.module.sea.entity.BizSeaPool pool = seaPoolMapper.selectOne(
-                new LambdaQueryWrapper<com.ycmn.module.sea.entity.BizSeaPool>()
-                        .eq(com.ycmn.module.sea.entity.BizSeaPool::getCustomerId, customerId)
-                        .ne(com.ycmn.module.sea.entity.BizSeaPool::getStatus, "claimed")
-                        .orderByDesc(com.ycmn.module.sea.entity.BizSeaPool::getEnterDate)
-                        .last("LIMIT 1"));
+        // 【2026-08-10 池级权限】客户在公海池内(status!=claimed)时, 池"可见"即可读详情——
+        // 与列表可见范围一致(列表按 PERM_VIEW 过滤且客户名可点); 编辑/捞取/删除者自然可读。
+        com.ycmn.module.sea.entity.BizSeaPool pool = findActivePool(customerId);
         if (pool != null && pool.getPoolId() != null) {
             var user = SecurityUtils.getCurrentUser();
-            return seaConfigService.hasPoolPerm(pool.getPoolId(), com.ycmn.module.sea.service.SeaConfigService.PERM_EDIT, user)
+            return seaConfigService.hasPoolPerm(pool.getPoolId(), com.ycmn.module.sea.service.SeaConfigService.PERM_VIEW, user)
+                    || seaConfigService.hasPoolPerm(pool.getPoolId(), com.ycmn.module.sea.service.SeaConfigService.PERM_EDIT, user)
                     || seaConfigService.hasPoolPerm(pool.getPoolId(), com.ycmn.module.sea.service.SeaConfigService.PERM_CLAIM, user)
                     || seaConfigService.hasPoolPerm(pool.getPoolId(), com.ycmn.module.sea.service.SeaConfigService.PERM_DELETE, user);
         }
@@ -98,18 +94,30 @@ public class CustomerAccessService {
 
         // 【2026-08-10 池级权限】客户在公海池内(status!=claimed)时, 编辑按池的编辑权限判定;
         // 否则回退"负责人才能编辑"(owner-only)
-        com.ycmn.module.sea.entity.BizSeaPool pool = seaPoolMapper.selectOne(
+        com.ycmn.module.sea.entity.BizSeaPool pool = findActivePool(customerId);
+        if (pool != null && pool.getPoolId() != null) {
+            return seaConfigService.hasPoolPerm(pool.getPoolId(), com.ycmn.module.sea.service.SeaConfigService.PERM_EDIT,
+                    SecurityUtils.getCurrentUser());
+        }
+        // 非池客户: 需具备 customer:edit 能力 且 是负责人。
+        // 原 @PreAuthorize("hasAuthority('customer:edit')") 移到方法内(SecurityUtils.hasAuthority 等价),
+        // 使"池内客户"可绕过角色码、按池级编辑权限判定(池编辑者缺 customer:edit 角色时仍可保存)
+        return SecurityUtils.hasAuthority("customer:edit") && userId.equals(customer.getOwnerId());
+    }
+
+    /** 客户是否在公海池内(存在未捞取的池记录) */
+    public boolean isInSeaPool(Long customerId) {
+        return findActivePool(customerId) != null;
+    }
+
+    /** 查找客户当前未捞取的公海池记录(按入池时间倒序取最近一条) */
+    private com.ycmn.module.sea.entity.BizSeaPool findActivePool(Long customerId) {
+        return seaPoolMapper.selectOne(
                 new LambdaQueryWrapper<com.ycmn.module.sea.entity.BizSeaPool>()
                         .eq(com.ycmn.module.sea.entity.BizSeaPool::getCustomerId, customerId)
                         .ne(com.ycmn.module.sea.entity.BizSeaPool::getStatus, "claimed")
                         .orderByDesc(com.ycmn.module.sea.entity.BizSeaPool::getEnterDate)
                         .last("LIMIT 1"));
-        if (pool != null && pool.getPoolId() != null) {
-            return seaConfigService.hasPoolPerm(pool.getPoolId(), com.ycmn.module.sea.service.SeaConfigService.PERM_EDIT,
-                    SecurityUtils.getCurrentUser());
-        }
-        // 只有负责人能编辑
-        return userId.equals(customer.getOwnerId());
     }
 
     /** 是否有权限删除该客户 */
@@ -121,6 +129,13 @@ public class CustomerAccessService {
 
         Long userId = SecurityUtils.getCurrentUserId();
 
+        // 【2026-08-10 池级权限】客户在公海池内时, 删除按池的删除权限判定(与 SeaController.deletePool/PERM_DELETE 一致);
+        // 否则回退"负责人才能删除"(owner-only)——防止原负责人(释放未清 ownerId)经客户模块 DELETE 绕过公海删除治理
+        com.ycmn.module.sea.entity.BizSeaPool pool = findActivePool(customerId);
+        if (pool != null && pool.getPoolId() != null) {
+            return seaConfigService.hasPoolPerm(pool.getPoolId(), com.ycmn.module.sea.service.SeaConfigService.PERM_DELETE,
+                    SecurityUtils.getCurrentUser());
+        }
         // 只有负责人能删除
         return userId.equals(customer.getOwnerId());
     }

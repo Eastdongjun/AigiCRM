@@ -5,7 +5,9 @@ import com.baomidou.mybatisplus.core.MybatisMapperBuilderAssistant;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
 import com.ycmn.common.BusinessException;
+import com.ycmn.common.engine.CustomerAccessService;
 import com.ycmn.common.scope.OrgScopeResolver;
+import com.ycmn.module.customer.entity.BizContact;
 import com.ycmn.module.customer.entity.BizCustomer;
 import com.ycmn.module.customer.entity.BizInvoice;
 import com.ycmn.module.customer.entity.BizPayment;
@@ -25,6 +27,7 @@ import com.ycmn.module.system.service.SysConfigService;
 import com.ycmn.security.SecurityUser;
 import com.ycmn.security.SecurityUtils;
 import org.junit.jupiter.api.BeforeAll;import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.mockito.MockedStatic;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -83,13 +86,20 @@ class CustomerServiceTest {
 
     private CustomerService newService(BizInvoiceMapper invoiceMapper, BizPaymentMapper paymentMapper,
                                        BizCustomerMapper customerMapper, OrgScopeResolver resolver) {
+        return newService(invoiceMapper, paymentMapper, customerMapper, resolver,
+                mock(BizContactMapper.class), mock(CustomerAccessService.class));
+    }
+
+    private CustomerService newService(BizInvoiceMapper invoiceMapper, BizPaymentMapper paymentMapper,
+                                       BizCustomerMapper customerMapper, OrgScopeResolver resolver,
+                                       BizContactMapper contactMapper, CustomerAccessService accessService) {
         return new CustomerService(
                 customerMapper,
                 mock(BizCustomerLogMapper.class),
                 invoiceMapper,
                 mock(BizCustomerShareMapper.class),
                 mock(BizCustomerIndicatorMapper.class),
-                mock(BizContactMapper.class),
+                contactMapper,
                 paymentMapper,
                 mock(SysUserMapper.class),
                 mock(SysDeptMapper.class),
@@ -97,7 +107,7 @@ class CustomerServiceTest {
                 mock(JdbcTemplate.class),
                 mock(SysConfigService.class),
                 resolver,
-                mock(com.ycmn.common.engine.CustomerAccessService.class));
+                accessService);
     }
 
     @Test
@@ -134,6 +144,135 @@ class CustomerServiceTest {
         CustomerService svc = newService(mock(BizInvoiceMapper.class), paymentMapper, mock(BizCustomerMapper.class),
                 mock(OrgScopeResolver.class));
         assertThrows(BusinessException.class, () -> svc.deletePayment(200L, 2L));
+    }
+
+    // ===== 联系人 IDOR（2026-08-10 安全修复: 与 deleteInvoice 同款归属校验） =====
+
+    @Test
+    void deleteContact_contactOfAnotherCustomer_rejects() {
+        BizContactMapper contactMapper = mock(BizContactMapper.class);
+        BizContact contact = new BizContact();
+        contact.setId(1L);
+        contact.setCustomerId(100L);
+        when(contactMapper.selectById(1L)).thenReturn(contact);
+
+        CustomerService svc = newService(mock(BizInvoiceMapper.class), mock(BizPaymentMapper.class),
+                mock(BizCustomerMapper.class), mock(OrgScopeResolver.class), contactMapper, mock(CustomerAccessService.class));
+        // 路径客户 200 ≠ 联系人客户 100 → 拒绝，防跨客户删除（IDOR）
+        assertThrows(BusinessException.class, () -> svc.deleteContact(200L, 1L));
+    }
+
+    @Test
+    void deleteContact_missingContact_rejects() {
+        BizContactMapper contactMapper = mock(BizContactMapper.class);
+        when(contactMapper.selectById(1L)).thenReturn(null);
+        CustomerService svc = newService(mock(BizInvoiceMapper.class), mock(BizPaymentMapper.class),
+                mock(BizCustomerMapper.class), mock(OrgScopeResolver.class), contactMapper, mock(CustomerAccessService.class));
+        assertThrows(BusinessException.class, () -> svc.deleteContact(200L, 1L));
+    }
+
+    @Test
+    void updateContact_contactOfAnotherCustomer_rejects() {
+        BizContactMapper contactMapper = mock(BizContactMapper.class);
+        BizContact contact = new BizContact();
+        contact.setId(1L);
+        contact.setCustomerId(100L);
+        when(contactMapper.selectById(1L)).thenReturn(contact);
+
+        CustomerService svc = newService(mock(BizInvoiceMapper.class), mock(BizPaymentMapper.class),
+                mock(BizCustomerMapper.class), mock(OrgScopeResolver.class), contactMapper, mock(CustomerAccessService.class));
+        BizContact req = new BizContact();
+        // 路径客户 200 ≠ 联系人客户 100 → 拒绝，防跨客户改挂（IDOR）
+        assertThrows(BusinessException.class, () -> svc.updateContact(200L, 1L, req));
+    }
+
+    // ===== 公海池内 update 字段保护（2026-08-10 安全修复: 禁止经编辑接口改属主/状态） =====
+
+    @Test
+    void update_poolCustomer_ownerIdChange_rejected() {
+        BizCustomer existing = new BizCustomer();
+        existing.setId(1L);
+        existing.setOwnerId(200L);
+        existing.setStatus("normal");
+        BizCustomerMapper customerMapper = mock(BizCustomerMapper.class);
+        when(customerMapper.selectById(1L)).thenReturn(existing);
+        CustomerAccessService accessService = mock(CustomerAccessService.class);
+        when(accessService.canEdit(1L)).thenReturn(true);
+        when(accessService.isInSeaPool(1L)).thenReturn(true);
+
+        CustomerService svc = newService(mock(BizInvoiceMapper.class), mock(BizPaymentMapper.class),
+                customerMapper, mock(OrgScopeResolver.class), mock(BizContactMapper.class), accessService);
+        BizCustomer req = new BizCustomer();
+        req.setId(1L);
+        req.setOwnerId(100L); // 尝试自领客户
+        assertThrows(BusinessException.class, () -> svc.update(req),
+                "池内客户改 ownerId 必须被拒, 防绕过捞取审批");
+    }
+
+    @Test
+    void update_poolCustomer_statusChange_rejected() {
+        BizCustomer existing = new BizCustomer();
+        existing.setId(1L);
+        existing.setOwnerId(200L);
+        existing.setStatus("normal");
+        BizCustomerMapper customerMapper = mock(BizCustomerMapper.class);
+        when(customerMapper.selectById(1L)).thenReturn(existing);
+        CustomerAccessService accessService = mock(CustomerAccessService.class);
+        when(accessService.canEdit(1L)).thenReturn(true);
+        when(accessService.isInSeaPool(1L)).thenReturn(true);
+
+        CustomerService svc = newService(mock(BizInvoiceMapper.class), mock(BizPaymentMapper.class),
+                customerMapper, mock(OrgScopeResolver.class), mock(BizContactMapper.class), accessService);
+        BizCustomer req = new BizCustomer();
+        req.setId(1L);
+        req.setStatus("sea"); // 尝试改状态
+        assertThrows(BusinessException.class, () -> svc.update(req));
+    }
+
+    @Test
+    void update_poolCustomer_businessFieldChange_allowed_ownerKept() {
+        BizCustomer existing = new BizCustomer();
+        existing.setId(1L);
+        existing.setOwnerId(200L);
+        existing.setStatus("normal");
+        BizCustomerMapper customerMapper = mock(BizCustomerMapper.class);
+        when(customerMapper.selectById(1L)).thenReturn(existing);
+        CustomerAccessService accessService = mock(CustomerAccessService.class);
+        when(accessService.canEdit(1L)).thenReturn(true);
+        when(accessService.isInSeaPool(1L)).thenReturn(true);
+
+        CustomerService svc = newService(mock(BizInvoiceMapper.class), mock(BizPaymentMapper.class),
+                customerMapper, mock(OrgScopeResolver.class), mock(BizContactMapper.class), accessService);
+        BizCustomer req = new BizCustomer();
+        req.setId(1L);
+        req.setCustomerName("新名字"); // 仅改业务字段, ownerId/status 未显式传(null)
+        svc.update(req);
+
+        ArgumentCaptor<BizCustomer> captor = ArgumentCaptor.forClass(BizCustomer.class);
+        verify(customerMapper).updateById(captor.capture());
+        assertEquals(200L, captor.getValue().getOwnerId(), "池内客户 ownerId 必须以库内值为准");
+        assertEquals("normal", captor.getValue().getStatus());
+    }
+
+    @Test
+    void update_nonPool_ownerChange_allowed() {
+        BizCustomer existing = new BizCustomer();
+        existing.setId(1L);
+        existing.setOwnerId(200L);
+        existing.setStatus("normal");
+        BizCustomerMapper customerMapper = mock(BizCustomerMapper.class);
+        when(customerMapper.selectById(1L)).thenReturn(existing);
+        CustomerAccessService accessService = mock(CustomerAccessService.class);
+        when(accessService.canEdit(1L)).thenReturn(true);
+        when(accessService.isInSeaPool(1L)).thenReturn(false);
+
+        CustomerService svc = newService(mock(BizInvoiceMapper.class), mock(BizPaymentMapper.class),
+                customerMapper, mock(OrgScopeResolver.class), mock(BizContactMapper.class), accessService);
+        BizCustomer req = new BizCustomer();
+        req.setId(1L);
+        req.setOwnerId(100L); // 非池客户: 保留既有行为(负责人可转交)
+        svc.update(req);
+        verify(customerMapper).updateById(any());
     }
 
     // ===== I1：新六级 code 统一路由 OrgScopeResolver（设计 §4.2） =====
