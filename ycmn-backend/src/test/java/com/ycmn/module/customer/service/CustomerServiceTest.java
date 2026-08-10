@@ -270,9 +270,71 @@ class CustomerServiceTest {
                 customerMapper, mock(OrgScopeResolver.class), mock(BizContactMapper.class), accessService);
         BizCustomer req = new BizCustomer();
         req.setId(1L);
-        req.setOwnerId(100L); // 非池客户: 保留既有行为(负责人可转交)
-        svc.update(req);
+        req.setOwnerId(100L); // admin 可改负责人(代建/转交)
+        try (MockedStatic<SecurityUtils> ms = mockStatic(SecurityUtils.class)) {
+            ms.when(SecurityUtils::isAdmin).thenReturn(true);
+            svc.update(req);
+        }
         verify(customerMapper).updateById(any());
+    }
+
+    // ===== M1 代建规则(2026-08-10): 非admin强制ownerId=自己, admin可指定 =====
+
+    @Test
+    void create_nonAdmin_forcesOwnerToSelf() {
+        BizCustomerMapper customerMapper = mock(BizCustomerMapper.class);
+        CustomerService svc = newService(mock(BizInvoiceMapper.class), mock(BizPaymentMapper.class),
+                customerMapper, mock(OrgScopeResolver.class));
+        BizCustomer req = new BizCustomer();
+        req.setOwnerId(999L); // 尝试把客户挂到他人名下
+        try (MockedStatic<SecurityUtils> ms = mockStatic(SecurityUtils.class)) {
+            ms.when(SecurityUtils::isAdmin).thenReturn(false);
+            ms.when(SecurityUtils::getCurrentUserId).thenReturn(100L);
+            svc.create(req);
+        }
+        ArgumentCaptor<BizCustomer> captor = ArgumentCaptor.forClass(BizCustomer.class);
+        verify(customerMapper).insert(captor.capture());
+        assertEquals(100L, captor.getValue().getOwnerId(), "非admin创建必须强制 ownerId=自己");
+    }
+
+    @Test
+    void create_admin_canSpecifyOwnerForDeputyCreation() {
+        BizCustomerMapper customerMapper = mock(BizCustomerMapper.class);
+        CustomerService svc = newService(mock(BizInvoiceMapper.class), mock(BizPaymentMapper.class),
+                customerMapper, mock(OrgScopeResolver.class));
+        BizCustomer req = new BizCustomer();
+        req.setOwnerId(999L); // admin 代建: 指定负责人
+        try (MockedStatic<SecurityUtils> ms = mockStatic(SecurityUtils.class)) {
+            ms.when(SecurityUtils::isAdmin).thenReturn(true);
+            svc.create(req);
+        }
+        ArgumentCaptor<BizCustomer> captor = ArgumentCaptor.forClass(BizCustomer.class);
+        verify(customerMapper).insert(captor.capture());
+        assertEquals(999L, captor.getValue().getOwnerId(), "admin 代建可指定负责人");
+    }
+
+    @Test
+    void update_nonPool_nonAdminOwnerChange_rejected() {
+        BizCustomer existing = new BizCustomer();
+        existing.setId(1L);
+        existing.setOwnerId(200L);
+        existing.setStatus("normal");
+        BizCustomerMapper customerMapper = mock(BizCustomerMapper.class);
+        when(customerMapper.selectById(1L)).thenReturn(existing);
+        CustomerAccessService accessService = mock(CustomerAccessService.class);
+        when(accessService.canEdit(1L)).thenReturn(true);
+        when(accessService.isInSeaPool(1L)).thenReturn(false);
+
+        CustomerService svc = newService(mock(BizInvoiceMapper.class), mock(BizPaymentMapper.class),
+                customerMapper, mock(OrgScopeResolver.class), mock(BizContactMapper.class), accessService);
+        BizCustomer req = new BizCustomer();
+        req.setId(1L);
+        req.setOwnerId(100L); // 非admin 试图改负责人
+        try (MockedStatic<SecurityUtils> ms = mockStatic(SecurityUtils.class)) {
+            ms.when(SecurityUtils::isAdmin).thenReturn(false);
+            assertThrows(BusinessException.class, () -> svc.update(req),
+                    "非admin 改负责人必须走转移/审批流程");
+        }
     }
 
     // ===== I1：新六级 code 统一路由 OrgScopeResolver（设计 §4.2） =====

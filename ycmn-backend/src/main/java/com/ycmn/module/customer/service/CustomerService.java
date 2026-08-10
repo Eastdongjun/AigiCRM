@@ -258,7 +258,9 @@ public class CustomerService {
         calculateExpireDates(customer);
         customer.setStatus("normal");
         customer.setProtectionStatus("active");
-        if (customer.getOwnerId() == null) {
+        // 【M1 2026-08-10】代建规则: 仅 admin 可指定负责人(代建/挂单); 其他用户 ownerId 强制=当前用户——
+        // 原代码非空即采用请求体 ownerId, 任何持 customer:add 者都可把客户挂到任意销售/办事处名下
+        if (customer.getOwnerId() == null || !SecurityUtils.isAdmin()) {
             customer.setOwnerId(SecurityUtils.getCurrentUserId());
         }
         if (customer.getOfficeId() == null) {
@@ -357,6 +359,9 @@ public class CustomerService {
             customer.setOwnerId(existing.getOwnerId());
             customer.setStatus(existing.getStatus());
             customer.setProtectionStatus(existing.getProtectionStatus());
+        } else if (!SecurityUtils.isAdmin() && fieldChanged(existing.getOwnerId(), customer.getOwnerId())) {
+            // 【M1 2026-08-10】非池客户负责人变更: 非 admin 只能走转移/审批流程, 防无审批转交
+            throw new BusinessException("客户负责人变更请通过转移/审批流程操作");
         }
         calculateExpireDates(customer);
         customerMapper.updateById(customer);
