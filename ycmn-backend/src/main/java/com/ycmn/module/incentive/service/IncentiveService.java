@@ -328,8 +328,8 @@ public class IncentiveService {
     }
 
     /**
-     * 积分规则（2026-08-01 单槽化改造后）：
-     * 1. 两谈两做方案(plan)：按文件总数计分，每 1 个文件 +base，上限 5×base
+     * 积分规则（2026-08-01 单槽化改造后；2026-08-10 plan 规则修正）：
+     * 1. 两谈两做方案(plan)：方案文件任一存在即 +base，不论文件数量（多文件也只积一次）
      * 2. 外出参观(visit)/交流拜访(exchange)：安装文件任一槽有文件 → +base
      * 3. 其他（含产品试点 trial）：安装前+安装中+安装后 三文件齐全 → +base
      * 4. 否则 0 分
@@ -342,9 +342,8 @@ public class IncentiveService {
         boolean hasPost = r.hasFiles(r.getFilePostId() != null ? r.getFilePostId() : null);
 
         if (isPlanCategory(category)) {
-            // 两谈两做：文件总数 × base（上限 5×base）
-            int fileCount = r.getFilePreIds().size() + r.getFileMidIds().size() + r.getFilePostIds().size();
-            return Math.min(fileCount, 5) * base;
+            // 两谈两做方案(plan): 方案文件任一存在即 +base, 不论文件数量(上限5份)——多文件也只积一次(2026-08-10 用户确认)
+            return (hasPre || hasMid || hasPost) ? base : 0;
         } else if (isVisitExchangeCategory(category)) {
             // 外出参观/交流拜访：任一槽有文件即得分
             return (hasPre || hasMid || hasPost) ? base : 0;

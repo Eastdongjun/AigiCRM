@@ -79,6 +79,17 @@ class IncentiveScoreTest {
     }
 
     @Test
+    void planCategory_multipleFilesScoresBaseOnce() {
+        // 2026-08-10 规则确认: 两谈两做多文件也只积一次(不论数量, 上限5份)
+        IncentiveService service = newService(mock(BizIncentiveCategoryMapper.class));
+        BizIncentiveCategory plan = category("plan", 100);
+        // 单槽 5 份文件 → 100(不是 5×100)
+        assertEquals(100, calcScore(service, record("[1,2,3,4,5]", null, null), plan, 100));
+        // 三槽各多份 → 100
+        assertEquals(100, calcScore(service, record("[1,2]", "[3,4]", "[5]"), plan, 100));
+    }
+
+    @Test
     void otherCategory_requiresAllThreeFiles() {
         IncentiveService service = newService(mock(BizIncentiveCategoryMapper.class));
         BizIncentiveCategory promo = category("promotion", 100);
