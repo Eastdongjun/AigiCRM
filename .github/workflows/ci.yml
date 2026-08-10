@@ -20,12 +20,24 @@ jobs:
       - name: Maven verify (含 ArchUnit 分层约束)
         working-directory: ycmn-backend
         run: mvn -B -q verify
+      # ycmn_database_test.sql 是本地生成的数据库 dump(含业务数据, .gitignore 排除),
+      # fresh checkout 无此文件 → 有文件才跑真实 cross-check, 否则跳过(此前固定引用导致 CI 必败)
       - name: Cross-check schema vs entity
-        run: python3 scripts/check_schema_entity.py --java-dir ycmn-backend/src/main/java --sql ycmn_database_test.sql
+        run: |
+          if [ -f ycmn_database_test.sql ]; then
+            python3 scripts/check_schema_entity.py --java-dir ycmn-backend/src/main/java --sql ycmn_database_test.sql
+          else
+            echo "⚠️ ycmn_database_test.sql 未提交(gitignored)——跳过; 本地生成 dump 后自动执行该检查"
+          fi
       - name: Cross-check api wiring
         run: python3 scripts/check_api_wiring.py --frontend-api ycmn-ui/src/api --backend ycmn-backend/src/main/java
       - name: Cross-check permission strings
-        run: python3 scripts/check_permission_strings.py --backend ycmn-backend/src/main/java --sql ycmn_database_test.sql
+        run: |
+          if [ -f ycmn_database_test.sql ]; then
+            python3 scripts/check_permission_strings.py --backend ycmn-backend/src/main/java --sql ycmn_database_test.sql
+          else
+            echo "⚠️ ycmn_database_test.sql 未提交(gitignored)——跳过; 本地生成 dump 后自动执行该检查"
+          fi
 
   frontend:
     runs-on: ubuntu-latest
