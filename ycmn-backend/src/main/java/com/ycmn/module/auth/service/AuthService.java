@@ -59,6 +59,7 @@ public class AuthService {
     private final SysRoleMapper roleMapper;
     private final SysMenuMapper menuMapper;
     private final SysDeptMapper deptMapper;
+    private final com.ycmn.module.system.mapper.SysPositionMapper positionMapper;
     private final JwtTokenProvider jwtTokenProvider;
     private final PasswordEncoder passwordEncoder;
     private final RedisTemplate<String, Object> redisTemplate;
@@ -103,14 +104,61 @@ public class AuthService {
         redisTemplate.delete(failKey);
         redisTemplate.delete(ipFailKey);
 
+        // 【批④ 2026-08-10 多集团会话】登录推导用户集团集合(岗位→组织→集团, 与 UserDetailsServiceImpl 同口径),
+        // 默认当前集团=最小; 多集团用户后续经 switch-group 切换(重签 token)。
+        java.util.List<Long> groupIds = resolveGroupIds(user.getId());
+        Long currentGroupId = groupIds.isEmpty() ? null : groupIds.stream().min(Long::compareTo).orElse(null);
+
         String token = jwtTokenProvider.generateToken(user.getId(), user.getUsername(),
-                request.getRememberMe() != null && request.getRememberMe());
+                request.getRememberMe() != null && request.getRememberMe(), currentGroupId);
 
         LoginResponse response = new LoginResponse();
         response.setToken(token);
         response.setUserId(user.getId());
         response.setUsername(user.getUsername());
         response.setRealName(user.getRealName());
+        response.setGroupIds(groupIds);
+        response.setCurrentGroupId(currentGroupId);
+        return response;
+    }
+
+    /** 【批④】岗位→组织→集团推导(与 UserDetailsServiceImpl:146-164 同口径; 无岗位回退用户默认组织) */
+    private java.util.List<Long> resolveGroupIds(Long userId) {
+        java.util.Set<Long> ids = new java.util.HashSet<>();
+        var positions = positionMapper.selectByUserId(userId);
+        for (var pos : positions) {
+            if (pos.getOrgId() != null) {
+                var dept = deptMapper.selectById(pos.getOrgId());
+                if (dept != null && dept.getGroupId() != null) ids.add(dept.getGroupId());
+            }
+        }
+        if (ids.isEmpty()) {
+            var u = userMapper.selectById(userId);
+            if (u != null && u.getOrgId() != null) {
+                var dept = deptMapper.selectById(u.getOrgId());
+                if (dept != null && dept.getGroupId() != null) ids.add(dept.getGroupId());
+            }
+        }
+        return new java.util.ArrayList<>(ids);
+    }
+
+    /** 【批④】切换会话集团: 校验归属 → 重签 JWT(旧 token 继续有效至过期, 新 token 立即生效) */
+    public LoginResponse switchGroup(String currentToken, Long groupId) {
+        Long userId = SecurityUtils.getCurrentUserId();
+        java.util.List<Long> groupIds = resolveGroupIds(userId);
+        if (groupId == null || !groupIds.contains(groupId)) {
+            throw new BusinessException("无权切换到该集团");
+        }
+        var user = userMapper.selectById(userId);
+        String token = jwtTokenProvider.generateToken(userId, user != null ? user.getUsername() : "",
+                false, groupId);
+        LoginResponse response = new LoginResponse();
+        response.setToken(token);
+        response.setUserId(userId);
+        response.setUsername(user != null ? user.getUsername() : "");
+        response.setRealName(user != null ? user.getRealName() : "");
+        response.setGroupIds(groupIds);
+        response.setCurrentGroupId(groupId);
         return response;
     }
 

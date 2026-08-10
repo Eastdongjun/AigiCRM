@@ -78,6 +78,17 @@
               <el-icon class="header-icon"><QuestionFilled /></el-icon>
             </div>
           </el-tooltip>
+          <!-- 【批④ 2026-08-10 多集团会话】集团切换入口(仅多集团用户显示) -->
+          <el-dropdown v-if="userStore.canSwitchGroup" trigger="click" class="group-dropdown" @command="handleSwitchGroup">
+            <span class="group-switch"><el-icon><OfficeBuilding /></el-icon> 集团:{{ userStore.currentGroupId }} <el-icon><ArrowDown /></el-icon></span>
+            <template #dropdown>
+              <el-dropdown-menu>
+                <el-dropdown-item v-for="g in userStore.groupIds" :key="g" :command="g" :disabled="g === userStore.currentGroupId">
+                  集团 {{ g }}{{ g === userStore.currentGroupId ? '（当前）' : '' }}
+                </el-dropdown-item>
+              </el-dropdown-menu>
+            </template>
+          </el-dropdown>
           <el-dropdown @command="handleCommand" trigger="click" class="user-dropdown">
             <div class="user-info">
               <div class="user-avatar-wrap">
@@ -176,6 +187,7 @@ import { useRouter, useRoute } from 'vue-router'
 import { ElMessage, ElNotification } from 'element-plus'
 import { useUserStore } from '@/store/user'
 import { changePassword } from '@/api/system'
+import { OfficeBuilding } from '@element-plus/icons-vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -307,6 +319,16 @@ onBeforeUnmount(() => {
 
 const hasPerm = (p) => userStore.hasPermission(p)
 
+// 【批④ 2026-08-10 多集团会话】切换集团(重签 token + 强制刷新)
+const handleSwitchGroup = async (groupId) => {
+  try {
+    await userStore.switchGroup(groupId)
+    ElMessage.success(`已切换到集团 ${groupId}`)
+  } catch (e) {
+    ElMessage.error('集团切换失败')
+  }
+}
+
 const handleCommand = (command) => {
   if (command === 'profile') {
     showProfile.value = true
@@ -323,6 +345,9 @@ const handleCommand = (command) => {
 </script>
 
 <style scoped>
+.group-switch { cursor: pointer; font-size: 13px; color: #606266; display: inline-flex; align-items: center; gap: 3px; margin-right: 14px; padding: 4px 8px; border: 1px solid #e4e7ed; border-radius: 4px; }
+.group-switch:hover { color: #409eff; border-color: #c6e2ff; background: #ecf5ff; }
+
 .layout-container {
   height: 100vh;
 }

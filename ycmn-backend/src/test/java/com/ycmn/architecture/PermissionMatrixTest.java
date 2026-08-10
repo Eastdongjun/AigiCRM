@@ -63,6 +63,7 @@ public class PermissionMatrixTest {
     private static final Set<String> WHITELIST = Set.of(
             "AuthController.login",
             "AuthController.logout",
+            "AuthController.switchGroup", // 【批④ 2026-08-10】自服务会话切换(校验集团归属后重签 token, 类 logout)
             "AuthController.forgotPasswordLookup",
             "AuthController.forgotPasswordSendCode",
             "AuthController.forgotPasswordReset",

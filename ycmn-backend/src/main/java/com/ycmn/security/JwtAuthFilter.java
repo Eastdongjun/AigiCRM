@@ -47,6 +47,16 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             Long userId = jwtTokenProvider.getUserIdFromToken(token);
             UserDetails userDetails = userDetailsService.loadUserByUsername(String.valueOf(userId));
 
+            // 【批④ 2026-08-10 多集团会话】会话集团注入: token claim 优先(每个 tab 独立),
+            // 旧 token 无 claim 回退最小集团; PermissionContext 缓存不含集团(会话态不入用户级缓存)
+            if (userDetails instanceof com.ycmn.security.SecurityUser su) {
+                Long cg = jwtTokenProvider.getCurrentGroupIdFromToken(token);
+                if (cg == null && su.getGroupIds() != null && !su.getGroupIds().isEmpty()) {
+                    cg = su.getGroupIds().stream().min(Long::compareTo).orElse(null);
+                }
+                su.setCurrentGroupId(cg);
+            }
+
             UsernamePasswordAuthenticationToken authentication =
                     new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
             authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));

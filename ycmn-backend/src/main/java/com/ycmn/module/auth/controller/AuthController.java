@@ -73,6 +73,17 @@ public class AuthController {
         return Result.ok();
     }
 
+    /** 【批④ 2026-08-10 多集团会话】切换当前集团(校验归属 → 重签 JWT) */
+    @PostMapping("/switch-group")
+    public Result<LoginResponse> switchGroup(@RequestBody java.util.Map<String, Object> body,
+                                             HttpServletRequest httpRequest) {
+        Object gid = body.get("groupId");
+        Long groupId = gid == null ? null : Long.parseLong(String.valueOf(gid));
+        String auth = httpRequest.getHeader("Authorization");
+        String token = auth != null && auth.startsWith("Bearer ") ? auth.substring(7) : null;
+        return Result.ok(authService.switchGroup(token, groupId));
+    }
+
     // ── 忘记密码 ──
 
     @PostMapping("/forgot-password/lookup")

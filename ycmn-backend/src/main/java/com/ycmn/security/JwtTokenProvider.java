@@ -51,18 +51,36 @@ public class JwtTokenProvider {
     }
 
     public String generateToken(Long userId, String username, boolean rememberMe) {
+        return generateToken(userId, username, rememberMe, null);
+    }
+
+    /** 【批④ 2026-08-10】带会话集团签发(多集团: 每个 token 独立当前集团, 切换=重签) */
+    public String generateToken(Long userId, String username, boolean rememberMe, Long currentGroupId) {
         long exp = rememberMe ? rememberExpiration : expiration;
         Date now = new Date();
         Date expiryDate = new Date(now.getTime() + exp);
 
-        return Jwts.builder()
+        var builder = Jwts.builder()
                 .id(UUID.randomUUID().toString()) // jti: 会话撤销/黑名单用
                 .subject(String.valueOf(userId))
                 .claim("username", username)
                 .issuedAt(now)
-                .expiration(expiryDate)
-                .signWith(getSigningKey())
-                .compact();
+                .expiration(expiryDate);
+        if (currentGroupId != null) {
+            builder.claim("currentGroupId", currentGroupId);
+        }
+        return builder.signWith(getSigningKey()).compact();
+    }
+
+    /** 【批④】token 携带的会话集团(旧 token 无 claim 返回 null, 由调用方回退最小集团) */
+    public Long getCurrentGroupIdFromToken(String token) {
+        try {
+            Claims claims = getClaims(token);
+            Object v = claims.get("currentGroupId");
+            return v == null ? null : Long.parseLong(String.valueOf(v));
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     public Long getUserIdFromToken(String token) {

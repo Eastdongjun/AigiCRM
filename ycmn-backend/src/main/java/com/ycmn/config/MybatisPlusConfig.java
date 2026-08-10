@@ -97,6 +97,11 @@ public class MybatisPlusConfig {
         return new TenantLineInnerInterceptor(new TenantLineHandler() {
             @Override
             public Expression getTenantId() {
+                // 【批④ 2026-08-10】会话级当前集团(多集团用户一次一个集团, 切换=重签 token)
+                var user = SecurityUtils.getCurrentUser();
+                if (user != null && user.getCurrentGroupId() != null) {
+                    return new LongValue(user.getCurrentGroupId());
+                }
                 return resolveTenantId(SecurityUtils.getCurrentGroupIds());
             }
 

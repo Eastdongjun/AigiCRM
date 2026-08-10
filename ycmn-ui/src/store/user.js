@@ -24,11 +24,18 @@ export const useUserStore = defineStore('user', {
     // 系统配置
     systemName: 'AigiCRM',
     systemLogo: '',
+    // 【批④ 2026-08-10 多集团会话】
+    groupIds: [],
+    currentGroupId: null,
     // 公共配置缓存（布局级：避免每页重复请求 configs/public）
     publicConfig: null,
     _userLoadedAt: 0,
     _configLoadedAt: 0
   }),
+  getters: {
+    // 多集团用户才显示切换入口
+    canSwitchGroup: (state) => (state.groupIds || []).length > 1,
+  },
   actions: {
     async fetchUserInfo(force = false) {
       // 布局级缓存：30s 内重复调用直接复用（页面共用 auth/info，避免每页重复请求）
@@ -75,6 +82,19 @@ export const useUserStore = defineStore('user', {
     },
     hasPermission(permission) {
       return this.permissions.has(permission)
+    },
+    // 【批④】从登录响应写入集团信息
+    applyGroupInfo(groupIds, currentGroupId) {
+      this.groupIds = groupIds || []
+      this.currentGroupId = currentGroupId ?? null
+    },
+    // 【批④】切换当前集团(重签 token 后强制刷新用户信息)
+    async switchGroup(groupId) {
+      const { switchGroup: api } = await import('@/api/auth')
+      const res = await api(groupId)
+      localStorage.setItem('token', res.data.token)
+      this.applyGroupInfo(res.data.groupIds, res.data.currentGroupId)
+      await this.fetchUserInfo(true)
     },
     isAdmin() {
       return this.roles.includes('admin') || this.username === 'admin'

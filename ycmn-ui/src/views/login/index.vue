@@ -98,6 +98,9 @@ const handleLogin = async () => {
     form.username = form.username.trim()
     const res = await login(form)
     localStorage.setItem('token', res.data.token)
+    // 【批④ 2026-08-10 多集团会话】登录响应带回集团信息(多集团用户顶部可切换)
+    const { useUserStore } = await import('@/store/user')
+    useUserStore().applyGroupInfo(res.data.groupIds, res.data.currentGroupId)
     if (form.rememberMe) {
       localStorage.setItem('aigicrm_remember_username', form.username)
     } else {

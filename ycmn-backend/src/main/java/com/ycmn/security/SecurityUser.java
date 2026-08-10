@@ -43,6 +43,9 @@ public class SecurityUser implements UserDetails {
     /** 【批③ 2026-08-10 正交配置层】role_perm_scope 全量配置(登录装载, 热路径零 DB) */
     private List<com.ycmn.common.scope.ScopeConfig> scopeConfigs = new ArrayList<>();
 
+    /** 【批④ 2026-08-10 多集团会话】会话级当前集团(JWT claim 携带, 每个 token 独立; 不在 PermissionContext 缓存) */
+    private Long currentGroupId;
+
     /** 获取最高数据范围（多角色取最宽松） */
     public String getEffectiveDataScope() {
         if (dataScope == null) return DataScopeType.SELF.getCode();
