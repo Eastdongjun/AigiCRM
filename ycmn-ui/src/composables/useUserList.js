@@ -187,7 +187,11 @@ export function useUserList() {
     try {
       const res = await getPositionList()
       allPositions.value = res.data || []
-    } catch (e) {}
+    } catch (e) {
+      // 岗位下拉加载失败不应静默(禁止空 catch): 记录并提示, 编辑弹窗可看到岗位为空的原因
+      console.error('加载岗位列表失败', e)
+      ElMessage.warning('岗位列表加载失败，请刷新重试')
+    }
   }
 
   const loadUserOptions = async () => {
@@ -229,7 +233,11 @@ export function useUserList() {
       try {
         const posRes = await getUserPositions(row.id)
         editForm.positionIds = (posRes.data || []).map(p => p.id)
-      } catch (e) {}
+      } catch (e) {
+        // 岗位回显失败不静默(禁止空 catch): 记录并提示, 避免用户误以为已绑岗位为空
+        console.error('回显用户岗位失败', row.id, e)
+        ElMessage.warning('岗位回显失败，请刷新后重试')
+      }
     } else {
       Object.assign(editForm, { id: null, username: '', realName: '', phone: '', email: '', deptId: null, officeId: null, roleId: null, managerId: null, dataScopeOverride: '', status: 1, orgIds: [], positionIds: [] })
       orgPath.value = []

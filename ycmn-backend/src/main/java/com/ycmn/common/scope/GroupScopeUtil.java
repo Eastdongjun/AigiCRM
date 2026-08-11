@@ -12,6 +12,10 @@ import java.util.List;
  */
 public final class GroupScopeUtil {
 
+    /** 主集团 id: 历史未回填集团归属时的默认回退值(放行到主集团, 非安全拒绝)。
+     *  与 SysRoleService.validateRoleOrgsGroup / MybatisPlusConfig 同口径, 禁止散落裸 1L。 */
+    public static final Long DEFAULT_GROUP_ID = 1L;
+
     private GroupScopeUtil() {
     }
 
@@ -30,7 +34,7 @@ public final class GroupScopeUtil {
             return null;
         }
         List<Long> groupIds = SecurityUtils.getCurrentGroupIds();
-        return (groupIds == null || groupIds.isEmpty()) ? List.of(1L) : groupIds;
+        return (groupIds == null || groupIds.isEmpty()) ? List.of(DEFAULT_GROUP_ID) : groupIds;
     }
 
     /**
@@ -49,7 +53,7 @@ public final class GroupScopeUtil {
             return false;
         }
         List<Long> groupIds = SecurityUtils.getCurrentGroupIds();
-        List<Long> allowed = (groupIds == null || groupIds.isEmpty()) ? List.of(1L) : groupIds;
+        List<Long> allowed = (groupIds == null || groupIds.isEmpty()) ? List.of(DEFAULT_GROUP_ID) : groupIds;
         return allowed.contains(groupId);
     }
 }

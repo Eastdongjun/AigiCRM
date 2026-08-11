@@ -3,6 +3,7 @@ package com.ycmn.module.customer.service;
 import com.baomidou.mybatisplus.core.MybatisConfiguration;
 import com.baomidou.mybatisplus.core.MybatisMapperBuilderAssistant;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
 import com.ycmn.common.BusinessException;
 import com.ycmn.common.engine.CustomerAccessService;
@@ -44,6 +45,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyCollection;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.never;
@@ -609,5 +611,84 @@ class CustomerServiceTest {
         verify(customerMapper).updateById(captor.capture());
         assertEquals(300L, captor.getValue().getOwnerId());
         assertEquals(9L, captor.getValue().getDeptId(), "admin 转交负责人必须同步 dept_id");
+    }
+
+    /** 【A3 2026-08-12】admin 转交且新 owner 无部门时, 必须显式清空 dept_id(不再遗留旧负责人部门) */
+    @Test
+    void update_adminTransferToOwnerWithoutDept_clearsDeptId() {
+        BizCustomer existing = new BizCustomer();
+        existing.setId(1L); existing.setOwnerId(200L); existing.setStatus("normal");
+        existing.setDeptId(5L); // 旧负责人部门(应被清空)
+        BizCustomerMapper customerMapper = mock(BizCustomerMapper.class);
+        when(customerMapper.selectById(1L)).thenReturn(existing);
+        SysUserMapper userMapper = mock(SysUserMapper.class);
+        SysUser newOwner = new SysUser();
+        newOwner.setId(300L); newOwner.setDeptId(null); // 新负责人无部门
+        when(userMapper.selectById(300L)).thenReturn(newOwner);
+
+        CustomerAccessService accessService = mock(CustomerAccessService.class);
+        when(accessService.canEdit(1L)).thenReturn(true);
+        when(accessService.isInSeaPool(1L)).thenReturn(false);
+
+        CustomerService svc = new CustomerService(
+                customerMapper, mock(BizCustomerLogMapper.class), mock(BizInvoiceMapper.class),
+                mock(BizCustomerShareMapper.class), mock(BizCustomerIndicatorMapper.class),
+                mock(BizContactMapper.class), mock(BizPaymentMapper.class),
+                userMapper, mock(SysDeptMapper.class), mock(BizReminderMapper.class),
+                mock(JdbcTemplate.class), mock(SysConfigService.class),
+                mock(OrgScopeResolver.class), accessService,
+                mock(com.ycmn.module.system.service.RolePermScopeService.class));
+
+        BizCustomer req = new BizCustomer();
+        req.setId(1L); req.setOwnerId(300L);
+        try (MockedStatic<SecurityUtils> ms = mockStatic(SecurityUtils.class)) {
+            ms.when(SecurityUtils::isAdmin).thenReturn(true);
+            svc.update(req);
+        }
+        // updateById 收到新 owner(300)且 dept_id 已在实体上置 null(updateById 只写非 null, 故不写 dept)
+        ArgumentCaptor<BizCustomer> captor = ArgumentCaptor.forClass(BizCustomer.class);
+        verify(customerMapper).updateById(captor.capture());
+        assertEquals(300L, captor.getValue().getOwnerId());
+        assertNull(captor.getValue().getDeptId(), "owner 无部门时实体 dept_id 应为 null");
+        // 【A3】旧 dept_id=5 须经 LambdaUpdateWrapper.set(null) 显式清空(updateById 无法写 null)
+        verify(customerMapper).update(isNull(), org.mockito.ArgumentMatchers.<LambdaUpdateWrapper<BizCustomer>>any());
+    }
+
+    /** 【A3 2026-08-12】非 admin 编辑自身客户(owner 不变)但负责人部门已调整 → dept_id 跟随当前 owner 部门 */
+    @Test
+    void update_ownerUnchanged_stillFollowsOwnerDept() {
+        BizCustomer existing = new BizCustomer();
+        existing.setId(1L); existing.setOwnerId(200L); existing.setStatus("normal");
+        existing.setDeptId(5L); // 库内旧值
+        BizCustomerMapper customerMapper = mock(BizCustomerMapper.class);
+        when(customerMapper.selectById(1L)).thenReturn(existing);
+        SysUserMapper userMapper = mock(SysUserMapper.class);
+        SysUser owner = new SysUser();
+        owner.setId(200L); owner.setDeptId(9L); // owner 已调整到部门 9
+        when(userMapper.selectById(200L)).thenReturn(owner);
+
+        CustomerAccessService accessService = mock(CustomerAccessService.class);
+        when(accessService.canEdit(1L)).thenReturn(true);
+        when(accessService.isInSeaPool(1L)).thenReturn(false);
+
+        CustomerService svc = new CustomerService(
+                customerMapper, mock(BizCustomerLogMapper.class), mock(BizInvoiceMapper.class),
+                mock(BizCustomerShareMapper.class), mock(BizCustomerIndicatorMapper.class),
+                mock(BizContactMapper.class), mock(BizPaymentMapper.class),
+                userMapper, mock(SysDeptMapper.class), mock(BizReminderMapper.class),
+                mock(JdbcTemplate.class), mock(SysConfigService.class),
+                mock(OrgScopeResolver.class), accessService,
+                mock(com.ycmn.module.system.service.RolePermScopeService.class));
+
+        BizCustomer req = new BizCustomer();
+        req.setId(1L); // 不传 ownerId = 视为不修改负责人, 用库内 owner
+        try (MockedStatic<SecurityUtils> ms = mockStatic(SecurityUtils.class)) {
+            ms.when(SecurityUtils::isAdmin).thenReturn(false);
+            svc.update(req);
+        }
+        ArgumentCaptor<BizCustomer> captor = ArgumentCaptor.forClass(BizCustomer.class);
+        verify(customerMapper).updateById(captor.capture());
+        assertNull(captor.getValue().getOwnerId(), "未传 ownerId = 不修改负责人(updateById 只写非 null, 库内 owner 保持 200)");
+        assertEquals(9L, captor.getValue().getDeptId(), "owner 部门调整后 dept_id 跟随当前 owner(库内 200)部门");
     }
 }

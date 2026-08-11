@@ -7,6 +7,7 @@ import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
 import com.ycmn.common.BusinessException;
 import com.ycmn.module.system.entity.SysDept;
 import com.ycmn.module.system.entity.SysRole;
+import com.ycmn.module.system.entity.SysRoleMenu;
 import com.ycmn.module.system.mapper.SysDeptMapper;
 import com.ycmn.module.system.mapper.SysMenuMapper;
 import com.ycmn.module.system.mapper.SysRoleMapper;
@@ -683,22 +684,23 @@ class SysRoleServiceTest {
         }
     }
 
-    // ===== 安全 2026-08-11：祖先闭包补入的父菜单权限码必须过权限子集校验（P1 提权旁路） =====
+    // ===== 安全 2026-08-12：祖先闭包只补 menu_type=1 目录行，不注入带权限码的 type=2 父菜单（P0 提权旁路） =====
 
     /**
-     * 非超管提交"只含子菜单"的请求时，闭包会把带权限码的父菜单(menu_type=2)补入 role_menu；
-     * 调用者【持有子权限但缺父权限】时，闭包补入的父菜单权限码必须被拦截
-     * （此前闭包集合绕过 validateGrantableRole 的"授予权限须为自身权限子集"约束静默入库）。
-     * 本测试精确构造"子权限在调用者权限集、父权限不在"的场景——若闭包注入父权限，
-     * 校验必然抛异常；若闭包被删除/回退为旧"注入父权限"版本，本测试同样拦截（防止提权旁路复发）。
+     * 【P0 2026-08-12 对齐审计修复方向2】闭包只补 menu_type=1 目录行(permission 空, 无 RBAC)，
+     * 不再补带真实权限码的 menu_type=2 父菜单——父菜单须由用户显式勾选。
+     * 非超管提交"只含子菜单"的请求时，type=2 父菜单权限码不得经闭包静默入库。
+     * 本测试构造 13(type=2 子菜单, customer:detail:view) -> 11(type=2 父菜单, customer:view) -> 10(type=1 目录)：
+     * 断言 role_menu 只写 {13, 10}——目录行 10 补入保证侧边栏锚点，父菜单 11 不注入。
      */
     @Test
-    void create_ancestorClosureInjectsParentPerm_rejectedForNonAdmin() {
+    void create_ancestorClosureOnlyAddsDirRows_notParentMenu() {
         SysRoleMapper roleMapper = mock(SysRoleMapper.class);
         SysMenuMapper menuMapper = mock(SysMenuMapper.class);
+        SysRoleMenuMapper roleMenuMapper = mock(SysRoleMenuMapper.class);
         SysRoleService service = new SysRoleService(
                 roleMapper,
-                mock(SysRoleMenuMapper.class),
+                roleMenuMapper,
                 menuMapper,
                 mock(SysRoleOrgMapper.class),
                 mock(SysDeptMapper.class),
@@ -707,13 +709,16 @@ class SysRoleServiceTest {
                 mock(com.ycmn.module.system.mapper.SysUserRoleMapper.class),
                 mock(org.springframework.jdbc.core.JdbcTemplate.class));
 
-        // 菜单树: 13(客户详情) -> 11(客户管理, customer:view) -> 10(业务核心目录)
+        // 菜单树: 13(客户详情,type=2) -> 11(客户管理,type=2, customer:view) -> 10(业务核心目录,type=1)
         com.ycmn.module.system.entity.SysMenu m13 = new com.ycmn.module.system.entity.SysMenu();
         m13.setId(13L); m13.setParentId(11L); m13.setMenuType(2); m13.setPermission("customer:detail:view");
         com.ycmn.module.system.entity.SysMenu m11 = new com.ycmn.module.system.entity.SysMenu();
         m11.setId(11L); m11.setParentId(10L); m11.setMenuType(2); m11.setPermission("customer:view");
+        com.ycmn.module.system.entity.SysMenu m10 = new com.ycmn.module.system.entity.SysMenu();
+        m10.setId(10L); m10.setParentId(0L); m10.setMenuType(1);
         when(menuMapper.selectById(13L)).thenReturn(m13);
         when(menuMapper.selectById(11L)).thenReturn(m11);
+        when(menuMapper.selectById(10L)).thenReturn(m10);
         when(menuMapper.selectBatchIds(any())).thenReturn(List.of(m13)); // validateGrantableRole 校验提交集合
 
         SysRole role = new SysRole();
@@ -726,24 +731,31 @@ class SysRoleServiceTest {
             m.when(SecurityUtils::isAdmin).thenReturn(false);
             m.when(SecurityUtils::getCurrentDataScope).thenReturn("self");
             m.when(SecurityUtils::getCurrentGroupIds).thenReturn(List.of(1L));
-            // 调用者持有子权限 customer:detail:view，但缺父权限 customer:view
             com.ycmn.security.SecurityUser caller = new com.ycmn.security.SecurityUser();
             caller.setPermissions(new java.util.HashSet<>(java.util.Set.of("customer:detail:view")));
             m.when(SecurityUtils::getCurrentUser).thenReturn(caller);
 
-            assertThrows(BusinessException.class, () -> service.create(role),
-                    "非超管经闭包补入自身不具备的父菜单权限码(customer:view)应被拒绝");
+            service.create(role); // 不抛异常：闭包只补目录行，type=2 父权限不被注入，无越权可拦
+
+            // 闭包展开后 role_menu 应只写 {13(提交), 10(目录行)}，type=2 父菜单 11 不得入库
+            ArgumentCaptor<SysRoleMenu> captor = ArgumentCaptor.forClass(SysRoleMenu.class);
+            verify(roleMenuMapper, times(2)).insert(captor.capture());
+            List<Long> written = captor.getAllValues().stream()
+                    .map(SysRoleMenu::getMenuId).sorted().toList();
+            assertEquals(java.util.List.of(10L, 13L), written,
+                    "闭包应只补 menu_type=1 目录行(10)，不得注入 type=2 父菜单(11)");
         }
     }
 
-    /** 非超管提交的子菜单权限码已在调用者权限集内时，闭包补入的父权限也在集内 → 放行 */
+    /** 非超管持有父权限时，闭包也【不】补入 type=2 父菜单——父菜单须显式勾选，杜绝静默授权 */
     @Test
-    void create_ancestorClosureInjectsParentPerm_allowedWhenParentInCallerSubset() {
+    void create_ancestorClosureOnlyAddsDirRows_evenWhenCallerHoldsParentPerm() {
         SysRoleMapper roleMapper = mock(SysRoleMapper.class);
         SysMenuMapper menuMapper = mock(SysMenuMapper.class);
+        SysRoleMenuMapper roleMenuMapper = mock(SysRoleMenuMapper.class);
         SysRoleService service = new SysRoleService(
                 roleMapper,
-                mock(SysRoleMenuMapper.class),
+                roleMenuMapper,
                 menuMapper,
                 mock(SysRoleOrgMapper.class),
                 mock(SysDeptMapper.class),
@@ -756,8 +768,11 @@ class SysRoleServiceTest {
         m13.setId(13L); m13.setParentId(11L); m13.setMenuType(2); m13.setPermission("customer:detail:view");
         com.ycmn.module.system.entity.SysMenu m11 = new com.ycmn.module.system.entity.SysMenu();
         m11.setId(11L); m11.setParentId(10L); m11.setMenuType(2); m11.setPermission("customer:view");
+        com.ycmn.module.system.entity.SysMenu m10 = new com.ycmn.module.system.entity.SysMenu();
+        m10.setId(10L); m10.setParentId(0L); m10.setMenuType(1);
         when(menuMapper.selectById(13L)).thenReturn(m13);
         when(menuMapper.selectById(11L)).thenReturn(m11);
+        when(menuMapper.selectById(10L)).thenReturn(m10);
         when(menuMapper.selectBatchIds(any())).thenReturn(List.of(m13));
 
         SysRole role = new SysRole();
@@ -770,24 +785,32 @@ class SysRoleServiceTest {
             m.when(SecurityUtils::isAdmin).thenReturn(false);
             m.when(SecurityUtils::getCurrentDataScope).thenReturn("self");
             m.when(SecurityUtils::getCurrentGroupIds).thenReturn(List.of(1L));
-            // 调用者同时持有子/父权限 → 闭包补入的父权限在子集内，放行
+            // 调用者持有子+父权限，父权限在子集内 —— 但契约是"父菜单不静默注入"
             com.ycmn.security.SecurityUser caller = new com.ycmn.security.SecurityUser();
             caller.setPermissions(new java.util.HashSet<>(java.util.Set.of("customer:detail:view", "customer:view")));
             m.when(SecurityUtils::getCurrentUser).thenReturn(caller);
 
             service.create(role); // 不应抛异常
             verify(roleMapper).insert(role);
+
+            ArgumentCaptor<SysRoleMenu> captor = ArgumentCaptor.forClass(SysRoleMenu.class);
+            verify(roleMenuMapper, times(2)).insert(captor.capture());
+            List<Long> written = captor.getAllValues().stream()
+                    .map(SysRoleMenu::getMenuId).sorted().toList();
+            assertEquals(java.util.List.of(10L, 13L), written,
+                    "即使调用者持有父权限，闭包也只补 type=1 目录行(10)，不注入 type=2 父菜单(11)");
         }
     }
 
-    /** 超管创建角色时闭包补入父菜单权限码不拦截（admin 恒放行） */
+    /** 超管创建角色时闭包同样只补 type=1 目录行，不注入 type=2 父菜单（契约与调用者权限无关） */
     @Test
-    void create_ancestorClosureInjectsParentPerm_allowedForAdmin() {
+    void create_ancestorClosureOnlyAddsDirRows_forAdmin() {
         SysRoleMapper roleMapper = mock(SysRoleMapper.class);
         SysMenuMapper menuMapper = mock(SysMenuMapper.class);
+        SysRoleMenuMapper roleMenuMapper = mock(SysRoleMenuMapper.class);
         SysRoleService service = new SysRoleService(
                 roleMapper,
-                mock(SysRoleMenuMapper.class),
+                roleMenuMapper,
                 menuMapper,
                 mock(SysRoleOrgMapper.class),
                 mock(SysDeptMapper.class),
@@ -800,8 +823,11 @@ class SysRoleServiceTest {
         m13.setId(13L); m13.setParentId(11L); m13.setMenuType(2); m13.setPermission("customer:detail:view");
         com.ycmn.module.system.entity.SysMenu m11 = new com.ycmn.module.system.entity.SysMenu();
         m11.setId(11L); m11.setParentId(10L); m11.setMenuType(2); m11.setPermission("customer:view");
+        com.ycmn.module.system.entity.SysMenu m10 = new com.ycmn.module.system.entity.SysMenu();
+        m10.setId(10L); m10.setParentId(0L); m10.setMenuType(1);
         when(menuMapper.selectById(13L)).thenReturn(m13);
         when(menuMapper.selectById(11L)).thenReturn(m11);
+        when(menuMapper.selectById(10L)).thenReturn(m10);
         when(menuMapper.selectBatchIds(any())).thenReturn(List.of(m13));
 
         SysRole role = new SysRole();
@@ -814,6 +840,13 @@ class SysRoleServiceTest {
             m.when(SecurityUtils::isAdmin).thenReturn(true);
             service.create(role); // admin 不拦截
             verify(roleMapper).insert(role);
+
+            ArgumentCaptor<SysRoleMenu> captor = ArgumentCaptor.forClass(SysRoleMenu.class);
+            verify(roleMenuMapper, times(2)).insert(captor.capture());
+            List<Long> written = captor.getAllValues().stream()
+                    .map(SysRoleMenu::getMenuId).sorted().toList();
+            assertEquals(java.util.List.of(10L, 13L), written,
+                    "admin 闭包同样只补 type=1 目录行(10)，不注入 type=2 父菜单(11)");
         }
     }
 }

@@ -249,21 +249,14 @@ const handleDelete = async (row) => {
   } catch (e) {}
 }
 
-/** 收集被勾选节点的完整祖先链 id——保证父菜单(menu_type=2 权限载体)与目录行(menu_type=1 锚点)一并入库，
- *  避免"勾选子菜单未勾父分组"导致权限生效但菜单不显示(孤儿菜单，P1-10 修复语义)。
- *  与后端 saveRoleMenus 祖先闭包、usePermissionData.collectAncestors 对齐。 */
-const collectDirAncestors = (menuId, nodes = menuTree.value) => {
-  const ancestorIds = []
-  const walk = (list, path) => {
-    for (const n of list) {
-      const cur = [...path, n]
-      if (n.id === menuId) { cur.slice(0, -1).forEach(x => ancestorIds.push(x.id)); return true }
-      if (n.children && walk(n.children, cur)) return true
-    }
-    return false
+/** 在菜单树中按 id 查找节点(取 menuType 过滤用) */
+const findMenuNode = (nodes, id) => {
+  for (const n of (nodes || [])) {
+    if (n.id === id) return n
+    const hit = findMenuNode(n.children, id)
+    if (hit) return hit
   }
-  walk(nodes, [])
-  return ancestorIds
+  return null
 }
 
 const openPermDialog = async (row) => {
@@ -285,15 +278,15 @@ const openPermDialog = async (row) => {
 
 const handleSavePerm = async () => {
   // check-strictly 模式下 getCheckedKeys 返回用户实际勾选的节点(精确，无深传播)。
-  // 提交前补全祖先链(父菜单 menu_type=2 权限载体 + 目录行 menu_type=1 锚点)：
-  //   父菜单是子页/按钮的页面级权限载体，不补则"权限生效但菜单不显示"(孤儿菜单)；
-  //   目录行无权限码，是菜单树显示锚点。后端 saveRoleMenus 闭包与这里双保险。
+  // 【P0 2026-08-12 对齐审计修复方向4】提交前过滤：仅提交真实权限载体(menu_type=2/3)，
+  //   不提交目录行(menu_type=1)。目录行无权限码，仅作菜单树显示锚点，由后端
+  //   saveRoleMenus 闭包按需补入(只补 type=1)；前端不再提交目录行、不再补父链，
+  //   杜绝"目录行入库 → 下次打开深传播全选"的 P0 放大器。
   const checkedKeys = menuTreeRef.value.getCheckedKeys()
-  const ancestorIds = new Set()
-  for (const mid of checkedKeys) {
-    collectDirAncestors(mid).forEach(id => ancestorIds.add(id))
-  }
-  const menuIds = [...new Set([...checkedKeys, ...ancestorIds])]
+  const menuIds = checkedKeys.filter(id => {
+    const node = findMenuNode(menuTree.value, id)
+    return node && node.menuType !== 1
+  })
   try {
     await updateRole(currentRoleId.value, { menuIds })
     ElMessage.success('权限保存成功')

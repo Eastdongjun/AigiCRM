@@ -275,20 +275,36 @@ public class CustomerService {
 
     /**
      * 【P2-2 2026-08-11】同步客户 dept_id=负责人(owner)的部门, 使 ORG 锚点数据范围可用。
-     * owner 缺失时保持 null(由回填 SQL/后续转移流程补齐), 不阻断创建。
+     * owner 缺失或 owner 无部门时显式清空 dept_id(null)——避免遗留旧负责人的部门导致
+     * ORG 锚点数据范围错误关联(2026-08-12 A3 补齐: 原实现仅 owner 有部门才 set,
+     * 无部门时旧 dept_id 残留, updateById 又只写非 null 字段, 需在调用处显式清空)。
+     * 返回 owner 的部门(可为 null), 供调用方决定如何落库。
      */
-    private void syncCustomerDeptId(BizCustomer customer, Long ownerId) {
-        if (ownerId == null) return;
+    private Long syncCustomerDeptId(BizCustomer customer, Long ownerId) {
+        if (ownerId == null) return null;
         try {
             com.ycmn.module.system.entity.SysUser owner = userMapper.selectById(ownerId);
-            if (owner != null && owner.getDeptId() != null) {
-                customer.setDeptId(owner.getDeptId());
-            }
+            Long deptId = owner != null ? owner.getDeptId() : null;
+            customer.setDeptId(deptId);
+            return deptId;
         } catch (Exception e) {
             // 部门同步失败不阻断创建(数据范围 ORG 分支降级为空/本人, 安全性不劣化)
             org.slf4j.LoggerFactory.getLogger(CustomerService.class)
                     .warn("同步客户归属部门失败 ownerId={}", ownerId, e);
+            return null;
         }
+    }
+
+    /**
+     * 【P2-2 2026-08-11】将客户 dept_id 强制落库(含 null 清空)。
+     * MyBatis-Plus updateById 只写非 null 字段, 无法用 null 清空 dept_id;
+     * 此方法用 LambdaUpdateWrapper.set 显式写(含 SET dept_id=NULL), 保证与 owner 部门精确一致。
+     */
+    private void persistCustomerDeptId(Long customerId, Long deptId) {
+        if (customerId == null) return;
+        customerMapper.update(null, new com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper<BizCustomer>()
+                .eq(BizCustomer::getId, customerId)
+                .set(BizCustomer::getDeptId, deptId));
     }
 
     public boolean existsByName(String customerName) {
@@ -389,12 +405,18 @@ public class CustomerService {
         } else if (!SecurityUtils.isAdmin() && fieldChanged(existing.getOwnerId(), customer.getOwnerId())) {
             // 【M1 2026-08-10】非池客户负责人变更: 非 admin 只能走转移/审批流程, 防无审批转交
             throw new BusinessException("客户负责人变更请通过转移/审批流程操作");
-        } else if (SecurityUtils.isAdmin() && fieldChanged(existing.getOwnerId(), customer.getOwnerId())) {
-            // 【P2-2 2026-08-11】admin 转交负责人时同步客户归属部门(ORG 锚点数据范围跟随新负责人)
-            syncCustomerDeptId(customer, customer.getOwnerId());
         }
+        // 【P2-2 2026-08-12 A3】始终按最终负责人(请求显式或库内现有)重同步 dept_id——
+        // 负责人变更(admin 转交)与负责人部门调整都跟随; owner 无部门时显式清空,
+        // 不再遗留旧负责人部门(原实现仅 admin 且 owner 变更时才同步, 且空部门跳过)。
+        Long effectiveOwnerId = customer.getOwnerId() != null ? customer.getOwnerId() : existing.getOwnerId();
+        Long effectiveDeptId = syncCustomerDeptId(customer, effectiveOwnerId);
         calculateExpireDates(customer);
         customerMapper.updateById(customer);
+        // updateById 只写非 null 字段: owner 无部门时显式清空 dept_id, 防旧部门残留
+        if (effectiveDeptId == null && existing.getDeptId() != null) {
+            persistCustomerDeptId(customer.getId(), null);
+        }
     }
 
     /** 请求字段是否显式变更(null 视为未指定, 不判定为变更) */

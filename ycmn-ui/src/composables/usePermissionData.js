@@ -97,21 +97,9 @@ const hasPerm = (role, item) => {
   return set ? set.has(item.id) : false
 }
 
-// 【修复 2026-08-10 P1-10】勾选子权限时补全父分组 id, 防孤儿菜单(与后端 saveRoleMenus 祖先闭包双保险)
-const collectAncestors = (menuId, nodes = menuTree.value) => {
-  const found = []
-  const walk = (list, path) => {
-    for (const n of list) {
-      const cur = [...path, n.id]
-      if (n.id === menuId) { found.push(...cur); return true }
-      if (n.children && walk(n.children, cur)) return true
-    }
-    return false
-  }
-  walk(nodes, [])
-  return found
-}
-
+// 【P0 2026-08-12 对齐审计修复方向4】勾选权限点时只提交该真实权限载体(menu_type=2/3)自身,
+// 不再自动补父菜单/目录行——父菜单(type=2 权限载体)须显式勾选, 目录行(type=1 锚点)由后端
+// saveRoleMenus 闭包只补 type=1; 与 role.vue 权限弹窗同一契约, 杜绝"目录行入库→回显深传播"与静默授权。
 const togglePerm = async (role, item) => {
   const set = rolePermMap.value[role.id]
   if (!set) return
@@ -120,7 +108,6 @@ const togglePerm = async (role, item) => {
     set.delete(item.id)
   } else {
     set.add(item.id)
-    collectAncestors(item.id).forEach(id => set.add(id))
   }
   try {
     await updateRole(role.id, { menuIds: [...set] })

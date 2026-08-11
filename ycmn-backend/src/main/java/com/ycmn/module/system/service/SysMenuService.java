@@ -38,23 +38,33 @@ public class SysMenuService {
         // 运行时新增菜单(新权限码/新按钮)不会绑定到 admin → 新接口 @PreAuthorize 码对 admin 也 403(缺授)。
         // 目录行(menu_type=1)无权限码, 仍补绑以保证 admin 侧边栏完整。
         // 按 role_code 定位 admin 角色, 避免硬编码 id=1 在异构部署下把新权限误授给 id=1 的非 admin 角色。
-        if (menu.getId() != null) {
-            SysRole admin = roleMapper.selectOne(
-                    new LambdaQueryWrapper<SysRole>().eq(SysRole::getRoleCode, "admin").last("LIMIT 1"));
-            if (admin != null && admin.getId() != null) {
-                SysRoleMenu rm = new SysRoleMenu();
-                rm.setRoleId(admin.getId());
-                rm.setMenuId(menu.getId());
-                roleMenuMapper.insert(rm);
-            }
-        }
+        bindToAdminIfNeeded(menu.getId());
         // 【Redis 权限缓存】菜单定义影响所有用户权限集合，全量失效（低频操作）
         permissionCacheService.evictAll();
     }
 
+    /** 【修复 2026-08-12 A2】菜单更新同样确保 admin 绑定——补授路径与 create 对齐,
+     *  修复"经 update 给既有菜单挂新权限码时 admin 缺授 → 全局 403"的残留缺口。 */
     public void update(SysMenu menu) {
         menuMapper.updateById(menu);
+        bindToAdminIfNeeded(menu.getId());
         permissionCacheService.evictAll();
+    }
+
+    /** 确保 admin 角色已绑定该菜单(按 role_code='admin' 解析 id; 幂等——已绑定则跳过) */
+    private void bindToAdminIfNeeded(Long menuId) {
+        if (menuId == null) return;
+        SysRole admin = roleMapper.selectOne(
+                new LambdaQueryWrapper<SysRole>().eq(SysRole::getRoleCode, "admin").last("LIMIT 1"));
+        if (admin == null || admin.getId() == null) return;
+        Long bound = roleMenuMapper.selectCount(
+                new LambdaQueryWrapper<SysRoleMenu>().eq(SysRoleMenu::getRoleId, admin.getId())
+                        .eq(SysRoleMenu::getMenuId, menuId));
+        if (bound != null && bound > 0) return; // 已绑定, 避免 uk_role_menu 唯一键冲突
+        SysRoleMenu rm = new SysRoleMenu();
+        rm.setRoleId(admin.getId());
+        rm.setMenuId(menuId);
+        roleMenuMapper.insert(rm);
     }
 
     public void delete(Long id) {

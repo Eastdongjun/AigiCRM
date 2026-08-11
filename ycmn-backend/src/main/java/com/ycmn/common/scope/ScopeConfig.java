@@ -7,9 +7,10 @@ import java.io.Serializable;
 /**
  * 数据范围配置条目(批③ 2026-08-10)——功能权限×数据范围正交模型的配置载体。
  * 登录时随 SecurityUser 一次性装载(数据量=主体×模块×动作, 百行级), 热路径零 DB。
- * 主体三级: ROLE(角色编码)/POSITION(岗位ID)/USER(用户ID), 三级当前以并集装载。
- * ⚠️ USER>POSITION>ROLE 优先级尚未实现; scope_level 暂未进入 OrgScopeResolver 解析链路
- * (仅 anchor 被 anchorOf 消费)——生效前勿依赖该配置做安全判定。
+ * 主体三级: ROLE(角色编码)/POSITION(岗位ID)/USER(用户ID), 按 USER>POSITION>ROLE
+ * 装载序实现优先级(见 OrgScopeResolver.configuredScopeCodes——取首个有匹配的主体,
+ * 该主体内 精确(module,action)>通配(* *))。scope_level 已被 OrgScopeResolver 消费
+ * (2026-08-11 P2 接入), anchor 被 anchorOf 消费——配置已参与运行时安全判定。
  */
 @Data
 public class ScopeConfig implements Serializable {

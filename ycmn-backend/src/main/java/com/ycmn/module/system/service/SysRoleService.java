@@ -108,7 +108,7 @@ public class SysRoleService {
         // 传了但越权（非 admin 建到其他集团）→ 拒绝
         if (role.getGroupId() == null) {
             List<Long> g = GroupScopeUtil.visibleGroupIds();
-            role.setGroupId(g == null ? 1L : g.get(0));
+            role.setGroupId(g == null ? GroupScopeUtil.DEFAULT_GROUP_ID : g.get(0));
         } else if (!GroupScopeUtil.canAccessGroup(role.getGroupId())) {
             throw new BusinessException("无权在该集团创建角色");
         }
@@ -228,14 +228,16 @@ public class SysRoleService {
      * 保存角色-菜单绑定(含祖先闭包)。
      *
      * 【修复 2026-08-10 P1-10】祖先闭包: 勾选子菜单未勾父分组时, 权限生效但菜单不显示(孤儿菜单)。
-     * 保存时把每个选中节点的父链一并补入(menu_type=1 目录行锚点 + menu_type=2 父菜单权限载体),
-     * 根治"权限有但菜单消失"。
+     * 保存时补入每个选中节点的目录行锚点(menu_type=1, permission 为空, 不产生 RBAC),
+     * 保证侧边栏目录可见; 但**不**静默补入带真实权限码的 menu_type=2 父菜单——
+     * 父菜单须由用户显式勾选(权限分配弹窗以 check-strictly 树展示, 层级可见)。
      *
      * 【安全 2026-08-11 P0/P1 修复】
      * 1) 前端 role.vue 已加 check-strictly(回显精确, 杜绝"打开即全选、保存即全量授权");
-     * 2) 闭包补入的父链集合**同样经过 validateGrantableRole 的权限子集校验**——
-     *    此前校验只覆盖提交集合, 非超管构造"只含子节点"的请求会经闭包静默获得父菜单权限码(提权旁路)。
-     *    这里在闭包展开后对非超管重新校验 expanded 集合, 父链中被静默补入的权限码也会被拦截。
+     * 2) 【P0 2026-08-12 对齐审计修复方向】闭包只补 menu_type=1 目录行(permission 空, 无 RBAC),
+     *    不再补带真实权限码的 menu_type=2 父菜单——此前闭包注入父菜单权限码, 非超管构造
+     *    "只含子节点"请求会经闭包静默获得父权限(提权旁路), 靠下方 expanded 重校验兜底;
+     *    改为不注入后, 该旁路从构造上消除, 下方重校验降级为纵深防御(现仅校验提交集)。
      */
     private void saveRoleMenus(Long roleId, List<Long> menuIds) {
         if (menuIds == null || menuIds.isEmpty()) return;
@@ -246,12 +248,19 @@ public class SysRoleService {
             while (cur != null && guard++ < 20) { // 环保护
                 com.ycmn.module.system.entity.SysMenu m = menuMapper.selectById(cur);
                 if (m == null || m.getParentId() == null || m.getParentId() == 0L) break;
-                if (!expanded.add(m.getParentId())) break; // 已包含则父链已完整
-                cur = m.getParentId();
+                Long parentId = m.getParentId();
+                com.ycmn.module.system.entity.SysMenu parent = menuMapper.selectById(parentId);
+                // 【P0 2026-08-12】只补 menu_type=1 目录行锚点(permission 空, 无 RBAC);
+                // menu_type=2/3 父菜单是真实权限载体, 不静默注入, 须用户显式勾选
+                if (parent != null && parent.getMenuType() != null && parent.getMenuType() == 1) {
+                    if (!expanded.add(parentId)) break; // 目录锚点已含则父链已完整
+                }
+                cur = parentId;
             }
         }
-        // 【安全 2026-08-11】闭包后的集合也要过权限子集校验(非超管):
-        // 防止闭包补入的父菜单权限码绕过 validateGrantableRole 的"授予权限必须是自身权限子集"约束。
+        // 【安全 2026-08-11】闭包后的集合也要过权限子集校验(非超管)——纵深防御:
+        // 现闭包仅注入 permission 空的目录行(type=1), 本循环主要兜底提交集本身,
+        // 防止任何未来变更重新引入带权限码的静默注入。
         if (!SecurityUtils.isAdmin()) {
             Set<String> callerPerms = SecurityUtils.getCurrentUser() != null
                     ? SecurityUtils.getCurrentUser().getPermissions() : Set.of();
@@ -325,7 +334,7 @@ public class SysRoleService {
             }
             // 有效集团 = 自身或最近祖先的 group_id(历史未回填多为 NULL); 全空退主集团 1(GroupScopeUtil 同口径)
             Long effective = deptMapper.selectEffectiveGroupId(orgId);
-            if (effective == null) effective = 1L;
+            if (effective == null) effective = GroupScopeUtil.DEFAULT_GROUP_ID;
             // P2(c)-r1: org 有效集团必须与目标角色集团一致(纵深防御)——可访问多集团的高权用户
             // 不得把其他集团 org 挂到本集团角色; 角色集团未知(roleGroup=null)时退回调用者可访问集团校验
             if (roleGroup != null && !effective.equals(roleGroup)) {

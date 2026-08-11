@@ -8,6 +8,7 @@ import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.ycmn.common.BusinessException;
 import com.ycmn.common.enums.DataScopeType;
+import com.ycmn.common.scope.GroupScopeUtil;
 import com.ycmn.module.customer.entity.BizCustomer;
 import com.ycmn.module.customer.mapper.BizCustomerMapper;
 import com.ycmn.module.customer.mapper.BizCustomerShareMapper;
@@ -98,7 +99,7 @@ public class SysUserService {
         // `#{deptIds} = ''` 与 IS NULL 等价（均视为"不按部门过滤"），且区别于"确无可见部门"的 null。
         if (SecurityUtils.isAdmin()) return StringUtils.hasText(deptIds) ? deptIds : "";
         java.util.List<Long> groupIds = SecurityUtils.getCurrentGroupIds();
-        if (groupIds == null || groupIds.isEmpty()) groupIds = java.util.List.of(1L);
+        if (groupIds == null || groupIds.isEmpty()) groupIds = java.util.List.of(GroupScopeUtil.DEFAULT_GROUP_ID);
         java.util.List<Long> allowedDeptIds = deptMapper.selectList(
                         new LambdaQueryWrapper<com.ycmn.module.system.entity.SysDept>()
                                 .in(com.ycmn.module.system.entity.SysDept::getGroupId, groupIds))
@@ -411,13 +412,14 @@ public class SysUserService {
                         .eq(BizCustomer::getDeleted, 0))
                 .stream().map(BizCustomer::getId).toList();
 
-        // 【P2-2 2026-08-11】客户转移负责人时同步 dept_id=新负责人部门(ORG 锚点数据范围跟随新负责人)
+        // 【P2-2 2026-08-12 A3】客户转移负责人时同步 dept_id=新负责人部门(ORG 锚点数据范围跟随新负责人)。
+        // 统一一条 SQL 且 dept_id 始终显式写(含 NULL)——原实现 toDeptId==null 时降级为不写 dept_id,
+        // 遗留旧负责人部门, 与 ORG 锚点"客户归属=负责人部门"口径不符。
         Long toDeptId = null;
         com.ycmn.module.system.entity.SysUser toUser = userMapper.selectById(toUserId);
         if (toUser != null) toDeptId = toUser.getDeptId();
-        int c = toDeptId != null
-                ? jdbc.update("UPDATE biz_customer SET owner_id=?, dept_id=? WHERE owner_id=? AND deleted=0", toUserId, toDeptId, fromUserId)
-                : jdbc.update("UPDATE biz_customer SET owner_id=? WHERE owner_id=? AND deleted=0", toUserId, fromUserId);
+        int c = jdbc.update("UPDATE biz_customer SET owner_id=?, dept_id=? WHERE owner_id=? AND deleted=0",
+                toUserId, toDeptId, fromUserId);
         jdbc.update("UPDATE biz_customer_share SET shared_by_user_id=? WHERE shared_by_user_id=?", toUserId, fromUserId);
         if (!customerIds.isEmpty()) {
             shareMapper.delete(new LambdaQueryWrapper<BizCustomerShare>()

@@ -16,8 +16,9 @@ YCMN（运筹马年）内部 CRM：客户/审批/激励/文件/公海池/提醒 
 ## 数据库事实（排查前必读）
 
 - `sys_org` 视图已于 0809 sys_dept/sys_org 双表收口时删除——物理数据只在 `sys_dept` 表（含 dept_type），无 sys_org。
-- schema 真相链：**Flyway 迁移** = `ycmn-backend/src/main/resources/db/migration/V1__baseline.sql`（生产 54 表基线）+ 未来 V2+；历史日期脚本归档 `sql/migration/archive/`（不再登记）；`ycmn_database_test.sql` = 真实库 dump（最接近线上）。
-- 数据库变更：**必须经 Flyway**（新迁移 V2__xxx.sql 放 `db/migration/`，用 `scripts/deploy-db.sh` 部署）；`sql/migration/` 下已有日期目录仅作历史参考，不得再手工执行。
+- schema 真相链：**Flyway 迁移** = `ycmn-backend/src/main/resources/db/migration/V1__baseline.sql`（**V1' 重建基线**，2026-08-11 生产 schema 快照，56 表）+ 未来 **V10+**；历史日期脚本归档 `sql/migration/archive/`（不再登记）；`ycmn_database_test.sql` = 真实库 dump（最接近线上）。
+- 数据库变更：**必须经 Flyway**（新迁移 `V10+__xxx.sql` 放 `db/migration/`，用 `scripts/deploy-db.sh` 部署）；`sql/migration/` 下已有日期目录仅作历史参考，不得再手工执行。
+- **迁移链例外（2026-08-11 已确认）**：V1 已被原地重建为生产快照（V1'，含 FOREIGN_KEY_CHECKS=0 包装修复 DB-001 前向 FK）；旧 V2-V9 归档 `sql/migration/archive/`。**此后不得再原地修改 V1**——任何变更一律走新迁移 V10+（V2 编号已弃用，避免与归档/未合并线的版本号冲突）。
 - `biz_incentive_record.file_pre_id` 已从 BIGINT 改为 VARCHAR（存 JSON 数组），新代码不要再按数字处理。
 
 ## 编译与测试（强制，代码改动必须过这一关）
