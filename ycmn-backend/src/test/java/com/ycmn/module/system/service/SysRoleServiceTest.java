@@ -527,6 +527,43 @@ class SysRoleServiceTest {
         }
     }
 
+    @Test
+    void updateOrgs_multiGroupRoleOrgMismatchRejected() {
+        // P2(c)-r1: 可访问多集团的高权用户不得把其他集团 org 挂到目标角色(org 有效集团必须==角色集团)
+        SysRoleMapper roleMapper = mock(SysRoleMapper.class);
+        SysRoleOrgMapper orgMapper = mock(SysRoleOrgMapper.class);
+        SysDeptMapper deptMapper = mock(SysDeptMapper.class);
+        stubOrg(deptMapper, 20L, 2L, List.of()); // org 20 有效集团 2
+        SysRoleService service = newServiceWith(roleMapper, orgMapper, deptMapper);
+        when(roleMapper.selectById(5L)).thenReturn(roleOf(5L, 1L)); // 目标角色集团 1
+        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
+            m.when(SecurityUtils::isAdmin).thenReturn(false);
+            m.when(SecurityUtils::getCurrentGroupIds).thenReturn(List.of(1L, 2L)); // 调用者可访问双集团
+
+            assertThrows(BusinessException.class, () -> service.updateOrgs(5L, List.of(20L)),
+                    "org 有效集团必须与目标角色集团一致");
+            verify(orgMapper, never()).insert(any());
+        }
+    }
+
+    @Test
+    void updateOrgs_nullOrgRejected() {
+        // P2(c)-r3: orgIds 含 null → 拒绝(避免写 role_org(org_id=NULL) 脏行)
+        SysRoleMapper roleMapper = mock(SysRoleMapper.class);
+        SysRoleOrgMapper orgMapper = mock(SysRoleOrgMapper.class);
+        SysDeptMapper deptMapper = mock(SysDeptMapper.class);
+        SysRoleService service = newServiceWith(roleMapper, orgMapper, deptMapper);
+        when(roleMapper.selectById(5L)).thenReturn(roleOf(5L, 1L));
+        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
+            m.when(SecurityUtils::isAdmin).thenReturn(false);
+            m.when(SecurityUtils::getCurrentGroupIds).thenReturn(List.of(1L));
+
+            assertThrows(BusinessException.class, () -> service.updateOrgs(5L, java.util.Arrays.asList((Long) null)),
+                    "orgIds 不应含 null");
+            verify(orgMapper, never()).insert(any());
+        }
+    }
+
     // ===== 安全 2026-08-08：提权防护（角色授予不得超过调用者自身权限） =====
 
     /** 非超管创建 admin 角色 → 拒绝 */

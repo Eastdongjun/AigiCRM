@@ -283,7 +283,13 @@ public class SysRoleService {
         // 此前零校验: 同集团非超管可把其他集团 orgId 挂到本集团 custom 角色 role_org;
         // sys_dept 不在租户白名单 + OrgScopeResolver.collectSubtree 装载子树 → 跨集团数据范围扩大真实生效。
         // create/update/updateOrgs 三入口共享此方法, 此处为唯一收口。
-        validateRoleOrgsGroup(orgIds);
+        // 目标角色实际集团: create 已设 groupId; update/updateOrgs 未传时回查库
+        Long roleGroup = role.getGroupId();
+        if (roleGroup == null && role.getId() != null) {
+            SysRole existingRole = roleMapper.selectById(role.getId());
+            if (existingRole != null) roleGroup = existingRole.getGroupId();
+        }
+        validateRoleOrgsGroup(orgIds, roleGroup);
 
         for (Long orgId : orgIds) {
             SysRoleOrg ro = new SysRoleOrg();
@@ -294,13 +300,16 @@ public class SysRoleService {
         }
     }
 
-    /** org→集团归属校验: admin 全集团放行; 非 admin 要求每个 org 有效集团可操作且子树不跨集团(fail-closed) */
-    private void validateRoleOrgsGroup(List<Long> orgIds) {
+    /** org→集团归属校验: admin 全集团放行; 非 admin 要求每个 org 有效集团==角色集团且子树不跨集团(fail-closed) */
+    private void validateRoleOrgsGroup(List<Long> orgIds, Long roleGroup) {
         if (SecurityUtils.isAdmin()) {
             return;
         }
         for (Long orgId : orgIds) {
-            if (orgId == null) continue;
+            // P2(c)-r3: null orgId 直接拒收, 避免写 role_org(org_id=NULL) 脏行
+            if (orgId == null) {
+                throw new BusinessException("数据范围包含空组织(orgId=null)");
+            }
             // 存在性: 查不到(已删除/伪造) → 拒绝
             if (deptMapper.selectById(orgId) == null) {
                 throw new BusinessException("无权将不存在的组织纳入数据范围(orgId=" + orgId + ")");
@@ -308,6 +317,11 @@ public class SysRoleService {
             // 有效集团 = 自身或最近祖先的 group_id(历史未回填多为 NULL); 全空退主集团 1(GroupScopeUtil 同口径)
             Long effective = deptMapper.selectEffectiveGroupId(orgId);
             if (effective == null) effective = 1L;
+            // P2(c)-r1: org 有效集团必须与目标角色集团一致(纵深防御)——可访问多集团的高权用户
+            // 不得把其他集团 org 挂到本集团角色; 角色集团未知(roleGroup=null)时退回调用者可访问集团校验
+            if (roleGroup != null && !effective.equals(roleGroup)) {
+                throw new BusinessException("无权将其他集团的组织纳入数据范围(orgId=" + orgId + ")");
+            }
             if (!GroupScopeUtil.canAccessGroup(effective)) {
                 throw new BusinessException("无权将其他集团的组织纳入数据范围(orgId=" + orgId + ")");
             }
