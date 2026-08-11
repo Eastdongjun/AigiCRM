@@ -605,8 +605,9 @@ public class StatisticsQueryService {
 
     /**
      * 【2026-08-08 设计规则（最终）：统计按账号数据范围】统计模块数据按当前账号数据范围过滤
-     * （管理员全量 / 负责人本组织 / 销售本人，含系统级开关）。覆盖 dashboard/经营分析/
-     * 日报周报/核心客户指标 等全部统计查询。getCurrentScopeUserIds 返回 null=全量不过滤。
+     * （管理员全量 / 负责人本组织 / 销售本人，含系统级开关）。覆盖 dashboard/经营分析/日报周报等查询。
+     * ⚠️ 例外: 核心客户指标(indicatorStats)按设计为"六项指标全员可见", 明确不做数据范围过滤
+     * （见该方法内注释）。getCurrentScopeUserIds 返回 null=全量不过滤。
      */
     private void applyCustomerScope(LambdaQueryWrapper<BizCustomer> wrapper) {
         List<Long> userIds = customerService.getCurrentScopeUserIds();

@@ -19,10 +19,11 @@ bad() { echo "❌ $1"; FAIL=$((FAIL+1)); }
 
 echo "════════ YCMN 冒烟测试 ($LABEL) $(date '+%H:%M:%S') ════════"
 
-# [1] 登录 admin
+# [1] 登录 admin（凭据经 ~/.ycmn-deploy.env 的 HEALTH_CHECK_USER/PASS 注入，禁止硬编码）
+[ -n "${HEALTH_CHECK_PASS:-}" ] || { echo "❌ 缺少 HEALTH_CHECK_PASS（请在 ~/.ycmn-deploy.env 配置）"; exit 1; }
 TOKEN=$(curl -sk -o /dev/null -w "" -X POST "$BASE/api/auth/login" -H "Origin: $BASE" -H "Content-Type: application/json" \
-  -d '{"username":"admin","password":"admin123"}' >/dev/null 2>&1; curl -sk -X POST "$BASE/api/auth/login" \
-  -H "Origin: $BASE" -H "Content-Type: application/json" -d '{"username":"admin","password":"admin123"}' \
+  -d "{\"username\":\"${HEALTH_CHECK_USER:-admin}\",\"password\":\"$HEALTH_CHECK_PASS\"}" >/dev/null 2>&1; curl -sk -X POST "$BASE/api/auth/login" \
+  -H "Origin: $BASE" -H "Content-Type: application/json" -d "{\"username\":\"${HEALTH_CHECK_USER:-admin}\",\"password\":\"$HEALTH_CHECK_PASS\"}" \
   | python3 -c "import sys,json;print(json.load(sys.stdin).get('data',{}).get('token',''))" 2>/dev/null)
 [ -n "$TOKEN" ] && ok "admin 登录成功" || { bad "admin 登录失败"; echo "结果: PASS=$PASS FAIL=$FAIL"; exit 1; }
 AUTH="Authorization: Bearer $TOKEN"
@@ -48,10 +49,10 @@ else
   bad "role-orgs 前置: 无法获取角色列表"
 fi
 
-# [3] 权限隔离: 销售员访问 users 应 403(账号密码可用环境变量覆盖)
-# 生产环境无通用测试账号时, 通过 SMOKE_TEST_USER/SMOKE_TEST_PASS 配置, 否则跳过并提示
-TEST_USER="${SMOKE_TEST_USER:-wangleilei}"
-TEST_PASS="${SMOKE_TEST_PASS:-123456}"
+# [3] 权限隔离: 销售员访问 users 应 403(账号密码必须经 SMOKE_TEST_USER/SMOKE_TEST_PASS 注入, 禁止硬编码默认口令)
+# 未配置时显式跳过并提示——不要静默失败(默认口令可能过期, 静默跳过会让安全回归漏检)
+TEST_USER="${SMOKE_TEST_USER:-}"
+TEST_PASS="${SMOKE_TEST_PASS:-}"
 WTOKEN=$(curl -sk -X POST "$BASE/api/auth/login" -H "Content-Type: application/json" \
   -d "{\"username\":\"$TEST_USER\",\"password\":\"$TEST_PASS\"}" \
   | python3 -c "import sys,json;print(json.load(sys.stdin).get('data',{}).get('token',''))" 2>/dev/null)
@@ -60,7 +61,7 @@ if [ -n "$WTOKEN" ]; then
     -H "Authorization: Bearer $WTOKEN" --connect-timeout 8)
   [ "$HTTP" = "403" ] && ok "权限隔离: $TEST_USER users 403" || bad "权限隔离: $TEST_USER users 返回 $HTTP(应 403)"
 else
-  echo "⏭️  权限隔离测试跳过(无 $TEST_USER 测试账号, 生产可用 SMOKE_TEST_USER/SMOKE_TEST_PASS 配置)"
+  echo "⏭️  权限隔离测试跳过(未配置 SMOKE_TEST_USER/SMOKE_TEST_PASS 或登录失败, 生产可用 SMOKE_TEST_USER/PASS 配置)"
 fi
 
 # [3.5] 核心业务回归用例(激励/审批/文件/公海)

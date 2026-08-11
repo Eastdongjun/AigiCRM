@@ -14,6 +14,11 @@ source "$ENV_FILE"
 # DB 凭据必须存在（禁止脚本内硬编码，一律经 env 注入）
 [ -n "${DB_PASSWORD:-}" ] || { echo "错误: 缺少 DB_PASSWORD（请在 $ENV_FILE 配置）" >&2; exit 1; }
 
+# 健康检查/冒烟登录凭据 —— 值在 ~/.ycmn-deploy.env (HEALTH_CHECK_USER/HEALTH_CHECK_PASS)，禁止硬编码入仓。
+# 为空时登录检查会失败并提示，不会静默使用仓库内默认口令。
+HEALTH_CHECK_USER="${HEALTH_CHECK_USER:-admin}"
+HEALTH_CHECK_PASS="${HEALTH_CHECK_PASS:-}"
+
 SSH_OPTS="${SSH_OPTS:--o ConnectTimeout=20 -o StrictHostKeyChecking=no}"
 
 # ssh 封装带重试(连接建立类瞬时失败自动重试; 3 次后放弃)。
@@ -41,10 +46,11 @@ scp_test()  { sshpass -p "$TEST_PASS" scp $SSH_OPTS "$@"; }
 # 生产健康检查: 登录 API 带 Origin 必须 200
 check_health() {
   local base="${1:-https://www.aigicrm.com}"
+  [ -n "$HEALTH_CHECK_PASS" ] || { echo "❌ 缺少 HEALTH_CHECK_PASS（请在 $ENV_FILE 配置）" >&2; return 1; }
   local code
   code=$(curl -sk -o /dev/null -w "%{http_code}" -X POST "$base/api/auth/login" \
     -H "Origin: $base" -H "Content-Type: application/json" \
-    -d '{"username":"admin","password":"admin123"}' --connect-timeout 10)
+    -d "{\"username\":\"$HEALTH_CHECK_USER\",\"password\":\"$HEALTH_CHECK_PASS\"}" --connect-timeout 10)
   if [ "$code" = "200" ]; then
     echo "✅ 健康检查通过 (登录 API $code)"
     return 0

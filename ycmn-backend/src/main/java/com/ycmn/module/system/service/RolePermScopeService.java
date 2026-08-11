@@ -43,7 +43,8 @@ public class RolePermScopeService {
     private final JdbcTemplate jdbc;
     private final com.ycmn.security.PermissionCacheService permissionCacheService;
 
-    /** 【批③ 正交配置层】按用户装载全量范围配置(USER>POSITION>ROLE 三级; 登录时写入 SecurityUser.scopeConfigs) */
+    /** 【批③ 正交配置层】按用户装载全量范围配置(USER/POSITION/ROLE 三级并集; 登录时写入 SecurityUser.scopeConfigs)。
+     *  ⚠️ 注意: 三级目前仅并集装载, USER>POSITION>ROLE 优先级与生效尚未接入解析链路(effectiveScopes 当前无生产调用方)。 */
     public List<ScopeConfig> loadScopeConfigs(Long userId, List<String> roleCodes, List<Long> positionIds) {
         List<ScopeConfig> all = new ArrayList<>();
         try {
@@ -81,7 +82,7 @@ public class RolePermScopeService {
                 }, key);
     }
 
-    /** 从 SecurityUser 内存配置读取 (module,action) 的显式配置(优先 USER>POSITION>ROLE, 同主体并集) */
+    /** 从 SecurityUser 内存配置读取 (module,action) 的显式配置(三级并集; 无优先级——USER>POSITION>ROLE 优先级未实现) */
     public List<ScopeConfig> configsFor(SecurityUser user, String module, String action) {
         if (user == null || user.getScopeConfigs() == null) return List.of();
         List<ScopeConfig> out = new ArrayList<>();
@@ -94,7 +95,7 @@ public class RolePermScopeService {
     /** 有效范围 code 列表(多主体并集; 空=未配置走默认) */
     public List<String> effectiveScopes(SecurityUser user, String module, String action) {
         List<String> codes = new ArrayList<>();
-        // 【批③ 正交配置层】优先内存配置(登录装载的 scopeConfigs, USER>POSITION>ROLE 三级并集)——热路径零 DB
+        // 【批③ 正交配置层】读内存配置(scopeConfigs 三级并集, 无优先级)——热路径零 DB
         if (user != null && user.getScopeConfigs() != null) {
             for (ScopeConfig c : user.getScopeConfigs()) {
                 if (module.equals(c.getModule()) && action.equals(c.getAction())) {

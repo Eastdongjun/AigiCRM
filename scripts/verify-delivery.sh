@@ -21,11 +21,18 @@ L=$(git rev-parse --short HEAD); R=$(git rev-parse --short origin/main)
 # [2] 生产健康: 首页 + 登录(带 Origin,防 CORS 回归)
 echo "--- [2] 生产 API 健康 ---"
 HOME_CODE=$(curl -sk -o /dev/null -w "%{http_code}" --connect-timeout 10 https://www.aigicrm.com/)
-LOGIN_CODE=$(curl -sk -o /dev/null -w "%{http_code}" --connect-timeout 10 -X POST https://www.aigicrm.com/api/auth/login \
-  -H "Origin: https://www.aigicrm.com" -H "Content-Type: application/json" \
-  -d '{"username":"admin","password":"admin123"}')
+if [ -n "${HEALTH_CHECK_PASS:-}" ]; then
+  LOGIN_CODE=$(curl -sk -o /dev/null -w "%{http_code}" --connect-timeout 10 -X POST https://www.aigicrm.com/api/auth/login \
+    -H "Origin: https://www.aigicrm.com" -H "Content-Type: application/json" \
+    -d "{\"username\":\"${HEALTH_CHECK_USER:-admin}\",\"password\":\"$HEALTH_CHECK_PASS\"}")
+else
+  bad "登录检查跳过: 缺少 HEALTH_CHECK_PASS(~/.ycmn-deploy.env)"
+  LOGIN_CODE="skip"
+fi
 [ "$HOME_CODE" = "200" ] && ok "首页 200" || bad "首页 $HOME_CODE"
-[ "$LOGIN_CODE" = "200" ] && ok "登录(含Origin) 200" || bad "登录(含Origin) $LOGIN_CODE —— 检查 CORS_ORIGINS"
+if [ "$LOGIN_CODE" = "200" ]; then ok "登录(含Origin) 200"
+elif [ "$LOGIN_CODE" = "skip" ]; then :  # 已在上面提示
+else bad "登录(含Origin) $LOGIN_CODE —— 检查 CORS_ORIGINS"; fi
 
 # [3] 生产配置: compose 与实况一致
 echo "--- [3] compose 一致性 ---"

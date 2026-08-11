@@ -71,18 +71,22 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         if (StringUtils.hasText(bearerToken) && bearerToken.startsWith("Bearer ")) {
             return bearerToken.substring(7);
         }
-        // 【修复 2026-08-10 P2-14】URL query token 仅限下载/导出路径(<img>/导出无法带 header)——
-        // 主 JWT 即使出现在 URL 中也不会被本过滤器接受，防止泄漏进日志后被复用
+        // 【修复 2026-08-10 P2-14】URL query token 仅限下载/导出路径(<img>/导出无法带 header)。
+        // 【2026-08-11 收紧】URL token 强制必须为 scope=download 的短时下载 token(getDownloadToken):
+        // 主 JWT(无 scope)即使出现在下载/导出路径 URL 中也被拒绝, 防主 JWT 泄漏进日志后被复用。
         if ("GET".equalsIgnoreCase(request.getMethod()) && isDownloadPath(request)) {
             String queryToken = request.getParameter("token");
-            if (StringUtils.hasText(queryToken)) {
+            if (StringUtils.hasText(queryToken)
+                    && "download".equals(jwtTokenProvider.getScopeFromToken(queryToken))) {
                 return queryToken;
             }
+            return null;
         }
         return null;
     }
 
-    /** 下载专用 token 允许访问的路径（文件下载/缩略图 + 导出） */
+    /** 下载专用 token 允许访问的路径（文件下载/缩略图 + 导出）。
+     *  注意: 新增走 getDownloadToken() 进 URL 的下载/导出端点时, 必须在此同步登记前缀, 否则会被拒为 401。 */
     private boolean isDownloadPath(HttpServletRequest request) {
         String uri = request.getRequestURI();
         return uri.startsWith("/api/file/download/") || uri.startsWith("/api/score/export/");
