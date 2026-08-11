@@ -26,13 +26,14 @@ import UserFormDialog from './UserFormDialog.vue'
 const list = useUserList()
 provide(UserListKey, list)
 
-const { loadData, loadDepts, loadRoles, loadUserOptions } = list
+const { loadData, loadDepts, loadRoles, loadUserOptions, loadPositions } = list
 
 onMounted(() => {
   loadData()
   loadDepts()
   loadRoles()
   loadUserOptions()
+  loadPositions()
 })
 </script>
 

@@ -135,6 +135,14 @@ export function updatePosition(id, data) {
 export function deletePosition(id) {
   return request.delete(`/system/positions/${id}`)
 }
+/** 【2026-08-11 岗位绑定】查用户已绑岗位（编辑回显用） */
+export function getUserPositions(userId) {
+  return request.get(`/system/positions/users/${userId}`)
+}
+/** 【2026-08-11 岗位绑定】分配用户岗位（清空重建, 第一个为主岗位） */
+export function assignUserPositions(userId, positionIds) {
+  return request.put(`/system/positions/users/${userId}`, { positionIds })
+}
 
 // 权限规则管理
 export function getRuleList() {

@@ -5,7 +5,7 @@
 // 表格高度机（tableWrapRef/tableHeight/ResizeObserver）留在 UserTable 组件内（本页模板真在用）。
 import { ref, reactive, computed, inject } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { getUserList, getUserById, createUser, updateUser, resetPassword, deleteUser, getDeptList, getRoleList } from '@/api/system'
+import { getUserList, getUserById, createUser, updateUser, resetPassword, deleteUser, getDeptList, getRoleList, getPositionList, getUserPositions, assignUserPositions } from '@/api/system'
 import { getSimpleUserList } from '@/api/customer'
 import { useUserStore } from '@/store/user'
 
@@ -29,6 +29,7 @@ export function useUserList() {
   let deptMap = new Map()
   const roles = ref([])
   const userOptions = ref([])
+  const allPositions = ref([]) // 岗位下拉选项
 
   // ---- 查询参数 ----
   const query = reactive({ current: 1, size: 30, keyword: '', deptId: null, status: null }) // 默认30/页与 UserPager page-sizes=[30,50,100] 一致
@@ -39,7 +40,7 @@ export function useUserList() {
   const formRef = ref(null)
   const orgPath = ref([])
   const cascaderProps = { label: 'deptName', value: 'id', children: 'children', checkStrictly: true, emitPath: true }
-  const editForm = reactive({ id: null, username: '', realName: '', phone: '', email: '', deptId: null, officeId: null, roleId: null, managerId: null, dataScopeOverride: '', status: 1, orgIds: [] })
+  const editForm = reactive({ id: null, username: '', realName: '', phone: '', email: '', deptId: null, officeId: null, roleId: null, managerId: null, dataScopeOverride: '', status: 1, orgIds: [], positionIds: [] })
   const formRules = {
     realName: [{ required: true, message: '请输入姓名', trigger: 'blur' }],
     username: [{ required: true, message: '请输入账号', trigger: 'blur' }],
@@ -181,6 +182,14 @@ export function useUserList() {
     } catch (e) {}
   }
 
+  /** 【2026-08-11 岗位绑定】加载岗位下拉选项 */
+  const loadPositions = async () => {
+    try {
+      const res = await getPositionList()
+      allPositions.value = res.data || []
+    } catch (e) {}
+  }
+
   const loadUserOptions = async () => {
     try {
       const res = await getSimpleUserList()
@@ -206,7 +215,7 @@ export function useUserList() {
 
   const openDialog = async (row) => {
     if (row) {
-      Object.assign(editForm, { id: row.id, username: row.username, realName: row.realName, phone: row.phone, email: row.email || '', deptId: row.deptId, officeId: row.officeId, roleId: row.roleId, managerId: row.managerId || null, dataScopeOverride: row.dataScopeOverride || '', status: row.status, orgIds: row.orgIds || [] })
+      Object.assign(editForm, { id: row.id, username: row.username, realName: row.realName, phone: row.phone, email: row.email || '', deptId: row.deptId, officeId: row.officeId, roleId: row.roleId, managerId: row.managerId || null, dataScopeOverride: row.dataScopeOverride || '', status: row.status, orgIds: row.orgIds || [], positionIds: [] })
       orgPath.value = pathOf(row.deptId)
       editForm.officeId = officeFromPath(orgPath.value)
       // 2026-08-08 用户级 custom 授权：拉取个人授权组织回显
@@ -216,8 +225,13 @@ export function useUserList() {
           editForm.orgIds = (res.data?.orgIds) || []
         } catch (e) {}
       }
+      // 【2026-08-11 岗位绑定】回显用户已绑岗位
+      try {
+        const posRes = await getUserPositions(row.id)
+        editForm.positionIds = (posRes.data || []).map(p => p.id)
+      } catch (e) {}
     } else {
-      Object.assign(editForm, { id: null, username: '', realName: '', phone: '', email: '', deptId: null, officeId: null, roleId: null, managerId: null, dataScopeOverride: '', status: 1, orgIds: [] })
+      Object.assign(editForm, { id: null, username: '', realName: '', phone: '', email: '', deptId: null, officeId: null, roleId: null, managerId: null, dataScopeOverride: '', status: 1, orgIds: [], positionIds: [] })
       orgPath.value = []
     }
     dialogVisible.value = true
@@ -232,8 +246,14 @@ export function useUserList() {
     try {
       if (editForm.id) {
         await updateUser(editForm.id, editForm)
+        // 【2026-08-11 岗位绑定】用户岗位分配独立接口(清空重建, 第一个为主岗位)
+        await assignUserPositions(editForm.id, editForm.positionIds || [])
       } else {
         await createUser(editForm)
+        // 新建用户岗位绑定: 创建成功后引导在列表编辑中配置(避免"按用户名反查 id"的竞态)
+        if (editForm.positionIds && editForm.positionIds.length) {
+          ElMessage.info('请再次编辑该用户以绑定所选岗位')
+        }
       }
       ElMessage.success('保存成功')
       dialogVisible.value = false
@@ -267,7 +287,7 @@ export function useUserList() {
     tableData, total, depts, deptTree, roles, userOptions, query,
     dialogVisible, saving, formRef, orgPath, cascaderProps, editForm, formRules,
     orgHintText, latestAccountHint,
-    loadData, loadDepts, loadRoles, loadUserOptions,
+    loadData, loadDepts, loadRoles, loadUserOptions, loadPositions, allPositions,
     onDeptFilterChange, search, onOrgChange, openDialog, handleSave, handleResetPwd, handleDelete,
     descendantIds, buildTree, pathOf, officeFromPath,
     formatSize, roleTagType, storagePercent, storageColor,

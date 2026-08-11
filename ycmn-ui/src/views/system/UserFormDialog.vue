@@ -59,6 +59,13 @@
           </el-form-item>
         </el-col>
       </el-row>
+      <!-- 【2026-08-11 岗位绑定】岗位多选(第一个为主岗位), 岗位数据范围经权限范围管理器"按岗位"配置 -->
+      <el-form-item label="岗位">
+        <el-select v-model="editForm.positionIds" multiple style="width:100%" placeholder="选择岗位(可多选, 第一个为主岗位)">
+          <el-option v-for="p in allPositions" :key="p.id" :label="p.name" :value="p.id" />
+        </el-select>
+        <div class="org-hint">岗位数据范围请在「系统设置 → 权限管理 → 按岗位」配置</div>
+      </el-form-item>
       <el-row :gutter="24">
         <el-col :span="12">
           <el-form-item label="数据范围" required>
@@ -103,6 +110,7 @@ import { injectUserList } from '@/composables/useUserList'
 const {
   dialogVisible, editForm, formRules, formRef, orgPath, deptTree, cascaderProps,
   onOrgChange, orgHintText, latestAccountHint, roles, userOptions, handleSave, saving,
+  allPositions,
 } = injectUserList()
 </script>
 
