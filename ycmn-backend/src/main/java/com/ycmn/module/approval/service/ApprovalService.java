@@ -426,6 +426,7 @@ public class ApprovalService {
                 if (approval.getExtraData() != null) {
                     try {
                         com.fasterxml.jackson.databind.ObjectMapper om = new com.fasterxml.jackson.databind.ObjectMapper();
+                        @SuppressWarnings("unchecked")
                         Map<String, Object> data = om.readValue(approval.getExtraData(), Map.class);
                         Long newOwnerId = Long.valueOf(data.get("newOwnerId").toString());
                         BizCustomer customer = customerMapper.selectById(approval.getCustomerId());
@@ -444,6 +445,7 @@ public class ApprovalService {
                 if (approval.getExtraData() != null) {
                     try {
                         com.fasterxml.jackson.databind.ObjectMapper om = new com.fasterxml.jackson.databind.ObjectMapper();
+                        @SuppressWarnings("unchecked")
                         Map<String, Object> data = om.readValue(approval.getExtraData(), Map.class);
                         Long newQuota = Long.valueOf(data.get("quota").toString());
                         userService.updateStorageQuota(approval.getApplicantId(), newQuota);
