@@ -4,11 +4,13 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.ycmn.common.BusinessException;
 import com.ycmn.common.enums.DataScopeType;
 import com.ycmn.common.scope.GroupScopeUtil;
+import com.ycmn.module.system.entity.SysDept;
 import com.ycmn.module.system.entity.SysMenu;
 import com.ycmn.module.system.entity.SysRole;
 import com.ycmn.module.system.entity.SysRoleMenu;
 import com.ycmn.module.system.entity.SysRoleOrg;
 import com.ycmn.module.system.entity.SysUserRole;
+import com.ycmn.module.system.mapper.SysDeptMapper;
 import com.ycmn.module.system.mapper.SysMenuMapper;
 import com.ycmn.module.system.mapper.SysRoleMapper;
 import com.ycmn.module.system.mapper.SysRoleMenuMapper;
@@ -30,6 +32,7 @@ public class SysRoleService {
     private final SysRoleMenuMapper roleMenuMapper;
     private final SysMenuMapper menuMapper;
     private final SysRoleOrgMapper roleOrgMapper;
+    private final SysDeptMapper deptMapper;
     private final PermissionCacheService permissionCacheService;
     private final RolePermScopeService rolePermScopeService;
     private final com.ycmn.module.system.mapper.SysUserRoleMapper userRoleMapper;
@@ -172,6 +175,13 @@ public class SysRoleService {
      */
     @Transactional
     public void updateOrgs(Long roleId, List<Long> orgIds) {
+        // 【修复 2026-08-11 P2 集团边界】对齐 update/delete/create: 目标角色越权不可操作。
+        // 此前缺此校验, 持 system:role:edit 的非超管可对任意集团角色写 role_org(扩大 custom 数据范围);
+        // 且 sys_role_org 不在租户白名单, 跨集团写入会真实生效。
+        SysRole existing = roleMapper.selectById(roleId);
+        if (existing != null && !GroupScopeUtil.canAccessGroup(existing.getGroupId())) {
+            throw new BusinessException("无权操作其他集团的角色");
+        }
         SysRole role = new SysRole();
         role.setId(roleId);
         role.setDataScope(DataScopeType.CUSTOM.getCode());
@@ -269,12 +279,45 @@ public class SysRoleService {
         List<Long> orgIds = role.getOrgIds();
         if (orgIds == null || orgIds.isEmpty()) return;
 
+        // 【修复 2026-08-11 P2(c) 组织集团归属校验】orgIds 必须都在当前用户可操作集团内。
+        // 此前零校验: 同集团非超管可把其他集团 orgId 挂到本集团 custom 角色 role_org;
+        // sys_dept 不在租户白名单 + OrgScopeResolver.collectSubtree 装载子树 → 跨集团数据范围扩大真实生效。
+        // create/update/updateOrgs 三入口共享此方法, 此处为唯一收口。
+        validateRoleOrgsGroup(orgIds);
+
         for (Long orgId : orgIds) {
             SysRoleOrg ro = new SysRoleOrg();
             ro.setRoleId(role.getId());
             ro.setOrgId(orgId);
             ro.setIncludeChildren(1); // 默认含下级，前端可传具体值
             roleOrgMapper.insert(ro);
+        }
+    }
+
+    /** org→集团归属校验: admin 全集团放行; 非 admin 要求每个 org 有效集团可操作且子树不跨集团(fail-closed) */
+    private void validateRoleOrgsGroup(List<Long> orgIds) {
+        if (SecurityUtils.isAdmin()) {
+            return;
+        }
+        for (Long orgId : orgIds) {
+            if (orgId == null) continue;
+            // 存在性: 查不到(已删除/伪造) → 拒绝
+            if (deptMapper.selectById(orgId) == null) {
+                throw new BusinessException("无权将不存在的组织纳入数据范围(orgId=" + orgId + ")");
+            }
+            // 有效集团 = 自身或最近祖先的 group_id(历史未回填多为 NULL); 全空退主集团 1(GroupScopeUtil 同口径)
+            Long effective = deptMapper.selectEffectiveGroupId(orgId);
+            if (effective == null) effective = 1L;
+            if (!GroupScopeUtil.canAccessGroup(effective)) {
+                throw new BusinessException("无权将其他集团的组织纳入数据范围(orgId=" + orgId + ")");
+            }
+            // include_children=1 固定展开整棵子树: 子树内任何显式归属其他集团的组织 → 拒绝
+            // (P2(c) 子树旁路: 锚点 org 同集团但子树含跨集团节点仍会扩大数据范围)
+            for (Long g : deptMapper.selectDescendantGroupIds(orgId)) {
+                if (g != null && !g.equals(effective)) {
+                    throw new BusinessException("无权将包含其他集团组织的子树纳入数据范围(orgId=" + orgId + ")");
+                }
+            }
         }
     }
 }
