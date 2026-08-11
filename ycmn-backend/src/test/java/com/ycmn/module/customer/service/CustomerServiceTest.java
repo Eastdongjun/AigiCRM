@@ -20,7 +20,6 @@ import com.ycmn.module.customer.mapper.BizContactMapper;
 import com.ycmn.module.customer.mapper.BizInvoiceMapper;
 import com.ycmn.module.customer.mapper.BizPaymentMapper;
 import com.ycmn.module.reminder.mapper.BizReminderMapper;
-import com.ycmn.module.system.entity.SysDept;
 import com.ycmn.module.system.entity.SysUser;
 import com.ycmn.module.system.mapper.SysDeptMapper;
 import com.ycmn.module.system.mapper.SysUserMapper;
@@ -44,11 +43,9 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyCollection;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;import static org.mockito.Mockito.when;
 
 class CustomerServiceTest {

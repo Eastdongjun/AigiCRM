@@ -6,7 +6,6 @@ import com.ycmn.module.system.entity.SysRole;
 import com.ycmn.module.system.entity.SysRoleMenu;
 import com.ycmn.module.system.mapper.SysMenuMapper;
 import com.ycmn.module.system.mapper.SysRoleMapper;
-import com.ycmn.module.system.mapper.SysRoleMenuMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;

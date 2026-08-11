@@ -4,7 +4,6 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.ycmn.common.BusinessException;
 import com.ycmn.common.enums.DataScopeType;
 import com.ycmn.common.scope.GroupScopeUtil;
-import com.ycmn.module.system.entity.SysDept;
 import com.ycmn.module.system.entity.SysMenu;
 import com.ycmn.module.system.entity.SysRole;
 import com.ycmn.module.system.entity.SysRoleMenu;
