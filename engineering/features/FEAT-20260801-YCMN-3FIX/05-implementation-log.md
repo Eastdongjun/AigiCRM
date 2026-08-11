@@ -30,7 +30,7 @@
    - 纠正：安装 JDK 17（brew temurin@17），用 `JAVA_HOME=/Library/Java/JavaVirtualMachines/temurin-17...` 重跑。
 2. 排查中发现服务器项目副本（/home/ubuntu/projects/ycmn/）是旧基线（ApprovalService 无 BizApprovalConfig、index.vue 无四区排序新 UI），不能作为构建源 —— 改用本地源码构建后部署。
 3. 测试中发现 wangleilei 登录失败：根因 ①密码哈希曾被我以 MD5 误写（BCrypt 校验不匹配）②Redis 登录失败锁（login_fail:IP:username）。
-   - 纠正：以 htpasswd 生成 $2y$10$ BCrypt 哈希经 stdin 管道写入（避免 $ 远程展开），并 DEL Redis 锁定 key；wangleilei 密码现为 admin123（记录于交付报告）。
+   - 纠正：以 htpasswd 生成 $2y$10$ BCrypt 哈希经 stdin 管道写入（避免 $ 远程展开），并 DEL Redis 锁定 key；wangleilei 密码现为 admin口令(经env注入)（记录于交付报告）。
 
 ## 未完成与残余风险
 

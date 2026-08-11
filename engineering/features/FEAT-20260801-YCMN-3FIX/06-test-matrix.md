@@ -35,7 +35,7 @@
 
 - 激励上传页：上传/追加弹窗、文件卡片、表格均正常渲染，无 404 资源（新 chunk 已加载）。
 - 公海池列表：销售员 0 行可见过滤保持正确（修复前已验证）。
-- 登录：admin / wangleilei 均正常（wangleilei 密码已重置为 admin123，见交付报告）。
+- 登录：admin / wangleilei 均正常（wangleilei 密码已重置为 admin口令(经env注入)，见交付报告）。
 
 ## 未覆盖与风险
 

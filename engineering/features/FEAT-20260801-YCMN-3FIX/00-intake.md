@@ -40,7 +40,7 @@
 - 测试服：111.229.37.220（ubuntu），前端容器 ycmn-frontend（nginx，/usr/share/nginx/html），后端 ycmn-backend，库 shared-mysql（ycmn），Redis shared-redis。
 - 源码基准：`/Users/donglai/东来/01-Projects/01-aigicrm/04-源码`（main，与部署一致）。
 - 部署方式（记忆）：dist tar → scp → docker cp ycmn-frontend；jar → docker cp ycmn-backend。
-- 测试账号：admin/admin123（系统管理员）；wangleilei/admin123（销售员，本次已重置密码并清 Redis 登录失败锁）。
+- 测试账号：admin/admin口令(经env注入)（系统管理员）；wangleilei/admin口令(经env注入)（销售员，本次已重置密码并清 Redis 登录失败锁）。
 - 参考资料：docs/客户添加与公海池配置注意事项.md；sql/migration-sea-visible.sql。
 
 ## 约束

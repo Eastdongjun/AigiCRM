@@ -8,7 +8,7 @@
 
 **Tech Stack:** Spring Boot 3 + MyBatis-Plus 3.5.6 + JUnit 5/Mockito（测试）+ Vue3/Element Plus（前端配置页）
 
-**验证环境:** 测试服务器 http://111.229.37.220（admin/admin123；测试库 ycmn 密码 123456）。部署/验证方法见记忆：后端本地 mvn 构建（MAVEN_SKIP_RC=true）→ scp jar → docker build；前端 npm run build → docker cp dist。
+**验证环境:** 测试服务器 http://111.229.37.220（admin/admin口令(经env注入)；测试库 ycmn 密码 123456）。部署/验证方法见记忆：后端本地 mvn 构建（MAVEN_SKIP_RC=true）→ scp jar → docker build；前端 npm run build → docker cp dist。
 
 ## Global Constraints
 

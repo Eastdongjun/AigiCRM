@@ -23,7 +23,7 @@
 - **本机 JDK25 与 Lombok 不兼容**：后端构建需 JDK17。已配 `~/.mavenrc` → JAVA_HOME=/tmp/jdk-17.0.20+8/Contents/Home（临时目录，重启后可能消失）
 - 后端 jar 已在服务器 JDK17 构建部署（17:33）；前端 dist 17:18 构建部署（容器内备份 /tmp/html-backup-*.tgz）
 - nginx 有 Referer 防盗链；密码 BCrypt（勿用 MD5 改）；登录失败锁定在 Redis（login_fail:IP:user）
-- wangleilei 密码已重置 admin123；销售员公海列表按可见范围过滤为 0 行（配置如此，非 bug）
+- wangleilei 密码已重置 admin口令(经env注入)；销售员公海列表按可见范围过滤为 0 行（配置如此，非 bug）
 
 ## 残余风险
 
