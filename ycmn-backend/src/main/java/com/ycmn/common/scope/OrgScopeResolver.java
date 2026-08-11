@@ -159,7 +159,13 @@ public class OrgScopeResolver {
         return List.of(user.getDataScope() != null ? user.getDataScope() : "self");
     }
 
-    /** 从内存 scopeConfigs 匹配 (module,action) 的范围 code 列表(精确>通配; USER>POSITION>ROLE 装载序) */
+    /**
+     * 从内存 scopeConfigs 匹配 (module,action) 的范围 code 列表。
+     * 优先级: 主体层级 USER>POSITION>ROLE(loadScopeConfigs 装载序即隐含, 用户显式配置覆盖角色)——
+     * 取第一个有匹配的 assigneeType; 该主体内 精确(module,action)>通配(* *)。
+     * 注: 之前实现按"精确>通配"全局排序, 会把 USER 级 `* *` 通配压到 ROLE 级精确之下,
+     * 违反"用户级覆盖角色级"设计(如 NM100: USER * * custom vs ROLE customer view region 应取 custom)。
+     */
     private List<String> configuredScopeCodes(ScopeRequest req) {
         SecurityUser user = req.getUser();
         if (user == null || user.getScopeConfigs() == null || user.getScopeConfigs().isEmpty()) {
@@ -167,6 +173,7 @@ public class OrgScopeResolver {
         }
         String module = req.getModule() != null ? req.getModule() : "";
         String action = req.getAction() != null ? req.getAction() : "";
+        String seenType = null;
         List<String> exact = new ArrayList<>();
         List<String> wildcard = new ArrayList<>();
         for (com.ycmn.common.scope.ScopeConfig c : user.getScopeConfigs()) {
@@ -176,13 +183,20 @@ public class OrgScopeResolver {
             boolean actionMatch = cAct.equals(action) || "*".equals(cAct);
             if (!moduleMatch || !actionMatch) continue;
             if (c.getScopeLevel() == null || c.getScopeLevel().isBlank()) continue;
+            String type = c.getAssigneeType() != null ? c.getAssigneeType() : "ROLE";
+            if (seenType == null) {
+                seenType = type; // 首个有匹配的主体(USER>POSITION>ROLE 装载序)
+            } else if (!seenType.equals(type)) {
+                continue; // 更优先主体已有匹配, 忽略低优先主体的配置
+            }
             if (cMod.equals(module) && cAct.equals(action)) {
                 exact.add(c.getScopeLevel());
             } else {
                 wildcard.add(c.getScopeLevel());
             }
         }
-        // 精确匹配优先(如 dashboard view 覆盖 * *); 否则通配; 均取装载序(USER 在前)首个语义
+        if (seenType == null) return List.of();
+        // 该主体内 精确匹配优先(如 dashboard view 覆盖 * *); 否则通配
         if (!exact.isEmpty()) return exact;
         return wildcard;
     }

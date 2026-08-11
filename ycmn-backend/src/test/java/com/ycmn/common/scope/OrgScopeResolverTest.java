@@ -578,4 +578,27 @@ class OrgScopeResolverTest {
         assertEquals(Set.of(1L), new HashSet<>(r.resolveScope(req).getVisibleUserIds()),
                 "无配置时按 dataScope=self 解析(兼容现状)");
     }
+
+    /** USER 级 `* *` 通配优先于 ROLE 级精确配置（主体层级 USER>ROLE, 如 NM100 场景） */
+    @Test
+    void resolveScope_userWildcardOverridesRoleExact() {
+        SecurityUser s = su(1L, "self", 11L);
+        com.ycmn.common.scope.ScopeConfig roleExact = new com.ycmn.common.scope.ScopeConfig();
+        roleExact.setAssigneeType("ROLE"); roleExact.setModule("customer"); roleExact.setAction("view");
+        roleExact.setScopeLevel("region"); roleExact.setAnchor("OWNER");
+        com.ycmn.common.scope.ScopeConfig userWildcard = new com.ycmn.common.scope.ScopeConfig();
+        userWildcard.setAssigneeType("USER"); userWildcard.setModule("*"); userWildcard.setAction("*");
+        userWildcard.setScopeLevel("custom"); userWildcard.setAnchor("OWNER");
+        // 装载序 USER 在前(loadScopeConfigs: USER→POSITION→ROLE)
+        s.setScopeConfigs(new java.util.ArrayList<>(java.util.List.of(userWildcard, roleExact)));
+
+        OrgScopeResolver r = new OrgScopeResolver(userMapper, deptMapper, configService,
+                mock(com.ycmn.module.system.mapper.SysRoleOrgMapper.class));
+        com.ycmn.common.scope.ScopeRequest req = com.ycmn.common.scope.ScopeRequest.builder()
+                .user(s).module("customer").action("view").anchor(com.ycmn.common.scope.ScopeRequest.AnchorType.OWNER)
+                .build();
+        // custom 解析走 managedOrgIds; 未装载时 resolveCustom 回退 loadRoleOrgs(mock 空) → 仅本人
+        assertEquals(Set.of(1L), new HashSet<>(r.resolveScope(req).getVisibleUserIds()),
+                "USER 级 * * 通配(custom)应覆盖 ROLE 级 customer view(region), 而非取 region 全大区");
+    }
 }
