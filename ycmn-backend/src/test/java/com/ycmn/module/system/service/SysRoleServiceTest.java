@@ -120,6 +120,7 @@ class SysRoleServiceTest {
         SysRoleMapper roleMapper = mock(SysRoleMapper.class);
         SysRoleOrgMapper orgMapper = mock(SysRoleOrgMapper.class);
         SysDeptMapper deptMapper = mock(SysDeptMapper.class);
+        when(roleMapper.selectById(5L)).thenReturn(roleOf(5L, 1L)); // 目标角色存在且集团 1
         stubOrg(deptMapper, 10L, 1L, List.of());
         stubOrg(deptMapper, 20L, 1L, List.of());
         SysRoleService service = newServiceWith(roleMapper, orgMapper, deptMapper);
@@ -136,8 +137,10 @@ class SysRoleServiceTest {
 
     @Test
     void updateOrgs_emptyList_clearsOnly() {
+        SysRoleMapper roleMapper = mock(SysRoleMapper.class);
         SysRoleOrgMapper orgMapper = mock(SysRoleOrgMapper.class);
-        SysRoleService service = newService(orgMapper);
+        when(roleMapper.selectById(5L)).thenReturn(roleOf(5L, 1L));
+        SysRoleService service = newServiceWith(roleMapper, orgMapper);
 
         service.updateOrgs(5L, List.of());
 
@@ -147,13 +150,34 @@ class SysRoleServiceTest {
 
     @Test
     void updateOrgs_nullList_clearsOnly() {
+        SysRoleMapper roleMapper = mock(SysRoleMapper.class);
         SysRoleOrgMapper orgMapper = mock(SysRoleOrgMapper.class);
-        SysRoleService service = newService(orgMapper);
+        when(roleMapper.selectById(5L)).thenReturn(roleOf(5L, 1L));
+        SysRoleService service = newServiceWith(roleMapper, orgMapper);
 
         service.updateOrgs(5L, null);
 
         verify(orgMapper).deleteByRoleId(5L);
         verify(orgMapper, never()).insert(any());
+    }
+
+    @Test
+    void updateOrgs_unknownRoleRejected() {
+        // 未知 roleId(角色不存在) → 拒绝, 收口孤儿 role_org 写
+        SysRoleMapper roleMapper = mock(SysRoleMapper.class);
+        SysRoleOrgMapper orgMapper = mock(SysRoleOrgMapper.class);
+        SysDeptMapper deptMapper = mock(SysDeptMapper.class);
+        when(roleMapper.selectById(99L)).thenReturn(null); // 角色不存在
+        SysRoleService service = newServiceWith(roleMapper, orgMapper, deptMapper);
+        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
+            m.when(SecurityUtils::isAdmin).thenReturn(false);
+            m.when(SecurityUtils::getCurrentGroupIds).thenReturn(List.of(1L));
+
+            assertThrows(BusinessException.class, () -> service.updateOrgs(99L, List.of(10L)),
+                    "未知 roleId 不应可写 role_org");
+            verify(orgMapper, never()).deleteByRoleId(any());
+            verify(orgMapper, never()).insert(any());
+        }
     }
 
     // ---- 集团边界（仿 SysUserService.applyGroupScope 口径：非 admin 仅本集团；空退主集团 1） ----
@@ -351,6 +375,56 @@ class SysRoleServiceTest {
 
             assertThrows(BusinessException.class, () -> service.update(payload));
             verify(roleMapper, never()).updateById(any());
+        }
+    }
+
+    @Test
+    void update_unknownRoleRejected() {
+        // 【2026-08-12 收口】update 对不存在角色 → 拒绝, 收口孤儿 role_org 写(与 updateOrgs 对齐)
+        SysRoleMapper roleMapper = mock(SysRoleMapper.class);
+        SysRoleOrgMapper orgMapper = mock(SysRoleOrgMapper.class);
+        SysDeptMapper deptMapper = mock(SysDeptMapper.class);
+        when(roleMapper.selectById(99L)).thenReturn(null); // 角色不存在
+        stubOrg(deptMapper, 10L, 1L, List.of()); // org 10 有效集团 1(若未收口, 会写入孤儿 role_org)
+        SysRoleService service = newServiceWith(roleMapper, orgMapper, deptMapper);
+        SysRole payload = roleOf(99L, null);
+        payload.setDataScope("custom");
+        payload.setOrgIds(List.of(10L));
+        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
+            m.when(SecurityUtils::isAdmin).thenReturn(false);
+            m.when(SecurityUtils::getCurrentGroupIds).thenReturn(List.of(1L));
+            m.when(SecurityUtils::getCurrentDataScope).thenReturn("all"); // 放行 validateGrantableRole, 暴露孤儿写路径
+
+            assertThrows(BusinessException.class, () -> service.update(payload),
+                    "未知 roleId 不应可写 role_org");
+            verify(roleMapper, never()).updateById(any());
+            verify(orgMapper, never()).insert(any());
+        }
+    }
+
+    @Test
+    void update_sameGroupRoleAllowed() {
+        // 同集团合法角色更新正向测试: 未知 roleId 收口不误伤, updateById + role_org 写入正常
+        SysRoleMapper roleMapper = mock(SysRoleMapper.class);
+        SysRoleOrgMapper orgMapper = mock(SysRoleOrgMapper.class);
+        SysDeptMapper deptMapper = mock(SysDeptMapper.class);
+        when(roleMapper.selectById(5L)).thenReturn(roleOf(5L, 1L));
+        stubOrg(deptMapper, 10L, 1L, List.of());
+        SysRoleService service = newServiceWith(roleMapper, orgMapper, deptMapper);
+        SysRole payload = roleOf(5L, null);
+        payload.setRoleName("改名");
+        payload.setDataScope("custom");
+        payload.setOrgIds(List.of(10L));
+        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
+            m.when(SecurityUtils::isAdmin).thenReturn(false);
+            m.when(SecurityUtils::getCurrentGroupIds).thenReturn(List.of(1L));
+            m.when(SecurityUtils::getCurrentDataScope).thenReturn("all");
+
+            service.update(payload);
+
+            verify(roleMapper).updateById(payload);
+            verify(orgMapper).deleteByRoleId(5L);
+            verify(orgMapper, times(1)).insert(any());
         }
     }
 

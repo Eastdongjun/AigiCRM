@@ -134,6 +134,9 @@ check_tenant() { # $1=表名
 echo "== 权限数据前提体检: $DB_HOST / $DB_NAME ($MODE_TAG) =="
 report_count "deptType 为空的组织数" "SELECT COUNT(*) FROM sys_dept WHERE (dept_type IS NULL OR dept_type=0);"
 report_count "group_id 为空的业务组织数" "SELECT COUNT(*) FROM sys_dept WHERE group_id IS NULL;"
+# 【2026-08-12 P2(c) 子树集团一致性】跨集团子树: 子树内显式 group_id 与最近祖先携带集团冲突的节点数。
+# 写侧 validateRoleOrgsGroup 已拒绝新建此类子树, 此处为存量数据体检(carry CTE 沿树携带 eff, 冲突即计数)
+report_count "跨集团子树冲突组织数" "WITH RECURSIVE carry AS (SELECT id,parent_id,group_id,group_id AS eff,CAST(NULL AS SIGNED) AS parent_eff FROM sys_dept WHERE parent_id=0 AND status=1 UNION ALL SELECT d.id,d.parent_id,d.group_id,COALESCE(d.group_id,c.eff) AS eff,c.eff AS parent_eff FROM sys_dept d INNER JOIN carry c ON d.parent_id=c.id AND d.status=1) SELECT COUNT(*) FROM carry WHERE group_id IS NOT NULL AND group_id != parent_eff;"
 report_warn "manager_id 为空的启用用户数" "SELECT COUNT(*) FROM sys_user WHERE deleted=0 AND status=1 AND manager_id IS NULL;"
 echo "-- 白名单表 tenant_id 覆盖(未迁移时输出未迁移) --"
 # 白名单 8 表与 MybatisPlusConfig.TENANT_TABLES 对齐（含已迁移的 share/file/sea_pool/approval/reminder）

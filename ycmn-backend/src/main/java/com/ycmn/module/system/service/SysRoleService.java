@@ -126,13 +126,18 @@ public class SysRoleService {
     /** 更新角色（有实际字段才更新；菜单/dataScope 变更时同步重建关联；越权集团拒绝） */
     @Transactional
     public void update(SysRole role) {
+        // 【收口 2026-08-12】未知 roleId 直接拒绝——对齐 updateOrgs, 收口孤儿 role_org 写
+        // (此前 existing==null 时守卫跳过, saveRoleOrgs 仍会写 role_org(role_id=不存在))
+        if (role.getId() == null) {
+            throw new BusinessException("角色ID不能为空");
+        }
+        SysRole existing = roleMapper.selectById(role.getId());
+        if (existing == null) {
+            throw new BusinessException("角色不存在");
+        }
         // 【修复 角色更新集团边界】目标角色越权不可操作；新 groupId 越权不可归属
-        SysRole existing = null;
-        if (role.getId() != null) {
-            existing = roleMapper.selectById(role.getId());
-            if (existing != null && !GroupScopeUtil.canAccessGroup(existing.getGroupId())) {
-                throw new BusinessException("无权操作其他集团的角色");
-            }
+        if (!GroupScopeUtil.canAccessGroup(existing.getGroupId())) {
+            throw new BusinessException("无权操作其他集团的角色");
         }
         validateGrantableRole(role, existing);
         if (role.getGroupId() != null && !GroupScopeUtil.canAccessGroup(role.getGroupId())) {
@@ -179,7 +184,11 @@ public class SysRoleService {
         // 此前缺此校验, 持 system:role:edit 的非超管可对任意集团角色写 role_org(扩大 custom 数据范围);
         // 且 sys_role_org 不在租户白名单, 跨集团写入会真实生效。
         SysRole existing = roleMapper.selectById(roleId);
-        if (existing != null && !GroupScopeUtil.canAccessGroup(existing.getGroupId())) {
+        // 【收口 2026-08-12】未知 roleId 直接拒绝——此前 existing==null 跳过校验仍写孤儿 role_org
+        if (existing == null) {
+            throw new BusinessException("角色不存在");
+        }
+        if (!GroupScopeUtil.canAccessGroup(existing.getGroupId())) {
             throw new BusinessException("无权操作其他集团的角色");
         }
         SysRole role = new SysRole();
