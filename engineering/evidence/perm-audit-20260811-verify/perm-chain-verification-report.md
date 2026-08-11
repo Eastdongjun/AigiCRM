@@ -198,6 +198,13 @@ saveRoleMenus 祖先闭包(SysRoleService.java:208-229)
 
 复核发现 P2-1 接入的 `configuredScopeCodes` 优先级 bug：按"精确(module,action)>通配(* *)"全局排序，会把 **USER 级 `* *` 通配压到 ROLE 级精确配置之下**，违反"用户级覆盖角色级"设计（NM100: USER * * custom vs ROLE customer view region 应取 custom，原实现错取 region）。修复：取首个有匹配的 assigneeType（装载序 USER>POSITION>ROLE 隐含），该主体内精确>通配。测试服+生产已部署（jar b5dac5e8），生产回归 admin 248/NM005 12 正常。
 
+## 八之六、岗位数据范围链路补齐（2026-08-11，commit f71b9b2）
+
+之前发现岗位数据范围"半失效"（后端接口有但前端无入口 + 生产无用户绑岗位）。补齐：
+- 前端 api/useUserList/UserFormDialog/user.vue：人员编辑弹窗加"岗位"多选（回显+保存，首个为主岗位）
+- **测试服端到端验证**：TY101 绑岗位6 + 岗位配 `* * dept` → 可见数 1(self)→97(dept) **岗位范围生效**；已回滚
+- 生产前端部署（index-DJyoJ_rU，版本 20260811-223115）；生产 UI 实测编辑弹窗含"岗位"入口、0 错误
+
 ## 八、测试环境操作记录（透明声明）
 
 审计过程中对测试服(111.229.37.220)做了以下操作，均已回滚/清理：
