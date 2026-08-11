@@ -169,6 +169,7 @@ class ApprovalServiceTest {
 
         ApprovalService svc = newService(mock(BizSeaPoolMapper.class), approvalMapper, nodeMapper);
         svc.statistics(7L);
+        @SuppressWarnings("unchecked")
 
         ArgumentCaptor<LambdaQueryWrapper<BizApproval>> cap = ArgumentCaptor.forClass(LambdaQueryWrapper.class);
         verify(approvalMapper, times(5)).selectCount(cap.capture());

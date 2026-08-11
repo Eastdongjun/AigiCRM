@@ -120,7 +120,7 @@ class IncentiveShareVisibilityTest {
             m.when(SecurityUtils::getCurrentUserId).thenReturn(1L);
 
             IncentiveService svc = newService();
-            assertTrue((Boolean) ReflectionTestUtils.invokeMethod(svc, "canSeeAllIncentive"),
+            assertTrue(Boolean.TRUE.equals((Boolean) ReflectionTestUtils.invokeMethod(svc, "canSeeAllIncentive")),
                     "admin 必须 canSeeAllIncentive");
 
             LambdaQueryWrapper<BizIncentiveRecord> wrapper = new LambdaQueryWrapper<>();
@@ -139,7 +139,7 @@ class IncentiveShareVisibilityTest {
             stubJdbcAsEditor();
 
             IncentiveService svc = newService();
-            assertTrue((Boolean) ReflectionTestUtils.invokeMethod(svc, "canSeeAllIncentive"),
+            assertTrue(Boolean.TRUE.equals((Boolean) ReflectionTestUtils.invokeMethod(svc, "canSeeAllIncentive")),
                     "专项授权用户必须 canSeeAllIncentive");
         }
     }
@@ -153,11 +153,11 @@ class IncentiveShareVisibilityTest {
             stubJdbcAsViewAllOnly();
 
             IncentiveService svc = newService();
-            assertTrue((Boolean) ReflectionTestUtils.invokeMethod(svc, "canSeeAllIncentive"),
+            assertTrue(Boolean.TRUE.equals((Boolean) ReflectionTestUtils.invokeMethod(svc, "canSeeAllIncentive")),
                     "仅开看全部必须 canSeeAllIncentive");
-            assertFalse((Boolean) ReflectionTestUtils.invokeMethod(svc, "canEdit", 60L),
+            assertFalse(Boolean.FALSE.equals((Boolean) ReflectionTestUtils.invokeMethod(svc, "canEdit", 60L)),
                     "仅看全部不隐含编辑他人");
-            assertFalse((Boolean) ReflectionTestUtils.invokeMethod(svc, "canDelete", 60L),
+            assertFalse(Boolean.FALSE.equals((Boolean) ReflectionTestUtils.invokeMethod(svc, "canDelete", 60L)),
                     "仅看全部不隐含删除他人");
         }
     }
@@ -196,7 +196,7 @@ class IncentiveShareVisibilityTest {
             m.when(SecurityUtils::getCurrentUserId).thenReturn(1L);
 
             IncentiveService svc = newService();
-            assertTrue((Boolean) ReflectionTestUtils.invokeMethod(svc, "canViewIncentiveUser", 999L));
+            assertTrue(Boolean.TRUE.equals((Boolean) ReflectionTestUtils.invokeMethod(svc, "canViewIncentiveUser", 999L)));
         }
     }
 
@@ -209,7 +209,7 @@ class IncentiveShareVisibilityTest {
             stubJdbcAsUnauthorized();
 
             IncentiveService svc = newService();
-            assertTrue((Boolean) ReflectionTestUtils.invokeMethod(svc, "canViewIncentiveUser", 1L),
+            assertTrue(Boolean.TRUE.equals((Boolean) ReflectionTestUtils.invokeMethod(svc, "canViewIncentiveUser", 1L)),
                     "本人必须可见");
         }
     }
@@ -224,9 +224,9 @@ class IncentiveShareVisibilityTest {
             when(recordMapper.selectCount(any())).thenReturn(1L, 0L);
 
             IncentiveService svc = newService();
-            assertTrue((Boolean) ReflectionTestUtils.invokeMethod(svc, "canViewIncentiveUser", 2L),
+            assertTrue(Boolean.TRUE.equals((Boolean) ReflectionTestUtils.invokeMethod(svc, "canViewIncentiveUser", 2L)),
                     "他人存在 shared=1 记录时应可查看");
-            assertFalse((Boolean) ReflectionTestUtils.invokeMethod(svc, "canViewIncentiveUser", 3L),
+            assertFalse(Boolean.FALSE.equals((Boolean) ReflectionTestUtils.invokeMethod(svc, "canViewIncentiveUser", 3L)),
                     "他人无 shared=1 记录时应拒绝");
         }
     }
@@ -245,6 +245,7 @@ class IncentiveShareVisibilityTest {
 
             IncentiveService svc = newService();
             svc.getRecords(2L, null, null);
+            @SuppressWarnings("unchecked")
 
             ArgumentCaptor<LambdaQueryWrapper<BizIncentiveRecord>> cap = ArgumentCaptor.forClass(LambdaQueryWrapper.class);
             verify(recordMapper).selectList(cap.capture());
@@ -265,6 +266,7 @@ class IncentiveShareVisibilityTest {
 
             IncentiveService svc = newService();
             svc.getRecords(1L, null, null);
+            @SuppressWarnings("unchecked")
 
             ArgumentCaptor<LambdaQueryWrapper<BizIncentiveRecord>> cap = ArgumentCaptor.forClass(LambdaQueryWrapper.class);
             verify(recordMapper).selectList(cap.capture());
@@ -283,6 +285,7 @@ class IncentiveShareVisibilityTest {
 
         IncentiveService svc = newService();
         svc.categoryStats(null);
+        @SuppressWarnings("unchecked")
 
         ArgumentCaptor<LambdaQueryWrapper<BizIncentiveRecord>> cap = ArgumentCaptor.forClass(LambdaQueryWrapper.class);
         verify(recordMapper).selectList(cap.capture());
@@ -298,6 +301,7 @@ class IncentiveShareVisibilityTest {
 
         IncentiveService svc = newService();
         svc.scoreboard(null);
+        @SuppressWarnings("unchecked")
 
         ArgumentCaptor<LambdaQueryWrapper<BizIncentiveRecord>> cap = ArgumentCaptor.forClass(LambdaQueryWrapper.class);
         verify(recordMapper).selectList(cap.capture());

@@ -201,7 +201,6 @@ public class StatisticsQueryService {
 
         int coveredCount = myIndicators.size();
         int coreCount = 0;
-        int qualifyCount = 0;
         double scoreSum = 0;
         for (BizCustomerIndicator ind : myIndicators) {
             int s = safe(ind.getIndicator02()) + safe(ind.getIndicator03()) + safe(ind.getIndicator04())
@@ -209,7 +208,6 @@ public class StatisticsQueryService {
             scoreSum += s;
             java.math.BigDecimal invTotal = invoiceTotals.getOrDefault(ind.getCustomerId(), java.math.BigDecimal.ZERO);
             boolean invoiceQualified = invTotal.compareTo(THRESHOLD) >= 0;
-            if (invoiceQualified) qualifyCount++;
             if (s >= 12 && invoiceQualified) coreCount++;
         }
         int myQualifyCount = 0;

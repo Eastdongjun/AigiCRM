@@ -297,6 +297,4 @@ class FolderPermissionServiceTest {
         }
     }
 
-    // 辅助: 构造用户
-    private SysUser aUser(Long id) { SysUser u = new SysUser(); u.setId(id); return u; }
 }

@@ -18,6 +18,7 @@ import static org.mockito.Mockito.*;
  * 【N3 2026-08-08】从未开票客户应创建 invoice_never（待首次开票），
  * 而非并入 invoice_overdue 并写死 9999 天超期。
  */
+@SuppressWarnings("unchecked")
 class CustomerExpireTaskTest {
 
     private final BizCustomerMapper customerMapper = mock(BizCustomerMapper.class);

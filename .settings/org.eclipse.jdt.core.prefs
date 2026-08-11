@@ -1,0 +1,5 @@
+# 2026-08-12: 消 MyBatis-Plus LambdaQueryWrapper 方法引用 × JDT null 分析误报
+# （业务代码为标准写法，运行时正常；仅影响 VSCode redhat.java 静态分析显示）
+# 只忽略 nullUncheckedConversion 一类，其余真实信号（空指针/缺注解/未使用）保留显示
+eclipse.preferences.version=1
+org.eclipse.jdt.core.compiler.problem.nullUncheckedConversion=Ignore

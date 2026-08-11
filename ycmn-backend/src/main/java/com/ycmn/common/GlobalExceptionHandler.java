@@ -70,7 +70,8 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(MethodArgumentTypeMismatchException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     public Result<Void> handleTypeMismatch(MethodArgumentTypeMismatchException e) {
-        return Result.error(400, "参数类型不正确：" + e.getName() + " 应为" + (e.getRequiredType() != null ? e.getRequiredType().getSimpleName() : "数字"));
+        Class<?> requiredType = e.getRequiredType();
+        return Result.error(400, "参数类型不正确：" + e.getName() + " 应为" + (requiredType != null ? requiredType.getSimpleName() : "数字"));
     }
 
     @ExceptionHandler(HttpMessageNotReadableException.class)

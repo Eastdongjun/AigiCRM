@@ -67,6 +67,7 @@ class SysPositionServiceTest {
             m.when(SecurityUtils::getCurrentGroupIds).thenReturn(List.of(1L));
 
             service.list();
+            @SuppressWarnings("unchecked")
 
             ArgumentCaptor<LambdaQueryWrapper<SysPosition>> captor = ArgumentCaptor.forClass(LambdaQueryWrapper.class);
             verify(positionMapper).selectList(captor.capture());
@@ -85,6 +86,7 @@ class SysPositionServiceTest {
             m.when(SecurityUtils::isAdmin).thenReturn(true);
 
             service.list();
+            @SuppressWarnings("unchecked")
 
             ArgumentCaptor<LambdaQueryWrapper<SysPosition>> captor = ArgumentCaptor.forClass(LambdaQueryWrapper.class);
             verify(positionMapper).selectList(captor.capture());
@@ -103,6 +105,7 @@ class SysPositionServiceTest {
             m.when(SecurityUtils::getCurrentGroupIds).thenReturn(List.of());
 
             service.list();
+            @SuppressWarnings("unchecked")
 
             ArgumentCaptor<LambdaQueryWrapper<SysPosition>> captor = ArgumentCaptor.forClass(LambdaQueryWrapper.class);
             verify(positionMapper).selectList(captor.capture());

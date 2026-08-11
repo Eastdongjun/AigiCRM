@@ -55,18 +55,6 @@ class SysRoleServiceTest {
         TableInfoHelper.initTableInfo(assistant, SysRole.class);
     }
 
-    private SysRoleService newService(SysRoleOrgMapper orgMapper) {
-        return new SysRoleService(
-                mock(SysRoleMapper.class),
-                mock(SysRoleMenuMapper.class),
-                mock(SysMenuMapper.class),
-                orgMapper,
-                mock(SysDeptMapper.class),
-                mock(com.ycmn.security.PermissionCacheService.class),
-                mock(com.ycmn.module.system.service.RolePermScopeService.class),
-                mock(com.ycmn.module.system.mapper.SysUserRoleMapper.class),
-                mock(org.springframework.jdbc.core.JdbcTemplate.class));
-    }
 
     /** 显式构造以便捕获 roleMapper 的查询条件（集团边界断言） */
     private static SysRoleService newServiceWith(SysRoleMapper roleMapper) {
@@ -192,6 +180,7 @@ class SysRoleServiceTest {
             m.when(SecurityUtils::getCurrentGroupIds).thenReturn(List.of(1L));
 
             service.list();
+            @SuppressWarnings("unchecked")
 
             ArgumentCaptor<LambdaQueryWrapper<SysRole>> captor = ArgumentCaptor.forClass(LambdaQueryWrapper.class);
             verify(roleMapper).selectList(captor.capture());
@@ -210,6 +199,7 @@ class SysRoleServiceTest {
             m.when(SecurityUtils::isAdmin).thenReturn(true);
 
             service.list();
+            @SuppressWarnings("unchecked")
 
             ArgumentCaptor<LambdaQueryWrapper<SysRole>> captor = ArgumentCaptor.forClass(LambdaQueryWrapper.class);
             verify(roleMapper).selectList(captor.capture());
@@ -228,6 +218,7 @@ class SysRoleServiceTest {
             m.when(SecurityUtils::getCurrentGroupIds).thenReturn(List.of());
 
             service.list();
+            @SuppressWarnings("unchecked")
 
             ArgumentCaptor<LambdaQueryWrapper<SysRole>> captor = ArgumentCaptor.forClass(LambdaQueryWrapper.class);
             verify(roleMapper).selectList(captor.capture());

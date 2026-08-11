@@ -80,7 +80,8 @@ class IncentiveSpecificProductTest {
             svc.getCustomerRecords(null, null, null, null, null, null, null, null, null, "XX密封圈");
         }
 
-        ArgumentCaptor<com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper> cap =
+        @SuppressWarnings("rawtypes")
+ArgumentCaptor<com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper> cap =
                 ArgumentCaptor.forClass(com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper.class);
         verify(recMapper).selectList(cap.capture());
         String sql = cap.getValue().getExpression().getSqlSegment().toLowerCase();

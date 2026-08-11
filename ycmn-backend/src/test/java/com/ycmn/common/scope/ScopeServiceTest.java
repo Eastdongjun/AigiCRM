@@ -32,7 +32,7 @@ import static org.mockito.Mockito.*;
  * 覆盖：self 仅自己 / deptId 过滤 / all 返回全部 / 空范围空列表 / 部门树组装（全量、部分、提升、排序）。
  */
 @ExtendWith(MockitoExtension.class)
-@SuppressWarnings({"unchecked", "rawtypes"})
+@SuppressWarnings("unchecked")
 class ScopeServiceTest {
 
     @Mock OrgScopeResolver resolver;

@@ -31,7 +31,7 @@ import static org.mockito.Mockito.*;
  * verify 锁定每层查询次数。覆盖子树遍历、环保护、team 5 层上限与 status 过滤口径。
  */
 @ExtendWith(MockitoExtension.class)
-@SuppressWarnings({"unchecked", "rawtypes"})
+@SuppressWarnings("unchecked")
 class OrgScopeResolverTest {
 
     @Mock SysUserMapper userMapper;
