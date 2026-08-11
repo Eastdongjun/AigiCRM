@@ -7,7 +7,7 @@
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
-        <version>3.2.5</version>
+        <version>3.2.12</version>
         <relativePath/>
     </parent>
 
@@ -71,7 +71,7 @@
             <scope>runtime</scope>
         </dependency>
 
-        <!-- Flyway 迁移工具（2026-08-09 引入，版本由 Spring Boot 3.2.5 BOM 管理 10.x）
+        <!-- Flyway 迁移工具（2026-08-09 引入，版本由 Spring Boot 3.2.12 BOM 管理 10.x）
              MySQL 8 需 flyway-mysql 分离模块；应用运行时 spring.flyway.enabled=false(生产 ycmn_app 无 DDL 权限)，
              迁移经 Maven 插件 / CLI 以管理账号执行(deploy-db.sh)。 -->
         <dependency>
