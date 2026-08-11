@@ -36,7 +36,8 @@ ssh_prod "
 echo "=== [2/4] 上传迁移目录到生产 ==="
 ssh_prod "rm -rf /root/ycmn/flyway-sql && mkdir -p /root/ycmn/flyway-sql"
 # 逐个上传迁移文件（tar 管道避免 scp 目录传输的权限问题）
-tar czf - -C "$MIGRATION_DIR" . | ssh_prod "tar xzf - -C /root/ycmn/flyway-sql"
+# --exclude='._*' 排除 macOS AppleDouble 元数据文件(会被 Flyway 识别为非约定迁移并告警)
+tar czf - --exclude='._*' --exclude='.DS_Store' -C "$MIGRATION_DIR" . | ssh_prod "tar xzf - -C /root/ycmn/flyway-sql"
 echo "迁移文件: $(ssh_prod "ls /root/ycmn/flyway-sql/ | wc -l") 个"
 
 echo "=== [3/4] Flyway migrate ==="
