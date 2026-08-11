@@ -4,7 +4,6 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.ycmn.common.BusinessException;
 import com.ycmn.module.customer.entity.BizCustomer;
 import com.ycmn.module.customer.mapper.BizCustomerMapper;
-import com.ycmn.module.customer.mapper.BizCustomerShareMapper;
 import com.ycmn.module.file.entity.BizFile;
 import com.ycmn.module.file.mapper.BizFileMapper;
 import com.ycmn.module.incentive.entity.BizIncentiveCategory;
@@ -33,7 +32,6 @@ public class IncentiveService {
     private final SysUserMapper userMapper;
     private final BizFileMapper fileMapper;
     private final BizCustomerMapper customerMapper;
-    private final BizCustomerShareMapper customerShareMapper;
     private final SysDeptMapper deptMapper;
     private final JdbcTemplate jdbc;
     private final com.ycmn.common.scope.OrgScopeResolver scopeResolver;

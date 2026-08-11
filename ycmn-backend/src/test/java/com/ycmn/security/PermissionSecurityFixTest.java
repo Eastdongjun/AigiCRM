@@ -325,8 +325,6 @@ class PermissionSecurityFixTest {
             com.ycmn.common.engine.CustomerAccessService cas = new com.ycmn.common.engine.CustomerAccessService(
                     cm,
                     mock(com.ycmn.module.customer.mapper.BizCustomerShareMapper.class),
-                    mock(com.ycmn.module.system.mapper.SysDeptMapper.class),
-                    mock(com.ycmn.module.system.mapper.SysUserMapper.class),
                     resolver,
                     mock(com.ycmn.module.sea.mapper.BizSeaPoolMapper.class),
                     mock(com.ycmn.module.sea.service.SeaConfigService.class),

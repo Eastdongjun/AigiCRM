@@ -7,8 +7,6 @@ import com.ycmn.module.customer.mapper.BizCustomerShareMapper;
 import com.ycmn.module.sea.entity.BizSeaPool;
 import com.ycmn.module.sea.mapper.BizSeaPoolMapper;
 import com.ycmn.module.sea.service.SeaConfigService;
-import com.ycmn.module.system.mapper.SysDeptMapper;
-import com.ycmn.module.system.mapper.SysUserMapper;
 import com.ycmn.security.SecurityUser;
 import com.ycmn.security.SecurityUtils;
 import org.junit.jupiter.api.Test;
@@ -33,15 +31,13 @@ class CustomerAccessServiceSeaPermTest {
 
     private final BizCustomerMapper customerMapper = mock(BizCustomerMapper.class);
     private final BizCustomerShareMapper shareMapper = mock(BizCustomerShareMapper.class);
-    private final SysDeptMapper deptMapper = mock(SysDeptMapper.class);
-    private final SysUserMapper userMapper = mock(SysUserMapper.class);
     private final OrgScopeResolver scopeResolver = mock(OrgScopeResolver.class);
     private final BizSeaPoolMapper seaPoolMapper = mock(BizSeaPoolMapper.class);
     private final SeaConfigService seaConfigService = mock(SeaConfigService.class);
     private final com.ycmn.module.system.service.RolePermScopeService rolePermScopeService =
             mock(com.ycmn.module.system.service.RolePermScopeService.class);
     private final CustomerAccessService svc = new CustomerAccessService(
-            customerMapper, shareMapper, deptMapper, userMapper,
+            customerMapper, shareMapper,
             scopeResolver, seaPoolMapper, seaConfigService, rolePermScopeService);
 
     /** 默认范围桩: 编辑/删除等未配置 → self; resolveScope 空集 → 非本人不在范围内 */

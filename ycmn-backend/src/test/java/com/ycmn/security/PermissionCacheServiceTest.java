@@ -102,7 +102,9 @@ class PermissionCacheServiceTest {
 
         svc.evictAll();
 
-        ArgumentCaptor<java.util.Set<String>> captor = ArgumentCaptor.forClass(java.util.Set.class);
+        @SuppressWarnings("unchecked") // Set 是接口, forClass 需要具体类, 此处为必须的 unchecked
+        ArgumentCaptor<java.util.Set<String>> captor =
+                ArgumentCaptor.forClass((Class<java.util.Set<String>>) (Class<?>) java.util.Set.class);
         verify(redisTemplate).delete(captor.capture());
         assertEquals(2, captor.getValue().size());
     }

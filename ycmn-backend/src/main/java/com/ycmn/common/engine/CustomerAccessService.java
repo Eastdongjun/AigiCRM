@@ -7,8 +7,6 @@ import com.ycmn.module.customer.entity.BizCustomer;
 import com.ycmn.module.customer.entity.BizCustomerShare;
 import com.ycmn.module.customer.mapper.BizCustomerMapper;
 import com.ycmn.module.customer.mapper.BizCustomerShareMapper;
-import com.ycmn.module.system.mapper.SysDeptMapper;
-import com.ycmn.module.system.mapper.SysUserMapper;
 import com.ycmn.security.SecurityUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -39,8 +37,6 @@ public class CustomerAccessService {
 
     private final BizCustomerMapper customerMapper;
     private final BizCustomerShareMapper shareMapper;
-    private final SysDeptMapper deptMapper;
-    private final SysUserMapper userMapper;
     private final OrgScopeResolver scopeResolver;
     private final com.ycmn.module.sea.mapper.BizSeaPoolMapper seaPoolMapper;
     private final com.ycmn.module.sea.service.SeaConfigService seaConfigService;

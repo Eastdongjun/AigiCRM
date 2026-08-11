@@ -1,7 +1,6 @@
 package com.ycmn.module.approval.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.ycmn.common.BusinessException;
 import com.ycmn.module.approval.entity.BizApproval;
 import com.ycmn.module.approval.mapper.BizApprovalConfigMapper;
@@ -95,7 +94,7 @@ class ApprovalServiceTest {
         BizSeaPoolMapper seaPoolMapper = mock(BizSeaPoolMapper.class);
         when(seaPoolMapper.selectOne(any())).thenReturn(pool);
         // 并发竞争：条件更新 affected=0（他人已锁定）
-        when(seaPoolMapper.update(isNull(), any(LambdaUpdateWrapper.class))).thenReturn(0);
+        when(seaPoolMapper.update(isNull(), any())).thenReturn(0);
 
         ApprovalService svc = newService(seaPoolMapper, mock(BizApprovalMapper.class), mock(BizApprovalNodeMapper.class));
         BusinessException ex = assertThrows(BusinessException.class, () -> svc.submit("claim", 42L, null, null));
@@ -116,7 +115,7 @@ class ApprovalServiceTest {
 
         BizSeaPoolMapper seaPoolMapper = mock(BizSeaPoolMapper.class);
         when(seaPoolMapper.selectOne(any())).thenReturn(pool);
-        when(seaPoolMapper.update(isNull(), any(LambdaUpdateWrapper.class))).thenReturn(1);
+        when(seaPoolMapper.update(isNull(), any())).thenReturn(1);
 
         BizApprovalMapper approvalMapper = mock(BizApprovalMapper.class);
         when(approvalMapper.selectMaxCodeByPrefix(anyString())).thenReturn(0);
@@ -124,7 +123,7 @@ class ApprovalServiceTest {
         ApprovalService svc = newService(seaPoolMapper, approvalMapper, mock(BizApprovalNodeMapper.class));
         assertDoesNotThrow(() -> svc.submit("claim", 42L, null, null));
         // 锁定更新必须携带 status='available' 条件（原子性）
-        verify(seaPoolMapper, times(1)).update(isNull(), any(LambdaUpdateWrapper.class));
+        verify(seaPoolMapper, times(1)).update(isNull(), any());
     }
 
     @Test

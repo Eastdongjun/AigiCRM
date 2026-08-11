@@ -1,7 +1,6 @@
 package com.ycmn.module.incentive.service;
 
 import com.ycmn.module.customer.mapper.BizCustomerMapper;
-import com.ycmn.module.customer.mapper.BizCustomerShareMapper;
 import com.ycmn.module.file.mapper.BizFileMapper;
 import com.ycmn.module.incentive.entity.BizIncentiveCategory;
 import com.ycmn.module.incentive.entity.BizIncentiveRecord;
@@ -35,7 +34,6 @@ class IncentiveScoreTest {
                 mock(SysUserMapper.class),
                 mock(BizFileMapper.class),
                 mock(BizCustomerMapper.class),
-                mock(BizCustomerShareMapper.class),
                 mock(SysDeptMapper.class),
                 mock(JdbcTemplate.class),
                 mock(com.ycmn.common.scope.OrgScopeResolver.class));
@@ -159,7 +157,6 @@ class IncentiveScoreTest {
                 mock(SysUserMapper.class),
                 mock(BizFileMapper.class),
                 mock(BizCustomerMapper.class),
-                mock(BizCustomerShareMapper.class),
                 mock(SysDeptMapper.class),
                 jdbc,
                 mock(com.ycmn.common.scope.OrgScopeResolver.class));

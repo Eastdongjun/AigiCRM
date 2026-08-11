@@ -87,7 +87,7 @@ public class CustomerService {
 
         if ("mine".equals(scope)) {
             wrapper.eq(BizCustomer::getOwnerId, currentUserId);
-        } else if (false) { // disabled: all users use data scope
+        } else if (false) { // disabled: all users use data scope (设计历史, 监督面板要求保留)
             // 默认：自己的客户 + 分享给我的客户
             List<BizCustomerShare> shares = shareMapper.selectList(
                     new LambdaQueryWrapper<BizCustomerShare>().eq(BizCustomerShare::getSharedToUserId, currentUserId));
@@ -110,7 +110,7 @@ public class CustomerService {
         }
         if (StringUtils.hasText(industry)) {
             String[] arr = industry.split(",");
-            if (arr.length > 1) wrapper.in(BizCustomer::getIndustry, arr);
+            if (arr.length > 1) wrapper.in(BizCustomer::getIndustry, (Object[]) arr);
             else wrapper.eq(BizCustomer::getIndustry, industry);
         }
         if (officeId != null) {
@@ -127,7 +127,7 @@ public class CustomerService {
         }
         if (StringUtils.hasText(status)) {
             String[] arr = status.split(",");
-            if (arr.length > 1) wrapper.in(BizCustomer::getStatus, arr);
+            if (arr.length > 1) wrapper.in(BizCustomer::getStatus, (Object[]) arr);
             else wrapper.eq(BizCustomer::getStatus, status);
         } else {
             wrapper.ne(BizCustomer::getStatus, "sea");
@@ -192,7 +192,7 @@ public class CustomerService {
         if (regionId != null) wrapper.eq(BizCustomer::getRegionId, regionId);
         if (StringUtils.hasText(status)) {
             String[] arr = status.split(",");
-            if (arr.length > 1) wrapper.in(BizCustomer::getStatus, arr);
+            if (arr.length > 1) wrapper.in(BizCustomer::getStatus, (Object[]) arr);
             else wrapper.eq(BizCustomer::getStatus, status);
         } else {
             wrapper.ne(BizCustomer::getStatus, "sea");
@@ -743,23 +743,6 @@ public class CustomerService {
     }
 
     /**
-     * 按部门ID列表解析可见用户并应用到查询条件（custom/org/org_and_children 共用）
-     * 【修复 FEAT-20260804-ORG-DEPT-UNIFY】org 体系统一改用部门体系解析，见 applyDataScope 说明
-     */
-    private void applyDeptIdScope(LambdaQueryWrapper<BizCustomer> wrapper, List<Long> deptIds, Long userId) {
-        if (deptIds == null || deptIds.isEmpty()) {
-            wrapper.eq(BizCustomer::getOwnerId, userId);
-            return;
-        }
-        List<Long> scopedUserIds = getUserIdsByDeptIds(deptIds);
-        if (!scopedUserIds.isEmpty()) {
-            wrapper.in(BizCustomer::getOwnerId, scopedUserIds);
-        } else {
-            wrapper.eq(BizCustomer::getOwnerId, userId);
-        }
-    }
-
-    /**
      * 解析当前用户按数据范围可见的用户 ID 集合；返回 null 表示全部可见（all 范围）
      * 【用途】统计/报表等跨实体查询复用与 applyDataScope 同一口径（self/dept/dept_and_children/org/custom）
      * 【修复 FEAT-20260804-DICT-DEPT-READ】经营分析/日报周报此前全量查询，销售员可见全公司数据
@@ -783,11 +766,6 @@ public class CustomerService {
         return scopeResolver.resolveScope(req).getVisibleUserIds();
     }
 
-    private List<Long> applyDeptScopeUserIds(List<Long> deptIds, Long userId) {
-        List<Long> scopedUserIds = getUserIdsByDeptIds(deptIds);
-        return scopedUserIds.isEmpty() ? List.of(userId) : scopedUserIds;
-    }
-
     /**
      * 递归获取所有下级部门ID
      */
@@ -806,17 +784,6 @@ public class CustomerService {
                 collectChildren(all, dept.getId(), result);
             }
         }
-    }
-
-    /**
-     * 获取指定部门列表中所有用户的ID
-     */
-    private List<Long> getUserIdsByDeptIds(List<Long> deptIds) {
-        LambdaQueryWrapper<SysUser> w = new LambdaQueryWrapper<>();
-        w.in(SysUser::getDeptId, deptIds).eq(SysUser::getStatus, 1);
-        return userMapper.selectList(w).stream()
-                .map(SysUser::getId)
-                .collect(Collectors.toList());
     }
 
     private void calculateExpireDates(BizCustomer customer) {
@@ -1016,9 +983,6 @@ public class CustomerService {
         Long currentUserId = SecurityUtils.getCurrentUserId();
         BizCustomer customer = customerMapper.selectById(customerId);
         if (customer == null) throw new BusinessException("客户不存在");
-        String custName = customer.getCustomerName();
-        SysUser sharer = userMapper.selectById(currentUserId);
-        String sharerName = sharer != null ? sharer.getRealName() : "未知";
 
         for (Long uid : userIds) {
             // 检查是否已存在

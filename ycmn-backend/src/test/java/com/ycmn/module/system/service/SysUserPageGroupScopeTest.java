@@ -89,7 +89,7 @@ class SysUserPageGroupScopeTest {
         try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
             m.when(SecurityUtils::isAdmin).thenReturn(true);
 
-            var result = service.page(1, 15, null, null, null);
+            service.page(1, 15, null, null, null);
 
             ArgumentCaptor<String> deptCaptor = ArgumentCaptor.forClass(String.class);
             verify(userMapper).selectUserPage(any(), any(), deptCaptor.capture(), any());

@@ -33,7 +33,6 @@ class IncentiveSpecificProductTest {
                 mock(com.ycmn.module.system.mapper.SysUserMapper.class),
                 mock(com.ycmn.module.file.mapper.BizFileMapper.class),
                 mock(com.ycmn.module.customer.mapper.BizCustomerMapper.class),
-                mock(com.ycmn.module.customer.mapper.BizCustomerShareMapper.class),
                 mock(com.ycmn.module.system.mapper.SysDeptMapper.class),
                 mock(org.springframework.jdbc.core.JdbcTemplate.class),
                 mock(com.ycmn.common.scope.OrgScopeResolver.class));
@@ -80,9 +79,9 @@ class IncentiveSpecificProductTest {
             svc.getCustomerRecords(null, null, null, null, null, null, null, null, null, "XX密封圈");
         }
 
-        @SuppressWarnings({"unchecked", "rawtypes"})
-ArgumentCaptor<com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper> cap =
-                ArgumentCaptor.forClass(com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper.class);
+        @SuppressWarnings("unchecked") // forClass 需具体类, LambdaQueryWrapper 泛型参数擦除, 必须的 unchecked
+        ArgumentCaptor<com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<com.ycmn.module.incentive.entity.BizIncentiveRecord>> cap =
+                ArgumentCaptor.forClass((Class<com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<com.ycmn.module.incentive.entity.BizIncentiveRecord>>) (Class<?>) com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper.class);
         verify(recMapper).selectList(cap.capture());
         String sql = cap.getValue().getExpression().getSqlSegment().toLowerCase();
         org.junit.jupiter.api.Assertions.assertTrue(
