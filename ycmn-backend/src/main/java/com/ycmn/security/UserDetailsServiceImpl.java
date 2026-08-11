@@ -34,6 +34,13 @@ public class UserDetailsServiceImpl implements UserDetailsService {
 
     private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(UserDetailsServiceImpl.class);
 
+    /**
+     * @SuppressWarnings("deprecation") 有意保留 ORG_AND_CHILDREN:
+     * 组织管理员 dataScope 升级路径的语义是"本人部门 ∪ 托管组织子树"(OrgScopeResolver.resolveOrgAndChildren),
+     * 与 DEPT(仅本人部门树)【不等价】——迁移到 DEPT 会收窄组织管理员可见范围, 属行为变更, 不可机械替换。
+     * DataScopeType.ORG_AND_CHILDREN 由 DEPT 兼容替代的注释针对"旧 org 体系统一", 此处是显式例外。
+     */
+    @SuppressWarnings("deprecation")
     @Override
     public UserDetails loadUserByUsername(String usernameOrId) throws UsernameNotFoundException {
         SysUser user;
