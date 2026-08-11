@@ -194,6 +194,10 @@ saveRoleMenus 祖先闭包(SysRoleService.java:208-229)
 
 验证：后端全量 350/350 全绿（新增 6 测试）；测试服实测 admin 249/TY005 18；生产实测 admin 248/NM005 12。生产部署 commit=5e4321c，jar md5 17258248，deploy.log 已记录。
 
+## 八之五、scopeConfigs 优先级修正（2026-08-11，commit 24c0467）
+
+复核发现 P2-1 接入的 `configuredScopeCodes` 优先级 bug：按"精确(module,action)>通配(* *)"全局排序，会把 **USER 级 `* *` 通配压到 ROLE 级精确配置之下**，违反"用户级覆盖角色级"设计（NM100: USER * * custom vs ROLE customer view region 应取 custom，原实现错取 region）。修复：取首个有匹配的 assigneeType（装载序 USER>POSITION>ROLE 隐含），该主体内精确>通配。测试服+生产已部署（jar b5dac5e8），生产回归 admin 248/NM005 12 正常。
+
 ## 八、测试环境操作记录（透明声明）
 
 审计过程中对测试服(111.229.37.220)做了以下操作，均已回滚/清理：
