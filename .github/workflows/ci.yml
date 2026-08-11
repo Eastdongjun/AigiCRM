@@ -55,3 +55,53 @@ jobs:
       - name: Test (vitest)
         working-directory: ycmn-ui
         run: npm run test -- --run
+
+  # P0 质量门禁（2026-08-12）：修改范围空白检查 + 密钥粗检（PR 相对基准 / push 相对父提交）
+  diff-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: git diff --check
+        env:
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          if [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then
+            base="$PR_BASE_SHA"
+          else
+            base="HEAD^"
+          fi
+          git diff --check "$base"...HEAD
+      - name: 变更文件密钥粗检
+        env:
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          if [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then
+            base="$PR_BASE_SHA"
+          else
+            base="HEAD^"
+          fi
+          files=$(git diff --name-only "$base"...HEAD | grep -E '\.(java|js|ts|vue|py|sh|yaml|yml|json)$' || true)
+          bad=0
+          for f in $files; do
+            if grep -nE "password\s*[:=]\s*['\"][^'\"]{6,}['\"]" "$f" 2>/dev/null; then
+              echo "❌ 疑似硬编码密码: $f"; bad=1
+            fi
+          done
+          [ "$bad" -eq 0 ] && echo "✅ 无硬编码密码" || exit 1
+
+  # P0 汇总门禁：作为 GitHub 分支保护可要求的必过 job
+  quality-gate:
+    runs-on: ubuntu-latest
+    needs: [backend, frontend, diff-check]
+    if: always()
+    steps:
+      - run: |
+          echo "════════ 质量门禁汇总 ════════"
+          echo "backend      : ${{ needs.backend.result }}"
+          echo "frontend     : ${{ needs.frontend.result }}"
+          echo "diff-check   : ${{ needs.diff-check.result }}"
+          test "${{ needs.backend.result }}" = "success"
+          test "${{ needs.frontend.result }}" = "success"
+          test "${{ needs.diff-check.result }}" = "success"
