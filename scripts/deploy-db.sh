@@ -8,8 +8,10 @@
 # Flyway 说明:
 #   - 迁移在服务器端用 docker flyway/flyway 镜像执行（Mac 无法直连 DB 端口，数据库访问必须经 SSH）
 #   - 连接生产 ycmn-mysql 容器（root，经 ~/.ycmn-deploy.env 注入 DB_PASSWORD）
-#   - 迁移目录 V1__baseline.sql(生产 schema 快照) + 未来 V2+；历史日期脚本归档 sql/migration/archive/
+#   - 迁移目录仅 V1__baseline.sql(2026-08-11 重建的生产 schema 快照,mysqldump 自带 FOREIGN_KEY_CHECKS=0,
+#     空库可直接加载; 旧 V1-V9 已归档 sql/migration/archive/)。V1 为唯一 schema 真源。
 #   - 生产应用账号 ycmn_app 无 DDL 权限，迁移仅限本脚本以 root 执行
+#   - Flyway 版本锁定 9.22.3(与 pom flyway-core 一致), 不用 latest 保证可复现
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 source "$SCRIPT_DIR/deploy-lib.sh"
@@ -42,7 +44,7 @@ ssh_prod "
   TABLE_CNT=\$(docker exec -e MYSQL_PWD=\"$DB_PASSWORD\" ycmn-mysql mysql -uroot -N -e \"SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='ycmn'\" 2>/dev/null)
   echo \"迁移前: 表数 \$TABLE_CNT\"
   OUT=\$(docker run --rm --network ycmn_default -v /root/ycmn/flyway-sql:/flyway/sql \
-    flyway/flyway:latest-alpine \
+    flyway/flyway:9.22.3-alpine \
     -url='jdbc:mysql://ycmn-mysql:3306/ycmn?useSSL=false&allowPublicKeyRetrieval=true' \
     -user=root -password=\"$DB_PASSWORD\" \
     -baselineOnMigrate=true \

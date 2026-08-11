@@ -1,20 +1,36 @@
 -- ============================================================
--- V1__baseline.sql — YCMN 数据库基线（2026-08-09 生成）
+-- V1__baseline.sql — YCMN 数据库基线（2026-08-11 重建）
 --
--- 来源: 生产库 (39.99.35.218) 全量 schema 快照, mysqldump --no-data
---   表: 54 张 (biz_* 业务 + sys_* 系统)
---   视图: 无 (sys_org 视图已于 0809 sys_dept/sys_org 双表收口时删除)
---   函数/过程: 无
---
--- 说明:
---   1. 本基线忠实反映生成时生产库的实际结构(含历史遗留的 COMMENT 乱码,
---      见 biz_approval/biz_approval_config 等表)——Flyway validate 以本文件
---      checksum 为准, 未来清理 COMMENT 乱码应作为独立迁移(V2+), 不修改本文件。
---   2. 本文件由 mysqldump 生成, 含 `/*!40101 SET ... */` 字符集辅助语句
---      (保存/恢复 character_set_client), 保证在 Flyway 执行环境中中文一致。
---   3. 已应用的日期迁移(sql/migration/20260802..20260809)内容均已含在此基线,
---      历史脚本归档于 sql/migration/archive/, 不再由 Flyway 单独登记。
+-- 来源: 生产库全量 schema 快照(mysqldump --no-data, 2026-08-11)
+--   表: 56 张(含 role_perm_scope/biz_customer_transfer/26表tenant_id)
+--   说明: mysqldump 生成, 自带 FOREIGN_KEY_CHECKS=0, 空库可直接加载(修复旧V1前向FK)
+--   历史: 旧 V1-V9 迁移已归档 sql/migration/archive/, 本文件为唯一 schema 真源
+--   注意: 保留生产库历史遗留 COMMENT 乱码, 清理作独立后续迁移
 -- ============================================================
+
+
+-- MySQL dump 10.13  Distrib 8.0.28, for Linux (x86_64)
+--
+-- Host: localhost    Database: ycmn
+-- ------------------------------------------------------
+-- Server version	8.0.28
+
+/*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
+/*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
+/*!40101 SET @OLD_COLLATION_CONNECTION=@@COLLATION_CONNECTION */;
+/*!50503 SET NAMES utf8mb4 */;
+/*!40103 SET @OLD_TIME_ZONE=@@TIME_ZONE */;
+/*!40103 SET TIME_ZONE='+00:00' */;
+/*!40014 SET @OLD_UNIQUE_CHECKS=@@UNIQUE_CHECKS, UNIQUE_CHECKS=0 */;
+/*!40014 SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0 */;
+/*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO' */;
+/*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
+
+--
+-- Table structure for table `biz_approval`
+--
+
+DROP TABLE IF EXISTS `biz_approval`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `biz_approval` (
@@ -38,6 +54,12 @@ CREATE TABLE `biz_approval` (
   KEY `idx_tenant` (`tenant_id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=55 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='审批记录';
 /*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `biz_approval_config`
+--
+
+DROP TABLE IF EXISTS `biz_approval_config`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `biz_approval_config` (
@@ -51,9 +73,17 @@ CREATE TABLE `biz_approval_config` (
   `status` tinyint DEFAULT '1',
   `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
   `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`)
+  `tenant_id` bigint NOT NULL DEFAULT '1' COMMENT 'é›†å›¢ID',
+  PRIMARY KEY (`id`),
+  KEY `idx_tenant` (`tenant_id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `biz_approval_flow`
+--
+
+DROP TABLE IF EXISTS `biz_approval_flow`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `biz_approval_flow` (
@@ -64,9 +94,17 @@ CREATE TABLE `biz_approval_flow` (
   `sort_order` int DEFAULT '0' COMMENT '审批顺序(多级审批)',
   `status` tinyint DEFAULT '1',
   `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`)
+  `tenant_id` bigint NOT NULL DEFAULT '1' COMMENT 'é›†å›¢ID',
+  PRIMARY KEY (`id`),
+  KEY `idx_tenant` (`tenant_id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='审批流程定义';
 /*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `biz_approval_node`
+--
+
+DROP TABLE IF EXISTS `biz_approval_node`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `biz_approval_node` (
@@ -80,11 +118,19 @@ CREATE TABLE `biz_approval_node` (
   `status` varchar(20) COLLATE utf8mb4_general_ci DEFAULT 'pending' COMMENT '状态',
   `config_id` bigint DEFAULT NULL,
   `sign_mode` varchar(20) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `tenant_id` bigint NOT NULL DEFAULT '1' COMMENT 'é›†å›¢ID',
   PRIMARY KEY (`id`),
   KEY `idx_approval_id` (`approval_id`),
-  KEY `idx_approver_id` (`approver_id`)
+  KEY `idx_approver_id` (`approver_id`),
+  KEY `idx_tenant` (`tenant_id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=55 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='审批节点记录';
 /*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `biz_contact`
+--
+
+DROP TABLE IF EXISTS `biz_contact`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `biz_contact` (
@@ -97,10 +143,18 @@ CREATE TABLE `biz_contact` (
   `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
   `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   `deleted` tinyint DEFAULT '0',
+  `tenant_id` bigint NOT NULL DEFAULT '1' COMMENT 'é›†å›¢ID',
   PRIMARY KEY (`id`),
-  KEY `idx_customer_id` (`customer_id`)
+  KEY `idx_customer_id` (`customer_id`),
+  KEY `idx_tenant` (`tenant_id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=188 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='客户联系人';
 /*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `biz_customer`
+--
+
+DROP TABLE IF EXISTS `biz_customer`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `biz_customer` (
@@ -153,6 +207,12 @@ CREATE TABLE `biz_customer` (
   CONSTRAINT `fk_biz_customer_owner` FOREIGN KEY (`owner_id`) REFERENCES `sys_user` (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=576 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='客户表';
 /*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `biz_customer_bak_0624`
+--
+
+DROP TABLE IF EXISTS `biz_customer_bak_0624`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `biz_customer_bak_0624` (
@@ -190,6 +250,12 @@ CREATE TABLE `biz_customer_bak_0624` (
   `tags` varchar(500) COLLATE utf8mb4_general_ci DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `biz_customer_indicator`
+--
+
+DROP TABLE IF EXISTS `biz_customer_indicator`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `biz_customer_indicator` (
@@ -205,10 +271,18 @@ CREATE TABLE `biz_customer_indicator` (
   `updated_by` bigint DEFAULT NULL,
   `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
   `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `tenant_id` bigint NOT NULL DEFAULT '1' COMMENT 'é›†å›¢ID',
   PRIMARY KEY (`id`),
-  UNIQUE KEY `customer_id` (`customer_id`)
+  UNIQUE KEY `customer_id` (`customer_id`),
+  KEY `idx_tenant` (`tenant_id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=19 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `biz_customer_log`
+--
+
+DROP TABLE IF EXISTS `biz_customer_log`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `biz_customer_log` (
@@ -218,10 +292,18 @@ CREATE TABLE `biz_customer_log` (
   `log_type` varchar(50) COLLATE utf8mb4_general_ci DEFAULT NULL COMMENT '类型(终端考察/技术交流/产品试点报告/其他)',
   `content` text COLLATE utf8mb4_general_ci NOT NULL COMMENT '跟进内容',
   `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  `tenant_id` bigint NOT NULL DEFAULT '1' COMMENT 'é›†å›¢ID',
   PRIMARY KEY (`id`),
-  KEY `idx_customer_id` (`customer_id`)
+  KEY `idx_customer_id` (`customer_id`),
+  KEY `idx_tenant` (`tenant_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='客户跟进日志';
 /*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `biz_customer_share`
+--
+
+DROP TABLE IF EXISTS `biz_customer_share`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `biz_customer_share` (
@@ -237,6 +319,35 @@ CREATE TABLE `biz_customer_share` (
   CONSTRAINT `fk_biz_customer_share_customer` FOREIGN KEY (`customer_id`) REFERENCES `biz_customer` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `biz_customer_transfer`
+--
+
+DROP TABLE IF EXISTS `biz_customer_transfer`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `biz_customer_transfer` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `from_user_id` bigint NOT NULL COMMENT 'è½¬ç§»æºç”¨æˆ·',
+  `to_user_id` bigint NOT NULL COMMENT 'æŽ¥æ”¶ç”¨æˆ·',
+  `transfer_type` varchar(20) COLLATE utf8mb4_general_ci NOT NULL COMMENT 'leave=ç¦»èŒè½¬ç§» / manual=æ‰‹åŠ¨è½¬ç§»',
+  `customer_count` int NOT NULL DEFAULT '0' COMMENT 'è½¬ç§»å®¢æˆ·æ•°',
+  `operator_id` bigint NOT NULL COMMENT 'æ“ä½œäºº',
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  `tenant_id` bigint NOT NULL DEFAULT '1' COMMENT 'é›†å›¢ID',
+  PRIMARY KEY (`id`),
+  KEY `idx_transfer_from` (`from_user_id`),
+  KEY `idx_transfer_to` (`to_user_id`),
+  KEY `idx_tenant` (`tenant_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='å®¢æˆ·è½¬ç§»è®°å½•(ç¦»èŒ/æ‰‹åŠ¨)';
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `biz_file`
+--
+
+DROP TABLE IF EXISTS `biz_file`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `biz_file` (
@@ -261,8 +372,14 @@ CREATE TABLE `biz_file` (
   KEY `idx_uploader_id` (`uploader_id`),
   KEY `idx_file_scope` (`file_scope`),
   KEY `idx_tenant` (`tenant_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=292 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='文件表';
+) ENGINE=InnoDB AUTO_INCREMENT=295 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='文件表';
 /*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `biz_file_folder`
+--
+
+DROP TABLE IF EXISTS `biz_file_folder`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `biz_file_folder` (
@@ -281,6 +398,12 @@ CREATE TABLE `biz_file_folder` (
   KEY `idx_tenant` (`tenant_id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=12 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='文件目录表';
 /*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `biz_file_permission`
+--
+
+DROP TABLE IF EXISTS `biz_file_permission`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `biz_file_permission` (
@@ -289,10 +412,18 @@ CREATE TABLE `biz_file_permission` (
   `can_upload` tinyint DEFAULT '0' COMMENT 'å…¬å…±ç›˜ä¸Šä¼ æƒé™',
   `can_delete` tinyint DEFAULT '0' COMMENT 'å…¬å…±ç›˜åˆ é™¤æƒé™',
   `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  `tenant_id` bigint NOT NULL DEFAULT '1' COMMENT 'é›†å›¢ID',
   PRIMARY KEY (`id`),
-  UNIQUE KEY `uk_user` (`user_id`)
+  UNIQUE KEY `uk_user` (`user_id`),
+  KEY `idx_tenant` (`tenant_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='æ–‡ä»¶ç®¡ç†æƒé™è¡¨';
 /*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `biz_file_share`
+--
+
+DROP TABLE IF EXISTS `biz_file_share`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `biz_file_share` (
@@ -301,10 +432,18 @@ CREATE TABLE `biz_file_share` (
   `shared_to_user_id` bigint NOT NULL,
   `shared_by_user_id` bigint DEFAULT NULL,
   `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  `tenant_id` bigint NOT NULL DEFAULT '1' COMMENT 'é›†å›¢ID',
   PRIMARY KEY (`id`),
-  UNIQUE KEY `uk_file_user` (`file_id`,`shared_to_user_id`)
+  UNIQUE KEY `uk_file_user` (`file_id`,`shared_to_user_id`),
+  KEY `idx_tenant` (`tenant_id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `biz_folder_acl`
+--
+
+DROP TABLE IF EXISTS `biz_folder_acl`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `biz_folder_acl` (
@@ -314,10 +453,18 @@ CREATE TABLE `biz_folder_acl` (
   `perms` varchar(128) COLLATE utf8mb4_general_ci NOT NULL COMMENT 'æƒé™åˆ—è¡¨,é€—å·åˆ†éš”:view,upload,edit,delete,share,download',
   `created_by` bigint DEFAULT NULL,
   `created_at` datetime DEFAULT NULL,
+  `tenant_id` bigint NOT NULL DEFAULT '1' COMMENT 'é›†å›¢ID',
   PRIMARY KEY (`id`),
-  UNIQUE KEY `uk_folder_role` (`folder_id`,`role_id`)
+  UNIQUE KEY `uk_folder_role` (`folder_id`,`role_id`),
+  KEY `idx_tenant` (`tenant_id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='æ–‡ä»¶å¤¹-è§’è‰²æŽˆæƒè¡¨';
 /*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `biz_incentive_category`
+--
+
+DROP TABLE IF EXISTS `biz_incentive_category`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `biz_incentive_category` (
@@ -330,9 +477,17 @@ CREATE TABLE `biz_incentive_category` (
   `status` tinyint DEFAULT '1',
   `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
   `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`)
+  `tenant_id` bigint NOT NULL DEFAULT '1' COMMENT 'é›†å›¢ID',
+  PRIMARY KEY (`id`),
+  KEY `idx_tenant` (`tenant_id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=50 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='激励分类配置';
 /*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `biz_incentive_permission`
+--
+
+DROP TABLE IF EXISTS `biz_incentive_permission`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `biz_incentive_permission` (
@@ -343,10 +498,18 @@ CREATE TABLE `biz_incentive_permission` (
   `can_view_all` tinyint NOT NULL DEFAULT '0' COMMENT '看全部激励(含未分享)独立开关',
   `can_view_shared` tinyint NOT NULL DEFAULT '1' COMMENT '查看已分享(默认1)',
   `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  `tenant_id` bigint NOT NULL DEFAULT '1' COMMENT 'é›†å›¢ID',
   PRIMARY KEY (`id`),
-  UNIQUE KEY `uk_user` (`user_id`)
+  UNIQUE KEY `uk_user` (`user_id`),
+  KEY `idx_tenant` (`tenant_id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=160 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='æ¿€åŠ±æƒé™è¡¨';
 /*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `biz_incentive_record`
+--
+
+DROP TABLE IF EXISTS `biz_incentive_record`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `biz_incentive_record` (
@@ -378,8 +541,14 @@ CREATE TABLE `biz_incentive_record` (
   KEY `idx_tenant` (`tenant_id`),
   KEY `fk_biz_incentive_record_customer` (`customer_id`),
   CONSTRAINT `fk_biz_incentive_record_customer` FOREIGN KEY (`customer_id`) REFERENCES `biz_customer` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=113 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='激励上传记录';
+) ENGINE=InnoDB AUTO_INCREMENT=119 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='激励上传记录';
 /*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `biz_invoice`
+--
+
+DROP TABLE IF EXISTS `biz_invoice`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `biz_invoice` (
@@ -396,11 +565,19 @@ CREATE TABLE `biz_invoice` (
   `invoice_company` varchar(200) DEFAULT NULL,
   `invoice_type` varchar(50) DEFAULT NULL,
   `created_by` bigint DEFAULT NULL,
+  `tenant_id` bigint NOT NULL DEFAULT '1' COMMENT 'é›†å›¢ID',
   PRIMARY KEY (`id`),
   KEY `fk_biz_invoice_customer` (`customer_id`),
+  KEY `idx_tenant` (`tenant_id`),
   CONSTRAINT `fk_biz_invoice_customer` FOREIGN KEY (`customer_id`) REFERENCES `biz_customer` (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=22 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `biz_payment`
+--
+
+DROP TABLE IF EXISTS `biz_payment`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `biz_payment` (
@@ -414,11 +591,19 @@ CREATE TABLE `biz_payment` (
   `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
   `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   `deleted` tinyint DEFAULT '0',
+  `tenant_id` bigint NOT NULL DEFAULT '1' COMMENT 'é›†å›¢ID',
   PRIMARY KEY (`id`),
   KEY `idx_customer_id` (`customer_id`),
+  KEY `idx_tenant` (`tenant_id`),
   CONSTRAINT `fk_biz_payment_customer` FOREIGN KEY (`customer_id`) REFERENCES `biz_customer` (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='回款记录';
 /*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `biz_reminder`
+--
+
+DROP TABLE IF EXISTS `biz_reminder`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `biz_reminder` (
@@ -439,8 +624,14 @@ CREATE TABLE `biz_reminder` (
   KEY `idx_status` (`status`),
   KEY `idx_tenant` (`tenant_id`),
   CONSTRAINT `fk_biz_reminder_customer` FOREIGN KEY (`customer_id`) REFERENCES `biz_customer` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=446 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='提醒记录表';
+) ENGINE=InnoDB AUTO_INCREMENT=451 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='提醒记录表';
 /*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `biz_score_entry`
+--
+
+DROP TABLE IF EXISTS `biz_score_entry`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `biz_score_entry` (
@@ -453,12 +644,20 @@ CREATE TABLE `biz_score_entry` (
   `deleted` tinyint DEFAULT '0',
   `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
   `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `tenant_id` bigint NOT NULL DEFAULT '1' COMMENT 'é›†å›¢ID',
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_period_item_user` (`period`,`item_id`,`user_id`),
   KEY `idx_period` (`period`),
-  KEY `idx_user_id` (`user_id`)
+  KEY `idx_user_id` (`user_id`),
+  KEY `idx_tenant` (`tenant_id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=95 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `biz_score_item`
+--
+
+DROP TABLE IF EXISTS `biz_score_item`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `biz_score_item` (
@@ -471,9 +670,17 @@ CREATE TABLE `biz_score_item` (
   `deleted` tinyint DEFAULT '0',
   `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
   `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`)
+  `tenant_id` bigint NOT NULL DEFAULT '1' COMMENT 'é›†å›¢ID',
+  PRIMARY KEY (`id`),
+  KEY `idx_tenant` (`tenant_id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=27 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `biz_score_participant`
+--
+
+DROP TABLE IF EXISTS `biz_score_participant`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `biz_score_participant` (
@@ -482,10 +689,18 @@ CREATE TABLE `biz_score_participant` (
   `user_id` bigint NOT NULL COMMENT 'å‚ä¸ŽåŒäº‹çš„ç”¨æˆ·ID',
   `sort_order` int DEFAULT '0' COMMENT 'åˆ—é¡ºåº',
   `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  `tenant_id` bigint NOT NULL DEFAULT '1' COMMENT 'é›†å›¢ID',
   PRIMARY KEY (`id`),
-  KEY `idx_period` (`period`)
+  KEY `idx_period` (`period`),
+  KEY `idx_tenant` (`tenant_id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=269 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='ç§¯åˆ†å½•å…¥å‘¨æœŸå‚ä¸ŽåŒäº‹åå•';
 /*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `biz_sea_config`
+--
+
+DROP TABLE IF EXISTS `biz_sea_config`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `biz_sea_config` (
@@ -502,9 +717,25 @@ CREATE TABLE `biz_sea_config` (
   `visible_dept_ids` varchar(500) DEFAULT NULL COMMENT '可见部门ID(逗号分隔,dept_type=4)',
   `visible_user_ids` varchar(500) DEFAULT NULL COMMENT '可见人员ID(逗号分隔)',
   `status` int DEFAULT '1',
-  PRIMARY KEY (`id`)
+  `edit_dept_ids` varchar(500) DEFAULT NULL COMMENT '编辑权限-授权组织',
+  `edit_user_ids` varchar(500) DEFAULT NULL COMMENT '编辑权限-授权人员',
+  `delete_dept_ids` varchar(500) DEFAULT NULL COMMENT '删除权限-授权组织',
+  `delete_user_ids` varchar(500) DEFAULT NULL COMMENT '删除权限-授权人员',
+  `import_dept_ids` varchar(500) DEFAULT NULL COMMENT '导入权限-授权组织',
+  `import_user_ids` varchar(500) DEFAULT NULL COMMENT '导入权限-授权人员',
+  `claim_dept_ids` varchar(500) DEFAULT NULL COMMENT '捞取权限-授权组织',
+  `claim_user_ids` varchar(500) DEFAULT NULL COMMENT '捞取权限-授权人员',
+  `tenant_id` bigint NOT NULL DEFAULT '1' COMMENT 'é›†å›¢ID',
+  PRIMARY KEY (`id`),
+  KEY `idx_tenant` (`tenant_id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=8 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `biz_sea_config_bak_0624`
+--
+
+DROP TABLE IF EXISTS `biz_sea_config_bak_0624`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `biz_sea_config_bak_0624` (
@@ -521,6 +752,12 @@ CREATE TABLE `biz_sea_config_bak_0624` (
   `status` int DEFAULT '1'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `biz_sea_config_bak_0629`
+--
+
+DROP TABLE IF EXISTS `biz_sea_config_bak_0629`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `biz_sea_config_bak_0629` (
@@ -537,6 +774,12 @@ CREATE TABLE `biz_sea_config_bak_0629` (
   `status` int DEFAULT '1'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `biz_sea_pool`
+--
+
+DROP TABLE IF EXISTS `biz_sea_pool`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `biz_sea_pool` (
@@ -556,8 +799,14 @@ CREATE TABLE `biz_sea_pool` (
   KEY `idx_customer_id` (`customer_id`),
   KEY `idx_status` (`status`),
   KEY `idx_tenant` (`tenant_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=162 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='公海池';
+) ENGINE=InnoDB AUTO_INCREMENT=163 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='公海池';
 /*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `biz_sea_pool_bak_0624`
+--
+
+DROP TABLE IF EXISTS `biz_sea_pool_bak_0624`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `biz_sea_pool_bak_0624` (
@@ -574,6 +823,12 @@ CREATE TABLE `biz_sea_pool_bak_0624` (
   `pool_id` bigint DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `biz_sea_pool_bak_poolid_0721`
+--
+
+DROP TABLE IF EXISTS `biz_sea_pool_bak_poolid_0721`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `biz_sea_pool_bak_poolid_0721` (
@@ -590,6 +845,35 @@ CREATE TABLE `biz_sea_pool_bak_poolid_0721` (
   `pool_id` bigint DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `role_perm_scope`
+--
+
+DROP TABLE IF EXISTS `role_perm_scope`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `role_perm_scope` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `role_code` varchar(50) COLLATE utf8mb4_general_ci NOT NULL COMMENT 'è§’è‰²ç¼–ç (sys_role.role_code)',
+  `module` varchar(50) COLLATE utf8mb4_general_ci NOT NULL COMMENT 'æ¨¡å—(å¦‚ customer/sea/file/incentive/approval/statistics/score/indicator/system)',
+  `action` varchar(50) COLLATE utf8mb4_general_ci NOT NULL COMMENT 'åŠ¨ä½œ(å¦‚ view/add/edit/delete/share/export/import/claim/approve/reject/config)',
+  `scope_level` varchar(20) COLLATE utf8mb4_general_ci NOT NULL DEFAULT 'self' COMMENT 'æ•°æ®èŒƒå›´: all/dept_and_children/dept/region/office/org/team/self',
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `assignee_type` varchar(10) COLLATE utf8mb4_general_ci NOT NULL DEFAULT 'ROLE' COMMENT 'ä¸»ä½“ç±»åž‹: ROLE/POSITION/USER',
+  `assignee_key` varchar(50) COLLATE utf8mb4_general_ci NOT NULL COMMENT 'ä¸»ä½“é”®: ROLE=è§’è‰²ç¼–ç  / POSITION=å²—ä½ID / USER=ç”¨æˆ·ID',
+  `anchor` varchar(10) COLLATE utf8mb4_general_ci NOT NULL DEFAULT 'OWNER' COMMENT 'èŒƒå›´é”šç‚¹: OWNER=æŒ‰è´Ÿè´£äºº / ORG=æŒ‰å®¢æˆ·å½’å±žç»„ç»‡(dept_id)',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_assignee_ma` (`assignee_type`,`assignee_key`,`module`,`action`,`anchor`)
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='è§’è‰²-æ¨¡å—-åŠ¨ä½œ æ•°æ®èŒƒå›´';
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `sys_config`
+--
+
+DROP TABLE IF EXISTS `sys_config`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `sys_config` (
@@ -602,6 +886,12 @@ CREATE TABLE `sys_config` (
   UNIQUE KEY `config_key` (`config_key`)
 ) ENGINE=InnoDB AUTO_INCREMENT=13 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='系统设置表';
 /*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `sys_dept`
+--
+
+DROP TABLE IF EXISTS `sys_dept`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `sys_dept` (
@@ -620,6 +910,12 @@ CREATE TABLE `sys_dept` (
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=47 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='组织架构表';
 /*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `sys_dict_data`
+--
+
+DROP TABLE IF EXISTS `sys_dict_data`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `sys_dict_data` (
@@ -634,6 +930,12 @@ CREATE TABLE `sys_dict_data` (
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=91 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `sys_dict_type`
+--
+
+DROP TABLE IF EXISTS `sys_dict_type`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `sys_dict_type` (
@@ -649,6 +951,12 @@ CREATE TABLE `sys_dict_type` (
   UNIQUE KEY `dict_code` (`dict_code`)
 ) ENGINE=InnoDB AUTO_INCREMENT=14 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `sys_group`
+--
+
+DROP TABLE IF EXISTS `sys_group`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `sys_group` (
@@ -664,6 +972,12 @@ CREATE TABLE `sys_group` (
   UNIQUE KEY `uk_group_code` (`group_code`)
 ) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='é›†å›¢è¡¨';
 /*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `sys_legal_entity`
+--
+
+DROP TABLE IF EXISTS `sys_legal_entity`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `sys_legal_entity` (
@@ -682,6 +996,12 @@ CREATE TABLE `sys_legal_entity` (
   KEY `idx_group_id` (`group_id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='æ³•äººå…¬å¸è¡¨';
 /*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `sys_log`
+--
+
+DROP TABLE IF EXISTS `sys_log`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `sys_log` (
@@ -698,8 +1018,14 @@ CREATE TABLE `sys_log` (
   PRIMARY KEY (`id`),
   KEY `idx_user_id` (`user_id`),
   KEY `idx_created_at` (`created_at`)
-) ENGINE=InnoDB AUTO_INCREMENT=4426 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='操作日志表';
+) ENGINE=InnoDB AUTO_INCREMENT=4583 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='操作日志表';
 /*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `sys_menu`
+--
+
+DROP TABLE IF EXISTS `sys_menu`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `sys_menu` (
@@ -718,6 +1044,12 @@ CREATE TABLE `sys_menu` (
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=120 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='菜单权限表';
 /*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `sys_org_admin`
+--
+
+DROP TABLE IF EXISTS `sys_org_admin`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `sys_org_admin` (
@@ -728,6 +1060,12 @@ CREATE TABLE `sys_org_admin` (
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `sys_permission_rule`
+--
+
+DROP TABLE IF EXISTS `sys_permission_rule`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `sys_permission_rule` (
@@ -751,6 +1089,12 @@ CREATE TABLE `sys_permission_rule` (
   KEY `idx_rule_type` (`rule_type`)
 ) ENGINE=InnoDB AUTO_INCREMENT=11 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='æƒé™è§„åˆ™è¡¨';
 /*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `sys_position`
+--
+
+DROP TABLE IF EXISTS `sys_position`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `sys_position` (
@@ -768,8 +1112,14 @@ CREATE TABLE `sys_position` (
   UNIQUE KEY `uk_code` (`code`),
   KEY `idx_org_id` (`org_id`),
   KEY `idx_position_group` (`group_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='å²—ä½è¡¨';
+) ENGINE=InnoDB AUTO_INCREMENT=8 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='å²—ä½è¡¨';
 /*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `sys_position_rule`
+--
+
+DROP TABLE IF EXISTS `sys_position_rule`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `sys_position_rule` (
@@ -782,6 +1132,12 @@ CREATE TABLE `sys_position_rule` (
   KEY `idx_rule_id` (`rule_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='å²—ä½-æƒé™è§„åˆ™å…³è”è¡¨';
 /*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `sys_role`
+--
+
+DROP TABLE IF EXISTS `sys_role`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `sys_role` (
@@ -801,6 +1157,12 @@ CREATE TABLE `sys_role` (
   KEY `idx_role_group` (`group_id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=12 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='角色表';
 /*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `sys_role_bak_20260808`
+--
+
+DROP TABLE IF EXISTS `sys_role_bak_20260808`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `sys_role_bak_20260808` (
@@ -817,6 +1179,12 @@ CREATE TABLE `sys_role_bak_20260808` (
   `org_id` bigint DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `sys_role_menu`
+--
+
+DROP TABLE IF EXISTS `sys_role_menu`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `sys_role_menu` (
@@ -825,8 +1193,14 @@ CREATE TABLE `sys_role_menu` (
   `menu_id` bigint NOT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_role_menu` (`role_id`,`menu_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=3012 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='角色菜单关联表';
+) ENGINE=InnoDB AUTO_INCREMENT=3097 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='角色菜单关联表';
 /*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `sys_role_org`
+--
+
+DROP TABLE IF EXISTS `sys_role_org`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `sys_role_org` (
@@ -839,6 +1213,12 @@ CREATE TABLE `sys_role_org` (
   KEY `idx_org_id` (`org_id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='è§’è‰²-ç»„ç»‡å…³è”è¡¨';
 /*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `sys_role_org_bak_20260808`
+--
+
+DROP TABLE IF EXISTS `sys_role_org_bak_20260808`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `sys_role_org_bak_20260808` (
@@ -848,6 +1228,12 @@ CREATE TABLE `sys_role_org_bak_20260808` (
   `include_children` tinyint DEFAULT '0'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `sys_role_rule`
+--
+
+DROP TABLE IF EXISTS `sys_role_rule`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `sys_role_rule` (
@@ -860,6 +1246,12 @@ CREATE TABLE `sys_role_rule` (
   KEY `idx_rule_id` (`rule_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='è§’è‰²-æƒé™è§„åˆ™å…³è”è¡¨';
 /*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `sys_user`
+--
+
+DROP TABLE IF EXISTS `sys_user`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `sys_user` (
@@ -890,6 +1282,12 @@ CREATE TABLE `sys_user` (
   KEY `idx_office_id` (`office_id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=72 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='用户表';
 /*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `sys_user_archive`
+--
+
+DROP TABLE IF EXISTS `sys_user_archive`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `sys_user_archive` (
@@ -914,6 +1312,12 @@ CREATE TABLE `sys_user_archive` (
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `sys_user_bak_wll_0721`
+--
+
+DROP TABLE IF EXISTS `sys_user_bak_wll_0721`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `sys_user_bak_wll_0721` (
@@ -934,6 +1338,12 @@ CREATE TABLE `sys_user_bak_wll_0721` (
   `deleted` tinyint DEFAULT '0'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `sys_user_org`
+--
+
+DROP TABLE IF EXISTS `sys_user_org`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `sys_user_org` (
@@ -945,6 +1355,12 @@ CREATE TABLE `sys_user_org` (
   KEY `idx_user` (`user_id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=9 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='ç”¨æˆ·çº§è‡ªå®šä¹‰æŽˆæƒç»„ç»‡';
 /*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `sys_user_position`
+--
+
+DROP TABLE IF EXISTS `sys_user_position`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `sys_user_position` (
@@ -959,6 +1375,12 @@ CREATE TABLE `sys_user_position` (
   KEY `idx_position_id` (`position_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='ç”¨æˆ·-å²—ä½å…³è”è¡¨';
 /*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `sys_user_role`
+--
+
+DROP TABLE IF EXISTS `sys_user_role`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `sys_user_role` (
@@ -969,3 +1391,14 @@ CREATE TABLE `sys_user_role` (
   UNIQUE KEY `uk_user_role` (`user_id`,`role_id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=260 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='用户角色关联表';
 /*!40101 SET character_set_client = @saved_cs_client */;
+/*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
+
+/*!40101 SET SQL_MODE=@OLD_SQL_MODE */;
+/*!40014 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS */;
+/*!40014 SET UNIQUE_CHECKS=@OLD_UNIQUE_CHECKS */;
+/*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
+/*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;
+/*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
+/*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
+
+-- Dump completed on 2026-08-11 10:27:55
