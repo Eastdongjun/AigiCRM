@@ -13,8 +13,6 @@ import com.ycmn.module.sea.entity.BizSeaConfig;
 import com.ycmn.module.sea.entity.BizSeaPool;
 import com.ycmn.module.sea.mapper.BizSeaConfigMapper;
 import com.ycmn.module.sea.mapper.BizSeaPoolMapper;
-import com.ycmn.module.system.entity.SysDept;
-import com.ycmn.module.system.entity.SysUser;
 import com.ycmn.module.system.mapper.SysDeptMapper;
 import com.ycmn.module.system.mapper.SysUserMapper;
 import com.ycmn.security.SecurityUser;

@@ -451,7 +451,6 @@ public class CustomerService {
     }
 
     /** 根据自动共享规则扩展可见的 owner ID */
-    @SuppressWarnings("unchecked")
     private List<Long> getAutoShareOwnerIds() {
         Map<String, Object> cfg = getAutoShareConfig();
         if (cfg.isEmpty()) return java.util.Collections.emptyList();

@@ -1,11 +1,9 @@
 package com.ycmn.security;
 
-import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 import com.ycmn.common.BusinessException;
 import com.ycmn.common.scope.OrgScopeResolver;
-import com.ycmn.module.system.entity.SysDept;
 import com.ycmn.module.system.entity.SysRoleOrg;
 import com.ycmn.module.system.mapper.SysDeptMapper;
 import com.ycmn.module.system.mapper.SysRoleOrgMapper;

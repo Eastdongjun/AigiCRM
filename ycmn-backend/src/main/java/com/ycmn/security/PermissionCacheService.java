@@ -41,7 +41,6 @@ public class PermissionCacheService {
     private final SysUserPositionMapper userPositionMapper;
 
     /** 读取缓存上下文；未命中返回 null（调用方回源构建） */
-    @SuppressWarnings("unchecked")
     public PermissionContext get(Long userId) {
         if (userId == null) return null;
         try {

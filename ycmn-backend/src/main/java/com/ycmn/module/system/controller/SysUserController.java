@@ -9,12 +9,9 @@ import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.ycmn.common.Result;
 import com.ycmn.module.system.entity.SysUser;
 import com.ycmn.module.system.service.SysUserService;
-import com.ycmn.security.SecurityUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.Map;
 
 @RestController
 @RequestMapping("/api/system/users")

@@ -1,7 +1,6 @@
 package com.ycmn.config;
 
 import com.ycmn.module.system.service.SysLogService;
-import com.ycmn.security.SecurityUtils;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

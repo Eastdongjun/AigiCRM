@@ -2,7 +2,6 @@ package com.ycmn.common.engine;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.ycmn.common.BusinessException;
-import com.ycmn.common.enums.DataScopeType;
 import com.ycmn.common.scope.OrgScopeResolver;
 import com.ycmn.module.customer.entity.BizCustomer;
 import com.ycmn.module.customer.entity.BizCustomerShare;
