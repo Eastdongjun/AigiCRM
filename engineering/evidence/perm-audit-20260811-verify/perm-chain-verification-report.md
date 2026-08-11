@@ -185,6 +185,15 @@ saveRoleMenus 祖先闭包(SysRoleService.java:208-229)
 - **生产 UI 实测（admin 经 HEALTH_CHECK 账号登录）**：销售总监 63、销售员 37、系统管理员 74、行政 44——全部精确等于实际绑定，P0 深传播在生产消除，0 控制台错误 ✓
 - deploy.log 已记录。
 
+## 八之四、P2 数据范围接线（2026-08-11 同日，commit 5e4321c）
+
+用户确认"处理 P2"。三项数据范围修复：
+- **P2-1** OrgScopeResolver.scopeCodes 接入 scopeConfigs（role_perm_scope.scope_level）——精确匹配优先于通配，USER>POSITION>ROLE 装载序；未配置回退 dataScope。**权限范围管理器配置的范围从此真正生效**。生产配置与 data_scope 完全一致，接入后行为不变（验证：admin 248/NM005 12 与预期吻合）。
+- **P2-2** biz_customer.dept_id 落库——create/update(admin转交)/transferAllCustomers 三处同步负责人部门。生产存量 575 客户已回填（无空值，1 条测试客户不一致已核对无害）。
+- **P2-3** 统计锚点改读 anchorOf(statistics,view)，与列表同源。
+
+验证：后端全量 350/350 全绿（新增 6 测试）；测试服实测 admin 249/TY005 18；生产实测 admin 248/NM005 12。生产部署 commit=5e4321c，jar md5 17258248，deploy.log 已记录。
+
 ## 八、测试环境操作记录（透明声明）
 
 审计过程中对测试服(111.229.37.220)做了以下操作，均已回滚/清理：
