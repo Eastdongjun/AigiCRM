@@ -105,6 +105,11 @@
 
     <!-- 权限分配对话框 -->
     <el-dialog v-model="permDialogVisible" title="权限分配" width="500px">
+      <!-- 【安全 2026-08-11 P0 修复】check-strictly：关闭父子级联深传播。
+           此前默认级联+default-checked-keys 含目录行(menu_type=1, 祖先闭包写入)
+           时，打开弹窗即把目录下全部后代勾选(Playwright 实测销售员 37 绑定显示 76)，
+           点"保存权限"即授予几乎全部权限。check-strictly 使回显精确=role_menu 实际绑定，
+           勾选/取消均只影响自身节点，杜绝"打开即全选、保存即全量授权"。 -->
       <el-tree
         ref="menuTreeRef"
         :data="menuTree"
@@ -112,6 +117,7 @@
         show-checkbox
         node-key="id"
         default-expand-all
+        check-strictly
         :default-checked-keys="checkedMenuIds"
       />
       <template #footer>
@@ -243,6 +249,23 @@ const handleDelete = async (row) => {
   } catch (e) {}
 }
 
+/** 收集被勾选节点的完整祖先链 id——保证父菜单(menu_type=2 权限载体)与目录行(menu_type=1 锚点)一并入库，
+ *  避免"勾选子菜单未勾父分组"导致权限生效但菜单不显示(孤儿菜单，P1-10 修复语义)。
+ *  与后端 saveRoleMenus 祖先闭包、usePermissionData.collectAncestors 对齐。 */
+const collectDirAncestors = (menuId, nodes = menuTree.value) => {
+  const ancestorIds = []
+  const walk = (list, path) => {
+    for (const n of list) {
+      const cur = [...path, n]
+      if (n.id === menuId) { cur.slice(0, -1).forEach(x => ancestorIds.push(x.id)); return true }
+      if (n.children && walk(n.children, cur)) return true
+    }
+    return false
+  }
+  walk(nodes, [])
+  return ancestorIds
+}
+
 const openPermDialog = async (row) => {
   currentRoleId.value = row.id
   try {
@@ -254,17 +277,28 @@ const openPermDialog = async (row) => {
     menuTree.value = res.data || []
   } catch (e) {}
   permDialogVisible.value = true
+  // 显式按实际绑定勾选(等渲染后)——default-checked-keys 仅首次挂载生效，多次打开需重建
+  requestAnimationFrame(() => {
+    menuTreeRef.value?.setCheckedKeys(checkedMenuIds.value)
+  })
 }
 
 const handleSavePerm = async () => {
+  // check-strictly 模式下 getCheckedKeys 返回用户实际勾选的节点(精确，无深传播)。
+  // 提交前补全祖先链(父菜单 menu_type=2 权限载体 + 目录行 menu_type=1 锚点)：
+  //   父菜单是子页/按钮的页面级权限载体，不补则"权限生效但菜单不显示"(孤儿菜单)；
+  //   目录行无权限码，是菜单树显示锚点。后端 saveRoleMenus 闭包与这里双保险。
   const checkedKeys = menuTreeRef.value.getCheckedKeys()
-  const halfCheckedKeys = menuTreeRef.value.getHalfCheckedKeys()
-  const menuIds = [...checkedKeys, ...halfCheckedKeys]
+  const ancestorIds = new Set()
+  for (const mid of checkedKeys) {
+    collectDirAncestors(mid).forEach(id => ancestorIds.add(id))
+  }
+  const menuIds = [...new Set([...checkedKeys, ...ancestorIds])]
   try {
     await updateRole(currentRoleId.value, { menuIds })
     ElMessage.success('权限保存成功')
     permDialogVisible.value = false
-  } catch (e) {}
+  } catch (e) { ElMessage.error('权限保存失败') }
 }
 
 onMounted(() => {

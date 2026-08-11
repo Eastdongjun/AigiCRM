@@ -93,10 +93,11 @@ public class ApprovalConfigService {
                     return ids.stream().map(Long::valueOf).toList();
                 case "ROLE": {
                     // 通过 sys_user_role 关联表找用户(单条 JOIN 查询,消除"全量用户+逐用户查角色"的 N+1 全表扫描)
+                    // 【安全 2026-08-11 P1 关联修复】过滤 sys_role.status=1, 停用角色不产生审批人
                     java.util.Set<Long> uids = new java.util.LinkedHashSet<>();
                     for (Integer rid : ids) {
                         try {
-                            List<Long> matched = roleMapper.selectUserIdsByRoleId(rid.longValue());
+                            List<Long> matched = roleMapper.selectActiveUserIdsByRoleId(rid.longValue());
                             if (matched != null) uids.addAll(matched);
                         } catch (Exception e) {
                             log.warn("解析审批人 ROLE 失败 roleId={}: {}", rid, e.getMessage());

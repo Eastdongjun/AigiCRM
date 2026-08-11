@@ -46,7 +46,9 @@
                     <span class="ps-action">{{ actionOf(item.permission) }}</span>
                   </td>
                   <td v-for="col in matrixCols" :key="col.key" class="ps-cell">
-                    <el-checkbox :model-value="hasPerm(col, item)" @change="() => togglePerm(col, item)" />
+                    <el-checkbox :model-value="col.isRole ? hasPerm(col.role, item) : false"
+                                 :disabled="!col.isRole"
+                                 @change="() => col.isRole && togglePerm(col.role, item)" />
                     <el-select :model-value="scopeOf(col, item)" size="small" style="width:92px"
                                @change="(s) => saveScope(col, item, s)">
                       <el-option v-for="o in scopeOptions" :key="o.value" :label="o.label" :value="o.value" />
@@ -106,10 +108,13 @@ const users = ref([])
 const scopeMap = ref({})
 
 const matrixCols = computed(() => {
-  if (assigneeMode.value === 'ROLE') return allRoles.value.map(r => ({ key: `ROLE:${r.roleCode}`, label: r.roleName }))
+  // 【修复 2026-08-11 P1】ROLE 模式携带完整角色对象(含 .id)：hasPerm/togglePerm 依赖 rolePermMap[role.id]，
+  // 此前 col 仅 {key,label} 无 .id，功能勾选列恒 false、点击无反应。POSITION/USER 无 RBAC 功能权限，
+  // 功能列禁用(仅范围/锚点可配)。
+  if (assigneeMode.value === 'ROLE') return allRoles.value.map(r => ({ key: `ROLE:${r.roleCode}`, label: r.roleName, role: r, isRole: true }))
   if (!selectedKey.value) return []
   const opt = assigneeOptions.value.find(o => o.key === selectedKey.value)
-  return [{ key: `${assigneeMode.value}:${selectedKey.value}`, label: opt?.label || selectedKey.value }]
+  return [{ key: `${assigneeMode.value}:${selectedKey.value}`, label: opt?.label || selectedKey.value, isRole: false }]
 })
 
 const actionOf = (permission) => (permission || '').split(':')[1] || ''

@@ -8,11 +8,19 @@ import java.util.List;
 
 public interface SysRoleMapper extends BaseMapper<SysRole> {
 
-    @Select("SELECT r.* FROM sys_role r JOIN sys_user_role ur ON r.id = ur.role_id WHERE ur.user_id = #{userId}")
+    @Select("SELECT r.* FROM sys_role r JOIN sys_user_role ur ON r.id = ur.role_id " +
+            "WHERE ur.user_id = #{userId} AND r.status = 1")
     List<SysRole> selectRolesByUserId(@Param("userId") Long userId);
 
-    /** 按角色查启用用户 id（审批 ROLE 审批人解析用；JOIN 单查，避免全表扫描+N+1） */
+    /** 按角色查启用用户 id（权限缓存 evictByRole 反查用——不过滤角色状态，停用角色的用户也要 evict） */
     @Select("SELECT u.id FROM sys_user u INNER JOIN sys_user_role ur ON ur.user_id = u.id " +
             "WHERE ur.role_id = #{roleId} AND u.status = 1 AND u.deleted = 0")
     List<Long> selectUserIdsByRoleId(@Param("roleId") Long roleId);
+
+    /** 【安全 2026-08-11 P1 关联修复】按角色查启用用户 id（审批 ROLE 审批人解析用），
+     *  过滤 sys_role.status=1——停用角色不再产生审批人，避免"停用角色即失效"语义在审批链未闭环 */
+    @Select("SELECT u.id FROM sys_user u INNER JOIN sys_user_role ur ON ur.user_id = u.id " +
+            "INNER JOIN sys_role r ON ur.role_id = r.id AND r.status = 1 " +
+            "WHERE ur.role_id = #{roleId} AND u.status = 1 AND u.deleted = 0")
+    List<Long> selectActiveUserIdsByRoleId(@Param("roleId") Long roleId);
 }

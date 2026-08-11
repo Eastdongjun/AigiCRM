@@ -379,4 +379,135 @@ class SysRoleServiceTest {
             service.create(role); // 不应抛异常
         }
     }
+
+    // ===== 安全 2026-08-11：祖先闭包补入的父菜单权限码必须过权限子集校验（P1 提权旁路） =====
+
+    /**
+     * 非超管提交"只含子菜单"的请求时，闭包会把带权限码的父菜单(menu_type=2)补入 role_menu；
+     * 调用者【持有子权限但缺父权限】时，闭包补入的父菜单权限码必须被拦截
+     * （此前闭包集合绕过 validateGrantableRole 的"授予权限须为自身权限子集"约束静默入库）。
+     * 本测试精确构造"子权限在调用者权限集、父权限不在"的场景——若闭包注入父权限，
+     * 校验必然抛异常；若闭包被删除/回退为旧"注入父权限"版本，本测试同样拦截（防止提权旁路复发）。
+     */
+    @Test
+    void create_ancestorClosureInjectsParentPerm_rejectedForNonAdmin() {
+        SysRoleMapper roleMapper = mock(SysRoleMapper.class);
+        SysMenuMapper menuMapper = mock(SysMenuMapper.class);
+        SysRoleService service = new SysRoleService(
+                roleMapper,
+                mock(SysRoleMenuMapper.class),
+                menuMapper,
+                mock(SysRoleOrgMapper.class),
+                mock(com.ycmn.security.PermissionCacheService.class),
+                mock(com.ycmn.module.system.service.RolePermScopeService.class),
+                mock(com.ycmn.module.system.mapper.SysUserRoleMapper.class),
+                mock(org.springframework.jdbc.core.JdbcTemplate.class));
+
+        // 菜单树: 13(客户详情) -> 11(客户管理, customer:view) -> 10(业务核心目录)
+        com.ycmn.module.system.entity.SysMenu m13 = new com.ycmn.module.system.entity.SysMenu();
+        m13.setId(13L); m13.setParentId(11L); m13.setMenuType(2); m13.setPermission("customer:detail:view");
+        com.ycmn.module.system.entity.SysMenu m11 = new com.ycmn.module.system.entity.SysMenu();
+        m11.setId(11L); m11.setParentId(10L); m11.setMenuType(2); m11.setPermission("customer:view");
+        when(menuMapper.selectById(13L)).thenReturn(m13);
+        when(menuMapper.selectById(11L)).thenReturn(m11);
+        when(menuMapper.selectBatchIds(any())).thenReturn(List.of(m13)); // validateGrantableRole 校验提交集合
+
+        SysRole role = new SysRole();
+        role.setRoleCode("sales");
+        role.setDataScope("self");
+        role.setGroupId(1L);
+        role.setMenuIds(List.of(13L)); // 只提交子菜单(调用者持有 customer:detail:view)
+
+        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
+            m.when(SecurityUtils::isAdmin).thenReturn(false);
+            m.when(SecurityUtils::getCurrentDataScope).thenReturn("self");
+            m.when(SecurityUtils::getCurrentGroupIds).thenReturn(List.of(1L));
+            // 调用者持有子权限 customer:detail:view，但缺父权限 customer:view
+            com.ycmn.security.SecurityUser caller = new com.ycmn.security.SecurityUser();
+            caller.setPermissions(new java.util.HashSet<>(java.util.Set.of("customer:detail:view")));
+            m.when(SecurityUtils::getCurrentUser).thenReturn(caller);
+
+            assertThrows(BusinessException.class, () -> service.create(role),
+                    "非超管经闭包补入自身不具备的父菜单权限码(customer:view)应被拒绝");
+        }
+    }
+
+    /** 非超管提交的子菜单权限码已在调用者权限集内时，闭包补入的父权限也在集内 → 放行 */
+    @Test
+    void create_ancestorClosureInjectsParentPerm_allowedWhenParentInCallerSubset() {
+        SysRoleMapper roleMapper = mock(SysRoleMapper.class);
+        SysMenuMapper menuMapper = mock(SysMenuMapper.class);
+        SysRoleService service = new SysRoleService(
+                roleMapper,
+                mock(SysRoleMenuMapper.class),
+                menuMapper,
+                mock(SysRoleOrgMapper.class),
+                mock(com.ycmn.security.PermissionCacheService.class),
+                mock(com.ycmn.module.system.service.RolePermScopeService.class),
+                mock(com.ycmn.module.system.mapper.SysUserRoleMapper.class),
+                mock(org.springframework.jdbc.core.JdbcTemplate.class));
+
+        com.ycmn.module.system.entity.SysMenu m13 = new com.ycmn.module.system.entity.SysMenu();
+        m13.setId(13L); m13.setParentId(11L); m13.setMenuType(2); m13.setPermission("customer:detail:view");
+        com.ycmn.module.system.entity.SysMenu m11 = new com.ycmn.module.system.entity.SysMenu();
+        m11.setId(11L); m11.setParentId(10L); m11.setMenuType(2); m11.setPermission("customer:view");
+        when(menuMapper.selectById(13L)).thenReturn(m13);
+        when(menuMapper.selectById(11L)).thenReturn(m11);
+        when(menuMapper.selectBatchIds(any())).thenReturn(List.of(m13));
+
+        SysRole role = new SysRole();
+        role.setRoleCode("sales");
+        role.setDataScope("self");
+        role.setGroupId(1L);
+        role.setMenuIds(List.of(13L));
+
+        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
+            m.when(SecurityUtils::isAdmin).thenReturn(false);
+            m.when(SecurityUtils::getCurrentDataScope).thenReturn("self");
+            m.when(SecurityUtils::getCurrentGroupIds).thenReturn(List.of(1L));
+            // 调用者同时持有子/父权限 → 闭包补入的父权限在子集内，放行
+            com.ycmn.security.SecurityUser caller = new com.ycmn.security.SecurityUser();
+            caller.setPermissions(new java.util.HashSet<>(java.util.Set.of("customer:detail:view", "customer:view")));
+            m.when(SecurityUtils::getCurrentUser).thenReturn(caller);
+
+            service.create(role); // 不应抛异常
+            verify(roleMapper).insert(role);
+        }
+    }
+
+    /** 超管创建角色时闭包补入父菜单权限码不拦截（admin 恒放行） */
+    @Test
+    void create_ancestorClosureInjectsParentPerm_allowedForAdmin() {
+        SysRoleMapper roleMapper = mock(SysRoleMapper.class);
+        SysMenuMapper menuMapper = mock(SysMenuMapper.class);
+        SysRoleService service = new SysRoleService(
+                roleMapper,
+                mock(SysRoleMenuMapper.class),
+                menuMapper,
+                mock(SysRoleOrgMapper.class),
+                mock(com.ycmn.security.PermissionCacheService.class),
+                mock(com.ycmn.module.system.service.RolePermScopeService.class),
+                mock(com.ycmn.module.system.mapper.SysUserRoleMapper.class),
+                mock(org.springframework.jdbc.core.JdbcTemplate.class));
+
+        com.ycmn.module.system.entity.SysMenu m13 = new com.ycmn.module.system.entity.SysMenu();
+        m13.setId(13L); m13.setParentId(11L); m13.setMenuType(2); m13.setPermission("customer:detail:view");
+        com.ycmn.module.system.entity.SysMenu m11 = new com.ycmn.module.system.entity.SysMenu();
+        m11.setId(11L); m11.setParentId(10L); m11.setMenuType(2); m11.setPermission("customer:view");
+        when(menuMapper.selectById(13L)).thenReturn(m13);
+        when(menuMapper.selectById(11L)).thenReturn(m11);
+        when(menuMapper.selectBatchIds(any())).thenReturn(List.of(m13));
+
+        SysRole role = new SysRole();
+        role.setRoleCode("sales");
+        role.setDataScope("self");
+        role.setGroupId(1L);
+        role.setMenuIds(List.of(13L));
+
+        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
+            m.when(SecurityUtils::isAdmin).thenReturn(true);
+            service.create(role); // admin 不拦截
+            verify(roleMapper).insert(role);
+        }
+    }
 }

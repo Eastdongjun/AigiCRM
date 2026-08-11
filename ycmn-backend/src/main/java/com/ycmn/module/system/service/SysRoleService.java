@@ -205,10 +205,21 @@ public class SysRoleService {
         permissionCacheService.evictByRole(id);
     }
 
+    /**
+     * 保存角色-菜单绑定(含祖先闭包)。
+     *
+     * 【修复 2026-08-10 P1-10】祖先闭包: 勾选子菜单未勾父分组时, 权限生效但菜单不显示(孤儿菜单)。
+     * 保存时把每个选中节点的父链一并补入(menu_type=1 目录行锚点 + menu_type=2 父菜单权限载体),
+     * 根治"权限有但菜单消失"。
+     *
+     * 【安全 2026-08-11 P0/P1 修复】
+     * 1) 前端 role.vue 已加 check-strictly(回显精确, 杜绝"打开即全选、保存即全量授权");
+     * 2) 闭包补入的父链集合**同样经过 validateGrantableRole 的权限子集校验**——
+     *    此前校验只覆盖提交集合, 非超管构造"只含子节点"的请求会经闭包静默获得父菜单权限码(提权旁路)。
+     *    这里在闭包展开后对非超管重新校验 expanded 集合, 父链中被静默补入的权限码也会被拦截。
+     */
     private void saveRoleMenus(Long roleId, List<Long> menuIds) {
         if (menuIds == null || menuIds.isEmpty()) return;
-        // 【修复 2026-08-10 P1-10】祖先闭包: 勾选子菜单未勾父分组时, 权限生效但菜单不显示(孤儿菜单)。
-        // 保存时把每个选中节点的父链一并补入, 根治"权限有但菜单消失"与矩阵页系统性复现。
         java.util.Set<Long> expanded = new java.util.LinkedHashSet<>(menuIds);
         for (Long menuId : menuIds) {
             Long cur = menuId;
@@ -218,6 +229,19 @@ public class SysRoleService {
                 if (m == null || m.getParentId() == null || m.getParentId() == 0L) break;
                 if (!expanded.add(m.getParentId())) break; // 已包含则父链已完整
                 cur = m.getParentId();
+            }
+        }
+        // 【安全 2026-08-11】闭包后的集合也要过权限子集校验(非超管):
+        // 防止闭包补入的父菜单权限码绕过 validateGrantableRole 的"授予权限必须是自身权限子集"约束。
+        if (!SecurityUtils.isAdmin()) {
+            Set<String> callerPerms = SecurityUtils.getCurrentUser() != null
+                    ? SecurityUtils.getCurrentUser().getPermissions() : Set.of();
+            for (Long menuId : expanded) {
+                com.ycmn.module.system.entity.SysMenu m = menuMapper.selectById(menuId);
+                if (m != null && m.getPermission() != null && !m.getPermission().isBlank()
+                        && !callerPerms.contains(m.getPermission())) {
+                    throw new BusinessException("无权授予权限: " + m.getPermission());
+                }
             }
         }
         for (Long menuId : expanded) {
