@@ -292,7 +292,7 @@ class FileServicePermissionTest {
         Page<BizFile> p = new Page<>(1, 10, 1);
         p.setRecords(List.of(f));
         when(fileMapper.selectPage(any(), any())).thenReturn(p);
-        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
+        try (@SuppressWarnings("unused") MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
             IPage<BizFile> result = svc.pageFiles(1, 10, 100L, "private", null, 2L);
             assertEquals(1, result.getTotal());
             assertEquals(9L, result.getRecords().get(0).getUploaderId());
