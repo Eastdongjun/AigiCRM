@@ -139,13 +139,52 @@ public class OrgScopeResolver {
         return d.canAccessOwner(ownerId);
     }
 
-    /** 范围 code 列表: 批② 直接取 SecurityUser.dataScopes(配置层批③替换为 scopeConfigs) */
+    /**
+     * 范围 code 列表: 批② 直接取 SecurityUser.dataScopes(配置层批③替换为 scopeConfigs)。
+     *
+     * 【安全 2026-08-11 P2 修复】接入 role_perm_scope.scope_level——优先读登录时装载的
+     * scopeConfigs(内存, 无热路径 DB): 匹配 (module, action) 的显式配置(精确优先于通配 `*`),
+     * 按 USER>POSITION>ROLE 装载顺序取首个匹配; 无匹配时回退 dataScopes/dataScope(角色 data_scope)。
+     * 使权限范围管理器(PermScopeManager)配置的范围真正参与运行时数据范围解析。
+     */
     private List<String> scopeCodes(ScopeRequest req) {
         SecurityUser user = req.getUser();
+        List<String> configured = configuredScopeCodes(req);
+        if (!configured.isEmpty()) {
+            return configured;
+        }
         if (user.getDataScopes() != null && user.getDataScopes().size() > 1) {
             return user.getDataScopes();
         }
         return List.of(user.getDataScope() != null ? user.getDataScope() : "self");
+    }
+
+    /** 从内存 scopeConfigs 匹配 (module,action) 的范围 code 列表(精确>通配; USER>POSITION>ROLE 装载序) */
+    private List<String> configuredScopeCodes(ScopeRequest req) {
+        SecurityUser user = req.getUser();
+        if (user == null || user.getScopeConfigs() == null || user.getScopeConfigs().isEmpty()) {
+            return List.of();
+        }
+        String module = req.getModule() != null ? req.getModule() : "";
+        String action = req.getAction() != null ? req.getAction() : "";
+        List<String> exact = new ArrayList<>();
+        List<String> wildcard = new ArrayList<>();
+        for (com.ycmn.common.scope.ScopeConfig c : user.getScopeConfigs()) {
+            String cMod = c.getModule() != null ? c.getModule() : "";
+            String cAct = c.getAction() != null ? c.getAction() : "";
+            boolean moduleMatch = cMod.equals(module) || "*".equals(cMod);
+            boolean actionMatch = cAct.equals(action) || "*".equals(cAct);
+            if (!moduleMatch || !actionMatch) continue;
+            if (c.getScopeLevel() == null || c.getScopeLevel().isBlank()) continue;
+            if (cMod.equals(module) && cAct.equals(action)) {
+                exact.add(c.getScopeLevel());
+            } else {
+                wildcard.add(c.getScopeLevel());
+            }
+        }
+        // 精确匹配优先(如 dashboard view 覆盖 * *); 否则通配; 均取装载序(USER 在前)首个语义
+        if (!exact.isEmpty()) return exact;
+        return wildcard;
     }
 
     /**

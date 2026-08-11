@@ -511,4 +511,103 @@ class CustomerServiceTest {
             assertEquals(List.of(10L, 11L), svc.getCurrentScopeUserIds());
         }
     }
+
+    // ===== P2-2: 客户 dept_id 落库同步（2026-08-11） =====
+
+    /** create 时按负责人(owner)部门同步 dept_id——ORG 锚点数据范围可用 */
+    @Test
+    void create_syncsDeptIdFromOwner() {
+        BizCustomerMapper customerMapper = mock(BizCustomerMapper.class);
+        SysUserMapper userMapper = mock(SysUserMapper.class);
+        SysUser owner = new SysUser();
+        owner.setId(100L); owner.setDeptId(7L);
+        when(userMapper.selectById(100L)).thenReturn(owner);
+
+        CustomerService svc = new CustomerService(
+                customerMapper, mock(BizCustomerLogMapper.class), mock(BizInvoiceMapper.class),
+                mock(BizCustomerShareMapper.class), mock(BizCustomerIndicatorMapper.class),
+                mock(BizContactMapper.class), mock(BizPaymentMapper.class),
+                userMapper, mock(SysDeptMapper.class), mock(BizReminderMapper.class),
+                mock(JdbcTemplate.class), mock(SysConfigService.class),
+                mock(OrgScopeResolver.class), mock(CustomerAccessService.class),
+                mock(com.ycmn.module.system.service.RolePermScopeService.class));
+        BizCustomer req = new BizCustomer();
+        try (MockedStatic<SecurityUtils> ms = mockStatic(SecurityUtils.class)) {
+            ms.when(SecurityUtils::isAdmin).thenReturn(false);
+            ms.when(SecurityUtils::getCurrentUserId).thenReturn(100L);
+            svc.create(req);
+        }
+        ArgumentCaptor<BizCustomer> captor = ArgumentCaptor.forClass(BizCustomer.class);
+        verify(customerMapper).insert(captor.capture());
+        assertEquals(100L, captor.getValue().getOwnerId());
+        assertEquals(7L, captor.getValue().getDeptId(), "create 必须同步负责人部门到 dept_id");
+    }
+
+    /** 负责人部门缺失时不阻断创建(ORG 分支降级, 安全性不劣化) */
+    @Test
+    void create_ownerWithoutDept_keepsNullDept() {
+        BizCustomerMapper customerMapper = mock(BizCustomerMapper.class);
+        SysUserMapper userMapper = mock(SysUserMapper.class);
+        SysUser owner = new SysUser();
+        owner.setId(100L); owner.setDeptId(null);
+        when(userMapper.selectById(100L)).thenReturn(owner);
+
+        CustomerService svc = new CustomerService(
+                customerMapper, mock(BizCustomerLogMapper.class), mock(BizInvoiceMapper.class),
+                mock(BizCustomerShareMapper.class), mock(BizCustomerIndicatorMapper.class),
+                mock(BizContactMapper.class), mock(BizPaymentMapper.class),
+                userMapper, mock(SysDeptMapper.class), mock(BizReminderMapper.class),
+                mock(JdbcTemplate.class), mock(SysConfigService.class),
+                mock(OrgScopeResolver.class), mock(CustomerAccessService.class),
+                mock(com.ycmn.module.system.service.RolePermScopeService.class));
+        BizCustomer req = new BizCustomer();
+        try (MockedStatic<SecurityUtils> ms = mockStatic(SecurityUtils.class)) {
+            ms.when(SecurityUtils::isAdmin).thenReturn(false);
+            ms.when(SecurityUtils::getCurrentUserId).thenReturn(100L);
+            svc.create(req);
+        }
+        ArgumentCaptor<BizCustomer> captor = ArgumentCaptor.forClass(BizCustomer.class);
+        verify(customerMapper).insert(captor.capture());
+        assertEquals(null, captor.getValue().getDeptId(), "owner 无部门时 dept_id 保持 null");
+    }
+
+    /** admin 转交负责人时同步 dept_id 到新负责人部门 */
+    @Test
+    void update_adminTransferOwner_syncsDeptId() {
+        BizCustomer existing = new BizCustomer();
+        existing.setId(1L); existing.setOwnerId(200L); existing.setStatus("normal");
+        existing.setDeptId(5L);
+        BizCustomerMapper customerMapper = mock(BizCustomerMapper.class);
+        when(customerMapper.selectById(1L)).thenReturn(existing);
+        SysUserMapper userMapper = mock(SysUserMapper.class);
+        SysUser newOwner = new SysUser();
+        newOwner.setId(300L); newOwner.setDeptId(9L);
+        when(userMapper.selectById(300L)).thenReturn(newOwner);
+
+        CustomerAccessService accessService = mock(CustomerAccessService.class);
+        when(accessService.canEdit(1L)).thenReturn(true);
+        when(accessService.isInSeaPool(1L)).thenReturn(false);
+
+        BizCustomerMapper cm = customerMapper;
+        SysUserMapper um = userMapper;
+        CustomerService svc = new CustomerService(
+                cm, mock(BizCustomerLogMapper.class), mock(BizInvoiceMapper.class),
+                mock(BizCustomerShareMapper.class), mock(BizCustomerIndicatorMapper.class),
+                mock(BizContactMapper.class), mock(BizPaymentMapper.class),
+                um, mock(SysDeptMapper.class), mock(BizReminderMapper.class),
+                mock(JdbcTemplate.class), mock(SysConfigService.class),
+                mock(OrgScopeResolver.class), accessService,
+                mock(com.ycmn.module.system.service.RolePermScopeService.class));
+
+        BizCustomer req = new BizCustomer();
+        req.setId(1L); req.setOwnerId(300L);
+        try (MockedStatic<SecurityUtils> ms = mockStatic(SecurityUtils.class)) {
+            ms.when(SecurityUtils::isAdmin).thenReturn(true);
+            svc.update(req);
+        }
+        ArgumentCaptor<BizCustomer> captor = ArgumentCaptor.forClass(BizCustomer.class);
+        verify(customerMapper).updateById(captor.capture());
+        assertEquals(300L, captor.getValue().getOwnerId());
+        assertEquals(9L, captor.getValue().getDeptId(), "admin 转交负责人必须同步 dept_id");
+    }
 }

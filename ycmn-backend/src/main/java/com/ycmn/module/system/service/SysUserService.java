@@ -411,7 +411,13 @@ public class SysUserService {
                         .eq(BizCustomer::getDeleted, 0))
                 .stream().map(BizCustomer::getId).toList();
 
-        int c = jdbc.update("UPDATE biz_customer SET owner_id=? WHERE owner_id=? AND deleted=0", toUserId, fromUserId);
+        // 【P2-2 2026-08-11】客户转移负责人时同步 dept_id=新负责人部门(ORG 锚点数据范围跟随新负责人)
+        Long toDeptId = null;
+        com.ycmn.module.system.entity.SysUser toUser = userMapper.selectById(toUserId);
+        if (toUser != null) toDeptId = toUser.getDeptId();
+        int c = toDeptId != null
+                ? jdbc.update("UPDATE biz_customer SET owner_id=?, dept_id=? WHERE owner_id=? AND deleted=0", toUserId, toDeptId, fromUserId)
+                : jdbc.update("UPDATE biz_customer SET owner_id=? WHERE owner_id=? AND deleted=0", toUserId, fromUserId);
         jdbc.update("UPDATE biz_customer_share SET shared_by_user_id=? WHERE shared_by_user_id=?", toUserId, fromUserId);
         if (!customerIds.isEmpty()) {
             shareMapper.delete(new LambdaQueryWrapper<BizCustomerShare>()

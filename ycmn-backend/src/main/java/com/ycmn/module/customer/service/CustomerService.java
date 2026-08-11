@@ -267,7 +267,28 @@ public class CustomerService {
         if (customer.getOfficeId() == null) {
             customer.setOfficeId(SecurityUtils.getCurrentOfficeId());
         }
+        // 【P2-2 2026-08-11】ORG 锚点依赖 biz_customer.dept_id, 此前从不落库导致 ORG 范围配置不可用。
+        // 客户归属部门=负责人(owner)的部门(与"数据范围按负责人部门归属"锚点决策一致)。
+        syncCustomerDeptId(customer, customer.getOwnerId());
         customerMapper.insert(customer);
+    }
+
+    /**
+     * 【P2-2 2026-08-11】同步客户 dept_id=负责人(owner)的部门, 使 ORG 锚点数据范围可用。
+     * owner 缺失时保持 null(由回填 SQL/后续转移流程补齐), 不阻断创建。
+     */
+    private void syncCustomerDeptId(BizCustomer customer, Long ownerId) {
+        if (ownerId == null) return;
+        try {
+            com.ycmn.module.system.entity.SysUser owner = userMapper.selectById(ownerId);
+            if (owner != null && owner.getDeptId() != null) {
+                customer.setDeptId(owner.getDeptId());
+            }
+        } catch (Exception e) {
+            // 部门同步失败不阻断创建(数据范围 ORG 分支降级为空/本人, 安全性不劣化)
+            org.slf4j.LoggerFactory.getLogger(CustomerService.class)
+                    .warn("同步客户归属部门失败 ownerId={}", ownerId, e);
+        }
     }
 
     public boolean existsByName(String customerName) {
@@ -368,6 +389,9 @@ public class CustomerService {
         } else if (!SecurityUtils.isAdmin() && fieldChanged(existing.getOwnerId(), customer.getOwnerId())) {
             // 【M1 2026-08-10】非池客户负责人变更: 非 admin 只能走转移/审批流程, 防无审批转交
             throw new BusinessException("客户负责人变更请通过转移/审批流程操作");
+        } else if (SecurityUtils.isAdmin() && fieldChanged(existing.getOwnerId(), customer.getOwnerId())) {
+            // 【P2-2 2026-08-11】admin 转交负责人时同步客户归属部门(ORG 锚点数据范围跟随新负责人)
+            syncCustomerDeptId(customer, customer.getOwnerId());
         }
         calculateExpireDates(customer);
         customerMapper.updateById(customer);
@@ -731,7 +755,9 @@ public class CustomerService {
                 .user(user)
                 .module("statistics")
                 .action("view")
-                .anchor(com.ycmn.common.scope.ScopeRequest.AnchorType.OWNER)
+                // 【P2-3 2026-08-11】锚点与列表同源: 读 role_perm_scope.anchorOf 配置(未配置默认 OWNER),
+                // 此前硬编码 OWNER 使统计口径在管理员配置 ORG 锚点后与列表脱节。
+                .anchor(rolePermScopeService.anchorOf(user, "statistics", "view"))
                 .build();
         return scopeResolver.resolveScope(req).getVisibleUserIds();
     }

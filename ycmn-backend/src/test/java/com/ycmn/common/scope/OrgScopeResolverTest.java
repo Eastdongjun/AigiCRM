@@ -531,4 +531,51 @@ class OrgScopeResolverTest {
         List<Long> u = r.resolve(suMulti(1L, List.of("self", "dept"), 11L));
         assertEquals(Set.of(1L, 5L, 2L), new HashSet<>(u), "并集 base 上追加开关集合");
     }
+
+    // ===== P2-1: role_perm_scope.scope_level 接入运行时解析（2026-08-11） =====
+
+    /** scopeConfigs 精确匹配 (module,action) 时覆盖角色 dataScope */
+    @Test
+    void resolveScope_usesScopeConfigExactMatch() {
+        SecurityUser s = su(1L, "self", 11L);
+        com.ycmn.common.scope.ScopeConfig cfg = new com.ycmn.common.scope.ScopeConfig();
+        cfg.setModule("customer"); cfg.setAction("view"); cfg.setScopeLevel("all"); cfg.setAnchor("OWNER");
+        s.setScopeConfigs(new java.util.ArrayList<>(java.util.List.of(cfg)));
+
+        OrgScopeResolver r = new OrgScopeResolver(userMapper, deptMapper, configService,
+                mock(com.ycmn.module.system.mapper.SysRoleOrgMapper.class));
+        com.ycmn.common.scope.ScopeRequest req = com.ycmn.common.scope.ScopeRequest.builder()
+                .user(s).module("customer").action("view").anchor(com.ycmn.common.scope.ScopeRequest.AnchorType.OWNER)
+                .build();
+        assertNull(r.resolveScope(req).getVisibleUserIds(), "配置 customer:view=all 应覆盖 dataScope=self 返回全量");
+    }
+
+    /** scopeConfigs 通配 `* *` 匹配任意模块, 精确匹配优先 */
+    @Test
+    void resolveScope_scopeConfigWildcardFallsBackWhenNoExact() {
+        SecurityUser s = su(1L, "self", 11L);
+        com.ycmn.common.scope.ScopeConfig wildcard = new com.ycmn.common.scope.ScopeConfig();
+        wildcard.setModule("*"); wildcard.setAction("*"); wildcard.setScopeLevel("all"); wildcard.setAnchor("OWNER");
+        s.setScopeConfigs(new java.util.ArrayList<>(java.util.List.of(wildcard)));
+
+        OrgScopeResolver r = new OrgScopeResolver(userMapper, deptMapper, configService,
+                mock(com.ycmn.module.system.mapper.SysRoleOrgMapper.class));
+        com.ycmn.common.scope.ScopeRequest req = com.ycmn.common.scope.ScopeRequest.builder()
+                .user(s).module("approval").action("view").anchor(com.ycmn.common.scope.ScopeRequest.AnchorType.OWNER)
+                .build();
+        assertNull(r.resolveScope(req).getVisibleUserIds(), "通配 * * 匹配 approval:view 返回全量");
+    }
+
+    /** 未配置 scopeConfigs 时回退角色 dataScope（默认语义不变） */
+    @Test
+    void resolveScope_fallsBackToDataScopeWhenNoConfig() {
+        SecurityUser s = su(1L, "self", 11L); // 无 scopeConfigs
+        OrgScopeResolver r = new OrgScopeResolver(userMapper, deptMapper, configService,
+                mock(com.ycmn.module.system.mapper.SysRoleOrgMapper.class));
+        com.ycmn.common.scope.ScopeRequest req = com.ycmn.common.scope.ScopeRequest.builder()
+                .user(s).module("customer").action("view").anchor(com.ycmn.common.scope.ScopeRequest.AnchorType.OWNER)
+                .build();
+        assertEquals(Set.of(1L), new HashSet<>(r.resolveScope(req).getVisibleUserIds()),
+                "无配置时按 dataScope=self 解析(兼容现状)");
+    }
 }

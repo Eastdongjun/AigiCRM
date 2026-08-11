@@ -172,6 +172,19 @@ saveRoleMenus 祖先闭包(SysRoleService.java:208-229)
 
 > ⚠️ 复核 agent 缺陷 A（孤儿按钮）基于中间版本代码分析——最终代码 collectDirAncestors 已改为补**所有祖先**（含 menu_type=2 父菜单），孤儿按钮问题在当前代码不存在（node 实测 collectDirAncestors(40) 返回 [10,11]）。
 
+## 八之三、部署记录（2026-08-11 同日，用户确认"先测试服后生产"）
+
+**测试服（111.229.37.220）**：
+- 后端 jar（f2a3890f，含修复）docker cp 替换 + restart，`Started in 7.581s`；前端 dist（index-BzGLLf2f）替换。
+- Playwright 实测：销售总监 77→**63**、销售员 76→**48**、行政 76→**43**——勾选数回落至实际绑定。
+- 备份：`/home/ubuntu/projects/ycmn/backup-test-app-20260811-215653.jar`；容器 `/tmp/dist-bak`。
+
+**生产（39.99.35.218，www.aigicrm.com）**：
+- 后端 jar（f2a3890f）备份旧 jar（backup-pre-permfix-20260811-215857.jar）→ docker cp → restart，`Started in 12.247s`，容器实际 md5 独立回读=f2a3890f ✓
+- 前端 NAS dist 备份（/Aigicrm/files/ycmn-dist-rollback-20260811-permfix）→ 替换 → prefetch 9 个 → 版本 20260811-220004，公网入口 index-BzGLLf2f.js ✓
+- **生产 UI 实测（admin 经 HEALTH_CHECK 账号登录）**：销售总监 63、销售员 37、系统管理员 74、行政 44——全部精确等于实际绑定，P0 深传播在生产消除，0 控制台错误 ✓
+- deploy.log 已记录。
+
 ## 八、测试环境操作记录（透明声明）
 
 审计过程中对测试服(111.229.37.220)做了以下操作，均已回滚/清理：
