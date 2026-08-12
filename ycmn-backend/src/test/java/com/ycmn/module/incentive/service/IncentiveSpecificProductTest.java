@@ -92,9 +92,68 @@ class IncentiveSpecificProductTest {
         verify(recMapper).updateById(cap.capture());
         assertEquals(7L, cap.getValue().getUserId(), "初始上传人必须保持不变");
         assertEquals(99L, cap.getValue().getUpdatedBy(), "最后修改人应为当前登录人");
-        assertEquals(1, cap.getValue().getShared(), "共享开关应被更新");
+        assertEquals(null, cap.getValue().getShared(), "非本人不可改分享，shared 保持原值");
         assertEquals(java.time.LocalDateTime.now().minusDays(3).toLocalDate(),
                 cap.getValue().getCreatedAt().toLocalDate(), "上传时间不得被重置");
+    }
+
+    @Test
+    void updateRecord_ownerCanChangeShared() {
+        // 本人编辑自己记录：shared 可改，updatedBy=本人
+        BizIncentiveRecordMapper recMapper = mock(BizIncentiveRecordMapper.class);
+        BizIncentiveCategoryMapper catMapper = mock(BizIncentiveCategoryMapper.class);
+
+        BizIncentiveRecord existing = new BizIncentiveRecord();
+        existing.setId(10L);
+        existing.setUserId(1L);
+        existing.setCategoryId(1L);
+        when(recMapper.selectById(10L)).thenReturn(existing);
+        when(catMapper.selectById(eq(1L))).thenReturn(null);
+
+        IncentiveService svc = newService(recMapper, catMapper);
+        BizIncentiveRecord update = new BizIncentiveRecord();
+        update.setShared(0);
+
+        try (MockedStatic<com.ycmn.security.SecurityUtils> m = mockStatic(com.ycmn.security.SecurityUtils.class)) {
+            m.when(com.ycmn.security.SecurityUtils::getCurrentUserId).thenReturn(1L);
+            svc.updateRecord(10L, update);
+        }
+
+        ArgumentCaptor<BizIncentiveRecord> cap = ArgumentCaptor.forClass(BizIncentiveRecord.class);
+        verify(recMapper).updateById(cap.capture());
+        assertEquals(0, cap.getValue().getShared(), "本人可修改分享");
+        assertEquals(1L, cap.getValue().getUpdatedBy(), "最后修改人=本人");
+    }
+
+    @Test
+    void updateRecord_nonOwnerSharedIgnored_businessStillApplied() {
+        // 非本人编辑他人记录：shared 保持原值，业务字段照常更新
+        BizIncentiveRecordMapper recMapper = mock(BizIncentiveRecordMapper.class);
+        BizIncentiveCategoryMapper catMapper = mock(BizIncentiveCategoryMapper.class);
+
+        BizIncentiveRecord existing = new BizIncentiveRecord();
+        existing.setId(10L);
+        existing.setUserId(1L);
+        existing.setCategoryId(1L);
+        existing.setShared(1);
+        when(recMapper.selectById(10L)).thenReturn(existing);
+        when(catMapper.selectById(eq(1L))).thenReturn(null);
+
+        IncentiveService svc = newService(recMapper, catMapper);
+        BizIncentiveRecord update = new BizIncentiveRecord();
+        update.setShared(0);
+        update.setSpecificProduct("XX密封圈");
+
+        try (MockedStatic<com.ycmn.security.SecurityUtils> m = mockStatic(com.ycmn.security.SecurityUtils.class)) {
+            m.when(com.ycmn.security.SecurityUtils::getCurrentUserId).thenReturn(99L);
+            svc.updateRecord(10L, update);
+        }
+
+        ArgumentCaptor<BizIncentiveRecord> cap = ArgumentCaptor.forClass(BizIncentiveRecord.class);
+        verify(recMapper).updateById(cap.capture());
+        assertEquals(1, cap.getValue().getShared(), "非本人编辑 shared 保持原值");
+        assertEquals("XX密封圈", cap.getValue().getSpecificProduct(), "业务字段照常更新");
+        assertEquals(99L, cap.getValue().getUpdatedBy(), "最后修改人=编辑者");
     }
 
     @Test

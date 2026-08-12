@@ -330,10 +330,14 @@ class IncentiveShareVisibilityTest {
 
         BizIncentiveRecord update = new BizIncentiveRecord();
         update.setShared(1);
-        svc.updateRecord(1L, update);
+        // 【2026-08-12】分享仅本人可改：mock 当前用户=existing.userId(1L) 使 shared 写回
+        try (MockedStatic<com.ycmn.security.SecurityUtils> m = mockStatic(com.ycmn.security.SecurityUtils.class)) {
+            m.when(com.ycmn.security.SecurityUtils::getCurrentUserId).thenReturn(1L);
+            svc.updateRecord(1L, update);
+        }
 
         ArgumentCaptor<BizIncentiveRecord> cap = ArgumentCaptor.forClass(BizIncentiveRecord.class);
         verify(recordMapper).updateById(cap.capture());
-        assertTrue(cap.getValue().getShared() == 1, "shared 字段应被写回为 1");
+        assertTrue(cap.getValue().getShared() == 1, "本人修改分享，shared 字段应被写回为 1");
     }
 }

@@ -147,8 +147,9 @@
         <div class="dlg-row">
           <div style="display:flex;align-items:center;gap:10px">
             <label style="font-size:13px;font-weight:600;color:#4e5969">共享给团队</label>
-            <el-switch v-model="shareToTeam" />
+            <el-switch v-model="shareToTeam" :disabled="!canToggleShare" />
             <span v-if="shareToTeam" class="shared-on">● 已共享</span>
+            <span v-if="!canToggleShare" style="font-size:11px;color:#909399">（仅上传人本人可修改分享）</span>
           </div>
           <div class="dlg-tip">
             <el-icon><InfoFilled /></el-icon> 单文件最大 100MB，支持图片、PDF、Word、Excel、压缩包等格式
@@ -186,7 +187,7 @@ const {
   slotLabel, MAX_FILES, installFiles, isImage, getObjectURL, removeSlotFile, pickFile,
   fileSlots, trackFile, pickTrackFile,
   shareToTeam, uploading, totalNewFiles, uploadProgress, uploadProgressText, canSubmit, confirmUpload,
-  formatDate,
+  canToggleShare, formatDate,
 } = injectIncentiveUpload()
 </script>
 

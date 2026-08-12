@@ -74,6 +74,9 @@ export function useIncentiveUpload() {
   const pendingReplace = ref(null)
   const fileInputRef = ref(null)
   const shareToTeam = ref(true) // 【2026-08-08】新上传默认共享给团队(全员可见)，上传人可取消变私有
+  // 【2026-08-12】分享开关仅本人可改：新增=本人记录可改；编辑弹窗仅上传人本人可改
+  const canToggleShare = computed(() => !pendingReplace.value || pendingReplace.value.userId === userStore.userId)
+  const isRecordOwner = (row) => !!row && row.userId === userStore.userId
   const uploading = ref(false)
   const uploadProgress = ref(0)
   const uploadProgressText = ref('')
@@ -403,6 +406,8 @@ export function useIncentiveUpload() {
 
   // 【2026-08-08 分享制】开关记录分享：开→全员可见，关→仅本人+管理员+专项授权可见
   const toggleShare = async (row, val) => {
+    // 【2026-08-12】分享开关仅本人可改：非本人(含admin/can_edit)直接拒绝
+    if (!isRecordOwner(row)) { ElMessage.warning('仅记录本人可修改分享'); return }
     const target = val ? 1 : 0
     try {
       await updateRecord(row.id, { shared: target })
@@ -598,7 +603,7 @@ export function useIncentiveUpload() {
 
         // 【2026-08-12 审计】编辑改走 updateRecord(PUT)：保留原记录 id/userId/createdAt，
         // 初始上传人不变、上传时间不被重置；categoryId/period 保留原记录值(不随编辑覆盖)。
-        await updateRecord(pendingReplace.value.id, {
+        const editPayload = {
           customerId: selectedCustomerId.value,
           industry: selectedIndustry.value || null,
           relatedProducts: relatedProducts.value || null,
@@ -609,8 +614,10 @@ export function useIncentiveUpload() {
           filePostId: finalPostId,
           fileTrackId: finalTrackId,
           remark: remarkText.value || null,
-          shared: shareToTeam.value ? 1 : 0
-        })
+        }
+        // 【2026-08-12】分享仅本人可改：编辑他人记录时不携带 shared（后端也会忽略），保持原值
+        if (canToggleShare.value) editPayload.shared = shareToTeam.value ? 1 : 0
+        await updateRecord(pendingReplace.value.id, editPayload)
       } else {
         await addRecord({
           categoryId: pendingChild.value.id,
@@ -668,6 +675,7 @@ export function useIncentiveUpload() {
     loadCategories, loadUsers, loadDeptTree, onDeptChange, loadRecords,
     loadIndustries, loadPermission,
     resetDialogFields, startUpload, handleDeleteRecord, toggleShare, startReplace,
+    canToggleShare, isRecordOwner,
     searchCustomers, loadSharedCustomerIds,
     isImage, getObjectURL, removeSlotFile, pickFile, pickTrackFile, handleFileSelected,
     uploadOne, confirmUpload,

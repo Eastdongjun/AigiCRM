@@ -127,4 +127,53 @@ describe('useIncentiveUpload 品类判定与提交序列化', () => {
     expect(payload).not.toHaveProperty('categoryId')
     expect(payload).not.toHaveProperty('period')
   })
+
+  it('toggleShare 非本人拒绝（admin/can_edit 也不能改分享）', async () => {
+    list.userStore.userId = 2
+    const row = { id: 9, userId: 1, shared: 1 }
+    updateRecord.mockResolvedValue({})
+
+    await list.toggleShare(row, false)
+
+    expect(updateRecord).not.toHaveBeenCalled()
+    expect(row.shared).toBe(1)  // 乐观更新未发生
+  })
+
+  it('confirmUpload 编辑本人记录携带 shared', async () => {
+    list.pendingChild.value = cats[1]
+    list.pendingReplace.value = { id: 9, userId: 1, filePreId: '[50]', fileMidId: null, filePostId: null, fileTrackId: null }
+    list.userStore.userId = 1
+    list.shareToTeam.value = true
+    list.selectedCustomerId.value = 5
+    list.installFiles.pre = [{ name: 'old.jpg', id: 50, _existing: true }]
+    request.post.mockResolvedValue({ code: 200, data: { id: 100 } })
+    addRecord.mockResolvedValue({})
+    deleteRecord.mockResolvedValue({})
+    updateRecord.mockResolvedValue({})
+
+    await list.confirmUpload()
+
+    expect(updateRecord).toHaveBeenCalled()
+    const payload = updateRecord.mock.calls[0][1]
+    expect(payload.shared).toBe(1)  // 本人编辑携带 shared
+  })
+
+  it('confirmUpload 编辑他人记录不携带 shared', async () => {
+    list.pendingChild.value = cats[1]
+    list.pendingReplace.value = { id: 9, userId: 2, filePreId: '[50]', fileMidId: null, filePostId: null, fileTrackId: null }
+    list.userStore.userId = 1
+    list.shareToTeam.value = true
+    list.selectedCustomerId.value = 5
+    list.installFiles.pre = [{ name: 'old.jpg', id: 50, _existing: true }]
+    request.post.mockResolvedValue({ code: 200, data: { id: 100 } })
+    addRecord.mockResolvedValue({})
+    deleteRecord.mockResolvedValue({})
+    updateRecord.mockResolvedValue({})
+
+    await list.confirmUpload()
+
+    expect(updateRecord).toHaveBeenCalled()
+    const payload = updateRecord.mock.calls[0][1]
+    expect(payload).not.toHaveProperty('shared')  // 非本人编辑不携带 shared
+  })
 })

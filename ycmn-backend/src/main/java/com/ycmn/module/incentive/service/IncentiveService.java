@@ -305,7 +305,13 @@ public class IncentiveService {
         if (update.getFileId() != null) existing.setFileId(update.getFileId());
         if (update.getFileTrackId() != null) existing.setFileTrackId(update.getFileTrackId());
         if (update.getRemark() != null) existing.setRemark(update.getRemark());
-        if (update.getShared() != null) existing.setShared(update.getShared());
+        // 【2026-08-12】分享开关仅本人可改：admin/can_edit 编辑他人记录时忽略 shared，保持原值
+        if (update.getShared() != null) {
+            Long currentUserId = SecurityUtils.getCurrentUserId();
+            if (currentUserId != null && currentUserId.equals(existing.getUserId())) {
+                existing.setShared(update.getShared());
+            }
+        }
 
         // 审计：记录最后修改人（updated_at 由 DB ON UPDATE 自动维护）
         existing.setUpdatedBy(SecurityUtils.getCurrentUserId());

@@ -36,7 +36,7 @@
       <el-table-column label="共享" min-width="66" align="center">
         <template #default="{ row }">
           <el-switch
-            v-if="userStore.isAdmin() || canEdit || row.userId === userStore.userId"
+            v-if="isRecordOwner(row)"
             :model-value="!!row.shared"
             size="small"
             @change="(v) => toggleShare(row, v)"
@@ -74,7 +74,7 @@ import { injectIncentiveUpload } from '@/composables/useIncentiveUpload'
 const {
   userStore, pagedRecords, filteredRecords, pageNum, pageSize,
   canEdit, canDelete, scoreColor, formatDate, fileType, previewFile,
-  startReplace, toggleShare, handleDeleteRecord,
+  startReplace, toggleShare, handleDeleteRecord, isRecordOwner,
 } = injectIncentiveUpload()
 </script>
 
