@@ -39,3 +39,5 @@ sql/init.sql
 
 # ycmn-ui/engineering 有意不提交（记忆决策保留，非 .gitignore 疏漏）
 ycmn-ui/engineering/
+ssl/
+ycmn-backend/.settings/org.eclipse.m2e.core.prefs
