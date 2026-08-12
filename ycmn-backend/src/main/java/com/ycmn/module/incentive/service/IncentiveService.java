@@ -212,6 +212,11 @@ public class IncentiveService {
     }
 
     public List<BizIncentiveRecord> getRecords(Long userId, String period, Long parentCategoryId) {
+        return getRecords(userId, period, parentCategoryId, null);
+    }
+
+    /** 按客户查询激励记录（客户详情 Tab 用，customerId 可选过滤） */
+    public List<BizIncentiveRecord> getRecords(Long userId, String period, Long parentCategoryId, Long customerId) {
         LambdaQueryWrapper<BizIncentiveRecord> wrapper = new LambdaQueryWrapper<>();
         if (userId != null) {
             // 【2026-08-08 分享制】显式指定查看某人：admin/专项授权→全部；本人→自己全部；他人→仅其已分享记录。
@@ -226,6 +231,7 @@ public class IncentiveService {
             applyShareVisibility(wrapper);
         }
         if (period != null) wrapper.eq(BizIncentiveRecord::getPeriod, period);
+        if (customerId != null) wrapper.eq(BizIncentiveRecord::getCustomerId, customerId);
         if (parentCategoryId != null) {
             List<BizIncentiveCategory> children = categoryMapper.selectList(
                     new LambdaQueryWrapper<BizIncentiveCategory>().eq(BizIncentiveCategory::getParentId, parentCategoryId)

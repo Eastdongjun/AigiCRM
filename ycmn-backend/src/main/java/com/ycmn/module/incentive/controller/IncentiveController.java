@@ -53,11 +53,13 @@ public class IncentiveController {
     public Result<List<BizIncentiveRecord>> getRecords(
             @RequestParam(required = false) Long userId,
             @RequestParam(required = false) String period,
-            @RequestParam(required = false) Long parentCategoryId) {
+            @RequestParam(required = false) Long parentCategoryId,
+            @RequestParam(required = false) Long customerId) {
         // 【修复 2026-08-07】不再对普通用户强制 userId=本人：
         // - 未传 userId → service 按数据范围过滤（含系统级开关，上级/负责人可见下级）
         // - 显式传 userId → service 内校验是否在可见范围内（防越权看任意人）
-        return Result.ok(incentiveService.getRecords(userId, period, parentCategoryId));
+        // customerId 可选：客户详情 Tab 按客户过滤
+        return Result.ok(incentiveService.getRecords(userId, period, parentCategoryId, customerId));
     }
 
     /** 上传新记录：incentive:add 独立权限码（设计 §3.2：上传语义从 edit 拆出） */

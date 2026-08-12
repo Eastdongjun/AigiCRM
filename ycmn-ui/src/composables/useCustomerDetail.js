@@ -119,8 +119,9 @@ export function useCustomerDetail() {
   const loadUsers = async () => { try { allUsers.value = (await getSimpleUserList()).data||[] } catch(e) {} }
   const loadIncentiveRecords = async () => {
     try {
-      const res = await request.get('/incentive/records', { params: { customerId: customerId.value, current: 1, size: 50 } })
-      incentiveRecords.value = res.data?.records || []
+      // 【修复 2026-08-12】/incentive/records 返回数组非分页对象，且按 customerId 过滤（去掉 current/size）
+      const res = await request.get('/incentive/records', { params: { customerId: customerId.value } })
+      incentiveRecords.value = res.data || []
     } catch (e) {}
   }
   const getMainCategory = (r) => { const c = catMap.value[r.categoryId]; if (!c) return ''; const p = catMap.value[c.parentId]; return p ? p.categoryName : c.categoryName }
