@@ -137,8 +137,18 @@ export function useCustomerDetail() {
 
   const downloadIncentiveFile = async (f) => {
     if (!f?.id) return
-    const url = '/api/file/download/' + f.id + '?token=' + (getDownloadToken() || '')
+    const url = fileUrl(f.id)
     await downloadFile(url, { name: f.label || ('file-' + f.id) })
+  }
+  const fileUrl = (id) => '/api/file/download/' + id + '?token=' + (getDownloadToken() || '')
+  const filePreviewVisible = ref(false), filePreviewUrl = ref(''), filePreviewType = ref('image'), filePreviewName = ref('')
+  // 激励Tab文件预览:复用 FilePreview(图片放大/视频播放/文档下载);点文件行打开预览而非直接下载
+  const previewIncentiveFile = (f) => {
+    if (!f?.id) return
+    filePreviewUrl.value = fileUrl(f.id)
+    filePreviewType.value = f.type || detectType(f.label)
+    filePreviewName.value = f.label
+    filePreviewVisible.value = true
   }
   const submitLog = async () => { if(!newLog.value.trim()) return; try { await addCustomerLog(customerId.value,{content:newLog.value}); ElMessage.success('已记录'); newLog.value=''; logs.value = (await getCustomerLogs(customerId.value)).data||[] } catch(e) {} }
   const handleExtend = async () => { try { await ElMessageBox.confirm('确认申请延期？审批通过后保护期延长360天','申请延期'); await submitApproval({type:'extend',customerId:String(customer.value.id),actionAfterApprove:'保护期+360天'}); ElMessage.success('延期申请已提交') } catch(e) {} }
@@ -171,6 +181,7 @@ export function useCustomerDetail() {
     loadAll: loadAllFn, loadDicts: loadDictsFn, loadUsers: loadUsersFn, loadIncentiveRecords,
     getMainCategory, getSubCategory, parentCodeOf, detailLabelOf, isTrialRec, scoreColor,
     parseId, getFiles, detectType, fmtDate, downloadIncentiveFile,
+    filePreviewVisible, filePreviewUrl, filePreviewType, filePreviewName, previewIncentiveFile,
     submitLog, handleExtend, handleEdit,
     handleAddInvoice, handleDeleteInvoice, handleAddPayment, handleDeletePayment,
     openEditContact, handleSaveContact, handleDeleteContact,

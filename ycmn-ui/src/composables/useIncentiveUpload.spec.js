@@ -34,6 +34,8 @@ describe('useIncentiveUpload 品类判定与提交序列化', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
     vi.clearAllMocks()
+    // jsdom 无 URL.createObjectURL，stub 供 previewCardFile 用
+    vi.stubGlobal('URL', { ...globalThis.URL, createObjectURL: vi.fn(() => 'blob:fake'), revokeObjectURL: vi.fn() })
     list = useIncentiveUpload()
     list.categories.value = cats
   })
@@ -175,5 +177,39 @@ describe('useIncentiveUpload 品类判定与提交序列化', () => {
     expect(updateRecord).toHaveBeenCalled()
     const payload = updateRecord.mock.calls[0][1]
     expect(payload).not.toHaveProperty('shared')  // 非本人编辑不携带 shared
+  })
+
+  it('fileType 判定 image/video/doc', () => {
+    expect(list.fileType('a.mp4')).toBe('video')
+    expect(list.fileType('a.jpg')).toBe('image')
+    expect(list.fileType('a.pdf')).toBe('doc')
+  })
+
+  it('previewCardFile 新文件(视频/图片)用本地 objectURL', () => {
+    const f = { name: 'a.mp4' }
+    list.previewCardFile(f)
+    expect(list.previewVisible.value).toBe(true)
+    expect(list.previewType.value).toBe('video')
+    expect(list.previewUrl.value).toBe('blob:fake')
+    expect(list.previewName.value).toBe('a.mp4')
+    expect(f._url).toBe('blob:fake')  // 缓存，二次调用不新建
+
+    const img = { name: 'b.jpg' }
+    list.previewCardFile(img)
+    expect(list.previewType.value).toBe('image')
+  })
+
+  it('previewCardFile 已提交文件(_existing)走远端 fileUrl', () => {
+    list.previewCardFile({ name: 'old.mp4', id: 50, _existing: true })
+    expect(list.previewVisible.value).toBe(true)
+    expect(list.previewType.value).toBe('video')
+    expect(list.previewUrl.value).toContain('/api/file/download/50?token=')
+  })
+
+  it('previewCardFile null/无id no-op', () => {
+    list.previewCardFile(null)
+    expect(list.previewVisible.value).toBe(false)
+    list.previewCardFile({ name: 'x.mp4', id: null, _existing: true })
+    expect(list.previewVisible.value).toBe(false)
   })
 })

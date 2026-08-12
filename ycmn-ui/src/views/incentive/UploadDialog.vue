@@ -64,9 +64,10 @@
           <span class="dlg-sec-tip">至少 1 个，最多 {{ MAX_FILES }} 个</span>
         </div>
         <div class="file-slot-cards">
-          <div v-for="(file, idx) in installFiles.pre" :key="idx" class="file-card has" @click.stop>
+          <div v-for="(file, idx) in installFiles.pre" :key="idx" class="file-card has" @click.stop="previewCardFile(file)">
             <img v-if="!file._existing && isImage(file.name)" :src="getObjectURL(file)" class="file-card-img" />
             <div v-else class="file-card-icon"><el-icon :size="file._existing?20:24"><Document /></el-icon></div>
+            <span v-if="fileType(file.name) === 'video'" class="file-card-play"><el-icon><VideoPlay /></el-icon></span>
             <span class="file-card-del" @click.stop="removeSlotFile('pre', idx)"><el-icon><Close /></el-icon></span>
             <span class="file-card-name">{{ file.name?.substring(0, 8) }}{{ file.name?.length > 8 ? '…' : '' }}</span>
           </div>
@@ -91,11 +92,12 @@
               <span class="file-slot-count">{{ installFiles[slot.key].length }}/{{ MAX_FILES }}</span>
             </div>
             <div class="file-slot-cards">
-              <div v-for="(file, idx) in installFiles[slot.key]" :key="idx" class="file-card has" @click.stop>
+              <div v-for="(file, idx) in installFiles[slot.key]" :key="idx" class="file-card has" @click.stop="previewCardFile(file)">
                 <img v-if="!file._existing && isImage(file.name)" :src="getObjectURL(file)" class="file-card-img" />
                 <div v-else class="file-card-icon">
                   <el-icon :size="file._existing?20:24"><Document /></el-icon>
                 </div>
+                <span v-if="fileType(file.name) === 'video'" class="file-card-play"><el-icon><VideoPlay /></el-icon></span>
                 <span class="file-card-del" @click.stop="removeSlotFile(slot.key, idx)"><el-icon><Close /></el-icon></span>
                 <span class="file-card-name">{{ file.name?.substring(0, 8) }}{{ file.name?.length > 8 ? '…' : '' }}</span>
               </div>
@@ -115,9 +117,10 @@
           <span class="dlg-sec-tip">不加分</span>
         </div>
         <div class="file-slot-cards">
-          <div v-for="(file, idx) in trackFile" :key="idx" class="file-card has" @click.stop>
+          <div v-for="(file, idx) in trackFile" :key="idx" class="file-card has" @click.stop="previewCardFile(file)">
             <img v-if="!file._existing && isImage(file.name)" :src="getObjectURL(file)" class="file-card-img" />
             <div v-else class="file-card-icon"><el-icon :size="20"><Document /></el-icon></div>
+            <span v-if="fileType(file.name) === 'video'" class="file-card-play"><el-icon><VideoPlay /></el-icon></span>
             <span class="file-card-del" @click.stop="removeSlotFile('track', idx)"><el-icon><Close /></el-icon></span>
             <span class="file-card-name">{{ file.name?.substring(0, 8) }}{{ file.name?.length > 8 ? '…' : '' }}</span>
           </div>
@@ -184,7 +187,7 @@ const {
   selectedIndustry, industryOptions, relatedCat, relatedSub, productCatKeys, productCats,
   categoryCodeOf, specificProduct,
   secTitle, detailLabel, isSingleSlot, preInstallQuestion, isTrial, remarkLabel, remarkText,
-  slotLabel, MAX_FILES, installFiles, isImage, getObjectURL, removeSlotFile, pickFile,
+  slotLabel, MAX_FILES, installFiles, isImage, fileType, getObjectURL, removeSlotFile, pickFile, previewCardFile,
   fileSlots, trackFile, pickTrackFile,
   shareToTeam, uploading, totalNewFiles, uploadProgress, uploadProgressText, canSubmit, confirmUpload,
   canToggleShare, formatDate,
@@ -247,6 +250,7 @@ const {
 .file-card.has:hover { border-color:#a3d9a3 }
 .file-card-img { width:100%; height:100%; object-fit:cover; border-radius:8px }
 .file-card-icon { display:flex; align-items:center; justify-content:center; color:#909399 }
+.file-card-play { position:absolute; left:50%; top:38%; transform:translate(-50%,-50%); width:24px; height:24px; border-radius:50%; background:rgba(0,0,0,.55); color:#fff; display:flex; align-items:center; justify-content:center; font-size:13px; pointer-events:none }
 .file-card-del { position:absolute; top:2px; right:2px; width:20px; height:20px; border-radius:50%; background:rgba(0,0,0,.5); color:#fff; display:flex; align-items:center; justify-content:center; font-size:12px; opacity:0; transition:opacity .15s }
 .file-card:hover .file-card-del { opacity:1 }
 .file-card-name { font-size:10px; color:#606266; text-align:center; margin-top:2px; max-width:80px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; padding:0 2px }

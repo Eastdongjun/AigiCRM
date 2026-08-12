@@ -17,7 +17,7 @@
         <span style="color:#909399">{{ detailLabelOf(r) }}：</span><span>{{ r.preInstallQuestion }}</span>
       </div>
       <div class="inc-files" v-if="getFiles(r).length">
-        <div v-for="f in getFiles(r)" :key="f.id" class="inc-file" @click="downloadIncentiveFile(f)">
+        <div v-for="f in getFiles(r)" :key="f.id" class="inc-file" @click="previewIncentiveFile(f)">
           <span class="inc-file-tag">{{ f.tag }}</span>
           <span class="inc-file-name">{{ f.label }}</span>
           <span class="inc-file-type">{{ f.type === 'image' ? '🖼' : f.type === 'video' ? '🎬' : '📄' }}</span>
@@ -29,14 +29,17 @@
     </div>
   </div>
   <div v-else class="empty-text" style="padding:40px">该客户暂无四项激励记录</div>
+  <FilePreview v-model:visible="filePreviewVisible" :url="filePreviewUrl" :type="filePreviewType" :file-name="filePreviewName" />
 </template>
 
 <script setup>
 import { injectCustomerDetail } from '@/composables/useCustomerDetail'
+import FilePreview from '@/components/FilePreview.vue'
 
 const {
   incentiveRecords, getMainCategory, getSubCategory, getFiles, detailLabelOf,
-  isTrialRec, scoreColor, fmtDate, downloadIncentiveFile,
+  isTrialRec, scoreColor, fmtDate, previewIncentiveFile,
+  filePreviewVisible, filePreviewUrl, filePreviewType, filePreviewName,
 } = injectCustomerDetail()
 </script>
 

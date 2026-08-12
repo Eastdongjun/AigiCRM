@@ -380,6 +380,7 @@ export function useIncentiveUpload() {
     specificProduct.value = ''
     relatedCat.value = ''
     relatedSub.value = ''
+    previewVisible.value = false // 【2026-08-12】重置时关预览,防 blob revoke 后预览框黑屏
   }
 
   // ---- 上传流程 ----
@@ -482,6 +483,22 @@ export function useIncentiveUpload() {
     if (!file || file._existing) return ''
     if (!file._url) file._url = URL.createObjectURL(file)
     return file._url
+  }
+  // 上传弹窗卡片预览:新文件(未提交)用本地 objectURL;已提交(_existing)用远端 fileUrl(id);
+  // 统一走 FilePreview(图片放大/视频播放/文档下载入口);复用 getObjectURL 的缓存 blob,不新增泄漏
+  const previewCardFile = (file) => {
+    if (!file) return
+    if (file._existing) {            // 追加/编辑模式下已存在的文件,无本地 File 对象
+      if (!file.id) return
+      previewFile(file.id, file.name)
+      return
+    }
+    const url = getObjectURL(file)   // 未提交文件:本地 blob 预览(视频同样适用)
+    if (!url) return
+    previewUrl.value = url
+    previewType.value = fileType(file.name)
+    previewName.value = file.name
+    previewVisible.value = true
   }
   // 移除槽位文件:先释放预览 blob 再删除
   const removeSlotFile = (slotKey, idx) => {
@@ -661,7 +678,7 @@ export function useIncentiveUpload() {
     periodOptions, selectedPeriod, categories, records, canEdit, canDelete,
     pageNum, pageSize, pagedRecords, filteredRecords,
     previewVisible, previewUrl, previewType, previewName, fileUrl,
-    parseFids, splitNames, fileType, previewFile,
+    parseFids, splitNames, fileType, previewFile, previewCardFile,
     searchText, filterCustomer, filterGroup, filterTier, filterGroupOptions, filterTierOptions,
     showCustomerDialog, selectedCustomerId, customerOptions, customerLoading, sharedCustomerIds,
     pendingChild, pendingReplace, fileInputRef, shareToTeam,
