@@ -41,3 +41,8 @@ sql/init.sql
 ycmn-ui/engineering/
 ssl/
 ycmn-backend/.settings/org.eclipse.m2e.core.prefs
+default.conf
+verify.sh
+img/04-原型设计/
+engineering/evidence/ui-full-test/
+engineering/features/NEXT-INCENTIVE-UPLOAD.md
