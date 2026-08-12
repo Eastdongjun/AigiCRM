@@ -45,7 +45,7 @@ const permOverview = [
     icon: '⭐', title: '激励专项权限',
     tag: '激励类别与权限',
     tagType: 'warning',
-    desc: '独立于菜单权限，按人配置 看全部/编辑/删除。看全部=含未分享也可见；编辑或删除开启时自动含看全部。分享的记录对全员默认可见。',
+    desc: '独立于菜单权限，按人配置 查看已分享/查看全部。编辑/删除由角色 admin∨销售总监 控制。看全部=含未分享也可见。分享的记录对全员默认可见。',
     buttons: [{ label: '前往配置 →', type: 'warning', tab: 'incentiveCategory' }]
   }
 ]
@@ -134,7 +134,8 @@ const loadPermData = async () => {
 // 四项激励权限
 const permList = ref([])
 const showPermDialog = ref(false)
-const permForm = reactive({ canViewShared: true, canViewAll: true, canEdit: true, canDelete: true })
+// 【2026-08-12 角色化】编辑/删除改按 admin∨销售总监 角色判定，专项开关已废弃（permForm 只含可见性）
+const permForm = reactive({ canViewShared: true, canViewAll: true })
 const allUsers = ref([])
 // 层级人员树：大区 → 办事处 → 部门 → 人员（节点 key: 'd'+orgId / 'u'+userId）
 const orgUserTree = ref([])
@@ -208,9 +209,7 @@ const grantPerm = async () => {
     await request.post('/incentive/permission/grant', {
       userIds,
       canViewShared: permForm.canViewShared,
-      canViewAll: permForm.canViewAll,
-      canEdit: permForm.canEdit,
-      canDelete: permForm.canDelete
+      canViewAll: permForm.canViewAll
     })
     ElMessage.success(`已授权 ${userIds.length} 人`); showPermDialog.value = false; loadPermList()
   } catch(e) { ElMessage.error('授权失败') }

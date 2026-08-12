@@ -77,7 +77,7 @@
           <span class="perm-sec-icon icon-perm"><el-icon :size="19"><Key /></el-icon></span>
           <div class="perm-sec-text">
             <h3>激励专项权限</h3>
-            <p>独立于菜单权限，按人授予：查看已分享 / 查看全部 / 编辑 / 删除</p>
+            <p>独立于菜单权限，按人授予：查看已分享 / 查看全部（编辑/删除由角色 admin∨销售总监 控制）</p>
           </div>
         </div>
         <el-button type="primary" size="small" :icon="Plus" @click="openPermDialog">添加授权</el-button>
@@ -117,12 +117,7 @@
               </div>
             </template>
           </el-table-column>
-          <el-table-column label="编辑" width="78" align="center">
-            <template #default="{row}"><span :class="row.can_edit ? 'perm-ok' : 'perm-off'" :title="row.can_edit ? '可编辑激励' : '不可编辑'">{{ row.can_edit ? '✓ 可编辑' : '—' }}</span></template>
-          </el-table-column>
-          <el-table-column label="删除" width="78" align="center">
-            <template #default="{row}"><span :class="row.can_delete ? 'perm-ok perm-ok-danger' : 'perm-off'" :title="row.can_delete ? '可删除激励' : '不可删除'">{{ row.can_delete ? '✓ 可删除' : '—' }}</span></template>
-          </el-table-column>
+          <!-- 【2026-08-12 角色化】编辑/删除列已废弃（改按 admin∨销售总监 角色判定） -->
           <el-table-column label="操作" width="70" align="center">
             <template #default="{row}"><el-button link type="danger" size="small" @click="revokePerm(row.id)">撤销</el-button></template>
           </el-table-column>

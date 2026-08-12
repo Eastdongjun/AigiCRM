@@ -80,8 +80,8 @@ public class IncentiveController {
     public Result<Void> updateRecord(@PathVariable Long id, @RequestBody BizIncentiveRecord record) {
         SecurityUser user = SecurityUtils.getCurrentUser();
         boolean isAdmin = SecurityUtils.isAdmin();
-        // 【2026-08-08 分享制】授权判定：admin ∨ 用户级 can_edit ∨ 本人记录（矩阵码不再放行非本人编辑）
-        if (!isAdmin && !incentiveService.canEdit(user.getUserId())) {
+        // 【2026-08-12 角色化】授权判定：admin ∨ 销售总监 ∨ 本人记录（can_edit 专项已废弃）
+        if (!isAdmin && !incentiveService.canEdit()) {
             BizIncentiveRecord existing = incentiveService.getRecordById(id);
             if (existing == null || !existing.getUserId().equals(user.getUserId())) {
                 return Result.error(403, "无权编辑他人记录");
@@ -104,8 +104,8 @@ public class IncentiveController {
     public Result<Void> deleteRecord(@PathVariable Long id) {
         SecurityUser user = SecurityUtils.getCurrentUser();
         boolean isAdmin = SecurityUtils.isAdmin();
-        // 【2026-08-08 分享制】授权判定：admin ∨ 用户级 can_delete ∨ 本人记录（矩阵码不再放行非本人删除）
-        if (!isAdmin && !incentiveService.canDelete(user.getUserId())) {
+        // 【2026-08-12 角色化】授权判定：admin ∨ 销售总监 ∨ 本人记录（can_delete 专项已废弃）
+        if (!isAdmin && !incentiveService.canDelete()) {
             BizIncentiveRecord record = incentiveService.getRecordById(id);
             if (record == null || !record.getUserId().equals(user.getUserId())) {
                 return Result.error(403, "无权删除他人记录");

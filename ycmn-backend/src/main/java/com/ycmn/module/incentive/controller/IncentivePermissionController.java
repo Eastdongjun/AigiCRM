@@ -20,8 +20,9 @@ public class IncentivePermissionController {
     @PreAuthorize("hasAuthority('system:config:view')")
     @GetMapping("/list")
     public Result<List<Map<String, Object>>> list() {
+        // 【2026-08-12 角色化】can_edit/can_delete 专项已废弃(编辑/删除改按角色 admin∨销售总监)，列表不再展示
         List<Map<String, Object>> list = jdbc.queryForList(
-            "SELECT p.id, p.user_id, p.can_edit, p.can_delete, p.can_view_all, p.can_view_shared, u.real_name AS realName, u.username, " +
+            "SELECT p.id, p.user_id, p.can_view_all, p.can_view_shared, u.real_name AS realName, u.username, " +
             "COALESCE(d.dept_name,'—') AS officeName, COALESCE(r.role_name,'—') AS roleName " +
             "FROM biz_incentive_permission p JOIN sys_user u ON p.user_id = u.id " +
             "LEFT JOIN sys_dept d ON u.office_id = d.id " +
@@ -36,10 +37,9 @@ public class IncentivePermissionController {
         // 【安全 2026-08-08】授予激励专项权限=授予"看全公司激励记录"，仅超管可操作
         // （防 system:config:edit 落到非超管角色后形成局部提权）
         if (!SecurityUtils.isAdmin()) throw new BusinessException("仅系统管理员可授予激励权限");
+        // 【2026-08-12 角色化】can_edit/can_delete 专项已废弃(编辑/删除改按角色 admin∨销售总监)，grant 只授可见性
         int canViewAll = toInt(body.get("canViewAll"));
         int canViewShared = toInt(body.get("canViewShared")); // 查看已分享默认开(未传=1)
-        int canEdit = toInt(body.get("canEdit"));
-        int canDelete = toInt(body.get("canDelete"));
         // 批量授权：userIds 数组优先；兼容单用户 userId（向后兼容）
         java.util.List<Long> userIds = new java.util.ArrayList<>();
         Object uids = body.get("userIds");
@@ -52,12 +52,9 @@ public class IncentivePermissionController {
         }
         if (userIds.isEmpty()) throw new BusinessException("请选择要授权的人员");
         for (Long userId : userIds) {
-            // 【2026-08-08 防覆盖】批量授权/全选可能包含已授权用户 → UPSERT 用 GREATEST 保护：
-            // can_edit/can_delete 只升不降（避免全选把特权用户编辑/删除覆盖成 0）。需收回用"撤销"整行删除后重授。
-            jdbc.update("INSERT INTO biz_incentive_permission (user_id, can_view_all, can_view_shared, can_edit, can_delete) VALUES (?,?,?,?,?) " +
-                        "ON DUPLICATE KEY UPDATE can_view_all=VALUES(can_view_all), can_view_shared=VALUES(can_view_shared), " +
-                        "can_edit=GREATEST(can_edit, VALUES(can_edit)), can_delete=GREATEST(can_delete, VALUES(can_delete))",
-                        userId, canViewAll, canViewShared, canEdit, canDelete);
+            jdbc.update("INSERT INTO biz_incentive_permission (user_id, can_view_all, can_view_shared) VALUES (?,?,?) " +
+                        "ON DUPLICATE KEY UPDATE can_view_all=VALUES(can_view_all), can_view_shared=VALUES(can_view_shared)",
+                        userId, canViewAll, canViewShared);
         }
         return Result.ok();
     }
@@ -82,13 +79,14 @@ public class IncentivePermissionController {
         Long userId = SecurityUtils.getCurrentUserId();
         Map<String, Object> row = null;
         try {
-            row = jdbc.queryForMap("SELECT can_view_all, can_view_shared, can_edit, can_delete FROM biz_incentive_permission WHERE user_id=?", userId);
+            row = jdbc.queryForMap("SELECT can_view_all, can_view_shared FROM biz_incentive_permission WHERE user_id=?", userId);
         } catch (Exception e) {}
         Map<String, Boolean> result = new HashMap<>();
         result.put("canViewAll", row != null && ((Number)row.get("can_view_all")).intValue() == 1);
         result.put("canViewShared", row == null || ((Number)row.get("can_view_shared")).intValue() == 1);
-        result.put("canEdit", row != null && ((Number)row.get("can_edit")).intValue() == 1);
-        result.put("canDelete", row != null && ((Number)row.get("can_delete")).intValue() == 1);
+        // 【2026-08-12 角色化】编辑/删除改按角色 admin∨销售总监，不再读 can_edit/can_delete 专项
+        result.put("canEdit", SecurityUtils.isAdmin() || SecurityUtils.isSalesDirector());
+        result.put("canDelete", SecurityUtils.isAdmin() || SecurityUtils.isSalesDirector());
         return Result.ok(result);
     }
 }

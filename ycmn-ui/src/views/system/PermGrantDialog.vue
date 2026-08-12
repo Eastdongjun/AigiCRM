@@ -46,20 +46,7 @@
               <span class="perm-grant-opt-desc">含未分享记录</span>
             </div>
           </div>
-          <div class="perm-grant-opt">
-            <el-switch v-model="permForm.canEdit" size="small" />
-            <div class="perm-grant-opt-text">
-              <span class="perm-grant-opt-name">编辑</span>
-              <span class="perm-grant-opt-desc">可编辑他人激励记录</span>
-            </div>
-          </div>
-          <div class="perm-grant-opt">
-            <el-switch v-model="permForm.canDelete" size="small" />
-            <div class="perm-grant-opt-text">
-              <span class="perm-grant-opt-name">删除</span>
-              <span class="perm-grant-opt-desc">可删除他人激励记录</span>
-            </div>
-          </div>
+          <!-- 【2026-08-12 角色化】编辑/删除改按 admin∨销售总监 角色判定，专项开关已废弃 -->
         </div>
       </div>
     </div>

@@ -68,7 +68,7 @@ class IncentiveControllerPermissionTest {
         try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
             m.when(SecurityUtils::getCurrentUser).thenReturn(su);
             m.when(SecurityUtils::isAdmin).thenReturn(false);
-            when(incentiveService.canEdit(2L)).thenReturn(false);
+            when(incentiveService.canEdit()).thenReturn(false);
             when(incentiveService.getRecordById(79L)).thenReturn(recordOf(79L, 1L));
 
             Result<Void> result = controller.updateRecord(79L, new BizIncentiveRecord());
@@ -86,7 +86,7 @@ class IncentiveControllerPermissionTest {
         try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
             m.when(SecurityUtils::getCurrentUser).thenReturn(su);
             m.when(SecurityUtils::isAdmin).thenReturn(false);
-            when(incentiveService.canEdit(2L)).thenReturn(false);
+            when(incentiveService.canEdit()).thenReturn(false);
             when(incentiveService.getRecordById(79L)).thenReturn(null);
 
             Result<Void> result = controller.updateRecord(79L, new BizIncentiveRecord());
@@ -103,7 +103,7 @@ class IncentiveControllerPermissionTest {
         try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
             m.when(SecurityUtils::getCurrentUser).thenReturn(su);
             m.when(SecurityUtils::isAdmin).thenReturn(false);
-            when(incentiveService.canEdit(2L)).thenReturn(false);
+            when(incentiveService.canEdit()).thenReturn(false);
             when(incentiveService.getRecordById(79L)).thenReturn(recordOf(79L, 2L));
 
             Result<Void> result = controller.updateRecord(79L, new BizIncentiveRecord());
@@ -120,7 +120,7 @@ class IncentiveControllerPermissionTest {
         try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
             m.when(SecurityUtils::getCurrentUser).thenReturn(su);
             m.when(SecurityUtils::isAdmin).thenReturn(false);
-            when(incentiveService.canEdit(2L)).thenReturn(true);
+            when(incentiveService.canEdit()).thenReturn(true);
 
             Result<Void> result = controller.updateRecord(79L, new BizIncentiveRecord());
 
@@ -137,7 +137,7 @@ class IncentiveControllerPermissionTest {
         try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
             m.when(SecurityUtils::getCurrentUser).thenReturn(su);
             m.when(SecurityUtils::isAdmin).thenReturn(false);
-            when(incentiveService.canEdit(2L)).thenReturn(false);
+            when(incentiveService.canEdit()).thenReturn(false);
             when(incentiveService.getRecordById(79L)).thenReturn(recordOf(79L, 1L));
 
             Result<Void> result = controller.updateRecord(79L, new BizIncentiveRecord());
@@ -160,7 +160,7 @@ class IncentiveControllerPermissionTest {
             assertEquals(200, result.getCode());
             verify(incentiveService).updateRecord(79L, new BizIncentiveRecord());
             verify(incentiveService, never()).getRecordById(79L);
-            verify(incentiveService, never()).canEdit(2L);
+            verify(incentiveService, never()).canEdit();
         }
     }
 
@@ -209,7 +209,7 @@ class IncentiveControllerPermissionTest {
         try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
             m.when(SecurityUtils::getCurrentUser).thenReturn(su);
             m.when(SecurityUtils::isAdmin).thenReturn(false);
-            when(incentiveService.canDelete(2L)).thenReturn(false);
+            when(incentiveService.canDelete()).thenReturn(false);
             when(incentiveService.getRecordById(79L)).thenReturn(recordOf(79L, 1L));
 
             Result<Void> result = controller.deleteRecord(79L);
@@ -227,7 +227,7 @@ class IncentiveControllerPermissionTest {
         try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
             m.when(SecurityUtils::getCurrentUser).thenReturn(su);
             m.when(SecurityUtils::isAdmin).thenReturn(false);
-            when(incentiveService.canDelete(2L)).thenReturn(false);
+            when(incentiveService.canDelete()).thenReturn(false);
             when(incentiveService.getRecordById(79L)).thenReturn(recordOf(79L, 2L));
 
             Result<Void> result = controller.deleteRecord(79L);
@@ -244,7 +244,7 @@ class IncentiveControllerPermissionTest {
         try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
             m.when(SecurityUtils::getCurrentUser).thenReturn(su);
             m.when(SecurityUtils::isAdmin).thenReturn(false);
-            when(incentiveService.canDelete(2L)).thenReturn(false);
+            when(incentiveService.canDelete()).thenReturn(false);
             when(incentiveService.getRecordById(79L)).thenReturn(recordOf(79L, 1L));
 
             Result<Void> result = controller.deleteRecord(79L);
@@ -261,7 +261,7 @@ class IncentiveControllerPermissionTest {
         try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
             m.when(SecurityUtils::getCurrentUser).thenReturn(su);
             m.when(SecurityUtils::isAdmin).thenReturn(false);
-            when(incentiveService.canDelete(2L)).thenReturn(true);
+            when(incentiveService.canDelete()).thenReturn(true);
 
             Result<Void> result = controller.deleteRecord(79L);
 

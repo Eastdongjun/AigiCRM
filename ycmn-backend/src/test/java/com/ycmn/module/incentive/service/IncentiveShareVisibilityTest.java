@@ -145,15 +145,16 @@ class IncentiveShareVisibilityTest {
     void viewAllOnlySeesAllButNotEditDelete() {
         try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
             m.when(SecurityUtils::isAdmin).thenReturn(false);
+            m.when(SecurityUtils::isSalesDirector).thenReturn(false);
             m.when(SecurityUtils::getCurrentUserId).thenReturn(60L);
             stubJdbcAsViewAllOnly();
 
             IncentiveService svc = newService();
             assertTrue(Boolean.TRUE.equals((Boolean) ReflectionTestUtils.invokeMethod(svc, "canSeeAllIncentive")),
                     "仅开看全部必须 canSeeAllIncentive");
-            assertFalse(Boolean.TRUE.equals((Boolean) ReflectionTestUtils.invokeMethod(svc, "canEdit", 60L)),
+            assertFalse(Boolean.TRUE.equals((Boolean) ReflectionTestUtils.invokeMethod(svc, "canEdit")),
                     "仅看全部不隐含编辑他人");
-            assertFalse(Boolean.TRUE.equals((Boolean) ReflectionTestUtils.invokeMethod(svc, "canDelete", 60L)),
+            assertFalse(Boolean.TRUE.equals((Boolean) ReflectionTestUtils.invokeMethod(svc, "canDelete")),
                     "仅看全部不隐含删除他人");
         }
     }

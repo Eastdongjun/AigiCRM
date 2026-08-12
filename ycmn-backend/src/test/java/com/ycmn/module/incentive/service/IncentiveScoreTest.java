@@ -135,33 +135,33 @@ class IncentiveScoreTest {
         setCurrentUser(u);
 
         IncentiveService service = newService(mock(BizIncentiveCategoryMapper.class));
-        assertTrue(service.canEdit(5L));
-        assertTrue(service.canDelete(5L));
+        assertTrue(service.canEdit());
+        assertTrue(service.canDelete());
     }
 
     @Test
-    void canEdit_nonAdmin_queriesPermissionTableByUserId() {
+    void canEdit_salesDirectorRole_true() {
+        // 销售总监(角色0)可编辑/删除他人激励记录（2026-08-12 角色化）
         SecurityUser u = new SecurityUser();
         u.setUserId(5L);
-        u.setRoleCodes(java.util.Collections.singletonList("sales_engineer"));
+        u.setRoleCodes(java.util.Arrays.asList("06", "0")); // 销售员 + 销售总监
         setCurrentUser(u);
 
-        JdbcTemplate jdbc = mock(JdbcTemplate.class);
-        Map<String, Object> row = new java.util.HashMap<>();
-        row.put("can_edit", 1);
-        when(jdbc.queryForMap(anyString(), eq(5L))).thenReturn(row);
+        IncentiveService service = newService(mock(BizIncentiveCategoryMapper.class));
+        assertTrue(service.canEdit());
+        assertTrue(service.canDelete());
+    }
 
-        IncentiveService service = new IncentiveService(
-                mock(BizIncentiveCategoryMapper.class),
-                mock(BizIncentiveRecordMapper.class),
-                mock(SysUserMapper.class),
-                mock(BizFileMapper.class),
-                mock(BizCustomerMapper.class),
-                mock(SysDeptMapper.class),
-                jdbc,
-                mock(com.ycmn.common.scope.OrgScopeResolver.class));
-        assertTrue(service.canEdit(5L));
-        // can_delete 表无记录 → false（biz_incentive_permission 按 user_id 查询语义不变）
-        assertFalse(service.canDelete(5L));
+    @Test
+    void canEdit_nonAdmin_nonDirector_false() {
+        // 普通销售员(06)/行政(05)不能编辑/删除他人激励记录（2026-08-12 角色化，不再查 can_edit 表）
+        SecurityUser u = new SecurityUser();
+        u.setUserId(5L);
+        u.setRoleCodes(java.util.Collections.singletonList("06"));
+        setCurrentUser(u);
+
+        IncentiveService service = newService(mock(BizIncentiveCategoryMapper.class));
+        assertFalse(service.canEdit());
+        assertFalse(service.canDelete());
     }
 }

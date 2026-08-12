@@ -110,6 +110,12 @@ public class SecurityUtils {
         return user != null && user.hasRole("admin");
     }
 
+    /** 是否销售总监（角色 code=0）：激励编辑/删除他人记录 + 看全部授权（2026-08-12 角色化） */
+    public static boolean isSalesDirector() {
+        SecurityUser user = getCurrentUser();
+        return user != null && user.hasRole("0");
+    }
+
     /** 是否持有指定权限码（方法内校验用，等价 @PreAuthorize hasAuthority） */
     public static boolean hasAuthority(String authority) {
         var auth = org.springframework.security.core.context.SecurityContextHolder

@@ -60,16 +60,9 @@ public class IncentiveService {
         }
     }
 
-    /** 查询用户是否有编辑权限（admin 始终有权限；多角色任一含 admin 即真） */
-    public boolean canEdit(Long userId) {
-        if (SecurityUtils.isAdmin()) return true;
-        try {
-            Map<String, Object> row = jdbc.queryForMap(
-                "SELECT can_edit FROM biz_incentive_permission WHERE user_id=?", userId);
-            return row != null && ((Number) row.get("can_edit")).intValue() == 1;
-        } catch (Exception e) {
-            return false;
-        }
+    /** 编辑他人激励记录资格：admin ∨ 销售总监(角色0)。本人校验在 Controller。2026-08-12 角色化，废弃 can_edit 专项 */
+    public boolean canEdit() {
+        return SecurityUtils.isAdmin() || SecurityUtils.isSalesDirector();
     }
 
     /** 人员列表（公开）：激励页下拉框用 */
@@ -91,16 +84,9 @@ public class IncentiveService {
         return list;
     }
 
-    /** 查询用户是否有删除权限（admin 始终有权限；多角色任一含 admin 即真） */
-    public boolean canDelete(Long userId) {
-        if (SecurityUtils.isAdmin()) return true;
-        try {
-            Map<String, Object> row = jdbc.queryForMap(
-                "SELECT can_delete FROM biz_incentive_permission WHERE user_id=?", userId);
-            return row != null && ((Number) row.get("can_delete")).intValue() == 1;
-        } catch (Exception e) {
-            return false;
-        }
+    /** 删除他人激励记录资格：admin ∨ 销售总监(角色0)。本人校验在 Controller。2026-08-12 角色化，废弃 can_delete 专项 */
+    public boolean canDelete() {
+        return SecurityUtils.isAdmin() || SecurityUtils.isSalesDirector();
     }
 
     public List<BizIncentiveCategory> getCategoryTree() {
@@ -120,7 +106,9 @@ public class IncentiveService {
      */
     private boolean canSeeAllIncentive() {
         Long userId = SecurityUtils.getCurrentUserId();
-        return SecurityUtils.isAdmin() || canViewAll(userId) || canEdit(userId) || canDelete(userId);
+        // 【2026-08-12 角色化】看全部：admin ∨ 独立看全部开关(can_view_all) ∨ 销售总监(角色0)。
+        // can_edit/can_delete 专项已废弃，不再隐含看全部
+        return SecurityUtils.isAdmin() || canViewAll(userId) || SecurityUtils.isSalesDirector();
     }
 
     /**
