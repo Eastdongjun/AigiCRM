@@ -241,6 +241,7 @@ public class IncentiveService {
         // 批量填充关联名称(替代逐条 selectById 的 N+1,一次 IN 查询按 id 建 Map)
         java.util.Set<Long> catIds = records.stream().map(BizIncentiveRecord::getCategoryId).filter(java.util.Objects::nonNull).collect(java.util.stream.Collectors.toSet());
         java.util.Set<Long> uidSet = records.stream().map(BizIncentiveRecord::getUserId).filter(java.util.Objects::nonNull).collect(java.util.stream.Collectors.toSet());
+        uidSet.addAll(records.stream().map(BizIncentiveRecord::getUpdatedBy).filter(java.util.Objects::nonNull).collect(java.util.stream.Collectors.toSet()));
         java.util.Set<Long> custIdSet = records.stream().map(BizIncentiveRecord::getCustomerId).filter(java.util.Objects::nonNull).collect(java.util.stream.Collectors.toSet());
         java.util.Map<Long, BizIncentiveCategory> catMap = catIds.isEmpty() ? java.util.Map.of()
                 : categoryMapper.selectBatchIds(catIds).stream().collect(java.util.stream.Collectors.toMap(BizIncentiveCategory::getId, c -> c));
@@ -256,6 +257,10 @@ public class IncentiveService {
             if (r.getUserId() != null) {
                 SysUser user = userMap.get(r.getUserId());
                 if (user != null) r.setUserName(user.getRealName());
+            }
+            if (r.getUpdatedBy() != null) {
+                SysUser updater = userMap.get(r.getUpdatedBy());
+                if (updater != null) r.setUpdatedByName(updater.getRealName());
             }
             if (r.getCustomerId() != null) {
                 BizCustomer cust = custMap.get(r.getCustomerId());
@@ -280,15 +285,24 @@ public class IncentiveService {
         BizIncentiveRecord existing = recordMapper.selectById(id);
         if (existing == null) return;
 
-        // 只更新文件字段 + 分享开关（【2026-08-08 分享制】本人随时可开关分享）
+        // 合并可编辑业务字段（全部 != null 才合并；user_id/created_at/period/category_id 保持不动——
+        // 初始上传人(userId) 在编辑时不可被改变，上传时间(createdAt) 不被重置）
+        if (update.getCustomerId() != null) existing.setCustomerId(update.getCustomerId());
+        if (update.getIndustry() != null) existing.setIndustry(update.getIndustry());
+        if (update.getRelatedProducts() != null) existing.setRelatedProducts(update.getRelatedProducts());
+        if (update.getSpecificProduct() != null) existing.setSpecificProduct(update.getSpecificProduct());
+        if (update.getPreInstallQuestion() != null) existing.setPreInstallQuestion(update.getPreInstallQuestion());
+        // 文件字段 + 分享开关（【2026-08-08 分享制】本人随时可开关分享）
         if (update.getFilePreId() != null) existing.setFilePreId(update.getFilePreId());
         if (update.getFileMidId() != null) existing.setFileMidId(update.getFileMidId());
         if (update.getFilePostId() != null) existing.setFilePostId(update.getFilePostId());
         if (update.getFileId() != null) existing.setFileId(update.getFileId());
         if (update.getFileTrackId() != null) existing.setFileTrackId(update.getFileTrackId());
         if (update.getRemark() != null) existing.setRemark(update.getRemark());
-        if (update.getSpecificProduct() != null) existing.setSpecificProduct(update.getSpecificProduct());
         if (update.getShared() != null) existing.setShared(update.getShared());
+
+        // 审计：记录最后修改人（updated_at 由 DB ON UPDATE 自动维护）
+        existing.setUpdatedBy(SecurityUtils.getCurrentUserId());
 
         // 重算积分
         BizIncentiveCategory category = categoryMapper.selectById(existing.getCategoryId());
@@ -666,6 +680,10 @@ public class IncentiveService {
                 SysUser user = userMapper.selectById(r.getUserId());
                 if (user != null) r.setUserName(user.getRealName());
             }
+            if (r.getUpdatedBy() != null) {
+                SysUser updater = userMapper.selectById(r.getUpdatedBy());
+                if (updater != null) r.setUpdatedByName(updater.getRealName());
+            }
             if (r.getCustomerId() != null) {
                 BizCustomer cust = customerMapper.selectById(r.getCustomerId());
                 if (cust != null) {
@@ -746,6 +764,7 @@ public class IncentiveService {
             BizCustomer c = cmap.get(r.getCustomerId()); if (c != null) r.setCustomerName(c.getCustomerName());
             BizIncentiveCategory cat = catmap.get(r.getCategoryId()); if (cat != null) r.setCategoryName(cat.getCategoryName());
             if (r.getUserId() != null) { SysUser u = userMapper.selectById(r.getUserId()); if (u != null) r.setUserName(u.getRealName()); }
+            if (r.getUpdatedBy() != null) { SysUser up = userMapper.selectById(r.getUpdatedBy()); if (up != null) r.setUpdatedByName(up.getRealName()); }
         }
         List<Map<String, Object>> result = new ArrayList<>();
         for (BizIncentiveRecord r : records) {
@@ -757,6 +776,8 @@ public class IncentiveService {
             m.put("score", r.getScore()); m.put("userName", r.getUserName());
             m.put("fileId", r.getFileId()); m.put("filePreId", r.getFilePreId()); m.put("fileMidId", r.getFileMidId()); m.put("filePostId", r.getFilePostId()); m.put("fileTrackId", r.getFileTrackId());
             m.put("createdAt", r.getCreatedAt() != null ? r.getCreatedAt().toString() : null);
+            m.put("updatedByName", r.getUpdatedByName());
+            m.put("updatedAt", r.getUpdatedAt() != null ? r.getUpdatedAt().toString() : null);
             result.add(m);
         }
         return result;
@@ -880,6 +901,7 @@ public class IncentiveService {
                 if (cat != null) r.setCategoryName(cat.getCategoryName());
             }
             if (r.getUserId() != null) { SysUser u = userMapper.selectById(r.getUserId()); if (u != null) r.setUserName(u.getRealName()); }
+            if (r.getUpdatedBy() != null) { SysUser up = userMapper.selectById(r.getUpdatedBy()); if (up != null) r.setUpdatedByName(up.getRealName()); }
             if (r.getCustomerId() != null) {
                 BizCustomer c = custMap.get(r.getCustomerId());
                 if (c != null) r.setCustomerName(c.getCustomerName());

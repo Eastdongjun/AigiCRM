@@ -29,9 +29,12 @@ public class BizIncentiveRecord {
     private String status;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+    private Long updatedBy;             // 最后修改人ID（审计，对齐 biz_customer_indicator.updated_by）
 
     @TableField(exist = false)
     private String userName;
+    @TableField(exist = false)
+    private String updatedByName;       // 最后修改人姓名（查询时回填）
     @TableField(exist = false)
     private String categoryName;
     @TableField(exist = false)
