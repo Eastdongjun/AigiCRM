@@ -19,7 +19,7 @@ vi.mock('@/utils/confirm', () => ({ confirmAction: vi.fn() }))
 vi.mock('@/utils/request', () => ({ default: { post: vi.fn() } }))
 
 import { useIncentiveUpload } from './useIncentiveUpload'
-import { addRecord, deleteRecord } from '@/api/incentive'
+import { addRecord, deleteRecord, updateRecord } from '@/api/incentive'
 import request from '@/utils/request'
 
 const cats = [
@@ -103,7 +103,7 @@ describe('useIncentiveUpload 品类判定与提交序列化', () => {
     expect(payload.fileTrackId).toBe('[204]')
   })
 
-  it('confirmUpload 追加模式: 保留已有文件 id + 新文件 id, 且先删除旧记录再新增', async () => {
+  it('confirmUpload 追加模式: 保留已有文件 id + 新文件 id, 改走 updateRecord 保留原记录', async () => {
     list.pendingChild.value = cats[1]
     list.pendingReplace.value = { id: 9, filePreId: '[50]', fileMidId: null, filePostId: null, fileTrackId: null }
     list.selectedCustomerId.value = 5
@@ -112,12 +112,19 @@ describe('useIncentiveUpload 品类判定与提交序列化', () => {
     request.post.mockResolvedValue({ code: 200, data: { id: 100 } })
     addRecord.mockResolvedValue({})
     deleteRecord.mockResolvedValue({})
+    updateRecord.mockResolvedValue({})
 
     await list.confirmUpload()
 
-    expect(deleteRecord).toHaveBeenCalledWith(9)   // 追加: 先删旧记录
-    const payload = addRecord.mock.calls[0][0]
+    // 追加走 updateRecord(PUT)：保留原记录 id/userId/createdAt，初始上传人不被改写
+    expect(deleteRecord).not.toHaveBeenCalled()
+    expect(addRecord).not.toHaveBeenCalled()
+    expect(updateRecord).toHaveBeenCalledWith(9, expect.any(Object))
+    const payload = updateRecord.mock.calls[0][1]
     expect(payload.filePreId).toBe('[50,100]')     // 保留旧 + 新
     expect(payload.fileMidId).toBeNull()
+    // 编辑 payload 不应携带 categoryId/period（保留原记录值）
+    expect(payload).not.toHaveProperty('categoryId')
+    expect(payload).not.toHaveProperty('period')
   })
 })

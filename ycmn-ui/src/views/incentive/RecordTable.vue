@@ -47,7 +47,13 @@
       <el-table-column label="上传时间" min-width="90">
         <template #default="{ row }">{{ formatDate(row.createdAt) }}</template>
       </el-table-column>
-      <el-table-column prop="userName" label="操作人" min-width="65" />
+      <el-table-column prop="userName" label="上传人" min-width="65" />
+      <el-table-column label="修改人" min-width="65">
+        <template #default="{ row }">{{ row.updatedByName || '—' }}</template>
+      </el-table-column>
+      <el-table-column label="修改时间" min-width="90">
+        <template #default="{ row }">{{ row.updatedByName ? formatDate(row.updatedAt) : '—' }}</template>
+      </el-table-column>
       <el-table-column label="操作" width="110" fixed="right" align="center">
         <template #default="{ row }">
           <el-button v-if="userStore.isAdmin() || canEdit || row.userId === userStore.userId" link type="primary" size="small" @click="startReplace(row)">追加</el-button>

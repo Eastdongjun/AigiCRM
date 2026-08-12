@@ -596,11 +596,10 @@ export function useIncentiveUpload() {
           finalTrackId = oldRow.fileTrackId || null
         }
 
-        await deleteRecord(pendingReplace.value.id)
-        await addRecord({
-          categoryId: pendingChild.value.id,
+        // 【2026-08-12 审计】编辑改走 updateRecord(PUT)：保留原记录 id/userId/createdAt，
+        // 初始上传人不变、上传时间不被重置；categoryId/period 保留原记录值(不随编辑覆盖)。
+        await updateRecord(pendingReplace.value.id, {
           customerId: selectedCustomerId.value,
-          period: selectedPeriod.value,
           industry: selectedIndustry.value || null,
           relatedProducts: relatedProducts.value || null,
           specificProduct: specificProduct.value || null,
