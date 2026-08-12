@@ -69,6 +69,7 @@ public class CustomerService {
         return page(current, size, keyword, industry, officeId, regionId, status, ownerId, scope, devType, groupName, null);
     }
 
+    @SuppressWarnings("unused") // else-if(false) 设计历史分支为监督面板强制保留(见下), 抑制 Dead code 告警
     public IPage<BizCustomer> page(int current, int size, String keyword, String industry,
                                     Long officeId, Long regionId, String status, Long ownerId, String scope,
                                     String devType, String groupName, Long deptId) {
