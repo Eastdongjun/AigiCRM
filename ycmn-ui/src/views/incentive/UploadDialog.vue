@@ -128,6 +128,20 @@
         </div>
       </div>
 
+      <!-- 审计信息（编辑/追加时展示：上传人/上传日期/最后修改人/最后修改时间） -->
+      <div v-if="pendingReplace" class="dlg-section audit-section">
+        <div class="dlg-sec-head">
+          <span class="dlg-sec-icon" style="background:#f5f0ff;color:#9c27b0"><el-icon><InfoFilled /></el-icon></span>
+          <span class="dlg-sec-title">审计信息</span>
+        </div>
+        <div class="audit-grid">
+          <div class="audit-item"><span class="audit-label">上传人</span><span class="audit-value">{{ pendingReplace.userName || '—' }}</span></div>
+          <div class="audit-item"><span class="audit-label">上传日期</span><span class="audit-value">{{ formatDate(pendingReplace.createdAt) }}</span></div>
+          <div class="audit-item"><span class="audit-label">最后修改人</span><span class="audit-value">{{ pendingReplace.updatedByName || '—' }}</span></div>
+          <div class="audit-item"><span class="audit-label">最后修改时间</span><span class="audit-value">{{ pendingReplace.updatedByName ? formatDate(pendingReplace.updatedAt) : '—' }}</span></div>
+        </div>
+      </div>
+
       <!-- 共享 + 提示 -->
       <div class="dlg-section last">
         <div class="dlg-row">
@@ -172,6 +186,7 @@ const {
   slotLabel, MAX_FILES, installFiles, isImage, getObjectURL, removeSlotFile, pickFile,
   fileSlots, trackFile, pickTrackFile,
   shareToTeam, uploading, totalNewFiles, uploadProgress, uploadProgressText, canSubmit, confirmUpload,
+  formatDate,
 } = injectIncentiveUpload()
 </script>
 
@@ -201,6 +216,14 @@ const {
 .dlg-field .el-select,.dlg-field .el-input { width:100% }
 .dlg-confirm { color:#67c23a; font-weight:600; font-size:13px; margin-top:4px }
 .span-2 { grid-column:span 1 }
+
+/* 审计信息 */
+.audit-section { background:#fdfbff; border-color:#e4ddf5 }
+.audit-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:10px }
+.audit-item { display:flex; flex-direction:column; gap:2px; padding:8px 10px; background:#f7f5fc; border-radius:8px }
+.audit-label { font-size:11px; color:#909399 }
+.audit-value { font-size:13px; font-weight:600; color:#4e5969 }
+@media (max-width:720px){ .audit-grid { grid-template-columns:repeat(2,1fr) } }
 
 .dlg-tip { display:flex; align-items:center; gap:4px; font-size:12px; color:#909399; margin-top:8px }
 .shared-on { color:#67c23a; font-size:12px; font-weight:500 }

@@ -44,7 +44,7 @@
           <span v-else :class="row.shared ? 'shared-yes' : 'shared-no'">{{ row.shared ? '● 共享' : '—' }}</span>
         </template>
       </el-table-column>
-      <el-table-column label="上传时间" min-width="90">
+      <el-table-column label="上传日期" min-width="90">
         <template #default="{ row }">{{ formatDate(row.createdAt) }}</template>
       </el-table-column>
       <el-table-column prop="userName" label="上传人" min-width="65" />
