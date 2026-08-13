@@ -27,15 +27,16 @@ import java.util.Set;
 public class MybatisPlusConfig {
 
     /**
-     * 租户白名单：全部 26 张业务表(V9 迁移后全部含 tenant_id 列; 5 张 *_bak_* 快照表
-     * 与废弃空表 biz_stats_permission 排除)。启动自检 {@link #verifyTenantColumns} 保证
-     * 白名单每张表都有 tenant_id 列, 缺失即 fail-fast——防止漏配迁移导致 SQL 报错。
+     * 租户白名单：全部 25 张业务表(V9 迁移后全部含 tenant_id 列; 5 张 *_bak_* 快照表
+     * 与废弃空表 biz_stats_permission/biz_file_permission 排除, 后者 2026-08-13 由 V15 迁移删除)。
+     * 启动自检 {@link #verifyTenantColumns} 保证白名单每张表都有 tenant_id 列, 缺失即 fail-fast——
+     * 防止漏配迁移导致 SQL 报错。⚠️ V15 删除表后必须先于旧 jar 重启用新代码, 否则自检失败。
      */
     private static final Set<String> TENANT_TABLES = Set.of(
             "biz_approval", "biz_approval_config", "biz_approval_flow", "biz_approval_node",
             "biz_contact", "biz_customer", "biz_customer_indicator", "biz_customer_log",
             "biz_customer_share", "biz_customer_transfer", "biz_file", "biz_file_folder",
-            "biz_file_permission", "biz_file_share", "biz_folder_acl", "biz_incentive_category",
+            "biz_file_share", "biz_folder_acl", "biz_incentive_category",
             "biz_incentive_permission", "biz_incentive_record", "biz_invoice", "biz_payment",
             "biz_reminder", "biz_score_entry", "biz_score_item", "biz_score_participant",
             "biz_sea_config", "biz_sea_pool");

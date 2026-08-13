@@ -2,6 +2,7 @@ package com.ycmn.module.approval.controller;
 
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.ycmn.common.Result;
+import com.ycmn.common.annotation.YcmnLog;
 import com.ycmn.module.approval.entity.BizApproval;
 import com.ycmn.module.approval.service.ApprovalService;
 import com.ycmn.security.SecurityUtils;
@@ -47,6 +48,7 @@ public class ApprovalController {
 
     @PreAuthorize("hasAuthority('approval:approve')")
     @PostMapping("/{id}/approve")
+    @YcmnLog(module = "审批", action = "审批通过", targetType = "approval")
     public Result<Void> approve(@PathVariable Long id, @RequestBody(required = false) Map<String, String> params) {
         approvalService.approve(id, params != null ? params.get("comment") : null);
         return Result.ok();
@@ -54,6 +56,7 @@ public class ApprovalController {
 
     @PreAuthorize("hasAuthority('approval:reject')")
     @PostMapping("/{id}/reject")
+    @YcmnLog(module = "审批", action = "审批驳回", targetType = "approval")
     public Result<Void> reject(@PathVariable Long id, @RequestBody(required = false) Map<String, String> params) {
         approvalService.reject(id, params != null ? params.get("comment") : null);
         return Result.ok();

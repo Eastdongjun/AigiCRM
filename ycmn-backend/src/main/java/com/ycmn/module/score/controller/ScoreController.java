@@ -20,12 +20,6 @@ public class ScoreController {
 
     // ====== 积分项 ======
 
-    @GetMapping("/items")
-    @PreAuthorize("hasAuthority('score:view')")
-    public Result<List<BizScoreItem>> listItems() {
-        return Result.ok(scoreService.listItems());
-    }
-
     @PostMapping("/items")
     @PreAuthorize("hasAuthority('score:manage')")
     public Result<BizScoreItem> addItem(@RequestBody BizScoreItem item) {

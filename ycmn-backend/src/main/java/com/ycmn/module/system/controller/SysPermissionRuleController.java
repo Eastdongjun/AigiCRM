@@ -22,12 +22,6 @@ public class SysPermissionRuleController {
         return Result.ok(ruleService.list());
     }
 
-    @GetMapping("/{id}")
-    @PreAuthorize("hasAuthority('system:rule:view')")
-    public Result<SysPermissionRule> getById(@PathVariable Long id) {
-        return Result.ok(ruleService.getById(id));
-    }
-
     @PostMapping
     @PreAuthorize("hasAuthority('system:rule:add')")
     public Result<Void> create(@RequestBody SysPermissionRule rule) {

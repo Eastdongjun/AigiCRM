@@ -138,25 +138,6 @@ public class IncentiveController {
         return Result.ok(incentiveService.scoreboard(period));
     }
 
-    @PreAuthorize("hasAuthority('incentive:view')")
-    @GetMapping("/ranking/stats")
-    public Result<Map<String, Object>> rankingStats(@RequestParam(required = false) String period) {
-        return Result.ok(incentiveService.rankingStats(period));
-    }
-
-    /** 时间线查询：按上传时间排序 */
-    @PreAuthorize("hasAuthority('incentive:view')")
-    @GetMapping("/timeline")
-    public Result<List<Map<String, Object>>> timeline(
-            @RequestParam(required = false) String customerName,
-            @RequestParam(required = false) String salesperson,
-            @RequestParam(required = false) String industry,
-            @RequestParam(required = false) Long mainCategoryId,
-            @RequestParam(required = false) String startDate,
-            @RequestParam(required = false) String endDate) {
-        return Result.ok(incentiveService.timeline(customerName, salesperson, industry, mainCategoryId, startDate, endDate));
-    }
-
     /** 按客户分组查询激励记录（全员可见）— 支持多维度筛选 */
     @PreAuthorize("hasAuthority('incentive:view')")
     @GetMapping("/customer-records")
@@ -172,18 +153,6 @@ public class IncentiveController {
             @RequestParam(required = false) String product,
             @RequestParam(required = false) String keyword) {
         return Result.ok(incentiveService.getCustomerRecords(industry, mainCategoryId, customerName, salesperson, startDate, endDate, orgIds, devType, product, keyword));
-    }
-
-    /** 激励统计查询（全员可见）：支持大类/子类/行业/产品/周期筛选 */
-    @PreAuthorize("hasAuthority('incentive:view')")
-    @GetMapping("/records/query")
-    public Result<List<BizIncentiveRecord>> queryRecords(
-            @RequestParam(required = false) Long mainCategoryId,
-            @RequestParam(required = false) Long subCategoryId,
-            @RequestParam(required = false) String industry,
-            @RequestParam(required = false) String product,
-            @RequestParam(required = false) String period) {
-        return Result.ok(incentiveService.queryRecords(mainCategoryId, subCategoryId, industry, product, period));
     }
 
     /** 激励统计表(全员口径): 按子类聚合文件数/总学分 + 周期总计 */

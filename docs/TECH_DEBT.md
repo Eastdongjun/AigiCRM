@@ -7,7 +7,10 @@
 
 - **StatisticsController**（624 行 → 62 行薄壳 + StatisticsQueryService 602 行）✅ 已合规，作为后续重构模板
 
-## 待重构清单（21 个）
+## 待重构清单（19 个，2026-08-13 核对）
+
+> SysOrgController 已删除（2026-08-09 sys_dept/sys_org 双表收口）、
+> SysLegalEntityController 已删除（2026-08-13 孤儿端点清理），从清单移除。
 
 | # | Controller | 模块 | 风险等级 |
 |---|-----------|------|---------|
@@ -24,14 +27,12 @@
 | 11 | SysDeptController | system | 中 |
 | 12 | SysDictController | system | 中 |
 | 13 | SysGroupController | system | 中 |
-| 14 | SysLegalEntityController | system | 中 |
-| 15 | SysLogController | system | 中 |
-| 16 | SysMenuController | system | 中 |
-| 17 | SysOrgController | system | 中 |
-| 18 | SysPermissionRuleController | system | 中 |
-| 19 | SysPositionController | system | 中 |
-| 20 | SysRoleController | system | 中 |
-| 21 | SysUserController | system | 高（用户管理） |
+| 14 | SysLogController | system | 中 |
+| 15 | SysMenuController | system | 中 |
+| 16 | SysPermissionRuleController | system | 中 |
+| 17 | SysPositionController | system | 中 |
+| 18 | SysRoleController | system | 中 |
+| 19 | SysUserController | system | 高（用户管理） |
 
 ## 重构模板（照 StatisticsController 做）
 

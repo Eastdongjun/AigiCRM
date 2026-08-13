@@ -22,12 +22,6 @@ public class SysGroupController {
         return Result.ok(groupService.list());
     }
 
-    @GetMapping("/{id}")
-    @PreAuthorize("hasAuthority('system:group:view')")
-    public Result<SysGroup> getById(@PathVariable Long id) {
-        return Result.ok(groupService.getById(id));
-    }
-
     @PostMapping
     @PreAuthorize("hasAuthority('system:group:add')")
     public Result<Void> create(@RequestBody SysGroup group) {

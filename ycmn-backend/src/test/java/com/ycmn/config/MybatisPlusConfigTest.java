@@ -192,10 +192,11 @@ class MybatisPlusConfigTest {
 
     @Test
     void tenantTables_includeNewBusinessTables() {
-        // 26 张业务表全部在白名单(8 张原有 + 18 张 V9 新增); 快照表与废弃表排除
+        // 25 张业务表全部在白名单(8 张原有 + 18 张 V9 新增 - 1 张 V15 删除的 biz_file_permission);
+        // 快照表与废弃表排除
         for (String t : List.of("biz_customer", "biz_sea_pool", "biz_contact", "biz_invoice",
                 "biz_payment", "biz_score_entry", "biz_folder_acl", "biz_incentive_category",
-                "biz_customer_transfer", "biz_approval_node", "biz_file_permission")) {
+                "biz_customer_transfer", "biz_approval_node")) {
             authAs(List.of(1L));
             TenantLineInnerInterceptor it = MybatisPlusConfig.buildTenantInterceptor();
             String rewritten = it.parserSingle("SELECT * FROM " + t + " WHERE id = 1", "id");
@@ -207,5 +208,8 @@ class MybatisPlusConfigTest {
         TenantLineInnerInterceptor it = MybatisPlusConfig.buildTenantInterceptor();
         String bak = it.parserSingle("SELECT * FROM biz_customer_bak_0624 WHERE id = 1", "id");
         assertFalse(bak.toLowerCase().contains("tenant_id"), "快照表不应附加租户条件: " + bak);
+        // 废弃表不加租户条件(V15 已删表, 白名单同步移除)
+        String dead = it.parserSingle("SELECT * FROM biz_file_permission WHERE id = 1", "id");
+        assertFalse(dead.toLowerCase().contains("tenant_id"), "废弃表不应附加租户条件: " + dead);
     }
 }

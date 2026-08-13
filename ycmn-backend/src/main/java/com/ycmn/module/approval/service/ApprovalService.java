@@ -271,6 +271,12 @@ public class ApprovalService {
         BizApproval approval = approvalMapper.selectById(approvalId);
         if (approval == null) throw new BusinessException("审批不存在");
 
+        // 【P0 审批状态机】终态守卫：已驳回/已通过的审批不得再操作（防驳回后复活）。
+        // 合法态含 pending(库默认值/历史存量) 与 reviewing(发起时写入)，终态仅 approved/rejected。
+        if ("approved".equals(approval.getStatus()) || "rejected".equals(approval.getStatus())) {
+            throw new BusinessException("审批已结束，无法操作");
+        }
+
         // 更新审批节点
         BizApprovalNode node = approvalNodeMapper.selectOne(
                 new LambdaQueryWrapper<BizApprovalNode>()
@@ -306,6 +312,11 @@ public class ApprovalService {
         BizApproval approval = approvalMapper.selectById(approvalId);
         if (approval == null) throw new BusinessException("审批不存在");
 
+        // 【P0 审批状态机】终态守卫：已通过/已驳回的审批不得再操作（防反向状态翻转）
+        if ("approved".equals(approval.getStatus()) || "rejected".equals(approval.getStatus())) {
+            throw new BusinessException("审批已结束，无法操作");
+        }
+
         BizApprovalNode node = approvalNodeMapper.selectOne(
                 new LambdaQueryWrapper<BizApprovalNode>()
                         .eq(BizApprovalNode::getApprovalId, approvalId)
@@ -335,6 +346,19 @@ public class ApprovalService {
                 pool.setClaimUserId(null);
                 seaPoolMapper.updateById(pool);
             }
+        }
+
+        // 【P0 审批状态机】级联作废其他待审批节点，防终态后残留 pending 脏数据
+        List<BizApprovalNode> siblings = approvalNodeMapper.selectList(
+                new LambdaQueryWrapper<BizApprovalNode>()
+                        .eq(BizApprovalNode::getApprovalId, approvalId)
+                        .eq(BizApprovalNode::getStatus, "pending"));
+        for (BizApprovalNode s : siblings) {
+            s.setStatus("rejected");
+            s.setAction("cancelled");
+            s.setComment("审批已驳回，本节点自动作废");
+            s.setOperatedAt(LocalDateTime.now());
+            approvalNodeMapper.updateById(s);
         }
     }
 

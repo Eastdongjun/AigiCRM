@@ -26,8 +26,8 @@ public class ArchitectureTest {
             "CustomerController", "FileController", "IncentiveController",
             "ReminderController", "ScoreController", "SeaController",
             "SysConfigController", "SysDeptController", "SysDictController",
-            "SysGroupController", "SysLegalEntityController", "SysLogController",
-            "SysMenuController", "SysOrgController", "SysPermissionRuleController",
+            "SysGroupController", "SysLogController",
+            "SysMenuController", "SysPermissionRuleController",
             "SysPositionController", "SysRoleController", "SysUserController");
 
     private static List<String> newViolations(EvaluationResult result) {

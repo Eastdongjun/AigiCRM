@@ -1,5 +1,4 @@
 package com.ycmn.module.system.service;
-import java.util.Map;
 import java.util.List;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
@@ -351,109 +350,6 @@ public class SysUserService {
         userMapper.deleteById(userId);
         // 【Redis 权限缓存】删除用户立即失效，避免软删用户在 TTL 内仍可访问
         permissionCacheService.evict(userId);
-    }
-
-    // ====== 离职/返聘/转移 ======
-
-    @Transactional
-    public Map<String, Object> markLeave(Long userId, Long transferToUserId, String reason) {
-        SysUser user = userMapper.selectById(userId);
-        if (user == null) throw new BusinessException("用户不存在");
-        int transferred = 0;
-        if (transferToUserId != null) {
-            transferred = transferAllCustomers(userId, transferToUserId);
-            jdbc.update("INSERT INTO biz_customer_transfer (from_user_id,to_user_id,transfer_type,customer_count,operator_id) VALUES (?,?,?,?,?)",
-                userId, transferToUserId, "leave", transferred, SecurityUtils.getCurrentUserId());
-        }
-        user.setLeaveStatus(1);
-        user.setLeaveDate(java.time.LocalDate.now());
-        user.setLeaveReason(reason);
-        user.setStatus(0);
-        userMapper.updateById(user);
-        // 【Redis 权限缓存】禁用用户立即失效——保持"权限调整立即生效"语义。
-        // (loadUserByUsername 每次请求先查库校验 status==0 再查缓存，禁用用户在缓存命中下也会被拒；
-        //  evict 是保证缓存内不残留禁用前上下文的卫生操作)
-        permissionCacheService.evict(userId);
-        Map<String, Object> r = new java.util.HashMap<>();
-        r.put("transferred", transferred);
-        return r;
-    }
-
-    public void markRehire(Long userId) {
-        SysUser user = userMapper.selectById(userId);
-        if (user == null) throw new BusinessException("用户不存在");
-        user.setLeaveStatus(0);
-        user.setLeaveDate(null);
-        user.setLeaveReason(null);
-        user.setStatus(1);
-        userMapper.updateById(user);
-        // 【Redis 权限缓存】返聘启用立即失效（恢复其访问）
-        permissionCacheService.evict(userId);
-    }
-
-    public Map<String, Object> transferCustomers(Long fromUserId, Long toUserId) {
-        int count = transferAllCustomers(fromUserId, toUserId);
-        jdbc.update("INSERT INTO biz_customer_transfer (from_user_id,to_user_id,transfer_type,customer_count,operator_id) VALUES (?,?,?,?,?)",
-            fromUserId, toUserId, "manual", count, SecurityUtils.getCurrentUserId());
-        Map<String, Object> r = new java.util.HashMap<>();
-        r.put("count", count);
-        return r;
-    }
-
-    private int transferAllCustomers(Long fromUserId, Long toUserId) {
-        // 【修复 FEAT-20260804-SHARE-CLEANUP】转移前先取出即将转移的客户ID，转移后清理这些客户的
-        // 分享记录——此前只把 shared_by_user_id 改成新负责人，没有清理 shared_to_user_id 指向的
-        // 第三方，导致客户批量转移负责人后，原来被分享查看的同事仍长期保留访问权限。
-        List<Long> customerIds = customerMapper.selectList(
-                new LambdaQueryWrapper<BizCustomer>()
-                        .select(BizCustomer::getId)
-                        .eq(BizCustomer::getOwnerId, fromUserId)
-                        .eq(BizCustomer::getDeleted, 0))
-                .stream().map(BizCustomer::getId).toList();
-
-        // 【P2-2 2026-08-12 A3】客户转移负责人时同步 dept_id=新负责人部门(ORG 锚点数据范围跟随新负责人)。
-        // 统一一条 SQL 且 dept_id 始终显式写(含 NULL)——原实现 toDeptId==null 时降级为不写 dept_id,
-        // 遗留旧负责人部门, 与 ORG 锚点"客户归属=负责人部门"口径不符。
-        Long toDeptId = null;
-        com.ycmn.module.system.entity.SysUser toUser = userMapper.selectById(toUserId);
-        if (toUser != null) toDeptId = toUser.getDeptId();
-        int c = jdbc.update("UPDATE biz_customer SET owner_id=?, dept_id=? WHERE owner_id=? AND deleted=0",
-                toUserId, toDeptId, fromUserId);
-        jdbc.update("UPDATE biz_customer_share SET shared_by_user_id=? WHERE shared_by_user_id=?", toUserId, fromUserId);
-        if (!customerIds.isEmpty()) {
-            shareMapper.delete(new LambdaQueryWrapper<BizCustomerShare>()
-                    .in(BizCustomerShare::getCustomerId, customerIds));
-        }
-        jdbc.update("UPDATE biz_incentive_record SET user_id=? WHERE user_id=?", toUserId, fromUserId);
-        return c;
-    }
-
-    @Transactional
-    public void permanentDelete(Long userId, String reason) {
-        SysUser user = userMapper.selectById(userId);
-        if (user == null) return;
-        java.util.List<SysRole> roles = roleMapper.selectRolesByUserId(userId);
-        String roleNames = roles.stream().map(SysRole::getRoleName).collect(java.util.stream.Collectors.joining(","));
-        jdbc.update("INSERT INTO sys_user_archive (id,username,real_name,phone,email,dept_id,office_id,org_id,manager_id,role_names,data_scope,leave_status,leave_date,leave_reason,deleted_by,deleted_reason,original_created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
-            user.getId(), user.getUsername(), user.getRealName(), user.getPhone(), user.getEmail(),
-            user.getDeptId(), user.getOfficeId(), user.getOrgId(), user.getManagerId(),
-            roleNames, roles.isEmpty() ? null : roles.get(0).getDataScope(),
-            user.getLeaveStatus(), user.getLeaveDate(), user.getLeaveReason(),
-            SecurityUtils.getCurrentUserId(), reason, user.getCreatedAt());
-        jdbc.update("DELETE FROM sys_user_role WHERE user_id=?", userId);
-        // 【修复 2026-08-10 P2-08】物理删除级联清理用户级孤儿关联, 防止 ID 复用场景权限复活
-        // (biz_folder_acl 是角色维度授权, 不随用户删除; 角色本身由 SysRoleService.delete 清理)
-        jdbc.update("DELETE FROM sys_user_position WHERE user_id=?", userId);
-        jdbc.update("DELETE FROM sys_user_org WHERE user_id=?", userId);
-        jdbc.update("DELETE FROM biz_incentive_permission WHERE user_id=?", userId);
-        jdbc.update("DELETE FROM sys_org_admin WHERE user_id=?", userId);
-        userMapper.deleteById(userId);
-        // 【Redis 权限缓存】永久删除立即失效（与 deleteUser 一致，杜绝残留缓存访问）
-        permissionCacheService.evict(userId);
-    }
-
-    public java.util.List<Map<String, Object>> listArchived() {
-        return jdbc.queryForList("SELECT * FROM sys_user_archive ORDER BY deleted_at DESC");
     }
 
 }

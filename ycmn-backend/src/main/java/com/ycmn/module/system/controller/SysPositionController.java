@@ -26,12 +26,6 @@ public class SysPositionController {
         return Result.ok(positionService.list());
     }
 
-    @GetMapping("/{id}")
-    @PreAuthorize("hasAuthority('system:position:view')")
-    public Result<SysPosition> getById(@PathVariable Long id) {
-        return Result.ok(positionService.getById(id));
-    }
-
     @PostMapping
     @PreAuthorize("hasAuthority('system:position:add')")
     public Result<Void> create(@RequestBody SysPosition position) {

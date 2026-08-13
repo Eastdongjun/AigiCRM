@@ -204,7 +204,11 @@ public class SysRoleService {
     public void delete(Long id) {
         // 【修复 角色删除集团边界】非 admin 无权删除其他集团角色
         SysRole existing = roleMapper.selectById(id);
-        if (existing != null && !GroupScopeUtil.canAccessGroup(existing.getGroupId())) {
+        if (existing == null) {
+            // 【2026-08-13 收口】删除不存在的角色不再静默成功（与 update/updateOrgs 存在性校验对齐）
+            throw new BusinessException("角色不存在");
+        }
+        if (!GroupScopeUtil.canAccessGroup(existing.getGroupId())) {
             throw new BusinessException("无权删除其他集团的角色");
         }
         roleMapper.deleteById(id);
@@ -213,7 +217,7 @@ public class SysRoleService {
         // 【修复 2026-08-10 P2-06/P2-08】删除角色连带清理:
         // 1. role_perm_scope 范围配置(否则同 role_code 重建角色时旧范围复活)
         // 2. sys_user_role 用户绑定(无外键残留, 返聘/重建 ID 场景埋雷)
-        if (existing != null && existing.getRoleCode() != null) {
+        if (existing.getRoleCode() != null) {
             rolePermScopeService.deleteRoleScopes(existing.getRoleCode());
         }
         userRoleMapper.delete(new LambdaQueryWrapper<SysUserRole>().eq(SysUserRole::getRoleId, id));

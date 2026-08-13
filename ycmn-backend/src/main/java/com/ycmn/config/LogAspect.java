@@ -1,12 +1,15 @@
 package com.ycmn.config;
 
+import com.ycmn.common.annotation.YcmnLog;
 import com.ycmn.module.system.service.SysLogService;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.aspectj.lang.JoinPoint;
 import org.aspectj.lang.annotation.AfterReturning;
+import org.aspectj.lang.annotation.AfterThrowing;
 import org.aspectj.lang.annotation.Aspect;
+import org.aspectj.lang.reflect.MethodSignature;
 import org.springframework.stereotype.Component;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
@@ -15,7 +18,10 @@ import java.util.Map;
 
 /**
  * 全局操作日志 AOP 切面
- * 自动拦截所有 Controller 的写操作(POST/PUT/DELETE)并记录到 sys_log
+ * 自动拦截所有 Controller 的写操作(POST/PUT/DELETE)并记录到 sys_log：
+ * - 成功走 {@link #logWriteOperation}（@AfterReturning）；
+ * - 失败走 {@link #logWriteFailure}（@AfterThrowing，安全审计闭环，detail 含异常消息）；
+ * - 方法带 @YcmnLog 注解时用注解值覆盖 URL 推断的 module/action。
  */
 @Slf4j
 @Aspect
@@ -25,11 +31,13 @@ public class LogAspect {
 
     private final SysLogService logService;
 
-    @AfterReturning(pointcut =
+    private static final String WRITE_POINTCUT =
             "execution(* com.ycmn.module..controller..*(..)) && (" +
             "@annotation(org.springframework.web.bind.annotation.PostMapping) || " +
             "@annotation(org.springframework.web.bind.annotation.PutMapping) || " +
-            "@annotation(org.springframework.web.bind.annotation.DeleteMapping))")
+            "@annotation(org.springframework.web.bind.annotation.DeleteMapping))";
+
+    @AfterReturning(pointcut = WRITE_POINTCUT)
     public void logWriteOperation(JoinPoint jp) {
         try {
             HttpServletRequest request = getRequest();
@@ -41,14 +49,57 @@ public class LogAspect {
             // 跳过不需要记录的接口
             if (uri.contains("/auth/login") || uri.contains("/auth/logout")) return;
 
+            YcmnLog ann = findYcmnLog(jp);
             String module = resolveModule(uri);
             String action = resolveAction(method, uri);
+            if (ann != null) {
+                if (!ann.module().isBlank()) module = ann.module();
+                if (!ann.action().isBlank()) action = ann.action();
+            }
             String detail = resolveDetail(jp, uri);
 
-            logService.log(module, action, null, null, detail, request);
+            logService.log(module, action, ann != null ? ann.targetType() : null, null, detail, request);
         } catch (Exception e) {
             log.debug("日志记录失败: {}", e.getMessage());
         }
+    }
+
+    /** 【2026-08-13 新增】写操作失败也必须入审计日志（原仅记成功，失败=审计盲区） */
+    @AfterThrowing(pointcut = WRITE_POINTCUT, throwing = "t")
+    public void logWriteFailure(JoinPoint jp, Throwable t) {
+        try {
+            HttpServletRequest request = getRequest();
+            if (request == null) return;
+
+            String uri = request.getRequestURI();
+            String method = request.getMethod();
+            if (uri.contains("/auth/login") || uri.contains("/auth/logout")) return;
+
+            YcmnLog ann = findYcmnLog(jp);
+            String module = resolveModule(uri);
+            String action = resolveAction(method, uri);
+            if (ann != null) {
+                if (!ann.module().isBlank()) module = ann.module();
+                if (!ann.action().isBlank()) action = ann.action();
+            }
+
+            // 失败详情: 异常类名 + 消息(截断 200 字符防超长)
+            String msg = t.getMessage() == null ? t.getClass().getSimpleName()
+                    : t.getClass().getSimpleName() + ": " + t.getMessage();
+            String detail = "失败 " + (msg.length() > 200 ? msg.substring(0, 200) : msg);
+
+            logService.log(module, action, ann != null ? ann.targetType() : null, null, detail, request);
+        } catch (Exception e) {
+            log.debug("日志记录失败: {}", e.getMessage());
+        }
+    }
+
+    /** 提取方法上的 @YcmnLog 注解（无则 null）。包内可见便于单测。 */
+    YcmnLog findYcmnLog(JoinPoint jp) {
+        if (jp.getSignature() instanceof MethodSignature ms) {
+            return ms.getMethod().getAnnotation(YcmnLog.class);
+        }
+        return null;
     }
 
     /** URL → 模块名 */

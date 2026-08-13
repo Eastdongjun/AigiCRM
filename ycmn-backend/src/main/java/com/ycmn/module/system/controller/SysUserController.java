@@ -1,8 +1,8 @@
 package com.ycmn.module.system.controller;
 import com.ycmn.common.BusinessException;
+import com.ycmn.common.annotation.YcmnLog;
 import com.ycmn.security.SecurityUtils;
 import com.ycmn.module.system.service.OrgAdminService;
-import java.util.List;
 import java.util.Map;
 
 import com.baomidou.mybatisplus.core.metadata.IPage;
@@ -60,6 +60,7 @@ public class SysUserController {
 
     @PostMapping("/{id}/reset-password")
     @PreAuthorize("hasAnyAuthority('system:user:edit','system:org:admin')")
+    @YcmnLog(module = "人员", action = "重置密码", targetType = "user")
     public Result<Void> resetPassword(@PathVariable Long id) {
         if (SecurityUtils.isOrgAdmin() && !orgAdminService.canManageUser(id)) throw new BusinessException("无权操作该用户");
         userService.resetPassword(id);
@@ -79,46 +80,5 @@ public class SysUserController {
         if (SecurityUtils.isOrgAdmin() && !orgAdminService.canManageUser(id)) throw new BusinessException("无权操作该用户");
         userService.deleteUser(id);
         return Result.ok();
-    }
-
-    // ====== 离职/返聘/转移 ======
-
-    @PostMapping("/{id}/leave")
-    @PreAuthorize("hasAnyAuthority('system:user:edit','system:org:admin')")
-    public Result<Map<String, Object>> leave(@PathVariable Long id, @RequestBody Map<String, Object> body) {
-        if (SecurityUtils.isOrgAdmin() && !orgAdminService.canManageUser(id)) throw new BusinessException("无权操作该用户");
-        Long transferToUserId = body.get("transferToUserId") != null ? Long.valueOf(body.get("transferToUserId").toString()) : null;
-        String reason = (String) body.getOrDefault("reason", "");
-        return Result.ok(userService.markLeave(id, transferToUserId, reason));
-    }
-
-    @PostMapping("/{id}/rehire")
-    @PreAuthorize("hasAnyAuthority('system:user:edit','system:org:admin')")
-    public Result<Void> rehire(@PathVariable Long id) {
-        if (SecurityUtils.isOrgAdmin() && !orgAdminService.canManageUser(id)) throw new BusinessException("无权操作该用户");
-        userService.markRehire(id);
-        return Result.ok();
-    }
-
-    @PostMapping("/{id}/transfer-customers")
-    @PreAuthorize("hasAnyAuthority('system:user:edit','system:org:admin')")
-    public Result<Map<String, Object>> transferCustomers(@PathVariable Long id, @RequestBody Map<String, Object> body) {
-        if (SecurityUtils.isOrgAdmin() && !orgAdminService.canManageUser(id)) throw new BusinessException("无权操作该用户");
-        Long toUserId = Long.valueOf(body.get("toUserId").toString());
-        return Result.ok(userService.transferCustomers(id, toUserId));
-    }
-
-    @PreAuthorize("hasAnyAuthority('system:user:delete','system:org:admin')")
-    @DeleteMapping("/{id}/permanent")
-    public Result<Void> permanentDelete(@PathVariable Long id, @RequestParam(defaultValue = "") String reason) {
-        if (SecurityUtils.isOrgAdmin() && !orgAdminService.canManageUser(id)) throw new BusinessException("无权操作该用户");
-        userService.permanentDelete(id, reason);
-        return Result.ok();
-    }
-
-    @GetMapping("/archived")
-    @PreAuthorize("hasAnyAuthority('system:user:view','system:org:admin')")
-    public Result<List<Map<String, Object>>> listArchived() {
-        return Result.ok(userService.listArchived());
     }
 }

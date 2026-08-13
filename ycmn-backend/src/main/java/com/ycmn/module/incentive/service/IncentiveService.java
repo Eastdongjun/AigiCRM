@@ -600,37 +600,6 @@ public class IncentiveService {
         return result;
     }
 
-    // 排行统计概览
-    public Map<String, Object> rankingStats(String period) {
-        List<Map<String, Object>> personal = scoreboard(period);
-        Map<String, Object> stats = new HashMap<>();
-        stats.put("participantCount", personal.size());
-
-        Set<String> depts = new HashSet<>();
-        int topScore = 0;
-        String topName = "";
-        int topRecordCount = 0;
-        int totalRecordCount = 0;
-
-        for (Map<String, Object> p : personal) {
-            depts.add((String) p.getOrDefault("officeName", "未知"));
-            int score = ((Number) p.getOrDefault("totalScore", 0)).intValue();
-            int rc = ((Number) p.getOrDefault("recordCount", 0)).intValue();
-            totalRecordCount += rc;
-            if (score > topScore) {
-                topScore = score;
-                topName = (String) p.getOrDefault("realName", "");
-                topRecordCount = rc;
-            }
-        }
-        stats.put("deptCount", depts.size());
-        stats.put("topScore", topScore);
-        stats.put("topScoreName", topName);
-        stats.put("topRecordCount", topRecordCount);
-        stats.put("totalRecordCount", totalRecordCount);
-        return stats;
-    }
-
     /**
      * 获取客户关联的激励积分总分
      */
@@ -641,62 +610,6 @@ public class IncentiveService {
         applyShareVisibility(wrapper);
         List<BizIncentiveRecord> records = recordMapper.selectList(wrapper);
         return records.stream().mapToInt(r -> r.getScore() != null ? r.getScore() : 0).sum();
-    }
-
-    /** 激励统计查询：支持大类/子类/行业/产品/周期筛选，按数据范围(含系统级开关)过滤返回明细 */
-    public List<BizIncentiveRecord> queryRecords(Long mainCategoryId, Long subCategoryId,
-                                                  String industry, String product, String period) {
-        LambdaQueryWrapper<BizIncentiveRecord> wrapper = new LambdaQueryWrapper<>();
-        // 【2026-08-08 分享制】激励统计查询明细统一按分享制过滤（admin/专项授权→全部，否则本人+已分享）
-        applyShareVisibility(wrapper);
-        if (period != null && !period.isBlank()) wrapper.eq(BizIncentiveRecord::getPeriod, period);
-        if (industry != null && !industry.isBlank()) wrapper.eq(BizIncentiveRecord::getIndustry, industry);
-        if (product != null && !product.isBlank()) wrapper.like(BizIncentiveRecord::getRelatedProducts, product);
-        if (subCategoryId != null) {
-            wrapper.eq(BizIncentiveRecord::getCategoryId, subCategoryId);
-        } else if (mainCategoryId != null) {
-            List<BizIncentiveCategory> children = categoryMapper.selectList(
-                    new LambdaQueryWrapper<BizIncentiveCategory>().eq(BizIncentiveCategory::getParentId, mainCategoryId)
-            );
-            List<Long> childIds = new ArrayList<>();
-            for (BizIncentiveCategory child : children) {
-                childIds.add(child.getId());
-                // 三级结构：再查孙级
-                List<BizIncentiveCategory> grands = categoryMapper.selectList(
-                        new LambdaQueryWrapper<BizIncentiveCategory>().eq(BizIncentiveCategory::getParentId, child.getId())
-                );
-                for (BizIncentiveCategory g : grands) childIds.add(g.getId());
-            }
-            if (!childIds.isEmpty()) wrapper.in(BizIncentiveRecord::getCategoryId, childIds);
-        }
-        wrapper.orderByDesc(BizIncentiveRecord::getCreatedAt);
-        List<BizIncentiveRecord> records = recordMapper.selectList(wrapper);
-        for (BizIncentiveRecord r : records) {
-            if (r.getCategoryId() != null) {
-                BizIncentiveCategory cat = categoryMapper.selectById(r.getCategoryId());
-                if (cat != null) r.setCategoryName(cat.getCategoryName());
-            }
-            if (r.getUserId() != null) {
-                SysUser user = userMapper.selectById(r.getUserId());
-                if (user != null) r.setUserName(user.getRealName());
-            }
-            if (r.getUpdatedBy() != null) {
-                SysUser updater = userMapper.selectById(r.getUpdatedBy());
-                if (updater != null) r.setUpdatedByName(updater.getRealName());
-            }
-            if (r.getCustomerId() != null) {
-                BizCustomer cust = customerMapper.selectById(r.getCustomerId());
-                if (cust != null) {
-                    r.setCustomerName(cust.getCustomerName());
-                    r.setLastInvoiceDate(cust.getLastInvoiceDate());
-                    if (cust.getLastInvoiceDate() != null) {
-                        r.setOverdueDays(java.time.LocalDate.now().toEpochDay() - cust.getLastInvoiceDate().toEpochDay());
-                    }
-                }
-            }
-        }
-        fillFileNames(records);
-        return records;
     }
 
     // ======================== 分享制可见性（2026-08-08） ========================
@@ -724,61 +637,6 @@ public class IncentiveService {
         for (SysDept child : children) {
             result.add(child.getId());
             result.addAll(getDescendantDeptIds(child.getId()));
-        }
-        return result;
-    }
-
-    /** 时间线查询：按上传时间排序的扁平列表 */
-    public List<Map<String, Object>> timeline(String customerName, String salesperson,
-            String industry, Long mainCategoryId, String startDate, String endDate) {
-        LambdaQueryWrapper<BizIncentiveRecord> wrapper = new LambdaQueryWrapper<>();
-        applyShareVisibility(wrapper); // 【2026-08-08 分享制】时间线明细按分享制可见
-        if (customerName != null && !customerName.isBlank()) {
-            List<BizCustomer> m = customerMapper.selectList(new LambdaQueryWrapper<BizCustomer>().like(BizCustomer::getCustomerName, customerName));
-            if (!m.isEmpty()) wrapper.in(BizIncentiveRecord::getCustomerId, m.stream().map(BizCustomer::getId).toList());
-            else return List.of();
-        }
-        if (salesperson != null && !salesperson.isBlank()) {
-            List<SysUser> u = userMapper.selectList(new LambdaQueryWrapper<SysUser>().like(SysUser::getRealName, salesperson));
-            if (!u.isEmpty()) wrapper.in(BizIncentiveRecord::getUserId, u.stream().map(SysUser::getId).toList());
-            else return List.of();
-        }
-        if (industry != null && !industry.isBlank()) wrapper.eq(BizIncentiveRecord::getIndustry, industry);
-        if (mainCategoryId != null) {
-            Set<Long> ids = new HashSet<>(); ids.add(mainCategoryId);
-            categoryMapper.selectList(new LambdaQueryWrapper<BizIncentiveCategory>().eq(BizIncentiveCategory::getParentId, mainCategoryId))
-                .forEach(c -> { ids.add(c.getId()); categoryMapper.selectList(new LambdaQueryWrapper<BizIncentiveCategory>().eq(BizIncentiveCategory::getParentId, c.getId())).forEach(g -> ids.add(g.getId())); });
-            wrapper.in(BizIncentiveRecord::getCategoryId, ids);
-        }
-        if (startDate != null && !startDate.isBlank()) wrapper.ge(BizIncentiveRecord::getCreatedAt, startDate + " 00:00:00");
-        if (endDate != null && !endDate.isBlank()) wrapper.le(BizIncentiveRecord::getCreatedAt, endDate + " 23:59:59");
-        wrapper.orderByDesc(BizIncentiveRecord::getCreatedAt);
-        List<BizIncentiveRecord> records = recordMapper.selectList(wrapper);
-        // 填充
-        Set<Long> cids = records.stream().map(BizIncentiveRecord::getCustomerId).filter(Objects::nonNull).collect(Collectors.toSet());
-        Map<Long, BizCustomer> cmap = new HashMap<>();
-        if (!cids.isEmpty()) customerMapper.selectBatchIds(cids).forEach(c -> cmap.put(c.getId(), c));
-        Map<Long, BizIncentiveCategory> catmap = new HashMap<>();
-        categoryMapper.selectList(null).forEach(c -> catmap.put(c.getId(), c));
-        for (BizIncentiveRecord r : records) {
-            BizCustomer c = cmap.get(r.getCustomerId()); if (c != null) r.setCustomerName(c.getCustomerName());
-            BizIncentiveCategory cat = catmap.get(r.getCategoryId()); if (cat != null) r.setCategoryName(cat.getCategoryName());
-            if (r.getUserId() != null) { SysUser u = userMapper.selectById(r.getUserId()); if (u != null) r.setUserName(u.getRealName()); }
-            if (r.getUpdatedBy() != null) { SysUser up = userMapper.selectById(r.getUpdatedBy()); if (up != null) r.setUpdatedByName(up.getRealName()); }
-        }
-        List<Map<String, Object>> result = new ArrayList<>();
-        for (BizIncentiveRecord r : records) {
-            Map<String, Object> m = new LinkedHashMap<>();
-            m.put("id", r.getId()); m.put("customerId", r.getCustomerId()); m.put("customerName", r.getCustomerName());
-            m.put("categoryId", r.getCategoryId()); m.put("categoryName", r.getCategoryName());
-            m.put("period", r.getPeriod()); m.put("industry", r.getIndustry()); m.put("relatedProducts", r.getRelatedProducts());
-            m.put("specificProduct", r.getSpecificProduct());
-            m.put("score", r.getScore()); m.put("userName", r.getUserName());
-            m.put("fileId", r.getFileId()); m.put("filePreId", r.getFilePreId()); m.put("fileMidId", r.getFileMidId()); m.put("filePostId", r.getFilePostId()); m.put("fileTrackId", r.getFileTrackId());
-            m.put("createdAt", r.getCreatedAt() != null ? r.getCreatedAt().toString() : null);
-            m.put("updatedByName", r.getUpdatedByName());
-            m.put("updatedAt", r.getUpdatedAt() != null ? r.getUpdatedAt().toString() : null);
-            result.add(m);
         }
         return result;
     }

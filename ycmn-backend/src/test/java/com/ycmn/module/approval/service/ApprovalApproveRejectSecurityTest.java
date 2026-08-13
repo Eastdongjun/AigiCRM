@@ -108,4 +108,75 @@ class ApprovalApproveRejectSecurityTest {
         assertEquals("approved", node.getStatus());
         verify(nodeMapper).updateById(node);
     }
+
+    /**
+     * 【P0 审批状态机】审批已被驳回后，其他审批人不得再通过（驳回后复活漏洞）。
+     * 守卫应拒绝操作且不改动任何节点状态。
+     */
+    @Test
+    void approve_afterRejected_rejects_notRevive() {
+        setCurrentUser(2L);
+        BizApproval a = approval();
+        a.setStatus("rejected"); // 已被另一审批人驳回
+        when(approvalMapper.selectById(1L)).thenReturn(a);
+        BizApprovalNode node = new BizApprovalNode();
+        node.setId(6L);
+        node.setApprovalId(1L);
+        node.setApproverId(2L);
+        node.setStatus("pending");
+        when(nodeMapper.selectOne(any())).thenReturn(node);
+        when(nodeMapper.selectCount(any())).thenReturn(1L); // 避免走"全部通过"分支，验证的是终态守卫本身
+
+        assertThrows(BusinessException.class, () -> svc.approve(1L, "同意"));
+        assertEquals("pending", node.getStatus());
+    }
+
+    /**
+     * 【P0 审批状态机】审批已通过后不得再驳回（反向状态翻转）。
+     */
+    @Test
+    void reject_afterApproved_rejects() {
+        setCurrentUser(1L);
+        BizApproval a = approval();
+        a.setStatus("approved"); // 已全部通过
+        when(approvalMapper.selectById(1L)).thenReturn(a);
+        BizApprovalNode node = new BizApprovalNode();
+        node.setId(7L);
+        node.setApprovalId(1L);
+        node.setApproverId(1L);
+        node.setStatus("pending"); // 迟到节点（终态守卫应拦截，不依赖节点状态）
+        when(nodeMapper.selectOne(any())).thenReturn(node);
+
+        assertThrows(BusinessException.class, () -> svc.reject(1L, "驳回"));
+        assertEquals("pending", node.getStatus());
+        assertEquals("approved", a.getStatus()); // 审批状态不得被翻回 rejected
+    }
+
+    /**
+     * 【P0 审批状态机】驳回后级联作废其他待审批节点，防终态后残留 pending 脏数据。
+     */
+    @Test
+    void reject_cascadesSiblingPendingNodesToCancelled() {
+        setCurrentUser(1L);
+        when(approvalMapper.selectById(1L)).thenReturn(approval());
+        BizApprovalNode actingNode = new BizApprovalNode();
+        actingNode.setId(7L);
+        actingNode.setApprovalId(1L);
+        actingNode.setApproverId(1L);
+        actingNode.setStatus("pending");
+        when(nodeMapper.selectOne(any())).thenReturn(actingNode);
+
+        BizApprovalNode sibling = new BizApprovalNode();
+        sibling.setId(8L);
+        sibling.setApprovalId(1L);
+        sibling.setApproverId(2L);
+        sibling.setStatus("pending");
+        when(nodeMapper.selectList(any())).thenReturn(java.util.List.of(sibling));
+
+        svc.reject(1L, "驳回");
+
+        assertEquals("rejected", sibling.getStatus());
+        assertEquals("cancelled", sibling.getAction());
+        verify(nodeMapper).updateById(sibling);
+    }
 }

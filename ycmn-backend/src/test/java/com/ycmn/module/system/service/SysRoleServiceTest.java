@@ -449,6 +449,21 @@ class SysRoleServiceTest {
         }
     }
 
+    @Test
+    void delete_unknownRole_rejected() {
+        // 不存在角色 → 拒绝(不再静默成功), admin 同样拦截(存在性校验与权限无关)
+        SysRoleMapper roleMapper = mock(SysRoleMapper.class);
+        SysRoleService service = newServiceWith(roleMapper);
+        when(roleMapper.selectById(99L)).thenReturn(null);
+        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
+            m.when(SecurityUtils::isAdmin).thenReturn(true);
+
+            assertThrows(BusinessException.class, () -> service.delete(99L),
+                    "删除不存在的角色不应静默成功");
+            verify(roleMapper, never()).deleteById(99L);
+        }
+    }
+
     // ---- 【P2 2026-08-11】updateOrgs 集团边界校验（对齐 update/delete；此前缺失, 持 system:role:edit
     //      非超管可对任意集团角色写 role_org 扩大 custom 数据范围, 且 sys_role_org 不在租户白名单, 跨集团生效） ----
 
