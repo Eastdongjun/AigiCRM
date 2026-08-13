@@ -229,16 +229,6 @@
 | `created_at` | datetime | YES | CURRENT_TIMESTAMP |  |  |
 | `downloadable` | tinyint | NO | 1 |  | 下载开关:1=允许下载,0=仅预览 |
 
-## biz_file_permission 文件管理权限表
-
-| 字段 | 类型 | 可空 | 默认 | 键 | 说明 |
-|---|---|---|---|---|---|
-| `id` | bigint | NO | NULL | PRI |  |
-| `user_id` | bigint | NO | NULL | UNI |  |
-| `can_upload` | tinyint | YES | 0 |  | 公共盘上传权限 |
-| `can_delete` | tinyint | YES | 0 |  | 公共盘删除权限 |
-| `created_at` | datetime | YES | CURRENT_TIMESTAMP |  |  |
-
 ## biz_file_share 
 
 | 字段 | 类型 | 可空 | 默认 | 键 | 说明 |
