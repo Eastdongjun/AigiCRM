@@ -105,7 +105,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(MaxUploadSizeExceededException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     public Result<Void> handleMaxUploadSize(MaxUploadSizeExceededException e) {
-        return Result.error(400, "文件大小超过限制，最大允许 100MB");
+        return Result.error(400, "文件大小超过限制，最大允许 500MB");
     }
 
     // ==================== 数据库 ====================

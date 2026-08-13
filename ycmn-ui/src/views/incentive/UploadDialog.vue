@@ -155,7 +155,7 @@
             <span v-if="!canToggleShare" style="font-size:11px;color:#909399">（仅上传人本人可修改分享）</span>
           </div>
           <div class="dlg-tip">
-            <el-icon><InfoFilled /></el-icon> 单文件最大 100MB，支持图片、PDF、Word、Excel、压缩包等格式
+            <el-icon><InfoFilled /></el-icon> 单文件最大 500MB，支持图片、视频、PDF、Word、Excel、压缩包等格式
           </div>
         </div>
       </div>
