@@ -74,9 +74,9 @@ done
 
 # ---------------------------------------------------------------- [3] 后端门禁
 echo "--- [3] 后端 (ycmn-backend, mvn verify, 需 JDK 17) ---"
-# shellcheck source=ensure-java17.sh
-source "$SCRIPT_DIR/ensure-java17.sh"
-if ! ensure_java17 >/tmp/qg-j17.log 2>&1; then
+# shellcheck source=ensure-java21.sh
+source "$SCRIPT_DIR/ensure-java21.sh"
+if ! ensure_java21 >/tmp/qg-j17.log 2>&1; then
   blk "找不到 JDK 17（Lombok 与 JDK 25 不兼容）—— BLOCKED"
   tail -5 /tmp/qg-j17.log | sed 's/^/    /'
 else

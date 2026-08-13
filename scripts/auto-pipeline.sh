@@ -12,7 +12,7 @@ set -uo pipefail
 ROOT="/Users/donglai/东来/01-Projects/01-aigicrm/04-源码"
 cd "$ROOT"
 source "$ROOT/scripts/deploy-lib.sh"
-source "$ROOT/scripts/ensure-java17.sh"
+source "$ROOT/scripts/ensure-java21.sh"
 
 # ── 如果测试服务器上的代码目录不是这个路径，改这一行 ──
 TEST_REPO_DIR="${TEST_REPO_DIR:-/home/${TEST_USER}/AigiCRM}"
@@ -23,7 +23,7 @@ die()  { echo "❌ $1" >&2; exit 1; }
 
 # ============ Phase 1: 编译验证 + git commit/push ============
 step "[1/7] 后端编译"
-ensure_java17 || die "JDK 17 环境准备失败，流水线终止"
+ensure_java21 || die "JDK 17 环境准备失败，流水线终止"
 cd "$ROOT/ycmn-backend"
 run_maven clean compile || die "后端编译失败，流水线终止"
 cd "$ROOT"

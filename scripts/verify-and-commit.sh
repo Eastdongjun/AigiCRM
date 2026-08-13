@@ -4,10 +4,10 @@
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
-source "$ROOT/scripts/ensure-java17.sh"
+source "$ROOT/scripts/ensure-java21.sh"
 
 echo "=== [1/4] 后端编译 (mvn clean compile) ==="
-ensure_java17 || exit 1
+ensure_java21 || exit 1
 cd "$ROOT/ycmn-backend"
 run_maven clean compile
 
