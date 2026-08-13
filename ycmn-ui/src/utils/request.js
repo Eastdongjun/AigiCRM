@@ -65,14 +65,29 @@ request.interceptors.response.use(
       handleSessionExpired()
       return Promise.reject(error)
     }
-    const msg = error.response?.data?.message
-    if (status === 403) {
-      // token 仍有效却 403 → 确实是没有该操作权限
-      notify(msg || '没有操作权限')
-    } else {
-      notify(msg || error.message || '网络错误')
+    // 【2026-08-13 全局中文化】HTTP 状态码 → 中文提示；后端 message 优先。
+    // 覆盖 nginx 413(HTML body 无 message)/500 空 body 等此前显示 "Request failed with status code xxx" 的场景
+    const STATUS_MSG = {
+      400: '请求参数有误',
+      403: '没有操作权限',
+      404: '请求的接口不存在',
+      413: '文件过大，超出上传限制（最大 500MB）',
+      429: '操作太频繁，请稍后再试',
+      500: '服务器繁忙，请稍后再试',
+      502: '服务暂时不可用，请稍后再试',
+      503: '服务维护中，请稍后再试',
+      504: '请求超时，请稍后再试'
     }
-    return Promise.reject(error)
+    let msg = error.response?.data?.message
+    if (!msg) {
+      msg = STATUS_MSG[status]
+        || (error.code === 'ECONNABORTED' ? '请求超时，请稍后重试' : '网络异常，请稍后重试')
+    }
+    notify(msg)
+    // 重包装为中文 Error：各处 catch 的 e.message 自动中文，无需逐个页面改
+    const wrapped = new Error(msg)
+    wrapped.response = error.response
+    return Promise.reject(wrapped)
   }
 )
 

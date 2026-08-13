@@ -5,13 +5,22 @@ import { ElMessage } from 'element-plus'
 
 const DEFAULT_TIMEOUT = 60000
 
+// 【2026-08-13 全局中文化】下载失败的 HTTP 状态码 → 中文提示
+const STATUS_MSG = {
+  401: '登录已过期，请重新登录',
+  403: '没有下载权限',
+  404: '文件不存在或已被删除',
+  413: '文件过大，超出下载限制',
+  500: '服务器繁忙，请稍后再试'
+}
+
 export async function downloadFile(url, { name = '下载', headers = {}, timeout = DEFAULT_TIMEOUT } = {}) {
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), timeout)
   try {
     const res = await fetch(url, { headers, signal: controller.signal })
     if (!res.ok) {
-      ElMessage.error(`下载失败(${res.status})`)
+      ElMessage.error(STATUS_MSG[res.status] || '下载失败，请稍后重试')
       return false
     }
     const blob = await res.blob()
@@ -28,7 +37,8 @@ export async function downloadFile(url, { name = '下载', headers = {}, timeout
     if (e && e.name === 'AbortError') {
       ElMessage.error('下载超时，请重试')
     } else {
-      ElMessage.error((e && e.message) || '下载失败')
+      // 【2026-08-13 全局中文化】fetch 网络类异常(如 "Failed to fetch")统一中文兜底
+      ElMessage.error('下载失败，请稍后重试')
     }
     return false
   } finally {

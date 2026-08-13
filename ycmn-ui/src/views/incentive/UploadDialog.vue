@@ -176,10 +176,14 @@
       </div>
     </template>
   </el-dialog>
+
+  <!-- 安装文件预览(图片放大/视频播放/文档下载)——0812 视频预览功能的上传弹窗入口,此前遗漏挂载导致点卡片无反应 -->
+  <FilePreview v-model:visible="previewVisible" :url="previewUrl" :type="previewType" :file-name="previewName" />
 </template>
 
 <script setup>
 import { injectIncentiveUpload } from '@/composables/useIncentiveUpload'
+import FilePreview from '@/components/FilePreview.vue'
 
 const {
   showCustomerDialog, pendingReplace, pendingChild,
@@ -188,6 +192,7 @@ const {
   categoryCodeOf, specificProduct,
   secTitle, detailLabel, isSingleSlot, preInstallQuestion, isTrial, remarkLabel, remarkText,
   slotLabel, MAX_FILES, installFiles, isImage, fileType, getObjectURL, removeSlotFile, pickFile, previewCardFile,
+  previewVisible, previewUrl, previewType, previewName,
   fileSlots, trackFile, pickTrackFile,
   shareToTeam, uploading, totalNewFiles, uploadProgress, uploadProgressText, canSubmit, confirmUpload,
   canToggleShare, formatDate,
