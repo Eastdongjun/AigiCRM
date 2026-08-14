@@ -1,10 +1,10 @@
 # YCMN API 清单(自动生成)
 
-> 生成时间: 2026-08-09 | 来源: 后端 controller 源码扫描
+> 生成时间: 2026-08-14 | 来源: 后端 controller 源码扫描
 > 本文件由 scripts/gen-api.py 自动生成,**禁止手改**;接口变更后重新运行。
 > 权限码与 docs/permission/permission-dict.md 对应。
 
-## 接口清单(191 个)
+## 接口清单(176 个)
 
 | 方法 | 路径 | 权限码 | 方法名 | 文件 |
 |---|---|---|---|---|
@@ -23,6 +23,7 @@
 | POST | `/api/auth/forgot-password/send-code` | `匿名` | forgotPasswordSendCode | AuthController.java |
 | GET | `/api/auth/info` | `登录即可` | getUserInfo | AuthController.java |
 | POST | `/api/auth/logout` | `登录即可` | logout | AuthController.java |
+| POST | `/api/auth/switch-group` | `登录即可` | switchGroup | AuthController.java |
 | ANY | `/api/common/scope` | `登录即可` | users | ScopeController.java |
 | GET | `/api/common/scope/depts` | `登录即可` | depts | ScopeController.java |
 | ANY | `/api/customer` | `customer:view` | page | CustomerController.java |
@@ -61,15 +62,15 @@
 | GET | `/api/file/download/**` | `file:view` | download | FileController.java |
 | GET | `/api/file/download/public/**` | `匿名` | downloadPublic | FileController.java |
 | GET | `/api/file/download/{id}` | `file:view` | downloadById | FileController.java |
-| ANY | `/api/file/folders` | `登录即可` | listAcl | FolderAclController.java |
+| ANY | `/api/file/folders` | `file:acl:manage` | listAcl | FolderAclController.java |
 | GET | `/api/file/folders` | `file:view` | getFolderTree | FileController.java |
 | POST | `/api/file/folders` | `file:view` | createFolder | FileController.java |
 | DELETE | `/api/file/folders/{id}` | `file:view` | deleteFolder | FileController.java |
 | PUT | `/api/file/folders/{id}` | `file:view` | renameFolder | FileController.java |
-| POST | `/api/file/folders/{id}/acl` | `登录即可` | saveAcl | FolderAclController.java |
-| DELETE | `/api/file/folders/{id}/acl/{roleId}` | `登录即可` | removeAcl | FolderAclController.java |
-| PUT | `/api/file/folders/{id}/download` | `登录即可` | setDownloadable | FolderAclController.java |
-| GET | `/api/file/folders/{id}/permissions` | `登录即可` | permissions | FolderAclController.java |
+| POST | `/api/file/folders/{id}/acl` | `file:acl:manage` | saveAcl | FolderAclController.java |
+| DELETE | `/api/file/folders/{id}/acl/{roleId}` | `file:acl:manage` | removeAcl | FolderAclController.java |
+| PUT | `/api/file/folders/{id}/download` | `file:acl:manage` | setDownloadable | FolderAclController.java |
+| GET | `/api/file/folders/{id}/permissions` | `file:acl:manage` | permissions | FolderAclController.java |
 | GET | `/api/file/list` | `file:view` | pageFiles | FileController.java |
 | GET | `/api/file/shared-to-me` | `file:view` | sharedToMe | FileController.java |
 | GET | `/api/file/shared-to-me/count` | `file:view` | sharedToMeCount | FileController.java |
@@ -89,26 +90,22 @@
 | POST | `/api/incentive/permission/grant` | `system:config:edit` | grant | IncentivePermissionController.java |
 | DELETE | `/api/incentive/permission/{id}` | `system:config:edit` | revoke | IncentivePermissionController.java |
 | GET | `/api/incentive/ranking` | `incentive:view` | ranking | IncentiveController.java |
-| GET | `/api/incentive/ranking/stats` | `incentive:view` | rankingStats | IncentiveController.java |
 | GET | `/api/incentive/records` | `incentive:view` | getRecords | IncentiveController.java |
 | POST | `/api/incentive/records` | `incentive:add` | addRecord | IncentiveController.java |
-| GET | `/api/incentive/records/query` | `incentive:view` | queryRecords | IncentiveController.java |
 | POST | `/api/incentive/records/recalculate` | `incentive:edit` | deleteRecord | IncentiveController.java |
 | PUT | `/api/incentive/records/{id}` | `登录即可` | updateRecord | IncentiveController.java |
 | GET | `/api/incentive/score/customer/{customerId}` | `incentive:view` | getScoreByCustomer | IncentiveController.java |
 | GET | `/api/incentive/scoreboard` | `incentive:view` | scoreboard | IncentiveController.java |
-| GET | `/api/incentive/timeline` | `incentive:view` | timeline | IncentiveController.java |
 | GET | `/api/incentive/users` | `incentive:view` | userList | IncentiveController.java |
 | ANY | `/api/reminder` | `reminder:view` | expiringList | ReminderController.java |
 | POST | `/api/reminder/ensure-expiring` | `reminder:view` | ensureExpiring | ReminderController.java |
 | GET | `/api/reminder/list` | `reminder:view` | page | ReminderController.java |
 | GET | `/api/reminder/pending-count` | `reminder:view` | pendingCount | ReminderController.java |
 | POST | `/api/reminder/{id}/process` | `reminder:view` | process | ReminderController.java |
-| ANY | `/api/score` | `score:view` | listItems | ScoreController.java |
+| ANY | `/api/score` | `score:manage` | addItem | ScoreController.java |
 | POST | `/api/score/entries/batch` | `score:entry` | batchSave | ScoreController.java |
 | GET | `/api/score/export/grid` | `score:view` | exportGrid | ScoreController.java |
 | GET | `/api/score/grid` | `score:view` | getGrid | ScoreController.java |
-| POST | `/api/score/items` | `score:manage` | addItem | ScoreController.java |
 | DELETE | `/api/score/items/{id}` | `score:manage` | deleteItem | ScoreController.java |
 | PUT | `/api/score/items/{id}` | `score:manage` | updateItem | ScoreController.java |
 | GET | `/api/score/ranking` | `score:view` | ranking | ScoreController.java |
@@ -117,12 +114,12 @@
 | GET | `/api/sea/claim-records` | `sea:view` | claimRecords | SeaController.java |
 | GET | `/api/sea/configs` | `sea:config:view` | listConfigs | SeaController.java |
 | POST | `/api/sea/configs` | `sea:config:edit` | createConfig | SeaController.java |
-| GET | `/api/sea/configs/visible` | `sea:config:view` | listVisibleConfigs | SeaController.java |
+| GET | `/api/sea/configs/visible` | `sea:view` | listVisibleConfigs | SeaController.java |
 | DELETE | `/api/sea/configs/{id}` | `sea:config:edit` | deleteConfig | SeaController.java |
 | PUT | `/api/sea/configs/{id}` | `sea:config:edit` | updateConfig | SeaController.java |
 | POST | `/api/sea/import` | `sea:import` | importToSea | SeaController.java |
 | GET | `/api/sea/org-tree` | `sea:config:view` | orgTree | SeaController.java |
-| DELETE | `/api/sea/pool/{id}` | `sea:pool:delete` | deletePool | SeaController.java |
+| DELETE | `/api/sea/pool/{id}` | `登录即可` | deletePool | SeaController.java |
 | GET | `/api/sea/statistics` | `sea:view` | statistics | SeaController.java |
 | ANY | `/api/statistics` | `statistics:view` | dashboard | StatisticsController.java |
 | GET | `/api/statistics/analysis` | `statistics:view` | analysis | StatisticsController.java |
@@ -153,25 +150,19 @@
 | ANY | `/api/system/groups` | `system:group:view` | list | SysGroupController.java |
 | POST | `/api/system/groups` | `system:group:add` | create | SysGroupController.java |
 | DELETE | `/api/system/groups/{id}` | `system:group:delete` | delete | SysGroupController.java |
-| GET | `/api/system/groups/{id}` | `system:group:view` | getById | SysGroupController.java |
 | PUT | `/api/system/groups/{id}` | `system:group:edit` | update | SysGroupController.java |
-| ANY | `/api/system/legal-entities` | `system:group:view` | list | SysLegalEntityController.java |
-| POST | `/api/system/legal-entities` | `system:group:add` | create | SysLegalEntityController.java |
-| DELETE | `/api/system/legal-entities/{id}` | `system:group:edit` | delete | SysLegalEntityController.java |
-| GET | `/api/system/legal-entities/{id}` | `system:group:view` | getById | SysLegalEntityController.java |
-| PUT | `/api/system/legal-entities/{id}` | `system:group:edit` | update | SysLegalEntityController.java |
 | ANY | `/api/system/logs` | `system:log:view` | page | SysLogController.java |
 | GET | `/api/system/logs/counts` | `system:log:view` | counts | SysLogController.java |
 | ANY | `/api/system/menus` | `system:menu:view` | tree | SysMenuController.java |
-| POST | `/api/system/menus` | `system:menu:edit` | create | SysMenuController.java |
-| DELETE | `/api/system/menus/{id}` | `system:menu:edit` | delete | SysMenuController.java |
-| PUT | `/api/system/menus/{id}` | `system:menu:edit` | update | SysMenuController.java |
+| ANY | `/api/system/perm-scopes` | `system:config:view` | getScopes | RolePermScopeController.java |
+| GET | `/api/system/perm-scopes/assignee/{type}/{key}` | `system:config:view` | getAssigneeScopes | RolePermScopeController.java |
+| PUT | `/api/system/perm-scopes/assignee/{type}/{key}` | `system:config:edit` | updateAssigneeScopes | RolePermScopeController.java |
+| PUT | `/api/system/perm-scopes/{roleCode}` | `system:config:edit` | updateScopes | RolePermScopeController.java |
 | ANY | `/api/system/positions` | `system:position:view` | list | SysPositionController.java |
 | POST | `/api/system/positions` | `system:position:add` | create | SysPositionController.java |
 | GET | `/api/system/positions/users/{userId}` | `system:position:view` | getUserPositions | SysPositionController.java |
 | PUT | `/api/system/positions/users/{userId}` | `system:user:edit` | assignUserPositions | SysPositionController.java |
 | DELETE | `/api/system/positions/{id}` | `system:position:delete` | delete | SysPositionController.java |
-| GET | `/api/system/positions/{id}` | `system:position:view` | getById | SysPositionController.java |
 | PUT | `/api/system/positions/{id}` | `system:position:edit` | update | SysPositionController.java |
 | GET | `/api/system/positions/{positionId}/rules` | `system:position:view` | getRules | SysPositionController.java |
 | PUT | `/api/system/positions/{positionId}/rules` | `system:position:edit` | updateRules | SysPositionController.java |
@@ -185,18 +176,12 @@
 | ANY | `/api/system/rules` | `system:rule:view` | list | SysPermissionRuleController.java |
 | POST | `/api/system/rules` | `system:rule:add` | create | SysPermissionRuleController.java |
 | DELETE | `/api/system/rules/{id}` | `system:rule:delete` | delete | SysPermissionRuleController.java |
-| GET | `/api/system/rules/{id}` | `system:rule:view` | getById | SysPermissionRuleController.java |
 | PUT | `/api/system/rules/{id}` | `system:rule:edit` | update | SysPermissionRuleController.java |
 | ANY | `/api/system/users` | `system:user:view` | page | SysUserController.java |
 | POST | `/api/system/users` | `system:user:add` | create | SysUserController.java |
-| GET | `/api/system/users/archived` | `system:user:view` | listArchived | SysUserController.java |
 | POST | `/api/system/users/change-password` | `登录即可` | changePassword | SysUserController.java |
 | DELETE | `/api/system/users/{id}` | `system:user:delete` | delete | SysUserController.java |
 | GET | `/api/system/users/{id}` | `system:user:view` | getById | SysUserController.java |
 | PUT | `/api/system/users/{id}` | `system:user:edit` | update | SysUserController.java |
-| POST | `/api/system/users/{id}/leave` | `system:user:edit` | leave | SysUserController.java |
-| DELETE | `/api/system/users/{id}/permanent` | `system:user:delete` | permanentDelete | SysUserController.java |
-| POST | `/api/system/users/{id}/rehire` | `system:user:edit` | rehire | SysUserController.java |
 | POST | `/api/system/users/{id}/reset-password` | `system:user:edit` | resetPassword | SysUserController.java |
-| POST | `/api/system/users/{id}/transfer-customers` | `system:user:edit` | transferCustomers | SysUserController.java |
 

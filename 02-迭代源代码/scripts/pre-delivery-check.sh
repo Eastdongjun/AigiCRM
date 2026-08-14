@@ -98,18 +98,21 @@ rm -f /tmp/pagegate.log
 # 非零列需人工介入; 依赖 ~/.ycmn-deploy.env 中 DB_HOST/DB_USER/DB_PASS/DB_NAME(缺 DB_PASS 时无法执行)
 # 执行模式自动: 本机无 mysql 客户端时经 SSH+docker exec(ycmn-mysql 容器) 执行, 同 deploy-db.sh
 echo "--- [6] 权限数据前提体检(统一权限体系) ---"
+# 【2026-08-14 修复】env 文件无 DB_HOST/DB_USER/DB_PASS/DB_NAME 键，
+# 映射到既有键：体检目标=测试服共享库（shared-mysql 容器，root=TEST_DB_ROOT_PASSWORD）
 DB_HOST="${DB_HOST:-${TEST_HOST:-}}"
-DB_USER="${DB_USER:-ycmn}"
+DB_USER="${DB_USER:-root}"
+DB_PASS="${DB_PASS:-${TEST_DB_ROOT_PASSWORD:-}}"
 DB_NAME="${DB_NAME:-ycmn}"
-if [ -n "${DB_PASS:-}" ]; then
-  if "$SCRIPT_DIR/check-permission-data.sh" "$DB_HOST" "$DB_USER" "$DB_PASS" "$DB_NAME"; then
+if [ -n "$DB_PASS" ]; then
+  if "$SCRIPT_DIR/check-permission-data.sh" "$DB_HOST" "$DB_USER" "$DB_PASS" "$DB_NAME" --remote --container shared-mysql; then
     echo "  ✅ 权限数据前提体检通过(全部为零)"
   else
     echo "  ❌ 权限数据前提体检存在非零缺失项(需人工介入)或执行失败"
     FAIL=$((FAIL+1))
   fi
 else
-  echo "  ❌ 未配置 DB_PASS —— 在 ~/.ycmn-deploy.env 填写 DB_HOST/DB_USER/DB_PASS/DB_NAME 后重跑"
+  echo "  ❌ 未配置 TEST_DB_ROOT_PASSWORD —— 在 ~/.ycmn-deploy.env 补上后重跑"
   FAIL=$((FAIL+1))
 fi
 

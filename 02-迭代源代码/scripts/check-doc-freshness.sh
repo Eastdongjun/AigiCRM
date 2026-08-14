@@ -8,7 +8,7 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 source "$SCRIPT_DIR/deploy-lib.sh"
 set +e
 
-REPO="/Users/donglai/东来/01-Projects/01-aigicrm/04-源码"
+REPO="/Users/donglai/东来/01-Projects/01-aigicrm/04-源码/02-迭代源代码"  # 【2026-08-14 目录重组】权威源码路径
 TMPDIR=$(mktemp -d /tmp/docgen.XXXXXX)
 trap 'rm -rf "$TMPDIR"' EXIT
 FAIL=0
