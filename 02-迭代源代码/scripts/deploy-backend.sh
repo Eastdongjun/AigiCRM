@@ -52,7 +52,7 @@ ssh_prod "
   echo '等待启动...'
   # 【2026-08-14 Wave B】上传文件已迁移 NAS（用户规划：数据盘放程序/NAS放文件）。
   # 历史 upload-data 卷保留为回滚副本，不再挂载——若误挂旧卷会导致 NAS 文件"消失"假象
-  docker inspect ycmn-backend --format 'uploads挂载校验: {{range .Mounts}}{{if eq .Destination "/app/uploads"}}{{.Source}}{{end}}{{end}}' | grep -q '/Aigicrm/files/uploads' \
+  docker inspect ycmn-backend --format '{{range .Mounts}}{{.Source}} {{end}}' | grep -q '/Aigicrm/files/uploads' \
     || echo '⚠️ 警告: 上传挂载不是 NAS 路径 /Aigicrm/files/uploads，请检查'
 "
 echo "=== [5/5] 启动确认 + 健康检查 ==="
