@@ -50,7 +50,7 @@ rollback_backend() {
       -e OSS_ACCESS_KEY_SECRET=your-secret -e OSS_BUCKET_NAME=your-bucket \
       -e CORS_ORIGINS=https://www.aigicrm.com,http://localhost:5173,http://localhost:3000 \
       -e JWT_SECRET="$JWT_SECRET" \
-      -v upload-data:/app/uploads \
+      -v /Aigicrm/files/uploads:/app/uploads \
       ycmn-backend:2.7.0
     echo '后端容器已重建'
   "
