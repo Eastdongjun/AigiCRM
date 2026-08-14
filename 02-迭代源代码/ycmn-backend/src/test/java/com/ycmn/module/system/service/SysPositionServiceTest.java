@@ -207,6 +207,7 @@ class SysPositionServiceTest {
     /** 删除岗位必须先 evict + 版本递增(依赖 sys_user_position 子查询)，再删绑定；
      *  否则绑定删除后子查询反查为空、bump 静默失效，旧权限残留至 TTL */
     @Test
+    @SuppressWarnings("unchecked")
     void delete_bumpsUserPermVersionsBeforeRemovingBindings() {
         SysPositionMapper positionMapper = mock(SysPositionMapper.class);
         SysUserPositionMapper userPositionMapper = mock(SysUserPositionMapper.class);

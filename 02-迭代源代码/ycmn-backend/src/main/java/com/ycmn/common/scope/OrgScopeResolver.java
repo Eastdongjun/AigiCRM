@@ -254,7 +254,7 @@ public class OrgScopeResolver {
                 List<Long> teamUsers = resolveTeam(user.getUserId());
                 Set<Long> deptIds = new LinkedHashSet<>();
                 if (!teamUsers.isEmpty()) {
-                    List<SysUser> users = userMapper.selectBatchIds(teamUsers);
+                    List<SysUser> users = userMapper.selectByIds(teamUsers);
                     for (SysUser u : users) {
                         if (u.getDeptId() != null) deptIds.add(u.getDeptId());
                     }
@@ -373,7 +373,7 @@ public class OrgScopeResolver {
         if (u == null) return null; // all：不过滤
         Set<Long> deptIds = new LinkedHashSet<>();
         if (!u.isEmpty()) {
-            List<SysUser> users = userMapper.selectBatchIds(u);
+            List<SysUser> users = userMapper.selectByIds(u);
             for (SysUser su : users) {
                 if (su.getDeptId() != null) deptIds.add(su.getDeptId());
             }

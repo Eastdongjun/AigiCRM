@@ -36,7 +36,7 @@ public class ScopeService {
                     .stream().map(this::toUserMap).toList();
         }
         if (u.isEmpty()) return List.of();
-        return userMapper.selectBatchIds(u).stream()
+        return userMapper.selectByIds(u).stream()
                 .filter(x -> deptScope == null || deptScope.contains(x.getDeptId()))
                 .map(this::toUserMap)
                 .sorted(Comparator.comparing(m -> String.valueOf(m.get("realName"))))
@@ -47,7 +47,7 @@ public class ScopeService {
      * 当前用户可见部门树（U 聚合）。
      * null=all：admin 返回完整树，非 admin 收窄为本人部门+祖先链（组织架构不向非管理员全量暴露，
      * 与 SysDeptService.tree 的 FEAT-20260804-DEPTS-DATASCOPE 收窄口径一致）；空=空树；
-     * 否则 resolveVisibleDeptIds 取可见部门集合 → selectBatchIds 批量查详情（过滤 status=1，与 all 分支口径一致）→
+     * 否则 resolveVisibleDeptIds 取可见部门集合 → selectByIds 批量查详情（过滤 status=1，与 all 分支口径一致）→
      * 按 parent_id 组装树，层内按 sortOrder 升序；parent 不可见的节点提升为顶层。
      */
     public List<SysDept> visibleDeptTree(SecurityUser user) {
@@ -58,7 +58,7 @@ public class ScopeService {
             return buildPartialTree(narrowToOwnChain(user, all));
         }
         if (deptIds.isEmpty()) return List.of();
-        List<SysDept> depts = new ArrayList<>(deptMapper.selectBatchIds(deptIds));
+        List<SysDept> depts = new ArrayList<>(deptMapper.selectByIds(deptIds));
         // 与 all 分支口径一致：禁用部门不进入可见树
         depts.removeIf(d -> !Objects.equals(d.getStatus(), 1));
         depts.sort(Comparator.comparing(SysDept::getSortOrder, Comparator.nullsLast(Comparator.naturalOrder()))

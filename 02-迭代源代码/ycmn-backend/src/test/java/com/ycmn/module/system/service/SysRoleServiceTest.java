@@ -468,6 +468,7 @@ class SysRoleServiceTest {
     /** 【2026-08-14 缓存审计 G2(P0)】删除角色必须先捕获受影响用户+版本递增，再删绑定；
      *  evict 按删除前捕获的用户列表逐个执行（evictByRole 反查在绑定删除后必空，曾致旧权限残留至 TTL） */
     @Test
+    @SuppressWarnings("unchecked")
     void delete_capturesUsersBeforeRemovingBindings_thenEvictsThem() {
         SysRoleMapper roleMapper = mock(SysRoleMapper.class);
         com.ycmn.module.system.mapper.SysUserRoleMapper userRoleMapper =
@@ -762,7 +763,7 @@ class SysRoleServiceTest {
         when(menuMapper.selectById(13L)).thenReturn(m13);
         when(menuMapper.selectById(11L)).thenReturn(m11);
         when(menuMapper.selectById(10L)).thenReturn(m10);
-        when(menuMapper.selectBatchIds(any())).thenReturn(List.of(m13)); // validateGrantableRole 校验提交集合
+        when(menuMapper.selectByIds(any())).thenReturn(List.of(m13)); // validateGrantableRole 校验提交集合
 
         SysRole role = new SysRole();
         role.setRoleCode("sales");
@@ -816,7 +817,7 @@ class SysRoleServiceTest {
         when(menuMapper.selectById(13L)).thenReturn(m13);
         when(menuMapper.selectById(11L)).thenReturn(m11);
         when(menuMapper.selectById(10L)).thenReturn(m10);
-        when(menuMapper.selectBatchIds(any())).thenReturn(List.of(m13));
+        when(menuMapper.selectByIds(any())).thenReturn(List.of(m13));
 
         SysRole role = new SysRole();
         role.setRoleCode("sales");
@@ -871,7 +872,7 @@ class SysRoleServiceTest {
         when(menuMapper.selectById(13L)).thenReturn(m13);
         when(menuMapper.selectById(11L)).thenReturn(m11);
         when(menuMapper.selectById(10L)).thenReturn(m10);
-        when(menuMapper.selectBatchIds(any())).thenReturn(List.of(m13));
+        when(menuMapper.selectByIds(any())).thenReturn(List.of(m13));
 
         SysRole role = new SysRole();
         role.setRoleCode("sales");

@@ -84,6 +84,7 @@ class JwtTokenProviderTest {
     }
 
     /** 【2026-08-14 安全 P0】撤销落库失败必须显式抛异常（fail-closed），不得静默丢失注销 */
+    @SuppressWarnings("unchecked")
     @Test
     void blacklistToken_dbWriteFailure_throws() {
         RedisTemplate<String, Object> redis = mock(RedisTemplate.class);

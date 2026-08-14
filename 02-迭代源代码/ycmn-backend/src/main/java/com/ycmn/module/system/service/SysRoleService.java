@@ -90,7 +90,7 @@ public class SysRoleService {
         if (role.getMenuIds() != null && !role.getMenuIds().isEmpty()) {
             Set<String> callerPerms = SecurityUtils.getCurrentUser() != null
                     ? SecurityUtils.getCurrentUser().getPermissions() : Set.of();
-            for (SysMenu m : menuMapper.selectBatchIds(role.getMenuIds())) {
+            for (SysMenu m : menuMapper.selectByIds(role.getMenuIds())) {
                 if (m.getPermission() != null && !m.getPermission().isBlank()
                         && !callerPerms.contains(m.getPermission())) {
                     throw new BusinessException("无权授予权限: " + m.getPermission());

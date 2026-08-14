@@ -229,11 +229,11 @@ public class IncentiveService {
         uidSet.addAll(records.stream().map(BizIncentiveRecord::getUpdatedBy).filter(java.util.Objects::nonNull).collect(java.util.stream.Collectors.toSet()));
         java.util.Set<Long> custIdSet = records.stream().map(BizIncentiveRecord::getCustomerId).filter(java.util.Objects::nonNull).collect(java.util.stream.Collectors.toSet());
         java.util.Map<Long, BizIncentiveCategory> catMap = catIds.isEmpty() ? java.util.Map.of()
-                : categoryMapper.selectBatchIds(catIds).stream().collect(java.util.stream.Collectors.toMap(BizIncentiveCategory::getId, c -> c));
+                : categoryMapper.selectByIds(catIds).stream().collect(java.util.stream.Collectors.toMap(BizIncentiveCategory::getId, c -> c));
         java.util.Map<Long, SysUser> userMap = uidSet.isEmpty() ? java.util.Map.of()
-                : userMapper.selectBatchIds(uidSet).stream().collect(java.util.stream.Collectors.toMap(SysUser::getId, u -> u));
+                : userMapper.selectByIds(uidSet).stream().collect(java.util.stream.Collectors.toMap(SysUser::getId, u -> u));
         java.util.Map<Long, BizCustomer> custMap = custIdSet.isEmpty() ? java.util.Map.of()
-                : customerMapper.selectBatchIds(custIdSet).stream().collect(java.util.stream.Collectors.toMap(BizCustomer::getId, c -> c));
+                : customerMapper.selectByIds(custIdSet).stream().collect(java.util.stream.Collectors.toMap(BizCustomer::getId, c -> c));
         for (BizIncentiveRecord r : records) {
             if (r.getCategoryId() != null) {
                 BizIncentiveCategory cat = catMap.get(r.getCategoryId());
@@ -420,7 +420,7 @@ public class IncentiveService {
         }
         if (fids.isEmpty()) return;
         Map<Long, BizFile> fileMap = new HashMap<>();
-        fileMapper.selectBatchIds(fids).forEach(f -> fileMap.put(f.getId(), f));
+        fileMapper.selectByIds(fids).forEach(f -> fileMap.put(f.getId(), f));
 
         for (BizIncentiveRecord r : records) {
             r.setFileName(joinFileNames(r.getFileIds(), fileMap));
@@ -729,14 +729,14 @@ public class IncentiveService {
         Set<Long> cids = records.stream().map(BizIncentiveRecord::getCustomerId).filter(Objects::nonNull).collect(Collectors.toSet());
         Map<Long, BizCustomer> custMap = new HashMap<>();
         if (!cids.isEmpty()) {
-            List<BizCustomer> custs = customerMapper.selectBatchIds(cids);
+            List<BizCustomer> custs = customerMapper.selectByIds(cids);
             for (BizCustomer c : custs) custMap.put(c.getId(), c);
         }
         // 批量查分类
         Set<Long> catIds = records.stream().map(BizIncentiveRecord::getCategoryId).filter(Objects::nonNull).collect(Collectors.toSet());
         Map<Long, BizIncentiveCategory> catMap2 = new HashMap<>();
         if (!catIds.isEmpty()) {
-            List<BizIncentiveCategory> cats = categoryMapper.selectBatchIds(catIds);
+            List<BizIncentiveCategory> cats = categoryMapper.selectByIds(catIds);
             for (BizIncentiveCategory c : cats) catMap2.put(c.getId(), c);
         }
 

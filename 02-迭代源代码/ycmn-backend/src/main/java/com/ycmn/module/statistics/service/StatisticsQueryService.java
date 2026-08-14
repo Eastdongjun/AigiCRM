@@ -244,12 +244,12 @@ public class StatisticsQueryService {
 
         // 【修复 FEAT-20260804-INDICATOR-N1】批量预取用户和部门，避免循环内逐条 selectById
         Map<Long, SysUser> userById = allOwnerIds.isEmpty() ? Map.of()
-                : userMapper.selectBatchIds(allOwnerIds).stream()
+                : userMapper.selectByIds(allOwnerIds).stream()
                         .collect(java.util.stream.Collectors.toMap(SysUser::getId, u -> u));
         Set<Long> deptIdsNeeded = new HashSet<>();
         for (SysUser u : userById.values()) if (u.getDeptId() != null) deptIdsNeeded.add(u.getDeptId());
         Map<Long, SysDept> deptById = deptIdsNeeded.isEmpty() ? Map.of()
-                : deptMapper.selectBatchIds(deptIdsNeeded).stream()
+                : deptMapper.selectByIds(deptIdsNeeded).stream()
                         .collect(java.util.stream.Collectors.toMap(SysDept::getId, d -> d));
 
         List<Map<String, Object>> personalRanking = new ArrayList<>();
@@ -314,7 +314,7 @@ public class StatisticsQueryService {
         Set<Long> officeIdsNeeded = new HashSet<>();
         for (BizCustomer c : allCustomers) if (c.getOfficeId() != null) officeIdsNeeded.add(c.getOfficeId());
         Map<Long, SysDept> officeById = officeIdsNeeded.isEmpty() ? Map.of()
-                : deptMapper.selectBatchIds(officeIdsNeeded).stream()
+                : deptMapper.selectByIds(officeIdsNeeded).stream()
                         .collect(java.util.stream.Collectors.toMap(SysDept::getId, d -> d));
 
         Map<String, int[]> officeAgg = new LinkedHashMap<>();

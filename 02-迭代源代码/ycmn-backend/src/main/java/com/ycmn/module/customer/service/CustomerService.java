@@ -834,12 +834,12 @@ public class CustomerService {
 
         Map<Long, String> userNames = new HashMap<>();
         if (!userIds.isEmpty()) {
-            userMapper.selectBatchIds(userIds)
+            userMapper.selectByIds(userIds)
                     .forEach(u -> userNames.put(u.getId(), u.getRealName()));
         }
         Map<Long, String> deptNames = new HashMap<>();
         if (!deptIds.isEmpty()) {
-            deptMapper.selectBatchIds(deptIds)
+            deptMapper.selectByIds(deptIds)
                     .forEach(d -> deptNames.put(d.getId(), d.getDeptName()));
         }
 

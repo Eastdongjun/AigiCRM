@@ -106,12 +106,12 @@ class ScopeServiceTest {
 
     // ---- visibleUsers ----
 
-    /** self：真实 resolver 集成，仅返回本人（brief Step1 用例，补齐 selectBatchIds stub） */
+    /** self：真实 resolver 集成，仅返回本人（brief Step1 用例，补齐 selectByIds stub） */
     @Test
     void selfScopeReturnsOnlySelf() {
         OrgScopeResolver realResolver = new OrgScopeResolver(userMapper, deptMapper, null,
                 mock(com.ycmn.module.system.mapper.SysRoleOrgMapper.class)); // configService=null → 开关不生效，保持仅本人
-        when(userMapper.selectBatchIds(anyList())).thenReturn(List.of(user(1L, 11L, "本人")));
+        when(userMapper.selectByIds(anyList())).thenReturn(List.of(user(1L, 11L, "本人")));
         ScopeService svc = new ScopeService(realResolver, userMapper, deptMapper);
         List<Map<String, Object>> users = svc.visibleUsers(su(1L, "self", 11L), null);
         assertEquals(1, users.size()); // 仅自己
@@ -124,7 +124,7 @@ class ScopeServiceTest {
     @Test
     void deptIdFiltersVisibleUsers() {
         when(resolver.resolve(any())).thenReturn(List.of(1L, 2L));
-        when(userMapper.selectBatchIds(anyList()))
+        when(userMapper.selectByIds(anyList()))
                 .thenReturn(List.of(user(1L, 11L, "甲"), user(2L, 12L, "乙")));
         ScopeService svc = new ScopeService(resolver, userMapper, deptMapper);
         List<Map<String, Object>> users = svc.visibleUsers(su(1L, "office", 11L), 12L);
@@ -136,7 +136,7 @@ class ScopeServiceTest {
     @Test
     void visibleUsersSortedByRealName() {
         when(resolver.resolve(any())).thenReturn(List.of(1L, 2L));
-        when(userMapper.selectBatchIds(anyList()))
+        when(userMapper.selectByIds(anyList()))
                 .thenReturn(List.of(user(2L, 12L, "B员工"), user(1L, 11L, "A员工")));
         ScopeService svc = new ScopeService(resolver, userMapper, deptMapper);
         List<Map<String, Object>> users = svc.visibleUsers(su(1L, "office", 11L), null);
@@ -181,7 +181,7 @@ class ScopeServiceTest {
         when(resolver.resolve(any())).thenReturn(List.of());
         ScopeService svc = new ScopeService(resolver, userMapper, deptMapper);
         assertTrue(svc.visibleUsers(null, null).isEmpty());
-        verify(userMapper, never()).selectBatchIds(anyList());
+        verify(userMapper, never()).selectByIds(anyList());
     }
 
     // ---- visibleDeptTree ----
@@ -222,11 +222,11 @@ class ScopeServiceTest {
         assertEquals("大区A", tree.get(0).getChildren().get(0).getDeptName(), "远处部门 12 不得出现");
     }
 
-    /** 部分可见集合：selectBatchIds 批量查 + 按 parent_id 组装（children 挂接） */
+    /** 部分可见集合：selectByIds 批量查 + 按 parent_id 组装（children 挂接） */
     @Test
     void deptTreePartialAssemblesByParentId() {
         when(resolver.resolveVisibleDeptIds(any())).thenReturn(List.of(1L, 11L, 12L));
-        when(deptMapper.selectBatchIds(anyList())).thenReturn(List.of(
+        when(deptMapper.selectByIds(anyList())).thenReturn(List.of(
                 dept(11L, 1L, "大区"), dept(1L, 0L, "集团"), dept(12L, 11L, "办事处")));
         ScopeService svc = new ScopeService(resolver, userMapper, deptMapper);
         List<SysDept> tree = svc.visibleDeptTree(su(1L, "dept", 11L));
@@ -236,14 +236,14 @@ class ScopeServiceTest {
         assertEquals("大区", tree.get(0).getChildren().get(0).getDeptName());
         assertEquals(1, tree.get(0).getChildren().get(0).getChildren().size());
         assertEquals("办事处", tree.get(0).getChildren().get(0).getChildren().get(0).getDeptName());
-        verify(deptMapper).selectBatchIds(List.of(1L, 11L, 12L));
+        verify(deptMapper).selectByIds(List.of(1L, 11L, 12L));
     }
 
     /** parent 不可见的节点提升为顶层（不产生孤儿丢弃） */
     @Test
     void deptTreePromotesNodesWhoseParentInvisible() {
         when(resolver.resolveVisibleDeptIds(any())).thenReturn(List.of(1L, 12L));
-        when(deptMapper.selectBatchIds(anyList()))
+        when(deptMapper.selectByIds(anyList()))
                 .thenReturn(List.of(dept(12L, 99L, "办事处"), dept(1L, 0L, "集团")));
         ScopeService svc = new ScopeService(resolver, userMapper, deptMapper);
         List<SysDept> tree = svc.visibleDeptTree(su(1L, "dept", 11L));
@@ -256,7 +256,7 @@ class ScopeServiceTest {
     @Test
     void deptTreeOrdersChildrenBySortOrder() {
         when(resolver.resolveVisibleDeptIds(any())).thenReturn(List.of(1L, 11L, 12L));
-        when(deptMapper.selectBatchIds(anyList())).thenReturn(List.of(
+        when(deptMapper.selectByIds(anyList())).thenReturn(List.of(
                 dept(11L, 1L, "B部", 2), dept(12L, 1L, "A部", 1), dept(1L, 0L, "集团", 0)));
         ScopeService svc = new ScopeService(resolver, userMapper, deptMapper);
         List<SysDept> tree = svc.visibleDeptTree(su(1L, "dept", 11L));
@@ -268,7 +268,7 @@ class ScopeServiceTest {
     @Test
     void deptTreePartialExcludesDisabledDept() {
         when(resolver.resolveVisibleDeptIds(any())).thenReturn(List.of(1L, 11L));
-        when(deptMapper.selectBatchIds(anyList())).thenReturn(List.of(
+        when(deptMapper.selectByIds(anyList())).thenReturn(List.of(
                 dept(1L, 0L, "集团"), dept(11L, 1L, "禁用大区", 0, 0)));
         ScopeService svc = new ScopeService(resolver, userMapper, deptMapper);
         List<SysDept> tree = svc.visibleDeptTree(su(1L, "dept", 11L));
@@ -284,6 +284,6 @@ class ScopeServiceTest {
         when(resolver.resolveVisibleDeptIds(any())).thenReturn(List.of());
         ScopeService svc = new ScopeService(resolver, userMapper, deptMapper);
         assertTrue(svc.visibleDeptTree(su(1L, "self", 11L)).isEmpty());
-        verify(deptMapper, never()).selectBatchIds(anyList());
+        verify(deptMapper, never()).selectByIds(anyList());
     }
 }
