@@ -5,8 +5,12 @@
 -- 性质：幂等（权限码/角色/绑定均 NOT EXISTS / ON DUPLICATE 守卫；列添加带 information_schema 守卫）。
 -- 前置：执行前备份 5 表：sys_menu / sys_role / sys_role_menu / sys_user_role / biz_incentive_permission。
 -- 回滚：见 migration-20260814-rbac-convergence-m1-rollback.sql。
+-- ⚠️ 编码：首行 SET NAMES utf8mb4 必须——客户端默认 latin1 时中文会双重编码成乱码
+--   （2026-08-14 生产实测事故：角色名/菜单名乱码，已由 m1-fix-mojibake.sql 修复）。
 -- 执行：mysql -uroot -p ycmn < sql/migration/20260814/rbac-convergence-m1.sql
 -- ============================================================
+
+SET NAMES utf8mb4;
 
 -- ---------- 1. 新权限码（menu_type=3 按钮码，挂激励菜单 15 下 / 文件菜单下） ----------
 INSERT INTO sys_menu (parent_id, menu_name, menu_type, permission, sort_order, status)

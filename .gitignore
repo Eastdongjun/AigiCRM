@@ -33,6 +33,9 @@ graphify-out/
 # 数据库 dump/备份(含密码哈希与业务数据,禁止入库)
 ycmn_database_test.sql
 sql/init.sql
+**/sql/init.sql
+**/ycmn_database_test.sql
+**/password-hash-backup.txt
 *.dump
 
 # Superpowers worktrees
