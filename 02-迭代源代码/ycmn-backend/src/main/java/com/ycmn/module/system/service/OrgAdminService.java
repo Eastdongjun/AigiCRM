@@ -28,6 +28,12 @@ public class OrgAdminService {
     private final SysOrgAdminMapper orgAdminMapper;
     private final SysUserMapper userMapper;
     private final com.ycmn.security.PermissionCacheService permissionCacheService;
+    private final org.springframework.jdbc.core.JdbcTemplate jdbc;
+
+    /** 【2026-08-14 缓存自愈】用户级权限版本递增：evict 漏网/Redis 写失败时缓存与 DB 版本比对自愈 */
+    private void bumpPermVersion(Long userId) {
+        jdbc.update("UPDATE sys_user SET perm_version = perm_version + 1 WHERE id=?", userId);
+    }
 
     /** 获取组织管理员列表 */
     public List<Map<String, Object>> getOrgAdmins(Long orgId) {
@@ -66,6 +72,8 @@ public class OrgAdminService {
         orgAdminMapper.insert(admin);
         // 【Redis 权限缓存】组织管理员变更影响该用户 managedOrgIds/dataScope 升级，立即失效
         permissionCacheService.evict(userId);
+        // 【2026-08-14 缓存自愈】版本递增兜底：evict 漏网/Redis 写失败时缓存与 DB 版本比对自愈
+        bumpPermVersion(userId);
     }
 
     /** 移除组织管理员 */
@@ -80,6 +88,8 @@ public class OrgAdminService {
         orgAdminMapper.deleteById(id);
         // 【Redis 权限缓存】组织管理员移除立即失效该用户
         permissionCacheService.evict(existing.getUserId());
+        // 【2026-08-14 缓存自愈】版本递增兜底：evict 漏网/Redis 写失败时缓存与 DB 版本比对自愈
+        bumpPermVersion(existing.getUserId());
     }
 
     /** 获取用户管理的组织ID列表（含下级） */

@@ -17,7 +17,7 @@ import { getDictData } from '@/api/system'
 import { submitApproval } from '@/api/approval'
 import { getScoreByCustomer, getCategoryTree } from '@/api/incentive'
 import request from '@/utils/request'
-import { getDownloadToken } from '@/utils/token'
+import { getDownloadToken, refreshDownloadToken } from '@/utils/token'
 import { downloadFile } from '@/utils/download'
 import { useUserStore } from '@/store/user'
 
@@ -137,14 +137,17 @@ export function useCustomerDetail() {
 
   const downloadIncentiveFile = async (f) => {
     if (!f?.id) return
+    await refreshDownloadToken()
     const url = fileUrl(f.id)
     await downloadFile(url, { name: f.label || ('file-' + f.id) })
   }
-  const fileUrl = (id) => '/api/file/download/' + id + '?token=' + (getDownloadToken() || '')
+  // 【修复 2026-08-14】下载 token 未就绪时不拼 token=（避免必然 403 的空 token 请求）
+  const fileUrl = (id) => { const t = getDownloadToken(); return t ? '/api/file/download/' + id + '?token=' + t : '/api/file/download/' + id }
   const filePreviewVisible = ref(false), filePreviewUrl = ref(''), filePreviewType = ref('image'), filePreviewName = ref('')
   // 激励Tab文件预览:复用 FilePreview(图片放大/视频播放/文档下载);点文件行打开预览而非直接下载
-  const previewIncentiveFile = (f) => {
+  const previewIncentiveFile = async (f) => {
     if (!f?.id) return
+    await refreshDownloadToken()
     filePreviewUrl.value = fileUrl(f.id)
     filePreviewType.value = f.type || detectType(f.label)
     filePreviewName.value = f.label

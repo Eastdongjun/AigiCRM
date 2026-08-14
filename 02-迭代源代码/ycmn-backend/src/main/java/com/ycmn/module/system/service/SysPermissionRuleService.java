@@ -16,6 +16,12 @@ public class SysPermissionRuleService {
 
     private final SysPermissionRuleMapper ruleMapper;
     private final com.ycmn.security.PermissionCacheService permissionCacheService;
+    private final org.springframework.jdbc.core.JdbcTemplate jdbc;
+
+    /** 【2026-08-14 缓存自愈】全局权限版本递增：规则影响面为全部用户，evict 漏网/Redis 写失败时缓存与 DB 版本比对自愈 */
+    private void bumpAllPermVersions() {
+        jdbc.update("UPDATE sys_user SET perm_version = perm_version + 1");
+    }
 
     public List<SysPermissionRule> list() {
         return ruleMapper.selectList(
@@ -34,17 +40,23 @@ public class SysPermissionRuleService {
         ruleMapper.insert(rule);
         // 【Redis 权限缓存】规则定义影响所有引用用户，全量失效（低频操作）
         permissionCacheService.evictAll();
+        // 【2026-08-14 缓存自愈】版本递增兜底：evict 漏网/Redis 写失败时缓存与 DB 版本比对自愈
+        bumpAllPermVersions();
     }
 
     @Transactional
     public void update(SysPermissionRule rule) {
         ruleMapper.updateById(rule);
         permissionCacheService.evictAll();
+        // 【2026-08-14 缓存自愈】版本递增兜底：evict 漏网/Redis 写失败时缓存与 DB 版本比对自愈
+        bumpAllPermVersions();
     }
 
     @Transactional
     public void delete(Long id) {
         ruleMapper.deleteById(id);
         permissionCacheService.evictAll();
+        // 【2026-08-14 缓存自愈】版本递增兜底：evict 漏网/Redis 写失败时缓存与 DB 版本比对自愈
+        bumpAllPermVersions();
     }
 }

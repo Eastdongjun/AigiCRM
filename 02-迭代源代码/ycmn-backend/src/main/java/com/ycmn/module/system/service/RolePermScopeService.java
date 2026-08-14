@@ -42,6 +42,11 @@ public class RolePermScopeService {
     private final JdbcTemplate jdbc;
     private final com.ycmn.security.PermissionCacheService permissionCacheService;
 
+    /** 【2026-08-14 缓存自愈】全局权限版本递增：范围配置变更影响所有用户，evict 漏网/Redis 写失败时缓存与 DB 版本比对自愈 */
+    private void bumpAllPermVersions() {
+        jdbc.update("UPDATE sys_user SET perm_version = perm_version + 1");
+    }
+
     /** 【批③ 正交配置层】按用户装载全量范围配置(USER/POSITION/ROLE 三级; 登录时写入 SecurityUser.scopeConfigs)。
      *  装载序 USER→POSITION→ROLE 即优先级编码——OrgScopeResolver.configuredScopeCodes 取首个有匹配的主体
      *  (2026-08-11 P2 已接入解析链路)。注: effectiveScopes/configsFor 当前无生产调用方(运行时解析走 OrgScopeResolver)。 */
@@ -225,6 +230,8 @@ public class RolePermScopeService {
             jdbc.update("DELETE FROM role_perm_scope WHERE assignee_type=? AND assignee_key=?", assigneeType, assigneeKey);
             invalidate(assigneeKey);
             permissionCacheService.evictAll();
+            // 【2026-08-14 缓存自愈】版本递增兜底：evict 漏网/Redis 写失败时缓存与 DB 版本比对自愈
+            bumpAllPermVersions();
             return;
         }
         for (Map<String, Object> cfg : configs) {
@@ -247,8 +254,11 @@ public class RolePermScopeService {
                     "ON DUPLICATE KEY UPDATE scope_level=VALUES(scope_level), anchor=VALUES(anchor), role_code=VALUES(role_code)",
                     roleCode, assigneeType, assigneeKey, module.toString(), action.toString(), scope, anchor.toUpperCase());
             invalidate(assigneeKey);
-            permissionCacheService.evictAll(); // 配置低频管理操作: 全量失效保证即时生效(简单无漏)
         }
+        // 【2026-08-14 评审 P2】evictAll/bump 提升到循环外：批量 N 条配置只做一次全量失效+全表版本递增
+        // （循环内会 N 次 UPDATE sys_user 全表行锁）
+        permissionCacheService.evictAll();
+        bumpAllPermVersions();
     }
 
     /** 删除某角色的全部范围配置(角色删除/重置时) */
@@ -257,6 +267,8 @@ public class RolePermScopeService {
         jdbc.update("DELETE FROM role_perm_scope WHERE assignee_type='ROLE' AND assignee_key=?", roleCode);
         invalidate(roleCode);
         permissionCacheService.evictAll();
+        // 【2026-08-14 缓存自愈】版本递增兜底：evict 漏网/Redis 写失败时缓存与 DB 版本比对自愈
+        bumpAllPermVersions();
     }
 
     /** role_code 改名时迁移其全部范围配置(防止旧 code 孤儿化, 新 code 意外收紧) */
@@ -267,6 +279,8 @@ public class RolePermScopeService {
         invalidate(oldCode);
         invalidate(newCode);
         permissionCacheService.evictAll();
+        // 【2026-08-14 缓存自愈】版本递增兜底：evict 漏网/Redis 写失败时缓存与 DB 版本比对自愈
+        bumpAllPermVersions();
     }
 
     /** 是否有任意范围配置(判断"是否已进入新模式") */

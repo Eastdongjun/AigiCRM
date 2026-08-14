@@ -14,7 +14,10 @@ vi.mock('@/api/incentive', () => ({
 vi.mock('@/api/customer', () => ({ getCustomerList: vi.fn() }))
 vi.mock('@/api/system', () => ({ getDictData: vi.fn() }))
 vi.mock('@/utils/layout-cache', () => ({ cachedGet: vi.fn() }))
-vi.mock('@/utils/token', () => ({ getDownloadToken: vi.fn(() => 't') }))
+vi.mock('@/utils/token', () => ({
+  getDownloadToken: vi.fn(() => 't'),
+  refreshDownloadToken: vi.fn(() => Promise.resolve('t')),
+}))
 vi.mock('@/utils/confirm', () => ({ confirmAction: vi.fn() }))
 vi.mock('@/utils/request', () => ({ default: { post: vi.fn() } }))
 
@@ -185,9 +188,9 @@ describe('useIncentiveUpload 品类判定与提交序列化', () => {
     expect(list.fileType('a.pdf')).toBe('doc')
   })
 
-  it('previewCardFile 新文件(视频/图片)用本地 objectURL', () => {
+  it('previewCardFile 新文件(视频/图片)用本地 objectURL', async () => {
     const f = { name: 'a.mp4' }
-    list.previewCardFile(f)
+    await list.previewCardFile(f)
     expect(list.previewVisible.value).toBe(true)
     expect(list.previewType.value).toBe('video')
     expect(list.previewUrl.value).toBe('blob:fake')
@@ -195,21 +198,21 @@ describe('useIncentiveUpload 品类判定与提交序列化', () => {
     expect(f._url).toBe('blob:fake')  // 缓存，二次调用不新建
 
     const img = { name: 'b.jpg' }
-    list.previewCardFile(img)
+    await list.previewCardFile(img)
     expect(list.previewType.value).toBe('image')
   })
 
-  it('previewCardFile 已提交文件(_existing)走远端 fileUrl', () => {
-    list.previewCardFile({ name: 'old.mp4', id: 50, _existing: true })
+  it('previewCardFile 已提交文件(_existing)走远端 fileUrl', async () => {
+    await list.previewCardFile({ name: 'old.mp4', id: 50, _existing: true })
     expect(list.previewVisible.value).toBe(true)
     expect(list.previewType.value).toBe('video')
     expect(list.previewUrl.value).toContain('/api/file/download/50?token=')
   })
 
-  it('previewCardFile null/无id no-op', () => {
-    list.previewCardFile(null)
+  it('previewCardFile null/无id no-op', async () => {
+    await list.previewCardFile(null)
     expect(list.previewVisible.value).toBe(false)
-    list.previewCardFile({ name: 'x.mp4', id: null, _existing: true })
+    await list.previewCardFile({ name: 'x.mp4', id: null, _existing: true })
     expect(list.previewVisible.value).toBe(false)
   })
 })

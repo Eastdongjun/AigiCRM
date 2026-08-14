@@ -119,7 +119,7 @@ class SysUserDataScopeOverrideTest {
         user.setDataScopeOverride("hacker_scope");
 
         assertThrows(BusinessException.class, () -> service.create(user));
-        verify(userMapper, never()).insert(any());
+        verify(userMapper, never()).insert(any(SysUser.class));
     }
 
     // ===== 安全 2026-08-08：提权防护（授予角色/范围不得超过调用者自身权限） =====
@@ -141,7 +141,7 @@ class SysUserDataScopeOverrideTest {
             assertThrows(BusinessException.class, () -> service.create(user),
                     "非超管不可授予系统管理员角色");
         }
-        verify(userMapper, never()).insert(any());
+        verify(userMapper, never()).insert(any(SysUser.class));
     }
 
     /** 非超管把 dataScopeOverride 设成比自身更宽(all) → 拒绝 */
@@ -163,7 +163,7 @@ class SysUserDataScopeOverrideTest {
             assertThrows(BusinessException.class, () -> service.create(user),
                     "非超管不可把数据范围设为比自身更宽");
         }
-        verify(userMapper, never()).insert(any());
+        verify(userMapper, never()).insert(any(SysUser.class));
     }
 
     /** 超管可授予 admin 角色（不受限；validateGrantableRoleAndScope 对超管直接放行，不查角色） */
@@ -176,7 +176,7 @@ class SysUserDataScopeOverrideTest {
             m.when(SecurityUtils::isAdmin).thenReturn(true);
             service.create(user); // 不应抛异常
         }
-        verify(userMapper).insert(any());
+        verify(userMapper).insert(any(SysUser.class));
         verify(roleMapper, never()).selectById(99L); // 超管不查角色直接放行
     }
 
@@ -209,6 +209,6 @@ class SysUserDataScopeOverrideTest {
         user.setId(1L);
         user.setDataScopeOverride("  ");
         assertThrows(BusinessException.class, () -> service.update(user));
-        verify(userMapper, never()).updateById(any());
+        verify(userMapper, never()).updateById(any(SysUser.class));
     }
 }

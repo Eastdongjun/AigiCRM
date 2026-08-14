@@ -7,6 +7,12 @@ export function getToken() {
 
 export function clearToken() {
   localStorage.removeItem('token')
+  // 【2026-08-14 评审 P2】登出时重置下载 token 模块态——防失败防抖跨登录污染：
+  // 旧会话的 dlFailedAt/dlRetryTimer 残留会把新会话的下载/预览压制 30s 甚至无限重试
+  dlToken.value = null
+  dlFetchedAt = 0
+  dlFailedAt = 0
+  if (dlRetryTimer) { clearTimeout(dlRetryTimer); dlRetryTimer = null }
 }
 
 // 解析 JWT payload，失败返回 null
@@ -42,23 +48,63 @@ export function isTokenValid() {
 let dlToken = ref(null)
 let dlFetching = null
 let dlFetchedAt = 0
+let dlFailedAt = 0      // 最近一次拉取失败时间（防抖重试用）
+let dlRetryTimer = null // 失败后自动重试定时器（单例，防重复调度）
+let dlLastMain = null   // 最近一次见到的主 JWT（变化=会话切换，重置模块态）
 const DL_TTL_MS = 50 * 60 * 1000
+const DL_RETRY_MS = 30 * 1000
 
-function refreshDownloadToken() {
+// 获取/刷新下载专用短时 token。
+// 失败（网络/后端异常）后：30s 内不再重复请求（防抖），30s 后自动重试一次；
+// 仍失败则下个 30s 再试（防抖循环，成功或未登录后自动停止），避免一次瞬时失败导致缩略图永久裂图。
+export function refreshDownloadToken() {
   const main = getToken()
   if (!main) return Promise.resolve(null)
+  // 【2026-08-14 评审 P2】主 JWT 变化（重新登录/换号）时重置模块态，
+  // 防旧会话的防抖窗口/失败状态压制新会话的下载 token 获取
+  if (main !== dlLastMain) {
+    dlLastMain = main
+    dlToken.value = null
+    dlFetchedAt = 0
+    dlFailedAt = 0
+    if (dlRetryTimer) { clearTimeout(dlRetryTimer); dlRetryTimer = null }
+  }
   if (dlToken.value && Date.now() - dlFetchedAt < DL_TTL_MS) return Promise.resolve(dlToken.value)
   if (dlFetching) return dlFetching
+  if (!dlToken.value && dlFailedAt && Date.now() - dlFailedAt < DL_RETRY_MS) return Promise.resolve(null)
   dlFetching = fetch('/api/file/download-token', { headers: { Authorization: 'Bearer ' + main } })
     .then(r => r.json())
     .then(d => {
-      dlToken.value = d?.data?.token || null
-      dlFetchedAt = Date.now()
+      const t = d?.data?.token || null
+      if (t) {
+        if (dlRetryTimer) { clearTimeout(dlRetryTimer); dlRetryTimer = null }
+        dlToken.value = t
+        dlFetchedAt = Date.now()
+        dlFailedAt = 0
+      } else {
+        // 响应正常但无 token（异常）：按失败处理，进入防抖重试
+        dlToken.value = null
+        dlFailedAt = Date.now()
+        scheduleDlRetry()
+      }
       return dlToken.value
     })
-    .catch(() => { dlToken.value = null; return null })
+    .catch(() => {
+      dlToken.value = null
+      dlFailedAt = Date.now()
+      scheduleDlRetry()
+      return null
+    })
     .finally(() => { dlFetching = null })
   return dlFetching
+}
+
+function scheduleDlRetry() {
+  if (dlRetryTimer) return
+  dlRetryTimer = setTimeout(() => {
+    dlRetryTimer = null
+    refreshDownloadToken()
+  }, DL_RETRY_MS)
 }
 
 export function getDownloadToken() {

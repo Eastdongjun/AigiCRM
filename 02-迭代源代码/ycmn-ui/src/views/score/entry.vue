@@ -117,7 +117,7 @@ import { Plus, Delete } from '@element-plus/icons-vue'
 import { getScoreGrid, batchSaveEntries, addScoreItem, updateScoreItem, deleteScoreItem } from '@/api/score'
 import { getDictData } from '@/api/system'
 import { useUserStore } from '@/store/user'
-import { getDownloadToken } from '@/utils/token'
+import { getDownloadToken, refreshDownloadToken } from '@/utils/token'
 import { downloadFile } from '@/utils/download'
 
 const userStore = useUserStore()
@@ -153,9 +153,11 @@ const handleDeleteRow = async (item, idx) => { try { await ElMessageBox.confirm(
 const handleRemoveUser = (user) => { visibleUsers.value = visibleUsers.value.filter(u => u.id !== user.id) }
 const handleAddUser = (user) => { if(!visibleUsers.value.some(u=>u.id===user.id)) visibleUsers.value=[...visibleUsers.value,{id:user.id,realName:user.realName}] }
 // 【需求】导出(FEAT 0804):window.open 被拦截时"没反应",改 fetch blob + a.download 强制下载
+// 【修复 2026-08-14】先确保下载 token 就绪；未就绪时不拼空 token=（避免必然 403 的无效导出）
 const handleExport = async () => {
+  await refreshDownloadToken()
   const t = getDownloadToken() || ''
-  const url = `/api/score/export/grid?period=${encodeURIComponent(period.value)}&token=${encodeURIComponent(t)}`
+  const url = `/api/score/export/grid?period=${encodeURIComponent(period.value)}${t ? '&token=' + encodeURIComponent(t) : ''}`
   await downloadFile(url, { name: '学分统计-' + (period.value || '') + '.xlsx' })
 }
 

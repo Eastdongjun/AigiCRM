@@ -20,7 +20,10 @@ vi.mock('@/api/system', () => ({ getDictData: vi.fn() }))
 vi.mock('@/api/approval', () => ({ submitApproval: vi.fn() }))
 vi.mock('@/api/incentive', () => ({ getScoreByCustomer: vi.fn(), getCategoryTree: vi.fn() }))
 vi.mock('@/utils/request', () => ({ default: { get: vi.fn() } }))
-vi.mock('@/utils/token', () => ({ getDownloadToken: vi.fn(() => 't') }))
+vi.mock('@/utils/token', () => ({
+  getDownloadToken: vi.fn(() => 't'),
+  refreshDownloadToken: vi.fn(() => Promise.resolve('t')),
+}))
 vi.mock('@/utils/download', () => ({ downloadFile: vi.fn() }))
 
 import { useCustomerDetail } from './useCustomerDetail'
@@ -54,16 +57,16 @@ describe('useCustomerDetail 激励Tab文件能力', () => {
     expect(files[3]).toMatchObject({ id: 53, type: 'image', tag: '' })
   })
 
-  it('previewIncentiveFile 打开预览(远端 url + 类型)', () => {
-    detail.previewIncentiveFile({ id: 5, label: 'a.mp4', type: 'video' })
+  it('previewIncentiveFile 打开预览(远端 url + 类型)', async () => {
+    await detail.previewIncentiveFile({ id: 5, label: 'a.mp4', type: 'video' })
     expect(detail.filePreviewVisible.value).toBe(true)
     expect(detail.filePreviewUrl.value).toBe('/api/file/download/5?token=t')
     expect(detail.filePreviewType.value).toBe('video')
     expect(detail.filePreviewName.value).toBe('a.mp4')
   })
 
-  it('previewIncentiveFile 无 id no-op', () => {
-    detail.previewIncentiveFile({ id: null, label: 'x.mp4' })
+  it('previewIncentiveFile 无 id no-op', async () => {
+    await detail.previewIncentiveFile({ id: null, label: 'x.mp4' })
     expect(detail.filePreviewVisible.value).toBe(false)
   })
 })

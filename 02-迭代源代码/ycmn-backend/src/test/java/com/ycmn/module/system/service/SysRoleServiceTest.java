@@ -7,6 +7,7 @@ import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
 import com.ycmn.common.BusinessException;
 import com.ycmn.module.system.entity.SysDept;
 import com.ycmn.module.system.entity.SysRole;
+import com.ycmn.module.system.entity.SysRoleOrg;
 import com.ycmn.module.system.entity.SysRoleMenu;
 import com.ycmn.module.system.mapper.SysDeptMapper;
 import com.ycmn.module.system.mapper.SysMenuMapper;
@@ -120,7 +121,7 @@ class SysRoleServiceTest {
             service.updateOrgs(5L, List.of(10L, 20L));
 
             verify(orgMapper).deleteByRoleId(5L);
-            verify(orgMapper, times(2)).insert(any());
+            verify(orgMapper, times(2)).insert(any(SysRoleOrg.class));
         }
     }
 
@@ -134,7 +135,7 @@ class SysRoleServiceTest {
         service.updateOrgs(5L, List.of());
 
         verify(orgMapper).deleteByRoleId(5L);
-        verify(orgMapper, never()).insert(any());
+        verify(orgMapper, never()).insert(any(SysRoleOrg.class));
     }
 
     @Test
@@ -147,7 +148,7 @@ class SysRoleServiceTest {
         service.updateOrgs(5L, null);
 
         verify(orgMapper).deleteByRoleId(5L);
-        verify(orgMapper, never()).insert(any());
+        verify(orgMapper, never()).insert(any(SysRoleOrg.class));
     }
 
     @Test
@@ -165,7 +166,7 @@ class SysRoleServiceTest {
             assertThrows(BusinessException.class, () -> service.updateOrgs(99L, List.of(10L)),
                     "未知 roleId 不应可写 role_org");
             verify(orgMapper, never()).deleteByRoleId(any());
-            verify(orgMapper, never()).insert(any());
+            verify(orgMapper, never()).insert(any(SysRoleOrg.class));
         }
     }
 
@@ -298,7 +299,7 @@ class SysRoleServiceTest {
             m.when(SecurityUtils::getCurrentGroupIds).thenReturn(List.of(1L));
 
             assertThrows(BusinessException.class, () -> service.create(role));
-            verify(roleMapper, never()).insert(any());
+            verify(roleMapper, never()).insert(any(SysRole.class));
         }
     }
 
@@ -350,7 +351,7 @@ class SysRoleServiceTest {
             m.when(SecurityUtils::getCurrentGroupIds).thenReturn(List.of(1L));
 
             assertThrows(BusinessException.class, () -> service.update(payload));
-            verify(roleMapper, never()).updateById(any());
+            verify(roleMapper, never()).updateById(any(SysRole.class));
         }
     }
 
@@ -366,7 +367,7 @@ class SysRoleServiceTest {
             m.when(SecurityUtils::getCurrentGroupIds).thenReturn(List.of(1L));
 
             assertThrows(BusinessException.class, () -> service.update(payload));
-            verify(roleMapper, never()).updateById(any());
+            verify(roleMapper, never()).updateById(any(SysRole.class));
         }
     }
 
@@ -389,8 +390,8 @@ class SysRoleServiceTest {
 
             assertThrows(BusinessException.class, () -> service.update(payload),
                     "未知 roleId 不应可写 role_org");
-            verify(roleMapper, never()).updateById(any());
-            verify(orgMapper, never()).insert(any());
+            verify(roleMapper, never()).updateById(any(SysRole.class));
+            verify(orgMapper, never()).insert(any(SysRoleOrg.class));
         }
     }
 
@@ -416,7 +417,7 @@ class SysRoleServiceTest {
 
             verify(roleMapper).updateById(payload);
             verify(orgMapper).deleteByRoleId(5L);
-            verify(orgMapper, times(1)).insert(any());
+            verify(orgMapper, times(1)).insert(any(SysRoleOrg.class));
         }
     }
 
@@ -516,7 +517,7 @@ class SysRoleServiceTest {
             assertThrows(BusinessException.class, () -> service.updateOrgs(5L, List.of(10L, 20L)),
                     "非超管不应可写其他集团角色的组织集");
             verify(orgMapper, never()).deleteByRoleId(any());
-            verify(orgMapper, never()).insert(any());
+            verify(orgMapper, never()).insert(any(SysRoleOrg.class));
         }
     }
 
@@ -537,7 +538,7 @@ class SysRoleServiceTest {
             service.updateOrgs(5L, List.of(10L, 20L));
 
             verify(orgMapper).deleteByRoleId(5L);
-            verify(orgMapper, times(2)).insert(any());
+            verify(orgMapper, times(2)).insert(any(SysRoleOrg.class));
         }
     }
 
@@ -553,7 +554,7 @@ class SysRoleServiceTest {
             service.updateOrgs(5L, List.of(10L, 20L));
 
             verify(orgMapper).deleteByRoleId(5L);
-            verify(orgMapper, times(2)).insert(any());
+            verify(orgMapper, times(2)).insert(any(SysRoleOrg.class));
         }
     }
 
@@ -577,7 +578,7 @@ class SysRoleServiceTest {
             assertThrows(BusinessException.class, () -> service.updateOrgs(5L, List.of(20L)),
                     "同集团角色也不应可挂其他集团组织");
             // saveRoleOrgs 首行无条件清空(设计), 事务回滚; 核心断言=不写入任何 role_org 行
-            verify(orgMapper, never()).insert(any());
+            verify(orgMapper, never()).insert(any(SysRoleOrg.class));
         }
     }
 
@@ -597,7 +598,7 @@ class SysRoleServiceTest {
             assertThrows(BusinessException.class, () -> service.updateOrgs(5L, List.of(99L)),
                     "查不到的 org 不应被写入");
             // saveRoleOrgs 首行无条件清空(设计), 事务回滚; 核心断言=不写入任何 role_org 行
-            verify(orgMapper, never()).insert(any());
+            verify(orgMapper, never()).insert(any(SysRoleOrg.class));
         }
     }
 
@@ -616,7 +617,7 @@ class SysRoleServiceTest {
 
             assertThrows(BusinessException.class, () -> service.updateOrgs(5L, List.of(20L)),
                     "includeChildren=1 展开的子树不得含跨集团节点");
-            verify(orgMapper, never()).insert(any());
+            verify(orgMapper, never()).insert(any(SysRoleOrg.class));
         }
     }
 
@@ -640,7 +641,7 @@ class SysRoleServiceTest {
 
             assertThrows(BusinessException.class, () -> service.create(role));
             // create 事务回滚后不残留任何 role_org 行(核心断言)
-            verify(orgMapper, never()).insert(any());
+            verify(orgMapper, never()).insert(any(SysRoleOrg.class));
         }
     }
 
@@ -659,7 +660,7 @@ class SysRoleServiceTest {
 
             assertThrows(BusinessException.class, () -> service.updateOrgs(5L, List.of(20L)),
                     "org 有效集团必须与目标角色集团一致");
-            verify(orgMapper, never()).insert(any());
+            verify(orgMapper, never()).insert(any(SysRoleOrg.class));
         }
     }
 
@@ -677,7 +678,7 @@ class SysRoleServiceTest {
 
             assertThrows(BusinessException.class, () -> service.updateOrgs(5L, java.util.Arrays.asList((Long) null)),
                     "orgIds 不应含 null");
-            verify(orgMapper, never()).insert(any());
+            verify(orgMapper, never()).insert(any(SysRoleOrg.class));
         }
     }
 

@@ -55,7 +55,8 @@ class SysPositionServiceTest {
                 mock(SysPositionRuleMapper.class),
                 mock(SysUserPositionMapper.class),
                 mock(SysPermissionRuleMapper.class),
-                mock(com.ycmn.security.PermissionCacheService.class));
+                mock(com.ycmn.security.PermissionCacheService.class),
+                mock(org.springframework.jdbc.core.JdbcTemplate.class));
     }
 
     @Test
@@ -149,7 +150,7 @@ class SysPositionServiceTest {
             m.when(SecurityUtils::getCurrentGroupIds).thenReturn(List.of(1L));
 
             assertThrows(BusinessException.class, () -> service.create(pos));
-            verify(positionMapper, never()).insert(any());
+            verify(positionMapper, never()).insert(any(SysPosition.class));
         }
     }
 
@@ -183,7 +184,7 @@ class SysPositionServiceTest {
             m.when(SecurityUtils::getCurrentGroupIds).thenReturn(List.of(1L));
 
             assertThrows(BusinessException.class, () -> service.update(payload));
-            verify(positionMapper, never()).updateById(any());
+            verify(positionMapper, never()).updateById(any(SysPosition.class));
         }
     }
 
@@ -199,5 +200,51 @@ class SysPositionServiceTest {
             assertThrows(BusinessException.class, () -> service.delete(5L));
             verify(positionMapper, never()).deleteById(5L);
         }
+    }
+
+    // ---- 【2026-08-14 缓存自愈】权限版本递增（参照 SysRoleService.delete 顺序教训：反查依赖绑定表，必须先递增再删绑定） ----
+
+    /** 删除岗位必须先 evict + 版本递增(依赖 sys_user_position 子查询)，再删绑定；
+     *  否则绑定删除后子查询反查为空、bump 静默失效，旧权限残留至 TTL */
+    @Test
+    void delete_bumpsUserPermVersionsBeforeRemovingBindings() {
+        SysPositionMapper positionMapper = mock(SysPositionMapper.class);
+        SysUserPositionMapper userPositionMapper = mock(SysUserPositionMapper.class);
+        com.ycmn.security.PermissionCacheService cache = mock(com.ycmn.security.PermissionCacheService.class);
+        org.springframework.jdbc.core.JdbcTemplate jdbc = mock(org.springframework.jdbc.core.JdbcTemplate.class);
+        SysPositionService service = new SysPositionService(positionMapper,
+                mock(SysPositionRuleMapper.class), userPositionMapper,
+                mock(SysPermissionRuleMapper.class), cache, jdbc);
+        when(positionMapper.selectById(5L)).thenReturn(positionOf(5L, 1L));
+        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
+            m.when(SecurityUtils::isAdmin).thenReturn(true);
+
+            service.delete(5L);
+
+            // 顺序：evict + 版本递增(子查询依赖 sys_user_position) → 删岗位-规则绑定 → 删用户-岗位绑定
+            org.mockito.InOrder inOrder = org.mockito.Mockito.inOrder(jdbc, userPositionMapper, cache);
+            inOrder.verify(cache).evictByPosition(5L);
+            inOrder.verify(jdbc).update(org.mockito.ArgumentMatchers.contains("perm_version"),
+                    org.mockito.ArgumentMatchers.eq(5L));
+            inOrder.verify(userPositionMapper).delete(any(LambdaQueryWrapper.class));
+        }
+    }
+
+    /** 用户-岗位分配变更：evict 后用户级版本递增兜底 */
+    @Test
+    void assignUserPositions_bumpsUserPermVersion() {
+        SysPositionMapper positionMapper = mock(SysPositionMapper.class);
+        com.ycmn.security.PermissionCacheService cache = mock(com.ycmn.security.PermissionCacheService.class);
+        org.springframework.jdbc.core.JdbcTemplate jdbc = mock(org.springframework.jdbc.core.JdbcTemplate.class);
+        SysPositionService service = new SysPositionService(positionMapper,
+                mock(SysPositionRuleMapper.class), mock(SysUserPositionMapper.class),
+                mock(SysPermissionRuleMapper.class), cache, jdbc);
+
+        service.assignUserPositions(9L, List.of(1L, 2L));
+
+        org.mockito.InOrder inOrder = org.mockito.Mockito.inOrder(jdbc, cache);
+        inOrder.verify(cache).evict(9L);
+        inOrder.verify(jdbc).update(org.mockito.ArgumentMatchers.contains("perm_version"),
+                org.mockito.ArgumentMatchers.eq(9L));
     }
 }

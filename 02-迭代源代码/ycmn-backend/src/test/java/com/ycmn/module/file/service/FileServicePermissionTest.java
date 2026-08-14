@@ -76,7 +76,7 @@ class FileServicePermissionTest {
             BusinessException ex = assertThrows(BusinessException.class, () -> svc.upload(mf, 100L, "private"));
             assertEquals(403, ex.getCode());
             verify(folderPermissionService).check(100L, FolderPermissionService.P_UPLOAD, 1L);
-            verify(fileMapper, never()).insert(any());
+            verify(fileMapper, never()).insert(any(BizFile.class));
         }
     }
 
@@ -90,7 +90,7 @@ class FileServicePermissionTest {
             when(folderPermissionService.check(100L, FolderPermissionService.P_UPLOAD, 1L)).thenReturn(false);
             BusinessException ex = assertThrows(BusinessException.class, () -> svc.createFolder(folder));
             assertEquals(403, ex.getCode());
-            verify(folderMapper, never()).insert(any());
+            verify(folderMapper, never()).insert(any(BizFileFolder.class));
         }
     }
 
@@ -106,7 +106,7 @@ class FileServicePermissionTest {
             when(folderPermissionService.check(100L, FolderPermissionService.P_EDIT, 2L)).thenReturn(false);
             BusinessException ex = assertThrows(BusinessException.class, () -> svc.renameFolder(100L, "新名字"));
             assertEquals(403, ex.getCode());
-            verify(folderMapper, never()).updateById(any());
+            verify(folderMapper, never()).updateById(any(BizFileFolder.class));
         }
     }
 
@@ -457,8 +457,8 @@ class FileServicePermissionTest {
             when(folderPermissionService.checkFile(9L, FolderPermissionService.P_EDIT, 2L)).thenReturn(false);
             BusinessException ex = assertThrows(BusinessException.class, () -> svc.replaceFile(9L, mf));
             assertEquals(403, ex.getCode());
-            verify(fileMapper, never()).updateById(any());
-            verify(userMapper, never()).updateById(any());
+            verify(fileMapper, never()).updateById(any(BizFile.class));
+            verify(userMapper, never()).updateById(any(SysUser.class));
         }
     }
 
@@ -471,7 +471,7 @@ class FileServicePermissionTest {
             BusinessException ex = assertThrows(BusinessException.class, () -> svc.replaceFile(9L, mf));
             assertEquals("文件不存在", ex.getMessage());
             verify(folderPermissionService, never()).checkFile(any(), any(), any());
-            verify(fileMapper, never()).updateById(any());
+            verify(fileMapper, never()).updateById(any(BizFile.class));
         }
     }
 
@@ -615,7 +615,7 @@ class FileServicePermissionTest {
             m.when(SecurityUtils::isAdmin).thenReturn(false);
             BusinessException ex = assertThrows(BusinessException.class, () -> svc.createFolder(folder));
             assertEquals("公共文件夹只有管理员才能创建", ex.getMessage());
-            verify(folderMapper, never()).insert(any());
+            verify(folderMapper, never()).insert(any(BizFileFolder.class));
         }
     }
 

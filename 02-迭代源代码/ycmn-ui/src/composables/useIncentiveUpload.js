@@ -11,7 +11,7 @@ import { getCustomerList } from '@/api/customer'
 import { getDictData } from '@/api/system'
 import { useUserStore } from '@/store/user'
 import request from '@/utils/request'
-import { getDownloadToken } from '@/utils/token'
+import { getDownloadToken, refreshDownloadToken } from '@/utils/token'
 
 export const IncentiveUploadKey = Symbol('incentiveUpload')
 
@@ -43,15 +43,17 @@ export function useIncentiveUpload() {
 
   // ===== 安装文件预览 =====
   const previewVisible = ref(false), previewUrl = ref(''), previewType = ref('image'), previewName = ref('')
-  const fileUrl = (id) => '/api/file/download/' + id + '?token=' + (getDownloadToken() || '')
+  // 【修复 2026-08-14】下载 token 未就绪时不拼 token=（避免必然 403 的空 token 请求）
+  const fileUrl = (id) => { const t = getDownloadToken(); return t ? '/api/file/download/' + id + '?token=' + t : '/api/file/download/' + id }
   const parseFids = (v) => { if (!v) return []; if (typeof v === 'number') return [v]; try { const a = JSON.parse(v); return Array.isArray(a) ? a.map(x => Number(x)) : [v] } catch { return String(v).split(',').map(s => s.trim()).filter(Boolean) } }
   const splitNames = (n) => { if (!n) return []; return String(n).split(',').map(s => s.trim()).filter(Boolean) }
   const fileType = (n) => { if (!n) return 'doc'; if (/\.(jpg|jpeg|png|gif|webp|bmp)$/i.test(n)) return 'image'; if (/\.(mp4|mov|avi|webm)$/i.test(n)) return 'video'; return 'doc' }
   // 安装文件预览:统一走 FilePreview(图片/视频预览+下载,文档显示下载入口);多文件取第一个
-  const previewFile = (id, name) => {
+  const previewFile = async (id, name) => {
     const ids = parseFids(id), names = splitNames(name)
     const fid = ids[0], fname = names[0] || ''
     if (!fid) return
+    await refreshDownloadToken()
     previewUrl.value = fileUrl(fid)
     previewType.value = fileType(fname)
     previewName.value = fname
@@ -486,11 +488,11 @@ export function useIncentiveUpload() {
   }
   // 上传弹窗卡片预览:新文件(未提交)用本地 objectURL;已提交(_existing)用远端 fileUrl(id);
   // 统一走 FilePreview(图片放大/视频播放/文档下载入口);复用 getObjectURL 的缓存 blob,不新增泄漏
-  const previewCardFile = (file) => {
+  const previewCardFile = async (file) => {
     if (!file) return
     if (file._existing) {            // 追加/编辑模式下已存在的文件,无本地 File 对象
       if (!file.id) return
-      previewFile(file.id, file.name)
+      await previewFile(file.id, file.name)
       return
     }
     const url = getObjectURL(file)   // 未提交文件:本地 blob 预览(视频同样适用)

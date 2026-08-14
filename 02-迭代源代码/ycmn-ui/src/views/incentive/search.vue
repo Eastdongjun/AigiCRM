@@ -194,7 +194,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { getCategoryTree } from '@/api/incentive'
 import { cachedGet } from '@/utils/layout-cache'
-import { getToken, getDownloadToken } from '@/utils/token'
+import { getToken, getDownloadToken, refreshDownloadToken } from '@/utils/token'
 import { downloadFile as downloadFileUtil } from '@/utils/download'
 import { Search, User, VideoPlay, Document, ZoomIn, Download, Filter, Folder, OfficeBuilding, PriceTag, Calendar, MapLocation, Notebook, Warning } from '@element-plus/icons-vue'
 import request from '@/utils/request'
@@ -220,13 +220,16 @@ const activeFilterCount=computed(()=>[fSales.value,fIndustry.value,fDevType.valu
 function onImgError(e){e.target.src='data:image/svg+xml,'+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="320" height="240" viewBox="0 0 320 240"><rect fill="#f5f6f7" width="320" height="240"/><text fill="#c0c4cc" font-size="14" font-family="sans-serif" text-anchor="middle" x="160" y="120">图片加载失败</text></svg>')}
 // 取客户记录中最新一条（排序已按品类，不与时间线顺序绑定）
 function latestRecord(c){let best=null;for(const r of (c?.records||[])){if(!best||String(r.createdAt||'')>String(best.createdAt||''))best=r}return best}
-function fileUrl(id){return'/api/file/download/'+id+'?token='+(getDownloadToken()||'')}
-function thumbUrl(id){return'/api/file/download/'+id+'?token='+(getDownloadToken()||'')+'&thumbnail=1'}
-function preview(id,type,name){previewUrl.value=fileUrl(id);previewType.value=type==='video'?'video':'image';previewVisible.value=true;previewName.value=name||''}
+// 【修复 2026-08-14】下载 token 未就绪时不拼 token=（避免产生必然 403 的空 token 请求）；
+// token 就绪后 getDownloadToken() 读取的 dlToken ref 变化会触发渲染链重跑，<img> 自动用带 token 的 URL 重载
+function fileUrl(id){const t=getDownloadToken();return t?'/api/file/download/'+id+'?token='+t:'/api/file/download/'+id}
+function thumbUrl(id){const t=getDownloadToken();return t?'/api/file/download/'+id+'?token='+t+'&thumbnail=1':'/api/file/download/'+id}
+async function preview(id,type,name){await refreshDownloadToken();previewUrl.value=fileUrl(id);previewType.value=type==='video'?'video':'image';previewVisible.value=true;previewName.value=name||''}
 // 【需求】文件下载(FEAT 0804):window.open 下载在新标签闪开/被拦截时表现为"没反应";
 // 改为 fetch blob + a.download 强制保存,任何浏览器/任何状态下可靠触发
 async function downloadFile(id, name) {
   if (!id) return
+  await refreshDownloadToken()
   await downloadFileUtil(fileUrl(id), { name: name || ('file-' + id), headers: { 'Authorization': 'Bearer ' + (getToken() || '') } })
 }
 function downloadPreview(){ if (previewUrl.value) { const m = previewUrl.value.match(/\/download\/(\d+)/); downloadFile(m ? m[1] : null, previewName.value) } }

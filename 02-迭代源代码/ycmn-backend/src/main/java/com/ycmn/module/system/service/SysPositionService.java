@@ -21,6 +21,20 @@ public class SysPositionService {
     private final SysUserPositionMapper userPositionMapper;
     private final SysPermissionRuleMapper ruleMapper;
     private final com.ycmn.security.PermissionCacheService permissionCacheService;
+    private final org.springframework.jdbc.core.JdbcTemplate jdbc;
+
+    // ==================== 缓存自愈：权限版本递增 ====================
+
+    /** 【2026-08-14 缓存自愈】岗位级权限版本递增：evict 漏网/Redis 写失败时，缓存与 DB 版本比对自愈 */
+    private void bumpUserPermVersionsByPosition(Long positionId) {
+        jdbc.update("UPDATE sys_user SET perm_version = perm_version + 1 " +
+                "WHERE id IN (SELECT user_id FROM sys_user_position WHERE position_id=?)", positionId);
+    }
+
+    /** 【2026-08-14 缓存自愈】用户级权限版本递增 */
+    private void bumpPermVersion(Long userId) {
+        jdbc.update("UPDATE sys_user SET perm_version = perm_version + 1 WHERE id=?", userId);
+    }
 
     // ==================== 岗位 CRUD ====================
 
@@ -88,6 +102,8 @@ public class SysPositionService {
         }
         // 【Redis 权限缓存】岗位字段/规则变更影响该岗位用户，立即失效
         permissionCacheService.evictByPosition(position.getId());
+        // 【2026-08-14 缓存自愈】版本递增兜底：evict 漏网/Redis 写失败时缓存与 DB 版本比对自愈
+        bumpUserPermVersionsByPosition(position.getId());
     }
 
     /** 删除岗位（连带清理规则绑定与用户分配；越权集团拒绝） */
@@ -101,6 +117,8 @@ public class SysPositionService {
         // 【复核修复 2026-08-09】evictByPosition 反查 sys_user_position 表——必须先于删除绑定行执行，
         // 否则反查返回空导致 evict 失效(已删岗位的规则最长残留 10min TTL)
         permissionCacheService.evictByPosition(id);
+        // 【2026-08-14 缓存自愈】版本递增同样依赖 sys_user_position 子查询——必须删绑定前执行，否则反查为空、bump 静默失效
+        bumpUserPermVersionsByPosition(id);
         positionRuleMapper.delete(new LambdaQueryWrapper<SysPositionRule>().eq(SysPositionRule::getPositionId, id));
         userPositionMapper.delete(new LambdaQueryWrapper<SysUserPosition>().eq(SysUserPosition::getPositionId, id));
         positionMapper.deleteById(id);
@@ -126,6 +144,8 @@ public class SysPositionService {
         }
         // 【Redis 权限缓存】规则绑定变更立即失效该岗位用户缓存
         permissionCacheService.evictByPosition(positionId);
+        // 【2026-08-14 缓存自愈】版本递增兜底：evict 漏网/Redis 写失败时缓存与 DB 版本比对自愈
+        bumpUserPermVersionsByPosition(positionId);
     }
 
     // ==================== 用户-岗位分配 ====================
@@ -149,5 +169,7 @@ public class SysPositionService {
         }
         // 【Redis 权限缓存】用户岗位分配变更立即失效该用户
         permissionCacheService.evict(userId);
+        // 【2026-08-14 缓存自愈】版本递增兜底：evict 漏网/Redis 写失败时缓存与 DB 版本比对自愈
+        bumpPermVersion(userId);
     }
 }

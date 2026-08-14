@@ -20,6 +20,12 @@ public class SysDeptService {
     private final SysDeptMapper deptMapper;
     private final SysUserMapper userMapper;
     private final com.ycmn.security.PermissionCacheService permissionCacheService;
+    private final org.springframework.jdbc.core.JdbcTemplate jdbc;
+
+    /** 【2026-08-14 缓存自愈】全局权限版本递增：部门变更影响所有用户缓存的派生值，evict 漏网/Redis 写失败时缓存与 DB 版本比对自愈 */
+    private void bumpAllPermVersions() {
+        jdbc.update("UPDATE sys_user SET perm_version = perm_version + 1");
+    }
 
     public List<SysDept> tree() {
         List<SysDept> all = scopeFilter(deptMapper.selectList(
@@ -81,6 +87,8 @@ public class SysDeptService {
         // 【Redis 权限缓存】部门 groupId/legalEntityId/层级变更影响用户缓存的派生值(集团/法人/范围)，
         // 全量失效(低频操作)避免旧上下文残留。
         permissionCacheService.evictAll();
+        // 【2026-08-14 缓存自愈】版本递增兜底：evict 漏网/Redis 写失败时缓存与 DB 版本比对自愈
+        bumpAllPermVersions();
     }
 
     public void delete(Long id) {

@@ -300,7 +300,7 @@ class CustomerServiceTest {
             ms.when(SecurityUtils::isAdmin).thenReturn(true);
             svc.update(req);
         }
-        verify(customerMapper).updateById(any());
+        verify(customerMapper).updateById(any(BizCustomer.class));
     }
 
     // ===== M1 代建规则(2026-08-10): 非admin强制ownerId=自己, admin可指定 =====

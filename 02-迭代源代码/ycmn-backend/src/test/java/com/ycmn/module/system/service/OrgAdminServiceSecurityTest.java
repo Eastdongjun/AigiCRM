@@ -23,8 +23,10 @@ import static org.mockito.Mockito.when;
 class OrgAdminServiceSecurityTest {
 
     private final SysUserMapper userMapper = mock(SysUserMapper.class);
-    private final OrgAdminService svc = new OrgAdminService(mock(SysOrgAdminMapper.class), userMapper,
-            mock(com.ycmn.security.PermissionCacheService.class));
+    private final SysOrgAdminMapper orgAdminMapper = mock(SysOrgAdminMapper.class);
+    private final org.springframework.jdbc.core.JdbcTemplate jdbc = mock(org.springframework.jdbc.core.JdbcTemplate.class);
+    private final OrgAdminService svc = new OrgAdminService(orgAdminMapper, userMapper,
+            mock(com.ycmn.security.PermissionCacheService.class), jdbc);
 
     private SysUser user(long id, Long orgId) {
         SysUser u = new SysUser();

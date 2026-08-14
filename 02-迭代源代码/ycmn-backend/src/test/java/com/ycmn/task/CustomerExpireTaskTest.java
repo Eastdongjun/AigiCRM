@@ -51,12 +51,12 @@ class CustomerExpireTaskTest {
 
         verify(reminderMapper, times(2)).insert(any(BizReminder.class));
         // 已开票超期 → invoice_overdue，超期天数为实际值（400）
-        verify(reminderMapper).insert(argThat(r ->
+        verify(reminderMapper).insert(argThat((BizReminder r) ->
                 "invoice_overdue".equals(r.getReminderType()) && r.getOverdueDays() == 400));
         // 从未开票 → invoice_never，overdueDays=0，不再是 9999
-        verify(reminderMapper).insert(argThat(r ->
+        verify(reminderMapper).insert(argThat((BizReminder r) ->
                 "invoice_never".equals(r.getReminderType()) && r.getOverdueDays() == 0));
-        verify(reminderMapper, never()).insert(argThat(r ->
+        verify(reminderMapper, never()).insert(argThat((BizReminder r) ->
                 r.getOverdueDays() != null && r.getOverdueDays() == 9999));
     }
 

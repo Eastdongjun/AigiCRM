@@ -82,7 +82,7 @@ class FolderAclServiceTest {
             m.when(SecurityUtils::getCurrentUserId).thenReturn(USER_ID);
             svc.saveAcl(FOLDER_ID, 3L, List.of(FolderPermissionService.P_VIEW, FolderPermissionService.P_DOWNLOAD));
             verify(aclMapper).updateById(existing);
-            verify(aclMapper, never()).insert(any());
+            verify(aclMapper, never()).insert(any(BizFolderAcl.class));
             assertEquals("view,download", existing.getPerms());
         }
     }
@@ -251,8 +251,8 @@ class FolderAclServiceTest {
             assertThrows(BusinessException.class, () -> svc.saveAclFromBody(FOLDER_ID,
                     Map.<String, Object>of("roleId", 3, "perms", "view")));
             // 不触碰任何 mapper
-            verify(aclMapper, never()).insert(any());
-            verify(aclMapper, never()).updateById(any());
+            verify(aclMapper, never()).insert(any(BizFolderAcl.class));
+            verify(aclMapper, never()).updateById(any(BizFolderAcl.class));
             verify(aclMapper, never()).selectOne(any());
         }
     }
