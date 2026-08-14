@@ -12,7 +12,8 @@ PASS=0; FAIL=0
 ok()  { echo "✅ $1"; PASS=$((PASS+1)); }
 bad() { echo "❌ $1"; FAIL=$((FAIL+1)); }
 
-REPO="/Users/donglai/东来/01-Projects/01-aigicrm/04-源码"
+# 【2026-08-14 目录重组】权威源码在 02-迭代源代码/（ycmn-ui/ycmn-backend/docs/scripts 均在此）
+REPO="/Users/donglai/东来/01-Projects/01-aigicrm/04-源码/02-迭代源代码"
 echo "════════ YCMN 交付前阶段衔接检查 $(date '+%Y-%m-%d %H:%M:%S') ════════"
 
 # [1] 知识资产文档存在性(自动生成的须可重新生成)
@@ -149,6 +150,18 @@ else
   FAIL=$((FAIL+1))
 fi
 rm -f /tmp/qg.log
+
+# [10] 前后端 API 接线交叉检查(2026-08-14 七层门禁第7层):
+# 前端 axios 调用必须命中后端 Controller 端点(防"前端调了后端没有"的 404 类缺陷)
+echo "--- [10] 前后端 API 接线交叉检查 ---"
+if python3 "$SCRIPT_DIR/check_api_wiring.py" \
+    --frontend-api "$REPO/ycmn-ui/src/api" --backend "$REPO/ycmn-backend/src/main/java" >/tmp/apiwiring.log 2>&1; then
+  echo "  ✅ 前后端 API 接线匹配($(head -1 /tmp/apiwiring.log))"
+else
+  echo "  ❌ 前端存在后端未实现的 API 调用:"; sed 's/^/     /' /tmp/apiwiring.log | head -12
+  FAIL=$((FAIL+1))
+fi
+rm -f /tmp/apiwiring.log
 
 echo "══════════════════════════════════════════════════"
 echo "结果: PASS=$PASS FAIL=$FAIL"
