@@ -1,0 +1,15 @@
+{
+  "recommendations": [
+    "sonarsource.sonarlint-vscode",
+    "ryanluker.vscode-coverage-gutters",
+    "vitest.explorer",
+    "redhat.java",
+    "vscjava.vscode-java-pack",
+    "vscjava.vscode-java-test",
+    "vscjava.vscode-maven",
+    "dbaeumer.vscode-eslint",
+    "vue.volar",
+    "eamodio.gitlens",
+    "usernamehw.errorlens"
+  ]
+}

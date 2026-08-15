@@ -1,3 +1,10 @@
 {
-  "recommendations": ["Vue.volar"]
+  "recommendations": [
+    "vue.volar",
+    "vitest.explorer",
+    "sonarsource.sonarlint-vscode",
+    "ryanluker.vscode-coverage-gutters",
+    "usernamehw.errorlens",
+    "eamodio.gitlens"
+  ]
 }
