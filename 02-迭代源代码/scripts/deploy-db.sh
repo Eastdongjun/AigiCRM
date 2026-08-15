@@ -36,19 +36,33 @@ ssh_prod "
 echo "=== [2/4] 上传迁移目录到生产 ==="
 ssh_prod "rm -rf /root/ycmn/flyway-sql && mkdir -p /root/ycmn/flyway-sql"
 # 逐个上传迁移文件（tar 管道避免 scp 目录传输的权限问题）
-# --exclude='._*' 排除 macOS AppleDouble 元数据文件(会被 Flyway 识别为非约定迁移并告警)
-tar czf - --exclude='._*' --exclude='.DS_Store' -C "$MIGRATION_DIR" . | ssh_prod "tar xzf - -C /root/ycmn/flyway-sql"
+# macOS AppleDouble 元数据: BSD tar 的 --exclude 按 './' 前缀全路径匹配, 需 '*/._*' 才生效;
+# 上传后再远端兜底删一遍(2026-08-15 实测 '._*' 写法失效导致 ._V*.sql 混入 flyway-sql)
+tar czf - --exclude='*/._*' --exclude='.DS_Store' -C "$MIGRATION_DIR" . | ssh_prod "tar xzf - -C /root/ycmn/flyway-sql"
+ssh_prod "find /root/ycmn/flyway-sql -name '._*' -delete 2>/dev/null; true"
 echo "迁移文件: $(ssh_prod "ls /root/ycmn/flyway-sql/ | wc -l") 个"
 
-echo "=== [3/4] Flyway migrate ==="
+echo "=== [3/4] Flyway repair + migrate ==="
+# 2026-08-15 审计修复(生产 flyway 历史实测状态):
+#   ① 历史含 V2-V11 但仓库已归档/缺失对应文件 → validate 报 applied not resolved, 必须 -ignoreMigrationPatterns='*:missing'
+#   ② V12-V14 为手工登记的 checksum=0 与本地文件不符 → repair 按本地文件重算回写
+#   ③ repair 前先做同样 ignore 处理, 否则 repair 也会死在 validate 阶段
 ssh_prod "
   TABLE_CNT=\$(docker exec -e MYSQL_PWD=\"$DB_PASSWORD\" ycmn-mysql mysql -uroot -N -e \"SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='ycmn'\" 2>/dev/null)
   echo \"迁移前: 表数 \$TABLE_CNT\"
+  REPAIR=\$(docker run --rm --network ycmn_default -v /root/ycmn/flyway-sql:/flyway/sql \
+    flyway/flyway:9.22.3-alpine \
+    -url='jdbc:mysql://ycmn-mysql:3306/ycmn?useSSL=false&allowPublicKeyRetrieval=true' \
+    -user=root -password=\"$DB_PASSWORD\" \
+    -ignoreMigrationPatterns='*:missing' \
+    repair 2>&1) || true
+  echo \"\$REPAIR\" | grep -E 'Repairing|Successfully repaired|not necessary' | head -6
   OUT=\$(docker run --rm --network ycmn_default -v /root/ycmn/flyway-sql:/flyway/sql \
     flyway/flyway:9.22.3-alpine \
     -url='jdbc:mysql://ycmn-mysql:3306/ycmn?useSSL=false&allowPublicKeyRetrieval=true' \
     -user=root -password=\"$DB_PASSWORD\" \
     -baselineOnMigrate=true \
+    -ignoreMigrationPatterns='*:missing' \
     migrate 2>&1) || true
   if echo \"\$OUT\" | grep -qi 'error\|failed'; then
     echo '❌ Flyway 迁移失败:'; echo \"\$OUT\" | grep -i 'error\|failed' | head -5; exit 1
