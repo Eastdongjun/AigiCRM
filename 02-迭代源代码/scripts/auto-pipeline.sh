@@ -55,7 +55,7 @@ fi
 # ============ Phase 2: 测试服务器部署 ============
 step "[4/7] 测试服务器: git pull + docker 重建"
 ssh_test "cd '$TEST_REPO_DIR' && git pull origin main" || die "测试服务器 git pull 失败，请确认 TEST_REPO_DIR='$TEST_REPO_DIR' 是否正确（可用 TEST_REPO_DIR=实际路径 ./scripts/auto-pipeline.sh 覆盖）"
-ssh_test "cd '$TEST_REPO_DIR' && JWT_SECRET=\"\${JWT_SECRET:-test-jwt-secret-$(date +%s)}\" docker compose up -d --build" || die "测试服务器 docker compose 重建失败"
+ssh_test "cd '$TEST_REPO_DIR' && JWT_SECRET=\"\${JWT_SECRET:-test-jwt-secret-local-pipeline-$(date +%s)}\" docker compose up -d --build" || die "测试服务器 docker compose 重建失败"
 echo "等待容器启动..."; sleep 15
 
 step "[5/7] 测试库迁移"

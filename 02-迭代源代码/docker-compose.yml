@@ -9,6 +9,9 @@ services:
     container_name: ycmn-backend
     ports:
       - "8080:8080"
+    networks:
+      - default
+      - shopjoy-net
     environment:
       DB_HOST: shared-mysql
       DB_PORT: 3306
@@ -17,8 +20,12 @@ services:
       REDIS_HOST: shared-redis
       REDIS_PORT: 6379
       UPLOAD_DIR: /app/uploads
+      # 时区必须与 MySQL 一致(Asia/Shanghai), 否则改密撤销校验(JwtAuthFilter iat vs pwd_changed_at)会把新 token 误判为 401
+      TZ: Asia/Shanghai
       OSS_ENDPOINT: ${OSS_ENDPOINT:-oss-cn-beijing.aliyuncs.com}
-      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET 未设置（必须注入 256 位随机密钥）}
+      # jjwt 0.13.0 强制 HMAC 密钥 ≥256 位(32 字符), 短密钥启动后登录会抛 WeakKeyException
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET 未设置（必须注入 ≥256 位随机密钥）}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://111.229.37.220,http://localhost,http://localhost:3000,http://localhost:5173}
       OSS_ACCESS_KEY_ID: ${OSS_ACCESS_KEY_ID:-your-key}
       OSS_ACCESS_KEY_SECRET: ${OSS_ACCESS_KEY_SECRET:-your-secret}
       OSS_BUCKET_NAME: ${OSS_BUCKET_NAME:-aigicrm-files}
@@ -38,3 +45,10 @@ services:
 
 volumes:
   upload-data:
+
+networks:
+  # 后端需同时挂默认网(供前端 nginx 反代)与共享设施网(shared-mysql/shared-redis 在 shopjoy-net)
+  default:
+    name: ycmn_default
+  shopjoy-net:
+    external: true
