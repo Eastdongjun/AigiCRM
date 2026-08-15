@@ -8,7 +8,7 @@ YCMN（运筹马年）内部 CRM：客户/审批/激励/文件/公海池/提醒 
 
 ## 技术栈与常用命令
 
-- 后端：Spring Boot 3.2.5 / Java 17 / Maven / MyBatis-Plus；`cd ycmn-backend && mvn clean spring-boot:run`（端口 8080）；打包 `mvn clean package -DskipTests`
+- 后端：Spring Boot 4.1.0 / Java 21 / Maven / MyBatis-Plus；`cd ycmn-backend && mvn clean spring-boot:run`（端口 8080）；打包 `mvn clean package -DskipTests`
 - 前端：Vue 3 / Vite / npm；`cd ycmn-ui && npm run dev`（端口 3000，/api 代理到 8080）；`npm run build`
 - 全栈：`docker-compose up -d`（MySQL:3308 / Redis:6379 / 后端:8080 / 前端:80）
 - 数据库导入（本地）：`source ~/.ycmn-deploy.env && mysql -h localhost -P 3308 -u root -p"$DB_PASSWORD" --default-character-set=utf8mb4 ycmn < sql/init.sql`（凭据经 env 注入，勿硬编码）
@@ -32,12 +32,12 @@ YCMN（运筹马年）内部 CRM：客户/审批/激励/文件/公海池/提醒 
 ## 编译与测试（强制，代码改动必须过这一关）
 
 ```bash
-export JAVA_HOME=/opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home
-cd ycmn-backend && mvn -q test    # 全部单测（当前 285 个）
+export JAVA_HOME=/opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home
+cd ycmn-backend && mvn -q test    # 全部单测
 mvn -q compile                    # 快速编译检查
 ```
 
-- 本机默认 JDK 是 25（Lombok 不兼容），必须用上面的 JAVA_HOME=17 才能编译。
+- 本机默认 JDK 已切 21（2026-08-16，~/.zshenv）；JDK 25（Lombok 不兼容）不再是默认。若 shell 里 java -version 不是 21，先检查 ~/.zshenv 的 JAVA_HOME。
 - 任何代码改动交付前必须 `mvn compile` + `mvn test` 全绿；改动涉及积分/规则引擎时须补充对应单测。
 
 ## 代码审查协议（用户要求检查/审查代码时强制执行）
