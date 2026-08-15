@@ -438,7 +438,11 @@ public class ApprovalService {
                 // 延期 - 保护期延长360天
                 BizCustomer customer = customerMapper.selectById(approval.getCustomerId());
                 if (customer != null) {
-                    customer.setExpireDate(customer.getExpireDate().plusDays(360));
+                    // 【2026-08-15 审计 M1】expireDate 历史数据可为 NULL, 直接 plusDays 抛 NPE → 事务回滚后
+                    // 节点回到 pending, 重试仍 NPE, 该审批永久卡死。NULL 时以当前日期起算(业务口径: 从未设置保护期=即日起延期)
+                    java.time.LocalDate base = customer.getExpireDate() != null
+                            ? customer.getExpireDate() : java.time.LocalDate.now();
+                    customer.setExpireDate(base.plusDays(360));
                     customer.setProtectionStatus("active");
                     customer.setStatus("normal");
                     customerMapper.updateById(customer);
