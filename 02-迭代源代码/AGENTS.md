@@ -13,7 +13,15 @@ YCMN（运筹马年）内部 CRM：客户/审批/激励/文件/公海池/提醒 
 - 全栈：`docker-compose up -d`（MySQL:3308 / Redis:6379 / 后端:8080 / 前端:80）
 - 数据库导入（本地）：`source ~/.ycmn-deploy.env && mysql -h localhost -P 3308 -u root -p"$DB_PASSWORD" --default-character-set=utf8mb4 ycmn < sql/init.sql`（凭据经 env 注入，勿硬编码）
 
+## 生产部署架构（2026-08-15 起，部署前必读）
+
+- **磁盘三区**：系统盘仅 OS；数据盘 `/data`（`/data/docker` 程序根、`/data/database/mysql-data` 数据库、`/data/ycmn` 部署目录，`/root/ycmn` 是其软链）；NAS `/Aigicrm/files` 放用户文件
+- 部署一律走 `scripts/deploy-*.sh`（内置架构自检 check_deploy_arch），禁止手工 docker run 偏离标准；完整规范见 `docs/生产部署规范.md`
+- 前端源码目录为 `02-迭代源代码/ycmn-ui`（scripts/deploy-frontend.sh 已修正）
+- 数据库必须 bind 挂载 `/data/database/mysql-data`，禁止命名卷挂库
+
 ## 数据库事实（排查前必读）
+
 
 - `sys_org` 视图已于 0809 sys_dept/sys_org 双表收口时删除——物理数据只在 `sys_dept` 表（含 dept_type），无 sys_org。
 - schema 真相链：**Flyway 迁移** = `ycmn-backend/src/main/resources/db/migration/V1__baseline.sql`（**V1' 重建基线**，2026-08-11 生产 schema 快照，56 表）+ 未来 **V10+**；历史日期脚本归档 `sql/migration/archive/`（不再登记）；`ycmn_database_test.sql` = 真实库 dump（最接近线上）。

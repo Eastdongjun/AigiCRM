@@ -60,6 +60,24 @@ check_health() {
   fi
 }
 
+# 部署架构自检(2026-08-15 磁盘架构迁移后强制执行):
+# 标准布局 = 系统盘仅OS / 数据盘 /data(docker根+部署目录+数据库, 库与程序路径区分) / NAS=文件
+# 只告警不阻断(允许临时偏差), 每次部署开始时输出, 部署者必须肉眼确认 ✅
+check_deploy_arch() {
+  echo "=== 部署架构自检(标准见 docs/生产部署规范.md) ==="
+  ssh_prod 'bash -s' <<'ARCH_CHECK'
+R=$(docker info --format "{{.DockerRootDir}}" 2>/dev/null)
+[ "$R" = "/data/docker" ] && echo "✅ docker 根=/data/docker" || echo "⚠️ docker 根=$R (标准: /data/docker)"
+M=$(docker inspect ycmn-mysql --format "{{range .Mounts}}{{.Source}} {{end}}" 2>/dev/null | tr " " "\n" | grep -c "^/data/database/mysql-data$")
+[ "$M" = "1" ] && echo "✅ mysql 数据=/data/database/mysql-data" || echo "⚠️ mysql 数据不在 /data/database/mysql-data"
+L=$(readlink /root/ycmn 2>/dev/null)
+[ "$L" = "/data/ycmn" ] && echo "✅ 部署目录软链 /root/ycmn → /data/ycmn" || echo "⚠️ /root/ycmn 非 /data/ycmn 软链 (当前: $L)"
+U=$(docker inspect ycmn-backend --format "{{range .Mounts}}{{.Source}} {{end}}" 2>/dev/null | tr " " "\n" | grep -c "^/Aigicrm/files/uploads$")
+[ "$U" = "1" ] && echo "✅ 上传文件=NAS /Aigicrm/files/uploads" || echo "⚠️ 上传文件不在 NAS"
+ARCH_CHECK
+  return 0
+}
+
 # 当前源码 commit(用于部署记录)
 git_commit() {
   cd "/Users/donglai/东来/01-Projects/01-aigicrm/04-源码" && git rev-parse --short HEAD 2>/dev/null || echo "unknown"

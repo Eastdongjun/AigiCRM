@@ -4,6 +4,8 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 source "$SCRIPT_DIR/deploy-lib.sh"
 
+check_deploy_arch
+
 COMMIT=$(git_commit)
 # JWT_SECRET 必须存在（否则应用启动失败）
 if [ -z "${JWT_SECRET:-}" ]; then

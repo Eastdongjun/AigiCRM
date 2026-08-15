@@ -4,8 +4,10 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 source "$SCRIPT_DIR/deploy-lib.sh"
 
-UI_DIR="/Users/donglai/东来/01-Projects/01-aigicrm/04-源码/ycmn-ui"
+# 前端源码目录（2026-08-15 修正：仓库 08-14 重组后源码在 02-迭代源代码/ 下，旧路径 04-源码/ycmn-ui 已废弃）
+UI_DIR="/Users/donglai/东来/01-Projects/01-aigicrm/04-源码/02-迭代源代码/ycmn-ui"
 COMMIT=$(git_commit)
+check_deploy_arch
 echo "=== [1/5] 构建前端 (commit: $COMMIT) ==="
 cd "$UI_DIR" && npm run build 2>&1 | grep -E "built in|error" | head -2
 

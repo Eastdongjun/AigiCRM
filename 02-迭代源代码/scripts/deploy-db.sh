@@ -16,6 +16,8 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 source "$SCRIPT_DIR/deploy-lib.sh"
 
+check_deploy_arch
+
 MIGRATION_DIR="${1:-$SCRIPT_DIR/../ycmn-backend/src/main/resources/db/migration}"
 
 # 兼容旧用法: 传了 .sql 文件则用旧方式直接执行（应急通道，不走 Flyway）
