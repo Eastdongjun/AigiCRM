@@ -1,6 +1,6 @@
 # YCMN 权限码字典(自动生成)
 
-> 生成时间: 2026-08-14 | 来源: 生产 sys_menu + sys_role_menu
+> 生成时间: 2026-08-15 | 来源: 生产 sys_menu + sys_role_menu
 > 本文件由 scripts/gen-permission-dict.sh 自动生成,**禁止手改**;权限变更后重新运行。
 > 格式约定: 权限码 = `模块:动作`(如 customer:view / system:user:add)
 

@@ -95,4 +95,20 @@ class OrgAdminServiceSecurityTest {
             assertFalse(svc.canManageUser(9L));
         }
     }
+
+    @Test
+    void orgAdmin_cannotManageAdminRoleUser_evenInManagedOrg() {
+        // 【2026-08-15 安全审计 H1 回归】目标即使在本组织内, 只要持有 admin 角色, 组织管理员一律不可操作
+        // (否则经 reset-password 拿到临时口令即接管全系统)
+        try (MockedStatic<SecurityUtils> s = mockStatic(SecurityUtils.class)) {
+            s.when(SecurityUtils::isAdmin).thenReturn(false);
+            s.when(SecurityUtils::isOrgAdmin).thenReturn(true);
+            s.when(SecurityUtils::getCurrentManagedOrgIds).thenReturn(List.of(3L));
+            when(userMapper.selectById(9L)).thenReturn(user(9L, 3L)); // 目标在本组织
+            when(jdbc.queryForObject(org.mockito.ArgumentMatchers.anyString(),
+                    org.mockito.ArgumentMatchers.eq(Integer.class),
+                    org.mockito.ArgumentMatchers.any())).thenReturn(1); // 但持 admin 角色
+            assertFalse(svc.canManageUser(9L));
+        }
+    }
 }

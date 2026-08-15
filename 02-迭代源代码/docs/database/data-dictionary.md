@@ -1,6 +1,6 @@
 # YCMN 数据字典(自动生成)
 
-> 生成时间: 2026-08-14 | 来源: 生产 39.99.35.218 MySQL information_schema
+> 生成时间: 2026-08-15 | 来源: 生产 39.99.35.218 MySQL information_schema
 > 共 63 张表。本文件由 scripts/gen-data-dictionary.sh 自动生成,**禁止手改**;库结构变更后重新运行脚本。
 
 ## biz_approval 审批记录
