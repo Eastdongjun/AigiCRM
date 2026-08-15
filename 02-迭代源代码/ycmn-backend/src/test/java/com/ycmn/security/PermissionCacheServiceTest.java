@@ -8,6 +8,7 @@ import org.mockito.ArgumentCaptor;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
 
+import java.time.Duration;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -48,7 +49,7 @@ class PermissionCacheServiceTest {
 
         svc.put(7L, ctx);
 
-        verify(valueOps).set(eq("perm:ctx:7"), eq(ctx), any());
+        verify(valueOps).set(eq("perm:ctx:7"), eq(ctx), any(Duration.class));
     }
 
     /** 【修复 2026-08-09 P2-3】事务内 evict 延后到 afterCommit——避免 evict→commit 窗口重建旧缓存 */
@@ -124,7 +125,7 @@ class PermissionCacheServiceTest {
      * 防止后续 PermissionContext 加字段/实体变更破坏白名单兼容。
      */
     @Test
-    void realJacksonRoundTrip_preservesPermissionContext() throws Exception {
+    void realJacksonRoundTrip_preservesPermissionContext() {
         com.fasterxml.jackson.databind.ObjectMapper om = new com.fasterxml.jackson.databind.ObjectMapper();
         om.setVisibility(com.fasterxml.jackson.annotation.PropertyAccessor.ALL,
                 com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility.ANY);
@@ -137,8 +138,8 @@ class PermissionCacheServiceTest {
                         .build(),
                 com.fasterxml.jackson.databind.ObjectMapper.DefaultTyping.NON_FINAL);
         om.registerModule(new com.fasterxml.jackson.datatype.jsr310.JavaTimeModule());
-        org.springframework.data.redis.serializer.Jackson2JsonRedisSerializer<Object> ser =
-                new org.springframework.data.redis.serializer.Jackson2JsonRedisSerializer<>(om, Object.class);
+        com.ycmn.config.WhitelistedJsonRedisSerializer ser =
+                new com.ycmn.config.WhitelistedJsonRedisSerializer(om);
 
         PermissionContext ctx = new PermissionContext();
         ctx.setUserId(7L);

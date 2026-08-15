@@ -13,7 +13,7 @@ import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
 import java.util.Date;
 import java.util.UUID;
-import java.util.concurrent.TimeUnit;
+import java.time.Duration;
 
 @Slf4j
 @Component
@@ -150,7 +150,7 @@ public class JwtTokenProvider {
                 throw new RuntimeException("注销失败：撤销服务暂不可用，请稍后重试", dbEx);
             }
             try {
-                redisTemplate.opsForValue().set(BLACKLIST_PREFIX + jti, "1", ttlMs, TimeUnit.MILLISECONDS);
+                redisTemplate.opsForValue().set(BLACKLIST_PREFIX + jti, "1", Duration.ofMillis(ttlMs));
             } catch (Exception e) {
                 log.warn("拉黑 token Redis 写失败(已落库, DB 兜底生效): {}", e.getMessage());
             }
@@ -186,7 +186,7 @@ public class JwtTokenProvider {
         if (userId == null) return;
         try {
             redisTemplate.opsForValue().set(PWD_CHANGED_PREFIX + userId,
-                    String.valueOf(System.currentTimeMillis()), PWD_CHANGED_TTL_MS, TimeUnit.MILLISECONDS);
+                    String.valueOf(System.currentTimeMillis()), Duration.ofMillis(PWD_CHANGED_TTL_MS));
         } catch (Exception e) {
             log.error("markPasswordChanged Redis 写失败(已由 DB pwd_changed_at 兜底撤销): {}", e.getMessage());
         }

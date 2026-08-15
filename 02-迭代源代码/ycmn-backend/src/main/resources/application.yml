@@ -75,7 +75,7 @@ aliyun:
     sign-name: ${SMS_SIGN_NAME:陕西青阳耀东科技}
     template-code: ${SMS_TEMPLATE_CODE:SMS_335400207}
 
-# Knife4j — 开发环境可访问，生产环境通过 security config 限制
+# 接口文档(springdoc 3.x, knife4j 已移除) — 开发环境可访问，生产环境通过 security config 限制
 springdoc:
   swagger-ui:
     path: /swagger-ui.html
