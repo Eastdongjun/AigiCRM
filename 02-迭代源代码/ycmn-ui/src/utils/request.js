@@ -83,7 +83,11 @@ request.interceptors.response.use(
       msg = STATUS_MSG[status]
         || (error.code === 'ECONNABORTED' ? '请求超时，请稍后重试' : '网络异常，请稍后重试')
     }
-    notify(msg)
+    // 【2026-08-15 审计 M2】角标接口(提醒未读/审批统计)对无对应权限用户 403 属预期:
+    // 每次进系统都会静默失败并由 store 空 catch 兜底, 全局弹"没有操作权限"是假错误提示, 抑制之
+    const url = error.config?.url || ''
+    const isBadgeEndpoint = status === 403 && (url.includes('/reminder/pending-count') || url.includes('/approval/statistics'))
+    if (!isBadgeEndpoint) notify(msg)
     // 重包装为中文 Error：各处 catch 的 e.message 自动中文，无需逐个页面改
     const wrapped = new Error(msg)
     wrapped.response = error.response

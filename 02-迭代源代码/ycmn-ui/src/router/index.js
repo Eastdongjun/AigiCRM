@@ -114,7 +114,7 @@ const routes = [
         path: 'score/ranking',
         name: 'ScoreRanking',
         component: () => import('@/views/score/ranking.vue'),
-        meta: { title: '学分排行', parentTitle: '学分管理', icon: 'Medal', permission: 'score:ranking' }
+        meta: { title: '学分排行', parentTitle: '学分管理', icon: 'Medal', permission: 'score:view' }
       },
       // 核心客户六项指标
       {

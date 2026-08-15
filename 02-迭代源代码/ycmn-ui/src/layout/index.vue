@@ -195,16 +195,25 @@ const userStore = useUserStore()
 
 // 【修复 FEAT-20260804-DYNAMIC-MENU】把后端下发的两层 menus 树整理成"分组+可点击页面"，
 // 过滤掉没有任何可见子页面的空分组（比如角色没被授权该分组下任何页面时）
+// 【2026-08-15 审计 H4】后端已按 path 去重; 前端再兜底一次, 防历史冗余菜单行导致侧边栏同页渲染两次
 const menuGroups = computed(() => {
+  const seenPaths = new Set()
   return (userStore.menus || [])
     .map(group => ({
       ...group,
       children: (group.children || [])
         .filter(c => c.menuType === 2 && c.path)
+        .filter(c => {
+          if (seenPaths.has(c.path)) return false
+          seenPaths.add(c.path)
+          return true
+        })
         .map(c => ({
           ...c,
-          // 二级子页面：子级中可见的页面级菜单（客户详情 visible=0 不显示）
-          subChildren: (c.children || []).filter(s => s.menuType === 2 && s.path && s.visible !== 0)
+          // 二级子页面：子级中可见的页面级菜单（客户详情 visible=0 不显示），同 path 也去重
+          subChildren: (c.children || [])
+            .filter(s => s.menuType === 2 && s.path && s.visible !== 0)
+            .filter((s, idx, arr) => arr.findIndex(x => x.path === s.path) === idx)
         }))
     }))
     .filter(group => group.children.length > 0)
