@@ -41,6 +41,9 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 public class FileService {
+    /** 字节换算单位:1KB=1024B(文件大小格式化用) */
+    private static final long BYTES_PER_KB = 1024L;
+
     private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(FileService.class);
 
     private final BizFileMapper fileMapper;
@@ -459,7 +462,9 @@ public class FileService {
             } else {
                 ossClient.deleteObject(ossConfig.getBucketName(), fileKey);
             }
-        } catch (Exception ignored) {}
+        } catch (Exception ignored) {
+            // 尽力而为:OSS 删除失败不回滚主流程,文件元数据已删,残留对象由清理任务兜底
+            }
     }
 
     public Path getLocalFilePath(String fileKey) {
@@ -726,7 +731,7 @@ public class FileService {
     }
 
     private String formatSize(long bytes) {
-        if (bytes < 1024) return bytes + "B";
+        if (bytes < BYTES_PER_KB) return bytes + "B";
         if (bytes < 1024 * 1024) return String.format("%.1fKB", bytes / 1024.0);
         if (bytes < 1024 * 1024 * 1024) return String.format("%.1fMB", bytes / (1024.0 * 1024));
         return String.format("%.1fGB", bytes / (1024.0 * 1024 * 1024));

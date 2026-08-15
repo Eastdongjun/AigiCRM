@@ -1,5 +1,4 @@
 <template>
-  <!-- ======== 归属与负责人 ======== -->
   <div class="section-block">
     <div class="section-head">
       <span class="section-icon warn"><el-icon><MapLocation /></el-icon></span>

@@ -25,7 +25,6 @@ public class SysPermissionRule {
     @TableId(type = IdType.AUTO)
     private Long id;
 
-    /** 规则名称 */
     private String name;
 
     /** 规则编码（唯一） */
@@ -34,10 +33,8 @@ public class SysPermissionRule {
     /** 目标实体（customer/contact/payment/order） */
     private String targetEntity;
 
-    /** 规则类型 */
     private String ruleType;
 
-    /** 目标字段 */
     private String targetColumn;
 
     /** 操作符（eq/ne/in/between/like/is_null） */
@@ -49,7 +46,6 @@ public class SysPermissionRule {
     /** 扩展配置JSON */
     private String extraConfig;
 
-    /** 规则描述 */
     private String description;
 
     /** 优先级（越小越优先） */

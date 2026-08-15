@@ -23,7 +23,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 
 import java.util.*;
 import java.util.concurrent.ThreadLocalRandom;
-import java.util.concurrent.TimeUnit;
+import java.time.Duration;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -46,7 +46,7 @@ public class AuthService {
     public boolean lookupRateLimited(String ip) {
         String rateKey = LOOKUP_RATE_PREFIX + ip;
         if (Boolean.TRUE.equals(redisTemplate.hasKey(rateKey))) return true;
-        redisTemplate.opsForValue().set(rateKey, 1, RATE_LIMIT_SECONDS, TimeUnit.SECONDS);
+        redisTemplate.opsForValue().set(rateKey, 1, Duration.ofSeconds(RATE_LIMIT_SECONDS));
         return false;
     }
     private static final long LOGIN_LOCK_SECONDS = 900;    // 锁定时间 15 分钟
@@ -94,9 +94,9 @@ public class AuthService {
         if (user == null || user.getStatus() == 0
                 || !passwordEncoder.matches(request.getPassword(), user.getPassword())) {
             failCount++;
-            redisTemplate.opsForValue().set(failKey, failCount, LOGIN_LOCK_SECONDS, TimeUnit.SECONDS);
+            redisTemplate.opsForValue().set(failKey, failCount, Duration.ofSeconds(LOGIN_LOCK_SECONDS));
             ipFailCount++;
-            redisTemplate.opsForValue().set(ipFailKey, ipFailCount, LOGIN_LOCK_SECONDS, TimeUnit.SECONDS);
+            redisTemplate.opsForValue().set(ipFailKey, ipFailCount, Duration.ofSeconds(LOGIN_LOCK_SECONDS));
             throw new BusinessException(401, "账号或密码错误");
         }
 
@@ -182,7 +182,6 @@ public class AuthService {
         List<SysMenu> menus = menuMapper.selectMenusByUserId(userId);
         Set<String> permissions = menuMapper.selectPermissionsByUserId(userId);
 
-        // 获取部门和办事处名称
         String deptName = "";
         String officeName = "";
         if (user.getDeptId() != null) {
@@ -275,7 +274,7 @@ public class AuthService {
         }
         // 每次请求都计 IP 次数(窗口滑动 1h), 无论用户是否存在——封死枚举/轰炸
         redisTemplate.opsForValue().increment(ipRateKey);
-        redisTemplate.expire(ipRateKey, RESET_IP_LOCK_SECONDS, TimeUnit.SECONDS);
+        redisTemplate.expire(ipRateKey, Duration.ofSeconds(RESET_IP_LOCK_SECONDS));
 
         SysUser user = findActiveUser(request.getUsername());
 
@@ -283,13 +282,11 @@ public class AuthService {
             throw new BusinessException(400, "该账号未绑定手机号");
         }
 
-        // 生成6位验证码
         String code = String.format("%06d", ThreadLocalRandom.current().nextInt(1000000));
         String codeKey = RESET_CODE_PREFIX + request.getUsername();
-        redisTemplate.opsForValue().set(codeKey, code, CODE_TTL_SECONDS, TimeUnit.SECONDS);
-        redisTemplate.opsForValue().set(rateKey, "1", RATE_LIMIT_SECONDS, TimeUnit.SECONDS);
+        redisTemplate.opsForValue().set(codeKey, code, Duration.ofSeconds(CODE_TTL_SECONDS));
+        redisTemplate.opsForValue().set(rateKey, "1", Duration.ofSeconds(RATE_LIMIT_SECONDS));
 
-        // 发送阿里云短信
         try {
             SendSmsRequest smsRequest = new SendSmsRequest()
                     .setPhoneNumbers(user.getPhone())
@@ -328,7 +325,7 @@ public class AuthService {
         }
         if (!request.getCode().trim().equals(stored.toString().trim())) {
             errorCount++;
-            redisTemplate.opsForValue().set(errorKey, errorCount, LOGIN_LOCK_SECONDS, TimeUnit.SECONDS);
+            redisTemplate.opsForValue().set(errorKey, errorCount, Duration.ofSeconds(LOGIN_LOCK_SECONDS));
             throw new BusinessException(400, "验证码错误");
         }
 

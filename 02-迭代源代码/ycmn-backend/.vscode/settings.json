@@ -1,0 +1,35 @@
+{
+  // 后端专项设置：单独打开 ycmn-backend 目录时同样生效
+  // 本机默认 JDK 25 与 Lombok 不兼容，必须锁定 21（pom 的 java.version=21）
+  "java.configuration.runtimes": [
+    {
+      "name": "JavaSE-21",
+      "path": "/opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home",
+      "default": true
+    }
+  ],
+  "java.jdt.ls.java.home": "/opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home",
+  "java.debug.settings.onBuildFailureProceed": true,
+  "java.import.gradle.enabled": false,
+  "editor.codeActionsOnSave": {
+    "source.organizeImports": "explicit"
+  },
+  "sonarlint.rules": {
+    "java:S2259": "on",
+    "java:S1166": "on",
+    "java:S112": "on",
+    "java:S2221": "on",
+    "java:S2486": "on"
+  },
+  "sonarlint.disableTelemetry": true,
+  "coverage-gutters.coverageFileNames": [
+    "jacoco.xml",
+    "coverage.xml",
+    "lcov.info"
+  ],
+  "coverage-gutters.showGutterCoverage": true,
+  "coverage-gutters.showLineCoverage": true,
+  "files.exclude": { "**/target": true },
+  "search.exclude": { "**/target": true },
+  "errorLens.enabled": true
+}

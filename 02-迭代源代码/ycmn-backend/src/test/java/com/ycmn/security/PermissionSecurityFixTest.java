@@ -4,12 +4,18 @@ import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 import com.ycmn.common.BusinessException;
 import com.ycmn.common.scope.OrgScopeResolver;
+import com.baomidou.mybatisplus.core.MybatisConfiguration;
+import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
+import com.ycmn.module.system.entity.SysDept;
 import com.ycmn.module.system.entity.SysRoleOrg;
+import com.ycmn.module.system.entity.SysUser;
+import org.apache.ibatis.builder.MapperBuilderAssistant;
 import com.ycmn.module.system.mapper.SysDeptMapper;
 import com.ycmn.module.system.mapper.SysRoleOrgMapper;
 import com.ycmn.module.system.mapper.SysUserMapper;
 import com.ycmn.module.system.service.RolePermScopeService;
 import com.ycmn.module.system.service.SysConfigService;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -25,6 +31,16 @@ import static org.mockito.Mockito.*;
 
 /** 2026-08-10 权限审计修复回归: P1-03/P1-07/P2-05/P2-07/P2-09/P1-05/P1-06 */
 class PermissionSecurityFixTest {
+
+    /** MyBatis-Plus 3.5.17(Boot 4)起纯 mock 环境必须显式注册实体 lambda 缓存，
+        否则服务内 LambdaQueryWrapper 抛 can not find lambda cache（升级回归修复） */
+    @BeforeEach
+    void initLambdaCache() {
+        MybatisConfiguration cfg = new MybatisConfiguration();
+        TableInfoHelper.initTableInfo(new MapperBuilderAssistant(cfg, ""), SysUser.class);
+        TableInfoHelper.initTableInfo(new MapperBuilderAssistant(cfg, ""), SysRoleOrg.class);
+        TableInfoHelper.initTableInfo(new MapperBuilderAssistant(cfg, ""), SysDept.class);
+    }
 
     private static final String SECRET = "test-secret-key-for-jwt-hmac-256-bytes-long-enough";
 

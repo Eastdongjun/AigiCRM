@@ -25,6 +25,8 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
@@ -71,13 +73,13 @@ class SeaServiceTest {
         BizSeaPoolMapper poolMapper = mock(BizSeaPoolMapper.class);
 
         // page() 的 selectPage 返回一条属于启用池的待捞取记录
-        BizSeaPool record = new BizSeaPool();
-        record.setId(100L);
-        record.setCustomerId(500L);
-        record.setPoolId(10L); // 启用池
-        record.setStatus("available");
+        BizSeaPool pool = new BizSeaPool();
+        pool.setId(100L);
+        pool.setCustomerId(500L);
+        pool.setPoolId(10L); // 启用池
+        pool.setStatus("available");
         Page<BizSeaPool> pageResult = new Page<>(1, 15);
-        pageResult.setRecords(List.of(record));
+        pageResult.setRecords(List.of(pool));
         pageResult.setTotal(1);
         when(poolMapper.selectPage(any(), any())).thenReturn(pageResult);
         when(poolMapper.selectCount(any())).thenReturn(1L);
@@ -99,12 +101,12 @@ class SeaServiceTest {
         ArgumentCaptor<LambdaQueryWrapper<BizSeaPool>> captor = ArgumentCaptor.forClass(LambdaQueryWrapper.class);
         verify(poolMapper).selectPage(any(), captor.capture());
         String sql = captor.getValue().getExpression().getSqlSegment();
-        assertEquals(true, sql.contains("pool_id IN"), "all 用户也应受启用池过滤(含 pool_id IN): " + sql);
+        assertTrue(sql.contains("pool_id IN"), "all 用户也应受启用池过滤(含 pool_id IN): " + sql);
         // 参数值: IN 列表应只含启用池 id 10
         java.util.Map<String, Object> params = captor.getValue().getParamNameValuePairs();
         String joined = String.valueOf(params.values());
-        assertEquals(true, joined.contains("10"), "IN 参数应含启用池 id 10: " + joined);
-        assertEquals(false, joined.contains("20"), "IN 参数不应含禁用池 id 20: " + joined);
+        assertTrue(joined.contains("10"), "IN 参数应含启用池 id 10: " + joined);
+        assertFalse(joined.contains("20"), "IN 参数不应含禁用池 id 20: " + joined);
     }
 
     private BizCustomerMapper customerMapper() {

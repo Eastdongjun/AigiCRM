@@ -1,5 +1,4 @@
 <template>
-  <!-- ======== 基本信息 ======== -->
   <div class="section-block">
     <div class="section-head">
       <span class="section-icon"><el-icon><Document /></el-icon></span>

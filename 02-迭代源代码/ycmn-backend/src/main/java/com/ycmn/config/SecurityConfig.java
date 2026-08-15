@@ -43,7 +43,7 @@ public class SecurityConfig {
 
                 // Swagger 仅非生产环境开放
                 if (!isProd) {
-                    auth.requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/doc.html/**", "/webjars/**").permitAll();
+                    auth.requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/webjars/**").permitAll(); // knife4j 已移除(无 /doc.html)
                 }
 
                 auth.anyRequest().authenticated();

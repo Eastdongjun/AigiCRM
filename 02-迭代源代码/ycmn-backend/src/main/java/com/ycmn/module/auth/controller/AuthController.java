@@ -25,7 +25,6 @@ public class AuthController {
         // 客户端 IP 只取可信源（防伪造头绕过限流），限流与审计日志同源
         String ip = ClientIpUtils.getClientIp(httpRequest);
         LoginResponse resp = authService.login(request, ip);
-        // 记录登录日志
         try {
             SysLog log = new SysLog();
             log.setUsername(request.getUsername());
@@ -36,7 +35,9 @@ public class AuthController {
             String ipLog = ClientIpUtils.getClientIp(httpRequest);
             log.setIp(ipLog);
             logMapper.insert(log);
-        } catch (Exception ignored) {}
+        } catch (Exception ignored) {
+            // 尽力而为:登录审计日志落库失败不影响登录主流程
+            }
         return Result.ok(resp);
     }
 

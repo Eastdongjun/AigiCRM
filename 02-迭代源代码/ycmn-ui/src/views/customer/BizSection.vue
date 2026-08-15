@@ -1,5 +1,4 @@
 <template>
-  <!-- ======== 业务分类 ======== -->
   <div class="section-block">
     <div class="section-head">
       <span class="section-icon accent"><el-icon><PriceTag /></el-icon></span>

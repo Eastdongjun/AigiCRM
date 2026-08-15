@@ -19,6 +19,9 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 public class UserDetailsServiceImpl implements UserDetailsService {
+    /** 未配置优先级的权限规则按最低优先级处理(排最后),999 语义=兜底排序权重 */
+    private static final int DEFAULT_RULE_PRIORITY = 999;
+
 
     private final SysUserMapper userMapper;
     private final SysMenuMapper menuMapper;
@@ -204,7 +207,7 @@ public class UserDetailsServiceImpl implements UserDetailsService {
         allRules = allRules.stream()
                 .collect(Collectors.toMap(SysPermissionRule::getId, r -> r, (a, b) -> a))
                 .values().stream()
-                .sorted(Comparator.comparingInt(r -> r.getPriority() != null ? r.getPriority() : 999))
+                .sorted(Comparator.comparingInt(r -> r.getPriority() != null ? r.getPriority() : DEFAULT_RULE_PRIORITY))
                 .toList();
         securityUser.setPermissionRules(allRules);
 

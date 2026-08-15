@@ -121,7 +121,6 @@
       </div>
     </div>
 
-    <!-- 导入弹窗 保持不变 -->
     <el-dialog v-model="showImportDialog" title="批量导入到公海池" width="520px" :close-on-click-modal="false" @close="closeImportDialog">
       <div class="import-step"><div class="step-label">第一步：下载模板</div><el-button type="primary" link @click="handleDownloadTemplate"><el-icon><Download /></el-icon> 下载导入模板</el-button></div>
       <div class="import-step"><div class="step-label">第二步：填写数据后上传</div>

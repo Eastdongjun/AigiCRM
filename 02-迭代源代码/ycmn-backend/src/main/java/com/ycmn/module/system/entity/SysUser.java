@@ -38,7 +38,8 @@ public class SysUser {
      */
     @TableField(updateStrategy = FieldStrategy.ALWAYS)
     private String dataScopeOverride;
-    private Integer leaveStatus;
+    /** 离职状态（DB 列 varchar(20) 存中文标签如「离职」，工程门禁 G23 发现实体 Integer 与列类型冲突会读抛异常） */
+    private String leaveStatus;
     private LocalDate leaveDate;
     private String leaveReason;
     /** 【2026-08-14 安全 P0】改密时刻：DB 级 token 撤销依据（早于该时刻签发的 token 一律失效，不依赖 Redis） */

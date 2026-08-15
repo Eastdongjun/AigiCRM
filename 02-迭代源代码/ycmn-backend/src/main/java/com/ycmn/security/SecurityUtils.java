@@ -44,7 +44,6 @@ public class SecurityUtils {
         return user != null ? user.getOfficeId() : null;
     }
 
-    /** 用户所属组织ID */
     public static Long getCurrentOrgId() {
         SecurityUser user = getCurrentUser();
         return user != null ? user.getOrgId() : null;
@@ -92,13 +91,11 @@ public class SecurityUtils {
         return user != null ? user.getRuleResult() : null;
     }
 
-    /** 获取当前用户的所有岗位 */
     public static List<SysPosition> getCurrentPositions() {
         SecurityUser user = getCurrentUser();
         return user != null ? user.getPositions() : Collections.emptyList();
     }
 
-    /** 是否组织管理员 */
     public static boolean isOrgAdmin() {
         SecurityUser user = getCurrentUser();
         return user != null && user.isOrgAdmin();

@@ -524,12 +524,13 @@ public class StatisticsQueryService {
         LambdaQueryWrapper<BizIncentiveRecord> incWrapper = new LambdaQueryWrapper<>();
         if (!scopeAll) incWrapper.in(BizIncentiveRecord::getUserId, visibleUserIds);
         incWrapper.orderByDesc(BizIncentiveRecord::getCreatedAt).last("LIMIT 5");
-        for (BizIncentiveRecord record : incentiveRecordMapper.selectList(incWrapper)) {
-            SysUser user = userMapper.selectById(record.getUserId());
-            BizIncentiveCategory cat = incentiveCategoryMapper.selectById(record.getCategoryId());
+        // 循环变量避开受限标识符 record（SonarLint S6213）
+        for (BizIncentiveRecord incRecord : incentiveRecordMapper.selectList(incWrapper)) {
+            SysUser user = userMapper.selectById(incRecord.getUserId());
+            BizIncentiveCategory cat = incentiveCategoryMapper.selectById(incRecord.getCategoryId());
             activities.add(buildActivity(
                     "激励上传 · " + (cat != null ? cat.getCategoryName() : ""),
-                    user, record.getCreatedAt()));
+                    user, incRecord.getCreatedAt()));
         }
 
         LambdaQueryWrapper<BizFile> fileWrapper = new LambdaQueryWrapper<>();

@@ -164,7 +164,9 @@ public class LogAspect {
                     Object v = m.invoke(arg);
                     if (v != null && !v.toString().isEmpty()) return v.toString();
                 }
-            } catch (Exception ignored) {}
+            } catch (Exception ignored) {
+            // 尽力而为:URL 参数提取失败不影响主日志流程(SonarLint S1166 注明吞因)
+            }
         }
         // 从 URL 提取 path variable ID
         String[] parts = uri.split("/");

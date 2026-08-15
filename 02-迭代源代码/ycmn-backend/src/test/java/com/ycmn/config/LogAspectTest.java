@@ -81,6 +81,7 @@ class LogAspectTest {
     }
 
     @Test
+    // getMethod 按名反射会抛 NoSuchMethodException（受检异常），必须声明；其余测试方法已按语言服务提示移除多余 throws
     void ycmnLogAnnotation_overridesUrlInference() throws Exception {
         java.lang.reflect.Method m = com.ycmn.module.system.controller.SysUserController.class
                 .getMethod("resetPassword", Long.class);

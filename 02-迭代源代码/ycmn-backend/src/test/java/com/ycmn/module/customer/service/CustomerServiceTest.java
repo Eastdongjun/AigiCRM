@@ -364,7 +364,6 @@ class CustomerServiceTest {
 
     // ===== I1：新六级 code 统一路由 OrgScopeResolver（设计 §4.2） =====
 
-    /** team 码 → resolver 可见 userIds 生成 owner_id IN 条件（修复 default 仅本人的降级） */
     /** 【批② 统一数据访问层】team 码 → 统一层 OWNER 解析生成 owner_id IN 条件 */
     @Test
     void applyDataScope_teamCodeRoutesThroughResolver() {

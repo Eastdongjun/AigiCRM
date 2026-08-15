@@ -168,24 +168,24 @@ public class SeaController {
 
         List<Map<String, Object>> records = new ArrayList<>();
         for (BizApproval a : source) {
-            Map<String, Object> record = new HashMap<>();
-            record.put("id", a.getId());
-            record.put("applyDate", a.getCreatedAt());
-            record.put("status", a.getStatus());
+            Map<String, Object> row = new HashMap<>();
+            row.put("id", a.getId());
+            row.put("applyDate", a.getCreatedAt());
+            row.put("status", a.getStatus());
 
             // 客户信息
             if (a.getCustomerId() != null) {
                 BizCustomer c = customerMapper.selectById(a.getCustomerId());
                 if (c != null) {
-                    record.put("customerName", c.getCustomerName());
-                    record.put("industry", c.getIndustry());
+                    row.put("customerName", c.getCustomerName());
+                    row.put("industry", c.getIndustry());
                 }
             }
 
             // 申请人
             if (a.getApplicantId() != null) {
                 SysUser applicant = userMapper.selectById(a.getApplicantId());
-                if (applicant != null) record.put("applicantName", applicant.getRealName());
+                if (applicant != null) row.put("applicantName", applicant.getRealName());
             }
 
             // 审批人（取第一个审批节点）
@@ -197,12 +197,12 @@ public class SeaController {
                 BizApprovalNode node = nodes.get(0);
                 if (node.getApproverId() != null) {
                     SysUser approver = userMapper.selectById(node.getApproverId());
-                    if (approver != null) record.put("approverName", approver.getRealName());
+                    if (approver != null) row.put("approverName", approver.getRealName());
                 }
-                record.put("approveTime", node.getOperatedAt());
+                row.put("approveTime", node.getOperatedAt());
             }
 
-            records.add(record);
+            records.add(row);
         }
 
         // 关键字过滤

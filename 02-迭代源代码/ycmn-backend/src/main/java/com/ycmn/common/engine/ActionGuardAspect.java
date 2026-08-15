@@ -44,13 +44,10 @@ public class ActionGuardAspect {
 
         String methodName = joinPoint.getSignature().getName();
 
-        // 检查是否需要拦截
+        // 检查是否需要拦截（合并嵌套 if，SonarLint S1066：动作存在且显式禁止时拒绝）
         String action = extractAction(methodName);
-        if (action != null && actions.containsKey(action)) {
-            if (Boolean.FALSE.equals(actions.get(action))) {
-                // 返回权限不足的响应
-                return buildDeniedResponse(action);
-            }
+        if (action != null && actions.containsKey(action) && Boolean.FALSE.equals(actions.get(action))) {
+            return buildDeniedResponse(action);
         }
 
         return joinPoint.proceed();

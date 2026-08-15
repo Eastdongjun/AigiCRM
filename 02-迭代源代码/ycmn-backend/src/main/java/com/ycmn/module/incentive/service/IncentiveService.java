@@ -295,7 +295,6 @@ public class IncentiveService {
         // 审计：记录最后修改人（updated_at 由 DB ON UPDATE 自动维护）
         existing.setUpdatedBy(SecurityUtils.getCurrentUserId());
 
-        // 重算积分
         BizIncentiveCategory category = categoryMapper.selectById(existing.getCategoryId());
         int base = (category != null && category.getScore() != null) ? category.getScore() : 0;
         existing.setScore(calcScore(existing, category, base));
@@ -322,12 +321,12 @@ public class IncentiveService {
     }
 
     @Transactional
-    public void addRecord(BizIncentiveRecord record) {
-        BizIncentiveCategory category = categoryMapper.selectById(record.getCategoryId());
+    public void addRecord(BizIncentiveRecord incRecord) {
+        BizIncentiveCategory category = categoryMapper.selectById(incRecord.getCategoryId());
         int base = (category != null && category.getScore() != null) ? category.getScore() : 0;
-        record.setScore(calcScore(record, category, base));
-        record.setUserId(SecurityUtils.getCurrentUserId());
-        recordMapper.insert(record);
+        incRecord.setScore(calcScore(incRecord, category, base));
+        incRecord.setUserId(SecurityUtils.getCurrentUserId());
+        recordMapper.insert(incRecord);
     }
 
     /**
@@ -757,7 +756,6 @@ public class IncentiveService {
             }
         }
 
-        // 按客户分组
         Map<Long, List<BizIncentiveRecord>> grouped = new LinkedHashMap<>();
         for (BizIncentiveRecord r : records) {
             Long cid = r.getCustomerId();
@@ -776,7 +774,6 @@ public class IncentiveService {
                     Comparator.nullsLast(Comparator.reverseOrder()))));
         }
 
-        // 行业排序
         List<String> industryOrder = List.of("冶金","煤矿","化工","电力","有色金属","机械","工程公司","维修厂","其他终端客户");
         Map<String, Integer> orderMap = new HashMap<>();
         for (int i = 0; i < industryOrder.size(); i++) orderMap.put(industryOrder.get(i), i);

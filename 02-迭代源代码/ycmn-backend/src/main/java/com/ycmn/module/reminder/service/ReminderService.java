@@ -29,6 +29,9 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 public class ReminderService {
+    /** 提醒提前默认天数:配置 customer.warning.days 缺失/脏值时回退该默认 */
+    private static final int DEFAULT_WARNING_DAYS = 30;
+
 
     private final BizReminderMapper reminderMapper;
     private final BizCustomerMapper customerMapper;
@@ -103,9 +106,11 @@ public class ReminderService {
     public IPage<Map<String, Object>> expiringPage(int current, int size, String keyword,
                                                      Long officeId, Long ownerId, Long deptId) {
         LambdaQueryWrapper<BizCustomer> wrapper = new LambdaQueryWrapper<>();
-        int warningDays = 30;
+        int warningDays = DEFAULT_WARNING_DAYS;
         String val = configService.getValue("customer.warning.days");
-        if (val != null) { try { warningDays = Integer.parseInt(val.trim()); } catch (NumberFormatException ignored) {} }
+        if (val != null) { try { warningDays = Integer.parseInt(val.trim()); } catch (NumberFormatException ignored) {
+            // 配置脏值回退默认天数:解析失败不阻断查询(下同)
+            } }
         LocalDate deadline = LocalDate.now().plusDays(warningDays);
         wrapper.isNotNull(BizCustomer::getExpireDate)
                 .le(BizCustomer::getExpireDate, deadline)
@@ -179,9 +184,11 @@ public class ReminderService {
     /** S8: 物化今日到期的 expiring 提醒（幂等，POST 显式触发，GET 分页不再写库） */
     @org.springframework.transaction.annotation.Transactional
     public void ensureExpiring() {
-        int warningDays = 30;
+        int warningDays = DEFAULT_WARNING_DAYS;
         String val = configService.getValue("customer.warning.days");
-        if (val != null) { try { warningDays = Integer.parseInt(val.trim()); } catch (NumberFormatException ignored) {} }
+        if (val != null) { try { warningDays = Integer.parseInt(val.trim()); } catch (NumberFormatException ignored) {
+                        // 配置脏值回退默认天数(同上)
+                    } }
         LocalDate deadline = LocalDate.now().plusDays(warningDays);
         LocalDate today = LocalDate.now();
         LocalDateTime todayStart = today.atStartOfDay();
@@ -219,9 +226,15 @@ public class ReminderService {
      * 今日未跟进的到期提醒客户数（用于侧边栏角标）
      */
     public long pendingCount() {
-        int warningDays = 30;
+        int warningDays = DEFAULT_WARNING_DAYS;
         String val = configService.getValue("customer.warning.days");
-        if (val != null) { try { warningDays = Integer.parseInt(val.trim()); } catch (NumberFormatException ignored) {} }
+        if (val != null) {
+            try {
+                warningDays = Integer.parseInt(val.trim());
+            } catch (NumberFormatException ignored) {
+                // 配置脏值回退默认天数(注明吞因,消除 S1166)
+            }
+        }
         LocalDate today = LocalDate.now();
         LocalDate deadline = today.plusDays(warningDays);
 

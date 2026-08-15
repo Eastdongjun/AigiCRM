@@ -1,0 +1,31 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      // 后端 Spring Boot 调试：主类 com.ycmn.YcmnApplication（端口 8080）
+      "type": "java",
+      "name": "aigicrm 后端调试 (8080)",
+      "request": "launch",
+      "mainClass": "com.ycmn.YcmnApplication",
+      "projectName": "aigicrm-backend",
+      "args": "",
+      "vmArgs": ""
+    },
+    {
+      // 前端 Vue3 调试：先 npm run dev 起 3000，再 F5 附加浏览器（pwa-chrome 为 VS Code 内置，无需装扩展）
+      "type": "pwa-chrome",
+      "name": "aigicrm 前端调试 (3000)",
+      "request": "launch",
+      "url": "http://localhost:3000",
+      "webRoot": "${workspaceFolder}/ycmn-ui",
+      "sourceMapPathOverrides": {
+        "webpack:///./src/*": "${webRoot}/src/*"
+      }
+    },
+    {
+      "name": "aigicrm 全栈 (后端+前端)",
+      "configurations": ["aigicrm 后端调试 (8080)", "aigicrm 前端调试 (3000)"],
+      "stopAll": true
+    }
+  ]
+}

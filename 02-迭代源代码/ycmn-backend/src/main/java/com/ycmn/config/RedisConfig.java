@@ -8,7 +8,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.core.RedisTemplate;
-import org.springframework.data.redis.serializer.Jackson2JsonRedisSerializer;
+
 import org.springframework.data.redis.serializer.StringRedisSerializer;
 
 @Configuration
@@ -32,9 +32,11 @@ public class RedisConfig {
                 ObjectMapper.DefaultTyping.NON_FINAL);
         om.registerModule(new JavaTimeModule());
 
-        Jackson2JsonRedisSerializer<Object> serializer = new Jackson2JsonRedisSerializer<>(om, Object.class);
+        // Spring Data Redis 4.x 弃用 Jackson2Json/GenericJackson2Json 序列化器;
+        // 用自研 WhitelistedJsonRedisSerializer 包住同一 mapper(多态白名单保留,线上格式不变)
         StringRedisSerializer stringSerializer = new StringRedisSerializer();
 
+        WhitelistedJsonRedisSerializer serializer = new WhitelistedJsonRedisSerializer(om);
         template.setKeySerializer(stringSerializer);
         template.setHashKeySerializer(stringSerializer);
         template.setValueSerializer(serializer);

@@ -1,6 +1,9 @@
 package com.ycmn.module.file.service;
 
+import com.baomidou.mybatisplus.core.MybatisConfiguration;
+import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
 import com.ycmn.module.file.entity.BizFile;
+import org.apache.ibatis.builder.MapperBuilderAssistant;
 import com.ycmn.module.file.entity.BizFileFolder;
 import com.ycmn.module.file.entity.BizFolderAcl;
 import com.ycmn.module.file.mapper.BizFileFolderMapper;
@@ -13,6 +16,7 @@ import com.ycmn.module.system.mapper.SysDeptMapper;
 import com.ycmn.module.system.mapper.SysRoleMapper;
 import com.ycmn.module.system.mapper.SysUserMapper;
 import com.ycmn.security.SecurityUtils;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.MockedStatic;
 
@@ -24,6 +28,18 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 class FolderPermissionServiceTest {
+
+    /** MyBatis-Plus 3.5.17(Boot 4)起纯 mock 环境必须显式注册实体 lambda 缓存（升级回归修复） */
+    @BeforeEach
+    void initLambdaCache() {
+        MybatisConfiguration cfg = new MybatisConfiguration();
+        TableInfoHelper.initTableInfo(new MapperBuilderAssistant(cfg, ""), BizFolderAcl.class);
+        TableInfoHelper.initTableInfo(new MapperBuilderAssistant(cfg, ""), SysUser.class);
+        TableInfoHelper.initTableInfo(new MapperBuilderAssistant(cfg, ""), SysDept.class);
+        TableInfoHelper.initTableInfo(new MapperBuilderAssistant(cfg, ""), SysRole.class);
+        TableInfoHelper.initTableInfo(new MapperBuilderAssistant(cfg, ""), BizFileFolder.class);
+        TableInfoHelper.initTableInfo(new MapperBuilderAssistant(cfg, ""), BizFile.class);
+    }
 
     private final BizFolderAclMapper aclMapper = mock(BizFolderAclMapper.class);
     private final SysUserMapper userMapper = mock(SysUserMapper.class);
