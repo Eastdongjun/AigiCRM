@@ -101,9 +101,21 @@ public class OrgAdminService {
     public boolean canManageUser(Long targetUserId) {
         if (SecurityUtils.isAdmin()) return true;
         if (!SecurityUtils.isOrgAdmin()) return false;
+        // 【2026-08-15 安全审计 H1】组织管理员不得操作 admin 角色账号(重置密码拿临时口令/删除即接管全系统),
+        // 角色硬校验放在组织范围之前——与目标是否在本组织无关, 任何 admin 角色账号一律拒绝
+        if (hasAdminRole(targetUserId)) return false;
         SysUser target = userMapper.selectById(targetUserId);
         if (target == null || target.getOrgId() == null) return false;
         return SecurityUtils.getCurrentManagedOrgIds().contains(target.getOrgId());
+    }
+
+    /** 目标用户是否持有 admin 角色(角色码 sys_role.role_code='admin', 经 sys_user_role 关联查询) */
+    private boolean hasAdminRole(Long userId) {
+        if (userId == null) return false;
+        Integer cnt = jdbc.queryForObject(
+                "SELECT COUNT(*) FROM sys_role r JOIN sys_user_role ur ON ur.role_id = r.id " +
+                        "WHERE ur.user_id = ? AND r.role_code = 'admin'", Integer.class, userId);
+        return cnt != null && cnt > 0;
     }
 
     /** 检查当前用户是否能管理目标组织 */

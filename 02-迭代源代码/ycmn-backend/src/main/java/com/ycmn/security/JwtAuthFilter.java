@@ -62,10 +62,12 @@ public class JwtAuthFilter extends OncePerRequestFilter {
 
                 // 【2026-08-14 安全 P0】改密撤销 DB 级校验(fail-closed, 不依赖 Redis):
                 // 早于 pwd_changed_at 签发的 token 一律拒绝。秒级精度下取整比对, 防"同秒改密后新登录被误拒"
+                // 【2026-08-15 安全审计】时区固定 Asia/Shanghai 与 MySQL DATETIME 落库口径一致,
+                // 不再依赖容器 TZ 环境变量(容器 UTC 时曾把新 token 全部误判 401, 测试环境实测复现)
                 if (userDetails instanceof com.ycmn.security.SecurityUser su && su.getPwdChangedAt() != null) {
                     Date iat = jwtTokenProvider.getIssuedAtFromToken(token);
                     long changedSec = su.getPwdChangedAt()
-                            .atZone(java.time.ZoneId.systemDefault()).toEpochSecond();
+                            .atZone(java.time.ZoneId.of("Asia/Shanghai")).toEpochSecond();
                     if (iat != null && iat.getTime() < changedSec * 1000L) {
                         writeUnauthorized(response);
                         return;

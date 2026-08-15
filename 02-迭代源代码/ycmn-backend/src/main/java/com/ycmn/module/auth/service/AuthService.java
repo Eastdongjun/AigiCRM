@@ -194,7 +194,7 @@ public class AuthService {
         }
 
         // 构建菜单树
-        List<SysMenu> menuTree = buildMenuTree(menus, 0L);
+        List<SysMenu> menuTree = buildMenuTree(dedupeByPath(menus), 0L);
 
         UserInfoResponse response = new UserInfoResponse();
         response.setUserId(user.getId());
@@ -214,6 +214,27 @@ public class AuthService {
         response.setPermissions(permissions);
         response.setMenus(menuTree);
         return response;
+    }
+
+    /**
+     * 菜单页面节点按 path 去重。
+     *
+     * 【需求】生产库存在同 path 的冗余 menu_type=2 行(2026-08-05~12 手工写入, 如 /incentive 双行),
+     *         导致侧边栏同页面渲染两次(2026-08-15 审计 H4)。
+     * 【方法】仅对"页面节点(menu_type=2)且 path 非空"按 path 保留首个; 目录/按钮节点不参与。
+     * 【业务规则】同 path 视为同一页面, 保留排序靠前者; 数据侧清理需另行授权执行。
+     * 【参数】menus 该用户角色勾选的全部菜单行(flat)
+     * 【返回】去重后的列表(顺序保持)
+     * 【注意】只读纯函数, 不落库; 数据侧冗余行仍存在, 本方法只消除渲染层面的重复
+     */
+    private List<SysMenu> dedupeByPath(List<SysMenu> menus) {
+        java.util.Set<String> seen = new java.util.HashSet<>();
+        return menus.stream()
+                .filter(m -> {
+                    if (m.getMenuType() == null || m.getMenuType() != 2 || m.getPath() == null) return true;
+                    return seen.add(m.getPath());
+                })
+                .collect(Collectors.toList());
     }
 
     /**
@@ -330,6 +351,10 @@ public class AuthService {
         }
 
         user.setPassword(passwordEncoder.encode(request.getNewPassword()));
+        // 【2026-08-15 安全审计 H2】忘记密码与 changePassword/管理员重置同口径: 落库 DB 级改密时刻,
+        // 使 JwtAuthFilter 的 pwd_changed_at 撤销校验覆盖本路径(此前仅 Redis 撤销, fail-open + TTL 到期后旧 token 复活)。
+        // 截断到秒: 防 MySQL DATETIME(0) 四舍五入进位, 同秒签发 token 被误判早于改密(SysUserService 同因)
+        user.setPwdChangedAt(java.time.LocalDateTime.now().truncatedTo(java.time.temporal.ChronoUnit.SECONDS));
         userMapper.updateById(user);
         // 【修复 2026-08-10 P2-13】忘记密码重置后旧 token 立即失效
         jwtTokenProvider.markPasswordChanged(user.getId());

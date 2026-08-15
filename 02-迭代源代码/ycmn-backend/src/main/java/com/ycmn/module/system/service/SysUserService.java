@@ -334,6 +334,11 @@ public class SysUserService {
     public String resetPassword(Long userId) {
         SysUser user = userMapper.selectById(userId);
         if (user == null) throw new BusinessException("用户不存在");
+        // 【2026-08-15 安全审计 H1 纵深防御】非 admin 操作者禁止重置 admin 角色账号口令——
+        // 临时口令明文随响应返回, 得手即接管全系统(不依赖 controller 的 canManageUser 守卫, 服务层独立兜底)
+        if (!SecurityUtils.isAdmin() && hasAdminRole(userId)) {
+            throw new BusinessException("无权操作该用户");
+        }
         // 【2026-08-14 安全 P0】随机临时口令 + 首登强制改密 + DB 级改密时刻(旧 token 立即失效)。
         // 截断到秒：避免 MySQL DATETIME(0) 四舍五入进位导致同秒 token 误判（与 changePassword 同因）
         String tempPassword = generateRandomPassword();
@@ -375,6 +380,10 @@ public class SysUserService {
     public void deleteUser(Long userId) {
         SysUser user = userMapper.selectById(userId);
         if (user == null) throw new BusinessException("用户不存在");
+        // 【2026-08-15 安全审计 H1 纵深防御】非 admin 操作者禁止删除 admin 角色账号(服务层兜底, 不依赖 controller 守卫)
+        if (!SecurityUtils.isAdmin() && hasAdminRole(userId)) {
+            throw new BusinessException("无权操作该用户");
+        }
 
         // 1. 将该用户名下所有客户释放到公海
         java.util.List<BizCustomer> customers = customerMapper.selectList(
@@ -414,6 +423,15 @@ public class SysUserService {
         userMapper.deleteById(userId);
         // 【Redis 权限缓存】删除用户立即失效，避免软删用户在 TTL 内仍可访问
         permissionCacheService.evict(userId);
+    }
+
+    /** 目标用户是否持有 admin 角色(角色码 sys_role.role_code='admin', 经 sys_user_role 关联查询) */
+    private boolean hasAdminRole(Long userId) {
+        if (userId == null) return false;
+        Integer cnt = jdbc.queryForObject(
+                "SELECT COUNT(*) FROM sys_role r JOIN sys_user_role ur ON ur.role_id = r.id " +
+                        "WHERE ur.user_id = ? AND r.role_code = 'admin'", Integer.class, userId);
+        return cnt != null && cnt > 0;
     }
 
 }

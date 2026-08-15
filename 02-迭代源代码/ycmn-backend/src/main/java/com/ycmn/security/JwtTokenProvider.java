@@ -45,6 +45,12 @@ public class JwtTokenProvider {
             log.warn("⚠️  生产环境请设置环境变量 JWT_SECRET");
             log.warn("============================================");
         }
+        // 【2026-08-15 安全审计】jjwt 0.13.0 强制 HMAC 密钥 ≥256 位: 短密钥不在启动期报错,
+        // 而是拖到首次登录才抛 WeakKeyException→500(测试环境实测踩坑)。启动即校验, 部署时 fail-fast
+        if (secret == null || secret.getBytes(StandardCharsets.UTF_8).length < 32) {
+            throw new IllegalStateException(
+                    "JWT_SECRET 长度不足 32 字节(256 位): jjwt 0.13.0 拒绝弱密钥, 请配置 ≥256 位随机密钥");
+        }
     }
 
     private SecretKey getSigningKey() {

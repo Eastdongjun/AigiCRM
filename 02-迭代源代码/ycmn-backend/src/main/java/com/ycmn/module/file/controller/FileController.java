@@ -122,15 +122,16 @@ public class FileController {
                     request.getRequestURI().substring("/api/file/download/".length()),
                     java.nio.charset.StandardCharsets.UTF_8);
 
-            // 只允许 public/ 前缀的文件
-            if (!rawKey.startsWith("public/")) {
-                return ResponseEntity.status(403).build();
-            }
-
             Path uploadRoot = fileService.getLocalFilePath("").toAbsolutePath().normalize();
+            // 【2026-08-15 安全审计 H3】先归一化再校验, 防 public/../private/... 前缀绕过。
+            // 旧实现先判 rawKey 前缀后 normalize, 前缀检查可被路径段穿越绕过(当前靠 Tomcat URI 归一化兜底, 不可依赖)
             Path resolved = uploadRoot.resolve(rawKey).normalize();
             if (!resolved.startsWith(uploadRoot)) {
                 return ResponseEntity.badRequest().build();
+            }
+            Path relative = uploadRoot.relativize(resolved);
+            if (relative.getNameCount() == 0 || !"public".equals(relative.getName(0).toString())) {
+                return ResponseEntity.status(403).build();
             }
 
             Resource resource = new UrlResource(resolved.toUri());
