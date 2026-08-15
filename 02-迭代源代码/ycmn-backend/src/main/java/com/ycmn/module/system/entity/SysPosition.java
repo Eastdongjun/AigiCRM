@@ -18,10 +18,8 @@ public class SysPosition {
     /** 岗位编码（唯一标识） */
     private String code;
 
-    /** 岗位描述 */
     private String description;
 
-    /** 所属组织ID */
     private Long orgId;
 
     /** 集团归属ID(默认1=主集团;列表按集团边界过滤) */
@@ -30,7 +28,6 @@ public class SysPosition {
     /** 状态 0=禁用 1=启用 */
     private Integer status;
 
-    /** 排序 */
     private Integer sort;
 
     @TableField(fill = FieldFill.INSERT)

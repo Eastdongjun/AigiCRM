@@ -159,7 +159,9 @@ public class PermissionRuleEngine {
         if (raw == null) return;
         try {
             parseFieldPermissions(raw, hidden, visible);
-        } catch (Exception ignored) {}
+        } catch (Exception ignored) {
+            // 规则 value 脏数据:解析失败跳过该条,不阻断其他规则加载
+        }
     }
 
     /** 操作控制：读取 rule_value JSON 中的操作权限，按 target_entity 分组。
@@ -173,7 +175,9 @@ public class PermissionRuleEngine {
             Map<String, Boolean> actions = actionsByEntity
                     .computeIfAbsent(rule.getTargetEntity().trim(), k -> new LinkedHashMap<>());
             parseActionPermissions(raw, actions);
-        } catch (Exception ignored) {}
+        } catch (Exception ignored) {
+            // 规则 value 脏数据:解析失败跳过该条,不阻断其他规则加载
+        }
     }
 
     // ======================== 变量替换 ========================

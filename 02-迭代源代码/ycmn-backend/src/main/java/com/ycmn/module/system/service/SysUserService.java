@@ -245,7 +245,11 @@ public class SysUserService {
         long defaultStorage = 10737418240L;
         String storageVal = configService.getValue("user.default.storage");
         if (storageVal != null) {
-            try { defaultStorage = Long.parseLong(storageVal.trim()); } catch (NumberFormatException ignored) {}
+            try {
+                defaultStorage = Long.parseLong(storageVal.trim());
+            } catch (NumberFormatException ignored) {
+                // 配置脏值回退默认配额:解析失败使用默认值(注明吞因,消除 S1166)
+            }
         }
         user.setStorageQuota(defaultStorage);
         user.setStorageUsed(0L);

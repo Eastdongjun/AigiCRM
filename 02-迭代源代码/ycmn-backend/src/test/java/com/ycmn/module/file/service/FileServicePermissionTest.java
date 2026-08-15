@@ -129,7 +129,7 @@ class FileServicePermissionTest {
     }
 
     @Test
-    void download_inFolder_downloadableOff_returns403() throws Exception {
+    void download_inFolder_downloadableOff_returns403() {
         BizFile file = new BizFile();
         file.setId(9L);
         file.setFolderId(100L);
@@ -152,7 +152,7 @@ class FileServicePermissionTest {
     }
 
     @Test
-    void download_inFolder_downloadableOn_passesPermissionGates() throws Exception {
+    void download_inFolder_downloadableOn_passesPermissionGates() {
         BizFile file = new BizFile();
         file.setId(9L);
         file.setFolderId(100L);
@@ -200,7 +200,7 @@ class FileServicePermissionTest {
     // ====== 修复轮（I-1/I-4/I-7）：下载语义 ======
 
     @Test
-    void download_sharedRecipient_allowedWhenSwitchOn() throws Exception {
+    void download_sharedRecipient_allowedWhenSwitchOn() {
         // I-1：B 被 A 分享夹内文件，开关允许时 B 可下载（不被 checkFile 拦截）
         BizFile file = new BizFile();
         file.setId(9L);
@@ -225,7 +225,7 @@ class FileServicePermissionTest {
     }
 
     @Test
-    void download_admin_bypassesDownloadableSwitch() throws Exception {
+    void download_admin_bypassesDownloadableSwitch() {
         // I-4b：管理员不受下载开关约束
         BizFile file = new BizFile();
         file.setId(9L);
@@ -249,7 +249,7 @@ class FileServicePermissionTest {
     }
 
     @Test
-    void download_managerOfOwner_allowedWhenSwitchOn() throws Exception {
+    void download_managerOfOwner_allowedWhenSwitchOn() {
         // 上级链用户：canAccessFile 不通过（非上传者/非被分享），checkFile 走文件夹权限放行
         BizFile file = new BizFile();
         file.setId(9L);
@@ -653,11 +653,12 @@ class FileServicePermissionTest {
     @Test
     void canDownloadFile_incentiveInSharedRecord_visibleToOthers() {
         // 激励文件在 shared=1 的他人记录 file_ids 中 → 非上传者可下载（销售总监下载下属激励材料）
-        BizIncentiveRecord record = new BizIncentiveRecord();
-        record.setUserId(3L);
-        record.setShared(1);
-        record.setFileIds(List.of(9L));
-        when(incentiveRecordMapper.selectList(any())).thenReturn(List.of(record));
+        // 变量名避开受限标识符 record（SonarLint S6213）
+        BizIncentiveRecord incRecord = new BizIncentiveRecord();
+        incRecord.setUserId(3L);
+        incRecord.setShared(1);
+        incRecord.setFileIds(List.of(9L));
+        when(incentiveRecordMapper.selectList(any())).thenReturn(List.of(incRecord));
         try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
             m.when(SecurityUtils::isAdmin).thenReturn(false);
             assertTrue(svc.canDownloadFile(anIncentiveFile(9L, 1L), 2L));
@@ -667,11 +668,11 @@ class FileServicePermissionTest {
     @Test
     void canDownloadFile_incentiveInSharedRecord_trackSlotVisible() {
         // 激励文件出现在他人共享记录的 file_track_ids 槽位中 → 同样可见可下载（五个槽位任一命中）
-        BizIncentiveRecord record = new BizIncentiveRecord();
-        record.setUserId(3L);
-        record.setShared(1);
-        record.setFileTrackIds(List.of(9L));
-        when(incentiveRecordMapper.selectList(any())).thenReturn(List.of(record));
+        BizIncentiveRecord incRecord = new BizIncentiveRecord();
+        incRecord.setUserId(3L);
+        incRecord.setShared(1);
+        incRecord.setFileTrackIds(List.of(9L));
+        when(incentiveRecordMapper.selectList(any())).thenReturn(List.of(incRecord));
         try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
             m.when(SecurityUtils::isAdmin).thenReturn(false);
             assertTrue(svc.canDownloadFile(anIncentiveFile(9L, 1L), 2L));

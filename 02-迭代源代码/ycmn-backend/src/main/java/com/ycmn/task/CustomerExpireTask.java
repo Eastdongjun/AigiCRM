@@ -98,7 +98,11 @@ public class CustomerExpireTask {
     private int getConfigInt(String key, int defaultValue) {
         String val = configService.getValue(key);
         if (val != null) {
-            try { return Integer.parseInt(val.trim()); } catch (NumberFormatException ignored) {}
+            try {
+                return Integer.parseInt(val.trim());
+            } catch (NumberFormatException ignored) {
+                // 配置脏值回退默认值:解析失败返回 defaultValue(注明吞因,消除 S1166)
+            }
         }
         return defaultValue;
     }

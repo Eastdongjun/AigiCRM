@@ -107,8 +107,9 @@ public class IncentiveController {
         boolean isAdmin = SecurityUtils.isAdmin();
         // 【2026-08-14 RBAC 收敛】授权判定：admin ∨ incentive:manage 权限码 ∨ 本人记录
         if (!isAdmin && !incentiveService.canDelete()) {
-            BizIncentiveRecord record = incentiveService.getRecordById(id);
-            if (record == null || !record.getUserId().equals(user.getUserId())) {
+            // 变量名避开受限标识符 record（SonarLint S6213）
+            BizIncentiveRecord incRecord = incentiveService.getRecordById(id);
+            if (incRecord == null || !incRecord.getUserId().equals(user.getUserId())) {
                 throw new BusinessException(403, "无权删除他人记录");
             }
         }

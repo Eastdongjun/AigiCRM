@@ -24,6 +24,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.List;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -311,6 +312,6 @@ class IncentiveShareVisibilityTest {
 
         ArgumentCaptor<BizIncentiveRecord> cap = ArgumentCaptor.forClass(BizIncentiveRecord.class);
         verify(recordMapper).updateById(cap.capture());
-        assertTrue(cap.getValue().getShared() == 1, "本人修改分享，shared 字段应被写回为 1");
+        assertEquals(1, cap.getValue().getShared(), "本人修改分享，shared 字段应被写回为 1");
     }
 }

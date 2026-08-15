@@ -791,10 +791,10 @@ public class CustomerService {
 
     private void calculateExpireDates(BizCustomer customer) {
         LocalDate baseDate = customer.getRegisterDate();
-        if (customer.getLastInvoiceDate() != null) {
-            if (baseDate == null || customer.getLastInvoiceDate().isAfter(baseDate)) {
-                baseDate = customer.getLastInvoiceDate();
-            }
+        // 合并嵌套 if（SonarLint S1066）：最近开票日晚于登记日(或无登记日)时以开票日为基准
+        if (customer.getLastInvoiceDate() != null
+                && (baseDate == null || customer.getLastInvoiceDate().isAfter(baseDate))) {
+            baseDate = customer.getLastInvoiceDate();
         }
         if (baseDate != null) {
             int protectionDays = getConfigInt("customer.protection.days", 360);
@@ -807,7 +807,11 @@ public class CustomerService {
     private int getConfigInt(String key, int defaultValue) {
         String val = configService.getValue(key);
         if (val != null) {
-            try { return Integer.parseInt(val.trim()); } catch (NumberFormatException ignored) {}
+            try {
+                return Integer.parseInt(val.trim());
+            } catch (NumberFormatException ignored) {
+                // 配置脏值回退默认值:解析失败返回 defaultValue(注明吞因,消除 S1166)
+            }
         }
         return defaultValue;
     }
@@ -865,7 +869,6 @@ public class CustomerService {
         Map<String, Object> summary = new HashMap<>();
         summary.put("totalCount", invoiceMapper.countByCustomerId(customerId));
         summary.put("totalAmount", invoiceMapper.sumAmountByCustomerId(customerId));
-        // 最近开票日期
         List<BizInvoice> latest = invoiceMapper.selectList(
                 new LambdaQueryWrapper<BizInvoice>()
                         .eq(BizInvoice::getCustomerId, customerId)
@@ -988,7 +991,6 @@ public class CustomerService {
         if (customer == null) throw new BusinessException("客户不存在");
 
         for (Long uid : userIds) {
-            // 检查是否已存在
             Long count = shareMapper.selectCount(
                     new LambdaQueryWrapper<BizCustomerShare>()
                             .eq(BizCustomerShare::getCustomerId, customerId)

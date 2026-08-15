@@ -150,7 +150,6 @@ public class ApprovalService {
             }
         }
 
-        // 生成审批编号
         String prefix = "P" + Year.now().getValue() + "-";
         int maxCode = approvalMapper.selectMaxCodeByPrefix(prefix);
         String approvalCode = prefix + String.format("%03d", maxCode + 1);
@@ -278,7 +277,6 @@ public class ApprovalService {
             throw new BusinessException("资源不存在或无权访问");
         }
 
-        // 更新审批节点
         BizApprovalNode node = approvalNodeMapper.selectOne(
                 new LambdaQueryWrapper<BizApprovalNode>()
                         .eq(BizApprovalNode::getApprovalId, approvalId)
@@ -293,7 +291,6 @@ public class ApprovalService {
         node.setStatus("approved");
         approvalNodeMapper.updateById(node);
 
-        // 检查是否所有节点都已审批
         long pendingCount = approvalNodeMapper.selectCount(
                 new LambdaQueryWrapper<BizApprovalNode>()
                         .eq(BizApprovalNode::getApprovalId, approvalId)
