@@ -24,7 +24,7 @@ YCMN（运筹马年）内部 CRM：客户/审批/激励/文件/公海池/提醒 
 
 
 - `sys_org` 视图已于 0809 sys_dept/sys_org 双表收口时删除——物理数据只在 `sys_dept` 表（含 dept_type），无 sys_org。
-- schema 真相链：**Flyway 迁移** = `ycmn-backend/src/main/resources/db/migration/V1__baseline.sql`（**V1' 重建基线**，2026-08-11 生产 schema 快照，56 表）+ 未来 **V10+**；历史日期脚本归档 `sql/migration/archive/`（不再登记）；`ycmn_database_test.sql` = 真实库 dump（最接近线上）。
+- schema 真相链：**Flyway 迁移** = `ycmn-backend/src/main/resources/db/migration/V1__baseline.sql`（**V1' 重建基线**，2026-08-11 生产 schema 快照，56 表）+ V12~V18 后续迁移；历史日期脚本归档 `sql/migration/archive/`（不再登记）；`ycmn_database_test.sql` = **审查基准 dump**（2026-08-16 起从生产导出：全库 schema + `sys_menu`/`sys_role_menu`/`sys_user_role`/`sys_role` 四表数据行，不含业务数据；旧 8-3 过期版已备份为 `ycmn_database_test.sql.bak-20260816`）。
 - 数据库变更：**必须经 Flyway**（新迁移 `V10+__xxx.sql` 放 `db/migration/`，用 `scripts/deploy-db.sh` 部署）；`sql/migration/` 下已有日期目录仅作历史参考，不得再手工执行。
 - **迁移链例外（2026-08-11 已确认）**：V1 已被原地重建为生产快照（V1'，含 FOREIGN_KEY_CHECKS=0 包装修复 DB-001 前向 FK）；旧 V2-V9 归档 `sql/migration/archive/`。**此后不得再原地修改 V1**——任何变更一律走新迁移 V10+（V2 编号已弃用，避免与归档/未合并线的版本号冲突）。
 - `biz_incentive_record.file_pre_id` 已从 BIGINT 改为 VARCHAR（存 JSON 数组），新代码不要再按数字处理。
@@ -46,17 +46,21 @@ mvn -q compile                    # 快速编译检查
 先跑交叉核对脚本，再叠手工清单，最后报告：
 
 ```bash
+# 基准 = dump + 迁移链并集（2026-08-16 起强制，勿只用 dump 单文件：
+# dump 可能早于最新迁移，单用会系统性假警报——8-3 旧 dump 曾误报 25 条 schema + 3 条权限）
 python3 ~/.codex/skills/code-review/scripts/check_schema_entity.py \
-  --java-dir ycmn-backend/src/main/java \
-  --sql ycmn_database_test.sql  # 真实库 dump 为准（勿后接旧基线 init.sql）
+  --java-dir ycmn-backend/src/main/java --sql ycmn_database_test.sql \
+  --migrations-dir ycmn-backend/src/main/resources/db/migration
 python3 ~/.codex/skills/code-review/scripts/check_api_wiring.py \
   --frontend-api ycmn-ui/src/api --backend ycmn-backend/src/main/java
 python3 ~/.codex/skills/code-review/scripts/check_permission_strings.py \
-  --backend ycmn-backend/src/main/java --sql ycmn_database_test.sql
+  --backend ycmn-backend/src/main/java --sql ycmn_database_test.sql \
+  --migrations-dir ycmn-backend/src/main/resources/db/migration
 ```
 
 报告规则：
 - 每条结论给 文件+行号+证据；脚本 ERROR 必须全部进报告（可标注“已验证/需确认”），不许静默跳过。
+- **ERROR 定性前必须对照 `db/migration/` 迁移链 grep 验证**（缺失列/行可能由 V10+ 迁移补入；2026-08-16 实例：过期 dump 的 25 条 schema + 3 条权限报错经迁移链复核全部为假阳性，其中 3 条权限已被 V16/V17 修复）。
 - 本机 JDK 与 Lombok 不兼容导致编译失败时，说明环境即可，不得当作代码 bug。
 - 已修复项（approval:edit、sys_org 视图顺序、V2 种子列名、岗位/规则/集团菜单权限）不得重复上报为新 bug。
 

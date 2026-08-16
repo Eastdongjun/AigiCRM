@@ -96,3 +96,9 @@ cd ycmn-backend && mvn -q -Dtest=ArchitectureTest test
 - ⚠️ **org_id 维护要求**：管理角色（org/org_and_children）生效前提是用户维护 org_id；
   为空时自动降级"仅本人"（安全方向正确，不越权不 500）。
   新增管理岗用户时需在用户管理设置组织字段。
+
+## 历史备份表清理（2026-08-16）
+
+- ✅ 8 张 `*_bak_*` 历史快照表已归档 NAS `backup/archive/bak-tables-20260816/`（每表独立 .sql）后从生产删除（生产 63→55 表；其中 2 张空表）。
+- ✅ 删除已版本化：`V19__drop_backup_tables.sql`（DROP IF EXISTS，幂等）——防止空库按 V1 重建时 bak 表复活；本文件尚未部署到生产（生产表已手删，下次常规部署时 V19 自动生效）。
+- ✅ 数据字典已重生成（55 表，bak 表章节清零）；审查基准 dump 已重导出（55 表，无 bak 噪音）。

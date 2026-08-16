@@ -35,6 +35,7 @@ ycmn_database_test.sql
 sql/init.sql
 **/sql/init.sql
 **/ycmn_database_test.sql
+**/ycmn_database_test.sql.bak-*
 **/password-hash-backup.txt
 *.dump
 

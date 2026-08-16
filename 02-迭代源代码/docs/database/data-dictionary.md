@@ -1,7 +1,7 @@
 # YCMN 数据字典(自动生成)
 
-> 生成时间: 2026-08-15 | 来源: 生产 39.99.35.218 MySQL information_schema
-> 共 63 张表。本文件由 scripts/gen-data-dictionary.sh 自动生成,**禁止手改**;库结构变更后重新运行脚本。
+> 生成时间: 2026-08-16 | 来源: 生产 39.99.35.218 MySQL information_schema
+> 共 55 张表。本文件由 scripts/gen-data-dictionary.sh 自动生成,**禁止手改**;库结构变更后重新运行脚本。
 
 ## biz_approval 审批记录
 
@@ -124,43 +124,6 @@
 | `group_id` | bigint | YES | NULL |  |  |
 | `legal_entity_id` | bigint | YES | NULL |  |  |
 
-## biz_customer_bak_0624 
-
-| 字段 | 类型 | 可空 | 默认 | 键 | 说明 |
-|---|---|---|---|---|---|
-| `id` | bigint | NO | 0 |  |  |
-| `customer_code` | varchar(20) | NO | NULL |  | 客户编号(C001) |
-| `customer_name` | varchar(200) | NO | NULL |  | 订货客户全称 |
-| `invoice_name` | varchar(200) | YES | NULL |  | 开票名称 |
-| `industry` | varchar(50) | YES | NULL |  | 行业 |
-| `dev_type` | varchar(50) | YES | NULL |  | 开发类型(成熟/成熟创新/突破) |
-| `group_name` | varchar(200) | YES | NULL |  | 所属集团 |
-| `branch_company` | varchar(200) | YES | NULL |  | 所属分公司 |
-| `unit_name` | varchar(200) | YES | NULL |  | 所属单位 |
-| `capacity` | varchar(50) | YES | NULL |  | 产能(万吨) |
-| `province` | varchar(50) | YES | NULL |  | 省 |
-| `city` | varchar(50) | YES | NULL |  | 市 |
-| `district` | varchar(50) | YES | NULL |  | 区/县 |
-| `address` | varchar(500) | YES | NULL |  | 厂址 |
-| `has_terminal` | tinyint | YES | 0 |  | 是否终端 0否 1是 |
-| `register_date` | date | YES | NULL |  | 注册日 |
-| `last_invoice_date` | date | YES | NULL |  | 最近开票日 |
-| `expire_date` | date | YES | NULL |  | 到期日(360天) |
-| `adjust_date` | date | YES | NULL |  | 调整日(180天) |
-| `transfer_date` | date | YES | NULL |  | 转移日 |
-| `owner_id` | bigint | YES | NULL |  | 第一负责人ID |
-| `manager_id` | bigint | YES | NULL |  | 管理上级ID |
-| `office_id` | bigint | YES | NULL |  | 所属办事处ID |
-| `remark` | text | YES | NULL |  | 备注 |
-| `status` | varchar(20) | YES | normal |  | 状态: normal/warning/expired/sea |
-| `protection_status` | varchar(20) | YES | active |  | 保护状态: active/expiring/expired |
-| `created_at` | datetime | YES | CURRENT_TIMESTAMP |  |  |
-| `updated_at` | datetime | YES | CURRENT_TIMESTAMP |  |  |
-| `deleted` | tinyint | YES | 0 |  |  |
-| `relationship_score` | int | YES | 0 |  |  |
-| `is_core` | tinyint | YES | 0 |  |  |
-| `tags` | varchar(500) | YES | NULL |  |  |
-
 ## biz_customer_indicator 
 
 | 字段 | 类型 | 可空 | 默认 | 键 | 说明 |
@@ -250,17 +213,6 @@
 | `created_at` | datetime | YES | CURRENT_TIMESTAMP |  |  |
 | `downloadable` | tinyint | NO | 1 |  | 下载开关:1=允许下载,0=仅预览 |
 
-## biz_file_permission 文件管理权限表
-
-| 字段 | 类型 | 可空 | 默认 | 键 | 说明 |
-|---|---|---|---|---|---|
-| `id` | bigint | NO | NULL | PRI |  |
-| `user_id` | bigint | NO | NULL | UNI |  |
-| `can_upload` | tinyint | YES | 0 |  | 公共盘上传权限 |
-| `can_delete` | tinyint | YES | 0 |  | 公共盘删除权限 |
-| `created_at` | datetime | YES | CURRENT_TIMESTAMP |  |  |
-| `tenant_id` | bigint | NO | 1 | MUL | 集团ID |
-
 ## biz_file_share 
 
 | 字段 | 类型 | 可空 | 默认 | 键 | 说明 |
@@ -298,6 +250,18 @@
 | `created_at` | datetime | YES | CURRENT_TIMESTAMP |  |  |
 | `updated_at` | datetime | YES | CURRENT_TIMESTAMP |  |  |
 | `tenant_id` | bigint | NO | 1 | MUL | 集团ID |
+
+## biz_incentive_grant 激励专项授权(用户级, 替代载体角色模式)
+
+| 字段 | 类型 | 可空 | 默认 | 键 | 说明 |
+|---|---|---|---|---|---|
+| `user_id` | bigint | NO | NULL | PRI | 用户ID |
+| `can_view_shared` | tinyint | NO | 1 |  | 可查看他人已分享记录(默认开; 无记录=开; 0=收窄) |
+| `can_view_all` | tinyint | NO | 0 |  | 可查看全部未分享记录(白名单, 默认关) |
+| `can_edit` | tinyint | NO | 0 |  | 可编辑他人记录(白名单, 默认关) |
+| `can_delete` | tinyint | NO | 0 |  | 可删除他人记录(白名单, 默认关) |
+| `updated_by` | bigint | YES | NULL |  | 最后授权操作人ID |
+| `updated_at` | datetime | YES | CURRENT_TIMESTAMP |  | 最后授权时间 |
 
 ## biz_incentive_permission 激励权限表
 
@@ -458,38 +422,6 @@
 | `claim_user_ids` | varchar(500) | YES | NULL |  | 捞取权限-授权人员 |
 | `tenant_id` | bigint | NO | 1 | MUL | 集团ID |
 
-## biz_sea_config_bak_0624 
-
-| 字段 | 类型 | 可空 | 默认 | 键 | 说明 |
-|---|---|---|---|---|---|
-| `id` | bigint | NO | 0 |  |  |
-| `pool_name` | varchar(100) | YES | NULL |  |  |
-| `included_offices` | varchar(500) | YES | NULL |  |  |
-| `visible_roles` | varchar(500) | YES | NULL |  |  |
-| `sort_order` | int | YES | 0 |  |  |
-| `deleted` | tinyint | YES | 0 |  |  |
-| `created_at` | datetime | YES | CURRENT_TIMESTAMP |  |  |
-| `updated_at` | datetime | YES | CURRENT_TIMESTAMP |  |  |
-| `region_ids` | varchar(500) | YES | NULL |  |  |
-| `view_role_ids` | varchar(500) | YES | NULL |  |  |
-| `status` | int | YES | 1 |  |  |
-
-## biz_sea_config_bak_0629 
-
-| 字段 | 类型 | 可空 | 默认 | 键 | 说明 |
-|---|---|---|---|---|---|
-| `id` | bigint | NO | 0 |  |  |
-| `pool_name` | varchar(100) | YES | NULL |  |  |
-| `included_offices` | varchar(500) | YES | NULL |  |  |
-| `visible_roles` | varchar(500) | YES | NULL |  |  |
-| `sort_order` | int | YES | 0 |  |  |
-| `deleted` | tinyint | YES | 0 |  |  |
-| `created_at` | datetime | YES | CURRENT_TIMESTAMP |  |  |
-| `updated_at` | datetime | YES | CURRENT_TIMESTAMP |  |  |
-| `region_ids` | varchar(500) | YES | NULL |  |  |
-| `view_role_ids` | varchar(500) | YES | NULL |  |  |
-| `status` | int | YES | 1 |  |  |
-
 ## biz_sea_config_region 公海池-办事处关联(V10，取代 biz_sea_config.region_ids 的 CSV 存储)
 
 | 字段 | 类型 | 可空 | 默认 | 键 | 说明 |
@@ -527,38 +459,6 @@
 | `updated_at` | datetime | YES | CURRENT_TIMESTAMP |  |  |
 | `pool_id` | bigint | YES | NULL | MUL |  |
 | `active_flag` | bigint | YES | NULL |  | 未捞取时=customer_id，已捞取时=NULL；仅供唯一索引使用(V10) |
-
-## biz_sea_pool_bak_0624 
-
-| 字段 | 类型 | 可空 | 默认 | 键 | 说明 |
-|---|---|---|---|---|---|
-| `id` | bigint | NO | 0 |  |  |
-| `customer_id` | bigint | NO | NULL |  | 客户ID |
-| `original_owner_id` | bigint | YES | NULL |  | 原负责人ID |
-| `enter_reason` | varchar(50) | YES | NULL |  | 进入原因: protection_expired/abandoned/resignation |
-| `enter_date` | datetime | YES | NULL |  | 进入时间 |
-| `claim_user_id` | bigint | YES | NULL |  | 捞取人ID |
-| `claim_date` | datetime | YES | NULL |  | 捞取时间 |
-| `status` | varchar(20) | YES | available |  | 状态: available/pending_approval/claimed |
-| `created_at` | datetime | YES | CURRENT_TIMESTAMP |  |  |
-| `updated_at` | datetime | YES | CURRENT_TIMESTAMP |  |  |
-| `pool_id` | bigint | YES | NULL |  |  |
-
-## biz_sea_pool_bak_poolid_0721 
-
-| 字段 | 类型 | 可空 | 默认 | 键 | 说明 |
-|---|---|---|---|---|---|
-| `id` | bigint | NO | 0 |  |  |
-| `customer_id` | bigint | NO | NULL |  | 客户ID |
-| `original_owner_id` | bigint | YES | NULL |  | 原负责人ID |
-| `enter_reason` | varchar(50) | YES | NULL |  | 进入原因: protection_expired/abandoned/resignation |
-| `enter_date` | datetime | YES | NULL |  | 进入时间 |
-| `claim_user_id` | bigint | YES | NULL |  | 捞取人ID |
-| `claim_date` | datetime | YES | NULL |  | 捞取时间 |
-| `status` | varchar(20) | YES | available |  | 状态: available/pending_approval/claimed |
-| `created_at` | datetime | YES | CURRENT_TIMESTAMP |  |  |
-| `updated_at` | datetime | YES | CURRENT_TIMESTAMP |  |  |
-| `pool_id` | bigint | YES | NULL |  |  |
 
 ## flyway_schema_history 
 
@@ -808,22 +708,6 @@
 | `updated_at` | datetime | YES | CURRENT_TIMESTAMP |  |  |
 | `org_id` | bigint | YES | NULL |  |  |
 
-## sys_role_bak_20260808 
-
-| 字段 | 类型 | 可空 | 默认 | 键 | 说明 |
-|---|---|---|---|---|---|
-| `id` | bigint | NO | 0 |  |  |
-| `group_id` | bigint | NO | 1 |  | 集团ID |
-| `role_name` | varchar(50) | NO | NULL |  | 角色名称 |
-| `role_code` | varchar(50) | NO | NULL |  | 角色编码 |
-| `description` | varchar(200) | YES | NULL |  | 描述 |
-| `data_scope` | varchar(20) | YES | self |  | 数据范围 all全部 dept_and_children本部门及下级 dept本部门 self仅自己 |
-| `sort_order` | int | YES | 0 |  |  |
-| `status` | tinyint | YES | 1 |  |  |
-| `created_at` | datetime | YES | CURRENT_TIMESTAMP |  |  |
-| `updated_at` | datetime | YES | CURRENT_TIMESTAMP |  |  |
-| `org_id` | bigint | YES | NULL |  |  |
-
 ## sys_role_menu 角色菜单关联表
 
 | 字段 | 类型 | 可空 | 默认 | 键 | 说明 |
@@ -839,15 +723,6 @@
 | `id` | bigint | NO | NULL | PRI |  |
 | `role_id` | bigint | NO | NULL | MUL |  |
 | `org_id` | bigint | NO | NULL | MUL |  |
-| `include_children` | tinyint | YES | 0 |  |  |
-
-## sys_role_org_bak_20260808 
-
-| 字段 | 类型 | 可空 | 默认 | 键 | 说明 |
-|---|---|---|---|---|---|
-| `id` | bigint | NO | 0 |  |  |
-| `role_id` | bigint | NO | NULL |  |  |
-| `org_id` | bigint | NO | NULL |  |  |
 | `include_children` | tinyint | YES | 0 |  |  |
 
 ## sys_role_rule 角色-权限规则关联表
@@ -919,26 +794,6 @@
 | `deleted_reason` | varchar(500) | YES | NULL |  |  |
 | `original_created_at` | datetime | YES | NULL |  |  |
 | `deleted_at` | datetime | YES | CURRENT_TIMESTAMP |  |  |
-
-## sys_user_bak_wll_0721 
-
-| 字段 | 类型 | 可空 | 默认 | 键 | 说明 |
-|---|---|---|---|---|---|
-| `id` | bigint | NO | 0 |  |  |
-| `username` | varchar(50) | NO | NULL |  | 登录账号 |
-| `password` | varchar(200) | NO | NULL |  | 密码(BCrypt) |
-| `real_name` | varchar(50) | NO | NULL |  | 真实姓名 |
-| `phone` | varchar(20) | YES | NULL |  | 手机号 |
-| `email` | varchar(100) | YES | NULL |  | 邮箱 |
-| `avatar` | varchar(500) | YES | NULL |  | 头像URL |
-| `dept_id` | bigint | YES | NULL |  | 所属部门ID |
-| `office_id` | bigint | YES | NULL |  | 所属办事处ID |
-| `storage_quota` | bigint | YES | 10737418240 |  | 私人存储空间配额(字节,默认10GB) |
-| `storage_used` | bigint | YES | 0 |  | 已用存储空间(字节) |
-| `status` | tinyint | YES | 1 |  | 状态 0禁用 1正常 |
-| `created_at` | datetime | YES | CURRENT_TIMESTAMP |  |  |
-| `updated_at` | datetime | YES | CURRENT_TIMESTAMP |  |  |
-| `deleted` | tinyint | YES | 0 |  |  |
 
 ## sys_user_org 用户级自定义授权组织
 
