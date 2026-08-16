@@ -264,7 +264,18 @@ public class IncentiveService {
         recordMapper.deleteById(id);
     }
 
-    /** 更新记录（追加/删除文件时调用），自动重算积分 */
+    /**
+     * 更新激励记录（追加/删除文件、编辑业务字段时调用），自动重算积分
+     *
+     * 【需求】激励记录追加文件/更正信息时不重置初始上传人(userId)与上传时间(createdAt)
+     * 【方法】按 id 查原记录，非 null 字段合并进原记录后按最新积分规则重算再落库
+     * 【业务规则】归属校验在 Controller 完成(admin ∨ incentive:manage ∨ 本人)；
+     *             归属客户 customerId 仅 admin/专项授权可变更，本人编辑保持原值；
+     *             分享开关 shared 仅记录本人可改(admin 编辑他人记录时忽略)
+     * 【参数】id 记录ID；update 待合并字段(非 null 才合并)
+     * 【返回】无；记录不存在时静默返回(兼容并发删除场景)
+     * 【注意】调用方须保证已通过 Controller 归属校验；@Transactional 保证重算+落库原子
+     */
     @Transactional
     public void updateRecord(Long id, BizIncentiveRecord update) {
         BizIncentiveRecord existing = recordMapper.selectById(id);
@@ -272,6 +283,13 @@ public class IncentiveService {
 
         // 合并可编辑业务字段（全部 != null 才合并；user_id/created_at/period/category_id 保持不动——
         // 初始上传人(userId) 在编辑时不可被改变，上传时间(createdAt) 不被重置）
+        // 【2026-08-16 审查修复】归属客户变更仅 admin/incentive:manage 允许：
+        // 本人记录改挂任意客户会绕过"记录-客户"绑定语义；前端编辑回传原值不受影响
+        if (update.getCustomerId() != null
+                && !Objects.equals(update.getCustomerId(), existing.getCustomerId())
+                && !canEdit()) {
+            throw new BusinessException(403, "无权修改记录归属客户");
+        }
         if (update.getCustomerId() != null) existing.setCustomerId(update.getCustomerId());
         if (update.getIndustry() != null) existing.setIndustry(update.getIndustry());
         if (update.getRelatedProducts() != null) existing.setRelatedProducts(update.getRelatedProducts());
@@ -320,13 +338,85 @@ public class IncentiveService {
         return changed;
     }
 
+    /**
+     * 新增激励上传记录
+     *
+     * 【需求】激励上传提交后落库一条记录并按分类规则计分
+     * 【方法】校验入参(分类/客户/文件引用) → 查分类分值 → calcScore 计分 → 强制 userId=当前登录人
+     * 【业务规则】categoryId/customerId 必填且存在；至少一个文件槽有文件；
+     *             引用的文件必须存在且为当前用户上传；计分规则见 calcScore
+     * 【参数】incRecord 前端提交的记录(不含 userId，由本方法强制注入)
+     * 【返回】无；校验失败抛 BusinessException
+     * 【注意】调用前置 Controller 已过 incentive:add 权限；@Transactional 落库原子
+     */
     @Transactional
     public void addRecord(BizIncentiveRecord incRecord) {
+        validateNewRecord(incRecord);
         BizIncentiveCategory category = categoryMapper.selectById(incRecord.getCategoryId());
         int base = (category != null && category.getScore() != null) ? category.getScore() : 0;
         incRecord.setScore(calcScore(incRecord, category, base));
         incRecord.setUserId(SecurityUtils.getCurrentUserId());
         recordMapper.insert(incRecord);
+    }
+
+    /**
+     * 校验新增激励记录的入参完整性
+     *
+     * 【需求】防止脏数据入库：无客户/无分类/无文件/引用失效文件的记录会污染统计与查询
+     * 【方法】逐项校验：分类存在 → 客户存在 → 任一文件槽非空 → 文件 ID 批量核对存在性与归属
+     * 【业务规则】categoryId/customerId 必填且存在；五个文件槽(file/filePre/fileMid/filePost/fileTrack)
+     *             至少一个非空；引用的文件必须存在且 uploader_id=当前用户(激励文件只能引用本人上传的文件)
+     * 【参数】r 待入库记录
+     * 【返回】无；不满足任一规则抛 BusinessException
+     * 【注意】只读校验不落库；先于计分执行，失败不产生任何写入
+     */
+    private void validateNewRecord(BizIncentiveRecord r) {
+        if (r.getCategoryId() == null) {
+            throw new BusinessException("请选择激励分类");
+        }
+        if (categoryMapper.selectById(r.getCategoryId()) == null) {
+            throw new BusinessException("激励分类不存在或已删除");
+        }
+        if (r.getCustomerId() == null) {
+            throw new BusinessException("请选择关联客户");
+        }
+        if (customerMapper.selectById(r.getCustomerId()) == null) {
+            throw new BusinessException("关联客户不存在或已删除");
+        }
+        if (!r.hasAnyFile()) {
+            throw new BusinessException("请至少上传一个文件");
+        }
+        // 文件引用核对：全部槽位文件 ID 必须存在且属于当前用户（防伪造引用他人文件）
+        List<Long> fileIds = collectFileIds(r);
+        if (!fileIds.isEmpty()) {
+            Long currentUserId = SecurityUtils.getCurrentUserId();
+            Long existCount = fileMapper.selectCount(new LambdaQueryWrapper<BizFile>()
+                    .in(BizFile::getId, fileIds)
+                    .eq(BizFile::getUploaderId, currentUserId));
+            if (existCount == null || existCount != fileIds.size()) {
+                throw new BusinessException("包含无效文件引用，请重新上传");
+            }
+        }
+    }
+
+    /**
+     * 汇总记录全部文件槽的 ID（去重），供存在性/归属核对
+     *
+     * 【需求】新增记录前核对引用的文件是否存在且属于当前用户
+     * 【方法】合并五个文件槽(file/filePre/fileMid/filePost/fileTrack)解析出的 ID 并去重
+     * 【业务规则】同一文件出现在多个槽只核对一次；空槽跳过
+     * 【参数】r 待核对记录
+     * 【返回】去重后的文件 ID 列表（可能为空）
+     * 【注意】依赖实体 parseJsonArray 容忍脏数据（解析失败视为空，不计入核对）
+     */
+    private List<Long> collectFileIds(BizIncentiveRecord r) {
+        Set<Long> ids = new LinkedHashSet<>();
+        ids.addAll(r.getFileIds());
+        ids.addAll(r.getFilePreIds());
+        ids.addAll(r.getFileMidIds());
+        ids.addAll(r.getFilePostIds());
+        ids.addAll(r.getFileTrackIds());
+        return new ArrayList<>(ids);
     }
 
     /**
