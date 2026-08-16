@@ -134,8 +134,8 @@ const loadPermData = async () => {
 // 四项激励权限
 const permList = ref([])
 const showPermDialog = ref(false)
-// 【2026-08-12 角色化】编辑/删除改按 admin∨销售总监 角色判定，专项开关已废弃（permForm 只含可见性）
-const permForm = reactive({ canViewShared: true, canViewAll: true })
+// 【2026-08-16 授权表化】编辑/删除恢复按人勾选（不再由角色判定），permForm 含四个专项开关
+const permForm = reactive({ canViewShared: true, canViewAll: true, canEdit: false, canDelete: false })
 const allUsers = ref([])
 // 层级人员树：大区 → 办事处 → 部门 → 人员（节点 key: 'd'+orgId / 'u'+userId）
 const orgUserTree = ref([])
@@ -209,7 +209,9 @@ const grantPerm = async () => {
     await request.post('/incentive/permission/grant', {
       userIds,
       canViewShared: permForm.canViewShared,
-      canViewAll: permForm.canViewAll
+      canViewAll: permForm.canViewAll,
+      canEdit: permForm.canEdit,
+      canDelete: permForm.canDelete
     })
     ElMessage.success(`已授权 ${userIds.length} 人`); showPermDialog.value = false; loadPermList()
   } catch(e) { ElMessage.error('授权失败') }

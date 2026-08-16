@@ -55,6 +55,8 @@ class IncentiveUploadValidationTest {
     SysDeptMapper deptMapper;
     @Mock
     OrgScopeResolver scopeResolver;
+    @Mock
+    org.springframework.jdbc.core.JdbcTemplate jdbc;
 
     /** 纯 mock 单测，手动注册 TableInfo 供 LambdaQueryWrapper 渲染 SQL */
     @BeforeAll
@@ -67,7 +69,7 @@ class IncentiveUploadValidationTest {
 
     private IncentiveService newService() {
         return new IncentiveService(categoryMapper, recordMapper, userMapper,
-                fileMapper, customerMapper, deptMapper, scopeResolver);
+                fileMapper, customerMapper, deptMapper, scopeResolver, jdbc);
     }
 
     /** 合法入参：分类+客户+一个安装前文件，visit 类积分 10 */
@@ -206,6 +208,9 @@ class IncentiveUploadValidationTest {
     void updateRecord_ownerChangeCustomer_rejected() {
         try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
             stubNotManager(m);
+            // 授权表无记录（默认 can_edit 关）——canEdit 判定走表
+            when(jdbc.queryForMap(anyString(), org.mockito.ArgumentMatchers.eq(2L)))
+                    .thenThrow(new org.springframework.dao.EmptyResultDataAccessException(1));
             BizIncentiveRecord existing = new BizIncentiveRecord();
             existing.setId(1L);
             existing.setUserId(2L);

@@ -33,27 +33,51 @@ public class IncentiveService {
     private final BizCustomerMapper customerMapper;
     private final SysDeptMapper deptMapper;
     private final com.ycmn.common.scope.OrgScopeResolver scopeResolver;
+    /** 激励专项授权表直查（2026-08-16 授权表化，替代载体角色+权限码判定） */
+    private final org.springframework.jdbc.core.JdbcTemplate jdbc;
 
     /**
-     * 【2026-08-14 RBAC 收敛】独立"看全部"资格：admin ∨ incentive:view-all 权限码
-     * （M1 迁移将 incentive:view-all 绑定 admin+销售总监角色，替代 biz_incentive_permission.can_view_all 直查）。
-     * 可看全部激励(含未分享)，但不含编辑/删除他人。
+     * 独立"看全部"资格：admin ∨ 授权表 can_view_all=1
+     *
+     * 【需求】激励模块看全部(含未分享)记录的白名单判定
+     * 【方法】查用户级授权表 biz_incentive_grant（2026-08-16 替代载体角色模式）
+     * 【业务规则】admin 恒可；无授权记录=默认不可看全部；can_view_all=1 才放行
+     * 【参数】userId 目标用户ID（兼容旧签名，实际按当前登录人判定）
+     * 【返回】true=可看全部未分享记录
+     * 【注意】只读查表；不再读权限码，旧 incentive:view-all 权限码已废弃
      */
     public boolean canViewAll(Long userId) {
-        return SecurityUtils.isAdmin() || SecurityUtils.hasAuthority("incentive:view-all");
+        return SecurityUtils.isAdmin()
+                || grantFlag(SecurityUtils.getCurrentUserId(), "can_view_all", false);
     }
 
     /**
-     * 【2026-08-14 RBAC 收敛】查看已分享记录资格：incentive:view-shared 权限码
-     * （「激励-分享可见」角色由 M1 迁移全员绑定，等价原"无面板行默认可见"的语义）。
+     * 查看已分享记录资格：授权表 can_view_shared（无记录=默认开）
+     *
+     * 【需求】"分享制"下能否看到他人已分享(shared=1)的记录
+     * 【方法】查用户级授权表 biz_incentive_grant；无记录按默认值(开)处理
+     * 【业务规则】无记录=开(全员默认，等价旧"载体角色全员绑定"语义)；记录=0 表示被收窄
+     * 【参数】userId 目标用户ID（兼容旧签名，实际按当前登录人判定）
+     * 【返回】true=可查看他人已分享记录
+     * 【注意】只读查表；收窄通过激励授权面板把 can_view_shared 置 0 实现
      */
     public boolean canViewShared(Long userId) {
-        return SecurityUtils.hasAuthority("incentive:view-shared");
+        return grantFlag(SecurityUtils.getCurrentUserId(), "can_view_shared", true);
     }
 
-    /** 【2026-08-14 RBAC 收敛】编辑他人激励记录资格：admin ∨ incentive:manage（M1 迁移绑定 admin+销售总监）。本人校验在 Controller */
+    /**
+     * 编辑他人激励记录资格：admin ∨ 授权表 can_edit=1
+     *
+     * 【需求】谁能追加/修改他人上传的激励记录
+     * 【方法】查用户级授权表 biz_incentive_grant（2026-08-16 替代 incentive:manage 权限码）
+     * 【业务规则】admin 恒可；本人记录编辑由 Controller 归属校验另行放行，不依赖本方法
+     * 【参数】无（按当前登录人判定）
+     * 【返回】true=可编辑他人记录
+     * 【注意】只读查表；与 canDelete 独立勾选
+     */
     public boolean canEdit() {
-        return SecurityUtils.isAdmin() || SecurityUtils.hasAuthority("incentive:manage");
+        return SecurityUtils.isAdmin()
+                || grantFlag(SecurityUtils.getCurrentUserId(), "can_edit", false);
     }
 
     /** 人员列表（公开）：激励页下拉框用 */
@@ -75,9 +99,58 @@ public class IncentiveService {
         return list;
     }
 
-    /** 【2026-08-14 RBAC 收敛】删除他人激励记录资格：admin ∨ incentive:manage（M1 迁移绑定 admin+销售总监）。本人校验在 Controller */
+    /**
+     * 删除他人激励记录资格：admin ∨ 授权表 can_delete=1
+     *
+     * 【需求】谁能删除他人上传的激励记录
+     * 【方法】查用户级授权表 biz_incentive_grant（2026-08-16 替代 incentive:manage 权限码）
+     * 【业务规则】admin 恒可；本人记录删除由 Controller 归属校验另行放行，不依赖本方法
+     * 【参数】无（按当前登录人判定）
+     * 【返回】true=可删除他人记录
+     * 【注意】只读查表；与 canEdit 独立勾选
+     */
     public boolean canDelete() {
-        return SecurityUtils.isAdmin() || SecurityUtils.hasAuthority("incentive:manage");
+        return SecurityUtils.isAdmin()
+                || grantFlag(SecurityUtils.getCurrentUserId(), "can_delete", false);
+    }
+
+    /**
+     * 读取当前登录人的激励专项授权行
+     *
+     * 【需求】canViewAll/canViewShared/canEdit/canDelete 的统一数据源
+     * 【方法】按 user_id 主键查 biz_incentive_grant，无记录返回 null（调用方按默认值处理）
+     * 【业务规则】无记录=默认（分享可见开、其余关）；表行以面板勾选为准
+     * 【参数】userId 用户ID
+     * 【返回】授权行 Map；无记录或 userId 为空返回 null
+     * 【注意】只读；实时查询不走权限缓存，面板改动即时生效
+     */
+    private Map<String, Object> grantRow(Long userId) {
+        if (userId == null) return null;
+        try {
+            return jdbc.queryForMap(
+                    "SELECT can_view_shared, can_view_all, can_edit, can_delete " +
+                    "FROM biz_incentive_grant WHERE user_id = ?", userId);
+        } catch (org.springframework.dao.EmptyResultDataAccessException e) {
+            return null;
+        }
+    }
+
+    /**
+     * 读取授权行中某个布尔开关（无行时返回调用方指定的默认值）
+     *
+     * 【需求】授权表语义的布尔判定封装
+     * 【方法】grantRow 取行 → 取列 → 转为 boolean；行缺失/列缺失按默认值
+     * 【业务规则】can_view_shared 默认 true（全员默认开）；can_view_all/can_edit/can_delete 默认 false
+     * 【参数】userId 用户ID；column 列名(can_view_shared 等)；defaultValue 无记录时的默认值
+     * 【返回】开关值
+     * 【注意】只读；列值为 null 时按默认值
+     */
+    private boolean grantFlag(Long userId, String column, boolean defaultValue) {
+        Map<String, Object> row = grantRow(userId);
+        if (row == null) return defaultValue;
+        Object v = row.get(column);
+        if (v == null) return defaultValue;
+        return Integer.valueOf(1).equals(((Number) v).intValue());
     }
 
     public List<BizIncentiveCategory> getCategoryTree() {
@@ -92,14 +165,15 @@ public class IncentiveService {
     }
 
     /**
-     * 【2026-08-14 RBAC 收敛】看全部资格：系统管理员 ∨ incentive:view-all ∨ incentive:manage。
-     * 激励模块可见性统一为分享制，不再使用 data_scope/上级可见下级/负责人可见本组织/客户分享；
-     * 替代原 biz_incentive_permission 直查与销售总监角色硬编码。
+     * 【2026-08-16 授权表化】看全部资格：系统管理员 ∨ can_view_all ∨ can_edit ∨ can_delete
+     * （能编辑/删除他人记录隐含可看全部，对齐旧 incentive:manage 语义）。
+     * 激励模块可见性统一为分享制，不再使用 data_scope/上级可见下级/负责人可见本组织/客户分享。
      */
     private boolean canSeeAllIncentive() {
         return SecurityUtils.isAdmin()
-                || SecurityUtils.hasAuthority("incentive:view-all")
-                || SecurityUtils.hasAuthority("incentive:manage");
+                || grantFlag(SecurityUtils.getCurrentUserId(), "can_view_all", false)
+                || grantFlag(SecurityUtils.getCurrentUserId(), "can_edit", false)
+                || grantFlag(SecurityUtils.getCurrentUserId(), "can_delete", false);
     }
 
     /**
@@ -269,7 +343,7 @@ public class IncentiveService {
      *
      * 【需求】激励记录追加文件/更正信息时不重置初始上传人(userId)与上传时间(createdAt)
      * 【方法】按 id 查原记录，非 null 字段合并进原记录后按最新积分规则重算再落库
-     * 【业务规则】归属校验在 Controller 完成(admin ∨ incentive:manage ∨ 本人)；
+     * 【业务规则】归属校验在 Controller 完成(admin ∨ can_edit 授权 ∨ 本人)；
      *             归属客户 customerId 仅 admin/专项授权可变更，本人编辑保持原值；
      *             分享开关 shared 仅记录本人可改(admin 编辑他人记录时忽略)
      * 【参数】id 记录ID；update 待合并字段(非 null 才合并)
@@ -283,7 +357,7 @@ public class IncentiveService {
 
         // 合并可编辑业务字段（全部 != null 才合并；user_id/created_at/period/category_id 保持不动——
         // 初始上传人(userId) 在编辑时不可被改变，上传时间(createdAt) 不被重置）
-        // 【2026-08-16 审查修复】归属客户变更仅 admin/incentive:manage 允许：
+        // 【2026-08-16 审查修复】归属客户变更仅 admin/can_edit 授权允许：
         // 本人记录改挂任意客户会绕过"记录-客户"绑定语义；前端编辑回传原值不受影响
         if (update.getCustomerId() != null
                 && !Objects.equals(update.getCustomerId(), existing.getCustomerId())

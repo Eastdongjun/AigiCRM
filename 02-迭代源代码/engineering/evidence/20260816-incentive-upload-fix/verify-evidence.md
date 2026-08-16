@@ -41,3 +41,18 @@
 - 生产/测试库已有手工绑定（08-05 perm-codes 脚本），V17 上线不改变现网行为，仅补齐重建链
 - V17 生产执行需经 `scripts/deploy-db.sh`（SSH 生产，未执行，待用户授权）
 - 测试服务器部署未执行（未授权）
+
+## 追加验证（用户要求三项收尾，2026-08-16 14:00-14:15）
+### 1. 测试环境真实上传实测
+- admin 上传文件(scope=incentive) → addRecord(cat=11 visit, customer=575) → 记录 id=83 score=10（visit 规则正确）
+- 负向 4 场景全部 400 + 精确提示：缺客户/缺分类/无文件/伪造他人文件（含新增校验生效证据）
+- 实测数据已清理（记录 83、文件 205 删除）
+### 2. 权限隔离测试（此前跳过项）
+- 创建冒烟销售账号 smoke_sales（测试+生产，随机强口令存 ~/.ycmn-deploy.env）
+- 发现并修复测试库数据污染：销售员(11)误绑 system:user:view/add/edit/delete（menu 31/49/50/91，来源非仓库脚本，无重放风险）——备份 backup-role-menu-test-*.sql 后解绑；生产矩阵本就正确无需修
+- 测试冒烟 21/21、生产冒烟 21/21（含"权限隔离: smoke_sales users 403"）
+- 销售员 updateRecord 越权实测：改他人记录 403"无权编辑他人记录"；本人改自己记录归属客户 403"无权修改记录归属客户"；本人上传 200
+### 3. 生产 114 菜单清理（用户批准）
+- 备份 /root/ycmn/backup-menu-20260816-pre-clean.sql（sys_menu+sys_role_menu）
+- 五项安全核查全过 → 执行 fix-duplicate-sidebar-menus.sql（114 已是 type=3 幂等；115/116/118/119 解绑+停用）
+- 执行后验证：115-119 status=0、path 重复=0、菜单树 24 path 零重复、生产冒烟 21/21

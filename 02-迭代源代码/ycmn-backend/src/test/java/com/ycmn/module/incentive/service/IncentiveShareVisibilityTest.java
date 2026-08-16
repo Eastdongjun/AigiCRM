@@ -20,25 +20,30 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.MockedStatic;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.dao.EmptyResultDataAccessException;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.util.ReflectionTestUtils;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * 激励模块分享制可见性（2026-08-14 RBAC 收敛）：
- * 可见性 = admin ∨ incentive:view-all/incentive:manage 权限码 ∨ 本人 ∨ (shared=1 AND incentive:view-shared)；
- * 「激励-分享可见」角色由 M1 迁移全员绑定，等价旧"无面板行默认可见"语义；
- * 统计三 tab（categoryStats/scoreboard）公司级全量不过滤；data_scope/上级可见不再作用。
+ * 激励模块分享制可见性（2026-08-16 授权表化）：
+ * 可见性 = admin ∨ 授权表 can_view_all/can_edit/can_delete ∨ 本人 ∨ (shared=1 AND can_view_shared)；
+ * can_view_shared 无授权记录时默认开（全员可看他人已分享），授权行=0 即收窄；
+ * 统计三 tab（categoryStats/scoreboard）公司级全量不过滤。
  */
 @ExtendWith(MockitoExtension.class)
 class IncentiveShareVisibilityTest {
@@ -47,6 +52,8 @@ class IncentiveShareVisibilityTest {
     OrgScopeResolver resolver;
     @Mock
     BizIncentiveRecordMapper recordMapper;
+    @Mock
+    JdbcTemplate jdbc;
 
     /** 纯 mock 单测，手动注册 TableInfo 供 LambdaQueryWrapper 渲染 SQL 断言 */
     @BeforeAll
@@ -64,21 +71,30 @@ class IncentiveShareVisibilityTest {
                 mock(BizFileMapper.class),
                 mock(BizCustomerMapper.class),
                 mock(SysDeptMapper.class),
-                resolver);
+                resolver,
+                jdbc);
     }
 
-    /** 注入权限码集合（等价 SecurityUtils.hasAuthority 判定；未声明的码默认 false） */
-    private void stubAuthorities(MockedStatic<SecurityUtils> m, String... perms) {
-        java.util.Set<String> set = java.util.Set.of(perms);
-        m.when(() -> SecurityUtils.hasAuthority(anyString()))
-                .thenAnswer(inv -> set.contains(inv.getArgument(0)));
+    /** 授权表 stub：无记录（默认语义） */
+    private void stubNoGrantRow(Long userId) {
+        when(jdbc.queryForMap(anyString(), eq(userId)))
+                .thenThrow(new EmptyResultDataAccessException(1));
     }
 
-    private String visibleSqlOf(Long self, String... perms) {
+    /** 授权表 stub：存在授权行 */
+    private void stubGrantRow(Long userId, Boolean viewShared, Boolean viewAll, Boolean edit, Boolean delete) {
+        Map<String, Object> row = new HashMap<>();
+        if (viewShared != null) row.put("can_view_shared", viewShared ? 1 : 0);
+        if (viewAll != null) row.put("can_view_all", viewAll ? 1 : 0);
+        if (edit != null) row.put("can_edit", edit ? 1 : 0);
+        if (delete != null) row.put("can_delete", delete ? 1 : 0);
+        when(jdbc.queryForMap(anyString(), eq(userId))).thenReturn(row);
+    }
+
+    private String visibleSqlOf(Long self) {
         try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
             m.when(SecurityUtils::isAdmin).thenReturn(false);
             m.when(SecurityUtils::getCurrentUserId).thenReturn(self);
-            stubAuthorities(m, perms);
             IncentiveService svc = newService();
             LambdaQueryWrapper<BizIncentiveRecord> wrapper = new LambdaQueryWrapper<>();
             ReflectionTestUtils.invokeMethod(svc, "applyShareVisibility", wrapper);
@@ -105,29 +121,31 @@ class IncentiveShareVisibilityTest {
         }
     }
 
-    /** 持 incentive:manage 权限码（M1 迁移绑定 admin+销售总监）→ canSeeAll，看全部 */
+    /** 授权表 can_edit=1（销售总监迁移语义）→ canSeeAll，看全部 */
     @Test
-    void authorizedUserSeesAll() {
+    void grantEditSeesAll() {
         try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
             m.when(SecurityUtils::isAdmin).thenReturn(false);
-            stubAuthorities(m, "incentive:manage");
+            m.when(SecurityUtils::getCurrentUserId).thenReturn(1L);
+            stubGrantRow(1L, null, null, true, false);
 
             IncentiveService svc = newService();
             assertTrue(Boolean.TRUE.equals((Boolean) ReflectionTestUtils.invokeMethod(svc, "canSeeAllIncentive")),
-                    "持 incentive:manage 必须 canSeeAllIncentive");
+                    "can_edit=1 必须 canSeeAllIncentive（能编辑他人隐含看全部）");
         }
     }
 
-    /** 仅 incentive:view-all → canSeeAll 为真（只读监控，不含编辑/删除） */
+    /** 仅 can_view_all=1 → canSeeAll 为真（只读监控，不含编辑/删除） */
     @Test
     void viewAllOnlySeesAllButNotEditDelete() {
         try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
             m.when(SecurityUtils::isAdmin).thenReturn(false);
-            stubAuthorities(m, "incentive:view-all");
+            m.when(SecurityUtils::getCurrentUserId).thenReturn(1L);
+            stubGrantRow(1L, null, true, false, false);
 
             IncentiveService svc = newService();
             assertTrue(Boolean.TRUE.equals((Boolean) ReflectionTestUtils.invokeMethod(svc, "canSeeAllIncentive")),
-                    "仅 incentive:view-all 必须 canSeeAllIncentive");
+                    "仅 can_view_all=1 必须 canSeeAllIncentive");
             assertFalse(Boolean.TRUE.equals((Boolean) ReflectionTestUtils.invokeMethod(svc, "canEdit")),
                     "仅看全部不隐含编辑他人");
             assertFalse(Boolean.TRUE.equals((Boolean) ReflectionTestUtils.invokeMethod(svc, "canDelete")),
@@ -135,26 +153,27 @@ class IncentiveShareVisibilityTest {
         }
     }
 
-    /** 普通用户（M1 全员绑定「激励-分享可见」→ 持 incentive:view-shared）→ applyShareVisibility 加 (user_id = 本人 OR shared = 1) */
+    /** 普通用户无授权记录（分享可见默认开）→ applyShareVisibility 加 (user_id = 本人 OR shared = 1) */
     @Test
-    void plainUserOnlyOwnAndShared() {
-        String sql = visibleSqlOf(1L, "incentive:view-shared");
+    void plainUserDefaultOnlyOwnAndShared() {
+        String sql = visibleSqlOf(1L);
         assertTrue(sql.contains("user_id") && sql.contains("shared") && sql.contains("OR"),
-                "普通用户应过滤为 本人 OR shared=1，实际: " + sql);
+                "普通用户默认应过滤为 本人 OR shared=1，实际: " + sql);
     }
 
-    /** 未绑「激励-分享可见」（无 incentive:view-shared）→ applyShareVisibility 只过滤本人，不再含 shared 条件 */
+    /** 授权行 can_view_shared=0（被收窄）→ applyShareVisibility 只过滤本人，不再含 shared 条件 */
     @Test
-    void noSharedPermissionFiltersOnlyOwn() {
+    void sharedOffFiltersOnlyOwn() {
         try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
             m.when(SecurityUtils::isAdmin).thenReturn(false);
             m.when(SecurityUtils::getCurrentUserId).thenReturn(1L);
+            stubGrantRow(1L, false, null, null, null);
             IncentiveService svc = newService();
             LambdaQueryWrapper<BizIncentiveRecord> wrapper = new LambdaQueryWrapper<>();
             ReflectionTestUtils.invokeMethod(svc, "applyShareVisibility", wrapper);
             String sql = wrapper.getSqlSegment();
             assertTrue(sql.contains("user_id"), "应过滤本人，实际: " + sql);
-            assertFalse(sql.contains("shared"), "无查看已分享权限后不应含 shared 条件，实际: " + sql);
+            assertFalse(sql.contains("shared"), "被收窄后不应含 shared 条件，实际: " + sql);
         }
     }
 
@@ -185,13 +204,13 @@ class IncentiveShareVisibilityTest {
         }
     }
 
-    /** 普通用户（持 incentive:view-shared）查看他人：他人有 shared=1 记录 → 可见；否则不可见 */
+    /** 普通用户（分享可见默认开）查看他人：他人有 shared=1 记录 → 可见；否则不可见 */
     @Test
     void canViewIncentiveUser_otherDependsOnSharedRecord() {
         try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
             m.when(SecurityUtils::isAdmin).thenReturn(false);
             m.when(SecurityUtils::getCurrentUserId).thenReturn(1L);
-            stubAuthorities(m, "incentive:view-shared");
+            stubNoGrantRow(1L);
             when(recordMapper.selectCount(any())).thenReturn(1L, 0L);
 
             IncentiveService svc = newService();
@@ -204,13 +223,13 @@ class IncentiveShareVisibilityTest {
 
     // ==================== getRecords：显式选人 ====================
 
-    /** 非授权（持 view-shared）查看他人 → 仅返回该用户 shared=1 的记录 */
+    /** 普通用户（分享可见默认开）查看他人 → 仅返回该用户 shared=1 的记录 */
     @Test
     void getRecords_otherUser_onlyShared() {
         try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
             m.when(SecurityUtils::isAdmin).thenReturn(false);
             m.when(SecurityUtils::getCurrentUserId).thenReturn(1L);
-            stubAuthorities(m, "incentive:view-shared");
+            stubNoGrantRow(1L);
             when(recordMapper.selectCount(any())).thenReturn(1L); // 他人有 shared 记录
             when(recordMapper.selectList(any())).thenReturn(List.of());
 
@@ -295,7 +314,6 @@ class IncentiveShareVisibilityTest {
                 new com.ycmn.module.incentive.entity.BizIncentiveCategory();
         cat.setId(1L);
         cat.setScore(10);
-        // 通过 newService 后注入 categoryMapper 替身（calcScore 需要 category）
         IncentiveService svc = newService();
         com.ycmn.module.incentive.mapper.BizIncentiveCategoryMapper catMapper =
                 mock(com.ycmn.module.incentive.mapper.BizIncentiveCategoryMapper.class);
@@ -304,7 +322,6 @@ class IncentiveShareVisibilityTest {
 
         BizIncentiveRecord update = new BizIncentiveRecord();
         update.setShared(1);
-        // 【2026-08-12】分享仅本人可改：mock 当前用户=existing.userId(1L) 使 shared 写回
         try (MockedStatic<com.ycmn.security.SecurityUtils> m = mockStatic(com.ycmn.security.SecurityUtils.class)) {
             m.when(com.ycmn.security.SecurityUtils::getCurrentUserId).thenReturn(1L);
             svc.updateRecord(1L, update);

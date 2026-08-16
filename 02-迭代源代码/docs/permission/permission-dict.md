@@ -29,10 +29,10 @@
 | `incentive:add` | 激励上传 | 2 | `/incentive` | 系统管理员,行政,销售员,销售总监 |
 | `incentive:delete` | 激励删除 | 2 | `NULL` | 系统管理员,销售总监 |
 | `incentive:edit` | 激励编辑 | 2 | `NULL` | 系统管理员,销售总监 |
-| `incentive:manage` | 激励管理(他人记录) | 3 | `NULL` | 系统管理员,销售总监 |
+| `incentive:manage` | ~~激励管理(他人记录)~~ 已废弃 | 3 | `NULL` | ~~系统管理员,销售总监~~ → 改由授权表 biz_incentive_grant.can_edit/can_delete 按人勾选（2026-08-16） |
 | `incentive:view` | 四项激励 / 激励查询 / 激励统计 | 2 | `/incentive / /incentive/search / /incentive/stats` | 系统管理员,行政,销售员,销售总监 |
-| `incentive:view-all` | 激励查看(全部) | 3 | `NULL` | 激励-全量查看,系统管理员,销售总监 |
-| `incentive:view-shared` | 激励查看(已分享) | 3 | `NULL` | 激励-分享可见 |
+| `incentive:view-all` | ~~激励查看(全部)~~ 已废弃 | 3 | `NULL` | ~~激励-全量查看,系统管理员,销售总监~~ → 改由授权表 biz_incentive_grant.can_view_all 按人勾选（2026-08-16） |
+| `incentive:view-shared` | ~~激励查看(已分享)~~ 已废弃 | 3 | `NULL` | ~~激励-分享可见~~ → 改由授权表 biz_incentive_grant.can_view_shared 按人勾选，无记录默认开（2026-08-16） |
 | `reminder:view` | 提醒管理 | 2 | `/reminder` | 系统管理员,行政,销售员,销售总监 |
 | `score:entry` | 积分录入 | 2 | `/score/entry` | 系统管理员,行政,销售总监 |
 | `score:manage` | 积分管理 | 3 | `NULL` | 系统管理员,销售总监 |

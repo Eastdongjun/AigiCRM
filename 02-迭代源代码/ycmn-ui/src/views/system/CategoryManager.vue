@@ -77,7 +77,7 @@
           <span class="perm-sec-icon icon-perm"><el-icon :size="19"><Key /></el-icon></span>
           <div class="perm-sec-text">
             <h3>激励专项权限</h3>
-            <p>独立于菜单权限，按人授予：查看已分享 / 查看全部（编辑/删除由角色 admin∨销售总监 控制）</p>
+            <p>独立于菜单权限，按人勾选：查看已分享 / 查看全部 / 编辑他人 / 删除他人</p>
           </div>
         </div>
         <el-button type="primary" size="small" :icon="Plus" @click="openPermDialog">添加授权</el-button>
@@ -108,17 +108,18 @@
               </div>
             </template>
           </el-table-column>
-          <el-table-column label="查看范围" min-width="150">
+          <el-table-column label="专项权限" min-width="230">
             <template #default="{ row }">
               <div class="perm-view">
-                <!-- 【2026-08-14 RBAC 收敛】后端 /list 已改 camelCase 契约（角色绑定聚合），同步字段名 -->
+                <!-- 【2026-08-16 授权表化】后端 /list 契约含四开关（用户级授权表） -->
                 <span v-if="row.canViewShared" class="perm-pill pill-shared">已分享</span>
                 <span v-if="row.canViewAll" class="perm-pill pill-all">全部</span>
-                <span v-if="!row.canViewShared && !row.canViewAll" class="perm-pill-off">仅本人</span>
+                <span v-if="row.canEdit" class="perm-pill pill-edit">编辑</span>
+                <span v-if="row.canDelete" class="perm-pill pill-del">删除</span>
+                <span v-if="!row.canViewShared && !row.canViewAll && !row.canEdit && !row.canDelete" class="perm-pill-off">仅本人</span>
               </div>
             </template>
           </el-table-column>
-          <!-- 【2026-08-12 角色化】编辑/删除列已废弃（改按 admin∨销售总监 角色判定） -->
           <el-table-column label="操作" width="70" align="center">
             <template #default="{row}"><el-button link type="danger" size="small" @click="revokePerm(row.id)">撤销</el-button></template>
           </el-table-column>

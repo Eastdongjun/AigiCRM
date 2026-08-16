@@ -34,7 +34,8 @@ class IncentiveSpecificProductTest {
                 mock(com.ycmn.module.file.mapper.BizFileMapper.class),
                 mock(com.ycmn.module.customer.mapper.BizCustomerMapper.class),
                 mock(com.ycmn.module.system.mapper.SysDeptMapper.class),
-                mock(com.ycmn.common.scope.OrgScopeResolver.class));
+                mock(com.ycmn.common.scope.OrgScopeResolver.class),
+                mock(org.springframework.jdbc.core.JdbcTemplate.class));
     }
 
     @Test

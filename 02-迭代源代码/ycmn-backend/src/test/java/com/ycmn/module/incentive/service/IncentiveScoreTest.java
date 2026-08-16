@@ -10,20 +10,31 @@ import com.ycmn.module.system.mapper.SysDeptMapper;
 import com.ycmn.module.system.mapper.SysUserMapper;
 import com.ycmn.security.SecurityUser;
 import org.junit.jupiter.api.Test;
+import org.springframework.dao.EmptyResultDataAccessException;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.test.util.ReflectionTestUtils;
+
+import java.util.HashMap;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+/**
+ * 激励计分规则 + 专项授权判定（2026-08-16 授权表化）：
+ * canEdit/canDelete/canViewAll/canViewShared 由 biz_incentive_grant 表驱动——
+ * 无记录=默认(分享可见开, 其余关)；admin 恒可(编辑/删除/看全部)。
+ */
 class IncentiveScoreTest {
 
-    private IncentiveService newService(BizIncentiveCategoryMapper categoryMapper) {
+    private IncentiveService newService(BizIncentiveCategoryMapper categoryMapper, JdbcTemplate jdbc) {
         return new IncentiveService(
                 categoryMapper,
                 mock(BizIncentiveRecordMapper.class),
@@ -31,7 +42,8 @@ class IncentiveScoreTest {
                 mock(BizFileMapper.class),
                 mock(BizCustomerMapper.class),
                 mock(SysDeptMapper.class),
-                mock(com.ycmn.common.scope.OrgScopeResolver.class));
+                mock(com.ycmn.common.scope.OrgScopeResolver.class),
+                jdbc);
     }
 
     private int calcScore(IncentiveService service, BizIncentiveRecord record,
@@ -56,9 +68,11 @@ class IncentiveScoreTest {
         return r;
     }
 
+    // ======================== 计分规则 ========================
+
     @Test
     void planCategory_anySingleFileScoresBase() {
-        IncentiveService service = newService(mock(BizIncentiveCategoryMapper.class));
+        IncentiveService service = newService(mock(BizIncentiveCategoryMapper.class), mock(JdbcTemplate.class));
         BizIncentiveCategory plan = category("plan", 100);
         assertEquals(100, calcScore(service, record("[1]", null, null), plan, 100));
         assertEquals(100, calcScore(service, record(null, "[1]", null), plan, 100));
@@ -67,24 +81,22 @@ class IncentiveScoreTest {
 
     @Test
     void planCategory_noFilesScoresZero() {
-        IncentiveService service = newService(mock(BizIncentiveCategoryMapper.class));
+        IncentiveService service = newService(mock(BizIncentiveCategoryMapper.class), mock(JdbcTemplate.class));
         assertEquals(0, calcScore(service, record(null, null, null), category("plan", 100), 100));
     }
 
     @Test
     void planCategory_multipleFilesScoresBaseOnce() {
         // 2026-08-10 规则确认: 两谈两做多文件也只积一次(不论数量, 上限5份)
-        IncentiveService service = newService(mock(BizIncentiveCategoryMapper.class));
+        IncentiveService service = newService(mock(BizIncentiveCategoryMapper.class), mock(JdbcTemplate.class));
         BizIncentiveCategory plan = category("plan", 100);
-        // 单槽 5 份文件 → 100(不是 5×100)
         assertEquals(100, calcScore(service, record("[1,2,3,4,5]", null, null), plan, 100));
-        // 三槽各多份 → 100
         assertEquals(100, calcScore(service, record("[1,2]", "[3,4]", "[5]"), plan, 100));
     }
 
     @Test
     void otherCategory_requiresAllThreeFiles() {
-        IncentiveService service = newService(mock(BizIncentiveCategoryMapper.class));
+        IncentiveService service = newService(mock(BizIncentiveCategoryMapper.class), mock(JdbcTemplate.class));
         BizIncentiveCategory promo = category("promotion", 100);
         assertEquals(100, calcScore(service, record("[1]", "[2]", "[3]"), promo, 100));
         assertEquals(0, calcScore(service, record("[1]", "[2]", null), promo, 100));
@@ -94,7 +106,7 @@ class IncentiveScoreTest {
 
     @Test
     void nullCategoryOrZeroBaseScoresZero() {
-        IncentiveService service = newService(mock(BizIncentiveCategoryMapper.class));
+        IncentiveService service = newService(mock(BizIncentiveCategoryMapper.class), mock(JdbcTemplate.class));
         assertEquals(0, calcScore(service, record("[1]", "[2]", "[3]"), null, 100));
         assertEquals(0, calcScore(service, record("[1]", "[2]", "[3]"), category("plan", 0), 0));
     }
@@ -105,7 +117,7 @@ class IncentiveScoreTest {
         BizIncentiveCategory parent = category("plan", 100);
         parent.setId(1L);
         when(mapper.selectById(1L)).thenReturn(parent);
-        IncentiveService service = newService(mapper);
+        IncentiveService service = newService(mapper, mock(JdbcTemplate.class));
 
         BizIncentiveCategory child = new BizIncentiveCategory();
         child.setParentId(1L);
@@ -113,15 +125,32 @@ class IncentiveScoreTest {
         assertEquals(100, calcScore(service, record("[1]", null, null), child, 100));
     }
 
-    // ======================== H6：RBAC 权限码判定（2026-08-14 收敛，不再依赖首角色/销售总监硬编码） ========================
+    // ======================== 专项授权判定（2026-08-16 授权表化） ========================
 
-    private void setCurrentUser(SecurityUser u, String... perms) {
+    /** 设置当前登录用户（roleCodes 含 admin 时 SecurityUtils.isAdmin 为真） */
+    private void setCurrentUser(SecurityUser u) {
         Authentication auth = mock(Authentication.class);
         when(auth.getPrincipal()).thenReturn(u);
-        when(auth.getAuthorities()).thenAnswer(inv -> java.util.Arrays.stream(perms)
-                .map(p -> (GrantedAuthority) () -> p)
-                .collect(java.util.stream.Collectors.toList()));
         SecurityContextHolder.getContext().setAuthentication(auth);
+    }
+
+    /** 表 stub：无授权记录（查询抛 EmptyResult，走默认语义） */
+    private JdbcTemplate jdbcWithoutRow() {
+        JdbcTemplate jdbc = mock(JdbcTemplate.class);
+        when(jdbc.queryForMap(anyString(), eq(5L))).thenThrow(new EmptyResultDataAccessException(1));
+        return jdbc;
+    }
+
+    /** 表 stub：存在授权行 */
+    private JdbcTemplate jdbcWithRow(Boolean viewShared, Boolean viewAll, Boolean edit, Boolean delete) {
+        JdbcTemplate jdbc = mock(JdbcTemplate.class);
+        Map<String, Object> row = new HashMap<>();
+        if (viewShared != null) row.put("can_view_shared", viewShared ? 1 : 0);
+        if (viewAll != null) row.put("can_view_all", viewAll ? 1 : 0);
+        if (edit != null) row.put("can_edit", edit ? 1 : 0);
+        if (delete != null) row.put("can_delete", delete ? 1 : 0);
+        when(jdbc.queryForMap(anyString(), eq(5L))).thenReturn(row);
+        return jdbc;
     }
 
     @Test
@@ -132,76 +161,75 @@ class IncentiveScoreTest {
         u.setRoleCodes(java.util.Arrays.asList("sales_engineer", "admin"));
         setCurrentUser(u);
 
-        IncentiveService service = newService(mock(BizIncentiveCategoryMapper.class));
+        IncentiveService service = newService(mock(BizIncentiveCategoryMapper.class), mock(JdbcTemplate.class));
         assertTrue(service.canEdit());
         assertTrue(service.canDelete());
     }
 
     @Test
-    void canEdit_salesDirectorRole_true() {
-        // 销售总监(角色0)经 M1 迁移获得 incentive:manage/incentive:view-all 权限码（2026-08-14 RBAC 收敛）
+    void canEdit_grantEditTrue_true() {
+        // 授权表 can_edit=1/can_delete=1（销售总监迁移语义）→ 可编辑/删除他人
         SecurityUser u = new SecurityUser();
         u.setUserId(5L);
-        u.setRoleCodes(java.util.Arrays.asList("06", "0")); // 销售员 + 销售总监
-        setCurrentUser(u, "incentive:manage", "incentive:view-all");
+        u.setRoleCodes(java.util.Arrays.asList("06", "0"));
+        setCurrentUser(u);
 
-        IncentiveService service = newService(mock(BizIncentiveCategoryMapper.class));
+        IncentiveService service = newService(mock(BizIncentiveCategoryMapper.class),
+                jdbcWithRow(null, null, true, true));
         assertTrue(service.canEdit());
         assertTrue(service.canDelete());
     }
 
     @Test
-    void canEdit_nonAdmin_nonDirector_false() {
-        // 普通销售员(06)/行政(05)未绑定激励管理角色 → 不能编辑/删除他人激励记录（2026-08-14 RBAC 收敛，不再查 can_edit 表/销售总监）
+    void canEdit_noGrantRow_false() {
+        // 无授权记录（默认全关）→ 不能编辑/删除他人激励记录
         SecurityUser u = new SecurityUser();
         u.setUserId(5L);
         u.setRoleCodes(java.util.Collections.singletonList("06"));
         setCurrentUser(u);
 
-        IncentiveService service = newService(mock(BizIncentiveCategoryMapper.class));
+        IncentiveService service = newService(mock(BizIncentiveCategoryMapper.class), jdbcWithoutRow());
         assertFalse(service.canEdit());
         assertFalse(service.canDelete());
     }
 
-    /** 非 admin 但持 incentive:manage 权限码（M1 迁移绑定 admin+销售总监角色）→ 可编辑/删除他人 */
     @Test
-    void canEdit_manageAuthorityOnly_true() {
+    void canViewAll_grantViewAllOnly_true_notEditDelete() {
+        // 仅 can_view_all=1（只读看全部）→ canViewAll true，但不隐含编辑/删除
         SecurityUser u = new SecurityUser();
         u.setUserId(5L);
         u.setRoleCodes(java.util.Collections.singletonList("06"));
-        setCurrentUser(u, "incentive:manage");
+        setCurrentUser(u);
 
-        IncentiveService service = newService(mock(BizIncentiveCategoryMapper.class));
-        assertTrue(service.canEdit());
-        assertTrue(service.canDelete());
-    }
-
-    /** 仅 incentive:view-all（只读看全部）→ canViewAll true，但不隐含编辑/删除 */
-    @Test
-    void canViewAll_viewAllAuthorityOnly_true_notEditDelete() {
-        SecurityUser u = new SecurityUser();
-        u.setUserId(5L);
-        u.setRoleCodes(java.util.Collections.singletonList("06"));
-        setCurrentUser(u, "incentive:view-all");
-
-        IncentiveService service = newService(mock(BizIncentiveCategoryMapper.class));
+        IncentiveService service = newService(mock(BizIncentiveCategoryMapper.class),
+                jdbcWithRow(null, true, false, false));
         assertTrue(service.canViewAll(5L));
         assertFalse(service.canEdit());
         assertFalse(service.canDelete());
     }
 
-    /** incentive:view-shared 决定"查看已分享"（「激励-分享可见」角色 M1 全员绑定，等价旧"无面板行默认可见"）；未绑则收窄 */
     @Test
-    void canViewShared_sharedAuthorityControlsVisibility() {
+    void canViewShared_defaultOnWhenNoRow() {
+        // 无授权记录 = 默认开（全员可看他人已分享记录）
         SecurityUser u = new SecurityUser();
         u.setUserId(5L);
         u.setRoleCodes(java.util.Collections.singletonList("06"));
-        setCurrentUser(u, "incentive:view-shared");
+        setCurrentUser(u);
 
-        IncentiveService service = newService(mock(BizIncentiveCategoryMapper.class));
-        assertTrue(service.canViewShared(5L), "持 incentive:view-shared 应可查看已分享记录");
+        IncentiveService service = newService(mock(BizIncentiveCategoryMapper.class), jdbcWithoutRow());
+        assertTrue(service.canViewShared(5L), "无记录应默认可查看已分享记录");
+    }
 
-        setCurrentUser(u); // 未绑「激励-分享可见」→ 不可看已分享（收窄语义）
-        assertFalse(service.canViewShared(5L), "未持 incentive:view-shared 不应查看已分享记录");
+    @Test
+    void canViewShared_rowZero_meansNarrowed() {
+        // 授权行 can_view_shared=0 → 收窄，不可看他人已分享
+        SecurityUser u = new SecurityUser();
+        u.setUserId(5L);
+        u.setRoleCodes(java.util.Collections.singletonList("06"));
+        setCurrentUser(u);
+
+        IncentiveService service = newService(mock(BizIncentiveCategoryMapper.class),
+                jdbcWithRow(false, null, null, null));
+        assertFalse(service.canViewShared(5L), "授权行 can_view_shared=0 应拒绝查看已分享");
     }
 }

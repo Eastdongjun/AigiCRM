@@ -187,6 +187,8 @@
 .perm-pill { font-size: 11px; padding: 2px 9px; border-radius: 10px; font-weight: 600; }
 .pill-shared { background: #ecf5ff; color: #409eff; }
 .pill-all { background: #f0f0ff; color: #8b5cf6; }
+.pill-edit { background: #fdf6ec; color: #e6a23c; }
+.pill-del { background: #fef0f0; color: #f56c6c; }
 .perm-pill-off { font-size: 11px; color: #c0c4cc; }
 .perm-ok { color: #10b981; font-size: 12px; font-weight: 600; }
 .perm-ok-danger { color: #f56c6c; }

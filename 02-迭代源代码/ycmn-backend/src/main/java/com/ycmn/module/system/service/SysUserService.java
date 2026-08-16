@@ -68,17 +68,6 @@ public class SysUserService {
         return sb.toString();
     }
 
-    /** 【2026-08-14 RBAC 收敛】绑定「激励-分享可见」默认角色(role_code=incentive_view_shared, M1 创建)——全员默认, 收窄=解绑 */
-    private void bindIncentiveShareRole(Long userId) {
-        try {
-            jdbc.update("INSERT INTO sys_user_role (user_id, role_id) " +
-                    "SELECT ?, id FROM sys_role WHERE role_code='incentive_view_shared' " +
-                    "ON DUPLICATE KEY UPDATE role_id=role_id", userId);
-        } catch (Exception e) {
-            log.warn("绑定激励分享可见角色失败 userId={}", userId, e);
-        }
-    }
-
     /** 【2026-08-14 缓存自愈】用户级权限版本递增：evict 漏网/Redis 写失败时，缓存与 DB 版本比对自愈 */
     private void bumpPermVersion(Long userId) {
         jdbc.update("UPDATE sys_user SET perm_version = perm_version + 1 WHERE id=?", userId);
@@ -269,8 +258,7 @@ public class SysUserService {
         if ("custom".equals(user.getDataScopeOverride())) {
             saveUserOrgs(user.getId(), user.getOrgIds());
         }
-        // 【2026-08-14 RBAC 收敛】新用户自动绑定「激励-分享可见」默认角色
-        bindIncentiveShareRole(user.getId());
+        // 【2026-08-16 授权表化】新用户无需绑定载体角色——激励分享可见=授权表无记录时的默认语义(开)
         return tempPassword;
     }
 
