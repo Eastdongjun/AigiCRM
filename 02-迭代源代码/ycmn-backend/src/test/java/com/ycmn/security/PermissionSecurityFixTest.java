@@ -225,7 +225,8 @@ class PermissionSecurityFixTest {
                 mock(com.ycmn.module.sea.service.SeaService.class), deptMapper,
                 mock(com.ycmn.module.system.mapper.SysUserOrgMapper.class),
                 mock(com.ycmn.security.PermissionCacheService.class),
-                mock(com.ycmn.security.JwtTokenProvider.class), resolver);
+                mock(com.ycmn.security.JwtTokenProvider.class), resolver,
+                mock(RedisTemplate.class));
         try (org.mockito.MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
             m.when(SecurityUtils::isAdmin).thenReturn(false);
             m.when(SecurityUtils::getCurrentUserId).thenReturn(1L);
@@ -250,7 +251,8 @@ class PermissionSecurityFixTest {
                 mock(com.ycmn.module.sea.service.SeaService.class), mock(com.ycmn.module.system.mapper.SysDeptMapper.class),
                 mock(com.ycmn.module.system.mapper.SysUserOrgMapper.class),
                 mock(com.ycmn.security.PermissionCacheService.class),
-                mock(com.ycmn.security.JwtTokenProvider.class), resolver);
+                mock(com.ycmn.security.JwtTokenProvider.class), resolver,
+                mock(RedisTemplate.class));
         try (org.mockito.MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
             m.when(SecurityUtils::isAdmin).thenReturn(false);
             m.when(SecurityUtils::getCurrentUserId).thenReturn(1L);
@@ -275,7 +277,8 @@ class PermissionSecurityFixTest {
                 mock(com.ycmn.module.sea.service.SeaService.class), mock(com.ycmn.module.system.mapper.SysDeptMapper.class),
                 mock(com.ycmn.module.system.mapper.SysUserOrgMapper.class),
                 mock(com.ycmn.security.PermissionCacheService.class),
-                mock(com.ycmn.security.JwtTokenProvider.class), mock(OrgScopeResolver.class));
+                mock(com.ycmn.security.JwtTokenProvider.class), mock(OrgScopeResolver.class),
+                mock(RedisTemplate.class));
         try (org.mockito.MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
             m.when(SecurityUtils::isAdmin).thenReturn(false);
             m.when(SecurityUtils::getCurrentUserId).thenReturn(7L);
@@ -317,7 +320,8 @@ class PermissionSecurityFixTest {
                 mock(com.ycmn.module.system.mapper.SysDeptMapper.class),
                 mock(com.ycmn.module.system.mapper.SysUserOrgMapper.class),
                 mock(com.ycmn.security.PermissionCacheService.class),
-                mock(com.ycmn.security.JwtTokenProvider.class), mock(OrgScopeResolver.class));
+                mock(com.ycmn.security.JwtTokenProvider.class), mock(OrgScopeResolver.class),
+                mock(RedisTemplate.class));
     }
 
     @Test
@@ -391,7 +395,8 @@ class PermissionSecurityFixTest {
                 mock(com.ycmn.module.system.mapper.SysDeptMapper.class),
                 mock(com.ycmn.module.system.mapper.SysUserOrgMapper.class),
                 mock(com.ycmn.security.PermissionCacheService.class),
-                mock(com.ycmn.security.JwtTokenProvider.class), mock(OrgScopeResolver.class));
+                mock(com.ycmn.security.JwtTokenProvider.class), mock(OrgScopeResolver.class),
+                mock(RedisTemplate.class));
 
         com.ycmn.module.system.entity.SysUser existing = new com.ycmn.module.system.entity.SysUser();
         existing.setId(7L);

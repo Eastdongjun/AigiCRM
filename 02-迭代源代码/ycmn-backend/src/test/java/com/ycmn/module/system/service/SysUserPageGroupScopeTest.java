@@ -1,6 +1,7 @@
 package com.ycmn.module.system.service;
 
 import com.baomidou.mybatisplus.core.MybatisConfiguration;
+import org.springframework.data.redis.core.RedisTemplate;
 import com.baomidou.mybatisplus.core.MybatisMapperBuilderAssistant;
 import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
@@ -76,7 +77,7 @@ class SysUserPageGroupScopeTest {
                 customerMapper, shareMapper, jdbc, roleMapper, seaService, deptMapper, mock(com.ycmn.module.system.mapper.SysUserOrgMapper.class),
                 mock(com.ycmn.security.PermissionCacheService.class),
                 mock(com.ycmn.security.JwtTokenProvider.class),
-                mock(com.ycmn.common.scope.OrgScopeResolver.class));
+                mock(com.ycmn.common.scope.OrgScopeResolver.class), mock(RedisTemplate.class));
     }
 
     @Test

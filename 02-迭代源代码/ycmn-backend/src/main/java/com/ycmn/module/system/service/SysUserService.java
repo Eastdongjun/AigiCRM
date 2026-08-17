@@ -56,6 +56,7 @@ public class SysUserService {
     private final com.ycmn.security.PermissionCacheService permissionCacheService;
     private final com.ycmn.security.JwtTokenProvider jwtTokenProvider;
     private final com.ycmn.common.scope.OrgScopeResolver scopeResolver;
+    private final org.springframework.data.redis.core.RedisTemplate<String, Object> redisTemplate;
 
     private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(SysUserService.class);
 
@@ -319,6 +320,16 @@ public class SysUserService {
         bumpPermVersion(existing.getId());
     }
 
+    /**
+     * 管理员重置用户密码（生成随机临时口令，首登强制改密）
+     *
+     * 【需求】人员管理"重置密码"按钮：管理员给员工重置口令并转交临时密码
+     * 【方法】随机口令 bcrypt 落库 + pwd_reset_required=1 + 记录改密时刻（旧 token 立即失效）
+     * 【业务规则】非 admin 操作者禁止重置 admin 角色账号（H1 纵深防御）；重置后清除该用户登录失败锁定
+     * 【参数】userId 目标用户ID
+     * 【返回】明文临时密码（仅此一次展示，管理员转交员工）
+     * 【注意】改密时刻截断到秒防 DATETIME 四舍五入误判；返回的临时密码不落日志
+     */
     public String resetPassword(Long userId) {
         SysUser user = userMapper.selectById(userId);
         if (user == null) throw new BusinessException("用户不存在");
@@ -337,7 +348,33 @@ public class SysUserService {
         // 【修复 2026-08-10 P2-13】改密后旧 token 立即失效(含"记住我"7 天 token)；DB pwd_changed_at 兜底
         jwtTokenProvider.markPasswordChanged(userId);
         permissionCacheService.evict(userId);
+        // 【修复 2026-08-17 生产实测】清除该用户登录失败锁定：
+        // 员工连续输错 5 次会锁定 15 分钟，此前重置密码不清锁，导致"重置后立即登录"仍被拒绝
+        // （生产复现：管理员重置 4 次，员工登录均报"登录失败次数过多，请15分钟后再试"）
+        clearLoginFails(user.getUsername());
         return tempPassword;
+    }
+
+    /**
+     * 清除某用户的登录失败锁定计数（重置密码后员工应立即可登录）
+     *
+     * 【需求】配合 resetPassword：消除"重置后仍被 15 分钟锁定拒绝"的体验断点
+     * 【方法】Redis keys 匹配 login_fail:{任意IP}:{username} 并批量删除（键量极小且有 TTL）
+     * 【业务规则】只清用户级失败计数；IP 级 20 次防爆破计数保留（管理员授信操作不削弱 IP 防护）
+     * 【参数】username 用户名（锁定键以用户名结尾）
+     * 【返回】无
+     * 【注意】Redis 异常时仅告警不影响重置主流程；keys 模式范围固定为 login_fail: 前缀，无扩散风险
+     */
+    private void clearLoginFails(String username) {
+        try {
+            java.util.Set<String> failKeys = redisTemplate.keys("login_fail:*:" + username);
+            if (failKeys != null && !failKeys.isEmpty()) {
+                redisTemplate.delete(failKeys);
+                log.info("已清除登录失败锁定: username={}, keys={}", username, failKeys.size());
+            }
+        } catch (Exception e) {
+            log.warn("清除登录失败锁定失败(不影响重置主流程): username={}, {}", username, e.getMessage());
+        }
     }
 
     public void changePassword(Long userId, String oldPassword, String newPassword) {
