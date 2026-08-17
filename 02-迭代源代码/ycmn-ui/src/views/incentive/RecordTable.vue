@@ -21,21 +21,21 @@
       </el-popover>
     </div>
     <el-table :data="pagedRecords" stripe style="width:100%" empty-text="暂无已上传文件" size="small" @row-click="startReplace" :row-style="{cursor:'pointer'}">
-      <el-table-column label="大类·子类" min-width="120" show-overflow-tooltip v-if="isColVisible('cat')">
+      <el-table-column label="大类·子类" width="150" show-overflow-tooltip v-if="isColVisible('cat')">
         <template #default="{ row }">{{ row.majorMinor }}</template>
       </el-table-column>
-      <el-table-column prop="industry" label="行业" min-width="70" v-if="isColVisible('industry')">
+      <el-table-column prop="industry" label="行业" width="90" v-if="isColVisible('industry')">
         <template #default="{ row }">{{ row.industry || '—' }}</template>
       </el-table-column>
-      <el-table-column prop="relatedProducts" label="相关产品" min-width="110" show-overflow-tooltip v-if="isColVisible('relatedProducts')">
+      <el-table-column prop="relatedProducts" label="相关产品" width="150" show-overflow-tooltip v-if="isColVisible('relatedProducts')">
         <template #default="{ row }">{{ row.relatedProducts || '—' }}</template>
       </el-table-column>
-      <el-table-column label="分" min-width="45" align="center" v-if="isColVisible('score')">
+      <el-table-column label="分" width="60" align="center" v-if="isColVisible('score')">
         <template #default="{ row }">
           <span :style="{ color: scoreColor(row.score), fontWeight: 600 }">{{ row.score }}</span>
         </template>
       </el-table-column>
-      <el-table-column label="安装文件" min-width="180" show-overflow-tooltip v-if="isColVisible('files')">
+      <el-table-column label="安装文件" width="260" show-overflow-tooltip v-if="isColVisible('files')">
         <template #default="{ row }">
           <div class="install-files">
             <span v-if="row.filePreName" class="file-tag" :class="{previewable: fileType(row.filePreName)!=='doc'}" @click="previewFile(row.filePreId, row.filePreName)"><b>前</b>{{ row.filePreName }}</span>
@@ -47,12 +47,12 @@
           </div>
         </template>
       </el-table-column>
-      <el-table-column label="客户" min-width="100" show-overflow-tooltip v-if="isColVisible('customer')">
+      <el-table-column label="客户" width="140" show-overflow-tooltip v-if="isColVisible('customer')">
         <template #default="{ row }">
           <span class="customer-link">{{ row.customerName || '—' }}</span>
         </template>
       </el-table-column>
-      <el-table-column label="共享" min-width="66" align="center" v-if="isColVisible('shared')">
+      <el-table-column label="共享" width="80" align="center" v-if="isColVisible('shared')">
         <template #default="{ row }">
           <el-switch
             v-if="isRecordOwner(row)"
@@ -63,17 +63,17 @@
           <span v-else :class="row.shared ? 'shared-yes' : 'shared-no'">{{ row.shared ? '● 共享' : '—' }}</span>
         </template>
       </el-table-column>
-      <el-table-column label="上传日期" min-width="90" v-if="isColVisible('createdAt')">
+      <el-table-column label="上传日期" width="110" v-if="isColVisible('createdAt')">
         <template #default="{ row }">{{ formatDate(row.createdAt) }}</template>
       </el-table-column>
-      <el-table-column prop="userName" label="上传人" min-width="65" v-if="isColVisible('uploader')" />
-      <el-table-column label="修改人" min-width="65" v-if="isColVisible('updater')">
+      <el-table-column prop="userName" label="上传人" width="90" v-if="isColVisible('uploader')" />
+      <el-table-column label="修改人" width="90" v-if="isColVisible('updater')">
         <template #default="{ row }">{{ row.updatedByName || '—' }}</template>
       </el-table-column>
-      <el-table-column label="修改时间" min-width="90" v-if="isColVisible('updatedAt')">
+      <el-table-column label="修改时间" width="120" v-if="isColVisible('updatedAt')">
         <template #default="{ row }">{{ row.updatedByName ? formatDate(row.updatedAt) : '—' }}</template>
       </el-table-column>
-      <el-table-column label="操作" width="110" fixed="right" align="center">
+      <el-table-column label="操作" width="120" fixed="right" align="center">
         <template #default="{ row }">
           <el-button v-if="userStore.isAdmin() || canEdit || row.userId === userStore.userId" link type="primary" size="small" @click="startReplace(row)">追加</el-button>
           <el-button v-if="userStore.isAdmin() || canDelete || row.userId === userStore.userId" link type="danger" size="small" @click="handleDeleteRecord(row)">删除</el-button>
