@@ -22,13 +22,13 @@
     </div>
     <div ref="tableWrapRef" class="table-wrap">
     <el-table ref="tableRef" :data="pagedRecords" stripe style="width:100%" :height="tableHeight" empty-text="暂无已上传文件" size="small" @row-click="startReplace" :row-style="{cursor:'pointer'}">
-      <el-table-column label="大类·子类" width="130" show-overflow-tooltip v-if="isColVisible('cat')">
+      <el-table-column label="大类·子类" min-width="130" show-overflow-tooltip v-if="isColVisible('cat')">
         <template #default="{ row }">{{ row.majorMinor }}</template>
       </el-table-column>
-      <el-table-column prop="industry" label="行业" width="80" v-if="isColVisible('industry')">
+      <el-table-column prop="industry" label="行业" min-width="80" v-if="isColVisible('industry')">
         <template #default="{ row }">{{ row.industry || '—' }}</template>
       </el-table-column>
-      <el-table-column prop="relatedProducts" label="相关产品" width="110" show-overflow-tooltip v-if="isColVisible('relatedProducts')">
+      <el-table-column prop="relatedProducts" label="相关产品" min-width="110" show-overflow-tooltip v-if="isColVisible('relatedProducts')">
         <template #default="{ row }">{{ row.relatedProducts || '—' }}</template>
       </el-table-column>
       <el-table-column label="分" width="40" align="center" v-if="isColVisible('score')">
@@ -36,7 +36,7 @@
           <span :style="{ color: scoreColor(row.score), fontWeight: 600 }">{{ row.score }}</span>
         </template>
       </el-table-column>
-      <el-table-column label="安装文件" min-width="170" class-name="col-files" show-overflow-tooltip v-if="isColVisible('files')">
+      <el-table-column label="安装文件" width="200" class-name="col-files" show-overflow-tooltip v-if="isColVisible('files')">
         <template #default="{ row }">
           <div class="install-files">
             <span v-if="row.filePreName" class="file-tag" :class="{previewable: fileType(row.filePreName)!=='doc'}" @click="previewFile(row.filePreId, row.filePreName)"><b>前</b>{{ row.filePreName }}</span>
@@ -48,7 +48,7 @@
           </div>
         </template>
       </el-table-column>
-      <el-table-column label="客户" width="110" show-overflow-tooltip v-if="isColVisible('customer')">
+      <el-table-column label="客户" min-width="110" show-overflow-tooltip v-if="isColVisible('customer')">
         <template #default="{ row }">
           <span class="customer-link">{{ row.customerName || '—' }}</span>
         </template>
@@ -71,7 +71,7 @@
       <el-table-column label="修改人" width="80" v-if="isColVisible('updater')">
         <template #default="{ row }">{{ row.updatedByName || '—' }}</template>
       </el-table-column>
-      <el-table-column label="修改时间" width="90" v-if="isColVisible('updatedAt')">
+      <el-table-column label="修改时间" min-width="90" v-if="isColVisible('updatedAt')">
         <template #default="{ row }">{{ row.updatedByName ? formatDate(row.updatedAt) : '—' }}</template>
       </el-table-column>
       <el-table-column label="操作" width="110" fixed="right" align="center">
@@ -169,7 +169,9 @@ onBeforeUnmount(() => {
 .right-panel .el-table { height:100% }
 /* 安装文件列: 允许换行展示文件名(默认 el-table 单元格 nowrap 截断) */
 .right-panel :deep(.col-files .cell) { white-space: normal; word-break: break-all; line-height: 1.5 }
-.install-files { display:flex; flex-wrap:wrap; gap:3px 6px }
+.install-files { display:flex; flex-wrap:wrap; gap:3px 4px }
+.install-files .file-tag { display:inline-flex; align-items:center; gap:3px; max-width:100%; padding:1px 6px; background:#f2f4f7; border-radius:4px; font-size:12px; color:#606266; line-height:1.5 }
+.install-files .file-tag b { font-size:11px; font-weight:600; color:#409eff }
 .hscroll-bar { padding: 4px 2px 0 }.hscroll-bar input[type=range] { width:100%; height:10px; -webkit-appearance:none; appearance:none; background:#e4e7ed; border-radius:5px; outline:none; cursor:pointer }.hscroll-bar input[type=range]::-webkit-slider-thumb { -webkit-appearance:none; appearance:none; width:60px; height:10px; border-radius:5px; background:#909399; cursor:grab }.hscroll-bar input[type=range]::-webkit-slider-thumb:hover { background:#409eff }.hscroll-bar input[type=range]::-moz-range-thumb { width:60px; height:10px; border:none; border-radius:5px; background:#909399; cursor:grab }
 .list-footer { display:flex; align-items:center; justify-content:space-between; padding:10px 2px 0; margin-top:8px; border-top:1px solid #f0f2f5 }
 .list-footer-left { display:flex; align-items:center; gap:10px }
