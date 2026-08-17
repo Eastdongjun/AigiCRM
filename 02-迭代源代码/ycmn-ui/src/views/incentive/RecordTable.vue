@@ -20,7 +20,7 @@
         </div>
       </el-popover>
     </div>
-    <el-table :data="pagedRecords" stripe style="width:100%" empty-text="暂无已上传文件" size="small" @row-click="startReplace" :row-style="{cursor:'pointer'}">
+    <el-table ref="tableRef" :data="pagedRecords" stripe style="width:100%" empty-text="暂无已上传文件" size="small" @row-click="startReplace" :row-style="{cursor:'pointer'}">
       <el-table-column label="大类·子类" width="150" show-overflow-tooltip v-if="isColVisible('cat')">
         <template #default="{ row }">{{ row.majorMinor }}</template>
       </el-table-column>
@@ -80,6 +80,10 @@
         </template>
       </el-table-column>
     </el-table>
+    <!-- 自定义横向滚动条(表格外部, 与 el-table 内部滚动双向同步) -->
+    <div v-show="hscrollMax > 0" class="hscroll-bar">
+      <input type="range" :min="0" :max="hscrollMax" :value="hscrollVal" @input="onHScrollInput" />
+    </div>
     <div class="list-footer">
       <div class="list-footer-left">
       <span class="list-footer-count">共 <b>{{ filteredRecords.length }}</b> 条</span>
@@ -91,7 +95,7 @@
 
 <script setup>
 import { injectIncentiveUpload } from '@/composables/useIncentiveUpload'
-import { onMounted } from 'vue'
+import { onMounted, onBeforeUnmount, ref, watch, nextTick } from 'vue'
 import { Setting } from '@element-plus/icons-vue'
 
 const {
@@ -105,6 +109,36 @@ const {
 // 【2026-08-17 修复】必须在解构之后调用: 此前写在解构前触发 TDZ ReferenceError,
 // 组件 setup 直接崩溃 → 右侧表格整个不渲染(用户"看不到数据")
 onMounted(loadColumnPref)
+
+// ===== 表格外部横向滚动条(与 el-table 内部滚动同步) =====
+const tableRef = ref(null)
+const hscrollMax = ref(0)
+const hscrollVal = ref(0)
+let wrapEl = null
+
+const syncHScroll = () => {
+  wrapEl = tableRef.value?.$el?.querySelector('.el-scrollbar__wrap') || null
+  if (!wrapEl) return
+  hscrollMax.value = Math.max(0, wrapEl.scrollWidth - wrapEl.clientWidth)
+  hscrollVal.value = wrapEl.scrollLeft
+}
+const onHScrollInput = (e) => {
+  if (wrapEl) wrapEl.scrollLeft = Number(e.target.value)
+}
+const onWrapScroll = () => {
+  if (wrapEl) hscrollVal.value = wrapEl.scrollLeft
+}
+onMounted(() => {
+  nextTick(() => {
+    syncHScroll()
+    wrapEl?.addEventListener('scroll', onWrapScroll)
+    // 列设置显隐变化后列宽变化, 重新计算滚动范围
+    watch(() => hiddenCols.value.size, () => nextTick(syncHScroll))
+  })
+})
+onBeforeUnmount(() => {
+  wrapEl?.removeEventListener('scroll', onWrapScroll)
+})
 </script>
 
 <style scoped>
@@ -113,6 +147,7 @@ onMounted(loadColumnPref)
 .right-panel { flex:1; background:#fff; padding:14px 18px; display:flex; flex-direction:column; min-height:0 }
 .table-toolbar { display:flex; justify-content:flex-end; align-items:center; padding-bottom:8px }
 .right-panel .el-table { flex:1; min-height:0 }
+.hscroll-bar { padding: 4px 2px 0 }.hscroll-bar input[type=range] { width:100%; height:10px; -webkit-appearance:none; appearance:none; background:#e4e7ed; border-radius:5px; outline:none; cursor:pointer }.hscroll-bar input[type=range]::-webkit-slider-thumb { -webkit-appearance:none; appearance:none; width:60px; height:10px; border-radius:5px; background:#909399; cursor:grab }.hscroll-bar input[type=range]::-webkit-slider-thumb:hover { background:#409eff }.hscroll-bar input[type=range]::-moz-range-thumb { width:60px; height:10px; border:none; border-radius:5px; background:#909399; cursor:grab }
 .list-footer { display:flex; align-items:center; justify-content:space-between; padding:10px 2px 0; margin-top:8px; border-top:1px solid #f0f2f5 }
 .list-footer-left { display:flex; align-items:center; gap:10px }
 .col-setting-list { display:grid; grid-template-columns:repeat(2,1fr); gap:8px 12px }
