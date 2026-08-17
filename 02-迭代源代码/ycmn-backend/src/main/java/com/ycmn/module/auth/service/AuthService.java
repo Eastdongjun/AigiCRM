@@ -355,11 +355,38 @@ public class AuthService {
         // 使 JwtAuthFilter 的 pwd_changed_at 撤销校验覆盖本路径(此前仅 Redis 撤销, fail-open + TTL 到期后旧 token 复活)。
         // 截断到秒: 防 MySQL DATETIME(0) 四舍五入进位, 同秒签发 token 被误判早于改密(SysUserService 同因)
         user.setPwdChangedAt(java.time.LocalDateTime.now().truncatedTo(java.time.temporal.ChronoUnit.SECONDS));
+        // 【修复 2026-08-17】用户已在本流程设置新密码, 清除首登强制改密标记(此前重置后登录又被强制改密一次)
+        user.setPwdResetRequired(0);
         userMapper.updateById(user);
         // 【修复 2026-08-10 P2-13】忘记密码重置后旧 token 立即失效
         jwtTokenProvider.markPasswordChanged(user.getId());
         redisTemplate.delete(codeKey);
         redisTemplate.delete(errorKey);
+        // 【修复 2026-08-17 生产实测】清除登录失败锁定(与管理员重置同口径):
+        // 用户忘密码输错 5 次触发 15 分钟锁定后, 经忘记密码流程重置, 登录仍被锁拒绝
+        clearLoginFails(request.getUsername());
+    }
+
+    /**
+     * 清除某用户的登录失败锁定计数（改密/重置后应立即可登录）
+     *
+     * 【需求】配合忘记密码重置: 消除"重置后仍被 15 分钟锁定拒绝"的体验断点
+     * 【方法】Redis keys 匹配 login_fail:{任意IP}:{username} 并批量删除（键量极小且有 TTL）
+     * 【业务规则】只清用户级失败计数; IP 级 20 次防爆破计数保留
+     * 【参数】username 用户名（锁定键以用户名结尾）
+     * 【返回】无
+     * 【注意】Redis 异常时仅告警不影响重置主流程
+     */
+    private void clearLoginFails(String username) {
+        try {
+            java.util.Set<String> failKeys = redisTemplate.keys("login_fail:*:" + username);
+            if (failKeys != null && !failKeys.isEmpty()) {
+                redisTemplate.delete(failKeys);
+                log.info("已清除登录失败锁定: username={}, keys={}", username, failKeys.size());
+            }
+        } catch (Exception e) {
+            log.warn("清除登录失败锁定失败(不影响重置主流程): username={}, {}", username, e.getMessage());
+        }
     }
 
     private SysUser findActiveUser(String username) {
