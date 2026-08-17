@@ -28,15 +28,15 @@
       <el-table-column prop="industry" label="行业" width="80" v-if="isColVisible('industry')">
         <template #default="{ row }">{{ row.industry || '—' }}</template>
       </el-table-column>
-      <el-table-column prop="relatedProducts" label="相关产品" min-width="130" show-overflow-tooltip v-if="isColVisible('relatedProducts')">
+      <el-table-column prop="relatedProducts" label="相关产品" width="110" show-overflow-tooltip v-if="isColVisible('relatedProducts')">
         <template #default="{ row }">{{ row.relatedProducts || '—' }}</template>
       </el-table-column>
-      <el-table-column label="分" width="50" align="center" v-if="isColVisible('score')">
+      <el-table-column label="分" width="40" align="center" v-if="isColVisible('score')">
         <template #default="{ row }">
           <span :style="{ color: scoreColor(row.score), fontWeight: 600 }">{{ row.score }}</span>
         </template>
       </el-table-column>
-      <el-table-column label="安装文件" width="190" show-overflow-tooltip v-if="isColVisible('files')">
+      <el-table-column label="安装文件" min-width="170" show-overflow-tooltip v-if="isColVisible('files')">
         <template #default="{ row }">
           <div class="install-files">
             <span v-if="row.filePreName" class="file-tag" :class="{previewable: fileType(row.filePreName)!=='doc'}" @click="previewFile(row.filePreId, row.filePreName)"><b>前</b>{{ row.filePreName }}</span>
@@ -48,7 +48,7 @@
           </div>
         </template>
       </el-table-column>
-      <el-table-column label="客户" min-width="120" show-overflow-tooltip v-if="isColVisible('customer')">
+      <el-table-column label="客户" width="110" show-overflow-tooltip v-if="isColVisible('customer')">
         <template #default="{ row }">
           <span class="customer-link">{{ row.customerName || '—' }}</span>
         </template>
@@ -71,7 +71,7 @@
       <el-table-column label="修改人" width="80" v-if="isColVisible('updater')">
         <template #default="{ row }">{{ row.updatedByName || '—' }}</template>
       </el-table-column>
-      <el-table-column label="修改时间" min-width="100" v-if="isColVisible('updatedAt')">
+      <el-table-column label="修改时间" width="90" v-if="isColVisible('updatedAt')">
         <template #default="{ row }">{{ row.updatedByName ? formatDate(row.updatedAt) : '—' }}</template>
       </el-table-column>
       <el-table-column label="操作" width="110" fixed="right" align="center">
