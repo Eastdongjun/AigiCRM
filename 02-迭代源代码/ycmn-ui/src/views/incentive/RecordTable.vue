@@ -61,21 +61,26 @@
         </template>
       </el-table-column>
     </el-table>
-    <!-- 列设置弹窗: 勾选要显示的列, 按人保存到服务器 -->
-    <el-dialog v-model="colSettingVisible" title="列设置" width="360px" append-to-body>
-      <div class="col-setting-list">
-        <el-checkbox v-for="c in colDraft" :key="c.key" v-model="c.checked">{{ c.label }}</el-checkbox>
-      </div>
-      <template #footer>
-        <el-button size="small" @click="resetColDraft">恢复默认</el-button>
-        <el-button size="small" @click="colSettingVisible = false">取消</el-button>
-        <el-button size="small" type="primary" @click="saveColSetting">确定</el-button>
-      </template>
-    </el-dialog>
     <div class="list-footer">
       <div class="list-footer-left">
       <span class="list-footer-count">共 <b>{{ filteredRecords.length }}</b> 条</span>
-      <el-button link size="small" @click="openColSetting"><el-icon><Setting /></el-icon> 列设置</el-button>
+      <el-popover v-model:visible="colSettingVisible" placement="bottom-end" :width="290" trigger="click" popper-class="col-setting-pop">
+        <template #reference>
+          <el-button link size="small" @click="openColSetting"><el-icon><Setting /></el-icon> 列设置</el-button>
+        </template>
+        <div class="col-setting-panel">
+          <div class="col-setting-title">
+            <span>显示列</span>
+            <el-link type="primary" :underline="false" @click="resetCols">恢复默认</el-link>
+          </div>
+          <div class="col-setting-grid">
+            <label v-for="d in colDraft" :key="d.key" class="col-item" :class="{ off: !d.checked }">
+              <input type="checkbox" :checked="d.checked" @change="onToggleCol(d)" />
+              <span>{{ d.label }}</span>
+            </label>
+          </div>
+        </div>
+      </el-popover>
     </div>
       <el-pagination v-model:current-page="pageNum" v-model:page-size="pageSize" :page-sizes="[30, 50, 100]" :total="filteredRecords.length" layout="total, sizes, prev, pager, next" size="small" background @size-change="pageNum = 1" />
     </div>
@@ -90,7 +95,7 @@ import { Setting } from '@element-plus/icons-vue'
 const {
   userStore, pagedRecords, filteredRecords, pageNum, pageSize,
   COLUMN_DEFS, hiddenCols, colSettingVisible, colDraft, isColVisible,
-  loadColumnPref, openColSetting, saveColSetting, resetColDraft,
+  loadColumnPref, openColSetting, onToggleCol, resetCols,
   canEdit, canDelete, scoreColor, formatDate, fileType, previewFile,
   startReplace, toggleShare, handleDeleteRecord, isRecordOwner,
 } = injectIncentiveUpload()
@@ -108,6 +113,13 @@ onMounted(loadColumnPref)
 .list-footer { display:flex; align-items:center; justify-content:space-between; padding:10px 2px 0; margin-top:8px; border-top:1px solid #f0f2f5 }
 .list-footer-left { display:flex; align-items:center; gap:10px }
 .col-setting-list { display:grid; grid-template-columns:repeat(2,1fr); gap:8px 12px }
+.col-setting-panel { padding: 2px 0 }
+.col-setting-title { display:flex; justify-content:space-between; align-items:center; padding: 2px 14px 10px; font-size:13px; color:#606266; font-weight:600 }
+.col-setting-grid { display:grid; grid-template-columns:1fr 1fr; row-gap:2px; column-gap:10px; padding: 0 14px 10px }
+.col-item { display:flex; align-items:center; gap:7px; font-size:13px; color:#303133; padding:6px 8px; border-radius:6px; cursor:pointer; user-select:none; transition:background .15s }
+.col-item:hover { background:#f5f7fa }
+.col-item.off { color:#c0c4cc }
+.col-item input { accent-color:#409eff; width:14px; height:14px; cursor:pointer; margin:0 }
 .list-footer-count { font-size:13px; color:#606266 }
 .list-footer-count b { color:#409eff; font-weight:700; margin:0 2px }
 .file-cell { display: inline-flex; align-items: center; gap: 4px; }

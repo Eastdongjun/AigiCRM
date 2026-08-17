@@ -85,17 +85,32 @@ export function useIncentiveUpload() {
     colSettingVisible.value = true
   }
 
-  const saveColSetting = async () => {
-    const shown = colDraft.value.filter(d => d.checked).map(d => d.key)
-    hiddenCols.value = new Set(COLUMN_DEFS.filter(d => !d.checked).map(d => d.key))
-    colSettingVisible.value = false
-    try { localStorage.setItem('incentive-record-cols', JSON.stringify(shown)) } catch (e) {}
-    try { await saveUserColumnPrefs('incentive-record', shown) } catch (e) { /* 服务器失败已由本地缓存兜底 */ }
-    ElMessage.success('列设置已保存')
+  // 应用 draft 到表格列显隐(立即生效, 无需点确定)
+  const applyCols = () => {
+    hiddenCols.value = new Set(colDraft.value.filter(d => !d.checked).map(d => d.key))
   }
 
-  const resetColDraft = () => {
+  // 防抖自动保存(勾选即生效即保存, 无确定/取消步骤; 服务器失败由 localStorage 兜底)
+  let saveTimer = null
+  const scheduleSaveCols = () => {
+    if (saveTimer) clearTimeout(saveTimer)
+    saveTimer = setTimeout(async () => {
+      const shown = colDraft.value.filter(d => d.checked).map(d => d.key)
+      try { localStorage.setItem('incentive-record-cols', JSON.stringify(shown)) } catch (e) {}
+      try { await saveUserColumnPrefs('incentive-record', shown) } catch (e) { /* 降级本地 */ }
+    }, 800)
+  }
+
+  const onToggleCol = (d) => {
+    d.checked = !d.checked
+    applyCols()
+    scheduleSaveCols()
+  }
+
+  const resetCols = () => {
     colDraft.value = COLUMN_DEFS.map(d => ({ ...d, checked: true }))
+    applyCols()
+    scheduleSaveCols()
   }
 
   // ===== 安装文件预览 =====
@@ -739,7 +754,7 @@ export function useIncentiveUpload() {
     periodOptions, selectedPeriod, categories, records, canEdit, canDelete,
     pageNum, pageSize, pagedRecords, filteredRecords,
     COLUMN_DEFS, hiddenCols, colSettingVisible, colDraft, isColVisible,
-    loadColumnPref, openColSetting, saveColSetting, resetColDraft,
+    loadColumnPref, openColSetting, applyCols, onToggleCol, resetCols,
     previewVisible, previewUrl, previewType, previewName, fileUrl,
     parseFids, splitNames, fileType, previewFile, previewCardFile,
     searchText, filterCustomer, filterGroup, filterTier, filterGroupOptions, filterTierOptions,

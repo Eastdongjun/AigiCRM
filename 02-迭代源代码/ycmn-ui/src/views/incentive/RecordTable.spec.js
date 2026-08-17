@@ -1,6 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { nextTick } from 'vue'
+vi.mock('@/api/system', () => ({
+  getUserColumnPrefs: vi.fn().mockResolvedValue({ code: 200, data: null }),
+  saveUserColumnPrefs: vi.fn().mockResolvedValue({ code: 200 }),
+}))
 import RecordTable from '@/views/incentive/RecordTable.vue'
 import { IncentiveUploadKey } from '@/composables/useIncentiveUpload'
 
@@ -27,8 +31,8 @@ function makeCtx() {
     isColVisible: () => true,
     loadColumnPref: vi.fn().mockResolvedValue(undefined),
     openColSetting: vi.fn(),
-    saveColSetting: vi.fn(),
-    resetColDraft: vi.fn(),
+    onToggleCol: vi.fn(),
+    resetCols: vi.fn(),
     canEdit: false,
     canDelete: false,
     scoreColor: () => '#333',
@@ -56,8 +60,8 @@ describe('RecordTable 渲染冒烟（防 TDZ 崩溃回归）', () => {
           'el-table': { template: '<div class="el-table"><slot /></div>' },
           'el-table-column': true,
           'el-pagination': true,
-          'el-dialog': { template: '<div class="el-dialog"><slot /><slot name="footer" /></div>' },
-          'el-checkbox': true,
+          'el-popover': { template: '<div class="popover"><slot name="reference" /><slot /></div>' },
+          'el-link': { template: '<a><slot /></a>' },
           'el-button': { template: '<button><slot /></button>' },
           'el-icon': { template: '<i><slot /></i>' },
           'el-switch': true,
@@ -71,6 +75,31 @@ describe('RecordTable 渲染冒烟（防 TDZ 崩溃回归）', () => {
     expect(ctx.loadColumnPref).toHaveBeenCalledTimes(1)
     // 列设置按钮渲染
     expect(wrapper.text()).toContain('列设置')
+    wrapper.unmount()
+  })
+
+  it('勾选列设置后表格立即生效(applyCols 同步更新 hiddenCols)', async () => {
+    const ctx = makeCtx()
+    const wrapper = mount(RecordTable, {
+      global: {
+        provide: { [IncentiveUploadKey]: ctx },
+        stubs: {
+          'el-table': { template: '<div class="el-table"><slot /></div>' },
+          'el-table-column': true,
+          'el-pagination': true,
+          'el-popover': { template: '<div class="popover"><slot name="reference" /><slot /></div>' },
+          'el-button': { template: '<button><slot /></button>' },
+          'el-icon': { template: '<i><slot /></i>' },
+          'el-link': { template: '<a><slot /></a>' },
+          'el-switch': true,
+          Document: true,
+          Setting: true,
+        },
+      },
+    })
+    await nextTick()
+    expect(wrapper.text()).toContain('列设置')
+    expect(wrapper.text()).toContain('恢复默认')
     wrapper.unmount()
   })
 
