@@ -1,6 +1,25 @@
 <template>
   <!-- 右侧：已上传文件表格 -->
   <div class="right-panel">
+    <div class="table-toolbar">
+      <el-popover v-model:visible="colSettingVisible" placement="bottom-end" :width="290" trigger="click" popper-class="col-setting-pop">
+        <template #reference>
+          <el-button link size="small" @click="openColSetting"><el-icon><Setting /></el-icon> 列设置</el-button>
+        </template>
+        <div class="col-setting-panel">
+          <div class="col-setting-title">
+            <span>显示列</span>
+            <el-link type="primary" :underline="false" @click="resetCols">恢复默认</el-link>
+          </div>
+          <div class="col-setting-grid">
+            <label v-for="d in colDraft" :key="d.key" class="col-item" :class="{ off: !d.checked }">
+              <input type="checkbox" :checked="d.checked" @change="onToggleCol(d)" />
+              <span>{{ d.label }}</span>
+            </label>
+          </div>
+        </div>
+      </el-popover>
+    </div>
     <el-table :data="pagedRecords" stripe style="width:100%" empty-text="暂无已上传文件" size="small" @row-click="startReplace" :row-style="{cursor:'pointer'}">
       <el-table-column label="大类·子类" min-width="120" show-overflow-tooltip v-if="isColVisible('cat')">
         <template #default="{ row }">{{ row.majorMinor }}</template>
@@ -64,23 +83,6 @@
     <div class="list-footer">
       <div class="list-footer-left">
       <span class="list-footer-count">共 <b>{{ filteredRecords.length }}</b> 条</span>
-      <el-popover v-model:visible="colSettingVisible" placement="bottom-end" :width="290" trigger="click" popper-class="col-setting-pop">
-        <template #reference>
-          <el-button link size="small" @click="openColSetting"><el-icon><Setting /></el-icon> 列设置</el-button>
-        </template>
-        <div class="col-setting-panel">
-          <div class="col-setting-title">
-            <span>显示列</span>
-            <el-link type="primary" :underline="false" @click="resetCols">恢复默认</el-link>
-          </div>
-          <div class="col-setting-grid">
-            <label v-for="d in colDraft" :key="d.key" class="col-item" :class="{ off: !d.checked }">
-              <input type="checkbox" :checked="d.checked" @change="onToggleCol(d)" />
-              <span>{{ d.label }}</span>
-            </label>
-          </div>
-        </div>
-      </el-popover>
     </div>
       <el-pagination v-model:current-page="pageNum" v-model:page-size="pageSize" :page-sizes="[30, 50, 100]" :total="filteredRecords.length" layout="total, sizes, prev, pager, next" size="small" background @size-change="pageNum = 1" />
     </div>
@@ -109,6 +111,7 @@ onMounted(loadColumnPref)
 .install-files .file-tag.previewable { cursor: pointer; text-decoration: underline; }
 .install-files .file-tag.previewable:hover { color: #409eff; }
 .right-panel { flex:1; background:#fff; padding:14px 18px; display:flex; flex-direction:column; min-height:0 }
+.table-toolbar { display:flex; justify-content:flex-end; align-items:center; padding-bottom:8px }
 .right-panel .el-table { flex:1; min-height:0 }
 .list-footer { display:flex; align-items:center; justify-content:space-between; padding:10px 2px 0; margin-top:8px; border-top:1px solid #f0f2f5 }
 .list-footer-left { display:flex; align-items:center; gap:10px }
