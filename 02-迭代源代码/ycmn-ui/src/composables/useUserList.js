@@ -280,10 +280,29 @@ export function useUserList() {
       await ElMessageBox.confirm(`确定重置 ${row.realName} 的密码？将生成随机临时密码并要求首登改密。`, '提示')
       const res = await resetPassword(row.id)
       // 【2026-08-14 安全 P0】临时密码随机生成，展示一次供转交
+      const tempPwd = res.data || ''
+      // 【2026-08-17 生产反馈】"复制并转交"按钮此前只是关闭弹窗、并无复制逻辑——
+      // 改为重置成功后自动复制临时密码到剪贴板(HTTPS 下 navigator.clipboard, 失败降级 execCommand)
+      let copied = false
+      try {
+        await navigator.clipboard.writeText(tempPwd)
+        copied = true
+      } catch (e1) {
+        try {
+          const ta = document.createElement('textarea')
+          ta.value = tempPwd
+          ta.style.position = 'fixed'
+          ta.style.opacity = '0'
+          document.body.appendChild(ta)
+          ta.select()
+          copied = document.execCommand('copy')
+          document.body.removeChild(ta)
+        } catch (e2) { /* 两路都失败则仅展示, 用户手动复制 */ }
+      }
       await ElMessageBox.alert(
-        `临时密码：${res.data || ''}（首次登录必须修改）`,
+        `临时密码：${tempPwd}（首次登录必须修改）${copied ? '\n✅ 已自动复制到剪贴板，可直接粘贴' : ''}`,
         '密码已重置',
-        { confirmButtonText: '复制并转交' }
+        { confirmButtonText: '关闭' }
       )
     } catch (e) {}
   }
