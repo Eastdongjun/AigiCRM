@@ -30,7 +30,7 @@ function makeCtx() {
     colDraft: [],
     isColVisible: () => true,
     loadColumnPref: vi.fn().mockResolvedValue(undefined),
-    openColSetting: vi.fn(),
+    initColDraft: vi.fn(),
     onToggleCol: vi.fn(),
     resetCols: vi.fn(),
     canEdit: false,

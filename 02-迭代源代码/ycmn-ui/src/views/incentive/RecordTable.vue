@@ -2,9 +2,9 @@
   <!-- 右侧：已上传文件表格 -->
   <div class="right-panel">
     <div class="table-toolbar">
-      <el-popover v-model:visible="colSettingVisible" placement="bottom-end" :width="290" trigger="click" popper-class="col-setting-pop">
+      <el-popover v-model:visible="colSettingVisible" placement="bottom-end" :width="290" trigger="click" popper-class="col-setting-pop" @show="initColDraft">
         <template #reference>
-          <el-button link size="small" @click="openColSetting"><el-icon><Setting /></el-icon> 列设置</el-button>
+          <el-button link size="small"><el-icon><Setting /></el-icon> 列设置</el-button>
         </template>
         <div class="col-setting-panel">
           <div class="col-setting-title">
@@ -97,7 +97,7 @@ import { Setting } from '@element-plus/icons-vue'
 const {
   userStore, pagedRecords, filteredRecords, pageNum, pageSize,
   COLUMN_DEFS, hiddenCols, colSettingVisible, colDraft, isColVisible,
-  loadColumnPref, openColSetting, onToggleCol, resetCols,
+  loadColumnPref, initColDraft, onToggleCol, resetCols,
   canEdit, canDelete, scoreColor, formatDate, fileType, previewFile,
   startReplace, toggleShare, handleDeleteRecord, isRecordOwner,
 } = injectIncentiveUpload()

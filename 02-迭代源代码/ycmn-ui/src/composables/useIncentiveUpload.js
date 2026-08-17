@@ -80,9 +80,10 @@ export function useIncentiveUpload() {
     } catch (e) { /* 本地缓存损坏忽略 */ }
   }
 
-  const openColSetting = () => {
+  // 弹窗打开时同步 draft(由 popover @show 触发, 不手动改 visible——
+  // 【2026-08-17 修复】此前按钮 @click 里改 visible 与 trigger=click 自动 toggle 冲突, 面板闪现即关)
+  const initColDraft = () => {
     colDraft.value = COLUMN_DEFS.map(d => ({ ...d, checked: !hiddenCols.value.has(d.key) }))
-    colSettingVisible.value = true
   }
 
   // 应用 draft 到表格列显隐(立即生效, 无需点确定)
@@ -754,7 +755,7 @@ export function useIncentiveUpload() {
     periodOptions, selectedPeriod, categories, records, canEdit, canDelete,
     pageNum, pageSize, pagedRecords, filteredRecords,
     COLUMN_DEFS, hiddenCols, colSettingVisible, colDraft, isColVisible,
-    loadColumnPref, openColSetting, applyCols, onToggleCol, resetCols,
+    loadColumnPref, initColDraft, applyCols, onToggleCol, resetCols,
     previewVisible, previewUrl, previewType, previewName, fileUrl,
     parseFids, splitNames, fileType, previewFile, previewCardFile,
     searchText, filterCustomer, filterGroup, filterTier, filterGroupOptions, filterTierOptions,
