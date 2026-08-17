@@ -454,6 +454,7 @@ export function useIncentiveUpload() {
     }
     loadSharedCustomerIds()  // 异步加载分享标记，下次可见
     showCustomerDialog.value = true
+    refreshDownloadToken() // 预热下载token, 追加弹窗中原文件缩略图(fileUrl)就绪后自动重渲染
   }
 
   const searchCustomers = async (query) => {
@@ -479,6 +480,7 @@ export function useIncentiveUpload() {
 
   // ---- 文件槽管理 ----
   const isImage = (name) => /\.(jpg|jpeg|png|gif|webp|bmp)$/i.test(name || '')
+  const isVideo = (name) => /\.(mp4|mov|avi|webm)$/i.test(name || '')
   // 【需求】文件预览 blob URL 缓存:模板渲染时若每次 createObjectURL 会反复创建大 blob 且不释放,
   // 导致上传后 UI 重渲染卡顿/内存泄漏(FEAT 0804 性能修复)。改为首次创建缓存,移除时 revoke。
   const getObjectURL = (file) => {
@@ -696,7 +698,7 @@ export function useIncentiveUpload() {
     resetDialogFields, startUpload, handleDeleteRecord, toggleShare, startReplace,
     canToggleShare, isRecordOwner,
     searchCustomers, loadSharedCustomerIds,
-    isImage, getObjectURL, removeSlotFile, pickFile, pickTrackFile, handleFileSelected,
+    isImage, isVideo, getObjectURL, removeSlotFile, pickFile, pickTrackFile, handleFileSelected,
     uploadOne, confirmUpload,
   }
 }

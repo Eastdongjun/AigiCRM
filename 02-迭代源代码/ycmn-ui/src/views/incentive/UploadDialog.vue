@@ -65,7 +65,8 @@
         </div>
         <div class="file-slot-cards">
           <div v-for="(file, idx) in installFiles.pre" :key="idx" class="file-card has" @click.stop="previewCardFile(file)">
-            <img v-if="!file._existing && isImage(file.name)" :src="getObjectURL(file)" class="file-card-img" />
+            <img v-if="isImage(file.name)" :src="file._existing ? fileUrl(file.id) : getObjectURL(file)" class="file-card-img" />
+            <video v-else-if="isVideo(file.name)" :src="file._existing ? fileUrl(file.id) : getObjectURL(file)" muted preload="metadata" class="file-card-img"></video>
             <div v-else class="file-card-icon"><el-icon :size="file._existing?20:24"><Document /></el-icon></div>
             <span v-if="fileType(file.name) === 'video'" class="file-card-play"><el-icon><VideoPlay /></el-icon></span>
             <span class="file-card-del" @click.stop="removeSlotFile('pre', idx)"><el-icon><Close /></el-icon></span>
@@ -93,7 +94,8 @@
             </div>
             <div class="file-slot-cards">
               <div v-for="(file, idx) in installFiles[slot.key]" :key="idx" class="file-card has" @click.stop="previewCardFile(file)">
-                <img v-if="!file._existing && isImage(file.name)" :src="getObjectURL(file)" class="file-card-img" />
+                <img v-if="isImage(file.name)" :src="file._existing ? fileUrl(file.id) : getObjectURL(file)" class="file-card-img" />
+                <video v-else-if="isVideo(file.name)" :src="file._existing ? fileUrl(file.id) : getObjectURL(file)" muted preload="metadata" class="file-card-img"></video>
                 <div v-else class="file-card-icon">
                   <el-icon :size="file._existing?20:24"><Document /></el-icon>
                 </div>
@@ -118,7 +120,8 @@
         </div>
         <div class="file-slot-cards">
           <div v-for="(file, idx) in trackFile" :key="idx" class="file-card has" @click.stop="previewCardFile(file)">
-            <img v-if="!file._existing && isImage(file.name)" :src="getObjectURL(file)" class="file-card-img" />
+            <img v-if="isImage(file.name)" :src="file._existing ? fileUrl(file.id) : getObjectURL(file)" class="file-card-img" />
+            <video v-else-if="isVideo(file.name)" :src="file._existing ? fileUrl(file.id) : getObjectURL(file)" muted preload="metadata" class="file-card-img"></video>
             <div v-else class="file-card-icon"><el-icon :size="20"><Document /></el-icon></div>
             <span v-if="fileType(file.name) === 'video'" class="file-card-play"><el-icon><VideoPlay /></el-icon></span>
             <span class="file-card-del" @click.stop="removeSlotFile('track', idx)"><el-icon><Close /></el-icon></span>
@@ -191,7 +194,7 @@ const {
   selectedIndustry, industryOptions, relatedCat, relatedSub, productCatKeys, productCats,
   categoryCodeOf, specificProduct,
   secTitle, detailLabel, isSingleSlot, preInstallQuestion, isTrial, remarkLabel, remarkText,
-  slotLabel, MAX_FILES, installFiles, isImage, fileType, getObjectURL, removeSlotFile, pickFile, previewCardFile,
+  slotLabel, MAX_FILES, installFiles, isImage, isVideo, fileType, getObjectURL, removeSlotFile, pickFile, previewCardFile, fileUrl,
   previewVisible, previewUrl, previewType, previewName,
   fileSlots, trackFile, pickTrackFile,
   shareToTeam, uploading, totalNewFiles, uploadProgress, uploadProgressText, canSubmit, confirmUpload,
