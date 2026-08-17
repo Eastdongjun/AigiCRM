@@ -131,3 +131,48 @@ describe('RecordTable 渲染冒烟（防 TDZ 崩溃回归）', () => {
     wrapper.unmount()
   })
 })
+
+import ElementPlus from 'element-plus'
+
+  it('操作列设置(勾选/恢复默认)后按钮仍然渲染(防按钮消失回归)', async () => {
+    const ctx = makeCtx()
+    ctx.initColDraft = vi.fn(() => {
+      ctx.colDraft.splice(0, ctx.colDraft.length, ...ctx.COLUMN_DEFS.map(d => ({ ...d, checked: true })))
+    })
+    ctx.onToggleCol = vi.fn((d) => {
+      d.checked = !d.checked
+      ctx.hiddenCols = new Set(ctx.colDraft.filter(x => !x.checked).map(x => x.key))
+    })
+    ctx.resetCols = vi.fn(() => {
+      ctx.colDraft.forEach(d => { d.checked = true })
+      ctx.hiddenCols = new Set()
+    })
+    const wrapper = mount(RecordTable, {
+      global: {
+        provide: { [IncentiveUploadKey]: ctx },
+        stubs: {
+          'el-table': { template: '<div class="el-table"><slot /></div>' },
+          'el-table-column': true,
+          'el-pagination': true,
+          'el-popover': { template: '<div class="popover"><slot name="reference" /><slot /></div>' },
+          'el-button': { template: '<button><slot /></button>' },
+          'el-icon': { template: '<i><slot /></i>' },
+          'el-link': { template: '<a><slot /></a>' },
+          'el-switch': true,
+          Document: true,
+          Setting: true,
+        },
+      },
+    })
+    await nextTick()
+    expect(wrapper.text()).toContain('列设置')
+    // 模拟勾选一列(隐藏)与恢复默认, 按钮与工具栏不应受列显隐影响
+    const d = { key: 'cat', label: '大类·子类', checked: true }
+    ctx.onToggleCol(d)
+    await nextTick()
+    expect(wrapper.text()).toContain('列设置')
+    ctx.resetCols()
+    await nextTick()
+    expect(wrapper.text()).toContain('列设置')
+    wrapper.unmount()
+  })

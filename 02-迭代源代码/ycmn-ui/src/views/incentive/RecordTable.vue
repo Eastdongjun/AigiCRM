@@ -9,7 +9,7 @@
         <div class="col-setting-panel">
           <div class="col-setting-title">
             <span>显示列</span>
-            <el-link type="primary" :underline="false" @click="resetCols">恢复默认</el-link>
+            <el-link type="primary" underline="never" @click="resetCols">恢复默认</el-link>
           </div>
           <div class="col-setting-grid">
             <label v-for="d in colDraft" :key="d.key" class="col-item" :class="{ off: !d.checked }">
@@ -116,13 +116,6 @@ onMounted(loadColumnPref)
 .list-footer { display:flex; align-items:center; justify-content:space-between; padding:10px 2px 0; margin-top:8px; border-top:1px solid #f0f2f5 }
 .list-footer-left { display:flex; align-items:center; gap:10px }
 .col-setting-list { display:grid; grid-template-columns:repeat(2,1fr); gap:8px 12px }
-.col-setting-panel { padding: 2px 0 }
-.col-setting-title { display:flex; justify-content:space-between; align-items:center; padding: 2px 14px 10px; font-size:13px; color:#606266; font-weight:600 }
-.col-setting-grid { display:grid; grid-template-columns:1fr 1fr; row-gap:2px; column-gap:10px; padding: 0 14px 10px }
-.col-item { display:flex; align-items:center; gap:7px; font-size:13px; color:#303133; padding:6px 8px; border-radius:6px; cursor:pointer; user-select:none; transition:background .15s }
-.col-item:hover { background:#f5f7fa }
-.col-item.off { color:#c0c4cc }
-.col-item input { accent-color:#409eff; width:14px; height:14px; cursor:pointer; margin:0 }
 .list-footer-count { font-size:13px; color:#606266 }
 .list-footer-count b { color:#409eff; font-weight:700; margin:0 2px }
 .file-cell { display: inline-flex; align-items: center; gap: 4px; }
@@ -131,4 +124,15 @@ onMounted(loadColumnPref)
 .customer-link:hover { text-decoration: underline; }
 .shared-yes { color: #67c23a; font-size: 12px; font-weight: 500; }
 .shared-no { color: #c0c4cc; }
+</style>
+
+<style>
+/* 列设置 popper 面板(挂 body 下, scoped 样式不生效, 必须全局) */
+.col-setting-pop .col-setting-panel { padding: 2px 0 }
+.col-setting-pop .col-setting-title { display:flex; justify-content:space-between; align-items:center; padding: 2px 14px 10px; font-size:13px; color:#606266; font-weight:600 }
+.col-setting-pop .col-setting-grid { display:grid; grid-template-columns:1fr 1fr; row-gap:2px; column-gap:10px; padding: 0 14px 10px }
+.col-setting-pop .col-item { display:flex; align-items:center; gap:7px; font-size:13px; color:#303133; padding:6px 8px; border-radius:6px; cursor:pointer; user-select:none; transition:background .15s }
+.col-setting-pop .col-item:hover { background:#f5f7fa }
+.col-setting-pop .col-item.off { color:#c0c4cc }
+.col-setting-pop .col-item input { accent-color:#409eff; width:14px; height:14px; cursor:pointer; margin:0 }
 </style>
