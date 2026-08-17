@@ -28,7 +28,7 @@
       <el-table-column prop="industry" label="行业" width="90" v-if="isColVisible('industry')">
         <template #default="{ row }">{{ row.industry || '—' }}</template>
       </el-table-column>
-      <el-table-column prop="relatedProducts" label="相关产品" width="150" show-overflow-tooltip v-if="isColVisible('relatedProducts')">
+      <el-table-column prop="relatedProducts" label="相关产品" min-width="150" show-overflow-tooltip v-if="isColVisible('relatedProducts')">
         <template #default="{ row }">{{ row.relatedProducts || '—' }}</template>
       </el-table-column>
       <el-table-column label="分" width="60" align="center" v-if="isColVisible('score')">
@@ -48,7 +48,7 @@
           </div>
         </template>
       </el-table-column>
-      <el-table-column label="客户" width="140" show-overflow-tooltip v-if="isColVisible('customer')">
+      <el-table-column label="客户" min-width="140" show-overflow-tooltip v-if="isColVisible('customer')">
         <template #default="{ row }">
           <span class="customer-link">{{ row.customerName || '—' }}</span>
         </template>
@@ -71,7 +71,7 @@
       <el-table-column label="修改人" width="90" v-if="isColVisible('updater')">
         <template #default="{ row }">{{ row.updatedByName || '—' }}</template>
       </el-table-column>
-      <el-table-column label="修改时间" width="120" v-if="isColVisible('updatedAt')">
+      <el-table-column label="修改时间" min-width="120" v-if="isColVisible('updatedAt')">
         <template #default="{ row }">{{ row.updatedByName ? formatDate(row.updatedAt) : '—' }}</template>
       </el-table-column>
       <el-table-column label="操作" width="120" fixed="right" align="center">
