@@ -86,7 +86,6 @@
 import { injectIncentiveUpload } from '@/composables/useIncentiveUpload'
 import { onMounted } from 'vue'
 import { Setting } from '@element-plus/icons-vue'
-onMounted(loadColumnPref)
 
 const {
   userStore, pagedRecords, filteredRecords, pageNum, pageSize,
@@ -95,6 +94,10 @@ const {
   canEdit, canDelete, scoreColor, formatDate, fileType, previewFile,
   startReplace, toggleShare, handleDeleteRecord, isRecordOwner,
 } = injectIncentiveUpload()
+
+// 【2026-08-17 修复】必须在解构之后调用: 此前写在解构前触发 TDZ ReferenceError,
+// 组件 setup 直接崩溃 → 右侧表格整个不渲染(用户"看不到数据")
+onMounted(loadColumnPref)
 </script>
 
 <style scoped>
