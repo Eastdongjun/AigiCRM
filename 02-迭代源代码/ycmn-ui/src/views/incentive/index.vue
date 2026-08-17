@@ -71,7 +71,7 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.incentive-page { padding: 0; height: calc(100vh - 80px); display: flex; flex-direction: column; gap: 10px }
+.incentive-page { padding: 0; height: calc(100vh - 40px); display: flex; flex-direction: column; gap: 10px }
 
 /* Cat Tabs */
 .cat-tabs-bar { flex-shrink:0 }

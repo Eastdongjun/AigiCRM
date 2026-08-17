@@ -20,7 +20,8 @@
         </div>
       </el-popover>
     </div>
-    <el-table ref="tableRef" :data="pagedRecords" stripe style="width:100%" empty-text="暂无已上传文件" size="small" @row-click="startReplace" :row-style="{cursor:'pointer'}">
+    <div ref="tableWrapRef" class="table-wrap">
+    <el-table ref="tableRef" :data="pagedRecords" stripe style="width:100%" :height="tableHeight" empty-text="暂无已上传文件" size="small" @row-click="startReplace" :row-style="{cursor:'pointer'}">
       <el-table-column label="大类·子类" width="150" show-overflow-tooltip v-if="isColVisible('cat')">
         <template #default="{ row }">{{ row.majorMinor }}</template>
       </el-table-column>
@@ -80,6 +81,7 @@
         </template>
       </el-table-column>
     </el-table>
+    </div>
     <!-- 自定义横向滚动条(表格外部, 与 el-table 内部滚动双向同步) -->
     <div v-show="hscrollMax > 0" class="hscroll-bar">
       <input type="range" :min="0" :max="hscrollMax" :value="hscrollVal" @input="onHScrollInput" />
@@ -112,6 +114,17 @@ onMounted(loadColumnPref)
 
 // ===== 表格外部横向滚动条(与 el-table 内部滚动同步) =====
 const tableRef = ref(null)
+const tableWrapRef = ref(null)
+const tableHeight = ref(400)
+let resizeObserver = null
+
+// 表格高度: 动态计算可用高度, 保证表格体撑满面板、分页与滚动条不被裁切
+const updateTableHeight = () => {
+  if (tableWrapRef.value) {
+    tableHeight.value = Math.max(200, tableWrapRef.value.clientHeight)
+    syncHScroll()
+  }
+}
 const hscrollMax = ref(0)
 const hscrollVal = ref(0)
 let wrapEl = null
@@ -130,14 +143,20 @@ const onWrapScroll = () => {
 }
 onMounted(() => {
   nextTick(() => {
+    updateTableHeight()
     syncHScroll()
     wrapEl?.addEventListener('scroll', onWrapScroll)
+    if (tableWrapRef.value) {
+      resizeObserver = new ResizeObserver(updateTableHeight)
+      resizeObserver.observe(tableWrapRef.value)
+    }
     // 列设置显隐变化后列宽变化, 重新计算滚动范围
-    watch(() => hiddenCols.value.size, () => nextTick(syncHScroll))
+    watch(() => hiddenCols.value.size, () => nextTick(() => { updateTableHeight(); syncHScroll() }))
   })
 })
 onBeforeUnmount(() => {
   wrapEl?.removeEventListener('scroll', onWrapScroll)
+  resizeObserver?.disconnect()
 })
 </script>
 
@@ -146,7 +165,8 @@ onBeforeUnmount(() => {
 .install-files .file-tag.previewable:hover { color: #409eff; }
 .right-panel { flex:1; background:#fff; padding:14px 18px; display:flex; flex-direction:column; min-height:0 }
 .table-toolbar { display:flex; justify-content:flex-end; align-items:center; padding-bottom:8px }
-.right-panel .el-table { flex:1; min-height:0 }
+.table-wrap { flex:1; min-height:0 }
+.right-panel .el-table { height:100% }
 .hscroll-bar { padding: 4px 2px 0 }.hscroll-bar input[type=range] { width:100%; height:10px; -webkit-appearance:none; appearance:none; background:#e4e7ed; border-radius:5px; outline:none; cursor:pointer }.hscroll-bar input[type=range]::-webkit-slider-thumb { -webkit-appearance:none; appearance:none; width:60px; height:10px; border-radius:5px; background:#909399; cursor:grab }.hscroll-bar input[type=range]::-webkit-slider-thumb:hover { background:#409eff }.hscroll-bar input[type=range]::-moz-range-thumb { width:60px; height:10px; border:none; border-radius:5px; background:#909399; cursor:grab }
 .list-footer { display:flex; align-items:center; justify-content:space-between; padding:10px 2px 0; margin-top:8px; border-top:1px solid #f0f2f5 }
 .list-footer-left { display:flex; align-items:center; gap:10px }
