@@ -384,8 +384,13 @@ public class IncentiveService {
             }
         }
 
-        // 审计：记录最后修改人（updated_at 由 DB ON UPDATE 自动维护）
+        // 审计：记录最后修改人 + 显式刷新修改时间
+        // 【2026-08-17 生产 bug 修复】此前依赖 DB ON UPDATE CURRENT_TIMESTAMP 刷新 updated_at，
+        // 但 updateById 会把 selectById 查出的旧 updatedAt 值一并写回 SET 子句(实体无 fill 注解)，
+        // 旧值覆盖导致 ON UPDATE 不触发——生产全部记录 updated_at 恒等于 created_at。
+        // 显式写 now() 保证"最后修改时间"真实反映编辑时刻。
         existing.setUpdatedBy(SecurityUtils.getCurrentUserId());
+        existing.setUpdatedAt(java.time.LocalDateTime.now());
 
         BizIncentiveCategory category = categoryMapper.selectById(existing.getCategoryId());
         int base = (category != null && category.getScore() != null) ? category.getScore() : 0;
