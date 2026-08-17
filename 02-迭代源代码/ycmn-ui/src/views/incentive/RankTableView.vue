@@ -45,7 +45,7 @@
         <template #default="{ row }"><span class="num-cell">{{ row.recordCount || 0 }}</span></template>
       </el-table-column>
     </el-table>
-    <el-pagination v-if="scoreboard.length > pageSize" v-model:current-page="pageNum" :page-size="pageSize" :total="scoreboard.length" layout="prev, pager, next" size="small" background style="justify-content:flex-end;margin-top:12px" />
+    <el-pagination v-if="scoreboard.length > pageSize" v-model:current-page="pageNum" v-model:page-size="pageSize" :page-sizes="[30, 50, 100]" :total="scoreboard.length" layout="total, sizes, prev, pager, next" size="small" background style="justify-content:flex-end;margin-top:12px" @size-change="pageNum = 1" />
   </div>
 </template>
 

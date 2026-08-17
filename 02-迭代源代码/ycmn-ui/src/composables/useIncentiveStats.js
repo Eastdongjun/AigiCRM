@@ -28,7 +28,7 @@ export function useIncentiveStats() {
   const deptList = ref([])
   // 个人排行矩阵分页（前端切片）
   const pageNum = ref(1)
-  const pageSize = ref(15)
+  const pageSize = ref(30)
   const pagedScoreboard = computed(() => scoreboard.value.slice((pageNum.value - 1) * pageSize.value, pageNum.value * pageSize.value))
   const periodOptions = (() => {
     const list = []

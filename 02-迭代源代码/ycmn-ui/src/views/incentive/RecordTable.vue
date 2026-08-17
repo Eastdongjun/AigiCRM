@@ -63,7 +63,7 @@
     </el-table>
     <div class="list-footer">
       <span class="list-footer-count">共 <b>{{ filteredRecords.length }}</b> 条</span>
-      <el-pagination v-model:current-page="pageNum" :page-size="pageSize" :total="filteredRecords.length" layout="prev, pager, next" size="small" background />
+      <el-pagination v-model:current-page="pageNum" v-model:page-size="pageSize" :page-sizes="[30, 50, 100]" :total="filteredRecords.length" layout="total, sizes, prev, pager, next" size="small" background @size-change="pageNum = 1" />
     </div>
   </div>
 </template>

@@ -95,7 +95,7 @@
     </div>
     <div v-if="custs.length > pageSize" class="search-pager">
       <span class="search-pager-count">共 <b>{{ custs.length }}</b> 个客户</span>
-      <el-pagination v-model:current-page="pageNum" :page-size="pageSize" :total="custs.length" layout="prev, pager, next" size="small" background />
+      <el-pagination v-model:current-page="pageNum" v-model:page-size="pageSize" :page-sizes="[30, 50, 100]" :total="custs.length" layout="total, sizes, prev, pager, next" size="small" background @size-change="pageNum = 1" />
     </div>
 
     <!-- 预览弹窗：支持图片和视频 -->
@@ -209,7 +209,7 @@ const custs=ref([]),catMap=ref({}),previewVisible=ref(false),previewUrl=ref(''),
 const loading=ref(false)
 // 客户卡片网格分页（前端切片）
 const pageNum = ref(1)
-const pageSize = ref(8)
+const pageSize = ref(30)
 const pagedCusts = computed(() => paginate(custs.value, pageNum.value, pageSize.value))
 const detailVisible=ref(false),detailCust=ref(null)
 const industries=['冶金','煤矿','化工','电力','有色金属','机械','工程公司','维修厂','其他终端客户']

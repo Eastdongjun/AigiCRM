@@ -86,7 +86,7 @@
           </template>
         </el-table-column>
       </el-table>
-      <el-pagination v-if="personalList.length > pageSize" v-model:current-page="pageNum" :page-size="pageSize" :total="personalList.length" layout="prev, pager, next" size="small" background style="justify-content:flex-end;margin-top:12px" />
+      <el-pagination v-if="personalList.length > pageSize" v-model:current-page="pageNum" v-model:page-size="pageSize" :page-sizes="[30, 50, 100]" :total="personalList.length" layout="total, sizes, prev, pager, next" size="small" background style="justify-content:flex-end;margin-top:12px" @size-change="pageNum = 1" />
       <div class="rank-footer">
         <span class="footer-note">同分时按文件数排序，文件数相同则按姓名排序</span>
         <span class="footer-time">最近更新：{{ new Date().toLocaleString() }}</span>
@@ -118,7 +118,7 @@
           <template #default="{ row }">{{ row.avgScore }}分</template>
         </el-table-column>
       </el-table>
-      <el-pagination v-if="deptList.length > pageSize" v-model:current-page="pageNum" :page-size="pageSize" :total="deptList.length" layout="prev, pager, next" size="small" background style="justify-content:flex-end;margin-top:12px" />
+      <el-pagination v-if="deptList.length > pageSize" v-model:current-page="pageNum" v-model:page-size="pageSize" :page-sizes="[30, 50, 100]" :total="deptList.length" layout="total, sizes, prev, pager, next" size="small" background style="justify-content:flex-end;margin-top:12px" @size-change="pageNum = 1" />
     </div>
 
     <!-- 学分规则弹窗 -->
@@ -143,7 +143,7 @@ const deptList = ref([])
 const stats = ref({})
 // 排行分页（前端切片）
 const pageNum = ref(1)
-const pageSize = ref(15)
+const pageSize = ref(30)
 const pagedPersonal = computed(() => personalList.value.slice((pageNum.value - 1) * pageSize.value, pageNum.value * pageSize.value))
 const pagedDept = computed(() => deptList.value.slice((pageNum.value - 1) * pageSize.value, pageNum.value * pageSize.value))
 const showRules = ref(false)

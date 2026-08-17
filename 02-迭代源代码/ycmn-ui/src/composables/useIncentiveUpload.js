@@ -39,7 +39,7 @@ export function useIncentiveUpload() {
   const canDelete = ref(false)
   // 右侧文件列表分页（前端切片）
   const pageNum = ref(1)
-  const pageSize = ref(10)
+  const pageSize = ref(30)
 
   // ===== 安装文件预览 =====
   const previewVisible = ref(false), previewUrl = ref(''), previewType = ref('image'), previewName = ref('')
