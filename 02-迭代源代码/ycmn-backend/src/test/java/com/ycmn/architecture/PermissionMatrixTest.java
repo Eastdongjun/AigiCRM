@@ -71,6 +71,7 @@ public class PermissionMatrixTest {
             "AuthController.forgotPasswordSendCode",
             "AuthController.forgotPasswordReset",
             "SysUserController.changePassword",
+            "SysUserColumnPrefController.save", // 自服务端点: 仅保存本人表格列偏好(取当前登录人)
             "IncentiveController.updateRecord",
             "IncentiveController.deleteRecord",
             "SeaController.deletePool", // 2026-08-10 池级权限: 删除权限在 SeaService 内按池判定, 角色码 sea:pool:delete 不作硬门

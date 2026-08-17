@@ -8,7 +8,7 @@ import { confirmAction } from '@/utils/confirm'
 import { Box, Location, ChatDotSquare, Document } from '@element-plus/icons-vue'
 import { getCategoryTree, getRecords, addRecord, deleteRecord, updateRecord, checkIncentivePermission } from '@/api/incentive'
 import { getCustomerList } from '@/api/customer'
-import { getDictData } from '@/api/system'
+import { getDictData, getUserColumnPrefs, saveUserColumnPrefs } from '@/api/system'
 import { useUserStore } from '@/store/user'
 import request from '@/utils/request'
 import { getDownloadToken, refreshDownloadToken } from '@/utils/token'
@@ -40,6 +40,63 @@ export function useIncentiveUpload() {
   // 右侧文件列表分页（前端切片）
   const pageNum = ref(1)
   const pageSize = ref(30)
+
+  // ===== 列设置(按人记服务器) =====
+  // 列定义: 操作列固定不参与配置; 服务端存"显示列 key 列表", 前端转"隐藏集合"便于 v-if 判断
+  const COLUMN_DEFS = [
+    { key: 'cat', label: '大类·子类', default: true },
+    { key: 'industry', label: '行业', default: true },
+    { key: 'relatedProducts', label: '相关产品', default: true },
+    { key: 'score', label: '分', default: true },
+    { key: 'files', label: '安装文件', default: true },
+    { key: 'customer', label: '客户', default: true },
+    { key: 'shared', label: '共享', default: true },
+    { key: 'createdAt', label: '上传日期', default: true },
+    { key: 'uploader', label: '上传人', default: true },
+    { key: 'updater', label: '修改人', default: true },
+    { key: 'updatedAt', label: '修改时间', default: true },
+  ]
+  const hiddenCols = ref(new Set())
+  const colSettingVisible = ref(false)
+  const colDraft = ref([])
+  const isColVisible = (key) => !hiddenCols.value.has(key)
+
+  const loadColumnPref = async () => {
+    // 优先服务器偏好(按人, 跨浏览器), 失败/无记录回退 localStorage, 再退默认全显
+    try {
+      const res = await getUserColumnPrefs('incentive-record')
+      if (res && res.code === 200 && Array.isArray(res.data)) {
+        const shown = new Set(res.data)
+        hiddenCols.value = new Set(COLUMN_DEFS.filter(d => !shown.has(d.key)).map(d => d.key))
+        return
+      }
+    } catch (e) { /* 网络异常降级 localStorage */ }
+    try {
+      const ls = localStorage.getItem('incentive-record-cols')
+      if (ls) {
+        const shown = new Set(JSON.parse(ls))
+        hiddenCols.value = new Set(COLUMN_DEFS.filter(d => !shown.has(d.key)).map(d => d.key))
+      }
+    } catch (e) { /* 本地缓存损坏忽略 */ }
+  }
+
+  const openColSetting = () => {
+    colDraft.value = COLUMN_DEFS.map(d => ({ ...d, checked: !hiddenCols.value.has(d.key) }))
+    colSettingVisible.value = true
+  }
+
+  const saveColSetting = async () => {
+    const shown = colDraft.value.filter(d => d.checked).map(d => d.key)
+    hiddenCols.value = new Set(COLUMN_DEFS.filter(d => !d.checked).map(d => d.key))
+    colSettingVisible.value = false
+    try { localStorage.setItem('incentive-record-cols', JSON.stringify(shown)) } catch (e) {}
+    try { await saveUserColumnPrefs('incentive-record', shown) } catch (e) { /* 服务器失败已由本地缓存兜底 */ }
+    ElMessage.success('列设置已保存')
+  }
+
+  const resetColDraft = () => {
+    colDraft.value = COLUMN_DEFS.map(d => ({ ...d, checked: true }))
+  }
 
   // ===== 安装文件预览 =====
   const previewVisible = ref(false), previewUrl = ref(''), previewType = ref('image'), previewName = ref('')
@@ -681,6 +738,8 @@ export function useIncentiveUpload() {
     userStore, activeTab, selectedUser, userList, selectedDeptId, deptTree,
     periodOptions, selectedPeriod, categories, records, canEdit, canDelete,
     pageNum, pageSize, pagedRecords, filteredRecords,
+    COLUMN_DEFS, hiddenCols, colSettingVisible, colDraft, isColVisible,
+    loadColumnPref, openColSetting, saveColSetting, resetColDraft,
     previewVisible, previewUrl, previewType, previewName, fileUrl,
     parseFids, splitNames, fileType, previewFile, previewCardFile,
     searchText, filterCustomer, filterGroup, filterTier, filterGroupOptions, filterTierOptions,

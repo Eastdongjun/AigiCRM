@@ -201,3 +201,11 @@ export function getAssigneePermScopes(type, key) {
 export function updateAssigneePermScopes(type, key, configs) {
   return request.put(`/system/perm-scopes/assignee/${type}/${key}`, configs)
 }
+
+// 用户表格列偏好（按人记服务器）
+export function getUserColumnPrefs(pageKey) {
+  return request.get(`/system/user-column-prefs/${pageKey}`)
+}
+export function saveUserColumnPrefs(pageKey, columns) {
+  return request.put('/system/user-column-prefs', { pageKey, columns })
+}
