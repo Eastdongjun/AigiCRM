@@ -236,23 +236,40 @@ const loadStats = async () => {
 const handleApprove = async (row) => {
   try {
     await ElMessageBox.confirm('确定通过此审批？', '审批确认')
+  } catch (e) {
+    return // 用户取消确认
+  }
+  try {
     await approve(row.id, { comment: '同意' })
     ElMessage.success('审批通过')
     loadData()
     loadStats()
     userStore.refreshBadges()
-  } catch (e) {}
+  } catch (e) {
+    // 【2026-08-17 修复】此前接口失败被静默吞掉, 审批人以为批了实际未成功
+    const msg = e?.response?.data?.message || e?.message || '审批操作失败'
+    ElMessage.error('审批失败: ' + msg)
+  }
 }
 
 const handleReject = async (row) => {
+  let value
   try {
-    const { value } = await ElMessageBox.prompt('请输入驳回原因', '驳回', { inputPlaceholder: '驳回原因' })
+    const r = await ElMessageBox.prompt('请输入驳回原因', '驳回', { inputPlaceholder: '驳回原因' })
+    value = r.value
+  } catch (e) {
+    return // 用户取消
+  }
+  try {
     await reject(row.id, { comment: value })
     ElMessage.success('已驳回')
     loadData()
     loadStats()
     userStore.refreshBadges()
-  } catch (e) {}
+  } catch (e) {
+    const msg = e?.response?.data?.message || e?.message || '驳回操作失败'
+    ElMessage.error('驳回失败: ' + msg)
+  }
 }
 
 const getTypeText = (type) => {
