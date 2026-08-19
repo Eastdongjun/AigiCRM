@@ -21,7 +21,7 @@
       </el-popover>
     </div>
     <div ref="tableWrapRef" class="table-wrap">
-    <el-table ref="tableRef" :data="pagedRecords" stripe :style="{ width: tablePixelWidth + 'px' }" :height="tableHeight" empty-text="暂无已上传文件" size="small" @row-click="startReplace" :row-style="{cursor:'pointer'}">
+    <el-table ref="tableRef" :data="pagedRecords" stripe style="width:100%" :height="tableHeight" :fit="false" empty-text="暂无已上传文件" size="small" @row-click="startReplace" :row-style="{cursor:'pointer'}">
       <el-table-column label="大类·子类" width="150" show-overflow-tooltip v-if="isColVisible('cat')">
         <template #default="{ row }">{{ row.majorMinor }}</template>
       </el-table-column>
@@ -116,7 +116,6 @@ onMounted(loadColumnPref)
 const tableRef = ref(null)
 const tableWrapRef = ref(null)
 const tableHeight = ref(400)
-const tablePixelWidth = ref(1400) // 表格最小宽度: 保证列全宽渲染+溢出滚动; 宽屏跟随容器
 let resizeObserver = null
 
 // 表格高度: 动态计算可用高度, 保证表格体撑满面板、分页与滚动条不被裁切
@@ -124,7 +123,6 @@ const updateTableHeight = () => {
   if (tableWrapRef.value) {
     tableHeight.value = Math.max(200, tableWrapRef.value.clientHeight)
     // 表格宽度取 max(容器宽, 1400): 窄屏溢出出滚动条, 宽屏填满不滚动
-    tablePixelWidth.value = Math.max(1400, tableWrapRef.value.clientWidth)
     syncHScroll()
   }
 }
@@ -133,9 +131,7 @@ const hscrollVal = ref(0)
 let wrapEl = null
 
 const findWrap = () =>
-  tableRef.value?.$el?.querySelector('.el-scrollbar__wrap')
-  || tableRef.value?.$el?.querySelector('.el-table__body-wrapper')
-  || null
+  tableRef.value?.$el?.querySelector('.el-table__body-wrapper .el-scrollbar__wrap') || null
 let hscrollRetry = 0
 const syncHScroll = () => {
   wrapEl = findWrap()
@@ -176,9 +172,9 @@ onBeforeUnmount(() => {
 <style scoped>
 .install-files .file-tag.previewable { cursor: pointer; text-decoration: underline; }
 .install-files .file-tag.previewable:hover { color: #409eff; }
-.right-panel { flex:1; background:#fff; padding:14px 18px; display:flex; flex-direction:column; min-height:0 }
+.right-panel { flex:1; min-width:0; background:#fff; padding:14px 18px; display:flex; flex-direction:column; min-height:0 }
 .table-toolbar { display:flex; justify-content:flex-end; align-items:center; padding-bottom:8px }
-.table-wrap { flex:1; min-height:0 }
+.table-wrap { flex:1; min-width:0; min-height:0; overflow-x:auto; overflow-y:hidden }
 .right-panel .el-table { height:100% }
 /* 安装文件列: 允许换行展示文件名(默认 el-table 单元格 nowrap 截断) */
 .right-panel :deep(.col-files .cell) { white-space: normal; word-break: break-all; line-height: 1.5 }
