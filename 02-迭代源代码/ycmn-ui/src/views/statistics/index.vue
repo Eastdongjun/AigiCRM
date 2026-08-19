@@ -281,7 +281,7 @@ onMounted(loadAll)
 </script>
 
 <style scoped>
-.statistics-page { height: calc(100vh - 80px); display: flex; flex-direction: column; gap: 10px; overflow-y: auto }
+.statistics-page { height: calc(100vh - 40px); display: flex; flex-direction: column; gap: 10px; overflow-y: auto }
 .section-box { background: #fff; border: 1px solid #e4e7ed; border-radius: 10px; padding: 14px 20px; flex-shrink: 0 }
 
 /* 顶部 */

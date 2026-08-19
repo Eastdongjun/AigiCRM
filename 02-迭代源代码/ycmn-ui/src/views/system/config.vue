@@ -66,7 +66,7 @@ const userStore = useUserStore()
 
 
 <style scoped>
-.config-page { height: calc(100vh - 80px); display: flex; flex-direction: column }
+.config-page { height: calc(100vh - 40px); display: flex; flex-direction: column }
 .section-box { background: #fff; border: 1px solid #e4e7ed; border-radius: 10px; padding: 16px; flex: 1; overflow: hidden; display: flex; flex-direction: column }
 /* 左侧导航布局（2026-08-08 重构） */
 .section-box :deep(.el-tabs) { flex: 1; display: flex; flex-direction: row; overflow: hidden }

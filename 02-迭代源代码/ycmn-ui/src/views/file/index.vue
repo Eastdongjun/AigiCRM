@@ -86,7 +86,7 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.file-manage { height: calc(100vh - 80px); display: flex; flex-direction: column; gap: 10px }
+.file-manage { height: calc(100vh - 40px); display: flex; flex-direction: column; gap: 10px }
 .section-box { background: #fff; border: 1px solid #e4e7ed; border-radius: 10px; padding: 14px 20px; flex-shrink: 0 }
 .section-box.table-box { flex: 1; padding: 0; display: flex; flex-direction: column; overflow: hidden }
 .stat-item { display: flex; align-items: center; gap: 12px }
@@ -131,7 +131,7 @@ onMounted(() => {
 /* 内容区 */
 .content-body {
   display: flex;
-  min-height: calc(100vh - 200px);
+  min-height: calc(100vh - 160px);
 }
 .divider {
   width: 1px;

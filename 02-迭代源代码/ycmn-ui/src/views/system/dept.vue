@@ -269,7 +269,7 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.dept-manage { height: calc(100vh - 80px); display: flex; flex-direction: column; gap: 10px }
+.dept-manage { height: calc(100vh - 40px); display: flex; flex-direction: column; gap: 10px }
 .section-box { background: #fff; border: 1px solid #e4e7ed; border-radius: 10px; padding: 16px 20px; flex-shrink: 0 }
 .section-box.table-box { flex: 1; padding: 0; display: flex; flex-direction: column; overflow: hidden }
 .section-box.table-box > div:first-child { flex: 1; overflow: auto; padding: 4px 0 }

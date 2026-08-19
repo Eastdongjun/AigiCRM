@@ -38,5 +38,5 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.user-manage { height: calc(100vh - 80px); display: flex; flex-direction: column; gap: 10px }
+.user-manage { height: calc(100vh - 40px); display: flex; flex-direction: column; gap: 10px }
 </style>

@@ -179,7 +179,7 @@ onMounted(loadData)
 </script>
 
 <style scoped>
-.score-ranking { min-height: calc(100vh - 100px); display: flex; flex-direction: column; }
+.score-ranking { min-height: calc(100vh - 40px); display: flex; flex-direction: column; }
 
 /* 顶部卡片 */
 .header-card {

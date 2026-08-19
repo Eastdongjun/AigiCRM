@@ -166,7 +166,7 @@ onMounted(() => { loadDicts(); loadGrid() })
 </script>
 
 <style scoped>
-.score-entry { height:calc(100vh - 100px); display:flex; flex-direction:column }
+.score-entry { height:calc(100vh - 40px); display:flex; flex-direction:column }
 
 .se-head { display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; flex-shrink:0 }
 .se-head-left { display:flex; align-items:center; gap:16px }

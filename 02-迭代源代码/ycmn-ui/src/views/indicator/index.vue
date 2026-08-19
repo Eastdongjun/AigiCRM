@@ -153,7 +153,7 @@ onMounted(loadData)
 </script>
 
 <style scoped>
-.indicator-page { min-height: calc(100vh - 100px); display: flex; flex-direction: column; }
+.indicator-page { min-height: calc(100vh - 40px); display: flex; flex-direction: column; }
 .page-title { font-size: 18px; font-weight: 600; color: #333; margin: 0 0 12px; }
 
 /* Tab */

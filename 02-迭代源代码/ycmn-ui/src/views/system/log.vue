@@ -190,7 +190,7 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
-.log-page { height: calc(100vh - 100px); display: flex; flex-direction: column; }
+.log-page { height: calc(100vh - 40px); display: flex; flex-direction: column; }
 .page-header { margin-bottom: 12px; }
 .page-header h2 { font-size: 18px; font-weight: 600; color: #333; margin: 0 0 4px; }
 .page-desc { font-size: 13px; color: #86909c; margin: 0; }

@@ -68,3 +68,16 @@ html, body, #app {
 }
 .app-confirm .el-message-box__btns .el-button--danger { background: #f56c6c; border-color: #f56c6c; }
 .app-confirm .el-message-box__btns .el-button--danger:hover { background: #f78989; border-color: #f78989; }
+
+/* ===== 全局弹窗小屏适配(2026-08-17 响应式方案1) =====
+   固定像素宽的弹窗在 1280/1366 低分辨率或 768 高屏会超出屏幕;
+   统一限高 90vh + body 滚动 + 垂直偏移 5vh, 弹窗永远在屏幕内可点到底部按钮 */
+.el-dialog {
+  max-height: 90vh;
+  margin: 5vh auto 5vh !important;
+  display: flex;
+  flex-direction: column;
+}
+.el-dialog .el-dialog__body {
+  overflow-y: auto;
+}
