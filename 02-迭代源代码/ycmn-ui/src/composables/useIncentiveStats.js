@@ -19,7 +19,7 @@ export function injectIncentiveStats() {
 export function useIncentiveStats() {
   const userStore = useUserStore()
   const loading = ref(false)
-  const period = ref('2026上半年')
+  const period = ref('2026全年') // 【需求变更】周期改为年度，默认 2026 全年
   const activeTab = ref('table')
   const records = ref([])            // 个人记录(当前登录人) — 仅供顶部卡片
   const catStat = ref({ byCategory: [], totalFiles: 0, totalScore: 0 })  // 全员聚合 — 供激励统计表
@@ -32,7 +32,8 @@ export function useIncentiveStats() {
   const pagedScoreboard = computed(() => scoreboard.value.slice((pageNum.value - 1) * pageSize.value, pageNum.value * pageSize.value))
   const periodOptions = (() => {
     const list = []
-    for (let y = 2030; y >= 2025; y--) { list.push(y + '下半年', y + '上半年') }
+    // 【需求变更】周期由半年度改为年度："YYYY全年"
+    for (let y = 2030; y >= 2025; y--) { list.push(y + '全年') }
     return list
   })()
   const catColors = ['cat-blue', 'cat-orange', 'cat-red', 'cat-yellow']

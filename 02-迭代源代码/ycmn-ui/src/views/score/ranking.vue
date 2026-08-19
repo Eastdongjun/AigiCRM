@@ -123,7 +123,7 @@
 
     <!-- 学分规则弹窗 -->
     <el-dialog v-model="showRules" title="学分规则" width="500px">
-      <p>1. 每半年对所有同事进行产品知识评分</p>
+      <p>1. 每年对所有同事进行产品知识评分</p>
       <p>2. 每项评分不超出该行设定的区间范围</p>
       <p>3. 总学分 = 所有评分项得分之和</p>
       <p>4. 排名按总学分降序，同分按评分项数降序</p>
@@ -136,7 +136,8 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { getScoreRanking, getScoreRankingStats } from '@/api/score'
 
 const activeTab = ref('personal')
-const periodOptions = (() => { const l = []; for (let y = 2030; y >= 2025; y--) { l.push(y + '下半年', y + '上半年') } return l })()
+// 【需求变更】周期由半年度改为年度："YYYY全年"
+const periodOptions = (() => { const l = []; for (let y = 2030; y >= 2025; y--) { l.push(y + '全年') } return l })()
 const selectedPeriod = ref('')
 const personalList = ref([])
 const deptList = ref([])

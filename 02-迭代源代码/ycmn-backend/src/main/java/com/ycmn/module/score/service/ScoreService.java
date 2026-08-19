@@ -99,7 +99,12 @@ public class ScoreService {
         if (!participants.isEmpty()) {
             // 已保存过名单：严格按名单顺序还原这些列（即使同事后来被停用也保留，保证数量一致）
             users = new ArrayList<>();
+            Set<Long> seen = new HashSet<>();
             for (BizScoreParticipant p : participants) {
+                // 【周期改年度后兼容】历史"上半年/下半年"名单行改为"全年"后，同一周期会出现
+                // 同一用户的重复名单行（如 2026上半年+2026下半年 各 22 行 → 2026全年 44 行）。
+                // 数据不删不合（用户要求），加载时按 userId 去重，保留首次出现顺序，避免表格出现重复列。
+                if (!seen.add(p.getUserId())) continue;
                 SysUser u = userMapper.selectById(p.getUserId());
                 if (u != null) users.add(toUserMap(u));
             }
@@ -437,17 +442,23 @@ public class ScoreService {
         return ranks;
     }
 
+    /**
+     * 计算上一周期（周期改为年度后："YYYY全年" → "(YYYY-1)全年"）
+     *
+     * 【需求】排行页"上期名次"需要与上一周期得分对比
+     * 【方法】取周期前 4 位年份减一，拼接"全年"；不查库，纯字符串计算
+     * 【业务规则】"全部"/空值/非年份前缀一律返回 null（前端据此不展示上期对比列）
+     * 【参数】period 周期字符串，如 "2026全年"
+     * 【返回】上一周期字符串，如 "2025全年"；无法计算时返回 null
+     * 【注意】只读纯函数，无副作用
+     */
     private String getPrevPeriod(String period) {
         if (period == null || period.isEmpty() || "全部".equals(period)) return null;
         try {
-            // "2026上半年" → year=2026, half=上
+            // "2026全年" → year=2026；取前 4 位兼容任何以年份开头的周期格式
             String yearStr = period.substring(0, 4);
             int year = Integer.parseInt(yearStr);
-            if (period.contains("上")) {
-                return (year - 1) + "下半年";
-            } else {
-                return year + "上半年";
-            }
+            return (year - 1) + "全年";
         } catch (Exception e) {
             return null;
         }

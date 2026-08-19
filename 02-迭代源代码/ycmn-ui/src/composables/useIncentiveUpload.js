@@ -29,8 +29,9 @@ export function useIncentiveUpload() {
   const userList = ref([])
   const selectedDeptId = ref(null)
   const deptTree = ref([])
-  const periodOptions = (() => { const l = []; for (let y = 2030; y >= 2025; y--) { l.push(y + '下半年', y + '上半年') } return l })()
-  const selectedPeriod = ref('2026上半年')
+  // 【需求变更】周期由半年度改为年度：选项为"YYYY全年"，2026 起生效，默认当年 2026 全年
+  const periodOptions = (() => { const l = []; for (let y = 2030; y >= 2025; y--) { l.push(y + '全年') } return l })()
+  const selectedPeriod = ref('2026全年')
   const categories = ref([])
   const records = ref([])
 

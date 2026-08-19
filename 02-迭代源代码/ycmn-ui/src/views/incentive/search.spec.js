@@ -67,7 +67,7 @@ function mockData() {
 const imgRecords = [
   {
     customerId: 1, customerName: '客户A', industry: '冶金', totalScore: 10,
-    records: [{ id: 11, categoryName: '涂层类', period: '2026上半年', userName: '张三', score: 5, filePreId: '99', filePreName: 'a.jpg' }],
+    records: [{ id: 11, categoryName: '涂层类', period: '2026全年', userName: '张三', score: 5, filePreId: '99', filePreName: 'a.jpg' }],
   },
 ]
 

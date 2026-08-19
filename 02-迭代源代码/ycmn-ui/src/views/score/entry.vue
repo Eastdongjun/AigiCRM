@@ -8,10 +8,8 @@
           <el-select v-model="year" class="se-year">
             <el-option v-for="y in yearOptions" :key="y" :label="y" :value="y" />
           </el-select>
-          <div class="se-half">
-            <span :class="{on:half==='上'}" @click="half='上'">上半年</span>
-            <span :class="{on:half==='下'}" @click="half='下'">下半年</span>
-          </div>
+          <!-- 【需求变更】周期由半年度改为年度：去掉上下半年切换，固定为"全年" -->
+          <span class="se-year-suffix">全年</span>
         </div>
       </div>
       <div class="se-head-right">
@@ -127,8 +125,8 @@ const isAdmin = computed(() => userStore.hasPermission('score:manage'))
 
 const currentYear = new Date().getFullYear()
 const year = ref(currentYear)
-const half = ref(new Date().getMonth() < 6 ? '上' : '下')
-const period = computed(() => `${year.value}${half.value}半年`)
+// 【需求变更】周期由半年度改为年度：period 固定为"YYYY全年"
+const period = computed(() => `${year.value}全年`)
 const yearOptions = computed(() => { const l=[]; for(let y=currentYear+1;y>=2024;y--)l.push(y);return l })
 
 const items = ref([]), userPool = ref([]), visibleUsers = ref([]), scores = ref({}), saving = ref(false)
@@ -173,9 +171,8 @@ onMounted(() => { loadDicts(); loadGrid() })
 .se-head-left h2 { font-size:20px; font-weight:700; color:#1f2329; margin:0 }
 .se-period { display:flex; align-items:center; gap:0; background:#f2f4f7; border-radius:8px; overflow:hidden }
 .se-year { width:80px } .se-year :deep(.el-input__wrapper) { box-shadow:none; background:transparent }
-.se-half { display:flex }
-.se-half span { padding:7px 14px; font-size:13px; cursor:pointer; color:#606266; transition:all .15s; border-radius:6px; margin:2px }
-.se-half span.on { background:#fff; color:#409eff; font-weight:600; box-shadow:0 1px 3px rgba(0,0,0,.08) }
+/* 【需求变更】"全年"后缀标识，替代原上下半年切换按钮 */
+.se-year-suffix { padding:0 14px 0 0; font-size:13px; color:#606266 }
 .se-head-right { display:flex; align-items:center; gap:10px }
 .se-hint { font-size:12px; color:#909399 }
 
