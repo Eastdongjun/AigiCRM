@@ -21,7 +21,7 @@
       </el-popover>
     </div>
     <div ref="tableWrapRef" class="table-wrap">
-    <el-table ref="tableRef" :data="pagedRecords" stripe :style="{ width: tablePixelWidth + 'px' }" :height="tableHeight" :fit="false" empty-text="暂无已上传文件" size="small" @row-click="startReplace" :row-style="{cursor:'pointer'}">
+    <el-table ref="tableRef" :data="pagedRecords" stripe :style="{ width: tablePixelWidth + 'px' }" :height="tableHeight" :fit="tableFit" empty-text="暂无已上传文件" size="small" @row-click="startReplace" :row-style="{cursor:'pointer'}">
       <el-table-column label="大类·子类" width="150" show-overflow-tooltip v-if="isColVisible('cat')">
         <template #default="{ row }">{{ row.majorMinor }}</template>
       </el-table-column>
@@ -98,7 +98,7 @@
 <script setup>
 import { injectIncentiveUpload } from '@/composables/useIncentiveUpload'
 import { Setting } from '@element-plus/icons-vue'
-import { nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 
 const {
   userStore, pagedRecords, filteredRecords, pageNum, pageSize,
@@ -117,6 +117,7 @@ const tableRef = ref(null)
 const tableWrapRef = ref(null)
 const tableHeight = ref(400)
 const tablePixelWidth = ref(1400) // 表格最小宽度: 保证列全宽渲染+溢出滚动; 宽屏跟随容器
+const tableFit = computed(() => tablePixelWidth.value > 1400) // 宽屏(>1400)列拉伸填满容器, 窄屏固定宽溢出滚动
 let resizeObserver = null
 
 // 表格高度: 动态计算可用高度, 保证表格体撑满面板、分页与滚动条不被裁切
