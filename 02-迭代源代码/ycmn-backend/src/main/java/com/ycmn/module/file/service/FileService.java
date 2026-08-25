@@ -55,6 +55,8 @@ public class FileService {
     private final OSS ossClient;
     private final OssConfig ossConfig;
     private final FolderPermissionService folderPermissionService;
+    /** 激励授权表查询（biz_incentive_grant，与 IncentiveService 同源），供下载权限对齐列表可见性 */
+    private final org.springframework.jdbc.core.JdbcTemplate jdbcTemplate;
 
     @Value("${file.storage-type:local}")
     private String storageType;
@@ -764,6 +766,12 @@ public class FileService {
         }
         if (!canDownload && "incentive".equals(file.getFileScope())) {
             canDownload = isIncentiveFileVisible(file.getId(), userId);
+            // 【2026-08-24 权限对齐】激励授权用户（激励面板 can_view_all/can_edit/can_delete 任一开启）
+            // 列表可见全部激励记录（含 shared=0，见 IncentiveService.canSeeAllIncentive），
+            // 文件预览同权放行——修复"列表能看到记录但点文件预览 403 加载不出"（马吉亮复现场景）。
+            if (!canDownload) {
+                canDownload = canViewAllIncentiveGrant(userId);
+            }
         }
         if (!canDownload) {
             return false;
@@ -798,6 +806,33 @@ public class FileService {
             }
         }
         return false;
+    }
+
+    /**
+     * 查询激励授权表判定"全览"权限（与 IncentiveService.canSeeAllIncentive 的授权部分同规则）
+     *
+     * 【需求】激励文件下载权限与列表可见性对齐：激励面板勾选 查看全部/编辑/删除 的用户，
+     *         列表可见全部记录（含 shared=0），其文件预览也应放行（2026-08-24 修复）
+     * 【方法】查 biz_incentive_grant 单行，can_view_all/can_edit/can_delete 任一为 1 即 true
+     * 【业务规则】无授权行=默认关闭（与 IncentiveService.grantFlag 默认 false 一致）；
+     *             系统管理员由 canAccessFile 的 isAdmin 分支先行放行，不走到本判定
+     * 【参数】userId 当前用户ID
+     * 【返回】true=激励授权全览（文件预览放行）；false=无权
+     * 【注意】只读查询；无行抛 EmptyResultDataAccessException 视为无权
+     */
+    private boolean canViewAllIncentiveGrant(Long userId) {
+        try {
+            Map<String, Object> row = jdbcTemplate.queryForMap(
+                    "SELECT can_view_all, can_edit, can_delete FROM biz_incentive_grant WHERE user_id = ?", userId);
+            return isGrantOn(row.get("can_view_all")) || isGrantOn(row.get("can_edit")) || isGrantOn(row.get("can_delete"));
+        } catch (org.springframework.dao.EmptyResultDataAccessException e) {
+            return false;
+        }
+    }
+
+    /** 授权开关值转布尔：1=开，其余（0/null）为关 */
+    private boolean isGrantOn(Object v) {
+        return v != null && Integer.valueOf(1).equals(((Number) v).intValue());
     }
 
     // ====== 文件分享 ======

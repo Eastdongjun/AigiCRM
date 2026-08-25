@@ -25,6 +25,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.MockedStatic;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -53,9 +54,10 @@ class FileServicePermissionTest {
     private final OSS ossClient = mock(OSS.class);
     private final OssConfig ossConfig = mock(OssConfig.class);
     private final FolderPermissionService folderPermissionService = mock(FolderPermissionService.class);
+    private final JdbcTemplate jdbcTemplate = mock(JdbcTemplate.class);
     private final BizFolderAclMapper folderAclMapper = mock(BizFolderAclMapper.class);
     private final FileService svc = new FileService(fileMapper, folderMapper, fileShareMapper, folderAclMapper,
-            incentiveRecordMapper, userMapper, ossClient, ossConfig, folderPermissionService);
+            incentiveRecordMapper, userMapper, ossClient, ossConfig, folderPermissionService, jdbcTemplate);
 
     @BeforeEach
     void setUp() {
@@ -796,5 +798,53 @@ class FileServicePermissionTest {
         assertNotNull(ok);
         assertFalse(ok);
         java.nio.file.Files.deleteIfExists(f);
+    }
+
+    @Test
+    void download_incentiveFileShared0_grantUser_passesPermission() {
+        // 【2026-08-24 权限对齐】激励授权用户（can_view_all=1）下载他人 shared=0 激励记录文件 → 放行（不 403）
+        BizFile file = new BizFile();
+        file.setId(104L);
+        file.setFolderId(null);
+        file.setUploaderId(40L);
+        file.setFileScope("incentive");
+        file.setOssKey("incentive/40/x.pdf");
+        file.setFileName("x.pdf");
+        HttpServletResponse response = mock(HttpServletResponse.class);
+        when(fileMapper.selectById(104L)).thenReturn(file);
+        when(incentiveRecordMapper.selectList(any())).thenReturn(List.of()); // 无 shared=1 他人记录
+        doReturn(java.util.Map.of("can_view_all", 1, "can_edit", 0, "can_delete", 0))
+                .when(jdbcTemplate).queryForMap(anyString(), any(Object[].class));
+        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
+            m.when(SecurityUtils::getCurrentUserId).thenReturn(11L); // 非上传者
+            m.when(SecurityUtils::isAdmin).thenReturn(false);
+            svc.downloadById(104L, null, false, response);
+            // 未在权限处拦截：落到文件不存在 → 404（而非 403），证明授权放行生效
+            verify(response).setStatus(404);
+            verify(response, never()).setStatus(403);
+        }
+    }
+
+    @Test
+    void download_incentiveFileShared0_normalUser_returns403() {
+        // 普通用户（无激励授权行）下载他人 shared=0 激励记录文件 → 403（默认规则不变，回归保护）
+        BizFile file = new BizFile();
+        file.setId(105L);
+        file.setFolderId(null);
+        file.setUploaderId(40L);
+        file.setFileScope("incentive");
+        file.setOssKey("incentive/40/x.pdf");
+        file.setFileName("x.pdf");
+        HttpServletResponse response = mock(HttpServletResponse.class);
+        when(fileMapper.selectById(105L)).thenReturn(file);
+        when(incentiveRecordMapper.selectList(any())).thenReturn(List.of());
+        doThrow(new org.springframework.dao.EmptyResultDataAccessException(1))
+                .when(jdbcTemplate).queryForMap(anyString(), any(Object[].class));
+        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
+            m.when(SecurityUtils::getCurrentUserId).thenReturn(11L);
+            m.when(SecurityUtils::isAdmin).thenReturn(false);
+            svc.downloadById(105L, null, false, response);
+            verify(response).setStatus(403);
+        }
     }
 }
