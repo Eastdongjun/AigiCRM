@@ -21,7 +21,7 @@
       </el-popover>
     </div>
     <div ref="tableWrapRef" class="table-wrap">
-    <el-table ref="tableRef" :data="pagedRecords" stripe :style="{ width: tablePixelWidth + 'px' }" :height="tableHeight" :fit="tableFit" empty-text="暂无已上传文件" size="small" @row-click="startReplace" :row-style="{cursor:'pointer'}">
+    <el-table ref="tableRef" :data="pagedRecords" stripe :class="{ 'table-wide': tableFit }" :style="{ width: tablePixelWidth + 'px' }" :height="tableHeight" :fit="tableFit" empty-text="暂无已上传文件" size="small" @row-click="startReplace" :row-style="{cursor:'pointer'}">
       <el-table-column label="大类·子类" min-width="150" show-overflow-tooltip v-if="isColVisible('cat')">
         <template #default="{ row }">{{ row.majorMinor }}</template>
       </el-table-column>
@@ -179,6 +179,10 @@ onBeforeUnmount(() => {
 .table-toolbar { display:flex; justify-content:flex-end; align-items:center; padding-bottom:8px }
 .table-wrap { flex:1; min-width:0; min-height:0; overflow-x:auto; overflow-y:hidden }
 .right-panel .el-table { height:100% }
+/* 宽屏(容器>1400)列拉伸填满: 内部 table 强制 100% 容器宽, table-layout fixed 下列按内联比例放大 */
+.right-panel :deep(.el-table.table-wide .el-table__inner-wrapper table),
+.right-panel :deep(.el-table.table-wide .el-table__body table),
+.right-panel :deep(.el-table.table-wide .el-table__header table) { width: 100% !important; }
 /* 安装文件列: 允许换行展示文件名(默认 el-table 单元格 nowrap 截断) */
 .right-panel :deep(.col-files .cell) { white-space: normal; word-break: break-all; line-height: 1.5 }
 .install-files { display:flex; flex-wrap:wrap; gap:3px 4px }
