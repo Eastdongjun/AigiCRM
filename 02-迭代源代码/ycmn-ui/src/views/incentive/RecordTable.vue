@@ -22,13 +22,13 @@
     </div>
     <div ref="tableWrapRef" class="table-wrap">
     <el-table ref="tableRef" :data="pagedRecords" stripe :class="{ 'table-wide': tableFit }" :style="{ width: tablePixelWidth + 'px' }" :height="tableHeight" :fit="tableFit" empty-text="暂无已上传文件" size="small" @row-click="startReplace" :row-style="{cursor:'pointer'}">
-      <el-table-column label="大类·子类" min-width="150" show-overflow-tooltip v-if="isColVisible('cat')">
+      <el-table-column label="大类·子类" min-width="145" show-overflow-tooltip v-if="isColVisible('cat')">
         <template #default="{ row }">{{ row.majorMinor }}</template>
       </el-table-column>
       <el-table-column prop="industry" label="行业" min-width="90" v-if="isColVisible('industry')">
         <template #default="{ row }">{{ row.industry || '—' }}</template>
       </el-table-column>
-      <el-table-column prop="relatedProducts" label="相关产品" min-width="140" show-overflow-tooltip v-if="isColVisible('relatedProducts')">
+      <el-table-column prop="relatedProducts" label="相关产品" min-width="135" show-overflow-tooltip v-if="isColVisible('relatedProducts')">
         <template #default="{ row }">{{ row.relatedProducts || '—' }}</template>
       </el-table-column>
       <el-table-column label="分" min-width="50" align="center" v-if="isColVisible('score')">
@@ -48,7 +48,7 @@
           </div>
         </template>
       </el-table-column>
-      <el-table-column label="客户" min-width="140" show-overflow-tooltip v-if="isColVisible('customer')">
+      <el-table-column label="客户" min-width="135" show-overflow-tooltip v-if="isColVisible('customer')">
         <template #default="{ row }">
           <span class="customer-link">{{ row.customerName || '—' }}</span>
         </template>
@@ -64,7 +64,7 @@
           <span v-else :class="row.shared ? 'shared-yes' : 'shared-no'">{{ row.shared ? '● 共享' : '—' }}</span>
         </template>
       </el-table-column>
-      <el-table-column label="上传日期" min-width="110" v-if="isColVisible('createdAt')">
+      <el-table-column label="上传日期" min-width="105" v-if="isColVisible('createdAt')">
         <template #default="{ row }">{{ formatDate(row.createdAt) }}</template>
       </el-table-column>
       <el-table-column prop="userName" label="上传人" min-width="90" v-if="isColVisible('uploader')" />
