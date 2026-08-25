@@ -183,6 +183,8 @@ onBeforeUnmount(() => {
 .right-panel :deep(.el-table.table-wide .el-table__inner-wrapper table),
 .right-panel :deep(.el-table.table-wide .el-table__body table),
 .right-panel :deep(.el-table.table-wide .el-table__header table) { width: 100% !important; }
+/* 宽屏下列 min-width 降为 0: 允许列按容器比例缩放(1K 容器1396<列宽和1400 时压缩4px 无感), 避免 4px 溢出滚动条 */
+.right-panel :deep(.el-table.table-wide th) { min-width: 0 !important; }
 /* 安装文件列: 允许换行展示文件名(默认 el-table 单元格 nowrap 截断) */
 .right-panel :deep(.col-files .cell) { white-space: normal; word-break: break-all; line-height: 1.5 }
 .install-files { display:flex; flex-wrap:wrap; gap:3px 4px }
