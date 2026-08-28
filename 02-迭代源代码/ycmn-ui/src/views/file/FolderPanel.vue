@@ -20,14 +20,16 @@
       <el-icon><Folder /></el-icon>
       <span class="folder-name">{{ folder.folderName }}</span>
       <span class="folder-count">{{ folder.fileCount || 0 }}</span>
-      <span v-if="folder.perms?.includes('edit') || folder.perms?.includes('delete')" class="folder-actions">
-        <el-tooltip v-if="folder.perms?.includes('edit')" content="重命名" placement="top">
+      <!-- 【九项权限模型 v2】文件夹操作按钮按新权限码显隐：重命名=folder:rename、删除=folder:delete、
+           权限设置=有 folder:rename 权限(owner/ACL 管理者)才显示齿轮 -->
+      <span v-if="folder.perms?.includes('folder:rename') || folder.perms?.includes('folder:delete')" class="folder-actions">
+        <el-tooltip v-if="folder.perms?.includes('folder:rename')" content="重命名" placement="top">
           <el-icon class="folder-act" @click.stop="openRenameFolder(folder)"><EditPen /></el-icon>
         </el-tooltip>
-        <el-tooltip v-if="folder.perms?.includes('edit')" content="权限设置" placement="top">
+        <el-tooltip v-if="folder.perms?.includes('folder:rename')" content="权限设置" placement="top">
           <el-icon class="folder-act" @click.stop="openAclDialog(folder)"><Setting /></el-icon>
         </el-tooltip>
-        <el-tooltip v-if="folder.perms?.includes('delete')" content="删除" placement="top">
+        <el-tooltip v-if="folder.perms?.includes('folder:delete')" content="删除" placement="top">
           <el-icon class="folder-act folder-act-danger" @click.stop="handleDeleteFolder(folder)"><Delete /></el-icon>
         </el-tooltip>
       </span>
@@ -48,7 +50,7 @@
 </template>
 
 <script setup>
-import { injectFilePage } from '@/composables/useFilePage'
+import { injectFilePage } from '@/composables/useFilePage';
 
 const {
   selectedFolderId, fileTotal, currentFolders, canCreateFolder,

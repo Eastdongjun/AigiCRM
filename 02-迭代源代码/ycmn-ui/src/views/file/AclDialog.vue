@@ -42,11 +42,10 @@
 </template>
 
 <script setup>
-import { ref, watch } from 'vue'
-import { ElMessage } from 'element-plus'
-import { getFolderAcl, saveFolderAcl, removeFolderAcl, setFolderDownloadable, getFolderPermissions } from '@/api/file'
-import { getRoleList } from '@/api/system'
+import { getAclRoles, getFolderAcl, getFolderPermissions, removeFolderAcl, saveFolderAcl, setFolderDownloadable } from '@/api/file'
 import { injectFilePage } from '@/composables/useFilePage'
+import { ElMessage } from 'element-plus'
+import { ref, watch } from 'vue'
 
 const { aclDialogVisible, aclFolder, selectedFolderId, loadFolderPerms, folderDownloadable } = injectFilePage()
 
@@ -57,14 +56,17 @@ const aclSelectedPerms = ref([])
 const aclDownloadable = ref(true)
 const aclSaving = ref(false)
 
-// 6 项权限选项
+// 【九项权限模型 v2】文件夹操作与文件操作分离
 const PERM_OPTIONS = [
-  { value: 'view', label: '查看' },
-  { value: 'upload', label: '上传' },
-  { value: 'edit', label: '编辑（重命名/替换）' },
-  { value: 'delete', label: '删除' },
-  { value: 'share', label: '分享' },
-  { value: 'download', label: '下载' }
+  { value: 'folder:create', label: '创建文件夹', group: '文件夹操作' },
+  { value: 'folder:rename', label: '重命名文件夹', group: '文件夹操作' },
+  { value: 'folder:delete', label: '删除文件夹', group: '文件夹操作' },
+  { value: 'file:view', label: '查看文件', group: '文件操作' },
+  { value: 'file:upload', label: '上传文件', group: '文件操作' },
+  { value: 'file:download', label: '下载文件', group: '文件操作' },
+  { value: 'file:edit', label: '替换文件', group: '文件操作' },
+  { value: 'file:delete', label: '删除文件', group: '文件操作' },
+  { value: 'file:share', label: '分享文件', group: '文件操作' }
 ]
 const permLabel = (v) => PERM_OPTIONS.find(p => p.value === v)?.label || v
 
@@ -83,13 +85,15 @@ const loadAclDownloadable = async (id) => {
 }
 
 // 打开时重置选择并加载已授权列表/下载开关（角色列表懒加载一次）
+// 【九项权限模型 v2 2026-08-28】角色来源改调 /file/folders/roles（登录即可），
+// 私人文件夹 owner 无 system:role:view 时也能选角色授权
 watch([aclDialogVisible, aclFolder], async ([vis, folder]) => {
   if (vis && folder) {
     aclSelectedRoles.value = []
     aclSelectedPerms.value = []
     if (!allRoles.value.length) {
       try {
-        const res = await getRoleList()
+        const res = await getAclRoles()
         allRoles.value = res.data || []
       } catch (e) {}
     }

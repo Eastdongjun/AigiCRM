@@ -24,14 +24,41 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class FolderPermissionService {
 
-    public static final String P_VIEW = "view";
-    public static final String P_UPLOAD = "upload";
-    public static final String P_EDIT = "edit";
-    public static final String P_DELETE = "delete";
-    public static final String P_SHARE = "share";
-    public static final String P_DOWNLOAD = "download";
+    // ==================== 九项权限模型 v2（2026-08-27 用户拍板：文件夹操作与文件操作分离）====================
+    // 文件夹操作
+    public static final String FOLDER_CREATE = "folder:create";   // 创建文件夹
+    public static final String FOLDER_RENAME = "folder:rename";   // 重命名文件夹
+    public static final String FOLDER_DELETE = "folder:delete";   // 删除文件夹
+    // 文件操作
+    public static final String FILE_UPLOAD = "file:upload";       // 上传文件
+    public static final String FILE_DOWNLOAD = "file:download";   // 下载文件
+    public static final String FILE_VIEW = "file:view";           // 查看文件列表
+    public static final String FILE_EDIT = "file:edit";           // 替换文件
+    public static final String FILE_DELETE = "file:delete";       // 删除文件
+    public static final String FILE_SHARE = "file:share";         // 分享文件
+    /** 九项权限全量（admin/owner 全权限用） */
     private static final List<String> ALL_PERMS =
-            List.of(P_VIEW, P_UPLOAD, P_EDIT, P_DELETE, P_SHARE, P_DOWNLOAD);
+            List.of(FOLDER_CREATE, FOLDER_RENAME, FOLDER_DELETE,
+                    FILE_UPLOAD, FILE_DOWNLOAD, FILE_VIEW, FILE_EDIT, FILE_DELETE, FILE_SHARE);
+    // ==================== 旧 6 项常量（兼容别名，V23 迁移后删除）====================
+    /** @deprecated 旧 upload 语义已拆分为 FILE_UPLOAD + FOLDER_CREATE */
+    @Deprecated
+    public static final String P_VIEW = "view";
+    /** @deprecated 旧 upload 语义已拆分为 FILE_UPLOAD + FOLDER_CREATE */
+    @Deprecated
+    public static final String P_UPLOAD = "upload";
+    /** @deprecated 旧 edit 语义已拆分为 FILE_EDIT + FOLDER_RENAME */
+    @Deprecated
+    public static final String P_EDIT = "edit";
+    /** @deprecated 旧 delete 语义已拆分为 FILE_DELETE + FOLDER_DELETE */
+    @Deprecated
+    public static final String P_DELETE = "delete";
+    /** @deprecated 旧 share 语义 = FILE_SHARE */
+    @Deprecated
+    public static final String P_SHARE = "share";
+    /** @deprecated 旧 download 语义 = FILE_DOWNLOAD */
+    @Deprecated
+    public static final String P_DOWNLOAD = "download";
     private static final int MAX_HOP = 5;
 
     private final BizFolderAclMapper aclMapper;
@@ -48,11 +75,17 @@ public class FolderPermissionService {
         BizFileFolder folder = folderMapper.selectById(folderId);
         if (folder == null) return false;
         if (Objects.equals(folder.getOwnerId(), userId)) return true;
-        if (isManagerChain(userId, folder.getOwnerId())) return true;
+        // 【九项权限模型 v2】上级链：私人数据默认只读(view+download)，不再全放行；
+        // 公共数据维持上级链管理权限（公共夹是组织资产，上级可代管）。
+        if (isManagerChain(userId, folder.getOwnerId())) {
+            boolean isPrivate = "private".equals(folder.getFolderType());
+            if (!isPrivate) return true;
+            return FILE_VIEW.equals(action) || FILE_DOWNLOAD.equals(action);
+        }
         if (aclGranted(folderId, userId, action)) return true;
         // 【文件权限体系】公共文件夹兜底扩展至 download：全员可见，下载开关允许时全员可下载
         // （开关在 downloadById 控制，管理员全权不受开关约束）
-        return (P_VIEW.equals(action) || P_DOWNLOAD.equals(action)) && "public".equals(folder.getFolderType());
+        return (FILE_VIEW.equals(action) || FILE_DOWNLOAD.equals(action)) && "public".equals(folder.getFolderType());
     }
 
     /** 文件权限判定：取 folderId 判定；无文件夹按上传者归属 */
@@ -62,7 +95,11 @@ public class FolderPermissionService {
         if (file == null) return false;
         if (file.getFolderId() != null) return check(file.getFolderId(), action, userId);
         if (Objects.equals(file.getUploaderId(), userId)) return true;
-        return isManagerChain(userId, file.getUploaderId());
+        // 【九项权限模型 v2】无文件夹的私人文件：上级链仅只读(view/download)
+        if (isManagerChain(userId, file.getUploaderId())) {
+            return FILE_VIEW.equals(action) || FILE_DOWNLOAD.equals(action);
+        }
+        return false;
     }
 
     /** 个人上级(manager_id)优先，部门 leader 链兜底（仅当 lower 的 manager_id 为空），各限 5 层（设计 §6） */
@@ -92,11 +129,18 @@ public class FolderPermissionService {
     /** 当前用户对文件夹的权限列表（前端按钮控制） */
     public List<String> permsFor(Long folderId, Long userId) {
         if (folderId == null) return List.of();
-        if (SecurityUtils.isAdmin()) return List.of(P_VIEW, P_UPLOAD, P_EDIT, P_DELETE, P_SHARE, P_DOWNLOAD);
+        if (SecurityUtils.isAdmin()) return ALL_PERMS;
         BizFileFolder folder = folderMapper.selectById(folderId);
         if (folder == null) return List.of();
-        if (Objects.equals(folder.getOwnerId(), userId) || isManagerChain(userId, folder.getOwnerId())) {
-            return List.of(P_VIEW, P_UPLOAD, P_EDIT, P_DELETE, P_SHARE, P_DOWNLOAD);
+        if (Objects.equals(folder.getOwnerId(), userId)) {
+            return ALL_PERMS;
+        }
+        if (isManagerChain(userId, folder.getOwnerId())) {
+            // 【九项权限模型 v2】上级链：私人数据只读，公共数据全权限
+            if ("private".equals(folder.getFolderType())) {
+                return List.of(FILE_VIEW, FILE_DOWNLOAD);
+            }
+            return ALL_PERMS;
         }
         List<String> result = new ArrayList<>();
         for (BizFolderAcl acl : aclMapper.selectList(new LambdaQueryWrapper<BizFolderAcl>().eq(BizFolderAcl::getFolderId, folderId))) {
@@ -107,8 +151,8 @@ public class FolderPermissionService {
         // 【文件权限体系】公共文件夹对全员始终可见（ACL 只叠加管理权限，未匹配角色的用户同样可见），
         // 下载权限一并兜底（是否实际可下载由下载接口的开关约束）
         if ("public".equals(folder.getFolderType())) {
-            if (!result.contains(P_VIEW)) result.add(P_VIEW);
-            if (!result.contains(P_DOWNLOAD)) result.add(P_DOWNLOAD);
+            if (!result.contains(FILE_VIEW)) result.add(FILE_VIEW);
+            if (!result.contains(FILE_DOWNLOAD)) result.add(FILE_DOWNLOAD);
         }
         return result;
     }
@@ -135,7 +179,14 @@ public class FolderPermissionService {
                     oid != null && (oid.equals(userId) || isManagerChain(userId, oid)));
             List<String> perms = new ArrayList<>();
             if (privileged) {
-                perms.addAll(ALL_PERMS);
+                // 【九项权限模型 v2】上级链对私人数据只读（owner 本人仍全权限）
+                boolean isPrivate = "private".equals(folder.getFolderType());
+                if (ownerId != null && !ownerId.equals(userId) && isPrivate) {
+                    perms.add(FILE_VIEW);
+                    perms.add(FILE_DOWNLOAD);
+                } else {
+                    perms.addAll(ALL_PERMS);
+                }
             } else {
                 for (BizFolderAcl acl : aclByFolder.getOrDefault(folder.getId(), Collections.emptyList())) {
                     if (userHasRole(userId, acl.getRoleId())) {
@@ -144,8 +195,8 @@ public class FolderPermissionService {
                 }
                 // 公共文件夹对全员始终可见，下载权限一并兜底（是否可下载由下载接口开关约束）
                 if ("public".equals(folder.getFolderType())) {
-                    if (!perms.contains(P_VIEW)) perms.add(P_VIEW);
-                    if (!perms.contains(P_DOWNLOAD)) perms.add(P_DOWNLOAD);
+                    if (!perms.contains(FILE_VIEW)) perms.add(FILE_VIEW);
+                    if (!perms.contains(FILE_DOWNLOAD)) perms.add(FILE_DOWNLOAD);
                 }
             }
             result.put(folder.getId(), perms);
@@ -156,10 +207,28 @@ public class FolderPermissionService {
     private boolean aclGranted(Long folderId, Long userId, String action) {
         for (BizFolderAcl acl : aclMapper.selectList(new LambdaQueryWrapper<BizFolderAcl>().eq(BizFolderAcl::getFolderId, folderId))) {
             if (userHasRole(userId, acl.getRoleId())) {
-                for (String p : acl.getPerms().split(",")) if (p.equals(action)) return true;
+                for (String p : acl.getPerms().split(",")) {
+                    String trimmed = p.trim();
+                    // 【九项权限模型 v2】新权限码直接比对；旧码(V23 迁移前)按映射兼容
+                    if (trimmed.equals(action)) return true;
+                    if (legacyPermMatches(trimmed, action)) return true;
+                }
             }
         }
         return false;
+    }
+
+    /** 旧 6 项权限码 → 新 9 项映射兼容（V23 迁移完成后此方法可删） */
+    private boolean legacyPermMatches(String legacy, String action) {
+        return switch (legacy) {
+            case "upload" -> FILE_UPLOAD.equals(action) || FOLDER_CREATE.equals(action);
+            case "edit" -> FILE_EDIT.equals(action) || FOLDER_RENAME.equals(action);
+            case "delete" -> FILE_DELETE.equals(action) || FOLDER_DELETE.equals(action);
+            case "share" -> FILE_SHARE.equals(action);
+            case "download" -> FILE_DOWNLOAD.equals(action);
+            case "view" -> FILE_VIEW.equals(action);
+            default -> false;
+        };
     }
 
     private boolean userHasRole(Long userId, Long roleId) {

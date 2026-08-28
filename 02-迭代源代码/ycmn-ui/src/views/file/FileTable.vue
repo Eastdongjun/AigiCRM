@@ -24,16 +24,16 @@
       <el-table-column label="操作" min-width="100" align="center">
         <template #default="{ row }">
           <div class="action-icons">
-            <el-tooltip v-if="folderPerms.includes('download') && folderDownloadable === 1" content="下载" placement="top">
+            <el-tooltip v-if="folderPerms.includes('file:download') && folderDownloadable === 1" content="下载" placement="top">
               <el-icon class="act-icon" @click.stop="handleDownload(row)"><Download /></el-icon>
             </el-tooltip>
-            <el-tooltip v-if="activeTab !== 'public' && activeTab !== 'shared_to_me' && folderPerms.includes('share')" content="分享" placement="top">
+            <el-tooltip v-if="activeTab !== 'public' && activeTab !== 'shared_to_me' && folderPerms.includes('file:share')" content="分享" placement="top">
               <el-icon class="act-icon" @click.stop="openShareDialog(row)"><Share /></el-icon>
             </el-tooltip>
-            <el-tooltip v-if="folderPerms.includes('edit')" content="替换" placement="top">
+            <el-tooltip v-if="folderPerms.includes('file:edit')" content="替换" placement="top">
               <el-icon class="act-icon" @click.stop="openReplaceFile(row)"><Refresh /></el-icon>
             </el-tooltip>
-            <el-tooltip v-if="folderPerms.includes('delete')" content="删除" placement="top">
+            <el-tooltip v-if="folderPerms.includes('file:delete')" content="删除" placement="top">
               <el-icon class="act-icon act-danger" @click.stop="handleDelete(row)"><Delete /></el-icon>
             </el-tooltip>
           </div>
@@ -60,10 +60,10 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
-import { ElMessage } from 'element-plus'
 import { replaceFile } from '@/api/file'
 import { injectFilePage } from '@/composables/useFilePage'
+import { ElMessage } from 'element-plus'
+import { ref } from 'vue'
 
 const {
   files, fileTotal, query, activeTab, folderPerms, folderDownloadable,

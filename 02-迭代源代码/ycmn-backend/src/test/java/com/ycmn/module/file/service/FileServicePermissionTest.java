@@ -74,10 +74,10 @@ class FileServicePermissionTest {
         MultipartFile mf = mock(MultipartFile.class);
         try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
             m.when(SecurityUtils::getCurrentUserId).thenReturn(1L);
-            when(folderPermissionService.check(100L, FolderPermissionService.P_UPLOAD, 1L)).thenReturn(false);
+            when(folderPermissionService.check(100L, FolderPermissionService.FILE_UPLOAD, 1L)).thenReturn(false);
             BusinessException ex = assertThrows(BusinessException.class, () -> svc.upload(mf, 100L, "private"));
             assertEquals(403, ex.getCode());
-            verify(folderPermissionService).check(100L, FolderPermissionService.P_UPLOAD, 1L);
+            verify(folderPermissionService).check(100L, FolderPermissionService.FILE_UPLOAD, 1L);
             verify(fileMapper, never()).insert(any(BizFile.class));
         }
     }
@@ -89,7 +89,7 @@ class FileServicePermissionTest {
         folder.setParentId(100L);
         try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
             m.when(SecurityUtils::getCurrentUserId).thenReturn(1L);
-            when(folderPermissionService.check(100L, FolderPermissionService.P_UPLOAD, 1L)).thenReturn(false);
+            when(folderPermissionService.check(100L, FolderPermissionService.FOLDER_CREATE, 1L)).thenReturn(false);
             BusinessException ex = assertThrows(BusinessException.class, () -> svc.createFolder(folder));
             assertEquals(403, ex.getCode());
             verify(folderMapper, never()).insert(any(BizFileFolder.class));
@@ -105,7 +105,7 @@ class FileServicePermissionTest {
         when(folderMapper.selectById(100L)).thenReturn(folder);
         try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
             m.when(SecurityUtils::getCurrentUserId).thenReturn(2L);
-            when(folderPermissionService.check(100L, FolderPermissionService.P_EDIT, 2L)).thenReturn(false);
+            when(folderPermissionService.check(100L, FolderPermissionService.FOLDER_RENAME, 2L)).thenReturn(false);
             BusinessException ex = assertThrows(BusinessException.class, () -> svc.renameFolder(100L, "新名字"));
             assertEquals(403, ex.getCode());
             verify(folderMapper, never()).updateById(any(BizFileFolder.class));
@@ -123,7 +123,7 @@ class FileServicePermissionTest {
         try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
             m.when(SecurityUtils::getCurrentUserId).thenReturn(2L);
             m.when(SecurityUtils::isAdmin).thenReturn(false);
-            when(folderPermissionService.checkFile(9L, FolderPermissionService.P_DELETE, 2L)).thenReturn(false);
+            when(folderPermissionService.checkFile(9L, FolderPermissionService.FILE_DELETE, 2L)).thenReturn(false);
             BusinessException ex = assertThrows(BusinessException.class, () -> svc.deleteFile(9L));
             assertEquals(403, ex.getCode());
             verify(fileMapper, never()).deleteById(9L);
@@ -147,7 +147,7 @@ class FileServicePermissionTest {
         try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
             m.when(SecurityUtils::getCurrentUserId).thenReturn(1L);
             m.when(SecurityUtils::isAdmin).thenReturn(false);
-            when(folderPermissionService.checkFile(9L, FolderPermissionService.P_DOWNLOAD, 1L)).thenReturn(true);
+            when(folderPermissionService.checkFile(9L, FolderPermissionService.FILE_DOWNLOAD, 1L)).thenReturn(true);
             svc.downloadById(9L, null, false, response);
             verify(response).setStatus(403);
         }
@@ -170,7 +170,7 @@ class FileServicePermissionTest {
         try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
             m.when(SecurityUtils::getCurrentUserId).thenReturn(1L);
             m.when(SecurityUtils::isAdmin).thenReturn(false);
-            when(folderPermissionService.checkFile(9L, FolderPermissionService.P_DOWNLOAD, 1L)).thenReturn(true);
+            when(folderPermissionService.checkFile(9L, FolderPermissionService.FILE_DOWNLOAD, 1L)).thenReturn(true);
             svc.downloadById(9L, null, false, response);
             // 未在权限/开关处拦截：落到文件不存在 → 404，而不是 403
             verify(response).setStatus(404);
@@ -189,7 +189,7 @@ class FileServicePermissionTest {
                 new ByteArrayInputStream(new byte[0]));
         try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
             m.when(SecurityUtils::getCurrentUserId).thenReturn(1L);
-            when(folderPermissionService.check(100L, FolderPermissionService.P_UPLOAD, 1L)).thenReturn(true);
+            when(folderPermissionService.check(100L, FolderPermissionService.FILE_UPLOAD, 1L)).thenReturn(true);
             BizFile result = svc.upload(mf, 100L, "private");
             assertNotNull(result);
             assertEquals("test.txt", result.getFileName());
@@ -266,7 +266,7 @@ class FileServicePermissionTest {
         when(fileMapper.selectById(9L)).thenReturn(file);
         when(folderMapper.selectById(100L)).thenReturn(folder);
         when(fileShareMapper.selectCount(any())).thenReturn(0L);
-        when(folderPermissionService.checkFile(9L, FolderPermissionService.P_DOWNLOAD, 2L)).thenReturn(true);
+        when(folderPermissionService.checkFile(9L, FolderPermissionService.FILE_DOWNLOAD, 2L)).thenReturn(true);
         try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
             m.when(SecurityUtils::getCurrentUserId).thenReturn(2L);
             m.when(SecurityUtils::isAdmin).thenReturn(false);
@@ -417,7 +417,7 @@ class FileServicePermissionTest {
         folder.setDownloadable(1);
         when(folderMapper.selectById(100L)).thenReturn(folder);
         when(fileShareMapper.selectCount(any())).thenReturn(0L);
-        when(folderPermissionService.checkFile(9L, FolderPermissionService.P_DOWNLOAD, 2L)).thenReturn(true);
+        when(folderPermissionService.checkFile(9L, FolderPermissionService.FILE_DOWNLOAD, 2L)).thenReturn(true);
         try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
             m.when(SecurityUtils::isAdmin).thenReturn(false);
             assertTrue(svc.canDownloadFile(file, 2L));
@@ -428,7 +428,7 @@ class FileServicePermissionTest {
     void canDownloadFile_noPermission_denied() {
         BizFile file = aFolderFile(9L, 100L, 1L);
         when(fileShareMapper.selectCount(any())).thenReturn(0L);
-        when(folderPermissionService.checkFile(9L, FolderPermissionService.P_DOWNLOAD, 2L)).thenReturn(false);
+        when(folderPermissionService.checkFile(9L, FolderPermissionService.FILE_DOWNLOAD, 2L)).thenReturn(false);
         try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
             m.when(SecurityUtils::isAdmin).thenReturn(false);
             assertFalse(svc.canDownloadFile(file, 2L));
@@ -456,7 +456,7 @@ class FileServicePermissionTest {
         MultipartFile mf = new MockMultipartFile("file", "new.txt", "text/plain", new byte[25]);
         try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
             m.when(SecurityUtils::getCurrentUserId).thenReturn(2L);
-            when(folderPermissionService.checkFile(9L, FolderPermissionService.P_EDIT, 2L)).thenReturn(false);
+            when(folderPermissionService.checkFile(9L, FolderPermissionService.FILE_EDIT, 2L)).thenReturn(false);
             BusinessException ex = assertThrows(BusinessException.class, () -> svc.replaceFile(9L, mf));
             assertEquals(403, ex.getCode());
             verify(fileMapper, never()).updateById(any(BizFile.class));
@@ -488,7 +488,7 @@ class FileServicePermissionTest {
         MultipartFile mf = new MockMultipartFile("file", "new.txt", "text/plain", new byte[25]);
         try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
             m.when(SecurityUtils::getCurrentUserId).thenReturn(1L);
-            when(folderPermissionService.checkFile(9L, FolderPermissionService.P_EDIT, 1L)).thenReturn(true);
+            when(folderPermissionService.checkFile(9L, FolderPermissionService.FILE_EDIT, 1L)).thenReturn(true);
             BizFile result = svc.replaceFile(9L, mf);
             // 版本+1 / replace_by / replaced_at / file_size / oss_key 更新
             assertEquals(2, result.getVersion());
@@ -521,7 +521,7 @@ class FileServicePermissionTest {
         try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
             m.when(SecurityUtils::getCurrentUserId).thenReturn(1L);
             m.when(SecurityUtils::isAdmin).thenReturn(false);
-            when(folderPermissionService.checkFile(9L, FolderPermissionService.P_EDIT, 1L)).thenReturn(true);
+            when(folderPermissionService.checkFile(9L, FolderPermissionService.FILE_EDIT, 1L)).thenReturn(true);
             svc.replaceFile(9L, mf);
             // 替换后同一 fileId 下载返回新内容（走更新后的 ossKey）
             MockHttpServletResponse response = new MockHttpServletResponse();
@@ -535,7 +535,7 @@ class FileServicePermissionTest {
 
     @Test
     void renameFolder_aclGranted_succeeds() {
-        // I-1：ACL 授权角色重命名成功——check(P_EDIT)=true 即放行，
+        // I-1：ACL 授权角色重命名成功——check(FOLDER_RENAME)=true 即放行，
         // 不再被遗留 checkFolderManagePermission（"只能管理自己的文件夹"）拦截
         BizFileFolder folder = new BizFileFolder();
         folder.setId(100L);
@@ -545,7 +545,7 @@ class FileServicePermissionTest {
         try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
             m.when(SecurityUtils::getCurrentUserId).thenReturn(2L);
             m.when(SecurityUtils::isAdmin).thenReturn(false);
-            when(folderPermissionService.check(100L, FolderPermissionService.P_EDIT, 2L)).thenReturn(true);
+            when(folderPermissionService.check(100L, FolderPermissionService.FOLDER_RENAME, 2L)).thenReturn(true);
             svc.renameFolder(100L, "新名字");
             ArgumentCaptor<BizFileFolder> cap = ArgumentCaptor.forClass(BizFileFolder.class);
             verify(folderMapper).updateById(cap.capture());
@@ -567,7 +567,7 @@ class FileServicePermissionTest {
         try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
             m.when(SecurityUtils::getCurrentUserId).thenReturn(2L);
             m.when(SecurityUtils::isAdmin).thenReturn(false);
-            when(folderPermissionService.check(100L, FolderPermissionService.P_DELETE, 2L)).thenReturn(true);
+            when(folderPermissionService.check(100L, FolderPermissionService.FOLDER_DELETE, 2L)).thenReturn(true);
             svc.deleteFolder(100L);
             verify(folderMapper).deleteById(100L);
             verify(folderAclMapper).delete(any());
@@ -587,7 +587,7 @@ class FileServicePermissionTest {
         try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
             m.when(SecurityUtils::getCurrentUserId).thenReturn(2L);
             m.when(SecurityUtils::isAdmin).thenReturn(false);
-            when(folderPermissionService.check(100L, FolderPermissionService.P_DELETE, 2L)).thenReturn(true);
+            when(folderPermissionService.check(100L, FolderPermissionService.FOLDER_DELETE, 2L)).thenReturn(true);
             svc.deleteFolder(100L);
             verify(folderMapper).deleteById(100L);
         }
@@ -602,7 +602,7 @@ class FileServicePermissionTest {
         try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
             m.when(SecurityUtils::getCurrentUserId).thenReturn(2L);
             m.when(SecurityUtils::isAdmin).thenReturn(false);
-            when(folderPermissionService.check(100L, FolderPermissionService.P_UPLOAD, 2L)).thenReturn(true);
+            when(folderPermissionService.check(100L, FolderPermissionService.FOLDER_CREATE, 2L)).thenReturn(true);
             svc.createFolder(folder);
             verify(folderMapper).insert(folder);
         }
@@ -633,7 +633,7 @@ class FileServicePermissionTest {
         MultipartFile mf = new MockMultipartFile("file", (String) null, "text/plain", new byte[25]);
         try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
             m.when(SecurityUtils::getCurrentUserId).thenReturn(1L);
-            when(folderPermissionService.checkFile(9L, FolderPermissionService.P_EDIT, 1L)).thenReturn(true);
+            when(folderPermissionService.checkFile(9L, FolderPermissionService.FILE_EDIT, 1L)).thenReturn(true);
             BizFile result = svc.replaceFile(9L, mf);
             assertNotNull(result.getOssUrl());
             assertTrue(result.getOssUrl().contains(result.getOssKey()), "ossUrl 应指向新 key: " + result.getOssUrl());

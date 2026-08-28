@@ -202,7 +202,7 @@ public class FileService {
         }
 
         // 【文件权限体系】上传到文件夹需文件夹上传权限（管理员/本人/上级链/ACL upload）
-        if (folderId != null && !folderPermissionService.check(folderId, FolderPermissionService.P_UPLOAD, userId)) {
+        if (folderId != null && !folderPermissionService.check(folderId, FolderPermissionService.FILE_UPLOAD, userId)) {
             throw new BusinessException(403, "没有访问权限，请联系管理员授权");
         }
 
@@ -264,10 +264,10 @@ public class FileService {
             throw new BusinessException("不支持的文件夹类型");
         }
         // 【文件权限体系】创建子文件夹需父文件夹上传权限（管理员/本人/上级链/ACL upload），
-        // public 类型带 parentId 同样按父夹 P_UPLOAD 判定（ACL 授权角色可在已授权公共夹下建子夹）；
+        // public 类型带 parentId 同样按父夹 FOLDER_CREATE 判定（ACL 授权角色可在已授权公共夹下建子夹）；
         // 根级公共文件夹（无 parentId）保留管理员门槛。
         if (folder.getParentId() != null
-                && !folderPermissionService.check(folder.getParentId(), FolderPermissionService.P_UPLOAD, SecurityUtils.getCurrentUserId())) {
+                && !folderPermissionService.check(folder.getParentId(), FolderPermissionService.FOLDER_CREATE, SecurityUtils.getCurrentUserId())) {
             throw new BusinessException(403, "没有访问权限，请联系管理员授权");
         }
         if ("public".equals(type) && folder.getParentId() == null && !SecurityUtils.isAdmin()) {
@@ -289,7 +289,7 @@ public class FileService {
         }
         // 【文件权限体系】ACL/上级链/本人 编辑权限（管理员恒通过），
         // 为操作唯一仲裁（已覆盖 admin>本人>上级链>ACL 优先级且 folder==null 已拒绝）
-        if (!folderPermissionService.check(folder.getId(), FolderPermissionService.P_EDIT, SecurityUtils.getCurrentUserId())) {
+        if (!folderPermissionService.check(folder.getId(), FolderPermissionService.FOLDER_RENAME, SecurityUtils.getCurrentUserId())) {
             throw new BusinessException(403, "没有访问权限，请联系管理员授权");
         }
         folder.setFolderName(newName.trim());
@@ -303,7 +303,7 @@ public class FileService {
         }
         // 【文件权限体系】ACL/上级链/本人 删除权限（管理员恒通过），
         // 为操作唯一仲裁（已覆盖 admin>本人>上级链>ACL 优先级且 folder==null 已拒绝）
-        if (!folderPermissionService.check(folder.getId(), FolderPermissionService.P_DELETE, SecurityUtils.getCurrentUserId())) {
+        if (!folderPermissionService.check(folder.getId(), FolderPermissionService.FOLDER_DELETE, SecurityUtils.getCurrentUserId())) {
             throw new BusinessException(403, "没有访问权限，请联系管理员授权");
         }
 
@@ -342,7 +342,7 @@ public class FileService {
         // 无文件夹文件沿用下方 scope 白名单归属校验。
         if (!SecurityUtils.isAdmin()) {
             if (file.getFolderId() != null) {
-                if (!folderPermissionService.checkFile(fileId, FolderPermissionService.P_DELETE, userId)) {
+                if (!folderPermissionService.checkFile(fileId, FolderPermissionService.FILE_DELETE, userId)) {
                     throw new BusinessException(403, "没有访问权限，请联系管理员授权");
                 }
             } else if ("public".equals(scope)) {
@@ -382,7 +382,7 @@ public class FileService {
         BizFile file = fileMapper.selectById(fileId);
         if (file == null) throw new BusinessException("文件不存在");
         Long userId = SecurityUtils.getCurrentUserId();
-        if (!folderPermissionService.checkFile(fileId, FolderPermissionService.P_EDIT, userId)) {
+        if (!folderPermissionService.checkFile(fileId, FolderPermissionService.FILE_EDIT, userId)) {
             throw new BusinessException(403, "没有访问权限，请联系管理员授权");
         }
         String scope = file.getFileScope() != null ? file.getFileScope() : "private";
@@ -671,7 +671,7 @@ public class FileService {
         }
         for (BizFileFolder f : pending) {
             if (folderPermissionService.permsFor(f.getId(), userId)
-                    .contains(FolderPermissionService.P_VIEW)) {
+                    .contains(FolderPermissionService.FILE_VIEW)) {
                 visible.add(f.getId());
             }
         }
@@ -762,7 +762,7 @@ public class FileService {
     public boolean canDownloadFile(BizFile file, Long userId) {
         boolean canDownload = canAccessFile(file, userId);
         if (!canDownload && file.getFolderId() != null) {
-            canDownload = folderPermissionService.checkFile(file.getId(), FolderPermissionService.P_DOWNLOAD, userId);
+            canDownload = folderPermissionService.checkFile(file.getId(), FolderPermissionService.FILE_DOWNLOAD, userId);
         }
         if (!canDownload && "incentive".equals(file.getFileScope())) {
             canDownload = isIncentiveFileVisible(file.getId(), userId);
@@ -847,7 +847,7 @@ public class FileService {
         // 无文件夹文件沿用下方上传者归属校验
         if (!SecurityUtils.isAdmin()) {
             if (file.getFolderId() != null) {
-                if (!folderPermissionService.checkFile(fileId, FolderPermissionService.P_SHARE, currentUserId)) {
+                if (!folderPermissionService.checkFile(fileId, FolderPermissionService.FILE_SHARE, currentUserId)) {
                     throw new BusinessException(403, "没有访问权限，请联系管理员授权");
                 }
             } else if (!currentUserId.equals(file.getUploaderId())) {

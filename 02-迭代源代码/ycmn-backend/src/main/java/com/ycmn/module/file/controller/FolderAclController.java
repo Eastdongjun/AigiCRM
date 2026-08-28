@@ -44,4 +44,14 @@ public class FolderAclController {
     public Result<Map<String, Object>> permissions(@PathVariable Long id) {
         return Result.ok(aclService.permissions(id, SecurityUtils.getCurrentUserId()));
     }
+
+    /**
+     * 【九项权限模型 v2 2026-08-28】ACL 弹窗角色下拉数据源（登录即可）：
+     * 私人文件夹 owner 无 system:role:view 权限，调 /system/roles 会 403 导致授权弹窗角色为空；
+     * 此接口返回全量角色 id+roleName 轻量视图，仅供 ACL 授权选择用。
+     */
+    @GetMapping("/roles")
+    public Result<List<Map<String, Object>>> aclRoles() {
+        return Result.ok(aclService.listRoles());
+    }
 }

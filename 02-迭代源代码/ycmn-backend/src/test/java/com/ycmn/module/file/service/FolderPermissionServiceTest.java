@@ -55,7 +55,7 @@ class FolderPermissionServiceTest {
         when(userMapper.selectById(1L)).thenReturn(admin);
         try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
             m.when(SecurityUtils::isAdmin).thenReturn(true);
-            assertTrue(svc.check(100L, FolderPermissionService.P_DELETE, 1L));
+            assertTrue(svc.check(100L, FolderPermissionService.FILE_DELETE, 1L));
         }
     }
 
@@ -65,7 +65,7 @@ class FolderPermissionServiceTest {
         when(folderMapper.selectById(100L)).thenReturn(folder);
         try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
             m.when(SecurityUtils::isAdmin).thenReturn(false);
-            assertTrue(svc.check(100L, FolderPermissionService.P_EDIT, 42L));
+            assertTrue(svc.check(100L, FolderPermissionService.FILE_EDIT, 42L));
         }
     }
 
@@ -109,7 +109,7 @@ class FolderPermissionServiceTest {
     void aclRole_grantsConfiguredPermission() {
         BizFileFolder folder = new BizFileFolder(); folder.setId(100L); folder.setOwnerId(99L); folder.setFolderType("private");
         BizFolderAcl acl = new BizFolderAcl();
-        acl.setFolderId(100L); acl.setRoleId(3L); acl.setPerms("view,upload");
+        acl.setFolderId(100L); acl.setRoleId(3L); acl.setPerms("file:view,file:upload");
         SysRole role = new SysRole(); role.setId(3L); role.setRoleCode("sales");
         when(folderMapper.selectById(100L)).thenReturn(folder);
         when(aclMapper.selectList(any())).thenReturn(List.of(acl));
@@ -117,7 +117,7 @@ class FolderPermissionServiceTest {
         try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
             m.when(SecurityUtils::isAdmin).thenReturn(false);
             m.when(SecurityUtils::getCurrentRoleCodes).thenReturn(List.of("sales")); // 用户角色含 sales → ACL 生效
-            assertTrue(svc.check(100L, FolderPermissionService.P_UPLOAD, 42L));
+            assertTrue(svc.check(100L, FolderPermissionService.FILE_UPLOAD, 42L));
         }
     }
 
@@ -127,9 +127,9 @@ class FolderPermissionServiceTest {
         when(folderMapper.selectById(100L)).thenReturn(folder);
         try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
             m.when(SecurityUtils::isAdmin).thenReturn(false);
-            assertTrue(svc.check(100L, FolderPermissionService.P_VIEW, 42L));
-            assertFalse(svc.check(100L, FolderPermissionService.P_EDIT, 42L));
-            assertFalse(svc.check(100L, FolderPermissionService.P_UPLOAD, 42L));
+            assertTrue(svc.check(100L, FolderPermissionService.FILE_VIEW, 42L));
+            assertFalse(svc.check(100L, FolderPermissionService.FILE_EDIT, 42L));
+            assertFalse(svc.check(100L, FolderPermissionService.FILE_UPLOAD, 42L));
         }
     }
 
@@ -140,7 +140,7 @@ class FolderPermissionServiceTest {
         when(folderMapper.selectById(100L)).thenReturn(folder);
         try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
             m.when(SecurityUtils::isAdmin).thenReturn(false);
-            assertTrue(svc.check(100L, FolderPermissionService.P_DOWNLOAD, 42L));
+            assertTrue(svc.check(100L, FolderPermissionService.FILE_DOWNLOAD, 42L));
         }
     }
 
@@ -150,7 +150,7 @@ class FolderPermissionServiceTest {
         when(folderMapper.selectById(100L)).thenReturn(folder);
         try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
             m.when(SecurityUtils::isAdmin).thenReturn(false);
-            assertFalse(svc.check(100L, FolderPermissionService.P_VIEW, 42L));
+            assertFalse(svc.check(100L, FolderPermissionService.FILE_VIEW, 42L));
         }
     }
 
@@ -160,7 +160,7 @@ class FolderPermissionServiceTest {
         when(fileMapper.selectById(9L)).thenReturn(file);
         try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
             m.when(SecurityUtils::isAdmin).thenReturn(false);
-            assertTrue(svc.checkFile(9L, FolderPermissionService.P_DELETE, 42L));
+            assertTrue(svc.checkFile(9L, FolderPermissionService.FILE_DELETE, 42L));
         }
     }
 
@@ -172,7 +172,7 @@ class FolderPermissionServiceTest {
         when(folderMapper.selectById(100L)).thenReturn(folder);
         try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
             m.when(SecurityUtils::isAdmin).thenReturn(false);
-            assertTrue(svc.checkFile(9L, FolderPermissionService.P_EDIT, 42L));
+            assertTrue(svc.checkFile(9L, FolderPermissionService.FILE_EDIT, 42L));
         }
     }
 
@@ -181,10 +181,10 @@ class FolderPermissionServiceTest {
         try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
             m.when(SecurityUtils::isAdmin).thenReturn(true);
             List<String> perms = svc.permsFor(100L, 1L);
-            assertEquals(6, perms.size());
-            assertTrue(perms.containsAll(List.of(FolderPermissionService.P_VIEW, FolderPermissionService.P_UPLOAD,
-                    FolderPermissionService.P_EDIT, FolderPermissionService.P_DELETE,
-                    FolderPermissionService.P_SHARE, FolderPermissionService.P_DOWNLOAD)));
+            assertEquals(9, perms.size());
+            assertTrue(perms.containsAll(List.of(FolderPermissionService.FILE_VIEW, FolderPermissionService.FILE_UPLOAD,
+                    FolderPermissionService.FILE_EDIT, FolderPermissionService.FILE_DELETE,
+                    FolderPermissionService.FILE_SHARE, FolderPermissionService.FILE_DOWNLOAD)));
         }
     }
 
@@ -194,7 +194,7 @@ class FolderPermissionServiceTest {
         when(folderMapper.selectById(100L)).thenReturn(folder);
         try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
             m.when(SecurityUtils::isAdmin).thenReturn(false);
-            assertEquals(6, svc.permsFor(100L, 42L).size());
+            assertEquals(9, svc.permsFor(100L, 42L).size());
         }
     }
 
@@ -202,7 +202,7 @@ class FolderPermissionServiceTest {
     void permsFor_aclPermissions_union() {
         BizFileFolder folder = new BizFileFolder(); folder.setId(100L); folder.setOwnerId(99L); folder.setFolderType("public");
         BizFolderAcl acl = new BizFolderAcl();
-        acl.setFolderId(100L); acl.setRoleId(3L); acl.setPerms("view,download");
+        acl.setFolderId(100L); acl.setRoleId(3L); acl.setPerms("file:view,file:download");
         SysRole role = new SysRole(); role.setId(3L); role.setRoleCode("sales");
         when(folderMapper.selectById(100L)).thenReturn(folder);
         when(aclMapper.selectList(any())).thenReturn(List.of(acl));
@@ -210,7 +210,7 @@ class FolderPermissionServiceTest {
         try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
             m.when(SecurityUtils::isAdmin).thenReturn(false);
             m.when(SecurityUtils::getCurrentRoleCodes).thenReturn(List.of("sales"));
-            assertEquals(List.of("view", "download"), svc.permsFor(100L, 42L));
+            assertEquals(List.of("file:view", "file:download"), svc.permsFor(100L, 42L));
         }
     }
 
@@ -220,7 +220,7 @@ class FolderPermissionServiceTest {
         when(folderMapper.selectById(100L)).thenReturn(folder);
         try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
             m.when(SecurityUtils::isAdmin).thenReturn(false);
-            assertEquals(List.of("view", "download"), svc.permsFor(100L, 42L));
+            assertEquals(List.of("file:view", "file:download"), svc.permsFor(100L, 42L));
         }
     }
 
@@ -229,7 +229,7 @@ class FolderPermissionServiceTest {
         // 修复轮 I-3：公共文件夹配置 ACL（无 view）后，未匹配/匹配角色的普通用户仍必须可见
         BizFileFolder folder = new BizFileFolder(); folder.setId(100L); folder.setOwnerId(99L); folder.setFolderType("public");
         BizFolderAcl acl = new BizFolderAcl();
-        acl.setFolderId(100L); acl.setRoleId(3L); acl.setPerms("upload,edit");
+        acl.setFolderId(100L); acl.setRoleId(3L); acl.setPerms("file:upload,file:edit");
         SysRole role = new SysRole(); role.setId(3L); role.setRoleCode("sales");
         when(folderMapper.selectById(100L)).thenReturn(folder);
         when(aclMapper.selectList(any())).thenReturn(List.of(acl));
@@ -239,11 +239,11 @@ class FolderPermissionServiceTest {
             // 角色匹配：ACL 权限 + 公共兜底 view/download
             m.when(SecurityUtils::getCurrentRoleCodes).thenReturn(List.of("sales"));
             List<String> matched = svc.permsFor(100L, 42L);
-            assertTrue(matched.containsAll(List.of(FolderPermissionService.P_VIEW, FolderPermissionService.P_DOWNLOAD, "upload", "edit")));
+            assertTrue(matched.containsAll(List.of(FolderPermissionService.FILE_VIEW, FolderPermissionService.FILE_DOWNLOAD, "file:upload", "file:edit")));
             // 角色不匹配：公共兜底仍保证可见
             m.when(SecurityUtils::getCurrentRoleCodes).thenReturn(List.of("other"));
             List<String> unmatched = svc.permsFor(100L, 42L);
-            assertEquals(List.of("view", "download"), unmatched);
+            assertEquals(List.of("file:view", "file:download"), unmatched);
         }
     }
 
@@ -257,12 +257,12 @@ class FolderPermissionServiceTest {
             m.when(SecurityUtils::isAdmin).thenReturn(true);
             Map<Long, List<String>> res = svc.permsForBatch(List.of(f1, f2), 1L);
             assertEquals(2, res.size());
-            assertTrue(res.get(100L).containsAll(List.of(FolderPermissionService.P_VIEW, FolderPermissionService.P_UPLOAD,
-                    FolderPermissionService.P_EDIT, FolderPermissionService.P_DELETE,
-                    FolderPermissionService.P_SHARE, FolderPermissionService.P_DOWNLOAD)));
-            assertTrue(res.get(101L).containsAll(List.of(FolderPermissionService.P_VIEW, FolderPermissionService.P_UPLOAD,
-                    FolderPermissionService.P_EDIT, FolderPermissionService.P_DELETE,
-                    FolderPermissionService.P_SHARE, FolderPermissionService.P_DOWNLOAD)));
+            assertTrue(res.get(100L).containsAll(List.of(FolderPermissionService.FILE_VIEW, FolderPermissionService.FILE_UPLOAD,
+                    FolderPermissionService.FILE_EDIT, FolderPermissionService.FILE_DELETE,
+                    FolderPermissionService.FILE_SHARE, FolderPermissionService.FILE_DOWNLOAD)));
+            assertTrue(res.get(101L).containsAll(List.of(FolderPermissionService.FILE_VIEW, FolderPermissionService.FILE_UPLOAD,
+                    FolderPermissionService.FILE_EDIT, FolderPermissionService.FILE_DELETE,
+                    FolderPermissionService.FILE_SHARE, FolderPermissionService.FILE_DOWNLOAD)));
         }
     }
 
@@ -273,8 +273,8 @@ class FolderPermissionServiceTest {
         try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
             m.when(SecurityUtils::isAdmin).thenReturn(false);
             Map<Long, List<String>> res = svc.permsForBatch(List.of(f1, f2), 42L);
-            assertEquals(6, res.get(100L).size());
-            assertEquals(6, res.get(101L).size());
+            assertEquals(9, res.get(100L).size());
+            assertEquals(9, res.get(101L).size());
             // 同一 owner 只做一次链判断（避免 N+1 的防回归）
             verify(userMapper, atMost(1)).selectById(42L);
         }
@@ -284,8 +284,8 @@ class FolderPermissionServiceTest {
     void permsForBatch_aclUnionAndPublicFallback() {
         BizFileFolder pub = new BizFileFolder(); pub.setId(100L); pub.setOwnerId(99L); pub.setFolderType("public");
         BizFileFolder priv = new BizFileFolder(); priv.setId(101L); priv.setOwnerId(99L); priv.setFolderType("private");
-        BizFolderAcl acl1 = new BizFolderAcl(); acl1.setFolderId(100L); acl1.setRoleId(3L); acl1.setPerms("upload,edit");
-        BizFolderAcl acl2 = new BizFolderAcl(); acl2.setFolderId(101L); acl2.setRoleId(3L); acl2.setPerms("view,download");
+        BizFolderAcl acl1 = new BizFolderAcl(); acl1.setFolderId(100L); acl1.setRoleId(3L); acl1.setPerms("file:upload,file:edit");
+        BizFolderAcl acl2 = new BizFolderAcl(); acl2.setFolderId(101L); acl2.setRoleId(3L); acl2.setPerms("file:view,file:download");
         SysRole role = new SysRole(); role.setId(3L); role.setRoleCode("sales");
         when(aclMapper.selectList(any())).thenReturn(List.of(acl1, acl2));
         when(roleMapper.selectById(3L)).thenReturn(role);
@@ -294,13 +294,13 @@ class FolderPermissionServiceTest {
             m.when(SecurityUtils::getCurrentRoleCodes).thenReturn(List.of("sales"));
             Map<Long, List<String>> res = svc.permsForBatch(List.of(pub, priv), 42L);
             // 公共：ACL(upload/edit) + 兜底 view/download
-            assertTrue(res.get(100L).containsAll(List.of("upload", "edit", "view", "download")));
+            assertTrue(res.get(100L).containsAll(List.of("file:upload", "file:edit", "file:view", "file:download")));
             // 私有：仅 ACL 授权
-            assertEquals(List.of("view", "download"), res.get(101L));
+            assertEquals(List.of("file:view", "file:download"), res.get(101L));
             // 角色不匹配 → 公共兜底 view/download，私有空
             m.when(SecurityUtils::getCurrentRoleCodes).thenReturn(List.of("other"));
             res = svc.permsForBatch(List.of(pub, priv), 42L);
-            assertEquals(List.of("view", "download"), res.get(100L));
+            assertEquals(List.of("file:view", "file:download"), res.get(100L));
             assertTrue(res.get(101L).isEmpty());
         }
     }

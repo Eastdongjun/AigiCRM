@@ -11,7 +11,7 @@
         <div><div class="s-num">{{ storageQuota || '10GB' }}</div><div class="s-lbl">总容量</div></div>
       </div>
       <el-input v-model="keyword" placeholder="搜索文件名称..." style="width:220px;margin-left:auto" clearable prefix-icon="Search" @keyup.enter="searchFiles" />
-      <el-button v-if="activeTab!=='incentive'&&activeTab!=='shared_to_me' && folderPerms.includes('upload')" type="primary" :icon="Upload" @click="openUpload">上传文件</el-button>
+      <el-button v-if="activeTab!=='incentive'&&activeTab!=='shared_to_me' && folderPerms.includes('file:upload')" type="primary" :icon="Upload" @click="openUpload">上传文件</el-button>
     </div>
 
     <!-- 框2: 主内容 -->
@@ -55,16 +55,16 @@
 </template>
 
 <script setup>
-import { provide, onMounted } from 'vue'
+import { FilePageKey, useFilePage } from '@/composables/useFilePage'
 import { Upload } from '@element-plus/icons-vue'
-import { useFilePage, FilePageKey } from '@/composables/useFilePage'
-import FolderPanel from './FolderPanel.vue'
-import FileTable from './FileTable.vue'
-import UploadDialog from './UploadDialog.vue'
+import { onMounted, provide } from 'vue'
+import AclDialog from './AclDialog.vue'
 import CreateFolderDialog from './CreateFolderDialog.vue'
+import FileTable from './FileTable.vue'
+import FolderPanel from './FolderPanel.vue'
 import RenameFolderDialog from './RenameFolderDialog.vue'
 import ShareDialog from './ShareDialog.vue'
-import AclDialog from './AclDialog.vue'
+import UploadDialog from './UploadDialog.vue'
 
 // 共享上下文: 父级实例化一次并 provide,各面板/弹窗 inject
 const filePage = useFilePage()
