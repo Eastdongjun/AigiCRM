@@ -1,5 +1,6 @@
 package com.ycmn.module.incentive.controller;
 
+import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.ycmn.common.BusinessException;
 import com.ycmn.common.Result;
 import com.ycmn.module.incentive.entity.BizIncentiveCategory;
@@ -61,6 +62,28 @@ public class IncentiveController {
         // - 显式传 userId → service 内校验是否在可见范围内（防越权看任意人）
         // customerId 可选：客户详情 Tab 按客户过滤
         return Result.ok(incentiveService.getRecords(userId, period, parentCategoryId, customerId));
+    }
+
+    /**
+     * 【列表页真分页 2026-08-28】激励记录分页端点：
+     * 记录页翻页才拉下一页（修复一次拉全量 177KB 导致页面数据卡顿），
+     * 前端本地筛选（关键词/客户/组/档位）全部后端化。
+     * 原 /records 保持不变（客户详情 Tab 等全量场景继续用）。
+     */
+    @PreAuthorize("hasAuthority('incentive:view')")
+    @GetMapping("/records/page")
+    public Result<IPage<BizIncentiveRecord>> pageRecords(
+            @RequestParam(defaultValue = "1") int current,
+            @RequestParam(defaultValue = "30") int size,
+            @RequestParam(required = false) Long userId,
+            @RequestParam(required = false) String period,
+            @RequestParam(required = false) Long parentCategoryId,
+            @RequestParam(required = false) Long customerId,
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) String customerName,
+            @RequestParam(required = false) String groupName,
+            @RequestParam(required = false) String tier) {
+        return Result.ok(incentiveService.pageRecords(current, size, userId, period, parentCategoryId, customerId, keyword, customerName, groupName, tier));
     }
 
     /** 上传新记录：incentive:add 独立权限码（设计 §3.2：上传语义从 edit 拆出） */
@@ -140,10 +163,10 @@ public class IncentiveController {
         return Result.ok(incentiveService.scoreboard(period));
     }
 
-    /** 按客户分组查询激励记录（全员可见）— 支持多维度筛选 */
+    /** 按客户分组查询激励记录（全员可见）— 支持多维度筛选；传 current/size 走分页（2026-08-28） */
     @PreAuthorize("hasAuthority('incentive:view')")
     @GetMapping("/customer-records")
-    public Result<List<Map<String, Object>>> customerRecords(
+    public Result<Object> customerRecords(
             @RequestParam(required = false) String industry,
             @RequestParam(required = false) Long mainCategoryId,
             @RequestParam(required = false) String customerName,
@@ -153,7 +176,12 @@ public class IncentiveController {
             @RequestParam(required = false) String orgIds,
             @RequestParam(required = false) String devType,
             @RequestParam(required = false) String product,
-            @RequestParam(required = false) String keyword) {
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) Integer current,
+            @RequestParam(required = false) Integer size) {
+        if (current != null && size != null && size > 0) {
+            return Result.ok(incentiveService.getCustomerRecordsPage(industry, mainCategoryId, customerName, salesperson, startDate, endDate, orgIds, devType, product, keyword, current, size));
+        }
         return Result.ok(incentiveService.getCustomerRecords(industry, mainCategoryId, customerName, salesperson, startDate, endDate, orgIds, devType, product, keyword));
     }
 

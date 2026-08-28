@@ -297,7 +297,78 @@ public class IncentiveService {
         wrapper.orderByDesc(BizIncentiveRecord::getCreatedAt);
         List<BizIncentiveRecord> records = recordMapper.selectList(wrapper);
 
-        // 批量填充关联名称(替代逐条 selectById 的 N+1,一次 IN 查询按 id 建 Map)
+        fillRecordDisplayFields(records);
+        return records;
+    }
+
+    /**
+     * 【列表页真分页 2026-08-28】激励记录分页查询：
+     * 记录页翻页才拉下一页（修复一次拉全量 177KB 导致页面数据卡顿），
+     * 前端本地筛选（关键词/客户/组/档位）全部后端化。
+     *
+     * 【需求】激励记录页真分页 + 筛选后端化（性能优化需求 2026-08-28）
+     * 【方法】与 getRecords 同源的分享制/归属过滤 + 新增 keyword/customerName/groupName/tier 筛选，
+     *          MyBatis-Plus selectPage 分页后复用 fillRecordDisplayFields 批量回填显示字段
+     * 【业务规则】分享制与 getRecords 完全一致（admin/专项授权→全部，否则本人+shared=1）；
+     *             groupName/tier 按激励分类树层级名称解析为子孙分类 id 集合（见 resolveCategoryIds）
+     * 【参数】current 页码(1起)；size 每页条数；其余同 getRecords 过滤参数 + 前端筛选四项
+     * 【返回】IPage（records+total），records 已回填分类/用户/客户/文件名称
+     * 【注意】只读查询；无结果返回空页(非 null)，前端按 total 渲染分页
+     */
+    public com.baomidou.mybatisplus.core.metadata.IPage<BizIncentiveRecord> pageRecords(
+            int current, int size, Long userId, String period, Long parentCategoryId, Long customerId,
+            String keyword, String customerName, String groupName, String tier) {
+        LambdaQueryWrapper<BizIncentiveRecord> wrapper = new LambdaQueryWrapper<>();
+        if (userId != null) {
+            // 【2026-08-08 分享制】显式指定查看某人：admin/专项授权→全部；本人→自己全部；他人→仅其已分享记录。
+            if (!canViewIncentiveUser(userId)) return new com.baomidou.mybatisplus.extension.plugins.pagination.Page<>(current, size, 0);
+            wrapper.eq(BizIncentiveRecord::getUserId, userId);
+            Long self = SecurityUtils.getCurrentUserId();
+            if (!canSeeAllIncentive() && (self == null || !self.equals(userId))) {
+                wrapper.eq(BizIncentiveRecord::getShared, 1);
+            }
+        } else {
+            applyShareVisibility(wrapper);
+        }
+        if (period != null) wrapper.eq(BizIncentiveRecord::getPeriod, period);
+        if (customerId != null) wrapper.eq(BizIncentiveRecord::getCustomerId, customerId);
+        if (parentCategoryId != null) {
+            List<BizIncentiveCategory> children = categoryMapper.selectList(
+                    new LambdaQueryWrapper<BizIncentiveCategory>().eq(BizIncentiveCategory::getParentId, parentCategoryId));
+            List<Long> childIds = children.stream().map(BizIncentiveCategory::getId).toList();
+            if (!childIds.isEmpty()) {
+                wrapper.in(BizIncentiveRecord::getCategoryId, childIds);
+            }
+        }
+        // 文件名关键词（前端搜索框输入对文件名的匹配语义）
+        if (keyword != null && !keyword.isBlank()) wrapper.like(BizIncentiveRecord::getFileName, keyword);
+        // 客户名模糊（前端"客户"筛选）→ 客户子查询，查无客户直接空页
+        if (customerName != null && !customerName.isBlank()) {
+            List<Long> cids = customerMapper.selectList(
+                    new LambdaQueryWrapper<BizCustomer>().like(BizCustomer::getCustomerName, customerName))
+                    .stream().map(BizCustomer::getId).toList();
+            if (cids.isEmpty()) return new com.baomidou.mybatisplus.extension.plugins.pagination.Page<>(current, size, 0);
+            wrapper.in(BizIncentiveRecord::getCustomerId, cids);
+        }
+        // 组/档位：按分类树层级名称解析（null=未筛选；空集合=名称无匹配→空页）
+        List<Long> catScope = resolveCategoryIds(groupName, tier);
+        if (catScope != null) {
+            if (catScope.isEmpty()) return new com.baomidou.mybatisplus.extension.plugins.pagination.Page<>(current, size, 0);
+            wrapper.in(BizIncentiveRecord::getCategoryId, catScope);
+        }
+        wrapper.orderByDesc(BizIncentiveRecord::getCreatedAt);
+        com.baomidou.mybatisplus.core.metadata.IPage<BizIncentiveRecord> page =
+                recordMapper.selectPage(new com.baomidou.mybatisplus.extension.plugins.pagination.Page<>(current, size), wrapper);
+        fillRecordDisplayFields(page.getRecords());
+        return page;
+    }
+
+    /**
+     * 批量回填记录显示字段（从 getRecords 抽出复用，替代逐条 selectById 的 N+1）。
+     * 一次 IN 查询按 id 建 Map 回填 categoryName/userName/updatedByName/customerName + 文件名。
+     */
+    private void fillRecordDisplayFields(List<BizIncentiveRecord> records) {
+        if (records.isEmpty()) return;
         java.util.Set<Long> catIds = records.stream().map(BizIncentiveRecord::getCategoryId).filter(java.util.Objects::nonNull).collect(java.util.stream.Collectors.toSet());
         java.util.Set<Long> uidSet = records.stream().map(BizIncentiveRecord::getUserId).filter(java.util.Objects::nonNull).collect(java.util.stream.Collectors.toSet());
         uidSet.addAll(records.stream().map(BizIncentiveRecord::getUpdatedBy).filter(java.util.Objects::nonNull).collect(java.util.stream.Collectors.toSet()));
@@ -327,7 +398,35 @@ public class IncentiveService {
             }
         }
         fillFileNames(records);
-        return records;
+    }
+
+    /**
+     * 组/档位筛选 → 分类 id 集合（激励分类树：主类→组→档位）。
+     * groupName/tier 按分类名匹配，命中分类及其全部子孙分类 id 均纳入（与前端 groupName/tier 语义对齐）。
+     * 两者都为空返回 null（不加条件）；名称查无匹配返回空集合（调用方按空页处理）。
+     */
+    private List<Long> resolveCategoryIds(String groupName, String tier) {
+        if ((groupName == null || groupName.isBlank()) && (tier == null || tier.isBlank())) return null;
+        List<BizIncentiveCategory> all = categoryMapper.selectList(null);
+        java.util.Set<Long> ids = new java.util.LinkedHashSet<>();
+        for (BizIncentiveCategory c : all) {
+            boolean hit = (groupName != null && groupName.equals(c.getCategoryName()))
+                    || (tier != null && tier.equals(c.getCategoryName()));
+            if (!hit) continue;
+            ids.add(c.getId());
+            collectDescendantIds(all, c.getId(), ids);
+        }
+        return new ArrayList<>(ids);
+    }
+
+    /** 递归收集某分类的全部子孙分类 id */
+    private void collectDescendantIds(List<BizIncentiveCategory> all, Long parentId, java.util.Set<Long> out) {
+        for (BizIncentiveCategory c : all) {
+            if (java.util.Objects.equals(c.getParentId(), parentId)) {
+                out.add(c.getId());
+                collectDescendantIds(all, c.getId(), out);
+            }
+        }
     }
 
     public BizIncentiveRecord getRecordById(Long id) {
@@ -800,8 +899,44 @@ public class IncentiveService {
         return result;
     }
 
-    /** 按客户分组查询激励记录 — 多维度筛选（2026-08-01 新增 product/keyword 搜索与四区排序） */
+    /**
+     * 按客户分组查询激励记录 — 多维度筛选（2026-08-01 新增 product/keyword 搜索与四区排序）。
+     * 2026-08-28 重构：wrapper 构建与分组回填抽取为 buildCustomerRecordsWrapper/assembleCustomerRecords，
+     * 供全量版与分页版（getCustomerRecordsPage）共用。
+     */
     public List<Map<String, Object>> getCustomerRecords(String industry, Long mainCategoryId,
+            String customerName, String salesperson, String startDate, String endDate, String orgIds, String devType,
+            String product, String keyword) {
+        List<BizIncentiveRecord> records = recordMapper.selectList(
+                buildCustomerRecordsWrapper(industry, mainCategoryId, customerName, salesperson, startDate, endDate, orgIds, devType, product, keyword));
+        return assembleCustomerRecords(records);
+    }
+
+    /**
+     * 【列表页真分页 2026-08-28】激励查询页分页版：翻页才拉下一页
+     * （修复一次拉全量 186KB 导致页面数据卡顿）。
+     *
+     * 【需求】激励查询（customer-records）真分页
+     * 【方法】复用 buildCustomerRecordsWrapper 构建筛选 → selectPage 分页 → assembleCustomerRecords 分组
+     * 【业务规则】筛选/分享制与全量版完全一致；返回 {records: 分组客户列表, total: 客户总数}
+     * 【参数】前 10 个同全量版筛选；current 页码(1起)；size 每页条数
+     * 【返回】Map{records, total}；空页 records=[]
+     * 【注意】只读查询；total 为客户分组数（分页在客户维度）
+     */
+    public Map<String, Object> getCustomerRecordsPage(String industry, Long mainCategoryId,
+            String customerName, String salesperson, String startDate, String endDate, String orgIds, String devType,
+            String product, String keyword, int current, int size) {
+        com.baomidou.mybatisplus.core.metadata.IPage<BizIncentiveRecord> page = recordMapper.selectPage(
+                new com.baomidou.mybatisplus.extension.plugins.pagination.Page<>(current, size),
+                buildCustomerRecordsWrapper(industry, mainCategoryId, customerName, salesperson, startDate, endDate, orgIds, devType, product, keyword));
+        Map<String, Object> out = new LinkedHashMap<>();
+        out.put("records", assembleCustomerRecords(page.getRecords()));
+        out.put("total", page.getTotal());
+        return out;
+    }
+
+    /** 构建 customer-records 查询条件（全量/分页共用，2026-08-28 从 getCustomerRecords 抽出） */
+    private LambdaQueryWrapper<BizIncentiveRecord> buildCustomerRecordsWrapper(String industry, Long mainCategoryId,
             String customerName, String salesperson, String startDate, String endDate, String orgIds, String devType,
             String product, String keyword) {
         LambdaQueryWrapper<BizIncentiveRecord> wrapper = new LambdaQueryWrapper<>();
@@ -818,7 +953,7 @@ public class IncentiveService {
             );
             if (!matched.isEmpty()) {
                 wrapper.in(BizIncentiveRecord::getCustomerId, matched.stream().map(BizCustomer::getId).toList());
-            } else { return List.of(); }
+            } else { wrapper.eq(BizIncentiveRecord::getId, -1L); }
         }
         if (product != null && !product.isBlank()) {
             wrapper.like(BizIncentiveRecord::getRelatedProducts, product);
@@ -848,7 +983,7 @@ public class IncentiveService {
             );
             if (!users.isEmpty()) {
                 wrapper.in(BizIncentiveRecord::getUserId, users.stream().map(SysUser::getId).toList());
-            } else { return List.of(); }
+            } else { wrapper.eq(BizIncentiveRecord::getId, -1L); }
         }
         if (mainCategoryId != null) {
             Set<Long> catIds = new HashSet<>();
@@ -877,7 +1012,7 @@ public class IncentiveService {
                 );
                 List<Long> uids = orgUsers.stream().map(SysUser::getId).distinct().toList();
                 if (!uids.isEmpty()) wrapper.in(BizIncentiveRecord::getUserId, uids);
-                else return List.of();
+                else wrapper.eq(BizIncentiveRecord::getId, -1L);
             }
         }
         if (devType != null && !devType.isBlank()) {
@@ -886,13 +1021,16 @@ public class IncentiveService {
             );
             if (!devCustomers.isEmpty()) {
                 wrapper.in(BizIncentiveRecord::getCustomerId, devCustomers.stream().map(BizCustomer::getId).toList());
-            } else { return List.of(); }
+            } else { wrapper.eq(BizIncentiveRecord::getId, -1L); }
         }
         if (startDate != null && !startDate.isBlank()) wrapper.ge(BizIncentiveRecord::getCreatedAt, startDate + " 00:00:00");
         if (endDate != null && !endDate.isBlank()) wrapper.le(BizIncentiveRecord::getCreatedAt, endDate + " 23:59:59");
         wrapper.orderByDesc(BizIncentiveRecord::getCreatedAt);
-        List<BizIncentiveRecord> records = recordMapper.selectList(wrapper);
+        return wrapper;
+    }
 
+    /** 按客户分组 + 四区排序 + 行业排序（2026-08-28 从 getCustomerRecords 抽出） */
+    private List<Map<String, Object>> assembleCustomerRecords(List<BizIncentiveRecord> records) {
         // 批量查客户
         Set<Long> cids = records.stream().map(BizIncentiveRecord::getCustomerId).filter(Objects::nonNull).collect(Collectors.toSet());
         Map<Long, BizCustomer> custMap = new HashMap<>();

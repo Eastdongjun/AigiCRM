@@ -14,15 +14,15 @@
 
     <!-- 筛选栏 -->
     <div class="filter-bar">
-      <el-input v-model="filters.search" placeholder="搜索..." size="small" clearable style="width:160px" />
-      <el-select v-model="filters.industry" placeholder="行业" size="small" clearable style="width:100px">
+      <el-input v-model="filters.search" placeholder="搜索..." size="small" clearable style="width:160px" @change="onLocalFilter" />
+      <el-select v-model="filters.industry" placeholder="行业" size="small" clearable style="width:100px" @change="onLocalFilter">
         <el-option v-for="ind in allIndustries" :key="ind" :label="ind" :value="ind" />
       </el-select>
-      <el-select v-model="filters.status" placeholder="状态" size="small" clearable style="width:90px">
+      <el-select v-model="filters.status" placeholder="状态" size="small" clearable style="width:90px" @change="onLocalFilter">
         <el-option label="正常" value="normal" /><el-option label="预警" value="warning" /><el-option label="超期" value="expired" />
       </el-select>
       <el-button size="small" @click="colPickerVisible = true">列设置</el-button>
-      <span class="filter-count">共 {{ filteredList.length }} 条</span>
+      <span class="filter-count">共 {{ total }} 条</span>
     </div>
 
     <!-- 表格 -->
@@ -82,15 +82,18 @@
 </template>
 
 <script setup>
-import { injectCustomerList } from '@/composables/useCustomerList'
+import { injectCustomerList } from '@/composables/useCustomerList';
 
 const {
   activeTab, onTabChange, tabs, filters, allIndustries,
-  colPickerVisible, filteredList, page, pageSize,
+  colPickerVisible, filteredList, page, pageSize, total, loadData,
   canDelete, vis, isShared, getStatusType, getStatusText,
   getProtectClass, getProtectText, getExpireColor,
   viewDetail, openRelease, handleDelete,
 } = injectCustomerList()
+
+// 【列表页真分页 2026-08-28】表内筛选变化 → 回第 1 页重新请求（筛选已后端化）
+const onLocalFilter = () => { page.value = 1; loadData() }
 </script>
 
 <style scoped>

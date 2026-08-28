@@ -55,24 +55,26 @@ public class CustomerService {
 
     public IPage<BizCustomer> page(int current, int size, String keyword, String industry,
                                     Long officeId, Long regionId, String status, Long ownerId) {
-        return page(current, size, keyword, industry, officeId, regionId, status, ownerId, null, null, null, null);
+        return page(current, size, keyword, industry, officeId, regionId, status, ownerId, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
     }
 
     public IPage<BizCustomer> page(int current, int size, String keyword, String industry,
                                     Long officeId, Long regionId, String status, Long ownerId, String scope) {
-        return page(current, size, keyword, industry, officeId, regionId, status, ownerId, scope, null, null, null);
+        return page(current, size, keyword, industry, officeId, regionId, status, ownerId, scope, null, null, null, null, null, null, null, null, null, null, null, null, null);
     }
 
     public IPage<BizCustomer> page(int current, int size, String keyword, String industry,
                                     Long officeId, Long regionId, String status, Long ownerId, String scope,
                                     String devType, String groupName) {
-        return page(current, size, keyword, industry, officeId, regionId, status, ownerId, scope, devType, groupName, null);
+        return page(current, size, keyword, industry, officeId, regionId, status, ownerId, scope, devType, groupName, null, null, null, null, null, null, null, null, null, null, null);
     }
 
     @SuppressWarnings("unused") // else-if(false) 设计历史分支为监督面板强制保留(见下), 抑制 Dead code 告警
     public IPage<BizCustomer> page(int current, int size, String keyword, String industry,
                                     Long officeId, Long regionId, String status, Long ownerId, String scope,
-                                    String devType, String groupName, Long deptId) {
+                                    String devType, String groupName, Long deptId, String deptIds, String ownerIds,
+                                    String province, String city, String protect, String regDateStart, String regDateEnd,
+                                    String expDateStart, String expDateEnd, String ownerName) {
         Long currentUserId = SecurityUtils.getCurrentUserId();
 
         // scope 筛选: mine / shared_by_me / shared_to_me
@@ -122,9 +124,25 @@ public class CustomerService {
         }
         if (deptId != null) {
             // 部门筛选：含该部门全部子部门（部门可无限嵌套）
-            java.util.List<Long> deptIds = getDescendantDeptIds(deptId);
-            deptIds.add(deptId);
-            wrapper.in(BizCustomer::getDeptId, deptIds);
+            java.util.List<Long> deptIdList = getDescendantDeptIds(deptId);
+            deptIdList.add(deptId);
+            wrapper.in(BizCustomer::getDeptId, deptIdList);
+        }
+        // 【列表页真分页 2026-08-28】高级筛选多部门/多归属人（逗号分隔多值，前端转后端参数）
+        if (StringUtils.hasText(deptIds)) {
+            java.util.Set<Long> allDept = new java.util.LinkedHashSet<>();
+            for (String s : deptIds.split(",")) {
+                if (s.isBlank()) continue;
+                Long d = Long.parseLong(s.trim());
+                allDept.add(d);
+                allDept.addAll(getDescendantDeptIds(d));
+            }
+            wrapper.in(BizCustomer::getDeptId, allDept);
+        }
+        if (StringUtils.hasText(ownerIds)) {
+            java.util.List<Long> oids = java.util.Arrays.stream(ownerIds.split(","))
+                    .map(String::trim).filter(s -> !s.isEmpty()).map(Long::parseLong).toList();
+            wrapper.in(BizCustomer::getOwnerId, oids);
         }
         if (StringUtils.hasText(status)) {
             String[] arr = status.split(",");
@@ -141,6 +159,21 @@ public class CustomerService {
         }
         if (StringUtils.hasText(groupName)) {
             wrapper.eq(BizCustomer::getGroupName, groupName);
+        }
+        // 【列表页真分页 2026-08-28】高级筛选其余字段后端化（省市/保护/日期区间/负责人姓名）
+        if (StringUtils.hasText(province)) wrapper.like(BizCustomer::getProvince, province);
+        if (StringUtils.hasText(city)) wrapper.like(BizCustomer::getCity, city);
+        if (StringUtils.hasText(protect)) wrapper.eq(BizCustomer::getProtectionStatus, protect);
+        if (StringUtils.hasText(regDateStart)) wrapper.ge(BizCustomer::getRegisterDate, regDateStart);
+        if (StringUtils.hasText(regDateEnd)) wrapper.le(BizCustomer::getRegisterDate, regDateEnd);
+        if (StringUtils.hasText(expDateStart)) wrapper.ge(BizCustomer::getExpireDate, expDateStart);
+        if (StringUtils.hasText(expDateEnd)) wrapper.le(BizCustomer::getExpireDate, expDateEnd);
+        if (StringUtils.hasText(ownerName)) {
+            java.util.List<Long> nameIds = userMapper.selectList(
+                    new LambdaQueryWrapper<SysUser>().like(SysUser::getRealName, ownerName))
+                    .stream().map(SysUser::getId).toList();
+            if (!nameIds.isEmpty()) wrapper.in(BizCustomer::getOwnerId, nameIds);
+            else wrapper.eq(BizCustomer::getOwnerId, -1L);
         }
         wrapper.orderByDesc(BizCustomer::getCreatedAt);
 
@@ -225,6 +258,17 @@ public class CustomerService {
         long sharedToMe = shareMapper.selectCount(
                 new LambdaQueryWrapper<BizCustomerShare>().eq(BizCustomerShare::getSharedToUserId, userId));
         counts.put("sharedToMe", sharedToMe);
+
+        // 【列表页真分页 2026-08-28】devType 分组计数（列表 Tab 徽标，中文值与前端 tabs 一致，同样受数据范围）
+        LambdaQueryWrapper<BizCustomer> devW = new LambdaQueryWrapper<>();
+        devW.eq(BizCustomer::getDeleted, 0).ne(BizCustomer::getStatus, "sea").isNotNull(BizCustomer::getDevType);
+        applyDataScope(devW);
+        Map<String, Long> byDev = customerMapper.selectList(devW).stream()
+                .filter(c -> c.getDevType() != null && !c.getDevType().isBlank())
+                .collect(Collectors.groupingBy(BizCustomer::getDevType, Collectors.counting()));
+        counts.put("dev_成熟创新", byDev.getOrDefault("成熟创新", 0L));
+        counts.put("dev_突破开拓", byDev.getOrDefault("突破开拓", 0L));
+        counts.put("dev_铺垫宣传", byDev.getOrDefault("铺垫宣传", 0L));
 
         return counts;
     }

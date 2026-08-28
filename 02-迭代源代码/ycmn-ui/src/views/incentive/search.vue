@@ -2,13 +2,13 @@
   <div style="margin:-20px">
     <div class="bar">
       <div class="bar-row">
-        <el-input v-model="fCustomer" placeholder="搜索客户名称 / 关键字（如：煤气管道）..." clearable class="kw-main" @change="doSearch"><template #prefix><el-icon><Search /></el-icon></template></el-input>
+        <el-input v-model="fCustomer" placeholder="搜索客户名称 / 关键字（如：煤气管道）..." clearable class="kw-main" @change="doSearch(true)"><template #prefix><el-icon><Search /></el-icon></template></el-input>
         <el-button :type="showFilter?'primary':'default'" size="default" @click="showFilter=!showFilter">
           <el-icon><Filter /></el-icon> 高级筛选 <el-tag v-if="activeFilterCount" size="small" type="danger" effect="dark" style="margin-left:4px">{{ activeFilterCount }}</el-tag>
         </el-button>
-        <el-button type="primary" @click="doSearch">查询</el-button>
+        <el-button type="primary" @click="doSearch(true)">查询</el-button>
         <el-button @click="doReset">重置</el-button>
-        <span class="cnt"><el-icon><Folder /></el-icon> {{ custs.length }} 客户</span>
+        <span class="cnt"><el-icon><Folder /></el-icon> {{ custTotal }} 客户</span>
       </div>
       <div v-if="showFilter" class="bar-adv">
         <div class="adv-header">
@@ -21,36 +21,36 @@
         <div class="adv-grid">
           <div class="adv-field">
             <label class="adv-field-label"><el-icon><User /></el-icon> 同事姓名</label>
-            <el-select v-model="fSales" placeholder="输入或选择同事" clearable filterable allow-create default-first-option @change="doSearch" size="small">
+            <el-select v-model="fSales" placeholder="输入或选择同事" clearable filterable allow-create default-first-option @change="doSearch(true)" size="small">
               <el-option v-for="u in userList" :key="u.id" :label="u.realName" :value="u.realName" />
             </el-select>
           </div>
           <div class="adv-field">
             <label class="adv-field-label"><el-icon><PriceTag /></el-icon> 产品小类</label>
             <div style="display:flex;gap:8px">
-              <el-select v-model="fProdCat" placeholder="大类" clearable @change="fProdSub='';doSearch()" size="small" style="flex:1">
+              <el-select v-model="fProdCat" placeholder="大类" clearable @change="fProdSub='';doSearch(true)" size="small" style="flex:1">
                 <el-option v-for="k in productCatKeys" :key="k" :label="k" :value="k" />
               </el-select>
-              <el-select v-model="fProdSub" placeholder="小类" clearable :disabled="!fProdCat" @change="doSearch" size="small" style="flex:1">
+              <el-select v-model="fProdSub" placeholder="小类" clearable :disabled="!fProdCat" @change="doSearch(true)" size="small" style="flex:1">
                 <el-option v-for="s in (productCats[fProdCat] || [])" :key="s" :label="s" :value="s" />
               </el-select>
             </div>
           </div>
           <div class="adv-field">
             <label class="adv-field-label"><el-icon><OfficeBuilding /></el-icon> 行业</label>
-            <el-select v-model="fIndustry" placeholder="全部行业" clearable @change="doSearch" size="small"><el-option v-for="i in industries" :key="i" :label="i" :value="i" /></el-select>
+            <el-select v-model="fIndustry" placeholder="全部行业" clearable @change="doSearch(true)" size="small"><el-option v-for="i in industries" :key="i" :label="i" :value="i" /></el-select>
           </div>
           <div class="adv-field">
             <label class="adv-field-label"><el-icon><PriceTag /></el-icon> 开发类型</label>
-            <el-select v-model="fDevType" placeholder="全部类型" clearable @change="doSearch" size="small"><el-option v-for="d in devTypes" :key="d" :label="d" :value="d" /></el-select>
+            <el-select v-model="fDevType" placeholder="全部类型" clearable @change="doSearch(true)" size="small"><el-option v-for="d in devTypes" :key="d" :label="d" :value="d" /></el-select>
           </div>
           <div class="adv-field span-2">
             <label class="adv-field-label"><el-icon><Calendar /></el-icon> 日期范围</label>
-            <el-date-picker v-model="fDateRange" type="daterange" range-separator="~" start-placeholder="开始" end-placeholder="截止" value-format="YYYY-MM-DD" @change="doSearch" size="small" style="width:100%" />
+            <el-date-picker v-model="fDateRange" type="daterange" range-separator="~" start-placeholder="开始" end-placeholder="截止" value-format="YYYY-MM-DD" @change="doSearch(true)" size="small" style="width:100%" />
           </div>
           <div class="adv-field span-2">
             <label class="adv-field-label"><el-icon><MapLocation /></el-icon> 组织筛选</label>
-            <el-tree-select v-model="fOrgIds" :data="orgTree" :props="{label:'deptName',value:'id',children:'children'}" placeholder="选择大区 / 办事处" clearable filterable multiple check-strictly show-checkbox collapse-tags collapse-tags-tooltip @change="doSearch" size="small" style="width:100%" />
+            <el-tree-select v-model="fOrgIds" :data="orgTree" :props="{label:'deptName',value:'id',children:'children'}" placeholder="选择大区 / 办事处" clearable filterable multiple check-strictly show-checkbox collapse-tags collapse-tags-tooltip @change="doSearch(true)" size="small" style="width:100%" />
           </div>
         </div>
       </div>
@@ -93,9 +93,9 @@
         <div class="card-ft" @click="showDetail(c)">查看详情 →</div>
       </div>
     </div>
-    <div v-if="custs.length > pageSize" class="search-pager">
-      <span class="search-pager-count">共 <b>{{ custs.length }}</b> 个客户</span>
-      <el-pagination v-model:current-page="pageNum" v-model:page-size="pageSize" :page-sizes="[30, 50, 100]" :total="custs.length" layout="total, sizes, prev, pager, next" size="small" background @size-change="pageNum = 1" />
+    <div v-if="custTotal > pageSize" class="search-pager">
+      <span class="search-pager-count">共 <b>{{ custTotal }}</b> 个客户</span>
+      <el-pagination v-model:current-page="pageNum" v-model:page-size="pageSize" :page-sizes="[30, 50, 100]" :total="custTotal" layout="total, sizes, prev, pager, next" size="small" background @current-change="(p) => { pageNum = p; doSearch(false) }" @size-change="pageNum = 1; doSearch(false)" />
     </div>
 
     <!-- 预览弹窗：支持图片和视频 -->
@@ -191,15 +191,14 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
 import { getCategoryTree } from '@/api/incentive'
-import { cachedGet } from '@/utils/layout-cache'
-import { getToken, getDownloadToken, refreshDownloadToken } from '@/utils/token'
 import { downloadFile as downloadFileUtil } from '@/utils/download'
-import { Search, User, VideoPlay, Document, ZoomIn, Download, Filter, Folder, OfficeBuilding, PriceTag, Calendar, MapLocation, Notebook, Warning } from '@element-plus/icons-vue'
+import { cachedGet } from '@/utils/layout-cache'
 import request from '@/utils/request'
+import { getDownloadToken, getToken, refreshDownloadToken } from '@/utils/token'
+import { Calendar, Document, Download, Filter, Folder, MapLocation, Notebook, OfficeBuilding, PriceTag, Search, User, VideoPlay, Warning, ZoomIn } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
-import { paginate } from '@/utils/pagination'
+import { computed, onMounted, ref } from 'vue'
 
 const fCustomer=ref(''),fSales=ref(''),fIndustry=ref(''),fDevType=ref(''),fDateRange=ref(null),fOrgIds=ref([]),showFilter=ref(false)
 const fProdCat=ref(''),fProdSub=ref('')
@@ -207,10 +206,11 @@ const productCats={ '涂层类':['防腐','加固','钢结构','煤气管道','�
 const productCatKeys=Object.keys(productCats)
 const custs=ref([]),catMap=ref({}),previewVisible=ref(false),previewUrl=ref(''),previewType=ref('image'),previewId=ref(null),previewName=ref('')
 const loading=ref(false)
-// 客户卡片网格分页（前端切片）
+// 【列表页真分页 2026-08-28】后端分页（翻页才拉下一页），custs=当前页
 const pageNum = ref(1)
 const pageSize = ref(30)
-const pagedCusts = computed(() => paginate(custs.value, pageNum.value, pageSize.value))
+const custTotal = ref(0)
+const pagedCusts = computed(() => custs.value)
 const detailVisible=ref(false),detailCust=ref(null)
 const industries=['冶金','煤矿','化工','电力','有色金属','机械','工程公司','维修厂','其他终端客户']
 const devTypes=['成熟创新','突破开拓','铺垫宣传']
@@ -262,8 +262,9 @@ function detailLabelOf(r){const code=getCls(r);const sub=r.categoryName||'';if(c
 function isTrialRec(r){return (getCls(r)||'').startsWith('trial')}
 function fmtDt(t){if(!t)return'';const d=new Date(t);return d.getFullYear()+'-'+(d.getMonth()+1).toString().padStart(2,'0')+'-'+d.getDate().toString().padStart(2,'0')+' '+d.getHours().toString().padStart(2,'0')+':'+d.getMinutes().toString().padStart(2,'0')}
 
-async function doSearch(){
-  pageNum.value = 1
+// resetPage=true 时回到第 1 页（查询/筛选变化）；翻页调用传 false 保持当前页
+async function doSearch(resetPage = false){
+  if (resetPage) pageNum.value = 1
   const p={}
   // 主搜索框：客户名 + 关键字（相关产品）双匹配（后端 OR 组合）
   if(fCustomer.value){p.customerName=fCustomer.value;p.keyword=fCustomer.value}
@@ -274,9 +275,11 @@ async function doSearch(){
   if(fProdSub.value)p.product=fProdSub.value
   // 【2026-08-08 首次加载体验】加 loading 态，避免首次并发请求时误显示"暂无数据"
   loading.value = true
-  try{const res=await request.get('/incentive/customer-records',{params:p});custs.value=(res.data||[]).filter(c=>c.records?.length>0&&c.customerName)}catch(e){ElMessage.error('查询失败')}finally{loading.value=false}
+  // 【列表页真分页 2026-08-28】翻页才拉下一页（修复一次拉全量 186KB 导致页面数据卡顿）
+  p.current=pageNum.value;p.size=pageSize.value
+  try{const res=await request.get('/incentive/customer-records',{params:p});const data=res.data||{};custs.value=Array.isArray(data.records)?data.records.filter(c=>c.records?.length>0&&c.customerName):(Array.isArray(data)?data.filter(c=>c.records?.length>0&&c.customerName):[]);custTotal.value=data.total||custs.value.length}catch(e){ElMessage.error('查询失败')}finally{loading.value=false}
 }
-function doReset(){fCustomer.value='';fSales.value='';fIndustry.value='';fDevType.value='';fDateRange.value=null;fOrgIds.value=[];fProdCat.value='';fProdSub.value='';doSearch()}
+function doReset(){fCustomer.value='';fSales.value='';fIndustry.value='';fDevType.value='';fDateRange.value=null;fOrgIds.value=[];fProdCat.value='';fProdSub.value='';doSearch(true)}
 async function loadCats(){try{const res=await cachedGet('categoryTree',getCategoryTree);const walk=l=>{l.forEach(c=>{catMap.value[c.id]=c;if(c.children)walk(c.children)})};walk(res.data||[])}catch(e){}}
 async function loadUsers(){try{const res=await cachedGet('incentiveUsers',()=>request.get('/incentive/users'));userList.value=res.data||[]}catch(e){}}
 async function loadOrgs(){try{const res=await cachedGet('depts',()=>request.get('/system/depts'));const list=res.data||[]

@@ -88,9 +88,10 @@
     </div>
     <div class="list-footer">
       <div class="list-footer-left">
-      <span class="list-footer-count">共 <b>{{ filteredRecords.length }}</b> 条</span>
+      <span class="list-footer-count">共 <b>{{ recordTotal }}</b> 条</span>
     </div>
-      <el-pagination v-model:current-page="pageNum" v-model:page-size="pageSize" :page-sizes="[30, 50, 100]" :total="filteredRecords.length" layout="total, sizes, prev, pager, next" size="small" background @size-change="pageNum = 1" />
+      <!-- 【列表页真分页 2026-08-28】翻页/改每页条数触发重新请求 -->
+      <el-pagination v-model:current-page="pageNum" v-model:page-size="pageSize" :page-sizes="[30, 50, 100]" :total="recordTotal" layout="total, sizes, prev, pager, next" size="small" background @current-change="loadRecords" @size-change="pageNum = 1; loadRecords()" />
     </div>
   </div>
 </template>
@@ -101,7 +102,7 @@ import { Setting } from '@element-plus/icons-vue'
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 
 const {
-  userStore, pagedRecords, filteredRecords, pageNum, pageSize,
+  userStore, pagedRecords, filteredRecords, recordTotal, pageNum, pageSize, loadRecords,
   COLUMN_DEFS, hiddenCols, colSettingVisible, colDraft, isColVisible,
   loadColumnPref, initColDraft, onToggleCol, resetCols,
   canEdit, canDelete, scoreColor, formatDate, fileType, previewFile,
