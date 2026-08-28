@@ -67,6 +67,8 @@ class SysRoleServiceTest {
                 mock(com.ycmn.security.PermissionCacheService.class),
                 mock(com.ycmn.module.system.service.RolePermScopeService.class),
                 mock(com.ycmn.module.system.mapper.SysUserRoleMapper.class),
+                mock(com.ycmn.module.system.mapper.SysRoleRuleMapper.class),
+                mock(com.ycmn.module.system.mapper.SysPermissionRuleMapper.class),
                 mock(org.springframework.jdbc.core.JdbcTemplate.class));
     }
 
@@ -80,6 +82,8 @@ class SysRoleServiceTest {
                 mock(com.ycmn.security.PermissionCacheService.class),
                 mock(com.ycmn.module.system.service.RolePermScopeService.class),
                 mock(com.ycmn.module.system.mapper.SysUserRoleMapper.class),
+                mock(com.ycmn.module.system.mapper.SysRoleRuleMapper.class),
+                mock(com.ycmn.module.system.mapper.SysPermissionRuleMapper.class),
                 mock(org.springframework.jdbc.core.JdbcTemplate.class));
     }
 
@@ -93,6 +97,8 @@ class SysRoleServiceTest {
                 mock(com.ycmn.security.PermissionCacheService.class),
                 mock(com.ycmn.module.system.service.RolePermScopeService.class),
                 mock(com.ycmn.module.system.mapper.SysUserRoleMapper.class),
+                mock(com.ycmn.module.system.mapper.SysRoleRuleMapper.class),
+                mock(com.ycmn.module.system.mapper.SysPermissionRuleMapper.class),
                 mock(org.springframework.jdbc.core.JdbcTemplate.class));
     }
 
@@ -265,6 +271,8 @@ class SysRoleServiceTest {
                 mock(com.ycmn.security.PermissionCacheService.class),
                 mock(com.ycmn.module.system.service.RolePermScopeService.class),
                 mock(com.ycmn.module.system.mapper.SysUserRoleMapper.class),
+                mock(com.ycmn.module.system.mapper.SysRoleRuleMapper.class),
+                mock(com.ycmn.module.system.mapper.SysPermissionRuleMapper.class),
                 mock(org.springframework.jdbc.core.JdbcTemplate.class));
         when(roleMapper.selectById(5L)).thenReturn(roleOf(5L, 1L));
         try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
@@ -478,7 +486,9 @@ class SysRoleServiceTest {
         SysRoleService service = new SysRoleService(roleMapper,
                 mock(SysRoleMenuMapper.class), mock(SysMenuMapper.class), mock(SysRoleOrgMapper.class),
                 mock(SysDeptMapper.class), cache,
-                mock(com.ycmn.module.system.service.RolePermScopeService.class), userRoleMapper, jdbc);
+                mock(com.ycmn.module.system.service.RolePermScopeService.class), userRoleMapper,
+                mock(com.ycmn.module.system.mapper.SysRoleRuleMapper.class),
+                mock(com.ycmn.module.system.mapper.SysPermissionRuleMapper.class), jdbc);
 
         com.ycmn.module.system.entity.SysUserRole ur1 = new com.ycmn.module.system.entity.SysUserRole();
         ur1.setUserId(11L);
@@ -751,6 +761,8 @@ class SysRoleServiceTest {
                 mock(com.ycmn.security.PermissionCacheService.class),
                 mock(com.ycmn.module.system.service.RolePermScopeService.class),
                 mock(com.ycmn.module.system.mapper.SysUserRoleMapper.class),
+                mock(com.ycmn.module.system.mapper.SysRoleRuleMapper.class),
+                mock(com.ycmn.module.system.mapper.SysPermissionRuleMapper.class),
                 mock(org.springframework.jdbc.core.JdbcTemplate.class));
 
         // 菜单树: 13(客户详情,type=2) -> 11(客户管理,type=2, customer:view) -> 10(业务核心目录,type=1)
@@ -806,6 +818,8 @@ class SysRoleServiceTest {
                 mock(com.ycmn.security.PermissionCacheService.class),
                 mock(com.ycmn.module.system.service.RolePermScopeService.class),
                 mock(com.ycmn.module.system.mapper.SysUserRoleMapper.class),
+                mock(com.ycmn.module.system.mapper.SysRoleRuleMapper.class),
+                mock(com.ycmn.module.system.mapper.SysPermissionRuleMapper.class),
                 mock(org.springframework.jdbc.core.JdbcTemplate.class));
 
         com.ycmn.module.system.entity.SysMenu m13 = new com.ycmn.module.system.entity.SysMenu();
@@ -861,6 +875,8 @@ class SysRoleServiceTest {
                 mock(com.ycmn.security.PermissionCacheService.class),
                 mock(com.ycmn.module.system.service.RolePermScopeService.class),
                 mock(com.ycmn.module.system.mapper.SysUserRoleMapper.class),
+                mock(com.ycmn.module.system.mapper.SysRoleRuleMapper.class),
+                mock(com.ycmn.module.system.mapper.SysPermissionRuleMapper.class),
                 mock(org.springframework.jdbc.core.JdbcTemplate.class));
 
         com.ycmn.module.system.entity.SysMenu m13 = new com.ycmn.module.system.entity.SysMenu();

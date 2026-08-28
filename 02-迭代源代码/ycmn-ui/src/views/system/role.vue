@@ -10,6 +10,11 @@
         <el-table-column prop="roleName" label="角色名称" width="150" />
         <el-table-column prop="roleCode" label="角色编码" width="150" />
         <el-table-column prop="description" label="描述" min-width="150" />
+        <el-table-column label="权限规则" width="100" align="center">
+          <template #default="{ row }">
+            <el-tag size="small" type="warning">{{ row.ruleCount || 0 }} 条规则</el-tag>
+          </template>
+        </el-table-column>
         <el-table-column label="数据范围" width="130" align="center">
           <template #default="{ row }">
             <el-tag size="small" :type="{ all: 'danger', custom: 'success', region: 'warning', office: 'warning', dept: 'warning', team: 'info', self: 'info' }[row.dataScope] || 'info'">
@@ -29,6 +34,7 @@
           <template #default="{ row }">
             <el-button link type="primary" size="small" @click="openDialog(row)">编辑</el-button>
             <el-button link type="primary" size="small" @click="openPermDialog(row)">权限</el-button>
+            <el-button link type="warning" size="small" @click="openRuleDialog(row)">规则</el-button>
             <el-button link type="danger" size="small" @click="handleDelete(row)">删除</el-button>
           </template>
         </el-table-column>
@@ -103,6 +109,32 @@
       </template>
     </el-dialog>
 
+    <!-- 规则分配对话框（规则引擎接通 2026-08-27） -->
+    <el-dialog v-model="ruleDialogVisible" title="权限规则分配" width="700px">
+      <el-alert type="info" :closable="false" style="margin-bottom:16px">
+        为角色 <b>{{ currentRole?.roleName }}</b> 绑定权限规则。规则决定该角色可见字段/禁操作等细粒度控制。
+      </el-alert>
+      <el-checkbox-group v-model="checkedRuleIds" style="display:flex;flex-direction:column;gap:8px">
+        <div v-for="rule in allRules" :key="rule.id" class="rule-item">
+          <el-checkbox :label="rule.id" :value="rule.id">
+            <div>
+              <span style="font-weight:bold">{{ rule.name }}</span>
+              <el-tag size="small" :type="ruleTypeTag(rule.ruleType)" style="margin-left:8px">
+                {{ ruleTypeLabel(rule.ruleType) }}
+              </el-tag>
+            </div>
+            <div style="font-size:12px;color:#909399;margin-top:2px">
+              {{ rule.description || rule.code }} — 目标: {{ rule.targetEntity }}
+            </div>
+          </el-checkbox>
+        </div>
+      </el-checkbox-group>
+      <template #footer>
+        <el-button @click="ruleDialogVisible = false">取消</el-button>
+        <el-button type="primary" @click="handleSaveRules">保存规则</el-button>
+      </template>
+    </el-dialog>
+
     <!-- 权限分配对话框 -->
     <el-dialog v-model="permDialogVisible" title="权限分配" width="500px">
       <!-- 【安全 2026-08-11 P0 修复】check-strictly：关闭父子级联深传播。
@@ -129,10 +161,10 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { createRole, deleteRole, getDeptTree, getMenuTree, getRole, getRoleList, getRoleOrgs, getRoleRules, getRuleList, updateRole, updateRoleOrgs, updateRoleRules } from '@/api/system'
 import { Plus } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { getRoleList, getRole, createRole, updateRole, deleteRole, getMenuTree, getDeptTree, getRoleOrgs, updateRoleOrgs } from '@/api/system'
+import { onMounted, reactive, ref } from 'vue'
 
 const roles = ref([])
 const menuTree = ref([])
@@ -142,6 +174,10 @@ const dialogVisible = ref(false)
 const permDialogVisible = ref(false)
 const menuTreeRef = ref(null)
 const checkedMenuIds = ref([])
+const ruleDialogVisible = ref(false)
+const checkedRuleIds = ref([])
+const currentRole = ref(null)
+const allRules = ref([])
 const currentRoleId = ref(null)
 const saving = ref(false)
 
@@ -149,6 +185,17 @@ const saving = ref(false)
 const orgMatrix = reactive({})
 
 const editForm = reactive({ id: null, roleName: '', roleCode: '', description: '', dataScope: 'self', orgId: null, sortOrder: 0 })
+
+/** 规则类型标签（与 position.vue 一致） */
+const ruleTypeMap = {
+  column_filter:  { label: '字段过滤', tag: 'primary' },
+  org_filter:     { label: '组织过滤', tag: 'success' },
+  field_visible:  { label: '字段可见', tag: 'warning' },
+  action_control: { label: '操作控制', tag: 'danger' },
+  time_range:     { label: '时间范围', tag: 'info' }
+}
+const ruleTypeLabel = (type) => ruleTypeMap[type]?.label || type
+const ruleTypeTag = (type) => ruleTypeMap[type]?.tag || 'info'
 
 /** 数据范围中文标签映射（与后端 DataScopeType 六级范围一致） */
 const scopeMap = { self: '仅本人', team: '本人及下级', dept: '本部门及以下', office: '本办事处及以下', region: '本大区及以下', all: '全部', custom: '自定义' }
@@ -259,6 +306,35 @@ const findMenuNode = (nodes, id) => {
   return null
 }
 
+const loadRules = async () => {
+  try {
+    const res = await getRuleList()
+    allRules.value = res.data || []
+  } catch (e) {}
+}
+
+const openRuleDialog = async (row) => {
+  currentRole.value = row
+  try {
+    const res = await getRoleRules(row.id)
+    checkedRuleIds.value = (res.data || []).map(r => r.ruleId || r.id)
+  } catch (e) {
+    checkedRuleIds.value = []
+  }
+  ruleDialogVisible.value = true
+}
+
+const handleSaveRules = async () => {
+  try {
+    await updateRoleRules(currentRole.value.id, checkedRuleIds.value)
+    ElMessage.success('规则保存成功')
+    ruleDialogVisible.value = false
+    loadData()
+  } catch (e) {
+    ElMessage.error('规则保存失败')
+  }
+}
+
 const openPermDialog = async (row) => {
   currentRoleId.value = row.id
   try {
@@ -297,6 +373,7 @@ const handleSavePerm = async () => {
 onMounted(() => {
   loadData()
   loadOrgs()
+  loadRules()
 })
 </script>
 
@@ -307,4 +384,6 @@ onMounted(() => {
 .org-matrix { max-height: 320px; overflow-y: auto; border: 1px solid #e5e5e5; border-radius: 6px; padding: 8px; }
 .org-matrix-row { display: flex; align-items: center; padding: 4px 0; }
 .org-matrix-row:hover { background: #f5f7fa; }
+.rule-item { padding: 8px 12px; border: 1px solid #e5e5e5; border-radius: 6px; }
+.rule-item:hover { background: #f5f7fa; }
 </style>

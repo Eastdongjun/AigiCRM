@@ -1,5 +1,6 @@
 package com.ycmn.common.engine;
 
+import com.ycmn.common.annotation.GuardEntity;
 import com.ycmn.common.engine.PermissionRuleEngine.RuleResult;
 import com.ycmn.security.SecurityUtils;
 import org.aspectj.lang.ProceedingJoinPoint;
@@ -32,8 +33,9 @@ public class ActionGuardAspect {
             return joinPoint.proceed();
         }
 
-        // 按当前 Controller 推断 target_entity，未配置该实体的守卫规则则放行
-        String entity = resolveEntity(joinPoint.getSignature().getDeclaringType().getSimpleName());
+        // 【2026-08-27 规则引擎接通】实体识别：优先 @GuardEntity 显式注解（防类名推断漂移），
+        // 未标注时退回类名推断（CustomerController → customer）兼容存量 Controller。
+        String entity = resolveEntity(joinPoint);
         if (entity.isEmpty()) {
             return joinPoint.proceed();
         }
@@ -53,8 +55,40 @@ public class ActionGuardAspect {
         return joinPoint.proceed();
     }
 
-    /** 从 Controller 类名推断 target_entity：CustomerController → customer */
-    private String resolveEntity(String className) {
+    /**
+     * 实体识别：优先 @GuardEntity 显式注解（类或方法级），未标注退回类名推断。
+     * 【需求】新模块接入守卫时用注解显式声明实体，不依赖 Controller 命名巧合
+     * 【方法】先查类级注解（含父类），再查方法级；都无则类名推断
+     * 【参数】joinPoint 切点（含签名与目标对象）
+     * 【返回】target_entity 字符串（如 customer）；无法识别返回空串（放行）
+     */
+    private String resolveEntity(ProceedingJoinPoint joinPoint) {
+        Object target = joinPoint.getTarget();
+        Class<?> clazz = target != null ? target.getClass() : null;
+        // 类级注解（含代理类的原始类型）
+        if (clazz != null) {
+            GuardEntity classAnn = clazz.getAnnotation(GuardEntity.class);
+            if (classAnn == null) {
+                Class<?> superClass = clazz.getSuperclass();
+                if (superClass != null && superClass != Object.class) {
+                    classAnn = superClass.getAnnotation(GuardEntity.class);
+                }
+            }
+            if (classAnn != null && !classAnn.value().isBlank()) {
+                return classAnn.value();
+            }
+        }
+        // 方法级注解（AspectJ MethodSignature 转 java.lang.reflect.Method 后取注解）
+        java.lang.reflect.Method method = null;
+        if (joinPoint.getSignature() instanceof org.aspectj.lang.reflect.MethodSignature ms) {
+            method = ms.getMethod();
+        }
+        GuardEntity methodAnn = method != null ? method.getAnnotation(GuardEntity.class) : null;
+        if (methodAnn != null && !methodAnn.value().isBlank()) {
+            return methodAnn.value();
+        }
+        // 兜底：类名推断
+        String className = joinPoint.getSignature().getDeclaringType().getSimpleName();
         if (className == null || className.isBlank()) return "";
         String name = className.endsWith("Controller")
                 ? className.substring(0, className.length() - "Controller".length())

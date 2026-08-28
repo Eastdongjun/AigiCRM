@@ -1,6 +1,7 @@
 package com.ycmn.module.system.controller;
 
 import com.ycmn.common.Result;
+import com.ycmn.module.system.entity.SysPermissionRule;
 import com.ycmn.module.system.entity.SysRole;
 import com.ycmn.module.system.service.SysRoleService;
 import lombok.RequiredArgsConstructor;
@@ -8,6 +9,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/system/roles")
@@ -64,6 +66,21 @@ public class SysRoleController {
     @DeleteMapping("/{id}")
     public Result<Void> delete(@PathVariable Long id) {
         roleService.delete(id);
+        return Result.ok();
+    }
+
+    // ==================== 角色-权限规则绑定（规则引擎接通 2026-08-27）====================
+
+    @GetMapping("/{roleId}/rules")
+    @PreAuthorize("hasAuthority('system:role:view')")
+    public Result<List<SysPermissionRule>> getRules(@PathVariable Long roleId) {
+        return Result.ok(roleService.getRules(roleId));
+    }
+
+    @PutMapping("/{roleId}/rules")
+    @PreAuthorize("hasAuthority('system:role:edit')")
+    public Result<Void> updateRules(@PathVariable Long roleId, @RequestBody Map<String, List<Long>> body) {
+        roleService.saveRules(roleId, body.get("ruleIds"));
         return Result.ok();
     }
 }

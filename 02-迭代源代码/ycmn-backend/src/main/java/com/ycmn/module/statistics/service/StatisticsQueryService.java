@@ -177,13 +177,28 @@ public class StatisticsQueryService {
     public Map<String, Object> indicatorStats() {
         Map<String, Object> data = new HashMap<>();
 
-        List<BizCustomerIndicator> indicators = indicatorMapper.selectList(null);
-        // 【2026-08-08 设计规则：核心客户六项指标全员可见】公司级指标展示，不做数据范围过滤。
+        // 【2026-08-27 数据范围修复】按当前用户数据范围过滤（admin=null 全量，其余按
+        // role_perm_scope 解析：销售员 self=仅自己）。原实现三处全量查询绕过数据范围配置层，
+        // 销售员可见全公司指标/排行，与其 self 配置矛盾。修复后以 scope 内客户为基准，
+        // 指标/发票只取这些客户，覆盖数/排行/部门/办事处聚合自动收窄。
+        List<Long> scopeUserIds = customerService.getCurrentScopeUserIds();
         List<BizCustomer> allCustomers = customerService.getAllActiveCustomers();
+        if (scopeUserIds != null) {
+            Set<Long> visibleOwnerIds = new HashSet<>(scopeUserIds);
+            allCustomers = allCustomers.stream()
+                    .filter(c -> visibleOwnerIds.contains(c.getOwnerId()))
+                    .toList();
+        }
         Map<Long, BizCustomer> customerMap = new HashMap<>();
         for (BizCustomer c : allCustomers) customerMap.put(c.getId(), c);
 
-        List<BizInvoice> allInvoices = invoiceMapper.selectList(null);
+        List<BizCustomerIndicator> indicators = indicatorMapper.selectList(null).stream()
+                .filter(ind -> customerMap.containsKey(ind.getCustomerId()))
+                .toList();
+
+        List<BizInvoice> allInvoices = invoiceMapper.selectList(null).stream()
+                .filter(inv -> inv.getCustomerId() != null && customerMap.containsKey(inv.getCustomerId()))
+                .toList();
         Map<Long, java.math.BigDecimal> invoiceTotals = new HashMap<>();
         for (BizInvoice inv : allInvoices) {
             if (inv.getCustomerId() != null && inv.getAmount() != null) {
@@ -605,8 +620,7 @@ public class StatisticsQueryService {
     /**
      * 【2026-08-08 设计规则（最终）：统计按账号数据范围】统计模块数据按当前账号数据范围过滤
      * （管理员全量 / 负责人本组织 / 销售本人，含系统级开关）。覆盖 dashboard/经营分析/日报周报等查询。
-     * ⚠️ 例外: 核心客户指标(indicatorStats)按设计为"六项指标全员可见", 明确不做数据范围过滤
-     * （见该方法内注释）。getCurrentScopeUserIds 返回 null=全量不过滤。
+     * getCurrentScopeUserIds 返回 null=全量不过滤（admin）。
      */
     private void applyCustomerScope(LambdaQueryWrapper<BizCustomer> wrapper) {
         List<Long> userIds = customerService.getCurrentScopeUserIds();

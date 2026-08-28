@@ -6,14 +6,18 @@ import com.ycmn.common.enums.DataScopeType;
 import com.ycmn.common.scope.GroupScopeUtil;
 import com.ycmn.module.system.entity.SysMenu;
 import com.ycmn.module.system.entity.SysRole;
+import com.ycmn.module.system.entity.SysPermissionRule;
 import com.ycmn.module.system.entity.SysRoleMenu;
+import com.ycmn.module.system.entity.SysRoleRule;
 import com.ycmn.module.system.entity.SysRoleOrg;
 import com.ycmn.module.system.entity.SysUserRole;
 import com.ycmn.module.system.mapper.SysDeptMapper;
 import com.ycmn.module.system.mapper.SysMenuMapper;
 import com.ycmn.module.system.mapper.SysRoleMapper;
 import com.ycmn.module.system.mapper.SysRoleMenuMapper;
+import com.ycmn.module.system.mapper.SysPermissionRuleMapper;
 import com.ycmn.module.system.mapper.SysRoleOrgMapper;
+import com.ycmn.module.system.mapper.SysRoleRuleMapper;
 import com.ycmn.security.PermissionCacheService;
 import com.ycmn.security.SecurityUtils;
 import lombok.RequiredArgsConstructor;
@@ -35,6 +39,8 @@ public class SysRoleService {
     private final PermissionCacheService permissionCacheService;
     private final RolePermScopeService rolePermScopeService;
     private final com.ycmn.module.system.mapper.SysUserRoleMapper userRoleMapper;
+    private final SysRoleRuleMapper roleRuleMapper;
+    private final SysPermissionRuleMapper permissionRuleMapper;
     private final org.springframework.jdbc.core.JdbcTemplate jdbc;
 
     /**
@@ -200,6 +206,45 @@ public class SysRoleService {
         // 【Redis 权限缓存】custom 数据范围组织集变更立即失效
         permissionCacheService.evictByRole(roleId);
         // 【2026-08-14 缓存自愈】版本递增兜底
+        bumpUserPermVersionsByRole(roleId);
+    }
+
+    // ==================== 角色-权限规则绑定 ====================
+
+    /** 角色绑定的权限规则列表 */
+    public List<SysPermissionRule> getRules(Long roleId) {
+        return permissionRuleMapper.selectByRoleId(roleId);
+    }
+
+    /**
+     * 保存角色-规则绑定（清空重建，幂等）
+     * 【需求】规则引擎接通：字段隐藏/禁导出/只读等规则经角色绑定在登录时并入 RuleResult
+     * 【方法】照岗位实现（SysPositionService.saveRules）：清空重建 + 缓存失效 + 版本递增
+     * 【业务规则】仅 system:role:edit 权限可调（Controller 注解）；越权集团角色拒绝
+     * 【参数】roleId 角色ID；ruleIds 规则ID列表（空=清空绑定）
+     * 【注意】事务方法；规则变更对在线用户经 perm_version 自愈生效
+     */
+    @Transactional
+    public void saveRules(Long roleId, List<Long> ruleIds) {
+        SysRole existing = roleMapper.selectById(roleId);
+        if (existing == null) {
+            throw new BusinessException("角色不存在");
+        }
+        if (!GroupScopeUtil.canAccessGroup(existing.getGroupId())) {
+            throw new BusinessException("无权操作其他集团的角色");
+        }
+        roleRuleMapper.delete(new LambdaQueryWrapper<SysRoleRule>().eq(SysRoleRule::getRoleId, roleId));
+        if (ruleIds != null && !ruleIds.isEmpty()) {
+            for (Long ruleId : ruleIds) {
+                SysRoleRule rr = new SysRoleRule();
+                rr.setRoleId(roleId);
+                rr.setRuleId(ruleId);
+                roleRuleMapper.insert(rr);
+            }
+        }
+        // 【Redis 权限缓存】规则绑定变更立即失效该角色用户缓存
+        permissionCacheService.evictByRole(roleId);
+        // 【2026-08-14 缓存自愈】版本递增兜底：evict 漏网/Redis 写失败时缓存与 DB 版本比对自愈
         bumpUserPermVersionsByRole(roleId);
     }
 

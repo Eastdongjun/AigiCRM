@@ -108,10 +108,14 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { addDeptAdmin, createDept, deleteDept, getDeptAdmins, getDeptTree, getGroupList, getUserList, removeDeptAdmin, updateDept } from '@/api/system'
+import { useUserStore } from '@/store/user'
 import { Plus } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { getDeptTree, createDept, updateDept, deleteDept, getUserList, getGroupList, getDeptAdmins, addDeptAdmin, removeDeptAdmin } from '@/api/system'
+import { onMounted, reactive, ref } from 'vue'
+
+// 用户权限 store：loadGroups 需按 system:group:view 权限门控，避免无集团权限角色(如行政)进页即 403
+const userStore = useUserStore()
 
 const deptTree = ref([])
 const userList = ref([])
@@ -220,6 +224,9 @@ const loadUsers = async () => {
 }
 
 const loadGroups = async () => {
+  // 【需求】组织架构页进页即拉集团列表，但 /system/groups 需 system:group:view 权限，
+  // 无权限角色(如行政)进页即 403 弹「没有访问权限」。改为无权限则跳过加载。
+  if (!userStore.hasPermission('system:group:view')) return
   try {
     const res = await getGroupList()
     groupList.value = res.data || []
