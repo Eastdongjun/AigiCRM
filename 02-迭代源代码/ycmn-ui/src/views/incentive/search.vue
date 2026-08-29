@@ -75,7 +75,7 @@
             <div v-for="f in getFiles(c.records[0]).slice(0,4)" :key="f.id" class="card-img">
               <template v-if="f.type==='image'">
                 <div class="img-wrap">
-                  <img :src="thumbUrl(f.id)" @click="preview(f.id, f.type, f.label)" @error="onImgError" />
+                  <img :src="thumbUrl(f.id)" alt="激励文件图片" @click="preview(f.id, f.type, f.label)" @error="onImgError" />
                   <div v-if="f.tag" class="img-tag">{{ f.tag }}</div>
                 </div>
               </template>
@@ -105,7 +105,7 @@
       </template>
       <template v-else>
         <div style="text-align:center">
-          <img :src="previewUrl" style="max-width:100%;max-height:80vh;object-fit:contain;border-radius:8px" @error="onImgError" />
+          <img :src="previewUrl" alt="文件预览" style="max-width:100%;max-height:80vh;object-fit:contain;border-radius:8px" @error="onImgError" />
         </div>
       </template>
       <div style="text-align:center;margin-top:12px">
@@ -159,7 +159,7 @@
                 <div v-for="f in getFiles(r)" :key="f.id" class="dtl-file">
                   <template v-if="f.type==='image'">
                     <div class="dtl-img-wrap">
-                      <img :src="thumbUrl(f.id)" @click="preview(f.id, f.type, f.label)" @error="onImgError" />
+                      <img :src="thumbUrl(f.id)" alt="激励文件图片" @click="preview(f.id, f.type, f.label)" @error="onImgError" />
                       <div v-if="f.tag" class="dtl-file-tag" :style="{color:tagColor(f.tag), borderColor:tagColor(f.tag)}">{{ f.tag }}</div>
                       <div class="dtl-file-acts">
                         <el-button size="small" circle type="primary" @click.stop="preview(f.id, f.type, f.label)"><el-icon><ZoomIn /></el-icon></el-button>
@@ -355,7 +355,6 @@ onMounted(()=>{loadCats();loadUsers();loadOrgs();doSearch()})
 .d-node-dot{position:absolute;right:-16px;top:5px;width:10px;height:10px;border-radius:50%;background:#409eff;border:2px solid #fff;box-shadow:0 0 0 2px #409eff;z-index:1}
 .d-node-time{font-size:13px;color:#333;font-weight:500}
 
-.d-node-right{}
 .d-node-tags{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px;font-size:14px}
 .d-node-sub{color:#333;font-weight:600}
 .d-node-who{color:#999;font-size:13px}

@@ -6,7 +6,7 @@
 
 ## 一、总体架构（五层 + 支撑机制）
 
-```
+```text
 ┌─────────────────────────────────────────────────────────────┐
 │ 第1层 菜单/页面    sys_menu 三层树                            │
 │   menu_type=1 模块分组 → 2 页面入口 → 3 按钮权限点            │
@@ -24,7 +24,7 @@
 
 ## 二、认证链路
 
-```
+```text
 浏览器 → JWT(Authorization: Bearer) → JwtAuthFilter
   → 解析 token → 查 sys_user(校验 deleted/status/leave_status)
   → 查 sys_user_role → 角色（多角色并集，非取第一个）
