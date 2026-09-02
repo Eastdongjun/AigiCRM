@@ -270,6 +270,20 @@ public class CustomerService {
         counts.put("dev_突破开拓", byDev.getOrDefault("突破开拓", 0L));
         counts.put("dev_铺垫宣传", byDev.getOrDefault("铺垫宣传", 0L));
 
+        // 【客户列表统计卡片 2026-08-31】预警/超期与已过期计数（status 口径）——
+        // 修复 8/28 真分页回归：前端 StatCards 原用当前页 tableData 过滤统计，翻页数字漂移，
+        // 改由本接口下发。status 由 CustomerExpireTask 定时任务维护（warning=30天内到期、
+        // expired=已到期），与前端卡片原口径一致，同样受数据范围控制。
+        LambdaQueryWrapper<BizCustomer> warnW = new LambdaQueryWrapper<>();
+        warnW.eq(BizCustomer::getDeleted, 0).eq(BizCustomer::getStatus, "warning");
+        applyDataScope(warnW);
+        counts.put("warning", customerMapper.selectCount(warnW));
+
+        LambdaQueryWrapper<BizCustomer> expiredW = new LambdaQueryWrapper<>();
+        expiredW.eq(BizCustomer::getDeleted, 0).eq(BizCustomer::getStatus, "expired");
+        applyDataScope(expiredW);
+        counts.put("expired", customerMapper.selectCount(expiredW));
+
         return counts;
     }
 

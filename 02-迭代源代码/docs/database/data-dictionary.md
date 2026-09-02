@@ -1,7 +1,7 @@
 # YCMN 数据字典(自动生成)
 
-> 生成时间: 2026-08-16 | 来源: 生产 39.99.35.218 MySQL information_schema
-> 共 55 张表。本文件由 scripts/gen-data-dictionary.sh 自动生成,**禁止手改**;库结构变更后重新运行脚本。
+> 生成时间: 2026-09-02 | 来源: 生产 39.99.35.218 MySQL information_schema
+> 共 56 张表。本文件由 scripts/gen-data-dictionary.sh 自动生成,**禁止手改**;库结构变更后重新运行脚本。
 
 ## biz_approval 审批记录
 
@@ -794,6 +794,17 @@
 | `deleted_reason` | varchar(500) | YES | NULL |  |  |
 | `original_created_at` | datetime | YES | NULL |  |  |
 | `deleted_at` | datetime | YES | CURRENT_TIMESTAMP |  |  |
+
+## sys_user_column_pref 用户表格列显示偏好
+
+| 字段 | 类型 | 可空 | 默认 | 键 | 说明 |
+|---|---|---|---|---|---|
+| `id` | bigint | NO | NULL | PRI |  |
+| `user_id` | bigint | NO | NULL | MUL | 用户ID |
+| `page_key` | varchar(50) | NO | NULL |  | 页面标识(如 incentive-record) |
+| `columns` | json | YES | NULL |  | 显示列 key 数组(JSON), null=使用默认 |
+| `created_at` | datetime | YES | CURRENT_TIMESTAMP |  |  |
+| `updated_at` | datetime | YES | CURRENT_TIMESTAMP |  |  |
 
 ## sys_user_org 用户级自定义授权组织
 

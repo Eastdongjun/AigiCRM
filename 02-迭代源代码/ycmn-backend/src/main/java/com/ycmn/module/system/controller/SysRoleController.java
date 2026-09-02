@@ -1,15 +1,24 @@
 package com.ycmn.module.system.controller;
 
+import java.util.List;
+import java.util.Map;
+
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
 import com.ycmn.common.Result;
 import com.ycmn.module.system.entity.SysPermissionRule;
 import com.ycmn.module.system.entity.SysRole;
 import com.ycmn.module.system.service.SysRoleService;
-import lombok.RequiredArgsConstructor;
-import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
-import java.util.Map;
+import lombok.RequiredArgsConstructor;
 
 @RestController
 @RequestMapping("/api/system/roles")
@@ -18,8 +27,12 @@ public class SysRoleController {
 
     private final SysRoleService roleService;
 
+    // 【2026-09-02 权限对齐】人员管理页 onMounted 无条件加载角色下拉(loadRoles)，行政等
+    // 持 system:user:view 但无 system:role:view 的账号进页即 403 弹「没有操作权限」。
+    // 角色列表是"能看人员管理者必能选角色"的基础参考数据，与部门树 isAuthenticated 同思路，
+    // 放宽为 role:view 或 user:view；角色增删改仍保持 role:add/edit/delete 不变。
     @GetMapping
-    @PreAuthorize("hasAuthority('system:role:view')")
+    @PreAuthorize("hasAnyAuthority('system:role:view','system:user:view')")
     public Result<List<SysRole>> list() {
         return Result.ok(roleService.list());
     }

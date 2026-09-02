@@ -28,12 +28,13 @@
         </el-tab-pane>
 
 
-        <!-- 权限体系总览 -->
-        <el-tab-pane name="permOverview">
+        <!-- 权限体系总览（2026-09-02 权限门控：仅 system:role:view 可见，行政等无权限角色不显示，
+             避免进入即调 /system/roles、/system/menus/tree 等接口 403 弹「没有操作权限」） -->
+        <el-tab-pane v-if="userStore.hasPermission('system:role:view')" name="permOverview">
           <template #label><span class="tab-label">🔐 权限体系</span></template>
           <PermMatrixManager mode="overview" />
         </el-tab-pane>
-        <el-tab-pane name="perm">
+        <el-tab-pane v-if="userStore.hasPermission('system:role:view')" name="perm">
           <template #label><span class="tab-label">🗄️ 权限管理</span></template>
           <PermScopeManager />
         </el-tab-pane>
@@ -45,15 +46,15 @@
 </template>
 
 <script setup>
+import { usePermissionData } from '@/composables/usePermissionData'
 import ApprovalConfig from '@/views/system/approvalConfig.vue'
 import { watch } from 'vue'
-import { usePermissionData } from '@/composables/usePermissionData'
-import DictManager from './DictManager.vue'
-import SeaConfigManager from './SeaConfigManager.vue'
 import BasicSettings from './BasicSettings.vue'
 import CategoryManager from './CategoryManager.vue'
+import DictManager from './DictManager.vue'
 import PermMatrixManager from './PermMatrixManager.vue'
 import PermScopeManager from './PermScopeManager.vue'
+import SeaConfigManager from './SeaConfigManager.vue'
 
 // 权限状态为模块级单例(composables/usePermissionData.js),各 tab 子组件共享;切到"权限矩阵"时加载
 const { activeTab, loadPermData } = usePermissionData()

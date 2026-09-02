@@ -1,67 +1,80 @@
 package com.ycmn.module.system.service;
 
-import com.baomidou.mybatisplus.core.MybatisConfiguration;
-import org.springframework.data.redis.core.RedisTemplate;
-import com.baomidou.mybatisplus.core.MybatisMapperBuilderAssistant;
-import com.baomidou.mybatisplus.core.metadata.TableFieldInfo;
-import com.baomidou.mybatisplus.core.metadata.TableInfo;
-import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
-import com.baomidou.mybatisplus.annotation.FieldStrategy;
-import com.ycmn.common.BusinessException;
-import com.ycmn.module.customer.mapper.BizCustomerMapper;
-import com.ycmn.module.customer.mapper.BizCustomerShareMapper;
-import com.ycmn.module.sea.service.SeaService;
-import com.ycmn.module.system.entity.SysUser;
-import com.ycmn.module.system.mapper.SysDeptMapper;
-import com.ycmn.module.system.mapper.SysRoleMapper;
-import com.ycmn.module.system.mapper.SysUserMapper;
-import com.ycmn.module.system.mapper.SysUserRoleMapper;
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.*;
+
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.MockedStatic;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import com.ycmn.security.SecurityUtils;
-import com.ycmn.module.system.entity.SysRole;
 
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.*;
+import com.baomidou.mybatisplus.annotation.FieldStrategy;
+import com.baomidou.mybatisplus.core.MybatisConfiguration;
+import com.baomidou.mybatisplus.core.MybatisMapperBuilderAssistant;
+import com.baomidou.mybatisplus.core.metadata.TableFieldInfo;
+import com.baomidou.mybatisplus.core.metadata.TableInfo;
+import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
+import com.ycmn.common.BusinessException;
+import com.ycmn.module.customer.mapper.BizCustomerMapper;
+import com.ycmn.module.customer.mapper.BizCustomerShareMapper;
+import com.ycmn.module.sea.service.SeaService;
+import com.ycmn.module.system.entity.SysRole;
+import com.ycmn.module.system.entity.SysUser;
+import com.ycmn.module.system.mapper.SysDeptMapper;
+import com.ycmn.module.system.mapper.SysRoleMapper;
+import com.ycmn.module.system.mapper.SysUserMapper;
+import com.ycmn.module.system.mapper.SysUserRoleMapper;
+import com.ycmn.security.SecurityUtils;
 
 /**
  * Task 8 数据范围覆盖的持久化与校验测试。
  *
  * 背景（审查 Important-1）：MyBatis-Plus 默认字段策略 NOT_NULL，
  * updateById 时 null 字段不进入 SET 子句 → "清空=跟随角色" 无法回写 NULL，旧值残留。
- * 修复：SysUser.dataScopeOverride 加 @TableField(updateStrategy = FieldStrategy.ALWAYS)。
+ * 修复：SysUser.dataScopeOverride 加 @TableField(updateStrategy =
+ * FieldStrategy.ALWAYS)。
  *
  * 覆盖：
- *   1. 实体注解策略 = ALWAYS（可回写 NULL）
- *   2. 生成的 SET 片段对 data_scope_override 无 "!= null" 守卫（null 会写入）
- *   3. 对比：普通字段（real_name）默认 NOT_NULL 有守卫（证明断言有效区分策略）
- *   4. 服务层：非法 override 取值在 create/update 均被拒绝
- *   5. 服务层：update 载荷 override=null 时透传 null 给 updateById（配合 ALWAYS 落库清空）
+ * 1. 实体注解策略 = ALWAYS（可回写 NULL）
+ * 2. 生成的 SET 片段对 data_scope_override 无 "!= null" 守卫（null 会写入）
+ * 3. 对比：普通字段（real_name）默认 NOT_NULL 有守卫（证明断言有效区分策略）
+ * 4. 服务层：非法 override 取值在 create/update 均被拒绝
+ * 5. 服务层：update 载荷 override=null 时透传 null 给 updateById（配合 ALWAYS 落库清空）
  */
 @ExtendWith(MockitoExtension.class)
+@SuppressWarnings("unchecked") // RedisTemplate mock 泛型未检查转换(诊断降噪 2026-09-02)
 class SysUserDataScopeOverrideTest {
 
-    @Mock SysUserMapper userMapper;
-    @Mock SysUserRoleMapper userRoleMapper;
-    @Mock PasswordEncoder passwordEncoder;
-    @Mock SysConfigService configService;
-    @Mock BizCustomerMapper customerMapper;
-    @Mock BizCustomerShareMapper shareMapper;
-    @Mock JdbcTemplate jdbc;
-    @Mock SysRoleMapper roleMapper;
-    @Mock SeaService seaService;
-    @Mock SysDeptMapper deptMapper;
+    @Mock
+    SysUserMapper userMapper;
+    @Mock
+    SysUserRoleMapper userRoleMapper;
+    @Mock
+    PasswordEncoder passwordEncoder;
+    @Mock
+    SysConfigService configService;
+    @Mock
+    BizCustomerMapper customerMapper;
+    @Mock
+    BizCustomerShareMapper shareMapper;
+    @Mock
+    JdbcTemplate jdbc;
+    @Mock
+    SysRoleMapper roleMapper;
+    @Mock
+    SeaService seaService;
+    @Mock
+    SysDeptMapper deptMapper;
 
     @BeforeAll
     static void initTableInfo() {
-        MybatisMapperBuilderAssistant assistant =
-                new MybatisMapperBuilderAssistant(new MybatisConfiguration(), "");
+        MybatisMapperBuilderAssistant assistant = new MybatisMapperBuilderAssistant(new MybatisConfiguration(), "");
         TableInfoHelper.initTableInfo(assistant, SysUser.class);
     }
 
@@ -97,7 +110,8 @@ class SysUserDataScopeOverrideTest {
 
     private SysUserService newService() {
         return new SysUserService(userMapper, userRoleMapper, passwordEncoder, configService,
-                customerMapper, shareMapper, jdbc, roleMapper, seaService, deptMapper, mock(com.ycmn.module.system.mapper.SysUserOrgMapper.class),
+                customerMapper, shareMapper, jdbc, roleMapper, seaService, deptMapper,
+                mock(com.ycmn.module.system.mapper.SysUserOrgMapper.class),
                 mock(com.ycmn.security.PermissionCacheService.class),
                 mock(com.ycmn.security.JwtTokenProvider.class),
                 mock(com.ycmn.common.scope.OrgScopeResolver.class), mock(RedisTemplate.class));

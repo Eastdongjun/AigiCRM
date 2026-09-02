@@ -20,15 +20,15 @@
         </div>
         <div class="adv-grid">
           <div class="adv-field">
-            <label class="adv-field-label"><el-icon><User /></el-icon> 同事姓名</label>
-            <el-select v-model="fSales" placeholder="输入或选择同事" clearable filterable allow-create default-first-option @change="doSearch(true)" size="small">
+            <label class="adv-field-label" for="fSales"><el-icon><User /></el-icon> 同事姓名</label>
+            <el-select v-model="fSales" id="fSales" placeholder="输入或选择同事" clearable filterable allow-create default-first-option @change="doSearch(true)" size="small">
               <el-option v-for="u in userList" :key="u.id" :label="u.realName" :value="u.realName" />
             </el-select>
           </div>
           <div class="adv-field">
-            <label class="adv-field-label"><el-icon><PriceTag /></el-icon> 产品小类</label>
+            <label class="adv-field-label" for="fProdCat"><el-icon><PriceTag /></el-icon> 产品小类</label>
             <div style="display:flex;gap:8px">
-              <el-select v-model="fProdCat" placeholder="大类" clearable @change="fProdSub='';doSearch(true)" size="small" style="flex:1">
+              <el-select v-model="fProdCat" id="fProdCat" placeholder="大类" clearable @change="fProdSub='';doSearch(true)" size="small" style="flex:1">
                 <el-option v-for="k in productCatKeys" :key="k" :label="k" :value="k" />
               </el-select>
               <el-select v-model="fProdSub" placeholder="小类" clearable :disabled="!fProdCat" @change="doSearch(true)" size="small" style="flex:1">
@@ -37,20 +37,20 @@
             </div>
           </div>
           <div class="adv-field">
-            <label class="adv-field-label"><el-icon><OfficeBuilding /></el-icon> 行业</label>
-            <el-select v-model="fIndustry" placeholder="全部行业" clearable @change="doSearch(true)" size="small"><el-option v-for="i in industries" :key="i" :label="i" :value="i" /></el-select>
+            <label class="adv-field-label" for="fIndustry"><el-icon><OfficeBuilding /></el-icon> 行业</label>
+            <el-select v-model="fIndustry" id="fIndustry" placeholder="全部行业" clearable @change="doSearch(true)" size="small"><el-option v-for="i in industries" :key="i" :label="i" :value="i" /></el-select>
           </div>
           <div class="adv-field">
-            <label class="adv-field-label"><el-icon><PriceTag /></el-icon> 开发类型</label>
-            <el-select v-model="fDevType" placeholder="全部类型" clearable @change="doSearch(true)" size="small"><el-option v-for="d in devTypes" :key="d" :label="d" :value="d" /></el-select>
+            <label class="adv-field-label" for="fDevType"><el-icon><PriceTag /></el-icon> 开发类型</label>
+            <el-select v-model="fDevType" id="fDevType" placeholder="全部类型" clearable @change="doSearch(true)" size="small"><el-option v-for="d in devTypes" :key="d" :label="d" :value="d" /></el-select>
           </div>
           <div class="adv-field span-2">
-            <label class="adv-field-label"><el-icon><Calendar /></el-icon> 日期范围</label>
-            <el-date-picker v-model="fDateRange" type="daterange" range-separator="~" start-placeholder="开始" end-placeholder="截止" value-format="YYYY-MM-DD" @change="doSearch(true)" size="small" style="width:100%" />
+            <label class="adv-field-label" for="fDateRange"><el-icon><Calendar /></el-icon> 日期范围</label>
+            <el-date-picker v-model="fDateRange" id="fDateRange" type="daterange" range-separator="~" start-placeholder="开始" end-placeholder="截止" value-format="YYYY-MM-DD" @change="doSearch(true)" size="small" style="width:100%" />
           </div>
           <div class="adv-field span-2">
-            <label class="adv-field-label"><el-icon><MapLocation /></el-icon> 组织筛选</label>
-            <el-tree-select v-model="fOrgIds" :data="orgTree" :props="{label:'deptName',value:'id',children:'children'}" placeholder="选择大区 / 办事处" clearable filterable multiple check-strictly show-checkbox collapse-tags collapse-tags-tooltip @change="doSearch(true)" size="small" style="width:100%" />
+            <label class="adv-field-label" for="fOrgIds"><el-icon><MapLocation /></el-icon> 组织筛选</label>
+            <el-tree-select v-model="fOrgIds" id="fOrgIds" :data="orgTree" :props="{label:'deptName',value:'id',children:'children'}" placeholder="选择大区 / 办事处" clearable filterable multiple check-strictly show-checkbox collapse-tags collapse-tags-tooltip @change="doSearch(true)" size="small" style="width:100%" />
           </div>
         </div>
       </div>
@@ -101,7 +101,7 @@
     <!-- 预览弹窗：支持图片和视频 -->
     <el-dialog v-model="previewVisible" width="90vw" :close-on-click-modal="true" destroy-on-close>
       <template v-if="previewType==='video'">
-        <video :src="previewUrl" controls autoplay style="width:100%;max-height:80vh;background:#000;border-radius:8px" />
+        <video :src="previewUrl" controls autoplay style="width:100%;max-height:80vh;background:#000;border-radius:8px"><track kind="captions" /></video>
       </template>
       <template v-else>
         <div style="text-align:center">
@@ -168,7 +168,7 @@
                     </div>
                   </template>
                   <div v-else-if="f.type==='video'" class="dtl-file-vid">
-                    <video :src="fileUrl(f.id)" controls preload="metadata" style="width:100%;max-height:240px;background:#000;border-radius:6px"></video>
+                    <video :src="fileUrl(f.id)" controls preload="metadata" style="width:100%;max-height:240px;background:#000;border-radius:6px"><track kind="captions" /></video>
                     <div style="display:flex;align-items:center;gap:8px;margin-top:4px">
                       <span v-if="f.tag" class="dtl-file-tag" :style="{color:tagColor(f.tag), borderColor:tagColor(f.tag)}">{{ f.tag }}</span>
                       <span class="doc-label" style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ f.label }}</span>
@@ -262,8 +262,15 @@ function detailLabelOf(r){const code=getCls(r);const sub=r.categoryName||'';if(c
 function isTrialRec(r){return (getCls(r)||'').startsWith('trial')}
 function fmtDt(t){if(!t)return'';const d=new Date(t);return d.getFullYear()+'-'+(d.getMonth()+1).toString().padStart(2,'0')+'-'+d.getDate().toString().padStart(2,'0')+' '+d.getHours().toString().padStart(2,'0')+':'+d.getMinutes().toString().padStart(2,'0')}
 
-// resetPage=true 时回到第 1 页（查询/筛选变化）；翻页调用传 false 保持当前页
-async function doSearch(resetPage = false){
+// 【需求】查询激励客户记录（真分页，翻页才拉下一页）
+// 【方法】resetPage 参数控制是否重置页码；默认 true——查询/筛选变化必须回到第 1 页，
+//         否则在第 N 页搜索只见第 N 页结果（分页反模式，search.spec.js 钉死此行为）；
+//         翻页入口显式传 false 保持当前页
+// 【业务规则】搜索/筛选变化必须重置页码；翻页/改每页条数保持页码
+// 【参数】resetPage 是否重置 pageNum 到 1（默认 true）
+// 【返回】无；结果写入 custs/custTotal
+// 【注意】onMounted 首次加载无参调用等价重置（初始页码本就 1，无副作用）
+async function doSearch(resetPage = true){
   if (resetPage) pageNum.value = 1
   const p={}
   // 主搜索框：客户名 + 关键字（相关产品）双匹配（后端 OR 组合）

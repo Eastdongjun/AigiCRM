@@ -1,10 +1,10 @@
 # YCMN API 清单(自动生成)
 
-> 生成时间: 2026-08-15 | 来源: 后端 controller 源码扫描
+> 生成时间: 2026-09-02 | 来源: 后端 controller 源码扫描
 > 本文件由 scripts/gen-api.py 自动生成,**禁止手改**;接口变更后重新运行。
 > 权限码与 docs/permission/permission-dict.md 对应。
 
-## 接口清单(176 个)
+## 接口清单(182 个)
 
 | 方法 | 路径 | 权限码 | 方法名 | 文件 |
 |---|---|---|---|---|
@@ -65,6 +65,7 @@
 | ANY | `/api/file/folders` | `file:acl:manage` | listAcl | FolderAclController.java |
 | GET | `/api/file/folders` | `file:view` | getFolderTree | FileController.java |
 | POST | `/api/file/folders` | `file:view` | createFolder | FileController.java |
+| GET | `/api/file/folders/roles` | `登录即可` | aclRoles | FolderAclController.java |
 | DELETE | `/api/file/folders/{id}` | `file:view` | deleteFolder | FileController.java |
 | PUT | `/api/file/folders/{id}` | `file:view` | renameFolder | FileController.java |
 | POST | `/api/file/folders/{id}/acl` | `file:acl:manage` | saveAcl | FolderAclController.java |
@@ -92,6 +93,7 @@
 | GET | `/api/incentive/ranking` | `incentive:view` | ranking | IncentiveController.java |
 | GET | `/api/incentive/records` | `incentive:view` | getRecords | IncentiveController.java |
 | POST | `/api/incentive/records` | `incentive:add` | addRecord | IncentiveController.java |
+| GET | `/api/incentive/records/page` | `incentive:view` | pageRecords | IncentiveController.java |
 | POST | `/api/incentive/records/recalculate` | `incentive:edit` | deleteRecord | IncentiveController.java |
 | PUT | `/api/incentive/records/{id}` | `登录即可` | updateRecord | IncentiveController.java |
 | GET | `/api/incentive/score/customer/{customerId}` | `incentive:view` | getScoreByCustomer | IncentiveController.java |
@@ -173,10 +175,14 @@
 | PUT | `/api/system/roles/{id}` | `system:role:edit` | update | SysRoleController.java |
 | GET | `/api/system/roles/{id}/orgs` | `system:role:view` | getOrgs | SysRoleController.java |
 | PUT | `/api/system/roles/{id}/orgs` | `system:role:edit` | updateOrgs | SysRoleController.java |
+| GET | `/api/system/roles/{roleId}/rules` | `system:role:view` | getRules | SysRoleController.java |
+| PUT | `/api/system/roles/{roleId}/rules` | `system:role:edit` | updateRules | SysRoleController.java |
 | ANY | `/api/system/rules` | `system:rule:view` | list | SysPermissionRuleController.java |
 | POST | `/api/system/rules` | `system:rule:add` | create | SysPermissionRuleController.java |
 | DELETE | `/api/system/rules/{id}` | `system:rule:delete` | delete | SysPermissionRuleController.java |
 | PUT | `/api/system/rules/{id}` | `system:rule:edit` | update | SysPermissionRuleController.java |
+| ANY | `/api/system/user-column-prefs` | `登录即可` | get | SysUserColumnPrefController.java |
+| PUT | `/api/system/user-column-prefs` | `登录即可` | save | SysUserColumnPrefController.java |
 | ANY | `/api/system/users` | `system:user:view` | page | SysUserController.java |
 | POST | `/api/system/users` | `system:user:add` | create | SysUserController.java |
 | POST | `/api/system/users/change-password` | `登录即可` | changePassword | SysUserController.java |

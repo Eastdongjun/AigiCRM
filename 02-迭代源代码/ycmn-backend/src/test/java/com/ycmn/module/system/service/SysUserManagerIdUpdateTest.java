@@ -1,7 +1,19 @@
 package com.ycmn.module.system.service;
 
-import com.baomidou.mybatisplus.annotation.FieldStrategy;
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
+
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.security.crypto.password.PasswordEncoder;
+
+import com.baomidou.mybatisplus.annotation.FieldStrategy;
 import com.baomidou.mybatisplus.core.MybatisConfiguration;
 import com.baomidou.mybatisplus.core.MybatisMapperBuilderAssistant;
 import com.baomidou.mybatisplus.core.metadata.TableFieldInfo;
@@ -15,47 +27,43 @@ import com.ycmn.module.system.mapper.SysDeptMapper;
 import com.ycmn.module.system.mapper.SysRoleMapper;
 import com.ycmn.module.system.mapper.SysUserMapper;
 import com.ycmn.module.system.mapper.SysUserRoleMapper;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentCaptor;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.security.crypto.password.PasswordEncoder;
-
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 
 /**
- * I5：managerId 清空回写 NULL（同 dataScopeOverride 缺陷修复模式，参考 SysUserDataScopeOverrideTest）。
+ * I5：managerId 清空回写 NULL（同 dataScopeOverride 缺陷修复模式，参考
+ * SysUserDataScopeOverrideTest）。
  * 背景：MyBatis-Plus 默认字段策略 NOT_NULL，updateById 时 null 不进入 SET 子句 →
  * "清空上级"无法回写 NULL，旧值残留（team 数据范围按 manager_id 递归，残留上级会扩大可见范围）。
- * 修复：managerId 加 @TableField(updateStrategy = FieldStrategy.ALWAYS) + 服务层 0/null 归一化。
+ * 修复：managerId 加 @TableField(updateStrategy = FieldStrategy.ALWAYS) + 服务层
+ * 0/null 归一化。
  */
 @ExtendWith(MockitoExtension.class)
+@SuppressWarnings("unchecked") // RedisTemplate mock 泛型未检查转换(诊断降噪 2026-09-02)
 class SysUserManagerIdUpdateTest {
 
-    @Mock SysUserMapper userMapper;
-    @Mock SysUserRoleMapper userRoleMapper;
-    @Mock PasswordEncoder passwordEncoder;
-    @Mock SysConfigService configService;
-    @Mock BizCustomerMapper customerMapper;
-    @Mock BizCustomerShareMapper shareMapper;
-    @Mock JdbcTemplate jdbc;
-    @Mock SysRoleMapper roleMapper;
-    @Mock SeaService seaService;
-    @Mock SysDeptMapper deptMapper;
+    @Mock
+    SysUserMapper userMapper;
+    @Mock
+    SysUserRoleMapper userRoleMapper;
+    @Mock
+    PasswordEncoder passwordEncoder;
+    @Mock
+    SysConfigService configService;
+    @Mock
+    BizCustomerMapper customerMapper;
+    @Mock
+    BizCustomerShareMapper shareMapper;
+    @Mock
+    JdbcTemplate jdbc;
+    @Mock
+    SysRoleMapper roleMapper;
+    @Mock
+    SeaService seaService;
+    @Mock
+    SysDeptMapper deptMapper;
 
     @BeforeAll
     static void initTableInfo() {
-        MybatisMapperBuilderAssistant assistant =
-                new MybatisMapperBuilderAssistant(new MybatisConfiguration(), "");
+        MybatisMapperBuilderAssistant assistant = new MybatisMapperBuilderAssistant(new MybatisConfiguration(), "");
         TableInfoHelper.initTableInfo(assistant, SysUser.class);
     }
 
@@ -89,7 +97,8 @@ class SysUserManagerIdUpdateTest {
 
     private SysUserService newService() {
         return new SysUserService(userMapper, userRoleMapper, passwordEncoder, configService,
-                customerMapper, shareMapper, jdbc, roleMapper, seaService, deptMapper, mock(com.ycmn.module.system.mapper.SysUserOrgMapper.class),
+                customerMapper, shareMapper, jdbc, roleMapper, seaService, deptMapper,
+                mock(com.ycmn.module.system.mapper.SysUserOrgMapper.class),
                 mock(com.ycmn.security.PermissionCacheService.class),
                 mock(com.ycmn.security.JwtTokenProvider.class),
                 mock(com.ycmn.common.scope.OrgScopeResolver.class), mock(RedisTemplate.class));

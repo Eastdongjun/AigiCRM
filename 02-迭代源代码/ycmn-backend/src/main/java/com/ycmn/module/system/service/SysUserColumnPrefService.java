@@ -1,13 +1,13 @@
 package com.ycmn.module.system.service;
 
+import org.springframework.stereotype.Service;
+
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.ycmn.module.system.entity.SysUserColumnPref;
 import com.ycmn.module.system.mapper.SysUserColumnPrefMapper;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Service;
-
-import java.util.List;
 
 /**
  * 用户表格列显示偏好服务（按人持久化，跨浏览器/设备生效）

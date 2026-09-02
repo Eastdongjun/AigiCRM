@@ -1,5 +1,12 @@
 package com.ycmn.module.system.service;
+
 import java.util.List;
+
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
@@ -8,23 +15,19 @@ import com.ycmn.common.BusinessException;
 import com.ycmn.common.enums.DataScopeType;
 import com.ycmn.common.scope.GroupScopeUtil;
 import com.ycmn.module.customer.entity.BizCustomer;
+import com.ycmn.module.customer.entity.BizCustomerShare;
 import com.ycmn.module.customer.mapper.BizCustomerMapper;
 import com.ycmn.module.customer.mapper.BizCustomerShareMapper;
-import com.ycmn.module.customer.entity.BizCustomerShare;
 import com.ycmn.module.sea.service.SeaService;
-import com.ycmn.security.SecurityUtils;
+import com.ycmn.module.system.entity.SysRole;
 import com.ycmn.module.system.entity.SysUser;
 import com.ycmn.module.system.entity.SysUserRole;
+import com.ycmn.module.system.mapper.SysRoleMapper;
 import com.ycmn.module.system.mapper.SysUserMapper;
 import com.ycmn.module.system.mapper.SysUserRoleMapper;
-import com.ycmn.module.system.mapper.SysRoleMapper;
-import com.ycmn.module.system.entity.SysRole;
+import com.ycmn.security.SecurityUtils;
+
 import lombok.RequiredArgsConstructor;
-import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-import org.springframework.util.StringUtils;
 
 @Service
 @RequiredArgsConstructor
@@ -40,7 +43,6 @@ public class SysUserService {
             throw new BusinessException("数据范围取值非法: " + override);
         }
     }
-
 
     private final SysUserMapper userMapper;
     private final SysUserRoleMapper userRoleMapper;
@@ -65,7 +67,8 @@ public class SysUserService {
         final String chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789";
         java.security.SecureRandom random = new java.security.SecureRandom();
         StringBuilder sb = new StringBuilder(12);
-        for (int i = 0; i < 12; i++) sb.append(chars.charAt(random.nextInt(chars.length())));
+        for (int i = 0; i < 12; i++)
+            sb.append(chars.charAt(random.nextInt(chars.length())));
         return sb.toString();
     }
 
@@ -76,11 +79,14 @@ public class SysUserService {
 
     /** 【2026-08-08 用户级 custom 授权】保存用户授权组织（清空重建） */
     private void saveUserOrgs(Long userId, List<Long> orgIds) {
-        if (userId == null) return;
+        if (userId == null)
+            return;
         userOrgMapper.deleteByUserId(userId);
-        if (orgIds == null) return;
+        if (orgIds == null)
+            return;
         for (Long orgId : orgIds) {
-            if (orgId == null) continue;
+            if (orgId == null)
+                continue;
             com.ycmn.module.system.entity.SysUserOrg uo = new com.ycmn.module.system.entity.SysUserOrg();
             uo.setUserId(userId);
             uo.setOrgId(orgId);
@@ -95,7 +101,47 @@ public class SysUserService {
             // 越权请求或本集团确无可见组织：直接返回空页，不下发任何记录
             return new Page<>(current, size, 0);
         }
+        scopedDeptIds = applyDataScope(scopedDeptIds);
+        if (scopedDeptIds == null) {
+            // 【2026-09-02 数据范围收窄】数据范围解析后无可见部门：返回空页（与详情 getById 口径一致）
+            return new Page<>(current, size, 0);
+        }
         return userMapper.selectUserPage(new Page<>(current, size), keyword, scopedDeptIds, status);
+    }
+
+    /**
+     * 【需求】人员列表叠加数据范围（2026-09-02 修复）：管理员在角色配置界面勾选的数据范围
+     * （role_perm_scope / sys_role.data_scope，如行政=office 本办事处及以下）此前在人员
+     * 列表未生效——selectUserPage 只按集团边界过滤，office 范围的行政可见全集团人员（越权）。
+     * 【方法】与详情 getById 同口径：非 admin 时用 scopeResolver.resolveVisibleDeptIds 解析当前
+     * 用户可见部门集合，与集团边界集合求交集，作为最终 deptIds 过滤条件。
+     * 【业务规则】admin 全部可见不过滤；resolveVisibleDeptIds 返回 null=all 范围不过滤；
+     * 交集为空返回 null → 上层返回空页（无任何可见部门）。
+     * 【参数】groupScopedDeptIds 集团边界过滤后的部门 ID 串（逗号分隔，可为空串=不按部门过滤）
+     * 【返回】叠加数据范围后的部门 ID 串；null=无可见部门
+     * 【注意】仅列表分页使用；与 applyGroupScope 顺序固定（先集团后数据范围）；
+     * 不改变详情 getById 既有校验；office/region 需部门 dept_type 标记（缺失时退化为部门树）
+     */
+    private String applyDataScope(String groupScopedDeptIds) {
+        if (SecurityUtils.isAdmin())
+            return groupScopedDeptIds;
+        java.util.List<Long> visibleDeptIds = scopeResolver.resolveVisibleDeptIds(SecurityUtils.getCurrentUser());
+        if (visibleDeptIds == null)
+            return groupScopedDeptIds; // all 范围：不过滤
+        if (visibleDeptIds.isEmpty())
+            return null;
+        java.util.Set<Long> allowed = new java.util.HashSet<>(visibleDeptIds);
+        if (StringUtils.hasText(groupScopedDeptIds)) {
+            java.util.Set<Long> group = java.util.Arrays.stream(groupScopedDeptIds.split(","))
+                    .map(String::trim).filter(StringUtils::hasText)
+                    .map(Long::parseLong)
+                    .collect(java.util.stream.Collectors.toSet());
+            allowed.retainAll(group);
+        }
+        if (allowed.isEmpty())
+            return null;
+        return allowed.stream().map(String::valueOf)
+                .collect(java.util.stream.Collectors.joining(","));
     }
 
     /**
@@ -112,15 +158,18 @@ public class SysUserService {
         // 【修复 2026-08-07 生产回归】admin 未传 deptIds 时透传 null，会被上层 page() 误判为
         // "本集团无可见部门"直接返回空页（管理员看不到人员数据）。归一为空串：mapper SQL 中
         // `#{deptIds} = ''` 与 IS NULL 等价（均视为"不按部门过滤"），且区别于"确无可见部门"的 null。
-        if (SecurityUtils.isAdmin()) return StringUtils.hasText(deptIds) ? deptIds : "";
+        if (SecurityUtils.isAdmin())
+            return StringUtils.hasText(deptIds) ? deptIds : "";
         java.util.List<Long> groupIds = SecurityUtils.getCurrentGroupIds();
-        if (groupIds == null || groupIds.isEmpty()) groupIds = java.util.List.of(GroupScopeUtil.DEFAULT_GROUP_ID);
+        if (groupIds == null || groupIds.isEmpty())
+            groupIds = java.util.List.of(GroupScopeUtil.DEFAULT_GROUP_ID);
         java.util.List<Long> allowedDeptIds = deptMapper.selectList(
-                        new LambdaQueryWrapper<com.ycmn.module.system.entity.SysDept>()
-                                .in(com.ycmn.module.system.entity.SysDept::getGroupId, groupIds))
+                new LambdaQueryWrapper<com.ycmn.module.system.entity.SysDept>()
+                        .in(com.ycmn.module.system.entity.SysDept::getGroupId, groupIds))
                 .stream().map(com.ycmn.module.system.entity.SysDept::getId)
                 .collect(java.util.stream.Collectors.toList());
-        if (allowedDeptIds.isEmpty()) return null;
+        if (allowedDeptIds.isEmpty())
+            return null;
         if (!StringUtils.hasText(deptIds)) {
             return allowedDeptIds.stream().map(String::valueOf)
                     .collect(java.util.stream.Collectors.joining(","));
@@ -131,13 +180,15 @@ public class SysUserService {
                 .map(Long::parseLong)
                 .collect(java.util.stream.Collectors.toSet());
         requested.retainAll(new java.util.HashSet<>(allowedDeptIds));
-        if (requested.isEmpty()) return null;
+        if (requested.isEmpty())
+            return null;
         return requested.stream().map(String::valueOf).collect(java.util.stream.Collectors.joining(","));
     }
 
     public SysUser getById(Long id) {
         SysUser u = userMapper.selectById(id);
-        if (u == null) return null;
+        if (u == null)
+            return null;
         // 【修复 2026-08-10 P1-01】读详情按"可见组织"校验——此前仅列表有集团边界、详情无任何校验,
         // 持 system:user:view/org:admin 者可按 ID 枚举任意用户全量 PII(0801 泄漏事件同源残留)。
         // 守卫: admin 全量; 本人恒可读; 其余目标用户必须落在当前用户的数据范围可见部门内
@@ -151,15 +202,20 @@ public class SysUserService {
                 allowed = targetDeptId != null;
                 if (allowed) {
                     String scoped = applyGroupScope(String.valueOf(targetDeptId));
-                    allowed = scoped != null && java.util.Arrays.asList(scoped.split(",")).contains(String.valueOf(targetDeptId));
+                    allowed = scoped != null
+                            && java.util.Arrays.asList(scoped.split(",")).contains(String.valueOf(targetDeptId));
                 }
             } else {
                 allowed = targetDeptId != null && visibleDeptIds.contains(targetDeptId);
                 if (!allowed && targetDeptId != null && SecurityUtils.isOrgAdmin()) {
                     // 组织管理员兜底: 目标在其管辖组织子树内也可读(与写操作 canManageUser 同权)
                     for (Long orgId : SecurityUtils.getCurrentManagedOrgIds()) {
-                        if (orgId == null) continue;
-                        if (deptMapper.selectDescendantIds(orgId).contains(targetDeptId)) { allowed = true; break; }
+                        if (orgId == null)
+                            continue;
+                        if (deptMapper.selectDescendantIds(orgId).contains(targetDeptId)) {
+                            allowed = true;
+                            break;
+                        }
                     }
                 }
             }
@@ -181,12 +237,15 @@ public class SysUserService {
      * 规则：非超管不可授予 admin 角色；授予角色的数据范围与 dataScopeOverride 不得宽于调用者自身范围。
      */
     private void validateGrantableRoleAndScope(Long roleId, String dataScopeOverride) {
-        if (SecurityUtils.isAdmin()) return;
+        if (SecurityUtils.isAdmin())
+            return;
         DataScopeType callerScope = DataScopeType.fromCode(SecurityUtils.getCurrentDataScope());
         if (roleId != null) {
             SysRole role = roleMapper.selectById(roleId);
-            if (role == null) throw new BusinessException("角色不存在");
-            if ("admin".equals(role.getRoleCode())) throw new BusinessException("无权授予系统管理员角色");
+            if (role == null)
+                throw new BusinessException("角色不存在");
+            if ("admin".equals(role.getRoleCode()))
+                throw new BusinessException("无权授予系统管理员角色");
             DataScopeType grantScope = DataScopeType.fromCode(role.getDataScope());
             if (grantScope.rank() < callerScope.rank()) {
                 throw new BusinessException("无权授予超出自身数据范围的角色");
@@ -222,8 +281,8 @@ public class SysUserService {
         validateGrantableRoleAndScope(user.getRoleId(), user.getDataScopeOverride());
         // 检查用户名唯一性
         Long count = userMapper.selectCount(
-                new LambdaQueryWrapper<SysUser>().eq(SysUser::getUsername, user.getUsername()).eq(SysUser::getDeleted, 0)
-        );
+                new LambdaQueryWrapper<SysUser>().eq(SysUser::getUsername, user.getUsername()).eq(SysUser::getDeleted,
+                        0));
         if (count > 0) {
             throw new BusinessException("用户名已存在");
         }
@@ -266,7 +325,8 @@ public class SysUserService {
     @Transactional
     public void update(SysUser user) {
         SysUser existing = userMapper.selectById(user.getId());
-        if (existing == null) throw new BusinessException("用户不存在");
+        if (existing == null)
+            throw new BusinessException("用户不存在");
         if (!StringUtils.hasText(user.getDataScopeOverride())) {
             throw new BusinessException("数据范围不能为空");
         }
@@ -280,7 +340,8 @@ public class SysUserService {
         existing.setOfficeId(user.getOfficeId());
         // managerId 归一：null/0（前端"无上级"）→ null，配合 ALWAYS 策略落库回写 NULL
         existing.setManagerId(user.getManagerId() != null && user.getManagerId() > 0 ? user.getManagerId() : null);
-        existing.setDataScopeOverride(StringUtils.hasText(user.getDataScopeOverride()) ? user.getDataScopeOverride() : null);
+        existing.setDataScopeOverride(
+                StringUtils.hasText(user.getDataScopeOverride()) ? user.getDataScopeOverride() : null);
         existing.setStatus(user.getStatus());
         // 【2026-08-14 并发一致性】置 null 让 MyBatis-Plus 跳过 perm_version 列回写，
         // 避免"updateById 回写旧版本值覆盖并发 bump"的 lost-update（版本递增由下方 jdbc 独占）
@@ -294,14 +355,16 @@ public class SysUserService {
             // 且面板 revoke 的解绑会在下次编辑时复活（评审 P1·静默提权，2026-08-14 修复）
             java.util.List<Long> existingIncentiveRoleIds = jdbc.queryForList(
                     "SELECT r.id FROM sys_role r JOIN sys_user_role ur ON ur.role_id = r.id " +
-                            "WHERE ur.user_id = ? AND r.role_code LIKE 'incentive\\_%'", Long.class, existing.getId());
+                            "WHERE ur.user_id = ? AND r.role_code LIKE 'incentive\\_%'",
+                    Long.class, existing.getId());
             userRoleMapper.delete(new LambdaQueryWrapper<SysUserRole>().eq(SysUserRole::getUserId, user.getId()));
             SysUserRole ur = new SysUserRole();
             ur.setUserId(user.getId());
             ur.setRoleId(user.getRoleId());
             userRoleMapper.insert(ur);
             for (Long irId : existingIncentiveRoleIds) {
-                jdbc.update("INSERT INTO sys_user_role (user_id, role_id) VALUES (?,?) ON DUPLICATE KEY UPDATE role_id=role_id",
+                jdbc.update(
+                        "INSERT INTO sys_user_role (user_id, role_id) VALUES (?,?) ON DUPLICATE KEY UPDATE role_id=role_id",
                         existing.getId(), irId);
             }
         }
@@ -332,7 +395,8 @@ public class SysUserService {
      */
     public String resetPassword(Long userId) {
         SysUser user = userMapper.selectById(userId);
-        if (user == null) throw new BusinessException("用户不存在");
+        if (user == null)
+            throw new BusinessException("用户不存在");
         // 【2026-08-15 安全审计 H1 纵深防御】非 admin 操作者禁止重置 admin 角色账号口令——
         // 临时口令明文随响应返回, 得手即接管全系统(不依赖 controller 的 canManageUser 守卫, 服务层独立兜底)
         if (!SecurityUtils.isAdmin() && hasAdminRole(userId)) {
@@ -379,7 +443,8 @@ public class SysUserService {
 
     public void changePassword(Long userId, String oldPassword, String newPassword) {
         SysUser user = userMapper.selectById(userId);
-        if (user == null) throw new BusinessException("用户不存在");
+        if (user == null)
+            throw new BusinessException("用户不存在");
         if (!passwordEncoder.matches(oldPassword, user.getPassword())) {
             throw new BusinessException("原密码错误");
         }
@@ -396,7 +461,8 @@ public class SysUserService {
 
     public void updateStorageQuota(Long userId, Long quota) {
         SysUser user = userMapper.selectById(userId);
-        if (user == null) throw new BusinessException("用户不存在");
+        if (user == null)
+            throw new BusinessException("用户不存在");
         user.setStorageQuota(quota);
         userMapper.updateById(user);
     }
@@ -404,7 +470,8 @@ public class SysUserService {
     @Transactional
     public void deleteUser(Long userId) {
         SysUser user = userMapper.selectById(userId);
-        if (user == null) throw new BusinessException("用户不存在");
+        if (user == null)
+            throw new BusinessException("用户不存在");
         // 【2026-08-15 安全审计 H1 纵深防御】非 admin 操作者禁止删除 admin 角色账号(服务层兜底, 不依赖 controller 守卫)
         if (!SecurityUtils.isAdmin() && hasAdminRole(userId)) {
             throw new BusinessException("无权操作该用户");
@@ -439,7 +506,7 @@ public class SysUserService {
                 .eq(SysUserRole::getUserId, userId));
 
         // 3b. 【修复 2026-08-10 P2-08】软删除同样清理用户级孤儿关联(与 permanentDelete 一致)
-        //     【2026-08-14 RBAC 收敛】biz_incentive_permission 已废弃(改角色承载, M1 后删表), 不再清理
+        // 【2026-08-14 RBAC 收敛】biz_incentive_permission 已废弃(改角色承载, M1 后删表), 不再清理
         jdbc.update("DELETE FROM sys_user_position WHERE user_id=?", userId);
         jdbc.update("DELETE FROM sys_user_org WHERE user_id=?", userId);
         jdbc.update("DELETE FROM sys_org_admin WHERE user_id=?", userId);
@@ -452,10 +519,12 @@ public class SysUserService {
 
     /** 目标用户是否持有 admin 角色(角色码 sys_role.role_code='admin', 经 sys_user_role 关联查询) */
     private boolean hasAdminRole(Long userId) {
-        if (userId == null) return false;
+        if (userId == null)
+            return false;
         Integer cnt = jdbc.queryForObject(
                 "SELECT COUNT(*) FROM sys_role r JOIN sys_user_role ur ON ur.role_id = r.id " +
-                        "WHERE ur.user_id = ? AND r.role_code = 'admin'", Integer.class, userId);
+                        "WHERE ur.user_id = ? AND r.role_code = 'admin'",
+                Integer.class, userId);
         return cnt != null && cnt > 0;
     }
 
