@@ -4,7 +4,7 @@
     {
       "label": "后端: 编译检查 (mvn compile)",
       "type": "shell",
-      "command": "export JAVA_HOME=/opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home && cd ${workspaceFolder}/ycmn-backend && mvn -B compile",
+      "command": "export JAVA_HOME=\"/Users/donglai/Agent/Agent Tools/jdk/openjdk-21\" && cd ${workspaceFolder}/ycmn-backend && mvn -B compile",
       "problemMatcher": [],
       "group": {
         "kind": "build",
@@ -15,7 +15,7 @@
     {
       "label": "后端: 全部单测 (mvn test)",
       "type": "shell",
-      "command": "export JAVA_HOME=/opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home && cd ${workspaceFolder}/ycmn-backend && mvn -B test",
+      "command": "export JAVA_HOME=\"/Users/donglai/Agent/Agent Tools/jdk/openjdk-21\" && cd ${workspaceFolder}/ycmn-backend && mvn -B test",
       "problemMatcher": [],
       "group": { "kind": "test", "isDefault": true },
       "presentation": { "reveal": "always", "panel": "dedicated" }
@@ -23,7 +23,7 @@
     {
       "label": "后端: 打包 (mvn package -DskipTests)",
       "type": "shell",
-      "command": "export JAVA_HOME=/opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home && cd ${workspaceFolder}/ycmn-backend && mvn -B package -DskipTests",
+      "command": "export JAVA_HOME=\"/Users/donglai/Agent/Agent Tools/jdk/openjdk-21\" && cd ${workspaceFolder}/ycmn-backend && mvn -B package -DskipTests",
       "problemMatcher": [],
       "group": "build"
     },
@@ -43,7 +43,11 @@
     },
     {
       "label": "全量门禁: 后端测试 + 前端测试 + 前端构建",
-      "dependsOn": ["后端: 全部单测 (mvn test)", "前端: 单测 (vitest run)", "前端: 构建 (npm run build)"],
+      "dependsOn": [
+        "后端: 全部单测 (mvn test)",
+        "前端: 单测 (vitest run)",
+        "前端: 构建 (npm run build)"
+      ],
       "dependsOrder": "parallel",
       "problemMatcher": [],
       "group": { "kind": "test", "isDefault": true }

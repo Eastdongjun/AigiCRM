@@ -1,18 +1,15 @@
 {
   // ===== Java 环境锁定（本机默认 JDK 25 与 Lombok 不兼容，必须锁定 21） =====
+  // JDK 统一归位：固定目录 /Users/donglai/Agent/Agent Tools/jdk/（不依赖 brew/Oracle 路径）
   "java.configuration.runtimes": [
     {
       "name": "JavaSE-21",
-      "path": "/opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home",
+      "path": "/Users/donglai/Agent/Agent Tools/jdk/openjdk-21",
       "default": true
-    },
-    {
-      "name": "JavaSE-17",
-      "path": "/opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home"
     }
   ],
   // 语言服务器本身也跑在 21 上，避免 JDTLS 在 25 下初始化失败
-  "java.jdt.ls.java.home": "/opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home",
+  "java.jdt.ls.java.home": "/Users/donglai/Agent/Agent Tools/jdk/openjdk-21",
   "java.debug.settings.onBuildFailureProceed": true,
   // 项目纯 Maven，关闭 Gradle 导入减少噪音
   "java.import.gradle.enabled": false,
@@ -46,7 +43,7 @@
   },
   "sonarlint.disableTelemetry": true,
   // 问题整行高亮（配 Error Lens 显示内联问题）
-  "sonarlint.ls.javaHome": "/opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home",
+  "sonarlint.ls.javaHome": "/Users/donglai/Agent/Agent Tools/jdk/openjdk-21",
 
   // ===== 覆盖率可视化（Coverage Gutters） =====
   "coverage-gutters.coverageFileNames": [
