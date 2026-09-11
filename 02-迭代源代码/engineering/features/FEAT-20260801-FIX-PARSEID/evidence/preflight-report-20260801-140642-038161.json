@@ -14,17 +14,17 @@
     {
       "check": "command:build",
       "passed": false,
-      "executable": "cd ycmn-ui && npm run build",
+      "executable": "cd aigicrm-ui && npm run build",
       "argv": [
-        "cd ycmn-ui && npm run build"
+        "cd aigicrm-ui && npm run build"
       ]
     },
     {
       "check": "command:test",
       "passed": false,
-      "executable": "cd ycmn-ui && npm test",
+      "executable": "cd aigicrm-ui && npm test",
       "argv": [
-        "cd ycmn-ui && npm test"
+        "cd aigicrm-ui && npm test"
       ]
     },
     {
@@ -36,7 +36,7 @@
     }
   ],
   "errors": [
-    "build: executable not found: cd ycmn-ui && npm run build",
-    "test: executable not found: cd ycmn-ui && npm test"
+    "build: executable not found: cd aigicrm-ui && npm run build",
+    "test: executable not found: cd aigicrm-ui && npm test"
   ]
 }

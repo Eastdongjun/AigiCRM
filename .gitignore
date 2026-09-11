@@ -3,6 +3,8 @@ node_modules/
 target/
 dist/
 .vite/
+logs/
+**/logs/
 *.tar.gz
 *.zip
 
@@ -31,23 +33,24 @@ graphify-out/
 .backup-*/
 
 # 数据库 dump/备份(含密码哈希与业务数据,禁止入库)
-ycmn_database_test.sql
+08-备份索引/
+aigicrm_database_test.sql
 sql/init.sql
 **/sql/init.sql
-**/ycmn_database_test.sql
-**/ycmn_database_test.sql.bak-*
+**/aigicrm_database_test.sql
+**/aigicrm_database_test.sql.bak-*
 **/password-hash-backup.txt
 *.dump
 
 # Superpowers worktrees
 .worktrees/
 
-# ycmn-ui/engineering 有意不提交（记忆决策保留，非 .gitignore 疏漏）
-ycmn-ui/engineering/
+# aigicrm-ui/engineering 有意不提交（记忆决策保留，非 .gitignore 疏漏）
+02-迭代源代码/aigicrm-ui/engineering/
 ssl/
-ycmn-backend/.settings/org.eclipse.m2e.core.prefs
-default.conf
-verify.sh
-img/04-原型设计/
-engineering/evidence/ui-full-test/
-engineering/features/NEXT-INCENTIVE-UPLOAD.md
+aigicrm-backend/.settings/org.eclipse.m2e.core.prefs
+/default.conf
+/verify.sh
+02-迭代源代码/img/04-原型设计/
+02-迭代源代码/engineering/evidence/ui-full-test/
+02-迭代源代码/engineering/features/NEXT-INCENTIVE-UPLOAD.md

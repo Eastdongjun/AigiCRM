@@ -20,11 +20,11 @@
 
 ## 范围
 
-- `ycmn-ui/src/views/incentive/index.vue` — 需求1（已改）、需求2弹窗改造、需求3列表排序
-- `ycmn-ui/src/views/incentive/search.vue` — 需求4筛选栏 + 需求3详情时间线组内排序
-- `ycmn-ui/src/views/customer/detail.vue` — 需求3激励 Tab 排序
-- `ycmn-backend IncentiveService.java` — calcScore 重写、customerRecords 搜索参数、排序
-- 部署测试服务器 111.229.37.220（前端 npm run build → tar → scp → docker cp ycmn-frontend；后端 mvn package → jar）
+- `aigicrm-ui/src/views/incentive/index.vue` — 需求1（已改）、需求2弹窗改造、需求3列表排序
+- `aigicrm-ui/src/views/incentive/search.vue` — 需求4筛选栏 + 需求3详情时间线组内排序
+- `aigicrm-ui/src/views/customer/detail.vue` — 需求3激励 Tab 排序
+- `aigicrm-backend IncentiveService.java` — calcScore 重写、customerRecords 搜索参数、排序
+- 部署测试服务器 111.229.37.220（前端 npm run build → tar → scp → docker cp aigicrm-frontend；后端 mvn package → jar）
 
 ## 不在范围
 
@@ -42,7 +42,7 @@
 
 - 数据模型不迁移：单槽新文件存 `filePreId`（JSON 数组）；历史三槽数据展示兼容读取
 - 前端 vue3 + element-plus；后端 Spring Boot + MyBatis-Plus
-- 测试环境部署走既有脚本流程（docker 容器 ycmn-frontend）
+- 测试环境部署走既有脚本流程（docker 容器 aigicrm-frontend）
 
 ## 初始风险
 

@@ -1,12 +1,12 @@
 #!/bin/bash
-# 分页反模式扫描器（YCMN 前端）
+# 分页反模式扫描器（AIGICRM 前端）
 # 发现并阻止分页最佳实践违规，接入 pre-delivery-check。
 # 反模式:
 #   A. 筛选 @change/@keyup.enter 调 loadData 但不先重置 current/pageNum → 翻页后筛选显示错误页
 #   B. 后端分页(服务端 total) 页面里 .filter() 本地过滤 records → total 与显示不一致
 #   C. el-table/v-for 大列表页无分页（提示）
 set -uo pipefail
-SRC="ycmn-ui/src/views"
+SRC="aigicrm-ui/src/views"
 FAIL=0
 RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[0;33m'; NC='\033[0m'
 
@@ -18,7 +18,14 @@ echo "== 分页反模式扫描 =="
 while IFS= read -r f; do
   has_pager=$(grep -c "el-pagination" "$f")
   [ "$has_pager" = "0" ] && continue
-  grep -nE '@(change|keyup\.enter)="(load|search|doSearch|on[A-Z][A-Za-z]*Filter[A-Za-z]*|handle[A-Z][A-Za-z]*(Filter|Search)[A-Za-z]*)[A-Za-z]*"' "$f" 2>/dev/null | while IFS=: read -r ln line; do
+  while IFS= read -r record; do
+    ln="${record%%:*}"
+    line="${record#*:}"
+    # The pagination component's own @change intentionally preserves the current page.
+    # Vue attributes can wrap across lines (and may contain colons), so inspect a
+    # short source window instead of the colon-split event text.
+    component_start=$((ln-2)); [ "$component_start" -lt 1 ] && component_start=1
+    sed -n "${component_start},${ln}p" "$f" | grep -q "el-pagination" && continue
     # 分页器(el-pagination)的 @change 合法 → 检查该行±10行内是否有 el-pagination
     start=$((ln-10)); [ $start -lt 1 ] && start=1
     end=$((ln+10))
@@ -37,7 +44,7 @@ while IFS= read -r f; do
         fi
       fi
     fi
-  done
+  done < <(grep -nE '@(change|keyup\.enter)="(load|search|doSearch|on[A-Z][A-Za-z]*Filter[A-Za-z]*|handle[A-Z][A-Za-z]*(Filter|Search)[A-Za-z]*)[A-Za-z]*"' "$f" 2>/dev/null || true)
 done < <(find $SRC -name "*.vue" | grep -v "\.bak")
 
 # 反模式 B: 服务端分页(total.value = res...total) + 本地过滤覆盖展示数据 → total 与显示不一致
@@ -100,7 +107,7 @@ while IFS= read -r f; do
   def_src="$f"
   if ! grep -qE "(const|let|var)[[:space:]]+${var}[[:space:]]*=" "$f"; then
     comp=$(grep -oE "use[A-Za-z]+List|injectUserList|use[A-Za-z]+Page" "$f" | head -1)
-    [ -n "$comp" ] && [ -f "ycmn-ui/src/composables/${comp}.js" ] && def_src="ycmn-ui/src/composables/${comp}.js"
+    [ -n "$comp" ] && [ -f "aigicrm-ui/src/composables/${comp}.js" ] && def_src="aigicrm-ui/src/composables/${comp}.js"
   fi
   if [ -n "$var" ]; then
     # 匹配 ref(N) 或 query 对象内 size: N

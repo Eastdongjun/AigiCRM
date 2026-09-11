@@ -6,7 +6,7 @@ Catches the bug class:
   - backend endpoint exists but frontend never calls it (orphan, informational)
 
 Usage:
-  python3 check_api_wiring.py --frontend-api <ycmn-ui/src/api> --backend <src/main/java>
+  python3 check_api_wiring.py --frontend-api <aigicrm-ui/src/api> --backend <src/main/java>
 
 Exit code 1 when frontend paths are unmatched (CI-friendly).
 """
@@ -47,7 +47,7 @@ def parse_frontend(api_dir: Path):
     calls = []
     call_re = re.compile(
         r"request\.(get|post|put|delete|patch)\(\s*(?:`([^`]*)`|'([^']*)'|\"([^\"]*)\")",
-        re.S,
+        re.DOTALL,
     )
     for path in api_dir.rglob("*.js"):
         text = path.read_text(errors="ignore")
@@ -88,7 +88,7 @@ def main():
             print(f"  {u}")
     if matched:
         print(f"\nOK ({len(matched)} 条已匹配)")
-    print(f"\n后端全部端点:")
+    print("\n后端全部端点:")
     for r in sorted(readable):
         print(f"  {r}")
     sys.exit(1 if unmatched else 0)

@@ -10,7 +10,7 @@
 #   verify-role-org-sql.sh <DB_HOST> <DB_USER> <DB_PASS> <DB_NAME> [选项]
 #   省略参数时从环境变量读取: DB_HOST/DB_USER/DB_PASS/DB_NAME(同 check-permission-data.sh)
 # 选项:
-#   --remote            经 SSH + docker exec 在服务器容器内执行(默认容器 ycmn-mysql)
+#   --remote            经 SSH + docker exec 在服务器容器内执行(默认容器 aigicrm-mysql)
 #   --local             本机 mysql 客户端直连(需本机安装 mysql client)
 #   --container NAME    指定远端容器名(仅 --remote)
 #   缺省自动判定: 本机有 mysql 客户端 → local; 否则 → remote
@@ -22,7 +22,7 @@ usage() {
 }
 
 DB_HOST="${DB_HOST:-}"; DB_USER="${DB_USER:-}"; DB_PASS="${DB_PASS:-}"; DB_NAME="${DB_NAME:-}"
-MODE=auto; CONTAINER=ycmn-mysql; POSN=0
+MODE=auto; CONTAINER="${APP_SLUG:-aigicrm}-mysql"; POSN=0
 while [ $# -gt 0 ]; do
   case "$1" in
     --remote) MODE=remote; shift ;;
@@ -46,20 +46,30 @@ done
 
 # ---- 执行模式(同 check-permission-data.sh) ----
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-mysql_direct() { mysql -h"$DB_HOST" -u"$DB_USER" -p"$DB_PASS" "$DB_NAME" -N -e "$1" 2>/dev/null; }
-mysql_remote() { printf '%s' "$1" | "$SSH_FN" "docker exec -i $CONTAINER mysql -u$DB_USER -p$DB_PASS $DB_NAME -N --default-character-set=utf8mb4 2>/dev/null"; }
+# RUN_CMD/SSH_FN are selected from validated local functions at runtime.
+# shellcheck disable=SC2329
+mysql_direct() { MYSQL_PWD="$DB_PASS" mysql -h"$DB_HOST" -u"$DB_USER" "$DB_NAME" -N -e "$1" 2>/dev/null; }
+# shellcheck disable=SC2329
+mysql_remote() { printf '%s' "$1" | "$SSH_FN" "docker exec -i \"$CONTAINER\" env MYSQL_PWD=\"$DB_PASS\" mysql -u\"$DB_USER\" \"$DB_NAME\" -N --default-character-set=utf8mb4 2>/dev/null"; }
 
 if [ "$MODE" = "auto" ]; then
   if command -v mysql >/dev/null 2>&1; then MODE=local; else MODE=remote; fi
 fi
 
 if [ "$MODE" = "remote" ]; then
+  # shellcheck source=deploy-lib.sh
+  # shellcheck disable=SC1091
   source "$SCRIPT_DIR/deploy-lib.sh"
   if [ "$DB_HOST" = "${PROD_HOST:-}" ]; then SSH_FN=ssh_prod
   elif [ "$DB_HOST" = "${TEST_HOST:-}" ]; then SSH_FN=ssh_test
   elif [ -n "${DB_SSH_HOST:-}" ]; then
     SSH_FN=ssh_custom
-    ssh_custom() { sshpass -p "${DB_SSH_PASS:-}" ssh ${SSH_OPTS:--o ConnectTimeout=20 -o StrictHostKeyChecking=no} "${DB_SSH_USER:-root}@$DB_SSH_HOST" "$@"; }
+    # shellcheck disable=SC2329
+    ssh_custom() {
+      local -a ssh_opts=()
+      read -r -a ssh_opts <<< "${SSH_OPTS:--o ConnectTimeout=20 -o StrictHostKeyChecking=no}"
+      SSHPASS="${DB_SSH_PASS:-}" sshpass -e ssh "${ssh_opts[@]}" "${DB_SSH_USER:-root}@$DB_SSH_HOST" "$@"
+    }
   else
     echo "错误: remote 模式无法确定 SSH 目标" >&2; exit 1
   fi

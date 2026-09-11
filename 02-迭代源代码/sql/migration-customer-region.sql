@@ -3,7 +3,7 @@
 -- 背景: 「新增客户/客户列表」的"所属办事处"改为"所属大区"。
 --       officeId(办事处,dept_type=3)保持不变(公海路由/编号/统计仍用),
 --       新增独立 region_id 供选择与展示,零破坏现有功能。
--- 用法: mysql ... --default-character-set=utf8mb4 ycmn < migration-customer-region.sql
+-- 用法: mysql ... --default-character-set=utf8mb4 aigicrm < migration-customer-region.sql
 -- ============================================================
 
 -- 1) 加列 + 索引(重复执行前请自行确认列是否已存在)

@@ -21,7 +21,7 @@
 set -uo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-MIG="${AIGICRM_MIGRATION_DIR:-$ROOT/ycmn-backend/src/main/resources/db/migration}"
+MIG="${AIGICRM_MIGRATION_DIR:-$ROOT/aigicrm-backend/src/main/resources/db/migration}"
 FROZEN="$MIG/FROZEN-SHA256.txt"
 
 FAILED=0

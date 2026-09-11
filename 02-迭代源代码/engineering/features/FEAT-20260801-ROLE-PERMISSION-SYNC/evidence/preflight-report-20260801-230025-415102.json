@@ -18,7 +18,7 @@
       "argv": [
         "npm",
         "--prefix",
-        "ycmn-ui",
+        "aigicrm-ui",
         "run",
         "build"
       ]
@@ -30,7 +30,7 @@
       "argv": [
         "mvn",
         "-f",
-        "ycmn-backend/pom.xml",
+        "aigicrm-backend/pom.xml",
         "-q",
         "package",
         "-DskipTests"

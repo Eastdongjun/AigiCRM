@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!-- 本地运行 logback 覆盖版: 原 logback-spring.xml 硬编码 /app/logs(容器挂载路径, 本机无 /app),
-     本地改为写入 /tmp/ycmn-logs. 通过 -Dlogging.config=<本文件> 注入. -->
+     本地改为写入 /tmp/aigicrm-logs. 通过 -Dlogging.config=<本文件> 注入. -->
 <configuration>
     <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
         <encoder>
@@ -9,9 +9,9 @@
     </appender>
 
     <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
-        <file>/tmp/ycmn-logs/app.log</file>
+        <file>/tmp/aigicrm-logs/app.log</file>
         <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
-            <fileNamePattern>/tmp/ycmn-logs/app.%d{yyyyMMdd}.%i.log.gz</fileNamePattern>
+            <fileNamePattern>/tmp/aigicrm-logs/app.%d{yyyyMMdd}.%i.log.gz</fileNamePattern>
             <timeBasedFileNamingAndTriggeringPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedFNATP">
                 <maxFileSize>10MB</maxFileSize>
             </timeBasedFileNamingAndTriggeringPolicy>

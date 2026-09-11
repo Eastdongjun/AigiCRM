@@ -2,7 +2,7 @@
 
 ## 已确认影响范围
 
-- ycmn-ui/src/views/system/config.vue：字典管理 Tab 模板（69-113 行区）+ dict-* 样式 + 图标 import（Files/Collection/PriceTag）
+- aigicrm-ui/src/views/system/config.vue：字典管理 Tab 模板（69-113 行区）+ dict-* 样式 + 图标 import（Files/Collection/PriceTag）
 
 ## 架构与关键决策
 

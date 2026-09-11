@@ -1,4 +1,4 @@
-# YCMN 权限链路完整性审计报告（2026-08-11）
+# AIGICRM 权限链路完整性审计报告（2026-08-11）
 
 > 审计对象：`/Users/donglai/东来/01-Projects/01-aigicrm/04-源码`（main@c056041，工作树干净）
 > 审计方法：5 维度并行子代理审计 + 对抗验证（9/9 关键发现 CONFIRMED）+ 测试服 Playwright 真实浏览器实测 + 测试库数据核验
@@ -47,7 +47,7 @@ saveRoleMenus 祖先闭包(SysRoleService.java:208-229)
 | 行政(05) | 45 | **76** | 1.69× |
 
 截图证据：`perm-dialog-salesman-checked.png`（销售员权限框，76 勾选/77 节点）。
-测试环境：测试服部署线为桌面端 YCMN-v3（含 PasswordResetRequiredFilter），与权威源码 main 的权限链路代码一致（role.vue 相同）。
+测试环境：测试服部署线为桌面端 AIGICRM-v3（含 PasswordResetRequiredFilter），与权威源码 main 的权限链路代码一致（role.vue 相同）。
 
 ### 后果
 - **最小权限角色被意外放大**：销售员本应只看到 37 个绑定，打开权限框显示 76 全选。管理员想删除一个权限、或只是打开确认一下随手点保存，就把 customer/file/incentive/reminder/sea/approval/statistics/score 全模块 + 系统管理的用户增删改/角色增删改/配置编辑全部授予。
@@ -177,11 +177,11 @@ saveRoleMenus 祖先闭包(SysRoleService.java:208-229)
 **测试服（111.229.37.220）**：
 - 后端 jar（f2a3890f，含修复）docker cp 替换 + restart，`Started in 7.581s`；前端 dist（index-BzGLLf2f）替换。
 - Playwright 实测：销售总监 77→**63**、销售员 76→**48**、行政 76→**43**——勾选数回落至实际绑定。
-- 备份：`/home/ubuntu/projects/ycmn/backup-test-app-20260811-215653.jar`；容器 `/tmp/dist-bak`。
+- 备份：`/home/ubuntu/projects/aigicrm/backup-test-app-20260811-215653.jar`；容器 `/tmp/dist-bak`。
 
 **生产（39.99.35.218，www.aigicrm.com）**：
 - 后端 jar（f2a3890f）备份旧 jar（backup-pre-permfix-20260811-215857.jar）→ docker cp → restart，`Started in 12.247s`，容器实际 md5 独立回读=f2a3890f ✓
-- 前端 NAS dist 备份（/Aigicrm/files/ycmn-dist-rollback-20260811-permfix）→ 替换 → prefetch 9 个 → 版本 20260811-220004，公网入口 index-BzGLLf2f.js ✓
+- 前端 NAS dist 备份（/Aigicrm/files/aigicrm-dist-rollback-20260811-permfix）→ 替换 → prefetch 9 个 → 版本 20260811-220004，公网入口 index-BzGLLf2f.js ✓
 - **生产 UI 实测（admin 经 HEALTH_CHECK 账号登录）**：销售总监 63、销售员 37、系统管理员 74、行政 44——全部精确等于实际绑定，P0 深传播在生产消除，0 控制台错误 ✓
 - deploy.log 已记录。
 
@@ -208,9 +208,9 @@ saveRoleMenus 祖先闭包(SysRoleService.java:208-229)
 ## 八、测试环境操作记录（透明声明）
 
 审计过程中对测试服(111.229.37.220)做了以下操作，均已回滚/清理：
-1. 临时清除 admin `pwd_reset_required`（YCMN-v3 专有强制改密门禁）用于登录 → **已恢复为 1**。
+1. 临时清除 admin `pwd_reset_required`（AIGICRM-v3 专有强制改密门禁）用于登录 → **已恢复为 1**。
 2. 创建临时角色 `p0_verify_tmp`(id=12) 验证 → **已删除，role_menu/sys_user_role/sys_role 零残留**。
 3. Playwright 打开权限框仅点"取消"，未保存任何角色权限。
 4. 测试服 role_menu 有并行会话操作痕迹（文件按钮权限码迁移：移除 134-143、新增 47/48/110/111/120），**非本次审计操作**，未改动。
 
-> ⚠️ 测试服为并行使用环境，后端容器名 ycmn-backend 连 shared-mysql；桌面端 YCMN-v3 与权威源码 main 是两条未合并的线（YCMN-v3 含 V10/V11 SQL 修复 + PasswordResetRequiredFilter）。**两条线必须合并，否则下次从权威部署会回退**。
+> ⚠️ 测试服为并行使用环境，后端容器名 aigicrm-backend 连 shared-mysql；桌面端 AIGICRM-v3 与权威源码 main 是两条未合并的线（AIGICRM-v3 含 V10/V11 SQL 修复 + PasswordResetRequiredFilter）。**两条线必须合并，否则下次从权威部署会回退**。

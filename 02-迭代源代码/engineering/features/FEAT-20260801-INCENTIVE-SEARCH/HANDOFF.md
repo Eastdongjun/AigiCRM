@@ -12,7 +12,7 @@
 
 ## 关键事实
 
-- 测试服容器 ycmn-frontend 无 bind mount，部署 = 本地 npm build → zip → scp → 解压 → docker cp 完整替换
+- 测试服容器 aigicrm-frontend 无 bind mount，部署 = 本地 npm build → zip → scp → 解压 → docker cp 完整替换
 - 当前容器入口 index-D0CHvRKk.js、search chunk search-CzritNkw.js（含新 placeholder）
 - 回滚：容器内 /tmp/html-rollback/ 有旧版备份
 - 用户浏览器需强刷（旧 chunk 缓存）

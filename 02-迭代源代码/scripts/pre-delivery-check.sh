@@ -12,9 +12,10 @@ PASS=0; FAIL=0
 ok()  { echo "✅ $1"; PASS=$((PASS+1)); }
 bad() { echo "❌ $1"; FAIL=$((FAIL+1)); }
 
-# 【2026-08-14 目录重组】权威源码在 02-迭代源代码/（ycmn-ui/ycmn-backend/docs/scripts 均在此）
-REPO="/Users/donglai/东来/01-Projects/01-aigicrm/04-源码/02-迭代源代码"
-echo "════════ YCMN 交付前阶段衔接检查 $(date '+%Y-%m-%d %H:%M:%S') ════════"
+# 【2026-08-14 目录重组】权威源码在 02-迭代源代码/（aigicrm-ui/aigicrm-backend/docs/scripts 均在此）
+# Resolve the current checkout instead of relying on the historical machine path.
+REPO="$(cd "$SCRIPT_DIR/.." && pwd)"
+echo "════════ AIGICRM 交付前阶段衔接检查 $(date '+%Y-%m-%d %H:%M:%S') ════════"
 
 # [1] 知识资产文档存在性(自动生成的须可重新生成)
 echo "--- [1] 知识资产完整性 ---"
@@ -95,15 +96,15 @@ fi
 rm -f /tmp/pagegate.log
 
 # [6] 权限数据前提体检(统一权限体系): deptType/group_id/manager_id/tenant_id 完整性
-# 非零列需人工介入; 依赖 ~/.ycmn-deploy.env 中 DB_HOST/DB_USER/DB_PASS/DB_NAME(缺 DB_PASS 时无法执行)
-# 执行模式自动: 本机无 mysql 客户端时经 SSH+docker exec(ycmn-mysql 容器) 执行, 同 deploy-db.sh
+# 非零列需人工介入; 依赖 ~/.aigicrm-deploy.env 中 DB_HOST/DB_USER/DB_PASS/DB_NAME(缺 DB_PASS 时无法执行)
+# 执行模式自动: 本机无 mysql 客户端时经 SSH+docker exec(aigicrm-mysql 容器) 执行, 同 deploy-db.sh
 echo "--- [6] 权限数据前提体检(统一权限体系) ---"
 # 【2026-08-14 修复】env 文件无 DB_HOST/DB_USER/DB_PASS/DB_NAME 键，
 # 映射到既有键：体检目标=测试服共享库（shared-mysql 容器，root=TEST_DB_ROOT_PASSWORD）
 DB_HOST="${DB_HOST:-${TEST_HOST:-}}"
 DB_USER="${DB_USER:-root}"
 DB_PASS="${DB_PASS:-${TEST_DB_ROOT_PASSWORD:-}}"
-DB_NAME="${DB_NAME:-ycmn}"
+DB_NAME="${DB_NAME:-aigicrm}"
 if [ -n "$DB_PASS" ]; then
   if "$SCRIPT_DIR/check-permission-data.sh" "$DB_HOST" "$DB_USER" "$DB_PASS" "$DB_NAME" --remote --container shared-mysql; then
     echo "  ✅ 权限数据前提体检通过(全部为零)"
@@ -112,7 +113,7 @@ if [ -n "$DB_PASS" ]; then
     FAIL=$((FAIL+1))
   fi
 else
-  echo "  ❌ 未配置 TEST_DB_ROOT_PASSWORD —— 在 ~/.ycmn-deploy.env 补上后重跑"
+  echo "  ❌ 未配置 TEST_DB_ROOT_PASSWORD —— 在 ~/.aigicrm-deploy.env 补上后重跑"
   FAIL=$((FAIL+1))
 fi
 
@@ -128,7 +129,7 @@ fi
 # [8] 前端自动化测试(2026-08-08 进化: 前端测试从零到一)
 # 覆盖 pagination/list-filter 纯函数 + reminder/system.user/incentive.search 组件冒烟
 echo "--- [8] 前端自动化测试(vitest) ---"
-if ( cd "$REPO/ycmn-ui" && npm test > /tmp/fetest.log 2>&1 ); then
+if ( cd "$REPO/aigicrm-ui" && npm test > /tmp/fetest.log 2>&1 ); then
   echo "  ✅ 前端自动化测试通过($(grep -cE '^\s*Tests ' /tmp/fetest.log >/dev/null && echo ok))"
 else
   echo "  ❌ 前端自动化测试失败:"; tail -15 /tmp/fetest.log | sed 's/^/     /'
@@ -137,10 +138,17 @@ fi
 rm -f /tmp/fetest.log
 
 # [9] 质量防自欺门禁(2026-08-09 进化, 标准化脚本): 测试弱化/同源/契约
-# 统一入口: control-plane/scripts/quality-gates.sh (YCMN 传入真实测试目录)
+# 统一入口: control-plane/scripts/quality-gates.sh (AIGICRM 传入真实测试目录)
 echo "--- [9] 质量防自欺门禁(测试弱化/同源/契约) ---"
-if bash "/Users/donglai/Agent/0-Claude/control-plane/scripts/quality-gates.sh" \
-  "$REPO/ycmn-backend/src/test" "$REPO/ycmn-ui/src" >/tmp/qg.log 2>&1; then
+QUALITY_GATES="${AIGICRM_QUALITY_GATES:-/Users/donglai/Agent/0-Claude/control-plane/scripts/quality-gates.sh}"
+if [ ! -x "$QUALITY_GATES" ] && [ -x "$REPO/scripts/quality-gate.sh" ]; then
+  QUALITY_GATES="$REPO/scripts/quality-gate.sh"
+fi
+if [ ! -x "$QUALITY_GATES" ]; then
+  echo "  ⛔ 质量防自欺门禁未完成: 未找到 quality-gates.sh（可用 AIGICRM_QUALITY_GATES 指定路径）"
+  FAIL=$((FAIL+1))
+elif bash "$QUALITY_GATES" \
+  "$REPO/aigicrm-backend/src/test" "$REPO/aigicrm-ui/src" >/tmp/qg.log 2>&1; then
   sed 's/^/  /' /tmp/qg.log | grep -E "✅|⚠️|质量门禁"
   # 标准化脚本 WARN 不阻断, 但 FAIL 需计入
   if grep -q "质量门禁: PASS" /tmp/qg.log; then
@@ -158,13 +166,25 @@ rm -f /tmp/qg.log
 # 前端 axios 调用必须命中后端 Controller 端点(防"前端调了后端没有"的 404 类缺陷)
 echo "--- [10] 前后端 API 接线交叉检查 ---"
 if python3 "$SCRIPT_DIR/check_api_wiring.py" \
-    --frontend-api "$REPO/ycmn-ui/src/api" --backend "$REPO/ycmn-backend/src/main/java" >/tmp/apiwiring.log 2>&1; then
+    --frontend-api "$REPO/aigicrm-ui/src/api" --backend "$REPO/aigicrm-backend/src/main/java" >/tmp/apiwiring.log 2>&1; then
   echo "  ✅ 前后端 API 接线匹配($(head -1 /tmp/apiwiring.log))"
 else
   echo "  ❌ 前端存在后端未实现的 API 调用:"; sed 's/^/     /' /tmp/apiwiring.log | head -12
   FAIL=$((FAIL+1))
 fi
 rm -f /tmp/apiwiring.log
+
+# [11] Flyway 迁移契约(2026-09-11): 非法文件名会被 Flyway **静默跳过**(不报错但也不执行),
+#      冻结的已部署迁移被改动会在生产 validate 阶段炸掉 —— 交付前必须挡住
+echo "--- [11] Flyway 迁移契约 ---"
+if bash "$SCRIPT_DIR/check-migration-contract.sh" >/tmp/migcontract.log 2>&1; then
+  echo "  ✅ $(tail -1 /tmp/migcontract.log)"
+  PASS=$((PASS+1))
+else
+  echo "  ❌ 迁移契约不通过:"; sed 's/^/     /' /tmp/migcontract.log | tail -12
+  FAIL=$((FAIL+1))
+fi
+rm -f /tmp/migcontract.log
 
 echo "══════════════════════════════════════════════════"
 echo "结果: PASS=$PASS FAIL=$FAIL"

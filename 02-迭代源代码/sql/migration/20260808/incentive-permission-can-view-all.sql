@@ -4,7 +4,7 @@
 --       看全部 = 能看到全部激励记录(含未分享)，但不隐含编辑/删除他人
 --       编辑(can_edit)/删除(can_delete) 开启时自动含"看全部"(后端 canSeeAllIncentive)
 -- 幂等: ALTER 非幂等，重复执行会报 Duplicate column；执行前可先查 information_schema
--- 执行: mysql --default-character-set=utf8mb4 ycmn < incentive-permission-can-view-all.sql
+-- 执行: mysql --default-character-set=utf8mb4 aigicrm < incentive-permission-can-view-all.sql
 -- ============================================================
 
 ALTER TABLE biz_incentive_permission

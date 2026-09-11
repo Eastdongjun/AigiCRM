@@ -4,7 +4,7 @@
     {
       "label": "后端: 编译检查 (mvn compile)",
       "type": "shell",
-      "command": "export JAVA_HOME=/opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home && cd ${workspaceFolder}/ycmn-backend && mvn -B compile",
+      "command": "cd ${workspaceFolder} && bash scripts/dev-verify.sh backend-compile",
       "problemMatcher": [],
       "group": {
         "kind": "build",
@@ -15,29 +15,45 @@
     {
       "label": "后端: 全部单测 (mvn test)",
       "type": "shell",
-      "command": "export JAVA_HOME=/opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home && cd ${workspaceFolder}/ycmn-backend && mvn -B test",
+      "command": "cd ${workspaceFolder} && bash scripts/dev-verify.sh backend-test",
       "problemMatcher": [],
       "group": { "kind": "test", "isDefault": true },
       "presentation": { "reveal": "always", "panel": "dedicated" }
     },
     {
+      "label": "后端: 本地 HTTP 预检",
+      "type": "shell",
+      "command": "cd ${workspaceFolder} && bash scripts/dev-verify.sh backend-http",
+      "problemMatcher": [],
+      "group": "test",
+      "presentation": { "reveal": "always", "panel": "dedicated" }
+    },
+    {
+      "label": "自动化开发: 本地文档新鲜度",
+      "type": "shell",
+      "command": "cd ${workspaceFolder} && bash scripts/dev-verify.sh doc-freshness-local",
+      "problemMatcher": [],
+      "group": "test",
+      "presentation": { "reveal": "always", "panel": "dedicated" }
+    },
+    {
       "label": "后端: 打包 (mvn package -DskipTests)",
       "type": "shell",
-      "command": "export JAVA_HOME=/opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home && cd ${workspaceFolder}/ycmn-backend && mvn -B package -DskipTests",
+      "command": "cd ${workspaceFolder} && bash scripts/dev-verify.sh backend-package",
       "problemMatcher": [],
       "group": "build"
     },
     {
       "label": "前端: 单测 (vitest run)",
       "type": "shell",
-      "command": "cd ${workspaceFolder}/ycmn-ui && npm run test",
+      "command": "cd ${workspaceFolder}/aigicrm-ui && npm run test",
       "problemMatcher": [],
       "group": "test"
     },
     {
       "label": "前端: 构建 (npm run build)",
       "type": "shell",
-      "command": "cd ${workspaceFolder}/ycmn-ui && npm run build",
+      "command": "cd ${workspaceFolder}/aigicrm-ui && npm run build",
       "problemMatcher": [],
       "group": "build"
     },
@@ -47,6 +63,170 @@
       "dependsOrder": "parallel",
       "problemMatcher": [],
       "group": { "kind": "test", "isDefault": true }
+    },
+    {
+      "label": "免费本地质量闭环: 契约 + 测试 + 构建 + Problems",
+      "dependsOn": [
+        "自动化开发: 本地契约全检",
+        "全量门禁: 后端测试 + 前端测试 + 前端构建",
+        "自动化开发: VS Code Problems 诊断导出"
+      ],
+      "dependsOrder": "parallel",
+      "problemMatcher": [],
+      "group": { "kind": "test", "isDefault": true },
+      "presentation": { "reveal": "always", "panel": "dedicated" }
+    },
+    {
+      "label": "自动化开发: 状态总览",
+      "type": "shell",
+      "command": "cd ${workspaceFolder} && bash scripts/dev-verify.sh status",
+      "problemMatcher": [],
+      "group": "test",
+      "presentation": { "reveal": "always", "panel": "dedicated" }
+    },
+    {
+      "label": "自动化开发: 项目进度总览",
+      "type": "shell",
+      "command": "cd ${workspaceFolder} && bash scripts/dev-verify.sh progress",
+      "problemMatcher": [],
+      "group": "test",
+      "presentation": { "reveal": "always", "panel": "dedicated" }
+    },
+    {
+      "label": "自动化开发: 本地契约全检",
+      "type": "shell",
+      "command": "cd ${workspaceFolder} && bash scripts/dev-verify.sh contracts",
+      "problemMatcher": [],
+      "group": "test",
+      "presentation": { "reveal": "always", "panel": "dedicated" }
+    },
+    {
+      "label": "自动化开发: 最近证据",
+      "type": "shell",
+      "command": "cd ${workspaceFolder} && bash scripts/dev-verify.sh evidence-history 8",
+      "problemMatcher": [],
+      "group": "test",
+      "presentation": { "reveal": "always", "panel": "dedicated" }
+    },
+    {
+      "label": "自动化开发: 保存后快速验证",
+      "type": "shell",
+      "command": "cd ${workspaceFolder} && bash scripts/dev-verify.sh on-save",
+      "problemMatcher": [],
+      "group": "test",
+      "presentation": { "reveal": "silent", "panel": "dedicated" }
+    },
+    {
+      "label": "自动化开发: PR 前本地门禁",
+      "type": "shell",
+      "command": "cd ${workspaceFolder} && bash scripts/dev-verify.sh pr",
+      "problemMatcher": [],
+      "group": "test",
+      "presentation": { "reveal": "always", "panel": "dedicated" }
+    },
+    {
+      "label": "自动化开发: 安全自检",
+      "type": "shell",
+      "command": "cd ${workspaceFolder} && bash scripts/dev-verify.sh automation-safety",
+      "problemMatcher": [],
+      "group": "test",
+      "presentation": { "reveal": "always", "panel": "dedicated" }
+    },
+    {
+      "label": "自动化开发: 按变更范围验证",
+      "type": "shell",
+      "command": "cd ${workspaceFolder} && bash scripts/dev-verify.sh changed",
+      "problemMatcher": [],
+      "group": "test",
+      "presentation": { "reveal": "always", "panel": "dedicated" }
+    },
+    {
+      "label": "自动化开发: 公海链路契约测试",
+      "type": "shell",
+      "command": "cd ${workspaceFolder} && bash scripts/dev-verify.sh sea",
+      "problemMatcher": [],
+      "group": "test",
+      "presentation": { "reveal": "always", "panel": "dedicated" }
+    },
+    {
+      "label": "自动化开发: 小程序轻量检查",
+      "type": "shell",
+      "command": "cd ${workspaceFolder} && bash scripts/dev-verify.sh miniprogram",
+      "problemMatcher": [],
+      "group": "test",
+      "presentation": { "reveal": "always", "panel": "dedicated" }
+    },
+    {
+      "label": "自动化开发: 小程序本地配置检查",
+      "type": "shell",
+      "command": "cd ${workspaceFolder} && bash scripts/check-miniprogram-local-profile.sh",
+      "problemMatcher": [],
+      "group": "test",
+      "presentation": { "reveal": "always", "panel": "dedicated" }
+    },
+    {
+      "label": "自动化开发: VS Code Problems 诊断导出",
+      "type": "shell",
+      "command": "cd ${workspaceFolder} && bash scripts/check-vscode-diagnostics-export.sh",
+      "problemMatcher": [],
+      "group": "test",
+      "presentation": { "reveal": "always", "panel": "dedicated" }
+    },
+    {
+      "label": "自动化开发: 公海真实矩阵预检",
+      "type": "shell",
+      "command": "cd ${workspaceFolder} && bash scripts/dev-verify.sh sea-matrix",
+      "problemMatcher": [],
+      "group": "test",
+      "presentation": { "reveal": "always", "panel": "dedicated" }
+    },
+    {
+      "label": "自动化开发: 安装 Git pre-push 门禁",
+      "type": "shell",
+      "command": "cd ${workspaceFolder} && bash scripts/install-git-hooks.sh install",
+      "problemMatcher": [],
+      "group": "test",
+      "presentation": { "reveal": "always", "panel": "dedicated" }
+    },
+    {
+      "label": "自动化开发: 查看 Git hook 状态",
+      "type": "shell",
+      "command": "cd ${workspaceFolder} && bash scripts/install-git-hooks.sh status",
+      "problemMatcher": [],
+      "group": "test",
+      "presentation": { "reveal": "always", "panel": "dedicated" }
+    },
+    {
+      "label": "自动化开发: 采集中央证据(快速)",
+      "type": "shell",
+      "command": "cd ${workspaceFolder} && bash scripts/dev-evidence.sh quick",
+      "problemMatcher": [],
+      "group": "test",
+      "presentation": { "reveal": "always", "panel": "dedicated" }
+    },
+    {
+      "label": "自动化开发: 采集中央证据(按变更)",
+      "type": "shell",
+      "command": "cd ${workspaceFolder} && bash scripts/dev-evidence.sh changed",
+      "problemMatcher": [],
+      "group": "test",
+      "presentation": { "reveal": "always", "panel": "dedicated" }
+    },
+    {
+      "label": "自动化开发: 采集中央证据(公海契约)",
+      "type": "shell",
+      "command": "cd ${workspaceFolder} && bash scripts/dev-evidence.sh sea",
+      "problemMatcher": [],
+      "group": "test",
+      "presentation": { "reveal": "always", "panel": "dedicated" }
+    },
+    {
+      "label": "自动化开发: 采集中央证据(小程序)",
+      "type": "shell",
+      "command": "cd ${workspaceFolder} && bash scripts/dev-evidence.sh miniprogram",
+      "problemMatcher": [],
+      "group": "test",
+      "presentation": { "reveal": "always", "panel": "dedicated" }
     }
   ]
 }

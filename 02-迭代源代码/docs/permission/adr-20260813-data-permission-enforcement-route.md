@@ -25,7 +25,7 @@
    - `OrgScopeResolver` 七级范围（self/team/dept/office/region/all/org_admin），
      请求实时解析，多角色并集；
    - `DataScopeGuard` 归属守卫（isAdmin ∨ 授权 ∨ 本人），修复了历史 fail-open。
-2. **模型不匹配**：若依的 SQL 插件建立在"每行有 dept_id 列"模型上。YCMN 数据范围
+2. **模型不匹配**：若依的 SQL 插件建立在"每行有 dept_id 列"模型上。AIGICRM 数据范围
    以 **owner_id（用户级）** 为主锚点（客户/激励/文件/积分等），team 还需沿
    manager_id 递归 5 层解析——这类逻辑无法用列值 IN 表达，SQL 插件只覆盖最简单
    的一小部分，反而造成"两套口径"的错配风险。
@@ -53,4 +53,4 @@
 - 新查询接入规范：必须走 Service 层 + resolver 过滤，禁止 Controller 直查 Mapper
   （ArchitectureTest 已有分层门禁）；
 - 审计口径更新：对照若依的"SQL 级数据权限"差距项标记为 ADR 决策项，不再作为缺陷；
-- `@YcmnLog` 操作日志注解（P2）仍按 2026-08-13 计划独立实施，与本文无关。
+- `@AigicrmLog` 操作日志注解（P2）仍按 2026-08-13 计划独立实施，与本文无关。

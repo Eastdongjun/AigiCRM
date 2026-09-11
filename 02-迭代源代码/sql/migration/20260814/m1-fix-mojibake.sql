@@ -3,7 +3,7 @@
 -- 背景：M1 首次执行时 mysql 客户端未显式设置 utf8mb4 连接字符集，
 --       中文角色名/菜单名被双重编码成乱码（UTF-8 字节按 latin1 解释存储）。
 -- 修复：以 utf8mb4 连接重写 M1 插入的 8 处中文字段（幂等，按 role_code/permission 定位）。
--- 执行：mysql --default-character-set=utf8mb4 -uroot -p ycmn < sql/migration/20260814/m1-fix-mojibake.sql
+-- 执行：mysql --default-character-set=utf8mb4 -uroot -p aigicrm < sql/migration/20260814/m1-fix-mojibake.sql
 -- ============================================================
 
 SET NAMES utf8mb4;

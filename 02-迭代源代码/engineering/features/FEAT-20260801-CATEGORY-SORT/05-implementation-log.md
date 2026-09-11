@@ -3,7 +3,7 @@
 ## 变更文件
 
 - 前端/后端代码：**零改动**（排序由 `biz_incentive_category.sort_order` 单一驱动，IncentiveService.getCategoryTree 按 sort_order 升序）
-- 数据库（测试服 111.229.37.220，MySQL 容器 shared-mysql，库 ycmn，表 biz_incentive_category）：4 条 UPDATE → REQ-001
+- 数据库（测试服 111.229.37.220，MySQL 容器 shared-mysql，库 aigicrm，表 biz_incentive_category）：4 条 UPDATE → REQ-001
   - `UPDATE ... SET sort_order=1 WHERE id=4`（产品试点 trial）
   - `UPDATE ... SET sort_order=2 WHERE id=3`（两谈两做方案 plan）
   - `UPDATE ... SET sort_order=3 WHERE id=2`（交流拜访 exchange）
@@ -20,7 +20,7 @@
 
 ## 实际执行命令
 
-- 备份：`sshpass ssh ubuntu@111.229.37.220 "docker exec shared-mysql mysqldump ... ycmn biz_incentive_category" > evidence/biz_incentive_category_backup_20260801_sort.sql`
+- 备份：`sshpass ssh ubuntu@111.229.37.220 "docker exec shared-mysql mysqldump ... aigicrm biz_incentive_category" > evidence/biz_incentive_category_backup_20260801_sort.sql`
 - UPDATE + 回读：`docker exec shared-mysql mysql -uroot -p<redacted> -e "UPDATE ...; SELECT id, category_name, category_code, parent_id, sort_order FROM biz_incentive_category WHERE parent_id=0 ORDER BY sort_order"` → 产品试点=1/两谈两做=2/交流拜访=3/外出参观=4
 - 浏览器：http://111.229.37.220/incentive 与 /system/config（Tab 激励类别与权限），DOM 断言顺序
 

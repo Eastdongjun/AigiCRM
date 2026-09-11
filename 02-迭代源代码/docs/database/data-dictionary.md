@@ -1,4 +1,4 @@
-# YCMN 数据字典(自动生成)
+# AIGICRM 数据字典(自动生成)
 
 > 生成时间: 2026-08-16 | 来源: 生产 39.99.35.218 MySQL information_schema
 > 共 55 张表。本文件由 scripts/gen-data-dictionary.sh 自动生成,**禁止手改**;库结构变更后重新运行脚本。
@@ -496,7 +496,7 @@
 | `include_children` | tinyint | NO | 1 |  | 是否含下级组织 |
 | `created_at` | datetime | YES | CURRENT_TIMESTAMP |  |  |
 
-## perm_scope_shadow_diff 数据范围新旧模型影子比对结果(V11)；只有全量无差异才允许切换 ycmn.scope.use-unified=true
+## perm_scope_shadow_diff 数据范围新旧模型影子比对结果(V11)；只有全量无差异才允许切换 aigicrm.scope.use-unified=true
 
 | 字段 | 类型 | 可空 | 默认 | 键 | 说明 |
 |---|---|---|---|---|---|
@@ -821,4 +821,3 @@
 | `id` | bigint | NO | NULL | PRI |  |
 | `user_id` | bigint | NO | NULL | MUL |  |
 | `role_id` | bigint | NO | NULL |  |  |
-

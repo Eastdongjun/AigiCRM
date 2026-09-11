@@ -2,8 +2,8 @@
 
 ## 已确认影响范围
 
-- 前端 ycmn-ui/src/views/incentive/search.vue：仅主搜索框 placeholder 文案（REQ-001）
-- 测试服部署：完整重装 ycmn-frontend 容器 /usr/share/nginx/html（消除新旧 chunk 混装残留）
+- 前端 aigicrm-ui/src/views/incentive/search.vue：仅主搜索框 placeholder 文案（REQ-001）
+- 测试服部署：完整重装 aigicrm-frontend 容器 /usr/share/nginx/html（消除新旧 chunk 混装残留）
 - 后端：零改动（customer-records 已支持 customerName/keyword/salesperson/product 等全部参数）
 
 ## 架构与关键决策

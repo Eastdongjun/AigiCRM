@@ -14,7 +14,7 @@
 
 ## 范围
 
-- 前端 ycmn-ui/src/views/system/config.vue：激励类别管理区块展示形态改造（一级/二级分组）
+- 前端 aigicrm-ui/src/views/system/config.vue：激励类别管理区块展示形态改造（一级/二级分组）
 - 数据整理：删除孤儿类别 46/47/48（已确认无激励记录引用，biz_incentive_record 全库 18 条，均不引用这三个 id）
 - 后端（如需）：限制类别最多两级（创建/更新时校验 parentId 必须是 0 或顶级类别 id）
 - 前端构建、部署测试服（111.229.37.220）、浏览器验证
@@ -34,7 +34,7 @@
 ## 约束
 
 - 源码基准：/Users/donglai/东来/01-Projects/01-aigicrm/04-源码（git main，最新 3 提交 ee6fc71/c61acb0/e0a803c 为 8-1 功能包交付，未 push）
-- 测试服：111.229.37.220；MySQL root/<redacted>（容器 shared-mysql）；前端容器 ycmn-frontend（80 端口）
+- 测试服：111.229.37.220；MySQL root/<redacted>（容器 shared-mysql）；前端容器 aigicrm-frontend（80 端口）
 - 本机 JDK25 与 Lombok 不兼容，后端构建需 JDK17（~/.mavenrc 已配，临时目录）
 - 页面入口：系统设置 /system/config → Tab"激励类别与权限"（无独立菜单）
 

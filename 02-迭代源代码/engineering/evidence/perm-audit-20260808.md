@@ -1,11 +1,11 @@
-# YCMN / AigiCRM 权限体系审计报告
+# AIGICRM / AigiCRM 权限体系审计报告
 
-> 审计日期：2026-08-08 ｜ 审计对象：客户管理系统（YCMN v2.7 / AigiCRM）
+> 审计日期：2026-08-08 ｜ 审计对象：客户管理系统（AIGICRM v2.7 / AigiCRM）
 > 审计方式：本地源码 + 数据库快照 + 迁移脚本 + Service 层守卫逐项验证（只读，未连接生产库）
 > 证据来源：
-> - 后端源码 `ycmn-backend/src/main/java/com/ycmn/`（git main，0807 版）
-> - 前端源码 `ycmn-ui/`（git main，0807 版）
-> - 数据库快照 `ycmn_database_test.sql`（0803 测试库）+ `sql/migration-20260805-perm-codes.sql` + `sql/migration/20260807/perm-scope-switches.sql`
+> - 后端源码 `aigicrm-backend/src/main/java/com/aigicrm/`（git main，0807 版）
+> - 前端源码 `aigicrm-ui/`（git main，0807 版）
+> - 数据库快照 `aigicrm_database_test.sql`（0803 测试库）+ `sql/migration-20260805-perm-codes.sql` + `sql/migration/20260807/perm-scope-switches.sql`
 > - 权限字典 `docs/permission/permission-dict.md`（0805 自动生成，66 码）
 
 ---
@@ -113,7 +113,7 @@ Controller 用到的权限码均可映射到 sys_menu 行（无"代码用了但�
 ### ⑦ 集团/租户层
 
 - `sys_role`/`sys_position` 加 `group_id`（默认主集团 1）；`biz_*` 8 表加 `tenant_id`
-- 租户插件：8 表白名单（biz_customer/biz_customer_share/biz_file_folder/biz_file/biz_incentive_record/biz_sea_pool/biz_approval/biz_reminder），`ycmn.tenant.enable` 开关**默认关**；开启时 admin 钉主集团 1、多集团取最小集团（过度收紧，fail-closed）
+- 租户插件：8 表白名单（biz_customer/biz_customer_share/biz_file_folder/biz_file/biz_incentive_record/biz_sea_pool/biz_approval/biz_reminder），`aigicrm.tenant.enable` 开关**默认关**；开启时 admin 钉主集团 1、多集团取最小集团（过度收紧，fail-closed）
 - `GroupScopeUtil`：admin 不过滤，其余按 groupIds，取不到退主集团 1
 
 ### ⑧ 前端显示层

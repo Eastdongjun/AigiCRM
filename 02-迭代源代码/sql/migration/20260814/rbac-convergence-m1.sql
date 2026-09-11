@@ -7,7 +7,7 @@
 -- 回滚：见 migration-20260814-rbac-convergence-m1-rollback.sql。
 -- ⚠️ 编码：首行 SET NAMES utf8mb4 必须——客户端默认 latin1 时中文会双重编码成乱码
 --   （2026-08-14 生产实测事故：角色名/菜单名乱码，已由 m1-fix-mojibake.sql 修复）。
--- 执行：mysql -uroot -p ycmn < sql/migration/20260814/rbac-convergence-m1.sql
+-- 执行：mysql -uroot -p aigicrm < sql/migration/20260814/rbac-convergence-m1.sql
 -- ============================================================
 
 SET NAMES utf8mb4;

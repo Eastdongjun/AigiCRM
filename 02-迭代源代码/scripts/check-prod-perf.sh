@@ -7,8 +7,8 @@ set -uo pipefail
 BASE="${1:-https://www.aigicrm.com}"
 TOKEN="${2:-}"
 FAILS=0
-# 登录凭据经 ~/.ycmn-deploy.env 注入(HEALTH_CHECK_USER/PASS)，禁止硬编码入仓
-ENV_FILE="$HOME/.ycmn-deploy.env"
+# 登录凭据经 ~/.aigicrm-deploy.env 注入(HEALTH_CHECK_USER/PASS)，禁止硬编码入仓
+ENV_FILE="$HOME/.aigicrm-deploy.env"
 [ -f "$ENV_FILE" ] && source "$ENV_FILE"
 HEALTH_CHECK_USER="${HEALTH_CHECK_USER:-admin}"
 HEALTH_CHECK_PASS="${HEALTH_CHECK_PASS:-}"
@@ -58,7 +58,7 @@ if [ -n "$TOKEN" ]; then
     echo "  登录: ${T2}s"
     awk -v t="$T2" 'BEGIN{exit !(t<2)}' && pass "登录 < 2s" || fail "登录响应 ${T2}s ≥ 2s"
   else
-    fail "缺少 HEALTH_CHECK_PASS(~/.ycmn-deploy.env)，跳过登录耗时检查"
+    fail "缺少 HEALTH_CHECK_PASS(~/.aigicrm-deploy.env)，跳过登录耗时检查"
   fi
 fi
 

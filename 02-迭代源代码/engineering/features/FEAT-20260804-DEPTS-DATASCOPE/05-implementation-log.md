@@ -1,7 +1,7 @@
 # 实现记录
 
 ## 变更文件
-- ycmn-backend/src/main/java/com/ycmn/module/system/service/SysDeptService.java
+- aigicrm-backend/src/main/java/com/aigicrm/module/system/service/SysDeptService.java
   (REQ-001/AC-001~003):新增 scopeFilter()——isAdmin 返回全部;非管理员按 getCurrentDeptId()
   上溯 parentId 收集本人部门+祖先链;tree()/list() 均接入过滤
 

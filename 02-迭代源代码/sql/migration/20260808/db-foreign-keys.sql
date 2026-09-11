@@ -7,7 +7,7 @@
 -- 回滚: ALTER TABLE <t> DROP FOREIGN KEY <fk>;
 -- 执行: deploy-db.sh（自动备份后带库名执行）
 
-USE ycmn;
+USE aigicrm;
 
 ALTER TABLE biz_invoice ADD CONSTRAINT fk_biz_invoice_customer FOREIGN KEY (customer_id) REFERENCES biz_customer(id);
 ALTER TABLE biz_payment ADD CONSTRAINT fk_biz_payment_customer FOREIGN KEY (customer_id) REFERENCES biz_customer(id);

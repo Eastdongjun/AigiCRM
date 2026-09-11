@@ -15,7 +15,7 @@
       "finished_at": "2026-08-04T01:20:27+08:00",
       "returncode": 0,
       "timed_out": false,
-      "output_tail": "===== 前端反模式扫描: /Users/donglai/东来/01-Projects/01-aigicrm/04-源码/ycmn-ui/src =====\n-- [1/4] 全量加载(size:9999)检查\n  ✅ 无 size:9999 全量加载\n-- [2/4] blob URL 泄漏检查\n  ✅ createObjectURL 使用处有配套 revoke(5 处)\n-- [3/4] 上传进度节流检查\n  ✅ index.vue 进度节流正常\n-- [4/4] nginx 配置检查: /Users/donglai/东来/01-Projects/01-aigicrm/04-源码/nginx/nginx-ssl.conf\n  ✅ gzip 已开启\n  ✅ nginx add_header 与安全头齐备(add_header=16, X-Frame=3)\n\n✅ 前端质量检查通过(0 违规)\n"
+      "output_tail": "===== 前端反模式扫描: /Users/donglai/东来/01-Projects/01-aigicrm/04-源码/aigicrm-ui/src =====\n-- [1/4] 全量加载(size:9999)检查\n  ✅ 无 size:9999 全量加载\n-- [2/4] blob URL 泄漏检查\n  ✅ createObjectURL 使用处有配套 revoke(5 处)\n-- [3/4] 上传进度节流检查\n  ✅ index.vue 进度节流正常\n-- [4/4] nginx 配置检查: /Users/donglai/东来/01-Projects/01-aigicrm/04-源码/nginx/nginx-ssl.conf\n  ✅ gzip 已开启\n  ✅ nginx add_header 与安全头齐备(add_header=16, X-Frame=3)\n\n✅ 前端质量检查通过(0 违规)\n"
     }
   ]
 }

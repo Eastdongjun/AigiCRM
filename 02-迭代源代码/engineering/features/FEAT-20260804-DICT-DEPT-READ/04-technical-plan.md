@@ -68,7 +68,7 @@
 
 - 无数据迁移。发布 = 重建 `aigicrm-backend` Docker 镜像 + `docker compose up -d backend`（先生产备份/保存当前镜像标签以便回滚）。
 - 兼容：前端零改动；接口结构零变化；鉴权为放宽方向，旧客户端不受影响。
-- 回滚：git revert 本次 4 个文件改动 → 重新构建部署即可恢复原权限（原 jar 保留 `/root/ycmn/backup/`）。
+- 回滚：git revert 本次 4 个文件改动 → 重新构建部署即可恢复原权限（原 jar 保留 `/root/aigicrm/backup/`）。
 
 ## 可观测性
 
@@ -78,7 +78,7 @@
 ## 回滚
 
 - 回滚触发器：生产实测发现统计数值异常或新 403。
-- 步骤：SSH 生产 → 恢复备份镜像（`/root/ycmn/backup/` 保留原 jar/镜像标签）→ `docker compose up -d backend` → NM005/admin 复测。
+- 步骤：SSH 生产 → 恢复备份镜像（`/root/aigicrm/backup/` 保留原 jar/镜像标签）→ `docker compose up -d backend` → NM005/admin 复测。
 - 数据零改动，无数据回滚需求。
 
 ## 风险与盲区

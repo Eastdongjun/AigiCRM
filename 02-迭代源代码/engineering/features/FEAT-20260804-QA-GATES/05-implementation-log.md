@@ -4,7 +4,7 @@
 - 新增 scripts/check-frontend-quality.sh(REQ-001):扫描 size:9999/createObjectURL无revoke/progress无节流/nginx gzip/add_header继承
 - 新增 scripts/check-prod-perf.sh(REQ-002):生产 gzip(静态JS检测)/no-cache/4安全头/耗时
 - 修改 scripts/pre-delivery-check.sh(REQ-003):新增 [5] 前端质量检查
-- 修改 ycmn-ui/src/views/system/config.vue、incentive/index.vue:门禁首跑发现的 size:9999→500
+- 修改 aigicrm-ui/src/views/system/config.vue、incentive/index.vue:门禁首跑发现的 size:9999→500
 
 ## 实现决策
 - 不用 eslint(现有代码零配置会大量告警),用针对性反模式扫描(零依赖)

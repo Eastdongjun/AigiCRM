@@ -7,14 +7,14 @@
 - 前端修复 parseId;vitest.setup.js 既有测试环境修复
 
 ## 变更清单
-- ycmn-ui/src/views/customer/detail.vue(parseId + getFiles 4 处应用)
-- ycmn-ui/vitest.setup.js(localStorage stub)
+- aigicrm-ui/src/views/customer/detail.vue(parseId + getFiles 4 处应用)
+- aigicrm-ui/vitest.setup.js(localStorage stub)
 
 ## 安装与启动
-- 前端:cd ycmn-ui && npm run build;产物 dist/
+- 前端:cd aigicrm-ui && npm run build;产物 dist/
 
 ## 部署状态与步骤
-- 测试环境 111.229.37.220:已部署(index-kRdOxczh.js,首页 200);步骤:tar → scp → docker cp ycmn-frontend → 覆盖 html → restart
+- 测试环境 111.229.37.220:已部署(index-kRdOxczh.js,首页 200);步骤:tar → scp → docker cp aigicrm-frontend → 覆盖 html → restart
 - 生产环境:未部署(待用户授权)
 
 ## 回滚与恢复

@@ -6,20 +6,20 @@
 
 **场景 1:继续开发/修复**
 ```
-继续 YCMN 客户管理系统项目。先读 /Users/donglai/东来/01-Projects/01-aigicrm/04-源码/docs/README.md
+继续 AIGICRM 客户管理系统项目。先读 /Users/donglai/东来/01-Projects/01-aigicrm/04-源码/docs/README.md
 和 CLAUDE.md,然后检查:git 状态、生产健康(scripts/smoke-test.sh prod)、待办清单。
 当前我要做的是:【你的需求】
 ```
 
 **场景 2:巡检/运维**
 ```
-巡检 YCMN 生产环境(39.99.35.218):运行 scripts/pre-delivery-check.sh 检查全套状态,
+巡检 AIGICRM 生产环境(39.99.35.218):运行 scripts/pre-delivery-check.sh 检查全套状态,
 再看 NAS 每日日报 /Aigicrm/files/backup/daily/<今天>/report.md,报告健康状况和问题。
 ```
 
 **场景 3:部署**
 ```
-按 scripts/deploy-backend.sh / deploy-frontend.sh / deploy-db.sh 部署 YCMN,
+按 scripts/deploy-backend.sh / deploy-frontend.sh / deploy-db.sh 部署 AIGICRM,
 部署前先跑 verify-delivery.sh 门禁,生产变更先向我确认再执行。
 ```
 
@@ -30,13 +30,13 @@
 | 权威源码(git 仓库,唯一真源) | `/Users/donglai/东来/01-Projects/01-aigicrm/04-源码/` |
 | 知识资产 | 同上 `docs/`(database 数据字典/permission 权限/api 接口/ops 运维) |
 | 部署/门禁/测试脚本 | `scripts/`(verify-delivery/smoke-test/pre-delivery-check/deploy-*/gen-*) |
-| 功能包(交付记录) | `/Users/donglai/Agent/0-Claude/ycmn-workspace/engineering/features/` |
+| 功能包(交付记录) | `/Users/donglai/Agent/0-Claude/aigicrm-workspace/engineering/features/` |
 | 配置矩阵(三环境) | `docs/deployment/config-matrix.md` |
 | 完成定义 DoD | `docs/ops/dod.md` |
 | 故障手册 | `docs/ops/incident.md` |
 | 生产服务器 | `root@39.99.35.218` |
 | 测试服务器 | `ubuntu@111.229.37.220` |
-| 部署凭据 | `~/.ycmn-deploy.env`(不入 git,chmod 600) |
+| 部署凭据 | `~/.aigicrm-deploy.env`(不入 git,chmod 600) |
 | NAS 备份/每日日报 | 生产 `/Aigicrm/files/backup/` |
 
 ## 关键规则(记忆已吸收,简述)
@@ -52,4 +52,4 @@
 
 - 生产:v2.7.0(后端 jar md5 9f681956 / 前端 index-DMDq9ywO.js)
 - 后端安全修复已上线(logo 端点路径穿越,commit 9501897)
-- 回滚:旧 jar 在 `/root/ycmn/backup-pre-deploy-20260802/ycmn-backend-1.0.0.jar`(94700361B)
+- 回滚:旧 jar 在 `/root/aigicrm/backup-pre-deploy-20260802/aigicrm-backend-1.0.0.jar`(94700361B)

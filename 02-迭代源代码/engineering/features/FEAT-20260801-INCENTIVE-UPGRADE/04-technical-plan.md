@@ -2,10 +2,10 @@
 
 ## 已确认影响范围
 
-- `ycmn-ui/src/views/incentive/index.vue` — 需求2弹窗品类分支、需求3列表排序
-- `ycmn-ui/src/views/incentive/search.vue` — 需求3详情排序（含"最近更新"解耦）、需求4筛选
-- `ycmn-ui/src/views/customer/detail.vue` — 需求3激励 Tab 排序
-- `ycmn-backend .../incentive/service/IncentiveService.java` — calcScore 重写、customerRecords 加 product/keyword 参数、记录排序
+- `aigicrm-ui/src/views/incentive/index.vue` — 需求2弹窗品类分支、需求3列表排序
+- `aigicrm-ui/src/views/incentive/search.vue` — 需求3详情排序（含"最近更新"解耦）、需求4筛选
+- `aigicrm-ui/src/views/customer/detail.vue` — 需求3激励 Tab 排序
+- `aigicrm-backend .../incentive/service/IncentiveService.java` — calcScore 重写、customerRecords 加 product/keyword 参数、记录排序
 - 测试部署：111.229.37.220（前端 dist + 后端 jar）
 
 ## 架构与关键决策

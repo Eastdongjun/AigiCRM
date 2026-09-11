@@ -6,7 +6,7 @@
 ## 功能需求
 | 需求 ID | 描述 | 来源 | 优先级 |
 |---|---|---|---|
-| REQ-001 | scripts/check-frontend-quality.sh:扫描 ycmn-ui/src(size:9999/9999 全量、URL.createObjectURL 无配套 revoke、onUploadProgress 无节流)+ nginx-ssl.conf(add_header 无安全头的 location、缺 gzip) | 防复发 | Must |
+| REQ-001 | scripts/check-frontend-quality.sh:扫描 aigicrm-ui/src(size:9999/9999 全量、URL.createObjectURL 无配套 revoke、onUploadProgress 无节流)+ nginx-ssl.conf(add_header 无安全头的 location、缺 gzip) | 防复发 | Must |
 | REQ-002 | scripts/check-prod-perf.sh <base_url>:验证 gzip 生效、index.html no-cache+4安全头、首页/登录耗时 | 防复发 | Must |
 | REQ-003 | pre-delivery-check.sh 调用 REQ-001(本地);生产检查按需 | 防复发 | Should |
 
@@ -21,7 +21,7 @@
 - [x] 用户已确认:是(用户指示"执行这几项防复发措施")
 
 ## 事实
-- ycmn-ui 纯 JS(Vue3),无 eslint;smoke-test.sh 仅 API 冒烟;pre-delivery-check.sh 存在
+- aigicrm-ui 纯 JS(Vue3),无 eslint;smoke-test.sh 仅 API 冒烟;pre-delivery-check.sh 存在
 - 6 类问题(重复上传/blob泄漏/进度无节流/全量加载/gzip未开/安全头丢失)均曾发生
 
 ## 假设

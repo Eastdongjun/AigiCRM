@@ -7,12 +7,12 @@
 #   check-permission-data.sh <DB_HOST> <DB_USER> <DB_PASS> <DB_NAME> [选项]
 #   省略参数时从环境变量读取: DB_HOST/DB_USER/DB_PASS/DB_NAME
 # 选项:
-#   --remote            经 SSH + docker exec 在服务器容器内执行(默认容器 ycmn-mysql, 同 deploy-db.sh)
+#   --remote            经 SSH + docker exec 在服务器容器内执行(默认容器 aigicrm-mysql, 同 deploy-db.sh)
 #   --local             本机 mysql 客户端直连(需本机安装 mysql client)
 #   --container NAME    指定远端容器名(仅 --remote)
 #   --export-missing F  导出 deptType/group_id 缺失部门明细到文件(供数据清洗)
 #   缺省自动判定模式: 本机有 mysql 客户端 → local; 否则 → remote
-# remote 模式 SSH 目标: DB_HOST 匹配 ~/.ycmn-deploy.env 的 PROD_HOST/TEST_HOST 时自动复用
+# remote 模式 SSH 目标: DB_HOST 匹配 ~/.aigicrm-deploy.env 的 PROD_HOST/TEST_HOST 时自动复用
 #   ssh_prod/ssh_test 凭据; 否则需 DB_SSH_HOST/DB_SSH_USER/DB_SSH_PASS 环境变量
 # 退出码: 0=检查通过(manager_id 渐进项告警不计失败); 1=存在非零缺失项(需人工介入)或执行失败
 set -uo pipefail
@@ -24,7 +24,7 @@ usage() {
 
 # ---- 参数解析(位置参数 = host/user/pass/db, 与 --remote 等选项可混排) ----
 DB_HOST="${DB_HOST:-}"; DB_USER="${DB_USER:-}"; DB_PASS="${DB_PASS:-}"; DB_NAME="${DB_NAME:-}"
-MODE=auto; CONTAINER=ycmn-mysql; EXPORT_FILE=""; POSN=0
+MODE=auto; CONTAINER=aigicrm-mysql; EXPORT_FILE=""; POSN=0
 while [ $# -gt 0 ]; do
   case "$1" in
     --remote) MODE=remote; shift ;;
@@ -43,14 +43,14 @@ while [ $# -gt 0 ]; do
       shift ;;
   esac
 done
-# C6: 未显式提供时从 ~/.ycmn-deploy.env 派生默认（生产 root + 已轮换 DB_PASSWORD，复用 ssh_prod 凭据）
+# C6: 未显式提供时从 ~/.aigicrm-deploy.env 派生默认（生产 root + 已轮换 DB_PASSWORD，复用 ssh_prod 凭据）
 if [ -z "$DB_HOST" ] || [ -z "$DB_USER" ] || [ -z "$DB_PASS" ] || [ -z "$DB_NAME" ]; then
-  ENV_FILE="$HOME/.ycmn-deploy.env"
+  ENV_FILE="$HOME/.aigicrm-deploy.env"
   [ -f "$ENV_FILE" ] && source "$ENV_FILE"
-  DB_HOST="${DB_HOST:-$PROD_HOST}"
+  DB_HOST="${DB_HOST:-${PROD_HOST:-}}"
   DB_USER="${DB_USER:-root}"
-  DB_PASS="${DB_PASS:-$DB_PASSWORD}"
-  DB_NAME="${DB_NAME:-ycmn}"
+  DB_PASS="${DB_PASS:-${DB_PASSWORD:-}}"
+  DB_NAME="${DB_NAME:-aigicrm}"
 fi
 if [ -z "$DB_HOST" ] || [ -z "$DB_USER" ] || [ -z "$DB_PASS" ] || [ -z "$DB_NAME" ]; then
   echo "错误: 缺少 DB 连接参数(host/user/pass/db)" >&2; usage; exit 2

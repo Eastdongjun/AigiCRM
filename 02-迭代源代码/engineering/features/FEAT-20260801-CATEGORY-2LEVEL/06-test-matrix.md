@@ -11,7 +11,7 @@
 | AC-007 | TEST-007 | PASS | /incentive 页面加载正常（标题"四项激励"），DOM 断言 4 大类 tab（外出参观/交流拜访/两谈两做方案/产品试点）均在，子项列表存在 |
 
 ## 门禁
-- run-gates：build（npm --prefix ycmn-ui run build）+ typecheck（mvn package）全部通过，failed=[]
+- run-gates：build（npm --prefix aigicrm-ui run build）+ typecheck（mvn package）全部通过，failed=[]
 - 系统设置页控制台 1 error 为 logo.jpg 404（既有问题，非本次引入）
 
 ## 未覆盖与风险

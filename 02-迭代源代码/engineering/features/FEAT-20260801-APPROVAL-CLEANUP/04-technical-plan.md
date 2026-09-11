@@ -2,7 +2,7 @@
 
 ## 已确认影响范围
 
-- 数据：测试服 ycmn.biz_approval_config id=1（flow_name="客户捞取"，flow_type="????"）
+- 数据：测试服 aigicrm.biz_approval_config id=1（flow_name="客户捞取"，flow_type="????"）
 - 代码：零改动
 
 ## 架构与关键决策

@@ -3,6 +3,6 @@
 --       但测试库被设为 parent_id=0(顶层)，导致出现第5个顶层分类。
 --       生产库正确(parent_id=4)。对齐生产。
 -- 无记录引用 category_id=44(已验证)，改动安全。
--- 执行: mysql --default-character-set=utf8mb4 ycmn < fix-test-category-lubricant-parent.sql
+-- 执行: mysql --default-character-set=utf8mb4 aigicrm < fix-test-category-lubricant-parent.sql
 
 UPDATE biz_incentive_category SET parent_id = 4 WHERE id = 44 AND parent_id = 0;

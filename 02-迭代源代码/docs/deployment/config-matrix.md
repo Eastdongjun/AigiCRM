@@ -8,9 +8,9 @@
 |---|---|---|---|
 | 服务器 | 39.99.35.218 (CentOS 7) | 111.229.37.220 (Ubuntu 24.04) | Mac |
 | 访问 | https://www.aigicrm.com (SSL) | http://111.229.37.220 | http://localhost:5173 |
-| 后端容器 | ycmn-backend:2.7.0 (独立) | ycmn-backend (共享 MySQL/Redis) | 源码运行 |
-| 前端容器 | ycmn-frontend:2.6.1 + NAS 挂载 | ycmn-frontend (docker cp) | vite dev |
-| 数据库 | 独立 ycmn-mysql (50 表) | shared-mysql (与 ShopJoy 共享) | 本地 |
+| 后端容器 | aigicrm-backend:2.7.0 (独立) | aigicrm-backend (共享 MySQL/Redis) | 源码运行 |
+| 前端容器 | aigicrm-frontend:2.6.1 + NAS 挂载 | aigicrm-frontend (docker cp) | vite dev |
+| 数据库 | 独立 aigicrm-mysql (55 表) | shared-mysql (与 ShopJoy 共享) | 本地 |
 | 存储 | 数据盘 /data + NAS /Aigicrm/files | 系统盘 | 本地 |
 
 ## 二、后端环境变量(容器必需)
@@ -19,7 +19,7 @@
 |---|---|---|---|
 | DB_HOST | mysql | shared-mysql | 连不上库 |
 | DB_PORT | 3306 | 3306 | — |
-| DB_USER / DB_PASSWORD | ycmn_app / ${APP_DB_PASSWORD}（经 ~/.ycmn-deploy.env 注入，不落明文；生产 root 已轮换） | root / <redacted>（测试库已接受风险） | — |
+| DB_USER / DB_PASSWORD | aigicrm_app / ${APP_DB_PASSWORD}（经 ~/.aigicrm-deploy.env 注入，不落明文；生产 root 已轮换） | root / <redacted>（测试库已接受风险） | — |
 | REDIS_HOST / PORT | redis / 6379 | shared-redis / 6379 | — |
 | STORAGE_TYPE | local | (无,默认) | local=本地存储 |
 | UPLOAD_DIR | /app/uploads | /app/uploads | — |
@@ -28,7 +28,7 @@
 | **OSS_ACCESS_KEY_SECRET** | your-secret(占位) | dummy | **同上** |
 | OSS_BUCKET_NAME | your-bucket | 占位 | 本地存储下不实际使用 |
 | **CORS_ORIGINS** | https://www.aigicrm.com,http://localhost:5173,http://localhost:3000 | (无) | **缺失则登录 403 Invalid CORS request** |
-| **JWT_SECRET** | 必配(256位随机,存 ~/.ycmn-deploy.env) | 必配(测试服务器 .jwt-secret) | **缺失则启动失败**(安全失败,2026-08-02 H9 修复后无默认值) |
+| **JWT_SECRET** | 必配(256位随机,存 ~/.aigicrm-deploy.env) | 必配(测试服务器 .jwt-secret) | **缺失则启动失败**(安全失败,2026-08-02 H9 修复后无默认值) |
 | TRUSTED_PROXY_CIDRS | 默认 10/8,172.16/12,192.168/16 | 同 | 登录限流取真实 IP 的代理网段,默认私有网段即可 |
 | TZ | Asia/Shanghai | — | 时区 |
 
@@ -48,7 +48,7 @@
 
 | 项 | 生产 | 测试 |
 |---|---|---|
-| dist 位置 | NAS /Aigicrm/files/ycmn-dist (bind mount) | 容器内 docker cp |
+| dist 位置 | NAS /Aigicrm/files/aigicrm-dist (bind mount) | 容器内 docker cp |
 | 部署方式 | 更新 NAS 目录即生效 | 构建后 docker cp |
 | nginx | nginx-ssl.conf (443 SSL + 301) | default.conf (80) |
 

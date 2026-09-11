@@ -2,7 +2,7 @@
 
 ## 已确认影响范围
 
-- 数据库（测试服 111.229.37.220，MySQL 容器 shared-mysql，库 ycmn）：表 `biz_incentive_category`，仅顶层 4 行 sort_order
+- 数据库（测试服 111.229.37.220，MySQL 容器 shared-mysql，库 aigicrm）：表 `biz_incentive_category`，仅顶层 4 行 sort_order
 - 前端/后端代码：**零改动**（getCategoryTree 已按 sort_order 升序返回，IncentiveService.java:81-85）
 - 消费方联动：incentive/index.vue（Tab/默认选中/弹窗分组）、system/config.vue（分组）、incentive/customer.vue、overview.vue
 

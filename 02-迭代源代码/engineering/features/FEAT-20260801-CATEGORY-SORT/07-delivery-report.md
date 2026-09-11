@@ -12,7 +12,7 @@
 
 ## 变更清单
 
-- 数据：测试服 `ycmn.biz_incentive_category` 顶层 4 行 sort_order（ID 1/2/3/4 → 4/3/2/1）
+- 数据：测试服 `aigicrm.biz_incentive_category` 顶层 4 行 sort_order（ID 1/2/3/4 → 4/3/2/1）
 - 代码：无（前端/后端零改动）
 
 ## 安装与启动

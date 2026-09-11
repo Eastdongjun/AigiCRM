@@ -5,7 +5,7 @@
 ## 当前状态（2026-08-01 19:55）
 
 - **DELIVERED**（status --require-delivered exit=0），四区顺序已调整为：**产品试点（最前）→ 两谈两做方案 → 交流拜访 → 外出参观（最后）**
-- 实现方式：纯数据变更——测试服 `ycmn.biz_incentive_category` 顶层 4 行 sort_order（trial=1/plan=2/exchange=3/visit=4），前端/后端代码零改动（排序由 getCategoryTree 按 sort_order 升序单一驱动）
+- 实现方式：纯数据变更——测试服 `aigicrm.biz_incentive_category` 顶层 4 行 sort_order（trial=1/plan=2/exchange=3/visit=4），前端/后端代码零改动（排序由 getCategoryTree 按 sort_order 升序单一驱动）
 - 生效范围：激励上传页四区 Tab（默认选中"产品试点"）、上传弹窗子项分组、系统设置→激励类别与权限分组、customer.vue/overview.vue（同接口）
 - 备份：evidence/biz_incentive_category_backup_20260801_sort.sql（改前整表）
 

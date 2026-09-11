@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# YCMN 质量门禁一键执行（P0，2026-08-12）
+# AIGICRM 质量门禁一键执行（P0，2026-08-12）
 # 用法: bash scripts/quality-gate.sh
 # 覆盖: 修改范围检查 → 前端 test/build → 后端 mvn verify(JDK17) → 变更文件 VSCode 诊断 → 报告表
 # 退出码: 0=全部强制门禁 PASS；1=存在 FAIL；2=环境/依赖缺失导致 BLOCKED
@@ -14,7 +14,7 @@ bad() { echo "  ❌ $1"; FAIL=$((FAIL+1)); }
 na() { echo "  ➖ $1"; NA=$((NA+1)); }
 blk() { echo "  ⛔ $1"; BLOCKED=$((BLOCKED+1)); }
 
-echo "════════ YCMN 质量门禁 $(date '+%Y-%m-%d %H:%M:%S') ════════"
+echo "════════ AIGICRM 质量门禁 $(date '+%Y-%m-%d %H:%M:%S') ════════"
 
 # 变更文件（staged + unstaged，去引号，规范为仓库相对路径）
 CHANGED=$(cd "$REPO" && git status --porcelain | sed 's/^...//' | grep -v '^$' || true)
@@ -38,20 +38,20 @@ HARD=$(echo "$CHANGED" | while IFS= read -r f; do
   [ -f "$REPO/$f" ] || continue
   grep -nE "password\s*[:=]\s*['\"][^'\"]{6,}['\"]" "$REPO/$f" 2>/dev/null | head -2 | sed "s|^|$f:|"
 done)
-if [ -n "$HARD" ]; then bad "变更文件疑似硬编码密码（应经 ~/.ycmn-deploy.env 注入）:"; echo "$HARD" | sed 's/^/    /'; else ok "无硬编码密码"; fi
+if [ -n "$HARD" ]; then bad "变更文件疑似硬编码密码（应经 ~/.aigicrm-deploy.env 注入）:"; echo "$HARD" | sed 's/^/    /'; else ok "无硬编码密码"; fi
 
 # ---------------------------------------------------------------- [2] 前端门禁
-echo "--- [2] 前端 (ycmn-ui, npm) ---"
-if [ ! -d "$REPO/ycmn-ui/node_modules" ]; then
-  blk "前端 node_modules 缺失 —— 需先 cd ycmn-ui && npm install（BLOCKED）"
+echo "--- [2] 前端 (aigicrm-ui, npm) ---"
+if [ ! -d "$REPO/aigicrm-ui/node_modules" ]; then
+  blk "前端 node_modules 缺失 —— 需先 cd aigicrm-ui && npm install（BLOCKED）"
 else
-  if (cd "$REPO/ycmn-ui" && npm run test >/tmp/qg-fe-test.log 2>&1); then
+  if (cd "$REPO/aigicrm-ui" && npm run test >/tmp/qg-fe-test.log 2>&1); then
     ok "前端测试 (vitest) 通过"
   else
     bad "前端测试失败:"; tail -15 /tmp/qg-fe-test.log | sed 's/^/    /'
   fi
   rm -f /tmp/qg-fe-test.log
-  if (cd "$REPO/ycmn-ui" && npm run build >/tmp/qg-fe-build.log 2>&1); then
+  if (cd "$REPO/aigicrm-ui" && npm run build >/tmp/qg-fe-build.log 2>&1); then
     ok "前端构建通过（退出码 0）"
   else
     bad "前端构建失败:"; tail -15 /tmp/qg-fe-build.log | sed 's/^/    /'
@@ -60,8 +60,8 @@ else
 fi
 # lint / type-check：未配置则如实标 N/A，不得虚报
 for SCRIPT in lint type-check; do
-  if grep -q "\"$SCRIPT\"" "$REPO/ycmn-ui/package.json" 2>/dev/null; then
-    if (cd "$REPO/ycmn-ui" && npm run "$SCRIPT" >/tmp/qg-fe-x.log 2>&1); then
+  if grep -q "\"$SCRIPT\"" "$REPO/aigicrm-ui/package.json" 2>/dev/null; then
+    if (cd "$REPO/aigicrm-ui" && npm run "$SCRIPT" >/tmp/qg-fe-x.log 2>&1); then
       ok "前端 $SCRIPT 通过"
     else
       bad "前端 $SCRIPT 失败:"; tail -10 /tmp/qg-fe-x.log | sed 's/^/    /'
@@ -73,7 +73,7 @@ for SCRIPT in lint type-check; do
 done
 
 # ---------------------------------------------------------------- [3] 后端门禁
-echo "--- [3] 后端 (ycmn-backend, mvn verify, 需 JDK 17) ---"
+echo "--- [3] 后端 (aigicrm-backend, mvn verify, 需 JDK 17) ---"
 # shellcheck source=ensure-java21.sh
 source "$SCRIPT_DIR/ensure-java21.sh"
 if ! ensure_java21 >/tmp/qg-j17.log 2>&1; then
@@ -81,7 +81,7 @@ if ! ensure_java21 >/tmp/qg-j17.log 2>&1; then
   tail -5 /tmp/qg-j17.log | sed 's/^/    /'
 else
   grep -E "找到|使用" /tmp/qg-j17.log | sed 's/^/    /' | head -1
-  if (cd "$REPO/ycmn-backend" && mvn -B verify >/tmp/qg-be.log 2>&1); then
+  if (cd "$REPO/aigicrm-backend" && mvn -B verify >/tmp/qg-be.log 2>&1); then
     ok "后端 mvn verify 通过（编译+测试+打包，退出码 0）"
     echo "$(grep -cE 'Tests run:.*Failures: [1-9]' /tmp/qg-be.log >/dev/null 2>&1 && echo '     ⚠️ 存在失败测试（不应出现）' || true)"
   else
@@ -93,7 +93,8 @@ rm -f /tmp/qg-j17.log
 
 # ---------------------------------------------------------------- [4] 变更文件 VSCode 诊断（P0 规则 18）
 echo "--- [4] VSCode 诊断（规则 18，桥可用时；只对本次变更文件计 FAIL）---"
-DIAG=$(curl -s --max-time 8 -X POST http://127.0.0.1:3000/mcp \
+DIAG_URL="${VSCODE_MCP_URL:-http://127.0.0.1:3000/mcp}"
+DIAG=$(curl -s --max-time 8 -X POST "$DIAG_URL" \
   -H 'Content-Type: application/json' -H 'Accept: application/json, text/event-stream' \
   -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"get_diagnostics_code","arguments":{"severities":[0,1]}}}' 2>/dev/null)
 if [ -z "$DIAG" ]; then

@@ -2,10 +2,10 @@
 
 ## 变更文件
 
-- `ycmn-ui/src/views/incentive/index.vue`（需求1已改于交接；需求2：isSingleSlot/slotLabel/detailLabel computed、单槽文件区、跟踪记录隐藏、canSubmit 单槽≥1校验、提交不传空槽/追加保留旧槽；需求3：mainOrderOf + filteredRecords 四区排序）
-- `ycmn-ui/src/views/incentive/search.vue`（需求3：latestRecord 解耦"最近更新"；需求4：同事姓名 allow-create、产品小类级联下拉、主搜索框传 customerName+keyword、doReset 重置新字段）
-- `ycmn-backend .../incentive/service/IncentiveService.java`（calcScore 重写：plan 每文件+base 上限5×base、visit/exchange 任一槽有文件+base、trial 三齐全；isVisitExchangeCategory；categoryMainOrder；getCustomerRecords 加 product/keyword 参数与组内四区排序）
-- `ycmn-backend .../incentive/controller/IncentiveController.java`（customerRecords 加 product/keyword 参数）
+- `aigicrm-ui/src/views/incentive/index.vue`（需求1已改于交接；需求2：isSingleSlot/slotLabel/detailLabel computed、单槽文件区、跟踪记录隐藏、canSubmit 单槽≥1校验、提交不传空槽/追加保留旧槽；需求3：mainOrderOf + filteredRecords 四区排序）
+- `aigicrm-ui/src/views/incentive/search.vue`（需求3：latestRecord 解耦"最近更新"；需求4：同事姓名 allow-create、产品小类级联下拉、主搜索框传 customerName+keyword、doReset 重置新字段）
+- `aigicrm-backend .../incentive/service/IncentiveService.java`（calcScore 重写：plan 每文件+base 上限5×base、visit/exchange 任一槽有文件+base、trial 三齐全；isVisitExchangeCategory；categoryMainOrder；getCustomerRecords 加 product/keyword 参数与组内四区排序）
+- `aigicrm-backend .../incentive/controller/IncentiveController.java`（customerRecords 加 product/keyword 参数）
 
 ## 实现决策
 
@@ -20,7 +20,7 @@
 
 ## 实际执行命令
 
-- npm run build --prefix ycmn-ui ✓（404ms）
+- npm run build --prefix aigicrm-ui ✓（404ms）
 - JAVA_HOME=openjdk@21 mvn clean package -DskipTests ✓（aigicrm-backend-1.0.0.jar）
 - 部署：前端 tar→scp→docker cp→restart；后端 jar scp→docker cp→restart（验证阶段执行）
 

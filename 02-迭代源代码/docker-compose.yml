@@ -4,9 +4,9 @@ services:
   # 后端服务 — 复用共享 MySQL/Redis（在生产/测试中均已存在）
   backend:
     build:
-      context: ./ycmn-backend
+      context: ./aigicrm-backend
       dockerfile: Dockerfile
-    container_name: ycmn-backend
+    container_name: ${APP_SLUG:-aigicrm}-backend
     ports:
       - "8080:8080"
     networks:
@@ -15,8 +15,9 @@ services:
     environment:
       DB_HOST: shared-mysql
       DB_PORT: 3306
+      DB_NAME: ${DB_NAME:-aigicrm}
       DB_USER: root
-      DB_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD 未设置（凭据经 ~/.ycmn-deploy.env 注入）}
+      DB_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD 未设置（凭据经部署 env 注入）}
       REDIS_HOST: shared-redis
       REDIS_PORT: 6379
       UPLOAD_DIR: /app/uploads
@@ -35,9 +36,12 @@ services:
   # 前端服务
   frontend:
     build:
-      context: ./ycmn-ui
+      context: ./aigicrm-ui
       dockerfile: Dockerfile
-    container_name: ycmn-frontend
+    container_name: ${APP_SLUG:-aigicrm}-frontend
+    # 反代目标由 APP_SLUG 推导，避免把容器名硬编码进镜像（nginx.conf.template 里的 ${BACKEND_HOST}）
+    environment:
+      BACKEND_HOST: ${APP_SLUG:-aigicrm}-backend
     ports:
       - "80:80"
     depends_on:
@@ -49,6 +53,6 @@ volumes:
 networks:
   # 后端需同时挂默认网(供前端 nginx 反代)与共享设施网(shared-mysql/shared-redis 在 shopjoy-net)
   default:
-    name: ycmn_default
+    name: ${APP_SLUG:-aigicrm}_default
   shopjoy-net:
     external: true

@@ -21,7 +21,7 @@
 - REQ-001 完成;AC-001/002/003 全部 PASS
 
 ## 变更清单
-- ycmn-backend/src/main/java/com/ycmn/module/system/service/SysDeptService.java(scopeFilter + tree/list 接入)
+- aigicrm-backend/src/main/java/com/aigicrm/module/system/service/SysDeptService.java(scopeFilter + tree/list 接入)
 
 ## 安装与启动
 - 无新依赖;jar 构建后 deploy-backend.sh 部署(已执行)
@@ -30,7 +30,7 @@
 - 生产已部署(2026-08-04 00:35,deploy-backend.sh,健康检查通过,commit 51caa19)
 
 ## 回滚与恢复
-- 回滚旧 jar(NAS 备份 ycmn-backend-jar-20260804-002106.jar)+ rollback.sh;回滚后恢复全量可见(旧行为)
+- 回滚旧 jar(NAS 备份 aigicrm-backend-jar-20260804-002106.jar)+ rollback.sh;回滚后恢复全量可见(旧行为)
 
 ## 已知限制与残余风险
 - dept_id 为空的非管理员 → 空部门列表(前端容错);数据范围仅上溯祖先链,不含下级部门

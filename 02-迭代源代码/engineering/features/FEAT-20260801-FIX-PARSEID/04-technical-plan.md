@@ -1,8 +1,8 @@
 # 技术方案
 
 ## 已确认影响范围
-- 仅前端文件:ycmn-ui/src/views/customer/detail.vue(474 行 getFiles + 477 行 previewIncentiveFile)
-- 附带工程缺陷修复:ycmn-ui/vitest.setup.js(localStorage stub)
+- 仅前端文件:aigicrm-ui/src/views/customer/detail.vue(474 行 getFiles + 477 行 previewIncentiveFile)
+- 附带工程缺陷修复:aigicrm-ui/vitest.setup.js(localStorage stub)
 - 后端、数据库、其他页面零影响
 
 ## 架构与关键决策

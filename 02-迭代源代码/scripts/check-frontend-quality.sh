@@ -4,7 +4,7 @@
 # 退出码: 0=通过(0 违规); 1=存在违规(输出位置)
 set -uo pipefail
 
-SRC_ROOT="${1:-$(cd "$(dirname "$0")/.." && pwd)/ycmn-ui/src}"
+SRC_ROOT="${1:-$(cd "$(dirname "$0")/.." && pwd)/aigicrm-ui/src}"
 NGINX_CONF="${2:-$(cd "$(dirname "$0")/.." && pwd)/nginx/nginx-ssl.conf}"
 VIOLATIONS=0
 

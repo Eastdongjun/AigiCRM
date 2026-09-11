@@ -4,12 +4,12 @@ services:
   # MySQL 数据库
   mysql:
     image: mysql:8.0.28
-    container_name: ycmn-mysql
+    container_name: ${APP_SLUG:-aigicrm}-mysql
     restart: always
     environment:
-      # 经 ~/.ycmn-deploy.env 注入（DB_PASSWORD=已轮换的生产 root 密码，2026-08-08 后 123456 已失效）
-      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD 未设置（经 ~/.ycmn-deploy.env 注入，已轮换）}
-      MYSQL_DATABASE: ycmn
+      # 经部署 env 注入（DB_PASSWORD=已轮换的生产 root 密码，2026-08-08 后 123456 已失效）
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD 未设置（经部署 env 注入，已轮换）}
+      MYSQL_DATABASE: ${DB_NAME:-aigicrm}
       TZ: Asia/Shanghai
     ports:
       - "127.0.0.1:3306:3306"
@@ -26,23 +26,24 @@ services:
   # Redis 缓存
   redis:
     image: redis:7-alpine
-    container_name: ycmn-redis
+    container_name: ${APP_SLUG:-aigicrm}-redis
     restart: always
     volumes:
       - redis-data:/data
 
   # 后端服务
   backend:
-    image: ycmn-backend:2.7.0
-    container_name: ycmn-backend
+    image: ${APP_SLUG:-aigicrm}-backend:2.7.0
+    container_name: ${APP_SLUG:-aigicrm}-backend
     restart: always
     ports:
       - "127.0.0.1:8080:8080"
     environment:
       DB_HOST: mysql
       DB_PORT: 3306
-      # 应用最小权限账号 ycmn_app（非 root），经 ~/.ycmn-deploy.env 注入
-      DB_USER: ${APP_DB_USER:?APP_DB_USER 未设置（ycmn_app 最小权限账号）}
+      DB_NAME: ${DB_NAME:-aigicrm}
+      # 应用最小权限账号（非 root），经部署 env 注入
+      DB_USER: ${APP_DB_USER:?APP_DB_USER 未设置（应用最小权限账号）}
       DB_PASSWORD: ${APP_DB_PASSWORD:?APP_DB_PASSWORD 未设置}
       REDIS_HOST: redis
       REDIS_PORT: 6379
@@ -64,16 +65,19 @@ services:
 
   # 前端服务（nginx 基础镜像 + NAS dist bind mount）
   frontend:
-    image: ycmn-frontend:2.6.1
-    container_name: ycmn-frontend
+    image: ${APP_SLUG:-aigicrm}-frontend:2.6.1
+    container_name: ${APP_SLUG:-aigicrm}-frontend
+    environment:
+      BACKEND_HOST: ${APP_SLUG:-aigicrm}-backend
     restart: always
     ports:
       - "80:80"
       - "443:443"
     volumes:
       - ./ssl:/etc/nginx/ssl:ro
-      - ./nginx-ssl.conf:/etc/nginx/conf.d/default.conf:ro
-      - /Aigicrm/files/ycmn-dist:/usr/share/nginx/html
+      # 挂到模板目录：官方 nginx 镜像 entrypoint 启动时 envsubst 生成 conf.d/default.conf
+      - ./nginx-ssl.conf:/etc/nginx/templates/default.conf.template:ro
+      - ${NAS_DIST_DIR:-/Aigicrm/files/aigicrm-dist}:/usr/share/nginx/html
     depends_on:
       - backend
 

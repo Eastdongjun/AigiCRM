@@ -6,10 +6,10 @@
 -- 影响面: 仅 biz_reminder 表中 overdue_days>=9999 的 invoice_overdue 行(生产为从未开票客户,量级小)。
 -- 幂等: WHERE 条件限定, 重复执行无副作用。
 -- 执行: 建议先备份(biz_reminder), 再执行。
---   mysqldump --single-transaction ycmn biz_reminder > backup-biz_reminder-pre-invoice-cleanup.sql
--- 带库名（deploy-db.sh 已带 ycmn；独立执行亦无需手动选库）
+--   mysqldump --single-transaction aigicrm biz_reminder > backup-biz_reminder-pre-invoice-cleanup.sql
+-- 带库名（deploy-db.sh 已带 aigicrm；独立执行亦无需手动选库）
 
-USE ycmn;
+USE aigicrm;
 
 UPDATE biz_reminder
 SET reminder_type = 'invoice_never', overdue_days = 0

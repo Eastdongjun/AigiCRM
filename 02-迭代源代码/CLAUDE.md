@@ -4,13 +4,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-YCMN (运筹马年) is an internal CRM system for an industrial sealing/lubricant/wear-resistant materials sales company. It manages customers, approvals, incentives, file storage, and sales team performance. The UI language is Chinese.
+AIGICRM (运筹马年) is an internal CRM system for an industrial sealing/lubricant/wear-resistant materials sales company. It manages customers, approvals, incentives, file storage, and sales team performance. The UI language is Chinese.
 
 ## Development Commands
 
 ### Backend (Spring Boot 3.2.5 / Java 17 / Maven)
 ```bash
-cd ycmn-backend
+cd aigicrm-backend
 mvn clean spring-boot:run          # Start backend on port 8080
 mvn clean package -DskipTests      # Build JAR without tests
 mvn test                           # Run tests
@@ -18,7 +18,7 @@ mvn test                           # Run tests
 
 ### Frontend (Vue 3 / Vite 8 / npm)
 ```bash
-cd ycmn-ui
+cd aigicrm-ui
 npm install                        # Install dependencies
 npm run dev                        # Dev server on port 3000 (proxies /api → 8080)
 npm run build                      # Production build
@@ -32,13 +32,13 @@ docker-compose up -d               # MySQL:3308, Redis:6379, Backend:8080, Front
 ### Database
 ```bash
 # Import with explicit charset to avoid Chinese double-encoding
-# 凭据经 ~/.ycmn-deploy.env 注入（DB_PASSWORD），勿硬编码密码
-source ~/.ycmn-deploy.env && mysql -h localhost -P 3308 -u root -p"$DB_PASSWORD" --default-character-set=utf8mb4 ycmn < sql/init.sql
+# 凭据经 ~/.aigicrm-deploy.env 注入（DB_PASSWORD），勿硬编码密码
+source ~/.aigicrm-deploy.env && mysql -h localhost -P 3308 -u root -p"$DB_PASSWORD" --default-character-set=utf8mb4 aigicrm < sql/init.sql
 ```
 
 ## Architecture
 
-### Backend (`ycmn-backend/src/main/java/com/ycmn/`)
+### Backend (`aigicrm-backend/src/main/java/com/aigicrm/`)
 
 Layered architecture per module: **Entity → Mapper → Service → Controller → DTO**
 
@@ -59,7 +59,7 @@ Cross-cutting layers:
 - `config/` – `MybatisPlusConfig` (pagination, auto-fill), `RedisConfig`, `OssConfig`, `CorsConfig`
 - `task/` – `CustomerExpireTask` scheduled job
 
-### Frontend (`ycmn-ui/src/`)
+### Frontend (`aigicrm-ui/src/`)
 
 - `views/` – 17 page components organized by feature (customer/, system/, statistics/, etc.)
 - `api/` – 9 API modules matching backend modules; all use the Axios instance from `utils/request.js`
@@ -132,18 +132,18 @@ git diff
 ```
 确认：没有任务范围外文件、无调试代码/临时文件/硬编码密码、无遗留 TODO/占位/Mock、无无意删除原功能。
 
-### 2. 前端门禁（`ycmn-ui`，用 npm）
+### 2. 前端门禁（`aigicrm-ui`，用 npm）
 ```bash
-cd ycmn-ui
+cd aigicrm-ui
 npm run test     # vitest —— 必须 0 Failed、无未经说明的 skipped
 npm run build    # 退出码 0
 ```
 **lint / type-check：本项目未配置（JS 项目）→ 门禁中如实标 `N/A` 并说明，不得虚报 PASS。** 后续接入 ESLint/TS 后再加入放行组合。
 
-### 3. 后端门禁（`ycmn-backend`，必须 JDK 17）
+### 3. 后端门禁（`aigicrm-backend`，必须 JDK 17）
 ```bash
 export JAVA_HOME=/opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home   # 本机默认 JDK 25 与 Lombok 不兼容
-cd ycmn-backend
+cd aigicrm-backend
 mvn -B clean verify     # 编译 + 单测/集成 0 Failed + 打包退出码 0；无测试崩溃、无未经说明的跳过
 ```
 没有 Wrapper 时用 `mvn`；Gradle 项目用 `./gradlew clean check build`（本项目不用）。

@@ -10,17 +10,17 @@
 - 需求4 查询搜索：产品小类/同事姓名/客户+关键字
 
 ## 变更清单
-- 前端 ycmn-ui/src/views/incentive/index.vue、search.vue
+- 前端 aigicrm-ui/src/views/incentive/index.vue、search.vue
 - 后端 IncentiveService.java、IncentiveController.java
 - 基础设施：engineering_gate.py write_manifest 递归 bug 修复（状态落盘缺陷）
 
 ## 安装与启动
-- 前端：npm run build（ycmn-ui）
+- 前端：npm run build（aigicrm-ui）
 - 后端：JAVA_HOME=openjdk@21 mvn clean package -DskipTests
-- 测试服务器：111.229.37.220（Docker，ycmn-frontend/ycmn-backend 容器）
+- 测试服务器：111.229.37.220（Docker，aigicrm-frontend/aigicrm-backend 容器）
 
 ## 部署状态与步骤
-- 已部署测试环境：dist tar → scp → docker cp ycmn-frontend → restart；jar → docker cp ycmn-backend → restart
+- 已部署测试环境：dist tar → scp → docker cp aigicrm-frontend → restart；jar → docker cp aigicrm-backend → restart
 - 积分重算已执行（POST /records/recalculate → changed=3）
 - 生产未部署（未授权）
 
@@ -38,7 +38,7 @@
 - 复验轮发现并修复 isSingleSlot 品类判定 bug（子分类 code 未上溯父级），已重新部署测试服务器（新 chunk incentive-BQqAaFz-.js）
 - plan 旧记录分数可能上升（3→5×base 上限，用户已确认）
 - engineering_gate.py 修复影响所有 FEAT 状态落盘（旧 FEAT 指纹缺失已可正常写入）
-- 生产未部署（未授权）；生产部署方式：dist tar → scp → docker cp ycmn-frontend；jar → docker cp ycmn-backend；重算 POST /api/incentive/records/recalculate
+- 生产未部署（未授权）；生产部署方式：dist tar → scp → docker cp aigicrm-frontend；jar → docker cp aigicrm-backend；重算 POST /api/incentive/records/recalculate
 
 ## 版本与追踪
 - FEAT-20260801-INCENTIVE-UPGRADE（REQUIREMENTS_READY→DELIVERED）

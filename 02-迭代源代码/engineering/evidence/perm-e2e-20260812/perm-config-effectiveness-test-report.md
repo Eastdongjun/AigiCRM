@@ -1,6 +1,6 @@
-# YCMN 客户管理系统 — 权限配置生效性 全局测试报告
+# AIGICRM 客户管理系统 — 权限配置生效性 全局测试报告
 
-> 测试日期：2026-08-12（凌晨）｜测试对象：测试服 111.229.37.220（前端生产部署线 + 后端 jar b5dac5e8=24c0467 + 测试库 ycmn）
+> 测试日期：2026-08-12（凌晨）｜测试对象：测试服 111.229.37.220（前端生产部署线 + 后端 jar b5dac5e8=24c0467 + 测试库 aigicrm）
 > 测试方法：Playwright 真实浏览器（管理员 UI 配置）+ curl API 断言 + 数据库落库核验，全程可回滚
 > 触发方式：`/webapp-testing` 技能
 
@@ -18,8 +18,8 @@
 | 项 | 值 |
 |---|---|
 | 测试服前端 | `http://111.229.37.220/` |
-| 测试服后端 | 容器 `ycmn-backend`，jar md5 `b5dac5e8`（= 源码 24c0467，与权威源码一致） |
-| 测试库 | `shared-mysql` / `ycmn`（66 用户、4 角色、role_perm_scope 33 条基线） |
+| 测试服后端 | 容器 `aigicrm-backend`，jar md5 `b5dac5e8`（= 源码 24c0467，与权威源码一致） |
+| 测试库 | `shared-mysql` / `aigicrm`（66 用户、4 角色、role_perm_scope 33 条基线） |
 | 工具 | Playwright（venv /tmp/pwenv + chromium）+ curl + mysql 核验 |
 
 ## 三、阶段 A：基线采集（变更前）
@@ -84,7 +84,7 @@
 ## 八、发现的问题清单（均非本次测试引入）
 
 ### P2 — 自动共享与数据范围 AND 叠加收窄
-- **位置**：`ycmn-backend/src/main/java/com/ycmn/module/customer/service/CustomerService.java:494-499`（`applyAutoShare`）
+- **位置**：`aigicrm-backend/src/main/java/com/aigicrm/module/customer/service/CustomerService.java:494-499`（`applyAutoShare`）
 - **现象**：`wrapper.in(ownerId, shareOwnerIds)` 以 AND 追加，与数据范围形成**交集**。`data_scope=all` 的角色命中 `sys_config.customer.auto_share.roles`（当前配置 `["0"]`）时，全量可见被收窄为"同组织用户"（实测销售总监 249→0，SQL 实证 `owner_id IN (77,76)`）。
 - **建议**：若产品意图是"自动共享=扩展可见"，应改为并集（`wrapper.and(w -> w.in(ownerId, scopeIds).or().in(ownerId, shareOwnerIds))`）或明确收窄语义。
 

@@ -7,7 +7,7 @@
 """
 import os, re, sys
 
-SRC = sys.argv[1] if len(sys.argv) > 1 else "ycmn-backend/src/main/java"
+SRC = sys.argv[1] if len(sys.argv) > 1 else "aigicrm-backend/src/main/java"
 VIOLATIONS = []
 
 for root, _, files in os.walk(SRC):

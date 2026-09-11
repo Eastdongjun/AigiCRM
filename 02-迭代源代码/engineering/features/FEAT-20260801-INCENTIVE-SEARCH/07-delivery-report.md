@@ -13,7 +13,7 @@
 ## 变更清单
 
 - 代码：search.vue 一行 placeholder 文案
-- 部署：测试服 ycmn-frontend 容器 html 完整重装（新入口 index-D0CHvRKk.js）
+- 部署：测试服 aigicrm-frontend 容器 html 完整重装（新入口 index-D0CHvRKk.js）
 
 ## 安装与启动
 
@@ -31,7 +31,7 @@
 
 ## 回滚与恢复
 
-- 容器回滚：`docker exec ycmn-frontend sh -c 'rm -rf /usr/share/nginx/html/* && cp -r /tmp/html-rollback/. /usr/share/nginx/html/'`
+- 容器回滚：`docker exec aigicrm-frontend sh -c 'rm -rf /usr/share/nginx/html/* && cp -r /tmp/html-rollback/. /usr/share/nginx/html/'`
 - 验证：查询页恢复旧版
 
 ## 已知限制与残余风险

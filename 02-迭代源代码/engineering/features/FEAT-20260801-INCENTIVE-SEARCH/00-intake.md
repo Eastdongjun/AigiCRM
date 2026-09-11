@@ -36,7 +36,7 @@
 
 ## 约束
 
-- 测试服 111.229.37.220（ubuntu/********，sshpass）；前端容器 ycmn-frontend（docker cp 部署，无 bind mount）
+- 测试服 111.229.37.220（ubuntu/********，sshpass）；前端容器 aigicrm-frontend（docker cp 部署，无 bind mount）
 - 回滚：容器内旧版已备份 /tmp/html-rollback/
 
 ## 初始风险

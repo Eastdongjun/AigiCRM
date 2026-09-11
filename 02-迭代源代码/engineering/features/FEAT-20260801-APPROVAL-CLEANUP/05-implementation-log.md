@@ -15,7 +15,7 @@
 
 ## 实际执行命令
 
-- `DELETE FROM ycmn.biz_approval_config WHERE id=1 AND flow_name='客户捞取'` → 回读仅剩 id=2"捞取客户审批/claim"
+- `DELETE FROM aigicrm.biz_approval_config WHERE id=1 AND flow_name='客户捞取'` → 回读仅剩 id=2"捞取客户审批/claim"
 
 ## 失败与纠正
 

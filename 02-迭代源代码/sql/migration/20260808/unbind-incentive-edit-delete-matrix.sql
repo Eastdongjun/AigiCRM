@@ -5,7 +5,7 @@
 --   - incentive:delete(63) 已完全无用途 → 从全部角色(1/9/10/11)解除
 --   - incentive:edit(62) 仍管控激励类别管理(分类CRUD/积分重算) → 仅保留 admin(1)，解除 9/10/11
 -- 幂等: DELETE 安全可重复执行
--- 执行: mysql --default-character-set=utf8mb4 ycmn < unbind-incentive-edit-delete-matrix.sql
+-- 执行: mysql --default-character-set=utf8mb4 aigicrm < unbind-incentive-edit-delete-matrix.sql
 -- ============================================================
 
 -- 63 incentive:delete 无任何后端/前端引用，从全部角色解除

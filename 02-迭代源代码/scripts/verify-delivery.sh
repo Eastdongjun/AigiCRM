@@ -1,5 +1,5 @@
 #!/bin/bash
-# YCMN 交付门禁: 部署/交付前必须通过的全部确定性检查
+# AIGICRM 交付门禁: 部署/交付前必须通过的全部确定性检查
 # 用途: 防止"代码写不对、验证不足"的交付 —— 任一 FAIL 即阻止交付
 set -uo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -9,11 +9,13 @@ PASS=0; FAIL=0
 ok()   { echo "✅ $1"; PASS=$((PASS+1)); }
 bad()  { echo "❌ $1"; FAIL=$((FAIL+1)); }
 
-echo "════════ YCMN 交付门禁 $(date '+%Y-%m-%d %H:%M:%S') ════════"
+echo "════════ AIGICRM 交付门禁 $(date '+%Y-%m-%d %H:%M:%S') ════════"
 
 # [1] git 状态: 工作区干净 + 本地=远程
 echo "--- [1] git 一致性 ---"
-cd "/Users/donglai/东来/01-Projects/01-aigicrm/04-源码" || { bad "源码目录不可达"; exit 1; }
+REPO_ROOT="$(git -C "$SCRIPT_DIR/.." rev-parse --show-toplevel 2>/dev/null || true)"
+[ -n "$REPO_ROOT" ] || { bad "Git 根目录不可达"; exit 1; }
+cd "$REPO_ROOT" || { bad "源码目录不可达"; exit 1; }
 [ -z "$(git status --porcelain)" ] && ok "工作区干净" || bad "工作区有未提交修改: $(git status --porcelain | head -2)"
 L=$(git rev-parse --short HEAD); R=$(git rev-parse --short origin/main)
 [ "$L" = "$R" ] && ok "本地=远程 ($L)" || bad "未推送: 本地 $L vs 远程 $R"
@@ -26,7 +28,7 @@ if [ -n "${HEALTH_CHECK_PASS:-}" ]; then
     -H "Origin: https://www.aigicrm.com" -H "Content-Type: application/json" \
     -d "{\"username\":\"${HEALTH_CHECK_USER:-admin}\",\"password\":\"$HEALTH_CHECK_PASS\"}")
 else
-  bad "登录检查跳过: 缺少 HEALTH_CHECK_PASS(~/.ycmn-deploy.env)"
+  bad "登录检查跳过: 缺少 HEALTH_CHECK_PASS(~/.aigicrm-deploy.env)"
   LOGIN_CODE="skip"
 fi
 [ "$HOME_CODE" = "200" ] && ok "首页 200" || bad "首页 $HOME_CODE"
@@ -36,10 +38,10 @@ else bad "登录(含Origin) $LOGIN_CODE —— 检查 CORS_ORIGINS"; fi
 
 # [3] 生产配置: compose 与实况一致
 echo "--- [3] compose 一致性 ---"
-COMPOSE_IMG=$(ssh_prod "grep -E '^  backend:' -A 5 /root/ycmn/docker-compose.yml | grep 'image:' | awk '{print \$2}' | head -1" 2>/dev/null)
-RUN_IMG=$(ssh_prod "docker inspect ycmn-backend --format '{{.Config.Image}}'" 2>/dev/null)
+COMPOSE_IMG=$(ssh_prod "grep -E '^  backend:' -A 5 ${DEPLOY_DIR}/docker-compose.yml | grep 'image:' | awk '{print \$2}' | head -1" 2>/dev/null)
+RUN_IMG=$(ssh_prod "docker inspect aigicrm-backend --format '{{.Config.Image}}'" 2>/dev/null)
 [ "$COMPOSE_IMG" = "$RUN_IMG" ] && ok "compose 镜像=$RUN_IMG 与运行一致" || bad "compose($COMPOSE_IMG) ≠ 运行($RUN_IMG)"
-CORS_OK=$(ssh_prod "docker inspect ycmn-backend --format '{{range .Config.Env}}{{println .}}{{end}}' | grep -c CORS_ORIGINS" 2>/dev/null)
+CORS_OK=$(ssh_prod "docker inspect aigicrm-backend --format '{{range .Config.Env}}{{println .}}{{end}}' | grep -c CORS_ORIGINS" 2>/dev/null)
 [ "$CORS_OK" -ge 1 ] && ok "CORS_ORIGINS 已配置" || bad "CORS_ORIGINS 缺失"
 
 # [4] 存储挂载
@@ -51,8 +53,8 @@ DATA_OK=$(ssh_prod "mountpoint -q /data && echo yes || echo no" 2>/dev/null)
 
 # [5] 备份机制
 echo "--- [5] 备份 ---"
-CRON_OK=$(ssh_prod "crontab -l 2>/dev/null | grep -c ycmn-daily-backup" 2>/dev/null)
-TODAY_BACKUP=$(ssh_prod "ls /Aigicrm/files/backup/daily/$(date +%Y%m%d)/ycmn-db-*.sql 2>/dev/null | wc -l" 2>/dev/null)
+CRON_OK=$(ssh_prod "crontab -l 2>/dev/null | grep -c aigicrm-daily-backup" 2>/dev/null)
+TODAY_BACKUP=$(ssh_prod "ls /Aigicrm/files/backup/daily/$(date +%Y%m%d)/aigicrm-db-*.sql 2>/dev/null | wc -l" 2>/dev/null)
 [ "$CRON_OK" -ge 1 ] && ok "每日备份 cron 已配置" || bad "备份 cron 缺失"
 [ "${TODAY_BACKUP:-0}" -ge 1 ] && ok "今日数据库备份存在" || bad "今日备份缺失(注意:凌晨 02:30 前运行属正常)"
 

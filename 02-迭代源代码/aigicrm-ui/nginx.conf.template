@@ -1,0 +1,42 @@
+# ⚠️ 本文件是 **模板**，不是可直接使用的 nginx 配置。
+# 其中的 ${BACKEND_HOST} 由官方 nginx 镜像的 entrypoint（/docker-entrypoint.d/20-envsubst-on-templates.sh）
+# 在容器启动时用环境变量替换，生成 /etc/nginx/conf.d/default.conf。
+# 因此必须挂载到 /etc/nginx/templates/default.conf.template（见 docker-compose.yml / docker-compose.prod.yml），
+# 而**不要**直接挂/拷到 /etc/nginx/conf.d/default.conf —— 那样 ${BACKEND_HOST} 不会被替换，
+# nginx 会以 `[emerg] host not found in upstream "${BACKEND_HOST}"` 启动失败（实测退出码 1）。
+# BACKEND_HOST 由 compose 按 APP_SLUG 注入：${APP_SLUG:-aigicrm}-backend
+server {
+    listen 80;
+    server_name localhost;
+    root /usr/share/nginx/html;
+    index index.html;
+
+    # 公开文件下载 — 直接从文件系统服务，无需认证
+    location ^~ /api/file/download/public/ {
+        alias /usr/share/nginx/html/uploads-public/;
+        add_header Cache-Control "public, max-age=86400";
+    }
+
+    # 前端路由支持
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+
+    # API 代理（^~ 确保优先于下方静态资源正则匹配，否则 /api/.../*.png 等下载会被静态规则拦截导致 404）
+    location ^~ /api/ {
+        proxy_pass http://${BACKEND_HOST}:8080/api/;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        # 文件上传大小限制
+        client_max_body_size 500m;
+    }
+
+    # 静态资源缓存
+    location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)$ {
+        expires 30d;
+        add_header Cache-Control "public, immutable";
+    }
+}

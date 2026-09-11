@@ -1,14 +1,14 @@
 # 部署脚本
 
 > 替代手工 ssh 部署步骤。所有脚本在 **Mac 本地**运行,通过 ssh 操作服务器。
-> 凭据不写在脚本里,从 `~/.ycmn-deploy.env` 读取(该文件不入 git,首次使用需创建)。
+> 凭据不写在脚本里,从 `~/.aigicrm-deploy.env` 读取(该文件不入 git,首次使用需创建)。
 
 ## 首次配置
 
 ```bash
-cp scripts/ycmn-deploy.env.example ~/.ycmn-deploy.env
-vim ~/.ycmn-deploy.env   # 填入实际密码
-chmod 600 ~/.ycmn-deploy.env
+cp scripts/aigicrm-deploy.env.example ~/.aigicrm-deploy.env
+vim ~/.aigicrm-deploy.env   # 填入实际密码
+chmod 600 ~/.aigicrm-deploy.env
 ```
 
 ## 使用

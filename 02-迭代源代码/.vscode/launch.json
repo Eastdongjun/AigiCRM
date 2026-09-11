@@ -2,11 +2,11 @@
   "version": "0.2.0",
   "configurations": [
     {
-      // 后端 Spring Boot 调试：主类 com.ycmn.YcmnApplication（端口 8080）
+      // 后端 Spring Boot 调试：主类 com.aigicrm.AigicrmApplication（端口 8080）
       "type": "java",
       "name": "aigicrm 后端调试 (8080)",
       "request": "launch",
-      "mainClass": "com.ycmn.YcmnApplication",
+      "mainClass": "com.aigicrm.AigicrmApplication",
       "projectName": "aigicrm-backend",
       "args": "",
       "vmArgs": ""
@@ -17,7 +17,7 @@
       "name": "aigicrm 前端调试 (3000)",
       "request": "launch",
       "url": "http://localhost:3000",
-      "webRoot": "${workspaceFolder}/ycmn-ui",
+      "webRoot": "${workspaceFolder}/aigicrm-ui",
       "sourceMapPathOverrides": {
         "webpack:///./src/*": "${webRoot}/src/*"
       }

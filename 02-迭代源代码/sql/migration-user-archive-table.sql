@@ -1,4 +1,4 @@
-USE ycmn;
+USE aigicrm;
 -- 离职归档表（listArchived / permanentDelete 使用）2026-08-03
 CREATE TABLE IF NOT EXISTS `sys_user_archive` (
   `id` bigint NOT NULL,

@@ -6,8 +6,8 @@
 
 ## 当前行为
 
-- **双卷并存**:compose 顶层 `volumes: upload-data:` 实际创建卷 `ycmn_upload-data`(旧卷,45 文件/135M);部署脚本 `docker run -v upload-data` 用独立卷 `upload-data`(新卷,204 文件/405M)。当前容器挂新卷,若以后 `docker compose up` 会挂旧卷导致数据"看起来全丢"。
-- **备份指向旧卷(P0)**:`/usr/local/bin/ycmn-daily-backup.sh` 第 15 行 `tar -C /data/volumes/ycmn_upload-data/_data` 备份旧卷;0802 卷迁移后的所有上传文件(新卷)从未进入每日备份 → 丢失即不可恢复。
+- **双卷并存**:compose 顶层 `volumes: upload-data:` 实际创建卷 `aigicrm_upload-data`(旧卷,45 文件/135M);部署脚本 `docker run -v upload-data` 用独立卷 `upload-data`(新卷,204 文件/405M)。当前容器挂新卷,若以后 `docker compose up` 会挂旧卷导致数据"看起来全丢"。
+- **备份指向旧卷(P0)**:`/usr/local/bin/aigicrm-daily-backup.sh` 第 15 行 `tar -C /data/volumes/aigicrm_upload-data/_data` 备份旧卷;0802 卷迁移后的所有上传文件(新卷)从未进入每日备份 → 丢失即不可恢复。
 - **2026-08-03 晚文件丢失事件**:TY101(真实用户浏览器)23:35-23:37 上传 9 个激励文件(记录 150-158 全部入库)→ 23:42 Codex 部署新后端(2aad4fc)→ 23:54 用户下载 150/153/155/157/158 全部 404。磁盘确认 7 个物理缺失、2 个(152/154)被 23:54 重传同名文件覆盖。全库 140 条记录仅这 7 个缺失。部署脚本/删除接口/代码/配置/卷重建均已排除,消失机制未查明(无日志可查)。
 - **无日志持久化**:后端日志只走容器 stdout,`docker rm` 即丢,无法事后排查。
 - **nginx 无安全响应头**:HTTP 响应仅 `server: nginx/1.31.2`,无 HSTS/CSP/X-Frame-Options。
@@ -30,7 +30,7 @@
 
 - 已丢失 7 个文件的恢复(备份不含,不可恢复;TY101 需重新上传)
 - 文件丢失根因继续取证(已穷尽,无日志;日志持久化即为后续定位手段)
-- Codex 未提交的前端修改(ycmn-ui 3 个 vue,生产已生效,保留不动)
+- Codex 未提交的前端修改(aigicrm-ui 3 个 vue,生产已生效,保留不动)
 - 前端 UI、数据库其他历史问题
 
 ## 来源与事实
@@ -39,7 +39,7 @@
 - 备份脚本、docker-compose.yml、nginx-ssl.conf、FileService.upload 均已在服务器/源码核实
 - nginx access log 确认 23:35-23:37、23:54 请求 UA 均为 Safari(真实用户)
 - 实测当前上传→落盘→下载 200,链路正常
-- 记忆:YCMN 项目记忆(2026-07-30-ycmn)
+- 记忆:AIGICRM 项目记忆(2026-07-30-aigicrm)
 
 ## 约束
 

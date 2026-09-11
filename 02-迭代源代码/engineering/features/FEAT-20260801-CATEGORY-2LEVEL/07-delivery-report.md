@@ -9,17 +9,17 @@
 - 后端两级校验
 
 ## 变更清单
-- ycmn-ui/src/views/system/config.vue：类别管理区块 → 一级卡片分组 + 二级子项表格 + 折叠交互（collapsed Set/toggleCategory/cat-group 样式）
-- ycmn-backend/.../incentive/service/IncentiveService.java：validateCategoryLevel（create/update 校验 parentId 必须 0 或顶级 id，否则 400）
+- aigicrm-ui/src/views/system/config.vue：类别管理区块 → 一级卡片分组 + 二级子项表格 + 折叠交互（collapsed Set/toggleCategory/cat-group 样式）
+- aigicrm-backend/.../incentive/service/IncentiveService.java：validateCategoryLevel（create/update 校验 parentId 必须 0 或顶级 id，否则 400）
 - 数据：biz_incentive_category 删除孤儿 46/47/48（备份 evidence/biz_incentive_category_backup_20260801.sql）
 
 ## 安装与启动
-- 前端：npm run build（ycmn-ui，rolldown）
+- 前端：npm run build（aigicrm-ui，rolldown）
 - 后端：JAVA_HOME=/tmp/jdk-17.0.20+8/Contents/Home mvn clean package -DskipTests
-- 测试服：111.229.37.220（Docker，ycmn-frontend/ycmn-backend）
+- 测试服：111.229.37.220（Docker，aigicrm-frontend/aigicrm-backend）
 
 ## 部署状态与步骤
-- 已部署测试服：前端 dist → docker cp ycmn-frontend（旧版备份 /tmp/html-backup-cat2level/）；后端 jar → docker cp ycmn-backend → restart（旧 jar /tmp/app.jar.bak-cat2level）
+- 已部署测试服：前端 dist → docker cp aigicrm-frontend（旧版备份 /tmp/html-backup-cat2level/）；后端 jar → docker cp aigicrm-backend → restart（旧 jar /tmp/app.jar.bak-cat2level）
 - 生产未部署（未授权）
 - 后端重启后登录接口 200，页面渲染正常
 

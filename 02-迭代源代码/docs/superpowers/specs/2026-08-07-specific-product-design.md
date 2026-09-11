@@ -2,7 +2,7 @@
 
 > 日期：2026-08-07
 > 状态：已获用户批准
-> 关联系统：YCMN/AigiCRM 激励模块
+> 关联系统：AIGICRM/AigiCRM 激励模块
 > 需求来源：客户新增需求
 
 ## 一、需求概述
@@ -77,7 +77,7 @@ if (update.getSpecificProduct() != null) existing.setSpecificProduct(update.getS
 
 ## 五、前端改动（3 个文件）
 
-### 1. 激励上传 `ycmn-ui/src/views/incentive/index.vue`
+### 1. 激励上传 `aigicrm-ui/src/views/incentive/index.vue`
 
 - 在"相关产品"字段块（约 169-177 行）下方，新增"具体产品"文本框
 - **仅当当前分类顶层 code='trial' 时 `v-if` 显示**（复用现有 `categoryCodeOf` 上溯到顶层父级判定逻辑）
@@ -90,12 +90,12 @@ if (update.getSpecificProduct() != null) existing.setSpecificProduct(update.getS
 - trial 专属浅色描边或辅助文案区分（如 placeholder："填写具体产品名称/型号，选填"）
 - 保持与其他字段一致的 Element Plus `el-input` 风格
 
-### 2. 激励查询 `ycmn-ui/src/views/incentive/search.vue`
+### 2. 激励查询 `aigicrm-ui/src/views/incentive/search.vue`
 
 - 详情时间线（`dtl-info-line` 或新增 `dtl-field`）中显示具体产品
 - `v-if="r.specificProduct"` 有值才显示，仿"安装前问题"展示样式
 
-### 3. 客户卡片 `ycmn-ui/src/views/customer/detail.vue`
+### 3. 客户卡片 `aigicrm-ui/src/views/customer/detail.vue`
 
 - 激励条目（`.incentive-item`）中显示具体产品
 - `v-if="r.specificProduct"` 有值才显示

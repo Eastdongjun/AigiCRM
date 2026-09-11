@@ -16,7 +16,7 @@
       "argv": [
         "mvn",
         "-f",
-        "/Users/donglai/东来/01-Projects/01-aigicrm/04-源码/ycmn-backend/pom.xml",
+        "/Users/donglai/东来/01-Projects/01-aigicrm/04-源码/aigicrm-backend/pom.xml",
         "test"
       ],
       "required": true
@@ -25,7 +25,7 @@
       "argv": [
         "mvn",
         "-f",
-        "/Users/donglai/东来/01-Projects/01-aigicrm/04-源码/ycmn-backend/pom.xml",
+        "/Users/donglai/东来/01-Projects/01-aigicrm/04-源码/aigicrm-backend/pom.xml",
         "compile"
       ],
       "required": true

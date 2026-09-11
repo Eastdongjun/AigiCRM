@@ -7,7 +7,7 @@
 | 层 | 涉及项 | 核对结果 |
 |---|---|---|
 | 数据库 | 无 | 无变更 |
-| 后端 | SysDeptService.java(tree/list 数据范围过滤) | ycmn-backend 源码 |
+| 后端 | SysDeptService.java(tree/list 数据范围过滤) | aigicrm-backend 源码 |
 | 前端 | 无(loadOrgs 通用) | 零改动 |
 | 其他 | 无 | — |
 
@@ -59,7 +59,7 @@
 
 ## 回滚
 
-- 回滚旧 jar(NAS 备份 ycmn-backend-jar-20260804-002106.jar + rollback.sh)
+- 回滚旧 jar(NAS 备份 aigicrm-backend-jar-20260804-002106.jar + rollback.sh)
 - 回滚后验证:TY101 depts 恢复全量(旧行为)
 
 ## 风险与盲区

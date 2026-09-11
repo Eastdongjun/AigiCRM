@@ -47,7 +47,7 @@
 - 视觉评分 88（record-ui-review 已记录）
 
 ## 回归验证
-- npm test --prefix ycmn-ui（既有用例）通过
+- npm test --prefix aigicrm-ui（既有用例）通过
 - 需求1 页面交互回归：上传/追加弹窗打开正常、列表渲染正常
 
 ## 修复与风险（2026-08-01 15:xx 复验轮）

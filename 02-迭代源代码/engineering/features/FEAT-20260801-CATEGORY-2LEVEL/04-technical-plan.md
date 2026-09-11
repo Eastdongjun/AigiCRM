@@ -6,8 +6,8 @@
 ## 模块影响
 | 模块 | 文件 | 改动 |
 |---|---|---|
-| 前端 | ycmn-ui/src/views/system/config.vue | 类别管理区块：树形表格 → 一级卡片分组 + 二级子项表格；collapsed Set 折叠状态；样式 cat-group* |
-| 后端 | ycmn-backend/.../incentive/service/IncentiveService.java | createCategory/updateCategory 前 validateCategoryLevel：parentId 为 0/顶级 id 才允许，否则 BusinessException |
+| 前端 | aigicrm-ui/src/views/system/config.vue | 类别管理区块：树形表格 → 一级卡片分组 + 二级子项表格；collapsed Set 折叠状态；样式 cat-group* |
+| 后端 | aigicrm-backend/.../incentive/service/IncentiveService.java | createCategory/updateCategory 前 validateCategoryLevel：parentId 为 0/顶级 id 才允许，否则 BusinessException |
 | 数据 | biz_incentive_category | 删除孤儿 46/47/48（已执行，备份 evidence/biz_incentive_category_backup_20260801.sql） |
 
 ## 数据与接口
@@ -23,8 +23,8 @@
 - AC-007：激励上传页回归（4 大类 tab 正常）
 
 ## 部署
-- 前端：npm run build → dist 打包 → docker cp ycmn-frontend → 覆盖 html（旧版备份 /tmp/html-backup-cat2level/）
-- 后端：JDK17 mvn package → jar → docker cp ycmn-backend → restart（旧 jar /tmp/app.jar.bak-cat2level）
+- 前端：npm run build → dist 打包 → docker cp aigicrm-frontend → 覆盖 html（旧版备份 /tmp/html-backup-cat2level/）
+- 后端：JDK17 mvn package → jar → docker cp aigicrm-backend → restart（旧 jar /tmp/app.jar.bak-cat2level）
 
 ## 回滚
 - 前端：恢复容器 /tmp/html-backup-cat2level/ 到 html 并重启

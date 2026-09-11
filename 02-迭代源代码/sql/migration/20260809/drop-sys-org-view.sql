@@ -9,7 +9,7 @@
 --
 -- 执行前必须校验 TABLE_TYPE：
 --   SELECT TABLE_NAME, TABLE_TYPE FROM information_schema.TABLES
---    WHERE TABLE_SCHEMA = 'ycmn' AND TABLE_NAME = 'sys_org';
+--    WHERE TABLE_SCHEMA = 'aigicrm' AND TABLE_NAME = 'sys_org';
 --   -> 期望 TABLE_TYPE='VIEW' 才执行下面的 DROP VIEW。
 --   -> 若为 'BASE TABLE'（旧库物理表残留），DROP VIEW 会报 "is not VIEW"，此时禁止执行，需人工确认。
 -- ============================================================

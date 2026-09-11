@@ -1,0 +1,29 @@
+{
+  // 后端专项设置：单独打开 aigicrm-backend 目录时同样生效
+  // 本机默认 JDK 25 与 Lombok 不兼容，必须锁定 21（pom 的 java.version=21）
+  "java.configuration.runtimes": [
+    {
+      "name": "JavaSE-21",
+      "path": "/Users/dongjun/东来/Agent/02-运行环境/Java/Contents/Home",
+      "default": true
+    }
+  ],
+  "java.jdt.ls.java.home": "/Users/dongjun/东来/Agent/02-运行环境/Java/Contents/Home",
+  "java.debug.settings.onBuildFailureProceed": false,
+  "java.import.gradle.enabled": false,
+  "editor.codeActionsOnSave": {
+    "source.organizeImports": "explicit"
+  },
+  // Sonar 规则为 application 级，统一配置于本机 User/settings.json。
+  "sonarlint.disableTelemetry": true,
+  "coverage-gutters.coverageFileNames": [
+    "jacoco.xml",
+    "coverage.xml",
+    "lcov.info"
+  ],
+  "coverage-gutters.showGutterCoverage": true,
+  "coverage-gutters.showLineCoverage": true,
+  "files.exclude": { "**/target": true },
+  "search.exclude": { "**/target": true },
+  "errorLens.enabled": true
+}

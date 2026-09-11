@@ -1,11 +1,11 @@
 ---
 name: run-aigicrm
-description: Run, start, build, screenshot, or drive the AigiCRM/YCMN customer management system locally. Full-stack launch on Homebrew MySQL/Redis (no Docker) — Spring Boot backend :8080 + Vue3 frontend dev server :3000, driven via the Playwright driver at .claude/skills/run-aigicrm/driver.py (login flow + dashboard/customer screenshots). Verbs: run, start, build, launch, screenshot, drive, login, test.
+description: Run, start, build, screenshot, or drive the AigiCRM/AIGICRM customer management system locally. Full-stack launch on Homebrew MySQL/Redis (no Docker) — Spring Boot backend :8080 + Vue3 frontend dev server :3000, driven via the Playwright driver at .claude/skills/run-aigicrm/driver.py (login flow + dashboard/customer screenshots). Verbs: run, start, build, launch, screenshot, drive, login, test.
 ---
 
 # Run: AigiCRM 客户管理系统（本地全栈，无 Docker）
 
-Spring Boot 后端 (`ycmn-backend/`, :8080) + Vue3 前端 (`ycmn-ui/`, vite :3000, `/api` 代理到 :8080)。
+Spring Boot 后端 (`aigicrm-backend/`, :8080) + Vue3 前端 (`aigicrm-ui/`, vite :3000, `/api` 代理到 :8080)。
 本机用 Homebrew MySQL/Redis 起全栈，浏览器交互由 Playwright 驱动脚本完成。
 
 **路径约定：本文所有相对路径相对仓库根 `<unit>/` = `/Users/donglai/东来/01-Projects/01-aigicrm/04-源码`。**
@@ -21,18 +21,18 @@ node -v && mvn -version
 # Playwright(python) 用 /usr/local/bin/python3(该解释器装了 playwright, 系统 `python3` 没有)
 /usr/local/bin/python3 -c "import playwright; print('ok')"
 # 系统 Google Chrome(playwright channel='chrome' 使用)
-# 测试服凭据(DB 恢复用): ~/.ycmn-deploy.env(TEST_HOST/TEST_USER/TEST_PASS/TEST_DB_ADMIN_USER/TEST_DB_ADMIN_PASSWORD)
+# 测试服凭据(DB 恢复用): ~/.aigicrm-deploy.env(TEST_HOST/TEST_USER/TEST_PASS/TEST_DB_ADMIN_USER/TEST_DB_ADMIN_PASSWORD)
 ```
 
 ## 构建
 
 ```bash
 # 后端(Java 17)
-cd ycmn-backend
+cd aigicrm-backend
 export JAVA_HOME=/opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home
 MAVEN_SKIP_RC=true mvn -q package -DskipTests     # 产物 target/aigicrm-backend-1.0.0.jar (~91MB)
 # 前端(依赖已装则跳过)
-cd ../ycmn-ui && npm install
+cd ../aigicrm-ui && npm install
 ```
 
 ## Run（agent 主路径）
@@ -42,13 +42,13 @@ cd ../ycmn-ui && npm install
 ### 1. MySQL（独立实例 :3308，专用 datadir，不碰本机现有 MySQL）
 
 ```bash
-mkdir -p /tmp/ycmn-mysql-data
-mysqld --initialize-insecure --datadir=/tmp/ycmn-mysql-data   # 首次: root 空密码
-mysqld --datadir=/tmp/ycmn-mysql-data --port=3308 --socket=/tmp/ycmn-mysql.sock \
-  --pid-file=/tmp/ycmn-mysql.pid --log-error=/tmp/ycmn-mysql.log \
+mkdir -p /tmp/aigicrm-mysql-data
+mysqld --initialize-insecure --datadir=/tmp/aigicrm-mysql-data   # 首次: root 空密码
+mysqld --datadir=/tmp/aigicrm-mysql-data --port=3308 --socket=/tmp/aigicrm-mysql.sock \
+  --pid-file=/tmp/aigicrm-mysql.pid --log-error=/tmp/aigicrm-mysql.log \
   --bind-address=127.0.0.1 --daemonize
 # 设 root 密码(匹配后端默认)+ 建库
-mysql -h127.0.0.1 -P3308 -uroot -e "ALTER USER 'root'@'localhost' IDENTIFIED BY '123456'; CREATE DATABASE IF NOT EXISTS ycmn DEFAULT CHARSET utf8mb4 COLLATE utf8mb4_general_ci;"
+mysql -h127.0.0.1 -P3308 -uroot -e "ALTER USER 'root'@'localhost' IDENTIFIED BY '123456'; CREATE DATABASE IF NOT EXISTS aigicrm DEFAULT CHARSET utf8mb4 COLLATE utf8mb4_general_ci;"
 ```
 
 ### 2. Redis（独立 :6380，干净配置——**必须 `/dev/null` 作 config，否则继承全局 requirepass**）
@@ -61,11 +61,11 @@ redis-cli -p 6380 ping   # PONG
 ### 3. 数据库恢复（从测试服 dump 当前库——仓库里 V1 baseline 是纯 schema、init.sql 是旧 25 表）
 
 ```bash
-cd ~ && source ~/.ycmn-deploy.env
+cd ~ && source ~/.aigicrm-deploy.env
 sshpass -p "$TEST_PASS" ssh -o StrictHostKeyChecking=no "$TEST_USER@$TEST_HOST" \
   "docker exec shared-mysql mysqldump -u'$TEST_DB_ADMIN_USER' -p'$TEST_DB_ADMIN_PASSWORD' \
-  --single-transaction --default-character-set=utf8mb4 --skip-lock-tables ycmn" > /tmp/ycmn-test-dump.sql
-mysql -h127.0.0.1 -P3308 -uroot -p123456 ycmn < /tmp/ycmn-test-dump.sql   # 62 表 + admin 种子
+  --single-transaction --default-character-set=utf8mb4 --skip-lock-tables aigicrm" > /tmp/aigicrm-test-dump.sql
+mysql -h127.0.0.1 -P3308 -uroot -p123456 aigicrm < /tmp/aigicrm-test-dump.sql   # 62 表 + admin 种子
 ```
 
 ### 4. 后端（Java 17；JWT_SECRET 必注入否则启动失败；OSS 需占位 key）
@@ -73,29 +73,29 @@ mysql -h127.0.0.1 -P3308 -uroot -p123456 ycmn < /tmp/ycmn-test-dump.sql   # 62 �
 ```bash
 cd <unit>   # 仓库根, 让 LOGGING_CONFIG 相对路径成立
 export JAVA_HOME=/opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home
-mkdir -p /tmp/ycmn-logs /tmp/ycmn-uploads
+mkdir -p /tmp/aigicrm-logs /tmp/aigicrm-uploads
 DB_HOST=127.0.0.1 DB_PORT=3308 DB_USER=root DB_PASSWORD=123456 \
 REDIS_HOST=127.0.0.1 REDIS_PORT=6380 \
 JWT_SECRET=$(openssl rand -hex 32) CORS_ORIGINS=http://localhost:3000 \
-STORAGE_TYPE=local UPLOAD_DIR=/tmp/ycmn-uploads TENANT_ENABLE=false \
+STORAGE_TYPE=local UPLOAD_DIR=/tmp/aigicrm-uploads TENANT_ENABLE=false \
 OSS_ACCESS_KEY_ID=local-oss-key OSS_ACCESS_KEY_SECRET=local-oss-secret \
 LOGGING_CONFIG="$(pwd)/.claude/skills/run-aigicrm/logback-local.xml" \
-nohup "$JAVA_HOME/bin/java" -jar ycmn-backend/target/aigicrm-backend-1.0.0.jar > /tmp/ycmn-backend.log 2>&1 &
+nohup "$JAVA_HOME/bin/java" -jar aigicrm-backend/target/aigicrm-backend-1.0.0.jar > /tmp/aigicrm-backend.log 2>&1 &
 # 注: LOGGING_CONFIG 必须绝对路径(pwd 展开)——相对路径 Spring 按 classpath 根解析, 解析不到会回退 logback 默认配置。
-# 等日志出现 "Started YcmnApplication" (约 6s)
+# 等日志出现 "Started AigicrmApplication" (约 6s)
 ```
 
 ### 5. 前端
 
 ```bash
-cd ycmn-ui && nohup npm run dev > /tmp/ycmn-ui.log 2>&1 &   # VITE ready on :3000
+cd aigicrm-ui && nohup npm run dev > /tmp/aigicrm-ui.log 2>&1 &   # VITE ready on :3000
 ```
 
 ### 6. 驱动（登录 + 截图）——driver 即主要交互路径
 
 ```bash
 cd <unit>
-/usr/local/bin/python3 .claude/skills/run-aigicrm/driver.py                     # 登录 → 工作台截图 /tmp/ycmn-dashboard.png
+/usr/local/bin/python3 .claude/skills/run-aigicrm/driver.py                     # 登录 → 工作台截图 /tmp/aigicrm-dashboard.png
 /usr/local/bin/python3 .claude/skills/run-aigicrm/driver.py --flow customer     # 登录 → 客户列表截图
 /usr/local/bin/python3 .claude/skills/run-aigicrm/driver.py --headed            # 本机有头模式
 /usr/local/bin/python3 .claude/skills/run-aigicrm/driver.py --user u --password p --out /tmp/x.png
@@ -142,6 +142,6 @@ redis-cli -p 6380 shutdown nosave
 | 启动失败 `Access key id should not be null or empty` | 注入 `OSS_ACCESS_KEY_ID=local-oss-key OSS_ACCESS_KEY_SECRET=local-oss-secret` |
 | 启动失败 `JWT_SECRET` 相关/WeakKey | 注入 ≥32 字符 `JWT_SECRET=$(openssl rand -hex 32)` |
 | 登录 401 账号或密码错误 | 测试服库 admin 密码是 `admin123`(不是 123456)；`--user/--password` 换账号 |
-| driver 超时等不到"客户总数" | 后端没起/起挂：看 `/tmp/ycmn-backend.log` 是否 `Started YcmnApplication`；前端 3000 是否 VITE ready |
-| MySQL 连接拒绝 | 确认 3308 独立实例在(日志 `/tmp/ycmn-mysql.log`)，`mysql -h127.0.0.1 -P3308 -uroot -p123456` 能进 |
+| driver 超时等不到"客户总数" | 后端没起/起挂：看 `/tmp/aigicrm-backend.log` 是否 `Started AigicrmApplication`；前端 3000 是否 VITE ready |
+| MySQL 连接拒绝 | 确认 3308 独立实例在(日志 `/tmp/aigicrm-mysql.log`)，`mysql -h127.0.0.1 -P3308 -uroot -p123456` 能进 |
 | driver `ModuleNotFoundError: playwright` | 用 `/usr/local/bin/python3`(该解释器装了 playwright)，不是系统 `python3` |

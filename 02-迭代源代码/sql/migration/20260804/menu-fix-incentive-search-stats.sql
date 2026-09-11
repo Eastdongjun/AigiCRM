@@ -1,7 +1,7 @@
 -- 生产库修正：fix-menu-dynamic-sidebar.sql 生产版（id 调整为 105-109，避开生产已占用的 id=100"基础数据-用户"）
 -- 背景：原脚本固定 id 100-104，生产库 id=100 已被旧菜单占用 → INSERT 整体被 WHERE NOT EXISTS 跳过，
 --       但 role_menu 绑定照常执行 → 产生 16 条孤儿绑定 + 4 条误绑。本脚本先清掉这些，再以 105-109 补录。
-USE ycmn;
+USE aigicrm;
 
 -- 1. 清除脚本误产生的绑定（执行前 role_menu 无任何 100-104 绑定，全部为新增）
 DELETE FROM sys_role_menu WHERE menu_id BETWEEN 100 AND 104;

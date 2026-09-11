@@ -20,7 +20,7 @@
         "run",
         "build",
         "--prefix",
-        "ycmn-ui"
+        "aigicrm-ui"
       ]
     },
     {
@@ -31,7 +31,7 @@
         "npm",
         "test",
         "--prefix",
-        "ycmn-ui"
+        "aigicrm-ui"
       ]
     },
     {

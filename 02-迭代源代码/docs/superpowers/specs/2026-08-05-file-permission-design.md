@@ -1,7 +1,7 @@
 # 文件管理权限体系设计
 
 > 状态：已获用户批准（2026-08-05）
-> 目标系统：AigiCRM（ycmn），后端 Spring Boot 3.2.5 + MyBatis-Plus，前端 Vue3
+> 目标系统：AigiCRM（aigicrm），后端 Spring Boot 3.2.5 + MyBatis-Plus，前端 Vue3
 
 ## 1. 目标与背景
 

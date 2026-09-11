@@ -1,20 +1,26 @@
 #!/bin/bash
-# YCMN 部署公共库: 凭据加载 + ssh/scp 封装 + 健康检查
+# AIGICRM 部署公共库: 配置加载 + ssh/scp 封装 + 健康检查
 # 注意: 库文件不设 errexit(调用方自行控制); 仅 unset 变量与管道检查
 set -uo pipefail
 
-# 加载凭据(不入 git)
-ENV_FILE="$HOME/.ycmn-deploy.env"
+# 加载部署配置/凭据(不入 git)。2026-09-11 起统一为 ~/.aigicrm-deploy.env（原 ~/.ycmn-deploy.env 兜底已移除）
+ENV_FILE="${AIGICRM_DEPLOY_ENV:-${DEPLOY_ENV_FILE:-$HOME/.aigicrm-deploy.env}}"
 if [ ! -f "$ENV_FILE" ]; then
-  echo "错误: 缺少 $ENV_FILE (复制 scripts/ycmn-deploy.env.example 并填写)" >&2
+  echo "错误: 缺少 $ENV_FILE (复制 scripts/aigicrm-deploy.env.example 并填写)" >&2
   exit 1
 fi
 source "$ENV_FILE"
 
+APP_NAME="${APP_NAME:-AIGICRM}"
+APP_SLUG="${APP_SLUG:-aigicrm}"
+DB_NAME="${DB_NAME:-aigicrm}"
+DEPLOY_DIR="${DEPLOY_DIR:-/root/aigicrm}"
+DEPLOY_DATA_DIR="${DEPLOY_DATA_DIR:-/data/aigicrm}"
+
 # DB 凭据必须存在（禁止脚本内硬编码，一律经 env 注入）
 [ -n "${DB_PASSWORD:-}" ] || { echo "错误: 缺少 DB_PASSWORD（请在 $ENV_FILE 配置）" >&2; exit 1; }
 
-# 健康检查/冒烟登录凭据 —— 值在 ~/.ycmn-deploy.env (HEALTH_CHECK_USER/HEALTH_CHECK_PASS)，禁止硬编码入仓。
+# 健康检查/冒烟登录凭据 —— 值在部署 env (HEALTH_CHECK_USER/HEALTH_CHECK_PASS)，禁止硬编码入仓。
 # 为空时登录检查会失败并提示，不会静默使用仓库内默认口令。
 HEALTH_CHECK_USER="${HEALTH_CHECK_USER:-admin}"
 HEALTH_CHECK_PASS="${HEALTH_CHECK_PASS:-}"
@@ -65,14 +71,14 @@ check_health() {
 # 只告警不阻断(允许临时偏差), 每次部署开始时输出, 部署者必须肉眼确认 ✅
 check_deploy_arch() {
   echo "=== 部署架构自检(标准见 docs/生产部署规范.md) ==="
-  ssh_prod 'bash -s' <<'ARCH_CHECK'
+  ssh_prod "APP_SLUG='$APP_SLUG' DEPLOY_DIR='$DEPLOY_DIR' DEPLOY_DATA_DIR='$DEPLOY_DATA_DIR' bash -s" <<'ARCH_CHECK'
 R=$(docker info --format "{{.DockerRootDir}}" 2>/dev/null)
 [ "$R" = "/data/docker" ] && echo "✅ docker 根=/data/docker" || echo "⚠️ docker 根=$R (标准: /data/docker)"
-M=$(docker inspect ycmn-mysql --format "{{range .Mounts}}{{.Source}} {{end}}" 2>/dev/null | tr " " "\n" | grep -c "^/data/database/mysql-data$")
+M=$(docker inspect ${APP_SLUG}-mysql --format "{{range .Mounts}}{{.Source}} {{end}}" 2>/dev/null | tr " " "\n" | grep -c "^/data/database/mysql-data$")
 [ "$M" = "1" ] && echo "✅ mysql 数据=/data/database/mysql-data" || echo "⚠️ mysql 数据不在 /data/database/mysql-data"
-L=$(readlink /root/ycmn 2>/dev/null)
-[ "$L" = "/data/ycmn" ] && echo "✅ 部署目录软链 /root/ycmn → /data/ycmn" || echo "⚠️ /root/ycmn 非 /data/ycmn 软链 (当前: $L)"
-U=$(docker inspect ycmn-backend --format "{{range .Mounts}}{{.Source}} {{end}}" 2>/dev/null | tr " " "\n" | grep -c "^/Aigicrm/files/uploads$")
+L=$(readlink "$DEPLOY_DIR" 2>/dev/null)
+[ "$L" = "$DEPLOY_DATA_DIR" ] && echo "✅ 部署目录软链 $DEPLOY_DIR → $DEPLOY_DATA_DIR" || echo "⚠️ $DEPLOY_DIR 非 $DEPLOY_DATA_DIR 软链 (当前: $L)"
+U=$(docker inspect ${APP_SLUG}-backend --format "{{range .Mounts}}{{.Source}} {{end}}" 2>/dev/null | tr " " "\n" | grep -c "^/Aigicrm/files/uploads$")
 [ "$U" = "1" ] && echo "✅ 上传文件=NAS /Aigicrm/files/uploads" || echo "⚠️ 上传文件不在 NAS"
 ARCH_CHECK
   return 0
@@ -80,5 +86,5 @@ ARCH_CHECK
 
 # 当前源码 commit(用于部署记录)
 git_commit() {
-  cd "/Users/donglai/东来/01-Projects/01-aigicrm/04-源码" && git rev-parse --short HEAD 2>/dev/null || echo "unknown"
+  cd "${SOURCE_DIR:-$(cd "$SCRIPT_DIR/.." && pwd)}" && git rev-parse --short HEAD 2>/dev/null || echo "unknown"
 }

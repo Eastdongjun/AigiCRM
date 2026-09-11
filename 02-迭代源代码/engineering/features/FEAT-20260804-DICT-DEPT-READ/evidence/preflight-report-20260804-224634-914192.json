@@ -18,7 +18,7 @@
       "argv": [
         "mvn",
         "-f",
-        "ycmn-backend/pom.xml",
+        "aigicrm-backend/pom.xml",
         "package",
         "-DskipTests"
       ]
@@ -30,7 +30,7 @@
       "argv": [
         "mvn",
         "-f",
-        "ycmn-backend/pom.xml",
+        "aigicrm-backend/pom.xml",
         "test"
       ]
     },

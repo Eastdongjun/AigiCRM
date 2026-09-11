@@ -1,6 +1,6 @@
 -- ============================================================
--- YCMN 权限审计修复批 1(2026-08-10)——数据侧修复, 执行前先备份!
---   备份: mysqldump -uroot -p --single-transaction ycmn > backup-ycmn-pre-permfix-<时间>.sql
+-- AIGICRM 权限审计修复批 1(2026-08-10)——数据侧修复, 执行前先备份!
+--   备份: mysqldump -uroot -p --single-transaction aigicrm > backup-aigicrm-pre-permfix-<时间>.sql
 -- ============================================================
 
 -- 1. group_id 死区回填(P2-10): sys_dept / biz_customer 的 group_id/legal_entity_id 全 NULL,

@@ -2,7 +2,7 @@
 
 ## 已确认影响范围
 
-- ycmn-ui/src/views/file/index.vue：上传弹窗模板 + script（自定义上传）
+- aigicrm-ui/src/views/file/index.vue：上传弹窗模板 + script（自定义上传）
 
 ## 架构与关键决策
 

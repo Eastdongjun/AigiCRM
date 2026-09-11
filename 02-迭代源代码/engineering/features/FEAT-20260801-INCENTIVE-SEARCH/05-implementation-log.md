@@ -2,8 +2,8 @@
 
 ## 变更文件
 
-- ycmn-ui/src/views/incentive/search.vue（REQ-001 → AC-001）：主搜索框 placeholder "搜索客户名称..." → "搜索客户名称 / 关键字（如：煤气管道）..."
-- 测试服部署：ycmn-frontend 容器 /usr/share/nginx/html 完整重装（assets/index-D0CHvRKk.js 新入口 + search-CzritNkw.js 含新文案）
+- aigicrm-ui/src/views/incentive/search.vue（REQ-001 → AC-001）：主搜索框 placeholder "搜索客户名称..." → "搜索客户名称 / 关键字（如：煤气管道）..."
+- 测试服部署：aigicrm-frontend 容器 /usr/share/nginx/html 完整重装（assets/index-D0CHvRKk.js 新入口 + search-CzritNkw.js 含新文案）
 
 ## 实现决策
 
@@ -16,7 +16,7 @@
 
 ## 实际执行命令
 
-- `npm run build` → dist 打包 zip → scp /tmp/frontend-dist.zip → 服务器解压 → `docker exec ycmn-frontend rm -rf html 内容` → `docker cp` → 回读 index.html 引用 index-D0CHvRKk.js、search-CzritNkw.js 含"搜索客户名称 / 关键字"
+- `npm run build` → dist 打包 zip → scp /tmp/frontend-dist.zip → 服务器解压 → `docker exec aigicrm-frontend rm -rf html 内容` → `docker cp` → 回读 index.html 引用 index-D0CHvRKk.js、search-CzritNkw.js 含"搜索客户名称 / 关键字"
 - 旧版备份：容器内 /tmp/html-rollback/
 
 ## 失败与纠正

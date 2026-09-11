@@ -6,8 +6,8 @@
 
 | 项 | 发现 | 处置 | 状态 |
 |---|---|---|---|
-| N1-A | 生产 MySQL root 密码明文硬编码，已入 git 历史 | 密码移出 git 文件，改经 `~/.ycmn-deploy.env` 注入 | ✅ commit `084ac65` |
-| N1-B | root 密码泄露 + 应用用 root 连库 | 最小权限账号（ycmn_app）+ 备份账号（ycmn_backup）+ **root 密码轮换**（Step1-4 全部完成） | ✅ commits `7dc3119/8731677/74dce58` |
+| N1-A | 生产 MySQL root 密码明文硬编码，已入 git 历史 | 密码移出 git 文件，改经 `~/.aigicrm-deploy.env` 注入 | ✅ commit `084ac65` |
+| N1-B | root 密码泄露 + 应用用 root 连库 | 最小权限账号（aigicrm_app）+ 备份账号（aigicrm_backup）+ **root 密码轮换**（Step1-4 全部完成） | ✅ commits `7dc3119/8731677/74dce58` |
 | N2 | 租户隔离默认关 | **单集团部署，不启用**（用户确认） | ✅ 决策记录 |
 | N3 | 从未开票 NULL→9999 天超期误报 | `invoice_never` 独立提醒 + 存量清理 + 提醒页 UI 接入 | ✅ commits `9a92e9c/881f3ee`，已部署 |
 | 前端孤儿文件 | `src/index.vue`/`index.js` 废弃副本 | 删除（无引用） | ✅ commit `283b513` |
@@ -32,5 +32,5 @@
 ## 遗留决策处置（2026-08-08 已全部结案）
 
 - ✅ **数据范围过滤锚点**：保持 owner 部门归属（六级范围语义正确），客户自身 office_id 是属性筛选；如确有"按客户所属组织看"诉求单独立项。已记设计记忆。
-- ✅ **测试库 root**：YCMN 测试运维改专用 `ycmn_admin`（commit `13f557d`，测试脚本不再用共享 root）；共享 root/<redacted> 保留（ShopJoy 微服务已停止 8 天但配置依赖，重启需兼容）。
+- ✅ **测试库 root**：AIGICRM 测试运维改专用 `aigicrm_admin`（commit `13f557d`，测试脚本不再用共享 root）；共享 root/<redacted> 保留（ShopJoy 微服务已停止 8 天但配置依赖，重启需兼容）。
 - ✅ **git filter-repo**：**决定不做**。prod root 已轮换（123456 失效，安全收益 0）；全局 scrub 会改写当前 AGENTS.md/CLAUDE.md/运维手册等多处文档需修复；force-push 不可逆且重写全部远端分支。仅当需要"干净历史"作为独立立项时再做。

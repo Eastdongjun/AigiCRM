@@ -32,14 +32,14 @@
 
 ```sql
 -- 激励记录"具体产品"字段（产品试点专属，可选文本）
--- 执行：mysql -uroot -pXXXX --default-character-set=utf8mb4 ycmn < specific-product-column.sql
+-- 执行：mysql -uroot -pXXXX --default-character-set=utf8mb4 aigicrm < specific-product-column.sql
 ALTER TABLE biz_incentive_record
   ADD COLUMN specific_product varchar(200) NULL AFTER related_products;
 ```
 
 - [ ] **Step 2: 语法自检**
 
-Run: `mysql -uroot -pXXXX ycmn < sql/migration/20260807/specific-product-column.sql`（测试库）
+Run: `mysql -uroot -pXXXX aigicrm < sql/migration/20260807/specific-product-column.sql`（测试库）
 Expected: 无报错，`SHOW COLUMNS FROM biz_incentive_record` 出现 `specific_product varchar(200) NULL`
 
 - [ ] **Step 3: Commit**
@@ -54,9 +54,9 @@ git commit -m "feat(db): 激励记录新增 specific_product 列(产品试点专
 ### Task 2: 后端实体 + updateRecord 合并字段
 
 **Files:**
-- Modify: `ycmn-backend/src/main/java/com/ycmn/module/incentive/entity/BizIncentiveRecord.java`（约 19 行后）
-- Modify: `ycmn-backend/src/main/java/com/ycmn/module/incentive/service/IncentiveService.java:231-251`
-- Test: `ycmn-backend/src/test/java/com/ycmn/module/incentive/service/IncentiveSpecificProductTest.java`（新建）
+- Modify: `aigicrm-backend/src/main/java/com/aigicrm/module/incentive/entity/BizIncentiveRecord.java`（约 19 行后）
+- Modify: `aigicrm-backend/src/main/java/com/aigicrm/module/incentive/service/IncentiveService.java:231-251`
+- Test: `aigicrm-backend/src/test/java/com/aigicrm/module/incentive/service/IncentiveSpecificProductTest.java`（新建）
 
 **Interfaces:**
 - Consumes: `BizIncentiveRecord` 实体已有构造（无参），`IncentiveService.updateRecord(Long id, BizIncentiveRecord update)`
@@ -65,11 +65,11 @@ git commit -m "feat(db): 激励记录新增 specific_product 列(产品试点专
 - [ ] **Step 1: 写失败测试**
 
 ```java
-package com.ycmn.module.incentive.service;
+package com.aigicrm.module.incentive.service;
 
-import com.ycmn.module.incentive.entity.BizIncentiveRecord;
-import com.ycmn.module.incentive.mapper.BizIncentiveCategoryMapper;
-import com.ycmn.module.incentive.mapper.BizIncentiveRecordMapper;
+import com.aigicrm.module.incentive.entity.BizIncentiveRecord;
+import com.aigicrm.module.incentive.mapper.BizIncentiveCategoryMapper;
+import com.aigicrm.module.incentive.mapper.BizIncentiveRecordMapper;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
@@ -85,14 +85,14 @@ class IncentiveSpecificProductTest {
     private IncentiveService newService(BizIncentiveRecordMapper recMapper, BizIncentiveCategoryMapper catMapper) {
         return new IncentiveService(
                 catMapper, recMapper,
-                mock(com.ycmn.module.system.mapper.SysUserMapper.class),
-                mock(com.ycmn.module.file.mapper.BizFileMapper.class),
-                mock(com.ycmn.module.customer.mapper.BizCustomerMapper.class),
-                mock(com.ycmn.module.customer.mapper.BizCustomerShareMapper.class),
-                mock(com.ycmn.module.system.mapper.SysDeptMapper.class),
-                mock(com.ycmn.module.system.mapper.SysOrgMapper.class),
+                mock(com.aigicrm.module.system.mapper.SysUserMapper.class),
+                mock(com.aigicrm.module.file.mapper.BizFileMapper.class),
+                mock(com.aigicrm.module.customer.mapper.BizCustomerMapper.class),
+                mock(com.aigicrm.module.customer.mapper.BizCustomerShareMapper.class),
+                mock(com.aigicrm.module.system.mapper.SysDeptMapper.class),
+                mock(com.aigicrm.module.system.mapper.SysOrgMapper.class),
                 mock(org.springframework.jdbc.core.JdbcTemplate.class),
-                mock(com.ycmn.common.scope.OrgScopeResolver.class));
+                mock(com.aigicrm.common.scope.OrgScopeResolver.class));
     }
 
     @Test
@@ -125,7 +125,7 @@ class IncentiveSpecificProductTest {
 
 - [ ] **Step 2: 运行测试确认失败**
 
-Run: `mvn test -pl . -Dtest=IncentiveSpecificProductTest -DskipTests=false`（在 ycmn-backend 下）
+Run: `mvn test -pl . -Dtest=IncentiveSpecificProductTest -DskipTests=false`（在 aigicrm-backend 下）
 Expected: 编译失败（`getSpecificProduct`/`setSpecificProduct` 不存在）
 
 - [ ] **Step 3: 实体加字段**
@@ -152,7 +152,7 @@ Expected: PASS（updateRecordMergesSpecificProduct 通过）
 - [ ] **Step 6: Commit**
 
 ```bash
-git add ycmn-backend/src/main/java/com/ycmn/module/incentive/entity/BizIncentiveRecord.java ycmn-backend/src/main/java/com/ycmn/module/incentive/service/IncentiveService.java ycmn-backend/src/test/java/com/ycmn/module/incentive/service/IncentiveSpecificProductTest.java
+git add aigicrm-backend/src/main/java/com/aigicrm/module/incentive/entity/BizIncentiveRecord.java aigicrm-backend/src/main/java/com/aigicrm/module/incentive/service/IncentiveService.java aigicrm-backend/src/test/java/com/aigicrm/module/incentive/service/IncentiveSpecificProductTest.java
 git commit -m "feat: 激励记录支持具体产品字段(实体+updateRecord合并+测试)"
 ```
 
@@ -161,8 +161,8 @@ git commit -m "feat: 激励记录支持具体产品字段(实体+updateRecord合
 ### Task 3: 后端 getCustomerRecords 搜索接入 + 结果 map
 
 **Files:**
-- Modify: `ycmn-backend/src/main/java/com/ycmn/module/incentive/service/IncentiveService.java:807` 与 `:838-852`
-- Test: `ycmn-backend/src/test/java/com/ycmn/module/incentive/service/IncentiveSpecificProductTest.java`（追加）
+- Modify: `aigicrm-backend/src/main/java/com/aigicrm/module/incentive/service/IncentiveService.java:807` 与 `:838-852`
+- Test: `aigicrm-backend/src/test/java/com/aigicrm/module/incentive/service/IncentiveSpecificProductTest.java`（追加）
 
 **Interfaces:**
 - Consumes: `getCustomerRecords(industry, mainCategoryId, customerName, salesperson, startDate, endDate, orgIds, devType, product, keyword)`
@@ -178,9 +178,9 @@ git commit -m "feat: 激励记录支持具体产品字段(实体+updateRecord合
         when(recMapper.selectList(any())).thenReturn(List.of());
         IncentiveService svc = newService(recMapper, catMapper);
 
-        try (MockedStatic<com.ycmn.security.SecurityUtils> m = mockStatic(com.ycmn.security.SecurityUtils.class)) {
-            m.when(com.ycmn.security.SecurityUtils::isAdmin).thenReturn(true);
-            m.when(com.ycmn.security.SecurityUtils::getCurrentUserId).thenReturn(1L);
+        try (MockedStatic<com.aigicrm.security.SecurityUtils> m = mockStatic(com.aigicrm.security.SecurityUtils.class)) {
+            m.when(com.aigicrm.security.SecurityUtils::isAdmin).thenReturn(true);
+            m.when(com.aigicrm.security.SecurityUtils::getCurrentUserId).thenReturn(1L);
 
             // keyword 命中"具体产品"场景（无客户名）
             svc.getCustomerRecords(null, null, null, null, null, null, null, null, null, "XX密封圈");
@@ -249,7 +249,7 @@ Expected: 全绿（202+2 测试通过，无新增失败）
 - [ ] **Step 7: Commit**
 
 ```bash
-git add ycmn-backend/src/main/java/com/ycmn/module/incentive/service/IncentiveService.java ycmn-backend/src/test/java/com/ycmn/module/incentive/service/IncentiveSpecificProductTest.java
+git add aigicrm-backend/src/main/java/com/aigicrm/module/incentive/service/IncentiveService.java aigicrm-backend/src/test/java/com/aigicrm/module/incentive/service/IncentiveSpecificProductTest.java
 git commit -m "feat: 激励关键字搜索接入具体产品 + 客户卡片结果带出 specificProduct"
 ```
 
@@ -258,7 +258,7 @@ git commit -m "feat: 激励关键字搜索接入具体产品 + 客户卡片结�
 ### Task 4: 前端激励上传页 index.vue（trial 专属文本框）
 
 **Files:**
-- Modify: `ycmn-ui/src/views/incentive/index.vue`
+- Modify: `aigicrm-ui/src/views/incentive/index.vue`
   - 相关产品 ref 区（约 388 行）
   - 相关产品字段块（约 169-177 行）下方
   - 打开弹窗重置（约 619 行）
@@ -320,13 +320,13 @@ const specificProduct = ref('')
 
 - [ ] **Step 6: 构建验证**
 
-Run: `cd ycmn-ui && npm run build`
+Run: `cd aigicrm-ui && npm run build`
 Expected: 构建成功，无报错
 
 - [ ] **Step 7: Commit**
 
 ```bash
-git add ycmn-ui/src/views/incentive/index.vue
+git add aigicrm-ui/src/views/incentive/index.vue
 git commit -m "feat(ui): 激励上传产品试点分类新增具体产品文本框(选填)"
 ```
 
@@ -335,7 +335,7 @@ git commit -m "feat(ui): 激励上传产品试点分类新增具体产品文本�
 ### Task 5: 前端激励查询页 search.vue（详情展示）
 
 **Files:**
-- Modify: `ycmn-ui/src/views/incentive/search.vue`（详情时间线 dtl-info-line 区，约 130-150 行）
+- Modify: `aigicrm-ui/src/views/incentive/search.vue`（详情时间线 dtl-info-line 区，约 130-150 行）
 
 **Interfaces:**
 - Consumes: `record.specificProduct`（customer-records 接口返回）
@@ -350,13 +350,13 @@ git commit -m "feat(ui): 激励上传产品试点分类新增具体产品文本�
 
 - [ ] **Step 2: 构建验证**
 
-Run: `cd ycmn-ui && npm run build`
+Run: `cd aigicrm-ui && npm run build`
 Expected: 构建成功
 
 - [ ] **Step 3: Commit**
 
 ```bash
-git add ycmn-ui/src/views/incentive/search.vue
+git add aigicrm-ui/src/views/incentive/search.vue
 git commit -m "feat(ui): 激励查询详情展示具体产品"
 ```
 
@@ -365,7 +365,7 @@ git commit -m "feat(ui): 激励查询详情展示具体产品"
 ### Task 6: 前端客户卡片 customer/detail.vue（激励关联展示）
 
 **Files:**
-- Modify: `ycmn-ui/src/views/customer/detail.vue`（激励条目 `.incentive-item` 区，约 277-295 行）
+- Modify: `aigicrm-ui/src/views/customer/detail.vue`（激励条目 `.incentive-item` 区，约 277-295 行）
 
 **Interfaces:**
 - Consumes: `record.specificProduct`（customer-records 接口返回，Task 3 已带出）
@@ -382,13 +382,13 @@ git commit -m "feat(ui): 激励查询详情展示具体产品"
 
 - [ ] **Step 2: 构建验证**
 
-Run: `cd ycmn-ui && npm run build`
+Run: `cd aigicrm-ui && npm run build`
 Expected: 构建成功
 
 - [ ] **Step 3: Commit**
 
 ```bash
-git add ycmn-ui/src/views/customer/detail.vue
+git add aigicrm-ui/src/views/customer/detail.vue
 git commit -m "feat(ui): 客户卡片激励关联展示具体产品"
 ```
 
@@ -407,19 +407,19 @@ git commit -m "feat(ui): 客户卡片激励关联展示具体产品"
 Run（测试服务器 111.229.37.220）:
 ```bash
 # 备份后执行
-docker exec shared-mysql mysqldump -uroot -p<redacted> --single-transaction --default-character-set=utf8mb4 ycmn > backup-pre-specific.sql
-cat sql/migration/20260807/specific-product-column.sql | sshpass ssh ubuntu@111.229.37.220 "docker exec -i shared-mysql mysql -uroot -p<redacted> --default-character-set=utf8mb4 ycmn"
+docker exec shared-mysql mysqldump -uroot -p<redacted> --single-transaction --default-character-set=utf8mb4 aigicrm > backup-pre-specific.sql
+cat sql/migration/20260807/specific-product-column.sql | sshpass ssh ubuntu@111.229.37.220 "docker exec -i shared-mysql mysql -uroot -p<redacted> --default-character-set=utf8mb4 aigicrm"
 ```
 Expected: `SHOW COLUMNS FROM biz_incentive_record` 含 `specific_product`
 
 - [ ] **Step 2: 构建并部署后端**
 
-Run: `mvn package -DskipTests` → 上传 jar → 重建镜像 → 替换容器（沿用 `~/.ycmn-deploy.env` 的 JWT_SECRET，勿硬编码）
+Run: `mvn package -DskipTests` → 上传 jar → 重建镜像 → 替换容器（沿用 `~/.aigicrm-deploy.env` 的 JWT_SECRET，勿硬编码）
 Expected: 健康检查 200，登录正常
 
 - [ ] **Step 3: 构建并部署前端**
 
-Run: `cd ycmn-ui && npm run build` → dist 打包 → `docker cp` 到 ycmn-frontend（完整替换，勿增量）
+Run: `cd aigicrm-ui && npm run build` → dist 打包 → `docker cp` 到 aigicrm-frontend（完整替换，勿增量）
 Expected: 首页 200，版本号更新
 
 - [ ] **Step 4: 浏览器 DoD 验证**
@@ -475,4 +475,4 @@ Expected: 7 项验收通过（用生产 admin + 一个销售员账号）
 ```bash
 git push origin main
 ```
-更新 `YCMN-客户管理-完整记忆.md`：记录新字段、部署时间、遗留项
+更新 `AIGICRM-客户管理-完整记忆.md`：记录新字段、部署时间、遗留项

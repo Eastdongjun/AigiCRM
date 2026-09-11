@@ -44,14 +44,14 @@
 ## 检查命令
 
 ```bash
-cd ycmn-backend && mvn -q -Dtest=ArchitectureTest test
+cd aigicrm-backend && mvn -q -Dtest=ArchitectureTest test
 ```
 
 ## 三脚本交叉核对发现（2026-08-03 完整检查）
 
 > CI 中三脚本为必跑步骤；以下问题需修复后 CI 才能绿。
 
-### 1. Schema/Entity 漂移（12+ 处）— ycmn_database_test.sql 落后于实体
+### 1. Schema/Entity 漂移（12+ 处）— aigicrm_database_test.sql 落后于实体
 
 - SQL 缺表：biz_approval_config、sys_group、sys_legal_entity、sys_org、sys_org_admin、sys_permission_rule、sys_position、sys_position_rule
 - SQL 缺列：biz_approval_node.config_id/sign_mode、biz_customer.group_id/legal_entity_id

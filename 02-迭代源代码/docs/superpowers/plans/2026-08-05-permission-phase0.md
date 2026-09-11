@@ -8,7 +8,7 @@
 
 **Tech Stack:** Spring Boot 3 + MyBatis-Plus 3.5.6 + JUnit 5/Mockito（测试）+ Vue3/Element Plus（前端配置页）
 
-**验证环境:** 测试服务器 http://111.229.37.220（admin/admin口令(经env注入)；测试库 ycmn 密码 123456）。部署/验证方法见记忆：后端本地 mvn 构建（MAVEN_SKIP_RC=true）→ scp jar → docker build；前端 npm run build → docker cp dist。
+**验证环境:** 测试服务器 http://111.229.37.220（admin/admin口令(经env注入)；测试库 aigicrm 密码 123456）。部署/验证方法见记忆：后端本地 mvn 构建（MAVEN_SKIP_RC=true）→ scp jar → docker build；前端 npm run build → docker cp dist。
 
 ## Global Constraints
 
@@ -17,8 +17,8 @@
 - 权限调整必须实时生效（无 Redis/内存缓存）——这是已验证的系统行为，不得引入权限缓存
 - 数据库 dump 禁止入库（.gitignore 已有）；SQL 脚本放 `sql/` 目录
 - 改 Java 在本地 VSCode，禁止服务器 sed；部署后浏览器验证，不只 curl
-- 测试环境库 = shared-mysql.ycmn；生产与测试不同步，生产变更必须先确认
-- 前端源码权威目录 `04-源码/ycmn-ui`（git 管理）；服务器 ycmn-ui 是旧副本禁止构建
+- 测试环境库 = shared-mysql.aigicrm；生产与测试不同步，生产变更必须先确认
+- 前端源码权威目录 `04-源码/aigicrm-ui`（git 管理）；服务器 aigicrm-ui 是旧副本禁止构建
 - MyBatis-Plus 租户插件必须配置 tenantTable 白名单（未迁移表会导致"列不存在"报错）
 
 ---
@@ -26,8 +26,8 @@
 ### Task 1: DataScopeType 枚举扩展（六级）
 
 **Files:**
-- Modify: `ycmn-backend/src/main/java/com/ycmn/common/enums/DataScopeType.java`
-- Test: `ycmn-backend/src/test/java/com/ycmn/common/enums/DataScopeTypeTest.java`
+- Modify: `aigicrm-backend/src/main/java/com/aigicrm/common/enums/DataScopeType.java`
+- Test: `aigicrm-backend/src/test/java/com/aigicrm/common/enums/DataScopeTypeTest.java`
 
 **Interfaces:**
 - Consumes: 现有枚举 `DataScopeType`（ALL/CUSTOM/ORG_AND_CHILDREN/ORG/SELF + rank()）
@@ -36,7 +36,7 @@
 - [ ] **Step 1: 写失败测试**
 
 ```java
-package com.ycmn.common.enums;
+package com.aigicrm.common.enums;
 
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
@@ -63,7 +63,7 @@ class DataScopeTypeTest {
 
 - [ ] **Step 2: 运行确认失败**
 
-Run: `cd ycmn-backend && MAVEN_SKIP_RC=true mvn test -Dtest=DataScopeTypeTest`
+Run: `cd aigicrm-backend && MAVEN_SKIP_RC=true mvn test -Dtest=DataScopeTypeTest`
 Expected: FAIL（REGION/OFFICE/TEAM 不存在，编译错误）
 
 - [ ] **Step 3: 扩展枚举**
@@ -93,7 +93,7 @@ Expected: PASS
 - [ ] **Step 5: 提交**
 
 ```bash
-git add ycmn-backend/src/main/java/com/ycmn/common/enums/DataScopeType.java ycmn-backend/src/test/java/com/ycmn/common/enums/DataScopeTypeTest.java
+git add aigicrm-backend/src/main/java/com/aigicrm/common/enums/DataScopeType.java aigicrm-backend/src/test/java/com/aigicrm/common/enums/DataScopeTypeTest.java
 git commit -m "feat(perm): DataScopeType 扩展六级范围（team/office/region）"
 ```
 
@@ -102,8 +102,8 @@ git commit -m "feat(perm): DataScopeType 扩展六级范围（team/office/region
 ### Task 2: OrgScopeResolver 核心解析器
 
 **Files:**
-- Create: `ycmn-backend/src/main/java/com/ycmn/common/scope/OrgScopeResolver.java`
-- Create: `ycmn-backend/src/test/java/com/ycmn/common/scope/OrgScopeResolverTest.java`
+- Create: `aigicrm-backend/src/main/java/com/aigicrm/common/scope/OrgScopeResolver.java`
+- Create: `aigicrm-backend/src/test/java/com/aigicrm/common/scope/OrgScopeResolverTest.java`
 
 **Interfaces:**
 - Consumes: `SecurityUser`（getDataScope/getDeptId/getOfficeId/getUserId/getManagedOrgIds）、`SysUserMapper`、`SysDeptMapper`（表 sys_dept 含 parent_id/deptType/leader_id）
@@ -115,14 +115,14 @@ git commit -m "feat(perm): DataScopeType 扩展六级范围（team/office/region
 - [ ] **Step 1: 写失败测试（用 Mockito mock mapper）**
 
 ```java
-package com.ycmn.common.scope;
+package com.aigicrm.common.scope;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.ycmn.module.system.entity.SysDept;
-import com.ycmn.module.system.entity.SysUser;
-import com.ycmn.module.system.mapper.SysDeptMapper;
-import com.ycmn.module.system.mapper.SysUserMapper;
-import com.ycmn.security.SecurityUser;
+import com.aigicrm.module.system.entity.SysDept;
+import com.aigicrm.module.system.entity.SysUser;
+import com.aigicrm.module.system.mapper.SysDeptMapper;
+import com.aigicrm.module.system.mapper.SysUserMapper;
+import com.aigicrm.security.SecurityUser;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
@@ -197,14 +197,14 @@ Expected: FAIL（类不存在）
 - [ ] **Step 3: 实现 OrgScopeResolver**
 
 ```java
-package com.ycmn.common.scope;
+package com.aigicrm.common.scope;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.ycmn.module.system.entity.SysDept;
-import com.ycmn.module.system.entity.SysUser;
-import com.ycmn.module.system.mapper.SysDeptMapper;
-import com.ycmn.module.system.mapper.SysUserMapper;
-import com.ycmn.security.SecurityUser;
+import com.aigicrm.module.system.entity.SysDept;
+import com.aigicrm.module.system.entity.SysUser;
+import com.aigicrm.module.system.mapper.SysDeptMapper;
+import com.aigicrm.module.system.mapper.SysUserMapper;
+import com.aigicrm.security.SecurityUser;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
@@ -365,7 +365,7 @@ Expected: PASS（注意：Mockito 中 `when(userMapper.selectList(any()))` 需�
 - [ ] **Step 5: 提交**
 
 ```bash
-git add ycmn-backend/src/main/java/com/ycmn/common/scope/OrgScopeResolver.java ycmn-backend/src/test/java/com/ycmn/common/scope/OrgScopeResolverTest.java
+git add aigicrm-backend/src/main/java/com/aigicrm/common/scope/OrgScopeResolver.java aigicrm-backend/src/test/java/com/aigicrm/common/scope/OrgScopeResolverTest.java
 git commit -m "feat(perm): OrgScopeResolver 六级数据范围解析器"
 ```
 
@@ -374,8 +374,8 @@ git commit -m "feat(perm): OrgScopeResolver 六级数据范围解析器"
 ### Task 3: DataScopeGuard 归属校验守卫
 
 **Files:**
-- Create: `ycmn-backend/src/main/java/com/ycmn/common/scope/DataScopeGuard.java`
-- Test: `ycmn-backend/src/test/java/com/ycmn/common/scope/DataScopeGuardTest.java`
+- Create: `aigicrm-backend/src/main/java/com/aigicrm/common/scope/DataScopeGuard.java`
+- Test: `aigicrm-backend/src/test/java/com/aigicrm/common/scope/DataScopeGuardTest.java`
 
 **Interfaces:**
 - Consumes: `OrgScopeResolver`、`SecurityUtils`
@@ -384,10 +384,10 @@ git commit -m "feat(perm): OrgScopeResolver 六级数据范围解析器"
 - [ ] **Step 1: 写失败测试**
 
 ```java
-package com.ycmn.common.scope;
+package com.aigicrm.common.scope;
 
-import com.ycmn.common.exception.BusinessException;
-import com.ycmn.security.SecurityUser;
+import com.aigicrm.common.exception.BusinessException;
+import com.aigicrm.security.SecurityUser;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -423,9 +423,9 @@ Expected: FAIL（类不存在）
 - [ ] **Step 3: 实现 DataScopeGuard**
 
 ```java
-package com.ycmn.common.scope;
+package com.aigicrm.common.scope;
 
-import com.ycmn.common.exception.BusinessException;
+import com.aigicrm.common.exception.BusinessException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
@@ -444,11 +444,11 @@ public class DataScopeGuard {
     /** 校验目标记录是否当前用户可操作；scopeOverride=分享等额外可见集合 */
     public void checkOwner(Long ownerId, Collection<Long> scopeOverride) {
         if (ownerId == null) throw new BusinessException(403, "记录归属缺失");
-        Long me = com.ycmn.security.SecurityUtils.getCurrentUserId();
+        Long me = com.aigicrm.security.SecurityUtils.getCurrentUserId();
         if (me != null && me.equals(ownerId)) return; // 或本人恒可
         List<Long> scope = scopeOverride == null ? null : new java.util.ArrayList<>(scopeOverride);
         if (scope == null || scope.isEmpty()) {
-            scope = resolver.resolve(com.ycmn.security.SecurityUtils.getCurrentUser());
+            scope = resolver.resolve(com.aigicrm.security.SecurityUtils.getCurrentUser());
         } else if (scope != null) {
             scope.add(ownerId); // 防误判：owner 已在额外集合中
         }
@@ -480,7 +480,7 @@ Expected: PASS
 - [ ] **Step 5: 提交**
 
 ```bash
-git add ycmn-backend/src/main/java/com/ycmn/common/scope/DataScopeGuard.java ycmn-backend/src/test/java/com/ycmn/common/scope/DataScopeGuardTest.java
+git add aigicrm-backend/src/main/java/com/aigicrm/common/scope/DataScopeGuard.java aigicrm-backend/src/test/java/com/aigicrm/common/scope/DataScopeGuardTest.java
 git commit -m "feat(perm): DataScopeGuard 统一归属校验守卫"
 ```
 
@@ -489,8 +489,8 @@ git commit -m "feat(perm): DataScopeGuard 统一归属校验守卫"
 ### Task 4: MyBatis-Plus 租户插件（集团隔离）
 
 **Files:**
-- Modify: `ycmn-backend/src/main/java/com/ycmn/config/MybatisPlusConfig.java`
-- Modify: `ycmn-backend/src/main/java/com/ycmn/security/UserDetailsServiceImpl.java`（无需改——groupIds 已加载；仅确认）
+- Modify: `aigicrm-backend/src/main/java/com/aigicrm/config/MybatisPlusConfig.java`
+- Modify: `aigicrm-backend/src/main/java/com/aigicrm/security/UserDetailsServiceImpl.java`（无需改——groupIds 已加载；仅确认）
 
 **Interfaces:**
 - Consumes: MyBatis-Plus 3.5.6 `TenantLineInnerInterceptor`；`SecurityUtils.getCurrentGroupIds()`
@@ -501,7 +501,7 @@ git commit -m "feat(perm): DataScopeGuard 统一归属校验守卫"
 ```java
 // MybatisPlusConfig.java 中 mybatisPlusInterceptor() 追加：
 import com.baomidou.mybatisplus.extension.plugins.inner.TenantLineInnerInterceptor;
-import com.ycmn.security.SecurityUtils;
+import com.aigicrm.security.SecurityUtils;
 
 // 白名单：仅已迁移 tenant_id 的核心业务表（Task 11 迁移后启用；未迁移前不要注册拦截器）
 private static final java.util.Set<String> TENANT_TABLES =
@@ -534,8 +534,8 @@ Expected: 编译通过（含 import 修正）
 - [ ] **Step 3: 写配置断言测试（ArchUnit 或简单加载测试）**
 
 ```java
-// src/test/java/com/ycmn/config/MybatisPlusConfigTest.java
-package com.ycmn.config;
+// src/test/java/com/aigicrm/config/MybatisPlusConfigTest.java
+package com.aigicrm.config;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -558,7 +558,7 @@ Expected: PASS（若 Spring 上下文加载慢，可改为纯配置类实例化�
 - [ ] **Step 4: 提交**
 
 ```bash
-git add ycmn-backend/src/main/java/com/ycmn/config/MybatisPlusConfig.java ycmn-backend/src/test/java/com/ycmn/config/MybatisPlusConfigTest.java
+git add aigicrm-backend/src/main/java/com/aigicrm/config/MybatisPlusConfig.java aigicrm-backend/src/test/java/com/aigicrm/config/MybatisPlusConfigTest.java
 git commit -m "feat(perm): 租户插件白名单配置（集团隔离）"
 ```
 
@@ -567,9 +567,9 @@ git commit -m "feat(perm): 租户插件白名单配置（集团隔离）"
 ### Task 5: 公共 scope 接口（范围感知筛选器）
 
 **Files:**
-- Create: `ycmn-backend/src/main/java/com/ycmn/module/common/controller/ScopeController.java`
-- Create: `ycmn-backend/src/main/java/com/ycmn/module/common/service/ScopeService.java`
-- Test: `ycmn-backend/src/test/java/com/ycmn/common/scope/ScopeServiceTest.java`
+- Create: `aigicrm-backend/src/main/java/com/aigicrm/module/common/controller/ScopeController.java`
+- Create: `aigicrm-backend/src/main/java/com/aigicrm/module/common/service/ScopeService.java`
+- Test: `aigicrm-backend/src/test/java/com/aigicrm/common/scope/ScopeServiceTest.java`
 
 **Interfaces:**
 - Consumes: `OrgScopeResolver`（resolve + resolveVisibleDeptIds）
@@ -581,14 +581,14 @@ git commit -m "feat(perm): 租户插件白名单配置（集团隔离）"
 - [ ] **Step 1: 写失败测试**
 
 ```java
-package com.ycmn.common.scope;
+package com.aigicrm.common.scope;
 
-import com.ycmn.module.common.service.ScopeService;
-import com.ycmn.module.system.entity.SysDept;
-import com.ycmn.module.system.entity.SysUser;
-import com.ycmn.module.system.mapper.SysDeptMapper;
-import com.ycmn.module.system.mapper.SysUserMapper;
-import com.ycmn.security.SecurityUser;
+import com.aigicrm.module.common.service.ScopeService;
+import com.aigicrm.module.system.entity.SysDept;
+import com.aigicrm.module.system.entity.SysUser;
+import com.aigicrm.module.system.mapper.SysDeptMapper;
+import com.aigicrm.module.system.mapper.SysUserMapper;
+import com.aigicrm.security.SecurityUser;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
@@ -628,14 +628,14 @@ Expected: FAIL（类不存在）
 
 ```java
 // module/common/service/ScopeService.java
-package com.ycmn.module.common.service;
+package com.aigicrm.module.common.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.ycmn.common.scope.OrgScopeResolver;
-import com.ycmn.module.system.entity.SysUser;
-import com.ycmn.module.system.mapper.SysUserMapper;
-import com.ycmn.security.SecurityUser;
-import com.ycmn.security.SecurityUtils;
+import com.aigicrm.common.scope.OrgScopeResolver;
+import com.aigicrm.module.system.entity.SysUser;
+import com.aigicrm.module.system.mapper.SysUserMapper;
+import com.aigicrm.security.SecurityUser;
+import com.aigicrm.security.SecurityUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -679,11 +679,11 @@ public class ScopeService {
 
 ```java
 // module/common/controller/ScopeController.java
-package com.ycmn.module.common.controller;
+package com.aigicrm.module.common.controller;
 
-import com.ycmn.common.Result;
-import com.ycmn.module.common.service.ScopeService;
-import com.ycmn.security.SecurityUtils;
+import com.aigicrm.common.Result;
+import com.aigicrm.module.common.service.ScopeService;
+import com.aigicrm.security.SecurityUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
@@ -726,7 +726,7 @@ Expected: 全量单测通过（106+ 新增）
 - [ ] **Step 6: 提交**
 
 ```bash
-git add ycmn-backend/src/main/java/com/ycmn/module/common ycmn-backend/src/test/java/com/ycmn/common/scope/ScopeServiceTest.java
+git add aigicrm-backend/src/main/java/com/aigicrm/module/common aigicrm-backend/src/test/java/com/aigicrm/common/scope/ScopeServiceTest.java
 git commit -m "feat(perm): 公共 scope 接口（范围感知筛选器）"
 ```
 
@@ -811,7 +811,7 @@ git commit -m "feat(perm): 权限码补齐（share/export/import/incentive:add�
 ### Task 7: 角色管理页数据范围级别下拉
 
 **Files:**
-- Modify: `ycmn-ui/src/views/system/role.vue`（表单 + 列表列）
+- Modify: `aigicrm-ui/src/views/system/role.vue`（表单 + 列表列）
 - 后端无需改：sys_role.data_scope 字段已存在，updateRole 已接收（验证即可）
 
 **Interfaces:**
@@ -849,12 +849,12 @@ const scopeLabel = s => scopeMap[s] || s || '仅本人'
 
 - [ ] **Step 3: 本地构建 + 测试环境部署验证**
 
-Run: `cd ycmn-ui && npm run build` → docker cp 进测试容器 → admin 登录角色页：改销售员角色数据范围为 team → 保存 → 重进确认回显。
+Run: `cd aigicrm-ui && npm run build` → docker cp 进测试容器 → admin 登录角色页：改销售员角色数据范围为 team → 保存 → 重进确认回显。
 
 - [ ] **Step 4: 提交**
 
 ```bash
-git add ycmn-ui/src/views/system/role.vue
+git add aigicrm-ui/src/views/system/role.vue
 git commit -m "feat(perm): 角色管理页数据范围级别下拉"
 ```
 
@@ -863,7 +863,7 @@ git commit -m "feat(perm): 角色管理页数据范围级别下拉"
 ### Task 8: 人员管理页 manager_id + 用户数据范围
 
 **Files:**
-- Modify: `ycmn-ui/src/views/system/user.vue`（表单 + 列表列）
+- Modify: `aigicrm-ui/src/views/system/user.vue`（表单 + 列表列）
 - Modify: 后端用户详情/保存 DTO（SysUser 实体已含 managerId；验证 UserController updateUser 是否透传 managerId）
 
 **Interfaces:**
@@ -920,7 +920,7 @@ Run: 后端 mvn 构建 → scp 测试服 → docker build；前端 build → doc
 - [ ] **Step 5: 提交**
 
 ```bash
-git add ycmn-ui/src/views/system/user.vue sql/migration-20260805-user-override.sql ycmn-backend/src/main/java/com/ycmn/security/UserDetailsServiceImpl.java
+git add aigicrm-ui/src/views/system/user.vue sql/migration-20260805-user-override.sql aigicrm-backend/src/main/java/com/aigicrm/security/UserDetailsServiceImpl.java
 git commit -m "feat(perm): 人员管理 manager_id + 用户数据范围覆盖"
 ```
 
@@ -929,8 +929,8 @@ git commit -m "feat(perm): 人员管理 manager_id + 用户数据范围覆盖"
 ### Task 9: 激励 PUT 越权修复（P2）
 
 **Files:**
-- Modify: `ycmn-backend/src/main/java/com/ycmn/module/incentive/controller/IncentiveController.java`（updateRecord）
-- Test: `ycmn-backend/src/test/java/com/ycmn/module/incentive/controller/IncentiveControllerPermissionTest.java`
+- Modify: `aigicrm-backend/src/main/java/com/aigicrm/module/incentive/controller/IncentiveController.java`（updateRecord）
+- Test: `aigicrm-backend/src/test/java/com/aigicrm/module/incentive/controller/IncentiveControllerPermissionTest.java`
 
 **Interfaces:**
 - Consumes: `DataScopeGuard`、`SecurityUtils`、`IncentiveService.getRecordById`
@@ -939,12 +939,12 @@ git commit -m "feat(perm): 人员管理 manager_id + 用户数据范围覆盖"
 - [ ] **Step 1: 写越权测试（MockMvc 或 controller 直测）**
 
 ```java
-package com.ycmn.module.incentive.controller;
+package com.aigicrm.module.incentive.controller;
 
-import com.ycmn.module.incentive.entity.BizIncentiveRecord;
-import com.ycmn.module.incentive.service.IncentiveService;
-import com.ycmn.security.SecurityUtils;
-import com.ycmn.security.SecurityUser;
+import com.aigicrm.module.incentive.entity.BizIncentiveRecord;
+import com.aigicrm.module.incentive.service.IncentiveService;
+import com.aigicrm.security.SecurityUtils;
+import com.aigicrm.security.SecurityUser;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -1012,7 +1012,7 @@ Run: 单测 PASS → 构建部署测试服 → wangleilei（无授权）PUT 他�
 - [ ] **Step 5: 提交**
 
 ```bash
-git add ycmn-backend/src/main/java/com/ycmn/module/incentive/controller/IncentiveController.java ycmn-backend/src/test/java/com/ycmn/module/incentive/controller/IncentiveControllerPermissionTest.java
+git add aigicrm-backend/src/main/java/com/aigicrm/module/incentive/controller/IncentiveController.java aigicrm-backend/src/test/java/com/aigicrm/module/incentive/controller/IncentiveControllerPermissionTest.java
 git commit -m "fix(perm): 激励 PUT 越权修复（归属校验对齐 DELETE）"
 ```
 
@@ -1021,7 +1021,7 @@ git commit -m "fix(perm): 激励 PUT 越权修复（归属校验对齐 DELETE）
 ### Task 10: 组织管理页 deptType 强化
 
 **Files:**
-- Modify: `ycmn-ui/src/views/system/dept.vue`（新建/编辑表单）
+- Modify: `aigicrm-ui/src/views/system/dept.vue`（新建/编辑表单）
 - 后端：SysDept 实体已有 deptType 字段；验证 SysDeptController 保存透传
 
 **Interfaces:**
@@ -1060,7 +1060,7 @@ Run: 前端 build → docker cp → 建测试组织（选类型）→ 保存 →
 - [ ] **Step 4: 提交**
 
 ```bash
-git add ycmn-ui/src/views/system/dept.vue
+git add aigicrm-ui/src/views/system/dept.vue
 git commit -m "feat(perm): 组织管理页 deptType 必选+层级校验"
 ```
 
@@ -1107,7 +1107,7 @@ echo "== 完成 =="
 
 - [ ] **Step 3: 测试环境运行验证**
 
-Run: `scripts/check-permission-data.sh 111.229.37.220 ycmn ycmn_pwd ycmn`
+Run: `scripts/check-permission-data.sh 111.229.37.220 aigicrm aigicrm_pwd aigicrm`
 Expected: 输出各计数；比对已知现状（deptType 空值 = 待盘点数）
 
 - [ ] **Step 4: 提交**

@@ -1,4 +1,4 @@
-# YCMN 权限码字典(自动生成)
+# AIGICRM 权限码字典(自动生成)
 
 > 生成时间: 2026-08-15 | 来源: 生产 sys_menu + sys_role_menu
 > 本文件由 scripts/gen-permission-dict.sh 自动生成,**禁止手改**;权限变更后重新运行。
@@ -16,7 +16,7 @@
 | `customer:edit` | 客户编辑 | 3 | `` | 系统管理员,行政,销售员,销售总监 |
 | `customer:export` | 客户导出 | 3 | `` | 系统管理员,行政,销售员,销售总监 |
 | `customer:import` | 客户导入 | 3 | `NULL` | 系统管理员,销售员,销售总监 |
-| `customer:share` | 客户分享 | 3 | `` | 系统管理员,行政,销售员,销售总监 |
+| `customer:share` | 客户分享（兼容历史项，当前沿用客户访问/编辑守卫） | 3 | `` | 不作为独立运行时授权 |
 | `customer:view` | 客户列表 / 客户管理 / 客户详情 | 2 | `/customer / /customer/detail/:id` | 系统管理员,行政,销售员,销售总监 |
 | `dashboard:view` | 工作台 | 2 | `/dashboard` | 系统管理员,行政,销售员,销售总监 |
 | `file:acl:manage` | 文件ACL管理 | 3 | `NULL` | 系统管理员 |
@@ -27,7 +27,7 @@
 | `file:upload` | 文件上传 | 3 | `` | 系统管理员,行政,销售员,销售总监 |
 | `file:view` | 文件管理 | 2 | `/file` | 系统管理员,行政,销售员,销售总监 |
 | `incentive:add` | 激励上传 | 2 | `/incentive` | 系统管理员,行政,销售员,销售总监 |
-| `incentive:delete` | 激励删除 | 2 | `NULL` | 系统管理员,销售总监 |
+| `incentive:delete` | 激励删除（兼容历史项，当前由授权表与服务范围控制） | 2 | `NULL` | 不作为独立运行时授权 |
 | `incentive:edit` | 激励编辑 | 2 | `NULL` | 系统管理员,销售总监 |
 | `incentive:manage` | ~~激励管理(他人记录)~~ 已废弃 | 3 | `NULL` | ~~系统管理员,销售总监~~ → 改由授权表 biz_incentive_grant.can_edit/can_delete 按人勾选（2026-08-16） |
 | `incentive:view` | 四项激励 / 激励查询 / 激励统计 | 2 | `/incentive / /incentive/search / /incentive/stats` | 系统管理员,行政,销售员,销售总监 |
@@ -36,15 +36,15 @@
 | `reminder:view` | 提醒管理 | 2 | `/reminder` | 系统管理员,行政,销售员,销售总监 |
 | `score:entry` | 积分录入 | 2 | `/score/entry` | 系统管理员,行政,销售总监 |
 | `score:manage` | 积分管理 | 3 | `NULL` | 系统管理员,销售总监 |
-| `score:ranking` | 积分排行 | 2 | `/score/ranking` | 系统管理员,行政,销售员,销售总监 |
+| `score:ranking` | 积分排行（兼容历史项，当前统一使用 `score:view`） | 2 | `/score/ranking` | 不作为独立运行时授权 |
 | `score:view` | 积分查看 | 2 | `NULL` | 系统管理员,行政,销售员,销售总监 |
 | `sea:claim` | 公海捞取 | 3 | `` | 系统管理员,行政,销售员,销售总监 |
 | `sea:config:edit` | 公海配置编辑 | 3 | `NULL` | 系统管理员,销售总监 |
 | `sea:config:view` | 公海配置查看 | 3 | `NULL` | 系统管理员,行政,销售总监 |
 | `sea:import` | 公海导入 | 3 | `` | 系统管理员,行政,销售总监 |
-| `sea:pool:delete` | 公海删除 | 3 | `` | 系统管理员,销售员,销售总监 |
+| `sea:pool:delete` | 公海删除（兼容历史项，当前由池级服务范围控制） | 3 | `` | 不作为独立运行时授权 |
 | `sea:view` | 公海池 / 公海管理 / 捞取记录 | 2 | `/sea / /sea/records` | 系统管理员,行政,销售员,销售总监 |
-| `statistics:scoreboard` | 积分榜 | 2 | `/scoreboard` | 系统管理员,行政 |
+| `statistics:scoreboard` | 积分榜（兼容历史项，当前统一使用 `score:view`） | 2 | `/scoreboard` | 不作为独立运行时授权 |
 | `statistics:view` | 核心客户六项指标 / 统计分析 | 2 | `/indicator / /statistics` | 系统管理员,销售员,销售总监 |
 | `system:config:edit` | 系统配置编辑 | 3 | `NULL` | 系统管理员,销售总监 |
 | `system:config:view` | 基础数据-字典 / 系统设置 | 2 | `/system/config / NULL` | 系统管理员,行政,销售总监 |
@@ -55,7 +55,7 @@
 | `system:group:edit` | 集团编辑 | 3 | `NULL` | 系统管理员 |
 | `system:group:view` | 集团管理 | 2 | `/system/group` | 系统管理员 |
 | `system:log:view` | 日志管理 | 2 | `/system/log` | 系统管理员,销售总监 |
-| `system:menu:edit` | 菜单编辑 | 3 | `NULL` | 系统管理员,销售总监 |
+| `system:menu:edit` | 历史残留（菜单维护端点已移除，当前不可用） | 3 | `NULL` | 不作为运行时授权 |
 | `system:menu:view` | 菜单查看 | 3 | `NULL` | 系统管理员,销售总监 |
 | `system:org:admin` | 组织管理员 | 3 | `NULL` | 系统管理员,销售总监 |
 | `system:position:add` | 岗位新增 | 3 | `NULL` | 系统管理员 |
@@ -145,4 +145,3 @@
 | `system:user:delete` |   |   | ✅ |   |   | ✅ |
 | `system:user:edit` |   |   | ✅ | ✅ |   | ✅ |
 | `system:user:view` |   |   | ✅ | ✅ |   | ✅ |
-

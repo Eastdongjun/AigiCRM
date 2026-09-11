@@ -11,7 +11,7 @@
 - 对照:incentive/search.vue、incentive/customer.vue 均含 parseId() 且正常
 
 ## 范围
-- ycmn-ui/src/views/customer/detail.vue:增加 parseId() 并在 getFiles() 中对 file_pre/mid/post_id 与 file_id 应用
+- aigicrm-ui/src/views/customer/detail.vue:增加 parseId() 并在 getFiles() 中对 file_pre/mid/post_id 与 file_id 应用
 - 前端构建、部署测试环境(111.229.37.220)、浏览器回归验证
 
 ## 不在范围

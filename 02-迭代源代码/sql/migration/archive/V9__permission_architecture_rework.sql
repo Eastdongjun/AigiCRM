@@ -42,4 +42,4 @@ ALTER TABLE role_perm_scope ADD UNIQUE KEY uk_assignee_ma (assignee_type, assign
 -- 3. 验证
 -- ============================================================
 SELECT CONCAT('tenant_cols=', COUNT(*)) FROM information_schema.COLUMNS
-  WHERE TABLE_SCHEMA='ycmn' AND COLUMN_NAME='tenant_id' AND TABLE_NAME LIKE 'biz\_%' AND TABLE_NAME NOT LIKE '%\_bak\_%';
+  WHERE TABLE_SCHEMA='aigicrm' AND COLUMN_NAME='tenant_id' AND TABLE_NAME LIKE 'biz\_%' AND TABLE_NAME NOT LIKE '%\_bak\_%';

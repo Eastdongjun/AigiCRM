@@ -7,9 +7,9 @@
 
 ## 发布顺序（每环境都按此执行）
 
-1. **备份**：`mysqldump --single-transaction ycmn > backup-pre-wave-a-$(date +%Y%m%d-%H%M).sql`
+1. **备份**：`mysqldump --single-transaction aigicrm > backup-pre-wave-a-$(date +%Y%m%d-%H%M).sql`
    （或至少 dump 5 表：sys_menu / sys_role / sys_role_menu / sys_user_role / biz_incentive_permission）
-2. **执行 M1**：`mysql -uroot -p ycmn < sql/migration/20260814/rbac-convergence-m1.sql`
+2. **执行 M1**：`mysql -uroot -p aigicrm < sql/migration/20260814/rbac-convergence-m1.sql`
    （幂等，可重复执行；两轮执行第二轮应仅输出守卫 `SELECT 1`）
 3. **执行 M1 验证查询**（脚本末尾验证段）：
    - 4 个新权限码存在（incentive:manage/view-all/view-shared/file:acl:manage）
@@ -20,7 +20,7 @@
    - pwd_reset_required=1 名单 = 仍在使用默认口令哈希的账号
 4. **部署后端 jar**（常规流程）+ **前端 dist**
 5. **冒烟**：登录/注销/改密/激励列表/客户编辑五条链路 + 权限三链验证
-6. **回滚**：`mysql ycmn < sql/migration/20260814/rbac-convergence-m1-rollback.sql` + 回滚 jar
+6. **回滚**：`mysql aigicrm < sql/migration/20260814/rbac-convergence-m1-rollback.sql` + 回滚 jar
 
 ## 已知部署影响（用户可见）
 

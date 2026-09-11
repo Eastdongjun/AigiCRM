@@ -33,9 +33,9 @@
 ## 验证命令
 ```bash
 # 后端
-cd ycmn-backend && mvn test
+cd aigicrm-backend && mvn test
 # 前端
-cd ycmn-ui && npm run build
+cd aigicrm-ui && npm run build
 # 回归
 scripts/smoke-test.sh prod
 ```

@@ -7,10 +7,10 @@
 | 层 | 涉及项 | 核对结果 |
 |---|---|---|
 | 数据库 | biz_incentive_record(57 修正)、biz_file(159/160 删除) | 一次性数据修正,无迁移脚本 |
-| 后端 | FileService.upload(写盘回读校验);新增 logback-spring.xml | ycmn-backend 源码 |
-| 部署 | compose 外部卷、deploy-backend.sh 挂载日志卷 | 服务器 /root/ycmn + 本地 04-源码/scripts |
-| 运维 | ycmn-daily-backup.sh(新卷+巡检) | 服务器 /usr/local/bin |
-| 网关 | nginx-ssl.conf(安全头+图标) | 服务器 /root/ycmn/nginx-ssl.conf |
+| 后端 | FileService.upload(写盘回读校验);新增 logback-spring.xml | aigicrm-backend 源码 |
+| 部署 | compose 外部卷、deploy-backend.sh 挂载日志卷 | 服务器 /root/aigicrm + 本地 04-源码/scripts |
+| 运维 | aigicrm-daily-backup.sh(新卷+巡检) | 服务器 /usr/local/bin |
+| 网关 | nginx-ssl.conf(安全头+图标) | 服务器 /root/aigicrm/nginx-ssl.conf |
 | 环境 | /tmp 测试残留 | 服务器 |
 
 ### 隐藏入口检查
@@ -23,10 +23,10 @@
 ## 架构与关键决策
 
 1. **卷统一方式**:compose 顶层 volumes 改为外部卷(`external: true, name: upload-data`)。
-   理由:新卷 upload-data 已含全部运行数据;旧卷 ycmn_upload-data 保留不动(含历史 45 文件,不删除)。
-   备选(脚本改用 ycmn_upload-data)拒绝:旧卷数据不完整。
+   理由:新卷 upload-data 已含全部运行数据;旧卷 aigicrm_upload-data 保留不动(含历史 45 文件,不删除)。
+   备选(脚本改用 aigicrm_upload-data)拒绝:旧卷数据不完整。
 2. **日志持久化方式**:logback-spring.xml 滚动文件输出 `/app/logs/app.log`(10MB×5) + 部署脚本
-   `-v ycmn-logs:/app/logs`。备选(docker json-file + 部署前 docker logs 导出)拒绝:运行期不可查,仍依赖部署动作。
+   `-v aigicrm-logs:/app/logs`。备选(docker json-file + 部署前 docker logs 导出)拒绝:运行期不可查,仍依赖部署动作。
 3. **上传校验实现**:本地存储分支 `Files.copy` 后 `Files.size(filePath) != file.getSize()` 则
    `Files.deleteIfExists(filePath)` 并抛 BusinessException(不插库、不占用存储)。
    OSS 分支保持(生产 STORAGE_TYPE=local,OSS 分支不触发)。
@@ -88,10 +88,10 @@
 
 ## 回滚
 
-- 备份脚本:保留旧版副本 ycmn-daily-backup.sh.bak-YYYYMMDD
+- 备份脚本:保留旧版副本 aigicrm-daily-backup.sh.bak-YYYYMMDD
 - compose:保留 docker-compose.yml.bak-YYYYMMDD
 - nginx:保留 nginx-ssl.conf.bak-YYYYMMDD;`nginx -s reload` 回滚后再次 reload
-- DB:记录 57 修正前导出该行 SQL;159/160 删除前备份文件到 /root/ycmn/backup-testfiles-20260804/
+- DB:记录 57 修正前导出该行 SQL;159/160 删除前备份文件到 /root/aigicrm/backup-testfiles-20260804/
 - 后端:回滚旧 jar(部署脚本 rollback.sh / 备份 jar 路径已有)
 
 ## 风险与盲区

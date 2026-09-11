@@ -10,7 +10,7 @@
 
 - NM005（王磊磊，销售员 06，role_id=11）打开 `/customer/add` 实测弹「没有访问权限」，3 个 API 403（depts / dict/data/industry / dict/data/dev_type）。
 - 后端 `SysDictController`/`SysDeptController` 的 GET 只读接口要求 `system:config:view` / `system:dept:view`；生产库实测行政(05)、销售员(06) 未绑定这两个权限码，admin、销售总监(0) 已绑定（来源：生产库 sys_role_menu 查询，2026-08-04）。
-- 前端 `getDepts/getDictData` 被 7 个业务页面调用（来源：ycmn-ui/src 源码 grep）。
+- 前端 `getDepts/getDictData` 被 7 个业务页面调用（来源：aigicrm-ui/src 源码 grep）。
 - 用户已确认修复方案 B：后端只读接口放宽为登录即可读（`isAuthenticated()`）。
 
 ## 假设

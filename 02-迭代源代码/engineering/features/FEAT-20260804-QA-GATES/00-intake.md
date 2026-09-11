@@ -8,7 +8,7 @@
 - 本次 6 类问题全部靠人工发现
 
 ## 范围
-1. scripts/check-frontend-quality.sh:扫描 ycmn-ui/src 反模式(size:9999/createObjectURL无revoke/progress无节流)+ nginx 配置检查(add_header继承/gzip)
+1. scripts/check-frontend-quality.sh:扫描 aigicrm-ui/src 反模式(size:9999/createObjectURL无revoke/progress无节流)+ nginx 配置检查(add_header继承/gzip)
 2. scripts/check-prod-perf.sh:生产验证(gzip/安全头/no-cache/耗时)
 3. pre-delivery-check.sh 接入(本地扫描必跑)
 

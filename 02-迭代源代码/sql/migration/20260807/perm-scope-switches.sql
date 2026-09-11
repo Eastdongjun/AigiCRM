@@ -3,7 +3,7 @@
 -- 两个开关控制"直接上级默认看递归下属链 / 组织负责人默认看本组织整棵子树"。
 -- 后端 getBooleanValue 对缺失键默认返回 true（默认开启），此处显式插入 'true'
 -- 便于运维可见、前端设置页显示一致。回滚：两行值改 'false' 或删行即可（秒级生效）。
--- 执行需带库名：mysql -uroot -p ycmn < perm-scope-switches.sql
+-- 执行需带库名：mysql -uroot -p aigicrm < perm-scope-switches.sql
 -- ============================================================
 
 INSERT INTO sys_config (config_key, config_value, description)

@@ -31,7 +31,7 @@
 | 冒烟验证 | `scripts/smoke-test.sh prod` |
 | 交付门禁 | `scripts/verify-delivery.sh` |
 | 恢复备份 | NAS `/Aigicrm/files/backup/daily/` 或 `20260801`/`20260802-pre-deploy` |
-| 查看日志 | 生产 `docker logs ycmn-backend --tail 200` |
+| 查看日志 | 生产 `docker logs aigicrm-backend --tail 200` |
 | 健康日报 | NAS `backup/daily/<日期>/report.md` |
 
 ## 四、复盘七问(事故后必须回答)

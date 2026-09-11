@@ -10,7 +10,7 @@
 - 2026-08-01 测试环境实测复现:点击阶段文件打开 `/api/file/download/[149,165]` 与 `/api/file/download/[152]`,均 HTTP 400
 - 根因:customer/detail.vue:477 previewIncentiveFile() 直接拼接 getFiles() 产出的原始 id;getFiles()(约 488 行)未做 parseId
 - 对照:incentive/search.vue、incentive/customer.vue 均有 parseId() 且 getFiles() 已应用,功能正常
-- 测试环境:http://111.229.37.220(admin 会话),部署方式:前端构建 → docker cp → restart ycmn-frontend
+- 测试环境:http://111.229.37.220(admin 会话),部署方式:前端构建 → docker cp → restart aigicrm-frontend
 
 ## 假设
 - 多文件阶段点击后打开第一个文件(parseId 返回 a[0]),与激励查询页既有行为一致

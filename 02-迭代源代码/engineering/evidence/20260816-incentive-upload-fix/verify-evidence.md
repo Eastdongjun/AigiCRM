@@ -7,7 +7,7 @@
 标准链重建的库上传全员 403。另有 addRecord 零校验、updateRecord 归属客户可被本人改挂两个问题。
 
 ## 修复内容
-1. `ycmn-backend/src/main/resources/db/migration/V17__bind_permission_codes_to_roles.sql`
+1. `aigicrm-backend/src/main/resources/db/migration/V17__bind_permission_codes_to_roles.sql`
    - incentive:add → 角色 1/9/10/11；file:acl:manage → 1；sea:import → 1/9/10（幂等 NOT EXISTS + uk_role_menu）
 2. `IncentiveService.addRecord` 增校验：分类/客户必填且存在、至少一个文件槽、文件引用存在且属于当前用户
 3. `IncentiveService.updateRecord`：归属客户 customerId 仅 admin/incentive:manage 可变更，本人传不同值 403
@@ -18,7 +18,7 @@
 ### 编译与单测
 - `mvn -q compile` → exit 0（JDK 21）
 - `mvn -q test -Dtest=IncentiveUploadValidationTest` → 10/10 通过
-- `mvn -q test -Dtest='com.ycmn.module.incentive.**'` → 激励模块全绿
+- `mvn -q test -Dtest='com.aigicrm.module.incentive.**'` → 激励模块全绿
 - 后端全量 `mvn test` → **Tests run: 423, Failures: 0, Errors: 0**（BUILD SUCCESS）
 
 ### 项目门禁 verify.sh（2026-08-16）
@@ -48,11 +48,11 @@
 - 负向 4 场景全部 400 + 精确提示：缺客户/缺分类/无文件/伪造他人文件（含新增校验生效证据）
 - 实测数据已清理（记录 83、文件 205 删除）
 ### 2. 权限隔离测试（此前跳过项）
-- 创建冒烟销售账号 smoke_sales（测试+生产，随机强口令存 ~/.ycmn-deploy.env）
+- 创建冒烟销售账号 smoke_sales（测试+生产，随机强口令存 ~/.aigicrm-deploy.env）
 - 发现并修复测试库数据污染：销售员(11)误绑 system:user:view/add/edit/delete（menu 31/49/50/91，来源非仓库脚本，无重放风险）——备份 backup-role-menu-test-*.sql 后解绑；生产矩阵本就正确无需修
 - 测试冒烟 21/21、生产冒烟 21/21（含"权限隔离: smoke_sales users 403"）
 - 销售员 updateRecord 越权实测：改他人记录 403"无权编辑他人记录"；本人改自己记录归属客户 403"无权修改记录归属客户"；本人上传 200
 ### 3. 生产 114 菜单清理（用户批准）
-- 备份 /root/ycmn/backup-menu-20260816-pre-clean.sql（sys_menu+sys_role_menu）
+- 备份 /root/aigicrm/backup-menu-20260816-pre-clean.sql（sys_menu+sys_role_menu）
 - 五项安全核查全过 → 执行 fix-duplicate-sidebar-menus.sql（114 已是 type=3 幂等；115/116/118/119 解绑+停用）
 - 执行后验证：115-119 status=0、path 重复=0、菜单树 24 path 零重复、生产冒烟 21/21

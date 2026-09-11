@@ -8,15 +8,15 @@ source "$SCRIPT_DIR/deploy-lib.sh"
 TARGET="${1:-all}"
 TS="${2:-latest}"
 # 应用最小权限 DB 账号必须存在（N1-B：应用不用 root 连库）
-[ -n "${APP_DB_USER:-}" ] && [ -n "${APP_DB_PASSWORD:-}" ] || { echo "错误: 缺少 APP_DB_USER/APP_DB_PASSWORD（请在 ~/.ycmn-deploy.env 配置）" >&2; exit 1; }
+[ -n "${APP_DB_USER:-}" ] && [ -n "${APP_DB_PASSWORD:-}" ] || { echo "错误: 缺少 APP_DB_USER/APP_DB_PASSWORD（请在部署 env 配置）" >&2; exit 1; }
 
 rollback_db() {
   echo "=== 回滚数据库 (从 NAS 备份) ==="
   ssh_prod "
-    latest=\$(ls -t $NAS_BACKUP_DIR/daily/*/ycmn-db-*.sql 2>/dev/null | head -1)
+    latest=\$(ls -t $NAS_BACKUP_DIR/daily/*/${APP_SLUG}-db-*.sql $NAS_BACKUP_DIR/daily/*/aigicrm-db-*.sql 2>/dev/null | head -1)
     [ -z \"\$latest\" ] && { echo '❌ 无可用数据库备份'; exit 1; }
     echo \"使用备份: \$latest\"
-    docker exec -i ycmn-mysql mysql -uroot -p"$DB_PASSWORD" --default-character-set=utf8mb4 < \"\$latest\"
+    docker exec -i ${APP_SLUG}-mysql mysql -uroot -p"$DB_PASSWORD" --default-character-set=utf8mb4 $DB_NAME < \"\$latest\"
     echo '数据库已恢复'
   "
 }
@@ -35,14 +35,14 @@ rollback_frontend() {
 rollback_backend() {
   echo "=== 回滚后端 (旧 jar 从 NAS 备份恢复) ==="
   ssh_prod "
-    jar=\$(ls -t $NAS_BACKUP_DIR/ycmn-backend-jar-*.jar 2>/dev/null | head -1)
+    jar=\$(ls -t $NAS_BACKUP_DIR/${APP_SLUG}-backend-jar-*.jar $NAS_BACKUP_DIR/aigicrm-backend-jar-*.jar 2>/dev/null | head -1)
     [ -z \"\$jar\" ] && { echo '❌ 无可用 jar 备份'; exit 1; }
-    cp \$jar /root/ycmn/ycmn-backend-1.0.0.jar
-    cd /root/ycmn && docker build -q -t ycmn-backend:2.7.0 -f Dockerfile-run .
-    docker stop ycmn-backend && docker rm ycmn-backend
-    docker run -d --name ycmn-backend --network ycmn_default --restart always \
+    cp \$jar $DEPLOY_DIR/app.jar
+    cd $DEPLOY_DIR && docker build -q -t ${APP_SLUG}-backend:2.7.0 -f Dockerfile-run .
+    docker stop ${APP_SLUG}-backend && docker rm ${APP_SLUG}-backend
+    docker run -d --name ${APP_SLUG}-backend --network ${APP_SLUG}_default --restart always \
       -p 127.0.0.1:8080:8080 \
-      -e DB_HOST=mysql -e DB_PORT=3306 -e DB_USER="$APP_DB_USER" -e DB_PASSWORD="$APP_DB_PASSWORD" \
+      -e DB_HOST=mysql -e DB_PORT=3306 -e DB_NAME="$DB_NAME" -e DB_USER="$APP_DB_USER" -e DB_PASSWORD="$APP_DB_PASSWORD" \
       -e REDIS_HOST=redis -e REDIS_PORT=6379 \
       -e SPRING_PROFILES_ACTIVE=prod \
       -e UPLOAD_DIR=/app/uploads -e STORAGE_TYPE=local -e TZ=Asia/Shanghai \
@@ -51,7 +51,7 @@ rollback_backend() {
       -e CORS_ORIGINS=https://www.aigicrm.com,http://localhost:5173,http://localhost:3000 \
       -e JWT_SECRET="$JWT_SECRET" \
       -v /Aigicrm/files/uploads:/app/uploads \
-      ycmn-backend:2.7.0
+      ${APP_SLUG}-backend:2.7.0
     echo '后端容器已重建'
   "
 }
@@ -69,7 +69,7 @@ case "$TARGET" in
 esac
 
 echo "=== 回滚后健康检查 ==="
-until ssh_prod "docker logs ycmn-backend 2>&1 | grep -q 'Started YcmnApplication'" 2>/dev/null; do
+until ssh_prod "docker logs ${APP_SLUG}-backend 2>&1 | grep -q 'Started AigicrmApplication'" 2>/dev/null; do
   echo "  等待后端启动..."; sleep 8
 done
 check_health

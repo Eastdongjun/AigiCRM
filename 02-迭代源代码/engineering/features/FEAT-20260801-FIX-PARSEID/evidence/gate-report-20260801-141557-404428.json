@@ -11,14 +11,14 @@
         "npm",
         "test",
         "--prefix",
-        "ycmn-ui"
+        "aigicrm-ui"
       ],
       "required": true,
       "started_at": "2026-08-01T14:15:56+08:00",
       "finished_at": "2026-08-01T14:15:56+08:00",
       "returncode": 0,
       "timed_out": false,
-      "output_tail": "\n> ycmn-ui@0.0.0 test\n> vitest run\n\n\n RUN  v4.1.10 /Users/donglai/东来/01-Projects/01-aigicrm/04-源码/ycmn-ui\n\n(node:61176) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.\n(Use `node --trace-warnings ...` to show where the warning was created)\n(node:61175) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.\n(Use `node --trace-warnings ...` to show where the warning was created)\n\n Test Files  2 passed (2)\n      Tests  8 passed (8)\n   Start at  14:15:56\n   Duration  326ms (transform 27ms, setup 15ms, import 45ms, tests 4ms, environment 442ms)\n\n"
+      "output_tail": "\n> aigicrm-ui@0.0.0 test\n> vitest run\n\n\n RUN  v4.1.10 /Users/donglai/东来/01-Projects/01-aigicrm/04-源码/aigicrm-ui\n\n(node:61176) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.\n(Use `node --trace-warnings ...` to show where the warning was created)\n(node:61175) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.\n(Use `node --trace-warnings ...` to show where the warning was created)\n\n Test Files  2 passed (2)\n      Tests  8 passed (8)\n   Start at  14:15:56\n   Duration  326ms (transform 27ms, setup 15ms, import 45ms, tests 4ms, environment 442ms)\n\n"
     },
     {
       "kind": "build",
@@ -27,7 +27,7 @@
         "run",
         "build",
         "--prefix",
-        "ycmn-ui"
+        "aigicrm-ui"
       ],
       "required": true,
       "started_at": "2026-08-01T14:15:56+08:00",

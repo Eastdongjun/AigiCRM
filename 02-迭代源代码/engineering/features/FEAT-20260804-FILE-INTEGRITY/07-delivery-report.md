@@ -21,13 +21,13 @@
 
 | 位置 | 变更 |
 |---|---|
-| 生产 /usr/local/bin/ycmn-daily-backup.sh | 备份路径→新卷;新增完整性巡检;旧版备份 .bak-20260804 |
-| 生产 /root/ycmn/docker-compose.yml | upload-data 外部卷;备份 .bak-20260804 |
-| 生产 /root/ycmn/nginx-ssl.conf | 安全头+图标;备份 .bak-20260804;本地 04-源码/nginx/ 已同步 |
+| 生产 /usr/local/bin/aigicrm-daily-backup.sh | 备份路径→新卷;新增完整性巡检;旧版备份 .bak-20260804 |
+| 生产 /root/aigicrm/docker-compose.yml | upload-data 外部卷;备份 .bak-20260804 |
+| 生产 /root/aigicrm/nginx-ssl.conf | 安全头+图标;备份 .bak-20260804;本地 04-源码/nginx/ 已同步 |
 | 后端源码 FileService.java | 上传落盘回读校验 |
 | 后端源码 logback-spring.xml(新增) | 文件日志 /app/logs/app.log |
-| 部署脚本 scripts/deploy-backend.sh | -v ycmn-logs:/app/logs;服务器已同步 |
-| 生产 DB | 记录 57 file_pre_id→[162];biz_file 159/160 删除;备份在 /root/ycmn/backup-testfiles-20260804/ |
+| 部署脚本 scripts/deploy-backend.sh | -v aigicrm-logs:/app/logs;服务器已同步 |
+| 生产 DB | 记录 57 file_pre_id→[162];biz_file 159/160 删除;备份在 /root/aigicrm/backup-testfiles-20260804/ |
 
 ## 安装与启动
 
@@ -52,18 +52,18 @@
 
 ## 回滚与恢复
 
-- 后端:NAS 备份 jar(/Aigicrm/files/backup/ycmn-backend-jar-20260803-234124.jar 等)+ rollback.sh
+- 后端:NAS 备份 jar(/Aigicrm/files/backup/aigicrm-backend-jar-20260803-234124.jar 等)+ rollback.sh
 - nginx:恢复 nginx-ssl.conf.bak-20260804 + reload
 - compose:恢复 docker-compose.yml.bak-20260804
-- 备份脚本:恢复 ycmn-daily-backup.sh.bak-20260804
-- DB:记录 57 原行与测试文件在 /root/ycmn/backup-testfiles-20260804/
+- 备份脚本:恢复 aigicrm-daily-backup.sh.bak-20260804
+- DB:记录 57 原行与测试文件在 /root/aigicrm/backup-testfiles-20260804/
 - 回滚后验证:登录 API 200 + 首页 200
 
 ## 已知限制与残余风险
 
 1. 2026-08-03 晚 7 个文件丢失根因未查明(所有代码/脚本/配置路径已排除;以落盘校验+日志持久化+巡检兜底,复现即可定位)
 2. TY101 需重新上传 7 个激励文件(备份不含,不可恢复);重传后备份巡检"缺失 7"归零
-3. 旧卷 ycmn_upload-data 保留(45 历史文件),未删除
+3. 旧卷 aigicrm_upload-data 保留(45 历史文件),未删除
 4. 写盘校验失败分支未在测试/生产模拟文件系统故障(代码审查覆盖)
 5. 安全头未含 CSP(保守策略,避免破坏前端)
 
@@ -71,5 +71,5 @@
 
 - Feature: FEAT-20260804-FILE-INTEGRITY
 - 代码 commit:待提交(git add 后随本包提交,仅后端/脚本/nginx 文件)
-- 部署 commit 记录:/root/ycmn/deploy.log(2026-08-04 00:21:30 backend deploy)
+- 部署 commit 记录:/root/aigicrm/deploy.log(2026-08-04 00:21:30 backend deploy)
 - 环境:生产 39.99.35.218 / 测试 111.229.37.220(新 jar 已部署验证)

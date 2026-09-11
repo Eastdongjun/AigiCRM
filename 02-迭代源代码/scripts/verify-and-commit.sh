@@ -8,27 +8,27 @@ source "$ROOT/scripts/ensure-java21.sh"
 
 echo "=== [1/4] 后端编译 (mvn clean compile) ==="
 ensure_java21 || exit 1
-cd "$ROOT/ycmn-backend"
+cd "$ROOT/aigicrm-backend"
 run_maven clean compile
 
 echo "=== [2/4] 前端构建 (npm run build) ==="
-cd "$ROOT/ycmn-ui"
+cd "$ROOT/aigicrm-ui"
 npm run build
 
 echo "=== [3/4] git add + commit ==="
 cd "$ROOT"
 git add \
-  ycmn-backend/src/main/java/com/ycmn/module/auth/service/AuthService.java \
-  ycmn-backend/src/main/java/com/ycmn/module/customer/service/CustomerService.java \
-  ycmn-backend/src/main/java/com/ycmn/module/file/service/FileService.java \
-  ycmn-backend/src/main/java/com/ycmn/module/incentive/service/IncentiveService.java \
-  ycmn-backend/src/main/java/com/ycmn/module/score/service/ScoreService.java \
-  ycmn-backend/src/main/java/com/ycmn/module/sea/service/SeaService.java \
-  ycmn-backend/src/main/java/com/ycmn/module/statistics/service/StatisticsQueryService.java \
-  ycmn-backend/src/main/java/com/ycmn/module/system/service/SysUserService.java \
-  ycmn-backend/src/main/java/com/ycmn/module/system/controller/SysDictController.java \
-  ycmn-ui/src/layout/index.vue \
-  ycmn-ui/src/views/incentive/search.vue \
+  aigicrm-backend/src/main/java/com/aigicrm/module/auth/service/AuthService.java \
+  aigicrm-backend/src/main/java/com/aigicrm/module/customer/service/CustomerService.java \
+  aigicrm-backend/src/main/java/com/aigicrm/module/file/service/FileService.java \
+  aigicrm-backend/src/main/java/com/aigicrm/module/incentive/service/IncentiveService.java \
+  aigicrm-backend/src/main/java/com/aigicrm/module/score/service/ScoreService.java \
+  aigicrm-backend/src/main/java/com/aigicrm/module/sea/service/SeaService.java \
+  aigicrm-backend/src/main/java/com/aigicrm/module/statistics/service/StatisticsQueryService.java \
+  aigicrm-backend/src/main/java/com/aigicrm/module/system/service/SysUserService.java \
+  aigicrm-backend/src/main/java/com/aigicrm/module/system/controller/SysDictController.java \
+  aigicrm-ui/src/layout/index.vue \
+  aigicrm-ui/src/views/incentive/search.vue \
   sql/migration/20260804/
 
 git status --short

@@ -9,7 +9,8 @@
 # 除此之外全程自动，不再需要你手动敲任何命令。
 
 set -uo pipefail
-ROOT="/Users/donglai/东来/01-Projects/01-aigicrm/04-源码"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 cd "$ROOT"
 source "$ROOT/scripts/deploy-lib.sh"
 source "$ROOT/scripts/ensure-java21.sh"
@@ -24,26 +25,26 @@ die()  { echo "❌ $1" >&2; exit 1; }
 # ============ Phase 1: 编译验证 + git commit/push ============
 step "[1/7] 后端编译"
 ensure_java21 || die "JDK 17 环境准备失败，流水线终止"
-cd "$ROOT/ycmn-backend"
+cd "$ROOT/aigicrm-backend"
 run_maven clean compile || die "后端编译失败，流水线终止"
 cd "$ROOT"
 
 step "[2/7] 前端构建"
-(cd "$ROOT/ycmn-ui" && npm run build) || die "前端构建失败，流水线终止"
+(cd "$ROOT/aigicrm-ui" && npm run build) || die "前端构建失败，流水线终止"
 
 step "[3/7] git commit + push"
 git add \
-  ycmn-backend/src/main/java/com/ycmn/module/auth/service/AuthService.java \
-  ycmn-backend/src/main/java/com/ycmn/module/customer/service/CustomerService.java \
-  ycmn-backend/src/main/java/com/ycmn/module/file/service/FileService.java \
-  ycmn-backend/src/main/java/com/ycmn/module/incentive/service/IncentiveService.java \
-  ycmn-backend/src/main/java/com/ycmn/module/score/service/ScoreService.java \
-  ycmn-backend/src/main/java/com/ycmn/module/sea/service/SeaService.java \
-  ycmn-backend/src/main/java/com/ycmn/module/statistics/service/StatisticsQueryService.java \
-  ycmn-backend/src/main/java/com/ycmn/module/system/service/SysUserService.java \
-  ycmn-backend/src/main/java/com/ycmn/module/system/controller/SysDictController.java \
-  ycmn-ui/src/layout/index.vue \
-  ycmn-ui/src/views/incentive/search.vue \
+  aigicrm-backend/src/main/java/com/aigicrm/module/auth/service/AuthService.java \
+  aigicrm-backend/src/main/java/com/aigicrm/module/customer/service/CustomerService.java \
+  aigicrm-backend/src/main/java/com/aigicrm/module/file/service/FileService.java \
+  aigicrm-backend/src/main/java/com/aigicrm/module/incentive/service/IncentiveService.java \
+  aigicrm-backend/src/main/java/com/aigicrm/module/score/service/ScoreService.java \
+  aigicrm-backend/src/main/java/com/aigicrm/module/sea/service/SeaService.java \
+  aigicrm-backend/src/main/java/com/aigicrm/module/statistics/service/StatisticsQueryService.java \
+  aigicrm-backend/src/main/java/com/aigicrm/module/system/service/SysUserService.java \
+  aigicrm-backend/src/main/java/com/aigicrm/module/system/controller/SysDictController.java \
+  aigicrm-ui/src/layout/index.vue \
+  aigicrm-ui/src/views/incentive/search.vue \
   sql/migration/20260804/
 if ! git diff --cached --quiet; then
   git commit -m "fix: 权限数据范围统一(custom/org)+文件删除越权+学分覆盖+客户转移分享清理+动态菜单渲染"
@@ -64,7 +65,7 @@ MYSQL_CT=$(ssh_test "docker ps --format '{{.Names}}'" | grep -i mysql | head -1)
 echo "检测到测试库容器: $MYSQL_CT"
 for sql in fix-permission-rule-org-id.sql fix-menu-dynamic-sidebar.sql; do
   scp_test "sql/migration/20260804/$sql" "${TEST_USER}@${TEST_HOST}:/tmp/$sql" || die "上传 $sql 失败"
-  ssh_test "docker exec -i $MYSQL_CT mysql -u"$TEST_DB_ADMIN_USER" -p"$TEST_DB_ADMIN_PASSWORD" --default-character-set=utf8mb4 ycmn < /tmp/$sql" \
+  ssh_test "docker exec -i $MYSQL_CT mysql -u"$TEST_DB_ADMIN_USER" -p"$TEST_DB_ADMIN_PASSWORD" --default-character-set=utf8mb4 aigicrm < /tmp/$sql" \
     && echo "✅ $sql 执行完成" || die "$sql 执行失败"
 done
 

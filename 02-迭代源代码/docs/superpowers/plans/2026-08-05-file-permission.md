@@ -16,7 +16,7 @@
 - 写操作/接口路径遵循现有风格（`Result<T>`、`@PreAuthorize` 保持现状、Service 内校验）
 - 激励文件（incentive scope）不接入文件夹 ACL，保持现状
 - 数据库同步方向：生产 → 测试（迁移脚本先在生产执行验证，再同步测试环境）
-- 编译环境：`MAVEN_SKIP_RC=true JAVA_HOME=/opt/homebrew/Cellar/openjdk@17/17.0.20/libexec/openjdk.jdk/Contents/Home mvn ...`（在 ycmn-backend 目录）
+- 编译环境：`MAVEN_SKIP_RC=true JAVA_HOME=/opt/homebrew/Cellar/openjdk@17/17.0.20/libexec/openjdk.jdk/Contents/Home mvn ...`（在 aigicrm-backend 目录）
 
 ---
 
@@ -54,14 +54,14 @@ ALTER TABLE biz_file ADD COLUMN replaced_at DATETIME NULL COMMENT '最近替换�
 
 ```bash
 export SSHPASS='redacted-ssh-password'
-sshpass -e ssh root@39.99.35.218 "docker exec -i ycmn-mysql mysql -uroot -p<redacted> ycmn < sql/migration-20260805-file-acl.sql"
+sshpass -e ssh root@39.99.35.218 "docker exec -i aigicrm-mysql mysql -uroot -p<redacted> aigicrm < sql/migration-20260805-file-acl.sql"
 ```
 Expected: 无报错退出 0
 
 - [ ] **Step 3: 验证表结构**
 
 ```bash
-sshpass -e ssh root@39.99.35.218 "docker exec ycmn-mysql mysql -uroot -p<redacted> ycmn -N -e \"SHOW COLUMNS FROM biz_folder_acl; SHOW COLUMNS FROM biz_file_folder LIKE 'downloadable'; SHOW COLUMNS FROM biz_file LIKE 'version';\""
+sshpass -e ssh root@39.99.35.218 "docker exec aigicrm-mysql mysql -uroot -p<redacted> aigicrm -N -e \"SHOW COLUMNS FROM biz_folder_acl; SHOW COLUMNS FROM biz_file_folder LIKE 'downloadable'; SHOW COLUMNS FROM biz_file LIKE 'version';\""
 ```
 Expected: biz_folder_acl 6 列 + downloadable + version 均存在
 
@@ -78,10 +78,10 @@ git commit -m "feat: 文件权限体系数据库迁移（biz_folder_acl + 下载
 ### Task 2: 实体与 Mapper
 
 **Files:**
-- Create: `ycmn-backend/src/main/java/com/ycmn/module/file/entity/BizFolderAcl.java`
-- Create: `ycmn-backend/src/main/java/com/ycmn/module/file/mapper/BizFolderAclMapper.java`
-- Modify: `ycmn-backend/src/main/java/com/ycmn/module/file/entity/BizFileFolder.java`（+downloadable）
-- Modify: `ycmn-backend/src/main/java/com/ycmn/module/file/entity/BizFile.java`（+version/replaceBy/replacedAt）
+- Create: `aigicrm-backend/src/main/java/com/aigicrm/module/file/entity/BizFolderAcl.java`
+- Create: `aigicrm-backend/src/main/java/com/aigicrm/module/file/mapper/BizFolderAclMapper.java`
+- Modify: `aigicrm-backend/src/main/java/com/aigicrm/module/file/entity/BizFileFolder.java`（+downloadable）
+- Modify: `aigicrm-backend/src/main/java/com/aigicrm/module/file/entity/BizFile.java`（+version/replaceBy/replacedAt）
 
 **Interfaces:**
 - Consumes: Task 1 的表结构
@@ -90,7 +90,7 @@ git commit -m "feat: 文件权限体系数据库迁移（biz_folder_acl + 下载
 - [ ] **Step 1: 创建 BizFolderAcl 实体**
 
 ```java
-package com.ycmn.module.file.entity;
+package com.aigicrm.module.file.entity;
 
 import com.baomidou.mybatisplus.annotation.*;
 import lombok.Data;
@@ -112,10 +112,10 @@ public class BizFolderAcl {
 - [ ] **Step 2: 创建 Mapper**
 
 ```java
-package com.ycmn.module.file.mapper;
+package com.aigicrm.module.file.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
-import com.ycmn.module.file.entity.BizFolderAcl;
+import com.aigicrm.module.file.entity.BizFolderAcl;
 
 public interface BizFolderAclMapper extends BaseMapper<BizFolderAcl> {
 }
@@ -139,8 +139,8 @@ public interface BizFolderAclMapper extends BaseMapper<BizFolderAcl> {
 - [ ] **Step 5: 编译 + 提交**
 
 ```bash
-cd ycmn-backend && MAVEN_SKIP_RC=true JAVA_HOME=/opt/homebrew/Cellar/openjdk@17/17.0.20/libexec/openjdk.jdk/Contents/Home mvn -q compile
-git add ycmn-backend/src/main/java/com/ycmn/module/file/entity/BizFolderAcl.java ycmn-backend/src/main/java/com/ycmn/module/file/entity/BizFileFolder.java ycmn-backend/src/main/java/com/ycmn/module/file/entity/BizFile.java ycmn-backend/src/main/java/com/ycmn/module/file/mapper/BizFolderAclMapper.java
+cd aigicrm-backend && MAVEN_SKIP_RC=true JAVA_HOME=/opt/homebrew/Cellar/openjdk@17/17.0.20/libexec/openjdk.jdk/Contents/Home mvn -q compile
+git add aigicrm-backend/src/main/java/com/aigicrm/module/file/entity/BizFolderAcl.java aigicrm-backend/src/main/java/com/aigicrm/module/file/entity/BizFileFolder.java aigicrm-backend/src/main/java/com/aigicrm/module/file/entity/BizFile.java aigicrm-backend/src/main/java/com/aigicrm/module/file/mapper/BizFolderAclMapper.java
 git commit -m "feat: 文件权限实体与Mapper（BizFolderAcl + 下载开关 + 版本字段）"
 ```
 
@@ -149,8 +149,8 @@ git commit -m "feat: 文件权限实体与Mapper（BizFolderAcl + 下载开关 +
 ### Task 3: FolderPermissionService（核心权限判定）
 
 **Files:**
-- Create: `ycmn-backend/src/main/java/com/ycmn/module/file/service/FolderPermissionService.java`
-- Create: `ycmn-backend/src/test/java/com/ycmn/module/file/service/FolderPermissionServiceTest.java`
+- Create: `aigicrm-backend/src/main/java/com/aigicrm/module/file/service/FolderPermissionService.java`
+- Create: `aigicrm-backend/src/test/java/com/aigicrm/module/file/service/FolderPermissionServiceTest.java`
 
 **Interfaces:**
 - Consumes: Task 2 实体/Mapper；`SysUserMapper`、`SysDeptMapper`、`BizFolderAclMapper`
@@ -164,17 +164,17 @@ git commit -m "feat: 文件权限实体与Mapper（BizFolderAcl + 下载开关 +
 - [ ] **Step 1: 写失败测试（权限矩阵）**
 
 ```java
-package com.ycmn.module.file.service;
+package com.aigicrm.module.file.service;
 
-import com.ycmn.module.file.entity.BizFolderAcl;
-import com.ycmn.module.file.entity.BizFile;
-import com.ycmn.module.file.entity.BizFileFolder;
-import com.ycmn.module.file.mapper.BizFolderAclMapper;
-import com.ycmn.module.system.entity.SysDept;
-import com.ycmn.module.system.entity.SysUser;
-import com.ycmn.module.system.mapper.SysDeptMapper;
-import com.ycmn.module.system.mapper.SysUserMapper;
-import com.ycmn.security.SecurityUtils;
+import com.aigicrm.module.file.entity.BizFolderAcl;
+import com.aigicrm.module.file.entity.BizFile;
+import com.aigicrm.module.file.entity.BizFileFolder;
+import com.aigicrm.module.file.mapper.BizFolderAclMapper;
+import com.aigicrm.module.system.entity.SysDept;
+import com.aigicrm.module.system.entity.SysUser;
+import com.aigicrm.module.system.mapper.SysDeptMapper;
+import com.aigicrm.module.system.mapper.SysUserMapper;
+import com.aigicrm.security.SecurityUtils;
 import org.junit.jupiter.api.Test;
 import org.mockito.MockedStatic;
 
@@ -260,27 +260,27 @@ class FolderPermissionServiceTest {
 - [ ] **Step 2: 运行确认失败**
 
 ```bash
-cd ycmn-backend && MAVEN_SKIP_RC=true JAVA_HOME=/opt/homebrew/Cellar/openjdk@17/17.0.20/libexec/openjdk.jdk/Contents/Home mvn test -Dtest=FolderPermissionServiceTest
+cd aigicrm-backend && MAVEN_SKIP_RC=true JAVA_HOME=/opt/homebrew/Cellar/openjdk@17/17.0.20/libexec/openjdk.jdk/Contents/Home mvn test -Dtest=FolderPermissionServiceTest
 ```
 Expected: FAIL（FolderPermissionService 不存在）
 
 - [ ] **Step 3: 实现 FolderPermissionService**
 
 ```java
-package com.ycmn.module.file.service;
+package com.aigicrm.module.file.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.ycmn.module.file.entity.BizFile;
-import com.ycmn.module.file.entity.BizFileFolder;
-import com.ycmn.module.file.entity.BizFolderAcl;
-import com.ycmn.module.file.mapper.BizFileFolderMapper;
-import com.ycmn.module.file.mapper.BizFileMapper;
-import com.ycmn.module.file.mapper.BizFolderAclMapper;
-import com.ycmn.module.system.entity.SysDept;
-import com.ycmn.module.system.entity.SysUser;
-import com.ycmn.module.system.mapper.SysDeptMapper;
-import com.ycmn.module.system.mapper.SysUserMapper;
-import com.ycmn.security.SecurityUtils;
+import com.aigicrm.module.file.entity.BizFile;
+import com.aigicrm.module.file.entity.BizFileFolder;
+import com.aigicrm.module.file.entity.BizFolderAcl;
+import com.aigicrm.module.file.mapper.BizFileFolderMapper;
+import com.aigicrm.module.file.mapper.BizFileMapper;
+import com.aigicrm.module.file.mapper.BizFolderAclMapper;
+import com.aigicrm.module.system.entity.SysDept;
+import com.aigicrm.module.system.entity.SysUser;
+import com.aigicrm.module.system.mapper.SysDeptMapper;
+import com.aigicrm.module.system.mapper.SysUserMapper;
+import com.aigicrm.security.SecurityUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -391,14 +391,14 @@ public class FolderPermissionService {
 - [ ] **Step 4: 运行测试至通过**
 
 ```bash
-cd ycmn-backend && MAVEN_SKIP_RC=true JAVA_HOME=/opt/homebrew/Cellar/openjdk@17/17.0.20/libexec/openjdk.jdk/Contents/Home mvn test -Dtest=FolderPermissionServiceTest
+cd aigicrm-backend && MAVEN_SKIP_RC=true JAVA_HOME=/opt/homebrew/Cellar/openjdk@17/17.0.20/libexec/openjdk.jdk/Contents/Home mvn test -Dtest=FolderPermissionServiceTest
 ```
 Expected: 全部 PASS
 
 - [ ] **Step 5: 提交**
 
 ```bash
-git add ycmn-backend/src/main/java/com/ycmn/module/file/service/FolderPermissionService.java ycmn-backend/src/test/java/com/ycmn/module/file/service/FolderPermissionServiceTest.java
+git add aigicrm-backend/src/main/java/com/aigicrm/module/file/service/FolderPermissionService.java aigicrm-backend/src/test/java/com/aigicrm/module/file/service/FolderPermissionServiceTest.java
 git commit -m "feat: 文件夹权限判定服务 FolderPermissionService（管理员/本人/上级/ACL/公共）"
 ```
 
@@ -407,8 +407,8 @@ git commit -m "feat: 文件夹权限判定服务 FolderPermissionService（管�
 ### Task 4: FileService 现有接口接入权限校验
 
 **Files:**
-- Modify: `ycmn-backend/src/main/java/com/ycmn/module/file/service/FileService.java`（upload/createFolder/renameFolder/deleteFolder/deleteFile/downloadById/shareFile）
-- Modify: `ycmn-backend/src/test/java/com/ycmn/module/file/service/FileServicePermissionTest.java`（新建）
+- Modify: `aigicrm-backend/src/main/java/com/aigicrm/module/file/service/FileService.java`（upload/createFolder/renameFolder/deleteFolder/deleteFile/downloadById/shareFile）
+- Modify: `aigicrm-backend/src/test/java/com/aigicrm/module/file/service/FileServicePermissionTest.java`（新建）
 
 **Interfaces:**
 - Consumes: Task 3 `FolderPermissionService.check/checkFile/permsFor`
@@ -476,14 +476,14 @@ if (file.getFolderId() != null) {
 - [ ] **Step 6: 运行全量测试**
 
 ```bash
-cd ycmn-backend && MAVEN_SKIP_RC=true JAVA_HOME=/opt/homebrew/Cellar/openjdk@17/17.0.20/libexec/openjdk.jdk/Contents/Home mvn test
+cd aigicrm-backend && MAVEN_SKIP_RC=true JAVA_HOME=/opt/homebrew/Cellar/openjdk@17/17.0.20/libexec/openjdk.jdk/Contents/Home mvn test
 ```
 Expected: 全量 PASS（原 38 + 新增）
 
 - [ ] **Step 7: 提交**
 
 ```bash
-git add ycmn-backend/src/main/java/com/ycmn/module/file/service/FileService.java ycmn-backend/src/test/java/com/ycmn/module/file/service/FileServicePermissionTest.java
+git add aigicrm-backend/src/main/java/com/aigicrm/module/file/service/FileService.java aigicrm-backend/src/test/java/com/aigicrm/module/file/service/FileServicePermissionTest.java
 git commit -m "feat: 文件操作接入文件夹权限校验（上传/创建/重命名/删除/下载/分享）"
 ```
 
@@ -492,9 +492,9 @@ git commit -m "feat: 文件操作接入文件夹权限校验（上传/创建/重
 ### Task 5: ACL 与下载开关接口（新增）
 
 **Files:**
-- Create: `ycmn-backend/src/main/java/com/ycmn/module/file/controller/FolderAclController.java`
-- Create: `ycmn-backend/src/main/java/com/ycmn/module/file/service/FolderAclService.java`
-- Create: `ycmn-backend/src/test/java/com/ycmn/module/file/service/FolderAclServiceTest.java`
+- Create: `aigicrm-backend/src/main/java/com/aigicrm/module/file/controller/FolderAclController.java`
+- Create: `aigicrm-backend/src/main/java/com/aigicrm/module/file/service/FolderAclService.java`
+- Create: `aigicrm-backend/src/test/java/com/aigicrm/module/file/service/FolderAclServiceTest.java`
 
 **Interfaces:**
 - Consumes: Task 2 Mapper、Task 3 `FolderPermissionService.check(folderId, P_EDIT)`
@@ -637,14 +637,14 @@ public class FolderAclController {
 - [ ] **Step 4: 测试通过 + 全量回归**
 
 ```bash
-cd ycmn-backend && MAVEN_SKIP_RC=true JAVA_HOME=/opt/homebrew/Cellar/openjdk@17/17.0.20/libexec/openjdk.jdk/Contents/Home mvn test
+cd aigicrm-backend && MAVEN_SKIP_RC=true JAVA_HOME=/opt/homebrew/Cellar/openjdk@17/17.0.20/libexec/openjdk.jdk/Contents/Home mvn test
 ```
 Expected: 全量 PASS
 
 - [ ] **Step 5: 提交**
 
 ```bash
-git add ycmn-backend/src/main/java/com/ycmn/module/file/controller/FolderAclController.java ycmn-backend/src/main/java/com/ycmn/module/file/service/FolderAclService.java ycmn-backend/src/test/java/com/ycmn/module/file/service/FolderAclServiceTest.java
+git add aigicrm-backend/src/main/java/com/aigicrm/module/file/controller/FolderAclController.java aigicrm-backend/src/main/java/com/aigicrm/module/file/service/FolderAclService.java aigicrm-backend/src/test/java/com/aigicrm/module/file/service/FolderAclServiceTest.java
 git commit -m "feat: 文件夹ACL与下载开关接口（设置/查询/权限视图）"
 ```
 
@@ -653,9 +653,9 @@ git commit -m "feat: 文件夹ACL与下载开关接口（设置/查询/权限视
 ### Task 6: 文件覆盖替换接口
 
 **Files:**
-- Modify: `ycmn-backend/src/main/java/com/ycmn/module/file/controller/FileController.java`
-- Modify: `ycmn-backend/src/main/java/com/ycmn/module/file/service/FileService.java`
-- Modify: `ycmn-backend/src/test/java/com/ycmn/module/file/service/FileServicePermissionTest.java`（追加替换用例）
+- Modify: `aigicrm-backend/src/main/java/com/aigicrm/module/file/controller/FileController.java`
+- Modify: `aigicrm-backend/src/main/java/com/aigicrm/module/file/service/FileService.java`
+- Modify: `aigicrm-backend/src/test/java/com/aigicrm/module/file/service/FileServicePermissionTest.java`（追加替换用例）
 
 **Interfaces:**
 - Consumes: Task 3 `checkFile(fileId, P_EDIT)`；现有 upload 的存储逻辑（OSS/本地）
@@ -718,8 +718,8 @@ public Result<BizFile> replaceFile(@PathVariable Long id, @RequestParam("file") 
 - [ ] **Step 4: 测试通过 + 全量回归 + 提交**
 
 ```bash
-cd ycmn-backend && MAVEN_SKIP_RC=true JAVA_HOME=/opt/homebrew/Cellar/openjdk@17/17.0.20/libexec/openjdk.jdk/Contents/Home mvn test
-git add ycmn-backend/src/main/java/com/ycmn/module/file/controller/FileController.java ycmn-backend/src/main/java/com/ycmn/module/file/service/FileService.java ycmn-backend/src/test/java/com/ycmn/module/file/service/FileServicePermissionTest.java
+cd aigicrm-backend && MAVEN_SKIP_RC=true JAVA_HOME=/opt/homebrew/Cellar/openjdk@17/17.0.20/libexec/openjdk.jdk/Contents/Home mvn test
+git add aigicrm-backend/src/main/java/com/aigicrm/module/file/controller/FileController.java aigicrm-backend/src/main/java/com/aigicrm/module/file/service/FileService.java aigicrm-backend/src/test/java/com/aigicrm/module/file/service/FileServicePermissionTest.java
 git commit -m "feat: 文件覆盖替换接口（版本+1/存储差额/权限校验）"
 ```
 
@@ -728,8 +728,8 @@ git commit -m "feat: 文件覆盖替换接口（版本+1/存储差额/权限校�
 ### Task 7: 前端权限设置弹窗 + 下载开关 + 替换 + 按钮条件
 
 **Files:**
-- Modify: `ycmn-ui/src/views/file/index.vue`
-- Modify: `ycmn-ui/src/api/file.js`（新增接口封装）
+- Modify: `aigicrm-ui/src/views/file/index.vue`
+- Modify: `aigicrm-ui/src/api/file.js`（新增接口封装）
 
 **Interfaces:**
 - Consumes: Task 5/6 接口
@@ -780,14 +780,14 @@ const folderDownloadable = ref(1)  // 当前文件夹下载开关
 - [ ] **Step 5: 本地构建验证**
 
 ```bash
-cd ycmn-ui && npm run build 2>&1 | tail -5
+cd aigicrm-ui && npm run build 2>&1 | tail -5
 ```
 Expected: BUILD SUCCESS（无 TS/构建错误）
 
 - [ ] **Step 6: 提交**
 
 ```bash
-git add ycmn-ui/src/views/file/index.vue ycmn-ui/src/api/file.js
+git add aigicrm-ui/src/views/file/index.vue aigicrm-ui/src/api/file.js
 git commit -m "feat: 前端文件权限设置/下载开关/替换/按钮权限控制"
 ```
 
@@ -800,16 +800,16 @@ git commit -m "feat: 前端文件权限设置/下载开关/替换/按钮权限�
 - [ ] **Step 1: 打包后端并部署测试环境**
 
 ```bash
-cd ycmn-backend && MAVEN_SKIP_RC=true JAVA_HOME=/opt/homebrew/Cellar/openjdk@17/17.0.20/libexec/openjdk.jdk/Contents/Home mvn package -DskipTests
-scp target/aigicrm-backend-1.0.0.jar ubuntu@111.229.37.220:/home/ubuntu/projects/ycmn/ycmn-backend/target/ycmn-backend-1.0.0.jar
-# 测试服务器：docker build -t ycmn-backend:latest -f Dockerfile-run . → 停旧容器 → docker run（网络 shopjoy-net，DB=shared-mysql，JWT_SECRET/OSS 变量）
-# 测试库执行迁移（shared-mysql 的 ycmn 库）
+cd aigicrm-backend && MAVEN_SKIP_RC=true JAVA_HOME=/opt/homebrew/Cellar/openjdk@17/17.0.20/libexec/openjdk.jdk/Contents/Home mvn package -DskipTests
+scp target/aigicrm-backend-1.0.0.jar ubuntu@111.229.37.220:/home/ubuntu/projects/aigicrm/aigicrm-backend/target/aigicrm-backend-1.0.0.jar
+# 测试服务器：docker build -t aigicrm-backend:latest -f Dockerfile-run . → 停旧容器 → docker run（网络 shopjoy-net，DB=shared-mysql，JWT_SECRET/OSS 变量）
+# 测试库执行迁移（shared-mysql 的 aigicrm 库）
 ```
 
 - [ ] **Step 2: 部署前端到测试环境**
 
 ```bash
-# ycmn-ui build 产物部署（参照 deploy-frontend.sh 测试环境流程）
+# aigicrm-ui build 产物部署（参照 deploy-frontend.sh 测试环境流程）
 ```
 
 - [ ] **Step 3: 测试环境功能验证（浏览器）**
@@ -837,15 +837,15 @@ scp target/aigicrm-backend-1.0.0.jar ubuntu@111.229.37.220:/home/ubuntu/projects
 
 ```bash
 export SSHPASS='redacted-ssh-password'
-sshpass -e ssh root@39.99.35.218 "docker exec -i ycmn-mysql mysql -uroot -p<redacted> ycmn < sql/migration-20260805-file-acl.sql"
+sshpass -e ssh root@39.99.35.218 "docker exec -i aigicrm-mysql mysql -uroot -p<redacted> aigicrm < sql/migration-20260805-file-acl.sql"
 ```
 
 - [ ] **Step 2: 提取测试 jar 部署生产**
 
 ```bash
-# 参照 deploy-backend.sh：docker cp 测试容器 /app/app.jar → scp 生产 /root/ycmn/ycmn-backend-1.0.0.jar
-# → docker build -t ycmn-backend:2.7.0 -f Dockerfile-run . → 停旧容器 → docker run（JWT_SECRET 用 ~/.ycmn-deploy.env）
-# 注意：生产 Dockerfile-run 是 COPY ycmn-backend-1.0.0.jar（根目录），构建前确认 jar 到位
+# 参照 deploy-backend.sh：docker cp 测试容器 /app/app.jar → scp 生产 /root/aigicrm/aigicrm-backend-1.0.0.jar
+# → docker build -t aigicrm-backend:2.7.0 -f Dockerfile-run . → 停旧容器 → docker run（JWT_SECRET 用 ~/.aigicrm-deploy.env）
+# 注意：生产 Dockerfile-run 是 COPY aigicrm-backend-1.0.0.jar（根目录），构建前确认 jar 到位
 ```
 
 - [ ] **Step 3: 前端部署生产（参照 deploy-frontend.sh）**

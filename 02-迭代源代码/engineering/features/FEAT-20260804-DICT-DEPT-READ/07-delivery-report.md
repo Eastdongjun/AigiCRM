@@ -21,9 +21,9 @@
 
 ## 安装与启动
 
-- 构建：`MAVEN_SKIP_RC=true JAVA_HOME=<JDK17> mvn package -DskipTests`（ycmn-backend）。
+- 构建：`MAVEN_SKIP_RC=true JAVA_HOME=<JDK17> mvn package -DskipTests`（aigicrm-backend）。
 - 部署（测试）：scp jar → docker build（Dockerfile-run）→ docker run（网络 shopjoy-net，DB=shared-mysql，需 JWT_SECRET/OSS 变量）。
-- 部署（生产）：scp jar 至 `/root/ycmn/ycmn-backend-1.0.0.jar` → `docker build -t ycmn-backend:2.7.0 -f Dockerfile-run .` → `docker run`（环境变量同原容器，JWT_SECRET 用 `~/.ycmn-deploy.env`）。
+- 部署（生产）：scp jar 至 `/root/aigicrm/aigicrm-backend-1.0.0.jar` → `docker build -t aigicrm-backend:2.7.0 -f Dockerfile-run .` → `docker run`（环境变量同原容器，JWT_SECRET 用 `~/.aigicrm-deploy.env`）。
 
 ## 验证证据
 
@@ -42,7 +42,7 @@
 
 ## 回滚与恢复
 
-- 代码回滚：git revert 本次 4 个文件改动 → 重新打包部署（原 jar 保留于生产 `/root/ycmn/` 备份与 NAS `/Aigicrm/files/backup/`）。
+- 代码回滚：git revert 本次 4 个文件改动 → 重新打包部署（原 jar 保留于生产 `/root/aigicrm/` 备份与 NAS `/Aigicrm/files/backup/`）。
 - 数据回滚：`DELETE FROM sys_role_menu WHERE role_id IN (9,11) AND menu_id IN (98,99);`（生产库）。
 - 回滚后验证：NM005 重新登录后访问新增客户页恢复原 403 行为（严格授权），admin 不受影响。
 - 统计范围回滚后，销售员统计页恢复全量视图（修复前越权行为）。

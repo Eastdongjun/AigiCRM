@@ -2,9 +2,9 @@
 
 ## 已确认影响范围
 
-- ycmn-backend SeaConfigService.java：buildOrgTree/isVisibleTo/deriveRegionIds/collectOfficesUnder
-- ycmn-ui config.vue：seaTreeRef/onSeaTreeCheck/selectedSeaNodes/removeSeaNode/clearSeaSelection/handleEditPool 回显/样式
-- ycmn-ui org.vue：typeLabel/typeTag/表单 option 数字值
+- aigicrm-backend SeaConfigService.java：buildOrgTree/isVisibleTo/deriveRegionIds/collectOfficesUnder
+- aigicrm-ui config.vue：seaTreeRef/onSeaTreeCheck/selectedSeaNodes/removeSeaNode/clearSeaSelection/handleEditPool 回显/样式
+- aigicrm-ui org.vue：typeLabel/typeTag/表单 option 数字值
 
 ## 架构与关键决策
 

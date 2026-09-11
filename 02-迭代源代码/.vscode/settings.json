@@ -3,17 +3,13 @@
   "java.configuration.runtimes": [
     {
       "name": "JavaSE-21",
-      "path": "/opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home",
+      "path": "/Users/dongjun/东来/Agent/02-运行环境/Java/Contents/Home",
       "default": true
-    },
-    {
-      "name": "JavaSE-17",
-      "path": "/opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home"
     }
   ],
   // 语言服务器本身也跑在 21 上，避免 JDTLS 在 25 下初始化失败
-  "java.jdt.ls.java.home": "/opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home",
-  "java.debug.settings.onBuildFailureProceed": true,
+  "java.jdt.ls.java.home": "/Users/dongjun/东来/Agent/02-运行环境/Java/Contents/Home",
+  "java.debug.settings.onBuildFailureProceed": false,
   // 项目纯 Maven，关闭 Gradle 导入减少噪音
   "java.import.gradle.enabled": false,
   // 保存时自动整理 import（降低无用 import 类告警）
@@ -26,27 +22,10 @@
   "java.test.defaultConfig": "",
 
   // ===== 静态分析 SonarLint：默认规则全开，这里显式强调关键 Bug 类规则 =====
-  "sonarlint.rules": {
-    // Java：空指针解引用（最高频 Bug 源）
-    "java:S2259": "on",
-    // Java：吞异常/不保留原始异常（本项目编码规范明确禁止）
-    "java:S1166": "on",
-    // Java：抛泛型异常 Exception/RuntimeException
-    "java:S112": "on",
-    // Java：捕获不需要的宽泛异常
-    "java:S2221": "on",
-    // Java：空 catch 块
-    "java:S2486": "on",
-    // JS：死代码（赋值后从未使用）
-    "javascript:S1854": "on",
-    // TS：未使用的私有方法/重复代码提示
-    "typescript:S1144": "on",
-    // 跨语言：TODO/FIXME 跟踪
-    "javascript:S1135": "on"
-  },
+  // Sonar 规则为 application 级，统一配置于本机 User/settings.json。
   "sonarlint.disableTelemetry": true,
   // 问题整行高亮（配 Error Lens 显示内联问题）
-  "sonarlint.ls.javaHome": "/opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home",
+  "sonarlint.ls.javaHome": "/Users/dongjun/东来/Agent/02-运行环境/Java/Contents/Home",
 
   // ===== 覆盖率可视化（Coverage Gutters） =====
   "coverage-gutters.coverageFileNames": [
@@ -56,7 +35,7 @@
     "jacoco.xml",
     "coverage-final.json"
   ],
-  // 后端 JaCoCo 报告在 ycmn-backend/target/site/jacoco，前端 vitest 在 ycmn-ui/coverage
+  // 后端 JaCoCo 报告在 aigicrm-backend/target/site/jacoco，前端 vitest 在 aigicrm-ui/coverage
   "coverage-gutters.coverageBaseDir": "**",
   "coverage-gutters.showGutterCoverage": true,
   "coverage-gutters.showLineCoverage": true,
@@ -87,7 +66,7 @@
     "**/dist": true,
     "**/node_modules": true,
     "**/*.log": true,
-    "ycmn-backend/uploads": true
+    "aigicrm-backend/uploads": true
   },
   "search.useIgnoreFiles": true,
 
@@ -95,5 +74,16 @@
   "errorLens.enabled": true,
   "errorLens.enabledDiagnosticLevels": ["error"], // 2026-08-15: 仅错误级内联显示,警告/信息不刷屏(SonarLint 清理走 Problems 面板分批)
   "problems.decorations.enabled": true,
-  "problems.autoReveal": true
+  "problems.autoReveal": true,
+
+  // Optional: works when the Run On Save extension is installed.
+  "emeraldwalk.runonsave": {
+    "commands": [
+      {
+        "match": ".*\\.(java|xml|yml|yaml|js|vue|ts|json|css|sh)$",
+        "cmd": "cd ${workspaceFolder} && bash scripts/dev-verify.sh on-save"
+      }
+    ]
+  },
+  "java.compile.nullAnalysis.mode": "automatic"
 }

@@ -2,7 +2,7 @@
 
 ## 已确认影响范围
 
-- ycmn-ui/src/layout/index.vue（菜单 3 处 v-if）
+- aigicrm-ui/src/layout/index.vue（菜单 3 处 v-if）
 
 ## 架构与关键决策
 

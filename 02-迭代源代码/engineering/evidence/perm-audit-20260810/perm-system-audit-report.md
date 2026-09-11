@@ -1,7 +1,7 @@
-# YCMN 权限体系全链路审计报告
+# AIGICRM 权限体系全链路审计报告
 
 - **修复状态**: 2026-08-10 修复批次已完成并在测试环境验证生效(见文末「修复执行记录」);生产部署待用户确认
-- **审计对象**: 客户管理系统(AigiCRM/YCMN)权限体系 —— 认证 / 鉴权 / 数据范围 / 前端权限 / 数据模型 / 缓存一致性
+- **审计对象**: 客户管理系统(AigiCRM/AIGICRM)权限体系 —— 认证 / 鉴权 / 数据范围 / 前端权限 / 数据模型 / 缓存一致性
 - **代码基线**: `main@cf777d8`(含 2026-08-10 权限体系重构 c1bdfbd「每个权限=功能×范围」)
 - **审计方式**: 4 路独立静态审计(认证鉴权 / 数据范围 / 前端 / 数据与缓存)+ 本地全量测试 + 测试环境(111.229.37.220)真实 API 权限矩阵实测;所有严重发现经交叉验证,标注 [实测]/[代码]
 - **测试环境部署**: 已部署至最新代码(c1bdfbd 后),**生产未部署新模型**(生产仍为 9c6e72a 版本)
@@ -115,7 +115,7 @@
 | P2-14 | 主 JWT 可通过 `?token=` query 携带(任意 GET),可进访问日志/Referer | `JwtAuthFilter.java:61-66` | 仅允许 scope=download 短命 token 走 URL |
 | P2-15 | `DataScopeType` 枚举声明序与注释矛盾: team(rank 7)被 org_and_children(rank 5)压制,双角色(team+org_and_children)用户跨部门下级语义丢失 | `DataScopeType.java` 声明序 vs `UserDetailsServiceImpl.java:95-99` min-rank | 调整 rank 或按业务确认宽松度 |
 | P2-16 | `effectiveScopes` 每次每角色 1 条 JDBC,canView 热路径每详情请求 2-5 条额外 SQL(绕过 perm:ctx 缓存) | `RolePermScopeService.lookup:47-56`;`CustomerAccessService.java:145-159` | 短 TTL 本地缓存 + 写入失效,或并入 PermissionContext |
-| P2-17 | 测试库 schema 落后于迁移链: 本地 `ycmn_database_test.sql` 无 role_perm_scope;写接口在未跑 V7 的环境 500(读侧有 try-catch 降级) | `RolePermScopeService.java:53-55`(读有降级)vs `:67-79`(写无) | 测试库按迁移链重建/补齐 |
+| P2-17 | 测试库 schema 落后于迁移链: 本地 `aigicrm_database_test.sql` 无 role_perm_scope;写接口在未跑 V7 的环境 500(读侧有 try-catch 降级) | `RolePermScopeService.java:53-55`(读有降级)vs `:67-79`(写无) | 测试库按迁移链重建/补齐 |
 | P2-18 | **角色权限码配置漂移(实测 auth/info 确认,与业务角色定位严重不符)**: 06 销售员持有 `system:user:add/edit/delete`(用户管理)+ `system:group:add/edit/delete/view`(集团管理)+ `score:manage`(积分项增删改)+ `approval:approve/reject` + `system:config:view`;0 销售总监持 `system:user:delete` + `system:config:edit`(可写范围配置=P1-03 提权路径对其开放);05 行政持 `customer:delete`;approval:approve/reject **4 角色全持有**(靠"指定审批人"守卫兜底,守卫实测有效) | 实测 auth/info + role_menu 实查;全模块矩阵: 06 对 score/items POST/PUT/DELETE 均 200(可改积分规则);06 对 users DELETE 400(过权限门) | 权限矩阵按角色定位收紧: 用户/集团管理码仅 admin;approval:approve/reject 只授审批人;score:manage 收归 admin(如需销售可配置则明确授权机制) |
 | P2-19 | role_perm_scope 按配置生效的**删除面扩张风险(实测推导)**: 测试库配置 `05 customer delete=region` → 行政(NM100,dept7)的 region 范围=大区 3 子树,含 dept6(575 owner 所在)→ **行政可删除大区内任意非本人客户**,而列表/详情按 custom 组织(6,7)显示——"看得见的未必能删,看不见的反而能删",两个维度不一致 | role_perm_scope 实测查库(05 delete=region);`OrgScopeResolver.resolveByAncestorType`(大区锚点推导);实测 05 可读 575(200)且 canDelete 判定链成立;未实测删除(毁灭性) | 配置时按业务确认;建议 UI 展示"删除范围"与"查看范围"差异提示;或删除操作加二次确认/审计日志 |
 
@@ -326,7 +326,7 @@
 | 项 | 内容 |
 |---|---|
 | 代码 | commit d6ec24d(修复批次)已推送 origin/main |
-| 备份 | `/root/ycmn/backup-pre-permfix-20260810-164344/`(全库 dump 1MB + 旧 jar 95.9MB) |
+| 备份 | `/root/aigicrm/backup-pre-permfix-20260810-164344/`(全库 dump 1MB + 旧 jar 95.9MB) |
 | DB 迁移 | V8 biz_customer_transfer 建表 ✅(prod V8:1;仅加表无数据变更) |
 | 后端 | jar 替换+重启,md5 `07a004d1...`,TY101 生产登录 OK |
 | 前端 | 入口 `index-CKwikHZx.js`,version `20260810-164451`,prefetch 9 注入;回滚备份 `/Aigicrm/files/backup/dist-rollback-20260810-164445` |
@@ -358,7 +358,7 @@
 ### ⚠️ 生产补丁(2026-08-10 16:55):V7 迁移遗漏修复
 
 - **现象**: 用户报"菜单-系统设置打开报错"
-- **根因**: 部署的代码(c1bdfbd 起)引用 `role_perm_scope`,但生产从未执行 V7 建表迁移(此前 V7 只在测试库执行过)→ `GET /api/system/perm-scopes/{roleCode}` 500 `Table 'ycmn.role_perm_scope' doesn't exist`(生产后端日志实锤)
+- **根因**: 部署的代码(c1bdfbd 起)引用 `role_perm_scope`,但生产从未执行 V7 建表迁移(此前 V7 只在测试库执行过)→ `GET /api/system/perm-scopes/{roleCode}` 500 `Table 'aigicrm.role_perm_scope' doesn't exist`(生产后端日志实锤)
 - **修复**: 生产手工执行 V7 建表(幂等,与迁移文件一致);V8 已随部署补建
 - **迁移链核对**: 生产 Flyway V1-V6 全成功;V7/V8 手工补建(下次 deploy-db.sh Flyway 自然记录,IF NOT EXISTS 幂等)
 - **验证**: 表存在 ✓;接口需 admin 权限账号(生产 admin 密码未持有),用户复测确认
@@ -372,7 +372,7 @@
 | group_id 回填(客户+组织) | 单集团=1 | ✅ NULL=0(客户 285、组织 10) |
 | 测试库先行验证 | 先测试后生产 | ✅ 测试库行为验证通过(admin 249 不变、部门筛选 97 生效、TY101 范围 1 不变) |
 | 生产行为验证 | - | ✅ TY101 范围不变、越权 400、激励/公海/统计 200 |
-| 备份 | /root/ycmn/backup-pre-backfill-20260810-174935/ | 1MB dump |
+| 备份 | /root/aigicrm/backup-pre-backfill-20260810-174935/ | 1MB dump |
 
 **效果**: 客户列表/全模块"部门筛选"从死筛选变为可用;集团边界字段就位;数据范围锚点(owner)未改变,无行为回归。
 
@@ -383,9 +383,9 @@
 | 项 | 内容 |
 |---|---|
 | 代码 | commit 478f6a3..c38126e(批①-④); 前端 c38126e |
-| 备份 | `/root/ycmn/backup-pre-arch-20260810-185237/`(全库 dump+旧 jar) |
+| 备份 | `/root/aigicrm/backup-pre-arch-20260810-185237/`(全库 dump+旧 jar) |
 | V9 迁移 | ✅ 生产执行成功, tenant_cols=26(18 表加列+role_perm_scope 演进) |
-| 容器 | ✅ 重建(保留全部 env/网络 ycmn_default/卷 upload-data+ycmn-logs)+ `TENANT_ENABLE=true` |
+| 容器 | ✅ 重建(保留全部 env/网络 aigicrm_default/卷 upload-data+aigicrm-logs)+ `TENANT_ENABLE=true` |
 | 自检 | ✅ "租户插件启动自检通过: 26 张白名单表全部含 tenant_id 列" |
 | 前端 | ✅ 版本 20260810-185348(commit c38126e) |
 | 回滚 | 旧 jar 备份目录 + V9_rollback + 去 TENANT_ENABLE env 重建 |

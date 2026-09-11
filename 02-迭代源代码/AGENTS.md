@@ -1,30 +1,30 @@
-# AGENTS.md — YCMN 客户管理系统（权限升级）
+# AGENTS.md — AIGICRM 客户管理系统（权限升级）
 
 面向 Codex 的项目级指引。与 CLAUDE.md 并存（CLAUDE.md 给 Claude Code，本文件给 Codex 环境）。
 
 ## 项目一句话
 
-YCMN（运筹马年）内部 CRM：客户/审批/激励/文件/公海池/提醒 + 新权限模型（组织/岗位/权限规则/集团/法人）。UI 全中文。
+AIGICRM（运筹马年）内部 CRM：客户/审批/激励/文件/公海池/提醒 + 新权限模型（组织/岗位/权限规则/集团/法人）。UI 全中文。
 
 ## 技术栈与常用命令
 
-- 后端：Spring Boot 4.1.0 / Java 21 / Maven / MyBatis-Plus；`cd ycmn-backend && mvn clean spring-boot:run`（端口 8080）；打包 `mvn clean package -DskipTests`
-- 前端：Vue 3 / Vite / npm；`cd ycmn-ui && npm run dev`（端口 3000，/api 代理到 8080）；`npm run build`
+- 后端：Spring Boot 4.1.0 / Java 21 / Maven / MyBatis-Plus；`cd aigicrm-backend && mvn clean spring-boot:run`（端口 8080）；打包 `mvn clean package -DskipTests`
+- 前端：Vue 3 / Vite / npm；`cd aigicrm-ui && npm run dev`（端口 3000，/api 代理到 8080）；`npm run build`
 - 全栈：`docker-compose up -d`（MySQL:3308 / Redis:6379 / 后端:8080 / 前端:80）
-- 数据库导入（本地）：`source ~/.ycmn-deploy.env && mysql -h localhost -P 3308 -u root -p"$DB_PASSWORD" --default-character-set=utf8mb4 ycmn < sql/init.sql`（凭据经 env 注入，勿硬编码）
+- 数据库导入（本地）：`source ~/.aigicrm-deploy.env && mysql -h localhost -P 3308 -u root -p"$DB_PASSWORD" --default-character-set=utf8mb4 aigicrm < sql/init.sql`（凭据经 env 注入，勿硬编码）
 
 ## 生产部署架构（2026-08-15 起，部署前必读）
 
-- **磁盘三区**：系统盘仅 OS；数据盘 `/data`（`/data/docker` 程序根、`/data/database/mysql-data` 数据库、`/data/ycmn` 部署目录，`/root/ycmn` 是其软链）；NAS `/Aigicrm/files` 放用户文件
+- **磁盘三区**：系统盘仅 OS；数据盘 `/data`（`/data/docker` 程序根、`/data/database/mysql-data` 数据库、`/data/aigicrm` 部署目录，`/root/aigicrm` 是其软链）；NAS `/Aigicrm/files` 放用户文件
 - 部署一律走 `scripts/deploy-*.sh`（内置架构自检 check_deploy_arch），禁止手工 docker run 偏离标准；完整规范见 `docs/生产部署规范.md`
-- 前端源码目录为 `02-迭代源代码/ycmn-ui`（scripts/deploy-frontend.sh 已修正）
+- 前端源码目录为 `02-迭代源代码/aigicrm-ui`（scripts/deploy-frontend.sh 已修正）
 - 数据库必须 bind 挂载 `/data/database/mysql-data`，禁止命名卷挂库
 
 ## 数据库事实（排查前必读）
 
 
 - `sys_org` 视图已于 0809 sys_dept/sys_org 双表收口时删除——物理数据只在 `sys_dept` 表（含 dept_type），无 sys_org。
-- schema 真相链：**Flyway 迁移** = `ycmn-backend/src/main/resources/db/migration/V1__baseline.sql`（**V1' 重建基线**，2026-08-11 生产 schema 快照，56 表）+ V12~V18 后续迁移；历史日期脚本归档 `sql/migration/archive/`（不再登记）；`ycmn_database_test.sql` = **审查基准 dump**（2026-08-16 起从生产导出：全库 schema + `sys_menu`/`sys_role_menu`/`sys_user_role`/`sys_role` 四表数据行，不含业务数据；旧 8-3 过期版已备份为 `ycmn_database_test.sql.bak-20260816`）。
+- schema 真相链：**Flyway 迁移** = `aigicrm-backend/src/main/resources/db/migration/V1__baseline.sql`（**V1' 重建基线**，2026-08-11 生产 schema 快照，56 表）+ V12~V18 后续迁移；历史日期脚本归档 `sql/migration/archive/`（不再登记）；`aigicrm_database_test.sql` = **审查基准 dump**（2026-08-16 起从生产导出：全库 schema + `sys_menu`/`sys_role_menu`/`sys_user_role`/`sys_role` 四表数据行，不含业务数据；旧 8-3 过期版已备份为 `aigicrm_database_test.sql.bak-20260816`）。
 - 数据库变更：**必须经 Flyway**（新迁移 `V10+__xxx.sql` 放 `db/migration/`，用 `scripts/deploy-db.sh` 部署）；`sql/migration/` 下已有日期目录仅作历史参考，不得再手工执行。
 - **迁移链例外（2026-08-11 已确认）**：V1 已被原地重建为生产快照（V1'，含 FOREIGN_KEY_CHECKS=0 包装修复 DB-001 前向 FK）；旧 V2-V9 归档 `sql/migration/archive/`。**此后不得再原地修改 V1**——任何变更一律走新迁移 V10+（V2 编号已弃用，避免与归档/未合并线的版本号冲突）。
 - `biz_incentive_record.file_pre_id` 已从 BIGINT 改为 VARCHAR（存 JSON 数组），新代码不要再按数字处理。
@@ -33,7 +33,7 @@ YCMN（运筹马年）内部 CRM：客户/审批/激励/文件/公海池/提醒 
 
 ```bash
 export JAVA_HOME=/opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home
-cd ycmn-backend && mvn -q test    # 全部单测
+cd aigicrm-backend && mvn -q test    # 全部单测
 mvn -q compile                    # 快速编译检查
 ```
 
@@ -49,13 +49,13 @@ mvn -q compile                    # 快速编译检查
 # 基准 = dump + 迁移链并集（2026-08-16 起强制，勿只用 dump 单文件：
 # dump 可能早于最新迁移，单用会系统性假警报——8-3 旧 dump 曾误报 25 条 schema + 3 条权限）
 python3 ~/.codex/skills/code-review/scripts/check_schema_entity.py \
-  --java-dir ycmn-backend/src/main/java --sql ycmn_database_test.sql \
-  --migrations-dir ycmn-backend/src/main/resources/db/migration
+  --java-dir aigicrm-backend/src/main/java --sql aigicrm_database_test.sql \
+  --migrations-dir aigicrm-backend/src/main/resources/db/migration
 python3 ~/.codex/skills/code-review/scripts/check_api_wiring.py \
-  --frontend-api ycmn-ui/src/api --backend ycmn-backend/src/main/java
+  --frontend-api aigicrm-ui/src/api --backend aigicrm-backend/src/main/java
 python3 ~/.codex/skills/code-review/scripts/check_permission_strings.py \
-  --backend ycmn-backend/src/main/java --sql ycmn_database_test.sql \
-  --migrations-dir ycmn-backend/src/main/resources/db/migration
+  --backend aigicrm-backend/src/main/java --sql aigicrm_database_test.sql \
+  --migrations-dir aigicrm-backend/src/main/resources/db/migration
 ```
 
 报告规则：

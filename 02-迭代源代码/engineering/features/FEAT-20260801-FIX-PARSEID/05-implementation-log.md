@@ -1,7 +1,7 @@
 # 实现日志
 ## 变更文件
-- ycmn-ui/src/views/customer/detail.vue(parseId + getFiles)
-- ycmn-ui/vitest.setup.js(localStorage stub)
+- aigicrm-ui/src/views/customer/detail.vue(parseId + getFiles)
+- aigicrm-ui/vitest.setup.js(localStorage stub)
 
 
 ## 实现决策
@@ -14,7 +14,7 @@
 ## 实际执行命令
 - npm run build ✓(detail-C4-iKj8e.js,含 parseId 已验证)
 - npm test ✓ 8/8(stash 验证失败为既有缺陷后修复 setup)
-- 部署:tar → scp → docker cp → restart ycmn-frontend ✓
+- 部署:tar → scp → docker cp → restart aigicrm-frontend ✓
 
 ## 失败与纠正
 - 测试 8 连挂:既有 vitest 环境缺陷(jsdom 无 localStorage)→ 修复 setup.js
