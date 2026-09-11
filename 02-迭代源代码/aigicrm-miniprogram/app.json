@@ -1,0 +1,84 @@
+{
+  "pages": [
+    "pages/login/index",
+    "pages/login/forgot/index",
+    "pages/home/index",
+    "pages/customer/index",
+    "pages/customer/detail/index",
+    "pages/customer/form/index",
+    "pages/customer/finance/index",
+    "pages/customer/finance/form/index",
+    "pages/customer/contact/index",
+    "pages/customer/contact/form/index",
+    "pages/customer/contact/detail/index",
+    "pages/customer/share/index",
+    "pages/customer/log/index",
+    "pages/customer/timeline/index",
+    "pages/customer/filter/index",
+    "pages/customer/indicator/index",
+    "pages/file/index",
+    "pages/files/index",
+    "pages/files/folder-form/index",
+    "pages/files/detail/index",
+    "pages/incentive/index",
+    "pages/incentive/upload/index",
+    "pages/incentive/detail/index",
+    "pages/ranking/index",
+    "pages/ranking/detail/index",
+    "pages/statistics/index",
+    "pages/statistics/detail/index",
+    "pages/cases/index",
+    "pages/cases/detail/index",
+    "pages/indicator/index",
+    "pages/app/index",
+    "pages/profile/index",
+    "pages/profile/password/index",
+    "pages/profile/scope/index",
+    "pages/profile/feedback/index",
+    "pages/profile/about/index",
+    "pages/profile/agreement/index",
+    "pages/profile/privacy/index",
+    "pages/profile/wechat/index",
+    "pages/approval/index",
+    "pages/approval/detail/index",
+    "pages/reminder/index",
+    "pages/notification/index",
+    "pages/notification/detail/index",
+    "pages/sea/index",
+    "pages/sea/claim-detail/index"
+  ],
+  "window": {
+    "navigationBarTitleText": "AIGICRM",
+    "navigationBarBackgroundColor": "#f4f8ff",
+    "navigationBarTextStyle": "black",
+    "backgroundColor": "#f4f8ff"
+  },
+  "tabBar": {
+    "color": "#8ea3c0",
+    "selectedColor": "#2563eb",
+    "backgroundColor": "#ffffff",
+    "borderStyle": "white",
+    "list": [
+      {
+        "pagePath": "pages/home/index",
+        "text": "首页"
+      },
+      {
+        "pagePath": "pages/cases/index",
+        "text": "案例"
+      },
+      {
+        "pagePath": "pages/files/index",
+        "text": "文件"
+      },
+      {
+        "pagePath": "pages/app/index",
+        "text": "应用"
+      },
+      {
+        "pagePath": "pages/profile/index",
+        "text": "我的"
+      }
+    ]
+  }
+}

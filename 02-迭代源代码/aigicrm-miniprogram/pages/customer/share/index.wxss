@@ -1,0 +1,1 @@
+.share-form{margin-top:20rpx}.user-option{display:flex;align-items:center;gap:12rpx;padding:18rpx 0;border-bottom:1rpx solid #eef2f7;color:#475569}.share-card{margin-top:20rpx}.share-name{font-size:30rpx;font-weight:700;color:#172b4d}.share-card .detail-row{margin-top:18rpx}.notice{margin-top:24rpx;padding:24rpx;color:#7b8ca5;font-size:25rpx;line-height:1.7}

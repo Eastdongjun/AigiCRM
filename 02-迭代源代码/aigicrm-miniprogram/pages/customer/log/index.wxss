@@ -1,0 +1,1 @@
+.form-card{margin-top:24rpx}.content-input{width:100%;min-height:300rpx;box-sizing:border-box;padding:22rpx;border:1rpx solid #dbeafe;border-radius:16rpx;background:#f8fbff;color:#172b4d;font-size:28rpx;line-height:1.7}.counter{margin-top:12rpx;color:#94a3b8;text-align:right;font-size:23rpx}.submit-btn{margin-top:28rpx}
