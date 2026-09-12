@@ -34,12 +34,27 @@ compare_doc() {
   if [ ! -f "$committed" ]; then
     echo "❌ $label 已提交文档缺失: $committed"; FAIL=$((FAIL+1)); return
   fi
-  if diff -q "$gen" "$committed" >/dev/null 2>&1; then
-    echo "✅ $label 最新"
+  # 【2026-09-12 修正设计缺陷】生成的文档头部带 `> 生成时间: YYYY-MM-DD`，
+  #   直接逐字节 diff 会让"只要不是当天重新生成"必然 FAIL —— 这是**假红**：
+  #   内容完全正确、仅日期不同也会被判定为滞后。
+  #   故比较前剔除"生成时间"行，只比较**实质内容**。
+  #   注意：剔除日期不等于放弃新鲜度断言 —— 若实质内容有任何差异仍会 FAIL。
+  local g c
+  g=$(mktemp); c=$(mktemp)
+  grep -v '^> 生成时间:' "$gen" > "$g"
+  grep -v '^> 生成时间:' "$committed" > "$c"
+  if diff -q "$g" "$c" >/dev/null 2>&1; then
+    if diff -q "$gen" "$committed" >/dev/null 2>&1; then
+      echo "✅ $label 最新"
+    else
+      echo "✅ $label 内容最新（仅生成日期不同，非遗漏）"
+    fi
   else
     echo "❌ $label 已滞后 —— 请重新运行对应 gen 脚本并提交更新"
+    diff "$g" "$c" | head -20 | sed 's/^/     /'
     FAIL=$((FAIL+1))
   fi
+  rm -f "$g" "$c"
 }
 
 echo "--- [7] 文档新鲜度(模式: $MODE, 重新生成 diff 已提交版本) ---"

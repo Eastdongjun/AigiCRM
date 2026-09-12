@@ -1,10 +1,10 @@
 # AIGICRM API 清单(自动生成)
 
-> 生成时间: 2026-09-09 | 来源: 后端 controller 源码扫描
+> 生成时间: 2026-09-12 | 来源: 后端 controller 源码扫描
 > 本文件由 scripts/gen-api.py 自动生成,**禁止手改**;接口变更后重新运行。
 > 权限码与 docs/permission/permission-dict.md 对应。
 
-## 接口清单(186 个)
+## 接口清单(188 个)
 
 | 方法 | 路径 | 权限码 | 方法名 | 文件 |
 |---|---|---|---|---|
@@ -34,6 +34,7 @@
 | GET | `/api/customer/import/template` | `hasAuthority('customer:import')` | downloadTemplate | CustomerController.java |
 | GET | `/api/customer/list` | `hasAuthority('customer:view')` | page | CustomerController.java |
 | GET | `/api/customer/list/counts` | `hasAuthority('customer:view')` | listCounts | CustomerController.java |
+| GET | `/api/customer/rankings` | `hasAuthority('score:view') or hasAuthority('ranking:customer:view') or hasAuthority('statistics:view')` | rankings | CustomerController.java |
 | GET | `/api/customer/statistics` | `hasAuthority('customer:view')` | statistics | CustomerController.java |
 | GET | `/api/customer/users/simple` | `hasAuthority('customer:view')` | simpleUserList | CustomerController.java |
 | DELETE | `/api/customer/{id}` | `hasAuthority('customer:delete')` | delete | CustomerController.java |
@@ -130,6 +131,7 @@
 | DELETE | `/api/sea/pool/{id}` | `登录即可` | deletePool | SeaController.java |
 | GET | `/api/sea/statistics` | `hasAuthority('sea:view')` | statistics | SeaController.java |
 | GET | `/api/statistics/analysis` | `hasAuthority('statistics:view')` | analysis | StatisticsController.java |
+| GET | `/api/statistics/customer-rankings` | `hasAuthority('statistics:view')` | customerRankings | StatisticsController.java |
 | GET | `/api/statistics/daily-stats` | `hasAnyAuthority('statistics:view','dashboard:view')` | dailyStats | StatisticsController.java |
 | GET | `/api/statistics/dashboard` | `hasAnyAuthority('statistics:view','dashboard:view')` | dashboard | StatisticsController.java |
 | GET | `/api/statistics/indicator-stats` | `hasAuthority('statistics:view')` | indicatorStats | StatisticsController.java |
