@@ -82,15 +82,48 @@ if [ "$MODE" = "dryrun" ]; then
 fi
 
 # ---------- 连接测试服（以下均需凭据）----------
+# 本脚本只操作**测试**环境，不读生产库口令 ⇒ 显式声明，避免 deploy-lib.sh 里
+# "必须有 DB_PASSWORD（生产口令）"的校验把只想跑测试迁移的人挡在门外。
+export AIGICRM_TEST_ONLY=1
 source "$SCRIPT_DIR/deploy-lib.sh"   # 载入 env；ssh_test/scp_test 封装
 
-for v in TEST_HOST TEST_USER TEST_PASS TEST_DB_ADMIN_USER TEST_DB_ADMIN_PASSWORD; do
+# 【2026-09-12】测试库管理员凭据：仓库内存在**两套命名**，且用户 env 里可能一套都没有。
+#   · auto-pipeline.sh / gen-permission-dict.sh 用 TEST_DB_ADMIN_USER / TEST_DB_ADMIN_PASSWORD
+#   · check-charset.sh / pre-delivery-check.sh 用 TEST_DB_ROOT_PASSWORD
+#   故这里做**有序回退**，并把最终采用的来源明确打印出来（避免"用了哪个"不清不楚）。
+DB_ADMIN_USER=""
+DB_ADMIN_PASS=""
+DB_CRED_SRC=""
+if [ -n "${TEST_DB_ADMIN_USER:-}" ] && [ -n "${TEST_DB_ADMIN_PASSWORD:-}" ]; then
+  DB_ADMIN_USER="$TEST_DB_ADMIN_USER"; DB_ADMIN_PASS="$TEST_DB_ADMIN_PASSWORD"
+  DB_CRED_SRC="TEST_DB_ADMIN_USER/PASSWORD"
+elif [ -n "${TEST_DB_ROOT_PASSWORD:-}" ]; then
+  DB_ADMIN_USER="${TEST_DB_ADMIN_USER:-root}"; DB_ADMIN_PASS="$TEST_DB_ROOT_PASSWORD"
+  DB_CRED_SRC="TEST_DB_ROOT_PASSWORD(回退，user=${DB_ADMIN_USER})"
+elif [ -n "${DB_PASSWORD:-}" ] && [ "$DB_PASSWORD" != *REPLACE* ]; then
+  DB_ADMIN_USER="root"; DB_ADMIN_PASS="$DB_PASSWORD"
+  DB_CRED_SRC="DB_PASSWORD(回退, user=root) ⚠️ 这是生产/共享主的口令，请确认确实适用于测试库"
+fi
+
+for v in TEST_HOST TEST_USER TEST_PASS; do
   if [ -z "$(eval echo "\${$v:-}")" ]; then
-    echo "❌ 缺少 $v —— 请在 $ENV_FILE 配置（TEST_DB_ADMIN_* 若不存在需新增；" >&2
-    echo "   注意仓库内另有 TEST_DB_ROOT_PASSWORD 命名分支，本脚本用 TEST_DB_ADMIN_*）" >&2
+    echo "❌ 缺少 $v —— 请在 $ENV_FILE 配置" >&2
     rm -f "$PACK"; exit 1
   fi
 done
+if [ -z "$DB_ADMIN_USER" ]; then
+  cat >&2 <<EOF
+❌ 缺少测试库管理员凭据。以下三选一（按优先级）：
+   1) TEST_DB_ADMIN_USER + TEST_DB_ADMIN_PASSWORD   （与 auto-pipeline.sh 一致，推荐）
+   2) TEST_DB_ROOT_PASSWORD                          （与 check-charset.sh 一致，user 默认 root）
+   3) DB_PASSWORD                                    （回退，user=root）
+   ⚠️ 注意：仓库内两套命名并存（TEST_DB_ADMIN_* 与 TEST_DB_ROOT_PASSWORD），
+      而 $ENV_FILE 中当前**两套都不存在**，故本脚本无法自行推断。
+   请在 $ENV_FILE 中补齐其一。
+EOF
+  rm -f "$PACK"; exit 1
+fi
+echo "  测试库凭据来源: $DB_CRED_SRC"
 
 echo "=== [2/5] 探测测试服 MySQL 容器 ==="
 CT="${TEST_DB_CONTAINER}"
@@ -110,13 +143,13 @@ echo "  远端 .sql 数: ${UP_CNT}（本地 ${MIG_CNT}）"
 [ "$UP_CNT" -gt 0 ] || { echo "❌ 远端未收到 .sql（上传失败）" >&2; exit 1; }
 
 echo "=== [4/5] 测试库备份（迁移前）==="
-ssh_test "docker exec -e MYSQL_PWD='$TEST_DB_ADMIN_PASSWORD' $CT mysqldump -u'$TEST_DB_ADMIN_USER' --default-character-set=utf8mb4 --single-transaction $TEST_DB_NAME > /tmp/pre-migrate-test-\$(date +%Y%m%d-%H%M%S).sql && ls -t /tmp/pre-migrate-test-*.sql | head -1"
+ssh_test "docker exec -e MYSQL_PWD='$DB_ADMIN_PASS' $CT mysqldump -u'$DB_ADMIN_USER' --default-character-set=utf8mb4 --single-transaction $TEST_DB_NAME > /tmp/pre-migrate-test-\$(date +%Y%m%d-%H%M%S).sql && ls -t /tmp/pre-migrate-test-*.sql | head -1"
 
 if [ "$MODE" = "info" ]; then
   echo "=== [5/5] Flyway info（只读）==="
   ssh_test "docker run --rm --network host -v $REMOTE_SQL_DIR:/flyway/sql $FLYWAY_IMAGE \
     -url='jdbc:mysql://127.0.0.1:3306/$TEST_DB_NAME?characterEncoding=UTF-8&useSSL=false&allowPublicKeyRetrieval=true' \
-    -user='$TEST_DB_ADMIN_USER' -password='$TEST_DB_ADMIN_PASSWORD' \
+    -user='$DB_ADMIN_USER' -password='$DB_ADMIN_PASS' \
     -connectRetries=10 -validateMigrationNaming=true info"
   echo "✅ info 完成（未修改数据库）"
   exit 0
@@ -128,12 +161,12 @@ echo "=== [5/5] Flyway repair + migrate（-validateMigrationNaming=true）==="
 #   （实测连字符版本号 V2026-09-11-v1 会被静默忽略且退出码 0）。
 ssh_test "docker run --rm --network host -v $REMOTE_SQL_DIR:/flyway/sql $FLYWAY_IMAGE \
   -url='jdbc:mysql://127.0.0.1:3306/$TEST_DB_NAME?characterEncoding=UTF-8&useSSL=false&allowPublicKeyRetrieval=true' \
-  -user='$TEST_DB_ADMIN_USER' -password='$TEST_DB_ADMIN_PASSWORD' \
+  -user='$DB_ADMIN_USER' -password='$DB_ADMIN_PASS' \
   -connectRetries=10 -validateMigrationNaming=true repair" || echo "⚠️ repair 非零（可能仅无操作），继续 migrate"
 
 OUT=$(ssh_test "docker run --rm --network host -v $REMOTE_SQL_DIR:/flyway/sql $FLYWAY_IMAGE \
   -url='jdbc:mysql://127.0.0.1:3306/$TEST_DB_NAME?characterEncoding=UTF-8&useSSL=false&allowPublicKeyRetrieval=true' \
-  -user='$TEST_DB_ADMIN_USER' -password='$TEST_DB_ADMIN_PASSWORD' \
+  -user='$DB_ADMIN_USER' -password='$DB_ADMIN_PASS' \
   -connectRetries=10 -validateMigrationNaming=true migrate" 2>&1) || true
 echo "$OUT"
 
@@ -151,7 +184,7 @@ esac
 
 echo
 echo "=== 迁移后核对：文件写权限码状态 ==="
-ssh_test "docker exec -e MYSQL_PWD='$TEST_DB_ADMIN_PASSWORD' $CT mysql -u'$TEST_DB_ADMIN_USER' \
+ssh_test "docker exec -e MYSQL_PWD='$DB_ADMIN_PASS' $CT mysql -u'$DB_ADMIN_USER' \
   --default-character-set=utf8mb4 -N -B $TEST_DB_NAME -e \"
     SELECT permission, status, COUNT(*) FROM sys_menu
     WHERE permission IN ('file:upload','file:edit','file:delete','file:share','file:folder:manage')

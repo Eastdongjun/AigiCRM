@@ -18,7 +18,17 @@ DEPLOY_DIR="${DEPLOY_DIR:-/root/aigicrm}"
 DEPLOY_DATA_DIR="${DEPLOY_DATA_DIR:-/data/aigicrm}"
 
 # DB 凭据必须存在（禁止脚本内硬编码，一律经 env 注入）
-[ -n "${DB_PASSWORD:-}" ] || { echo "错误: 缺少 DB_PASSWORD（请在 $ENV_FILE 配置）" >&2; exit 1; }
+#
+# 【2026-09-12】仅测试环境的脚本（如 deploy-db-test.sh）**不需要**生产 DB_PASSWORD，
+#   而本库此前无条件强制它 ⇒ 只想跑测试库迁移的人被迫先持有生产口令。
+#   故增加显式逃生：调用方在 source 本库**之前**置
+#       AIGICRM_TEST_ONLY=1
+#   即跳过"生产库口令/应用账号"类校验（其余能力不变，prod 脚本未置该变量，行为完全不变）。
+if [ "${AIGICRM_TEST_ONLY:-0}" = "1" ]; then
+  :
+else
+  [ -n "${DB_PASSWORD:-}" ] || { echo "错误: 缺少 DB_PASSWORD（请在 $ENV_FILE 配置）" >&2; exit 1; }
+fi
 
 # 健康检查/冒烟登录凭据 —— 值在部署 env (HEALTH_CHECK_USER/HEALTH_CHECK_PASS)，禁止硬编码入仓。
 # 为空时登录检查会失败并提示，不会静默使用仓库内默认口令。
