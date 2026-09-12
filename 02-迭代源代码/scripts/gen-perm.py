@@ -24,7 +24,7 @@ def main(out_path, label):
         g['paths'].add(m['path'])
 
     L = []
-    L.append('# YCMN 权限码字典(自动生成)')
+    L.append('# AIGICRM 权限码字典(自动生成)')
     L.append('')
     L.append('> 生成时间: %s | 来源: %s sys_menu + sys_role_menu' % (datetime.date.today(), label))
     L.append('> 本文件由 scripts/gen-permission-dict.sh 自动生成,**禁止手改**;权限变更后重新运行。')

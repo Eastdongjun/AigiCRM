@@ -7,7 +7,7 @@ Catches the bug classes:
   - entity numeric field maps to a varchar column
 
 Usage:
-  python3 check_schema_entity.py --java-dir <src/main/java> --sql <schema.sql> [--sql <dump.sql> ...]
+  python3 check_schema_entity.py --java-dir <src/main/java> [--sql <schema.sql>] [--migrations-dir <dir>]
 
 Exit code 1 when mismatches are found (CI-friendly).
 """
@@ -77,6 +77,17 @@ def parse_sql_columns(sql_files):
             entry = columns.setdefault(table, {"cols": set(), "types": {}})
             entry["cols"].update(cols)
             entry["types"].update(types)
+        # Flyway migrations may build idempotent ALTER statements inside SQL
+        # string literals; retain those columns for offline migration-chain checks.
+        for am in re.finditer(
+            r"ALTER\s+TABLE\s+`?(\w+)`?\s+ADD\s+COLUMN\s+`?(\w+)`?\s+([a-z]+(?:\([^)]*\))?)",
+            text,
+            re.I,
+        ):
+            table, col, col_type = am.group(1), am.group(2), am.group(3).lower()
+            entry = columns.setdefault(table, {"cols": set(), "types": {}})
+            entry["cols"].add(col)
+            entry["types"][col] = col_type
     return columns
 
 
@@ -113,11 +124,17 @@ def check(entities, tables):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--java-dir", required=True, type=Path)
-    ap.add_argument("--sql", required=True, action="append", type=Path)
+    ap.add_argument("--sql", action="append", type=Path, default=[])
+    ap.add_argument("--migrations-dir", type=Path)
     args = ap.parse_args()
 
     entities = parse_entities(args.java_dir)
-    tables = parse_sql_columns(args.sql)
+    sql_files = list(args.sql)
+    if args.migrations_dir:
+        sql_files.extend(sorted(args.migrations_dir.glob("*.sql")))
+    if not sql_files:
+        ap.error("provide --sql and/or --migrations-dir")
+    tables = parse_sql_columns(sql_files)
     errors, warnings, infos = check(entities, tables)
 
     print(f"实体 {len(entities)} 个, SQL 表 {len(tables)} 张")

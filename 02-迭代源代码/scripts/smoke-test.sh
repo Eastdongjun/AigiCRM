@@ -1,5 +1,5 @@
 #!/bin/bash
-# YCMN 核心链路冒烟测试: 生产/测试环境自动化断言
+# AIGICRM 核心链路冒烟测试: 生产/测试环境自动化断言
 # 用法: ./smoke-test.sh [prod|test]
 # 覆盖: 登录 / 核心API / 权限隔离 / 页面可用性
 set -uo pipefail
@@ -17,10 +17,10 @@ PASS=0; FAIL=0
 ok()  { echo "✅ $1"; PASS=$((PASS+1)); }
 bad() { echo "❌ $1"; FAIL=$((FAIL+1)); }
 
-echo "════════ YCMN 冒烟测试 ($LABEL) $(date '+%H:%M:%S') ════════"
+echo "════════ AIGICRM 冒烟测试 ($LABEL) $(date '+%H:%M:%S') ════════"
 
-# [1] 登录 admin（凭据经 ~/.ycmn-deploy.env 的 HEALTH_CHECK_USER/PASS 注入，禁止硬编码）
-[ -n "${HEALTH_CHECK_PASS:-}" ] || { echo "❌ 缺少 HEALTH_CHECK_PASS（请在 ~/.ycmn-deploy.env 配置）"; exit 1; }
+# [1] 登录 admin（凭据经部署 env 的 HEALTH_CHECK_USER/PASS 注入，禁止硬编码）
+[ -n "${HEALTH_CHECK_PASS:-}" ] || { echo "❌ 缺少 HEALTH_CHECK_PASS（请在部署 env 配置）"; exit 1; }
 TOKEN=$(curl -sk -o /dev/null -w "" -X POST "$BASE/api/auth/login" -H "Origin: $BASE" -H "Content-Type: application/json" \
   -d "{\"username\":\"${HEALTH_CHECK_USER:-admin}\",\"password\":\"$HEALTH_CHECK_PASS\"}" >/dev/null 2>&1; curl -sk -X POST "$BASE/api/auth/login" \
   -H "Origin: $BASE" -H "Content-Type: application/json" -d "{\"username\":\"${HEALTH_CHECK_USER:-admin}\",\"password\":\"$HEALTH_CHECK_PASS\"}" \

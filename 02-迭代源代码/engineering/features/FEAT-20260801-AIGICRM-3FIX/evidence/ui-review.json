@@ -1,0 +1,19 @@
+{
+  "feature_id": "FEAT-20260801-AIGICRM-3FIX",
+  "created_at": "2026-08-01T17:35:33+08:00",
+  "feature_revision": 1,
+  "score": 90,
+  "console_errors": 0,
+  "interaction_passed": true,
+  "blocking_findings": [],
+  "screenshot_dimensions": {
+    "ui-baseline-1440x900.png": "1440x900",
+    "ui-1440x900.png": "1440x900",
+    "ui-1280x720.png": "1280x720"
+  },
+  "screenshot_sha256": {
+    "ui-baseline-1440x900.png": "63dd5fe40cc186c7c103ea04f1a6ec1f7ab0c1733410b8e3b37f52898c774bbd",
+    "ui-1440x900.png": "39d044a5d76f1c03f037d874625d0747241585abc0fe84519690cf6db9180e5c",
+    "ui-1280x720.png": "877245f17ce612a8703c836ca9a00ff340a97560200c60f17366385cf4d69aba"
+  }
+}

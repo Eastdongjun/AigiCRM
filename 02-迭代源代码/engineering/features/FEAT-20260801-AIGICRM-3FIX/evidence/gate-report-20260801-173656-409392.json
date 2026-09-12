@@ -1,0 +1,26 @@
+{
+  "feature_id": "FEAT-20260801-AIGICRM-3FIX",
+  "project_root": "/Users/donglai/东来/01-Projects/01-aigicrm/04-源码",
+  "created_at": "2026-08-01T17:36:56+08:00",
+  "feature_revision": 1,
+  "after_change": "command 改为 npm --prefix / mvn -f 形式以适配 project_root cwd",
+  "results": [
+    {
+      "kind": "build",
+      "argv": [
+        "mvn",
+        "-f",
+        "aigicrm-backend/pom.xml",
+        "-q",
+        "package",
+        "-DskipTests"
+      ],
+      "required": true,
+      "started_at": "2026-08-01T17:36:53+08:00",
+      "finished_at": "2026-08-01T17:36:56+08:00",
+      "returncode": 1,
+      "timed_out": false,
+      "output_tail": "WARNING: A terminally deprecated method in sun.misc.Unsafe has been called\nWARNING: sun.misc.Unsafe::objectFieldOffset has been called by lombok.permit.Permit\nWARNING: Please consider reporting this to the maintainers of class lombok.permit.Permit\nWARNING: sun.misc.Unsafe::objectFieldOffset will be removed in a future release\n[ERROR] Failed to execute goal org.apache.maven.plugins:maven-compiler-plugin:3.11.0:compile (default-compile) on project aigicrm-backend: Fatal error compiling: java.lang.ExceptionInInitializerError: com.sun.tools.javac.code.TypeTag :: UNKNOWN -> [Help 1]\n[ERROR] \n[ERROR] To see the full stack trace of the errors, re-run Maven with the -e switch.\n[ERROR] Re-run Maven using the -X switch to enable full debug logging.\n[ERROR] \n[ERROR] For more information about the errors and possible solutions, please read the following articles:\n[ERROR] [Help 1] http://cwiki.apache.org/confluence/display/MAVEN/MojoExecutionException\n"
+    }
+  ]
+}

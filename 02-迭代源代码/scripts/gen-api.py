@@ -10,37 +10,38 @@ METHOD_MAP = {
 
 def extract_apis(controller_dir):
     apis = []
+    method_mapping_re = re.compile(r'@(Get|Post|Put|Delete|Patch)Mapping(?:\((?:value\s*=\s*)?"([^"]*)"\))?')
+    auth_re = re.compile(r'@PreAuthorize\("([^"]+)"\)')
     for root, dirs, files in os.walk(controller_dir):
         for f in sorted(files):
             if not f.endswith('Controller.java'):
                 continue
             path = os.path.join(root, f)
             src = open(path, encoding='utf-8').read()
-            # 类级路径 + 类级权限
-            cls_path = re.search(r'@RequestMapping\("([^"]+)"\)', src)
-            cls_path = cls_path.group(1) if cls_path else ''
-            cls_perm = ''
-            m = re.search(r'@PreAuthorize\("hasAuthority\(\'([^\']+)\'\)"\)\s*\n\s*public class', src)
-            if not m:
-                m = re.search(r'class\s+\w+Controller', src)
-            # 按方法块切分: 上一个方法签名之后 到 本方法签名之前 = 本方法的注解区
-            sig_pat = re.compile(r'public\s+[\w<>,\[\] ]+\s+(\w+)\s*\(', re.S)
-            sigs = [(m.start(), m.group(1)) for m in sig_pat.finditer(src)]
-            for idx, (pos, func) in enumerate(sigs):
-                block_start = sigs[idx - 1][0] if idx > 0 else 0
-                block = src[block_start:pos]
-                mm = re.search(
-                    r'@(GetMapping|PostMapping|PutMapping|DeleteMapping|PatchMapping|RequestMapping)'
-                    r'\s*(?:\(\s*"([^"]*)"\s*\))?', block)
-                if not mm:
+            class_match = re.search(r'@RequestMapping\("([^"]+)"\)', src)
+            cls_path = class_match.group(1) if class_match else ''
+            annotation_lines = []
+            for line in src.splitlines():
+                stripped = line.strip()
+                if stripped.startswith('@'):
+                    annotation_lines.append(stripped)
                     continue
-                method = METHOD_MAP[mm.group(1)]
-                sub = mm.group(2) or ''
-                perm = ''
-                pm = re.search(
-                    r"""@PreAuthorize\("has(?:Any)?Authority\('([^']+)'(?:,'[^']+')*\)"\)""", block)
-                if pm:
-                    perm = pm.group(1)
+                sig = re.match(r'public\s+.+\s+(\w+)\s*\(', stripped)
+                if sig:
+                    annotations = '\n'.join(annotation_lines)
+                    mm = method_mapping_re.search(annotations)
+                    if not mm:
+                        annotation_lines = []
+                        continue
+                    method = mm.group(1).upper()
+                    sub = mm.group(2) or ''
+                    auth = auth_re.search(annotations)
+                    perm = auth.group(1) if auth else ''
+                    func = sig.group(1)
+                else:
+                    if stripped and not stripped.startswith('//') and not stripped.startswith('*') and not stripped.startswith('/*'):
+                        annotation_lines = []
+                    continue
                 # 绝对路径(以 /api 开头)不拼类级路径
                 if sub.startswith('/api'):
                     full = sub
@@ -54,13 +55,14 @@ def extract_apis(controller_dir):
                     else:
                         perm = '登录即可'
                 apis.append({'method': method, 'path': full, 'perm': perm, 'func': func, 'file': f})
+                annotation_lines = []
     return apis
 
 def main(ctrl_dir, out_path):
     apis = extract_apis(ctrl_dir)
     apis.sort(key=lambda a: (a['path'], a['method']))
     L = []
-    L.append('# YCMN API 清单(自动生成)')
+    L.append('# AIGICRM API 清单(自动生成)')
     L.append('')
     L.append('> 生成时间: %s | 来源: 后端 controller 源码扫描' % datetime.date.today())
     L.append('> 本文件由 scripts/gen-api.py 自动生成,**禁止手改**;接口变更后重新运行。')

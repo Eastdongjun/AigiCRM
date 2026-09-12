@@ -1,0 +1,26 @@
+{
+  "feature_id": "FEAT-20260801-AIGICRM-3FIX",
+  "project_root": "/Users/donglai/东来/01-Projects/01-aigicrm/04-源码",
+  "created_at": "2026-08-01T17:47:25+08:00",
+  "feature_revision": 1,
+  "after_change": "配置 ~/.mavenrc 指向 JDK 17 (/tmp/jdk-17.0.20+8)，解决 Lombok 与 JDK25 不兼容",
+  "results": [
+    {
+      "kind": "build",
+      "argv": [
+        "mvn",
+        "-f",
+        "aigicrm-backend/pom.xml",
+        "-q",
+        "package",
+        "-DskipTests"
+      ],
+      "required": true,
+      "started_at": "2026-08-01T17:47:21+08:00",
+      "finished_at": "2026-08-01T17:47:25+08:00",
+      "returncode": 0,
+      "timed_out": false,
+      "output_tail": ""
+    }
+  ]
+}

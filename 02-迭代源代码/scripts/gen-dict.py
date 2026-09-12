@@ -42,7 +42,7 @@ def main(out_path, host_label):
             })
 
     L = []
-    L.append("# YCMN 数据字典(自动生成)")
+    L.append("# AIGICRM 数据字典(自动生成)")
     L.append("")
     L.append("> 生成时间: %s | 来源: %s MySQL information_schema" % (datetime.date.today(), host_label))
     L.append("> 共 %d 张表。本文件由 scripts/gen-data-dictionary.sh 自动生成,**禁止手改**;库结构变更后重新运行脚本。" % len(tables))
