@@ -136,11 +136,13 @@ const routes = [
         meta: { title: '客户排行', parentTitle: '统计分析', icon: 'DataLine', permission: 'statistics:view' }
       },
       // 核心客户六项指标
+      // 标题统一为「核心客户六项指标」：生产菜单(id=108)与页面 <h3> 均用此名，
+      // 原 meta.title 写作「统计总览」会造成"点进去看到的和菜单不一致"。
       {
         path: 'indicator',
         name: 'Indicator',
         component: () => import('@/views/indicator/index.vue'),
-        meta: { title: '统计总览', parentTitle: '核心客户六项指标', icon: 'Aim', permission: 'statistics:view' }
+        meta: { title: '核心客户六项指标', icon: 'Aim', permission: 'statistics:view' }
       },
       // 系统管理
       {
@@ -155,12 +157,11 @@ const routes = [
         component: () => import('@/views/system/dept.vue'),
         meta: { title: '组织架构', icon: 'OfficeBuilding', permission: 'system:dept:view' }
       },
-      {
-        path: 'system/dept',
-        name: 'LegacyDeptManage',
-        component: () => import('@/views/system/dept.vue'),
-        meta: { title: '组织架构', icon: 'OfficeBuilding', permission: 'system:dept:view' }
-      },
+      // 已移除 legacy 路由 'system/dept'（name: LegacyDeptManage）:
+      //   与 'system/org' component 完全相同、标题相同、权限码相同;
+      //   侧边栏由后端动态菜单驱动, 生产只下发 /system/org(id=118「部门管理」),
+      //   故 'system/dept' 侧边栏不可达; 全仓仅此一处引用。
+      //   LogAspect 里针对该 URI 的分支同步改为 /system/org。
       {
         path: 'system/role',
         name: 'RoleManage',

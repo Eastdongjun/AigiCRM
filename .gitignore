@@ -28,6 +28,11 @@ __pycache__/
 *.key
 *.pem
 
+# SonarQube 本地缓存（含 secrets 扫描认证缓存，禁止入库）
+**/.sonar-cache/
+*secrets-auth-cache*
+.sonar/
+
 # graphify 图谱产物（本地重建，不提交）
 graphify-out/
 .backup-*/

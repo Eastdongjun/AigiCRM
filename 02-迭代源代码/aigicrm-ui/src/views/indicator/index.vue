@@ -1,7 +1,7 @@
 <template>
   <div class="indicator-page">
-    <!-- 标题 -->
-    <h3 class="page-title">统计总览</h3>
+    <!-- 标题：与生产菜单(id=108)、router meta.title 统一为「核心客户六项指标」 -->
+    <h3 class="page-title">核心客户六项指标</h3>
 
     <!-- 统计卡片 -->
     <div class="stat-row">
