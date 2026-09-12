@@ -61,7 +61,7 @@ run_maven() {
   "$JAVA_HOME/bin/java" -version 2>&1 | sed 's/^/── 诊断: /'
   for rc in "$HOME/.mavenrc" /etc/mavenrc; do
     if [ -f "$rc" ]; then
-      echo "── 诊断: 发现 $rc，内容："
+      echo "── 诊断: 发现 ${rc}，内容："
       sed 's/^/     /' "$rc"
     fi
   done

@@ -106,7 +106,7 @@ scp_test "$PACK" "${TEST_USER}@${TEST_HOST}:/tmp/mig.tgz"
 rm -f "$PACK"
 ssh_test "rm -rf $REMOTE_SQL_DIR && mkdir -p $REMOTE_SQL_DIR && tar xzf /tmp/mig.tgz -C $REMOTE_SQL_DIR && find $REMOTE_SQL_DIR -name '._*' -delete 2>/dev/null; true"
 UP_CNT=$(ssh_test "ls $REMOTE_SQL_DIR/*.sql 2>/dev/null | wc -l" | tr -d '[:space:]')
-echo "  远端 .sql 数: $UP_CNT（本地 $MIG_CNT）"
+echo "  远端 .sql 数: ${UP_CNT}（本地 ${MIG_CNT}）"
 [ "$UP_CNT" -gt 0 ] || { echo "❌ 远端未收到 .sql（上传失败）" >&2; exit 1; }
 
 echo "=== [4/5] 测试库备份（迁移前）==="
@@ -158,4 +158,4 @@ ssh_test "docker exec -e MYSQL_PWD='$TEST_DB_ADMIN_PASSWORD' $CT mysql -u'$TEST_
     GROUP BY permission, status ORDER BY permission;\"" 2>/dev/null || true
 echo "  预期：5 行全部 status=1（否则 apply 未生效）"
 echo
-echo "✅ 测试库迁移完成（库=$TEST_DB_NAME 容器=$CT）"
+echo "✅ 测试库迁移完成（库=${TEST_DB_NAME} 容器=${CT}）"

@@ -63,9 +63,11 @@ step "[5/7] 测试库迁移"
 MYSQL_CT=$(ssh_test "docker ps --format '{{.Names}}'" | grep -i mysql | head -1)
 [ -z "$MYSQL_CT" ] && die "未能在测试服务器上自动找到 MySQL 容器名，需要手动执行 SQL 迁移"
 echo "检测到测试库容器: $MYSQL_CT"
+# 库名不得硬编码（原为 aigicrm）：统一从 TEST_DB_NAME/DB_NAME 取，默认 aigicrm。
+PIPE_DB="${TEST_DB_NAME:-${DB_NAME:-aigicrm}}"
 for sql in fix-permission-rule-org-id.sql fix-menu-dynamic-sidebar.sql; do
   scp_test "sql/migration/20260804/$sql" "${TEST_USER}@${TEST_HOST}:/tmp/$sql" || die "上传 $sql 失败"
-  ssh_test "docker exec -i $MYSQL_CT mysql -u"$TEST_DB_ADMIN_USER" -p"$TEST_DB_ADMIN_PASSWORD" --default-character-set=utf8mb4 aigicrm < /tmp/$sql" \
+  ssh_test "docker exec -i $MYSQL_CT mysql -u"$TEST_DB_ADMIN_USER" -p"$TEST_DB_ADMIN_PASSWORD" --default-character-set=utf8mb4 $PIPE_DB < /tmp/$sql" \
     && echo "✅ $sql 执行完成" || die "$sql 执行失败"
 done
 

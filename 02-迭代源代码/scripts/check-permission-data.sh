@@ -57,6 +57,30 @@ if [ -z "$DB_HOST" ] || [ -z "$DB_USER" ] || [ -z "$DB_PASS" ] || [ -z "$DB_NAME
 fi
 [ -n "$CONTAINER" ] || { echo "错误: --container 需要容器名" >&2; exit 2; }
 
+# 【2026-09-12】生产库名一致性硬门禁。
+#   本脚本默认 host 取 PROD_HOST，而 DB_NAME 来自 ~/.aigicrm-deploy.env，
+#   该文件当前是**改名后目标态**（aigicrm），生产实际库名却是 ycmn（改名窗口未开）。
+#   若不拦：脚本会连上生产容器却查一个不存在的库 ⇒ 断言静默返回空/0 ⇒ **假绿**。
+#   （同类问题已在 gen-permission-dict.sh / gen-data-dictionary.sh / check-charset.sh 修掉）
+#   注意：必须自行读一次 env，不能依赖调用方已 source（否则 PROD_HOST 可能为空）。
+PROD_HOST_D="${PROD_HOST:-}"
+if [ -z "$PROD_HOST_D" ] && [ -f "${ENV_FILE:-$HOME/.aigicrm-deploy.env}" ]; then
+  PROD_HOST_D="$(grep -E '^PROD_HOST=' "${ENV_FILE:-$HOME/.aigicrm-deploy.env}" 2>/dev/null | head -1 | cut -d= -f2- | tr -d '[:space:]')"
+fi
+if [ -n "$PROD_HOST_D" ] && [ "$DB_HOST" = "$PROD_HOST_D" ] && [ "$DB_NAME" != "ycmn" ]; then
+  cat >&2 <<EOF
+❌ PROD_DB_NAME_MISMATCH: DB_HOST 指向生产（PROD_HOST=${PROD_HOST_D}），
+   但 DB_NAME='${DB_NAME}'，而生产实际库名是 'ycmn'（改名窗口尚未执行）。
+   继续执行会连上生产却查错库 ⇒ 断言静默返回空 ⇒ 假绿。
+
+   两种解除方式（二选一）：
+   (A) 显式传参覆盖库名：$0 <host> <user> <pass> ycmn
+   (B) 在 ~/.aigicrm-deploy.env 中把 DB_NAME 钉回 ycmn（改名完成后再切回 aigicrm 系）
+   参考：PROD-RENAME-PLAN-NEXT-VERSION.md §0
+EOF
+  exit 2
+fi
+
 # ---- 执行模式 ----
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 # local: 本机 mysql 客户端直连

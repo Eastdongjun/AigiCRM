@@ -23,8 +23,10 @@ run_check() {
   echo "=== [$label] 中文字段扫描 ==="
   local dbq out
   dbq=$(printf %q "$dbpass")  # 【2026-08-14 评审 P2】%q 转义后再嵌入远端命令，口令不进命令行 -p 参数
+  # 库名不得硬编码（原为 aigicrm）：生产实际是 ycmn，硬编码会连错库。
+  local scan_db="${SCAN_DB:-${DB_NAME:-aigicrm}}"
   out=$(sshpass -p "$pass" ssh -o StrictHostKeyChecking=no -o ConnectTimeout=15 "$user@$host" \
-    "docker exec -e MYSQL_PWD=$dbq $ct mysql -h127.0.0.1 -uroot --default-character-set=utf8mb4 aigicrm -N -e 'SELECT CONCAT(role_code, \"=\", role_name) FROM sys_role WHERE role_code LIKE \"incentive%\"; SELECT CONCAT(permission, \"=\", menu_name) FROM sys_menu WHERE permission IN (\"incentive:manage\",\"incentive:view-all\",\"incentive:view-shared\",\"file:acl:manage\");' 2>/dev/null" 2>/dev/null)
+    "docker exec -e MYSQL_PWD=$dbq $ct mysql -h127.0.0.1 -uroot --default-character-set=utf8mb4 $scan_db -N -e 'SELECT CONCAT(role_code, \"=\", role_name) FROM sys_role WHERE role_code LIKE \"incentive%\"; SELECT CONCAT(permission, \"=\", menu_name) FROM sys_menu WHERE permission IN (\"incentive:manage\",\"incentive:view-all\",\"incentive:view-shared\",\"file:acl:manage\");' 2>/dev/null" 2>/dev/null)
   if [ -z "$out" ]; then
     echo "❌ [$label] 查询失败或返回空（连接/库名错误？）"
     return 1

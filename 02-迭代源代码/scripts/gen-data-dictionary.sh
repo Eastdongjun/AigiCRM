@@ -42,8 +42,11 @@ if [ "$ENV" = "local" ]; then
   query "SELECT t.table_name, t.table_comment FROM information_schema.tables t WHERE t.table_schema='$DB_NAME' ORDER BY t.table_name;" > /tmp/dict-tables.txt
   query "SELECT c.table_name, c.column_name, c.column_type, c.is_nullable, c.column_default, c.column_key, c.column_comment FROM information_schema.columns c WHERE c.table_schema='$DB_NAME' ORDER BY c.table_name, c.ordinal_position;" > /tmp/dict-cols.txt
 else
-  "$SSH_FN" "docker exec $MYSQL_C mysql -u"$DB_USER" -p"$DB_PASS" -N --default-character-set=utf8mb4 -e \"SELECT t.table_name, t.table_comment FROM information_schema.tables t WHERE t.table_schema='aigicrm' ORDER BY t.table_name;\" 2>/dev/null" > /tmp/dict-tables.txt
-  "$SSH_FN" "docker exec $MYSQL_C mysql -u"$DB_USER" -p"$DB_PASS" -N --default-character-set=utf8mb4 -e \"SELECT c.table_name, c.column_name, c.column_type, c.is_nullable, c.column_default, c.column_key, c.column_comment FROM information_schema.columns c WHERE c.table_schema='aigicrm' ORDER BY c.table_name, c.ordinal_position;\" 2>/dev/null" > /tmp/dict-cols.txt
+  # 库名不得硬编码（原为 aigicrm）：生产实际库名是 ycmn（改名窗口未开），
+  # 测试为 aigicrm。硬编码会让 remote 模式查错库 ⇒ 查询返回空 ⇒ 生成失败。
+  RM_DB="${DB_NAME:-aigicrm}"
+  "$SSH_FN" "docker exec $MYSQL_C mysql -u"$DB_USER" -p"$DB_PASS" -N --default-character-set=utf8mb4 -e \"SELECT t.table_name, t.table_comment FROM information_schema.tables t WHERE t.table_schema='$RM_DB' ORDER BY t.table_name;\" 2>/dev/null" > /tmp/dict-tables.txt
+  "$SSH_FN" "docker exec $MYSQL_C mysql -u"$DB_USER" -p"$DB_PASS" -N --default-character-set=utf8mb4 -e \"SELECT c.table_name, c.column_name, c.column_type, c.is_nullable, c.column_default, c.column_key, c.column_comment FROM information_schema.columns c WHERE c.table_schema='$RM_DB' ORDER BY c.table_name, c.ordinal_position;\" 2>/dev/null" > /tmp/dict-cols.txt
 fi
 if [ ! -s /tmp/dict-tables.txt ] || [ ! -s /tmp/dict-cols.txt ]; then
   echo "错误: 数据库查询未返回完整的数据字典结果，文档生成未完成" >&2
