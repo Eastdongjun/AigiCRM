@@ -494,11 +494,23 @@ pr() {
   run backend_test
   run frontend_test
   run frontend_build
-  run "$ROOT/scripts/verify-sea-claim-matrix.sh" preflight || {
-    local rc=$?
-    [ "$rc" -eq 2 ] && blocked "real sea matrix needs explicit test env inputs"
-    return "$rc"
-  }
+  # 【2026-09-12 修正】真实公海矩阵 preflight 需要 4 个测试账号凭据
+  #   （AIGICRM_MATRIX_BASE_URL / _APPLICANT_USER / _APPROVER_USER / _TEST_CUSTOMER_ID），
+  #   原先在 pr 模式下**无条件**执行 ⇒ 缺凭据时 blocked() 直接 exit 2，
+  #   导致 pre-push 钩子（.githooks/pre-push 调 `dev-verify.sh pr`）**拦住每一次推送**，
+  #   即使本次改动与公海矩阵毫无关系。实测即因此被迫用 AIGICRM_SKIP_PRE_PUSH=1 绕过。
+  #   这与 changed 模式既有的做法不一致（那里早已是 opt-in）。
+  #   现统一为 opt-in：需要时置 AIGICRM_PR_REQUIRE_MATRIX=1 强制校验。
+  if [ "${AIGICRM_PR_REQUIRE_MATRIX:-0}" = "1" ]; then
+    run "$ROOT/scripts/verify-sea-claim-matrix.sh" preflight || {
+      local rc=$?
+      [ "$rc" -eq 2 ] && blocked "real sea matrix needs explicit test env inputs"
+      return "$rc"
+    }
+  else
+    echo "SKIP: 真实公海矩阵 preflight 未执行（需要测试账号凭据）；置 AIGICRM_PR_REQUIRE_MATRIX=1 强制校验。"
+    echo "      （矩阵本体仍可用 'dev-verify.sh sea-matrix' 单独运行）"
+  fi
 }
 
 case "$MODE" in
@@ -545,10 +557,12 @@ Modes:
                    Check daily automation files for forbidden remote/deploy commands.
   sea              Public sea claim/approval contract tests.
   sea-matrix       Safe real-account matrix preflight; BLOCKED when inputs are missing.
-  pr               Local pre-PR gate: shell syntax, sea contract, backend tests, frontend tests/build, matrix preflight.
+  pr               Local pre-PR gate: shell syntax, sea contract, backend tests, frontend tests/build.
+                   Real sea matrix preflight is opt-in here (needs test-account credentials).
 
 Set AIGICRM_ON_SAVE_DEEP=1 to let on-save run compile/tests for touched backend/frontend files.
 Set AIGICRM_CHANGED_REQUIRE_MATRIX=1 to require real sea matrix preflight in changed mode.
+Set AIGICRM_PR_REQUIRE_MATRIX=1 to require real sea matrix preflight in pr mode.
 EOF
     ;;
   *) fail "Unknown mode: $MODE" ;;
