@@ -7,6 +7,10 @@ source "$SCRIPT_DIR/deploy-lib.sh"
 # 前端源码目录（2026-08-15 修正：仓库 08-14 重组后源码在 02-迭代源代码/ 下，旧路径 04-源码/aigicrm-ui 已废弃）
 UI_DIR="${UI_DIR:-$(cd "$SCRIPT_DIR/../aigicrm-ui" && pwd)}"
 COMMIT=$(git_commit)
+# 【2026-09-12】生产环境前置硬门禁：env 若指向"改名后目标态"而生产未改名，
+# 本脚本会**静默空转**（见 deploy-lib.sh 中 assert_prod_env_pinned 的说明）。
+# 必须在任何远端动作之前 fail-closed。
+assert_prod_env_pinned
 check_deploy_arch
 echo "=== [1/5] 构建前端 (commit: $COMMIT) ==="
 cd "$UI_DIR" && npm run build 2>&1 | grep -E "built in|error" | head -2

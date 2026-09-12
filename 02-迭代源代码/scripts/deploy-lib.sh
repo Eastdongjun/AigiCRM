@@ -84,6 +84,69 @@ ARCH_CHECK
   return 0
 }
 
+# ============================================================
+# 【2026-09-12 新增】生产前置硬门禁：防止"改名未执行 → 部署静默空转"
+#
+# 背景（PROD-RENAME-PLAN-NEXT-VERSION.md §0 记录的发布阻断项）：
+#   ~/.aigicrm-deploy.env 的 APP_SLUG / DB_NAME / DEPLOY_DIR / NAS_DIST_DIR
+#   当前是**目标态**（aigicrm 系），而生产实际仍是 ycmn 系（改名窗口未开）。
+#   若在此状态下直接跑生产部署脚本，会发生**静默空转** —— 最危险的一处是
+#   deploy-frontend.sh：`mkdir -p $NAS_BACKUP_DIR/dist-rollback-...` 会**新建**目标目录，
+#   随后 `rm -rf $NAS_DIST_DIR/* && tar xzf ... -C $NAS_DIST_DIR` 在一个
+#   **新建的空目录**里"成功"完成，而生产实际服务目录毫无变化 —— 脚本却报成功。
+#
+# 本门禁在**任何破坏性动作之前**断言"env 指向的路径与生产实际一致"，
+# 不一致则 fail-closed 退出，并给出两种解除方式。
+#
+# 用法：在各 prod 部署脚本的破坏性动作之前调用 assert_prod_env_pinned。
+# 仅做字符串比较，无副作用、不接触网络。
+# ============================================================
+assert_prod_env_pinned() {
+  local expected_slug="ycmn" expected_db="ycmn" expected_dir="/root/ycmn"
+  local expected_dist="/Aigicrm/files/ycmn-dist" expected_data="/data/ycmn"
+  local bad=0
+
+  [ "${APP_SLUG:-}" = "$expected_slug" ] || {
+    echo "❌ PROD_ENV_MISMATCH: APP_SLUG='${APP_SLUG:-}' 但生产实际是 '$expected_slug'" >&2; bad=1; }
+  [ "${DB_NAME:-}" = "$expected_db" ] || {
+    echo "❌ PROD_ENV_MISMATCH: DB_NAME='${DB_NAME:-}' 但生产实际是 '$expected_db'" >&2; bad=1; }
+  [ "${DEPLOY_DIR:-}" = "$expected_dir" ] || {
+    echo "❌ PROD_ENV_MISMATCH: DEPLOY_DIR='${DEPLOY_DIR:-}' 但生产实际是 '$expected_dir'" >&2; bad=1; }
+  [ "${NAS_DIST_DIR:-}" = "$expected_dist" ] || {
+    echo "❌ PROD_ENV_MISMATCH: NAS_DIST_DIR='${NAS_DIST_DIR:-}' 但生产实际是 '$expected_dist'" >&2; bad=1; }
+  [ "${DEPLOY_DATA_DIR:-}" = "$expected_data" ] || {
+    echo "⚠️  PROD_ENV_NOTE: DEPLOY_DATA_DIR='${DEPLOY_DATA_DIR:-}'，生产记录为 '$expected_data'（软链目标，请确认）" >&2; }
+
+  if [ "$bad" -ne 0 ]; then
+    cat >&2 <<'EOF'
+
+⛔ 已中止：部署 env 指向"改名后的目标态"，而生产尚未改名。
+   继续执行会造成**静默空转**（最坏情形：前端脚本在新建的空目录里"成功"，
+   生产实际目录未变，脚本却报成功）。
+
+   两种解除方式（二选一）：
+   (A) 钉回生产现值（推荐，改名另排窗口）—— 在 ~/.aigicrm-deploy.env 中设置：
+         APP_SLUG=ycmn
+         DB_NAME=ycmn
+         DEPLOY_DIR=/root/ycmn
+         DEPLOY_DATA_DIR=/data/ycmn
+         NAS_DIST_DIR=/Aigicrm/files/ycmn-dist
+   (B) 先执行改名窗口（见 PROD-RENAME-PLAN-NEXT-VERSION.md §4 runbook），
+       改名完成后再把上述值切回 aigicrm 系。
+
+   参考：PROD-RENAME-PLAN-NEXT-VERSION.md §0 / §2 / §5
+EOF
+    echo "PROD_ENV_GUARD=FAIL" >&2
+    return 1
+  fi
+
+  # 注意：变量后紧跟全角标点时必须用 ${VAR} —— macOS bash 3.2 不会把全角字符
+  # 当作变量名边界，$VAR）会被解析成变量名 "VAR）" 而报 unbound variable。
+  echo "✅ 生产 env 已与生产现值一致（APP_SLUG=${APP_SLUG} DB_NAME=${DB_NAME} DEPLOY_DIR=${DEPLOY_DIR} NAS_DIST_DIR=${NAS_DIST_DIR}）"
+  return 0
+}
+
+
 # 当前源码 commit(用于部署记录)
 git_commit() {
   cd "${SOURCE_DIR:-$(cd "$SCRIPT_DIR/.." && pwd)}" && git rev-parse --short HEAD 2>/dev/null || echo "unknown"

@@ -16,6 +16,8 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 source "$SCRIPT_DIR/deploy-lib.sh"
 
+# 【2026-09-12】生产环境前置硬门禁（见 deploy-lib.sh: assert_prod_env_pinned）
+assert_prod_env_pinned
 check_deploy_arch
 
 MIGRATION_DIR="${1:-$SCRIPT_DIR/../aigicrm-backend/src/main/resources/db/migration}"
