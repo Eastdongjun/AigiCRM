@@ -23,10 +23,23 @@ for rel in "${targets[@]}"; do
   path="$ROOT/$rel"
   [ -f "$path" ] || continue
 
+  # 【2026-09-12 加固】原写法 `grep -nE "$forbidden" || true` 把**两种**非零退出
+  #   一律吞掉：exit 1 = 无匹配（正常），exit 2 = 正则/IO 错误（异常）。
+  #   若 $forbidden 变成非法正则，grep 退 2 却被 `|| true` 掩盖 ⇒
+  #   安全守卫**静默通过**（假绿）。实测当前 pattern 可编译（退 1 而非 2），
+  #   故风险为 DORMANT；此处按 fail-closed 加固，避免日后变成真实缺陷。
+  set +e
   matches="$(
     sed -E '/^[[:space:]]*#/d; s/#.*$//' "$path" |
-      grep -nE "$forbidden" || true
+      grep -nE "$forbidden"
   )"
+  rc=$?
+  set -e
+  if [ "$rc" -eq 2 ]; then
+    echo "FAIL: 禁用模式正则/IO 错误（安全守卫无法执行，拒绝静默通过）: $rel" >&2
+    status=1
+    continue
+  fi
   if [ -n "$matches" ]; then
     echo "FAIL: unsafe automation command pattern in $rel" >&2
     echo "$matches" >&2
