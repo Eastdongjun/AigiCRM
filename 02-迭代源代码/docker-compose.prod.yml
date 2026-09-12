@@ -15,7 +15,13 @@ services:
       - "127.0.0.1:3306:3306"
     volumes:
       - mysql-data:/var/lib/mysql
-      - ./sql/init.sql:/docker-entrypoint-initdb.d/init.sql
+      # ⚠️ 已注释（2026-09-12）：`./sql/init.sql` 在仓库中**不是文件，而是一个空目录**
+      #    （该路径被 .gitignore:43-44 忽略；真种子只存在于备份
+      #     08-备份索引/09-生产环境备份/deploy/ycmn/sql/init.sql）。
+      #    挂载目录到 docker-entrypoint-initdb.d 会让 MySQL 官方入口脚本把目录当脚本处理，
+      #    属于误配置。数据库初始化现已由 Flyway 链负责（含 V2026.09.11.6 的全新库种子）。
+      #    新建空库时若确需该 legacy 种子文件，请先从备份恢复 ./sql/init.sql 再解除注释。
+      # - ./sql/init.sql:/docker-entrypoint-initdb.d/init.sql
     command: --character-set-server=utf8mb4 --collation-server=utf8mb4_general_ci
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]

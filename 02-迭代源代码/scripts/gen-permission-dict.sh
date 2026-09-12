@@ -30,11 +30,14 @@ fi
 OUT="${OUT:-$SCRIPT_DIR/../docs/permission/permission-dict.md}"  # 默认写入当前源码仓库
 mkdir -p "$(dirname "$OUT")"
 if [ "$ENV" = "local" ]; then
-  query "SELECT m.id, m.menu_name, m.permission, m.menu_type, m.path FROM \`$DB_NAME\`.sys_menu m WHERE m.permission IS NOT NULL AND m.permission != '' ORDER BY m.permission;" > /tmp/perm-menus.txt
+  query "SELECT m.id, m.menu_name, m.permission, m.menu_type, m.path, m.status FROM \`$DB_NAME\`.sys_menu m WHERE m.permission IS NOT NULL AND m.permission != '' ORDER BY m.permission;" > /tmp/perm-menus.txt
   query "SELECT r.role_name, m.permission FROM \`$DB_NAME\`.sys_role r JOIN \`$DB_NAME\`.sys_role_menu rm ON r.id=rm.role_id JOIN \`$DB_NAME\`.sys_menu m ON rm.menu_id=m.id WHERE m.permission != '' ORDER BY r.id, m.permission;" > /tmp/perm-roles.txt
 else
-  "$SSH_FN" "docker exec $MYSQL_C mysql -u"$DB_USER" -p"$DB_PASS" -N --default-character-set=utf8mb4 -e \"SELECT m.id, m.menu_name, m.permission, m.menu_type, m.path FROM aigicrm.sys_menu m WHERE m.permission IS NOT NULL AND m.permission != '' ORDER BY m.permission;\" 2>/dev/null" > /tmp/perm-menus.txt
-  "$SSH_FN" "docker exec $MYSQL_C mysql -u"$DB_USER" -p"$DB_PASS" -N --default-character-set=utf8mb4 -e \"SELECT r.role_name, m.permission FROM aigicrm.sys_role r JOIN aigicrm.sys_role_menu rm ON r.id=rm.role_id JOIN aigicrm.sys_menu m ON rm.menu_id=m.id WHERE m.permission != '' ORDER BY r.id, m.permission;\" 2>/dev/null" > /tmp/perm-roles.txt
+  # 库名不得硬编码（原为 aigicrm）：生产实际库名为 ycmn（见 PROD-RENAME-PLAN §6 同类风险），
+  # 测试为 aigicrm。统一从 DB_NAME 取，与 deploy-*.sh 的口径一致。
+  RM_DB="${DB_NAME:-aigicrm}"
+  "$SSH_FN" "docker exec $MYSQL_C mysql -u"$DB_USER" -p"$DB_PASS" -N --default-character-set=utf8mb4 -e \"SELECT m.id, m.menu_name, m.permission, m.menu_type, m.path, m.status FROM $RM_DB.sys_menu m WHERE m.permission IS NOT NULL AND m.permission != '' ORDER BY m.permission;\" 2>/dev/null" > /tmp/perm-menus.txt
+  "$SSH_FN" "docker exec $MYSQL_C mysql -u"$DB_USER" -p"$DB_PASS" -N --default-character-set=utf8mb4 -e \"SELECT r.role_name, m.permission FROM $RM_DB.sys_role r JOIN $RM_DB.sys_role_menu rm ON r.id=rm.role_id JOIN $RM_DB.sys_menu m ON rm.menu_id=m.id WHERE m.permission != '' ORDER BY r.id, m.permission;\" 2>/dev/null" > /tmp/perm-roles.txt
 fi
 if [ ! -s /tmp/perm-menus.txt ] || [ ! -s /tmp/perm-roles.txt ]; then
   echo "错误: 数据库查询未返回完整的权限字典结果，文档生成未完成" >&2
