@@ -306,7 +306,7 @@ local_contracts() {
   run "$ROOT/scripts/check-client-ip-contract.sh"
   run "$ROOT/scripts/check-customer-share-contract.sh"
   run "$ROOT/scripts/check-file-permission-contract.sh"
-  run "$ROOT/scripts/check-customer-file-contract.sh"
+  # 【2026-09-13】check-customer-file-contract.sh 已随「客户文件」功能移除（见 V2026.09.13.5 迁移）
   run "$ROOT/scripts/check-miniprogram-local-profile.sh"
   run "$ROOT/scripts/check-wechat-project-root.sh"
   run "$ROOT/scripts/check-mobile-manual-qa-contract.sh"

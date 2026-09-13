@@ -6,7 +6,6 @@
 <view wx:if="{{detail && from !== 'sea' && canEdit}}" class="card" style="margin-top:20rpx"><button class="btn" bindtap="releaseToSea">释放到公海</button></view>
 <button wx:if="{{detail && canViewContacts}}" class="secondary-btn" style="margin:20rpx auto" bindtap="openContacts">查看全部联系人</button>
 <button wx:if="{{detail}}" class="secondary-btn" style="margin:20rpx auto" bindtap="openShares">查看客户分享</button>
-<button wx:if="{{detail && canViewFiles}}" class="secondary-btn" style="margin:20rpx auto" bindtap="openFiles">查看客户文件</button>
-<button wx:if="{{detail && canEdit && canViewFiles}}" class="secondary-btn" style="margin:20rpx auto" bindtap="manageFiles">管理客户文件</button>
+
 <button wx:if="{{detail && canEdit}}" class="btn" style="margin:20rpx auto" bindtap="openLogForm">新增跟进记录</button>
 <button wx:if="{{detail}}" class="secondary-btn" style="margin:20rpx auto" bindtap="openTimeline">查看完整跟进记录</button>

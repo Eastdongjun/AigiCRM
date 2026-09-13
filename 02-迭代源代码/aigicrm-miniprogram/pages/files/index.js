@@ -1,5 +1,4 @@
 const { getFolders, getSharedToMe, getFileList, uploadFile, deleteFolder } = require('../../api/file')
-const { getCustomerFiles, attachCustomerFile, detachCustomerFile } = require('../../api/customer')
 const { showError } = require('../../utils/feedback')
 const { hasPermission, requireLogin } = require('../../utils/auth')
 const { readDemoFolders, removeDemoFolder } = require('../../utils/demo-folders')
@@ -12,7 +11,7 @@ const demoFiles = [
 ]
 
 Page({
-  data: { customerId: '', mode: '', keyword: '', activeTab: '我的文件', activeFolderId: '', activeFolderName: '', tabs: ['我的文件', '共享给我', '价值服务资料'], folders: [], files: [], filteredFiles: [], capacity: { used: '3.8', total: '10', percent: 38 }, canUpload: false, canManageFolder: false, canDevUploadSmoke: false, uploading: false, loaded: false },
+  data: { keyword: '', activeTab: '我的文件', activeFolderId: '', activeFolderName: '', tabs: ['我的文件', '共享给我', '价值服务资料'], folders: [], files: [], filteredFiles: [], capacity: { used: '3.8', total: '10', percent: 38 }, canUpload: false, canManageFolder: false, canDevUploadSmoke: false, uploading: false, loaded: false },
 
   onLoad(options = {}) {
     if (!requireLogin()) return
@@ -35,7 +34,7 @@ Page({
     } catch (_) { /* API missing or unavailable → fail-closed */ }
     const isLocalApi = /^https?:\/\/(127\.0\.0\.1|localhost|192\.168\.|10\.|172\.(1[6-9]|2\d|3[0-1])\.)/.test(apiBaseUrl)
     const canDevUploadSmoke = !globalData.demoMode && isLocalApi && isDevelopEnv
-    this.setData({ customerId: options.customerId || '', mode: options.mode || '', canUpload: globalData.demoMode || hasPermission('file:upload'), canManageFolder: globalData.demoMode || hasPermission('file:folder:manage'), canDevUploadSmoke })
+    this.setData({ canUpload: globalData.demoMode || hasPermission('file:upload'), canManageFolder: globalData.demoMode || hasPermission('file:folder:manage'), canDevUploadSmoke })
     this.loadFiles()
   },
 
@@ -46,19 +45,13 @@ Page({
   async loadFiles() {
     if (getApp().globalData.demoMode) {
       const folders = readDemoFolders()
-      const files = this.data.customerId ? [] : demoFiles
+      const files = demoFiles
       this.setData({ folders, files, filteredFiles: this.filterFiles(files), loaded: true })
       return
     }
     let folders = []
     let files = []
     try {
-      if (this.data.customerId && this.data.mode !== 'manage') {
-        const customerFiles = await getCustomerFiles(this.data.customerId)
-        files = customerFiles?.data || customerFiles || []
-        const normalizedCustomerFiles = files.map((item, index) => this.normalizeFile(item, index))
-        return this.setData({ folders: [], files: normalizedCustomerFiles, filteredFiles: this.filterFiles(normalizedCustomerFiles), loaded: true })
-      }
       const folderResponse = await getFolders()
       folders = folderResponse?.data || folderResponse?.records || []
       const fileListParams = { current: 1, size: 50 }
@@ -172,24 +165,6 @@ Page({
     const item = this.data.filteredFiles[event.currentTarget.dataset.index]
     if (!item || !item.id || String(item.id).startsWith('file-')) return wx.showToast({ title: '演示文件暂不可预览', icon: 'none' })
     wx.navigateTo({ url: `/pages/files/detail/index?id=${item.id}&name=${encodeURIComponent(item.name)}&type=${item.type}&size=${encodeURIComponent(item.size)}&folder=${encodeURIComponent(item.folder)}` })
-  },
-  attachFile(event) {
-    if (!this.data.customerId || this.data.mode !== 'manage') return
-    const item = this.data.filteredFiles[event.currentTarget.dataset.index]
-    if (!item || !item.id || String(item.id).startsWith('file-')) return wx.showToast({ title: '演示文件暂不可关联', icon: 'none' })
-    attachCustomerFile(this.data.customerId, item.id).then(() => wx.showToast({ title: '已关联', icon: 'success' })).catch((error) => showError(error, '关联失败'))
-  },
-  detachFile(event) {
-    if (!this.data.customerId || this.data.mode === 'manage') return
-    const item = this.data.filteredFiles[event.currentTarget.dataset.index]
-    if (!item || !item.id || String(item.id).startsWith('file-')) return wx.showToast({ title: '演示文件暂不可解除关联', icon: 'none' })
-    wx.showModal({ title: '解除关联', content: `确认解除“${item.name}”与客户的关联吗？`, success: (result) => {
-      if (!result.confirm) return
-      detachCustomerFile(this.data.customerId, item.id).then(() => {
-        wx.showToast({ title: '已解除关联', icon: 'success' })
-        this.loadFiles()
-      }).catch((error) => showError(error, '解除关联失败'))
-    } })
   },
   switchTab(event) { wx.switchTab({ url: event.currentTarget.dataset.url }) }
 })

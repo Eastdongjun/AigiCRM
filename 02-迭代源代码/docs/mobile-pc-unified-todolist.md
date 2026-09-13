@@ -62,7 +62,7 @@ Make PC and mobile share the same backend data, account identity, permission mod
 - [x] Add mobile customer search and detail page through existing customer APIs.
 - [x] Reuse backend customer data-scope rules without duplicating them in mobile.
 - [ ] Verify same user sees the same allowed customer set on PC and mobile.
-- [x] Complete mobile and PC file preview/download entry for customer-related files. Backend relation table, scoped read/attach/detach APIs, mobile customer entry with attach/detach actions, and PC customer-detail file tab are implemented. Live permission-matrix QA remains tracked below. Design: [`ADR: Customer File Association`](permission/adr-20260909-customer-file-association.md).
+- [~] ~~Complete mobile and PC file preview/download entry for customer-related files.~~ **2026-09-13 作废并移除**（小程序为公司内部使用、不面向客户 ⇒ 不需要"按客户关联文件"）：PC 客户详情文件 Tab、小程序客户文件入口与关联/解除、后端端点与服务、关联表（V2026.09.13.5 迁移）均已删除。原设计见已作废的 ADR `permission/adr-20260909-customer-file-association.md`。
 - [x] Add tests or manual QA evidence for customer access boundaries.
 
 ## P3 Manual QA Checklist

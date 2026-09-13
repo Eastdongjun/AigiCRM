@@ -146,3 +146,12 @@ Flyway **9.22.3 实测**（与 `pom.xml` 的 `flyway-core`、`deploy-db.sh` 的�
 
 - 任何"从生产收回历史迁移"的动作，都必须**逐字节核对**（sha256）与生产 `flyway_schema_history` 一致后再入库，
   并在 `FROZEN-SHA256.txt` 中**追加**（不得修改已有行）。
+
+### 7.6 2026-09-13：`biz_customer_file` 随功能移除被删除
+
+- 新增日期版本迁移 **`V2026.09.13.5__drop_customer_file_relation.sql`**（`DROP TABLE IF EXISTS biz_customer_file`）。
+- 原因：「客户文件」功能整体移除（ADR `adr-20260909-customer-file-association.md` 已作废 ——
+  小程序为公司内部使用、不面向客户，该需求不再成立）。
+- 上文 §7.x 中把 `biz_customer_file` 记为"仓库新工作尚未上生产"的差异项属**历史记录**，自本迁移起该对象不再存在；
+  生产执行本迁移后，两条线的对象差异中该项会自动消失。
+- 删除前备份：测试库 `~/backups/biz_customer_file-<ts>.sql`；生产由 `scripts/deploy-db.sh` 在 migrate 前整库备份。

@@ -132,6 +132,3 @@ export function downloadImportTemplate() {
   })
 }
 
-export function getCustomerFiles(customerId) { return request.get(`/customer/${customerId}/files`) }
-export function attachCustomerFile(customerId, fileId) { return request.post(`/customer/${customerId}/files/${fileId}`) }
-export function detachCustomerFile(customerId, fileId) { return request.delete(`/customer/${customerId}/files/${fileId}`) }

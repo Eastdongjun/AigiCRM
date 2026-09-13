@@ -8,8 +8,6 @@ import com.aigicrm.module.customer.dto.CustomerImportDTO;
 import com.aigicrm.module.customer.dto.CustomerImportResult;
 import com.aigicrm.module.customer.entity.*;
 import com.aigicrm.module.customer.service.CustomerService;
-import com.aigicrm.module.file.entity.BizFile;
-import com.aigicrm.module.file.service.CustomerFileRelationService;
 import com.aigicrm.module.sea.service.SeaService;
 import com.aigicrm.common.engine.CustomerAccessService;
 import com.aigicrm.security.SecurityUtils;
@@ -33,27 +31,10 @@ public class CustomerController {
     private final CustomerService customerService;
     private final SeaService seaService;
     private final CustomerAccessService accessService;
-    private final CustomerFileRelationService customerFileRelationService;
 
-    @PreAuthorize("hasAuthority('customer:view') and hasAuthority('file:view')")
-    @GetMapping("/{id}/files")
-    public Result<List<BizFile>> listCustomerFiles(@PathVariable Long id) {
-        return Result.ok(customerFileRelationService.list(id));
-    }
-
-    @PreAuthorize("hasAuthority('customer:edit') and hasAuthority('file:view')")
-    @PostMapping("/{id}/files/{fileId}")
-    public Result<Void> attachCustomerFile(@PathVariable Long id, @PathVariable Long fileId) {
-        customerFileRelationService.attach(id, fileId);
-        return Result.ok();
-    }
-
-    @PreAuthorize("hasAuthority('customer:edit') and hasAuthority('file:view')")
-    @DeleteMapping("/{id}/files/{fileId}")
-    public Result<Void> detachCustomerFile(@PathVariable Long id, @PathVariable Long fileId) {
-        customerFileRelationService.detach(id, fileId);
-        return Result.ok();
-    }
+    // 【2026-09-13 移除「客户文件」功能】原 GET/POST/DELETE /{id}/files 三个端点及其
+    // CustomerFileRelationService 依赖已整体删除（用户确认：小程序内部使用，该需求作废）。
+    // 关联表 biz_customer_file 由 V2026.09.13.5 迁移删除。
 
     @PreAuthorize("hasAuthority('customer:view')")
     @GetMapping("/list")

@@ -92,7 +92,9 @@
         </template>
         <IncentiveTab />
       </el-tab-pane>
-      <el-tab-pane v-if="userStore.hasPermission('file:view')" label="客户文件" name="files"><FilesTab /></el-tab-pane>
+      <!-- 【2026-09-13 移除「客户文件」Tab】ADR adr-20260909-customer-file-association 的需求
+           （小程序为公司内部使用、不面向客户 ⇒ 不再需要"按客户关联文件"的能力）已作废；
+           后端端点与关联表 biz_customer_file 由 V2026.09.13.5 迁移一并删除。 -->
       <el-tab-pane label="跟进日志" name="logs"><LogsTab /></el-tab-pane>
     </el-tabs>
 
@@ -118,7 +120,6 @@ import InfoTab from './detail/InfoTab.vue'
 import FinanceTab from './detail/FinanceTab.vue'
 import IndicatorTab from './detail/IndicatorTab.vue'
 import IncentiveTab from './detail/IncentiveTab.vue'
-import FilesTab from './detail/FilesTab.vue'
 import LogsTab from './detail/LogsTab.vue'
 
 // 共享上下文: 父级实例化一次并 provide,各 tab 子组件 inject

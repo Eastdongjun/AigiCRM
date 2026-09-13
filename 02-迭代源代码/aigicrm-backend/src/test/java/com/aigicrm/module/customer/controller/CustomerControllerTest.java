@@ -4,8 +4,6 @@ import com.aigicrm.common.BusinessException;
 import com.aigicrm.common.engine.CustomerAccessService;
 import com.aigicrm.module.customer.entity.BizCustomer;
 import com.aigicrm.module.customer.service.CustomerService;
-import com.aigicrm.module.file.service.CustomerFileRelationService;
-import com.aigicrm.module.file.entity.BizFile;
 import com.aigicrm.module.sea.service.SeaService;
 import com.aigicrm.security.SecurityUtils;
 import org.junit.jupiter.api.Test;
@@ -21,31 +19,13 @@ import static org.mockito.Mockito.*;
 class CustomerControllerTest {
 
     @Test
-    void customerFileEndpoints_delegateToRelationService() {
-        CustomerService customerService = mock(CustomerService.class);
-        CustomerFileRelationService relationService = mock(CustomerFileRelationService.class);
-        CustomerController controller = new CustomerController(customerService, mock(SeaService.class),
-                mock(CustomerAccessService.class), relationService);
-        List<BizFile> files = List.of(new BizFile());
-        when(relationService.list(11L)).thenReturn(files);
-
-        assertEquals(files, controller.listCustomerFiles(11L).getData());
-        controller.attachCustomerFile(11L, 21L);
-        controller.detachCustomerFile(11L, 21L);
-
-        verify(relationService).list(11L);
-        verify(relationService).attach(11L, 21L);
-        verify(relationService).detach(11L, 21L);
-    }
-
-    @Test
     void release_rejectsNonOwnerBeforeSeaMutation() {
         CustomerService customerService = mock(CustomerService.class);
         SeaService seaService = mock(SeaService.class);
         CustomerAccessService accessService = mock(CustomerAccessService.class);
         BizCustomer customer = customer(11L, 200L);
         when(customerService.getById(11L)).thenReturn(customer);
-        CustomerController controller = new CustomerController(customerService, seaService, accessService, mock(CustomerFileRelationService.class));
+        CustomerController controller = new CustomerController(customerService, seaService, accessService);
 
         try (MockedStatic<SecurityUtils> security = mockStatic(SecurityUtils.class)) {
             security.when(SecurityUtils::getCurrentUserId).thenReturn(100L);
@@ -66,7 +46,7 @@ class CustomerControllerTest {
         customer.setOfficeId(7L);
         when(customerService.getById(11L)).thenReturn(customer);
         when(seaService.matchSeaConfig(7L)).thenReturn(null);
-        CustomerController controller = new CustomerController(customerService, seaService, accessService, mock(CustomerFileRelationService.class));
+        CustomerController controller = new CustomerController(customerService, seaService, accessService);
 
         try (MockedStatic<SecurityUtils> security = mockStatic(SecurityUtils.class)) {
             security.when(SecurityUtils::getCurrentUserId).thenReturn(100L);
@@ -87,7 +67,7 @@ class CustomerControllerTest {
         customer.setOfficeId(7L);
         when(customerService.getById(11L)).thenReturn(customer);
         when(seaService.matchSeaConfig(7L)).thenReturn(1L);
-        CustomerController controller = new CustomerController(customerService, seaService, accessService, mock(CustomerFileRelationService.class));
+        CustomerController controller = new CustomerController(customerService, seaService, accessService);
 
         try (MockedStatic<SecurityUtils> security = mockStatic(SecurityUtils.class)) {
             security.when(SecurityUtils::getCurrentUserId).thenReturn(100L);
@@ -106,7 +86,7 @@ class CustomerControllerTest {
         CustomerAccessService accessService = mock(CustomerAccessService.class);
         when(customerService.getInvoices(11L)).thenReturn(List.of());
         when(customerService.getInvoiceSummary(11L)).thenReturn(Map.of("totalCount", 4, "totalAmount", 120));
-        CustomerController controller = new CustomerController(customerService, seaService, accessService, mock(CustomerFileRelationService.class));
+        CustomerController controller = new CustomerController(customerService, seaService, accessService);
 
         try (MockedStatic<SecurityUtils> security = mockStatic(SecurityUtils.class)) {
             security.when(() -> SecurityUtils.hasAuthority("finance:view")).thenReturn(false);
@@ -121,7 +101,7 @@ class CustomerControllerTest {
     void contactsEndpoint_doesNotQueryWithoutContactPermission() {
         CustomerService customerService = mock(CustomerService.class);
         CustomerController controller = new CustomerController(customerService, mock(SeaService.class),
-                mock(CustomerAccessService.class), mock(CustomerFileRelationService.class));
+                mock(CustomerAccessService.class));
         try (MockedStatic<SecurityUtils> security = mockStatic(SecurityUtils.class)) {
             security.when(() -> SecurityUtils.hasAuthority("contact:view")).thenReturn(false);
             controller.getContacts(11L);
@@ -134,7 +114,7 @@ class CustomerControllerTest {
         CustomerService customerService = mock(CustomerService.class);
         when(customerService.listGroupNames()).thenReturn(List.of("陕煤集团"));
         CustomerController controller = new CustomerController(customerService, mock(SeaService.class),
-                mock(CustomerAccessService.class), mock(CustomerFileRelationService.class));
+                mock(CustomerAccessService.class));
 
         assertEquals(List.of("陕煤集团"), controller.groupNames().getData());
         verify(customerService).listGroupNames();

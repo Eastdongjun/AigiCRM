@@ -36,7 +36,6 @@ Page({
     canEdit: false,
     canViewFinance: false,
     canViewContacts: false
-    ,canViewFiles: false
   },
 
   onLoad(options) {
@@ -53,7 +52,6 @@ Page({
       canEdit: demoMode || hasPermission('customer:edit'),
       canViewFinance: demoMode || hasPermission('finance:view'),
       canViewContacts: demoMode || hasPermission('contact:view')
-      ,canViewFiles: demoMode || hasPermission('file:view')
     })
     this.loadDetail()
   },
@@ -145,14 +143,6 @@ Page({
   openContacts() {
     if (!this.data.canViewContacts) return wx.showToast({ title: '没有联系人查看权限', icon: 'none' })
     wx.navigateTo({ url: `/pages/customer/contact/index?id=${this.data.id}` })
-  },
-  openFiles() {
-    if (!this.data.canViewFiles) return wx.showToast({ title: '没有文件查看权限', icon: 'none' })
-    wx.navigateTo({ url: `/pages/files/index?customerId=${this.data.id}` })
-  },
-  manageFiles() {
-    if (!this.data.canEdit || !this.data.canViewFiles) return wx.showToast({ title: '没有客户文件管理权限', icon: 'none' })
-    wx.navigateTo({ url: `/pages/files/index?customerId=${this.data.id}&mode=manage` })
   },
   openShares() {
     if (!this.data.detail) return

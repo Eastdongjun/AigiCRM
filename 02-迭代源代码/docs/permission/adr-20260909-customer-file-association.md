@@ -1,5 +1,16 @@
 # ADR: Customer File Association
 
+> **状态：已作废（Withdrawn），2026-09-13。**
+> 用户确认：小程序为公司**内部使用**、不面向客户，"小程序文件中心需要安全展示某客户的文件"
+> 这一唯一动机不再成立 ⇒ 该需求作废，「客户文件」功能整体移除。
+> 落地情况：PC 客户详情「客户文件」Tab、小程序客户文件入口与关联/解除、
+> 后端 `GET/POST/DELETE /api/customer/{id}/files`、`CustomerFileRelationService`、
+> `BizCustomerFile`/`BizCustomerFileMapper`、契约脚本与本文档引用均已删除；
+> 关联表由迁移 `V2026.09.13.5__drop_customer_file_relation.sql` 删除
+> （删除前已在测试库导出备份，生产由 deploy-db.sh 迁移前整库备份）。
+> 本文档仅作历史决策记录保留，**不再是有效约束**。
+
+
 ## Context
 
 `biz_file` currently stores folder, scope, uploader, and storage metadata, but it has no customer relation. The mobile file center therefore cannot safely expose "files for this customer" from a customer detail page. A client-side keyword or folder filter would not prove customer ownership and could show unrelated files.

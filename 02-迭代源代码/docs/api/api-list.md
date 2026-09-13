@@ -44,9 +44,6 @@
 | POST | `/api/customer/{id}/contacts` | `hasAuthority('customer:edit')` | addContact | CustomerController.java |
 | DELETE | `/api/customer/{id}/contacts/{contactId}` | `hasAuthority('customer:edit')` | deleteContact | CustomerController.java |
 | PUT | `/api/customer/{id}/contacts/{contactId}` | `hasAuthority('customer:edit')` | updateContact | CustomerController.java |
-| GET | `/api/customer/{id}/files` | `hasAuthority('customer:view') and hasAuthority('file:view')` | listCustomerFiles | CustomerController.java |
-| DELETE | `/api/customer/{id}/files/{fileId}` | `hasAuthority('customer:edit') and hasAuthority('file:view')` | detachCustomerFile | CustomerController.java |
-| POST | `/api/customer/{id}/files/{fileId}` | `hasAuthority('customer:edit') and hasAuthority('file:view')` | attachCustomerFile | CustomerController.java |
 | GET | `/api/customer/{id}/indicator` | `hasAuthority('customer:view')` | getIndicator | CustomerController.java |
 | POST | `/api/customer/{id}/indicator` | `hasAuthority('customer:edit')` | saveIndicator | CustomerController.java |
 | GET | `/api/customer/{id}/invoices` | `hasAuthority('customer:view')` | getInvoices | CustomerController.java |

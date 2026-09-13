@@ -31,9 +31,6 @@ function removeCustomerShare(id, userId) { return request({ url: '/api/customer/
 function addInvoice(id, data) { return request({ url: '/api/customer/' + id + '/invoices', method: 'POST', data }) }
 function addPayment(id, data) { return request({ url: '/api/customer/' + id + '/payments', method: 'POST', data }) }
 function getCustomerIndicator(id) { return request({ url: '/api/customer/' + id + '/indicator' }) }
-function getCustomerFiles(id) { return request({ url: '/api/customer/' + id + '/files' }) }
-function attachCustomerFile(id, fileId) { return request({ url: '/api/customer/' + id + '/files/' + fileId, method: 'POST' }) }
-function detachCustomerFile(id, fileId) { return request({ url: '/api/customer/' + id + '/files/' + fileId, method: 'DELETE' }) }
 function saveCustomerIndicator(id, data) { return request({ url: '/api/customer/' + id + '/indicator', method: 'POST', data }) }
 function releaseCustomer(id, reason) { return request({ url: '/api/customer/' + id + '/release', method: 'POST', data: { reason: reason || '移动端释放' } }) }
 
@@ -59,9 +56,6 @@ module.exports = {
   addInvoice,
   addPayment,
   getCustomerIndicator,
-  getCustomerFiles,
-  attachCustomerFile,
-  detachCustomerFile,
   saveCustomerIndicator,
   releaseCustomer
 }

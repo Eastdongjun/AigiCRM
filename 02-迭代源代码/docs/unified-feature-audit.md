@@ -340,8 +340,6 @@ Generated from local source: `.`
 | 释放到公海 | `releaseToSea` | `` | `aigicrm-miniprogram/pages/customer/detail/index.wxml:5` |
 | 查看全部联系人 | `openContacts` | `{{detail && canViewContacts}}` | `aigicrm-miniprogram/pages/customer/detail/index.wxml:6` |
 | 查看客户分享 | `openShares` | `{{detail}}` | `aigicrm-miniprogram/pages/customer/detail/index.wxml:7` |
-| 查看客户文件 | `openFiles` | `{{detail && canViewFiles}}` | `aigicrm-miniprogram/pages/customer/detail/index.wxml:8` |
-| 管理客户文件 | `manageFiles` | `{{detail && canEdit && canViewFiles}}` | `aigicrm-miniprogram/pages/customer/detail/index.wxml:9` |
 | 新增跟进记录 | `openLogForm` | `{{detail && canEdit}}` | `aigicrm-miniprogram/pages/customer/detail/index.wxml:10` |
 | 编辑六项指标 | `openIndicatorForm` | `{{detail && canEdit}}` | `aigicrm-miniprogram/pages/customer/detail/index.wxml:11` |
 | 查看完整跟进记录 | `openTimeline` | `{{detail}}` | `aigicrm-miniprogram/pages/customer/detail/index.wxml:12` |
@@ -475,8 +473,6 @@ Generated from local source: `.`
 | `deletePayment` | `DELETE` | `/customer/${customerId}/payments/${paymentId}` | `aigicrm-ui/src/api/customer.js` |
 | `importCustomers` | `POST` | `/customer/import` | `aigicrm-ui/src/api/customer.js` |
 | `downloadImportTemplate` | `GET` | `/customer/${customerId}/files` | `aigicrm-ui/src/api/customer.js` |
-| `attachCustomerFile` | `POST` | `/customer/${customerId}/files/${fileId}` | `aigicrm-ui/src/api/customer.js` |
-| `detachCustomerFile` | `DELETE` | `/customer/${customerId}/files/${fileId}` | `aigicrm-ui/src/api/customer.js` |
 | `getFolderTree` | `GET` | `/file/folders` | `aigicrm-ui/src/api/file.js` |
 | `getFileList` | `GET` | `/file/list` | `aigicrm-ui/src/api/file.js` |
 | `createFolder` | `POST` | `/file/folders` | `aigicrm-ui/src/api/file.js` |
@@ -631,9 +627,6 @@ Generated from local source: `.`
 | `addInvoice` | `POST` | `/api/customer/' + id + '/invoices` | `aigicrm-miniprogram/api/customer.js` |
 | `addPayment` | `POST` | `/api/customer/' + id + '/payments` | `aigicrm-miniprogram/api/customer.js` |
 | `getCustomerIndicator` | `GET` | `/api/customer/' + id + '/indicator` | `aigicrm-miniprogram/api/customer.js` |
-| `getCustomerFiles` | `GET` | `/api/customer/' + id + '/files` | `aigicrm-miniprogram/api/customer.js` |
-| `attachCustomerFile` | `POST` | `/api/customer/' + id + '/files/' + fileId` | `aigicrm-miniprogram/api/customer.js` |
-| `detachCustomerFile` | `DELETE` | `/api/customer/' + id + '/files/' + fileId` | `aigicrm-miniprogram/api/customer.js` |
 | `saveCustomerIndicator` | `POST` | `/api/customer/' + id + '/indicator` | `aigicrm-miniprogram/api/customer.js` |
 | `releaseCustomer` | `POST` | `/api/customer/' + id + '/release` | `aigicrm-miniprogram/api/customer.js` |
 | `getFileList` | `GET` | `/api/file/list` | `aigicrm-miniprogram/api/file.js` |
