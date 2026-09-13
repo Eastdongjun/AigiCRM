@@ -59,18 +59,26 @@ export function useCustomerForm() {
   const indicatorLoaded = ref(false) // 库内已有指标行(编辑场景): 保存时需整体回写, 即使全 0
   const indicatorTotal = computed(() => sumIndicatorScore(indicatorForm))
 
+  // 【2026-09-13】新建专用默认值：只在"新增"时有意义，编辑加载时必须以库内真实值覆盖（含 null）。
+  // registerDate 默认"今天"若在编辑态继续生效，后端 protectCustomerDateFields 会把它判成
+  // "注册日被修改" → 普通销售编辑 register_date 为空的客户直接报错
+  // "注册日和最近开票日录入后仅总监或行政可修改"（存不了）；总监/行政则把 NULL 静默写成今天。
+  const CREATE_DEFAULTS = {
+    hasTerminal: 0,
+    registerDate: new Date().toISOString().split('T')[0]
+  }
+
   const form = reactive({
     customerName: '',
     invoiceName: '',
     industry: '',
     devType: '',
-    // 【2026-09-13】终端：与导入模板同名同口径（1=是 0=否），缺省按导入默认 0=否
-    hasTerminal: 0,
+    // 终端：与导入模板同名同口径（1=是 0=否），新增缺省按导入默认 0=否
+    hasTerminal: CREATE_DEFAULTS.hasTerminal,
     officeId: null,
     regionId: null,
     ownerId: null,
-    // 【2026-09-13】管理上级（选填）：落 biz_customer.manager_id，列表「上级」列与详情页据此显示。
-    // 此前该字段库/实体/列表列都在，但没有任何录入入口，列表列恒为空。
+    // 管理上级（选填）：落 biz_customer.manager_id，列表「上级」列与详情页据此显示
     managerId: null,
     groupName: '',
     branchCompany: '',
@@ -80,9 +88,8 @@ export function useCustomerForm() {
     city: '',
     district: '',
     address: '',
-    registerDate: new Date().toISOString().split('T')[0],
-    // 【2026-09-13】最近开票日留空：此前默认"今天"，导致从未开票的新客户被记为当天开票，
-    // 而保护期取「注册日/最近开票日中较晚者 + 360 天」→ 保护期与超期统计口径失真。
+    registerDate: CREATE_DEFAULTS.registerDate,
+    // 最近开票日留空：此前默认"今天"，会把从未开票的新客户记为当天开票，保护期口径失真
     lastInvoiceDate: '',
     remark: ''
   })
@@ -165,12 +172,26 @@ export function useCustomerForm() {
   }
 
   // ---- 提交 ----
-  /** 请求体：清空的日期在表单里是空串，统一转 null（后端 LocalDate 不接受空串，且空串会被当成已填写） */
-  const buildPayload = () => ({
-    ...form,
-    registerDate: form.registerDate || null,
-    lastInvoiceDate: form.lastInvoiceDate || null
-  })
+  /**
+   * 请求体：
+   * · 日期清空在表单里是空串，统一转 null；null 在后端是"不修改"语义（updateById 跳过 null 字段），
+   *   与既有保护期权限校验一致，不会误写。
+   * · 新建时把空串归一为 null：insert 语义下写出干净的 NULL，避免库里出现 '' 与 NULL 两套空值。
+   * · 编辑时**不**做空串归一：updateById 跳过 null 字段，空串是"把这个字段清空"的唯一表达方式，
+   *   归一成 null 会让用户清空字段失效（存回去还是旧值）。
+   */
+  const buildPayload = () => {
+    const payload = {
+      ...form,
+      registerDate: form.registerDate || null,
+      lastInvoiceDate: form.lastInvoiceDate || null
+    }
+    if (isEdit.value) return payload
+    Object.keys(payload).forEach((k) => {
+      if (typeof payload[k] === 'string' && payload[k].trim() === '') payload[k] = null
+    })
+    return payload
+  }
 
   /** 有评分或库内已有指标行才写库：全 0 且无指标行时不建空记录 */
   const shouldSaveIndicator = () => indicatorLoaded.value || sumIndicatorScore(indicatorForm) > 0
@@ -253,7 +274,9 @@ export function useCustomerForm() {
       try {
         const res = await getCustomer(route.params.id)
         const c = res.data
-        Object.keys(form).forEach(k => { if (c[k] !== undefined && c[k] !== null) form[k] = c[k] })
+        // 编辑：一律以库内值为准，null 也照实落到表单（不回退到新增默认值——否则默认"今天"会被
+        // 当成用户输入提交，触发后端保护期校验报错或静默改数据）
+        Object.keys(form).forEach(k => { if (c[k] !== undefined) form[k] = c[k] })
         customerStatus.value = c.status || ''
         if (c.province) regionValue.value = [c.province, c.city, c.district].filter(Boolean)
       } catch (e) { customerStatus.value = '' }

@@ -4,6 +4,9 @@
       <div class="info-card">
         <div class="info-card-head"><span class="info-card-icon c-blue"><el-icon><InfoFilled /></el-icon></span><span>基础信息</span></div>
         <div class="info-rows">
+          <!-- 【2026-09-13】补展示：客户编号与开票名称此前只在列表有列，详情页看不到 -->
+          <div class="info-row"><span class="lbl">客户编号</span><span class="val">{{ customer.customerCode || '—' }}</span></div>
+          <div class="info-row"><span class="lbl">开票名称</span><span class="val">{{ customer.invoiceName || '—' }}</span></div>
           <div class="info-row"><span class="lbl">行业</span><span class="val">{{ customer.industry || '—' }}</span></div>
           <div class="info-row"><span class="lbl">开发类型</span><span class="val">{{ customer.devType || '—' }}</span></div>
           <div class="info-row"><span class="lbl">产能(万吨)</span><span class="val">{{ customer.capacity || '—' }}</span></div>
@@ -15,6 +18,8 @@
         <div class="info-rows">
           <div class="info-row"><span class="lbl">所属大区</span><span class="val">{{ customer.regionName || '—' }}</span></div>
           <div class="info-row"><span class="lbl">所属办事处</span><span class="val">{{ customer.officeName || '—' }}</span></div>
+          <!-- 【2026-09-13】所属部门：列表有「部门」列，详情此前没有（该部门由第一负责人部门自动确定） -->
+          <div class="info-row"><span class="lbl">所属部门</span><span class="val">{{ customer.deptName || '—' }}</span></div>
           <div class="info-row"><span class="lbl">第一负责人</span><span class="val">{{ customer.ownerName || '—' }}</span></div>
           <div class="info-row"><span class="lbl">管理上级</span><span class="val">{{ customer.managerName || '—' }}</span></div>
         </div>

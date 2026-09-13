@@ -1,1 +1,136 @@
-<view class="page"><view class="hero"><view class="hero-title">{{isEdit ? '编辑客户' : '新增客户'}}</view><view class="hero-sub">沿用 PC 客户接口、账号与数据范围</view></view><view class="card form-card"><view class="field"><text class="label">客户全称 *</text><input value="{{form.customerName}}" data-field="customerName" bindinput="onInput" placeholder="请输入客户全称" /></view><view class="field"><text class="label">开票名称</text><input value="{{form.invoiceName}}" data-field="invoiceName" bindinput="onInput" placeholder="选填" /></view><view class="field"><text class="label">行业</text><input value="{{form.industry}}" data-field="industry" bindinput="onInput" placeholder="如：煤矿、化工" /></view><view class="field"><text class="label">开发类型</text><input value="{{form.devType}}" data-field="devType" bindinput="onInput" placeholder="如：成熟创新" /></view><view class="field"><text class="label">地址</text><input value="{{form.address}}" data-field="address" bindinput="onInput" placeholder="选填" /></view><view class="field"><text class="label">备注</text><textarea value="{{form.remark}}" data-field="remark" bindinput="onInput" placeholder="选填" /></view><view class="row action-row"><button class="secondary-btn" bindtap="cancel">取消</button><button class="btn" bindtap="submit" loading="{{loading}}">保存</button></view></view></view>
+<view class="page">
+  <view class="hero">
+    <view class="row">
+      <view>
+        <view class="hero-title">{{isEdit ? '编辑客户' : '新增客户'}}</view>
+        <view class="hero-sub">沿用 PC 客户接口、账号与数据范围</view>
+      </view>
+      <button class="ghost-btn" bindtap="cancel">返回</button>
+    </view>
+  </view>
+
+  <!-- 基本信息 -->
+  <view class="card form-card">
+    <view class="section-title">基本信息</view>
+
+    <view class="label">客户全称 *</view>
+    <input class="input" data-field="customerName" value="{{form.customerName}}" bindinput="onInput" placeholder="请输入订货客户全称" />
+
+    <view class="label">开票名称</view>
+    <input class="input" data-field="invoiceName" value="{{form.invoiceName}}" bindinput="onInput" placeholder="发票抬头，与客户全称相同可留空" />
+
+    <view class="label">所属集团</view>
+    <picker mode="selector" range="{{groupPickerOptions}}" value="{{groupIndex}}" bindchange="chooseGroup">
+      <view class="picker-value {{form.groupName ? '' : 'placeholder'}}">{{form.groupName || '选择历史集团名或手动输入'}}</view>
+    </picker>
+
+    <view class="label">所属分公司</view>
+    <input class="input" data-field="branchCompany" value="{{form.branchCompany}}" bindinput="onInput" placeholder="例如：榆林化学" />
+
+    <view class="label">所属单位</view>
+    <input class="input" data-field="unitName" value="{{form.unitName}}" bindinput="onInput" placeholder="例如：选煤厂" />
+
+    <view class="label">产能（万吨）</view>
+    <input class="input" data-field="capacity" value="{{form.capacity}}" bindinput="onInput" placeholder="例如：500" />
+  </view>
+
+  <!-- 业务分类 -->
+  <view class="card form-card">
+    <view class="section-title">业务分类</view>
+
+    <view class="label">行业 *</view>
+    <picker mode="selector" range="{{industryOptions}}" value="{{industryIndex}}" bindchange="chooseIndustry">
+      <view class="picker-value {{form.industry ? '' : 'placeholder'}}">{{form.industry || '请选择行业'}}</view>
+    </picker>
+
+    <view class="label">开发类型 *</view>
+    <picker mode="selector" range="{{devTypeOptions}}" value="{{devTypeIndex}}" bindchange="chooseDevType">
+      <view class="picker-value {{form.devType ? '' : 'placeholder'}}">{{form.devType || '请选择开发类型'}}</view>
+    </picker>
+
+    <view class="label">终端</view>
+    <picker mode="selector" range="{{terminalOptions}}" value="{{terminalIndex}}" bindchange="chooseTerminal">
+      <view class="picker-value">{{terminalOptions[terminalIndex]}}</view>
+    </picker>
+    <view class="tip">是否终端客户（与导入模板同口径：是=1 否=0）</view>
+  </view>
+
+  <!-- 归属与负责人 -->
+  <view class="card form-card">
+    <view class="section-title">归属与负责人</view>
+
+    <view class="label">所属大区 *</view>
+    <picker mode="selector" range="{{regionOptions}}" range-key="deptName" value="{{regionIndex}}" bindchange="chooseRegion">
+      <view class="picker-value {{form.regionId ? '' : 'placeholder'}}">{{regionIndex >= 0 ? regionOptions[regionIndex].deptName : '请选择大区'}}</view>
+    </picker>
+
+    <view class="label">所属办事处 *</view>
+    <picker mode="selector" range="{{officeOptions}}" range-key="deptName" value="{{officeIndex}}" bindchange="chooseOffice" disabled="{{!form.regionId}}">
+      <view class="picker-value {{form.officeId ? '' : 'placeholder'}}">{{officeIndex >= 0 ? officeOptions[officeIndex].deptName : (form.regionId ? '请选择办事处' : '请先选择大区')}}</view>
+    </picker>
+
+    <view class="label">第一负责人 *</view>
+    <picker mode="selector" range="{{userOptions}}" range-key="realName" value="{{ownerIndex}}" bindchange="chooseOwner">
+      <view class="picker-value {{form.ownerId ? '' : 'placeholder'}}">{{ownerIndex >= 0 ? userOptions[ownerIndex].realName : '请选择负责人'}}</view>
+    </picker>
+
+    <view class="label">管理上级</view>
+    <picker mode="selector" range="{{userOptions}}" range-key="realName" value="{{managerIndex}}" bindchange="chooseManager">
+      <view class="picker-value {{form.managerId ? '' : 'placeholder'}}">{{managerIndex >= 0 ? userOptions[managerIndex].realName : '选填'}}</view>
+    </picker>
+
+    <view wx:if="{{isEdit}}" class="readonly-row">
+      <text class="label">所属部门</text>
+      <text class="readonly-value">{{deptName || '自动跟随第一负责人所在部门'}}</text>
+    </view>
+  </view>
+
+  <!-- 地址与日期 -->
+  <view class="card form-card">
+    <view class="section-title">地址与日期</view>
+
+    <view class="label">省/市/区</view>
+    <picker mode="region" value="{{region}}" bindchange="chooseArea">
+      <view class="picker-value {{form.province ? '' : 'placeholder'}}">{{form.province ? form.province + form.city + form.district : '请选择省/市/区'}}</view>
+    </picker>
+
+    <view class="label">厂址</view>
+    <input class="input" data-field="address" value="{{form.address}}" bindinput="onInput" placeholder="例如：榆神工业区" />
+
+    <view class="label">注册日</view>
+    <picker mode="date" value="{{form.registerDate}}" data-field="registerDate" bindchange="chooseDate" disabled="{{!canEditDates}}">
+      <view class="picker-value {{form.registerDate ? '' : 'placeholder'}}">{{form.registerDate || '选择日期'}}</view>
+    </picker>
+
+    <view class="label">最近开票日</view>
+    <picker mode="date" value="{{form.lastInvoiceDate}}" data-field="lastInvoiceDate" bindchange="chooseDate" disabled="{{!canEditDates}}">
+      <view class="picker-value {{form.lastInvoiceDate ? '' : 'placeholder'}}">{{form.lastInvoiceDate || '尚无开票可留空'}}</view>
+    </picker>
+    <view class="tip">保护期按「注册日与最近开票日中较晚者 + 360 天」计算{{canEditDates ? '' : '；注册日/最近开票日仅总监或行政可改'}}</view>
+  </view>
+
+  <!-- 关联信息：复用已有页面，避免在两端重复实现联系人/指标 CRUD -->
+  <view class="card form-card">
+    <view class="section-title">关联信息</view>
+    <block wx:if="{{isEdit}}">
+      <view class="entry-row" bindtap="openContacts">
+        <text>联系人管理</text><text class="entry-arrow">›</text>
+      </view>
+      <view class="entry-row" bindtap="openIndicator">
+        <text>客情 · 五项指标</text><text class="entry-arrow">›</text>
+      </view>
+    </block>
+    <view wx:else class="tip">客户保存后可添加联系人与录入客情五项指标</view>
+  </view>
+
+  <!-- 备注 -->
+  <view class="card form-card">
+    <view class="section-title">备注</view>
+    <textarea class="textarea" data-field="remark" value="{{form.remark}}" bindinput="onInput" placeholder="备注信息（选填）" />
+  </view>
+
+  <view class="row action-row">
+    <button class="secondary-btn" bindtap="cancel">取消</button>
+    <button class="btn" bindtap="submit" loading="{{saving}}">{{isEdit ? '保存修改' : '新增客户'}}</button>
+  </view>
+</view>

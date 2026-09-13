@@ -24,6 +24,8 @@ function getCustomerInvoices(id) { return request({ url: '/api/customer/' + id +
 function getCustomerPayments(id) { return request({ url: '/api/customer/' + id + '/payments' }) }
 function getCustomerShares(id) { return request({ url: '/api/customer/' + id + '/shares' }) }
 function getCustomerSimpleUsers() { return request({ url: '/api/customer/users/simple' }) }
+/** 历史集团名去重候选（后端按数据范围返回）——"所属集团"可选可新建下拉用，与 PC 同源 */
+function getCustomerGroupNames() { return request({ url: '/api/customer/group-names' }) }
 function addCustomerShares(id, userIds) { return request({ url: '/api/customer/' + id + '/shares', method: 'POST', data: { userIds } }) }
 function removeCustomerShare(id, userId) { return request({ url: '/api/customer/' + id + '/shares/' + userId, method: 'DELETE' }) }
 function addInvoice(id, data) { return request({ url: '/api/customer/' + id + '/invoices', method: 'POST', data }) }
@@ -51,6 +53,7 @@ module.exports = {
   getCustomerPayments,
   getCustomerShares,
   getCustomerSimpleUsers,
+  getCustomerGroupNames,
   addCustomerShares,
   removeCustomerShare,
   addInvoice,

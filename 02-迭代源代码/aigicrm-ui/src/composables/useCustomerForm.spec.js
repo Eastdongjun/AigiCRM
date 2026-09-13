@@ -233,4 +233,76 @@ describe('useCustomerForm 新增客户字段', () => {
 
     expect(ctx.groupNameOptions.value).toEqual([])
   })
+
+  // ===== 2026-09-13 编辑态回填语义（register_date NULL 缺陷）=====
+
+  it('编辑时库内 registerDate 为 NULL：表单不得回退成"今天"', async () => {
+    route.params = { id: '303' }
+    getCustomer.mockResolvedValue({
+      data: { id: 303, customerName: '无注册日客户', registerDate: null, lastInvoiceDate: null, status: 'normal' },
+    })
+
+    const ctx = useCustomerForm()
+    await ctx.loadFormData()
+
+    // 回退默认"今天"会被后端判成"注册日被修改"，普通销售保存直接报错；总监/行政则静默写库
+    expect(ctx.form.registerDate).toBeNull()
+    expect(ctx.form.registerDate).not.toBe(new Date().toISOString().split('T')[0])
+  })
+
+  it('编辑时库内 NULL 字段以 null 提交（后端 null=不修改，不会被静默改写）', async () => {
+    route.params = { id: '304' }
+    getCustomer.mockResolvedValue({
+      data: { id: 304, customerName: '空字段客户', registerDate: null, invoiceName: null, hasTerminal: null, managerId: null, status: 'normal' },
+    })
+
+    const ctx = useCustomerForm()
+    await ctx.loadFormData()
+    ctx.formRef.value = { validate: async () => true }
+    await ctx.handleSubmit()
+    await flushPromises()
+
+    const payload = updateCustomer.mock.calls[0][1]
+    expect(payload.registerDate).toBeNull()
+    expect(payload.invoiceName).toBeNull()
+    expect(payload.hasTerminal).toBeNull()
+  })
+
+  it('编辑时清空文本字段提交空串（保留"清空"能力，空串不能被归一成 null）', async () => {
+    route.params = { id: '305' }
+    getCustomer.mockResolvedValue({
+      data: { id: 305, customerName: '清空字段客户', invoiceName: '旧开票名', remark: '旧备注', status: 'normal' },
+    })
+
+    const ctx = useCustomerForm()
+    await ctx.loadFormData()
+    ctx.form.invoiceName = ''
+    ctx.form.remark = ''
+    ctx.formRef.value = { validate: async () => true }
+    await ctx.handleSubmit()
+    await flushPromises()
+
+    const payload = updateCustomer.mock.calls[0][1]
+    // updateById 跳过 null 字段 → 空串才是"清空"的唯一表达
+    expect(payload.invoiceName).toBe('')
+    expect(payload.remark).toBe('')
+  })
+
+  it('新建时未填的可选字段归一为 null（库里不写空串）', async () => {
+    const ctx = useCustomerForm()
+    ctx.formRef.value = { validate: async () => true }
+    ctx.form.customerName = '山西测试客户'
+    ctx.form.invoiceName = ''
+    ctx.form.groupName = '   '
+    ctx.form.remark = ''
+
+    await ctx.handleSubmit()
+    await flushPromises()
+
+    const payload = addCustomer.mock.calls[0][0]
+    expect(payload.customerName).toBe('山西测试客户')
+    expect(payload.invoiceName).toBeNull()
+    expect(payload.groupName).toBeNull()
+    expect(payload.remark).toBeNull()
+  })
 })
