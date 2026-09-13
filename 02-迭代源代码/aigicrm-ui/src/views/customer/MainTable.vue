@@ -36,6 +36,9 @@
       <el-table-column v-if="vis('branchCompany')" prop="branchCompany" label="分公司" width="100" show-overflow-tooltip sortable />
       <el-table-column v-if="vis('unitName')" prop="unitName" label="所属单位" width="100" show-overflow-tooltip sortable />
       <el-table-column v-if="vis('industry')" prop="industry" label="行业" width="70" sortable />
+      <el-table-column v-if="vis('hasTerminal')" prop="hasTerminal" label="终端" width="60" align="center" sortable>
+        <template #default="{ row }">{{ terminalLabel(row.hasTerminal) }}</template>
+      </el-table-column>
       <el-table-column v-if="vis('capacity')" prop="capacity" label="产能" width="70" sortable />
       <el-table-column v-if="vis('province')" label="省市" width="70" show-overflow-tooltip sortable prop="province">
         <template #default="{ row }">{{ row.province }}{{ row.city }}</template>
@@ -83,6 +86,7 @@
 
 <script setup>
 import { injectCustomerList } from '@/composables/useCustomerList'
+import { terminalLabel } from '@/utils/customer-fields'
 
 const {
   activeTab, onTabChange, tabs, filters, allIndustries,

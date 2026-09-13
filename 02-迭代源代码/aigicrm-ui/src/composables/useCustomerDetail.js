@@ -20,6 +20,7 @@ import request from '@/utils/request'
 import { getDownloadToken, refreshDownloadToken } from '@/utils/token'
 import { downloadFile } from '@/utils/download'
 import { useUserStore } from '@/store/user'
+import { INDICATOR_FIELDS, INDICATOR_CORE_THRESHOLD, sumIndicatorScore } from '@/utils/customer-fields'
 
 export const CustomerDetailKey = Symbol('customerDetail')
 
@@ -56,7 +57,8 @@ export function useCustomerDetail() {
   const invoiceForm = reactive({ invoiceDate:'', invoiceNumber:'', invoiceType:'增值税专票', invoiceCompany:'', amount:null })
   const paymentForm = reactive({ paymentDate:'', paymentAmount:null, paymentMethod:'', remark:'' })
   const contactForm = reactive({ name:'', position:'', phone:'', remark:'' })
-  const indicatorForm = reactive({ relationshipScore:0, indicator02:0, indicator03:0, indicator04:0, indicator05:0 })
+  // 五项评分初始值由统一定义生成，字段名不再在两处硬编码
+  const indicatorForm = reactive(INDICATOR_FIELDS.reduce((o, f) => { o[f.field] = 0; return o }, {}))
 
   const avatarColor = computed(() => {
     const colors = ['#409eff', '#e6a23c', '#9c27b0', '#13c2c2', '#f56c6c', '#67c23a']
@@ -65,18 +67,13 @@ export function useCustomerDetail() {
     return colors[h % colors.length]
   })
   const relationshipOptions = ref([{label:'陌生',value:'0',icon:'0'},{label:'知道',value:'1',icon:'1'},{label:'熟悉',value:'2',icon:'2'},{label:'支持',value:'3',icon:'3'}])
-  const indicatorDefs = ref([
-    { code: '01', field: 'relationshipScore', label: '高层（客情程度）', options: [{ dictValue: '0', dictLabel: '陌生' }, { dictValue: '1', dictLabel: '知道' }, { dictValue: '2', dictLabel: '熟悉' }, { dictValue: '3', dictLabel: '支持' }] },
-    { code: '02', field: 'indicator02', label: '渠道（编码数量）', options: [{ dictValue: '0', dictLabel: '一两个码' }, { dictValue: '1', dictLabel: '有效编码' }, { dictValue: '2', dictLabel: '多种编码' }, { dictValue: '3', dictLabel: '全部畅通' }] },
-    { code: '03', field: 'indicator03', label: '基层（分厂车间）', options: [{ dictValue: '0', dictLabel: '一两个' }, { dictValue: '1', dictLabel: '1/3分厂' }, { dictValue: '2', dictLabel: '2/3分厂' }, { dictValue: '3', dictLabel: '全部部门' }] },
-    { code: '04', field: 'indicator04', label: '产品（密封润滑防腐）', options: [{ dictValue: '0', dictLabel: '一两个' }, { dictValue: '1', dictLabel: '一大类' }, { dictValue: '2', dictLabel: '两大类' }, { dictValue: '3', dictLabel: '三大类' }] },
-    { code: '05', field: 'indicator05', label: '项目（项目资金）', options: [{ dictValue: '0', dictLabel: '日常计划' }, { dictValue: '1', dictLabel: '改造大修' }, { dictValue: '2', dictLabel: '安全环保' }, { dictValue: '3', dictLabel: '新建配套' }] },
-  ])
-  const indicatorTotal = computed(() => indicatorForm.relationshipScore+indicatorForm.indicator02+indicatorForm.indicator03+indicatorForm.indicator04+indicatorForm.indicator05)
+  // 五项指标定义与新增/编辑表单共用同一份口径（utils/customer-fields.js），避免两处标签漂移
+  const indicatorDefs = ref(INDICATOR_FIELDS)
+  const indicatorTotal = computed(() => sumIndicatorScore(indicatorForm))
   const invoiceThresholdMet = computed(() => (invoiceSummary.value.totalAmount||0) >= 100)
   const paymentThresholdMet = computed(() => (paymentSummary.value.totalAmount||0) >= 100)
   const bothThresholdMet = computed(() => invoiceThresholdMet.value && paymentThresholdMet.value)
-  const isCore = computed(() => bothThresholdMet.value && indicatorTotal.value >= 12)
+  const isCore = computed(() => bothThresholdMet.value && indicatorTotal.value >= INDICATOR_CORE_THRESHOLD)
   const totalScore = computed(() => incentiveScore.value + (indicator.value?.relationshipScore||0))
   const expireLevel = computed(() => {
     const d = customer.value?.expireDate
@@ -115,11 +112,7 @@ export function useCustomerDetail() {
       payments.value = payRes.data || []; paymentSummary.value = paySummRes.data || {}; contacts.value = cRes2.data || []
       indicator.value = indRes.data; shares.value = shaRes.data || []; incentiveScore.value = scoreRes.data || 0
       if (indicator.value) {
-        indicatorForm.relationshipScore = indicator.value.relationshipScore || 0
-        indicatorForm.indicator02 = indicator.value.indicator02 || 0
-        indicatorForm.indicator03 = indicator.value.indicator03 || 0
-        indicatorForm.indicator04 = indicator.value.indicator04 || 0
-        indicatorForm.indicator05 = indicator.value.indicator05 || 0
+        INDICATOR_FIELDS.forEach((f) => { indicatorForm[f.field] = indicator.value[f.field] || 0 })
       }
     } catch (e) { notifyActionFailure(e, '客户详情加载失败') } finally { loading.value = false }
   }

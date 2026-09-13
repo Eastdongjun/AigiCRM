@@ -170,6 +170,35 @@ class CustomerServiceTest {
         assertThrows(BusinessException.class, () -> svc.deletePayment(200L, 2L));
     }
 
+    // ===== 「所属集团」下拉候选（2026-09-13: 历史集团名去重, 受数据范围约束） =====
+
+    @Test
+    void listGroupNames_returnsDistinctTrimmedNamesAndFiltersBlank() {
+        BizCustomerMapper customerMapper = mock(BizCustomerMapper.class);
+        BizCustomer shenmei = new BizCustomer();
+        shenmei.setGroupName("陕煤集团");
+        BizCustomer blank = new BizCustomer();
+        blank.setGroupName("   ");
+        when(customerMapper.selectList(any(LambdaQueryWrapper.class))).thenReturn(List.of(shenmei, blank));
+        CustomerService svc = newService(mock(BizInvoiceMapper.class), mock(BizPaymentMapper.class),
+                customerMapper, mock(OrgScopeResolver.class));
+        SecurityUser user = new SecurityUser();
+        user.setUserId(9L);
+
+        try (MockedStatic<SecurityUtils> security = mockStatic(SecurityUtils.class)) {
+            security.when(SecurityUtils::getCurrentUser).thenReturn(user);
+            security.when(SecurityUtils::isAdmin).thenReturn(true);
+
+            // 空白集团名不得进入下拉候选
+            assertEquals(List.of("陕煤集团"), svc.listGroupNames());
+
+            ArgumentCaptor<LambdaQueryWrapper<BizCustomer>> captor = ArgumentCaptor.forClass(LambdaQueryWrapper.class);
+            verify(customerMapper).selectList(captor.capture());
+            String sql = captor.getValue().getSqlSegment();
+            assertTrue(sql.contains("group_name"), "候选查询应只按集团名取值并分组: " + sql);
+        }
+    }
+
     // ===== 联系人 IDOR（2026-08-10 安全修复: 与 deleteInvoice 同款归属校验） =====
 
     @Test

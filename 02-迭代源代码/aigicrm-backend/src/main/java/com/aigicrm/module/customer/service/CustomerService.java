@@ -37,6 +37,9 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class CustomerService {
 
+    /** 「所属集团」下拉候选返回上限（防大数据量下拉过长，超出的集团名仍可手工输入新建） */
+    private static final int GROUP_NAME_LIMIT = 200;
+
     private final BizCustomerMapper customerMapper;
     private final BizCustomerLogMapper customerLogMapper;
     private final BizInvoiceMapper invoiceMapper;
@@ -227,6 +230,30 @@ public class CustomerService {
         counts.put("sharedToMe", sharedToMe);
 
         return counts;
+    }
+
+    /**
+     * 客户「所属集团」候选名（去重），供新增/编辑表单的可选可新建下拉使用。
+     * 【2026-09-13】此前该字段为纯自由文本，同一集团出现多种写法，集团维度统计无法收敛。
+     * 范围与客户列表一致（applyDataScope），只返回集团名本身，不暴露其它客户字段。
+     * 注意：这里不能用 sys_group —— 那是「集团/法人租户配置」（权限体系顶层单元，如运营方自己的集团），
+     * 与 biz_customer.group_name（客户所属集团，如"陕煤集团"）语义不同。
+     */
+    public List<String> listGroupNames() {
+        LambdaQueryWrapper<BizCustomer> wrapper = new LambdaQueryWrapper<BizCustomer>()
+                .select(BizCustomer::getGroupName)
+                .isNotNull(BizCustomer::getGroupName)
+                .ne(BizCustomer::getGroupName, "")
+                .groupBy(BizCustomer::getGroupName)
+                .orderByAsc(BizCustomer::getGroupName)
+                .last("LIMIT " + GROUP_NAME_LIMIT);
+        applyDataScope(wrapper);
+        return customerMapper.selectList(wrapper).stream()
+                .map(BizCustomer::getGroupName)
+                .filter(StringUtils::hasText)
+                .map(String::trim)
+                .distinct()
+                .toList();
     }
 
     public List<Map<String, Object>> getSimpleUserList() {

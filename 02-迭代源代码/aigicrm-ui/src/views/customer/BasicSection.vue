@@ -23,8 +23,22 @@
     </div>
 
     <div class="form-row two">
+      <!-- 【2026-09-13】所属集团：原为纯自由文本，同一集团易出现多种写法（"陕煤集团"/"陕煤"）；
+           改为按数据范围返回的历史集团名可选可新建下拉。人工核对：sys_group 是「集团/法人租户配置」
+           （运营方自己的集团，权限体系顶层单元），与本字段「客户所属集团」语义不同，不能混用。 -->
       <el-form-item label="所属集团">
-        <el-input v-model="form.groupName" placeholder="例如：陕煤集团" />
+        <el-select
+          v-model="form.groupName"
+          placeholder="选择或输入集团名称"
+          size="large"
+          filterable
+          allow-create
+          default-first-option
+          clearable
+        >
+          <el-option v-for="g in groupOptions" :key="g" :label="g" :value="g" />
+        </el-select>
+        <div class="field-hint">优先选择已有集团名，避免同一集团多种写法；新集团名可直接输入</div>
       </el-form-item>
       <el-form-item label="所属分公司">
         <el-input v-model="form.branchCompany" placeholder="例如：榆林化学" />
@@ -40,13 +54,29 @@
 </template>
 
 <script setup>
+import { computed } from 'vue'
 import { injectCustomerForm } from '@/composables/useCustomerForm'
 import './add-common.css'
 
-const { form, dupInfo, checkDup } = injectCustomerForm()
+const { form, dupInfo, checkDup, groupNameOptions } = injectCustomerForm()
+
+// 历史集团名候选 + 当前值：历史自由文本值可能不在候选列表里，
+// 补进选项以保证编辑旧客户时下拉能正常回显（el-select 对无匹配 option 的值不回显标签）
+const groupOptions = computed(() => {
+  const names = new Set(groupNameOptions.value)
+  const current = String(form.groupName || '').trim()
+  if (current) names.add(current)
+  return [...names]
+})
 </script>
 
 <style scoped>
+.field-hint {
+  font-size: 12px;
+  line-height: 1.4;
+  color: #909399;
+  margin-top: 4px;
+}
 .dup-warning {
   display: flex;
   align-items: center;

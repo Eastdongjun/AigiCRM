@@ -129,6 +129,17 @@ class CustomerControllerTest {
         verify(customerService, never()).getContacts(11L);
     }
 
+    @Test
+    void groupNamesEndpoint_delegatesToService() {
+        CustomerService customerService = mock(CustomerService.class);
+        when(customerService.listGroupNames()).thenReturn(List.of("陕煤集团"));
+        CustomerController controller = new CustomerController(customerService, mock(SeaService.class),
+                mock(CustomerAccessService.class), mock(CustomerFileRelationService.class));
+
+        assertEquals(List.of("陕煤集团"), controller.groupNames().getData());
+        verify(customerService).listGroupNames();
+    }
+
     private BizCustomer customer(Long id, Long ownerId) {
         BizCustomer customer = new BizCustomer();
         customer.setId(id);

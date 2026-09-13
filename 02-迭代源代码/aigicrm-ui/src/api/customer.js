@@ -59,6 +59,11 @@ export function deleteInvoice(customerId, invoiceId) {
   return request.delete(`/customer/${customerId}/invoices/${invoiceId}`)
 }
 
+/** 新增/编辑表单「所属集团」下拉候选：后端按当前用户数据范围返回客户历史集团名（去重） */
+export function getCustomerGroupNames() {
+  return request.get('/customer/group-names')
+}
+
 // 客户指标
 export function getIndicator(id) {
   return request.get(`/customer/${id}/indicator`)

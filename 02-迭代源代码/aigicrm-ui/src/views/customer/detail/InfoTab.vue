@@ -7,6 +7,7 @@
           <div class="info-row"><span class="lbl">行业</span><span class="val">{{ customer.industry || '—' }}</span></div>
           <div class="info-row"><span class="lbl">开发类型</span><span class="val">{{ customer.devType || '—' }}</span></div>
           <div class="info-row"><span class="lbl">产能(万吨)</span><span class="val">{{ customer.capacity || '—' }}</span></div>
+          <div class="info-row"><span class="lbl">终端</span><span class="val">{{ terminalLabel(customer.hasTerminal) }}</span></div>
         </div>
       </div>
       <div class="info-card">
@@ -15,6 +16,7 @@
           <div class="info-row"><span class="lbl">所属大区</span><span class="val">{{ customer.regionName || '—' }}</span></div>
           <div class="info-row"><span class="lbl">所属办事处</span><span class="val">{{ customer.officeName || '—' }}</span></div>
           <div class="info-row"><span class="lbl">第一负责人</span><span class="val">{{ customer.ownerName || '—' }}</span></div>
+          <div class="info-row"><span class="lbl">管理上级</span><span class="val">{{ customer.managerName || '—' }}</span></div>
         </div>
       </div>
       <div class="info-card">
@@ -44,6 +46,12 @@
         <div class="protect-date-item"><span class="pd-label">到期日 (360天)</span><span class="pd-value" :class="'exp-'+expireLevel">{{ customer.expireDate }}</span></div>
       </div>
       <el-button v-if="!readonly" size="small" type="warning" @click="handleExtend"><el-icon><Calendar /></el-icon> 申请延期</el-button>
+    </div>
+
+    <!-- 【2026-09-13】客户备注：此前新增/编辑可填（库内 374/596 有值），但列表与详情都没有展示位 -->
+    <div class="remark-card">
+      <div class="remark-title"><el-icon><Document /></el-icon> 备注</div>
+      <div class="remark-body">{{ customer.remark || '—' }}</div>
     </div>
 
     <div v-if="canViewContacts" class="contact-card">
@@ -92,6 +100,7 @@
 
 <script setup>
 import { injectCustomerDetail } from '@/composables/useCustomerDetail'
+import { terminalLabel } from '@/utils/customer-fields'
 
 const {
   customer, readonly, contacts, editingContact, contactForm, showContactDialog, canViewContacts,
@@ -119,6 +128,9 @@ const {
 .protect-date-item { text-align:center }.pd-label { font-size:12px; color:#909399 }.pd-value { font-size:16px; font-weight:600; color:#333 }
 .pd-value.exp-red { color:#f56c6c }.pd-value.exp-orange { color:#e6a23c }
 .protect-divider { color:#c0c4cc; font-size:18px }
+.remark-card { background:#fafbfc; border-radius:10px; padding:16px 20px; margin-bottom:16px; border:1px solid #f0f1f3 }
+.remark-title { display:flex; align-items:center; gap:6px; font-size:14px; font-weight:600; color:#333; margin-bottom:10px }
+.remark-body { font-size:13px; color:#4e5969; white-space:pre-wrap; word-break:break-all; line-height:1.6 }
 .contact-card { background:#fafbfc; border-radius:10px; padding:18px 20px; margin-bottom:16px; border:1px solid #f0f1f3 }
 .contact-head { display:flex; justify-content:space-between; align-items:center; margin-bottom:14px }
 .contact-title { display:flex; align-items:center; gap:6px; font-size:14px; font-weight:600; color:#333 }

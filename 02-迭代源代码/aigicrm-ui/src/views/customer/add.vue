@@ -14,6 +14,7 @@
         <OrgSection />
         <AddressSection />
         <ContactsSection />
+        <IndicatorSection />
 
         <el-form-item label="备注" class="remark-field">
           <el-input v-model="form.remark" type="textarea" :rows="3" placeholder="备注信息（选填）" />
@@ -38,6 +39,7 @@ import BizSection from './BizSection.vue'
 import OrgSection from './OrgSection.vue'
 import AddressSection from './AddressSection.vue'
 import ContactsSection from './ContactsSection.vue'
+import IndicatorSection from './IndicatorSection.vue'
 
 // 共享上下文: 父级实例化一次并 provide,各 section 子组件 inject
 const ctx = useCustomerForm()

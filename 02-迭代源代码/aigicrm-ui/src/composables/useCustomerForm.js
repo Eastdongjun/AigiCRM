@@ -6,9 +6,13 @@ import { ref, reactive, computed, inject } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import request from '@/utils/request'
 import { ElMessage } from 'element-plus'
-import { addCustomer, getCustomer, updateCustomer, getSimpleUserList, getContacts, addContact } from '@/api/customer'
+import {
+  addCustomer, getCustomer, updateCustomer, getSimpleUserList, getContacts, addContact,
+  getIndicator, saveIndicator, getCustomerGroupNames,
+} from '@/api/customer'
 import { getDeptList, getDictData } from '@/api/system'
 import regionData from '@/utils/region-data'
+import { INDICATOR_FIELDS, sumIndicatorScore } from '@/utils/customer-fields'
 import { useUserStore } from '@/store/user'
 
 export const CustomerFormKey = Symbol('customerForm')
@@ -32,21 +36,12 @@ export function useCustomerForm() {
   const regions = ref([])
   const offices = ref([])
   const users = ref([])
+  // 【2026-09-13】「所属集团」候选：后端按数据范围返回客户历史集团名(去重), 前端做可选可新建下拉,
+  // 根治同一集团多种写法(此前是纯自由文本输入框)
+  const groupNameOptions = ref([])
   const filteredOffices = computed(() => {
     if (!form.regionId) return []
     return offices.value.filter(o => o.parentId === form.regionId)
-  })
-  // 所属部门：选中办事处下的全部子部门（部门可无限嵌套，递归收集）
-  const filteredDepts = computed(() => {
-    if (!form.officeId) return []
-    const res = []
-    const collect = (pid) => {
-      for (const d of offices.value) {
-        if (d.parentId === pid) { res.push(d); collect(d.id) }
-      }
-    }
-    collect(form.officeId)
-    return res
   })
   const regionValue = ref([])
   const industryOptions = ref([])
@@ -58,15 +53,25 @@ export function useCustomerForm() {
   const detailQuery = computed(() => (route.query.from ? { from: route.query.from } : {}))
   const contacts = ref([])
 
+  // 【2026-09-13】客情五项评分(0-3 分/项)：此前只能在客户详情页录入, 建档时无入口 →
+  // 新客户综合得分与核心客户判定恒为 0, 须事后进详情页补录; 现在新增/编辑页即可录入。
+  const indicatorForm = reactive(INDICATOR_FIELDS.reduce((o, f) => { o[f.field] = 0; return o }, {}))
+  const indicatorLoaded = ref(false) // 库内已有指标行(编辑场景): 保存时需整体回写, 即使全 0
+  const indicatorTotal = computed(() => sumIndicatorScore(indicatorForm))
+
   const form = reactive({
     customerName: '',
     invoiceName: '',
     industry: '',
     devType: '',
+    // 【2026-09-13】终端：与导入模板同名同口径（1=是 0=否），缺省按导入默认 0=否
+    hasTerminal: 0,
     officeId: null,
     regionId: null,
-    deptId: null,
     ownerId: null,
+    // 【2026-09-13】管理上级（选填）：落 biz_customer.manager_id，列表「上级」列与详情页据此显示。
+    // 此前该字段库/实体/列表列都在，但没有任何录入入口，列表列恒为空。
+    managerId: null,
     groupName: '',
     branchCompany: '',
     unitName: '',
@@ -76,7 +81,9 @@ export function useCustomerForm() {
     district: '',
     address: '',
     registerDate: new Date().toISOString().split('T')[0],
-    lastInvoiceDate: new Date().toISOString().split('T')[0],
+    // 【2026-09-13】最近开票日留空：此前默认"今天"，导致从未开票的新客户被记为当天开票，
+    // 而保护期取「注册日/最近开票日中较晚者 + 360 天」→ 保护期与超期统计口径失真。
+    lastInvoiceDate: '',
     remark: ''
   })
 
@@ -97,13 +104,12 @@ export function useCustomerForm() {
   const devTypeTagText = (t) => ({ '成熟创新': '创新', '突破开拓': '突破', '铺垫宣传': '铺垫' }[t] || '')
 
   // ---- 级联联动 ----
+  // 注：客户归属部门(dept_id)由后端按「第一负责人所在部门」自动确定(ORG 数据范围锚点)，
+  // 表单不再提供「所属部门」下拉——此前该下拉可填但会被后端覆盖，属误导性死字段(2026-09-13 移除)。
   const onRegionChange = () => {
     if (form.officeId && !filteredOffices.value.some(o => o.id === form.officeId)) {
       form.officeId = null
     }
-  }
-  const onOfficeChange = () => {
-    form.deptId = null
   }
   const handleRegionChange = (val) => {
     form.province = val?.[0] || ''
@@ -115,6 +121,29 @@ export function useCustomerForm() {
   const addContactRow = () => {
     contacts.value.push({ name: '', position: '', phone: '', remark: '' })
   }
+
+  /**
+   * 联系人行校验：填了职位/电话/备注但没填姓名的行，提交时会被丢弃（后端按姓名判重、无姓名不落库）。
+   * 此前是静默丢弃 → 用户以为已保存。现在返回错误文案并在提交前拦截。
+   * 整行全空视为未填写，不报错（允许保留空行）。
+   */
+  const validateContacts = () => {
+    const idx = contacts.value.findIndex(c =>
+      !String(c.name || '').trim()
+      && ['position', 'phone', 'remark'].some(k => String(c[k] || '').trim()))
+    return idx < 0 ? '' : `第 ${idx + 1} 行联系人未填姓名，请补全或删除该行`
+  }
+
+  /** 提交用联系人行：去掉全空行、统一 trim */
+  const contactRows = () => contacts.value
+    .filter(c => String(c.name || '').trim())
+    .map(c => ({
+      ...c,
+      name: c.name.trim(),
+      position: String(c.position || '').trim(),
+      phone: String(c.phone || '').trim(),
+      remark: String(c.remark || '').trim()
+    }))
 
   // ---- 导航 ----
   const goBack = () => {
@@ -136,33 +165,58 @@ export function useCustomerForm() {
   }
 
   // ---- 提交 ----
+  /** 请求体：清空的日期在表单里是空串，统一转 null（后端 LocalDate 不接受空串，且空串会被当成已填写） */
+  const buildPayload = () => ({
+    ...form,
+    registerDate: form.registerDate || null,
+    lastInvoiceDate: form.lastInvoiceDate || null
+  })
+
+  /** 有评分或库内已有指标行才写库：全 0 且无指标行时不建空记录 */
+  const shouldSaveIndicator = () => indicatorLoaded.value || sumIndicatorScore(indicatorForm) > 0
+
   const handleSubmit = async () => {
     const valid = await formRef.value.validate().catch(() => false)
     if (!valid) return
 
+    const contactError = validateContacts()
+    if (contactError) {
+      ElMessage.error(contactError)
+      return
+    }
+    const rows = contactRows()
+
     loading.value = true
     try {
       if (isEdit.value) {
-        await updateCustomer(route.params.id, form)
-        for (const c of contacts.value) {
-          if (c.name && !c.id) {
+        await updateCustomer(route.params.id, buildPayload())
+        for (const c of rows) {
+          if (!c.id) {
             await addContact(route.params.id, c)
           }
+        }
+        if (shouldSaveIndicator()) {
+          await saveIndicator(route.params.id, { ...indicatorForm })
         }
         ElMessage.success('客户更新成功')
         router.push({ path: `/customer/detail/${route.params.id}`, query: detailQuery.value })
       } else {
-        const res = await addCustomer(form)
+        const res = await addCustomer(buildPayload())
         const newId = res.data
-        if (newId && contacts.value.length) {
-          for (const c of contacts.value) {
-            if (c.name) await addContact(newId, c)
+        if (newId) {
+          for (const c of rows) {
+            await addContact(newId, c)
+          }
+          if (shouldSaveIndicator()) {
+            await saveIndicator(newId, { ...indicatorForm })
           }
         }
         ElMessage.success('客户添加成功')
         router.push('/customer')
       }
-    } catch (e) {} finally {
+    } catch (e) {
+      // 提示由 utils/request 响应拦截器统一弹出；此处只负责复位 loading，避免重复弹窗
+    } finally {
       loading.value = false
     }
   }
@@ -174,11 +228,15 @@ export function useCustomerForm() {
       const all = res.data || []
       regions.value = all.filter(d => d.deptType === 2)
       offices.value = all.filter(d => d.deptType === 3)
-    } catch (e) {}
+    } catch (e) { regions.value = []; offices.value = [] }
     try {
       const res = await getSimpleUserList()
       users.value = res.data || []
-    } catch (e) {}
+    } catch (e) { users.value = [] }
+    try {
+      const res = await getCustomerGroupNames()
+      groupNameOptions.value = (res.data || []).filter(n => String(n || '').trim())
+    } catch (e) { groupNameOptions.value = [] }
     if (!isEdit.value && userStore.userId) {
       form.ownerId = userStore.userId
     }
@@ -198,19 +256,28 @@ export function useCustomerForm() {
         Object.keys(form).forEach(k => { if (c[k] !== undefined && c[k] !== null) form[k] = c[k] })
         customerStatus.value = c.status || ''
         if (c.province) regionValue.value = [c.province, c.city, c.district].filter(Boolean)
-      } catch (e) {}
+      } catch (e) { customerStatus.value = '' }
       try {
         const res = await getContacts(route.params.id)
         contacts.value = (res.data || []).map(c => ({ id: c.id, name: c.name, position: c.position, phone: c.phone, remark: c.remark }))
-      } catch (e) {}
+      } catch (e) { contacts.value = [] }
+      try {
+        const res = await getIndicator(route.params.id)
+        const ind = res.data
+        if (ind) {
+          indicatorLoaded.value = true
+          INDICATOR_FIELDS.forEach(f => { if (ind[f.field] !== undefined && ind[f.field] !== null) indicatorForm[f.field] = ind[f.field] })
+        }
+      } catch (e) { indicatorLoaded.value = false }
     }
   }
 
   return {
-    formRef, dupInfo, loading, regions, offices, users,
-    filteredOffices, filteredDepts, regionValue, industryOptions, devTypeOptions,
+    formRef, dupInfo, loading, regions, offices, users, groupNameOptions,
+    filteredOffices, regionValue, industryOptions, devTypeOptions,
     isEdit, isPoolCustomer, canEditProtectedDates, detailQuery, contacts, form, rules,
-    devTypeTagStyle, devTypeTagText, onRegionChange, onOfficeChange,
+    indicatorForm, indicatorTotal, indicatorLoaded,
+    devTypeTagStyle, devTypeTagText, onRegionChange,
     handleRegionChange, addContactRow, goBack, checkDup, handleSubmit, loadFormData,
     regionData,
   }

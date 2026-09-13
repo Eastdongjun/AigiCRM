@@ -79,6 +79,17 @@ public class CustomerController {
         return Result.ok(customerService.listScopeCounts());
     }
 
+    /**
+     * 新增/编辑客户表单「所属集团」下拉候选（历史集团名去重，范围同客户列表）
+     * 【2026-09-13】此前该字段是纯自由文本，同一集团易出现多种写法；改为可选可新建下拉。
+     * 注：不使用 sys_group —— 那是「集团/法人租户配置」（权限体系顶层单元），与本字段语义不同。
+     */
+    @PreAuthorize("hasAuthority('customer:add') or hasAuthority('customer:edit')")
+    @GetMapping("/group-names")
+    public Result<List<String>> groupNames() {
+        return Result.ok(customerService.listGroupNames());
+    }
+
     @PreAuthorize("hasAuthority('score:view') or hasAuthority('ranking:customer:view') or hasAuthority('statistics:view')")
     @GetMapping("/rankings")
     public Result<Map<String, Object>> rankings() {

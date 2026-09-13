@@ -56,6 +56,8 @@ export function useCustomerList() {
     { key: 'customerCode', label: '编号' }, { key: 'customerName', label: '客户全称' }, { key: 'invoiceName', label: '开票名称' },
     { key: 'groupName', label: '集团' }, { key: 'branchCompany', label: '分公司' },
     { key: 'unitName', label: '所属单位' }, { key: 'industry', label: '行业' }, { key: 'capacity', label: '产能' },
+    // 【2026-09-13】终端列：字段此前只存在于库与导入模板，列表/详情/表单都无展示或录入入口
+    { key: 'hasTerminal', label: '终端' },
     { key: 'province', label: '省市' }, { key: 'address', label: '厂址' }, { key: 'registerDate', label: '注册日' },
     { key: 'lastInvoiceDate', label: '最近开票' }, { key: 'transferDate', label: '转移日' }, { key: 'expireDate', label: '到期日' },
     { key: 'adjustDate', label: '调整日' }, { key: 'regionName', label: '大区' }, { key: 'officeName', label: '办事处' },

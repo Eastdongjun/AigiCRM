@@ -22,7 +22,8 @@
         <el-date-picker v-model="form.registerDate" type="date" value-format="YYYY-MM-DD" placeholder="选择日期" style="width:100%" :disabled="!canEditProtectedDates" />
       </el-form-item>
       <el-form-item label="最近开票日">
-        <el-date-picker v-model="form.lastInvoiceDate" type="date" value-format="YYYY-MM-DD" placeholder="选择日期" style="width:100%" :disabled="!canEditProtectedDates" />
+        <el-date-picker v-model="form.lastInvoiceDate" type="date" value-format="YYYY-MM-DD" placeholder="尚无开票可留空" style="width:100%" :disabled="!canEditProtectedDates" />
+        <div class="field-hint">留空表示尚未开票；保护期按「注册日与最近开票日中较晚者 + 360 天」计算</div>
       </el-form-item>
     </div>
   </div>
@@ -36,6 +37,12 @@ const { form, regionValue, regionData, canEditProtectedDates, handleRegionChange
 </script>
 
 <style scoped>
+.field-hint {
+  font-size: 12px;
+  line-height: 1.4;
+  color: #909399;
+  margin-top: 4px;
+}
 .protect-hint {
   display: flex;
   align-items: center;
