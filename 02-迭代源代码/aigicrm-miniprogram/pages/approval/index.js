@@ -242,6 +242,15 @@ Page({
     this.loadFilters()
     this.loadApprovals()
     this.loadStats()
+    this._loadedOnce = true
+  },
+
+  // 【PR-12 2026-09-19 首批】审批/驳回后返回列表即见结果:每次回到页面刷新待办与统计
+  onShow() {
+    if (this._loadedOnce) {
+      this.loadApprovals()
+      this.loadStats()
+    }
   },
 
   loadApprovals() {

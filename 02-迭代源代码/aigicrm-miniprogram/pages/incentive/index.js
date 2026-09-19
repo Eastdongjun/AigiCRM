@@ -375,6 +375,17 @@ Page({
     this.loadScoreboard()
     this.loadReadStats()
     this.loadReadRanking()
+    this._loadedOnce = true
+  },
+
+  // 【PR-12 2026-09-19 首批】上传/追加成功 switchTab 回列表即见结果:每次显示刷新记录与统计
+  onShow() {
+    if (this._loadedOnce) {
+      this.loadRecords()
+      this.loadCategoryStats()
+      this.loadScoreboard()
+      this.loadReadStats()
+    }
   },
 
   loadGrantCheck() {
