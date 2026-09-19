@@ -1116,6 +1116,30 @@ public class CustomerService {
         recalculateCoreStatus(customerId);
     }
 
+    /**
+     * 【PR-05 2026-09-19】客户与本次客情指标同事务统一提交(新建)。
+     * 原两步保存(建客户→存指标)在第二步失败时产生"部分成功、界面报保存失败"，
+     * 用户重试可能重复建客户。组合方法单一事务：任一步失败整体回滚，界面失败即全未保存。
+     */
+    @Transactional
+    public Long createWithIndicator(BizCustomer customer, BizCustomerIndicator indicator) {
+        create(customer);
+        if (indicator != null) {
+            saveIndicator(customer.getId(), indicator);
+        }
+        return customer.getId();
+    }
+
+    /** 【PR-05】同上，编辑态组合提交。 */
+    @Transactional
+    public void updateWithIndicator(Long id, BizCustomer customer, BizCustomerIndicator indicator) {
+        customer.setId(id);
+        update(customer);
+        if (indicator != null) {
+            saveIndicator(id, indicator);
+        }
+    }
+
     @Transactional
     public void saveRelationshipScore(Long customerId, int score) {
         BizCustomerIndicator existing = getIndicator(customerId);

@@ -14,6 +14,9 @@ function getCustomerCounts() {
 
 function addCustomer(data) { return request({ url: '/api/customer/add', method: 'POST', data }) }
 function updateCustomer(id, data) { return request({ url: '/api/customer/' + id, method: 'PUT', data }) }
+/** 【PR-05】客户+客情指标同事务组合提交:任一步失败整体回滚,消除"部分成功界面报失败" */
+function saveCustomerWithIndicator(data) { return request({ url: '/api/customer/full', method: 'POST', data }) }
+function updateCustomerWithIndicator(id, data) { return request({ url: '/api/customer/' + id + '/full', method: 'PUT', data }) }
 function deleteCustomer(id) { return request({ url: '/api/customer/' + id, method: 'DELETE' }) }
 function checkCustomerName(name) { return request({ url: '/api/customer/check-name', data: { name } }) }
 function getCustomerContacts(id) { return request({ url: '/api/customer/' + id + '/contacts' }) }
@@ -47,6 +50,8 @@ module.exports = {
   getCustomerCounts,
   addCustomer,
   updateCustomer,
+  saveCustomerWithIndicator,
+  updateCustomerWithIndicator,
   deleteCustomer,
   checkCustomerName,
   getCustomerContacts,

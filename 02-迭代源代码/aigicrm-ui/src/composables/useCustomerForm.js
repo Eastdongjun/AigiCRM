@@ -7,8 +7,8 @@ import { useRouter, useRoute } from 'vue-router'
 import request from '@/utils/request'
 import { ElMessage } from 'element-plus'
 import {
-  addCustomer, getCustomer, updateCustomer, getSimpleUserList, getContacts, addContact,
-  getIndicator, saveIndicator, getCustomerGroupNames,
+  getCustomer, saveCustomerWithIndicator, updateCustomerWithIndicator, getSimpleUserList, getContacts, addContact,
+  getIndicator, getCustomerGroupNames,
 } from '@/api/customer'
 import { getDeptList, getDictData } from '@/api/system'
 import regionData from '@/utils/region-data'
@@ -209,27 +209,25 @@ export function useCustomerForm() {
 
     loading.value = true
     try {
+      // 【PR-05 2026-09-19】客户+指标同事务组合提交:任一步失败整体回滚,消除"客户已保存、
+      // 指标失败→界面报失败"的部分成功;联系人仍独立提交(联系人职责拆分属 PR-06)。
+      // indicator 为 null 时只存客户(与 shouldSaveIndicator 口径一致)。
+      const indicator = shouldSaveIndicator() ? { ...indicatorForm } : null
       if (isEdit.value) {
-        await updateCustomer(route.params.id, buildPayload())
+        await updateCustomerWithIndicator(route.params.id, { customer: buildPayload(), indicator })
         for (const c of rows) {
           if (!c.id) {
             await addContact(route.params.id, c)
           }
         }
-        if (shouldSaveIndicator()) {
-          await saveIndicator(route.params.id, { ...indicatorForm })
-        }
         ElMessage.success('客户更新成功')
         router.push({ path: `/customer/detail/${route.params.id}`, query: detailQuery.value })
       } else {
-        const res = await addCustomer(buildPayload())
+        const res = await saveCustomerWithIndicator({ customer: buildPayload(), indicator })
         const newId = res.data
         if (newId) {
           for (const c of rows) {
             await addContact(newId, c)
-          }
-          if (shouldSaveIndicator()) {
-            await saveIndicator(newId, { ...indicatorForm })
           }
         }
         ElMessage.success('客户添加成功')

@@ -12,14 +12,13 @@ vi.mock('@/utils/request', () => ({
   default: { get: vi.fn().mockResolvedValue({ data: { exists: false } }) },
 }))
 vi.mock('@/api/customer', () => ({
-  addCustomer: vi.fn(),
-  updateCustomer: vi.fn(),
+  saveCustomerWithIndicator: vi.fn(),
+  updateCustomerWithIndicator: vi.fn(),
   getCustomer: vi.fn(),
   getSimpleUserList: vi.fn(),
   getContacts: vi.fn(),
   addContact: vi.fn(),
   getIndicator: vi.fn(),
-  saveIndicator: vi.fn(),
   getCustomerGroupNames: vi.fn(),
 }))
 vi.mock('@/api/system', () => ({
@@ -30,8 +29,8 @@ vi.mock('element-plus', () => ({ ElMessage: { success: vi.fn(), error: vi.fn() }
 
 import { useCustomerForm } from './useCustomerForm'
 import {
-  addCustomer, getCustomer, getSimpleUserList, getContacts,
-  getIndicator, saveIndicator, getCustomerGroupNames, updateCustomer, addContact,
+  saveCustomerWithIndicator, updateCustomerWithIndicator, getCustomer,
+  getSimpleUserList, getContacts, getIndicator, getCustomerGroupNames, addContact,
 } from '@/api/customer'
 import { getDeptList, getDictData } from '@/api/system'
 import { ElMessage } from 'element-plus'
@@ -47,10 +46,9 @@ function mockLoad() {
   getContacts.mockResolvedValue({ data: [] })
   getIndicator.mockResolvedValue({ data: null })
   getCustomerGroupNames.mockResolvedValue({ data: ['陕煤集团', '国家能源集团'] })
-  addCustomer.mockResolvedValue({ data: 1001 })
-  updateCustomer.mockResolvedValue({ data: null })
+  saveCustomerWithIndicator.mockResolvedValue({ data: 1001 })
+  updateCustomerWithIndicator.mockResolvedValue({ data: null })
   addContact.mockResolvedValue({ data: null })
-  saveIndicator.mockResolvedValue({ data: null })
 }
 
 describe('useCustomerForm 新增客户字段', () => {
@@ -78,8 +76,8 @@ describe('useCustomerForm 新增客户字段', () => {
     await ctx.handleSubmit()
     await flushPromises()
 
-    expect(addCustomer).toHaveBeenCalledTimes(1)
-    const payload = addCustomer.mock.calls[0][0]
+    expect(saveCustomerWithIndicator).toHaveBeenCalledTimes(1)
+    const payload = saveCustomerWithIndicator.mock.calls[0][0].customer
     expect(payload.hasTerminal).toBe(1)
     expect(payload.managerId).toBe(7)
   })
@@ -114,7 +112,7 @@ describe('useCustomerForm 新增客户字段', () => {
     await ctx.handleSubmit()
     await flushPromises()
 
-    const payload = addCustomer.mock.calls[0][0]
+    const payload = saveCustomerWithIndicator.mock.calls[0][0].customer
     expect(payload.lastInvoiceDate).toBeNull()
   })
 
@@ -127,7 +125,7 @@ describe('useCustomerForm 新增客户字段', () => {
     await flushPromises()
 
     expect('deptId' in ctx.form).toBe(false)
-    expect('deptId' in addCustomer.mock.calls[0][0]).toBe(false)
+    expect('deptId' in saveCustomerWithIndicator.mock.calls[0][0].customer).toBe(false)
   })
 
   it('联系人填了内容却没填姓名时拦截提交并提示行号', async () => {
@@ -139,7 +137,7 @@ describe('useCustomerForm 新增客户字段', () => {
     await ctx.handleSubmit()
     await flushPromises()
 
-    expect(addCustomer).not.toHaveBeenCalled()
+    expect(saveCustomerWithIndicator).not.toHaveBeenCalled()
     expect(ElMessage.error).toHaveBeenCalledWith('第 1 行联系人未填姓名，请补全或删除该行')
   })
 
@@ -152,7 +150,7 @@ describe('useCustomerForm 新增客户字段', () => {
     await ctx.handleSubmit()
     await flushPromises()
 
-    expect(addCustomer).toHaveBeenCalledTimes(1)
+    expect(saveCustomerWithIndicator).toHaveBeenCalledTimes(1)
     expect(addContact).not.toHaveBeenCalled()
   })
 
@@ -182,7 +180,9 @@ describe('useCustomerForm 新增客户字段', () => {
 
     // composable 在 setup 之外调用，computed/ref 需显式取值
     expect(ctx.indicatorTotal.value).toBe(5)
-    expect(saveIndicator).toHaveBeenCalledWith(1001, {
+    // 【PR-05】指标随客户在同一次组合提交里(同事务),不再有独立的 saveIndicator 调用
+    expect(saveCustomerWithIndicator).toHaveBeenCalledTimes(1)
+    expect(saveCustomerWithIndicator.mock.calls[0][0].indicator).toEqual({
       relationshipScore: 3, indicator02: 0, indicator03: 2, indicator04: 0, indicator05: 0,
     })
   })
@@ -195,7 +195,7 @@ describe('useCustomerForm 新增客户字段', () => {
     await ctx.handleSubmit()
     await flushPromises()
 
-    expect(saveIndicator).not.toHaveBeenCalled()
+    expect(saveCustomerWithIndicator.mock.calls[0][0].indicator).toBeNull()
   })
 
   it('编辑时回填并回写已有指标行（即使全 0 也保留记录）', async () => {
@@ -212,7 +212,8 @@ describe('useCustomerForm 新增客户字段', () => {
     await ctx.handleSubmit()
     await flushPromises()
 
-    expect(saveIndicator).toHaveBeenCalledWith('302', {
+    expect(updateCustomerWithIndicator).toHaveBeenCalledTimes(1)
+    expect(updateCustomerWithIndicator.mock.calls[0][1].indicator).toEqual({
       relationshipScore: 2, indicator02: 0, indicator03: 0, indicator04: 0, indicator05: 3,
     })
   })
@@ -262,7 +263,7 @@ describe('useCustomerForm 新增客户字段', () => {
     await ctx.handleSubmit()
     await flushPromises()
 
-    const payload = updateCustomer.mock.calls[0][1]
+    const payload = updateCustomerWithIndicator.mock.calls[0][1].customer
     expect(payload.registerDate).toBeNull()
     expect(payload.invoiceName).toBeNull()
     expect(payload.hasTerminal).toBeNull()
@@ -282,7 +283,7 @@ describe('useCustomerForm 新增客户字段', () => {
     await ctx.handleSubmit()
     await flushPromises()
 
-    const payload = updateCustomer.mock.calls[0][1]
+    const payload = updateCustomerWithIndicator.mock.calls[0][1].customer
     // updateById 跳过 null 字段 → 空串才是"清空"的唯一表达
     expect(payload.invoiceName).toBe('')
     expect(payload.remark).toBe('')
@@ -299,7 +300,7 @@ describe('useCustomerForm 新增客户字段', () => {
     await ctx.handleSubmit()
     await flushPromises()
 
-    const payload = addCustomer.mock.calls[0][0]
+    const payload = saveCustomerWithIndicator.mock.calls[0][0].customer
     expect(payload.customerName).toBe('山西测试客户')
     expect(payload.invoiceName).toBeNull()
     expect(payload.groupName).toBeNull()

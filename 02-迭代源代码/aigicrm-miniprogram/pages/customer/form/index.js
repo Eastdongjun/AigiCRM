@@ -1,4 +1,4 @@
-const { getCustomer, addCustomer, updateCustomer, checkCustomerName, getCustomerSimpleUsers, getCustomerGroupNames, getCustomerIndicator, saveCustomerIndicator } = require('../../../api/customer')
+const { getCustomer, saveCustomerWithIndicator, updateCustomerWithIndicator, checkCustomerName, getCustomerSimpleUsers, getCustomerGroupNames, getCustomerIndicator } = require('../../../api/customer')
 const { getDepts, getDictData } = require('../../../api/system')
 const { hasPermission, requireLogin, isAdmin } = require('../../../utils/auth')
 const { showError } = require('../../../utils/feedback')
@@ -60,14 +60,6 @@ const buildIndicatorItems = (form) => INDICATOR_ITEMS.map((item) => {
     }))
   }
 })
-const resolveSavedCustomerId = (result, fallbackId) => {
-  if (fallbackId) return fallbackId
-  if (typeof result === 'number' || typeof result === 'string') return result
-  if (!result || typeof result !== 'object') return ''
-  const data = result.data && typeof result.data === 'object' ? result.data : {}
-  return result.id || result.customerId || data.id || data.customerId || ''
-}
-
 function pickerView(selected, text, placeholder) {
   return {
     text: selected ? text : placeholder,
@@ -412,9 +404,9 @@ Page({
     return this.data.indicatorLoaded || sumIndicatorScore(this.data.indicatorForm) > 0
   },
 
-  persistIndicator(customerId) {
-    if (!customerId || !this.shouldSaveIndicator() || getApp().globalData.demoMode) return Promise.resolve()
-    return saveCustomerIndicator(customerId, this.data.indicatorForm)
+  /** 【PR-05】组合提交的指标载荷:未加载/零分时不提交指标(与原 shouldSaveIndicator 口径一致) */
+  indicatorPayload() {
+    return this.shouldSaveIndicator() ? { ...this.data.indicatorForm } : null
   },
 
   saveCustomer() {
@@ -433,14 +425,15 @@ Page({
       })
     }
 
+    // 【PR-05 2026-09-19】真实模式走客户+指标同事务组合提交:任一步失败整体回滚,
+    // 消除"建客户成功、存指标失败→界面报保存失败但客户已入库,重试重复建客"。
+    // 演示模式仍本地两步(saveDemoCustomer 自带指标)。
     const action = getApp().globalData.demoMode
       ? Promise.resolve(saveDemoCustomer({ ...form, indicator: { ...this.data.indicatorForm } }, this.data.isEdit ? this.data.id : ''))
-      : (this.data.isEdit ? updateCustomer(this.data.id, form) : addCustomer(form))
+      : (this.data.isEdit
+          ? updateCustomerWithIndicator(this.data.id, { customer: form, indicator: this.indicatorPayload() })
+          : saveCustomerWithIndicator({ customer: form, indicator: this.indicatorPayload() }))
     action
-      .then((result) => {
-        const customerId = resolveSavedCustomerId(result, this.data.id)
-        return this.persistIndicator(customerId)
-      })
       .then(() => {
         wx.showToast({ title: this.data.isEdit ? '保存成功' : '新增成功', icon: 'success' })
         setTimeout(() => wx.navigateBack(), 500)

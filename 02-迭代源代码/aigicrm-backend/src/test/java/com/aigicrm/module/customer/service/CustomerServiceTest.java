@@ -45,6 +45,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;import static org.juni
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.verify;import static org.mockito.Mockito.when;
@@ -815,6 +816,94 @@ class CustomerServiceTest {
             for (Object arg : args) {
                 assertEquals(6L, arg, "所有集团参数均绑定当前会话集团");
             }
+        }
+    }
+
+    /**
+     * 【PR-05 2026-09-19】组合提交(客户+指标)必须一次性落两边——
+     * 建客户成功而指标失败时不得留下"半保存"客户(同事务整体回滚)。
+     */
+    @Test
+    void createWithIndicator_savesCustomerAndIndicatorTogether() {
+        BizCustomerMapper customerMapper = mock(BizCustomerMapper.class);
+        com.aigicrm.module.customer.mapper.BizCustomerIndicatorMapper indicatorMapper =
+                mock(com.aigicrm.module.customer.mapper.BizCustomerIndicatorMapper.class);
+        CustomerService svc = new CustomerService(
+                customerMapper, mock(com.aigicrm.module.customer.mapper.BizCustomerLogMapper.class),
+                mock(BizInvoiceMapper.class), mock(com.aigicrm.module.customer.mapper.BizCustomerShareMapper.class),
+                indicatorMapper, mock(BizContactMapper.class), mock(BizPaymentMapper.class),
+                mock(com.aigicrm.module.system.mapper.SysUserMapper.class),
+                mock(com.aigicrm.module.system.mapper.SysDeptMapper.class),
+                mock(com.aigicrm.module.reminder.mapper.BizReminderMapper.class),
+                mock(org.springframework.jdbc.core.JdbcTemplate.class),
+                mock(com.aigicrm.module.system.service.SysConfigService.class),
+                mock(com.aigicrm.common.scope.OrgScopeResolver.class),
+                mock(CustomerAccessService.class),
+                mock(com.aigicrm.module.system.service.RolePermScopeService.class));
+        doAnswer(inv -> {
+            inv.getArgument(0, BizCustomer.class).setId(501L);
+            return 1;
+        }).when(customerMapper).insert(any(BizCustomer.class));
+        SecurityUser user = new SecurityUser();
+        user.setUserId(9L);
+
+        com.aigicrm.module.customer.entity.BizCustomerIndicator indicator =
+                new com.aigicrm.module.customer.entity.BizCustomerIndicator();
+        indicator.setRelationshipScore(2);
+        indicator.setIndicator02(1);
+        Long id;
+        try (MockedStatic<SecurityUtils> security = mockStatic(SecurityUtils.class)) {
+            security.when(SecurityUtils::getCurrentUser).thenReturn(user);
+            security.when(SecurityUtils::isAdmin).thenReturn(true);
+            security.when(SecurityUtils::getCurrentUserId).thenReturn(9L);
+            BizCustomer req = new BizCustomer();
+            req.setCustomerName("PR05组合提交测试客户");
+            id = svc.createWithIndicator(req, indicator);
+        }
+
+        assertEquals(501L, id, "组合提交返回新建客户 id");
+        verify(customerMapper).insert(any(BizCustomer.class));
+        ArgumentCaptor<com.aigicrm.module.customer.entity.BizCustomerIndicator> indCaptor =
+                ArgumentCaptor.forClass(com.aigicrm.module.customer.entity.BizCustomerIndicator.class);
+        verify(indicatorMapper).insert(indCaptor.capture());
+        assertEquals(501L, indCaptor.getValue().getCustomerId(), "指标必须挂到新建客户上");
+        assertEquals(9L, indCaptor.getValue().getUpdatedBy());
+    }
+
+    /** 【PR-05】指标落库失败必须向上抛(由 @Transactional 整体回滚),不得吞掉留下半保存客户 */
+    @Test
+    void createWithIndicator_indicatorFailurePropagates() {
+        BizCustomerMapper customerMapper = mock(BizCustomerMapper.class);
+        com.aigicrm.module.customer.mapper.BizCustomerIndicatorMapper indicatorMapper =
+                mock(com.aigicrm.module.customer.mapper.BizCustomerIndicatorMapper.class);
+        when(customerMapper.insert(any(BizCustomer.class))).thenReturn(1);
+        when(indicatorMapper.insert(any(com.aigicrm.module.customer.entity.BizCustomerIndicator.class)))
+                .thenThrow(new RuntimeException("DB down"));
+        CustomerService svc = new CustomerService(
+                customerMapper, mock(com.aigicrm.module.customer.mapper.BizCustomerLogMapper.class),
+                mock(BizInvoiceMapper.class), mock(com.aigicrm.module.customer.mapper.BizCustomerShareMapper.class),
+                indicatorMapper, mock(BizContactMapper.class), mock(BizPaymentMapper.class),
+                mock(com.aigicrm.module.system.mapper.SysUserMapper.class),
+                mock(com.aigicrm.module.system.mapper.SysDeptMapper.class),
+                mock(com.aigicrm.module.reminder.mapper.BizReminderMapper.class),
+                mock(org.springframework.jdbc.core.JdbcTemplate.class),
+                mock(com.aigicrm.module.system.service.SysConfigService.class),
+                mock(com.aigicrm.common.scope.OrgScopeResolver.class),
+                mock(CustomerAccessService.class),
+                mock(com.aigicrm.module.system.service.RolePermScopeService.class));
+        SecurityUser user = new SecurityUser();
+        user.setUserId(9L);
+
+        try (MockedStatic<SecurityUtils> security = mockStatic(SecurityUtils.class)) {
+            security.when(SecurityUtils::getCurrentUser).thenReturn(user);
+            security.when(SecurityUtils::isAdmin).thenReturn(true);
+            security.when(SecurityUtils::getCurrentUserId).thenReturn(9L);
+            BizCustomer req = new BizCustomer();
+            req.setCustomerName("PR05组合提交失败测试客户");
+            com.aigicrm.module.customer.entity.BizCustomerIndicator indicator =
+                    new com.aigicrm.module.customer.entity.BizCustomerIndicator();
+            assertThrows(RuntimeException.class, () -> svc.createWithIndicator(req, indicator),
+                    "指标失败必须传播(同事务回滚),不得吞异常留下已建客户");
         }
     }
 }

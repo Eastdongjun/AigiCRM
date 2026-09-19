@@ -40,14 +40,15 @@ if ! rg -Fq "hasPermission('customer:add')" "$HOME"; then
   exit 1
 fi
 
-for pattern in "hasPermission(id ? 'customer:edit' : 'customer:add')" "readDemoCustomers().find" "getApp().globalData.demoMode" "saveDemoCustomer({ ...form, indicator: { ...this.data.indicatorForm } }, this.data.isEdit ? this.data.id : '')" "updateCustomer(this.data.id, form)" "addCustomer(form)"; do
+# 【PR-05 2026-09-19】真实模式改为客户+指标同事务组合提交(旧两步 addCustomer/updateCustomer+补存指标已废弃)
+for pattern in "hasPermission(id ? 'customer:edit' : 'customer:add')" "readDemoCustomers().find" "getApp().globalData.demoMode" "saveDemoCustomer({ ...form, indicator: { ...this.data.indicatorForm } }, this.data.isEdit ? this.data.id : '')" "updateCustomerWithIndicator(this.data.id, { customer: form, indicator: this.indicatorPayload() })" "saveCustomerWithIndicator({ customer: form, indicator: this.indicatorPayload() })"; do
   if ! rg -Fq "$pattern" "$FORM"; then
     echo "FAIL: customer form missing $pattern"
     exit 1
   fi
 done
 
-for pattern in "getCustomerIndicator" "saveCustomerIndicator" "INDICATOR_ITEMS" "indicatorForm" "indicatorItems" "optionsView" "className" "selectIndicatorScore(e)" "shouldSaveIndicator()" "persistIndicator(customerId)" "saveCustomerIndicator(customerId, this.data.indicatorForm)" "resolveSavedCustomerId(result, this.data.id)"; do
+for pattern in "getCustomerIndicator" "INDICATOR_ITEMS" "indicatorForm" "indicatorItems" "optionsView" "className" "selectIndicatorScore(e)" "shouldSaveIndicator()" "indicatorPayload()" "return this.shouldSaveIndicator() ? { ...this.data.indicatorForm } : null"; do
   if ! rg -Fq "$pattern" "$FORM"; then
     echo "FAIL: mobile customer form must save PC five-indicator fields inline: $pattern"
     exit 1

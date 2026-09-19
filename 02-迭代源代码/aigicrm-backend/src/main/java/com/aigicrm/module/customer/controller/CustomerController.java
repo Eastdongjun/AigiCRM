@@ -100,6 +100,41 @@ public class CustomerController {
         return Result.ok();
     }
 
+    // ====== 【PR-05 2026-09-19】客户+指标同事务组合提交 ======
+    // 两步保存的部分成功问题(建客户成功、存指标失败→界面报"保存失败"但客户已入库,
+    // 重试重复建客)由组合端点根治;旧的两步端点保留兼容。
+
+    /** 组合提交请求体:customer 必填,indicator 可空(空=只存客户,与表单 shouldSaveIndicator 口径一致) */
+    @lombok.Data
+    public static class CustomerWithIndicatorRequest {
+        private BizCustomer customer;
+        private BizCustomerIndicator indicator;
+    }
+
+    @PreAuthorize("hasAuthority('customer:add')")
+    @PostMapping("/full")
+    public Result<Long> createFull(@RequestBody CustomerWithIndicatorRequest body) {
+        if (body.getCustomer() == null) {
+            throw new BusinessException(400, "缺少客户信息");
+        }
+        // 指标写入沿用独立指标端点的 customer:edit 语义——组合端点不放宽权限
+        if (body.getIndicator() != null && !SecurityUtils.hasAuthority("customer:edit")) {
+            throw new BusinessException(403, "保存客情指标需要客户编辑权限");
+        }
+        return Result.ok(customerService.createWithIndicator(body.getCustomer(), body.getIndicator()));
+    }
+
+    @PreAuthorize("hasAuthority('customer:edit')")
+    @PutMapping("/{id}/full")
+    public Result<Void> updateFull(@PathVariable Long id, @RequestBody CustomerWithIndicatorRequest body) {
+        if (body.getCustomer() == null) {
+            throw new BusinessException(400, "缺少客户信息");
+        }
+        accessService.assertCanEdit(id);
+        customerService.updateWithIndicator(id, body.getCustomer(), body.getIndicator());
+        return Result.ok();
+    }
+
     @PreAuthorize("hasAuthority('customer:delete')")
     @DeleteMapping("/{id}")
     public Result<Void> delete(@PathVariable Long id) {

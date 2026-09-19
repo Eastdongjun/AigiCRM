@@ -17,6 +17,15 @@ export function updateCustomer(id, data) {
   return request.put(`/customer/${id}`, data)
 }
 
+// 【PR-05】客户+客情指标同事务组合提交:任一步失败整体回滚,消除"部分成功界面报失败"
+export function saveCustomerWithIndicator(data) {
+  return request.post('/customer/full', data)
+}
+
+export function updateCustomerWithIndicator(id, data) {
+  return request.put(`/customer/${id}/full`, data)
+}
+
 export function deleteCustomer(id) {
   return request.delete(`/customer/${id}`)
 }

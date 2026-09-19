@@ -4,7 +4,7 @@
 > 本文件由 scripts/gen-api.py 自动生成,**禁止手改**;接口变更后重新运行。
 > 权限码与 docs/permission/permission-dict.md 对应。
 
-## 接口清单(188 个)
+## 接口清单(190 个)
 
 | 方法 | 路径 | 权限码 | 方法名 | 文件 |
 |---|---|---|---|---|
@@ -30,6 +30,7 @@
 | POST | `/api/customer/add` | `hasAuthority('customer:add')` | create | CustomerController.java |
 | GET | `/api/customer/check-name` | `hasAuthority('customer:view')` | checkName | CustomerController.java |
 | GET | `/api/customer/export` | `hasAuthority('customer:export')` | export | CustomerController.java |
+| POST | `/api/customer/full` | `hasAuthority('customer:add')` | createFull | CustomerController.java |
 | GET | `/api/customer/group-names` | `hasAuthority('customer:add') or hasAuthority('customer:edit')` | groupNames | CustomerController.java |
 | POST | `/api/customer/import` | `hasAuthority('customer:import')` | importCustomers | CustomerController.java |
 | GET | `/api/customer/import/template` | `hasAuthority('customer:import')` | downloadTemplate | CustomerController.java |
@@ -45,6 +46,7 @@
 | POST | `/api/customer/{id}/contacts` | `hasAuthority('customer:edit')` | addContact | CustomerController.java |
 | DELETE | `/api/customer/{id}/contacts/{contactId}` | `hasAuthority('customer:edit')` | deleteContact | CustomerController.java |
 | PUT | `/api/customer/{id}/contacts/{contactId}` | `hasAuthority('customer:edit')` | updateContact | CustomerController.java |
+| PUT | `/api/customer/{id}/full` | `hasAuthority('customer:edit')` | updateFull | CustomerController.java |
 | GET | `/api/customer/{id}/indicator` | `hasAuthority('customer:view')` | getIndicator | CustomerController.java |
 | POST | `/api/customer/{id}/indicator` | `hasAuthority('customer:edit')` | saveIndicator | CustomerController.java |
 | GET | `/api/customer/{id}/invoices` | `hasAuthority('customer:view')` | getInvoices | CustomerController.java |

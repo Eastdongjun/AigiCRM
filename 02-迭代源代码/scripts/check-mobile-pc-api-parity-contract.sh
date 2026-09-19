@@ -50,6 +50,7 @@ assert_absent_in_miniprogram_api() {
 
 require_pair "$PC_CUSTOMER" "/customer/list" "$MP_CUSTOMER" "/api/customer/list" "customer list"
 require_pair "$PC_CUSTOMER" "/customer/add" "$MP_CUSTOMER" "/api/customer/add" "customer add"
+require_pair "$PC_CUSTOMER" "/customer/full" "$MP_CUSTOMER" "/api/customer/full" "customer full submit"  # 【PR-05】同事务组合提交两端对齐
 require_pair "$PC_CUSTOMER" "/customer/list/counts" "$MP_CUSTOMER" "/api/customer/list/counts" "customer counts"
 require_pair "$PC_CUSTOMER" "/customer/users/simple" "$MP_CUSTOMER" "/api/customer/users/simple" "customer user selector"
 require_pair "$PC_CUSTOMER" "/customer/group-names" "$MP_CUSTOMER" "/api/customer/group-names" "customer group-name selector"
