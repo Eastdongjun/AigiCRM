@@ -109,8 +109,17 @@ public class CustomerService {
         }
 
         if (StringUtils.hasText(keyword)) {
-            wrapper.and(w -> w.like(BizCustomer::getCustomerName, keyword)
-                    .or().like(BizCustomer::getCustomerCode, keyword));
+            // 【议题五.1 裁决 2026-09-19】搜索增强:
+            // 1) 别名命中:alias 独立字段(简称/曾用名)与主名/编码同权重 OR;
+            // 2) 多词 AND:空格分词,每个词都须命中(名称∪别名∪编码),命中面更准。
+            String[] words = keyword.trim().split("\\s+");
+            wrapper.and(w -> {
+                for (String word : words) {
+                    w.and(inner -> inner.like(BizCustomer::getCustomerName, word)
+                            .or().like(BizCustomer::getAlias, word)
+                            .or().like(BizCustomer::getCustomerCode, word));
+                }
+            });
         }
         if (StringUtils.hasText(industry)) {
             String[] arr = industry.split(",");
@@ -188,8 +197,17 @@ public class CustomerService {
     private void applyCommonFilters(LambdaQueryWrapper<BizCustomer> wrapper, String keyword,
                                      String industry, Long officeId, Long regionId, String status) {
         if (StringUtils.hasText(keyword)) {
-            wrapper.and(w -> w.like(BizCustomer::getCustomerName, keyword)
-                    .or().like(BizCustomer::getCustomerCode, keyword));
+            // 【议题五.1 裁决 2026-09-19】搜索增强:
+            // 1) 别名命中:alias 独立字段(简称/曾用名)与主名/编码同权重 OR;
+            // 2) 多词 AND:空格分词,每个词都须命中(名称∪别名∪编码),命中面更准。
+            String[] words = keyword.trim().split("\\s+");
+            wrapper.and(w -> {
+                for (String word : words) {
+                    w.and(inner -> inner.like(BizCustomer::getCustomerName, word)
+                            .or().like(BizCustomer::getAlias, word)
+                            .or().like(BizCustomer::getCustomerCode, word));
+                }
+            });
         }
         if (StringUtils.hasText(industry)) wrapper.eq(BizCustomer::getIndustry, industry);
         if (officeId != null) wrapper.eq(BizCustomer::getOfficeId, officeId);
@@ -1368,6 +1386,7 @@ public class CustomerService {
     }
 
     public java.util.Map<String, Object> getDuplicateInfo(String customerName) {
+        // 【议题五.1】先按主名查,未命中再按别名查(裁决:查重仅提示,不自动合并)
         // 【修复 2026-08-10 P2-01】创建人/创建时间信息同样限定在数据范围内(与 existsByName 同口径)
         // 【PR-01 N-02 2026-09-18】原生 SQL 绕过租户拦截器：补 c.tenant_id 条件（biz_customer 在
         // 租户白名单内）；无集团归属直接返回 null（fail-closed，不泄露他租户创建人）。

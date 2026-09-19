@@ -12,7 +12,7 @@ function today() { return new Date().toISOString().split('T')[0] }
  *  后端 protectCustomerDateFields 会判定"注册日被修改"，普通销售直接报错存不了。 */
 function emptyForm() {
   return {
-    customerName: '', invoiceName: '', industry: '', devType: '',
+    customerName: '', alias: '', invoiceName: '', industry: '', devType: '',
     hasTerminal: 0,
     regionId: null, officeId: null, ownerId: null, managerId: null,
     groupName: '', branchCompany: '', unitName: '', capacity: '',

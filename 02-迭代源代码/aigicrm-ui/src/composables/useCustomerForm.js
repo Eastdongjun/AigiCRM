@@ -70,6 +70,7 @@ export function useCustomerForm() {
 
   const form = reactive({
     customerName: '',
+    alias: '',  // 【议题五.1】别名/简称(搜索命中)
     invoiceName: '',
     industry: '',
     devType: '',

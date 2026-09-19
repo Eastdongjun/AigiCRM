@@ -18,6 +18,9 @@ public class BizCustomer {
     private String customerCode;
     @ExcelProperty("客户名称")
     private String customerName;
+    /** 【议题五.1 裁决】别名/简称/曾用名(搜索命中) */
+    @ExcelProperty("别名")
+    private String alias;
     @ExcelProperty("开票名称")
     private String invoiceName;
     @ExcelProperty("行业")

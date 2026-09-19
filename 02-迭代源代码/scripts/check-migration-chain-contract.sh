@@ -24,7 +24,7 @@ for file in \
 done
 
 migration_output="$(bash "$ROOT/scripts/check-migration-contract.sh")"
-printf '%s\n' "$migration_output" | grep -Fq '37 个迁移' \
+printf '%s\n' "$migration_output" | grep -Fq '38 个迁移' \
   || fail "migration contract did not scan the full current migration set: $migration_output"
 
 registration_output="$(python3 "$REG")"

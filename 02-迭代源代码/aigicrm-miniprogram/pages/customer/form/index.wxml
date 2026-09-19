@@ -16,6 +16,10 @@
     <view class="label">客户全称 *</view>
     <input class="input" data-field="customerName" value="{{form.customerName}}" bindinput="onInput" bindblur="checkDuplicateName" placeholder="请输入订货客户全称" />
     <view wx:if="{{checkingName}}" class="tip">正在检测客户名称...</view>
+    <view class="form-field">
+      <text class="field-label">别名/简称</text>
+      <input class="field-input" value="{{form.alias}}" bindinput="onFieldInput" data-field="alias" placeholder="简称、曾用名(可选)" />
+    </view>
     <view wx:if="{{dupInfo.exists}}" class="tip warning-tip">{{formView.duplicateTip}}</view>
 
     <view class="label">开票名称</view>

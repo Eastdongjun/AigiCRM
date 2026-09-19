@@ -12,6 +12,9 @@
         此客户已在 {{ dupInfo.createdAt }} 由 {{ dupInfo.createdBy }} 创建，请更换名称
       </div>
     </el-form-item>
+    <el-form-item label="别名/简称" prop="alias" class="full-width">
+      <el-input v-model="form.alias" placeholder="简称、曾用名（可选，搜索可命中）" maxlength="200" />
+    </el-form-item>
 
     <div class="form-row two">
       <el-form-item label="开票名称">
