@@ -135,6 +135,22 @@ public class CustomerController {
         return Result.ok();
     }
 
+    /** 【议题五.4 裁决】归档(默认隐藏,可筛含归档) */
+    @PreAuthorize("hasAuthority('customer:edit')")
+    @PostMapping("/{id}/archive")
+    public Result<Void> archive(@PathVariable Long id) {
+        customerService.archive(id);
+        return Result.ok();
+    }
+
+    /** 【议题五.4】从归档恢复 */
+    @PreAuthorize("hasAuthority('customer:edit')")
+    @PostMapping("/{id}/restore")
+    public Result<Void> restore(@PathVariable Long id) {
+        customerService.restore(id);
+        return Result.ok();
+    }
+
     @PreAuthorize("hasAuthority('customer:delete')")
     @DeleteMapping("/{id}")
     public Result<Void> delete(@PathVariable Long id) {

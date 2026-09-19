@@ -39,6 +39,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -46,6 +47,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.times;
@@ -995,5 +997,101 @@ class CustomerServiceTest {
         // (即使开票/回款达标,五项不齐也不算核心——与"即时计算"口径一致)
         boolean hasRecalc = cap.getAllValues().stream().anyMatch(i -> i.getIsCore() != null);
         assertTrue(hasRecalc, "重算必须回写 is_core 字段");
+    }
+
+    // ===== 【议题五.3/.4 裁决】删除守卫 + 归档/恢复 =====
+
+    @Test
+    void delete_withInvoices_rejected() {
+        BizCustomerMapper customerMapper = mock(BizCustomerMapper.class);
+        when(customerMapper.selectById(501L)).thenReturn(new com.aigicrm.module.customer.entity.BizCustomer());
+        BizInvoiceMapper invoiceMapper = mock(BizInvoiceMapper.class);
+        when(invoiceMapper.selectCount(any())).thenReturn(3L); // 有 3 笔开票
+        BizPaymentMapper paymentMapper = mock(BizPaymentMapper.class);
+        when(paymentMapper.selectCount(any())).thenReturn(0L);
+        CustomerAccessService accessService = mock(CustomerAccessService.class);
+        when(accessService.canDelete(501L)).thenReturn(true);
+
+        CustomerService svc = new CustomerService(
+                customerMapper, mock(com.aigicrm.module.customer.mapper.BizCustomerLogMapper.class),
+                invoiceMapper, mock(com.aigicrm.module.customer.mapper.BizCustomerShareMapper.class),
+                mock(com.aigicrm.module.customer.mapper.BizCustomerIndicatorMapper.class),
+                mock(BizContactMapper.class), paymentMapper,
+                mock(com.aigicrm.module.system.mapper.SysUserMapper.class),
+                mock(com.aigicrm.module.system.mapper.SysDeptMapper.class),
+                mock(com.aigicrm.module.reminder.mapper.BizReminderMapper.class),
+                mock(org.springframework.jdbc.core.JdbcTemplate.class),
+                mock(com.aigicrm.module.system.service.SysConfigService.class),
+                mock(com.aigicrm.common.scope.OrgScopeResolver.class),
+                accessService,
+                mock(com.aigicrm.module.system.service.RolePermScopeService.class));
+
+        BusinessException ex = assertThrows(BusinessException.class, () -> svc.delete(501L));
+        assertTrue(ex.getMessage().contains("不允许删除"), "实际: " + ex.getMessage());
+        assertTrue(ex.getMessage().contains("3 笔开票"), "提示须含影响范围: " + ex.getMessage());
+        verify(customerMapper, never()).deleteById(any(Long.class));
+    }
+
+    @Test
+    void delete_noBusinessData_succeeds() {
+        BizCustomerMapper customerMapper = mock(BizCustomerMapper.class);
+        when(customerMapper.selectById(501L)).thenReturn(new com.aigicrm.module.customer.entity.BizCustomer());
+        BizInvoiceMapper invoiceMapper = mock(BizInvoiceMapper.class);
+        when(invoiceMapper.selectCount(any())).thenReturn(0L);
+        BizPaymentMapper paymentMapper = mock(BizPaymentMapper.class);
+        when(paymentMapper.selectCount(any())).thenReturn(0L);
+        CustomerAccessService accessService = mock(CustomerAccessService.class);
+        when(accessService.canDelete(501L)).thenReturn(true);
+
+        CustomerService svc = new CustomerService(
+                customerMapper, mock(com.aigicrm.module.customer.mapper.BizCustomerLogMapper.class),
+                invoiceMapper, mock(com.aigicrm.module.customer.mapper.BizCustomerShareMapper.class),
+                mock(com.aigicrm.module.customer.mapper.BizCustomerIndicatorMapper.class),
+                mock(BizContactMapper.class), paymentMapper,
+                mock(com.aigicrm.module.system.mapper.SysUserMapper.class),
+                mock(com.aigicrm.module.system.mapper.SysDeptMapper.class),
+                mock(com.aigicrm.module.reminder.mapper.BizReminderMapper.class),
+                mock(org.springframework.jdbc.core.JdbcTemplate.class),
+                mock(com.aigicrm.module.system.service.SysConfigService.class),
+                mock(com.aigicrm.common.scope.OrgScopeResolver.class),
+                accessService,
+                mock(com.aigicrm.module.system.service.RolePermScopeService.class));
+
+        assertDoesNotThrow(() -> svc.delete(501L));
+        verify(customerMapper).deleteById(501L);
+    }
+
+    @Test
+    void archive_andRestore_statusTransitions() {
+        BizCustomerMapper customerMapper = mock(BizCustomerMapper.class);
+        com.aigicrm.module.customer.entity.BizCustomer cust =
+                new com.aigicrm.module.customer.entity.BizCustomer();
+        cust.setId(501L);
+        cust.setStatus("normal");
+        when(customerMapper.selectById(501L)).thenReturn(cust);
+        CustomerAccessService accessService = mock(CustomerAccessService.class);
+        when(accessService.canEdit(501L)).thenReturn(true);
+
+        CustomerService svc = new CustomerService(
+                customerMapper, mock(com.aigicrm.module.customer.mapper.BizCustomerLogMapper.class),
+                mock(BizInvoiceMapper.class), mock(com.aigicrm.module.customer.mapper.BizCustomerShareMapper.class),
+                mock(com.aigicrm.module.customer.mapper.BizCustomerIndicatorMapper.class),
+                mock(BizContactMapper.class), mock(BizPaymentMapper.class),
+                mock(com.aigicrm.module.system.mapper.SysUserMapper.class),
+                mock(com.aigicrm.module.system.mapper.SysDeptMapper.class),
+                mock(com.aigicrm.module.reminder.mapper.BizReminderMapper.class),
+                mock(org.springframework.jdbc.core.JdbcTemplate.class),
+                mock(com.aigicrm.module.system.service.SysConfigService.class),
+                mock(com.aigicrm.common.scope.OrgScopeResolver.class),
+                accessService,
+                mock(com.aigicrm.module.system.service.RolePermScopeService.class));
+
+        svc.archive(501L);
+        assertEquals("archived", cust.getStatus());
+        svc.restore(501L);
+        assertEquals("normal", cust.getStatus());
+        // 非归档状态不可恢复
+        BusinessException ex = assertThrows(BusinessException.class, () -> svc.restore(501L));
+        assertTrue(ex.getMessage().contains("不在归档"));
     }
 }

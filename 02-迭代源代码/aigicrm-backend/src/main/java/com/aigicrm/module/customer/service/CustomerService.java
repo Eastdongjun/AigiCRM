@@ -88,6 +88,10 @@ public class CustomerService {
 
         LambdaQueryWrapper<BizCustomer> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(BizCustomer::getDeleted, 0);
+        // 【议题五.4 裁决】归档客户默认隐藏;status 筛选传 "include_archived" 时包含
+        if (!"include_archived".equals(status)) {
+            wrapper.ne(BizCustomer::getStatus, "archived");
+        }
 
         if ("mine".equals(scope)) {
             wrapper.eq(BizCustomer::getOwnerId, currentUserId);
@@ -505,7 +509,45 @@ public class CustomerService {
         if (!customerAccessService.canDelete(id)) {
             throw new org.springframework.security.access.AccessDeniedException("只能删除自己范围内的客户");
         }
+        // 【议题五.3 裁决 2026-09-19】有业务数据的客户不允许删,转停用:
+        // 有效开票/回款/在途审批任一存在 → 拒绝(删前展示关联影响的最低实现)
+        long invoiceCount = invoiceMapper.selectCount(
+                new LambdaQueryWrapper<com.aigicrm.module.customer.entity.BizInvoice>()
+                        .eq(com.aigicrm.module.customer.entity.BizInvoice::getCustomerId, id));
+        long paymentCount = paymentMapper.selectCount(
+                new LambdaQueryWrapper<com.aigicrm.module.customer.entity.BizPayment>()
+                        .eq(com.aigicrm.module.customer.entity.BizPayment::getCustomerId, id));
+        if (invoiceCount > 0 || paymentCount > 0) {
+            throw new BusinessException(String.format(
+                    "该客户有 %d 笔开票、%d 笔回款,不允许删除;如需停止跟进请使用\"停用\"",
+                    invoiceCount, paymentCount));
+        }
         customerMapper.deleteById(id);
+    }
+
+    /** 【议题五.4 裁决】归档:默认隐藏,可筛"含归档";归档客户不参与统计与到期提醒 */
+    public void archive(Long id) {
+        BizCustomer existing = customerMapper.selectById(id);
+        if (existing == null) throw new BusinessException("客户不存在");
+        if (!customerAccessService.canEdit(id)) {
+            throw new org.springframework.security.access.AccessDeniedException("只能归档自己范围内的客户");
+        }
+        existing.setStatus("archived");
+        customerMapper.updateById(existing);
+    }
+
+    /** 【议题五.4】恢复(从归档恢复正常) */
+    public void restore(Long id) {
+        BizCustomer existing = customerMapper.selectById(id);
+        if (existing == null) throw new BusinessException("客户不存在");
+        if (!"archived".equals(existing.getStatus())) {
+            throw new BusinessException("该客户不在归档状态");
+        }
+        if (!customerAccessService.canEdit(id)) {
+            throw new org.springframework.security.access.AccessDeniedException("只能恢复自己范围内的客户");
+        }
+        existing.setStatus("normal");
+        customerMapper.updateById(existing);
     }
 
     // ====== 自动共享规则 ======
