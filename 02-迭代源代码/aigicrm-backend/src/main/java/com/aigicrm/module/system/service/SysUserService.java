@@ -57,6 +57,8 @@ public class SysUserService {
     private final com.aigicrm.security.JwtTokenProvider jwtTokenProvider;
     private final com.aigicrm.common.scope.OrgScopeResolver scopeResolver;
     private final com.aigicrm.security.SecurityAuditService securityAudit;
+    /** 【议题四裁决】停用/删除时立即清理全部草稿 */
+    private final com.aigicrm.module.common.service.FormDraftService formDraftService;
 
     /** 【2026-08-14 安全 P0】随机初始口令(12 位, 去易混字符, SecureRandom)——替代硬编码 123456 */
     private String generateRandomPassword() {
@@ -372,6 +374,7 @@ public class SysUserService {
     @Transactional
     public void deleteUser(Long userId) {
         securityAudit.userAdminEvent("user_delete", userId, null);
+        formDraftService.purgeByUser(userId);
         SysUser user = userMapper.selectById(userId);
         if (user == null) throw new BusinessException("用户不存在");
         // 【2026-08-15 安全审计 H1 纵深防御】非 admin 操作者禁止删除 admin 角色账号(服务层兜底, 不依赖 controller 守卫)

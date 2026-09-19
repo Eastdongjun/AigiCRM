@@ -68,6 +68,9 @@ public class PermissionMatrixTest {
             "AuthController.login",
             "AuthController.logout",
             "AuthController.switchGroup", // 【批④ 2026-08-10】自服务会话切换(校验集团归属后重签 token, 类 logout)
+            "FormDraftController.save", // 【议题四 2026-09-19】自服务草稿(仅本人+当前集团,无权限码需求)
+            "FormDraftController.forceSave",
+            "FormDraftController.delete",
             "AuthController.forgotPasswordLookup",
             "AuthController.forgotPasswordSendCode",
             "AuthController.forgotPasswordReset",

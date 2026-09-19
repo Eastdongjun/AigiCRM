@@ -2,6 +2,7 @@ const { getCustomer, saveCustomerWithIndicator, updateCustomerWithIndicator, che
 const { getDepts, getDictData } = require('../../../api/system')
 const { hasPermission, requireLogin, isAdmin } = require('../../../utils/auth')
 const { showError } = require('../../../utils/feedback')
+const { getFormDraft, saveFormDraft, forceSaveFormDraft, deleteFormDraft } = require('../../../api/system')
 const { readDemoCustomers, saveDemoCustomer } = require('../../../utils/demo-customers')
 
 function today() { return new Date().toISOString().split('T')[0] }
@@ -98,6 +99,7 @@ function buildFormView(data) {
 
 Page({
   data: {
+    draftVersion: 0, // 【议题四】草稿乐观锁版本
     id: '', isEdit: false, loading: false, saving: false,
     form: emptyForm(),
     allOffices: [],
@@ -145,6 +147,7 @@ Page({
       canEditDates: !id || getApp().globalData.demoMode || isAdmin() || hasPermission('customer:date:edit')
     }, () => this.refreshFormView())
     this.loadOptions().then(() => (id ? this.loadDetail() : this.prefillOwner()))
+    if (!id) this.tryRestoreDraft() // 【议题四】新建时检查草稿恢复
   },
 
   /** 下拉数据：部门 / 人员 / 字典 / 历史集团名（演示模式直接用演示候选，不请求接口） */
@@ -435,11 +438,54 @@ Page({
           : saveCustomerWithIndicator({ customer: form, indicator: this.indicatorPayload() }))
     action
       .then(() => {
+        deleteFormDraft('customer_form').catch(() => {}) // 【议题四】提交成功清草稿
         wx.showToast({ title: this.data.isEdit ? '保存成功' : '新增成功', icon: 'success' })
         setTimeout(() => wx.navigateBack(), 500)
       })
       .catch((error) => showError(error, '保存失败，请检查权限或字段'))
       .finally(() => this.setData({ saving: false }, () => this.refreshFormView()))
+  },
+
+  // 【议题四裁决】表单草稿:离开自动保存(新建模式,仅真实环境;7 天保留/版本冲突)
+  onHide() { this.autoSaveDraft() },
+  onUnload() { this.autoSaveDraft() },
+
+  autoSaveDraft() {
+    if (this.data.isEdit || this.data.saving) return
+    if (getApp().globalData.demoMode) return
+    const form = this.data.form || {}
+    if (!form.customerName || !form.customerName.trim()) return // 空表单不存
+    saveFormDraft('customer_form', { form, indicatorForm: this.data.indicatorForm }, this.data.draftVersion)
+      .then((result) => {
+        const d = result && result.data
+        if (d && d.version) this.setData({ draftVersion: d.version })
+      })
+      .catch(() => {}) // 自动保存静默失败(网络差等),不打扰用户
+  },
+
+  tryRestoreDraft() {
+    if (getApp().globalData.demoMode) return
+    getFormDraft('customer_form').then((result) => {
+      const draft = result && result.data
+      if (!draft || !draft.draftData) return
+      let parsed
+      try { parsed = JSON.parse(draft.draftData) } catch (e) { return }
+      if (!parsed || !parsed.form || !parsed.form.customerName) return
+      wx.showModal({
+        title: '发现未完成的草稿',
+        content: `客户"${parsed.form.customerName}"的录入未完成(保存于 ${String(draft.updatedAt || '').slice(0, 16)}),是否恢复?`,
+        confirmText: '恢复',
+        cancelText: '放弃',
+        success: (res) => {
+          if (res.confirm) {
+            this.setData({ form: parsed.form, indicatorForm: parsed.indicatorForm || this.data.indicatorForm, draftVersion: draft.version || 1 },
+              () => this.refreshFormView())
+          } else {
+            deleteFormDraft('customer_form').catch(() => {})
+          }
+        }
+      })
+    }).catch(() => {})
   },
 
   cancel() {

@@ -92,7 +92,8 @@ class SysUserManagerIdUpdateTest {
                 mock(com.aigicrm.security.PermissionCacheService.class),
                 mock(com.aigicrm.security.JwtTokenProvider.class),
                 mock(com.aigicrm.common.scope.OrgScopeResolver.class),
-                mock(com.aigicrm.security.SecurityAuditService.class));
+                mock(com.aigicrm.security.SecurityAuditService.class),
+                mock(com.aigicrm.module.common.service.FormDraftService.class));
     }
 
     /** 前端"无上级"提交 0/null → 服务层归一为 null 透传 updateById（配合 ALWAYS 落库回写 NULL） */

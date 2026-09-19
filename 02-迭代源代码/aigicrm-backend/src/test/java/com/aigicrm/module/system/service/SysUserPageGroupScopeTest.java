@@ -77,7 +77,8 @@ class SysUserPageGroupScopeTest {
                 mock(com.aigicrm.security.PermissionCacheService.class),
                 mock(com.aigicrm.security.JwtTokenProvider.class),
                 mock(com.aigicrm.common.scope.OrgScopeResolver.class),
-                mock(com.aigicrm.security.SecurityAuditService.class));
+                mock(com.aigicrm.security.SecurityAuditService.class),
+                mock(com.aigicrm.module.common.service.FormDraftService.class));
     }
 
     @Test

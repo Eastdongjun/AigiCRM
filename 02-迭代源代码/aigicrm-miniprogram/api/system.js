@@ -12,4 +12,14 @@ function getDictData(dictCode) {
   return request({ url: '/api/system/dict/data/' + dictCode })
 }
 
-module.exports = { getDepts, getDictData }
+module.exports = {
+  getFormDraft,
+  saveFormDraft,
+  forceSaveFormDraft,
+  deleteFormDraft, getDepts, getDictData }
+
+// 【议题四裁决】表单草稿(7天保留/账号+集团隔离/版本冲突检测)
+function getFormDraft(draftType) { return request({ url: '/api/draft/' + draftType }) }
+function saveFormDraft(draftType, draftData, version) { return request({ url: '/api/draft/' + draftType, method: 'PUT', data: { draftData: JSON.stringify(draftData), version: version || 0 } }) }
+function forceSaveFormDraft(draftType, draftData) { return request({ url: '/api/draft/' + draftType + '/force', method: 'PUT', data: { draftData: JSON.stringify(draftData) } }) }
+function deleteFormDraft(draftType) { return request({ url: '/api/draft/' + draftType, method: 'DELETE' }) }
