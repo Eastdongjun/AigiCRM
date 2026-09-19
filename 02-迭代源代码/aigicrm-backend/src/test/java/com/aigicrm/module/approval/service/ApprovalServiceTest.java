@@ -76,6 +76,7 @@ class ApprovalServiceTest {
                 mock(SysUserService.class),
                 mock(ApprovalConfigService.class),
                 mock(com.aigicrm.module.system.service.SysConfigService.class),
+                mock(org.springframework.jdbc.core.JdbcTemplate.class),
                 mock(com.aigicrm.security.SecurityAuditService.class));
     }
 
@@ -143,8 +144,9 @@ class ApprovalServiceTest {
                 mock(com.aigicrm.common.scope.OrgScopeResolver.class),
                 seaConfigService,
                 mock(SysUserService.class),
-                configService,
+                configService, 
                 mock(com.aigicrm.module.system.service.SysConfigService.class),
+                mock(org.springframework.jdbc.core.JdbcTemplate.class),
                 mock(com.aigicrm.security.SecurityAuditService.class));
     }
 
@@ -547,8 +549,9 @@ class ApprovalServiceTest {
                 mock(SysUserMapper.class), mock(SysUserRoleMapper.class), mock(SysDeptMapper.class),
                 mock(BizSeaPoolMapper.class), mock(SeaService.class),
                 mock(com.aigicrm.common.scope.OrgScopeResolver.class), mock(SeaConfigService.class),
-                mock(SysUserService.class), configService,
+                mock(SysUserService.class), configService, 
                 mock(com.aigicrm.module.system.service.SysConfigService.class),
+                mock(org.springframework.jdbc.core.JdbcTemplate.class),
                 mock(com.aigicrm.security.SecurityAuditService.class));
 
         BusinessException ex = assertThrows(BusinessException.class, () -> svc.submit("extend", 42L, null, null));
@@ -579,8 +582,9 @@ class ApprovalServiceTest {
                 userMapper, mock(SysUserRoleMapper.class), mock(SysDeptMapper.class),
                 mock(BizSeaPoolMapper.class), mock(SeaService.class),
                 mock(com.aigicrm.common.scope.OrgScopeResolver.class), mock(SeaConfigService.class),
-                mock(SysUserService.class), mock(ApprovalConfigService.class),
+                mock(SysUserService.class), mock(ApprovalConfigService.class), 
                 mock(com.aigicrm.module.system.service.SysConfigService.class),
+                mock(org.springframework.jdbc.core.JdbcTemplate.class),
                 mock(com.aigicrm.security.SecurityAuditService.class));
 
         BusinessException ex = assertThrows(BusinessException.class, () -> svc.submit("extend", 42L, null, null));
@@ -644,8 +648,9 @@ class ApprovalServiceTest {
                 userMapper, mock(SysUserRoleMapper.class), mock(SysDeptMapper.class),
                 mock(BizSeaPoolMapper.class), mock(SeaService.class),
                 mock(com.aigicrm.common.scope.OrgScopeResolver.class), mock(SeaConfigService.class),
-                mock(SysUserService.class), mock(ApprovalConfigService.class),
+                mock(SysUserService.class), mock(ApprovalConfigService.class), 
                 mock(com.aigicrm.module.system.service.SysConfigService.class),
+                mock(org.springframework.jdbc.core.JdbcTemplate.class),
                 mock(com.aigicrm.security.SecurityAuditService.class));
 
         try (MockedStatic<SecurityUtils> sec = mockStatic(SecurityUtils.class)) {

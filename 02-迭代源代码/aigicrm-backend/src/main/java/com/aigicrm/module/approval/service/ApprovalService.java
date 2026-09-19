@@ -61,6 +61,8 @@ public class ApprovalService {
     private final ApprovalConfigService approvalConfigService;
     /** 【议题一裁决】延期/保护期天数走系统配置(管理员可改) */
     private final com.aigicrm.module.system.service.SysConfigService configService;
+    /** 【PR-09】集团成员查询(转移边界校验) */
+    private final org.springframework.jdbc.core.JdbcTemplate jdbc;
     /** 【议题二.1 裁决】转交审计 */
     private final com.aigicrm.security.SecurityAuditService securityAudit;
 
@@ -659,6 +661,7 @@ public class ApprovalService {
             }
             case "transfer" -> {
                 // 转移 - 负责人变更（解析失败必须显式报错，随事务回滚，不得静默成功）
+                // 【PR-09 2026-09-19 议题二/五裁决衔接】接收人有效性+集团边界+部门同步
                 if (approval.getExtraData() != null) {
                     try {
                         com.fasterxml.jackson.databind.ObjectMapper om = new com.fasterxml.jackson.databind.ObjectMapper();
@@ -667,10 +670,34 @@ public class ApprovalService {
                         Long newOwnerId = Long.valueOf(data.get("newOwnerId").toString());
                         BizCustomer customer = customerMapper.selectById(approval.getCustomerId());
                         if (customer != null) {
+                            // 【PR-09】接收人有效性:必须存在、启用、未删除
+                            SysUser newOwner = userMapper.selectById(newOwnerId);
+                            if (newOwner == null || newOwner.getStatus() == null || newOwner.getStatus() != 1
+                                    || (newOwner.getDeleted() != null && newOwner.getDeleted() == 1)) {
+                                throw new BusinessException("接收人不存在或已停用,转移失败;请转交后重试");
+                            }
+                            // 【PR-09】集团边界:非 admin 时,接收人须与当前会话同集团
+                            // (客户 tenant_id 由拦截器管理,实体无字段;用会话集团做边界判定)
+                            if (!SecurityUtils.isAdmin()) {
+                                Long sessionGroup = com.aigicrm.common.scope.GroupScopeUtil.currentGroupOrNull();
+                                if (sessionGroup != null) {
+                                    List<Long> groupMembers = com.aigicrm.common.scope.GroupScopeUtil
+                                            .userIdsInGroup(jdbc, sessionGroup);
+                                    if (!groupMembers.contains(newOwnerId)) {
+                                        throw new BusinessException("接收人不在当前集团,跨集团转移需平台管理员处理");
+                                    }
+                                }
+                            }
                             customer.setOwnerId(newOwnerId);
                             customer.setTransferDate(LocalDate.now());
+                            // 部门同步:客户归属部门=新负责人部门(与创建时 syncCustomerDeptId 同口径)
+                            if (newOwner.getDeptId() != null) {
+                                customer.setDeptId(newOwner.getDeptId());
+                            }
                             customerMapper.updateById(customer);
                         }
+                    } catch (BusinessException be) {
+                        throw be; // 业务校验失败直接透传(不走通用 catch 拼接)
                     } catch (Exception e) {
                         throw new BusinessException("审批通过后客户转移处理失败: " + e.getMessage());
                     }
