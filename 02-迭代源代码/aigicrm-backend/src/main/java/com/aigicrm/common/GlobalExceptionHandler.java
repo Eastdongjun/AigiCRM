@@ -20,10 +20,25 @@ import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.sql.SQLSyntaxErrorException;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.concurrent.ThreadLocalRandom;
 
 @Slf4j
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+
+    // ==================== 【PR-24 首批 2026-09-19】异常支持编号 ====================
+    // 总册 PR-24:"异常给用户可记录的脱敏支持编号,内部关联环境、版本、业务对象与操作链"。
+    // 对外只回短编号(无堆栈/无内部信息泄露);服务端日志以编号为首键打印完整栈,
+    // 支持人员凭编号即可检索。仅用于非预期 500(业务异常文案本身面向用户,不加编号)。
+
+    static final DateTimeFormatter TS = DateTimeFormatter.ofPattern("yyyyMMddHHmmss");
+
+    static String supportId() {
+        return "S-" + LocalDateTime.now().format(TS) + "-"
+                + Integer.toHexString(ThreadLocalRandom.current().nextInt(0x10000, 0xFFFFF));
+    }
 
     // ==================== 业务异常 ====================
 
@@ -125,19 +140,21 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(DataAccessException.class)
     @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
     public Result<Void> handleDataAccess(DataAccessException e) {
-        log.error("数据库异常", e);
+        String sid = supportId();
+        log.error("[{}] 数据库异常", sid, e);
         Throwable cause = e.getCause();
         if (cause instanceof SQLSyntaxErrorException) {
-            return Result.error(500, "数据查询出错，请联系管理员检查数据库表结构");
+            return Result.error(500, "数据查询出错，支持编号 " + sid);
         }
-        return Result.error(500, "数据访问异常，请联系管理员");
+        return Result.error(500, "数据访问异常，支持编号 " + sid);
     }
 
     @ExceptionHandler(SQLSyntaxErrorException.class)
     @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
     public Result<Void> handleSQLSyntaxError(SQLSyntaxErrorException e) {
-        log.error("SQL语法错误", e);
-        return Result.error(500, "数据查询出错，请联系管理员检查数据库表结构");
+        String sid = supportId();
+        log.error("[{}] SQL语法错误", sid, e);
+        return Result.error(500, "数据查询出错，支持编号 " + sid);
     }
 
     // ==================== 兜底 ====================
@@ -145,7 +162,9 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(Exception.class)
     @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
     public Result<Void> handleException(Exception e) {
-        log.error("系统异常", e);
-        return Result.error(500, "系统异常，请联系管理员");
+        String sid = supportId();
+        // 编号置首,运维 grep 编号即得完整栈;响应不含任何内部细节
+        log.error("[{}] 系统异常", sid, e);
+        return Result.error(500, "系统异常，支持编号 " + sid);
     }
 }

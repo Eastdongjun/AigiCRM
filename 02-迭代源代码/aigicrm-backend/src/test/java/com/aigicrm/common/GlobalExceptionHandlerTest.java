@@ -6,6 +6,7 @@ import org.springframework.http.ResponseEntity;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * 【2026-08-14 错误码语义化】BusinessException code → HTTP 状态映射测试。
@@ -66,5 +67,51 @@ class GlobalExceptionHandlerTest {
         Result<Void> b = resp.getBody();
         assertNotNull(b);
         return b;
+    }
+
+    // ===== 【PR-24 首批 2026-09-19】异常支持编号:对外脱敏、编号可检索 =====
+
+    private static final java.util.regex.Pattern SID =
+            java.util.regex.Pattern.compile("^S-\\d{14}-[0-9a-f]{4,5}$");
+
+    @Test
+    void supportId_formatIsShortAndSanitized() {
+        String sid = GlobalExceptionHandler.supportId();
+        assertTrue(SID.matcher(sid).matches(), "编号形如 S-<时间戳>-<随机hex>,实际: " + sid);
+        assertTrue(sid.length() <= 22, "编号须短(用户可手抄),实际长度 " + sid.length());
+    }
+
+    @Test
+    void supportId_uniqueAcrossCalls() {
+        java.util.Set<String> seen = new java.util.HashSet<>();
+        for (int i = 0; i < 200; i++) {
+            seen.add(GlobalExceptionHandler.supportId());
+        }
+        // 同秒内仅随机段区分;断言基本唯一(仍能抓住"随机段写死"类缺陷)
+        assertTrue(seen.size() >= 198, "编号基本唯一,实际唯一数 " + seen.size());
+    }
+
+    @Test
+    void fallback500_messageCarriesSupportIdWithoutInternalDetails() {
+        Result<Void> result = handler.handleException(
+                new RuntimeException("jdbc:mysql://prod-db/internal?password=x"));
+        assertNotNull(result);
+        assertEquals(500, result.getCode());
+        String msg = String.valueOf(result.getMessage());
+        assertTrue(msg.contains("支持编号 S-"), "响应须含支持编号: " + msg);
+        // 脱敏:异常消息里的内部细节(连接串/口令)不得透出
+        assertTrue(!msg.contains("jdbc") && !msg.contains("password"), "响应不得泄露内部细节: " + msg);
+        String sid = msg.substring(msg.indexOf("S-"));
+        assertTrue(SID.matcher(sid).matches(), "编号可解析: " + sid);
+    }
+
+    @Test
+    void dataAccess500_messageCarriesSupportId() {
+        org.springframework.dao.DataAccessResourceFailureException dae =
+                new org.springframework.dao.DataAccessResourceFailureException("connection refused to 10.0.0.9:3306");
+        Result<Void> result = handler.handleDataAccess(dae);
+        String msg = String.valueOf(result.getMessage());
+        assertTrue(msg.contains("支持编号 S-"), "数据访问异常响应须含支持编号: " + msg);
+        assertTrue(!msg.contains("10.0.0.9"), "内部主机地址不得泄露: " + msg);
     }
 }
