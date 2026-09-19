@@ -770,6 +770,8 @@ public class CustomerService {
         // 非 admin 无集团归属时 AND 1=0（fail-closed），admin 不过滤。
         java.util.List<Object> args = new java.util.ArrayList<>();
         String gc = groupCondition("c", args);
+        // 注意：文本块内容从换行符之后开始，gc 与 GROUP BY 之间必须显式补 "\n"，
+        // 否则拼出占位符紧贴关键字的语法错误（PR-22 活体验证 2026-09-19 发现）
         String sql = """
                 SELECT c.id AS customerId, c.customer_name AS customerName, owner.real_name AS ownerName,
                        c.industry AS industry, COALESCE(SUM(ir.score), 0) AS totalScore,
@@ -781,7 +783,7 @@ public class CustomerService {
                 FROM biz_incentive_record ir
                 JOIN biz_customer c ON c.id = ir.customer_id AND c.deleted = 0
                 LEFT JOIN sys_user owner ON owner.id = c.owner_id
-                WHERE COALESCE(ir.score, 0) > 0""" + gc + """
+                WHERE COALESCE(ir.score, 0) > 0""" + gc + "\n" + """
                 GROUP BY c.id, c.customer_name, owner.real_name, c.industry
                 ORDER BY totalScore DESC, uploadCount DESC, customerName ASC
                 """;
@@ -797,7 +799,7 @@ public class CustomerService {
                 FROM biz_customer c
                 JOIN biz_customer_indicator i ON i.customer_id = c.id
                 LEFT JOIN sys_user owner ON owner.id = c.owner_id
-                WHERE c.deleted = 0 AND COALESCE(i.relationship_score, 0) > 0""" + gc + """
+                WHERE c.deleted = 0 AND COALESCE(i.relationship_score, 0) > 0""" + gc + "\n" + """
                 ORDER BY relationshipScore DESC, customerName ASC
                 """;
         return jdbc.queryForList(sql, args.toArray());
