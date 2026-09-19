@@ -820,6 +820,41 @@ class CustomerServiceTest {
         }
     }
 
+    /** 【PR-22 批次四】共享不得跨集团:目标用户不在当前集团 → 拒绝,不落共享行/不发育误通知 */
+    @Test
+    void addShares_crossGroupTarget_rejected() {
+        BizCustomerMapper customerMapper = mock(BizCustomerMapper.class);
+        when(customerMapper.selectById(501L)).thenReturn(new com.aigicrm.module.customer.entity.BizCustomer());
+        org.springframework.jdbc.core.JdbcTemplate jdbc = mock(org.springframework.jdbc.core.JdbcTemplate.class);
+        // 集团成员经 GroupScopeUtil 静态 mock 返回(仅 7);目标 66 属别集团
+        CustomerService svc = new CustomerService(
+                customerMapper, mock(com.aigicrm.module.customer.mapper.BizCustomerLogMapper.class),
+                mock(BizInvoiceMapper.class), mock(com.aigicrm.module.customer.mapper.BizCustomerShareMapper.class),
+                mock(com.aigicrm.module.customer.mapper.BizCustomerIndicatorMapper.class),
+                mock(BizContactMapper.class), mock(BizPaymentMapper.class),
+                mock(com.aigicrm.module.system.mapper.SysUserMapper.class),
+                mock(com.aigicrm.module.system.mapper.SysDeptMapper.class),
+                mock(com.aigicrm.module.reminder.mapper.BizReminderMapper.class),
+                jdbc, mock(com.aigicrm.module.system.service.SysConfigService.class),
+                mock(com.aigicrm.common.scope.OrgScopeResolver.class),
+                mock(CustomerAccessService.class),
+                mock(com.aigicrm.module.system.service.RolePermScopeService.class));
+        SecurityUser user = new SecurityUser();
+        user.setUserId(7L);
+        user.setCurrentGroupId(1L);
+        try (MockedStatic<SecurityUtils> security = mockStatic(SecurityUtils.class);
+             MockedStatic<com.aigicrm.common.scope.GroupScopeUtil> group =
+                     org.mockito.Mockito.mockStatic(com.aigicrm.common.scope.GroupScopeUtil.class)) {
+            security.when(SecurityUtils::getCurrentUserId).thenReturn(7L);
+            group.when(com.aigicrm.common.scope.GroupScopeUtil::currentGroupOrNull).thenReturn(1L);
+            group.when(() -> com.aigicrm.common.scope.GroupScopeUtil.userIdsInGroup(jdbc, 1L))
+                    .thenReturn(java.util.List.of(7L));
+            BusinessException ex = assertThrows(BusinessException.class,
+                    () -> svc.addShares(501L, java.util.List.of(66L)));
+            assertTrue(ex.getMessage().contains("其他集团"), "实际: " + ex.getMessage());
+        }
+    }
+
     /**
      * 【PR-05 2026-09-19】组合提交(客户+指标)必须一次性落两边——
      * 建客户成功而指标失败时不得留下"半保存"客户(同事务整体回滚)。

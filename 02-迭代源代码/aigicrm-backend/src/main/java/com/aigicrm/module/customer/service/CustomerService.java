@@ -1196,6 +1196,21 @@ public class CustomerService {
         Long currentUserId = SecurityUtils.getCurrentUserId();
         BizCustomer customer = customerMapper.selectById(customerId);
         if (customer == null) throw new BusinessException("客户不存在");
+        // 【PR-22 批次四 2026-09-19 活体发现】共享不得绕过集团边界(总册 F01):
+        // 此前跨集团共享静默成功——写入乙集团用户永远无法使用的共享行,还向其发送
+        // 提醒通知(脏数据+误导)。租户拦截器虽挡住了读取,写入本身也应拒绝。
+        if (!userIds.isEmpty()) {
+            Long group = com.aigicrm.common.scope.GroupScopeUtil.currentGroupOrNull();
+            if (group != null) {
+                List<Long> groupMembers = com.aigicrm.common.scope.GroupScopeUtil.userIdsInGroup(jdbc, group);
+                List<Long> foreign = userIds.stream().filter(uid -> !groupMembers.contains(uid)).toList();
+                if (!foreign.isEmpty()) {
+                    throw new BusinessException("不能共享给其他集团用户（目标用户不在当前集团）");
+                }
+            } else {
+                throw new BusinessException(403, "无有效集团归属，禁止共享");
+            }
+        }
 
         for (Long uid : userIds) {
             Long count = shareMapper.selectCount(
