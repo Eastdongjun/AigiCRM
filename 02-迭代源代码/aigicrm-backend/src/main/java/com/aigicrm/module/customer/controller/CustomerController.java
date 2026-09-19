@@ -360,13 +360,8 @@ public class CustomerController {
     @PreAuthorize("hasAuthority('customer:import')")
     @PostMapping("/import")
     public Result<CustomerImportResult> importCustomers(@RequestParam("file") MultipartFile file) {
-        if (file.isEmpty()) {
-            throw new BusinessException("请选择要导入的文件");
-        }
-        String filename = file.getOriginalFilename();
-        if (filename == null || !(filename.endsWith(".xlsx") || filename.endsWith(".xls"))) {
-            throw new BusinessException("仅支持 .xlsx 或 .xls 格式的文件");
-        }
+        // 【BS-D 2026-09-19】导入资源上限统一收口(非空/扩展名/大小 5MB)
+        com.aigicrm.common.util.ImportGuard.checkFile(file);
         return Result.ok(customerService.importCustomers(file));
     }
 

@@ -1111,7 +1111,7 @@ public class IncentiveService {
                             + "LEFT JOIN biz_incentive_record r ON r.created_at LIKE CONCAT(?, '%') "
                             + "LEFT JOIN biz_incentive_read br ON br.user_id=u.id AND br.record_id=r.id "
                             + "WHERE u.deleted=0 GROUP BY u.id,u.real_name,d.dept_name "
-                            + "ORDER BY readCount DESC, unreadCount DESC",
+                            + "ORDER BY readCount DESC, unreadCount DESC LIMIT 100",
                     month);
         }
         Long g = com.aigicrm.common.scope.GroupScopeUtil.currentGroupOrNull();
@@ -1133,7 +1133,7 @@ public class IncentiveService {
                         + "LEFT JOIN biz_incentive_read br ON br.user_id=u.id AND br.record_id=r.id "
                         + "WHERE u.deleted=0 AND u.id IN (" + holders + ") "
                         + "GROUP BY u.id,u.real_name,d.dept_name "
-                        + "ORDER BY readCount DESC, unreadCount DESC",
+                        + "ORDER BY readCount DESC, unreadCount DESC LIMIT 100",
                 args.toArray());
     }
 

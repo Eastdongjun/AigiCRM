@@ -808,6 +808,7 @@ class CustomerServiceTest {
             assertFalse(sql.matches("(?s).*\\?(GROUP|ORDER|HAVING|LIMIT).*"),
                     "占位符后紧跟 SQL 关键字(缺空白分隔): " + sql);
             assertTrue(sql.contains("tenant_id = ?"), "非 admin 排行 SQL 必须带集团过滤: " + sql);
+            assertTrue(sql.contains("LIMIT 100"), "【BS-D】排行聚合查询必须有行数上限(全表聚合防拖垮): " + sql);
         }
         for (Object[] args : argCaptor.getAllValues()) {
             // incentive/relationship 各绑 1 个集团参数;core 段按设计绑 3 个(inv/pay/外层,见源码注释)

@@ -786,6 +786,7 @@ public class CustomerService {
                 WHERE COALESCE(ir.score, 0) > 0""" + gc + "\n" + """
                 GROUP BY c.id, c.customer_name, owner.real_name, c.industry
                 ORDER BY totalScore DESC, uploadCount DESC, customerName ASC
+                LIMIT 100
                 """;
         return jdbc.queryForList(sql, args.toArray());
     }
@@ -801,6 +802,7 @@ public class CustomerService {
                 LEFT JOIN sys_user owner ON owner.id = c.owner_id
                 WHERE c.deleted = 0 AND COALESCE(i.relationship_score, 0) > 0""" + gc + "\n" + """
                 ORDER BY relationshipScore DESC, customerName ASC
+                LIMIT 100
                 """;
         return jdbc.queryForList(sql, args.toArray());
     }
@@ -854,6 +856,7 @@ public class CustomerService {
                   AND (COALESCE(i.relationship_score, 0) + COALESCE(i.indicator_02, 0) + COALESCE(i.indicator_03, 0)
                        + COALESCE(i.indicator_04, 0) + COALESCE(i.indicator_05, 0)) > 0
                 ORDER BY totalScore DESC, coreCustomer DESC, customerName ASC
+                LIMIT 100
                 """;
         return jdbc.queryForList(sql, args.toArray());
     }

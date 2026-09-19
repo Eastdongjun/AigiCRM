@@ -27,6 +27,8 @@ public class CustomerImportListener implements ReadListener<CustomerImportDTO> {
     @Override
     public void invoke(CustomerImportDTO dto, AnalysisContext context) {
         rowNum++;
+        // 【BS-D 2026-09-19】行数上限:超限中断解析(EasyExcel 捕获 invoke 异常即停止读取)
+        com.aigicrm.common.util.ImportGuard.checkRow(rowNum);
         try {
             // 1. 校验必填字段
             if (dto.getCustomerName() == null || dto.getCustomerName().trim().isEmpty()) {
