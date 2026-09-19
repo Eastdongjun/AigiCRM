@@ -27,4 +27,11 @@ public class BizInvoice {
 
     @TableField(exist = false)
     private String createdByName;
+
+    /** 【PR-18 2026-09-19】台账状态机 */
+    private String status;
+    private String source;
+    private Long confirmedBy;
+    private java.time.LocalDateTime confirmedAt;
+    private String voidedReason;
 }

@@ -208,6 +208,40 @@ public class CustomerController {
         return Result.ok();
     }
 
+    /** 【PR-18 2026-09-19】台账确认(pending → confirmed) */
+    @PreAuthorize("hasAuthority('finance:manage') or (hasAuthority('customer:edit') and hasAuthority('finance:view'))")
+    @PostMapping("/{id}/invoices/{invoiceId}/confirm")
+    public Result<Void> confirmInvoice(@PathVariable Long id, @PathVariable Long invoiceId) {
+        customerService.confirmInvoice(id, invoiceId);
+        return Result.ok();
+    }
+
+    /** 【PR-18】台账作废(保留记录) */
+    @PreAuthorize("hasAuthority('finance:manage') or (hasAuthority('customer:edit') and hasAuthority('finance:view'))")
+    @PostMapping("/{id}/invoices/{invoiceId}/void")
+    public Result<Void> voidInvoice(@PathVariable Long id, @PathVariable Long invoiceId,
+                                    @RequestBody Map<String, String> body) {
+        customerService.voidInvoice(id, invoiceId, body.get("reason"));
+        return Result.ok();
+    }
+
+    /** 【PR-18】回款确认 */
+    @PreAuthorize("hasAuthority('finance:manage') or (hasAuthority('customer:edit') and hasAuthority('finance:view'))")
+    @PostMapping("/{id}/payments/{paymentId}/confirm")
+    public Result<Void> confirmPayment(@PathVariable Long id, @PathVariable Long paymentId) {
+        customerService.confirmPayment(id, paymentId);
+        return Result.ok();
+    }
+
+    /** 【PR-18】回款作废 */
+    @PreAuthorize("hasAuthority('finance:manage') or (hasAuthority('customer:edit') and hasAuthority('finance:view'))")
+    @PostMapping("/{id}/payments/{paymentId}/void")
+    public Result<Void> voidPayment(@PathVariable Long id, @PathVariable Long paymentId,
+                                    @RequestBody Map<String, String> body) {
+        customerService.voidPayment(id, paymentId, body.get("reason"));
+        return Result.ok();
+    }
+
     @PreAuthorize("hasAuthority('finance:manage') or (hasAuthority('customer:edit') and hasAuthority('finance:view'))")
     @DeleteMapping("/{id}/invoices/{invoiceId}")
     public Result<Void> deleteInvoice(@PathVariable Long id, @PathVariable Long invoiceId) {

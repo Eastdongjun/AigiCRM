@@ -1140,6 +1140,79 @@ public class CustomerService {
         recalculateCoreStatus(customerId);
     }
 
+    /** 【PR-18 2026-09-19】台账确认:pending → confirmed(锁定,不可直接删) */
+    @Transactional
+    public void confirmInvoice(Long customerId, Long invoiceId) {
+        BizInvoice invoice = invoiceMapper.selectById(invoiceId);
+        if (invoice == null || !customerId.equals(invoice.getCustomerId())) {
+            throw new BusinessException("发票不存在或不属于该客户");
+        }
+        if (!"pending".equals(invoice.getStatus())) {
+            throw new BusinessException("仅待核对状态可确认");
+        }
+        invoice.setStatus("confirmed");
+        invoice.setConfirmedBy(SecurityUtils.getCurrentUserId());
+        invoice.setConfirmedAt(java.time.LocalDateTime.now());
+        invoiceMapper.updateById(invoice);
+        recalculateCoreStatus(customerId);
+    }
+
+    /** 【PR-18】台账作废:confirmed/pending → voided(保留记录,不物理删) */
+    @Transactional
+    public void voidInvoice(Long customerId, Long invoiceId, String reason) {
+        if (reason == null || reason.trim().isEmpty()) {
+            throw new BusinessException("作废必须填写原因");
+        }
+        BizInvoice invoice = invoiceMapper.selectById(invoiceId);
+        if (invoice == null || !customerId.equals(invoice.getCustomerId())) {
+            throw new BusinessException("发票不存在或不属于该客户");
+        }
+        if ("voided".equals(invoice.getStatus())) {
+            throw new BusinessException("该发票已作废");
+        }
+        invoice.setStatus("voided");
+        invoice.setVoidedReason(reason.trim());
+        invoiceMapper.updateById(invoice);
+        refreshLastInvoiceDate(customerId);
+        recalculateCoreStatus(customerId);
+    }
+
+    /** 【PR-18】回款确认 */
+    @Transactional
+    public void confirmPayment(Long customerId, Long paymentId) {
+        BizPayment payment = paymentMapper.selectById(paymentId);
+        if (payment == null || !customerId.equals(payment.getCustomerId())) {
+            throw new BusinessException("回款不存在或不属于该客户");
+        }
+        if (!"pending".equals(payment.getStatus())) {
+            throw new BusinessException("仅待核对状态可确认");
+        }
+        payment.setStatus("confirmed");
+        payment.setConfirmedBy(SecurityUtils.getCurrentUserId());
+        payment.setConfirmedAt(java.time.LocalDateTime.now());
+        paymentMapper.updateById(payment);
+        recalculateCoreStatus(customerId);
+    }
+
+    /** 【PR-18】回款作废 */
+    @Transactional
+    public void voidPayment(Long customerId, Long paymentId, String reason) {
+        if (reason == null || reason.trim().isEmpty()) {
+            throw new BusinessException("作废必须填写原因");
+        }
+        BizPayment payment = paymentMapper.selectById(paymentId);
+        if (payment == null || !customerId.equals(payment.getCustomerId())) {
+            throw new BusinessException("回款不存在或不属于该客户");
+        }
+        if ("voided".equals(payment.getStatus())) {
+            throw new BusinessException("该回款已作废");
+        }
+        payment.setStatus("voided");
+        payment.setVoidedReason(reason.trim());
+        paymentMapper.updateById(payment);
+        recalculateCoreStatus(customerId);
+    }
+
     @Transactional
     public void deleteInvoice(Long customerId, Long invoiceId) {
         BizInvoice invoice = invoiceMapper.selectById(invoiceId);
