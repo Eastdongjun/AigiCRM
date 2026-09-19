@@ -210,20 +210,24 @@ class IncentiveControllerPermissionTest {
 
     // ==================== C2：PUT/DELETE 去方法级硬码 ====================
 
-    /** PUT /records/{id} 不得有方法级 @PreAuthorize：已卸 edit 码的销售员改本人记录靠方法内归属守卫放行 */
+    /** PUT /records/{id} 方法级仅允许 incentive:view 底线：已卸 edit 码的销售员改本人记录靠方法内归属守卫放行 */
     @Test
     void updateRecordHasNoMethodLevelPreAuthorize() throws Exception {
         Method m = IncentiveController.class.getMethod("updateRecord", Long.class, BizIncentiveRecord.class);
-        assertNull(m.getAnnotation(PreAuthorize.class),
-                "PUT 归属校验必须在方法内守卫（isAdmin ∨ incentive:manage ∨ 记录本人），去掉硬码与矩阵码分支");
+        PreAuthorize pa = m.getAnnotation(PreAuthorize.class);
+        assertNotNull(pa, "PUT 必须保留 incentive:view 底线注解（N-03 第二道防线）");
+        assertEquals("hasAuthority('incentive:view')", pa.value(),
+                "PUT 只允许 view 底线，归属仍由方法内守卫判定（isAdmin ∨ 专项授权 ∨ 记录本人）");
     }
 
-    /** DELETE /records/{id} 同 PUT：去方法级硬码，方法内守卫 */
+    /** DELETE /records/{id} 同 PUT：仅 view 底线，方法内守卫 */
     @Test
     void deleteRecordHasNoMethodLevelPreAuthorize() throws Exception {
         Method m = IncentiveController.class.getMethod("deleteRecord", Long.class);
-        assertNull(m.getAnnotation(PreAuthorize.class),
-                "DELETE 归属校验必须在方法内守卫（isAdmin ∨ incentive:manage ∨ 记录本人），去掉硬码与矩阵码分支");
+        PreAuthorize pa = m.getAnnotation(PreAuthorize.class);
+        assertNotNull(pa, "DELETE 必须保留 incentive:view 底线注解（N-03 第二道防线）");
+        assertEquals("hasAuthority('incentive:view')", pa.value(),
+                "DELETE 只允许 view 底线，归属仍由方法内守卫判定（isAdmin ∨ 专项授权 ∨ 记录本人）");
     }
 
     /** 普通销售员（无 delete 码）删他人记录 → 抛 BusinessException(403) */

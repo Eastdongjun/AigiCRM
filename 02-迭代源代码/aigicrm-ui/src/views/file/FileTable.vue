@@ -50,8 +50,9 @@
         v-model:current-page="query.current"
         v-model:page-size="query.size"
         :total="fileTotal"
-        :page-sizes="[10, 20, 50]"
-        layout="prev, pager, next, sizes"
+        :page-sizes="pageSizes(query.size)"
+        layout="sizes, prev, pager, next, jumper"
+        @size-change="query.current = 1"
         size="small"
         @change="loadFiles"
       />
@@ -68,6 +69,7 @@ import { ElMessage } from 'element-plus'
 import { View } from '@element-plus/icons-vue'
 import { replaceFile } from '@/api/file'
 import { injectFilePage } from '@/composables/useFilePage'
+import { pageSizes } from '@/utils/pagination'
 
 const {
   files, fileTotal, query, activeTab, folderPerms, folderDownloadable,

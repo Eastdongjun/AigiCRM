@@ -1,0 +1,23 @@
+{
+  "folders": [
+    { "path": "." },
+    { "path": "02-迭代源代码" }
+  ],
+  "settings": {
+    "files.exclude": {
+      "**/.DS_Store": true,
+      "**/node_modules": true,
+      "**/target": true,
+      "08-备份索引/**": true
+    },
+    "search.exclude": {
+      "**/node_modules": true,
+      "**/target": true,
+      "08-备份索引/**": true
+    },
+    "java.compile.nullAnalysis.mode": "automatic",
+  "donglaiDiagnosticsExporter.outputPath": "/Users/dongjun/东来/Agent/00-管理/项目执行/802fad80-8665-4b11-9f9d-04b92bda4666/current/vscode-diagnostics.raw.json",
+  "donglaiDiagnosticsExporter.requestPath": "/Users/dongjun/东来/Agent/00-管理/项目执行/802fad80-8665-4b11-9f9d-04b92bda4666/current/vscode-diagnostics.request.json",
+        "java.configuration.updateBuildConfiguration": "interactive"
+  }
+}

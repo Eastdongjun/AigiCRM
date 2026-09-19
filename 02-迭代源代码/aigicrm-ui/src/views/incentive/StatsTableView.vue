@@ -16,11 +16,18 @@
           <th class="col-stage">安装中</th>
           <th class="col-stage">安装后</th>
           <th class="col-total">总积分</th>
+          <th class="col-op">明细</th>
         </tr>
       </thead>
       <tbody>
         <template v-for="(group, gi) in groupedData" :key="group.parentId">
-          <tr v-for="(child, ci) in group.children" :key="child.id">
+          <tr
+            v-for="(child, ci) in group.children"
+            :key="child.id"
+            class="clickable-row"
+            title="点击查看该细分的激励明细"
+            @click="openDetail(child, group)"
+          >
             <td v-if="ci === 0" :rowspan="group.children.length" class="col-cat">
               <span class="cat-label" :class="catColors[gi % catColors.length]">
                 <el-icon v-if="group.icon === 'location'"><Location /></el-icon>
@@ -45,6 +52,9 @@
             <td class="col-total">
               <span :class="child.totalScore > 0 ? 'score-active' : 'score-zero'">{{ child.totalScore }}</span>
             </td>
+            <td class="col-op">
+              <span class="detail-link" @click.stop="openDetail(child, group)">查看 ›</span>
+            </td>
           </tr>
         </template>
       </tbody>
@@ -57,6 +67,7 @@
           <td><strong class="blue">{{ tableTotalMid }}</strong></td>
           <td><strong class="blue">{{ tableTotalPost }}</strong></td>
           <td><strong class="blue">{{ tableTotalScore }}</strong></td>
+          <td></td>
         </tr>
       </tfoot>
     </table>
@@ -64,12 +75,28 @@
 </template>
 
 <script setup>
+import { useRouter } from 'vue-router'
 import { injectIncentiveStats } from '@/composables/useIncentiveStats'
+import { buildDetailLocation } from '@/utils/incentive-detail'
+
+const router = useRouter()
 
 const {
-  totalCategories, groupedData, catColors,
+  totalCategories, groupedData, catColors, period,
   tableTotalFiles, tableTotalPre, tableTotalMid, tableTotalPost, tableTotalScore,
 } = injectIncentiveStats()
+
+// 【2026-09-13】行下钻：把当前周期带给明细页，便于直接刷新/分享
+function openDetail(child, group) {
+  router.push(buildDetailLocation({
+    childId: child.id,
+    parentId: group.parentId,
+    parentName: group.parentName,
+    childName: child.categoryName,
+    score: child.score,
+    period: period?.value,
+  }))
+}
 </script>
 
 <style scoped>
@@ -79,6 +106,11 @@ const {
 .stats-table th { text-align: left; padding: 12px 16px; color: #f56c6c; font-weight: 500; border-bottom: 2px solid #f56c6c; background: #fff; }
 .stats-table td { padding: 14px 16px; border-bottom: 1px solid #f5f5f5; color: #333; }
 .stats-table tbody tr:hover { background: #fafbfc; }
+.clickable-row { cursor: pointer; }
+.clickable-row:hover { background: #f0f7ff !important; }
+.col-op { width: 70px; text-align: center; }
+.detail-link { color: #409eff; }
+.detail-link:hover { text-decoration: underline; }
 
 .col-cat { width: 180px; vertical-align: middle; border-right: 1px solid #f0f0f0; }
 .col-score { width: 100px; text-align: center; }

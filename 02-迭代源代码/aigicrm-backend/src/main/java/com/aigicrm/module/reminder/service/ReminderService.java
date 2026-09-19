@@ -22,6 +22,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -277,15 +278,88 @@ public class ReminderService {
     public void process(Long id) {
         BizReminder reminder = reminderMapper.selectById(id);
         if (reminder == null) return;
-        // 【修复 2026-08-08 IDOR 写】非 admin 仅可处理自己可见范围内(含系统级开关)的提醒，防按 ID 处理他人提醒
-        if (!SecurityUtils.isAdmin()) {
-            List<Long> visible = scopeResolver.resolve(SecurityUtils.getCurrentUser());
-            if (visible != null && (reminder.getOwnerId() == null || !visible.contains(reminder.getOwnerId()))) {
-                throw new BusinessException("无权处理该提醒");
-            }
-        }
+        assertVisible(reminder, "无权处理该提醒");
         reminder.setStatus("processed");
         reminder.setProcessedAt(LocalDateTime.now());
         reminderMapper.updateById(reminder);
+    }
+
+    /**
+     * 提醒详情：提醒本体 + 关联客户/负责人/部门（提醒管理列表行点击进入的详情页数据源）。
+     * 【越权读防护，同 process()】非 admin 仅可读自己数据范围内的提醒，防按 ID 猜读他人提醒
+     * （客户名称/开票日期属敏感信息）
+     */
+    public Map<String, Object> detail(Long id) {
+        BizReminder reminder = reminderMapper.selectById(id);
+        if (reminder == null) {
+            throw new BusinessException("提醒不存在");
+        }
+        assertVisible(reminder, "无权查看该提醒");
+
+        Map<String, Object> detail = new LinkedHashMap<>();
+        detail.put("id", reminder.getId());
+        detail.put("reminderType", reminder.getReminderType());
+        detail.put("status", reminder.getStatus());
+        detail.put("overdueDays", reminder.getOverdueDays());
+        detail.put("createdAt", reminder.getCreatedAt());
+        detail.put("updatedAt", reminder.getUpdatedAt());
+        detail.put("processedAt", reminder.getProcessedAt());
+        detail.put("customerId", reminder.getCustomerId());
+        detail.put("ownerId", reminder.getOwnerId());
+        detail.put("officeId", reminder.getOfficeId());
+
+        BizCustomer customer = reminder.getCustomerId() == null ? null
+                : customerMapper.selectById(reminder.getCustomerId());
+        if (customer != null) {
+            detail.put("customer", customerBrief(customer));
+        }
+        // 负责人/部门优先取提醒上的归属，缺省回落客户归属（客户侧字段为 @TableField(exist=false) 转瞬字段，需查表补齐）
+        Long ownerId = reminder.getOwnerId() != null ? reminder.getOwnerId()
+                : (customer == null ? null : customer.getOwnerId());
+        if (ownerId != null) {
+            SysUser user = userMapper.selectById(ownerId);
+            if (user != null) detail.put("ownerName", user.getRealName());
+        }
+        Long officeId = reminder.getOfficeId() != null ? reminder.getOfficeId()
+                : (customer == null ? null : customer.getOfficeId());
+        if (officeId != null) {
+            SysDept dept = deptMapper.selectById(officeId);
+            if (dept != null) detail.put("officeName", dept.getDeptName());
+        }
+        return detail;
+    }
+
+    /** 详情页客户摘要：只暴露提醒场景需要的字段，不整表返回 */
+    private Map<String, Object> customerBrief(BizCustomer c) {
+        Map<String, Object> brief = new LinkedHashMap<>();
+        brief.put("id", c.getId());
+        brief.put("customerCode", c.getCustomerCode());
+        brief.put("customerName", c.getCustomerName());
+        brief.put("status", c.getStatus());
+        brief.put("industry", c.getIndustry());
+        brief.put("region", regionOf(c));
+        brief.put("expireDate", c.getExpireDate());
+        brief.put("lastInvoiceDate", c.getLastInvoiceDate());
+        brief.put("ownerId", c.getOwnerId());
+        return brief;
+    }
+
+    private String regionOf(BizCustomer c) {
+        StringBuilder region = new StringBuilder();
+        for (String part : new String[]{c.getProvince(), c.getCity(), c.getDistrict()}) {
+            if (StringUtils.hasText(part)) region.append(part);
+        }
+        return region.length() == 0 ? null : region.toString();
+    }
+
+    /** 提醒可见性校验（读/写共用）：非 admin 时负责人必须落在数据范围内，防按 ID 越权 */
+    private void assertVisible(BizReminder reminder, String message) {
+        if (SecurityUtils.isAdmin()) {
+            return;
+        }
+        List<Long> visible = scopeResolver.resolve(SecurityUtils.getCurrentUser());
+        if (visible != null && (reminder.getOwnerId() == null || !visible.contains(reminder.getOwnerId()))) {
+            throw new BusinessException(message);
+        }
     }
 }

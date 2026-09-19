@@ -1,1 +1,25 @@
-<view class="page"><view class="hero"><view class="row"><view><view class="hero-title">新增联系人</view><view class="hero-sub">补充客户关键人信息</view></view><button class="ghost-btn" bindtap="goBack">返回</button></view></view><view class="card form-card"><view class="label">姓名 *</view><input class="input" data-field="name" value="{{form.name}}" bindinput="input" placeholder="请输入姓名"/><view class="label">职位</view><input class="input" data-field="position" value="{{form.position}}" bindinput="input" placeholder="请输入职位"/><view class="label">手机号</view><input class="input" data-field="phone" value="{{form.phone}}" bindinput="input" placeholder="请输入手机号"/><view class="label">邮箱</view><input class="input" data-field="email" value="{{form.email}}" bindinput="input" placeholder="请输入邮箱"/><view class="label">备注</view><textarea class="textarea" data-field="remark" value="{{form.remark}}" bindinput="input" placeholder="请输入备注"/><button class="btn submit-btn" loading="{{saving}}" bindtap="submit">保存</button></view></view>
+<view class="page">
+  <view class="hero">
+    <view class="row">
+      <view>
+        <view class="hero-title">{{contactFormView.titleText}}</view>
+        <view class="hero-sub">{{contactFormView.subtitleText}}</view>
+      </view>
+      <button class="form-top-cancel" bindtap="goBack" disabled="{{contactFormView.cancelDisabled}}">返回</button>
+    </view>
+  </view>
+
+  <view class="card form-card polished-form-card">
+    <view class="form-section-title">基础信息</view>
+    <block wx:for="{{contactFormView.fields}}" wx:key="field">
+      <view class="label">{{item.label}}</view>
+      <input class="input polished-input" type="{{item.type}}" data-field="{{item.field}}" value="{{item.value}}" bindinput="input" placeholder="{{item.placeholder}}"/>
+    </block>
+    <view class="label">备注</view>
+    <textarea class="textarea polished-textarea compact-textarea" data-field="remark" value="{{contactFormView.remarkValue}}" bindinput="input" placeholder="{{contactFormView.remarkPlaceholder}}"/>
+    <view class="form-actions">
+      <button class="form-cancel-btn" bindtap="goBack" disabled="{{contactFormView.cancelDisabled}}">{{contactFormView.cancelText}}</button>
+      <button class="form-submit-btn" loading="{{contactFormView.submitLoading}}" bindtap="submit">{{contactFormView.submitText}}</button>
+    </view>
+  </view>
+</view>

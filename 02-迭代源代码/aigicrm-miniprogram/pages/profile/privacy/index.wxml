@@ -1,1 +1,16 @@
-<view class="page"><text class="title">AIGICRM 隐私政策</text><text class="updated">版本：移动端预览版</text><view class="section"><text class="heading">我们处理的信息</text><text class="body">系统会处理登录账号、组织岗位、客户业务信息以及为完成文件上传和审批协作所必需的数据。</text></view><view class="section"><text class="heading">信息使用目的</text><text class="body">上述信息仅用于身份识别、权限判断、业务协作、流程通知和系统安全。系统不会把业务数据用于与工作无关的用途。</text></view><view class="section"><text class="heading">你的控制权</text><text class="body">如需查询、更正、解绑或删除相关信息，请联系所在组织管理员。退出登录或清除缓存后，本地会话信息将被移除。</text></view></view>
+<view class="page profile-doc-page">
+  <text class="title">AIGICRM 隐私政策</text>
+  <text class="updated">版本：移动端预览版</text>
+  <view class="doc-section">
+    <text class="heading">我们处理的信息</text>
+    <text class="body">系统会处理登录账号、组织岗位、客户业务信息以及为完成文件上传和审批协作所必需的数据。</text>
+  </view>
+  <view class="doc-section">
+    <text class="heading">信息使用目的</text>
+    <text class="body">上述信息仅用于身份识别、权限判断、业务协作、流程通知和系统安全。系统不会把业务数据用于与工作无关的用途。</text>
+  </view>
+  <view class="doc-section">
+    <text class="heading">你的控制权</text>
+    <text class="body">如需查询、更正、解绑或删除相关信息，请联系所在组织管理员。退出登录或清除缓存后，本地会话信息将被移除。</text>
+  </view>
+</view>

@@ -1,0 +1,63 @@
+<view class="page">
+  <view class="hero">
+    <view class="row">
+      <view>
+        <view class="hero-title">跟进记录</view>
+        <view class="hero-sub">{{customerName}}</view>
+      </view>
+      <button class="ghost-btn" bindtap="goBack">返回</button>
+    </view>
+  </view>
+  <view wx:if="{{timelineView.showLoading}}" class="card muted">{{timelineView.loadingText}}</view>
+  <view wx:if="{{timelineView.showEmpty}}" class="card muted">暂无跟进记录</view>
+  <view wx:for="{{timelineGroups}}" wx:key="key" wx:for-item="group" class="timeline-month">
+    <view class="timeline-month-head">
+      <view class="timeline-month-dot"></view>
+      <view class="timeline-month-label">{{group.label}}</view>
+      <view class="timeline-month-count">{{group.countText}}</view>
+    </view>
+    <view wx:for="{{group.items}}" wx:key="id" wx:for-item="item" class="timeline-item">
+      <view class="{{item.dotClass}}"></view>
+      <view class="card timeline-card">
+        <view class="timeline-head">
+          <text class="{{item.typeClass}}">{{item.typeText}}</text>
+          <text class="timeline-time">{{item.time}}</text>
+        </view>
+        <view wx:if="{{item.showIncentiveMeta}}" class="timeline-meta">
+          <text wx:for="{{item.metaTags}}" wx:for-item="tag" wx:key="*this">{{tag}}</text>
+        </view>
+        <view class="timeline-content">{{item.contentText}}</view>
+        <view wx:if="{{item.showPreInstallQuestion}}" class="timeline-detail-block">
+          <view class="timeline-detail-label">{{item.detailLabel}}</view>
+          <view class="timeline-detail-text">{{item.preInstallQuestionText}}</view>
+        </view>
+        <view wx:if="{{item.showTrialRemark}}" class="timeline-detail-block remark">
+          <view class="timeline-detail-label">{{item.remarkLabel}}</view>
+          <view class="timeline-detail-text">{{item.remarkText}}</view>
+        </view>
+        <view class="timeline-foot">
+          <view wx:if="{{item.creatorText}}" class="muted">{{item.creatorText}}</view>
+          <button wx:if="{{item.showDetailAction}}" class="timeline-detail-action" catchtap="goIncentiveDetail" data-log-index="{{item.originalIndex}}">详情</button>
+        </view>
+        <view wx:if="{{item.showFiles}}" class="timeline-files grouped">
+          <view wx:for="{{item.fileGroups}}" wx:for-item="group" wx:key="key" class="timeline-file-group">
+            <view class="timeline-file-group-head">
+              <text>{{group.label}}</text>
+              <text>{{group.countText}}</text>
+            </view>
+            <view wx:for="{{group.files}}" wx:for-item="file" wx:key="id" class="timeline-file-row">
+              <view class="timeline-file-icon {{file.type}}">{{file.typeText}}</view>
+              <view class="timeline-file-main">
+                <view class="timeline-file-name">{{file.name}}</view>
+                <view class="timeline-file-meta">可预览 / 可下载</view>
+              </view>
+              <button class="timeline-file-action" loading="{{timelineView.previewLoading}}" catchtap="previewAttachment" data-log-index="{{item.originalIndex}}" data-group-index="{{group.groupIndex}}" data-file-index="{{file.fileIndex}}">打开</button>
+              <button class="timeline-file-action secondary" loading="{{timelineView.previewLoading}}" catchtap="downloadAttachment" data-log-index="{{item.originalIndex}}" data-group-index="{{group.groupIndex}}" data-file-index="{{file.fileIndex}}">下载</button>
+            </view>
+          </view>
+        </view>
+      </view>
+    </view>
+  </view>
+  <video wx:if="{{previewVideoPath}}" src="{{previewVideoPath}}" controls class="timeline-video"></video>
+</view>

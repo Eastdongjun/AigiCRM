@@ -1,1 +1,19 @@
-<view class="page"><view class="hero"><view class="row"><view><view class="hero-title">新增跟进记录</view><view class="hero-sub">记录本次客户沟通和下一步动作</view></view><button class="ghost-btn" bindtap="goBack">返回</button></view></view><view class="card form-card"><textarea class="content-input" maxlength="1000" value="{{content}}" bindinput="onContentInput" placeholder="请输入跟进内容，例如：已完成方案沟通，下一步确认商务条款"/><view class="counter">{{content.length}} / 1000</view><button class="btn submit-btn" loading="{{saving}}" bindtap="submit">保存记录</button></view></view>
+<view class="page">
+  <view class="hero">
+    <view class="row">
+      <view>
+        <view class="hero-title">新增跟进记录</view>
+        <view class="hero-sub">记录本次客户沟通和下一步动作</view>
+      </view>
+      <button class="form-top-cancel" bindtap="goBack" disabled="{{logFormView.cancelDisabled}}">返回</button>
+    </view>
+  </view>
+  <view class="card form-card polished-form-card">
+    <textarea class="content-input polished-textarea" maxlength="{{logFormView.contentMaxLength}}" value="{{logFormView.contentValue}}" bindinput="onContentInput" placeholder="{{logFormView.placeholder}}"/>
+    <view class="counter">{{logFormView.counterText}}</view>
+    <view class="form-actions">
+      <button class="form-cancel-btn" bindtap="goBack" disabled="{{logFormView.cancelDisabled}}">{{logFormView.cancelText}}</button>
+      <button class="form-submit-btn" loading="{{logFormView.submitLoading}}" bindtap="submit">{{logFormView.submitText}}</button>
+    </view>
+  </view>
+</view>

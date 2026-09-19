@@ -1,1 +1,67 @@
-<view class="page"><view class="hero"><view class="row"><view><view class="hero-title">价值服务详情</view><view class="hero-sub">文件 · 说明 · 分值 · 上传记录</view></view><button class="ghost-btn" bindtap="goBack">返回</button></view></view><view wx:if="{{loading}}" class="card muted">加载中...</view><view wx:if="{{record}}" class="card"><view class="section-title">{{record.name || record.title || record.customerName || '价值服务记录'}}</view><view class="detail-row"><text>客户</text><text>{{record.customerName || record.name || '-'}}</text></view><view class="detail-row"><text>行业</text><text>{{record.industry || '-'}}</text></view><view class="detail-row"><text>分类</text><text>{{record.category || record.categoryName || '-'}}</text></view><view class="detail-row"><text>服务分值</text><text>{{record.score || record.points || 0}}</text></view><view class="detail-row"><text>上传人</text><text>{{record.userName || record.updatedByName || '-'}}</text></view><view class="detail-row"><text>上传时间</text><text>{{record.createdAt || record.createTime || '-'}}</text></view><view class="detail-content">{{record.description || record.remark || record.summary || record.product || '暂无详情描述'}}</view><view class="section-title" style="margin-top:28rpx">关联文件</view><view class="detail-row"><text>主要文件</text><text>{{record.filePreName || record.fileName || '-'}}</text></view><view class="detail-row"><text>过程文件</text><text>{{record.fileMidName || '-'}}</text></view><view class="detail-row"><text>结果文件</text><text>{{record.filePostName || '-'}}</text></view><view class="detail-row"><text>跟踪文件</text><text>{{record.fileTrackName || '-'}}</text></view></view><view wx:if="{{!loading && !record}}" class="card muted">暂无价值服务详情</view></view>
+<view class="page incentive-detail-page">
+  <view class="hero">
+    <view class="row">
+      <view>
+        <view class="hero-title">四项激励详情</view>
+        <view class="hero-sub">四项激励 · 文件 · 说明 · 分值</view>
+      </view>
+      <button class="ghost-btn" bindtap="goBack">返回</button>
+    </view>
+  </view>
+
+  <view wx:if="{{detailView.showLoading}}" class="card muted">{{detailView.loadingText}}</view>
+
+  <view wx:if="{{detailView.hasRecord}}" class="card incentive-detail-card">
+    <view class="incentive-detail-head">
+      <view class="incentive-detail-title">{{detailView.title}}</view>
+      <text class="ranking-score">{{detailView.scoreText}} 分</text>
+    </view>
+    <view class="detail-info-group">
+      <view wx:for="{{detailView.infoRows}}" wx:key="label" class="detail-row"><text>{{item.label}}</text><text>{{item.valueText}}</text></view>
+    </view>
+    <view wx:if="{{detailView.showPreInstallQuestion}}" class="detail-field-block">
+      <view class="detail-field-label">{{detailView.detailLabel}}</view>
+      <view class="detail-field-text">{{detailView.preInstallQuestionText}}</view>
+    </view>
+    <view wx:if="{{detailView.showTrialRemark}}" class="detail-field-block remark">
+      <view class="detail-field-label">{{detailView.remarkLabel}}</view>
+      <view class="detail-field-text">{{detailView.remarkText}}</view>
+    </view>
+    <view wx:if="{{detailView.showFallbackDescription}}" class="detail-content refined-reason">{{detailView.fallbackDescription}}</view>
+    <view wx:if="{{detailView.showDeleteAction}}" class="detail-action-row">
+      <button class="mini-action danger" bindtap="removeRecord">删除记录</button>
+    </view>
+    <view class="form-section-title file-section-title">安装文件时间轴</view>
+    <view wx:if="{{detailView.showFileGroups}}" class="attachment-timeline">
+      <view wx:for="{{detailView.fileGroups}}" wx:for-item="group" wx:key="key" class="attachment-group {{group.key}}">
+        <view class="attachment-group-line"></view>
+        <view class="attachment-group-dot"></view>
+        <view class="attachment-group-card">
+          <view class="attachment-group-head">
+            <view>
+              <view class="attachment-group-title">{{group.label}}</view>
+              <view class="attachment-group-hint">{{group.hint}}</view>
+            </view>
+            <text class="attachment-count">{{group.countText}}</text>
+          </view>
+          <view wx:for="{{group.files}}" wx:for-item="file" wx:key="id" class="attachment-row">
+            <image wx:if="{{file.thumbUrl}}" class="attachment-thumb" src="{{file.thumbUrl}}" mode="aspectFill" data-group-index="{{group.groupIndex}}" data-file-index="{{file.fileIndex}}" bindtap="previewAttachment" />
+            <view wx:else class="attachment-icon {{file.type}}">{{file.typeText}}</view>
+            <view class="attachment-main">
+              <view class="attachment-name">{{file.name}}</view>
+              <view class="attachment-meta">可预览 / 可下载</view>
+            </view>
+            <view class="attachment-actions">
+              <button class="mini-action" loading="{{detailView.previewLoading}}" catchtap="previewAttachment" data-group-index="{{group.groupIndex}}" data-file-index="{{file.fileIndex}}">打开</button>
+              <button class="mini-action secondary" loading="{{detailView.previewLoading}}" catchtap="downloadAttachment" data-group-index="{{group.groupIndex}}" data-file-index="{{file.fileIndex}}">下载</button>
+            </view>
+          </view>
+        </view>
+      </view>
+    </view>
+    <view wx:else class="attachment-empty">暂无上传图片或文件</view>
+    <video wx:if="{{previewVideoPath}}" src="{{previewVideoPath}}" controls class="attachment-video"></video>
+  </view>
+
+  <view wx:if="{{detailView.showEmpty}}" class="card muted">暂无四项激励详情</view>
+</view>

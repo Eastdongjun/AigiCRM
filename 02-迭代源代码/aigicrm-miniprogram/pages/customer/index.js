@@ -8,15 +8,72 @@ function normalizePage(payload) {
   return payload && Array.isArray(payload.records) ? payload.records : []
 }
 
+function normalizeStatusKey(status) {
+  return status === undefined || status === null ? '' : String(status).trim().toLowerCase()
+}
+
+function customerStatusLabel(status) {
+  const labels = {
+    normal: '正常',
+    warning: '预警',
+    protected: '保护期',
+    expired: '超期',
+    sea: '公海',
+    active: '正常',
+    available: '公海'
+  }
+  return labels[normalizeStatusKey(status)] || status || '正常'
+}
+
+function customerStatusTone(status) {
+  const label = customerStatusLabel(status)
+  if (label === '保护期' || label === '预警') return 'blue-accent'
+  if (label === '超期') return 'red-accent'
+  return 'green-accent'
+}
+
 function normalizeCustomer(item) {
+  const status = item.status || '正常'
   return {
     id: item.id,
     name: item.customerName || item.name || '未命名客户',
     industry: item.industry || '其他',
     ownerName: item.ownerName || item.salesperson || '未分配',
     officeName: item.officeName || item.deptName || '未设置办事处',
-    status: item.status || '正常',
+    status,
+    statusLabel: customerStatusLabel(status),
+    statusTone: customerStatusTone(status),
     devType: item.devType || '未分类'
+  }
+}
+
+function buildCustomerRowView(item) {
+  return {
+    ...item,
+    nameText: item.name || '未命名客户',
+    idText: item.id ? `C${item.id}` : '-',
+    industryText: item.industry || '其他',
+    ownerOfficeText: `● ${item.ownerName || '未分配'} · ${item.officeName || '未设置办事处'}`,
+    statusText: item.statusLabel || customerStatusLabel(item.status),
+    statusToneClass: item.statusTone || customerStatusTone(item.status),
+    devTypeText: item.devType || '未分类',
+    metaText: `${item.id ? `C${item.id}` : '-'} · ${item.industry || '其他'} · 产能信息`
+  }
+}
+
+function buildCustomerView(data) {
+  const counts = data.countCards || []
+  const customers = (data.customers || []).map(buildCustomerRowView)
+  const isLoading = Boolean(data.loading)
+  return {
+    summaryText: `全部 ${(counts[0] && counts[0].value) || '-'} · 我的 ${(counts[1] && counts[1].value) || '-'} · 共享 ${(counts[2] && counts[2].value) || '-'}`,
+    filterText: `${data.filter || '全部'}⌄`,
+    showReset: Boolean(data.keyword || data.filter !== '全部' || data.hasAdvancedFilter),
+    countText: `共 ${customers.length} 家`,
+    showLoading: isLoading,
+    loadingText: '加载中...',
+    customers,
+    showEmpty: !isLoading && customers.length === 0
   }
 }
 
@@ -34,7 +91,15 @@ Page({
     canAdd: false,
     canViewSea: false,
     filter: '全部',
-    filters: ['全部', '成熟创新', '突破开拓', '铺垫宣传']
+    filters: ['全部', '成熟创新', '突破开拓', '铺垫宣传'],
+    advancedFilter: { industry: '', status: '', deptId: '', ownerId: '' },
+    hasAdvancedFilter: false,
+    customerView: buildCustomerView({ customers: [], countCards: [], filter: '全部', keyword: '', hasAdvancedFilter: false, loading: false })
+  },
+
+  setCustomerData(patch) {
+    const nextData = { ...this.data, ...patch }
+    this.setData({ ...patch, customerView: buildCustomerView(nextData) })
   },
 
   onLoad() {
@@ -44,7 +109,7 @@ Page({
       wx.switchTab({ url: '/pages/home/index' })
       return
     }
-    this.setData({
+    this.setCustomerData({
       canAdd: getApp().globalData.demoMode || hasPermission('customer:add'),
       canViewSea: getApp().globalData.demoMode || hasPermission('sea:view')
     })
@@ -59,13 +124,23 @@ Page({
     const draft = wx.getStorageSync('customerFilterDraft')
     if (draft) {
       wx.removeStorageSync('customerFilterDraft')
-      this.setData({ keyword: draft.keyword || '', filter: draft.devType || '全部' })
+      this.setCustomerData({
+        keyword: draft.keyword || '',
+        filter: draft.devType || '全部',
+        advancedFilter: {
+          industry: draft.industry || '',
+          status: draft.status || '',
+          deptId: draft.deptId || '',
+          ownerId: draft.ownerId || ''
+        },
+        hasAdvancedFilter: Boolean(draft.industry || draft.status || draft.deptId || draft.ownerId)
+      })
     }
     if (this.hasLoaded) this.loadCustomers()
   },
 
   onKeywordInput(e) {
-    this.setData({ keyword: e.detail.value })
+    this.setCustomerData({ keyword: e.detail.value })
   },
 
   search() {
@@ -75,12 +150,12 @@ Page({
   openAdvancedFilter() { wx.navigateTo({ url: '/pages/customer/filter/index' }) },
 
   resetFilters() {
-    this.setData({ keyword: '', filter: '全部' })
+    this.setCustomerData({ keyword: '', filter: '全部', advancedFilter: { industry: '', status: '', deptId: '', ownerId: '' }, hasAdvancedFilter: false })
     this.loadCustomers()
   },
 
   chooseFilter(e) {
-    this.setData({ filter: this.data.filters[e.detail.value] || '全部' })
+    this.setCustomerData({ filter: this.data.filters[e.detail.value] || '全部' })
     this.loadCustomers()
   },
 
@@ -93,7 +168,7 @@ Page({
   loadCounts() {
     if (getApp().globalData.demoMode) return
     getCustomerCounts().then((counts) => {
-      this.setData({
+      this.setCustomerData({
         countCards: [
           { label: '全部', value: counts.all || 0 },
           { label: '我的', value: counts.mine || counts.self || 0 },
@@ -113,7 +188,7 @@ Page({
         ].concat(savedCustomers.map(normalizeCustomer))
       const keyword = this.data.keyword.trim().toLowerCase()
       const filtered = rows.filter((item) => (!keyword || `${item.name}${item.industry}${item.ownerName}`.toLowerCase().includes(keyword)) && (this.data.filter === '全部' || item.devType === this.data.filter))
-      this.setData({
+      this.setCustomerData({
         customers: filtered,
         countCards: [
           { label: '全部', value: 128 + savedCustomers.length },
@@ -125,18 +200,33 @@ Page({
       return
     }
 
-    this.setData({ loading: true })
-    getCustomerList({ current: 1, size: 20, keyword: this.data.keyword, devType: this.data.filter === '全部' ? '' : this.data.filter }).then((payload) => {
+    this.setCustomerData({ loading: true })
+    getCustomerList(this.buildCustomerParams()).then((payload) => {
       const rows = normalizePage(payload).map(normalizeCustomer)
-      this.setData({ customers: this.data.filter === '全部' ? rows : rows.filter((item) => item.devType === this.data.filter) })
+      this.setCustomerData({ customers: this.data.filter === '全部' ? rows : rows.filter((item) => item.devType === this.data.filter) })
     }).catch((error) => showError(error, '客户加载失败')).finally(() => {
-      this.setData({ loading: false })
+      this.setCustomerData({ loading: false })
     })
+  },
+
+  buildCustomerParams() {
+    const params = {
+      current: 1,
+      size: 20,
+      keyword: this.data.keyword.trim() || undefined,
+      devType: this.data.filter === '全部' ? undefined : this.data.filter
+    }
+    const advanced = this.data.advancedFilter || {}
+    if (advanced.industry) params.industry = advanced.industry
+    if (advanced.status) params.status = advanced.status
+    if (advanced.deptId) params.deptId = advanced.deptId
+    if (advanced.ownerId) params.ownerId = advanced.ownerId
+    return params
   },
 
   openDetail(e) {
     const id = e.currentTarget.dataset.id
-    wx.navigateTo({ url: `/pages/customer/detail/index?id=${id}` })
+    wx.navigateTo({ url: `/pages/customer/detail/index?id=${id}&from=customer` })
   },
 
   addCustomer() {

@@ -132,10 +132,15 @@ class SysRoleServiceTest {
         when(roleMapper.selectById(5L)).thenReturn(roleOf(5L, 1L));
         SysRoleService service = newServiceWith(roleMapper, orgMapper);
 
-        service.updateOrgs(5L, List.of());
+        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
+            m.when(SecurityUtils::isAdmin).thenReturn(false);
+            m.when(SecurityUtils::getCurrentGroupIds).thenReturn(List.of(1L));
 
-        verify(orgMapper).deleteByRoleId(5L);
-        verify(orgMapper, never()).insert(any(SysRoleOrg.class));
+            service.updateOrgs(5L, List.of());
+
+            verify(orgMapper).deleteByRoleId(5L);
+            verify(orgMapper, never()).insert(any(SysRoleOrg.class));
+        }
     }
 
     @Test
@@ -145,10 +150,15 @@ class SysRoleServiceTest {
         when(roleMapper.selectById(5L)).thenReturn(roleOf(5L, 1L));
         SysRoleService service = newServiceWith(roleMapper, orgMapper);
 
-        service.updateOrgs(5L, null);
+        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
+            m.when(SecurityUtils::isAdmin).thenReturn(false);
+            m.when(SecurityUtils::getCurrentGroupIds).thenReturn(List.of(1L));
 
-        verify(orgMapper).deleteByRoleId(5L);
-        verify(orgMapper, never()).insert(any(SysRoleOrg.class));
+            service.updateOrgs(5L, null);
+
+            verify(orgMapper).deleteByRoleId(5L);
+            verify(orgMapper, never()).insert(any(SysRoleOrg.class));
+        }
     }
 
     @Test
@@ -210,23 +220,16 @@ class SysRoleServiceTest {
     }
 
     @Test
-    void list_emptyGroupIdsFallsBackToMainGroup() {
-        // 取不到集团归属（无岗位/无组织）时退主集团 1（fail-closed，与 MybatisPlusConfig.resolveTenantId 同口径）
+    void list_emptyGroupIdsReturnsEmpty() {
+        // 【PR-01 P0-02】取不到集团归属（无岗位/无组织）不再退主集团 1，直接返回空集（fail-closed）
         SysRoleMapper roleMapper = mock(SysRoleMapper.class);
         SysRoleService service = newServiceWith(roleMapper);
         try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
             m.when(SecurityUtils::isAdmin).thenReturn(false);
             m.when(SecurityUtils::getCurrentGroupIds).thenReturn(List.of());
 
-            service.list();
-            @SuppressWarnings("unchecked")
-
-            ArgumentCaptor<LambdaQueryWrapper<SysRole>> captor = ArgumentCaptor.forClass(LambdaQueryWrapper.class);
-            verify(roleMapper).selectList(captor.capture());
-            String expr = captor.getValue().getSqlSegment();
-            assertTrue(expr.contains("group_id"), "集团为空也应过滤到主集团，实际: " + expr);
-            assertTrue(captor.getValue().getParamNameValuePairs().containsValue(1L),
-                    "应退回主集团 1，实际: " + captor.getValue().getParamNameValuePairs());
+            assertTrue(service.list().isEmpty(), "无集团归属应返回空集");
+            verify(roleMapper, never()).selectList(any());
         }
     }
 

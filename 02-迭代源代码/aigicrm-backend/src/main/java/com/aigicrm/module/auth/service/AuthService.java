@@ -306,10 +306,19 @@ public class AuthService {
         redisTemplate.opsForValue().increment(ipRateKey);
         redisTemplate.expire(ipRateKey, Duration.ofSeconds(RESET_IP_LOCK_SECONDS));
 
-        SysUser user = findActiveUser(request.getUsername());
+        // 【PR-01 P1-06 2026-09-18 防枚举】匿名链路对外中性返回：用户不存在/禁用/未绑手机
+        // 一律表现为"已受理"，内部照常记日志。禁止把差异细节抛给匿名调用方。
+        SysUser user;
+        try {
+            user = findActiveUser(request.getUsername());
+        } catch (BusinessException e) {
+            log.warn("忘记密码发码: 用户不可用(username={}), 对外中性返回", request.getUsername());
+            return;
+        }
 
         if (user.getPhone() == null || user.getPhone().isBlank()) {
-            throw new BusinessException(400, "该账号未绑定手机号");
+            log.warn("忘记密码发码: 账号未绑定手机号(username={}), 对外中性返回", request.getUsername());
+            return;
         }
 
         String code = String.format("%06d", ThreadLocalRandom.current().nextInt(1000000));
@@ -338,7 +347,14 @@ public class AuthService {
     }
 
     public void resetPassword(ForgotPasswordResetRequest request) {
-        SysUser user = findActiveUser(request.getUsername());
+        // 【PR-01 P1-06 2026-09-18 防枚举】用户不存在/禁用一律报"验证码错误或已过期"，
+        // 不向匿名调用方区分"用户不存在"与"验证码不对"。
+        SysUser user;
+        try {
+            user = findActiveUser(request.getUsername());
+        } catch (BusinessException e) {
+            throw new BusinessException(400, "验证码错误或已过期");
+        }
 
         // 验证码错误次数限制
         String errorKey = RESET_ERROR_PREFIX + request.getUsername();

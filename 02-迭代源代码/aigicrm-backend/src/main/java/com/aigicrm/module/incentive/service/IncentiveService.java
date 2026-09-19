@@ -283,7 +283,10 @@ public class IncentiveService {
             // 【2026-08-08 分享制】未指定人时按分享制过滤：本人 + shared=1（数据范围/上级可见不再作用）。
             applyShareVisibility(wrapper);
         }
-        if (period != null) wrapper.eq(BizIncentiveRecord::getPeriod, period);
+        // 【2026-09-12】空周期不放行等值过滤：与 categoryStats/scoreboard 的守卫口径一致。
+        // 原来 `if (period != null)` 会把前端传来的空串当成 period='' 精确匹配 ⇒ 一律 0 条
+        // （曾导致激励页打开即"没数据"：默认周期与库内 '2026全年' 口径不一致 + 空值仍过滤）。
+        if (period != null && !period.isBlank()) wrapper.eq(BizIncentiveRecord::getPeriod, period);
         if (customerId != null) wrapper.eq(BizIncentiveRecord::getCustomerId, customerId);
         if (parentCategoryId != null) {
             List<BizIncentiveCategory> children = categoryMapper.selectList(
@@ -987,18 +990,167 @@ public class IncentiveService {
 
     @Transactional
     public void markRead(Long recordId) {
+        // 【PR-01 P0-04 2026-09-18】写入前复用记录详情一致的可见性判定（含集团边界），
+        // 不可见/不存在统一 404（防 IDOR 与跨集团已读污染，不泄露存在性）。
+        if (!canViewRecord(recordId)) {
+            throw new com.aigicrm.common.BusinessException(404, "记录不存在或无权访问");
+        }
         jdbc.update("INSERT INTO biz_incentive_read (user_id, record_id, read_at) VALUES (?, ?, CURRENT_TIMESTAMP) ON DUPLICATE KEY UPDATE read_at=CURRENT_TIMESTAMP",
                 SecurityUtils.getCurrentUserId(), recordId);
     }
 
+    /**
+     * 【PR-01 P0-04】单条激励记录可见性判定（与列表分享制同口径 + 集团边界）：
+     * 记录不存在 → false；非 admin 且记录 tenant 与当前集团不一致 → false；
+     * canSeeAllIncentive → true；本人 → true；已分享且有 canViewShared → true。
+     */
+    public boolean canViewRecord(Long recordId) {
+        if (recordId == null) return false;
+        java.util.Map<String, Object> row;
+        try {
+            row = jdbc.queryForMap(
+                    "SELECT user_id, shared, tenant_id FROM biz_incentive_record WHERE id=?", recordId);
+        } catch (Exception e) {
+            return false;
+        }
+        if (!SecurityUtils.isAdmin()) {
+            Long g = com.aigicrm.common.scope.GroupScopeUtil.currentGroupOrNull();
+            Object tenant = row.get("tenant_id");
+            Long recordTenant = tenant == null ? null : Long.valueOf(String.valueOf(tenant));
+            if (g == null || !g.equals(recordTenant)) return false;
+        }
+        if (canSeeAllIncentive()) return true;
+        Long self = SecurityUtils.getCurrentUserId();
+        Object owner = row.get("user_id");
+        if (self != null && owner != null && self.equals(Long.valueOf(String.valueOf(owner)))) return true;
+        Object shared = row.get("shared");
+        boolean isShared = (shared instanceof Number num && num.intValue() == 1)
+                || Boolean.TRUE.equals(shared)
+                || "1".equals(String.valueOf(shared));
+        return isShared && canViewShared(self);
+    }
+
     public List<Map<String, Object>> readStats(String period) {
-        String month = period == null || period.isBlank() ? java.time.LocalDate.now().toString().substring(0, 7) : period;
-        return jdbc.queryForList("SELECT u.id AS userId, u.real_name AS realName, " +
-                "COUNT(DISTINCT r.id) AS publishedCount, COUNT(DISTINCT br.record_id) AS readCount, " +
-                "COUNT(DISTINCT r.id)-COUNT(DISTINCT br.record_id) AS unreadCount " +
-                "FROM sys_user u LEFT JOIN biz_incentive_record r ON r.created_at LIKE CONCAT(?, '%') " +
-                "LEFT JOIN biz_incentive_read br ON br.user_id=u.id AND br.record_id=r.id " +
-                "WHERE u.deleted=0 GROUP BY u.id,u.real_name ORDER BY readCount DESC, unreadCount DESC", month);
+        return monthlyReadAggregate(normalizeMonth(period));
+    }
+
+    /**
+     * 本月激励查询阅读排行榜（2026-09-13 新增页面数据源）
+     *
+     * 【需求】PC 端新增「本月激励查询阅读排行榜」页（入口在系统设置下，默认仅管理员可见，
+     *         由管理员在角色管理里勾选后其它角色才可见）
+     * 【方法】复用 {@link #monthlyReadAggregate(String)} 的月度聚合，再补部门名、已读率、名次与总体汇总
+     * 【业务规则】口径与激励查询页的"已读/未读"完全一致：本月发布的记录为分母，某人对其中
+     *         已读的条数为分子；已读率 = 已读 / 本月发布数（分母 0 时记 0）；名次按已读条数降序，
+     *         已读相同再看未读更少者优先，保证榜单稳定
+     * 【返回】{ period, publishedTotal, readTotal, participantCount, avgReadRate, ranking[] }
+     */
+    public Map<String, Object> readRanking(String period) {
+        String month = normalizeMonth(period);
+        List<Map<String, Object>> rows = monthlyReadAggregate(month);
+
+        int publishedTotal = 0;
+        int readTotal = 0;
+        int participantCount = 0;
+        for (Map<String, Object> row : rows) {
+            int published = toInt(row.get("publishedCount"));
+            int read = toInt(row.get("readCount"));
+            publishedTotal = Math.max(publishedTotal, published); // 本月发布数对所有人相同，取最大值即真实发布量
+            readTotal += read;
+            if (read > 0) participantCount++;
+        }
+
+        List<Map<String, Object>> ranking = new ArrayList<>();
+        for (Map<String, Object> row : rows) {
+            int published = toInt(row.get("publishedCount"));
+            int read = toInt(row.get("readCount"));
+            int unread = Math.max(0, toInt(row.get("unreadCount")));
+            Map<String, Object> item = new LinkedHashMap<>();
+            item.put("userId", row.get("userId"));
+            item.put("realName", row.get("realName"));
+            item.put("deptName", row.get("deptName"));
+            item.put("publishedCount", published);
+            item.put("readCount", read);
+            item.put("unreadCount", unread);
+            item.put("readRate", rate(read, published));
+            ranking.add(item);
+        }
+        ranking.sort((a, b) -> {
+            int byRead = Integer.compare(toInt(b.get("readCount")), toInt(a.get("readCount")));
+            if (byRead != 0) return byRead;
+            int byUnread = Integer.compare(toInt(a.get("unreadCount")), toInt(b.get("unreadCount")));
+            if (byUnread != 0) return byUnread;
+            return String.valueOf(a.get("realName")).compareTo(String.valueOf(b.get("realName")));
+        });
+        for (int i = 0; i < ranking.size(); i++) {
+            ranking.get(i).put("rank", i + 1);
+        }
+
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("period", month);
+        result.put("publishedTotal", publishedTotal);
+        result.put("readTotal", readTotal);
+        result.put("participantCount", participantCount);
+        result.put("userCount", rows.size());
+        result.put("avgReadRate", rate(readTotal, (long) publishedTotal * rows.size()));
+        result.put("ranking", ranking);
+        return result;
+    }
+
+    /** 月度已读聚合（readStats 与 readRanking 共用，避免两处维护同一段 SQL）。
+     * 【PR-01 P0-03 2026-09-18】原生 SQL 绕过租户拦截器：用户集合限定当前集团成员，
+     * 记录限定当月 + 当前集团 tenant；无集团归属直接返回空（fail-closed）。 */
+    private List<Map<String, Object>> monthlyReadAggregate(String month) {
+        if (SecurityUtils.isAdmin()) {
+            return jdbc.queryForList(
+                    "SELECT u.id AS userId, u.real_name AS realName, d.dept_name AS deptName, "
+                            + "COUNT(DISTINCT r.id) AS publishedCount, COUNT(DISTINCT br.record_id) AS readCount, "
+                            + "COUNT(DISTINCT r.id)-COUNT(DISTINCT br.record_id) AS unreadCount "
+                            + "FROM sys_user u "
+                            + "LEFT JOIN sys_dept d ON d.id = u.dept_id "
+                            + "LEFT JOIN biz_incentive_record r ON r.created_at LIKE CONCAT(?, '%') "
+                            + "LEFT JOIN biz_incentive_read br ON br.user_id=u.id AND br.record_id=r.id "
+                            + "WHERE u.deleted=0 GROUP BY u.id,u.real_name,d.dept_name "
+                            + "ORDER BY readCount DESC, unreadCount DESC",
+                    month);
+        }
+        Long g = com.aigicrm.common.scope.GroupScopeUtil.currentGroupOrNull();
+        if (g == null) return List.of();
+        List<Long> inGroup = com.aigicrm.common.scope.GroupScopeUtil.userIdsInGroup(jdbc, g);
+        if (inGroup.isEmpty()) return List.of();
+        String holders = String.join(",", java.util.Collections.nCopies(inGroup.size(), "?"));
+        List<Object> args = new java.util.ArrayList<>();
+        args.add(month);
+        args.add(g);
+        args.addAll(inGroup);
+        return jdbc.queryForList(
+                "SELECT u.id AS userId, u.real_name AS realName, d.dept_name AS deptName, "
+                        + "COUNT(DISTINCT r.id) AS publishedCount, COUNT(DISTINCT br.record_id) AS readCount, "
+                        + "COUNT(DISTINCT r.id)-COUNT(DISTINCT br.record_id) AS unreadCount "
+                        + "FROM sys_user u "
+                        + "LEFT JOIN sys_dept d ON d.id = u.dept_id "
+                        + "LEFT JOIN biz_incentive_record r ON r.created_at LIKE CONCAT(?, '%') AND r.tenant_id = ? "
+                        + "LEFT JOIN biz_incentive_read br ON br.user_id=u.id AND br.record_id=r.id "
+                        + "WHERE u.deleted=0 AND u.id IN (" + holders + ") "
+                        + "GROUP BY u.id,u.real_name,d.dept_name "
+                        + "ORDER BY readCount DESC, unreadCount DESC",
+                args.toArray());
+    }
+
+    /** 周期口径：空/空白 → 当月（YYYY-MM） */
+    private String normalizeMonth(String period) {
+        if (period == null || period.isBlank()) return java.time.LocalDate.now().toString().substring(0, 7);
+        return period.trim();
+    }
+
+    private int toInt(Object value) {
+        return value instanceof Number number ? number.intValue() : 0;
+    }
+
+    /** 百分比（保留 1 位小数）；分母 <= 0 时记 0 */
+    private double rate(long part, long whole) {
+        if (whole <= 0) return 0.0;
+        return Math.round(part * 1000.0 / whole) / 10.0;
     }
 
     private List<BizIncentiveCategory> buildTree(List<BizIncentiveCategory> list, Long parentId) {

@@ -45,17 +45,25 @@
         <template #default="{ row }"><span class="num-cell">{{ row.recordCount || 0 }}</span></template>
       </el-table-column>
     </el-table>
-    <el-pagination v-if="scoreboard.length > pageSize" v-model:current-page="pageNum" :page-size="pageSize" :total="scoreboard.length" layout="prev, pager, next" size="small" background style="justify-content:flex-end;margin-top:12px" />
+    <!-- 2026-09-13：补「每页条数」下拉（30/50/100） -->
+    <el-pagination v-if="scoreboard.length > pageSize" v-model:current-page="pageNum" :page-size="pageSize" :total="scoreboard.length" :page-sizes="pageSizes(pageSize)" layout="sizes, prev, pager, next, jumper" size="small" background style="justify-content:flex-end;margin-top:12px" @size-change="onSizeChange" />
   </div>
 </template>
 
 <script setup>
 import { Download } from '@element-plus/icons-vue'
 import { injectIncentiveStats } from '@/composables/useIncentiveStats'
+import { pageSizes } from '@/utils/pagination'
 
 const {
   period, scoreboard, pagedScoreboard, rankParents, pageNum, pageSize, exportRank,
 } = injectIncentiveStats()
+
+// 切换每页条数后回到第 1 页
+const onSizeChange = (size) => {
+  pageSize.value = size
+  pageNum.value = 1
+}
 </script>
 
 <!-- 共享排行样式: scoped 引入(避免非 scoped 泄漏到其它页面),各组件各自 scoped 副本 -->

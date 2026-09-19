@@ -43,6 +43,13 @@ public class ReminderController {
         return Result.ok(reminderService.page(current, size, type, keyword, officeId, ownerId, status, deptId));
     }
 
+    /** 提醒详情（提醒管理列表行点击下钻）；字面路径 /list、/expiring-list 匹配优先级高于本模板路径，不会冲突 */
+    @PreAuthorize("hasAuthority('reminder:view')")
+    @GetMapping("/{id}")
+    public Result<Map<String, Object>> detail(@PathVariable Long id) {
+        return Result.ok(reminderService.detail(id));
+    }
+
     @PreAuthorize("hasAuthority('reminder:view')")
     @GetMapping("/pending-count")
     public Result<Long> pendingCount() {

@@ -1,0 +1,322 @@
+[
+  {
+    "id": "E01",
+    "title": "原始工程蓝图的证据边界",
+    "path": "gates/docs/system-functional-blueprint.md",
+    "ranges": [
+      [
+        5,
+        27
+      ]
+    ],
+    "source_sha256": "b343f3f2425c28e42feef593ed60fb17358d9eabafe6165c33278323bc8ec35b"
+  },
+  {
+    "id": "E02",
+    "title": "或签配置与审批执行不一致：配置、构建、执行三段",
+    "path": "pc/src/views/system/approvalConfig.vue",
+    "ranges": [
+      [
+        56,
+        67
+      ]
+    ],
+    "source_sha256": "ff590ce7900f7e868671266a8d0d5d68486aed831bf5897d15e660102dc4cbd6"
+  },
+  {
+    "id": "E03",
+    "title": "审批实际提交：选择第一条配置、创建所有待审节点",
+    "path": "backend/src/main/java/com/aigicrm/module/approval/service/ApprovalService.java",
+    "ranges": [
+      [
+        214,
+        247
+      ],
+      [
+        283,
+        311
+      ]
+    ],
+    "source_sha256": "d6fd0cbdc923820bfba1bb1cfed262b8d05380c9d432b4b0a69afed6ff9ace94"
+  },
+  {
+    "id": "E04",
+    "title": "审批通过：等待全部 pending 清空；没有按 signMode 分支",
+    "path": "backend/src/main/java/com/aigicrm/module/approval/service/ApprovalService.java",
+    "ranges": [
+      [
+        328,
+        366
+      ]
+    ],
+    "source_sha256": "d6fd0cbdc923820bfba1bb1cfed262b8d05380c9d432b4b0a69afed6ff9ace94"
+  },
+  {
+    "id": "E05",
+    "title": "另一套节点构建器：可写入 configId/signMode，但当前源码只检出定义",
+    "path": "backend/src/main/java/com/aigicrm/module/approval/service/ApprovalConfigService.java",
+    "ranges": [
+      [
+        55,
+        81
+      ]
+    ],
+    "source_sha256": "57553006595f909acb941d2eda01bbef4d71b191d23c462fd61a8712096f4a07"
+  },
+  {
+    "id": "E06",
+    "title": "公海已具备条件更新锁定，不能把并发防护说成完全没有",
+    "path": "backend/src/main/java/com/aigicrm/module/approval/service/ApprovalService.java",
+    "ranges": [
+      [
+        173,
+        211
+      ],
+      [
+        394,
+        422
+      ]
+    ],
+    "source_sha256": "d6fd0cbdc923820bfba1bb1cfed262b8d05380c9d432b4b0a69afed6ff9ace94"
+  },
+  {
+    "id": "E07",
+    "title": "审批通过后的延期与转移执行",
+    "path": "backend/src/main/java/com/aigicrm/module/approval/service/ApprovalService.java",
+    "ranges": [
+      [
+        492,
+        529
+      ]
+    ],
+    "source_sha256": "d6fd0cbdc923820bfba1bb1cfed262b8d05380c9d432b4b0a69afed6ff9ace94"
+  },
+  {
+    "id": "E08",
+    "title": "小程序演示选项与真实接口失败后的回退",
+    "path": "mini/aigicrm-miniprogram/pages/customer/form/index.js",
+    "ranges": [
+      [
+        35,
+        43
+      ],
+      [
+        156,
+        195
+      ]
+    ],
+    "source_sha256": "d75eccb03e038b47f37645eca7effc6ef720fe6b72907ba1e0d5ba106edeb06b"
+  },
+  {
+    "id": "E09",
+    "title": "小程序客户与指标分两次保存，统一错误提示",
+    "path": "mini/aigicrm-miniprogram/pages/customer/form/index.js",
+    "ranges": [
+      [
+        395,
+        433
+      ]
+    ],
+    "source_sha256": "d75eccb03e038b47f37645eca7effc6ef720fe6b72907ba1e0d5ba106edeb06b"
+  },
+  {
+    "id": "E10",
+    "title": "无集团归属的默认放行",
+    "path": "backend/src/main/java/com/aigicrm/common/scope/GroupScopeUtil.java",
+    "ranges": [
+      [
+        7,
+        17
+      ],
+      [
+        22,
+        38
+      ],
+      [
+        40,
+        57
+      ]
+    ],
+    "source_sha256": "b483fa114ad4efc695d8f2b2cefbfbe5a8686fcada01173eb0d422689e29ac9b"
+  },
+  {
+    "id": "E11",
+    "title": "字段写权限：财务写与客户编辑绑定；联系人写只要求客户编辑",
+    "path": "backend/src/main/java/com/aigicrm/module/customer/controller/CustomerController.java",
+    "ranges": [
+      [
+        152,
+        164
+      ],
+      [
+        264,
+        285
+      ],
+      [
+        307,
+        319
+      ]
+    ],
+    "source_sha256": "079b6bdb18dba6d8e6f1332f12d11f280058a16e2a9c6750cf0a4fe1a1b08837"
+  },
+  {
+    "id": "E12",
+    "title": "客户集团名与系统集团不是同一概念",
+    "path": "backend/src/main/java/com/aigicrm/module/customer/entity/BizCustomer.java",
+    "ranges": [
+      [
+        19,
+        42
+      ],
+      [
+        66,
+        86
+      ]
+    ],
+    "source_sha256": "e2797cd9539af3808f1e64434e4cf57e4d9aaffeca9eea2e5fea2eac79db027f"
+  },
+  {
+    "id": "E13",
+    "title": "跟进记录数据结构",
+    "path": "backend/src/main/java/com/aigicrm/module/customer/entity/BizCustomerLog.java",
+    "ranges": [
+      [
+        1,
+        25
+      ]
+    ],
+    "source_sha256": "9e70d1b80bf401607b175b7047e95267304d410537e751ff32943c3776706d94"
+  },
+  {
+    "id": "E14",
+    "title": "客户删除入口：对象权限后逻辑删除；此入口未检查关联业务",
+    "path": "backend/src/main/java/com/aigicrm/module/customer/service/CustomerService.java",
+    "ranges": [
+      [
+        472,
+        481
+      ]
+    ],
+    "source_sha256": "ceb8144b487eb0cdcbc721d063d399e46a51cfd6e30626b5819baf4197915420"
+  },
+  {
+    "id": "E15",
+    "title": "客户保护期计算与核心客户自动判定",
+    "path": "backend/src/main/java/com/aigicrm/module/customer/service/CustomerService.java",
+    "ranges": [
+      [
+        914,
+        926
+      ],
+      [
+        1024,
+        1035
+      ],
+      [
+        1046,
+        1092
+      ]
+    ],
+    "source_sha256": "ceb8144b487eb0cdcbc721d063d399e46a51cfd6e30626b5819baf4197915420"
+  },
+  {
+    "id": "E16",
+    "title": "财务数据录入的当前单位为万，不可把100直接判为阈值错误",
+    "path": "pc/src/views/customer/detail/FinanceTab.vue",
+    "ranges": [
+      [
+        54,
+        71
+      ]
+    ],
+    "source_sha256": "a342550c8440f3388527cc87242072a8d175c88af3f9d6ef798f42df0349cbc0"
+  },
+  {
+    "id": "E17",
+    "title": "权限范围配置已具备角色/岗位/用户三级，不应重复开发",
+    "path": "pc/src/views/system/PermScopeManager.vue",
+    "ranges": [
+      [
+        1,
+        35
+      ]
+    ],
+    "source_sha256": "32428f6420e4e92ccb00cc640aaf3e20bfc15f50ecbb0b8ca2cef1ef876b8204"
+  },
+  {
+    "id": "E18",
+    "title": "移动端文件分享是指定内部用户共享",
+    "path": "mini/aigicrm-miniprogram/pages/files/index.js",
+    "ranges": [
+      [
+        487,
+        511
+      ]
+    ],
+    "source_sha256": "933603bd2a697b3814b125cc812f466d49ffbb69b2412d06d8806002520cc905"
+  },
+  {
+    "id": "E19",
+    "title": "小程序当前导航",
+    "path": "mini/aigicrm-miniprogram/app.json",
+    "ranges": [
+      [
+        57,
+        92
+      ]
+    ],
+    "source_sha256": "15398d603f0b0c0f12b6dde960e2982fdfa06e5766ec2c315fd50fd6ee65767d"
+  },
+  {
+    "id": "E20",
+    "title": "真实验收清单仍有待执行项",
+    "path": "gates/docs/mobile-manual-qa-checklist.md",
+    "ranges": [
+      [
+        15,
+        64
+      ]
+    ],
+    "source_sha256": "d4910683aec113a30027d2ce9b1308b05b76ad3fa88d595855ef46f66cff82b8"
+  },
+  {
+    "id": "E21",
+    "title": "客户排行原生SQL与范围缺口",
+    "path": "backend/src/main/java/com/aigicrm/module/customer/service/CustomerService.java",
+    "ranges": [
+      [
+        750,
+        817
+      ]
+    ],
+    "source_sha256": "ceb8144b487eb0cdcbc721d063d399e46a51cfd6e30626b5819baf4197915420"
+  },
+  {
+    "id": "E22",
+    "title": "激励阅读状态及阅读统计",
+    "path": "backend/src/main/java/com/aigicrm/module/incentive/service/IncentiveService.java",
+    "ranges": [
+      [
+        987,
+        998
+      ],
+      [
+        1055,
+        1081
+      ]
+    ],
+    "source_sha256": "d3fa244b2fa16999f2e99624da986f00a96737265fcb0bde95644cbcef95aab4"
+  },
+  {
+    "id": "E23",
+    "title": "前端跟进与延期操作",
+    "path": "pc/src/composables/useCustomerDetail.js",
+    "ranges": [
+      [
+        159,
+        160
+      ]
+    ],
+    "source_sha256": "ec0f154126aaf06eb2844a8ac0423d4ec8f5858e40724ab654d3547a91527325"
+  }
+]

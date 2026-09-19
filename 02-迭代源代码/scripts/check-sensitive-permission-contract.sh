@@ -25,9 +25,13 @@ grep -Fq 'const financeRequest = this.data.canViewFinance' "$MOBILE_DETAIL_JS" \
   || fail 'mobile detail finance request is not conditional'
 grep -Fq 'const contactsRequest = this.data.canViewContacts' "$MOBILE_DETAIL_JS" \
   || fail 'mobile detail contact request is not conditional'
-grep -Fq 'detail && canViewFinance' "$MOBILE_DETAIL_WXML" \
+grep -Fq 'showFinanceSection: hasDetail && canViewFinance' "$MOBILE_DETAIL_JS" \
+  || fail 'mobile detail finance view gate is not conditional'
+grep -Fq 'showContactsSection: hasDetail && canViewContacts' "$MOBILE_DETAIL_JS" \
+  || fail 'mobile detail contact view gate is not conditional'
+grep -Fq 'detailView.showFinanceSection' "$MOBILE_DETAIL_WXML" \
   || fail 'mobile detail finance rendering is not conditional'
-grep -Fq 'detail && canViewContacts' "$MOBILE_DETAIL_WXML" \
+grep -Fq 'detailView.showContactsSection' "$MOBILE_DETAIL_WXML" \
   || fail 'mobile detail contact rendering is not conditional'
 
 echo 'PASS: sensitive customer permission contract is aligned.'

@@ -7,13 +7,13 @@ import java.util.List;
 /**
  * 集团可见性口径工具。
  * 与 SysUserService.applyGroupScope / MybatisPlusConfig.resolveTenantId 保持一致:
- * 平台超管(admin)全集团;其余用户限定所属集团;取不到集团归属时回退主集团 1
- * (注意: 这是向主集团放行的默认作用域, 非安全拒绝——多集团上线前须改为显式成员校验/拒绝)。
+ * 平台超管(admin)全集团;其余用户限定所属集团。
+ * 【PR-01 P0-02 2026-09-18 fail-closed】取不到集团归属时拒绝/空集，不再回退主集团 1。
+ * 历史脏数据通过一次性迁移修复，运行期不再默认放行。
  */
 public final class GroupScopeUtil {
 
-    /** 主集团 id: 历史未回填集团归属时的默认回退值(放行到主集团, 非安全拒绝)。
-     *  与 SysRoleService.validateRoleOrgsGroup / MybatisPlusConfig 同口径, 禁止散落裸 1L。 */
+    /** 主集团 id: 仅用于新建记录缺省归属等非授权场景。禁止用于授权/过滤回退。 */
     public static final Long DEFAULT_GROUP_ID = 1L;
 
     private GroupScopeUtil() {
@@ -24,9 +24,8 @@ public final class GroupScopeUtil {
      * <ul>
      *   <li>平台超管(admin) → 返回 null,调用方不过滤(跨集团管理/审计);</li>
      *   <li>其余用户 → SecurityUtils.getCurrentGroupIds() 原样返回(多集团并集);</li>
-     *   <li>取不到集团归属(无岗位/无组织) → 回退主集团 1(默认作用域)。⚠️ 注意: 这是向主集团 1
-     *       放行(fail-open 到主集团), 非安全拒绝——多集团部署下无归属账号默认可读主集团数据,
-     *       上线前需改为显式成员校验/拒绝。</li>
+     *   <li>取不到集团归属(无岗位/无组织) → 返回空集合(调用方按无可见数据处理)。
+     *       【PR-01 P0-02 fail-closed】不再回退主集团 1。</li>
      * </ul>
      */
     public static List<Long> visibleGroupIds() {
@@ -34,15 +33,63 @@ public final class GroupScopeUtil {
             return null;
         }
         List<Long> groupIds = SecurityUtils.getCurrentGroupIds();
-        return (groupIds == null || groupIds.isEmpty()) ? List.of(DEFAULT_GROUP_ID) : groupIds;
+        return (groupIds == null || groupIds.isEmpty()) ? List.of() : groupIds;
+    }
+
+    /**
+     * 当前会话有效集团(单集团会话口径, 与登录 currentGroupId 一致):
+     * <ul>
+     *   <li>平台超管(admin) → null(调用方不过滤);</li>
+     *   <li>其余用户 → 会话当前集团(无则取所属最小集团);</li>
+     *   <li>取不到任何集团归属 → null, 调用方必须按 fail-closed 处理(空结果/拒绝)。</li>
+     * </ul>
+     */
+    public static Long currentGroupOrNull() {
+        if (SecurityUtils.isAdmin()) {
+            return null;
+        }
+        var user = SecurityUtils.getCurrentUser();
+        if (user != null && user.getCurrentGroupId() != null) {
+            return user.getCurrentGroupId();
+        }
+        List<Long> groupIds = SecurityUtils.getCurrentGroupIds();
+        if (groupIds == null || groupIds.isEmpty()) {
+            return null;
+        }
+        return groupIds.stream().sorted().findFirst().orElse(null);
+    }
+
+    /**
+     * 非 admin 且无有效集团归属时为 true。调用方(原生 SQL/列表过滤)遇到此情况
+     * 必须返回空集或拒绝访问，禁止回退到任意集团。
+     */
+    public static boolean isGroupFailClosed() {
+        return !SecurityUtils.isAdmin() && currentGroupOrNull() == null;
+    }
+
+    /**
+     * 【PR-01 2026-09-18】某集团成员用户 id（与登录 resolveGroupIds 同口径：
+     * 任职组织→集团，兼本人直属组织→集团）。原生 SQL/JdbcTemplate 无法走租户拦截器
+     * （sys_user 非租户表），必须显式套本方法做集团边界。admin 调用方自行决定不过滤。
+     * 静态方法 + 显式传 JdbcTemplate：避免给热路径 Service 增加构造器依赖。
+     */
+    public static List<Long> userIdsInGroup(org.springframework.jdbc.core.JdbcTemplate jdbc, Long groupId) {
+        if (jdbc == null || groupId == null) return List.of();
+        return jdbc.queryForList(
+                "SELECT up.user_id FROM sys_user_position up " +
+                "JOIN sys_position p ON p.id = up.position_id AND p.group_id = ? " +
+                "UNION " +
+                "SELECT u.id FROM sys_user u " +
+                "JOIN sys_dept d ON d.id = u.org_id AND d.group_id = ?",
+                Long.class, groupId, groupId);
     }
 
     /**
      * 目标记录的集团归属是否对当前用户可操作(单条读取/写操作校验):
      * <ul>
      *   <li>平台超管(admin) → 恒 true(跨集团管理/审计);</li>
-     *   <li>其余用户 → groupId 非空且 ∈ 当前用户集团集合(空集合回退主集团 1, 与
-     *       {@link #visibleGroupIds()} 同口径——注意为放行非拒绝);null 集团记录视为不可操作。</li>
+     *   <li>其余用户 → groupId 非空且 ∈ 当前用户集团集合;当前用户无任何集团归属时恒 false
+     *       【PR-01 P0-02 fail-closed】;null 集团记录视为不可操作。</li>
      * </ul>
      */
     public static boolean canAccessGroup(Long groupId) {
@@ -53,7 +100,9 @@ public final class GroupScopeUtil {
             return false;
         }
         List<Long> groupIds = SecurityUtils.getCurrentGroupIds();
-        List<Long> allowed = (groupIds == null || groupIds.isEmpty()) ? List.of(DEFAULT_GROUP_ID) : groupIds;
-        return allowed.contains(groupId);
+        if (groupIds == null || groupIds.isEmpty()) {
+            return false;
+        }
+        return groupIds.contains(groupId);
     }
 }

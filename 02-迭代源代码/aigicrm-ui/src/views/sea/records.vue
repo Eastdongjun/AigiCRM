@@ -104,7 +104,7 @@
 
       <div class="list-pager">
         <span>{{ total > 0 ? (query.current - 1) * query.size + 1 : 0 }}-{{ Math.min(query.current * query.size, total) }}条 / 共{{ total }}条</span>
-        <el-pagination v-model:current-page="query.current" v-model:page-size="query.size" :total="total" :page-sizes="[15, 30, 50]" layout="prev, pager, next" size="small" @change="loadData" />
+        <el-pagination v-model:current-page="query.current" v-model:page-size="query.size" :total="total" :page-sizes="pageSizes(query.size)" layout="sizes, prev, pager, next, jumper" size="small" @change="loadData" @size-change="query.current = 1" />
       </div>
     </div>
   </div>
@@ -115,6 +115,7 @@ import { ref, reactive, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { Back } from '@element-plus/icons-vue'
 import { getClaimRecords } from '@/api/sea'
+import { pageSizes } from '@/utils/pagination'
 
 const router = useRouter()
 const records = ref([])

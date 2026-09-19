@@ -1,0 +1,18 @@
+# 生产环境加固（2026-08-08，审查发现 #2）:
+# - 关闭 Swagger / API 文档（生产不应暴露接口清单）
+# - SQL 日志从 StdOutImpl(全量打印) 改为 Slf4jImpl + com.aigicrm=info（生产不打印 SQL）
+# 激活: 生产容器设 SPRING_PROFILES_ACTIVE=prod（deploy-backend.sh 已带）
+
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false
+
+logging:
+  level:
+    com.aigicrm: info
+
+mybatis-plus:
+  configuration:
+    log-impl: org.apache.ibatis.logging.slf4j.Slf4jImpl

@@ -53,12 +53,16 @@ services:
       DB_PASSWORD: ${APP_DB_PASSWORD:?APP_DB_PASSWORD 未设置}
       REDIS_HOST: redis
       REDIS_PORT: 6379
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET 未设置}
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-prod}
+      # 【PR-01 G-02】生产租户开关必须显式设置（无静默 false 默认），与后端 prod fail-closed 自检配合
+      TENANT_ENABLE: ${TENANT_ENABLE:?TENANT_ENABLE 未设置（生产必须显式开启租户隔离，设为 true）}
       STORAGE_TYPE: local
       CORS_ORIGINS: https://www.aigicrm.com,http://localhost:5173,http://localhost:3000
       OSS_ENDPOINT: ${OSS_ENDPOINT:-oss-cn-beijing.aliyuncs.com}
-      OSS_ACCESS_KEY_ID: ${OSS_ACCESS_KEY_ID:-your-key}
-      OSS_ACCESS_KEY_SECRET: ${OSS_ACCESS_KEY_SECRET:-your-secret}
-      OSS_BUCKET_NAME: ${OSS_BUCKET_NAME:-your-bucket}
+      OSS_ACCESS_KEY_ID: ${OSS_ACCESS_KEY_ID:-}
+      OSS_ACCESS_KEY_SECRET: ${OSS_ACCESS_KEY_SECRET:-}
+      OSS_BUCKET_NAME: ${OSS_BUCKET_NAME:-}
       UPLOAD_DIR: /app/uploads
       TZ: Asia/Shanghai
     volumes:

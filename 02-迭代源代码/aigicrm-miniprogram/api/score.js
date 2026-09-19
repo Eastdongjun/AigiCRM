@@ -4,4 +4,8 @@ function getRanking(params) {
   return request({ url: '/api/score/ranking', data: params || {} })
 }
 
-module.exports = { getRanking }
+function getRankingStats(params) {
+  return request({ url: '/api/score/ranking/stats', data: params || {} })
+}
+
+module.exports = { getScoreRanking: getRanking, getRanking, getRankingStats }

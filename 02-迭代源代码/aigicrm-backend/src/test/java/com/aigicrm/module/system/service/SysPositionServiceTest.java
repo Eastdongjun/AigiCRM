@@ -97,23 +97,16 @@ class SysPositionServiceTest {
     }
 
     @Test
-    void list_emptyGroupIdsFallsBackToMainGroup() {
-        // 取不到集团归属（无岗位/无组织）时退主集团 1（fail-closed，与 MybatisPlusConfig.resolveTenantId 同口径）
+    void list_emptyGroupIdsReturnsEmpty() {
+        // 【PR-01 P0-02】取不到集团归属不再退主集团 1，直接返回空集（fail-closed）
         SysPositionMapper positionMapper = mock(SysPositionMapper.class);
         SysPositionService service = newServiceWith(positionMapper);
         try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
             m.when(SecurityUtils::isAdmin).thenReturn(false);
             m.when(SecurityUtils::getCurrentGroupIds).thenReturn(List.of());
 
-            service.list();
-            @SuppressWarnings("unchecked")
-
-            ArgumentCaptor<LambdaQueryWrapper<SysPosition>> captor = ArgumentCaptor.forClass(LambdaQueryWrapper.class);
-            verify(positionMapper).selectList(captor.capture());
-            String expr = captor.getValue().getSqlSegment();
-            assertTrue(expr.contains("group_id"), "集团为空也应过滤到主集团，实际: " + expr);
-            assertTrue(captor.getValue().getParamNameValuePairs().containsValue(1L),
-                    "应退回主集团 1，实际: " + captor.getValue().getParamNameValuePairs());
+            assertTrue(service.list().isEmpty(), "无集团归属应返回空集");
+            verify(positionMapper, never()).selectList(any());
         }
     }
 

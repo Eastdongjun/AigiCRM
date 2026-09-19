@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { paginate, totalOf } from './pagination'
+import { PAGE_SIZES, PAGINATION_LAYOUT, paginate, pageSizes, totalOf } from './pagination'
 
 const data = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
 
@@ -48,5 +48,28 @@ describe('totalOf 客户端总数', () => {
   it('非数组返回 0', () => {
     expect(totalOf(null)).toBe(0)
     expect(totalOf(undefined)).toBe(0)
+  })
+})
+
+describe('每页条数选项（统一口径）', () => {
+  it('统一选项包含 30/50/100', () => {
+    expect(PAGE_SIZES).toEqual(expect.arrayContaining([30, 50, 100]))
+  })
+
+  it('pageSizes 保证列表当前默认值在选项内', () => {
+    expect(pageSizes(15)).toEqual([10, 15, 20, 30, 50, 100])
+    expect(pageSizes(8)).toEqual([8, 10, 20, 30, 50, 100])
+    expect(pageSizes(30)).toEqual([10, 20, 30, 50, 100])
+  })
+
+  it('pageSizes 对脏值/缺失值安全（回退为统一选项）', () => {
+    expect(pageSizes(undefined)).toEqual(PAGE_SIZES)
+    expect(pageSizes(0)).toEqual(PAGE_SIZES)
+    expect(pageSizes('abc')).toEqual(PAGE_SIZES)
+  })
+
+  it('layout 带每页条数下拉与跳页', () => {
+    expect(PAGINATION_LAYOUT).toContain('sizes')
+    expect(PAGINATION_LAYOUT).toContain('jumper')
   })
 })

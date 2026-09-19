@@ -24,7 +24,7 @@
       <div class="filter-group">
         <span class="filter-label">周期</span>
         <el-select v-model="selectedPeriod" size="default" style="width:120px">
-          <el-option v-for="p in periodOptions" :key="p" :label="p" :value="p" />
+          <el-option v-for="p in periodOptions" :key="p.value" :label="p.label" :value="p.value" />
         </el-select>
       </div>
       <div class="filter-divider"></div>

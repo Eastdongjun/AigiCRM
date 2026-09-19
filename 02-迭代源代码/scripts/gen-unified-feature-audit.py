@@ -150,7 +150,7 @@ def extract_vue_actions(views_dir: Path, root: Path) -> list[UiAction]:
             attrs, body = match.groups()
             handler = first(click_re.findall(attrs), "")
             permission = first(perm_re.findall(attrs), "")
-            label = re.sub(r"\s+", " ", tag_re.sub("", body)).strip()
+            label = clean_ui_label(tag_re.sub("", body))
             if label or handler:
                 line = text.count("\n", 0, match.start()) + 1
                 actions.append(UiAction(label or "(icon/button)", handler, permission, f"{rel(path, root)}:{line}"))
@@ -159,21 +159,47 @@ def extract_vue_actions(views_dir: Path, root: Path) -> list[UiAction]:
 
 def extract_wxml_actions(mini_dir: Path, root: Path) -> list[UiAction]:
     actions: list[UiAction] = []
-    button_re = re.compile(r"<button([^>]*)>(.*?)</button>", re.S)
-    bind_re = re.compile(r"bindtap=\"([^\"]+)\"")
+    tap_node_re = re.compile(r"<(?P<tag>button|view|text)(?P<attrs>[^>]*)>", re.S)
+    bind_re = re.compile(r"(?:bindtap|catchtap)=\"([^\"]+)\"")
     wxif_re = re.compile(r"wx:if=\"([^\"]+)\"")
     tag_re = re.compile(r"<[^>]+>")
     for path in sorted(mini_dir.rglob("*.wxml")):
         text = read(path)
-        for match in button_re.finditer(text):
-            attrs, body = match.groups()
+        for match in tap_node_re.finditer(text):
+            tag = match.group("tag")
+            attrs = match.group("attrs")
             handler = first(bind_re.findall(attrs), "")
+            if not handler:
+                continue
             permission = first(wxif_re.findall(attrs), "")
-            label = re.sub(r"\s+", " ", tag_re.sub("", body)).strip()
+            body = body_for_wxml_tap(text, match.end(), tag)
+            label = clean_ui_label(tag_re.sub("", body))
             if label or handler:
                 line = text.count("\n", 0, match.start()) + 1
                 actions.append(UiAction(label or "(button)", handler, permission, f"{rel(path, root)}:{line}"))
     return actions
+
+
+def body_for_wxml_tap(text: str, start: int, tag: str) -> str:
+    token_re = re.compile(rf"</?{re.escape(tag)}(?:\s[^>]*)?>", re.S)
+    depth = 1
+    for match in token_re.finditer(text, start):
+        token = match.group(0)
+        if token.startswith("</"):
+            depth -= 1
+            if depth == 0:
+                return text[start:match.start()]
+        elif not token.endswith("/>"):
+            depth += 1
+    line_end = text.find("\n", start)
+    if line_end >= 0:
+        return text[start:line_end]
+    return ""
+
+
+def clean_ui_label(value: str) -> str:
+    without_templates = re.sub(r"\{\{[^}]+\}\}", "", value)
+    return re.sub(r"\s+", " ", without_templates).strip()
 
 
 def extract_frontend_permission_tokens(source_dirs: list[Path]) -> set[str]:
@@ -197,7 +223,9 @@ def extract_permission_dict(path: Path) -> dict[str, str]:
     for line in read(path).splitlines():
         m = re.match(r"\|\s*`([^`]+)`\s*\|\s*([^|]+)\|", line)
         if m:
-            out[m.group(1)] = m.group(2).strip()
+            label = m.group(2).strip()
+            if label:
+                out.setdefault(m.group(1), label)
     return out
 
 
@@ -205,25 +233,91 @@ def extract_migration_permissions(migration_dir: Path) -> dict[str, str]:
     if not migration_dir.exists():
         return {}
     out: dict[str, str] = {}
-    insert_re = re.compile(r"INSERT\s+INTO\s+`?sys_menu`?.*?;", re.S | re.I)
-    select_re = re.compile(r"\bSELECT\b(.*?)\bFROM\b", re.S | re.I)
+    insert_re = re.compile(
+        r"INSERT\s+INTO\s+`?sys_menu`?\s*\((?P<columns>.*?)\)\s*(?P<body>.*?);",
+        re.S | re.I,
+    )
     quoted_re = re.compile(r"'([^']+)'")
     permission_re = re.compile(r"^[a-z][a-z0-9-]*(?::[a-z][a-z0-9-]*)+$")
     for path in sorted(migration_dir.glob("V*.sql")):
         text = read(path)
-        for statement in insert_re.findall(text):
-            select = select_re.search(statement)
-            if not select:
-                continue
-            values = quoted_re.findall(select.group(1))
-            if not values:
-                continue
-            name = values[0]
-            for permission in values[1:]:
+        for match in insert_re.finditer(text):
+            columns = [normalize_sql_identifier(col) for col in split_top_level_commas(match.group("columns"))]
+            body = match.group("body")
+            row = extract_sys_menu_insert_row(columns, body)
+            if row:
+                permission = row.get("permission", "")
                 if permission_re.match(permission):
+                    name = row.get("menu_name", "") or permission
                     out.setdefault(permission, f"{name} ({path.name})")
-                    break
+                    continue
+            statement = match.group(0)
+            values = quoted_re.findall(statement)
+            name = ""
+            for value in values:
+                if not permission_re.match(value):
+                    name = value or name
+                    continue
+                permission = value
+                if permission_re.match(permission):
+                    out.setdefault(permission, f"{name or permission} ({path.name})")
     return out
+
+
+def normalize_sql_identifier(value: str) -> str:
+    return value.strip().strip("`").lower()
+
+
+def strip_sql_string(value: str) -> str:
+    value = value.strip()
+    if len(value) >= 2 and value[0] == "'" and value[-1] == "'":
+        return value[1:-1].replace("''", "'")
+    return value
+
+
+def split_top_level_commas(value: str) -> list[str]:
+    parts: list[str] = []
+    start = 0
+    depth = 0
+    in_string = False
+    i = 0
+    while i < len(value):
+        ch = value[i]
+        if ch == "'":
+            if in_string and i + 1 < len(value) and value[i + 1] == "'":
+                i += 2
+                continue
+            in_string = not in_string
+        elif not in_string:
+            if ch == "(":
+                depth += 1
+            elif ch == ")" and depth > 0:
+                depth -= 1
+            elif ch == "," and depth == 0:
+                parts.append(value[start:i].strip())
+                start = i + 1
+        i += 1
+    tail = value[start:].strip()
+    if tail:
+        parts.append(tail)
+    return parts
+
+
+def extract_sys_menu_insert_row(columns: list[str], body: str) -> dict[str, str]:
+    if not columns:
+        return {}
+    select_match = re.search(r"\bSELECT\b(?P<select>.*?)\bFROM\s+DUAL\b", body, re.S | re.I)
+    if not select_match:
+        return {}
+    values = split_top_level_commas(select_match.group("select"))
+    if len(values) < len(columns):
+        return {}
+    row = {
+        column: strip_sql_string(values[index])
+        for index, column in enumerate(columns)
+        if column in {"menu_name", "permission"}
+    }
+    return {key: value for key, value in row.items() if value}
 
 
 def extract_backend_permission_references(java_root: Path, root: Path, permissions: list[str]) -> dict[str, list[PermissionReference]]:
@@ -303,6 +397,24 @@ def compact_line(value: str, limit: int = 96) -> str:
     return collapsed if len(collapsed) <= limit else collapsed[: limit - 1] + "..."
 
 
+def permission_bullet(permission: str, labels: dict[str, str]) -> str:
+    label = labels.get(permission, "").strip()
+    return f"- `{permission}`: {label}" if label else f"- `{permission}`"
+
+
+def is_runtime_dictionary_permission(permission: str, label: str) -> bool:
+    """Return false for documented compatibility/deprecated dictionary rows."""
+    text = f"{permission} {label}"
+    inactive_markers = [
+        "兼容历史项",
+        "不作为独立运行时授权",
+        "不作为运行时授权",
+        "已废弃",
+        "历史残留",
+    ]
+    return not any(marker in text for marker in inactive_markers)
+
+
 def normalize_api_path(path: str, prefix: str) -> str:
     normalized = re.sub(r"\$\{[^}]+}", "{id}", path)
     normalized = re.sub(r"'\s*\+\s*\w+\s*(?:\+\s*')?", "{id}", normalized)
@@ -332,9 +444,19 @@ def render(args, routes, pc_apis, mobile_pages, mobile_apis, endpoints, perm_dic
     backend_perms = sorted({p for e in endpoints for p in permission_tokens(e.permission)})
     route_perms = sorted({r.permission for r in routes if r.permission})
     dict_perms = sorted(perm_dict)
+    runtime_dict_perms = sorted(
+        permission for permission, label in perm_dict.items()
+        if is_runtime_dictionary_permission(permission, label)
+    )
+    compatibility_dict_perms = sorted(set(dict_perms) - set(runtime_dict_perms))
     local_permission_sources = {**migration_perms, **perm_dict}
     missing_in_dict = sorted(set(backend_perms) - set(local_permission_sources))
-    dict_not_in_backend = sorted(set(dict_perms) - set(backend_perms))
+    dict_not_in_backend = sorted(set(runtime_dict_perms) - set(backend_perms))
+    dict_with_code_refs = sorted(
+        permission for permission in dict_not_in_backend
+        if code_permission_refs.get(permission)
+    )
+    dict_not_seen_anywhere = sorted(set(dict_not_in_backend) - set(dict_with_code_refs))
     ui_perms = sorted(ui_permission_tokens(pc_actions + mobile_actions))
     ui_missing_in_sources = sorted(set(ui_perms) - set(backend_perms) - set(perm_dict) - set(migration_perms))
     frontend_missing_in_sources = sorted(frontend_permission_tokens - set(backend_perms) - set(perm_dict) - set(migration_perms))
@@ -357,9 +479,13 @@ def render(args, routes, pc_apis, mobile_pages, mobile_apis, endpoints, perm_dic
         f"- Mini Program UI actions: {len(mobile_actions)}",
         f"- Backend permission tokens: {len(backend_perms)}",
         f"- Permission dictionary tokens: {len(dict_perms)}",
+        f"- Runtime permission dictionary tokens: {len(runtime_dict_perms)}",
+        f"- Compatibility/deprecated dictionary tokens: {len(compatibility_dict_perms)}",
         f"- Local migration permission tokens: {len(migration_perms)}",
         f"- Backend permissions missing in dictionary or local migrations: {len(missing_in_dict)}",
-        f"- Dictionary permissions not directly seen in backend annotations: {len(dict_not_in_backend)}",
+        f"- Runtime dictionary permissions not directly seen in backend annotations: {len(dict_not_in_backend)}",
+        f"- Runtime dictionary permissions referenced outside backend annotations: {len(dict_with_code_refs)}",
+        f"- Runtime dictionary permissions not seen in backend annotations or code references: {len(dict_not_seen_anywhere)}",
         f"- UI permission tokens missing in backend, dictionary, and local migrations: {len(ui_missing_in_sources)}",
         f"- Frontend code permission tokens: {len(frontend_permission_tokens)}",
         f"- Frontend code permission tokens missing in known sources: {len(frontend_missing_in_sources)}",
@@ -419,9 +545,27 @@ def render(args, routes, pc_apis, mobile_pages, mobile_apis, endpoints, perm_dic
     else:
         lines.append("- None")
 
-    lines += ["", "### Dictionary Permissions Not Directly Seen In Backend Annotations", ""]
+    lines += ["", "### Runtime Dictionary Permissions Not Directly Seen In Backend Annotations", ""]
     if dict_not_in_backend:
-        lines.extend(f"- `{p}`: {perm_dict.get(p, '')}" for p in dict_not_in_backend)
+        lines.extend(permission_bullet(p, perm_dict) for p in dict_not_in_backend)
+    else:
+        lines.append("- None")
+
+    lines += ["", "### Runtime Dictionary Permissions Referenced Outside Backend Annotations", ""]
+    if dict_with_code_refs:
+        lines.extend(permission_bullet(p, perm_dict) for p in dict_with_code_refs)
+    else:
+        lines.append("- None")
+
+    lines += ["", "### Runtime Dictionary Permissions Not Seen In Backend Annotations Or Code References", ""]
+    if dict_not_seen_anywhere:
+        lines.extend(permission_bullet(p, perm_dict) for p in dict_not_seen_anywhere)
+    else:
+        lines.append("- None")
+
+    lines += ["", "### Compatibility Or Deprecated Dictionary Permissions Excluded From Runtime Drift", ""]
+    if compatibility_dict_perms:
+        lines.extend(permission_bullet(p, perm_dict) for p in compatibility_dict_perms)
     else:
         lines.append("- None")
 
@@ -464,6 +608,7 @@ def render(args, routes, pc_apis, mobile_pages, mobile_apis, endpoints, perm_dic
         "## Notes",
         "",
         "- A dictionary permission can be valid even when it is not directly seen in annotations if enforcement happens in service-layer checks.",
+        "- Compatibility/deprecated dictionary rows are kept visible but excluded from runtime drift alerts when the permission dictionary documents them as non-runtime authorization.",
         "- A backend permission missing in both the generated dictionary and local Flyway sys_menu migrations is high-risk because users may not be able to receive that authority through normal role-menu binding.",
         "- This report is local-source based. For production sign-off, regenerate from live database configuration.",
     ]

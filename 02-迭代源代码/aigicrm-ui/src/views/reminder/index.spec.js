@@ -12,6 +12,14 @@ vi.mock('@/api/approval', () => ({ submitApproval: vi.fn() }))
 vi.mock('@/api/system', () => ({ getScopeDepts: vi.fn() }))
 vi.mock('@/api/customer', () => ({ getSimpleUserList: vi.fn() }))
 
+// 部分 mock vue-router：保留 createRouter 真实现（utils/request 会 import 真实 router 实例），
+// 只替换 useRouter 以捕获"点击行 → 跳详情页"的跳转参数
+const push = vi.fn()
+vi.mock('vue-router', async (importOriginal) => {
+  const actual = await importOriginal()
+  return { ...actual, useRouter: () => ({ push }) }
+})
+
 import ReminderIndex from './index.vue'
 import { getExpiringList, getReminderList, ensureExpiring } from '@/api/reminder'
 import { getScopeDepts } from '@/api/system'
@@ -90,6 +98,40 @@ describe('reminder/index.vue 组件冒烟', () => {
     await flushPromises()
     expect(getScopeDepts).toHaveBeenCalled()
     expect(getSimpleUserList).toHaveBeenCalled()
+  })
+
+  it('点击行（openDetail）跳转到提醒详情页并带上提醒/客户/类型', async () => {
+    const wrapper = mount(ReminderIndex, { global: { stubs } })
+    await flushPromises()
+    push.mockClear()
+
+    // 分享/开票提醒行只有 reminderId；到期提醒行只有 id（客户维度）—— 两种都要能跳
+    wrapper.vm.openDetail({ reminderId: 541, customerId: 295, reminderType: 'expiring' })
+    expect(push).toHaveBeenCalledWith({
+      name: 'ReminderDetail',
+      params: { id: '541' },
+      query: { customerId: '295', type: 'expiring' },
+    })
+
+    wrapper.vm.openDetail({ id: 540, customerId: 346, _type: 'expiring' })
+    expect(push).toHaveBeenLastCalledWith({
+      name: 'ReminderDetail',
+      params: { id: '540' },
+      query: { customerId: '346', type: 'expiring' },
+    })
+  })
+
+  it('到期提醒缺失提醒实体时用 none 占位，详情页仍可打开（降级展示客户信息）', async () => {
+    const wrapper = mount(ReminderIndex, { global: { stubs } })
+    await flushPromises()
+    push.mockClear()
+
+    wrapper.vm.openDetail({ customerId: 999, _type: 'expiring', remainingDays: 3 })
+    expect(push).toHaveBeenCalledWith({
+      name: 'ReminderDetail',
+      params: { id: 'none' },
+      query: { customerId: '999', type: 'expiring' },
+    })
   })
 })
 

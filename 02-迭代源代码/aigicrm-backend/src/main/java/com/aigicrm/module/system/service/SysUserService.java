@@ -111,7 +111,8 @@ public class SysUserService {
         // `#{deptIds} = ''` 与 IS NULL 等价（均视为"不按部门过滤"），且区别于"确无可见部门"的 null。
         if (SecurityUtils.isAdmin()) return StringUtils.hasText(deptIds) ? deptIds : "";
         java.util.List<Long> groupIds = SecurityUtils.getCurrentGroupIds();
-        if (groupIds == null || groupIds.isEmpty()) groupIds = java.util.List.of(GroupScopeUtil.DEFAULT_GROUP_ID);
+        // 【PR-01 P0-02 fail-closed】无集团归属不再回退主集团 1：allowedDeptIds 为空 → 上层返回空页
+        if (groupIds == null || groupIds.isEmpty()) return null;
         java.util.List<Long> allowedDeptIds = deptMapper.selectList(
                         new LambdaQueryWrapper<com.aigicrm.module.system.entity.SysDept>()
                                 .in(com.aigicrm.module.system.entity.SysDept::getGroupId, groupIds))

@@ -1,0 +1,84 @@
+/* 激励排行矩阵共享样式（C4 拆组件 2026-08-09）
+   由 RankTableView / DeptRankTableView 各自 import，类名页面私有，非 scoped 便于跨子组件复用 */
+.card { background: #fff; border: 1px solid #ebeef5; border-radius: 12px; padding: 24px; }
+.table-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; font-size: 14px; color: #86909c; }
+.header-right-actions { display: flex; align-items: center; gap: 10px; }
+.rank-count { color: #86909c; font-size: 13px; }
+.matrix-title { font-size: 16px; font-weight: 700; color: #1f2329; }
+.rank-matrix.el-table { --el-table-border-color: #eceff3; --el-table-header-bg-color: #f7f9fc; border-radius: 10px; overflow: hidden; }
+.rank-matrix .el-table__row:hover > td { background: #f5f9ff !important; }
+.rank-matrix .el-table__body td { padding: 5px 0; }
+/* 排名：前三渐变奖牌底 */
+.rank-medal {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  font-size: 15px;
+  box-shadow: 0 2px 6px rgba(0,0,0,.12);
+}
+.rank-medal-1 { background: linear-gradient(135deg, #fbbf24, #f59e0b); }
+.rank-medal-2 { background: linear-gradient(135deg, #e2e8f0, #cbd5e1); }
+.rank-medal-3 { background: linear-gradient(135deg, #fcd7b6, #d97706); }
+.rank-num { color: #94a3b8; font-weight: 600; font-size: 13px; }
+.rank-num { color: #86909c; font-weight: 500; } /* 基线 505 行覆盖规则,级联取后者,须保留 */
+/* 姓名/部门：首字头像 + 加粗 */
+.name-wrap { display: flex; align-items: center; gap: 8px; }
+.name-avatar {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 700;
+  color: #fff;
+  flex-shrink: 0;
+}
+.av-1 { background: linear-gradient(135deg, #f59e0b, #fbbf24); }
+.av-2 { background: linear-gradient(135deg, #94a3b8, #cbd5e1); }
+.av-3 { background: linear-gradient(135deg, #d97706, #f59e0b); }
+.av-4 { background: linear-gradient(135deg, #3b82f6, #6366f1); }
+.name-cell { font-weight: 500; color: #1f2329; }
+.name-top { font-weight: 700; color: #1f2329; }
+/* 大类分组表头：左侧色条区分 */
+.cat-group-0 .el-table__header th { background: rgba(64,158,255,.07) !important; box-shadow: inset 3px 0 0 #3b82f6; }
+.cat-group-1 .el-table__header th { background: rgba(249,115,22,.06) !important; box-shadow: inset 3px 0 0 #f97316; }
+.cat-group-2 .el-table__header th { background: rgba(139,92,246,.06) !important; box-shadow: inset 3px 0 0 #8b5cf6; }
+.cat-group-3 .el-table__header th { background: rgba(16,185,129,.06) !important; box-shadow: inset 3px 0 0 #10b981; }
+/* 品类单元格：绿色徽章 */
+.cell-pill {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 40px;
+  padding: 3px 8px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, rgba(16,185,129,.14), rgba(16,185,129,.08));
+  color: #0d9e6e;
+  font-weight: 700;
+  font-size: 13px;
+  text-align: center;
+  line-height: 1.35;
+}
+.cell-cnt { font-size: 14px; }
+.cell-unit { font-size: 10px; font-weight: 400; color: #7b8a83; margin-left: 1px; }
+.cell-score { font-size: 11px; font-weight: 600; color: #0d9e6e; }
+.cell-score.zero { color: #f59e0b; }
+.cell-dash { color: #d5dae1; }
+.num-cell { color: #5f6672; font-weight: 500; }
+/* 总积分：蓝色徽章 */
+.score-pill {
+  display: inline-block;
+  min-width: 42px;
+  padding: 3px 10px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, rgba(64,158,255,.14), rgba(64,158,255,.06));
+  color: #2f7fe0;
+  font-weight: 700;
+  font-size: 14px;
+}
+.score-pill em { font-style: normal; font-size: 11px; font-weight: 500; opacity: .7; margin-left: 1px; }

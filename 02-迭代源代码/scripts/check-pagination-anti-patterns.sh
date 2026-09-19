@@ -6,11 +6,17 @@
 #   B. 后端分页(服务端 total) 页面里 .filter() 本地过滤 records → total 与显示不一致
 #   C. el-table/v-for 大列表页无分页（提示）
 set -uo pipefail
-SRC="aigicrm-ui/src/views"
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+SRC="$ROOT/aigicrm-ui/src/views"
+COMPOSABLES="$ROOT/aigicrm-ui/src/composables"
 FAIL=0
 RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[0;33m'; NC='\033[0m'
 
 echo "== 分页反模式扫描 =="
+if [ ! -d "$SRC" ]; then
+  echo -e "${RED}  ❌ 前端视图目录不存在: $SRC${NC}"
+  exit 1
+fi
 
 # 反模式 A: 筛选 @change/@keyup.enter 绑筛选函数且函数未重置页码（仅对"有分页"页面生效）
 # 函数名匹配"筛选/搜索"语义：load*/search*/doSearch/onXxxFilterChange/handleXxxFilter* 等，
@@ -45,7 +51,7 @@ while IFS= read -r f; do
       fi
     fi
   done < <(grep -nE '@(change|keyup\.enter)="(load|search|doSearch|on[A-Z][A-Za-z]*Filter[A-Za-z]*|handle[A-Z][A-Za-z]*(Filter|Search)[A-Za-z]*)[A-Za-z]*"' "$f" 2>/dev/null || true)
-done < <(find $SRC -name "*.vue" | grep -v "\.bak")
+done < <(find "$SRC" -name "*.vue" | grep -v "\.bak")
 
 # 反模式 B: 服务端分页(total.value = res...total) + 本地过滤覆盖展示数据 → total 与显示不一致
 # 只抓两类真反模式：
@@ -67,7 +73,7 @@ while IFS= read -r f; do
       FAIL=1
     fi
   fi
-done < <(find $SRC -name "*.vue" | grep -v "\.bak")
+done < <(find "$SRC" -name "*.vue" | grep -v "\.bak")
 
 # 反模式 C: 大列表页无分页（提示，不阻塞）
 while IFS= read -r f; do
@@ -82,7 +88,7 @@ while IFS= read -r f; do
     esac
     echo -e "${YELLOW}  [C][提示] $f: 列表页无分页(数据量小可接受,增长后需加)${NC}"
   fi
-done < <(find $SRC -name "*.vue" | grep -v "\.bak")
+done < <(find "$SRC" -name "*.vue" | grep -v "\.bak")
 
 # 反模式 D: 默认分页 size 与 page-sizes 首选项不一致（2026-08-10 人员管理教训）
 # 用户报"人员管理只有15条": useUserList 默认 size=15 但 UserPager page-sizes=[30,50,100] 不一致,
@@ -107,7 +113,7 @@ while IFS= read -r f; do
   def_src="$f"
   if ! grep -qE "(const|let|var)[[:space:]]+${var}[[:space:]]*=" "$f"; then
     comp=$(grep -oE "use[A-Za-z]+List|injectUserList|use[A-Za-z]+Page" "$f" | head -1)
-    [ -n "$comp" ] && [ -f "aigicrm-ui/src/composables/${comp}.js" ] && def_src="aigicrm-ui/src/composables/${comp}.js"
+    [ -n "$comp" ] && [ -f "$COMPOSABLES/${comp}.js" ] && def_src="$COMPOSABLES/${comp}.js"
   fi
   if [ -n "$var" ]; then
     # 匹配 ref(N) 或 query 对象内 size: N
@@ -128,7 +134,7 @@ while IFS= read -r f; do
     echo -e "${RED}  [D] $f: 默认分页 size=$size_def 与 page-sizes 首项=$ps 不一致(默认每页应=page-sizes 首项)${NC}"
     FAIL=1
   fi
-done < <(find $SRC -name "*.vue" | grep -v "\.bak")
+done < <(find "$SRC" -name "*.vue" | grep -v "\.bak")
 
 if [ "$FAIL" = "0" ]; then
   echo -e "${GREEN}  ✅ 分页反模式扫描通过${NC}"

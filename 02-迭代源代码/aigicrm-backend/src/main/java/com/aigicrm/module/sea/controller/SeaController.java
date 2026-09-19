@@ -65,8 +65,9 @@ public class SeaController {
     }
 
     /** 删除公海池客户（仅待捞取状态可删，逻辑删客户+删公海记录） */
+    @PreAuthorize("hasAuthority('sea:view')")
     @DeleteMapping("/pool/{id}")
-    // 【2026-08-10 池级权限】角色码 sea:pool:delete 不再作硬门——池级删除权限在 SeaService.deletePool 内判定(admin 恒有)
+    // 【2026-08-10 池级权限】sea:view 仅作公海入口门禁；池级删除权限在 SeaService.deletePool 内判定(admin 恒有)
     public Result<Void> deletePool(@PathVariable Long id) {
         seaService.deletePool(id);
         return Result.ok();

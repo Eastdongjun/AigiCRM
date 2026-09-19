@@ -159,6 +159,55 @@ class StatisticsQueryServiceTest {
         }
     }
 
+    /**
+     * 【2026-09-13 回归】四张卡片必须与「客户排行」同为全公司口径。
+     * 修复前卡片只统计"当前登录用户负责的客户"（本用例：登录人 7，其名下客户 102 有指标 → coveredCount=1），
+     * 而表格是全公司（2 条）→ 首页/该页出现"卡片全 0、表格有数据"的口径不一致。
+     */
+    @Test
+    void indicatorStatsCardsUseCompanyWideScopeSameAsRanking() {
+        var mine = new com.aigicrm.module.customer.entity.BizCustomer();
+        mine.setId(102L);
+        mine.setOwnerId(7L);
+        mine.setCustomerName("登录人名下客户");
+        var other = new com.aigicrm.module.customer.entity.BizCustomer();
+        other.setId(101L);
+        other.setOwnerId(8L);
+        other.setCustomerName("他人负责客户");
+        when(customerService.getAllActiveCustomers()).thenReturn(List.of(mine, other));
+
+        var mineIndicator = new com.aigicrm.module.customer.entity.BizCustomerIndicator();
+        mineIndicator.setCustomerId(102L);
+        mineIndicator.setRelationshipScore(2);
+        mineIndicator.setIndicator02(1);
+        var otherIndicator = new com.aigicrm.module.customer.entity.BizCustomerIndicator();
+        otherIndicator.setCustomerId(101L);
+        otherIndicator.setRelationshipScore(2);
+        otherIndicator.setIndicator02(2);
+        otherIndicator.setIndicator03(2);
+        otherIndicator.setIndicator04(1);
+        otherIndicator.setIndicator05(2);
+        when(indicatorMapper.selectList(null)).thenReturn(List.of(mineIndicator, otherIndicator));
+        when(invoiceMapper.selectList(null)).thenReturn(List.of());
+        when(paymentMapper.selectList(null)).thenReturn(List.of());
+
+        try (MockedStatic<SecurityUtils> security = org.mockito.Mockito.mockStatic(SecurityUtils.class)) {
+            security.when(SecurityUtils::getCurrentUserId).thenReturn(7L);
+
+            var result = service.indicatorStats();
+
+            // 覆盖客户数 = 全部有指标记录的客户（2），而不是仅登录人名下的 1
+            assertEquals(2, result.get("coveredCount"));
+            // 平均分 = (3 + 9) / 2 = 6.0
+            assertEquals(6.0, result.get("avgScore"));
+            assertEquals(0, result.get("coreCount"));
+            @SuppressWarnings("unchecked")
+            var ranking = (List<java.util.Map<String, Object>>) result.get("customerRanking");
+            assertEquals(2, ranking.size());
+            assertEquals(102L, ranking.get(1).get("customerId")); // 排序：9 分在前，3 分在后
+        }
+    }
+
     @Test
     void teamActivitiesAppliesScopeToEveryActivitySource() {
         when(customerService.getCurrentScopeUserIds()).thenReturn(List.of(7L));

@@ -6,7 +6,7 @@
       <div class="stat-card">
         <div class="stat-info">
           <div class="stat-label">客户总数</div>
-          <div class="stat-num orange">{{ stats.myCustomers || 0 }}</div>
+          <div class="stat-num blue">{{ stats.myCustomers || 0 }}</div>
           <div class="stat-sub">本月新增 {{ stats.monthNew || 0 }} · 公海 {{ stats.seaStats?.total || 0 }}</div>
         </div>
         <el-icon class="stat-icon icon-blue" :size="28"><User /></el-icon>
@@ -317,32 +317,35 @@ onMounted(loadData)
 
 /* —— 头部 —— */
 .page-header { margin-bottom: 24px; }
-.page-title { font-size: 22px; font-weight: 700; color: #1d2129; margin: 0 0 4px; }
-.greeting { font-size: 14px; color: #999; margin: 0; }
+.page-title { font-size: 22px; font-weight: 700; color: var(--ds-text-1, #1f2329); margin: 0 0 4px; letter-spacing: .2px; }
+.greeting { font-size: 14px; color: var(--ds-text-3, #86909c); margin: 0; }
 
 /* —— 统计卡片 —— */
 .stat-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 16px; }
 .stat-card {
-  background: #fff; border: 1px solid #ebeef5; border-radius: 12px; padding: 20px 24px;
+  background: var(--ds-surface, #fff); border: 1px solid var(--ds-border-light, #eef1f5);
+  border-radius: var(--ds-radius-lg, 14px); padding: 20px 24px;
   display: flex; justify-content: space-between; align-items: flex-start;
   position: relative; overflow: hidden; transition: all .25s;
+  box-shadow: var(--ds-shadow-1, 0 1px 2px rgba(15,23,42,.04));
 }
 .stat-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; }
-.stat-card:nth-child(1)::before { background: linear-gradient(90deg, #e8684a, #f59e0b); }
+.stat-card:nth-child(1)::before { background: linear-gradient(90deg, #409eff, #66b1ff); }
 .stat-card:nth-child(2)::before { background: linear-gradient(90deg, #409eff, #66b1ff); }
 .stat-card:nth-child(3)::before { background: linear-gradient(90deg, #f59e0b, #fbbf24); }
 .stat-card:nth-child(4)::before { background: linear-gradient(90deg, #f56c6c, #fc8181); }
-.stat-card:hover { box-shadow: 0 6px 20px rgba(0,0,0,.08); transform: translateY(-2px); border-color: #e0e4eb; }
-.stat-label { font-size: 14px; color: #86909c; margin-bottom: 8px; font-weight: 500; }
+.stat-card:hover { box-shadow: var(--ds-shadow-2, 0 4px 16px rgba(15,23,42,.06)); transform: translateY(-2px); }
+.stat-label { font-size: 14px; color: var(--ds-text-3, #86909c); margin-bottom: 8px; font-weight: 500; }
 .stat-num { font-size: 36px; font-weight: 700; line-height: 1.1; }
 .stat-num.orange { color: #e8684a; }
 .stat-num.blue { color: #409eff; }
 .stat-num.red { color: #f56c6c; }
-.stat-sub { font-size: 12px; color: #999; margin-top: 6px; }
-.stat-icon { flex-shrink: 0; width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; }
-.icon-blue { background: #ecf5ff; color: #409eff; }
-.icon-orange { background: #fdf6ec; color: #e6a23c; }
-.icon-red { background: #fef0f0; color: #f56c6c; }
+.stat-sub { font-size: 12px; color: var(--ds-text-3, #86909c); margin-top: 6px; }
+.stat-icon { flex-shrink: 0; width: 48px; height: 48px; border-radius: 14px; display: flex; align-items: center; justify-content: center; transition: transform .22s ease; }
+.stat-card:hover .stat-icon { transform: scale(1.06) rotate(-3deg); }
+.icon-blue { background: linear-gradient(135deg, #409eff, #2b7fd4); color: #fff; box-shadow: 0 6px 14px rgba(64,158,255,.28); }
+.icon-orange { background: linear-gradient(135deg, #f5a623, #e0902c); color: #fff; box-shadow: 0 6px 14px rgba(230,162,60,.28); }
+.icon-red { background: linear-gradient(135deg, #f56c6c, #e04b4b); color: #fff; box-shadow: 0 6px 14px rgba(245,108,108,.28); }
 
 /* 进度条 */
 .progress-track { height: 6px; background: #f0f2f5; border-radius: 3px; margin-top: 8px; overflow: hidden; }
@@ -363,16 +366,18 @@ onMounted(loadData)
 /* —— 快捷入口 —— */
 .quick-row { display: grid; grid-template-columns: repeat(6, 1fr); gap: 16px; margin-bottom: 16px; }
 .quick-item {
-  background: #fff; border: 1px solid #ebeef5; border-radius: 12px; padding: 20px 0;
+  background: var(--ds-surface, #fff); border: 1px solid var(--ds-border-light, #eef1f5);
+  border-radius: var(--ds-radius-lg, 14px); padding: 20px 0;
   display: flex; flex-direction: column; align-items: center; gap: 8px;
-  cursor: pointer; transition: all .2s; color: #4e5969;
+  cursor: pointer; transition: all .2s; color: var(--ds-text-2, #4e5969);
+  box-shadow: var(--ds-shadow-1, 0 1px 2px rgba(15,23,42,.04));
 }
-.quick-item:hover { border-color: #409eff; color: #409eff; box-shadow: 0 2px 8px rgba(64,158,255,.12); }
+.quick-item:hover { border-color: var(--ds-primary, #409eff); color: var(--ds-primary, #409eff); box-shadow: var(--ds-shadow-2, 0 4px 16px rgba(15,23,42,.06)); transform: translateY(-2px); }
 .quick-item span { font-size: 13px; }
 
 /* —— 每周横向进度条 —— */
 .weekchart-section { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
-.wchart-card { background: #fff; border: 1px solid #ebeef5; border-radius: 12px; padding: 18px 20px 16px; }
+.wchart-card { background: var(--ds-surface, #fff); border: 1px solid var(--ds-border-light, #eef1f5); border-radius: var(--ds-radius-lg, 14px); padding: 18px 20px 16px; box-shadow: var(--ds-shadow-1, 0 1px 2px rgba(15,23,42,.04)); }
 .wchart-head { display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 700; color: #1d2129; margin-bottom: 16px; }
 .wchart-total { font-weight: 700; font-size: 18px; color: #1d2129; margin-left: auto }
 .wch-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0 }

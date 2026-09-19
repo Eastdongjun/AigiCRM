@@ -14,8 +14,12 @@ function getCustomerCounts() {
 
 function addCustomer(data) { return request({ url: '/api/customer/add', method: 'POST', data }) }
 function updateCustomer(id, data) { return request({ url: '/api/customer/' + id, method: 'PUT', data }) }
+function deleteCustomer(id) { return request({ url: '/api/customer/' + id, method: 'DELETE' }) }
+function checkCustomerName(name) { return request({ url: '/api/customer/check-name', data: { name } }) }
 function getCustomerContacts(id) { return request({ url: '/api/customer/' + id + '/contacts' }) }
 function addCustomerContact(id, data) { return request({ url: '/api/customer/' + id + '/contacts', method: 'POST', data }) }
+function updateCustomerContact(id, contactId, data) { return request({ url: '/api/customer/' + id + '/contacts/' + contactId, method: 'PUT', data }) }
+function deleteCustomerContact(id, contactId) { return request({ url: '/api/customer/' + id + '/contacts/' + contactId, method: 'DELETE' }) }
 function getCustomerLogs(id) { return request({ url: '/api/customer/' + id + '/logs' }) }
 function addCustomerLog(id, data) { return request({ url: '/api/customer/' + id + '/logs', method: 'POST', data }) }
 function getInvoiceSummary(id) { return request({ url: '/api/customer/' + id + '/invoices/summary' }) }
@@ -29,9 +33,12 @@ function getCustomerGroupNames() { return request({ url: '/api/customer/group-na
 function addCustomerShares(id, userIds) { return request({ url: '/api/customer/' + id + '/shares', method: 'POST', data: { userIds } }) }
 function removeCustomerShare(id, userId) { return request({ url: '/api/customer/' + id + '/shares/' + userId, method: 'DELETE' }) }
 function addInvoice(id, data) { return request({ url: '/api/customer/' + id + '/invoices', method: 'POST', data }) }
+function deleteInvoice(id, invoiceId) { return request({ url: '/api/customer/' + id + '/invoices/' + invoiceId, method: 'DELETE' }) }
 function addPayment(id, data) { return request({ url: '/api/customer/' + id + '/payments', method: 'POST', data }) }
+function deletePayment(id, paymentId) { return request({ url: '/api/customer/' + id + '/payments/' + paymentId, method: 'DELETE' }) }
 function getCustomerIndicator(id) { return request({ url: '/api/customer/' + id + '/indicator' }) }
 function saveCustomerIndicator(id, data) { return request({ url: '/api/customer/' + id + '/indicator', method: 'POST', data }) }
+function saveCustomerRelationship(id, score) { return request({ url: '/api/customer/' + id + '/relationship', method: 'PUT', data: { score } }) }
 function releaseCustomer(id, reason) { return request({ url: '/api/customer/' + id + '/release', method: 'POST', data: { reason: reason || '移动端释放' } }) }
 
 module.exports = {
@@ -40,8 +47,12 @@ module.exports = {
   getCustomerCounts,
   addCustomer,
   updateCustomer,
+  deleteCustomer,
+  checkCustomerName,
   getCustomerContacts,
   addCustomerContact,
+  updateCustomerContact,
+  deleteCustomerContact,
   getCustomerLogs,
   addCustomerLog,
   getInvoiceSummary,
@@ -54,8 +65,11 @@ module.exports = {
   addCustomerShares,
   removeCustomerShare,
   addInvoice,
+  deleteInvoice,
   addPayment,
+  deletePayment,
   getCustomerIndicator,
   saveCustomerIndicator,
+  saveCustomerRelationship,
   releaseCustomer
 }

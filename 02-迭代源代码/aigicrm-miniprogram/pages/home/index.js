@@ -14,10 +14,29 @@ function formatToday(date = new Date()) {
   }
 }
 
+function buildExpiringRow(item, index) {
+  return {
+    ...item,
+    viewId: item.id || item.customerId || `expiring-${index}`,
+    ownerExpireText: `${item.ownerName || '负责人'} · 到期 ${item.expireDate || '-'}`,
+    remainingText: `剩 ${item.remainingDays || '--'} 天`
+  }
+}
+
+function buildHomeView(state = {}) {
+  const expiringRows = (state.expiring || []).map(buildExpiringRow)
+  return {
+    expiringRows,
+    expiringCountText: String(expiringRows.length),
+    showExpiringEmpty: expiringRows.length === 0
+  }
+}
+
 Page({
   data: {
     cards: homeCards,
     userName: '未登录',
+    userInitial: '未',
     orgName: '',
     roleName: '',
     appName: 'AIGICRM',
@@ -25,7 +44,13 @@ Page({
     expiring: [],
     canViewDashboard: false,
     showDashboardCards: false,
-    today: formatToday()
+    today: formatToday(),
+    homeView: buildHomeView({})
+  },
+
+  applyState(patch) {
+    const next = { ...this.data, ...patch }
+    this.setData({ ...patch, homeView: buildHomeView(next) })
   },
 
   onLoad() {
@@ -33,8 +58,8 @@ Page({
     const app = getApp()
     this.setData({ appName: app.globalData.appName || 'AIGICRM' })
     if (app.globalData.demoMode) {
-      this.setData({ userName: '张三', orgName: '晋蒙业务部', roleName: '业务员', canViewDashboard: true, showDashboardCards: true })
-      this.setData({ pendingCount: reminderRecords.length, expiring: reminderRecords.filter((item) => item.expireDate) })
+      this.setData({ userName: '张三', userInitial: '张', orgName: '晋蒙业务部', roleName: '业务员', canViewDashboard: true, showDashboardCards: true })
+      this.applyState({ pendingCount: reminderRecords.length, expiring: reminderRecords.filter((item) => item.expireDate) })
       return
     }
 
@@ -56,25 +81,35 @@ Page({
     }
 
     loadCurrentUser().then((user) => {
+      const userName = user.realName || user.username || '当前用户'
       this.setData({
-        userName: user.realName || user.username || '当前用户',
+        userName,
+        userInitial: userName ? userName.slice(0, 1) : '用',
         orgName: user.deptName || '',
         roleName: user.roleName || ''
       })
     }).catch((error) => {
-      this.setData({ userName: '未登录' })
+      this.setData({ userName: '未登录', userInitial: '未' })
       showError(error, '用户信息加载失败')
     })
     getPendingCount().then((count) => this.setData({ pendingCount: count || 0 })).catch((error) => showError(error, '提醒数量加载失败'))
-    getExpiringList({ current: 1, size: 5 }).then((page) => this.setData({ expiring: (page.records || page.list || page.rows || []).slice(0, 5) })).catch((error) => showError(error, '到期提醒加载失败'))
+    getExpiringList({ current: 1, size: 5 }).then((page) => this.applyState({ expiring: (page.records || page.list || page.rows || []).slice(0, 5) })).catch((error) => showError(error, '到期提醒加载失败'))
   },
 
   openIncentive() {
     if (!hasPermission('incentive:view') && !getApp().globalData.demoMode) {
-      wx.showToast({ title: '没有激励查询权限', icon: 'none' })
+      wx.showToast({ title: '没有四项激励查看权限', icon: 'none' })
       return
     }
     wx.navigateTo({ url: '/pages/incentive/index' })
+  },
+
+  openIncentiveUpload() {
+    if (!hasPermission('incentive:add') && !getApp().globalData.demoMode) {
+      wx.showToast({ title: '没有四项激励上传权限', icon: 'none' })
+      return
+    }
+    wx.navigateTo({ url: '/pages/incentive/upload/index' })
   },
 
   openApproval() {
@@ -102,7 +137,7 @@ Page({
   },
 
   openCustomer(e) {
-    const item = this.data.expiring[e.currentTarget.dataset.index]
+    const item = this.data.homeView.expiringRows[e.currentTarget.dataset.index]
     if (item && item.customerId) wx.navigateTo({ url: '/pages/customer/detail/index?id=' + item.customerId + '&from=home' })
   },
 

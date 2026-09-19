@@ -1,2 +1,20 @@
-<view class="page login-page"><view class="login-panel"><view class="hero-title">AIGICRM</view><view class="muted">{{demoMode ? '当前为演示模式，无需账号密码' : '使用 PC 端同一账号登录'}}</view><input wx:if="{{!demoMode}}" class="input" placeholder="用户名" value="{{username}}" bindinput="onUsernameInput" /><input wx:if="{{!demoMode}}" class="input" placeholder="密码" password value="{{password}}" bindinput="onPasswordInput" /><button class="btn login-btn" loading="{{loading}}" bindtap="submit">{{demoMode ? '进入原型' : '登录'}}</button></view></view>
-<button wx:if="{{!demoMode}}" class="text-btn forgot-btn" bindtap="openForgot">忘记密码？</button>
+<view class="page login-page">
+  <view class="login-orb login-orb-one"></view>
+  <view class="login-orb login-orb-two"></view>
+  <view class="login-panel">
+    <view class="login-brand-mark">AI</view>
+    <view class="login-kicker">智能客户运营工作台</view>
+    <view class="hero-title login-title">AIGICRM</view>
+    <view class="login-copy">{{loginView.copyText}}</view>
+    <view wx:if="{{loginView.showAccountFields}}" class="login-field">
+      <text class="field-label">用户名</text>
+      <input class="input" placeholder="请输入用户名" value="{{username}}" bindinput="onUsernameInput" />
+    </view>
+    <view wx:if="{{loginView.showAccountFields}}" class="login-field">
+      <text class="field-label">密码</text>
+      <input class="input" placeholder="请输入密码" password value="{{password}}" bindinput="onPasswordInput" />
+    </view>
+    <button class="btn login-btn" loading="{{loginView.submitLoading}}" bindtap="submit">{{loginView.submitText}}</button>
+    <button wx:if="{{loginView.showForgotAction}}" class="text-btn forgot-btn" bindtap="openForgot">忘记密码？</button>
+  </view>
+</view>

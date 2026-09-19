@@ -1,0 +1,77 @@
+<view class="page">
+  <view class="hero"><view class="row"><view><view class="hero-title">排行中心</view><view class="hero-sub">客户贡献与积分排行统一查看</view></view><button class="ghost-btn" bindtap="refresh" loading="{{rankingView.refreshLoading}}">{{rankingView.refreshText}}</button></view></view>
+  <view class="summary-grid">
+    <view wx:for="{{rankingView.summaryCards}}" wx:key="key" class="summary-cell"><text>{{item.valueText}}</text><text>{{item.label}}</text></view>
+  </view>
+  <view class="ranking-context-card">
+    <view class="ranking-context-head">
+      <text>当前排行口径</text>
+      <view>{{rankingView.contextSummary}}</view>
+    </view>
+    <view class="ranking-context-grid">
+      <view wx:for="{{rankingView.contextChips}}" wx:key="label">
+        <text>{{item.label}}</text>
+        <view>{{item.value}}</view>
+      </view>
+    </view>
+  </view>
+  <view class="card score-top-card">{{rankingView.topScoreText}}</view>
+  <view class="section-head">
+    <view>
+      <view class="section-title">积分排行</view>
+      <view class="section-sub">个人/部门排行使用评分周期，与 PC 端同一接口口径</view>
+    </view>
+    <picker mode="selector" range="{{periodOptions}}" range-key="label" value="{{periodIndex}}" bindchange="onPeriodChange">
+      <view class="period-chip">{{rankingView.scorePeriodText}}</view>
+    </picker>
+  </view>
+  <view class="ranking-tabs compact">
+    <block wx:for="{{scoreTabsView}}" wx:key="key">
+      <view class="{{item.className}}" data-key="{{item.key}}" bindtap="switchScoreTab">{{item.title}}</view>
+    </block>
+  </view>
+  <block wx:for="{{scoreListView}}" wx:key="rank">
+    <view class="card score-rank-card" data-index="{{index}}" bindtap="openScoreDetail">
+      <view class="score-rank-no">{{item.displayRank}}</view>
+      <view class="score-rank-main">
+        <view class="score-rank-title">{{item.title}}</view>
+        <view class="score-rank-meta">{{item.meta}}</view>
+      </view>
+      <view class="score-rank-value">{{item.totalScoreText}}<text>分</text></view>
+    </view>
+  </block>
+  <view wx:if="{{rankingView.showScoreEmpty}}" class="card muted">暂无积分排行数据</view>
+  <view class="card score-rule-card">
+    <view>积分规则</view>
+    <text>总积分按周期内评分项汇总；同分优先比较文件数，文件数相同再按姓名排序。</text>
+  </view>
+  <view class="section-head customer-section-head">
+    <view>
+      <view class="section-title">客户排行</view>
+      <view class="section-sub">四项激励、客情关系、核心指标统一客户口径</view>
+    </view>
+    <picker mode="selector" range="{{customerPeriodOptions}}" range-key="label" value="{{customerPeriodIndex}}" bindchange="onCustomerPeriodChange">
+      <view class="period-chip">{{rankingView.customerPeriodText}}</view>
+    </picker>
+  </view>
+  <view class="ranking-tabs">
+    <block wx:for="{{tabsView}}" wx:key="key">
+      <view class="{{item.className}}" data-key="{{item.key}}" bindtap="switchTab">{{item.title}}</view>
+    </block>
+  </view>
+  <view wx:if="{{rankingView.showLoading}}" class="card muted">{{rankingView.loadingText}}</view>
+  <block wx:for="{{customerListView}}" wx:key="customerId">
+    <view class="card ranking-card" data-index="{{index}}" bindtap="openDetail">
+      <view class="ranking-card-head">
+        <view class="ranking-title">{{item.displayRank}}. {{item.title}}</view>
+        <text class="ranking-score">{{item.scoreText}} 分</text>
+      </view>
+      <view class="ranking-meta">{{item.ownerIndustryText}}</view>
+      <view wx:if="{{item.showIncentive}}" class="ranking-meta">{{item.recordCountText}}</view>
+      <view wx:if="{{item.showIncentive}}" class="ranking-meta">{{item.parentStatsText}}</view>
+      <view wx:if="{{item.showCore}}" class="ranking-meta">{{item.coreScoreText}}</view>
+      <view wx:if="{{item.showCore}}" class="ranking-meta">{{item.coreFinanceText}}</view>
+    </view>
+  </block>
+  <view wx:if="{{rankingView.showCustomerEmpty}}" class="card muted">暂无排行数据</view>
+</view>

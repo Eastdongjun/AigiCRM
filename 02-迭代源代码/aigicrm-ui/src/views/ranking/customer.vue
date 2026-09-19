@@ -6,7 +6,7 @@
         <p class="page-desc">按客户统一查看四项激励、客情商务关系深度、核心客户六项指标</p>
       </div>
       <el-select v-model="period" class="period-select" size="small" @change="loadData">
-        <el-option v-for="p in periodOptions" :key="p" :label="p" :value="p" />
+        <el-option v-for="p in periodOptions" :key="p.value" :label="p.label" :value="p.value" />
       </el-select>
     </div>
 
@@ -108,17 +108,15 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
 import { getCustomerRankings } from '@/api/statistics'
+import { buildPeriodOptions, periodQueryValue } from '@/utils/incentive-period'
 
 const loading = ref(false)
 const activeTab = ref('incentive')
-const period = ref('2026上半年')
+// 【2026-09-12】默认「全部」：原来默认 '2026上半年' 而库内数据是 '2026全年' ⇒ 打开页面 0 条
+const period = ref('')
 const rankingData = ref({})
 
-const periodOptions = (() => {
-  const list = []
-  for (let y = 2030; y >= 2025; y--) list.push(y + '下半年', y + '上半年')
-  return list
-})()
+const periodOptions = buildPeriodOptions()
 
 const incentiveParents = computed(() => rankingData.value.incentiveParents || [])
 
@@ -140,7 +138,7 @@ function moneyText(value) {
 async function loadData() {
   loading.value = true
   try {
-    const res = await getCustomerRankings({ period: period.value })
+    const res = await getCustomerRankings({ period: periodQueryValue(period.value) })
     rankingData.value = res.data || {}
   } finally {
     loading.value = false

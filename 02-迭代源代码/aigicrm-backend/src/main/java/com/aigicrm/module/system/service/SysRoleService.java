@@ -45,6 +45,8 @@ public class SysRoleService {
     public List<SysRole> list() {
         LambdaQueryWrapper<SysRole> wrapper = new LambdaQueryWrapper<SysRole>().orderByAsc(SysRole::getSortOrder);
         List<Long> groupIds = GroupScopeUtil.visibleGroupIds();
+        // 【PR-01 P0-02 fail-closed】无集团归属直接空集，不下发任何记录
+        if (groupIds != null && groupIds.isEmpty()) return java.util.List.of();
         if (groupIds != null) {
             wrapper.in(SysRole::getGroupId, groupIds);
         }
@@ -107,6 +109,8 @@ public class SysRoleService {
         // 传了但越权（非 admin 建到其他集团）→ 拒绝
         if (role.getGroupId() == null) {
             List<Long> g = GroupScopeUtil.visibleGroupIds();
+            // 【PR-01 P0-02 fail-closed】无集团归属账号不再默认建到主集团 1，直接拒绝
+            if (g != null && g.isEmpty()) throw new BusinessException("当前账号无有效集团归属，无法创建角色");
             role.setGroupId(g == null ? GroupScopeUtil.DEFAULT_GROUP_ID : g.get(0));
         } else if (!GroupScopeUtil.canAccessGroup(role.getGroupId())) {
             throw new BusinessException("无权在该集团创建角色");
@@ -232,7 +236,14 @@ public class SysRoleService {
         }
         userRoleMapper.delete(new LambdaQueryWrapper<SysUserRole>().eq(SysUserRole::getRoleId, id));
         // 【修复 2026-08-10 P3-06】角色删除连带清理 biz_folder_acl(角色维度授权, 防 ID 复用权限复活)
-        jdbc.update("DELETE FROM biz_folder_acl WHERE role_id=?", id);
+        // 【PR-01 N-07 2026-09-18】原生 DELETE 同样受租户边界约束(biz_folder_acl 在白名单内)，
+        // 按被删角色自身集团限定，避免跨集团误删同 role_id 行。
+        if (existing.getGroupId() != null) {
+            jdbc.update("DELETE FROM biz_folder_acl WHERE role_id=? AND tenant_id=?",
+                    id, existing.getGroupId());
+        } else {
+            jdbc.update("DELETE FROM biz_folder_acl WHERE role_id=?", id);
+        }
         // 【Redis 权限缓存】删除角色立即失效其用户缓存（用删除前捕获的用户列表，反查已不可用）
         for (Long uid : affectedUserIds) {
             permissionCacheService.evict(uid);

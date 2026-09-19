@@ -77,6 +77,9 @@ public class IncentiveController {
      * 去掉方法级 @PreAuthorize 硬码，已卸 edit 码的销售员仍可改本人记录（本人恒可）。
      * 登录保护由 SecurityConfig anyRequest().authenticated() 兜底。
      */
+    // 【PR-01 N-03 2026-09-18】方法级注解做底线（本人恒可语义保留在方法内守卫），
+    // 此前完全无注解，仅靠方法内单一守卫。
+    @PreAuthorize("hasAuthority('incentive:view')")
     @PutMapping("/records/{id}")
     public Result<Void> updateRecord(@PathVariable Long id, @RequestBody BizIncentiveRecord record) {
         SecurityUser user = SecurityUtils.getCurrentUser();
@@ -101,6 +104,8 @@ public class IncentiveController {
     }
 
     /** 同 updateRecord：归属校验在方法内（admin ∨ can_delete 迁移授权 ∨ 记录本人），去方法级硬码 */
+    // 【PR-01 N-03】incentive:view 底线注解，归属仍由方法内守卫判定。
+    @PreAuthorize("hasAuthority('incentive:view')")
     @DeleteMapping("/records/{id}")
     public Result<Void> deleteRecord(@PathVariable Long id) {
         SecurityUser user = SecurityUtils.getCurrentUser();
@@ -168,6 +173,19 @@ public class IncentiveController {
     @GetMapping("/read-stats")
     public Result<List<Map<String, Object>>> readStats(@RequestParam(required = false) String period) {
         return Result.ok(incentiveService.readStats(period));
+    }
+
+    /**
+     * 本月激励查询阅读排行榜（2026-09-13 新增页面数据源）
+     *
+     * 【需求】系统设置下新增「本月激励查询阅读排行榜」页；权限码 incentive:read-ranking:view
+     *         默认只绑给系统管理员角色，管理员在角色管理里勾选后其它角色才可见（菜单与接口同码）
+     * 【参数】period 形如 2026-09，缺省=当月
+     */
+    @PreAuthorize("hasAuthority('incentive:read-ranking:view')")
+    @GetMapping("/read-ranking")
+    public Result<Map<String, Object>> readRanking(@RequestParam(required = false) String period) {
+        return Result.ok(incentiveService.readRanking(period));
     }
 
     /** 激励统计表(全员口径): 按子类聚合文件数/总积分 + 周期总计 */

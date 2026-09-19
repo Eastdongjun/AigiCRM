@@ -45,15 +45,25 @@ public class MybatisPlusConfig {
     @Value("${aigicrm.tenant.enable:false}")
     private boolean tenantEnable;
 
+    /** 当前激活 profile（G-02 生产 fail-closed 判定用） */
+    @Value("${spring.profiles.active:default}")
+    private String activeProfile;
+
     /** 懒获取 JdbcTemplate(测试上下文无数据源时 getIfAvailable 返回 null, 自检降级跳过) */
     private final org.springframework.beans.factory.ObjectProvider<org.springframework.jdbc.core.JdbcTemplate> jdbcTemplateProvider;
 
     /**
      * 启动自检：租户开启时校验白名单每张表都有 tenant_id 列, 缺失即启动失败。
      * 防止"迁移未执行 / 新表漏配"导致运行时 SQL 报错(历史教训: V7 迁移遗漏致生产 500)。
+     * 【PR-01 G-02 2026-09-18】生产 profile 下未开启租户隔离直接启动失败(fail-closed)，
+     * 不同启动路径(deploy 脚本/compose/直启)不再允许得到不同的隔离结果。
      */
     @PostConstruct
     public void verifyTenantColumns() {
+        if (isProdProfile() && !tenantEnable) {
+            throw new IllegalStateException(
+                    "生产环境必须显式开启租户隔离(aigicrm.tenant.enable=true / TENANT_ENABLE=true)，拒绝以隔离关闭状态启动");
+        }
         if (!tenantEnable) return;
         org.springframework.jdbc.core.JdbcTemplate jdbc = jdbcTemplateProvider.getIfAvailable();
         if (jdbc == null) {
@@ -120,12 +130,11 @@ public class MybatisPlusConfig {
     }
 
     /**
-     * 集团过滤表达式：
+     * 集团过滤表达式【PR-01 P0-02/G-02 2026-09-18 fail-closed】：
      * <ul>
-     *   <li>空/无集团（平台管理员）→ {@code tenant_id = 1} 主集团默认值。brief 原方案
-     *       {@code new NullExpression()}（jsqlparser NullValue）经实验验证（parserSingle 真实重写）
-     *       会生成 {@code tenant_id = NULL}——MP 3.5.6 无条件 EqualsTo 包装、无 NullValue 特判，
-     *       恒假而非恒真，故按契约退回主集团默认值方案。</li>
+     *   <li>空/无集团（非 admin）→ {@code tenant_id = NULL} 恒假，查询恒为空集。
+     *       brief 原方案 NullExpression 经实验验证生成 {@code tenant_id = NULL}——恒假正是
+     *       fail-closed 需要的语义（此前误当"非恒真"缺陷退回主集团 1，实为放行）。</li>
      *   <li>单集团 → 该集团 ID。</li>
      *   <li>多集团 → 3.5.6 无 InExpression 特判，{@code new InExpression(null, ...)} 会生成
      *       {@code tenant_id = null IN (...)} 非法 SQL；暂取排序后最小集团 fail-closed
@@ -135,7 +144,7 @@ public class MybatisPlusConfig {
      */
     static Expression resolveTenantId(List<Long> groupIds) {
         if (groupIds == null || groupIds.isEmpty()) {
-            return new LongValue(1L);
+            return new net.sf.jsqlparser.expression.NullValue();
         }
         if (groupIds.size() == 1) {
             return new LongValue(groupIds.get(0));
@@ -155,9 +164,21 @@ public class MybatisPlusConfig {
         return new LongValue(chosen);
     }
 
+    /** 是否生产 profile（逗号分隔多 profile 时含 prod 即算） */
+    static boolean isProdProfile(String activeProfile) {
+        if (activeProfile == null) return false;
+        for (String p : activeProfile.split(",")) {
+            if ("prod".equalsIgnoreCase(p.trim())) return true;
+        }
+        return false;
+    }
+
+    private boolean isProdProfile() {
+        return isProdProfile(activeProfile);
+    }
+
     @Bean
-    public MetaObjectHandler metaObjectHandler() {
-        return new MetaObjectHandler() {
+    public MetaObjectHandler metaObjectHandler() {        return new MetaObjectHandler() {
             @Override
             public void insertFill(MetaObject metaObject) {
                 this.strictInsertFill(metaObject, "createdAt", LocalDateTime.class, LocalDateTime.now());

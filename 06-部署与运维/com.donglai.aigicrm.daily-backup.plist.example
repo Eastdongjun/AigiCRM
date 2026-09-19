@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.donglai.aigicrm.daily-backup</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>/Users/dongjun/东来/项目/01-进行中/01-AIGICRM/02-迭代源代码/scripts/backup-retention.sh</string>
+  </array>
+
+  <key>StartCalendarInterval</key>
+  <dict>
+    <key>Hour</key>
+    <integer>2</integer>
+    <key>Minute</key>
+    <integer>20</integer>
+  </dict>
+
+  <key>StandardOutPath</key>
+  <string>/Users/dongjun/东来/项目/01-进行中/01-AIGICRM/08-备份索引/10-每日全量备份/backup-retention.out.log</string>
+
+  <key>StandardErrorPath</key>
+  <string>/Users/dongjun/东来/项目/01-进行中/01-AIGICRM/08-备份索引/10-每日全量备份/backup-retention.err.log</string>
+
+  <key>RunAtLoad</key>
+  <false/>
+</dict>
+</plist>

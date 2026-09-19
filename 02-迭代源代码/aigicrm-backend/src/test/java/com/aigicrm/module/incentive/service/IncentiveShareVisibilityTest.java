@@ -265,11 +265,16 @@ class IncentiveShareVisibilityTest {
         }
     }
 
-    /** 已读标记用唯一键 upsert，PC 与移动端重复打开同一记录必须幂等。 */
+    /** 已读标记用唯一键 upsert，PC 与移动端重复打开同一记录必须幂等。
+     * 【PR-01 P0-04】markRead 先过可见性：此处桩出"本人+同集团"可见记录。 */
     @Test
     void markReadUsesIdempotentUpsert() {
         try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
             m.when(SecurityUtils::getCurrentUserId).thenReturn(7L);
+            m.when(SecurityUtils::isAdmin).thenReturn(false);
+            m.when(SecurityUtils::getCurrentGroupIds).thenReturn(List.of(1L));
+            when(jdbc.queryForMap(anyString(), eq(99L))).thenReturn(
+                    java.util.Map.of("user_id", 7L, "shared", 1, "tenant_id", 1L));
 
             IncentiveService svc = newService();
             svc.markRead(99L);

@@ -59,7 +59,7 @@
         <span>{{ total > 0 ? (query.current - 1) * query.size + 1 : 0 }}-{{ Math.min(query.current * query.size, total) }}条 / 共{{ total }}条</span>
         <!-- 日志列表分页: layout 加入 sizes 后右侧出现每页条数下拉(15/30/50), 用户可按需切换; 默认仍 15 条/页 -->
         <el-pagination v-model:current-page="query.current" v-model:page-size="query.size" :total="total"
-          :page-sizes="[15, 30, 50]" layout="prev, pager, next, sizes" size="small" @change="loadData" />
+          :page-sizes="pageSizes(query.size)" layout="sizes, prev, pager, next, jumper" size="small" @change="loadData" @size-change="query.current = 1" />
       </div>
     </div>
 
@@ -81,6 +81,7 @@
 import { ref, reactive, computed, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { getLogList } from '@/api/system'
 import request from '@/utils/request'
+import { pageSizes } from '@/utils/pagination'
 
 const tableData = ref([])
 const total = ref(0)

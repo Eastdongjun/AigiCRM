@@ -42,6 +42,7 @@ Make PC and mobile share the same backend data, account identity, permission mod
 
 ## P1 Manual QA Checklist
 
+- [ ] Use the `PC/小程序同数据对账记录模板` in `docs/mobile-manual-qa-checklist.md` for every live PC/mobile comparison; each row must include backend environment, account role/permission set, PC evidence, mobile evidence, interface/permission result, conclusion, and residual differences.
 - [ ] Login with an existing PC account in mobile real-backend mode.
 - [ ] Confirm `/api/auth/login` returns a token and `/api/auth/info` returns the same user id, real name, role, data scope, and permissions as PC.
 - [ ] Confirm an account without `incentive:view` cannot open the mobile incentive tab.
@@ -61,7 +62,7 @@ Make PC and mobile share the same backend data, account identity, permission mod
 - [x] Map PC customer list fields to mobile card fields.
 - [x] Add mobile customer search and detail page through existing customer APIs.
 - [x] Reuse backend customer data-scope rules without duplicating them in mobile.
-- [ ] Verify same user sees the same allowed customer set on PC and mobile.
+- [ ] Live QA only: verify same user sees the same allowed customer set on PC and mobile.
 - [~] ~~Complete mobile and PC file preview/download entry for customer-related files.~~ **2026-09-13 作废并移除**（小程序为公司内部使用、不面向客户 ⇒ 不需要"按客户关联文件"）：PC 客户详情文件 Tab、小程序客户文件入口与关联/解除、后端端点与服务、关联表（V2026.09.13.5 迁移）均已删除。原设计见已作废的 ADR `permission/adr-20260909-customer-file-association.md`。
 - [x] Add tests or manual QA evidence for customer access boundaries.
 
@@ -83,7 +84,7 @@ Make PC and mobile share the same backend data, account identity, permission mod
 
 ## P4 Manual QA Checklist
 
-- [ ] Login with a user that has `file:view` and confirm mobile customer-file list matches PC customer-file list for the same customer.
+- [ ] Login with a user that has `file:view` and confirm the mobile file center list/preview matches the PC file center for the same account and folder/keyword filters.
 - [ ] Login without `file:view` and confirm the mobile file tab redirects back to home.
 - [ ] Open an image file and confirm WeChat image preview uses backend download authorization.
 - [ ] Open a PDF or Office document and confirm `wx.openDocument` works after `wx.downloadFile`.
@@ -94,7 +95,7 @@ Make PC and mobile share the same backend data, account identity, permission mod
 - [x] Add mobile approval todo list.
 - [x] Add approve/reject actions using existing backend approval APIs.
 - [x] Reuse backend permission and ownership checks.
-- [ ] Verify PC and mobile approval state synchronize after action.
+- [ ] Live QA only: verify PC and mobile approval state synchronize after action.
 - [x] Add audit-log evidence for mobile approval actions. The mobile approval contract now checks approve/reject routes and the backend persistence of node action, comment, and operatedAt; `ApprovalApproveRejectSecurityTest` covers the service behavior.
 
 ## P5 Manual QA Checklist
@@ -109,16 +110,16 @@ Make PC and mobile share the same backend data, account identity, permission mod
 ## P6 Sea Pool And Operations
 
 - [x] Identify mobile-safe sea pool workflows.
-- [x] Add mobile read-only sea pool list first.
-- [ ] Add claim/edit actions only after permission and data-scope checks are verified.
-- [ ] Verify same role has matching visibility on PC and mobile.
+- [x] Add mobile public sea list/statistics/visible-pool selector.
+- [x] Add claim/edit/delete actions guarded by backend `canClaim/canEdit/canDelete` and service-layer data-scope checks; import/config remain PC-only.
+- [ ] Live QA only: verify same role has matching visibility on PC and mobile.
 
 ## P6 Manual QA Checklist
 
 - [ ] Login with a user that has `sea:view` and confirm mobile public sea list matches PC for the same filters.
 - [ ] Login without `sea:view` and confirm mobile public sea page redirects back to home.
 - [ ] Confirm visible pools come from `/api/sea/configs/visible`, not local hard-coded pool rules.
-- [ ] Confirm mobile only displays `canClaim`, `canEdit`, and `canDelete` returned by backend and does not execute those actions in this phase.
+- [ ] Confirm mobile only displays and executes row actions according to backend `canClaim`, `canEdit`, and `canDelete` flags; denied rows must hide actions or fail through backend guards.
 - [ ] Compare statistics from PC and mobile for total, new-this-month, pending approval, and claimed-this-month.
 
 ## P7 Account Binding Evolution

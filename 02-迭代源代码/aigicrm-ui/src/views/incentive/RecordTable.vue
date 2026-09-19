@@ -63,19 +63,36 @@
     </el-table>
     <div class="list-footer">
       <span class="list-footer-count">共 <b>{{ filteredRecords.length }}</b> 条</span>
-      <el-pagination v-model:current-page="pageNum" :page-size="pageSize" :total="filteredRecords.length" layout="prev, pager, next" size="small" background />
+      <!-- 2026-09-13：补「每页条数」下拉（30/50/100），此前只有翻页按钮 -->
+      <el-pagination
+        v-model:current-page="pageNum"
+        :page-size="pageSize"
+        :total="filteredRecords.length"
+        :page-sizes="pageSizes(pageSize)"
+        layout="sizes, prev, pager, next, jumper"
+        size="small"
+        background
+        @size-change="onSizeChange"
+      />
     </div>
   </div>
 </template>
 
 <script setup>
 import { injectIncentiveUpload } from '@/composables/useIncentiveUpload'
+import { pageSizes } from '@/utils/pagination'
 
 const {
   userStore, pagedRecords, filteredRecords, pageNum, pageSize,
   canEdit, canDelete, scoreColor, formatDate, fileType, previewFile,
   startReplace, toggleShare, handleDeleteRecord, isRecordOwner,
 } = injectIncentiveUpload()
+
+// 切换每页条数后回到第 1 页（否则可能停在一个已不存在的页码上看到空表）
+const onSizeChange = (size) => {
+  pageSize.value = size
+  pageNum.value = 1
+}
 </script>
 
 <style scoped>

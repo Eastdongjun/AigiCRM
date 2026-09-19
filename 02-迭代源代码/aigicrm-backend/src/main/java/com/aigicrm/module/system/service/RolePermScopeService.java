@@ -1,5 +1,6 @@
 package com.aigicrm.module.system.service;
 
+import com.aigicrm.common.BusinessException;
 import com.aigicrm.common.scope.ScopeConfig;
 import com.aigicrm.common.scope.ScopeRequest;
 import com.aigicrm.security.SecurityUser;
@@ -67,8 +68,10 @@ public class RolePermScopeService {
                 }
             }
         } catch (Exception e) {
-            // 配置表缺失/查询失败降级为空(范围走 dataScope 回退, 不阻断登录)
-            return all;
+            // 【PR-01 P1-08 2026-09-18 fail-closed】配置表缺失/查询失败不再降级为空
+            // （此前返回已加载/空配置，后续回退角色旧 dataScope，可能放宽到更宽范围）。
+            // 授权元数据不可用即明确 503，调用方不得用未经证实的默认范围继续放行。
+            throw new BusinessException(503, "权限范围配置读取失败，暂不可用");
         }
         return all;
     }
@@ -143,7 +146,9 @@ public class RolePermScopeService {
             cache.put(key, new CacheEntry(value, System.currentTimeMillis() + CACHE_TTL_MS));
             return value;
         } catch (Exception e) {
-            return null;
+            // 【PR-01 N-04 2026-09-18 fail-closed】DB 异常不再返 null 伪装"未配置"
+            // （调用方会回退默认 dataScope，可能比显式配置更宽）。未知即 503。
+            throw new BusinessException(503, "权限范围配置读取失败，暂不可用");
         }
     }
 
@@ -283,13 +288,14 @@ public class RolePermScopeService {
         bumpAllPermVersions();
     }
 
-    /** 是否有任意范围配置(判断"是否已进入新模式") */
+    /** 是否有任意范围配置(判断"是否已进入新模式")。
+     * 【PR-01 N-04】DB 异常不再返 false 伪装"无配置"（会退回旧 dataScope 路径），未知即 503。 */
     public boolean hasAnyConfig() {
         try {
             Integer n = jdbc.queryForObject("SELECT COUNT(*) FROM role_perm_scope", Integer.class);
             return n != null && n > 0;
         } catch (Exception e) {
-            return false;
+            throw new BusinessException(503, "权限范围配置读取失败，暂不可用");
         }
     }
 

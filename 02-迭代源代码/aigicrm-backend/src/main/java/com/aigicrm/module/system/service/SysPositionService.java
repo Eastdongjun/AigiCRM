@@ -46,6 +46,8 @@ public class SysPositionService {
     public List<SysPosition> list() {
         LambdaQueryWrapper<SysPosition> wrapper = new LambdaQueryWrapper<SysPosition>().orderByAsc(SysPosition::getSort);
         List<Long> groupIds = GroupScopeUtil.visibleGroupIds();
+        // 【PR-01 P0-02 fail-closed】无集团归属直接空集，不下发任何记录
+        if (groupIds != null && groupIds.isEmpty()) return java.util.List.of();
         if (groupIds != null) {
             wrapper.in(SysPosition::getGroupId, groupIds);
         }
@@ -73,6 +75,8 @@ public class SysPositionService {
         // 【修复 岗位创建集团边界】未传 groupId 时显式兜底：非 admin=当前用户集团，admin=主集团 1；越权拒绝
         if (position.getGroupId() == null) {
             List<Long> g = GroupScopeUtil.visibleGroupIds();
+            // 【PR-01 P0-02 fail-closed】无集团归属账号不再默认建到主集团 1，直接拒绝
+            if (g != null && g.isEmpty()) throw new BusinessException("当前账号无有效集团归属，无法创建岗位");
             position.setGroupId(g == null ? 1L : g.get(0));
         } else if (!GroupScopeUtil.canAccessGroup(position.getGroupId())) {
             throw new BusinessException("无权在该集团创建岗位");

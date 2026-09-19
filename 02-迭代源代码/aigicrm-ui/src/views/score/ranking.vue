@@ -19,8 +19,8 @@
       <div class="period-select">
         <span>评分周期</span>
         <el-select v-model="selectedPeriod" style="width:140px" @change="loadData">
-          <el-option label="全部" value="" />
-          <el-option v-for="p in periodOptions" :key="p" :label="p" :value="p" />
+          <!-- 【2026-09-12】移除硬编码的"全部"：得分接口按周期等值过滤，空周期必然 0 条（避免给出无效选项） -->
+          <el-option v-for="p in periodOptions" :key="p.value" :label="p.label" :value="p.value" />
         </el-select>
       </div>
     </div>
@@ -71,7 +71,7 @@
           </template>
         </el-table-column>
       </el-table>
-      <el-pagination v-if="personalList.length > pageSize" v-model:current-page="pageNum" :page-size="pageSize" :total="personalList.length" layout="prev, pager, next" size="small" background style="justify-content:flex-end;margin-top:12px" />
+      <el-pagination v-if="personalList.length > pageSize" v-model:current-page="pageNum" :page-size="pageSize" :total="personalList.length" :page-sizes="pageSizes(pageSize)" layout="sizes, prev, pager, next, jumper" size="small" background @size-change="onSizeChange" style="justify-content:flex-end;margin-top:12px" />
       <div class="rank-footer">
         <span class="footer-note">同分时按文件数排序，文件数相同则按姓名排序</span>
         <span class="footer-time">最近更新：{{ new Date().toLocaleString() }}</span>
@@ -97,7 +97,7 @@
           <template #default="{ row }">{{ row.avgScore }}分</template>
         </el-table-column>
       </el-table>
-      <el-pagination v-if="deptList.length > pageSize" v-model:current-page="pageNum" :page-size="pageSize" :total="deptList.length" layout="prev, pager, next" size="small" background style="justify-content:flex-end;margin-top:12px" />
+      <el-pagination v-if="deptList.length > pageSize" v-model:current-page="pageNum" :page-size="pageSize" :total="deptList.length" :page-sizes="pageSizes(pageSize)" layout="sizes, prev, pager, next, jumper" size="small" background @size-change="onSizeChange" style="justify-content:flex-end;margin-top:12px" />
     </div>
 
     <el-dialog v-model="showRules" title="积分规则" width="500px">
@@ -112,19 +112,21 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
 import { getScoreRanking, getScoreRankingStats } from '@/api/score'
+import { buildPeriodOptions, defaultRecordPeriod } from '@/utils/incentive-period'
+import { pageSizes } from '@/utils/pagination'
 
 const activeTab = ref('personal')
-const periodOptions = (() => {
-  const list = []
-  for (let y = 2030; y >= 2025; y--) list.push(y + '下半年', y + '上半年')
-  return list
-})()
-const selectedPeriod = ref('')
+// 【2026-09-12】选项统一含「全年」（库内得分数据是 2026全年）；得分接口按周期等值过滤，
+// 不支持"全部"，故这里去掉「全部」选项，并把默认周期设为当年「全年」（原来默认空串 ⇒ 必然 0 条）。
+const periodOptions = buildPeriodOptions().filter((option) => option.value)
+const selectedPeriod = ref(defaultRecordPeriod())
 const personalList = ref([])
 const deptList = ref([])
 const stats = ref({})
 const pageNum = ref(1)
 const pageSize = ref(15)
+// 切换每页条数后回到第 1 页
+const onSizeChange = (size) => { pageSize.value = size; pageNum.value = 1 }
 const pagedPersonal = computed(() => personalList.value.slice((pageNum.value - 1) * pageSize.value, pageNum.value * pageSize.value))
 const pagedDept = computed(() => deptList.value.slice((pageNum.value - 1) * pageSize.value, pageNum.value * pageSize.value))
 const showRules = ref(false)

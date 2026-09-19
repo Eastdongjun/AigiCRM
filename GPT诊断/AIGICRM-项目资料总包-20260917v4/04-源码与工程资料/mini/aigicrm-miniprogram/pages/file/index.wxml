@@ -1,0 +1,3 @@
+<view class="page legacy-file-page">
+  <view class="empty-state"><text>正在打开文件库...</text></view>
+</view>

@@ -1,0 +1,43 @@
+<view class="page customer-page">
+  <view class="customer-top">
+    <view>
+      <view class="customer-title">客户</view>
+      <view class="page-caption">{{customerView.summaryText}}</view>
+    </view>
+    <view class="home-actions">
+      <text wx:if="{{canViewSea}}" class="home-icon" bindtap="openSea">海</text>
+      <text class="home-icon" bindtap="resetFilters">↺</text>
+    </view>
+  </view>
+  <view class="customer-search">
+    <text class="search-symbol">⌕</text>
+    <input class="customer-search-input" placeholder="搜索客户名称 / 编号" value="{{keyword}}" bindinput="onKeywordInput" confirm-type="search" bindconfirm="search"/>
+    <button class="filter-btn" bindtap="search">筛选</button>
+  </view>
+  <view class="filter-scroll">
+    <picker mode="selector" range="{{filters}}" bindchange="chooseFilter"><view class="filter-pill active">{{customerView.filterText}}</view></picker>
+    <button class="filter-pill subtle-filter" bindtap="openAdvancedFilter">高级</button>
+    <button class="text-btn" wx:if="{{customerView.showReset}}" bindtap="resetFilters">清空</button>
+    <view class="filter-count">{{customerView.countText}}</view>
+  </view>
+  <view wx:if="{{customerView.showLoading}}" class="card loading-card">{{customerView.loadingText}}</view>
+  <block wx:for="{{customerView.customers}}" wx:key="id">
+    <view class="customer-card" bindtap="openDetail" data-id="{{item.id}}">
+      <view class="customer-accent {{item.statusToneClass}}"></view>
+      <view class="customer-card-main">
+        <view class="row">
+          <view class="customer-name">{{item.nameText}}</view>
+          <text class="status-pill">{{item.devTypeText}}</text>
+        </view>
+        <view class="customer-meta">{{item.metaText}}</view>
+        <view class="customer-divider"></view>
+        <view class="row">
+          <view class="owner-line">{{item.ownerOfficeText}}</view>
+          <text class="due-line">{{item.statusText}}</text>
+        </view>
+      </view>
+    </view>
+  </block>
+  <view wx:if="{{customerView.showEmpty}}" class="empty-state card"><view class="empty-icon">⌕</view><text>暂无匹配客户</text></view>
+  <view wx:if="{{canAdd}}" class="customer-fab" bindtap="addCustomer">＋</view>
+</view>

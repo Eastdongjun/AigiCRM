@@ -1,0 +1,13 @@
+<view class="page password-page">
+  <view class="hero">
+    <view class="hero-title">修改密码</view>
+    <view class="hero-sub">修改后需要重新登录</view>
+  </view>
+  <view class="card form-card polished-form-card">
+    <view class="form-section-title">账号安全</view>
+    <block wx:for="{{passwordView.fields}}" wx:key="field">
+      <input class="input polished-input" password placeholder="{{item.placeholder}}" data-field="{{item.field}}" bindinput="onInput"/>
+    </block>
+    <button class="btn polished-submit" loading="{{passwordView.submitLoading}}" bindtap="submit">{{passwordView.submitText}}</button>
+  </view>
+</view>

@@ -8,6 +8,10 @@ function getDashboardData() {
   return request({ url: '/api/statistics/dashboard' })
 }
 
+function getAnalysis(params) {
+  return request({ url: '/api/statistics/analysis', data: params || {} })
+}
+
 function getTeamActivities() {
   return request({ url: '/api/statistics/team-activities' })
 }
@@ -24,4 +28,4 @@ function getCustomerRankings(params) {
   return request({ url: '/api/statistics/customer-rankings', data: params || {} })
 }
 
-module.exports = { getIndicatorStats, getDashboardData, getTeamActivities, getDailyStats, getWeeklyStats, getCustomerRankings }
+module.exports = { getIndicatorStats, getDashboardData, getAnalysis, getTeamActivities, getDailyStats, getWeeklyStats, getCustomerRankings }

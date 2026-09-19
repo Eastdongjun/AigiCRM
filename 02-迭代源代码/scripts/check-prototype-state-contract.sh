@@ -3,6 +3,8 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 MINI="$ROOT/aigicrm-miniprogram"
+DOC="$ROOT/docs/prototype-state-coverage.md"
+QA_DOC="$ROOT/docs/mobile-manual-qa-checklist.md"
 fail=0
 
 require_pattern() {
@@ -53,6 +55,29 @@ if [ "$pages" = "46" ]; then
   echo "[INFO] independent-page coverage: $pages/$prototype_baseline ($coverage); six generic states are validated below"
 else
   echo "[FAIL] expected 46 registered mini-program pages, got $pages"
+  fail=1
+fi
+
+if rg -q 'docs/mobile-manual-qa-checklist.md' "$DOC" && rg -q '微信开发者工具/真机|DevTools/真机' "$DOC"; then
+  echo "[PASS] prototype state coverage points manual validation to the mini-program QA checklist"
+else
+  echo "[FAIL] prototype state coverage must point unresolved UI validation to docs/mobile-manual-qa-checklist.md"
+  fail=1
+fi
+if rg -q 'npm run verify:incentive-attachments' "$DOC" && rg -q '真机选择文件、真实提交记录、真实下载保存' "$DOC"; then
+  echo "[PASS] prototype state coverage records DevTools incentive attachment precheck and real-device boundary"
+else
+  echo "[FAIL] prototype state coverage must record incentive attachment DevTools precheck and real-device boundary"
+  fail=1
+fi
+if rg -q '浏览器 UI 点击矩阵待验收' "$DOC"; then
+  echo "[FAIL] prototype state coverage still references stale browser UI matrix wording"
+  fail=1
+fi
+if rg -q 'S1-S6' "$QA_DOC" || rg -q 'B1' "$QA_DOC"; then
+  echo "[PASS] mobile manual QA checklist is available for state validation follow-up"
+else
+  echo "[FAIL] mobile manual QA checklist must be available for prototype state follow-up"
   fail=1
 fi
 

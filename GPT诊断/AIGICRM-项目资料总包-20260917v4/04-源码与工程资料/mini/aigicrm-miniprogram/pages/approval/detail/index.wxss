@@ -1,0 +1,11 @@
+.approval-detail-page .approval-detail-card{margin-top:20rpx}
+.approval-detail-head{display:flex;align-items:flex-start;justify-content:space-between;gap:18rpx;margin-bottom:12rpx}
+.approval-detail-title{flex:1;min-width:0;color:#172033;font-size:31rpx;font-weight:760;line-height:1.35}
+.approval-node-row{display:flex;flex-direction:column;gap:8rpx;padding:16rpx 0;border-bottom:1rpx solid #edf2f7;color:#334155;font-size:25rpx}
+.approval-node-row:last-child{border-bottom:0}
+.approval-node-comment{color:#94a3b8;font-size:23rpx;line-height:1.45}
+.approval-detail-actions{display:flex;align-items:center;justify-content:flex-end;gap:12rpx;margin:22rpx 0 6rpx;flex-wrap:wrap}
+.approval-detail-actions button{min-width:112rpx;height:52rpx;line-height:50rpx;margin:0;padding:0 20rpx;border-radius:14rpx;font-size:23rpx;font-weight:740}
+.approval-detail-actions button::after{border:0}
+.approval-reject-action{border:1rpx solid #fecaca;background:#fff7f7;color:#dc2626}
+.approval-approve-action{border:0;background:#2563eb;color:#fff;box-shadow:0 8rpx 18rpx rgba(37,99,235,.16)}

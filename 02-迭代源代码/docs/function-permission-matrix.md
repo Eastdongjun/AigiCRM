@@ -139,16 +139,16 @@ Legend: `V` view, `C` create, `U` update, `D` delete, `I` import, `E` export, `A
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | Login/home | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
 | Customer read | Yes | Yes | Yes | Own/scoped | Scoped | Scoped finance fields later | Yes |
-| Customer create/edit | Not first mobile release | Planned | Planned | Planned own | Planned scoped | No | No |
+| Customer create/edit | No mobile admin | Implemented scoped | Implemented scoped | Implemented own/scoped | Implemented scoped | No | No |
 | File preview | Yes | Yes | Yes | Yes | Yes | Yes scoped | Yes |
-| File upload/share/delete | Not first mobile release | Planned upload/share | Planned upload | Planned upload own | Planned | No | No |
+| File upload/share/delete | No mobile admin | Upload/share/delete implemented by granted row action | Upload/delete implemented by granted row action | Upload own/share/delete if granted | Upload/share/delete if granted | Yes | Yes |
 | Incentive query | Yes | Yes | Yes | Yes | Optional | Optional | Yes |
-| Incentive upload/edit/delete | Not first mobile release | Planned | Planned upload | Planned upload own | Optional | No | No |
+| Incentive upload/edit/delete | No mobile admin | Upload/edit/delete implemented by owner or grant | Upload/edit/delete if granted | Upload own/edit own or granted, delete own or granted | Optional upload/edit/delete by grant | Yes | Yes |
 | Incentive read stats | Yes | Yes | Manager if granted | No default | Optional | Optional | Auditor if granted |
 | Approval list | Yes | Yes | Yes if participant | Own/applicant | Support if participant | Finance if participant | Read-only |
 | Approval approve/reject | Yes | Yes | If approver | No default | If approver | If approver | No |
 | Public sea read | Yes | Yes | Yes | Yes if `sea:view` | Yes | Optional | Yes |
-| Public sea claim/edit/delete | Deferred | Deferred | Deferred | Deferred | Deferred | No | No |
+| Public sea claim/edit/delete | No mobile admin | Claim/edit/delete implemented by backend row grant | Claim/edit/delete if granted | Claim/edit/delete if granted | Claim/edit/delete if granted | Yes | Yes |
 | System management | No mobile first release | No | No | No | No | No | No |
 
 ## Role Governance Rules
@@ -157,7 +157,7 @@ Legend: `V` view, `C` create, `U` update, `D` delete, `I` import, `E` export, `A
 - Roles answer "what can this person do"; positions and data scope answer "where or to whose data can they do it".
 - Mutation permissions should be narrower than view permissions. If no explicit mutation scope exists, keep `self`.
 - Mobile must never invent broader permissions than PC. It can hide actions for usability, but backend remains the final guard.
-- High-risk operations stay PC-first: role management, permission scope configuration, sea config, file ACL, imports, exports, deletes, and bulk operations.
+- High-risk operations stay PC-first: role management, permission scope configuration, sea config, file ACL mutation, imports, exports, and bulk operations. Destructive mobile deletes are limited to explicit row/detail actions with existing backend permission checks.
 - Permission changes must evict permission cache and bump user permission versions so PC and mobile converge after refresh or next `/api/auth/info`.
 
 ## Data Scope Types
@@ -177,7 +177,7 @@ Legend: `V` view, `C` create, `U` update, `D` delete, `I` import, `E` export, `A
 | Client | Current Role |
 | --- | --- |
 | PC `aigicrm-ui` | Full management console: all menus, configuration, imports, batch operations, data management |
-| Mobile `aigicrm-miniprogram` | Lightweight operational client: login, home, customer read, file read/preview, incentive read-state, approval action, public sea read-only |
+| Mobile `aigicrm-miniprogram` | Lightweight operational client: login, home, scoped customer create/edit/read, customer share/log/indicator/contact/finance create, file preview/upload/share/folder management, incentive query/upload/edit/read-state/stats, approval action/submission, public sea read and claim approval |
 
 ## Auth And Account
 
@@ -186,17 +186,18 @@ Legend: `V` view, `C` create, `U` update, `D` delete, `I` import, `E` export, `A
 | Login | Login | `POST /api/auth/login` | Public | None | Create session | Yes | Yes |
 | Current User | Load profile, permissions, menus | `GET /api/auth/info` | Authenticated token | Current user | Read | Yes | Yes |
 | Logout | Logout | `POST /api/auth/logout` | Authenticated token | Current user | End session | Yes | Local token clear; backend API can be reused |
-| Group Switch | Switch current group | `POST /api/auth/switch-group` | Authenticated token | User allowed groups | Session mutation | Yes | Planned |
-| Password Recovery | Lookup/send-code/reset | `/api/auth/forgot-password/*` | Public or token/code verified | User account | Account recovery | Yes or backend available | Planned |
+| Group Switch | Switch current group | `POST /api/auth/switch-group` | Authenticated token | User allowed groups | Session mutation | Yes | Implemented |
+| Password Recovery | Lookup/send-code/reset | `/api/auth/forgot-password/*` | Public or token/code verified | User account | Account recovery | Yes or backend available | Implemented |
+| Profile Password | Change own password | `POST /api/system/users/change-password` | Authenticated token and old password verification | Current user only | Credential mutation | Yes | Implemented |
 
 ## Dashboard
 
 | Menu/Page | Button/Action | API | Permission | Data Scope | Operation Type | PC | Mobile |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| 工作台 | View dashboard | `GET /api/statistics/dashboard` | Backend currently available; route uses `dashboard:view` | Current user/org/group scope inside service | Read/statistics | Yes | Home cards only |
-| 工作台 | Daily stats | `GET /api/statistics/daily-stats` | `statistics:view` or `dashboard:view` | Role/org scope | Read/statistics | Yes | Planned |
-| 工作台 | Weekly stats | `GET /api/statistics/weekly-stats` | `statistics:view` or `dashboard:view` | Role/org scope | Read/statistics | Yes | Planned |
-| 工作台 | Indicator stats | `GET /api/statistics/indicator-stats` | `statistics:view` | Role/org scope | Read/statistics | Yes | Planned |
+| 工作台 | View dashboard | `GET /api/statistics/dashboard` | `statistics:view` or `dashboard:view` | Current user/org/group scope inside service | Read/statistics | Yes | Implemented |
+| 工作台 | Daily stats | `GET /api/statistics/daily-stats` | `statistics:view` or `dashboard:view` | Role/org scope | Read/statistics | Yes | Implemented |
+| 工作台 | Weekly stats | `GET /api/statistics/weekly-stats` | `statistics:view` or `dashboard:view` | Role/org scope | Read/statistics | Yes | Implemented |
+| 工作台 | Indicator stats | `GET /api/statistics/indicator-stats` | `statistics:view` | Role/org scope | Read/statistics | Yes | Implemented |
 
 ## Customer Management
 
@@ -204,49 +205,52 @@ Legend: `V` view, `C` create, `U` update, `D` delete, `I` import, `E` export, `A
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | 客户列表 | View/search/filter/list counts | `GET /api/customer/list`, `GET /api/customer/list/counts` | `customer:view` | Customer ownership, role data scope, org/group scope, shared visibility | Read | Yes | Yes |
 | 客户详情 | View detail | `GET /api/customer/{id}` | `customer:view` | Backend customer access check | Read | Yes | Mobile list/detail card |
-| 新增客户 | Create customer | `POST /api/customer/add` | `customer:add` | Current user's allowed org/group | Create | Yes | Planned |
-| 编辑客户 | Edit customer | `PUT /api/customer/{id}` | `customer:edit` | Backend edit access check | Update | Yes | Planned |
-| 客户列表 | Delete customer | `DELETE /api/customer/{id}` | `customer:delete` | Backend delete access check | Delete | Yes | Not planned for first mobile release |
-| 客户详情 | View follow-up logs | `GET /api/customer/{id}/logs` | `customer:view` | Same customer visibility | Read | Yes | Planned |
-| 客户详情 | Add follow-up log | `POST /api/customer/{id}/logs` | `customer:edit` | Same customer edit boundary | Create | Yes | Planned |
+| 新增客户 | Create customer | `POST /api/customer/add` | `customer:add` | Current user's allowed org/group | Create | Yes | Implemented |
+| 编辑客户 | Edit customer | `PUT /api/customer/{id}` | `customer:edit` | Backend edit access check | Update | Yes | Implemented |
+| 客户详情 | Delete customer | `DELETE /api/customer/{id}` | `customer:delete` | Backend delete access check | Delete | Yes | Implemented |
+| 客户详情 | View follow-up logs | `GET /api/customer/{id}/logs` | `customer:view` | Same customer visibility | Read | Yes | Implemented |
+| 客户详情 | Add follow-up log | `POST /api/customer/{id}/logs` | `customer:edit` | Same customer edit boundary | Create | Yes | Implemented |
 | 客户详情 | View invoices | `GET /api/customer/{id}/invoices`, `/summary` | `customer:view` + `finance:view` | Same customer visibility; backend returns empty data without finance permission | Read | Yes | Implemented |
-| 客户详情 | Add/delete invoice | `POST /api/customer/{id}/invoices`, `DELETE /api/customer/{id}/invoices/{invoiceId}` | `customer:edit` | Same customer edit boundary | Create/Delete | Yes | Planned |
-| 客户详情 | View six indicators | `GET /api/customer/{id}/indicator` | `customer:view` | Same customer visibility | Read | Yes | Planned |
-| 客户详情 | Save six indicators | `POST /api/customer/{id}/indicator` | `customer:edit` | Same customer edit boundary | Update | Yes | Planned |
-| 客户详情 | Update relationship | `PUT /api/customer/{id}/relationship` | `customer:edit` | Same customer edit boundary | Update | Yes | Planned |
-| 客户详情 | View shares | `GET /api/customer/{id}/shares` | `customer:view` | Same customer visibility | Read | Yes | Planned |
-| 客户详情 | Add/remove share | `POST /api/customer/{id}/shares`, `DELETE /api/customer/{id}/shares/{userId}` | `customer:edit` | Same customer edit boundary | Share mutation | Yes | Planned |
-| 客户详情 | Release/return to sea | `POST /api/customer/{id}/release` | `customer:edit` | Same customer edit boundary and sea config match | Status mutation | Yes | Planned after approval linkage |
+| 客户详情 | Add invoice | `POST /api/customer/{id}/invoices` | `customer:edit` + `finance:view` | Same customer edit boundary and finance visibility | Create | Yes | Implemented |
+| 客户详情 | Delete invoice | `DELETE /api/customer/{id}/invoices/{invoiceId}` | `customer:edit` + `finance:view` | Same customer edit boundary and finance visibility | Delete | Yes | Implemented |
+| 客户详情 | View six indicators | `GET /api/customer/{id}/indicator` | `customer:view` | Same customer visibility | Read | Yes | Implemented |
+| 客户详情 | Save six indicators | `POST /api/customer/{id}/indicator` | `customer:edit` | Same customer edit boundary | Update | Yes | Implemented |
+| 客户详情 | Update relationship | `PUT /api/customer/{id}/relationship` | `customer:edit` | Same customer edit boundary | Update | Yes | Implemented |
+| 客户详情 | View shares | `GET /api/customer/{id}/shares` | `customer:view` | Same customer visibility | Read | Yes | Implemented |
+| 客户详情 | Add/remove share | `POST /api/customer/{id}/shares`, `DELETE /api/customer/{id}/shares/{userId}` | `customer:edit` | Same customer edit boundary | Share mutation | Yes | Implemented |
+| 客户详情 | Release/return to sea | `POST /api/customer/{id}/release` | `customer:edit` | Same customer edit boundary and sea config match | Status mutation | Yes | Implemented |
 | 客户联系人 | View contacts | `GET /api/customer/{id}/contacts` | `customer:view` + `contact:view` | Same customer visibility; backend returns empty data without contact permission | Read | Yes | Implemented |
-| 客户联系人 | Add/edit/delete contacts | `POST/PUT/DELETE /api/customer/{id}/contacts...` | `customer:edit` | Same customer edit boundary | Create/Update/Delete | Yes | Planned |
+| 客户联系人 | Add contact | `POST /api/customer/{id}/contacts` | `customer:edit` | Same customer edit boundary | Create | Yes | Implemented |
+| 客户联系人 | Edit/delete contacts | `PUT/DELETE /api/customer/{id}/contacts...` | `customer:edit` | Same customer edit boundary | Update/Delete | Yes | Implemented |
 | 客户回款 | View payments | `GET /api/customer/{id}/payments`, `/summary` | `customer:view` + `finance:view` | Same customer visibility; backend returns empty data without finance permission | Read | Yes | Implemented |
-| 客户回款 | Add/delete payments | `POST /payments`, `DELETE /payments/{paymentId}` | `customer:edit` | Same customer edit boundary | Create/Delete | Yes | Planned |
+| 客户回款 | Add payment | `POST /api/customer/{id}/payments` | `customer:edit` + `finance:view` | Same customer edit boundary and finance visibility | Create | Yes | Implemented |
+| 客户回款 | Delete payment | `DELETE /api/customer/{id}/payments/{paymentId}` | `customer:edit` + `finance:view` | Same customer edit boundary and finance visibility | Delete | Yes | Implemented |
 | 客户导入 | Import customers | `POST /api/customer/import` | `customer:import` | Import target org/group validation | Import | Yes | No |
 | 客户导入 | Download template | `GET /api/customer/import/template` | `customer:import` | None | Download | Yes | No |
 | 客户导出 | Export customers | `GET /api/customer/export` | `customer:export` | Same list data scope | Export | Yes | No |
-| 客户校验 | Check duplicate name | `GET /api/customer/check-name` | `customer:view` | Backend check rules | Read/validate | Yes | Planned |
-| 用户简表 | User selector | `GET /api/customer/users/simple` | `customer:view` | Backend user scope | Read | Yes | Planned |
+| 客户校验 | Check duplicate name | `GET /api/customer/check-name` | `customer:view` | Backend check rules | Read/validate | Yes | Implemented |
+| 用户简表 | User selector | `GET /api/customer/users/simple` | `customer:view` | Backend user scope | Read | Yes | Implemented |
 
 ## File Management
 
 | Menu/Page | Button/Action | API | Permission | Data Scope | Operation Type | PC | Mobile |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | 文件管理 | Get download token | `GET /api/file/download-token` | Token/session path | Current authenticated user | Read token | Yes | Yes |
-| 文件管理 | Folder tree | `GET /api/file/folders` | `file:view` | Backend folder ACL and visible folders | Read | Yes | Planned |
+| 文件管理 | Folder tree | `GET /api/file/folders` | `file:view` | Backend folder ACL and visible folders | Read | Yes | Implemented |
 | 文件管理 | File list/search | `GET /api/file/list` | `file:view` | Backend folder/file ACL, shared files | Read | Yes | Yes |
-| 文件管理 | Upload file | `POST /api/file/upload` | `file:upload` | Folder upload permission and service ACL | Upload/Create | Yes | Planned |
-| 文件管理 | Create folder | `POST /api/file/folders` | `file:folder:manage` | Parent folder permission | Create | Yes | Planned |
-| 文件管理 | Rename/update folder | `PUT /api/file/folders/{id}` | `file:folder:manage` | Folder owner/ACL | Update | Yes | Planned |
-| 文件管理 | Delete folder | `DELETE /api/file/folders/{id}` | `file:folder:manage` | Folder owner/ACL | Delete | Yes | No first release |
-| 文件管理 | Delete file | `DELETE /api/file/{id}` | `file:delete` | File owner/ACL | Delete | Yes | No first release |
-| 文件管理 | Replace file | `POST /api/file/{id}/replace` | `file:edit` | File owner/ACL | Replace | Yes | Planned |
-| 文件管理 | Storage stats | `GET /api/file/storage` | `file:view` | Current user/tenant | Read/statistics | Yes | Planned |
+| 文件管理 | Upload file | `POST /api/file/upload` | `file:upload` | Folder upload permission and service ACL | Upload/Create | Yes | Implemented |
+| 文件管理 | Create folder | `POST /api/file/folders` | `file:folder:manage` | Parent folder permission | Create | Yes | Implemented |
+| 文件管理 | Rename/update folder | `PUT /api/file/folders/{id}` | `file:folder:manage` | Folder owner/ACL | Update | Yes | Implemented |
+| 文件管理 | Delete folder | `DELETE /api/file/folders/{id}` | `file:folder:manage` | Folder owner/ACL | Delete | Yes | Implemented |
+| 文件管理 | Delete file | `DELETE /api/file/{id}` | `file:delete` | File owner/ACL | Delete | Yes | Implemented |
+| 文件管理 | Replace file | `POST /api/file/{id}/replace` | `file:edit` | File owner/ACL | Replace | Yes | Implemented |
+| 文件管理 | Storage stats | `GET /api/file/storage` | `file:view` | Current user/tenant | Read/statistics | Yes | Implemented |
 | 文件管理 | Download by id | `GET /api/file/download/{id}` | `file:view` | File ACL and token check | Download | Yes | Mobile preview/download |
 | 文件管理 | Public download | `GET /api/file/download/public/**` | Public token/path | Public share constraints | Download | Yes | Can preview if linked |
-| 文件管理 | Path download | `GET /api/file/download/**` | `file:view` | File path ACL | Download | Yes | Planned |
-| 文件分享 | Share file | `POST /api/file/{id}/share` | `file:share` | File owner/share permission | Share mutation | Yes | Planned |
-| 文件分享 | Shared to me | `GET /api/file/shared-to-me`, `/count` | `file:view` | Files shared to current user | Read | Yes | Planned |
-| 文件夹 ACL | View ACL | `GET /api/file/folders/{id}/acl` | Backend/service-controlled | Folder ACL | Read | Yes | Planned admin |
+| 文件管理 | Path download | `GET /api/file/download/**` | `file:view` | File path ACL | Download | Yes | Implemented |
+| 文件分享 | Share file | `POST /api/file/{id}/share` | `file:share` | File owner/share permission | Share mutation | Yes | Implemented |
+| 文件分享 | Shared to me | `GET /api/file/shared-to-me`, `/count` | `file:view` | Files shared to current user | Read | Yes | Implemented |
+| 文件夹 ACL | View ACL | `GET /api/file/folders/{id}/acl` | `file:acl:manage` | Folder ACL manager | Read | Yes | Implemented |
 | 文件夹 ACL | Add/remove ACL | `POST/DELETE /api/file/folders/{id}/acl...` | `file:acl:manage` | Folder ACL manager | ACL mutation | Yes | No first release |
 | 文件夹 ACL | Folder permissions | `GET /api/file/folders/{id}/permissions` | `file:acl:manage` | Folder ACL manager | Read | Yes | No first release |
 | 文件夹 ACL | Download setting | `PUT /api/file/folders/{id}/download` | `file:acl:manage` | Folder ACL manager | Update | Yes | No first release |
@@ -255,57 +259,57 @@ Legend: `V` view, `C` create, `U` update, `D` delete, `I` import, `E` export, `A
 
 | Menu/Page | Button/Action | API | Permission | Data Scope | Operation Type | PC | Mobile |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| 四项激励 | Category list | `GET /api/incentive/categories` | `incentive:view` | Tenant/group | Read | Yes | Planned |
+| 四项激励 | Category list | `GET /api/incentive/categories` | `incentive:view` | Tenant/group | Read | Yes | Implemented |
 | 四项激励 | Create/edit/delete category | `POST/PUT/DELETE /api/incentive/categories...` | `incentive:edit` | Admin/config scope | Config mutation | Yes | No first release |
-| 四项激励 | Record list | `GET /api/incentive/records` | `incentive:view` | Upload owner, share visibility, role scope | Read | Yes | Planned |
-| 四项激励 | Upload/add record | `POST /api/incentive/records` | `incentive:add` | Customer access and uploader identity | Create | Yes | Planned |
-| 四项激励 | Edit own/permitted record | `PUT /api/incentive/records/{id}` | Method allows service-layer ownership/permitted edit | Owner/permitted editor | Update | Yes | Planned |
-| 四项激励 | Delete own/permitted record | `DELETE /api/incentive/records/{id}` | Service-layer ownership/permitted delete | Owner/permitted editor/admin | Delete | Yes | No first release |
+| 四项激励 | Record list | `GET /api/incentive/records` | `incentive:view` | Upload owner, share visibility, role scope | Read | Yes | Implemented |
+| 四项激励 | Upload/add record | `POST /api/incentive/records` | `incentive:add` | Customer access and uploader identity | Create | Yes | Implemented |
+| 四项激励 | Edit own/permitted record | `PUT /api/incentive/records/{id}` | Method allows service-layer ownership/permitted edit | Owner/permitted editor | Update | Yes | Implemented |
+| 四项激励 | Delete own/permitted record | `DELETE /api/incentive/records/{id}` | Service-layer ownership/permitted delete | Owner/permitted editor/admin | Delete | Yes | Implemented |
 | 四项激励 | Recalculate records | `POST /api/incentive/records/recalculate` | `incentive:edit` | Config/admin scope | Batch mutation | Yes | No |
-| 激励查询 | Customer score | `GET /api/incentive/score/customer/{customerId}` | `incentive:view` | Same incentive/customer visibility | Read/statistics | Yes | Planned |
-| 激励查询 | Scoreboard | `GET /api/incentive/scoreboard` | `incentive:view` | Role/share/customer visibility | Read/statistics | Yes | Planned |
-| 激励查询 | Ranking | `GET /api/incentive/ranking` | `incentive:view` | Role/share/customer visibility | Read/statistics | Yes | Planned |
+| 激励查询 | Customer score | `GET /api/incentive/score/customer/{customerId}` | `incentive:view` | Same incentive/customer visibility | Read/statistics | Yes | Implemented |
+| 激励查询 | Scoreboard | `GET /api/incentive/scoreboard` | `incentive:view` | Role/share/customer visibility | Read/statistics | Yes | Implemented |
+| 激励查询 | Ranking | `GET /api/incentive/ranking` | `incentive:view` | Role/share/customer visibility | Read/statistics | Yes | Implemented |
 | 激励查询 | Customer-record grouped list | `GET /api/incentive/customer-records` | `incentive:view` | Role/share/customer visibility | Read | Yes | Yes |
 | 激励查询 | Mark record read | `POST /api/incentive/records/{id}/read` | `incentive:view` | Current user and visible record | Read-state mutation | Yes | Yes |
 | 激励查询 | Read statistics | `GET /api/incentive/read-stats` | `incentive:read-stats` | Backend stats scope | Read/statistics | Yes | Yes |
-| 激励统计 | Category stats | `GET /api/incentive/category-stats` | `incentive:view` | Role/share/customer visibility | Read/statistics | Yes | Planned |
-| 激励配置 | User selector | `GET /api/incentive/users` | `incentive:view` | Backend user scope | Read | Yes | Planned |
+| 激励统计 | Category stats | `GET /api/incentive/category-stats` | `incentive:view` | Role/share/customer visibility | Read/statistics | Yes | Implemented |
+| 激励配置 | User selector | `GET /api/incentive/users` | `incentive:view` | Backend user scope | Read | Yes | Implemented |
 | 激励授权 | Permission list | `GET /api/incentive/permission/list` | `system:config:view` | Config/admin scope | Read | Yes | No |
 | 激励授权 | Grant/revoke permission | `POST /api/incentive/permission/grant`, `DELETE /api/incentive/permission/{id}` | `system:config:edit` | Config/admin scope | Permission mutation | Yes | No |
-| 激励授权 | Permission check | `GET /api/incentive/permission/check` | Backend currently no method annotation; service contract must be reviewed | Current user/target | Read/validate | Yes | No |
+| 激励授权 | Permission check | `GET /api/incentive/permission/check` | Authenticated self-check; global login guard plus service grant table | Current user only | Read/validate | Yes | Implemented |
 
 ## Reminder
 
 | Menu/Page | Button/Action | API | Permission | Data Scope | Operation Type | PC | Mobile |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| 提醒管理 | Expiring customer list | `GET /api/reminder/expiring-list` | `reminder:view` | Customer data scope | Read | Yes | Planned |
-| 提醒管理 | Reminder list | `GET /api/reminder/list` | `reminder:view` | Current user/customer scope | Read | Yes | Planned |
-| 提醒管理 | Pending count | `GET /api/reminder/pending-count` | `reminder:view` | Current user scope | Read/statistics | Yes | Planned |
+| 提醒管理 | Expiring customer list | `GET /api/reminder/expiring-list` | `reminder:view` | Customer data scope | Read | Yes | Implemented |
+| 提醒管理 | Reminder list | `GET /api/reminder/list` | `reminder:view` | Current user/customer scope | Read | Yes | Implemented |
+| 提醒管理 | Pending count | `GET /api/reminder/pending-count` | `reminder:view` | Current user scope | Read/statistics | Yes | Implemented |
 | 提醒管理 | Ensure expiring reminders | `POST /api/reminder/ensure-expiring` | `reminder:view` | Customer data scope | Batch create/check | Yes | No first release |
-| 提醒管理 | Process reminder | `POST /api/reminder/{id}/process` | `reminder:view` | Current user/reminder scope | Status mutation | Yes | Planned |
+| 提醒管理 | Process reminder | `POST /api/reminder/{id}/process` | `reminder:view` | Current user/reminder scope | Status mutation | Yes | Implemented |
 
 ## Public Sea
 
 | Menu/Page | Button/Action | API | Permission | Data Scope | Operation Type | PC | Mobile |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| 公海池 | List/search/filter | `GET /api/sea/list` | `sea:view` | Enabled visible pools, dept subtree filter, customer keyword/industry filter | Read | Yes | Yes, read-only |
+| 公海池 | List/search/filter | `GET /api/sea/list` | `sea:view` | Enabled visible pools, dept subtree filter, customer keyword/industry filter | Read | Yes | Implemented |
 | 公海池 | Statistics | `GET /api/sea/statistics` | `sea:view` | Enabled visible pools | Read/statistics | Yes | Yes |
 | 公海池 | Visible pool selector | `GET /api/sea/configs/visible` | `sea:view` | Current user's visible enabled pools | Read | Yes | Yes |
-| 公海池 | Claim customer | Approval submission through PC flow | Backend service checks pool claim permission and `sea:claim` compatibility | Pool-level claim permission | Submit approval/status mutation | Yes | Planned after mobile risk review |
-| 公海池 | Edit sea customer | Customer edit route | `customer:edit` plus pool edit permission | Customer/pool edit permission | Update | Yes | Planned |
-| 公海池 | Delete pool item | `DELETE /api/sea/pool/{id}` | Service-layer pool delete permission; controller currently relies on service | Pool delete permission, available status only | Delete | Yes | No first release |
+| 公海池 | Claim customer | Approval submission through shared approval flow | Backend service checks pool claim permission and `sea:claim` compatibility | Pool-level claim permission | Submit approval/status mutation | Yes | Implemented |
+| 公海池 | Edit sea customer | Customer edit route | `customer:edit` plus pool edit permission | Customer/pool edit permission | Update | Yes | Implemented |
+| 公海池 | Delete pool item | `DELETE /api/sea/pool/{id}` | `sea:view` at controller entry; service-layer pool delete permission remains final guard | Pool delete permission, available status only | Delete | Yes | Implemented |
 | 公海导入 | Import to sea | `POST /api/sea/import` | `sea:import` | Target pool import permission | Import | Yes | No |
 | 公海配置 | Config list | `GET /api/sea/configs` | `sea:config:view` | Config/admin scope | Read | Yes | No |
 | 公海配置 | Org tree for config | `GET /api/sea/org-tree` | `sea:config:view` | Config/admin scope | Read sensitive org/person tree | Yes | No |
 | 公海配置 | Create/edit/delete config | `POST/PUT/DELETE /api/sea/configs...` | `sea:config:edit` | Config/admin scope | Config mutation | Yes | No |
-| 捞取记录 | My claim records | `GET /api/sea/claim-records` | `sea:view` | Current applicant only | Read | Yes | Planned |
+| 捞取记录 | My claim records | `GET /api/sea/claim-records` | `sea:view` | Current applicant only | Read | Yes | Implemented |
 
 ## Approval
 
 | Menu/Page | Button/Action | API | Permission | Data Scope | Operation Type | PC | Mobile |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | 审批管理 | Approval list/tabs | `GET /api/approval/list` | `approval:view` | Current user as applicant/approver, tab/type/dept scope in service | Read | Yes | Yes |
-| 审批管理 | Submit approval | `POST /api/approval/submit` | `approval:view` | Customer/action-specific service validation | Create | Yes | Planned mobile submit |
+| 审批管理 | Submit approval | `POST /api/approval/submit` | `approval:view` | Customer/action-specific service validation | Create | Yes | Implemented |
 | 审批管理 | Approve | `POST /api/approval/{id}/approve` | `approval:approve` | Current approver node/approval service check | Status mutation | Yes | Yes |
 | 审批管理 | Reject | `POST /api/approval/{id}/reject` | `approval:reject` | Current approver node/approval service check | Status mutation | Yes | Yes |
 | 审批管理 | Statistics | `GET /api/approval/statistics` | `approval:view` | Current user approval scope | Read/statistics | Yes | Yes |
@@ -316,8 +320,9 @@ Legend: `V` view, `C` create, `U` update, `D` delete, `I` import, `E` export, `A
 
 | Menu/Page | Button/Action | API | Permission | Data Scope | Operation Type | PC | Mobile |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| 统计分析 | Analysis | `GET /api/statistics/analysis` | `statistics:view` | Role/org/group scope | Read/statistics | Yes | Planned |
-| 统计分析 | Team activities | `GET /api/statistics/team-activities` | `statistics:view` | Role/org/group scope | Read/statistics | Yes | Planned |
+| 统计分析 | Analysis | `GET /api/statistics/analysis` | `statistics:view` | Role/org/group scope | Read/statistics | Yes | Implemented |
+| 统计分析 | Team activities | `GET /api/statistics/team-activities` | `statistics:view` | Role/org/group scope | Read/statistics | Yes | Implemented |
+| 统计排行 | Customer rankings | `GET /api/statistics/customer-rankings` | `statistics:view` | Role/org/group/customer scope | Read/statistics | Yes | Implemented |
 | 核心客户六项指标 | Indicator overview | `GET /api/statistics/indicator-stats` | `statistics:view` | Role/org/customer scope | Read/statistics | Yes | Yes |
 
 ## Score
@@ -326,10 +331,10 @@ Legend: `V` view, `C` create, `U` update, `D` delete, `I` import, `E` export, `A
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | 学分配置 | Add score item | `POST /api/score/items` | Controller should be rechecked; expected `score:manage` | Config/admin scope | Create | Yes | No |
 | 学分配置 | Edit/delete item | `PUT/DELETE /api/score/items/{id}` | `score:manage` | Config/admin scope | Update/Delete | Yes | No |
-| 学分录入 | Grid | `GET /api/score/grid` | `score:manage` | Managed users/depts | Read | Yes | Planned |
-| 学分录入 | Batch entry | `POST /api/score/entries/batch` | `score:entry` | Managed users/depts | Batch mutation | Yes | Planned |
-| 学分排行 | Ranking | `GET /api/score/ranking` | `score:view` | Role/org/group scope | Read/statistics | Yes | Planned |
-| 学分排行 | Ranking stats | `GET /api/score/ranking/stats` | `score:view` | Role/org/group scope | Read/statistics | Yes | Planned |
+| 学分录入 | Grid | `GET /api/score/grid` | `score:manage` | Managed users/depts | Read | Yes | No |
+| 学分录入 | Batch entry | `POST /api/score/entries/batch` | `score:entry` | Managed users/depts | Batch mutation | Yes | No |
+| 学分排行 | Ranking | `GET /api/score/ranking` | `score:view` | Role/org/group scope | Read/statistics | Yes | Implemented |
+| 学分排行 | Ranking stats | `GET /api/score/ranking/stats` | `score:view` | Role/org/group scope | Read/statistics | Yes | Implemented |
 | 学分导出 | Export grid | `GET /api/score/export/grid` | `score:view` | Same grid/ranking scope | Export | Yes | No |
 
 ## System Management
@@ -339,7 +344,7 @@ Legend: `V` view, `C` create, `U` update, `D` delete, `I` import, `E` export, `A
 | 人员管理 | User list/detail | `GET /api/system/users`, `GET /api/system/users/{id}` | `system:user:view` or `system:org:admin` | Org admin scope, role/group scope | Read | Yes | No |
 | 人员管理 | Create user | `POST /api/system/users` | `system:user:add` or `system:org:admin` | Org admin allowed orgs | Create | Yes | No |
 | 人员管理 | Edit user | `PUT /api/system/users/{id}` | `system:user:edit` or `system:org:admin` | Org admin allowed orgs | Update | Yes | No |
-| 人员管理 | Reset/change password | `POST /api/system/users/{id}/reset-password`, `/change-password` | `system:user:edit` or `system:org:admin` | Target user/admin scope | Credential mutation | Yes | No |
+| 人员管理 | Admin reset user password | `POST /api/system/users/{id}/reset-password` | `system:user:edit` or `system:org:admin` | Target user/admin scope | Credential mutation | Yes | No |
 | 人员管理 | Delete user | `DELETE /api/system/users/{id}` | `system:user:delete` or `system:org:admin` | Org admin allowed orgs | Delete | Yes | No |
 | 组织架构 | Dept tree/list | `GET /api/system/depts/tree`, `GET /api/system/depts` | Authenticated or `system:dept:view` depending endpoint | Org scope | Read | Yes | No |
 | 组织架构 | Create/edit/delete dept | `POST/PUT/DELETE /api/system/depts...` | `system:dept:edit` | Org admin/config scope | Create/Update/Delete | Yes | No |
@@ -366,12 +371,14 @@ Legend: `V` view, `C` create, `U` update, `D` delete, `I` import, `E` export, `A
 | Mobile Page | Menu/Entry | Permission | APIs | Notes |
 | --- | --- | --- | --- | --- |
 | Login | `pages/login/index` | Public | `/api/auth/login`, `/api/auth/info` | Existing account/password first; WeChat binding later |
-| Home | `pages/home/index` | Authenticated | `/api/auth/info` | Shows user, role, quick entries |
-| Customer | `pages/customer/index` | `customer:view` | `/api/customer/list`, `/api/customer/{id}`, `/api/customer/list/counts` | Read-focused; backend owns data scope |
-| File | `pages/file/index` | `file:view` | `/api/file/list`, `/api/file/download-token` | Preview/download only |
-| Incentive | `pages/incentive/index` | `incentive:view`, optional `incentive:read-stats` | `/api/incentive/customer-records`, `/records/{id}/read`, `/read-stats` | Read-state sync with PC |
+| Home | `pages/home/index` | Authenticated plus `dashboard:view` or `statistics:view` for dashboard cards | `/api/auth/info`, `/api/statistics/dashboard`, reminder pending/expiring APIs | Shows user, role, dashboard cards and quick entries when permitted |
+| Mobile Shell | `pages/app/index` | Authenticated and per-entry permission gates from `/api/auth/info` | No extra business API; navigates to registered mobile pages | Mobile counterpart of the PC left menu/application navigation; hides unauthorized app entries |
+| Customer | `pages/customer/index` | `customer:view`, plus action permissions | `/api/customer/list`, `/api/customer/{id}`, `/api/customer/list/counts`, customer form/share/log/contact/finance/indicator APIs | List/detail/counts, scoped create/edit/delete, share/release, logs, contacts create/edit/delete, finance create/delete, relationship score and six indicators are implemented; import/export stay PC-first |
+| File | `pages/files/index` | `file:view`, plus action permissions | `/api/file/list`, `/api/file/download-token`, `/api/file/upload`, folder/share/storage/shared-to-me/ACL read APIs | Unified file center; preview/download/upload/share/replace/delete/folder management/storage/shared-to-me/folder ACL read are implemented; ACL mutation stays PC-first |
+| Incentive | `pages/incentive/index` | `incentive:view`, optional `incentive:add`, `incentive:read-stats`, `incentive:read-ranking:view` | `/api/incentive/customer-records`, `/records`, `/records/{id}/read`, `/read-stats`, `/read-ranking`, `/category-stats`, `/score/customer/{id}` | Query/detail/upload/edit/delete, file preview/download, read-state, read stats/ranking, category stats and customer score are implemented; category config stays PC-first |
 | Approval | `pages/approval/index` | `approval:view`, optional `approval:approve`, `approval:reject` | `/api/approval/list`, `/approve`, `/reject`, `/statistics` | Action buttons hidden without permissions; backend remains final guard |
-| Public Sea | `pages/sea/index` | `sea:view` | `/api/sea/list`, `/statistics`, `/configs/visible` | Read-only first; high-risk actions deferred |
+| Public Sea | `pages/sea/index` | `sea:view`, optional `sea:claim` and row edit/delete grant | `/api/sea/list`, `/statistics`, `/configs/visible`, `/claim-records`, shared approval submit and customer edit route | List/stats/pool selector, claim approval submission, claim records, permitted edit route and row delete are implemented; import/config stay PC-first |
+| Score | `pages/ranking/index` | `score:view`, legacy `score:ranking` menu-compatible, or `statistics:view` for customer rankings | `/api/score/ranking`, `/api/score/ranking/stats`, `/api/statistics/customer-rankings` | Personal/dept score ranking, period filter, stats and customer ranking drilldown are implemented; score entry/config/export stay PC-first |
 
 ## Operation Type Legend
 
@@ -392,8 +399,8 @@ Legend: `V` view, `C` create, `U` update, `D` delete, `I` import, `E` export, `A
 - Some backend endpoints intentionally rely on service-layer checks instead of method-level `@PreAuthorize`, for example incentive own-record edit/delete and sea pool delete. Keep tests around these paths.
 - File mutation permissions are split by V22: `file:upload`, `file:edit`, `file:delete`, `file:share`, and `file:folder:manage`; V22 inherits bindings from existing `file:view` roles before controller enforcement changes.
 - Score controller and PC route permissions were rechecked: ranking reads use `score:view`; score item management and batch entry remain separately gated by `score:manage` and `score:entry`.
-- Mobile public sea intentionally does not execute claim/edit/delete in this phase. It only displays backend-returned capability flags.
-- Mobile customer detail is currently list/detail-card level. Deep customer detail routes should be split into a non-tab page before passing customer id through navigation.
+- Mobile public sea executes claim/edit/delete only through backend-returned capability flags and service-layer permission checks.
+- Mobile customer detail now uses non-tab detail subpages for share, logs, contacts, finance, timeline and six-indicator workflows. Keep customer id propagation covered by navigation and customer-form contracts.
 - Sonar current query shows `OPEN=0`, but release sign-off should still include a fresh full analysis/quality gate record when the CI/Sonar pipeline is available.
 
 ## Merge Recommendation

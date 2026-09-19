@@ -12,7 +12,12 @@ describe('legacy menu route compatibility', () => {
     expect(source).toContain("permission: 'score:view'")
   })
 
-  it('keeps legacy department menu path usable for organization page', () => {
+  it('keeps system dept organization route and legacy department menu path aligned', () => {
+    expect(source).toContain("path: 'system/org'")
+    expect(source).toContain("name: 'DeptManage'")
+    expect(source).toContain("component: () => import('@/views/system/dept.vue')")
+    expect(source).toContain("permission: 'system:dept:view'")
+
     expect(source).toContain("path: 'system/dept'")
     expect(source).toContain("name: 'LegacyDeptManage'")
     expect(source).toContain("component: () => import('@/views/system/dept.vue')")

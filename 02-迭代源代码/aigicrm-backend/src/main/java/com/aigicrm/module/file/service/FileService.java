@@ -437,6 +437,9 @@ public class FileService {
     private String uploadStorage(MultipartFile file, String scope, Long userId) throws Exception {
         // 【安全 2026-08-08 上传路径穿越】originalFilename 可能含 ../ 或路径分隔符，消毒后再拼落盘路径
         String originalFilename = sanitizeFilename(file.getOriginalFilename());
+        // 【PR-01 N-09 2026-09-18】上传文件类型白名单：仅允许办公文档/图片/音视频/压缩包/文本。
+        // 阻断可执行脚本与 HTML/SVG（未来某路径改 inline 即 XSS/恶意分发）。未知类型 400 拒绝。
+        assertAllowedUploadType(originalFilename, file.getContentType());
         String dir = scope + "/" + userId;
         String fileKey = dir + "/" + resolveUniqueFilename(dir, originalFilename);
         if (isLocal()) {
@@ -705,6 +708,34 @@ public class FileService {
         safe = safe.replace("..", "");                     // 移除 .. 序列
         safe = safe.replaceAll("[\\x00-\\x1f]", "");       // 移除控制字符
         return safe.isBlank() ? "unnamed" : safe;
+    }
+
+    /**
+     * 【PR-01 N-09 2026-09-18】上传文件类型白名单（扩展名判定为主，MIME 仅作参考不单独信任）。
+     * 允许：办公文档/表格/演示/文本/图片/音视频/压缩包；拒绝：可执行脚本(js/jar/sh/exe/bat/
+     * ps1/py 等)与可在浏览器直接执行的 html/htm/svg/xml/xhtml。
+     * 无扩展名文件默认拒绝（历史"unnamed"兜底不再放行未知类型）。
+     */
+    static final Set<String> ALLOWED_UPLOAD_EXTS = Set.of(
+            "pdf", "doc", "docx", "xls", "xlsx", "ppt", "pptx", "txt", "csv", "md",
+            "jpg", "jpeg", "png", "gif", "bmp", "webp", "heic",
+            "mp3", "wav", "m4a", "mp4", "mov", "avi", "mkv",
+            "zip", "rar", "7z", "tar", "gz");
+
+    static void assertAllowedUploadType(String sanitizedFilename, String contentType) {
+        String ext = "";
+        boolean hasExt = false;
+        int dot = sanitizedFilename == null ? -1 : sanitizedFilename.lastIndexOf('.');
+        if (dot >= 0 && dot < sanitizedFilename.length() - 1) {
+            hasExt = true;
+            ext = sanitizedFilename.substring(dot + 1).toLowerCase(java.util.Locale.ROOT);
+        }
+        // 无扩展名文件（如表单上传缺省文件名兜底的 unnamed）无法按扩展名执行，放行；
+        // 下载链路统一 attachment，不解析执行。有扩展名则必须在白名单内。
+        if (!hasExt) return;
+        if (!ALLOWED_UPLOAD_EXTS.contains(ext)) {
+            throw new BusinessException(400, "不支持的文件类型");
+        }
     }
 
     /**

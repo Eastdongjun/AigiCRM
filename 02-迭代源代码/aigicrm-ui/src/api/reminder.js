@@ -13,6 +13,11 @@ export function ensureExpiring() {
   return request.post('/reminder/ensure-expiring')
 }
 
+// 2026-09-13: 提醒管理列表行点击进入详情页
+export function getReminderDetail(id) {
+  return request.get(`/reminder/${id}`)
+}
+
 export function processReminder(id) {
   return request.post(`/reminder/${id}/process`)
 }

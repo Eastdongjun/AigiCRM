@@ -87,10 +87,12 @@ class MybatisPlusConfigTest {
     // ---- 集团过滤表达式分支 ----
 
     @Test
-    void emptyGroupIdsFallsBackToPrimaryGroup() {
-        // 平台管理员/无集团归属：主集团默认值方案（见配置类注释：3.5.6 下 NullValue 非恒真）
-        assertEquals(1L, ((LongValue) MybatisPlusConfig.resolveTenantId(null)).getValue());
-        assertEquals(1L, ((LongValue) MybatisPlusConfig.resolveTenantId(List.of())).getValue());
+    void emptyGroupIdsRendersAlwaysFalse() {
+        // 【PR-01 P0-02】无集团归属不再退回主集团 1：tenant_id = NULL 恒假，查询恒为空集
+        assertTrue(MybatisPlusConfig.resolveTenantId(null)
+                instanceof net.sf.jsqlparser.expression.NullValue);
+        assertTrue(MybatisPlusConfig.resolveTenantId(List.of())
+                instanceof net.sf.jsqlparser.expression.NullValue);
     }
 
     @Test
@@ -125,11 +127,11 @@ class MybatisPlusConfigTest {
     }
 
     @Test
-    void emptyGroupIdsRendersPrimaryGroupFallback() {
+    void emptyGroupIdsRendersNullCondition() {
         authAs(List.of());
         String out = MybatisPlusConfig.buildTenantInterceptor().parserSingle(
                 "SELECT * FROM biz_customer WHERE id = 1", null);
-        assertTrue(out.contains("tenant_id = 1"), "空集团应退回主集团默认值，实际: " + out);
+        assertTrue(out.contains("tenant_id = NULL"), "空集团应恒假（tenant_id = NULL），实际: " + out);
     }
 
     // ---- 写入路径（隔离写入关键路径） ----

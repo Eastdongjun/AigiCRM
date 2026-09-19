@@ -1,2 +1,52 @@
-<view class="page"><view class="hero"><view class="row"><view><view class="hero-title">财务明细</view><view class="hero-sub">客户开票与回款记录</view></view><button class="ghost-btn" bindtap="goBack">返回</button></view></view><view class="tabs"><view class="tab {{tab==='invoice'?'active':''}}" data-tab="invoice" bindtap="switchTab">开票明细</view><view class="tab {{tab==='payment'?'active':''}}" data-tab="payment" bindtap="switchTab">回款明细</view></view><view wx:if="{{loading}}" class="card muted">加载中...</view><block wx:if="{{tab==='invoice'}}"><block wx:for="{{invoices}}" wx:key="id"><view class="card finance-row"><view class="row"><text class="finance-no">{{item.invoiceNo || item.code || '开票记录'}}</text><text class="pill">{{item.status || '已记录'}}</text></view><view class="detail-row"><text>金额</text><text>{{item.amount || item.totalAmount || '-'}}</text></view><view class="detail-row"><text>日期</text><text>{{item.invoiceDate || item.date || '-'}}</text></view></view></block><view wx:if="{{!loading && invoices.length===0}}" class="card muted">暂无开票明细</view></block><block wx:if="{{tab==='payment'}}"><block wx:for="{{payments}}" wx:key="id"><view class="card finance-row"><view class="row"><text class="finance-no">{{item.paymentNo || item.code || '回款记录'}}</text><text class="pill">{{item.status || '已记录'}}</text></view><view class="detail-row"><text>金额</text><text>{{item.amount || item.totalAmount || '-'}}</text></view><view class="detail-row"><text>日期</text><text>{{item.paymentDate || item.date || '-'}}</text></view></view></block><view wx:if="{{!loading && payments.length===0}}" class="card muted">暂无回款明细</view></block></view>
-<button wx:if="{{canEdit}}" class="btn" style="margin:24rpx 0" bindtap="openForm">新增{{tab==='invoice'?'开票':'回款'}}</button>
+<view class="page">
+  <view class="hero">
+    <view class="row">
+      <view>
+        <view class="hero-title">财务明细</view>
+        <view class="hero-sub">客户开票与回款记录</view>
+      </view>
+      <button class="ghost-btn" bindtap="goBack">返回</button>
+    </view>
+  </view>
+  <view class="tabs">
+    <view wx:for="{{financeListView.tabs}}" wx:key="key" class="{{item.className}}" data-tab="{{item.key}}" bindtap="switchTab">{{item.text}}</view>
+  </view>
+  <view wx:if="{{financeListView.showLoading}}" class="card muted">加载中...</view>
+  <block wx:if="{{financeListView.showInvoices}}">
+    <block wx:for="{{financeListView.invoiceRows}}" wx:key="id">
+      <view class="card finance-row">
+        <view class="row">
+          <text class="finance-no">{{item.invoiceNumber}}</text>
+          <text class="pill">{{item.status}}</text>
+        </view>
+        <view class="detail-row"><text>金额</text><text>{{item.amountText}}</text></view>
+        <view class="detail-row"><text>日期</text><text>{{item.invoiceDateText}}</text></view>
+        <view class="detail-row"><text>发票类型</text><text>{{item.invoiceType}}</text></view>
+        <view class="detail-row"><text>开票单位</text><text>{{item.invoiceCompany}}</text></view>
+        <view wx:if="{{financeListView.showDeleteAction}}" class="finance-actions">
+          <button class="finance-delete-btn" data-mode="invoice" data-index="{{index}}" catchtap="deleteRecord">删除</button>
+        </view>
+      </view>
+    </block>
+    <view wx:if="{{financeListView.invoiceEmptyText}}" class="card muted">{{financeListView.invoiceEmptyText}}</view>
+  </block>
+  <block wx:if="{{financeListView.showPayments}}">
+    <block wx:for="{{financeListView.paymentRows}}" wx:key="id">
+      <view class="card finance-row">
+        <view class="row">
+          <text class="finance-no">{{item.paymentNumber}}</text>
+          <text class="pill">{{item.status}}</text>
+        </view>
+        <view class="detail-row"><text>金额</text><text>{{item.paymentAmountText}}</text></view>
+        <view class="detail-row"><text>日期</text><text>{{item.paymentDateText}}</text></view>
+        <view class="detail-row"><text>回款方式</text><text>{{item.paymentMethod}}</text></view>
+        <view class="detail-row"><text>备注</text><text>{{item.remark}}</text></view>
+        <view wx:if="{{financeListView.showDeleteAction}}" class="finance-actions">
+          <button class="finance-delete-btn" data-mode="payment" data-index="{{index}}" catchtap="deleteRecord">删除</button>
+        </view>
+      </view>
+    </block>
+    <view wx:if="{{financeListView.paymentEmptyText}}" class="card muted">{{financeListView.paymentEmptyText}}</view>
+  </block>
+  <button wx:if="{{financeListView.showAddAction}}" class="btn finance-add-btn" bindtap="openForm">{{financeListView.addText}}</button>
+</view>

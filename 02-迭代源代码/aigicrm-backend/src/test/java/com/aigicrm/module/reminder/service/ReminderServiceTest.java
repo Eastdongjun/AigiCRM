@@ -111,6 +111,68 @@ class ReminderServiceTest {
         verify(reminderMapper).updateById(reminder);
     }
 
+    @Test
+    void detail_returnsReminderWithCustomerBriefAndOwnerNames() {
+        authenticate(1L, "self");
+        when(scopeResolver.resolve(any())).thenReturn(List.of(1L));
+        BizReminder reminder = new BizReminder();
+        reminder.setId(21L);
+        reminder.setCustomerId(77L);
+        reminder.setOwnerId(1L);
+        reminder.setOfficeId(5L);
+        reminder.setReminderType("invoice_overdue");
+        reminder.setStatus("pending");
+        reminder.setOverdueDays(12);
+        when(reminderMapper.selectById(21L)).thenReturn(reminder);
+        BizCustomer customer = new BizCustomer();
+        customer.setId(77L);
+        customer.setCustomerCode("C0077");
+        customer.setCustomerName("山西平阳重工机械有限责任公司");
+        customer.setStatus("warning");
+        customer.setProvince("山西省");
+        customer.setCity("临汾市");
+        customer.setExpireDate(LocalDate.now().plusDays(20));
+        when(customerMapper.selectById(77L)).thenReturn(customer);
+        com.aigicrm.module.system.entity.SysUser owner = new com.aigicrm.module.system.entity.SysUser();
+        owner.setRealName("张销售");
+        when(userMapper.selectById(1L)).thenReturn(owner);
+        com.aigicrm.module.system.entity.SysDept dept = new com.aigicrm.module.system.entity.SysDept();
+        dept.setDeptName("山西办事处");
+        when(deptMapper.selectById(5L)).thenReturn(dept);
+
+        var detail = service.detail(21L);
+
+        assertEquals("invoice_overdue", detail.get("reminderType"));
+        assertEquals(12, detail.get("overdueDays"));
+        assertEquals("张销售", detail.get("ownerName"));
+        assertEquals("山西办事处", detail.get("officeName"));
+        @SuppressWarnings("unchecked")
+        var brief = (java.util.Map<String, Object>) detail.get("customer");
+        assertEquals("山西平阳重工机械有限责任公司", brief.get("customerName"));
+        assertEquals("山西省临汾市", brief.get("region"));
+    }
+
+    @Test
+    void detail_rejectsReminderOutsideVisibleOwnerScope() {
+        authenticate(1L, "self");
+        when(scopeResolver.resolve(any())).thenReturn(List.of(1L));
+        BizReminder reminder = new BizReminder();
+        reminder.setId(22L);
+        reminder.setOwnerId(2L);
+        when(reminderMapper.selectById(22L)).thenReturn(reminder);
+
+        assertThrows(BusinessException.class, () -> service.detail(22L));
+        verify(customerMapper, never()).selectById(any());
+    }
+
+    @Test
+    void detail_reportsMissingReminder() {
+        authenticate(1L, "self");
+        when(reminderMapper.selectById(23L)).thenReturn(null);
+
+        assertThrows(BusinessException.class, () -> service.detail(23L));
+    }
+
     private void authenticate(Long userId, String dataScope) {
         SecurityUser user = new SecurityUser();
         user.setUserId(userId);

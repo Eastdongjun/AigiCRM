@@ -2,6 +2,7 @@
   <div class="reminder-manage">
     <div class="page-header">
       <h2>提醒管理</h2>
+      <span class="page-hint">点击任意一行查看提醒详情</span>
     </div>
 
     <!-- 搜索栏 -->
@@ -31,7 +32,8 @@
     <!-- 表格区域 -->
     <div class="table-area">
       <div class="table-wrap" ref="tableWrapRef">
-      <el-table :data="pagedData" stripe style="width:100%" size="default" :height="tableHeight">
+      <el-table :data="pagedData" stripe style="width:100%" size="default" :height="tableHeight"
+        @row-click="openDetail" :row-style="{ cursor: 'pointer' }" title="点击查看提醒详情">
         <el-table-column label="类型" width="70" align="center">
           <template #default="{ row }">
             <el-tag v-if="row._type === 'share'" type="warning" size="small" effect="dark">分享</el-tag>
@@ -39,7 +41,7 @@
             <el-tag v-else type="info" size="small">到期</el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="customerName" label="客户名称" min-width="160" show-overflow-tooltip />
+        <el-table-column prop="customerName" label="客户名称" min-width="220" show-overflow-tooltip />
         <el-table-column label="提示内容" min-width="160" show-overflow-tooltip>
           <template #default="{ row }">
             <span v-if="row._type === 'share'">{{ row._shareLabel }}</span>
@@ -53,23 +55,25 @@
         <el-table-column prop="ownerName" label="负责人" width="80" />
         <el-table-column label="状态" width="90" align="center">
           <template #default="{ row }">
-            <el-tag v-if="row._type === 'share'" type="warning" size="small">待查看</el-tag>
-            <el-tag v-else-if="row._type === 'invoice'" :type="row._invoiceTagType" size="small">待处理</el-tag>
+            <!-- 状态列改中性色：此前与「类型」列同色同形，两列无法区分（浏览器视觉走查发现） -->
+            <el-tag v-if="row._type === 'share'" type="info" size="small">待查看</el-tag>
+            <el-tag v-else-if="row._type === 'invoice'" type="info" size="small">待处理</el-tag>
             <el-tag v-else :type="getStatusType(row.remainingDays)" size="small">{{ getStatusText(row.remainingDays) }}</el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="140" align="center" fixed="right">
+        <el-table-column label="操作" width="160" align="center" fixed="right">
           <template #default="{ row }">
+            <el-button link type="primary" size="small" @click.stop="openDetail(row)">详情</el-button>
             <template v-if="row._type === 'share'">
-              <el-button link type="primary" size="small" @click="handleProcessShare(row)">已读</el-button>
+              <el-button link type="primary" size="small" @click.stop="handleProcessShare(row)">已读</el-button>
             </template>
             <template v-else-if="row._type === 'invoice'">
-              <el-button link type="primary" size="small" @click="handleProcessShare(row)">已读</el-button>
+              <el-button link type="primary" size="small" @click.stop="handleProcessShare(row)">已读</el-button>
             </template>
             <template v-else>
-              <el-button v-if="!row.todayFollowedUp" link type="primary" size="small" @click="handleFollowUp(row)">已跟进</el-button>
+              <el-button v-if="!row.todayFollowedUp" link type="primary" size="small" @click.stop="handleFollowUp(row)">已跟进</el-button>
               <el-button v-else link type="info" size="small" disabled>已跟进</el-button>
-              <el-button link type="warning" size="small" @click="handleExtend(row)">申请延期</el-button>
+              <el-button link type="warning" size="small" @click.stop="handleExtend(row)">申请延期</el-button>
             </template>
           </template>
         </el-table-column>
@@ -82,8 +86,9 @@
           v-model:current-page="query.current"
           v-model:page-size="query.size"
           :total="total"
-          :page-sizes="[15, 30, 50]"
-          layout="prev, pager, next"
+          :page-sizes="pageSizes(query.size)"
+          layout="sizes, prev, pager, next, jumper"
+          @size-change="query.current = 1"
           :pager-count="5"
           size="small"
           background
@@ -95,15 +100,18 @@
 
 <script setup>
 import { ref, reactive, computed, onMounted, onBeforeUnmount, nextTick } from 'vue'
+import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { getExpiringList, getReminderList, processReminder, ensureExpiring } from '@/api/reminder'
 import { submitApproval } from '@/api/approval'
 import { getScopeDepts } from '@/api/system'
 import { getSimpleUserList } from '@/api/customer'
 import { useUserStore } from '@/store/user'
-import { paginate } from '@/utils/pagination'
+import { paginate, pageSizes } from '@/utils/pagination'
+import { buildReminderDetailLocation, remainingDaysTagType, remainingDaysText } from '@/utils/reminder-detail'
 
 const userStore = useUserStore()
+const router = useRouter()
 
 const tableData = ref([])
 const total = ref(0)
@@ -141,6 +149,7 @@ const loadData = async () => {
             ownerName: item.ownerName,
             officeName: item.officeName || '',
             _type: 'share',
+            reminderType: item.reminderType,
             _shareLabel: labelMap[item.reminderType] || item.reminderType,
           })
         }
@@ -162,6 +171,8 @@ const loadData = async () => {
             ownerName: item.ownerName,
             officeName: item.officeName || '',
             _type: 'invoice',
+            reminderType: t,
+            _invoiceType: t,
             _invoiceTagType: t === 'invoice_overdue' ? 'danger' : 'warning',
             _invoiceLabel: t === 'invoice_overdue'
               ? `已超期 ${(item.overdueDays || 0)} 天未开票`
@@ -225,24 +236,13 @@ const handleExtend = async (row) => {
   } catch (e) {}
 }
 
-const getDaysClass = (days) => {
-  if (days <= 7) return 'days-danger'
-  if (days <= 30) return 'days-warning'
-  return 'days-normal'
-}
+const getStatusType = (days) => remainingDaysTagType(days)
 
-const getStatusType = (days) => {
-  if (days <= 7) return 'danger'
-  if (days <= 30) return 'warning'
-  if (days <= 90) return 'info'
-  return 'success'
-}
+const getStatusText = (days) => remainingDaysText(days)
 
-const getStatusText = (days) => {
-  if (days <= 7) return '即将逾期'
-  if (days <= 30) return '临期提醒'
-  if (days <= 90) return '关注'
-  return '正常'
+// 2026-09-13: 点击行（或"详情"按钮）进入提醒详情页；无提醒实体的到期行以客户信息降级展示
+const openDetail = (row) => {
+  router.push(buildReminderDetailLocation(row))
 }
 
 // 表格高度：动态计算可用高度，保证分页器完整显示、不被裁切
@@ -276,8 +276,9 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
-.page-header { margin-bottom: 12px; }
+.page-header { margin-bottom: 12px; display: flex; align-items: baseline; gap: 10px; }
 .page-header h2 { font-size: 18px; font-weight: 600; color: #333; }
+.page-hint { font-size: 12px; color: #909399; }
 .toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
 .toolbar-left { display: flex; gap: 8px; }
 .toolbar-right { display: flex; gap: 8px; }

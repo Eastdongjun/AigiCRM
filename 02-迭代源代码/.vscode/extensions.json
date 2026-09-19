@@ -10,6 +10,7 @@
     "dbaeumer.vscode-eslint",
     "vue.volar",
     "eamodio.gitlens",
-    "usernamehw.errorlens"
+    "usernamehw.errorlens",
+    "emeraldwalk.runonsave"
   ]
 }

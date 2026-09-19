@@ -2,6 +2,7 @@
 # Local-only development verification entrypoint.
 # It never commits, pushes, deploys, SSHes, migrates databases, or calls production.
 
+set -e
 set -u
 set -o pipefail
 
@@ -54,11 +55,12 @@ evidence_history() {
     cut -d' ' -f2- |
     while IFS= read -r handoff; do
       [ -n "$handoff" ] || continue
-      local run_dir result
+      local run_dir run_json result
       run_dir="$(basename "$(dirname "$handoff")")"
+      run_json="$(dirname "$handoff")/run.json"
       result="$(awk '
-        /^Result:[[:space:]]*/ {
-          sub(/^Result:[[:space:]]*/, "")
+        /^-?[[:space:]]*Result:[[:space:]]*/ {
+          sub(/^-?[[:space:]]*Result:[[:space:]]*/, "")
           print
           exit
         }
@@ -70,9 +72,137 @@ evidence_history() {
           found=1
         }
       ' "$handoff")"
+      if [ -z "$result" ]; then
+        result="$(awk '
+          /^-[[:space:]]*状态：/ {
+            sub(/^-?[[:space:]]*状态：/, "status: ")
+            print
+            exit
+          }
+        ' "$handoff")"
+      fi
+      if [ -z "$result" ] && [ -f "$run_json" ]; then
+        result="$(sed -n 's/^[[:space:]]*"status":[[:space:]]*"\([^"]*\)".*/run status: \1/p' "$run_json" | head -1)"
+      fi
       [ -n "$result" ] || result="unknown"
       echo "$run_dir: $result"
     done
+}
+
+latest_sonar_evidence_summary() {
+  local evidence_root log_file local_status qg_status exit_code
+  evidence_root="/Users/dongjun/东来/Agent/00-管理/项目执行/802fad80-8665-4b11-9f9d-04b92bda4666/runs"
+  [ -d "$evidence_root" ] || {
+    echo "unavailable (no central evidence runs)"
+    return 0
+  }
+  log_file="$(
+    find "$evidence_root" -path '*/evidence/sonar-status.log' -print0 |
+      xargs -0 stat -f '%m %N' 2>/dev/null |
+      sort -n |
+      tail -1 |
+      cut -d' ' -f2-
+  )"
+  [ -n "$log_file" ] && [ -f "$log_file" ] || {
+    echo "unavailable (run: bash scripts/dev-evidence.sh sonar-status)"
+    return 0
+  }
+
+  local_status="$(sed -n 's/^SONAR_LOCAL_SCAN=//p' "$log_file" | tail -1)"
+  qg_status="$(sed -n 's/^SONAR_QUALITY_GATE=//p' "$log_file" | tail -1)"
+  exit_code="$(sed -n 's/^exit_code=//p' "$log_file" | tail -1)"
+  echo "local=${local_status:-unknown}; qg=${qg_status:-unknown}; evidence_exit=${exit_code:-unknown}; log=$log_file"
+}
+
+changed_breakdown() {
+  changed_files | awk '
+    NF {
+      total++
+      if ($0 ~ /^aigicrm-backend\/src\/main\/resources\/db\/migration\//) migrations++
+      else if ($0 ~ /^aigicrm-backend\//) backend++
+      else if ($0 ~ /^aigicrm-ui\//) frontend++
+      else if ($0 ~ /^aigicrm-miniprogram\//) miniprogram++
+      else if ($0 ~ /^scripts\//) scripts++
+      else if ($0 ~ /^docs\//) docs++
+      else if ($0 ~ /^\.vscode\/|^\.githooks\/|^docker-|^sonar-project|^AGENTS\.md$|^AIGICRM\.code-workspace$/) config++
+      else other++
+    }
+    END {
+      printf "total=%d; migrations=%d; backend=%d; frontend=%d; miniprogram=%d; scripts=%d; docs=%d; config=%d; other=%d",
+        total + 0, migrations + 0, backend + 0, frontend + 0, miniprogram + 0, scripts + 0, docs + 0, config + 0, other + 0
+    }
+  '
+}
+
+untracked_files() {
+  (
+    cd "$ROOT" &&
+    git -c core.quotePath=false ls-files --others --exclude-standard
+  )
+}
+
+untracked_breakdown() {
+  untracked_files | awk '
+    NF {
+      total++
+      if ($0 ~ /^aigicrm-backend\/src\/main\/resources\/db\/migration\//) migrations++
+      else if ($0 ~ /^aigicrm-backend\//) backend++
+      else if ($0 ~ /^aigicrm-ui\//) frontend++
+      else if ($0 ~ /^aigicrm-miniprogram\//) miniprogram++
+      else if ($0 ~ /^scripts\//) scripts++
+      else if ($0 ~ /^docs\//) docs++
+      else if ($0 ~ /^\.vscode\/|^\.githooks\/|^docker-|^sonar-project|^AGENTS\.md$|^AIGICRM\.code-workspace$/) config++
+      else other++
+    }
+    END {
+      printf "total=%d; migrations=%d; backend=%d; frontend=%d; miniprogram=%d; scripts=%d; docs=%d; config=%d; other=%d",
+        total + 0, migrations + 0, backend + 0, frontend + 0, miniprogram + 0, scripts + 0, docs + 0, config + 0, other + 0
+    }
+  '
+}
+
+untracked_inventory() {
+  echo "AIGICRM untracked inventory"
+  echo "  summary: $(untracked_breakdown)"
+  untracked_files | awk '
+    function category(path) {
+      if (path ~ /^aigicrm-backend\/src\/main\/resources\/db\/migration\//) return "migrations"
+      if (path ~ /^aigicrm-backend\//) return "backend"
+      if (path ~ /^aigicrm-ui\//) return "frontend"
+      if (path ~ /^aigicrm-miniprogram\//) return "miniprogram"
+      if (path ~ /^scripts\//) return "scripts"
+      if (path ~ /^docs\//) return "docs"
+      if (path ~ /^\.vscode\/|^\.githooks\/|^docker-|^sonar-project|^AGENTS\.md$|^AIGICRM\.code-workspace$/) return "config"
+      return "other"
+    }
+    NF {
+      bucket=category($0)
+      files[bucket]=files[bucket] "    - " $0 "\n"
+      counts[bucket]++
+    }
+    END {
+      split("migrations backend frontend miniprogram scripts docs config other", order, " ")
+      for (i = 1; i <= length(order); i++) {
+        bucket=order[i]
+        printf "  %s (%d):\n", bucket, counts[bucket] + 0
+        if (counts[bucket] > 0) printf "%s", files[bucket]
+      }
+      print "  review batches:"
+      printf "    - database-permissions: review %d Flyway migrations before staging.\n", counts["migrations"] + 0
+      printf "    - backend-regression: review %d backend tests/helpers before staging.\n", counts["backend"] + 0
+      printf "    - frontend-features: review %d Vue/API/utility files and specs before staging.\n", counts["frontend"] + 0
+      printf "    - automation-contracts: review %d scripts and hooks before staging.\n", (counts["scripts"] + 0) + (counts["config"] + 0)
+      printf "    - delivery-docs: review %d docs before staging.\n", counts["docs"] + 0
+    }
+  '
+}
+
+changed_migrations() {
+  changed_files | awk '
+    /^aigicrm-backend\/src\/main\/resources\/db\/migration\/V.*\.sql$/ {
+      print "    - " $0
+    }
+  '
 }
 
 ensure_backend_tools() {
@@ -160,14 +290,47 @@ request.on('error', (error) => {
 NODE
 }
 
+http_body() {
+  local url="$1"
+  if command -v curl >/dev/null 2>&1; then
+    curl -sS --max-time 8 "$url"
+    return
+  fi
+  command -v node >/dev/null 2>&1 || blocked "curl or node is required for HTTP preflight"
+  node - "$url" <<'NODE'
+const http = require('http')
+const https = require('https')
+const url = process.argv[2]
+const client = url.startsWith('https:') ? https : http
+const request = client.get(url, { timeout: 8000 }, (response) => {
+  response.setEncoding('utf8')
+  response.on('data', chunk => process.stdout.write(chunk))
+})
+request.on('timeout', () => request.destroy(new Error('request timed out')))
+request.on('error', (error) => {
+  console.error(error.message)
+  process.exitCode = 1
+})
+NODE
+}
+
 backend_http_preflight() {
-  local base_url docs_status protected_status
+  local base_url docs_status protected_status config_status docs_body
   base_url="${AIGICRM_BACKEND_URL:-http://127.0.0.1:8080}"
 
   docs_status="$(http_status "$base_url/v3/api-docs")" || {
     blocked "backend is not reachable at $base_url"
   }
   [ "$docs_status" = "200" ] || fail "backend API docs returned HTTP $docs_status (expected 200)"
+  docs_body="$(http_body "$base_url/v3/api-docs")" || {
+    blocked "backend API docs body is not readable at $base_url"
+  }
+  printf '%s' "$docs_body" | grep -Fq '"title":"OpenAPI definition"' ||
+    fail "backend API docs at $base_url do not look like the AIGICRM OpenAPI document"
+  printf '%s' "$docs_body" | grep -Fq 'sys-user-controller' ||
+    fail "backend API docs at $base_url are missing the AIGICRM system user controller"
+  printf '%s' "$docs_body" | grep -Fq '/api/system/configs/public' ||
+    fail "backend API docs at $base_url are missing the AIGICRM public config endpoint"
 
   protected_status="$(http_status "$base_url/api/auth/info")" || {
     blocked "backend protected endpoint is not reachable at $base_url"
@@ -177,7 +340,12 @@ backend_http_preflight() {
     *) fail "unauthenticated /api/auth/info returned HTTP $protected_status (expected 401 or 403)" ;;
   esac
 
-  echo "PASS: backend HTTP preflight ($base_url; docs=200; protected endpoint=$protected_status without credentials)."
+  config_status="$(http_status "$base_url/api/system/configs/public")" || {
+    blocked "backend public config endpoint is not reachable at $base_url"
+  }
+  [ "$config_status" = "200" ] || fail "backend public config returned HTTP $config_status (expected 200)"
+
+  echo "PASS: backend HTTP preflight ($base_url; docs=200; public config=200; protected endpoint=$protected_status without credentials)."
 }
 
 frontend_http_preflight() {
@@ -205,6 +373,7 @@ miniprogram_check() {
     return 0
   }
   /bin/bash "$ROOT/scripts/check-mobile-demo-contract.sh"
+  /bin/bash "$ROOT/scripts/check-mobile-customer-indicator-edit-contract.sh"
 
   if command -v node >/dev/null 2>&1; then
     while IFS= read -r file; do
@@ -273,7 +442,7 @@ shell_syntax() {
   while IFS= read -r file; do
     [ -n "$file" ] || continue
     bash -n "$ROOT/$file" || rc=1
-  done < <(cd "$ROOT" && git ls-files 'scripts/*.sh')
+  done < <(cd "$ROOT" && git ls-files --cached --others --exclude-standard 'scripts/*.sh')
   return "$rc"
 }
 
@@ -293,26 +462,55 @@ automation_safety() {
 local_contracts() {
   run "$ROOT/scripts/check-vscode-workspace-contract.sh"
   run "$ROOT/scripts/check-vscode-diagnostics-export.sh"
+  run "$ROOT/scripts/check-dev-verify-modes-contract.sh"
+  run "$ROOT/scripts/check-dev-verify-executable-contract.sh"
+  run "$ROOT/scripts/check-dev-verify-progress-contract.sh"
+  run "$ROOT/scripts/check-dev-verify-untracked-contract.sh"
+  run "$ROOT/scripts/check-dev-verify-fail-fast-contract.sh"
+  run "$ROOT/scripts/check-backend-http-identity-contract.sh"
+  run "$ROOT/scripts/check-local-backend-start-contract.sh"
+  run "$ROOT/scripts/check-local-smoke-contract.sh"
+  run "$ROOT/scripts/check-dev-evidence-plan-contract.sh"
+  run "$ROOT/scripts/check-sonar-status-contract.sh"
+  run "$ROOT/scripts/check-dockerfile-contract.sh"
   run "$ROOT/scripts/check-indicator-contract.sh"
   run "$ROOT/scripts/check-read-stats-migration.sh"
   run "$ROOT/scripts/check-migration-contract.sh"
+  run "$ROOT/scripts/check-migration-chain-contract.sh"
+  run "$ROOT/scripts/check-mobile-auth-contract.sh"
   run "$ROOT/scripts/check-mobile-approval-contract.sh"
   run "$ROOT/scripts/check-mobile-indicator-contract.sh"
   run "$ROOT/scripts/check-mobile-incentive-contract.sh"
   run "$ROOT/scripts/check-incentive-file-schema-contract.sh"
+  run "$ROOT/scripts/check-incentive-period-contract.sh"
+  run "$ROOT/scripts/check-incentive-record-table-contract.sh"
+  run "$ROOT/scripts/check-incentive-read-ranking-contract.sh"
+  run "$ROOT/scripts/check-incentive-search-detail-contract.sh"
+  run "$ROOT/scripts/check-incentive-stats-detail-contract.sh"
+  run "$ROOT/scripts/check-reminder-detail-contract.sh"
   run "$ROOT/scripts/check-mobile-ranking-contract.sh"
+  run "$ROOT/scripts/check-mobile-feature-matrix-contract.sh"
+  run python3 "$ROOT/scripts/check-mobile-live-qa-boundary.py"
+  run "$ROOT/scripts/check-mobile-pc-only-boundary.sh"
+  run "$ROOT/scripts/check-mobile-pc-api-parity-contract.sh"
   run "$ROOT/scripts/check-sensitive-permission-contract.sh"
   run "$ROOT/scripts/check-jwt-secret-contract.sh"
+  run "$ROOT/scripts/check-prod-config-contract.sh"
   run "$ROOT/scripts/check-client-ip-contract.sh"
+  run "$ROOT/scripts/check-customer-status-contract.sh"
+  run "$ROOT/scripts/check-legacy-routes-contract.sh"
   run "$ROOT/scripts/check-customer-share-contract.sh"
   run "$ROOT/scripts/check-file-permission-contract.sh"
   # 【2026-09-13】check-customer-file-contract.sh 已随「客户文件」功能移除（见 V2026.09.13.5 迁移）
   run "$ROOT/scripts/check-miniprogram-local-profile.sh"
+  run python3 "$ROOT/scripts/check-miniprogram-permission-contract.py"
+  run python3 "$ROOT/scripts/check-permission-registration-contract.py"
   run "$ROOT/scripts/check-wechat-project-root.sh"
   run "$ROOT/scripts/check-mobile-manual-qa-contract.sh"
   run "$ROOT/scripts/check-wechat-identity-contract.sh"
   run "$ROOT/scripts/check-mobile-file-boundary.sh"
   run "$ROOT/scripts/check-mobile-sea-boundary.sh"
+  run "$ROOT/scripts/check-sea-delete-contract.sh"
   run "$ROOT/scripts/check-mobile-feedback-contract.sh"
   run "$ROOT/scripts/check-mobile-statistics-contract.sh"
   run "$ROOT/scripts/check-local-statistics-fixture.sh"
@@ -320,17 +518,20 @@ local_contracts() {
   run python3 "$ROOT/scripts/check-feature-audit-contract.py"
   run "$ROOT/scripts/check-task-admin-contract.sh"
   run "$ROOT/scripts/check-mobile-customer-form-contract.sh"
+  run bash "$ROOT/scripts/check-mobile-customer-indicator-edit-contract.sh"
   run "$ROOT/scripts/check-mobile-dashboard-contract.sh"
   run "$ROOT/scripts/check-pc-statistics-contract.sh"
   run "$ROOT/scripts/check-menu-readonly-contract.sh"
   run "$ROOT/scripts/check-menu-icon-contract.sh"
   run "$ROOT/scripts/check-pagination-anti-patterns.sh"
+  run bash "$ROOT/scripts/test-pagination-anti-patterns-path-safety.sh"
   run node "$ROOT/scripts/test-demo-customers.js"
   run node "$ROOT/scripts/test-demo-folders.js"
   run node "$ROOT/scripts/test-demo-contacts.js"
   run node "$ROOT/scripts/test-demo-finance.js"
   run node "$ROOT/scripts/test-demo-reminders.js"
   run node "$ROOT/scripts/test-feedback-draft.js"
+  run node "$ROOT/scripts/test-miniprogram-incentive-files.js"
   run node "$ROOT/scripts/test-miniprogram-request-failures.js"
   run bash "$ROOT/scripts/test-sea-claim-matrix-safety.sh"
   run "$ROOT/scripts/check-prototype-state-contract.sh"
@@ -433,6 +634,12 @@ status() {
   echo "AIGICRM automation status"
   echo "  source: $ROOT"
   echo "  changed files: $changed_count"
+  echo "  changed breakdown: $(changed_breakdown)"
+  echo "  untracked breakdown: $(untracked_breakdown)"
+  if changed_migrations | grep -q .; then
+    echo "  changed migrations:"
+    changed_migrations
+  fi
   if [ -n "$hooks_path" ]; then
     echo "  git hooks: $hooks_path"
   else
@@ -447,6 +654,7 @@ status() {
   evidence_history 5 | sed 's/^/    /'
   echo "  daily check: bash scripts/dev-verify.sh changed"
   echo "  evidence check: bash scripts/dev-evidence.sh changed"
+  echo "  sonar evidence: $(latest_sonar_evidence_summary)"
 }
 
 progress() {
@@ -480,10 +688,11 @@ progress() {
   echo "  Mini Program pages: $mini_pages"
   echo "  Mini Program API functions: $mini_api"
   echo "  Prototype coverage: $mini_pages/$prototype_screenshots ($coverage independent pages; 6 generic states validated separately)"
-  echo "  Generic prototype states: $state_done/$state_total code/automated coverage ($state_coverage; UI matrix pending)"
+  echo "  Generic prototype states: $state_done/$state_total code/automated coverage ($state_coverage; DevTools/manual QA pending)"
   echo "  Backend endpoints (audit): $backend_endpoints"
   echo "  Local verification: bash scripts/dev-verify.sh changed"
   echo "  Latest central handoff: ${latest:-none found}"
+  echo "  Latest Sonar evidence: $(latest_sonar_evidence_summary)"
   echo "  Local VS Code quality: Problems/SonarLint + tests/build are the free primary loop"
   echo "  External blockers: live-environment smoke, backup freshness, real low-permission browser matrix, server Sonar gate"
 }
@@ -516,10 +725,16 @@ pr() {
 case "$MODE" in
   status) status ;;
   progress) progress ;;
+  untracked) untracked_inventory ;;
   evidence-history) evidence_history "${2:-5}" ;;
   on-save) on_save ;;
   changed) changed ;;
   automation-safety) automation_safety ;;
+  verify-modes) bash "$ROOT/scripts/check-dev-verify-modes-contract.sh" ;;
+  verify-executables) bash "$ROOT/scripts/check-dev-verify-executable-contract.sh" ;;
+  verify-fail-fast) bash "$ROOT/scripts/check-dev-verify-fail-fast-contract.sh" ;;
+  verify-evidence-plans) bash "$ROOT/scripts/check-dev-evidence-plan-contract.sh" ;;
+  verify-dockerfile) bash "$ROOT/scripts/check-dockerfile-contract.sh" ;;
   backend-compile) backend_compile ;;
   backend-package) backend_package ;;
   backend-test) backend_test ;;
@@ -529,6 +744,8 @@ case "$MODE" in
   frontend-test) frontend_test ;;
   frontend-build) frontend_build ;;
   miniprogram) miniprogram_check ;;
+  shell-syntax) shell_syntax ;;
+  python-syntax) python_syntax ;;
   contracts) local_contracts ;;
   sea) sea_contract ;;
   sea-matrix) run "$ROOT/scripts/verify-sea-claim-matrix.sh" preflight ;;
@@ -540,21 +757,34 @@ Usage: scripts/dev-verify.sh <mode>
 Modes:
   status           Show automation status and latest central handoff.
   progress         Show current local source-surface counts and verification entrypoint.
+  untracked        Show categorized untracked files that remain to review.
   evidence-history Show recent central evidence handoff results.
   on-save          Local quick checks for editor save hooks.
   backend-compile  Maven compile with JDK 21.
   backend-package  Maven package without tests with JDK 21.
   backend-test     Maven unit tests with JDK 21.
   backend-http     Check local backend reachability and unauthenticated boundary.
+  frontend-http    Check local frontend root, login, and 403 routes.
   doc-freshness-local
                    Compare generated data/permission/API docs with the local database.
   frontend-test    Vitest run.
   frontend-build   Vite production build.
   miniprogram      Check WeChat miniprogram JS/JSON syntax and empty WXML/WXSS files.
+  shell-syntax     Check tracked and untracked scripts/*.sh with bash -n.
+  python-syntax    Check tracked and untracked Python files with py_compile.
   contracts        Run local permission, navigation, prototype, and demo-data contracts.
   changed          Run checks selected from currently changed files.
   automation-safety
                    Check daily automation files for forbidden remote/deploy commands.
+  verify-modes     Check dev-verify dispatch modes are documented and required modes exist.
+  verify-executables
+                   Check dev-verify invoked scripts exist, shell entrypoints are executable, and script syntax passes.
+  verify-fail-fast
+                   Check dev-verify exits non-zero when a direct or wrapped command fails.
+  verify-evidence-plans
+                   Check dev-evidence generated plans keep required checks and diff scopes.
+  verify-dockerfile
+                   Check Dockerfile structure without requiring registry access.
   sea              Public sea claim/approval contract tests.
   sea-matrix       Safe real-account matrix preflight; BLOCKED when inputs are missing.
   pr               Local pre-PR gate: shell syntax, sea contract, backend tests, frontend tests/build.

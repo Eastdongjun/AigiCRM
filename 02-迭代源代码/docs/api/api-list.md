@@ -1,6 +1,6 @@
 # AIGICRM API 清单(自动生成)
 
-> 生成时间: 2026-09-12 | 来源: 后端 controller 源码扫描
+> 生成时间: 2026-09-19 | 来源: 后端 controller 源码扫描
 > 本文件由 scripts/gen-api.py 自动生成,**禁止手改**;接口变更后重新运行。
 > 权限码与 docs/permission/permission-dict.md 对应。
 
@@ -30,6 +30,7 @@
 | POST | `/api/customer/add` | `hasAuthority('customer:add')` | create | CustomerController.java |
 | GET | `/api/customer/check-name` | `hasAuthority('customer:view')` | checkName | CustomerController.java |
 | GET | `/api/customer/export` | `hasAuthority('customer:export')` | export | CustomerController.java |
+| GET | `/api/customer/group-names` | `hasAuthority('customer:add') or hasAuthority('customer:edit')` | groupNames | CustomerController.java |
 | POST | `/api/customer/import` | `hasAuthority('customer:import')` | importCustomers | CustomerController.java |
 | GET | `/api/customer/import/template` | `hasAuthority('customer:import')` | downloadTemplate | CustomerController.java |
 | GET | `/api/customer/list` | `hasAuthority('customer:view')` | page | CustomerController.java |
@@ -47,15 +48,15 @@
 | GET | `/api/customer/{id}/indicator` | `hasAuthority('customer:view')` | getIndicator | CustomerController.java |
 | POST | `/api/customer/{id}/indicator` | `hasAuthority('customer:edit')` | saveIndicator | CustomerController.java |
 | GET | `/api/customer/{id}/invoices` | `hasAuthority('customer:view')` | getInvoices | CustomerController.java |
-| POST | `/api/customer/{id}/invoices` | `hasAuthority('customer:edit')` | addInvoice | CustomerController.java |
+| POST | `/api/customer/{id}/invoices` | `hasAuthority('customer:edit') and hasAuthority('finance:view')` | addInvoice | CustomerController.java |
 | GET | `/api/customer/{id}/invoices/summary` | `hasAuthority('customer:view')` | getInvoiceSummary | CustomerController.java |
-| DELETE | `/api/customer/{id}/invoices/{invoiceId}` | `hasAuthority('customer:edit')` | deleteInvoice | CustomerController.java |
+| DELETE | `/api/customer/{id}/invoices/{invoiceId}` | `hasAuthority('customer:edit') and hasAuthority('finance:view')` | deleteInvoice | CustomerController.java |
 | GET | `/api/customer/{id}/logs` | `hasAuthority('customer:view')` | getLogs | CustomerController.java |
 | POST | `/api/customer/{id}/logs` | `hasAuthority('customer:edit')` | addLog | CustomerController.java |
 | GET | `/api/customer/{id}/payments` | `hasAuthority('customer:view')` | getPayments | CustomerController.java |
-| POST | `/api/customer/{id}/payments` | `hasAuthority('customer:edit')` | addPayment | CustomerController.java |
+| POST | `/api/customer/{id}/payments` | `hasAuthority('customer:edit') and hasAuthority('finance:view')` | addPayment | CustomerController.java |
 | GET | `/api/customer/{id}/payments/summary` | `hasAuthority('customer:view')` | getPaymentSummary | CustomerController.java |
-| DELETE | `/api/customer/{id}/payments/{paymentId}` | `hasAuthority('customer:edit')` | deletePayment | CustomerController.java |
+| DELETE | `/api/customer/{id}/payments/{paymentId}` | `hasAuthority('customer:edit') and hasAuthority('finance:view')` | deletePayment | CustomerController.java |
 | PUT | `/api/customer/{id}/relationship` | `hasAuthority('customer:edit')` | saveRelationship | CustomerController.java |
 | POST | `/api/customer/{id}/release` | `hasAuthority('customer:edit')` | release | CustomerController.java |
 | GET | `/api/customer/{id}/shares` | `hasAuthority('customer:view')` | getShares | CustomerController.java |
@@ -93,12 +94,13 @@
 | GET | `/api/incentive/permission/list` | `hasAuthority('system:config:view')` | list | IncentivePermissionController.java |
 | DELETE | `/api/incentive/permission/{id}` | `hasAuthority('system:config:edit')` | revoke | IncentivePermissionController.java |
 | GET | `/api/incentive/ranking` | `hasAuthority('incentive:view')` | ranking | IncentiveController.java |
+| GET | `/api/incentive/read-ranking` | `hasAuthority('incentive:read-ranking:view')` | readRanking | IncentiveController.java |
 | GET | `/api/incentive/read-stats` | `hasAuthority('incentive:read-stats')` | readStats | IncentiveController.java |
 | GET | `/api/incentive/records` | `hasAuthority('incentive:view')` | getRecords | IncentiveController.java |
 | POST | `/api/incentive/records` | `hasAuthority('incentive:add')` | addRecord | IncentiveController.java |
 | POST | `/api/incentive/records/recalculate` | `hasAuthority('incentive:edit')` | recalculateAll | IncentiveController.java |
-| DELETE | `/api/incentive/records/{id}` | `登录即可` | deleteRecord | IncentiveController.java |
-| PUT | `/api/incentive/records/{id}` | `登录即可` | updateRecord | IncentiveController.java |
+| DELETE | `/api/incentive/records/{id}` | `hasAuthority('incentive:view')` | deleteRecord | IncentiveController.java |
+| PUT | `/api/incentive/records/{id}` | `hasAuthority('incentive:view')` | updateRecord | IncentiveController.java |
 | POST | `/api/incentive/records/{id}/read` | `hasAuthority('incentive:view')` | markRead | IncentiveController.java |
 | GET | `/api/incentive/score/customer/{customerId}` | `hasAuthority('incentive:view')` | getScoreByCustomer | IncentiveController.java |
 | GET | `/api/incentive/scoreboard` | `hasAuthority('incentive:view')` | scoreboard | IncentiveController.java |
@@ -107,6 +109,7 @@
 | GET | `/api/reminder/expiring-list` | `hasAuthority('reminder:view')` | expiringList | ReminderController.java |
 | GET | `/api/reminder/list` | `hasAuthority('reminder:view')` | page | ReminderController.java |
 | GET | `/api/reminder/pending-count` | `hasAuthority('reminder:view')` | pendingCount | ReminderController.java |
+| GET | `/api/reminder/{id}` | `hasAuthority('reminder:view')` | detail | ReminderController.java |
 | POST | `/api/reminder/{id}/process` | `hasAuthority('reminder:view')` | process | ReminderController.java |
 | POST | `/api/score/entries/batch` | `hasAuthority('score:entry')` | batchSave | ScoreController.java |
 | GET | `/api/score/export/grid` | `hasAuthority('score:view')` | exportGrid | ScoreController.java |
@@ -125,7 +128,7 @@
 | POST | `/api/sea/import` | `hasAuthority('sea:import')` | importToSea | SeaController.java |
 | GET | `/api/sea/list` | `hasAuthority('sea:view')` | page | SeaController.java |
 | GET | `/api/sea/org-tree` | `hasAuthority('sea:config:view')` | orgTree | SeaController.java |
-| DELETE | `/api/sea/pool/{id}` | `登录即可` | deletePool | SeaController.java |
+| DELETE | `/api/sea/pool/{id}` | `hasAuthority('sea:view')` | deletePool | SeaController.java |
 | GET | `/api/sea/statistics` | `hasAuthority('sea:view')` | statistics | SeaController.java |
 | GET | `/api/statistics/analysis` | `hasAuthority('statistics:view')` | analysis | StatisticsController.java |
 | GET | `/api/statistics/customer-rankings` | `hasAuthority('statistics:view')` | customerRankings | StatisticsController.java |

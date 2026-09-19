@@ -1,0 +1,16 @@
+<view class="page profile-doc-page">
+  <text class="title">AIGICRM 用户协议</text>
+  <text class="updated">版本：移动端预览版</text>
+  <view class="doc-section">
+    <text class="heading">一、服务说明</text>
+    <text class="body">AIGICRM 用于企业客户管理、业务协作和内部审批。用户应使用本人账号登录，并在授权范围内使用系统功能。</text>
+  </view>
+  <view class="doc-section">
+    <text class="heading">二、账号与数据</text>
+    <text class="body">请妥善保管账号信息，不得转借账号或绕过权限访问数据。业务数据的保留、修改和分享遵循所在组织的管理制度。</text>
+  </view>
+  <view class="doc-section">
+    <text class="heading">三、服务使用</text>
+    <text class="body">删除、释放、捞取、分享和审批等操作可能影响业务流程，请在确认信息后提交。异常操作请及时联系管理员。</text>
+  </view>
+</view>

@@ -6,35 +6,35 @@
       <el-tabs v-model="activeTab" tab-position="left" class="settings-tabs">
         <!-- 基本设置 -->
         <el-tab-pane name="basic">
-          <template #label><span class="tab-label">⚙️ 基本设置</span></template>
+          <template #label><span class="tab-label"><el-icon><Setting /></el-icon>基本设置</span></template>
           <BasicSettings />
         </el-tab-pane>
 
         <!-- 字典管理 -->
         <el-tab-pane name="dict">
-          <template #label><span class="tab-label">📋 字典管理</span></template>
+          <template #label><span class="tab-label"><el-icon><Notebook /></el-icon>字典管理</span></template>
           <DictManager />
         </el-tab-pane>
         <!-- 公海配置 -->
-        <el-tab-pane name="approvalConfig"><template #label><span class="tab-label">✅ 审批配置</span></template><ApprovalConfig /></el-tab-pane>
+        <el-tab-pane name="approvalConfig"><template #label><span class="tab-label"><el-icon><Select /></el-icon>审批配置</span></template><ApprovalConfig /></el-tab-pane>
         <el-tab-pane v-if="userStore.hasPermission('sea:config:view')" name="sea">
-          <template #label><span class="tab-label">🌊 公海配置</span></template>
+          <template #label><span class="tab-label"><el-icon><Ship /></el-icon>公海配置</span></template>
           <SeaConfigManager />
         </el-tab-pane>
         <!-- 激励类别与权限 -->
         <el-tab-pane name="incentiveCategory">
-          <template #label><span class="tab-label"><el-icon style="vertical-align:-2px;margin-right:4px"><Coin /></el-icon>激励类别与权限</span></template>
+          <template #label><span class="tab-label"><el-icon><Coin /></el-icon>激励类别与权限</span></template>
           <CategoryManager />
         </el-tab-pane>
 
 
         <!-- 权限体系总览 -->
         <el-tab-pane name="permOverview">
-          <template #label><span class="tab-label">🔐 权限体系</span></template>
+          <template #label><span class="tab-label"><el-icon><Lock /></el-icon>权限体系</span></template>
           <PermMatrixManager mode="overview" />
         </el-tab-pane>
         <el-tab-pane name="perm">
-          <template #label><span class="tab-label">🗄️ 权限管理</span></template>
+          <template #label><span class="tab-label"><el-icon><Grid /></el-icon>权限管理</span></template>
           <PermScopeManager />
         </el-tab-pane>
 
@@ -47,6 +47,7 @@
 <script setup>
 import ApprovalConfig from '@/views/system/approvalConfig.vue'
 import { watch } from 'vue'
+import { Setting, Notebook, Select, Ship, Lock, Grid, Coin } from '@element-plus/icons-vue'
 import { usePermissionData } from '@/composables/usePermissionData'
 import DictManager from './DictManager.vue'
 import SeaConfigManager from './SeaConfigManager.vue'

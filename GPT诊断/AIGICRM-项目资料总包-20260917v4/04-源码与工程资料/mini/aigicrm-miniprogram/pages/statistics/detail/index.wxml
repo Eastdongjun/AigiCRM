@@ -1,0 +1,53 @@
+<view class="page statistics-page">
+  <view class="stats-hero compact">
+    <view>
+      <view class="stats-kicker">数据明细</view>
+      <view class="stats-title">统计明细</view>
+      <view class="stats-sub">按业务模块拆分，便于复盘和追踪</view>
+    </view>
+    <view class="detail-hero-actions">
+      <button class="detail-back-action" bindtap="goBack" disabled="{{detailView.backDisabled}}">返回</button>
+      <button class="detail-refresh-action" bindtap="refresh" loading="{{detailView.refreshLoading}}">{{detailView.refreshText}}</button>
+    </view>
+  </view>
+  <scroll-view class="stats-tabs" scroll-x="true" enable-flex>
+    <view wx:for="{{detailView.tabs}}" wx:key="key" class="{{item.className}}" data-section="{{item.key}}" bindtap="switchSection">{{item.label}}</view>
+  </scroll-view>
+  <view wx:if="{{detailView.showLoading}}" class="card loading-card">加载中...</view>
+  <view wx:if="{{detailView.showCustomer}}" class="card stats-list-card">
+    <view class="stats-card-title">客户资产</view>
+    <view class="stats-detail-summary">
+      <view wx:for="{{detailView.summaryTiles}}" wx:key="label">
+        <text>{{item.label}}</text>
+        <view>{{item.value}}</view>
+      </view>
+    </view>
+    <view wx:for="{{detailView.customerRows}}" wx:key="label" class="stats-list-row"><text>{{item.label}}</text><text>{{item.value}}</text></view>
+  </view>
+  <view wx:if="{{detailView.showApproval}}" class="card stats-list-card">
+    <view class="stats-card-title">审批流转</view>
+    <view wx:for="{{detailView.approvalRows}}" wx:key="label" class="stats-list-row"><text>{{item.label}}</text><text>{{item.value}}</text></view>
+  </view>
+  <view wx:if="{{detailView.showSea}}" class="card stats-list-card">
+    <view class="stats-card-title">公海池</view>
+    <view wx:for="{{detailView.seaRows}}" wx:key="label" class="stats-list-row"><text>{{item.label}}</text><text>{{item.value}}</text></view>
+  </view>
+  <view wx:if="{{detailView.showActivity}}" class="card stats-list-card">
+    <view class="stats-card-title">团队动态</view>
+    <view wx:if="{{detailView.showActivityEmpty}}" class="muted">暂无团队动态</view>
+    <view wx:for="{{detailView.activities}}" wx:key="id" class="activity-row">
+      <view class="activity-main"><text class="activity-type">{{item.typeDisplay}}</text><text>{{item.contentDisplay}}</text></view>
+      <view class="activity-meta"><text>{{item.actorDisplay}}</text><text>{{item.timeDisplay}}</text></view>
+    </view>
+  </view>
+  <view wx:if="{{detailView.showTrend}}" class="card stats-list-card">
+    <view class="stats-card-title">趋势复盘</view>
+    <view class="stats-subtitle">本月日报</view>
+    <view wx:if="{{detailView.showDailyEmpty}}" class="muted">暂无日报数据</view>
+    <view wx:for="{{detailView.dailyRows}}" wx:key="id" class="detail-row"><text>{{item.label}}</text><text>{{item.valueText}}</text></view>
+    <view class="stats-subtitle">本月周报</view>
+    <view wx:if="{{detailView.showWeeklyEmpty}}" class="muted">暂无周报数据</view>
+    <view wx:for="{{detailView.weeklyRows}}" wx:key="id" class="detail-row"><text>{{item.label}}</text><text>{{item.valueText}}</text></view>
+  </view>
+  <button class="stats-refresh-action" bindtap="refresh" loading="{{detailView.refreshLoading}}" disabled="{{detailView.refreshLoading}}">{{detailView.refreshText}}</button>
+</view>

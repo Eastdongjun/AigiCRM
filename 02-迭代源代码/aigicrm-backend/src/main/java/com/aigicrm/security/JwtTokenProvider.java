@@ -131,8 +131,10 @@ public class JwtTokenProvider {
                     Integer.class, jti);
             return n != null && n > 0;
         } catch (Exception dbEx) {
-            log.error("isBlacklisted DB 查询失败(撤销链路不可用): {}", dbEx.getMessage());
-            return false;
+            // 【PR-01 P1-07 2026-09-18 fail-closed】撤销状态未知不得按"未拉黑"放行：
+            // 返回 true 使 JwtAuthFilter 拒绝该 token（不可用≠可信任）。
+            log.error("isBlacklisted DB 查询失败(撤销状态未知，按已拉黑拒绝): {}", dbEx.getMessage());
+            return true;
         }
     }
 
@@ -198,13 +200,26 @@ public class JwtTokenProvider {
         }
     }
 
-    /** token 是否因"改密时间晚于签发时间"而失效(Redis 故障降级为不失效，与黑名单降级一致) */
+    /** token 是否因"改密时间晚于签发时间"而失效。
+     * 【PR-01 N-01 2026-09-18 fail-closed】Redis 故障时回查 DB pwd_changed_at；
+     * 撤销状态未知一律按失效处理（与黑名单降级一致，不再"降级不失效"）。 */
     public boolean isInvalidatedByPasswordChange(String token) {
+        Claims claims;
         try {
-            Claims claims = getClaims(token);
-            Long userId = Long.parseLong(claims.getSubject());
-            Date iat = claims.getIssuedAt();
-            if (iat == null) return false;
+            claims = getClaims(token);
+        } catch (Exception e) {
+            // token 本身无法解析 → 调用方(JwtAuthFilter)按无效拒绝
+            return true;
+        }
+        Long userId;
+        try {
+            userId = Long.parseLong(claims.getSubject());
+        } catch (Exception e) {
+            return true;
+        }
+        Date iat = claims.getIssuedAt();
+        if (iat == null) return false;
+        try {
             Object changedAt = redisTemplate.opsForValue().get(PWD_CHANGED_PREFIX + userId);
             if (changedAt == null) return false;
             long changed = Long.parseLong(String.valueOf(changedAt));
@@ -212,8 +227,20 @@ public class JwtTokenProvider {
             changed = changed / 1000 * 1000;
             return iat.getTime() < changed;
         } catch (Exception e) {
-            log.warn("isInvalidatedByPasswordChange 检查失败(降级不失效): {}", e.getMessage());
-            return false;
+            log.warn("isInvalidatedByPasswordChange Redis 检查失败，回查 DB pwd_changed_at: {}", e.getMessage());
+        }
+        // Redis 不可用 → DB 落库时刻为权威（与改密/重置写库口径一致，见 AuthService.resetPassword）
+        try {
+            java.time.LocalDateTime dbChanged = jdbc.queryForObject(
+                    "SELECT pwd_changed_at FROM sys_user WHERE id=? AND deleted=0",
+                    java.time.LocalDateTime.class, userId);
+            if (dbChanged == null) return false;
+            long changedMs = dbChanged.atZone(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli()
+                    / 1000 * 1000;
+            return iat.getTime() < changedMs;
+        } catch (Exception dbEx) {
+            log.error("isInvalidatedByPasswordChange DB 回查失败(改密撤销状态未知，按失效拒绝): {}", dbEx.getMessage());
+            return true;
         }
     }
 

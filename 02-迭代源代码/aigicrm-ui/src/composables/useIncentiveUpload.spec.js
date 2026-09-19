@@ -22,7 +22,7 @@ vi.mock('@/utils/confirm', () => ({ confirmAction: vi.fn() }))
 vi.mock('@/utils/request', () => ({ default: { post: vi.fn() } }))
 
 import { useIncentiveUpload } from './useIncentiveUpload'
-import { addRecord, deleteRecord, updateRecord } from '@/api/incentive'
+import { addRecord, deleteRecord, updateRecord, getRecords } from '@/api/incentive'
 import request from '@/utils/request'
 
 const cats = [
@@ -214,5 +214,17 @@ describe('useIncentiveUpload 品类判定与提交序列化', () => {
     expect(list.previewVisible.value).toBe(false)
     await list.previewCardFile({ name: 'x.mp4', id: null, _existing: true })
     expect(list.previewVisible.value).toBe(false)
+  })
+
+  // 2026-09-12 回归：默认周期 '2026上半年' + 每次都带该参数 ⇒ 打开页面即 0 条（库内数据是 '2026全年'）
+  it('周期口径: 默认「全部」、选项含「全年」、请求不携带空周期', async () => {
+    const currentYear = new Date().getFullYear()
+    expect(list.selectedPeriod.value).toBe('')
+    expect(list.periodOptions.map((o) => o.value)).toContain(`${currentYear}全年`)
+    expect(list.periodOptions[0]).toEqual({ label: '全部', value: '' })
+
+    getRecords.mockResolvedValue({ data: [] })
+    await list.loadRecords()
+    expect(getRecords).toHaveBeenCalledWith(expect.objectContaining({ period: undefined }))
   })
 })

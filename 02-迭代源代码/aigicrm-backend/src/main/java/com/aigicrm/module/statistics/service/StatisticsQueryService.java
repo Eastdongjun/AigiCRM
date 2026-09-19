@@ -238,34 +238,32 @@ public class StatisticsQueryService {
             }
         }
 
-        Long currentUserId = SecurityUtils.getCurrentUserId();
-        List<BizCustomer> myCustomers = allCustomers.stream()
-                .filter(c -> currentUserId.equals(c.getOwnerId())).toList();
-        Set<Long> myCustomerIds = myCustomers.stream().map(BizCustomer::getId).collect(java.util.stream.Collectors.toSet());
-        List<BizCustomerIndicator> myIndicators = indicators.stream()
-                .filter(ind -> myCustomerIds.contains(ind.getCustomerId())).toList();
-
-        int coveredCount = myIndicators.size();
+        // 【2026-09-13 修复"卡片全 0 而表格有数据"的口径不一致】
+        // 此前四张卡片只统计"当前登录用户自己负责的客户"（myCustomers/myIndicators），而下方「客户排行」是
+        // 全公司口径 —— 同一页面两套范围：登录人（如 admin）名下客户恰好没有指标记录时，卡片 4 个 0 而表格有数据。
+        // 现统一为全公司口径，与本方法"核心客户六项指标全员可见、不做数据范围过滤"的既定规则、以及卡片文案
+        // （覆盖客户数/核心客户数/指标平均分/达标率均为公司级语义）保持一致。
+        int coveredCount = indicators.size();
         int coreCount = 0;
         double scoreSum = 0;
-        for (BizCustomerIndicator ind : myIndicators) {
+        for (BizCustomerIndicator ind : indicators) {
             int s = indicatorScore(ind);
             scoreSum += s;
             java.math.BigDecimal invTotal = invoiceTotals.getOrDefault(ind.getCustomerId(), java.math.BigDecimal.ZERO);
             java.math.BigDecimal paymentTotal = paymentTotals.getOrDefault(ind.getCustomerId(), java.math.BigDecimal.ZERO);
             if (isCoreCustomer(s, invTotal, paymentTotal)) coreCount++;
         }
-        int myQualifyCount = 0;
-        for (BizCustomer c : myCustomers) {
+        int qualifyCount = 0;
+        for (BizCustomer c : allCustomers) {
             java.math.BigDecimal inv = invoiceTotals.getOrDefault(c.getId(), java.math.BigDecimal.ZERO);
             java.math.BigDecimal payment = paymentTotals.getOrDefault(c.getId(), java.math.BigDecimal.ZERO);
-            if (inv.compareTo(THRESHOLD) >= 0 && payment.compareTo(THRESHOLD) >= 0) myQualifyCount++;
+            if (inv.compareTo(THRESHOLD) >= 0 && payment.compareTo(THRESHOLD) >= 0) qualifyCount++;
         }
 
         data.put("coveredCount", coveredCount);
         data.put("coreCount", coreCount);
         data.put("avgScore", coveredCount > 0 ? Math.round(scoreSum / coveredCount * 10) / 10.0 : 0);
-        data.put("qualifyRate", myCustomers.size() > 0 ? Math.round(myQualifyCount * 1000.0 / myCustomers.size()) / 10.0 : 0);
+        data.put("qualifyRate", allCustomers.size() > 0 ? Math.round(qualifyCount * 1000.0 / allCustomers.size()) / 10.0 : 0);
 
         List<Map<String, Object>> customerRanking = new ArrayList<>();
         for (BizCustomerIndicator ind : indicators) {

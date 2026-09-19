@@ -29,7 +29,7 @@
       <div class="sea-stat">
         <div class="sea-stat-icon bg-green"><el-icon :size="22"><Right /></el-icon></div>
         <div class="sea-stat-body">
-          <div class="sea-stat-num green">{{ stats.newThisMonth || 0 }}</div>
+          <div class="sea-stat-num" :class="stats.newThisMonth ? 'green' : 'zero'">{{ stats.newThisMonth || 0 }}</div>
           <div class="sea-stat-label">本月入池</div>
         </div>
       </div>
@@ -43,7 +43,7 @@
       <div class="sea-stat">
         <div class="sea-stat-icon bg-green2"><el-icon :size="22"><CircleCheck /></el-icon></div>
         <div class="sea-stat-body">
-          <div class="sea-stat-num green">{{ stats.claimedThisMonth || 0 }}</div>
+          <div class="sea-stat-num" :class="stats.claimedThisMonth ? 'green' : 'zero'">{{ stats.claimedThisMonth || 0 }}</div>
           <div class="sea-stat-label">本月成功</div>
         </div>
       </div>
@@ -110,7 +110,7 @@
             <template #default="{row}">{{ row.enterDate?.substring(0,10) }}</template>
           </el-table-column>
           <el-table-column label="入池天数" width="80" align="center">
-            <template #default="{row}"><span class="sea-days">{{ getDays(row) }}天</span></template>
+            <template #default="{row}"><span class="sea-days" :class="daysTone(row)">{{ getDays(row) }}天</span></template>
           </el-table-column>
           <el-table-column label="原因" width="90">
             <template #default="{row}">{{ getReasonText(row.enterReason) }}</template>
@@ -120,7 +120,7 @@
               <el-tag :type="getStatusType(row.status)" size="small">{{ getStatusText(row.status) }}</el-tag>
             </template>
           </el-table-column>
-          <el-table-column label="操作" width="140" align="center" fixed="right">
+          <el-table-column label="操作" width="176" align="center" fixed="right" class-name="sea-op-col">
             <template #default="{row}">
               <el-button
                 v-if="row.status==='available'&&row.canClaim"
@@ -137,7 +137,7 @@
       </div>
       <div class="sea-pager">
         <span class="sea-pager-info">{{ total>0?(query.current-1)*query.size+1:0 }}-{{ Math.min(query.current*query.size,total) }} / 共 {{ total }} 条</span>
-        <el-pagination v-model:current-page="query.current" v-model:page-size="query.size" :total="total" :page-sizes="[15,30,50]" layout="prev,pager,next" size="small" @change="loadData" />
+        <el-pagination v-model:current-page="query.current" v-model:page-size="query.size" :total="total" :page-sizes="pageSizes(query.size)" layout="sizes, prev, pager, next, jumper" size="small" @change="loadData" @size-change="query.current = 1" />
       </div>
     </div>
 
@@ -172,6 +172,7 @@ import { downloadImportTemplate } from '@/api/customer'
 import { getDictData, getScopeDepts } from '@/api/system'
 import { submitApproval } from '@/api/approval'
 import { useUserStore } from '@/store/user'
+import { pageSizes } from '@/utils/pagination'
 
 const router = useRouter(); const userStore = useUserStore()
 const canImport = computed(() => userStore.hasPermission('sea:import'))
@@ -233,6 +234,8 @@ const handleEdit = (row) => router.push(`/customer/edit/${row.customerId}?from=s
 const handleDelete = async (row) => { try { await ElMessageBox.confirm(`确定删除「${row.customerName}」？不可恢复。`,'删除确认',{type:'warning'}); await deleteSeaPool(row.id); ElMessage.success('已删除'); loadData(); loadStats() } catch(e) {} }
 
 const getDays = (row) => { if(!row.enterDate) return 0; return Math.floor((new Date()-new Date(row.enterDate))/(86400000)) }
+// 入池天数分档着色：>30 天红、>14 天橙、其余中性
+const daysTone = (row) => { const d = getDays(row); return d > 30 ? 'over' : d > 14 ? 'warn' : '' }
 const getReasonText = (r) => ({protection_expired:'保护期满',abandoned:'放弃客户',resignation:'离职交接'}[r]||r)
 const getStatusText = (s) => ({available:'待捞取',pending_approval:'审批中',claimed:'已捞取'}[s]||s)
 const getStatusType = (s) => ({available:'primary',pending_approval:'warning',claimed:'success'}[s]||'info')
@@ -265,6 +268,8 @@ onBeforeUnmount(() => { if(resizeObserver) resizeObserver.disconnect() })
 .bg-orange { background:#fdf6ec; color:#e6a23c } .bg-green2 { background:#f0f9eb; color:#67c23a }
 .sea-stat-num { font-size:26px; font-weight:700; line-height:1.1 }
 .sea-stat-num.blue { color:#409eff } .sea-stat-num.green { color:#67c23a } .sea-stat-num.orange { color:#e6a23c }
+/* 0 值不再用成功绿，避免把「本月 0 个」读成「达标」 */
+.sea-stat-num.zero { color: var(--ds-text-3, #6b7280) }
 .sea-stat-label { font-size:12px; color:#909399; margin-top:2px }
 
 /* Filter */
@@ -282,7 +287,10 @@ onBeforeUnmount(() => { if(resizeObserver) resizeObserver.disconnect() })
 .sea-table-inner { flex:1; min-height:0; padding:8px 12px 0 }
 .sea-page :deep(.el-table td.el-table__cell), .sea-page :deep(.el-table th.el-table__cell) { height:38px; padding:3px 0 }
 .sea-link { color:#409eff; cursor:pointer; font-weight:500 } .sea-link:hover { color:#66b1ff; text-decoration:underline }
-.sea-days { color:#e6a23c; font-weight:700 }
+/* 入池天数按停留时长分档（此前一律橙色，与「待审批/超期」语义混用） */
+.sea-days { font-weight:700; color: var(--ds-text-2, #4e5969) }
+.sea-days.warn { color:#e6a23c } .sea-days.over { color:#f56c6c }
+:deep(.sea-op-col .cell) { white-space: nowrap }
 .sea-pager { display:flex; justify-content:space-between; align-items:center; padding:10px 16px; border-top:1px solid #f0f2f5; color:#909399; font-size:12px; flex-shrink:0; background:#fafbfc }
 .sea-pager-info { color:#909399; white-space:nowrap }
 

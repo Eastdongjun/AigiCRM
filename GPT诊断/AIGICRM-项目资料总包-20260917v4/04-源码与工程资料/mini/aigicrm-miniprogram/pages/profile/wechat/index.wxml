@@ -1,0 +1,10 @@
+<view class="page wechat-page">
+  <view class="card status-card">
+    <view class="wechat-icon">W</view>
+    <text class="title">微信账号</text>
+    <text class="status">{{status}}</text>
+    <text class="body">绑定后可用于识别当前账号，并在后续版本中支持更便捷的登录和消息提醒。</text>
+    <button class="btn wechat-bind-btn" bindtap="bindWechat">查看接入说明</button>
+  </view>
+  <view class="notice wechat-notice">绑定关系由企业账号统一管理。当前版本不会请求微信身份信息。</view>
+</view>

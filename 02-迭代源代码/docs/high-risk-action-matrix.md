@@ -35,7 +35,7 @@
 | `incentive:delete` | 激励删除由授权表 grant 能力和服务范围控制，旧码保留作历史字典记录。 | `IncentivePermissionController.java:19`；`IncentiveService` |
 | `incentive:view-all` / `incentive:view-shared` | 已由 `biz_incentive_grant` 的查看能力替代。 | `IncentivePermissionController.java:19` |
 | `score:ranking` | 已统一为 `score:view`。 | `ScoreController.java`；PC `score/ranking` route |
-| `sea:pool:delete` | 池删除由 `SeaService.deletePool` 的池级权限判定，不再由控制器硬门单独判定。 | `SeaController.java:69`；`SeaService` |
+| `sea:pool:delete` | 池删除入口使用 `sea:view` 进入公海域，最终删除仍由 `SeaService.deletePool` 的池级权限判定，不再由控制器硬门单独判定。 | `SeaController.java:69`；`SeaService` |
 | `statistics:scoreboard` | 历史积分榜权限，当前排行接口使用 `score:view`。 | `ScoreController.java` |
 | `system:menu:edit` | 历史残留，菜单写入端点已移除；当前仅允许使用 `system:menu:view` 读取菜单树。 | `SysMenuController.java:19` |
 - 重新运行 `python3 scripts/gen-unified-feature-audit.py --root . --out docs/unified-feature-audit.md` 更新按钮与行号来源。

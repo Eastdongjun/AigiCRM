@@ -2,16 +2,33 @@ const { login, loadCurrentUser } = require('../../api/auth')
 const { setToken } = require('../../utils/auth')
 const { showError } = require('../../utils/feedback')
 
+function buildLoginView(state = {}) {
+  const demoMode = Boolean(state.demoMode)
+  return {
+    copyText: demoMode ? '当前为演示模式，无需账号密码，可直接进入移动端原型。' : '使用 PC 端同一账号登录，移动端会同步客户、提醒与审批数据。',
+    submitLoading: Boolean(state.loading),
+    submitText: demoMode ? '进入原型' : '登录',
+    showAccountFields: !demoMode,
+    showForgotAction: !demoMode
+  }
+}
+
 Page({
   data: {
     username: '',
     password: '',
     loading: false,
-    demoMode: false
+    demoMode: false,
+    loginView: buildLoginView({})
+  },
+
+  applyState(patch) {
+    const next = { ...this.data, ...patch }
+    this.setData({ ...patch, loginView: buildLoginView(next) })
   },
 
   onLoad() {
-    this.setData({ demoMode: getApp().globalData.demoMode })
+    this.applyState({ demoMode: getApp().globalData.demoMode })
   },
 
   onUsernameInput(e) {
@@ -33,7 +50,7 @@ Page({
       wx.showToast({ title: '请输入用户名和密码', icon: 'none' })
       return
     }
-    this.setData({ loading: true })
+    this.applyState({ loading: true })
     login({
       username: this.data.username,
       password: this.data.password,
@@ -46,7 +63,7 @@ Page({
     }).catch((err) => {
       showError(err, '登录失败')
     }).finally(() => {
-      this.setData({ loading: false })
+      this.applyState({ loading: false })
     })
   }
   ,openForgot() { wx.navigateTo({ url: '/pages/login/forgot/index' }) }

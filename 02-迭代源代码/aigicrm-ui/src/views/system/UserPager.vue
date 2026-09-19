@@ -2,13 +2,14 @@
   <div class="section-box" style="padding:6px 20px">
     <div class="list-pager" style="padding:0;border:none">
       <span>{{ total > 0 ? (query.current - 1) * query.size + 1 : 0 }}-{{ Math.min(query.current * query.size, total) }}条 / 共{{ total }}条</span>
-      <el-pagination v-model:current-page="query.current" v-model:page-size="query.size" :total="total" :page-sizes="[30, 50, 100]" layout="prev, pager, next" size="small" @change="loadData" />
+      <el-pagination v-model:current-page="query.current" v-model:page-size="query.size" :total="total" :page-sizes="pageSizes(query.size)" layout="sizes, prev, pager, next, jumper" size="small" @change="loadData" @size-change="query.current = 1" />
     </div>
   </div>
 </template>
 
 <script setup>
 import { injectUserList } from '@/composables/useUserList'
+import { pageSizes } from '@/utils/pagination'
 
 const { query, total, loadData } = injectUserList()
 </script>

@@ -15,4 +15,15 @@ function saveDemoFinance(customerId, mode, form) {
   return record
 }
 
-module.exports = { readDemoFinance, saveDemoFinance }
+function deleteDemoFinance(customerId, mode, recordId) {
+  const value = wx.getStorageSync(STORAGE_KEY) || {}
+  const existing = readDemoFinance(customerId)
+  const key = mode === 'payment' ? 'payments' : 'invoices'
+  value[customerId] = {
+    ...existing,
+    [key]: existing[key].filter((item) => String(item.id) !== String(recordId))
+  }
+  wx.setStorageSync(STORAGE_KEY, value)
+}
+
+module.exports = { readDemoFinance, saveDemoFinance, deleteDemoFinance }

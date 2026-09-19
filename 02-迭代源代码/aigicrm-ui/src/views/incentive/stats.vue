@@ -14,7 +14,7 @@
         </span>
       </div>
       <el-select v-model="period" style="width:150px" size="small" @change="loadData">
-        <el-option v-for="p in periodOptions" :key="p" :label="p" :value="p" />
+        <el-option v-for="p in periodOptions" :key="p.value" :label="p.label" :value="p.value" />
       </el-select>
     </div>
 

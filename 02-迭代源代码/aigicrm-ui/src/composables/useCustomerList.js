@@ -15,6 +15,7 @@ import { downloadFile } from '@/utils/download'
 import { paginate } from '@/utils/pagination'
 import { filterCustomers } from '@/utils/list-filter'
 import { customerEmptyText } from '@/utils/customer-empty-state'
+import { customerStatusTagType, customerStatusText } from '@/utils/customer-status'
 
 export const CustomerListKey = Symbol('customerList')
 
@@ -146,14 +147,9 @@ export function useCustomerList() {
     const expire = new Date(row.expireDate)
     return Math.ceil((expire - today) / (1000 * 60 * 60 * 24))
   }
-  const statusMap = {
-    normal: { text: '正常', type: 'success' },
-    warning: { text: '预警', type: 'warning' },
-    expired: { text: '超期', type: 'danger' },
-    sea: { text: '公海', type: 'info' }
-  }
-  const getStatusType = (row) => statusMap[row.status]?.type || 'info'
-  const getStatusText = (row) => statusMap[row.status]?.text || '—'
+  // 状态字典统一在 utils/customer-status.js（提醒详情页复用同口径，勿再内联副本）
+  const getStatusType = (row) => customerStatusTagType(row?.status)
+  const getStatusText = (row) => customerStatusText(row?.status)
   const getProtectClass = (row) => {
     if (!row.expireDate) return 'protect-normal'
     const days = getDaysLeft(row)

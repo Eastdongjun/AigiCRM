@@ -12,6 +12,7 @@ import { getDictData } from '@/api/system'
 import { useUserStore } from '@/store/user'
 import request from '@/utils/request'
 import { getDownloadToken, refreshDownloadToken } from '@/utils/token'
+import { buildPeriodOptions, periodQueryValue, defaultRecordPeriod } from '@/utils/incentive-period'
 
 export const IncentiveUploadKey = Symbol('incentiveUpload')
 
@@ -29,8 +30,11 @@ export function useIncentiveUpload() {
   const userList = ref([])
   const selectedDeptId = ref(null)
   const deptTree = ref([])
-  const periodOptions = (() => { const l = []; for (let y = 2030; y >= 2025; y--) { l.push(y + '下半年', y + '上半年') } return l })()
-  const selectedPeriod = ref('2026上半年')
+  // 【2026-09-12】周期口径统一：选项含「全年」（库内历史/生产数据用的是 2026全年），
+  // 默认「全部」——原来默认 '2026上半年' 且每次都带该参数，而后端按等值过滤，
+  // 导致打开页面必然 0 条（且下拉选不到"全年"）。见 utils/incentive-period.js 说明。
+  const periodOptions = buildPeriodOptions()
+  const selectedPeriod = ref('')
   const categories = ref([])
   const records = ref([])
 
@@ -332,7 +336,8 @@ export function useIncentiveUpload() {
   const loadRecords = async () => {
     try {
       const parentId = activeTab.value ? Number(activeTab.value) : null
-      const res = await getRecords({ userId: selectedUser.value, period: selectedPeriod.value, parentCategoryId: parentId })
+      // 选「全部」时省略 period 参数（后端仅在周期非空时过滤）
+      const res = await getRecords({ userId: selectedUser.value, period: periodQueryValue(selectedPeriod.value), parentCategoryId: parentId })
       records.value = res.data || []
     } catch (e) {}
   }
@@ -641,7 +646,8 @@ export function useIncentiveUpload() {
         await addRecord({
           categoryId: pendingChild.value.id,
           customerId: selectedCustomerId.value,
-          period: selectedPeriod.value,
+          // 筛选选「全部」时按当年「全年」落库，避免写入空周期（历史数据同为"全年"口径）
+          period: selectedPeriod.value || defaultRecordPeriod(),
           industry: selectedIndustry.value || null,
           relatedProducts: relatedProducts.value || null,
           specificProduct: specificProduct.value || null,

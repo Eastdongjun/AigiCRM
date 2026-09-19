@@ -1,1 +1,24 @@
-<view class="page"><view class="hero"><view class="row"><view><view class="hero-title">意见反馈</view><view class="hero-sub">记录问题和改进建议</view></view><button class="ghost-btn" bindtap="goBack">返回</button></view></view><view class="notice">当前版本尚未接入服务端反馈提交。内容会保存在本机草稿中，请复制或转交管理员。</view><view class="card"><textarea class="comment-input" maxlength="2000" value="{{content}}" bindinput="onInput" placeholder="请描述遇到的问题、复现步骤或改进建议"></textarea><view class="row" style="margin-top:20rpx"><button class="secondary-btn" bindtap="clearDraft">清空</button><button class="btn" bindtap="saveDraft">保存草稿</button></view></view><view wx:if="{{saved}}" class="card muted">草稿已保存到本机，尚未提交到服务器。</view></view>
+<view class="page feedback-page">
+  <view class="hero">
+    <view class="row">
+      <view>
+        <view class="hero-title">意见反馈</view>
+        <view class="hero-sub">记录问题和改进建议</view>
+      </view>
+      <button class="ghost-btn" bindtap="goBack">返回</button>
+    </view>
+  </view>
+
+  <view class="notice feedback-notice">当前版本尚未接入服务端反馈提交。内容会保存在本机草稿中，请复制或转交管理员。</view>
+
+  <view class="card feedback-card">
+    <view class="form-section-title">反馈内容</view>
+    <textarea class="comment-input polished-textarea feedback-textarea" maxlength="{{feedbackView.contentMaxLength}}" value="{{feedbackView.contentValue}}" bindinput="onInput" placeholder="{{feedbackView.contentPlaceholder}}"></textarea>
+    <view class="feedback-actions">
+      <button class="feedback-clear-action" bindtap="clearDraft">清空</button>
+      <button class="feedback-save-action" bindtap="saveDraft">保存草稿</button>
+    </view>
+  </view>
+
+  <view wx:if="{{feedbackView.showSavedNotice}}" class="card muted feedback-saved">{{feedbackView.savedNoticeText}}</view>
+</view>

@@ -1,21 +1,64 @@
 #!/bin/bash
 # AIGICRM 核心链路冒烟测试: 生产/测试环境自动化断言
-# 用法: ./smoke-test.sh [prod|test]
+# 用法: ./smoke-test.sh [prod|test|local]
 # 覆盖: 登录 / 核心API / 权限隔离 / 页面可用性
 set -uo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-source "$SCRIPT_DIR/deploy-lib.sh"
 
 ENV="${1:-prod}"
+
+PASS=0; FAIL=0
+ok()  { echo "✅ $1"; PASS=$((PASS+1)); }
+bad() { echo "❌ $1"; FAIL=$((FAIL+1)); }
+
+if [ "$ENV" = "local" ]; then
+  BASE="${AIGICRM_BACKEND_URL:-http://127.0.0.1:8080}"
+  FRONTEND_BASE="${AIGICRM_FRONTEND_URL:-}"
+  LABEL="本地预检"
+
+  echo "════════ AIGICRM 冒烟测试 ($LABEL) $(date '+%H:%M:%S') ════════"
+
+  DOCS_CODE=$(curl -sk -o /tmp/aigicrm-local-api-docs.json -w "%{http_code}" "$BASE/v3/api-docs" --connect-timeout 8)
+  if [ "$DOCS_CODE" = "200" ] && grep -Fq 'sys-user-controller' /tmp/aigicrm-local-api-docs.json \
+      && grep -Fq '/api/system/configs/public' /tmp/aigicrm-local-api-docs.json; then
+    ok "本地后端身份: AIGICRM OpenAPI"
+  else
+    bad "本地后端身份: /v3/api-docs HTTP $DOCS_CODE 或缺少 AIGICRM 特征"
+  fi
+
+  INFO_CODE=$(curl -sk -o /dev/null -w "%{http_code}" "$BASE/api/auth/info" --connect-timeout 8)
+  case "$INFO_CODE" in
+    401|403) ok "未登录保护边界: /api/auth/info $INFO_CODE" ;;
+    *) bad "未登录保护边界: /api/auth/info 返回 $INFO_CODE(应 401/403)" ;;
+  esac
+
+  PUBLIC_CODE=$(curl -sk -o /tmp/aigicrm-local-public-config.json -w "%{http_code}" "$BASE/api/system/configs/public" --connect-timeout 8)
+  [ "$PUBLIC_CODE" = "200" ] && ok "公开配置接口 200" || bad "公开配置接口 $PUBLIC_CODE"
+
+  LOGO_CODE=$(curl -sk -o /dev/null -w "%{http_code}" "$BASE/api/system/configs/logo" --connect-timeout 8)
+  [ "$LOGO_CODE" = "200" ] && ok "Logo 匿名端点 200" || bad "Logo 匿名端点 $LOGO_CODE"
+
+  if [ -n "$FRONTEND_BASE" ]; then
+    for route in / /login /403; do
+      PAGE_CODE=$(curl -sk -o /dev/null -w "%{http_code}" "$FRONTEND_BASE$route" --connect-timeout 8)
+      [ "$PAGE_CODE" = "200" ] && ok "前端$route 200" || bad "前端$route $PAGE_CODE"
+    done
+  else
+    echo "⏭️  前端页面预检跳过(设置 AIGICRM_FRONTEND_URL 可启用)"
+  fi
+
+  echo "══════════════════════════════════════════════════"
+  echo "结果: PASS=$PASS FAIL=$FAIL"
+  [ "$FAIL" -gt 0 ] && { echo "❌ 本地冒烟预检未通过"; exit 1; } || { echo "✅ 本地冒烟预检全部通过"; exit 0; }
+fi
+
+source "$SCRIPT_DIR/deploy-lib.sh"
+
 if [ "$ENV" = "prod" ]; then
   BASE="https://www.aigicrm.com"; LABEL="生产"
 else
   BASE="http://111.229.37.220"; LABEL="测试"
 fi
-
-PASS=0; FAIL=0
-ok()  { echo "✅ $1"; PASS=$((PASS+1)); }
-bad() { echo "❌ $1"; FAIL=$((FAIL+1)); }
 
 echo "════════ AIGICRM 冒烟测试 ($LABEL) $(date '+%H:%M:%S') ════════"
 

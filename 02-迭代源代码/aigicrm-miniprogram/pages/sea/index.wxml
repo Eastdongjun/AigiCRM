@@ -1,3 +1,53 @@
-<view class="page"><view class="hero"><view class="row"><view><view class="hero-title">公海池</view><view class="hero-sub">同后端池级可见范围，只读查看</view></view><button class="ghost-btn" bindtap="refresh" loading="{{loading}}">刷新</button></view></view><view class="grid"><view class="card"><view class="num">{{stats.total || 0}}</view><view class="muted">池内待捞</view></view><view class="card"><view class="num">{{stats.pendingApproval || 0}}</view><view class="muted">审批中</view></view></view><view class="search-bar"><input class="search-input" placeholder="搜索客户名称" confirm-type="search" bindconfirm="search" /><button class="btn compact-btn" bindtap="loadRecords">搜索</button></view><view class="tabs"><picker mode="selector" range="{{['全部状态','待捞取','审批中','已捞取']}}" bindchange="chooseStatus"><view class="tab active">{{status==='available'?'待捞取':status==='pending_approval'?'审批中':status==='claimed'?'已捞取':'全部状态'}}</view></picker><picker mode="selector" range="{{pools}}" range-key="poolName" bindchange="choosePool"><view class="tab active">{{poolId ? '已选公海池' : '全部公海池'}}</view></picker></view><view wx:if="{{loading}}" class="card muted">加载中...</view><block wx:for="{{records}}" wx:key="id"><view class="card" style="margin-bottom:20rpx"><view data-index="{{index}}" bindtap="openCustomer"><view class="row"><view style="font-size:30rpx;font-weight:700;flex:1">{{item.customerName}}</view><text class="pill">{{item.status}}</text></view><view style="margin-top:14rpx"><text class="pill">{{item.industry}}</text><text class="muted" style="margin-left:12rpx">{{item.region}}</text></view><view class="detail-row"><text>编号</text><text>{{item.customerCode || '-'}}</text></view><view class="detail-row"><text>原负责人</text><text>{{item.ownerName || '-'}}</text></view><view class="detail-row"><text>入池原因</text><text>{{item.enterReason}}</text></view><view class="detail-row"><text>入池时间</text><text>{{item.enterDate}}</text></view><view class="muted" style="margin-top:16rpx">可操作权限：{{item.canClaim ? '可捞取 ' : ''}}{{item.canEdit ? '可编辑 ' : ''}}{{item.canDelete ? '可删除' : ''}}{{(!item.canClaim && !item.canEdit && !item.canDelete) ? '仅查看' : ''}}</view></view><view wx:if="{{item.status==='available' && item.canClaim}}" class="row action-row"><button class="btn compact-btn" data-index="{{index}}" bindtap="claim" loading="{{claimingId===item.id}}">捞取</button></view></view></block><view wx:if="{{!loading && records.length===0}}" class="card muted">暂无公海客户</view></view>
-<view class="card" style="margin-top:20rpx"><view class="section-title">我的捞取申请</view><block wx:for="{{claimRecords}}" wx:key="id"><view class="detail-row"><text>{{item.customerName || item.title || '捞取申请'}}</text><text>{{item.status}}</text></view></block><view wx:if="{{claimRecords.length===0}}" class="muted">暂无捞取申请</view></view>
-<button wx:if="{{claimRecords.length}}" class="secondary-btn" style="margin:20rpx 0" data-index="0" bindtap="openClaimDetail">查看最新捞取申请</button>
+<view class="page">
+  <view class="hero">
+    <view class="row">
+      <view>
+        <view class="hero-title">公海池</view>
+        <view class="hero-sub">同后端池级可见范围，可按权限发起捞取审批</view>
+      </view>
+      <button class="ghost-btn" bindtap="refresh" loading="{{seaView.refreshLoading}}">{{seaView.refreshText}}</button>
+    </view>
+  </view>
+  <view class="grid">
+    <view wx:for="{{seaView.statsCards}}" wx:key="key" class="card"><view class="num">{{item.valueText}}</view><view class="muted">{{item.label}}</view></view>
+  </view>
+  <view class="search-bar">
+    <input class="search-input" placeholder="搜索客户名称" confirm-type="search" bindconfirm="search" />
+    <button class="sea-search-action" bindtap="loadRecords">搜索</button>
+  </view>
+  <view class="tabs">
+    <picker mode="selector" range="{{['全部状态','待捞取','审批中','已捞取']}}" bindchange="chooseStatus"><view class="tab active">{{seaView.statusText}}</view></picker>
+    <picker mode="selector" range="{{pools}}" range-key="poolName" bindchange="choosePool"><view class="tab active">{{seaView.poolText}}</view></picker>
+    <picker mode="selector" range="{{deptOptions}}" range-key="label" value="{{selectedDeptIndex}}" bindchange="chooseDept"><view class="tab active">{{seaView.deptText}}</view></picker>
+    <picker mode="selector" range="{{industryPickerOptions}}" bindchange="chooseIndustry"><view class="tab active">{{seaView.industryText}}</view></picker>
+    <picker mode="selector" range="{{enterReasonOptions}}" range-key="label" bindchange="chooseEnterReason"><view class="tab active">{{seaView.enterReasonText}}</view></picker>
+  </view>
+  <view wx:if="{{seaView.showLoading}}" class="card muted">{{seaView.loadingText}}</view>
+  <block wx:for="{{seaView.records}}" wx:key="id">
+    <view class="card sea-record-card">
+      <view data-index="{{index}}" bindtap="openCustomer">
+        <view class="sea-record-head"><view class="sea-record-title">{{item.customerNameText}}</view><text class="pill">{{item.statusText}}</text></view>
+        <view class="sea-record-tags"><text class="pill">{{item.industryText}}</text><text>{{item.regionText}}</text></view>
+        <view class="detail-row"><text>编号</text><text>{{item.customerCodeText}}</text></view>
+        <view class="detail-row"><text>原负责人</text><text>{{item.ownerNameText}}</text></view>
+        <view class="detail-row"><text>入池原因</text><text>{{item.enterReasonText}}</text></view>
+        <view class="detail-row"><text>入池时间</text><text>{{item.enterDateText}}</text></view>
+        <view class="sea-permission">可操作权限：{{item.permissionText}}</view>
+      </view>
+      <view wx:if="{{item.canShowActions}}" class="sea-actions">
+        <button wx:if="{{item.canClaimNow}}" class="sea-claim-action" data-index="{{index}}" bindtap="claim" loading="{{item.claimLoading}}">捞取</button>
+        <button wx:if="{{item.canEdit}}" class="sea-edit-action" data-index="{{index}}" bindtap="editSeaCustomer">编辑</button>
+        <button wx:if="{{item.canDeleteNow}}" class="sea-delete-action" data-index="{{index}}" bindtap="deleteSeaCustomer" loading="{{item.deleteLoading}}">删除</button>
+      </view>
+    </view>
+  </block>
+  <view wx:if="{{seaView.showEmpty}}" class="card muted">暂无公海客户</view>
+  <view class="card sea-claim-card">
+    <view class="row">
+      <view class="section-title">我的捞取申请</view>
+      <button wx:if="{{seaView.showLatestClaim}}" class="text-btn" data-index="0" bindtap="openClaimDetail">最新申请</button>
+    </view>
+    <block wx:for="{{seaView.claimRecords}}" wx:key="id"><view class="detail-row"><text>{{item.titleText}}</text><text>{{item.statusText}}</text></view></block>
+    <view wx:if="{{seaView.showClaimEmpty}}" class="muted">暂无捞取申请</view>
+  </view>
+</view>

@@ -17,7 +17,7 @@ mvn spring-boot:run
 JWT_SECRET='仅本机临时值' bash scripts/start-local-backend.sh
 ```
 
-对隔离的本地 QA 数据库可显式启用 Flyway 自动迁移；`LOCAL_QA_MODE=1` 不应用于共享测试库或生产库：
+对隔离的本地 QA 数据库可启用本地迁移启动链路；`LOCAL_QA_MODE=1` 不应用于共享测试库或生产库：
 
 ```bash
 LOCAL_QA_MODE=1 \
@@ -27,11 +27,12 @@ JWT_SECRET='仅本机临时值' bash scripts/start-local-backend.sh
 
 `LOCAL_QA_MODE=1` 会自动使用隔离 QA 容器的 MySQL `127.0.0.1:3307`、Redis
 `127.0.0.1:6379`、数据库 `aigicrm` 和用户 `root`；如本机端口或库名不同，再显式覆盖对应环境变量。
+启动脚本会先执行 `mvn -q flyway:migrate`，确认迁移成功后再启动后端；这一步失败时后端不会继续启动。只想连接已经迁移过的临时库时，可以显式设置 `LOCAL_QA_MIGRATE=false`。
 
 生成本地数据字典和权限字典时，密码既可以通过 `LOCAL_DB_PASSWORD` 注入，也可以放在权限为
 `600` 的本机临时文件中，通过 `LOCAL_DB_PASSWORD_FILE=/path/to/password` 指定。脚本不会输出密码，临时文件不应放入仓库。
 
-该模式只改变本次进程的 `FLYWAY_ENABLED`，不会修改仓库默认配置；QA 账号和权限矩阵应使用临时容器数据，不复制真实用户数据。
+该模式只改变本次进程的数据库、Redis 和迁移参数，不会修改仓库默认配置；QA 账号和权限矩阵应使用临时容器数据，不复制真实用户数据。
 
 如果本机 Maven 的 Java 版本不满足项目要求，先执行：
 
@@ -64,18 +65,24 @@ npm run dev
 
 ## 3. 配置小程序真实后端
 
-免费本地联调可直接以 `config/env.local.example.js` 为模板，将其复制为
-`config/env.js`；该模板指向 `http://127.0.0.1:8080`、关闭演示模式且不包含任何凭据。
+小程序默认档（`config/env.js`）在 `develop` 下是 **demo**，目的是防止开发者工具误打生产。
+要连真实后端，**不要再覆盖 `env.js`**（覆盖会让环境契约 `scripts/check-miniprogram-local-profile.sh` 变红），
+改为新建**本机覆盖档**（已 gitignore，不入库）：
 
-编辑 `aigicrm-miniprogram/config/env.js`：
-
-```js
-module.exports = {
-  appName: 'AIGICRM',
-  apiBaseUrl: 'http://127.0.0.1:8080',
-  demoMode: false
-}
+```bash
+cp aigicrm-miniprogram/config/env.local.example.js aigicrm-miniprogram/config/env.local.js
 ```
+
+`config/env.local.js` **只影响 `develop` 档**（`release`/`trial` 永远走生产地址，不会被劫持），
+默认指向 `http://127.0.0.1:8080`、关闭演示模式且不含任何凭据。删除该文件即回到 demo 档。
+
+要连**测试服**（端口只绑 127.0.0.1，需先开隧道），保持上面的地址不变即可：
+
+```bash
+ssh -L 8080:127.0.0.1:80 ubuntu@111.229.37.220
+```
+
+隧道把测试服 80 映射到本机 8080 ⇒ 小程序请求 `http://127.0.0.1:8080/api/...` 即打到测试服。
 
 在微信开发者工具中导入源码根目录：
 `/Users/dongjun/东来/项目/01-进行中/01-AIGICRM/02-迭代源代码/aigicrm-miniprogram`。
@@ -190,7 +197,7 @@ docker exec -i aigicrm-mysql mysql -uroot -p --default-character-set=utf8mb4 aig
 
 ## 5. 常见边界
 
-- `demoMode: true` 只用于原型浏览，不作为真实权限或数据隔离证据。
+- `demoMode: true` 只出现在 `develop` 档（小程序已定位为**真实客户端**，2026-09-12 确认）：release/trial 走 `https://www.aigicrm.com`。demo 仅用于离线浏览，不作为真实权限或数据隔离证据。
 - 不要把 `~/.aigicrm-deploy.env`、数据库密码、JWT 或 Cookie 写入日志、截图或提交。
 - SonarQube 服务端分析若返回 403/`NOT_COMPUTED`，只能记录为质量验证未完成；本地 secrets 检查和项目测试不能替代服务端质量门禁。
 - Sonar 状态复核可执行 `bash scripts/check-sonar-status.sh`；退出码 `0` 表示局部扫描干净，退出码 `2` 表示认证或分析能力/服务端门禁仍不完整。需要指定诊断桥时使用 `VSCODE_MCP_URL=<url> bash scripts/quality-gate.sh`。

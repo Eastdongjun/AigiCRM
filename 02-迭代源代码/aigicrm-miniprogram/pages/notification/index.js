@@ -8,8 +8,32 @@ function normalize(item) {
   return { ...item, title: item.title || item.type || '业务提醒', content: item.content || item.message || '暂无通知内容', customerName: item.customerName || item.customer || '关联客户' }
 }
 
+function buildNotificationView(data) {
+  const rows = (Array.isArray(data.notifications) ? data.notifications : []).map((item) => ({
+    ...item,
+    titleText: item.title || '业务提醒',
+    contentText: item.content || '暂无通知内容',
+    customerText: `关联客户：${item.customerName || '关联客户'}`,
+    showCustomerAction: Boolean(item.customerId),
+    processText: data.processing ? '处理中...' : '已处理'
+  }))
+  return {
+    loadingText: data.loading ? '加载中...' : '',
+    showLoading: Boolean(data.loading),
+    rows,
+    showEmpty: !data.loading && rows.length === 0,
+    emptyIcon: '✓',
+    emptyText: '暂无未处理消息'
+  }
+}
+
 Page({
-  data: { notifications: [], loading: false, processing: false },
+  data: {
+    notifications: [],
+    loading: false,
+    processing: false,
+    notificationView: buildNotificationView({ notifications: [], loading: false, processing: false })
+  },
 
   onLoad() {
     if (!requireLogin()) return
@@ -25,16 +49,21 @@ Page({
     this.loadNotifications().finally(() => wx.stopPullDownRefresh())
   },
 
+  applyState(patch, callback) {
+    const next = { ...this.data, ...patch }
+    this.setData({ ...patch, notificationView: buildNotificationView(next) }, callback)
+  },
+
   loadNotifications() {
-    this.setData({ loading: true })
+    this.applyState({ loading: true })
     if (getApp().globalData.demoMode) {
-      this.setData({ notifications: reminderRecords.filter((item) => item.status !== 'done' && !isProcessed(item.id)).map(normalize), loading: false })
+      this.applyState({ notifications: reminderRecords.filter((item) => item.status !== 'done' && !isProcessed(item.id)).map(normalize), loading: false })
       return Promise.resolve()
     }
     return getReminderList({ page: 1, size: 50, status: 'pending' }).then((payload) => {
       const rows = Array.isArray(payload) ? payload : (payload.records || payload.list || [])
-      this.setData({ notifications: rows.map(normalize) })
-    }).catch((error) => showError(error, '消息加载失败')).finally(() => this.setData({ loading: false }))
+      this.applyState({ notifications: rows.map(normalize) })
+    }).catch((error) => showError(error, '消息加载失败')).finally(() => this.applyState({ loading: false }))
   },
 
   openCustomer(event) {
@@ -54,13 +83,13 @@ Page({
     if (!item || !item.id || this.data.processing) return
     if (getApp().globalData.demoMode) {
       markProcessed(item.id)
-      this.setData({ notifications: this.data.notifications.filter((_, current) => current !== index) })
+      this.applyState({ notifications: this.data.notifications.filter((_, current) => current !== index) })
       return
     }
-    this.setData({ processing: true })
+    this.applyState({ processing: true })
     processReminder(item.id).then(() => {
-      this.setData({ notifications: this.data.notifications.filter((_, current) => current !== index) })
+      this.applyState({ notifications: this.data.notifications.filter((_, current) => current !== index) })
       wx.showToast({ title: '已处理', icon: 'success' })
-    }).catch((error) => showError(error, '处理失败')).finally(() => this.setData({ processing: false }))
+    }).catch((error) => showError(error, '处理失败')).finally(() => this.applyState({ processing: false }))
   }
 })

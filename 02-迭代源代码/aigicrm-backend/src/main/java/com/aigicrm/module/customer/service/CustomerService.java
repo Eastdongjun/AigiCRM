@@ -258,9 +258,19 @@ public class CustomerService {
 
     public List<Map<String, Object>> getSimpleUserList() {
         // 【修复 2026-08-08 全量用户下拉】按数据范围(含系统级开关)过滤，不再返回全部用户
+        // 【PR-01 P1-09 2026-09-18】all(=resolve null)对非 admin 收敛为当前集团成员；
+        // 无集团归属直接空集（sys_user 非租户表，拦截器管不到，必须显式边界）。
         LambdaQueryWrapper<SysUser> wrapper = new LambdaQueryWrapper<SysUser>()
                 .eq(SysUser::getStatus, 1).orderByAsc(SysUser::getId);
         List<Long> visible = scopeResolver.resolve(SecurityUtils.getCurrentUser());
+        if (visible == null && !SecurityUtils.isAdmin()) {
+            Long g = com.aigicrm.common.scope.GroupScopeUtil.currentGroupOrNull();
+            visible = (g == null)
+                    ? List.of()
+                    : com.aigicrm.common.scope.GroupScopeUtil.userIdsInGroup(jdbc, g);
+        }
+        // 空集合显式空集返回（不依赖各版本对 IN() 空集合的拼接语义）
+        if (visible != null && visible.isEmpty()) return List.of();
         if (visible != null) wrapper.in(SysUser::getId, visible);
         List<SysUser> users = userMapper.selectList(wrapper);
         List<Map<String, Object>> result = new ArrayList<>();
@@ -756,6 +766,10 @@ public class CustomerService {
     }
 
     private List<Map<String, Object>> customerIncentiveRanking() {
+        // 【PR-01 P0-01 2026-09-18】原生 SQL 绕过租户拦截器，必须显式套集团条件；
+        // 非 admin 无集团归属时 AND 1=0（fail-closed），admin 不过滤。
+        java.util.List<Object> args = new java.util.ArrayList<>();
+        String gc = groupCondition("c", args);
         String sql = """
                 SELECT c.id AS customerId, c.customer_name AS customerName, owner.real_name AS ownerName,
                        c.industry AS industry, COALESCE(SUM(ir.score), 0) AS totalScore,
@@ -767,27 +781,49 @@ public class CustomerService {
                 FROM biz_incentive_record ir
                 JOIN biz_customer c ON c.id = ir.customer_id AND c.deleted = 0
                 LEFT JOIN sys_user owner ON owner.id = c.owner_id
-                WHERE COALESCE(ir.score, 0) > 0
+                WHERE COALESCE(ir.score, 0) > 0""" + gc + """
                 GROUP BY c.id, c.customer_name, owner.real_name, c.industry
                 ORDER BY totalScore DESC, uploadCount DESC, customerName ASC
                 """;
-        return jdbc.queryForList(sql);
+        return jdbc.queryForList(sql, args.toArray());
     }
 
     private List<Map<String, Object>> customerRelationshipRanking() {
+        java.util.List<Object> args = new java.util.ArrayList<>();
+        String gc = groupCondition("c", args);
         String sql = """
                 SELECT c.id AS customerId, c.customer_name AS customerName, owner.real_name AS ownerName,
                        c.industry AS industry, COALESCE(i.relationship_score, 0) AS relationshipScore
                 FROM biz_customer c
                 JOIN biz_customer_indicator i ON i.customer_id = c.id
                 LEFT JOIN sys_user owner ON owner.id = c.owner_id
-                WHERE c.deleted = 0 AND COALESCE(i.relationship_score, 0) > 0
+                WHERE c.deleted = 0 AND COALESCE(i.relationship_score, 0) > 0""" + gc + """
                 ORDER BY relationshipScore DESC, customerName ASC
                 """;
-        return jdbc.queryForList(sql);
+        return jdbc.queryForList(sql, args.toArray());
     }
 
     private List<Map<String, Object>> customerCoreIndicatorRanking() {
+        java.util.List<Object> args = new java.util.ArrayList<>();
+        String gcOuter = groupCondition("c", args);
+        // 子查询开票/回款同样按集团过滤（参数顺序与 SQL 出现顺序一致：inv、pay 在外层条件之前）
+        String gcInv;
+        String gcPay;
+        if (com.aigicrm.security.SecurityUtils.isAdmin()) {
+            gcInv = "";
+            gcPay = "";
+        } else {
+            Long g = com.aigicrm.common.scope.GroupScopeUtil.currentGroupOrNull();
+            if (g == null) {
+                gcInv = "";
+                gcPay = "";
+            } else {
+                gcInv = " AND tenant_id = ?";
+                gcPay = " AND tenant_id = ?";
+                args.add(g);
+                args.add(g);
+            }
+        }
         String sql = """
                 SELECT c.id AS customerId, c.customer_name AS customerName, owner.real_name AS ownerName,
                        c.industry AS industry,
@@ -807,14 +843,34 @@ public class CustomerService {
                 FROM biz_customer c
                 JOIN biz_customer_indicator i ON i.customer_id = c.id
                 LEFT JOIN sys_user owner ON owner.id = c.owner_id
-                LEFT JOIN (SELECT customer_id, SUM(amount) AS invoiceAmount FROM biz_invoice WHERE deleted = 0 GROUP BY customer_id) inv ON inv.customer_id = c.id
-                LEFT JOIN (SELECT customer_id, SUM(payment_amount) AS paymentAmount FROM biz_payment WHERE deleted = 0 GROUP BY customer_id) pay ON pay.customer_id = c.id
-                WHERE c.deleted = 0
+                LEFT JOIN (SELECT customer_id, SUM(amount) AS invoiceAmount FROM biz_invoice WHERE deleted = 0"""
+                + gcInv + " GROUP BY customer_id) inv ON inv.customer_id = c.id\n"
+                + "                LEFT JOIN (SELECT customer_id, SUM(payment_amount) AS paymentAmount FROM biz_payment WHERE deleted = 0"
+                + gcPay + " GROUP BY customer_id) pay ON pay.customer_id = c.id\n"
+                + "                WHERE c.deleted = 0" + gcOuter + "\n"
+                + """
                   AND (COALESCE(i.relationship_score, 0) + COALESCE(i.indicator_02, 0) + COALESCE(i.indicator_03, 0)
                        + COALESCE(i.indicator_04, 0) + COALESCE(i.indicator_05, 0)) > 0
                 ORDER BY totalScore DESC, coreCustomer DESC, customerName ASC
                 """;
-        return jdbc.queryForList(sql);
+        return jdbc.queryForList(sql, args.toArray());
+    }
+
+    /**
+     * 【PR-01 P0-01 2026-09-18】原生 SQL 集团条件片段（参数化，groupId 来自会话非用户输入）：
+     * admin → 空串；有集团 → " AND {alias}.tenant_id = ?" 并追加参数；
+     * 无集团 → " AND 1=0"（fail-closed）。
+     */
+    private String groupCondition(String alias, java.util.List<Object> args) {
+        if (com.aigicrm.security.SecurityUtils.isAdmin()) {
+            return "";
+        }
+        Long g = com.aigicrm.common.scope.GroupScopeUtil.currentGroupOrNull();
+        if (g == null) {
+            return " AND 1=0";
+        }
+        args.add(g);
+        return " AND " + alias + ".tenant_id = ?";
     }
 
     // ====== 数据范围核心方法（升级版：支持组织层级） ======
@@ -1255,22 +1311,42 @@ public class CustomerService {
 
     public java.util.Map<String, Object> getDuplicateInfo(String customerName) {
         // 【修复 2026-08-10 P2-01】创建人/创建时间信息同样限定在数据范围内(与 existsByName 同口径)
+        // 【PR-01 N-02 2026-09-18】原生 SQL 绕过租户拦截器：补 c.tenant_id 条件（biz_customer 在
+        // 租户白名单内）；无集团归属直接返回 null（fail-closed，不泄露他租户创建人）。
         try {
             List<Long> scopeUserIds = getCurrentScopeUserIds();
+            String tenantFrag;
+            java.util.List<Object> tenantArgs = new java.util.ArrayList<>();
+            if (!com.aigicrm.security.SecurityUtils.isAdmin()) {
+                Long g = com.aigicrm.common.scope.GroupScopeUtil.currentGroupOrNull();
+                if (g == null) return null;
+                tenantFrag = " AND c.tenant_id = ?";
+                tenantArgs.add(g);
+            } else {
+                tenantFrag = "";
+            }
             java.util.List<java.util.Map<String, Object>> rows;
             if (scopeUserIds == null) {
+                java.util.List<Object> args = new java.util.ArrayList<>();
+                args.add(customerName);
+                args.addAll(tenantArgs);
                 rows = jdbc.queryForList(
                     "SELECT u.real_name AS createdBy, DATE_FORMAT(c.created_at, '%Y-%m-%d %H:%i') AS createdAt " +
                     "FROM biz_customer c JOIN sys_user u ON c.owner_id = u.id " +
-                    "WHERE c.customer_name = ? AND c.deleted = 0 ORDER BY c.created_at DESC LIMIT 1", customerName);
+                    "WHERE c.customer_name = ? AND c.deleted = 0" + tenantFrag + " ORDER BY c.created_at DESC LIMIT 1",
+                    args.toArray());
             } else {
+                java.util.List<Object> args = new java.util.ArrayList<>();
+                args.add(customerName);
+                args.addAll(tenantArgs);
+                args.addAll(scopeUserIds);
                 rows = jdbc.queryForList(
                     "SELECT u.real_name AS createdBy, DATE_FORMAT(c.created_at, '%Y-%m-%d %H:%i') AS createdAt " +
                     "FROM biz_customer c JOIN sys_user u ON c.owner_id = u.id " +
-                    "WHERE c.customer_name = ? AND c.deleted = 0 AND c.owner_id IN (" +
+                    "WHERE c.customer_name = ? AND c.deleted = 0" + tenantFrag + " AND c.owner_id IN (" +
                     String.join(",", java.util.Collections.nCopies(scopeUserIds.size(), "?")) +
                     ") ORDER BY c.created_at DESC LIMIT 1",
-                    customerName, scopeUserIds.toArray());
+                    args.toArray());
             }
             return rows.isEmpty() ? null : rows.get(0);
         } catch (Exception e) {

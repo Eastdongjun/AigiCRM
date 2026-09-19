@@ -4,13 +4,14 @@
 > 本文件由 scripts/gen-permission-dict.sh 自动生成,**禁止手改**;权限变更后重新运行。
 > 格式约定: 权限码 = `模块:动作`(如 customer:view / system:user:add)
 
-## 一、权限码清单(66 条)
+## 一、权限码清单(68 条)
 
 | 权限码 | 菜单名 | 类型 | 路径 | 绑定的角色 |
 |---|---|---|---|---|
 | `approval:approve` | 审批通过 | 3 | `` | 系统管理员,行政,销售员,销售总监 |
 | `approval:reject` | 审批驳回 | 3 | `` | 系统管理员,行政,销售员,销售总监 |
 | `approval:view` | 审批管理 | 2 | `/approval` | 系统管理员,行政,销售员,销售总监 |
+| `contact:view` | 客户联系人查看 | 3 | `NULL` | 系统管理员 |
 | `customer:add` | 客户新增 / 新增客户 | 2 / 3 | ` / /customer/add` | 系统管理员,行政,销售员,销售总监 |
 | `customer:delete` | 客户删除 | 3 | `` | 系统管理员,行政,销售员,销售总监 |
 | `customer:edit` | 客户编辑 | 3 | `` | 系统管理员,行政,销售员,销售总监 |
@@ -26,6 +27,7 @@
 | `file:share` | 文件分享 | 3 | `` | 系统管理员,行政,销售员,销售总监 |
 | `file:upload` | 文件上传 | 3 | `` | 系统管理员,行政,销售员,销售总监 |
 | `file:view` | 文件管理 | 2 | `/file` | 系统管理员,行政,销售员,销售总监 |
+| `finance:view` | 客户财务查看 | 3 | `NULL` | 系统管理员 |
 | `incentive:add` | 激励上传 | 2 | `/incentive` | 系统管理员,行政,销售员,销售总监 |
 | `incentive:delete` | 激励删除（兼容历史项，当前由授权表与服务范围控制） | 2 | `NULL` | 不作为独立运行时授权 |
 | `incentive:edit` | 激励编辑 | 2 | `NULL` | 系统管理员,销售总监 |
@@ -82,6 +84,7 @@
 | `approval:approve` |   |   | ✅ | ✅ | ✅ | ✅ |
 | `approval:reject` |   |   | ✅ | ✅ | ✅ | ✅ |
 | `approval:view` |   |   | ✅ | ✅ | ✅ | ✅ |
+| `contact:view` |   |   | ✅ |   |   |   |
 | `customer:add` |   |   | ✅ | ✅ | ✅ | ✅ |
 | `customer:delete` |   |   | ✅ | ✅ | ✅ | ✅ |
 | `customer:edit` |   |   | ✅ | ✅ | ✅ | ✅ |
@@ -97,6 +100,7 @@
 | `file:share` |   |   | ✅ | ✅ | ✅ | ✅ |
 | `file:upload` |   |   | ✅ | ✅ | ✅ | ✅ |
 | `file:view` |   |   | ✅ | ✅ | ✅ | ✅ |
+| `finance:view` |   |   | ✅ |   |   |   |
 | `incentive:add` |   |   | ✅ | ✅ | ✅ | ✅ |
 | `incentive:delete` |   |   | ✅ |   |   | ✅ |
 | `incentive:edit` |   |   | ✅ |   |   | ✅ |

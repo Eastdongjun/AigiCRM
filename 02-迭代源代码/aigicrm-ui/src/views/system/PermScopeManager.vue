@@ -26,6 +26,9 @@
         <div class="ps-tip">
           每格 = <b>功能</b>(勾选=能做什么) + <b>范围</b>(下拉=对谁的数据) + <b>锚点</b>(按人/按组织)
           · 未配置默认: 查看=角色数据范围, 编辑/删除=仅本人, 锚点=按人
+          <!-- 【2026-09-13】只读角色（无 system:config:edit）不再显示可操作控件：此前能改下拉，
+               保存时才被后端 403，属"界面已改、实际没变"的误导 -->
+          <span v-if="!canEditScope" class="ps-readonly">（当前账号只读：需 system:config:edit 权限才能修改）</span>
           <el-empty v-if="permLoadError" description="无权限查看权限矩阵或加载失败" />
           <div v-else-if="curModule" class="ps-table-wrap">
             <table class="perm-table">
@@ -34,8 +37,8 @@
                   <th class="perm-item">权限项</th>
                   <th v-for="col in matrixCols" :key="col.key" class="ps-role-col">
                     {{ col.label }}
-                    <el-link v-if="assigneeMode !== 'ROLE'" type="danger" :underline="false" style="font-size:11px" @click="resetAssignee(col)">恢复默认</el-link>
-                    <el-link v-else type="primary" :underline="false" style="font-size:11px" @click="resetRole(col)">恢复默认</el-link>
+                    <el-link v-if="canEditScope && assigneeMode !== 'ROLE'" type="danger" :underline="false" style="font-size:11px" @click="resetAssignee(col)">恢复默认</el-link>
+                    <el-link v-else-if="canEditScope" type="primary" :underline="false" style="font-size:11px" @click="resetRole(col)">恢复默认</el-link>
                   </th>
                 </tr>
               </thead>
@@ -47,13 +50,15 @@
                   </td>
                   <td v-for="col in matrixCols" :key="col.key" class="ps-cell">
                     <el-checkbox :model-value="col.isRole ? hasPerm(col.role, item) : false"
-                                 :disabled="!col.isRole"
+                                 :disabled="!col.isRole || !canEditScope"
                                  @change="() => col.isRole && togglePerm(col.role, item)" />
                     <el-select :model-value="scopeOf(col, item)" size="small" style="width:92px"
+                               :disabled="!canEditScope"
                                @change="(s) => saveScope(col, item, s)">
                       <el-option v-for="o in scopeOptions" :key="o.value" :label="o.label" :value="o.value" />
                     </el-select>
                     <el-select :model-value="anchorOf(col, item)" size="small" style="width:70px"
+                               :disabled="!canEditScope"
                                @change="(a) => saveScope(col, item, scopeOf(col, item), a)">
                       <el-option value="OWNER" label="按人" />
                       <el-option value="ORG" label="按组织" />
@@ -73,6 +78,7 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import { usePermissionData } from '@/composables/usePermissionData'
+import { useUserStore } from '@/store/user'
 import {
   getRolePermScopes, updateRolePermScopes,
   getAssigneePermScopes, updateAssigneePermScopes,
@@ -123,6 +129,11 @@ const moduleOf = (permission) => (permission || '').split(':')[0] || ''
 const scopeOf = (col, item) => scopeMap.value[col.key]?.[item.permission]?.scope || 'self'
 const anchorOf = (col, item) => scopeMap.value[col.key]?.[item.permission]?.anchor || 'OWNER'
 
+// 【2026-09-13】写操作需要 system:config:edit（后端 PUT 的 @PreAuthorize 同码）；无该码时控件禁用，
+// 并在事件入口再兜一次，避免"界面已改、实际没变"的假成功
+const userStore = useUserStore()
+const canEditScope = computed(() => userStore.hasPermission('system:config:edit'))
+
 const loadScopesFor = async (assigneeType, assigneeKey) => {
   try {
     const res = assigneeType === 'ROLE'
@@ -137,6 +148,7 @@ const loadScopesFor = async (assigneeType, assigneeKey) => {
 }
 
 const saveScope = async (col, item, scopeLevel, anchor = anchorOf(col, item)) => {
+  if (!canEditScope.value) { ElMessage.warning('无权限修改权限范围（需 system:config:edit）'); return }
   const key = col.key
   const [type, assigneeKey] = key.split(':')
   const prev = scopeMap.value[key]?.[item.permission] || { scope: 'self', anchor: 'OWNER' }
@@ -154,6 +166,7 @@ const saveScope = async (col, item, scopeLevel, anchor = anchorOf(col, item)) =>
 
 // 恢复默认: 空列表=删除该主体全部配置
 const resetRole = async (col) => {
+  if (!canEditScope.value) { ElMessage.warning('无权限修改权限范围（需 system:config:edit）'); return }
   const [, assigneeKey] = col.key.split(':')
   try {
     await updateRolePermScopes(assigneeKey, [])
@@ -163,6 +176,7 @@ const resetRole = async (col) => {
 }
 
 const resetAssignee = async (col) => {
+  if (!canEditScope.value) { ElMessage.warning('无权限修改权限范围（需 system:config:edit）'); return }
   const [type, assigneeKey] = col.key.split(':')
   try {
     await updateAssigneePermScopes(type, assigneeKey, [])
@@ -218,6 +232,7 @@ onMounted(loadAll)
 .ps-nav.active { background: #ecf5ff; color: #409eff; font-weight: 600; }
 .ps-body { flex: 1; overflow-y: auto; min-width: 0; }
 .ps-tip { font-size: 12px; color: #606266; margin-bottom: 10px; }
+.ps-readonly { color: #e6a23c; }
 .ps-table-wrap { overflow-x: auto; }
 .ps-action { font-size: 11px; color: #909399; margin-left: 6px; }
 .ps-cell { text-align: center; min-width: 180px; white-space: nowrap; }

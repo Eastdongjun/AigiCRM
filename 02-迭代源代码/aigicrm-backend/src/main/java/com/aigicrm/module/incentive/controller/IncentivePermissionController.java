@@ -36,18 +36,28 @@ public class IncentivePermissionController {
      * 【参数】无
      * 【返回】[{id=userId, userId, username, realName, canViewShared, canViewAll, canEdit, canDelete}]
      * 【注意】只读
+     * 【PR-01 P1-05 2026-09-18】非平台管理员仅返回当前集团成员（sys_user 非租户表，
+     * 原生 SQL 必须显式套集团边界）；无集团归属返回空集。grant/revoke 本就仅超管可操作。
      */
     @PreAuthorize("hasAuthority('system:config:view')")
     @GetMapping("/list")
     public Result<List<Map<String, Object>>> list() {
-        List<Map<String, Object>> list = jdbc.queryForList(
-            "SELECT g.user_id AS id, g.user_id AS userId, u.username, u.real_name AS realName, " +
+        String base = "SELECT g.user_id AS id, g.user_id AS userId, u.username, u.real_name AS realName, " +
             "g.can_view_shared AS canViewShared, g.can_view_all AS canViewAll, " +
             "g.can_edit AS canEdit, g.can_delete AS canDelete " +
             "FROM biz_incentive_grant g " +
-            "JOIN sys_user u ON u.id = g.user_id AND u.deleted = 0 " +
-            "ORDER BY g.user_id");
-        return Result.ok(list);
+            "JOIN sys_user u ON u.id = g.user_id AND u.deleted = 0 ";
+        if (SecurityUtils.isAdmin()) {
+            return Result.ok(jdbc.queryForList(base + "ORDER BY g.user_id"));
+        }
+        Long g = com.aigicrm.common.scope.GroupScopeUtil.currentGroupOrNull();
+        if (g == null) return Result.ok(List.of());
+        List<Long> inGroup = com.aigicrm.common.scope.GroupScopeUtil.userIdsInGroup(jdbc, g);
+        if (inGroup.isEmpty()) return Result.ok(List.of());
+        List<Object> args = new ArrayList<>(inGroup);
+        String holders = String.join(",", Collections.nCopies(inGroup.size(), "?"));
+        return Result.ok(jdbc.queryForList(
+                base + "AND u.id IN (" + holders + ") ORDER BY g.user_id", args.toArray()));
     }
 
     /**

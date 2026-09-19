@@ -63,6 +63,14 @@ export function getIncentiveReadStats(params) {
   return request.get('/incentive/read-stats', { params })
 }
 
+/**
+ * 本月激励查询阅读排行榜（2026-09-13 新增页面数据源）
+ * 需要 incentive:read-ranking:view（默认只给系统管理员，管理员勾选后其它角色可见）
+ */
+export function getIncentiveReadRanking(params) {
+  return request.get('/incentive/read-ranking', { params })
+}
+
 // 四项激励权限
 export function checkIncentivePermission() {
   return request.get('/incentive/permission/check')

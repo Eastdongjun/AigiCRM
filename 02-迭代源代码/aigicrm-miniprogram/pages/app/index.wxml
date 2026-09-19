@@ -1,1 +1,17 @@
-<view class="page app-page"><view class="app-header"><view class="hero-title">应用中心</view><view class="hero-sub">常用功能与业务工具</view></view><view class="app-grid"><block wx:for="{{apps}}" wx:key="key"><view class="app-card" bindtap="openApp" data-key="{{item.key}}"><view class="app-icon {{item.color}}">{{item.key === 'customer' ? '人' : item.key === 'incentiveUpload' ? '传' : item.key === 'incentiveQuery' ? '查' : item.key === 'reminder' ? '铃' : item.key === 'approval' ? '审' : item.key === 'sea' ? '海' : item.key === 'indicator' ? '核' : item.key === 'statistics' ? '统' : '榜'}}</view><view class="app-title">{{item.title}}</view><view class="app-subtitle">{{item.subtitle}}</view><view class="app-arrow">›</view></view></block></view><view wx:if="{{apps.length===0}}" class="card muted">暂无可用应用</view></view>
+<view class="page app-page">
+  <view class="app-header">
+    <view class="hero-title">应用中心</view>
+    <view class="hero-sub">常用功能与业务工具</view>
+  </view>
+  <view class="app-grid">
+    <block wx:for="{{appView.entries}}" wx:key="key">
+      <view class="app-card" bindtap="openApp" data-key="{{item.key}}">
+        <view class="app-icon {{item.color}}">{{item.iconText}}</view>
+        <view class="app-title">{{item.title}}</view>
+        <view class="app-subtitle">{{item.subtitle}}</view>
+        <view class="app-arrow">›</view>
+      </view>
+    </block>
+  </view>
+  <view wx:if="{{appView.showEmpty}}" class="card muted">暂无可用应用</view>
+</view>

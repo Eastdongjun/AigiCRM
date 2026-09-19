@@ -64,8 +64,8 @@
         "text": "首页"
       },
       {
-        "pagePath": "pages/cases/index",
-        "text": "案例"
+        "pagePath": "pages/incentive/index",
+        "text": "激励"
       },
       {
         "pagePath": "pages/files/index",

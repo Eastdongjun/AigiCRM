@@ -112,7 +112,7 @@ class ScopeServiceTest {
         OrgScopeResolver realResolver = new OrgScopeResolver(userMapper, deptMapper, null,
                 mock(com.aigicrm.module.system.mapper.SysRoleOrgMapper.class)); // configService=null → 开关不生效，保持仅本人
         when(userMapper.selectByIds(anyList())).thenReturn(List.of(user(1L, 11L, "本人")));
-        ScopeService svc = new ScopeService(realResolver, userMapper, deptMapper);
+        ScopeService svc = new ScopeService(realResolver, userMapper, deptMapper, mock(org.springframework.jdbc.core.JdbcTemplate.class));
         List<Map<String, Object>> users = svc.visibleUsers(su(1L, "self", 11L), null);
         assertEquals(1, users.size()); // 仅自己
         assertEquals(1L, users.get(0).get("id"));
@@ -126,7 +126,7 @@ class ScopeServiceTest {
         when(resolver.resolve(any())).thenReturn(List.of(1L, 2L));
         when(userMapper.selectByIds(anyList()))
                 .thenReturn(List.of(user(1L, 11L, "甲"), user(2L, 12L, "乙")));
-        ScopeService svc = new ScopeService(resolver, userMapper, deptMapper);
+        ScopeService svc = new ScopeService(resolver, userMapper, deptMapper, mock(org.springframework.jdbc.core.JdbcTemplate.class));
         List<Map<String, Object>> users = svc.visibleUsers(su(1L, "office", 11L), 12L);
         assertEquals(1, users.size());
         assertEquals(2L, users.get(0).get("id"));
@@ -138,14 +138,15 @@ class ScopeServiceTest {
         when(resolver.resolve(any())).thenReturn(List.of(1L, 2L));
         when(userMapper.selectByIds(anyList()))
                 .thenReturn(List.of(user(2L, 12L, "B员工"), user(1L, 11L, "A员工")));
-        ScopeService svc = new ScopeService(resolver, userMapper, deptMapper);
+        ScopeService svc = new ScopeService(resolver, userMapper, deptMapper, mock(org.springframework.jdbc.core.JdbcTemplate.class));
         List<Map<String, Object>> users = svc.visibleUsers(su(1L, "office", 11L), null);
         assertEquals(2, users.size());
         assertEquals("A员工", users.get(0).get("realName"));
         assertEquals("B员工", users.get(1).get("realName"));
     }
 
-    /** all：全量启用用户（status=1），deptId 为空不生成 dept 条件 */
+    /** all：全量启用用户（status=1），deptId 为空不生成 dept 条件
+     * 【PR-01 P1-09】all=当前集团全量，仅平台 admin 为跨集团全量；本用例覆盖 admin 分支 */
     @Test
     void allScopeReturnsAllEnabledUsers() {
         when(resolver.resolve(any())).thenReturn(null);
@@ -155,11 +156,23 @@ class ScopeServiceTest {
             assertNull(columnValues(w).get("dept_id"), "deptId 为空不得生成 dept 条件");
             return List.of(user(1L, 11L, "甲"), user(2L, 12L, "乙"));
         });
-        ScopeService svc = new ScopeService(resolver, userMapper, deptMapper);
-        assertEquals(2, svc.visibleUsers(su(1L, "all", 11L), null).size());
+        ScopeService svc = new ScopeService(resolver, userMapper, deptMapper, mock(org.springframework.jdbc.core.JdbcTemplate.class));
+        SecurityUser admin = su(1L, "all", 11L);
+        admin.setRoleCodes(List.of("admin"));
+        assertEquals(2, svc.visibleUsers(admin, null).size());
     }
 
-    /** all + deptId：条件必须进入 wrapper（SQL 层过滤） */
+    /** 非 admin 的 all 收敛为当前集团（P1-09）：无集团归属直接空集，不查库 */
+    @Test
+    void allScopeNonAdminWithoutGroupReturnsEmpty() {
+        when(resolver.resolve(any())).thenReturn(null);
+        ScopeService svc = new ScopeService(resolver, userMapper, deptMapper, mock(org.springframework.jdbc.core.JdbcTemplate.class));
+        assertTrue(svc.visibleUsers(su(1L, "all", 11L), null).isEmpty());
+        verify(userMapper, never()).selectList(any(LambdaQueryWrapper.class));
+    }
+
+    /** all + deptId：条件必须进入 wrapper（SQL 层过滤）
+     * 【PR-01 P1-09】本用例覆盖 admin 跨集团全量分支（非 admin 走集团成员过滤） */
     @Test
     void allScopeWithDeptIdFiltersInWrapper() {
         when(resolver.resolve(any())).thenReturn(null);
@@ -169,8 +182,10 @@ class ScopeServiceTest {
             assertEquals(List.of(12L), columnValues(w).get("dept_id"), "deptId 必须进 wrapper");
             return List.of(user(2L, 12L, "乙"));
         });
-        ScopeService svc = new ScopeService(resolver, userMapper, deptMapper);
-        List<Map<String, Object>> users = svc.visibleUsers(su(1L, "all", 11L), 12L);
+        ScopeService svc = new ScopeService(resolver, userMapper, deptMapper, mock(org.springframework.jdbc.core.JdbcTemplate.class));
+        SecurityUser admin = su(1L, "all", 11L);
+        admin.setRoleCodes(List.of("admin"));
+        List<Map<String, Object>> users = svc.visibleUsers(admin, 12L);
         assertEquals(1, users.size());
         assertEquals(2L, users.get(0).get("id"));
     }
@@ -179,7 +194,7 @@ class ScopeServiceTest {
     @Test
     void emptyScopeReturnsEmpty() {
         when(resolver.resolve(any())).thenReturn(List.of());
-        ScopeService svc = new ScopeService(resolver, userMapper, deptMapper);
+        ScopeService svc = new ScopeService(resolver, userMapper, deptMapper, mock(org.springframework.jdbc.core.JdbcTemplate.class));
         assertTrue(svc.visibleUsers(null, null).isEmpty());
         verify(userMapper, never()).selectByIds(anyList());
     }
@@ -197,7 +212,7 @@ class ScopeServiceTest {
         });
         SecurityUser su = su(1L, "all", 11L);
         su.setRoleCodes(List.of("admin"));
-        ScopeService svc = new ScopeService(resolver, userMapper, deptMapper);
+        ScopeService svc = new ScopeService(resolver, userMapper, deptMapper, mock(org.springframework.jdbc.core.JdbcTemplate.class));
         List<SysDept> tree = svc.visibleDeptTree(su);
         assertEquals(1, tree.size());
         assertEquals("集团", tree.get(0).getDeptName());
@@ -214,7 +229,7 @@ class ScopeServiceTest {
             return List.of(dept(1L, 0L, "集团"), dept(11L, 1L, "大区A"), dept(12L, 1L, "大区B"));
         });
         SecurityUser su = su(1L, "all", 11L); // 无 admin 角色
-        ScopeService svc = new ScopeService(resolver, userMapper, deptMapper);
+        ScopeService svc = new ScopeService(resolver, userMapper, deptMapper, mock(org.springframework.jdbc.core.JdbcTemplate.class));
         List<SysDept> tree = svc.visibleDeptTree(su);
         assertEquals(1, tree.size());
         assertEquals("集团", tree.get(0).getDeptName());
@@ -228,7 +243,7 @@ class ScopeServiceTest {
         when(resolver.resolveVisibleDeptIds(any())).thenReturn(List.of(1L, 11L, 12L));
         when(deptMapper.selectByIds(anyList())).thenReturn(List.of(
                 dept(11L, 1L, "大区"), dept(1L, 0L, "集团"), dept(12L, 11L, "办事处")));
-        ScopeService svc = new ScopeService(resolver, userMapper, deptMapper);
+        ScopeService svc = new ScopeService(resolver, userMapper, deptMapper, mock(org.springframework.jdbc.core.JdbcTemplate.class));
         List<SysDept> tree = svc.visibleDeptTree(su(1L, "dept", 11L));
         assertEquals(1, tree.size());
         assertEquals("集团", tree.get(0).getDeptName());
@@ -245,7 +260,7 @@ class ScopeServiceTest {
         when(resolver.resolveVisibleDeptIds(any())).thenReturn(List.of(1L, 12L));
         when(deptMapper.selectByIds(anyList()))
                 .thenReturn(List.of(dept(12L, 99L, "办事处"), dept(1L, 0L, "集团")));
-        ScopeService svc = new ScopeService(resolver, userMapper, deptMapper);
+        ScopeService svc = new ScopeService(resolver, userMapper, deptMapper, mock(org.springframework.jdbc.core.JdbcTemplate.class));
         List<SysDept> tree = svc.visibleDeptTree(su(1L, "dept", 11L));
         assertEquals(2, tree.size(), "parent 99 不可见，12 应提升为顶层");
         assertEquals("集团", tree.get(0).getDeptName());
@@ -258,7 +273,7 @@ class ScopeServiceTest {
         when(resolver.resolveVisibleDeptIds(any())).thenReturn(List.of(1L, 11L, 12L));
         when(deptMapper.selectByIds(anyList())).thenReturn(List.of(
                 dept(11L, 1L, "B部", 2), dept(12L, 1L, "A部", 1), dept(1L, 0L, "集团", 0)));
-        ScopeService svc = new ScopeService(resolver, userMapper, deptMapper);
+        ScopeService svc = new ScopeService(resolver, userMapper, deptMapper, mock(org.springframework.jdbc.core.JdbcTemplate.class));
         List<SysDept> tree = svc.visibleDeptTree(su(1L, "dept", 11L));
         assertEquals("A部", tree.get(0).getChildren().get(0).getDeptName());
         assertEquals("B部", tree.get(0).getChildren().get(1).getDeptName());
@@ -270,7 +285,7 @@ class ScopeServiceTest {
         when(resolver.resolveVisibleDeptIds(any())).thenReturn(List.of(1L, 11L));
         when(deptMapper.selectByIds(anyList())).thenReturn(List.of(
                 dept(1L, 0L, "集团"), dept(11L, 1L, "禁用大区", 0, 0)));
-        ScopeService svc = new ScopeService(resolver, userMapper, deptMapper);
+        ScopeService svc = new ScopeService(resolver, userMapper, deptMapper, mock(org.springframework.jdbc.core.JdbcTemplate.class));
         List<SysDept> tree = svc.visibleDeptTree(su(1L, "dept", 11L));
         assertEquals(1, tree.size());
         assertEquals("集团", tree.get(0).getDeptName());
@@ -282,7 +297,7 @@ class ScopeServiceTest {
     @Test
     void deptTreeEmptyScopeReturnsEmpty() {
         when(resolver.resolveVisibleDeptIds(any())).thenReturn(List.of());
-        ScopeService svc = new ScopeService(resolver, userMapper, deptMapper);
+        ScopeService svc = new ScopeService(resolver, userMapper, deptMapper, mock(org.springframework.jdbc.core.JdbcTemplate.class));
         assertTrue(svc.visibleDeptTree(su(1L, "self", 11L)).isEmpty());
         verify(deptMapper, never()).selectByIds(anyList());
     }

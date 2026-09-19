@@ -25,3 +25,28 @@ export function paginate(list, page, pageSize) {
 export function totalOf(list) {
   return Array.isArray(list) ? list.length : 0
 }
+
+/**
+ * 每页条数选项（统一口径，2026-09-13）
+ *
+ * 背景：客户列表早已提供「每页条数」下拉（30/50/100），其它列表的 el-pagination
+ * 要么没把 `sizes` 写进 layout、要么没有 page-sizes，导致"列表底部缺少选择每页多少条"。
+ * 这里集中定义选项与 layout，避免各页面各写一份。
+ */
+export const PAGE_SIZES = [10, 20, 30, 50, 100]
+
+/** el-pagination 统一 layout：带每页条数下拉与跳页，便于长列表翻页 */
+export const PAGINATION_LAYOUT = 'sizes, prev, pager, next, jumper'
+
+/**
+ * 生成某列表的每页条数选项：在统一选项基础上**保证该列表当前默认值一定在选项内**
+ * （例如默认 15/页 的列表 → [10,15,20,30,50,100]，否则下拉会显示成空值）
+ * @param {number} defaultSize 该列表当前默认每页条数
+ * @returns {number[]} 升序去重后的选项
+ */
+export function pageSizes(defaultSize) {
+  const size = Number(defaultSize)
+  const set = new Set(PAGE_SIZES)
+  if (Number.isFinite(size) && size > 0) set.add(size)
+  return [...set].sort((a, b) => a - b)
+}

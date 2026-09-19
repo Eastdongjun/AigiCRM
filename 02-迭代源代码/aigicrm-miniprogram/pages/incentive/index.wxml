@@ -1,9 +1,284 @@
-<view class="page">
-  <view class="hero"><view class="row"><view><view class="hero-title">价值服务案例</view><view class="hero-sub">真实客户 · 现场见证</view></view><button class="ghost-btn" bindtap="refresh" loading="{{loading}}">刷新</button></view></view>
-  <view wx:if="{{canViewReadStats}}" class="card read-panel"><view class="row"><view class="section-title" style="margin:0">阅读统计</view><button class="text-btn" bindtap="loadReadStats">更新</button></view><block wx:for="{{readStats}}" wx:key="userId"><view class="stat-row"><text>{{index + 1}}. {{item.realName}}</text><text>已读 {{item.readCount}} / 未读 {{item.unreadCount}}</text></view></block><view wx:if="{{readStats.length===0}}" class="muted" style="margin-top:16rpx">暂无统计</view></view>
-  <view class="row" style="margin:28rpx 0 16rpx"><view class="section-title" style="margin:0">激励查询</view><view class="row"><picker mode="selector" range="{{categories}}" bindchange="chooseCategory"><view class="pill">{{category}}⌄</view></picker><picker mode="selector" range="{{['默认排序','分值从高到低','分值从低到高']}}" bindchange="choose"><view class="pill" style="margin-left:12rpx">{{order==='asc'?'分值从低到高':order==='desc'?'分值从高到低':'默认排序'}}⌄</view></picker></view></view>
-  <view wx:if="{{loading}}" class="card muted">加载中...</view>
-  <block wx:for="{{records}}" wx:key="name"><view class="card" style="margin-bottom:20rpx" bindtap="showDetail" data-index="{{index}}"><view class="row"><view style="font-size:30rpx;font-weight:700;flex:1">{{item.name}}</view><view class="num" style="font-size:40rpx;color:#2563eb">{{item.score}}</view></view><view style="margin-top:14rpx"><text class="pill">{{item.industry}}</text><text class="pill" style="margin-left:10rpx">{{item.category}}</text><text class="pill" style="margin-left:10rpx">{{item.count}}条</text><text wx:if="{{item.isNew}}" class="tag-new" style="margin-left:10rpx">NEW</text><text wx:if="{{item.unread}}" class="tag-unread" style="margin-left:10rpx">未读</text></view><view style="margin-top:18rpx;font-size:27rpx">{{item.summary}}</view><view class="row" style="margin-top:16rpx"><view class="muted">点击查看详情，查看后自动标记为已读</view><button wx:if="{{item.customerId}}" class="text-btn" catchtap="openCustomer" data-index="{{index}}">客户卡片</button></view></view></block>
-  <view wx:if="{{!loading && records.length===0}}" class="card muted">暂无激励记录</view>
-  <view wx:if="{{selected}}" class="card" style="margin-top:24rpx;border:2rpx solid #2563eb"><view class="row"><view class="section-title" style="margin:0;flex:1">激励详情</view><button class="text-btn" bindtap="closeDetail">关闭</button></view><view style="margin-top:18rpx">客户：{{selected.name}}</view><view style="margin-top:12rpx">行业：{{selected.industry}} · 分类：{{selected.category}} · 分值：{{selected.score}}</view><view style="margin-top:12rpx">说明：{{selected.summary}}</view><button wx:if="{{canUploadEvidence}}" class="btn" style="margin-top:20rpx" bindtap="uploadEvidence">上传佐证文件</button></view>
+<view class="page incentive-workbench">
+  <view class="hero">
+    <view class="row">
+      <view>
+        <view class="hero-title">四项激励</view>
+        <view class="hero-sub">分类 · 上传 · 积分 · 统计 · 阅读</view>
+      </view>
+      <button class="ghost-btn" bindtap="refresh" loading="{{incentiveView.refreshLoading}}">{{incentiveView.refreshText}}</button>
+    </view>
+  </view>
+
+  <view class="summary-grid">
+    <view class="summary-cell"><text>{{summary.customers}}</text><text>客户</text></view>
+    <view class="summary-cell"><text>{{summary.records}}</text><text>记录</text></view>
+    <view class="summary-cell"><text>{{summary.files}}</text><text>文件</text></view>
+    <view class="summary-cell"><text>{{summary.score}}</text><text>积分</text></view>
+  </view>
+
+  <view class="mobile-tabs">
+    <view wx:for="{{tabs}}" wx:key="key" class="mobile-tab {{item.className}}" data-key="{{item.key}}" bindtap="switchTab">{{item.label}}</view>
+  </view>
+
+  <view wx:if="{{incentiveView.showRecords}}">
+    <view class="card incentive-search-card">
+      <view class="incentive-search-row">
+        <input class="incentive-search-input" value="{{keyword}}" placeholder="搜索客户 / 产品 / 关键字" confirm-type="search" bindinput="inputKeyword" bindconfirm="searchRecords" />
+        <button class="mini-action" bindtap="searchRecords" loading="{{incentiveView.searchLoading}}">{{incentiveView.searchText}}</button>
+        <button class="mini-action secondary" bindtap="resetRecordFilters">清空</button>
+      </view>
+      <view class="incentive-advanced-filters">
+        <picker mode="selector" range="{{industries}}" value="{{selectedIndustryIndex}}" bindchange="chooseIndustry">
+          <view class="filter-chip">{{incentiveView.industryText}}</view>
+        </picker>
+        <picker mode="selector" range="{{devTypes}}" value="{{selectedDevTypeIndex}}" bindchange="chooseDevType">
+          <view class="filter-chip">{{incentiveView.devTypeText}}</view>
+        </picker>
+        <picker mode="selector" range="{{productOptions}}" value="{{selectedProductIndex}}" bindchange="chooseProduct">
+          <view class="filter-chip">{{incentiveView.productText}}</view>
+        </picker>
+        <picker mode="selector" range="{{orgOptions}}" range-key="label" value="{{selectedOrgIndex}}" bindchange="chooseOrg">
+          <view class="filter-chip">{{incentiveView.orgText}}</view>
+        </picker>
+        <picker mode="date" value="{{startDate}}" bindchange="chooseStartDate">
+          <view class="filter-chip">{{incentiveView.startDateText}}</view>
+        </picker>
+        <picker mode="date" value="{{endDate}}" bindchange="chooseEndDate">
+          <view class="filter-chip">{{incentiveView.endDateText}}</view>
+        </picker>
+      </view>
+    </view>
+    <view class="incentive-filter-head">
+      <view class="section-title no-margin">客户维度明细</view>
+      <view class="incentive-filter-actions">
+        <picker mode="selector" range="{{categories}}" bindchange="chooseCategory">
+          <view class="ranking-tab active">{{category}}⌄</view>
+        </picker>
+        <picker mode="selector" range="{{userNames}}" value="{{selectedUserIndex}}" bindchange="chooseUser">
+          <view class="ranking-tab">{{incentiveView.userText}}</view>
+        </picker>
+        <picker mode="selector" range="{{orderOptions}}" value="{{selectedOrderIndex}}" bindchange="choose">
+          <view class="ranking-tab">{{incentiveView.orderText}}</view>
+        </picker>
+      </view>
+    </view>
+    <view wx:if="{{incentiveView.showLoading}}" class="card muted">{{incentiveView.loadingText}}</view>
+    <block wx:for="{{records}}" wx:key="id">
+      <view class="card incentive-record-card" bindtap="showDetail" data-index="{{index}}">
+        <view class="incentive-record-head">
+          <view class="incentive-record-title">{{item.name}}</view>
+          <view class="ranking-score">{{item.score}} 分</view>
+        </view>
+        <view class="tag-row refined-tag-row">
+          <text class="pill">{{item.industry}}</text>
+          <text class="pill">{{item.category}}</text>
+          <text class="pill">{{item.countText}}</text>
+          <text class="pill">{{item.fileCountText}}</text>
+          <text wx:if="{{item.showNewTag}}" class="tag-new">NEW</text>
+          <text class="{{item.readStatusClass}}">{{item.readStatusText}}</text>
+        </view>
+        <view class="incentive-record-summary">{{item.summary}}</view>
+        <view class="slot-row" wx:if="{{item.showFiles}}">
+          <text wx:for="{{item.slotPills}}" wx:for-item="slot" wx:key="*this" class="slot-pill">{{slot}}</text>
+        </view>
+        <view class="record-file-list grouped" wx:if="{{item.showFiles}}">
+          <view wx:for="{{item.fileGroupsView}}" wx:for-item="group" wx:key="key" class="record-file-group">
+            <view class="record-file-group-head">
+              <text>{{group.label}}</text>
+              <text>{{group.countText}}</text>
+            </view>
+            <view wx:for="{{group.files}}" wx:for-item="file" wx:key="id" class="record-file-row">
+              <view class="record-file-icon {{file.type}}">{{file.typeText}}</view>
+              <view class="record-file-main">
+                <view class="record-file-name">{{file.name}}</view>
+                <view class="record-file-meta">可预览 / 可下载</view>
+              </view>
+              <view class="record-file-actions">
+                <button class="mini-action" loading="{{incentiveView.previewLoading}}" catchtap="previewAttachment" data-record-index="{{index}}" data-group-index="{{group.groupIndex}}" data-file-index="{{file.fileIndex}}">打开</button>
+                <button class="mini-action secondary" loading="{{incentiveView.previewLoading}}" catchtap="downloadAttachment" data-record-index="{{index}}" data-group-index="{{group.groupIndex}}" data-file-index="{{file.fileIndex}}">下载</button>
+              </view>
+            </view>
+          </view>
+        </view>
+        <view class="incentive-record-foot">
+          <view class="muted">查看后自动标记为已读</view>
+          <button wx:if="{{item.showExpandAction}}" class="mini-action secondary" catchtap="toggleCustomerRecords" data-index="{{index}}">{{item.expandText}}</button>
+          <button wx:if="{{item.showAppendAction}}" class="mini-action" catchtap="appendRecord" data-index="{{index}}">追加</button>
+          <button wx:if="{{item.showDeleteAction}}" class="mini-action danger" catchtap="removeRecord" data-index="{{index}}">删除最新</button>
+          <button wx:if="{{item.showCustomerAction}}" class="text-btn" catchtap="openCustomer" data-index="{{index}}">客户档案</button>
+        </view>
+        <view wx:if="{{item.expanded}}" class="customer-record-list">
+          <view wx:for="{{item.childRecordsView}}" wx:for-item="child" wx:for-index="childIndex" wx:key="id" class="customer-record-row">
+            <view class="customer-record-head">
+              <view>
+                <view class="customer-record-title">
+                  <text>{{child.titleText}}</text>
+                  <text class="{{child.readStatusClass}}">{{child.readStatusText}}</text>
+                </view>
+                <view class="customer-record-meta">{{child.metaText}}</view>
+              </view>
+              <view class="ranking-score">{{child.scoreText}}</view>
+            </view>
+            <view wx:if="{{child.showSummary}}" class="customer-record-summary">{{child.summaryText}}</view>
+            <view class="record-file-list compact grouped" wx:if="{{child.showFiles}}">
+              <view wx:for="{{child.fileGroupsView}}" wx:for-item="group" wx:key="key" class="record-file-group">
+                <view class="record-file-group-head">
+                  <text>{{group.label}}</text>
+                  <text>{{group.countText}}</text>
+                </view>
+                <view wx:for="{{group.files}}" wx:for-item="file" wx:key="id" class="record-file-row">
+                  <view class="record-file-icon {{file.type}}">{{file.typeText}}</view>
+                  <view class="record-file-main">
+                    <view class="record-file-name">{{file.name}}</view>
+                    <view class="record-file-meta">可预览 / 可下载</view>
+                  </view>
+                  <view class="record-file-actions">
+                    <button class="mini-action" loading="{{incentiveView.previewLoading}}" catchtap="previewAttachment" data-record-index="{{index}}" data-child-index="{{childIndex}}" data-group-index="{{group.groupIndex}}" data-file-index="{{file.fileIndex}}">打开</button>
+                    <button class="mini-action secondary" loading="{{incentiveView.previewLoading}}" catchtap="downloadAttachment" data-record-index="{{index}}" data-child-index="{{childIndex}}" data-group-index="{{group.groupIndex}}" data-file-index="{{file.fileIndex}}">下载</button>
+                  </view>
+                </view>
+              </view>
+            </view>
+            <view class="customer-record-actions">
+              <button class="mini-action secondary" catchtap="showChildDetail" data-record-index="{{index}}" data-child-index="{{childIndex}}">详情</button>
+              <button wx:if="{{child.showAppendAction}}" class="mini-action" catchtap="appendChildRecord" data-record-index="{{index}}" data-child-index="{{childIndex}}">追加</button>
+              <button wx:if="{{child.showDeleteAction}}" class="mini-action danger" catchtap="removeChildRecord" data-record-index="{{index}}" data-child-index="{{childIndex}}">删除</button>
+            </view>
+          </view>
+        </view>
+      </view>
+    </block>
+    <view wx:if="{{incentiveView.showRecordEmpty}}" class="card muted">暂无四项激励记录</view>
+    <video wx:if="{{previewVideoPath}}" src="{{previewVideoPath}}" controls class="record-file-video"></video>
+  </view>
+
+  <view wx:if="{{incentiveView.showCategories}}" class="card">
+    <view class="section-title">分类树</view>
+    <view wx:for="{{categoryTreeView}}" wx:key="id" class="category-row level-{{item.level}}">
+      <text>{{item.name}}</text>
+      <text>{{item.metaText}}</text>
+    </view>
+    <view wx:if="{{incentiveView.showCategoryEmpty}}" class="muted">暂无分类</view>
+  </view>
+
+  <view wx:if="{{incentiveView.showStats}}" class="card">
+    <view class="section-title">分类统计</view>
+    <view class="stats-row">
+      <text>覆盖分类</text><text>{{summary.categories}}</text>
+    </view>
+    <view class="stats-row">
+      <text>未读客户</text><text>{{summary.unread}}</text>
+    </view>
+    <view wx:for="{{categoryStats}}" wx:key="name" class="stats-row stat-drill-row" data-index="{{index}}" bindtap="openStatDetail">
+      <view>
+        <view class="stat-name">{{item.name}}</view>
+        <view wx:if="{{item.parentName}}" class="stat-parent">{{item.parentName}}</view>
+      </view>
+      <view class="stat-value">{{item.count}} 文件 / {{item.score}} 分 ›</view>
+    </view>
+    <view wx:if="{{incentiveView.showCategoryStatsEmpty}}" class="muted">暂无统计</view>
+    <view wx:if="{{statDetail.visible}}" class="stats-detail-panel">
+      <view class="section-row">
+        <view>
+          <view class="section-title no-margin">{{statDetail.name}} 明细</view>
+          <view class="stats-detail-meta">{{statDetailView.metaText}}</view>
+        </view>
+        <button class="mini-action secondary" bindtap="closeStatDetail">收起</button>
+      </view>
+      <view wx:if="{{statDetail.loading}}" class="muted compact-muted">明细加载中...</view>
+      <block wx:for="{{statDetail.records}}" wx:for-item="detail" wx:for-index="detailIndex" wx:key="id">
+        <view class="stats-detail-card">
+          <view class="stats-detail-head">
+            <view>
+              <view class="stats-detail-customer">{{detail.customerName}}</view>
+              <view class="stats-detail-sub">{{detail.metaText}}</view>
+            </view>
+            <view class="ranking-score">{{detail.scoreText}}</view>
+          </view>
+          <view class="stats-detail-remark">{{detail.remarkText}}</view>
+          <view class="record-file-list compact grouped" wx:if="{{detail.showFiles}}">
+            <view wx:for="{{detail.fileGroupsView}}" wx:for-item="group" wx:key="key" class="record-file-group">
+              <view class="record-file-group-head">
+                <text>{{group.label}}</text>
+                <text>{{group.countText}}</text>
+              </view>
+              <view wx:for="{{group.files}}" wx:for-item="file" wx:key="id" class="record-file-row">
+                <view class="record-file-icon {{file.type}}">{{file.typeText}}</view>
+                <view class="record-file-main">
+                  <view class="record-file-name">{{file.name}}</view>
+                  <view class="record-file-meta">可预览 / 可下载</view>
+                </view>
+                <view class="record-file-actions">
+                  <button class="mini-action" loading="{{incentiveView.previewLoading}}" catchtap="previewStatDetailAttachment" data-detail-index="{{detailIndex}}" data-group-index="{{group.groupIndex}}" data-file-index="{{file.fileIndex}}">打开</button>
+                  <button class="mini-action secondary" loading="{{incentiveView.previewLoading}}" catchtap="downloadStatDetailAttachment" data-detail-index="{{detailIndex}}" data-group-index="{{group.groupIndex}}" data-file-index="{{file.fileIndex}}">下载</button>
+                </view>
+              </view>
+            </view>
+          </view>
+        </view>
+      </block>
+      <view wx:if="{{statDetailView.showEmpty}}" class="muted compact-muted">该分类暂无激励明细</view>
+    </view>
+  </view>
+
+  <view wx:if="{{incentiveView.showRanking}}">
+    <view class="card ranking-panel">
+      <view class="section-row">
+        <view class="section-title no-margin">客户积分榜</view>
+        <button class="text-btn" bindtap="loadScoreboard">更新</button>
+      </view>
+      <block wx:for="{{scoreboard}}" wx:key="id">
+        <view class="score-row">
+          <view class="score-rank">{{item.rank}}</view>
+          <view class="score-main">
+            <view class="score-name">{{item.name}}</view>
+            <view class="score-meta">{{item.metaText}}</view>
+          </view>
+          <view class="score-value">{{item.scoreText}}</view>
+        </view>
+      </block>
+      <view wx:if="{{incentiveView.showScoreboardEmpty}}" class="muted">暂无客户积分排行</view>
+    </view>
+    <view class="card ranking-panel">
+      <view class="section-title">部门排行</view>
+      <block wx:for="{{deptRanking}}" wx:key="id">
+        <view class="score-row">
+          <view class="score-rank dept">{{item.rank}}</view>
+          <view class="score-main">
+            <view class="score-name">{{item.name}}</view>
+            <view class="score-meta">{{item.metaText}}</view>
+          </view>
+          <view class="score-value">{{item.scoreText}}</view>
+        </view>
+      </block>
+      <view wx:if="{{incentiveView.showDeptRankingEmpty}}" class="muted">暂无部门排行</view>
+    </view>
+  </view>
+
+  <view wx:if="{{incentiveView.showReads}}">
+    <view class="read-period-row">
+      <text>统计月份</text>
+      <picker mode="selector" range="{{readPeriodOptions}}" range-key="label" value="{{selectedReadPeriodIndex}}" bindchange="chooseReadPeriod">
+        <view class="filter-chip">{{incentiveView.readPeriodText}}</view>
+      </picker>
+    </view>
+    <view wx:if="{{incentiveView.showReadStatsPanel}}" class="card read-panel refined-read-panel">
+      <view class="section-row">
+        <view class="section-title no-margin">阅读统计</view>
+        <button class="text-btn" bindtap="loadReadStats">更新</button>
+      </view>
+      <block wx:for="{{readStatsView}}" wx:key="userId">
+        <view class="stat-row"><text>{{item.rankText}}</text><text>{{item.countText}}</text></view>
+      </block>
+      <view wx:if="{{incentiveView.showReadStatsEmpty}}" class="muted compact-muted">暂无统计</view>
+    </view>
+    <view wx:if="{{incentiveView.showReadRankingPanel}}" class="card read-panel">
+      <view class="section-title">阅读排行</view>
+      <block wx:for="{{readRankingView}}" wx:key="userId">
+        <view class="stat-row"><text>{{item.rankText}}</text><text>{{item.countText}}</text></view>
+      </block>
+      <view wx:if="{{incentiveView.showReadRankingEmpty}}" class="muted">暂无排行</view>
+    </view>
+    <view wx:if="{{incentiveView.showNoReadPermission}}" class="card muted">暂无阅读统计权限</view>
+  </view>
 </view>

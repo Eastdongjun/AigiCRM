@@ -60,12 +60,8 @@
       </div>
     </div>
 
-    <div v-if="canViewReadStats" class="read-stats">
-      <div class="read-stats-title">本月激励查询阅读排行榜 <el-button link size="small" @click="loadReadStats">刷新</el-button></div>
-      <div class="read-stats-list">
-        <span v-for="(s,i) in readStats" :key="s.userId">{{ i + 1 }}. {{ s.realName }}：已读 {{ s.readCount }} / 未读 {{ s.unreadCount }}</span>
-      </div>
-    </div>
+    <!-- 2026-09-13：原内嵌「本月激励查询阅读排行榜」文字条已移除，改由专门页面承载
+         （系统设置 → 本月激励查询阅读排行榜，权限码 incentive:read-ranking:view，默认仅管理员可见） -->
 
     <div v-loading="loading" element-loading-text="加载中..." style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;padding:20px;min-height:200px">
       <div v-if="!loading && custs.length===0" style="grid-column:1/-1;text-align:center;padding:80px 0;color:#bbb">暂无数据</div>
@@ -108,95 +104,158 @@
     </div>
     <div v-if="custs.length > pageSize" class="search-pager">
       <span class="search-pager-count">共 <b>{{ custs.length }}</b> 个客户</span>
-      <el-pagination v-model:current-page="pageNum" :page-size="pageSize" :total="custs.length" layout="prev, pager, next" size="small" background />
+      <el-pagination v-model:current-page="pageNum" :page-size="pageSize" :total="custs.length" :page-sizes="pageSizes(pageSize)" layout="sizes, prev, pager, next, jumper" size="small" background @size-change="onSizeChange" />
     </div>
 
-    <!-- 预览弹窗：支持图片和视频 -->
-    <el-dialog v-model="previewVisible" width="90vw" :close-on-click-modal="true" destroy-on-close>
-      <template v-if="previewType==='video'">
-        <video :src="previewUrl" controls autoplay style="width:100%;max-height:80vh;background:#000;border-radius:8px" />
-      </template>
-      <template v-else>
-        <div style="text-align:center">
-          <img :src="previewUrl" style="max-width:100%;max-height:80vh;object-fit:contain;border-radius:8px" @error="onImgError" />
+    <!-- 图片/视频灯箱预览：深色底 + 顶部信息条 + 左右切换 + 缩略图条 + 键盘方向键 -->
+    <el-dialog v-model="previewVisible" width="1000px" top="3vh" :close-on-click-modal="true" destroy-on-close append-to-body class="preview-dlg">
+      <template #header></template>
+      <div class="pv-wrap" v-if="previewCurrent">
+        <div class="pv-bar">
+          <span class="pv-name">{{ previewName || '文件预览' }}</span>
+          <span v-if="previewCurrent.tag" class="pv-tag">{{ previewCurrent.tag }}</span>
+          <span v-if="previewCount > 1" class="pv-count">{{ previewIndex + 1 }} / {{ previewCount }}</span>
+          <span class="pv-spacer"></span>
+          <el-button size="small" @click="downloadPreview"><el-icon><Download /></el-icon> 下载</el-button>
+          <el-button size="small" circle @click="previewVisible=false"><el-icon><Close /></el-icon></el-button>
         </div>
-      </template>
-      <div style="text-align:center;margin-top:12px">
-        <el-button type="primary" size="small" @click="downloadPreview"><el-icon><Download /></el-icon> 下载文件</el-button>
+        <div class="pv-stage">
+          <button v-if="previewCount > 1" class="pv-nav prev" @click="previewStep(-1)"><el-icon><ArrowLeft /></el-icon></button>
+          <video v-if="previewType==='video'" :src="previewUrl" controls autoplay class="pv-media" />
+          <img v-else-if="!previewError" :src="previewUrl" class="pv-media" @error="onPreviewError" />
+          <div v-else class="pv-missing">
+            <el-icon :size="34"><WarningFilled /></el-icon>
+            <div class="pv-missing-title">该文件当前不可用</div>
+            <div class="pv-missing-hint">文件可能已被清理，或本环境的存储中还没有这个文件</div>
+            <el-button size="small" type="primary" plain @click="downloadPreview">仍要下载试试</el-button>
+          </div>
+          <button v-if="previewCount > 1" class="pv-nav next" @click="previewStep(1)"><el-icon><ArrowRight /></el-icon></button>
+        </div>
+        <div v-if="previewCount > 1" class="pv-thumbs">
+          <div v-for="(f,i) in previewList" :key="f.id" class="pv-thumb" :class="{active:i===previewIndex}" @click="previewIndex=i; previewError=false">
+            <img v-if="f.type!=='video' && !thumbFailed.has(f.id)" :src="thumbUrl(f.id)" @error="markThumbFailed(f.id)" />
+            <span v-else-if="thumbFailed.has(f.id)" class="pv-thumb-na">不可用</span>
+            <div v-else class="pv-thumb-vid"><el-icon :size="18"><VideoPlay /></el-icon></div>
+            <span v-if="f.tag" class="pv-thumb-tag">{{ f.tag }}</span>
+          </div>
+        </div>
       </div>
     </el-dialog>
 
-    <el-dialog v-model="detailVisible" width="1000px" top="4vh" :close-on-click-modal="true" destroy-on-close class="detail-dlg">
+    <el-dialog v-model="detailVisible" width="1080px" top="4vh" :close-on-click-modal="true" destroy-on-close class="detail-dlg">
       <template #header></template>
       <div class="dtl-wrap" v-if="detailCust">
-        <div class="dtl-back" @click="detailVisible=false">← 返回列表</div>
-        <div class="dtl-summary">
-          <div class="dtl-sum-name">{{ detailCust.customerName }}</div>
-          <div class="dtl-sum-meta">
-            <span>{{ detailCust.industry }}</span>
-            <span class="dtl-sum-sep">|</span>
-            <span>{{ detailCust.count }}项激励</span>
-            <span class="dtl-sum-sep">|</span>
-            <span class="dtl-sum-pts">{{ detailCust.totalScore }}分</span>
-            <span class="dtl-sum-sep">|</span>
-            <span>最近更新 {{ latestRecord(detailCust) ? fmtDt(latestRecord(detailCust).createdAt) : '-' }}</span>
+        <!-- 吸顶操作条：长明细滚动时仍能看到客户与返回入口 -->
+        <div class="dtl-bar">
+          <span class="dtl-back" @click="detailVisible=false">← 返回列表</span>
+          <span class="dtl-bar-name">{{ detailCust.customerName }}</span>
+          <span class="dtl-bar-meta">共 {{ recordTotal }} 条激励记录</span>
+          <span class="dtl-bar-pts"><b>{{ detailCust.totalScore }}</b> 分</span>
+        </div>
+
+        <!-- 客户概览：头像 + 名称/标签 + 三项指标 -->
+        <div class="dtl-hero">
+          <div class="dtl-avatar">{{ (detailCust.customerName || '?').charAt(0) }}</div>
+          <div class="dtl-hero-main">
+            <div class="dtl-hero-name">{{ detailCust.customerName }}</div>
+            <div class="dtl-hero-tags">
+              <span v-if="detailCust.industry" class="dtl-pill blue">{{ detailCust.industry }}</span>
+              <span class="dtl-pill grey">最近更新 {{ lastUpdateText }}</span>
+            </div>
+          </div>
+          <div class="dtl-metrics">
+            <div class="dtl-metric">
+              <div class="dtl-metric-num primary">{{ detailCust.totalScore }}</div>
+              <div class="dtl-metric-label">累计积分</div>
+            </div>
+            <div class="dtl-metric">
+              <div class="dtl-metric-num">{{ recordTotal }}</div>
+              <div class="dtl-metric-label">激励条数</div>
+            </div>
+            <div class="dtl-metric">
+              <div class="dtl-metric-num">{{ recordsByMonth.length }}</div>
+              <div class="dtl-metric-label">覆盖月份</div>
+            </div>
           </div>
         </div>
-        <div class="dtl-timeline">
-          <div v-for="(r,i) in detailCust.records" :key="r.id" class="dtl-item" :class="{first:i===0}">
-            <div class="dtl-dot" :style="{background:scoreColor(getCls(r)), boxShadow:'0 0 0 3px '+scoreColor(getCls(r))+'22'}"></div>
-            <div class="dtl-head">
-              <span class="dtl-date">{{ fmtDt(r.createdAt) }}</span>
-              <span class="rec-tag" :class="'rec-tag-'+getCls(r)">{{ getMain(r) }}</span>
-              <span class="dtl-subcat">{{ r.categoryName }}</span>
-              <span class="dtl-head-score" :style="{color:scoreColor(getCls(r))}">+{{ r.score }}分</span>
+
+        <!-- 激励记录时间轴（按月分组，组内时间倒序） -->
+        <div class="dtl-section">
+          <span class="dtl-section-title">激励记录</span>
+          <span class="dtl-section-count">{{ recordTotal }} 条</span>
+        </div>
+        <div v-if="recordsByMonth.length" class="dtl-timeline">
+          <div v-for="group in recordsByMonth" :key="group.key" class="dtl-month">
+            <div class="dtl-month-head">
+              <span class="dtl-month-dot"></span>
+              <span class="dtl-month-label">{{ group.label }}</span>
+              <span class="dtl-month-count">{{ group.count }} 条</span>
             </div>
-            <div class="dtl-content" :style="{borderLeftColor:scoreColor(getCls(r))}">
-              <div class="dtl-upload-chips">
-                <span class="dtl-chip cust"><i>客户</i><b :style="{color:scoreColor(getCls(r))}">{{ r.customerName || detailCust.customerName }}</b></span>
-                <span class="dtl-chip" v-if="r.industry"><i>行业</i>{{ r.industry }}</span>
-                <span class="dtl-chip" v-if="r.relatedProducts"><i>相关产品</i>{{ r.relatedProducts }}</span>
-                <span class="dtl-chip" v-if="r.specificProduct"><i>具体产品</i>{{ r.specificProduct }}</span>
-                <span class="dtl-chip"><i>上传人</i>{{ r.userName }}</span>
-                <span class="dtl-chip"><i>周期</i>{{ r.period }}</span>
+            <div v-for="r in group.items" :key="r.id" class="dtl-item">
+              <div class="dtl-dot" :style="{ background: scoreColor(getCls(r)), boxShadow: '0 0 0 4px ' + scoreColor(getCls(r)) + '26' }"></div>
+              <div class="dtl-head">
+                <span class="dtl-date">{{ fmtDt(r.createdAt) }}</span>
+                <span v-if="relativeDay(r.createdAt)" class="dtl-ago">{{ relativeDay(r.createdAt) }}</span>
+                <span class="rec-tag" :class="'rec-tag-'+getCls(r)">{{ getMain(r) }}</span>
+                <span class="dtl-subcat">{{ r.categoryName }}</span>
+                <span class="dtl-score" :style="{ color: scoreColor(getCls(r)), background: scoreColor(getCls(r)) + '14', borderColor: scoreColor(getCls(r)) + '33' }">+{{ r.score }} 分</span>
               </div>
-              <div v-if="r.preInstallQuestion" class="dtl-field desc" :style="{borderLeftColor:scoreColor(getCls(r))}">
-                <div class="dtl-field-label"><el-icon style="vertical-align:-2px;margin-right:4px"><Notebook /></el-icon>{{ detailLabelOf(r) }}</div>
-                <div class="dtl-field-text">{{ r.preInstallQuestion }}</div>
-              </div>
-              <div v-if="r.remark && isTrialRec(r)" class="dtl-field remark">
-                <div class="dtl-field-label"><el-icon style="vertical-align:-2px;margin-right:4px"><Warning /></el-icon>{{ r.categoryName }}安装备注</div>
-                <div class="dtl-field-text">{{ r.remark }}</div>
-              </div>
-              <div v-if="getFiles(r).length" class="dtl-files">
-                <div v-for="f in getFiles(r)" :key="f.id" class="dtl-file">
-                  <template v-if="f.type==='image'">
-                    <div class="dtl-img-wrap">
-                      <img :src="thumbUrl(f.id)" @click="preview(f.id, f.type, f.label)" @error="onImgError" />
-                      <div v-if="f.tag" class="dtl-file-tag" :style="{color:tagColor(f.tag), borderColor:tagColor(f.tag)}">{{ f.tag }}</div>
-                      <div class="dtl-file-acts">
-                        <el-button size="small" circle type="primary" @click.stop="preview(f.id, f.type, f.label)"><el-icon><ZoomIn /></el-icon></el-button>
+              <div class="dtl-content" :style="{ borderLeftColor: scoreColor(getCls(r)) }">
+                <div class="dtl-upload-chips">
+                  <span class="dtl-chip cust"><i>客户</i><b :style="{color:scoreColor(getCls(r))}">{{ r.customerName || detailCust.customerName }}</b></span>
+                  <span class="dtl-chip" v-if="r.industry"><i>行业</i>{{ r.industry }}</span>
+                  <span class="dtl-chip" v-if="r.relatedProducts"><i>相关产品</i>{{ r.relatedProducts }}</span>
+                  <span class="dtl-chip" v-if="r.specificProduct"><i>具体产品</i>{{ r.specificProduct }}</span>
+                  <span class="dtl-chip"><i>上传人</i>{{ r.userName }}</span>
+                  <span class="dtl-chip" v-if="r.period"><i>周期</i>{{ r.period }}</span>
+                </div>
+                <div v-if="r.preInstallQuestion" class="dtl-field desc">
+                  <div class="dtl-field-label"><el-icon style="vertical-align:-2px;margin-right:4px"><Notebook /></el-icon>{{ detailLabelOf(r) }}</div>
+                  <div class="dtl-field-text">{{ r.preInstallQuestion }}</div>
+                </div>
+                <div v-if="r.remark && isTrialRec(r)" class="dtl-field remark">
+                  <div class="dtl-field-label"><el-icon style="vertical-align:-2px;margin-right:4px"><Warning /></el-icon>{{ r.categoryName }}安装备注</div>
+                  <div class="dtl-field-text">{{ r.remark }}</div>
+                </div>
+                <div v-if="getFiles(r).length" class="dtl-files">
+                  <div v-for="f in getFiles(r)" :key="f.id" class="dtl-file">
+                    <template v-if="f.type==='image'">
+                      <div class="dtl-img-wrap">
+                        <img :src="thumbUrl(f.id)" @click="preview(f.id, f.type, f.label, previewableOf(r))" @error="onImgError" />
+                        <div v-if="f.tag" class="dtl-file-tag" :style="{color:tagColor(f.tag), borderColor:tagColor(f.tag)}">{{ f.tag }}</div>
+                        <div class="dtl-file-acts">
+                          <el-button size="small" circle type="primary" @click.stop="preview(f.id, f.type, f.label, previewableOf(r))"><el-icon><ZoomIn /></el-icon></el-button>
+                          <el-button size="small" circle @click.stop="downloadFile(f.id, f.label)"><el-icon><Download /></el-icon></el-button>
+                        </div>
+                      </div>
+                    </template>
+                    <div v-else-if="f.type==='video'" class="dtl-file-vid">
+                      <video :src="fileUrl(f.id)" controls preload="metadata"></video>
+                      <div class="dtl-file-meta">
+                        <span v-if="f.tag" class="dtl-file-tag inline" :style="{color:tagColor(f.tag), borderColor:tagColor(f.tag)}">{{ f.tag }}</span>
+                        <span class="doc-label">{{ f.label }}</span>
+                        <el-button size="small" circle @click.stop="preview(f.id, f.type, f.label, previewableOf(r))"><el-icon><ZoomIn /></el-icon></el-button>
                         <el-button size="small" circle @click.stop="downloadFile(f.id, f.label)"><el-icon><Download /></el-icon></el-button>
                       </div>
                     </div>
-                  </template>
-                  <div v-else-if="f.type==='video'" class="dtl-file-vid">
-                    <video :src="fileUrl(f.id)" controls preload="metadata" style="width:100%;max-height:240px;background:#000;border-radius:6px"></video>
-                    <div style="display:flex;align-items:center;gap:8px;margin-top:4px">
-                      <span v-if="f.tag" class="dtl-file-tag" :style="{color:tagColor(f.tag), borderColor:tagColor(f.tag)}">{{ f.tag }}</span>
-                      <span class="doc-label" style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ f.label }}</span>
+                    <div v-else class="dtl-file-doc" @click="downloadFile(f.id, f.label)">
+                      <span v-if="f.tag" class="dtl-file-tag inline" :style="{color:tagColor(f.tag), borderColor:tagColor(f.tag)}">{{ f.tag }}</span>
+                      <el-icon :size="26"><Document /></el-icon>
+                      <span class="doc-label">{{ f.label }}</span>
                       <el-button size="small" circle @click.stop="downloadFile(f.id, f.label)"><el-icon><Download /></el-icon></el-button>
                     </div>
-                  </div>
-                  <div v-else class="dtl-file-doc" @click="downloadFile(f.id, f.label)">
-                    <el-icon :size="28"><Document /></el-icon>
-                    <span class="doc-label">{{ f.label }}</span>
-                    <el-button size="small" circle @click.stop="downloadFile(f.id, f.label)"><el-icon><Download /></el-icon></el-button>
                   </div>
                 </div>
               </div>
             </div>
           </div>
+        </div>
+        <el-empty v-else description="该客户暂无激励记录" :image-size="90" />
+
+        <!-- 底部操作条 -->
+        <div class="dtl-footer">
+          <span class="dtl-footer-hint">共 {{ recordTotal }} 条记录 · {{ recordsByMonth.length }} 个月份</span>
+          <el-button size="small" @click="detailVisible=false">关闭</el-button>
         </div>
       </div>
     </el-dialog>
@@ -204,17 +263,18 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { getActivePinia } from 'pinia'
-import { getCategoryTree, getIncentiveReadStats, markIncentiveRead } from '@/api/incentive'
+import { getCategoryTree, markIncentiveRead } from '@/api/incentive'
 import { isCurrentMonth, sortByScore } from '@/utils/incentive-read'
 import { cachedGet } from '@/utils/layout-cache'
 import { getToken, getDownloadToken, refreshDownloadToken } from '@/utils/token'
 import { downloadFile as downloadFileUtil } from '@/utils/download'
-import { Search, User, VideoPlay, Document, ZoomIn, Download, Filter, Folder, OfficeBuilding, PriceTag, Calendar, MapLocation, Notebook, Warning } from '@element-plus/icons-vue'
+import { Search, User, VideoPlay, Document, ZoomIn, Download, Filter, Folder, OfficeBuilding, PriceTag, Calendar, MapLocation, Notebook, Warning, Close, ArrowLeft, ArrowRight } from '@element-plus/icons-vue'
 import request from '@/utils/request'
 import { ElMessage } from 'element-plus'
-import { paginate } from '@/utils/pagination'
+import { paginate, pageSizes } from '@/utils/pagination'
+import { groupRecordsByMonth, relativeDay } from '@/utils/time-label'
 import { useUserStore } from '@/store/user'
 
 const fCustomer=ref(''),fSales=ref(''),fIndustry=ref(''),fDevType=ref(''),fDateRange=ref(null),fOrgIds=ref([]),showFilter=ref(false)
@@ -222,19 +282,29 @@ const fProdCat=ref(''),fProdSub=ref('')
 const scoreOrder=ref('')
 const productCats={ '涂层类':['防腐','加固','钢结构','煤气管道','其他'], '防滑板类':['公共区','装置区'], '机封类':['水泵','渣泵','介质泵'], '密封类':['静密封','动密封','橡胶密封'], '润滑类':['润滑油','润滑脂','润滑剂'] }
 const productCatKeys=Object.keys(productCats)
-const custs=ref([]),catMap=ref({}),previewVisible=ref(false),previewUrl=ref(''),previewType=ref('image'),previewId=ref(null),previewName=ref('')
+const custs=ref([]),catMap=ref({})
+// 图片/视频灯箱：一次打开记录内的全部可预览文件，支持左右切换、缩略图条与键盘方向键
+const previewVisible=ref(false),previewList=ref([]),previewIndex=ref(0),previewError=ref(false),thumbFailed=ref(new Set())
+const previewCurrent=computed(()=>previewList.value[previewIndex.value]||null)
+const previewCount=computed(()=>previewList.value.length)
+const previewUrl=computed(()=>previewCurrent.value?fileUrl(previewCurrent.value.id):'')
+const previewType=computed(()=>previewCurrent.value&&previewCurrent.value.type==='video'?'video':'image')
+const previewName=computed(()=>previewCurrent.value?.label||'')
 const loading=ref(false)
 // 客户卡片网格分页（前端切片）
 const pageNum = ref(1)
 const pageSize = ref(8)
+
+// 切换每页条数后回到第 1 页（避免停在已不存在的页码看到空网格）
+const onSizeChange = (size) => { pageSize.value = size; pageNum.value = 1 }
 const pagedCusts = computed(() => paginate(custs.value, pageNum.value, pageSize.value))
 const detailVisible=ref(false),detailCust=ref(null)
+// 详情弹窗概览用：取该客户最新一条记录的时间（无记录时显示 —）
+const lastUpdateText = computed(() => { const r = latestRecord(detailCust.value); return r ? fmtDt(r.createdAt) : '—' })
 const industries=['冶金','煤矿','化工','电力','有色金属','机械','工程公司','维修厂','其他终端客户']
 const devTypes=['成熟创新','突破开拓','铺垫宣传']
 const userList=ref([]),orgTree=ref([])
-const readStats=ref([])
 const userStore=getActivePinia() ? useUserStore() : null
-const canViewReadStats=computed(()=>userStore ? (userStore.hasPermission('incentive:read-stats') || userStore.isAdmin()) : false)
 const activeFilterCount=computed(()=>[fSales.value,fIndustry.value,fDevType.value,fDateRange.value,fOrgIds.value?.length>0].filter(v=>!!v).length)
 
 function onImgError(e){e.target.src='data:image/svg+xml,'+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="320" height="240" viewBox="0 0 320 240"><rect fill="#f5f6f7" width="320" height="240"/><text fill="#c0c4cc" font-size="14" font-family="sans-serif" text-anchor="middle" x="160" y="120">图片加载失败</text></svg>')}
@@ -244,7 +314,27 @@ function latestRecord(c){let best=null;for(const r of (c?.records||[])){if(!best
 // token 就绪后 getDownloadToken() 读取的 dlToken ref 变化会触发渲染链重跑，<img> 自动用带 token 的 URL 重载
 function fileUrl(id){const t=getDownloadToken();return t?'/api/file/download/'+id+'?token='+t:'/api/file/download/'+id}
 function thumbUrl(id){const t=getDownloadToken();return t?'/api/file/download/'+id+'?token='+t+'&thumbnail=1':'/api/file/download/'+id}
-async function preview(id,type,name){await refreshDownloadToken();previewUrl.value=fileUrl(id);previewType.value=type==='video'?'video':'image';previewVisible.value=true;previewName.value=name||''}
+// 打开灯箱：gallery 传入该记录的可预览文件（图片/视频）列表，可左右切换；不传则只看单个文件
+async function preview(id,type,name,gallery){
+  await refreshDownloadToken()
+  const clicked={id:Number(id),type:type==='video'?'video':'image',label:name||''}
+  let list=(Array.isArray(gallery)?gallery:[]).filter(f=>f&&f.id!=null).map(f=>({id:Number(f.id),type:f.type==='video'?'video':'image',label:f.label||'',tag:f.tag||''}))
+  let idx=list.findIndex(f=>f.id===clicked.id)
+  if(idx<0){list=[clicked];idx=0}
+  previewList.value=list;previewIndex.value=idx;previewError.value=false;thumbFailed.value=new Set();previewVisible.value=true
+}
+// 灯箱左右切换（循环）
+function previewStep(delta){const n=previewList.value.length;if(n<2)return;previewIndex.value=(previewIndex.value+delta+n)%n;previewError.value=false}
+// 灯箱主图加载失败：不再只是替换成占位图，而是给出可读的失败原因 + 下载兜底
+function onPreviewError(){previewError.value=true}
+// 缩略图失败：标记该文件不可用（用清晰文字块替代 7px 灰字的占位图）
+function markThumbFailed(id){thumbFailed.value=new Set([...thumbFailed.value,Number(id)])}
+function onPreviewKeydown(e){
+  if(!previewVisible.value)return
+  if(e.key==='ArrowRight'){previewStep(1)}else if(e.key==='ArrowLeft'){previewStep(-1)}
+}
+// 记录内可预览（图片/视频）文件
+function previewableOf(r){return getFiles(r).filter(f=>f.type==='image'||f.type==='video').map(f=>({id:f.id,type:f.type,label:f.label,tag:f.tag}))}
 // 【需求】文件下载(FEAT 0804):window.open 下载在新标签闪开/被拦截时表现为"没反应";
 // 改为 fetch blob + a.download 强制保存,任何浏览器/任何状态下可靠触发
 async function downloadFile(id, name) {
@@ -252,7 +342,7 @@ async function downloadFile(id, name) {
   await refreshDownloadToken()
   await downloadFileUtil(fileUrl(id), { name: name || ('file-' + id), headers: { 'Authorization': 'Bearer ' + (getToken() || '') } })
 }
-function downloadPreview(){ if (previewUrl.value) { const m = previewUrl.value.match(/\/download\/(\d+)/); downloadFile(m ? m[1] : null, previewName.value) } }
+function downloadPreview(){ const f=previewCurrent.value; if(f) downloadFile(f.id, f.label) }
 async function showDetail(c){
   detailCust.value=c;detailVisible.value=true
   const ids=(c.records||[]).map(r=>r.id).filter(Boolean)
@@ -310,10 +400,6 @@ async function doSearch(){
     custs.value=sortByScore(rows,scoreOrder.value)
   }catch(e){ElMessage.error('查询失败')}finally{loading.value=false}
 }
-async function loadReadStats(){
-  if(!canViewReadStats.value)return
-  try{const res=await getIncentiveReadStats();readStats.value=res.data||[]}catch(e){ElMessage.error('阅读统计加载失败')}
-}
 function doReset(){fCustomer.value='';fSales.value='';fIndustry.value='';fDevType.value='';fDateRange.value=null;fOrgIds.value=[];fProdCat.value='';fProdSub.value='';scoreOrder.value='';doSearch()}
 async function loadCats(){try{const res=await cachedGet('categoryTree',getCategoryTree);const walk=l=>{l.forEach(c=>{catMap.value[c.id]=c;if(c.children)walk(c.children)})};walk(res.data||[])}catch(e){}}
 async function loadUsers(){try{const res=await cachedGet('incentiveUsers',()=>request.get('/incentive/users'));userList.value=res.data||[]}catch(e){}}
@@ -323,7 +409,12 @@ async function loadOrgs(){try{const res=await cachedGet('depts',()=>request.get(
   const rootIds=new Set(filtered.map(d=>d.id))
   const fixed=filtered.map(d=>({...d,parentId:rootIds.has(d.parentId)?d.parentId:0}))
   orgTree.value=build(fixed)}catch(e){}}
-onMounted(()=>{loadCats();loadUsers();loadOrgs();doSearch();loadReadStats()})
+// 时间轴：记录按月倒序分组（展示口径，不改动接口返回顺序）
+const recordsByMonth=computed(()=>groupRecordsByMonth(detailCust.value?.records))
+const recordTotal=computed(()=>detailCust.value?.records?.length||0)
+
+onMounted(()=>{loadCats();loadUsers();loadOrgs();doSearch();window.addEventListener('keydown',onPreviewKeydown)})
+onBeforeUnmount(()=>window.removeEventListener('keydown',onPreviewKeydown))
 </script>
 
 <style scoped>
@@ -344,8 +435,6 @@ onMounted(()=>{loadCats();loadUsers();loadOrgs();doSearch();loadReadStats()})
 .adv-field :deep(.el-select),.adv-field :deep(.el-date-picker){width:100%}
 .kw-main{width:240px}
 .cnt{display:flex;align-items:center;gap:4px;font-size:13px;color:#409eff;font-weight:600;white-space:nowrap;margin-left:auto}
-.read-stats{margin:0 20px;padding:12px 16px;background:#f7faff;border:1px solid #dbeafe;border-radius:8px;color:#334155}
-.read-stats-title{font-weight:700;margin-bottom:8px}.read-stats-list{display:flex;gap:18px;flex-wrap:wrap;font-size:13px;color:#64748b}
 
 .card{background:#fff;border:1px solid #e4e7ed;border-radius:10px;overflow:hidden;display:flex;flex-direction:column;transition:box-shadow .2s}
 .card:hover{box-shadow:0 4px 16px rgba(0,0,0,.06)}
@@ -404,55 +493,161 @@ onMounted(()=>{loadCats();loadUsers();loadOrgs();doSearch();loadReadStats()})
 .d-node-doc{width:100%;height:220px;background:#fefce8;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#a16207;cursor:pointer;font-size:13px;text-align:center;padding:16px}
 .d-node-lbl{position:absolute;bottom:0;left:0;right:0;padding:4px 10px;background:rgba(0,0,0,.55);color:#fff;font-size:10px;font-weight:600;text-align:center}
 
+/* ===== 图片/视频灯箱预览（2026-09-13） ===== */
+.preview-dlg :deep(.el-dialog){background:transparent;box-shadow:none;border-radius:16px;overflow:hidden}
+.preview-dlg :deep(.el-dialog__header){display:none}
+.preview-dlg :deep(.el-dialog__body){padding:0}
+.pv-wrap{background:#0b1220;border-radius:16px;overflow:hidden;box-shadow:0 24px 60px rgba(0,0,0,.5)}
+.pv-bar{display:flex;align-items:center;gap:10px;padding:12px 16px;background:rgba(255,255,255,.06);
+  border-bottom:1px solid rgba(255,255,255,.08);color:#e5eaf3}
+.pv-name{font-size:14px;font-weight:600;max-width:46%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pv-tag{font-size:11px;color:#9ec5ff;background:rgba(64,158,255,.18);border:1px solid rgba(64,158,255,.36);
+  border-radius:999px;padding:2px 10px;white-space:nowrap}
+.pv-count{font-size:12px;color:#8b97a8;font-variant-numeric:tabular-nums}
+.pv-spacer{flex:1}
+.pv-bar :deep(.el-button){background:rgba(255,255,255,.10);border-color:rgba(255,255,255,.16);color:#e5eaf3}
+.pv-bar :deep(.el-button:hover){background:rgba(64,158,255,.28);border-color:rgba(64,158,255,.45);color:#fff}
+.pv-stage{position:relative;display:flex;align-items:center;justify-content:center;min-height:420px;padding:16px}
+.pv-media{max-width:100%;max-height:74vh;border-radius:10px;background:#05070d;display:block}
+.pv-nav{position:absolute;top:50%;transform:translateY(-50%);width:44px;height:44px;border-radius:50%;border:none;
+  background:rgba(255,255,255,.12);color:#fff;font-size:20px;display:flex;align-items:center;justify-content:center;
+  cursor:pointer;transition:all .18s;backdrop-filter:blur(6px)}
+.pv-nav:hover{background:rgba(64,158,255,.85);transform:translateY(-50%) scale(1.06)}
+.pv-nav.prev{left:18px}
+.pv-nav.next{right:18px}
+.pv-thumbs{display:flex;gap:8px;padding:10px 16px 14px;overflow-x:auto;border-top:1px solid rgba(255,255,255,.08)}
+.pv-thumb{position:relative;width:76px;height:56px;flex-shrink:0;border-radius:8px;overflow:hidden;cursor:pointer;
+  border:2px solid transparent;background:rgba(255,255,255,.06);transition:all .15s}
+.pv-thumb:hover{border-color:rgba(64,158,255,.6)}
+.pv-thumb.active{border-color:#409eff;box-shadow:0 0 0 2px rgba(64,158,255,.28)}
+.pv-thumb img{width:100%;height:100%;object-fit:cover;display:block}
+.pv-thumb-vid{width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:#cfe2ff}
+.pv-thumb-na{width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:11px;color:#aab6c8;background:rgba(255,255,255,.06)}
+.pv-missing{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;color:#c9d4e3;padding:60px 20px;text-align:center}
+.pv-missing-title{font-size:15px;font-weight:600;color:#e5eaf3}
+.pv-missing-hint{font-size:12px;color:#8b97a8;max-width:420px;line-height:1.7}
+.pv-thumb-tag{position:absolute;left:2px;bottom:2px;font-size:9px;color:#fff;background:rgba(0,0,0,.5);
+  border-radius:4px;padding:0 4px;line-height:14px}
+
+/* ===== 激励查询「查看详情」弹窗（2026-09-13 UI 美化） ===== */
+.detail-dlg :deep(.el-dialog){border-radius:16px;overflow:hidden;box-shadow:0 18px 48px rgba(15,23,42,.18)}
 .detail-dlg :deep(.el-dialog__header){display:none}
-.detail-dlg :deep(.el-dialog__body){padding:0}
-.dtl-wrap{max-width:900px;margin:0 auto;padding:24px 28px;border:1px solid #e3e6ec;border-radius:12px;background:#fff;box-shadow:0 2px 12px rgba(0,0,0,.04)}
-.dtl-back{font-size:15px;color:#999;cursor:pointer;margin-bottom:20px;display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:6px;transition:all .15s}
-.dtl-back:hover{color:#0052d9;background:#f2f5fa}
-.dtl-title{font-size:22px;font-weight:700;color:#1f2329;margin-bottom:8px}
-.dtl-subtitle{font-size:15px;color:#8f959e;margin-bottom:40px}
-.dtl-summary{margin-bottom:28px;padding:20px 24px;background:linear-gradient(135deg,#f8fafd,#eef2f8);border:1px solid #e3e6ec;border-radius:10px;border-left:4px solid #0052d9}
-.dtl-sum-name{font-size:22px;font-weight:800;color:#1f2329;margin-bottom:12px}
-.dtl-sum-meta{display:flex;align-items:center;gap:6px;font-size:14px;color:#646a73;flex-wrap:wrap}
-.dtl-sum-sep{color:#d0d3d8}
-.dtl-sum-pts{color:#0052d9;font-weight:700;font-size:15px}
-.dtl-timeline{position:relative}
-.dtl-timeline::before{content:'';position:absolute;left:6px;top:6px;bottom:6px;width:2px;background:#e5e6eb}
-.dtl-item{position:relative;padding:0 0 0 36px;margin-bottom:24px}
-.dtl-item.first .dtl-date{color:#0052d9}
-.dtl-dot{position:absolute;left:-1px;top:20px;width:16px;height:16px;border-radius:50%;background:#c9cdd4;border:3px solid #fff;transition:transform .2s}
-.dtl-head{display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap}
-.dtl-date{font-size:17px;font-weight:700;color:#1f2329}
-.dtl-subcat{font-size:14px;color:#8f959e;font-weight:500}
-.dtl-head-score{font-weight:700;font-size:15px;margin-left:auto}
-.dtl-content{margin-top:0;padding:14px 18px;border:1px solid #edf0f4;border-left:4px solid #e3e6ec;border-radius:10px;background:#fcfcfd;transition:box-shadow .2s,transform .2s}
-.dtl-item:hover .dtl-content{box-shadow:0 3px 12px rgba(0,0,0,.06);transform:translateX(2px)}
+.detail-dlg :deep(.el-dialog__body){padding:0;background:#f6f8fb}
+.dtl-wrap{max-width:1000px;margin:0 auto;background:#fff;display:flex;flex-direction:column;max-height:92vh}
+
+/* 吸顶操作条 */
+.dtl-bar{position:sticky;top:0;z-index:6;display:flex;align-items:center;gap:12px;padding:12px 24px;
+  background:rgba(255,255,255,.94);backdrop-filter:blur(8px);border-bottom:1px solid #eef1f5}
+.dtl-back{font-size:13px;color:#4e5969;cursor:pointer;display:inline-flex;align-items:center;gap:4px;
+  padding:4px 10px;border-radius:8px;transition:all .15s;flex-shrink:0}
+.dtl-back:hover{color:#409eff;background:#ecf5ff}
+.dtl-bar-name{font-size:14px;font-weight:600;color:#1f2329;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dtl-bar-meta{font-size:12px;color:#86909c;flex-shrink:0}
+.dtl-bar-pts{margin-left:auto;font-size:12px;color:#86909c;flex-shrink:0;
+  background:#f2f6ff;border:1px solid #dbe7ff;border-radius:999px;padding:3px 12px}
+.dtl-bar-pts b{font-size:15px;color:#409eff;margin-right:2px}
+
+/* 客户概览 */
+.dtl-hero{display:flex;align-items:center;gap:16px;padding:22px 24px;
+  background:linear-gradient(120deg,#eef5ff 0%,#f7fafe 44%,#ffffff 100%);border-bottom:1px solid #eef1f5}
+.dtl-avatar{width:54px;height:54px;border-radius:16px;flex-shrink:0;color:#fff;font-size:22px;font-weight:700;
+  display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#409eff,#2563eb);
+  box-shadow:0 6px 16px rgba(64,158,255,.32)}
+.dtl-hero-main{flex:1;min-width:0}
+.dtl-hero-name{font-size:20px;font-weight:700;color:#1f2329;line-height:1.35;margin-bottom:8px;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dtl-hero-tags{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.dtl-pill{font-size:12px;border-radius:999px;padding:3px 12px;border:1px solid transparent;white-space:nowrap}
+.dtl-pill.blue{color:#1d6fd0;background:#e8f2ff;border-color:#cfe4ff}
+.dtl-pill.green{color:#0d7a4a;background:#e7f8ef;border-color:#c8ecd9}
+.dtl-pill.grey{color:#6b7280;background:#f4f5f7;border-color:#e8eaee}
+.dtl-metrics{display:flex;align-items:stretch;gap:0;flex-shrink:0;background:#fff;border:1px solid #e6eeff;
+  border-radius:14px;box-shadow:0 4px 14px rgba(64,158,255,.10);overflow:hidden}
+.dtl-metric{padding:10px 20px;text-align:center;min-width:88px}
+.dtl-metric + .dtl-metric{border-left:1px solid #eef3fb}
+.dtl-metric-num{font-size:24px;font-weight:800;color:#1f2329;line-height:1.1;font-variant-numeric:tabular-nums}
+.dtl-metric-num.primary{color:#409eff}
+.dtl-metric-label{font-size:12px;color:#86909c;margin-top:4px}
+
+/* 区块标题 */
+.dtl-section{display:flex;align-items:baseline;gap:8px;padding:18px 24px 0}
+.dtl-section-title{font-size:15px;font-weight:700;color:#1f2329}
+.dtl-section-title::before{content:'';display:inline-block;width:3px;height:14px;border-radius:2px;
+  background:#409eff;margin-right:8px;vertical-align:-2px}
+.dtl-section-count{font-size:12px;color:#86909c}
+
+/* 时间轴 */
+.dtl-timeline{position:relative;padding:12px 24px 4px;overflow-y:auto;flex:1;min-height:0}
+.dtl-month{position:relative;padding-left:34px;margin-bottom:6px}
+.dtl-month-head{display:flex;align-items:center;gap:8px;padding:10px 0 12px}
+.dtl-month-dot{position:absolute;left:0;top:16px;width:9px;height:9px;border-radius:3px;background:#409eff;
+  box-shadow:0 0 0 3px #e8f2ff}
+.dtl-month-label{font-size:14px;font-weight:700;color:#1f2329}
+.dtl-month-count{font-size:12px;color:#86909c;background:#f4f5f7;border-radius:999px;padding:1px 10px}
+.dtl-month:not(:last-child)::after{content:'';position:absolute;left:4px;top:26px;bottom:-6px;width:1px;
+  background:linear-gradient(180deg,#dbe7ff,#eef1f5)}
+.dtl-item{position:relative;padding-left:0;margin-bottom:18px}
+.dtl-item:last-child{margin-bottom:6px}
+.dtl-dot{position:absolute;left:-34px;top:6px;width:10px;height:10px;border-radius:50%;border:2px solid #fff;
+  transition:transform .2s}
+.dtl-item:hover .dtl-dot{transform:scale(1.2)}
+.dtl-head{display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap}
+.dtl-date{font-size:15px;font-weight:700;color:#1f2329;font-variant-numeric:tabular-nums}
+.dtl-ago{font-size:12px;color:#86909c;background:#f4f5f7;border-radius:999px;padding:2px 8px}
+.dtl-subcat{font-size:13px;color:#86909c}
+.dtl-score{margin-left:auto;font-size:13px;font-weight:700;border-radius:999px;padding:2px 12px;border:1px solid transparent}
+
+/* 记录内容卡 */
+.dtl-content{padding:14px 16px;border:1px solid #eef1f5;border-left:4px solid #e3e6ec;border-radius:12px;
+  background:#fff;box-shadow:0 1px 3px rgba(15,23,42,.04);transition:box-shadow .2s,transform .2s}
+.dtl-item:hover .dtl-content{box-shadow:0 6px 20px rgba(15,23,42,.08);transform:translateY(-1px)}
 .dtl-upload-chips{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px}
-.dtl-chip{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:#4e5969;background:#fff;border:1px solid #e8ebef;border-radius:6px;padding:3px 10px}
+.dtl-chip{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:#1f2329;
+  background:#f7f9fc;border:1px solid #eaeef4;border-radius:8px;padding:4px 10px}
 .dtl-chip i{font-style:normal;font-size:12px;color:#9aa0a8}
+.dtl-chip.cust{background:#f2f8ff;border-color:#dbe9ff}
 .dtl-chip.cust b{font-weight:700}
-.dtl-field{margin-bottom:12px;padding:10px 14px;background:#f7f8fa;border-radius:6px;border-left:3px solid #d5d9e0}
-.dtl-field.desc{background:#fff;border:1px solid #eef0f3;border-left:4px solid #d5d9e0;padding:14px 16px}
+.dtl-field{margin-bottom:12px;padding:12px 14px;background:#f8fafc;border-radius:10px;border-left:3px solid #d5d9e0}
+.dtl-field.desc{background:#fbfcfe;border:1px solid #eef1f5;border-left:4px solid #cfe0f7;padding:14px 16px}
 .dtl-field.desc .dtl-field-label{color:#4e5969;font-size:13px;font-weight:600}
-.dtl-field.remark{background:#fffaf5;border-left:4px solid #f59e0b;border-color:#fde6c8}
+.dtl-field.remark{background:#fffaf3;border-left:4px solid #f59e0b;border-color:#fbe6c7}
 .dtl-field.remark .dtl-field-label{color:#b45309}
 .dtl-field-label{font-size:12px;color:#8f959e;margin-bottom:6px;letter-spacing:.5px}
 .dtl-field-text{font-size:14px;color:#1f2329;line-height:1.8;white-space:pre-wrap;word-break:break-word}
-.search-pager{display:flex;align-items:center;justify-content:flex-end;gap:12px;padding:8px 20px 16px}
-.search-pager-count{font-size:13px;color:#606266}
+
+/* 底部翻页区：计数在左、分页器在右，窄屏自动换行（与 reminder 的 .rem-pager 同口径）
+   2026-09-13 修复：本轮给分页器补了「每页条数」下拉与跳页输入（layout 变宽）时，
+   误删了 .search-pager / .search-pager-count 两条样式 ⇒ 容器退化成 block、无内边距，
+   计数文案与分页器塌成两行并贴边。这里按现有口径补回并加上换行保护。 */
+.search-pager{display:flex;align-items:center;flex-wrap:wrap;gap:12px;padding:8px 20px 16px}
+.search-pager-count{font-size:13px;color:#606266;white-space:nowrap;margin-right:auto}
 .search-pager-count b{color:#409eff;font-weight:700;margin:0 2px}
-.dtl-files{display:flex;gap:14px;flex-wrap:wrap;margin-top:14px;padding-top:12px;border-top:1px solid #f0f2f5}
-.dtl-file{width:260px}
-.dtl-img-wrap{position:relative;border:1px solid rgba(0,0,0,.06);border-radius:6px;overflow:hidden}
-.dtl-file-tag{position:absolute;top:0;left:50%;transform:translateX(-50%);font-size:11px;font-weight:600;background:rgba(255,255,255,.94);padding:2px 10px;border-radius:0 0 4px 4px;white-space:nowrap;z-index:1;border:1px solid transparent;border-top:none}
-.dtl-file img{width:100%;height:220px;object-fit:cover;cursor:pointer;display:block}
-.dtl-file img:hover{opacity:.85}
-.dtl-file-vid{width:100%;height:220px;background:linear-gradient(135deg,#1a1a2e,#2d2d44);border-radius:8px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#fff;font-size:26px;position:relative;overflow:hidden}
-.dtl-file-vid .vid-overlay{width:56px;height:56px;border-radius:50%;background:rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;transition:transform .2s}
-.dtl-file-vid:hover .vid-overlay{transform:scale(1.12)}
-.dtl-file-doc{width:100%;height:220px;background:#fafbfc;border:1px solid #e5e6eb;border-radius:8px;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;color:#646a73;font-size:13px;text-align:center;gap:8px;padding:8px;position:relative;transition:all .15s}
-.dtl-file-doc:hover{background:#ecf5ff;border-color:#409eff;color:#409eff}
-.doc-label{color:#333;font-weight:500;font-size:14px;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.dtl-file-acts{position:absolute;top:10px;right:10px;display:flex;gap:6px;opacity:0;transition:opacity .2s;z-index:2}
-.dtl-img-wrap:hover .dtl-file-acts,.dtl-file-vid:hover .dtl-file-acts,.dtl-file-doc:hover .dtl-file-acts{opacity:1}
+.search-pager .el-pagination{flex-shrink:0}
+
+/* 附件网格 */
+.dtl-files{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;margin-top:12px;
+  padding-top:12px;border-top:1px dashed #eef1f5}
+.dtl-file{min-width:0}
+.dtl-file-meta{display:flex;align-items:center;gap:8px;margin-top:6px}
+.dtl-img-wrap{position:relative;border:1px solid #eef1f5;border-radius:12px;overflow:hidden;background:#f7f9fc}
+.dtl-file img{width:100%;aspect-ratio:4/3;object-fit:cover;cursor:pointer;display:block;transition:transform .25s}
+.dtl-file img:hover{transform:scale(1.03)}
+.dtl-file-tag{position:absolute;top:8px;left:8px;font-size:11px;font-weight:600;background:rgba(255,255,255,.94);
+  padding:2px 8px;border-radius:999px;border:1px solid transparent;white-space:nowrap;z-index:1}
+.dtl-file-tag.inline{position:static;background:#fff;flex-shrink:0}
+.dtl-file-vid{display:flex;flex-direction:column}
+.dtl-file-vid video{width:100%;aspect-ratio:4/3;border-radius:12px;background:#0b1020;display:block;object-fit:cover}
+.dtl-file-doc{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;
+  aspect-ratio:4/3;padding:12px;border:1px dashed #dbe1ea;border-radius:12px;background:#fafbfd;
+  color:#646a73;font-size:13px;text-align:center;cursor:pointer;transition:all .15s}
+.dtl-file-doc:hover{background:#f2f8ff;border-color:#409eff;color:#409eff}
+.dtl-file-doc .dtl-file-tag.inline{position:absolute;top:8px;left:8px}
+.doc-label{color:#1f2329;font-weight:500;font-size:13px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dtl-file-acts{position:absolute;top:8px;right:8px;display:flex;gap:6px;opacity:0;transition:opacity .2s;z-index:2}
+.dtl-img-wrap:hover .dtl-file-acts{opacity:1}
+
+/* 底部操作条 */
+.dtl-footer{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 24px;
+  border-top:1px solid #eef1f5;background:#fbfcfe;position:sticky;bottom:0}
+.dtl-footer-hint{font-size:12px;color:#86909c}
 </style>

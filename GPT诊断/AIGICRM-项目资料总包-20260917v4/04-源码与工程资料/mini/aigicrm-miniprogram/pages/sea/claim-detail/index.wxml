@@ -1,0 +1,20 @@
+<view class="page claim-detail-page">
+  <view class="hero">
+    <view class="row">
+      <view>
+        <view class="hero-title">捞取申请详情</view>
+        <view class="hero-sub">公海客户归属申请</view>
+      </view>
+      <button class="ghost-btn" bindtap="goBack">返回</button>
+    </view>
+  </view>
+  <view class="card detail-info-card">
+    <view class="approval-detail-title">{{claimView.titleText}}</view>
+    <view class="detail-row"><text>当前状态</text><text>{{claimView.statusText}}</text></view>
+    <view class="detail-row"><text>申请时间</text><text>{{claimView.createdAtText}}</text></view>
+    <view class="detail-row"><text>捞取人</text><text>{{claimView.applicantNameText}}</text></view>
+    <view class="detail-row"><text>审批人</text><text>{{claimView.approverNameText}}</text></view>
+    <view class="detail-row"><text>审批时间</text><text>{{claimView.approveTimeText}}</text></view>
+    <view class="approval-reason refined-reason">{{claimView.reasonText}}</view>
+  </view>
+</view>

@@ -14,6 +14,30 @@ URL_RE = re.compile(r"[`'\"](/pages/[^`'\"?]+)(?:\?[^`'\"]*)?[`'\"]")
 SWITCH_TAB_RE = re.compile(r"switchTab\(\{\s*url:\s*[`'\"](/pages/[^`'\"?]+)")
 
 
+def onload_bodies_missing_options(text):
+    """Find onLoad() declarations with empty params whose own body reads bare `options.`.
+
+    Body-scoped: an `options.` in another function (e.g. saveFile options,
+    picker options) must not flag the page. A locally declared
+    const/let/var options inside the body is also fine.
+    """
+    hits = []
+    for match in re.finditer(r"\bonLoad\(\s*\)\s*\{", text):
+        depth = 1
+        i = match.end()
+        while i < len(text) and depth > 0:
+            if text[i] == "{":
+                depth += 1
+            elif text[i] == "}":
+                depth -= 1
+            i += 1
+        body = text[match.end():i - 1]
+        if re.search(r"\boptions\s*\.", body) and not re.search(
+                r"\b(?:const|let|var)\s+options\b", body):
+            hits.append(True)
+    return hits
+
+
 def main() -> int:
     app = json.loads(APP_JSON.read_text())
     registered = set(app['pages'])
@@ -27,7 +51,10 @@ def main() -> int:
     targets.update(tab_pages)
     for source in list(PAGES_DIR.rglob("*.js")) + list(PAGES_DIR.rglob("*.wxml")):
         text = source.read_text(errors="ignore")
-        if re.search(r"\bonLoad\(\s*\)", text) and re.search(r"\boptions\.", text):
+        if source.suffix == ".js":
+            if onload_bodies_missing_options(text):
+                missing_onload_options.append(str(source.relative_to(ROOT)))
+        elif re.search(r"\bonLoad\(\s*\)", text) and re.search(r"\boptions\.", text):
             missing_onload_options.append(str(source.relative_to(ROOT)))
         for match in URL_RE.finditer(text):
             target = match.group(1).lstrip("/")

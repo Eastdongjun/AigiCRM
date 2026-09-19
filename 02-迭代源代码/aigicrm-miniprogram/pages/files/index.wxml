@@ -1,15 +1,78 @@
 <view class="page files-page">
-  <view class="page-head"><view><view class="eyebrow">DOCUMENT CENTER</view><view class="page-title">文件库</view><view class="page-subtitle">资料统一管理，协作随时可见</view></view><button wx:if="{{canUpload}}" class="head-add" loading="{{uploading}}" bindtap="uploadFile">＋</button></view>
-  <button wx:if="{{canDevUploadSmoke}}" class="btn" loading="{{uploading}}" bindtap="runDevUploadSmoke">本地上传自测</button>
-  <view class="capacity-card"><view class="capacity-copy"><view class="capacity-label">存储空间</view><view class="capacity-value">{{capacity.used}} <text>/ {{capacity.total}} GB</text></view><view class="capacity-progress"><view style="width:{{capacity.percent}}%"></view></view><view class="capacity-hint">已使用 {{capacity.percent}}%，剩余空间充足</view></view><view class="capacity-icon">▣</view></view>
-  <view class="search-box"><text class="search-icon">⌕</text><input value="{{keyword}}" bindinput="onKeywordInput" placeholder="搜索文件名或文件夹" /></view>
-  <scroll-view scroll-x class="file-tabs" enable-flex><view class="file-tab-list"><view wx:for="{{tabs}}" wx:key="*this" class="file-tab {{activeTab === item ? 'active' : ''}}" data-tab="{{item}}" bindtap="onTabTap">{{item}}</view></view></scroll-view>
-  <view class="folder-title"><text>{{activeFolderName || '常用文件夹'}}</text><button wx:if="{{activeFolderName}}" class="text-btn" bindtap="clearFolder">返回全部</button><text wx:else class="muted">{{folders.length || 3}} 个文件夹</text></view>
-  <scroll-view wx:if="{{!activeFolderName}}" scroll-x class="folder-scroll" enable-flex><view class="folder-list"><view wx:for="{{folders}}" wx:key="id" class="folder-card" data-id="{{item.id}}" data-name="{{item.name}}" bindtap="openFolder"><text class="folder-icon">▱</text><text>{{item.name}}</text></view><view wx:if="{{!folders.length}}" class="folder-card" data-name="客户文档" bindtap="openFolder"><text class="folder-icon">▱</text><text>客户文档</text></view><view wx:if="{{!folders.length}}" class="folder-card" data-name="团队共享" bindtap="openFolder"><text class="folder-icon">▱</text><text>团队共享</text></view></view></scroll-view>
-  <view class="section-row"><view class="section-title">最近文件</view><view class="section-count">{{filteredFiles.length}} 个文件</view></view>
-  <view wx:if="{{filteredFiles.length}}" class="file-list"><view wx:for="{{filteredFiles}}" wx:key="id" class="file-row" data-index="{{index}}" bindtap="openFile"><view class="file-type {{item.tone}}">{{item.type}}</view><view class="file-info"><view class="file-name">{{item.name}}</view><view class="file-meta">{{item.folder}} · {{item.size}} · {{item.updatedAt}}</view></view><button wx:if="{{mode === 'manage'}}" class="text-btn" catchtap="attachFile" data-index="{{index}}">关联</button><button wx:elif="{{customerId}}" class="text-btn danger-text" catchtap="detachFile" data-index="{{index}}">解除关联</button><text wx:else class="file-more">···</text></view></view>
-  <view wx:else class="empty-state"><text class="empty-icon">⌁</text><text>暂未找到匹配文件</text></view>
+  <view class="page-head">
+    <view>
+      <view class="eyebrow">DOCUMENT CENTER</view>
+      <view class="page-title">文件库</view>
+      <view class="page-subtitle">资料统一管理，协作随时可见</view>
+    </view>
+    <button wx:if="{{canUpload}}" class="head-add" loading="{{uploading}}" bindtap="uploadFile">＋</button>
+  </view>
+  <button wx:if="{{canDevUploadSmoke}}" class="btn files-smoke-btn" loading="{{uploading}}" bindtap="runDevUploadSmoke">本地上传自测</button>
+  <view class="capacity-card">
+    <view class="capacity-copy">
+      <view class="capacity-label">存储空间</view>
+      <view class="capacity-value">{{capacity.used}} <text>/ {{capacity.total}}</text></view>
+      <view class="capacity-progress"><view style="width:{{capacity.percent}}%"></view></view>
+      <view class="capacity-hint">{{capacity.hint}}</view>
+    </view>
+    <view class="capacity-icon">▣</view>
+  </view>
+  <view class="search-box"><text class="search-icon">⌕</text><input value="{{keyword}}" bindinput="onKeywordInput" bindconfirm="searchFiles" confirm-type="search" placeholder="搜索文件名或文件夹" /><button class="search-action" bindtap="searchFiles">搜索</button></view>
+  <scroll-view scroll-x class="file-tabs" enable-flex>
+    <view class="file-tab-list"><view wx:for="{{fileView.tabs}}" wx:key="key" class="file-tab {{item.activeClass}}" data-tab="{{item.key}}" bindtap="onTabTap">{{item.label}}<text class="tab-count">{{item.countText}}</text></view></view>
+  </scroll-view>
+  <view class="folder-title"><text>{{fileView.folderTitle}}</text><button wx:if="{{fileView.showClearFolder}}" class="text-btn" bindtap="clearFolder">返回全部</button><text wx:else class="muted">{{fileView.folderCountText}}</text></view>
+  <scroll-view wx:if="{{fileView.showFolderList}}" scroll-x class="folder-scroll" enable-flex>
+    <view class="folder-list">
+      <view wx:for="{{fileView.folders}}" wx:key="id" class="folder-card" data-id="{{item.id}}" data-name="{{item.name}}" bindtap="openFolder"><text class="folder-icon">▱</text><text>{{item.name}}</text></view>
+      <view wx:if="{{fileView.showFallbackFolders}}" class="folder-card" data-name="客户文档" bindtap="openFolder"><text class="folder-icon">▱</text><text>客户文档</text></view>
+      <view wx:if="{{fileView.showFallbackFolders}}" class="folder-card" data-name="团队共享" bindtap="openFolder"><text class="folder-icon">▱</text><text>团队共享</text></view>
+    </view>
+  </scroll-view>
+  <view class="section-row"><view class="section-title">最近文件</view><view class="section-count">{{fileView.fileCountText}}</view></view>
+  <view wx:if="{{fileView.showFileList}}" class="file-list">
+    <view wx:for="{{fileView.files}}" wx:key="id" class="file-row" data-index="{{index}}" bindtap="openFile">
+      <view class="file-type {{item.tone}}">{{item.typeText}}</view>
+      <view class="file-info"><view class="file-name">{{item.nameText}}</view><view class="file-meta">{{item.metaText}}</view></view>
+      <view class="file-row-actions">
+        <button class="mini-action" loading="{{previewing}}" catchtap="previewFile" data-index="{{index}}">打开</button>
+        <button wx:if="{{item.showDownload}}" class="mini-action secondary" loading="{{previewing}}" catchtap="downloadFile" data-index="{{index}}">下载</button>
+        <button wx:if="{{item.showReplace}}" class="mini-action secondary" loading="{{item.replaceLoading}}" catchtap="replaceListFile" data-index="{{index}}">替换</button>
+        <button wx:if="{{item.showDelete}}" class="mini-action danger" catchtap="removeFile" data-index="{{index}}">删除</button>
+      </view>
+      <button wx:if="{{item.showShare}}" class="file-share-action" catchtap="shareFile" data-index="{{index}}">分享</button>
+      <text wx:if="{{item.showMore}}" class="file-more">···</text>
+    </view>
+  </view>
+  <video wx:if="{{previewVideoPath}}" src="{{previewVideoPath}}" controls class="file-preview-video"></video>
+  <view wx:if="{{fileView.showEmpty}}" class="empty-state"><text class="empty-icon">⌁</text><text>暂未找到匹配文件</text></view>
+  <view wx:if="{{canManageFolder}}" class="files-manage-card">
+    <view class="files-manage-head"><text>文件夹管理</text><button class="folder-new-action" bindtap="openFolderForm">新建</button></view>
+    <block wx:if="{{fileView.showManageFolders}}">
+      <view wx:for="{{fileView.folders}}" wx:key="id" class="files-manage-row">
+        <text>{{item.name}}</text>
+        <view>
+          <button wx:if="{{canViewFolderAcl}}" class="text-btn" data-id="{{item.id}}" data-name="{{item.name}}" bindtap="viewFolderAcl">权限</button>
+          <button class="text-btn" data-id="{{item.id}}" data-name="{{item.name}}" bindtap="openFolderEdit">重命名</button>
+          <button class="text-btn danger-text" data-id="{{item.id}}" data-name="{{item.name}}" bindtap="removeFolder">删除</button>
+        </view>
+      </view>
+    </block>
+    <view wx:if="{{fileView.showManageEmpty}}" class="muted">暂无可管理文件夹</view>
+  </view>
+  <view wx:if="{{aclVisible}}" class="modal-mask" catchtap="closeFolderAcl">
+    <view class="card modal-card" catchtap="noop">
+      <view class="modal-head"><view class="modal-title">权限：{{aclFolderName}}</view><button class="ghost-btn" bindtap="closeFolderAcl">关闭</button></view>
+      <view wx:if="{{aclLoading}}" class="muted">加载中...</view>
+      <block wx:elif="{{fileView.showAclRows}}">
+        <view wx:for="{{fileView.aclRows}}" wx:key="roleId" class="files-manage-row">
+          <text>{{item.roleName}}</text>
+          <view class="tag-list">
+            <text wx:for="{{item.permLabels}}" wx:for-item="perm" wx:key="*this" class="mini-tag">{{perm}}</text>
+          </view>
+        </view>
+      </block>
+      <view wx:else class="muted">暂无授权角色</view>
+    </view>
+  </view>
 </view>
-<button wx:if="{{canManageFolder}}" class="btn" style="margin:20rpx 0" bindtap="openFolderForm">新建文件夹</button>
-<block wx:if="{{canManageFolder && folders.length}}"><button wx:for="{{folders}}" wx:key="id" class="text-btn" data-id="{{item.id}}" data-name="{{item.name}}" bindtap="openFolderEdit">重命名 {{item.name}}</button></block>
-<block wx:if="{{canManageFolder && folders.length}}"><button wx:for="{{folders}}" wx:key="id" class="text-btn danger-text" data-id="{{item.id}}" data-name="{{item.name}}" bindtap="removeFolder">删除 {{item.name}}</button></block>

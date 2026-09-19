@@ -22,8 +22,8 @@ Important boundary:
 | One permission source | `sys_menu.permission` + role binding + backend `@PreAuthorize` + service-layer guards are the source of truth. |
 | One data-scope source | Data scope is computed server-side from role, position, user override, org tree, group, ownership, sharing and ACL rules. |
 | Frontend is UX, not security | PC/mobile can hide buttons for usability, but the backend must reject unauthorized calls. |
-| High-risk operations PC-first | Imports, exports, deletes, role/permission config, sea config, file ACL and bulk operations should stay PC-first unless explicitly released. |
-| Mobile first release is operational | Mobile should support field use: read, search, preview, mark-read, approve/reject, lightweight follow-up later. |
+| High-risk operations PC-first | Imports, exports, role/permission config, sea config, file ACL mutation and bulk operations should stay PC-first unless explicitly released. Destructive mobile deletes require explicit row/detail actions and existing backend permission checks. |
+| Mobile operational scope | Mobile supports field use with shared backend identity and scope: read, search, preview/download, upload where granted, mark-read, approve/reject, customer follow-up/contact/finance/indicator updates, public-sea claim/edit/delete where backend row grants allow, and statistics/ranking views. |
 | Audit sensitive mutations | Approval, customer release, permission changes, file ACL, imports, deletes and password changes need audit evidence. |
 
 ## 3. Menu Hierarchy
@@ -63,13 +63,14 @@ Important boundary:
 
 | Tab/Page | Route | Permission | Function State | Notes |
 | --- | --- | --- | --- | --- |
-| Login | `pages/login/index` | Public | Implemented | Account/password login first. |
+| Login | `pages/login/index` | Public | Implemented | Account/password login, current-user profile, group switch and password recovery are implemented. |
 | Home | `pages/home/index` | Authenticated | Implemented | Shows profile and quick entries. |
 | Customer | `pages/customer/index` | `customer:view` | Implemented read-focused | Same backend customer list/detail/counts. |
-| File | `pages/file/index` | `file:view` | Implemented read/preview | Same backend file list/download token. |
-| Incentive | `pages/incentive/index` | `incentive:view` | Implemented read/read-state/stats | Stats gated by `incentive:read-stats`. |
+| File | `pages/files/index` | `file:view` | Implemented operations | Unified file center; legacy `pages/file/index` redirects here. Preview/download/upload/share/delete/folder management and ACL read are implemented; ACL mutation stays PC-only. |
+| Incentive | `pages/incentive/index` | `incentive:view` | Implemented query/upload/stats | Record query, upload/edit/delete, customer score, ranking, read-state and read stats are implemented; category config stays PC-only. |
+| Legacy incentive alias | `pages/cases/index`, `pages/cases/detail/index` | `incentive:view` | Compatibility alias | Historical links redirect to 四项激励 workbench/detail; they must not reintroduce a separate case concept or independent data source. |
 | Approval | `pages/approval/index` | `approval:view` | Implemented approve/reject | Action buttons gated by approve/reject permissions. |
-| Public Sea | `pages/sea/index` | `sea:view` | Implemented read-only | Not a tab to stay under WeChat tab limit; high-risk operations deferred. |
+| Public Sea | `pages/sea/index` | `sea:view` | Implemented claim/edit/delete | Not a tab to stay under WeChat tab limit; list/stats/pool selector, claim submission, permitted edit route and permitted row delete are implemented; import/config stay PC-only. |
 
 ## 4. Cross-System Data Model
 
@@ -152,7 +153,7 @@ Important boundary:
 | Permissions | Login public; `/info/logout/switch-group` require valid user/session semantics. |
 | Data scope | Current user only; switch-group limited to allowed groups. |
 | Operation types | Login/session read/session mutation/password mutation. |
-| Mobile status | Login and `/info` implemented; switch group and WeChat binding planned. |
+| Mobile status | Login, `/info`, group switch, forgot-password and password reset are implemented. WeChat binding has a reserved status page only; OAuth/openid binding is not connected. |
 
 ### 6.2 Dashboard
 
@@ -166,7 +167,7 @@ Important boundary:
 | Permissions | Route `dashboard:view`; some APIs allow `statistics:view` or `dashboard:view`. |
 | Data scope | User/org/role/group scope; team activity should stay within visible scope. |
 | Operation types | Read/statistics, approval status mutation from embedded widget. |
-| Mobile status | Home profile/cards/quick entries and dashboard summary cards implemented; real permission-scope QA remains pending. |
+| Mobile status | Home profile/cards/quick entries and dashboard summary cards are implemented; mobile dashboard contract now verifies frontend permission gates, backend `statistics:view`/`dashboard:view` authorization and scope-aware dashboard counts. Live multi-account fixture QA remains release-level enhancement. |
 
 ### 6.3 Customer Management
 
@@ -185,7 +186,7 @@ Important boundary:
 | Operation types | Read, create, update, delete, import, export, share mutation, status mutation. |
 | Business workflow | Create/import customer -> assign org/owner -> protect period calculated -> follow-up/invoice/payment/indicator updates -> reminder task detects expiry -> release or expire into sea -> claim approval may create new ownership. |
 | Statistics logic | Counts by total, month new, protected, expiring, overdue, industry, status. Protection uses registration/invoice/protection days. |
-| Mobile status | Read list/detail/counts implemented. Create/edit/share/release/finance/indicator are planned and should be phased in after field-level checks. |
+| Mobile status | Read list/detail/counts, create/edit/delete, share/release, logs, contacts create/edit/delete, finance read/create/delete, relationship score and six-indicator save are implemented with scoped permissions. Import/export stay PC-first. |
 
 ### 6.4 File Management
 
@@ -201,7 +202,7 @@ Important boundary:
 | Operation types | Read, upload/create, update/replace, delete, share, ACL mutation, download. |
 | Business workflow | Create folder -> set ACL/download flag -> upload file -> list/search -> preview/download -> share/replace/delete when authorized. |
 | Statistics logic | Storage quota/used by user or tenant, shared count, file counts by folder/scope. |
-| Mobile status | File list and preview/download implemented; upload/share/delete/ACL deferred. |
+| Mobile status | File list, preview/download, upload, share, replace, file delete, folder create/rename/delete, storage stats, shared-to-me and folder ACL read are implemented. ACL mutation and download-setting changes stay PC-first. |
 
 ### 6.5 Incentive
 
@@ -218,7 +219,7 @@ Important boundary:
 | Operation types | Read, create/upload, update, delete, batch recalculation, mark-read, statistics. |
 | Business workflow | Configure category -> upload incentive record -> compute score -> expose in customer detail/search/stats -> user reads record -> read-state syncs PC/mobile -> authorized manager checks read stats. |
 | Statistics logic | Score by category, customer total score, ranking by score, grouped customer record count, read/unread counts per user. |
-| Mobile status | Customer-record list, score sort, mark-read and read-stats implemented. Upload/edit/delete deferred. |
+| Mobile status | Category tree, record list, upload, own/permitted edit/delete, customer score, scoreboard/ranking, category stats, user selector, customer-record list, file preview/download, mark-read and read-stats are implemented. Category config stays PC-first. |
 
 ### 6.6 Reminder
 
@@ -234,7 +235,7 @@ Important boundary:
 | Operation types | Read, batch ensure/create, status mutation. |
 | Business workflow | Customer approaches expiry -> scheduled task creates reminder -> dashboard/reminder page shows it -> user processes -> reminder closed. |
 | Statistics logic | Pending count, expiring soon, overdue days. |
-| Mobile status | Planned. |
+| Mobile status | Expiring list, reminder list, pending count and reminder process are implemented. Batch ensure-expiring remains PC/backend-first. |
 
 ### 6.7 Public Sea
 
@@ -251,7 +252,7 @@ Important boundary:
 | Operation types | Read, import, claim/status mutation, edit, delete, config mutation. |
 | Business workflow | Customer enters sea -> pool visibility decides who sees it -> user submits claim -> approval flow locks pending item -> approve completes claim and assigns owner -> claim records show outcome. |
 | Statistics logic | Available total, new-this-month, pending approval, claimed-this-month. |
-| Mobile status | Read-only list/stats/pool selector implemented. Claim/edit/delete intentionally deferred. |
+| Mobile status | List/stats/pool selector, claim approval submission, claim records, permitted customer edit route and permitted row delete are implemented. Import and sea config remain PC-only. |
 
 ### 6.8 Approval
 
@@ -267,7 +268,7 @@ Important boundary:
 | Operation types | Read, create approval, status mutation, config mutation. |
 | Business workflow | Business action requests approval -> approver list receives pending item -> approver approves/rejects -> service updates target business object -> audit/log records action. |
 | Statistics logic | Pending/approved/rejected counts by current user scope. |
-| Mobile status | List/statistics/approve/reject implemented. Submit approval from mobile planned. |
+| Mobile status | List/statistics/detail, approve/reject and business-flow approval submission from customer release / sea claim are implemented. Approval config remains PC-only. |
 
 ### 6.9 Statistics And Core Indicators
 
@@ -283,7 +284,7 @@ Important boundary:
 | Operation types | Read/statistics. |
 | Business workflow | Modules write operational data -> statistics service aggregates by period/org/person/customer -> dashboard/statistics pages render charts/tables. |
 | Statistics logic | Daily/weekly counts, team activity feed, customer indicator ranking, dashboard summary; `todayExpiring` counts customers with `expireDate = today` after account and optional department/office filters. |
-| Mobile status | Core-indicator read-only overview, dashboard cards and broader read-only statistics implemented; real role-scope QA remains pending. |
+| Mobile status | Core-indicator read-only overview, dashboard cards and broader read-only statistics are implemented; mobile statistics contract now verifies page permission gates, backend authorization and scope-aware daily/weekly/team-activity queries. Live role-scope fixture QA remains release-level enhancement. |
 
 #### Statistics formula and source contract
 
@@ -314,7 +315,7 @@ Source references: dashboard `StatisticsQueryService.java:120-152`, daily/weekly
 | Operation types | Config create/update/delete, batch mutation, read/statistics/export. |
 | Business workflow | Configure items -> assign participants -> enter period scores -> aggregate ranking/stats -> export if authorized. |
 | Statistics logic | Sum score entries by participant/period/item; derive ranking and summary stats. |
-| Mobile status | Planned, not first-release critical. |
+| Mobile status | Personal/dept score ranking, period filter, stats and rule explanation are implemented as read-only. Score entry, item config and export remain PC-only. |
 
 ### 6.11 System Management
 
@@ -414,15 +415,15 @@ Source references: dashboard `StatisticsQueryService.java:120-152`, daily/weekly
 
 | Module | View Permission | Mutation Permissions | Suggested Mobile Phase |
 | --- | --- | --- | --- |
-| Dashboard | `dashboard:view` | Approval widget uses approval permissions | Phase 1 lightweight |
-| Customer | `customer:view` | `customer:add/edit/delete/import/export/share` | Phase 1 read; Phase 2 create/edit |
-| File | `file:view` | `file:upload/edit/delete/share/folder:manage/acl:manage` | Phase 1 preview; Phase 2 upload |
-| Incentive | `incentive:view` | `incentive:add/edit/delete/read-stats` | Phase 1 query/read-state; Phase 2 upload |
-| Reminder | `reminder:view` | Process uses same permission/service scope | Phase 2 |
-| Public Sea | `sea:view` | `sea:claim/import/config:* / pool delete` | Phase 1 read-only; Phase 2 claim |
-| Approval | `approval:view` | `approval:approve/reject` | Phase 1 approve/reject |
-| Statistics | `statistics:view` | None | Phase 2 |
-| Score | `score:view`, `score:entry` | `score:manage` | Phase 3 |
+| Dashboard | `dashboard:view` | Approval widget uses approval permissions | Mobile dashboard/statistics cards implemented |
+| Customer | `customer:view` | `customer:add/edit/delete/import/export/share`, finance uses `finance:view` | Mobile create/edit/delete/share/release/finance/contact/indicator implemented; import/export remain PC-only |
+| File | `file:view` | `file:upload/edit/delete/share/folder:manage/acl:manage` | Mobile preview/download/upload/share/delete/folder management/ACL read implemented; ACL mutation remains PC-only |
+| Incentive | `incentive:view` | `incentive:add/edit/delete/read-stats` | Mobile query/upload/edit/delete/read-state/stats implemented; category config remains PC-only |
+| Reminder | `reminder:view` | Process uses same permission/service scope | Mobile list and process implemented; batch ensure remains PC/backend-first |
+| Public Sea | `sea:view` | `sea:claim/import/config:* / pool delete` | Mobile list/claim/edit/delete/claim-records implemented; import/config remain PC-only |
+| Approval | `approval:view` | `approval:approve/reject` | Mobile list/detail/approve/reject and business-flow submission implemented |
+| Statistics | `statistics:view` | None | Mobile dashboard/statistics/indicator/ranking views implemented |
+| Score | `score:view` | `score:entry/manage`, export | Mobile personal/dept ranking and stats implemented; entry/config/export remain PC-only |
 | System | `system:*:view` | `system:*:add/edit/delete`, config, rule, org-admin | PC only |
 
 ## 10. Statistics And Calculation Inventory
@@ -468,14 +469,14 @@ Source references: dashboard `StatisticsQueryService.java:120-152`, daily/weekly
 | Live scope config missing | Cannot confirm exact data range by role/position/user | Query `role_perm_scope`, `sys_role_org`, `sys_user_org` |
 | Some controller permissions rely on service-layer checks | Method annotations alone do not describe final authorization | Keep service tests and document each service guard |
 | Field-level permissions not fully mapped | Finance/contact/file fields may need visibility rules | Finance `finance:view`, contact `contact:view`, and file folder ACL/download checks are implemented; continue mapping any new file fields |
-| Mobile high-risk actions not released | Safe by design, but product may expect more mobile operations | Add phase-by-phase mobile release plan and QA cases |
+| Mobile high-risk boundary needs live QA | Mobile now has selected destructive actions: customer delete, contact delete, finance delete, file delete, incentive record delete and public-sea row delete. Each must stay behind explicit permissions, row/detail confirmation and backend service guards; imports/exports, system admin, file ACL mutation, incentive category config, sea import/config and score entry remain PC-only. | Run WeChat DevTools/manual QA with granted and denied accounts, then compare PC/mobile behavior against the same backend data. |
 | Statistics SQL details not fully line-by-line documented | Algorithms need exact query definitions for finance/business sign-off | Extract `StatisticsQueryService`, `CustomerService`, `IncentiveService`, `ScoreService` method-level formulas |
 
 ## 13. Recommended Next Engineering Steps
 
 1. Export live production configuration into a generated `function-permission-production-matrix.md`.
 2. Add method-level backend tests for every endpoint that has no direct `@PreAuthorize` but relies on service-layer authorization.
-3. Add mobile simulator/manual QA scripts for login, customer, file, incentive, approval and sea.
-4. Split mobile customer detail into a non-tab page before adding deep links from sea and approval.
-5. Decide mobile Phase 2 mutation scope: customer create/edit, incentive upload, reminder process, sea claim.
-6. Keep system management, imports, exports, deletes, file ACL, role/position/scope config as PC-only until explicit risk acceptance.
+3. Run WeChat DevTools/manual QA for login, customer, file, incentive, approval, public sea, statistics and ranking with both granted and denied accounts.
+4. Compare PC/mobile behavior against the same backend data for implemented mobile mutations: customer/contact/finance delete, file delete, incentive record delete and public-sea row delete.
+5. Keep imports/exports, system management, file ACL mutation, incentive category config, public-sea import/config, score entry/config/export, role/position/scope config and batch operations PC-only unless separately accepted with release-level QA evidence.
+6. Maintain the landed DevTools automator precheck for mobile PC parity (`npm run verify:mobile-parity` in `scripts/miniprogram`), with `npm run verify:incentive-attachments` available for focused incentive upload/list/detail/timeline attachment retesting. Real-account submission, true download/save behavior and same-backend PC/mobile reconciliation still require live DevTools or phone QA.

@@ -1,1 +1,17 @@
-<view class="page"><view class="hero"><view class="hero-title">核心客户六项指标</view><view class="hero-sub">开票、回款门槛 + 五项客户质量评分</view></view><view wx:if="{{loading}}" class="card muted">加载中...</view><view wx:else class="grid"><view class="metric card"><text>覆盖客户</text><text class="metric-value">{{stats.coveredCount || 0}}</text></view><view class="metric card"><text>核心客户</text><text class="metric-value success">{{stats.coreCount || 0}}</text></view><view class="metric card"><text>平均分</text><text class="metric-value">{{stats.avgScore || 0}} / 15</text></view><view class="metric card"><text>财务达标率</text><text class="metric-value">{{stats.qualifyRate || 0}}%</text></view></view><view class="card section"><view class="section-title">客户排行</view><block wx:for="{{ranking}}" wx:key="customerId"><view class="rank-row"><text class="rank-index">{{index + 1}}</text><text class="rank-name">{{item.customerName || '未命名客户'}}</text><text>{{item.core ? '核心' : '非核心'}}</text><text class="rank-score">{{item.totalScore || 0}}</text></view></block><view wx:if="{{ranking.length === 0}}" class="muted">暂无排行数据</view></view></view>
+<view class="page indicator-page">
+  <view class="hero">
+    <view class="hero-title">核心客户六项指标</view>
+    <view class="hero-sub">开票、回款门槛 + 五项客户质量评分</view>
+  </view>
+  <view wx:if="{{indicatorView.showLoading}}" class="card muted">加载中...</view>
+  <view wx:if="{{indicatorView.showMetrics}}" class="grid indicator-grid">
+    <view wx:for="{{indicatorView.metrics}}" wx:key="label" class="metric card"><text>{{item.label}}</text><text class="{{item.className}}">{{item.value}}</text></view>
+  </view>
+  <view class="card section indicator-rank-card">
+    <view class="section-title">客户排行</view>
+    <block wx:for="{{indicatorView.ranking}}" wx:key="id">
+      <view class="rank-row"><text class="rank-index">{{item.rank}}</text><text class="rank-name">{{item.customerName}}</text><text>{{item.coreText}}</text><text class="rank-score">{{item.totalScore}}</text></view>
+    </block>
+    <view wx:if="{{indicatorView.showRankingEmpty}}" class="muted">暂无排行数据</view>
+  </view>
+</view>

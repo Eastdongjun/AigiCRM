@@ -12,10 +12,12 @@ function getVisibleSeaConfigs() {
   return request({ url: '/api/sea/configs/visible' })
 }
 function getClaimRecords(params) { return request({ url: '/api/sea/claim-records', data: params || {} }) }
+function deleteSeaPool(id) { return request({ url: '/api/sea/pool/' + id, method: 'DELETE' }) }
 
 module.exports = {
   getSeaList,
   getSeaStatistics,
   getVisibleSeaConfigs,
-  getClaimRecords
+  getClaimRecords,
+  deleteSeaPool
 }

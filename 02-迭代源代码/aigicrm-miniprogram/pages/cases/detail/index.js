@@ -1,15 +1,25 @@
 const { requireLogin, hasPermission } = require('../../../utils/auth')
 
 Page({
-  data: { title: '', customer: '', category: '', status: '', score: '', owner: '', updatedAt: '' },
+  data: { redirecting: false },
   onLoad(options) {
+    this.redirectToIncentive(options || {})
+  },
+  redirectToIncentive(options) {
+    if (this.data.redirecting) return
     if (!requireLogin()) return
     if (!getApp().globalData.demoMode && !hasPermission('incentive:view')) {
-      wx.showToast({ title: '没有案例查看权限', icon: 'none' })
+      wx.showToast({ title: '没有四项激励查看权限', icon: 'none' })
       setTimeout(() => wx.navigateBack(), 500)
       return
     }
-    this.setData({ title: decodeURIComponent(options.title || ''), customer: decodeURIComponent(options.customer || ''), category: decodeURIComponent(options.category || ''), status: decodeURIComponent(options.status || ''), score: decodeURIComponent(options.score || ''), owner: decodeURIComponent(options.owner || ''), updatedAt: decodeURIComponent(options.updatedAt || '') })
+    const id = options.id || options.recordId
+    this.setData({ redirecting: true })
+    if (id) {
+      wx.redirectTo({ url: `/pages/incentive/detail/index?id=${encodeURIComponent(id)}` })
+      return
+    }
+    wx.switchTab({ url: '/pages/incentive/index' })
   },
   goBack() { wx.navigateBack() }
 })

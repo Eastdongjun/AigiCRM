@@ -1,0 +1,155 @@
+<view class="page">
+  <view class="hero">
+    <view class="row">
+      <view>
+        <view class="hero-title">客户详情</view>
+        <view class="hero-sub">同 PC 客户详情 · 后端统一权限</view>
+      </view>
+      <button class="ghost-btn" bindtap="goBack">返回</button>
+    </view>
+  </view>
+
+  <view wx:if="{{detailView.showLoading}}" class="card muted customer-detail-loading">{{detailView.loadingText}}</view>
+
+  <view wx:if="{{detailView.hasDetail}}" class="card customer-overview-card">
+    <view class="customer-overview-head">
+      <view class="customer-overview-title">{{detailView.titleText}}</view>
+      <text class="pill">{{detailView.statusText}}</text>
+    </view>
+    <view class="customer-overview-tags">
+      <text class="pill">{{detailView.industryText}}</text>
+      <text class="pill">{{detailView.devTypeText}}</text>
+    </view>
+    <view wx:for="{{detailView.baseRows}}" wx:key="label" class="detail-row"><text>{{item.label}}</text><text>{{item.valueText}}</text></view>
+  </view>
+
+  <view wx:if="{{detailView.hasDetail}}" class="card customer-section-card">
+    <view class="section-title">备注</view>
+    <view class="muted customer-remark-text">{{detailView.remarkText}}</view>
+  </view>
+
+  <view wx:if="{{detailView.showContactsSection}}" class="card customer-section-card">
+    <view class="section-title">联系人</view>
+    <block wx:for="{{detailView.contacts}}" wx:key="id">
+      <view class="detail-row"><text>{{item.nameText}}</text><text>{{item.phoneText}}</text></view>
+    </block>
+    <view wx:if="{{detailView.showNoContacts}}" class="muted">暂无联系人</view>
+  </view>
+
+  <view wx:if="{{detailView.hasDetail}}" class="card customer-section-card">
+    <view class="section-title">跟进日志</view>
+    <block wx:for="{{detailView.logs}}" wx:key="id">
+      <view class="customer-log-row">
+        <view>{{item.contentText}}</view>
+        <view class="customer-log-meta">
+          <text class="muted">{{item.userText}}</text>
+          <text class="muted customer-log-time">{{item.timeText}}</text>
+        </view>
+      </view>
+    </block>
+    <view wx:if="{{detailView.showNoLogs}}" class="muted">暂无跟进日志</view>
+  </view>
+
+  <view wx:if="{{detailView.showFinanceSection}}" class="card customer-section-card aligned-section-card">
+    <view class="customer-section-head">
+      <view class="section-title">财务摘要</view>
+      <button class="text-btn" bindtap="openFinance">查看明细</button>
+    </view>
+    <view class="customer-metric-grid finance-summary-grid">
+      <view wx:for="{{detailView.financeRows}}" wx:key="key" class="customer-metric-item">
+        <text>{{item.label}}</text>
+        <view>{{item.valueText}}</view>
+      </view>
+    </view>
+  </view>
+
+  <view wx:if="{{detailView.showCoreVerdictSection}}" class="card customer-section-card aligned-section-card core-verdict-card">
+    <view class="customer-section-head">
+      <view class="section-title">核心客户判定</view>
+      <text class="customer-section-score {{detailView.coreVerdictStatusClass}}">{{detailView.coreVerdictStatusText}}</text>
+    </view>
+    <view class="core-verdict-banner">
+      <view>
+        <text>当前判定</text>
+        <view>{{detailView.coreVerdictText}}</view>
+      </view>
+      <button wx:if="{{detailView.showIndicatorEditAction}}" class="core-verdict-action" bindtap="openIndicatorForm">维护指标</button>
+    </view>
+    <view class="core-verdict-grid">
+      <view wx:for="{{detailView.coreVerdictRows}}" wx:key="key" class="core-verdict-item">
+        <text class="core-verdict-label">{{item.label}}</text>
+        <view class="core-verdict-value">{{item.valueText}}</view>
+        <text class="indicator-status {{item.statusClass}}">{{item.statusText}}</text>
+      </view>
+    </view>
+  </view>
+
+  <button wx:if="{{detailView.showExtendAction}}" class="btn customer-action-btn" bindtap="submitExtendApproval">申请保护期延期</button>
+
+  <view wx:if="{{detailView.showRelationshipSection}}" class="card customer-section-card aligned-section-card">
+    <view class="customer-section-head">
+      <view class="section-title">客情 · 商务关系深度</view>
+      <text class="customer-section-score">{{detailView.relationshipScoreText}} / 3</text>
+    </view>
+    <view class="relationship-options">
+      <view wx:for="{{relationshipOptionsView}}" wx:key="value" data-score="{{item.value}}" bindtap="selectRelationship" class="{{item.className}}">
+        <text>{{item.label}}</text>
+        <text>{{item.value}}分</text>
+      </view>
+    </view>
+  </view>
+
+  <view wx:if="{{detailView.showIndicatorSection}}" class="card customer-section-card aligned-section-card">
+    <view class="customer-section-head">
+      <view class="section-title">核心客户六项指标</view>
+      <text class="customer-section-score">{{indicatorSummary.scoreTotal}} / 15</text>
+    </view>
+    <view class="indicator-summary-grid">
+      <view class="indicator-summary-item">
+        <text class="indicator-summary-label">开票门槛</text>
+        <text class="indicator-summary-value">{{indicatorSummary.invoiceAmount}} 万</text>
+        <text class="indicator-status {{indicatorSummary.invoiceStatusClass}}">{{indicatorSummary.invoiceStatusText}}</text>
+      </view>
+      <view class="indicator-summary-item">
+        <text class="indicator-summary-label">回款门槛</text>
+        <text class="indicator-summary-value">{{indicatorSummary.paymentAmount}} 万</text>
+        <text class="indicator-status {{indicatorSummary.paymentStatusClass}}">{{indicatorSummary.paymentStatusText}}</text>
+      </view>
+      <view class="indicator-summary-item">
+        <text class="indicator-summary-label">五项评分</text>
+        <text class="indicator-summary-value">{{indicatorSummary.scoreTotal}} / 15</text>
+        <text class="indicator-status {{indicatorSummary.scoreStatusClass}}">{{indicatorSummary.scoreStatusText}}</text>
+      </view>
+      <view class="indicator-summary-item">
+        <text class="indicator-summary-label">核心状态</text>
+        <text class="indicator-summary-value">{{indicatorSummary.coreSummaryText}}</text>
+        <text class="indicator-status {{indicatorSummary.coreStatusClass}}">{{indicatorSummary.coreStatusText}}</text>
+      </view>
+    </view>
+    <view class="indicator-detail-list">
+      <view wx:for="{{detailView.indicatorRows}}" wx:key="key" class="indicator-detail-row"><text>{{item.label}}</text><text>{{item.valueText}}</text></view>
+    </view>
+    <button wx:if="{{detailView.showIndicatorEditAction}}" class="btn customer-action-btn" bindtap="openIndicatorForm">编辑六项指标</button>
+  </view>
+
+  <view wx:if="{{detailView.showReleaseSection}}" class="card customer-section-card">
+    <button class="btn customer-action-btn flat" bindtap="releaseToSea">释放到公海</button>
+  </view>
+
+  <view wx:if="{{detailView.showDeleteSection}}" class="card customer-section-card danger-zone-card">
+    <view class="section-title">危险操作</view>
+    <view class="muted danger-zone-copy">删除客户会移除该客户资料，操作不可恢复。</view>
+    <button class="customer-delete-action" bindtap="deleteCurrentCustomer">删除客户</button>
+  </view>
+
+  <view wx:if="{{detailView.showActionCard}}" class="card detail-action-card">
+    <view class="detail-action-grid">
+      <button wx:if="{{detailView.showContactsAction}}" class="customer-detail-link-action" bindtap="openContacts"><text class="detail-action-symbol">人</text><text>联系人</text></button>
+      <button class="customer-detail-link-action" bindtap="openShares"><text class="detail-action-symbol">享</text><text>分享</text></button>
+      <button class="customer-detail-link-action" bindtap="openTimeline"><text class="detail-action-symbol">记</text><text>跟进</text></button>
+    </view>
+    <button wx:if="{{detailView.showLogAction}}" class="btn detail-primary-action" bindtap="openLogForm">新增跟进记录</button>
+  </view>
+
+  <view wx:if="{{detailView.showEmpty}}" class="card muted customer-detail-loading">暂无客户详情</view>
+</view>

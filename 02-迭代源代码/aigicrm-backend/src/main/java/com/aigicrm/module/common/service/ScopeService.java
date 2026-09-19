@@ -1,6 +1,7 @@
 package com.aigicrm.module.common.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.aigicrm.common.scope.GroupScopeUtil;
 import com.aigicrm.common.scope.OrgScopeResolver;
 import com.aigicrm.module.system.entity.SysDept;
 import com.aigicrm.module.system.entity.SysUser;
@@ -21,6 +22,16 @@ public class ScopeService {
     private final OrgScopeResolver resolver;
     private final SysUserMapper userMapper;
     private final SysDeptMapper deptMapper;
+    private final org.springframework.jdbc.core.JdbcTemplate jdbc;
+
+    /**
+     * 【PR-01 P0-03/P1-05/P1-09 2026-09-18】某集团成员用户 id（与登录 resolveGroupIds 同口径：
+     * 任职组织→集团，兼本人直属组织→集团）。原生 SQL/JdbcTemplate 无法走租户拦截器（sys_user
+     * 非租户表），必须显式套本方法做集团边界。admin 调用方自行决定不过滤。
+     */
+    public List<Long> userIdsInGroup(Long groupId) {
+        return GroupScopeUtil.userIdsInGroup(jdbc, groupId);
+    }
 
     /** 当前用户可见人员列表；deptId 非空时限定该部门子树（含全部子部门）∩ U */
     public List<Map<String, Object>> visibleUsers(SecurityUser user, Long deptId) {
@@ -29,6 +40,20 @@ public class ScopeService {
                 : null;
         List<Long> u = resolver.resolve(user);
         if (u == null) { // all：全部启用用户
+            // 【PR-01 P1-09 2026-09-18】all = 当前集团全量，仅平台 admin 为跨集团全量。
+            // 非 admin 必须套集团成员边界（sys_user 非租户表，拦截器管不到）。
+            if (user == null || !user.hasRole("admin")) {
+                Long g = GroupScopeUtil.currentGroupOrNull();
+                if (g == null) return List.of();
+                List<Long> inGroup = userIdsInGroup(g);
+                if (inGroup.isEmpty()) return List.of();
+                return userMapper.selectList(new LambdaQueryWrapper<SysUser>()
+                                .eq(SysUser::getDeleted, 0).eq(SysUser::getStatus, 1)
+                                .in(SysUser::getId, inGroup)
+                                .in(deptScope != null, SysUser::getDeptId, deptScope)
+                                .orderByAsc(SysUser::getRealName))
+                        .stream().map(this::toUserMap).toList();
+            }
             return userMapper.selectList(new LambdaQueryWrapper<SysUser>()
                             .eq(SysUser::getDeleted, 0).eq(SysUser::getStatus, 1)
                             .in(deptScope != null, SysUser::getDeptId, deptScope)

@@ -1,1 +1,53 @@
-<view class="page"><view class="hero"><view class="row"><view><view class="hero-title">审批详情</view><view class="hero-sub">处理前请确认事项与审批节点</view></view><button class="ghost-btn" bindtap="goBack">返回</button></view></view><view wx:if="{{loading}}" class="card muted">加载中...</view><view wx:if="{{approval}}" class="card"><view class="row"><view class="section-title" style="margin:0;flex:1">{{approval.title}}</view><text class="pill">{{approval.status}}</text></view><view class="detail-row"><text>申请人</text><text>{{approval.applicant}}</text></view><view class="detail-row"><text>申请时间</text><text>{{approval.createdAt || '-'}}</text></view><view class="detail-row"><text>类型</text><text>{{approval.type || '-'}}</text></view><view class="approval-reason">{{approval.reason}}</view></view><view wx:if="{{approval && approval.nodes.length}}" class="card"><view class="section-title">审批节点</view><view wx:for="{{approval.nodes}}" wx:key="id" class="detail-row"><text>{{item.nodeOrder}}. {{item.approverName || '审批人'}}</text><text>{{item.status}} {{item.action || ''}}</text></view></view><view wx:if="{{approval && canReject && approval.status==='pending'}}" class="card"><textarea class="comment-input" value="{{comment}}" bindinput="onCommentInput" placeholder="驳回时必须填写原因"></textarea></view><view wx:if="{{approval && (approval.status==='pending' || approval.status==='PENDING' || approval.status==='WAITING' || approval.status==='待审批')}}" class="row action-row"><button wx:if="{{canReject}}" class="secondary-btn" bindtap="reject">驳回</button><button wx:if="{{canApprove}}" class="btn compact-btn" bindtap="approve">通过</button></view><view wx:if="{{!loading && !approval}}" class="card muted">暂无审批详情</view></view>
+<view class="page approval-detail-page">
+  <view class="hero">
+    <view class="row">
+      <view>
+        <view class="hero-title">审批详情</view>
+        <view class="hero-sub">处理前请确认事项与审批节点</view>
+      </view>
+      <button class="ghost-btn" bindtap="goBack">返回</button>
+    </view>
+  </view>
+
+  <view wx:if="{{approvalView.showLoading}}" class="card muted">{{approvalView.loadingText}}</view>
+
+  <view wx:if="{{approvalView.hasApproval}}" class="card approval-detail-card">
+    <view class="approval-detail-head">
+      <view class="approval-detail-title">{{approvalView.titleText}}</view>
+      <text class="pill">{{approvalView.statusText}}</text>
+    </view>
+    <view class="detail-row"><text>审批编号</text><text>{{approvalView.codeText}}</text></view>
+    <view class="detail-row"><text>申请人</text><text>{{approvalView.applicantText}}</text></view>
+    <view class="detail-row"><text>当前节点</text><text>{{approvalView.currentNodeText}}</text></view>
+    <view class="detail-row"><text>通过后动作</text><text>{{approvalView.actionAfterApproveText}}</text></view>
+    <view wx:if="{{approvalView.showCustomer}}" class="detail-row"><text>客户</text><text>{{approvalView.customerText}}</text></view>
+    <view class="detail-row"><text>申请时间</text><text>{{approvalView.createdAtText}}</text></view>
+    <view class="detail-row"><text>更新时间</text><text>{{approvalView.updatedAtText}}</text></view>
+    <view class="detail-row"><text>类型</text><text>{{approvalView.typeText}}</text></view>
+    <view wx:if="{{approvalView.showCustomerAction}}" class="approval-detail-actions inline-actions">
+      <button class="approval-link-action" bindtap="openCustomer">查看客户完整档案</button>
+    </view>
+    <view class="form-section-title">申请补充</view>
+    <view class="approval-reason refined-reason">{{approvalView.reasonText}}</view>
+  </view>
+
+  <view wx:if="{{approvalView.showNodes}}" class="card approval-detail-card">
+    <view class="form-section-title">审批节点</view>
+    <view wx:for="{{approvalView.nodes}}" wx:key="key" class="approval-node-row">
+      <text>{{item.titleText}}</text>
+      <text>{{item.statusText}}</text>
+      <view class="approval-node-comment">{{item.commentText}}</view>
+    </view>
+  </view>
+
+  <view wx:if="{{approvalView.showRejectReason}}" class="card approval-detail-card">
+    <textarea class="comment-input polished-textarea compact-textarea" value="{{comment}}" bindinput="onCommentInput" placeholder="驳回时必须填写原因"></textarea>
+  </view>
+
+  <view wx:if="{{approvalView.showActions}}" class="approval-detail-actions">
+    <button wx:if="{{approvalView.showRejectAction}}" class="approval-reject-action" bindtap="reject">驳回</button>
+    <button wx:if="{{approvalView.showApproveAction}}" class="approval-approve-action" bindtap="approve">通过</button>
+  </view>
+
+  <view wx:if="{{approvalView.showEmpty}}" class="card muted">暂无审批详情</view>
+</view>

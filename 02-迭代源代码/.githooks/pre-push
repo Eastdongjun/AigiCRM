@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+# Local pre-push gate for AIGICRM.
+
+set -u
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+ENTRY="$ROOT/scripts/dev-verify.sh"
+
+if [ ! -x "$ENTRY" ]; then
+  echo "FAIL: missing executable $ENTRY" >&2
+  exit 1
+fi
+
+echo "AIGICRM pre-push gate: running local PR verification."
+echo "Set AIGICRM_SKIP_PRE_PUSH=1 to bypass only for emergency local workflows."
+
+if [ "${AIGICRM_SKIP_PRE_PUSH:-0}" = "1" ]; then
+  echo "SKIP: AIGICRM_SKIP_PRE_PUSH=1"
+  exit 0
+fi
+
+bash "$ENTRY" pr

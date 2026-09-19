@@ -1,0 +1,9 @@
+sonar.projectKey=REPLACE_WITH_AIGICRM_PROJECT_KEY
+sonar.projectName=AIGICRM
+sonar.organization=REPLACE_WITH_SONARCLOUD_ORGANIZATION
+sonar.host.url=https://sonarcloud.io
+sonar.sources=02-迭代源代码/aigicrm-backend/src/main,02-迭代源代码/aigicrm-ui/src,02-迭代源代码/aigicrm-miniprogram,02-迭代源代码/scripts,02-迭代源代码/nginx,02-迭代源代码/sql
+sonar.tests=02-迭代源代码/aigicrm-backend/src/test
+sonar.test.inclusions=**/*Test.java,**/*Tests.java,**/*IT.java,**/*ITCase.java,**/test_*.py,**/*_test.py,**/*.spec.js,**/*.test.js,**/*.spec.ts,**/*.test.ts,**/*.spec.vue,**/*.test.vue
+sonar.exclusions=**/node_modules/**,**/target/**,**/dist/**,**/.vite/**,**/logs/**,**/uploads/**,**/__pycache__/**,**/*.pyc,**/sql/init.sql,**/aigicrm_database_test.sql,**/*.dump,**/password-hash-backup.txt
+sonar.sourceEncoding=UTF-8

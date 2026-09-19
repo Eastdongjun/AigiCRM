@@ -1,1 +1,94 @@
-<view class="page"><view class="hero"><view class="row"><view><view class="hero-title">提醒中心</view><view class="hero-sub">同 PC 待办提醒 · 当前待处理 {{pendingCount}} 条</view></view><button class="ghost-btn" bindtap="refresh" loading="{{loading}}">刷新</button></view></view><view class="tabs"><button class="tab" data-mode="pending" bindtap="switchView">待处理</button><button class="tab" data-mode="expiring" bindtap="switchView">到期客户</button></view><view class="search-bar"><input class="search-input" placeholder="搜索客户或提醒内容" value="{{keyword}}" bindinput="onKeywordInput" confirm-type="search" bindconfirm="search" /><button class="btn compact-btn" bindtap="search">查询</button></view><view wx:if="{{loading}}" class="card muted" style="margin-top:24rpx">加载中...</view><block wx:for="{{reminders}}" wx:key="id"><view class="card" style="margin-top:20rpx"><view class="row"><view style="font-size:30rpx;font-weight:700;flex:1">{{item.customerName}}</view><text class="pill">{{item.type}}</text></view><view class="muted" style="margin-top:14rpx">{{item.content}}</view><view class="detail-row"><text>到期时间</text><text>{{item.expireDate || '-'}}</text></view><view class="row action-row"><button class="secondary-btn" data-index="{{index}}" bindtap="openDetail">查看详情</button><button class="secondary-btn" data-index="{{index}}" bindtap="openCustomer">客户详情</button><button class="btn compact-btn" data-index="{{index}}" bindtap="process">已处理</button></view></view></block><view wx:if="{{!loading && reminders.length===0}}" class="card muted" style="margin-top:24rpx">暂无待处理提醒</view><view wx:if="{{selectedReminder}}" class="modal-mask"><view class="card reminder-modal"><view class="row"><view class="hero-title">提醒详情</view><button class="ghost-btn close-btn" bindtap="closeDetail">关闭</button></view><view class="detail-row"><text>客户</text><text>{{selectedReminder.customerName}}</text></view><view class="detail-row"><text>类型</text><text>{{selectedReminder.type}}</text></view><view class="detail-row"><text>到期时间</text><text>{{selectedReminder.expireDate || '-'}}</text></view><view class="reminder-content">{{selectedReminder.content}}</view><view class="action-row"><button class="btn compact-btn" data-index="{{reminders.indexOf(selectedReminder)}}" bindtap="process">已处理</button></view></view></view></view>
+<view class="page reminder-page">
+  <view class="hero">
+    <view class="row">
+      <view>
+        <view class="hero-title">提醒中心</view>
+        <view class="hero-sub">同 PC 待办提醒 · 当前待处理 {{pendingCount}} 条</view>
+      </view>
+      <button class="ghost-btn" bindtap="refresh" loading="{{reminderView.refreshLoading}}">{{reminderView.refreshText}}</button>
+    </view>
+  </view>
+
+  <view class="reminder-mode-card">
+    <button class="{{reminderView.pendingModeClass}}" data-mode="pending" bindtap="switchView">待处理</button>
+    <button class="{{reminderView.expiringModeClass}}" data-mode="expiring" bindtap="switchView">到期客户</button>
+  </view>
+
+  <view class="search-bar refined-search">
+    <input class="search-input" placeholder="搜索客户或提醒内容" value="{{keyword}}" bindinput="onKeywordInput" confirm-type="search" bindconfirm="search" />
+    <button class="reminder-search-action" bindtap="search">查询</button>
+  </view>
+  <view class="reminder-filter-row">
+    <picker mode="selector" range="{{deptOptions}}" range-key="name" value="{{selectedDeptIndex}}" bindchange="chooseDept">
+      <view class="reminder-filter-chip">{{reminderView.deptLabel}}</view>
+    </picker>
+    <picker mode="selector" range="{{ownerOptions}}" range-key="name" value="{{selectedOwnerIndex}}" bindchange="chooseOwner">
+      <view class="reminder-filter-chip">{{reminderView.ownerLabel}}</view>
+    </picker>
+  </view>
+  <view class="reminder-bulk-row">
+    <view class="reminder-bulk-copy">{{reminderView.listCountText}}</view>
+    <button class="clear-all-action" bindtap="processAll" loading="{{processingAll}}" disabled="{{reminderView.disableProcessAll}}">一键清空</button>
+  </view>
+
+  <view wx:if="{{reminderView.showLoading}}" class="card muted reminder-loading">{{reminderView.loadingText}}</view>
+
+  <block wx:for="{{reminders}}" wx:key="id">
+    <view class="card reminder-card">
+      <view class="reminder-card-head">
+        <view class="reminder-customer">{{item.customerName}}</view>
+        <text class="pill">{{item.typeDisplay}}</text>
+      </view>
+      <view class="reminder-summary">{{item.content}}</view>
+      <view class="reminder-meta">
+        <text>负责人 {{item.ownerDisplay}}</text>
+        <text>部门 {{item.officeDisplay}}</text>
+        <text>状态 {{item.statusDisplay}}</text>
+      </view>
+      <view class="reminder-date"><text>到期时间</text><text>{{item.expireDateDisplay}}</text></view>
+      <view class="reminder-actions">
+        <button class="reminder-link-action" data-index="{{index}}" bindtap="openDetail">详情</button>
+        <button class="reminder-link-action" data-index="{{index}}" bindtap="openCustomer">客户档案</button>
+        <button wx:if="{{item.canExtend}}" class="reminder-warning-action" data-index="{{index}}" bindtap="extend">申请延期</button>
+        <button class="reminder-primary-action" data-index="{{index}}" bindtap="process">{{item.processActionDisplay}}</button>
+      </view>
+    </view>
+  </block>
+
+  <view wx:if="{{reminderView.showEmpty}}" class="card empty-state compact-empty">
+    <view class="empty-icon">✓</view>
+    <text>暂无待处理提醒</text>
+  </view>
+
+  <view wx:if="{{reminderView.hasSelectedReminder}}" class="modal-mask">
+    <view class="card reminder-modal">
+      <view class="modal-head">
+        <view class="modal-title">提醒详情</view>
+        <button class="ghost-btn close-btn" bindtap="closeDetail">关闭</button>
+      </view>
+      <view class="detail-row"><text>客户</text><text>{{selectedReminder.customerName}}</text></view>
+      <view class="detail-row"><text>客户编号</text><text>{{selectedReminder.customerCodeDisplay}}</text></view>
+      <view class="detail-row"><text>客户状态</text><text>{{selectedReminder.customerStatusDisplay}}</text></view>
+      <view class="detail-row"><text>行业</text><text>{{selectedReminder.industryDisplay}}</text></view>
+      <view class="detail-row"><text>地区</text><text>{{selectedReminder.regionDisplay}}</text></view>
+      <view class="detail-row"><text>提醒编号</text><text>{{selectedReminder.reminderIdDisplay}}</text></view>
+      <view class="detail-row"><text>类型</text><text>{{selectedReminder.typeDisplay}}</text></view>
+      <view class="detail-row"><text>处理状态</text><text>{{selectedReminder.statusDisplay}}</text></view>
+      <view class="detail-row"><text>到期/超期口径</text><text>{{selectedReminder.timingDisplay}}</text></view>
+      <view class="detail-row"><text>负责人</text><text>{{selectedReminder.ownerDisplay}}</text></view>
+      <view class="detail-row"><text>所属部门</text><text>{{selectedReminder.officeDisplay}}</text></view>
+      <view class="detail-row"><text>到期时间</text><text>{{selectedReminder.expireDateDisplay}}</text></view>
+      <view class="detail-row"><text>剩余天数</text><text>{{selectedReminder.remainingDaysDisplay}}</text></view>
+      <view class="detail-row"><text>最后开票日</text><text>{{selectedReminder.lastInvoiceDateDisplay}}</text></view>
+      <view class="detail-row"><text>生成时间</text><text>{{selectedReminder.createdAtDisplay}}</text></view>
+      <view class="detail-row"><text>处理时间</text><text>{{selectedReminder.processedAtDisplay}}</text></view>
+      <view class="detail-row"><text>最后更新</text><text>{{selectedReminder.updatedAtDisplay}}</text></view>
+      <view class="reminder-content">{{selectedReminder.content}}</view>
+      <view class="reminder-actions reminder-modal-actions">
+        <button class="reminder-link-action" bindtap="openSelectedCustomer">查看客户完整档案</button>
+        <button wx:if="{{selectedReminder.canExtend}}" class="reminder-warning-action" data-index="{{selectedReminderIndex}}" bindtap="extend">申请延期</button>
+        <button class="reminder-primary-action" data-index="{{selectedReminderIndex}}" bindtap="process">{{selectedReminder.processActionDisplay}}</button>
+      </view>
+    </view>
+  </view>
+</view>

@@ -1,1 +1,39 @@
-<view class="page"><view class="hero"><view class="hero-title">编辑客户指标</view><view class="hero-sub">开票回款硬性门槛 + 五项评分，每项 0-3 分</view></view><view wx:if="{{loading}}" class="card muted">加载中...</view><view wx:else class="card form-card"><view class="section-title">核心客户六项指标</view><view class="threshold-card"><view class="threshold-title">硬性指标</view><view class="muted">开票、回款均 >= 100 万；五项总分 >= 12 分为核心客户。</view></view><block wx:for="{{indicatorItems}}" wx:key="field"><view class="metric-option"><view class="metric-head"><view><view class="metric-name">{{index + 1}}. {{item.name}}</view><view class="muted">{{item.desc}}</view></view><text class="pill">{{item.value}} 分</text></view><view class="score-grid"><block wx:for="{{item.options}}" wx:for-item="label" wx:for-index="score" wx:key="score"><view class="score-option {{item.value === score ? 'active' : ''}}" data-field="{{item.field}}" data-score="{{score}}" bindtap="selectScore"><text>{{score}}分</text><view>{{label}}</view></view></block></view></view></block><button class="btn submit-btn" loading="{{saving}}" bindtap="submit">保存指标</button><button class="text-btn back-btn" bindtap="goBack">取消</button></view></view>
+<view class="page indicator-edit-page">
+  <view class="hero">
+    <view class="hero-title">编辑客户指标</view>
+    <view class="hero-sub">开票回款硬性门槛 + 五项评分，每项 0-3 分</view>
+  </view>
+
+  <view wx:if="{{indicatorView.showLoading}}" class="card muted">{{indicatorView.loadingText}}</view>
+
+  <view wx:if="{{indicatorView.showForm}}" class="card form-card polished-form-card">
+    <view class="form-section-title">核心客户六项指标</view>
+    <view class="threshold-card refined-threshold">
+      <view class="threshold-title">硬性指标</view>
+      <view class="muted">开票、回款均 >= 100 万；五项总分 >= 12 分为核心客户。</view>
+    </view>
+
+    <block wx:for="{{indicatorItems}}" wx:key="field">
+      <view class="metric-option refined-metric-option">
+        <view class="metric-head">
+          <view>
+            <view class="metric-name">{{index + 1}}. {{item.name}}</view>
+            <view class="muted">{{item.desc}}</view>
+          </view>
+          <text class="pill">{{item.value}} 分</text>
+        </view>
+        <view class="score-grid refined-score-grid">
+          <block wx:for="{{item.optionsView}}" wx:for-item="option" wx:key="score">
+            <view class="{{option.className}}" data-field="{{item.field}}" data-score="{{option.score}}" bindtap="selectScore">
+              <text>{{option.score}}分</text>
+              <view>{{option.label}}</view>
+            </view>
+          </block>
+        </view>
+      </view>
+    </block>
+
+    <button class="btn submit-btn polished-submit" loading="{{indicatorView.submitLoading}}" bindtap="submit">{{indicatorView.submitText}}</button>
+    <button class="text-btn back-btn polished-back" bindtap="goBack">取消</button>
+  </view>
+</view>

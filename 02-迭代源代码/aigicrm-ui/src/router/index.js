@@ -63,13 +63,22 @@ const routes = [
         path: 'incentive',
         name: 'Incentive',
         component: () => import('@/views/incentive/index.vue'),
-        meta: { title: '四项激励', icon: 'Trophy', permission: 'incentive:view' }
+        // 【2026-09-13 口径统一】本路由即「激励上传」页：菜单码、后端上传接口 @PreAuthorize、
+        // 小程序上传入口用的都是 incentive:add（此前路由写 incentive:view，与菜单码不一致）
+        meta: { title: '四项激励', icon: 'Trophy', permission: 'incentive:add' }
       },
       {
         path: 'incentive/stats',
         name: 'IncentiveStats',
         component: () => import('@/views/incentive/stats.vue'),
         meta: { title: '激励统计', parentTitle: '四项激励', icon: 'TrendCharts', permission: 'incentive:view' }
+      },
+      {
+        // 【2026-09-13】激励统计表格行的下钻明细页（子页面）；侧边栏来自后端菜单树，本路由不会出现在菜单里
+        path: 'incentive/stats/detail/:childId',
+        name: 'IncentiveStatsDetail',
+        component: () => import('@/views/incentive/StatsDetail.vue'),
+        meta: { title: '激励明细', parentTitle: '激励统计', icon: 'Document', permission: 'incentive:view' }
       },
       {
         path: 'incentive/search',
@@ -89,6 +98,13 @@ const routes = [
         name: 'Reminder',
         component: () => import('@/views/reminder/index.vue'),
         meta: { title: '提醒管理', icon: 'Bell', permission: 'reminder:view' }
+      },
+      {
+        // 【2026-09-13】提醒管理列表行的下钻详情页（子页面）；侧边栏来自后端菜单树，本路由不会出现在菜单里
+        path: 'reminder/detail/:id',
+        name: 'ReminderDetail',
+        component: () => import('@/views/reminder/detail.vue'),
+        meta: { title: '提醒详情', parentTitle: '提醒管理', icon: 'Document', permission: 'reminder:view' }
       },
       // 公海管理
       {
@@ -157,11 +173,14 @@ const routes = [
         component: () => import('@/views/system/dept.vue'),
         meta: { title: '组织架构', icon: 'OfficeBuilding', permission: 'system:dept:view' }
       },
-      // 已移除 legacy 路由 'system/dept'（name: LegacyDeptManage）:
-      //   与 'system/org' component 完全相同、标题相同、权限码相同;
-      //   侧边栏由后端动态菜单驱动, 生产只下发 /system/org(id=118「部门管理」),
-      //   故 'system/dept' 侧边栏不可达; 全仓仅此一处引用。
-      //   LogAspect 里针对该 URI 的分支同步改为 /system/org。
+      // 兼容旧菜单、旧书签与历史审计链接：真实菜单已切到 system/org，但旧路径仍应打开同一组织页面。
+      // 这不是侧边栏入口，只是让已下发过的 legacy route 可自愈。
+      {
+        path: 'system/dept',
+        name: 'LegacyDeptManage',
+        component: () => import('@/views/system/dept.vue'),
+        meta: { title: '组织架构', icon: 'OfficeBuilding', permission: 'system:dept:view' }
+      },
       {
         path: 'system/role',
         name: 'RoleManage',
@@ -191,6 +210,19 @@ const routes = [
         name: 'PermissionRule',
         component: () => import('@/views/system/rule.vue'),
         meta: { title: '权限规则', icon: 'SetUp', permission: 'system:rule:view' }
+      },
+      {
+        // 【2026-09-13】本月激励查询阅读排行榜：入口在系统设置下，默认只绑系统管理员角色，
+        // 管理员在「角色管理 → 权限分配」勾选该菜单后其它角色才可见（菜单/路由/接口同一权限码）
+        path: 'system/incentive-read-ranking',
+        name: 'IncentiveReadRanking',
+        component: () => import('@/views/system/incentive-read-ranking.vue'),
+        meta: {
+          title: '本月激励查询阅读排行榜',
+          parentTitle: '系统设置',
+          icon: 'DataAnalysis',
+          permission: 'incentive:read-ranking:view'
+        }
       },
       {
         path: 'system/group',

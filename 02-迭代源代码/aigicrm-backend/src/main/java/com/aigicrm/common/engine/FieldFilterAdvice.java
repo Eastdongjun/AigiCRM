@@ -84,7 +84,9 @@ public class FieldFilterAdvice implements ResponseBodyAdvice<Object> {
         // 单对象 → Map 后再过滤
         Map<String, Object> map = objectToMap(body);
         if (map != null) return filterFields(map, hiddenFields, visibleFields);
-        return body;
+        // 【PR-01 N-08 2026-09-18 fail-closed】Jackson 转换失败不得原样返回 body
+        // （hiddenFields 脱敏会被整体跳过，敏感字段裸奔）。未知即 500 中断，不返回。
+        throw new com.aigicrm.common.BusinessException(500, "响应数据处理异常");
     }
 
     /** 执行字段过滤：visibleFields 优先于 hiddenFields */

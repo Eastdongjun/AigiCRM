@@ -1,0 +1,30 @@
+<view class="page forgot-page">
+  <view class="hero">
+    <view class="hero-title">找回密码</view>
+    <view class="hero-sub">验证账号后设置新密码</view>
+  </view>
+  <view class="steps">
+    <text wx:for="{{forgotView.steps}}" wx:key="text" class="{{item.className}}">{{item.text}}</text>
+  </view>
+  <view class="card form-card polished-form-card">
+    <block wx:if="{{forgotView.showAccountStep}}">
+      <view class="label">登录账号</view>
+      <input class="input polished-input" data-field="username" value="{{username}}" bindinput="input" placeholder="请输入账号"/>
+    </block>
+    <block wx:elif="{{forgotView.showCodeStep}}">
+      <view class="muted">验证码将发送至 {{forgotView.maskedPhoneText}}</view>
+      <view class="code-row">
+        <input class="input polished-input" data-field="code" value="{{code}}" bindinput="input" placeholder="请输入验证码" maxlength="6"/>
+        <button class="code-action" bindtap="sendCode">{{forgotView.codeText}}</button>
+      </view>
+    </block>
+    <block wx:if="{{forgotView.showResetStep}}">
+      <view class="label">新密码</view>
+      <input class="input polished-input" password data-field="newPassword" value="{{newPassword}}" bindinput="input" placeholder="至少 6 位"/>
+      <view class="label">确认密码</view>
+      <input class="input polished-input" password data-field="confirmPassword" value="{{confirmPassword}}" bindinput="input" placeholder="再次输入新密码"/>
+    </block>
+    <button class="btn submit-btn polished-submit" loading="{{forgotView.submitLoading}}" bindtap="next">{{forgotView.submitText}}</button>
+    <button class="text-btn back-btn polished-back" bindtap="back">{{forgotView.backText}}</button>
+  </view>
+</view>

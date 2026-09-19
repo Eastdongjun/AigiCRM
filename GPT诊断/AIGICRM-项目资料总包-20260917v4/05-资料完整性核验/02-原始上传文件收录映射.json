@@ -1,0 +1,78 @@
+{
+  "version": "20260917v4",
+  "count": 12,
+  "files": [
+    {
+      "original_path": "00-README.md",
+      "bundle_path": "90-原始文件归档/源码原包/00-README.md",
+      "bytes": 4158,
+      "sha256": "18a987375ef7e242927208aba102ed230f72bb7532a6eaf442a2631b34951e06"
+    },
+    {
+      "original_path": "SHA256SUMS",
+      "bundle_path": "90-原始文件归档/源码原包/SHA256SUMS",
+      "bytes": 736,
+      "sha256": "21b3eabf7c980647364b2c1aeacc72e36a4bcc77cfffe542a0a4216e40c2cca7"
+    },
+    {
+      "original_path": "pack-backend.tar.gz",
+      "bundle_path": "90-原始文件归档/源码原包/pack-backend.tar.gz",
+      "bytes": 391705,
+      "sha256": "60e14ab9d240fcc84b35299bf4a7479ebc292242b1fff4cf451fba56b77603d6"
+    },
+    {
+      "original_path": "pack-gates.tar.gz",
+      "bundle_path": "90-原始文件归档/源码原包/pack-gates.tar.gz",
+      "bytes": 662694,
+      "sha256": "24d71ea9b846c956bde4be152d471864db3303f17631d1409ce752dd5f50293a"
+    },
+    {
+      "original_path": "pack-mini.tar.gz",
+      "bundle_path": "90-原始文件归档/源码原包/pack-mini.tar.gz",
+      "bytes": 172091,
+      "sha256": "f3eb64e8fd1797405fb43ed6c0b57edf15ce5aa6be4b4b2e0b50bf288b91e160"
+    },
+    {
+      "original_path": "pack-pc.tar.gz",
+      "bundle_path": "90-原始文件归档/源码原包/pack-pc.tar.gz",
+      "bytes": 363108,
+      "sha256": "cee5693575aadb875f835f67f67c9386aa931b42e715992a0a7ff743e7ed310a"
+    },
+    {
+      "original_path": "AIGICRM-20260917-PC-小程序功能全景蓝图.md",
+      "bundle_path": "02-产品功能蓝图/AIGICRM-20260917-PC-小程序功能全景蓝图.md",
+      "bytes": 45681,
+      "sha256": "c4c9c5bc1db46e86146703d285b47066a8c1eedb296d66376382672aadf92f0c"
+    },
+    {
+      "original_path": "AIGICRM-20260917-source-audit.md",
+      "bundle_path": "03-审计与源码证据/AIGICRM-20260917-source-audit.md",
+      "bytes": 13677,
+      "sha256": "7b71a583504ee992165eb8bcecb211675e75f2869a19a85781c2d4b86bc56d75"
+    },
+    {
+      "original_path": "AIGICRM-需要修改的点-20260917v2.md",
+      "bundle_path": "90-原始文件归档/历史交付文件/AIGICRM-需要修改的点-20260917v2.md",
+      "bytes": 29188,
+      "sha256": "d014099d73c893b327c3b58889fb864f23fe4e3af104db7b0536e304de06e9d7"
+    },
+    {
+      "original_path": "AIGICRM-问题收录核对与补充-20260917v3.md",
+      "bundle_path": "90-原始文件归档/历史交付文件/AIGICRM-问题收录核对与补充-20260917v3.md",
+      "bytes": 17980,
+      "sha256": "6821c980bf806a9c1238043f3b6b89df3981ceea7f87366ed3dee4c0b3c8318c"
+    },
+    {
+      "original_path": "AIGICRM-产品缺陷评审与完善方案-20260917v1.zip",
+      "bundle_path": "90-原始文件归档/历史交付文件/AIGICRM-产品缺陷评审与完善方案-20260917v1.zip",
+      "bytes": 40686,
+      "sha256": "f59119e7def181640e4c7de41cd8803247ee64f1ccd2274b65bab45ffc7c7c33"
+    },
+    {
+      "original_path": "AIGICRM-product-review-20260917v1/01-产品缺陷评审与完善方案-20260917v1.md",
+      "bundle_path": "03-审计与源码证据/产品评审原包展开/AIGICRM-product-review-20260917v1/01-产品缺陷评审与完善方案-20260917v1.md",
+      "bytes": 38190,
+      "sha256": "308f6407d6c8406fc6901b158ea9fc6e52c1657969b01300c7b1e10785bb171b"
+    }
+  ]
+}

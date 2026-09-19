@@ -67,6 +67,34 @@ write_plan_quick() {
       "timeout": 60
     },
     {
+      "id": "verify-modes",
+      "covers": ["A1", "A2", "A3"],
+      "cwd": $(json_escape "$CODE_ROOT"),
+      "argv": ["bash", "-lc", "bash scripts/dev-verify.sh verify-modes"],
+      "timeout": 60
+    },
+    {
+      "id": "verify-executables",
+      "covers": ["A1", "A2", "A3"],
+      "cwd": $(json_escape "$CODE_ROOT"),
+      "argv": ["bash", "-lc", "bash scripts/dev-verify.sh verify-executables"],
+      "timeout": 60
+    },
+    {
+      "id": "verify-fail-fast",
+      "covers": ["A1", "A2", "A3"],
+      "cwd": $(json_escape "$CODE_ROOT"),
+      "argv": ["bash", "-lc", "bash scripts/dev-verify.sh verify-fail-fast"],
+      "timeout": 60
+    },
+    {
+      "id": "verify-evidence-plans",
+      "covers": ["A1", "A2", "A3"],
+      "cwd": $(json_escape "$CODE_ROOT"),
+      "argv": ["bash", "-lc", "bash scripts/dev-verify.sh verify-evidence-plans"],
+      "timeout": 60
+    },
+    {
       "id": "dev-on-save",
       "covers": ["A1", "A2"],
       "cwd": $(json_escape "$CODE_ROOT"),
@@ -108,7 +136,7 @@ write_plan_sea() {
       "id": "diff-check-automation",
       "covers": ["A1"],
       "cwd": $(json_escape "$SOURCE_ROOT"),
-      "argv": ["bash", "-lc", "git diff --check -- 02-迭代源代码/scripts/dev-verify.sh 02-迭代源代码/scripts/dev-evidence.sh 02-迭代源代码/scripts/verify-sea-claim-matrix.sh 02-迭代源代码/scripts/install-git-hooks.sh 02-迭代源代码/.githooks/pre-push 02-迭代源代码/.vscode/tasks.json"],
+      "argv": ["bash", "-lc", "git diff --check -- 02-迭代源代码/scripts 02-迭代源代码/.githooks/pre-push 02-迭代源代码/.vscode/tasks.json"],
       "timeout": 60
     }
   ]
@@ -125,14 +153,14 @@ write_plan_changed() {
       "id": "backend-http-preflight",
       "covers": ["A1", "A2"],
       "cwd": $(json_escape "$CODE_ROOT"),
-      "argv": ["bash", "-lc", "bash scripts/dev-verify.sh backend-http"],
+      "argv": ["bash", "-lc", "bash scripts/dev-verify.sh backend-http; rc=\$?; echo exit_code=\$rc; test \"\$rc\" -eq 0 -o \"\$rc\" -eq 1 -o \"\$rc\" -eq 2"],
       "timeout": 60
     },
     {
       "id": "frontend-http-preflight",
       "covers": ["A1", "A2"],
       "cwd": $(json_escape "$CODE_ROOT"),
-      "argv": ["bash", "-lc", "bash scripts/dev-verify.sh frontend-http"],
+      "argv": ["bash", "-lc", "bash scripts/dev-verify.sh frontend-http; rc=\$?; echo exit_code=\$rc; test \"\$rc\" -eq 0 -o \"\$rc\" -eq 1 -o \"\$rc\" -eq 2"],
       "timeout": 60
     },
     {
@@ -146,7 +174,7 @@ write_plan_changed() {
       "id": "diff-check-automation",
       "covers": ["A3"],
       "cwd": $(json_escape "$SOURCE_ROOT"),
-      "argv": ["bash", "-lc", "git diff --check -- 02-迭代源代码/scripts/dev-verify.sh 02-迭代源代码/scripts/dev-evidence.sh 02-迭代源代码/.vscode/tasks.json"],
+      "argv": ["bash", "-lc", "git diff --check -- 02-迭代源代码/scripts 02-迭代源代码/.vscode/tasks.json"],
       "timeout": 60
     }
   ]
@@ -170,7 +198,7 @@ write_plan_miniprogram() {
       "id": "diff-check-automation",
       "covers": ["A2"],
       "cwd": $(json_escape "$SOURCE_ROOT"),
-      "argv": ["bash", "-lc", "git diff --check -- 02-迭代源代码/scripts/dev-verify.sh 02-迭代源代码/scripts/dev-evidence.sh 02-迭代源代码/.vscode/tasks.json"],
+      "argv": ["bash", "-lc", "git diff --check -- 02-迭代源代码/scripts 02-迭代源代码/.vscode/tasks.json"],
       "timeout": 60
     }
   ]

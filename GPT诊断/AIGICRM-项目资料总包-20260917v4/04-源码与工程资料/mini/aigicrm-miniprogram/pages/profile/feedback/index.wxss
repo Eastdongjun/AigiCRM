@@ -1,0 +1,8 @@
+.feedback-card{margin-top:20rpx}
+.feedback-textarea{min-height:260rpx}
+.feedback-actions{display:flex;align-items:center;justify-content:flex-end;gap:12rpx;margin-top:22rpx;flex-wrap:wrap}
+.feedback-actions button{height:52rpx;line-height:50rpx;margin:0;padding:0 18rpx;border-radius:14rpx;font-size:23rpx;font-weight:740}
+.feedback-actions button::after{border:0}
+.feedback-clear-action{border:1rpx solid #d8e1ee;background:#f8fafc;color:#475569}
+.feedback-save-action{border:0;background:#2563eb;color:#fff;box-shadow:0 8rpx 18rpx rgba(37,99,235,.16)}
+.feedback-saved{margin-top:18rpx}

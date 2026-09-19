@@ -37,6 +37,17 @@ __pycache__/
 graphify-out/
 .backup-*/
 
+# 本机/自动化运行产物（正式证据统一落到中央 Agent runs 目录）
+02-迭代源代码/test-results/
+02-迭代源代码/engineering/evidence/
+02-迭代源代码/20260910-opencode-dev-upload-envversion-guard-001/
+05-测试与质量/evidence/
+05-测试与质量/audit-evidence/
+
+# 本机 Codex/编辑器状态
+.codex/
+.vscode/settings.json
+
 # 数据库 dump/备份(含密码哈希与业务数据,禁止入库)
 08-备份索引/
 aigicrm_database_test.sql
@@ -46,6 +57,13 @@ sql/init.sql
 **/aigicrm_database_test.sql.bak-*
 **/password-hash-backup.txt
 *.dump
+
+# 微信开发者工具的本机私有配置（含本机路径/编译设置，按微信惯例不入库；
+# project.config.json 与 config/env.*.example.js 模板仍入库）
+02-迭代源代码/aigicrm-miniprogram/project.private.config.json
+
+# 小程序本机覆盖档（开发者工具连本地/测试后端的地址，按机器不同，不入库）
+02-迭代源代码/aigicrm-miniprogram/config/env.local.js
 
 # Superpowers worktrees
 .worktrees/
@@ -59,3 +77,10 @@ aigicrm-backend/.settings/org.eclipse.m2e.core.prefs
 02-迭代源代码/img/04-原型设计/
 02-迭代源代码/engineering/evidence/ui-full-test/
 02-迭代源代码/engineering/features/NEXT-INCENTIVE-UPLOAD.md
+
+# 小程序上传工具（scripts/miniprogram，miniprogram-ci 包装）：锁文件与预览二维码不入库；密钥一律放仓库外
+02-迭代源代码/scripts/miniprogram/package-lock.json
+02-迭代源代码/scripts/miniprogram/preview-qrcode.png
+
+# ZCode agent 工具目录(计划文件等,非项目资产)
+.zcode/

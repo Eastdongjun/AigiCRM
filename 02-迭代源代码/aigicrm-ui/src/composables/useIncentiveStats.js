@@ -6,6 +6,7 @@ import { ref, computed, inject } from 'vue'
 import { getCategoryTree, getRecords, getCategoryStats, getCustomerRecords } from '@/api/incentive'
 import { cachedGet } from '@/utils/layout-cache'
 import { useUserStore } from '@/store/user'
+import { buildPeriodOptions, periodQueryValue } from '@/utils/incentive-period'
 
 export const IncentiveStatsKey = Symbol('incentiveStats')
 
@@ -19,7 +20,9 @@ export function injectIncentiveStats() {
 export function useIncentiveStats() {
   const userStore = useUserStore()
   const loading = ref(false)
-  const period = ref('2026上半年')
+  // 【2026-09-12】周期口径统一（选项含「全年」、默认「全部」）——原来默认 '2026上半年' 且每次请求都带该参数，
+  // 而库内数据用的是 '2026全年' ⇒ 页面必然 0 条。见 utils/incentive-period.js。
+  const period = ref('')
   const activeTab = ref('table')
   const records = ref([])            // 个人记录(当前登录人) — 仅供顶部卡片
   const catStat = ref({ byCategory: [], totalFiles: 0, totalScore: 0 })  // 全员聚合 — 供激励统计表
@@ -30,11 +33,7 @@ export function useIncentiveStats() {
   const pageNum = ref(1)
   const pageSize = ref(15)
   const pagedScoreboard = computed(() => scoreboard.value.slice((pageNum.value - 1) * pageSize.value, pageNum.value * pageSize.value))
-  const periodOptions = (() => {
-    const list = []
-    for (let y = 2030; y >= 2025; y--) { list.push(y + '下半年', y + '上半年') }
-    return list
-  })()
+  const periodOptions = buildPeriodOptions()
   const catColors = ['cat-blue', 'cat-orange', 'cat-red', 'cat-yellow']
   const catIcons = { visit: 'location', exchange: 'chat', plan: 'document', trial: 'box' }
 
@@ -129,7 +128,7 @@ export function useIncentiveStats() {
   const loadData = async () => {
     pageNum.value = 1
     loading.value = true
-    const p = period.value
+    const p = periodQueryValue(period.value)
     // 【性能 2026-08-08】五个接口相互独立，由串行 await 改为并发 Promise.allSettled
     // （单页从 ~5×RTT 降到 ~1×max(RTT)，缓解激励统计页卡顿）；各接口独立容错。
     try {

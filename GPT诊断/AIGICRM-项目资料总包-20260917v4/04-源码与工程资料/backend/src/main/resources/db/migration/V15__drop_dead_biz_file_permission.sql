@@ -1,0 +1,21 @@
+-- ============================================================
+-- V15__drop_dead_biz_file_permission.sql
+-- 删除废弃死表 biz_file_permission。
+--
+-- 背景(2026-08-13 全仓审计):
+--   该表 2026-08-02 随模块化升级创建, 2026-08-05 文件管理 ACL 体系上线后即被
+--   biz_folder_acl 完全取代。全仓 grep 证据:
+--   * 后端业务代码/XML 零引用(仅 MybatisPlusConfig 租户白名单与 MybatisPlusConfigTest
+--     名单提及, 随本迁移同步移除);
+--   * 前端/脚本/文档零引用。
+--   与 biz_stats_permission(此前已排除白名单的废弃空表)同类。
+--
+-- ⚠️ 部署顺序(重要): 本迁移删除表后, 租户启动自检 verifyTenantColumns 会因白名单
+--   仍含该表而 fail-fast。必须与后端新 jar(白名单已移除 biz_file_permission)
+--   同批部署: deploy-db.sh(V15) → deploy-backend.sh(新 jar)。回滚时先回旧 jar
+--   再重建表(V1 基线含 CREATE TABLE 语句, 见 V1__baseline.sql:409)。
+--
+-- 幂等: DROP TABLE IF EXISTS + Flyway 版本化保证单次执行。
+-- ============================================================
+
+DROP TABLE IF EXISTS `biz_file_permission`;

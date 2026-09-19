@@ -1,0 +1,6 @@
+.contact-card{margin-top:20rpx}.contact-name{font-size:30rpx;font-weight:700;color:#172b4d}.contact-card .detail-row{margin-top:18rpx}.contact-actions{display:flex;justify-content:flex-end;gap:10rpx;margin-top:22rpx;flex-wrap:wrap}
+.contact-call-action,.contact-edit-action,.contact-delete-action{height:50rpx;line-height:48rpx;margin:0;padding:0 16rpx;border-radius:14rpx;font-size:22rpx;font-weight:720}
+.contact-call-action::after,.contact-edit-action::after,.contact-delete-action::after{border:0}
+.contact-call-action{min-width:154rpx;border:1rpx solid #bfdbfe;background:#eff6ff;color:#2563eb}
+.contact-edit-action{min-width:96rpx;border:1rpx solid #d8e1ee;background:#f8fafc;color:#475569}
+.contact-delete-action{min-width:96rpx;border:1rpx solid #fecaca;background:#fff7f7;color:#dc2626}

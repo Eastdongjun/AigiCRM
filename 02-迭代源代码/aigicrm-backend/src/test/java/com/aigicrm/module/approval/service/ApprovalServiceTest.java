@@ -37,6 +37,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.mock;
 import org.mockito.ArgumentCaptor;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -53,16 +54,25 @@ class ApprovalServiceTest {
     private void setCurrentUser(SecurityUser u) {
         // 【修复 2026-08-09】9c6e72a 给捞取加了 sea:claim 方法内校验,测试用户需持该权限
         // (否则 submit("claim",...) 在到达业务分支前就抛"没有公海捞取权限")
+        setCurrentUser(u, "sea:claim", "approval:view");
+    }
+
+    private void setCurrentUser(SecurityUser u, String... authorities) {
         Authentication auth = new org.springframework.security.authentication.UsernamePasswordAuthenticationToken(
                 u, null,
-                java.util.List.of(
-                        new org.springframework.security.core.authority.SimpleGrantedAuthority("sea:claim"),
-                        new org.springframework.security.core.authority.SimpleGrantedAuthority("approval:view")));
+                java.util.Arrays.stream(authorities)
+                        .map(org.springframework.security.core.authority.SimpleGrantedAuthority::new)
+                        .toList());
         SecurityContextHolder.getContext().setAuthentication(auth);
     }
 
     private ApprovalService newService(BizSeaPoolMapper seaPoolMapper, BizApprovalMapper approvalMapper,
                                        BizApprovalNodeMapper nodeMapper) {
+        return newService(seaPoolMapper, approvalMapper, nodeMapper, mock(SeaConfigService.class));
+    }
+
+    private ApprovalService newService(BizSeaPoolMapper seaPoolMapper, BizApprovalMapper approvalMapper,
+                                       BizApprovalNodeMapper nodeMapper, SeaConfigService seaConfigService) {
         return new ApprovalService(
                 mock(BizApprovalConfigMapper.class),
                 approvalMapper,
@@ -75,7 +85,7 @@ class ApprovalServiceTest {
                 seaPoolMapper,
                 mock(SeaService.class),
                 mock(com.aigicrm.common.scope.OrgScopeResolver.class),
-                mock(SeaConfigService.class),
+                seaConfigService,
                 mock(SysUserService.class));
     }
 
@@ -123,6 +133,104 @@ class ApprovalServiceTest {
         ApprovalService svc = newService(seaPoolMapper, approvalMapper, mock(BizApprovalNodeMapper.class));
         assertDoesNotThrow(() -> svc.submit("claim", 42L, null, null));
         // 锁定更新必须携带 status='available' 条件（原子性）
+        verify(seaPoolMapper, times(1)).update(isNull(), any());
+    }
+
+    @Test
+    void submit_claim_withoutPoolPermOrLegacyAuthority_rejectsBeforeLockingPool() {
+        SecurityUser u = new SecurityUser();
+        u.setUserId(7L);
+        u.setDataScope("all");
+        setCurrentUser(u, "approval:view");
+
+        BizSeaPool pool = new BizSeaPool();
+        pool.setId(3L);
+        pool.setPoolId(9L);
+        pool.setCustomerId(42L);
+        pool.setStatus("available");
+
+        BizSeaPoolMapper seaPoolMapper = mock(BizSeaPoolMapper.class);
+        when(seaPoolMapper.selectOne(any())).thenReturn(pool);
+
+        SeaConfigService seaConfigService = mock(SeaConfigService.class);
+        when(seaConfigService.hasPoolPerm(any(), anyString(), any())).thenReturn(false);
+
+        ApprovalService svc = newService(
+                seaPoolMapper,
+                mock(BizApprovalMapper.class),
+                mock(BizApprovalNodeMapper.class),
+                seaConfigService);
+
+        BusinessException ex = assertThrows(BusinessException.class, () -> svc.submit("claim", 42L, null, null));
+
+        assertEquals(403, ex.getCode());
+        assertTrue(ex.getMessage().contains("没有公海捞取权限"));
+        verify(seaPoolMapper, never()).update(isNull(), any());
+    }
+
+    @Test
+    void submit_claim_poolLevelClaimPermission_allowsWithoutLegacyAuthority() {
+        SecurityUser u = new SecurityUser();
+        u.setUserId(7L);
+        u.setDataScope("all");
+        setCurrentUser(u, "approval:view");
+
+        BizSeaPool pool = new BizSeaPool();
+        pool.setId(3L);
+        pool.setPoolId(9L);
+        pool.setCustomerId(42L);
+        pool.setStatus("available");
+
+        BizSeaPoolMapper seaPoolMapper = mock(BizSeaPoolMapper.class);
+        when(seaPoolMapper.selectOne(any())).thenReturn(pool);
+        when(seaPoolMapper.update(isNull(), any())).thenReturn(1);
+
+        BizApprovalMapper approvalMapper = mock(BizApprovalMapper.class);
+        when(approvalMapper.selectMaxCodeByPrefix(anyString())).thenReturn(0);
+
+        SeaConfigService seaConfigService = mock(SeaConfigService.class);
+        when(seaConfigService.hasPoolPerm(any(), anyString(), any())).thenReturn(true);
+
+        ApprovalService svc = newService(
+                seaPoolMapper,
+                approvalMapper,
+                mock(BizApprovalNodeMapper.class),
+                seaConfigService);
+
+        assertDoesNotThrow(() -> svc.submit("claim", 42L, null, null));
+        verify(seaPoolMapper, times(1)).update(isNull(), any());
+    }
+
+    @Test
+    void submit_claim_legacySeaClaimAuthority_allowsWhenPoolLevelPermissionMissing() {
+        SecurityUser u = new SecurityUser();
+        u.setUserId(7L);
+        u.setDataScope("all");
+        setCurrentUser(u, "sea:claim", "approval:view");
+
+        BizSeaPool pool = new BizSeaPool();
+        pool.setId(3L);
+        pool.setPoolId(9L);
+        pool.setCustomerId(42L);
+        pool.setStatus("available");
+
+        BizSeaPoolMapper seaPoolMapper = mock(BizSeaPoolMapper.class);
+        when(seaPoolMapper.selectOne(any())).thenReturn(pool);
+        when(seaPoolMapper.update(isNull(), any())).thenReturn(1);
+
+        BizApprovalMapper approvalMapper = mock(BizApprovalMapper.class);
+        when(approvalMapper.selectMaxCodeByPrefix(anyString())).thenReturn(0);
+
+        SeaConfigService seaConfigService = mock(SeaConfigService.class);
+        when(seaConfigService.hasPoolPerm(any(), anyString(), any())).thenReturn(false);
+
+        ApprovalService svc = newService(
+                seaPoolMapper,
+                approvalMapper,
+                mock(BizApprovalNodeMapper.class),
+                seaConfigService);
+
+        assertDoesNotThrow(() -> svc.submit("claim", 42L, null, null));
         verify(seaPoolMapper, times(1)).update(isNull(), any());
     }
 

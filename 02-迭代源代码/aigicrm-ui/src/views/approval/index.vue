@@ -189,8 +189,9 @@
           v-model:current-page="query.current"
           v-model:page-size="query.size"
           :total="total"
-          :page-sizes="[15, 30, 50]"
-          layout="prev, pager, next"
+          :page-sizes="pageSizes(query.size)"
+          layout="sizes, prev, pager, next, jumper"
+          @size-change="query.current = 1"
           size="small"
           @change="loadData"
         />
@@ -276,6 +277,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { useUserStore } from '@/store/user'
 import { getApprovalList, getApprovalDetail, approve, reject, getApprovalStatistics } from '@/api/approval'
 import request from '@/utils/request'
+import { pageSizes } from '@/utils/pagination'
 
 const userStore = useUserStore()
 const canApprove = computed(() => userStore.hasPermission('approval:approve'))

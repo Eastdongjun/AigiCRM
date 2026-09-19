@@ -20,7 +20,8 @@ if project.get('compileType') != 'miniprogram':
     raise SystemExit('project.config.json compileType must be miniprogram')
 if project.get('miniprogramRoot') != './':
     raise SystemExit('project.config.json miniprogramRoot must be ./')
-if project.get('appid') != 'wxde685ea31717512c':
+# AppID 为 AIGICRM 小程序在微信公众平台的登记值（2026-09-13 由所有者确认）
+if project.get('appid') != 'wx513e6dd7eabdae7b':
     raise SystemExit('project.config.json appid is not the registered AIGICRM appid')
 PY
 echo 'PASS: WeChat developer-tool project root is self-contained and AIGICRM-specific.'

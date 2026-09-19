@@ -1,4 +1,31 @@
-<view class="page"><view class="hero"><view class="row"><view><view class="hero-title">客户分享</view><view class="hero-sub">当前客户的共享关系</view></view><button class="ghost-btn" bindtap="goBack">返回</button></view></view><view wx:if="{{loading}}" class="card muted">加载中...</view><block wx:for="{{shares}}" wx:key="id"><view class="card share-card"><view class="row"><text class="share-name">{{item.sharedToUserName || item.userName || '已授权用户'}}</text><text class="pill">只读共享</text></view><view class="detail-row"><text>分享时间</text><text>{{item.createdAt || item.createTime || '-'}}</text></view></view></block><view wx:if="{{!loading && shares.length===0}}" class="card muted">当前没有分享记录</view><view class="notice">分享对象和可见范围由服务端权限统一控制。具备编辑权限时，可在本页新增或撤回分享。</view></view>
-<view wx:if="{{canEdit && users.length}}" class="card share-form"><view class="section-title">新增分享</view><checkbox-group bindchange="selectUsers"><label wx:for="{{users}}" wx:key="id" class="user-option"><checkbox value="{{item.id}}" checked="{{selectedUserIds.indexOf(item.id) >= 0}}"/><text>{{item.realName || item.username || '用户'}}</text></label></checkbox-group><button class="btn" loading="{{saving}}" bindtap="addShares">确认分享</button></view>
-<view wx:if="{{canEdit && shares.length}}" class="card share-actions"><text class="muted">可撤回已有共享关系，操作需要再次确认。</text></view>
-<block wx:if="{{canEdit}}"><button wx:for="{{shares}}" wx:key="id" class="secondary-btn" style="margin:12rpx 0" data-index="{{index}}" bindtap="removeShare">撤回 {{item.sharedToUserName || '该用户'}}</button></block>
+<view class="page">
+  <view class="hero">
+    <view class="row">
+      <view>
+        <view class="hero-title">客户分享</view>
+        <view class="hero-sub">当前客户的共享关系</view>
+      </view>
+      <button class="share-top-cancel" bindtap="goBack" disabled="{{shareView.cancelDisabled}}">返回</button>
+    </view>
+  </view>
+  <view wx:if="{{shareView.showLoading}}" class="card muted">加载中...</view>
+  <block wx:for="{{shareView.shares}}" wx:key="viewId">
+    <view class="card share-card">
+      <view class="row"><text class="share-name">{{item.userNameText}}</text><text class="pill">只读共享</text></view>
+      <view class="detail-row"><text>分享时间</text><text>{{item.createdAtText}}</text></view>
+      <button wx:if="{{canEdit}}" class="share-revoke-btn" data-index="{{index}}" bindtap="removeShare">撤回共享</button>
+    </view>
+  </block>
+  <view wx:if="{{shareView.showEmpty}}" class="card muted">当前没有分享记录</view>
+  <view class="notice">分享对象和可见范围由服务端权限统一控制。具备编辑权限时，可在本页新增或撤回分享。</view>
+  <view wx:if="{{shareView.showForm}}" class="card share-form">
+    <view class="section-title">新增分享</view>
+    <checkbox-group bindchange="selectUsers">
+      <label wx:for="{{shareView.users}}" wx:key="viewId" class="user-option"><checkbox value="{{item.id}}" checked="{{item.checked}}"/><text>{{item.nameText}}</text></label>
+    </checkbox-group>
+    <view class="share-actions">
+      <button class="share-cancel-btn" bindtap="goBack" disabled="{{shareView.cancelDisabled}}">{{shareView.cancelText}}</button>
+      <button class="share-submit-btn" loading="{{shareView.submitLoading}}" bindtap="addShares">{{shareView.submitText}}</button>
+    </view>
+  </view>
+</view>
