@@ -1,13 +1,17 @@
 package com.aigicrm.security;
 
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.mock.web.MockFilterChain;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.test.util.ReflectionTestUtils;
+
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -175,5 +179,79 @@ class JwtAuthFilterTest {
         MockHttpServletResponse resp2 = new MockHttpServletResponse();
         f.doFilter(req2, resp2, new MockFilterChain());
         assertEquals(200, resp2.getStatus(), "改密端点必须放行");
+    }
+
+    @AfterEach
+    void clearSecurityContext() {
+        SecurityContextHolder.clearContext();
+    }
+
+    /** 【PR-22 活体验证 2026-09-19 归属撤销 fail-closed】集团声明不在当前归属集合 → 回退最小当前集团 */
+    @Test
+    void sessionGroupClaimRevoked_fallsBackToCurrentMembership() throws Exception {
+        JwtTokenProvider p = provider();
+        UserDetailsService uds = mock(UserDetailsService.class);
+        JwtAuthFilter f = new JwtAuthFilter(p, uds);
+
+        String token = p.generateToken(76L, "pr22a", false, 1L);
+        com.aigicrm.security.SecurityUser su = new com.aigicrm.security.SecurityUser();
+        su.setUserId(76L);
+        su.setUsername("pr22a");
+        su.setGroupIds(List.of(2L));
+        when(uds.loadUserByUsername("76")).thenReturn(su);
+
+        MockHttpServletRequest req = new MockHttpServletRequest("GET", "/api/customer/list");
+        req.addHeader("Authorization", "Bearer " + token);
+        f.doFilter(req, new MockHttpServletResponse(), new MockFilterChain());
+
+        Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        assertEquals(2L, ((com.aigicrm.security.SecurityUser) principal).getCurrentGroupId(),
+                "失效声明(集团1)必须被丢弃,回退到当前归属的最小集团(2)");
+    }
+
+    /** 完全无集团归属 → 会话集团置 null(fail-closed, 不复活旧声明) */
+    @Test
+    void sessionGroupClaimRevoked_noMembership_null() throws Exception {
+        JwtTokenProvider p = provider();
+        UserDetailsService uds = mock(UserDetailsService.class);
+        JwtAuthFilter f = new JwtAuthFilter(p, uds);
+
+        String token = p.generateToken(76L, "pr22a", false, 1L);
+        com.aigicrm.security.SecurityUser su = new com.aigicrm.security.SecurityUser();
+        su.setUserId(76L);
+        su.setUsername("pr22a");
+        su.setGroupIds(List.of());
+        when(uds.loadUserByUsername("76")).thenReturn(su);
+
+        MockHttpServletRequest req = new MockHttpServletRequest("GET", "/api/customer/list");
+        req.addHeader("Authorization", "Bearer " + token);
+        f.doFilter(req, new MockHttpServletResponse(), new MockFilterChain());
+
+        Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        assertNull(((com.aigicrm.security.SecurityUser) principal).getCurrentGroupId(),
+                "无任何集团归属时不得保留旧 token 声明");
+    }
+
+    /** 声明仍属于当前归属 → 原样保留(switch-group 多 tab 会话不受影响) */
+    @Test
+    void sessionGroupClaimValid_kept() throws Exception {
+        JwtTokenProvider p = provider();
+        UserDetailsService uds = mock(UserDetailsService.class);
+        JwtAuthFilter f = new JwtAuthFilter(p, uds);
+
+        String token = p.generateToken(76L, "pr22a", false, 2L);
+        com.aigicrm.security.SecurityUser su = new com.aigicrm.security.SecurityUser();
+        su.setUserId(76L);
+        su.setUsername("pr22a");
+        su.setGroupIds(List.of(1L, 2L));
+        when(uds.loadUserByUsername("76")).thenReturn(su);
+
+        MockHttpServletRequest req = new MockHttpServletRequest("GET", "/api/customer/list");
+        req.addHeader("Authorization", "Bearer " + token);
+        f.doFilter(req, new MockHttpServletResponse(), new MockFilterChain());
+
+        Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        assertEquals(2L, ((com.aigicrm.security.SecurityUser) principal).getCurrentGroupId(),
+                "合法声明(∈当前归属)必须保留");
     }
 }

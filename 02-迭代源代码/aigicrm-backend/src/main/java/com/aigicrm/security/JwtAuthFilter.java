@@ -75,9 +75,16 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                 }
 
                 // 【批④ 2026-08-10 多集团会话】会话集团注入: token claim 优先(每个 tab 独立),
-                // 旧 token 无 claim 回退最小集团; PermissionContext 缓存不含集团(会话态不入用户级缓存)
+                // 旧 token 无 claim 回退最小集团; PermissionContext 缓存含 groupIds(TTL 10min 兜底,
+                // 业务接口变更时 evict+bump 即时失效)。
+                // 【PR-22 活体验证 2026-09-19 归属撤销 fail-closed】claim 必须仍属于用户当前归属集合:
+                // 集团归属被解除/调整后, 旧 token 内嵌 currentGroupId 不再放行(此前可存活至 token 过期)。
+                // claim 失效但仍有其他集团 → 回退最小当前集团; 完全无归属 → null(fail-closed)。
                 if (userDetails instanceof com.aigicrm.security.SecurityUser su) {
                     Long cg = jwtTokenProvider.getCurrentGroupIdFromToken(token);
+                    if (cg != null && (su.getGroupIds() == null || !su.getGroupIds().contains(cg))) {
+                        cg = null;
+                    }
                     if (cg == null && su.getGroupIds() != null && !su.getGroupIds().isEmpty()) {
                         cg = su.getGroupIds().stream().min(Long::compareTo).orElse(null);
                     }
