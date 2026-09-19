@@ -4,6 +4,7 @@ const { getDashboardData } = require('../../api/statistics')
 const { homeCards, reminderRecords } = require('../../data/demo')
 const { hasPermission, logout, requireLogin } = require('../../utils/auth')
 const { showError } = require('../../utils/feedback')
+const { getTaskStatistics } = require('../../api/task')
 
 function formatToday(date = new Date()) {
   const weekdays = ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六']
@@ -78,6 +79,19 @@ Page({
         this.setData({ showDashboardCards: false })
         showError(error, '看板数据加载失败')
       })
+    }
+
+    // 【PR-10 前端】我的待办任务数量(首页显示,不加底部菜单)
+    if (!getApp().globalData.demoMode) {
+      getTaskStatistics().then((stats) => {
+        const pending = (stats && stats.pending) || 0
+        const overdue = (stats && stats.overdue) || 0
+        this.setData({
+          taskSummary: pending > 0
+            ? (overdue > 0 ? `待办 ${pending} 件(逾期 ${overdue})` : `待办 ${pending} 件`)
+            : ''
+        })
+      }).catch(() => this.setData({ taskSummary: '' }))
     }
 
     loadCurrentUser().then((user) => {
