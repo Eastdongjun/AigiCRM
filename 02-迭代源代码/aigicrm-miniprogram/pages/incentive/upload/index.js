@@ -220,6 +220,15 @@ function canSubmitUpload(data, selectedCategory, categories) {
   return slotFileCount(preSlot) > 0
 }
 
+const UPLOAD_STATE_LABELS = { pending: '待上传', uploading: '上传中', done: '已上传' }
+
+function uploadStateText(file) {
+  if (file.uploadedId) return '已上传'
+  const state = file.uploadState || 'pending'
+  if (state === 'failed') return `失败：${file.uploadError || '请重试'}`
+  return UPLOAD_STATE_LABELS[state] || '待上传'
+}
+
 function uploadProgressText(data) {
   if (!data.loading || !data.uploadProgressFile) return ''
   return `${data.uploadProgressFile} - ${Number(data.uploadProgress || 0)}%`
@@ -256,7 +265,11 @@ function buildUploadViewState(data) {
         ...file,
         fileIndex,
         displayIndex: fileIndex + 1,
-        isImage: file.fileKind === 'image' || isImageFile(file.fileName, file.filePath)
+        isImage: file.fileKind === 'image' || isImageFile(file.fileName, file.filePath),
+        // 【PR-13 首批 2026-09-19】逐文件上传反馈:pending/uploading/done/failed(+失败原因)
+        uploadState: file.uploadedId ? 'done' : (file.uploadState || 'pending'),
+        uploadStateText: uploadStateText(file),
+        uploadStateClass: `upload-state ${file.uploadedId ? 'done' : (file.uploadState || 'pending')}`
       }))
       return {
         ...slot,
@@ -688,10 +701,10 @@ Page({
     const customer = this.data.customers[this.data.selectedCustomerIndex]
     const category = this.data.categories[this.data.selectedCategoryIndex]
     if (this.data.uploadView.submitDisabled) return
-    const selectedFiles = this.data.fileSlots.flatMap((slot) => {
+    const selectedFiles = this.data.fileSlots.flatMap((slot, slotIndex) => {
       if (slot.hidden) return []
       const files = slot.files && slot.files.length ? slot.files : (slot.filePath ? [slot] : [])
-      return files.map((file) => ({ ...file, key: slot.key }))
+      return files.map((file, fileIndex) => ({ ...file, key: slot.key, slotIndex, fileIndex }))
     })
     if (!customer || !category) {
       wx.showToast({ title: '请补齐客户和分类', icon: 'none' })
@@ -706,66 +719,139 @@ Page({
     if (this.data.loading) return
     this.setUploadData({ loading: true, uploadProgress: 0, uploadProgressFile: '' })
     wx.showLoading({ title: '上传中' })
-    const existingFilesBySlot = selectedFiles.filter((slot) => slot.existing && slot.fileId).map((slot) => ({ key: slot.key, id: slot.fileId }))
-    const newFiles = selectedFiles.filter((slot) => !slot.existing)
-    let uploadedIndex = 0
-    const uploadOne = (slot, index, total) => {
-      const fileName = slot.fileName || `附件-${index + 1}`
-      this.setUploadData({ uploadProgressFile: fileName })
-      return uploadFile(slot.filePath, null, 'incentive', {
+    this.uploadPendingFiles(selectedFiles, customer, category, isSingleSlot)
+  },
+
+  /**
+   * 【PR-13 首批 2026-09-19】逐文件上传 + 失败续办:
+   * - 逐文件串行上传,每个文件独立 pending/uploading/done/failed 状态(界面逐文件反馈);
+   * - 单个失败不阻断其余;成功项记 uploadedId,重试/再次提交只补传失败项,不全量重来;
+   * - 全部就绪后才组装 payload 落库(与原提交口径一致,含单槽分类清空逻辑)。
+   */
+  uploadPendingFiles(selectedFiles, customer, category, isSingleSlot) {
+    const pending = selectedFiles.filter((item) => !item.existing && !item.uploadedId)
+    const doneIds = selectedFiles
+      .filter((item) => item.existing && item.fileId)
+      .map((item) => ({ key: item.key, id: item.fileId }))
+      .concat(selectedFiles.filter((item) => item.uploadedId).map((item) => ({ key: item.key, id: item.uploadedId })))
+    if (!pending.length) {
+      return this.saveRecordWithFiles(doneIds, customer, category, isSingleSlot)
+        .then(() => this.finishSubmit())
+        .catch((error) => {
+          showError(error, '四项激励上传失败')
+          this.setUploadData({ loading: false })
+          wx.hideLoading()
+        })
+    }
+    let uploadedIndex = doneIds.length
+    const total = doneIds.length + pending.length
+    const uploadOne = (item) => new Promise((resolve) => {
+      const fileName = item.fileName || '附件'
+      this.setFileUploadState(item, 'uploading')
+      this.setUploadData({ uploadProgressFile: fileName, uploadProgress: Math.min(99, Math.round((uploadedIndex / total) * 100)) })
+      uploadFile(item.filePath, null, 'incentive', {
         onProgress: (event) => {
           const fileProgress = Number(event.progress || 0)
-          const progress = Math.min(99, Math.round(((index + fileProgress / 100) / total) * 100))
-          this.setUploadData({ uploadProgress: progress, uploadProgressFile: fileName })
+          this.setUploadData({ uploadProgressFile: fileName, uploadProgress: Math.min(99, Math.round(((uploadedIndex + fileProgress / 100) / total) * 100)) })
         }
       }).then((uploaded) => {
-      const id = uploaded && uploaded.id
-      if (!id) throw new Error('上传结果缺少文件 ID')
+        const id = uploaded && uploaded.id
+        if (!id) throw new Error('上传结果缺少文件 ID')
+        item.uploadedId = id
+        this.setFileUploadField(item, 'uploadedId', id)
         uploadedIndex += 1
+        this.setFileUploadState(item, 'done')
         this.setUploadData({ uploadProgress: Math.round((uploadedIndex / total) * 100), uploadProgressFile: fileName })
-        return { key: slot.key, id }
+        resolve({ key: item.key, id })
+      }).catch((error) => {
+        // 失败不阻断其余文件:记录状态与原因,结束时统一提示可重试
+        this.setFileUploadState(item, 'failed', (error && (error.message || error.errMsg)) || '上传失败')
+        resolve(null)
       })
-    }
-    Promise.all(newFiles.map((slot, index) => uploadOne(slot, index, newFiles.length || 1))).then((uploadedFiles) => {
-      const selectedIndustry = this.data.industryOptions[this.data.selectedIndustryIndex] || customer.industry || ''
-      const selectedPeriod = this.data.periodOptions[this.data.selectedPeriodIndex] || defaultPeriod()
-      const payload = {
-        customerId: customer.id,
-        categoryId: category.id,
-        period: selectedPeriod,
-        industry: selectedIndustry || null,
-        relatedProducts: this.data.relatedProducts.trim() || null,
-        specificProduct: this.data.specificProduct.trim() || null,
-        preInstallQuestion: this.data.preInstallQuestion.trim() || null,
-        remark: this.data.remark.trim() || null,
-        shared: this.data.shared ? 1 : 0
-      }
-      const idsBySlot = existingFilesBySlot.concat(uploadedFiles).reduce((acc, item) => {
-        if (!acc[item.key]) acc[item.key] = []
-        acc[item.key].push(item.id)
-        return acc
-      }, {})
-      Object.keys(idsBySlot).forEach((key) => { payload[key] = JSON.stringify(idsBySlot[key]) })
-      if (isSingleSlot) {
-        payload.fileMidId = null
-        payload.filePostId = null
-        payload.fileTrackId = null
-      }
-      if (this.data.editId) {
-        delete payload.categoryId
-        delete payload.period
-        if (!this.data.canToggleShare) delete payload.shared
-        return updateRecord(this.data.editId, payload)
-      }
-      return addRecord(payload)
-    }).then(() => {
-      wx.showToast({ title: this.data.editId ? '追加成功' : '上传成功', icon: 'success' })
-      // 【PR-12 2026-09-19 首批】激励列表是 tabBar 页,navigateTo 跳 tab 会被微信拒绝
-      // (此前静默失败,用户停在原页);switchTab 回列表,配合列表 onShow 刷新即见新记录
-      wx.switchTab({ url: '/pages/incentive/index' })
-    }).catch((error) => showError(error, '四项激励上传失败')).finally(() => {
-      this.setUploadData({ loading: false, uploadProgress: 0, uploadProgressFile: '' })
-      wx.hideLoading()
     })
+    pending.reduce((chain, item) => chain.then(() => uploadOne(item)), Promise.resolve()).then(() => {
+      const failed = pending.filter((item) => !item.uploadedId)
+      if (failed.length) {
+        wx.hideLoading()
+        this.setUploadData({ loading: false })
+        const names = failed.slice(0, 3).map((item) => item.fileName).join('、') + (failed.length > 3 ? ` 等 ${failed.length} 个文件` : '')
+        wx.showModal({
+          title: '部分文件上传失败',
+          content: `${names} 上传失败。已成功的文件不会重传,可重试失败项或移除后再提交。`,
+          confirmText: '重试失败项',
+          cancelText: '稍后处理',
+          success: (res) => { if (res.confirm) this.submit() }
+        })
+        return
+      }
+      const uploadedIds = pending.map((item) => ({ key: item.key, id: item.uploadedId }))
+      this.saveRecordWithFiles(doneIds.concat(uploadedIds), customer, category, isSingleSlot)
+        .then(() => this.finishSubmit())
+        .catch((error) => {
+          showError(error, '四项激励上传失败')
+          this.setUploadData({ loading: false })
+          wx.hideLoading()
+        })
+    })
+  },
+
+  /** 逐文件字段写回 fileSlots 源(带 slotIndex/fileIndex 定位;uploadedId 落源,重试才跳得过) */
+  setFileUploadField(item, field, value) {
+    if (item.slotIndex == null || item.fileIndex == null) return
+    const source = (this.data.fileSlots[item.slotIndex] || {}).files
+    if (!source || !source[item.fileIndex]) return // 单文件槽无 files 数组时仅内存态(uploadedId 仍在 item 上)
+    this.setData({ [`fileSlots[${item.slotIndex}].files[${item.fileIndex}].${field}`]: value },
+      () => this.refreshUploadViewState())
+  },
+
+  setFileUploadState(item, state, error) {
+    this.setFileUploadField(item, 'uploadState', state)
+    if (error !== undefined) this.setFileUploadField(item, 'uploadError', error)
+  },
+
+  /** 组装 payload 并落库(上传全部就绪后调用;口径与原提交一致) */
+  saveRecordWithFiles(uploadedIds, customer, category, isSingleSlot) {
+    wx.showLoading({ title: '保存中' })
+    const selectedIndustry = this.data.industryOptions[this.data.selectedIndustryIndex] || customer.industry || ''
+    const selectedPeriod = this.data.periodOptions[this.data.selectedPeriodIndex] || defaultPeriod()
+    const payload = {
+      customerId: customer.id,
+      categoryId: category.id,
+      period: selectedPeriod,
+      industry: selectedIndustry || null,
+      relatedProducts: this.data.relatedProducts.trim() || null,
+      specificProduct: this.data.specificProduct.trim() || null,
+      preInstallQuestion: this.data.preInstallQuestion.trim() || null,
+      remark: this.data.remark.trim() || null,
+      shared: this.data.shared ? 1 : 0
+    }
+    const idsBySlot = uploadedIds.reduce((acc, item) => {
+      if (!acc[item.key]) acc[item.key] = []
+      acc[item.key].push(item.id)
+      return acc
+    }, {})
+    Object.keys(idsBySlot).forEach((key) => { payload[key] = JSON.stringify(idsBySlot[key]) })
+    if (isSingleSlot) {
+      payload.fileMidId = null
+      payload.filePostId = null
+      payload.fileTrackId = null
+    }
+    if (this.data.editId) {
+      delete payload.categoryId
+      delete payload.period
+      if (!this.data.canToggleShare) delete payload.shared
+      return updateRecord(this.data.editId, payload)
+    }
+    return addRecord(payload)
+  },
+
+  /** 落库后的收尾:成功提示 + 回列表(失败续办语义见 uploadPendingFiles) */
+  finishSubmit() {
+    wx.showToast({ title: this.data.editId ? '追加成功' : '上传成功', icon: 'success' })
+    // 【PR-12 2026-09-19 首批】激励列表是 tabBar 页,navigateTo 跳 tab 会被微信拒绝
+    // (此前静默失败,用户停在原页);switchTab 回列表,配合列表 onShow 刷新即见新记录
+    wx.switchTab({ url: '/pages/incentive/index' })
+    this.setUploadData({ loading: false, uploadProgress: 0, uploadProgressFile: '' })
+    wx.hideLoading()
   }
 })

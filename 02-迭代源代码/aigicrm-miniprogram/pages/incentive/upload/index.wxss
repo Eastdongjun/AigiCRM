@@ -62,3 +62,10 @@
 .cancel-action{border:1rpx solid #d9e2ec;background:#fff;color:#52657f}
 .submit-action{background:#2563eb;color:#fff;box-shadow:0 12rpx 24rpx rgba(37,99,235,.16)}
 .form-action[disabled]{background:#d8e1ed!important;color:#7c8ba1!important;box-shadow:none!important}
+
+/* 【PR-13 首批 2026-09-19】逐文件上传状态标签 */
+.upload-state { display:inline-block; margin-top:6rpx; padding:2rpx 12rpx; border-radius:8rpx; font-size:22rpx; }
+.upload-state.pending { background:#f1f5f9; color:#94a3b8; }
+.upload-state.uploading { background:#dbeafe; color:#2563eb; }
+.upload-state.done { background:#dcfce7; color:#16a34a; }
+.upload-state.failed { background:#fee2e2; color:#dc2626; }

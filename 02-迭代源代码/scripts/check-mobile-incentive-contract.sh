@@ -260,7 +260,8 @@ grep -q "slot.key === 'filePreId'" "$upload_page" || { echo "FAIL: incentive upl
 grep -q 'MAX_FILES_PER_SLOT = 5' "$upload_page" || { echo "FAIL: incentive upload per-slot multi-file limit does not match PC" >&2; exit 1; }
 grep -q "slot.files || \\[\\]" "$upload_page" || { echo "FAIL: incentive upload slots no longer preserve multiple files per PC slot" >&2; exit 1; }
 grep -q 'slotCountText' "$upload_page" || { echo "FAIL: incentive upload slot count labels are missing" >&2; exit 1; }
-grep -q 'flatMap((slot)' "$upload_page" || { echo "FAIL: incentive upload submit must flatten multi-file PC slots" >&2; exit 1; }
+# 【PR-13 2026-09-19】flatMap 增加了 slotIndex 参数(逐文件状态写回定位),断言同步
+grep -q 'flatMap((slot, slotIndex)' "$upload_page" || { echo "FAIL: incentive upload submit must flatten multi-file PC slots" >&2; exit 1; }
 grep -Fq 'if (slot.hidden) return []' "$upload_page" || { echo "FAIL: incentive upload submit must ignore hidden non-PC slots" >&2; exit 1; }
 grep -q 'idsBySlot' "$upload_page" || { echo "FAIL: incentive upload submit must group multiple uploaded files by PC slot" >&2; exit 1; }
 grep -q 'loadEditRecord' "$upload_page" || { echo "FAIL: incentive upload edit mode does not load existing PC record" >&2; exit 1; }

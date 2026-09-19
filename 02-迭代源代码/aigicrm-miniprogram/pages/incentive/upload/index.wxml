@@ -124,6 +124,8 @@
           <view class="selected-file-main">
             <text class="selected-file-label">{{slot.label}} {{file.displayIndex}}</text>
             <text class="selected-file-name">{{file.fileName}}</text>
+            <!-- PR-13 首批:逐文件上传状态(待上传/上传中/已上传/失败原因) -->
+            <text wx:if="{{file.uploadStateText}}" class="{{file.uploadStateClass}}">{{file.uploadStateText}}</text>
           </view>
           <view class="selected-file-actions">
             <button class="file-action" loading="{{uploadView.fileActionLoading}}" catchtap="previewSelectedFile" data-index="{{slot.slotIndex}}" data-file-index="{{file.fileIndex}}">预览</button>
