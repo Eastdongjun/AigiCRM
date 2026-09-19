@@ -47,16 +47,16 @@ public class SysDeptService {
         ));
     }
 
-    /** 全量组织树（不套数据范围过滤）——/api/org 兼容层使用，语义=旧 SysOrgService.getOrgTree */
-    public List<SysDept> treeAll() {
-        return buildTree(deptMapper.selectList(
-                new LambdaQueryWrapper<SysDept>().eq(SysDept::getStatus, 1).orderByAsc(SysDept::getSortOrder)
-        ), 0L);
-    }
+    // 【N-06 2026-09-19】原 treeAll()("全量组织树,不套数据范围过滤")已删除:SysOrgController
+    // 迁移后无任何调用方,是带不安全语义的死代码——任何未来的"全量组织树"需求必须
+    // 走管理员权限并显式过审,不得复活本方法。
 
     /** 【需求】部门查询数据范围收窄(FEAT-20260804-DEPTS-DATASCOPE)
      *  【方法】管理员返回全部;非管理员仅返回本人部门及其祖先链(按 parentId 上溯至根),
      *          与销售员 self 数据范围一致,避免组织架构全量可见
+     *  【N-06 2026-09-19 集团边界加固】祖先链之外再按用户所属集团收窄:防御脏数据下
+     *          parent 链跨集团时把别集团部门带出(与 PR-01 家族 sys_user 口径一致,fail-closed:
+     *          无集团归属返回空)。
      *  【参数】all 全量启用部门
      *  【返回】过滤后的部门列表;dept_id 为空时返回空列表 */
     private List<SysDept> scopeFilter(List<SysDept> all) {
@@ -65,6 +65,15 @@ public class SysDeptService {
         }
         Long myDeptId = SecurityUtils.getCurrentDeptId();
         if (myDeptId == null) {
+            return Collections.emptyList();
+        }
+        List<Long> groupIds = com.aigicrm.common.scope.GroupScopeUtil.visibleGroupIds();
+        if (groupIds != null && !groupIds.isEmpty()) {
+            Set<Long> groups = new HashSet<>(groupIds);
+            all = all.stream().filter(d -> d.getGroupId() != null && groups.contains(d.getGroupId()))
+                    .collect(Collectors.toList());
+        } else {
+            // 无集团归属:fail-closed,不退回任何部门
             return Collections.emptyList();
         }
         Map<Long, SysDept> byId = all.stream()

@@ -1,5 +1,5 @@
 TYPE,CONTENT,DESCRIPTION,PRIORITY,INDENT,AUTHOR,RESPONSIBLE,DATE,DATE_LANG,TIMEZONE
-task,[PR-01] 集团隔离、认证安全与未知授权拒绝,"P0/P1｜修复｜后端/安全/测试｜【盘点20260919】代码层18/19已修（P0-01~04、P1-05~09、G-02、N-01~05、N-07~09，commit a9e893a 含9/18批+本轮）；仅N-06部门树过滤未修；负向/双集团活体验证（PR-22）未做，原编号不得据此整体标关闭",4,1,,,,
+task,[PR-01] 集团隔离、认证安全与未知授权拒绝,"P0/P1｜修复｜后端/安全/测试｜【盘点20260919】代码层18/19已修（P0-01~04、P1-05~09、G-02、N-01~05、N-07~09，commit a9e893a 含9/18批+本轮）；N-01~N-09 已全部代码层关闭(含 N-06,20260919 勘误+加固)；活体验证见 PR-22 两批(11项),长尾接口负向用例仍待补",4,1,,,,
 task,P0-01 客户排行旧接口加集团+数据范围过滤,"GET /api/customer/rankings 三段JdbcTemplate SQL补tenant/group+OrgScope范围；无调用则删除旧接口",4,2,,,,
 task,P0-02 无集团账号fail-closed,"取消回退集团1；无有效集团拒绝业务访问，历史脏数据走一次性迁移",4,2,,,,
 task,P0-03/P0-04 激励阅读统计隔离+markRead可见性校验,"readStats/readRanking按当前集团限定；markRead写入前用详情一致的visibility判定",4,2,,,,
@@ -9,7 +9,7 @@ task,N-01 改密撤销fail-closed（第二轮新增）,"isInvalidatedByPasswordC
 task,N-02 getDuplicateInfo补tenant_id（第二轮新增）,"CustomerService查重SQL只有owner范围；补tenant_id或改回MP走拦截器",3,2,,,,
 task,N-03 激励改/删补注解兜底（第二轮新增）,"updateRecord/deleteRecord无@PreAuthorize仅方法内守卫；补incentive:edit/delete做第二道防线",3,2,,,,
 task,N-04 范围解析异常按self默认（第二轮新增）,"RolePermScopeService.lookup/hasAnyConfig异常回退默认范围；改为最严格self",3,2,,,,
-task,N-06 部门树按数据范围过滤（第二轮新增）,"SysDeptController.tree/list仅isAuthenticated；过滤到可见部门，保留销售建客户下拉可用",2,2,,,,
+task,N-06 部门树按数据范围过滤（第二轮新增）,"【已完成20260919】勘误:scopeFilter(FEAT-20260804)存量已收窄到本部门+祖先链(注解层放开是配套设计);本轮补集团边界加固(跨集团parent链截断+无集团fail-closed)+删treeAll()死代码+5用例回归;PR-01家族19项全部代码层关闭(证据 runs/20260919-n06-dept-scope)",2,2,,,,
 task,N-07 删角色连带DELETE补tenant_id（第二轮新增）,"SysRoleService删角色清理biz_folder_acl不带tenant_id",2,2,,,,
 task,N-08 脱敏转换失败fail-closed（第二轮新增）,"FieldFilterAdvice.objectToMap失败原样返回；转换失败时拒绝返回不脱敏",3,2,,,,
 task,[PR-02] 或签、会签与串行审批执行统一,"P1（启用该规则的关键审批上线阻断）｜修复｜产品/后端/前端/测试｜【主体完成20260919】createNodes统一实例化(串行阶段waiting/pending+signMode落节点)+advanceApproval阶段感知执行(ANY取消兄弟/ALL齐过/串行激活)+条件流转防并发防重复点击+存量扁平兼容;审批三件套26/26(证据 runs/20260919-pr02-approval-unification);残余:前端多阶段配置UI增强、规则版本化挂PR-24、并发活体验证挂PR-22",3,1,,,,,
