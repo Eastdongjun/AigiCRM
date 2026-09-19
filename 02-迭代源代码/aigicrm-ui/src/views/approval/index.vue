@@ -240,6 +240,8 @@
             >
               <div class="node-row">
                 <span>第 {{ node.nodeOrder || '-' }} 级 · {{ node.approverName || '待分配' }}</span>
+                <!-- PR-03: 审批人已停用/删除的待办节点 → 卡单可见性提示(处置需管理员,引擎不自动跳过) -->
+                <el-tag v-if="node.approverInvalid" size="small" type="warning" effect="plain">审批人已停用</el-tag>
                 <el-tag size="small" :type="getNodeTagType(node.status, node.action)" effect="plain">
                   {{ getNodeStatusText(node.status, node.action) }}
                 </el-tag>

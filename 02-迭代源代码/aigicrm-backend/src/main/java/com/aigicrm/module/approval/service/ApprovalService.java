@@ -154,7 +154,21 @@ public class ApprovalService {
         for (BizApprovalNode node : nodes) {
             if (node.getApproverId() != null) {
                 SysUser approver = userMapper.selectById(node.getApproverId());
-                if (approver != null) node.setApproverName(approver.getRealName());
+                if (approver != null) {
+                    node.setApproverName(approver.getRealName());
+                    // 【PR-03 2026-09-19】在途卡单可见性:待办节点归属停用/删除用户 → 标记,
+                    // 前端提示"审批人已停用",异常可定位(处置规则待业务确认,引擎不自动跳过/批准)
+                    boolean invalid = (approver.getStatus() == null || approver.getStatus() != 1)
+                            || (approver.getDeleted() != null && approver.getDeleted() == 1);
+                    if (invalid && ("pending".equals(node.getStatus()) || "waiting".equals(node.getStatus()))) {
+                        node.setApproverInvalid(true);
+                    }
+                } else {
+                    // 审批人已被物理删除:名字无可展示,同样标记
+                    if ("pending".equals(node.getStatus()) || "waiting".equals(node.getStatus())) {
+                        node.setApproverInvalid(true);
+                    }
+                }
             }
         }
         Map<String, Object> result = new HashMap<>();
@@ -263,6 +277,7 @@ public class ApprovalService {
             SysUser applicant = userMapper.selectById(applicantId);
             Long leaderId = findDirectLeader(applicant != null ? applicant.getDeptId() : null);
 
+            int createdNodes = 0;
             for (BizApprovalFlow flow : flows) {
                 if (leaderId != null) {
                     BizApprovalNode node = new BizApprovalNode();
@@ -271,6 +286,7 @@ public class ApprovalService {
                     node.setNodeOrder(flow.getSortOrder());
                     node.setStatus("pending");
                     approvalNodeMapper.insert(node);
+                    createdNodes++;
                 } else {
                     List<SysUserRole> userRoles = userRoleMapper.selectList(
                             new LambdaQueryWrapper<SysUserRole>().eq(SysUserRole::getRoleId, flow.getApproverRoleId())
@@ -282,8 +298,15 @@ public class ApprovalService {
                         node.setNodeOrder(flow.getSortOrder());
                         node.setStatus("pending");
                         approvalNodeMapper.insert(node);
+                        createdNodes++;
                     }
                 }
+            }
+            // 【PR-03 2026-09-19 零审批人封堵】legacy 路径与配置路径同口径:解析不出任何节点
+            // 直接拒绝并随事务回滚(含公海锁定释放)——此前会静默落一张 reviewing 且零节点的
+            // 永久卡死单(诊断 F03"假成功单据")。
+            if (createdNodes == 0) {
+                throw new BusinessException("审批流程未配置或无有效审批人，请联系管理员配置后再提交");
             }
             approval.setCurrentNode(flows.isEmpty() ? "" : flows.get(0).getFlowName());
         }

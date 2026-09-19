@@ -5,6 +5,7 @@ import com.aigicrm.module.approval.mapper.BizApprovalConfigMapper;
 import com.aigicrm.module.approval.mapper.BizApprovalNodeMapper;
 import com.aigicrm.module.system.mapper.SysRoleMapper;
 import com.aigicrm.module.system.mapper.SysUserMapper;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
 
@@ -22,6 +23,15 @@ class ApprovalConfigServiceTest {
     private final SysUserMapper userMapper = mock(SysUserMapper.class);
     private final SysRoleMapper roleMapper = mock(SysRoleMapper.class);
     private final ApprovalConfigService svc = new ApprovalConfigService(configMapper, nodeMapper, userMapper, roleMapper);
+
+    @BeforeAll
+    static void initMybatisPlusTableInfo() {
+        // 【PR-03】USER 模式解析走 LambdaQueryWrapper<SysUser>,单测需初始化 lambda 缓存
+        com.baomidou.mybatisplus.core.metadata.TableInfoHelper.initTableInfo(
+                new org.apache.ibatis.builder.MapperBuilderAssistant(
+                        new com.baomidou.mybatisplus.core.MybatisConfiguration(), ""),
+                com.aigicrm.module.system.entity.SysUser.class);
+    }
 
     @Test
     void resolveApproverIds_rolemode_usesJoinQueryNotFullScan() {
@@ -57,11 +67,24 @@ class ApprovalConfigServiceTest {
         BizApprovalConfig cfg = new BizApprovalConfig();
         cfg.setApproverType("USER");
         cfg.setApproverIds("[5,6]");
+        stubValidUsers(5L, 6L);
         List<Long> result = ReflectionTestUtils.invokeMethod(svc, "resolveApproverIds", cfg);
         assertEquals(List.of(5L, 6L), result);
     }
 
     // ===== 【PR-02 2026-09-19】节点实例化统一入口:串行阶段 + 或签/会签落节点 =====
+
+    /** 【PR-03】USER 模式解析需库内有效用户;测试夹具按 id 生成有效集 */
+    private void stubValidUsers(Long... ids) {
+        List<com.aigicrm.module.system.entity.SysUser> users = new java.util.ArrayList<>();
+        for (Long id : ids) {
+            com.aigicrm.module.system.entity.SysUser u = new com.aigicrm.module.system.entity.SysUser();
+            u.setId(id);
+            users.add(u);
+        }
+        when(userMapper.selectList(any())).thenReturn(users);
+    }
+
 
     private static BizApprovalConfig stageConfig(long id, int sortOrder, String approverIds, String signMode) {
         BizApprovalConfig c = new BizApprovalConfig();
@@ -77,6 +100,7 @@ class ApprovalConfigServiceTest {
 
     @Test
     void createNodes_serialStages_firstPendingRestWaiting() {
+        stubValidUsers(7L, 8L, 9L);
         when(configMapper.selectByFlowType("extend")).thenReturn(List.of(
                 stageConfig(10L, 1, "[7,8]", "ANY"),
                 stageConfig(11L, 2, "[9]", "ALL")));
@@ -103,6 +127,7 @@ class ApprovalConfigServiceTest {
 
     @Test
     void createNodes_emptyStage_skippedWithoutDeadlock() {
+        stubValidUsers(9L);
         when(configMapper.selectByFlowType("extend")).thenReturn(List.of(
                 stageConfig(10L, 1, "[]", "ANY"),   // 空审批人阶段:跳过
                 stageConfig(11L, 2, "[9]", "ALL")));
@@ -119,6 +144,7 @@ class ApprovalConfigServiceTest {
 
     @Test
     void createNodes_signModeNormalized_nullDefaultsToAll() {
+        stubValidUsers(7L);
         when(configMapper.selectByFlowType("extend")).thenReturn(List.of(
                 stageConfig(10L, 1, "[7]", null)));
 
@@ -128,5 +154,21 @@ class ApprovalConfigServiceTest {
                 org.mockito.ArgumentCaptor.forClass(com.aigicrm.module.approval.entity.BizApprovalNode.class);
         verify(nodeMapper).insert(cap.capture());
         assertEquals("ALL", cap.getValue().getSignMode(), "signMode 空/未知默认会签(保守口径)");
+    }
+
+    /** 【PR-03 2026-09-19】USER 模式同样过滤停用/删除用户(与 ROLE/DEPT 同口径),防止节点创建即卡死 */
+    @Test
+    void resolveApproverIds_usermode_skipsInvalidUsers() {
+        BizApprovalConfig cfg = new BizApprovalConfig();
+        cfg.setApproverType("USER");
+        cfg.setApproverIds("[5,6]");
+        // 库内有效集仅用户 5(6 已停用/删除)
+        com.aigicrm.module.system.entity.SysUser valid = new com.aigicrm.module.system.entity.SysUser();
+        valid.setId(5L);
+        when(userMapper.selectList(any())).thenReturn(List.of(valid));
+
+        List<Long> result = ReflectionTestUtils.invokeMethod(svc, "resolveApproverIds", cfg);
+
+        assertEquals(List.of(5L), result, "停用/删除用户不得成为审批人");
     }
 }

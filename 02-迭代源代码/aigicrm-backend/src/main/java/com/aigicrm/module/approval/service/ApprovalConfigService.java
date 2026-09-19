@@ -101,8 +101,18 @@ public class ApprovalConfigService {
             if (ids == null || ids.isEmpty()) return Collections.emptyList();
 
             switch (cfg.getApproverType()) {
-                case "USER":
-                    return ids.stream().map(Long::valueOf).toList();
+                case "USER": {
+                    // 【PR-03 2026-09-19】直接指定用户同样校验有效性(ROLE/DEPT 路径已过滤):
+                    // 停用/删除用户不产生审批节点——否则节点创建即卡死,审批单永久无人可办。
+                    List<Long> requested = ids.stream().map(Long::valueOf).distinct().toList();
+                    List<Long> valid = userMapper.selectList(
+                                    new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<SysUser>()
+                                            .in(SysUser::getId, requested)
+                                            .eq(SysUser::getStatus, 1)
+                                            .eq(SysUser::getDeleted, 0))
+                            .stream().map(SysUser::getId).toList();
+                    return requested.stream().filter(valid::contains).toList();
+                }
                 case "ROLE": {
                     // 通过 sys_user_role 关联表找用户(单条 JOIN 查询,消除"全量用户+逐用户查角色"的 N+1 全表扫描)
                     // 【安全 2026-08-11 P1 关联修复】过滤 sys_role.status=1, 停用角色不产生审批人

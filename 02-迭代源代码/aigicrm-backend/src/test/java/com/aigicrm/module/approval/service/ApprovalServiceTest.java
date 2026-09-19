@@ -118,8 +118,14 @@ class ApprovalServiceTest {
 
     private ApprovalService newService(BizSeaPoolMapper seaPoolMapper, BizApprovalMapper approvalMapper,
                                        BizApprovalNodeMapper nodeMapper, SeaConfigService seaConfigService) {
+        // 【PR-03 2026-09-19】submit 现要求"至少一个有效审批人"(零节点=假成功单据封堵),
+        // 默认夹具给出配置路径 + 一名有效审批人 7L。
+        BizApprovalConfigMapper configMapper = mock(BizApprovalConfigMapper.class);
+        when(configMapper.selectCount(any())).thenReturn(1L);
+        ApprovalConfigService configService = mock(ApprovalConfigService.class);
+        when(configService.createNodes(any(), anyString())).thenReturn(java.util.List.of(7L));
         return new ApprovalService(
-                mock(BizApprovalConfigMapper.class),
+                configMapper,
                 approvalMapper,
                 nodeMapper,
                 mock(BizApprovalFlowMapper.class),
@@ -132,7 +138,7 @@ class ApprovalServiceTest {
                 mock(com.aigicrm.common.scope.OrgScopeResolver.class),
                 seaConfigService,
                 mock(SysUserService.class),
-                mock(ApprovalConfigService.class));
+                configService);
     }
 
     @Test
@@ -502,5 +508,66 @@ class ApprovalServiceTest {
         verify(nodeMapper, times(1)).updateById(argThat(
                 (com.aigicrm.module.approval.entity.BizApprovalNode n) ->
                         "rejected".equals(n.getStatus()) && "cancelled".equals(n.getAction())));
+    }
+
+    // ===== 【PR-03 2026-09-19】零审批人假成功单据封堵 =====
+
+    /** 配置路径:配置存在但解析不出任何有效审批人 → 拒绝提交(不落零节点卡死单) */
+    @Test
+    void submit_configPath_noValidApprovers_rejects() {
+        SecurityUser u = new SecurityUser();
+        u.setUserId(7L);
+        u.setDataScope("all");
+        setCurrentUser(u);
+
+        BizApprovalConfigMapper configMapper = mock(BizApprovalConfigMapper.class);
+        when(configMapper.selectCount(any())).thenReturn(1L);
+        ApprovalConfigService configService = mock(ApprovalConfigService.class);
+        when(configService.createNodes(any(), anyString())).thenReturn(java.util.List.of());
+
+        BizApprovalMapper approvalMapper = mock(BizApprovalMapper.class);
+        when(approvalMapper.selectMaxCodeByPrefix(anyString())).thenReturn(0);
+
+        ApprovalService svc = new ApprovalService(
+                configMapper, approvalMapper, mock(BizApprovalNodeMapper.class),
+                mock(BizApprovalFlowMapper.class), mock(BizCustomerMapper.class),
+                mock(SysUserMapper.class), mock(SysUserRoleMapper.class), mock(SysDeptMapper.class),
+                mock(BizSeaPoolMapper.class), mock(SeaService.class),
+                mock(com.aigicrm.common.scope.OrgScopeResolver.class), mock(SeaConfigService.class),
+                mock(SysUserService.class), configService);
+
+        BusinessException ex = assertThrows(BusinessException.class, () -> svc.submit("extend", 42L, null, null));
+        assertTrue(ex.getMessage().contains("无有效审批人"), "实际: " + ex.getMessage());
+    }
+
+    /** legacy 流程路径:无流程配置且无直属领导 → 零节点 → 同口径拒绝(此前静默落永久卡死单) */
+    @Test
+    void submit_legacyPath_zeroNodes_rejects() {
+        SecurityUser u = new SecurityUser();
+        u.setUserId(7L);
+        setCurrentUser(u);
+
+        BizApprovalConfigMapper configMapper = mock(BizApprovalConfigMapper.class);
+        when(configMapper.selectCount(any())).thenReturn(0L);
+        BizApprovalFlowMapper flowMapper = mock(BizApprovalFlowMapper.class);
+        when(flowMapper.selectList(any())).thenReturn(java.util.List.of()); // 无流程配置
+        SysUserMapper userMapper = mock(SysUserMapper.class);
+        when(userMapper.selectById(7L)).thenReturn(null); // 申请人查不到 → 无领导
+
+        BizApprovalMapper approvalMapper = mock(BizApprovalMapper.class);
+        when(approvalMapper.selectMaxCodeByPrefix(anyString())).thenReturn(0);
+
+        BizApprovalNodeMapper nodeMapper = mock(BizApprovalNodeMapper.class);
+        ApprovalService svc = new ApprovalService(
+                configMapper, approvalMapper, nodeMapper,
+                flowMapper, mock(BizCustomerMapper.class),
+                userMapper, mock(SysUserRoleMapper.class), mock(SysDeptMapper.class),
+                mock(BizSeaPoolMapper.class), mock(SeaService.class),
+                mock(com.aigicrm.common.scope.OrgScopeResolver.class), mock(SeaConfigService.class),
+                mock(SysUserService.class), mock(ApprovalConfigService.class));
+
+        BusinessException ex = assertThrows(BusinessException.class, () -> svc.submit("extend", 42L, null, null));
+        assertTrue(ex.getMessage().contains("未配置或无有效审批人"), "实际: " + ex.getMessage());
+        verify(nodeMapper, never()).insert(any(com.aigicrm.module.approval.entity.BizApprovalNode.class));
     }
 }
