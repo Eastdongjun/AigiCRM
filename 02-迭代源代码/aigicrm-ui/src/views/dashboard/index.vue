@@ -47,6 +47,25 @@
         <el-icon class="stat-icon icon-red" :size="28"><CircleClose /></el-icon>
       </div>
     </div>
+    <!-- 【PR-10 前端 2026-09-19】我的待办任务卡片(后端 /api/task/statistics) -->
+    <div class="stat-row role-cards">
+      <div class="stat-card drill" @click="$router.push('/task')">
+        <div class="stat-info">
+          <div class="stat-label">待办任务</div>
+          <div class="stat-num blue">{{ taskStats.pending || 0 }}</div>
+          <div class="stat-sub">今日到期 {{ taskStats.todayDue || 0 }} · 逾期 {{ taskStats.overdue || 0 }}</div>
+        </div>
+        <el-icon class="stat-icon icon-blue" :size="28"><List /></el-icon>
+      </div>
+      <div class="stat-card">
+        <div class="stat-info">
+          <div class="stat-label">本月完成任务</div>
+          <div class="stat-num green">{{ taskStats.completedThisMonth || 0 }}</div>
+        </div>
+        <el-icon class="stat-icon icon-green" :size="28"><CircleCheck /></el-icon>
+      </div>
+    </div>
+
     <!-- 【PR-11 后续批次 2026-09-19】按岗位差异化卡片(议题三指标口径裁决后解锁):
          销售(self)= 我的激励积分/我的阅读排名; 管理(非self)= 审批概览/团队排行概览 -->
     <div class="stat-row role-cards" v-if="isSalesRole">
@@ -277,6 +296,14 @@ const typeLabel = (t) => ({ claim: '客户捞取申请', transfer: '客户转让
 
 // ——— 数据加载 ———
 const lastRefreshedAt = ref('')
+// 【PR-10 前端】任务统计
+const taskStats = ref({})
+const loadTaskStats = async () => {
+  try {
+    const res = await import('@/api/task').then(m => m.getTaskStatistics())
+    taskStats.value = res.data || {}
+  } catch { taskStats.value = {} }
+}
 // 【PR-11 后续批次】岗位差异化(议题三裁决后):self=销售卡片;非self=管理卡片
 const userStore2 = useUserStore()
 const isSalesRole = computed(() => userStore2.dataScope === 'self')
@@ -390,7 +417,7 @@ const formatRelativeTime = (time) => {
   return new Date(time).toLocaleDateString()
 }
 
-onMounted(() => { loadData(); loadRoleData() })
+onMounted(() => { loadData(); loadRoleData(); loadTaskStats() })
 </script>
 
 <style scoped>

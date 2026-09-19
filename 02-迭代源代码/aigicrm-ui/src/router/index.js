@@ -94,6 +94,12 @@ const routes = [
       },
       // 提醒管理
       {
+        path: 'task',
+        name: 'TaskList',
+        component: () => import('@/views/task/index.vue'),
+        meta: { title: '我的任务', requiresAuth: true }
+      },
+      {
         path: 'reminder',
         name: 'Reminder',
         component: () => import('@/views/reminder/index.vue'),
