@@ -3,7 +3,7 @@
 
     <!-- 统计卡片 -->
     <div class="stat-row">
-      <div class="stat-card">
+      <div class="stat-card drill" @click="$router.push('/customer')">
         <div class="stat-info">
           <div class="stat-label">客户总数</div>
           <div class="stat-num blue">{{ stats.myCustomers || 0 }}</div>
@@ -11,7 +11,7 @@
         </div>
         <el-icon class="stat-icon icon-blue" :size="28"><User /></el-icon>
       </div>
-      <div class="stat-card">
+      <div class="stat-card drill" @click="$router.push({ path: '/customer', query: { status: 'normal' } })">
         <div class="stat-info">
           <div class="stat-label">在保护期</div>
           <div class="stat-num blue">{{ stats.inProtection || 0 }}</div>
@@ -20,7 +20,7 @@
         </div>
         <el-icon class="stat-icon icon-blue" :size="28"><Timer /></el-icon>
       </div>
-      <div class="stat-card">
+      <div class="stat-card drill" @click="$router.push('/reminder')">
         <div class="stat-info">
           <div class="stat-label">即将到期</div>
           <div class="stat-num orange">{{ stats.expiring || 0 }}</div>
@@ -34,7 +34,7 @@
         </div>
         <el-icon class="stat-icon icon-orange" :size="28"><Warning /></el-icon>
       </div>
-      <div class="stat-card">
+      <div class="stat-card drill" @click="$router.push('/reminder')">
         <div class="stat-info">
           <div class="stat-label">已超期</div>
           <div class="stat-num red">{{ stats.expired || 0 }}</div>
@@ -50,7 +50,7 @@
     <!-- 【PR-11 后续批次 2026-09-19】按岗位差异化卡片(议题三指标口径裁决后解锁):
          销售(self)= 我的激励积分/我的阅读排名; 管理(非self)= 审批概览/团队排行概览 -->
     <div class="stat-row role-cards" v-if="isSalesRole">
-      <div class="stat-card">
+      <div class="stat-card drill" @click="$router.push('/score/ranking')">
         <div class="stat-info">
           <div class="stat-label">我的激励积分</div>
           <div class="stat-num gold">{{ myScore || 0 }}</div>
@@ -68,7 +68,7 @@
       </div>
     </div>
     <div class="stat-row role-cards" v-if="!isSalesRole">
-      <div class="stat-card">
+      <div class="stat-card drill" @click="$router.push('/approval')">
         <div class="stat-info">
           <div class="stat-label">待我审批</div>
           <div class="stat-num orange">{{ stats.approvalStats?.pending || 0 }}</div>
@@ -396,6 +396,8 @@ onMounted(() => { loadData(); loadRoleData() })
 <style scoped>
 /* 【PR-11 首批】统计口径标注条 */
 .role-cards { margin-bottom: 12px }
+.stat-card.drill { cursor: pointer; transition: box-shadow .2s, transform .1s }
+.stat-card.drill:hover { box-shadow: 0 4px 12px rgba(0,0,0,.12); transform: translateY(-1px) }
 .role-cards .stat-card { min-width: 220px }
 .stat-unit { font-size: 14px; color: #94a3b8; margin-left: 4px }
 .stat-scope-note { display:flex; justify-content:space-between; flex-wrap:wrap; gap:8px; color:#94a3b8; font-size:12px; margin:2px 2px 16px; }

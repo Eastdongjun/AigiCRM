@@ -13,6 +13,7 @@ import java.util.List;
 public class SysConfigService {
 
     private final SysConfigMapper configMapper;
+    private final com.aigicrm.module.system.mapper.SysRuleVersionMapper ruleVersionMapper;
 
     public List<SysConfig> list() {
         return configMapper.selectList(new LambdaQueryWrapper<SysConfig>().orderByAsc(SysConfig::getId));
@@ -47,6 +48,12 @@ public class SysConfigService {
             SysConfig existing = configMapper.selectOne(
                     new LambdaQueryWrapper<SysConfig>().eq(SysConfig::getConfigKey, config.getConfigKey()));
             if (existing != null) {
+                // 【PR-24 2026-09-19】规则键值变更自动记录版本(append-only,可追溯)
+                if (isRuleKey(config.getConfigKey())
+                        && existing.getConfigValue() != null
+                        && !existing.getConfigValue().equals(config.getConfigValue())) {
+                    recordRuleVersion(config.getConfigKey(), existing.getConfigValue(), config.getConfigValue());
+                }
                 existing.setConfigValue(config.getConfigValue());
                 if (config.getDescription() != null) existing.setDescription(config.getDescription());
                 configMapper.updateById(existing);
@@ -54,6 +61,34 @@ public class SysConfigService {
                 config.setId(null);
                 configMapper.insert(config);
             }
+        }
+    }
+
+    /** 规则键前缀(变更需记版本):客户规则/评分规则等 */
+    private static boolean isRuleKey(String key) {
+        return key != null && (key.startsWith("customer.") || key.startsWith("score."));
+    }
+
+    private void recordRuleVersion(String ruleKey, String oldValue, String newValue) {
+        try {
+            com.aigicrm.module.system.entity.SysRuleVersion rv = new com.aigicrm.module.system.entity.SysRuleVersion();
+            rv.setRuleKey(ruleKey);
+            rv.setOldValue(oldValue);
+            rv.setNewValue(newValue);
+            try {
+                var user = com.aigicrm.security.SecurityUtils.getCurrentUser();
+                if (user != null) {
+                    rv.setOperatorId(user.getUserId());
+                    rv.setOperatorName(user.getUsername());
+                }
+            } catch (Exception ignore) {
+                // 无会话上下文(启动初始化等)时 operator 为空
+            }
+            ruleVersionMapper.insert(rv);
+        } catch (Exception e) {
+            // 版本记录失败不阻断配置变更(旁路降级)
+            org.slf4j.LoggerFactory.getLogger(SysConfigService.class)
+                    .warn("规则版本记录失败 key={}: {}", ruleKey, e.getMessage());
         }
     }
 }
