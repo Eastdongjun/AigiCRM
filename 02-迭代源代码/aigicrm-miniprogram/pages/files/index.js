@@ -96,6 +96,12 @@ function buildFileRowView(item, data) {
   }
 }
 
+/** 演示模式判定（页面模块级使用，app 未就绪时按非演示处理） */
+function isDemoMode() {
+  const app = typeof getApp === 'function' && getApp()
+  return Boolean(app && app.globalData && app.globalData.demoMode)
+}
+
 function buildFileView(data) {
   const tabs = (data.tabs || []).map((item) => ({
     key: item,
@@ -110,11 +116,12 @@ function buildFileView(data) {
   return {
     tabs,
     folderTitle: data.activeFolderName || '常用文件夹',
-    folderCountText: `${folders.length || 3} 个文件夹`,
+    folderCountText: `${folders.length} 个文件夹`,
     showFolderList: !hasActiveFolder,
     showClearFolder: hasActiveFolder,
     folders,
-    showFallbackFolders: !folders.length,
+    // 【PR-04】兜底文件夹卡片（客户文档/团队共享）仅演示模式显示；真实模式空就是空
+    showFallbackFolders: !folders.length && isDemoMode(),
     showManageFolders: hasManageFolders,
     showManageEmpty: !hasManageFolders,
     files,
@@ -127,7 +134,7 @@ function buildFileView(data) {
 }
 
 Page({
-  data: { keyword: '', activeTab: '我的文件', activeFolderId: '', activeFolderName: '', tabs: ['我的文件', '共享给我', '激励资料'], tabCounts: { 我的文件: 0, 共享给我: 0, 激励资料: 0 }, folders: [], files: [], filteredFiles: [], capacity: demoCapacity, canUpload: false, canReplace: false, canDelete: false, canShare: false, canManageFolder: false, canViewFolderAcl: false, canDevUploadSmoke: false, uploading: false, replacingId: '', loaded: false, aclVisible: false, aclLoading: false, aclFolderName: '', aclRows: [], previewing: false, previewVideoPath: '', fileView: buildFileView({ tabs: ['我的文件', '共享给我', '激励资料'], tabCounts: { 我的文件: 0, 共享给我: 0, 激励资料: 0 }, folders: [], filteredFiles: [], activeTab: '我的文件', activeFolderName: '', previewVideoPath: '' }) },
+  data: { keyword: '', activeTab: '我的文件', activeFolderId: '', activeFolderName: '', tabs: ['我的文件', '共享给我', '激励资料'], tabCounts: { 我的文件: 0, 共享给我: 0, 激励资料: 0 }, folders: [], files: [], filteredFiles: [], capacity: { used: '-', total: '-', percent: 0, hint: '存储统计加载中' }, canUpload: false, canReplace: false, canDelete: false, canShare: false, canManageFolder: false, canViewFolderAcl: false, canDevUploadSmoke: false, uploading: false, replacingId: '', loaded: false, aclVisible: false, aclLoading: false, aclFolderName: '', aclRows: [], previewing: false, previewVideoPath: '', fileView: buildFileView({ tabs: ['我的文件', '共享给我', '激励资料'], tabCounts: { 我的文件: 0, 共享给我: 0, 激励资料: 0 }, folders: [], filteredFiles: [], activeTab: '我的文件', activeFolderName: '', previewVideoPath: '' }) },
 
   setFileData(patch) {
     const nextData = { ...this.data, ...patch }
@@ -190,10 +197,11 @@ Page({
     } catch (error) {
       folders = []
       files = []
-      showError(error, '文件加载失败，已显示演示数据')
+      // 【PR-04】真实模式失败：报错 + 空列表（空态样式），不再显示演示数据
+      showError(error, '文件加载失败，请重试')
       capacity = { used: '-', total: '-', percent: 0, hint: '存储统计暂未同步' }
     }
-    const normalizedFiles = files.length ? files.map((item, index) => this.normalizeFile(item, index)) : demoFiles
+    const normalizedFiles = files.map((item, index) => this.normalizeFile(item, index))
     this.setFileData({ folders: folders.map(item => ({ id: item.id, name: item.name || item.folderName || '未命名文件夹' })), files: normalizedFiles, filteredFiles: this.filterFiles(normalizedFiles), capacity, loaded: true })
     this.loadTabCounts()
   },

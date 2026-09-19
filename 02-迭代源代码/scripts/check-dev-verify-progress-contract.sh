@@ -64,8 +64,17 @@ printf '%s\n' "$status_output" | grep -Eq 'changed breakdown: total=[0-9]+; migr
 printf '%s\n' "$status_output" | grep -Eq 'untracked breakdown: total=[0-9]+; migrations=[0-9]+; backend=[0-9]+; frontend=[0-9]+; miniprogram=[0-9]+; scripts=[0-9]+; docs=[0-9]+; config=[0-9]+; other=[0-9]+' ||
   fail "status output did not show untracked-file breakdown"
 
-printf '%s\n' "$status_output" | grep -Eq 'aigicrm-backend/src/main/resources/db/migration/V.+\.sql' ||
-  fail "status output did not list changed Flyway migrations"
+# 【2026-09-19 修正】原断言无条件要求 status 输出包含迁移路径——只在"存在未提交迁移"的树上是事实，
+# 干净树/纯前端改动树上必然误红。改为与 changed breakdown 的 migrations 计数一致的双向断言：
+# 计数>0 必须列出路径（守护 changed_migrations 助手不失效）；计数=0 不得出现路径（守护不虚报）。
+migrations_changed="$(printf '%s\n' "$status_output" | sed -nE 's/.*changed breakdown: total=[0-9]+; migrations=([0-9]+).*/\1/p' | head -1)"
+[ -n "$migrations_changed" ] || migrations_changed=0
+if [ "$migrations_changed" -gt 0 ]; then
+  printf '%s\n' "$status_output" | grep -Eq 'aigicrm-backend/src/main/resources/db/migration/V.+\.sql' ||
+    fail "status output did not list changed Flyway migrations"
+elif printf '%s\n' "$status_output" | grep -Eq 'aigicrm-backend/src/main/resources/db/migration/V.+\.sql'; then
+  fail "status output listed Flyway migrations while changed breakdown says migrations=0"
+fi
 
 printf '%s\n' "$progress_output" | grep -Fq 'Latest Sonar evidence:' ||
   fail "progress output did not show Sonar evidence"

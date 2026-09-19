@@ -491,13 +491,17 @@ Page({
       this.applyOrgs(FALLBACK_ORGS)
       return
     }
+    // 【PR-04】真实模式接口失败：报错并清空组织候选，不回退演示组织
     getDepts().then((rows) => {
       this.applyOrgs(rows || [])
-    }).catch(() => this.applyOrgs(FALLBACK_ORGS))
+    }).catch((error) => {
+      showError(error, '组织列表加载失败，请重试')
+      this.applyOrgs([])
+    })
   },
 
   applyOrgs(list) {
-    const source = (list && list.length) ? list : FALLBACK_ORGS
+    const source = list || []
     const filtered = source.filter((item) => item && item.deptType !== 1)
     const byParent = {}
     filtered.forEach((item) => {

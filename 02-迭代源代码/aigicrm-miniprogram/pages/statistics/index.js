@@ -344,13 +344,17 @@ Page({
       this.applyDepts(FALLBACK_DEPTS)
       return
     }
+    // 【PR-04】真实模式接口失败：报错并只保留"全部部门"，不回退演示部门
     getDepts().then((rows) => {
       this.applyDepts(rows || [])
-    }).catch(() => this.applyDepts(FALLBACK_DEPTS))
+    }).catch((error) => {
+      showError(error, '部门加载失败，请重试')
+      this.applyDepts([])
+    })
   },
 
   applyDepts(list) {
-    const source = (list && list.length) ? list : FALLBACK_DEPTS
+    const source = list || []
     const filtered = source.filter((item) => item && item.deptType !== 1)
     const byParent = {}
     filtered.forEach((item) => {

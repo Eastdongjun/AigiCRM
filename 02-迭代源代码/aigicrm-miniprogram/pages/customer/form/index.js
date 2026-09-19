@@ -32,7 +32,9 @@ const INDICATOR_ITEMS = [
   { field: 'indicator05', name: '项目', desc: '项目资金', options: ['日常计划', '改造大修', '安全环保', '新建配套'] }
 ]
 
-/** 演示模式/接口不可用时的兜底选项：保证下拉仍可操作（与 PC 端字典兜底同思路） */
+/** 演示模式专用候选（仅 demoMode 分支使用）。
+ * 【PR-04 2026-09-19】真实环境接口失败/空返回一律"报错 + 空选项"，
+ * 禁止回退演示身份（张三/李四）与演示组织，防止示例 ID 提交进真实库。 */
 const FALLBACK = {
   regions: [{ id: 1, deptName: '内蒙古大区' }, { id: 2, deptName: '山西大区' }],
   offices: [{ id: 11, deptName: '内蒙办', parentId: 1 }, { id: 21, deptName: '山西办', parentId: 2 }],
@@ -153,12 +155,14 @@ Page({
     this.loadOptions().then(() => (id ? this.loadDetail() : this.prefillOwner()))
   },
 
-  /** 下拉数据：部门 / 人员 / 字典 / 历史集团名（演示模式直接走兜底数据，不请求接口） */
+  /** 下拉数据：部门 / 人员 / 字典 / 历史集团名（演示模式直接用演示候选，不请求接口） */
   loadOptions() {
     if (getApp().globalData.demoMode) {
-      // 演示模式没有后端：部门直接走兜底选项（applyDepts 内部回退 FALLBACK.regions/offices）
-      this.applyDepts([])
+      // 演示模式没有后端：直接设置演示候选（FALLBACK 无 deptType，不经 applyDepts 过滤）
       this.setData({
+        regionOptions: FALLBACK.regions,
+        allOffices: FALLBACK.offices,
+        officeOptions: this.filterOffices(FALLBACK.offices, this.data.form.regionId),
         userOptions: FALLBACK.users,
         industryOptions: FALLBACK.industry,
         devTypeOptions: FALLBACK.devType,
@@ -167,11 +171,24 @@ Page({
       }, () => this.refreshFormView())
       return Promise.resolve()
     }
+    // 【PR-04】真实模式接口失败：报错并置空选项，保留用户已输入内容；不回退演示数据
     return Promise.all([
-      getDepts().then((list) => this.applyDepts(list || [])).catch(() => this.applyDepts([], FALLBACK)),
-      getCustomerSimpleUsers().then((list) => this.setData({ userOptions: list || [] }, () => this.refreshFormView())).catch(() => this.setData({ userOptions: FALLBACK.users }, () => this.refreshFormView())),
-      getDictData('industry').then((list) => this.setData({ industryOptions: (list || []).map((d) => d.dictValue) }, () => this.refreshFormView())).catch(() => this.setData({ industryOptions: FALLBACK.industry }, () => this.refreshFormView())),
-      getDictData('dev_type').then((list) => this.setData({ devTypeOptions: (list || []).map((d) => d.dictValue) }, () => this.refreshFormView())).catch(() => this.setData({ devTypeOptions: FALLBACK.devType }, () => this.refreshFormView())),
+      getDepts().then((list) => this.applyDepts(list || [])).catch((error) => {
+        showError(error, '部门加载失败，请重试')
+        this.applyDepts([])
+      }),
+      getCustomerSimpleUsers().then((list) => this.setData({ userOptions: list || [] }, () => this.refreshFormView())).catch((error) => {
+        showError(error, '负责人列表加载失败，请重试')
+        this.setData({ userOptions: [] }, () => this.refreshFormView())
+      }),
+      getDictData('industry').then((list) => this.setData({ industryOptions: (list || []).map((d) => d.dictValue) }, () => this.refreshFormView())).catch((error) => {
+        showError(error, '行业字典加载失败，请重试')
+        this.setData({ industryOptions: [] }, () => this.refreshFormView())
+      }),
+      getDictData('dev_type').then((list) => this.setData({ devTypeOptions: (list || []).map((d) => d.dictValue) }, () => this.refreshFormView())).catch((error) => {
+        showError(error, '开发类型字典加载失败，请重试')
+        this.setData({ devTypeOptions: [] }, () => this.refreshFormView())
+      }),
       getCustomerGroupNames().then((list) => this.setGroupOptions((list || []).filter(Boolean))).catch(() => this.setGroupOptions([]))
     ])
   },
@@ -181,16 +198,15 @@ Page({
     this.setData({ groupOptions: names, groupPickerOptions: names.concat(MANUAL_GROUP_LABEL) }, () => this.refreshFormView())
   },
 
-  /** 部门列表 → 大区/办事处候选；接口为空或失败时回退兜底数据（演示模式同样走这里） */
+  /** 部门列表 → 大区/办事处候选；按 deptType 过滤，空列表就是空选项（【PR-04】不再回退演示部门） */
   applyDepts(list) {
-    const source = (list && list.length) ? list : FALLBACK.regions.concat(FALLBACK.offices)
+    const source = list || []
     const regions = source.filter((d) => d.deptType === 2)
     const offices = source.filter((d) => d.deptType === 3)
-    const allOffices = offices.length ? offices : FALLBACK.offices
     this.setData({
-      regionOptions: regions.length ? regions : FALLBACK.regions,
-      allOffices,
-      officeOptions: this.filterOffices(allOffices, this.data.form.regionId)
+      regionOptions: regions,
+      allOffices: offices,
+      officeOptions: this.filterOffices(offices, this.data.form.regionId)
     }, () => this.refreshFormView())
   },
 

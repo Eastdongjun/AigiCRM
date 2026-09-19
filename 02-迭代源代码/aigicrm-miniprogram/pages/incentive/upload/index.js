@@ -401,9 +401,13 @@ Page({
       this.setData({ industryOptions: ['制造业', '煤矿', '化工', '电力', '其他'] }, () => this.refreshUploadViewState())
       return
     }
+    // 【PR-04】真实模式接口失败：报错并置空，不回退硬编码演示行业
     getDictData('industry').then((list) => {
       this.setData({ industryOptions: (list || []).map((item) => item.dictValue || item.dictLabel).filter(Boolean) }, () => this.refreshUploadViewState())
-    }).catch(() => this.setData({ industryOptions: ['煤矿', '化工', '电力', '洗煤厂', '有色', '其他'] }, () => this.refreshUploadViewState()))
+    }).catch((error) => {
+      showError(error, '行业字典加载失败，请重试')
+      this.setData({ industryOptions: [] }, () => this.refreshUploadViewState())
+    })
   },
 
   loadOptions() {

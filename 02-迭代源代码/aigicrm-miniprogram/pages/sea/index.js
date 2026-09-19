@@ -182,8 +182,9 @@ Page({
     status: '',
     industry: '',
     enterReason: '',
-    industryOptions: FALLBACK_INDUSTRIES,
-    industryPickerOptions: ['全部行业', ...FALLBACK_INDUSTRIES],
+    // 【PR-04】初始为空：真实模式等接口返回，失败报错；演示模式由 loadIndustryOptions 回填
+    industryOptions: [],
+    industryPickerOptions: ['全部行业'],
     enterReasonOptions: ENTER_REASON_OPTIONS,
     keyword: '',
     loading: false,
@@ -232,15 +233,13 @@ Page({
       })
       return
     }
+    // 【PR-04】真实模式：字典为空就是空选项，接口失败报错；均不回退演示行业
     getDictData('industry').then((list) => {
       const dictValues = (list || []).map((item) => item.dictValue || item.dictLabel).filter(Boolean)
-      const industryOptions = dictValues.length ? dictValues : FALLBACK_INDUSTRIES
-      this.setSeaData({ industryOptions, industryPickerOptions: ['全部行业', ...industryOptions] })
-    }).catch(() => {
-      this.setSeaData({
-        industryOptions: FALLBACK_INDUSTRIES,
-        industryPickerOptions: ['全部行业', ...FALLBACK_INDUSTRIES]
-      })
+      this.setSeaData({ industryOptions: dictValues, industryPickerOptions: ['全部行业', ...dictValues] })
+    }).catch((error) => {
+      showError(error, '行业字典加载失败，请重试')
+      this.setSeaData({ industryOptions: [], industryPickerOptions: ['全部行业'] })
     })
   },
 
@@ -262,13 +261,17 @@ Page({
       this.applyDepts(FALLBACK_DEPTS)
       return
     }
+    // 【PR-04】真实模式接口失败：报错并只保留"全部部门"，不回退演示部门
     getDepts().then((rows) => {
       this.applyDepts(rows || [])
-    }).catch(() => this.applyDepts(FALLBACK_DEPTS))
+    }).catch((error) => {
+      showError(error, '部门加载失败，请重试')
+      this.applyDepts([])
+    })
   },
 
   applyDepts(list) {
-    const source = (list && list.length) ? list : FALLBACK_DEPTS
+    const source = list || []
     const filtered = source.filter((item) => item && item.deptType !== 1)
     const byParent = {}
     filtered.forEach((item) => {
