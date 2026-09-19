@@ -91,6 +91,17 @@ export function useCustomerDetail() {
     return '正常'
   })
   const customerId = computed(() => route.params.id)
+  // 【PR-11 首批 2026-09-19】客户统一作业页:保护剩余天数与最近跟进集中呈现(数据均已在上下文加载)
+  const expireDaysLeft = computed(() => {
+    const d = customer.value?.expireDate
+    if (!d) return null
+    return Math.ceil((new Date(d) - new Date()) / 86400000)
+  })
+  const latestLog = computed(() => {
+    const list = (logs.value || []).slice()
+      .sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')))
+    return list[0] || null
+  })
   const notifyActionFailure = (error, fallback = '操作失败') => {
     const message = error?.response?.data?.message || error?.message || fallback
     ElMessage.error(message === 'Error' ? fallback : message)
@@ -178,7 +189,7 @@ export function useCustomerDetail() {
 
   return {
     customerId, route, router, userStore, isAdmin, readonly, readonlyTag,
-    loading, activeTab, customer, logs, newLog, invoices, invoiceSummary, payments, paymentSummary, canViewFinance, canViewContacts,
+    loading, activeTab, customer, logs, newLog, invoices, invoiceSummary, payments, paymentSummary, canViewFinance, canViewContacts, expireDaysLeft, latestLog,
     contacts, indicator, shares, allUsers, incentiveScore, incentiveRecords, catMap,
     showInvoiceDialog, showPaymentDialog, showContactDialog, showShareDialog, shareUserIds, editingContact,
     invoiceForm, paymentForm, contactForm, indicatorForm,

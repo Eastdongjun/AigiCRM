@@ -47,6 +47,11 @@
         <el-icon class="stat-icon icon-red" :size="28"><CircleClose /></el-icon>
       </div>
     </div>
+    <!-- 【PR-11 首批】统计卡片口径标注:范围=本人数据范围(后端按权限过滤),进页面/点刷新时更新 -->
+    <div class="stat-scope-note">
+      <span>统计范围：我的客户（按账号数据范围过滤） · 周期：本月 / 30 天到期窗口</span>
+      <span class="scope-right">刷新于 {{ lastRefreshedAt || '—' }} <a @click="loadData">立即刷新</a></span>
+    </div>
 
     <!-- 快捷入口 -->
     <div class="quick-row">
@@ -232,8 +237,10 @@ const weeklyFileTotal = computed(() => weeklyFile.value.reduce((s, d) => s + d.v
 const typeLabel = (t) => ({ claim: '客户捞取申请', transfer: '客户转让申请', extend: '保护期延长申请', storage: '入库申请' }[t] || t)
 
 // ——— 数据加载 ———
+const lastRefreshedAt = ref('')
 const loadData = async () => {
   try { const r = await getDashboardData(); stats.value = r.data || {} } catch {}
+  lastRefreshedAt.value = new Date().toLocaleTimeString('zh-CN', { hour12: false })
   try {
     const r = await getExpiringList({ current: 1, size: 5 })
     const list = r.data?.records || []
@@ -313,6 +320,10 @@ onMounted(loadData)
 </script>
 
 <style scoped>
+/* 【PR-11 首批】统计口径标注条 */
+.stat-scope-note { display:flex; justify-content:space-between; flex-wrap:wrap; gap:8px; color:#94a3b8; font-size:12px; margin:2px 2px 16px; }
+.stat-scope-note a { color:#409eff; cursor:pointer; margin-left:8px }
+
 .dashboard { }
 
 /* —— 头部 —— */

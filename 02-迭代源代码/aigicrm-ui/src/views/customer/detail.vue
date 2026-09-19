@@ -35,7 +35,29 @@
           <div class="expire-tag" :class="'lvl-'+expireLevel">
             <el-icon><Warning /></el-icon> {{ statusLabel }}
           </div>
+          <!-- PR-11 首批:保护剩余天数集中呈现(负数=已过期 N 天) -->
+          <div class="expire-days" v-if="expireDaysLeft !== null">
+            {{ expireDaysLeft >= 0 ? `保护剩余 ${expireDaysLeft} 天` : `已过期 ${-expireDaysLeft} 天` }}
+          </div>
         </div>
+      </div>
+    </div>
+
+    <!-- 【PR-11 首批】统一作业概览条:归属/最近跟进/下一任务 集中呈现(不切 Tab 即可掌握状态) -->
+    <div class="overview-strip">
+      <div class="overview-item">
+        <span class="overview-label">归属</span>
+        <span class="overview-value">负责人 {{ customer.ownerName }}<template v-if="customer.deptName"> · {{ customer.deptName }}</template><template v-if="customer.groupName"> · {{ customer.groupName }}</template></span>
+      </div>
+      <div class="overview-item">
+        <span class="overview-label">最近跟进</span>
+        <span class="overview-value" v-if="latestLog">{{ (latestLog.createdAt || '').slice(0, 10) }} {{ latestLog.content }}</span>
+        <span class="overview-value muted" v-else>暂无跟进记录</span>
+      </div>
+      <div class="overview-item">
+        <span class="overview-label">下一任务</span>
+        <!-- 任务模块属 PR-10(待业务决策),此处只占位不代建 -->
+        <span class="overview-value muted">—（任务模块规划中）</span>
       </div>
     </div>
 
@@ -132,7 +154,7 @@ const canShareCustomer = userStore.hasPermission('customer:edit')
 const {
   customer, loading, activeTab, readonly, readonlyTag, handleEdit,
   showShareDialog, shares, shareUserIds, allUsers, handleAddShare, handleRemoveShare,
-  isCore, expireLevel, statusLabel, incentiveScore, indicator, totalScore,
+  isCore, expireLevel, statusLabel, incentiveScore, indicator, totalScore, expireDaysLeft, latestLog,
   invoiceSummary, paymentSummary, avatarColor, bothThresholdMet, indicatorTotal, incentiveRecords,
   canViewFinance,
   canViewContacts,
@@ -161,6 +183,13 @@ watch(customer, (v) => { if (v?.customerName) loadIncentiveRecords() })
 .expire-tag { display:inline-flex; align-items:center; gap:4px; padding:2px 10px; border-radius:10px; font-size:12px; margin-top:2px }
 .expire-tag.lvl-red { background:rgba(245,108,108,.3) }.expire-tag.lvl-orange { background:rgba(230,162,60,.3) }.expire-tag.lvl-blue { background:rgba(255,255,255,.2) }
 .stat-cards { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:20px }
+/* 【PR-11 首批】统一作业概览条 */
+.overview-strip { display:flex; gap:24px; flex-wrap:wrap; background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:12px 16px; margin-bottom:14px }
+.overview-item { min-width:220px; flex:1 }
+.overview-label { display:block; font-size:12px; color:#94a3b8; margin-bottom:4px }
+.overview-value { font-size:13px; color:#334155; word-break:break-all }
+.overview-value.muted { color:#cbd5e1 }
+.expire-days { font-size:12px; color:#64748b; text-align:right; margin-top:4px }
 .stat-card { background:#fff; border-radius:10px; padding:18px 16px; display:flex; align-items:center; gap:14px; box-shadow:0 1px 3px rgba(0,0,0,.04); transition:box-shadow .2s }
 .stat-card:hover { box-shadow:0 4px 12px rgba(0,0,0,.08) }
 .stat-icon-box { width:44px; height:44px; border-radius:12px; display:flex; align-items:center; justify-content:center; font-size:20px }
