@@ -1004,6 +1004,16 @@ public class PermissionMatrixTest {
     }
 
     /** 激励记录编辑/删除必须保留方法内归属与专项授权守卫，不能误回退成粗粒度方法权限。 */
+    /** 【BS-R】审计日志只读端点:与操作日志同权限码,不得放开 */
+    @Test
+    void auditLogEndpoint_keepsLogViewPermission() throws Exception {
+        Class<com.aigicrm.module.system.controller.SysAuditLogController> controller =
+                com.aigicrm.module.system.controller.SysAuditLogController.class;
+        assertPreAuthorize(controller.getDeclaredMethod("page",
+                        int.class, int.class, String.class, Long.class),
+                "hasAuthority('system:log:view')");
+    }
+
     @Test
     void incentiveRecordMutationEndpoints_keepInternalOwnershipAndGrantGuards() throws Exception {
         Class<com.aigicrm.module.incentive.controller.IncentiveController> controller =

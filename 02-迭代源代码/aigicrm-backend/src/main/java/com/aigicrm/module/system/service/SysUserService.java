@@ -56,6 +56,7 @@ public class SysUserService {
     private final com.aigicrm.security.PermissionCacheService permissionCacheService;
     private final com.aigicrm.security.JwtTokenProvider jwtTokenProvider;
     private final com.aigicrm.common.scope.OrgScopeResolver scopeResolver;
+    private final com.aigicrm.security.SecurityAuditService securityAudit;
 
     /** 【2026-08-14 安全 P0】随机初始口令(12 位, 去易混字符, SecureRandom)——替代硬编码 123456 */
     private String generateRandomPassword() {
@@ -200,6 +201,7 @@ public class SysUserService {
 
     @Transactional
     public String create(SysUser user) {
+        securityAudit.userAdminEvent("user_create", user.getId(), user.getUsername());
         // 必填兜底校验（前端表单校验的接口层防线）
         if (!StringUtils.hasText(user.getUsername())) {
             throw new BusinessException("账号不能为空");
@@ -264,6 +266,8 @@ public class SysUserService {
     @Transactional
     public void update(SysUser user) {
         SysUser existing = userMapper.selectById(user.getId());
+        securityAudit.userAdminEvent("user_update", user.getId(),
+                existing != null ? existing.getUsername() : null);
         if (existing == null) throw new BusinessException("用户不存在");
         if (!StringUtils.hasText(user.getDataScopeOverride())) {
             throw new BusinessException("数据范围不能为空");
@@ -320,6 +324,8 @@ public class SysUserService {
 
     public String resetPassword(Long userId) {
         SysUser user = userMapper.selectById(userId);
+        securityAudit.userAdminEvent("user_reset_password", userId,
+                user != null ? user.getUsername() : null);
         if (user == null) throw new BusinessException("用户不存在");
         // 【2026-08-15 安全审计 H1 纵深防御】非 admin 操作者禁止重置 admin 角色账号口令——
         // 临时口令明文随响应返回, 得手即接管全系统(不依赖 controller 的 canManageUser 守卫, 服务层独立兜底)
@@ -365,6 +371,7 @@ public class SysUserService {
 
     @Transactional
     public void deleteUser(Long userId) {
+        securityAudit.userAdminEvent("user_delete", userId, null);
         SysUser user = userMapper.selectById(userId);
         if (user == null) throw new BusinessException("用户不存在");
         // 【2026-08-15 安全审计 H1 纵深防御】非 admin 操作者禁止删除 admin 角色账号(服务层兜底, 不依赖 controller 守卫)

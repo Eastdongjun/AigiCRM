@@ -4,7 +4,7 @@
 > 本文件由 scripts/gen-api.py 自动生成,**禁止手改**;接口变更后重新运行。
 > 权限码与 docs/permission/permission-dict.md 对应。
 
-## 接口清单(190 个)
+## 接口清单(191 个)
 
 | 方法 | 路径 | 权限码 | 方法名 | 文件 |
 |---|---|---|---|---|
@@ -139,6 +139,7 @@
 | GET | `/api/statistics/indicator-stats` | `hasAuthority('statistics:view')` | indicatorStats | StatisticsController.java |
 | GET | `/api/statistics/team-activities` | `hasAnyAuthority('statistics:view','dashboard:view')` | teamActivities | StatisticsController.java |
 | GET | `/api/statistics/weekly-stats` | `hasAnyAuthority('statistics:view','dashboard:view')` | weeklyStats | StatisticsController.java |
+| GET | `/api/system/audit-logs` | `hasAuthority('system:log:view')` | page | SysAuditLogController.java |
 | GET | `/api/system/configs` | `hasAuthority('system:config:view')` | list | SysConfigController.java |
 | PUT | `/api/system/configs` | `hasAuthority('system:config:edit')` | batchUpdate | SysConfigController.java |
 | GET | `/api/system/configs/logo` | `匿名` | logo | SysConfigController.java |

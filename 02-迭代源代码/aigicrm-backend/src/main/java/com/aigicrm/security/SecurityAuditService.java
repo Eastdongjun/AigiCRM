@@ -2,6 +2,8 @@ package com.aigicrm.security;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import com.aigicrm.module.system.entity.SysAuditLog;
+import com.aigicrm.module.system.mapper.SysAuditLogMapper;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
@@ -32,6 +34,7 @@ import java.time.Duration;
 public class SecurityAuditService {
 
     private final StringRedisTemplate redis;
+    private final SysAuditLogMapper auditLogMapper;
 
     /** 阈值(窗口内次数,达到即告警一次;窗口=告警计数窗口)。public:业务方(login)复用同阈值判断跨界 */
     public static final int LOGIN_FAIL_ALERT = 5;
@@ -47,11 +50,15 @@ public class SecurityAuditService {
         event("LOGIN_FAILED", "username", username, "ip", clientIp,
                 "userExists", userExists, "enabled", enabled,
                 "failCount", failCount, "ipFailCount", ipFailCount);
+        persist("LOGIN_FAILED", null, username, clientIp,
+                "userExists=" + userExists + " enabled=" + enabled
+                        + " failCount=" + failCount + " ipFailCount=" + ipFailCount);
     }
 
     /** 登录成功(审计基线:爆破检测需要"失败而无成功"与"正常用户偶发失败"可区分) */
     public void loginSuccess(Long userId, String username, String clientIp) {
         event("LOGIN_SUCCESS", "userId", userId, "username", username, "ip", clientIp);
+        persist("LOGIN_SUCCESS", userId, username, clientIp, null);
     }
 
     /**
@@ -60,6 +67,7 @@ public class SecurityAuditService {
      */
     public void anonymousProbe(String kind, String username, String clientIp) {
         event("ANON_PROBE", "kind", kind, "username", username, "ip", clientIp);
+        persist("ANON_PROBE", null, username, clientIp, "kind=" + kind);
         thresholdAlert("ANON_PROBE_IP_BURST", "anon:" + clientIp, ANON_PROBE_IP_ALERT,
                 "kind", kind, "ip", clientIp);
     }
@@ -67,6 +75,7 @@ public class SecurityAuditService {
     /** 越权拒绝(403):Spring Security @PreAuthorize 拒绝统一经 AccessDeniedHandler 汇入 */
     public void accessDenied(String uri, Long userId, String clientIp) {
         event("ACCESS_DENIED", "uri", uri, "userId", userId, "ip", clientIp);
+        persist("ACCESS_DENIED", userId, null, clientIp, "uri=" + uri);
         thresholdAlert("ACCESS_DENIED_IP_BURST", "denied:" + clientIp, ACCESS_DENIED_IP_ALERT,
                 "uri", uri, "ip", clientIp);
     }
@@ -74,12 +83,30 @@ public class SecurityAuditService {
     /** 权限变更(角色增删改,含菜单/权限码绑定调整) */
     public void permissionChange(String action, Long targetRoleId, String roleName, Long actorId) {
         event("PERMISSION_CHANGE", "action", action, "roleId", targetRoleId, "roleName", roleName, "actorId", actorId);
+        persist("PERMISSION_CHANGE", actorId, null, null,
+                "action=" + action + " roleId=" + targetRoleId + " roleName=" + roleName);
     }
 
     /** 集团/租户变更:会话切换 */
     public void groupSwitch(Long userId, String username, Long fromGroupId, Long toGroupId) {
         event("GROUP_SWITCH", "userId", userId, "username", username,
                 "from", fromGroupId, "to", toGroupId);
+        persist("GROUP_SWITCH", userId, username, null,
+                "from=" + fromGroupId + " to=" + toGroupId);
+    }
+
+    /** 【BS-R】用户管理动作(管理员自身操作被审计):create/update/delete/resetPassword/markLeave 等 */
+    public void userAdminEvent(String action, Long targetUserId, String targetUsername) {
+        Long actorId = null;
+        try {
+            actorId = SecurityUtils.getCurrentUserId();
+        } catch (Exception ignore) {
+            // 无会话上下文(如内部调用)时 actor 为空
+        }
+        event("USER_ADMIN", "action", action, "targetUserId", targetUserId,
+                "targetUsername", targetUsername, "actorId", actorId);
+        persist("USER_ADMIN", actorId, targetUsername, null,
+                "action=" + action + " targetUserId=" + targetUserId);
     }
 
     /** 集团/租户变更:用户归属组织调整(影响租户边界推导) */
@@ -127,6 +154,26 @@ public class SecurityAuditService {
             }
         } catch (Exception e) {
             degrade(e);
+        }
+    }
+
+    /**
+     * 【BS-R】事件旁路落库(append-only 表)。失败降级不阻断业务,但以 ERROR 级文件日志
+     * 留痕——审计缺口可见,不静默吞掉。
+     */
+    private void persist(String eventType, Long actorId, String username, String ip, String detail) {
+        try {
+            SysAuditLog row = new SysAuditLog();
+            row.setEventType(eventType);
+            row.setActorId(actorId);
+            row.setActorUsername(username != null && username.length() > 64
+                    ? username.substring(0, 64) : username);
+            row.setIp(ip);
+            row.setDetail(detail != null && detail.length() > 1000
+                    ? detail.substring(0, 1000) : detail);
+            auditLogMapper.insert(row);
+        } catch (Exception e) {
+            log.error("event=AUDIT_PERSIST_FAILED type={} error={}", eventType, e.getMessage());
         }
     }
 

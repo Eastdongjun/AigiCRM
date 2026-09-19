@@ -27,6 +27,8 @@ class SecurityAuditServiceTest {
 
     private final StringRedisTemplate redis = mock(StringRedisTemplate.class);
     private final ValueOperations<String, String> ops = mock(ValueOperations.class);
+    private final com.aigicrm.module.system.mapper.SysAuditLogMapper auditLogMapper =
+            mock(com.aigicrm.module.system.mapper.SysAuditLogMapper.class);
     private SecurityAuditService svc;
     private ListAppender<ILoggingEvent> appender;
     private Logger auditLogger;
@@ -34,7 +36,7 @@ class SecurityAuditServiceTest {
     @BeforeEach
     void setUp() {
         Mockito.lenient().when(redis.opsForValue()).thenReturn(ops);
-        svc = new SecurityAuditService(redis);
+        svc = new SecurityAuditService(redis, auditLogMapper);
         auditLogger = (Logger) org.slf4j.LoggerFactory.getLogger("SECURITY_AUDIT");
         appender = new ListAppender<>();
         appender.start();
@@ -114,6 +116,34 @@ class SecurityAuditServiceTest {
                 && m.contains("action=\"role_update\"")));
         assertTrue(messages().stream().anyMatch(m -> m.startsWith("event=GROUP_SWITCH")
                 && m.contains("from=\"1\"") && m.contains("to=\"2\"")));
+    }
+
+    @Test
+    void events_alsoPersistToAppendOnlyTable() {
+        when(ops.increment(anyString())).thenReturn(1L);
+        svc.loginSuccess(7L, "zhangsan", "10.0.0.9");
+        svc.accessDenied("/api/customer/list", 7L, "10.0.0.9");
+        svc.permissionChange("role_update", 3L, "行政", 1L);
+        svc.userAdminEvent("user_reset_password", 9L, "liming");
+
+        var cap = org.mockito.ArgumentCaptor.forClass(com.aigicrm.module.system.entity.SysAuditLog.class);
+        org.mockito.Mockito.verify(auditLogMapper, org.mockito.Mockito.times(4)).insert(cap.capture());
+        var types = cap.getAllValues().stream().map(com.aigicrm.module.system.entity.SysAuditLog::getEventType).toList();
+        assertTrue(types.contains("LOGIN_SUCCESS") && types.contains("ACCESS_DENIED")
+                && types.contains("PERMISSION_CHANGE") && types.contains("USER_ADMIN"),
+                "五类事件均须落 append-only 表,实际: " + types);
+        var denied = cap.getAllValues().stream()
+                .filter(r -> "ACCESS_DENIED".equals(r.getEventType())).findFirst().orElseThrow();
+        assertTrue(denied.getDetail().contains("uri=/api/customer/list"));
+    }
+
+    @Test
+    void persistFailure_degradesWithVisibleErrorLog_notThrowing() {
+        org.mockito.Mockito.doThrow(new RuntimeException("trigger blocked"))
+                .when(auditLogMapper).insert(any(com.aigicrm.module.system.entity.SysAuditLog.class));
+        assertDoesNotThrow(() -> svc.loginSuccess(7L, "zhangsan", "10.0.0.9"));
+        assertTrue(messages().stream().anyMatch(m -> m.contains("event=AUDIT_PERSIST_FAILED")),
+                "持久化失败须以 ERROR 级留痕,不静默");
     }
 
     @Test

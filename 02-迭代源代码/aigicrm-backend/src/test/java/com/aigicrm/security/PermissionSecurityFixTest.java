@@ -225,7 +225,8 @@ class PermissionSecurityFixTest {
                 mock(com.aigicrm.module.sea.service.SeaService.class), deptMapper,
                 mock(com.aigicrm.module.system.mapper.SysUserOrgMapper.class),
                 mock(com.aigicrm.security.PermissionCacheService.class),
-                mock(com.aigicrm.security.JwtTokenProvider.class), resolver);
+                mock(com.aigicrm.security.JwtTokenProvider.class), resolver,
+                mock(com.aigicrm.security.SecurityAuditService.class));
         try (org.mockito.MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
             m.when(SecurityUtils::isAdmin).thenReturn(false);
             m.when(SecurityUtils::getCurrentUserId).thenReturn(1L);
@@ -250,7 +251,8 @@ class PermissionSecurityFixTest {
                 mock(com.aigicrm.module.sea.service.SeaService.class), mock(com.aigicrm.module.system.mapper.SysDeptMapper.class),
                 mock(com.aigicrm.module.system.mapper.SysUserOrgMapper.class),
                 mock(com.aigicrm.security.PermissionCacheService.class),
-                mock(com.aigicrm.security.JwtTokenProvider.class), resolver);
+                mock(com.aigicrm.security.JwtTokenProvider.class), resolver,
+                mock(com.aigicrm.security.SecurityAuditService.class));
         try (org.mockito.MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
             m.when(SecurityUtils::isAdmin).thenReturn(false);
             m.when(SecurityUtils::getCurrentUserId).thenReturn(1L);
@@ -275,7 +277,8 @@ class PermissionSecurityFixTest {
                 mock(com.aigicrm.module.sea.service.SeaService.class), mock(com.aigicrm.module.system.mapper.SysDeptMapper.class),
                 mock(com.aigicrm.module.system.mapper.SysUserOrgMapper.class),
                 mock(com.aigicrm.security.PermissionCacheService.class),
-                mock(com.aigicrm.security.JwtTokenProvider.class), mock(OrgScopeResolver.class));
+                mock(com.aigicrm.security.JwtTokenProvider.class), mock(OrgScopeResolver.class),
+                mock(com.aigicrm.security.SecurityAuditService.class));
         try (org.mockito.MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
             m.when(SecurityUtils::isAdmin).thenReturn(false);
             m.when(SecurityUtils::getCurrentUserId).thenReturn(7L);
@@ -317,7 +320,8 @@ class PermissionSecurityFixTest {
                 mock(com.aigicrm.module.system.mapper.SysDeptMapper.class),
                 mock(com.aigicrm.module.system.mapper.SysUserOrgMapper.class),
                 mock(com.aigicrm.security.PermissionCacheService.class),
-                mock(com.aigicrm.security.JwtTokenProvider.class), mock(OrgScopeResolver.class));
+                mock(com.aigicrm.security.JwtTokenProvider.class), mock(OrgScopeResolver.class),
+                mock(com.aigicrm.security.SecurityAuditService.class));
     }
 
     @Test
@@ -391,7 +395,8 @@ class PermissionSecurityFixTest {
                 mock(com.aigicrm.module.system.mapper.SysDeptMapper.class),
                 mock(com.aigicrm.module.system.mapper.SysUserOrgMapper.class),
                 mock(com.aigicrm.security.PermissionCacheService.class),
-                mock(com.aigicrm.security.JwtTokenProvider.class), mock(OrgScopeResolver.class));
+                mock(com.aigicrm.security.JwtTokenProvider.class), mock(OrgScopeResolver.class),
+                mock(com.aigicrm.security.SecurityAuditService.class));
 
         com.aigicrm.module.system.entity.SysUser existing = new com.aigicrm.module.system.entity.SysUser();
         existing.setId(7L);

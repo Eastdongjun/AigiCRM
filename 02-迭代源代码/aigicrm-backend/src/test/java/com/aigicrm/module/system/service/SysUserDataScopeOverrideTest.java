@@ -99,7 +99,8 @@ class SysUserDataScopeOverrideTest {
                 customerMapper, shareMapper, jdbc, roleMapper, seaService, deptMapper, mock(com.aigicrm.module.system.mapper.SysUserOrgMapper.class),
                 mock(com.aigicrm.security.PermissionCacheService.class),
                 mock(com.aigicrm.security.JwtTokenProvider.class),
-                mock(com.aigicrm.common.scope.OrgScopeResolver.class));
+                mock(com.aigicrm.common.scope.OrgScopeResolver.class),
+                mock(com.aigicrm.security.SecurityAuditService.class));
     }
 
     private SysUser validCreatePayload() {
