@@ -350,6 +350,7 @@ class ApprovalServiceTest {
         com.aigicrm.module.approval.entity.BizApproval approval = approvalOf(11L, "claim", 42L);
         BizApprovalMapper approvalMapper = mock(BizApprovalMapper.class);
         when(approvalMapper.selectById(11L)).thenReturn(approval);
+        when(approvalMapper.selectByIdForUpdate(11L)).thenReturn(approval);
         when(approvalMapper.update(isNull(), any())).thenReturn(1);
 
         // 库内已流转后的状态:本人 approved + 同阶段兄弟 pending(ANY)
@@ -383,6 +384,7 @@ class ApprovalServiceTest {
         com.aigicrm.module.approval.entity.BizApproval approval = approvalOf(12L, "extend", 42L);
         BizApprovalMapper approvalMapper = mock(BizApprovalMapper.class);
         when(approvalMapper.selectById(12L)).thenReturn(approval);
+        when(approvalMapper.selectByIdForUpdate(12L)).thenReturn(approval);
 
         com.aigicrm.module.approval.entity.BizApprovalNode mine = node(201L, 7L, 1, "ALL", 10L, "approved");
         com.aigicrm.module.approval.entity.BizApprovalNode other = node(202L, 8L, 1, "ALL", 10L, "pending");
@@ -409,6 +411,7 @@ class ApprovalServiceTest {
         com.aigicrm.module.approval.entity.BizApproval approval = approvalOf(13L, "extend", 42L);
         BizApprovalMapper approvalMapper = mock(BizApprovalMapper.class);
         when(approvalMapper.selectById(13L)).thenReturn(approval);
+        when(approvalMapper.selectByIdForUpdate(13L)).thenReturn(approval);
 
         com.aigicrm.module.approval.entity.BizApprovalNode stage1 = node(301L, 7L, 1, "ALL", 10L, "approved");
         com.aigicrm.module.approval.entity.BizApprovalNode stage2 = node(302L, 9L, 2, "ALL", 11L, "waiting");
@@ -443,6 +446,7 @@ class ApprovalServiceTest {
 
         BizApprovalMapper approvalMapper = mock(BizApprovalMapper.class);
         when(approvalMapper.selectById(14L)).thenReturn(approvalOf(14L, "extend", 42L));
+        when(approvalMapper.selectByIdForUpdate(14L)).thenReturn(approvalOf(14L, "extend", 42L));
 
         BizApprovalNodeMapper nodeMapper = mock(BizApprovalNodeMapper.class);
         when(nodeMapper.selectOne(any())).thenReturn(node(401L, 7L, 1, "ALL", 10L, "pending"));
@@ -465,6 +469,7 @@ class ApprovalServiceTest {
         com.aigicrm.module.approval.entity.BizApproval approval = approvalOf(15L, "claim", 42L);
         BizApprovalMapper approvalMapper = mock(BizApprovalMapper.class);
         when(approvalMapper.selectById(15L)).thenReturn(approval);
+        when(approvalMapper.selectByIdForUpdate(15L)).thenReturn(approval);
         when(approvalMapper.update(isNull(), any())).thenReturn(1);
 
         com.aigicrm.module.approval.entity.BizApprovalNode mine = node(501L, 7L, 1, null, null, "approved");
@@ -493,6 +498,7 @@ class ApprovalServiceTest {
         com.aigicrm.module.approval.entity.BizApproval approval = approvalOf(16L, "extend", 42L);
         BizApprovalMapper approvalMapper = mock(BizApprovalMapper.class);
         when(approvalMapper.selectById(16L)).thenReturn(approval);
+        when(approvalMapper.selectByIdForUpdate(16L)).thenReturn(approval);
         when(approvalMapper.update(isNull(), any())).thenReturn(1);
 
         com.aigicrm.module.approval.entity.BizApprovalNode waiting = node(602L, 9L, 2, "ALL", 11L, "waiting");

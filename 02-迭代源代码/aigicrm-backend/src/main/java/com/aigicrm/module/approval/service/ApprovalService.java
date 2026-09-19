@@ -316,7 +316,10 @@ public class ApprovalService {
     @Transactional
     public void approve(Long approvalId, String comment) {
         Long approverId = SecurityUtils.getCurrentUserId();
-        BizApproval approval = approvalMapper.selectById(approvalId);
+        // 【PR-22 活体发现 2026-09-19】先锁审批主行再操作节点:串行化同单并发,
+        // 消除双人各自锁自己节点再互取消对方的 AB-BA 死锁;败者等锁后看到节点已被取消,
+        // 走统一 404 文案而非 500 死锁
+        BizApproval approval = approvalMapper.selectByIdForUpdate(approvalId);
         // 【2026-08-14 404 防探测】单条语义接口统一文案: 不存在/已结束/无审批节点均返回同一消息, 消除存在性 oracle
         if (approval == null) throw new BusinessException("资源不存在或无权访问");
 
@@ -447,7 +450,8 @@ public class ApprovalService {
     @Transactional
     public void reject(Long approvalId, String comment) {
         Long approverId = SecurityUtils.getCurrentUserId();
-        BizApproval approval = approvalMapper.selectById(approvalId);
+        // 【PR-22 活体发现】与 approve 同款主行锁:同单驳回/通过并发也须串行
+        BizApproval approval = approvalMapper.selectByIdForUpdate(approvalId);
         // 【2026-08-14 404 防探测】与 approve 同款统一文案(不存在/已结束/无审批节点), 防存在性探测
         if (approval == null) throw new BusinessException("资源不存在或无权访问");
 

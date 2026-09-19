@@ -77,6 +77,7 @@ class ApprovalApproveRejectSecurityTest {
     void approve_nonAssignedApprover_rejects() {
         setCurrentUser(2L); // 审批人应为 1，当前是 2
         when(approvalMapper.selectById(1L)).thenReturn(approval());
+        when(approvalMapper.selectByIdForUpdate(1L)).thenReturn(approval());
         // nodeMapper.selectOne 返回 null（未打桩）→ 拒绝(统一文案)
         BusinessException ex = assertThrows(BusinessException.class, () -> svc.approve(1L, "同意"));
         assertEquals("资源不存在或无权访问", ex.getMessage(),
@@ -87,6 +88,7 @@ class ApprovalApproveRejectSecurityTest {
     void reject_nonAssignedApprover_rejects() {
         setCurrentUser(2L);
         when(approvalMapper.selectById(1L)).thenReturn(approval());
+        when(approvalMapper.selectByIdForUpdate(1L)).thenReturn(approval());
         BusinessException ex = assertThrows(BusinessException.class, () -> svc.reject(1L, "驳回"));
         assertEquals("资源不存在或无权访问", ex.getMessage());
     }
@@ -95,6 +97,7 @@ class ApprovalApproveRejectSecurityTest {
     void approve_missingApproval_rejects() {
         setCurrentUser(1L);
         when(approvalMapper.selectById(1L)).thenReturn(null);
+        when(approvalMapper.selectByIdForUpdate(1L)).thenReturn(null);
         BusinessException ex = assertThrows(BusinessException.class, () -> svc.approve(1L, "同意"));
         assertEquals("资源不存在或无权访问", ex.getMessage());
     }
@@ -103,6 +106,7 @@ class ApprovalApproveRejectSecurityTest {
     void approve_assignedApprover_succeeds() {
         setCurrentUser(1L);
         when(approvalMapper.selectById(1L)).thenReturn(approval());
+        when(approvalMapper.selectByIdForUpdate(1L)).thenReturn(approval());
         BizApprovalNode node = new BizApprovalNode();
         node.setId(5L);
         node.setApprovalId(1L);
@@ -134,6 +138,7 @@ class ApprovalApproveRejectSecurityTest {
         BizApproval a = approval();
         a.setStatus("rejected"); // 已被另一审批人驳回
         when(approvalMapper.selectById(1L)).thenReturn(a);
+        when(approvalMapper.selectByIdForUpdate(1L)).thenReturn(a);
         BizApprovalNode node = new BizApprovalNode();
         node.setId(6L);
         node.setApprovalId(1L);
@@ -156,6 +161,7 @@ class ApprovalApproveRejectSecurityTest {
         BizApproval a = approval();
         a.setStatus("approved"); // 已全部通过
         when(approvalMapper.selectById(1L)).thenReturn(a);
+        when(approvalMapper.selectByIdForUpdate(1L)).thenReturn(a);
         BizApprovalNode node = new BizApprovalNode();
         node.setId(7L);
         node.setApprovalId(1L);
@@ -176,6 +182,7 @@ class ApprovalApproveRejectSecurityTest {
     void reject_cascadesSiblingPendingNodesToCancelled() {
         setCurrentUser(1L);
         when(approvalMapper.selectById(1L)).thenReturn(approval());
+        when(approvalMapper.selectByIdForUpdate(1L)).thenReturn(approval());
         BizApprovalNode actingNode = new BizApprovalNode();
         actingNode.setId(7L);
         actingNode.setApprovalId(1L);
