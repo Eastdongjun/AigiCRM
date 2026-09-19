@@ -879,9 +879,12 @@ public class PermissionMatrixTest {
         Path controllerSrc = Paths.get("src/main/java/com/aigicrm/module/auth/controller/AuthController.java")
                 .toAbsolutePath().normalize();
         String controllerBody = readSource(controllerSrc, "AuthController");
-        assertTrue(controllerBody.contains("lookupRateLimited(ClientIpUtils.getClientIp(httpRequest))")
+        // 【BS-A09 2026-09-19】lookup 抽出 clientIp 局部变量(审计与限流同源);断言同步并加固审计挂点
+        assertTrue(controllerBody.contains("String clientIp = ClientIpUtils.getClientIp(httpRequest)")
+                        && controllerBody.contains("securityAudit.anonymousProbe(\"pwd_lookup\"")
+                        && controllerBody.contains("lookupRateLimited(clientIp)")
                         && controllerBody.contains("throw new BusinessException(429, \"操作太频繁，请稍后再试\")"),
-                "forgotPasswordLookup 必须在查用户前做可信 IP 限流");
+                "forgotPasswordLookup 必须先留匿名探测审计痕迹,再在查用户前做可信 IP 限流");
         assertTrue(controllerBody.contains("authService.sendResetCode(request, ClientIpUtils.getClientIp(httpRequest))"),
                 "forgotPasswordSendCode 必须把可信 IP 传入服务层，支撑 IP 级发码限流");
         assertTrue(controllerBody.contains("authService.resetPassword(request)"),

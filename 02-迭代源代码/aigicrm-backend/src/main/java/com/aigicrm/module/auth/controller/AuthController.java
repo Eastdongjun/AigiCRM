@@ -19,6 +19,7 @@ public class AuthController {
 
     private final AuthService authService;
     private final SysLogMapper logMapper;
+    private final com.aigicrm.security.SecurityAuditService securityAudit;
 
     @PostMapping("/login")
     public Result<LoginResponse> login(@Valid @RequestBody LoginRequest request, HttpServletRequest httpRequest) {
@@ -88,8 +89,11 @@ public class AuthController {
     @PostMapping("/forgot-password/lookup")
     public Result<ForgotPasswordLookupResponse> forgotPasswordLookup(
             @Valid @RequestBody ForgotPasswordLookupRequest request, HttpServletRequest httpRequest) {
+        String clientIp = ClientIpUtils.getClientIp(httpRequest);
+        // 【BS-A09】匿名链路探测留痕+阈值告警(中性化后枚举攻击唯一可见痕迹);先审计后限流——被限流的请求也是信号
+        securityAudit.anonymousProbe("pwd_lookup", request.getUsername(), clientIp);
         // 【安全 2026-08-08 匿名枚举防护】IP 60s 限流，只取可信代理后的真实 IP
-        if (authService.lookupRateLimited(ClientIpUtils.getClientIp(httpRequest))) {
+        if (authService.lookupRateLimited(clientIp)) {
             throw new BusinessException(429, "操作太频繁，请稍后再试");
         }
         return Result.ok(authService.lookupUser(request.getUsername()));

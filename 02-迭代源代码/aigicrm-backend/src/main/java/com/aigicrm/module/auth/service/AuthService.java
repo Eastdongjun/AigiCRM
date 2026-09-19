@@ -65,6 +65,7 @@ public class AuthService {
     private final RedisTemplate<String, Object> redisTemplate;
     private final Client smsClient;
     private final SmsConfig smsConfig;
+    private final com.aigicrm.security.SecurityAuditService securityAudit;
 
     public LoginResponse login(LoginRequest request, String clientIp) {
         String username = request.getUsername() != null ? request.getUsername().trim() : "";
@@ -97,12 +98,23 @@ public class AuthService {
             redisTemplate.opsForValue().set(failKey, failCount, Duration.ofSeconds(LOGIN_LOCK_SECONDS));
             ipFailCount++;
             redisTemplate.opsForValue().set(ipFailKey, ipFailCount, Duration.ofSeconds(LOGIN_LOCK_SECONDS));
+            // 【BS-A09】对外中性,内部如实留痕(账号存在性/停用状态仅在审计日志,不进响应);
+            // 达阈值告警恰好一次(计数即限流计数,跨界那次触发)
+            securityAudit.loginFailed(username, clientIp, user != null, user == null || user.getStatus() != 0,
+                    failCount, ipFailCount);
+            if (failCount == com.aigicrm.security.SecurityAuditService.LOGIN_FAIL_ALERT) {
+                securityAudit.loginFailBurst(username, clientIp);
+            }
+            if (ipFailCount == com.aigicrm.security.SecurityAuditService.LOGIN_FAIL_IP_ALERT) {
+                securityAudit.loginFailIpBurst(clientIp);
+            }
             throw new BusinessException(401, "账号或密码错误");
         }
 
         // 登录成功，清除失败计数
         redisTemplate.delete(failKey);
         redisTemplate.delete(ipFailKey);
+        securityAudit.loginSuccess(user.getId(), user.getUsername(), clientIp);
 
         // 【批④ 2026-08-10 多集团会话】登录推导用户集团集合(岗位→组织→集团, 与 UserDetailsServiceImpl 同口径),
         // 默认当前集团=最小; 多集团用户后续经 switch-group 切换(重签 token)。
@@ -152,6 +164,8 @@ public class AuthService {
             throw new BusinessException("无权切换到该集团");
         }
         var user = userMapper.selectById(userId);
+        securityAudit.groupSwitch(userId, user != null ? user.getUsername() : "",
+                jwtTokenProvider.getCurrentGroupIdFromToken(currentToken), groupId);
         String token = jwtTokenProvider.generateToken(userId, user != null ? user.getUsername() : "",
                 false, groupId);
         LoginResponse response = new LoginResponse();
@@ -286,6 +300,8 @@ public class AuthService {
     }
 
     public void sendResetCode(ForgotPasswordSendCodeRequest request, String clientIp) {
+        // 【BS-A09】匿名链路探测留痕+阈值告警(中性化后枚举攻击唯一可见痕迹)
+        securityAudit.anonymousProbe("pwd_send_code", request.getUsername(), clientIp);
         // 【对齐 2026-08-08】DTO 声明支持 email 但后端从未实现邮件发送；明确拒绝而非静默降级
         if ("email".equals(request.getMethod())) {
             throw new BusinessException(400, "邮箱验证暂未开通，请使用手机验证");
@@ -347,6 +363,8 @@ public class AuthService {
     }
 
     public void resetPassword(ForgotPasswordResetRequest request) {
+        // 【BS-A09】匿名链路探测留痕(ip 由调用方链路无法稳定取得时记 unknown)
+        securityAudit.anonymousProbe("pwd_reset", request.getUsername(), "unknown");
         // 【PR-01 P1-06 2026-09-18 防枚举】用户不存在/禁用一律报"验证码错误或已过期"，
         // 不向匿名调用方区分"用户不存在"与"验证码不对"。
         SysUser user;

@@ -67,7 +67,8 @@ class SysRoleServiceTest {
                 mock(com.aigicrm.security.PermissionCacheService.class),
                 mock(com.aigicrm.module.system.service.RolePermScopeService.class),
                 mock(com.aigicrm.module.system.mapper.SysUserRoleMapper.class),
-                mock(org.springframework.jdbc.core.JdbcTemplate.class));
+                mock(org.springframework.jdbc.core.JdbcTemplate.class),
+                mock(com.aigicrm.security.SecurityAuditService.class));
     }
 
     /** 显式构造以便同时 stub roleMapper(集团归属)与校验 orgMapper(未触发写) */
@@ -80,7 +81,8 @@ class SysRoleServiceTest {
                 mock(com.aigicrm.security.PermissionCacheService.class),
                 mock(com.aigicrm.module.system.service.RolePermScopeService.class),
                 mock(com.aigicrm.module.system.mapper.SysUserRoleMapper.class),
-                mock(org.springframework.jdbc.core.JdbcTemplate.class));
+                mock(org.springframework.jdbc.core.JdbcTemplate.class),
+                mock(com.aigicrm.security.SecurityAuditService.class));
     }
 
     /** 显式构造以便 stub deptMapper(org 有效集团 + 子树集团一致性校验) */
@@ -93,7 +95,8 @@ class SysRoleServiceTest {
                 mock(com.aigicrm.security.PermissionCacheService.class),
                 mock(com.aigicrm.module.system.service.RolePermScopeService.class),
                 mock(com.aigicrm.module.system.mapper.SysUserRoleMapper.class),
-                mock(org.springframework.jdbc.core.JdbcTemplate.class));
+                mock(org.springframework.jdbc.core.JdbcTemplate.class),
+                mock(com.aigicrm.security.SecurityAuditService.class));
     }
 
     /** stub 组织存在 + 有效集团 + 子树显式集团(subGroups 为空=子树同集团无跨集团节点) */
@@ -268,7 +271,8 @@ class SysRoleServiceTest {
                 mock(com.aigicrm.security.PermissionCacheService.class),
                 mock(com.aigicrm.module.system.service.RolePermScopeService.class),
                 mock(com.aigicrm.module.system.mapper.SysUserRoleMapper.class),
-                mock(org.springframework.jdbc.core.JdbcTemplate.class));
+                mock(org.springframework.jdbc.core.JdbcTemplate.class),
+                mock(com.aigicrm.security.SecurityAuditService.class));
         when(roleMapper.selectById(5L)).thenReturn(roleOf(5L, 1L));
         try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
             m.when(SecurityUtils::isAdmin).thenReturn(false);
@@ -481,7 +485,8 @@ class SysRoleServiceTest {
         SysRoleService service = new SysRoleService(roleMapper,
                 mock(SysRoleMenuMapper.class), mock(SysMenuMapper.class), mock(SysRoleOrgMapper.class),
                 mock(SysDeptMapper.class), cache,
-                mock(com.aigicrm.module.system.service.RolePermScopeService.class), userRoleMapper, jdbc);
+                mock(com.aigicrm.module.system.service.RolePermScopeService.class), userRoleMapper, jdbc,
+                mock(com.aigicrm.security.SecurityAuditService.class));
 
         com.aigicrm.module.system.entity.SysUserRole ur1 = new com.aigicrm.module.system.entity.SysUserRole();
         ur1.setUserId(11L);
@@ -754,7 +759,8 @@ class SysRoleServiceTest {
                 mock(com.aigicrm.security.PermissionCacheService.class),
                 mock(com.aigicrm.module.system.service.RolePermScopeService.class),
                 mock(com.aigicrm.module.system.mapper.SysUserRoleMapper.class),
-                mock(org.springframework.jdbc.core.JdbcTemplate.class));
+                mock(org.springframework.jdbc.core.JdbcTemplate.class),
+                mock(com.aigicrm.security.SecurityAuditService.class));
 
         // 菜单树: 13(客户详情,type=2) -> 11(客户管理,type=2, customer:view) -> 10(业务核心目录,type=1)
         com.aigicrm.module.system.entity.SysMenu m13 = new com.aigicrm.module.system.entity.SysMenu();
@@ -809,7 +815,8 @@ class SysRoleServiceTest {
                 mock(com.aigicrm.security.PermissionCacheService.class),
                 mock(com.aigicrm.module.system.service.RolePermScopeService.class),
                 mock(com.aigicrm.module.system.mapper.SysUserRoleMapper.class),
-                mock(org.springframework.jdbc.core.JdbcTemplate.class));
+                mock(org.springframework.jdbc.core.JdbcTemplate.class),
+                mock(com.aigicrm.security.SecurityAuditService.class));
 
         com.aigicrm.module.system.entity.SysMenu m13 = new com.aigicrm.module.system.entity.SysMenu();
         m13.setId(13L); m13.setParentId(11L); m13.setMenuType(2); m13.setPermission("customer:detail:view");
@@ -864,7 +871,8 @@ class SysRoleServiceTest {
                 mock(com.aigicrm.security.PermissionCacheService.class),
                 mock(com.aigicrm.module.system.service.RolePermScopeService.class),
                 mock(com.aigicrm.module.system.mapper.SysUserRoleMapper.class),
-                mock(org.springframework.jdbc.core.JdbcTemplate.class));
+                mock(org.springframework.jdbc.core.JdbcTemplate.class),
+                mock(com.aigicrm.security.SecurityAuditService.class));
 
         com.aigicrm.module.system.entity.SysMenu m13 = new com.aigicrm.module.system.entity.SysMenu();
         m13.setId(13L); m13.setParentId(11L); m13.setMenuType(2); m13.setPermission("customer:detail:view");

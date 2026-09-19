@@ -36,6 +36,7 @@ public class SysRoleService {
     private final RolePermScopeService rolePermScopeService;
     private final com.aigicrm.module.system.mapper.SysUserRoleMapper userRoleMapper;
     private final org.springframework.jdbc.core.JdbcTemplate jdbc;
+    private final com.aigicrm.security.SecurityAuditService securityAudit;
 
     /**
      * 角色列表（按集团边界过滤）。
@@ -104,6 +105,8 @@ public class SysRoleService {
     /** 新增角色（编码唯一校验 + 菜单/组织关联保存；集团归属兜底，越权集团拒绝） */
     @Transactional
     public void create(SysRole role) {
+        securityAudit.permissionChange("role_create", role.getId(), role.getRoleName(),
+                com.aigicrm.security.SecurityUtils.getCurrentUserId());
         validateGrantableRole(role, null);
         // 【修复 角色创建集团边界】未传 groupId 时显式兜底：非 admin=当前用户集团，admin=主集团 1；
         // 传了但越权（非 admin 建到其他集团）→ 拒绝
@@ -129,6 +132,8 @@ public class SysRoleService {
     /** 更新角色（有实际字段才更新；菜单/dataScope 变更时同步重建关联；越权集团拒绝） */
     @Transactional
     public void update(SysRole role) {
+        securityAudit.permissionChange("role_update", role.getId(), role.getRoleName(),
+                com.aigicrm.security.SecurityUtils.getCurrentUserId());
         // 【收口 2026-08-12】未知 roleId 直接拒绝——对齐 updateOrgs, 收口孤儿 role_org 写
         // (此前 existing==null 时守卫跳过, saveRoleOrgs 仍会写 role_org(role_id=不存在))
         if (role.getId() == null) {
@@ -212,6 +217,9 @@ public class SysRoleService {
     public void delete(Long id) {
         // 【修复 角色删除集团边界】非 admin 无权删除其他集团角色
         SysRole existing = roleMapper.selectById(id);
+        securityAudit.permissionChange("role_delete", id,
+                existing != null ? existing.getRoleName() : null,
+                com.aigicrm.security.SecurityUtils.getCurrentUserId());
         if (existing == null) {
             // 【2026-08-13 收口】删除不存在的角色不再静默成功（与 update/updateOrgs 存在性校验对齐）
             throw new BusinessException("角色不存在");
