@@ -84,6 +84,8 @@ function buildNodeView(node, index) {
     key: node.id || `${order}-${approverName}`,
     titleText: `${order}. ${approverName}`,
     statusText: `${statusText}${actionText}${operatedAtText}`,
+    // 【PR-03 残余 2026-09-19】审批人已停用/删除的待办节点:卡单可见性提示(后端 approverInvalid)
+    showApproverInvalid: Boolean(node.approverInvalid),
     commentText: node.comment || '暂无意见'
   }
 }

@@ -9,3 +9,11 @@
 .approval-detail-actions button::after{border:0}
 .approval-reject-action{border:1rpx solid #fecaca;background:#fff7f7;color:#dc2626}
 .approval-approve-action{border:0;background:#2563eb;color:#fff;box-shadow:0 8rpx 18rpx rgba(37,99,235,.16)}
+
+/* 【PR-03 残余 2026-09-19】审批人已停用的卡单提示 */
+.approval-node-invalid {
+  display: block;
+  margin-top: 8rpx;
+  font-size: 24rpx;
+  color: #b45309;
+}

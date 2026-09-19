@@ -23,15 +23,33 @@
       <div class="toolbar-left">
         <el-date-picker v-model="dateRange" type="daterange" start-placeholder="开始" end-placeholder="结束"
           value-format="YYYY-MM-DD" style="width:240px" size="small" @change="onDateChange" />
-        <el-input v-model="keyword" placeholder="搜索操作人/对象..." clearable size="small" style="width:180px"
+        <el-input v-if="activeTab !== '__audit__'" v-model="keyword" placeholder="搜索操作人/对象..." clearable size="small" style="width:180px"
           @keyup.enter="search" @clear="search" />
+        <el-select v-if="activeTab === '__audit__'" v-model="auditEventType" placeholder="事件类型" clearable
+          size="small" style="width:200px" @change="search">
+          <el-option v-for="t in auditEventOptions" :key="t" :label="t" :value="t" />
+        </el-select>
       </div>
     </div>
 
     <!-- 表格区域 -->
     <div class="table-area">
       <div class="table-wrap" ref="tableWrapRef">
-      <el-table :data="tableData" stripe style="width:100%" size="small" empty-text="暂无日志记录" :height="tableHeight">
+      <el-table v-if="activeTab === '__audit__'" :data="tableData" stripe style="width:100%" size="small"
+        empty-text="暂无安全审计记录" :height="tableHeight">
+        <el-table-column label="时间" min-width="130">
+          <template #default="{ row }">
+            <span style="color:#409eff">{{ formatTime(row.createdAt) }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column prop="eventType" label="事件" min-width="130" />
+        <el-table-column label="操作者" min-width="90">
+          <template #default="{ row }">{{ row.actorUsername || row.actorId || '—' }}</template>
+        </el-table-column>
+        <el-table-column prop="detail" label="详情" min-width="220" show-overflow-tooltip />
+        <el-table-column prop="ip" label="IP" min-width="110" />
+      </el-table>
+      <el-table v-else :data="tableData" stripe style="width:100%" size="small" empty-text="暂无日志记录" :height="tableHeight">
         <el-table-column label="时间" min-width="110">
           <template #default="{ row }">
             <span style="color:#409eff">{{ formatTime(row.createdAt) }}</span>
@@ -79,7 +97,7 @@
 
 <script setup>
 import { ref, reactive, computed, onMounted, onBeforeUnmount, nextTick } from 'vue'
-import { getLogList } from '@/api/system'
+import { getLogList, getAuditLogList } from '@/api/system'
 import request from '@/utils/request'
 import { pageSizes } from '@/utils/pagination'
 
@@ -93,6 +111,12 @@ const detailVisible = ref(false)
 const detailRow = ref(null)
 
 const query = reactive({ current: 1, size: 15 })
+const AUDIT_TAB = '__audit__'
+const auditEventType = ref('')
+const auditEventOptions = [
+  'LOGIN_FAILED', 'LOGIN_SUCCESS', 'ANON_PROBE', 'ACCESS_DENIED',
+  'PERMISSION_CHANGE', 'GROUP_SWITCH', 'SECURITY_ALERT', 'USER_ADMIN',
+]
 
 const tabList = computed(() => [
   { key: '', label: '全部日志', count: counts.value['全部'] || 0 },
@@ -101,6 +125,8 @@ const tabList = computed(() => [
   { key: '文件', label: '文件日志', count: counts.value['文件'] || 0 },
   { key: '人员', label: '人员日志', count: counts.value['人员'] || 0 },
   { key: '系统', label: '系统日志', count: counts.value['系统'] || 0 },
+  // 【BS-R 2026-09-19】安全审计(append-only):登录/匿名探测/403/权限与集团变更/用户管理
+  { key: '__audit__', label: '安全审计', count: 0 },
 ])
 
 const switchTab = (key) => {
@@ -119,6 +145,15 @@ const onDateChange = () => {
 
 const loadData = async () => {
   try {
+    // 【BS-R】安全审计页签走 append-only 审计表(事件类型筛选)
+    if (activeTab.value === AUDIT_TAB) {
+      const params = { current: query.current, size: query.size }
+      if (auditEventType.value) params.eventType = auditEventType.value
+      const res = await getAuditLogList(params)
+      tableData.value = res.data?.records || []
+      total.value = res.data?.total || 0
+      return
+    }
     const params = { current: query.current, size: query.size }
     if (activeTab.value) params.module = activeTab.value
     if (keyword.value) params.keyword = keyword.value

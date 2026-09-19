@@ -36,6 +36,8 @@
     <view wx:for="{{approvalView.nodes}}" wx:key="key" class="approval-node-row">
       <text>{{item.titleText}}</text>
       <text>{{item.statusText}}</text>
+      <!-- PR-03: 审批人已停用/删除的待办节点 → 卡单提示(处置需管理员,引擎不自动跳过) -->
+      <text wx:if="{{item.showApproverInvalid}}" class="approval-node-invalid">审批人已停用，需管理员处理</text>
       <view class="approval-node-comment">{{item.commentText}}</view>
     </view>
   </view>

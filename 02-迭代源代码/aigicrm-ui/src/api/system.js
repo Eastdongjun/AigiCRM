@@ -201,3 +201,8 @@ export function getAssigneePermScopes(type, key) {
 export function updateAssigneePermScopes(type, key, configs) {
   return request.put(`/system/perm-scopes/assignee/${type}/${key}`, configs)
 }
+
+// 【BS-R 2026-09-19】安全审计日志(append-only,只读):登录/匿名探测/403/权限与集团变更/用户管理
+export function getAuditLogList(params) {
+  return request.get('/system/audit-logs', { params })
+}
