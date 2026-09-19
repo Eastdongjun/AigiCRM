@@ -242,6 +242,9 @@
                 <span>第 {{ node.nodeOrder || '-' }} 级 · {{ node.approverName || '待分配' }}</span>
                 <!-- PR-03: 审批人已停用/删除的待办节点 → 卡单可见性提示(处置需管理员,引擎不自动跳过) -->
                 <el-tag v-if="node.approverInvalid" size="small" type="warning" effect="plain">审批人已停用</el-tag>
+                <!-- 【议题二.1 裁决】管理员手动转交(仅 admin 且节点待办时可见) -->
+                <el-button v-if="isAdmin && (node.status === 'pending' || node.status === 'waiting')"
+                  link type="primary" size="small" @click="openTransfer(node)">转交</el-button>
                 <el-tag size="small" :type="getNodeTagType(node.status, node.action)" effect="plain">
                   {{ getNodeStatusText(node.status, node.action) }}
                 </el-tag>
@@ -277,12 +280,42 @@
 import { ref, reactive, computed, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useUserStore } from '@/store/user'
-import { getApprovalList, getApprovalDetail, approve, reject, getApprovalStatistics } from '@/api/approval'
+import { getApprovalList, getApprovalDetail, approve, reject, getApprovalStatistics, transferApprovalNode } from '@/api/approval'
 import request from '@/utils/request'
 import { pageSizes } from '@/utils/pagination'
 
 const userStore = useUserStore()
+const isAdmin = computed(() => userStore.isAdmin)
 const canApprove = computed(() => userStore.hasPermission('approval:approve'))
+const transferVisible = ref(false)
+const transferNode = ref(null)
+const transferTargetId = ref(null)
+const transferLoading = ref(false)
+const transferCandidates = ref([])
+
+const openTransfer = async (node) => {
+  transferNode.value = node
+  transferTargetId.value = null
+  transferVisible.value = true
+  try {
+    const res = await import('@/api/system').then(m => m.getUserList({ current: 1, size: 200 }))
+    transferCandidates.value = (res.data?.records || []).filter(u => u.status === 1)
+  } catch { transferCandidates.value = [] }
+}
+
+const confirmTransfer = async () => {
+  if (!transferNode.value || !transferTargetId.value || !selectedApproval.value) return
+  transferLoading.value = true
+  try {
+    await transferApprovalNode(selectedApproval.value.id, transferNode.value.id, transferTargetId.value)
+    ElMessage.success('已转交')
+    transferVisible.value = false
+    loadData()
+    if (detailVisible.value) showDetail(selectedApproval.value)
+  } catch (e) {
+    // 错误提示由 request 拦截器统一弹出
+  } finally { transferLoading.value = false }
+}
 const canReject = computed(() => userStore.hasPermission('approval:reject'))
 const activeTab = ref('pending')
 const tableData = ref([])

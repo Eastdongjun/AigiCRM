@@ -51,7 +51,8 @@ class ApprovalApproveRejectSecurityTest {
             mock(BizSeaPoolMapper.class), mock(SeaService.class),
             mock(com.aigicrm.common.scope.OrgScopeResolver.class), mock(SeaConfigService.class),
             mock(SysUserService.class), mock(ApprovalConfigService.class),
-                mock(com.aigicrm.module.system.service.SysConfigService.class));
+                mock(com.aigicrm.module.system.service.SysConfigService.class),
+                mock(com.aigicrm.security.SecurityAuditService.class));
 
     @BeforeAll
     static void initMybatisPlusTableInfo() {

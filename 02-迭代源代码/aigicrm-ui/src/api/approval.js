@@ -23,3 +23,8 @@ export function reject(id, data) {
 export function getApprovalStatistics() {
   return request.get('/approval/statistics')
 }
+
+// 【议题二.1 裁决】管理员手动转交审批节点(服务层二次校验 isAdmin)
+export function transferApprovalNode(approvalId, nodeId, newApproverId) {
+  return request.put(`/approval/${approvalId}/nodes/${nodeId}/transfer`, { newApproverId })
+}

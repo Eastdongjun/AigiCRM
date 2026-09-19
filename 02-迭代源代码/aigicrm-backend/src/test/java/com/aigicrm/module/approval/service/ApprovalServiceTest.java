@@ -22,6 +22,9 @@ import com.aigicrm.security.SecurityUser;
 import org.apache.ibatis.builder.MapperBuilderAssistant;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import org.mockito.MockedStatic;
+import com.aigicrm.security.SecurityUtils;
+import static org.mockito.Mockito.mockStatic;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 
@@ -72,7 +75,8 @@ class ApprovalServiceTest {
                 mock(SeaConfigService.class),
                 mock(SysUserService.class),
                 mock(ApprovalConfigService.class),
-                mock(com.aigicrm.module.system.service.SysConfigService.class));
+                mock(com.aigicrm.module.system.service.SysConfigService.class),
+                mock(com.aigicrm.security.SecurityAuditService.class));
     }
 
     private static com.aigicrm.module.approval.entity.BizApprovalNode node(Long id, Long approverId, int order,
@@ -140,7 +144,8 @@ class ApprovalServiceTest {
                 seaConfigService,
                 mock(SysUserService.class),
                 configService,
-                mock(com.aigicrm.module.system.service.SysConfigService.class));
+                mock(com.aigicrm.module.system.service.SysConfigService.class),
+                mock(com.aigicrm.security.SecurityAuditService.class));
     }
 
     @Test
@@ -543,7 +548,8 @@ class ApprovalServiceTest {
                 mock(BizSeaPoolMapper.class), mock(SeaService.class),
                 mock(com.aigicrm.common.scope.OrgScopeResolver.class), mock(SeaConfigService.class),
                 mock(SysUserService.class), configService,
-                mock(com.aigicrm.module.system.service.SysConfigService.class));
+                mock(com.aigicrm.module.system.service.SysConfigService.class),
+                mock(com.aigicrm.security.SecurityAuditService.class));
 
         BusinessException ex = assertThrows(BusinessException.class, () -> svc.submit("extend", 42L, null, null));
         assertTrue(ex.getMessage().contains("无有效审批人"), "实际: " + ex.getMessage());
@@ -574,10 +580,81 @@ class ApprovalServiceTest {
                 mock(BizSeaPoolMapper.class), mock(SeaService.class),
                 mock(com.aigicrm.common.scope.OrgScopeResolver.class), mock(SeaConfigService.class),
                 mock(SysUserService.class), mock(ApprovalConfigService.class),
-                mock(com.aigicrm.module.system.service.SysConfigService.class));
+                mock(com.aigicrm.module.system.service.SysConfigService.class),
+                mock(com.aigicrm.security.SecurityAuditService.class));
 
         BusinessException ex = assertThrows(BusinessException.class, () -> svc.submit("extend", 42L, null, null));
         assertTrue(ex.getMessage().contains("未配置或无有效审批人"), "实际: " + ex.getMessage());
         verify(nodeMapper, never()).insert(any(com.aigicrm.module.approval.entity.BizApprovalNode.class));
+    }
+
+    // ===== 【议题二.1 裁决】管理员手动转交 =====
+
+    @Test
+    void transferNode_nonAdmin_rejected() {
+        ApprovalService svc = newApprovalService(mock(BizApprovalMapper.class),
+                mock(BizApprovalNodeMapper.class), mock(SeaService.class), mock(BizApprovalConfigMapper.class));
+        try (MockedStatic<SecurityUtils> sec = mockStatic(SecurityUtils.class)) {
+            sec.when(SecurityUtils::isAdmin).thenReturn(false);
+            sec.when(SecurityUtils::getCurrentUserId).thenReturn(7L);
+            BusinessException ex = assertThrows(BusinessException.class,
+                    () -> svc.transferNode(1L, 10L, 20L));
+            assertEquals(403, ex.getCode());
+            assertTrue(ex.getMessage().contains("仅平台管理员"));
+        }
+    }
+
+    @Test
+    void transferNode_terminalApproval_rejected() {
+        BizApprovalMapper approvalMapper = mock(BizApprovalMapper.class);
+        com.aigicrm.module.approval.entity.BizApproval done = approvalOf(1L, "extend", 42L);
+        done.setStatus("approved");
+        when(approvalMapper.selectByIdForUpdate(1L)).thenReturn(done);
+        ApprovalService svc = newApprovalService(approvalMapper,
+                mock(BizApprovalNodeMapper.class), mock(SeaService.class), mock(BizApprovalConfigMapper.class));
+        try (MockedStatic<SecurityUtils> sec = mockStatic(SecurityUtils.class)) {
+            sec.when(SecurityUtils::isAdmin).thenReturn(true);
+            sec.when(SecurityUtils::getCurrentUserId).thenReturn(1L);
+            BusinessException ex = assertThrows(BusinessException.class,
+                    () -> svc.transferNode(1L, 10L, 20L));
+            assertTrue(ex.getMessage().contains("已结束"));
+        }
+    }
+
+    @Test
+    void transferNode_valid_succeedsAndAudits() {
+        BizApprovalMapper approvalMapper = mock(BizApprovalMapper.class);
+        when(approvalMapper.selectByIdForUpdate(1L)).thenReturn(approvalOf(1L, "extend", 42L));
+        BizApprovalNodeMapper nodeMapper = mock(BizApprovalNodeMapper.class);
+        com.aigicrm.module.approval.entity.BizApprovalNode n =
+                node(10L, 7L, 1, "ALL", 5L, "pending");
+        n.setApprovalId(1L);
+        when(nodeMapper.selectById(10L)).thenReturn(n);
+        SysUserMapper userMapper = mock(SysUserMapper.class);
+        com.aigicrm.module.system.entity.SysUser target = new com.aigicrm.module.system.entity.SysUser();
+        target.setId(20L);
+        target.setUsername("newapprover");
+        target.setStatus(1);
+        target.setDeleted(0);
+        when(userMapper.selectById(20L)).thenReturn(target);
+
+        ApprovalService svc = new ApprovalService(
+                mock(BizApprovalConfigMapper.class), approvalMapper, nodeMapper,
+                mock(BizApprovalFlowMapper.class), mock(BizCustomerMapper.class),
+                userMapper, mock(SysUserRoleMapper.class), mock(SysDeptMapper.class),
+                mock(BizSeaPoolMapper.class), mock(SeaService.class),
+                mock(com.aigicrm.common.scope.OrgScopeResolver.class), mock(SeaConfigService.class),
+                mock(SysUserService.class), mock(ApprovalConfigService.class),
+                mock(com.aigicrm.module.system.service.SysConfigService.class),
+                mock(com.aigicrm.security.SecurityAuditService.class));
+
+        try (MockedStatic<SecurityUtils> sec = mockStatic(SecurityUtils.class)) {
+            sec.when(SecurityUtils::isAdmin).thenReturn(true);
+            sec.when(SecurityUtils::getCurrentUserId).thenReturn(1L);
+            assertDoesNotThrow(() -> svc.transferNode(1L, 10L, 20L));
+        }
+        verify(nodeMapper).updateById(argThat(
+                (com.aigicrm.module.approval.entity.BizApprovalNode x) ->
+                        Long.valueOf(20L).equals(x.getApproverId())));
     }
 }

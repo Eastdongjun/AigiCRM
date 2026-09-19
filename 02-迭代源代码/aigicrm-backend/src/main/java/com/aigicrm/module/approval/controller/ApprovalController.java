@@ -63,6 +63,15 @@ public class ApprovalController {
         return value == null ? null : Long.valueOf(value);
     }
 
+    /** 【议题二.1 裁决】管理员手动转交审批节点(服务层二次校验 isAdmin) */
+    @PreAuthorize("hasAuthority('approval:view')")
+    @PutMapping("/{id}/nodes/{nodeId}/transfer")
+    public Result<Void> transferNode(@PathVariable Long id, @PathVariable Long nodeId,
+                                     @RequestBody Map<String, Long> body) {
+        approvalService.transferNode(id, nodeId, body.get("newApproverId"));
+        return Result.ok();
+    }
+
     @PreAuthorize("hasAuthority('approval:approve')")
     @PostMapping("/{id}/approve")
     @AigicrmLog(module = "审批", action = "审批通过", targetType = "approval")

@@ -61,6 +61,8 @@ public class ApprovalService {
     private final ApprovalConfigService approvalConfigService;
     /** 【议题一裁决】延期/保护期天数走系统配置(管理员可改) */
     private final com.aigicrm.module.system.service.SysConfigService configService;
+    /** 【议题二.1 裁决】转交审计 */
+    private final com.aigicrm.security.SecurityAuditService securityAudit;
 
     public IPage<BizApproval> page(int current, int size, String tab, String type, String keyword, Long userId, Long deptId) {
         LambdaQueryWrapper<BizApproval> wrapper = new LambdaQueryWrapper<>();
@@ -313,6 +315,42 @@ public class ApprovalService {
             approval.setCurrentNode(flows.isEmpty() ? "" : flows.get(0).getFlowName());
         }
         approvalMapper.updateById(approval);
+    }
+
+    /**
+     * 【议题二.1 裁决 2026-09-19】管理员手动转交:把待办(pending/waiting)节点的审批人
+     * 换成指定有效用户。仅平台 admin;审批主行锁(与 approve/reject 同款防死锁);
+     * 新审批人须存在且启用;审计留痕。
+     */
+    @Transactional
+    public void transferNode(Long approvalId, Long nodeId, Long newApproverId) {
+        if (!SecurityUtils.isAdmin()) {
+            throw new BusinessException(403, "仅平台管理员可转交审批节点");
+        }
+        BizApproval approval = approvalMapper.selectByIdForUpdate(approvalId);
+        if (approval == null
+                || "approved".equals(approval.getStatus()) || "rejected".equals(approval.getStatus())) {
+            throw new BusinessException("审批不存在或已结束,无法转交");
+        }
+        BizApprovalNode node = approvalNodeMapper.selectById(nodeId);
+        if (node == null || !approvalId.equals(node.getApprovalId())) {
+            throw new BusinessException("审批节点不存在或不属于该审批单");
+        }
+        if (!"pending".equals(node.getStatus()) && !"waiting".equals(node.getStatus())) {
+            throw new BusinessException("仅待审批(pending/waiting)节点可转交");
+        }
+        SysUser target = userMapper.selectById(newApproverId);
+        if (target == null || target.getStatus() == null || target.getStatus() != 1
+                || (target.getDeleted() != null && target.getDeleted() == 1)) {
+            throw new BusinessException("目标审批人不存在或已停用");
+        }
+        Long oldApproverId = node.getApproverId();
+        node.setApproverId(newApproverId);
+        approvalNodeMapper.updateById(node);
+        securityAudit.userAdminEvent("approval_transfer", newApproverId, target.getUsername());
+        org.slf4j.LoggerFactory.getLogger(ApprovalService.class).info(
+                "审批节点转交 approvalId={} nodeId={} {} -> {} actor={}",
+                approvalId, nodeId, oldApproverId, newApproverId, SecurityUtils.getCurrentUserId());
     }
 
     @Transactional
