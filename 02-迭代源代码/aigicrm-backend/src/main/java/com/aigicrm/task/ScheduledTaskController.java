@@ -8,10 +8,11 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+/** 系统定时任务手动触发入口(URL /api/system/task 不变)。改名避开 PR-10 任务模块 TaskController 的同名 bean 冲突 */
 @RestController
 @RequestMapping("/api/system/task")
 @RequiredArgsConstructor
-public class TaskController {
+public class ScheduledTaskController {
 
     private final CustomerExpireTask customerExpireTask;
 

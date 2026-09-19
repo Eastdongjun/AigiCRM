@@ -10,10 +10,10 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
-class TaskControllerSecurityTest {
+class ScheduledTaskControllerSecurityTest {
 
     private final CustomerExpireTask task = mock(CustomerExpireTask.class);
-    private final TaskController controller = new TaskController(task);
+    private final ScheduledTaskController controller = new ScheduledTaskController(task);
 
     @Test
     void nonAdminCannotTriggerCustomerExpiryTask() {
