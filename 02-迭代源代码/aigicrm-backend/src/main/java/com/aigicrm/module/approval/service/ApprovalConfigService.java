@@ -53,27 +53,39 @@ public class ApprovalConfigService {
     }
 
     /**
-     * 根据审批类型创建审批节点
-     * @return 审批人ID列表
+     * 根据审批类型创建审批节点 —— 【PR-02 2026-09-19】唯一的节点实例化入口(串行阶段语义)。
+     * <ul>
+     *   <li>config 按 sort_order 即串行阶段序:首阶段激活(status=pending),
+     *       后续阶段 waiting,待前序阶段完成才由 ApprovalService.advanceApproval 激活;</li>
+     *   <li>阶段内或签(ANY)/会签(ALL)由节点 signMode 驱动审批判定;</li>
+     *   <li>解析不出审批人的空阶段跳过(防串行死锁);全部阶段皆空时返回空列表,
+     *       由调用方决定拒绝提交。</li>
+     * </ul>
+     * @return 实际产生的审批人ID列表(跨全部阶段)
      */
     public List<Long> createNodes(Long approvalId, String flowType) {
         List<BizApprovalConfig> configs = configMapper.selectByFlowType(flowType);
         if (configs.isEmpty()) return Collections.emptyList();
 
         List<Long> allApproverIds = new ArrayList<>();
+        int stage = 0;
 
         for (BizApprovalConfig cfg : configs) {
             List<Long> approverIds = resolveApproverIds(cfg);
             if (approverIds.isEmpty()) continue;
 
+            stage++;
+            String signMode = "ANY".equalsIgnoreCase(cfg.getSignMode()) ? "ANY" : "ALL";
+            String status = stage == 1 ? "pending" : "waiting";
+
             for (Long approverId : approverIds) {
                 BizApprovalNode node = new BizApprovalNode();
                 node.setApprovalId(approvalId);
                 node.setApproverId(approverId);
-                node.setNodeOrder(cfg.getSortOrder());
-                node.setStatus("pending");
+                node.setNodeOrder(stage);
+                node.setStatus(status);
                 node.setConfigId(cfg.getId());
-                node.setSignMode(cfg.getSignMode());
+                node.setSignMode(signMode);
                 nodeMapper.insert(node);
             }
             allApproverIds.addAll(approverIds);

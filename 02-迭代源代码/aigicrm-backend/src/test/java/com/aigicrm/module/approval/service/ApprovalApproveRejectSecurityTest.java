@@ -28,8 +28,10 @@ import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.when;
 
 /**
@@ -48,7 +50,7 @@ class ApprovalApproveRejectSecurityTest {
             mock(SysUserMapper.class), mock(SysUserRoleMapper.class), mock(SysDeptMapper.class),
             mock(BizSeaPoolMapper.class), mock(SeaService.class),
             mock(com.aigicrm.common.scope.OrgScopeResolver.class), mock(SeaConfigService.class),
-            mock(SysUserService.class));
+            mock(SysUserService.class), mock(ApprovalConfigService.class));
 
     @BeforeAll
     static void initMybatisPlusTableInfo() {
@@ -107,13 +109,19 @@ class ApprovalApproveRejectSecurityTest {
         node.setApproverId(1L);
         node.setStatus("pending");
         when(nodeMapper.selectOne(any())).thenReturn(node);
-        when(nodeMapper.selectCount(any())).thenReturn(1L); // 仍有其他节点 pending，不触发最终提交
+        // 【PR-02 2026-09-19】条件流转契约:pending→approved 条件更新 affected=1
+        when(nodeMapper.update(isNull(), any())).thenReturn(1);
+        // 库内流转后的节点快照(无 configId=存量口径):本单仅此节点,流转后无 pending
+        BizApprovalNode postDb = new BizApprovalNode();
+        postDb.setId(5L);
+        postDb.setApprovalId(1L);
+        postDb.setApproverId(1L);
+        postDb.setStatus("approved");
+        when(nodeMapper.selectList(any())).thenReturn(java.util.List.of(postDb));
 
         assertDoesNotThrow(() -> svc.approve(1L, "同意"));
-        assertEquals("approved", node.getStatus());
-        assertEquals("approve", node.getAction());
-        assertEquals("同意", node.getComment());
-        verify(nodeMapper).updateById(node);
+        // 审批动作经条件更新落库(pending→approved),恰好一次
+        verify(nodeMapper, times(1)).update(isNull(), any());
     }
 
     /**
@@ -174,6 +182,8 @@ class ApprovalApproveRejectSecurityTest {
         actingNode.setApproverId(1L);
         actingNode.setStatus("pending");
         when(nodeMapper.selectOne(any())).thenReturn(actingNode);
+        // 【PR-02】驳回同样走条件流转(pending→rejected),affected=1
+        when(nodeMapper.update(isNull(), any())).thenReturn(1);
 
         BizApprovalNode sibling = new BizApprovalNode();
         sibling.setId(8L);

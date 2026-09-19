@@ -184,10 +184,11 @@ grep -Fq '通过后动作 release' "$AUTOMATOR_SCRIPT" || fail 'approval center 
 grep -Fq "if (getApp().globalData.demoMode)" "$ROOT/aigicrm-miniprogram/pages/approval/detail/index.js" || fail 'demo approval detail write guard is missing'
 grep -Fq "'/api/approval/' + id + '/approve'" "$ROOT/aigicrm-miniprogram/api/approval.js" || fail 'mobile approve route is missing'
 grep -Fq "'/api/approval/' + id + '/reject'" "$ROOT/aigicrm-miniprogram/api/approval.js" || fail 'mobile reject route is missing'
-grep -Fq 'node.setAction("approve")' "$ROOT/aigicrm-backend/src/main/java/com/aigicrm/module/approval/service/ApprovalService.java" || fail 'approve audit action persistence is missing'
-grep -Fq 'node.setAction("reject")' "$ROOT/aigicrm-backend/src/main/java/com/aigicrm/module/approval/service/ApprovalService.java" || fail 'reject audit action persistence is missing'
-grep -Fq 'node.setComment(comment)' "$ROOT/aigicrm-backend/src/main/java/com/aigicrm/module/approval/service/ApprovalService.java" || fail 'approval audit comment persistence is missing'
-grep -Fq 'node.setOperatedAt(LocalDateTime.now())' "$ROOT/aigicrm-backend/src/main/java/com/aigicrm/module/approval/service/ApprovalService.java" || fail 'approval audit timestamp persistence is missing'
+# 【PR-02 2026-09-19】审计留痕改为条件流转持久化(pending→approved/rejected 条件更新,防重复点击)
+grep -Fq '.set(BizApprovalNode::getAction, "approve")' "$ROOT/aigicrm-backend/src/main/java/com/aigicrm/module/approval/service/ApprovalService.java" || fail 'approve audit action persistence is missing'
+grep -Fq '.set(BizApprovalNode::getAction, "reject")' "$ROOT/aigicrm-backend/src/main/java/com/aigicrm/module/approval/service/ApprovalService.java" || fail 'reject audit action persistence is missing'
+grep -Fq '.set(BizApprovalNode::getComment, comment)' "$ROOT/aigicrm-backend/src/main/java/com/aigicrm/module/approval/service/ApprovalService.java" || fail 'approval audit comment persistence is missing'
+grep -Fq '.set(BizApprovalNode::getOperatedAt, LocalDateTime.now())' "$ROOT/aigicrm-backend/src/main/java/com/aigicrm/module/approval/service/ApprovalService.java" || fail 'approval audit timestamp persistence is missing'
 
 grep -Fq "url: '/api/sea/claim-records'" "$SEA_API" || fail 'mobile sea API does not target claim records'
 grep -Fq "type: 'claim'" "$SEA_PAGE" || fail 'mobile sea page does not submit claim approval'

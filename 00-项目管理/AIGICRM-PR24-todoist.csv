@@ -12,7 +12,7 @@ task,N-04 范围解析异常按self默认（第二轮新增）,"RolePermScopeSer
 task,N-06 部门树按数据范围过滤（第二轮新增）,"SysDeptController.tree/list仅isAuthenticated；过滤到可见部门，保留销售建客户下拉可用",2,2,,,,
 task,N-07 删角色连带DELETE补tenant_id（第二轮新增）,"SysRoleService删角色清理biz_folder_acl不带tenant_id",2,2,,,,
 task,N-08 脱敏转换失败fail-closed（第二轮新增）,"FieldFilterAdvice.objectToMap失败原样返回；转换失败时拒绝返回不脱敏",3,2,,,,
-task,[PR-02] 或签、会签与串行审批执行统一,"P1（启用该规则的关键审批上线阻断）｜修复｜产品/后端/前端/测试｜ANY任一人即完成节点组，ALL全员通过，串行按序激活",3,1,,,,
+task,[PR-02] 或签、会签与串行审批执行统一,"P1（启用该规则的关键审批上线阻断）｜修复｜产品/后端/前端/测试｜【主体完成20260919】createNodes统一实例化(串行阶段waiting/pending+signMode落节点)+advanceApproval阶段感知执行(ANY取消兄弟/ALL齐过/串行激活)+条件流转防并发防重复点击+存量扁平兼容;审批三件套26/26(证据 runs/20260919-pr02-approval-unification);残余:前端多阶段配置UI增强、规则版本化挂PR-24、并发活体验证挂PR-22",3,1,,,,,
 task,统一节点实例化与主执行逻辑,"收敛ApprovalService执行分支；记录规则版本与实际审批人；并发/重复点击结果唯一、业务只回写一次",3,2,,,,
 task,[PR-03] 零审批人及在途审批卡单处理,"P1｜修复+完善｜产品/后端/前端/测试｜提交前预检流程与有效审批人，零审批人不许假成功",3,1,,,,
 task,在途异常恢复与公海锁定衔接,"审批人停用/离职/组织调整转交规则；撤回/超时/卡单处理；保留条件更新锁定与驳回解锁",3,2,,,,

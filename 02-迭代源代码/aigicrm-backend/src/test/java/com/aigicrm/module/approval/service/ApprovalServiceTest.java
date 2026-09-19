@@ -34,6 +34,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.mock;
 import org.mockito.ArgumentCaptor;
@@ -49,6 +50,50 @@ class ApprovalServiceTest {
         // 单测环境无 Spring 容器：手动初始化 MyBatis-Plus lambda 缓存（LambdaUpdateWrapper 依赖）
         TableInfoHelper.initTableInfo(new MapperBuilderAssistant(new MybatisConfiguration(), ""), BizSeaPool.class);
         TableInfoHelper.initTableInfo(new MapperBuilderAssistant(new MybatisConfiguration(), ""), BizApproval.class);
+        TableInfoHelper.initTableInfo(new MapperBuilderAssistant(new MybatisConfiguration(), ""),
+                com.aigicrm.module.approval.entity.BizApprovalNode.class);
+    }
+
+    /** 【PR-02】approve/reject 阶段语义测试用:需要拿到 SeaService/ConfigMapper 实例做验证 */
+    private ApprovalService newApprovalService(BizApprovalMapper approvalMapper, BizApprovalNodeMapper nodeMapper,
+                                               SeaService seaService, BizApprovalConfigMapper configMapper) {
+        return new ApprovalService(
+                configMapper,
+                approvalMapper,
+                nodeMapper,
+                mock(BizApprovalFlowMapper.class),
+                mock(BizCustomerMapper.class),
+                mock(SysUserMapper.class),
+                mock(SysUserRoleMapper.class),
+                mock(SysDeptMapper.class),
+                mock(BizSeaPoolMapper.class),
+                seaService,
+                mock(com.aigicrm.common.scope.OrgScopeResolver.class),
+                mock(SeaConfigService.class),
+                mock(SysUserService.class),
+                mock(ApprovalConfigService.class));
+    }
+
+    private static com.aigicrm.module.approval.entity.BizApprovalNode node(Long id, Long approverId, int order,
+                                                                           String signMode, Long configId, String status) {
+        com.aigicrm.module.approval.entity.BizApprovalNode n = new com.aigicrm.module.approval.entity.BizApprovalNode();
+        n.setId(id);
+        n.setApproverId(approverId);
+        n.setNodeOrder(order);
+        n.setSignMode(signMode);
+        n.setConfigId(configId);
+        n.setStatus(status);
+        return n;
+    }
+
+    private static com.aigicrm.module.approval.entity.BizApproval approvalOf(Long id, String type, Long customerId) {
+        com.aigicrm.module.approval.entity.BizApproval a = new com.aigicrm.module.approval.entity.BizApproval();
+        a.setId(id);
+        a.setApprovalType(type);
+        a.setCustomerId(customerId);
+        a.setApplicantId(7L);
+        a.setStatus("reviewing");
+        return a;
     }
 
     private void setCurrentUser(SecurityUser u) {
@@ -86,7 +131,8 @@ class ApprovalServiceTest {
                 mock(SeaService.class),
                 mock(com.aigicrm.common.scope.OrgScopeResolver.class),
                 seaConfigService,
-                mock(SysUserService.class));
+                mock(SysUserService.class),
+                mock(ApprovalConfigService.class));
     }
 
     @Test
@@ -284,5 +330,177 @@ class ApprovalServiceTest {
             String sql = w.getSqlSegment();
             assertTrue(sql == null || !sql.contains("IN ()"), "空参与列表不得生成 IN ()，实际: " + sql);
         }
+    }
+
+    // ===== 【PR-02 2026-09-19】或签/会签/串行统一执行 =====
+
+    /** 或签(ANY):任一人通过即整单通过,同阶段其余待办被取消,业务回写一次 */
+    @Test
+    void approve_anySignMode_firstApprovalFinalizesAndCancelsSibling() {
+        SecurityUser u = new SecurityUser();
+        u.setUserId(7L);
+        setCurrentUser(u, "approval:view");
+
+        com.aigicrm.module.approval.entity.BizApproval approval = approvalOf(11L, "claim", 42L);
+        BizApprovalMapper approvalMapper = mock(BizApprovalMapper.class);
+        when(approvalMapper.selectById(11L)).thenReturn(approval);
+        when(approvalMapper.update(isNull(), any())).thenReturn(1);
+
+        // 库内已流转后的状态:本人 approved + 同阶段兄弟 pending(ANY)
+        com.aigicrm.module.approval.entity.BizApprovalNode mine =
+                node(101L, 7L, 1, "ANY", 10L, "approved");
+        com.aigicrm.module.approval.entity.BizApprovalNode sibling =
+                node(102L, 8L, 1, "ANY", 10L, "pending");
+        BizApprovalNodeMapper nodeMapper = mock(BizApprovalNodeMapper.class);
+        when(nodeMapper.selectOne(any())).thenReturn(node(101L, 7L, 1, "ANY", 10L, "pending"));
+        when(nodeMapper.update(isNull(), any())).thenReturn(1);
+        when(nodeMapper.selectList(any())).thenReturn(java.util.List.of(mine, sibling));
+
+        SeaService seaService = mock(SeaService.class);
+        ApprovalService svc = newApprovalService(approvalMapper, nodeMapper, seaService, mock(BizApprovalConfigMapper.class));
+
+        assertDoesNotThrow(() -> svc.approve(11L, "同意"));
+        // 同阶段兄弟待办被取消(或签完成)
+        verify(nodeMapper, times(2)).update(isNull(), any()); // 1=本人条件流转 2=取消兄弟
+        // 整单通过(条件更新胜出) + 业务回写恰好一次
+        verify(approvalMapper, times(1)).update(isNull(), any());
+        verify(seaService, times(1)).completeClaim(42L, 7L);
+    }
+
+    /** 会签(ALL):一人通过后仍 reviewing,全员通过才整单通过 */
+    @Test
+    void approve_allSignMode_stillReviewingUntilStageAllApproved() {
+        SecurityUser u = new SecurityUser();
+        u.setUserId(7L);
+        setCurrentUser(u, "approval:view");
+
+        com.aigicrm.module.approval.entity.BizApproval approval = approvalOf(12L, "extend", 42L);
+        BizApprovalMapper approvalMapper = mock(BizApprovalMapper.class);
+        when(approvalMapper.selectById(12L)).thenReturn(approval);
+
+        com.aigicrm.module.approval.entity.BizApprovalNode mine = node(201L, 7L, 1, "ALL", 10L, "approved");
+        com.aigicrm.module.approval.entity.BizApprovalNode other = node(202L, 8L, 1, "ALL", 10L, "pending");
+        BizApprovalNodeMapper nodeMapper = mock(BizApprovalNodeMapper.class);
+        when(nodeMapper.selectOne(any())).thenReturn(node(201L, 7L, 1, "ALL", 10L, "pending"));
+        when(nodeMapper.update(isNull(), any())).thenReturn(1);
+        when(nodeMapper.selectList(any())).thenReturn(java.util.List.of(mine, other));
+
+        ApprovalService svc = newApprovalService(approvalMapper, nodeMapper, mock(SeaService.class), mock(BizApprovalConfigMapper.class));
+
+        assertDoesNotThrow(() -> svc.approve(12L, "同意"));
+        // 本阶段仍有 pending → 不整单通过、不取消任何节点
+        verify(nodeMapper, times(1)).update(isNull(), any());
+        verify(approvalMapper, never()).update(isNull(), any());
+    }
+
+    /** 串行:第一阶段完成激活第二阶段(waiting→pending),整单不通过,currentNode 指向新阶段 */
+    @Test
+    void approve_serialStages_activatesNextWaitingStage() {
+        SecurityUser u = new SecurityUser();
+        u.setUserId(7L);
+        setCurrentUser(u, "approval:view");
+
+        com.aigicrm.module.approval.entity.BizApproval approval = approvalOf(13L, "extend", 42L);
+        BizApprovalMapper approvalMapper = mock(BizApprovalMapper.class);
+        when(approvalMapper.selectById(13L)).thenReturn(approval);
+
+        com.aigicrm.module.approval.entity.BizApprovalNode stage1 = node(301L, 7L, 1, "ALL", 10L, "approved");
+        com.aigicrm.module.approval.entity.BizApprovalNode stage2 = node(302L, 9L, 2, "ALL", 11L, "waiting");
+        BizApprovalNodeMapper nodeMapper = mock(BizApprovalNodeMapper.class);
+        when(nodeMapper.selectOne(any())).thenReturn(node(301L, 7L, 1, "ALL", 10L, "pending"));
+        when(nodeMapper.update(isNull(), any())).thenReturn(1);
+        when(nodeMapper.selectList(any())).thenReturn(java.util.List.of(stage1, stage2));
+
+        BizApprovalConfigMapper configMapper = mock(BizApprovalConfigMapper.class);
+        com.aigicrm.module.approval.entity.BizApprovalConfig cfg = new com.aigicrm.module.approval.entity.BizApprovalConfig();
+        cfg.setId(11L);
+        cfg.setFlowName("二级审批");
+        when(configMapper.selectById(11L)).thenReturn(cfg);
+
+        ApprovalService svc = newApprovalService(approvalMapper, nodeMapper, mock(SeaService.class), configMapper);
+
+        assertDoesNotThrow(() -> svc.approve(13L, "同意"));
+        // 本人条件流转 + 激活下一阶段
+        verify(nodeMapper, times(2)).update(isNull(), any());
+        // 整单不通过,但 currentNode 更新到新阶段
+        verify(approvalMapper, never()).update(isNull(), any());
+        verify(approvalMapper, times(1)).updateById(any(com.aigicrm.module.approval.entity.BizApproval.class));
+        assertEquals("二级审批", approval.getCurrentNode());
+    }
+
+    /** 重复点击/并发:条件流转 affected=0 → 拒绝,结果唯一 */
+    @Test
+    void approve_doubleClick_rejectedAsAlreadyProcessed() {
+        SecurityUser u = new SecurityUser();
+        u.setUserId(7L);
+        setCurrentUser(u, "approval:view");
+
+        BizApprovalMapper approvalMapper = mock(BizApprovalMapper.class);
+        when(approvalMapper.selectById(14L)).thenReturn(approvalOf(14L, "extend", 42L));
+
+        BizApprovalNodeMapper nodeMapper = mock(BizApprovalNodeMapper.class);
+        when(nodeMapper.selectOne(any())).thenReturn(node(401L, 7L, 1, "ALL", 10L, "pending"));
+        when(nodeMapper.update(isNull(), any())).thenReturn(0); // 并发竞争:他人已处理
+
+        ApprovalService svc = newApprovalService(approvalMapper, nodeMapper, mock(SeaService.class), mock(BizApprovalConfigMapper.class));
+
+        BusinessException ex = assertThrows(BusinessException.class, () -> svc.approve(14L, "同意"));
+        assertTrue(ex.getMessage().contains("已处理"));
+        verify(approvalMapper, never()).update(isNull(), any());
+    }
+
+    /** 存量在途单(节点无 configId)维持原扁平会签口径:全部 pending 清零即整单通过 */
+    @Test
+    void approve_legacyNodes_keepFlatAllSemantics() {
+        SecurityUser u = new SecurityUser();
+        u.setUserId(7L);
+        setCurrentUser(u, "approval:view");
+
+        com.aigicrm.module.approval.entity.BizApproval approval = approvalOf(15L, "claim", 42L);
+        BizApprovalMapper approvalMapper = mock(BizApprovalMapper.class);
+        when(approvalMapper.selectById(15L)).thenReturn(approval);
+        when(approvalMapper.update(isNull(), any())).thenReturn(1);
+
+        com.aigicrm.module.approval.entity.BizApprovalNode mine = node(501L, 7L, 1, null, null, "approved");
+        BizApprovalNodeMapper nodeMapper = mock(BizApprovalNodeMapper.class);
+        when(nodeMapper.selectOne(any())).thenReturn(node(501L, 7L, 1, null, null, "pending"));
+        when(nodeMapper.update(isNull(), any())).thenReturn(1);
+        when(nodeMapper.selectList(any())).thenReturn(java.util.List.of(mine));
+
+        SeaService seaService = mock(SeaService.class);
+        ApprovalService svc = newApprovalService(approvalMapper, nodeMapper, seaService, mock(BizApprovalConfigMapper.class));
+
+        assertDoesNotThrow(() -> svc.approve(15L, "同意"));
+        // 仅本人条件流转一次;整单通过并回写业务
+        verify(nodeMapper, times(1)).update(isNull(), any());
+        verify(approvalMapper, times(1)).update(isNull(), any());
+        verify(seaService, times(1)).completeClaim(42L, 7L);
+    }
+
+    /** 驳回级联:串行未激活的 waiting 节点一并作废 */
+    @Test
+    void reject_cascadesWaitingNodes() {
+        SecurityUser u = new SecurityUser();
+        u.setUserId(7L);
+        setCurrentUser(u, "approval:view");
+
+        com.aigicrm.module.approval.entity.BizApproval approval = approvalOf(16L, "extend", 42L);
+        BizApprovalMapper approvalMapper = mock(BizApprovalMapper.class);
+        when(approvalMapper.selectById(16L)).thenReturn(approval);
+        when(approvalMapper.update(isNull(), any())).thenReturn(1);
+
+        com.aigicrm.module.approval.entity.BizApprovalNode waiting = node(602L, 9L, 2, "ALL", 11L, "waiting");
+        BizApprovalNodeMapper nodeMapper = mock(BizApprovalNodeMapper.class);
+        when(nodeMapper.selectOne(any())).thenReturn(node(601L, 7L, 1, "ALL", 10L, "pending"));
+        when(nodeMapper.update(isNull(), any())).thenReturn(1);
+        when(nodeMapper.selectList(any())).thenReturn(java.util.List.of(waiting));
+
+        ApprovalService svc = newApprovalService(approvalMapper, nodeMapper, mock(SeaService.class), mock(BizApprovalConfigMapper.class));
+
+        assertDoesNotThrow(() -> svc.reject(16L, "驳回"));
+        // waiting 节点被作废(updateById 落 rejected/cancelled)
+        verify(nodeMapper, times(1)).updateById(argThat(
+                (com.aigicrm.module.approval.entity.BizApprovalNode n) ->
+                        "rejected".equals(n.getStatus()) && "cancelled".equals(n.getAction())));
     }
 }
