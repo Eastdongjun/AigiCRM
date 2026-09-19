@@ -192,13 +192,13 @@ public class PermissionMatrixTest {
                 com.aigicrm.module.customer.controller.CustomerController.class;
 
         assertPreAuthorize(controller.getDeclaredMethod("addInvoice", Long.class, com.aigicrm.module.customer.entity.BizInvoice.class),
-                "hasAuthority('customer:edit') and hasAuthority('finance:view')");
+                "hasAuthority('finance:manage') or (hasAuthority('customer:edit') and hasAuthority('finance:view'))");
         assertPreAuthorize(controller.getDeclaredMethod("deleteInvoice", Long.class, Long.class),
-                "hasAuthority('customer:edit') and hasAuthority('finance:view')");
+                "hasAuthority('finance:manage') or (hasAuthority('customer:edit') and hasAuthority('finance:view'))");
         assertPreAuthorize(controller.getDeclaredMethod("addPayment", Long.class, com.aigicrm.module.customer.entity.BizPayment.class),
-                "hasAuthority('customer:edit') and hasAuthority('finance:view')");
+                "hasAuthority('finance:manage') or (hasAuthority('customer:edit') and hasAuthority('finance:view'))");
         assertPreAuthorize(controller.getDeclaredMethod("deletePayment", Long.class, Long.class),
-                "hasAuthority('customer:edit') and hasAuthority('finance:view')");
+                "hasAuthority('finance:manage') or (hasAuthority('customer:edit') and hasAuthority('finance:view'))");
     }
 
     /** 客户分享的产品口径：读取共享列表用 customer:view，新增/撤回共享沿用 customer:edit；

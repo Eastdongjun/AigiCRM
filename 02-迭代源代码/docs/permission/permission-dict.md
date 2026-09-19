@@ -11,6 +11,7 @@
 | `approval:approve` | 审批通过 | 3 | `` | 系统管理员,行政,销售员,销售总监 |
 | `approval:reject` | 审批驳回 | 3 | `` | 系统管理员,行政,销售员,销售总监 |
 | `approval:view` | 审批管理 | 2 | `/approval` | 系统管理员,行政,销售员,销售总监 |
+| `contact:manage` | 联系人管理(增删改) | 新增(PR-06) |
 | `contact:view` | 客户联系人查看 | 3 | `NULL` | 系统管理员 |
 | `customer:add` | 客户新增 / 新增客户 | 2 / 3 | ` / /customer/add` | 系统管理员,行政,销售员,销售总监 |
 | `customer:delete` | 客户删除 | 3 | `` | 系统管理员,行政,销售员,销售总监 |
@@ -27,6 +28,7 @@
 | `file:share` | 文件分享 | 3 | `` | 系统管理员,行政,销售员,销售总监 |
 | `file:upload` | 文件上传 | 3 | `` | 系统管理员,行政,销售员,销售总监 |
 | `file:view` | 文件管理 | 2 | `/file` | 系统管理员,行政,销售员,销售总监 |
+| `finance:manage` | 财务数据录入(开票/回款写入) | 新增(PR-06) |
 | `finance:view` | 客户财务查看 | 3 | `NULL` | 系统管理员 |
 | `incentive:add` | 激励上传 | 2 | `/incentive` | 系统管理员,行政,销售员,销售总监 |
 | `incentive:delete` | 激励删除（兼容历史项，当前由授权表与服务范围控制） | 2 | `NULL` | 不作为独立运行时授权 |
@@ -84,6 +86,7 @@
 | `approval:approve` |   |   | ✅ | ✅ | ✅ | ✅ |
 | `approval:reject` |   |   | ✅ | ✅ | ✅ | ✅ |
 | `approval:view` |   |   | ✅ | ✅ | ✅ | ✅ |
+| `contact:manage` | 联系人管理(增删改) | 新增(PR-06) |
 | `contact:view` |   |   | ✅ |   |   |   |
 | `customer:add` |   |   | ✅ | ✅ | ✅ | ✅ |
 | `customer:delete` |   |   | ✅ | ✅ | ✅ | ✅ |
@@ -100,6 +103,7 @@
 | `file:share` |   |   | ✅ | ✅ | ✅ | ✅ |
 | `file:upload` |   |   | ✅ | ✅ | ✅ | ✅ |
 | `file:view` |   |   | ✅ | ✅ | ✅ | ✅ |
+| `finance:manage` | 财务数据录入(开票/回款写入) | 新增(PR-06) |
 | `finance:view` |   |   | ✅ |   |   |   |
 | `incentive:add` |   |   | ✅ | ✅ | ✅ | ✅ |
 | `incentive:delete` |   |   | ✅ |   |   | ✅ |

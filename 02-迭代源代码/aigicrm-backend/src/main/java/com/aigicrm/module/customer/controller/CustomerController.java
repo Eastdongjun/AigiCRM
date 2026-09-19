@@ -200,7 +200,7 @@ public class CustomerController {
         return Result.ok(customerService.getInvoiceSummary(id));
     }
 
-    @PreAuthorize("hasAuthority('customer:edit') and hasAuthority('finance:view')")
+    @PreAuthorize("hasAuthority('finance:manage') or (hasAuthority('customer:edit') and hasAuthority('finance:view'))")
     @PostMapping("/{id}/invoices")
     public Result<Void> addInvoice(@PathVariable Long id, @RequestBody BizInvoice invoice) {
         accessService.assertCanEdit(id);
@@ -208,7 +208,7 @@ public class CustomerController {
         return Result.ok();
     }
 
-    @PreAuthorize("hasAuthority('customer:edit') and hasAuthority('finance:view')")
+    @PreAuthorize("hasAuthority('finance:manage') or (hasAuthority('customer:edit') and hasAuthority('finance:view'))")
     @DeleteMapping("/{id}/invoices/{invoiceId}")
     public Result<Void> deleteInvoice(@PathVariable Long id, @PathVariable Long invoiceId) {
         accessService.assertCanEdit(id);
@@ -312,7 +312,7 @@ public class CustomerController {
         return Result.ok(customerService.getContacts(id));
     }
 
-    @PreAuthorize("hasAuthority('customer:edit')")
+    @PreAuthorize("hasAuthority('customer:edit') or hasAuthority('contact:manage')")
     @PostMapping("/{id}/contacts")
     public Result<Void> addContact(@PathVariable Long id, @RequestBody BizContact contact) {
         accessService.assertCanEdit(id);
@@ -320,7 +320,7 @@ public class CustomerController {
         return Result.ok();
     }
 
-    @PreAuthorize("hasAuthority('customer:edit')")
+    @PreAuthorize("hasAuthority('customer:edit') or hasAuthority('contact:manage')")
     @PutMapping("/{id}/contacts/{contactId}")
     public Result<Void> updateContact(@PathVariable Long id, @PathVariable Long contactId,
                                        @RequestBody BizContact contact) {
@@ -329,7 +329,7 @@ public class CustomerController {
         return Result.ok();
     }
 
-    @PreAuthorize("hasAuthority('customer:edit')")
+    @PreAuthorize("hasAuthority('customer:edit') or hasAuthority('contact:manage')")
     @DeleteMapping("/{id}/contacts/{contactId}")
     public Result<Void> deleteContact(@PathVariable Long id, @PathVariable Long contactId) {
         accessService.assertCanEdit(id);
@@ -355,7 +355,7 @@ public class CustomerController {
         return Result.ok(customerService.getPaymentSummary(id));
     }
 
-    @PreAuthorize("hasAuthority('customer:edit') and hasAuthority('finance:view')")
+    @PreAuthorize("hasAuthority('finance:manage') or (hasAuthority('customer:edit') and hasAuthority('finance:view'))")
     @PostMapping("/{id}/payments")
     public Result<Void> addPayment(@PathVariable Long id, @RequestBody BizPayment payment) {
         accessService.assertCanEdit(id);
@@ -363,7 +363,7 @@ public class CustomerController {
         return Result.ok();
     }
 
-    @PreAuthorize("hasAuthority('customer:edit') and hasAuthority('finance:view')")
+    @PreAuthorize("hasAuthority('finance:manage') or (hasAuthority('customer:edit') and hasAuthority('finance:view'))")
     @DeleteMapping("/{id}/payments/{paymentId}")
     public Result<Void> deletePayment(@PathVariable Long id, @PathVariable Long paymentId) {
         accessService.assertCanEdit(id);
