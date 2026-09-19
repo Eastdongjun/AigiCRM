@@ -1157,6 +1157,10 @@ public class CustomerService {
             ind.setUpdatedBy(SecurityUtils.getCurrentUserId());
             indicatorMapper.insert(ind);
         }
+        // 【PR-17 2026-09-19 议题三裁决"即时计算"】客情分是核心客户五项之一,
+        // 只改客情分跨过 12 分门槛时核心标记必须同步刷新——此前 saveIndicator 触发
+        // 重算而本方法不触发,是口径双轨(诊断 F13 额外静态缺口,业务会裁决后为必做)。
+        recalculateCoreStatus(customerId);
     }
 
     private void recalculateCoreStatus(Long customerId) {

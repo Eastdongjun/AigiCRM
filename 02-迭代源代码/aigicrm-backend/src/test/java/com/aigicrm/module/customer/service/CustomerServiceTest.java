@@ -48,6 +48,7 @@ import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;import static org.mockito.Mockito.when;
 
 class CustomerServiceTest {
@@ -941,5 +942,58 @@ class CustomerServiceTest {
             assertThrows(RuntimeException.class, () -> svc.createWithIndicator(req, indicator),
                     "指标失败必须传播(同事务回滚),不得吞异常留下已建客户");
         }
+    }
+
+    /**
+     * 【PR-17 议题三裁决"即时计算"】saveRelationshipScore 也必须触发核心客户重算——
+     * 此前只有 saveIndicator 触发,只改客情分跨过 12 分门槛时核心标记不刷新(口径双轨)。
+     */
+    @Test
+    void saveRelationshipScore_triggersCoreRecalc() {
+        BizCustomerIndicatorMapper indicatorMapper = mock(BizCustomerIndicatorMapper.class);
+        BizInvoiceMapper invoiceMapper = mock(BizInvoiceMapper.class);
+        BizPaymentMapper paymentMapper = mock(BizPaymentMapper.class);
+        // 已有指标行(走 update 分支)
+        com.aigicrm.module.customer.entity.BizCustomerIndicator existing =
+                new com.aigicrm.module.customer.entity.BizCustomerIndicator();
+        existing.setId(9L);
+        existing.setCustomerId(501L);
+        existing.setRelationshipScore(1);
+        when(indicatorMapper.selectOne(any())).thenReturn(existing);  // getIndicator 走 selectOne
+        // 重算依赖:开票/回款总额(门槛 100/100)
+        when(invoiceMapper.sumAmountByCustomerId(501L)).thenReturn(new java.math.BigDecimal("150"));
+        when(paymentMapper.sumAmountByCustomerId(501L)).thenReturn(new java.math.BigDecimal("120"));
+        BizCustomerMapper customerMapper = mock(BizCustomerMapper.class);
+        when(customerMapper.selectById(501L)).thenReturn(new com.aigicrm.module.customer.entity.BizCustomer());
+
+        CustomerService svc = new CustomerService(
+                customerMapper, mock(com.aigicrm.module.customer.mapper.BizCustomerLogMapper.class),
+                invoiceMapper, mock(com.aigicrm.module.customer.mapper.BizCustomerShareMapper.class),
+                indicatorMapper, mock(BizContactMapper.class), paymentMapper,
+                mock(com.aigicrm.module.system.mapper.SysUserMapper.class),
+                mock(com.aigicrm.module.system.mapper.SysDeptMapper.class),
+                mock(com.aigicrm.module.reminder.mapper.BizReminderMapper.class),
+                mock(org.springframework.jdbc.core.JdbcTemplate.class),
+                mock(com.aigicrm.module.system.service.SysConfigService.class),
+                mock(com.aigicrm.common.scope.OrgScopeResolver.class),
+                mock(CustomerAccessService.class),
+                mock(com.aigicrm.module.system.service.RolePermScopeService.class));
+        SecurityUser user = new SecurityUser();
+        user.setUserId(7L);
+
+        try (MockedStatic<SecurityUtils> security = mockStatic(SecurityUtils.class)) {
+            security.when(SecurityUtils::getCurrentUserId).thenReturn(7L);
+            svc.saveRelationshipScore(501L, 3);
+        }
+
+        // 客情分更新 + 重算回写指标(is_core 联动):共 2 次 indicatorMapper.updateById
+        verify(indicatorMapper, times(2)).updateById(any(com.aigicrm.module.customer.entity.BizCustomerIndicator.class));
+        ArgumentCaptor<com.aigicrm.module.customer.entity.BizCustomerIndicator> cap =
+                ArgumentCaptor.forClass(com.aigicrm.module.customer.entity.BizCustomerIndicator.class);
+        verify(indicatorMapper, times(2)).updateById(cap.capture());
+        // 重算那次带回写后的核心状态:指标和=3(仅客情)+0+0+0+0=3 < 12 → isCore=0
+        // (即使开票/回款达标,五项不齐也不算核心——与"即时计算"口径一致)
+        boolean hasRecalc = cap.getAllValues().stream().anyMatch(i -> i.getIsCore() != null);
+        assertTrue(hasRecalc, "重算必须回写 is_core 字段");
     }
 }
