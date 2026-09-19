@@ -47,6 +47,45 @@
         <el-icon class="stat-icon icon-red" :size="28"><CircleClose /></el-icon>
       </div>
     </div>
+    <!-- 【PR-11 后续批次 2026-09-19】按岗位差异化卡片(议题三指标口径裁决后解锁):
+         销售(self)= 我的激励积分/我的阅读排名; 管理(非self)= 审批概览/团队排行概览 -->
+    <div class="stat-row role-cards" v-if="isSalesRole">
+      <div class="stat-card">
+        <div class="stat-info">
+          <div class="stat-label">我的激励积分</div>
+          <div class="stat-num gold">{{ myScore || 0 }}</div>
+          <div class="stat-sub">四项激励 · 本月上传 {{ myUploadCount || 0 }} 次</div>
+        </div>
+        <el-icon class="stat-icon icon-gold" :size="28"><Trophy /></el-icon>
+      </div>
+      <div class="stat-card">
+        <div class="stat-info">
+          <div class="stat-label">我的阅读完成</div>
+          <div class="stat-num blue">{{ myReadCount || 0 }}<span class="stat-unit">/{{ myReadTotal || 0 }}</span></div>
+          <div class="stat-sub">本月激励资料阅读(重复打开计一次)</div>
+        </div>
+        <el-icon class="stat-icon icon-blue" :size="28"><Reading /></el-icon>
+      </div>
+    </div>
+    <div class="stat-row role-cards" v-if="!isSalesRole">
+      <div class="stat-card">
+        <div class="stat-info">
+          <div class="stat-label">待我审批</div>
+          <div class="stat-num orange">{{ stats.approvalStats?.pending || 0 }}</div>
+          <div class="stat-sub">本月通过 {{ stats.approvalStats?.approvedThisMonth || 0 }} · 驳回 {{ stats.approvalStats?.rejectedThisMonth || 0 }}</div>
+        </div>
+        <el-icon class="stat-icon icon-orange" :size="28"><Checked /></el-icon>
+      </div>
+      <div class="stat-card">
+        <div class="stat-info">
+          <div class="stat-label">数据范围</div>
+          <div class="stat-num blue" style="font-size:20px">{{ scopeLabel }}</div>
+          <div class="stat-sub">{{ stats.myCustomers || 0 }} 客户 · 公海 {{ stats.seaStats?.total || 0 }}</div>
+        </div>
+        <el-icon class="stat-icon icon-blue" :size="28"><DataAnalysis /></el-icon>
+      </div>
+    </div>
+
     <!-- 【PR-11 首批】统计卡片口径标注:范围=本人数据范围(后端按权限过滤),进页面/点刷新时更新 -->
     <div class="stat-scope-note">
       <span>统计范围：我的客户（按账号数据范围过滤） · 周期：本月 / 30 天到期窗口</span>
@@ -238,6 +277,41 @@ const typeLabel = (t) => ({ claim: '客户捞取申请', transfer: '客户转让
 
 // ——— 数据加载 ———
 const lastRefreshedAt = ref('')
+// 【PR-11 后续批次】岗位差异化(议题三裁决后):self=销售卡片;非self=管理卡片
+const userStore2 = useUserStore()
+const isSalesRole = computed(() => userStore2.dataScope === 'self')
+const scopeLabel = computed(() => {
+    const s = userStore2.dataScope
+    if (s === 'all') return '全量'
+    if (s === 'custom' || s === 'dept') return '部门范围'
+    if (s === 'team') return '团队'
+    return '个人'
+})
+const myScore = ref(0)
+const myUploadCount = ref(0)
+const myReadCount = ref(0)
+const myReadTotal = ref(0)
+
+const loadRoleData = async () => {
+  if (!isSalesRole.value) return
+  try {
+    const [scoreRes, readRes] = await Promise.all([
+      import('@/api/score').then(m => m.getMyScore()),
+      import('@/api/incentive').then(m => m.getReadStats ? m.getReadStats() : Promise.resolve({ data: [] })),
+    ])
+    if (scoreRes?.data) {
+      myScore.value = scoreRes.data.totalScore || 0
+      myUploadCount.value = scoreRes.data.itemCount || 0
+    }
+    const readList = readRes?.data || []
+    const mine = readList.find(r => r.userId === userStore2.userId) || readList[0]
+    if (mine) {
+      myReadCount.value = mine.readCount || 0
+      myReadTotal.value = (mine.publishedCount || 0) + (mine.readCount || 0) > 0
+        ? mine.publishedCount || 0 : 0
+    }
+  } catch { /* 数据缺失时卡片显示 0 */ }
+}
 const loadData = async () => {
   try { const r = await getDashboardData(); stats.value = r.data || {} } catch {}
   lastRefreshedAt.value = new Date().toLocaleTimeString('zh-CN', { hour12: false })
@@ -316,11 +390,14 @@ const formatRelativeTime = (time) => {
   return new Date(time).toLocaleDateString()
 }
 
-onMounted(loadData)
+onMounted(() => { loadData(); loadRoleData() })
 </script>
 
 <style scoped>
 /* 【PR-11 首批】统计口径标注条 */
+.role-cards { margin-bottom: 12px }
+.role-cards .stat-card { min-width: 220px }
+.stat-unit { font-size: 14px; color: #94a3b8; margin-left: 4px }
 .stat-scope-note { display:flex; justify-content:space-between; flex-wrap:wrap; gap:8px; color:#94a3b8; font-size:12px; margin:2px 2px 16px; }
 .stat-scope-note a { color:#409eff; cursor:pointer; margin-left:8px }
 
