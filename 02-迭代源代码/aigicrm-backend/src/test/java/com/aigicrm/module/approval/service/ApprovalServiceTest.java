@@ -71,7 +71,8 @@ class ApprovalServiceTest {
                 mock(com.aigicrm.common.scope.OrgScopeResolver.class),
                 mock(SeaConfigService.class),
                 mock(SysUserService.class),
-                mock(ApprovalConfigService.class));
+                mock(ApprovalConfigService.class),
+                mock(com.aigicrm.module.system.service.SysConfigService.class));
     }
 
     private static com.aigicrm.module.approval.entity.BizApprovalNode node(Long id, Long approverId, int order,
@@ -138,7 +139,8 @@ class ApprovalServiceTest {
                 mock(com.aigicrm.common.scope.OrgScopeResolver.class),
                 seaConfigService,
                 mock(SysUserService.class),
-                configService);
+                configService,
+                mock(com.aigicrm.module.system.service.SysConfigService.class));
     }
 
     @Test
@@ -540,7 +542,8 @@ class ApprovalServiceTest {
                 mock(SysUserMapper.class), mock(SysUserRoleMapper.class), mock(SysDeptMapper.class),
                 mock(BizSeaPoolMapper.class), mock(SeaService.class),
                 mock(com.aigicrm.common.scope.OrgScopeResolver.class), mock(SeaConfigService.class),
-                mock(SysUserService.class), configService);
+                mock(SysUserService.class), configService,
+                mock(com.aigicrm.module.system.service.SysConfigService.class));
 
         BusinessException ex = assertThrows(BusinessException.class, () -> svc.submit("extend", 42L, null, null));
         assertTrue(ex.getMessage().contains("无有效审批人"), "实际: " + ex.getMessage());
@@ -570,7 +573,8 @@ class ApprovalServiceTest {
                 userMapper, mock(SysUserRoleMapper.class), mock(SysDeptMapper.class),
                 mock(BizSeaPoolMapper.class), mock(SeaService.class),
                 mock(com.aigicrm.common.scope.OrgScopeResolver.class), mock(SeaConfigService.class),
-                mock(SysUserService.class), mock(ApprovalConfigService.class));
+                mock(SysUserService.class), mock(ApprovalConfigService.class),
+                mock(com.aigicrm.module.system.service.SysConfigService.class));
 
         BusinessException ex = assertThrows(BusinessException.class, () -> svc.submit("extend", 42L, null, null));
         assertTrue(ex.getMessage().contains("未配置或无有效审批人"), "实际: " + ex.getMessage());

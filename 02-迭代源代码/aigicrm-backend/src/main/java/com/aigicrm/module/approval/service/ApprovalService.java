@@ -59,6 +59,8 @@ public class ApprovalService {
     private final SysUserService userService;
     /** 【PR-02】节点实例化收敛到 ApprovalConfigService.createNodes(唯一的实例化入口) */
     private final ApprovalConfigService approvalConfigService;
+    /** 【议题一裁决】延期/保护期天数走系统配置(管理员可改) */
+    private final com.aigicrm.module.system.service.SysConfigService configService;
 
     public IPage<BizApproval> page(int current, int size, String tab, String type, String keyword, Long userId, Long deptId) {
         LambdaQueryWrapper<BizApproval> wrapper = new LambdaQueryWrapper<>();
@@ -592,14 +594,26 @@ public class ApprovalService {
                 seaService.completeClaim(approval.getCustomerId(), approval.getApplicantId());
             }
             case "extend" -> {
-                // 延期 - 保护期延长360天
+                // 【议题一裁决 2026-09-19 保护期决策表】延期天数走 sys_config(customer.extend.days,
+                // 管理员可改,与保护期同口径);approved_extend_days 累加后由统一公式重算到期日
+                // (=开票推导+累计已批延期)——删票回算开票部分不收回已批延期。
                 BizCustomer customer = customerMapper.selectById(approval.getCustomerId());
                 if (customer != null) {
-                    // 【2026-08-15 审计 M1】expireDate 历史数据可为 NULL, 直接 plusDays 抛 NPE → 事务回滚后
-                    // 节点回到 pending, 重试仍 NPE, 该审批永久卡死。NULL 时以当前日期起算(业务口径: 从未设置保护期=即日起延期)
-                    java.time.LocalDate base = customer.getExpireDate() != null
-                            ? customer.getExpireDate() : java.time.LocalDate.now();
-                    customer.setExpireDate(base.plusDays(360));
+                    int extendDays = getConfigInt("customer.extend.days", 360);
+                    int accumulated = customer.getApprovedExtendDays() != null
+                            ? customer.getApprovedExtendDays() : 0;
+                    customer.setApprovedExtendDays(accumulated + extendDays);
+                    // 重算开票推导部分并叠加累计延期(唯一公式,与开票增删路径同源)
+                    java.time.LocalDate baseDate = customer.getLastInvoiceDate() != null
+                            ? customer.getLastInvoiceDate() : customer.getRegisterDate();
+                    java.time.LocalDate invoiceExpiry = baseDate != null
+                            ? baseDate.plusDays(getConfigInt("customer.protection.days", 360)) : null;
+                    if (invoiceExpiry != null) {
+                        customer.setExpireDate(invoiceExpiry.plusDays(customer.getApprovedExtendDays()));
+                    } else {
+                        // 无基准日:以当前日期起算(业务口径: 从未设置保护期=即日起延期)
+                        customer.setExpireDate(java.time.LocalDate.now().plusDays(customer.getApprovedExtendDays()));
+                    }
                     customer.setProtectionStatus("active");
                     customer.setStatus("normal");
                     customerMapper.updateById(customer);
@@ -639,6 +653,18 @@ public class ApprovalService {
                 }
             }
         }
+    }
+
+    private int getConfigInt(String key, int defaultValue) {
+        String val = configService.getValue(key);
+        if (val != null) {
+            try {
+                return Integer.parseInt(val.trim());
+            } catch (NumberFormatException ignored) {
+                // 配置脏值回退默认值
+            }
+        }
+        return defaultValue;
     }
 
     /**

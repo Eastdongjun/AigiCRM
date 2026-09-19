@@ -62,6 +62,9 @@ public class BizCustomer {
     private LocalDate adjustDate;
     @ExcelProperty("转移日")
     private LocalDate transferDate;
+    /** 【议题一裁决 2026-09-19】累计已审批延期天数(只增不减);expireDate=开票推导+本值 */
+    @ExcelIgnore
+    private Integer approvedExtendDays;
 
     @ExcelIgnore
     private Long ownerId;

@@ -972,6 +972,15 @@ public class CustomerService {
         }
     }
 
+    /**
+     * 【议题一裁决 2026-09-19 保护期决策表】统一公式:
+     * expireDate = 开票推导到期日(随开票增删浮动,管理员可配天数) + approved_extend_days(只增不减)
+     * <ul>
+     *   <li>删票回算开票推导部分(纠正误录);已审批延期不收回(信任审批);两者独立叠加;</li>
+     *   <li>天数走 sys_config: customer.protection.days(360)/customer.adjust.days(180),
+     *       管理员可在系统设置修改——延期天数 customer.extend.days 同口径(在 ApprovalService 消费)。</li>
+     * </ul>
+     */
     private void calculateExpireDates(BizCustomer customer) {
         LocalDate baseDate = customer.getRegisterDate();
         // 合并嵌套 if（SonarLint S1066）：最近开票日晚于登记日(或无登记日)时以开票日为基准
@@ -982,7 +991,8 @@ public class CustomerService {
         if (baseDate != null) {
             int protectionDays = getConfigInt("customer.protection.days", 360);
             int adjustDays = getConfigInt("customer.adjust.days", 180);
-            customer.setExpireDate(baseDate.plusDays(protectionDays));
+            int extendDays = customer.getApprovedExtendDays() != null ? customer.getApprovedExtendDays() : 0;
+            customer.setExpireDate(baseDate.plusDays(protectionDays).plusDays(extendDays));
             customer.setAdjustDate(baseDate.plusDays(adjustDays));
         }
     }
