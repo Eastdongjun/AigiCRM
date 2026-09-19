@@ -24,11 +24,11 @@ for file in \
 done
 
 migration_output="$(bash "$ROOT/scripts/check-migration-contract.sh")"
-printf '%s\n' "$migration_output" | grep -Fq '41 个迁移' \
+printf '%s\n' "$migration_output" | grep -Fq '42 个迁移' \
   || fail "migration contract did not scan the full current migration set: $migration_output"
 
 registration_output="$(python3 "$REG")"
-printf '%s\n' "$registration_output" | grep -Fq '代码在用权限码 64 个' \
+printf '%s\n' "$registration_output" | grep -Fq '代码在用权限码 66 个' \
   || fail "permission registration contract did not scan the current code permission set: $registration_output"
 printf '%s\n' "$registration_output" | grep -Fq '未登记或未启用 0 个' \
   || fail "permission registration contract found missing or disabled permission codes: $registration_output"

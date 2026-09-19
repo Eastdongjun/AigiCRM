@@ -47,6 +47,8 @@
 | `sea:config:view` | 公海配置查看 | 3 | `NULL` | 系统管理员,行政,销售总监 |
 | `sea:import` | 公海导入 | 3 | `` | 系统管理员,行政,销售总监 |
 | `sea:pool:delete` | 公海删除（兼容历史项，当前由池级服务范围控制） | 3 | `` | 不作为独立运行时授权 |
+| `task:view` | 任务查看(本人待办/统计) | 2 | `NULL` | 系统管理员,销售员,销售总监 |
+| `task:manage` | 任务管理(创建/完成/转交) | 2 | `NULL` | 系统管理员,销售员,销售总监 |
 | `sea:view` | 公海池 / 公海管理 / 捞取记录 | 2 | `/sea / /sea/records` | 系统管理员,行政,销售员,销售总监 |
 | `statistics:scoreboard` | 积分榜（兼容历史项，当前统一使用 `score:view`） | 2 | `/scoreboard` | 不作为独立运行时授权 |
 | `statistics:view` | 核心客户六项指标 / 统计分析 | 2 | `/indicator / /statistics` | 系统管理员,销售员,销售总监 |
