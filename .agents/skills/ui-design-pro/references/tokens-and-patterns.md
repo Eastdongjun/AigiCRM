@@ -81,3 +81,20 @@ const ease = 1 - Math.pow(1 - p, 3)  // rAF 800ms cubic ease-out
 
 ### 10. 失败图占位
 `@error="markThumbFailed(id)"` → `thumbFailed` Set → 模板渲染 Picture 图标文档瓦片(禁用灰底 SVG 占位)。
+
+### 11. 三联拨盘(年/月/日, iOS 日期选择器范式)
+- 三列并排 `scroll-snap-type:y mandatory` 吸附居中; **居中填充必须 JS 按列高设 `paddingTop/Bottom = clientHeight/2 - itemH/2`**(CSS 竖向百分比按宽度解析,无效——踩过)
+- 条目距离缩放淡出(rAF, 240px 衰减); 停稳 150ms 取居中为选中并级联(年→月重排, 月→日重排)
+- **位置语义**: 选中=拨盘位置(任意年月日可选), 无数据出"此时间无数据"空态——不要"只有数据项可选"(用户判定为没起作用)
+- 月盘全 12 月、日盘整月+1..月末、**年份盘自增**(最早数据年..当前系统年连续), 无数据只视觉置暗(dim)仍可选
+- **双向跟随**: 右侧内容滚动 → 观察视野顶部记录日期 → 程序对位日拨片; 必须加**跟随锁窗口(450ms)**豁免停稳选中, 否则程序滚动会反向改筛选造成死循环
+
+### 12. 单行元信息条(metabar)
+元信息(时间/阶段/得分/上传人/周期/行业/产品)不做瓦片网格, 收成一行 `flex baseline` 条(标签 11px 灰 + 值 13px 深, 时间 16px/800 强调色); 版面让给正文(15px/1.9)与大图附件(3:2, minmax 300px, 块头"附件凭证 · N 项")。
+
+### 13. 文档在线预览(不动后端安全策略)
+后端 attachment 策略(防 XSS)保持; 前端 `fetch(fileUrl) → blob`:
+- pdf → `URL.createObjectURL(blob)` + iframe(浏览器内建阅读器)
+- txt/md/csv/log/json/xml → `res.text()` + `<pre>` 排版
+- office 等 → 灯箱兜底卡"暂不支持在线预览"+下载按钮
+- 全附件进灯箱 gallery(左右翻), 缩略图条文档用图标瓦; 切换/关闭必须 `revokeObjectURL`
