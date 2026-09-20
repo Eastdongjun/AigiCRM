@@ -1,5 +1,11 @@
 #!/usr/bin/env bash
 # Contract for the monthly incentive read-ranking feature wiring.
+#
+# 【PR-22.G-01 定性 2026-09-20】本契约是**结构检查**(wiring/口径存在性), 非集团隔离行为验证。
+# 集团隔离的行为前提由以下两层承担: ① monthlyReadAggregate 的 fail-closed 集团过滤
+# (下方断言钉住其结构凭据); ② check-native-sql-tenant-scope.sh 审计契约(2026-09-20
+# 全量原生 SQL 审计固化, JdbcTemplate 触 biz_* 表必须带租户/集团限定)。
+# 跨集团双账号的行为级验证属 PR-22 活体批次(已完成, 见 runs/20260919-pr22-*)。
 
 set -e
 set -u
@@ -52,6 +58,9 @@ assert_contains "$CONTROLLER" "incentiveService.readRanking(period)"
 assert_contains "$SERVICE" "public Map<String, Object> readRanking(String period)"
 assert_contains "$SERVICE" "monthlyReadAggregate(month)"
 assert_contains "$SERVICE" "readRate"
+# 【PR-22.G-01】钉住集团隔离结构凭据: 无集团归属返回空(fail-closed)+成员边界过滤
+assert_contains "$SERVICE" "currentGroupOrNull"
+assert_contains "$SERVICE" "userIdsInGroup"
 
 assert_contains "$ROUTER" "path: '$ROUTE_PATH'"
 assert_contains "$ROUTER" "permission: '$PERMISSION'"

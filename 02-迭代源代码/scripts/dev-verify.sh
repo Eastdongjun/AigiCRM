@@ -485,6 +485,7 @@ local_contracts() {
   run "$ROOT/scripts/check-incentive-period-contract.sh"
   run "$ROOT/scripts/check-incentive-record-table-contract.sh"
   run "$ROOT/scripts/check-incentive-read-ranking-contract.sh"
+  run "$ROOT/scripts/check-native-sql-tenant-scope.sh"
   run "$ROOT/scripts/check-incentive-search-detail-contract.sh"
   run "$ROOT/scripts/check-incentive-stats-detail-contract.sh"
   run "$ROOT/scripts/check-reminder-detail-contract.sh"
