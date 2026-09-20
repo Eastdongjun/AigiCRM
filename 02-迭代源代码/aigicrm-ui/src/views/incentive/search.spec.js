@@ -190,10 +190,12 @@ describe('incentive/search.vue 缩略图下载 token（空 token 403 修复 2026
     expect(wrapper.text()).toContain('2 条记录')
     expect(wrapper.text()).toContain('2 个月份')
     // 【2026-09-20 深夜 主从骨架】左栏时间轴列出全部月份节点；右栏只渲染选中月份的记录
-    expect(wrapper.findAll('.dtl-wheel-year')).toHaveLength(1)
-    expect(wrapper.findAll('.dtl-wheel-year')[0].text()).toBe('2026年')
-    expect(wrapper.findAll('.dtl-wheel-item').map((n) => n.find('.w-main').text())).toEqual(['9月', '8月'])
-    expect(wrapper.find('.dtl-wheel-item.active').find('.w-main').text()).toBe('9月')
+    const dialCols = wrapper.findAll('.dtl-dial-col')
+    expect(dialCols).toHaveLength(3)                       // 年 / 月 / 日 三联拨盘
+    expect(dialCols[0].findAll('.dtl-dial-item').map((n) => n.text())).toEqual(['2026'])
+    expect(dialCols[1].findAll('.dtl-dial-item').map((n) => n.text())).toEqual(['9月', '8月'])
+    expect(dialCols[1].find('.dtl-dial-item.active').text()).toBe('9月')
+    expect(dialCols[2].find('.dtl-dial-item.active').text()).toBe('整月')   // 日盘默认整月
     expect(wrapper.findAll('.dtl-item')).toHaveLength(1)   // 默认展示 9 月的 1 条
     expect(wrapper.findAll('.dtl-score')).toHaveLength(1)
     expect(wrapper.text()).toContain('累计积分')
@@ -227,11 +229,11 @@ describe('incentive/search.vue 缩略图下载 token（空 token 403 修复 2026
     await flushPromises()
 
     // 主从骨架：左栏节点按月倒序(9月→8月)，右栏默认展示 9 月的 2 条；点击 8 月节点切换右栏内容
-    const wheelLabels = wrapper.findAll('.dtl-wheel-item').map((n) => n.find('.w-main').text())
-    expect(wheelLabels).toEqual(['9月', '8月'])
+    const monthDial = wrapper.findAll('.dtl-dial-col')[1]
+    expect(monthDial.findAll('.dtl-dial-item').map((n) => n.text())).toEqual(['9月', '8月'])
     expect(wrapper.find('.dtl-pane-head .dtl-month-label').text()).toBe('2026年9月')
     expect(wrapper.findAll('.dtl-item')).toHaveLength(2)
-    await wrapper.findAll('.dtl-wheel-item')[1].trigger('click')
+    await monthDial.findAll('.dtl-dial-item')[1].trigger('click')
     await flushPromises()
     expect(wrapper.find('.dtl-pane-head .dtl-month-label').text()).toBe('2026年8月')
     expect(wrapper.findAll('.dtl-item')).toHaveLength(1)

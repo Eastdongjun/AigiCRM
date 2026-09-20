@@ -199,25 +199,33 @@
 
         <!-- 【2026-09-20 深夜】详情主从骨架：左侧月份时间轴导航 + 右侧当前月份内容卡 -->
         <div v-if="recordsByMonth.length" class="dtl-body">
-          <!-- 左栏：iOS 闹钟式滚轮时间轴——按年份分组、月份滚动吸附居中，停稳自动选中，右侧内容跟随 -->
-          <aside class="dtl-wheel-wrap">
-            <div class="dtl-wheel-band"></div>
-            <div class="dtl-wheel" ref="wheelEl" @scroll="onWheelScroll">
-              <template v-for="yg in wheelGroups" :key="yg.year">
-                <div class="dtl-wheel-year">{{ yg.year }}年</div>
-                <div v-for="g in yg.months" :key="g.key" class="dtl-wheel-item" :class="{active: g.key===activeMonth}" :data-key="g.key" @click="wheelPick(g.key)">
-                  <span class="w-main">{{ monthShort(g) }}</span>
-                  <span class="w-sub"><em v-if="monthUnread(g)" class="w-unread">{{ monthUnread(g) }}未读</em>{{ g.count }}条 · {{ monthScore(g) }}分</span>
+          <!-- 左栏：iOS 日期选择器式三联拨盘(年/月/日)——各自吸附居中、拨动联动级联，右侧内容跟随 -->
+          <aside class="dtl-dial">
+            <div class="dtl-dial-band"></div>
+            <div class="dtl-dial-col">
+              <div class="dtl-dial-scroll" :ref="el => (dialEls.year.value = el)" @scroll="onDialScroll('year')">
+                <div v-for="y in dialYears" :key="y" class="dtl-dial-item" :class="{active: y===selYear}" :data-key="y" @click="dialPick('year', y)">{{ y }}</div>
+              </div>
+            </div>
+            <div class="dtl-dial-col">
+              <div class="dtl-dial-scroll" :ref="el => (dialEls.month.value = el)" @scroll="onDialScroll('month')">
+                <div v-for="g in dialMonths" :key="g.key" class="dtl-dial-item" :class="{active: g.key===activeMonth}" :data-key="g.key" @click="dialPick('month', g.key)">
+                  {{ monthShort(g) }}<i v-if="monthUnread(g)" class="w-dot"></i>
                 </div>
-              </template>
+              </div>
+            </div>
+            <div class="dtl-dial-col">
+              <div class="dtl-dial-scroll" :ref="el => (dialEls.day.value = el)" @scroll="onDialScroll('day')">
+                <div v-for="d in dialDays" :key="d" class="dtl-dial-item" :class="{active: d===selDay}" :data-key="String(d)" @click="dialPick('day', String(d))">{{ d===0 ? '整月' : d+'日' }}</div>
+              </div>
             </div>
           </aside>
           <section class="dtl-pane">
             <div class="dtl-pane-head">
-              <span class="dtl-month-label">{{ activeGroup.label }}</span>
-              <span class="dtl-month-count">{{ activeGroup.count }} 条</span>
+              <span class="dtl-month-label">{{ activeGroup.label }}<template v-if="selDay"> · {{ selDay }}日</template></span>
+              <span class="dtl-month-count">{{ displayItems.length }} 条</span>
             </div>
-            <div v-for="r in activeGroup.items" :key="r.id" class="dtl-item" :data-id="r.id">
+            <div v-for="r in displayItems" :key="r.id" class="dtl-item" :data-id="r.id">
               <!-- 每个元素独立成块：信息瓦片(时间/阶段/得分/上传人/周期/行业/产品) + 宽块(详情正文/安装备注/附件凭证) -->
               <div class="dtl-ecard">
                 <div class="dtl-etiles-main">
@@ -406,6 +414,7 @@ async function showDetail(c){
   // 【2026-09-20】已读/未读与小程序同逻辑：不再打开即全标已读，
   // 记录滚动进入视野时逐条标记（乐观更新+失败回滚），未读数实时反映在概览胶囊上
   await nextTick()
+  alignDial('year', selYear.value); alignDial('month', activeMonth.value); alignDial('day', '0')
   setupReadObserver()
 }
 const unreadCount = computed(() => (detailCust.value?.records || []).filter(r => r.unread).length)
@@ -502,12 +511,21 @@ const filteredRecords = computed(() => filterRecordsByMonthSafe())
 const recordsByMonth=computed(()=>groupRecordsByMonth(filteredRecords.value, detailOrder.value))
 // 【2026-09-20 深夜】主从骨架状态: 左栏时间轴选中的月份 → 右栏只渲染该月内容
 const activeMonth = ref('')
+const selYear = ref('')
+const selDay = ref(0)   // 0 = 整月
 const activeGroup = computed(() => recordsByMonth.value.find(g => g.key === activeMonth.value) || recordsByMonth.value[0] || { label: '', count: 0, items: [] })
+const displayItems = computed(() => {
+  const g = activeGroup.value
+  if (!g || !g.items || !g.items.length) return []
+  if (!selDay.value) return g.items
+  return g.items.filter(r => new Date(String(r.createdAt || '').replace(/-/g, '/')).getDate() === selDay.value)
+})
 function monthUnread(g){ return (g.items || []).filter(r => r.unread).length }
 // 台账要有合计：书脊节点展示该月分值小计(结构装置编码真实信息)
 function monthScore(g){ return (g.items || []).reduce((s, r) => s + (Number(r.score) || 0), 0) }
-// 滚轮数据：月份按年份分组(保持 recordsByMonth 的排序方向)
+// 三联拨盘数据：年列表 / 所选年的月份 / 所选月的可选日(0=整月)
 const wheelEl = ref(null)
+const dialEls = { year: ref(null), month: ref(null), day: ref(null) }
 const wheelGroups = computed(() => {
   const out = []
   for (const g of recordsByMonth.value) {
@@ -519,63 +537,86 @@ const wheelGroups = computed(() => {
   }
   return out
 })
+const dialYears = computed(() => wheelGroups.value.map(yg => yg.year))
+const dialMonths = computed(() => (wheelGroups.value.find(yg => yg.year === selYear.value) || { months: [] }).months)
+const dialDays = computed(() => {
+  const g = recordsByMonth.value.find(x => x.key === activeMonth.value)
+  if (!g) return [0]
+  const days = [...new Set(g.items.map(r => new Date(String(r.createdAt || '').replace(/-/g, '/')).getDate()))].sort((a, b) => b - a)
+  return [0, ...days]
+})
 function monthShort(g){ const m = /^(\d{4})年(.+)$/.exec(g.label || ''); return m ? m[2] : g.label }
-// 滚轮视觉：条目随距中心距离缩放淡出(iOS 滚轮质感)
-let wheelRaf = 0
-function styleWheelByDistance(){
-  const el = wheelEl.value; if (!el) return
+// 拨盘视觉：条目随距中心距离缩放淡出(iOS 拨盘质感)
+const dialRaf = {}; const dialTimers = {}
+function styleDial(col){
+  const el = dialEls[col].value; if (!el) return
   const b = el.getBoundingClientRect(); const cy = b.top + b.height / 2
-  el.querySelectorAll('.dtl-wheel-item').forEach(it => {
+  el.querySelectorAll('.dtl-dial-item').forEach(it => {
     const r = it.getBoundingClientRect()
-    const t = Math.max(0, 1 - Math.abs(r.top + r.height / 2 - cy) / 240)
-    it.style.opacity = (0.28 + 0.72 * t).toFixed(2)
-    it.style.transform = 'scale(' + (0.92 + 0.08 * t).toFixed(3) + ')'
+    const t = Math.max(0, 1 - Math.abs(r.top + r.height / 2 - cy) / 200)
+    it.style.opacity = (0.25 + 0.75 * t).toFixed(2)
+    it.style.transform = 'scale(' + (0.9 + 0.1 * t).toFixed(3) + ')'
   })
 }
-let wheelSettleTimer = null
-function onWheelScroll(){
-  if (!wheelRaf) wheelRaf = requestAnimationFrame(() => { wheelRaf = 0; styleWheelByDistance() })
-  clearTimeout(wheelSettleTimer)
-  wheelSettleTimer = setTimeout(() => {        // 停稳后: 最近居中的月份自动选中 → 右侧内容跟随
-    wheelSettleTimer = null
-    const el = wheelEl.value; if (!el) return
-    const b = el.getBoundingClientRect(); const cy = b.top + b.height / 2
-    let nearest = null, nd = Infinity
-    el.querySelectorAll('.dtl-wheel-item').forEach(it => {
-      const r = it.getBoundingClientRect()
-      const d = Math.abs(r.top + r.height / 2 - cy)
-      if (d < nd) { nd = d; nearest = it }
-    })
-    const k = nearest?.dataset.key
-    if (k && k !== activeMonth.value) activeMonth.value = k
-  }, 160)
+function centerKey(col){
+  const el = dialEls[col].value; if (!el) return null
+  const b = el.getBoundingClientRect(); const cy = b.top + b.height / 2
+  let best = null, bd = Infinity
+  el.querySelectorAll('.dtl-dial-item').forEach(it => {
+    const r = it.getBoundingClientRect()
+    const d = Math.abs(r.top + r.height / 2 - cy)
+    if (d < bd) { bd = d; best = it }
+  })
+  return best?.dataset.key ?? null
 }
-function wheelPick(key){
-  activeMonth.value = key
+// 停稳后取居中条目为选中值，并按列级联(年→月重排, 月→日重排)
+function onDialScroll(col){
+  if (!dialRaf[col]) dialRaf[col] = requestAnimationFrame(() => { dialRaf[col] = 0; styleDial(col) })
+  clearTimeout(dialTimers[col])
+  dialTimers[col] = setTimeout(() => {
+    dialTimers[col] = null
+    const k = centerKey(col)
+    if (k == null) return
+    if (col === 'year' && k !== selYear.value) { selYear.value = k; cascadeAfterYear() }
+    else if (col === 'month' && k !== activeMonth.value) { activeMonth.value = k; selDay.value = 0 }
+    else if (col === 'day' && Number(k) !== selDay.value) selDay.value = Number(k)
+  }, 150)
+}
+function cascadeAfterYear(){
+  if (!dialMonths.value.some(g => g.key === activeMonth.value)) activeMonth.value = dialMonths.value[0]?.key || ''
+  selDay.value = 0
+}
+function dialPick(col, key){
+  if (col === 'year') { if (key !== selYear.value) { selYear.value = key; cascadeAfterYear() } }
+  else if (col === 'month') { if (key !== activeMonth.value) { activeMonth.value = key; selDay.value = 0 } }
+  else if (col === 'day') { selDay.value = Number(key) }
+}
+// 选中值被外部改变(级联/重置/点选)后, 对应拨盘无动画对位并刷新视觉
+function alignDial(col, key){
   nextTick(() => {
-    const it = wheelEl.value?.querySelector('.dtl-wheel-item[data-key="' + key + '"]')
-    it?.scrollIntoView({ block: 'center', behavior: 'smooth' })
+    const el = dialEls[col].value
+    const it = el?.querySelector('.dtl-dial-item[data-key="' + key + '"]')
+    if (!it || !el) return
+    const r = it.getBoundingClientRect(), b = el.getBoundingClientRect()
+    if (Math.abs(r.top + r.height / 2 - (b.top + b.height / 2)) > 4) it.scrollIntoView({ block: 'center' })
+    styleDial(col)
   })
 }
-// 选中月份被外部重置(换客户/搜索)时, 滚轮无动画对位并刷新视觉
-watch(activeMonth, () => {
-  nextTick(() => {
-    const el = wheelEl.value
-    const it = el?.querySelector('.dtl-wheel-item[data-key="' + activeMonth.value + '"]')
-    if (it && el) {
-      const r = it.getBoundingClientRect(), b = el.getBoundingClientRect()
-      if (Math.abs(r.top + r.height / 2 - (b.top + b.height / 2)) > 4) it.scrollIntoView({ block: 'center' })
-    }
-    styleWheelByDistance()
-  })
-}, { immediate: true })
-onBeforeUnmount(() => clearTimeout(wheelSettleTimer))
+watch(selYear, () => alignDial('year', selYear.value))
+watch(activeMonth, () => { alignDial('month', activeMonth.value) })
+watch(selDay, () => alignDial('day', String(selDay.value)))
+onBeforeUnmount(() => Object.values(dialTimers).forEach(clearTimeout))
 // 月份列表变化(换客户/搜索/换向)时校准选中月份到首项
 watch(recordsByMonth, (list) => {
-  if (!list.some(g => g.key === activeMonth.value)) activeMonth.value = list[0]?.key || ''
+  const first = list[0]
+  const ym = /^(\d{4})年/.exec(first?.label || '')
+  selYear.value = ym ? ym[1] : ''
+  if (!list.some(g => g.key === activeMonth.value)) activeMonth.value = first?.key || ''
+  selDay.value = 0
+  alignDial('year', selYear.value); alignDial('month', activeMonth.value); alignDial('day', '0')
 }, { immediate: true })
 // 搜索/换向会重建记录节点，需要重新挂监听；关弹窗/卸载时清理
-watch([detailKeyword, detailOrder, activeMonth], () => { if (detailVisible.value) nextTick(setupReadObserver) })
+watch([detailKeyword, detailOrder, activeMonth, selDay], () => { if (detailVisible.value) nextTick(setupReadObserver) })
 watch(detailVisible, (v) => { if (!v) destroyReadObserver() })
 onBeforeUnmount(destroyReadObserver)
 const recordTotal=computed(()=>detailCust.value?.records?.length||0)
@@ -770,27 +811,23 @@ onBeforeUnmount(()=>window.removeEventListener('keydown',onPreviewKeydown))
 .dtl-toolbar :deep(.el-radio-button:last-child .el-radio-button__inner){border-radius:0 8px 8px 0}
 
 /* 【2026-09-20 深夜】主从骨架：左月份时间轴导航(竖线+节点) + 右当前月份内容卡 */
-.dtl-body{display:grid;grid-template-columns:216px minmax(0,1fr);gap:14px;flex:1;min-height:0;
+.dtl-body{display:grid;grid-template-columns:250px minmax(0,1fr);gap:14px;flex:1;min-height:0;
   margin:14px 20px 0}
-/* iOS 闹钟式滚轮时间轴：吸附居中 + 选中带 + 距离缩放淡出(JS 驱动) */
-.dtl-wheel-wrap{position:relative;background:#fff;border:1px solid #e5e9f0;border-radius:14px;min-height:0;
-  box-shadow:0 1px 2px rgba(16,24,40,.03),0 6px 18px rgba(16,24,40,.05);display:flex;flex-direction:column;overflow:hidden}
-.dtl-wheel{flex:1;overflow-y:auto;scroll-snap-type:y mandatory;overscroll-behavior:contain;
-  padding:calc(50% - 22px) 0;scrollbar-width:none}
-.dtl-wheel::-webkit-scrollbar{display:none}
-.dtl-wheel-year{height:34px;display:flex;align-items:center;justify-content:center;font-size:11px;
-  letter-spacing:2px;color:#8a94a3;flex-shrink:0}
-.dtl-wheel-item{height:44px;scroll-snap-align:center;display:flex;align-items:center;justify-content:space-between;
-  gap:8px;padding:0 16px;cursor:pointer;opacity:.3;transform:scale(.92);
-  transition:opacity .15s,transform .15s;will-change:opacity,transform}
-.dtl-wheel-item .w-main{font-size:16px;font-weight:700;color:#111827;font-variant-numeric:tabular-nums}
-.dtl-wheel-item .w-sub{font-size:11px;color:#6b7280;white-space:nowrap;font-variant-numeric:tabular-nums}
-.dtl-wheel-item .w-unread{font-style:normal;color:#e11d48;font-weight:700;margin-right:6px}
-.dtl-wheel-item.active .w-main{font-weight:800;color:#153e8f}
-.dtl-wheel-band{position:absolute;left:10px;right:10px;top:50%;height:46px;transform:translateY(-50%);
+/* iOS 日期选择器式三联拨盘(年/月/日)：三列各自吸附居中 + 贯通选中带 + 距离缩放淡出(JS 驱动) */
+.dtl-dial{position:relative;background:#fff;border:1px solid #e5e9f0;border-radius:14px;min-height:0;
+  box-shadow:0 1px 2px rgba(16,24,40,.03),0 6px 18px rgba(16,24,40,.05);display:flex;gap:2px;padding:8px 4px;overflow:hidden}
+.dtl-dial-band{position:absolute;left:10px;right:10px;top:50%;height:42px;transform:translateY(-50%);
   background:#eaf1fe;border:1px solid #dbe6fb;border-radius:12px;pointer-events:none;z-index:0}
-.dtl-wheel > *{position:relative;z-index:1}
-.dtl-wheel-item:hover .w-main{color:#1d4ed8}
+.dtl-dial-col{flex:1;min-width:0;display:flex;flex-direction:column}
+.dtl-dial-scroll{flex:1;overflow-y:auto;scroll-snap-type:y mandatory;overscroll-behavior:contain;
+  padding:calc(50% - 21px) 0;scrollbar-width:none;position:relative;z-index:1;text-align:center}
+.dtl-dial-scroll::-webkit-scrollbar{display:none}
+.dtl-dial-item{height:42px;scroll-snap-align:center;display:flex;align-items:center;justify-content:center;gap:4px;
+  cursor:pointer;opacity:.25;transform:scale(.9);transition:opacity .15s,transform .15s;
+  font-size:15px;font-weight:700;color:#111827;font-variant-numeric:tabular-nums}
+.dtl-dial-item.active{font-weight:800;color:#153e8f}
+.dtl-dial-item:hover{color:#1d4ed8}
+.w-dot{width:5px;height:5px;border-radius:50%;background:#e11d48;flex-shrink:0}
 .dtl-pane{overflow-y:auto;padding:0 4px 4px}
 .dtl-pane::-webkit-scrollbar{width:6px}
 .dtl-pane::-webkit-scrollbar-thumb{background:#d3d9e2;border-radius:999px}
@@ -829,7 +866,7 @@ onBeforeUnmount(()=>window.removeEventListener('keydown',onPreviewKeydown))
 .dtl-eblock-text{font-size:14.5px;color:#1f2937;line-height:1.85;white-space:pre-wrap;word-break:break-word}
 @media (max-width: 760px){
   .dtl-body{grid-template-columns:1fr}
-  .dtl-wheel-wrap{max-height:230px}
+  .dtl-dial{max-height:230px}
 }
 
 
