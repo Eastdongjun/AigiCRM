@@ -199,14 +199,17 @@
 
         <!-- 【2026-09-20 深夜】详情主从骨架：左侧月份时间轴导航 + 右侧当前月份内容卡 -->
         <div v-if="recordsByMonth.length" class="dtl-body">
-          <aside class="dtl-rail">
-            <div v-for="g in recordsByMonth" :key="g.key" class="dtl-node" :class="{active: g.key===activeMonth}" @click="activeMonth=g.key">
-              <span class="dtl-node-dot"></span>
-              <div class="dtl-node-text">
-                <span class="dtl-node-label">{{ g.label }}</span>
-                <span class="dtl-node-sub"><span v-if="monthUnread(g)" class="dtl-node-unread">{{ monthUnread(g) }} 未读</span>{{ monthScore(g) }} 分</span>
-              </div>
-              <span class="dtl-node-count">{{ g.count }}</span>
+          <!-- 左栏：iOS 闹钟式滚轮时间轴——按年份分组、月份滚动吸附居中，停稳自动选中，右侧内容跟随 -->
+          <aside class="dtl-wheel-wrap">
+            <div class="dtl-wheel-band"></div>
+            <div class="dtl-wheel" ref="wheelEl" @scroll="onWheelScroll">
+              <template v-for="yg in wheelGroups" :key="yg.year">
+                <div class="dtl-wheel-year">{{ yg.year }}年</div>
+                <div v-for="g in yg.months" :key="g.key" class="dtl-wheel-item" :class="{active: g.key===activeMonth}" :data-key="g.key" @click="wheelPick(g.key)">
+                  <span class="w-main">{{ monthShort(g) }}</span>
+                  <span class="w-sub"><em v-if="monthUnread(g)" class="w-unread">{{ monthUnread(g) }}未读</em>{{ g.count }}条 · {{ monthScore(g) }}分</span>
+                </div>
+              </template>
             </div>
           </aside>
           <section class="dtl-pane">
@@ -217,7 +220,7 @@
             <div v-for="r in activeGroup.items" :key="r.id" class="dtl-item" :data-id="r.id">
               <!-- 每个元素独立成块：信息瓦片(时间/阶段/得分/上传人/周期/行业/产品) + 宽块(详情正文/安装备注/附件凭证) -->
               <div class="dtl-ecard">
-                <div class="dtl-etiles">
+                <div class="dtl-etiles-main">
                   <div class="dtl-etile time">
                     <span class="dtl-etile-label">时间<em v-if="r.unread" class="dtl-unread-tag">未读</em></span>
                     <span class="dtl-etile-value">{{ fmtDay(r.createdAt) }}</span>
@@ -233,6 +236,8 @@
                     <span class="dtl-etile-value dtl-score" :style="{ color: scoreColor(getCls(r)) }">+{{ r.score }} 分</span>
                     <span class="dtl-etile-sub">品类积分</span>
                   </div>
+                </div>
+                <div class="dtl-etiles-sub">
                   <div class="dtl-etile">
                     <span class="dtl-etile-label">上传人</span>
                     <span class="dtl-etile-value">{{ r.userName }}</span>
@@ -501,6 +506,70 @@ const activeGroup = computed(() => recordsByMonth.value.find(g => g.key === acti
 function monthUnread(g){ return (g.items || []).filter(r => r.unread).length }
 // 台账要有合计：书脊节点展示该月分值小计(结构装置编码真实信息)
 function monthScore(g){ return (g.items || []).reduce((s, r) => s + (Number(r.score) || 0), 0) }
+// 滚轮数据：月份按年份分组(保持 recordsByMonth 的排序方向)
+const wheelEl = ref(null)
+const wheelGroups = computed(() => {
+  const out = []
+  for (const g of recordsByMonth.value) {
+    const m = /^(\d{4})年(.+)$/.exec(g.label || '')
+    const year = m ? m[1] : '其他'
+    let last = out[out.length - 1]
+    if (!last || last.year !== year) { last = { year, months: [] }; out.push(last) }
+    last.months.push(g)
+  }
+  return out
+})
+function monthShort(g){ const m = /^(\d{4})年(.+)$/.exec(g.label || ''); return m ? m[2] : g.label }
+// 滚轮视觉：条目随距中心距离缩放淡出(iOS 滚轮质感)
+let wheelRaf = 0
+function styleWheelByDistance(){
+  const el = wheelEl.value; if (!el) return
+  const b = el.getBoundingClientRect(); const cy = b.top + b.height / 2
+  el.querySelectorAll('.dtl-wheel-item').forEach(it => {
+    const r = it.getBoundingClientRect()
+    const t = Math.max(0, 1 - Math.abs(r.top + r.height / 2 - cy) / 240)
+    it.style.opacity = (0.28 + 0.72 * t).toFixed(2)
+    it.style.transform = 'scale(' + (0.92 + 0.08 * t).toFixed(3) + ')'
+  })
+}
+let wheelSettleTimer = null
+function onWheelScroll(){
+  if (!wheelRaf) wheelRaf = requestAnimationFrame(() => { wheelRaf = 0; styleWheelByDistance() })
+  clearTimeout(wheelSettleTimer)
+  wheelSettleTimer = setTimeout(() => {        // 停稳后: 最近居中的月份自动选中 → 右侧内容跟随
+    wheelSettleTimer = null
+    const el = wheelEl.value; if (!el) return
+    const b = el.getBoundingClientRect(); const cy = b.top + b.height / 2
+    let nearest = null, nd = Infinity
+    el.querySelectorAll('.dtl-wheel-item').forEach(it => {
+      const r = it.getBoundingClientRect()
+      const d = Math.abs(r.top + r.height / 2 - cy)
+      if (d < nd) { nd = d; nearest = it }
+    })
+    const k = nearest?.dataset.key
+    if (k && k !== activeMonth.value) activeMonth.value = k
+  }, 160)
+}
+function wheelPick(key){
+  activeMonth.value = key
+  nextTick(() => {
+    const it = wheelEl.value?.querySelector('.dtl-wheel-item[data-key="' + key + '"]')
+    it?.scrollIntoView({ block: 'center', behavior: 'smooth' })
+  })
+}
+// 选中月份被外部重置(换客户/搜索)时, 滚轮无动画对位并刷新视觉
+watch(activeMonth, () => {
+  nextTick(() => {
+    const el = wheelEl.value
+    const it = el?.querySelector('.dtl-wheel-item[data-key="' + activeMonth.value + '"]')
+    if (it && el) {
+      const r = it.getBoundingClientRect(), b = el.getBoundingClientRect()
+      if (Math.abs(r.top + r.height / 2 - (b.top + b.height / 2)) > 4) it.scrollIntoView({ block: 'center' })
+    }
+    styleWheelByDistance()
+  })
+}, { immediate: true })
+onBeforeUnmount(() => clearTimeout(wheelSettleTimer))
 // 月份列表变化(换客户/搜索/换向)时校准选中月份到首项
 watch(recordsByMonth, (list) => {
   if (!list.some(g => g.key === activeMonth.value)) activeMonth.value = list[0]?.key || ''
@@ -703,21 +772,25 @@ onBeforeUnmount(()=>window.removeEventListener('keydown',onPreviewKeydown))
 /* 【2026-09-20 深夜】主从骨架：左月份时间轴导航(竖线+节点) + 右当前月份内容卡 */
 .dtl-body{display:grid;grid-template-columns:216px minmax(0,1fr);gap:14px;flex:1;min-height:0;
   margin:14px 20px 0}
-.dtl-rail{position:relative;background:#fff;border:1px solid #e5e9f0;border-radius:14px;padding:12px 0;
-  overflow-y:auto;box-shadow:0 1px 2px rgba(16,24,40,.03),0 6px 18px rgba(16,24,40,.05)}
-.dtl-rail::before{content:'';position:absolute;left:31px;top:26px;bottom:26px;width:1px;background:#e2e8f0}
-.dtl-node{display:flex;align-items:center;gap:10px;min-height:44px;padding:8px 14px 8px 22px;cursor:pointer;
-  color:#4e5969;font-size:13.5px;transition:background .15s,color .15s}
-.dtl-node:hover{background:#f2f6fd}
-.dtl-node-dot{width:9px;height:9px;border-radius:50%;background:#d8dde5;flex-shrink:0;z-index:1;
-  box-shadow:0 0 0 3px #fff;transition:background .15s,box-shadow .15s}
-.dtl-node.active{color:#153e8f;font-weight:700;background:#eaf1fe}
-.dtl-node.active .dtl-node-dot{background:#2563eb;box-shadow:0 0 0 3px rgba(37,99,235,.16)}
-.dtl-node-text{display:flex;flex-direction:column;gap:2px;min-width:0;flex:1}
-.dtl-node-label{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.dtl-node-sub{font-size:11px;color:#6b7280;white-space:nowrap}
-.dtl-node-unread{color:#e11d48;font-weight:600;margin-right:6px}
-.dtl-node-count{margin-left:auto;font-size:12px;color:#6b7280;font-variant-numeric:tabular-nums;flex-shrink:0}
+/* iOS 闹钟式滚轮时间轴：吸附居中 + 选中带 + 距离缩放淡出(JS 驱动) */
+.dtl-wheel-wrap{position:relative;background:#fff;border:1px solid #e5e9f0;border-radius:14px;min-height:0;
+  box-shadow:0 1px 2px rgba(16,24,40,.03),0 6px 18px rgba(16,24,40,.05);display:flex;flex-direction:column;overflow:hidden}
+.dtl-wheel{flex:1;overflow-y:auto;scroll-snap-type:y mandatory;overscroll-behavior:contain;
+  padding:calc(50% - 22px) 0;scrollbar-width:none}
+.dtl-wheel::-webkit-scrollbar{display:none}
+.dtl-wheel-year{height:34px;display:flex;align-items:center;justify-content:center;font-size:11px;
+  letter-spacing:2px;color:#8a94a3;flex-shrink:0}
+.dtl-wheel-item{height:44px;scroll-snap-align:center;display:flex;align-items:center;justify-content:space-between;
+  gap:8px;padding:0 16px;cursor:pointer;opacity:.3;transform:scale(.92);
+  transition:opacity .15s,transform .15s;will-change:opacity,transform}
+.dtl-wheel-item .w-main{font-size:16px;font-weight:700;color:#111827;font-variant-numeric:tabular-nums}
+.dtl-wheel-item .w-sub{font-size:11px;color:#6b7280;white-space:nowrap;font-variant-numeric:tabular-nums}
+.dtl-wheel-item .w-unread{font-style:normal;color:#e11d48;font-weight:700;margin-right:6px}
+.dtl-wheel-item.active .w-main{font-weight:800;color:#153e8f}
+.dtl-wheel-band{position:absolute;left:10px;right:10px;top:50%;height:46px;transform:translateY(-50%);
+  background:#eaf1fe;border:1px solid #dbe6fb;border-radius:12px;pointer-events:none;z-index:0}
+.dtl-wheel > *{position:relative;z-index:1}
+.dtl-wheel-item:hover .w-main{color:#1d4ed8}
 .dtl-pane{overflow-y:auto;padding:0 4px 4px}
 .dtl-pane::-webkit-scrollbar{width:6px}
 .dtl-pane::-webkit-scrollbar-thumb{background:#d3d9e2;border-radius:999px}
@@ -735,7 +808,8 @@ onBeforeUnmount(()=>window.removeEventListener('keydown',onPreviewKeydown))
 .dtl-ecard{background:#fff;border:1px solid #e5e9f0;border-radius:14px;padding:16px 18px;
   box-shadow:0 1px 2px rgba(16,24,40,.03),0 6px 18px rgba(16,24,40,.05);
   display:flex;flex-direction:column;gap:12px}
-.dtl-etiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+.dtl-etiles-main{display:grid;grid-template-columns:1.35fr 1.15fr .85fr;gap:10px}
+.dtl-etiles-sub{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
 .dtl-etile{background:#f7f9fc;border:1px solid #e8edf5;border-radius:10px;padding:10px 14px;
   display:flex;flex-direction:column;gap:3px;min-width:0}
 .dtl-etile-label{font-size:11px;color:#6b7280;letter-spacing:1.5px;display:flex;align-items:center;gap:6px}
@@ -755,9 +829,7 @@ onBeforeUnmount(()=>window.removeEventListener('keydown',onPreviewKeydown))
 .dtl-eblock-text{font-size:14.5px;color:#1f2937;line-height:1.85;white-space:pre-wrap;word-break:break-word}
 @media (max-width: 760px){
   .dtl-body{grid-template-columns:1fr}
-  .dtl-rail{display:flex;overflow-x:auto;border-right:none;border-bottom:1px solid #eef0f3;padding:8px 12px}
-  .dtl-rail::before{display:none}
-  .dtl-node{flex-shrink:0;padding:6px 10px}
+  .dtl-wheel-wrap{max-height:230px}
 }
 
 

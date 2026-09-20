@@ -190,9 +190,10 @@ describe('incentive/search.vue 缩略图下载 token（空 token 403 修复 2026
     expect(wrapper.text()).toContain('2 条记录')
     expect(wrapper.text()).toContain('2 个月份')
     // 【2026-09-20 深夜 主从骨架】左栏时间轴列出全部月份节点；右栏只渲染选中月份的记录
-    expect(wrapper.findAll('.dtl-node')).toHaveLength(2)
-    expect(wrapper.findAll('.dtl-node').map((n) => n.find('.dtl-node-label').text())).toEqual(['2026年9月', '2026年8月'])
-    expect(wrapper.find('.dtl-node.active').find('.dtl-node-label').text()).toBe('2026年9月')
+    expect(wrapper.findAll('.dtl-wheel-year')).toHaveLength(1)
+    expect(wrapper.findAll('.dtl-wheel-year')[0].text()).toBe('2026年')
+    expect(wrapper.findAll('.dtl-wheel-item').map((n) => n.find('.w-main').text())).toEqual(['9月', '8月'])
+    expect(wrapper.find('.dtl-wheel-item.active').find('.w-main').text()).toBe('9月')
     expect(wrapper.findAll('.dtl-item')).toHaveLength(1)   // 默认展示 9 月的 1 条
     expect(wrapper.findAll('.dtl-score')).toHaveLength(1)
     expect(wrapper.text()).toContain('累计积分')
@@ -226,11 +227,11 @@ describe('incentive/search.vue 缩略图下载 token（空 token 403 修复 2026
     await flushPromises()
 
     // 主从骨架：左栏节点按月倒序(9月→8月)，右栏默认展示 9 月的 2 条；点击 8 月节点切换右栏内容
-    const nodeLabels = wrapper.findAll('.dtl-node').map((n) => n.find('.dtl-node-label').text())
-    expect(nodeLabels).toEqual(['2026年9月', '2026年8月'])
+    const wheelLabels = wrapper.findAll('.dtl-wheel-item').map((n) => n.find('.w-main').text())
+    expect(wheelLabels).toEqual(['9月', '8月'])
     expect(wrapper.find('.dtl-pane-head .dtl-month-label').text()).toBe('2026年9月')
     expect(wrapper.findAll('.dtl-item')).toHaveLength(2)
-    await wrapper.findAll('.dtl-node')[1].trigger('click')
+    await wrapper.findAll('.dtl-wheel-item')[1].trigger('click')
     await flushPromises()
     expect(wrapper.find('.dtl-pane-head .dtl-month-label').text()).toBe('2026年8月')
     expect(wrapper.findAll('.dtl-item')).toHaveLength(1)
