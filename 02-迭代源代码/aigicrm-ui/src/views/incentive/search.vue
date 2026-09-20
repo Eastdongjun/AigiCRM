@@ -231,44 +231,16 @@
               <div v-for="r in displayItems" :key="r.id" class="dtl-item" :data-id="r.id">
               <!-- 每个元素独立成块：信息瓦片(时间/阶段/得分/上传人/周期/行业/产品) + 宽块(详情正文/安装备注/附件凭证) -->
               <div class="dtl-ecard">
-                <div class="dtl-etiles-main">
-                  <div class="dtl-etile time">
-                    <span class="dtl-etile-label">时间<em v-if="r.unread" class="dtl-unread-tag">未读</em></span>
-                    <span class="dtl-etile-value">{{ fmtDay(r.createdAt) }}</span>
-                    <span class="dtl-etile-sub">{{ fmtTime(r.createdAt) }}<template v-if="relativeDay(r.createdAt)"> · {{ relativeDay(r.createdAt) }}</template></span>
-                  </div>
-                  <div class="dtl-etile stage">
-                    <span class="dtl-etile-label">阶段</span>
-                    <span class="dtl-etile-value"><i class="dtl-stage-dot" :style="{ background: scoreColor(getCls(r)) }"></i>{{ getMain(r) }}</span>
-                    <span class="dtl-etile-sub">{{ r.categoryName }}</span>
-                  </div>
-                  <div class="dtl-etile score">
-                    <span class="dtl-etile-label">得分</span>
-                    <span class="dtl-etile-value dtl-score" :style="{ color: scoreColor(getCls(r)) }">+{{ r.score }} 分</span>
-                    <span class="dtl-etile-sub">品类积分</span>
-                  </div>
-                </div>
-                <div class="dtl-etiles-sub">
-                  <div class="dtl-etile">
-                    <span class="dtl-etile-label">上传人</span>
-                    <span class="dtl-etile-value">{{ r.userName }}</span>
-                  </div>
-                  <div class="dtl-etile" v-if="r.period">
-                    <span class="dtl-etile-label">周期</span>
-                    <span class="dtl-etile-value">{{ r.period }}</span>
-                  </div>
-                  <div class="dtl-etile" v-if="r.industry">
-                    <span class="dtl-etile-label">行业</span>
-                    <span class="dtl-etile-value">{{ r.industry }}</span>
-                  </div>
-                  <div class="dtl-etile" v-if="r.relatedProducts">
-                    <span class="dtl-etile-label">相关产品</span>
-                    <span class="dtl-etile-value">{{ r.relatedProducts }}</span>
-                  </div>
-                  <div class="dtl-etile" v-if="r.specificProduct">
-                    <span class="dtl-etile-label">具体产品</span>
-                    <span class="dtl-etile-value">{{ r.specificProduct }}</span>
-                  </div>
+                <!-- 一行紧凑元信息条：时间/阶段/得分/上传人/周期/行业/产品 收进一行, 版面让给正文与图片 -->
+                <div class="dtl-metabar">
+                  <span class="dtl-meta time"><i v-if="r.unread" class="dtl-udot"></i>{{ fmtDay(r.createdAt) }} {{ fmtTime(r.createdAt) }}<em v-if="relativeDay(r.createdAt)">{{ relativeDay(r.createdAt) }}</em></span>
+                  <span class="dtl-meta stage"><i class="dtl-stage-dot" :style="{ background: scoreColor(getCls(r)) }"></i>{{ getMain(r) }}<em>{{ r.categoryName }}</em></span>
+                  <span class="dtl-meta dtl-score" :style="{ color: scoreColor(getCls(r)) }">+{{ r.score }} 分</span>
+                  <span class="dtl-meta"><em>上传人</em>{{ r.userName }}</span>
+                  <span class="dtl-meta" v-if="r.period"><em>周期</em>{{ r.period }}</span>
+                  <span class="dtl-meta" v-if="r.industry"><em>行业</em>{{ r.industry }}</span>
+                  <span class="dtl-meta" v-if="r.relatedProducts"><em>相关产品</em>{{ r.relatedProducts }}</span>
+                  <span class="dtl-meta" v-if="r.specificProduct"><em>具体产品</em>{{ r.specificProduct }}</span>
                 </div>
                 <div v-if="r.preInstallQuestion" class="dtl-eblock">
                   <div class="dtl-eblock-label"><el-icon style="vertical-align:-2px;margin-right:4px"><Notebook /></el-icon>{{ detailLabelOf(r) }}</div>
@@ -278,7 +250,9 @@
                   <div class="dtl-eblock-label"><el-icon style="vertical-align:-2px;margin-right:4px"><Warning /></el-icon>{{ r.categoryName }}安装备注</div>
                   <div class="dtl-eblock-text">{{ r.remark }}</div>
                 </div>
-                <div v-if="getFiles(r).length" class="dtl-files">
+                <div v-if="getFiles(r).length" class="dtl-eblock files-block">
+                  <div class="dtl-eblock-label">附件凭证 · {{ getFiles(r).length }} 项</div>
+                  <div class="dtl-files">
                   <div v-for="f in getFiles(r)" :key="f.id" class="dtl-file">
                     <template v-if="f.type==='image' && !thumbFailed.has(f.id)">
                       <div class="dtl-img-wrap">
@@ -313,6 +287,7 @@
                     </div>
                   </div>
                 </div>
+                </div><!-- /files-block -->
               </div><!-- /dtl-ecard -->
             </div>
             </template>
@@ -899,25 +874,22 @@ onBeforeUnmount(()=>window.removeEventListener('keydown',onPreviewKeydown))
 .dtl-ecard{background:#fff;border:1px solid #e5e9f0;border-radius:16px;padding:22px 24px;
   box-shadow:0 1px 2px rgba(16,24,40,.03),0 6px 18px rgba(16,24,40,.05);
   display:flex;flex-direction:column;gap:16px}
-.dtl-etiles-main{display:grid;grid-template-columns:1.5fr 1.2fr .8fr;gap:12px}
-.dtl-etiles-sub{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px}
-.dtl-etile{background:#f8fafd;border:1px solid #edf1f7;border-radius:12px;padding:13px 18px;
-  display:flex;flex-direction:column;gap:5px;min-width:0}
-.dtl-etile-label{font-size:11px;color:#6b7280;letter-spacing:1.5px;display:flex;align-items:center;gap:6px}
-.dtl-etile-value{font-size:15px;font-weight:700;color:#111827;line-height:1.35;min-width:0;
-  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.dtl-etile-sub{font-size:12px;color:#6b7280;font-variant-numeric:tabular-nums}
-.dtl-etile.score{background:#eff4fe;border-color:#dbe6fb}
-.dtl-etile.score .dtl-etile-value{font-size:19px;font-weight:800;letter-spacing:-.3px;font-variant-numeric:tabular-nums}
-.dtl-etile.time .dtl-etile-value{font-size:16px;font-weight:800;font-variant-numeric:tabular-nums}
-.dtl-stage-dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:7px;vertical-align:0}
-.dtl-unread-tag{font-style:normal;font-size:10px;font-weight:700;color:#e11d48;background:#ffe9ee;
-  border-radius:999px;padding:1px 7px;margin-left:auto;letter-spacing:0}
+/* 一行紧凑元信息条：标签灰小字内联, 值深色; 时间/得分加重, 未读红点 */
+.dtl-metabar{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 20px;padding:2px 2px 0}
+.dtl-meta{display:inline-flex;align-items:baseline;gap:5px;font-size:13px;font-weight:600;color:#1f2937;white-space:nowrap}
+.dtl-meta em{font-style:normal;font-size:11px;font-weight:500;color:#8a94a3;letter-spacing:.5px}
+.dtl-meta.time{font-size:13.5px;font-weight:700;color:#111827;font-variant-numeric:tabular-nums}
+.dtl-meta.time em{font-weight:500;color:#8a94a3;margin-left:2px}
+.dtl-meta.stage em{font-weight:600;color:#6b7280}
+.dtl-score{font-size:15.5px;font-weight:800;font-variant-numeric:tabular-nums;letter-spacing:-.2px}
+.dtl-stage-dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;flex-shrink:0;align-self:center}
+.dtl-udot{display:inline-block;width:7px;height:7px;border-radius:50%;background:#e11d48;
+  box-shadow:0 0 0 3px rgba(225,29,72,.12);margin-right:6px;align-self:center;flex-shrink:0}
 .dtl-eblock{background:#f8fafd;border:1px solid #edf1f7;border-radius:12px;padding:15px 20px}
 .dtl-eblock.remark{background:#fffaf2;border-color:#f3e4c8}
 .dtl-eblock-label{font-size:12px;font-weight:600;color:#4b5563;margin-bottom:6px;letter-spacing:1px}
 .dtl-eblock.remark .dtl-eblock-label{color:#a16207}
-.dtl-eblock-text{font-size:14.5px;color:#1f2937;line-height:1.85;white-space:pre-wrap;word-break:break-word}
+.dtl-eblock-text{font-size:15px;color:#111827;line-height:1.9;white-space:pre-wrap;word-break:break-word}
 @media (max-width: 760px){
   .dtl-body{grid-template-columns:1fr}
   .dtl-dial{max-height:230px}
@@ -936,19 +908,20 @@ onBeforeUnmount(()=>window.removeEventListener('keydown',onPreviewKeydown))
 .search-pager .el-pagination{flex-shrink:0}
 
 /* 附件网格：16:9 瓦片压缩高度，避免失败占位时空洞感；网格保底一行的 */
-.dtl-files{display:grid;grid-template-columns:repeat(auto-fill,minmax(265px,1fr));gap:14px;min-height:128px}
+.dtl-files{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px}
+.files-block{padding:16px 20px}
 .dtl-file{min-width:0}
 .dtl-file-meta{display:flex;align-items:center;gap:8px;margin-top:6px}
-.dtl-img-wrap{position:relative;border-radius:12px;overflow:hidden;background:#f2f4f8}
-.dtl-file img{width:100%;aspect-ratio:16/9;object-fit:cover;cursor:pointer;display:block;transition:transform .25s}
+.dtl-img-wrap{position:relative;border-radius:14px;overflow:hidden;background:#f2f4f8}
+.dtl-file img{width:100%;aspect-ratio:3/2;object-fit:cover;cursor:pointer;display:block;transition:transform .25s}
 .dtl-file img:hover{transform:scale(1.03)}
 .dtl-file-tag{position:absolute;top:8px;left:8px;font-size:11px;font-weight:600;background:rgba(255,255,255,.94);
   padding:2px 8px;border-radius:999px;border:1px solid transparent;white-space:nowrap;z-index:1}
 .dtl-file-tag.inline{position:static;background:#fff;flex-shrink:0}
 .dtl-file-vid{display:flex;flex-direction:column}
-.dtl-file-vid video{width:100%;aspect-ratio:16/9;border-radius:12px;background:#0b1020;display:block;object-fit:cover}
+.dtl-file-vid video{width:100%;aspect-ratio:3/2;border-radius:12px;background:#0b1020;display:block;object-fit:cover}
 .dtl-file-doc{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;
-  aspect-ratio:16/9;padding:12px;border:none;border-radius:12px;background:#f7f8fa;
+  aspect-ratio:3/2;padding:12px;border:none;border-radius:12px;background:#f7f8fa;
   color:#646a73;font-size:13px;text-align:center;cursor:pointer;transition:all .15s}
 .dtl-file-doc:hover{background:#e8f2ff;color:#1d6fd0}
 .dtl-file-doc .dtl-file-tag.inline{position:absolute;top:8px;left:8px}
