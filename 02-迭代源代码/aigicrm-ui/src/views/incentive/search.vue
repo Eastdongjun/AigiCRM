@@ -210,14 +210,18 @@
               <span class="dtl-month-count">{{ group.count }} 条</span>
             </div>
             <div v-for="r in group.items" :key="r.id" class="dtl-item">
-              <div class="dtl-head">
-                <span class="dtl-date">{{ fmtDt(r.createdAt) }}</span>
-                <span v-if="relativeDay(r.createdAt)" class="dtl-ago">{{ relativeDay(r.createdAt) }}</span>
-                <span class="rec-tag" :class="'rec-tag-'+getCls(r)">{{ getMain(r) }}</span>
-                <span class="dtl-subcat">{{ r.categoryName }}</span>
-                <span class="dtl-score" :style="{ color: scoreColor(getCls(r)) }">+{{ r.score }} 分</span>
-              </div>
-              <div class="dtl-content">
+              <!-- 记录小布局：左元信息栏(日期/品类/得分) + 右内容区(元信息/正文/附件) -->
+              <div class="dtl-entry">
+                <div class="dtl-entry-meta">
+                  <div class="dtl-date-block">
+                    <span class="dtl-date-day">{{ fmtDay(r.createdAt) }}</span>
+                    <span class="dtl-date-time">{{ fmtTime(r.createdAt) }}<template v-if="relativeDay(r.createdAt)"> · {{ relativeDay(r.createdAt) }}</template></span>
+                  </div>
+                  <span class="rec-tag" :class="'rec-tag-'+getCls(r)">{{ getMain(r) }}</span>
+                  <span class="dtl-subcat">{{ r.categoryName }}</span>
+                  <span class="dtl-score" :style="{ color: scoreColor(getCls(r)) }">+{{ r.score }} 分</span>
+                </div>
+                <div class="dtl-entry-body">
                 <div class="dtl-upload-chips">
                   <span class="dtl-chip" v-if="r.industry"><i>行业</i>{{ r.industry }}</span>
                   <span class="dtl-chip" v-if="r.relatedProducts"><i>相关产品</i>{{ r.relatedProducts }}</span>
@@ -268,7 +272,8 @@
                     </div>
                   </div>
                 </div>
-              </div>
+                </div><!-- /dtl-entry-body -->
+              </div><!-- /dtl-entry -->
             </div>
           </div>
         </div>
@@ -403,6 +408,9 @@ function detailLabelOf(r){const code=getCls(r);const sub=r.categoryName||'';if(c
 // 是否产品试点记录（安装备注仅试点有）
 function isTrialRec(r){return (getCls(r)||'').startsWith('trial')}
 function fmtDt(t){if(!t)return'';const d=new Date(t);return d.getFullYear()+'-'+(d.getMonth()+1).toString().padStart(2,'0')+'-'+d.getDate().toString().padStart(2,'0')+' '+d.getHours().toString().padStart(2,'0')+':'+d.getMinutes().toString().padStart(2,'0')}
+// 详情左栏日期块：日(粗) + 时刻(灰) 分行显示
+function fmtDay(t){if(!t)return'';const d=new Date(t);return (d.getMonth()+1).toString().padStart(2,'0')+'月'+d.getDate().toString().padStart(2,'0')+'日'}
+function fmtTime(t){if(!t)return'';const d=new Date(t);return d.getHours().toString().padStart(2,'0')+':'+d.getMinutes().toString().padStart(2,'0')}
 
 async function doSearch(){
   pageNum.value = 1
@@ -631,24 +639,24 @@ onBeforeUnmount(()=>window.removeEventListener('keydown',onPreviewKeydown))
 .dtl-month-head{display:flex;align-items:baseline;gap:10px;padding:18px 0 10px}
 .dtl-month-label{font-size:16px;font-weight:800;color:#111827;background:transparent;border-radius:0;padding:0;letter-spacing:.2px}
 .dtl-month-count{font-size:12px;color:#9ca3af}
-.dtl-item{position:relative;padding-left:0;margin-bottom:26px}
+.dtl-item{position:relative;padding-left:0;margin-bottom:28px}
 .dtl-item:last-child{margin-bottom:6px}
-.dtl-head{display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap;padding:0 4px}
-.dtl-date{font-size:13px;font-weight:700;color:#4b5563;font-variant-numeric:tabular-nums;letter-spacing:.2px}
-.dtl-ago{font-size:11px;color:#9ca3af;background:transparent;border-radius:0;padding:2px 0}
-.dtl-subcat{font-size:13px;color:#6b7280}
-/* 记录头里的品类标签：去药丸底色，改为色点 + 中性文字 */
-.dtl-head .rec-tag{background:transparent;padding:0;font-size:13px;font-weight:600}
-.dtl-head .rec-tag::before{content:'';display:inline-block;width:7px;height:7px;border-radius:50%;
+/* 【2026-09-20】记录小布局：左元信息栏(定宽) + 右内容区，元素各归其位 */
+.dtl-entry{display:grid;grid-template-columns:176px minmax(0,1fr);gap:6px 28px;align-items:start}
+.dtl-entry-meta{display:flex;flex-direction:column;align-items:flex-start;gap:8px;padding-top:2px}
+.dtl-date-block{display:flex;flex-direction:column;gap:2px;margin-bottom:2px}
+.dtl-date-day{font-size:15.5px;font-weight:800;color:#111827;font-variant-numeric:tabular-nums;letter-spacing:.2px}
+.dtl-date-time{font-size:12px;color:#9ca3af;font-variant-numeric:tabular-nums}
+.dtl-subcat{font-size:12.5px;color:#6b7280}
+/* 品类标签：去药丸底色，改为色点 + 中性文字 */
+.dtl-entry-meta .rec-tag{background:transparent;padding:0;font-size:13px;font-weight:600}
+.dtl-entry-meta .rec-tag::before{content:'';display:inline-block;width:7px;height:7px;border-radius:50%;
   margin-right:6px;background:currentColor;vertical-align:1px}
-.dtl-score{margin-left:auto;font-size:17px;font-weight:800;border-radius:0;padding:0;border:none;
-  font-variant-numeric:tabular-nums;letter-spacing:-.2px}
+.dtl-score{margin:6px 0 0;font-size:19px;font-weight:800;border-radius:0;padding:0;border:none;
+  font-variant-numeric:tabular-nums;letter-spacing:-.3px}
+.dtl-entry-body{min-width:0;display:flex;flex-direction:column}
+@media (max-width: 760px){.dtl-entry{grid-template-columns:1fr}.dtl-entry-meta{flex-direction:row;flex-wrap:wrap;align-items:baseline;gap:6px 14px}}
 
-/* 记录条目：一客一卡后不再是独立卡片——透明、无投影，靠间距分节；内层区块定高保证条目节奏一致 */
-.dtl-content{padding:0;border:none;border-radius:0;min-height:0;
-  background:transparent;box-shadow:none;transition:none;
-  display:flex;flex-direction:column}
-.dtl-item:hover .dtl-content{box-shadow:none;transform:none}
 /* 元信息：静默文字行（无底色药丸），标签灰、值深 */
 .dtl-upload-chips{display:flex;flex-wrap:wrap;gap:6px 20px;margin-bottom:12px}
 .dtl-chip{display:inline-flex;align-items:baseline;gap:5px;font-size:13px;color:#374151;
