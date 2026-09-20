@@ -511,6 +511,8 @@ public class CustomerService {
         }
         // 【议题五.3 裁决 2026-09-19】有业务数据的客户不允许删,转停用:
         // 有效开票/回款/在途审批任一存在 → 拒绝(删前展示关联影响的最低实现)
+        // 【PR-18 口径】此处计数刻意含已作废(voided)记录:作废仅取消金额效力,台账记录按
+        // "保留原值、原因及操作者"留存,仍属客户的历史业务痕迹,不因作废而放开物理删除。
         long invoiceCount = invoiceMapper.selectCount(
                 new LambdaQueryWrapper<com.aigicrm.module.customer.entity.BizInvoice>()
                         .eq(com.aigicrm.module.customer.entity.BizInvoice::getCustomerId, id));
@@ -1122,9 +1124,11 @@ public class CustomerService {
         Map<String, Object> summary = new HashMap<>();
         summary.put("totalCount", invoiceMapper.countByCustomerId(customerId));
         summary.put("totalAmount", invoiceMapper.sumAmountByCustomerId(customerId));
+        // 【PR-18 统计口径】最近开票日排除已作废发票(金额/笔数已由 Mapper 排除)
         List<BizInvoice> latest = invoiceMapper.selectList(
                 new LambdaQueryWrapper<BizInvoice>()
                         .eq(BizInvoice::getCustomerId, customerId)
+                        .ne(BizInvoice::getStatus, "voided")
                         .orderByDesc(BizInvoice::getInvoiceDate)
                         .last("LIMIT 1"));
         summary.put("latestDate", latest.isEmpty() ? null : latest.get(0).getInvoiceDate());
@@ -1226,9 +1230,11 @@ public class CustomerService {
     }
 
     private void refreshLastInvoiceDate(Long customerId) {
+        // 【PR-18 统计口径】最近开票日排除已作废发票——作废发票不得驱动保护期/到期日计算
         List<BizInvoice> latest = invoiceMapper.selectList(
                 new LambdaQueryWrapper<BizInvoice>()
                         .eq(BizInvoice::getCustomerId, customerId)
+                        .ne(BizInvoice::getStatus, "voided")
                         .orderByDesc(BizInvoice::getInvoiceDate)
                         .last("LIMIT 1"));
         BizCustomer customer = customerMapper.selectById(customerId);

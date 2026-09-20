@@ -54,6 +54,8 @@ class StatisticsQueryServiceTest {
         initTableInfo(BizIncentiveRecord.class);
         initTableInfo(BizApproval.class);
         initTableInfo(BizCustomer.class);
+        initTableInfo(com.aigicrm.module.customer.entity.BizInvoice.class);
+        initTableInfo(com.aigicrm.module.customer.entity.BizPayment.class);
         initTableInfo(SysLog.class);
     }
 
@@ -144,8 +146,8 @@ class StatisticsQueryServiceTest {
         customer.setOwnerId(8L);
         when(customerService.getAllActiveCustomers()).thenReturn(List.of(customer));
         when(indicatorMapper.selectList(null)).thenReturn(List.of());
-        when(invoiceMapper.selectList(null)).thenReturn(List.of());
-        when(paymentMapper.selectList(null)).thenReturn(List.of());
+        when(invoiceMapper.selectList(org.mockito.ArgumentMatchers.<com.baomidou.mybatisplus.core.conditions.Wrapper<com.aigicrm.module.customer.entity.BizInvoice>>any())).thenReturn(List.of());
+        when(paymentMapper.selectList(org.mockito.ArgumentMatchers.<com.baomidou.mybatisplus.core.conditions.Wrapper<com.aigicrm.module.customer.entity.BizPayment>>any())).thenReturn(List.of());
 
         try (MockedStatic<SecurityUtils> security = org.mockito.Mockito.mockStatic(SecurityUtils.class)) {
             security.when(SecurityUtils::getCurrentUserId).thenReturn(7L);
@@ -188,8 +190,8 @@ class StatisticsQueryServiceTest {
         otherIndicator.setIndicator04(1);
         otherIndicator.setIndicator05(2);
         when(indicatorMapper.selectList(null)).thenReturn(List.of(mineIndicator, otherIndicator));
-        when(invoiceMapper.selectList(null)).thenReturn(List.of());
-        when(paymentMapper.selectList(null)).thenReturn(List.of());
+        when(invoiceMapper.selectList(org.mockito.ArgumentMatchers.<com.baomidou.mybatisplus.core.conditions.Wrapper<com.aigicrm.module.customer.entity.BizInvoice>>any())).thenReturn(List.of());
+        when(paymentMapper.selectList(org.mockito.ArgumentMatchers.<com.baomidou.mybatisplus.core.conditions.Wrapper<com.aigicrm.module.customer.entity.BizPayment>>any())).thenReturn(List.of());
 
         try (MockedStatic<SecurityUtils> security = org.mockito.Mockito.mockStatic(SecurityUtils.class)) {
             security.when(SecurityUtils::getCurrentUserId).thenReturn(7L);
@@ -276,6 +278,39 @@ class StatisticsQueryServiceTest {
         org.junit.jupiter.api.Assertions.assertEquals(
                 List.of(LocalDate.of(2026, 2, 1), LocalDate.of(2026, 2, 8), LocalDate.of(2026, 2, 15)),
                 starts);
+    }
+
+
+    /**
+     * 【PR-18 统计口径】指标统计的开票/回款聚合必须排除已作废(voided)台账——
+     * 作废记录只留痕不计入金额。断言下发到 Mapper 的查询条件包含 status <> 'voided'
+     * (与既有 uploader_id 范围断言同风格, 防口径回退)。
+     */
+    @Test
+    void indicatorStatsExcludesVoidedLedgerFromTotals() {
+        when(customerService.getAllActiveCustomers()).thenReturn(List.of());
+        when(indicatorMapper.selectList(null)).thenReturn(List.of());
+        when(invoiceMapper.selectList(org.mockito.ArgumentMatchers.<com.baomidou.mybatisplus.core.conditions.Wrapper<com.aigicrm.module.customer.entity.BizInvoice>>any())).thenReturn(List.of());
+        when(paymentMapper.selectList(org.mockito.ArgumentMatchers.<com.baomidou.mybatisplus.core.conditions.Wrapper<com.aigicrm.module.customer.entity.BizPayment>>any())).thenReturn(List.of());
+
+        try (MockedStatic<SecurityUtils> security = org.mockito.Mockito.mockStatic(SecurityUtils.class)) {
+            security.when(SecurityUtils::getCurrentUserId).thenReturn(7L);
+
+            service.indicatorStats();
+
+            org.mockito.Mockito.verify(invoiceMapper).selectList(
+                    org.mockito.ArgumentMatchers.argThat(w ->
+                            w != null && ((com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<?>) w)
+                                    .getSqlSegment().contains("status")
+                            && ((com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<?>) w)
+                                    .getParamNameValuePairs().containsValue("voided")));
+            org.mockito.Mockito.verify(paymentMapper).selectList(
+                    org.mockito.ArgumentMatchers.argThat(w ->
+                            w != null && ((com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<?>) w)
+                                    .getSqlSegment().contains("status")
+                            && ((com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<?>) w)
+                                    .getParamNameValuePairs().containsValue("voided")));
+        }
     }
 
     private BigDecimal money(String value) {

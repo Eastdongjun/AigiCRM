@@ -66,6 +66,8 @@ class CustomerServiceTest {
         MybatisMapperBuilderAssistant assistant =
                 new MybatisMapperBuilderAssistant(new MybatisConfiguration(), "");
         TableInfoHelper.initTableInfo(assistant, BizCustomer.class);
+        TableInfoHelper.initTableInfo(assistant, BizInvoice.class);
+        TableInfoHelper.initTableInfo(assistant, BizPayment.class);
     }
 
     /** 解析 wrapper 条件为 列名→值列表（IN 展开为多值，eq 为单值） */
@@ -136,6 +138,64 @@ class CustomerServiceTest {
             assertTrue(sql.contains("status"));
             assertTrue(sql.contains("deleted"));
         }
+    }
+
+    /**
+     * 【PR-18 统计口径】作废发票后重算"最近开票日"必须排除已作废发票——
+     * 断言下发到 Mapper 的查询含 status <> 'voided' 条件(作废票不得驱动保护期)。
+     */
+    @Test
+    void voidInvoice_recomputesLatestInvoiceDateFromValidOnesOnly() {
+        BizInvoiceMapper invoiceMapper = mock(BizInvoiceMapper.class);
+        BizPaymentMapper paymentMapper = mock(BizPaymentMapper.class);
+        BizCustomerMapper customerMapper = mock(BizCustomerMapper.class);
+        OrgScopeResolver resolver = mock(OrgScopeResolver.class);
+        var indicatorMapper = mock(com.aigicrm.module.customer.mapper.BizCustomerIndicatorMapper.class);
+        CustomerService service = new CustomerService(
+                customerMapper,
+                mock(com.aigicrm.module.customer.mapper.BizCustomerLogMapper.class),
+                invoiceMapper,
+                mock(com.aigicrm.module.customer.mapper.BizCustomerShareMapper.class),
+                indicatorMapper,
+                mock(com.aigicrm.module.customer.mapper.BizContactMapper.class),
+                paymentMapper,
+                mock(com.aigicrm.module.system.mapper.SysUserMapper.class),
+                mock(com.aigicrm.module.system.mapper.SysDeptMapper.class),
+                mock(com.aigicrm.module.reminder.mapper.BizReminderMapper.class),
+                mock(org.springframework.jdbc.core.JdbcTemplate.class),
+                mock(com.aigicrm.module.system.service.SysConfigService.class),
+                resolver,
+                mock(com.aigicrm.common.engine.CustomerAccessService.class),
+                mock(com.aigicrm.module.system.service.RolePermScopeService.class));
+
+        BizInvoice invoice = new BizInvoice();
+        invoice.setId(5L);
+        invoice.setCustomerId(1L);
+        invoice.setInvoiceDate(java.time.LocalDate.of(2026, 1, 10));
+        when(invoiceMapper.selectById(5L)).thenReturn(invoice);
+
+        // 客户原最近开票日 = 被作废的这张票
+        BizCustomer customer = new BizCustomer();
+        customer.setId(1L);
+        customer.setLastInvoiceDate(java.time.LocalDate.of(2026, 1, 10));
+        when(customerMapper.selectById(1L)).thenReturn(customer);
+        // 有效发票为空 → 作废后最近开票日应清空
+        when(invoiceMapper.selectList(any())).thenReturn(List.of());
+        when(invoiceMapper.sumAmountByCustomerId(1L)).thenReturn(java.math.BigDecimal.ZERO);
+        when(paymentMapper.sumAmountByCustomerId(1L)).thenReturn(java.math.BigDecimal.ZERO);
+        when(indicatorMapper.selectOne(any())).thenReturn(null);
+
+        service.voidInvoice(1L, 5L, "开错票重开");
+
+        ArgumentCaptor<com.baomidou.mybatisplus.core.conditions.Wrapper<BizInvoice>> wrapperCaptor =
+                ArgumentCaptor.forClass(com.baomidou.mybatisplus.core.conditions.Wrapper.class);
+        verify(invoiceMapper).selectList(wrapperCaptor.capture());
+        // MP 3.5 参数命名懒加载: mock 不执行 SQL, 需先构建 SQL 片段触发参数填充再断言
+        LambdaQueryWrapper<BizInvoice> latestWrapper = (LambdaQueryWrapper<BizInvoice>) wrapperCaptor.getValue();
+        String latestSql = latestWrapper.getSqlSegment();
+        assertTrue(latestSql.contains("status"), "查询需含 status 条件");
+        assertTrue(latestWrapper.getParamNameValuePairs().containsValue("voided"), "重算最近开票日的查询必须排除 voided 发票");
+        assertNull(customer.getLastInvoiceDate(), "作废唯一有效发票后最近开票日应清空");
     }
 
     @Test

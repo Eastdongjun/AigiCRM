@@ -222,7 +222,10 @@ public class StatisticsQueryService {
         Map<Long, BizCustomer> customerMap = new HashMap<>();
         for (BizCustomer c : allCustomers) customerMap.put(c.getId(), c);
 
-        List<BizInvoice> allInvoices = invoiceMapper.selectList(null);
+        // 【PR-18 统计口径】核心客户开票/回款合计排除已作废(voided)台账——作废仅保留痕迹不计入金额
+        List<BizInvoice> allInvoices = invoiceMapper.selectList(
+                new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<BizInvoice>()
+                        .ne(BizInvoice::getStatus, "voided"));
         Map<Long, java.math.BigDecimal> invoiceTotals = new HashMap<>();
         for (BizInvoice inv : allInvoices) {
             if (inv.getCustomerId() != null && inv.getAmount() != null) {
@@ -230,7 +233,9 @@ public class StatisticsQueryService {
             }
         }
         java.math.BigDecimal THRESHOLD = CORE_THRESHOLD;
-        List<BizPayment> allPayments = paymentMapper.selectList(null);
+        List<BizPayment> allPayments = paymentMapper.selectList(
+                new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<BizPayment>()
+                        .ne(BizPayment::getStatus, "voided"));
         Map<Long, java.math.BigDecimal> paymentTotals = new HashMap<>();
         for (BizPayment payment : allPayments) {
             if (payment.getCustomerId() != null && payment.getPaymentAmount() != null) {
