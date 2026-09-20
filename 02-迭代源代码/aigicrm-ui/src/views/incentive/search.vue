@@ -204,30 +204,31 @@
             <div class="dtl-dial-band"></div>
             <div class="dtl-dial-col">
               <div class="dtl-dial-scroll" :ref="el => (dialEls.year.value = el)" @scroll="onDialScroll('year')">
-                <div v-for="y in dialYears" :key="y" class="dtl-dial-item" :class="{active: y===selYear}" :data-key="y" @click="dialPick('year', y)">{{ y }}</div>
+                <div v-for="y in dialYears" :key="y" class="dtl-dial-item" :class="{active: y===selYear, dim: !dialYearHas(y)}" :data-key="y" @click="dialPick('year', y)">{{ y }}</div>
               </div>
             </div>
             <div class="dtl-dial-col">
               <div class="dtl-dial-scroll" :ref="el => (dialEls.month.value = el)" @scroll="onDialScroll('month')">
-                <div v-for="m in dialMonths" :key="m.m" class="dtl-dial-item" :class="{active: m.group && m.group.key===activeMonth, off: !m.group}"
-                  :data-key="m.group ? m.group.key : 'none'" :data-off="m.group ? null : '1'" @click="m.group && dialPick('month', m.group.key)">
+                <div v-for="m in dialMonths" :key="m.m" class="dtl-dial-item" :class="{active: m.m===selMonth, dim: !m.group}"
+                  :data-key="String(m.m)" @click="dialPick('month', String(m.m))">
                   {{ m.label }}<i v-if="m.group && monthUnread(m.group)" class="w-dot"></i>
                 </div>
               </div>
             </div>
             <div class="dtl-dial-col">
               <div class="dtl-dial-scroll" :ref="el => (dialEls.day.value = el)" @scroll="onDialScroll('day')">
-                <div v-for="it in dialDays" :key="it.d" class="dtl-dial-item" :class="{active: it.d===selDay, off: !it.has}"
-                  :data-key="String(it.d)" :data-off="it.has ? null : '1'" @click="it.has && dialPick('day', String(it.d))">{{ it.label }}</div>
+                <div v-for="it in dialDays" :key="it.d" class="dtl-dial-item" :class="{active: it.d===selDay, dim: !it.has}"
+                  :data-key="String(it.d)" @click="dialPick('day', String(it.d))">{{ it.label }}</div>
               </div>
             </div>
           </aside>
           <section class="dtl-pane">
             <div class="dtl-pane-head">
-              <span class="dtl-month-label">{{ activeGroup.label }}<template v-if="selDay"> · {{ selDay }}日</template></span>
+              <span class="dtl-month-label">{{ selYear }}年{{ selMonth }}月<template v-if="selDay"> · {{ selDay }}日</template></span>
               <span class="dtl-month-count">{{ displayItems.length }} 条</span>
             </div>
-            <div v-for="r in displayItems" :key="r.id" class="dtl-item" :data-id="r.id">
+            <template v-if="displayItems.length">
+              <div v-for="r in displayItems" :key="r.id" class="dtl-item" :data-id="r.id">
               <!-- 每个元素独立成块：信息瓦片(时间/阶段/得分/上传人/周期/行业/产品) + 宽块(详情正文/安装备注/附件凭证) -->
               <div class="dtl-ecard">
                 <div class="dtl-etiles-main">
@@ -313,6 +314,12 @@
                   </div>
                 </div>
               </div><!-- /dtl-ecard -->
+            </div>
+            </template>
+            <div v-else class="dtl-pane-empty">
+              <el-icon :size="34"><Calendar /></el-icon>
+              <div class="dtl-pane-empty-title">{{ selYear }}年{{ selMonth }}月<template v-if="selDay"> · {{ selDay }}日</template>，此时间无数据</div>
+              <div class="dtl-pane-empty-hint">拨动左侧年 / 月 / 日选择盘，亮起的选项才有激励记录</div>
             </div>
           </section>
         </div>
@@ -412,12 +419,12 @@ async function downloadFile(id, name) {
 function downloadPreview(){ const f=previewCurrent.value; if(f) downloadFile(f.id, f.label) }
 async function showDetail(c){
   detailCust.value=c;detailVisible.value=true
-  detailKeyword.value='';detailOrder.value='desc';activeMonth.value='' // 换客户详情即复位检索/方向/选中月份
+  detailKeyword.value='';detailOrder.value='desc' // 换客户详情即复位检索与方向(年月日由 recordsByMonth watcher 校准)
   // 【2026-09-20】已读/未读与小程序同逻辑：不再打开即全标已读，
   // 记录滚动进入视野时逐条标记（乐观更新+失败回滚），未读数实时反映在概览胶囊上
   await nextTick()
   dialPad()
-  alignDial('year', selYear.value); alignDial('month', activeMonth.value); alignDial('day', '0')
+  alignDial('year', selYear.value); alignDial('month', String(selMonth.value)); alignDial('day', '0')
   setupReadObserver()
 }
 const unreadCount = computed(() => (detailCust.value?.records || []).filter(r => r.unread).length)
@@ -513,10 +520,12 @@ const detailOrder = ref('desc')
 const filteredRecords = computed(() => filterRecordsByMonthSafe())
 const recordsByMonth=computed(()=>groupRecordsByMonth(filteredRecords.value, detailOrder.value))
 // 【2026-09-20 深夜】主从骨架状态: 左栏时间轴选中的月份 → 右栏只渲染该月内容
-const activeMonth = ref('')
 const selYear = ref('')
-const selDay = ref(0)   // 0 = 整月
-const activeGroup = computed(() => recordsByMonth.value.find(g => g.key === activeMonth.value) || recordsByMonth.value[0] || { label: '', count: 0, items: [] })
+const selMonth = ref(1)  // 1-12, 拨盘位置(不要求该月有数据)
+const selDay = ref(0)     // 0 = 整月, 拨盘位置
+// 选中 = 拨盘位置: 年+月定位组, 无则 null(右栏出"此时间无数据"); 有则再按日过滤
+const monthKeyStr = computed(() => selYear.value + '-' + String(selMonth.value).padStart(2, '0'))
+const activeGroup = computed(() => recordsByMonth.value.find(g => g.key === monthKeyStr.value) || null)
 const displayItems = computed(() => {
   const g = activeGroup.value
   if (!g || !g.items || !g.items.length) return []
@@ -540,7 +549,17 @@ const wheelGroups = computed(() => {
   }
   return out
 })
-const dialYears = computed(() => wheelGroups.value.map(yg => yg.year))
+// 年份盘自增：从最早记录年份到当前系统年份连续生成(每年跨年自动多一年), 无数据年份置暗
+const dialYears = computed(() => {
+  const nowY = new Date().getFullYear()
+  const dataYears = wheelGroups.value.map(yg => Number(yg.year)).filter(y => !isNaN(y))
+  const min = dataYears.length ? Math.min(...dataYears, nowY) : nowY
+  const max = dataYears.length ? Math.max(...dataYears, nowY) : nowY
+  const out = []
+  for (let y = min; y <= max; y++) out.push(String(y))
+  return out
+})
+function dialYearHas(y){ return wheelGroups.value.some(yg => yg.year === y) }
 // 月盘展示全 12 个月(无数据的月份置灰不可选)——条目足够多, 拨盘才真正可拨动(iOS 同款)
 const dialMonths = computed(() => {
   const yg = wheelGroups.value.find(y => y.year === selYear.value)
@@ -557,7 +576,7 @@ function recDay(r){
 }
 // 日盘: 整月 + 该月 1..月末; 有记录的日期可选, 其余置灰
 const dialDays = computed(() => {
-  const g = recordsByMonth.value.find(x => x.key === activeMonth.value)
+  const g = recordsByMonth.value.find(x => x.key === monthKeyStr.value)
   const base = [{ d: 0, label: '整月', has: true }]
   if (!g || !g.items.length) return base
   const first = new Date(String(g.items[0].createdAt || '').replace(/-/g, '/').replace('T', ' '))
@@ -574,7 +593,7 @@ function styleDial(col){
   const el = dialEls[col].value; if (!el) return
   const b = el.getBoundingClientRect(); const cy = b.top + b.height / 2
   el.querySelectorAll('.dtl-dial-item').forEach(it => {
-    if (it.dataset.off) { it.style.opacity = '.16'; it.style.transform = 'scale(.92)'; return }
+    if (it.classList.contains('dim') && !it.classList.contains('active')) { it.style.opacity = '.16'; it.style.transform = 'scale(.92)'; return }
     const r = it.getBoundingClientRect()
     const t = Math.max(0, 1 - Math.abs(r.top + r.height / 2 - cy) / 200)
     it.style.opacity = (0.25 + 0.75 * t).toFixed(2)
@@ -608,20 +627,16 @@ function onDialScroll(col){
   dialTimers[col] = setTimeout(() => {
     dialTimers[col] = null
     const el = centerKey(col)
-    if (!el || el.dataset.off) return            // 置灰项(无数据月份/日期)路过不选中
+    if (!el) return
     const k = el.dataset.key
-    if (col === 'year' && k !== selYear.value) { selYear.value = k; cascadeAfterYear() }
-    else if (col === 'month' && k !== activeMonth.value) { activeMonth.value = k; selDay.value = 0 }
+    if (col === 'year' && k !== selYear.value) { selYear.value = k; selDay.value = 0 }
+    else if (col === 'month' && Number(k) !== selMonth.value) { selMonth.value = Number(k); selDay.value = 0 }
     else if (col === 'day' && Number(k) !== selDay.value) selDay.value = Number(k)
   }, 150)
 }
-function cascadeAfterYear(){
-  if (!dialMonths.value.some(g => g.key === activeMonth.value)) activeMonth.value = dialMonths.value[0]?.key || ''
-  selDay.value = 0
-}
 function dialPick(col, key){
-  if (col === 'year') { if (key !== selYear.value) { selYear.value = key; cascadeAfterYear() } }
-  else if (col === 'month') { if (key !== activeMonth.value) { activeMonth.value = key; selDay.value = 0 } }
+  if (col === 'year') { if (key !== selYear.value) { selYear.value = key; selDay.value = 0 } }
+  else if (col === 'month') { if (Number(key) !== selMonth.value) { selMonth.value = Number(key); selDay.value = 0 } }
   else if (col === 'day') { selDay.value = Number(key) }
 }
 // 选中值被外部改变(级联/重置/点选)后, 对应拨盘无动画对位并刷新视觉
@@ -636,21 +651,21 @@ function alignDial(col, key){
   })
 }
 watch(selYear, () => alignDial('year', selYear.value))
-watch(activeMonth, () => { alignDial('month', activeMonth.value) })
+watch(selMonth, () => { alignDial('month', String(selMonth.value)) })
 watch(selDay, () => alignDial('day', String(selDay.value)))
 onBeforeUnmount(() => Object.values(dialTimers).forEach(clearTimeout))
 // 月份列表变化(换客户/搜索/换向)时校准选中月份到首项
 watch(recordsByMonth, (list) => {
   const first = list[0]
-  const ym = /^(\d{4})年/.exec(first?.label || '')
-  selYear.value = ym ? ym[1] : ''
-  if (!list.some(g => g.key === activeMonth.value)) activeMonth.value = first?.key || ''
+  const ym = /^(\d{4})年(\d{1,2})月/.exec(first?.label || '')
+  selYear.value = ym ? ym[1] : String(new Date().getFullYear())
+  selMonth.value = ym ? Number(ym[2]) : new Date().getMonth() + 1
   selDay.value = 0
   nextTick(dialPad)
-  alignDial('year', selYear.value); alignDial('month', activeMonth.value); alignDial('day', '0')
+  alignDial('year', selYear.value); alignDial('month', String(selMonth.value)); alignDial('day', '0')
 }, { immediate: true })
 // 搜索/换向会重建记录节点，需要重新挂监听；关弹窗/卸载时清理
-watch([detailKeyword, detailOrder, activeMonth, selDay], () => { if (detailVisible.value) nextTick(setupReadObserver) })
+watch([detailKeyword, detailOrder, selYear, selMonth, selDay], () => { if (detailVisible.value) nextTick(setupReadObserver) })
 watch(detailVisible, (v) => { if (!v) destroyReadObserver() })
 onBeforeUnmount(destroyReadObserver)
 const recordTotal=computed(()=>detailCust.value?.records?.length||0)
@@ -861,7 +876,11 @@ onBeforeUnmount(()=>window.removeEventListener('keydown',onPreviewKeydown))
   font-size:15px;font-weight:700;color:#111827;font-variant-numeric:tabular-nums}
 .dtl-dial-item.active{font-weight:800;color:#153e8f}
 .dtl-dial-item:hover{color:#1d4ed8}
-.dtl-dial-item.off{pointer-events:none;cursor:default}
+.dtl-dial-item.dim{opacity:.16}
+.dtl-pane-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;
+  padding:70px 0;color:#8a94a3}
+.dtl-pane-empty-title{font-size:15px;font-weight:600;color:#6b7280}
+.dtl-pane-empty-hint{font-size:12px;color:#9ca3af}
 .w-dot{width:5px;height:5px;border-radius:50%;background:#e11d48;flex-shrink:0}
 .dtl-pane{overflow-y:auto;padding:0 6px 6px}
 .dtl-pane::-webkit-scrollbar{width:6px}
