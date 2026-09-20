@@ -64,6 +64,14 @@ export function getInvoiceSummary(id) {
 export function addInvoice(id, data) {
   return request.post(`/customer/${id}/invoices`, data)
 }
+// 【议题五.4】归档(默认隐藏, 统计/到期提醒不参与)与恢复 —— 守卫 customer:edit
+export function archiveCustomer(id) {
+  return request.post(`/customer/${id}/archive`)
+}
+export function restoreCustomer(id) {
+  return request.post(`/customer/${id}/restore`)
+}
+
 export function deleteInvoice(customerId, invoiceId) {
   return request.delete(`/customer/${customerId}/invoices/${invoiceId}`)
 }

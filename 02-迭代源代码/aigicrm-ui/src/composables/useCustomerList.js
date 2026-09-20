@@ -8,7 +8,7 @@
 import { ref, reactive, computed, inject } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { getCustomerList, getCustomerStatistics, getCustomerListCounts, releaseCustomer, deleteCustomer } from '@/api/customer'
+import { getCustomerList, getCustomerStatistics, getCustomerListCounts, releaseCustomer, deleteCustomer, archiveCustomer, restoreCustomer } from '@/api/customer'
 import { getDeptList, getDictData } from '@/api/system'
 import { useUserStore } from '@/store/user'
 import { downloadFile } from '@/utils/download'
@@ -34,6 +34,9 @@ export function useCustomerList() {
   const activeTab = ref('innovate')
   const searchText = ref('')
   const filters = reactive({ search: '', industry: '', status: '' })
+  // 【议题五.4】归档筛选: 默认隐藏归档客户, 勾选后列表含归档(后端 include_archived)
+  const showArchived = ref(false)
+  const toggleArchived = (val) => { showArchived.value = val; query.status = ''; query.statuses = []; page.value = 1; loadData() }
   const advFilterTab = ref('basic')
   const advFilter = reactive({ industry: '', province: '', city: '', status: '', protect: '', owner: '', regDate: null, expDate: null, orgIds: [], userIds: [], deptId: null, deptIds: [] })
   const canFilterByOrg = ref(false)
@@ -177,6 +180,8 @@ export function useCustomerList() {
       if (query.regionIds && query.regionIds.length) params.regionId = query.regionIds[0]
       if (query.status) params.status = query.status
       if (query.statuses && query.statuses.length) params.status = query.statuses.join(',')
+      // 【议题五.4】显示已归档: 后端语义 include_archived=默认口径(不含公海)+含归档, 覆盖状态下拉
+      if (showArchived.value) params.status = 'include_archived'
       if (query.filters && query.filters.length) {
         query.filters.forEach(f => {
           params[f.field] = Array.isArray(f.value) ? f.value.join(',') : f.value
@@ -342,6 +347,32 @@ export function useCustomerList() {
     }
   }
 
+  // 【议题五.4】归档: 默认隐藏+不参与统计与到期提醒; 恢复: 回到 normal
+  const handleArchive = async (row) => {
+    try {
+      await ElMessageBox.confirm(
+        `确认归档客户 “${row.customerName}”？归档后列表默认隐藏, 不参与统计与到期提醒, 可随时恢复。`,
+        '归档客户', { type: 'warning', confirmButtonText: '确认归档', cancelButtonText: '取消' }
+      )
+    } catch (e) { return }
+    try {
+      await archiveCustomer(row.id)
+      ElMessage.success('客户已归档')
+      refreshAll()
+    } catch (e) {
+      if (e?.response?.data?.message) ElMessage.error(e.response.data.message)
+    }
+  }
+  const handleRestore = async (row) => {
+    try {
+      await restoreCustomer(row.id)
+      ElMessage.success('客户已恢复')
+      refreshAll()
+    } catch (e) {
+      if (e?.response?.data?.message) ElMessage.error(e.response.data.message)
+    }
+  }
+
   const openRelease = (row) => {
     releaseTarget.value = row
     releaseReason.value = '放弃客户'
@@ -371,7 +402,8 @@ export function useCustomerList() {
     showAdvFilter, colPickerVisible, showImportDialog,
     showReleaseDialog, releaseTarget, releaseReason, releaseLoading,
     page, pageSize,
-    canDelete, canRelease, tabs, filteredAllData, currentTabData, filteredList,
+    canDelete, canRelease, showArchived, toggleArchived, handleArchive, handleRestore,
+    tabs, filteredAllData, currentTabData, filteredList,
     advFilterCount, allIndustries, emptyTableText,
     isShared, getExpireColor, getDaysLeft, getStatusType, getStatusText, getProtectClass, getProtectText,
     loadData, loadStats, loadScopeCounts, refreshAll,

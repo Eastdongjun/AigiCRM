@@ -142,7 +142,13 @@ public class CustomerService {
             deptIds.add(deptId);
             wrapper.in(BizCustomer::getDeptId, deptIds);
         }
-        if (StringUtils.hasText(status)) {
+        // 【修复 2026-09-20 议题五.4 缺口】status=include_archived 此前落入下方 eq 分支
+        // (按字面 'include_archived' 精确匹配) → 恒空集, "筛选含归档"实际不可用。
+        // 语义: include_archived = 默认口径(不含公海)但不排除归档; 显式状态值仍精确过滤
+        // (显式传 'archived' 即"只看已归档")。
+        if ("include_archived".equals(status)) {
+            wrapper.ne(BizCustomer::getStatus, "sea");
+        } else if (StringUtils.hasText(status)) {
             String[] arr = status.split(",");
             if (arr.length > 1) wrapper.in(BizCustomer::getStatus, (Object[]) arr);
             else wrapper.eq(BizCustomer::getStatus, status);
@@ -216,12 +222,17 @@ public class CustomerService {
         if (StringUtils.hasText(industry)) wrapper.eq(BizCustomer::getIndustry, industry);
         if (officeId != null) wrapper.eq(BizCustomer::getOfficeId, officeId);
         if (regionId != null) wrapper.eq(BizCustomer::getRegionId, regionId);
-        if (StringUtils.hasText(status)) {
+        // 【2026-09-20 议题五.4 口径对齐】分享视图与主列表同口径: 归档默认隐藏;
+        // include_archived 含归档不含公海; 显式状态值精确过滤(可显式查 'archived')。
+        if ("include_archived".equals(status)) {
+            wrapper.ne(BizCustomer::getStatus, "sea");
+        } else if (StringUtils.hasText(status)) {
             String[] arr = status.split(",");
             if (arr.length > 1) wrapper.in(BizCustomer::getStatus, (Object[]) arr);
             else wrapper.eq(BizCustomer::getStatus, status);
         } else {
             wrapper.ne(BizCustomer::getStatus, "sea");
+            wrapper.ne(BizCustomer::getStatus, "archived");
         }
     }
 

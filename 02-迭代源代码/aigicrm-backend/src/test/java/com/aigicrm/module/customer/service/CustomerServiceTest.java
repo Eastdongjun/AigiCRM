@@ -4,7 +4,9 @@ import com.baomidou.mybatisplus.core.MybatisConfiguration;
 import com.baomidou.mybatisplus.core.MybatisMapperBuilderAssistant;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
+import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.aigicrm.common.BusinessException;
 import com.aigicrm.common.engine.CustomerAccessService;
 import com.aigicrm.common.scope.OrgScopeResolver;
@@ -216,6 +218,48 @@ class CustomerServiceTest {
      * 【PR-18 状态机】已确认(confirmed)发票锁定不可物理删除——更正/取消走"作废"留痕;
      * 仅待核对(pending)暂录可删。回款同口径。
      */
+    /**
+     * 【议题五.4 回归】status=include_archived 不得被状态等值过滤打成空集——
+     * 修复前 eq(status,'include_archived') 恒无命中, "筛选含归档"实际不可用。
+     * 断言三种口径: include_archived=排公海+含归档; 默认=排公海+排归档; 显式 'archived'=只看已归档。
+     */
+    @Test
+    void pageStatusFilter_includeArchivedKeepsArchivedRows() {
+        BizCustomerMapper customerMapper = mock(BizCustomerMapper.class);
+        IPage<BizCustomer> emptyPage = new Page<>(1, 10, 0);
+        when(customerMapper.selectPage(any(), any())).thenReturn(emptyPage);
+        CustomerService svc = newService(mock(BizInvoiceMapper.class), mock(BizPaymentMapper.class),
+                customerMapper, mock(OrgScopeResolver.class));
+
+        try (MockedStatic<SecurityUtils> security = mockStatic(SecurityUtils.class)) {
+            security.when(SecurityUtils::getCurrentUserId).thenReturn(7L);
+            security.when(SecurityUtils::getCurrentUser).thenReturn(null); // applyDataScope 走拒绝分支, 与本断言无关
+
+            ArgumentCaptor<com.baomidou.mybatisplus.core.conditions.Wrapper<BizCustomer>> captor =
+                    ArgumentCaptor.forClass(com.baomidou.mybatisplus.core.conditions.Wrapper.class);
+
+            svc.page(1, 10, null, null, null, null, "include_archived", null, null, null, null, null);
+            verify(customerMapper, times(1)).selectPage(any(), captor.capture());
+            var w1 = (LambdaQueryWrapper<BizCustomer>) captor.getValue();
+            w1.getSqlSegment(); // 触发懒加载参数命名
+            assertTrue(w1.getParamNameValuePairs().containsValue("sea"), "include_archived 仍应排除公海");
+            assertFalse(w1.getParamNameValuePairs().containsValue("include_archived"),
+                    "不得按字面 include_archived 等值过滤(恒空集)");
+
+            svc.page(1, 10, null, null, null, null, null, null, null, null, null, null);
+            verify(customerMapper, times(2)).selectPage(any(), captor.capture());
+            var w2 = (LambdaQueryWrapper<BizCustomer>) captor.getValue();
+            w2.getSqlSegment();
+            assertTrue(w2.getParamNameValuePairs().containsValue("archived"), "默认口径应排除归档");
+
+            svc.page(1, 10, null, null, null, null, "archived", null, null, null, null, null);
+            verify(customerMapper, times(3)).selectPage(any(), captor.capture());
+            var w3 = (LambdaQueryWrapper<BizCustomer>) captor.getValue();
+            w3.getSqlSegment();
+            assertTrue(w3.getParamNameValuePairs().containsValue("archived"), "显式传 archived=只看已归档");
+        }
+    }
+
     @Test
     void deleteInvoice_rejectsConfirmedAndVoided() {
         BizInvoiceMapper invoiceMapper = mock(BizInvoiceMapper.class);

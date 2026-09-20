@@ -19,15 +19,17 @@
         <el-option v-for="ind in allIndustries" :key="ind" :label="ind" :value="ind" />
       </el-select>
       <el-select v-model="filters.status" placeholder="状态" size="small" clearable style="width:90px">
-        <el-option label="正常" value="normal" /><el-option label="预警" value="warning" /><el-option label="超期" value="expired" />
+        <el-option label="正常" value="normal" /><el-option label="预警" value="warning" /><el-option label="超期" value="expired" /><el-option label="已归档" value="archived" />
       </el-select>
+      <!-- 【议题五.4】显示已归档: 后端 include_archived(默认口径+含归档), 勾选即重载 -->
+      <el-checkbox v-model="showArchived" size="small" @change="toggleArchived">显示已归档</el-checkbox>
       <el-button size="small" @click="colPickerVisible = true">列设置</el-button>
       <span class="filter-count">共 {{ filteredList.length }} 条</span>
     </div>
 
     <!-- 表格 -->
     <el-table :data="filteredList" stripe :empty-text="emptyTableText" :default-sort="{ prop: 'customerCode', order: 'descending' }"
-      @row-click="viewDetail" :row-style="{ cursor: 'pointer' }" style="width:100%">
+      @row-click="viewDetail" :row-style="{ cursor: 'pointer' }" :row-class-name="archiveRowClass" style="width:100%">
       <el-table-column type="index" width="50" label="#" sortable :index="(i) => (page - 1) * pageSize + i + 1" />
       <el-table-column v-if="vis('customerCode')" prop="customerCode" label="编号" min-width="140" sortable />
       <el-table-column v-if="vis('customerName')" prop="customerName" label="客户全称" min-width="220" sortable />
@@ -71,10 +73,15 @@
           <span class="protect-tag" :class="getProtectClass(row)">{{ getProtectText(row) }}</span>
         </template>
       </el-table-column>
-      <el-table-column v-if="canRelease || canDelete" label="操作" width="110" align="center" fixed="right">
+      <el-table-column v-if="canRelease || canDelete" label="操作" width="150" align="center" fixed="right">
         <template #default="{ row }">
           <template v-if="!isShared(row)">
-            <el-button v-if="canRelease" type="danger" link size="small" @click.stop="openRelease(row)">释放</el-button>
+            <!-- 【议题五.4】归档行只可恢复; 未归档行可归档(归档=隐藏+不参与统计/提醒, 可恢复) -->
+            <el-button v-if="canRelease && row.status === 'archived'" type="success" link size="small" @click.stop="handleRestore(row)">恢复</el-button>
+            <template v-else>
+              <el-button v-if="canRelease" type="danger" link size="small" @click.stop="openRelease(row)">释放</el-button>
+              <el-button v-if="canRelease" type="info" link size="small" @click.stop="handleArchive(row)">归档</el-button>
+            </template>
             <el-button v-if="canDelete" type="danger" link size="small" @click.stop="handleDelete(row)">删除</el-button>
           </template>
           <span v-else style="color:#c0c4cc;font-size:12px">—</span>
@@ -94,7 +101,11 @@ const {
   canDelete, canRelease, vis, isShared, getStatusType, getStatusText,
   getProtectClass, getProtectText, getExpireColor,
   viewDetail, openRelease, handleDelete,
+  showArchived, toggleArchived, handleArchive, handleRestore,
 } = injectCustomerList()
+
+// 已归档行置灰(默认隐藏, 勾选"显示已归档"才出现)
+const archiveRowClass = ({ row }) => (row.status === 'archived' ? 'archived-row' : '')
 </script>
 
 <style scoped>
@@ -105,6 +116,8 @@ const {
 .tab-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
 .filter-bar { display: flex; gap: 8px; align-items: center; padding: 8px 0; flex-wrap: wrap; }
 .filter-count { font-size: 12px; color: #909399; margin-left: auto; }
+:deep(.archived-row) { color: #b9bcc2; }
+:deep(.archived-row .cell) { color: #b9bcc2; }
 .main-card :deep(.el-table) { max-height: calc(100vh - 358px); }
 .main-card :deep(.el-table__inner-wrapper) { min-height: 0; }
 .main-card :deep(.el-table__body-wrapper) { flex: 1; min-height: 0; max-height: calc(100vh - 358px - 57px); overflow-y: auto; }
