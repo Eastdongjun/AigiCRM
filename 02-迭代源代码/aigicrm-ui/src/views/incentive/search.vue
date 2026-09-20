@@ -518,7 +518,7 @@ const displayItems = computed(() => {
   const g = activeGroup.value
   if (!g || !g.items || !g.items.length) return []
   if (!selDay.value) return g.items
-  return g.items.filter(r => new Date(String(r.createdAt || '').replace(/-/g, '/')).getDate() === selDay.value)
+  return g.items.filter(r => recDay(r) === selDay.value)
 })
 function monthUnread(g){ return (g.items || []).filter(r => r.unread).length }
 // 台账要有合计：书脊节点展示该月分值小计(结构装置编码真实信息)
@@ -539,10 +539,18 @@ const wheelGroups = computed(() => {
 })
 const dialYears = computed(() => wheelGroups.value.map(yg => yg.year))
 const dialMonths = computed(() => (wheelGroups.value.find(yg => yg.year === selYear.value) || { months: [] }).months)
+// 记录日期解析：兼容 "2026-08-15 10:30" / ISO "T" 分隔 / 时间戳三种格式
+function recDay(r){
+  const t = r?.createdAt
+  if (t == null) return NaN
+  const str = String(t).replace(/-/g, '/').replace('T', ' ')
+  const d = new Date(t instanceof Number ? t : (isNaN(Number(str)) ? str : Number(t)))
+  return d.getDate()
+}
 const dialDays = computed(() => {
   const g = recordsByMonth.value.find(x => x.key === activeMonth.value)
   if (!g) return [0]
-  const days = [...new Set(g.items.map(r => new Date(String(r.createdAt || '').replace(/-/g, '/')).getDate()))].sort((a, b) => b - a)
+  const days = [...new Set(g.items.map(recDay).filter(d => !isNaN(d)))].sort((a, b) => b - a)
   return [0, ...days]
 })
 function monthShort(g){ const m = /^(\d{4})年(.+)$/.exec(g.label || ''); return m ? m[2] : g.label }
