@@ -623,8 +623,8 @@ onBeforeUnmount(()=>window.removeEventListener('keydown',onPreviewKeydown))
 /* ===== 激励查询「查看详情」弹窗（2026-09-20 高级感重设计：灰画布 + 白浮层卡 + 静默元信息） ===== */
 .detail-dlg :deep(.el-dialog){border-radius:20px;overflow:hidden;box-shadow:0 24px 64px rgba(15,23,42,.22)}
 .detail-dlg :deep(.el-dialog__header){display:none}
-.detail-dlg :deep(.el-dialog__body){padding:0;background:#fff}
-.dtl-wrap{max-width:1000px;margin:0 auto;background:#fff;display:flex;flex-direction:column;max-height:92vh}
+.detail-dlg :deep(.el-dialog__body){padding:0;background:#f5f7fa}
+.dtl-wrap{max-width:1000px;margin:0 auto;background:transparent;display:flex;flex-direction:column;max-height:92vh}
 
 /* 吸顶操作条 */
 .dtl-bar{position:sticky;top:0;z-index:6;display:flex;align-items:center;gap:12px;padding:12px 28px;
@@ -639,13 +639,13 @@ onBeforeUnmount(()=>window.removeEventListener('keydown',onPreviewKeydown))
 .dtl-bar-pts b{font-size:15px;color:#409eff;margin-right:2px}
 
 /* 客户概览：白浮层卡，排版即层级 */
-.dtl-hero{display:flex;align-items:center;gap:18px;margin:0;padding:22px 28px 20px;
-  background:#fff;border-bottom:1px solid #eef0f3}
-.dtl-avatar{width:56px;height:56px;border-radius:18px;flex-shrink:0;color:#fff;font-size:23px;font-weight:700;
-  display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#4d9fff,#2563eb);
-  box-shadow:0 8px 20px rgba(37,99,235,.28)}
+.dtl-hero{display:flex;align-items:center;gap:18px;margin:0;padding:24px 28px 22px;
+  background:linear-gradient(118deg,#0d2352 0%,#153e8f 52%,#1d4ed8 100%);border-bottom:none}
+.dtl-avatar{width:58px;height:58px;border-radius:18px;flex-shrink:0;color:#fff;font-size:24px;font-weight:700;
+  display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.16);
+  border:1px solid rgba(255,255,255,.28);backdrop-filter:blur(6px)}
 .dtl-hero-main{flex:1;min-width:0}
-.dtl-hero-name{font-size:22px;font-weight:800;color:#111827;line-height:1.3;margin-bottom:9px;letter-spacing:-.2px;
+.dtl-hero-name{font-size:22px;font-weight:800;color:#fff;line-height:1.3;margin-bottom:9px;letter-spacing:-.2px;
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .dtl-hero-tags{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .dtl-pill{font-size:12px;border-radius:999px;padding:3px 12px;border:none;white-space:nowrap}
@@ -653,20 +653,26 @@ onBeforeUnmount(()=>window.removeEventListener('keydown',onPreviewKeydown))
 .dtl-pill.green{color:#0d7a4a;background:#e7f8ef;border-color:transparent}
 .dtl-pill.grey{color:#6b7280;background:#f4f5f7;border-color:transparent}
 .dtl-pill.red{color:#e11d48;background:#ffe9ee;border-color:transparent}
+.dtl-hero .dtl-pill{background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.22)}
+.dtl-hero .dtl-pill.blue{color:#dbeafe;background:rgba(255,255,255,.14)}
+.dtl-hero .dtl-pill.grey{color:rgba(255,255,255,.82);background:rgba(255,255,255,.10)}
 /* 台账式概览合计：整页唯一的大胆元素(56px 超大分值)，副行静默退后 */
 .dtl-hero-score{margin-left:auto;flex-shrink:0;text-align:right;display:flex;flex-direction:column;align-items:flex-end}
 .dtl-score-line{display:flex;align-items:baseline;gap:5px}
-.dtl-score-big{font-size:56px;font-weight:800;color:#2563eb;line-height:1;letter-spacing:-1.5px;font-variant-numeric:tabular-nums}
-.dtl-score-unit{font-size:15px;font-weight:700;color:#2563eb}
-.dtl-score-caption{font-size:11px;color:#6b7280;margin-top:7px;letter-spacing:3px}
-.dtl-hero-sub{display:flex;gap:22px;margin-top:10px;font-size:12px;color:#6b7280}
-.dtl-hero-sub b{font-size:14px;font-weight:700;color:#111827;margin-right:3px;font-variant-numeric:tabular-nums}
-.dtl-hero-sub .unread b{color:#e11d48}
-.dtl-hero-sub .unread{color:#e11d48}
+.dtl-score-big{font-size:54px;font-weight:800;color:#fff;line-height:1;letter-spacing:-1.5px;font-variant-numeric:tabular-nums;
+  text-shadow:0 2px 12px rgba(13,35,82,.35)}
+.dtl-score-unit{font-size:15px;font-weight:700;color:#f5b94b}
+.dtl-score-caption{font-size:11px;color:rgba(255,255,255,.72);margin-top:7px;letter-spacing:3px}
+.dtl-hero-sub{display:flex;gap:20px;margin-top:12px;font-size:12px;color:rgba(255,255,255,.68)}
+.dtl-hero-sub span{display:inline-flex;align-items:baseline;padding-left:12px;border-left:1px solid rgba(255,255,255,.18)}
+.dtl-hero-sub span:first-child{padding-left:0;border-left:none}
+.dtl-hero-sub b{font-size:15px;font-weight:700;color:#fff;margin-right:4px;font-variant-numeric:tabular-nums}
+.dtl-hero-sub .unread b,.dtl-hero-sub .unread{color:#f5b94b}
 
 /* 【2026-09-20】详情工具条：灰画布上的白色工具胶囊（搜索 + 时间方向切换 + 命中计数） */
-.dtl-toolbar{display:flex;align-items:center;gap:10px;margin:0;padding:12px 28px;flex-wrap:wrap;
-  background:#fff;border-bottom:1px solid #eef0f3}
+.dtl-toolbar{display:flex;align-items:center;gap:10px;margin:14px 20px 0;padding:10px 14px;flex-wrap:wrap;
+  background:#fff;border:1px solid #e5e9f0;border-radius:14px;
+  box-shadow:0 1px 2px rgba(16,24,40,.03),0 6px 18px rgba(16,24,40,.05)}
 .dtl-toolbar-search{width:280px}
 .dtl-toolbar-hit{font-size:12px;color:#6b7280;white-space:nowrap}
 /* 方向切换统一成分段控件（无描边软填充，选中深底白字），与整页"去线条"语言一致 */
@@ -677,22 +683,25 @@ onBeforeUnmount(()=>window.removeEventListener('keydown',onPreviewKeydown))
 .dtl-toolbar :deep(.el-radio-button:last-child .el-radio-button__inner){border-radius:0 8px 8px 0}
 
 /* 【2026-09-20 深夜】主从骨架：左月份时间轴导航(竖线+节点) + 右当前月份内容卡 */
-.dtl-body{display:grid;grid-template-columns:212px minmax(0,1fr);flex:1;min-height:0}
-.dtl-rail{position:relative;border-right:1px solid #eef0f3;padding:16px 0;overflow-y:auto}
-.dtl-rail::before{content:'';position:absolute;left:31px;top:28px;bottom:28px;width:1px;background:#e6e9ef}
+.dtl-body{display:grid;grid-template-columns:216px minmax(0,1fr);gap:14px;flex:1;min-height:0;
+  margin:14px 20px 0}
+.dtl-rail{position:relative;background:#fff;border:1px solid #e5e9f0;border-radius:14px;padding:12px 0;
+  overflow-y:auto;box-shadow:0 1px 2px rgba(16,24,40,.03),0 6px 18px rgba(16,24,40,.05)}
+.dtl-rail::before{content:'';position:absolute;left:31px;top:26px;bottom:26px;width:1px;background:#e2e8f0}
 .dtl-node{display:flex;align-items:center;gap:10px;min-height:44px;padding:8px 14px 8px 22px;cursor:pointer;
   color:#4e5969;font-size:13.5px;transition:background .15s,color .15s}
-.dtl-node:hover{background:#f7f9fc}
+.dtl-node:hover{background:#f2f6fd}
 .dtl-node-dot{width:9px;height:9px;border-radius:50%;background:#d8dde5;flex-shrink:0;z-index:1;
   box-shadow:0 0 0 3px #fff;transition:background .15s,box-shadow .15s}
-.dtl-node.active{color:#111827;font-weight:700;background:#f7f9fc}
+.dtl-node.active{color:#153e8f;font-weight:700;background:#eaf1fe}
 .dtl-node.active .dtl-node-dot{background:#2563eb;box-shadow:0 0 0 3px rgba(37,99,235,.16)}
 .dtl-node-text{display:flex;flex-direction:column;gap:2px;min-width:0;flex:1}
 .dtl-node-label{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .dtl-node-sub{font-size:11px;color:#6b7280;white-space:nowrap}
 .dtl-node-unread{color:#e11d48;font-weight:600;margin-right:6px}
 .dtl-node-count{margin-left:auto;font-size:12px;color:#6b7280;font-variant-numeric:tabular-nums;flex-shrink:0}
-.dtl-pane{overflow-y:auto;padding:20px 28px 16px;background:#fff}
+.dtl-pane{overflow-y:auto;padding:18px 24px 14px;background:#fff;border:1px solid #e5e9f0;border-radius:14px;
+  box-shadow:0 1px 2px rgba(16,24,40,.03),0 6px 18px rgba(16,24,40,.05)}
 .dtl-pane::-webkit-scrollbar{width:6px}
 .dtl-pane::-webkit-scrollbar-thumb{background:#d3d9e2;border-radius:999px}
 .dtl-pane::-webkit-scrollbar-track{background:transparent}
@@ -780,7 +789,7 @@ onBeforeUnmount(()=>window.removeEventListener('keydown',onPreviewKeydown))
 .dtl-img-wrap:hover .dtl-file-acts{opacity:1}
 
 /* 底部操作条：画布上透明收尾 */
-.dtl-footer{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 28px 16px;
-  background:rgba(255,255,255,.94);backdrop-filter:blur(10px);border-top:1px solid #eef0f3;position:sticky;bottom:0}
+.dtl-footer{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:14px 20px 16px;
+  padding:10px 6px 0;background:transparent;border-top:1px solid #e2e8f0}
 .dtl-footer-hint{font-size:12px;color:#6b7280}
 </style>
