@@ -127,7 +127,18 @@
         <div class="pv-stage">
           <button v-if="previewCount > 1" class="pv-nav prev" @click="previewStep(-1)"><el-icon><ArrowLeft /></el-icon></button>
           <video v-if="previewType==='video'" :src="previewUrl" controls autoplay class="pv-media" />
-          <img v-else-if="!previewError" :src="previewUrl" class="pv-media" @error="onPreviewError" />
+          <img v-else-if="previewType==='image' && !previewError" :src="previewUrl" class="pv-media" @error="onPreviewError" />
+          <iframe v-else-if="previewType==='pdf'" :src="previewDocUrl" class="pv-frame" v-loading="previewDocLoading" element-loading-text="加载文档…"></iframe>
+          <div v-else-if="previewType==='text'" class="pv-text" v-loading="previewDocLoading" element-loading-text="加载文本…">
+            <pre v-if="previewDocText">{{ previewDocText }}</pre>
+            <div v-else-if="previewDocFailed" class="pv-text-failed">文本加载失败，可尝试下载</div>
+          </div>
+          <div v-else-if="previewType==='other'" class="pv-missing">
+            <el-icon :size="34"><Document /></el-icon>
+            <div class="pv-missing-title">{{ previewName || '该格式暂不支持在线预览' }}</div>
+            <div class="pv-missing-hint">office 等文档格式暂不支持在线预览，请下载后查看</div>
+            <el-button size="small" type="primary" plain @click="downloadPreview"><el-icon><Download /></el-icon> 下载文件</el-button>
+          </div>
           <div v-else class="pv-missing">
             <el-icon :size="34"><WarningFilled /></el-icon>
             <div class="pv-missing-title">该文件当前不可用</div>
@@ -138,9 +149,10 @@
         </div>
         <div v-if="previewCount > 1" class="pv-thumbs">
           <div v-for="(f,i) in previewList" :key="f.id" class="pv-thumb" :class="{active:i===previewIndex}" @click="previewIndex=i; previewError=false">
-            <img v-if="f.type!=='video' && !thumbFailed.has(f.id)" :src="thumbUrl(f.id)" @error="markThumbFailed(f.id)" />
-            <span v-else-if="thumbFailed.has(f.id)" class="pv-thumb-na">不可用</span>
-            <div v-else class="pv-thumb-vid"><el-icon :size="18"><VideoPlay /></el-icon></div>
+            <img v-if="f.type==='image' && !thumbFailed.has(f.id)" :src="thumbUrl(f.id)" @error="markThumbFailed(f.id)" />
+            <span v-else-if="f.type==='image'" class="pv-thumb-na">不可用</span>
+            <div v-else-if="f.type==='video'" class="pv-thumb-vid"><el-icon :size="18"><VideoPlay /></el-icon></div>
+            <div v-else class="pv-thumb-doc"><el-icon :size="16"><Document /></el-icon></div>
             <span v-if="f.tag" class="pv-thumb-tag">{{ f.tag }}</span>
           </div>
         </div>
@@ -228,7 +240,7 @@
               <span class="dtl-month-count">{{ displayItems.length }} 条</span>
             </div>
             <template v-if="displayItems.length">
-              <div v-for="r in displayItems" :key="r.id" class="dtl-item" :data-id="r.id">
+              <div v-for="r in displayItems" :key="r.id" class="dtl-item" :data-id="r.id" :data-day="recDay(r)">
               <!-- 每个元素独立成块：信息瓦片(时间/阶段/得分/上传人/周期/行业/产品) + 宽块(详情正文/安装备注/附件凭证) -->
               <div class="dtl-ecard">
                 <!-- 一行紧凑元信息条：时间/阶段/得分/上传人/周期/行业/产品 收进一行, 版面让给正文与图片 -->
@@ -279,7 +291,7 @@
                         <el-button size="small" circle @click.stop="downloadFile(f.id, f.label)"><el-icon><Download /></el-icon></el-button>
                       </div>
                     </div>
-                    <div v-else class="dtl-file-doc" @click="downloadFile(f.id, f.label)">
+                    <div v-else class="dtl-file-doc" @click="preview(f.id, f.type, f.label, previewableOf(r))">
                       <span v-if="f.tag" class="dtl-file-tag inline" :style="{color:tagColor(f.tag), borderColor:tagColor(f.tag)}">{{ f.tag }}</span>
                       <el-icon :size="26"><Document /></el-icon>
                       <span class="doc-label">{{ f.label }}</span>
@@ -338,7 +350,47 @@ const previewVisible=ref(false),previewList=ref([]),previewIndex=ref(0),previewE
 const previewCurrent=computed(()=>previewList.value[previewIndex.value]||null)
 const previewCount=computed(()=>previewList.value.length)
 const previewUrl=computed(()=>previewCurrent.value?fileUrl(previewCurrent.value.id):'')
-const previewType=computed(()=>previewCurrent.value&&previewCurrent.value.type==='video'?'video':'image')
+// 文件种类: 图片/视频走原通道; 文档按扩展名分 pdf(浏览器内建阅读器)/text(排版展示)/other(暂不支持→下载兜底)
+const KIND_EXT = {
+  pdf: /\.pdf$/i,
+  text: /\.(txt|md|log|csv|json|xml|html?)$/i,
+}
+function kindOf(f){
+  if (f?.type === 'video') return 'video'
+  if (f?.type === 'image') return 'image'
+  const n = f?.label || ''
+  if (KIND_EXT.pdf.test(n)) return 'pdf'
+  if (KIND_EXT.text.test(n)) return 'text'
+  return 'other'
+}
+const previewType=computed(()=>previewCurrent.value?kindOf(previewCurrent.value):'image')
+// 文档预览载荷: pdf → blob objectURL(iframe 内建阅读器); text → 拉文本前端排版; other → 下载兜底卡
+const previewDocUrl=ref(''),previewDocText=ref(''),previewDocLoading=ref(false),previewDocFailed=ref(false)
+let previewDocObjUrl=''
+async function loadDocPreview(){
+  if (previewDocObjUrl) { URL.revokeObjectURL(previewDocObjUrl); previewDocObjUrl='' }
+  previewDocUrl.value='';previewDocText.value='';previewDocFailed.value=false
+  const cur=previewCurrent.value
+  if(!cur)return
+  const kind=kindOf(cur)
+  if(kind!=='pdf'&&kind!=='text')return
+  previewDocLoading.value=true
+  try{
+    const res=await fetch(fileUrl(cur.id))
+    if(!res.ok)throw new Error('http '+res.status)
+    if(kind==='pdf'){
+      const blob=await res.blob()
+      previewDocObjUrl=URL.createObjectURL(blob.type?blob:new Blob([blob],{type:'application/pdf'}))
+      previewDocUrl.value=previewDocObjUrl
+    }else{
+      previewDocText.value=await res.text()
+    }
+  }catch{previewDocFailed.value=true}
+  finally{previewDocLoading.value=false}
+}
+watch(previewIndex,()=>{previewError.value=false;loadDocPreview()})
+watch(previewVisible,v=>{if(!v){if(previewDocObjUrl){URL.revokeObjectURL(previewDocObjUrl);previewDocObjUrl=''}previewDocUrl.value='';previewDocText.value=''}})
+onBeforeUnmount(()=>{if(previewDocObjUrl)URL.revokeObjectURL(previewDocObjUrl)})
 const previewName=computed(()=>previewCurrent.value?.label||'')
 const loading=ref(false)
 // 客户卡片网格分页（前端切片）
@@ -366,11 +418,13 @@ function thumbUrl(id){const t=getDownloadToken();return t?'/api/file/download/'+
 // 打开灯箱：gallery 传入该记录的可预览文件（图片/视频）列表，可左右切换；不传则只看单个文件
 async function preview(id,type,name,gallery){
   await refreshDownloadToken()
-  const clicked={id:Number(id),type:type==='video'?'video':'image',label:name||''}
-  let list=(Array.isArray(gallery)?gallery:[]).filter(f=>f&&f.id!=null).map(f=>({id:Number(f.id),type:f.type==='video'?'video':'image',label:f.label||'',tag:f.tag||''}))
+  const norm=f=>({id:Number(f.id),type:f.type==='video'?'video':f.type==='image'?'image':'file',label:f.label||'',tag:f.tag||''})
+  const clicked=norm({id,type,label:name})
+  let list=(Array.isArray(gallery)?gallery:[]).filter(f=>f&&f.id!=null).map(norm)
   let idx=list.findIndex(f=>f.id===clicked.id)
   if(idx<0){list=[clicked];idx=0}
   previewList.value=list;previewIndex.value=idx;previewError.value=false;thumbFailed.value=new Set();previewVisible.value=true
+  nextTick(loadDocPreview)
 }
 // 灯箱左右切换（循环）
 function previewStep(delta){const n=previewList.value.length;if(n<2)return;previewIndex.value=(previewIndex.value+delta+n)%n;previewError.value=false}
@@ -382,8 +436,8 @@ function onPreviewKeydown(e){
   if(!previewVisible.value)return
   if(e.key==='ArrowRight'){previewStep(1)}else if(e.key==='ArrowLeft'){previewStep(-1)}
 }
-// 记录内可预览（图片/视频）文件
-function previewableOf(r){return getFiles(r).filter(f=>f.type==='image'||f.type==='video').map(f=>({id:f.id,type:f.type,label:f.label,tag:f.tag}))}
+// 记录内全部附件进灯箱：图片/视频直接预览, 文档按种类预览(pdf/text)或下载兜底
+function previewableOf(r){return getFiles(r).map(f=>({id:f.id,type:f.type,label:f.label,tag:f.tag}))}
 // 【需求】文件下载(FEAT 0804):window.open 下载在新标签闪开/被拦截时表现为"没反应";
 // 改为 fetch blob + a.download 强制保存,任何浏览器/任何状态下可靠触发
 async function downloadFile(id, name) {
@@ -401,6 +455,7 @@ async function showDetail(c){
   dialPad()
   alignDial('year', selYear.value); alignDial('month', String(selMonth.value)); alignDial('day', '0')
   setupReadObserver()
+  setupPaneObserver()
 }
 const unreadCount = computed(() => (detailCust.value?.records || []).filter(r => r.unread).length)
 
@@ -600,6 +655,7 @@ function onDialScroll(col){
   if (!dialRaf[col]) dialRaf[col] = requestAnimationFrame(() => { dialRaf[col] = 0; styleDial(col) })
   clearTimeout(dialTimers[col])
   dialTimers[col] = setTimeout(() => {
+    if (Date.now() < dialFollowLock) return   // 内容跟随引起的程序滚动不改选中
     dialTimers[col] = null
     const el = centerKey(col)
     if (!el) return
@@ -614,6 +670,31 @@ function dialPick(col, key){
   else if (col === 'month') { if (Number(key) !== selMonth.value) { selMonth.value = Number(key); selDay.value = 0 } }
   else if (col === 'day') { selDay.value = Number(key) }
 }
+// 【双向跟随】右侧内容滚动 → 左侧"日"拨片自动对位到视野顶部记录的日期
+// 仅整月模式(selDay=0)下移动拨片视觉位置, 不改筛选; 手动拨日期才过滤
+let dialFollowLock = 0
+function followDialDay(day){
+  if (!day || isNaN(day) || selDay.value !== 0) return
+  const el = dialEls.day.value
+  const it = el?.querySelector('.dtl-dial-item[data-key="' + day + '"]')
+  if (!it) return
+  dialFollowLock = Date.now() + 450        // 程序滚动窗口期内, 拨盘停稳不改变选中
+  it.scrollIntoView({ block: 'center' })
+}
+let paneObserver = null
+function setupPaneObserver(){
+  destroyPaneObserver()
+  const pane = document.querySelector('.detail-dlg .dtl-pane')
+  if (!pane || typeof IntersectionObserver === 'undefined') return
+  paneObserver = new IntersectionObserver((entries) => {
+    const top = entries.filter(e => e.isIntersecting)
+      .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top)[0]
+    if (top) followDialDay(Number(top.target.dataset.day))
+  }, { root: pane, threshold: 0.2 })
+  pane.querySelectorAll('.dtl-item[data-day]').forEach(el => paneObserver.observe(el))
+}
+function destroyPaneObserver(){ if (paneObserver) { paneObserver.disconnect(); paneObserver = null } }
+onBeforeUnmount(destroyPaneObserver)
 // 选中值被外部改变(级联/重置/点选)后, 对应拨盘无动画对位并刷新视觉
 function alignDial(col, key){
   nextTick(() => {
@@ -640,8 +721,8 @@ watch(recordsByMonth, (list) => {
   alignDial('year', selYear.value); alignDial('month', String(selMonth.value)); alignDial('day', '0')
 }, { immediate: true })
 // 搜索/换向会重建记录节点，需要重新挂监听；关弹窗/卸载时清理
-watch([detailKeyword, detailOrder, selYear, selMonth, selDay], () => { if (detailVisible.value) nextTick(setupReadObserver) })
-watch(detailVisible, (v) => { if (!v) destroyReadObserver() })
+watch([detailKeyword, detailOrder, selYear, selMonth, selDay], () => { if (detailVisible.value) nextTick(() => { setupReadObserver(); setupPaneObserver() }) })
+watch(detailVisible, (v) => { if (!v) { destroyReadObserver(); destroyPaneObserver() } })
 onBeforeUnmount(destroyReadObserver)
 const recordTotal=computed(()=>detailCust.value?.records?.length||0)
 function filterRecordsByMonthSafe() {
@@ -766,6 +847,11 @@ onBeforeUnmount(()=>window.removeEventListener('keydown',onPreviewKeydown))
 .pv-thumb img{width:100%;height:100%;object-fit:cover;display:block}
 .pv-thumb-vid{width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:#cfe2ff}
 .pv-thumb-na{width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:11px;color:#aab6c8;background:rgba(255,255,255,.06)}
+.pv-frame{width:86%;height:72vh;border:none;border-radius:10px;background:#fff;display:block}
+.pv-text{width:80%;height:72vh;overflow:auto;border-radius:10px;background:#fff;color:#1f2937;padding:28px 34px}
+.pv-text pre{margin:0;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:13.5px;line-height:1.8;white-space:pre-wrap;word-break:break-word}
+.pv-text-failed{color:#f56c6c;font-size:14px;text-align:center;padding-top:40vh;margin:-28px 0 0 -34px}
+.pv-thumb-doc{width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:#cfe2ff;background:rgba(255,255,255,.06)}
 .pv-missing{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;color:#c9d4e3;padding:60px 20px;text-align:center}
 .pv-missing-title{font-size:15px;font-weight:600;color:#e5eaf3}
 .pv-missing-hint{font-size:12px;color:#8b97a8;max-width:420px;line-height:1.7}
@@ -878,7 +964,7 @@ onBeforeUnmount(()=>window.removeEventListener('keydown',onPreviewKeydown))
 .dtl-metabar{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 20px;padding:2px 2px 0}
 .dtl-meta{display:inline-flex;align-items:baseline;gap:5px;font-size:13px;font-weight:600;color:#1f2937;white-space:nowrap}
 .dtl-meta em{font-style:normal;font-size:11px;font-weight:500;color:#8a94a3;letter-spacing:.5px}
-.dtl-meta.time{font-size:13.5px;font-weight:700;color:#111827;font-variant-numeric:tabular-nums}
+.dtl-meta.time{font-size:16px;font-weight:800;color:#1d4ed8;font-variant-numeric:tabular-nums;letter-spacing:.2px}
 .dtl-meta.time em{font-weight:500;color:#8a94a3;margin-left:2px}
 .dtl-meta.stage em{font-weight:600;color:#6b7280}
 .dtl-score{font-size:15.5px;font-weight:800;font-variant-numeric:tabular-nums;letter-spacing:-.2px}
