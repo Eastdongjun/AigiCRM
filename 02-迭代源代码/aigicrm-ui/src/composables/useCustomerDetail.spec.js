@@ -34,6 +34,7 @@ vi.mock('@/utils/download', () => ({ downloadFile: vi.fn() }))
 import { useCustomerDetail } from './useCustomerDetail'
 import { ElMessage } from 'element-plus'
 import { getCustomer, saveIndicator } from '@/api/customer'
+import { submitApproval } from '@/api/approval'
 
 describe('useCustomerDetail 激励Tab文件能力', () => {
   let detail
@@ -90,4 +91,29 @@ describe('useCustomerDetail 激励Tab文件能力', () => {
     expect(detail.loading.value).toBe(false)
     expect(ElMessage.error).toHaveBeenCalledWith('network down')
   })
+
+  // 【PR-09】客户转移: 提交 transfer 审批, extraData 携带 newOwnerId; 未选/选当前负责人拦截
+  it('confirmTransfer 提交转移审批且载荷含 newOwnerId', async () => {
+    detail.customer.value = { id: 1, customerId: 1, customerName: '测试客户', ownerId: 7 }
+    detail.customerId && (detail.customerId.value = 1)
+    detail.transferUserId.value = 9
+    submitApproval.mockResolvedValueOnce({ data: null })
+    await detail.confirmTransfer()
+    expect(submitApproval).toHaveBeenCalledWith(expect.objectContaining({
+      type: 'transfer',
+      extraData: JSON.stringify({ newOwnerId: 9 })
+    }))
+    expect(detail.showTransferDialog.value).toBe(false)
+  })
+
+  it('confirmTransfer 未选接收人/选当前负责人时不提交', async () => {
+    detail.customer.value = { id: 1, ownerId: 7 }
+    detail.customerId && (detail.customerId.value = 1)
+    detail.transferUserId.value = null
+    await detail.confirmTransfer()
+    detail.transferUserId.value = 7
+    await detail.confirmTransfer()
+    expect(submitApproval).not.toHaveBeenCalled()
+  })
+
 })

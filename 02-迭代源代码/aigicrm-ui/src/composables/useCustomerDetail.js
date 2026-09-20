@@ -52,7 +52,7 @@ export function useCustomerDetail() {
   const catMap = ref({})
 
   const showInvoiceDialog = ref(false); const showPaymentDialog = ref(false)
-  const showContactDialog = ref(false); const showShareDialog = ref(false)
+  const showContactDialog = ref(false); const showShareDialog = ref(false); const showTransferDialog = ref(false); const transferUserId = ref(null)
   const shareUserIds = ref([]); const editingContact = ref(null)
 
   const invoiceForm = reactive({ invoiceDate:'', invoiceNumber:'', invoiceType:'增值税专票', invoiceCompany:'', amount:null })
@@ -188,6 +188,22 @@ export function useCustomerDetail() {
   const onIndicatorChange = () => {}
   const selectRelationship = async (score) => { try { await saveRelationship(customerId.value,score); indicator.value = (await getIndicator(customerId.value)).data } catch(e) { notifyActionFailure(e, '客情关系保存失败') } }
   const handleAddShare = async () => { if(!shareUserIds.value.length) return; try { await addShares(customerId.value,shareUserIds.value); ElMessage.success('已分享'); shareUserIds.value=[]; showShareDialog.value=false; shares.value = (await getShares(customerId.value)).data||[] } catch(e) { notifyActionFailure(e, '客户分享失败') } }
+  // 【PR-09 残余】客户转移入口: 选接收人→提交 transfer 审批(审批通过后负责人/部门/转移日由后端落库)
+  const openTransfer = () => { if (!allUsers.value.length) loadUsers(); showTransferDialog.value = true }
+  const confirmTransfer = async () => {
+    if (!transferUserId.value) return ElMessage.warning('请选择接收人')
+    if (customer.value && String(transferUserId.value) === String(customer.value.ownerId)) return ElMessage.warning('接收人不能是当前负责人')
+    try {
+      await submitApproval({
+        type: 'transfer',
+        customerId: String(customerId.value),
+        actionAfterApprove: '客户负责人转移',
+        extraData: JSON.stringify({ newOwnerId: transferUserId.value })
+      })
+      ElMessage.success('转移申请已提交,审批通过后生效')
+      showTransferDialog.value = false; transferUserId.value = null
+    } catch (e) { notifyActionFailure(e, '转移申请提交失败') }
+  }
   const handleRemoveShare = async (s) => { try { await removeShare(customerId.value,s.sharedToUserId); shares.value = (await getShares(customerId.value)).data||[] } catch(e) { notifyActionFailure(e, '取消分享失败') } }
 
   const loadAllFn = loadAll
@@ -199,6 +215,7 @@ export function useCustomerDetail() {
     loading, activeTab, customer, logs, newLog, invoices, invoiceSummary, payments, paymentSummary, canViewFinance, canViewContacts, expireDaysLeft, latestLog,
     contacts, indicator, shares, allUsers, incentiveScore, incentiveRecords, catMap,
     showInvoiceDialog, showPaymentDialog, showContactDialog, showShareDialog, shareUserIds, editingContact,
+    showTransferDialog, transferUserId,
     invoiceForm, paymentForm, contactForm, indicatorForm,
     avatarColor, relationshipOptions, indicatorDefs, indicatorTotal, invoiceThresholdMet,
     paymentThresholdMet, bothThresholdMet, isCore, totalScore, expireLevel, statusLabel,
@@ -206,7 +223,7 @@ export function useCustomerDetail() {
     getMainCategory, getSubCategory, parentCodeOf, detailLabelOf, isTrialRec, scoreColor,
     parseId, getFiles, detectType, fmtDate, downloadIncentiveFile,
     filePreviewVisible, filePreviewUrl, filePreviewType, filePreviewName, previewIncentiveFile,
-    submitLog, handleExtend, handleEdit,
+    submitLog, handleExtend, handleEdit, openTransfer, confirmTransfer,
     handleAddInvoice, handleDeleteInvoice, handleAddPayment, handleDeletePayment,
     handleConfirmInvoice, handleVoidInvoice, handleConfirmPayment, handleVoidPayment, reloadFinance,
     openEditContact, handleSaveContact, handleDeleteContact,

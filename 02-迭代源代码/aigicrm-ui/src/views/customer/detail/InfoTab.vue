@@ -50,7 +50,11 @@
         <div class="protect-divider"><el-icon><ArrowRight /></el-icon></div>
         <div class="protect-date-item"><span class="pd-label">到期日 (360天)</span><span class="pd-value" :class="'exp-'+expireLevel">{{ customer.expireDate }}</span></div>
       </div>
-      <el-button v-if="!readonly" size="small" type="warning" @click="handleExtend"><el-icon><Calendar /></el-icon> 申请延期</el-button>
+      <div class="protect-actions">
+        <el-button v-if="!readonly" size="small" type="warning" @click="handleExtend"><el-icon><Calendar /></el-icon> 申请延期</el-button>
+        <!-- 【PR-09】客户转移: 提交审批, 通过后负责人/部门/转移日由后端落库(接收人校验/集团边界在审批执行侧) -->
+        <el-button v-if="!readonly" size="small" type="primary" @click="openTransfer"><el-icon><Position /></el-icon> 转移客户</el-button>
+      </div>
     </div>
 
     <!-- 【2026-09-13】客户备注：此前新增/编辑可填（库内 374/596 有值），但列表与详情都没有展示位 -->
@@ -58,6 +62,20 @@
       <div class="remark-title"><el-icon><Document /></el-icon> 备注</div>
       <div class="remark-body">{{ customer.remark || '—' }}</div>
     </div>
+
+    <!-- 【PR-09】客户转移弹窗: 接收人候选=可分享用户列表, 排除当前负责人 -->
+    <el-dialog v-model="showTransferDialog" title="转移客户" width="420px" :close-on-click-modal="false">
+      <el-form label-width="80px">
+        <el-form-item label="客户">{{ customer.customerName }}</el-form-item>
+        <el-form-item label="接收人">
+          <el-select v-model="transferUserId" filterable placeholder="选择新负责人" style="width:100%">
+            <el-option v-for="u in transferCandidates" :key="u.id" :label="u.realName || u.username" :value="u.id" />
+          </el-select>
+        </el-form-item>
+        <div class="transfer-hint">提交后进入审批;审批通过后客户负责人与归属部门同步变更(保护期规则不变)。</div>
+      </el-form>
+      <template #footer><el-button @click="showTransferDialog=false">取消</el-button><el-button type="primary" @click="confirmTransfer">提交转移审批</el-button></template>
+    </el-dialog>
 
     <div v-if="canViewContacts" class="contact-card">
       <div class="contact-head">
@@ -104,6 +122,7 @@
 </template>
 
 <script setup>
+import { computed } from 'vue'
 import { injectCustomerDetail } from '@/composables/useCustomerDetail'
 import { terminalLabel } from '@/utils/customer-fields'
 
@@ -111,10 +130,17 @@ const {
   customer, readonly, contacts, editingContact, contactForm, showContactDialog, canViewContacts,
   openEditContact, handleSaveContact, handleDeleteContact, relationshipOptions,
   indicator, selectRelationship, expireLevel, statusLabel, handleExtend,
+  openTransfer, confirmTransfer, showTransferDialog, transferUserId, allUsers,
 } = injectCustomerDetail()
+
+// 转移候选 = 可选用户列表排除当前负责人
+const transferCandidates = computed(() =>
+  (allUsers.value || []).filter((u) => !customer.value || String(u.id) !== String(customer.value.ownerId)))
 </script>
 
 <style scoped>
+.protect-actions { display:flex; gap:8px; flex-shrink:0 }
+.transfer-hint { color:#909399; font-size:12px; padding:2px 0 6px 80px }
 .info-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:14px; margin-bottom:16px }
 .info-card { background:#fafbfc; border-radius:10px; padding:18px 20px; border:1px solid #f0f1f3 }
 .info-card-head { display:flex; align-items:center; gap:8px; font-size:14px; font-weight:600; color:#333; margin-bottom:14px }
