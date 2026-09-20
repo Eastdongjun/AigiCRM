@@ -173,6 +173,7 @@ function buildDetailView(data) {
     showRelationshipSection: hasDetail,
     showIndicatorSection: hasDetail,
     showIndicatorEditAction: hasDetail && canEdit,
+    showEditAction: hasDetail && canEdit,
     showReleaseSection: hasDetail && !fromSea && canEdit,
     showDeleteSection: hasDetail && canDelete,
     showActionCard: hasDetail,

@@ -68,7 +68,8 @@ function buildCustomerView(data) {
   return {
     summaryText: `全部 ${(counts[0] && counts[0].value) || '-'} · 我的 ${(counts[1] && counts[1].value) || '-'} · 共享 ${(counts[2] && counts[2].value) || '-'}`,
     filterText: `${data.filter || '全部'}⌄`,
-    showReset: Boolean(data.keyword || data.filter !== '全部' || data.hasAdvancedFilter),
+    statusFilterText: `${(((data.statusFilters || []).find((item) => item.value === (data.statusFilter || '')) || {}).label) || '全部状态'}⌄`,
+    showReset: Boolean(data.keyword || data.filter !== '全部' || data.statusFilter || data.hasAdvancedFilter),
     countText: `共 ${customers.length} 家`,
     showLoading: isLoading,
     loadingText: '加载中...',
@@ -92,6 +93,14 @@ Page({
     canViewSea: false,
     filter: '全部',
     filters: ['全部', '成熟创新', '突破开拓', '铺垫宣传'],
+    // 【对齐 PC 2026-09-20】保护状态快捷筛选(PC 高级筛选「保护」同参数: active/expiring/expired)
+    statusFilter: '',
+    statusFilters: [
+      { label: '全部状态', value: '' },
+      { label: '保护中', value: 'active' },
+      { label: '即将到期', value: 'expiring' },
+      { label: '已到期', value: 'expired' }
+    ],
     advancedFilter: { industry: '', status: '', deptId: '', ownerId: '' },
     hasAdvancedFilter: false,
     customerView: buildCustomerView({ customers: [], countCards: [], filter: '全部', keyword: '', hasAdvancedFilter: false, loading: false })
@@ -150,12 +159,18 @@ Page({
   openAdvancedFilter() { wx.navigateTo({ url: '/pages/customer/filter/index' }) },
 
   resetFilters() {
-    this.setCustomerData({ keyword: '', filter: '全部', advancedFilter: { industry: '', status: '', deptId: '', ownerId: '' }, hasAdvancedFilter: false })
+    this.setCustomerData({ keyword: '', filter: '全部', statusFilter: '', advancedFilter: { industry: '', status: '', deptId: '', ownerId: '' }, hasAdvancedFilter: false })
     this.loadCustomers()
   },
 
   chooseFilter(e) {
     this.setCustomerData({ filter: this.data.filters[e.detail.value] || '全部' })
+    this.loadCustomers()
+  },
+
+  chooseStatusFilter(e) {
+    const option = this.data.statusFilters[Number(e.detail.value) || 0] || this.data.statusFilters[0]
+    this.setCustomerData({ statusFilter: option.value })
     this.loadCustomers()
   },
 
@@ -187,7 +202,9 @@ Page({
           normalizeCustomer({ id: 2, customerName: '内蒙古鄂尔多斯化工', industry: '化工', ownerName: '李四', officeName: '北方业务部', status: '正常', devType: '突破开拓' })
         ].concat(savedCustomers.map(normalizeCustomer))
       const keyword = this.data.keyword.trim().toLowerCase()
-      const filtered = rows.filter((item) => (!keyword || `${item.name}${item.industry}${item.ownerName}`.toLowerCase().includes(keyword)) && (this.data.filter === '全部' || item.devType === this.data.filter))
+      const demoStatusLabels = { active: ['保护期', '预警'], expiring: ['预警'], expired: ['超期'] }
+      const statusLabels = demoStatusLabels[this.data.statusFilter]
+      const filtered = rows.filter((item) => (!keyword || `${item.name}${item.industry}${item.ownerName}`.toLowerCase().includes(keyword)) && (this.data.filter === '全部' || item.devType === this.data.filter) && (!statusLabels || statusLabels.includes(item.statusLabel || item.status || '')))
       this.setCustomerData({
         customers: filtered,
         countCards: [
@@ -218,7 +235,8 @@ Page({
     }
     const advanced = this.data.advancedFilter || {}
     if (advanced.industry) params.industry = advanced.industry
-    if (advanced.status) params.status = advanced.status
+    const statusParam = this.data.statusFilter || advanced.status
+    if (statusParam) params.status = statusParam
     if (advanced.deptId) params.deptId = advanced.deptId
     if (advanced.ownerId) params.ownerId = advanced.ownerId
     return params

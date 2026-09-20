@@ -143,7 +143,7 @@ grep -Fq 'calls.previewImage.length === 1' "$AUTOMATOR_SCRIPT" || fail 'file cen
 grep -Fq 'calls.openDocument.length === 1' "$AUTOMATOR_SCRIPT" || fail 'file center DevTools automator does not assert document preview calls'
 grep -Fq 'file-center-actions.png' "$AUTOMATOR_SCRIPT" || fail 'file center DevTools automator does not capture UI evidence'
 grep -Fq '张三' "$AUTOMATOR_SCRIPT" || fail 'file center DevTools automator does not verify uploader metadata'
-grep -Fq '我的文件3' "$AUTOMATOR_SCRIPT" || fail 'file center DevTools automator does not verify tab count metadata'
+grep -Fq '私人3' "$AUTOMATOR_SCRIPT" || fail 'file center DevTools automator does not verify tab count metadata'
 grep -Fq 'uploaderName=张三' "$AUTOMATOR_SCRIPT" || fail 'file center DevTools automator does not verify detail uploader metadata'
 grep -Fq 'updatedAt=今天 09:30' "$AUTOMATOR_SCRIPT" || fail 'file center DevTools automator does not verify detail update-time metadata'
 grep -Fq '2.8 MB' "$AUTOMATOR_SCRIPT" || fail 'file center DevTools automator does not verify formatted file size metadata'

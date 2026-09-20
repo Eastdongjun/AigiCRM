@@ -14,7 +14,10 @@
   <view wx:if="{{detailView.hasDetail}}" class="card customer-overview-card">
     <view class="customer-overview-head">
       <view class="customer-overview-title">{{detailView.titleText}}</view>
-      <text class="pill">{{detailView.statusText}}</text>
+      <view class="customer-overview-head-actions">
+        <text class="pill">{{detailView.statusText}}</text>
+        <button wx:if="{{detailView.showEditAction}}" class="customer-edit-action" bindtap="editCustomer">编辑信息</button>
+      </view>
     </view>
     <view class="customer-overview-tags">
       <text class="pill">{{detailView.industryText}}</text>

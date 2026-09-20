@@ -118,8 +118,8 @@ async function verifyFileCenterPage(miniProgram) {
     { id: 703, name: '仅预览资料.pdf', type: 'PDF', size: '980 KB', folder: '客户文档', uploaderName: '王五', updatedAt: '今天 11:00', tone: 'red', ossKey: 'customer/site/readonly.pdf', canDownload: false }
   ]
   await page.setData({
-    activeTab: '我的文件',
-    tabCounts: { 我的文件: 3, 共享给我: 1, 激励资料: 1 },
+    activeTab: '私人',
+    tabCounts: { 公共: 0, 私人: 3, 四项激励: 1, 分享给我: 1 },
     folders: [{ id: 11, name: '客户文档' }, { id: 12, name: '激励资料' }],
     files,
     filteredFiles: files,
@@ -142,17 +142,17 @@ async function verifyFileCenterPage(miniProgram) {
   for (const label of ['搜索', '打开', '下载', '替换', '删除', '分享', '新建']) {
     assert(buttons.includes(label), `file center missing action: ${label}`)
   }
-  await page.setData({ keyword: '方案', activeTab: '我的文件', activeFolderId: 11 })
+  await page.setData({ keyword: '方案', activeTab: '私人', activeFolderId: 11 })
   const privateParams = await page.callMethod('buildFileListParams')
   assert(privateParams.keyword === '方案', `file center list params must send keyword to backend: ${JSON.stringify(privateParams)}`)
-  assert(privateParams.scope === 'private', `file center list params must send private scope for mine tab: ${JSON.stringify(privateParams)}`)
-  assert(privateParams.folderId === 11, `file center list params must keep selected folder for mine tab: ${JSON.stringify(privateParams)}`)
-  await page.setData({ keyword: '激励', activeTab: '激励资料', activeFolderId: 11 })
+  assert(privateParams.scope === 'private', `file center list params must send private scope for private tab: ${JSON.stringify(privateParams)}`)
+  assert(privateParams.folderId === 11, `file center list params must keep selected folder for private tab: ${JSON.stringify(privateParams)}`)
+  await page.setData({ keyword: '激励', activeTab: '四项激励', activeFolderId: 11 })
   const incentiveParams = await page.callMethod('buildFileListParams')
   assert(incentiveParams.keyword === '激励', `file center incentive params must send keyword to backend: ${JSON.stringify(incentiveParams)}`)
   assert(incentiveParams.scope === 'incentive', `file center incentive params must send incentive scope: ${JSON.stringify(incentiveParams)}`)
   assert(incentiveParams.folderId === undefined, `file center incentive params must not leak private folder filter: ${JSON.stringify(incentiveParams)}`)
-  await page.setData({ keyword: '共享', activeTab: '共享给我', activeFolderId: 11 })
+  await page.setData({ keyword: '共享', activeTab: '分享给我', activeFolderId: 11 })
   const sharedParams = await page.callMethod('buildFileListParams')
   assert(sharedParams.keyword === '共享', `file center shared params must send keyword to backend: ${JSON.stringify(sharedParams)}`)
   assert(sharedParams.scope === undefined, `file center shared-to-me params must not send file list scope: ${JSON.stringify(sharedParams)}`)
@@ -161,7 +161,7 @@ async function verifyFileCenterPage(miniProgram) {
     assert(rowText.includes(expected), `file center list missing PC metadata ${expected}: ${rowText}`)
   }
   const tabText = (await textList(await page.$$('.file-tab'))).join('\n')
-  for (const expected of ['我的文件3', '共享给我1', '激励资料1']) {
+  for (const expected of ['公共0', '私人3', '四项激励1', '分享给我1']) {
     assert(tabText.includes(expected), `file center tab count missing ${expected}: ${tabText}`)
   }
 

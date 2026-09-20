@@ -355,3 +355,9 @@
 .detail-action-grid .customer-detail-link-action::after {
   border: 0;
 }
+
+/* 客户概览头右侧操作: 状态胶囊 + 「编辑信息」入口(权限门控 showEditAction) */
+.customer-overview-head-actions { display: flex; align-items: center; gap: 12rpx; flex-shrink: 0; }
+.customer-edit-action { margin: 0; padding: 8rpx 22rpx; height: auto; line-height: 1.6; border-radius: 999rpx;
+  background: #e8f1ff; color: #1d4fd7; font-size: 22rpx; font-weight: 700; border: 1rpx solid #c7dcfb; }
+.customer-edit-action::after { border: none; }

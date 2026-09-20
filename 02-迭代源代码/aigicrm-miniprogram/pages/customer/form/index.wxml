@@ -13,13 +13,11 @@
   <view class="card form-card">
     <view class="section-title">基本信息</view>
 
-    <view class="label">客户全称 *</view>
+    <view class="label">客户全称<text class="required-star">*</text></view>
     <input class="input" data-field="customerName" value="{{form.customerName}}" bindinput="onInput" bindblur="checkDuplicateName" placeholder="请输入订货客户全称" />
     <view wx:if="{{checkingName}}" class="tip">正在检测客户名称...</view>
-    <view class="form-field">
-      <text class="field-label">别名/简称</text>
-      <input class="field-input" value="{{form.alias}}" bindinput="onFieldInput" data-field="alias" placeholder="简称、曾用名(可选)" />
-    </view>
+    <view class="label">别名/简称</view>
+    <input class="input" data-field="alias" value="{{form.alias}}" bindinput="onInput" placeholder="简称、曾用名(可选)" />
     <view wx:if="{{dupInfo.exists}}" class="tip warning-tip">{{formView.duplicateTip}}</view>
 
     <view class="label">开票名称</view>
@@ -44,12 +42,12 @@
   <view class="card form-card">
     <view class="section-title">业务分类</view>
 
-    <view class="label">行业 *</view>
+    <view class="label">行业<text class="required-star">*</text></view>
     <picker mode="selector" range="{{industryOptions}}" value="{{industryIndex}}" bindchange="chooseIndustry">
       <view class="{{formView.industryPicker.className}}">{{formView.industryPicker.text}}</view>
     </picker>
 
-    <view class="label">开发类型 *</view>
+    <view class="label">开发类型<text class="required-star">*</text></view>
     <picker mode="selector" range="{{devTypeOptions}}" value="{{devTypeIndex}}" bindchange="chooseDevType">
       <view class="{{formView.devTypePicker.className}}">{{formView.devTypePicker.text}}</view>
     </picker>
@@ -65,17 +63,17 @@
   <view class="card form-card">
     <view class="section-title">归属与负责人</view>
 
-    <view class="label">所属大区 *</view>
+    <view class="label">所属大区<text class="required-star">*</text></view>
     <picker mode="selector" range="{{regionOptions}}" range-key="deptName" value="{{regionIndex}}" bindchange="chooseRegion">
       <view class="{{formView.regionPicker.className}}">{{formView.regionPicker.text}}</view>
     </picker>
 
-    <view class="label">所属办事处 *</view>
+    <view class="label">所属办事处<text class="required-star">*</text></view>
     <picker mode="selector" range="{{officeOptions}}" range-key="deptName" value="{{officeIndex}}" bindchange="chooseOffice" disabled="{{!form.regionId}}">
       <view class="{{formView.officePicker.className}}">{{formView.officePicker.text}}</view>
     </picker>
 
-    <view class="label">第一负责人 *</view>
+    <view class="label">第一负责人<text class="required-star">*</text></view>
     <picker mode="selector" range="{{userOptions}}" range-key="realName" value="{{ownerIndex}}" bindchange="chooseOwner" disabled="{{isPoolCustomer}}">
       <view class="{{formView.ownerPicker.className}}">{{formView.ownerPicker.text}}</view>
     </picker>

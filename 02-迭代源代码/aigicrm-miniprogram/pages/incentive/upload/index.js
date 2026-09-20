@@ -244,6 +244,37 @@ function customerConfirmMeta(customer) {
   return industry ? `行业：${industry}` : '已关联客户'
 }
 
+function deriveCategoryParents(categories = []) {
+  const parents = []
+  categories.forEach((cat, index) => {
+    if (!cat.parentId || Number(cat.parentId) === 0) parents.push({ ...cat, index, children: [] })
+  })
+  categories.forEach((cat, index) => {
+    const parent = parents.find((item) => String(item.id) === String(cat.parentId))
+    if (parent) parent.children.push({ ...cat, index })
+  })
+  return parents
+}
+
+function activeParentChildren(data) {
+  const parents = data.categoryParentNodes || []
+  const selectedCategory = (data.categories || [])[data.selectedCategoryIndex]
+  let parent = parents[Number(data.selectedParentCategoryIndex)]
+  if (!parent && selectedCategory) {
+    parent = parents.find((item) => String(item.id) === String(selectedCategory.id)) ||
+      parents.find((item) => String(item.id) === String(selectedCategory.parentId))
+  }
+  return parent ? parent.children : []
+}
+
+function parentIndexOfCategory(categories, parentNodes, categoryIndex) {
+  const category = categories[categoryIndex]
+  if (!category) return -1
+  const parent = parentNodes.find((item) => String(item.id) === String(category.id)) ||
+    parentNodes.find((item) => String(item.id) === String(category.parentId))
+  return parent ? parentNodes.indexOf(parent) : -1
+}
+
 function buildUploadViewState(data) {
   const selectedSlotIndex = Number(data.selectedSlotIndex) || 0
   const categories = data.categories || []
@@ -285,6 +316,13 @@ function buildUploadViewState(data) {
     selectedCustomerName: customer ? (customer.customerName || customer.name || '未命名客户') : '',
     selectedCustomerMeta: customerConfirmMeta(customer),
     categoryPicker: pickerTextView(data.categoryNames, data.selectedCategoryIndex, '请选择分类'),
+    // 【对齐 PC 2026-09-20】分类两级选择: 大类(产品试点/两谈两做/外出参观/交流拜访) → 子类(涂层类/楼梯板类…);
+    // selectedCategoryIndex 仍指向全量 categories, 兼容草稿恢复与编辑回填
+    categoryParentNames: (data.categoryParentNodes || []).map((item) => item.name),
+    categoryParentPicker: pickerTextView((data.categoryParentNodes || []).map((item) => item.name), data.selectedParentCategoryIndex, '请选择大类'),
+    showCategoryChild: Boolean(activeParentChildren(data).length),
+    categoryChildNames: activeParentChildren(data).map((item) => item.name),
+    categoryChildPicker: pickerTextView(activeParentChildren(data).map((item) => item.name), activeParentChildren(data).findIndex((item) => item.index === data.selectedCategoryIndex), '请选择子类'),
     industryPicker: pickerTextView(data.industryOptions, data.selectedIndustryIndex, '请选择行业'),
     relatedCatPicker: pickerTextView(data.relatedCatOptions, data.selectedRelatedCatIndex, '产品大类'),
     relatedSubPicker: pickerTextView(data.relatedSubOptions, data.selectedRelatedSubIndex, '细分产品'),
@@ -340,6 +378,8 @@ Page({
     selectedPeriodIndex: Math.max(buildPeriodOptions().indexOf(defaultPeriod()), 0),
     selectedCustomerIndex: -1,
     selectedCategoryIndex: -1,
+    categoryParentNodes: [],
+    selectedParentCategoryIndex: -1,
     draftVersion: 0, // 【PR-13】草稿乐观锁版本
     relatedCatOptions: ['涂层类', '防滑板类', '机封类', '密封类', '润滑类'],
     relatedSubOptions: [],
@@ -428,7 +468,7 @@ Page({
     if (getApp().globalData.demoMode) {
       const customers = [{ id: 1, customerName: '华东智能制造集团', industry: '制造业' }]
       const categories = [{ id: 1, parentId: 0, categoryCode: 'trial', name: '产品试点', score: 3 }, { id: 2, parentId: 0, categoryCode: 'exchange', name: '交流拜访', score: 1 }]
-      this.setData({ customers, customerNames: customers.map((item) => item.customerName), categories, categoryNames: categories.map((item) => item.name) }, () => this.refreshUploadViewState())
+      this.setData({ customers, customerNames: customers.map((item) => item.customerName), categories, categoryParentNodes: deriveCategoryParents(categories), categoryNames: categories.map((item) => item.name) }, () => this.refreshUploadViewState())
       if (this.data.editId) this.loadEditRecord()
       return
     }
@@ -436,7 +476,7 @@ Page({
       const page = customerRes && (customerRes.records || customerRes.data || customerRes)
       const customers = Array.isArray(page) ? page : (page.records || [])
       const categories = flattenCategories(categoryRes || [])
-      this.setData({ customers, customerNames: customers.map((item) => item.customerName || item.name || '未命名客户'), categories, categoryNames: categories.map((item) => item.name) }, () => this.refreshUploadViewState())
+      this.setData({ customers, customerNames: customers.map((item) => item.customerName || item.name || '未命名客户'), categories, categoryParentNodes: deriveCategoryParents(categories), categoryNames: categories.map((item) => item.name) }, () => this.refreshUploadViewState())
       if (this.data.editId) this.loadEditRecord()
       else this.tryRestoreDraft() // 【PR-13】新建模式: 选项就绪后检查草稿恢复(客户/分类索引依赖选项)
     }).catch((error) => showError(error, '上传选项加载失败'))
@@ -482,6 +522,7 @@ Page({
     this.setData({
       selectedCustomerIndex: customerIndex,
       selectedCategoryIndex: categoryIndex,
+      selectedParentCategoryIndex: parentIndexOfCategory(this.data.categories, this.data.categoryParentNodes, categoryIndex),
       selectedIndustryIndex: industryIndex,
       periodOptions,
       selectedPeriodIndex: Math.max(selectedPeriodIndex, 0),
@@ -503,8 +544,7 @@ Page({
     const industryIndex = customer && customer.industry ? this.data.industryOptions.indexOf(customer.industry) : -1
     this.setData({ selectedCustomerIndex: index, selectedIndustryIndex: industryIndex }, () => this.refreshUploadViewState())
   },
-  chooseCategory(e) {
-    const selectedCategoryIndex = Number(e.detail.value)
+  applyCategorySelection(selectedCategoryIndex) {
     const category = this.data.categories[selectedCategoryIndex]
     const fileSlots = applyCategorySlotMode(this.data.fileSlots, category, this.data.categories)
     const selectedSlot = fileSlots[this.data.selectedSlotIndex]
@@ -514,6 +554,24 @@ Page({
       fileSlots,
       selectedSlotIndex: selectedSlot && !selectedSlot.hidden ? this.data.selectedSlotIndex : Math.max(firstVisibleSlotIndex, 0)
     }, () => this.refreshUploadViewState())
+  },
+  // 【对齐 PC】先选大类; 无子类的大类直接成为最终分类
+  chooseCategoryParent(e) {
+    const index = Number(e.detail.value)
+    const parent = this.data.categoryParentNodes[index]
+    if (!parent) return
+    if (!parent.children.length) {
+      this.setData({ selectedParentCategoryIndex: index }, () => this.applyCategorySelection(parent.index))
+      return
+    }
+    this.setData({ selectedParentCategoryIndex: index, selectedCategoryIndex: -1 }, () => this.refreshUploadViewState())
+  },
+  // 【对齐 PC】大类之下选子类(子类才是记录挂载的分类, 与 PC「子分类列表→上传文件」同口径)
+  chooseCategoryChild(e) {
+    const parent = this.data.categoryParentNodes[this.data.selectedParentCategoryIndex]
+    const child = parent && parent.children[Number(e.detail.value)]
+    if (!child) return
+    this.applyCategorySelection(child.index)
   },
   chooseIndustry(e) { this.setData({ selectedIndustryIndex: Number(e.detail.value) }, () => this.refreshUploadViewState()) },
   choosePeriod(e) { this.setData({ selectedPeriodIndex: Number(e.detail.value) }, () => this.refreshUploadViewState()) },
@@ -935,6 +993,7 @@ Page({
     this.setData({
       selectedCustomerIndex: customerIndex,
       selectedCategoryIndex: categoryIndex,
+      selectedParentCategoryIndex: parentIndexOfCategory(this.data.categories, this.data.categoryParentNodes, categoryIndex),
       selectedIndustryIndex: industryIndex,
       periodOptions,
       selectedPeriodIndex: Math.max(periodOptions.indexOf(parsed.period || defaultPeriod()), 0),

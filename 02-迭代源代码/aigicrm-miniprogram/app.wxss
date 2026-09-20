@@ -264,3 +264,12 @@ page{background:#f5f7fb;color:#172033;font-family:-apple-system,BlinkMacSystemFo
 .notification-content{margin-top:16rpx;color:#52627a;font-size:26rpx;line-height:1.6}
 .notification-customer{margin-top:16rpx;color:#7c8ba1;font-size:24rpx}
 .refined-notice{margin-top:22rpx;border-radius:18rpx;background:#f8fbff;border:1rpx solid #e5edf6}
+
+/* 首页标题居中: 左占位(与右侧图标列等宽) + 居中标题块 */
+.home-title-center { flex: 1; min-width: 0; text-align: center; }
+.home-title-side { width: 146rpx; flex-shrink: 0; }
+
+/* 应用中心图标补齐缺失色类(此前 teal/indigo/cyan 无定义呈白块) */
+.app-icon.teal { background: #14b8a6; }
+.app-icon.indigo { background: #6366f1; }
+.app-icon.cyan { background: #0ea5e9; }

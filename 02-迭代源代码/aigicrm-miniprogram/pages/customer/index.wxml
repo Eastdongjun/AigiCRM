@@ -16,6 +16,7 @@
   </view>
   <view class="filter-scroll">
     <picker mode="selector" range="{{filters}}" bindchange="chooseFilter"><view class="filter-pill active">{{customerView.filterText}}</view></picker>
+    <picker mode="selector" range="{{statusFilters}}" range-key="label" bindchange="chooseStatusFilter"><view class="filter-pill {{statusFilter ? 'active' : ''}}">{{customerView.statusFilterText}}</view></picker>
     <button class="filter-pill subtle-filter" bindtap="openAdvancedFilter">高级</button>
     <button class="text-btn" wx:if="{{customerView.showReset}}" bindtap="resetFilters">清空</button>
     <view class="filter-count">{{customerView.countText}}</view>

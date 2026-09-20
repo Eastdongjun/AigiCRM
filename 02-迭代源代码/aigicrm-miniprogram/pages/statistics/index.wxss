@@ -568,3 +568,12 @@
   font-weight: 800;
   white-space: nowrap;
 }
+
+/* 经营分析/保护期雷达区块卡化后的外间距与内边距 */
+.stats-risk-panel { margin-top: 22rpx; padding: 24rpx 24rpx 26rpx; }
+
+/* 「更新」重设计: 圆形图标按钮 */
+.stats-refresh-btn { width: 56rpx; height: 56rpx; min-width: 0; margin: 0; padding: 0; border-radius: 50%;
+  border: 1rpx solid #cfe0f7; background: #f5f9ff; color: #1d4ed8; font-size: 30rpx; line-height: 54rpx;
+  display: flex; align-items: center; justify-content: center; }
+.stats-refresh-btn::after { border: none; }

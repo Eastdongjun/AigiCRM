@@ -7,6 +7,10 @@
       </view>
       <button class="ghost-btn" bindtap="refresh" loading="{{incentiveView.refreshLoading}}">{{incentiveView.refreshText}}</button>
     </view>
+    <view wx:if="{{canUploadEvidence}}" class="upload-entry-row">
+      <button class="upload-entry-btn" bindtap="goUpload">＋ 上传激励</button>
+      <text class="upload-entry-hint">大类 → 子类 → 槽位佐证,与 PC 上传同口径</text>
+    </view>
   </view>
 
   <view class="summary-grid">
@@ -225,7 +229,7 @@
     <view class="card ranking-panel">
       <view class="section-row">
         <view class="section-title no-margin">客户积分榜</view>
-        <button class="text-btn" bindtap="loadScoreboard">更新</button>
+        <button class="stats-refresh-btn" bindtap="loadScoreboard">↻</button>
       </view>
       <block wx:for="{{scoreboard}}" wx:key="id">
         <view class="score-row">
@@ -265,7 +269,7 @@
     <view wx:if="{{incentiveView.showReadStatsPanel}}" class="card read-panel refined-read-panel">
       <view class="section-row">
         <view class="section-title no-margin">阅读统计</view>
-        <button class="text-btn" bindtap="loadReadStats">更新</button>
+        <button class="stats-refresh-btn" bindtap="loadReadStats">↻</button>
       </view>
       <block wx:for="{{readStatsView}}" wx:key="userId">
         <view class="stat-row"><text>{{item.rankText}}</text><text>{{item.countText}}</text></view>

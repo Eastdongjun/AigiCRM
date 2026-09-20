@@ -1,4 +1,4 @@
-const { getFolders, getStorageInfo, getSharedToMe, getSharedToMeCount, getFileList, uploadFile, replaceFile, deleteFile, deleteFolder, getFolderAcl, shareFile: shareFileApi, getDownloadUrl } = require('../../api/file')
+const { getFolders, getStorageInfo, getSharedToMe, getSharedToMeCount, getFileList, uploadFile, replaceFile, deleteFile, deleteFolder, getFolderAcl, shareFile: shareFileApi, getDownloadUrl, createFolder } = require('../../api/file')
 const { getCustomerSimpleUsers } = require('../../api/customer')
 const { showError, showErrorWithRetry } = require('../../utils/feedback')
 const { hasPermission, requireLogin, getToken } = require('../../utils/auth')
@@ -77,7 +77,8 @@ function normalizeDownloadable(item) {
 }
 
 function buildFileRowView(item, data) {
-  const canMutateOwnTab = data.activeTab !== '共享给我'
+  const canMutateOwnTab = data.activeTab !== '分享给我' && data.activeTab !== '四项激励'
+  const showUploadAction = Boolean(data.canUpload) && (data.activeTab === '公共' || data.activeTab === '私人')
   return {
     ...item,
     typeText: item.type || 'FILE',
@@ -114,6 +115,7 @@ function buildFileView(data) {
   const hasActiveFolder = Boolean(data.activeFolderName)
   const hasManageFolders = folders.length > 0
   return {
+    showUploadAction,
     tabs,
     folderTitle: data.activeFolderName || '常用文件夹',
     folderCountText: `${folders.length} 个文件夹`,
@@ -134,7 +136,7 @@ function buildFileView(data) {
 }
 
 Page({
-  data: { keyword: '', activeTab: '我的文件', activeFolderId: '', activeFolderName: '', tabs: ['我的文件', '共享给我', '激励资料'], tabCounts: { 我的文件: 0, 共享给我: 0, 激励资料: 0 }, folders: [], files: [], filteredFiles: [], capacity: { used: '-', total: '-', percent: 0, hint: '存储统计加载中' }, canUpload: false, canReplace: false, canDelete: false, canShare: false, canManageFolder: false, canViewFolderAcl: false, canDevUploadSmoke: false, uploading: false, replacingId: '', loaded: false, aclVisible: false, aclLoading: false, aclFolderName: '', aclRows: [], previewing: false, previewVideoPath: '', fileView: buildFileView({ tabs: ['我的文件', '共享给我', '激励资料'], tabCounts: { 我的文件: 0, 共享给我: 0, 激励资料: 0 }, folders: [], filteredFiles: [], activeTab: '我的文件', activeFolderName: '', previewVideoPath: '' }) },
+  data: { keyword: '', activeTab: '公共', activeFolderId: '', activeFolderName: '', tabs: ['公共', '私人', '四项激励', '分享给我'], tabCounts: { 公共: 0, 私人: 0, 四项激励: 0, 分享给我: 0 }, folders: [], files: [], filteredFiles: [], capacity: { used: '-', total: '-', percent: 0, hint: '存储统计加载中' }, canUpload: false, canReplace: false, canDelete: false, canShare: false, canManageFolder: false, canViewFolderAcl: false, canDevUploadSmoke: false, uploading: false, replacingId: '', loaded: false, aclVisible: false, aclLoading: false, aclFolderName: '', aclRows: [], previewing: false, previewVideoPath: '', fileView: buildFileView({ tabs: ['公共', '私人', '四项激励', '分享给我'], tabCounts: { 公共: 0, 私人: 0, 四项激励: 0, 分享给我: 0 }, folders: [], filteredFiles: [], activeTab: '公共', activeFolderName: '', previewVideoPath: '' }) },
 
   setFileData(patch) {
     const nextData = { ...this.data, ...patch }
@@ -189,8 +191,12 @@ Page({
         })
       ])
       if (storageInfo) capacity = normalizeCapacity(storageInfo)
-      folders = folderResponse?.data || folderResponse?.records || []
-      const fileResponse = this.data.activeTab === '共享给我'
+      const rawFolders = folderResponse?.data || folderResponse?.records || []
+      const folderScope = this.activeFileScope()
+      folders = (this.data.activeTab === '公共' || this.data.activeTab === '私人')
+        ? rawFolders.filter((item) => item.folderType === folderScope)
+        : []
+      const fileResponse = this.data.activeTab === '分享给我'
         ? await getSharedToMe(this.buildFileListParams())
         : await getFileList(this.buildFileListParams())
       files = pageRecords(fileResponse)
@@ -207,7 +213,9 @@ Page({
   },
 
   activeFileScope() {
-    if (this.data.activeTab === '激励资料') return 'incentive'
+    // 【对齐 PC 2026-09-20】公共=public / 私人=private / 四项激励=incentive, 分享给我走独立接口
+    if (this.data.activeTab === '公共') return 'public'
+    if (this.data.activeTab === '四项激励') return 'incentive'
     return 'private'
   },
 
@@ -218,16 +226,17 @@ Page({
       keyword: this.data.keyword.trim() || undefined,
       ...extra
     }
-    if (this.data.activeTab !== '共享给我') params.scope = this.activeFileScope()
-    if (this.data.activeFolderId && this.data.activeTab === '我的文件') params.folderId = this.data.activeFolderId
+    if (this.data.activeTab !== '分享给我') params.scope = this.activeFileScope()
+    if (this.data.activeFolderId && (this.data.activeTab === '公共' || this.data.activeTab === '私人')) params.folderId = this.data.activeFolderId
     return params
   },
 
   demoTabCounts(files = demoFiles) {
     return {
-      我的文件: files.length,
-      共享给我: 0,
-      激励资料: files.filter((item) => item.folder === '激励资料').length
+      公共: 0,
+      私人: files.filter((item) => item.folder !== '激励资料').length,
+      四项激励: files.filter((item) => item.folder === '激励资料').length,
+      分享给我: 0
     }
   },
 
@@ -237,16 +246,18 @@ Page({
       return
     }
     try {
-      const [privateFiles, incentiveFiles, sharedCount] = await Promise.all([
+      const [publicFiles, privateFiles, incentiveFiles, sharedCount] = await Promise.all([
+        getFileList({ current: 1, size: 1, scope: 'public' }),
         getFileList({ current: 1, size: 1, scope: 'private' }),
         getFileList({ current: 1, size: 1, scope: 'incentive' }),
         getSharedToMeCount()
       ])
       this.setFileData({
         tabCounts: {
-          我的文件: pageTotal(privateFiles),
-          共享给我: Number((sharedCount && (sharedCount.data ?? sharedCount)) || 0),
-          激励资料: pageTotal(incentiveFiles)
+          公共: pageTotal(publicFiles),
+          私人: pageTotal(privateFiles),
+          四项激励: pageTotal(incentiveFiles),
+          分享给我: Number((sharedCount && (sharedCount.data ?? sharedCount)) || 0)
         }
       })
     } catch (error) {
@@ -276,7 +287,7 @@ Page({
   filterFiles(files = this.data.files) {
     const keyword = this.data.keyword.trim().toLowerCase()
     return files.filter(item => {
-      const matchesTab = this.data.activeTab === '我的文件' || (this.data.activeTab === '激励资料' && item.folder === '激励资料') || this.data.activeTab === '共享给我'
+      const matchesTab = this.data.activeTab === '四项激励' ? item.folder === '激励资料' : item.folder !== '激励资料'
       return matchesTab && (!keyword || `${item.name}${item.folder}`.toLowerCase().includes(keyword))
     })
   },
@@ -310,7 +321,31 @@ Page({
     }).catch((error) => showError(error, '文件夹加载失败'))
   },
   clearFolder() { this.loadFiles() },
-  openFolderForm() { wx.navigateTo({ url: '/pages/files/folder-form/index' }) },
+  // 【弹窗化 2026-09-20】新建文件夹不再跳整页表单, showModal editable 一步完成; folderType 跟随当前 tab(与 PC 同参)
+  openFolderForm() {
+    if (this.data.activeTab !== '公共' && this.data.activeTab !== '私人') {
+      return wx.showToast({ title: '当前分类不支持文件夹', icon: 'none' })
+    }
+    if (getApp().globalData.demoMode) return wx.showToast({ title: '演示模式不可新建文件夹', icon: 'none' })
+    wx.showModal({
+      title: '新建文件夹',
+      editable: true,
+      placeholderText: '输入文件夹名称',
+      success: (result) => {
+        const name = String(result.content || '').trim()
+        if (!result.confirm || !name) return
+        wx.showLoading({ title: '创建中' })
+        createFolder({ folderName: name, folderType: this.activeFileScope(), parentId: 0 }).then(() => {
+          wx.hideLoading()
+          wx.showToast({ title: '已创建', icon: 'success' })
+          this.loadFiles()
+        }).catch((error) => {
+          wx.hideLoading()
+          showError(error, '新建文件夹失败')
+        })
+      }
+    })
+  },
   openFolderEdit(event) { wx.navigateTo({ url: `/pages/files/folder-form/index?id=${event.currentTarget.dataset.id}&name=${encodeURIComponent(event.currentTarget.dataset.name || '')}` }) },
   removeFolder(event) {
     if (!this.data.canManageFolder) return wx.showToast({ title: '没有文件夹管理权限', icon: 'none' })
@@ -351,7 +386,7 @@ Page({
       if (!file || !file.path) return
       this.setData({ uploading: true })
       wx.showLoading({ title: '上传中' })
-      uploadFile(file.path, this.data.activeFolderId || null, 'private').then(() => { wx.showToast({ title: '上传成功', icon: 'success' }); this.data.activeFolderId ? this.openFolder({ currentTarget: { dataset: { id: this.data.activeFolderId, name: this.data.activeFolderName } } }) : this.loadFiles() }).catch((error) => showError(error, '上传失败')).finally(() => { this.setData({ uploading: false }); wx.hideLoading() })
+      uploadFile(file.path, this.data.activeFolderId || null, this.activeFileScope()).then(() => { wx.showToast({ title: '上传成功', icon: 'success' }); this.data.activeFolderId ? this.openFolder({ currentTarget: { dataset: { id: this.data.activeFolderId, name: this.data.activeFolderName } } }) : this.loadFiles() }).catch((error) => showError(error, '上传失败')).finally(() => { this.setData({ uploading: false }); wx.hideLoading() })
     }, fail: (error) => { if (error && error.errMsg && !error.errMsg.includes('cancel')) showError(error, '选择文件失败') } })
   },
   runDevUploadSmoke() {
@@ -372,7 +407,7 @@ Page({
         data: content,
         encoding: 'utf8',
         success: () => {
-          uploadFile(filePath, this.data.activeFolderId || null, 'private')
+          uploadFile(filePath, this.data.activeFolderId || null, this.activeFileScope())
             .then(() => { wx.showToast({ title: '自测上传成功', icon: 'success' }); this.data.activeFolderId ? this.openFolder({ currentTarget: { dataset: { id: this.data.activeFolderId, name: this.data.activeFolderName } } }) : this.loadFiles() })
             .catch((error) => showError(error, '自测上传失败'))
             .finally(() => { cleanupTempFile(); this.setData({ uploading: false }); wx.hideLoading() })
@@ -421,7 +456,7 @@ Page({
     })
   },
   replaceListFile(event) {
-    if (!this.data.canReplace || this.data.activeTab === '共享给我') return wx.showToast({ title: '没有文件替换权限', icon: 'none' })
+    if (!this.data.canReplace || this.data.activeTab === '分享给我') return wx.showToast({ title: '没有文件替换权限', icon: 'none' })
     const item = this.findFile(event)
     if (!item || !item.id || String(item.id).startsWith('file-')) return wx.showToast({ title: '演示文件暂不可替换', icon: 'none' })
     if (this.data.replacingId) return
@@ -493,7 +528,7 @@ Page({
     return wx.saveFile(options)
   },
   shareFile(event) {
-    if (!this.data.canShare || this.data.activeTab === '共享给我') return
+    if (!this.data.canShare || this.data.activeTab === '分享给我') return
     const item = this.data.filteredFiles[event.currentTarget.dataset.index]
     if (!item || !item.id || String(item.id).startsWith('file-')) return wx.showToast({ title: '演示文件暂不可分享', icon: 'none' })
     getCustomerSimpleUsers().then((users) => {

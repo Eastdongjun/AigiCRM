@@ -519,12 +519,15 @@ Page({
         url,
         header: getToken() ? { Authorization: 'Bearer ' + getToken() } : {},
         success: (result) => {
+          // hideLoading 必须在 previewImage/openDocument 等全屏 API 之前收掉,
+          // 否则 loading 层被顶掉后再配对 hideLoading 会触发"必须配对使用"警告
+          wx.hideLoading()
           if (result.statusCode !== 200) return showError(new Error('文件下载失败'), '文件下载失败')
           if (mode === 'download') return this.saveDownloadedFile(result.tempFilePath)
           this.openDownloadedFile(file, result.tempFilePath)
         },
-        fail: (error) => showError(error, '文件下载失败'),
-        complete: () => { wx.hideLoading(); this.setDetailData({ previewing: false }); resolve() }
+        fail: (error) => { wx.hideLoading(); showError(error, '文件下载失败') },
+        complete: () => { this.setDetailData({ previewing: false }); resolve() }
       })
     })
   },

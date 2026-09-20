@@ -7,27 +7,27 @@
       </view>
       <button class="ghost-btn" bindtap="goBack">返回</button>
     </view>
+  </view>
 
-    <view wx:if="{{detailView.hasRecord}}" class="hero-customer">
-      <view class="hero-avatar">{{detailView.heroInitial}}</view>
-      <view class="hero-main">
-        <view class="hero-name">{{detailView.customerName}}</view>
-        <view class="hero-tags">
-          <text wx:if="{{detailView.industryText}}" class="hero-pill">{{detailView.industryText}}</text>
-          <text class="hero-pill grey">最近更新 {{detailView.lastUpdateText}}</text>
-        </view>
+  <view wx:if="{{detailView.hasRecord}}" class="card customer-card">
+    <view class="customer-avatar">{{detailView.heroInitial}}</view>
+    <view class="customer-main">
+      <view class="customer-name">{{detailView.customerName}}</view>
+      <view class="customer-tags">
+        <text wx:if="{{detailView.industryText}}" class="customer-pill blue">{{detailView.industryText}}</text>
+        <text class="customer-pill grey">最近更新 {{detailView.lastUpdateText}}</text>
       </view>
-      <view class="hero-score">
-        <view class="hero-score-line">
-          <text class="hero-score-big">{{detailView.scoreText}}</text>
-          <text class="hero-score-unit">分</text>
-        </view>
-        <view class="hero-score-caption">{{detailView.scoreCaption}}</view>
-        <view class="hero-score-sub">
-          <text>{{detailView.recordCountText}}</text>
-          <text>{{detailView.monthCountText}}</text>
-          <text wx:if="{{detailView.showUnread}}" class="hero-unread">{{detailView.unreadCountText}}</text>
-        </view>
+    </view>
+    <view class="customer-score">
+      <view class="customer-score-line">
+        <text class="customer-score-big">{{detailView.scoreText}}</text>
+        <text class="customer-score-unit">分</text>
+      </view>
+      <view class="customer-score-caption">{{detailView.scoreCaption}}</view>
+      <view class="customer-score-sub">
+        <text>{{detailView.recordCountText}}</text>
+        <text>{{detailView.monthCountText}}</text>
+        <text wx:if="{{detailView.showUnread}}" class="customer-unread">{{detailView.unreadCountText}}</text>
       </view>
     </view>
   </view>
@@ -44,7 +44,7 @@
       <picker-view
         class="dial-picker"
         value="{{detailView.dialValue}}"
-        indicator-style="height: 88rpx; background: rgba(234, 241, 254, .45); border-top: 2rpx solid #dbe6fb; border-bottom: 2rpx solid #dbe6fb;"
+        indicator-style="height: 72rpx; background: rgba(234, 241, 254, .45); border-top: 2rpx solid #dbe6fb; border-bottom: 2rpx solid #dbe6fb;"
         bindchange="onDialChange"
       >
         <picker-view-column>
@@ -52,7 +52,7 @@
             wx:for="{{detailView.dialYears}}"
             wx:key="key"
             class="dial-item {{item.dim ? 'dim' : ''}} {{item.today ? 'today' : ''}}"
-            style="height: 88rpx; line-height: 88rpx;"
+            style="height: 72rpx; line-height: 72rpx;"
           >{{item.label}}<view wx:if="{{item.today}}" class="dial-today-dot"></view></view>
         </picker-view-column>
         <picker-view-column>
@@ -60,7 +60,7 @@
             wx:for="{{detailView.dialMonths}}"
             wx:key="m"
             class="dial-item {{item.dim ? 'dim' : ''}} {{item.today ? 'today' : ''}}"
-            style="height: 88rpx; line-height: 88rpx;"
+            style="height: 72rpx; line-height: 72rpx;"
           >{{item.label}}<view wx:if="{{item.hasUnread}}" class="dial-unread-dot"></view><view wx:if="{{item.today}}" class="dial-today-dot"></view></view>
         </picker-view-column>
         <picker-view-column>
@@ -68,7 +68,7 @@
             wx:for="{{detailView.dialDays}}"
             wx:key="d"
             class="dial-item {{item.dim ? 'dim' : ''}} {{item.today ? 'today' : ''}}"
-            style="height: 88rpx; line-height: 88rpx;"
+            style="height: 72rpx; line-height: 72rpx;"
           >{{item.label}}<view wx:if="{{item.today}}" class="dial-today-dot"></view></view>
         </picker-view-column>
       </picker-view>

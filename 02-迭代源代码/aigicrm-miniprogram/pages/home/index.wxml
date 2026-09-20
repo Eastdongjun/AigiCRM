@@ -1,6 +1,7 @@
 <view class="page home-page">
   <view class="home-title-row">
-    <view>
+    <view class="home-title-side"></view>
+    <view class="home-title-center">
       <view class="home-title">{{appName}}</view>
       <view class="page-caption">移动客户经营驾驶舱</view>
     </view>

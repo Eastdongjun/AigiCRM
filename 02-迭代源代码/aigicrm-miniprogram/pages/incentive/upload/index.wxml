@@ -19,10 +19,16 @@
       </view>
     </view>
     <view class="field">
-      <text class="label">激励分类 *</text>
-      <picker mode="selector" range="{{categoryNames}}" bindchange="chooseCategory">
+      <text class="label">激励大类 *</text>
+      <picker mode="selector" range="{{uploadView.categoryParentNames}}" bindchange="chooseCategoryParent">
         <view class="picker-card">
-          <text class="{{uploadView.categoryPicker.className}}">{{uploadView.categoryPicker.text}}</text>
+          <text class="{{uploadView.categoryParentPicker.className}}">{{uploadView.categoryParentPicker.text}}</text>
+          <text class="picker-arrow">⌄</text>
+        </view>
+      </picker>
+      <picker wx:if="{{uploadView.showCategoryChild}}" class="category-child-picker" mode="selector" range="{{uploadView.categoryChildNames}}" bindchange="chooseCategoryChild">
+        <view class="picker-card">
+          <text class="{{uploadView.categoryChildPicker.className}}">{{uploadView.categoryChildPicker.text}}</text>
           <text class="picker-arrow">⌄</text>
         </view>
       </picker>

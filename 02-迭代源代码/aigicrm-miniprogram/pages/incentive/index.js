@@ -34,16 +34,19 @@ function normalizeRecords(customers) {
   })
 }
 
-function flattenCategoryTree(nodes = [], level = 0, result = []) {
+function flattenCategoryTree(nodes = [], level = 0, result = [], parent = null) {
   nodes.forEach((item) => {
+    const name = item.categoryName || item.name || '未命名分类'
     result.push({
       id: item.id,
-      name: item.categoryName || item.name || '未命名分类',
+      name,
       score: item.score || 0,
       level,
-      count: item.count || item.fileCount || 0
+      count: item.count || item.fileCount || item._recordCount || 0,
+      parentId: (parent && parent.id) || item.parentId || 0,
+      parentName: (parent && parent.name) || ''
     })
-    if (item.children && item.children.length) flattenCategoryTree(item.children, level + 1, result)
+    if (item.children && item.children.length) flattenCategoryTree(item.children, level + 1, result, { id: item.id, name })
   })
   return result
 }
@@ -371,7 +374,6 @@ Page({
     this.loadCategories()
     this.loadUsers()
     this.loadOrgs()
-    this.loadCategoryStats()
     this.loadScoreboard()
     this.loadReadStats()
     this.loadReadRanking()
@@ -379,10 +381,11 @@ Page({
   },
 
   // 【PR-12 2026-09-19 首批】上传/追加成功 switchTab 回列表即见结果:每次显示刷新记录与统计
+  // 【修复 2026-09-20】分类树随 onShow 刷新(此前仅 onLoad, 登录前失败后一直空树); 统计由树完成后串联
   onShow() {
     if (this._loadedOnce) {
       this.loadRecords()
-      this.loadCategoryStats()
+      this.loadCategories()
       this.loadScoreboard()
       this.loadReadStats()
     }
@@ -551,6 +554,7 @@ Page({
     getCategoryTree().then((rows) => {
       const categoryTree = flattenCategoryTree(rows || [])
       this.setData({ categoryTree, categoryTreeView: buildCategoryTreeView(categoryTree) }, () => this.refreshIncentiveView())
+      this.loadCategoryStats()
     }).catch((error) => showErrorWithRetry(error, '四项激励分类加载失败', () => this.loadCategories()))
   },
 
@@ -560,15 +564,22 @@ Page({
       return
     }
     getCategoryStats().then((payload) => {
-      const rows = payload && (payload.children || payload.rows || payload.list || payload.data || [])
-      const categoryStats = Array.isArray(rows) ? rows.map((item) => ({
-        id: item.categoryId || item.childId || item.id || item.code || item.categoryCode || item.name || item.childName,
-        parentId: item.parentCategoryId || item.parentId || item.parentCode || '',
-        parentName: item.parentCategoryName || item.parentName || '',
-        name: item.categoryName || item.name || item.childName || '未命名分类',
-        count: item.fileCount || item.count || item.totalFiles || 0,
-        score: item.totalScore || item.score || 0
-      })) : []
+      // 后端 category-stats 返回 byCategory:[{categoryId,fileCount,totalScore}] 只有 id; 名称/父子关系从分类树映射
+      const rows = payload && (payload.byCategory || payload.children || payload.rows || payload.list || payload.data || [])
+      const treeById = {}
+      ;(this.data.categoryTree || []).forEach((node) => { treeById[String(node.id)] = node })
+      const categoryStats = Array.isArray(rows) ? rows.map((item) => {
+        const id = item.categoryId || item.childId || item.id || item.code || item.categoryCode
+        const node = treeById[String(id)]
+        return {
+          id,
+          parentId: (node && node.parentId) || item.parentCategoryId || item.parentId || item.parentCode || '',
+          parentName: (node && node.parentName) || item.parentCategoryName || item.parentName || '',
+          name: (node && node.name) || item.categoryName || item.name || item.childName || '未命名分类',
+          count: item.fileCount || item.count || item.totalFiles || 0,
+          score: item.totalScore || item.score || 0
+        }
+      }).filter((item) => item.id !== undefined && item.id !== null && item.id !== '') : []
       this.setData({ categoryStats }, () => this.refreshIncentiveView())
     }).catch((error) => showErrorWithRetry(error, '四项激励统计加载失败', () => this.loadCategoryStats()))
   },
@@ -788,6 +799,12 @@ Page({
     this.sort()
   },
 
+  // 【对齐 PC 2026-09-20】显式上传入口: 与 PC「子分类→上传文件」同口径, 常驻页头(权限 incentive:add)
+  goUpload() {
+    if (!this.data.canUploadEvidence) return wx.showToast({ title: '没有四项激励上传权限', icon: 'none' })
+    wx.navigateTo({ url: '/pages/incentive/upload/index' })
+  },
+
   markRead(e) {
     const index = e.currentTarget.dataset.index
     this.markRecordRead(index)
@@ -980,12 +997,14 @@ Page({
         url,
         header: getToken() ? { Authorization: 'Bearer ' + getToken() } : {},
         success: (result) => {
+          // hideLoading 在全屏 API 之前收掉, 避免"必须配对使用"警告
+          wx.hideLoading()
           if (result.statusCode !== 200) return showError(new Error('文件下载失败'), '文件下载失败')
           if (mode === 'download') return this.saveDownloadedFile(result.tempFilePath)
           this.openDownloadedFile(file, result.tempFilePath)
         },
-        fail: (error) => showError(error, '文件下载失败'),
-        complete: () => { wx.hideLoading(); this.setData({ previewing: false }, () => this.refreshIncentiveView()); resolve() }
+        fail: (error) => { wx.hideLoading(); showError(error, '文件下载失败') },
+        complete: () => { this.setData({ previewing: false }, () => this.refreshIncentiveView()); resolve() }
       })
     })
   },
@@ -1050,7 +1069,6 @@ Page({
     this.loadCategories()
     this.loadUsers()
     this.loadOrgs()
-    this.loadCategoryStats()
     this.loadScoreboard()
     this.loadReadStats()
     this.loadReadRanking()

@@ -15,3 +15,12 @@
 .file-preview-video{width:100%;height:360rpx;margin-top:18rpx;border-radius:20rpx;overflow:hidden;background:#0f172a}
 .tab-count{display:inline-flex;min-width:34rpx;height:30rpx;margin-left:8rpx;padding:0 9rpx;align-items:center;justify-content:center;border-radius:999rpx;background:#eef2ff;color:#2563eb;font-size:20rpx;font-weight:700;line-height:30rpx}
 .file-tab.active .tab-count{background:#2563eb;color:#fff}
+
+/* 顶部骨架卡: 标题区 + 分隔线 + 容量区 同卡承载 */
+.files-head-card { padding: 26rpx 26rpx 24rpx; }
+.files-head-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 20rpx; }
+.files-head-overline { color: #94a3b8; font-size: 19rpx; letter-spacing: 4rpx; font-weight: 700; }
+.files-head-title { margin-top: 6rpx; color: #172033; font-size: 40rpx; font-weight: 900; line-height: 1.2; }
+.files-head-sub { margin-top: 8rpx; color: #7c8ba1; font-size: 23rpx; }
+.files-capacity-divider { height: 1rpx; background: #eef2f7; margin: 22rpx 0; }
+.files-capacity-row { display: flex; align-items: center; justify-content: space-between; gap: 20rpx; }

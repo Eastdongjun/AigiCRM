@@ -80,15 +80,15 @@
     </view>
   </view>
 
-  <view class="stats-risk-panel">
+  <view class="card stats-risk-panel">
     <view class="stats-section-head slim"><text>保护期雷达</text><button class="text-btn" bindtap="openDetail">展开</button></view>
     <view class="stats-grid">
       <view wx:for="{{statsView.riskTiles}}" wx:key="label" class="stats-tile {{item.tone}}"><view>{{item.value}}</view><text>{{item.label}}</text></view>
     </view>
   </view>
 
-  <view class="stats-risk-panel">
-    <view class="stats-section-head"><text>经营分析</text><button class="text-btn" bindtap="refresh">更新</button></view>
+  <view class="card stats-risk-panel">
+    <view class="stats-section-head"><text>经营分析</text><button class="stats-refresh-btn" bindtap="refresh">↻</button></view>
     <view class="stats-grid">
       <view wx:for="{{statsView.analysisTiles}}" wx:key="label" class="stats-tile {{item.tone}}"><view>{{item.value}}</view><text>{{item.label}}</text></view>
     </view>

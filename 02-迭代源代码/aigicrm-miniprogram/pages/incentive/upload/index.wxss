@@ -69,3 +69,6 @@
 .upload-state.uploading { background:#dbeafe; color:#2563eb; }
 .upload-state.done { background:#dcfce7; color:#16a34a; }
 .upload-state.failed { background:#fee2e2; color:#dc2626; }
+
+/* 两级分类: 子类选择器跟在大类下方 */
+.category-child-picker { margin-top: 16rpx; }
