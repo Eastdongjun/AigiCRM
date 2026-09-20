@@ -49,7 +49,8 @@ public class ReminderService {
      * （防手改参数绕过，同客户模块 §6.3 双重保险原则）。
      */
     private void applyOwnerScope(LambdaQueryWrapper<BizReminder> wrapper, Long ownerId) {
-        List<Long> visible = scopeResolver.resolve(SecurityUtils.getCurrentUser());
+        // 【2026-09-19 接入权限矩阵】(reminder,view) 显式配置优先，未配置回退角色数据范围
+        List<Long> visible = scopeResolver.resolveModuleUsers(SecurityUtils.getCurrentUser(), "reminder");
         if (visible == null) { // all：不过滤
             if (ownerId != null) wrapper.eq(BizReminder::getOwnerId, ownerId);
             return;
@@ -126,8 +127,9 @@ public class ReminderService {
             wrapper.eq(BizCustomer::getOfficeId, officeId);
         }
 
-        // 按数据范围过滤负责人（同 page() 修复，替换原"非管理员只看自己"的粗粒度判断）
-        List<Long> visibleOwners = scopeResolver.resolve(SecurityUtils.getCurrentUser());
+        // 按数据范围过滤负责人（同 page() 修复，替换原"非管理员只看自己"的粗粒度判断；
+        // 2026-09-19 接入权限矩阵：(reminder,view) 显式配置优先）
+        List<Long> visibleOwners = scopeResolver.resolveModuleUsers(SecurityUtils.getCurrentUser(), "reminder");
         if (visibleOwners == null) { // all：不过滤
             if (ownerId != null) wrapper.eq(BizCustomer::getOwnerId, ownerId);
         } else if (ownerId != null) {
@@ -199,7 +201,7 @@ public class ReminderService {
         wrapper.isNotNull(BizCustomer::getExpireDate)
                 .le(BizCustomer::getExpireDate, deadline)
                 .ne(BizCustomer::getStatus, "sea");
-        List<Long> visibleOwners = scopeResolver.resolve(SecurityUtils.getCurrentUser());
+        List<Long> visibleOwners = scopeResolver.resolveModuleUsers(SecurityUtils.getCurrentUser(), "reminder");
         if (visibleOwners != null) {
             wrapper.in(BizCustomer::getOwnerId, visibleOwners.isEmpty() ? List.of(-1L) : visibleOwners);
         }
@@ -240,7 +242,7 @@ public class ReminderService {
         LocalDate deadline = today.plusDays(warningDays);
 
         // 按数据范围统计（同 page()/expiringPage() 修复；null=all 不过滤）
-        List<Long> visibleOwners = scopeResolver.resolve(SecurityUtils.getCurrentUser());
+        List<Long> visibleOwners = scopeResolver.resolveModuleUsers(SecurityUtils.getCurrentUser(), "reminder");
 
         LambdaQueryWrapper<BizCustomer> custWrapper = new LambdaQueryWrapper<BizCustomer>()
                 .isNotNull(BizCustomer::getExpireDate)
@@ -357,7 +359,7 @@ public class ReminderService {
         if (SecurityUtils.isAdmin()) {
             return;
         }
-        List<Long> visible = scopeResolver.resolve(SecurityUtils.getCurrentUser());
+        List<Long> visible = scopeResolver.resolveModuleUsers(SecurityUtils.getCurrentUser(), "reminder");
         if (visible != null && (reminder.getOwnerId() == null || !visible.contains(reminder.getOwnerId()))) {
             throw new BusinessException(message);
         }

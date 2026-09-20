@@ -219,10 +219,11 @@ public class SeaController {
             page = new Page<>(current, size, total);
         }
 
-        // 统计（【修复 2026-08-08 统计泄漏】按数据范围过滤申请人，上级/负责人可见下级捞取统计）
+        // 统计（【修复 2026-08-08 统计泄漏】按数据范围过滤申请人，上级/负责人可见下级捞取统计；
+        // 2026-09-19 接入权限矩阵：(sea,view) 显式配置优先，未配置回退角色数据范围）
         LambdaQueryWrapper<BizApproval> claimBase = new LambdaQueryWrapper<BizApproval>()
                 .eq(BizApproval::getApprovalType, "claim");
-        List<Long> visibleApplicants = scopeResolver.resolve(SecurityUtils.getCurrentUser());
+        List<Long> visibleApplicants = scopeResolver.resolveModuleUsers(SecurityUtils.getCurrentUser(), "sea");
         if (visibleApplicants != null) claimBase.in(BizApproval::getApplicantId, visibleApplicants);
         long totalAll = approvalMapper.selectCount(claimBase);
         long approved = approvalMapper.selectCount(new LambdaQueryWrapper<BizApproval>()

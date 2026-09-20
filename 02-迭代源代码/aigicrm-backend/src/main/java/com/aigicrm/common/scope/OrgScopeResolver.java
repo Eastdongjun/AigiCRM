@@ -86,6 +86,26 @@ public class OrgScopeResolver {
     // ==================== 统一数据访问层入口(批② 2026-08-10) ====================
 
     /**
+     * 【权限矩阵统一消费入口 2026-09-19】按模块解析查看范围(OWNER 锚点)。
+     * 优先级: role_perm_scope (module, view) 显式配置(USER>POSITION>ROLE, 精确>通配)
+     * → 未配置回退角色 dataScope 默认(多角色并集+系统开关)。
+     * 供以"负责人"维度过滤数据的模块(积分/提醒/审批/公海等)统一接入权限矩阵,
+     * 使系统设置→权限管理勾选的范围对本模块立即生效(变更走 evictAll+permVersion 自愈)。
+     *
+     * @return 可见 userIds;null=全量不过滤(all);空=仅本人语义由调用方兜底
+     */
+    public List<Long> resolveModuleUsers(SecurityUser user, String module) {
+        ScopeRequest req = ScopeRequest.builder()
+                .user(user)
+                .module(module)
+                .action("view")
+                .anchor(ScopeRequest.AnchorType.OWNER)
+                .build();
+        ScopeDecision d = resolveScope(req);
+        return d.isAll() ? null : d.getVisibleUserIds();
+    }
+
+    /**
      * 统一解析: 列表/统计/单条判定共用。
      * OWNER 锚点 → visibleUserIds(负责人集合, null=全部); ORG 锚点 → visibleDeptIds(部门集合)。
      * 多角色并集; 任一 all → 全量; 系统开关仅 OWNER 锚点生效(ORG 由部门树天然覆盖)。

@@ -46,7 +46,8 @@ public class SysLogService {
         // 数据范围（与业务模块一致，含子部门递归）：admin 全量；
         // 非管理员 = Resolver 可见用户集合（self 仅自己 / dept 本部门及子部门 / region 大区 / team 本人及下级 / all 全量）
         if (!SecurityUtils.isAdmin()) {
-            java.util.List<Long> uids = scopeResolver.resolve(SecurityUtils.getCurrentUser());
+            // 【2026-09-19 接入权限矩阵】(system,view) 显式配置优先，未配置回退角色数据范围
+            java.util.List<Long> uids = scopeResolver.resolveModuleUsers(SecurityUtils.getCurrentUser(), "system");
             if (uids == null) {
                 // all 范围：本集团全部
             } else if (uids.isEmpty()) {

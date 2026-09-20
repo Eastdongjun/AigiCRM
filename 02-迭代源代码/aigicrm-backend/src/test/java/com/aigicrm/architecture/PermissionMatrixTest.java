@@ -964,10 +964,10 @@ public class PermissionMatrixTest {
                 .toAbsolutePath().normalize();
         String serviceBody = readSource(serviceSrc, "ReminderService");
         assertTrue(serviceBody.contains("private void applyOwnerScope")
-                        && serviceBody.contains("scopeResolver.resolve(SecurityUtils.getCurrentUser())")
+                        && serviceBody.contains("scopeResolver.resolveModuleUsers(SecurityUtils.getCurrentUser(), \"reminder\")")
                         && serviceBody.contains("wrapper.eq(BizReminder::getOwnerId, -1L)")
                         && serviceBody.contains("wrapper.in(BizReminder::getOwnerId"),
-                "ReminderService.page 必须通过 applyOwnerScope 收口提醒负责人数据范围，越权 ownerId 返回空集");
+                "ReminderService.page 必须通过 applyOwnerScope 收口提醒负责人数据范围(矩阵入口 reminder)，越权 ownerId 返回空集");
         String expiringPageBody = serviceBody.substring(
                 serviceBody.indexOf("public IPage<Map<String, Object>> expiringPage"),
                 serviceBody.indexOf("/** S8: 物化今日到期的 expiring 提醒"));
@@ -1146,8 +1146,8 @@ public class PermissionMatrixTest {
                 .toAbsolutePath().normalize();
         String serviceBody = readSource(serviceSrc, "ScoreService");
         assertTrue(serviceBody.contains("private List<Long> visibleUserIds()")
-                        && serviceBody.contains("scopeResolver.resolve(SecurityUtils.getCurrentUser())"),
-                "ScoreService 必须通过 OrgScopeResolver 取得当前账号可见用户集合");
+                        && serviceBody.contains("scopeResolver.resolveModuleUsers(SecurityUtils.getCurrentUser(), \"score\")"),
+                "ScoreService 必须通过 OrgScopeResolver 矩阵入口(模块 score)取得可见用户集合，使权限矩阵勾选对积分生效");
         assertTrue(serviceBody.contains("public Map<String, Object> getGrid(String period)")
                         && serviceBody.contains("new LambdaQueryWrapper<SysUser>().eq(SysUser::getStatus, 1)")
                         && serviceBody.contains("if (visible != null) userWrapper.in(SysUser::getId, visible)")

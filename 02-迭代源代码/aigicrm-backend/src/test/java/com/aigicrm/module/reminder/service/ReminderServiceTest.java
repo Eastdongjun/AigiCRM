@@ -26,6 +26,7 @@ import java.time.LocalDate;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 
 class ReminderServiceTest {
@@ -52,7 +53,7 @@ class ReminderServiceTest {
     @Test
     void pendingCount_combinesUnfollowedExpiringAndSharedReminders() {
         authenticate(1L, "all");
-        when(scopeResolver.resolve(any())).thenReturn(null);
+        when(scopeResolver.resolveModuleUsers(any(), anyString())).thenReturn(null);
         when(customerMapper.selectCount(any())).thenReturn(5L);
         when(reminderMapper.selectCount(any())).thenReturn(2L, 3L);
 
@@ -62,7 +63,7 @@ class ReminderServiceTest {
     @Test
     void process_rejectsReminderOutsideVisibleOwnerScope() {
         authenticate(1L, "self");
-        when(scopeResolver.resolve(any())).thenReturn(List.of(1L));
+        when(scopeResolver.resolveModuleUsers(any(), anyString())).thenReturn(List.of(1L));
         BizReminder reminder = new BizReminder();
         reminder.setId(9L);
         reminder.setOwnerId(2L);
@@ -75,7 +76,7 @@ class ReminderServiceTest {
     @Test
     void expiringPage_returnsRemainingDaysWithoutMaterializingReminder() {
         authenticate(1L, "all");
-        when(scopeResolver.resolve(any())).thenReturn(null);
+        when(scopeResolver.resolveModuleUsers(any(), anyString())).thenReturn(null);
         BizCustomer customer = new BizCustomer();
         customer.setId(12L);
         customer.setCustomerName("临期客户");
@@ -97,7 +98,7 @@ class ReminderServiceTest {
     @Test
     void process_marksVisibleReminderProcessed() {
         authenticate(1L, "self");
-        when(scopeResolver.resolve(any())).thenReturn(List.of(1L));
+        when(scopeResolver.resolveModuleUsers(any(), anyString())).thenReturn(List.of(1L));
         BizReminder reminder = new BizReminder();
         reminder.setId(10L);
         reminder.setOwnerId(1L);
@@ -114,7 +115,7 @@ class ReminderServiceTest {
     @Test
     void detail_returnsReminderWithCustomerBriefAndOwnerNames() {
         authenticate(1L, "self");
-        when(scopeResolver.resolve(any())).thenReturn(List.of(1L));
+        when(scopeResolver.resolveModuleUsers(any(), anyString())).thenReturn(List.of(1L));
         BizReminder reminder = new BizReminder();
         reminder.setId(21L);
         reminder.setCustomerId(77L);
@@ -155,7 +156,7 @@ class ReminderServiceTest {
     @Test
     void detail_rejectsReminderOutsideVisibleOwnerScope() {
         authenticate(1L, "self");
-        when(scopeResolver.resolve(any())).thenReturn(List.of(1L));
+        when(scopeResolver.resolveModuleUsers(any(), anyString())).thenReturn(List.of(1L));
         BizReminder reminder = new BizReminder();
         reminder.setId(22L);
         reminder.setOwnerId(2L);

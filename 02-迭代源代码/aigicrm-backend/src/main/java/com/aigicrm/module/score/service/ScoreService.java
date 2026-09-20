@@ -39,9 +39,9 @@ public class ScoreService {
     private final SysDictService dictService;
     private final OrgScopeResolver scopeResolver;
 
-    /** 【2026-08-08 设计规则：积分按账号数据范围】当前用户可见用户集合（null=全量不过滤） */
+    /** 【2026-09-19 接入权限矩阵】积分可见用户集合：矩阵 (score,view) 显式配置优先，未配置回退角色数据范围 */
     private List<Long> visibleUserIds() {
-        return scopeResolver.resolve(SecurityUtils.getCurrentUser());
+        return scopeResolver.resolveModuleUsers(SecurityUtils.getCurrentUser(), "score");
     }
 
     // ====== 积分项 CRUD ======

@@ -26,6 +26,7 @@
         <div class="ps-tip">
           每格 = <b>功能</b>(勾选=能做什么) + <b>范围</b>(下拉=对谁的数据) + <b>锚点</b>(按人/按组织)
           · 未配置默认: 查看=角色数据范围, 编辑/删除=仅本人, 锚点=按人
+          · 标注了控制面的模块（如激励授权面板/文件夹权限）不消费本矩阵的范围列
           <!-- 【2026-09-13】只读角色（无 system:config:edit）不再显示可操作控件：此前能改下拉，
                保存时才被后端 403，属"界面已改、实际没变"的误导 -->
           <span v-if="!canEditScope" class="ps-readonly">（当前账号只读：需 system:config:edit 权限才能修改）</span>
@@ -52,17 +53,20 @@
                     <el-checkbox :model-value="col.isRole ? hasPerm(col.role, item) : false"
                                  :disabled="!col.isRole || !canEditScope"
                                  @change="() => col.isRole && togglePerm(col.role, item)" />
-                    <el-select :model-value="scopeOf(col, item)" size="small" style="width:92px"
+                    <el-select v-if="isScopeDriven(item)" :model-value="scopeOf(col, item)" size="small" style="width:92px"
                                :disabled="!canEditScope"
                                @change="(s) => saveScope(col, item, s)">
                       <el-option v-for="o in scopeOptions" :key="o.value" :label="o.label" :value="o.value" />
                     </el-select>
-                    <el-select :model-value="anchorOf(col, item)" size="small" style="width:70px"
+                    <el-select v-if="isScopeDriven(item)" :model-value="anchorOf(col, item)" size="small" style="width:70px"
                                :disabled="!canEditScope"
                                @change="(a) => saveScope(col, item, scopeOf(col, item), a)">
                       <el-option value="OWNER" label="按人" />
                       <el-option value="ORG" label="按组织" />
                     </el-select>
+                    <span v-else class="ps-scope-na" :title="'该模块数据范围由' + scopeOwnerOf(item) + '控制，矩阵此处仅配置功能勾选'">
+                      {{ scopeOwnerOf(item) }}
+                    </span>
                   </td>
                 </tr>
               </tbody>
@@ -125,6 +129,20 @@ const matrixCols = computed(() => {
 
 const actionOf = (permission) => (permission || '').split(':')[1] || ''
 const moduleOf = (permission) => (permission || '').split(':')[0] || ''
+
+// 【2026-09-19 矩阵诚实化】数据范围/锚点真正由本矩阵驱动的模块(后端 resolveModuleUsers/ScopeRequest 消费)。
+// 未列出的模块各有自有可见性模型，矩阵对其只做功能勾选；范围下拉隐藏并标明真实控制面，
+// 避免管理员"配了范围但不生效"的误导。
+const SCOPE_DRIVEN_MODULES = new Set(['customer', 'statistics', 'score', 'reminder', 'approval', 'sea', 'system'])
+const SCOPE_OWNER_HINTS = {
+  incentive: '激励授权面板',
+  file: '文件夹权限',
+  task: '按经办人',
+  dashboard: '跟随各模块',
+  indicator: '统计分析口径',
+}
+const isScopeDriven = (item) => SCOPE_DRIVEN_MODULES.has(moduleOf(item.permission))
+const scopeOwnerOf = (item) => SCOPE_OWNER_HINTS[moduleOf(item.permission)] || '模块自身规则'
 
 const scopeOf = (col, item) => scopeMap.value[col.key]?.[item.permission]?.scope || 'self'
 const anchorOf = (col, item) => scopeMap.value[col.key]?.[item.permission]?.anchor || 'OWNER'
@@ -236,5 +254,6 @@ onMounted(loadAll)
 .ps-table-wrap { overflow-x: auto; }
 .ps-action { font-size: 11px; color: #909399; margin-left: 6px; }
 .ps-cell { text-align: center; min-width: 180px; white-space: nowrap; }
+.ps-scope-na { font-size: 11px; color: #b0b3ba; margin-left: 6px; cursor: help; }
 .ps-role-col { min-width: 130px; }
 </style>
