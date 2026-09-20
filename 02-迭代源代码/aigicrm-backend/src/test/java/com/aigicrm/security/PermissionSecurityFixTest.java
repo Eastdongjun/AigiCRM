@@ -462,7 +462,8 @@ class PermissionSecurityFixTest {
                     mock(com.aigicrm.module.system.service.SysConfigService.class),
                     resolver,
                     mock(com.aigicrm.common.engine.CustomerAccessService.class),
-                    rps);
+                    rps,
+                    mock(com.aigicrm.module.approval.mapper.BizApprovalMapper.class));
             com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<com.aigicrm.module.customer.entity.BizCustomer> w =
                     new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<>();
             org.springframework.test.util.ReflectionTestUtils.invokeMethod(cs, "applyDataScope", w);

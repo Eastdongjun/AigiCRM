@@ -47,12 +47,14 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.verify;import static org.mockito.Mockito.when;
 
 class CustomerServiceTest {
@@ -70,6 +72,7 @@ class CustomerServiceTest {
         TableInfoHelper.initTableInfo(assistant, BizCustomer.class);
         TableInfoHelper.initTableInfo(assistant, BizInvoice.class);
         TableInfoHelper.initTableInfo(assistant, BizPayment.class);
+        TableInfoHelper.initTableInfo(assistant, com.aigicrm.module.approval.entity.BizApproval.class);
     }
 
     /** 解析 wrapper 条件为 列名→值列表（IN 展开为多值，eq 为单值） */
@@ -116,7 +119,7 @@ class CustomerServiceTest {
                 mock(SysConfigService.class),
                 resolver,
                 accessService,
-                mock(com.aigicrm.module.system.service.RolePermScopeService.class));
+                mock(com.aigicrm.module.system.service.RolePermScopeService.class), mock(com.aigicrm.module.approval.mapper.BizApprovalMapper.class));
     }
 
     @Test
@@ -168,7 +171,7 @@ class CustomerServiceTest {
                 mock(com.aigicrm.module.system.service.SysConfigService.class),
                 resolver,
                 mock(com.aigicrm.common.engine.CustomerAccessService.class),
-                mock(com.aigicrm.module.system.service.RolePermScopeService.class));
+                mock(com.aigicrm.module.system.service.RolePermScopeService.class), mock(com.aigicrm.module.approval.mapper.BizApprovalMapper.class));
 
         BizInvoice invoice = new BizInvoice();
         invoice.setId(5L);
@@ -258,6 +261,54 @@ class CustomerServiceTest {
             w3.getSqlSegment();
             assertTrue(w3.getParamNameValuePairs().containsValue("archived"), "显式传 archived=只看已归档");
         }
+    }
+
+    /**
+     * 【议题五.3 裁决补齐】在途审批(reviewing/pending)任一存在 → 拒删;
+     * 无票款且无在途审批 → 放行物理删除(挂审批数据被清, canDelete 由 accessService 放行)。
+     */
+    @Test
+    void delete_rejectsWhenActiveApprovalsExist() {
+        BizCustomerMapper customerMapper = mock(BizCustomerMapper.class);
+        BizCustomer customer = new BizCustomer();
+        customer.setId(9L);
+        when(customerMapper.selectById(9L)).thenReturn(customer);
+        BizInvoiceMapper invoiceMapper = mock(BizInvoiceMapper.class);
+        BizPaymentMapper paymentMapper = mock(BizPaymentMapper.class);
+        when(invoiceMapper.selectCount(any())).thenReturn(0L);
+        when(paymentMapper.selectCount(any())).thenReturn(0L);
+        var approvalMapper = mock(com.aigicrm.module.approval.mapper.BizApprovalMapper.class);
+        var access = mock(com.aigicrm.common.engine.CustomerAccessService.class);
+        doNothing().when(access).assertCanEdit(any());
+        when(access.canDelete(anyLong())).thenReturn(true);
+        CustomerService svc = new CustomerService(
+                customerMapper,
+                mock(com.aigicrm.module.customer.mapper.BizCustomerLogMapper.class),
+                invoiceMapper,
+                mock(com.aigicrm.module.customer.mapper.BizCustomerShareMapper.class),
+                mock(com.aigicrm.module.customer.mapper.BizCustomerIndicatorMapper.class),
+                mock(com.aigicrm.module.customer.mapper.BizContactMapper.class),
+                paymentMapper,
+                mock(com.aigicrm.module.system.mapper.SysUserMapper.class),
+                mock(com.aigicrm.module.system.mapper.SysDeptMapper.class),
+                mock(com.aigicrm.module.reminder.mapper.BizReminderMapper.class),
+                mock(org.springframework.jdbc.core.JdbcTemplate.class),
+                mock(com.aigicrm.module.system.service.SysConfigService.class),
+                mock(OrgScopeResolver.class),
+                access,
+                mock(com.aigicrm.module.system.service.RolePermScopeService.class),
+                approvalMapper);
+
+        // 在途审批 2 条 → 拒删并提示先处理审批
+        when(approvalMapper.selectCount(any())).thenReturn(2L);
+        BusinessException ex = assertThrows(BusinessException.class, () -> svc.delete(9L));
+        assertTrue(String.valueOf(ex.getMessage()).contains("在途审批"), "提示需指向在途审批: " + ex.getMessage());
+        verify(customerMapper, never()).deleteById(anyLong());
+
+        // 无在途审批 → 放行删除
+        when(approvalMapper.selectCount(any())).thenReturn(0L);
+        svc.delete(9L);
+        verify(customerMapper).deleteById(9L);
     }
 
     @Test
@@ -674,7 +725,7 @@ class CustomerServiceTest {
                 mock(SysConfigService.class),
                 resolver,
                 mock(com.aigicrm.common.engine.CustomerAccessService.class),
-                mock(com.aigicrm.module.system.service.RolePermScopeService.class));
+                mock(com.aigicrm.module.system.service.RolePermScopeService.class), mock(com.aigicrm.module.approval.mapper.BizApprovalMapper.class));
     }
 
     /** 【批② 统一数据访问层】resolver 桩: 统一入口 resolveScope(ScopeRequest) 返回指定 userIds */
@@ -769,7 +820,7 @@ class CustomerServiceTest {
                 userMapper, mock(SysDeptMapper.class), mock(BizReminderMapper.class),
                 mock(JdbcTemplate.class), mock(SysConfigService.class),
                 mock(OrgScopeResolver.class), mock(CustomerAccessService.class),
-                mock(com.aigicrm.module.system.service.RolePermScopeService.class));
+                mock(com.aigicrm.module.system.service.RolePermScopeService.class), mock(com.aigicrm.module.approval.mapper.BizApprovalMapper.class));
         BizCustomer req = new BizCustomer();
         try (MockedStatic<SecurityUtils> ms = mockStatic(SecurityUtils.class)) {
             ms.when(SecurityUtils::isAdmin).thenReturn(false);
@@ -798,7 +849,7 @@ class CustomerServiceTest {
                 userMapper, mock(SysDeptMapper.class), mock(BizReminderMapper.class),
                 mock(JdbcTemplate.class), mock(SysConfigService.class),
                 mock(OrgScopeResolver.class), mock(CustomerAccessService.class),
-                mock(com.aigicrm.module.system.service.RolePermScopeService.class));
+                mock(com.aigicrm.module.system.service.RolePermScopeService.class), mock(com.aigicrm.module.approval.mapper.BizApprovalMapper.class));
         BizCustomer req = new BizCustomer();
         try (MockedStatic<SecurityUtils> ms = mockStatic(SecurityUtils.class)) {
             ms.when(SecurityUtils::isAdmin).thenReturn(false);
@@ -836,7 +887,7 @@ class CustomerServiceTest {
                 um, mock(SysDeptMapper.class), mock(BizReminderMapper.class),
                 mock(JdbcTemplate.class), mock(SysConfigService.class),
                 mock(OrgScopeResolver.class), accessService,
-                mock(com.aigicrm.module.system.service.RolePermScopeService.class));
+                mock(com.aigicrm.module.system.service.RolePermScopeService.class), mock(com.aigicrm.module.approval.mapper.BizApprovalMapper.class));
 
         BizCustomer req = new BizCustomer();
         req.setId(1L); req.setOwnerId(300L);
@@ -874,7 +925,7 @@ class CustomerServiceTest {
                 userMapper, mock(SysDeptMapper.class), mock(BizReminderMapper.class),
                 mock(JdbcTemplate.class), mock(SysConfigService.class),
                 mock(OrgScopeResolver.class), accessService,
-                mock(com.aigicrm.module.system.service.RolePermScopeService.class));
+                mock(com.aigicrm.module.system.service.RolePermScopeService.class), mock(com.aigicrm.module.approval.mapper.BizApprovalMapper.class));
 
         BizCustomer req = new BizCustomer();
         req.setId(1L); req.setOwnerId(300L);
@@ -915,7 +966,7 @@ class CustomerServiceTest {
                 userMapper, mock(SysDeptMapper.class), mock(BizReminderMapper.class),
                 mock(JdbcTemplate.class), mock(SysConfigService.class),
                 mock(OrgScopeResolver.class), accessService,
-                mock(com.aigicrm.module.system.service.RolePermScopeService.class));
+                mock(com.aigicrm.module.system.service.RolePermScopeService.class), mock(com.aigicrm.module.approval.mapper.BizApprovalMapper.class));
 
         BizCustomer req = new BizCustomer();
         req.setId(1L); // 不传 ownerId = 视为不修改负责人, 用库内 owner
@@ -948,7 +999,7 @@ class CustomerServiceTest {
                 jdbc, mock(com.aigicrm.module.system.service.SysConfigService.class),
                 mock(com.aigicrm.common.scope.OrgScopeResolver.class),
                 mock(CustomerAccessService.class),
-                mock(com.aigicrm.module.system.service.RolePermScopeService.class));
+                mock(com.aigicrm.module.system.service.RolePermScopeService.class), mock(com.aigicrm.module.approval.mapper.BizApprovalMapper.class));
         SecurityUser user = new SecurityUser();
         user.setUserId(74L);
         user.setCurrentGroupId(6L);
@@ -1000,7 +1051,7 @@ class CustomerServiceTest {
                 jdbc, mock(com.aigicrm.module.system.service.SysConfigService.class),
                 mock(com.aigicrm.common.scope.OrgScopeResolver.class),
                 mock(CustomerAccessService.class),
-                mock(com.aigicrm.module.system.service.RolePermScopeService.class));
+                mock(com.aigicrm.module.system.service.RolePermScopeService.class), mock(com.aigicrm.module.approval.mapper.BizApprovalMapper.class));
         SecurityUser user = new SecurityUser();
         user.setUserId(7L);
         user.setCurrentGroupId(1L);
@@ -1037,7 +1088,7 @@ class CustomerServiceTest {
                 mock(com.aigicrm.module.system.service.SysConfigService.class),
                 mock(com.aigicrm.common.scope.OrgScopeResolver.class),
                 mock(CustomerAccessService.class),
-                mock(com.aigicrm.module.system.service.RolePermScopeService.class));
+                mock(com.aigicrm.module.system.service.RolePermScopeService.class), mock(com.aigicrm.module.approval.mapper.BizApprovalMapper.class));
         doAnswer(inv -> {
             inv.getArgument(0, BizCustomer.class).setId(501L);
             return 1;
@@ -1088,7 +1139,7 @@ class CustomerServiceTest {
                 mock(com.aigicrm.module.system.service.SysConfigService.class),
                 mock(com.aigicrm.common.scope.OrgScopeResolver.class),
                 mock(CustomerAccessService.class),
-                mock(com.aigicrm.module.system.service.RolePermScopeService.class));
+                mock(com.aigicrm.module.system.service.RolePermScopeService.class), mock(com.aigicrm.module.approval.mapper.BizApprovalMapper.class));
         SecurityUser user = new SecurityUser();
         user.setUserId(9L);
 
@@ -1138,7 +1189,7 @@ class CustomerServiceTest {
                 mock(com.aigicrm.module.system.service.SysConfigService.class),
                 mock(com.aigicrm.common.scope.OrgScopeResolver.class),
                 mock(CustomerAccessService.class),
-                mock(com.aigicrm.module.system.service.RolePermScopeService.class));
+                mock(com.aigicrm.module.system.service.RolePermScopeService.class), mock(com.aigicrm.module.approval.mapper.BizApprovalMapper.class));
         SecurityUser user = new SecurityUser();
         user.setUserId(7L);
 
@@ -1183,7 +1234,7 @@ class CustomerServiceTest {
                 mock(com.aigicrm.module.system.service.SysConfigService.class),
                 mock(com.aigicrm.common.scope.OrgScopeResolver.class),
                 accessService,
-                mock(com.aigicrm.module.system.service.RolePermScopeService.class));
+                mock(com.aigicrm.module.system.service.RolePermScopeService.class), mock(com.aigicrm.module.approval.mapper.BizApprovalMapper.class));
 
         BusinessException ex = assertThrows(BusinessException.class, () -> svc.delete(501L));
         assertTrue(ex.getMessage().contains("不允许删除"), "实际: " + ex.getMessage());
@@ -1214,7 +1265,7 @@ class CustomerServiceTest {
                 mock(com.aigicrm.module.system.service.SysConfigService.class),
                 mock(com.aigicrm.common.scope.OrgScopeResolver.class),
                 accessService,
-                mock(com.aigicrm.module.system.service.RolePermScopeService.class));
+                mock(com.aigicrm.module.system.service.RolePermScopeService.class), mock(com.aigicrm.module.approval.mapper.BizApprovalMapper.class));
 
         assertDoesNotThrow(() -> svc.delete(501L));
         verify(customerMapper).deleteById(501L);
@@ -1243,7 +1294,7 @@ class CustomerServiceTest {
                 mock(com.aigicrm.module.system.service.SysConfigService.class),
                 mock(com.aigicrm.common.scope.OrgScopeResolver.class),
                 accessService,
-                mock(com.aigicrm.module.system.service.RolePermScopeService.class));
+                mock(com.aigicrm.module.system.service.RolePermScopeService.class), mock(com.aigicrm.module.approval.mapper.BizApprovalMapper.class));
 
         svc.archive(501L);
         assertEquals("archived", cust.getStatus());

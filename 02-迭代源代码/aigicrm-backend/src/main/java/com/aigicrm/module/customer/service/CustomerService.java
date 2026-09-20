@@ -55,6 +55,7 @@ public class CustomerService {
     private final com.aigicrm.common.scope.OrgScopeResolver scopeResolver;
     private final com.aigicrm.common.engine.CustomerAccessService customerAccessService;
     private final com.aigicrm.module.system.service.RolePermScopeService rolePermScopeService;
+    private final com.aigicrm.module.approval.mapper.BizApprovalMapper approvalMapper;
 
     public IPage<BizCustomer> page(int current, int size, String keyword, String industry,
                                     Long officeId, Long regionId, String status, Long ownerId) {
@@ -534,6 +535,16 @@ public class CustomerService {
             throw new BusinessException(String.format(
                     "该客户有 %d 笔开票、%d 笔回款,不允许删除;如需停止跟进请使用\"停用\"",
                     invoiceCount, paymentCount));
+        }
+        // 【议题五.3 裁决 2026-09-20 补齐】在途审批(reviewing/pending)任一存在同样拒删——
+        // 审批通过后的动作(延期/转移/捞取)作用于已删客户会产生悬挂回写
+        long activeApprovals = approvalMapper.selectCount(
+                new LambdaQueryWrapper<com.aigicrm.module.approval.entity.BizApproval>()
+                        .eq(com.aigicrm.module.approval.entity.BizApproval::getCustomerId, id)
+                        .in(com.aigicrm.module.approval.entity.BizApproval::getStatus, "reviewing", "pending"));
+        if (activeApprovals > 0) {
+            throw new BusinessException(String.format(
+                    "该客户有 %d 条在途审批,不允许删除;请先完成或驳回审批", activeApprovals));
         }
         customerMapper.deleteById(id);
     }
