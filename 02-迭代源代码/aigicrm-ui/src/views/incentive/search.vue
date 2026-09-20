@@ -204,12 +204,10 @@
         <div v-if="recordsByMonth.length" class="dtl-timeline">
           <div v-for="group in recordsByMonth" :key="group.key" class="dtl-month">
             <div class="dtl-month-head">
-              <span class="dtl-month-dot"></span>
               <span class="dtl-month-label">{{ group.label }}</span>
               <span class="dtl-month-count">{{ group.count }} 条</span>
             </div>
             <div v-for="r in group.items" :key="r.id" class="dtl-item">
-              <div class="dtl-dot" :style="{ background: scoreColor(getCls(r)), boxShadow: '0 0 0 4px ' + scoreColor(getCls(r)) + '26' }"></div>
               <div class="dtl-head">
                 <span class="dtl-date">{{ fmtDt(r.createdAt) }}</span>
                 <span v-if="relativeDay(r.createdAt)" class="dtl-ago">{{ relativeDay(r.createdAt) }}</span>
@@ -217,7 +215,7 @@
                 <span class="dtl-subcat">{{ r.categoryName }}</span>
                 <span class="dtl-score" :style="{ color: scoreColor(getCls(r)), background: scoreColor(getCls(r)) + '14', borderColor: scoreColor(getCls(r)) + '33' }">+{{ r.score }} 分</span>
               </div>
-              <div class="dtl-content" :style="{ borderLeftColor: scoreColor(getCls(r)) }">
+              <div class="dtl-content">
                 <div class="dtl-upload-chips">
                   <span class="dtl-chip cust"><i>客户</i><b :style="{color:scoreColor(getCls(r))}">{{ r.customerName || detailCust.customerName }}</b></span>
                   <span class="dtl-chip" v-if="r.industry"><i>行业</i>{{ r.industry }}</span>
@@ -565,19 +563,19 @@ onBeforeUnmount(()=>window.removeEventListener('keydown',onPreviewKeydown))
 
 /* 吸顶操作条 */
 .dtl-bar{position:sticky;top:0;z-index:6;display:flex;align-items:center;gap:12px;padding:12px 24px;
-  background:rgba(255,255,255,.94);backdrop-filter:blur(8px);border-bottom:1px solid #eef1f5}
+  background:rgba(255,255,255,.92);backdrop-filter:blur(10px)}
 .dtl-back{font-size:13px;color:#4e5969;cursor:pointer;display:inline-flex;align-items:center;gap:4px;
   padding:4px 10px;border-radius:8px;transition:all .15s;flex-shrink:0}
 .dtl-back:hover{color:#409eff;background:#ecf5ff}
 .dtl-bar-name{font-size:14px;font-weight:600;color:#1f2329;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .dtl-bar-meta{font-size:12px;color:#86909c;flex-shrink:0}
 .dtl-bar-pts{margin-left:auto;font-size:12px;color:#86909c;flex-shrink:0;
-  background:#f2f6ff;border:1px solid #dbe7ff;border-radius:999px;padding:3px 12px}
+  background:#f2f6ff;border-radius:999px;padding:3px 12px}
 .dtl-bar-pts b{font-size:15px;color:#409eff;margin-right:2px}
 
 /* 客户概览 */
 .dtl-hero{display:flex;align-items:center;gap:16px;padding:22px 24px;
-  background:linear-gradient(120deg,#eef5ff 0%,#f7fafe 44%,#ffffff 100%);border-bottom:1px solid #eef1f5}
+  background:linear-gradient(120deg,#eef5ff 0%,#f7fafe 44%,#ffffff 100%)}
 .dtl-avatar{width:54px;height:54px;border-radius:16px;flex-shrink:0;color:#fff;font-size:22px;font-weight:700;
   display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#409eff,#2563eb);
   box-shadow:0 6px 16px rgba(64,158,255,.32)}
@@ -585,14 +583,14 @@ onBeforeUnmount(()=>window.removeEventListener('keydown',onPreviewKeydown))
 .dtl-hero-name{font-size:20px;font-weight:700;color:#1f2329;line-height:1.35;margin-bottom:8px;
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .dtl-hero-tags{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-.dtl-pill{font-size:12px;border-radius:999px;padding:3px 12px;border:1px solid transparent;white-space:nowrap}
-.dtl-pill.blue{color:#1d6fd0;background:#e8f2ff;border-color:#cfe4ff}
-.dtl-pill.green{color:#0d7a4a;background:#e7f8ef;border-color:#c8ecd9}
-.dtl-pill.grey{color:#6b7280;background:#f4f5f7;border-color:#e8eaee}
-.dtl-metrics{display:flex;align-items:stretch;gap:0;flex-shrink:0;background:#fff;border:1px solid #e6eeff;
-  border-radius:14px;box-shadow:0 4px 14px rgba(64,158,255,.10);overflow:hidden}
-.dtl-metric{padding:10px 20px;text-align:center;min-width:88px}
-.dtl-metric + .dtl-metric{border-left:1px solid #eef3fb}
+.dtl-pill{font-size:12px;border-radius:999px;padding:3px 12px;border:none;white-space:nowrap}
+.dtl-pill.blue{color:#1d6fd0;background:#e8f2ff;border-color:transparent}
+.dtl-pill.green{color:#0d7a4a;background:#e7f8ef;border-color:transparent}
+.dtl-pill.grey{color:#6b7280;background:#f4f5f7;border-color:transparent}
+.dtl-metrics{display:flex;align-items:stretch;gap:2px;flex-shrink:0;background:#f4f8ff;
+  border-radius:16px;padding:6px}
+.dtl-metric{padding:8px 18px;text-align:center;min-width:88px;border-radius:12px}
+.dtl-metric + .dtl-metric{}
 .dtl-metric-num{font-size:24px;font-weight:800;color:#1f2329;line-height:1.1;font-variant-numeric:tabular-nums}
 .dtl-metric-num.primary{color:#409eff}
 .dtl-metric-label{font-size:12px;color:#86909c;margin-top:4px}
@@ -603,46 +601,37 @@ onBeforeUnmount(()=>window.removeEventListener('keydown',onPreviewKeydown))
 .dtl-toolbar{display:flex;align-items:center;gap:10px;padding:12px 24px 0;flex-wrap:wrap}
 .dtl-toolbar-search{width:300px}
 .dtl-toolbar-hit{font-size:12px;color:#86909c;white-space:nowrap}
-.dtl-section-title{font-size:15px;font-weight:700;color:#1f2329}
-.dtl-section-title::before{content:'';display:inline-block;width:3px;height:14px;border-radius:2px;
-  background:#409eff;margin-right:8px;vertical-align:-2px}
+.dtl-section-title{font-size:15px;font-weight:700;color:#1f2329;letter-spacing:.5px}
 .dtl-section-count{font-size:12px;color:#86909c}
 
 /* 时间轴 */
 .dtl-timeline{position:relative;padding:12px 24px 4px;overflow-y:auto;flex:1;min-height:0}
-.dtl-month{position:relative;padding-left:34px;margin-bottom:6px}
-.dtl-month-head{display:flex;align-items:center;gap:8px;padding:10px 0 12px}
-.dtl-month-dot{position:absolute;left:0;top:16px;width:9px;height:9px;border-radius:3px;background:#409eff;
-  box-shadow:0 0 0 3px #e8f2ff}
-.dtl-month-label{font-size:14px;font-weight:700;color:#1f2329}
-.dtl-month-count{font-size:12px;color:#86909c;background:#f4f5f7;border-radius:999px;padding:1px 10px}
-.dtl-month:not(:last-child)::after{content:'';position:absolute;left:4px;top:26px;bottom:-6px;width:1px;
-  background:linear-gradient(180deg,#dbe7ff,#eef1f5)}
+.dtl-month{position:relative;padding-left:0;margin-bottom:4px}
+.dtl-month-head{display:flex;align-items:center;gap:10px;padding:14px 0 12px}
+.dtl-month-label{font-size:14px;font-weight:700;color:#1f2329;background:#f4f6fa;border-radius:10px;padding:4px 12px}
+.dtl-month-count{font-size:12px;color:#86909c}
 .dtl-item{position:relative;padding-left:0;margin-bottom:18px}
 .dtl-item:last-child{margin-bottom:6px}
-.dtl-dot{position:absolute;left:-34px;top:6px;width:10px;height:10px;border-radius:50%;border:2px solid #fff;
-  transition:transform .2s}
-.dtl-item:hover .dtl-dot{transform:scale(1.2)}
 .dtl-head{display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap}
 .dtl-date{font-size:15px;font-weight:700;color:#1f2329;font-variant-numeric:tabular-nums}
 .dtl-ago{font-size:12px;color:#86909c;background:#f4f5f7;border-radius:999px;padding:2px 8px}
 .dtl-subcat{font-size:13px;color:#86909c}
-.dtl-score{margin-left:auto;font-size:13px;font-weight:700;border-radius:999px;padding:2px 12px;border:1px solid transparent}
+.dtl-score{margin-left:auto;font-size:13px;font-weight:700;border-radius:999px;padding:2px 12px;border:none}
 
 /* 记录内容卡 */
-.dtl-content{padding:14px 16px;border:1px solid #eef1f5;border-left:4px solid #e3e6ec;border-radius:12px;
-  background:#fff;box-shadow:0 1px 3px rgba(15,23,42,.04);transition:box-shadow .2s,transform .2s}
-.dtl-item:hover .dtl-content{box-shadow:0 6px 20px rgba(15,23,42,.08);transform:translateY(-1px)}
+.dtl-content{padding:16px 18px;border:none;border-radius:14px;
+  background:#f8f9fc;box-shadow:none;transition:background .2s,box-shadow .2s,transform .2s}
+.dtl-item:hover .dtl-content{background:#fff;box-shadow:0 8px 24px rgba(15,23,42,.07);transform:translateY(-1px)}
 .dtl-upload-chips{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px}
 .dtl-chip{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:#1f2329;
-  background:#f7f9fc;border:1px solid #eaeef4;border-radius:8px;padding:4px 10px}
+  background:#eef1f6;border-radius:8px;padding:4px 10px}
 .dtl-chip i{font-style:normal;font-size:12px;color:#9aa0a8}
-.dtl-chip.cust{background:#f2f8ff;border-color:#dbe9ff}
+.dtl-chip.cust{background:#e8f2ff}
 .dtl-chip.cust b{font-weight:700}
-.dtl-field{margin-bottom:12px;padding:12px 14px;background:#f8fafc;border-radius:10px;border-left:3px solid #d5d9e0}
-.dtl-field.desc{background:#fbfcfe;border:1px solid #eef1f5;border-left:4px solid #cfe0f7;padding:14px 16px}
+.dtl-field{margin-bottom:12px;padding:12px 14px;background:#f2f4f8;border-radius:12px}
+.dtl-field.desc{background:#f0f5ff;border-radius:12px;padding:14px 16px}
 .dtl-field.desc .dtl-field-label{color:#4e5969;font-size:13px;font-weight:600}
-.dtl-field.remark{background:#fffaf3;border-left:4px solid #f59e0b;border-color:#fbe6c7}
+.dtl-field.remark{background:#fdf6ec}
 .dtl-field.remark .dtl-field-label{color:#b45309}
 .dtl-field-label{font-size:12px;color:#8f959e;margin-bottom:6px;letter-spacing:.5px}
 .dtl-field-text{font-size:14px;color:#1f2329;line-height:1.8;white-space:pre-wrap;word-break:break-word}
@@ -657,11 +646,10 @@ onBeforeUnmount(()=>window.removeEventListener('keydown',onPreviewKeydown))
 .search-pager .el-pagination{flex-shrink:0}
 
 /* 附件网格 */
-.dtl-files{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;margin-top:12px;
-  padding-top:12px;border-top:1px dashed #eef1f5}
+.dtl-files{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;margin-top:4px}
 .dtl-file{min-width:0}
 .dtl-file-meta{display:flex;align-items:center;gap:8px;margin-top:6px}
-.dtl-img-wrap{position:relative;border:1px solid #eef1f5;border-radius:12px;overflow:hidden;background:#f7f9fc}
+.dtl-img-wrap{position:relative;border-radius:14px;overflow:hidden;background:#f2f4f8}
 .dtl-file img{width:100%;aspect-ratio:4/3;object-fit:cover;cursor:pointer;display:block;transition:transform .25s}
 .dtl-file img:hover{transform:scale(1.03)}
 .dtl-file-tag{position:absolute;top:8px;left:8px;font-size:11px;font-weight:600;background:rgba(255,255,255,.94);
@@ -670,9 +658,9 @@ onBeforeUnmount(()=>window.removeEventListener('keydown',onPreviewKeydown))
 .dtl-file-vid{display:flex;flex-direction:column}
 .dtl-file-vid video{width:100%;aspect-ratio:4/3;border-radius:12px;background:#0b1020;display:block;object-fit:cover}
 .dtl-file-doc{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;
-  aspect-ratio:4/3;padding:12px;border:1px dashed #dbe1ea;border-radius:12px;background:#fafbfd;
+  aspect-ratio:4/3;padding:12px;border:none;border-radius:14px;background:#f2f4f8;
   color:#646a73;font-size:13px;text-align:center;cursor:pointer;transition:all .15s}
-.dtl-file-doc:hover{background:#f2f8ff;border-color:#409eff;color:#409eff}
+.dtl-file-doc:hover{background:#e8f2ff;color:#1d6fd0}
 .dtl-file-doc .dtl-file-tag.inline{position:absolute;top:8px;left:8px}
 .doc-label{color:#1f2329;font-weight:500;font-size:13px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .dtl-file-acts{position:absolute;top:8px;right:8px;display:flex;gap:6px;opacity:0;transition:opacity .2s;z-index:2}
@@ -680,6 +668,6 @@ onBeforeUnmount(()=>window.removeEventListener('keydown',onPreviewKeydown))
 
 /* 底部操作条 */
 .dtl-footer{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 24px;
-  border-top:1px solid #eef1f5;background:#fbfcfe;position:sticky;bottom:0}
+  background:rgba(255,255,255,.92);backdrop-filter:blur(10px);position:sticky;bottom:0}
 .dtl-footer-hint{font-size:12px;color:#86909c}
 </style>
