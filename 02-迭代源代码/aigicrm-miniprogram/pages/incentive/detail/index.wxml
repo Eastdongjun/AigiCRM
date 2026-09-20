@@ -3,65 +3,174 @@
     <view class="row">
       <view>
         <view class="hero-title">四项激励详情</view>
-        <view class="hero-sub">四项激励 · 文件 · 说明 · 分值</view>
+        <view class="hero-sub">客户台账 · 年月日转盘 · 记录明细</view>
       </view>
       <button class="ghost-btn" bindtap="goBack">返回</button>
+    </view>
+
+    <view wx:if="{{detailView.hasRecord}}" class="hero-customer">
+      <view class="hero-avatar">{{detailView.heroInitial}}</view>
+      <view class="hero-main">
+        <view class="hero-name">{{detailView.customerName}}</view>
+        <view class="hero-tags">
+          <text wx:if="{{detailView.industryText}}" class="hero-pill">{{detailView.industryText}}</text>
+          <text class="hero-pill grey">最近更新 {{detailView.lastUpdateText}}</text>
+        </view>
+      </view>
+      <view class="hero-score">
+        <view class="hero-score-line">
+          <text class="hero-score-big">{{detailView.scoreText}}</text>
+          <text class="hero-score-unit">分</text>
+        </view>
+        <view class="hero-score-caption">{{detailView.scoreCaption}}</view>
+        <view class="hero-score-sub">
+          <text>{{detailView.recordCountText}}</text>
+          <text>{{detailView.monthCountText}}</text>
+          <text wx:if="{{detailView.showUnread}}" class="hero-unread">{{detailView.unreadCountText}}</text>
+        </view>
+      </view>
     </view>
   </view>
 
   <view wx:if="{{detailView.showLoading}}" class="card muted">{{detailView.loadingText}}</view>
 
-  <view wx:if="{{detailView.hasRecord}}" class="card incentive-detail-card">
-    <view class="incentive-detail-head">
-      <view class="incentive-detail-title">{{detailView.title}}</view>
-      <text class="ranking-score">{{detailView.scoreText}} 分</text>
+  <block wx:if="{{detailView.hasRecord}}">
+    <view wx:if="{{detailView.showDial}}" class="card dial-card">
+      <view class="dial-now">
+        <text class="dial-now-date">{{detailView.nowDateText}}</text>
+        <text class="dial-now-time">{{detailView.nowTimeText}}</text>
+        <text class="dial-today-btn" bindtap="goToday">回到今天</text>
+      </view>
+      <picker-view
+        class="dial-picker"
+        value="{{detailView.dialValue}}"
+        indicator-style="height: 88rpx; background: rgba(234, 241, 254, .45); border-top: 2rpx solid #dbe6fb; border-bottom: 2rpx solid #dbe6fb;"
+        bindchange="onDialChange"
+      >
+        <picker-view-column>
+          <view
+            wx:for="{{detailView.dialYears}}"
+            wx:key="key"
+            class="dial-item {{item.dim ? 'dim' : ''}} {{item.today ? 'today' : ''}}"
+            style="height: 88rpx; line-height: 88rpx;"
+          >{{item.label}}<view wx:if="{{item.today}}" class="dial-today-dot"></view></view>
+        </picker-view-column>
+        <picker-view-column>
+          <view
+            wx:for="{{detailView.dialMonths}}"
+            wx:key="m"
+            class="dial-item {{item.dim ? 'dim' : ''}} {{item.today ? 'today' : ''}}"
+            style="height: 88rpx; line-height: 88rpx;"
+          >{{item.label}}<view wx:if="{{item.hasUnread}}" class="dial-unread-dot"></view><view wx:if="{{item.today}}" class="dial-today-dot"></view></view>
+        </picker-view-column>
+        <picker-view-column>
+          <view
+            wx:for="{{detailView.dialDays}}"
+            wx:key="d"
+            class="dial-item {{item.dim ? 'dim' : ''}} {{item.today ? 'today' : ''}}"
+            style="height: 88rpx; line-height: 88rpx;"
+          >{{item.label}}<view wx:if="{{item.today}}" class="dial-today-dot"></view></view>
+        </picker-view-column>
+      </picker-view>
     </view>
-    <view class="detail-info-group">
-      <view wx:for="{{detailView.infoRows}}" wx:key="label" class="detail-row"><text>{{item.label}}</text><text>{{item.valueText}}</text></view>
+
+    <view wx:if="{{detailView.showPaneEmpty}}" class="card pane-empty">
+      <view class="pane-empty-title">{{detailView.paneEmptyTitle}}</view>
+      <view class="pane-empty-hint">{{detailView.paneEmptyHint}}</view>
     </view>
-    <view wx:if="{{detailView.showPreInstallQuestion}}" class="detail-field-block">
-      <view class="detail-field-label">{{detailView.detailLabel}}</view>
-      <view class="detail-field-text">{{detailView.preInstallQuestionText}}</view>
-    </view>
-    <view wx:if="{{detailView.showTrialRemark}}" class="detail-field-block remark">
-      <view class="detail-field-label">{{detailView.remarkLabel}}</view>
-      <view class="detail-field-text">{{detailView.remarkText}}</view>
-    </view>
-    <view wx:if="{{detailView.showFallbackDescription}}" class="detail-content refined-reason">{{detailView.fallbackDescription}}</view>
-    <view wx:if="{{detailView.showDeleteAction}}" class="detail-action-row">
-      <button class="mini-action danger" bindtap="removeRecord">删除记录</button>
-    </view>
-    <view class="form-section-title file-section-title">安装文件时间轴</view>
-    <view wx:if="{{detailView.showFileGroups}}" class="attachment-timeline">
-      <view wx:for="{{detailView.fileGroups}}" wx:for-item="group" wx:key="key" class="attachment-group {{group.key}}">
-        <view class="attachment-group-line"></view>
-        <view class="attachment-group-dot"></view>
-        <view class="attachment-group-card">
-          <view class="attachment-group-head">
-            <view>
-              <view class="attachment-group-title">{{group.label}}</view>
-              <view class="attachment-group-hint">{{group.hint}}</view>
-            </view>
-            <text class="attachment-count">{{group.countText}}</text>
+
+    <block wx:if="{{detailView.items.length}}">
+      <view class="pane-head">
+        <text class="pane-label">{{detailView.paneLabelText}}</text>
+        <text class="pane-count">{{detailView.paneCountText}}</text>
+      </view>
+
+      <view wx:for="{{detailView.items}}" wx:for-item="item" wx:for-index="itemIndex" wx:key="id" class="card record-card">
+        <view class="metabar">
+          <view class="meta-time">
+            <view wx:if="{{item.showUnreadDot}}" class="unread-dot"></view>
+            <text class="meta-day">{{item.dayText}}</text>
+            <text class="meta-clock">{{item.timeText}}</text>
+            <text wx:if="{{item.relativeText}}" class="meta-relative">{{item.relativeText}}</text>
           </view>
-          <view wx:for="{{group.files}}" wx:for-item="file" wx:key="id" class="attachment-row">
-            <image wx:if="{{file.thumbUrl}}" class="attachment-thumb" src="{{file.thumbUrl}}" mode="aspectFill" data-group-index="{{group.groupIndex}}" data-file-index="{{file.fileIndex}}" bindtap="previewAttachment" />
-            <view wx:else class="attachment-icon {{file.type}}">{{file.typeText}}</view>
-            <view class="attachment-main">
-              <view class="attachment-name">{{file.name}}</view>
-              <view class="attachment-meta">可预览 / 可下载</view>
-            </view>
-            <view class="attachment-actions">
-              <button class="mini-action" loading="{{detailView.previewLoading}}" catchtap="previewAttachment" data-group-index="{{group.groupIndex}}" data-file-index="{{file.fileIndex}}">打开</button>
-              <button class="mini-action secondary" loading="{{detailView.previewLoading}}" catchtap="downloadAttachment" data-group-index="{{group.groupIndex}}" data-file-index="{{file.fileIndex}}">下载</button>
+          <view class="meta-stage">
+            <view class="stage-dot" style="background: {{item.stageColor}};"></view>
+            <text class="stage-main">{{item.stageText}}</text>
+            <text wx:if="{{item.stageSub}}" class="stage-sub">{{item.stageSub}}</text>
+            <text class="meta-score" style="color: {{item.scoreColor}};">{{item.scoreText}}</text>
+          </view>
+          <view class="meta-chips">
+            <view wx:for="{{item.chips}}" wx:for-item="chip" wx:key="label" class="meta-chip">
+              <text class="chip-label">{{chip.label}}</text>
+              <text class="chip-text">{{chip.text}}</text>
             </view>
           </view>
         </view>
+
+        <view wx:if="{{item.showDetailBlock}}" class="eblock">
+          <view class="eblock-label">{{item.detailLabel}}</view>
+          <view class="eblock-text">{{item.preInstallQuestionText}}</view>
+        </view>
+
+        <view wx:if="{{item.showTrialRemark}}" class="eblock remark">
+          <view class="eblock-label">{{item.remarkLabel}}</view>
+          <view class="eblock-text">{{item.remarkText}}</view>
+        </view>
+
+        <view wx:if="{{item.showFilesBlock}}" class="eblock files-block">
+          <view class="eblock-label">{{item.countText}}</view>
+          <view class="files-grid">
+            <view wx:for="{{item.files}}" wx:for-item="file" wx:key="fileIndex" class="file-tile">
+              <image
+                wx:if="{{file.showThumb}}"
+                class="file-thumb"
+                src="{{file.thumbUrl}}"
+                mode="aspectFill"
+                lazy-load="{{true}}"
+                data-item-index="{{itemIndex}}"
+                data-file-index="{{file.fileIndex}}"
+                bindtap="previewAttachment"
+              />
+              <view
+                wx:elif="{{file.type === 'video'}}"
+                class="file-video-face"
+                data-item-index="{{itemIndex}}"
+                data-file-index="{{file.fileIndex}}"
+                bindtap="previewAttachment"
+              >
+                <view class="video-play-icon">▶</view>
+                <text class="file-face-name">{{file.nameDisplay}}</text>
+              </view>
+              <view
+                wx:else
+                class="file-doc-face"
+                data-item-index="{{itemIndex}}"
+                data-file-index="{{file.fileIndex}}"
+                bindtap="previewAttachment"
+              >
+                <text class="doc-type">{{file.typeText}}</text>
+                <text class="file-face-name">{{file.nameDisplay}}</text>
+              </view>
+              <text wx:if="{{file.showTag}}" class="file-tag" style="color: {{file.tagColor}}; border-color: {{file.tagColor}};">{{file.tagText}}</text>
+              <view class="file-acts">
+                <button class="tile-btn" loading="{{detailView.previewLoading}}" catchtap="previewAttachment" data-item-index="{{itemIndex}}" data-file-index="{{file.fileIndex}}">打开</button>
+                <button class="tile-btn secondary" loading="{{detailView.previewLoading}}" catchtap="downloadAttachment" data-item-index="{{itemIndex}}" data-file-index="{{file.fileIndex}}">下载</button>
+              </view>
+            </view>
+          </view>
+        </view>
+
+        <view wx:if="{{item.showDeleteAction}}" class="record-action-row">
+          <button class="mini-action danger" bindtap="removeRecord" data-item-index="{{itemIndex}}">删除记录</button>
+        </view>
       </view>
-    </view>
-    <view wx:else class="attachment-empty">暂无上传图片或文件</view>
-    <video wx:if="{{previewVideoPath}}" src="{{previewVideoPath}}" controls class="attachment-video"></video>
-  </view>
+    </block>
+  </block>
 
   <view wx:if="{{detailView.showEmpty}}" class="card muted">暂无四项激励详情</view>
+
+  <view wx:if="{{previewVideoPath}}" class="video-layer">
+    <video src="{{previewVideoPath}}" controls class="video-player"></video>
+    <view class="video-close" bindtap="closeVideoPreview">关闭视频</view>
+  </view>
 </view>

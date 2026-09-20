@@ -15,14 +15,17 @@ fail() {
 
 output="$(bash "$DEV_VERIFY" untracked)"
 
-printf '%s\n' "$output" | grep -Fq 'AIGICRM untracked inventory' ||
+# 【2026-09-20 修正】原 `printf | grep -q` 管线在清单超过 64KB 管道缓冲时触发 SIGPIPE(141)假阴性
+# （grep -q 命中即退出,printf 未写完被击穿,pipefail 判整管线失败）。改 here-string 直喂 grep,
+# 断言内容不变,只消除信号层面的误报。
+grep -Fq 'AIGICRM untracked inventory' <<< "$output" ||
   fail "untracked inventory must have a recognizable title"
 
-printf '%s\n' "$output" | grep -Eq 'summary: total=[0-9]+; migrations=[0-9]+; backend=[0-9]+; frontend=[0-9]+; miniprogram=[0-9]+; scripts=[0-9]+; docs=[0-9]+; config=[0-9]+; other=[0-9]+' ||
+grep -Eq 'summary: total=[0-9]+; migrations=[0-9]+; backend=[0-9]+; frontend=[0-9]+; miniprogram=[0-9]+; scripts=[0-9]+; docs=[0-9]+; config=[0-9]+; other=[0-9]+' <<< "$output" ||
   fail "untracked inventory must show the standard category summary"
 
 for category in migrations backend frontend miniprogram scripts docs config other; do
-  printf '%s\n' "$output" | grep -Eq "^  ${category} \\([0-9]+\\):$" ||
+  grep -Eq "^  ${category} \\([0-9]+\\):$" <<< "$output" ||
     fail "untracked inventory must include the ${category} category"
 done
 
@@ -30,24 +33,24 @@ done
 # （当时未跟踪迁移 V2026.09.13.x 在库、本契约脚本自身也未跟踪），全量提交后必然误红。
 # 改为与 summary 计数一致的双向断言：计数>0 必须列出对应条目（守护清单机制不失效）；
 # 计数=0 不得出现迁移路径（守护不虚报）。
-untracked_migrations="$(printf '%s\n' "$output" | sed -nE 's/.*summary: total=[0-9]+; migrations=([0-9]+).*/\1/p' | head -1)"
+untracked_migrations="$(sed -nE 's/.*summary: total=[0-9]+; migrations=([0-9]+).*/\1/p' <<< "$output" | head -1)"
 [ -n "$untracked_migrations" ] || untracked_migrations=0
 if [ "$untracked_migrations" -gt 0 ]; then
-  printf '%s\n' "$output" | grep -Fq 'aigicrm-backend/src/main/resources/db/migration/V' ||
+  grep -Fq 'aigicrm-backend/src/main/resources/db/migration/V' <<< "$output" ||
     fail "untracked inventory must list untracked Flyway migrations when present"
-elif printf '%s\n' "$output" | grep -Fq 'aigicrm-backend/src/main/resources/db/migration/V'; then
+elif grep -Fq 'aigicrm-backend/src/main/resources/db/migration/V' <<< "$output"; then
   fail "untracked inventory listed Flyway migrations while summary says migrations=0"
 fi
 
-untracked_scripts="$(printf '%s\n' "$output" | sed -nE 's/.*summary: total=[0-9]+; scripts=([0-9]+).*/\1/p' | head -1)"
+untracked_scripts="$(sed -nE 's/.*summary: total=[0-9]+; scripts=([0-9]+).*/\1/p' <<< "$output" | head -1)"
 [ -n "$untracked_scripts" ] || untracked_scripts=0
 if [ "$untracked_scripts" -gt 0 ]; then
-  printf '%s\n' "$output" | grep -Eq '^    - scripts/' ||
+  grep -Eq '^    - scripts/' <<< "$output" ||
     fail "untracked inventory must list untracked script entries when present"
 fi
 
 for batch in database-permissions backend-regression frontend-features automation-contracts delivery-docs; do
-  printf '%s\n' "$output" | grep -Fq "    - ${batch}:" ||
+  grep -Fq "    - ${batch}:" <<< "$output" ||
     fail "untracked inventory must include the ${batch} review batch"
 done
 

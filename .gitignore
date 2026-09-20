@@ -84,3 +84,7 @@ aigicrm-backend/.settings/org.eclipse.m2e.core.prefs
 
 # ZCode agent 工具目录(计划文件等,非项目资产)
 .zcode/
+
+# Mimosa 安全钩子本机运行状态(hook-state/会话快照,会话级临时产物,非项目资产;
+# 2026-09-20 曾把未跟踪清单撑到 95KB 触发 dev-verify 契约管道 SIGPIPE 误报)
+.mimosa/

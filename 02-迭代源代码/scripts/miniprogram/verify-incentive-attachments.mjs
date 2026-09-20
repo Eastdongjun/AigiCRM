@@ -134,8 +134,26 @@ async function tapAttachmentAction(row, text) {
 async function enableRealAttachmentMode(miniProgram) {
   await miniProgram.evaluate(() => {
     const app = getApp()
+    // 【2026-09-20 修复】首次切入真实模式前备份 globalData 环境;此前套件跑完会把
+    // demoMode=false + 不可解析的 automator 假域名留在应用里,用户在开发者工具里
+    // 继续操作时所有真实请求持续 DNS 失败,控制台错误累积上千条
+    if (!globalThis.__aigicrmAutomatorEnvBackup) {
+      globalThis.__aigicrmAutomatorEnvBackup = { demoMode: app.globalData.demoMode, apiBaseUrl: app.globalData.apiBaseUrl }
+    }
     app.globalData.demoMode = false
     app.globalData.apiBaseUrl = app.globalData.apiBaseUrl || 'https://aigicrm-automator.local'
+  })
+}
+
+async function restoreAppEnv(miniProgram) {
+  await miniProgram.evaluate(() => {
+    const app = getApp()
+    const backup = globalThis.__aigicrmAutomatorEnvBackup
+    if (backup) {
+      app.globalData.demoMode = backup.demoMode
+      app.globalData.apiBaseUrl = backup.apiBaseUrl
+      globalThis.__aigicrmAutomatorEnvBackup = null
+    }
   })
 }
 
@@ -221,7 +239,9 @@ async function verifyDetailPage(miniProgram) {
   const page = await miniProgram.reLaunch('/pages/incentive/detail/index?id=9001')
   await page.waitFor(1000)
 
-  await page.callMethod('setRecord', {
+  // 【2026-09-20 小程序同步轮】详情页已对齐 PC 定稿的「三联拨盘 + 记录卡」客户台账:
+  // 用 applyCustomer 注入该客户两条记录(9/15 聚焦 + 9/02 同月不同日),拨盘对位聚焦记录所在月
+  const focusedRecord = {
     id: 9001,
     customerId: 501,
     customerName: '自动化测试客户',
@@ -247,17 +267,57 @@ async function verifyDetailPage(miniProgram) {
     fileId: '[305]',
     fileName: '佐证材料.docx',
     fileMimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-  })
-  await page.waitFor(500)
-  await miniProgram.pageScrollTo(650)
+  }
+  const siblingRecord = {
+    id: 9002,
+    customerId: 501,
+    customerName: '自动化测试客户',
+    industry: '制造业',
+    category: '交流拜访',
+    categoryName: '高层拜访',
+    score: 2,
+    userName: '测试用户',
+    createdAt: '2026-09-02 09:10:00',
+    preInstallQuestion: '九月上旬拜访纪要。'
+  }
+  await page.callMethod('applyCustomer', { customerId: 501, customerName: '自动化测试客户', industry: '制造业', totalScore: 14 }, [focusedRecord, siblingRecord], focusedRecord)
   await page.waitFor(500)
 
-  const files = await page.data('files')
+  // 客户台账概览 + 拨盘位置语义(整月兜底 / 每月完整天数 / 对位聚焦月)
+  let view = await page.data('detailView')
+  assert(view.customerName === '自动化测试客户', 'detail page hero must render customer name')
+  assert(view.scoreText === '14', 'detail page hero must render customer total score')
+  assert(view.dialMonths.length === 12, 'detail page month dial must keep 12 months')
+  assert(view.dialDays.length === 31, `detail page day dial must keep whole-month + 30 days for September, got ${view.dialDays.length}`)
+  assert(view.dialDays[0].label === '整月', 'detail page day dial must keep whole-month fallback')
+  assert(view.items.length === 2, `detail page whole-month view must show both September records, got ${view.items.length}`)
+  assert(view.paneLabelText === '2026年9月', `detail page dial must position at focused record month, got ${view.paneLabelText}`)
+  assert((await page.$$('.dial-item')).length >= 40, 'detail page dial items are missing')
+  assert((await page.$$('.meta-chip')).length >= 4, 'detail page metabar chips are missing')
+  await screenshot(miniProgram, 'detail-dial-wholemonth.png')
+
+  // 位置语义:拨到 9/2 只剩当天一条;「回到今天」落到无数据日出「此时间无数据」空态
+  await page.callMethod('onDialChange', { detail: { value: [view.dialValue[0], view.dialValue[1], 2] } })
+  await page.waitFor(300)
+  view = await page.data('detailView')
+  assert(view.items.length === 1 && view.items[0].id === 9002, `detail page day filter must keep only 9/2 record, got ${JSON.stringify(view.items.map((item) => item.id))}`)
+  await page.callMethod('goToday')
+  await page.waitFor(300)
+  view = await page.data('detailView')
+  assert(view.showPaneEmpty === true, 'detail page back-to-today without data must show empty state')
+  assert(view.paneEmptyTitle.indexOf('，此时间无数据') >= 0, `detail page empty state copy is wrong: ${view.paneEmptyTitle}`)
+  await screenshot(miniProgram, 'detail-dial-emptyday.png')
+
+  // 回到整月继续附件断言
+  await page.callMethod('onDialChange', { detail: { value: [view.dialValue[0], view.dialValue[1], 0] } })
+  await page.waitFor(300)
+  view = await page.data('detailView')
+  const files = view.items.find((item) => item.id === 9001).files
   assert(files.length === 5, `detail page expected 5 files, got ${files.length}`)
   assertAttachmentTags(files, ['安装前', '安装中', '安装后', '跟踪', '佐证'], 'detail page')
   assert(files.some((file) => file.type === 'image'), 'detail page missing image attachment')
   assert(files.some((file) => file.type === 'document'), 'detail page missing document attachment')
-  assert((await page.$$('.attachment-row')).length === 5, 'detail page attachment rows are missing')
+  assert((await page.$$('.file-tile')).length === 5, 'detail page attachment tiles are missing')
 
   const buttons = await textList(await page.$$('button'))
   assert(buttons.filter((text) => text === '打开').length === 5, 'detail page must show open button per attachment')
@@ -265,19 +325,22 @@ async function verifyDetailPage(miniProgram) {
 
   await resetAttachmentActionCalls(miniProgram)
   await enableRealAttachmentMode(miniProgram)
-  await page.callMethod('previewAttachment', eventWithDataset({ index: 0 }))
+  const focusedIndex = (await page.data('detailView')).items.findIndex((item) => item.id === 9001)
+  await page.callMethod('previewAttachment', eventWithDataset({ itemIndex: focusedIndex, fileIndex: 0 }))
   await page.waitFor(300)
   await page.setData({ previewing: false })
-  await page.callMethod('previewAttachment', eventWithDataset({ index: 1 }))
+  await page.callMethod('previewAttachment', eventWithDataset({ itemIndex: focusedIndex, fileIndex: 1 }))
   await page.waitFor(300)
   await page.setData({ previewing: false })
-  await page.callMethod('downloadAttachment', eventWithDataset({ index: 1 }))
+  await page.callMethod('downloadAttachment', eventWithDataset({ itemIndex: focusedIndex, fileIndex: 1 }))
   await page.waitFor(300)
   const calls = await attachmentActionCalls(miniProgram)
   assert(calls.downloadFile.length === 3, `detail page attachment actions must call downloadFile: ${actionCallSummary(calls)}`)
   assert(calls.previewImage.length === 1, `detail page downloaded image must call previewImage: ${actionCallSummary(calls)}`)
   assert(calls.openDocument.length === 1, `detail page document preview must call openDocument: ${actionCallSummary(calls)}`)
   assert(calls.saveFile.length === 1, `detail page document download must call saveFile: ${actionCallSummary(calls)}`)
+  await miniProgram.pageScrollTo(700)
+  await page.waitFor(500)
   await screenshot(miniProgram, 'detail-attachments.png')
 }
 
@@ -287,9 +350,13 @@ async function verifyListPage(miniProgram) {
   await page.waitFor(1000)
 
   const filterText = (await textList(await page.$$('.incentive-search-card'))).join('\n')
-  for (const expected of ['搜索客户 / 产品 / 关键字', '全部行业', '全部类型', '全部产品', '全部组织', '开始日期', '截止日期']) {
+  for (const expected of ['全部行业', '全部类型', '全部产品', '全部组织', '开始日期', '截止日期']) {
     assert(filterText.includes(expected), `list page missing PC-parity filter: ${expected}`)
   }
+  // 【2026-09-20 修正】新版开发者工具 element.text() 不再包含 input 占位符,改断 placeholder 属性
+  const searchInput = await page.$('.incentive-search-input')
+  assert(searchInput, 'list page search input is missing')
+  assert((await searchInput.attribute('placeholder')) === '搜索客户 / 产品 / 关键字', 'list page missing PC-parity search placeholder')
   await page.setData({
     keyword: '煤气管道',
     users: [{ id: 7, realName: '王工' }],
@@ -332,12 +399,25 @@ async function verifyListPage(miniProgram) {
     records: [{ id: 9002, categoryName: '安装后跟踪', unread: true, canEdit: false, canDelete: false }],
     detail: { id: 9001 }
   }
+  item.fileGroups = [{ key: 'pre', label: '附件', hint: '自动化注入的列表附件', files: item.files }]
+  // 【2026-09-20 修正】列表页已归一化为 buildRecordView 渲染(showFiles/fileGroupsView 由数据派生),
+  // 裸 setData records 不再驱动附件 UI;播种类目后重置筛选用 sort() 重建归一化视图
   await page.setData({
+    keyword: '',
+    selectedUserIndex: 0,
+    selectedIndustryIndex: 0,
+    selectedDevTypeIndex: 0,
+    selectedProductIndex: 0,
+    selectedOrgIndex: 0,
+    startDate: '',
+    endDate: '',
+    category: '全部',
+    order: '',
+    selectedOrderIndex: 0,
     allRecords: [item],
-    records: [item],
-    summary: { customers: 1, records: 1, categories: 1, files: 5, unread: 0, score: 12 },
     loading: false
   })
+  await page.callMethod('sort')
   await page.waitFor(500)
 
   assert((await page.$$('.record-file-list')).length === 1, 'list page attachment list is missing')
@@ -355,7 +435,9 @@ async function verifyListPage(miniProgram) {
   assert(await page.data('records[0].name') === '高分客户', 'descending score order must put high score first')
   await page.callMethod('choose', { detail: { value: 2 } })
   assert(await page.data('records[0].name') === '低分客户', 'ascending score order must put low score first')
-  await page.setData({ allRecords: [item], records: [item], order: '', selectedOrderIndex: 0 })
+  await page.setData({ allRecords: [item], order: '', selectedOrderIndex: 0 })
+  await page.callMethod('sort')
+  await page.waitFor(300)
   const files = await page.data('records[0].files')
   assertAttachmentTags(files, ['安装前', '安装中', '安装后', '跟踪', '佐证'], 'list page')
   assert((await page.$$('.record-file-row')).length === 5, 'list page attachment rows are missing')
@@ -399,8 +481,10 @@ async function verifyReadStatsPage(miniProgram) {
   const page = await miniProgram.reLaunch('/pages/incentive/index')
   await page.waitFor(1000)
 
+  // 【2026-09-20 修正】阅读页门控走 incentiveView 归一化(showReads/showReadStatsPanel)与
+  // readStatsView/readRankingView 视图,裸 setData 原始字段不再驱动 UI;先 switchTab 再补视图
+  await page.callMethod('switchTab', eventWithDataset({ key: 'reads' }))
   await page.setData({
-    activeTab: 'reads',
     canViewReadStats: true,
     canViewReadRanking: true,
     readStats: [
@@ -410,8 +494,17 @@ async function verifyReadStatsPage(miniProgram) {
     readRanking: [
       { userId: 101, realName: '张三', readCount: 12 },
       { userId: 102, realName: '李四', readCount: 8 }
+    ],
+    readStatsView: [
+      { userId: 101, rankText: '1. 张三', countText: '已读 6 / 未读 2' },
+      { userId: 102, rankText: '2. 李四', countText: '已读 4 / 未读 0' }
+    ],
+    readRankingView: [
+      { userId: 101, rankText: '1. 张三', countText: '12 次' },
+      { userId: 102, rankText: '2. 李四', countText: '8 次' }
     ]
   })
+  await page.callMethod('refreshIncentiveView')
   await page.waitFor(500)
 
   const periodText = (await textList(await page.$$('.read-period-row'))).join('\n')
@@ -467,6 +560,10 @@ async function verifyTimelinePage(miniProgram) {
     loading: false,
     previewing: false
   })
+  // 【2026-09-20 修正】时间轴渲染走 item.fileGroups(归一化分组),平铺 files 不驱动 UI;按播种文件补组
+  const timelineLogs = await page.data('logs')
+  timelineLogs[1].fileGroups = [{ key: 'pre', label: '附件', hint: '自动化注入的时间轴附件', files: timelineLogs[1].files }]
+  await page.setData({ [`logs[1].fileGroups`]: timelineLogs[1].fileGroups })
   await page.callMethod('rebuildTimelineGroups')
   await page.waitFor(500)
 
@@ -513,6 +610,7 @@ async function main() {
     await verifyTimelinePage(miniProgram)
   } finally {
     await restoreAttachmentActionMocks(miniProgram)
+    await restoreAppEnv(miniProgram)
     miniProgram.disconnect()
   }
   console.log('PASS: DevTools automator verified incentive upload, list, detail, read stats/ranking, and customer timeline attachment UI.')

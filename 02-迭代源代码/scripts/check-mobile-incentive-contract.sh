@@ -88,12 +88,12 @@ grep -q 'upload page selected image must call previewImage' "$automator_script" 
 grep -q 'upload page selected image download must call saveFile' "$automator_script" || { echo "FAIL: incentive DevTools automator does not assert upload selected-image download action" >&2; exit 1; }
 grep -q 'upload page selected document must call openDocument' "$automator_script" || { echo "FAIL: incentive DevTools automator does not assert upload selected-document preview action" >&2; exit 1; }
 grep -q 'upload page selected document download must call saveFile' "$automator_script" || { echo "FAIL: incentive DevTools automator does not assert upload selected-document download action" >&2; exit 1; }
-grep -q 'attachment-row' "$automator_script" || { echo "FAIL: incentive DevTools automator does not assert detail attachment rows" >&2; exit 1; }
+grep -q 'file-tile' "$automator_script" || { echo "FAIL: incentive DevTools automator does not assert detail attachment tiles" >&2; exit 1; }
 grep -q 'record-file-row' "$automator_script" || { echo "FAIL: incentive DevTools automator does not assert list attachment rows" >&2; exit 1; }
 grep -q 'timeline-file-row' "$automator_script" || { echo "FAIL: incentive DevTools automator does not assert customer timeline attachment rows" >&2; exit 1; }
 grep -q 'timeline-attachments.png' "$automator_script" || { echo "FAIL: incentive DevTools automator does not capture customer timeline attachment evidence" >&2; exit 1; }
 grep -q 'read-stats-ranking.png' "$automator_script" || { echo "FAIL: incentive DevTools automator does not capture read stats/ranking evidence" >&2; exit 1; }
-grep -q "activeTab: 'reads'" "$automator_script" || { echo "FAIL: incentive DevTools automator does not switch to read stats/ranking tab" >&2; exit 1; }
+grep -q "switchTab', eventWithDataset({ key: 'reads' })" "$automator_script" || { echo "FAIL: incentive DevTools automator does not switch to read stats/ranking tab" >&2; exit 1; }
 grep -q "read page expected stats and ranking panels" "$automator_script" || { echo "FAIL: incentive DevTools automator does not assert read stats/ranking panels" >&2; exit 1; }
 grep -q "assertAttachmentTags(files, \\['安装前', '安装中', '安装后', '跟踪', '佐证'\\], 'detail page')" "$automator_script" || { echo "FAIL: incentive DevTools automator does not assert all PC attachment slots on detail page" >&2; exit 1; }
 grep -q "assertAttachmentTags(files, \\['安装前', '安装中', '安装后', '跟踪', '佐证'\\], 'list page')" "$automator_script" || { echo "FAIL: incentive DevTools automator does not assert all PC attachment slots on list page" >&2; exit 1; }
@@ -403,18 +403,22 @@ grep -q 'detailView' "$detail_wxml" || { echo "FAIL: incentive detail WXML must 
 grep -q 'detailView.showLoading' "$detail_wxml" || { echo "FAIL: incentive detail loading card must use normalized visibility" >&2; exit 1; }
 grep -q 'detailView.hasRecord' "$detail_wxml" || { echo "FAIL: incentive detail record section must use normalized visibility" >&2; exit 1; }
 grep -q 'detailView.showEmpty' "$detail_wxml" || { echo "FAIL: incentive detail empty card must use normalized visibility" >&2; exit 1; }
-grep -q 'infoRows' "$detail_page" || { echo "FAIL: incentive detail base fields must be normalized in JS" >&2; exit 1; }
-grep -q 'detailView.infoRows' "$detail_wxml" || { echo "FAIL: incentive detail base fields must render normalized info rows" >&2; exit 1; }
-grep -q 'buildFileGroupsView' "$detail_page" || { echo "FAIL: incentive detail attachment groups must be normalized in JS" >&2; exit 1; }
-grep -q 'showFileGroups' "$detail_page" || { echo "FAIL: incentive detail attachment visibility must be normalized in JS" >&2; exit 1; }
+# 【2026-09-20 小程序同步轮】详情页对齐 PC search.vue 定稿:三联拨盘 + 记录卡 metabar + 附件凭证平铺大瓦片。
+# 旧 infoRows 信息表与按槽位分组的 attachment-timeline,由 metabar 内联元信息条与「附件凭证 · N 项」3:2 网格取代。
+grep -q 'metaChips' "$detail_page" || { echo "FAIL: incentive detail base fields must be normalized as metabar chips in JS" >&2; exit 1; }
+grep -q 'detailView.items' "$detail_wxml" || { echo "FAIL: incentive detail record cards must render normalized items" >&2; exit 1; }
+grep -q 'item.chips' "$detail_wxml" || { echo "FAIL: incentive detail metabar must render normalized chips" >&2; exit 1; }
+grep -q '附件凭证' "$detail_page" || { echo "FAIL: incentive detail attachment count head must use PC wording" >&2; exit 1; }
+grep -q 'showFilesBlock' "$detail_page" || { echo "FAIL: incentive detail attachment visibility must be normalized in JS" >&2; exit 1; }
 grep -q 'countText' "$detail_page" || { echo "FAIL: incentive detail attachment count text must be normalized in JS" >&2; exit 1; }
-grep -q 'detailView.fileGroups' "$detail_wxml" || { echo "FAIL: incentive detail attachment timeline must render normalized file groups" >&2; exit 1; }
+grep -q 'item.files' "$detail_wxml" || { echo "FAIL: incentive detail attachment grid must render normalized files" >&2; exit 1; }
+grep -q 'files-grid' "$detail_wxml" "$ROOT/aigicrm-miniprogram/pages/incentive/detail/index.wxss" || { echo "FAIL: incentive detail attachment tiles must use the 3:2 grid layout" >&2; exit 1; }
 grep -q 'getScoreByCustomer' "$detail_page" || { echo "FAIL: incentive detail does not load customer score" >&2; exit 1; }
 grep -q 'canDeleteRecord' "$detail_page" || { echo "FAIL: incentive detail delete permission state is missing" >&2; exit 1; }
 grep -q 'showDeleteAction' "$detail_page" || { echo "FAIL: incentive detail delete action visibility must be normalized in JS" >&2; exit 1; }
 grep -q 'getGrantCheck' "$detail_page" || { echo "FAIL: incentive detail does not load delete grant" >&2; exit 1; }
 grep -q 'removeRecord' "$detail_page" || { echo "FAIL: incentive detail record delete action is missing" >&2; exit 1; }
-grep -q 'deleteRecord(this.data.record.id)' "$detail_page" || { echo "FAIL: incentive detail record delete does not call delete API" >&2; exit 1; }
+grep -q 'deleteRecord(record.id)' "$detail_page" || { echo "FAIL: incentive detail record delete does not call delete API" >&2; exit 1; }
 grep -q '客户累计积分' "$detail_page" || { echo "FAIL: incentive detail customer score row is missing from normalized state" >&2; exit 1; }
 grep -q '相关产品' "$detail_page" || { echo "FAIL: incentive detail related product row is missing from normalized state" >&2; exit 1; }
 grep -q '具体产品' "$detail_page" || { echo "FAIL: incentive detail specific product row is missing from normalized state" >&2; exit 1; }
@@ -424,13 +428,32 @@ grep -q 'showTrialRemark' "$detail_wxml" || { echo "FAIL: incentive detail trial
 grep -q 'detailLabelOf' "$detail_page" || { echo "FAIL: incentive detail label does not follow PC category semantics" >&2; exit 1; }
 grep -q 'remarkLabelOf' "$detail_page" || { echo "FAIL: incentive detail remark label does not follow PC category semantics" >&2; exit 1; }
 grep -q 'incentiveCodeOf' "$detail_page" || { echo "FAIL: incentive detail cannot classify record categories for mobile labels" >&2; exit 1; }
+# 【2026-09-20 小程序同步轮】三联拨盘:原生 picker-view 三列(iOS 滚轮),钉住 PC 定稿语义防回退——
+# 位置语义(拨到哪显示哪)/整月兜底/每月完整天数(闰年自动)/年份自增/回到今天/实时时钟/「此时间无数据」空态
+grep -q '<picker-view' "$detail_wxml" || { echo "FAIL: incentive detail dial must use native picker-view columns" >&2; exit 1; }
+grep -q 'bindchange="onDialChange"' "$detail_wxml" || { echo "FAIL: incentive detail dial change handler is missing" >&2; exit 1; }
+grep -q 'detailView.dialYears' "$detail_wxml" || { echo "FAIL: incentive detail year dial must render normalized years" >&2; exit 1; }
+grep -q 'detailView.dialMonths' "$detail_wxml" || { echo "FAIL: incentive detail month dial must render normalized months" >&2; exit 1; }
+grep -q 'detailView.dialDays' "$detail_wxml" || { echo "FAIL: incentive detail day dial must render normalized days" >&2; exit 1; }
+grep -q 'onDialChange' "$detail_page" || { echo "FAIL: incentive detail dial position semantics handler is missing" >&2; exit 1; }
+grep -q 'buildDialYears' "$detail_page" || { echo "FAIL: incentive detail year dial auto-increment builder is missing" >&2; exit 1; }
+grep -q 'new Date(year, month, 0).getDate()' "$detail_page" || { echo "FAIL: incentive detail day dial must generate full month days" >&2; exit 1; }
+grep -q "'整月'" "$detail_page" || { echo "FAIL: incentive detail day dial must keep whole-month fallback entry" >&2; exit 1; }
+grep -q 'goToday' "$detail_page" || { echo "FAIL: incentive detail back-to-today shortcut is missing" >&2; exit 1; }
+grep -q '回到今天' "$detail_wxml" || { echo "FAIL: incentive detail back-to-today UI is missing" >&2; exit 1; }
+grep -q '此时间无数据' "$detail_page" || { echo "FAIL: incentive detail dial empty state copy is missing" >&2; exit 1; }
+grep -q 'paneEmptyTitle' "$detail_wxml" || { echo "FAIL: incentive detail dial empty state must render normalized title" >&2; exit 1; }
+grep -q 'nowTimeText' "$detail_wxml" || { echo "FAIL: incentive detail live clock text is missing" >&2; exit 1; }
+grep -q 'setInterval' "$detail_page" || { echo "FAIL: incentive detail live clock ticker is missing" >&2; exit 1; }
+grep -q 'stopClock' "$detail_page" || { echo "FAIL: incentive detail live clock must be cleaned up on hide/unload" >&2; exit 1; }
+grep -q 'relativeDayText' "$detail_page" || { echo "FAIL: incentive detail metabar relative-day label is missing" >&2; exit 1; }
 ! grep -Eq "customerScore === null|record\\.remark && isTrialRecord|!record\\.preInstallQuestion|record\\.name \\|\\||record\\.score \\|\\||record\\.customerName \\|\\|" "$detail_wxml" || { echo "FAIL: incentive detail WXML must not keep score/detail branching logic" >&2; exit 1; }
 ! grep -Eq "record\\.relatedProducts|record\\.specificProduct|record\\.period|record\\.preInstallQuestion|record\\.remark" "$detail_wxml" || { echo "FAIL: incentive detail WXML must not keep direct record field rendering" >&2; exit 1; }
 ! grep -Eq "fileGroups\\.length|group\\.files\\.length|wx:for-index=\"groupIndex\"|wx:for-index=\"fileIndex\"" "$detail_wxml" || { echo "FAIL: incentive detail WXML must not keep attachment fallback/count/index logic" >&2; exit 1; }
 ! grep -q '{{loading}}' "$detail_wxml" || { echo "FAIL: incentive detail WXML must not bind raw loading state directly" >&2; exit 1; }
 ! grep -q '{{record}}' "$detail_wxml" || { echo "FAIL: incentive detail WXML must not bind raw record visibility directly" >&2; exit 1; }
 grep -q 'bindtap="removeRecord"' "$detail_wxml" || { echo "FAIL: incentive detail delete UI is missing" >&2; exit 1; }
-grep -q 'detailView.showDeleteAction' "$detail_wxml" || { echo "FAIL: incentive detail delete UI must use normalized action visibility" >&2; exit 1; }
+grep -q 'item.showDeleteAction' "$detail_wxml" || { echo "FAIL: incentive detail delete UI must use normalized per-record action visibility" >&2; exit 1; }
 ! grep -q 'wx:if="{{canDeleteRecord}}"' "$detail_wxml" || { echo "FAIL: incentive detail WXML must not bind raw delete permission directly" >&2; exit 1; }
 grep -q 'wx.downloadFile' "$detail_page" || { echo "FAIL: incentive detail attachments cannot be downloaded from server" >&2; exit 1; }
 grep -q 'wx.previewImage' "$detail_page" || { echo "FAIL: incentive detail images cannot preview" >&2; exit 1; }
