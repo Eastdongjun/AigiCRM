@@ -7,6 +7,8 @@ set -o pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 DOCKERFILE="$ROOT/aigicrm-backend/Dockerfile"
+UI_DOCKERFILE="$ROOT/aigicrm-ui/Dockerfile"
+WRAPPER_PROPS="$ROOT/aigicrm-backend/.mvn/wrapper/maven-wrapper.properties"
 
 fail() {
   echo "FAIL: $*" >&2
@@ -45,3 +47,16 @@ if violations:
 
 print(f"PASS: {path} has no consecutive RUN instructions within a Docker stage.")
 PY
+
+# 【PR-23.D-03/D-04 构建工具链冻结】
+# 1) 前端镜像必须 npm ci(严格按 lockfile, 失同步构建失败); 禁 npm install(语义漂移)
+[ -f "$UI_DOCKERFILE" ] || fail "Missing frontend Dockerfile: $UI_DOCKERFILE"
+grep -Fq "RUN npm ci" "$UI_DOCKERFILE" || fail "frontend Dockerfile must install with npm ci (lockfile-frozen)"
+if grep -Fq "RUN npm install" "$UI_DOCKERFILE"; then fail "frontend Dockerfile must not use npm install (semver drift breaks reproducibility)"; fi
+
+# 2) 后端构建镜像的 Maven 版本必须与 mvnw wrapper 锁定版一致(浮动 tag 会漂移)
+WRAPPER_MAVEN=$(sed -n 's/.*apache-maven-\([0-9][0-9.]*\)-bin.zip.*/\1/p' "$WRAPPER_PROPS" | head -1)
+[ -n "$WRAPPER_MAVEN" ] || fail "cannot read Maven version from $WRAPPER_PROPS"
+grep -Fq "FROM maven:${WRAPPER_MAVEN}-" "$DOCKERFILE" || fail "backend Dockerfile maven image must be pinned to wrapper version ${WRAPPER_MAVEN}"
+
+echo "PASS: dockerfiles keep frozen installs (npm ci + maven ${WRAPPER_MAVEN} pinned to wrapper)."

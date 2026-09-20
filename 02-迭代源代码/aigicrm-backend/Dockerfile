@@ -1,4 +1,5 @@
-FROM maven:3.9-eclipse-temurin-21 AS build
+# 【PR-23.D-04 工具链冻结】与 mvnw wrapper 同版(3.9.9), 避免浮动 tag 漂移
+FROM maven:3.9.9-eclipse-temurin-21 AS build
 WORKDIR /app
 COPY pom.xml .
 RUN mvn dependency:go-offline -B
