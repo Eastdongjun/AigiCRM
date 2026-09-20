@@ -177,7 +177,10 @@
              从激励上传页(含 el-dialog/teleport 子树)切出时过渡永不完成 → 新页面组件挂载但 DOM 永远空白
              ("点击菜单没反应")，且任何 duration/超时配置都无法兜底。
              修复：移除 transition 直接渲染（无切换动画，功能优先）。 -->
-        <router-view />
+        <!-- 【2026-09-20 全局页面骨架】所有菜单页统一：灰画布(main-content) → 白色整体容器(page-shell) → 页内小布局 -->
+        <div class="page-shell">
+          <router-view />
+        </div>
       </el-main>
     </el-container>
   </el-container>

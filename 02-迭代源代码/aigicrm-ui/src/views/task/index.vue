@@ -7,35 +7,36 @@
       </div>
     </div>
 
-    <!-- 统计卡片 -->
-    <div class="stat-row">
-      <div class="stat-card">
+    <!-- 统计卡片（2026-09-20 Bento 重设计：主卡渐变突出"待办"，数字滚动动画） -->
+    <div class="stat-bento">
+      <div class="stat-card primary">
+        <div class="stat-icon-chip"><el-icon :size="22"><List /></el-icon></div>
         <div class="stat-info">
-          <div class="stat-label">待办</div>
-          <div class="stat-num blue">{{ stats.pending || 0 }}</div>
+          <div class="stat-label">待办任务</div>
+          <div class="stat-num">{{ disp.pending }}</div>
+          <div class="stat-sub">今日到期 {{ stats.todayDue || 0 }} · 逾期 {{ stats.overdue || 0 }}</div>
         </div>
-        <el-icon class="stat-icon icon-blue" :size="28"><List /></el-icon>
       </div>
-      <div class="stat-card">
+      <div class="stat-card mini orange">
+        <div class="stat-icon-chip"><el-icon :size="20"><Clock /></el-icon></div>
         <div class="stat-info">
           <div class="stat-label">今日到期</div>
-          <div class="stat-num orange">{{ stats.todayDue || 0 }}</div>
+          <div class="stat-num">{{ disp.todayDue }}</div>
         </div>
-        <el-icon class="stat-icon icon-orange" :size="28"><Clock /></el-icon>
       </div>
-      <div class="stat-card">
+      <div class="stat-card mini red">
+        <div class="stat-icon-chip"><el-icon :size="20"><Warning /></el-icon></div>
         <div class="stat-info">
           <div class="stat-label">已逾期</div>
-          <div class="stat-num red">{{ stats.overdue || 0 }}</div>
+          <div class="stat-num">{{ disp.overdue }}</div>
         </div>
-        <el-icon class="stat-icon icon-red" :size="28"><Warning /></el-icon>
       </div>
-      <div class="stat-card">
+      <div class="stat-card mini green">
+        <div class="stat-icon-chip"><el-icon :size="20"><CircleCheck /></el-icon></div>
         <div class="stat-info">
           <div class="stat-label">本月完成</div>
-          <div class="stat-num green">{{ stats.completedThisMonth || 0 }}</div>
+          <div class="stat-num">{{ disp.completedThisMonth }}</div>
         </div>
-        <el-icon class="stat-icon icon-green" :size="28"><CircleCheck /></el-icon>
       </div>
     </div>
 
@@ -116,6 +117,20 @@ const loading = ref(false)
 const tasks = ref([])
 const total = ref(0)
 const stats = ref({})
+// 数字滚动动画：目标值到位后 800ms ease-out 滚到目标（工作台"动态"感的关键）
+const disp = reactive({ pending: 0, todayDue: 0, overdue: 0, completedThisMonth: 0 })
+function animateNum(key, target) {
+  const from = disp[key] || 0
+  const to = Number(target) || 0
+  const t0 = performance.now()
+  const step = (t) => {
+    const p = Math.min(1, (t - t0) / 800)
+    const ease = 1 - Math.pow(1 - p, 3)
+    disp[key] = Math.round(from + (to - from) * ease)
+    if (p < 1) requestAnimationFrame(step)
+  }
+  requestAnimationFrame(step)
+}
 const query = reactive({ current: 1, size: 20 })
 const statusFilter = ref('')
 const overdueOnly = ref(false)
@@ -143,6 +158,10 @@ const loadStats = async () => {
   try {
     const res = await getTaskStatistics()
     stats.value = res.data || {}
+    animateNum('pending', stats.value.pending)
+    animateNum('todayDue', stats.value.todayDue)
+    animateNum('overdue', stats.value.overdue)
+    animateNum('completedThisMonth', stats.value.completedThisMonth)
   } catch {}
 }
 
@@ -181,13 +200,31 @@ onMounted(() => { loadData(); loadStats() })
 .task-page { padding: 0 }
 .page-header h2 { font-size: 20px; font-weight: 600; margin: 0 0 4px }
 .page-desc { color: #94a3b8; font-size: 13px; margin: 0 }
-.stat-row { display: grid; grid-template-columns: repeat(4,1fr); gap: 12px; margin-bottom: 16px }
-.stat-card { display: flex; justify-content: space-between; align-items: center; padding: 16px; background: #fff; border-radius: 10px; border: 1px solid #e2e8f0 }
-.stat-label { font-size: 12px; color: #94a3b8 }
-.stat-num { font-size: 24px; font-weight: 700; margin-top: 4px }
-.stat-num.blue { color: #2563eb } .stat-num.orange { color: #ea580c }
-.stat-num.red { color: #dc2626 } .stat-num.green { color: #16a34a }
-.stat-icon { opacity: .8 }
+/* 【2026-09-20 Bento 统计卡】主卡(待办)渐变宽卡 + 三张浅灰瓦片小卡；数字滚动由 disp 驱动 */
+.stat-bento { display: grid; grid-template-columns: 1.5fr 1fr 1fr 1fr; gap: 14px; margin-bottom: 18px; align-items: stretch }
+.stat-card { border: none; border-radius: 16px; display: flex; gap: 14px; align-items: flex-start; padding: 20px 22px; height: 100%;
+  box-sizing: border-box; transition: transform .18s, box-shadow .18s }
+.stat-card:hover { transform: translateY(-2px) }
+.stat-card.primary { background: linear-gradient(135deg, #3b82f6 0%, #2563eb 60%, #1d4ed8 100%); color: #fff;
+  box-shadow: 0 10px 26px rgba(37, 99, 235, .30) }
+.stat-card.primary:hover { box-shadow: 0 14px 32px rgba(37, 99, 235, .38) }
+.stat-card.primary .stat-label { color: rgba(255, 255, 255, .82) }
+.stat-card.primary .stat-num { color: #fff; font-size: 40px }
+.stat-card.primary .stat-sub { margin-top: 6px; font-size: 12px; color: rgba(255, 255, 255, .78) }
+.stat-card.primary .stat-icon-chip { background: rgba(255, 255, 255, .18); color: #fff }
+.stat-card.mini { background: #f2f4f7; align-items: center }
+.stat-card.mini:hover { background: #fff; box-shadow: 0 8px 22px rgba(16, 24, 40, .09) }
+.stat-icon-chip { width: 40px; height: 40px; border-radius: 12px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center }
+.stat-card.mini.orange .stat-icon-chip { background: #ffedd5; color: #ea580c }
+.stat-card.mini.red .stat-icon-chip { background: #fee2e2; color: #dc2626 }
+.stat-card.mini.green .stat-icon-chip { background: #dcfce7; color: #16a34a }
+.stat-info { min-width: 0 }
+.stat-label { font-size: 12px; color: #9ca3af; letter-spacing: 1px }
+.stat-num { font-size: 28px; font-weight: 800; margin-top: 4px; line-height: 1.1; font-variant-numeric: tabular-nums }
+.stat-card.mini.orange .stat-num { color: #ea580c }
+.stat-card.mini.red .stat-num { color: #dc2626 }
+.stat-card.mini.green .stat-num { color: #16a34a }
 .toolbar { display: flex; gap: 16px; align-items: center; margin-bottom: 12px }
 .task-done { text-decoration: line-through; color: #94a3b8 }
 .list-pager { display: flex; justify-content: flex-end; margin-top: 12px }

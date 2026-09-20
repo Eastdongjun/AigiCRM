@@ -282,7 +282,7 @@ onBeforeUnmount(() => {
 .toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
 .toolbar-left { display: flex; gap: 8px; }
 .toolbar-right { display: flex; gap: 8px; }
-.reminder-manage { height: calc(100vh - 100px); display: flex; flex-direction: column; }
+.reminder-manage { height: calc(100vh - 124px); display: flex; flex-direction: column; }
 .table-area { flex: 1; min-height: 0; display: flex; flex-direction: column; background: #fff; border: 1px solid #e4e7ed; border-radius: 8px; overflow: hidden }
 .table-wrap { flex: 1; min-height: 0; }
 .rem-pager {

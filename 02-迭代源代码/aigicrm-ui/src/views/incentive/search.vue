@@ -1,7 +1,6 @@
 <template>
-  <!-- 页面骨架（2026-09-20 布局重构）：灰色画布 → 白色整体容器 → 容器内三段小布局(筛选条 / 客户卡网格 / 底部分页) -->
+  <!-- 页面骨架（2026-09-20）：全局 .page-shell 已提供灰画布+白色整体容器，页内只保留三段小布局(筛选条 / 客户卡网格 / 底部分页) -->
   <div class="isc-page">
-    <div class="isc-panel">
     <div class="bar">
       <div class="bar-row">
         <el-input v-model="fCustomer" placeholder="搜索客户名称 / 关键字（如：煤气管道）..." clearable class="kw-main" @change="doSearch"><template #prefix><el-icon><Search /></el-icon></template></el-input>
@@ -112,7 +111,6 @@
       <span class="search-pager-count">共 <b>{{ custs.length }}</b> 个客户</span>
       <el-pagination v-model:current-page="pageNum" :page-size="pageSize" :total="custs.length" :page-sizes="pageSizes(pageSize)" layout="sizes, prev, pager, next, jumper" size="small" background @size-change="onSizeChange" />
     </div>
-    </div><!-- /isc-panel -->
 
     <!-- 图片/视频灯箱预览：深色底 + 顶部信息条 + 左右切换 + 缩略图条 + 键盘方向键 -->
     <el-dialog v-model="previewVisible" width="1000px" top="3vh" :close-on-click-modal="true" destroy-on-close append-to-body class="preview-dlg">
@@ -204,10 +202,7 @@
           <el-button v-if="detailKeyword" link size="small" @click="detailKeyword=''">清除</el-button>
         </div>
 
-        <div class="dtl-section">
-          <span class="dtl-section-title">激励记录</span>
-          <span class="dtl-section-count">{{ filteredRecords.length }} 条</span>
-        </div>
+        <!-- 【2026-09-20】一个客户只有一张详情大卡：全部激励记录按时间轴收纳在同一张卡内 -->
         <div v-if="recordsByMonth.length" class="dtl-timeline">
           <div v-for="group in recordsByMonth" :key="group.key" class="dtl-month">
             <div class="dtl-month-head">
@@ -455,10 +450,8 @@ onBeforeUnmount(()=>window.removeEventListener('keydown',onPreviewKeydown))
 </script>
 
 <style scoped>
-/* ===== 页面骨架：灰色画布上浮一块白色整体容器，容器内再分小布局 ===== */
+/* ===== 页面骨架（白色整体容器由全局 .page-shell 提供）===== */
 .isc-page{display:flex;flex-direction:column;min-height:calc(100vh - 140px)}
-.isc-panel{background:#fff;border-radius:16px;flex:1;display:flex;flex-direction:column;overflow:hidden;
-  box-shadow:0 1px 2px rgba(16,24,40,.04),0 10px 28px rgba(16,24,40,.06)}
 .isc-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;padding:16px 20px 20px;min-height:200px;
   flex:1;align-content:start}
 .bar{background:transparent;padding:16px 20px 8px}
@@ -482,8 +475,10 @@ onBeforeUnmount(()=>window.removeEventListener('keydown',onPreviewKeydown))
 /* 客户卡：白容器内的中性浅灰瓦片，悬浮抬升变白 */
 .card{background:#f2f4f7;border:none;border-radius:12px;overflow:hidden;display:flex;flex-direction:column;transition:background .18s,box-shadow .18s,transform .18s}
 .card:hover{background:#fff;box-shadow:0 8px 22px rgba(16,24,40,.09);transform:translateY(-2px)}
-.card-hd{padding:16px 18px 12px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-.card-name{font-size:15px;font-weight:700;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.card-hd{padding:16px 18px 12px;display:flex;align-items:flex-start;gap:6px 8px;flex-wrap:wrap}
+/* 【2026-09-20】客户名完整显示：独占整行(basis 100%)，最多两行，标签换行到名下不再挤占宽度 */
+.card-name{font-size:15px;font-weight:700;flex:1 1 100%;min-width:0;line-height:1.45;
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;word-break:break-all}
 .card-ind{font-size:11px;padding:2px 8px;background:#eef0f4;border-radius:999px;color:#6b7280;white-space:nowrap}
 .card-num{font-size:12px;padding:2px 0;background:transparent;border-radius:0;color:#409eff;font-weight:800;white-space:nowrap}
 .card-bd{flex:1;padding:0 18px 16px}
@@ -613,8 +608,6 @@ onBeforeUnmount(()=>window.removeEventListener('keydown',onPreviewKeydown))
 .dtl-metric-num.primary{color:#2563eb;font-size:30px}
 .dtl-metric-label{font-size:11px;color:#9ca3af;margin-top:5px;letter-spacing:1px}
 
-/* 区块标题 */
-.dtl-section{display:flex;align-items:baseline;gap:8px;padding:16px 28px 0}
 /* 【2026-09-20】详情工具条：灰画布上的白色工具胶囊（搜索 + 时间方向切换 + 命中计数） */
 .dtl-toolbar{display:flex;align-items:center;gap:10px;margin:14px 24px 0;padding:8px 12px;flex-wrap:wrap;
   background:#fff;border-radius:14px;box-shadow:0 1px 2px rgba(16,24,40,.04),0 6px 18px rgba(16,24,40,.05)}
@@ -626,19 +619,19 @@ onBeforeUnmount(()=>window.removeEventListener('keydown',onPreviewKeydown))
 .dtl-toolbar :deep(.el-radio-button__original-radio:checked + .el-radio-button__inner){background:#1f2329;color:#fff}
 .dtl-toolbar :deep(.el-radio-button:first-child .el-radio-button__inner){border-radius:8px 0 0 8px}
 .dtl-toolbar :deep(.el-radio-button:last-child .el-radio-button__inner){border-radius:0 8px 8px 0}
-.dtl-section-title{font-size:15px;font-weight:700;color:#111827;letter-spacing:.5px}
-.dtl-section-count{font-size:12px;color:#9ca3af}
 
-/* 时间轴：画布上滚动，月份标题走编辑排式（无底色） */
-.dtl-timeline{position:relative;padding:4px 24px 8px;overflow-y:auto;flex:1;min-height:0}
+/* 【2026-09-20】一客一卡：时间轴本身是唯一的白色大卡，滚动容器在卡内 */
+.dtl-timeline{position:relative;flex:1;min-height:0;margin:14px 24px 18px;padding:8px 26px 16px;
+  background:#fff;border-radius:18px;overflow-y:auto;
+  box-shadow:0 1px 2px rgba(16,24,40,.04),0 8px 24px rgba(16,24,40,.05)}
 .dtl-timeline::-webkit-scrollbar{width:6px}
 .dtl-timeline::-webkit-scrollbar-thumb{background:#d3d9e2;border-radius:999px}
 .dtl-timeline::-webkit-scrollbar-track{background:transparent}
 .dtl-month{position:relative;padding-left:0;margin-bottom:4px}
-.dtl-month-head{display:flex;align-items:baseline;gap:10px;padding:14px 4px 8px}
+.dtl-month-head{display:flex;align-items:baseline;gap:10px;padding:18px 0 10px}
 .dtl-month-label{font-size:16px;font-weight:800;color:#111827;background:transparent;border-radius:0;padding:0;letter-spacing:.2px}
 .dtl-month-count{font-size:12px;color:#9ca3af}
-.dtl-item{position:relative;padding-left:0;margin-bottom:14px}
+.dtl-item{position:relative;padding-left:0;margin-bottom:26px}
 .dtl-item:last-child{margin-bottom:6px}
 .dtl-head{display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap;padding:0 4px}
 .dtl-date{font-size:13px;font-weight:700;color:#4b5563;font-variant-numeric:tabular-nums;letter-spacing:.2px}
@@ -651,10 +644,11 @@ onBeforeUnmount(()=>window.removeEventListener('keydown',onPreviewKeydown))
 .dtl-score{margin-left:auto;font-size:17px;font-weight:800;border-radius:0;padding:0;border:none;
   font-variant-numeric:tabular-nums;letter-spacing:-.2px}
 
-/* 记录卡：白浮层卡常驻柔和投影，不再依赖悬浮变色 */
-.dtl-content{padding:18px 20px;border:none;border-radius:16px;
-  background:#fff;box-shadow:0 1px 2px rgba(16,24,40,.04),0 6px 18px rgba(16,24,40,.05);transition:box-shadow .18s,transform .18s}
-.dtl-item:hover .dtl-content{box-shadow:0 2px 4px rgba(16,24,40,.05),0 12px 30px rgba(16,24,40,.09);transform:translateY(-1px)}
+/* 记录条目：一客一卡后不再是独立卡片——透明、无投影，靠间距分节；内层区块定高保证条目节奏一致 */
+.dtl-content{padding:0;border:none;border-radius:0;min-height:0;
+  background:transparent;box-shadow:none;transition:none;
+  display:flex;flex-direction:column}
+.dtl-item:hover .dtl-content{box-shadow:none;transform:none}
 /* 元信息：静默文字行（无底色药丸），标签灰、值深 */
 .dtl-upload-chips{display:flex;flex-wrap:wrap;gap:6px 20px;margin-bottom:12px}
 .dtl-chip{display:inline-flex;align-items:baseline;gap:5px;font-size:13px;color:#374151;
@@ -667,7 +661,8 @@ onBeforeUnmount(()=>window.removeEventListener('keydown',onPreviewKeydown))
 .dtl-field.remark{background:transparent;padding:0}
 .dtl-field.remark .dtl-field-label{color:#b45309}
 .dtl-field-label{font-size:12px;color:#9ca3af;margin-bottom:6px;letter-spacing:1px}
-.dtl-field-text{font-size:14.5px;color:#1f2937;line-height:1.85;white-space:pre-wrap;word-break:break-word}
+.dtl-field-text{font-size:14.5px;color:#1f2937;line-height:1.85;white-space:pre-wrap;word-break:break-word;
+  min-height:54px}
 
 /* 底部翻页区：计数在左、分页器在右，窄屏自动换行（与 reminder 的 .rem-pager 同口径）
    2026-09-13 修复：本轮给分页器补了「每页条数」下拉与跳页输入（layout 变宽）时，
@@ -678,8 +673,9 @@ onBeforeUnmount(()=>window.removeEventListener('keydown',onPreviewKeydown))
 .search-pager-count b{color:#409eff;font-weight:700;margin:0 2px}
 .search-pager .el-pagination{flex-shrink:0}
 
-/* 附件网格：16:9 瓦片压缩高度，避免失败占位时空洞感 */
-.dtl-files{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px;margin-top:4px}
+/* 附件网格：16:9 瓦片压缩高度，避免失败占位时空洞感；网格保底一行的 */
+.dtl-files{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px;margin-top:auto;
+  padding-top:12px;min-height:128px}
 .dtl-file{min-width:0}
 .dtl-file-meta{display:flex;align-items:center;gap:8px;margin-top:6px}
 .dtl-img-wrap{position:relative;border-radius:12px;overflow:hidden;background:#f2f4f8}

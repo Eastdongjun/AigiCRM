@@ -68,3 +68,12 @@ html, body, #app {
 }
 .app-confirm .el-message-box__btns .el-button--danger { background: #f56c6c; border-color: #f56c6c; }
 .app-confirm .el-message-box__btns .el-button--danger:hover { background: #f78989; border-color: #f78989; }
+
+/* ===== 【2026-09-20 全局页面骨架】灰画布上的白色整体容器 =====
+   结构：.main-content(#f5f7fa 灰画布, padding 20px) → .page-shell(白色整体容器)
+   → 页面自身的小布局(筛选条/表格/卡网格/分页)。
+   所有菜单页一次获得统一骨架；页内 el-card 软化为容器的一部分(去描边投影)。 */
+.page-shell{background:#fff;border-radius:16px;padding:12px 14px;
+  min-height:calc(100vh - 116px);
+  box-shadow:0 1px 2px rgba(16,24,40,.04),0 10px 28px rgba(16,24,40,.06)}
+.page-shell .el-card{border:none;box-shadow:none;background:transparent}

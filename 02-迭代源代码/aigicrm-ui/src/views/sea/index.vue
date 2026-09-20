@@ -252,7 +252,7 @@ onBeforeUnmount(() => { if(resizeObserver) resizeObserver.disconnect() })
 </script>
 
 <style scoped>
-.sea-page { height:calc(100vh - 100px); display:flex; flex-direction:column; gap:0 }
+.sea-page { height:calc(100vh - 124px); display:flex; flex-direction:column; gap:0 }
 
 /* Hero */
 .sea-hero { display:flex; justify-content:space-between; align-items:center; padding:0 0 16px; flex-shrink:0 }

@@ -525,7 +525,7 @@ onBeforeUnmount(() => {
 .tab-count { color: #999; font-size: 13px; margin-left: 2px; }
 .code-link { padding: 0; height: auto; font-weight: 500; }
 .sub-text { font-size: 12px; color: #999; }
-.approval-manage { height: calc(100vh - 100px); display: flex; flex-direction: column; }
+.approval-manage { height: calc(100vh - 124px); display: flex; flex-direction: column; }
 
 .toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
 .toolbar-left { display: flex; gap: 8px; }
