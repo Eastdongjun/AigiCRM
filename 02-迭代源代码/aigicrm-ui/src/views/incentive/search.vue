@@ -209,14 +209,16 @@
             </div>
             <div class="dtl-dial-col">
               <div class="dtl-dial-scroll" :ref="el => (dialEls.month.value = el)" @scroll="onDialScroll('month')">
-                <div v-for="g in dialMonths" :key="g.key" class="dtl-dial-item" :class="{active: g.key===activeMonth}" :data-key="g.key" @click="dialPick('month', g.key)">
-                  {{ monthShort(g) }}<i v-if="monthUnread(g)" class="w-dot"></i>
+                <div v-for="m in dialMonths" :key="m.m" class="dtl-dial-item" :class="{active: m.group && m.group.key===activeMonth, off: !m.group}"
+                  :data-key="m.group ? m.group.key : 'none'" :data-off="m.group ? null : '1'" @click="m.group && dialPick('month', m.group.key)">
+                  {{ m.label }}<i v-if="m.group && monthUnread(m.group)" class="w-dot"></i>
                 </div>
               </div>
             </div>
             <div class="dtl-dial-col">
               <div class="dtl-dial-scroll" :ref="el => (dialEls.day.value = el)" @scroll="onDialScroll('day')">
-                <div v-for="d in dialDays" :key="d" class="dtl-dial-item" :class="{active: d===selDay}" :data-key="String(d)" @click="dialPick('day', String(d))">{{ d===0 ? '整月' : d+'日' }}</div>
+                <div v-for="it in dialDays" :key="it.d" class="dtl-dial-item" :class="{active: it.d===selDay, off: !it.has}"
+                  :data-key="String(it.d)" :data-off="it.has ? null : '1'" @click="it.has && dialPick('day', String(it.d))">{{ it.label }}</div>
               </div>
             </div>
           </aside>
@@ -414,6 +416,7 @@ async function showDetail(c){
   // 【2026-09-20】已读/未读与小程序同逻辑：不再打开即全标已读，
   // 记录滚动进入视野时逐条标记（乐观更新+失败回滚），未读数实时反映在概览胶囊上
   await nextTick()
+  dialPad()
   alignDial('year', selYear.value); alignDial('month', activeMonth.value); alignDial('day', '0')
   setupReadObserver()
 }
@@ -538,7 +541,12 @@ const wheelGroups = computed(() => {
   return out
 })
 const dialYears = computed(() => wheelGroups.value.map(yg => yg.year))
-const dialMonths = computed(() => (wheelGroups.value.find(yg => yg.year === selYear.value) || { months: [] }).months)
+// 月盘展示全 12 个月(无数据的月份置灰不可选)——条目足够多, 拨盘才真正可拨动(iOS 同款)
+const dialMonths = computed(() => {
+  const yg = wheelGroups.value.find(y => y.year === selYear.value)
+  const map = new Map((yg?.months || []).map(g => [Number(monthShort(g).replace('月', '')), g]))
+  return Array.from({ length: 12 }, (_, i) => ({ m: i + 1, label: (i + 1) + '月', group: map.get(i + 1) || null }))
+})
 // 记录日期解析：兼容 "2026-08-15 10:30" / ISO "T" 分隔 / 时间戳三种格式
 function recDay(r){
   const t = r?.createdAt
@@ -547,11 +555,17 @@ function recDay(r){
   const d = new Date(t instanceof Number ? t : (isNaN(Number(str)) ? str : Number(t)))
   return d.getDate()
 }
+// 日盘: 整月 + 该月 1..月末; 有记录的日期可选, 其余置灰
 const dialDays = computed(() => {
   const g = recordsByMonth.value.find(x => x.key === activeMonth.value)
-  if (!g) return [0]
-  const days = [...new Set(g.items.map(recDay).filter(d => !isNaN(d)))].sort((a, b) => b - a)
-  return [0, ...days]
+  const base = [{ d: 0, label: '整月', has: true }]
+  if (!g || !g.items.length) return base
+  const first = new Date(String(g.items[0].createdAt || '').replace(/-/g, '/').replace('T', ' '))
+  if (isNaN(first)) return base
+  const total = new Date(first.getFullYear(), first.getMonth() + 1, 0).getDate()
+  const withData = new Set(g.items.map(recDay).filter(d => !isNaN(d)))
+  for (let d = 1; d <= total; d++) base.push({ d, label: d + '日', has: withData.has(d) })
+  return base
 })
 function monthShort(g){ const m = /^(\d{4})年(.+)$/.exec(g.label || ''); return m ? m[2] : g.label }
 // 拨盘视觉：条目随距中心距离缩放淡出(iOS 拨盘质感)
@@ -560,11 +574,21 @@ function styleDial(col){
   const el = dialEls[col].value; if (!el) return
   const b = el.getBoundingClientRect(); const cy = b.top + b.height / 2
   el.querySelectorAll('.dtl-dial-item').forEach(it => {
+    if (it.dataset.off) { it.style.opacity = '.16'; it.style.transform = 'scale(.92)'; return }
     const r = it.getBoundingClientRect()
     const t = Math.max(0, 1 - Math.abs(r.top + r.height / 2 - cy) / 200)
     it.style.opacity = (0.25 + 0.75 * t).toFixed(2)
     it.style.transform = 'scale(' + (0.9 + 0.1 * t).toFixed(3) + ')'
   })
+}
+// 居中填充: CSS 百分比竖向 padding 按宽度解析不可用, 按列高 JS 设置(首尾条目才能滚到中心)
+function dialPad(){
+  for (const col of ['year', 'month', 'day']) {
+    const el = dialEls[col].value; if (!el) continue
+    const pad = Math.max(0, el.clientHeight / 2 - 21)
+    el.style.paddingTop = pad + 'px'
+    el.style.paddingBottom = pad + 'px'
+  }
 }
 function centerKey(col){
   const el = dialEls[col].value; if (!el) return null
@@ -575,7 +599,7 @@ function centerKey(col){
     const d = Math.abs(r.top + r.height / 2 - cy)
     if (d < bd) { bd = d; best = it }
   })
-  return best?.dataset.key ?? null
+  return best
 }
 // 停稳后取居中条目为选中值，并按列级联(年→月重排, 月→日重排)
 function onDialScroll(col){
@@ -583,8 +607,9 @@ function onDialScroll(col){
   clearTimeout(dialTimers[col])
   dialTimers[col] = setTimeout(() => {
     dialTimers[col] = null
-    const k = centerKey(col)
-    if (k == null) return
+    const el = centerKey(col)
+    if (!el || el.dataset.off) return            // 置灰项(无数据月份/日期)路过不选中
+    const k = el.dataset.key
     if (col === 'year' && k !== selYear.value) { selYear.value = k; cascadeAfterYear() }
     else if (col === 'month' && k !== activeMonth.value) { activeMonth.value = k; selDay.value = 0 }
     else if (col === 'day' && Number(k) !== selDay.value) selDay.value = Number(k)
@@ -621,6 +646,7 @@ watch(recordsByMonth, (list) => {
   selYear.value = ym ? ym[1] : ''
   if (!list.some(g => g.key === activeMonth.value)) activeMonth.value = first?.key || ''
   selDay.value = 0
+  nextTick(dialPad)
   alignDial('year', selYear.value); alignDial('month', activeMonth.value); alignDial('day', '0')
 }, { immediate: true })
 // 搜索/换向会重建记录节点，需要重新挂监听；关弹窗/卸载时清理
@@ -828,19 +854,20 @@ onBeforeUnmount(()=>window.removeEventListener('keydown',onPreviewKeydown))
   background:#eaf1fe;border:1px solid #dbe6fb;border-radius:12px;pointer-events:none;z-index:0}
 .dtl-dial-col{flex:1;min-width:0;display:flex;flex-direction:column}
 .dtl-dial-scroll{flex:1;overflow-y:auto;scroll-snap-type:y mandatory;overscroll-behavior:contain;
-  padding:calc(50% - 21px) 0;scrollbar-width:none;position:relative;z-index:1;text-align:center}
+  padding:0;scrollbar-width:none;position:relative;z-index:1;text-align:center}
 .dtl-dial-scroll::-webkit-scrollbar{display:none}
 .dtl-dial-item{height:42px;scroll-snap-align:center;display:flex;align-items:center;justify-content:center;gap:4px;
   cursor:pointer;opacity:.25;transform:scale(.9);transition:opacity .15s,transform .15s;
   font-size:15px;font-weight:700;color:#111827;font-variant-numeric:tabular-nums}
 .dtl-dial-item.active{font-weight:800;color:#153e8f}
 .dtl-dial-item:hover{color:#1d4ed8}
+.dtl-dial-item.off{pointer-events:none;cursor:default}
 .w-dot{width:5px;height:5px;border-radius:50%;background:#e11d48;flex-shrink:0}
-.dtl-pane{overflow-y:auto;padding:0 4px 4px}
+.dtl-pane{overflow-y:auto;padding:0 6px 6px}
 .dtl-pane::-webkit-scrollbar{width:6px}
 .dtl-pane::-webkit-scrollbar-thumb{background:#d3d9e2;border-radius:999px}
 .dtl-pane::-webkit-scrollbar-track{background:transparent}
-.dtl-pane-head{display:flex;align-items:baseline;gap:10px;padding:6px 4px 12px}
+.dtl-pane-head{display:flex;align-items:baseline;gap:10px;padding:8px 6px 14px}
 .dtl-pane::-webkit-scrollbar{width:6px}
 .dtl-pane::-webkit-scrollbar-thumb{background:#d3d9e2;border-radius:999px}
 .dtl-pane::-webkit-scrollbar-track{background:transparent}
@@ -850,13 +877,13 @@ onBeforeUnmount(()=>window.removeEventListener('keydown',onPreviewKeydown))
 .dtl-item{position:relative;margin-bottom:14px}
 .dtl-item:last-child{margin-bottom:4px}
 /* 【2026-09-20 深夜V】每个元素独立成块：信息瓦片网格 + 宽块，整条记录一张独立定义卡 */
-.dtl-ecard{background:#fff;border:1px solid #e5e9f0;border-radius:14px;padding:16px 18px;
+.dtl-ecard{background:#fff;border:1px solid #e5e9f0;border-radius:16px;padding:22px 24px;
   box-shadow:0 1px 2px rgba(16,24,40,.03),0 6px 18px rgba(16,24,40,.05);
-  display:flex;flex-direction:column;gap:12px}
-.dtl-etiles-main{display:grid;grid-template-columns:1.35fr 1.15fr .85fr;gap:10px}
-.dtl-etiles-sub{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
-.dtl-etile{background:#f7f9fc;border:1px solid #e8edf5;border-radius:10px;padding:10px 14px;
-  display:flex;flex-direction:column;gap:3px;min-width:0}
+  display:flex;flex-direction:column;gap:16px}
+.dtl-etiles-main{display:grid;grid-template-columns:1.5fr 1.2fr .8fr;gap:12px}
+.dtl-etiles-sub{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px}
+.dtl-etile{background:#f8fafd;border:1px solid #edf1f7;border-radius:12px;padding:13px 18px;
+  display:flex;flex-direction:column;gap:5px;min-width:0}
 .dtl-etile-label{font-size:11px;color:#6b7280;letter-spacing:1.5px;display:flex;align-items:center;gap:6px}
 .dtl-etile-value{font-size:15px;font-weight:700;color:#111827;line-height:1.35;min-width:0;
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -867,7 +894,7 @@ onBeforeUnmount(()=>window.removeEventListener('keydown',onPreviewKeydown))
 .dtl-stage-dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:7px;vertical-align:0}
 .dtl-unread-tag{font-style:normal;font-size:10px;font-weight:700;color:#e11d48;background:#ffe9ee;
   border-radius:999px;padding:1px 7px;margin-left:auto;letter-spacing:0}
-.dtl-eblock{background:#f7f9fc;border:1px solid #e8edf5;border-radius:10px;padding:12px 16px}
+.dtl-eblock{background:#f8fafd;border:1px solid #edf1f7;border-radius:12px;padding:15px 20px}
 .dtl-eblock.remark{background:#fffaf2;border-color:#f3e4c8}
 .dtl-eblock-label{font-size:12px;font-weight:600;color:#4b5563;margin-bottom:6px;letter-spacing:1px}
 .dtl-eblock.remark .dtl-eblock-label{color:#a16207}
@@ -890,7 +917,7 @@ onBeforeUnmount(()=>window.removeEventListener('keydown',onPreviewKeydown))
 .search-pager .el-pagination{flex-shrink:0}
 
 /* 附件网格：16:9 瓦片压缩高度，避免失败占位时空洞感；网格保底一行的 */
-.dtl-files{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px;min-height:128px}
+.dtl-files{display:grid;grid-template-columns:repeat(auto-fill,minmax(265px,1fr));gap:14px;min-height:128px}
 .dtl-file{min-width:0}
 .dtl-file-meta{display:flex;align-items:center;gap:8px;margin-top:6px}
 .dtl-img-wrap{position:relative;border-radius:12px;overflow:hidden;background:#f2f4f8}

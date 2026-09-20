@@ -193,7 +193,8 @@ describe('incentive/search.vue 缩略图下载 token（空 token 403 修复 2026
     const dialCols = wrapper.findAll('.dtl-dial-col')
     expect(dialCols).toHaveLength(3)                       // 年 / 月 / 日 三联拨盘
     expect(dialCols[0].findAll('.dtl-dial-item').map((n) => n.text())).toEqual(['2026'])
-    expect(dialCols[1].findAll('.dtl-dial-item').map((n) => n.text())).toEqual(['9月', '8月'])
+    expect(dialCols[1].findAll('.dtl-dial-item')).toHaveLength(12)          // 月盘全 12 个月
+    expect(dialCols[1].findAll('.dtl-dial-item:not(.off)').map((n) => n.text())).toEqual(['8月', '9月'])
     expect(dialCols[1].find('.dtl-dial-item.active').text()).toBe('9月')
     expect(dialCols[2].find('.dtl-dial-item.active').text()).toBe('整月')   // 日盘默认整月
     expect(wrapper.findAll('.dtl-item')).toHaveLength(1)   // 默认展示 9 月的 1 条
@@ -230,10 +231,10 @@ describe('incentive/search.vue 缩略图下载 token（空 token 403 修复 2026
 
     // 主从骨架：左栏节点按月倒序(9月→8月)，右栏默认展示 9 月的 2 条；点击 8 月节点切换右栏内容
     const monthDial = wrapper.findAll('.dtl-dial-col')[1]
-    expect(monthDial.findAll('.dtl-dial-item').map((n) => n.text())).toEqual(['9月', '8月'])
+    expect(monthDial.findAll('.dtl-dial-item:not(.off)').map((n) => n.text())).toEqual(['8月', '9月'])
     expect(wrapper.find('.dtl-pane-head .dtl-month-label').text()).toBe('2026年9月')
     expect(wrapper.findAll('.dtl-item')).toHaveLength(2)
-    await monthDial.findAll('.dtl-dial-item')[1].trigger('click')
+    await monthDial.findAll('.dtl-dial-item:not(.off)')[0].trigger('click')
     await flushPromises()
     expect(wrapper.find('.dtl-pane-head .dtl-month-label').text()).toBe('2026年8月')
     expect(wrapper.findAll('.dtl-item')).toHaveLength(1)
