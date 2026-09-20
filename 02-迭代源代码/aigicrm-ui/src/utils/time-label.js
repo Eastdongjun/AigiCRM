@@ -49,15 +49,17 @@ export function monthKeyOf(dateTime) {
 
 /**
  * 记录按「月」分组用于时间轴展示：
- * - 组内、组间均按时间**倒序**（最新在前；与原接口的品类排序无关，纯展示口径）
- * - 无有效时间的记录归入最后一组「时间待补」
+ * - 组内、组间均按时间排序（order='desc' 最新在前【默认，原口径】；'asc' 按时间增量从早到晚）
+ * - 无有效时间的记录归入「时间待补」组（desc 在最后；asc 在最前）
  * @param {Array} records
+ * @param {'desc'|'asc'} order
  * @returns {{key:string,label:string,count:number,items:Array}[]}
  */
-export function groupRecordsByMonth(records) {
+export function groupRecordsByMonth(records, order = 'desc') {
   if (!Array.isArray(records) || records.length === 0) return []
+  const direction = order === 'asc' ? 1 : -1
   const sorted = [...records].sort((a, b) =>
-    String(b?.createdAt || '').localeCompare(String(a?.createdAt || '')))
+    direction * String(a?.createdAt || '').localeCompare(String(b?.createdAt || '')))
   const groups = []
   const indexOf = new Map()
   for (const item of sorted) {
@@ -70,5 +72,30 @@ export function groupRecordsByMonth(records) {
     group.items.push(item)
     group.count += 1
   }
+  // 无效时间组随排序方向靠边：desc → 末尾(现状)；asc → 开头(与其余组同向一致)
   return groups
+}
+
+/**
+ * 详情页内记录搜索（2026-09-20）：按关键字过滤时间轴记录。
+ * 命中字段：分类名 / 上传人 / 行业 / 相关产品 / 具体产品 / 描述(preInstallQuestion) /
+ * 备注(remark) / 附件名(fileName 系五槽)。大小写不敏感；空关键字返回全量（引用不变语义由调用方保证）。
+ * @param {Array} records
+ * @param {string} keyword
+ * @returns {Array}
+ */
+export function filterRecordsByKeyword(records, keyword) {
+  const kw = String(keyword || '').trim().toLowerCase()
+  if (!Array.isArray(records) || records.length === 0) return []
+  if (!kw) return records
+  const fileNamesOf = (r) => [
+    r.fileName, r.filePreName, r.fileMidName, r.filePostName, r.fileTrackName,
+  ].flatMap((v) => (v == null ? [] : String(v).split(',')))
+  return records.filter((r) => {
+    const haystack = [
+      r.categoryName, r.userName, r.industry, r.relatedProducts, r.specificProduct,
+      r.preInstallQuestion, r.remark, ...fileNamesOf(r),
+    ].filter(Boolean).join(' ').toLowerCase()
+    return haystack.includes(kw)
+  })
 }

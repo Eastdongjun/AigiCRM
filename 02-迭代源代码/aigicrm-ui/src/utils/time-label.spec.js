@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { UNKNOWN_MONTH_KEY, groupRecordsByMonth, monthKeyOf, monthLabelOf, relativeDay } from './time-label'
+import { UNKNOWN_MONTH_KEY, groupRecordsByMonth, monthKeyOf, monthLabelOf, relativeDay, filterRecordsByKeyword } from './time-label'
 
 const now = new Date('2026-09-13T10:00:00')
 
@@ -74,5 +74,51 @@ describe('月份分组（时间轴）', () => {
     expect(groupRecordsByMonth(null)).toEqual([])
     groupRecordsByMonth(input)
     expect(input.map((r) => r.id)).toEqual(snapshot)
+  })
+})
+
+
+/**
+ * 【2026-09-20 详情工具条】激励查询详情时间轴新口径：
+ * 1. groupRecordsByMonth(order): asc=按时间增量(早→晚) / desc=最新在前(默认, 原口径)
+ * 2. filterRecordsByKeyword: 详情页内多字段检索(分类/产品/上传人/描述/备注/附件名)
+ */
+const toolbarRecs = [
+  { id: 3, createdAt: '2026-09-02 10:00', categoryName: '交流拜访', userName: '王磊磊', remark: '现场沟通' },
+  { id: 1, createdAt: '2026-08-01 09:00', categoryName: '产品试点', userName: '李帮文', preInstallQuestion: '泵体密封改造', fileName: '方案A.pdf' },
+  { id: 2, createdAt: '2026-08-15 15:00', categoryName: '交流拜访', userName: '王磊磊', relatedProducts: '涂层类', filePreName: '现场照片.jpg,设备.png' },
+]
+
+describe('groupRecordsByMonth 方向(详情工具条)', () => {
+  it('desc(默认): 组间与组内均最新在前——原口径不变', () => {
+    const g = groupRecordsByMonth(toolbarRecs)
+    expect(g.map((x) => x.key)).toEqual(['2026-09', '2026-08'])
+    expect(g[1].items.map((x) => x.id)).toEqual([2, 1])
+  })
+
+  it('asc: 按时间增量从早到晚(组间+组内)', () => {
+    const g = groupRecordsByMonth(toolbarRecs, 'asc')
+    expect(g.map((x) => x.key)).toEqual(['2026-08', '2026-09'])
+    expect(g[0].items.map((x) => x.id)).toEqual([1, 2])
+  })
+})
+
+describe('filterRecordsByKeyword 详情检索', () => {
+  it('空关键字返回全量', () => {
+    expect(filterRecordsByKeyword(toolbarRecs, '  ')).toHaveLength(3)
+  })
+
+  it('命中分类/上传人/描述/备注/附件名(大小写不敏感)', () => {
+    expect(filterRecordsByKeyword(toolbarRecs, '试点').map((r) => r.id)).toEqual([1])
+    expect(filterRecordsByKeyword(toolbarRecs, '王磊磊').map((r) => r.id)).toEqual([3, 2])
+    expect(filterRecordsByKeyword(toolbarRecs, '泵体').map((r) => r.id)).toEqual([1])
+    expect(filterRecordsByKeyword(toolbarRecs, '现场').map((r) => r.id)).toEqual([3, 2])
+    expect(filterRecordsByKeyword(toolbarRecs, '设备.png').map((r) => r.id)).toEqual([2])
+    expect(filterRecordsByKeyword(toolbarRecs, 'PDF').map((r) => r.id)).toEqual([1])
+  })
+
+  it('无命中返回空数组；records 为空安全', () => {
+    expect(filterRecordsByKeyword(toolbarRecs, '不存在')).toEqual([])
+    expect(filterRecordsByKeyword(null, 'x')).toEqual([])
   })
 })

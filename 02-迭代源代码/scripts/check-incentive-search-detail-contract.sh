@@ -37,7 +37,12 @@ done
 assert_contains "$SEARCH_VIEW" "request.get('/incentive/customer-records'"
 assert_contains "$SEARCH_VIEW" "showDetail(c)"
 assert_contains "$SEARCH_VIEW" "markIncentiveRead(id)"
-assert_contains "$SEARCH_VIEW" "groupRecordsByMonth(detailCust.value?.records)"
+# 【2026-09-20 详情工具条升级】分组调用升级为"过滤后记录+方向参数"形态;
+# 同时钉住详情页内检索与时间方向两个新能力, 防回退
+assert_contains "$SEARCH_VIEW" "groupRecordsByMonth(filteredRecords.value, detailOrder.value)"
+assert_contains "$SEARCH_VIEW" "filterRecordsByKeyword"
+assert_contains "$SEARCH_VIEW" "detailKeyword"
+assert_contains "$TIME_UTIL" "export function filterRecordsByKeyword"
 assert_contains "$SEARCH_VIEW" "relativeDay(r.createdAt)"
 assert_contains "$SEARCH_VIEW" "暂无激励记录"
 assert_contains "$SEARCH_VIEW" "preview(f.id, f.type, f.label, previewableOf(r))"

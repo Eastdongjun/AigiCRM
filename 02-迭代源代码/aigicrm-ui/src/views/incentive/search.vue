@@ -179,10 +179,27 @@
           </div>
         </div>
 
-        <!-- 激励记录时间轴（按月分组，组内时间倒序） -->
+        <!-- 时间轴工具条：记录多了以后的关键检索入口（2026-09-20）——
+             关键字搜索(分类/产品/上传人/描述/备注/附件名) + 时间正序(按时间增量)/倒序切换 + 命中计数 -->
+        <div class="dtl-toolbar">
+          <el-input
+            v-model="detailKeyword" size="small" clearable
+            placeholder="搜索：分类 / 产品 / 上传人 / 描述 / 备注 / 附件名"
+            :prefix-icon="Search" class="dtl-toolbar-search"
+          />
+          <el-radio-group v-model="detailOrder" size="small">
+            <el-radio-button value="desc">最新在前</el-radio-button>
+            <el-radio-button value="asc">按时间增量</el-radio-button>
+          </el-radio-group>
+          <span class="dtl-toolbar-hit">
+            {{ detailKeyword ? `命中 ${filteredRecords.length} / ${recordTotal} 条` : `${recordTotal} 条` }}
+          </span>
+          <el-button v-if="detailKeyword" link size="small" @click="detailKeyword=''">清除</el-button>
+        </div>
+
         <div class="dtl-section">
           <span class="dtl-section-title">激励记录</span>
-          <span class="dtl-section-count">{{ recordTotal }} 条</span>
+          <span class="dtl-section-count">{{ filteredRecords.length }} 条</span>
         </div>
         <div v-if="recordsByMonth.length" class="dtl-timeline">
           <div v-for="group in recordsByMonth" :key="group.key" class="dtl-month">
@@ -250,7 +267,9 @@
             </div>
           </div>
         </div>
-        <el-empty v-else description="该客户暂无激励记录" :image-size="90" />
+        <el-empty v-else :description="detailKeyword ? '没有匹配「' + detailKeyword + '」的记录' : '该客户暂无激励记录'" :image-size="90">
+          <el-button v-if="detailKeyword" size="small" @click="detailKeyword=''">清除搜索</el-button>
+        </el-empty>
 
         <!-- 底部操作条 -->
         <div class="dtl-footer">
@@ -274,7 +293,7 @@ import { Search, User, VideoPlay, Document, ZoomIn, Download, Filter, Folder, Of
 import request from '@/utils/request'
 import { ElMessage } from 'element-plus'
 import { paginate, pageSizes } from '@/utils/pagination'
-import { groupRecordsByMonth, relativeDay } from '@/utils/time-label'
+import { groupRecordsByMonth, filterRecordsByKeyword, relativeDay } from '@/utils/time-label'
 import { useUserStore } from '@/store/user'
 
 const fCustomer=ref(''),fSales=ref(''),fIndustry=ref(''),fDevType=ref(''),fDateRange=ref(null),fOrgIds=ref([]),showFilter=ref(false)
@@ -345,6 +364,7 @@ async function downloadFile(id, name) {
 function downloadPreview(){ const f=previewCurrent.value; if(f) downloadFile(f.id, f.label) }
 async function showDetail(c){
   detailCust.value=c;detailVisible.value=true
+  detailKeyword.value='';detailOrder.value='desc' // 换客户详情即复位检索与方向
   const ids=(c.records||[]).map(r=>r.id).filter(Boolean)
   if(ids.length){
     await Promise.all(ids.map(id=>markIncentiveRead(id).catch(()=>null)))
@@ -410,8 +430,16 @@ async function loadOrgs(){try{const res=await cachedGet('depts',()=>request.get(
   const fixed=filtered.map(d=>({...d,parentId:rootIds.has(d.parentId)?d.parentId:0}))
   orgTree.value=build(fixed)}catch(e){}}
 // 时间轴：记录按月倒序分组（展示口径，不改动接口返回顺序）
-const recordsByMonth=computed(()=>groupRecordsByMonth(detailCust.value?.records))
+// 【2026-09-20 详情工具条】记录检索 + 时间轴方向；打开新客户详情时自动复位
+const detailKeyword = ref('')
+const detailOrder = ref('desc')
+const filteredRecords = computed(() => filterRecordsByMonthSafe())
+const recordsByMonth=computed(()=>groupRecordsByMonth(filteredRecords.value, detailOrder.value))
 const recordTotal=computed(()=>detailCust.value?.records?.length||0)
+function filterRecordsByMonthSafe() {
+  const source = detailCust.value?.records || []
+  return filterRecordsByKeyword(source, detailKeyword.value)
+}
 
 onMounted(()=>{loadCats();loadUsers();loadOrgs();doSearch();window.addEventListener('keydown',onPreviewKeydown)})
 onBeforeUnmount(()=>window.removeEventListener('keydown',onPreviewKeydown))
@@ -571,6 +599,10 @@ onBeforeUnmount(()=>window.removeEventListener('keydown',onPreviewKeydown))
 
 /* 区块标题 */
 .dtl-section{display:flex;align-items:baseline;gap:8px;padding:18px 24px 0}
+/* 【2026-09-20】详情工具条：搜索 + 时间方向切换（吸顶条下方常驻，不随滚动消失） */
+.dtl-toolbar{display:flex;align-items:center;gap:10px;padding:12px 24px 0;flex-wrap:wrap}
+.dtl-toolbar-search{width:300px}
+.dtl-toolbar-hit{font-size:12px;color:#86909c;white-space:nowrap}
 .dtl-section-title{font-size:15px;font-weight:700;color:#1f2329}
 .dtl-section-title::before{content:'';display:inline-block;width:3px;height:14px;border-radius:2px;
   background:#409eff;margin-right:8px;vertical-align:-2px}
