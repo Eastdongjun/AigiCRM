@@ -696,7 +696,7 @@ Page({
       wx.navigateBack()
       return
     }
-    wx.navigateTo({ url: '/pages/incentive/index' })
+    wx.switchTab({ url: '/pages/incentive/index' }) // 无栈兜底同样必须 switchTab
   },
 
   submit() {

@@ -82,7 +82,7 @@ Page({
   },
 
   openCustomers() { wx.navigateTo({ url: '/pages/customer/index' }) },
-  openIncentive() { wx.navigateTo({ url: '/pages/incentive/index' }) },
+  openIncentive() { wx.switchTab({ url: '/pages/incentive/index' }) }, // tabBar 页必须 switchTab(navigateTo 被拒=死按钮)
   openClaims() { wx.navigateTo({ url: '/pages/sea/index' }) },
   openPassword() { wx.navigateTo({ url: '/pages/profile/password/index' }) },
   openScope() { wx.navigateTo({ url: '/pages/profile/scope/index' }) },

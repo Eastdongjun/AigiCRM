@@ -52,6 +52,22 @@ LEGACY_REDIRECT_SHELLS = {
 }
 
 
+def tab_target_violations(tab_pages):
+    """navigateTo/redirectTo 到 tabBar 页会被微信直接拒绝(fail 回调缺失即静默死按钮)。
+
+    【2026-09-20 实证】home 四项激励卡片/profile 激励入口/upload 取消兜底三处均为此缺陷。
+    到 tab 页唯一合法路径是 switchTab。
+    """
+    hits = []
+    nav_re = re.compile(r"wx\.(navigateTo|redirectTo)\s*\(\s*\{\s*url:\s*[`'\"]([^`'\"?]+)")
+    for source in PAGES_DIR.rglob("*.js"):
+        for match in nav_re.finditer(source.read_text(errors="ignore")):
+            target = match.group(2).lstrip("/")
+            if target in tab_pages:
+                hits.append(f"{source.relative_to(ROOT / 'aigicrm-miniprogram')} -> {match.group(1)} {match.group(2)}")
+    return hits
+
+
 def scroll_preservation_violations():
     page_scroll_hits = []
     stack_breakers = []
@@ -108,6 +124,11 @@ def main() -> int:
     if missing_onload_options:
         print("FAIL: pages read options but declare onLoad without options:")
         print("\n".join(f"  {item}" for item in sorted(set(missing_onload_options))))
+        return 1
+    tab_hits = tab_target_violations(tab_pages)
+    if tab_hits:
+        print("FAIL: navigateTo/redirectTo to a tabBar page is rejected by WeChat (dead button); use switchTab:")
+        print("\n".join(f"  {item}" for item in tab_hits))
         return 1
     page_scroll_hits, stack_breakers = scroll_preservation_violations()
     if page_scroll_hits:

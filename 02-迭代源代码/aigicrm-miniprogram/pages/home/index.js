@@ -63,7 +63,20 @@ Page({
       this.applyState({ pendingCount: reminderRecords.length, expiring: reminderRecords.filter((item) => item.expireDate) })
       return
     }
+    this.loadHomeData()
+  },
 
+  // 【2026-09-20 功能体检】tab 页数据仅 onLoad 加载一次, 处理提醒/任务后回首页全为旧数;
+  // 对齐 incentive/approval 的 onShow 刷新模式(PR-12 首批同款): 首显后每次显示刷新
+  onShow() {
+    if (!this._loadedOnce) {
+      this._loadedOnce = true
+      return
+    }
+    if (!getApp().globalData.demoMode) this.loadHomeData()
+  },
+
+  loadHomeData() {
     const canViewDashboard = hasPermission('dashboard:view') || hasPermission('statistics:view')
     this.setData({ canViewDashboard, showDashboardCards: canViewDashboard, cards: [] })
     if (canViewDashboard) {
@@ -115,7 +128,7 @@ Page({
       wx.showToast({ title: '没有四项激励查看权限', icon: 'none' })
       return
     }
-    wx.navigateTo({ url: '/pages/incentive/index' })
+    wx.switchTab({ url: '/pages/incentive/index' }) // tabBar 页必须 switchTab, navigateTo 会被微信拒绝(死按钮)
   },
 
   openIncentiveUpload() {
