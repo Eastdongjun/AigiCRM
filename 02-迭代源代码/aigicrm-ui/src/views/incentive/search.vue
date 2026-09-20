@@ -82,12 +82,16 @@
           </div>
           <div v-if="getFiles(c.records[0]).length" class="card-imgs">
             <div v-for="f in getFiles(c.records[0]).slice(0,4)" :key="f.id" class="card-img">
-              <template v-if="f.type==='image'">
+              <template v-if="f.type==='image' && !thumbFailed.has(f.id)">
                 <div class="img-wrap">
-                  <img :src="thumbUrl(f.id)" @click="preview(f.id, f.type, f.label)" @error="onImgError" />
+                  <img :src="thumbUrl(f.id)" @click="preview(f.id, f.type, f.label)" @error="markThumbFailed(f.id)" />
                   <div v-if="f.tag" class="img-tag">{{ f.tag }}</div>
                 </div>
               </template>
+              <div v-else-if="f.type==='image'" class="img-doc" @click="preview(f.id, f.type, f.label)">
+                <el-icon :size="24"><Picture /></el-icon>
+                <div class="doc-name">图片</div>
+              </div>
               <div v-else-if="f.type==='video'" class="img-vid" @click="preview(f.id, f.type, f.label)">
                 <div class="vid-overlay"><el-icon :size="28"><VideoPlay /></el-icon></div>
                 <div v-if="f.tag" class="img-tag">{{ f.tag }}</div>
@@ -217,7 +221,6 @@
               </div>
               <div class="dtl-content">
                 <div class="dtl-upload-chips">
-                  <span class="dtl-chip cust"><i>客户</i><b :style="{color:scoreColor(getCls(r))}">{{ r.customerName || detailCust.customerName }}</b></span>
                   <span class="dtl-chip" v-if="r.industry"><i>行业</i>{{ r.industry }}</span>
                   <span class="dtl-chip" v-if="r.relatedProducts"><i>相关产品</i>{{ r.relatedProducts }}</span>
                   <span class="dtl-chip" v-if="r.specificProduct"><i>具体产品</i>{{ r.specificProduct }}</span>
@@ -234,9 +237,9 @@
                 </div>
                 <div v-if="getFiles(r).length" class="dtl-files">
                   <div v-for="f in getFiles(r)" :key="f.id" class="dtl-file">
-                    <template v-if="f.type==='image'">
+                    <template v-if="f.type==='image' && !thumbFailed.has(f.id)">
                       <div class="dtl-img-wrap">
-                        <img :src="thumbUrl(f.id)" @click="preview(f.id, f.type, f.label, previewableOf(r))" @error="onImgError" />
+                        <img :src="thumbUrl(f.id)" @click="preview(f.id, f.type, f.label, previewableOf(r))" @error="markThumbFailed(f.id)" />
                         <div v-if="f.tag" class="dtl-file-tag" :style="{color:tagColor(f.tag), borderColor:tagColor(f.tag)}">{{ f.tag }}</div>
                         <div class="dtl-file-acts">
                           <el-button size="small" circle type="primary" @click.stop="preview(f.id, f.type, f.label, previewableOf(r))"><el-icon><ZoomIn /></el-icon></el-button>
@@ -244,6 +247,12 @@
                         </div>
                       </div>
                     </template>
+                    <div v-else-if="f.type==='image'" class="dtl-file-doc" @click="preview(f.id, f.type, f.label, previewableOf(r))">
+                      <span v-if="f.tag" class="dtl-file-tag inline" :style="{color:tagColor(f.tag), borderColor:tagColor(f.tag)}">{{ f.tag }}</span>
+                      <el-icon :size="26"><Picture /></el-icon>
+                      <span class="doc-label">{{ f.label }}</span>
+                      <el-button size="small" circle @click.stop="preview(f.id, f.type, f.label, previewableOf(r))"><el-icon><ZoomIn /></el-icon></el-button>
+                    </div>
                     <div v-else-if="f.type==='video'" class="dtl-file-vid">
                       <video :src="fileUrl(f.id)" controls preload="metadata"></video>
                       <div class="dtl-file-meta">
@@ -287,7 +296,7 @@ import { isCurrentMonth, sortByScore } from '@/utils/incentive-read'
 import { cachedGet } from '@/utils/layout-cache'
 import { getToken, getDownloadToken, refreshDownloadToken } from '@/utils/token'
 import { downloadFile as downloadFileUtil } from '@/utils/download'
-import { Search, User, VideoPlay, Document, ZoomIn, Download, Filter, Folder, OfficeBuilding, PriceTag, Calendar, MapLocation, Notebook, Warning, Close, ArrowLeft, ArrowRight } from '@element-plus/icons-vue'
+import { Search, User, VideoPlay, Document, ZoomIn, Download, Filter, Folder, OfficeBuilding, PriceTag, Calendar, MapLocation, Notebook, Warning, Close, ArrowLeft, ArrowRight, Picture } from '@element-plus/icons-vue'
 import request from '@/utils/request'
 import { ElMessage } from 'element-plus'
 import { paginate, pageSizes } from '@/utils/pagination'
@@ -324,7 +333,6 @@ const userList=ref([]),orgTree=ref([])
 const userStore=getActivePinia() ? useUserStore() : null
 const activeFilterCount=computed(()=>[fSales.value,fIndustry.value,fDevType.value,fDateRange.value,fOrgIds.value?.length>0].filter(v=>!!v).length)
 
-function onImgError(e){e.target.src='data:image/svg+xml,'+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="320" height="240" viewBox="0 0 320 240"><rect fill="#f5f6f7" width="320" height="240"/><text fill="#c0c4cc" font-size="14" font-family="sans-serif" text-anchor="middle" x="160" y="120">图片加载失败</text></svg>')}
 // 取客户记录中最新一条（排序已按品类，不与时间线顺序绑定）
 function latestRecord(c){let best=null;for(const r of (c?.records||[])){if(!best||String(r.createdAt||'')>String(best.createdAt||''))best=r}return best}
 // 【修复 2026-08-14】下载 token 未就绪时不拼 token=（避免产生必然 403 的空 token 请求）；
@@ -587,36 +595,42 @@ onBeforeUnmount(()=>window.removeEventListener('keydown',onPreviewKeydown))
 .dtl-pill.blue{color:#1d6fd0;background:#e8f2ff;border-color:transparent}
 .dtl-pill.green{color:#0d7a4a;background:#e7f8ef;border-color:transparent}
 .dtl-pill.grey{color:#6b7280;background:#f4f5f7;border-color:transparent}
-.dtl-metrics{display:flex;align-items:stretch;gap:2px;flex-shrink:0;background:#f4f8ff;
+.dtl-metrics{display:flex;align-items:stretch;gap:2px;flex-shrink:0;background:#f6f7f9;
   border-radius:16px;padding:6px}
 .dtl-metric{padding:8px 18px;text-align:center;min-width:88px;border-radius:12px}
 .dtl-metric + .dtl-metric{}
-.dtl-metric-num{font-size:24px;font-weight:800;color:#1f2329;line-height:1.1;font-variant-numeric:tabular-nums}
-.dtl-metric-num.primary{color:#409eff}
+.dtl-metric-num{font-size:22px;font-weight:800;color:#4e5969;line-height:1.1;font-variant-numeric:tabular-nums}
+.dtl-metric-num.primary{color:#409eff;font-size:28px}
 .dtl-metric-label{font-size:12px;color:#86909c;margin-top:4px}
 
 /* 区块标题 */
 .dtl-section{display:flex;align-items:baseline;gap:8px;padding:18px 24px 0}
 /* 【2026-09-20】详情工具条：搜索 + 时间方向切换（吸顶条下方常驻，不随滚动消失） */
 .dtl-toolbar{display:flex;align-items:center;gap:10px;padding:12px 24px 0;flex-wrap:wrap}
-.dtl-toolbar-search{width:300px}
+.dtl-toolbar-search{width:280px}
 .dtl-toolbar-hit{font-size:12px;color:#86909c;white-space:nowrap}
+/* 方向切换统一成分段控件（无描边软填充，选中深底白字），与整页"去线条"语言一致 */
+.dtl-toolbar :deep(.el-radio-button__inner){border:none!important;background:#f2f4f7;color:#4e5969;
+  box-shadow:none!important;font-weight:600;padding:4px 12px}
+.dtl-toolbar :deep(.el-radio-button__original-radio:checked + .el-radio-button__inner){background:#1f2329;color:#fff}
+.dtl-toolbar :deep(.el-radio-button:first-child .el-radio-button__inner){border-radius:8px 0 0 8px}
+.dtl-toolbar :deep(.el-radio-button:last-child .el-radio-button__inner){border-radius:0 8px 8px 0}
 .dtl-section-title{font-size:15px;font-weight:700;color:#1f2329;letter-spacing:.5px}
 .dtl-section-count{font-size:12px;color:#86909c}
 
 /* 时间轴 */
 .dtl-timeline{position:relative;padding:12px 24px 4px;overflow-y:auto;flex:1;min-height:0}
 .dtl-month{position:relative;padding-left:0;margin-bottom:4px}
-.dtl-month-head{display:flex;align-items:center;gap:10px;padding:14px 0 12px}
+.dtl-month-head{display:flex;align-items:center;gap:10px;padding:18px 0 10px}
 .dtl-month-label{font-size:14px;font-weight:700;color:#1f2329;background:#f4f6fa;border-radius:10px;padding:4px 12px}
 .dtl-month-count{font-size:12px;color:#86909c}
-.dtl-item{position:relative;padding-left:0;margin-bottom:18px}
+.dtl-item{position:relative;padding-left:0;margin-bottom:22px}
 .dtl-item:last-child{margin-bottom:6px}
 .dtl-head{display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap}
-.dtl-date{font-size:15px;font-weight:700;color:#1f2329;font-variant-numeric:tabular-nums}
+.dtl-date{font-size:13px;font-weight:600;color:#4e5969;font-variant-numeric:tabular-nums}
 .dtl-ago{font-size:12px;color:#86909c;background:#f4f5f7;border-radius:999px;padding:2px 8px}
 .dtl-subcat{font-size:13px;color:#86909c}
-.dtl-score{margin-left:auto;font-size:13px;font-weight:700;border-radius:999px;padding:2px 12px;border:none}
+.dtl-score{margin-left:auto;font-size:15px;font-weight:800;border-radius:999px;padding:4px 14px;border:none}
 
 /* 记录内容卡 */
 .dtl-content{padding:16px 18px;border:none;border-radius:14px;
@@ -626,13 +640,11 @@ onBeforeUnmount(()=>window.removeEventListener('keydown',onPreviewKeydown))
 .dtl-chip{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:#1f2329;
   background:#eef1f6;border-radius:8px;padding:4px 10px}
 .dtl-chip i{font-style:normal;font-size:12px;color:#9aa0a8}
-.dtl-chip.cust{background:#e8f2ff}
-.dtl-chip.cust b{font-weight:700}
 .dtl-field{margin-bottom:12px;padding:12px 14px;background:#f2f4f8;border-radius:12px}
-.dtl-field.desc{background:#f0f5ff;border-radius:12px;padding:14px 16px}
+.dtl-field.desc{background:#f7f9fc;border-radius:12px;padding:14px 16px}
 .dtl-field.desc .dtl-field-label{color:#4e5969;font-size:13px;font-weight:600}
-.dtl-field.remark{background:#fdf6ec}
-.dtl-field.remark .dtl-field-label{color:#b45309}
+.dtl-field.remark{background:#fffaf2}
+.dtl-field.remark .dtl-field-label{color:#a16207}
 .dtl-field-label{font-size:12px;color:#8f959e;margin-bottom:6px;letter-spacing:.5px}
 .dtl-field-text{font-size:14px;color:#1f2329;line-height:1.8;white-space:pre-wrap;word-break:break-word}
 
@@ -645,20 +657,20 @@ onBeforeUnmount(()=>window.removeEventListener('keydown',onPreviewKeydown))
 .search-pager-count b{color:#409eff;font-weight:700;margin:0 2px}
 .search-pager .el-pagination{flex-shrink:0}
 
-/* 附件网格 */
-.dtl-files{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;margin-top:4px}
+/* 附件网格：16:9 瓦片压缩高度，避免失败占位时空洞感 */
+.dtl-files{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px;margin-top:4px}
 .dtl-file{min-width:0}
 .dtl-file-meta{display:flex;align-items:center;gap:8px;margin-top:6px}
 .dtl-img-wrap{position:relative;border-radius:14px;overflow:hidden;background:#f2f4f8}
-.dtl-file img{width:100%;aspect-ratio:4/3;object-fit:cover;cursor:pointer;display:block;transition:transform .25s}
+.dtl-file img{width:100%;aspect-ratio:16/9;object-fit:cover;cursor:pointer;display:block;transition:transform .25s}
 .dtl-file img:hover{transform:scale(1.03)}
 .dtl-file-tag{position:absolute;top:8px;left:8px;font-size:11px;font-weight:600;background:rgba(255,255,255,.94);
   padding:2px 8px;border-radius:999px;border:1px solid transparent;white-space:nowrap;z-index:1}
 .dtl-file-tag.inline{position:static;background:#fff;flex-shrink:0}
 .dtl-file-vid{display:flex;flex-direction:column}
-.dtl-file-vid video{width:100%;aspect-ratio:4/3;border-radius:12px;background:#0b1020;display:block;object-fit:cover}
+.dtl-file-vid video{width:100%;aspect-ratio:16/9;border-radius:12px;background:#0b1020;display:block;object-fit:cover}
 .dtl-file-doc{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;
-  aspect-ratio:4/3;padding:12px;border:none;border-radius:14px;background:#f2f4f8;
+  aspect-ratio:16/9;padding:12px;border:none;border-radius:14px;background:#f7f8fa;
   color:#646a73;font-size:13px;text-align:center;cursor:pointer;transition:all .15s}
 .dtl-file-doc:hover{background:#e8f2ff;color:#1d6fd0}
 .dtl-file-doc .dtl-file-tag.inline{position:absolute;top:8px;left:8px}
