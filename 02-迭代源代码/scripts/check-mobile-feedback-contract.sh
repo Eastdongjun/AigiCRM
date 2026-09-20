@@ -19,6 +19,9 @@ fail() { echo "FAIL: $*" >&2; exit 1; }
 
 grep -Fq 'function errorMessage' "$FEEDBACK" || fail 'missing shared errorMessage'
 grep -Fq 'function showError' "$FEEDBACK" || fail 'missing shared showError'
+# 【PR-03/PR-04 重试入口】加载失败须可用带重试的共享助手(内部退化到 showError)
+grep -Fq 'function showErrorWithRetry' "$FEEDBACK" || fail 'missing shared showErrorWithRetry'
+grep -Fq "confirmText: '重试'" "$FEEDBACK" || fail 'shared showErrorWithRetry must offer a retry confirm action'
 grep -Fq '"verify:feedback-notification": "node verify-feedback-notification.mjs"' "$AUTOMATOR_PACKAGE" \
   || fail 'mobile feedback/notification DevTools automator script is not exposed'
 for pattern in \
@@ -35,7 +38,8 @@ for pattern in \
 done
 for page in $(find "$ROOT/aigicrm-miniprogram/pages" -name '*.js' -type f -exec grep -lE "require.*api/" {} + | sort -u); do
   grep -Fq "utils/feedback" "$page" || fail "page does not use shared feedback: $page"
-  grep -Fq 'showError(' "$page" || fail "page does not call showError: $page"
+  # 共享反馈调用: showError 或带重试入口的 showErrorWithRetry(内部含 showError 退化)
+  grep -Eq 'showError(WithRetry)?\(' "$page" || fail "page does not call shared showError/showErrorWithRetry: $page"
   # Login and password recovery are the two intentional anonymous API flows.
   if [[ "$page" != *"/pages/login/index.js" && "$page" != *"/pages/login/forgot/index.js" ]]; then
     grep -Fq 'requireLogin' "$page" || fail "API page does not enforce login: $page"

@@ -3,7 +3,7 @@ const { getDownloadUrl, uploadFile } = require('../../api/file')
 const { getDepts } = require('../../api/system')
 const { incentiveRecords } = require('../../data/demo')
 const { hasPermission, isAdmin, requireLogin, getToken } = require('../../utils/auth')
-const { showError } = require('../../utils/feedback')
+const { showError, showErrorWithRetry } = require('../../utils/feedback')
 const { buildIncentiveFileGroups, buildIncentiveFiles } = require('../../utils/incentive-files')
 
 function normalizeRecords(customers) {
@@ -436,7 +436,7 @@ Page({
       const records = normalizeRecords(rows).map((item) => buildRecordView({ ...item, canDelete: this.canDeleteRecord(item), canEdit: this.canEditRecord(item), records: (item.records || []).map((record) => ({ ...record, canDelete: this.canDeleteRecord(record), canEdit: this.canEditRecord(record) })) }))
       this.setData({ allRecords: records, records, categories: ['全部', ...new Set(records.map((item) => item.category))], summary: buildSummary(records) }, () => this.refreshIncentiveView())
       this.sort()
-    }).catch((error) => showError(error, '四项激励加载失败')).finally(() => {
+    }).catch((error) => showErrorWithRetry(error, '四项激励加载失败', () => this.loadRecords())).finally(() => {
       this.setData({ loading: false }, () => this.refreshIncentiveView())
     })
   },
@@ -494,7 +494,7 @@ Page({
     getUsers().then((rows) => {
       const users = Array.isArray(rows) ? rows : []
       this.setData({ users, userNames: ['全部人员', ...users.map((item) => item.realName || item.userName || item.name || '未命名')] }, () => this.refreshIncentiveView())
-    }).catch((error) => showError(error, '人员筛选加载失败'))
+    }).catch((error) => showErrorWithRetry(error, '人员筛选加载失败', () => this.loadUsers()))
   },
 
   loadOrgs() {
@@ -506,7 +506,7 @@ Page({
     getDepts().then((rows) => {
       this.applyOrgs(rows || [])
     }).catch((error) => {
-      showError(error, '组织列表加载失败，请重试')
+      showErrorWithRetry(error, '组织列表加载失败，请重试', () => this.loadOrgs())
       this.applyOrgs([])
     })
   },
@@ -551,7 +551,7 @@ Page({
     getCategoryTree().then((rows) => {
       const categoryTree = flattenCategoryTree(rows || [])
       this.setData({ categoryTree, categoryTreeView: buildCategoryTreeView(categoryTree) }, () => this.refreshIncentiveView())
-    }).catch((error) => showError(error, '四项激励分类加载失败'))
+    }).catch((error) => showErrorWithRetry(error, '四项激励分类加载失败', () => this.loadCategories()))
   },
 
   loadCategoryStats() {
@@ -570,7 +570,7 @@ Page({
         score: item.totalScore || item.score || 0
       })) : []
       this.setData({ categoryStats }, () => this.refreshIncentiveView())
-    }).catch((error) => showError(error, '四项激励统计加载失败'))
+    }).catch((error) => showErrorWithRetry(error, '四项激励统计加载失败', () => this.loadCategoryStats()))
   },
 
   loadReadStats() {
@@ -585,7 +585,7 @@ Page({
       this.setData({ readStats, readStatsView: buildReadStatsView(readStats) }, () => this.refreshIncentiveView())
     }).catch((error) => {
       this.setData({ readStats: [], readStatsView: [] }, () => this.refreshIncentiveView())
-      showError(error, '已读统计加载失败')
+      showErrorWithRetry(error, '已读统计加载失败', () => this.loadReadStats())
     })
   },
 

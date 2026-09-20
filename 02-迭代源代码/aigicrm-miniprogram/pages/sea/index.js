@@ -3,7 +3,7 @@ const { submitApproval } = require('../../api/approval')
 const { getDepts, getDictData } = require('../../api/system')
 const { seaRecords } = require('../../data/demo')
 const { hasPermission, requireLogin } = require('../../utils/auth')
-const { showError } = require('../../utils/feedback')
+const { showError, showErrorWithRetry } = require('../../utils/feedback')
 
 const FALLBACK_INDUSTRIES = ['煤矿', '化工', '电力', '洗煤厂', '有色', '制造业', '能源', '其他']
 const FALLBACK_DEPTS = [
@@ -238,7 +238,7 @@ Page({
       const dictValues = (list || []).map((item) => item.dictValue || item.dictLabel).filter(Boolean)
       this.setSeaData({ industryOptions: dictValues, industryPickerOptions: ['全部行业', ...dictValues] })
     }).catch((error) => {
-      showError(error, '行业字典加载失败，请重试')
+      showErrorWithRetry(error, '行业字典加载失败，请重试', () => this.loadIndustryDict())
       this.setSeaData({ industryOptions: [], industryPickerOptions: ['全部行业'] })
     })
   },
@@ -252,7 +252,7 @@ Page({
       this.setSeaData({ pools: rows || [] })
     }).catch((error) => {
       this.setSeaData({ pools: [] })
-      showError(error, '公海配置加载失败')
+      showErrorWithRetry(error, '公海配置加载失败', () => this.loadPools())
     })
   },
 
@@ -265,7 +265,7 @@ Page({
     getDepts().then((rows) => {
       this.applyDepts(rows || [])
     }).catch((error) => {
-      showError(error, '部门加载失败，请重试')
+      showErrorWithRetry(error, '部门加载失败，请重试', () => this.loadDepts())
       this.applyDepts([])
     })
   },
@@ -302,7 +302,7 @@ Page({
       this.setSeaData({ stats: stats || {} })
     }).catch((error) => {
       this.setSeaData({ stats: {} })
-      showError(error, '公海统计加载失败')
+      showErrorWithRetry(error, '公海统计加载失败', () => this.loadStatistics())
     })
   },
 
@@ -325,7 +325,7 @@ Page({
     }).then((page) => {
       const rows = page && (page.records || page.list || page.rows)
       this.setSeaData({ records: (rows || []).map(normalizeSea) })
-    }).catch((error) => showError(error, '公海加载失败')).finally(() => {
+    }).catch((error) => showErrorWithRetry(error, '公海加载失败', () => this.loadRecords())).finally(() => {
       this.setSeaData({ loading: false })
     })
   },

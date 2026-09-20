@@ -79,7 +79,9 @@ async function enablePermissionMode(miniProgram, permissions) {
     app.globalData.appName = 'AIGICRM'
     app.globalData.currentUser = { id: 1001, realName: '自动化权限用户' }
     app.globalData.permissions = perms
-    wx.setStorageSync('AIGICRM_TOKEN', 'aigicrm-shell-automator-token')
+    const app0 = getApp()
+    // 【PR-04 令牌缓存隔离】与 utils/auth.js 同口径: 键按 apiBaseUrl 分环境
+    wx.setStorageSync('AIGICRM_TOKEN::' + (app0.globalData.apiBaseUrl || 'demo'), 'aigicrm-shell-automator-token')
   }, permissions)
 }
 

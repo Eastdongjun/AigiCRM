@@ -1,6 +1,6 @@
 const { getFolders, getStorageInfo, getSharedToMe, getSharedToMeCount, getFileList, uploadFile, replaceFile, deleteFile, deleteFolder, getFolderAcl, shareFile: shareFileApi, getDownloadUrl } = require('../../api/file')
 const { getCustomerSimpleUsers } = require('../../api/customer')
-const { showError } = require('../../utils/feedback')
+const { showError, showErrorWithRetry } = require('../../utils/feedback')
 const { hasPermission, requireLogin, getToken } = require('../../utils/auth')
 const { readDemoFolders, removeDemoFolder } = require('../../utils/demo-folders')
 
@@ -198,7 +198,7 @@ Page({
       folders = []
       files = []
       // 【PR-04】真实模式失败：报错 + 空列表（空态样式），不再显示演示数据
-      showError(error, '文件加载失败，请重试')
+      showErrorWithRetry(error, '文件加载失败，请重试', () => this.loadFiles())
       capacity = { used: '-', total: '-', percent: 0, hint: '存储统计暂未同步' }
     }
     const normalizedFiles = files.map((item, index) => this.normalizeFile(item, index))

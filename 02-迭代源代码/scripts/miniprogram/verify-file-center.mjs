@@ -101,7 +101,9 @@ async function enableFileCenterMode(miniProgram) {
       'file:acl:manage',
       ...(app.globalData.permissions || [])
     ]
-    wx.setStorageSync('AIGICRM_TOKEN', 'aigicrm-file-center-automator-token')
+    const app0 = getApp()
+    // 【PR-04 令牌缓存隔离】与 utils/auth.js 同口径: 键按 apiBaseUrl 分环境
+    wx.setStorageSync('AIGICRM_TOKEN::' + (app0.globalData.apiBaseUrl || 'demo'), 'aigicrm-file-center-automator-token')
   })
 }
 

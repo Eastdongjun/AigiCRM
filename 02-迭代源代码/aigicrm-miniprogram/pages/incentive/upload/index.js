@@ -3,7 +3,7 @@ const { getCategoryTree, addRecord, getRecords, updateRecord } = require('../../
 const { getDownloadUrl, uploadFile } = require('../../../api/file')
 const { getDictData } = require('../../../api/system')
 const { requireLogin, hasPermission, getToken } = require('../../../utils/auth')
-const { showError } = require('../../../utils/feedback')
+const { showError, showErrorWithRetry } = require('../../../utils/feedback')
 
 function flattenCategories(nodes = [], result = []) {
   nodes.forEach((item) => {
@@ -418,7 +418,7 @@ Page({
     getDictData('industry').then((list) => {
       this.setData({ industryOptions: (list || []).map((item) => item.dictValue || item.dictLabel).filter(Boolean) }, () => this.refreshUploadViewState())
     }).catch((error) => {
-      showError(error, '行业字典加载失败，请重试')
+      showErrorWithRetry(error, '行业字典加载失败，请重试', () => this.loadIndustries())
       this.setData({ industryOptions: [] }, () => this.refreshUploadViewState())
     })
   },

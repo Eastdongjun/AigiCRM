@@ -2,7 +2,7 @@ const { getAnalysis, getDashboardData } = require('../../api/statistics')
 const { getScoreRanking } = require('../../api/score')
 const { getDepts } = require('../../api/system')
 const { requireLogin, hasPermission } = require('../../utils/auth')
-const { showError } = require('../../utils/feedback')
+const { showError, showErrorWithRetry } = require('../../utils/feedback')
 
 const MONTH_LABELS = ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月']
 const CURRENT_YEAR = new Date().getFullYear()
@@ -312,11 +312,11 @@ Page({
     return Promise.all([
       getDashboardData(),
       getAnalysis(this.buildAnalysisParams()).catch((error) => {
-        showError(error, '经营分析加载失败')
+        showErrorWithRetry(error, '经营分析加载失败', () => this.loadStats())
         return {}
       }),
       getScoreRanking({ type: 'personal' }).catch((error) => {
-        showError(error, '积分排行加载失败')
+        showErrorWithRetry(error, '积分排行加载失败', () => this.loadStats())
         return []
       })
     ]).then(([data, analysis, ranking]) => this.setStatisticsData({
@@ -327,7 +327,7 @@ Page({
       scoreTop5: (ranking || []).slice(0, 5),
       expiringDetails: (data && data.expiringDetails) || []
     }))
-      .catch((error) => showError(error, '统计加载失败'))
+      .catch((error) => showErrorWithRetry(error, '统计加载失败', () => this.loadStats()))
       .finally(() => this.setStatisticsData({ loading: false }))
   },
 
@@ -348,7 +348,7 @@ Page({
     getDepts().then((rows) => {
       this.applyDepts(rows || [])
     }).catch((error) => {
-      showError(error, '部门加载失败，请重试')
+      showErrorWithRetry(error, '部门加载失败，请重试', () => this.loadDepts())
       this.applyDepts([])
     })
   },

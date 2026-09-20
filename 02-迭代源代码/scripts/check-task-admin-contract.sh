@@ -2,7 +2,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-CONTROLLER="$ROOT/aigicrm-backend/src/main/java/com/aigicrm/task/TaskController.java"
+CONTROLLER="$ROOT/aigicrm-backend/src/main/java/com/aigicrm/task/ScheduledTaskController.java"
 
 grep -q '@RequestMapping("/api/system/task")' "$CONTROLLER"
 grep -q '@PostMapping("/check-expire")' "$CONTROLLER"

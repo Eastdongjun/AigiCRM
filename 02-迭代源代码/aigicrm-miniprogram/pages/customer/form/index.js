@@ -1,7 +1,7 @@
 const { getCustomer, saveCustomerWithIndicator, updateCustomerWithIndicator, checkCustomerName, getCustomerSimpleUsers, getCustomerGroupNames, getCustomerIndicator } = require('../../../api/customer')
 const { getDepts, getDictData } = require('../../../api/system')
 const { hasPermission, requireLogin, isAdmin } = require('../../../utils/auth')
-const { showError } = require('../../../utils/feedback')
+const { showError, showErrorWithRetry } = require('../../../utils/feedback')
 const { getFormDraft, saveFormDraft, forceSaveFormDraft, deleteFormDraft } = require('../../../api/system')
 const { readDemoCustomers, saveDemoCustomer } = require('../../../utils/demo-customers')
 
@@ -169,19 +169,19 @@ Page({
     // 【PR-04】真实模式接口失败：报错并置空选项，保留用户已输入内容；不回退演示数据
     return Promise.all([
       getDepts().then((list) => this.applyDepts(list || [])).catch((error) => {
-        showError(error, '部门加载失败，请重试')
+        showErrorWithRetry(error, '部门加载失败，请重试', () => this.loadOptions())
         this.applyDepts([])
       }),
       getCustomerSimpleUsers().then((list) => this.setData({ userOptions: list || [] }, () => this.refreshFormView())).catch((error) => {
-        showError(error, '负责人列表加载失败，请重试')
+        showErrorWithRetry(error, '负责人列表加载失败，请重试', () => this.loadOptions())
         this.setData({ userOptions: [] }, () => this.refreshFormView())
       }),
       getDictData('industry').then((list) => this.setData({ industryOptions: (list || []).map((d) => d.dictValue) }, () => this.refreshFormView())).catch((error) => {
-        showError(error, '行业字典加载失败，请重试')
+        showErrorWithRetry(error, '行业字典加载失败，请重试', () => this.loadOptions())
         this.setData({ industryOptions: [] }, () => this.refreshFormView())
       }),
       getDictData('dev_type').then((list) => this.setData({ devTypeOptions: (list || []).map((d) => d.dictValue) }, () => this.refreshFormView())).catch((error) => {
-        showError(error, '开发类型字典加载失败，请重试')
+        showErrorWithRetry(error, '开发类型字典加载失败，请重试', () => this.loadOptions())
         this.setData({ devTypeOptions: [] }, () => this.refreshFormView())
       }),
       getCustomerGroupNames().then((list) => this.setGroupOptions((list || []).filter(Boolean))).catch(() => this.setGroupOptions([]))
