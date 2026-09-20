@@ -158,7 +158,7 @@
           <span class="dtl-bar-pts"><b>{{ detailCust.totalScore }}</b> 分</span>
         </div>
 
-        <!-- 客户概览：头像 + 名称/标签 + 三项指标 -->
+        <!-- 客户概览：台账式——左身份右合计。整页唯一的大胆元素是右侧超大累计分值(胆量花在一处) -->
         <div class="dtl-hero">
           <div class="dtl-avatar">{{ (detailCust.customerName || '?').charAt(0) }}</div>
           <div class="dtl-hero-main">
@@ -166,22 +166,15 @@
             <div class="dtl-hero-tags">
               <span v-if="detailCust.industry" class="dtl-pill blue">{{ detailCust.industry }}</span>
               <span class="dtl-pill grey">最近更新 {{ lastUpdateText }}</span>
-              <!-- 【2026-09-20】未读提醒(与小程序同口径):滚动看到的记录即时转已读 -->
-              <span v-if="unreadCount" class="dtl-pill red">{{ unreadCount }} 条未读</span>
             </div>
           </div>
-          <div class="dtl-metrics">
-            <div class="dtl-metric">
-              <div class="dtl-metric-num primary">{{ detailCust.totalScore }}</div>
-              <div class="dtl-metric-label">累计积分</div>
-            </div>
-            <div class="dtl-metric">
-              <div class="dtl-metric-num">{{ recordTotal }}</div>
-              <div class="dtl-metric-label">激励条数</div>
-            </div>
-            <div class="dtl-metric">
-              <div class="dtl-metric-num">{{ recordsByMonth.length }}</div>
-              <div class="dtl-metric-label">覆盖月份</div>
+          <div class="dtl-hero-score">
+            <div class="dtl-score-line"><span class="dtl-score-big">{{ detailCust.totalScore }}</span><span class="dtl-score-unit">分</span></div>
+            <div class="dtl-score-caption">累计积分</div>
+            <div class="dtl-hero-sub">
+              <span><b>{{ recordTotal }}</b> 条记录</span>
+              <span><b>{{ recordsByMonth.length }}</b> 个月份</span>
+              <span v-if="unreadCount" class="unread"><b>{{ unreadCount }}</b> 未读</span>
             </div>
           </div>
         </div>
@@ -209,8 +202,10 @@
           <aside class="dtl-rail">
             <div v-for="g in recordsByMonth" :key="g.key" class="dtl-node" :class="{active: g.key===activeMonth}" @click="activeMonth=g.key">
               <span class="dtl-node-dot"></span>
-              <span class="dtl-node-label">{{ g.label }}</span>
-              <span v-if="monthUnread(g)" class="dtl-node-unread">{{ monthUnread(g) }}</span>
+              <div class="dtl-node-text">
+                <span class="dtl-node-label">{{ g.label }}</span>
+                <span class="dtl-node-sub"><span v-if="monthUnread(g)" class="dtl-node-unread">{{ monthUnread(g) }} 未读</span>{{ monthScore(g) }} 分</span>
+              </div>
               <span class="dtl-node-count">{{ g.count }}</span>
             </div>
           </aside>
@@ -486,6 +481,8 @@ const recordsByMonth=computed(()=>groupRecordsByMonth(filteredRecords.value, det
 const activeMonth = ref('')
 const activeGroup = computed(() => recordsByMonth.value.find(g => g.key === activeMonth.value) || recordsByMonth.value[0] || { label: '', count: 0, items: [] })
 function monthUnread(g){ return (g.items || []).filter(r => r.unread).length }
+// 台账要有合计：书脊节点展示该月分值小计(结构装置编码真实信息)
+function monthScore(g){ return (g.items || []).reduce((s, r) => s + (Number(r.score) || 0), 0) }
 // 月份列表变化(换客户/搜索/换向)时校准选中月份到首项
 watch(recordsByMonth, (list) => {
   if (!list.some(g => g.key === activeMonth.value)) activeMonth.value = list[0]?.key || ''
@@ -656,19 +653,22 @@ onBeforeUnmount(()=>window.removeEventListener('keydown',onPreviewKeydown))
 .dtl-pill.green{color:#0d7a4a;background:#e7f8ef;border-color:transparent}
 .dtl-pill.grey{color:#6b7280;background:#f4f5f7;border-color:transparent}
 .dtl-pill.red{color:#e11d48;background:#ffe9ee;border-color:transparent}
-.dtl-metrics{display:flex;align-items:stretch;gap:0;flex-shrink:0;background:transparent;
-  border-radius:16px;padding:0}
-.dtl-metric{padding:6px 22px;text-align:center;min-width:92px;border-radius:12px}
-.dtl-metric + .dtl-metric{}
-.dtl-metric-num{font-size:24px;font-weight:800;color:#6b7280;line-height:1.1;font-variant-numeric:tabular-nums}
-.dtl-metric-num.primary{color:#2563eb;font-size:30px}
-.dtl-metric-label{font-size:11px;color:#9ca3af;margin-top:5px;letter-spacing:1px}
+/* 台账式概览合计：整页唯一的大胆元素(56px 超大分值)，副行静默退后 */
+.dtl-hero-score{margin-left:auto;flex-shrink:0;text-align:right;display:flex;flex-direction:column;align-items:flex-end}
+.dtl-score-line{display:flex;align-items:baseline;gap:5px}
+.dtl-score-big{font-size:56px;font-weight:800;color:#2563eb;line-height:1;letter-spacing:-1.5px;font-variant-numeric:tabular-nums}
+.dtl-score-unit{font-size:15px;font-weight:700;color:#2563eb}
+.dtl-score-caption{font-size:11px;color:#6b7280;margin-top:7px;letter-spacing:3px}
+.dtl-hero-sub{display:flex;gap:22px;margin-top:10px;font-size:12px;color:#6b7280}
+.dtl-hero-sub b{font-size:14px;font-weight:700;color:#111827;margin-right:3px;font-variant-numeric:tabular-nums}
+.dtl-hero-sub .unread b{color:#e11d48}
+.dtl-hero-sub .unread{color:#e11d48}
 
 /* 【2026-09-20】详情工具条：灰画布上的白色工具胶囊（搜索 + 时间方向切换 + 命中计数） */
 .dtl-toolbar{display:flex;align-items:center;gap:10px;margin:0;padding:12px 28px;flex-wrap:wrap;
   background:#fff;border-bottom:1px solid #eef0f3}
 .dtl-toolbar-search{width:280px}
-.dtl-toolbar-hit{font-size:12px;color:#9ca3af;white-space:nowrap}
+.dtl-toolbar-hit{font-size:12px;color:#6b7280;white-space:nowrap}
 /* 方向切换统一成分段控件（无描边软填充，选中深底白字），与整页"去线条"语言一致 */
 .dtl-toolbar :deep(.el-radio-button__inner){border:none!important;background:#f2f4f7;color:#4e5969;
   box-shadow:none!important;font-weight:600;padding:4px 12px}
@@ -680,24 +680,25 @@ onBeforeUnmount(()=>window.removeEventListener('keydown',onPreviewKeydown))
 .dtl-body{display:grid;grid-template-columns:212px minmax(0,1fr);flex:1;min-height:0}
 .dtl-rail{position:relative;border-right:1px solid #eef0f3;padding:16px 0;overflow-y:auto}
 .dtl-rail::before{content:'';position:absolute;left:31px;top:28px;bottom:28px;width:1px;background:#e6e9ef}
-.dtl-node{display:flex;align-items:center;gap:10px;padding:11px 16px 11px 24px;cursor:pointer;
+.dtl-node{display:flex;align-items:center;gap:10px;min-height:44px;padding:8px 14px 8px 22px;cursor:pointer;
   color:#4e5969;font-size:13.5px;transition:background .15s,color .15s}
 .dtl-node:hover{background:#f7f9fc}
 .dtl-node-dot{width:9px;height:9px;border-radius:50%;background:#d8dde5;flex-shrink:0;z-index:1;
   box-shadow:0 0 0 3px #fff;transition:background .15s,box-shadow .15s}
 .dtl-node.active{color:#111827;font-weight:700;background:#f7f9fc}
 .dtl-node.active .dtl-node-dot{background:#2563eb;box-shadow:0 0 0 3px rgba(37,99,235,.16)}
+.dtl-node-text{display:flex;flex-direction:column;gap:2px;min-width:0;flex:1}
 .dtl-node-label{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.dtl-node-unread{background:#ffe9ee;color:#e11d48;font-size:11px;font-weight:600;
-  border-radius:999px;padding:1px 7px;flex-shrink:0;line-height:16px}
-.dtl-node-count{margin-left:auto;font-size:12px;color:#9ca3af;font-variant-numeric:tabular-nums;flex-shrink:0}
+.dtl-node-sub{font-size:11px;color:#6b7280;white-space:nowrap}
+.dtl-node-unread{color:#e11d48;font-weight:600;margin-right:6px}
+.dtl-node-count{margin-left:auto;font-size:12px;color:#6b7280;font-variant-numeric:tabular-nums;flex-shrink:0}
 .dtl-pane{overflow-y:auto;padding:20px 28px 16px;background:#fff}
 .dtl-pane::-webkit-scrollbar{width:6px}
 .dtl-pane::-webkit-scrollbar-thumb{background:#d3d9e2;border-radius:999px}
 .dtl-pane::-webkit-scrollbar-track{background:transparent}
 .dtl-pane-head{display:flex;align-items:baseline;gap:10px;padding:0 0 14px}
 .dtl-month-label{font-size:16px;font-weight:800;color:#111827;background:transparent;border-radius:0;padding:0;letter-spacing:.2px}
-.dtl-month-count{font-size:12px;color:#9ca3af}
+.dtl-month-count{font-size:12px;color:#6b7280}
 .dtl-item{position:relative;padding-left:0;margin-bottom:0;padding:20px 0}
 .dtl-item + .dtl-item{border-top:1px solid #f1f3f6}
 .dtl-item:last-child{padding-bottom:8px}
@@ -706,13 +707,13 @@ onBeforeUnmount(()=>window.removeEventListener('keydown',onPreviewKeydown))
 .dtl-entry-meta{display:flex;flex-direction:column;align-items:flex-start;gap:8px;padding-top:2px}
 .dtl-date-block{display:flex;flex-direction:column;gap:2px;margin-bottom:2px}
 .dtl-date-day{font-size:15.5px;font-weight:800;color:#111827;font-variant-numeric:tabular-nums;letter-spacing:.2px}
-.dtl-date-time{font-size:12px;color:#9ca3af;font-variant-numeric:tabular-nums}
+.dtl-date-time{font-size:12px;color:#6b7280;font-variant-numeric:tabular-nums}
 /* 【2026-09-20】已读/未读状态(与小程序同口径): 未读红点醒目, 已读弱化为浅灰 */
 .dtl-read{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:600;line-height:1}
 .dtl-read i{width:7px;height:7px;border-radius:50%;flex-shrink:0}
 .dtl-read.unread{color:#e11d48}
 .dtl-read.unread i{background:#e11d48;box-shadow:0 0 0 3px rgba(225,29,72,.12)}
-.dtl-read.read{color:#c0c6cf}
+.dtl-read.read{color:#6b7280}
 .dtl-read.read i{background:#dde2e9;box-shadow:none}
 .dtl-subcat{font-size:12.5px;color:#6b7280}
 /* 品类标签：去药丸底色，改为色点 + 中性文字 */
@@ -735,14 +736,14 @@ onBeforeUnmount(()=>window.removeEventListener('keydown',onPreviewKeydown))
 .dtl-upload-chips{display:flex;flex-wrap:wrap;gap:6px 20px;margin-bottom:12px}
 .dtl-chip{display:inline-flex;align-items:baseline;gap:5px;font-size:13px;color:#374151;
   background:transparent;border-radius:0;padding:0}
-.dtl-chip i{font-style:normal;font-size:11.5px;color:#9ca3af;letter-spacing:.5px}
+.dtl-chip i{font-style:normal;font-size:11.5px;color:#6b7280;letter-spacing:.5px}
 /* 正文块：无底色盒，小标签 + 大正文，靠字号层级而不是色块 */
 .dtl-field{margin-bottom:12px;padding:0;background:transparent;border-radius:0}
 .dtl-field.desc{background:transparent;border-radius:0;padding:0}
 .dtl-field.desc .dtl-field-label{color:#6b7280;font-size:12px;font-weight:600;letter-spacing:1px}
 .dtl-field.remark{background:transparent;padding:0}
 .dtl-field.remark .dtl-field-label{color:#b45309}
-.dtl-field-label{font-size:12px;color:#9ca3af;margin-bottom:6px;letter-spacing:1px}
+.dtl-field-label{font-size:12px;color:#6b7280;margin-bottom:6px;letter-spacing:1px}
 .dtl-field-text{font-size:14.5px;color:#1f2937;line-height:1.85;white-space:pre-wrap;word-break:break-word;
   min-height:54px}
 
@@ -781,5 +782,5 @@ onBeforeUnmount(()=>window.removeEventListener('keydown',onPreviewKeydown))
 /* 底部操作条：画布上透明收尾 */
 .dtl-footer{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 28px 16px;
   background:rgba(255,255,255,.94);backdrop-filter:blur(10px);border-top:1px solid #eef0f3;position:sticky;bottom:0}
-.dtl-footer-hint{font-size:12px;color:#9ca3af}
+.dtl-footer-hint{font-size:12px;color:#6b7280}
 </style>

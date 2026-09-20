@@ -185,9 +185,10 @@ describe('incentive/search.vue 缩略图下载 token（空 token 403 修复 2026
     expect(wrapper.find('.dtl-bar-name').text()).toBe('邯钢能嘉')
     expect(wrapper.find('.dtl-hero-name').text()).toBe('邯钢能嘉')
     expect(wrapper.find('.dtl-avatar').text()).toBe('邯')
-    // 概览三项指标：累计积分 / 激励条数 / 覆盖月份
-    expect(wrapper.find('.dtl-metric-num.primary').text()).toBe('9')
-    expect(wrapper.findAll('.dtl-metric')).toHaveLength(3)
+    // 概览台账式合计(2026-09-20 ui-design-pro 重构): 单一大分值 + 静默副行
+    expect(wrapper.find('.dtl-score-big').text()).toBe('9')
+    expect(wrapper.text()).toContain('2 条记录')
+    expect(wrapper.text()).toContain('2 个月份')
     // 【2026-09-20 深夜 主从骨架】左栏时间轴列出全部月份节点；右栏只渲染选中月份的记录
     expect(wrapper.findAll('.dtl-node')).toHaveLength(2)
     expect(wrapper.findAll('.dtl-node').map((n) => n.find('.dtl-node-label').text())).toEqual(['2026年9月', '2026年8月'])
