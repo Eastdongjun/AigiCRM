@@ -1224,6 +1224,10 @@ public class CustomerService {
         if (invoice == null || !customerId.equals(invoice.getCustomerId())) {
             throw new BusinessException("发票不存在或不属于该客户");
         }
+        // 【PR-18 状态机】仅待核对(暂录)可物理删除; 已确认锁定(更正走作废)、已作废留痕, 均不可删
+        if (!"pending".equals(invoice.getStatus())) {
+            throw new BusinessException("仅待核对状态可删除;已确认记录请使用\"作废\"留痕");
+        }
         invoiceMapper.deleteById(invoiceId);
         refreshLastInvoiceDate(invoice.getCustomerId());
         recalculateCoreStatus(invoice.getCustomerId());
@@ -1501,6 +1505,10 @@ public class CustomerService {
         // 归属校验：记录必须属于请求路径中的客户，防止跨客户删除（IDOR）
         if (payment == null || !customerId.equals(payment.getCustomerId())) {
             throw new BusinessException("回款不存在或不属于该客户");
+        }
+        // 【PR-18 状态机】仅待核对(暂录)可物理删除; 已确认锁定、已作废留痕, 均不可删
+        if (!"pending".equals(payment.getStatus())) {
+            throw new BusinessException("仅待核对状态可删除;已确认记录请使用\"作废\"留痕");
         }
         paymentMapper.deleteById(paymentId);
         recalculateCoreStatus(payment.getCustomerId());

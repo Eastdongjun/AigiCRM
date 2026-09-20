@@ -6,22 +6,35 @@
         <div class="fin-title"><el-icon><Document /></el-icon> 开票记录</div>
         <div class="fin-summary">
           <span>累计 <b>{{ invoiceSummary.totalCount }}</b> 次</span>
-          <span>总额 <b class="red">{{ invoiceSummary.totalAmount }}</b> 万</span>
+          <span>有效总额 <b class="red">{{ invoiceSummary.totalAmount }}</b> 万</span>
           <el-button v-if="!readonly" size="small" type="primary" @click="showInvoiceDialog = true">+ 录入开票</el-button>
         </div>
       </div>
-      <el-table :data="invoices" stripe size="small" v-if="invoices.length">
-        <el-table-column prop="invoiceDate" label="日期" width="110" />
-        <el-table-column prop="invoiceNumber" label="发票号" width="150" />
-        <el-table-column prop="invoiceType" label="类型" width="110">
+      <el-table :data="invoices" stripe size="small" v-if="invoices.length" :row-class-name="ledgerRowClass">
+        <el-table-column prop="invoiceDate" label="日期" width="105" />
+        <el-table-column prop="invoiceNumber" label="发票号" width="140" />
+        <el-table-column prop="invoiceType" label="类型" width="100">
           <template #default="{row}"><el-tag size="small">{{ row.invoiceType }}</el-tag></template>
         </el-table-column>
-        <el-table-column prop="invoiceCompany" label="开票单位" min-width="140" />
-        <el-table-column prop="amount" label="金额(万)" width="90" align="right">
+        <el-table-column prop="invoiceCompany" label="开票单位" min-width="130" />
+        <el-table-column prop="amount" label="金额(万)" width="85" align="right">
           <template #default="{row}"><b>{{ row.amount }}</b>万</template>
         </el-table-column>
-        <el-table-column v-if="!readonly" label="" width="50" align="center">
-          <template #default="{row}"><el-button link type="danger" size="small" @click="handleDeleteInvoice(row)"><el-icon><Delete /></el-icon></el-button></template>
+        <el-table-column label="状态" width="96">
+          <template #default="{row}">
+            <el-tooltip v-if="row.status === 'voided'" :content="'作废原因: ' + (row.voidedReason || '未填写')" placement="top">
+              <el-tag size="small" type="info">已作废</el-tag>
+            </el-tooltip>
+            <el-tag v-else-if="row.status === 'pending'" size="small" type="warning">待核对</el-tag>
+            <el-tag v-else size="small" type="success">已确认</el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column v-if="!readonly" label="操作" width="150" align="center">
+          <template #default="{row}">
+            <el-button v-if="row.status === 'pending'" link type="success" size="small" @click="handleConfirmInvoice(row)">确认</el-button>
+            <el-button v-if="row.status !== 'voided'" link type="warning" size="small" @click="handleVoidInvoice(row)">作废</el-button>
+            <el-button v-if="row.status === 'pending'" link type="danger" size="small" @click="handleDeleteInvoice(row)">删除</el-button>
+          </template>
         </el-table-column>
       </el-table>
       <div v-else class="empty-text">暂无开票记录</div>
@@ -33,22 +46,40 @@
         <div class="fin-title"><el-icon color="#67c23a"><Money /></el-icon> 回款记录</div>
         <div class="fin-summary">
           <span>累计 <b>{{ paymentSummary.totalCount }}</b> 次</span>
-          <span>总额 <b class="red">{{ paymentSummary.totalAmount }}</b> 万</span>
+          <span>有效总额 <b class="red">{{ paymentSummary.totalAmount }}</b> 万</span>
           <el-button v-if="!readonly" size="small" type="primary" @click="showPaymentDialog = true">+ 录入回款</el-button>
         </div>
       </div>
-      <el-table :data="payments" stripe size="small" v-if="payments.length">
-        <el-table-column prop="paymentDate" label="日期" width="110" />
-        <el-table-column prop="paymentAmount" label="金额(万)" width="90" align="right">
+      <el-table :data="payments" stripe size="small" v-if="payments.length" :row-class-name="ledgerRowClass">
+        <el-table-column prop="paymentDate" label="日期" width="105" />
+        <el-table-column prop="paymentAmount" label="金额(万)" width="85" align="right">
           <template #default="{row}"><b>{{ row.paymentAmount }}</b>万</template>
         </el-table-column>
-        <el-table-column prop="paymentMethod" label="方式" width="100" />
-        <el-table-column prop="remark" label="备注" min-width="140" show-overflow-tooltip />
-        <el-table-column v-if="!readonly" label="" width="50" align="center">
-          <template #default="{row}"><el-button link type="danger" size="small" @click="handleDeletePayment(row)"><el-icon><Delete /></el-icon></el-button></template>
+        <el-table-column prop="paymentMethod" label="方式" width="95" />
+        <el-table-column prop="remark" label="备注" min-width="130" show-overflow-tooltip />
+        <el-table-column label="状态" width="96">
+          <template #default="{row}">
+            <el-tooltip v-if="row.status === 'voided'" :content="'作废原因: ' + (row.voidedReason || '未填写')" placement="top">
+              <el-tag size="small" type="info">已作废</el-tag>
+            </el-tooltip>
+            <el-tag v-else-if="row.status === 'pending'" size="small" type="warning">待核对</el-tag>
+            <el-tag v-else size="small" type="success">已确认</el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column v-if="!readonly" label="操作" width="150" align="center">
+          <template #default="{row}">
+            <el-button v-if="row.status === 'pending'" link type="success" size="small" @click="handleConfirmPayment(row)">确认</el-button>
+            <el-button v-if="row.status !== 'voided'" link type="warning" size="small" @click="handleVoidPayment(row)">作废</el-button>
+            <el-button v-if="row.status === 'pending'" link type="danger" size="small" @click="handleDeletePayment(row)">删除</el-button>
+          </template>
         </el-table-column>
       </el-table>
       <div v-else class="empty-text">暂无回款记录</div>
+    </div>
+
+    <!-- 【PR-18】口径脚注: 作废留痕不计入 -->
+    <div class="ledger-note">
+      已作废记录保留展示(悬停查看原因), 不计入上方累计与有效总额、不延长保护期; 仅"待核对"暂录可删除, 已确认记录如需更正请使用"作废"。
     </div>
 
     <el-dialog v-model="showInvoiceDialog" title="录入开票" width="480px" :close-on-click-modal="false">
@@ -81,7 +112,11 @@ const {
   readonly, invoices, invoiceSummary, payments, paymentSummary,
   showInvoiceDialog, showPaymentDialog, invoiceForm, paymentForm,
   handleAddInvoice, handleDeleteInvoice, handleAddPayment, handleDeletePayment,
+  handleConfirmInvoice, handleVoidInvoice, handleConfirmPayment, handleVoidPayment,
 } = injectCustomerDetail()
+
+// 已作废行置灰(记录保留展示, 金额不计入口径)
+const ledgerRowClass = ({ row }) => (row.status === 'voided' ? 'ledger-voided-row' : '')
 </script>
 
 <style scoped>
@@ -91,4 +126,7 @@ const {
 .fin-summary { display:flex; align-items:center; gap:14px; font-size:13px; color:#666 }
 .fin-summary b { color:#333 }.fin-summary .red { color:#f56c6c; font-size:15px }
 .empty-text { color:#c0c4cc; text-align:center; padding:24px 0; font-size:13px }
+.ledger-note { color:#909399; font-size:12px; padding:2px 4px 10px }
+:deep(.ledger-voided-row) { color:#b9bcc2; text-decoration:line-through }
+:deep(.ledger-voided-row .el-tag) { text-decoration:none }
 </style>

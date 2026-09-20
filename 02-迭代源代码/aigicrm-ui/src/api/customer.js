@@ -67,6 +67,13 @@ export function addInvoice(id, data) {
 export function deleteInvoice(customerId, invoiceId) {
   return request.delete(`/customer/${customerId}/invoices/${invoiceId}`)
 }
+// 【PR-18 台账状态机】确认(pending→confirmed) / 作废(留痕, 统计口径已排除)
+export function confirmInvoice(customerId, invoiceId) {
+  return request.post(`/customer/${customerId}/invoices/${invoiceId}/confirm`)
+}
+export function voidInvoice(customerId, invoiceId, reason) {
+  return request.post(`/customer/${customerId}/invoices/${invoiceId}/void`, { reason })
+}
 
 /** 新增/编辑表单「所属集团」下拉候选：后端按当前用户数据范围返回客户历史集团名（去重） */
 export function getCustomerGroupNames() {
@@ -121,6 +128,12 @@ export function addPayment(id, data) {
 }
 export function deletePayment(customerId, paymentId) {
   return request.delete(`/customer/${customerId}/payments/${paymentId}`)
+}
+export function confirmPayment(customerId, paymentId) {
+  return request.post(`/customer/${customerId}/payments/${paymentId}/confirm`)
+}
+export function voidPayment(customerId, paymentId, reason) {
+  return request.post(`/customer/${customerId}/payments/${paymentId}/void`, { reason })
 }
 
 // 批量导入

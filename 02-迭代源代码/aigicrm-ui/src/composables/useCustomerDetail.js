@@ -8,6 +8,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   getCustomer, getCustomerLogs, addCustomerLog, updateCustomer,
   getInvoices, getInvoiceSummary, addInvoice, deleteInvoice,
+  confirmInvoice, voidInvoice, confirmPayment, voidPayment,
   getPayments, getPaymentSummary, addPayment, deletePayment,
   getContacts, addContact, updateContact, deleteContact,
   getIndicator, saveIndicator, saveRelationship,
@@ -174,6 +175,12 @@ export function useCustomerDetail() {
   const handleDeleteInvoice = async (row) => { try { await ElMessageBox.confirm('确认删除?','提示'); await deleteInvoice(customerId.value,row.id); ElMessage.success('已删除'); const [invRes,summRes,indRes,cRes] = await Promise.all([getInvoices(customerId.value),getInvoiceSummary(customerId.value),getIndicator(customerId.value),getCustomer(customerId.value)]); invoices.value=invRes.data||[]; invoiceSummary.value=summRes.data||{}; indicator.value=indRes.data; customer.value=cRes.data } catch(e) { if (e !== 'cancel' && e !== 'close') notifyActionFailure(e, '开票记录删除失败') } }
   const handleAddPayment = async () => { if(!paymentForm.paymentDate||!paymentForm.paymentAmount) return ElMessage.warning('请填写完整'); try { await addPayment(customerId.value,{...paymentForm}); ElMessage.success('已添加'); showPaymentDialog.value=false; Object.assign(paymentForm,{paymentDate:'',paymentAmount:null,paymentMethod:'',remark:''}); const [payRes,paySummRes,indRes] = await Promise.all([getPayments(customerId.value),getPaymentSummary(customerId.value),getIndicator(customerId.value)]); payments.value=payRes.data||[]; paymentSummary.value=paySummRes.data||{}; indicator.value=indRes.data } catch(e) { notifyActionFailure(e, '回款记录保存失败') } }
   const handleDeletePayment = async (row) => { try { await ElMessageBox.confirm('确认删除?','提示'); await deletePayment(customerId.value,row.id); ElMessage.success('已删除'); const [payRes,paySummRes,indRes] = await Promise.all([getPayments(customerId.value),getPaymentSummary(customerId.value),getIndicator(customerId.value)]); payments.value=payRes.data||[]; paymentSummary.value=paySummRes.data||{}; indicator.value=indRes.data } catch(e) { if (e !== 'cancel' && e !== 'close') notifyActionFailure(e, '回款记录删除失败') } }
+  // 【PR-18 台账状态机】确认/作废后统一刷新(金额汇总已排除 voided, 客户最近开票日/指标联动)
+  const reloadFinance = async () => { const [invRes,summRes,payRes,paySummRes,indRes,cRes] = await Promise.all([getInvoices(customerId.value),getInvoiceSummary(customerId.value),getPayments(customerId.value),getPaymentSummary(customerId.value),getIndicator(customerId.value),getCustomer(customerId.value)]); invoices.value=invRes.data||[]; invoiceSummary.value=summRes.data||{}; payments.value=payRes.data||[]; paymentSummary.value=paySummRes.data||{}; indicator.value=indRes.data; customer.value=cRes.data }
+  const handleConfirmInvoice = async (row) => { try { await confirmInvoice(customerId.value,row.id); ElMessage.success('已确认'); await reloadFinance() } catch(e) { notifyActionFailure(e, '开票记录确认失败') } }
+  const handleVoidInvoice = async (row) => { try { const { value } = await ElMessageBox.prompt('作废后该笔不再计入统计/保护期, 记录保留留痕。请填写作废原因(必填)', '作废开票记录', { confirmButtonText:'作废', cancelButtonText:'取消', inputType:'textarea', inputValidator:(v)=> (v&&v.trim()) ? true : '作废原因必填' }); await voidInvoice(customerId.value,row.id,value.trim()); ElMessage.success('已作废'); await reloadFinance() } catch(e) { if (e !== 'cancel' && e !== 'close') notifyActionFailure(e, '开票记录作废失败') } }
+  const handleConfirmPayment = async (row) => { try { await confirmPayment(customerId.value,row.id); ElMessage.success('已确认'); await reloadFinance() } catch(e) { notifyActionFailure(e, '回款确认失败') } }
+  const handleVoidPayment = async (row) => { try { const { value } = await ElMessageBox.prompt('作废后该笔不再计入统计, 记录保留留痕。请填写作废原因(必填)', '作废回款记录', { confirmButtonText:'作废', cancelButtonText:'取消', inputType:'textarea', inputValidator:(v)=> (v&&v.trim()) ? true : '作废原因必填' }); await voidPayment(customerId.value,row.id,value.trim()); ElMessage.success('已作废'); await reloadFinance() } catch(e) { if (e !== 'cancel' && e !== 'close') notifyActionFailure(e, '回款作废失败') } }
   const openEditContact = (row) => { editingContact.value=row; Object.assign(contactForm,{name:row.name,position:row.position,phone:row.phone,remark:row.remark}); showContactDialog.value=true }
   const handleSaveContact = async () => { if(!contactForm.name) return ElMessage.warning('请填写姓名'); try { editingContact.value ? await updateContact(customerId.value,editingContact.value.id,{...contactForm}) : await addContact(customerId.value,{...contactForm}); ElMessage.success(editingContact.value?'已更新':'已添加'); showContactDialog.value=false; editingContact.value=null; Object.assign(contactForm,{name:'',position:'',phone:'',remark:''}); contacts.value = (await getContacts(customerId.value)).data||[] } catch(e) { notifyActionFailure(e, '联系人保存失败') } }
   const handleDeleteContact = async (row) => { try { await ElMessageBox.confirm('确认删除?','提示'); await deleteContact(customerId.value,row.id); ElMessage.success('已删除'); contacts.value = (await getContacts(customerId.value)).data||[] } catch(e) { if (e !== 'cancel' && e !== 'close') notifyActionFailure(e, '联系人删除失败') } }
@@ -201,6 +208,7 @@ export function useCustomerDetail() {
     filePreviewVisible, filePreviewUrl, filePreviewType, filePreviewName, previewIncentiveFile,
     submitLog, handleExtend, handleEdit,
     handleAddInvoice, handleDeleteInvoice, handleAddPayment, handleDeletePayment,
+    handleConfirmInvoice, handleVoidInvoice, handleConfirmPayment, handleVoidPayment, reloadFinance,
     openEditContact, handleSaveContact, handleDeleteContact,
     handleSaveIndicator, onIndicatorChange, selectRelationship, handleAddShare, handleRemoveShare,
   }

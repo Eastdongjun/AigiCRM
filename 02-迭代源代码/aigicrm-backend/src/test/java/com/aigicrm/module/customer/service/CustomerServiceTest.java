@@ -212,6 +212,61 @@ class CustomerServiceTest {
         assertThrows(BusinessException.class, () -> svc.deleteInvoice(200L, 1L));
     }
 
+    /**
+     * 【PR-18 状态机】已确认(confirmed)发票锁定不可物理删除——更正/取消走"作废"留痕;
+     * 仅待核对(pending)暂录可删。回款同口径。
+     */
+    @Test
+    void deleteInvoice_rejectsConfirmedAndVoided() {
+        BizInvoiceMapper invoiceMapper = mock(BizInvoiceMapper.class);
+        BizInvoice confirmed = new BizInvoice();
+        confirmed.setId(2L);
+        confirmed.setCustomerId(9L);
+        confirmed.setStatus("confirmed");
+        when(invoiceMapper.selectById(2L)).thenReturn(confirmed);
+        BizInvoice voided = new BizInvoice();
+        voided.setId(3L);
+        voided.setCustomerId(9L);
+        voided.setStatus("voided");
+        when(invoiceMapper.selectById(3L)).thenReturn(voided);
+        BizInvoice pending = new BizInvoice();
+        pending.setId(4L);
+        pending.setCustomerId(9L);
+        pending.setStatus("pending");
+        when(invoiceMapper.selectById(4L)).thenReturn(pending);
+
+        BizCustomerMapper customerMapper = mock(BizCustomerMapper.class);
+        OrgScopeResolver resolver = mock(OrgScopeResolver.class);
+        CustomerService svc = newService(invoiceMapper, mock(BizPaymentMapper.class), customerMapper, resolver);
+
+        assertThrows(BusinessException.class, () -> svc.deleteInvoice(9L, 2L));
+        assertThrows(BusinessException.class, () -> svc.deleteInvoice(9L, 3L));
+        svc.deleteInvoice(9L, 4L); // pending 可删, 不抛
+        verify(invoiceMapper).deleteById(4L);
+    }
+
+    @Test
+    void deletePayment_rejectsConfirmedAndVoided() {
+        BizPaymentMapper paymentMapper = mock(BizPaymentMapper.class);
+        BizPayment confirmed = new BizPayment();
+        confirmed.setId(2L);
+        confirmed.setCustomerId(9L);
+        confirmed.setStatus("confirmed");
+        when(paymentMapper.selectById(2L)).thenReturn(confirmed);
+        BizPayment pending = new BizPayment();
+        pending.setId(4L);
+        pending.setCustomerId(9L);
+        pending.setStatus("pending");
+        when(paymentMapper.selectById(4L)).thenReturn(pending);
+
+        CustomerService svc = newService(mock(BizInvoiceMapper.class), paymentMapper,
+                mock(BizCustomerMapper.class), mock(OrgScopeResolver.class));
+
+        assertThrows(BusinessException.class, () -> svc.deletePayment(9L, 2L));
+        svc.deletePayment(9L, 4L);
+        verify(paymentMapper).deleteById(4L);
+    }
+
     @Test
     void deleteInvoice_missingInvoice_rejects() {
         BizInvoiceMapper invoiceMapper = mock(BizInvoiceMapper.class);
