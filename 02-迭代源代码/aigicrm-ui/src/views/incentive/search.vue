@@ -623,17 +623,15 @@ function recDay(r){
   const d = new Date(t instanceof Number ? t : (isNaN(Number(str)) ? str : Number(t)))
   return d.getDate()
 }
-// 日盘: 整月 + 该月 1..月末; 有记录的日期可选, 其余置灰
+// 日历盘: 整月 + 该月 1..月末(按拨盘选中的年+月生成完整日历, 与是否有记录无关; 闰年由 Date 正确处理)
 const dialDays = computed(() => {
+  const y = Number(selYear.value), m = Number(selMonth.value)
+  if (!y || !m) return [{ d: 0, label: '整月', has: true }]
+  const total = new Date(y, m, 0).getDate()
   const g = recordsByMonth.value.find(x => x.key === monthKeyStr.value)
-  const base = [{ d: 0, label: '整月', has: true }]
-  if (!g || !g.items.length) return base
-  const first = new Date(String(g.items[0].createdAt || '').replace(/-/g, '/').replace('T', ' '))
-  if (isNaN(first)) return base
-  const total = new Date(first.getFullYear(), first.getMonth() + 1, 0).getDate()
-  const withData = new Set(g.items.map(recDay).filter(d => !isNaN(d)))
-  for (let d = 1; d <= total; d++) base.push({ d, label: d + '日', has: withData.has(d) })
-  return base
+  const withData = new Set((g?.items || []).map(recDay).filter(d => !isNaN(d)))
+  return [{ d: 0, label: '整月', has: true },
+    ...Array.from({ length: total }, (_, i) => ({ d: i + 1, label: (i + 1) + '日', has: withData.has(i + 1) }))]
 })
 function monthShort(g){ const m = /^(\d{4})年(.+)$/.exec(g.label || ''); return m ? m[2] : g.label }
 // 拨盘视觉：条目随距中心距离缩放淡出(iOS 拨盘质感)

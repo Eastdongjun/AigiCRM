@@ -197,6 +197,7 @@ describe('incentive/search.vue 缩略图下载 token（空 token 403 修复 2026
     expect(dialCols[1].findAll('.dtl-dial-item:not(.dim)').map((n) => n.text())).toEqual(['8月', '9月'])
     expect(dialCols[1].find('.dtl-dial-item.active').text()).toBe('9月')
     expect(dialCols[2].find('.dtl-dial-item.active').text()).toBe('整月')   // 日盘默认整月
+    expect(dialCols[2].findAll('.dtl-dial-item')).toHaveLength(31)          // 9月30天+整月=31项(每月都有完整天数)
     expect(wrapper.findAll('.dtl-item')).toHaveLength(1)   // 默认展示 9 月的 1 条
     expect(wrapper.findAll('.dtl-score')).toHaveLength(1)
     expect(wrapper.text()).toContain('累计积分')
@@ -248,6 +249,8 @@ describe('incentive/search.vue 缩略图下载 token（空 token 403 修复 2026
     expect(wrapper.find('.dtl-pane-empty-title').text()).toContain('2026年5月')
     expect(wrapper.find('.dtl-pane-empty-title').text()).toContain('此时间无数据')
     expect(wrapper.findAll('.dtl-item')).toHaveLength(0)
+    // 无数据的月份(5月)日盘同样有完整 31 天(5月31天+整月=32项)
+    expect(wrapper.findAll('.dtl-dial-col')[2].findAll('.dtl-dial-item')).toHaveLength(32)
   })
 
   it('灯箱预览：可左右循环切换、支持键盘方向键、缩略图条渲染', async () => {
