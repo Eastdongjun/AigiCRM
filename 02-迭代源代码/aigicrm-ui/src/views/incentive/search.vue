@@ -204,14 +204,22 @@
           <el-button v-if="detailKeyword" link size="small" @click="detailKeyword=''">清除</el-button>
         </div>
 
-        <!-- 【2026-09-20】一个客户只有一张详情大卡：全部激励记录按时间轴收纳在同一张卡内 -->
-        <div v-if="recordsByMonth.length" class="dtl-timeline">
-          <div v-for="group in recordsByMonth" :key="group.key" class="dtl-month">
-            <div class="dtl-month-head">
-              <span class="dtl-month-label">{{ group.label }}</span>
-              <span class="dtl-month-count">{{ group.count }} 条</span>
+        <!-- 【2026-09-20 深夜】详情主从骨架：左侧月份时间轴导航 + 右侧当前月份内容卡 -->
+        <div v-if="recordsByMonth.length" class="dtl-body">
+          <aside class="dtl-rail">
+            <div v-for="g in recordsByMonth" :key="g.key" class="dtl-node" :class="{active: g.key===activeMonth}" @click="activeMonth=g.key">
+              <span class="dtl-node-dot"></span>
+              <span class="dtl-node-label">{{ g.label }}</span>
+              <span v-if="monthUnread(g)" class="dtl-node-unread">{{ monthUnread(g) }}</span>
+              <span class="dtl-node-count">{{ g.count }}</span>
             </div>
-            <div v-for="r in group.items" :key="r.id" class="dtl-item" :data-id="r.id">
+          </aside>
+          <section class="dtl-pane">
+            <div class="dtl-pane-head">
+              <span class="dtl-month-label">{{ activeGroup.label }}</span>
+              <span class="dtl-month-count">{{ activeGroup.count }} 条</span>
+            </div>
+            <div v-for="r in activeGroup.items" :key="r.id" class="dtl-item" :data-id="r.id">
               <!-- 记录小布局：左元信息栏(日期/已读/品类/得分) + 右内容区(元信息/正文/附件) -->
               <div class="dtl-entry">
                 <div class="dtl-entry-meta">
@@ -278,7 +286,7 @@
                 </div><!-- /dtl-entry-body -->
               </div><!-- /dtl-entry -->
             </div>
-          </div>
+          </section>
         </div>
         <el-empty v-else :description="detailKeyword ? '没有匹配「' + detailKeyword + '」的记录' : '该客户暂无激励记录'" :image-size="90">
           <el-button v-if="detailKeyword" size="small" @click="detailKeyword=''">清除搜索</el-button>
@@ -376,7 +384,7 @@ async function downloadFile(id, name) {
 function downloadPreview(){ const f=previewCurrent.value; if(f) downloadFile(f.id, f.label) }
 async function showDetail(c){
   detailCust.value=c;detailVisible.value=true
-  detailKeyword.value='';detailOrder.value='desc' // 换客户详情即复位检索与方向
+  detailKeyword.value='';detailOrder.value='desc';activeMonth.value='' // 换客户详情即复位检索/方向/选中月份
   // 【2026-09-20】已读/未读与小程序同逻辑：不再打开即全标已读，
   // 记录滚动进入视野时逐条标记（乐观更新+失败回滚），未读数实时反映在概览胶囊上
   await nextTick()
@@ -388,7 +396,7 @@ const unreadCount = computed(() => (detailCust.value?.records || []).filter(r =>
 let readObserver = null
 function setupReadObserver(){
   destroyReadObserver()
-  const wrap = document.querySelector('.detail-dlg .dtl-timeline')
+  const wrap = document.querySelector('.detail-dlg .dtl-pane')
   if (!wrap || typeof IntersectionObserver === 'undefined') return
   readObserver = new IntersectionObserver((entries) => {
     for (const en of entries) {
@@ -472,12 +480,20 @@ async function loadOrgs(){try{const res=await cachedGet('depts',()=>request.get(
 // 【2026-09-20 详情工具条】记录检索 + 时间轴方向；打开新客户详情时自动复位
 const detailKeyword = ref('')
 const detailOrder = ref('desc')
-// 搜索/换向会重建记录节点，需要重新挂监听；关弹窗/卸载时清理
-watch([detailKeyword, detailOrder], () => { if (detailVisible.value) nextTick(setupReadObserver) })
-watch(detailVisible, (v) => { if (!v) destroyReadObserver() })
-onBeforeUnmount(destroyReadObserver)
 const filteredRecords = computed(() => filterRecordsByMonthSafe())
 const recordsByMonth=computed(()=>groupRecordsByMonth(filteredRecords.value, detailOrder.value))
+// 【2026-09-20 深夜】主从骨架状态: 左栏时间轴选中的月份 → 右栏只渲染该月内容
+const activeMonth = ref('')
+const activeGroup = computed(() => recordsByMonth.value.find(g => g.key === activeMonth.value) || recordsByMonth.value[0] || { label: '', count: 0, items: [] })
+function monthUnread(g){ return (g.items || []).filter(r => r.unread).length }
+// 月份列表变化(换客户/搜索/换向)时校准选中月份到首项
+watch(recordsByMonth, (list) => {
+  if (!list.some(g => g.key === activeMonth.value)) activeMonth.value = list[0]?.key || ''
+}, { immediate: true })
+// 搜索/换向会重建记录节点，需要重新挂监听；关弹窗/卸载时清理
+watch([detailKeyword, detailOrder, activeMonth], () => { if (detailVisible.value) nextTick(setupReadObserver) })
+watch(detailVisible, (v) => { if (!v) destroyReadObserver() })
+onBeforeUnmount(destroyReadObserver)
 const recordTotal=computed(()=>detailCust.value?.records?.length||0)
 function filterRecordsByMonthSafe() {
   const source = detailCust.value?.records || []
@@ -660,18 +676,29 @@ onBeforeUnmount(()=>window.removeEventListener('keydown',onPreviewKeydown))
 .dtl-toolbar :deep(.el-radio-button:first-child .el-radio-button__inner){border-radius:8px 0 0 8px}
 .dtl-toolbar :deep(.el-radio-button:last-child .el-radio-button__inner){border-radius:0 8px 8px 0}
 
-/* 【2026-09-20】一客一卡：时间轴本身是唯一的白色大卡，滚动容器在卡内 */
-.dtl-timeline{position:relative;flex:1;min-height:0;margin:0;padding:4px 28px 16px;
-  background:#fff;overflow-y:auto}
-.dtl-timeline::-webkit-scrollbar{width:6px}
-.dtl-timeline::-webkit-scrollbar-thumb{background:#d3d9e2;border-radius:999px}
-.dtl-timeline::-webkit-scrollbar-track{background:transparent}
-.dtl-month{position:relative;padding-left:0;margin-bottom:4px}
-.dtl-month + .dtl-month{border-top:1px solid #eef0f3}
-.dtl-month-head{display:flex;align-items:baseline;gap:10px;padding:20px 0 12px}
+/* 【2026-09-20 深夜】主从骨架：左月份时间轴导航(竖线+节点) + 右当前月份内容卡 */
+.dtl-body{display:grid;grid-template-columns:212px minmax(0,1fr);flex:1;min-height:0}
+.dtl-rail{position:relative;border-right:1px solid #eef0f3;padding:16px 0;overflow-y:auto}
+.dtl-rail::before{content:'';position:absolute;left:31px;top:28px;bottom:28px;width:1px;background:#e6e9ef}
+.dtl-node{display:flex;align-items:center;gap:10px;padding:11px 16px 11px 24px;cursor:pointer;
+  color:#4e5969;font-size:13.5px;transition:background .15s,color .15s}
+.dtl-node:hover{background:#f7f9fc}
+.dtl-node-dot{width:9px;height:9px;border-radius:50%;background:#d8dde5;flex-shrink:0;z-index:1;
+  box-shadow:0 0 0 3px #fff;transition:background .15s,box-shadow .15s}
+.dtl-node.active{color:#111827;font-weight:700;background:#f7f9fc}
+.dtl-node.active .dtl-node-dot{background:#2563eb;box-shadow:0 0 0 3px rgba(37,99,235,.16)}
+.dtl-node-label{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dtl-node-unread{background:#ffe9ee;color:#e11d48;font-size:11px;font-weight:600;
+  border-radius:999px;padding:1px 7px;flex-shrink:0;line-height:16px}
+.dtl-node-count{margin-left:auto;font-size:12px;color:#9ca3af;font-variant-numeric:tabular-nums;flex-shrink:0}
+.dtl-pane{overflow-y:auto;padding:20px 28px 16px;background:#fff}
+.dtl-pane::-webkit-scrollbar{width:6px}
+.dtl-pane::-webkit-scrollbar-thumb{background:#d3d9e2;border-radius:999px}
+.dtl-pane::-webkit-scrollbar-track{background:transparent}
+.dtl-pane-head{display:flex;align-items:baseline;gap:10px;padding:0 0 14px}
 .dtl-month-label{font-size:16px;font-weight:800;color:#111827;background:transparent;border-radius:0;padding:0;letter-spacing:.2px}
 .dtl-month-count{font-size:12px;color:#9ca3af}
-.dtl-item{position:relative;padding-left:0;margin-bottom:0;padding:22px 0}
+.dtl-item{position:relative;padding-left:0;margin-bottom:0;padding:20px 0}
 .dtl-item + .dtl-item{border-top:1px solid #f1f3f6}
 .dtl-item:last-child{padding-bottom:8px}
 /* 【2026-09-20】记录小布局：左元信息栏(定宽) + 右内容区，元素各归其位 */
@@ -695,7 +722,14 @@ onBeforeUnmount(()=>window.removeEventListener('keydown',onPreviewKeydown))
 .dtl-score{margin:6px 0 0;font-size:19px;font-weight:800;border-radius:0;padding:0;border:none;
   font-variant-numeric:tabular-nums;letter-spacing:-.3px}
 .dtl-entry-body{min-width:0;display:flex;flex-direction:column}
-@media (max-width: 760px){.dtl-entry{grid-template-columns:1fr}.dtl-entry-meta{flex-direction:row;flex-wrap:wrap;align-items:baseline;gap:6px 14px}}
+@media (max-width: 760px){
+  .dtl-body{grid-template-columns:1fr}
+  .dtl-rail{display:flex;overflow-x:auto;border-right:none;border-bottom:1px solid #eef0f3;padding:8px 12px}
+  .dtl-rail::before{display:none}
+  .dtl-node{flex-shrink:0;padding:6px 10px}
+  .dtl-entry{grid-template-columns:1fr}
+  .dtl-entry-meta{flex-direction:row;flex-wrap:wrap;align-items:baseline;gap:6px 14px}
+}
 
 /* 元信息：静默文字行（无底色药丸），标签灰、值深 */
 .dtl-upload-chips{display:flex;flex-wrap:wrap;gap:6px 20px;margin-bottom:12px}
