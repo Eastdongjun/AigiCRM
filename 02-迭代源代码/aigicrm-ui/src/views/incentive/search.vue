@@ -166,6 +166,8 @@
             <div class="dtl-hero-tags">
               <span v-if="detailCust.industry" class="dtl-pill blue">{{ detailCust.industry }}</span>
               <span class="dtl-pill grey">最近更新 {{ lastUpdateText }}</span>
+              <!-- 【2026-09-20】未读提醒(与小程序同口径):滚动看到的记录即时转已读 -->
+              <span v-if="unreadCount" class="dtl-pill red">{{ unreadCount }} 条未读</span>
             </div>
           </div>
           <div class="dtl-metrics">
@@ -209,14 +211,15 @@
               <span class="dtl-month-label">{{ group.label }}</span>
               <span class="dtl-month-count">{{ group.count }} 条</span>
             </div>
-            <div v-for="r in group.items" :key="r.id" class="dtl-item">
-              <!-- 记录小布局：左元信息栏(日期/品类/得分) + 右内容区(元信息/正文/附件) -->
+            <div v-for="r in group.items" :key="r.id" class="dtl-item" :data-id="r.id">
+              <!-- 记录小布局：左元信息栏(日期/已读/品类/得分) + 右内容区(元信息/正文/附件) -->
               <div class="dtl-entry">
                 <div class="dtl-entry-meta">
                   <div class="dtl-date-block">
                     <span class="dtl-date-day">{{ fmtDay(r.createdAt) }}</span>
                     <span class="dtl-date-time">{{ fmtTime(r.createdAt) }}<template v-if="relativeDay(r.createdAt)"> · {{ relativeDay(r.createdAt) }}</template></span>
                   </div>
+                  <span class="dtl-read" :class="r.unread ? 'unread' : 'read'"><i></i>{{ r.unread ? '未读' : '已读' }}</span>
                   <span class="rec-tag" :class="'rec-tag-'+getCls(r)">{{ getMain(r) }}</span>
                   <span class="dtl-subcat">{{ r.categoryName }}</span>
                   <span class="dtl-score" :style="{ color: scoreColor(getCls(r)) }">+{{ r.score }} 分</span>
@@ -292,7 +295,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, nextTick, watch } from 'vue'
 import { getActivePinia } from 'pinia'
 import { getCategoryTree, markIncentiveRead } from '@/api/incentive'
 import { isCurrentMonth, sortByScore } from '@/utils/incentive-read'
@@ -374,12 +377,36 @@ function downloadPreview(){ const f=previewCurrent.value; if(f) downloadFile(f.i
 async function showDetail(c){
   detailCust.value=c;detailVisible.value=true
   detailKeyword.value='';detailOrder.value='desc' // 换客户详情即复位检索与方向
-  const ids=(c.records||[]).map(r=>r.id).filter(Boolean)
-  if(ids.length){
-    await Promise.all(ids.map(id=>markIncentiveRead(id).catch(()=>null)))
-    c.unread=false
-    c.records.forEach(r=>{r.unread=false})
-  }
+  // 【2026-09-20】已读/未读与小程序同逻辑：不再打开即全标已读，
+  // 记录滚动进入视野时逐条标记（乐观更新+失败回滚），未读数实时反映在概览胶囊上
+  await nextTick()
+  setupReadObserver()
+}
+const unreadCount = computed(() => (detailCust.value?.records || []).filter(r => r.unread).length)
+
+// 视野即读：IntersectionObserver 监听时间轴内每条记录，进入视野 40% 即调用已读接口
+let readObserver = null
+function setupReadObserver(){
+  destroyReadObserver()
+  const wrap = document.querySelector('.detail-dlg .dtl-timeline')
+  if (!wrap || typeof IntersectionObserver === 'undefined') return
+  readObserver = new IntersectionObserver((entries) => {
+    for (const en of entries) {
+      if (!en.isIntersecting) continue
+      readObserver.unobserve(en.target)
+      markVisibleRead(Number(en.target.dataset.id))
+    }
+  }, { root: wrap, threshold: 0.4 })
+  wrap.querySelectorAll('.dtl-item[data-id]').forEach(el => readObserver.observe(el))
+}
+function destroyReadObserver(){ if (readObserver) { readObserver.disconnect(); readObserver = null } }
+function markVisibleRead(id){
+  const c = detailCust.value
+  const rec = c && (c.records || []).find(r => Number(r.id) === id)
+  if (!rec || !rec.unread) return
+  rec.unread = false                                  // 乐观更新（与小程序 markRead 同口径）
+  c.unread = (c.records || []).some(r => r.unread)
+  markIncentiveRead(id).catch(() => { rec.unread = true; c.unread = true })  // 失败回滚
 }
 
 function parseIds(v){if(!v)return[];if(typeof v==='number')return[v];try{const a=JSON.parse(v);return Array.isArray(a)?a.map(x=>Number(x)):[v]}catch{return String(v).split(',').map(s=>s.trim()).filter(Boolean)}}
@@ -445,6 +472,10 @@ async function loadOrgs(){try{const res=await cachedGet('depts',()=>request.get(
 // 【2026-09-20 详情工具条】记录检索 + 时间轴方向；打开新客户详情时自动复位
 const detailKeyword = ref('')
 const detailOrder = ref('desc')
+// 搜索/换向会重建记录节点，需要重新挂监听；关弹窗/卸载时清理
+watch([detailKeyword, detailOrder], () => { if (detailVisible.value) nextTick(setupReadObserver) })
+watch(detailVisible, (v) => { if (!v) destroyReadObserver() })
+onBeforeUnmount(destroyReadObserver)
 const filteredRecords = computed(() => filterRecordsByMonthSafe())
 const recordsByMonth=computed(()=>groupRecordsByMonth(filteredRecords.value, detailOrder.value))
 const recordTotal=computed(()=>detailCust.value?.records?.length||0)
@@ -481,7 +512,7 @@ onBeforeUnmount(()=>window.removeEventListener('keydown',onPreviewKeydown))
 .cnt{display:flex;align-items:center;gap:4px;font-size:13px;color:#409eff;font-weight:600;white-space:nowrap;margin-left:auto}
 
 /* 客户卡：白容器内的中性浅灰瓦片，悬浮抬升变白 */
-.card{background:#f2f4f7;border:none;border-radius:12px;overflow:hidden;display:flex;flex-direction:column;transition:background .18s,box-shadow .18s,transform .18s}
+.card{background:#f2f4f7;border:none;border-radius:12px;overflow:hidden;display:flex;flex-direction:column;min-height:264px;transition:background .18s,box-shadow .18s,transform .18s}
 .card:hover{background:#fff;box-shadow:0 8px 22px rgba(16,24,40,.09);transform:translateY(-2px)}
 .card-hd{padding:16px 18px 12px;display:flex;align-items:flex-start;gap:6px 8px;flex-wrap:wrap}
 /* 【2026-09-20】客户名完整显示：独占整行(basis 100%)，最多两行，标签换行到名下不再挤占宽度 */
@@ -493,16 +524,16 @@ onBeforeUnmount(()=>window.removeEventListener('keydown',onPreviewKeydown))
 .card-meta{display:flex;align-items:center;gap:6px;margin-bottom:10px;flex-wrap:wrap;font-size:13px}
 .card-sub{color:#555}.card-info{color:#999;font-size:12px}
 .card-pts{margin-left:auto;font-weight:600;font-size:15px}
-.card-imgs{display:flex;gap:8px;flex-wrap:wrap}
-.card-img{flex:1;min-width:90px;max-width:calc(50% - 4px)}
+.card-imgs{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.card-img{width:100%;min-width:0}
 .img-wrap{position:relative;border:none;border-radius:8px;overflow:hidden}
 .img-tag{position:absolute;top:0;left:50%;transform:translateX(-50%);font-size:10px;color:#999;background:rgba(255,255,255,.85);padding:2px 8px;border-radius:0 0 4px 4px;white-space:nowrap;z-index:1}
-.card-img img{width:100%;aspect-ratio:4/3;object-fit:cover;cursor:pointer;transition:transform .3s;display:block}
+.card-img img{width:100%;aspect-ratio:1/1;object-fit:cover;cursor:pointer;transition:transform .3s;display:block;border-radius:6px}
 .card-img img:hover{transform:scale(1.06)}
-.img-vid{width:100%;aspect-ratio:4/3;background:linear-gradient(135deg,#1a1a2e,#2d2d44);border-radius:6px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:24px;cursor:pointer;position:relative;overflow:hidden}
+.img-vid{width:100%;aspect-ratio:1/1;background:linear-gradient(135deg,#1a1a2e,#2d2d44);border-radius:6px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:24px;cursor:pointer;position:relative;overflow:hidden}
 .vid-overlay{width:48px;height:48px;border-radius:50%;background:rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px);transition:transform .2s}
 .img-vid:hover .vid-overlay{transform:scale(1.1)}
-.img-doc{width:100%;aspect-ratio:4/3;background:#eef0f4;border:none;border-radius:8px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;cursor:pointer;color:#9aa3ad;transition:all .15s}
+.img-doc{width:100%;aspect-ratio:1/1;background:#eef0f4;border:none;border-radius:8px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;cursor:pointer;color:#9aa3ad;transition:all .15s}
 .img-doc:hover{background:#e3ecf7;color:#409eff}
 .doc-name{font-size:10px;max-width:80px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:center}
 .card-ft{text-align:center;padding:11px;border-top:none;margin-top:auto;font-size:13px;color:#409eff;cursor:pointer;font-weight:600}
@@ -579,12 +610,12 @@ onBeforeUnmount(()=>window.removeEventListener('keydown',onPreviewKeydown))
 /* ===== 激励查询「查看详情」弹窗（2026-09-20 高级感重设计：灰画布 + 白浮层卡 + 静默元信息） ===== */
 .detail-dlg :deep(.el-dialog){border-radius:20px;overflow:hidden;box-shadow:0 24px 64px rgba(15,23,42,.22)}
 .detail-dlg :deep(.el-dialog__header){display:none}
-.detail-dlg :deep(.el-dialog__body){padding:0;background:#eef1f5}
-.dtl-wrap{max-width:1000px;margin:0 auto;background:transparent;display:flex;flex-direction:column;max-height:92vh}
+.detail-dlg :deep(.el-dialog__body){padding:0;background:#fff}
+.dtl-wrap{max-width:1000px;margin:0 auto;background:#fff;display:flex;flex-direction:column;max-height:92vh}
 
 /* 吸顶操作条 */
-.dtl-bar{position:sticky;top:0;z-index:6;display:flex;align-items:center;gap:12px;padding:12px 24px;
-  background:rgba(255,255,255,.92);backdrop-filter:blur(10px)}
+.dtl-bar{position:sticky;top:0;z-index:6;display:flex;align-items:center;gap:12px;padding:12px 28px;
+  background:rgba(255,255,255,.94);backdrop-filter:blur(10px);border-bottom:1px solid #eef0f3}
 .dtl-back{font-size:13px;color:#4e5969;cursor:pointer;display:inline-flex;align-items:center;gap:4px;
   padding:4px 10px;border-radius:8px;transition:all .15s;flex-shrink:0}
 .dtl-back:hover{color:#409eff;background:#ecf5ff}
@@ -595,8 +626,8 @@ onBeforeUnmount(()=>window.removeEventListener('keydown',onPreviewKeydown))
 .dtl-bar-pts b{font-size:15px;color:#409eff;margin-right:2px}
 
 /* 客户概览：白浮层卡，排版即层级 */
-.dtl-hero{display:flex;align-items:center;gap:18px;margin:16px 24px 0;padding:22px 26px;
-  background:#fff;border-radius:18px;box-shadow:0 1px 2px rgba(16,24,40,.04),0 8px 24px rgba(16,24,40,.05)}
+.dtl-hero{display:flex;align-items:center;gap:18px;margin:0;padding:22px 28px 20px;
+  background:#fff;border-bottom:1px solid #eef0f3}
 .dtl-avatar{width:56px;height:56px;border-radius:18px;flex-shrink:0;color:#fff;font-size:23px;font-weight:700;
   display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#4d9fff,#2563eb);
   box-shadow:0 8px 20px rgba(37,99,235,.28)}
@@ -608,6 +639,7 @@ onBeforeUnmount(()=>window.removeEventListener('keydown',onPreviewKeydown))
 .dtl-pill.blue{color:#1d6fd0;background:#e8f2ff;border-color:transparent}
 .dtl-pill.green{color:#0d7a4a;background:#e7f8ef;border-color:transparent}
 .dtl-pill.grey{color:#6b7280;background:#f4f5f7;border-color:transparent}
+.dtl-pill.red{color:#e11d48;background:#ffe9ee;border-color:transparent}
 .dtl-metrics{display:flex;align-items:stretch;gap:0;flex-shrink:0;background:transparent;
   border-radius:16px;padding:0}
 .dtl-metric{padding:6px 22px;text-align:center;min-width:92px;border-radius:12px}
@@ -617,8 +649,8 @@ onBeforeUnmount(()=>window.removeEventListener('keydown',onPreviewKeydown))
 .dtl-metric-label{font-size:11px;color:#9ca3af;margin-top:5px;letter-spacing:1px}
 
 /* 【2026-09-20】详情工具条：灰画布上的白色工具胶囊（搜索 + 时间方向切换 + 命中计数） */
-.dtl-toolbar{display:flex;align-items:center;gap:10px;margin:14px 24px 0;padding:8px 12px;flex-wrap:wrap;
-  background:#fff;border-radius:14px;box-shadow:0 1px 2px rgba(16,24,40,.04),0 6px 18px rgba(16,24,40,.05)}
+.dtl-toolbar{display:flex;align-items:center;gap:10px;margin:0;padding:12px 28px;flex-wrap:wrap;
+  background:#fff;border-bottom:1px solid #eef0f3}
 .dtl-toolbar-search{width:280px}
 .dtl-toolbar-hit{font-size:12px;color:#9ca3af;white-space:nowrap}
 /* 方向切换统一成分段控件（无描边软填充，选中深底白字），与整页"去线条"语言一致 */
@@ -629,24 +661,32 @@ onBeforeUnmount(()=>window.removeEventListener('keydown',onPreviewKeydown))
 .dtl-toolbar :deep(.el-radio-button:last-child .el-radio-button__inner){border-radius:0 8px 8px 0}
 
 /* 【2026-09-20】一客一卡：时间轴本身是唯一的白色大卡，滚动容器在卡内 */
-.dtl-timeline{position:relative;flex:1;min-height:0;margin:14px 24px 18px;padding:8px 26px 16px;
-  background:#fff;border-radius:18px;overflow-y:auto;
-  box-shadow:0 1px 2px rgba(16,24,40,.04),0 8px 24px rgba(16,24,40,.05)}
+.dtl-timeline{position:relative;flex:1;min-height:0;margin:0;padding:4px 28px 16px;
+  background:#fff;overflow-y:auto}
 .dtl-timeline::-webkit-scrollbar{width:6px}
 .dtl-timeline::-webkit-scrollbar-thumb{background:#d3d9e2;border-radius:999px}
 .dtl-timeline::-webkit-scrollbar-track{background:transparent}
 .dtl-month{position:relative;padding-left:0;margin-bottom:4px}
-.dtl-month-head{display:flex;align-items:baseline;gap:10px;padding:18px 0 10px}
+.dtl-month + .dtl-month{border-top:1px solid #eef0f3}
+.dtl-month-head{display:flex;align-items:baseline;gap:10px;padding:20px 0 12px}
 .dtl-month-label{font-size:16px;font-weight:800;color:#111827;background:transparent;border-radius:0;padding:0;letter-spacing:.2px}
 .dtl-month-count{font-size:12px;color:#9ca3af}
-.dtl-item{position:relative;padding-left:0;margin-bottom:28px}
-.dtl-item:last-child{margin-bottom:6px}
+.dtl-item{position:relative;padding-left:0;margin-bottom:0;padding:22px 0}
+.dtl-item + .dtl-item{border-top:1px solid #f1f3f6}
+.dtl-item:last-child{padding-bottom:8px}
 /* 【2026-09-20】记录小布局：左元信息栏(定宽) + 右内容区，元素各归其位 */
 .dtl-entry{display:grid;grid-template-columns:176px minmax(0,1fr);gap:6px 28px;align-items:start}
 .dtl-entry-meta{display:flex;flex-direction:column;align-items:flex-start;gap:8px;padding-top:2px}
 .dtl-date-block{display:flex;flex-direction:column;gap:2px;margin-bottom:2px}
 .dtl-date-day{font-size:15.5px;font-weight:800;color:#111827;font-variant-numeric:tabular-nums;letter-spacing:.2px}
 .dtl-date-time{font-size:12px;color:#9ca3af;font-variant-numeric:tabular-nums}
+/* 【2026-09-20】已读/未读状态(与小程序同口径): 未读红点醒目, 已读弱化为浅灰 */
+.dtl-read{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:600;line-height:1}
+.dtl-read i{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.dtl-read.unread{color:#e11d48}
+.dtl-read.unread i{background:#e11d48;box-shadow:0 0 0 3px rgba(225,29,72,.12)}
+.dtl-read.read{color:#c0c6cf}
+.dtl-read.read i{background:#dde2e9;box-shadow:none}
 .dtl-subcat{font-size:12.5px;color:#6b7280}
 /* 品类标签：去药丸底色，改为色点 + 中性文字 */
 .dtl-entry-meta .rec-tag{background:transparent;padding:0;font-size:13px;font-weight:600}
@@ -676,7 +716,8 @@ onBeforeUnmount(()=>window.removeEventListener('keydown',onPreviewKeydown))
    2026-09-13 修复：本轮给分页器补了「每页条数」下拉与跳页输入（layout 变宽）时，
    误删了 .search-pager / .search-pager-count 两条样式 ⇒ 容器退化成 block、无内边距，
    计数文案与分页器塌成两行并贴边。这里按现有口径补回并加上换行保护。 */
-.search-pager{display:flex;align-items:center;flex-wrap:wrap;gap:12px;padding:8px 20px 16px}
+.search-pager{display:flex;align-items:center;flex-wrap:wrap;gap:12px;padding:10px 20px 14px;
+  border-top:1px solid #eef0f3;margin:0 20px}  /* 【2026-09-20】详情卡区与分页区的浅色分割线 */
 .search-pager-count{font-size:13px;color:#606266;white-space:nowrap;margin-right:auto}
 .search-pager-count b{color:#409eff;font-weight:700;margin:0 2px}
 .search-pager .el-pagination{flex-shrink:0}
@@ -704,7 +745,7 @@ onBeforeUnmount(()=>window.removeEventListener('keydown',onPreviewKeydown))
 .dtl-img-wrap:hover .dtl-file-acts{opacity:1}
 
 /* 底部操作条：画布上透明收尾 */
-.dtl-footer{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 28px 18px;
-  background:transparent;backdrop-filter:none;position:sticky;bottom:0}
+.dtl-footer{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 28px 16px;
+  background:rgba(255,255,255,.94);backdrop-filter:blur(10px);border-top:1px solid #eef0f3;position:sticky;bottom:0}
 .dtl-footer-hint{font-size:12px;color:#9ca3af}
 </style>
