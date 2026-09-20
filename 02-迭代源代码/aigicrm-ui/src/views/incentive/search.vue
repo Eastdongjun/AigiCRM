@@ -147,7 +147,7 @@
       </div>
     </el-dialog>
 
-    <el-dialog v-model="detailVisible" width="1080px" top="4vh" :close-on-click-modal="true" destroy-on-close class="detail-dlg">
+    <el-dialog v-model="detailVisible" width="1320px" top="3vh" :close-on-click-modal="true" destroy-on-close class="detail-dlg">
       <template #header></template>
       <div class="dtl-wrap" v-if="detailCust">
         <!-- 吸顶操作条：长明细滚动时仍能看到客户与返回入口 -->
@@ -215,33 +215,52 @@
               <span class="dtl-month-count">{{ activeGroup.count }} 条</span>
             </div>
             <div v-for="r in activeGroup.items" :key="r.id" class="dtl-item" :data-id="r.id">
-              <!-- 记录小布局：左元信息栏(日期/已读/品类/得分) + 右内容区(元信息/正文/附件) -->
-              <div class="dtl-entry">
-                <div class="dtl-entry-meta">
-                  <div class="dtl-date-block">
-                    <span class="dtl-date-day">{{ fmtDay(r.createdAt) }}</span>
-                    <span class="dtl-date-time">{{ fmtTime(r.createdAt) }}<template v-if="relativeDay(r.createdAt)"> · {{ relativeDay(r.createdAt) }}</template></span>
+              <!-- 每个元素独立成块：信息瓦片(时间/阶段/得分/上传人/周期/行业/产品) + 宽块(详情正文/安装备注/附件凭证) -->
+              <div class="dtl-ecard">
+                <div class="dtl-etiles">
+                  <div class="dtl-etile time">
+                    <span class="dtl-etile-label">时间<em v-if="r.unread" class="dtl-unread-tag">未读</em></span>
+                    <span class="dtl-etile-value">{{ fmtDay(r.createdAt) }}</span>
+                    <span class="dtl-etile-sub">{{ fmtTime(r.createdAt) }}<template v-if="relativeDay(r.createdAt)"> · {{ relativeDay(r.createdAt) }}</template></span>
                   </div>
-                  <span class="dtl-read" :class="r.unread ? 'unread' : 'read'"><i></i>{{ r.unread ? '未读' : '已读' }}</span>
-                  <span class="rec-tag" :class="'rec-tag-'+getCls(r)">{{ getMain(r) }}</span>
-                  <span class="dtl-subcat">{{ r.categoryName }}</span>
-                  <span class="dtl-score" :style="{ color: scoreColor(getCls(r)) }">+{{ r.score }} 分</span>
+                  <div class="dtl-etile stage">
+                    <span class="dtl-etile-label">阶段</span>
+                    <span class="dtl-etile-value"><i class="dtl-stage-dot" :style="{ background: scoreColor(getCls(r)) }"></i>{{ getMain(r) }}</span>
+                    <span class="dtl-etile-sub">{{ r.categoryName }}</span>
+                  </div>
+                  <div class="dtl-etile score">
+                    <span class="dtl-etile-label">得分</span>
+                    <span class="dtl-etile-value dtl-score" :style="{ color: scoreColor(getCls(r)) }">+{{ r.score }} 分</span>
+                    <span class="dtl-etile-sub">品类积分</span>
+                  </div>
+                  <div class="dtl-etile">
+                    <span class="dtl-etile-label">上传人</span>
+                    <span class="dtl-etile-value">{{ r.userName }}</span>
+                  </div>
+                  <div class="dtl-etile" v-if="r.period">
+                    <span class="dtl-etile-label">周期</span>
+                    <span class="dtl-etile-value">{{ r.period }}</span>
+                  </div>
+                  <div class="dtl-etile" v-if="r.industry">
+                    <span class="dtl-etile-label">行业</span>
+                    <span class="dtl-etile-value">{{ r.industry }}</span>
+                  </div>
+                  <div class="dtl-etile" v-if="r.relatedProducts">
+                    <span class="dtl-etile-label">相关产品</span>
+                    <span class="dtl-etile-value">{{ r.relatedProducts }}</span>
+                  </div>
+                  <div class="dtl-etile" v-if="r.specificProduct">
+                    <span class="dtl-etile-label">具体产品</span>
+                    <span class="dtl-etile-value">{{ r.specificProduct }}</span>
+                  </div>
                 </div>
-                <div class="dtl-entry-body">
-                <div class="dtl-upload-chips">
-                  <span class="dtl-chip" v-if="r.industry"><i>行业</i>{{ r.industry }}</span>
-                  <span class="dtl-chip" v-if="r.relatedProducts"><i>相关产品</i>{{ r.relatedProducts }}</span>
-                  <span class="dtl-chip" v-if="r.specificProduct"><i>具体产品</i>{{ r.specificProduct }}</span>
-                  <span class="dtl-chip"><i>上传人</i>{{ r.userName }}</span>
-                  <span class="dtl-chip" v-if="r.period"><i>周期</i>{{ r.period }}</span>
+                <div v-if="r.preInstallQuestion" class="dtl-eblock">
+                  <div class="dtl-eblock-label"><el-icon style="vertical-align:-2px;margin-right:4px"><Notebook /></el-icon>{{ detailLabelOf(r) }}</div>
+                  <div class="dtl-eblock-text">{{ r.preInstallQuestion }}</div>
                 </div>
-                <div v-if="r.preInstallQuestion" class="dtl-field desc">
-                  <div class="dtl-field-label"><el-icon style="vertical-align:-2px;margin-right:4px"><Notebook /></el-icon>{{ detailLabelOf(r) }}</div>
-                  <div class="dtl-field-text">{{ r.preInstallQuestion }}</div>
-                </div>
-                <div v-if="r.remark && isTrialRec(r)" class="dtl-field remark">
-                  <div class="dtl-field-label"><el-icon style="vertical-align:-2px;margin-right:4px"><Warning /></el-icon>{{ r.categoryName }}安装备注</div>
-                  <div class="dtl-field-text">{{ r.remark }}</div>
+                <div v-if="r.remark && isTrialRec(r)" class="dtl-eblock remark">
+                  <div class="dtl-eblock-label"><el-icon style="vertical-align:-2px;margin-right:4px"><Warning /></el-icon>{{ r.categoryName }}安装备注</div>
+                  <div class="dtl-eblock-text">{{ r.remark }}</div>
                 </div>
                 <div v-if="getFiles(r).length" class="dtl-files">
                   <div v-for="f in getFiles(r)" :key="f.id" class="dtl-file">
@@ -278,8 +297,7 @@
                     </div>
                   </div>
                 </div>
-                </div><!-- /dtl-entry-body -->
-              </div><!-- /dtl-entry -->
+              </div><!-- /dtl-ecard -->
             </div>
           </section>
         </div>
@@ -624,7 +642,7 @@ onBeforeUnmount(()=>window.removeEventListener('keydown',onPreviewKeydown))
 .detail-dlg :deep(.el-dialog){border-radius:20px;overflow:hidden;box-shadow:0 24px 64px rgba(15,23,42,.22)}
 .detail-dlg :deep(.el-dialog__header){display:none}
 .detail-dlg :deep(.el-dialog__body){padding:0;background:#f5f7fa}
-.dtl-wrap{max-width:1000px;margin:0 auto;background:transparent;display:flex;flex-direction:column;max-height:92vh}
+.dtl-wrap{max-width:1280px;margin:0 auto;background:transparent;display:flex;flex-direction:column;max-height:92vh}
 
 /* 吸顶操作条 */
 .dtl-bar{position:sticky;top:0;z-index:6;display:flex;align-items:center;gap:12px;padding:12px 28px;
@@ -700,61 +718,49 @@ onBeforeUnmount(()=>window.removeEventListener('keydown',onPreviewKeydown))
 .dtl-node-sub{font-size:11px;color:#6b7280;white-space:nowrap}
 .dtl-node-unread{color:#e11d48;font-weight:600;margin-right:6px}
 .dtl-node-count{margin-left:auto;font-size:12px;color:#6b7280;font-variant-numeric:tabular-nums;flex-shrink:0}
-.dtl-pane{overflow-y:auto;padding:18px 24px 14px;background:#fff;border:1px solid #e5e9f0;border-radius:14px;
-  box-shadow:0 1px 2px rgba(16,24,40,.03),0 6px 18px rgba(16,24,40,.05)}
+.dtl-pane{overflow-y:auto;padding:0 4px 4px}
 .dtl-pane::-webkit-scrollbar{width:6px}
 .dtl-pane::-webkit-scrollbar-thumb{background:#d3d9e2;border-radius:999px}
 .dtl-pane::-webkit-scrollbar-track{background:transparent}
-.dtl-pane-head{display:flex;align-items:baseline;gap:10px;padding:0 0 14px}
+.dtl-pane-head{display:flex;align-items:baseline;gap:10px;padding:6px 4px 12px}
+.dtl-pane::-webkit-scrollbar{width:6px}
+.dtl-pane::-webkit-scrollbar-thumb{background:#d3d9e2;border-radius:999px}
+.dtl-pane::-webkit-scrollbar-track{background:transparent}
+
 .dtl-month-label{font-size:16px;font-weight:800;color:#111827;background:transparent;border-radius:0;padding:0;letter-spacing:.2px}
 .dtl-month-count{font-size:12px;color:#6b7280}
-.dtl-item{position:relative;padding-left:0;margin-bottom:0;padding:20px 0}
-.dtl-item + .dtl-item{border-top:1px solid #f1f3f6}
-.dtl-item:last-child{padding-bottom:8px}
-/* 【2026-09-20】记录小布局：左元信息栏(定宽) + 右内容区，元素各归其位 */
-.dtl-entry{display:grid;grid-template-columns:176px minmax(0,1fr);gap:6px 28px;align-items:start}
-.dtl-entry-meta{display:flex;flex-direction:column;align-items:flex-start;gap:8px;padding-top:2px}
-.dtl-date-block{display:flex;flex-direction:column;gap:2px;margin-bottom:2px}
-.dtl-date-day{font-size:15.5px;font-weight:800;color:#111827;font-variant-numeric:tabular-nums;letter-spacing:.2px}
-.dtl-date-time{font-size:12px;color:#6b7280;font-variant-numeric:tabular-nums}
-/* 【2026-09-20】已读/未读状态(与小程序同口径): 未读红点醒目, 已读弱化为浅灰 */
-.dtl-read{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:600;line-height:1}
-.dtl-read i{width:7px;height:7px;border-radius:50%;flex-shrink:0}
-.dtl-read.unread{color:#e11d48}
-.dtl-read.unread i{background:#e11d48;box-shadow:0 0 0 3px rgba(225,29,72,.12)}
-.dtl-read.read{color:#6b7280}
-.dtl-read.read i{background:#dde2e9;box-shadow:none}
-.dtl-subcat{font-size:12.5px;color:#6b7280}
-/* 品类标签：去药丸底色，改为色点 + 中性文字 */
-.dtl-entry-meta .rec-tag{background:transparent;padding:0;font-size:13px;font-weight:600}
-.dtl-entry-meta .rec-tag::before{content:'';display:inline-block;width:7px;height:7px;border-radius:50%;
-  margin-right:6px;background:currentColor;vertical-align:1px}
-.dtl-score{margin:6px 0 0;font-size:19px;font-weight:800;border-radius:0;padding:0;border:none;
-  font-variant-numeric:tabular-nums;letter-spacing:-.3px}
-.dtl-entry-body{min-width:0;display:flex;flex-direction:column}
+.dtl-item{position:relative;margin-bottom:14px}
+.dtl-item:last-child{margin-bottom:4px}
+/* 【2026-09-20 深夜V】每个元素独立成块：信息瓦片网格 + 宽块，整条记录一张独立定义卡 */
+.dtl-ecard{background:#fff;border:1px solid #e5e9f0;border-radius:14px;padding:16px 18px;
+  box-shadow:0 1px 2px rgba(16,24,40,.03),0 6px 18px rgba(16,24,40,.05);
+  display:flex;flex-direction:column;gap:12px}
+.dtl-etiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+.dtl-etile{background:#f7f9fc;border:1px solid #e8edf5;border-radius:10px;padding:10px 14px;
+  display:flex;flex-direction:column;gap:3px;min-width:0}
+.dtl-etile-label{font-size:11px;color:#6b7280;letter-spacing:1.5px;display:flex;align-items:center;gap:6px}
+.dtl-etile-value{font-size:15px;font-weight:700;color:#111827;line-height:1.35;min-width:0;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dtl-etile-sub{font-size:12px;color:#6b7280;font-variant-numeric:tabular-nums}
+.dtl-etile.score{background:#eff4fe;border-color:#dbe6fb}
+.dtl-etile.score .dtl-etile-value{font-size:19px;font-weight:800;letter-spacing:-.3px;font-variant-numeric:tabular-nums}
+.dtl-etile.time .dtl-etile-value{font-size:16px;font-weight:800;font-variant-numeric:tabular-nums}
+.dtl-stage-dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:7px;vertical-align:0}
+.dtl-unread-tag{font-style:normal;font-size:10px;font-weight:700;color:#e11d48;background:#ffe9ee;
+  border-radius:999px;padding:1px 7px;margin-left:auto;letter-spacing:0}
+.dtl-eblock{background:#f7f9fc;border:1px solid #e8edf5;border-radius:10px;padding:12px 16px}
+.dtl-eblock.remark{background:#fffaf2;border-color:#f3e4c8}
+.dtl-eblock-label{font-size:12px;font-weight:600;color:#4b5563;margin-bottom:6px;letter-spacing:1px}
+.dtl-eblock.remark .dtl-eblock-label{color:#a16207}
+.dtl-eblock-text{font-size:14.5px;color:#1f2937;line-height:1.85;white-space:pre-wrap;word-break:break-word}
 @media (max-width: 760px){
   .dtl-body{grid-template-columns:1fr}
   .dtl-rail{display:flex;overflow-x:auto;border-right:none;border-bottom:1px solid #eef0f3;padding:8px 12px}
   .dtl-rail::before{display:none}
   .dtl-node{flex-shrink:0;padding:6px 10px}
-  .dtl-entry{grid-template-columns:1fr}
-  .dtl-entry-meta{flex-direction:row;flex-wrap:wrap;align-items:baseline;gap:6px 14px}
 }
 
-/* 元信息：静默文字行（无底色药丸），标签灰、值深 */
-.dtl-upload-chips{display:flex;flex-wrap:wrap;gap:6px 20px;margin-bottom:12px}
-.dtl-chip{display:inline-flex;align-items:baseline;gap:5px;font-size:13px;color:#374151;
-  background:transparent;border-radius:0;padding:0}
-.dtl-chip i{font-style:normal;font-size:11.5px;color:#6b7280;letter-spacing:.5px}
-/* 正文块：无底色盒，小标签 + 大正文，靠字号层级而不是色块 */
-.dtl-field{margin-bottom:12px;padding:0;background:transparent;border-radius:0}
-.dtl-field.desc{background:transparent;border-radius:0;padding:0}
-.dtl-field.desc .dtl-field-label{color:#6b7280;font-size:12px;font-weight:600;letter-spacing:1px}
-.dtl-field.remark{background:transparent;padding:0}
-.dtl-field.remark .dtl-field-label{color:#b45309}
-.dtl-field-label{font-size:12px;color:#6b7280;margin-bottom:6px;letter-spacing:1px}
-.dtl-field-text{font-size:14.5px;color:#1f2937;line-height:1.85;white-space:pre-wrap;word-break:break-word;
-  min-height:54px}
+
 
 /* 底部翻页区：计数在左、分页器在右，窄屏自动换行（与 reminder 的 .rem-pager 同口径）
    2026-09-13 修复：本轮给分页器补了「每页条数」下拉与跳页输入（layout 变宽）时，
@@ -767,8 +773,7 @@ onBeforeUnmount(()=>window.removeEventListener('keydown',onPreviewKeydown))
 .search-pager .el-pagination{flex-shrink:0}
 
 /* 附件网格：16:9 瓦片压缩高度，避免失败占位时空洞感；网格保底一行的 */
-.dtl-files{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px;margin-top:auto;
-  padding-top:12px;min-height:128px}
+.dtl-files{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px;min-height:128px}
 .dtl-file{min-width:0}
 .dtl-file-meta{display:flex;align-items:center;gap:8px;margin-top:6px}
 .dtl-img-wrap{position:relative;border-radius:12px;overflow:hidden;background:#f2f4f8}
