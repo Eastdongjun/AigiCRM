@@ -213,15 +213,22 @@
         <div v-if="recordsByMonth.length" class="dtl-body">
           <!-- 左栏：iOS 日期选择器式三联拨盘(年/月/日)——各自吸附居中、拨动联动级联，右侧内容跟随 -->
           <aside class="dtl-dial">
+            <!-- 实时时间：每秒跳动的时钟 + 回到今天 -->
+            <div class="dtl-dial-now">
+              <span class="dtl-dial-now-date">{{ nowDateText }}</span>
+              <span class="dtl-dial-now-time">{{ nowTimeText }}</span>
+              <span class="dtl-dial-today" @click="goToday">回到今天</span>
+            </div>
+            <div class="dtl-dial-cols">
             <div class="dtl-dial-band"></div>
             <div class="dtl-dial-col">
               <div class="dtl-dial-scroll" :ref="el => (dialEls.year.value = el)" @scroll="onDialScroll('year')">
-                <div v-for="y in dialYears" :key="y" class="dtl-dial-item" :class="{active: y===selYear, dim: !dialYearHas(y)}" :data-key="y" @click="dialPick('year', y)">{{ y }}</div>
+                <div v-for="y in dialYears" :key="y" class="dtl-dial-item" :class="{active: y===selYear, dim: !dialYearHas(y), today: y===todayY}" :data-key="y" @click="dialPick('year', y)">{{ y }}</div>
               </div>
             </div>
             <div class="dtl-dial-col">
               <div class="dtl-dial-scroll" :ref="el => (dialEls.month.value = el)" @scroll="onDialScroll('month')">
-                <div v-for="m in dialMonths" :key="m.m" class="dtl-dial-item" :class="{active: m.m===selMonth, dim: !m.group}"
+                <div v-for="m in dialMonths" :key="m.m" class="dtl-dial-item" :class="{active: m.m===selMonth, dim: !m.group, today: m.m===todayM}"
                   :data-key="String(m.m)" @click="dialPick('month', String(m.m))">
                   {{ m.label }}<i v-if="m.group && monthUnread(m.group)" class="w-dot"></i>
                 </div>
@@ -229,10 +236,11 @@
             </div>
             <div class="dtl-dial-col">
               <div class="dtl-dial-scroll" :ref="el => (dialEls.day.value = el)" @scroll="onDialScroll('day')">
-                <div v-for="it in dialDays" :key="it.d" class="dtl-dial-item" :class="{active: it.d===selDay, dim: !it.has}"
+                <div v-for="it in dialDays" :key="it.d" class="dtl-dial-item" :class="{active: it.d===selDay, dim: !it.has, today: it.d===todayD}"
                   :data-key="String(it.d)" @click="dialPick('day', String(it.d))">{{ it.label }}</div>
               </div>
             </div>
+            </div><!-- /dtl-dial-cols -->
           </aside>
           <section class="dtl-pane">
             <div class="dtl-pane-head">
@@ -565,6 +573,17 @@ const displayItems = computed(() => {
 function monthUnread(g){ return (g.items || []).filter(r => r.unread).length }
 // 台账要有合计：书脊节点展示该月分值小计(结构装置编码真实信息)
 function monthScore(g){ return (g.items || []).reduce((s, r) => s + (Number(r.score) || 0), 0) }
+// 实时时间：每秒跳动的时钟(拨盘即实时日历, 年/月/日盘上标记今天)
+const now = ref(new Date())
+let nowTimer = null
+onMounted(() => { nowTimer = setInterval(() => { now.value = new Date() }, 1000) })
+onBeforeUnmount(() => clearInterval(nowTimer))
+const nowDateText = computed(() => { const d = now.value; return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0') + ' 周' + '日一二三四五六'[d.getDay()] })
+const nowTimeText = computed(() => now.value.toTimeString().slice(0, 8))
+const todayY = computed(() => String(now.value.getFullYear()))
+const todayM = computed(() => now.value.getMonth() + 1)
+const todayD = computed(() => now.value.getDate())
+function goToday(){ selYear.value = todayY.value; selMonth.value = todayM.value; selDay.value = todayD.value }
 // 三联拨盘数据：年列表 / 所选年的月份 / 所选月的可选日(0=整月)
 const wheelEl = ref(null)
 const dialEls = { year: ref(null), month: ref(null), day: ref(null) }
@@ -925,16 +944,25 @@ onBeforeUnmount(()=>window.removeEventListener('keydown',onPreviewKeydown))
   margin:14px 20px 0}
 /* iOS 日期选择器式三联拨盘(年/月/日)：三列各自吸附居中 + 贯通选中带 + 距离缩放淡出(JS 驱动) */
 .dtl-dial{position:relative;background:#fff;border:1px solid #e5e9f0;border-radius:14px;min-height:0;
-  box-shadow:0 1px 2px rgba(16,24,40,.03),0 6px 18px rgba(16,24,40,.05);display:flex;gap:2px;padding:8px 4px;overflow:hidden}
+  box-shadow:0 1px 2px rgba(16,24,40,.03),0 6px 18px rgba(16,24,40,.05);display:flex;flex-direction:column;overflow:hidden}
+.dtl-dial-now{display:flex;align-items:baseline;gap:9px;padding:12px 14px 9px;border-bottom:1px solid #eef0f3;flex-shrink:0}
+.dtl-dial-now-date{font-size:12px;color:#6b7280;font-variant-numeric:tabular-nums}
+.dtl-dial-now-time{font-size:19px;font-weight:800;color:#1d4ed8;font-variant-numeric:tabular-nums;letter-spacing:.5px;line-height:1}
+.dtl-dial-today{margin-left:auto;font-size:11px;font-weight:600;color:#2563eb;cursor:pointer;padding:3px 9px;
+  border-radius:999px;background:#eff4fe;transition:background .15s}
+.dtl-dial-today:hover{background:#dbe6fb}
+.dtl-dial-cols{position:relative;display:flex;gap:2px;padding:8px 4px;flex:1;min-height:0}
 .dtl-dial-band{position:absolute;left:10px;right:10px;top:50%;height:42px;transform:translateY(-50%);
   background:#eaf1fe;border:1px solid #dbe6fb;border-radius:12px;pointer-events:none;z-index:0}
 .dtl-dial-col{flex:1;min-width:0;display:flex;flex-direction:column}
 .dtl-dial-scroll{flex:1;overflow-y:auto;scroll-snap-type:y mandatory;overscroll-behavior:contain;
   padding:0;scrollbar-width:none;position:relative;z-index:1;text-align:center}
 .dtl-dial-scroll::-webkit-scrollbar{display:none}
-.dtl-dial-item{height:42px;scroll-snap-align:center;display:flex;align-items:center;justify-content:center;gap:4px;
+.dtl-dial-item{position:relative;height:42px;scroll-snap-align:center;display:flex;align-items:center;justify-content:center;gap:4px;
   cursor:pointer;opacity:.25;transform:scale(.9);transition:opacity .15s,transform .15s;
   font-size:15px;font-weight:700;color:#111827;font-variant-numeric:tabular-nums}
+.dtl-dial-item.today::after{content:'';position:absolute;bottom:5px;left:50%;transform:translateX(-50%);
+  width:4px;height:4px;border-radius:50%;background:#2563eb}
 .dtl-dial-item.active{font-weight:800;color:#153e8f}
 .dtl-dial-item:hover{color:#1d4ed8}
 .dtl-dial-item.dim{opacity:.16}
