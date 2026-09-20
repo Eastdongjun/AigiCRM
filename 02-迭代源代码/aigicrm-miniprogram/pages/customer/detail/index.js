@@ -393,7 +393,9 @@ Page({
         if (!res.confirm) return
         deleteCustomer(this.data.id).then(() => {
           wx.showToast({ title: '客户已删除', icon: 'success' })
-          setTimeout(() => wx.redirectTo({ url: '/pages/customer/index' }), 300)
+          // 【PR-12 滚动位置保持】返回原列表实例(onShow 自刷新): redirectTo 会复制一个新列表页
+          // 垫在栈里,返回手势回到旧列表(已删客户仍在), 且滚动位置丢失
+          setTimeout(() => this.goBack(), 300)
         }).catch((error) => showError(error, '删除客户失败'))
       }
     })

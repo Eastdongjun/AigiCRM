@@ -38,6 +38,38 @@ def onload_bodies_missing_options(text):
     return hits
 
 
+# 【PR-12 滚动位置保持】结构性保证的静态固化:
+# 1) 列表页均为页面级滚动 + 详情走 navigateTo, 返回时微信原生保留滚动位置;
+#    任何 wx.pageScrollTo(跳顶)都会破坏该保证 —— 如确需"回顶部"按钮, 显式修订本契约。
+# 2) redirectTo/reLaunch 会销毁页面栈: 仅允许 ①跳登录的会话流 ②file/cases 遗留别名壳。
+#    业务流(如详情删除后回列表)必须 navigateBack, 否则返回手势回旧数据且滚动丢失。
+PAGE_SCROLL_TO_RE = re.compile(r"wx\.pageScrollTo\s*\(")
+REDIRECT_RE = re.compile(r"wx\.(redirectTo|reLaunch)\s*\(\s*\{\s*url:\s*[`'\"](/pages/[^`'\"?]+)")
+LEGACY_REDIRECT_SHELLS = {
+    "pages/file/index.js",
+    "pages/cases/index.js",
+    "pages/cases/detail/index.js",
+}
+
+
+def scroll_preservation_violations():
+    page_scroll_hits = []
+    stack_breakers = []
+    for source in PAGES_DIR.rglob("*.js"):
+        text = source.read_text(errors="ignore")
+        rel = str(source.relative_to(ROOT / "aigicrm-miniprogram"))
+        if PAGE_SCROLL_TO_RE.search(text):
+            page_scroll_hits.append(rel)
+        for match in REDIRECT_RE.finditer(text):
+            target = match.group(2)
+            if rel in LEGACY_REDIRECT_SHELLS:
+                continue
+            if target.lstrip("/").startswith("pages/login"):
+                continue
+            stack_breakers.append(f"{rel} -> {target}")
+    return page_scroll_hits, stack_breakers
+
+
 def main() -> int:
     app = json.loads(APP_JSON.read_text())
     registered = set(app['pages'])
@@ -77,12 +109,23 @@ def main() -> int:
         print("FAIL: pages read options but declare onLoad without options:")
         print("\n".join(f"  {item}" for item in sorted(set(missing_onload_options))))
         return 1
+    page_scroll_hits, stack_breakers = scroll_preservation_violations()
+    if page_scroll_hits:
+        print("FAIL: wx.pageScrollTo breaks native scroll preservation on back navigation:")
+        print("\n".join(f"  {item}" for item in page_scroll_hits))
+        return 1
+    if stack_breakers:
+        print("FAIL: redirectTo/reLaunch destroys the page stack (back gesture loses data+scroll);")
+        print("      only login-session flows and legacy alias shells may redirect:")
+        print("\n".join(f"  {item}" for item in stack_breakers))
+        return 1
     source_targets = targets - tab_pages
     print(
         "PASS: checked "
         f"{len(source_targets)} source navigation targets + "
         f"{len(tab_pages)} tabBar entry points = {len(targets)} reachable pages "
-        f"against {len(registered)} registered pages."
+        f"against {len(registered)} registered pages; "
+        "scroll preservation holds (no pageScrollTo, no stack-breaking redirect)."
     )
     return 0
 
