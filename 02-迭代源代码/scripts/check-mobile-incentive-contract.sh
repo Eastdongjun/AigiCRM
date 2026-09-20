@@ -500,4 +500,22 @@ grep -q '"navigationBarTitleText":"四项激励详情"' "$legacy_cases_detail_js
 ! grep -Eq 'cases-page|case-(card|category|status|title|customer|meta|accent|main)' "$app_wxss" || { echo "FAIL: global mini-program styles still carry standalone case UI styles" >&2; exit 1; }
 grep -q "incentive.index.*implemented" "$manifest" || { echo "FAIL: incentive.index manifest status is stale" >&2; exit 1; }
 grep -q "incentive.recordDelete.*implemented" "$manifest" || { echo "FAIL: incentive record delete manifest status is stale" >&2; exit 1; }
-echo "PASS: mobile incentive query, detail, upload, and permission contract is aligned."
+# 【PR-13 残余 2026-09-20】激励上传表单草稿接线(复刻客户表单议题四模式)
+UPLOAD_JS="$ROOT/aigicrm-miniprogram/pages/incentive/upload/index.js"
+for pattern in \
+  "getFormDraft, saveFormDraft, deleteFormDraft" \
+  "saveFormDraft('incentive_upload'" \
+  "tryRestoreDraft() {" \
+  "autoSaveDraft() {" \
+  "deleteFormDraft('incentive_upload').catch(() => {})" \
+  "draftVersion"; do
+  grep -Fq "$pattern" "$UPLOAD_JS" || { echo "FAIL: incentive upload draft wiring missing: $pattern" >&2; exit 1; }
+done
+# 草稿仅限真实环境新建模式: autoSaveDraft/tryRestoreDraft 都必须带 demoMode 守卫, 编辑态不存草稿
+grep -A2 "autoSaveDraft() {" "$UPLOAD_JS" | grep -q "demoMode" || { echo "FAIL: autoSaveDraft must skip demo mode" >&2; exit 1; }
+grep -A2 "tryRestoreDraft() {" "$UPLOAD_JS" | grep -q "demoMode" || { echo "FAIL: tryRestoreDraft must skip demo mode" >&2; exit 1; }
+grep -A2 "autoSaveDraft() {" "$UPLOAD_JS" | grep -q "editId" || { echo "FAIL: autoSaveDraft must skip edit mode" >&2; exit 1; }
+# 已上传附件按 id 恢复为 existing 条目(提交端 recognized existing&&fileId)
+grep -Fq "existing: true" "$UPLOAD_JS" || { echo "FAIL: draft-restored files must carry existing flag for submit parity" >&2; exit 1; }
+
+echo "PASS: mobile incentive query, detail, upload, permission, and form-draft contract is aligned."

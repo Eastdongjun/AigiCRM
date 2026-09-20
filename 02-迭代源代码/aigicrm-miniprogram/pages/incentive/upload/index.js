@@ -1,7 +1,7 @@
 const { getCustomerList } = require('../../../api/customer')
 const { getCategoryTree, addRecord, getRecords, updateRecord } = require('../../../api/incentive')
 const { getDownloadUrl, uploadFile } = require('../../../api/file')
-const { getDictData } = require('../../../api/system')
+const { getDictData, getFormDraft, saveFormDraft, deleteFormDraft } = require('../../../api/system')
 const { requireLogin, hasPermission, getToken } = require('../../../utils/auth')
 const { showError, showErrorWithRetry } = require('../../../utils/feedback')
 
@@ -340,6 +340,7 @@ Page({
     selectedPeriodIndex: Math.max(buildPeriodOptions().indexOf(defaultPeriod()), 0),
     selectedCustomerIndex: -1,
     selectedCategoryIndex: -1,
+    draftVersion: 0, // 【PR-13】草稿乐观锁版本
     relatedCatOptions: ['涂层类', '防滑板类', '机封类', '密封类', '润滑类'],
     relatedSubOptions: [],
     productCats: {
@@ -437,6 +438,7 @@ Page({
       const categories = flattenCategories(categoryRes || [])
       this.setData({ customers, customerNames: customers.map((item) => item.customerName || item.name || '未命名客户'), categories, categoryNames: categories.map((item) => item.name) }, () => this.refreshUploadViewState())
       if (this.data.editId) this.loadEditRecord()
+      else this.tryRestoreDraft() // 【PR-13】新建模式: 选项就绪后检查草稿恢复(客户/分类索引依赖选项)
     }).catch((error) => showError(error, '上传选项加载失败'))
   },
 
@@ -846,7 +848,109 @@ Page({
   },
 
   /** 落库后的收尾:成功提示 + 回列表(失败续办语义见 uploadPendingFiles) */
+  // 【PR-13 残余 2026-09-20】激励上传表单草稿(复刻客户表单议题四模式):
+  // 离开自动保存(新建模式,仅真实环境;客户+分类已选才存) / 进入询问恢复 / 提交成功清除;
+  // 乐观锁版本防多端覆盖; 已上传到服务端的附件按 id 恢复(existing), 本地暂存文件不跨会话。
+  onHide() { this.autoSaveDraft() },
+  onUnload() { this.autoSaveDraft() },
+
+  autoSaveDraft() {
+    if (this.data.editId || this.data.loading) return
+    if (getApp().globalData.demoMode) return
+    const customer = this.data.customers[this.data.selectedCustomerIndex]
+    const category = this.data.categories[this.data.selectedCategoryIndex]
+    if (!customer || !category) return // 关键选项未选齐不存(等价"空表单不存")
+    const uploadedFiles = []
+    ;(this.data.fileSlots || []).forEach((slot) => {
+      if (slot.hidden) return
+      const files = slot.files && slot.files.length ? slot.files : (slot.filePath ? [slot] : [])
+      files.forEach((file) => {
+        const id = file.uploadedId || (file.existing ? file.fileId : '')
+        if (id) uploadedFiles.push({ key: slot.key, id, name: file.fileName || file.name || `附件-${id}` })
+      })
+    })
+    saveFormDraft('incentive_upload', {
+      customerId: customer.id,
+      categoryId: category.id,
+      industry: this.data.industryOptions[this.data.selectedIndustryIndex] || customer.industry || '',
+      period: this.data.periodOptions[this.data.selectedPeriodIndex] || defaultPeriod(),
+      relatedProducts: this.data.relatedProducts || '',
+      specificProduct: this.data.specificProduct || '',
+      preInstallQuestion: this.data.preInstallQuestion || '',
+      remark: this.data.remark || '',
+      shared: this.data.shared !== 0,
+      uploadedFiles
+    }, this.data.draftVersion).then((result) => {
+      const d = result && result.data
+      if (d && d.version) this.setData({ draftVersion: d.version })
+    }).catch(() => {}) // 自动保存静默失败,不打扰用户
+  },
+
+  tryRestoreDraft() {
+    if (getApp().globalData.demoMode || this.data.editId) return
+    getFormDraft('incentive_upload').then((result) => {
+      const draft = result && result.data
+      if (!draft || !draft.draftData) return
+      let parsed
+      try { parsed = JSON.parse(draft.draftData) } catch (e) { return }
+      if (!parsed || !parsed.customerId || !parsed.categoryId) return
+      const customer = (this.data.customers || []).find((item) => String(item.id) === String(parsed.customerId))
+      const category = (this.data.categories || []).find((item) => String(item.id) === String(parsed.categoryId))
+      if (!customer || !category) {
+        // 选项已失效(客户/分类被删), 草稿无法落地即清
+        deleteFormDraft('incentive_upload').catch(() => {})
+        return
+      }
+      wx.showModal({
+        title: '发现未完成的草稿',
+        content: `客户"${customer.customerName}"的激励上传未完成(保存于 ${String(draft.updatedAt || '').slice(0, 16)}),是否恢复?`,
+        confirmText: '恢复',
+        cancelText: '放弃',
+        success: (res) => {
+          if (res.confirm) this.applyDraft(parsed, draft.version || 1)
+          else deleteFormDraft('incentive_upload').catch(() => {})
+        }
+      })
+    }).catch(() => {})
+  },
+
+  applyDraft(parsed, version) {
+    const customerIndex = this.data.customers.findIndex((item) => String(item.id) === String(parsed.customerId))
+    const category = this.data.categories.find((item) => String(item.id) === String(parsed.categoryId))
+    const categoryIndex = this.data.categories.indexOf(category)
+    const industryIndex = parsed.industry ? this.data.industryOptions.indexOf(parsed.industry) : -1
+    const periodOptions = this.data.periodOptions.includes(parsed.period) ? this.data.periodOptions : [parsed.period, ...this.data.periodOptions].filter(Boolean)
+    // 已上传附件按 id 恢复为 existing 条目(与编辑态 existingFiles 同形状, 提交端 recognized existing&&fileId)
+    const fileSlots = applyCategorySlotMode(defaultSlots(), category, this.data.categories).map((slot) => ({
+      ...slot,
+      files: (parsed.uploadedFiles || []).filter((file) => file.key === slot.key).map((file) => ({
+        fileId: file.id,
+        fileName: file.name,
+        fileUrl: '',
+        filePath: '',
+        fileKind: isImageFile(file.name, '') ? 'image' : 'file',
+        existing: true
+      }))
+    }))
+    this.setData({
+      selectedCustomerIndex: customerIndex,
+      selectedCategoryIndex: categoryIndex,
+      selectedIndustryIndex: industryIndex,
+      periodOptions,
+      selectedPeriodIndex: Math.max(periodOptions.indexOf(parsed.period || defaultPeriod()), 0),
+      relatedProducts: parsed.relatedProducts || '',
+      specificProduct: parsed.specificProduct || '',
+      preInstallQuestion: parsed.preInstallQuestion || '',
+      remark: parsed.remark || '',
+      shared: parsed.shared !== false,
+      fileSlots,
+      draftVersion: version,
+      selectedSlotIndex: Math.max(fileSlots.findIndex((slot) => !slot.hidden), 0)
+    }, () => this.refreshUploadViewState())
+  },
+
   finishSubmit() {
+    if (!this.data.editId) deleteFormDraft('incentive_upload').catch(() => {}) // 【PR-13】提交成功清草稿
     wx.showToast({ title: this.data.editId ? '追加成功' : '上传成功', icon: 'success' })
     // 【PR-12 2026-09-19 首批】激励列表是 tabBar 页,navigateTo 跳 tab 会被微信拒绝
     // (此前静默失败,用户停在原页);switchTab 回列表,配合列表 onShow 刷新即见新记录
