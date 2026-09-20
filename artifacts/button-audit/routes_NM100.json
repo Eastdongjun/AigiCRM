@@ -1,0 +1,75 @@
+[
+ {
+  "route": "/dashboard",
+  "label": "/dashboard"
+ },
+ {
+  "route": "/customer/add",
+  "label": "/customer/add"
+ },
+ {
+  "route": "/customer",
+  "label": "/customer"
+ },
+ {
+  "route": "/file",
+  "label": "/file"
+ },
+ {
+  "route": "/incentive",
+  "label": "/incentive"
+ },
+ {
+  "route": "/incentive/search",
+  "label": "/incentive/search"
+ },
+ {
+  "route": "/incentive/stats",
+  "label": "/incentive/stats"
+ },
+ {
+  "route": "/reminder",
+  "label": "/reminder"
+ },
+ {
+  "route": "/sea",
+  "label": "/sea"
+ },
+ {
+  "route": "/sea/records",
+  "label": "/sea/records"
+ },
+ {
+  "route": "/approval",
+  "label": "/approval"
+ },
+ {
+  "route": "/score/entry",
+  "label": "/score/entry"
+ },
+ {
+  "route": "/score/ranking",
+  "label": "/score/ranking"
+ },
+ {
+  "route": "/system/org",
+  "label": "/system/org"
+ },
+ {
+  "route": "/system/user",
+  "label": "/system/user"
+ },
+ {
+  "route": "/system/config",
+  "label": "/system/config",
+  "tabs": [
+   "基本设置",
+   "字典管理",
+   "审批配置",
+   "公海配置",
+   "激励类别与权限",
+   "权限体系",
+   "权限管理"
+  ]
+ }
+]

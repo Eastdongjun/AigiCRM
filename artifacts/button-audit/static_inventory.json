@@ -1,0 +1,6936 @@
+{
+ "generated_from": "/Users/dongjun/东来/项目/01-进行中/01-AIGICRM",
+ "endpoints": [
+  {
+   "http": "POST",
+   "path": "/api/system/task/check-expire",
+   "permission": null,
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/task/ScheduledTaskController.java",
+   "line": 19,
+   "perm_line": null,
+   "method": "checkExpire"
+  },
+  {
+   "http": "GET",
+   "path": "/api/approval/list",
+   "permission": "hasAuthority('approval:view')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/approval/controller/ApprovalController.java",
+   "line": 23,
+   "perm_line": 22,
+   "method": "page"
+  },
+  {
+   "http": "GET",
+   "path": "/api/approval/{id}",
+   "permission": "hasAuthority('approval:view')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/approval/controller/ApprovalController.java",
+   "line": 35,
+   "perm_line": 34,
+   "method": "detail"
+  },
+  {
+   "http": "POST",
+   "path": "/api/approval/submit",
+   "permission": "hasAuthority('approval:view')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/approval/controller/ApprovalController.java",
+   "line": 41,
+   "perm_line": 40,
+   "method": "submit"
+  },
+  {
+   "http": "PUT",
+   "path": "/api/approval/{id}/nodes/{nodeId}/transfer",
+   "permission": "hasAuthority('approval:view')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/approval/controller/ApprovalController.java",
+   "line": 68,
+   "perm_line": 67,
+   "method": "transferNode"
+  },
+  {
+   "http": "POST",
+   "path": "/api/approval/{id}/approve",
+   "permission": "hasAuthority('approval:approve')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/approval/controller/ApprovalController.java",
+   "line": 76,
+   "perm_line": 75,
+   "method": null
+  },
+  {
+   "http": "POST",
+   "path": "/api/approval/{id}/reject",
+   "permission": "hasAuthority('approval:reject')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/approval/controller/ApprovalController.java",
+   "line": 84,
+   "perm_line": 83,
+   "method": null
+  },
+  {
+   "http": "GET",
+   "path": "/api/approval/statistics",
+   "permission": "hasAuthority('approval:view')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/approval/controller/ApprovalController.java",
+   "line": 92,
+   "perm_line": 91,
+   "method": "statistics"
+  },
+  {
+   "http": "GET",
+   "path": "/api/approval/config/list",
+   "permission": "hasAuthority('system:config:view')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/approval/controller/ApprovalConfigController.java",
+   "line": 21,
+   "perm_line": 20,
+   "method": "list"
+  },
+  {
+   "http": "POST",
+   "path": "/api/approval/config",
+   "permission": "hasAuthority('system:config:edit')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/approval/controller/ApprovalConfigController.java",
+   "line": 28,
+   "perm_line": 27,
+   "method": "create"
+  },
+  {
+   "http": "PUT",
+   "path": "/api/approval/config/{id}",
+   "permission": "hasAuthority('system:config:edit')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/approval/controller/ApprovalConfigController.java",
+   "line": 35,
+   "perm_line": 34,
+   "method": "update"
+  },
+  {
+   "http": "DELETE",
+   "path": "/api/approval/config/{id}",
+   "permission": "hasAuthority('system:config:edit')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/approval/controller/ApprovalConfigController.java",
+   "line": 44,
+   "perm_line": 43,
+   "method": "delete"
+  },
+  {
+   "http": "GET",
+   "path": "/api/customer/list",
+   "permission": "hasAuthority('customer:view')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/customer/controller/CustomerController.java",
+   "line": 40,
+   "perm_line": 39,
+   "method": "page"
+  },
+  {
+   "http": "GET",
+   "path": "/api/customer/list/counts",
+   "permission": "hasAuthority('customer:view')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/customer/controller/CustomerController.java",
+   "line": 58,
+   "perm_line": 57,
+   "method": "listCounts"
+  },
+  {
+   "http": "GET",
+   "path": "/api/customer/group-names",
+   "permission": "hasAuthority('customer:add') or hasAuthority('customer:edit')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/customer/controller/CustomerController.java",
+   "line": 69,
+   "perm_line": 68,
+   "method": "groupNames"
+  },
+  {
+   "http": "GET",
+   "path": "/api/customer/rankings",
+   "permission": "hasAuthority('score:view') or hasAuthority('ranking:customer:view') or hasAuthority('statistics:view')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/customer/controller/CustomerController.java",
+   "line": 75,
+   "perm_line": 74,
+   "method": "rankings"
+  },
+  {
+   "http": "GET",
+   "path": "/api/customer/{id}",
+   "permission": "hasAuthority('customer:view')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/customer/controller/CustomerController.java",
+   "line": 81,
+   "perm_line": 80,
+   "method": "getById"
+  },
+  {
+   "http": "POST",
+   "path": "/api/customer/add",
+   "permission": "hasAuthority('customer:add')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/customer/controller/CustomerController.java",
+   "line": 88,
+   "perm_line": 87,
+   "method": "create"
+  },
+  {
+   "http": "PUT",
+   "path": "/api/customer/{id}",
+   "permission": "hasAuthority('customer:edit')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/customer/controller/CustomerController.java",
+   "line": 95,
+   "perm_line": 94,
+   "method": "update"
+  },
+  {
+   "http": "POST",
+   "path": "/api/customer/full",
+   "permission": "hasAuthority('customer:add')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/customer/controller/CustomerController.java",
+   "line": 115,
+   "perm_line": 114,
+   "method": "createFull"
+  },
+  {
+   "http": "PUT",
+   "path": "/api/customer/{id}/full",
+   "permission": "hasAuthority('customer:edit')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/customer/controller/CustomerController.java",
+   "line": 128,
+   "perm_line": 127,
+   "method": "updateFull"
+  },
+  {
+   "http": "POST",
+   "path": "/api/customer/{id}/archive",
+   "permission": "hasAuthority('customer:edit')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/customer/controller/CustomerController.java",
+   "line": 140,
+   "perm_line": 139,
+   "method": "archive"
+  },
+  {
+   "http": "POST",
+   "path": "/api/customer/{id}/restore",
+   "permission": "hasAuthority('customer:edit')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/customer/controller/CustomerController.java",
+   "line": 148,
+   "perm_line": 147,
+   "method": "restore"
+  },
+  {
+   "http": "DELETE",
+   "path": "/api/customer/{id}",
+   "permission": "hasAuthority('customer:delete')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/customer/controller/CustomerController.java",
+   "line": 155,
+   "perm_line": 154,
+   "method": "delete"
+  },
+  {
+   "http": "GET",
+   "path": "/api/customer/{id}/logs",
+   "permission": "hasAuthority('customer:view')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/customer/controller/CustomerController.java",
+   "line": 163,
+   "perm_line": 162,
+   "method": "getLogs"
+  },
+  {
+   "http": "POST",
+   "path": "/api/customer/{id}/logs",
+   "permission": "hasAuthority('customer:edit')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/customer/controller/CustomerController.java",
+   "line": 170,
+   "perm_line": 169,
+   "method": "addLog"
+  },
+  {
+   "http": "GET",
+   "path": "/api/customer/statistics",
+   "permission": "hasAuthority('customer:view')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/customer/controller/CustomerController.java",
+   "line": 179,
+   "perm_line": 178,
+   "method": "statistics"
+  },
+  {
+   "http": "GET",
+   "path": "/api/customer/{id}/invoices",
+   "permission": "hasAuthority('customer:view')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/customer/controller/CustomerController.java",
+   "line": 188,
+   "perm_line": 187,
+   "method": "getInvoices"
+  },
+  {
+   "http": "GET",
+   "path": "/api/customer/{id}/invoices/summary",
+   "permission": "hasAuthority('customer:view')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/customer/controller/CustomerController.java",
+   "line": 196,
+   "perm_line": 195,
+   "method": "getInvoiceSummary"
+  },
+  {
+   "http": "POST",
+   "path": "/api/customer/{id}/invoices",
+   "permission": "hasAuthority('finance:manage') or (hasAuthority('customer:edit') and hasAuthority('finance:view'))",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/customer/controller/CustomerController.java",
+   "line": 204,
+   "perm_line": 203,
+   "method": "addInvoice"
+  },
+  {
+   "http": "POST",
+   "path": "/api/customer/{id}/invoices/{invoiceId}/confirm",
+   "permission": "hasAuthority('finance:manage') or (hasAuthority('customer:edit') and hasAuthority('finance:view'))",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/customer/controller/CustomerController.java",
+   "line": 213,
+   "perm_line": 212,
+   "method": "confirmInvoice"
+  },
+  {
+   "http": "POST",
+   "path": "/api/customer/{id}/invoices/{invoiceId}/void",
+   "permission": "hasAuthority('finance:manage') or (hasAuthority('customer:edit') and hasAuthority('finance:view'))",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/customer/controller/CustomerController.java",
+   "line": 221,
+   "perm_line": 220,
+   "method": "voidInvoice"
+  },
+  {
+   "http": "POST",
+   "path": "/api/customer/{id}/payments/{paymentId}/confirm",
+   "permission": "hasAuthority('finance:manage') or (hasAuthority('customer:edit') and hasAuthority('finance:view'))",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/customer/controller/CustomerController.java",
+   "line": 230,
+   "perm_line": 229,
+   "method": "confirmPayment"
+  },
+  {
+   "http": "POST",
+   "path": "/api/customer/{id}/payments/{paymentId}/void",
+   "permission": "hasAuthority('finance:manage') or (hasAuthority('customer:edit') and hasAuthority('finance:view'))",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/customer/controller/CustomerController.java",
+   "line": 238,
+   "perm_line": 237,
+   "method": "voidPayment"
+  },
+  {
+   "http": "DELETE",
+   "path": "/api/customer/{id}/invoices/{invoiceId}",
+   "permission": "hasAuthority('finance:manage') or (hasAuthority('customer:edit') and hasAuthority('finance:view'))",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/customer/controller/CustomerController.java",
+   "line": 246,
+   "perm_line": 245,
+   "method": "deleteInvoice"
+  },
+  {
+   "http": "GET",
+   "path": "/api/customer/{id}/indicator",
+   "permission": "hasAuthority('customer:view')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/customer/controller/CustomerController.java",
+   "line": 256,
+   "perm_line": 255,
+   "method": "getIndicator"
+  },
+  {
+   "http": "POST",
+   "path": "/api/customer/{id}/indicator",
+   "permission": "hasAuthority('customer:edit')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/customer/controller/CustomerController.java",
+   "line": 263,
+   "perm_line": 262,
+   "method": "saveIndicator"
+  },
+  {
+   "http": "PUT",
+   "path": "/api/customer/{id}/relationship",
+   "permission": "hasAuthority('customer:edit')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/customer/controller/CustomerController.java",
+   "line": 271,
+   "perm_line": 270,
+   "method": "saveRelationship"
+  },
+  {
+   "http": "GET",
+   "path": "/api/customer/{id}/shares",
+   "permission": "hasAuthority('customer:view')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/customer/controller/CustomerController.java",
+   "line": 281,
+   "perm_line": 280,
+   "method": "getShares"
+  },
+  {
+   "http": "POST",
+   "path": "/api/customer/{id}/shares",
+   "permission": "hasAuthority('customer:edit')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/customer/controller/CustomerController.java",
+   "line": 288,
+   "perm_line": 287,
+   "method": "addShares"
+  },
+  {
+   "http": "DELETE",
+   "path": "/api/customer/{id}/shares/{userId}",
+   "permission": "hasAuthority('customer:edit')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/customer/controller/CustomerController.java",
+   "line": 296,
+   "perm_line": 295,
+   "method": "removeShare"
+  },
+  {
+   "http": "POST",
+   "path": "/api/customer/{id}/release",
+   "permission": "hasAuthority('customer:edit')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/customer/controller/CustomerController.java",
+   "line": 307,
+   "perm_line": 306,
+   "method": "release"
+  },
+  {
+   "http": "GET",
+   "path": "/api/customer/users/simple",
+   "permission": "hasAuthority('customer:view')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/customer/controller/CustomerController.java",
+   "line": 334,
+   "perm_line": 333,
+   "method": "simpleUserList"
+  },
+  {
+   "http": "GET",
+   "path": "/api/customer/{id}/contacts",
+   "permission": "hasAuthority('customer:view')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/customer/controller/CustomerController.java",
+   "line": 342,
+   "perm_line": 341,
+   "method": "getContacts"
+  },
+  {
+   "http": "POST",
+   "path": "/api/customer/{id}/contacts",
+   "permission": "hasAuthority('customer:edit') or hasAuthority('contact:manage')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/customer/controller/CustomerController.java",
+   "line": 350,
+   "perm_line": 349,
+   "method": "addContact"
+  },
+  {
+   "http": "PUT",
+   "path": "/api/customer/{id}/contacts/{contactId}",
+   "permission": "hasAuthority('customer:edit') or hasAuthority('contact:manage')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/customer/controller/CustomerController.java",
+   "line": 358,
+   "perm_line": 357,
+   "method": "updateContact"
+  },
+  {
+   "http": "DELETE",
+   "path": "/api/customer/{id}/contacts/{contactId}",
+   "permission": "hasAuthority('customer:edit') or hasAuthority('contact:manage')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/customer/controller/CustomerController.java",
+   "line": 367,
+   "perm_line": 366,
+   "method": "deleteContact"
+  },
+  {
+   "http": "GET",
+   "path": "/api/customer/{id}/payments",
+   "permission": "hasAuthority('customer:view')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/customer/controller/CustomerController.java",
+   "line": 377,
+   "perm_line": 376,
+   "method": "getPayments"
+  },
+  {
+   "http": "GET",
+   "path": "/api/customer/{id}/payments/summary",
+   "permission": "hasAuthority('customer:view')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/customer/controller/CustomerController.java",
+   "line": 385,
+   "perm_line": 384,
+   "method": "getPaymentSummary"
+  },
+  {
+   "http": "POST",
+   "path": "/api/customer/{id}/payments",
+   "permission": "hasAuthority('finance:manage') or (hasAuthority('customer:edit') and hasAuthority('finance:view'))",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/customer/controller/CustomerController.java",
+   "line": 393,
+   "perm_line": 392,
+   "method": "addPayment"
+  },
+  {
+   "http": "DELETE",
+   "path": "/api/customer/{id}/payments/{paymentId}",
+   "permission": "hasAuthority('finance:manage') or (hasAuthority('customer:edit') and hasAuthority('finance:view'))",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/customer/controller/CustomerController.java",
+   "line": 401,
+   "perm_line": 400,
+   "method": "deletePayment"
+  },
+  {
+   "http": "POST",
+   "path": "/api/customer/import",
+   "permission": "hasAuthority('customer:import')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/customer/controller/CustomerController.java",
+   "line": 411,
+   "perm_line": 410,
+   "method": "importCustomers"
+  },
+  {
+   "http": "GET",
+   "path": "/api/customer/import/template",
+   "permission": "hasAuthority('customer:import')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/customer/controller/CustomerController.java",
+   "line": 419,
+   "perm_line": 418,
+   "method": "downloadTemplate"
+  },
+  {
+   "http": "GET",
+   "path": "/api/customer/export",
+   "permission": "hasAuthority('customer:export')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/customer/controller/CustomerController.java",
+   "line": 481,
+   "perm_line": 480,
+   "method": "export"
+  },
+  {
+   "http": "GET",
+   "path": "/api/customer/check-name",
+   "permission": "hasAuthority('customer:view')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/customer/controller/CustomerController.java",
+   "line": 501,
+   "perm_line": 500,
+   "method": "checkName"
+  },
+  {
+   "http": "GET",
+   "path": "/api/sea/list",
+   "permission": "hasAuthority('sea:view')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/sea/controller/SeaController.java",
+   "line": 47,
+   "perm_line": 46,
+   "method": "page"
+  },
+  {
+   "http": "GET",
+   "path": "/api/sea/statistics",
+   "permission": "hasAuthority('sea:view')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/sea/controller/SeaController.java",
+   "line": 62,
+   "perm_line": 61,
+   "method": "statistics"
+  },
+  {
+   "http": "DELETE",
+   "path": "/api/sea/pool/{id}",
+   "permission": "hasAuthority('sea:view')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/sea/controller/SeaController.java",
+   "line": 69,
+   "perm_line": 68,
+   "method": null
+  },
+  {
+   "http": "POST",
+   "path": "/api/sea/import",
+   "permission": "hasAuthority('sea:import')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/sea/controller/SeaController.java",
+   "line": 77,
+   "perm_line": 79,
+   "method": null
+  },
+  {
+   "http": "GET",
+   "path": "/api/sea/configs",
+   "permission": "hasAuthority('sea:config:view')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/sea/controller/SeaController.java",
+   "line": 89,
+   "perm_line": 88,
+   "method": "listConfigs"
+  },
+  {
+   "http": "GET",
+   "path": "/api/sea/configs/visible",
+   "permission": "hasAuthority('sea:view')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/sea/controller/SeaController.java",
+   "line": 98,
+   "perm_line": 97,
+   "method": "listVisibleConfigs"
+  },
+  {
+   "http": "GET",
+   "path": "/api/sea/org-tree",
+   "permission": "hasAuthority('sea:config:view')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/sea/controller/SeaController.java",
+   "line": 106,
+   "perm_line": 105,
+   "method": "orgTree"
+  },
+  {
+   "http": "POST",
+   "path": "/api/sea/configs",
+   "permission": "hasAuthority('sea:config:edit')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/sea/controller/SeaController.java",
+   "line": 112,
+   "perm_line": 111,
+   "method": "createConfig"
+  },
+  {
+   "http": "PUT",
+   "path": "/api/sea/configs/{id}",
+   "permission": "hasAuthority('sea:config:edit')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/sea/controller/SeaController.java",
+   "line": 119,
+   "perm_line": 118,
+   "method": "updateConfig"
+  },
+  {
+   "http": "DELETE",
+   "path": "/api/sea/configs/{id}",
+   "permission": "hasAuthority('sea:config:edit')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/sea/controller/SeaController.java",
+   "line": 127,
+   "perm_line": 126,
+   "method": "deleteConfig"
+  },
+  {
+   "http": "GET",
+   "path": "/api/sea/claim-records",
+   "permission": "hasAuthority('sea:view')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/sea/controller/SeaController.java",
+   "line": 136,
+   "perm_line": 135,
+   "method": "claimRecords"
+  },
+  {
+   "http": "GET",
+   "path": "/api/task/list",
+   "permission": "hasAuthority('task:view')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/task/controller/TaskController.java",
+   "line": 25,
+   "perm_line": 26,
+   "method": null
+  },
+  {
+   "http": "GET",
+   "path": "/api/task/statistics",
+   "permission": "hasAuthority('task:view')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/task/controller/TaskController.java",
+   "line": 38,
+   "perm_line": 39,
+   "method": null
+  },
+  {
+   "http": "POST",
+   "path": "/api/task",
+   "permission": "hasAuthority('task:manage')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/task/controller/TaskController.java",
+   "line": 45,
+   "perm_line": 46,
+   "method": null
+  },
+  {
+   "http": "PUT",
+   "path": "/api/task/{id}",
+   "permission": "hasAuthority('task:manage')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/task/controller/TaskController.java",
+   "line": 51,
+   "perm_line": 46,
+   "method": null
+  },
+  {
+   "http": "POST",
+   "path": "/api/task/{id}/complete",
+   "permission": "hasAuthority('task:manage')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/task/controller/TaskController.java",
+   "line": 59,
+   "perm_line": 60,
+   "method": null
+  },
+  {
+   "http": "POST",
+   "path": "/api/task/{id}/cancel",
+   "permission": "hasAuthority('task:manage')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/task/controller/TaskController.java",
+   "line": 66,
+   "perm_line": 67,
+   "method": null
+  },
+  {
+   "http": "POST",
+   "path": "/api/task/{id}/transfer",
+   "permission": "hasAuthority('task:manage')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/task/controller/TaskController.java",
+   "line": 73,
+   "perm_line": 74,
+   "method": null
+  },
+  {
+   "http": "GET",
+   "path": "/api/incentive/categories",
+   "permission": "hasAuthority('incentive:view')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/incentive/controller/IncentiveController.java",
+   "line": 25,
+   "perm_line": 24,
+   "method": "getCategoryTree"
+  },
+  {
+   "http": "POST",
+   "path": "/api/incentive/categories",
+   "permission": "hasAuthority('incentive:edit')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/incentive/controller/IncentiveController.java",
+   "line": 31,
+   "perm_line": 30,
+   "method": "createCategory"
+  },
+  {
+   "http": "PUT",
+   "path": "/api/incentive/categories/{id}",
+   "permission": "hasAuthority('incentive:edit')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/incentive/controller/IncentiveController.java",
+   "line": 38,
+   "perm_line": 37,
+   "method": "updateCategory"
+  },
+  {
+   "http": "DELETE",
+   "path": "/api/incentive/categories/{id}",
+   "permission": "hasAuthority('incentive:edit')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/incentive/controller/IncentiveController.java",
+   "line": 46,
+   "perm_line": 45,
+   "method": "deleteCategory"
+  },
+  {
+   "http": "GET",
+   "path": "/api/incentive/records",
+   "permission": "hasAuthority('incentive:view')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/incentive/controller/IncentiveController.java",
+   "line": 53,
+   "perm_line": 52,
+   "method": "getRecords"
+  },
+  {
+   "http": "POST",
+   "path": "/api/incentive/records",
+   "permission": "hasAuthority('incentive:add')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/incentive/controller/IncentiveController.java",
+   "line": 68,
+   "perm_line": 67,
+   "method": "addRecord"
+  },
+  {
+   "http": "PUT",
+   "path": "/api/incentive/records/{id}",
+   "permission": "hasAuthority('incentive:view')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/incentive/controller/IncentiveController.java",
+   "line": 83,
+   "perm_line": 82,
+   "method": "updateRecord"
+  },
+  {
+   "http": "POST",
+   "path": "/api/incentive/records/recalculate",
+   "permission": "hasAuthority('incentive:edit')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/incentive/controller/IncentiveController.java",
+   "line": 100,
+   "perm_line": 99,
+   "method": "recalculateAll"
+  },
+  {
+   "http": "DELETE",
+   "path": "/api/incentive/records/{id}",
+   "permission": "hasAuthority('incentive:view')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/incentive/controller/IncentiveController.java",
+   "line": 109,
+   "perm_line": 108,
+   "method": "deleteRecord"
+  },
+  {
+   "http": "GET",
+   "path": "/api/incentive/score/customer/{customerId}",
+   "permission": "hasAuthority('incentive:view')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/incentive/controller/IncentiveController.java",
+   "line": 126,
+   "perm_line": 125,
+   "method": "getScoreByCustomer"
+  },
+  {
+   "http": "GET",
+   "path": "/api/incentive/scoreboard",
+   "permission": "hasAuthority('incentive:view')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/incentive/controller/IncentiveController.java",
+   "line": 132,
+   "perm_line": 131,
+   "method": "scoreboard"
+  },
+  {
+   "http": "GET",
+   "path": "/api/incentive/ranking",
+   "permission": "hasAuthority('incentive:view')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/incentive/controller/IncentiveController.java",
+   "line": 138,
+   "perm_line": 137,
+   "method": "ranking"
+  },
+  {
+   "http": "GET",
+   "path": "/api/incentive/customer-records",
+   "permission": "hasAuthority('incentive:view')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/incentive/controller/IncentiveController.java",
+   "line": 150,
+   "perm_line": 149,
+   "method": "customerRecords"
+  },
+  {
+   "http": "POST",
+   "path": "/api/incentive/records/{id}/read",
+   "permission": "hasAuthority('incentive:view')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/incentive/controller/IncentiveController.java",
+   "line": 166,
+   "perm_line": 165,
+   "method": "markRead"
+  },
+  {
+   "http": "GET",
+   "path": "/api/incentive/read-stats",
+   "permission": "hasAuthority('incentive:read-stats')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/incentive/controller/IncentiveController.java",
+   "line": 173,
+   "perm_line": 172,
+   "method": "readStats"
+  },
+  {
+   "http": "GET",
+   "path": "/api/incentive/read-ranking",
+   "permission": "hasAuthority('incentive:read-ranking:view')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/incentive/controller/IncentiveController.java",
+   "line": 186,
+   "perm_line": 185,
+   "method": "readRanking"
+  },
+  {
+   "http": "GET",
+   "path": "/api/incentive/category-stats",
+   "permission": "hasAuthority('incentive:view')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/incentive/controller/IncentiveController.java",
+   "line": 193,
+   "perm_line": 192,
+   "method": "categoryStats"
+  },
+  {
+   "http": "GET",
+   "path": "/api/incentive/users",
+   "permission": "hasAuthority('incentive:view')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/incentive/controller/IncentiveController.java",
+   "line": 200,
+   "perm_line": 199,
+   "method": "userList"
+  },
+  {
+   "http": "GET",
+   "path": "/api/incentive/permission/list",
+   "permission": "hasAuthority('system:config:view')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/incentive/controller/IncentivePermissionController.java",
+   "line": 43,
+   "perm_line": 42,
+   "method": "list"
+  },
+  {
+   "http": "POST",
+   "path": "/api/incentive/permission/grant",
+   "permission": "hasAuthority('system:config:edit')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/incentive/controller/IncentivePermissionController.java",
+   "line": 75,
+   "perm_line": 74,
+   "method": "grant"
+  },
+  {
+   "http": "DELETE",
+   "path": "/api/incentive/permission/{id}",
+   "permission": "hasAuthority('system:config:edit')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/incentive/controller/IncentivePermissionController.java",
+   "line": 127,
+   "perm_line": 126,
+   "method": "revoke"
+  },
+  {
+   "http": "GET",
+   "path": "/api/incentive/permission/check",
+   "permission": null,
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/incentive/controller/IncentivePermissionController.java",
+   "line": 144,
+   "perm_line": null,
+   "method": "check"
+  },
+  {
+   "http": "POST",
+   "path": "/api/score/items",
+   "permission": "hasAuthority('score:manage')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/score/controller/ScoreController.java",
+   "line": 23,
+   "perm_line": 24,
+   "method": null
+  },
+  {
+   "http": "PUT",
+   "path": "/api/score/items/{id}",
+   "permission": "hasAuthority('score:manage')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/score/controller/ScoreController.java",
+   "line": 29,
+   "perm_line": 24,
+   "method": null
+  },
+  {
+   "http": "DELETE",
+   "path": "/api/score/items/{id}",
+   "permission": "hasAuthority('score:manage')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/score/controller/ScoreController.java",
+   "line": 37,
+   "perm_line": 38,
+   "method": null
+  },
+  {
+   "http": "GET",
+   "path": "/api/score/grid",
+   "permission": "hasAuthority('score:view')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/score/controller/ScoreController.java",
+   "line": 46,
+   "perm_line": 47,
+   "method": null
+  },
+  {
+   "http": "POST",
+   "path": "/api/score/entries/batch",
+   "permission": "hasAuthority('score:entry')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/score/controller/ScoreController.java",
+   "line": 53,
+   "perm_line": 52,
+   "method": null
+  },
+  {
+   "http": "GET",
+   "path": "/api/score/ranking",
+   "permission": "hasAuthority('score:view')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/score/controller/ScoreController.java",
+   "line": 71,
+   "perm_line": 72,
+   "method": null
+  },
+  {
+   "http": "GET",
+   "path": "/api/score/ranking/stats",
+   "permission": "hasAuthority('score:view')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/score/controller/ScoreController.java",
+   "line": 82,
+   "perm_line": 83,
+   "method": null
+  },
+  {
+   "http": "GET",
+   "path": "/api/score/export/grid",
+   "permission": "hasAuthority('score:view')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/score/controller/ScoreController.java",
+   "line": 91,
+   "perm_line": 92,
+   "method": null
+  },
+  {
+   "http": "GET",
+   "path": "/api/common/scope/users",
+   "permission": null,
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/common/controller/ScopeController.java",
+   "line": 26,
+   "perm_line": null,
+   "method": "users"
+  },
+  {
+   "http": "GET",
+   "path": "/api/common/scope/depts",
+   "permission": null,
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/common/controller/ScopeController.java",
+   "line": 32,
+   "perm_line": null,
+   "method": "depts"
+  },
+  {
+   "http": "GET",
+   "path": "/api/draft/{draftType}",
+   "permission": "isAuthenticated()",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/common/controller/FormDraftController.java",
+   "line": 27,
+   "perm_line": 28,
+   "method": null
+  },
+  {
+   "http": "PUT",
+   "path": "/api/draft/{draftType}",
+   "permission": "isAuthenticated()",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/common/controller/FormDraftController.java",
+   "line": 35,
+   "perm_line": 36,
+   "method": null
+  },
+  {
+   "http": "PUT",
+   "path": "/api/draft/{draftType}/force",
+   "permission": "isAuthenticated()",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/common/controller/FormDraftController.java",
+   "line": 51,
+   "perm_line": 52,
+   "method": null
+  },
+  {
+   "http": "DELETE",
+   "path": "/api/draft/{draftType}",
+   "permission": "isAuthenticated()",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/common/controller/FormDraftController.java",
+   "line": 60,
+   "perm_line": 61,
+   "method": null
+  },
+  {
+   "http": "GET",
+   "path": "/api/system/dict/types",
+   "permission": "hasAuthority('system:config:view')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/controller/SysDictController.java",
+   "line": 22,
+   "perm_line": 23,
+   "method": null
+  },
+  {
+   "http": "POST",
+   "path": "/api/system/dict/types",
+   "permission": "hasAuthority('system:config:edit')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/controller/SysDictController.java",
+   "line": 29,
+   "perm_line": 28,
+   "method": "createType"
+  },
+  {
+   "http": "PUT",
+   "path": "/api/system/dict/types/{id}",
+   "permission": "hasAuthority('system:config:edit')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/controller/SysDictController.java",
+   "line": 36,
+   "perm_line": 35,
+   "method": "updateType"
+  },
+  {
+   "http": "DELETE",
+   "path": "/api/system/dict/types/{id}",
+   "permission": "hasAuthority('system:config:edit')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/controller/SysDictController.java",
+   "line": 44,
+   "perm_line": 43,
+   "method": "deleteType"
+  },
+  {
+   "http": "GET",
+   "path": "/api/system/dict/data/{dictCode}",
+   "permission": "isAuthenticated()",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/controller/SysDictController.java",
+   "line": 59,
+   "perm_line": 60,
+   "method": null
+  },
+  {
+   "http": "GET",
+   "path": "/api/system/dict/data/type/{typeId}",
+   "permission": "isAuthenticated()",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/controller/SysDictController.java",
+   "line": 65,
+   "perm_line": 60,
+   "method": null
+  },
+  {
+   "http": "POST",
+   "path": "/api/system/dict/data",
+   "permission": "isAuthenticated()",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/controller/SysDictController.java",
+   "line": 71,
+   "perm_line": 66,
+   "method": null
+  },
+  {
+   "http": "PUT",
+   "path": "/api/system/dict/data/{id}",
+   "permission": "hasAuthority('system:config:edit')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/controller/SysDictController.java",
+   "line": 78,
+   "perm_line": 79,
+   "method": null
+  },
+  {
+   "http": "DELETE",
+   "path": "/api/system/dict/data/{id}",
+   "permission": "hasAuthority('system:config:edit')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/controller/SysDictController.java",
+   "line": 86,
+   "perm_line": 87,
+   "method": null
+  },
+  {
+   "http": "GET",
+   "path": "/api/system/audit-logs",
+   "permission": "hasAuthority('system:log:view')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/controller/SysAuditLogController.java",
+   "line": 27,
+   "perm_line": 28,
+   "method": null
+  },
+  {
+   "http": "GET",
+   "path": "/api/system/positions",
+   "permission": "hasAuthority('system:position:view')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/controller/SysPositionController.java",
+   "line": 23,
+   "perm_line": 24,
+   "method": null
+  },
+  {
+   "http": "POST",
+   "path": "/api/system/positions",
+   "permission": "hasAuthority('system:position:view')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/controller/SysPositionController.java",
+   "line": 29,
+   "perm_line": 24,
+   "method": null
+  },
+  {
+   "http": "PUT",
+   "path": "/api/system/positions/{id}",
+   "permission": "hasAuthority('system:position:edit')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/controller/SysPositionController.java",
+   "line": 36,
+   "perm_line": 37,
+   "method": null
+  },
+  {
+   "http": "DELETE",
+   "path": "/api/system/positions/{id}",
+   "permission": "hasAuthority('system:position:delete')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/controller/SysPositionController.java",
+   "line": 45,
+   "perm_line": 44,
+   "method": "delete"
+  },
+  {
+   "http": "GET",
+   "path": "/api/system/positions/{positionId}/rules",
+   "permission": "hasAuthority('system:position:view')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/controller/SysPositionController.java",
+   "line": 53,
+   "perm_line": 54,
+   "method": null
+  },
+  {
+   "http": "PUT",
+   "path": "/api/system/positions/{positionId}/rules",
+   "permission": "hasAuthority('system:position:view')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/controller/SysPositionController.java",
+   "line": 59,
+   "perm_line": 54,
+   "method": null
+  },
+  {
+   "http": "GET",
+   "path": "/api/system/positions/users/{userId}",
+   "permission": "hasAnyAuthority('system:position:view','system:user:view')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/controller/SysPositionController.java",
+   "line": 68,
+   "perm_line": 69,
+   "method": null
+  },
+  {
+   "http": "PUT",
+   "path": "/api/system/positions/users/{userId}",
+   "permission": "hasAnyAuthority('system:position:view','system:user:view')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/controller/SysPositionController.java",
+   "line": 74,
+   "perm_line": 69,
+   "method": null
+  },
+  {
+   "http": "GET",
+   "path": "/api/system/rule-versions",
+   "permission": "hasAuthority('system:config:view')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/controller/SysRuleVersionController.java",
+   "line": 25,
+   "perm_line": 26,
+   "method": null
+  },
+  {
+   "http": "GET",
+   "path": "/api/system/groups",
+   "permission": "hasAuthority('system:group:view')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/controller/SysGroupController.java",
+   "line": 19,
+   "perm_line": 20,
+   "method": null
+  },
+  {
+   "http": "POST",
+   "path": "/api/system/groups",
+   "permission": "hasAuthority('system:group:view')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/controller/SysGroupController.java",
+   "line": 25,
+   "perm_line": 20,
+   "method": null
+  },
+  {
+   "http": "PUT",
+   "path": "/api/system/groups/{id}",
+   "permission": "hasAuthority('system:group:edit')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/controller/SysGroupController.java",
+   "line": 32,
+   "perm_line": 33,
+   "method": null
+  },
+  {
+   "http": "DELETE",
+   "path": "/api/system/groups/{id}",
+   "permission": "hasAuthority('system:group:delete')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/controller/SysGroupController.java",
+   "line": 41,
+   "perm_line": 40,
+   "method": "delete"
+  },
+  {
+   "http": "GET",
+   "path": "/api/system/users",
+   "permission": "hasAnyAuthority('system:user:view','system:org:admin')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/controller/SysUserController.java",
+   "line": 24,
+   "perm_line": 25,
+   "method": null
+  },
+  {
+   "http": "GET",
+   "path": "/api/system/users/{id}",
+   "permission": "hasAnyAuthority('system:user:view','system:org:admin')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/controller/SysUserController.java",
+   "line": 35,
+   "perm_line": 36,
+   "method": null
+  },
+  {
+   "http": "POST",
+   "path": "/api/system/users",
+   "permission": "hasAnyAuthority('system:user:view','system:org:admin')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/controller/SysUserController.java",
+   "line": 41,
+   "perm_line": 36,
+   "method": null
+  },
+  {
+   "http": "PUT",
+   "path": "/api/system/users/{id}",
+   "permission": "hasAnyAuthority('system:user:edit','system:org:admin')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/controller/SysUserController.java",
+   "line": 52,
+   "perm_line": 53,
+   "method": null
+  },
+  {
+   "http": "POST",
+   "path": "/api/system/users/{id}/reset-password",
+   "permission": "hasAnyAuthority('system:user:edit','system:org:admin')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/controller/SysUserController.java",
+   "line": 61,
+   "perm_line": 62,
+   "method": null
+  },
+  {
+   "http": "POST",
+   "path": "/api/system/users/change-password",
+   "permission": null,
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/controller/SysUserController.java",
+   "line": 70,
+   "perm_line": null,
+   "method": "changePassword"
+  },
+  {
+   "http": "DELETE",
+   "path": "/api/system/users/{id}",
+   "permission": "hasAnyAuthority('system:user:delete','system:org:admin')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/controller/SysUserController.java",
+   "line": 78,
+   "perm_line": 77,
+   "method": "delete"
+  },
+  {
+   "http": "GET",
+   "path": "/api/system/perm-scopes/{roleCode}",
+   "permission": "hasAuthority('system:config:view')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/controller/RolePermScopeController.java",
+   "line": 26,
+   "perm_line": 25,
+   "method": "getScopes"
+  },
+  {
+   "http": "PUT",
+   "path": "/api/system/perm-scopes/{roleCode}",
+   "permission": "hasAuthority('system:config:edit')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/controller/RolePermScopeController.java",
+   "line": 32,
+   "perm_line": 31,
+   "method": "updateScopes"
+  },
+  {
+   "http": "GET",
+   "path": "/api/system/perm-scopes/assignee/{type}/{key}",
+   "permission": "hasAuthority('system:config:view')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/controller/RolePermScopeController.java",
+   "line": 44,
+   "perm_line": 43,
+   "method": "getAssigneeScopes"
+  },
+  {
+   "http": "PUT",
+   "path": "/api/system/perm-scopes/assignee/{type}/{key}",
+   "permission": "hasAuthority('system:config:edit')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/controller/RolePermScopeController.java",
+   "line": 51,
+   "perm_line": 50,
+   "method": "updateAssigneeScopes"
+  },
+  {
+   "http": "GET",
+   "path": "/api/system/depts/tree",
+   "permission": "isAuthenticated()",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/controller/SysDeptController.java",
+   "line": 27,
+   "perm_line": 28,
+   "method": null
+  },
+  {
+   "http": "GET",
+   "path": "/api/system/depts",
+   "permission": "isAuthenticated()",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/controller/SysDeptController.java",
+   "line": 33,
+   "perm_line": 28,
+   "method": null
+  },
+  {
+   "http": "POST",
+   "path": "/api/system/depts",
+   "permission": "isAuthenticated()",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/controller/SysDeptController.java",
+   "line": 39,
+   "perm_line": 34,
+   "method": null
+  },
+  {
+   "http": "PUT",
+   "path": "/api/system/depts/{id}",
+   "permission": "hasAuthority('system:dept:edit')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/controller/SysDeptController.java",
+   "line": 46,
+   "perm_line": 47,
+   "method": null
+  },
+  {
+   "http": "DELETE",
+   "path": "/api/system/depts/{id}",
+   "permission": "hasAuthority('system:dept:edit')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/controller/SysDeptController.java",
+   "line": 54,
+   "perm_line": 55,
+   "method": null
+  },
+  {
+   "http": "GET",
+   "path": "/api/system/depts/{deptId}/admins",
+   "permission": "hasAuthority('system:dept:view')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/controller/SysDeptController.java",
+   "line": 63,
+   "perm_line": 64,
+   "method": null
+  },
+  {
+   "http": "POST",
+   "path": "/api/system/depts/{deptId}/admins",
+   "permission": "hasAuthority('system:dept:view')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/controller/SysDeptController.java",
+   "line": 69,
+   "perm_line": 64,
+   "method": null
+  },
+  {
+   "http": "DELETE",
+   "path": "/api/system/depts/{deptId}/admins/{id}",
+   "permission": "hasAuthority('system:dept:edit')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/controller/SysDeptController.java",
+   "line": 76,
+   "perm_line": 77,
+   "method": null
+  },
+  {
+   "http": "GET",
+   "path": "/api/system/rules",
+   "permission": "hasAuthority('system:rule:view')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/controller/SysPermissionRuleController.java",
+   "line": 19,
+   "perm_line": 20,
+   "method": null
+  },
+  {
+   "http": "POST",
+   "path": "/api/system/rules",
+   "permission": "hasAuthority('system:rule:view')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/controller/SysPermissionRuleController.java",
+   "line": 25,
+   "perm_line": 20,
+   "method": null
+  },
+  {
+   "http": "PUT",
+   "path": "/api/system/rules/{id}",
+   "permission": "hasAuthority('system:rule:edit')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/controller/SysPermissionRuleController.java",
+   "line": 32,
+   "perm_line": 33,
+   "method": null
+  },
+  {
+   "http": "DELETE",
+   "path": "/api/system/rules/{id}",
+   "permission": "hasAuthority('system:rule:delete')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/controller/SysPermissionRuleController.java",
+   "line": 41,
+   "perm_line": 40,
+   "method": "delete"
+  },
+  {
+   "http": "GET",
+   "path": "/api/system/logs",
+   "permission": "hasAuthority('system:log:view')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/controller/SysLogController.java",
+   "line": 20,
+   "perm_line": 21,
+   "method": null
+  },
+  {
+   "http": "GET",
+   "path": "/api/system/logs/counts",
+   "permission": "hasAuthority('system:log:view')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/controller/SysLogController.java",
+   "line": 33,
+   "perm_line": 34,
+   "method": null
+  },
+  {
+   "http": "GET",
+   "path": "/api/system/menus/tree",
+   "permission": "hasAuthority('system:menu:view')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/controller/SysMenuController.java",
+   "line": 20,
+   "perm_line": 19,
+   "method": "tree"
+  },
+  {
+   "http": "GET",
+   "path": "/api/system/configs",
+   "permission": "hasAuthority('system:config:view')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/controller/SysConfigController.java",
+   "line": 34,
+   "perm_line": 35,
+   "method": null
+  },
+  {
+   "http": "PUT",
+   "path": "/api/system/configs",
+   "permission": "hasAuthority('system:config:view')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/controller/SysConfigController.java",
+   "line": 40,
+   "perm_line": 35,
+   "method": null
+  },
+  {
+   "http": "GET",
+   "path": "/api/system/configs/public",
+   "permission": null,
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/controller/SysConfigController.java",
+   "line": 47,
+   "perm_line": null,
+   "method": "publicConfig"
+  },
+  {
+   "http": "GET",
+   "path": "/api/system/configs/logo",
+   "permission": null,
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/controller/SysConfigController.java",
+   "line": 66,
+   "perm_line": null,
+   "method": null
+  },
+  {
+   "http": "GET",
+   "path": "/api/system/roles",
+   "permission": "hasAuthority('system:role:view')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/controller/SysRoleController.java",
+   "line": 19,
+   "perm_line": 20,
+   "method": null
+  },
+  {
+   "http": "GET",
+   "path": "/api/system/roles/{id}",
+   "permission": "hasAuthority('system:role:view')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/controller/SysRoleController.java",
+   "line": 25,
+   "perm_line": 20,
+   "method": null
+  },
+  {
+   "http": "GET",
+   "path": "/api/system/roles/{id}/orgs",
+   "permission": "hasAuthority('system:role:view')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/controller/SysRoleController.java",
+   "line": 31,
+   "perm_line": 26,
+   "method": null
+  },
+  {
+   "http": "PUT",
+   "path": "/api/system/roles/{id}/orgs",
+   "permission": "hasAuthority('system:role:edit')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/controller/SysRoleController.java",
+   "line": 41,
+   "perm_line": 42,
+   "method": null
+  },
+  {
+   "http": "POST",
+   "path": "/api/system/roles",
+   "permission": "hasAuthority('system:role:add')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/controller/SysRoleController.java",
+   "line": 48,
+   "perm_line": 49,
+   "method": null
+  },
+  {
+   "http": "PUT",
+   "path": "/api/system/roles/{id}",
+   "permission": "hasAuthority('system:role:edit')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/controller/SysRoleController.java",
+   "line": 55,
+   "perm_line": 56,
+   "method": null
+  },
+  {
+   "http": "DELETE",
+   "path": "/api/system/roles/{id}",
+   "permission": "hasAuthority('system:role:delete')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/controller/SysRoleController.java",
+   "line": 64,
+   "perm_line": 63,
+   "method": "delete"
+  },
+  {
+   "http": "GET",
+   "path": "/api/reminder/expiring-list",
+   "permission": "hasAuthority('reminder:view')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/reminder/controller/ReminderController.java",
+   "line": 21,
+   "perm_line": 20,
+   "method": "expiringList"
+  },
+  {
+   "http": "GET",
+   "path": "/api/reminder/list",
+   "permission": "hasAuthority('reminder:view')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/reminder/controller/ReminderController.java",
+   "line": 33,
+   "perm_line": 32,
+   "method": "page"
+  },
+  {
+   "http": "GET",
+   "path": "/api/reminder/{id}",
+   "permission": "hasAuthority('reminder:view')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/reminder/controller/ReminderController.java",
+   "line": 48,
+   "perm_line": 47,
+   "method": "detail"
+  },
+  {
+   "http": "GET",
+   "path": "/api/reminder/pending-count",
+   "permission": "hasAuthority('reminder:view')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/reminder/controller/ReminderController.java",
+   "line": 54,
+   "perm_line": 53,
+   "method": "pendingCount"
+  },
+  {
+   "http": "POST",
+   "path": "/api/reminder/ensure-expiring",
+   "permission": "hasAuthority('reminder:view')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/reminder/controller/ReminderController.java",
+   "line": 60,
+   "perm_line": 59,
+   "method": "ensureExpiring"
+  },
+  {
+   "http": "POST",
+   "path": "/api/reminder/{id}/process",
+   "permission": "hasAuthority('reminder:view')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/reminder/controller/ReminderController.java",
+   "line": 67,
+   "perm_line": 66,
+   "method": "process"
+  },
+  {
+   "http": "POST",
+   "path": "/api/auth/login",
+   "permission": null,
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/auth/controller/AuthController.java",
+   "line": 24,
+   "perm_line": null,
+   "method": "login"
+  },
+  {
+   "http": "GET",
+   "path": "/api/auth/info",
+   "permission": null,
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/auth/controller/AuthController.java",
+   "line": 61,
+   "perm_line": null,
+   "method": "getUserInfo"
+  },
+  {
+   "http": "POST",
+   "path": "/api/auth/logout",
+   "permission": null,
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/auth/controller/AuthController.java",
+   "line": 66,
+   "perm_line": null,
+   "method": "logout"
+  },
+  {
+   "http": "POST",
+   "path": "/api/auth/switch-group",
+   "permission": null,
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/auth/controller/AuthController.java",
+   "line": 77,
+   "perm_line": null,
+   "method": "switchGroup"
+  },
+  {
+   "http": "POST",
+   "path": "/api/auth/forgot-password/lookup",
+   "permission": null,
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/auth/controller/AuthController.java",
+   "line": 89,
+   "perm_line": null,
+   "method": "forgotPasswordLookup"
+  },
+  {
+   "http": "POST",
+   "path": "/api/auth/forgot-password/send-code",
+   "permission": null,
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/auth/controller/AuthController.java",
+   "line": 102,
+   "perm_line": null,
+   "method": "forgotPasswordSendCode"
+  },
+  {
+   "http": "POST",
+   "path": "/api/auth/forgot-password/reset",
+   "permission": null,
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/auth/controller/AuthController.java",
+   "line": 110,
+   "perm_line": null,
+   "method": "forgotPasswordReset"
+  },
+  {
+   "http": "GET",
+   "path": "/api/auth/permission-explain",
+   "permission": "isAuthenticated()",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/auth/controller/PermissionExplainController.java",
+   "line": 24,
+   "perm_line": 25,
+   "method": null
+  },
+  {
+   "http": "GET",
+   "path": "/api/file/folders/{id}/acl",
+   "permission": "hasAuthority('file:acl:manage')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/file/controller/FolderAclController.java",
+   "line": 19,
+   "perm_line": 20,
+   "method": null
+  },
+  {
+   "http": "POST",
+   "path": "/api/file/folders/{id}/acl",
+   "permission": "hasAuthority('file:acl:manage')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/file/controller/FolderAclController.java",
+   "line": 23,
+   "perm_line": 20,
+   "method": null
+  },
+  {
+   "http": "DELETE",
+   "path": "/api/file/folders/{id}/acl/{roleId}",
+   "permission": "hasAuthority('file:acl:manage')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/file/controller/FolderAclController.java",
+   "line": 32,
+   "perm_line": 33,
+   "method": null
+  },
+  {
+   "http": "PUT",
+   "path": "/api/file/folders/{id}/download",
+   "permission": "hasAuthority('file:acl:manage')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/file/controller/FolderAclController.java",
+   "line": 36,
+   "perm_line": 33,
+   "method": null
+  },
+  {
+   "http": "GET",
+   "path": "/api/file/folders/{id}/permissions",
+   "permission": "hasAuthority('file:acl:manage')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/file/controller/FolderAclController.java",
+   "line": 42,
+   "perm_line": 37,
+   "method": null
+  },
+  {
+   "http": "GET",
+   "path": "/api/file/download-token",
+   "permission": null,
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/file/controller/FileController.java",
+   "line": 33,
+   "perm_line": null,
+   "method": "downloadToken"
+  },
+  {
+   "http": "GET",
+   "path": "/api/file/folders",
+   "permission": "hasAuthority('file:view')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/file/controller/FileController.java",
+   "line": 41,
+   "perm_line": 40,
+   "method": "getFolderTree"
+  },
+  {
+   "http": "GET",
+   "path": "/api/file/list",
+   "permission": "hasAuthority('file:view')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/file/controller/FileController.java",
+   "line": 48,
+   "perm_line": 47,
+   "method": "pageFiles"
+  },
+  {
+   "http": "POST",
+   "path": "/api/file/upload",
+   "permission": "hasAuthority('file:upload')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/file/controller/FileController.java",
+   "line": 59,
+   "perm_line": 58,
+   "method": "upload"
+  },
+  {
+   "http": "POST",
+   "path": "/api/file/folders",
+   "permission": "hasAuthority('file:folder:manage')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/file/controller/FileController.java",
+   "line": 68,
+   "perm_line": 67,
+   "method": "createFolder"
+  },
+  {
+   "http": "PUT",
+   "path": "/api/file/folders/{id}",
+   "permission": "hasAuthority('file:folder:manage')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/file/controller/FileController.java",
+   "line": 75,
+   "perm_line": 74,
+   "method": "renameFolder"
+  },
+  {
+   "http": "DELETE",
+   "path": "/api/file/folders/{id}",
+   "permission": "hasAuthority('file:folder:manage')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/file/controller/FileController.java",
+   "line": 82,
+   "perm_line": 81,
+   "method": "deleteFolder"
+  },
+  {
+   "http": "DELETE",
+   "path": "/api/file/{id}",
+   "permission": "hasAuthority('file:delete')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/file/controller/FileController.java",
+   "line": 89,
+   "perm_line": 88,
+   "method": "deleteFile"
+  },
+  {
+   "http": "POST",
+   "path": "/api/file/{id}/replace",
+   "permission": "hasAuthority('file:edit')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/file/controller/FileController.java",
+   "line": 97,
+   "perm_line": 96,
+   "method": "replaceFile"
+  },
+  {
+   "http": "GET",
+   "path": "/api/file/storage",
+   "permission": "hasAuthority('file:view')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/file/controller/FileController.java",
+   "line": 103,
+   "perm_line": 102,
+   "method": "getStorageInfo"
+  },
+  {
+   "http": "GET",
+   "path": "/api/file/download/{id}",
+   "permission": "hasAuthority('file:view')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/file/controller/FileController.java",
+   "line": 109,
+   "perm_line": 108,
+   "method": "downloadById"
+  },
+  {
+   "http": "GET",
+   "path": "/api/file/download/public/**",
+   "permission": null,
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/file/controller/FileController.java",
+   "line": 118,
+   "perm_line": null,
+   "method": "downloadPublic"
+  },
+  {
+   "http": "GET",
+   "path": "/api/file/download/**",
+   "permission": "hasAuthority('file:view')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/file/controller/FileController.java",
+   "line": 155,
+   "perm_line": 154,
+   "method": "download"
+  },
+  {
+   "http": "POST",
+   "path": "/api/file/{id}/share",
+   "permission": "hasAuthority('file:share')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/file/controller/FileController.java",
+   "line": 210,
+   "perm_line": 209,
+   "method": "shareFile"
+  },
+  {
+   "http": "GET",
+   "path": "/api/file/shared-to-me",
+   "permission": "hasAuthority('file:view')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/file/controller/FileController.java",
+   "line": 217,
+   "perm_line": 216,
+   "method": "sharedToMe"
+  },
+  {
+   "http": "GET",
+   "path": "/api/file/shared-to-me/count",
+   "permission": "hasAuthority('file:view')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/file/controller/FileController.java",
+   "line": 226,
+   "perm_line": 225,
+   "method": "sharedToMeCount"
+  },
+  {
+   "http": "GET",
+   "path": "/api/file/reconciliation",
+   "permission": "hasAuthority('file:folder:manage')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/file/controller/FileReconciliationController.java",
+   "line": 26,
+   "perm_line": 27,
+   "method": null
+  },
+  {
+   "http": "GET",
+   "path": "/api/statistics/dashboard",
+   "permission": "hasAnyAuthority('statistics:view','dashboard:view')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/statistics/controller/StatisticsController.java",
+   "line": 26,
+   "perm_line": 27,
+   "method": null
+  },
+  {
+   "http": "GET",
+   "path": "/api/statistics/daily-stats",
+   "permission": "hasAnyAuthority('statistics:view','dashboard:view')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/statistics/controller/StatisticsController.java",
+   "line": 32,
+   "perm_line": 27,
+   "method": null
+  },
+  {
+   "http": "GET",
+   "path": "/api/statistics/weekly-stats",
+   "permission": "hasAnyAuthority('statistics:view','dashboard:view')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/statistics/controller/StatisticsController.java",
+   "line": 38,
+   "perm_line": 33,
+   "method": null
+  },
+  {
+   "http": "GET",
+   "path": "/api/statistics/indicator-stats",
+   "permission": "hasAnyAuthority('statistics:view','dashboard:view')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/statistics/controller/StatisticsController.java",
+   "line": 44,
+   "perm_line": 39,
+   "method": null
+  },
+  {
+   "http": "GET",
+   "path": "/api/statistics/customer-rankings",
+   "permission": "hasAuthority('statistics:view')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/statistics/controller/StatisticsController.java",
+   "line": 50,
+   "perm_line": 45,
+   "method": null
+  },
+  {
+   "http": "GET",
+   "path": "/api/statistics/analysis",
+   "permission": "hasAuthority('statistics:view')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/statistics/controller/StatisticsController.java",
+   "line": 56,
+   "perm_line": 51,
+   "method": null
+  },
+  {
+   "http": "GET",
+   "path": "/api/statistics/team-activities",
+   "permission": "hasAnyAuthority('statistics:view','dashboard:view')",
+   "file": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/statistics/controller/StatisticsController.java",
+   "line": 64,
+   "perm_line": 65,
+   "method": null
+  }
+ ],
+ "apis": [
+  {
+   "module": "approval",
+   "func": "getApprovalList",
+   "http": "GET",
+   "path": "/approval/list",
+   "raw_path": "/approval/list",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/approval.js",
+   "line": 3
+  },
+  {
+   "module": "approval",
+   "func": "getApprovalDetail",
+   "http": "GET",
+   "path": "/approval/{param}",
+   "raw_path": "/approval/${id}",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/approval.js",
+   "line": 7
+  },
+  {
+   "module": "approval",
+   "func": "submitApproval",
+   "http": "POST",
+   "path": "/approval/submit",
+   "raw_path": "/approval/submit",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/approval.js",
+   "line": 11
+  },
+  {
+   "module": "approval",
+   "func": "approve",
+   "http": "POST",
+   "path": "/approval/{param}/approve",
+   "raw_path": "/approval/${id}/approve",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/approval.js",
+   "line": 15
+  },
+  {
+   "module": "approval",
+   "func": "reject",
+   "http": "POST",
+   "path": "/approval/{param}/reject",
+   "raw_path": "/approval/${id}/reject",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/approval.js",
+   "line": 19
+  },
+  {
+   "module": "approval",
+   "func": "getApprovalStatistics",
+   "http": "GET",
+   "path": "/approval/statistics",
+   "raw_path": "/approval/statistics",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/approval.js",
+   "line": 23
+  },
+  {
+   "module": "approval",
+   "func": "transferApprovalNode",
+   "http": "PUT",
+   "path": "/approval/{param}/nodes/{param}/transfer",
+   "raw_path": "/approval/${approvalId}/nodes/${nodeId}/transfer",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/approval.js",
+   "line": 28
+  },
+  {
+   "module": "auth",
+   "func": "login",
+   "http": "POST",
+   "path": "/auth/login",
+   "raw_path": "/auth/login",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/auth.js",
+   "line": 3
+  },
+  {
+   "module": "auth",
+   "func": "getUserInfo",
+   "http": "GET",
+   "path": "/auth/info",
+   "raw_path": "/auth/info",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/auth.js",
+   "line": 7
+  },
+  {
+   "module": "auth",
+   "func": "logout",
+   "http": "POST",
+   "path": "/auth/logout",
+   "raw_path": "/auth/logout",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/auth.js",
+   "line": 11
+  },
+  {
+   "module": "auth",
+   "func": "switchGroup",
+   "http": "POST",
+   "path": "/auth/switch-group",
+   "raw_path": "/auth/switch-group",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/auth.js",
+   "line": 16
+  },
+  {
+   "module": "auth",
+   "func": "forgotPasswordLookup",
+   "http": "POST",
+   "path": "/auth/forgot-password/lookup",
+   "raw_path": "/auth/forgot-password/lookup",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/auth.js",
+   "line": 20
+  },
+  {
+   "module": "auth",
+   "func": "forgotPasswordSendCode",
+   "http": "POST",
+   "path": "/auth/forgot-password/send-code",
+   "raw_path": "/auth/forgot-password/send-code",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/auth.js",
+   "line": 24
+  },
+  {
+   "module": "auth",
+   "func": "forgotPasswordReset",
+   "http": "POST",
+   "path": "/auth/forgot-password/reset",
+   "raw_path": "/auth/forgot-password/reset",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/auth.js",
+   "line": 28
+  },
+  {
+   "module": "customer",
+   "func": "getCustomerList",
+   "http": "GET",
+   "path": "/customer/list",
+   "raw_path": "/customer/list",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/customer.js",
+   "line": 4
+  },
+  {
+   "module": "customer",
+   "func": "getCustomer",
+   "http": "GET",
+   "path": "/customer/{param}",
+   "raw_path": "/customer/${id}",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/customer.js",
+   "line": 8
+  },
+  {
+   "module": "customer",
+   "func": "addCustomer",
+   "http": "POST",
+   "path": "/customer/add",
+   "raw_path": "/customer/add",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/customer.js",
+   "line": 12
+  },
+  {
+   "module": "customer",
+   "func": "updateCustomer",
+   "http": "PUT",
+   "path": "/customer/{param}",
+   "raw_path": "/customer/${id}",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/customer.js",
+   "line": 16
+  },
+  {
+   "module": "customer",
+   "func": "saveCustomerWithIndicator",
+   "http": "POST",
+   "path": "/customer/full",
+   "raw_path": "/customer/full",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/customer.js",
+   "line": 21
+  },
+  {
+   "module": "customer",
+   "func": "updateCustomerWithIndicator",
+   "http": "PUT",
+   "path": "/customer/{param}/full",
+   "raw_path": "/customer/${id}/full",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/customer.js",
+   "line": 25
+  },
+  {
+   "module": "customer",
+   "func": "deleteCustomer",
+   "http": "DELETE",
+   "path": "/customer/{param}",
+   "raw_path": "/customer/${id}",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/customer.js",
+   "line": 29
+  },
+  {
+   "module": "customer",
+   "func": "getCustomerLogs",
+   "http": "GET",
+   "path": "/customer/{param}/logs",
+   "raw_path": "/customer/${id}/logs",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/customer.js",
+   "line": 33
+  },
+  {
+   "module": "customer",
+   "func": "addCustomerLog",
+   "http": "POST",
+   "path": "/customer/{param}/logs",
+   "raw_path": "/customer/${id}/logs",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/customer.js",
+   "line": 37
+  },
+  {
+   "module": "customer",
+   "func": "getCustomerStatistics",
+   "http": "GET",
+   "path": "/customer/statistics",
+   "raw_path": "/customer/statistics",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/customer.js",
+   "line": 41
+  },
+  {
+   "module": "customer",
+   "func": "getCustomerListCounts",
+   "http": "GET",
+   "path": "/customer/list/counts",
+   "raw_path": "/customer/list/counts",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/customer.js",
+   "line": 45
+  },
+  {
+   "module": "customer",
+   "func": "getSimpleUserList",
+   "http": "GET",
+   "path": "/customer/users/simple",
+   "raw_path": "/customer/users/simple",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/customer.js",
+   "line": 49
+  },
+  {
+   "module": "customer",
+   "func": "releaseCustomer",
+   "http": "POST",
+   "path": "/customer/{param}/release",
+   "raw_path": "/customer/${id}/release",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/customer.js",
+   "line": 53
+  },
+  {
+   "module": "customer",
+   "func": "getInvoices",
+   "http": "GET",
+   "path": "/customer/{param}/invoices",
+   "raw_path": "/customer/${id}/invoices",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/customer.js",
+   "line": 58
+  },
+  {
+   "module": "customer",
+   "func": "getInvoiceSummary",
+   "http": "GET",
+   "path": "/customer/{param}/invoices/summary",
+   "raw_path": "/customer/${id}/invoices/summary",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/customer.js",
+   "line": 61
+  },
+  {
+   "module": "customer",
+   "func": "addInvoice",
+   "http": "POST",
+   "path": "/customer/{param}/invoices",
+   "raw_path": "/customer/${id}/invoices",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/customer.js",
+   "line": 64
+  },
+  {
+   "module": "customer",
+   "func": "archiveCustomer",
+   "http": "POST",
+   "path": "/customer/{param}/archive",
+   "raw_path": "/customer/${id}/archive",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/customer.js",
+   "line": 68
+  },
+  {
+   "module": "customer",
+   "func": "restoreCustomer",
+   "http": "POST",
+   "path": "/customer/{param}/restore",
+   "raw_path": "/customer/${id}/restore",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/customer.js",
+   "line": 71
+  },
+  {
+   "module": "customer",
+   "func": "deleteInvoice",
+   "http": "DELETE",
+   "path": "/customer/{param}/invoices/{param}",
+   "raw_path": "/customer/${customerId}/invoices/${invoiceId}",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/customer.js",
+   "line": 75
+  },
+  {
+   "module": "customer",
+   "func": "confirmInvoice",
+   "http": "POST",
+   "path": "/customer/{param}/invoices/{param}/confirm",
+   "raw_path": "/customer/${customerId}/invoices/${invoiceId}/confirm",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/customer.js",
+   "line": 79
+  },
+  {
+   "module": "customer",
+   "func": "voidInvoice",
+   "http": "POST",
+   "path": "/customer/{param}/invoices/{param}/void",
+   "raw_path": "/customer/${customerId}/invoices/${invoiceId}/void",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/customer.js",
+   "line": 82
+  },
+  {
+   "module": "customer",
+   "func": "getCustomerGroupNames",
+   "http": "GET",
+   "path": "/customer/group-names",
+   "raw_path": "/customer/group-names",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/customer.js",
+   "line": 87
+  },
+  {
+   "module": "customer",
+   "func": "getIndicator",
+   "http": "GET",
+   "path": "/customer/{param}/indicator",
+   "raw_path": "/customer/${id}/indicator",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/customer.js",
+   "line": 92
+  },
+  {
+   "module": "customer",
+   "func": "saveIndicator",
+   "http": "POST",
+   "path": "/customer/{param}/indicator",
+   "raw_path": "/customer/${id}/indicator",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/customer.js",
+   "line": 95
+  },
+  {
+   "module": "customer",
+   "func": "saveRelationship",
+   "http": "PUT",
+   "path": "/customer/{param}/relationship",
+   "raw_path": "/customer/${id}/relationship",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/customer.js",
+   "line": 98
+  },
+  {
+   "module": "customer",
+   "func": "getShares",
+   "http": "GET",
+   "path": "/customer/{param}/shares",
+   "raw_path": "/customer/${id}/shares",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/customer.js",
+   "line": 103
+  },
+  {
+   "module": "customer",
+   "func": "addShares",
+   "http": "POST",
+   "path": "/customer/{param}/shares",
+   "raw_path": "/customer/${id}/shares",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/customer.js",
+   "line": 106
+  },
+  {
+   "module": "customer",
+   "func": "removeShare",
+   "http": "DELETE",
+   "path": "/customer/{param}/shares/{param}",
+   "raw_path": "/customer/${customerId}/shares/${userId}",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/customer.js",
+   "line": 109
+  },
+  {
+   "module": "customer",
+   "func": "getContacts",
+   "http": "GET",
+   "path": "/customer/{param}/contacts",
+   "raw_path": "/customer/${id}/contacts",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/customer.js",
+   "line": 114
+  },
+  {
+   "module": "customer",
+   "func": "addContact",
+   "http": "POST",
+   "path": "/customer/{param}/contacts",
+   "raw_path": "/customer/${id}/contacts",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/customer.js",
+   "line": 117
+  },
+  {
+   "module": "customer",
+   "func": "updateContact",
+   "http": "PUT",
+   "path": "/customer/{param}/contacts/{param}",
+   "raw_path": "/customer/${customerId}/contacts/${contactId}",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/customer.js",
+   "line": 120
+  },
+  {
+   "module": "customer",
+   "func": "deleteContact",
+   "http": "DELETE",
+   "path": "/customer/{param}/contacts/{param}",
+   "raw_path": "/customer/${customerId}/contacts/${contactId}",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/customer.js",
+   "line": 123
+  },
+  {
+   "module": "customer",
+   "func": "getPayments",
+   "http": "GET",
+   "path": "/customer/{param}/payments",
+   "raw_path": "/customer/${id}/payments",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/customer.js",
+   "line": 128
+  },
+  {
+   "module": "customer",
+   "func": "getPaymentSummary",
+   "http": "GET",
+   "path": "/customer/{param}/payments/summary",
+   "raw_path": "/customer/${id}/payments/summary",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/customer.js",
+   "line": 131
+  },
+  {
+   "module": "customer",
+   "func": "addPayment",
+   "http": "POST",
+   "path": "/customer/{param}/payments",
+   "raw_path": "/customer/${id}/payments",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/customer.js",
+   "line": 134
+  },
+  {
+   "module": "customer",
+   "func": "deletePayment",
+   "http": "DELETE",
+   "path": "/customer/{param}/payments/{param}",
+   "raw_path": "/customer/${customerId}/payments/${paymentId}",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/customer.js",
+   "line": 137
+  },
+  {
+   "module": "customer",
+   "func": "confirmPayment",
+   "http": "POST",
+   "path": "/customer/{param}/payments/{param}/confirm",
+   "raw_path": "/customer/${customerId}/payments/${paymentId}/confirm",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/customer.js",
+   "line": 140
+  },
+  {
+   "module": "customer",
+   "func": "voidPayment",
+   "http": "POST",
+   "path": "/customer/{param}/payments/{param}/void",
+   "raw_path": "/customer/${customerId}/payments/${paymentId}/void",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/customer.js",
+   "line": 143
+  },
+  {
+   "module": "customer",
+   "func": "importCustomers",
+   "http": "POST",
+   "path": "/customer/import",
+   "raw_path": "/customer/import",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/customer.js",
+   "line": 148
+  },
+  {
+   "module": "file",
+   "func": "getFolderTree",
+   "http": "GET",
+   "path": "/file/folders",
+   "raw_path": "/file/folders",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/file.js",
+   "line": 3
+  },
+  {
+   "module": "file",
+   "func": "getFileList",
+   "http": "GET",
+   "path": "/file/list",
+   "raw_path": "/file/list",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/file.js",
+   "line": 7
+  },
+  {
+   "module": "file",
+   "func": "createFolder",
+   "http": "POST",
+   "path": "/file/folders",
+   "raw_path": "/file/folders",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/file.js",
+   "line": 11
+  },
+  {
+   "module": "file",
+   "func": "renameFolder",
+   "http": "PUT",
+   "path": "/file/folders/{param}",
+   "raw_path": "/file/folders/${id}",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/file.js",
+   "line": 15
+  },
+  {
+   "module": "file",
+   "func": "deleteFolder",
+   "http": "DELETE",
+   "path": "/file/folders/{param}",
+   "raw_path": "/file/folders/${id}",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/file.js",
+   "line": 19
+  },
+  {
+   "module": "file",
+   "func": "deleteFile",
+   "http": "DELETE",
+   "path": "/file/{param}",
+   "raw_path": "/file/${id}",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/file.js",
+   "line": 23
+  },
+  {
+   "module": "file",
+   "func": "getStorageInfo",
+   "http": "GET",
+   "path": "/file/storage",
+   "raw_path": "/file/storage",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/file.js",
+   "line": 27
+  },
+  {
+   "module": "file",
+   "func": "shareFile",
+   "http": "POST",
+   "path": "/file/{param}/share",
+   "raw_path": "/file/${fileId}/share",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/file.js",
+   "line": 31
+  },
+  {
+   "module": "file",
+   "func": "getSharedToMe",
+   "http": "GET",
+   "path": "/file/shared-to-me",
+   "raw_path": "/file/shared-to-me",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/file.js",
+   "line": 35
+  },
+  {
+   "module": "file",
+   "func": "getSharedToMeCount",
+   "http": "GET",
+   "path": "/file/shared-to-me/count",
+   "raw_path": "/file/shared-to-me/count",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/file.js",
+   "line": 39
+  },
+  {
+   "module": "file",
+   "func": "getFolderAcl",
+   "http": "GET",
+   "path": "/file/folders/{param}/acl",
+   "raw_path": "/file/folders/${id}/acl",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/file.js",
+   "line": 46
+  },
+  {
+   "module": "file",
+   "func": "saveFolderAcl",
+   "http": "POST",
+   "path": "/file/folders/{param}/acl",
+   "raw_path": "/file/folders/${id}/acl",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/file.js",
+   "line": 51
+  },
+  {
+   "module": "file",
+   "func": "removeFolderAcl",
+   "http": "DELETE",
+   "path": "/file/folders/{param}/acl/{param}",
+   "raw_path": "/file/folders/${id}/acl/${roleId}",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/file.js",
+   "line": 56
+  },
+  {
+   "module": "file",
+   "func": "setFolderDownloadable",
+   "http": "PUT",
+   "path": "/file/folders/{param}/download",
+   "raw_path": "/file/folders/${id}/download",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/file.js",
+   "line": 61
+  },
+  {
+   "module": "file",
+   "func": "getFolderPermissions",
+   "http": "GET",
+   "path": "/file/folders/{param}/permissions",
+   "raw_path": "/file/folders/${id}/permissions",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/file.js",
+   "line": 66
+  },
+  {
+   "module": "file",
+   "func": "replaceFile",
+   "http": "POST",
+   "path": "/file/{param}/replace",
+   "raw_path": "/file/${id}/replace",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/file.js",
+   "line": 71
+  },
+  {
+   "module": "incentive",
+   "func": "getCategoryTree",
+   "http": "GET",
+   "path": "/incentive/categories",
+   "raw_path": "/incentive/categories",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/incentive.js",
+   "line": 3
+  },
+  {
+   "module": "incentive",
+   "func": "createCategory",
+   "http": "POST",
+   "path": "/incentive/categories",
+   "raw_path": "/incentive/categories",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/incentive.js",
+   "line": 7
+  },
+  {
+   "module": "incentive",
+   "func": "updateCategory",
+   "http": "PUT",
+   "path": "/incentive/categories/{param}",
+   "raw_path": "/incentive/categories/${id}",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/incentive.js",
+   "line": 11
+  },
+  {
+   "module": "incentive",
+   "func": "deleteCategory",
+   "http": "DELETE",
+   "path": "/incentive/categories/{param}",
+   "raw_path": "/incentive/categories/${id}",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/incentive.js",
+   "line": 15
+  },
+  {
+   "module": "incentive",
+   "func": "getRecords",
+   "http": "GET",
+   "path": "/incentive/records",
+   "raw_path": "/incentive/records",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/incentive.js",
+   "line": 19
+  },
+  {
+   "module": "incentive",
+   "func": "addRecord",
+   "http": "POST",
+   "path": "/incentive/records",
+   "raw_path": "/incentive/records",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/incentive.js",
+   "line": 23
+  },
+  {
+   "module": "incentive",
+   "func": "deleteRecord",
+   "http": "DELETE",
+   "path": "/incentive/records/{param}",
+   "raw_path": "/incentive/records/${id}",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/incentive.js",
+   "line": 27
+  },
+  {
+   "module": "incentive",
+   "func": "updateRecord",
+   "http": "PUT",
+   "path": "/incentive/records/{param}",
+   "raw_path": "/incentive/records/${id}",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/incentive.js",
+   "line": 32
+  },
+  {
+   "module": "incentive",
+   "func": "getScoreboard",
+   "http": "GET",
+   "path": "/incentive/scoreboard",
+   "raw_path": "/incentive/scoreboard",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/incentive.js",
+   "line": 36
+  },
+  {
+   "module": "incentive",
+   "func": "getCategoryStats",
+   "http": "GET",
+   "path": "/incentive/category-stats",
+   "raw_path": "/incentive/category-stats",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/incentive.js",
+   "line": 41
+  },
+  {
+   "module": "incentive",
+   "func": "getScoreByCustomer",
+   "http": "GET",
+   "path": "/incentive/score/customer/{param}",
+   "raw_path": "/incentive/score/customer/${customerId}",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/incentive.js",
+   "line": 45
+  },
+  {
+   "module": "incentive",
+   "func": "getIncentiveRanking",
+   "http": "GET",
+   "path": "/incentive/ranking",
+   "raw_path": "/incentive/ranking",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/incentive.js",
+   "line": 49
+  },
+  {
+   "module": "incentive",
+   "func": "getCustomerRecords",
+   "http": "GET",
+   "path": "/incentive/customer-records",
+   "raw_path": "/incentive/customer-records",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/incentive.js",
+   "line": 53
+  },
+  {
+   "module": "incentive",
+   "func": "markIncentiveRead",
+   "http": "POST",
+   "path": "/incentive/records/{param}/read",
+   "raw_path": "/incentive/records/${recordId}/read",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/incentive.js",
+   "line": 58
+  },
+  {
+   "module": "incentive",
+   "func": "getIncentiveReadStats",
+   "http": "GET",
+   "path": "/incentive/read-stats",
+   "raw_path": "/incentive/read-stats",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/incentive.js",
+   "line": 62
+  },
+  {
+   "module": "incentive",
+   "func": "getIncentiveReadRanking",
+   "http": "GET",
+   "path": "/incentive/read-ranking",
+   "raw_path": "/incentive/read-ranking",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/incentive.js",
+   "line": 70
+  },
+  {
+   "module": "incentive",
+   "func": "checkIncentivePermission",
+   "http": "GET",
+   "path": "/incentive/permission/check",
+   "raw_path": "/incentive/permission/check",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/incentive.js",
+   "line": 75
+  },
+  {
+   "module": "reminder",
+   "func": "getReminderList",
+   "http": "GET",
+   "path": "/reminder/list",
+   "raw_path": "/reminder/list",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/reminder.js",
+   "line": 3
+  },
+  {
+   "module": "reminder",
+   "func": "getExpiringList",
+   "http": "GET",
+   "path": "/reminder/expiring-list",
+   "raw_path": "/reminder/expiring-list",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/reminder.js",
+   "line": 7
+  },
+  {
+   "module": "reminder",
+   "func": "ensureExpiring",
+   "http": "POST",
+   "path": "/reminder/ensure-expiring",
+   "raw_path": "/reminder/ensure-expiring",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/reminder.js",
+   "line": 12
+  },
+  {
+   "module": "reminder",
+   "func": "getReminderDetail",
+   "http": "GET",
+   "path": "/reminder/{param}",
+   "raw_path": "/reminder/${id}",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/reminder.js",
+   "line": 17
+  },
+  {
+   "module": "reminder",
+   "func": "processReminder",
+   "http": "POST",
+   "path": "/reminder/{param}/process",
+   "raw_path": "/reminder/${id}/process",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/reminder.js",
+   "line": 21
+  },
+  {
+   "module": "reminder",
+   "func": "getPendingCount",
+   "http": "GET",
+   "path": "/reminder/pending-count",
+   "raw_path": "/reminder/pending-count",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/reminder.js",
+   "line": 25
+  },
+  {
+   "module": "score",
+   "func": "addScoreItem",
+   "http": "POST",
+   "path": "/score/items",
+   "raw_path": "/score/items",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/score.js",
+   "line": 3
+  },
+  {
+   "module": "score",
+   "func": "updateScoreItem",
+   "http": "PUT",
+   "path": "/score/items/{param}",
+   "raw_path": "/score/items/${id}",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/score.js",
+   "line": 7
+  },
+  {
+   "module": "score",
+   "func": "deleteScoreItem",
+   "http": "DELETE",
+   "path": "/score/items/{param}",
+   "raw_path": "/score/items/${id}",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/score.js",
+   "line": 11
+  },
+  {
+   "module": "score",
+   "func": "getScoreGrid",
+   "http": "GET",
+   "path": "/score/grid",
+   "raw_path": "/score/grid",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/score.js",
+   "line": 15
+  },
+  {
+   "module": "score",
+   "func": "batchSaveEntries",
+   "http": "POST",
+   "path": "/score/entries/batch",
+   "raw_path": "/score/entries/batch",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/score.js",
+   "line": 19
+  },
+  {
+   "module": "score",
+   "func": "getScoreRanking",
+   "http": "GET",
+   "path": "/score/ranking",
+   "raw_path": "/score/ranking",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/score.js",
+   "line": 23
+  },
+  {
+   "module": "score",
+   "func": "getScoreRankingStats",
+   "http": "GET",
+   "path": "/score/ranking/stats",
+   "raw_path": "/score/ranking/stats",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/score.js",
+   "line": 27
+  },
+  {
+   "module": "sea",
+   "func": "getSeaList",
+   "http": "GET",
+   "path": "/sea/list",
+   "raw_path": "/sea/list",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/sea.js",
+   "line": 3
+  },
+  {
+   "module": "sea",
+   "func": "getSeaStatistics",
+   "http": "GET",
+   "path": "/sea/statistics",
+   "raw_path": "/sea/statistics",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/sea.js",
+   "line": 7
+  },
+  {
+   "module": "sea",
+   "func": "deleteSeaPool",
+   "http": "DELETE",
+   "path": "/sea/pool/{param}",
+   "raw_path": "/sea/pool/${id}",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/sea.js",
+   "line": 12
+  },
+  {
+   "module": "sea",
+   "func": "importSeaCustomers",
+   "http": "POST",
+   "path": "/sea/import",
+   "raw_path": "/sea/import",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/sea.js",
+   "line": 17
+  },
+  {
+   "module": "sea",
+   "func": "getSeaConfigs",
+   "http": "GET",
+   "path": "/sea/configs",
+   "raw_path": "/sea/configs",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/sea.js",
+   "line": 26
+  },
+  {
+   "module": "sea",
+   "func": "getVisibleSeaConfigs",
+   "http": "GET",
+   "path": "/sea/configs/visible",
+   "raw_path": "/sea/configs/visible",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/sea.js",
+   "line": 30
+  },
+  {
+   "module": "sea",
+   "func": "getOrgTree",
+   "http": "GET",
+   "path": "/sea/org-tree",
+   "raw_path": "/sea/org-tree",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/sea.js",
+   "line": 34
+  },
+  {
+   "module": "sea",
+   "func": "createSeaConfig",
+   "http": "POST",
+   "path": "/sea/configs",
+   "raw_path": "/sea/configs",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/sea.js",
+   "line": 37
+  },
+  {
+   "module": "sea",
+   "func": "updateSeaConfig",
+   "http": "PUT",
+   "path": "/sea/configs/{param}",
+   "raw_path": "/sea/configs/${id}",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/sea.js",
+   "line": 40
+  },
+  {
+   "module": "sea",
+   "func": "deleteSeaConfig",
+   "http": "DELETE",
+   "path": "/sea/configs/{param}",
+   "raw_path": "/sea/configs/${id}",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/sea.js",
+   "line": 43
+  },
+  {
+   "module": "sea",
+   "func": "getClaimRecords",
+   "http": "GET",
+   "path": "/sea/claim-records",
+   "raw_path": "/sea/claim-records",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/sea.js",
+   "line": 48
+  },
+  {
+   "module": "statistics",
+   "func": "getDashboardData",
+   "http": "GET",
+   "path": "/statistics/dashboard",
+   "raw_path": "/statistics/dashboard",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/statistics.js",
+   "line": 3
+  },
+  {
+   "module": "statistics",
+   "func": "getTeamActivities",
+   "http": "GET",
+   "path": "/statistics/team-activities",
+   "raw_path": "/statistics/team-activities",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/statistics.js",
+   "line": 7
+  },
+  {
+   "module": "statistics",
+   "func": "getWeeklyStats",
+   "http": "GET",
+   "path": "/statistics/weekly-stats",
+   "raw_path": "/statistics/weekly-stats",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/statistics.js",
+   "line": 11
+  },
+  {
+   "module": "statistics",
+   "func": "getDailyStats",
+   "http": "GET",
+   "path": "/statistics/daily-stats",
+   "raw_path": "/statistics/daily-stats",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/statistics.js",
+   "line": 15
+  },
+  {
+   "module": "statistics",
+   "func": "getAnalysis",
+   "http": "GET",
+   "path": "/statistics/analysis",
+   "raw_path": "/statistics/analysis",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/statistics.js",
+   "line": 19
+  },
+  {
+   "module": "statistics",
+   "func": "getIndicatorStats",
+   "http": "GET",
+   "path": "/statistics/indicator-stats",
+   "raw_path": "/statistics/indicator-stats",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/statistics.js",
+   "line": 23
+  },
+  {
+   "module": "statistics",
+   "func": "getCustomerRankings",
+   "http": "GET",
+   "path": "/statistics/customer-rankings",
+   "raw_path": "/statistics/customer-rankings",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/statistics.js",
+   "line": 27
+  },
+  {
+   "module": "system",
+   "func": "getUserList",
+   "http": "GET",
+   "path": "/system/users",
+   "raw_path": "/system/users",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/system.js",
+   "line": 4
+  },
+  {
+   "module": "system",
+   "func": "getUserById",
+   "http": "GET",
+   "path": "/system/users/{param}",
+   "raw_path": "/system/users/${id}",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/system.js",
+   "line": 7
+  },
+  {
+   "module": "system",
+   "func": "createUser",
+   "http": "POST",
+   "path": "/system/users",
+   "raw_path": "/system/users",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/system.js",
+   "line": 10
+  },
+  {
+   "module": "system",
+   "func": "updateUser",
+   "http": "PUT",
+   "path": "/system/users/{param}",
+   "raw_path": "/system/users/${id}",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/system.js",
+   "line": 13
+  },
+  {
+   "module": "system",
+   "func": "resetPassword",
+   "http": "POST",
+   "path": "/system/users/{param}/reset-password",
+   "raw_path": "/system/users/${id}/reset-password",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/system.js",
+   "line": 16
+  },
+  {
+   "module": "system",
+   "func": "changePassword",
+   "http": "POST",
+   "path": "/system/users/change-password",
+   "raw_path": "/system/users/change-password",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/system.js",
+   "line": 19
+  },
+  {
+   "module": "system",
+   "func": "deleteUser",
+   "http": "DELETE",
+   "path": "/system/users/{param}",
+   "raw_path": "/system/users/${id}",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/system.js",
+   "line": 22
+  },
+  {
+   "module": "system",
+   "func": "getRoleList",
+   "http": "GET",
+   "path": "/system/roles",
+   "raw_path": "/system/roles",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/system.js",
+   "line": 27
+  },
+  {
+   "module": "system",
+   "func": "getRole",
+   "http": "GET",
+   "path": "/system/roles/{param}",
+   "raw_path": "/system/roles/${id}",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/system.js",
+   "line": 30
+  },
+  {
+   "module": "system",
+   "func": "createRole",
+   "http": "POST",
+   "path": "/system/roles",
+   "raw_path": "/system/roles",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/system.js",
+   "line": 33
+  },
+  {
+   "module": "system",
+   "func": "updateRole",
+   "http": "PUT",
+   "path": "/system/roles/{param}",
+   "raw_path": "/system/roles/${id}",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/system.js",
+   "line": 36
+  },
+  {
+   "module": "system",
+   "func": "deleteRole",
+   "http": "DELETE",
+   "path": "/system/roles/{param}",
+   "raw_path": "/system/roles/${id}",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/system.js",
+   "line": 39
+  },
+  {
+   "module": "system",
+   "func": "getDeptTree",
+   "http": "GET",
+   "path": "/system/depts/tree",
+   "raw_path": "/system/depts/tree",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/system.js",
+   "line": 44
+  },
+  {
+   "module": "system",
+   "func": "getDeptList",
+   "http": "GET",
+   "path": "/system/depts",
+   "raw_path": "/system/depts",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/system.js",
+   "line": 47
+  },
+  {
+   "module": "system",
+   "func": "getScopeDepts",
+   "http": "GET",
+   "path": "/common/scope/depts",
+   "raw_path": "/common/scope/depts",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/system.js",
+   "line": 51
+  },
+  {
+   "module": "system",
+   "func": "createDept",
+   "http": "POST",
+   "path": "/system/depts",
+   "raw_path": "/system/depts",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/system.js",
+   "line": 54
+  },
+  {
+   "module": "system",
+   "func": "updateDept",
+   "http": "PUT",
+   "path": "/system/depts/{param}",
+   "raw_path": "/system/depts/${id}",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/system.js",
+   "line": 57
+  },
+  {
+   "module": "system",
+   "func": "deleteDept",
+   "http": "DELETE",
+   "path": "/system/depts/{param}",
+   "raw_path": "/system/depts/${id}",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/system.js",
+   "line": 60
+  },
+  {
+   "module": "system",
+   "func": "getMenuTree",
+   "http": "GET",
+   "path": "/system/menus/tree",
+   "raw_path": "/system/menus/tree",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/system.js",
+   "line": 65
+  },
+  {
+   "module": "system",
+   "func": "getLogList",
+   "http": "GET",
+   "path": "/system/logs",
+   "raw_path": "/system/logs",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/system.js",
+   "line": 70
+  },
+  {
+   "module": "system",
+   "func": "getConfigList",
+   "http": "GET",
+   "path": "/system/configs",
+   "raw_path": "/system/configs",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/system.js",
+   "line": 75
+  },
+  {
+   "module": "system",
+   "func": "getPublicConfig",
+   "http": "GET",
+   "path": "/system/configs/public",
+   "raw_path": "/system/configs/public",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/system.js",
+   "line": 78
+  },
+  {
+   "module": "system",
+   "func": "updateConfigs",
+   "http": "PUT",
+   "path": "/system/configs",
+   "raw_path": "/system/configs",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/system.js",
+   "line": 81
+  },
+  {
+   "module": "system",
+   "func": "getDictTypes",
+   "http": "GET",
+   "path": "/system/dict/types",
+   "raw_path": "/system/dict/types",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/system.js",
+   "line": 86
+  },
+  {
+   "module": "system",
+   "func": "createDictType",
+   "http": "POST",
+   "path": "/system/dict/types",
+   "raw_path": "/system/dict/types",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/system.js",
+   "line": 89
+  },
+  {
+   "module": "system",
+   "func": "updateDictType",
+   "http": "PUT",
+   "path": "/system/dict/types/{param}",
+   "raw_path": "/system/dict/types/${id}",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/system.js",
+   "line": 92
+  },
+  {
+   "module": "system",
+   "func": "deleteDictType",
+   "http": "DELETE",
+   "path": "/system/dict/types/{param}",
+   "raw_path": "/system/dict/types/${id}",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/system.js",
+   "line": 95
+  },
+  {
+   "module": "system",
+   "func": "getDictData",
+   "http": "GET",
+   "path": "/system/dict/data/{param}",
+   "raw_path": "/system/dict/data/${dictCode}",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/system.js",
+   "line": 98
+  },
+  {
+   "module": "system",
+   "func": "getDictDataByTypeId",
+   "http": "GET",
+   "path": "/system/dict/data/type/{param}",
+   "raw_path": "/system/dict/data/type/${typeId}",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/system.js",
+   "line": 101
+  },
+  {
+   "module": "system",
+   "func": "createDictData",
+   "http": "POST",
+   "path": "/system/dict/data",
+   "raw_path": "/system/dict/data",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/system.js",
+   "line": 104
+  },
+  {
+   "module": "system",
+   "func": "updateDictData",
+   "http": "PUT",
+   "path": "/system/dict/data/{param}",
+   "raw_path": "/system/dict/data/${id}",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/system.js",
+   "line": 107
+  },
+  {
+   "module": "system",
+   "func": "deleteDictData",
+   "http": "DELETE",
+   "path": "/system/dict/data/{param}",
+   "raw_path": "/system/dict/data/${id}",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/system.js",
+   "line": 110
+  },
+  {
+   "module": "system",
+   "func": "getDeptAdmins",
+   "http": "GET",
+   "path": "/system/depts/{param}/admins",
+   "raw_path": "/system/depts/${deptId}/admins",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/system.js",
+   "line": 115
+  },
+  {
+   "module": "system",
+   "func": "addDeptAdmin",
+   "http": "POST",
+   "path": "/system/depts/{param}/admins",
+   "raw_path": "/system/depts/${deptId}/admins",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/system.js",
+   "line": 118
+  },
+  {
+   "module": "system",
+   "func": "removeDeptAdmin",
+   "http": "DELETE",
+   "path": "/system/depts/{param}/admins/{param}",
+   "raw_path": "/system/depts/${deptId}/admins/${adminId}",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/system.js",
+   "line": 121
+  },
+  {
+   "module": "system",
+   "func": "getPositionList",
+   "http": "GET",
+   "path": "/system/positions",
+   "raw_path": "/system/positions",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/system.js",
+   "line": 126
+  },
+  {
+   "module": "system",
+   "func": "createPosition",
+   "http": "POST",
+   "path": "/system/positions",
+   "raw_path": "/system/positions",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/system.js",
+   "line": 129
+  },
+  {
+   "module": "system",
+   "func": "updatePosition",
+   "http": "PUT",
+   "path": "/system/positions/{param}",
+   "raw_path": "/system/positions/${id}",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/system.js",
+   "line": 132
+  },
+  {
+   "module": "system",
+   "func": "deletePosition",
+   "http": "DELETE",
+   "path": "/system/positions/{param}",
+   "raw_path": "/system/positions/${id}",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/system.js",
+   "line": 135
+  },
+  {
+   "module": "system",
+   "func": "getUserPositions",
+   "http": "GET",
+   "path": "/system/positions/users/{param}",
+   "raw_path": "/system/positions/users/${userId}",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/system.js",
+   "line": 139
+  },
+  {
+   "module": "system",
+   "func": "assignUserPositions",
+   "http": "PUT",
+   "path": "/system/positions/users/{param}",
+   "raw_path": "/system/positions/users/${userId}",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/system.js",
+   "line": 143
+  },
+  {
+   "module": "system",
+   "func": "getRuleList",
+   "http": "GET",
+   "path": "/system/rules",
+   "raw_path": "/system/rules",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/system.js",
+   "line": 148
+  },
+  {
+   "module": "system",
+   "func": "createRule",
+   "http": "POST",
+   "path": "/system/rules",
+   "raw_path": "/system/rules",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/system.js",
+   "line": 151
+  },
+  {
+   "module": "system",
+   "func": "updateRule",
+   "http": "PUT",
+   "path": "/system/rules/{param}",
+   "raw_path": "/system/rules/${id}",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/system.js",
+   "line": 154
+  },
+  {
+   "module": "system",
+   "func": "deleteRule",
+   "http": "DELETE",
+   "path": "/system/rules/{param}",
+   "raw_path": "/system/rules/${id}",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/system.js",
+   "line": 157
+  },
+  {
+   "module": "system",
+   "func": "getRoleOrgs",
+   "http": "GET",
+   "path": "/system/roles/{param}/orgs",
+   "raw_path": "/system/roles/${roleId}/orgs",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/system.js",
+   "line": 162
+  },
+  {
+   "module": "system",
+   "func": "updateRoleOrgs",
+   "http": "PUT",
+   "path": "/system/roles/{param}/orgs",
+   "raw_path": "/system/roles/${roleId}/orgs",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/system.js",
+   "line": 165
+  },
+  {
+   "module": "system",
+   "func": "getPositionRules",
+   "http": "GET",
+   "path": "/system/positions/{param}/rules",
+   "raw_path": "/system/positions/${positionId}/rules",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/system.js",
+   "line": 170
+  },
+  {
+   "module": "system",
+   "func": "updatePositionRules",
+   "http": "PUT",
+   "path": "/system/positions/{param}/rules",
+   "raw_path": "/system/positions/${positionId}/rules",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/system.js",
+   "line": 173
+  },
+  {
+   "module": "system",
+   "func": "getGroupList",
+   "http": "GET",
+   "path": "/system/groups",
+   "raw_path": "/system/groups",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/system.js",
+   "line": 178
+  },
+  {
+   "module": "system",
+   "func": "createGroup",
+   "http": "POST",
+   "path": "/system/groups",
+   "raw_path": "/system/groups",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/system.js",
+   "line": 181
+  },
+  {
+   "module": "system",
+   "func": "updateGroup",
+   "http": "PUT",
+   "path": "/system/groups/{param}",
+   "raw_path": "/system/groups/${id}",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/system.js",
+   "line": 184
+  },
+  {
+   "module": "system",
+   "func": "deleteGroup",
+   "http": "DELETE",
+   "path": "/system/groups/{param}",
+   "raw_path": "/system/groups/${id}",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/system.js",
+   "line": 187
+  },
+  {
+   "module": "system",
+   "func": "getRolePermScopes",
+   "http": "GET",
+   "path": "/system/perm-scopes/{param}",
+   "raw_path": "/system/perm-scopes/${roleCode}",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/system.js",
+   "line": 192
+  },
+  {
+   "module": "system",
+   "func": "updateRolePermScopes",
+   "http": "PUT",
+   "path": "/system/perm-scopes/{param}",
+   "raw_path": "/system/perm-scopes/${roleCode}",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/system.js",
+   "line": 195
+  },
+  {
+   "module": "system",
+   "func": "getAssigneePermScopes",
+   "http": "GET",
+   "path": "/system/perm-scopes/assignee/{param}/{param}",
+   "raw_path": "/system/perm-scopes/assignee/${type}/${key}",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/system.js",
+   "line": 198
+  },
+  {
+   "module": "system",
+   "func": "updateAssigneePermScopes",
+   "http": "PUT",
+   "path": "/system/perm-scopes/assignee/{param}/{param}",
+   "raw_path": "/system/perm-scopes/assignee/${type}/${key}",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/system.js",
+   "line": 201
+  },
+  {
+   "module": "system",
+   "func": "getAuditLogList",
+   "http": "GET",
+   "path": "/system/audit-logs",
+   "raw_path": "/system/audit-logs",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/system.js",
+   "line": 206
+  },
+  {
+   "module": "task",
+   "func": "getTaskList",
+   "http": "GET",
+   "path": "/task/list",
+   "raw_path": "/task/list",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/task.js",
+   "line": 4
+  },
+  {
+   "module": "task",
+   "func": "getTaskStatistics",
+   "http": "GET",
+   "path": "/task/statistics",
+   "raw_path": "/task/statistics",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/task.js",
+   "line": 8
+  },
+  {
+   "module": "task",
+   "func": "createTask",
+   "http": "POST",
+   "path": "/task",
+   "raw_path": "/task",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/task.js",
+   "line": 12
+  },
+  {
+   "module": "task",
+   "func": "completeTask",
+   "http": "POST",
+   "path": "/task/{param}/complete",
+   "raw_path": "/task/${id}/complete",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/task.js",
+   "line": 16
+  },
+  {
+   "module": "task",
+   "func": "cancelTask",
+   "http": "POST",
+   "path": "/task/{param}/cancel",
+   "raw_path": "/task/${id}/cancel",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/task.js",
+   "line": 20
+  },
+  {
+   "module": "task",
+   "func": "transferTask",
+   "http": "POST",
+   "path": "/task/{param}/transfer",
+   "raw_path": "/task/${id}/transfer",
+   "file": "02-迭代源代码/aigicrm-ui/src/api/task.js",
+   "line": 24
+  }
+ ],
+ "menus": [
+  {
+   "id": "1",
+   "parent_id": "0",
+   "menu_name": "??",
+   "permission": "",
+   "menu_type": "1",
+   "visible": "1"
+  },
+  {
+   "id": "2",
+   "parent_id": "1",
+   "menu_name": "???",
+   "permission": "dashboard:view",
+   "menu_type": "2",
+   "visible": "1"
+  },
+  {
+   "id": "10",
+   "parent_id": "0",
+   "menu_name": "????",
+   "permission": "",
+   "menu_type": "1",
+   "visible": "1"
+  },
+  {
+   "id": "11",
+   "parent_id": "10",
+   "menu_name": "????",
+   "permission": "customer:view",
+   "menu_type": "2",
+   "visible": "1"
+  },
+  {
+   "id": "12",
+   "parent_id": "11",
+   "menu_name": "????",
+   "permission": "customer:add",
+   "menu_type": "2",
+   "visible": "1"
+  },
+  {
+   "id": "13",
+   "parent_id": "10",
+   "menu_name": "????",
+   "permission": "customer:view",
+   "menu_type": "2",
+   "visible": "0"
+  },
+  {
+   "id": "14",
+   "parent_id": "10",
+   "menu_name": "????",
+   "permission": "file:view",
+   "menu_type": "2",
+   "visible": "1"
+  },
+  {
+   "id": "15",
+   "parent_id": "10",
+   "menu_name": "????",
+   "permission": "incentive:view",
+   "menu_type": "2",
+   "visible": "1"
+  },
+  {
+   "id": "16",
+   "parent_id": "10",
+   "menu_name": "????",
+   "permission": "reminder:view",
+   "menu_type": "2",
+   "visible": "1"
+  },
+  {
+   "id": "17",
+   "parent_id": "10",
+   "menu_name": "????",
+   "permission": "sea:view",
+   "menu_type": "2",
+   "visible": "1"
+  },
+  {
+   "id": "18",
+   "parent_id": "10",
+   "menu_name": "????",
+   "permission": "approval:view",
+   "menu_type": "2",
+   "visible": "1"
+  },
+  {
+   "id": "20",
+   "parent_id": "0",
+   "menu_name": "?????",
+   "permission": "",
+   "menu_type": "1",
+   "visible": "1"
+  },
+  {
+   "id": "21",
+   "parent_id": "20",
+   "menu_name": "????",
+   "permission": "statistics:view",
+   "menu_type": "2",
+   "visible": "1"
+  },
+  {
+   "id": "22",
+   "parent_id": "20",
+   "menu_name": "???",
+   "permission": "statistics:scoreboard",
+   "menu_type": "2",
+   "visible": "0"
+  },
+  {
+   "id": "30",
+   "parent_id": "0",
+   "menu_name": "????",
+   "permission": "",
+   "menu_type": "1",
+   "visible": "1"
+  },
+  {
+   "id": "31",
+   "parent_id": "32",
+   "menu_name": "????",
+   "permission": "system:user:view",
+   "menu_type": "2",
+   "visible": "1"
+  },
+  {
+   "id": "32",
+   "parent_id": "30",
+   "menu_name": "????",
+   "permission": "system:dept:view",
+   "menu_type": "2",
+   "visible": "1"
+  },
+  {
+   "id": "33",
+   "parent_id": "32",
+   "menu_name": "????",
+   "permission": "system:role:view",
+   "menu_type": "2",
+   "visible": "1"
+  },
+  {
+   "id": "34",
+   "parent_id": "30",
+   "menu_name": "????",
+   "permission": "system:config:view",
+   "menu_type": "2",
+   "visible": "1"
+  },
+  {
+   "id": "35",
+   "parent_id": "30",
+   "menu_name": "????",
+   "permission": "system:log:view",
+   "menu_type": "2",
+   "visible": "1"
+  },
+  {
+   "id": "40",
+   "parent_id": "11",
+   "menu_name": "????",
+   "permission": "customer:add",
+   "menu_type": "3",
+   "visible": "1"
+  },
+  {
+   "id": "41",
+   "parent_id": "11",
+   "menu_name": "????",
+   "permission": "customer:edit",
+   "menu_type": "3",
+   "visible": "1"
+  },
+  {
+   "id": "42",
+   "parent_id": "11",
+   "menu_name": "????",
+   "permission": "customer:delete",
+   "menu_type": "3",
+   "visible": "1"
+  },
+  {
+   "id": "43",
+   "parent_id": "11",
+   "menu_name": "????",
+   "permission": "customer:export",
+   "menu_type": "3",
+   "visible": "1"
+  },
+  {
+   "id": "44",
+   "parent_id": "17",
+   "menu_name": "????",
+   "permission": "sea:claim",
+   "menu_type": "3",
+   "visible": "1"
+  },
+  {
+   "id": "45",
+   "parent_id": "18",
+   "menu_name": "????",
+   "permission": "approval:approve",
+   "menu_type": "3",
+   "visible": "1"
+  },
+  {
+   "id": "46",
+   "parent_id": "18",
+   "menu_name": "????",
+   "permission": "approval:reject",
+   "menu_type": "3",
+   "visible": "1"
+  },
+  {
+   "id": "47",
+   "parent_id": "14",
+   "menu_name": "????",
+   "permission": "file:upload",
+   "menu_type": "3",
+   "visible": "1"
+  },
+  {
+   "id": "48",
+   "parent_id": "14",
+   "menu_name": "????",
+   "permission": "file:delete",
+   "menu_type": "3",
+   "visible": "1"
+  },
+  {
+   "id": "49",
+   "parent_id": "31",
+   "menu_name": "????",
+   "permission": "system:user:add",
+   "menu_type": "3",
+   "visible": "1"
+  },
+  {
+   "id": "50",
+   "parent_id": "31",
+   "menu_name": "????",
+   "permission": "system:user:edit",
+   "menu_type": "3",
+   "visible": "1"
+  },
+  {
+   "id": "51",
+   "parent_id": "33",
+   "menu_name": "????",
+   "permission": "system:role:add",
+   "menu_type": "3",
+   "visible": "1"
+  },
+  {
+   "id": "52",
+   "parent_id": "33",
+   "menu_name": "????",
+   "permission": "system:role:edit",
+   "menu_type": "3",
+   "visible": "1"
+  },
+  {
+   "id": "54",
+   "parent_id": "17",
+   "menu_name": "????",
+   "permission": "sea:pool:delete",
+   "menu_type": "3",
+   "visible": "1"
+  },
+  {
+   "id": "60",
+   "parent_id": "20",
+   "menu_name": "????",
+   "permission": "score:entry",
+   "menu_type": "2",
+   "visible": "1"
+  },
+  {
+   "id": "61",
+   "parent_id": "20",
+   "menu_name": "????",
+   "permission": "score:view",
+   "menu_type": "2",
+   "visible": "1"
+  },
+  {
+   "id": "62",
+   "parent_id": "15",
+   "menu_name": "????",
+   "permission": "incentive:edit",
+   "menu_type": "2",
+   "visible": "1"
+  },
+  {
+   "id": "63",
+   "parent_id": "15",
+   "menu_name": "????",
+   "permission": "incentive:delete",
+   "menu_type": "2",
+   "visible": "1"
+  },
+  {
+   "id": "71",
+   "parent_id": "32",
+   "menu_name": "????",
+   "permission": "system:position:view",
+   "menu_type": "2",
+   "visible": "1"
+  },
+  {
+   "id": "72",
+   "parent_id": "71",
+   "menu_name": "????",
+   "permission": "system:position:add",
+   "menu_type": "3",
+   "visible": "0"
+  },
+  {
+   "id": "73",
+   "parent_id": "71",
+   "menu_name": "????",
+   "permission": "system:position:edit",
+   "menu_type": "3",
+   "visible": "0"
+  },
+  {
+   "id": "74",
+   "parent_id": "34",
+   "menu_name": "????",
+   "permission": "system:rule:view",
+   "menu_type": "2",
+   "visible": "1"
+  },
+  {
+   "id": "75",
+   "parent_id": "74",
+   "menu_name": "????",
+   "permission": "system:rule:add",
+   "menu_type": "3",
+   "visible": "0"
+  },
+  {
+   "id": "76",
+   "parent_id": "74",
+   "menu_name": "????",
+   "permission": "system:rule:edit",
+   "menu_type": "3",
+   "visible": "0"
+  },
+  {
+   "id": "77",
+   "parent_id": "32",
+   "menu_name": "????",
+   "permission": "system:group:view",
+   "menu_type": "2",
+   "visible": "1"
+  },
+  {
+   "id": "78",
+   "parent_id": "77",
+   "menu_name": "????",
+   "permission": "system:group:add",
+   "menu_type": "3",
+   "visible": "0"
+  },
+  {
+   "id": "79",
+   "parent_id": "77",
+   "menu_name": "????",
+   "permission": "system:group:edit",
+   "menu_type": "3",
+   "visible": "0"
+  },
+  {
+   "id": "80",
+   "parent_id": "10",
+   "menu_name": "????",
+   "permission": "customer:import",
+   "menu_type": "3",
+   "visible": "0"
+  },
+  {
+   "id": "81",
+   "parent_id": "14",
+   "menu_name": "????",
+   "permission": "file:edit",
+   "menu_type": "3",
+   "visible": "0"
+  },
+  {
+   "id": "82",
+   "parent_id": "20",
+   "menu_name": "????",
+   "permission": "score:view",
+   "menu_type": "2",
+   "visible": "0"
+  },
+  {
+   "id": "83",
+   "parent_id": "20",
+   "menu_name": "????",
+   "permission": "score:manage",
+   "menu_type": "3",
+   "visible": "0"
+  },
+  {
+   "id": "84",
+   "parent_id": "17",
+   "menu_name": "??????",
+   "permission": "sea:config:view",
+   "menu_type": "3",
+   "visible": "0"
+  },
+  {
+   "id": "85",
+   "parent_id": "17",
+   "menu_name": "??????",
+   "permission": "sea:config:edit",
+   "menu_type": "3",
+   "visible": "0"
+  },
+  {
+   "id": "86",
+   "parent_id": "30",
+   "menu_name": "??????",
+   "permission": "system:config:edit",
+   "menu_type": "3",
+   "visible": "0"
+  },
+  {
+   "id": "87",
+   "parent_id": "30",
+   "menu_name": "????",
+   "permission": "system:dept:edit",
+   "menu_type": "3",
+   "visible": "0"
+  },
+  {
+   "id": "88",
+   "parent_id": "30",
+   "menu_name": "????",
+   "permission": "system:menu:view",
+   "menu_type": "3",
+   "visible": "0"
+  },
+  {
+   "id": "89",
+   "parent_id": "30",
+   "menu_name": "????",
+   "permission": "system:menu:edit",
+   "menu_type": "3",
+   "visible": "0"
+  },
+  {
+   "id": "90",
+   "parent_id": "30",
+   "menu_name": "?????",
+   "permission": "system:org:admin",
+   "menu_type": "3",
+   "visible": "0"
+  },
+  {
+   "id": "91",
+   "parent_id": "31",
+   "menu_name": "????",
+   "permission": "system:user:delete",
+   "menu_type": "3",
+   "visible": "0"
+  },
+  {
+   "id": "92",
+   "parent_id": "33",
+   "menu_name": "????",
+   "permission": "system:role:delete",
+   "menu_type": "3",
+   "visible": "0"
+  },
+  {
+   "id": "95",
+   "parent_id": "71",
+   "menu_name": "????",
+   "permission": "system:position:delete",
+   "menu_type": "3",
+   "visible": "0"
+  },
+  {
+   "id": "96",
+   "parent_id": "74",
+   "menu_name": "????",
+   "permission": "system:rule:delete",
+   "menu_type": "3",
+   "visible": "0"
+  },
+  {
+   "id": "97",
+   "parent_id": "77",
+   "menu_name": "????",
+   "permission": "system:group:delete",
+   "menu_type": "3",
+   "visible": "0"
+  },
+  {
+   "id": "98",
+   "parent_id": "0",
+   "menu_name": "????-??",
+   "permission": "system:dept:view",
+   "menu_type": "2",
+   "visible": "0"
+  },
+  {
+   "id": "99",
+   "parent_id": "0",
+   "menu_name": "????-??",
+   "permission": "system:config:view",
+   "menu_type": "2",
+   "visible": "0"
+  },
+  {
+   "id": "100",
+   "parent_id": "0",
+   "menu_name": "????-??",
+   "permission": "system:user:view",
+   "menu_type": "2",
+   "visible": "0"
+  },
+  {
+   "id": "105",
+   "parent_id": "15",
+   "menu_name": "????",
+   "permission": "incentive:view",
+   "menu_type": "2",
+   "visible": "1"
+  },
+  {
+   "id": "106",
+   "parent_id": "15",
+   "menu_name": "????",
+   "permission": "incentive:view",
+   "menu_type": "2",
+   "visible": "1"
+  },
+  {
+   "id": "107",
+   "parent_id": "17",
+   "menu_name": "????",
+   "permission": "sea:view",
+   "menu_type": "2",
+   "visible": "1"
+  },
+  {
+   "id": "108",
+   "parent_id": "20",
+   "menu_name": "????????",
+   "permission": "statistics:view",
+   "menu_type": "2",
+   "visible": "1"
+  },
+  {
+   "id": "110",
+   "parent_id": "11",
+   "menu_name": "????",
+   "permission": "customer:share",
+   "menu_type": "3",
+   "visible": "1"
+  },
+  {
+   "id": "111",
+   "parent_id": "14",
+   "menu_name": "????",
+   "permission": "file:share",
+   "menu_type": "3",
+   "visible": "1"
+  },
+  {
+   "id": "113",
+   "parent_id": "17",
+   "menu_name": "????",
+   "permission": "sea:import",
+   "menu_type": "3",
+   "visible": "1"
+  },
+  {
+   "id": "114",
+   "parent_id": "15",
+   "menu_name": "????",
+   "permission": "incentive:add",
+   "menu_type": "2",
+   "visible": "1"
+  },
+  {
+   "id": "115",
+   "parent_id": "11",
+   "menu_name": "????",
+   "permission": "customer:view",
+   "menu_type": "2",
+   "visible": "1"
+  },
+  {
+   "id": "116",
+   "parent_id": "17",
+   "menu_name": "???",
+   "permission": "sea:view",
+   "menu_type": "2",
+   "visible": "1"
+  },
+  {
+   "id": "118",
+   "parent_id": "32",
+   "menu_name": "????",
+   "permission": "system:dept:view",
+   "menu_type": "2",
+   "visible": "1"
+  },
+  {
+   "id": "119",
+   "parent_id": "34",
+   "menu_name": "????",
+   "permission": "system:config:view",
+   "menu_type": "2",
+   "visible": "1"
+  },
+  {
+   "id": "120",
+   "parent_id": "10",
+   "menu_name": "?????",
+   "permission": "file:folder:manage",
+   "menu_type": "3",
+   "visible": "1"
+  },
+  {
+   "id": "121",
+   "parent_id": "15",
+   "menu_name": "????(????)",
+   "permission": "incentive:manage",
+   "menu_type": "3",
+   "visible": "1"
+  },
+  {
+   "id": "122",
+   "parent_id": "15",
+   "menu_name": "????(??)",
+   "permission": "incentive:view-all",
+   "menu_type": "3",
+   "visible": "1"
+  },
+  {
+   "id": "123",
+   "parent_id": "15",
+   "menu_name": "????(???)",
+   "permission": "incentive:view-shared",
+   "menu_type": "3",
+   "visible": "1"
+  },
+  {
+   "id": "124",
+   "parent_id": "14",
+   "menu_name": "??ACL??",
+   "permission": "file:acl:manage",
+   "menu_type": "3",
+   "visible": "1"
+  },
+  {
+   "id": "125",
+   "parent_id": "15",
+   "menu_name": "????????",
+   "permission": "incentive:read-stats",
+   "menu_type": "3",
+   "visible": "1"
+  },
+  {
+   "id": "126",
+   "parent_id": "20",
+   "menu_name": "????",
+   "permission": "statistics:view",
+   "menu_type": "2",
+   "visible": "1"
+  },
+  {
+   "id": "127",
+   "parent_id": "11",
+   "menu_name": "??????",
+   "permission": "finance:view",
+   "menu_type": "3",
+   "visible": "1"
+  },
+  {
+   "id": "128",
+   "parent_id": "11",
+   "menu_name": "???????",
+   "permission": "contact:view",
+   "menu_type": "3",
+   "visible": "1"
+  },
+  {
+   "id": "129",
+   "parent_id": "11",
+   "menu_name": "????????",
+   "permission": "customer:date:edit",
+   "menu_type": "3",
+   "visible": "0"
+  },
+  {
+   "id": "130",
+   "parent_id": "20",
+   "menu_name": "??????",
+   "permission": "ranking:customer:view",
+   "menu_type": "3",
+   "visible": "1"
+  },
+  {
+   "id": "9062",
+   "parent_id": "34",
+   "menu_name": "???????????",
+   "permission": "incentive:read-ranking:view",
+   "menu_type": "2",
+   "visible": "1"
+  },
+  {
+   "id": "9063",
+   "parent_id": "0",
+   "menu_name": "?????",
+   "permission": "contact:manage",
+   "menu_type": "3",
+   "visible": "0"
+  },
+  {
+   "id": "9064",
+   "parent_id": "0",
+   "menu_name": "????",
+   "permission": "finance:manage",
+   "menu_type": "3",
+   "visible": "0"
+  },
+  {
+   "id": "9065",
+   "parent_id": "0",
+   "menu_name": "????",
+   "permission": "task:view",
+   "menu_type": "3",
+   "visible": "1"
+  },
+  {
+   "id": "9066",
+   "parent_id": "0",
+   "menu_name": "????",
+   "permission": "task:manage",
+   "menu_type": "3",
+   "visible": "1"
+  }
+ ],
+ "buttons": [
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/components/FilePreview.vue",
+   "line": 42,
+   "attrs": "@click=\"emit('update:visible', false)\"",
+   "label": "关闭",
+   "click": "emit('update:visible', false)",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": []
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/components/FilePreview.vue",
+   "line": 43,
+   "attrs": "v-if=\"type === 'office' || type === 'file'\" @click=\"openInBrowser\"",
+   "label": "直接打开",
+   "click": "openInBrowser",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": []
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/components/FilePreview.vue",
+   "line": 44,
+   "attrs": "type=\"primary\" @click=\"download\"",
+   "label": "下载文件",
+   "click": "download",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": []
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/layout/index.vue",
+   "line": 169,
+   "attrs": "@click=\"showPassword = false\"",
+   "label": "取消",
+   "click": "showPassword = false",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": []
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/layout/index.vue",
+   "line": 170,
+   "attrs": "type=\"primary\" :loading=\"pwdLoading\" @click=\"submitPassword\"",
+   "label": "确认修改",
+   "click": "submitPassword",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": [
+    {
+     "module": "system",
+     "func": "changePassword",
+     "alias": "changePassword"
+    }
+   ]
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/approval/index.vue",
+   "line": 146,
+   "attrs": "link type=\"primary\" class=\"code-link\" @click.stop=\"openDetail(row)\"",
+   "label": "{{ row.approvalCode }}",
+   "click": null,
+   "guard": null,
+   "self_closing": false,
+   "api_calls": []
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/approval/index.vue",
+   "line": 175,
+   "attrs": "v-if=\"canApprove\" type=\"success\" size=\"small\" circle @click.stop=\"handleApprove(row)\"",
+   "label": "",
+   "click": null,
+   "guard": null,
+   "self_closing": false,
+   "api_calls": []
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/approval/index.vue",
+   "line": 178,
+   "attrs": "v-if=\"canReject\" type=\"danger\" size=\"small\" circle @click.stop=\"handleReject(row)\"",
+   "label": "",
+   "click": null,
+   "guard": null,
+   "self_closing": false,
+   "api_calls": []
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/approval/index.vue",
+   "line": 246,
+   "attrs": "v-if=\"isAdmin && (node.status === 'pending' || node.status === 'waiting')\" link type=\"primary\" size=\"small\" @click=\"openTransfer(node)\"",
+   "label": "转交",
+   "click": "openTransfer(node)",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": []
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/approval/index.vue",
+   "line": 260,
+   "attrs": "@click=\"detailVisible = false\"",
+   "label": "关闭",
+   "click": "detailVisible = false",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": []
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/approval/index.vue",
+   "line": 261,
+   "attrs": "v-if=\"selectedApproval && activeTab === 'pending' && canReject\" type=\"danger\" :loading=\"actionLoading\" @click=\"handleReject(selectedApproval)\"",
+   "label": "驳回",
+   "click": "handleReject(selectedApproval)",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": [
+    {
+     "module": "approval",
+     "func": "reject",
+     "alias": "reject"
+    }
+   ]
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/approval/index.vue",
+   "line": 267,
+   "attrs": "v-if=\"selectedApproval && activeTab === 'pending' && canApprove\" type=\"success\" :loading=\"actionLoading\" @click=\"handleApprove(selectedApproval)\"",
+   "label": "通过",
+   "click": "handleApprove(selectedApproval)",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": [
+    {
+     "module": "approval",
+     "func": "approve",
+     "alias": "approve"
+    }
+   ]
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/customer/AdvFilterDialog.vue",
+   "line": 62,
+   "attrs": "@click=\"clearAdvFilter\"",
+   "label": "清空全部",
+   "click": "clearAdvFilter",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": []
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/customer/AdvFilterDialog.vue",
+   "line": 63,
+   "attrs": "@click=\"showAdvFilter = false\"",
+   "label": "取消",
+   "click": "showAdvFilter = false",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": []
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/customer/AdvFilterDialog.vue",
+   "line": 64,
+   "attrs": "type=\"primary\" @click=\"showAdvFilter = false\"",
+   "label": "确定",
+   "click": "showAdvFilter = false",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": []
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/customer/ColPickerDialog.vue",
+   "line": 4,
+   "attrs": "size=\"small\" @click=\"setAllCols\"",
+   "label": "全选",
+   "click": "setAllCols",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": []
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/customer/ColPickerDialog.vue",
+   "line": 5,
+   "attrs": "size=\"small\" @click=\"clearCols\"",
+   "label": "全不选",
+   "click": "clearCols",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": []
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/customer/ColPickerDialog.vue",
+   "line": 12,
+   "attrs": "@click=\"colPickerVisible = false\"",
+   "label": "取消",
+   "click": "colPickerVisible = false",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": []
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/customer/ColPickerDialog.vue",
+   "line": 12,
+   "attrs": "type=\"primary\" @click=\"colPickerVisible = false\"",
+   "label": "确定",
+   "click": "colPickerVisible = false",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": []
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/customer/ContactsSection.vue",
+   "line": 6,
+   "attrs": "type=\"primary\" link size=\"small\" @click=\"addContactRow\"",
+   "label": "添加联系人",
+   "click": "addContactRow",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": []
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/customer/ContactsSection.vue",
+   "line": 16,
+   "attrs": "type=\"danger\" link size=\"small\" @click=\"contacts.splice(idx, 1)\"",
+   "label": "",
+   "click": "contacts.splice(idx, 1)",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": []
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/customer/ImportDialog.vue",
+   "line": 4,
+   "attrs": "type=\"primary\" plain size=\"small\" @click=\"downloadTemplate\"",
+   "label": "下载导入模板 (.xlsx)",
+   "click": "downloadTemplate",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": [
+    {
+     "module": "customer",
+     "func": "downloadImportTemplate",
+     "alias": "downloadImportTemplate"
+    }
+   ]
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/customer/ImportDialog.vue",
+   "line": 19,
+   "attrs": "@click=\"showImportDialog = false\"",
+   "label": "取消",
+   "click": "showImportDialog = false",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": []
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/customer/ImportDialog.vue",
+   "line": 20,
+   "attrs": "type=\"primary\" @click=\"doImport\" :disabled=\"!importFile\" :loading=\"importLoading\"",
+   "label": "开始导入",
+   "click": "doImport",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": [
+    {
+     "module": "customer",
+     "func": "importCustomers",
+     "alias": "importCustomers"
+    }
+   ]
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/customer/MainTable.vue",
+   "line": 26,
+   "attrs": "size=\"small\" @click=\"colPickerVisible = true\"",
+   "label": "列设置",
+   "click": "colPickerVisible = true",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": []
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/customer/MainTable.vue",
+   "line": 80,
+   "attrs": "v-if=\"canRelease && row.status === 'archived'\" type=\"success\" link size=\"small\" @click.stop=\"handleRestore(row)\"",
+   "label": "恢复",
+   "click": null,
+   "guard": null,
+   "self_closing": false,
+   "api_calls": []
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/customer/MainTable.vue",
+   "line": 82,
+   "attrs": "v-if=\"canRelease\" type=\"danger\" link size=\"small\" @click.stop=\"openRelease(row)\"",
+   "label": "释放",
+   "click": null,
+   "guard": null,
+   "self_closing": false,
+   "api_calls": []
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/customer/MainTable.vue",
+   "line": 83,
+   "attrs": "v-if=\"canRelease\" type=\"info\" link size=\"small\" @click.stop=\"handleArchive(row)\"",
+   "label": "归档",
+   "click": null,
+   "guard": null,
+   "self_closing": false,
+   "api_calls": []
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/customer/MainTable.vue",
+   "line": 85,
+   "attrs": "v-if=\"canDelete\" type=\"danger\" link size=\"small\" @click.stop=\"handleDelete(row)\"",
+   "label": "删除",
+   "click": null,
+   "guard": null,
+   "self_closing": false,
+   "api_calls": []
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/customer/ReleaseDialog.vue",
+   "line": 19,
+   "attrs": "@click=\"showReleaseDialog = false\"",
+   "label": "取消",
+   "click": "showReleaseDialog = false",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": []
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/customer/ReleaseDialog.vue",
+   "line": 20,
+   "attrs": "type=\"danger\" :loading=\"releaseLoading\" @click=\"confirmRelease\"",
+   "label": "确认释放",
+   "click": "confirmRelease",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": []
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/customer/TopBar.vue",
+   "line": 4,
+   "attrs": "@click=\"showAdvFilter = true\"",
+   "label": "高级筛选 0\" size=\"small\" type=\"warning\" styl",
+   "click": "showAdvFilter = true",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": []
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/customer/TopBar.vue",
+   "line": 7,
+   "attrs": "v-if=\"hasPerm('customer:import')\" :icon=\"Upload\" @click=\"showImportDialog = true\"",
+   "label": "批量导入",
+   "click": "showImportDialog = true",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": []
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/customer/TopBar.vue",
+   "line": 8,
+   "attrs": "v-if=\"hasPerm('customer:export')\" :icon=\"Download\" @click=\"handleExport\"",
+   "label": "导出",
+   "click": "handleExport",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": []
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/customer/TopBar.vue",
+   "line": 9,
+   "attrs": "v-if=\"hasPerm('customer:add')\" type=\"primary\" :icon=\"Plus\" @click=\"$router.push('/customer/add')\"",
+   "label": "新客户",
+   "click": "$router.push('/customer/add')",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": []
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/customer/add.vue",
+   "line": 4,
+   "attrs": "link @click=\"goBack\" class=\"back-btn\"",
+   "label": "返回",
+   "click": "goBack",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": []
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/customer/add.vue",
+   "line": 24,
+   "attrs": "size=\"large\" @click=\"goBack\"",
+   "label": "取消",
+   "click": "goBack",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": []
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/customer/add.vue",
+   "line": 25,
+   "attrs": "type=\"primary\" size=\"large\" :loading=\"loading\" @click=\"handleSubmit\"",
+   "label": "{{ isEdit ? '更新客户' : '保存客户' }}",
+   "click": "handleSubmit",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": []
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/customer/detail/FinanceTab.vue",
+   "line": 10,
+   "attrs": "v-if=\"!readonly\" size=\"small\" type=\"primary\" @click=\"showInvoiceDialog = true\"",
+   "label": "+ 录入开票",
+   "click": "showInvoiceDialog = true",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": []
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/customer/detail/FinanceTab.vue",
+   "line": 34,
+   "attrs": "v-if=\"row.status === 'pending'\" link type=\"success\" size=\"small\" @click=\"handleConfirmInvoice(row)\"",
+   "label": "确认",
+   "click": "handleConfirmInvoice(row)",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": []
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/customer/detail/FinanceTab.vue",
+   "line": 35,
+   "attrs": "v-if=\"row.status !== 'voided'\" link type=\"warning\" size=\"small\" @click=\"handleVoidInvoice(row)\"",
+   "label": "作废",
+   "click": "handleVoidInvoice(row)",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": []
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/customer/detail/FinanceTab.vue",
+   "line": 36,
+   "attrs": "v-if=\"row.status === 'pending'\" link type=\"danger\" size=\"small\" @click=\"handleDeleteInvoice(row)\"",
+   "label": "删除",
+   "click": "handleDeleteInvoice(row)",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": []
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/customer/detail/FinanceTab.vue",
+   "line": 50,
+   "attrs": "v-if=\"!readonly\" size=\"small\" type=\"primary\" @click=\"showPaymentDialog = true\"",
+   "label": "+ 录入回款",
+   "click": "showPaymentDialog = true",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": []
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/customer/detail/FinanceTab.vue",
+   "line": 71,
+   "attrs": "v-if=\"row.status === 'pending'\" link type=\"success\" size=\"small\" @click=\"handleConfirmPayment(row)\"",
+   "label": "确认",
+   "click": "handleConfirmPayment(row)",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": []
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/customer/detail/FinanceTab.vue",
+   "line": 72,
+   "attrs": "v-if=\"row.status !== 'voided'\" link type=\"warning\" size=\"small\" @click=\"handleVoidPayment(row)\"",
+   "label": "作废",
+   "click": "handleVoidPayment(row)",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": []
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/customer/detail/FinanceTab.vue",
+   "line": 73,
+   "attrs": "v-if=\"row.status === 'pending'\" link type=\"danger\" size=\"small\" @click=\"handleDeletePayment(row)\"",
+   "label": "删除",
+   "click": "handleDeletePayment(row)",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": []
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/customer/detail/FinanceTab.vue",
+   "line": 93,
+   "attrs": "@click=\"showInvoiceDialog=false\"",
+   "label": "取消",
+   "click": "showInvoiceDialog=false",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": []
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/customer/detail/FinanceTab.vue",
+   "line": 93,
+   "attrs": "type=\"primary\" @click=\"handleAddInvoice\"",
+   "label": "确认录入",
+   "click": "handleAddInvoice",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": []
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/customer/detail/FinanceTab.vue",
+   "line": 103,
+   "attrs": "@click=\"showPaymentDialog=false\"",
+   "label": "取消",
+   "click": "showPaymentDialog=false",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": []
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/customer/detail/FinanceTab.vue",
+   "line": 103,
+   "attrs": "type=\"primary\" @click=\"handleAddPayment\"",
+   "label": "确认录入",
+   "click": "handleAddPayment",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": []
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/customer/detail/IndicatorTab.vue",
+   "line": 17,
+   "attrs": "v-if=\"!readonly\" type=\"primary\" size=\"small\" @click=\"handleSaveIndicator\"",
+   "label": "保存指标",
+   "click": "handleSaveIndicator",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": []
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/customer/detail/InfoTab.vue",
+   "line": 53,
+   "attrs": "v-if=\"!readonly\" size=\"small\" type=\"warning\" @click=\"handleExtend\"",
+   "label": "申请延期",
+   "click": "handleExtend",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": []
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/customer/detail/InfoTab.vue",
+   "line": 65,
+   "attrs": "v-if=\"!readonly\" size=\"small\" type=\"primary\" @click=\"editingContact = null; Object.assign(contactForm, { name: '', position: '', phone: '', remark: '' }); showContactDialog = true\"",
+   "label": "添加",
+   "click": "editingContact = null; Object.assign(contactForm, { name: '', position: '', phone: '', remark: '' }); showContactDialog = true",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": []
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/customer/detail/InfoTab.vue",
+   "line": 75,
+   "attrs": "link size=\"small\" @click=\"openEditContact(c)\"",
+   "label": "",
+   "click": "openEditContact(c)",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": []
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/customer/detail/InfoTab.vue",
+   "line": 76,
+   "attrs": "link size=\"small\" type=\"danger\" @click=\"handleDeleteContact(c)\"",
+   "label": "",
+   "click": "handleDeleteContact(c)",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": []
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/customer/detail/InfoTab.vue",
+   "line": 101,
+   "attrs": "@click=\"showContactDialog=false\"",
+   "label": "取消",
+   "click": "showContactDialog=false",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": []
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/customer/detail/InfoTab.vue",
+   "line": 101,
+   "attrs": "type=\"primary\" @click=\"handleSaveContact\"",
+   "label": "确认",
+   "click": "handleSaveContact",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": []
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/customer/detail/LogsTab.vue",
+   "line": 15,
+   "attrs": "type=\"primary\" size=\"small\" @click=\"handleSubmit\" :loading=\"submitting\"",
+   "label": "记录",
+   "click": "handleSubmit",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": [
+    {
+     "module": "task",
+     "func": "createTask",
+     "alias": "createTask"
+    }
+   ]
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/customer/detail.vue",
+   "line": 9,
+   "attrs": "v-if=\"canEditCustomer\" size=\"small\" @click=\"handleEdit\"",
+   "label": "编辑",
+   "click": "handleEdit",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": []
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/customer/detail.vue",
+   "line": 10,
+   "attrs": "v-if=\"canShareCustomer\" size=\"small\" @click=\"showShareDialog = true\"",
+   "label": "分享",
+   "click": "showShareDialog = true",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": []
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/customer/detail.vue",
+   "line": 132,
+   "attrs": "@click=\"showShareDialog=false\"",
+   "label": "取消",
+   "click": "showShareDialog=false",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": []
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/customer/detail.vue",
+   "line": 132,
+   "attrs": "type=\"primary\" @click=\"handleAddShare\"",
+   "label": "确认分享",
+   "click": "handleAddShare",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": []
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/dashboard/index.vue",
+   "line": 203,
+   "attrs": "type=\"primary\" size=\"small\" @click=\"doApprove(item.id)\"",
+   "label": "通过",
+   "click": "doApprove(item.id)",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": [
+    {
+     "module": "approval",
+     "func": "approve",
+     "alias": "apiApprove"
+    }
+   ]
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/dashboard/index.vue",
+   "line": 204,
+   "attrs": "size=\"small\" @click=\"doReject(item.id)\"",
+   "label": "驳回",
+   "click": "doReject(item.id)",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": [
+    {
+     "module": "approval",
+     "func": "reject",
+     "alias": "apiReject"
+    }
+   ]
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/error/403.vue",
+   "line": 7,
+   "attrs": "type=\"primary\" @click=\"goLogin\"",
+   "label": "返回登录",
+   "click": "goLogin",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": []
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/file/AclDialog.vue",
+   "line": 14,
+   "attrs": "type=\"primary\" :loading=\"aclSaving\" :disabled=\"!aclSelectedRoles.length || !aclSelectedPerms.length\" @click=\"saveAcl\"",
+   "label": "保存授权",
+   "click": "saveAcl",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": [
+    {
+     "module": "file",
+     "func": "saveFolderAcl",
+     "alias": "saveFolderAcl"
+    }
+   ]
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/file/AclDialog.vue",
+   "line": 36,
+   "attrs": "type=\"danger\" link size=\"small\" @click=\"removeAcl(row)\"",
+   "label": "移除",
+   "click": "removeAcl(row)",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": [
+    {
+     "module": "file",
+     "func": "removeFolderAcl",
+     "alias": "removeFolderAcl"
+    }
+   ]
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/file/CreateFolderDialog.vue",
+   "line": 9,
+   "attrs": "@click=\"createFolderVisible = false\"",
+   "label": "取消",
+   "click": "createFolderVisible = false",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": []
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/file/CreateFolderDialog.vue",
+   "line": 10,
+   "attrs": "type=\"primary\" @click=\"handleCreateFolder\"",
+   "label": "创建",
+   "click": "handleCreateFolder",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": [
+    {
+     "module": "file",
+     "func": "createFolder",
+     "alias": "createFolder"
+    }
+   ]
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/file/FolderPanel.vue",
+   "line": 37,
+   "attrs": "v-if=\"canCreateFolder\" class=\"new-folder-btn\" @click=\"openCreateFolder\"",
+   "label": "新建文件夹",
+   "click": "openCreateFolder",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": []
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/file/RenameFolderDialog.vue",
+   "line": 9,
+   "attrs": "@click=\"renameFolderVisible = false\"",
+   "label": "取消",
+   "click": "renameFolderVisible = false",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": []
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/file/RenameFolderDialog.vue",
+   "line": 10,
+   "attrs": "type=\"primary\" @click=\"handleRenameFolder\"",
+   "label": "保存",
+   "click": "handleRenameFolder",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": [
+    {
+     "module": "file",
+     "func": "renameFolder",
+     "alias": "renameFolder"
+    }
+   ]
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/file/ShareDialog.vue",
+   "line": 10,
+   "attrs": "@click=\"shareDialogVisible = false\"",
+   "label": "取消",
+   "click": "shareDialogVisible = false",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": []
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/file/ShareDialog.vue",
+   "line": 11,
+   "attrs": "type=\"primary\" @click=\"confirmShare\"",
+   "label": "确认分享",
+   "click": "confirmShare",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": [
+    {
+     "module": "file",
+     "func": "shareFile",
+     "alias": "shareFile"
+    }
+   ]
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/file/UploadDialog.vue",
+   "line": 22,
+   "attrs": "@click=\"uploadVisible = false\"",
+   "label": "取消",
+   "click": "uploadVisible = false",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": []
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/file/UploadDialog.vue",
+   "line": 23,
+   "attrs": "type=\"primary\" :loading=\"uploading\" :disabled=\"!pendingFiles.length\" @click=\"startUploads\"",
+   "label": "开始上传{{ pendingFiles.length ? `（${pending",
+   "click": "startUploads",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": []
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/file/index.vue",
+   "line": 14,
+   "attrs": "v-if=\"activeTab!=='incentive'&&activeTab!=='shared_to_me' && folderPerms.includes('upload')\" type=\"primary\" :icon=\"Upload\" @click=\"openUpload\"",
+   "label": "上传文件",
+   "click": "openUpload",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": []
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/incentive/DeptRankTableView.vue",
+   "line": 8,
+   "attrs": "size=\"small\" type=\"primary\" plain :icon=\"Download\" @click=\"exportRank('dept')\"",
+   "label": "导出",
+   "click": "exportRank('dept')",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": []
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/incentive/RankTableView.vue",
+   "line": 8,
+   "attrs": "size=\"small\" type=\"primary\" plain :icon=\"Download\" @click=\"exportRank('personal')\"",
+   "label": "导出",
+   "click": "exportRank('personal')",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": []
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/incentive/RecordTable.vue",
+   "line": 59,
+   "attrs": "v-if=\"userStore.isAdmin() || canEdit || row.userId === userStore.userId\" link type=\"primary\" size=\"small\" @click=\"startReplace(row)\"",
+   "label": "追加",
+   "click": "startReplace(row)",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": []
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/incentive/RecordTable.vue",
+   "line": 60,
+   "attrs": "v-if=\"userStore.isAdmin() || canDelete || row.userId === userStore.userId\" link type=\"danger\" size=\"small\" @click=\"handleDeleteRecord(row)\"",
+   "label": "删除",
+   "click": "handleDeleteRecord(row)",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": []
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/incentive/StatsDetail.vue",
+   "line": 6,
+   "attrs": "link type=\"primary\" @click=\"goBack\"",
+   "label": "← 返回激励统计",
+   "click": "goBack",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": []
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/incentive/SubCategoryPanel.vue",
+   "line": 16,
+   "attrs": "v-if=\"userStore.hasPermission('incentive:add')\" size=\"small\" plain :icon=\"Upload\" @click=\"startUpload(item)\"",
+   "label": "上传文件",
+   "click": "startUpload(item)",
+   "guard": "incentive:add",
+   "self_closing": false,
+   "api_calls": []
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/incentive/SubCategoryPanel.vue",
+   "line": 25,
+   "attrs": "v-if=\"userStore.hasPermission('incentive:add')\" size=\"small\" plain :icon=\"Upload\" @click=\"startUpload(group)\"",
+   "label": "上传文件",
+   "click": "startUpload(group)",
+   "guard": "incentive:add",
+   "self_closing": false,
+   "api_calls": []
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/incentive/UploadDialog.vue",
+   "line": 171,
+   "attrs": "size=\"large\" @click=\"showCustomerDialog=false\"",
+   "label": "取消",
+   "click": "showCustomerDialog=false",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": []
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/incentive/UploadDialog.vue",
+   "line": 172,
+   "attrs": "type=\"primary\" size=\"large\" :loading=\"uploading\" :disabled=\"!canSubmit\" @click=\"confirmUpload\"",
+   "label": "{{ pendingReplace?'追加提交':'上传并提交' }}",
+   "click": "confirmUpload",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": []
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/incentive/search.vue",
+   "line": 6,
+   "attrs": ":type=\"showFilter?'primary':'default'\" size=\"default\" @click=\"showFilter=!showFilter\"",
+   "label": "高级筛选 {{ activeFilterCount }}",
+   "click": "showFilter=!showFilter",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": []
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/incentive/search.vue",
+   "line": 13,
+   "attrs": "type=\"primary\" @click=\"doSearch\"",
+   "label": "查询",
+   "click": "doSearch",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": []
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/incentive/search.vue",
+   "line": 14,
+   "attrs": "@click=\"doReset\"",
+   "label": "重置",
+   "click": "doReset",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": []
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/incentive/search.vue",
+   "line": 22,
+   "attrs": "link size=\"small\" @click=\"doReset\" :disabled=\"activeFilterCount === 0\"",
+   "label": "清空筛选",
+   "click": "doReset",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": []
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/incentive/search.vue",
+   "line": 119,
+   "attrs": "size=\"small\" @click=\"downloadPreview\"",
+   "label": "下载",
+   "click": "downloadPreview",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": []
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/incentive/search.vue",
+   "line": 120,
+   "attrs": "size=\"small\" circle @click=\"previewVisible=false\"",
+   "label": "",
+   "click": "previewVisible=false",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": []
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/incentive/search.vue",
+   "line": 130,
+   "attrs": "size=\"small\" type=\"primary\" plain @click=\"downloadPreview\"",
+   "label": "仍要下载试试",
+   "click": "downloadPreview",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": []
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/incentive/search.vue",
+   "line": 227,
+   "attrs": "size=\"small\" circle type=\"primary\" @click.stop=\"preview(f.id, f.type, f.label, previewableOf(r))\"",
+   "label": "",
+   "click": null,
+   "guard": null,
+   "self_closing": false,
+   "api_calls": []
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/incentive/search.vue",
+   "line": 228,
+   "attrs": "size=\"small\" circle @click.stop=\"downloadFile(f.id, f.label)\"",
+   "label": "",
+   "click": null,
+   "guard": null,
+   "self_closing": false,
+   "api_calls": []
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/incentive/search.vue",
+   "line": 237,
+   "attrs": "size=\"small\" circle @click.stop=\"preview(f.id, f.type, f.label, previewableOf(r))\"",
+   "label": "",
+   "click": null,
+   "guard": null,
+   "self_closing": false,
+   "api_calls": []
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/incentive/search.vue",
+   "line": 238,
+   "attrs": "size=\"small\" circle @click.stop=\"downloadFile(f.id, f.label)\"",
+   "label": "",
+   "click": null,
+   "guard": null,
+   "self_closing": false,
+   "api_calls": []
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/incentive/search.vue",
+   "line": 245,
+   "attrs": "size=\"small\" circle @click.stop=\"downloadFile(f.id, f.label)\"",
+   "label": "",
+   "click": null,
+   "guard": null,
+   "self_closing": false,
+   "api_calls": []
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/incentive/search.vue",
+   "line": 258,
+   "attrs": "size=\"small\" @click=\"detailVisible=false\"",
+   "label": "关闭",
+   "click": "detailVisible=false",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": []
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/login/ForgotPasswordDialog.vue",
+   "line": 61,
+   "attrs": ":type=\"countdown > 0 ? 'info' : 'primary'\" :disabled=\"countdown > 0 || !form.method\" :loading=\"sendingCode\" @click=\"handleSendCode\" size=\"large\" class=\"send-btn\"",
+   "label": "{{ countdown > 0 ? countdown + 's' : '获取",
+   "click": "handleSendCode",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": [
+    {
+     "module": "auth",
+     "func": "forgotPasswordSendCode",
+     "alias": "forgotPasswordSendCode"
+    }
+   ]
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/login/ForgotPasswordDialog.vue",
+   "line": 88,
+   "attrs": "v-if=\"step > 1\" @click=\"handleBack\"",
+   "label": "上一步",
+   "click": "handleBack",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": []
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/login/ForgotPasswordDialog.vue",
+   "line": 89,
+   "attrs": "@click=\"visible = false\"",
+   "label": "取消",
+   "click": "visible = false",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": []
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/login/ForgotPasswordDialog.vue",
+   "line": 90,
+   "attrs": "type=\"primary\" :loading=\"submitting\" @click=\"handleNext\" class=\"next-btn\"",
+   "label": "{{ step === 3 ? '确认重置' : '下一步' }}",
+   "click": "handleNext",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": [
+    {
+     "module": "auth",
+     "func": "forgotPasswordLookup",
+     "alias": "forgotPasswordLookup"
+    },
+    {
+     "module": "auth",
+     "func": "forgotPasswordReset",
+     "alias": "forgotPasswordReset"
+    }
+   ]
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/login/index.vue",
+   "line": 34,
+   "attrs": "type=\"primary\" class=\"login-btn\" :loading=\"loading\" @click=\"handleLogin\"",
+   "label": "登 录",
+   "click": "handleLogin",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": [
+    {
+     "module": "auth",
+     "func": "login",
+     "alias": "login"
+    }
+   ]
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/reminder/detail.vue",
+   "line": 4,
+   "attrs": "link type=\"primary\" @click=\"goBack\"",
+   "label": "← 返回提醒管理",
+   "click": "goBack",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": []
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/reminder/detail.vue",
+   "line": 52,
+   "attrs": "v-if=\"customerId\" link type=\"primary\" size=\"small\" class=\"title-action\" @click=\"goCustomer\"",
+   "label": "查看客户完整档案 ›",
+   "click": "goCustomer",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": []
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/reminder/detail.vue",
+   "line": 73,
+   "attrs": "v-if=\"hasReminder && statusText === '待处理'\" type=\"primary\" :loading=\"processing\" @click=\"markProcessed\"",
+   "label": "标记已处理",
+   "click": "markProcessed",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": [
+    {
+     "module": "reminder",
+     "func": "processReminder",
+     "alias": "processReminder"
+    }
+   ]
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/reminder/detail.vue",
+   "line": 79,
+   "attrs": "@click=\"goBack\"",
+   "label": "返回列表",
+   "click": "goBack",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": []
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/reminder/index.vue",
+   "line": 28,
+   "attrs": "type=\"danger\" plain size=\"small\" @click=\"handleClearAll\"",
+   "label": "一键清空",
+   "click": "handleClearAll",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": [
+    {
+     "module": "reminder",
+     "func": "processReminder",
+     "alias": "processReminder"
+    }
+   ]
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/reminder/index.vue",
+   "line": 66,
+   "attrs": "link type=\"primary\" size=\"small\" @click.stop=\"openDetail(row)\"",
+   "label": "详情",
+   "click": null,
+   "guard": null,
+   "self_closing": false,
+   "api_calls": []
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/reminder/index.vue",
+   "line": 68,
+   "attrs": "link type=\"primary\" size=\"small\" @click.stop=\"handleProcessShare(row)\"",
+   "label": "已读",
+   "click": null,
+   "guard": null,
+   "self_closing": false,
+   "api_calls": []
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/reminder/index.vue",
+   "line": 71,
+   "attrs": "link type=\"primary\" size=\"small\" @click.stop=\"handleProcessShare(row)\"",
+   "label": "已读",
+   "click": null,
+   "guard": null,
+   "self_closing": false,
+   "api_calls": []
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/reminder/index.vue",
+   "line": 74,
+   "attrs": "v-if=\"!row.todayFollowedUp\" link type=\"primary\" size=\"small\" @click.stop=\"handleFollowUp(row)\"",
+   "label": "已跟进",
+   "click": null,
+   "guard": null,
+   "self_closing": false,
+   "api_calls": []
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/reminder/index.vue",
+   "line": 75,
+   "attrs": "v-else link type=\"info\" size=\"small\" disabled",
+   "label": "已跟进",
+   "click": null,
+   "guard": null,
+   "self_closing": false,
+   "api_calls": []
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/reminder/index.vue",
+   "line": 76,
+   "attrs": "link type=\"warning\" size=\"small\" @click.stop=\"handleExtend(row)\"",
+   "label": "申请延期",
+   "click": null,
+   "guard": null,
+   "self_closing": false,
+   "api_calls": []
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/score/entry.vue",
+   "line": 20,
+   "attrs": "type=\"primary\" @click=\"handleSave\" :loading=\"saving\"",
+   "label": "保存",
+   "click": "handleSave",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": [
+    {
+     "module": "score",
+     "func": "batchSaveEntries",
+     "alias": "batchSaveEntries"
+    }
+   ]
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/score/entry.vue",
+   "line": 21,
+   "attrs": "@click=\"handleExport\"",
+   "label": "导出",
+   "click": "handleExport",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": []
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/score/entry.vue",
+   "line": 58,
+   "attrs": "link size=\"small\" class=\"se-add-user-btn\"",
+   "label": "+",
+   "click": null,
+   "guard": null,
+   "self_closing": false,
+   "api_calls": []
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/score/entry.vue",
+   "line": 85,
+   "attrs": "v-if=\"isAdmin\" link type=\"danger\" size=\"small\" @click=\"handleDeleteRow(item,idx)\"",
+   "label": "",
+   "click": "handleDeleteRow(item,idx)",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": [
+    {
+     "module": "score",
+     "func": "deleteScoreItem",
+     "alias": "deleteScoreItem"
+    }
+   ]
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/score/entry.vue",
+   "line": 96,
+   "attrs": "link type=\"primary\" @click=\"handleAddRow\"",
+   "label": "添加行",
+   "click": "handleAddRow",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": [
+    {
+     "module": "score",
+     "func": "addScoreItem",
+     "alias": "addScoreItem"
+    }
+   ]
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/score/ranking.vue",
+   "line": 10,
+   "attrs": "@click=\"showRules = true\"",
+   "label": "积分规则",
+   "click": "showRules = true",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": []
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/sea/index.vue",
+   "line": 15,
+   "attrs": "@click=\"router.push('/sea/records')\"",
+   "label": "捞取记录",
+   "click": "router.push('/sea/records')",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": []
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/sea/index.vue",
+   "line": 16,
+   "attrs": "v-if=\"canImport\" type=\"primary\" @click=\"showImportDialog=true\"",
+   "label": "批量导入",
+   "click": "showImportDialog=true",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": []
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/sea/index.vue",
+   "line": 81,
+   "attrs": ":disabled=\"!hasFilters\" @click=\"resetFilters\"",
+   "label": "重置",
+   "click": "resetFilters",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": []
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/sea/index.vue",
+   "line": 125,
+   "attrs": "v-if=\"row.status==='available'&&row.canClaim\" type=\"primary\" size=\"small\" :loading=\"claimingId === row.id\" @click=\"handleClaim(row)\"",
+   "label": "捞取",
+   "click": "handleClaim(row)",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": [
+    {
+     "module": "approval",
+     "func": "submitApproval",
+     "alias": "submitApproval"
+    }
+   ]
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/sea/index.vue",
+   "line": 132,
+   "attrs": "v-if=\"row.canEdit\" link type=\"primary\" size=\"small\" @click=\"handleEdit(row)\"",
+   "label": "编辑",
+   "click": "handleEdit(row)",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": []
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/sea/index.vue",
+   "line": 133,
+   "attrs": "v-if=\"row.canDelete&&row.status==='available'\" link type=\"danger\" size=\"small\" @click=\"handleDelete(row)\"",
+   "label": "删除",
+   "click": "handleDelete(row)",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": [
+    {
+     "module": "sea",
+     "func": "deleteSeaPool",
+     "alias": "deleteSeaPool"
+    }
+   ]
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/sea/index.vue",
+   "line": 145,
+   "attrs": "type=\"primary\" link @click=\"handleDownloadTemplate\"",
+   "label": "下载导入模板",
+   "click": "handleDownloadTemplate",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": [
+    {
+     "module": "customer",
+     "func": "downloadImportTemplate",
+     "alias": "downloadImportTemplate"
+    }
+   ]
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/sea/index.vue",
+   "line": 160,
+   "attrs": "@click=\"showImportDialog=false\"",
+   "label": "{{ importResult?'关闭':'取消' }}",
+   "click": "showImportDialog=false",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": []
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/sea/index.vue",
+   "line": 160,
+   "attrs": "v-if=\"!importResult\" type=\"primary\" :loading=\"importLoading\" :disabled=\"!importFile\" @click=\"handleImport\"",
+   "label": "开始导入",
+   "click": "handleImport",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": [
+    {
+     "module": "sea",
+     "func": "importSeaCustomers",
+     "alias": "importSeaCustomers"
+    }
+   ]
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/sea/records.vue",
+   "line": 8,
+   "attrs": "@click=\"router.push('/sea')\"",
+   "label": "公海池",
+   "click": "router.push('/sea')",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": []
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/statistics/index.vue",
+   "line": 23,
+   "attrs": "size=\"small\" @click=\"loadAll\" style=\"margin-left:auto\"",
+   "label": "刷新",
+   "click": "loadAll",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": [
+    {
+     "module": "statistics",
+     "func": "getAnalysis",
+     "alias": "getAnalysis"
+    },
+    {
+     "module": "score",
+     "func": "getScoreRanking",
+     "alias": "getScoreRanking"
+    },
+    {
+     "module": "system",
+     "func": "getScopeDepts",
+     "alias": "getScopeDepts"
+    }
+   ]
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/system/BasicSettings.vue",
+   "line": 20,
+   "attrs": "type=\"primary\"",
+   "label": "上传Logo",
+   "click": null,
+   "guard": null,
+   "self_closing": false,
+   "api_calls": []
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/system/BasicSettings.vue",
+   "line": 22,
+   "attrs": "v-if=\"canEditConfig && configMap['system.logo']\" type=\"danger\" link @click=\"configMap['system.logo'] = ''\"",
+   "label": "清除",
+   "click": "configMap['system.logo'] = ''",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": []
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/system/BasicSettings.vue",
+   "line": 85,
+   "attrs": "v-if=\"canEditConfig\" type=\"primary\" @click=\"handleSave\"",
+   "label": "保存设置",
+   "click": "handleSave",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": [
+    {
+     "module": "system",
+     "func": "updateConfigs",
+     "alias": "updateConfigs"
+    }
+   ]
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/system/CategoryManager.vue",
+   "line": 13,
+   "attrs": "v-if=\"userStore.hasPermission('incentive:edit')\" type=\"primary\" size=\"small\" :icon=\"Plus\" @click=\"openCategoryDialog()\"",
+   "label": "新增类别",
+   "click": "openCategoryDialog()",
+   "guard": "incentive:edit",
+   "self_closing": false,
+   "api_calls": []
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/system/CategoryManager.vue",
+   "line": 27,
+   "attrs": "v-if=\"userStore.hasPermission('incentive:edit')\" link type=\"primary\" size=\"small\" @click=\"openCategoryDialog(top)\"",
+   "label": "编辑",
+   "click": "openCategoryDialog(top)",
+   "guard": "incentive:edit",
+   "self_closing": false,
+   "api_calls": []
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/system/CategoryManager.vue",
+   "line": 28,
+   "attrs": "v-if=\"userStore.hasPermission('incentive:edit')\" link type=\"primary\" size=\"small\" @click=\"openCategoryDialog(null, top.id)\"",
+   "label": "子项",
+   "click": "openCategoryDialog(null, top.id)",
+   "guard": "incentive:edit",
+   "self_closing": false,
+   "api_calls": []
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/system/CategoryManager.vue",
+   "line": 29,
+   "attrs": "v-if=\"userStore.hasPermission('incentive:edit')\" link type=\"danger\" size=\"small\" @click=\"handleDeleteCategory(top)\"",
+   "label": "删除",
+   "click": "handleDeleteCategory(top)",
+   "guard": "incentive:edit",
+   "self_closing": false,
+   "api_calls": [
+    {
+     "module": "incentive",
+     "func": "deleteCategory",
+     "alias": "deleteCategory"
+    }
+   ]
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/system/CategoryManager.vue",
+   "line": 61,
+   "attrs": "v-if=\"userStore.hasPermission('incentive:edit')\" link type=\"primary\" size=\"small\" @click=\"openCategoryDialog(row)\"",
+   "label": "编辑",
+   "click": "openCategoryDialog(row)",
+   "guard": "incentive:edit",
+   "self_closing": false,
+   "api_calls": []
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/system/CategoryManager.vue",
+   "line": 62,
+   "attrs": "v-if=\"userStore.hasPermission('incentive:edit')\" link type=\"danger\" size=\"small\" @click=\"handleDeleteCategory(row)\"",
+   "label": "删除",
+   "click": "handleDeleteCategory(row)",
+   "guard": "incentive:edit",
+   "self_closing": false,
+   "api_calls": [
+    {
+     "module": "incentive",
+     "func": "deleteCategory",
+     "alias": "deleteCategory"
+    }
+   ]
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/system/CategoryManager.vue",
+   "line": 83,
+   "attrs": "v-if=\"userStore.hasPermission('system:config:edit')\" type=\"primary\" size=\"small\" :icon=\"Plus\" @click=\"openPermDialog\"",
+   "label": "添加授权",
+   "click": "openPermDialog",
+   "guard": "system:config:edit",
+   "self_closing": false,
+   "api_calls": []
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/system/CategoryManager.vue",
+   "line": 124,
+   "attrs": "v-if=\"userStore.hasPermission('system:config:edit')\" link type=\"danger\" size=\"small\" @click=\"revokePerm(row.id)\"",
+   "label": "撤销",
+   "click": "revokePerm(row.id)",
+   "guard": "system:config:edit",
+   "self_closing": false,
+   "api_calls": []
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/system/CategoryManager.vue",
+   "line": 163,
+   "attrs": "@click=\"categoryDialogVisible = false\"",
+   "label": "取消",
+   "click": "categoryDialogVisible = false",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": []
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/system/CategoryManager.vue",
+   "line": 164,
+   "attrs": "type=\"primary\" @click=\"submitCategory\"",
+   "label": "保存",
+   "click": "submitCategory",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": [
+    {
+     "module": "incentive",
+     "func": "createCategory",
+     "alias": "createCategory"
+    },
+    {
+     "module": "incentive",
+     "func": "updateCategory",
+     "alias": "updateCategory"
+    }
+   ]
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/system/DictManager.vue",
+   "line": 7,
+   "attrs": "v-if=\"canEditConfig\" type=\"primary\" size=\"small\" :icon=\"Plus\" @click=\"handleAddType\"",
+   "label": "新增",
+   "click": "handleAddType",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": []
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/system/DictManager.vue",
+   "line": 24,
+   "attrs": "v-if=\"canEditConfig\" link size=\"small\" @click.stop=\"handleEditType(t)\"",
+   "label": "编辑",
+   "click": null,
+   "guard": null,
+   "self_closing": false,
+   "api_calls": []
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/system/DictManager.vue",
+   "line": 25,
+   "attrs": "v-if=\"canEditConfig && !t.builtIn\" link size=\"small\" type=\"danger\" @click.stop=\"handleDeleteType(t)\"",
+   "label": "删除",
+   "click": null,
+   "guard": null,
+   "self_closing": false,
+   "api_calls": []
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/system/DictManager.vue",
+   "line": 40,
+   "attrs": "v-if=\"canEditConfig\" type=\"primary\" size=\"small\" :icon=\"Plus\" :disabled=\"!currentType\" @click=\"handleAddData\"",
+   "label": "新增",
+   "click": "handleAddData",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": []
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/system/DictManager.vue",
+   "line": 53,
+   "attrs": "v-if=\"canEditConfig\" link size=\"small\" @click=\"handleEditData(row)\"",
+   "label": "编辑",
+   "click": "handleEditData(row)",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": []
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/system/DictManager.vue",
+   "line": 54,
+   "attrs": "v-if=\"canEditConfig\" link size=\"small\" type=\"danger\" @click=\"handleDeleteData(row)\"",
+   "label": "删除",
+   "click": "handleDeleteData(row)",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": [
+    {
+     "module": "system",
+     "func": "deleteDictData",
+     "alias": "deleteDictData"
+    }
+   ]
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/system/DictManager.vue",
+   "line": 78,
+   "attrs": "@click=\"typeDialogVisible = false\"",
+   "label": "取消",
+   "click": "typeDialogVisible = false",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": []
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/system/DictManager.vue",
+   "line": 79,
+   "attrs": "type=\"primary\" @click=\"submitType\"",
+   "label": "确定",
+   "click": "submitType",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": [
+    {
+     "module": "system",
+     "func": "createDictType",
+     "alias": "createDictType"
+    },
+    {
+     "module": "system",
+     "func": "updateDictType",
+     "alias": "updateDictType"
+    }
+   ]
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/system/DictManager.vue",
+   "line": 100,
+   "attrs": "@click=\"dataDialogVisible = false\"",
+   "label": "取消",
+   "click": "dataDialogVisible = false",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": []
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/system/DictManager.vue",
+   "line": 101,
+   "attrs": "type=\"primary\" @click=\"submitData\"",
+   "label": "确定",
+   "click": "submitData",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": [
+    {
+     "module": "system",
+     "func": "createDictData",
+     "alias": "createDictData"
+    },
+    {
+     "module": "system",
+     "func": "updateDictData",
+     "alias": "updateDictData"
+    }
+   ]
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/system/PermGrantDialog.vue",
+   "line": 18,
+   "attrs": "size=\"small\" :icon=\"Plus\" @click=\"checkAllUsers\"",
+   "label": "全选",
+   "click": "checkAllUsers",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": []
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/system/PermGrantDialog.vue",
+   "line": 19,
+   "attrs": "size=\"small\" @click=\"clearUsers\"",
+   "label": "清空",
+   "click": "clearUsers",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": []
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/system/PermGrantDialog.vue",
+   "line": 69,
+   "attrs": "@click=\"showPermDialog=false\"",
+   "label": "取消",
+   "click": "showPermDialog=false",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": []
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/system/PermGrantDialog.vue",
+   "line": 70,
+   "attrs": "type=\"primary\" :icon=\"Check\" @click=\"grantPerm\"",
+   "label": "确认授权",
+   "click": "grantPerm",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": []
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/system/PermMatrixManager.vue",
+   "line": 21,
+   "attrs": "v-for=\"btn in item.buttons\" :key=\"btn.label\" size=\"small\" :type=\"btn.type || 'primary'\" link @click=\"btn.tab ? activeTab=btn.tab : router.push(btn.href)\"",
+   "label": "{{ btn.label }}",
+   "click": "btn.tab ? activeTab=btn.tab : router.push(btn.href)",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": []
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/system/PermMatrixManager.vue",
+   "line": 32,
+   "attrs": "size=\"small\" @click=\"loadPermData\"",
+   "label": "刷新",
+   "click": "loadPermData",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": []
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/system/PermScopeManager.vue",
+   "line": 14,
+   "attrs": "size=\"small\" style=\"margin-left: 8px\" @click=\"loadAll\"",
+   "label": "刷新",
+   "click": "loadAll",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": []
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/system/SeaConfigManager.vue",
+   "line": 6,
+   "attrs": "v-if=\"canEditSeaConfig\" type=\"primary\" size=\"small\" :icon=\"Plus\" @click=\"handleAddPool\"",
+   "label": "新增公海池",
+   "click": "handleAddPool",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": []
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/system/SeaConfigManager.vue",
+   "line": 21,
+   "attrs": "v-if=\"canEditSeaConfig\" size=\"small\" @click=\"handleEditPool(pool)\"",
+   "label": "编辑",
+   "click": "handleEditPool(pool)",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": []
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/system/SeaConfigManager.vue",
+   "line": 22,
+   "attrs": "v-if=\"canEditSeaConfig\" size=\"small\" type=\"danger\" @click=\"handleDeletePool(pool)\"",
+   "label": "删除",
+   "click": "handleDeletePool(pool)",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": [
+    {
+     "module": "sea",
+     "func": "deleteSeaConfig",
+     "alias": "deleteSeaConfig"
+    }
+   ]
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/system/SeaConfigManager.vue",
+   "line": 65,
+   "attrs": "link size=\"small\" @click=\"clearSeaSelection\" style=\"margin-left:auto\"",
+   "label": "清空",
+   "click": "clearSeaSelection",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": []
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/system/SeaConfigManager.vue",
+   "line": 115,
+   "attrs": "link size=\"small\" @click=\"clearSecSelection(sec.key)\" style=\"margin-left:auto\"",
+   "label": "清空",
+   "click": "clearSecSelection(sec.key)",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": []
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/system/SeaConfigManager.vue",
+   "line": 148,
+   "attrs": "@click=\"poolDialogVisible = false\"",
+   "label": "取消",
+   "click": "poolDialogVisible = false",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": []
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/system/SeaConfigManager.vue",
+   "line": 149,
+   "attrs": "type=\"primary\" @click=\"submitPool\"",
+   "label": "确定",
+   "click": "submitPool",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": [
+    {
+     "module": "sea",
+     "func": "createSeaConfig",
+     "alias": "createSeaConfig"
+    },
+    {
+     "module": "sea",
+     "func": "updateSeaConfig",
+     "alias": "updateSeaConfig"
+    }
+   ]
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/system/UserFilterBar.vue",
+   "line": 8,
+   "attrs": "v-if=\"userStore.hasPermission('system:user:add')\" type=\"primary\" :icon=\"Plus\" @click=\"openDialog()\"",
+   "label": "新增用户",
+   "click": "openDialog()",
+   "guard": "system:user:add",
+   "self_closing": false,
+   "api_calls": []
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/system/UserFormDialog.vue",
+   "line": 101,
+   "attrs": "@click=\"dialogVisible = false\"",
+   "label": "取消",
+   "click": "dialogVisible = false",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": []
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/system/UserFormDialog.vue",
+   "line": 102,
+   "attrs": "type=\"primary\" @click=\"handleSave\" :loading=\"saving\"",
+   "label": "保存",
+   "click": "handleSave",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": []
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/system/UserTable.vue",
+   "line": 57,
+   "attrs": "v-if=\"userStore.hasPermission('system:user:edit')\" link type=\"primary\" size=\"small\" @click=\"openDialog(row)\"",
+   "label": "编辑",
+   "click": "openDialog(row)",
+   "guard": "system:user:edit",
+   "self_closing": false,
+   "api_calls": []
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/system/UserTable.vue",
+   "line": 58,
+   "attrs": "v-if=\"userStore.hasPermission('system:user:edit')\" link type=\"warning\" size=\"small\" @click=\"handleResetPwd(row)\"",
+   "label": "重置密码",
+   "click": "handleResetPwd(row)",
+   "guard": "system:user:edit",
+   "self_closing": false,
+   "api_calls": []
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/system/UserTable.vue",
+   "line": 59,
+   "attrs": "v-if=\"userStore.hasPermission('system:user:delete')\" link type=\"danger\" size=\"small\" @click=\"handleDelete(row)\"",
+   "label": "删除",
+   "click": "handleDelete(row)",
+   "guard": "system:user:delete",
+   "self_closing": false,
+   "api_calls": []
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/system/approvalConfig.vue",
+   "line": 6,
+   "attrs": "v-if=\"canEditConfig\" type=\"primary\" size=\"small\" @click=\"openDialog()\"",
+   "label": "新增流程",
+   "click": "openDialog()",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": []
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/system/approvalConfig.vue",
+   "line": 28,
+   "attrs": "v-if=\"canEditConfig\" link size=\"small\" @click=\"openDialog(row)\"",
+   "label": "编辑",
+   "click": "openDialog(row)",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": []
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/system/approvalConfig.vue",
+   "line": 30,
+   "attrs": "link size=\"small\" type=\"danger\"",
+   "label": "删除",
+   "click": null,
+   "guard": null,
+   "self_closing": false,
+   "api_calls": []
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/system/approvalConfig.vue",
+   "line": 72,
+   "attrs": "@click=\"visible=false\"",
+   "label": "取消",
+   "click": "visible=false",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": []
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/system/approvalConfig.vue",
+   "line": 73,
+   "attrs": "type=\"primary\" @click=\"doSave\"",
+   "label": "保存",
+   "click": "doSave",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": []
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/system/dept.vue",
+   "line": 5,
+   "attrs": "v-if=\"canEditDept\" type=\"primary\" :icon=\"Plus\" @click=\"openDialog()\"",
+   "label": "新增部门",
+   "click": "openDialog()",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": []
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/system/dept.vue",
+   "line": 35,
+   "attrs": "v-if=\"canEditDept\" link type=\"primary\" size=\"small\" @click=\"showAdmins(row)\"",
+   "label": "管理{{ adminCounts[row.id] ? ` (${adminCou",
+   "click": "showAdmins(row)",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": [
+    {
+     "module": "system",
+     "func": "getDeptAdmins",
+     "alias": "getDeptAdmins"
+    }
+   ]
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/system/dept.vue",
+   "line": 36,
+   "attrs": "v-if=\"canEditDept\" link type=\"primary\" size=\"small\" @click=\"openDialog(row)\"",
+   "label": "编辑",
+   "click": "openDialog(row)",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": []
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/system/dept.vue",
+   "line": 37,
+   "attrs": "v-if=\"canEditDept\" link type=\"primary\" size=\"small\" @click=\"openDialog(null, row.id)\"",
+   "label": "添加子部门",
+   "click": "openDialog(null, row.id)",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": []
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/system/dept.vue",
+   "line": 38,
+   "attrs": "v-if=\"canEditDept\" link type=\"danger\" size=\"small\" @click=\"handleDelete(row)\"",
+   "label": "删除",
+   "click": "handleDelete(row)",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": [
+    {
+     "module": "system",
+     "func": "deleteDept",
+     "alias": "deleteDept"
+    }
+   ]
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/system/dept.vue",
+   "line": 78,
+   "attrs": "@click=\"dialogVisible = false\"",
+   "label": "取消",
+   "click": "dialogVisible = false",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": []
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/system/dept.vue",
+   "line": 79,
+   "attrs": "type=\"primary\" @click=\"handleSave\"",
+   "label": "保存",
+   "click": "handleSave",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": [
+    {
+     "module": "system",
+     "func": "createDept",
+     "alias": "createDept"
+    },
+    {
+     "module": "system",
+     "func": "updateDept",
+     "alias": "updateDept"
+    }
+   ]
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/system/dept.vue",
+   "line": 91,
+   "attrs": "type=\"primary\" @click=\"doAddAdmin\" style=\"margin-left: 8px\"",
+   "label": "添加",
+   "click": "doAddAdmin",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": [
+    {
+     "module": "system",
+     "func": "addDeptAdmin",
+     "alias": "addDeptAdmin"
+    }
+   ]
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/system/dept.vue",
+   "line": 100,
+   "attrs": "link type=\"danger\" size=\"small\"",
+   "label": "移除",
+   "click": null,
+   "guard": null,
+   "self_closing": false,
+   "api_calls": []
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/system/group.vue",
+   "line": 5,
+   "attrs": "v-if=\"canAddGroup\" type=\"primary\" :icon=\"Plus\" @click=\"openDialog()\"",
+   "label": "新增集团",
+   "click": "openDialog()",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": []
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/system/group.vue",
+   "line": 23,
+   "attrs": "v-if=\"canEditGroup\" link type=\"primary\" size=\"small\" @click=\"openDialog(row)\"",
+   "label": "编辑",
+   "click": "openDialog(row)",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": []
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/system/group.vue",
+   "line": 24,
+   "attrs": "v-if=\"canDeleteGroup\" link type=\"danger\" size=\"small\" @click=\"handleDelete(row)\"",
+   "label": "删除",
+   "click": "handleDelete(row)",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": [
+    {
+     "module": "system",
+     "func": "deleteGroup",
+     "alias": "deleteGroup"
+    }
+   ]
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/system/group.vue",
+   "line": 50,
+   "attrs": "@click=\"dialogVisible = false\"",
+   "label": "取消",
+   "click": "dialogVisible = false",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": []
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/system/group.vue",
+   "line": 51,
+   "attrs": "type=\"primary\" @click=\"handleSave\" :loading=\"saving\"",
+   "label": "保存",
+   "click": "handleSave",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": [
+    {
+     "module": "system",
+     "func": "createGroup",
+     "alias": "createGroup"
+    },
+    {
+     "module": "system",
+     "func": "updateGroup",
+     "alias": "updateGroup"
+    }
+   ]
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/system/incentive-read-ranking.vue",
+   "line": 19,
+   "attrs": "size=\"small\" @click=\"load\"",
+   "label": "刷新",
+   "click": "load",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": [
+    {
+     "module": "incentive",
+     "func": "getIncentiveReadRanking",
+     "alias": "getIncentiveReadRanking"
+    }
+   ]
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/system/log.vue",
+   "line": 70,
+   "attrs": "link type=\"primary\" size=\"small\" @click=\"showDetail(row)\"",
+   "label": "查看",
+   "click": "showDetail(row)",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": []
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/system/position.vue",
+   "line": 5,
+   "attrs": "v-if=\"canAddPosition\" type=\"primary\" :icon=\"Plus\" @click=\"openDialog()\"",
+   "label": "新增岗位",
+   "click": "openDialog()",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": []
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/system/position.vue",
+   "line": 33,
+   "attrs": "v-if=\"canEditPosition\" link type=\"primary\" size=\"small\" @click=\"openDialog(row)\"",
+   "label": "编辑",
+   "click": "openDialog(row)",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": []
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/system/position.vue",
+   "line": 34,
+   "attrs": "v-if=\"canEditPosition\" link type=\"warning\" size=\"small\" @click=\"openRuleDialog(row)\"",
+   "label": "规则",
+   "click": "openRuleDialog(row)",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": [
+    {
+     "module": "system",
+     "func": "getPositionRules",
+     "alias": "getPositionRules"
+    }
+   ]
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/system/position.vue",
+   "line": 35,
+   "attrs": "v-if=\"canDeletePosition\" link type=\"danger\" size=\"small\" @click=\"handleDelete(row)\"",
+   "label": "删除",
+   "click": "handleDelete(row)",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": [
+    {
+     "module": "system",
+     "func": "deletePosition",
+     "alias": "deletePosition"
+    }
+   ]
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/system/position.vue",
+   "line": 72,
+   "attrs": "@click=\"dialogVisible = false\"",
+   "label": "取消",
+   "click": "dialogVisible = false",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": []
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/system/position.vue",
+   "line": 73,
+   "attrs": "type=\"primary\" @click=\"handleSave\"",
+   "label": "保存",
+   "click": "handleSave",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": [
+    {
+     "module": "system",
+     "func": "createPosition",
+     "alias": "createPosition"
+    },
+    {
+     "module": "system",
+     "func": "updatePosition",
+     "alias": "updatePosition"
+    }
+   ]
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/system/position.vue",
+   "line": 98,
+   "attrs": "@click=\"ruleDialogVisible = false\"",
+   "label": "取消",
+   "click": "ruleDialogVisible = false",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": []
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/system/position.vue",
+   "line": 99,
+   "attrs": "type=\"primary\" @click=\"handleSaveRules\"",
+   "label": "保存规则",
+   "click": "handleSaveRules",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": [
+    {
+     "module": "system",
+     "func": "updatePositionRules",
+     "alias": "updatePositionRules"
+    }
+   ]
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/system/role.vue",
+   "line": 5,
+   "attrs": "v-if=\"canAddRole\" type=\"primary\" :icon=\"Plus\" @click=\"openDialog()\"",
+   "label": "新增角色",
+   "click": "openDialog()",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": [
+    {
+     "module": "system",
+     "func": "getRoleOrgs",
+     "alias": "getRoleOrgs"
+    }
+   ]
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/system/role.vue",
+   "line": 30,
+   "attrs": "v-if=\"canEditRole\" link type=\"primary\" size=\"small\" @click=\"openDialog(row)\"",
+   "label": "编辑",
+   "click": "openDialog(row)",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": [
+    {
+     "module": "system",
+     "func": "getRoleOrgs",
+     "alias": "getRoleOrgs"
+    }
+   ]
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/system/role.vue",
+   "line": 31,
+   "attrs": "v-if=\"canEditRole\" link type=\"primary\" size=\"small\" @click=\"openPermDialog(row)\"",
+   "label": "权限",
+   "click": "openPermDialog(row)",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": [
+    {
+     "module": "system",
+     "func": "getRole",
+     "alias": "getRole"
+    },
+    {
+     "module": "system",
+     "func": "getMenuTree",
+     "alias": "getMenuTree"
+    }
+   ]
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/system/role.vue",
+   "line": 32,
+   "attrs": "v-if=\"canDeleteRole\" link type=\"danger\" size=\"small\" @click=\"handleDelete(row)\"",
+   "label": "删除",
+   "click": "handleDelete(row)",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": [
+    {
+     "module": "system",
+     "func": "deleteRole",
+     "alias": "deleteRole"
+    }
+   ]
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/system/role.vue",
+   "line": 101,
+   "attrs": "@click=\"dialogVisible = false\"",
+   "label": "取消",
+   "click": "dialogVisible = false",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": []
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/system/role.vue",
+   "line": 102,
+   "attrs": "type=\"primary\" @click=\"handleSave\" :loading=\"saving\"",
+   "label": "保存",
+   "click": "handleSave",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": [
+    {
+     "module": "system",
+     "func": "createRole",
+     "alias": "createRole"
+    },
+    {
+     "module": "system",
+     "func": "updateRole",
+     "alias": "updateRole"
+    },
+    {
+     "module": "system",
+     "func": "updateRoleOrgs",
+     "alias": "updateRoleOrgs"
+    }
+   ]
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/system/role.vue",
+   "line": 124,
+   "attrs": "@click=\"permDialogVisible = false\"",
+   "label": "取消",
+   "click": "permDialogVisible = false",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": []
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/system/role.vue",
+   "line": 125,
+   "attrs": "type=\"primary\" @click=\"handleSavePerm\"",
+   "label": "保存权限",
+   "click": "handleSavePerm",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": [
+    {
+     "module": "system",
+     "func": "updateRole",
+     "alias": "updateRole"
+    }
+   ]
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/system/rule.vue",
+   "line": 5,
+   "attrs": "v-if=\"canAddRule\" type=\"primary\" :icon=\"Plus\" @click=\"openDialog()\"",
+   "label": "新增规则",
+   "click": "openDialog()",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": []
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/system/rule.vue",
+   "line": 31,
+   "attrs": "v-if=\"canEditRule\" link type=\"primary\" size=\"small\" @click=\"openDialog(row)\"",
+   "label": "编辑",
+   "click": "openDialog(row)",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": []
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/system/rule.vue",
+   "line": 32,
+   "attrs": "v-if=\"canDeleteRule\" link type=\"danger\" size=\"small\" @click=\"handleDelete(row)\"",
+   "label": "删除",
+   "click": "handleDelete(row)",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": [
+    {
+     "module": "system",
+     "func": "deleteRule",
+     "alias": "deleteRule"
+    }
+   ]
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/system/rule.vue",
+   "line": 92,
+   "attrs": "@click=\"dialogVisible = false\"",
+   "label": "取消",
+   "click": "dialogVisible = false",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": []
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/system/rule.vue",
+   "line": 93,
+   "attrs": "type=\"primary\" @click=\"handleSave\" :loading=\"saving\"",
+   "label": "保存",
+   "click": "handleSave",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": [
+    {
+     "module": "system",
+     "func": "createRule",
+     "alias": "createRule"
+    },
+    {
+     "module": "system",
+     "func": "updateRule",
+     "alias": "updateRule"
+    }
+   ]
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/task/index.vue",
+   "line": 77,
+   "attrs": "v-if=\"row.status === 'pending'\" link type=\"primary\" size=\"small\" @click=\"showComplete(row)\"",
+   "label": "完成",
+   "click": "showComplete(row)",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": []
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/task/index.vue",
+   "line": 78,
+   "attrs": "v-if=\"row.status === 'pending'\" link type=\"danger\" size=\"small\" @click=\"showCancel(row)\"",
+   "label": "取消",
+   "click": "showCancel(row)",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": []
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/task/index.vue",
+   "line": 94,
+   "attrs": "@click=\"completeVisible=false\"",
+   "label": "取消",
+   "click": "completeVisible=false",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": []
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/task/index.vue",
+   "line": 95,
+   "attrs": "type=\"primary\" :disabled=\"!completionNote.trim()\" :loading=\"actionLoading\" @click=\"confirmComplete\"",
+   "label": "确认完成",
+   "click": "confirmComplete",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": [
+    {
+     "module": "task",
+     "func": "completeTask",
+     "alias": "completeTask"
+    }
+   ]
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/task/index.vue",
+   "line": 103,
+   "attrs": "@click=\"cancelVisible=false\"",
+   "label": "取消",
+   "click": "cancelVisible=false",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": []
+  },
+  {
+   "file": "02-迭代源代码/aigicrm-ui/src/views/task/index.vue",
+   "line": 104,
+   "attrs": "type=\"danger\" :disabled=\"!cancelReason.trim()\" :loading=\"actionLoading\" @click=\"confirmCancel\"",
+   "label": "确认取消",
+   "click": "confirmCancel",
+   "guard": null,
+   "self_closing": false,
+   "api_calls": [
+    {
+     "module": "task",
+     "func": "cancelTask",
+     "alias": "cancelTask"
+    }
+   ]
+  }
+ ]
+}

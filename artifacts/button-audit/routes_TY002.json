@@ -1,0 +1,58 @@
+[
+ {
+  "route": "/dashboard",
+  "label": "/dashboard"
+ },
+ {
+  "route": "/customer/add",
+  "label": "/customer/add"
+ },
+ {
+  "route": "/customer",
+  "label": "/customer"
+ },
+ {
+  "route": "/file",
+  "label": "/file"
+ },
+ {
+  "route": "/incentive",
+  "label": "/incentive"
+ },
+ {
+  "route": "/incentive/search",
+  "label": "/incentive/search"
+ },
+ {
+  "route": "/incentive/stats",
+  "label": "/incentive/stats"
+ },
+ {
+  "route": "/reminder",
+  "label": "/reminder"
+ },
+ {
+  "route": "/sea",
+  "label": "/sea"
+ },
+ {
+  "route": "/sea/records",
+  "label": "/sea/records"
+ },
+ {
+  "route": "/approval",
+  "label": "/approval"
+ },
+ {
+  "route": "/score/ranking",
+  "label": "/score/ranking"
+ },
+ {
+  "route": "/indicator",
+  "label": "/indicator"
+ },
+ {
+  "route": "/ranking/customer",
+  "label": "/ranking/customer"
+ }
+]

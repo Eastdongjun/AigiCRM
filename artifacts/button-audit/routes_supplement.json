@@ -1,0 +1,8 @@
+[
+ {"route": "/task", "label": "任务(已播种夹具)"},
+ {"route": "/approval", "label": "审批管理", "tabs": ["待提交", "审批中", "已通过", "已驳回", "全部"]},
+ {"route": "/incentive/stats", "label": "激励统计"},
+ {"route": "/ranking/customer", "label": "客户排行"},
+ {"route": "/indicator", "label": "核心客户六项指标"},
+ {"route": "/dashboard", "label": "工作台"}
+]
