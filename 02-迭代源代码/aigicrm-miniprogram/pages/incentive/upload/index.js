@@ -21,7 +21,7 @@ function flattenCategories(nodes = [], result = []) {
 
 function defaultSlots() {
   return [
-    { key: 'fileId', baseLabel: '主要佐证', label: '主要佐证', hint: '交流、方案、参观等非安装类资料', filePath: '', fileName: '', fileKind: '', files: [], hidden: false },
+    { key: 'fileId', baseLabel: '主要佐证', label: '主要佐证', hint: '交流、方案、参观等非安装类资料', filePath: '', fileName: '', fileKind: '', files: [], hidden: true },
     { key: 'filePreId', label: '安装前', hint: '试点安装前现场、问题或方案', filePath: '', fileName: '', fileKind: '', files: [] },
     { key: 'fileMidId', label: '安装中', hint: '安装过程、调试过程、现场记录', filePath: '', fileName: '', fileKind: '', files: [] },
     { key: 'filePostId', label: '安装后', hint: '运行结果、验收报告、客户反馈', filePath: '', fileName: '', fileKind: '', files: [] },
@@ -118,11 +118,12 @@ function applyCategorySlotMode(slots, category, categories) {
   const isSingleSlot = ['visit', 'exchange', 'plan'].includes(code)
   return slots.map((slot) => {
     if (slot.key === 'fileId') {
+      // 对齐 PC: PC 上传弹窗任何品类都没有通用佐证槽, fileId 仅承载旧数据提交/回填, 界面一律隐藏
       return {
         ...slot,
         label: slot.baseLabel || '主要佐证',
         hint: '交流、方案、参观等非安装类资料',
-        hidden: isSingleSlot
+        hidden: true
       }
     }
     if (slot.key === 'filePreId') {

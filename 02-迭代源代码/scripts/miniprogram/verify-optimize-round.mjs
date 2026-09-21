@@ -18,8 +18,9 @@ async function main() {
   const shot = (name) => mp.screenshot({ path: `${shots}/${name}.png` })
   // evaluate 返回值需小而可序列化: 页面上下文内先算摘要
   const pageData = () => {
+    // 不假设栈顶: 按路由从页面栈精确取页(工具开着时用户可能停在其他页)
     const pages = getCurrentPages()
-    const page = pages[pages.length - 1]
+    const page = pages.reverse().find((x) => x.route === 'pages/incentive/index') || pages[pages.length - 1]
     const d = page.data || {}
     return {
       route: page.route,
@@ -36,10 +37,13 @@ async function main() {
     }
   }
 
-  // 强制重新登录(排除 token 失效导致的空数据)
+  // 强制重新登录(排除 token 失效导致的空数据); 凭据经环境变量注入, 禁止硬编码
+  const testUser = process.env.AIGI_TEST_USER || 'admin'
+  const testPass = process.env.AIGI_TEST_PASS
+  if (!testPass) { console.error('缺少 AIGI_TEST_PASS 环境变量(测试账号密码)'); process.exit(1) }
   const login = await mp.reLaunch('/pages/login/index')
   await sleep(1500)
-  await login.setData({ username: 'zz-ui-review', password: 'UIReview#20260920' })
+  await login.setData({ username: testUser, password: testPass })
   await login.callMethod('submit')
   await sleep(5000)
 
@@ -47,7 +51,7 @@ async function main() {
   await mp.switchTab('/pages/incentive/index')
   await sleep(4500)
   // 清残留筛选并刷新, 最多重读 3 次(网络/时序兜底)
-  await mp.evaluate(() => { const pg = getCurrentPages()[getCurrentPages().length - 1]; if (pg.route.indexOf('incentive/index') >= 0 && pg.resetRecordFilters) pg.resetRecordFilters() })
+  await mp.evaluate(() => { const pg = getCurrentPages().slice().reverse().find((x) => x.route === 'pages/incentive/index'); if (pg && pg.resetRecordFilters) pg.resetRecordFilters() })
   await sleep(5000)
   let d = null
   for (let i = 0; i < 3; i++) {
@@ -80,7 +84,10 @@ async function main() {
   // 2. 上传页两级分类(第 4 条)
   const up = await mp.navigateTo('/pages/incentive/upload/index')
   await sleep(4500)
-  d = await mp.evaluate(pageData)
+  d = await mp.evaluate(() => {
+    const pg = getCurrentPages().slice().reverse().find((x) => x.route === 'pages/incentive/upload/index') || getCurrentPages()[getCurrentPages().length - 1]
+    return { parentCategories: (pg.data.categoryParentNodes || []).map((x) => ({ name: x.name, children: x.children.length })) }
+  })
   assert(d.parentCategories.length >= 3, `upload parent categories missing: ${d.parentCategories.length}`)
   assert(d.parentCategories[0].children >= 0, 'parent children missing')
   console.log('upload 大类:', d.parentCategories.map((p) => p.name).join('/'), '| 首大类子类数', d.parentCategories[0].children)
@@ -89,7 +96,10 @@ async function main() {
   // 3. 客户列表状态筛选(第 12 条)
   const cust = await mp.navigateTo('/pages/customer/index')
   await sleep(4500)
-  d = await mp.evaluate(pageData)
+  d = await mp.evaluate(() => {
+    const pg = getCurrentPages().slice().reverse().find((x) => x.route === 'pages/customer/index') || getCurrentPages()[getCurrentPages().length - 1]
+    return { statusFilters: (pg.data.statusFilters || []).map((x) => x.label) }
+  })
   assert(d.statusFilters.length === 4, 'customer status filters missing')
   await shot('opt12-customer-status')
   await mp.navigateBack(); await sleep(1000)
@@ -103,7 +113,10 @@ async function main() {
   // 5. 文件页骨架+四 scope tab(第 6/7/8 条)
   await mp.switchTab('/pages/files/index')
   await sleep(5000)
-  d = await mp.evaluate(pageData)
+  d = await mp.evaluate(() => {
+    const pg = getCurrentPages().slice().reverse().find((x) => x.route === 'pages/files/index') || getCurrentPages()[getCurrentPages().length - 1]
+    return { fileTabs: (pg.data.fileView && pg.data.fileView.tabs ? pg.data.fileView.tabs : []).map((t) => t.label) }
+  })
   const labels = d.fileTabs
   assert(JSON.stringify(labels) === JSON.stringify(['公共', '私人', '四项激励', '分享给我']), `file tabs mismatch: ${labels.join(',')}`)
   await shot('opt6-8-files-head')
