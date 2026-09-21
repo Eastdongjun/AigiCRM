@@ -114,6 +114,7 @@ function buildFileView(data) {
   const folders = data.folders || []
   const hasActiveFolder = Boolean(data.activeFolderName)
   const hasManageFolders = folders.length > 0
+  const showUploadAction = Boolean(data.canUpload) && (data.activeTab === '公共' || data.activeTab === '私人')
   return {
     showUploadAction,
     tabs,
