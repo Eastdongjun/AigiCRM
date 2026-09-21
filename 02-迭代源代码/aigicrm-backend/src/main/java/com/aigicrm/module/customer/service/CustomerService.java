@@ -161,13 +161,13 @@ public class CustomerService {
         // 语义: include_archived = 默认口径(不含公海)但不排除归档; 显式状态值仍精确过滤
         // (显式传 'archived' 即"只看已归档")。
         if ("include_archived".equals(status)) {
-            wrapper.ne(BizCustomer::getStatus, "sea");
+            wrapper.notIn(BizCustomer::getStatus, "sea", "archived"); // B5 统一口径: 排sea+archived
         } else if (StringUtils.hasText(status)) {
             String[] arr = status.split(",");
             if (arr.length > 1) wrapper.in(BizCustomer::getStatus, (Object[]) arr);
             else wrapper.eq(BizCustomer::getStatus, status);
         } else {
-            wrapper.ne(BizCustomer::getStatus, "sea");
+            wrapper.notIn(BizCustomer::getStatus, "sea", "archived"); // B5 统一口径: 排sea+archived
         }
         if (ownerId != null) {
             wrapper.eq(BizCustomer::getOwnerId, ownerId);
@@ -250,13 +250,13 @@ public class CustomerService {
         // 【2026-09-20 议题五.4 口径对齐】分享视图与主列表同口径: 归档默认隐藏;
         // include_archived 含归档不含公海; 显式状态值精确过滤(可显式查 'archived')。
         if ("include_archived".equals(status)) {
-            wrapper.ne(BizCustomer::getStatus, "sea");
+            wrapper.notIn(BizCustomer::getStatus, "sea", "archived"); // B5 统一口径: 排sea+archived
         } else if (StringUtils.hasText(status)) {
             String[] arr = status.split(",");
             if (arr.length > 1) wrapper.in(BizCustomer::getStatus, (Object[]) arr);
             else wrapper.eq(BizCustomer::getStatus, status);
         } else {
-            wrapper.ne(BizCustomer::getStatus, "sea");
+            wrapper.notIn(BizCustomer::getStatus, "sea", "archived"); // B5 统一口径: 排sea+archived
             wrapper.ne(BizCustomer::getStatus, "archived");
         }
     }
@@ -267,14 +267,14 @@ public class CustomerService {
 
         // 全部(受数据范围控制)
         LambdaQueryWrapper<BizCustomer> allW = new LambdaQueryWrapper<>();
-        allW.eq(BizCustomer::getDeleted, 0).ne(BizCustomer::getStatus, "sea");
+        allW.eq(BizCustomer::getDeleted, 0).notIn(BizCustomer::getStatus, "sea", "archived"); // B5 统一口径: 排sea+archived
         applyDataScope(allW);
         counts.put("all", customerMapper.selectCount(allW));
 
         // 我的客户
         counts.put("mine", customerMapper.selectCount(
                 new LambdaQueryWrapper<BizCustomer>()
-                        .eq(BizCustomer::getDeleted, 0).ne(BizCustomer::getStatus, "sea")
+                        .eq(BizCustomer::getDeleted, 0).notIn(BizCustomer::getStatus, "sea", "archived") // 【B5 2026-09-22】归档不参与统计/提醒/到期检查(统一口径)
                         .eq(BizCustomer::getOwnerId, userId)));
 
         // 我分享的
@@ -546,6 +546,16 @@ public class CustomerService {
             throw new org.springframework.security.access.AccessDeniedException("只能删除自己范围内的客户");
         }
         // 【议题五.3 裁决 2026-09-19】有业务数据的客户不允许删,转停用:
+        assertDeletable(id);
+        customerMapper.deleteById(id);
+    }
+
+    /**
+     * 【B4 2026-09-22 抽取复用】客户删除的业务保护统一入口: 有效开票/回款/在途审批任一存在即拒删。
+     * 原本只服务于 delete(); 公海 deletePool 曾绕过此保护直接删客户(GPT 报告 BUS-P1-009),
+     * 现由 SeaService 复用, 保证"同一删除动作同一规则"。
+     */
+    public void assertDeletable(Long id) {
         // 有效开票/回款/在途审批任一存在 → 拒绝(删前展示关联影响的最低实现)
         // 【PR-18 口径】此处计数刻意含已作废(voided)记录:作废仅取消金额效力,台账记录按
         // "保留原值、原因及操作者"留存,仍属客户的历史业务痕迹,不因作废而放开物理删除。
@@ -570,7 +580,6 @@ public class CustomerService {
             throw new BusinessException(String.format(
                     "该客户有 %d 条在途审批,不允许删除;请先完成或驳回审批", activeApprovals));
         }
-        customerMapper.deleteById(id);
     }
 
     /** 【议题五.4 裁决】归档:默认隐藏,可筛"含归档";归档客户不参与统计与到期提醒 */
@@ -703,7 +712,7 @@ public class CustomerService {
     // 统计数据 for 工作台（受数据范围控制）
     public long countByScope() {
         LambdaQueryWrapper<BizCustomer> w = new LambdaQueryWrapper<>();
-        w.eq(BizCustomer::getDeleted, 0).ne(BizCustomer::getStatus, "sea");
+        w.eq(BizCustomer::getDeleted, 0).notIn(BizCustomer::getStatus, "sea", "archived"); // B5 统一口径: 排sea+archived
         applyDataScope(w);
         return customerMapper.selectCount(w);
     }
@@ -726,7 +735,7 @@ public class CustomerService {
     public long countExpiringTodayByScope() {
         LambdaQueryWrapper<BizCustomer> w = new LambdaQueryWrapper<>();
         w.eq(BizCustomer::getDeleted, 0)
-                .ne(BizCustomer::getStatus, "sea")
+                .notIn(BizCustomer::getStatus, "sea", "archived") // 【B5 2026-09-22】归档不参与统计/提醒/到期检查(统一口径)
                 .eq(BizCustomer::getExpireDate, java.time.LocalDate.now());
         applyDataScope(w);
         return customerMapper.selectCount(w);
@@ -743,7 +752,7 @@ public class CustomerService {
     public long countNewThisMonth() {
         java.time.LocalDateTime monthStart = java.time.LocalDate.now().withDayOfMonth(1).atStartOfDay();
         LambdaQueryWrapper<BizCustomer> w = new LambdaQueryWrapper<>();
-        w.eq(BizCustomer::getDeleted, 0).ne(BizCustomer::getStatus, "sea")
+        w.eq(BizCustomer::getDeleted, 0).notIn(BizCustomer::getStatus, "sea", "archived") // 【B5 2026-09-22】归档不参与统计/提醒/到期检查(统一口径)
                 .ge(BizCustomer::getCreatedAt, monthStart);
         applyDataScope(w);
         return customerMapper.selectCount(w);
@@ -760,7 +769,7 @@ public class CustomerService {
             boolean isCurrent = !end.isBefore(today);
             if (end.isAfter(today)) end = today;
             LambdaQueryWrapper<BizCustomer> w = new LambdaQueryWrapper<>();
-            w.eq(BizCustomer::getDeleted, 0).ne(BizCustomer::getStatus, "sea")
+            w.eq(BizCustomer::getDeleted, 0).notIn(BizCustomer::getStatus, "sea", "archived") // 【B5 2026-09-22】归档不参与统计/提醒/到期检查(统一口径)
                     .ge(BizCustomer::getCreatedAt, start.atStartOfDay())
                     .lt(BizCustomer::getCreatedAt, end.plusDays(1).atStartOfDay());
             applyDataScope(w);
@@ -783,7 +792,7 @@ public class CustomerService {
         java.time.LocalDate cursor = start;
         while (!cursor.isAfter(today)) {
             LambdaQueryWrapper<BizCustomer> w = new LambdaQueryWrapper<>();
-            w.eq(BizCustomer::getDeleted, 0).ne(BizCustomer::getStatus, "sea")
+            w.eq(BizCustomer::getDeleted, 0).notIn(BizCustomer::getStatus, "sea", "archived") // 【B5 2026-09-22】归档不参与统计/提醒/到期检查(统一口径)
                     .ge(BizCustomer::getCreatedAt, cursor.atStartOfDay())
                     .lt(BizCustomer::getCreatedAt, cursor.plusDays(1).atStartOfDay());
             applyDataScope(w);
@@ -818,7 +827,7 @@ public class CustomerService {
      */
     public List<BizCustomer> getScopedActiveCustomers() {
         LambdaQueryWrapper<BizCustomer> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(BizCustomer::getDeleted, 0).ne(BizCustomer::getStatus, "sea");
+        wrapper.eq(BizCustomer::getDeleted, 0).notIn(BizCustomer::getStatus, "sea", "archived"); // B5 统一口径: 排sea+archived
         applyDataScope(wrapper);
         return customerMapper.selectList(wrapper);
     }
@@ -826,13 +835,13 @@ public class CustomerService {
     /** 【2026-08-08 全员可见】全部启用客户（核心客户六项指标等公司级展示用，不做数据范围过滤） */
     public List<BizCustomer> getAllActiveCustomers() {
         LambdaQueryWrapper<BizCustomer> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(BizCustomer::getDeleted, 0).ne(BizCustomer::getStatus, "sea");
+        wrapper.eq(BizCustomer::getDeleted, 0).notIn(BizCustomer::getStatus, "sea", "archived"); // B5 统一口径: 排sea+archived
         return customerMapper.selectList(wrapper);
     }
 
     public Map<String, Object> getStatistics() {
         LambdaQueryWrapper<BizCustomer> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(BizCustomer::getDeleted, 0).ne(BizCustomer::getStatus, "sea");
+        wrapper.eq(BizCustomer::getDeleted, 0).notIn(BizCustomer::getStatus, "sea", "archived"); // B5 统一口径: 排sea+archived
 
         // 数据范围过滤（统计也受范围控制）
         applyDataScope(wrapper);

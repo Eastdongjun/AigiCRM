@@ -49,13 +49,16 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(httpStatusOf(code)).body(Result.error(code, e.getMessage()));
     }
 
-    /** 【2026-08-14 错误码语义化】业务异常 code → HTTP 状态: 403/401/404/429 语义化映射, 其余默认 400 */
+    /** 【2026-08-14 错误码语义化】业务异常 code → HTTP 状态: 401/403/404/429/503 语义化映射, 其余默认 400
+     *  【B7 2026-09-22】补 503: 权限核心模块 fail-closed 路径抛 BusinessException(503,"暂不可用"),
+     *  原落 HTTP 400 误导前端分流/监控/网关重试; 503 才是"服务暂不可用"的正确语义 */
     private static HttpStatus httpStatusOf(int code) {
         return switch (code) {
             case 401 -> HttpStatus.UNAUTHORIZED;
             case 403 -> HttpStatus.FORBIDDEN;
             case 404 -> HttpStatus.NOT_FOUND;
             case 429 -> HttpStatus.TOO_MANY_REQUESTS;
+            case 503 -> HttpStatus.SERVICE_UNAVAILABLE;
             default -> HttpStatus.BAD_REQUEST;
         };
     }

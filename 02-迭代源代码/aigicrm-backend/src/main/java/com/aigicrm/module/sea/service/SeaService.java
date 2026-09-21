@@ -160,6 +160,21 @@ public class SeaService {
         BizCustomer customer = customerMapper.selectById(customerId);
         if (customer == null) return;
 
+        // 【B2 2026-09-22 幂等修复】已有未捞取记录(available/pending_approval)时不再重复入池——
+        // 修复定时任务重跑/重复释放撞 uk_sea_pool_active(tenant_id,active_flag) 唯一键致整批中断的运行事故
+        Long existingActive = seaPoolMapper.selectCount(
+                new LambdaQueryWrapper<BizSeaPool>()
+                        .eq(BizSeaPool::getCustomerId, customerId)
+                        .ne(BizSeaPool::getStatus, "claimed"));
+        if (existingActive != null && existingActive > 0) {
+            if (!"sea".equals(customer.getStatus())) {
+                customer.setStatus("sea");
+                customer.setProtectionStatus("expired");
+                customerMapper.updateById(customer);
+            }
+            return;
+        }
+
         // 【修复 2026-08-09 B4】客户所属办事处必须能匹配到启用公海池,否则拒绝入池。
         // 与 CustomerController.release/CustomerExpireTask 的既有守卫对齐,
         // 统一收口在此处覆盖全部 4 个调用点(导入/离职/手动释放/定时释放),杜绝 pool_id=NULL 孤儿。
@@ -268,7 +283,9 @@ public class SeaService {
             throw new BusinessException(403, "资源不存在或无权访问");
         }
         // 逻辑删除客户（biz_customer 有 deleted 列，走 MyBatis-Plus 逻辑删除）
+        // 【B4 2026-09-22】复用客户删除业务保护: 有票款/在途审批的公海客户同样不可删, 消除入口差异
         if (pool.getCustomerId() != null) {
+            customerService.assertDeletable(pool.getCustomerId());
             customerMapper.deleteById(pool.getCustomerId());
         }
         // 物理删除公海池记录（biz_sea_pool 无 deleted 列）

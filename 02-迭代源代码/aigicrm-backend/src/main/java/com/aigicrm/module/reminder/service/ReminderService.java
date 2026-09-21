@@ -116,7 +116,7 @@ public class ReminderService {
         LocalDate deadline = LocalDate.now().plusDays(warningDays);
         wrapper.isNotNull(BizCustomer::getExpireDate)
                 .le(BizCustomer::getExpireDate, deadline)
-                .ne(BizCustomer::getStatus, "sea")
+                .notIn(BizCustomer::getStatus, "sea", "archived") // 【B5 2026-09-22】归档不参与统计/提醒/到期检查(统一口径)
                 .orderByAsc(BizCustomer::getExpireDate);
         if (StringUtils.hasText(keyword)) {
             wrapper.like(BizCustomer::getCustomerName, keyword);
@@ -200,7 +200,7 @@ public class ReminderService {
         LambdaQueryWrapper<BizCustomer> wrapper = new LambdaQueryWrapper<>();
         wrapper.isNotNull(BizCustomer::getExpireDate)
                 .le(BizCustomer::getExpireDate, deadline)
-                .ne(BizCustomer::getStatus, "sea");
+                .notIn(BizCustomer::getStatus, "sea", "archived"); // B5 统一口径: 排sea+archived
         List<Long> visibleOwners = scopeResolver.resolveModuleUsers(SecurityUtils.getCurrentUser(), "reminder");
         if (visibleOwners != null) {
             wrapper.in(BizCustomer::getOwnerId, visibleOwners.isEmpty() ? List.of(-1L) : visibleOwners);
@@ -247,7 +247,7 @@ public class ReminderService {
         LambdaQueryWrapper<BizCustomer> custWrapper = new LambdaQueryWrapper<BizCustomer>()
                 .isNotNull(BizCustomer::getExpireDate)
                 .le(BizCustomer::getExpireDate, deadline)
-                .ne(BizCustomer::getStatus, "sea");
+                .notIn(BizCustomer::getStatus, "sea", "archived"); // B5 统一口径: 排sea+archived
         if (visibleOwners != null) {
             custWrapper.in(BizCustomer::getOwnerId, visibleOwners.isEmpty() ? List.of(-1L) : visibleOwners);
         }

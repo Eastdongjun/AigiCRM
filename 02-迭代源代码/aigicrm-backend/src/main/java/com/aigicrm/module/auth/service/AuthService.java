@@ -286,6 +286,7 @@ public class AuthService {
             user = findActiveUser(username);
         } catch (BusinessException e) {
             // 【安全 2026-08-08 匿名枚举防护】账号不存在也返回中性响应，不暴露账号是否存在
+            // 【B6 2026-09-22】中性化口径: 与"存在但无联系方式"同形(全 false 无掩码), 消除存在性 oracle
             return resp;
         }
         resp.setHasPhone(user.getPhone() != null && !user.getPhone().isBlank());

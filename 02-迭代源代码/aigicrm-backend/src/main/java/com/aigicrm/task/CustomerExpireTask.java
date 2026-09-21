@@ -36,11 +36,16 @@ public class CustomerExpireTask {
         List<BizCustomer> customers = customerMapper.selectList(
                 new LambdaQueryWrapper<BizCustomer>()
                         .eq(BizCustomer::getDeleted, 0)
-                        .ne(BizCustomer::getStatus, "sea")
+                        .notIn(BizCustomer::getStatus, "sea", "archived") // 【B5 2026-09-22】归档不参与统计/提醒/到期检查(统一口径)
                         .isNotNull(BizCustomer::getExpireDate)
         );
 
+        // 【B1 2026-09-22 逐客户隔离】单条脏数据/唯一键冲突不再中断整批(运行事故实证:
+        // 一条 Duplicate entry 曾令当晚后续所有客户漏检); 末尾汇总, failed>0 记 error 作告警钩子
+        int enteredSea = 0, warned = 0, failed = 0;
+        java.util.List<Long> failedIds = new java.util.ArrayList<>();
         for (BizCustomer customer : customers) {
+          try {
             LocalDate expireDate = customer.getExpireDate();
 
             if (expireDate.isBefore(today) || expireDate.isEqual(today)) {
@@ -85,9 +90,22 @@ public class CustomerExpireTask {
                     reminder.setOverdueDays((int) daysLeft);
                     reminder.setStatus("pending");
                     reminderMapper.insert(reminder);
+                    warned++;
                     log.info("客户 {} 还有{}天到期，已创建提醒", customer.getCustomerName(), daysLeft);
                 }
             }
+          } catch (Exception e) {
+            failed++;
+            failedIds.add(customer.getId());
+            log.error("客户 {}({}) 保护期处理失败, 已跳过继续: {}", customer.getCustomerName(), customer.getId(), e.getMessage());
+          }
+        }
+        String summary = String.format("客户保护期检查汇总: 共%d条, 入海%d, 新增预警%d, 失败%d %s",
+                customers.size(), enteredSea, warned, failed, failedIds);
+        if (failed > 0) {
+            log.error("【告警】{} —— 失败客户需人工复核", summary);
+        } else {
+            log.info(summary);
         }
 
         // 检查开票超一年的客户
@@ -120,7 +138,7 @@ public class CustomerExpireTask {
         List<BizCustomer> overdueCustomers = customerMapper.selectList(
                 new LambdaQueryWrapper<BizCustomer>()
                         .eq(BizCustomer::getDeleted, 0)
-                        .ne(BizCustomer::getStatus, "sea")
+                        .notIn(BizCustomer::getStatus, "sea", "archived") // 【B5 2026-09-22】归档不参与统计/提醒/到期检查(统一口径)
                         .isNotNull(BizCustomer::getLastInvoiceDate)
                         .lt(BizCustomer::getLastInvoiceDate, oneYearAgo)
         );
@@ -132,7 +150,7 @@ public class CustomerExpireTask {
         List<BizCustomer> neverInvoiced = customerMapper.selectList(
                 new LambdaQueryWrapper<BizCustomer>()
                         .eq(BizCustomer::getDeleted, 0)
-                        .ne(BizCustomer::getStatus, "sea")
+                        .notIn(BizCustomer::getStatus, "sea", "archived") // 【B5 2026-09-22】归档不参与统计/提醒/到期检查(统一口径)
                         .isNull(BizCustomer::getLastInvoiceDate)
         );
         for (BizCustomer customer : neverInvoiced) {

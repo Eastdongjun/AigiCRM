@@ -597,7 +597,7 @@ public class StatisticsQueryService {
             LocalDateTime from = LocalDateTime.of(year, m, 1, 0, 0);
             LocalDateTime to = (m < 12) ? LocalDateTime.of(year, m + 1, 1, 0, 0) : LocalDateTime.of(year + 1, 1, 1, 0, 0);
             LambdaQueryWrapper<BizCustomer> cw = new LambdaQueryWrapper<>();
-            cw.eq(BizCustomer::getDeleted, 0).ne(BizCustomer::getStatus, "sea")
+            cw.eq(BizCustomer::getDeleted, 0).notIn(BizCustomer::getStatus, "sea", "archived") // 【B5 2026-09-22】归档不参与统计/提醒/到期检查(统一口径)
               .ge(BizCustomer::getCreatedAt, from).lt(BizCustomer::getCreatedAt, to);
             if (deptId != null) cw.in(BizCustomer::getOfficeId, com.aigicrm.common.util.DeptTreeUtils.expandSubtree(deptMapper, deptId));
             else if (officeId != null) cw.eq(BizCustomer::getOfficeId, officeId);
@@ -624,7 +624,7 @@ public class StatisticsQueryService {
         LocalDateTime monthStart = LocalDate.now().withDayOfMonth(1).atStartOfDay();
         for (var dept : allDepts) {
             LambdaQueryWrapper<BizCustomer> w = new LambdaQueryWrapper<>();
-            w.eq(BizCustomer::getDeleted, 0).ne(BizCustomer::getStatus, "sea")
+            w.eq(BizCustomer::getDeleted, 0).notIn(BizCustomer::getStatus, "sea", "archived") // 【B5 2026-09-22】归档不参与统计/提醒/到期检查(统一口径)
              .eq(BizCustomer::getOfficeId, dept.getId());
             applyCustomerScope(w);
             long total = customerMapper.selectCount(w);
@@ -637,7 +637,7 @@ public class StatisticsQueryService {
             long active = customerMapper.selectCount(aw);
 
             LambdaQueryWrapper<BizCustomer> nw = new LambdaQueryWrapper<>();
-            nw.eq(BizCustomer::getDeleted, 0).ne(BizCustomer::getStatus, "sea")
+            nw.eq(BizCustomer::getDeleted, 0).notIn(BizCustomer::getStatus, "sea", "archived") // 【B5 2026-09-22】归档不参与统计/提醒/到期检查(统一口径)
               .eq(BizCustomer::getOfficeId, dept.getId())
               .ge(BizCustomer::getCreatedAt, monthStart);
             applyCustomerScope(nw);
@@ -649,7 +649,7 @@ public class StatisticsQueryService {
                 LocalDateTime mf = md.atStartOfDay();
                 LocalDateTime mt = md.plusMonths(1).atStartOfDay();
                 LambdaQueryWrapper<BizCustomer> rw = new LambdaQueryWrapper<>();
-                rw.eq(BizCustomer::getDeleted, 0).ne(BizCustomer::getStatus, "sea")
+                rw.eq(BizCustomer::getDeleted, 0).notIn(BizCustomer::getStatus, "sea", "archived") // 【B5 2026-09-22】归档不参与统计/提醒/到期检查(统一口径)
                   .eq(BizCustomer::getOfficeId, dept.getId())
                   .ge(BizCustomer::getCreatedAt, mf).lt(BizCustomer::getCreatedAt, mt);
                 applyCustomerScope(rw);
@@ -669,14 +669,14 @@ public class StatisticsQueryService {
 
         LocalDate today = LocalDate.now();
         LambdaQueryWrapper<BizCustomer> baseW = new LambdaQueryWrapper<BizCustomer>()
-                .eq(BizCustomer::getDeleted, 0).ne(BizCustomer::getStatus, "sea");
+                .eq(BizCustomer::getDeleted, 0).notIn(BizCustomer::getStatus, "sea", "archived"); // B5 统一口径: 排sea+archived
         if (deptId != null) baseW.in(BizCustomer::getOfficeId, com.aigicrm.common.util.DeptTreeUtils.expandSubtree(deptMapper, deptId));
         else if (officeId != null) baseW.eq(BizCustomer::getOfficeId, officeId);
         applyCustomerScope(baseW);
         long totalCustomers = customerMapper.selectCount(baseW);
 
         LambdaQueryWrapper<BizCustomer> protW = new LambdaQueryWrapper<BizCustomer>()
-                .eq(BizCustomer::getDeleted, 0).ne(BizCustomer::getStatus, "sea")
+                .eq(BizCustomer::getDeleted, 0).notIn(BizCustomer::getStatus, "sea", "archived") // 【B5 2026-09-22】归档不参与统计/提醒/到期检查(统一口径)
                 .eq(BizCustomer::getProtectionStatus, "active");
         if (deptId != null) protW.in(BizCustomer::getOfficeId,
                 com.aigicrm.common.util.DeptTreeUtils.expandSubtree(deptMapper, deptId));
@@ -685,7 +685,7 @@ public class StatisticsQueryService {
         long inProtection = customerMapper.selectCount(protW);
 
         LambdaQueryWrapper<BizCustomer> expingW = new LambdaQueryWrapper<BizCustomer>()
-                .eq(BizCustomer::getDeleted, 0).ne(BizCustomer::getStatus, "sea")
+                .eq(BizCustomer::getDeleted, 0).notIn(BizCustomer::getStatus, "sea", "archived") // 【B5 2026-09-22】归档不参与统计/提醒/到期检查(统一口径)
                 .eq(BizCustomer::getProtectionStatus, "expiring");
         if (deptId != null) expingW.in(BizCustomer::getOfficeId,
                 com.aigicrm.common.util.DeptTreeUtils.expandSubtree(deptMapper, deptId));
@@ -694,7 +694,7 @@ public class StatisticsQueryService {
         long expiring = customerMapper.selectCount(expingW);
 
         LambdaQueryWrapper<BizCustomer> expW = new LambdaQueryWrapper<BizCustomer>()
-                .eq(BizCustomer::getDeleted, 0).ne(BizCustomer::getStatus, "sea")
+                .eq(BizCustomer::getDeleted, 0).notIn(BizCustomer::getStatus, "sea", "archived") // 【B5 2026-09-22】归档不参与统计/提醒/到期检查(统一口径)
                 .lt(BizCustomer::getExpireDate, today);
         if (deptId != null) expW.in(BizCustomer::getOfficeId,
                 com.aigicrm.common.util.DeptTreeUtils.expandSubtree(deptMapper, deptId));
@@ -703,7 +703,7 @@ public class StatisticsQueryService {
         long expired = customerMapper.selectCount(expW);
 
         LambdaQueryWrapper<BizCustomer> todayExpiringW = new LambdaQueryWrapper<BizCustomer>()
-                .eq(BizCustomer::getDeleted, 0).ne(BizCustomer::getStatus, "sea")
+                .eq(BizCustomer::getDeleted, 0).notIn(BizCustomer::getStatus, "sea", "archived") // 【B5 2026-09-22】归档不参与统计/提醒/到期检查(统一口径)
                 .eq(BizCustomer::getExpireDate, today);
         if (deptId != null) todayExpiringW.in(BizCustomer::getOfficeId,
                 com.aigicrm.common.util.DeptTreeUtils.expandSubtree(deptMapper, deptId));
@@ -715,7 +715,7 @@ public class StatisticsQueryService {
         LocalDateTime yearStart = LocalDateTime.of(finalYear, 1, 1, 0, 0);
         LocalDateTime yearEnd = LocalDateTime.of(finalYear + 1, 1, 1, 0, 0);
         LambdaQueryWrapper<BizCustomer> newW = new LambdaQueryWrapper<BizCustomer>()
-                .eq(BizCustomer::getDeleted, 0).ne(BizCustomer::getStatus, "sea")
+                .eq(BizCustomer::getDeleted, 0).notIn(BizCustomer::getStatus, "sea", "archived") // 【B5 2026-09-22】归档不参与统计/提醒/到期检查(统一口径)
                 .ge(BizCustomer::getCreatedAt, yearStart).lt(BizCustomer::getCreatedAt, yearEnd);
         if (deptId != null) newW.in(BizCustomer::getOfficeId,
                 com.aigicrm.common.util.DeptTreeUtils.expandSubtree(deptMapper, deptId));
@@ -724,7 +724,7 @@ public class StatisticsQueryService {
         long yearNew = customerMapper.selectCount(newW);
 
         LambdaQueryWrapper<BizCustomer> indW = new LambdaQueryWrapper<BizCustomer>()
-                .eq(BizCustomer::getDeleted, 0).ne(BizCustomer::getStatus, "sea")
+                .eq(BizCustomer::getDeleted, 0).notIn(BizCustomer::getStatus, "sea", "archived") // 【B5 2026-09-22】归档不参与统计/提醒/到期检查(统一口径)
                 .isNotNull(BizCustomer::getIndustry);
         if (deptId != null) indW.in(BizCustomer::getOfficeId,
                 com.aigicrm.common.util.DeptTreeUtils.expandSubtree(deptMapper, deptId));
