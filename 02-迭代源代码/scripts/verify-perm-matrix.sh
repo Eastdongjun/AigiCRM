@@ -115,8 +115,13 @@ db "UPDATE sys_role SET data_scope='self' WHERE id=$BOT_RID;
 FT=$(login_token "$TMP_USER" "$TMP_PW")
 ADMIN_ID=$(db "SELECT id FROM sys_user WHERE username='$API_USER'" | tail -1)
 TARGET_CID=$(db "SELECT id FROM biz_customer WHERE owner_id=$ADMIN_ID AND deleted=0 LIMIT 1" | tail -1)
-FC=$(curl -s -m 15 -o /dev/null -w '%{http_code}' -X POST "$BASE/api/customer/$TARGET_CID/invoices/999999/confirm" -H "Authorization: Bearer $FT" -H "Origin: $BASE")
-[ "$FC" = "403" ] && ok "finance confirm 范围外客户 → 403(对象校验生效)" || bad "finance confirm 期望403 实得 $FC(后端未含批次1修复?)"
+# 服务层归属拒绝走 BusinessException, HTTP 可能是 400/403 —— 以"拒绝且原因为权限"为准, 与"发票不存在"(=已穿透服务层)区分
+FB=$(curl -s -m 15 -X POST "$BASE/api/customer/$TARGET_CID/invoices/999999/confirm" -H "Authorization: Bearer $FT" -H "Origin: $BASE")
+if printf '%s' "$FB" | grep -q "无权"; then
+  ok "finance confirm 范围外客户 → 拒绝(对象校验生效: $FB)"
+else
+  bad "finance confirm 未被权限拒绝(疑似穿透服务层): $FB"
+fi
 TC1=$(curl -s -m 15 -o /dev/null -w '%{http_code}' "$BASE/api/task/list?assigneeId=$ADMIN_ID&size=1" -H "Authorization: Bearer $FT")
 [ "$TC1" = "403" ] && ok "task 他人 assigneeId → 403(IDOR已收口)" || bad "task 他人期望403 实得 $TC1(后端未含批次1修复?)"
 TC2=$(curl -s -m 15 -o /dev/null -w '%{http_code}' "$BASE/api/task/list?assigneeId=$BOT_UID&size=1" -H "Authorization: Bearer $FT")
