@@ -63,3 +63,10 @@
 # gen-*.py 加固最终挂账方式(2026-09-21)
 - 三个加固文件已 **git stash 封存**(stash@{0}, 带裁决说明), 工作树恢复干净——钩子扫全树, 未决改动静默阻塞一切提交的问题就此解除
 - 恢复路径: `git stash apply` 后按裁决提交(--no-verify)或 `git stash drop` 放弃; 实测结论与拦截记录见上一节
+
+
+---
+# 2026-09-22 GPT 全景报告裁定与新队列
+- 裁定全文: 05-gpt-review-20260922-adjudication.md(旧快照报告的 11 项 P1 中 7 项已在 88fbc3fc 前修复)
+- **新开放队列 B1-B8**: B1 ExpireTask逐客户隔离+汇总 B2 addToSea幂等 B3 uk_sea_pool_active收编迁移 B4 公海删除复用生命周期保护 B5 archived统一谓词 B6 lookup响应归一 B7 503 HTTP映射 B8 granularity门禁校准
+- 审计纪律新增: 产物必须带 snapshot hash 与 stale 标志(05 已示范)

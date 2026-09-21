@@ -2,7 +2,7 @@
 
 > 65 个按 ID 端点全量核查(customer 31/file 13/incentive 6/approval 4/task 4/sea 3/score 2/reminder 2)。
 > 结论: 守卫完整 53(81.5%) / 风险 5 / 全局配置类可接受 7。
-> 基建结论: 租户拦截器 MybatisPlusConfig.java:35-42 白名单 24 表,生产未开启则拒绝启动(L63-66),admin 跳过租户条件(L126)。**biz_task / biz_incentive_read / biz_incentive_grant 不在租户白名单**。
+> 基建结论: 租户拦截器 MybatisPlusConfig.java:35-42 白名单 24 表,生产未开启则拒绝启动(L63-66),admin 跳过租户条件(L126)。**biz_task 不在租户白名单**【2026-09-21 已修复: G2 批次进白名单+列守卫迁移, 见 05 裁定】; biz_incentive_read/grant 仍不在白名单(靠手工集团过滤, 待评估)。
 
 ## 风险清单(重点)
 
