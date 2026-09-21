@@ -42,6 +42,10 @@ db "INSERT INTO sys_role (group_id, role_name, role_code, description, data_scop
     INSERT INTO sys_user (username, password, real_name, status, pwd_reset_required) VALUES ('$TMP_USER','$HASH','权限矩阵机器人',1,0);" >/dev/null
 BOT_UID=$(db "SELECT id FROM sys_user WHERE username='$TMP_USER'" | tail -1)
 BOT_RID=$(db "SELECT id FROM sys_role WHERE role_code='perm_matrix_tmp'" | tail -1)
+# 【G4 2026-09-21】租户插件已开启: 无部门用户无集团归属 → tenant 条件恒假(fail-closed 实测),
+# 夹具必须给机器人挂集团1根部门, 否则 scope=all 用例恒 0
+G1_DEPT=$(db "SELECT id FROM sys_dept WHERE group_id=1 AND parent_id=0 AND status=1 ORDER BY id LIMIT 1" | tail -1)
+db "UPDATE sys_user SET org_id=$G1_DEPT, dept_id=$G1_DEPT WHERE id=$BOT_UID;" >/dev/null
 [ -n "$BOT_UID" ] && [ -n "$BOT_RID" ] || { bad "临时角色/用户创建失败"; exit 1; }
 ok "临时载体就绪(uid=$BOT_UID rid=$BOT_RID)"
 
@@ -141,6 +145,47 @@ if [ -n "$AC" ] && [ -n "$BC" ] && [ "$BC" -lt "$AC" ] 2>/dev/null; then
 else
   bad "统计口径失效: admin=$AC bot=$BC(全员口径未过滤?)"
 fi
+
+# ---- 6) G4 双集团夹具: 集团2客户对集团1用户必须不可见(租户隔离活体) ----
+AT2=$(login_token "$API_USER" "$API_PASS")
+BASE_TOTAL=$(curl -s -m 20 "$BASE/api/customer/list?size=1" -H "Authorization: Bearer $AT2" | python3 -c 'import json,sys; print((json.load(sys.stdin).get("data") or {}).get("total"))')
+db "INSERT IGNORE INTO sys_group (id, group_name, group_code, description, status) VALUES (9901,'审计夹具集团','pmx_g2','矩阵回归夹具,即删',1);
+    INSERT INTO sys_dept (group_id, parent_id, dept_name, dept_type, status) VALUES (9901, 0, '夹具集团2根部门', 1, 1);
+    SET @g2d = LAST_INSERT_ID();
+    INSERT INTO biz_customer (customer_name, tenant_id, owner_id, status, deleted, created_at) VALUES ('夹具-集团2隔离客户', 9901, $ADMIN_ID, 'normal', 0, NOW());" >/dev/null
+WITH_G2=$(curl -s -m 20 "$BASE/api/customer/list?size=1" -H "Authorization: Bearer $AT2" | python3 -c 'import json,sys; print((json.load(sys.stdin).get("data") or {}).get("total"))')
+if [ "$BASE_TOTAL" = "$WITH_G2" ]; then
+  ok "双集团隔离: 集团2客户不进入集团1列表(total $BASE_TOTAL 前后一致)"
+else
+  bad "双集团隔离失效: 基线=$BASE_TOTAL 插入集团2客户后=$WITH_G2"
+fi
+db "DELETE FROM biz_customer WHERE tenant_id=9901; DELETE FROM sys_dept WHERE group_id=9901; DELETE FROM sys_group WHERE id=9901;" >/dev/null
+
+# ---- 7) G4 导出负向(#13): scope=self 用户导出不得突破 view 范围(xlsx 数据量 < admin) ----
+db "UPDATE sys_role SET data_scope='self' WHERE id=$BOT_RID;
+    DELETE FROM sys_role_menu WHERE role_id=$BOT_RID;
+    INSERT INTO sys_role_menu (role_id, menu_id) SELECT $BOT_RID, id FROM sys_menu WHERE id IN (11, 43);
+    UPDATE sys_user SET perm_version=perm_version+1 WHERE id=$BOT_UID;" >/dev/null
+BT2=$(login_token "$TMP_USER" "$TMP_PW")
+curl -s -m 30 -w "%{http_code} %{size_download}" "$BASE/api/customer/export" -H "Authorization: Bearer $AT2" -o /tmp/pm-admin.xlsx >/dev/null
+BOT_EXP=$(curl -s -m 30 -w "%{http_code} %{size_download}" "$BASE/api/customer/export" -H "Authorization: Bearer $BT2" -o /tmp/pm-bot.xlsx)
+BOT_EXP_CODE=${BOT_EXP%% *}; BOT_EXP_SIZE=${BOT_EXP##* }
+XS_ADMIN=$(python3 -c 'import zipfile,os
+try:
+    z=zipfile.ZipFile("/tmp/pm-admin.xlsx"); print(sum(zi.file_size for zi in z.infolist()))
+except Exception: print(0)')
+XS_BOT=$(python3 -c 'import zipfile,os
+try:
+    z=zipfile.ZipFile("/tmp/pm-bot.xlsx"); print(sum(zi.file_size for zi in z.infolist()))
+except Exception: print(0)')
+if [ "$BOT_EXP_CODE" = "200" ] && [ "$BOT_EXP_SIZE" -gt 0 ] 2>/dev/null && [ "$XS_BOT" -lt "$XS_ADMIN" ] 2>/dev/null; then
+  ok "导出随 view 范围收口: self 导出 HTTP=$BOT_EXP_CODE xlsx=$XS_BOT 字节 < admin=$XS_ADMIN(有权限且范围内, 非权限拒绝)"
+elif [ "$BOT_EXP_CODE" != "200" ]; then
+  bad "导出异常: HTTP=$BOT_EXP_CODE(有权限仍失败?)"
+else
+  bad "导出疑似突破范围或空响应: bot=$XS_BOT admin=$XS_ADMIN"
+fi
+rm -f /tmp/pm-admin.xlsx /tmp/pm-bot.xlsx
 
 echo "==> 权限矩阵回归: PASS=$PASS FAIL=$FAIL"
 [ "$FAIL" = "0" ]
