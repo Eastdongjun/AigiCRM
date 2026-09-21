@@ -70,6 +70,9 @@ class StatisticsQueryServiceTest {
     private StatisticsQueryService service;
 
     @Mock private CustomerService customerService;
+    // 【G2 2026-09-21】visibleCustomers 依赖; 未 stub 时 resolveModuleUsers 返回 null(=全量),
+    // 既有"全公司口径"聚合用例语义不变; 新政策行为由下方过滤用例单独钉住
+    @Mock private com.aigicrm.common.scope.OrgScopeResolver orgScopeResolver;
     @Mock private SeaService seaService;
     @Mock private ApprovalService approvalService;
     @Mock private BizCustomerMapper customerMapper;
@@ -310,6 +313,42 @@ class StatisticsQueryServiceTest {
                                     .getSqlSegment().contains("status")
                             && ((com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<?>) w)
                                     .getParamNameValuePairs().containsValue("voided")));
+        }
+    }
+
+    /**
+     * 【G2 2026-09-21 权限审计批次2】非 admin 统计口径收口:
+     * 指标与客户必须按 statistics 模块可见人员集合过滤(修复"全员口径"在租户插件关闭时跨集团/跨范围泄露)。
+     */
+    @org.junit.jupiter.api.Test
+    void indicatorStatsFiltersByModuleVisibilityForNonAdmin() {
+        var mine = new com.aigicrm.module.customer.entity.BizCustomer();
+        mine.setId(102L);
+        mine.setOwnerId(7L);
+        var other = new com.aigicrm.module.customer.entity.BizCustomer();
+        other.setId(101L);
+        other.setOwnerId(8L);
+        when(customerService.getAllActiveCustomers()).thenReturn(java.util.List.of(mine, other));
+        var mineIndicator = new com.aigicrm.module.customer.entity.BizCustomerIndicator();
+        mineIndicator.setCustomerId(102L);
+        mineIndicator.setRelationshipScore(3);
+        var otherIndicator = new com.aigicrm.module.customer.entity.BizCustomerIndicator();
+        otherIndicator.setCustomerId(101L);
+        otherIndicator.setRelationshipScore(3);
+        when(indicatorMapper.selectList(null)).thenReturn(java.util.List.of(mineIndicator, otherIndicator));
+        when(invoiceMapper.selectList(org.mockito.ArgumentMatchers.<com.baomidou.mybatisplus.core.conditions.Wrapper<com.aigicrm.module.customer.entity.BizInvoice>>any())).thenReturn(java.util.List.of());
+        when(paymentMapper.selectList(org.mockito.ArgumentMatchers.<com.baomidou.mybatisplus.core.conditions.Wrapper<com.aigicrm.module.customer.entity.BizPayment>>any())).thenReturn(java.util.List.of());
+
+        try (org.mockito.MockedStatic<com.aigicrm.security.SecurityUtils> security = org.mockito.Mockito.mockStatic(com.aigicrm.security.SecurityUtils.class)) {
+            security.when(com.aigicrm.security.SecurityUtils::getCurrentUserId).thenReturn(7L);
+            security.when(com.aigicrm.security.SecurityUtils::getCurrentUser).thenReturn(org.mockito.Mockito.mock(com.aigicrm.security.SecurityUser.class));
+            security.when(com.aigicrm.security.SecurityUtils::isAdmin).thenReturn(false);
+            when(orgScopeResolver.resolveModuleUsers(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.eq("statistics")))
+                    .thenReturn(java.util.List.of(7L));
+
+            var result = service.indicatorStats();
+
+            assertEquals(1, result.get("coveredCount"), "范围外客户(他人负责)的指标必须被剔除");
         }
     }
 

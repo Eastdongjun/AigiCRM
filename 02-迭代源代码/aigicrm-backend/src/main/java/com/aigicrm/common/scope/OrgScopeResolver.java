@@ -51,8 +51,11 @@ public class OrgScopeResolver {
         if (now >= switchCacheExpire) {
             synchronized (this) {
                 if (now >= switchCacheExpire) {
-                    cachedSuperior = configService.getBooleanValue(KEY_SUPERIOR_SEE_SUBORDINATE, true);
-                    cachedLeader = configService.getBooleanValue(KEY_ORG_LEADER_SEE_ORG, true);
+                    // 【G3 2026-09-21 安全默认收敛】配置行缺失/置空时默认 false(收窄):
+                    // 原默认 true 属 fail-open——配置丢失时"上级可见下属链/负责人可见组织子树"静默开启。
+                    // 现行为"显式开启才放宽"; 两键在用环境应显式配置 true。
+                    cachedSuperior = configService.getBooleanValue(KEY_SUPERIOR_SEE_SUBORDINATE, false);
+                    cachedLeader = configService.getBooleanValue(KEY_ORG_LEADER_SEE_ORG, false);
                     switchCacheExpire = now + SWITCH_CACHE_TTL_MS;
                 }
             }

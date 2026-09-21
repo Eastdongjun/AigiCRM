@@ -68,7 +68,8 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                     Date iat = jwtTokenProvider.getIssuedAtFromToken(token);
                     long changedSec = su.getPwdChangedAt()
                             .atZone(java.time.ZoneId.of("Asia/Shanghai")).toEpochSecond();
-                    if (iat != null && iat.getTime() < changedSec * 1000L) {
+                    // 【G3 2026-09-21 fail-closed】iat 缺失(无法证明晚于改密)同样拒绝, 堵住无 iat token 逃逸 DB 级撤销
+                    if (iat == null || iat.getTime() < changedSec * 1000L) {
                         writeUnauthorized(response);
                         return;
                     }

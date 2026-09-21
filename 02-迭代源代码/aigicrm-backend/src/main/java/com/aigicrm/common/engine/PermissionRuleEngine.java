@@ -152,20 +152,26 @@ public class PermissionRuleEngine {
         }
     }
 
-    /** 字段可见性：读取 rule_value JSON 中的 hidden/visible 列表 */
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(PermissionRuleEngine.class);
+
+    /** 字段可见性：读取 rule_value JSON 中的 hidden/visible 列表。
+     *  【G3 2026-09-21 fail-closed】rule_value 脏数据不再静默跳过——跳过=字段脱敏失效且无告警;
+     *  按"规则损坏即拒绝"处理(503), 强迫修复配置, 与 role_perm_scope 读点口径一致 */
     private static void evaluateFieldVisible(SysPermissionRule rule,
                                               Set<String> hidden, Set<String> visible) {
         String raw = rule.getRuleValue();
         if (raw == null) return;
         try {
             parseFieldPermissions(raw, hidden, visible);
-        } catch (Exception ignored) {
-            // 规则 value 脏数据:解析失败跳过该条,不阻断其他规则加载
+        } catch (Exception e) {
+            log.error("权限规则 rule_value 脏数据(field_visible id={}): {} —— 按损坏拒绝", rule.getId(), e.getMessage());
+            throw new com.aigicrm.common.BusinessException(503, "权限规则配置损坏(field_visible #" + rule.getId() + ")，暂不可用");
         }
     }
 
     /** 操作控制：读取 rule_value JSON 中的操作权限，按 target_entity 分组。
-     *  target_entity 为空/未声明的规则不生效（守卫必须显式绑定实体，防止全局误伤） */
+     *  target_entity 为空/未声明的规则不生效（守卫必须显式绑定实体，防止全局误伤）。
+     *  【G3 2026-09-21 fail-closed】脏数据同上: 拒绝而非静默跳过(跳过=操作限制失效) */
     private static void evaluateActionControl(SysPermissionRule rule,
                                                Map<String, Map<String, Boolean>> actionsByEntity) {
         if (rule.getTargetEntity() == null || rule.getTargetEntity().isBlank()) return;
@@ -175,8 +181,10 @@ public class PermissionRuleEngine {
             Map<String, Boolean> actions = actionsByEntity
                     .computeIfAbsent(rule.getTargetEntity().trim(), k -> new LinkedHashMap<>());
             parseActionPermissions(raw, actions);
-        } catch (Exception ignored) {
-            // 规则 value 脏数据:解析失败跳过该条,不阻断其他规则加载
+        } catch (Exception e) {
+            log.error("权限规则 rule_value 脏数据(action_control id={} entity={}): {} —— 按损坏拒绝",
+                    rule.getId(), rule.getTargetEntity(), e.getMessage());
+            throw new com.aigicrm.common.BusinessException(503, "权限规则配置损坏(action_control #" + rule.getId() + ")，暂不可用");
         }
     }
 

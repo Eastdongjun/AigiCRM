@@ -116,7 +116,9 @@ public class JwtTokenProvider {
      *  【2026-08-14 安全 P0】DB 为权威判定：Redis 命中直接 true；miss/故障一律回查 DB 黑名单表——
      *  消除"Redis 重启/淘汰后 DB 黑名单行被忽略、已撤销 token 复活"的 fail-open 窗口（评审 P1-2 修复） */
     public boolean isBlacklisted(String jti) {
-        if (jti == null) return false;
+        // 【G3 2026-09-21 fail-closed】无 jti 的 token 永不可拉黑也无处追溯——自身签发恒有 jti,
+        // 缺失即外来/伪造 token, 按已拉黑拒绝(纵深收紧, 原样放行属旁路)
+        if (jti == null) return true;
         try {
             if (Boolean.TRUE.equals(redisTemplate.hasKey(BLACKLIST_PREFIX + jti))) {
                 return true;
@@ -218,7 +220,9 @@ public class JwtTokenProvider {
             return true;
         }
         Date iat = claims.getIssuedAt();
-        if (iat == null) return false;
+        // 【G3 2026-09-21 fail-closed】无 iat 无法证明签发晚于改密时刻——自身签发恒有 iat,
+        // 缺失即外来/伪造 token, 按已失效拒绝(原 return false 属逃逸改密撤销的旁路)
+        if (iat == null) return true;
         try {
             Object changedAt = redisTemplate.opsForValue().get(PWD_CHANGED_PREFIX + userId);
             if (changedAt == null) return false;

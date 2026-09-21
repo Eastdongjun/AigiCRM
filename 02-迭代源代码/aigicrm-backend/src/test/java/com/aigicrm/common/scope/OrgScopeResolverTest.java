@@ -437,27 +437,17 @@ class OrgScopeResolverTest {
     }
 
     @Test
-    void configMissingDefaultsToOn() {
-        // sys_config 无行(getValue null) → getBooleanValue 返回默认值 true → 开关生效
+    void configMissingDefaultsToOff() {
+        // 【G3 2026-09-21 安全默认收敛】sys_config 无行 → getBooleanValue 返回默认值 false(收窄),
+        // 配置缺失不再静默放宽"上级可见下级/负责人可见组织"; 开关需显式配置 true 才生效
         when(configService.getBooleanValue(anyString(), anyBoolean())).thenAnswer(inv -> inv.getArgument(1));
-        when(userMapper.selectList(any(LambdaQueryWrapper.class))).thenAnswer(inv -> {
-            LambdaQueryWrapper<SysUser> w = inv.getArgument(0);
-            assertStatusFiltered(w);
-            Set<Long> managers = new HashSet<>(columnValues(w).getOrDefault("manager_id", List.of()));
-            if (managers.contains(1L)) return List.of(user(2, 11L, 1L));
-            return List.of();
-        });
-        when(deptMapper.selectList(any(LambdaQueryWrapper.class))).thenAnswer(inv -> {
-            LambdaQueryWrapper<SysDept> w = inv.getArgument(0);
-            assertStatusFiltered(w);
-            return List.of(); // 无负责组织
-        });
         OrgScopeResolver r = new OrgScopeResolver(userMapper, deptMapper, configService,
                 mock(com.aigicrm.module.system.mapper.SysRoleOrgMapper.class));
-        List<Long> u = r.resolve(su(1L, "self", 11L));
-        assertEquals(Set.of(1L, 2L), new HashSet<>(u), "配置缺失→默认 ON，上级可见下级");
-        verify(configService).getBooleanValue(OrgScopeResolver.KEY_SUPERIOR_SEE_SUBORDINATE, true);
+        assertEquals(Set.of(1L), new HashSet<>(r.resolve(su(1L, "self", 11L))),
+                "配置缺失→默认 OFF, self 保持仅本人");
+        verify(configService).getBooleanValue(OrgScopeResolver.KEY_SUPERIOR_SEE_SUBORDINATE, false);
     }
+
 
     @Test
     void bothSwitchesOffKeepsBase() {

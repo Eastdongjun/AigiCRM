@@ -196,7 +196,9 @@ public class RolePermScopeService {
                     anchorCache.put(roleCode + ":" + module + ":" + action, new AnchorCacheEntry(a, System.currentTimeMillis() + CACHE_TTL_MS));
                     return a;
                 } catch (Exception e) {
-                    return ScopeRequest.AnchorType.OWNER;
+                    // 【G3 2026-09-21 fail-closed】锚点读取失败不得静默回退 OWNER(故障期 ORG 配置被悄悄换口径,
+                    // 可能更宽)——与全服务 role_perm_scope 读点统一按 503 拒绝
+                    throw new BusinessException(503, "权限范围锚点读取失败，暂不可用");
                 }
             }
         }

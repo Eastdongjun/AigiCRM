@@ -244,7 +244,9 @@ public class StatisticsQueryService {
         for (BizCustomer c : allCustomers) customerMap.put(c.getId(), c);
         // 【G2 2026-09-21】指标随客户可见性同步收口——coveredCount/avgScore/排行均以指标为口径,
         // 只滤客户不滤指标时 coveredCount 仍为全量(实测暴露), 越权指标行必须在此剔除
-        indicators.removeIf(ind -> ind.getCustomerId() == null || !customerMap.containsKey(ind.getCustomerId()));
+        indicators = indicators.stream()
+                .filter(ind -> ind.getCustomerId() != null && customerMap.containsKey(ind.getCustomerId()))
+                .collect(java.util.stream.Collectors.toList());
 
         // 【PR-18 统计口径】核心客户开票/回款合计排除已作废(voided)台账——作废仅保留痕迹不计入金额
         List<BizInvoice> allInvoices = invoiceMapper.selectList(
@@ -485,7 +487,9 @@ public class StatisticsQueryService {
         if (period != null && !period.isBlank()) recordWrapper.eq(BizIncentiveRecord::getPeriod, period);
         List<BizIncentiveRecord> records = incentiveRecordMapper.selectList(recordWrapper);
         // 【G2 2026-09-21】激励记录随客户可见性同步收口(同 indicatorStats 的指标过滤, 防聚合泄露)
-        records.removeIf(r -> !customerMap.containsKey(r.getCustomerId()));
+        records = records.stream()
+                .filter(r -> customerMap.containsKey(r.getCustomerId()))
+                .collect(java.util.stream.Collectors.toList());
         Map<Long, Map<String, Object>> incentiveRows = new LinkedHashMap<>();
         for (BizIncentiveRecord record : records) {
             BizCustomer customer = customerMap.get(record.getCustomerId());
