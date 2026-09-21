@@ -30,3 +30,12 @@
 .files-folder-card{margin-top:20rpx}
 .files-page .folder-scroll{margin:16rpx 0 6rpx}
 .files-page .empty-state{background:#fff;border:1rpx solid #dbeafe;border-radius:24rpx;padding:34rpx 24rpx;margin-top:8rpx;display:flex;flex-direction:column;align-items:center;gap:10rpx;color:#94a3b8;font-size:24rpx}
+
+/* 【顶部 hero 背景恢复 2026-09-21】对齐其他页 blue 渐变 hero; 容量区文字/进度本就按白底蓝卡设计(app.wxss capacity-*), 白卡合并时丢了渐变 */
+.files-head-card { background: linear-gradient(135deg, #2348bf, #4285f4); color: #fff; border: none; box-shadow: 0 18rpx 42rpx #b8cdf8; padding: 32rpx 30rpx 28rpx; }
+.files-head-overline { color: rgba(255, 255, 255, .72); }
+.files-head-title { color: #fff; }
+.files-head-sub { color: rgba(255, 255, 255, .85); }
+.files-capacity-divider { background: rgba(255, 255, 255, .28); }
+.files-head-card .head-add { margin: 0; width: 68rpx; height: 68rpx; line-height: 64rpx; padding: 0; border-radius: 22rpx; background: rgba(255, 255, 255, .16); border: 1rpx solid rgba(255, 255, 255, .35); color: #fff; font-size: 36rpx; }
+.files-head-card .capacity-icon { color: rgba(255, 255, 255, .45); }
