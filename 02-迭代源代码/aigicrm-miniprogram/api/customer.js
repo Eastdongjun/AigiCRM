@@ -14,8 +14,12 @@ function getCustomerCounts() {
 
 function addCustomer(data) { return request({ url: '/api/customer/add', method: 'POST', data }) }
 function updateCustomer(id, data) { return request({ url: '/api/customer/' + id, method: 'PUT', data }) }
-/** 【PR-05】客户+客情指标同事务组合提交:任一步失败整体回滚,消除"部分成功界面报失败" */
-function saveCustomerWithIndicator(data) { return request({ url: '/api/customer/full', method: 'POST', data }) }
+/** 【PR-05】客户+客情指标同事务组合提交:任一步失败整体回滚,消除"部分成功界面报失败"
+ * 【PR-05 残余 20260921】强幂等:同一次提交(重试/重复发包)携带同一 Idempotency-Key,
+ * 后端 Redis 兜底,重复请求拿到同一客户 id 而不是重复建客 */
+function saveCustomerWithIndicator(data, idempotencyKey) {
+  return request({ url: '/api/customer/full', method: 'POST', data, header: idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : undefined })
+}
 function updateCustomerWithIndicator(id, data) { return request({ url: '/api/customer/' + id + '/full', method: 'PUT', data }) }
 function deleteCustomer(id) { return request({ url: '/api/customer/' + id, method: 'DELETE' }) }
 function checkCustomerName(name) { return request({ url: '/api/customer/check-name', data: { name } }) }

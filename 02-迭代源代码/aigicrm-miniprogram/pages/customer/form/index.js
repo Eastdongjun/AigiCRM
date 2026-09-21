@@ -5,6 +5,13 @@ const { showError, showErrorWithRetry } = require('../../../utils/feedback')
 const { getFormDraft, saveFormDraft, forceSaveFormDraft, deleteFormDraft } = require('../../../api/system')
 const { readDemoCustomers, saveDemoCustomer } = require('../../../utils/demo-customers')
 
+// 【PR-05 残余 20260921】提交幂等键:同一次提交(含重试/重复发包)共用一个键,成功后换新;
+// 小程序无 crypto.randomUUID,用时间戳+随机串(键只需唯一,服务端按 用户+键 作用域隔离)
+let createSubmitKey = null
+function newSubmitKey() {
+  return 'mp-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 12)
+}
+
 function today() { return new Date().toISOString().split('T')[0] }
 
 /** 新建默认值（与 PC 端一致：终端=否、注册日=当天）。
@@ -431,13 +438,16 @@ Page({
     // 【PR-05 2026-09-19】真实模式走客户+指标同事务组合提交:任一步失败整体回滚,
     // 消除"建客户成功、存指标失败→界面报保存失败但客户已入库,重试重复建客"。
     // 演示模式仍本地两步(saveDemoCustomer 自带指标)。
+    // 【PR-05 残余 20260921】真实模式新建分支携带幂等键(编辑分支为 PUT,无重复建客风险)
+    if (!getApp().globalData.demoMode && !this.data.isEdit && !createSubmitKey) createSubmitKey = newSubmitKey()
     const action = getApp().globalData.demoMode
       ? Promise.resolve(saveDemoCustomer({ ...form, indicator: { ...this.data.indicatorForm } }, this.data.isEdit ? this.data.id : ''))
       : (this.data.isEdit
           ? updateCustomerWithIndicator(this.data.id, { customer: form, indicator: this.indicatorPayload() })
-          : saveCustomerWithIndicator({ customer: form, indicator: this.indicatorPayload() }))
+          : saveCustomerWithIndicator({ customer: form, indicator: this.indicatorPayload() }, createSubmitKey))
     action
       .then(() => {
+        createSubmitKey = null // 成功后换新键,下一次新建客户是全新提交
         deleteFormDraft('customer_form').catch(() => {}) // 【议题四】提交成功清草稿
         wx.showToast({ title: this.data.isEdit ? '保存成功' : '新增成功', icon: 'success' })
         setTimeout(() => wx.navigateBack(), 500)

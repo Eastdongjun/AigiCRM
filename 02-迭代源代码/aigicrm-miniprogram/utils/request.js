@@ -56,7 +56,9 @@ function request(options) {
       data: sanitizeData(options.data),
       header: {
         'content-type': 'application/json',
-        ...(token ? { Authorization: 'Bearer ' + token } : {})
+        ...(token ? { Authorization: 'Bearer ' + token } : {}),
+        // 调用方自定义头透传(如 PR-05 幂等键),同名时以调用方为准
+        ...(options.header || {})
       },
       success(res) {
         const body = res.data || {}

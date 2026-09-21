@@ -535,6 +535,7 @@ local_contracts() {
   run node "$ROOT/scripts/test-feedback-draft.js"
   run node "$ROOT/scripts/test-miniprogram-incentive-files.js"
   run node "$ROOT/scripts/test-miniprogram-request-failures.js"
+  run node "$ROOT/scripts/test-miniprogram-customer-idempotency.js"
   run bash "$ROOT/scripts/test-sea-claim-matrix-safety.sh"
   run "$ROOT/scripts/check-prototype-state-contract.sh"
   run python3 "$ROOT/scripts/check-mobile-navigation-contract.py"

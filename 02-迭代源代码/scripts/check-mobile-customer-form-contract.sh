@@ -41,7 +41,7 @@ if ! rg -Fq "hasPermission('customer:add')" "$HOME"; then
 fi
 
 # 【PR-05 2026-09-19】真实模式改为客户+指标同事务组合提交(旧两步 addCustomer/updateCustomer+补存指标已废弃)
-for pattern in "hasPermission(id ? 'customer:edit' : 'customer:add')" "readDemoCustomers().find" "getApp().globalData.demoMode" "saveDemoCustomer({ ...form, indicator: { ...this.data.indicatorForm } }, this.data.isEdit ? this.data.id : '')" "updateCustomerWithIndicator(this.data.id, { customer: form, indicator: this.indicatorPayload() })" "saveCustomerWithIndicator({ customer: form, indicator: this.indicatorPayload() })"; do
+for pattern in "hasPermission(id ? 'customer:edit' : 'customer:add')" "readDemoCustomers().find" "getApp().globalData.demoMode" "saveDemoCustomer({ ...form, indicator: { ...this.data.indicatorForm } }, this.data.isEdit ? this.data.id : '')" "updateCustomerWithIndicator(this.data.id, { customer: form, indicator: this.indicatorPayload() })" "saveCustomerWithIndicator({ customer: form, indicator: this.indicatorPayload() }, createSubmitKey)"; do
   if ! rg -Fq "$pattern" "$FORM"; then
     echo "FAIL: customer form missing $pattern"
     exit 1
