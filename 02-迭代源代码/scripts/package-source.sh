@@ -13,9 +13,13 @@ OUT="$HOME/Desktop/AIGICRM-源代码-$(date +%Y%m%d)-${MODE}.zip"
 
 BASE_EX=( -x "*/node_modules/*" "*/target/*" "*/dist/*" "*/test-results/*" "*/uploads/*" "*.DS_Store" "*/.mimosa/*" )
 INTERNAL_EX=( "${BASE_EX[@]}"
-  -x "*/config/env.local.js" "*private.config.json" "*/logs/*" "*.log" )
+  -x "*env.local*" "*private.config.json" "*/logs/*" "*.log" )
+# 外发档另排除运维/运行手册类文档(实测载体: docs/ 与 MIGRATION-LINEAGE 含内网地址与部署细节)
+# 外发档另排除: 运维/运行手册文档、部署与工程脚本(实测携带环境地址/部署细节)、本地环境档
 EXTERNAL_EX=( "${INTERNAL_EX[@]}"
-  -x "*/deploy*.env*" "*aigicrm-deploy.env.example" "*/docker-compose*.yml" "*/nginx/*" "*/ssl/*" )
+  -x "*/deploy*.env*" "*aigicrm-deploy.env.example" "*/docker-compose*.yml" "*/nginx/*" "*/ssl/*"
+  -x "*/docs/*" "*/MIGRATION-LINEAGE.md" "*/scripts/*" "*env.local*"
+  -x "*/engineering/*" "*/config/env*.js" "*/FROZEN-SHA256.txt" )
 
 cd "$ROOT/.."
 case "$MODE" in
