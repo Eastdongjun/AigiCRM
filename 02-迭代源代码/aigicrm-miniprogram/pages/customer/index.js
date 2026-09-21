@@ -43,7 +43,11 @@ function normalizeCustomer(item) {
     status,
     statusLabel: customerStatusLabel(status),
     statusTone: customerStatusTone(status),
-    devType: item.devType || '未分类'
+    devType: item.devType || '未分类',
+    // 【对齐 PC 高级筛选 2026-09-21】保护/省市维度字段透传(服务端过滤 + 演示模式本地过滤共用)
+    protectionStatus: item.protectionStatus || '',
+    province: item.province || '',
+    city: item.city || ''
   }
 }
 
@@ -101,7 +105,7 @@ Page({
       { label: '即将到期', value: 'expiring' },
       { label: '已到期', value: 'expired' }
     ],
-    advancedFilter: { industry: '', status: '', deptId: '', ownerId: '' },
+    advancedFilter: { industry: '', status: '', deptId: '', ownerId: '', protect: '', province: '', city: '' },
     hasAdvancedFilter: false,
     customerView: buildCustomerView({ customers: [], countCards: [], filter: '全部', keyword: '', hasAdvancedFilter: false, loading: false })
   },
@@ -140,9 +144,12 @@ Page({
           industry: draft.industry || '',
           status: draft.status || '',
           deptId: draft.deptId || '',
-          ownerId: draft.ownerId || ''
+          ownerId: draft.ownerId || '',
+          protect: draft.protect || '',
+          province: draft.province || '',
+          city: draft.city || ''
         },
-        hasAdvancedFilter: Boolean(draft.industry || draft.status || draft.deptId || draft.ownerId)
+        hasAdvancedFilter: Boolean(draft.industry || draft.status || draft.deptId || draft.ownerId || draft.protect || draft.province || draft.city)
       })
     }
     if (this.hasLoaded) this.loadCustomers()
@@ -159,7 +166,7 @@ Page({
   openAdvancedFilter() { wx.navigateTo({ url: '/pages/customer/filter/index' }) },
 
   resetFilters() {
-    this.setCustomerData({ keyword: '', filter: '全部', statusFilter: '', advancedFilter: { industry: '', status: '', deptId: '', ownerId: '' }, hasAdvancedFilter: false })
+    this.setCustomerData({ keyword: '', filter: '全部', statusFilter: '', advancedFilter: { industry: '', status: '', deptId: '', ownerId: '', protect: '', province: '', city: '' }, hasAdvancedFilter: false })
     this.loadCustomers()
   },
 
@@ -204,7 +211,11 @@ Page({
       const keyword = this.data.keyword.trim().toLowerCase()
       const demoStatusLabels = { active: ['保护期', '预警'], expiring: ['预警'], expired: ['超期'] }
       const statusLabels = demoStatusLabels[this.data.statusFilter]
-      const filtered = rows.filter((item) => (!keyword || `${item.name}${item.industry}${item.ownerName}`.toLowerCase().includes(keyword)) && (this.data.filter === '全部' || item.devType === this.data.filter) && (!statusLabels || statusLabels.includes(item.statusLabel || item.status || '')))
+      // 高级筛选(演示模式本地过滤, 与 PC 客户端 filterCustomers 同语义)
+      const advanced = this.data.advancedFilter || {}
+      const demoProtectLabels = { active: ['保护期'], expiring: ['预警'], expired: ['超期'] }
+      const protectLabels = demoProtectLabels[this.data.statusFilter || advanced.protect]
+      const filtered = rows.filter((item) => (!keyword || `${item.name}${item.industry}${item.ownerName}`.toLowerCase().includes(keyword)) && (this.data.filter === '全部' || item.devType === this.data.filter) && (!statusLabels || statusLabels.includes(item.statusLabel || item.status || '')) && (!advanced.industry || item.industry === advanced.industry) && (!protectLabels || protectLabels.includes(item.statusLabel || item.status || '')) && (!advanced.province || (item.province || '').includes(advanced.province)) && (!advanced.city || (item.city || '').includes(advanced.city)))
       this.setCustomerData({
         customers: filtered,
         countCards: [
@@ -235,10 +246,15 @@ Page({
     }
     const advanced = this.data.advancedFilter || {}
     if (advanced.industry) params.industry = advanced.industry
-    const statusParam = this.data.statusFilter || advanced.status
-    if (statusParam) params.status = statusParam
+    // 【对齐 PC 2026-09-21】status 域(normal/warning)与 protectionStatus 域(active/expiring/expired)是两个不同字段,
+    // 此前快捷保护筛选误传 status=active → 后端按 status 等值匹配恒空; 现分开传参
+    if (advanced.status) params.status = advanced.status
     if (advanced.deptId) params.deptId = advanced.deptId
     if (advanced.ownerId) params.ownerId = advanced.ownerId
+    const protects = [this.data.statusFilter, advanced.protect].filter(Boolean)
+    if (protects.length) params.protectionStatus = [...new Set(protects)].join(',')
+    if (advanced.province) params.province = advanced.province.trim()
+    if (advanced.city) params.city = advanced.city.trim()
     return params
   },
 

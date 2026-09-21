@@ -51,8 +51,11 @@ public class CustomerController {
             @RequestParam(required = false) String scope,
             @RequestParam(required = false) String devType,
             @RequestParam(required = false) String groupName,
-            @RequestParam(required = false) Long deptId) {
-        return Result.ok(customerService.page(current, size, keyword, industry, officeId, regionId, status, ownerId, scope, devType, groupName, deptId));
+            @RequestParam(required = false) Long deptId,
+            @RequestParam(required = false) String protectionStatus,
+            @RequestParam(required = false) String province,
+            @RequestParam(required = false) String city) {
+        return Result.ok(customerService.page(current, size, keyword, industry, officeId, regionId, status, ownerId, scope, devType, groupName, deptId, protectionStatus, province, city));
     }
 
     @PreAuthorize("hasAuthority('customer:view')")

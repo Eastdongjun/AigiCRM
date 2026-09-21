@@ -264,6 +264,42 @@ class CustomerServiceTest {
     }
 
     /**
+     * 【对齐 PC 高级筛选 2026-09-21】保护状态/省/市由 PC 客户端过滤提升为服务端参数 ——
+     * protectionStatus 单值=精确 eq(protection_status 域, 与 status 域互不串扰), 逗号多值=in;
+     * province/city=LIKE 包含(PC 客户端 contains 同语义); 均不传时不产生对应条件。
+     */
+    @Test
+    void pageFilters_protectionStatusAndProvinceCity() {
+        BizCustomerMapper customerMapper = mock(BizCustomerMapper.class);
+        IPage<BizCustomer> emptyPage = new Page<>(1, 10, 0);
+        when(customerMapper.selectPage(any(), any())).thenReturn(emptyPage);
+        CustomerService svc = newService(mock(BizInvoiceMapper.class), mock(BizPaymentMapper.class),
+                customerMapper, mock(OrgScopeResolver.class));
+
+        try (MockedStatic<SecurityUtils> security = mockStatic(SecurityUtils.class)) {
+            security.when(SecurityUtils::getCurrentUserId).thenReturn(7L);
+            security.when(SecurityUtils::getCurrentUser).thenReturn(null);
+
+            ArgumentCaptor<com.baomidou.mybatisplus.core.conditions.Wrapper<BizCustomer>> captor =
+                    ArgumentCaptor.forClass(com.baomidou.mybatisplus.core.conditions.Wrapper.class);
+
+            svc.page(1, 10, null, null, null, null, null, null, null, null, null, null, "active", null, null);
+            verify(customerMapper, times(1)).selectPage(any(), captor.capture());
+            var w1 = (LambdaQueryWrapper<BizCustomer>) captor.getValue();
+            w1.getSqlSegment();
+            assertTrue(w1.getParamNameValuePairs().containsValue("active"), "protectionStatus 单值应精确匹配 protection_status");
+
+            svc.page(1, 10, null, null, null, null, null, null, null, null, null, null, "expiring,expired", "山西", "太原");
+            verify(customerMapper, times(2)).selectPage(any(), captor.capture());
+            var w2 = (LambdaQueryWrapper<BizCustomer>) captor.getValue();
+            w2.getSqlSegment();
+            java.util.Collection<Object> vals2 = w2.getParamNameValuePairs().values();
+            assertTrue(vals2.contains("expiring") && vals2.contains("expired"), "逗号多值应展开为 in 条件");
+            assertTrue(vals2.contains("%山西%") && vals2.contains("%太原%"), "省/市应为 LIKE 包含语义(与 PC contains 对齐)");
+        }
+    }
+
+    /**
      * 【议题五.3 裁决补齐】在途审批(reviewing/pending)任一存在 → 拒删;
      * 无票款且无在途审批 → 放行物理删除(挂审批数据被清, canDelete 由 accessService 放行)。
      */

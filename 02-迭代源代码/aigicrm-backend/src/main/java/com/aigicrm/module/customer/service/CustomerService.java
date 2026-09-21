@@ -77,6 +77,19 @@ public class CustomerService {
     public IPage<BizCustomer> page(int current, int size, String keyword, String industry,
                                     Long officeId, Long regionId, String status, Long ownerId, String scope,
                                     String devType, String groupName, Long deptId) {
+        return page(current, size, keyword, industry, officeId, regionId, status, ownerId, scope, devType, groupName, deptId, null, null, null);
+    }
+
+    /**
+     * 【对齐 PC 高级筛选 2026-09-21】保护状态/省/市三维在 PC 端是客户端过滤(一次性加载大页后本地筛),
+     * 小程序分页小(size=20), 本地筛会截断结果 —— 提升为服务端参数:
+     * protectionStatus 精确匹配(protection_status 域: active/expiring/expired, 逗号多值),
+     * province/city LIKE 包含(PC 客户端为 contains 语义)。
+     */
+    public IPage<BizCustomer> page(int current, int size, String keyword, String industry,
+                                    Long officeId, Long regionId, String status, Long ownerId, String scope,
+                                    String devType, String groupName, Long deptId,
+                                    String protectionStatus, String province, String city) {
         Long currentUserId = SecurityUtils.getCurrentUserId();
 
         // scope 筛选: mine / shared_by_me / shared_to_me
@@ -158,6 +171,17 @@ public class CustomerService {
         }
         if (ownerId != null) {
             wrapper.eq(BizCustomer::getOwnerId, ownerId);
+        }
+        if (StringUtils.hasText(protectionStatus)) {
+            String[] arr = protectionStatus.split(",");
+            if (arr.length > 1) wrapper.in(BizCustomer::getProtectionStatus, (Object[]) arr);
+            else wrapper.eq(BizCustomer::getProtectionStatus, protectionStatus);
+        }
+        if (StringUtils.hasText(province)) {
+            wrapper.like(BizCustomer::getProvince, province.trim());
+        }
+        if (StringUtils.hasText(city)) {
+            wrapper.like(BizCustomer::getCity, city.trim());
         }
         if (StringUtils.hasText(devType)) {
             wrapper.eq(BizCustomer::getDevType, devType);

@@ -23,8 +23,11 @@ function buildFilterView(data) {
     devTypeText: data.devType || '全部',
     industryText: optionText(data.industryOptions, data.selectedIndustryIndex, 'label', '全部行业'),
     statusText: optionText(data.statusOptions, data.selectedStatusIndex, 'label', '全部状态'),
+    protectText: optionText(data.protectOptions, data.selectedProtectIndex, 'label', '全部保护状态'),
     deptText: optionText(data.deptOptions, data.selectedDeptIndex, 'name', '全部部门'),
-    ownerText: optionText(data.ownerOptions, data.selectedOwnerIndex, 'name', '全部负责人')
+    ownerText: optionText(data.ownerOptions, data.selectedOwnerIndex, 'name', '全部负责人'),
+    provinceValue: data.province || '',
+    cityValue: data.city || ''
   }
 }
 
@@ -35,22 +38,31 @@ Page({
     devTypes: ['全部', '成熟创新', '突破开拓', '铺垫宣传'],
     selectedDevTypeIndex: 0,
     industryOptions: [{ value: '', label: '全部行业' }],
-    statusOptions: [{ value: '', label: '全部状态' }, { value: '正常', label: '正常' }, { value: '保护期', label: '保护期' }, { value: '超期', label: '超期' }],
+    // 【对齐 PC 2026-09-21】客户状态域 = status 字段(normal/warning); '超期'属保护状态域, 移入保护选择器
+    statusOptions: [{ value: '', label: '全部状态' }, { value: 'normal', label: '正常' }, { value: 'warning', label: '预警' }],
+    protectOptions: [{ value: '', label: '全部保护状态' }, { value: 'active', label: '保护中' }, { value: 'expiring', label: '即将到期' }, { value: 'expired', label: '已到期' }],
     deptOptions: [{ id: '', name: '全部部门' }],
     ownerOptions: [{ id: '', name: '全部负责人' }],
+    province: '',
+    city: '',
     selectedIndustryIndex: 0,
     selectedStatusIndex: 0,
+    selectedProtectIndex: 0,
     selectedDeptIndex: 0,
     selectedOwnerIndex: 0,
     filterView: buildFilterView({
       keyword: '',
       devType: '全部',
       industryOptions: [{ value: '', label: '全部行业' }],
-      statusOptions: [{ value: '', label: '全部状态' }, { value: '正常', label: '正常' }, { value: '保护期', label: '保护期' }, { value: '超期', label: '超期' }],
+      statusOptions: [{ value: '', label: '全部状态' }, { value: 'normal', label: '正常' }, { value: 'warning', label: '预警' }],
+      protectOptions: [{ value: '', label: '全部保护状态' }, { value: 'active', label: '保护中' }, { value: 'expiring', label: '即将到期' }, { value: 'expired', label: '已到期' }],
       deptOptions: [{ id: '', name: '全部部门' }],
       ownerOptions: [{ id: '', name: '全部负责人' }],
+      province: '',
+      city: '',
       selectedIndustryIndex: 0,
       selectedStatusIndex: 0,
+      selectedProtectIndex: 0,
       selectedDeptIndex: 0,
       selectedOwnerIndex: 0
     })
@@ -68,12 +80,15 @@ Page({
     this.setData({ ...patch, filterView: buildFilterView(next) }, callback)
   },
   onKeywordInput(e) { this.applyState({ keyword: e.detail.value }) },
+  onProvinceInput(e) { this.applyState({ province: e.detail.value }) },
+  onCityInput(e) { this.applyState({ city: e.detail.value }) },
   chooseDevType(e) {
     const selectedDevTypeIndex = Number(e.detail.value) || 0
     this.applyState({ selectedDevTypeIndex, devType: this.data.devTypes[selectedDevTypeIndex] || '全部' })
   },
   chooseIndustry(e) { this.applyState({ selectedIndustryIndex: Number(e.detail.value || 0) }) },
   chooseStatus(e) { this.applyState({ selectedStatusIndex: Number(e.detail.value || 0) }) },
+  chooseProtect(e) { this.applyState({ selectedProtectIndex: Number(e.detail.value || 0) }) },
   chooseDept(e) { this.applyState({ selectedDeptIndex: Number(e.detail.value || 0) }) },
   chooseOwner(e) { this.applyState({ selectedOwnerIndex: Number(e.detail.value || 0) }) },
   loadFilterOptions() {
@@ -105,6 +120,7 @@ Page({
   apply() {
     const industry = this.data.industryOptions[this.data.selectedIndustryIndex] || {}
     const status = this.data.statusOptions[this.data.selectedStatusIndex] || {}
+    const protect = this.data.protectOptions[this.data.selectedProtectIndex] || {}
     const dept = this.data.deptOptions[this.data.selectedDeptIndex] || {}
     const owner = this.data.ownerOptions[this.data.selectedOwnerIndex] || {}
     wx.setStorageSync('customerFilterDraft', {
@@ -112,11 +128,14 @@ Page({
       devType: this.data.devType,
       industry: industry.value || '',
       status: status.value || '',
+      protect: protect.value || '',
+      province: this.data.province.trim(),
+      city: this.data.city.trim(),
       deptId: dept.id || '',
       ownerId: owner.id || ''
     })
     wx.navigateBack()
   },
-  reset() { this.applyState({ keyword: '', devType: '全部', selectedDevTypeIndex: 0, selectedIndustryIndex: 0, selectedStatusIndex: 0, selectedDeptIndex: 0, selectedOwnerIndex: 0 }) },
+  reset() { this.applyState({ keyword: '', devType: '全部', selectedDevTypeIndex: 0, selectedIndustryIndex: 0, selectedStatusIndex: 0, selectedProtectIndex: 0, selectedDeptIndex: 0, selectedOwnerIndex: 0, province: '', city: '' }) },
   goBack() { wx.navigateBack() }
 })

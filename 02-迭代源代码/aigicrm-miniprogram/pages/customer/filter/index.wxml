@@ -23,6 +23,14 @@
     <picker mode="selector" range="{{statusOptions}}" range-key="label" value="{{selectedStatusIndex}}" bindchange="chooseStatus">
       <view class="select-row polished-select">{{filterView.statusText}}<text>⌄</text></view>
     </picker>
+    <view class="field-label filter-field-label">保护状态</view>
+    <picker mode="selector" range="{{protectOptions}}" range-key="label" value="{{selectedProtectIndex}}" bindchange="chooseProtect">
+      <view class="select-row polished-select">{{filterView.protectText}}<text>⌄</text></view>
+    </picker>
+    <view class="field-label filter-field-label">省</view>
+    <input class="search-input polished-input" value="{{filterView.provinceValue}}" bindinput="onProvinceInput" placeholder="如：山西"/>
+    <view class="field-label filter-field-label">市</view>
+    <input class="search-input polished-input" value="{{filterView.cityValue}}" bindinput="onCityInput" placeholder="如：太原"/>
     <view class="field-label filter-field-label">部门</view>
     <picker mode="selector" range="{{deptOptions}}" range-key="name" value="{{selectedDeptIndex}}" bindchange="chooseDept">
       <view class="select-row polished-select">{{filterView.deptText}}<text>⌄</text></view>
