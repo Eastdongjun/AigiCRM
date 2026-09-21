@@ -30,6 +30,15 @@ public class IdempotencyService {
 
     private final StringRedisTemplate redis;
 
+    /**
+     * 【GPT复审 P1-07 2026-09-21】Redis 故障时的降级模式(产品权衡项, 配置化):
+     * bypass(默认, 保持 PR-05 原设计)= 降级放行, 可用性优先, 极端场景可能重复创建;
+     * strict = fail-closed(与 PR-01 授权异常口径一致), 幂等基础设施不可用时拒绝写入, 绝不重复优先。
+     * 生产可在部署 env 设 IDEMPOTENCY_FAIL_MODE=strict 切换。
+     */
+    @org.springframework.beans.factory.annotation.Value("${aigicrm.idempotency.fail-mode:bypass}")
+    private String failMode;
+
     public IdempotencyService(StringRedisTemplate redis) {
         this.redis = redis;
     }
@@ -45,12 +54,16 @@ public class IdempotencyService {
         return "idem:" + prefix + ":" + userId + ":" + key;
     }
 
-    /** 抢占执行权;Redis 异常时 fail-open(当作抢到,幂等降级为无) */
+    /** 抢占执行权;Redis 异常时按 fail-mode 降级: bypass=当作抢到(幂等降级为无), strict=拒绝(503) */
     public boolean tryBegin(String scopedKey) {
         try {
             return Boolean.TRUE.equals(redis.opsForValue().setIfAbsent(scopedKey, PENDING, Duration.ofSeconds(30)));
         } catch (Exception e) {
-            log.debug("idempotency tryBegin degrade(fail-open): {}", e.getMessage());
+            if ("strict".equalsIgnoreCase(failMode)) {
+                log.warn("idempotency tryBegin fail-closed(strict): {}", e.getMessage());
+                throw new com.aigicrm.common.BusinessException(503, "幂等服务暂不可用，请稍后重试");
+            }
+            log.warn("idempotency tryBegin degrade(fail-open/bypass): {}", e.getMessage());
             return true;
         }
     }

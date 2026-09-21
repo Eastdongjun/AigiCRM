@@ -384,13 +384,14 @@ public class AuthService {
 
         String codeKey = RESET_CODE_PREFIX + request.getUsername();
         Object stored = redisTemplate.opsForValue().get(codeKey);
-        if (stored == null) {
-            throw new BusinessException(400, "验证码已过期，请重新获取");
-        }
-        if (!request.getCode().trim().equals(stored.toString().trim())) {
-            errorCount++;
-            redisTemplate.opsForValue().set(errorKey, errorCount, Duration.ofSeconds(LOGIN_LOCK_SECONDS));
-            throw new BusinessException(400, "验证码错误");
+        // 【GPT复审 P1-08 2026-09-21】三态文案归一: "无验证码/验证码错误/用户不存在"统一为同一句,
+        // 消除"该账号存在但未发码"与"账号不存在"的可区分信号(原三种不同文案可辅助枚举)
+        if (stored == null || !request.getCode().trim().equals(stored.toString().trim())) {
+            if (stored != null) {
+                errorCount++;
+                redisTemplate.opsForValue().set(errorKey, errorCount, Duration.ofSeconds(LOGIN_LOCK_SECONDS));
+            }
+            throw new BusinessException(400, "验证码错误或已过期");
         }
 
         user.setPassword(passwordEncoder.encode(request.getNewPassword()));

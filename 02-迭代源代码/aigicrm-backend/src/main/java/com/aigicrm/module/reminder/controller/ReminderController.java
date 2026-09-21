@@ -56,9 +56,14 @@ public class ReminderController {
         return Result.ok(reminderService.pendingCount());
     }
 
+    /** 【GPT复审 P1-09 2026-09-21】批量生成到期提醒属系统管理动作(非查看), 收紧为 admin
+     *  (与 ScheduledTaskController 同模式); process 保留 view+对象守卫(仅本人范围内提醒可处理) */
     @PreAuthorize("hasAuthority('reminder:view')")
     @PostMapping("/ensure-expiring")
     public Result<Void> ensureExpiring() {
+        if (!com.aigicrm.security.SecurityUtils.isAdmin()) {
+            return Result.error(403, "仅管理员可批量生成到期提醒");
+        }
         reminderService.ensureExpiring();
         return Result.ok();
     }
