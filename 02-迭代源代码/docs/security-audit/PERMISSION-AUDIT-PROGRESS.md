@@ -58,3 +58,8 @@
 - 审计产出文档(docs/security-audit/ 4份+进度)提交入库
 - 全量门禁绿(578/188/131/miniprogram/sonar 0) + git push(等代理或 SSH 公钥)
 - 挂账提醒: gen-*.py 加固提交仍被 Mimosa 钩子拦, 待用户裁决放行方式
+
+---
+# gen-*.py 加固最终挂账方式(2026-09-21)
+- 三个加固文件已 **git stash 封存**(stash@{0}, 带裁决说明), 工作树恢复干净——钩子扫全树, 未决改动静默阻塞一切提交的问题就此解除
+- 恢复路径: `git stash apply` 后按裁决提交(--no-verify)或 `git stash drop` 放弃; 实测结论与拦截记录见上一节
