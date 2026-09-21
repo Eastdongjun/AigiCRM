@@ -189,7 +189,7 @@ class ApprovalServiceTest {
         when(seaPoolMapper.update(isNull(), any())).thenReturn(1);
 
         BizApprovalMapper approvalMapper = mock(BizApprovalMapper.class);
-        when(approvalMapper.selectMaxCodeByPrefix(anyString())).thenReturn(0);
+        when(approvalMapper.selectMaxCodeByPrefix(anyString(), any())).thenReturn(0); // 【G2】取号带租户参数
 
         ApprovalService svc = newService(seaPoolMapper, approvalMapper, mock(BizApprovalNodeMapper.class));
         assertDoesNotThrow(() -> svc.submit("claim", 42L, null, null));
@@ -247,7 +247,7 @@ class ApprovalServiceTest {
         when(seaPoolMapper.update(isNull(), any())).thenReturn(1);
 
         BizApprovalMapper approvalMapper = mock(BizApprovalMapper.class);
-        when(approvalMapper.selectMaxCodeByPrefix(anyString())).thenReturn(0);
+        when(approvalMapper.selectMaxCodeByPrefix(anyString(), any())).thenReturn(0); // 【G2】取号带租户参数
 
         SeaConfigService seaConfigService = mock(SeaConfigService.class);
         when(seaConfigService.hasPoolPerm(any(), anyString(), any())).thenReturn(true);
@@ -280,7 +280,7 @@ class ApprovalServiceTest {
         when(seaPoolMapper.update(isNull(), any())).thenReturn(1);
 
         BizApprovalMapper approvalMapper = mock(BizApprovalMapper.class);
-        when(approvalMapper.selectMaxCodeByPrefix(anyString())).thenReturn(0);
+        when(approvalMapper.selectMaxCodeByPrefix(anyString(), any())).thenReturn(0); // 【G2】取号带租户参数
 
         SeaConfigService seaConfigService = mock(SeaConfigService.class);
         when(seaConfigService.hasPoolPerm(any(), anyString(), any())).thenReturn(false);
@@ -541,7 +541,7 @@ class ApprovalServiceTest {
         when(configService.createNodes(any(), anyString())).thenReturn(java.util.List.of());
 
         BizApprovalMapper approvalMapper = mock(BizApprovalMapper.class);
-        when(approvalMapper.selectMaxCodeByPrefix(anyString())).thenReturn(0);
+        when(approvalMapper.selectMaxCodeByPrefix(anyString(), any())).thenReturn(0); // 【G2】取号带租户参数
 
         ApprovalService svc = new ApprovalService(
                 configMapper, approvalMapper, mock(BizApprovalNodeMapper.class),
@@ -573,7 +573,7 @@ class ApprovalServiceTest {
         when(userMapper.selectById(7L)).thenReturn(null); // 申请人查不到 → 无领导
 
         BizApprovalMapper approvalMapper = mock(BizApprovalMapper.class);
-        when(approvalMapper.selectMaxCodeByPrefix(anyString())).thenReturn(0);
+        when(approvalMapper.selectMaxCodeByPrefix(anyString(), any())).thenReturn(0); // 【G2】取号带租户参数
 
         BizApprovalNodeMapper nodeMapper = mock(BizApprovalNodeMapper.class);
         ApprovalService svc = new ApprovalService(

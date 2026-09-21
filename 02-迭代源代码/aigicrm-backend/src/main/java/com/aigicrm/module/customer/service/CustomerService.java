@@ -447,13 +447,13 @@ public class CustomerService {
         if ("region_seq".equals(rule)) {
             // 大区首字母-顺序号: NM-001
             String prefix = regionCode + "-";
-            int maxSeq = customerMapper.selectMaxCodeByPrefix(prefix, prefix.length());
+            int maxSeq = customerMapper.selectMaxCodeByPrefix(prefix, prefix.length(), com.aigicrm.common.scope.GroupScopeUtil.currentGroupOrNull());
             return prefix + String.format("%03d", maxSeq + 1);
         } else {
             // region_date_seq: 大区首字母-年月-顺序号: NM-202606-001
             String yearMonth = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMM"));
             String prefix = regionCode + "-" + yearMonth + "-";
-            int maxSeq = customerMapper.selectMaxCodeByPrefix(prefix, prefix.length());
+            int maxSeq = customerMapper.selectMaxCodeByPrefix(prefix, prefix.length(), com.aigicrm.common.scope.GroupScopeUtil.currentGroupOrNull());
             return prefix + String.format("%03d", maxSeq + 1);
         }
     }

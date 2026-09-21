@@ -6,8 +6,9 @@ import org.apache.ibatis.annotations.Select;
 
 public interface BizApprovalMapper extends BaseMapper<BizApproval> {
 
-    @Select("SELECT IFNULL(MAX(CAST(SUBSTRING(approval_code, LENGTH(#{prefix}) + 1) AS UNSIGNED)), 0) FROM biz_approval WHERE approval_code LIKE CONCAT(#{prefix}, '%')")
-    int selectMaxCodeByPrefix(String prefix);
+    // 【G2 2026-09-21】取号显式租户条件(同 BizCustomerMapper; tenantId null=无集团上下文不额外限制)
+    @Select("SELECT IFNULL(MAX(CAST(SUBSTRING(approval_code, LENGTH(#{prefix}) + 1) AS UNSIGNED)), 0) FROM biz_approval WHERE approval_code LIKE CONCAT(#{prefix}, '%') AND (#{tenantId} IS NULL OR tenant_id = #{tenantId})")
+    int selectMaxCodeByPrefix(@org.apache.ibatis.annotations.Param("prefix") String prefix, @org.apache.ibatis.annotations.Param("tenantId") Long tenantId);
 
     /**
      * 【PR-22 活体发现 2026-09-19】审批主行悲观锁:approve/reject 入口先锁主行,

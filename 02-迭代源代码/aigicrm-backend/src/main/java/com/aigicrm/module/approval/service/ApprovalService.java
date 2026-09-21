@@ -235,7 +235,7 @@ public class ApprovalService {
         }
 
         String prefix = "P" + Year.now().getValue() + "-";
-        int maxCode = approvalMapper.selectMaxCodeByPrefix(prefix);
+        int maxCode = approvalMapper.selectMaxCodeByPrefix(prefix, com.aigicrm.common.scope.GroupScopeUtil.currentGroupOrNull());
         String approvalCode = prefix + String.format("%03d", maxCode + 1);
 
         BizApproval approval = new BizApproval();

@@ -1160,7 +1160,7 @@ public class PermissionMatrixTest {
                         && serviceBody.contains("entryMapper.updateById(existing)")
                         && serviceBody.contains("entryMapper.insert(entry)")
                         && serviceBody.contains("participantSet.contains(ex.getUserId()) && !submitted.containsKey(key)")
-                        && serviceBody.contains("participantMapper.physicalDeleteByPeriod(period)"),
+                        && serviceBody.contains("participantMapper.physicalDeleteByPeriod(period, groupForDelete)"), // 【G2 2026-09-21】物理删带租户参数(跨租户清库收口)
                 "ScoreService.batchSave 必须保持事务增量 upsert，只删除参与名单内被显式清空的分数，并单独持久化列顺序");
         String batchSaveBody = serviceBody.substring(
                 serviceBody.indexOf("public void batchSave"),

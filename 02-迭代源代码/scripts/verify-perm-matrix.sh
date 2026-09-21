@@ -127,5 +127,20 @@ TC1=$(curl -s -m 15 -o /dev/null -w '%{http_code}' "$BASE/api/task/list?assignee
 TC2=$(curl -s -m 15 -o /dev/null -w '%{http_code}' "$BASE/api/task/list?assigneeId=$BOT_UID&size=1" -H "Authorization: Bearer $FT")
 [ "$TC2" = "200" ] && ok "task 本人 assigneeId → 200" || bad "task 本人期望200 实得 $TC2"
 
+# ---- 5) G2 统计口径: scope=self 的用户 coveredCount 必须 < admin(修复前全员口径无过滤) ----
+AT=$(login_token "$API_USER" "$API_PASS")
+AC=$(curl -s -m 20 "$BASE/api/statistics/indicator-stats" -H "Authorization: Bearer $AT" | python3 -c 'import json,sys; print((json.load(sys.stdin).get("data") or {}).get("coveredCount"))')
+db "UPDATE sys_role SET data_scope='self' WHERE id=$BOT_RID;
+    DELETE FROM sys_role_menu WHERE role_id=$BOT_RID;
+    INSERT INTO sys_role_menu (role_id, menu_id) SELECT $BOT_RID, id FROM sys_menu WHERE id IN (21);
+    UPDATE sys_user SET perm_version=perm_version+1 WHERE id=$BOT_UID;" >/dev/null
+BT=$(login_token "$TMP_USER" "$TMP_PW")
+BC=$(curl -s -m 20 "$BASE/api/statistics/indicator-stats" -H "Authorization: Bearer $BT" | python3 -c 'import json,sys; print((json.load(sys.stdin).get("data") or {}).get("coveredCount"))')
+if [ -n "$AC" ] && [ -n "$BC" ] && [ "$BC" -lt "$AC" ] 2>/dev/null; then
+  ok "统计口径: self范围 coveredCount=$BC < admin=$AC(数据范围生效)"
+else
+  bad "统计口径失效: admin=$AC bot=$BC(全员口径未过滤?)"
+fi
+
 echo "==> 权限矩阵回归: PASS=$PASS FAIL=$FAIL"
 [ "$FAIL" = "0" ]

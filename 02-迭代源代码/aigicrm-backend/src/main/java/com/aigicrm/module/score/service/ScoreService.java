@@ -186,7 +186,9 @@ public class ScoreService {
         }
 
         // 持久化该周期参与同事名单（仅用于列显示顺序，不再联动删除分数记录）
-        participantMapper.physicalDeleteByPeriod(period);
+        // 【G2 2026-09-21】物理删按当前集团收口, 不再跨租户清参与名单(仅 participant, 分数记录本就不删)
+        Long groupForDelete = com.aigicrm.common.scope.GroupScopeUtil.currentGroupOrNull();
+        participantMapper.physicalDeleteByPeriod(period, groupForDelete);
         if (participantIds != null) {
             int sort = 0;
             for (Long uid : participantIds) {

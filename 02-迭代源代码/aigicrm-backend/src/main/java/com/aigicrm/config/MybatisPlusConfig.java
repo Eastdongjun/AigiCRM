@@ -39,7 +39,7 @@ public class MybatisPlusConfig {
             "biz_file_share", "biz_folder_acl", "biz_incentive_category",
             "biz_incentive_permission", "biz_incentive_record", "biz_invoice", "biz_payment",
             "biz_reminder", "biz_score_entry", "biz_score_item", "biz_score_participant",
-            "biz_sea_config", "biz_sea_pool");
+            "biz_sea_config", "biz_sea_pool", "biz_task"); // 【G2 2026-09-21】task 进租户隔离(列守卫迁移 V2026.09.21.2)
 
     /** 租户插件开关（默认关闭；环境变量 TENANT_ENABLE 可覆盖） */
     @Value("${aigicrm.tenant.enable:false}")

@@ -7,6 +7,7 @@ import org.apache.ibatis.annotations.Param;
 
 public interface BizScoreParticipantMapper extends BaseMapper<BizScoreParticipant> {
 
-    @Delete("DELETE FROM biz_score_participant WHERE period = #{period}")
-    int physicalDeleteByPeriod(@Param("period") String period);
+    // 【G2 2026-09-21】显式租户条件, 同 BizScoreEntryMapper
+    @Delete("DELETE FROM biz_score_participant WHERE period = #{period} AND (#{tenantId} IS NULL OR tenant_id = #{tenantId})")
+    int physicalDeleteByPeriod(@Param("period") String period, @Param("tenantId") Long tenantId);
 }

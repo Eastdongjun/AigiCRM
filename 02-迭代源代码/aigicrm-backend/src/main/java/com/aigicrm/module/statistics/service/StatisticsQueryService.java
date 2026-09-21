@@ -96,6 +96,8 @@ public class StatisticsQueryService {
     }
 
     private final CustomerService customerService;
+    // 【G2 2026-09-21】统计口径数据范围: 修复全员口径在租户插件关闭时跨集团泄露(审计Top1)
+    private final com.aigicrm.common.scope.OrgScopeResolver orgScopeResolver;
     private final SeaService seaService;
     private final ApprovalService approvalService;
     private final BizCustomerMapper customerMapper;
@@ -213,14 +215,36 @@ public class StatisticsQueryService {
      * 【方法】全量加载客户+开票+指标，内存聚合；达标阈值 100 万元
      * 【业务规则】核心客户=指标分>=12 且开票、回款均达标；排行按总分降序、客户数降序
      */
+
+    /**
+     * 【G2 2026-09-21】统计可见客户过滤(安全默认口径):
+     * admin 全量; 其余按 statistics 模块数据范围解析可见人员集合(resolveModuleUsers
+     * null=全量不过滤, 集团口径由租户插件/集团成员边界另行兜底), 客户按 ownerId 过滤,
+     * 未分配负责人的客户保持全员可见(否则任何范围下都不可见)。
+     * 原"核心指标全员可见不过滤"注释口径作废——统计范围必须 ≤ 明细可见范围(审计裁决)。
+     */
+    private List<BizCustomer> visibleCustomers(List<BizCustomer> all) {
+        com.aigicrm.security.SecurityUser user = com.aigicrm.security.SecurityUtils.getCurrentUser();
+        if (user == null || com.aigicrm.security.SecurityUtils.isAdmin()) return all;
+        java.util.List<Long> visible = orgScopeResolver.resolveModuleUsers(user, "statistics");
+        if (visible == null) return all;
+        java.util.Set<Long> ids = new java.util.HashSet<>(visible);
+        return all.stream()
+                .filter(c -> c.getOwnerId() == null || ids.contains(c.getOwnerId()))
+                .collect(java.util.stream.Collectors.toList());
+    }
+
     public Map<String, Object> indicatorStats() {
         Map<String, Object> data = new HashMap<>();
 
         List<BizCustomerIndicator> indicators = indicatorMapper.selectList(null);
         // 【2026-08-08 设计规则：核心客户六项指标全员可见】公司级指标展示，不做数据范围过滤。
-        List<BizCustomer> allCustomers = customerService.getAllActiveCustomers();
+        List<BizCustomer> allCustomers = visibleCustomers(customerService.getAllActiveCustomers());
         Map<Long, BizCustomer> customerMap = new HashMap<>();
         for (BizCustomer c : allCustomers) customerMap.put(c.getId(), c);
+        // 【G2 2026-09-21】指标随客户可见性同步收口——coveredCount/avgScore/排行均以指标为口径,
+        // 只滤客户不滤指标时 coveredCount 仍为全量(实测暴露), 越权指标行必须在此剔除
+        indicators.removeIf(ind -> ind.getCustomerId() == null || !customerMap.containsKey(ind.getCustomerId()));
 
         // 【PR-18 统计口径】核心客户开票/回款合计排除已作废(voided)台账——作废仅保留痕迹不计入金额
         List<BizInvoice> allInvoices = invoiceMapper.selectList(
@@ -438,7 +462,7 @@ public class StatisticsQueryService {
      */
     public Map<String, Object> customerRankings(String period) {
         Map<String, Object> data = new LinkedHashMap<>();
-        List<BizCustomer> customers = customerService.getAllActiveCustomers();
+        List<BizCustomer> customers = visibleCustomers(customerService.getAllActiveCustomers());
         Map<Long, BizCustomer> customerMap = new HashMap<>();
         for (BizCustomer c : customers) customerMap.put(c.getId(), c);
 
@@ -460,6 +484,8 @@ public class StatisticsQueryService {
         recordWrapper.isNotNull(BizIncentiveRecord::getCustomerId);
         if (period != null && !period.isBlank()) recordWrapper.eq(BizIncentiveRecord::getPeriod, period);
         List<BizIncentiveRecord> records = incentiveRecordMapper.selectList(recordWrapper);
+        // 【G2 2026-09-21】激励记录随客户可见性同步收口(同 indicatorStats 的指标过滤, 防聚合泄露)
+        records.removeIf(r -> !customerMap.containsKey(r.getCustomerId()));
         Map<Long, Map<String, Object>> incentiveRows = new LinkedHashMap<>();
         for (BizIncentiveRecord record : records) {
             BizCustomer customer = customerMap.get(record.getCustomerId());
