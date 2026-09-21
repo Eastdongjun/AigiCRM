@@ -24,3 +24,9 @@
 .files-head-sub { margin-top: 8rpx; color: #7c8ba1; font-size: 23rpx; }
 .files-capacity-divider { height: 1rpx; background: #eef2f7; margin: 22rpx 0; }
 .files-capacity-row { display: flex; align-items: center; justify-content: space-between; gap: 20rpx; }
+
+/* 【骨架→边框→元素 2026-09-21】tab 条/文件夹区/空态补白色容器背景(此前裸浮灰底) */
+.files-page .file-tabs{background:#fff;border:1rpx solid #dbeafe;border-radius:20rpx;padding:12rpx;margin:22rpx 0 20rpx}
+.files-folder-card{margin-top:20rpx}
+.files-page .folder-scroll{margin:16rpx 0 6rpx}
+.files-page .empty-state{background:#fff;border:1rpx solid #dbeafe;border-radius:24rpx;padding:34rpx 24rpx;margin-top:8rpx;display:flex;flex-direction:column;align-items:center;gap:10rpx;color:#94a3b8;font-size:24rpx}
