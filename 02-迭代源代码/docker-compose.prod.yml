@@ -14,7 +14,9 @@ services:
     ports:
       - "127.0.0.1:3306:3306"
     volumes:
-      - mysql-data:/var/lib/mysql
+      # 【GPT复审 P1-01 修复 2026-09-21】对齐正式部署规范: 数据库 bind mount 到 /data/database,
+      # 废弃 named volume(与 deploy 脚本/备份/迁移规范此前存在两套事实来源)
+      - ${MYSQL_DATA_DIR:-/data/database/mysql-data}:/var/lib/mysql
       # ⚠️ 已注释（2026-09-12）：`./sql/init.sql` 在仓库中**不是文件，而是一个空目录**
       #    （该路径被 .gitignore:43-44 忽略；真种子只存在于备份
       #     08-备份索引/09-生产环境备份/deploy/ycmn/sql/init.sql）。
@@ -66,7 +68,9 @@ services:
       UPLOAD_DIR: /app/uploads
       TZ: Asia/Shanghai
     volumes:
-      - upload-data:/app/uploads
+      # 【GPT复审 P1-01 修复 2026-09-21】对齐部署规范: 上传文件走 NAS /Aigicrm/files/uploads,
+      # 废弃历史 upload-data named volume(与 deploy-backend.sh 口径统一)
+      - ${NAS_UPLOAD_DIR:-/Aigicrm/files/uploads}:/app/uploads
     depends_on:
       mysql:
         condition: service_healthy
@@ -92,8 +96,4 @@ services:
       - backend
 
 volumes:
-  mysql-data:
   redis-data:
-  upload-data:
-    external: true
-    name: upload-data

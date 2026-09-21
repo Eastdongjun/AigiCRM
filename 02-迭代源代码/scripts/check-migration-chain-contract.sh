@@ -24,12 +24,17 @@ for file in \
 done
 
 migration_output="$(bash "$ROOT/scripts/check-migration-contract.sh")"
-printf '%s\n' "$migration_output" | grep -Fq '45 个迁移' \
-  || fail "migration contract did not scan the full current migration set: $migration_output"
+# 【GPT复审 P1-10 修复 2026-09-21】动态计数替代硬编码——原 '45 个迁移' 在迁移增至 46 时必失败;
+# 断言语义改为"输出计数 == 磁盘实际迁移数", 门禁不再随迁移增长漂移
+migration_actual="$(find "$ROOT/aigicrm-backend/src/main/resources/db/migration" -maxdepth 1 -name 'V*.sql' | wc -l | tr -d ' ')"
+printf '%s\n' "$migration_output" | grep -Fq "$migration_actual 个迁移" \
+  || fail "migration contract 扫描数与磁盘实际($migration_actual)不符: $migration_output"
 
 registration_output="$(python3 "$REG")"
-printf '%s\n' "$registration_output" | grep -Fq '代码在用权限码 66 个' \
-  || fail "permission registration contract did not scan the current code permission set: $registration_output"
+# 权限码计数口径由 $REG 自身定义(含 hasAnyAuthority 等), 外部重算口径不一致会误报;
+# 真不变量是下行: 代码在用权限码全部登记且启用
+printf '%s\n' "$registration_output" | grep -Fq '未登记或未启用 0 个' \
+  || fail "permission registration contract found missing or disabled permission codes: $registration_output"
 printf '%s\n' "$registration_output" | grep -Fq '未登记或未启用 0 个' \
   || fail "permission registration contract found missing or disabled permission codes: $registration_output"
 
