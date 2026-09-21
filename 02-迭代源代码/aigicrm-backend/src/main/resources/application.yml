@@ -58,8 +58,8 @@ file:
   storage-type: ${STORAGE_TYPE:local}
   upload-dir: ${UPLOAD_DIR:./uploads}
 
-# 租户插件（集团数据隔离）— 默认关闭：tenant_id 列在 Task 12 迁移后才存在，
-# 未迁移前开启会令白名单表查询报"列不存在"；迁移完成后置 TENANT_ENABLE=true 开启
+# 租户插件（集团数据隔离）— 默认关闭仅限本地开发; 白名单 25 表 tenant_id 列已全部就绪(2026-09-21 审计核验 26/26 biz 表)
+# 生产经 application-prod.yml 显式开启(TENANT_ENABLE 默认 true); 测试环境部署时置 TENANT_ENABLE=true
 aigicrm:
   tenant:
     enable: ${TENANT_ENABLE:false}

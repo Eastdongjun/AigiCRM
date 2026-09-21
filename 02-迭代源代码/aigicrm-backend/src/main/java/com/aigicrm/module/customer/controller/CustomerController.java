@@ -251,6 +251,7 @@ public class CustomerController {
     @PreAuthorize("hasAuthority('finance:manage') or (hasAuthority('customer:edit') and hasAuthority('finance:view'))")
     @PostMapping("/{id}/invoices/{invoiceId}/confirm")
     public Result<Void> confirmInvoice(@PathVariable Long id, @PathVariable Long invoiceId) {
+        accessService.assertCanEdit(id); // 【权限审计批次1 2026-09-21】补对象归属校验, 与 deleteInvoice 对齐
         customerService.confirmInvoice(id, invoiceId);
         return Result.ok();
     }
@@ -260,6 +261,7 @@ public class CustomerController {
     @PostMapping("/{id}/invoices/{invoiceId}/void")
     public Result<Void> voidInvoice(@PathVariable Long id, @PathVariable Long invoiceId,
                                     @RequestBody Map<String, String> body) {
+        accessService.assertCanEdit(id); // 【权限审计批次1】同上, 原缺失
         customerService.voidInvoice(id, invoiceId, body.get("reason"));
         return Result.ok();
     }
@@ -268,6 +270,7 @@ public class CustomerController {
     @PreAuthorize("hasAuthority('finance:manage') or (hasAuthority('customer:edit') and hasAuthority('finance:view'))")
     @PostMapping("/{id}/payments/{paymentId}/confirm")
     public Result<Void> confirmPayment(@PathVariable Long id, @PathVariable Long paymentId) {
+        accessService.assertCanEdit(id); // 【权限审计批次1】同上, 原缺失
         customerService.confirmPayment(id, paymentId);
         return Result.ok();
     }
@@ -277,6 +280,7 @@ public class CustomerController {
     @PostMapping("/{id}/payments/{paymentId}/void")
     public Result<Void> voidPayment(@PathVariable Long id, @PathVariable Long paymentId,
                                     @RequestBody Map<String, String> body) {
+        accessService.assertCanEdit(id); // 【权限审计批次1】同上, 原缺失
         customerService.voidPayment(id, paymentId, body.get("reason"));
         return Result.ok();
     }

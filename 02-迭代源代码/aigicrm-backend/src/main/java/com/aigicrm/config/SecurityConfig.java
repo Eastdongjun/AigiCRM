@@ -36,11 +36,13 @@ public class SecurityConfig {
     private final Environment env;
     private final SecurityAuditService securityAudit;
 
+    /** 【权限审计批次1 2026-09-21】Swagger 显式开关, 安全默认关: 不再依赖 "prod profile 是否激活" 推断
+     *  (默认 profile 启动曾导致 Swagger 匿名全量暴露), 仅开发环境显式置 aigicrm.swagger.enabled=true */
+    @org.springframework.beans.factory.annotation.Value("${aigicrm.swagger.enabled:false}")
+    private boolean swaggerEnabled;
+
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
-        // Swagger 只在非生产环境开放
-        boolean isProd = Arrays.asList(env.getActiveProfiles()).contains("prod");
-
         http
             .csrf(AbstractHttpConfigurer::disable)
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
@@ -49,8 +51,8 @@ public class SecurityConfig {
                         "/api/system/configs/public", "/api/system/configs/logo",
                         "/api/file/download/public/**").permitAll();
 
-                // Swagger 仅非生产环境开放
-                if (!isProd) {
+                // Swagger 默认关闭, 显式 aigicrm.swagger.enabled=true 才开放(原 profile 推断已移除)
+                if (swaggerEnabled) {
                     auth.requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/webjars/**").permitAll(); // knife4j 已移除(无 /doc.html)
                 }
 

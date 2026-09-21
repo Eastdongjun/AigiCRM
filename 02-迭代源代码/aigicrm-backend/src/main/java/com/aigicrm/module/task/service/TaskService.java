@@ -35,6 +35,7 @@ public class TaskService {
     private final BizTaskMapper taskMapper;
     private final SysUserMapper userMapper;
     private final BizCustomerMapper customerMapper;
+    private final com.aigicrm.common.scope.OrgScopeResolver orgScopeResolver;
 
     /** 控制器 Map → 实体转换(控制器零 entity 依赖) */
     public BizTask createFromMap(Map<String, Object> body) {
@@ -138,13 +139,28 @@ public class TaskService {
         taskMapper.updateById(existing);
     }
 
+    /**
+     * 【权限审计批次1 2026-09-21】显式查看他人任务/统计的前置校验:
+     * admin 或本人直接放行; 其余须在 task 模块数据范围的可见人员集合内(resolveModuleUsers
+     * null=全量不过滤, 空=仅本人语义)。越界抛 403, 杜绝传 assigneeId 绕过"默认只看自己"。
+     */
+    private void assertAssigneeVisible(Long targetUserId, Long currentUserId) {
+        if (SecurityUtils.isAdmin() || targetUserId.equals(currentUserId)) return;
+        java.util.List<Long> visible = orgScopeResolver.resolveModuleUsers(SecurityUtils.getCurrentUser(), "task");
+        if (visible != null && !visible.contains(targetUserId)) {
+            throw new BusinessException(403, "无权查看该负责人的任务");
+        }
+    }
+
     /** 分页查询(按状态/责任人/客户筛选;self 范围=仅本人的) */
     public IPage<BizTask> page(int current, int size, String status, Long assigneeId,
                                 Long customerId, Boolean overdue) {
         Long currentUserId = SecurityUtils.getCurrentUserId();
         LambdaQueryWrapper<BizTask> wrapper = new LambdaQueryWrapper<>();
         // 非 admin 且未指定他人:默认只看自己的任务
+        // 【权限审计批次1 2026-09-21】参数型 IDOR 收口: 显式查他人任务须在 task 模块可见人员集合内
         if (assigneeId != null) {
+            assertAssigneeVisible(assigneeId, currentUserId);
             wrapper.eq(BizTask::getAssigneeId, assigneeId);
         } else if (!SecurityUtils.isAdmin()) {
             wrapper.eq(BizTask::getAssigneeId, currentUserId);
@@ -171,7 +187,10 @@ public class TaskService {
     /** 统计(工作台卡片用) */
     public Map<String, Long> statistics(Long userId) {
         Map<String, Long> stats = new HashMap<>();
-        Long targetUserId = userId != null ? userId : SecurityUtils.getCurrentUserId();
+        Long currentUserId = SecurityUtils.getCurrentUserId();
+        Long targetUserId = userId != null ? userId : currentUserId;
+        // 【权限审计批次1】同 page(): 他人统计须可见
+        if (userId != null) assertAssigneeVisible(userId, currentUserId);
         stats.put("pending", taskMapper.selectCount(new LambdaQueryWrapper<BizTask>()
                 .eq(BizTask::getAssigneeId, targetUserId)
                 .eq(BizTask::getStatus, "pending")));

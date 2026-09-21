@@ -107,5 +107,20 @@ C3=$(curl -s -m 15 -o /dev/null -w '%{http_code}' "$BASE/api/customer/list?size=
 ORPHAN=$(db "SELECT COUNT(*) FROM sys_role_menu rm LEFT JOIN sys_menu m ON m.id=rm.menu_id WHERE m.id IS NULL" | tail -1)
 [ "$ORPHAN" = "0" ] && ok "sys_role_menu 无孤儿绑定" || bad "发现 $ORPHAN 条孤儿绑定"
 
+# ---- 4) 权限审计批次1 负向用例: finance 对象校验 + task 参数 IDOR(需后端含 2026-09-21 批次1 修复) ----
+db "UPDATE sys_role SET data_scope='self' WHERE id=$BOT_RID;
+    DELETE FROM sys_role_menu WHERE role_id=$BOT_RID;
+    INSERT INTO sys_role_menu (role_id, menu_id) SELECT $BOT_RID, id FROM sys_menu WHERE id IN (11,41,128,136);
+    UPDATE sys_user SET perm_version=perm_version+1 WHERE id=$BOT_UID;" >/dev/null
+FT=$(login_token "$TMP_USER" "$TMP_PW")
+ADMIN_ID=$(db "SELECT id FROM sys_user WHERE username='$API_USER'" | tail -1)
+TARGET_CID=$(db "SELECT id FROM biz_customer WHERE owner_id=$ADMIN_ID AND deleted=0 LIMIT 1" | tail -1)
+FC=$(curl -s -m 15 -o /dev/null -w '%{http_code}' -X POST "$BASE/api/customer/$TARGET_CID/invoices/999999/confirm" -H "Authorization: Bearer $FT" -H "Origin: $BASE")
+[ "$FC" = "403" ] && ok "finance confirm 范围外客户 → 403(对象校验生效)" || bad "finance confirm 期望403 实得 $FC(后端未含批次1修复?)"
+TC1=$(curl -s -m 15 -o /dev/null -w '%{http_code}' "$BASE/api/task/list?assigneeId=$ADMIN_ID&size=1" -H "Authorization: Bearer $FT")
+[ "$TC1" = "403" ] && ok "task 他人 assigneeId → 403(IDOR已收口)" || bad "task 他人期望403 实得 $TC1(后端未含批次1修复?)"
+TC2=$(curl -s -m 15 -o /dev/null -w '%{http_code}' "$BASE/api/task/list?assigneeId=$BOT_UID&size=1" -H "Authorization: Bearer $FT")
+[ "$TC2" = "200" ] && ok "task 本人 assigneeId → 200" || bad "task 本人期望200 实得 $TC2"
+
 echo "==> 权限矩阵回归: PASS=$PASS FAIL=$FAIL"
 [ "$FAIL" = "0" ]

@@ -7,6 +7,7 @@ import com.aigicrm.module.system.mapper.SysUserMapper;
 import com.aigicrm.module.task.entity.BizTask;
 import com.aigicrm.module.task.mapper.BizTaskMapper;
 import com.aigicrm.security.SecurityUser;
+import com.aigicrm.common.scope.OrgScopeResolver;
 import com.aigicrm.security.SecurityUtils;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import org.junit.jupiter.api.AfterEach;
@@ -27,7 +28,8 @@ class TaskServiceTest {
     private final BizTaskMapper taskMapper = mock(BizTaskMapper.class);
     private final SysUserMapper userMapper = mock(SysUserMapper.class);
     private final BizCustomerMapper customerMapper = mock(BizCustomerMapper.class);
-    private final TaskService svc = new TaskService(taskMapper, userMapper, customerMapper);
+    private final OrgScopeResolver orgScopeResolver = mock(OrgScopeResolver.class);
+    private final TaskService svc = new TaskService(taskMapper, userMapper, customerMapper, orgScopeResolver);
 
     @BeforeAll
     static void initTableInfo() {

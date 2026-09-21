@@ -16,3 +16,9 @@ logging:
 mybatis-plus:
   configuration:
     log-impl: org.apache.ibatis.logging.slf4j.Slf4jImpl
+
+# 【权限审计批次1 2026-09-21】租户拦截生产显式开启(白名单 25 表 tenant_id 已全部就绪;
+# MybatisPlusConfig 对未开启有拒启动兜底, 此处把默认值钉在 true, 消除对部署环境变量的依赖)
+aigicrm:
+  tenant:
+    enable: ${TENANT_ENABLE:true}
