@@ -15,6 +15,15 @@ import regionData from '@/utils/region-data'
 import { INDICATOR_FIELDS, sumIndicatorScore } from '@/utils/customer-fields'
 import { useUserStore } from '@/store/user'
 
+// 【PR-05 残余 20260921】幂等键工具:http 非安全上下文(如 http://IP 测试环境)无 crypto.randomUUID,
+// 退化为 Math.random 拼接(键只需唯一不需密码学强度,服务端按 用户+键 作用域隔离)
+let createSubmitKey = null
+function newSubmitKey() {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') return crypto.randomUUID()
+  return 'mp-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 12)
+}
+
+
 export const CustomerFormKey = Symbol('customerForm')
 
 /** 子组件注入父级 customer/add.vue 提供的共享上下文 */
@@ -224,7 +233,10 @@ export function useCustomerForm() {
         ElMessage.success('客户更新成功')
         router.push({ path: `/customer/detail/${route.params.id}`, query: detailQuery.value })
       } else {
-        const res = await saveCustomerWithIndicator({ customer: buildPayload(), indicator })
+        // 【PR-05 残余 20260921】提交幂等键:同一次提交的重试/重复发包共用一个键,成功后换新
+        if (!createSubmitKey) createSubmitKey = newSubmitKey()
+        const res = await saveCustomerWithIndicator({ customer: buildPayload(), indicator }, createSubmitKey)
+        createSubmitKey = null
         const newId = res.data
         if (newId) {
           for (const c of rows) {

@@ -18,8 +18,11 @@ export function updateCustomer(id, data) {
 }
 
 // 【PR-05】客户+客情指标同事务组合提交:任一步失败整体回滚,消除"部分成功界面报失败"
-export function saveCustomerWithIndicator(data) {
-  return request.post('/customer/full', data)
+// 【PR-05 残余 20260921】强幂等:同一次提交(含重试/双击重复发包)携带同一 Idempotency-Key,
+// 后端 Redis PENDING/RESULT 兜底,重复请求拿到同一客户 id 而不是重复建客
+export function saveCustomerWithIndicator(data, idempotencyKey) {
+  const headers = idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : undefined
+  return request.post('/customer/full', data, headers ? { headers } : undefined)
 }
 
 export function updateCustomerWithIndicator(id, data) {

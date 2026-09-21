@@ -30,6 +30,7 @@ public class CustomerController {
 
     private final CustomerService customerService;
     private final SeaService seaService;
+    private final com.aigicrm.common.idempotency.IdempotencyService idempotencyService;
     private final CustomerAccessService accessService;
 
     // 【2026-09-13 移除「客户文件」功能】原 GET/POST/DELETE /{id}/files 三个端点及其
@@ -113,7 +114,9 @@ public class CustomerController {
 
     @PreAuthorize("hasAuthority('customer:add')")
     @PostMapping("/full")
-    public Result<Long> createFull(@RequestBody CustomerWithIndicatorRequest body) {
+    public Result<Long> createFull(@RequestBody CustomerWithIndicatorRequest body,
+            @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
+            jakarta.servlet.http.HttpServletResponse response) {
         if (body.getCustomer() == null) {
             throw new BusinessException(400, "缺少客户信息");
         }
@@ -121,7 +124,40 @@ public class CustomerController {
         if (body.getIndicator() != null && !SecurityUtils.hasAuthority("customer:edit")) {
             throw new BusinessException(403, "保存客情指标需要客户编辑权限");
         }
-        return Result.ok(customerService.createWithIndicator(body.getCustomer(), body.getIndicator()));
+        // 【PR-05 残余 2026-09-21】强幂等:客户端随机 Idempotency-Key + Redis PENDING/RESULT。
+        // 重试/双击拿到同一个客户 id(响应头 Idempotent-Replay: true),不再重复建客;
+        // Redis 异常按"无幂等"放行,不阻断业务(与安全审计同口径的旁路降级)。
+        String scoped = null;
+        boolean owner = false;
+        if (idempotencyService.isValidKey(idempotencyKey)) {
+            scoped = idempotencyService.scope("customer:full", SecurityUtils.getCurrentUserId(), idempotencyKey);
+            String prior = idempotencyService.awaitResult(scoped, 0);
+            if (prior != null) {
+                response.setHeader("Idempotent-Replay", "true");
+                return Result.ok(Long.valueOf(prior));
+            }
+            owner = idempotencyService.tryBegin(scoped);
+            if (!owner) {
+                // 同键请求正在执行:短等其结果(最多 5s),等不到则放行(幂等降级)
+                String waited = idempotencyService.awaitResult(scoped, 5000);
+                if (waited != null) {
+                    response.setHeader("Idempotent-Replay", "true");
+                    return Result.ok(Long.valueOf(waited));
+                }
+            }
+        }
+        try {
+            Long id = customerService.createWithIndicator(body.getCustomer(), body.getIndicator());
+            if (scoped != null && owner) {
+                idempotencyService.finish(scoped, String.valueOf(id));
+            }
+            return Result.ok(id);
+        } catch (RuntimeException e) {
+            if (scoped != null && owner) {
+                idempotencyService.abort(scoped);   // 失败释放,允许立即重试
+            }
+            throw e;
+        }
     }
 
     @PreAuthorize("hasAuthority('customer:edit')")
