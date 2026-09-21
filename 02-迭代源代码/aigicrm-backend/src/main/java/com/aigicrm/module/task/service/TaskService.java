@@ -35,6 +35,7 @@ public class TaskService {
     private final BizTaskMapper taskMapper;
     private final SysUserMapper userMapper;
     private final BizCustomerMapper customerMapper;
+    private final com.aigicrm.module.customer.mapper.BizCustomerLogMapper customerLogMapper;
     private final com.aigicrm.common.scope.OrgScopeResolver orgScopeResolver;
 
     /** 控制器 Map → 实体转换(控制器零 entity 依赖) */
@@ -70,6 +71,24 @@ public class TaskService {
         SysUser assignee = userMapper.selectById(task.getAssigneeId());
         if (assignee == null || assignee.getStatus() == null || assignee.getStatus() != 1) {
             throw new BusinessException("责任人不存在或已停用");
+        }
+        // 【GPT复审 P1-04 修复 2026-09-21】分派目标须在操作者可见范围(与查询侧 assertAssigneeVisible 同口径)
+        assertAssigneeVisible(task.getAssigneeId(), SecurityUtils.getCurrentUserId());
+        // 【GPT复审 P1-05 修复 2026-09-21】关联对象守卫: 客户须存在未删, 跟进日志须归属该客户
+        if (task.getCustomerId() != null) {
+            var customer = customerMapper.selectById(task.getCustomerId());
+            if (customer == null || (customer.getDeleted() != null && customer.getDeleted() == 1)) {
+                throw new BusinessException("关联客户不存在");
+            }
+        }
+        if (task.getSourceLogId() != null) {
+            if (task.getCustomerId() == null) {
+                throw new BusinessException("关联跟进日志必须同时指定客户");
+            }
+            var log = customerLogMapper.selectById(task.getSourceLogId());
+            if (log == null || !task.getCustomerId().equals(log.getCustomerId())) {
+                throw new BusinessException("跟进日志不存在或不属于该客户");
+            }
         }
         task.setCreatedBy(SecurityUtils.getCurrentUserId());
         task.setStatus("pending");
@@ -122,6 +141,8 @@ public class TaskService {
         if (newAssignee == null || newAssignee.getStatus() == null || newAssignee.getStatus() != 1) {
             throw new BusinessException("新责任人不存在或已停用");
         }
+        // 【GPT复审 P1-04】转交目标同样须在可见范围
+        assertAssigneeVisible(newAssigneeId, SecurityUtils.getCurrentUserId());
         task.setAssigneeId(newAssigneeId);
         taskMapper.updateById(task);
     }

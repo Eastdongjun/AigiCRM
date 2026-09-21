@@ -29,7 +29,8 @@ class TaskServiceTest {
     private final SysUserMapper userMapper = mock(SysUserMapper.class);
     private final BizCustomerMapper customerMapper = mock(BizCustomerMapper.class);
     private final OrgScopeResolver orgScopeResolver = mock(OrgScopeResolver.class);
-    private final TaskService svc = new TaskService(taskMapper, userMapper, customerMapper, orgScopeResolver);
+    private final com.aigicrm.module.customer.mapper.BizCustomerLogMapper customerLogMapper = mock(com.aigicrm.module.customer.mapper.BizCustomerLogMapper.class);
+    private final TaskService svc = new TaskService(taskMapper, userMapper, customerMapper, customerLogMapper, orgScopeResolver);
 
     @BeforeAll
     static void initTableInfo() {
@@ -54,6 +55,9 @@ class TaskServiceTest {
     void create_validTask_inserted() {
         SysUser assignee = activeUser(20L);
         when(userMapper.selectById(20L)).thenReturn(assignee);
+        // 【GPT复审 P1-04】创建侧新增可见性断言: 可见集合包含目标人(Mockito List 默认空集=仅本人, 需显式给范围)
+        when(orgScopeResolver.resolveModuleUsers(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.eq("task")))
+                .thenReturn(java.util.List.of(7L, 20L));
         BizTask task = new BizTask();
         task.setTitle("提交选型方案");
         task.setAssigneeId(20L);

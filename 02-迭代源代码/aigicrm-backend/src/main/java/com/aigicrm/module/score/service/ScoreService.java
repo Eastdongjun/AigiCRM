@@ -1,6 +1,7 @@
 package com.aigicrm.module.score.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.aigicrm.common.BusinessException;
 import com.aigicrm.common.scope.OrgScopeResolver;
 import com.aigicrm.module.score.entity.BizScoreEntry;
 import com.aigicrm.module.score.entity.BizScoreItem;
@@ -93,6 +94,13 @@ public class ScoreService {
                     new LambdaQueryWrapper<BizScoreParticipant>()
                             .eq(BizScoreParticipant::getPeriod, period)
                             .orderByAsc(BizScoreParticipant::getSortOrder));
+            // 【GPT复审 P1-02 修复 2026-09-21】名单随数据范围收口: 窄范围用户不得借历史名单看到
+            // 范围外人员姓名(null=全量不过滤); 范围外名单行连同其分数一并不可见
+            if (visible != null) {
+                participants = participants.stream()
+                        .filter(p -> visible.contains(p.getUserId()))
+                        .collect(Collectors.toList());
+            }
         }
 
         List<Map<String, Object>> users;
@@ -116,6 +124,8 @@ public class ScoreService {
             ew.eq(BizScoreEntry::getPeriod, period);
             List<BizScoreEntry> entries = entryMapper.selectList(ew);
             for (BizScoreEntry e : entries) {
+                // 【GPT复审 P1-02】分数矩阵随同一可见集合收口, 范围外人员分数不可见
+                if (visible != null && !visible.contains(e.getUserId())) continue;
                 scores.put(e.getItemId() + "_" + e.getUserId(), e.getScore());
             }
         }
@@ -145,6 +155,29 @@ public class ScoreService {
             Integer score = toInt(e.get("score"));
             if (itemId == null || userId == null) continue;
             submitted.put(itemId + "_" + userId, score != null ? score : 0);
+        }
+
+        // 【GPT复审 P1-03 修复 2026-09-21】服务端强制校验: 目标人员在可管理范围、积分项存在、
+        // 分数落在积分项 min~max —— 此前信任客户端, 直接 API 调用可写范围外人员与异常分值
+        List<Long> saveVisible = visibleUserIds();
+        Map<Long, BizScoreItem> itemMap = new HashMap<>();
+        for (BizScoreItem it : listItems()) itemMap.put(it.getId(), it);
+        for (Map.Entry<String, Integer> chk : submitted.entrySet()) {
+            String[] cp = chk.getKey().split("_");
+            Long chkItemId = Long.parseLong(cp[0]);
+            Long chkUserId = Long.parseLong(cp[1]);
+            if (saveVisible != null && !saveVisible.contains(chkUserId)) {
+                throw new BusinessException("目标人员不在可管理范围: " + chkUserId);
+            }
+            BizScoreItem chkItem = itemMap.get(chkItemId);
+            if (chkItem == null) {
+                throw new BusinessException("积分项不存在: " + chkItemId);
+            }
+            Integer v = chk.getValue();
+            if (v < chkItem.getScoreMin() || v > chkItem.getScoreMax()) {
+                throw new BusinessException("分数超出积分项范围: " + chkItem.getCategory() + "/" + chkItem.getProduct()
+                        + " 允许 " + chkItem.getScoreMin() + "~" + chkItem.getScoreMax() + ", 实得 " + v);
+            }
         }
 
         List<BizScoreEntry> existingEntries = entryMapper.selectList(
