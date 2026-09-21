@@ -287,8 +287,11 @@ Page({
 
   filterFiles(files = this.data.files) {
     const keyword = this.data.keyword.trim().toLowerCase()
+    // 真实模式列表已按 scope 服务端过滤(onTabTap→loadFiles 带 scope 重拉), 本地不得按文件夹文字二次筛选
+    // —— 真实激励文件 folder 多为'未分类', 文字法会把整表筛空; 文字法仅演示模式(无服务端)使用
+    const useLabelScope = Boolean(getApp().globalData.demoMode)
     return files.filter(item => {
-      const matchesTab = this.data.activeTab === '四项激励' ? item.folder === '激励资料' : item.folder !== '激励资料'
+      const matchesTab = !useLabelScope ? true : (this.data.activeTab === '四项激励' ? item.folder === '激励资料' : item.folder !== '激励资料')
       return matchesTab && (!keyword || `${item.name}${item.folder}`.toLowerCase().includes(keyword))
     })
   },
