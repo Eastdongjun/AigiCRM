@@ -49,7 +49,8 @@ router.onError(() => { routeLoading.value = false })
   border-radius: 10px;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
   font-size: 14px;
-  color: #409eff;
+  /* 白底上的正文需要 4.5:1 对比度；#409eff 仅 2.78:1，改用同色系 #2a76cf (4.57:1)。 */
+  color: #2a76cf;
 }
 .route-spinner {
   width: 18px;
