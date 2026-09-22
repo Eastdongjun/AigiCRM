@@ -1,10 +1,10 @@
 # AIGICRM API 清单(自动生成)
 
-> 生成时间: 2026-09-19 | 来源: 后端 controller 源码扫描
+> 生成时间: 2026-09-22 | 来源: 后端 controller 源码扫描
 > 本文件由 scripts/gen-api.py 自动生成,**禁止手改**;接口变更后重新运行。
 > 权限码与 docs/permission/permission-dict.md 对应。
 
-## 接口清单(191 个)
+## 接口清单(212 个)
 
 | 方法 | 路径 | 权限码 | 方法名 | 文件 |
 |---|---|---|---|---|
@@ -17,6 +17,7 @@
 | POST | `/api/approval/submit` | `hasAuthority('approval:view')` | submit | ApprovalController.java |
 | GET | `/api/approval/{id}` | `hasAuthority('approval:view')` | detail | ApprovalController.java |
 | POST | `/api/approval/{id}/approve` | `hasAuthority('approval:approve')` | approve | ApprovalController.java |
+| PUT | `/api/approval/{id}/nodes/{nodeId}/transfer` | `hasAuthority('approval:view')` | transferNode | ApprovalController.java |
 | POST | `/api/approval/{id}/reject` | `hasAuthority('approval:reject')` | reject | ApprovalController.java |
 | POST | `/api/auth/forgot-password/lookup` | `匿名` | forgotPasswordLookup | AuthController.java |
 | POST | `/api/auth/forgot-password/reset` | `匿名` | forgotPasswordReset | AuthController.java |
@@ -24,6 +25,7 @@
 | GET | `/api/auth/info` | `登录即可` | getUserInfo | AuthController.java |
 | POST | `/api/auth/login` | `匿名` | login | AuthController.java |
 | POST | `/api/auth/logout` | `登录即可` | logout | AuthController.java |
+| GET | `/api/auth/permission-explain` | `isAuthenticated()` | explain | PermissionExplainController.java |
 | POST | `/api/auth/switch-group` | `登录即可` | switchGroup | AuthController.java |
 | GET | `/api/common/scope/depts` | `登录即可` | depts | ScopeController.java |
 | GET | `/api/common/scope/users` | `登录即可` | users | ScopeController.java |
@@ -42,28 +44,38 @@
 | DELETE | `/api/customer/{id}` | `hasAuthority('customer:delete')` | delete | CustomerController.java |
 | GET | `/api/customer/{id}` | `hasAuthority('customer:view')` | getById | CustomerController.java |
 | PUT | `/api/customer/{id}` | `hasAuthority('customer:edit')` | update | CustomerController.java |
+| POST | `/api/customer/{id}/archive` | `hasAuthority('customer:edit')` | archive | CustomerController.java |
 | GET | `/api/customer/{id}/contacts` | `hasAuthority('customer:view')` | getContacts | CustomerController.java |
-| POST | `/api/customer/{id}/contacts` | `hasAuthority('customer:edit')` | addContact | CustomerController.java |
-| DELETE | `/api/customer/{id}/contacts/{contactId}` | `hasAuthority('customer:edit')` | deleteContact | CustomerController.java |
-| PUT | `/api/customer/{id}/contacts/{contactId}` | `hasAuthority('customer:edit')` | updateContact | CustomerController.java |
+| POST | `/api/customer/{id}/contacts` | `hasAuthority('customer:edit') or hasAuthority('contact:manage')` | addContact | CustomerController.java |
+| DELETE | `/api/customer/{id}/contacts/{contactId}` | `hasAuthority('customer:edit') or hasAuthority('contact:manage')` | deleteContact | CustomerController.java |
+| PUT | `/api/customer/{id}/contacts/{contactId}` | `hasAuthority('customer:edit') or hasAuthority('contact:manage')` | updateContact | CustomerController.java |
 | PUT | `/api/customer/{id}/full` | `hasAuthority('customer:edit')` | updateFull | CustomerController.java |
 | GET | `/api/customer/{id}/indicator` | `hasAuthority('customer:view')` | getIndicator | CustomerController.java |
 | POST | `/api/customer/{id}/indicator` | `hasAuthority('customer:edit')` | saveIndicator | CustomerController.java |
 | GET | `/api/customer/{id}/invoices` | `hasAuthority('customer:view')` | getInvoices | CustomerController.java |
-| POST | `/api/customer/{id}/invoices` | `hasAuthority('customer:edit') and hasAuthority('finance:view')` | addInvoice | CustomerController.java |
+| POST | `/api/customer/{id}/invoices` | `hasAuthority('finance:manage') or (hasAuthority('customer:edit') and hasAuthority('finance:view'))` | addInvoice | CustomerController.java |
 | GET | `/api/customer/{id}/invoices/summary` | `hasAuthority('customer:view')` | getInvoiceSummary | CustomerController.java |
-| DELETE | `/api/customer/{id}/invoices/{invoiceId}` | `hasAuthority('customer:edit') and hasAuthority('finance:view')` | deleteInvoice | CustomerController.java |
+| DELETE | `/api/customer/{id}/invoices/{invoiceId}` | `hasAuthority('finance:manage') or (hasAuthority('customer:edit') and hasAuthority('finance:view'))` | deleteInvoice | CustomerController.java |
+| POST | `/api/customer/{id}/invoices/{invoiceId}/confirm` | `hasAuthority('finance:manage') or (hasAuthority('customer:edit') and hasAuthority('finance:view'))` | confirmInvoice | CustomerController.java |
+| POST | `/api/customer/{id}/invoices/{invoiceId}/void` | `hasAuthority('finance:manage') or (hasAuthority('customer:edit') and hasAuthority('finance:view'))` | voidInvoice | CustomerController.java |
 | GET | `/api/customer/{id}/logs` | `hasAuthority('customer:view')` | getLogs | CustomerController.java |
 | POST | `/api/customer/{id}/logs` | `hasAuthority('customer:edit')` | addLog | CustomerController.java |
 | GET | `/api/customer/{id}/payments` | `hasAuthority('customer:view')` | getPayments | CustomerController.java |
-| POST | `/api/customer/{id}/payments` | `hasAuthority('customer:edit') and hasAuthority('finance:view')` | addPayment | CustomerController.java |
+| POST | `/api/customer/{id}/payments` | `hasAuthority('finance:manage') or (hasAuthority('customer:edit') and hasAuthority('finance:view'))` | addPayment | CustomerController.java |
 | GET | `/api/customer/{id}/payments/summary` | `hasAuthority('customer:view')` | getPaymentSummary | CustomerController.java |
-| DELETE | `/api/customer/{id}/payments/{paymentId}` | `hasAuthority('customer:edit') and hasAuthority('finance:view')` | deletePayment | CustomerController.java |
+| DELETE | `/api/customer/{id}/payments/{paymentId}` | `hasAuthority('finance:manage') or (hasAuthority('customer:edit') and hasAuthority('finance:view'))` | deletePayment | CustomerController.java |
+| POST | `/api/customer/{id}/payments/{paymentId}/confirm` | `hasAuthority('finance:manage') or (hasAuthority('customer:edit') and hasAuthority('finance:view'))` | confirmPayment | CustomerController.java |
+| POST | `/api/customer/{id}/payments/{paymentId}/void` | `hasAuthority('finance:manage') or (hasAuthority('customer:edit') and hasAuthority('finance:view'))` | voidPayment | CustomerController.java |
 | PUT | `/api/customer/{id}/relationship` | `hasAuthority('customer:edit')` | saveRelationship | CustomerController.java |
 | POST | `/api/customer/{id}/release` | `hasAuthority('customer:edit')` | release | CustomerController.java |
+| POST | `/api/customer/{id}/restore` | `hasAuthority('customer:edit')` | restore | CustomerController.java |
 | GET | `/api/customer/{id}/shares` | `hasAuthority('customer:view')` | getShares | CustomerController.java |
 | POST | `/api/customer/{id}/shares` | `hasAuthority('customer:edit')` | addShares | CustomerController.java |
 | DELETE | `/api/customer/{id}/shares/{userId}` | `hasAuthority('customer:edit')` | removeShare | CustomerController.java |
+| DELETE | `/api/draft/{draftType}` | `isAuthenticated()` | delete | FormDraftController.java |
+| GET | `/api/draft/{draftType}` | `isAuthenticated()` | get | FormDraftController.java |
+| PUT | `/api/draft/{draftType}` | `isAuthenticated()` | save | FormDraftController.java |
+| PUT | `/api/draft/{draftType}/force` | `isAuthenticated()` | forceSave | FormDraftController.java |
 | GET | `/api/file/download-token` | `登录即可` | downloadToken | FileController.java |
 | GET | `/api/file/download/**` | `hasAuthority('file:view')` | download | FileController.java |
 | GET | `/api/file/download/public/**` | `匿名` | downloadPublic | FileController.java |
@@ -78,6 +90,7 @@
 | PUT | `/api/file/folders/{id}/download` | `hasAuthority('file:acl:manage')` | setDownloadable | FolderAclController.java |
 | GET | `/api/file/folders/{id}/permissions` | `hasAuthority('file:acl:manage')` | permissions | FolderAclController.java |
 | GET | `/api/file/list` | `hasAuthority('file:view')` | pageFiles | FileController.java |
+| GET | `/api/file/reconciliation` | `hasAuthority('file:folder:manage')` | reconcile | FileReconciliationController.java |
 | GET | `/api/file/shared-to-me` | `hasAuthority('file:view')` | sharedToMe | FileController.java |
 | GET | `/api/file/shared-to-me/count` | `hasAuthority('file:view')` | sharedToMeCount | FileController.java |
 | GET | `/api/file/storage` | `hasAuthority('file:view')` | getStorageInfo | FileController.java |
@@ -187,11 +200,12 @@
 | PUT | `/api/system/roles/{id}` | `hasAuthority('system:role:edit')` | update | SysRoleController.java |
 | GET | `/api/system/roles/{id}/orgs` | `hasAuthority('system:role:view')` | getOrgs | SysRoleController.java |
 | PUT | `/api/system/roles/{id}/orgs` | `hasAuthority('system:role:edit')` | updateOrgs | SysRoleController.java |
+| GET | `/api/system/rule-versions` | `hasAuthority('system:config:view')` | page | SysRuleVersionController.java |
 | GET | `/api/system/rules` | `hasAuthority('system:rule:view')` | list | SysPermissionRuleController.java |
 | POST | `/api/system/rules` | `hasAuthority('system:rule:add')` | create | SysPermissionRuleController.java |
 | DELETE | `/api/system/rules/{id}` | `hasAuthority('system:rule:delete')` | delete | SysPermissionRuleController.java |
 | PUT | `/api/system/rules/{id}` | `hasAuthority('system:rule:edit')` | update | SysPermissionRuleController.java |
-| POST | `/api/system/task/check-expire` | `登录即可` | checkExpire | TaskController.java |
+| POST | `/api/system/task/check-expire` | `登录即可` | checkExpire | ScheduledTaskController.java |
 | GET | `/api/system/users` | `hasAnyAuthority('system:user:view','system:org:admin')` | page | SysUserController.java |
 | POST | `/api/system/users` | `hasAnyAuthority('system:user:add','system:org:admin')` | create | SysUserController.java |
 | POST | `/api/system/users/change-password` | `登录即可` | changePassword | SysUserController.java |
@@ -199,4 +213,11 @@
 | GET | `/api/system/users/{id}` | `hasAnyAuthority('system:user:view','system:org:admin')` | getById | SysUserController.java |
 | PUT | `/api/system/users/{id}` | `hasAnyAuthority('system:user:edit','system:org:admin')` | update | SysUserController.java |
 | POST | `/api/system/users/{id}/reset-password` | `hasAnyAuthority('system:user:edit','system:org:admin')` | resetPassword | SysUserController.java |
+| POST | `/api/task` | `hasAuthority('task:manage')` | create | TaskController.java |
+| GET | `/api/task/list` | `hasAuthority('task:view')` | list | TaskController.java |
+| GET | `/api/task/statistics` | `hasAuthority('task:view')` | statistics | TaskController.java |
+| PUT | `/api/task/{id}` | `hasAuthority('task:manage')` | update | TaskController.java |
+| POST | `/api/task/{id}/cancel` | `hasAuthority('task:manage')` | cancel | TaskController.java |
+| POST | `/api/task/{id}/complete` | `hasAuthority('task:manage')` | complete | TaskController.java |
+| POST | `/api/task/{id}/transfer` | `hasAuthority('task:manage')` | transfer | TaskController.java |
 
