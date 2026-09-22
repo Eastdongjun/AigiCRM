@@ -17,7 +17,7 @@
           router
           background-color="#001629"
           text-color="#bfcbd9"
-          active-text-color="#409eff"
+          active-text-color="#6083e4"
           :collapse-transition="false"
         >
           <template v-for="group in menuGroups" :key="group.id">
@@ -352,7 +352,7 @@ const handleCommand = (command) => {
 
 <style scoped>
 .group-switch { cursor: pointer; font-size: 13px; color: #606266; display: inline-flex; align-items: center; gap: 3px; margin-right: 14px; padding: 4px 8px; border: 1px solid #e4e7ed; border-radius: 4px; }
-.group-switch:hover { color: #409eff; border-color: #c6e2ff; background: #ecf5ff; }
+.group-switch:hover { color: #1d4ed8; border-color: #bfdbfe; background: #eef4ff; }
 
 .layout-container {
   height: 100vh;
@@ -383,7 +383,7 @@ const handleCommand = (command) => {
   display: inline-flex;
   width: 32px;
   height: 32px;
-  background: #409eff;
+  background: #1d4ed8;
   color: #fff;
   border-radius: 6px;
   align-items: center;
@@ -476,7 +476,7 @@ const handleCommand = (command) => {
   background: rgba(64,158,255,.1);
 }
 .icon-btn:hover .header-icon {
-  color: #409eff;
+  color: #1d4ed8;
   transform: scale(1.08);
 }
 .header-icon {
@@ -521,7 +521,7 @@ const handleCommand = (command) => {
   display: inline-flex;
 }
 .user-avatar {
-  background: linear-gradient(135deg, #409eff, #6366f1);
+  background: linear-gradient(135deg, #1d4ed8, #2563eb);
   color: #fff;
   font-weight: 600;
   box-shadow: 0 2px 6px rgba(64,158,255,.35);
@@ -580,7 +580,7 @@ const handleCommand = (command) => {
   border-radius: 8px;
 }
 .user-avatar-lg {
-  background: linear-gradient(135deg, #409eff, #6366f1);
+  background: linear-gradient(135deg, #1d4ed8, #2563eb);
   color: #fff;
   font-weight: 600;
 }
@@ -630,7 +630,7 @@ const handleCommand = (command) => {
   margin-bottom: 16px;
 }
 .profile-avatar {
-  background: linear-gradient(135deg, #409eff, #6366f1);
+  background: linear-gradient(135deg, #1d4ed8, #2563eb);
   color: #fff;
   font-size: 22px;
   font-weight: 600;
@@ -652,7 +652,7 @@ const handleCommand = (command) => {
 }
 .role-tag {
   font-size: 11px;
-  color: #409eff;
+  color: #1d4ed8;
   background: rgba(64,158,255,.12);
   padding: 2px 10px;
   border-radius: 10px;

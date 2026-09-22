@@ -55,7 +55,7 @@ router.onError(() => { routeLoading.value = false })
 .route-spinner {
   width: 18px;
   height: 18px;
-  border: 2px solid #409eff;
+  border: 2px solid #1d4ed8;
   border-top-color: transparent;
   border-radius: 50%;
   animation: rspin 0.8s linear infinite;
