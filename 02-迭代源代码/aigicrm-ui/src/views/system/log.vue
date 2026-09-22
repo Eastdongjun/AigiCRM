@@ -235,10 +235,10 @@ onBeforeUnmount(() => {
 .tab-row { display: flex; align-items: center; margin-bottom: 12px; }
 .tabs { display: flex; gap: 6px; }
 .tab-item { padding: 6px 14px; border-radius: 20px; font-size: 13px; color: #666; cursor: pointer; transition: all .2s; display: inline-flex; align-items: center; gap: 4px; }
-.tab-item:hover { background: #f0f7ff; color: #409eff; }
-.tab-item.active { background: #ecf5ff; color: #409eff; font-weight: 600; }
+.tab-item:hover { background: #eef4ff; color: #1d4ed8; }
+.tab-item.active { background: #eef4ff; color: #1d4ed8; font-weight: 600; }
 .tab-badge { display: inline-flex; align-items: center; justify-content: center; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; background: #e8e8e8; color: #666; font-size: 11px; font-weight: 600; }
-.tab-item.active .tab-badge { background: #409eff; color: #fff; }
+.tab-item.active .tab-badge { background: #1d4ed8; color: #fff; }
 
 /* 筛选栏 */
 .toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
@@ -261,7 +261,7 @@ onBeforeUnmount(() => {
 
 /* 模块标签 */
 .module-tag { padding: 2px 10px; border-radius: 4px; font-size: 12px; font-weight: 500; }
-.mod-blue { color: #409eff; background: #ecf5ff; }
+.mod-blue { color: #1d4ed8; background: #eef4ff; }
 .mod-green { color: #67c23a; background: #f0f9eb; }
 .mod-orange { color: #e6a23c; background: #fdf6ec; }
 .mod-purple { color: #9b59b6; background: #f3ecf9; }

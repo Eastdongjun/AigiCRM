@@ -184,7 +184,7 @@ onMounted(loadData)
 .tab-item { display: inline-flex; align-items: center; padding: 9px 22px; border: 1px solid #ebeef5; margin-left: -1px; background: #fafafa; color: #606266; cursor: pointer; font-size: 14px; }
 .tab-item:first-child { margin-left: 0; border-radius: 8px 0 0 8px; }
 .tab-item:last-child { border-radius: 0 8px 8px 0; }
-.tab-item.active { color: #409eff; background: #ecf5ff; border-color: #409eff; font-weight: 600; z-index: 1; }
+.tab-item.active { color: #1d4ed8; background: #eef4ff; border-color: #1d4ed8; font-weight: 600; z-index: 1; }
 .table-area { flex: 1; min-height: 0; background: #fff; }
 .table-area :deep(.el-table td.el-table__cell),
 .table-area :deep(.el-table th.el-table__cell) { height: 40px; padding: 4px 0; box-sizing: border-box; }
