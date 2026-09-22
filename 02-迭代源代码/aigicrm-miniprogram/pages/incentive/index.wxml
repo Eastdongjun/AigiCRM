@@ -157,8 +157,8 @@
   </view>
 
   <view wx:if="{{incentiveView.showCategories}}" class="card">
-    <view class="section-title">分类树</view>
-    <view wx:for="{{categoryTreeView}}" wx:key="id" class="category-row level-{{item.level}}">
+    <view class="section-title">分类树 · 点击筛选</view>
+    <view wx:for="{{categoryTreeView}}" wx:key="id" class="category-row level-{{item.level}} {{item.name === category ? 'category-row-active' : ''}}" hover-class="category-row-hover" bindtap="onCategoryRowTap" data-index="{{index}}">
       <text>{{item.name}}</text>
       <text>{{item.metaText}}</text>
     </view>

@@ -48,6 +48,8 @@
 .category-row.level-1{padding-left:28rpx}
 .category-row.level-2{padding-left:56rpx}
 .category-row.level-3{padding-left:84rpx}
+.category-row-hover{background:#f5f8fd}
+.category-row-active text:first-child{color:#2563eb;font-weight:800}
 .stat-drill-row{align-items:flex-start}
 .stat-name{color:#172033;font-size:26rpx;font-weight:800}
 .stat-parent{margin-top:6rpx;color:#7c8ba1;font-size:21rpx}

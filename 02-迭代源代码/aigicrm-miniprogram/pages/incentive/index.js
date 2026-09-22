@@ -102,7 +102,8 @@ function normalizeStatDetailRecord(item) {
 function buildCategoryTreeView(rows) {
   return (rows || []).map((item) => ({
     ...item,
-    metaText: `${item.score || 0}分 · ${item.count || 0}条`
+    // 真实树顶级节点 score=0(分值挂在子分类),无分值时只展示条数,避免"0分 · N条"误导
+    metaText: item.score > 0 ? `${item.score}分 · ${item.count || 0}条` : `${item.count || 0}条`
   }))
 }
 
@@ -301,6 +302,7 @@ Page({
     orderOptions: SCORE_ORDER_OPTIONS,
     selectedOrderIndex: 0,
     category: '全部',
+    categoryNames: [],
     categories: ['全部'],
     industries: INDUSTRIES,
     devTypes: DEV_TYPES,
@@ -716,7 +718,11 @@ Page({
   },
 
   sort() {
-    let records = this.applyLocalRecordFilters(this.data.allRecords).filter((item) => this.data.category === '全部' || item.category === this.data.category)
+    // 分类筛选统一走 categoryNames 名字集合(picker 单选一项;分类树点击含子分类),
+    // 记录的 category 字段是分类名(子分类名),父分类需按"自身+直接子类名"集合匹配
+    const categoryNames = this.data.categoryNames || []
+    let records = this.applyLocalRecordFilters(this.data.allRecords)
+      .filter((item) => !categoryNames.length || categoryNames.indexOf(item.category) !== -1)
     records = records.map(buildRecordView)
     if (this.data.order === 'asc') records.sort((a, b) => (Number(a.score) || 0) - (Number(b.score) || 0))
     if (this.data.order === 'desc') records.sort((a, b) => (Number(b.score) || 0) - (Number(a.score) || 0))
@@ -729,7 +735,29 @@ Page({
   },
 
   chooseCategory(e) {
-    this.setData({ category: this.data.categories[e.detail.value] || '全部' }, () => this.refreshIncentiveView())
+    this.applyCategoryFilter(this.data.categories[e.detail.value] || '全部')
+  },
+
+  applyCategoryFilter(label) {
+    const names = label && label !== '全部' ? [label] : []
+    this.setData({ category: label || '全部', categoryNames: names }, () => this.refreshIncentiveView())
+    this.sort()
+  },
+
+  // 【真机UAT修复 2026-09-22】分类树行点击筛选:选中该分类(父分类含直接子类名集合),
+  // 再次点击同一行取消恢复全部;与筛选栏分类 picker 同一过滤机制(PC 端分类即筛选条件)
+  onCategoryRowTap(e) {
+    const node = (this.data.categoryTreeView || [])[Number(e.currentTarget.dataset.index)]
+    if (!node || !node.name) return
+    if (this.data.category === node.name) {
+      this.applyCategoryFilter('全部')
+      return
+    }
+    const names = [node.name]
+    ;(this.data.categoryTree || []).forEach((row) => {
+      if (String(row.parentId) === String(node.id) && names.indexOf(row.name) === -1) names.push(row.name)
+    })
+    this.setData({ category: node.name, categoryNames: names }, () => this.refreshIncentiveView())
     this.sort()
   },
 

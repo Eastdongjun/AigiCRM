@@ -337,7 +337,15 @@ public class IncentiveService {
         return recordMapper.selectById(id);
     }
 
+    /**
+     * 删除激励记录（admin ∨ can_delete 授权 ∨ 本人，归属校验在 Controller 完成）。
+     * 【真机UAT修复 2026-09-22】先清 biz_incentive_read 子表（已读状态外键引用本记录），
+     * 裸 deleteById 对已被阅读过的记录触发 fk_incentive_read_record 约束失败（测试环境实证
+     * 支持编号 S-20260922235952-46683）；两步删除须原子，失败一起回滚。
+     */
+    @Transactional
     public void deleteRecord(Long id) {
+        jdbc.update("DELETE FROM biz_incentive_read WHERE record_id = ?", id);
         recordMapper.deleteById(id);
     }
 

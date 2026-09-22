@@ -1,5 +1,5 @@
 const { login, loadCurrentUser } = require('../../api/auth')
-const { setToken } = require('../../utils/auth')
+const { setToken, getToken } = require('../../utils/auth')
 const { showError } = require('../../utils/feedback')
 
 function buildLoginView(state = {}) {
@@ -29,6 +29,19 @@ Page({
 
   onLoad() {
     this.applyState({ demoMode: getApp().globalData.demoMode })
+    this.resumeSessionIfPossible()
+  },
+
+  // 【真机UAT修复 2026-09-22】冷启入口页=登录页,已有有效令牌时自动回填会话并进入首页。
+  // 此前仅靠 app.onShow 异步刷 auth/info,实测冷启竞态下 permissions 为空:
+  // 用户带着 rememberMe 令牌仍被要求重新登录,且权限守卫会把误入的业务页弹回首页。
+  // 失败(令牌失效/网络异常)则留在登录页,由用户手动登录;401 由 request.js 统一清令牌。
+  resumeSessionIfPossible() {
+    const app = getApp()
+    if (app.globalData.demoMode || app.globalData.currentUser || !getToken()) return
+    loadCurrentUser().then(() => {
+      wx.switchTab({ url: '/pages/home/index' })
+    }).catch(() => {})
   },
 
   onUsernameInput(e) {
