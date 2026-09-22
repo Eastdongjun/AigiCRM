@@ -7,7 +7,7 @@
   "scripts": {
     "upload": "node upload.mjs upload",
     "preview": "node upload.mjs preview",
-    "verify:mobile-parity": "npm run verify:mobile-shell && npm run verify:customer-center && npm run verify:customer-forms && npm run verify:incentive-attachments && npm run verify:file-center && npm run verify:approval-center && npm run verify:sea-center && npm run verify:statistics-center && npm run verify:indicator-overview && npm run verify:ranking-center && npm run verify:reminder-center && npm run verify:profile-center && npm run verify:auth-center && npm run verify:feedback-notification",
+    "verify:mobile-parity": "npm run verify:mobile-shell && npm run verify:customer-center && npm run verify:customer-forms && npm run verify:incentive-attachments && npm run verify:file-center && npm run verify:approval-center && npm run verify:sea-center && npm run verify:statistics-center && npm run verify:indicator-overview && npm run verify:ranking-center && npm run verify:reminder-center && npm run verify:profile-center && npm run verify:auth-center && npm run verify:feedback-notification && node clean-automator-storage.mjs",
     "verify:incentive-attachments": "node verify-incentive-attachments.mjs",
     "verify:file-center": "node verify-file-center.mjs",
     "verify:approval-center": "node verify-approval-center.mjs",
