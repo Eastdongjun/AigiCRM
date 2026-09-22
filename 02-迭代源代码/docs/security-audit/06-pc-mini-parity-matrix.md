@@ -17,7 +17,7 @@
 | 文件 四scope/上传/下载/分享/ACL | ✅ | ✅ 四scope+上传下载分享; ACL 仅 PC | file:*(acl:manage PC-only) | ✅ 对齐(2026-09-21 修复激励tab筛选后); ACL 属管理面 PC-only 合理 |
 | 公海 查看/捞取/删除 | ✅ | ✅ 查看+捞取 | sea:view/claim(删除池级ACL) | ✅ |
 | 公海配置/导入 | ✅ | ❌ | sea:config:*/import | PC-only(管理面) |
-| 审批 | ✅ 列表+操作 | ❌ 无页面 | approval:* | PC-only |
+| 审批 | ✅ 列表+操作 | ✅ 列表+详情+通过/驳回(app/api: list/{id}/approve/reject/statistics/submit) | approval:* | ✅ 对齐(2026-09-22 纠错: 初版误记"无页面", 实有 pages/approval/index+detail, 见 app.json 46页清单) |
 | 提醒 | ✅ | ⚠️ 首页卡片(只读) | reminder:view | 只读子集,合理 |
 | 任务 | ✅ | ❌ 无页面 | task:view/manage | PC-only(阶段7/8记录: 移动端未规划) |
 | 积分 录入/网格/排行 | ✅ | ⚠️ 排行只读 | score:entry/manage/view | PC-only 写面 |
@@ -38,4 +38,6 @@
 
 ## 四、结论
 
-双端在**共有业务面上 parity 成立**(客户/激励/文件/公海/统计/认证),差异均为"管理面 PC-only"的合理设计而非越权缺口;后端权限码为单一事实源,双端同守卫。此结论补齐审计阶段 7/8 的矩阵文档缺口(此前仅 API 清单无对照)。
+双端在**共有业务面上 parity 成立**(客户/激励/文件/公海/统计/认证/审批),差异均为"管理面 PC-only"的合理设计而非越权缺口;后端权限码为单一事实源,双端同守卫。此结论补齐审计阶段 7/8 的矩阵文档缺口(此前仅 API 清单无对照)。
+
+> 修订记录 2026-09-22: 初版"审批=小程序无页面"为**采集遗漏**(grep 实采 api/*.js 时 approval.js 存在,页面清单未交叉核对);本次以 app.json 46 页清单+pages/approval 实码复核纠正。教训: 页面级结论必须以 app.json 为准,API 层 grep 不能反推页面有无。
