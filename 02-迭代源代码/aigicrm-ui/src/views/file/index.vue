@@ -1,20 +1,28 @@
 <template>
   <div class="file-manage">
-    <!-- 框1: 统计 -->
-    <div class="section-box" style="display:flex;align-items:center;gap:32px">
-      <div class="stat-item">
-        <div class="stat-icon c-blue"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div>
-        <div><div class="s-num">{{ storageUsed || '0' }}</div><div class="s-lbl">已使用</div></div>
+    <!-- 存储概览 · 深蓝条(与工作台主视觉同语言,含真实配额用量) -->
+    <div class="storage-strip">
+      <div class="st-stat">
+        <div class="st-num">{{ storageUsed || '0' }}</div>
+        <div class="st-lbl">已使用</div>
       </div>
-      <div class="stat-item">
-        <div class="stat-icon c-green"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/></svg></div>
-        <div><div class="s-num">{{ storageQuota || '10GB' }}</div><div class="s-lbl">总容量</div></div>
+      <div class="st-divider"></div>
+      <div class="st-stat">
+        <div class="st-num">{{ storageQuota || '10GB' }}</div>
+        <div class="st-lbl">总容量</div>
       </div>
-      <el-input v-model="keyword" placeholder="搜索文件名称..." style="width:220px;margin-left:auto" clearable prefix-icon="Search" @keyup.enter="searchFiles" />
-      <el-button v-if="activeTab!=='incentive'&&activeTab!=='shared_to_me' && folderPerms.includes('upload')" type="primary" :icon="Upload" @click="openUpload">上传文件</el-button>
+      <div class="st-usage" v-if="usagePercent !== null">
+        <div class="st-usage-track"><div class="st-usage-fill" :class="{ warn: usagePercent >= 80 }" :style="{ width: usagePercent + '%' }"></div></div>
+        <span class="st-usage-text">{{ usagePercent }}% 已用</span>
+      </div>
+      <div class="st-actions">
+        <el-input v-model="keyword" placeholder="搜索文件名称..." class="st-search" clearable prefix-icon="Search" @keyup.enter="searchFiles" />
+        <el-button v-if="activeTab!=='incentive'&&activeTab!=='shared_to_me' && folderPerms.includes('upload')"
+                   class="st-upload" :icon="Upload" @click="openUpload">上传文件</el-button>
+      </div>
     </div>
 
-    <!-- 框2: 主内容 -->
+    <!-- 主内容 -->
     <div class="section-box table-box">
       <el-card shadow="never" class="main-card" style="border:none;border-radius:0;box-shadow:none;flex:1;display:flex;flex-direction:column">
       <!-- Tab栏 -->
@@ -56,7 +64,7 @@
 </template>
 
 <script setup>
-import { provide, onMounted } from 'vue'
+import { provide, onMounted, computed } from 'vue'
 import { Upload } from '@element-plus/icons-vue'
 import { useFilePage, FilePageKey } from '@/composables/useFilePage'
 import FolderPanel from './FolderPanel.vue'
@@ -79,6 +87,21 @@ const {
   loadFolders, loadFolderPerms, loadFiles, loadTabCounts, loadStorage,
 } = filePage
 
+// ——— 配额用量百分比("2.3GB"/"512MB"/"10GB" → %),解析失败则不显示进度条 ———
+const parseSizeToMB = (s) => {
+  const m = String(s || '').trim().match(/^([\d.]+)\s*(GB|MB|KB|B)$/i)
+  if (!m) return null
+  const n = parseFloat(m[1])
+  const unit = m[2].toUpperCase()
+  return unit === 'GB' ? n * 1024 : unit === 'MB' ? n : unit === 'KB' ? n / 1024 : n / (1024 * 1024)
+}
+const usagePercent = computed(() => {
+  const used = parseSizeToMB(storageUsed.value)
+  const total = parseSizeToMB(storageQuota.value || '10GB')
+  if (used === null || !total) return null
+  return Math.min(100, Math.round(used / total * 100))
+})
+
 onMounted(() => {
   loadFolders()
   loadFolderPerms()
@@ -90,20 +113,42 @@ onMounted(() => {
 
 <style scoped>
 .file-manage { height: calc(100vh - 80px); display: flex; flex-direction: column; gap: 10px }
+
+/* —— 存储概览 · 深蓝渐变条 —— */
+.storage-strip {
+  display: flex; align-items: center; gap: 24px;
+  background: linear-gradient(135deg, #16337a 0%, #1d4ed8 58%, #2563eb 100%);
+  border-radius: 12px; padding: 16px 24px; flex-shrink: 0;
+  box-shadow: 0 6px 20px rgba(22, 51, 122, .14);
+}
+.st-stat { min-width: 72px }
+.st-num { font-size: 22px; font-weight: 700; color: #fff; line-height: 1.2; letter-spacing: .2px }
+.st-lbl { font-size: 12px; color: rgba(255, 255, 255, .66); margin-top: 2px }
+.st-divider { width: 1px; height: 34px; background: rgba(255, 255, 255, .18) }
+.st-usage { flex: 1; max-width: 420px; display: flex; align-items: center; gap: 12px }
+.st-usage-track { flex: 1; height: 6px; background: rgba(255, 255, 255, .18); border-radius: 3px; overflow: hidden }
+.st-usage-fill { height: 100%; background: #fcd34d; border-radius: 3px; transition: width .4s }
+.st-usage-fill.warn { background: #f87171 }
+.st-usage-text { font-size: 12px; color: rgba(255, 255, 255, .78); white-space: nowrap }
+.st-actions { margin-left: auto; display: flex; align-items: center; gap: 12px }
+.st-search { width: 240px }
+.st-search :deep(.el-input__wrapper) { background: rgba(255, 255, 255, .14); box-shadow: 0 0 0 1px rgba(255, 255, 255, .28) inset }
+.st-search :deep(.el-input__inner) { color: #fff }
+.st-search :deep(.el-input__inner::placeholder) { color: rgba(255, 255, 255, .55) }
+.st-search :deep(.el-input__prefix) { color: rgba(255, 255, 255, .75) }
+.st-upload {
+  background: #fff; color: #1d4ed8; border: none; font-weight: 600;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, .12);
+}
+.st-upload:hover, .st-upload:focus { background: #eff6ff; color: #16337a }
+
 .section-box { background: #fff; border: 1px solid #e4e7ed; border-radius: 10px; padding: 14px 20px; flex-shrink: 0 }
 .section-box.table-box { flex: 1; padding: 0; display: flex; flex-direction: column; overflow: hidden }
-.stat-item { display: flex; align-items: center; gap: 12px }
-.stat-icon { width: 42px; height: 42px; border-radius: 10px; display: flex; align-items: center; justify-content: center }
-.stat-icon svg { width: 20px; height: 20px }
-.stat-icon.c-blue { background: #eff6ff; color: #3b82f6 }
-.stat-icon.c-green { background: #ecfdf5; color: #10b981 }
-.s-num { font-size: 20px; font-weight: 800; color: #1f2329; line-height: 1.2 }
-.s-lbl { font-size: 12px; color: #999 }
 
 .main-card { border-radius: 10px; }
 .main-card :deep(.el-card__body) { padding: 0; }
 
-/* Tab 栏 */
+/* Tab 栏(深蓝主色) */
 .tab-bar {
   display: flex;
   gap: 24px;
@@ -118,18 +163,22 @@ onMounted(() => {
   border-bottom: 2px solid transparent;
   transition: color 0.2s;
 }
-.tab-item:hover { color: #409eff; }
+.tab-item:hover { color: #1d4ed8; }
 .tab-item.active {
-  color: #409eff;
-  font-weight: 500;
-  border-bottom-color: #409eff;
+  color: #1d4ed8;
+  font-weight: 600;
+  border-bottom-color: #1d4ed8;
 }
 .tab-num {
   margin-left: 4px;
-  color: #409eff;
-  font-weight: 500;
+  font-size: 12px;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: #eef4ff;
+  color: #1d4ed8;
+  font-weight: 600;
 }
-.tab-item:not(.active) .tab-num { color: #999; }
+.tab-item:not(.active) .tab-num { background: #f5f6f8; color: #909399; }
 
 /* 内容区 */
 .content-body {

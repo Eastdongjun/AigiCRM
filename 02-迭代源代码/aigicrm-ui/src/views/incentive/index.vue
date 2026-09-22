@@ -78,11 +78,12 @@ onMounted(() => {
 .cat-tabs { display:flex; gap:0; background:#f2f4f7; border-radius:12px; padding:4px; overflow:hidden }
 .cat-tab { flex:1; display:flex; align-items:center; justify-content:center; gap:8px; padding:12px 8px; font-size:14px; color:#606266; cursor:pointer; border-radius:10px; transition:all .25s; font-weight:500; position:relative }
 .cat-tab:hover { background:rgba(255,255,255,.6) }
-.cat-tab.active { font-weight:700; color:#fff; box-shadow:0 2px 8px rgba(0,0,0,.12) }
-.cat-tab:nth-child(1).active { background:#f59e0b }
-.cat-tab:nth-child(2).active { background:#3b82f6 }
-.cat-tab:nth-child(3).active { background:#8b5cf6 }
-.cat-tab:nth-child(4).active { background:#10b981 }
+/* 激活态统一深蓝主色(与工作台/文件页同一设计语言),弃用四色彩虹 */
+.cat-tab.active {
+  font-weight: 700; color: #fff;
+  background: linear-gradient(135deg, #1d4ed8, #2563eb);
+  box-shadow: 0 2px 8px rgba(29, 78, 216, .28);
+}
 .cat-tab-icon { font-size:16px; display:flex }
 .cat-tab-badge { font-size:11px; padding:1px 7px; border-radius:10px; background:rgba(0,0,0,.08); font-weight:600 }
 .cat-tab.active .cat-tab-badge { background:rgba(255,255,255,.25) }

@@ -1,107 +1,94 @@
 <template>
   <div class="dashboard">
 
-    <!-- 统计卡片 -->
-    <div class="stat-row">
-      <div class="stat-card drill" @click="$router.push('/customer')">
-        <div class="stat-info">
-          <div class="stat-label">客户总数</div>
-          <div class="stat-num blue">{{ stats.myCustomers || 0 }}</div>
-          <div class="stat-sub">本月新增 {{ stats.monthNew || 0 }} · 公海 {{ stats.seaStats?.total || 0 }}</div>
-        </div>
-        <el-icon class="stat-icon icon-blue" :size="28"><User /></el-icon>
+    <!-- 核心指标 · 深蓝主视觉带(企业级:白字统排,语义差异用小徽标表达) -->
+    <div class="hero-band">
+      <div class="hero-metric drill" @click="$router.push('/customer')">
+        <div class="hm-label">客户总数</div>
+        <div class="hm-num">{{ stats.myCustomers || 0 }}</div>
+        <div class="hm-sub">本月新增 {{ stats.monthNew || 0 }} · 公海 {{ stats.seaStats?.total || 0 }}</div>
       </div>
-      <div class="stat-card drill" @click="$router.push({ path: '/customer', query: { status: 'normal' } })">
-        <div class="stat-info">
-          <div class="stat-label">在保护期</div>
-          <div class="stat-num blue">{{ stats.inProtection || 0 }}</div>
-          <div class="stat-sub">占比 {{ protectionRate }}%</div>
-          <div class="progress-track"><div class="progress-fill" :style="{ width: protectionRate + '%' }"></div></div>
-        </div>
-        <el-icon class="stat-icon icon-blue" :size="28"><Timer /></el-icon>
+      <div class="hero-divider"></div>
+      <div class="hero-metric drill" @click="$router.push({ path: '/customer', query: { status: 'normal' } })">
+        <div class="hm-label">在保护期</div>
+        <div class="hm-num">{{ stats.inProtection || 0 }}</div>
+        <div class="hm-sub">占比 {{ protectionRate }}%</div>
+        <div class="hero-track"><div class="hero-fill" :style="{ width: protectionRate + '%' }"></div></div>
       </div>
-      <div class="stat-card drill" @click="$router.push('/reminder')">
-        <div class="stat-info">
-          <div class="stat-label">即将到期</div>
-          <div class="stat-num orange">{{ stats.expiring || 0 }}</div>
-          <div class="stat-sub">30天内</div>
-          <div class="stat-tags" v-if="stats.expiringDetails?.length">
-            <span v-for="d in stats.expiringDetails.slice(0, 2)" :key="d.customerName"
-              class="mini-tag" :class="d.daysLeft <= 7 ? 'mt-blue' : 'mt-red'">
-              {{ d.officeName || d.customerName }} {{ d.daysLeft }}天
-            </span>
-          </div>
+      <div class="hero-divider"></div>
+      <div class="hero-metric drill" @click="$router.push('/reminder')">
+        <div class="hm-label">即将到期</div>
+        <div class="hm-num">
+          {{ stats.expiring || 0 }}<span class="hm-chip chip-amber" v-if="stats.expiring">30天内</span>
         </div>
-        <el-icon class="stat-icon icon-orange" :size="28"><Warning /></el-icon>
+        <div class="hm-tags" v-if="stats.expiringDetails?.length">
+          <span v-for="d in stats.expiringDetails.slice(0, 2)" :key="d.customerName"
+            class="hm-tag" :class="d.daysLeft <= 7 ? 'ht-strong' : 'ht-plain'">
+            {{ d.officeName || d.customerName }} {{ d.daysLeft }}天
+          </span>
+        </div>
+        <div class="hm-sub" v-else>暂无 30 天内到期客户</div>
       </div>
-      <div class="stat-card drill" @click="$router.push('/reminder')">
-        <div class="stat-info">
-          <div class="stat-label">已超期</div>
-          <div class="stat-num red">{{ stats.expired || 0 }}</div>
-          <div class="stat-sub">含公海 {{ stats.seaStats?.total || 0 }} 个</div>
-          <div class="stat-links">
-            <a @click="$router.push('/reminder')">今日到期 {{ stats.todayExpiring || 0 }}</a>
-            <a @click="$router.push('/reminder')" class="lk-red">待处理</a>
-          </div>
+      <div class="hero-divider"></div>
+      <div class="hero-metric drill" @click="$router.push('/reminder')">
+        <div class="hm-label">已超期</div>
+        <div class="hm-num">
+          {{ stats.expired || 0 }}<span class="hm-chip chip-red" v-if="stats.expired">需处理</span>
         </div>
-        <el-icon class="stat-icon icon-red" :size="28"><CircleClose /></el-icon>
+        <div class="hm-sub">今日到期 {{ stats.todayExpiring || 0 }} · 公海 {{ stats.seaStats?.total || 0 }}</div>
       </div>
     </div>
-    <!-- 【PR-10 前端 2026-09-19】我的待办任务卡片(后端 /api/task/statistics) -->
-    <div class="stat-row role-cards">
+
+    <!-- 运营指标 · 白色定义卡四联(任何角色都是完整四列) -->
+    <!-- 【PR-10 前端 2026-09-19】待办任务; 【PR-11 后续批次】销售=self激励/阅读, 管理=审批概览/范围 -->
+    <div class="stat-row secondary">
       <div class="stat-card drill" @click="$router.push('/task')">
         <div class="stat-info">
           <div class="stat-label">待办任务</div>
-          <div class="stat-num blue">{{ taskStats.pending || 0 }}</div>
+          <div class="stat-num">{{ taskStats.pending || 0 }}</div>
           <div class="stat-sub">今日到期 {{ taskStats.todayDue || 0 }} · 逾期 {{ taskStats.overdue || 0 }}</div>
         </div>
-        <el-icon class="stat-icon icon-blue" :size="28"><List /></el-icon>
+        <el-icon class="stat-icon" :size="22"><List /></el-icon>
       </div>
       <div class="stat-card">
         <div class="stat-info">
           <div class="stat-label">本月完成任务</div>
-          <div class="stat-num green">{{ taskStats.completedThisMonth || 0 }}</div>
+          <div class="stat-num">{{ taskStats.completedThisMonth || 0 }}</div>
+          <div class="stat-sub">按自然月统计</div>
         </div>
-        <el-icon class="stat-icon icon-green" :size="28"><CircleCheck /></el-icon>
+        <el-icon class="stat-icon" :size="22"><CircleCheck /></el-icon>
       </div>
-    </div>
-
-    <!-- 【PR-11 后续批次 2026-09-19】按岗位差异化卡片(议题三指标口径裁决后解锁):
-         销售(self)= 我的激励积分/我的阅读排名; 管理(非self)= 审批概览/团队排行概览 -->
-    <div class="stat-row role-cards" v-if="isSalesRole">
-      <div class="stat-card drill" @click="$router.push('/score/ranking')">
+      <div class="stat-card drill" v-if="isSalesRole" @click="$router.push('/score/ranking')">
         <div class="stat-info">
           <div class="stat-label">我的激励积分</div>
-          <div class="stat-num gold">{{ myScore || 0 }}</div>
+          <div class="stat-num">{{ myScore || 0 }}</div>
           <div class="stat-sub">四项激励 · 本月上传 {{ myUploadCount || 0 }} 次</div>
         </div>
-        <el-icon class="stat-icon icon-gold" :size="28"><Trophy /></el-icon>
+        <el-icon class="stat-icon" :size="22"><Trophy /></el-icon>
       </div>
-      <div class="stat-card">
+      <div class="stat-card" v-if="isSalesRole">
         <div class="stat-info">
           <div class="stat-label">我的阅读完成</div>
-          <div class="stat-num blue">{{ myReadCount || 0 }}<span class="stat-unit">/{{ myReadTotal || 0 }}</span></div>
+          <div class="stat-num">{{ myReadCount || 0 }}<span class="stat-unit">/{{ myReadTotal || 0 }}</span></div>
           <div class="stat-sub">本月激励资料阅读(重复打开计一次)</div>
         </div>
-        <el-icon class="stat-icon icon-blue" :size="28"><Reading /></el-icon>
+        <el-icon class="stat-icon" :size="22"><Reading /></el-icon>
       </div>
-    </div>
-    <div class="stat-row role-cards" v-if="!isSalesRole">
-      <div class="stat-card drill" @click="$router.push('/approval')">
+      <div class="stat-card drill" v-if="!isSalesRole" @click="$router.push('/approval')">
         <div class="stat-info">
           <div class="stat-label">待我审批</div>
-          <div class="stat-num orange">{{ stats.approvalStats?.pending || 0 }}</div>
+          <div class="stat-num">{{ stats.approvalStats?.pending || 0 }}</div>
           <div class="stat-sub">本月通过 {{ stats.approvalStats?.approvedThisMonth || 0 }} · 驳回 {{ stats.approvalStats?.rejectedThisMonth || 0 }}</div>
         </div>
-        <el-icon class="stat-icon icon-orange" :size="28"><Checked /></el-icon>
+        <el-icon class="stat-icon is-amber" :size="22"><Checked /></el-icon>
       </div>
-      <div class="stat-card">
+      <div class="stat-card" v-if="!isSalesRole">
         <div class="stat-info">
           <div class="stat-label">数据范围</div>
-          <div class="stat-num blue" style="font-size:20px">{{ scopeLabel }}</div>
+          <div class="stat-scope-value">{{ scopeLabel }}</div>
           <div class="stat-sub">{{ stats.myCustomers || 0 }} 客户 · 公海 {{ stats.seaStats?.total || 0 }}</div>
         </div>
-        <el-icon class="stat-icon icon-blue" :size="28"><DataAnalysis /></el-icon>
+        <el-icon class="stat-icon" :size="22"><DataAnalysis /></el-icon>
       </div>
     </div>
 
@@ -422,11 +409,6 @@ onMounted(() => { loadData(); loadRoleData(); loadTaskStats() })
 
 <style scoped>
 /* 【PR-11 首批】统计口径标注条 */
-.role-cards { margin-bottom: 12px }
-.stat-card.drill { cursor: pointer; transition: box-shadow .2s, transform .1s }
-.stat-card.drill:hover { box-shadow: 0 4px 12px rgba(0,0,0,.12); transform: translateY(-1px) }
-.role-cards .stat-card { min-width: 220px }
-.stat-unit { font-size: 14px; color: #94a3b8; margin-left: 4px }
 .stat-scope-note { display:flex; justify-content:space-between; flex-wrap:wrap; gap:8px; color:#94a3b8; font-size:12px; margin:2px 2px 16px; }
 .stat-scope-note a { color:#409eff; cursor:pointer; margin-left:8px }
 
@@ -437,7 +419,33 @@ onMounted(() => { loadData(); loadRoleData(); loadTaskStats() })
 .page-title { font-size: 22px; font-weight: 700; color: var(--ds-text-1, #1f2329); margin: 0 0 4px; letter-spacing: .2px; }
 .greeting { font-size: 14px; color: var(--ds-text-3, #86909c); margin: 0; }
 
-/* —— 统计卡片 —— */
+/* —— 核心指标 · 深蓝主视觉带 —— */
+.hero-band {
+  display: grid; grid-template-columns: 1fr auto 1fr auto 1fr auto 1fr; gap: 0 28px;
+  align-items: stretch;
+  background: linear-gradient(135deg, #16337a 0%, #1d4ed8 58%, #2563eb 100%);
+  border-radius: var(--ds-radius-lg, 14px);
+  padding: 24px 28px; margin-bottom: 16px;
+  box-shadow: 0 6px 20px rgba(22, 51, 122, .18);
+}
+.hero-metric { min-width: 0; padding: 2px 0; }
+.hero-metric.drill { cursor: pointer; transition: opacity .2s; border-radius: 8px; }
+.hero-metric.drill:hover { opacity: .82; }
+.hero-divider { width: 1px; background: rgba(255, 255, 255, .18); margin: 4px 0; }
+.hm-label { font-size: 13px; color: rgba(255, 255, 255, .72); margin-bottom: 10px; letter-spacing: .3px; }
+.hm-num { font-size: 32px; font-weight: 700; line-height: 1.1; color: #fff; display: flex; align-items: center; gap: 10px; }
+.hm-sub { font-size: 12px; color: rgba(255, 255, 255, .6); margin-top: 8px; }
+.hm-chip { font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 999px; white-space: nowrap; }
+.chip-amber { background: rgba(251, 191, 36, .22); color: #fcd34d; border: 1px solid rgba(251, 191, 36, .45); }
+.chip-red { background: rgba(248, 113, 113, .2); color: #fca5a5; border: 1px solid rgba(248, 113, 113, .45); }
+.hero-track { height: 4px; background: rgba(255, 255, 255, .18); border-radius: 2px; margin-top: 10px; overflow: hidden; }
+.hero-fill { height: 100%; background: #fcd34d; border-radius: 2px; transition: width .4s; }
+.hm-tags { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+.hm-tag { font-size: 11px; padding: 2px 8px; border-radius: 4px; white-space: nowrap; }
+.ht-strong { color: #fff; background: rgba(248, 113, 113, .32); }
+.ht-plain { color: rgba(255, 255, 255, .85); background: rgba(255, 255, 255, .14); }
+
+/* —— 运营指标 · 白色定义卡(统排:数字同字号同色,语义只用图标色点) —— */
 .stat-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 16px; }
 .stat-card {
   background: var(--ds-surface, #fff); border: 1px solid var(--ds-border-light, #eef1f5);
@@ -446,39 +454,19 @@ onMounted(() => { loadData(); loadRoleData(); loadTaskStats() })
   position: relative; overflow: hidden; transition: all .25s;
   box-shadow: var(--ds-shadow-1, 0 1px 2px rgba(15,23,42,.04));
 }
-.stat-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; }
-.stat-card:nth-child(1)::before { background: linear-gradient(90deg, #409eff, #66b1ff); }
-.stat-card:nth-child(2)::before { background: linear-gradient(90deg, #409eff, #66b1ff); }
-.stat-card:nth-child(3)::before { background: linear-gradient(90deg, #f59e0b, #fbbf24); }
-.stat-card:nth-child(4)::before { background: linear-gradient(90deg, #f56c6c, #fc8181); }
 .stat-card:hover { box-shadow: var(--ds-shadow-2, 0 4px 16px rgba(15,23,42,.06)); transform: translateY(-2px); }
+.stat-card.drill { cursor: pointer; }
 .stat-label { font-size: 14px; color: var(--ds-text-3, #86909c); margin-bottom: 8px; font-weight: 500; }
-.stat-num { font-size: 36px; font-weight: 700; line-height: 1.1; }
-.stat-num.orange { color: #e8684a; }
-.stat-num.blue { color: #409eff; }
-.stat-num.red { color: #f56c6c; }
+.stat-num { font-size: 30px; font-weight: 700; line-height: 1.15; color: #1d337a; letter-spacing: .2px; }
+.stat-scope-value { font-size: 16px; font-weight: 600; line-height: 38px; color: #1d2129; }
 .stat-sub { font-size: 12px; color: var(--ds-text-3, #86909c); margin-top: 6px; }
-.stat-icon { flex-shrink: 0; width: 48px; height: 48px; border-radius: 14px; display: flex; align-items: center; justify-content: center; transition: transform .22s ease; }
-.stat-card:hover .stat-icon { transform: scale(1.06) rotate(-3deg); }
-.icon-blue { background: linear-gradient(135deg, #409eff, #2b7fd4); color: #fff; box-shadow: 0 6px 14px rgba(64,158,255,.28); }
-.icon-orange { background: linear-gradient(135deg, #f5a623, #e0902c); color: #fff; box-shadow: 0 6px 14px rgba(230,162,60,.28); }
-.icon-red { background: linear-gradient(135deg, #f56c6c, #e04b4b); color: #fff; box-shadow: 0 6px 14px rgba(245,108,108,.28); }
-
-/* 进度条 */
-.progress-track { height: 6px; background: #f0f2f5; border-radius: 3px; margin-top: 8px; overflow: hidden; }
-.progress-fill { height: 100%; background: #409eff; border-radius: 3px; transition: width .4s; }
-
-/* 到期标签 */
-.stat-tags { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
-.mini-tag { font-size: 12px; padding: 2px 8px; border-radius: 4px; }
-.mt-blue { color: #409eff; background: #ecf5ff; }
-.mt-red { color: #f56c6c; background: #fef0f0; }
-
-/* 超期链接 */
-.stat-links { display: flex; gap: 12px; margin-top: 8px; }
-.stat-links a { font-size: 12px; color: #e6a23c; cursor: pointer; }
-.stat-links a:hover { text-decoration: underline; }
-.stat-links .lk-red { color: #f56c6c; }
+.stat-unit { font-size: 14px; color: #94a3b8; margin-left: 4px; font-weight: 500; }
+.stat-icon {
+  flex-shrink: 0; width: 40px; height: 40px; border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  background: #eef4ff; color: #2563eb;
+}
+.stat-icon.is-amber { background: #fff7e6; color: #d97706; }
 
 /* —— 快捷入口 —— */
 .quick-row { display: grid; grid-template-columns: repeat(6, 1fr); gap: 16px; margin-bottom: 16px; }

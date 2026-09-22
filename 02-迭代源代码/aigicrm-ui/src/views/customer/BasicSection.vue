@@ -21,7 +21,7 @@
         <el-input v-model="form.invoiceName" placeholder="请输入开票名称" />
       </el-form-item>
       <el-form-item label="产能（万吨）">
-        <el-input v-model="form.capacity" placeholder="请输入数字" />
+        <el-input v-model="form.capacity" type="number" placeholder="请输入数字，如 120" />
       </el-form-item>
     </div>
 

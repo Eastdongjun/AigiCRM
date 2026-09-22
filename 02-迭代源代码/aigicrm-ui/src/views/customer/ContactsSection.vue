@@ -32,17 +32,16 @@ const { contacts, addContactRow } = injectCustomerForm()
 <style scoped>
 .contacts-list { margin-top: 4px; }
 .contact-row {
-  display: flex;
+  display: grid;
+  grid-template-columns: 1fr 1fr 1.2fr 1.6fr auto;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   margin-bottom: 10px;
-  padding: 10px 12px;
+  padding: 10px 14px;
   background: #fafbfc;
   border-radius: 8px;
   border: 1px solid #f0f1f3;
 }
-.contact-row .el-input { width: 130px; }
-.contact-row .el-input:last-of-type { flex: 1; }
 .empty-hint {
   color: #c0c4cc;
   font-size: 13px;
