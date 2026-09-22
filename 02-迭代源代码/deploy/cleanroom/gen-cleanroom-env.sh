@@ -20,7 +20,8 @@ CR_JWT_SECRET=$CR_JWT_SECRET
 CR_ADMIN_USER=admin
 CR_ADMIN_PASS=$CR_ADMIN_PASS
 # migrate.sh 直接以 -e 透传给 flyway 容器(官方变量名,值同 root;allowPublicKeyRetrieval 同 deploy-db.sh,MySQL8 caching_sha2 必需)
-FLYWAY_URL=jdbc:mysql://mysql:3306/aigicrm?characterEncoding=UTF-8&connectionCollation=utf8mb4_general_ci&useSSL=false&allowPublicKeyRetrieval=true
+# URL 含 & 必须单引号包裹, 否则被 . ./.env source 时按后台符解析(2026-09-22 实测)
+FLYWAY_URL='jdbc:mysql://mysql:3306/aigicrm?characterEncoding=UTF-8&connectionCollation=utf8mb4_general_ci&useSSL=false&allowPublicKeyRetrieval=true'
 FLYWAY_USER=root
 FLYWAY_PASSWORD=$CR_DB_ROOT_PASSWORD
 EOF

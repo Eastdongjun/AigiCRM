@@ -22,3 +22,7 @@ mybatis-plus:
 aigicrm:
   tenant:
     enable: ${TENANT_ENABLE:true}
+  # 【上线批次 2026-09-22】生产关键写幂等 fail-closed: Redis 不可用时拒绝(503)而非放行重复写入。
+  # 开发/测试档保持全局默认 bypass 不影响本地调试;GPT 外审 IDEM-P1-007 裁定采纳
+  idempotency:
+    fail-mode: strict

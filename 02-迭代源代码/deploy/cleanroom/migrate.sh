@@ -16,4 +16,7 @@ docker run --rm --network "$NET" \
   -e FLYWAY_URL -e FLYWAY_USER -e FLYWAY_PASSWORD \
   flyway/flyway:9.22.3 \
   -connectRetries=10 -validateMigrationNaming=true \
+  -ignoreMigrationPatterns='*:missing' -baselineOnMigrate=true \
   migrate
+# -ignoreMigrationPatterns='*:missing' 与生产 deploy-db.sh 同构: 生产库早期 V2-V10 历史与仓库文件错位
+# (2026-08-15 审计已核), missing 已应用项忽略; 空库全新重放不受影响(无 missing)
