@@ -95,3 +95,11 @@
 - 产出: `07-agent-native-audit-20260922.md`(基线 d8a6a239; 5 并行只读代理分域取证+总控裁定)
 - 结论: 实评 156 项(≈PASS97/RA27/FAIL10/NC22; D19 全 N/A); **P0×1**=真机UAT/E2E未闭环(13旅程清单已备); P1×15+P2/P3×15 详见报告
 - 关键裁定: 框架基线 P0 的"状态机白名单/仓内集成测试"两项目前无运行时暴露实证且集成验证以远程脚本形态存在 → 降 P1(理由已写明); 产品裁决(单集团)继续作为多租户相关 RA 依据
+
+---
+
+# GPT 外审(external 包)逐项裁定与修复(2026-09-22 晚)
+- 裁定全文: `08-gpt-agential-audit-20260922-adjudication.md`(12 项 P1: 2 项新采纳/7 项属实已知/1 项有意设计/1 项部分误报/1 项混合; Release Gate FAIL 系包视角≠项目判定)
+- **GPT 最有价值发现**: FileService:477 注释"清理任务兜底"系虚构引用(全库无该任务)——07 审计 D13-02 误采信注释,已自我修正并修复(注释改真实状态+log.warn)
+- 本轮修复: ①package-source.sh config 排除精确化(env.local.js 才排,保留 demo 档+模板; GPT AUD-P1-002 小程序不可编译)+根级 ci.yml 纳入+INCLUDE-MANIFEST+断言门 ②config 模板注释示例 IP 脱敏(3 文件) ③CLAUDE.md 基线冲突修正(GPT AUD-P1-001, ENG-P2-006 挂账清偿) ④pom 两处过时注释 ⑤FileService 虚构注释+warn
+- 门禁: FileServicePermissionTest 40/40+compile 0+dev-verify changed 全 PASS+external 重打包断言过(env 模板≥3+ci.yml 在包+泄漏门过, 997 文件 SHA a9944492…)

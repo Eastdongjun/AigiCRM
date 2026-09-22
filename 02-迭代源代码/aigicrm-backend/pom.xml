@@ -103,7 +103,7 @@
             <scope>runtime</scope>
         </dependency>
 
-        <!-- Flyway 迁移工具（2026-08-09 引入，版本由 Spring Boot 3.2.12 BOM 管理 10.x）
+        <!-- Flyway 迁移工具（2026-08-09 引入时由 Boot 3.2.12 BOM 管 10.x；现版本随 Boot 4.1.0 BOM 12.4.0）
              MySQL 8 需 flyway-mysql 分离模块；应用运行时 spring.flyway.enabled=false(生产 aigicrm_app 无 DDL 权限)，
              迁移经 Maven 插件 / CLI 以管理账号执行(deploy-db.sh)。 -->
         <dependency>
@@ -163,7 +163,7 @@
             <version>${springdoc.version}</version>
         </dependency>
 
-        <!-- Lombok (1.18.46: 支持 JDK25 编译; 向后兼容, 生产 JDK17 不受影响) -->
+        <!-- Lombok (1.18.46: 支持 JDK25 编译; 向后兼容, 运行时 JDK21 不受影响) -->
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>

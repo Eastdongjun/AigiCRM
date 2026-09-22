@@ -8,7 +8,9 @@ AIGICRM (运筹马年) is an internal CRM system for an industrial sealing/lubri
 
 ## Development Commands
 
-### Backend (Spring Boot 3.2.5 / Java 17 / Maven)
+### Backend (Spring Boot 4.1.0 / Java 21 / Maven Wrapper)
+
+> 基线唯一事实源为 `pom.xml`(2026-09-22 对齐;历史版本声明曾漂移至 3.2.5/Java17,已修正)。
 ```bash
 cd aigicrm-backend
 mvn clean spring-boot:run          # Start backend on port 8080
@@ -122,7 +124,7 @@ VSCode Problems 面板显示 0 个错误 **只能作为辅助证据**，不得�
 
 ## 二、本项目实际门禁（按真实技术栈）
 
-> 本仓库为 **Vue 3(JS) + Spring Boot(Java 17)**；无 Maven Wrapper（用 `mvn`）；前端是 **JavaScript 项目**（无 tsconfig、未配 lint/type-check）。
+> 本仓库为 **Vue 3(JS) + Spring Boot 4.1.0(Java 21)**；含 Maven Wrapper（`./mvnw`，工具链 3.9.9 与 Dockerfile 冻结同版；本机直跑用 `MAVEN_SKIP_RC=true mvn`）；前端是 **JavaScript 项目**（无 tsconfig、未配 lint/type-check）。
 
 ### 1. 修改范围检查（必跑）
 ```bash

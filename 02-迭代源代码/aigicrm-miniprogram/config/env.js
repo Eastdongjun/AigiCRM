@@ -52,7 +52,7 @@ if (envVersion === 'release') {
 } else if (envVersion === 'trial') {
   // 体验版默认也指向生产。若要指向测试环境，改为 'https://<测试域名>'；
   // 注意小程序 request 合法域名必须是 HTTPS 且已在微信后台登记，
-  // 裸 IP（如 111.229.37.220）微信不允许直接请求。
+  // 裸 IP（如 <测试服IP>）微信不允许直接请求。
   apiBaseUrl = TRIAL_API_BASE
 } else if (envVersion === 'develop') {
   // 仅 develop 档读取本机覆盖档；未知 envVersion 不走这里，保持 ''（demo）。

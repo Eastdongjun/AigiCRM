@@ -474,8 +474,11 @@ public class FileService {
             } else {
                 ossClient().deleteObject(ossConfig.getBucketName(), fileKey);
             }
-        } catch (Exception ignored) {
-            // 尽力而为:OSS 删除失败不回滚主流程,文件元数据已删,残留对象由清理任务兜底
+        } catch (Exception e) {
+            // 尽力而为:删除失败不回滚主流程(文件元数据已删)。
+            // 当前无自动清理任务(2026-09-22 GPT外审确认): 物理残留需按 OSS 生命周期策略/人工核对处置,
+            // 在此 log.warn 留痕;引入 FileDeletionOutbox 台账列产品批次
+            log.warn("物理存储删除失败 fileKey={}, 元数据已删, 残留待处置(无自动清理任务)", fileKey, e);
             }
     }
 
