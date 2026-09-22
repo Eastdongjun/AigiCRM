@@ -43,7 +43,11 @@ SSH_OPTS="${SSH_OPTS:--o ConnectTimeout=20 -o StrictHostKeyChecking=no}"
 ssh_prod() {
   local attempt
   for attempt in 1 2 3; do
-    sshpass -p "$PROD_PASS" ssh $SSH_OPTS "${PROD_USER}@${PROD_HOST}" "$@" && return 0
+    if [ -f "$PROD_KEY" ]; then
+      ssh -i "$PROD_KEY" -o BatchMode=yes $SSH_OPTS "${PROD_USER}@${PROD_HOST}" "$@" && return 0
+    else
+      sshpass -p "$PROD_PASS" ssh $SSH_OPTS "${PROD_USER}@${PROD_HOST}" "$@" && return 0
+    fi
     sleep 2
   done
   return 1
@@ -56,7 +60,21 @@ ssh_test() {
   done
   return 1
 }
-scp_prod()  { sshpass -p "$PROD_PASS" scp $SSH_OPTS "$@"; }
+# 【2026-09-23 生产通道修复】生产 sshd 已收敛为仅公钥(密码登录被服务端拒绝),
+# ssh_prod/scp_prod 优先使用 PROD_KEY 密钥;未配置密钥时回退旧密码通道(测试机仍可用)。
+PROD_KEY="${PROD_KEY:-/Users/dongjun/东来/项目/01-进行中/01-AIGICRM/06-部署与运维/阿里云环境/aigicrm.com.pem}"
+# 生产实际部署目录(实测 2026-09-23:容器 WorkingDir=/data/ycmn,jar+compose 均在此;
+# 旧默认 /root/aigicrm 为历史残留,env 未显式覆盖时以实测值为准)
+if [ "${DEPLOY_DIR:-}" = "/root/aigicrm" ] || [ -z "${DEPLOY_DIR:-}" ]; then
+  DEPLOY_DIR="/data/ycmn"
+fi
+scp_prod() {
+  if [ -f "$PROD_KEY" ]; then
+    scp -i "$PROD_KEY" -o BatchMode=yes $SSH_OPTS "$@"
+  else
+    sshpass -p "$PROD_PASS" scp $SSH_OPTS "$@"
+  fi
+}
 scp_test()  { sshpass -p "$TEST_PASS" scp $SSH_OPTS "$@"; }
 
 # 生产健康检查: 登录 API 带 Origin 必须 200
