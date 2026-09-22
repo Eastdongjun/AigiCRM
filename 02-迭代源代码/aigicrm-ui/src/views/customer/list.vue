@@ -10,7 +10,7 @@
     <MainTable />
 
     <!-- 分页 -->
-    <div :style="{ borderTopColor: activeTab==='innovate'?'#409eff':activeTab==='break'?'#e6a23c':'#67c23a', borderTopWidth:'2px' }" style="display:flex;justify-content:flex-end;padding:4px 16px;background:#fff;border-top-style:solid;flex-shrink:0">
+    <div style="display:flex;justify-content:flex-end;padding:4px 16px;background:#fff;border-top:1px solid #ebeef5;flex-shrink:0">
       <el-pagination
         v-model:current-page="page"
         v-model:page-size="pageSize"

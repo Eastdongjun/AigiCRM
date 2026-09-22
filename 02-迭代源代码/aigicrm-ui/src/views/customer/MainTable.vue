@@ -1,12 +1,12 @@
 <template>
-  <el-card shadow="never" class="main-card" :style="{ borderColor: activeTab==='innovate'?'#409eff':activeTab==='break'?'#e6a23c':'#67c23a', borderWidth:'2px' }">
+  <el-card shadow="never" class="main-card">
     <el-tabs v-model="activeTab" @tab-change="onTabChange" class="customer-tabs">
       <el-tab-pane v-for="tab in tabs" :key="tab.type" :label="tab.label" :name="tab.type">
         <template #label>
           <span class="tab-label">
             <span class="tab-dot" :style="{ background: tab.color }"></span>
             {{ tab.label }}
-            <el-tag :color="tab.color" size="small" effect="dark" round style="margin-left:6px">{{ tab.count }}</el-tag>
+            <span class="tab-count">{{ tab.count }}</span>
           </span>
         </template>
       </el-tab-pane>
@@ -112,8 +112,15 @@ const archiveRowClass = ({ row }) => (row.status === 'archived' ? 'archived-row'
 .main-card { border-radius: 10px; }
 .main-card :deep(.el-card__body) { padding: 0 16px 16px; }
 .customer-tabs :deep(.el-tabs__header) { margin-bottom: 0; }
+/* Tab 激活主色对齐全局深蓝(主题变量已统一,此处兜底旧版样式覆盖) */
+.customer-tabs :deep(.el-tabs__item.is-active),
+.customer-tabs :deep(.el-tabs__active-bar) { color: #1d4ed8; }
 .tab-label { display: flex; align-items: center; gap: 6px; }
 .tab-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+.tab-count {
+  font-size: 11px; padding: 0 8px; border-radius: 999px;
+  background: #eef4ff; color: #1d4ed8; font-weight: 600; line-height: 18px;
+}
 .filter-bar { display: flex; gap: 8px; align-items: center; padding: 8px 0; flex-wrap: wrap; }
 .filter-count { font-size: 12px; color: #909399; margin-left: auto; }
 :deep(.archived-row) { color: #b9bcc2; }

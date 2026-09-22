@@ -10,9 +10,17 @@ html, body, #app {
 }
 
 :root {
-  --primary-color: #409eff;
+  --primary-color: #1d4ed8;
   --sidebar-bg: #1d2b3a;
-  --sidebar-active: #409eff;
+  --sidebar-active: #1d4ed8;
+  /* 企业主色统一(2026-09-23 UI 批次): Element Plus 主题变量对齐深蓝设计语言 */
+  --el-color-primary: #1d4ed8;
+  --el-color-primary-light-3: #6083e4;
+  --el-color-primary-light-5: #8ea7ec;
+  --el-color-primary-light-7: #bbcaf3;
+  --el-color-primary-light-8: #d2dcf7;
+  --el-color-primary-light-9: #e8edfb;
+  --el-color-primary-dark-2: #173ead;
 }
 
 /* 滚动条样式 */
