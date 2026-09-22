@@ -127,7 +127,8 @@ async function verifyNotificationCenter(miniProgram) {
     { id: 'n-1', title: '保护期即将到期', content: '客户保护期剩余 3 天，请及时跟进。', customerName: '华东智能制造集团', customerId: 501 },
     { id: 'n-2', title: '开票提醒', content: '客户已有 30 天未开票，请补充跟进记录。', customerName: '山西晋能集团中阳煤业', customerId: 502 }
   ]
-  await page.setData({ notifications, loading: false, processing: false })
+  // 【2026-09-22 校准】notification 页走 notificationView, 须 applyState 重建(customerText)
+  await page.callMethod('applyState', { notifications, loading: false, processing: false })
   await page.waitFor(300)
 
   assert((await page.$$('.notification-card')).length === 2, 'notification cards are missing')
@@ -151,7 +152,7 @@ async function verifyNotificationCenter(miniProgram) {
   await page.waitFor(200)
   const remaining = await page.data('notifications')
   assert(remaining.length === 1 && remaining[0].id === 'n-2', `notification process did not remove row: ${JSON.stringify(remaining)}`)
-  await page.setData({ notifications: [], loading: false })
+  await page.callMethod('applyState', { notifications: [], loading: false })
   await page.waitFor(100)
   assert((await page.$$('.compact-empty')).length === 1, 'notification empty state is missing')
   await screenshot(miniProgram, 'notification-center.png')

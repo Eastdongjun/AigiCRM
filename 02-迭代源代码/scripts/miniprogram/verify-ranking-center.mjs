@@ -107,7 +107,8 @@ async function verifyRankingCenterPage(miniProgram) {
       { rank: 2, deptName: '华南办', totalScore: 342, participantCount: 5, avgScore: 68 }
     ]
   }
-  await page.setData({
+  // 【2026-09-22 校准】ranking 页走 rankingView, 须 setRankingData 重建
+  await page.callMethod('setRankingData', {
     activeTab: 'incentive',
     scoreActiveTab: 'personal',
     periodOptions: [
@@ -150,6 +151,8 @@ async function verifyRankingCenterPage(miniProgram) {
 
   const initialText = [
     ...(await textList(await page.$$('.hero-title'))),
+    // 【2026-09-22 校准】周期文本渲染于 period-chip(视图模型 scorePeriodText)
+    ...(await textList(await page.$$('.period-chip'))),
     ...(await textList(await page.$$('.summary-cell'))),
     ...(await textList(await page.$$('.score-rank-card'))),
     ...(await textList(await page.$$('.ranking-card'))),

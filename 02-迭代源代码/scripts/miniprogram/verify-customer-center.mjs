@@ -75,7 +75,9 @@ async function verifyCustomerListPage(miniProgram) {
   const page = await miniProgram.reLaunch('/pages/customer/index')
   await page.waitFor(1000)
 
-  await page.setData({
+  // 【2026-09-22 校准】客户页 9/21 重构走 customerView 视图模型, 裸 setData 不重.build;
+  // 改走页面官方注入口 setCustomerData(patch)(自动重建 customerView)
+  await page.callMethod('setCustomerData', {
     keyword: '',
     filter: '全部',
     customers: [
@@ -134,7 +136,8 @@ async function verifyCustomerDetailPage(miniProgram) {
   const page = await miniProgram.reLaunch('/pages/customer/detail/index?id=501')
   await page.waitFor(1000)
 
-  await page.setData({
+  // 同上: 详情页 setDetailData 官方注入口
+  await page.callMethod('setDetailData', {
     id: '501',
     loading: false,
     canEdit: true,
@@ -195,12 +198,14 @@ async function verifyCustomerDetailPage(miniProgram) {
 
   const pageText = [
     ...(await textList(await page.$$('.customer-overview-title'))),
+    // 【2026-09-22 校准】备注渲染于 .customer-remark-text(detail/index.wxml), 采集列表漏此类致误报
+    ...(await textList(await page.$$('.customer-remark-text'))),
     ...(await textList(await page.$$('.detail-row'))),
     ...(await textList(await page.$$('.section-title'))),
     ...(await textList(await page.$$('.indicator-summary-item'))),
     ...(await textList(await page.$$('button')))
   ].join('\n')
-  for (const expected of ['华东智能制造集团', '产能(万吨)', '终端客户', '销售一部', '王总', '华东制造分公司', '浦东制造基地', '注册日', '最近开票', '自动化客户详情备注', '财务摘要', '客情.商务关系深度', '核心客户六项指标', '开票门槛', '回款门槛', '编辑六项指标', '全部联系人', '客户分享', '完整跟进', '新增跟进记录']) {
+  for (const expected of ['华东智能制造集团', '产能(万吨)', '终端客户', '销售一部', '王总', '华东制造分公司', '浦东制造基地', '注册日', '最近开票', '自动化客户详情备注', '财务摘要', '客情 · 商务关系深度', '核心客户六项指标', '开票门槛', '回款门槛', '编辑六项指标', '联系人', '分享', '跟进', '新增跟进记录']) {
     assert(pageText.includes(expected), `customer detail missing ${expected}`)
   }
 

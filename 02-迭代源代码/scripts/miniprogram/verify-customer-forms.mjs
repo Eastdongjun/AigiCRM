@@ -94,7 +94,7 @@ async function verifyCustomerForm(miniProgram) {
     ...(await textList(await page.$$('.tip'))),
     ...(await textList(await page.$$('button')))
   ].join('\n')
-  for (const expected of ['新增客户', '基本信息', '业务分类', '归属与负责人', '地址与日期', '客户保存后可添加联系人', '取消']) {
+  for (const expected of ['新增客户', '基本信息', '业务分类', '归属与负责人', '地址与日期', '客户保存后可继续添加联系人', '取消']) {
     assert(pageText.includes(expected), `customer form missing ${expected}`)
   }
 

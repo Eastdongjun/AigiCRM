@@ -156,7 +156,8 @@ async function verifyForgotPassword(miniProgram) {
   assert(toasts.some((item) => item.title === '请输入账号'), `forgot username validation toast is missing: ${JSON.stringify(toasts)}`)
   assert(backs.length >= 1, `forgot back to login did not call navigateBack: ${JSON.stringify(backs)}`)
 
-  await page.setData({ step: 2, username: 'demo-user', maskedPhone: '138****8000', code: '', countdown: 0 })
+  // 【2026-09-22 校准】forgot 页走 forgotView, 须 applyState 重建(maskedPhoneText)
+  await page.callMethod('applyState', { step: 2, username: 'demo-user', maskedPhone: '138****8000', code: '', countdown: 0 })
   await page.waitFor(100)
   await page.callMethod('verifyCode')
   await page.waitFor(100)

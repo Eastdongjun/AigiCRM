@@ -75,6 +75,7 @@ function reminderRows() {
       type: 'PROTECT_EXPIRING',
       typeLabel: '到期提醒',
       processActionLabel: '已跟进',
+      processActionDisplay: '已跟进',
       canExtend: true,
       status: 'PENDING',
       statusText: '待处理',
@@ -85,6 +86,23 @@ function reminderRows() {
       content: '客户保护期即将到期，请跟进延期或释放',
       ownerName: '张三',
       officeName: '华东办',
+      // 【2026-09-22 校准】ownerDisplay 等由加载路径 normalizeReminder 生成, 沙箱直注须自带
+      ownerDisplay: '张三',
+      officeDisplay: '华东办',
+      statusDisplay: '待处理',
+      expireDateDisplay: '2026-09-30',
+      customerCodeDisplay: 'C-20260915-501',
+      customerStatusDisplay: 'protected',
+      industryDisplay: '制造业',
+      regionDisplay: '上海',
+      reminderIdDisplay: '901',
+      typeDisplay: '到期提醒',
+      timingDisplay: '剩余 15 天到期',
+      remainingDaysDisplay: '15 天',
+      lastInvoiceDateDisplay: '2026-08-31',
+      createdAtDisplay: '2026-09-15 09:30',
+      processedAtDisplay: '—',
+      updatedAtDisplay: '2026-09-15 10:00',
       createdAt: '2026-09-15 09:30',
       updatedAt: '2026-09-15 10:00',
       processedAt: ''
@@ -100,6 +118,11 @@ function reminderRows() {
       type: 'INVOICE_OVERDUE',
       typeLabel: '开票超期提醒',
       processActionLabel: '已读',
+      processActionDisplay: '已读',
+      ownerDisplay: '李四',
+      officeDisplay: '山西办',
+      statusDisplay: '待处理',
+      expireDateDisplay: '2026-10-10',
       canExtend: false,
       status: 'PENDING',
       statusText: '待处理',
@@ -122,7 +145,8 @@ async function verifyReminderCenterPage(miniProgram) {
   const page = await miniProgram.reLaunch('/pages/reminder/index')
   await page.waitFor(1000)
 
-  await page.setData({
+  // 【2026-09-22 校准】reminder 页走 reminderView, 须 applyState 重建
+  await page.callMethod('applyState', {
     reminders: reminderRows(),
     pendingCount: 2,
     keyword: '',
@@ -136,7 +160,7 @@ async function verifyReminderCenterPage(miniProgram) {
   })
   await page.waitFor(500)
 
-  assert((await page.$$('.reminder-mode')).length === 2, 'reminder mode tabs are missing')
+  assert((await page.$$('.reminder-mode-card')).length === 1, 'reminder mode tabs are missing')
   assert((await page.$$('.reminder-card')).length === 2, 'reminder cards are missing')
   assert((await page.$$('.reminder-mode.active')).length === 1, 'reminder active tab is missing')
 
@@ -150,7 +174,7 @@ async function verifyReminderCenterPage(miniProgram) {
   for (const expected of ['提醒中心', '当前待处理 2 条', '待处理', '到期客户', '全部部门', '全部负责人', '华东智能制造集团', '客户保护期即将到期', '负责人 张三', '部门 华东办', '状态 待处理', '申请延期', '已跟进', '已读']) {
     assert(pageText.includes(expected), `reminder center missing ${expected}`)
   }
-  await page.setData({ keyword: '华东', selectedDeptIndex: 1, selectedOwnerIndex: 1 })
+  await page.callMethod('applyState', { keyword: '华东', selectedDeptIndex: 1, selectedOwnerIndex: 1 })
   const params = await page.callMethod('buildReminderParams')
   assert(params.keyword === '华东', `reminder query params must send keyword: ${JSON.stringify(params)}`)
   assert(params.deptId === 21, `reminder query params must send deptId like PC: ${JSON.stringify(params)}`)
@@ -160,7 +184,7 @@ async function verifyReminderCenterPage(miniProgram) {
   await page.waitFor(200)
   const viewMode = await page.data('viewMode')
   assert(viewMode === 'expiring', `reminder mode did not switch: ${viewMode}`)
-  await page.setData({ reminders: reminderRows(), loading: false })
+  await page.callMethod('applyState', { reminders: reminderRows(), loading: false })
   await page.waitFor(100)
   assert((await page.$$('.reminder-mode.active')).length === 1, 'reminder expiring active tab is missing')
   const activeText = (await textList(await page.$$('.reminder-mode.active'))).join('\n')
@@ -189,7 +213,7 @@ async function verifyReminderCenterPage(miniProgram) {
   const toasts = await miniProgram.evaluate(() => globalThis.__reminderToastCalls || [])
   assert(toasts.some((item) => item.title === '已标记今日跟进'), `reminder followed toast is missing: ${JSON.stringify(toasts)}`)
 
-  await page.setData({ reminders: reminderRows(), loading: false, selectedReminder: null })
+  await page.callMethod('applyState', { reminders: reminderRows(), loading: false, selectedReminder: null })
   await page.callMethod('extend', eventWithDataset({ index: 0 }))
   await page.waitFor(200)
   const extendToasts = await miniProgram.evaluate(() => globalThis.__reminderToastCalls || [])

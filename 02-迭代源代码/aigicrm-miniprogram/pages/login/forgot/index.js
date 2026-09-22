@@ -3,7 +3,8 @@ const { showError } = require('../../../utils/feedback')
 
 function buildStepView(step, current) {
   return {
-    text: `${step} ${current === 1 ? '验证账号' : current === 2 ? '验证身份' : '重置密码'}`,
+    // 【2026-09-22 缺陷修复】标签取决于各步自身而非当前步: 旧逻辑三步同显当前步名(步骤1时 2/3 也显示'验证账号')
+    text: `${step} ${step === 1 ? '验证账号' : step === 2 ? '验证身份' : '重置密码'}`,
     className: step <= current ? 'step active' : 'step'
   }
 }

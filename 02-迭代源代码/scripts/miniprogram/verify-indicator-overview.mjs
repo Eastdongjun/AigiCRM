@@ -70,7 +70,8 @@ async function verifyIndicatorOverviewPage(miniProgram) {
   const page = await miniProgram.reLaunch('/pages/indicator/index')
   await page.waitFor(800)
 
-  await page.setData({
+  // 【2026-09-22 校准】indicator 页走 indicatorView, 须官方 setter(line42)重建
+  await page.callMethod('applyState', {
     loading: false,
     stats: {
       coveredCount: 12,

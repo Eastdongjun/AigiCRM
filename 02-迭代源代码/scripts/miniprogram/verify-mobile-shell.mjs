@@ -40,6 +40,13 @@ async function installShellActionMocks(miniProgram) {
     globalThis.__shellNavigationCalls.push({ url: options && options.url })
     if (options && typeof options.success === 'function') options.success({})
   })
+  // 【2026-09-22 校准】f9b02c22 死按钮修复: tabBar 页(incentive/statistics 等)改走 switchTab,
+  // 只 mock navigateTo 会漏记 → 同口径记录 switchTab
+  await miniProgram.mockWxMethod('switchTab', function (options) {
+    globalThis.__shellNavigationCalls = globalThis.__shellNavigationCalls || []
+    globalThis.__shellNavigationCalls.push({ url: options && options.url })
+    if (options && typeof options.success === 'function') options.success({})
+  })
   await miniProgram.mockWxMethod('showToast', function (options) {
     globalThis.__shellToastCalls = globalThis.__shellToastCalls || []
     globalThis.__shellToastCalls.push({ title: options && options.title, icon: options && options.icon })
@@ -48,7 +55,7 @@ async function installShellActionMocks(miniProgram) {
 }
 
 async function restoreShellActionMocks(miniProgram) {
-  for (const method of ['navigateTo', 'showToast']) {
+  for (const method of ['navigateTo', 'switchTab', 'showToast', 'request']) {
     await miniProgram.restoreWxMethod(method)
   }
 }
@@ -73,6 +80,14 @@ async function enableShellDemoMode(miniProgram) {
 }
 
 async function enablePermissionMode(miniProgram, permissions) {
+  // 【2026-09-22 校准】权限负向段须沙箱化网络: 本机 env.local.js 指向真实测试服时,
+  // 假 token 触发 /api/auth/info 401 → request.js redirectToLoginOnce → 断言跑在登录页(实测)。
+  // mock request 走网络失败语义: app.onShow 的 loadCurrentUser().catch 保留会话, 不触发跳转
+  await miniProgram.mockWxMethod('request', function (options) {
+    if (options && typeof options.fail === 'function') {
+      options.fail({ errMsg: 'request:fail automator-sandbox' })
+    }
+  })
   await miniProgram.evaluate((perms) => {
     const app = getApp()
     app.globalData.demoMode = false
@@ -122,7 +137,9 @@ async function verifyHomePage(miniProgram) {
     ...(await textList(await page.$$('.quick-item'))),
     ...(await textList(await page.$$('.warning-row')))
   ].join('\n')
-  for (const expected of ['AIGICRM', '张三', '我的客户', '今日到期', '新客户', '四项激励', '四项激励上传', '审批中心', '提醒', '客户统计', '华东智能制造集团']) {
+  // 【2026-09-22 校准】f9b02c22 首页重构后预警行渲染 data/demo.js 夹具(经 homeView 视图模型),
+  // 带 expireDate 的演示客户=山西晋能集团中阳煤业; 旧期望"华东智能制造集团"系脚本未随重构更新(结构断言 6入口/1预警行本就通过)
+  for (const expected of ['AIGICRM', '张三', '我的客户', '今日到期', '新客户', '四项激励', '四项激励上传', '审批中心', '提醒', '客户统计', '山西晋能集团中阳煤业']) {
     assert(pageText.includes(expected), `home page missing ${expected}`)
   }
 
@@ -144,7 +161,7 @@ async function verifyHomePage(miniProgram) {
     '/pages/reminder/index',
     '/pages/statistics/index',
     '/pages/sea/index',
-    '/pages/customer/detail/index?id=501&from=home'
+    '/pages/customer/detail/index?id=1&from=home'
   ]) {
     assert(navigations.some((item) => item.url === expectedUrl), `home navigation missing ${expectedUrl}: ${JSON.stringify(navigations)}`)
   }
@@ -214,6 +231,9 @@ async function verifyPcOnlyBoundary(miniProgram) {
     'file:acl:manage',
     'incentive:view',
     'incentive:edit',
+    // 【2026-09-22 校准】应用中心"四项激励上传"入口守 incentive:add(pages/app/index.js:33),
+    // 旧授权集缺此码 → 入口被正确隐藏而断言误报缺失
+    'incentive:add',
     'system:config:view',
     'system:config:edit',
     'sea:view',

@@ -66,7 +66,9 @@ function request(options) {
           resolve(body.data !== undefined ? body.data : body)
           return
         }
-        if (res.statusCode === 401 || res.statusCode === 403 || body.code === 401 || body.code === 403) {
+        // 【2026-09-22 语义修正】只有 401(未认证/失效)才踢登录; 403=已认证但无权,
+        // 此前 403 也触发 redirectToLoginOnce, 会把"无权限动作"放大成"被登出"(reminder 页实测)
+        if (res.statusCode === 401 || body.code === 401) {
           redirectToLoginOnce()
         }
         reject(requestError(body.message || '请求失败', {

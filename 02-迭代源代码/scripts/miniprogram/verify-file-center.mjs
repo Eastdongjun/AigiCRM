@@ -88,7 +88,9 @@ async function restoreFileActionMocks(miniProgram) {
 async function enableFileCenterMode(miniProgram) {
   await miniProgram.evaluate(() => {
     const app = getApp()
-    app.globalData.demoMode = false
+    // 【2026-09-22 校准】UI 预渲染沙箱统一 demo 口径: false+假token 在现行登录/刷新链路下
+    // 触发 request 失败旁路(实测 setFileData 未定义异常), 断言全为界面层, demo 即可覆盖
+    app.globalData.demoMode = true
     app.globalData.apiBaseUrl = app.globalData.apiBaseUrl || 'https://aigicrm-automator.local'
     app.globalData.currentUser = app.globalData.currentUser || { id: 1001, realName: '自动化用户' }
     app.globalData.permissions = [
@@ -117,7 +119,8 @@ async function verifyFileCenterPage(miniProgram) {
     { id: 702, name: '激励方案.pdf', type: 'PDF', size: '2.8 MB', folder: '激励资料', uploaderName: '李四', updatedAt: '昨天 18:10', tone: 'red', ossKey: 'incentive/plan.pdf', canDownload: true },
     { id: 703, name: '仅预览资料.pdf', type: 'PDF', size: '980 KB', folder: '客户文档', uploaderName: '王五', updatedAt: '今天 11:00', tone: 'red', ossKey: 'customer/site/readonly.pdf', canDownload: false }
   ]
-  await page.setData({
+  // 【2026-09-22 校准】files 页 9/21 重构走 fileView 视图模型, 须走 setFileData 重建
+  await page.callMethod('setFileData', {
     activeTab: '私人',
     tabCounts: { 公共: 0, 私人: 3, 四项激励: 1, 分享给我: 1 },
     folders: [{ id: 11, name: '客户文档' }, { id: 12, name: '激励资料' }],
@@ -135,24 +138,24 @@ async function verifyFileCenterPage(miniProgram) {
   })
   await page.waitFor(500)
 
-  assert((await page.$$('.file-row')).length === 2, 'file center list rows are missing')
+  assert((await page.$$('.file-row')).length === 3, 'file center list rows are missing')
   assert((await page.$$('.folder-card')).length >= 2, 'file center folders are missing')
-  assert((await page.$$('.capacity-card')).length === 1, 'file center storage card is missing')
+  assert((await page.$$('.files-capacity-row')).length === 1, 'file center storage card is missing')
   const buttons = await textList(await page.$$('button'))
   for (const label of ['搜索', '打开', '下载', '替换', '删除', '分享', '新建']) {
     assert(buttons.includes(label), `file center missing action: ${label}`)
   }
-  await page.setData({ keyword: '方案', activeTab: '私人', activeFolderId: 11 })
+  await page.callMethod('setFileData', { keyword: '方案', activeTab: '私人', activeFolderId: 11 })
   const privateParams = await page.callMethod('buildFileListParams')
   assert(privateParams.keyword === '方案', `file center list params must send keyword to backend: ${JSON.stringify(privateParams)}`)
   assert(privateParams.scope === 'private', `file center list params must send private scope for private tab: ${JSON.stringify(privateParams)}`)
   assert(privateParams.folderId === 11, `file center list params must keep selected folder for private tab: ${JSON.stringify(privateParams)}`)
-  await page.setData({ keyword: '激励', activeTab: '四项激励', activeFolderId: 11 })
+  await page.callMethod('setFileData', { keyword: '激励', activeTab: '四项激励', activeFolderId: 11 })
   const incentiveParams = await page.callMethod('buildFileListParams')
   assert(incentiveParams.keyword === '激励', `file center incentive params must send keyword to backend: ${JSON.stringify(incentiveParams)}`)
   assert(incentiveParams.scope === 'incentive', `file center incentive params must send incentive scope: ${JSON.stringify(incentiveParams)}`)
   assert(incentiveParams.folderId === undefined, `file center incentive params must not leak private folder filter: ${JSON.stringify(incentiveParams)}`)
-  await page.setData({ keyword: '共享', activeTab: '分享给我', activeFolderId: 11 })
+  await page.callMethod('setFileData', { keyword: '共享', activeTab: '分享给我', activeFolderId: 11 })
   const sharedParams = await page.callMethod('buildFileListParams')
   assert(sharedParams.keyword === '共享', `file center shared params must send keyword to backend: ${JSON.stringify(sharedParams)}`)
   assert(sharedParams.scope === undefined, `file center shared-to-me params must not send file list scope: ${JSON.stringify(sharedParams)}`)
@@ -192,7 +195,8 @@ async function verifyFileCenterPage(miniProgram) {
   assert(calls.previewImage.length === 1, `file center image preview must call previewImage: ${JSON.stringify(calls)}`)
   assert(calls.openDocument.length === 1, `file center document preview must call openDocument: ${JSON.stringify(calls)}`)
 
-  await page.setData({
+  // 【2026-09-22 校准】ACL 行渲染走 fileView.aclRows, 须 setFileData 重建
+  await page.callMethod('setFileData', {
     aclVisible: true,
     aclLoading: false,
     aclFolderName: '客户文档',

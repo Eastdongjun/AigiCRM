@@ -173,10 +173,13 @@ async function verifyUploadPage(miniProgram) {
   await page.waitFor(1000)
 
   const labels = await textList(await page.$$('.label'))
-  for (const label of ['客户 *', '激励分类 *', '团队共享', '文件槽位 *']) {
+  for (const label of ['客户 *', '激励大类 *', '团队共享', '文件槽位 *']) {
     assert(labels.includes(label), `upload page missing label: ${label}`)
   }
 
+  // 【2026-09-22 校准】默认 selectedSlotIndex=0 是隐藏的 fileId 遗留槽(仅旧数据回填, 界面一律隐藏);
+  // 真机流程先选分类把索引拨到可见槽, 沙箱须同样预设到 1(安装前), 否则文件进隐藏槽不渲染
+  await page.setData({ selectedSlotIndex: 1 })
   await page.callMethod('setSelectedSlotFile', '/tmp/aigicrm-preview-test.jpg', '现场照片.jpg', 'image')
   await page.callMethod('setSelectedSlotFile', '/tmp/aigicrm-preview-test-2.jpg', '现场照片-补充.jpg', 'image')
   await page.waitFor(500)
@@ -184,9 +187,9 @@ async function verifyUploadPage(miniProgram) {
   await page.waitFor(500)
 
   const fileSlots = await page.data('fileSlots')
-  assert(fileSlots[0].fileName === '现场照片.jpg', 'upload page selected file name was not set')
-  assert(fileSlots[0].fileKind === 'image', 'upload page selected file kind was not image')
-  assert(fileSlots[0].files.length === 2, 'upload page selected slot must keep multiple files like PC')
+  assert(fileSlots[1].fileName === '现场照片.jpg', 'upload page selected file name was not set')
+  assert(fileSlots[1].fileKind === 'image', 'upload page selected file kind was not image')
+  assert(fileSlots[1].files.length === 2, 'upload page selected slot must keep multiple files like PC')
   assert((await page.$$('.selected-file-row')).length === 2, 'upload page selected-file rows are missing')
   assert((await page.$$('.selected-file-thumb')).length === 2, 'upload page selected image thumbnails are missing')
 
@@ -196,9 +199,10 @@ async function verifyUploadPage(miniProgram) {
   }
 
   await resetAttachmentActionCalls(miniProgram)
-  await page.callMethod('previewSelectedFile', eventWithDataset({ index: 0, fileIndex: 1 }))
+  // 【2026-09-22 校准】文件已随 selectedSlotIndex=1 落在安装前槽(fileSlots[1]), dataset index 同步
+  await page.callMethod('previewSelectedFile', eventWithDataset({ index: 1, fileIndex: 1 }))
   await page.waitFor(100)
-  await page.callMethod('downloadSelectedFile', eventWithDataset({ index: 0, fileIndex: 1 }))
+  await page.callMethod('downloadSelectedFile', eventWithDataset({ index: 1, fileIndex: 1 }))
   await page.waitFor(100)
   let calls = await attachmentActionCalls(miniProgram)
   assert(calls.previewImage.length >= 1, `upload page selected image must call previewImage: ${actionCallSummary(calls)}`)
@@ -208,16 +212,19 @@ async function verifyUploadPage(miniProgram) {
   await page.callMethod('setSelectedSlotFile', '/tmp/aigicrm-preview-test.pdf', '安装方案.pdf', 'file')
   await page.waitFor(100)
   await resetAttachmentActionCalls(miniProgram)
-  await page.callMethod('previewSelectedFile', eventWithDataset({ index: 1 }))
+  // 【2026-09-22 校准】pdf 为安装前槽第 3 个文件(files[2]); 无 fileIndex 时 fallback 到 slot 自身
+  // (fileName=首图) 会误走 previewImage, 必须显式 fileIndex: 2
+  await page.callMethod('previewSelectedFile', eventWithDataset({ index: 1, fileIndex: 2 }))
   await page.waitFor(100)
-  await page.callMethod('downloadSelectedFile', eventWithDataset({ index: 1 }))
+  await page.callMethod('downloadSelectedFile', eventWithDataset({ index: 1, fileIndex: 2 }))
   await page.waitFor(100)
   calls = await attachmentActionCalls(miniProgram)
   assert(calls.openDocument.length >= 1, `upload page selected document must call openDocument: ${actionCallSummary(calls)}`)
   assert(calls.saveFile.length >= 1, `upload page selected document download must call saveFile: ${actionCallSummary(calls)}`)
 
   await enableRealAttachmentMode(miniProgram)
-  await page.setData({
+  // 【2026-09-22 校准】同前: upload 页视图模型须经 setUploadData 重建, 裸 setData 不渲染行
+  await page.callMethod('setUploadData', {
     fileSlots: [
       { key: 'filePreId', label: '安装前', fileName: '历史照片.jpg', filePath: '', fileKind: 'image', files: [{ fileId: 701, fileName: '历史照片.jpg', filePath: '', fileKind: 'image', existing: true }] }
     ]

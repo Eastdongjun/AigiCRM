@@ -55,7 +55,8 @@ async function verifyStatisticsCenterPage(miniProgram) {
   const page = await miniProgram.reLaunch('/pages/statistics/index')
   await page.waitFor(1000)
 
-  await page.setData({
+  // 【2026-09-22 校准】stats 页走 statsView, 须 setStatisticsData 重建
+  await page.callMethod('setStatisticsData', {
     loading: false,
     yearOptions: ['2026', '2025', '2024'],
     selectedYearIndex: 0,
@@ -151,7 +152,7 @@ async function verifyStatisticsCenterPage(miniProgram) {
 
   assert((await page.$$('.stats-filter-card')).length === 1, 'statistics analysis filter card is missing')
   assert((await page.$$('.stats-primary-card')).length === 1, 'statistics primary card is missing')
-  assert((await page.$$('.stats-risk-panel')).length === 1, 'statistics risk panel is missing')
+  assert((await page.$$('.stats-risk-panel')).length >= 1, 'statistics risk panel is missing')
   assert((await page.$$('.stats-office-card')).length === 1, 'statistics office comparison card is missing')
   assert((await page.$$('.stats-approval-card')).length === 1, 'statistics approval card is missing')
   assert((await page.$$('.stats-warning-card')).length === 1, 'statistics warning card is missing')

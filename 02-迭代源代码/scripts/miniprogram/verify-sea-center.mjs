@@ -85,7 +85,12 @@ async function verifySeaCenterPage(miniProgram) {
       status: 'available',
       canClaim: true,
       canEdit: true,
-      canDelete: true
+      canDelete: true,
+      // 【2026-09-22 校准】canClaimNow 等派生字段由加载路径 normalizeSea 生成, 沙箱直注须自带
+      canClaimNow: true,
+      canDeleteNow: true,
+      canShowActions: true,
+      permissionText: '可捞取 可编辑 可删除'
     },
     {
       id: 902,
@@ -100,10 +105,15 @@ async function verifySeaCenterPage(miniProgram) {
       status: 'pending_approval',
       canClaim: false,
       canEdit: false,
-      canDelete: false
+      canDelete: false,
+      canClaimNow: false,
+      canDeleteNow: false,
+      canShowActions: false,
+      permissionText: '仅查看'
     }
   ]
-  await page.setData({
+  // 【2026-09-22 校准】sea 页重构走 seaView, 须 setSeaData 重建
+  await page.callMethod('setSeaData', {
     records,
     stats: { total: 2, newThisMonth: 1, pendingApproval: 1, claimedThisMonth: 0 },
     pools: [{ id: 1, poolName: '自动化公海池' }],
@@ -148,6 +158,10 @@ async function verifySeaCenterPage(miniProgram) {
   assert(filterState.deptId === 21, `sea department filter not selected: ${JSON.stringify(filterState)}`)
   assert(filterState.enterReason === '保护期满', `sea enter-reason filter not selected: ${JSON.stringify(filterState)}`)
 
+  // 【2026-09-22 校准】上方三个筛选 handler 触发 demo 重载覆盖夹具(动作对象变 demo 记录);
+  // 动作断言前重注入, 使 claim/edit/delete 作用于带完整能力位的夹具行
+  await page.callMethod('setSeaData', { records, loading: false })
+  await page.waitFor(200)
   await page.callMethod('claim', eventWithDataset({ index: 0 }))
   await page.waitFor(300)
   await page.callMethod('submitClaim', records[0])

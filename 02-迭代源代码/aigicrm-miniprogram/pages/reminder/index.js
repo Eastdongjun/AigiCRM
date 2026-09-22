@@ -3,7 +3,7 @@ const { submitApproval } = require('../../api/approval')
 const { getDepts } = require('../../api/system')
 const { getCustomerSimpleUsers } = require('../../api/customer')
 const { reminderRecords } = require('../../data/demo')
-const { hasPermission, requireLogin } = require('../../utils/auth')
+const { hasPermission, requireLogin, isAdmin } = require('../../utils/auth')
 const { showError } = require('../../utils/feedback')
 const { isProcessed, markProcessed } = require('../../utils/demo-reminders')
 
@@ -196,7 +196,12 @@ Page({
       return
     }
     this.loadFilters()
-    ensureExpiring().finally(() => this.refresh())
+    // 【2026-09-22 缺陷修复】ensure-expiring 后端已收紧为 admin-only(P1-09 批次): 普通用户调用必 403,
+    // 且此前 403 也会触发 request.js 踢登录——非 admin 打开提醒页会被登出。到期提醒由服务端
+    // CustomerExpireTask 每晚生成兜底, 客户端补生成仅 admin 有意义; demo 档不发真实请求
+    const app = getApp()
+    const catchUp = app.globalData.demoMode || !isAdmin() ? Promise.resolve() : ensureExpiring().catch(() => {})
+    catchUp.finally(() => this.refresh())
   },
 
   onKeywordInput(e) {

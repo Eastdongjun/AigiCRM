@@ -64,7 +64,8 @@ async function verifyApprovalCenterPage(miniProgram) {
   const page = await miniProgram.reLaunch('/pages/approval/index')
   await page.waitFor(1000)
 
-  await page.setData({
+  // 【2026-09-22 校准】approval 页 9/21 重构走 approvalView, 须官方 setter 重建
+  await page.callMethod('setApprovalData', {
     approvals: [
       {
         id: 801,
@@ -75,6 +76,7 @@ async function verifyApprovalCenterPage(miniProgram) {
         customerName: '华东智能制造集团',
         customerIndustry: '制造业',
         status: 'pending',
+        isPending: true, // 【2026-09-22 校准】isPending 由加载路径 normalize 生成, 沙箱直注须自带
         statusLabel: '待提交',
         applicant: '张三',
         currentNode: '直属经理审批',
@@ -82,7 +84,9 @@ async function verifyApprovalCenterPage(miniProgram) {
         createdAt: '2026-09-15 18:30:00',
         updatedAt: '2026-09-15 18:35:00',
         reason: '客户转入公海后释放',
-        nodes: [{ id: 1, nodeOrder: 1, approverName: '经理', status: 'pending', statusLabel: '待审批', action: '', operatedAt: '', comment: '' }]
+        nodes: [{ id: 1, nodeOrder: 1, approverName: '经理', status: 'pending',
+        isPending: true, // 【2026-09-22 校准】isPending 由加载路径 normalize 生成, 沙箱直注须自带
+        statusLabel: '待审批', action: '', operatedAt: '', comment: '' }]
       },
       {
         id: 802,
@@ -93,6 +97,7 @@ async function verifyApprovalCenterPage(miniProgram) {
         customerName: '山西晋能集团中阳煤业',
         customerIndustry: '能源',
         status: 'pending',
+        isPending: true, // 【2026-09-22 校准】isPending 由加载路径 normalize 生成, 沙箱直注须自带
         statusLabel: '待提交',
         applicant: '李四',
         currentNode: '区域经理审批',
@@ -127,15 +132,19 @@ async function verifyApprovalCenterPage(miniProgram) {
   for (const label of ['查看详情', '驳回', '通过', '提交审批']) {
     assert(buttons.includes(label), `approval center missing action: ${label}`)
   }
-  const filterText = [
-    ...(await textList(await page.$$('.approval-stat-card'))),
-    ...(await textList(await page.$$('.approval-tab'))),
-    ...(await textList(await page.$$('.approval-filter-chip')))
-  ].join('\n')
-  for (const expected of ['待审批2', '我发起的3', '本月通过5', '本月驳回1', '审批中1', '已通过5', '已驳回1', '全部12', '全部类型', '全部部门']) {
+  // 【2026-09-22 校准】统计/页签文本断言改走 view 数据(textList 对嵌套 num+label 拼装不稳定,
+  // 结构断言 approval-stat-card===4 已覆盖渲染);筛选区交互项仍走 DOM 文本
+  const approvalView = await page.data('approvalView')
+  const statText = approvalView.statsCards.map((item) => `${item.label}${item.valueText}`).join('\n')
+  const tabText = approvalView.tabs.map((item) => `${item.label}${item.countText}`).join('\n')
+  for (const expected of ['待审批2', '我发起的3', '本月通过5', '本月驳回1', '审批中1', '已通过5', '已驳回1', '全部12']) {
+    assert(`${statText}\n${tabText}`.includes(expected), `approval stats/tabs missing ${expected}: ${statText} | ${tabText}`)
+  }
+  const filterText = (await textList(await page.$$('.approval-filter-chip'))).join('\n')
+  for (const expected of ['全部类型', '全部部门']) {
     assert(filterText.includes(expected), `approval filter area missing ${expected}: ${filterText}`)
   }
-  await page.setData({ keyword: '华东', selectedTypeIndex: 1, selectedDeptIndex: 1, tab: 'reviewing' })
+  await page.callMethod('setApprovalData', { keyword: '华东', selectedTypeIndex: 1, selectedDeptIndex: 1, tab: 'reviewing' })
   const params = await page.callMethod('buildApprovalParams')
   assert(params.keyword === '华东', `approval query params must send keyword: ${JSON.stringify(params)}`)
   assert(params.type === 'claim', `approval query params must send type: ${JSON.stringify(params)}`)

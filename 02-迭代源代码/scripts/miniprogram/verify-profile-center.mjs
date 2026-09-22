@@ -37,6 +37,12 @@ async function installProfileActionMocks(miniProgram) {
     globalThis.__profileModalCalls = []
     globalThis.__profileRedirectCalls = []
   })
+  // 【2026-09-22 校准】tabBar 页入口(incentive/statistics)走 switchTab, 须同口径记录
+  await miniProgram.mockWxMethod('switchTab', function (options) {
+    globalThis.__profileNavigationCalls = globalThis.__profileNavigationCalls || []
+    globalThis.__profileNavigationCalls.push({ url: options && options.url })
+    if (options && typeof options.success === 'function') options.success({})
+  })
   await miniProgram.mockWxMethod('navigateTo', function (options) {
     globalThis.__profileNavigationCalls = globalThis.__profileNavigationCalls || []
     globalThis.__profileNavigationCalls.push({ url: options && options.url })
@@ -60,7 +66,7 @@ async function installProfileActionMocks(miniProgram) {
 }
 
 async function restoreProfileActionMocks(miniProgram) {
-  for (const method of ['navigateTo', 'redirectTo', 'showToast', 'showModal']) {
+  for (const method of ['navigateTo', 'switchTab', 'redirectTo', 'showToast', 'showModal']) {
     await miniProgram.restoreWxMethod(method)
   }
 }
@@ -81,7 +87,8 @@ async function verifyProfileHome(miniProgram) {
   const page = await miniProgram.reLaunch('/pages/profile/index')
   await page.waitFor(1000)
 
-  await page.setData({
+  // 【2026-09-22 校准】profile 页走 profileView, 须 applyState 重建
+  await page.callMethod('applyState', {
     userName: '张三',
     roleName: '销售经理',
     orgName: '华东办事处',
