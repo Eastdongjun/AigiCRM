@@ -88,3 +88,10 @@
 - ③ SBOM/CVE 初筛: `engineering/evidence/sbom-20260922/`(CycloneDX 1.6, backend 191+frontend 87 组件; OSV 初筛 75/278 包命中 550 引用, advisory 区间噪音为主, 真升级候选 bcprov-jdk15on 1.70/poi 4.1.2/httpclient 4.5.13)
 - ④ 矩阵脚本+强口令: verify-perm-matrix.sh 新增 4 用例(actuator 公网不可达+容器内 health UP 无细节+metrics 403), 回归 **20/20 PASS**; 测试服 admin 已轮换 20 位强口令(旧 123456 实测 401, 新口令实测 200; 存服务器 ~/aigicrm/.env AIGI_ADMIN_PASS); 运维手册过时 admin123 行已修正
 - 首轮断言教训: health 断言初版打公网 $BASE 被 nginx 前端兜底 HTML 混淆 → 修正为"公网不可达(nginx 收敛)+容器内直验"双层口径; 匿名拒绝断言 401 → 403(SecurityConfig BS-A09 统一 403 语义, 测试服实测一致)
+
+---
+
+# Agent-Native 全生命周期审计(2026-09-22, 框架 V2.0 168 项)
+- 产出: `07-agent-native-audit-20260922.md`(基线 d8a6a239; 5 并行只读代理分域取证+总控裁定)
+- 结论: 实评 156 项(≈PASS97/RA27/FAIL10/NC22; D19 全 N/A); **P0×1**=真机UAT/E2E未闭环(13旅程清单已备); P1×15+P2/P3×15 详见报告
+- 关键裁定: 框架基线 P0 的"状态机白名单/仓内集成测试"两项目前无运行时暴露实证且集成验证以远程脚本形态存在 → 降 P1(理由已写明); 产品裁决(单集团)继续作为多租户相关 RA 依据
