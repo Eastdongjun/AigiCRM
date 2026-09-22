@@ -17,36 +17,28 @@
       </div>
     </div>
 
-    <!-- 统计卡片 -->
-    <div class="sea-stats">
-      <div class="sea-stat">
-        <div class="sea-stat-icon bg-blue"><el-icon :size="22"><Document /></el-icon></div>
-        <div class="sea-stat-body">
-          <div class="sea-stat-num blue">{{ stats.total || 0 }}</div>
-          <div class="sea-stat-label">池内待捞</div>
-        </div>
+    <!-- 统计 · 深蓝条(与全站设计语言一致) -->
+    <div class="sea-strip">
+      <div class="ss-metric">
+        <div class="ss-num">{{ stats.total || 0 }}</div>
+        <div class="ss-lbl">池内待捞</div>
       </div>
-      <div class="sea-stat">
-        <div class="sea-stat-icon bg-green"><el-icon :size="22"><Right /></el-icon></div>
-        <div class="sea-stat-body">
-          <div class="sea-stat-num" :class="stats.newThisMonth ? 'green' : 'zero'">{{ stats.newThisMonth || 0 }}</div>
-          <div class="sea-stat-label">本月入池</div>
-        </div>
+      <div class="ss-divider"></div>
+      <div class="ss-metric">
+        <div class="ss-num">{{ stats.newThisMonth || 0 }}</div>
+        <div class="ss-lbl">本月入池</div>
       </div>
-      <div class="sea-stat">
-        <div class="sea-stat-icon bg-orange"><el-icon :size="22"><Clock /></el-icon></div>
-        <div class="sea-stat-body">
-          <div class="sea-stat-num orange">{{ stats.pendingApproval || 0 }}</div>
-          <div class="sea-stat-label">待审批捞取</div>
-        </div>
+      <div class="ss-divider"></div>
+      <div class="ss-metric">
+        <div class="ss-num" :class="{ 'ss-alert': (stats.pendingApproval || 0) > 0 }">{{ stats.pendingApproval || 0 }}</div>
+        <div class="ss-lbl">待审批捞取</div>
       </div>
-      <div class="sea-stat">
-        <div class="sea-stat-icon bg-green2"><el-icon :size="22"><CircleCheck /></el-icon></div>
-        <div class="sea-stat-body">
-          <div class="sea-stat-num" :class="stats.claimedThisMonth ? 'green' : 'zero'">{{ stats.claimedThisMonth || 0 }}</div>
-          <div class="sea-stat-label">本月成功</div>
-        </div>
+      <div class="ss-divider"></div>
+      <div class="ss-metric">
+        <div class="ss-num">{{ stats.claimedThisMonth || 0 }}</div>
+        <div class="ss-lbl">本月成功</div>
       </div>
+      <div class="ss-tip">{{ currentPool ? currentPool.poolName : '全部公海池' }} · {{ currentPool ? (currentPool.regionNames || '全部区域') : pools.length + ' 个池' }}</div>
     </div>
 
     <!-- 筛选栏 -->
@@ -260,17 +252,19 @@ onBeforeUnmount(() => { if(resizeObserver) resizeObserver.disconnect() })
 .sea-hero-sub { font-size:13px; color:#909399 }
 .sea-hero-right { display:flex; gap:8px; align-items:center }
 
-/* Stats */
-.sea-stats { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:14px; flex-shrink:0 }
-.sea-stat { background:#fff; border-radius:10px; padding:16px 18px; display:flex; align-items:center; gap:14px; box-shadow:0 1px 3px rgba(0,0,0,.04) }
-.sea-stat-icon { width:44px; height:44px; border-radius:12px; display:flex; align-items:center; justify-content:center }
-.bg-blue { background:#ecf5ff; color:#409eff } .bg-green { background:#f0f9eb; color:#67c23a }
-.bg-orange { background:#fdf6ec; color:#e6a23c } .bg-green2 { background:#f0f9eb; color:#67c23a }
-.sea-stat-num { font-size:26px; font-weight:700; line-height:1.1 }
-.sea-stat-num.blue { color:#409eff } .sea-stat-num.green { color:#67c23a } .sea-stat-num.orange { color:#e6a23c }
-/* 0 值不再用成功绿，避免把「本月 0 个」读成「达标」 */
-.sea-stat-num.zero { color: var(--ds-text-3, #6b7280) }
-.sea-stat-label { font-size:12px; color:#909399; margin-top:2px }
+/* Stats · 深蓝条 */
+.sea-strip {
+  display:flex; align-items:center; gap:24px;
+  background:linear-gradient(135deg,#16337a 0%,#1d4ed8 58%,#2563eb 100%);
+  border-radius:12px; padding:14px 24px; margin-bottom:14px; flex-shrink:0;
+  box-shadow:0 6px 20px rgba(22,51,122,.14)
+}
+.ss-metric { min-width:76px }
+.ss-num { font-size:24px; font-weight:700; color:#fff; line-height:1.2 }
+.ss-num.ss-alert { color:#fca5a5 }
+.ss-lbl { font-size:12px; color:rgba(255,255,255,.66); margin-top:2px }
+.ss-divider { width:1px; height:34px; background:rgba(255,255,255,.18) }
+.ss-tip { margin-left:auto; font-size:12px; color:rgba(255,255,255,.55) }
 
 /* Filter */
 .sea-filter { background:#fff; border-radius:10px; padding:14px 18px; margin-bottom:12px; display:flex; justify-content:space-between; align-items:center; box-shadow:0 1px 3px rgba(0,0,0,.04); flex-shrink:0 }
@@ -278,7 +272,7 @@ onBeforeUnmount(() => { if(resizeObserver) resizeObserver.disconnect() })
 .sea-status-tabs { display:flex; gap:4px; background:#f2f4f7; padding:3px; border-radius:8px }
 .sea-tab { padding:5px 16px; border-radius:7px; font-size:13px; cursor:pointer; color:#606266; transition:all .2s; font-weight:500 }
 .sea-tab:hover { background:rgba(255,255,255,.6) }
-.sea-tab.active { background:#fff; color:#409eff; font-weight:600; box-shadow:0 1px 3px rgba(0,0,0,.08) }
+.sea-tab.active { background:#fff; color:#1d4ed8; font-weight:600; box-shadow:0 1px 3px rgba(0,0,0,.08) }
 .sea-filters { display:flex; gap:8px; align-items:center }
 .f-sel { width:120px } .f-kw { width:200px } .f-dept { width:180px }
 

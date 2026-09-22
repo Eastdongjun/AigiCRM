@@ -12,10 +12,9 @@
       </el-tab-pane>
     </el-tabs>
 
-    <!-- 筛选栏 -->
+    <!-- 筛选栏(搜索已合并至顶部主搜索框,此处只留维度筛选) -->
     <div class="filter-bar">
-      <el-input v-model="filters.search" placeholder="搜索..." size="small" clearable style="width:160px" />
-      <el-select v-model="filters.industry" placeholder="行业" size="small" clearable style="width:100px">
+      <el-select v-model="filters.industry" placeholder="行业" size="small" clearable style="width:110px">
         <el-option v-for="ind in allIndustries" :key="ind" :label="ind" :value="ind" />
       </el-select>
       <el-select v-model="filters.status" placeholder="状态" size="small" clearable style="width:90px">

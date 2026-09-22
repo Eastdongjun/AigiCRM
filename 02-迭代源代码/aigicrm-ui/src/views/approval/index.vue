@@ -10,61 +10,29 @@
       </div>
     </div>
 
-    <!-- 统计卡片 -->
-    <el-row :gutter="16" class="stat-cards">
-      <el-col :span="6">
-        <el-card shadow="hover" class="stat-card" @click="activeTab = 'pending'; loadData()">
-          <div class="stat-body">
-            <div class="stat-icon-wrap orange-bg">
-              <el-icon :size="24"><Clock /></el-icon>
-            </div>
-            <div>
-              <div class="stat-label">待审批</div>
-              <div class="stat-value orange">{{ stats.pending || 0 }}</div>
-            </div>
-          </div>
-        </el-card>
-      </el-col>
-      <el-col :span="6">
-        <el-card shadow="hover" class="stat-card" @click="activeTab = 'mine'; loadData()">
-          <div class="stat-body">
-            <div class="stat-icon-wrap blue-bg">
-              <el-icon :size="24"><Promotion /></el-icon>
-            </div>
-            <div>
-              <div class="stat-label">我发起的</div>
-              <div class="stat-value blue">{{ stats.mine || 0 }}</div>
-            </div>
-          </div>
-        </el-card>
-      </el-col>
-      <el-col :span="6">
-        <el-card shadow="hover" class="stat-card" @click="activeTab = 'approved'; loadData()">
-          <div class="stat-body">
-            <div class="stat-icon-wrap green-bg">
-              <el-icon :size="24"><CircleCheck /></el-icon>
-            </div>
-            <div>
-              <div class="stat-label">本月通过</div>
-              <div class="stat-value green">{{ stats.approvedThisMonth || 0 }}</div>
-            </div>
-          </div>
-        </el-card>
-      </el-col>
-      <el-col :span="6">
-        <el-card shadow="hover" class="stat-card" @click="activeTab = 'rejected'; loadData()">
-          <div class="stat-body">
-            <div class="stat-icon-wrap red-bg">
-              <el-icon :size="24"><CircleClose /></el-icon>
-            </div>
-            <div>
-              <div class="stat-label">本月驳回</div>
-              <div class="stat-value red">{{ stats.rejectedThisMonth || 0 }}</div>
-            </div>
-          </div>
-        </el-card>
-      </el-col>
-    </el-row>
+    <!-- 统计 · 深蓝条(点击指标直达对应Tab,与全站设计语言一致) -->
+    <div class="appr-strip">
+      <div class="ap-metric" @click="activeTab = 'pending'; loadData()">
+        <div class="ap-num">{{ stats.pending || 0 }}</div>
+        <div class="ap-lbl">待审批</div>
+      </div>
+      <div class="ap-divider"></div>
+      <div class="ap-metric" @click="activeTab = 'mine'; loadData()">
+        <div class="ap-num">{{ stats.mine || 0 }}</div>
+        <div class="ap-lbl">我发起的</div>
+      </div>
+      <div class="ap-divider"></div>
+      <div class="ap-metric" @click="activeTab = 'approved'; loadData()">
+        <div class="ap-num">{{ stats.approvedThisMonth || 0 }}</div>
+        <div class="ap-lbl">本月通过</div>
+      </div>
+      <div class="ap-divider"></div>
+      <div class="ap-metric" @click="activeTab = 'rejected'; loadData()">
+        <div class="ap-num" :class="{ 'ap-alert': (stats.rejectedThisMonth || 0) > 0 }">{{ stats.rejectedThisMonth || 0 }}</div>
+        <div class="ap-lbl">本月驳回</div>
+      </div>
+      <div class="ap-tip">点击指标直达对应状态 · 实时同步今日 {{ stats.all || 0 }} 条</div>
+    </div>
 
     <!-- Tab 栏 -->
     <el-tabs v-model="activeTab" @tab-change="search" style="margin-bottom: 0">
@@ -493,27 +461,19 @@ onBeforeUnmount(() => {
 .page-desc { color: #999; font-size: 13px; font-weight: normal; margin-left: 8px; }
 .header-right-info { display: flex; align-items: center; gap: 6px; color: #67c23a; font-size: 13px; }
 
-.stat-cards { margin-bottom: 12px; }
-.stat-card { border-radius: 10px; cursor: pointer; transition: transform 0.2s; }
-.stat-card:hover { transform: translateY(-2px); }
-.stat-body { display: flex; align-items: center; gap: 16px; }
-.stat-icon-wrap {
-  width: 48px; height: 48px;
-  border-radius: 12px;
-  display: flex; align-items: center; justify-content: center;
-  flex-shrink: 0;
+/* 统计 · 深蓝条 */
+.appr-strip {
+  display: flex; align-items: center; gap: 24px;
+  background: linear-gradient(135deg, #16337a 0%, #1d4ed8 58%, #2563eb 100%);
+  border-radius: 12px; padding: 14px 24px; margin-bottom: 12px;
+  box-shadow: 0 6px 20px rgba(22, 51, 122, .14);
 }
-.blue-bg { background: rgba(64,158,255,0.15); color: #409eff; }
-.green-bg { background: rgba(103,194,58,0.15); color: #67c23a; }
-.orange-bg { background: rgba(230,162,60,0.15); color: #e6a23c; }
-.red-bg { background: rgba(245,108,108,0.15); color: #f56c6c; }
-.stat-label { color: #999; font-size: 13px; }
-.stat-value { font-size: 32px; font-weight: bold; margin-top: 2px; }
-.stat-value.blue { color: #409eff; }
-.stat-value.orange { color: #e6a23c; }
-.stat-value.green { color: #67c23a; }
-.stat-value.red { color: #f56c6c; }
-
+.ap-metric { min-width: 76px; cursor: pointer }
+.ap-num { font-size: 24px; font-weight: 700; color: #fff; line-height: 1.2 }
+.ap-num.ap-alert { color: #fca5a5 }
+.ap-lbl { font-size: 12px; color: rgba(255, 255, 255, .66); margin-top: 2px }
+.ap-divider { width: 1px; height: 34px; background: rgba(255, 255, 255, .18) }
+.ap-tip { margin-left: auto; font-size: 12px; color: rgba(255, 255, 255, .55) }
 .tab-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 4px; }
 .dot-orange { background: #e6a23c; }
 .dot-blue { background: #409eff; }

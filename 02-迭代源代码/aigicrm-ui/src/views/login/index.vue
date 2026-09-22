@@ -8,9 +8,9 @@
         <h1 class="system-title">{{ systemName }}</h1>
         <p class="system-subtitle">{{ systemSubtitle }}</p>
         <ul class="features">
-          <li>客户管理</li>
-          <li>阶段推进</li>
-          <li>数据洞察</li>
+          <li>客户 360° 经营台账</li>
+          <li>公海流转与到期看护</li>
+          <li>四项激励 · 数据洞察</li>
         </ul>
       </div>
       <div class="login-right">
@@ -147,7 +147,7 @@ const handleLogin = async () => {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(180deg, #022d57 0%, #02438a 40%, #04549c 100%);
+  background: linear-gradient(180deg, #0d1733 0%, #13255e 40%, #1d4ed8 100%);
 }
 .login-box {
   display: flex;
@@ -159,7 +159,7 @@ const handleLogin = async () => {
 }
 .login-left {
   flex: 0 0 42%;
-  background: linear-gradient(135deg, #022d57 0%, #033e7a 60%, #024a94 100%);
+  background: linear-gradient(135deg, #0d1733 0%, #16337a 60%, #1d4ed8 100%);
   padding: 48px 40px 40px 48px;
   display: flex;
   flex-direction: column;
@@ -173,7 +173,7 @@ const handleLogin = async () => {
   top: 0;
   bottom: 0;
   width: 2px;
-  background: linear-gradient(180deg, #1990ff, #47a5ff, #1990ff);
+  background: linear-gradient(180deg, #2563eb, #6083e4, #2563eb);
 }
 .brand {
   display: flex;
@@ -184,14 +184,14 @@ const handleLogin = async () => {
 .brand-icon {
   width: 36px;
   height: 36px;
-  background: linear-gradient(135deg, #1990ff, #47a5ff);
+  background: linear-gradient(135deg, #2563eb, #6083e4);
   border-radius: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
   color: #fff;
   font-weight: bold;
-  box-shadow: 0 4px 12px rgba(25, 144, 255, 0.35);
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.35);
 }
 .brand-logo-img {
   width: 36px;
@@ -211,7 +211,7 @@ const handleLogin = async () => {
   letter-spacing: 4px;
 }
 .system-title :deep(.highlight) {
-  background: linear-gradient(90deg, #47a5ff, #79bcff);
+  background: linear-gradient(90deg, #6083e4, #93b0ec);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -227,18 +227,21 @@ const handleLogin = async () => {
   padding: 0;
 }
 .features li {
-  padding: 6px 0;
+  padding: 7px 0;
   font-size: 14px;
-  color: rgba(255, 255, 255, 0.65);
+  color: rgba(255, 255, 255, 0.72);
   letter-spacing: 0.5px;
 }
 .features li::before {
-  content: '';
-  display: inline-block;
-  width: 5px;
-  height: 5px;
+  content: '✓';
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
   border-radius: 50%;
-  background: #47a5ff;
+  background: rgba(96, 131, 228, .35);
+  font-size: 11px;
   margin-right: 10px;
   vertical-align: middle;
 }
@@ -258,7 +261,7 @@ const handleLogin = async () => {
   top: 0;
   bottom: 0;
   width: 4px;
-  background: linear-gradient(180deg, #1990ff, #47a5ff, #1990ff);
+  background: linear-gradient(180deg, #2563eb, #6083e4, #2563eb);
 }
 .welcome {
   color: #8a9bb5;
@@ -275,7 +278,7 @@ const handleLogin = async () => {
   margin-bottom: 36px;
 }
 .form-title .highlight {
-  color: #1990ff;
+  color: #2563eb;
 }
 .form-label {
   display: block;
@@ -292,7 +295,7 @@ const handleLogin = async () => {
   margin-bottom: 28px;
 }
 .forgot-link {
-  color: #1990ff;
+  color: #2563eb;
   font-size: 13px;
   text-decoration: none;
 }
@@ -306,12 +309,12 @@ const handleLogin = async () => {
   font-size: 16px;
   letter-spacing: 6px;
   border-radius: 6px;
-  background: linear-gradient(135deg, #06539c 0%, #0d67ba 100%) !important;
+  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%) !important;
   border: none !important;
-  box-shadow: 0 4px 14px rgba(6, 83, 156, 0.35);
+  box-shadow: 0 4px 14px rgba(29, 78, 216, 0.35);
 }
 .login-btn:hover {
-  background: linear-gradient(135deg, #04467f 0%, #0a59a5 100%) !important;
-  box-shadow: 0 6px 20px rgba(6, 83, 156, 0.45);
+  background: linear-gradient(135deg, #173ead 0%, #1d4ed8 100%) !important;
+  box-shadow: 0 6px 20px rgba(29, 78, 216, 0.45);
 }
 </style>

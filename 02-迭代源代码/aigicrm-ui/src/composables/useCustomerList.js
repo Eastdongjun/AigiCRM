@@ -111,7 +111,9 @@ export function useCustomerList() {
   const currentTabData = computed(() => {
     const tab = tabs.value.find(t => t.type === activeTab.value)
     if (!tab) return []
-    return filterCustomers(tab.data, filters.search, filters, advFilter, {
+    // 【2026-09-23 UI】搜索合并:原 filters.search(表内第二个搜索框)与顶部 searchText 并存致同页双搜索框;
+    // 统一由顶部 searchText 驱动(同时作用于全量与当前Tab),filters.search 仅作兼容字段保留
+    return filterCustomers(tab.data, searchText.value, filters, advFilter, {
       uidsSource: tableData.value, orgKeys: ['officeId', 'deptId'],
     })
   })
