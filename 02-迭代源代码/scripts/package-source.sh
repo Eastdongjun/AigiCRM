@@ -18,7 +18,10 @@ INTERNAL_EX=( "${BASE_EX[@]}"
 # 外发档另排除: 运维/运行手册文档、部署与工程脚本(实测携带环境地址/部署细节)、本地环境档
 EXTERNAL_EX=( "${INTERNAL_EX[@]}"
   -x "*/deploy*.env*" "*aigicrm-deploy.env.example" "*/docker-compose*.yml" "*/nginx/*" "*/ssl/*"
-  -x "*/docs/*" "*/MIGRATION-LINEAGE.md" "*/scripts/*" "*env.local*"
+  # 2026-09-22 修正: zip -x 的 */X 单层星不跨目录, MIGRATION-LINEAGE 实居 db/migration/ 深层,
+  # 旧模式 */MIGRATION-LINEAGE.md 对包内 02-迭代源代码/.../db/migration/ 不生效 → 改无斜杠全层匹配;
+  # 同理 deploy/cleanroom/ 工程脚本(环境口径)整目录排除
+  -x "*/docs/*" "*MIGRATION-LINEAGE.md" "*/scripts/*" "*env.local*" "*/deploy/*"
   -x "*/engineering/*" "*/config/env*.js" "*/FROZEN-SHA256.txt" )
 
 cd "$ROOT/.."

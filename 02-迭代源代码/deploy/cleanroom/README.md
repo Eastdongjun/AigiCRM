@@ -2,7 +2,7 @@
 
 目的:在开发机上以**全新 Docker 栈 + 空 MySQL + Flyway 全量重放**复现"从零部署"路径,验证迁移链、prod 档启动自检、健康检查与最小冒烟。对应《2026-09-22 全景审查总报告》"Clean Room 部署"最低门槛项。
 
-与测试/生产的关系:独立 project(`aigicrm-cleanroom`)、独立端口(33306/38080)、独立卷与网络;不触碰生产 39.99.35.218,不复用本机既有 aigicrm-local-mysql(3306)/aigicrm-local-redis-pub(6380)。
+与测试/生产的关系:独立 project(`aigicrm-cleanroom`)、独立端口(33306/38080)、独立卷与网络;不触碰生产(地址见运维手册,经内部渠道获取),不复用本机既有 aigicrm-local-mysql(3306)/aigicrm-local-redis-pub(6380)。
 
 ## 文件
 
