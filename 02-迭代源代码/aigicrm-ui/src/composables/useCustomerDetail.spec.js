@@ -95,7 +95,8 @@ describe('useCustomerDetail 激励Tab文件能力', () => {
   // 【PR-09】客户转移: 提交 transfer 审批, extraData 携带 newOwnerId; 未选/选当前负责人拦截
   it('confirmTransfer 提交转移审批且载荷含 newOwnerId', async () => {
     detail.customer.value = { id: 1, customerId: 1, customerName: '测试客户', ownerId: 7 }
-    detail.customerId && (detail.customerId.value = 1)
+    // customerId 是 computed(route.params.id 派生, mock 已置 '1'), 旧代码硬写 .value 触发
+    // "Write operation failed: computed value is readonly" Vue warn 且写入静默失败——删除该无效写
     detail.transferUserId.value = 9
     submitApproval.mockResolvedValueOnce({ data: null })
     await detail.confirmTransfer()
@@ -108,7 +109,6 @@ describe('useCustomerDetail 激励Tab文件能力', () => {
 
   it('confirmTransfer 未选接收人/选当前负责人时不提交', async () => {
     detail.customer.value = { id: 1, ownerId: 7 }
-    detail.customerId && (detail.customerId.value = 1)
     detail.transferUserId.value = null
     await detail.confirmTransfer()
     detail.transferUserId.value = 7
