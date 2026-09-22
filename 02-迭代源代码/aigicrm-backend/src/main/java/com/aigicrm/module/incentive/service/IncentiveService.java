@@ -373,11 +373,27 @@ public class IncentiveService {
         if (update.getSpecificProduct() != null) existing.setSpecificProduct(update.getSpecificProduct());
         if (update.getPreInstallQuestion() != null) existing.setPreInstallQuestion(update.getPreInstallQuestion());
         // 文件字段 + 分享开关（【2026-08-08 分享制】本人随时可开关分享）
+        boolean fileTouched = update.getFilePreId() != null || update.getFileMidId() != null
+                || update.getFilePostId() != null || update.getFileId() != null || update.getFileTrackId() != null;
         if (update.getFilePreId() != null) existing.setFilePreId(update.getFilePreId());
         if (update.getFileMidId() != null) existing.setFileMidId(update.getFileMidId());
         if (update.getFilePostId() != null) existing.setFilePostId(update.getFilePostId());
         if (update.getFileId() != null) existing.setFileId(update.getFileId());
         if (update.getFileTrackId() != null) existing.setFileTrackId(update.getFileTrackId());
+        // 【DeepSeek四审 P1 修复 2026-09-22】update 提供文件槽时与 create 同口径核对归属:
+        // 旧代码只赋值不校验, 填他人/不存在文件 ID 也能保住上传材料分。核对对象=合并后的 existing
+        if (fileTouched) {
+            List<Long> ids = collectFileIds(existing);
+            if (!ids.isEmpty()) {
+                Long currentUserId = SecurityUtils.getCurrentUserId();
+                Long existCount = fileMapper.selectCount(new LambdaQueryWrapper<BizFile>()
+                        .in(BizFile::getId, ids)
+                        .eq(BizFile::getUploaderId, currentUserId));
+                if (existCount == null || existCount != ids.size()) {
+                    throw new BusinessException("包含无效文件引用，请重新上传");
+                }
+            }
+        }
         if (update.getRemark() != null) existing.setRemark(update.getRemark());
         // 【2026-08-12】分享开关仅本人可改：admin/can_edit 编辑他人记录时忽略 shared，保持原值
         if (update.getShared() != null) {

@@ -52,7 +52,11 @@ public class SysUserController {
     @PutMapping("/{id}")
     @PreAuthorize("hasAnyAuthority('system:user:edit','system:org:admin')")
     public Result<Void> update(@PathVariable Long id, @RequestBody SysUser user) {
-        if (SecurityUtils.isOrgAdmin() && !orgAdminService.canManageUser(id)) throw new BusinessException("无权操作该用户");
+        // 【DeepSeek四审 P0-1 修复 2026-09-22】旧守卫 isOrgAdmin()&&!canManageUser 对非 orgAdmin 调用方
+        // 整体短路——持 system:user:edit 的行政角色实测可 PUT /api/system/users/1 禁用/篡改 admin。
+        // 反转为: 非平台 admin 一律过 canManageUser(内部: 非 orgAdmin 恒 false / orgAdmin 受组织范围+
+        // H1 admin 目标保护), 语义与 create 的 canManageOrg 同构
+        if (!SecurityUtils.isAdmin() && !orgAdminService.canManageUser(id)) throw new BusinessException("无权操作该用户");
         user.setId(id);
         userService.update(user);
         return Result.ok();
@@ -62,7 +66,8 @@ public class SysUserController {
     @PreAuthorize("hasAnyAuthority('system:user:edit','system:org:admin')")
     @AigicrmLog(module = "人员", action = "重置密码", targetType = "user")
     public Result<String> resetPassword(@PathVariable Long id) {
-        if (SecurityUtils.isOrgAdmin() && !orgAdminService.canManageUser(id)) throw new BusinessException("无权操作该用户");
+        // 同 P0-1: 非 admin 一律过 canManageUser(服务层另有 H1 admin 目标兜底, 此处双闸)
+        if (!SecurityUtils.isAdmin() && !orgAdminService.canManageUser(id)) throw new BusinessException("无权操作该用户");
         // 【2026-08-14 安全 P0】随机临时口令随响应返回，管理员转交用户并提醒首登改密
         return Result.ok(userService.resetPassword(id));
     }
@@ -77,7 +82,8 @@ public class SysUserController {
     @PreAuthorize("hasAnyAuthority('system:user:delete','system:org:admin')")
     @DeleteMapping("/{id}")
     public Result<Void> delete(@PathVariable Long id) {
-        if (SecurityUtils.isOrgAdmin() && !orgAdminService.canManageUser(id)) throw new BusinessException("无权操作该用户");
+        // 同 P0-1: 非 admin 一律过 canManageUser
+        if (!SecurityUtils.isAdmin() && !orgAdminService.canManageUser(id)) throw new BusinessException("无权操作该用户");
         userService.deleteUser(id);
         return Result.ok();
     }

@@ -112,8 +112,9 @@ public class AuthService {
         }
 
         // 登录成功，清除失败计数
+        // 【DeepSeek四审 P1 修复 2026-09-22】只清"当前用户名"维度失败计数; IP 维度不再被成功登录清零
+        // (旧逻辑允许攻击者穿插一次已知正确账号登录, 清掉同 IP 对其他账号的爆破计数; IP 计数靠 TTL 自然过期)
         redisTemplate.delete(failKey);
-        redisTemplate.delete(ipFailKey);
         securityAudit.loginSuccess(user.getId(), user.getUsername(), clientIp);
 
         // 【批④ 2026-08-10 多集团会话】登录推导用户集团集合(岗位→组织→集团, 与 UserDetailsServiceImpl 同口径),

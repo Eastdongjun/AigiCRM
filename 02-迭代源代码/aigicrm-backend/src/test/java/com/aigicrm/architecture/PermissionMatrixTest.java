@@ -839,9 +839,11 @@ public class PermissionMatrixTest {
         assertTrue(serviceBody.contains("LOGIN_FAIL_PREFIX") && serviceBody.contains("LOGIN_FAIL_IP_PREFIX")
                         && serviceBody.contains("MAX_LOGIN_FAILS") && serviceBody.contains("MAX_IP_LOGIN_FAILS"),
                 "AuthService.login 必须保留账号+IP 与 IP 级失败限流");
+        // 【DeepSeek四审 P1 2026-09-22】新契约: 成功只清用户名维度 failKey(正常用户解锁);
+        // IP 维度计数保留至 TTL 过期——穿插正确登录不再能清掉同 IP 对其他账号的爆破计数
         assertTrue(serviceBody.contains("redisTemplate.delete(failKey)")
-                        && serviceBody.contains("redisTemplate.delete(ipFailKey)"),
-                "AuthService.login 成功后必须清除失败计数，避免正常用户持续被锁");
+                        && !serviceBody.contains("redisTemplate.delete(ipFailKey)"),
+                "AuthService.login 成功后只清用户名失败计数; IP 计数须保留(防穿插登录清计数绕过 IP 限流)");
         assertTrue(serviceBody.contains("jwtTokenProvider.generateToken(user.getId(), user.getUsername()")
                         && serviceBody.contains("currentGroupId")
                         && serviceBody.contains("response.setPwdResetRequired(user.getPwdResetRequired())"),

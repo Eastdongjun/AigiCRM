@@ -32,9 +32,15 @@ fi
 [ -d "$MIGRATION_DIR" ] || { echo "❌ 迁移目录不存在: $MIGRATION_DIR"; exit 1; }
 
 echo "=== [1/4] 生产数据库备份 ==="
+# 【DeepSeek四审 P0-2 修复 2026-09-22】旧写法 mysqldump 失败后分号仍执行 ls, ssh 返回 ls 的 0 = 假绿,
+# 旧备份可掩盖本次失败而迁移照跑。改为: 记录本次目标文件 → mysqldump 显式判错 → 校验本次文件存在且非空
 ssh_prod "
-  docker exec -e MYSQL_PWD=\"$DB_PASSWORD\" ${APP_SLUG}-mysql mysqldump -uroot --default-character-set=utf8mb4 --single-transaction $DB_NAME > $DEPLOY_DIR/backup-pre-migrate-$(date +%Y%m%d-%H%M%S).sql
-  echo '备份完成:'; ls -t $DEPLOY_DIR/backup-pre-migrate-*.sql | head -1
+  BK=$DEPLOY_DIR/backup-pre-migrate-\$(date +%Y%m%d-%H%M%S).sql
+  if ! docker exec -e MYSQL_PWD=\"$DB_PASSWORD\" ${APP_SLUG}-mysql mysqldump -uroot --default-character-set=utf8mb4 --single-transaction $DB_NAME > \"\$BK\"; then
+    echo '❌ mysqldump 失败, 中止(不得依赖旧备份继续迁移)'; exit 1
+  fi
+  if [ ! -s \"\$BK\" ]; then echo '❌ 备份文件为空, 中止'; exit 1; fi
+  echo '备份完成:'; ls -la \"\$BK\"
 "
 
 echo "=== [2/4] 上传迁移目录到生产 ==="

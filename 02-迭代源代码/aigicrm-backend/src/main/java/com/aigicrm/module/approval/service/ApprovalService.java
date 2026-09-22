@@ -94,6 +94,12 @@ public class ApprovalService {
             if (!SecurityUtils.isAdmin()) {
                 applyDataScope(wrapper, userId);
             }
+        } else {
+            // 【DeepSeek四审 P1 修复 2026-09-22】未知/空 tab 不再落入"无范围过滤"分支
+            // (旧代码传 tab=x 可越过个人过滤看全集团列表)。白名单外按最窄口径: 非 admin 套本人相关范围
+            if (!SecurityUtils.isAdmin()) {
+                applyDataScope(wrapper, userId);
+            }
         }
 
         if (StringUtils.hasText(type)) {
