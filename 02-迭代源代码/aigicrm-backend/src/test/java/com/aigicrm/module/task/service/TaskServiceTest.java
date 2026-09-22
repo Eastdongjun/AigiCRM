@@ -6,7 +6,6 @@ import com.aigicrm.module.system.entity.SysUser;
 import com.aigicrm.module.system.mapper.SysUserMapper;
 import com.aigicrm.module.task.entity.BizTask;
 import com.aigicrm.module.task.mapper.BizTaskMapper;
-import com.aigicrm.security.SecurityUser;
 import com.aigicrm.common.scope.OrgScopeResolver;
 import com.aigicrm.security.SecurityUtils;
 import com.baomidou.mybatisplus.core.metadata.IPage;
@@ -19,7 +18,6 @@ import java.time.LocalDate;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 
 /** 【PR-10 2026-09-19】任务模块:核心口径(完成必须记结果/取消记原因/转交校验)。 */

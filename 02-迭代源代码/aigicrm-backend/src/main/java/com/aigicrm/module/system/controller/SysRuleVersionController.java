@@ -3,12 +3,10 @@ package com.aigicrm.module.system.controller;
 import com.aigicrm.common.Result;
 import com.aigicrm.module.system.service.SysRuleVersionService;
 import com.baomidou.mybatisplus.core.metadata.IPage;
-import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**

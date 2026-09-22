@@ -6,7 +6,6 @@ import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.aigicrm.common.BusinessException;
 import com.aigicrm.common.enums.DataScopeType;
-import com.aigicrm.common.scope.GroupScopeUtil;
 import com.aigicrm.module.customer.entity.BizCustomer;
 import com.aigicrm.module.customer.mapper.BizCustomerMapper;
 import com.aigicrm.module.customer.mapper.BizCustomerShareMapper;

@@ -3,7 +3,6 @@ package com.aigicrm.module.sea.controller;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.aigicrm.common.BusinessException;
 import com.aigicrm.common.Result;
 import com.aigicrm.common.scope.OrgScopeResolver;
 import com.aigicrm.module.customer.dto.CustomerImportResult;
