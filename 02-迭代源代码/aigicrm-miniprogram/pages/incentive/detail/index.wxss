@@ -99,7 +99,10 @@
 .tile-btn.secondary { background: rgba(255, 255, 255, .9); color: #1f3f7a; }
 .tile-btn::after { border: none; }
 
-.record-action-row { display: flex; justify-content: flex-end; margin-top: 20rpx; }
+.record-action-row { display: flex; justify-content: flex-end; gap: 12rpx; margin-top: 20rpx; }
+.mini-action.primary { width: auto; padding: 0 26rpx; height: 58rpx; line-height: 58rpx; border-radius: 16rpx;
+  background: #eff6ff; color: #2563eb; border: 1rpx solid #bfdbfe; font-size: 23rpx; font-weight: 700; }
+.mini-action.primary::after { border: none; }
 .mini-action.danger { width: auto; padding: 0 26rpx; height: 58rpx; line-height: 58rpx; border-radius: 16rpx;
   background: #fff5f5; color: #dc2626; border: 1rpx solid #fecaca; font-size: 23rpx; font-weight: 700; }
 .mini-action.danger::after { border: none; }

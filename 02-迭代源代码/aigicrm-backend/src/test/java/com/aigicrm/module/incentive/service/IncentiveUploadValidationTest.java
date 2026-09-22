@@ -274,4 +274,58 @@ class IncentiveUploadValidationTest {
             assertEquals(99L, cap.getValue().getCustomerId(), "admin 可变更归属客户");
         }
     }
+
+    // ==================== updateRecord 文件引用归属（2026-09-22 真机UAT修复回归钉） ====================
+
+    /** 编辑他人记录、文件槽原样回传原作者存量文件（无新增引用）→ 放行。
+     *  此前对合并后全量校验 uploader==当前编辑人，admin/can_edit 编辑任何他人记录都会被
+     *  "包含无效文件引用"整体误拒（实测 record 266：原作者文件 869，admin 编辑被拒）。 */
+    @Test
+    void updateRecord_keepOriginalAuthorFiles_allowed() {
+        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
+            m.when(SecurityUtils::isAdmin).thenReturn(true);
+            m.when(SecurityUtils::getCurrentUserId).thenReturn(1L);
+            BizIncentiveRecord existing = new BizIncentiveRecord();
+            existing.setId(1L);
+            existing.setUserId(52L);
+            existing.setCategoryId(1L);
+            existing.setCustomerId(10L);
+            existing.setFilePreId("[869]");
+            when(recordMapper.selectById(1L)).thenReturn(existing);
+            when(categoryMapper.selectById(1L)).thenReturn(new BizIncentiveCategory());
+
+            BizIncentiveRecord update = new BizIncentiveRecord();
+            update.setFilePreId("[869]");
+            newService().updateRecord(1L, update);
+
+            verify(fileMapper, never()).selectCount(any());
+            ArgumentCaptor<BizIncentiveRecord> cap = ArgumentCaptor.forClass(BizIncentiveRecord.class);
+            verify(recordMapper).updateById(cap.capture());
+            assertEquals("[869]", cap.getValue().getFilePreId(), "存量引用应原样保留");
+        }
+    }
+
+    /** 编辑时本次新引入他人/不存在文件 → 仍然拒绝（防"填他人文件ID保分"不放松） */
+    @Test
+    void updateRecord_newForeignFile_rejected() {
+        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
+            m.when(SecurityUtils::isAdmin).thenReturn(true);
+            m.when(SecurityUtils::getCurrentUserId).thenReturn(1L);
+            BizIncentiveRecord existing = new BizIncentiveRecord();
+            existing.setId(1L);
+            existing.setUserId(52L);
+            existing.setCategoryId(1L);
+            existing.setCustomerId(10L);
+            existing.setFilePreId("[869]");
+            when(recordMapper.selectById(1L)).thenReturn(existing);
+            when(fileMapper.selectCount(any())).thenReturn(0L);
+
+            BizIncentiveRecord update = new BizIncentiveRecord();
+            update.setFilePreId("[869,999]");
+            BusinessException ex = assertThrows(BusinessException.class,
+                    () -> newService().updateRecord(1L, update));
+            assertEquals("包含无效文件引用，请重新上传", ex.getMessage());
+            verify(recordMapper, never()).updateById(any(BizIncentiveRecord.class));
+        }
+    }
 }

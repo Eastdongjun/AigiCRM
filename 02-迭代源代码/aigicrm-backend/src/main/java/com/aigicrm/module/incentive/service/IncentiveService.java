@@ -383,21 +383,27 @@ public class IncentiveService {
         // 文件字段 + 分享开关（【2026-08-08 分享制】本人随时可开关分享）
         boolean fileTouched = update.getFilePreId() != null || update.getFileMidId() != null
                 || update.getFilePostId() != null || update.getFileId() != null || update.getFileTrackId() != null;
+        // 【真机UAT修复 2026-09-22】文件归属只校验"本次新引入"的引用:编辑/追加场景合并后的记录
+        // 天然携带原上传人的存量文件(admin 或 can_edit 编辑他人记录、追加者≠原作者都属正常业务),
+        // 存量引用在原上传时已按 create 同口径校验过。此前对合并后全量校验 uploader==当前编辑人,
+        // 会把编辑他人记录整体误拒(实测 record 266: 原作者文件 869, admin 编辑被"无效文件引用"拒绝)。
+        Set<Long> beforeFileIds = fileTouched ? new HashSet<>(collectFileIds(existing)) : Collections.emptySet();
         if (update.getFilePreId() != null) existing.setFilePreId(update.getFilePreId());
         if (update.getFileMidId() != null) existing.setFileMidId(update.getFileMidId());
         if (update.getFilePostId() != null) existing.setFilePostId(update.getFilePostId());
         if (update.getFileId() != null) existing.setFileId(update.getFileId());
         if (update.getFileTrackId() != null) existing.setFileTrackId(update.getFileTrackId());
-        // 【DeepSeek四审 P1 修复 2026-09-22】update 提供文件槽时与 create 同口径核对归属:
-        // 旧代码只赋值不校验, 填他人/不存在文件 ID 也能保住上传材料分。核对对象=合并后的 existing
+        // 【DeepSeek四审 P1 修复 2026-09-22】update 新增文件槽时与 create 同口径核对归属:
+        // 旧代码只赋值不校验, 填他人/不存在文件 ID 也能保住上传材料分。核对对象=新引入的文件 ID
         if (fileTouched) {
-            List<Long> ids = collectFileIds(existing);
-            if (!ids.isEmpty()) {
+            List<Long> newFileIds = collectFileIds(existing).stream()
+                    .filter(fid -> !beforeFileIds.contains(fid)).collect(Collectors.toList());
+            if (!newFileIds.isEmpty()) {
                 Long currentUserId = SecurityUtils.getCurrentUserId();
                 Long existCount = fileMapper.selectCount(new LambdaQueryWrapper<BizFile>()
-                        .in(BizFile::getId, ids)
+                        .in(BizFile::getId, newFileIds)
                         .eq(BizFile::getUploaderId, currentUserId));
-                if (existCount == null || existCount != ids.size()) {
+                if (existCount == null || existCount != newFileIds.size()) {
                     throw new BusinessException("包含无效文件引用，请重新上传");
                 }
             }

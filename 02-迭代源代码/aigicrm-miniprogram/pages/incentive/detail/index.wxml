@@ -160,8 +160,9 @@
           </view>
         </view>
 
-        <view wx:if="{{item.showDeleteAction}}" class="record-action-row">
-          <button class="mini-action danger" bindtap="removeRecord" data-item-index="{{itemIndex}}">删除记录</button>
+        <view wx:if="{{item.showDeleteAction || item.showEditAction}}" class="record-action-row">
+          <button wx:if="{{item.showEditAction}}" class="mini-action primary" bindtap="editRecord" data-item-index="{{itemIndex}}">编辑 / 追加文件</button>
+          <button wx:if="{{item.showDeleteAction}}" class="mini-action danger" bindtap="removeRecord" data-item-index="{{itemIndex}}">删除记录</button>
         </view>
       </view>
     </block>

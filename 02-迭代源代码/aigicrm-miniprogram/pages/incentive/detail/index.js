@@ -157,7 +157,7 @@ function thumbUrlOf(file, token) {
 }
 
 // 记录卡视图:单行元信息条(时间蓝色加大 + 阶段色点 + 彩色分值 + 灰标签内联) → 正文大字 → 备注 → 附件凭证
-function buildItemView(record, canDelete, now, token) {
+function buildItemView(record, canDelete, canEdit, now, token) {
   const code = incentiveCodeOf(record)
   const stageColor = STAGE_COLORS[code] || '#303133'
   const date = parseDate(record && record.createdAt)
@@ -200,7 +200,8 @@ function buildItemView(record, canDelete, now, token) {
     showFilesBlock: files.length > 0,
     countText: `附件凭证 · ${files.length} 项`,
     files,
-    showDeleteAction: Boolean(canDelete)
+    showDeleteAction: Boolean(canDelete),
+    showEditAction: Boolean(canEdit)
   }
 }
 
@@ -219,6 +220,13 @@ function buildDetailView(data) {
     const ownerId = record.userId || record.salespersonId
     return Boolean(canDeleteRecords || (userId && ownerId && String(userId) === String(ownerId)))
   }
+  // 编辑/追加文件与删除同口径: admin ∨ can_edit 授权 ∨ 本人记录(后端 updateRecord 同守卫)
+  const canEditRecords = Boolean(data.canEditRecords)
+  const canEditOf = (record) => {
+    if (!record || demoMode) return false
+    const ownerId = record.userId || record.salespersonId
+    return Boolean(canEditRecords || (userId && ownerId && String(userId) === String(ownerId)))
+  }
   const now = new Date()
   const loading = Boolean(data.loading)
   const records = data.records || []
@@ -236,7 +244,7 @@ function buildDetailView(data) {
     const date = parseDate(record.createdAt)
     return date ? date.getDate() === selDay : false
   }) : activeGroup.items)
-  const items = displayRecords.map((record) => buildItemView(record, canDeleteOf(record), now, data.dlToken || ''))
+  const items = displayRecords.map((record) => buildItemView(record, canDeleteOf(record), canEditOf(record), now, data.dlToken || ''))
   const customer = data.customer || {}
   const customerName = customer.customerName || (data.record && (data.record.customerName || data.record.name)) || ''
   const latest = records.reduce((best, item) => {
@@ -306,7 +314,8 @@ Page({
     loading: false,
     previewing: false,
     previewVideoPath: '',
-    canDeleteRecords: false
+    canDeleteRecords: false,
+    canEditRecords: false
   },
   setDetailData(patch) {
     const next = { ...this.data, ...patch }
@@ -331,7 +340,7 @@ Page({
       setTimeout(() => wx.navigateBack(), 500)
       return
     }
-    this.setDetailData({ id: options.id || '', canDeleteRecords: !getApp().globalData.demoMode && isAdmin() })
+    this.setDetailData({ id: options.id || '', canDeleteRecords: !getApp().globalData.demoMode && isAdmin(), canEditRecords: !getApp().globalData.demoMode && isAdmin() })
     this.loadGrantCheck()
     this.loadDetail()
     this.startClock()
@@ -377,7 +386,7 @@ Page({
   loadGrantCheck() {
     if (getApp().globalData.demoMode) return
     getGrantCheck().then((grant) => {
-      this.setDetailData({ canDeleteRecords: Boolean(grant && grant.canDelete) || isAdmin() })
+      this.setDetailData({ canDeleteRecords: Boolean(grant && grant.canDelete) || isAdmin(), canEditRecords: Boolean(grant && grant.canEdit) || isAdmin() })
     }).catch(() => this.setDetailData({}))
   },
   loadDetail() {
@@ -564,6 +573,21 @@ Page({
     const userId = currentUserId()
     const ownerId = record.userId || record.salespersonId
     return Boolean(this.data.canDeleteRecords || (userId && ownerId && String(userId) === String(ownerId)))
+  },
+  canEditRecord(record) {
+    if (!record || getApp().globalData.demoMode) return false
+    const userId = currentUserId()
+    const ownerId = record.userId || record.salespersonId
+    return Boolean(this.data.canEditRecords || (userId && ownerId && String(userId) === String(ownerId)))
+  },
+  // 【真机UAT补齐 2026-09-22】编辑/追加文件入口:上传页本就支持编辑态(options.id→editId,
+  // 回填客户/分类/周期/五槽位附件,提交走 updateRecord 与 PC 端编辑同口径),但此前全端
+  // 无任何页面带 id 进入 —— 能力建成却是死入口。编辑守卫与删除同口径(admin ∨ can_edit ∨ 本人)。
+  editRecord(event) {
+    const item = this.data.detailView.items[Number(event.currentTarget.dataset.itemIndex)]
+    const record = item && this.data.records.find((row) => String(row.id) === String(item.id))
+    if (!record || !record.id || !this.canEditRecord(record)) return wx.showToast({ title: '没有四项激励编辑权限', icon: 'none' })
+    wx.navigateTo({ url: '/pages/incentive/upload/index?id=' + record.id })
   },
   removeRecord(event) {
     const item = this.data.detailView.items[Number(event.currentTarget.dataset.itemIndex)]

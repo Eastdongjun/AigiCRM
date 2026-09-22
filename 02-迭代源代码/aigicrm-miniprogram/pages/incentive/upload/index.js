@@ -495,7 +495,15 @@ Page({
   },
 
   fillEditRecord(record) {
-    const customerIndex = this.data.customers.findIndex((item) => String(item.id) === String(record.customerId))
+    // 【2026-09-22 编辑入口补齐】客户选项来自 getCustomerList 首页(size:100),客户总数超页时
+    // 记录归属客户不在选项内 → 回填 -1 → 提交被"请补齐客户和分类"拦截。编辑态把记录
+    // 自带客户补进选项头部,保证任意客户的记录都可编辑(提交时 customerId 等值回传,归属不变)。
+    let customers = this.data.customers
+    let customerIndex = customers.findIndex((item) => String(item.id) === String(record.customerId))
+    if (customerIndex === -1 && record.customerId) {
+      customers = [{ id: record.customerId, customerName: record.customerName || record.name || '未命名客户', industry: record.industry || '' }, ...customers]
+      customerIndex = 0
+    }
     const categoryIndex = this.data.categories.findIndex((item) => String(item.id) === String(record.categoryId))
     const industryIndex = record.industry ? this.data.industryOptions.indexOf(record.industry) : -1
     const ownerId = record.userId || record.salespersonId || record.createBy || record.createdBy
@@ -521,6 +529,8 @@ Page({
       }
     })
     this.setData({
+      customers,
+      customerNames: customers.map((item) => item.customerName || item.name || '未命名客户'),
       selectedCustomerIndex: customerIndex,
       selectedCategoryIndex: categoryIndex,
       selectedParentCategoryIndex: parentIndexOfCategory(this.data.categories, this.data.categoryParentNodes, categoryIndex),
