@@ -221,7 +221,7 @@ def scan_todo():
     # 精度规则:只认注释形态的标记(TODO[:：(]|FIXME|XXX|HACK),
     # 排除 shell/python 变量用法 TODO=、$TODO、TODO.read_text 等(首版基线实证误报)
     rx = re.compile(r"TODO\s*[:：(]|FIXME|XXX|HACK")
-    var_rx = re.compile(r"TODO\s*=|\$\{?TODO|TODO\.")
+    var_rx = re.compile(r"TODO\s*=|\$\{?TODO|TODO\.|grep")  # grep 行=契约脚本在检索标记,非开发债
     findings = []
     count = 0
     for rel in git_tracked():
