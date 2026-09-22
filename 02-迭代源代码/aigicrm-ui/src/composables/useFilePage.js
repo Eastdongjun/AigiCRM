@@ -30,7 +30,8 @@ export function useFilePage() {
   const activeTab = ref('public')
   const selectedFolderId = ref(null)
   const keyword = ref('')
-  const query = ref({ current: 1, size: 10 })
+  // 【2026-09-23 UI】默认每页 30:整页高度表格按 10 条只填三分之一,与客户列表口径一致
+  const query = ref({ current: 1, size: 30 })
 
   // ---- 列表/数据态 ----
   const files = ref([])

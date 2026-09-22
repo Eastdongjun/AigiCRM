@@ -43,7 +43,8 @@ export function useIncentiveUpload() {
   const canDelete = ref(false)
   // 右侧文件列表分页（前端切片）
   const pageNum = ref(1)
-  const pageSize = ref(10)
+  // 【2026-09-23 UI】默认每页 30:与文件/客户列表口径一致,10 条浪费整页高度
+  const pageSize = ref(30)
 
   // ===== 安装文件预览 =====
   const previewVisible = ref(false), previewUrl = ref(''), previewType = ref('image'), previewName = ref('')
