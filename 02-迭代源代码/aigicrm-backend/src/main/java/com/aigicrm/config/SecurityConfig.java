@@ -49,7 +49,8 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> {
                 auth.requestMatchers("/api/auth/login", "/api/auth/captcha", "/api/auth/forgot-password/**",
                         "/api/system/configs/public", "/api/system/configs/logo",
-                        "/api/file/download/public/**").permitAll();
+                        "/api/file/download/public/**",
+                        "/actuator/health").permitAll(); // 【可观测性】仅 health 匿名(无详情); metrics/prometheus 由 anyRequest authenticated 保护
 
                 // Swagger 默认关闭, 显式 aigicrm.swagger.enabled=true 才开放(原 profile 推断已移除)
                 if (swaggerEnabled) {

@@ -25,6 +25,8 @@ public class CustomerExpireTask {
     private final BizReminderMapper reminderMapper;
     private final SeaService seaService;
     private final SysConfigService configService;
+    // 【可观测性 2026-09-22】定时任务指标(放末位保持既有构造参数序稳定): 运行/入海/失败计数 + 末次成功时间
+    private final io.micrometer.core.instrument.MeterRegistry meterRegistry;
 
     @Scheduled(cron = "0 0 2 * * ?")
     public void checkCustomerExpire() {
@@ -106,6 +108,15 @@ public class CustomerExpireTask {
             log.error("【告警】{} —— 失败客户需人工复核", summary);
         } else {
             log.info(summary);
+        }
+        // 【可观测性】Micrometer 计数与末次成功时间, /actuator/prometheus 可抓取, 告警规则可基于 customer_expire_failed_total
+        meterRegistry.counter("customer_expire_run_total", "result", failed > 0 ? "partial" : "success").increment();
+        meterRegistry.counter("customer_expire_entered_sea_total").increment(enteredSea);
+        if (failed > 0) {
+            meterRegistry.counter("customer_expire_failed_total").increment(failed);
+        } else {
+            meterRegistry.gauge("customer_expire_last_success_epoch_ms",
+                    System.currentTimeMillis());
         }
 
         // 检查开票超一年的客户

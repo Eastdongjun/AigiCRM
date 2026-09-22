@@ -68,5 +68,14 @@
 ---
 # 2026-09-22 GPT 全景报告裁定与新队列
 - 裁定全文: 05-gpt-review-20260922-adjudication.md(旧快照报告的 11 项 P1 中 7 项已在 88fbc3fc 前修复)
-- **新开放队列 B1-B8**: B1 ExpireTask逐客户隔离+汇总 B2 addToSea幂等 B3 uk_sea_pool_active收编迁移 B4 公海删除复用生命周期保护 B5 archived统一谓词 B6 lookup响应归一 B7 503 HTTP映射 B8 granularity门禁校准
+- **新开放队列 B1-B8(2026-09-22 全部完成, aeb2ccaf)**: B1 ExpireTask逐客户隔离+汇总 B2 addToSea幂等 B3 uk_sea_pool_active收编迁移 B4 公海删除复用生命周期保护 B5 archived统一谓词 B6 lookup响应归一 B7 503 HTTP映射 B8 granularity门禁校准
 - 审计纪律新增: 产物必须带 snapshot hash 与 stale 标志(05 已示范)
+
+
+---
+# 产品裁决与可观测性落地(2026-09-22)
+- **【产品裁决】单集团部署即满足业务需求(用户重申)**: 多租户隔离(TENANT_ENABLE/白名单/复合唯一)定位为纵深防御而非业务需求; 双集团真实攻击矩阵从关键路径撤下, 现有夹具级隔离用例(矩阵第6节)保留作回归
+- 可观测性最小集已落地: Actuator(health 匿名无详情/metrics+prometheus 需登录) + 定时任务 Micrometer 指标(customer_expire_run/entered_sea/failed_total + 末次成功 gauge)
+- Flyway 空库全量重放: 48/48 迁移成功, 与测试库 schema 指纹比对**零列差异**(测试库仅多 3 张 bak 手工快照与 flyway 历史, 良性)
+- 纠错记录(2026-09-22 自查): CI 已有 5 job(backend/frontend/sonarcloud/diff-check/quality-gate)——此前"无 CI"系目录看错; prod Secret 已 env 强制注入——此前 grep 模式错误
+- 仍未验证: 真机/压测(需目标并发)/Clean Room/CVE-SBOM(需代理)/恢复演练(需用户点头)/小程序原生测试/阶段7-8矩阵文档

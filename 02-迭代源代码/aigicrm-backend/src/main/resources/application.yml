@@ -109,3 +109,17 @@ spring:
           - ${REDIS_HOST:localhost}:6379
           - ${REDIS_HOST:localhost}:6380
           - ${REDIS_HOST:localhost}:6381
+
+# 【可观测性最小集 2026-09-22】health 匿名(探测用, 不泄详情); metrics/prometheus 需认证(默认 anyRequest authenticated)
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: never
+      show-components: never
+  health:
+    redis:
+      enabled: true

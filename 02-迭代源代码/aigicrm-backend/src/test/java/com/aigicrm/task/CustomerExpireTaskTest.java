@@ -25,7 +25,8 @@ class CustomerExpireTaskTest {
     private final BizReminderMapper reminderMapper = mock(BizReminderMapper.class);
     private final SeaService seaService = mock(SeaService.class);
     private final SysConfigService configService = mock(SysConfigService.class);
-    private final CustomerExpireTask task = new CustomerExpireTask(customerMapper, reminderMapper, seaService, configService);
+    private final io.micrometer.core.instrument.simple.SimpleMeterRegistry meterRegistry = new io.micrometer.core.instrument.simple.SimpleMeterRegistry();
+    private final CustomerExpireTask task = new CustomerExpireTask(customerMapper, reminderMapper, seaService, configService, meterRegistry);
 
     @Test
     void neverInvoiced_createsInvoiceNever_notOverdue9999() {
