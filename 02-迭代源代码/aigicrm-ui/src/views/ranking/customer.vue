@@ -78,24 +78,37 @@
         </el-table-column>
       </el-table>
 
-      <el-table v-else :data="indicatorRanking" stripe size="small" style="width:100%" empty-text="暂无核心客户六项指标排行数据">
+      <el-table v-else :data="indicatorRanking" stripe size="small" style="width:100%" empty-text="暂无核心客户六项指标排行数据" :header-cell-class-name="indHeaderClass">
         <el-table-column label="排名" width="62" align="center">
           <template #default="{ $index }"><span class="rank-num">{{ $index + 1 }}</span></template>
         </el-table-column>
         <el-table-column prop="customerName" label="客户" min-width="180" />
         <el-table-column prop="ownerName" label="负责人" min-width="90" />
         <el-table-column prop="industry" label="行业" min-width="95" />
-        <el-table-column label="高层" min-width="72" align="center"><template #default="{ row }">{{ row.relationshipScore || 0 }}</template></el-table-column>
-        <el-table-column label="渠道" min-width="72" align="center"><template #default="{ row }">{{ row.indicator02 || 0 }}</template></el-table-column>
-        <el-table-column label="基层" min-width="72" align="center"><template #default="{ row }">{{ row.indicator03 || 0 }}</template></el-table-column>
-        <el-table-column label="产品" min-width="72" align="center"><template #default="{ row }">{{ row.indicator04 || 0 }}</template></el-table-column>
-        <el-table-column label="项目" min-width="72" align="center"><template #default="{ row }">{{ row.indicator05 || 0 }}</template></el-table-column>
-        <el-table-column label="总分" min-width="82" align="center">
-          <template #default="{ row }"><span class="score-pill">{{ row.totalScore }}分</span></template>
+        <!-- 两级表头: 一级=六项指标分类, 二级=具体指标(一级包含二级, 口径同 customer-fields INDICATOR_FIELDS) -->
+        <el-table-column label="硬性门槛 ≥¥100万" align="center">
+          <el-table-column label="开票金额" min-width="95" align="center">
+            <template #default="{ row }">
+              <span :class="{ 'threshold-miss': (Number(row.invoiceTotal) || 0) < 100 }">{{ moneyText(row.invoiceTotal) }}</span>
+            </template>
+          </el-table-column>
+          <el-table-column label="回款金额" min-width="95" align="center">
+            <template #default="{ row }">
+              <span :class="{ 'threshold-miss': (Number(row.paymentTotal) || 0) < 100 }">{{ moneyText(row.paymentTotal) }}</span>
+            </template>
+          </el-table-column>
         </el-table-column>
-        <el-table-column label="开票" min-width="95" align="center"><template #default="{ row }">{{ moneyText(row.invoiceTotal) }}</template></el-table-column>
-        <el-table-column label="回款" min-width="95" align="center"><template #default="{ row }">{{ moneyText(row.paymentTotal) }}</template></el-table-column>
-        <el-table-column label="是否核心" min-width="85" align="center">
+        <el-table-column label="客情商务指标" align="center">
+          <el-table-column label="高层（客情程度）" min-width="86" align="center"><template #default="{ row }">{{ row.relationshipScore || 0 }}</template></el-table-column>
+          <el-table-column label="渠道（编码数量）" min-width="86" align="center"><template #default="{ row }">{{ row.indicator02 || 0 }}</template></el-table-column>
+          <el-table-column label="基层（分厂车间）" min-width="86" align="center"><template #default="{ row }">{{ row.indicator03 || 0 }}</template></el-table-column>
+          <el-table-column label="产品（密封润滑防腐）" min-width="100" align="center"><template #default="{ row }">{{ row.indicator04 || 0 }}</template></el-table-column>
+          <el-table-column label="项目（项目资金）" min-width="86" align="center"><template #default="{ row }">{{ row.indicator05 || 0 }}</template></el-table-column>
+          <el-table-column label="总分 /15" min-width="82" align="center">
+            <template #default="{ row }"><span class="score-pill">{{ row.totalScore }}分</span></template>
+          </el-table-column>
+        </el-table-column>
+        <el-table-column label="是否核心" min-width="85" align="center" fixed="right">
           <template #default="{ row }">
             <el-tag :type="row.core ? 'success' : 'info'" size="small">{{ row.core ? '是' : '否' }}</el-tag>
           </template>
@@ -133,6 +146,11 @@ function relationshipLabel(score) {
 function moneyText(value) {
   const n = Number(value || 0)
   return `${Number.isInteger(n) ? n : n.toFixed(2)}万`
+}
+
+// 两级表头: 仅第一行(一级组行)着组头样式,二级明细行保持常规表头
+function indHeaderClass({ rowIndex }) {
+  return rowIndex === 0 ? 'ind-group-head' : ''
 }
 
 async function loadData() {
@@ -175,4 +193,7 @@ onMounted(loadData)
 .score-pill.green { background: #f0f9eb; color: #67c23a; }
 .completion { color: #303133; font-size: 12px; }
 .cell-dash { color: #c0c4cc; }
+/* 两级表头: 第一行(一级组)整行浅底深蓝加粗,与二级明细区分; 门槛未达(万<100)红色弱标 */
+.table-area :deep(.ind-group-head) { background: #f7f9fc !important; color: #1d4ed8; font-weight: 700; }
+.threshold-miss { color: #f56c6c; font-weight: 600; }
 </style>
