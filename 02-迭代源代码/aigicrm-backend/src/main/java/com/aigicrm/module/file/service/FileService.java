@@ -746,7 +746,8 @@ public class FileService {
         return filename.substring(dot + 1).toLowerCase(java.util.Locale.ROOT);
     }
 
-    static void assertAllowedUploadType(String sanitizedFilename, String contentType) {        String ext = "";
+    static void assertAllowedUploadType(String sanitizedFilename, String contentType) {
+        String ext = "";
         boolean hasExt = false;
         int dot = sanitizedFilename == null ? -1 : sanitizedFilename.lastIndexOf('.');
         if (dot >= 0 && dot < sanitizedFilename.length() - 1) {
