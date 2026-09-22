@@ -13,7 +13,8 @@ OUT="$HOME/Desktop/AIGICRM-源代码-$(date +%Y%m%d)-${MODE}.zip"
 
 BASE_EX=( -x "*/node_modules/*" "*/target/*" "*/dist/*" "*/test-results/*" "*/uploads/*" "*.DS_Store" "*/.mimosa/*" )
 INTERNAL_EX=( "${BASE_EX[@]}"
-  -x "*env.local*" "*private.config.json" "*/logs/*" "*.log" )
+  # 尾星覆盖 .disabled-<date> 历史禁用档; 不匹配 env.local.example.js(无 env.local.js 子串, 模板须保留)
+  -x "*env.local.js*" "*private.config.json" "*/logs/*" "*.log" )
 # 外发档另排除运维/运行手册类文档(实测载体: docs/ 与 MIGRATION-LINEAGE 含内网地址与部署细节)
 # 外发档另排除: 运维/运行手册文档、部署与工程脚本(实测携带环境地址/部署细节)、本地环境档
 EXTERNAL_EX=( "${INTERNAL_EX[@]}"
@@ -23,7 +24,7 @@ EXTERNAL_EX=( "${INTERNAL_EX[@]}"
   # 同理 deploy/ 工程目录(环境口径)整目录排除。
   # config 排除精确化(GPT外审 AUD-P1-002): 只排 env.local.js(本机覆盖档,含环境地址),
   # 保留 env.js(demo 默认档,apiBaseUrl 空,小程序编译必需)与 *.example.js 模板 —— 旧模式 */config/env*.js 连坐全排除致包内小程序不可编译
-  -x "*/config/env.local.js" "*/docs/*" "*MIGRATION-LINEAGE.md" "*/scripts/*" "*env.local*" "*/deploy/*"
+  -x "*/config/env.local.js" "*/docs/*" "*MIGRATION-LINEAGE.md" "*/scripts/*" "*/deploy/*"
   -x "*/engineering/*" "*/FROZEN-SHA256.txt" )
 
 cd "$ROOT/.."
@@ -49,11 +50,12 @@ MANIFEST
 esac
 echo "OK: $OUT ($(du -h "$OUT" | cut -f1), $(unzip -l "$OUT" | tail -1 | awk '{print $2}') 文件)"
 # external 断言(GPT外审 AUD-P1-002 回归): 小程序 config 模板与 ci.yml 必须在包内
+# grep 须加 -a: unzip -l 的中文路径含非 ASCII 字节, 不加会被判二进制致 -c 输出空、断言静默失效(2026-09-22 实证)
 if [ "$MODE" = "external" ]; then
-  ENVN=$(unzip -l "$OUT" | grep -c "config/env")
-  CIN=$(unzip -l "$OUT" | grep -c "ci.yml")
-  if [ "$ENVN" -lt 3 ] || [ "$CIN" -lt 1 ]; then
-    echo "FAIL: external 断言未过(env 模板=$ENVN<3 或 ci.yml 缺失)" >&2; rm -f "$OUT"; exit 1
+  ENVN=$(unzip -l "$OUT" | grep -ac "config/env")
+  CIN=$(unzip -l "$OUT" | grep -ac "ci.yml")
+  if [ "${ENVN:-0}" -lt 3 ] || [ "${CIN:-0}" -lt 1 ]; then
+    echo "FAIL: external 断言未过(env 模板=${ENVN:-0}<3 或 ci.yml=${CIN:-0}<1)" >&2; rm -f "$OUT"; exit 1
   fi
-  echo "assert: config/env=$ENVN, ci.yml=1"
+  echo "assert: config/env=$ENVN, ci.yml=$CIN"
 fi
