@@ -40,7 +40,8 @@ def read_text(rel):
         return ""
 
 
-def main():
+def build_profile():
+    """构造技术栈档案(纯函数,供 CLI 与 audit.py 直调;不再经由子进程)。"""
     files = tracked_files()
     src = "02-迭代源代码/"
     profile = {"generated_at": datetime.now(timezone.utc).isoformat(),
@@ -129,8 +130,11 @@ def main():
         exp += ["mini-static(自有)", "wechat-devtools-cli"]
     exp += ["gitleaks", "trivy-secret", "hadolint", "checkov"]
     profile["scanners_expected"] = sorted(set(exp))
+    return profile
 
-    payload = json.dumps(profile, ensure_ascii=False, indent=2)
+
+def main():
+    payload = json.dumps(build_profile(), ensure_ascii=False, indent=2)
     guarded_write("stack-profile.json", payload)
     print(payload)
     print("[ok] stack-profile → .audit/evidence/stack-profile.json", file=sys.stderr)

@@ -326,8 +326,10 @@ def load_agent_injections():
 def ensure_stack_profile():
     p = EVID / "stack-profile.json"
     if not p.is_file():
-        subprocess.run([sys.executable, str(AUD / "scripts" / "detect_stack.py")],
-                       cwd=str(ROOT), capture_output=True, text=True, timeout=120)
+        # 兄弟模块直调(脚本目录天然在 sys.path[0]),不派生子进程
+        import detect_stack
+        guarded_write(EVID, "stack-profile.json",
+                      json.dumps(detect_stack.build_profile(), ensure_ascii=False, indent=2))
     return json.loads(p.read_text(encoding="utf-8"))
 
 
@@ -374,10 +376,9 @@ def run_mode(mode, no_gate=False):
         else:
             tools.append(tool_status("mvn_test", "TOOL_NOT_INSTALLED"))
     elif mode == "changed":
-        out = subprocess.run([sys.executable, str(AUD / "scripts" / "audit_changed.py")],
-                             cwd=str(ROOT), capture_output=True, text=True, timeout=120)
-        print(out.stdout)
-        changed = json.loads(out.stdout)
+        import audit_changed
+        changed = audit_changed.build_report()
+        print(json.dumps(changed, ensure_ascii=False, indent=2))
         targets = set(changed.get("audit_targets", []))
         targeted = [f for f in scan_secrets()[0] + scan_todo()[0] if f.get("file") in targets]
         findings += targeted

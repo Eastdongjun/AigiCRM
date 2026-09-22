@@ -71,7 +71,8 @@ def impact_of(path):
     return hits
 
 
-def main():
+def build_report():
+    """构造增量审计报告(供 CLI 与 audit.py 直调;不再经由子进程)。"""
     files = changed_files()
     all_changed = files["added"] + files["modified"]
     tracked = git_ls_files()
@@ -84,7 +85,7 @@ def main():
                                   and tb.startswith(want[: -len("test.java")]) and "test" in tb.lower()):
                     impacted.add(t)
     direct = list(all_changed)
-    report = {
+    return {
         "changed": files,
         "impact_expansion": sorted(impacted - set(direct)),
         "audit_targets": sorted(set(direct) | impacted),
@@ -92,7 +93,10 @@ def main():
                     "deleted": len(files["deleted"]), "untracked": len(files["untracked"]),
                     "expanded_targets": len(impacted - set(direct))},
     }
-    print(json.dumps(report, ensure_ascii=False, indent=2))
+
+
+def main():
+    print(json.dumps(build_report(), ensure_ascii=False, indent=2))
 
 
 if __name__ == "__main__":
