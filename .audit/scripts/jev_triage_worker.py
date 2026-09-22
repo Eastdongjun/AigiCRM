@@ -7,7 +7,7 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
-JEV_SCRIPTS = "/Users/dongjun/东来/Agent/01-Agents/06-JEV/scripts"
+JEV_SCRIPTS = "/Users/dongjun/东来/Agent/01-Agents/04-JEV/scripts"
 ROOT = Path(__file__).resolve().parent.parent.parent          # scripts → .audit → 项目根
 FINDINGS_DIR = ROOT / ".audit" / "findings"
 

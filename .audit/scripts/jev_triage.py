@@ -9,7 +9,7 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent.parent
-VENV_PY = "/Users/dongjun/东来/Agent/01-Agents/06-JEV/venv/bin/python"   # 固定字面量命令位
+VENV_PY = "/Users/dongjun/东来/Agent/01-Agents/04-JEV/venv/bin/python"   # 固定字面量命令位
 WORKER = str(ROOT / ".audit" / "scripts" / "jev_triage_worker.py")
 FINDINGS_DIR = ROOT / ".audit" / "findings"
 
@@ -19,7 +19,7 @@ def main():
         raise SystemExit("TOOL_NOT_INSTALLED: 缺 JEV venv python(" + VENV_PY + ")")
     if not Path(WORKER).is_file():
         raise SystemExit("worker 缺失: " + WORKER)
-    out = subprocess.run(["/Users/dongjun/东来/Agent/01-Agents/06-JEV/venv/bin/python", WORKER],
+    out = subprocess.run(["/Users/dongjun/东来/Agent/01-Agents/04-JEV/venv/bin/python", WORKER],
                          capture_output=True, text=True, timeout=900)
     if out.returncode != 0:
         sys.stderr.write((out.stderr or "")[-400:])
