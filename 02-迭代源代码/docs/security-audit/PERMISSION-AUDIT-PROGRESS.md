@@ -78,4 +78,13 @@
 - 可观测性最小集已落地: Actuator(health 匿名无详情/metrics+prometheus 需登录) + 定时任务 Micrometer 指标(customer_expire_run/entered_sea/failed_total + 末次成功 gauge)
 - Flyway 空库全量重放: 48/48 迁移成功, 与测试库 schema 指纹比对**零列差异**(测试库仅多 3 张 bak 手工快照与 flyway 历史, 良性)
 - 纠错记录(2026-09-22 自查): CI 已有 5 job(backend/frontend/sonarcloud/diff-check/quality-gate)——此前"无 CI"系目录看错; prod Secret 已 env 强制注入——此前 grep 模式错误
-- 仍未验证: 真机/压测(需目标并发)/Clean Room/CVE-SBOM(需代理)/恢复演练(需用户点头)/小程序原生测试/阶段7-8矩阵文档
+- 仍未验证: 真机/压测(需目标并发)/恢复演练(需用户点头)/小程序原生测试/阶段7-8矩阵文档
+
+---
+
+# 发布成熟度批次(2026-09-22 下午, 四项)
+- ① 真机验收清单: `docs/device-acceptance-13-journeys.md`(总报告17章13条旅程逐条映射,J1-J13);**纠错** 06矩阵"审批=小程序无页面"系采集遗漏,app.json 实有 approval 两页+api 五端点,已改"✅ 对齐"(教训: 页面级结论以 app.json 为准)
+- ② 本机 Clean Room: `deploy/cleanroom/`(compose 全新栈+空库 Flyway 48/48+smoke 10/10);**交付缺口实证**: 应用不跑迁移(FLYWAY_ENABLED 默认 false,须 deploy-db.sh 同构 migrate.sh)+组织/admin 无种子(V1 纯 DDL)——两个"从零部署必知"已固化进 cleanroom README
+- ③ SBOM/CVE 初筛: `engineering/evidence/sbom-20260922/`(CycloneDX 1.6, backend 191+frontend 87 组件; OSV 初筛 75/278 包命中 550 引用, advisory 区间噪音为主, 真升级候选 bcprov-jdk15on 1.70/poi 4.1.2/httpclient 4.5.13)
+- ④ 矩阵脚本+强口令: verify-perm-matrix.sh 新增 4 用例(actuator 公网不可达+容器内 health UP 无细节+metrics 403), 回归 **20/20 PASS**; 测试服 admin 已轮换 20 位强口令(旧 123456 实测 401, 新口令实测 200; 存服务器 ~/aigicrm/.env AIGI_ADMIN_PASS); 运维手册过时 admin123 行已修正
+- 首轮断言教训: health 断言初版打公网 $BASE 被 nginx 前端兜底 HTML 混淆 → 修正为"公网不可达(nginx 收敛)+容器内直验"双层口径; 匿名拒绝断言 401 → 403(SecurityConfig BS-A09 统一 403 语义, 测试服实测一致)

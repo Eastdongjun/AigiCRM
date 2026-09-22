@@ -111,7 +111,7 @@ Controller（接口/权限）→ Service（业务逻辑）→ Mapper（MyBatis-P
 ### 3.2 访问方式
 
 - 生产：https://www.aigicrm.com（`aigicrm.com` 301 → www）
-- 测试：http://111.229.37.220（admin/admin123）
+- 测试：http://111.229.37.220（admin，口令见服务器 `~/aigicrm/.env` 的 `AIGI_ADMIN_PASS`；2026-09-22 已由弱口令轮换为 20 位强口令，旧值即刻失效）
 
 ### 3.3 SSH 连接
 

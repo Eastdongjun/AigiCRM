@@ -1,0 +1,75 @@
+# 本机 Clean Room 栈(发布成熟度 ②,2026-09-22)
+# 目的: 全新 compose 栈 + 空 MySQL + Flyway 全量重放 + health + 冒烟,验证"从零部署"路径。
+# 边界: 端口/卷/网络与本机既有容器(aigicrm-local-mysql 3306 / aigicrm-local-redis-pub 6380)完全隔离;
+#       用后 `docker compose -p aigicrm-cleanroom down -v` 整栈销毁,不留状态。
+# 用法: ./gen-cleanroom-env.sh && docker compose -p aigicrm-cleanroom -f docker-compose.cleanroom.yml --env-file .env up -d
+name: aigicrm-cleanroom
+
+services:
+  mysql:
+    image: mysql:8.0.28
+    container_name: cleanroom-mysql
+    restart: "no"
+    environment:
+      MYSQL_ROOT_PASSWORD: ${CR_DB_ROOT_PASSWORD:?gen-cleanroom-env.sh 生成}
+      MYSQL_DATABASE: aigicrm
+      TZ: Asia/Shanghai
+    ports:
+      - "127.0.0.1:33306:3306"
+    volumes:
+      - cr-mysql-data:/var/lib/mysql
+      # initdb.d 只放应用账号(不依赖业务表);组织/admin 种子须等 Flyway 建表后由 smoke.sh 执行 build/02-seed-org.sql
+      - ./build/01-app-user.sql:/docker-entrypoint-initdb.d/01-app-user.sql:ro
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_general_ci
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: cleanroom-redis
+    restart: "no"
+    volumes:
+      - cr-redis-data:/data
+
+  # 后端直接以 JRE 镜像运行本地构建的 jar(不做镜像构建): Clean Room 验证的是部署形态与迁移链,不是镜像打包
+  backend:
+    image: eclipse-temurin:21-jre
+    container_name: cleanroom-backend
+    restart: "no"
+    # JRE 镜像无默认命令,必须显式启动 jar(否则空跑 bash 退出)
+    command: ["java", "-jar", "/app/app.jar"]
+    ports:
+      - "127.0.0.1:38080:8080"
+    environment:
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_NAME: aigicrm
+      DB_USER: ${CR_DB_APP_USER:?}
+      DB_PASSWORD: ${CR_DB_APP_PASSWORD:?}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      # jjwt ≥256 位要求,gen 脚本产出 64 hex
+      JWT_SECRET: ${CR_JWT_SECRET:?}
+      SPRING_PROFILES_ACTIVE: prod
+      # prod 档 fail-closed 自检: 租户开关必须显式 true
+      TENANT_ENABLE: "true"
+      STORAGE_TYPE: local
+      UPLOAD_DIR: /app/uploads
+      CORS_ORIGINS: http://localhost:38080,http://localhost:5173
+      TZ: Asia/Shanghai
+    volumes:
+      - ../../aigicrm-backend/target/aigicrm-backend-1.0.0.jar:/app/app.jar:ro
+      - cr-uploads:/app/uploads
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_started
+
+volumes:
+  cr-mysql-data:
+  cr-redis-data:
+  cr-uploads:

@@ -49,6 +49,34 @@ db "UPDATE sys_user SET org_id=$G1_DEPT, dept_id=$G1_DEPT WHERE id=$BOT_UID;" >/
 [ -n "$BOT_UID" ] && [ -n "$BOT_RID" ] || { bad "临时角色/用户创建失败"; exit 1; }
 ok "临时载体就绪(uid=$BOT_UID rid=$BOT_RID)"
 
+# ---- 0) 可观测性端点姿态(2026-09-22 发布成熟度④): 公网不暴露 actuator + 容器内 health UP无细节 + metrics 认证保护 ----
+# 层次: 测试服 nginx 不路由 /actuator(公网落前端兜底 HTML)= 安全收敛,属期望;
+#       后端真实姿态在容器内直验(68d62733 可观测性批次的部署后复验)。
+HC=$(curl -s -m 15 "$BASE/actuator/health")
+if echo "$HC" | grep -q '"status":"UP"'; then
+  bad "actuator 公网可达: $HC(nginx 未屏蔽 /actuator, 期望仅容器内可见)"
+else
+  ok "actuator 公网不可达(nginx 收敛, 响应非后端 JSON)"
+fi
+IN_HC=$(ssh aigicrm-test 'docker exec $(docker ps --format "{{.Names}}" | grep -i backend | head -1) curl -s -m 5 -w "\n%{http_code}" http://localhost:8080/actuator/health' 2>/dev/null)
+IN_CODE=$(echo "$IN_HC" | tail -1); IN_BODY=$(echo "$IN_HC" | head -1)
+if [ "$IN_CODE" = "200" ] && echo "$IN_BODY" | grep -q '"status":"UP"'; then
+  ok "health: 容器内 HTTP200 UP"
+else
+  bad "health: 容器内 HTTP=$IN_CODE body=$IN_BODY(期望 200 UP)"
+fi
+if echo "$IN_BODY" | grep -qE '"db"|"redis"|diskSpace'; then
+  bad "health 泄漏组件细节: $IN_BODY(应仅 status/groups)"
+else
+  ok "health: 响应无组件细节"
+fi
+IN_MC=$(ssh aigicrm-test 'docker exec $(docker ps --format "{{.Names}}" | grep -i backend | head -1) curl -s -m 5 -o /dev/null -w "%{http_code}" http://localhost:8080/actuator/metrics' 2>/dev/null)
+if [ "$IN_MC" = "401" ] || [ "$IN_MC" = "403" ]; then
+  ok "metrics: 匿名被拒(HTTP=$IN_MC, 认证保护生效)"
+else
+  bad "metrics: 匿名返回 HTTP=$IN_MC(期望 401/403)"
+fi
+
 # ---- 1) 每个角色: 生效页面权限码与库内绑定一致 ----
 while IFS= read -r ROLE; do
   [ -n "$ROLE" ] || continue
