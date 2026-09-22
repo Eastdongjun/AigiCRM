@@ -1,0 +1,78 @@
+# AIGICRM 统一审计配置 —— 由 detect_stack.py 的 stack-profile.json 驱动扫描器选择
+# 修改本文件后无需改代码;所有 enabled=false 的扫描器在报告中记 SKIPPED。
+version: 1
+project: AIGICRM
+workspace_root: .
+source_root: 02-迭代源代码
+
+scanners:
+  sonar:
+    enabled: true
+    project_key: Eastdongjun_AigiCRM
+    note: 服务端 SonarQube(sources=backend main+ui src+miniprogram+scripts+nginx+sql)
+  ruff:
+    enabled: true
+    paths: [.audit/scripts, 02-迭代源代码/engineering]
+  dev_verify:
+    enabled: true
+    script: 02-迭代源代码/scripts/dev-verify.sh
+    quick_modes: [shell-syntax, python-syntax, miniprogram]
+    long_modes: [contracts, backend-test, frontend-test, frontend-build, backend-compile]
+  secrets_grep:
+    enabled: true
+    high_precision_only: true
+  mini_static:
+    enabled: true
+    root: 02-迭代源代码/aigicrm-miniprogram
+  todo_scan:
+    enabled: true
+  git_guard:
+    enabled: true
+
+long_running:
+  # full 模式才执行;quick/security/business 不跑长任务
+  mvn_test:
+    enabled: true
+    dir: 02-迭代源代码/aigicrm-backend
+    command: mvn -q test
+    timeout_sec: 900
+  npm_test:
+    enabled: true
+    dir: 02-迭代源代码/aigicrm-ui
+    command: npm test -- --run
+    timeout_sec: 600
+  npm_build:
+    enabled: true
+    dir: 02-迭代源代码/aigicrm-ui
+    command: npm run build
+    timeout_sec: 600
+  perm_matrix:
+    enabled: true
+    dir: 02-迭代源代码
+    command: bash scripts/verify-perm-matrix.sh
+    env_required: AIGI_TEST_PASS
+    timeout_sec: 300
+
+agent_review:
+  # Agent 语义审查结论以统一问题模型注入(findings/agent-review-*.json)
+  inject_dir: .audit/findings
+  business_rules: [.audit/rules/business, .audit/rules/api, .audit/rules/security]
+
+tool_policy:
+  record_missing: true
+  auto_install: false
+  # 规范§5: 缺失工具记 TOOL_NOT_INSTALLED 并给安装建议,不擅自安装、不中断其他扫描
+  install_suggestions:
+    semgrep: brew install semgrep
+    codeql: brew install codeql
+    trivy: brew install trivy
+    gitleaks: brew install gitleaks
+    hadolint: brew install hadolint
+    checkov: pip3 install checkov
+    kubescape: brew install kubescape
+    spotbugs: brew install spotbugs
+    pmd: brew install pmd
+    stylelint: npm -g install stylelint
+    bandit: pip3 install bandit
+    pip-audit: pip3 install pip-audit
+    govulncheck: go install golang.org/x/vuln/cmd/govulncheck@latest

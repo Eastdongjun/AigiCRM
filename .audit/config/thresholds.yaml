@@ -1,0 +1,18 @@
+# 质量门禁(规范§19)——失败即整次审计 FAIL(exit 1)
+# ACCEPTED 状态(用户已裁决接受的风险)不参与门禁,进 remaining-risk.md
+version: 1
+gates:
+  critical: 0
+  high: 0
+  secret: 0
+  known_critical_cve: 0
+  compile_failure: 0
+  test_failure: 0
+  permission_bypass: 0
+  tenant_isolation_breach: 0
+  severe_business_logic: 0
+# MEDIUM/LOW 不设门禁但必须全部登记并在 remaining-risk.md 可见
+advisory:
+  medium: -1
+  low: -1
+  info: -1

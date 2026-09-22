@@ -1,0 +1,68 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Audit: Quick",
+      "type": "shell",
+      "command": "python3 .audit/scripts/audit.py --mode quick",
+      "options": { "cwd": "${workspaceFolder}" },
+      "group": "build",
+      "problemMatcher": [],
+      "presentation": { "panel": "dedicated", "clear": true }
+    },
+    {
+      "label": "Audit: Changed",
+      "type": "shell",
+      "command": "python3 .audit/scripts/audit.py --mode changed",
+      "options": { "cwd": "${workspaceFolder}" },
+      "group": "build",
+      "problemMatcher": [],
+      "presentation": { "panel": "dedicated", "clear": true }
+    },
+    {
+      "label": "Audit: Full",
+      "type": "shell",
+      "command": "python3 .audit/scripts/audit.py --mode full",
+      "options": { "cwd": "${workspaceFolder}" },
+      "group": { "kind": "build", "isDefault": true },
+      "problemMatcher": [],
+      "presentation": { "panel": "dedicated", "clear": true }
+    },
+    {
+      "label": "Audit: Security",
+      "type": "shell",
+      "command": "python3 .audit/scripts/audit.py --mode security",
+      "options": { "cwd": "${workspaceFolder}" },
+      "group": "build",
+      "problemMatcher": [],
+      "presentation": { "panel": "dedicated", "clear": true }
+    },
+    {
+      "label": "Audit: Business",
+      "type": "shell",
+      "command": "python3 .audit/scripts/audit.py --mode business",
+      "options": { "cwd": "${workspaceFolder}" },
+      "group": "build",
+      "problemMatcher": [],
+      "presentation": { "panel": "dedicated", "clear": true }
+    },
+    {
+      "label": "Audit: Recheck",
+      "type": "shell",
+      "command": "python3 .audit/scripts/audit.py --mode recheck",
+      "options": { "cwd": "${workspaceFolder}" },
+      "group": "build",
+      "problemMatcher": [],
+      "presentation": { "panel": "dedicated", "clear": true }
+    },
+    {
+      "label": "Audit: Generate Report",
+      "type": "shell",
+      "command": "python3 .audit/scripts/generate_report.py",
+      "options": { "cwd": "${workspaceFolder}" },
+      "group": "build",
+      "problemMatcher": [],
+      "presentation": { "panel": "dedicated", "clear": true }
+    }
+  ]
+}

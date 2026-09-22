@@ -1,0 +1,39 @@
+# 扫描排除(规范§13)——每条排除必须给理由;lock/manifest/Dockerfile/CI/部署配置永不排除
+version: 1
+exclude_dirs:
+  - {path: node_modules, reason: 依赖产物}
+  - {path: dist, reason: 构建产物}
+  - {path: build, reason: 构建产物}
+  - {path: target, reason: 构建产物}
+  - {path: coverage, reason: 测试覆盖率产物}
+  - {path: vendor, reason: 依赖产物}
+  - {path: .git, reason: 版本库元数据}
+  - {path: .cache, reason: 缓存}
+  - {path: .idea, reason: IDE 元数据}
+  - {path: .next, reason: 构建产物}
+  - {path: .nuxt, reason: 构建产物}
+  - {path: out, reason: 构建产物}
+  - {path: miniprogram_npm, reason: 小程序构建依赖}
+  # 本工作区特有(非业务源码)
+  - {path: 08-备份索引, reason: 生产备份只读区,禁止扫描禁止修改}
+  - {path: GPT诊断, reason: 历史外审资料归档,只读}
+  - {path: 99-归档, reason: 归档区}
+  - {path: 03-管理, reason: 管理材料非源码}
+  - {path: artifacts, reason: 构建产物归档}
+  - {path: test-results, reason: 测试产物}
+  - {path: .audit/findings, reason: 审计自身产物}
+  - {path: .audit/reports, reason: 审计自身产物}
+  - {path: .audit/evidence, reason: 审计自身产物}
+exclude_files:
+  - {path: 02-迭代源代码.zip, reason: 源码快照包,内容已由工作树覆盖}
+  - {path: "*.min.js", reason: 压缩产物}
+  - {path: "*.map", reason: sourcemap 产物}
+never_exclude:
+  - {path: "*lock*", reason: 依赖锁文件必须参与依赖扫描}
+  - {path: package.json, reason: manifest}
+  - {path: pom.xml, reason: manifest}
+  - {path: Dockerfile*, reason: 容器配置}
+  - {path: docker-compose*.yml, reason: 编排配置}
+  - {path: "*.github/**", reason: CI 配置}
+  - {path: nginx/*.conf, reason: 部署配置}
+  - {path: "*.sql", reason: Schema/迁移}
