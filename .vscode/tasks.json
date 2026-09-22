@@ -56,6 +56,15 @@
       "presentation": { "panel": "dedicated", "clear": true }
     },
     {
+      "label": "Audit: JEV Triage",
+      "type": "shell",
+      "command": "python3 .audit/scripts/jev_triage.py",
+      "options": { "cwd": "${workspaceFolder}" },
+      "group": "build",
+      "problemMatcher": [],
+      "presentation": { "panel": "dedicated", "clear": true }
+    },
+    {
       "label": "Audit: Generate Report",
       "type": "shell",
       "command": "python3 .audit/scripts/generate_report.py",
