@@ -1,6 +1,6 @@
 <template>
   <div class="statistics-page">
-    <!-- 数据概览 · 深蓝主视觉带(指标白字统排 + 筛选内嵌,与工作台/文件页同语言) -->
+    <!-- 数据概览 · 深蓝主视觉带(指标白字统排 + 筛选内嵌) -->
     <div class="ana-hero">
       <div class="ah-top">
         <span class="ah-title">数据概览</span>
@@ -59,26 +59,101 @@
       </div>
     </div>
 
-    <!-- 行业分布 + 办事处对比 -->
+    <!-- 趋势 · 双面积图 -->
     <div class="twin-row">
-      <div class="card">
-        <div class="card-head"><span>行业分布</span><span class="card-unit">按客户数排序</span></div>
-        <div class="industry-bars">
-          <div v-for="item in industryData" :key="item.name" class="ind-row">
-            <span class="ind-name">{{ item.name }}</span>
-            <div class="ind-track">
-              <div class="ind-fill" :style="{ width: item.pct + '%' }">
-                <span class="ind-pct">{{ item.pctLabel }}%</span>
+      <div class="card chart-card">
+        <div class="card-head">
+          <span class="ch-title"><span class="ch-dot d-blue"></span>月度新增客户</span>
+          <span class="card-unit">单位：个</span>
+        </div>
+        <div class="area-wrap">
+          <svg viewBox="0 0 640 190" preserveAspectRatio="none" class="area-svg">
+            <defs>
+              <linearGradient id="gCust" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="#6083e4" stop-opacity=".35" />
+                <stop offset="100%" stop-color="#6083e4" stop-opacity=".02" />
+              </linearGradient>
+            </defs>
+            <g class="grid-lines">
+              <line v-for="i in 4" :key="i" x1="0" :y1="i * 36" x2="640" :y2="i * 36" />
+            </g>
+            <path :d="areaPath(analysis.monthlyCustomers)" fill="url(#gCust)" />
+            <polyline :points="linePoints(analysis.monthlyCustomers)" class="line-blue" />
+            <circle v-for="(p, i) in pointCoords(analysis.monthlyCustomers)" :key="'c'+i"
+              :cx="p.x" :cy="p.y" r="3.2" :class="['pt', { 'pt-now': isCurrentMonth(i) }]" />
+          </svg>
+          <div class="x-labels"><span v-for="m in 12" :key="m">{{ m }}月</span></div>
+        </div>
+        <div class="chart-chips">
+          <span class="cc">年累计 <b>{{ arrSum(analysis.monthlyCustomers) }}</b></span>
+          <span class="cc">月均 <b>{{ arrAvg(analysis.monthlyCustomers) }}</b></span>
+          <span class="cc">峰值 <b>{{ peakMonth(analysis.monthlyCustomers) }}</b></span>
+        </div>
+      </div>
+      <div class="card chart-card">
+        <div class="card-head">
+          <span class="ch-title"><span class="ch-dot d-amber"></span>月度文件上传</span>
+          <span class="card-unit">单位：份</span>
+        </div>
+        <div class="area-wrap">
+          <svg viewBox="0 0 640 190" preserveAspectRatio="none" class="area-svg">
+            <defs>
+              <linearGradient id="gFile" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="#fbbf24" stop-opacity=".32" />
+                <stop offset="100%" stop-color="#fbbf24" stop-opacity=".02" />
+              </linearGradient>
+            </defs>
+            <g class="grid-lines">
+              <line v-for="i in 4" :key="i" x1="0" :y1="i * 36" x2="640" :y2="i * 36" />
+            </g>
+            <path :d="areaPath(analysis.monthlyFiles)" fill="url(#gFile)" />
+            <polyline :points="linePoints(analysis.monthlyFiles)" class="line-amber" />
+            <circle v-for="(p, i) in pointCoords(analysis.monthlyFiles)" :key="'f'+i"
+              :cx="p.x" :cy="p.y" r="3.2" :class="['pt pt-amber', { 'pt-now pt-amber-now': isCurrentMonth(i) }]" />
+          </svg>
+          <div class="x-labels"><span v-for="m in 12" :key="m">{{ m }}月</span></div>
+        </div>
+        <div class="chart-chips">
+          <span class="cc">年累计 <b>{{ arrSum(analysis.monthlyFiles) }}</b></span>
+          <span class="cc">月均 <b>{{ arrAvg(analysis.monthlyFiles) }}</b></span>
+          <span class="cc">峰值 <b>{{ peakMonth(analysis.monthlyFiles) }}</b></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 结构 · 环形占比 + 办事处对比 -->
+    <div class="twin-row">
+      <div class="card chart-card">
+        <div class="card-head">
+          <span class="ch-title"><span class="ch-dot d-blue"></span>行业分布</span>
+          <span class="card-unit">按客户数</span>
+        </div>
+        <div class="donut-layout">
+          <div class="donut-box">
+            <div class="donut" :style="donutStyle">
+              <div class="donut-center">
+                <b>{{ analysis.totalCustomers || 0 }}</b>
+                <span>客户总数</span>
               </div>
             </div>
-            <span class="ind-count"><strong>{{ item.count }}</strong></span>
-            <span class="ind-pct-r">{{ item.pctLabel }}%</span>
+          </div>
+          <div class="donut-legend">
+            <div v-for="seg in donutSegs" :key="seg.name" class="dl-row">
+              <span class="dl-dot" :style="{ background: seg.color }"></span>
+              <span class="dl-name">{{ seg.name }}</span>
+              <div class="dl-track"><div class="dl-fill" :style="{ width: seg.pct + '%', background: seg.color }"></div></div>
+              <span class="dl-count">{{ seg.count }}</span>
+              <span class="dl-pct">{{ seg.pctLabel }}%</span>
+            </div>
           </div>
         </div>
       </div>
 
-      <div class="card">
-        <div class="card-head"><span>办事处对比</span><span class="card-unit">近5月新增走势</span></div>
+      <div class="card chart-card">
+        <div class="card-head">
+          <span class="ch-title"><span class="ch-dot d-blue"></span>办事处对比</span>
+          <span class="card-unit">近5月新增走势</span>
+        </div>
         <table class="office-table">
           <thead>
             <tr>
@@ -104,41 +179,13 @@
       </div>
     </div>
 
-    <!-- 月度图表 -->
-    <div class="twin-row">
-      <div class="card">
-        <div class="card-head"><span>月度新增客户</span><span class="card-unit">单位：个</span></div>
-        <div class="month-chart">
-          <div v-for="(v, i) in (analysis.monthlyCustomers || [])" :key="'c'+i" class="mc-col">
-            <span class="mc-val">{{ v }}</span>
-            <div class="mc-bar" :class="{ 'mc-now': isCurrentMonth(i) }" :style="{ height: barH(v, analysis.monthlyCustomers) + 'px' }"></div>
-            <span class="mc-lbl">{{ i+1 }}月</span>
-          </div>
-        </div>
-        <div class="chart-summary">
-          全年新增 <strong>{{ arrSum(analysis.monthlyCustomers) }}</strong> 个客户，月均 <strong>{{ arrAvg(analysis.monthlyCustomers) }}</strong> 个，峰值 <strong>{{ peakMonth(analysis.monthlyCustomers) }}</strong>
-        </div>
-      </div>
-      <div class="card">
-        <div class="card-head"><span>月度文件上传</span><span class="card-unit">单位：份</span></div>
-        <div class="month-chart">
-          <div v-for="(v, i) in (analysis.monthlyFiles || [])" :key="'f'+i" class="mc-col">
-            <span class="mc-val">{{ v }}</span>
-            <div class="mc-bar" :class="{ 'mc-now': isCurrentMonth(i) }" :style="{ height: barH(v, analysis.monthlyFiles) + 'px' }"></div>
-            <span class="mc-lbl">{{ i+1 }}月</span>
-          </div>
-        </div>
-        <div class="chart-summary">
-          全年上传 <strong>{{ arrSum(analysis.monthlyFiles) }}</strong> 份文件，月均 <strong>{{ arrAvg(analysis.monthlyFiles) }}</strong> 份，峰值 <strong>{{ peakMonth(analysis.monthlyFiles) }}</strong>
-        </div>
-      </div>
-    </div>
-
-    <!-- 业务总览 -->
+    <!-- 总览 · 指标砖 + Top5 -->
     <div class="card biz-overview">
-      <div class="card-head"><span>业务总览</span><span class="card-unit">截至 {{ filterYear }}年{{ currentMonth }}月</span></div>
+      <div class="card-head">
+        <span class="ch-title"><span class="ch-dot d-blue"></span>业务总览</span>
+        <span class="card-unit">截至 {{ filterYear }}年{{ currentMonth }}月</span>
+      </div>
       <div class="biz-grid">
-        <!-- 客户状态分布 -->
         <div class="biz-col">
           <div class="biz-title">客户状态分布</div>
           <div class="status-bar-row">
@@ -159,7 +206,6 @@
           <div class="biz-note">保护率 {{ protectionRate }}%，{{ protectionRate >= 60 ? '健康度良好' : '需关注' }}</div>
         </div>
 
-        <!-- 待办 & 预警 -->
         <div class="biz-col">
           <div class="biz-title">待办 & 预警</div>
           <div class="biz-kv">
@@ -176,7 +222,6 @@
           </div>
         </div>
 
-        <!-- 文件 & 激励 -->
         <div class="biz-col">
           <div class="biz-title">文件 & 激励</div>
           <div class="biz-kv">
@@ -189,12 +234,12 @@
           </div>
         </div>
 
-        <!-- 人员积分 Top5 -->
         <div class="biz-col">
           <div class="biz-title">人员积分 Top5</div>
           <div v-for="(r, i) in scoreTop5" :key="i" class="top5-row">
             <span class="top5-rank" :class="'r'+(i+1)">{{ i+1 }}</span>
             <span class="top5-name">{{ r.realName }}</span>
+            <div class="top5-track"><div class="top5-fill" :style="{ width: top5BarWidth(r.totalScore) + '%' }"></div></div>
             <strong class="top5-score">{{ r.totalScore }}</strong>
           </div>
           <div v-if="!scoreTop5.length" class="biz-note">暂无积分数据</div>
@@ -225,15 +270,34 @@ const protectionRate = computed(() => {
   return t ? ((analysis.value.inProtection || 0) / t * 100).toFixed(1) : 0
 })
 
-const industryData = computed(() => {
+const DONUT_COLORS = ['#1d4ed8', '#6083e4', '#93b0ec', '#c2d0f5', '#fbbf24', '#cbd5e1']
+
+const donutSegs = computed(() => {
   const d = analysis.value.industryStats || {}
   const entries = Object.entries(d).sort((a, b) => b[1] - a[1])
   const total = entries.reduce((s, e) => s + e[1], 0) || 1
-  return entries.map(([name, count]) => ({
-    name, count,
-    pct: (count / total) * 100,
+  const top = entries.slice(0, 5).map(([name, count]) => ({
+    name, count, pct: (count / total) * 100,
     pctLabel: ((count / total) * 100).toFixed(1)
   }))
+  const restCount = entries.slice(5).reduce((s, e) => s + e[1], 0)
+  if (restCount > 0) {
+    top.push({ name: '其他', count: restCount, pct: (restCount / total) * 100,
+      pctLabel: ((restCount / total) * 100).toFixed(1) })
+  }
+  return top.map((s, i) => ({ ...s, color: DONUT_COLORS[i % DONUT_COLORS.length] }))
+})
+
+const donutStyle = computed(() => {
+  const segs = donutSegs.value
+  if (!segs.length) return { background: '#eef2f8' }
+  let acc = 0
+  const stops = segs.map((s) => {
+    const from = acc
+    acc += s.pct
+    return `${s.color} ${from.toFixed(2)}% ${acc.toFixed(2)}%`
+  })
+  return { background: `conic-gradient(${stops.join(', ')})` }
 })
 
 const statusPct = (key) => {
@@ -242,12 +306,32 @@ const statusPct = (key) => {
   return ((map[key] || 0) / t * 100).toFixed(0)
 }
 
-// 图表工具
-const barH = (v, arr) => {
-  if (!arr || !arr.length) return 0
-  const max = Math.max(...arr, 1)
-  return Math.max(Math.round((v / max) * 100), v > 0 ? 4 : 0)
+// —— 面积图几何(viewBox 640x190, 上留8 下留22 给横轴) ——
+const CX = { w: 640, h: 190, padX: 14, top: 10, bottom: 26 }
+const yOf = (v, max) => CX.top + (1 - v / max) * (CX.h - CX.top - CX.bottom)
+const xOf = (i) => CX.padX + (i / 11) * (CX.w - CX.padX * 2)
+
+const linePoints = (arr) => {
+  const a = arr || []
+  if (!a.length) return ''
+  const max = Math.max(...a, 1)
+  return a.map((v, i) => `${xOf(i).toFixed(1)},${yOf(v, max).toFixed(1)}`).join(' ')
 }
+const areaPath = (arr) => {
+  const a = arr || []
+  if (!a.length) return ''
+  const max = Math.max(...a, 1)
+  const pts = a.map((v, i) => `${xOf(i).toFixed(1)},${yOf(v, max).toFixed(1)}`)
+  const base = CX.h - CX.bottom
+  return `M ${xOf(0).toFixed(1)},${base} L ${pts.join(' L ')} L ${xOf(a.length - 1).toFixed(1)},${base} Z`
+}
+const pointCoords = (arr) => {
+  const a = arr || []
+  const max = Math.max(...a, 1)
+  return a.map((v, i) => ({ x: +xOf(i).toFixed(1), y: +yOf(v, max).toFixed(1) }))
+}
+
+const isCurrentMonth = (i) => filterYear.value === currentYear && i + 1 === currentMonth
 const arrSum = (arr) => (arr || []).reduce((s, v) => s + v, 0)
 const arrAvg = (arr) => {
   if (!arr || !arr.length) return 0
@@ -257,11 +341,12 @@ const arrAvg = (arr) => {
 const peakMonth = (arr) => {
   if (!arr || !arr.length) return '—'
   const max = Math.max(...arr)
-  const idx = arr.indexOf(max)
-  return `${idx + 1}月`
+  return `${arr.indexOf(max) + 1}月`
 }
-// 当前月高亮(仅查看今年数据时)
-const isCurrentMonth = (i) => filterYear.value === currentYear && i + 1 === currentMonth
+const top5BarWidth = (score) => {
+  const max = Math.max(...scoreTop5.value.map((r) => Number(r.totalScore) || 0), 1)
+  return Math.round((Number(score) || 0) / max * 100)
+}
 
 // 办事处趋势
 const trendText = (o) => {
@@ -289,7 +374,7 @@ onMounted(loadAll)
 </script>
 
 <style scoped>
-.statistics-page { height: calc(100vh - 80px); display: flex; flex-direction: column; gap: 10px; overflow-y: auto }
+.statistics-page { height: calc(100vh - 80px); display: flex; flex-direction: column; gap: 14px; overflow-y: auto }
 
 /* —— 数据概览 · 深蓝主视觉带 —— */
 .ana-hero {
@@ -304,7 +389,6 @@ onMounted(loadAll)
 .ah-select.narrow { width: 96px }
 .ah-select { width: 190px }
 .ah-select :deep(.el-select__wrapper),
-.ah-select :deep(.el-tree-select .el-select__wrapper),
 .ah-select :deep(.el-input__wrapper) {
   background: rgba(255, 255, 255, .14);
   box-shadow: 0 0 0 1px rgba(255, 255, 255, .28) inset;
@@ -312,9 +396,7 @@ onMounted(loadAll)
 .ah-select :deep(.el-select__placeholder),
 .ah-select :deep(.el-select__selected-item),
 .ah-select :deep(.el-input__inner) { color: #fff }
-.ah-refresh {
-  background: rgba(255, 255, 255, .14); color: #fff; border: 1px solid rgba(255, 255, 255, .3);
-}
+.ah-refresh { background: rgba(255, 255, 255, .14); color: #fff; border: 1px solid rgba(255, 255, 255, .3); }
 .ah-refresh:hover, .ah-refresh:focus { background: rgba(255, 255, 255, .24); color: #fff }
 .ah-metrics { display: grid; grid-template-columns: 1fr auto 1fr auto 1fr auto 1fr auto 1fr; gap: 0 24px; align-items: stretch }
 .ah-metric { min-width: 0 }
@@ -329,23 +411,56 @@ onMounted(loadAll)
 .ah-track { height: 4px; background: rgba(255, 255, 255, .18); border-radius: 2px; margin: 8px 0 0; overflow: hidden }
 .ah-fill { height: 100%; background: #fcd34d; border-radius: 2px; transition: width .4s }
 
-/* 通用卡片 */
-.twin-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
-.card { background: #fff; border: 1px solid #ebeef5; border-radius: 12px; padding: 24px; }
-.card-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; font-size: 15px; font-weight: 600; }
+/* —— 通用图表卡 —— */
+.twin-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.card { background: #fff; border: 1px solid #ebeef5; border-radius: 12px; padding: 20px 22px; }
+.card-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+.ch-title { display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 700; color: #1f2329 }
+.ch-dot { width: 8px; height: 8px; border-radius: 2px; display: inline-block }
+.d-blue { background: #1d4ed8 } .d-amber { background: #f59e0b }
 .card-unit { font-size: 12px; color: #c0c4cc; font-weight: normal; }
 
-/* 行业分布(单色系蓝阶,粗细=占比) */
-.ind-row { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
-.ind-name { width: 80px; text-align: right; font-size: 13px; color: #333; flex-shrink: 0; white-space: nowrap }
-.ind-track { flex: 1; height: 28px; background: #f5f7fa; border-radius: 6px; overflow: hidden; }
-.ind-fill { height: 100%; border-radius: 6px; display: flex; align-items: center; justify-content: flex-end; padding-right: 10px; transition: width .5s; min-width: 40px;
-  background: linear-gradient(90deg, #6083e4, #1d4ed8); }
-.ind-pct { color: #fff; font-size: 11px; font-weight: 600; white-space: nowrap }
-.ind-count { width: 32px; font-size: 16px; font-weight: 700; color: #333; text-align: center; flex-shrink: 0 }
-.ind-pct-r { width: 40px; font-size: 11px; color: #999; text-align: right; flex-shrink: 0 }
+/* —— 面积趋势图 —— */
+.chart-card { display: flex; flex-direction: column; }
+.area-wrap { flex: 1; min-height: 0; }
+.area-svg { width: 100%; height: 190px; display: block; }
+.grid-lines line { stroke: #f0f3f8; stroke-width: 1; }
+.line-blue { fill: none; stroke: #1d4ed8; stroke-width: 2.5; stroke-linejoin: round; stroke-linecap: round }
+.line-amber { fill: none; stroke: #f59e0b; stroke-width: 2.5; stroke-linejoin: round; stroke-linecap: round }
+.pt { fill: #fff; stroke: #1d4ed8; stroke-width: 2 }
+.pt.pt-amber { stroke: #f59e0b }
+.pt-now { fill: #1d4ed8 }
+.pt-amber-now { fill: #f59e0b }
+.x-labels { display: flex; justify-content: space-between; padding: 6px 14px 0; font-size: 10.5px; color: #94a3b8; }
+.chart-chips { display: flex; gap: 10px; margin-top: 12px; padding-top: 12px; border-top: 1px solid #f2f4f8; }
+.cc { font-size: 12px; color: #86909c; background: #f7f9fc; border-radius: 6px; padding: 4px 12px; }
+.cc b { color: #1d4ed8; font-size: 13px; margin-left: 4px }
 
-/* 办事处表格 */
+/* —— 环形占比 —— */
+.donut-layout { display: flex; gap: 24px; align-items: center; }
+.donut-box { flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+.donut {
+  width: 168px; height: 168px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: inset 0 0 0 1px rgba(15, 23, 42, .04);
+}
+.donut-center {
+  width: 108px; height: 108px; border-radius: 50%; background: #fff;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  box-shadow: 0 2px 10px rgba(15, 23, 42, .08);
+}
+.donut-center b { font-size: 26px; font-weight: 700; color: #1d337a; line-height: 1.1 }
+.donut-center span { font-size: 11px; color: #94a3b8; margin-top: 3px }
+.donut-legend { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 10px; }
+.dl-row { display: flex; align-items: center; gap: 8px; font-size: 12.5px; }
+.dl-dot { width: 9px; height: 9px; border-radius: 3px; flex-shrink: 0 }
+.dl-name { width: 64px; color: #4e5969; white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
+.dl-track { flex: 1; height: 6px; background: #f2f4f8; border-radius: 3px; overflow: hidden }
+.dl-fill { height: 100%; border-radius: 3px; }
+.dl-count { width: 30px; text-align: right; font-weight: 700; color: #1f2329 }
+.dl-pct { width: 44px; text-align: right; color: #94a3b8; font-size: 11.5px }
+
+/* —— 办事处表格 —— */
 .office-table { width: 100%; border-collapse: collapse; font-size: 13px; }
 .office-table th { text-align: left; padding: 8px 6px; color: #86909c; font-weight: 500; border-bottom: 1px solid #ebeef5; }
 .office-table td { padding: 10px 6px; border-bottom: 1px solid #f5f5f5; }
@@ -354,23 +469,12 @@ onMounted(loadAll)
 .spark-bar { width: 8px; background: #6083e4; border-radius: 2px; min-height: 3px; }
 .trend-up { color: #16a34a; font-weight: 500; } .trend-down { color: #f56c6c; font-weight: 500; } .trend-flat { color: #999; }
 
-/* 月度图表(蓝阶柱,当月琥珀高亮) */
-.month-chart { display: flex; align-items: flex-end; justify-content: space-between; height: 140px; padding: 10px 0; }
-.mc-col { display: flex; flex-direction: column; align-items: center; gap: 4px; flex: 1; }
-.mc-val { font-size: 11px; font-weight: 600; color: #333; }
-.mc-bar { width: 28px; background: linear-gradient(180deg, #6083e4, #1d4ed8); border-radius: 4px 4px 0 0; transition: height .4s; }
-.mc-bar.mc-now { background: linear-gradient(180deg, #fcd34d, #f59e0b); }
-.mc-lbl { font-size: 11px; color: #86909c; }
-.chart-summary { text-align: right; font-size: 12px; color: #86909c; margin-top: 8px; padding-top: 8px; border-top: 1px solid #f0f0f0; }
-
-/* 业务总览 */
+/* —— 业务总览 —— */
 .biz-overview { margin-bottom: 0; }
 .biz-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 24px; }
 .biz-col { min-width: 0; }
-.biz-title { font-size: 14px; font-weight: 600; color: #333; margin-bottom: 16px; }
+.biz-title { font-size: 13px; font-weight: 700; color: #4e5969; margin-bottom: 14px; }
 .biz-note { font-size: 12px; color: #c0c4cc; margin-top: 10px; }
-
-/* 状态条(语义色: 蓝=保护, 琥珀=预警, 红=超期) */
 .status-bar-row { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
 .sb-label { width: 32px; font-size: 13px; color: #666; flex-shrink: 0; }
 .sb-track { flex: 1; height: 8px; background: #f0f2f5; border-radius: 4px; overflow: hidden; }
@@ -378,22 +482,21 @@ onMounted(loadAll)
 .sb-blue { background: #1d4ed8; } .sb-amber { background: #f59e0b; } .sb-red { background: #f56c6c; }
 .sb-count { width: 24px; text-align: right; font-size: 14px; }
 .blue { color: #1d4ed8; } .amber { color: #d97706; } .red { color: #f56c6c; }
-
-/* 待办KV */
 .biz-kv { margin-bottom: 12px; }
 .kv-row { display: flex; justify-content: space-between; font-size: 13px; }
 .kv-sub { font-size: 11px; color: #c0c4cc; margin-top: 2px; }
-
-/* Top5(深蓝阶名次,非彩虹奖牌) */
-.top5-row { display: flex; align-items: center; gap: 8px; padding: 6px 0; font-size: 13px; }
+.top5-row { display: flex; align-items: center; gap: 8px; padding: 5px 0; font-size: 13px; }
 .top5-rank { width: 20px; height: 20px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 600; color: #fff; flex-shrink: 0; }
 .r1 { background: #1d4ed8; } .r2 { background: #4a6ee0; } .r3 { background: #7a94e9; }
 .r4, .r5 { background: #c0c4cc; }
-.top5-name { flex: 1; }
-.top5-score { color: #333; }
+.top5-name { width: 52px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex-shrink: 0 }
+.top5-track { flex: 1; height: 6px; background: #f2f4f8; border-radius: 3px; overflow: hidden }
+.top5-fill { height: 100%; border-radius: 3px; background: linear-gradient(90deg, #6083e4, #1d4ed8) }
+.top5-score { width: 30px; text-align: right; color: #1d337a }
 
 @media (max-width: 1280px) {
   .ah-metrics { grid-template-columns: repeat(2, 1fr auto); }
   .ah-metrics .ah-divider:nth-of-type(2n) { display: none }
+  .biz-grid { grid-template-columns: repeat(2, 1fr); }
 }
 </style>
