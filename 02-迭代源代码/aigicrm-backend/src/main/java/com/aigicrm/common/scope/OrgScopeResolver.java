@@ -38,6 +38,7 @@ public class OrgScopeResolver {
     private final SysDeptMapper deptMapper;
     private final SysConfigService configService;
     private final com.aigicrm.module.system.mapper.SysRoleOrgMapper roleOrgMapper;
+    private final org.springframework.jdbc.core.JdbcTemplate jdbcTemplate;
 
     /** 开关配置短 TTL 缓存：避免每次数据范围解析都查库（多页面累计卡顿） */
     private static final long SWITCH_CACHE_TTL_MS = 30_000L;
@@ -106,6 +107,25 @@ public class OrgScopeResolver {
                 .build();
         ScopeDecision d = resolveScope(req);
         return d.isAll() ? null : d.getVisibleUserIds();
+    }
+
+    /**
+     * 【GPT三轮 ACL-P1-001 修复 2026-09-22】全局表安全版。
+     * resolveModuleUsers 的 null(=all 不过滤)语义只在租户拦截表上安全; sys_user/sys_log 等
+     * 无 tenant_id 的全局表直接消费 null 会把"当前集团全部"放大为"全平台"。
+     * 统一收口(与 ScopeService.visibleUsers 同口径):
+     *   非 admin 的 all → 当前集团成员集(无集团归属=空集 fail-closed);
+     *   admin 的 all → 保持 null(平台全量,平台管理员语义);
+     *   非 null 集合 → 原样返回。
+     */
+    public List<Long> resolveModuleUsersWithinGroup(SecurityUser user, String module) {
+        List<Long> visible = resolveModuleUsers(user, module);
+        if (visible != null) return visible;
+        if (user != null && user.hasRole("admin")) return null;
+        Long g = GroupScopeUtil.currentGroupOrNull();
+        if (g == null) return List.of();
+        List<Long> inGroup = GroupScopeUtil.userIdsInGroup(jdbcTemplate, g);
+        return inGroup.isEmpty() ? List.of() : inGroup;
     }
 
     /**

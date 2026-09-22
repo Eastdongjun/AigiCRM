@@ -37,6 +37,7 @@ public class TaskService {
     private final BizCustomerMapper customerMapper;
     private final com.aigicrm.module.customer.mapper.BizCustomerLogMapper customerLogMapper;
     private final com.aigicrm.common.scope.OrgScopeResolver orgScopeResolver;
+    private final com.aigicrm.common.engine.CustomerAccessService customerAccessService;
 
     /** 控制器 Map → 实体转换(控制器零 entity 依赖) */
     public BizTask createFromMap(Map<String, Object> body) {
@@ -75,11 +76,13 @@ public class TaskService {
         // 【GPT复审 P1-04 修复 2026-09-21】分派目标须在操作者可见范围(与查询侧 assertAssigneeVisible 同口径)
         assertAssigneeVisible(task.getAssigneeId(), SecurityUtils.getCurrentUserId());
         // 【GPT复审 P1-05 修复 2026-09-21】关联对象守卫: 客户须存在未删, 跟进日志须归属该客户
+        // 【GPT三轮 TASK-P1-003 2026-09-22】存在性只防跨租户; 同集团横向须再套客户对象 DataScope 守卫
         if (task.getCustomerId() != null) {
             var customer = customerMapper.selectById(task.getCustomerId());
             if (customer == null || (customer.getDeleted() != null && customer.getDeleted() == 1)) {
                 throw new BusinessException("关联客户不存在");
             }
+            customerAccessService.assertCanView(task.getCustomerId());
         }
         if (task.getSourceLogId() != null) {
             if (task.getCustomerId() == null) {
@@ -167,8 +170,9 @@ public class TaskService {
      */
     private void assertAssigneeVisible(Long targetUserId, Long currentUserId) {
         if (SecurityUtils.isAdmin() || targetUserId.equals(currentUserId)) return;
-        java.util.List<Long> visible = orgScopeResolver.resolveModuleUsers(SecurityUtils.getCurrentUser(), "task");
-        if (visible != null && !visible.contains(targetUserId)) {
+        // 【GPT三轮 ACL-P1-001 2026-09-22】sys_user 全局表: null(all) 须集团收口, 否则可分派范围外/他集团人员
+        java.util.List<Long> visible = orgScopeResolver.resolveModuleUsersWithinGroup(SecurityUtils.getCurrentUser(), "task");
+        if (!visible.contains(targetUserId)) {
             throw new BusinessException(403, "无权查看该负责人的任务");
         }
     }

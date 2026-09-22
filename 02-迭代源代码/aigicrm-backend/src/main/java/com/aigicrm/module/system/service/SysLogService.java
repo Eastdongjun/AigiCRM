@@ -47,9 +47,11 @@ public class SysLogService {
         // 非管理员 = Resolver 可见用户集合（self 仅自己 / dept 本部门及子部门 / region 大区 / team 本人及下级 / all 全量）
         if (!SecurityUtils.isAdmin()) {
             // 【2026-09-19 接入权限矩阵】(system,view) 显式配置优先，未配置回退角色数据范围
-            java.util.List<Long> uids = scopeResolver.resolveModuleUsers(SecurityUtils.getCurrentUser(), "system");
+            // 【GPT三轮 ACL-P1-001 2026-09-22】sys_log 无 tenant_id 不走租户拦截器, null(all) 须集团收口——
+            // 旧代码此处 null 分支为空操作, "本集团全部"注释从未成立, 实际放行全平台日志
+            java.util.List<Long> uids = scopeResolver.resolveModuleUsersWithinGroup(SecurityUtils.getCurrentUser(), "system");
             if (uids == null) {
-                // all 范围：本集团全部
+                // 仅 admin 会到达此处(WithinGroup 已保证非 admin 不返回 null)
             } else if (uids.isEmpty()) {
                 w.eq(SysLog::getUserId, Long.MIN_VALUE); // 空集
             } else {

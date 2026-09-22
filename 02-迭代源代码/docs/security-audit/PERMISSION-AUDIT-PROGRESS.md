@@ -103,3 +103,12 @@
 - **GPT 最有价值发现**: FileService:477 注释"清理任务兜底"系虚构引用(全库无该任务)——07 审计 D13-02 误采信注释,已自我修正并修复(注释改真实状态+log.warn)
 - 本轮修复: ①package-source.sh config 排除精确化(env.local.js 才排,保留 demo 档+模板; GPT AUD-P1-002 小程序不可编译)+根级 ci.yml 纳入+INCLUDE-MANIFEST+断言门 ②config 模板注释示例 IP 脱敏(3 文件) ③CLAUDE.md 基线冲突修正(GPT AUD-P1-001, ENG-P2-006 挂账清偿) ④pom 两处过时注释 ⑤FileService 虚构注释+warn
 - 门禁: FileServicePermissionTest 40/40+compile 0+dev-verify changed 全 PASS+external 重打包断言过(env 模板≥3+ci.yml 在包+泄漏门过, 997 文件 SHA a9944492…)
+
+---
+
+# GPT 三轮再审(external(1))裁定与权限收口批次(2026-09-22 深夜)
+- 裁定全文: `09-gpt-reaudit-external1-20260922-adjudication.md`(14 P1: 6 项本轮修复/7 项属实已知/lookup 维持产品权衡)
+- **核心修复(权限语义)**: ACL-P1-001 属实三处全中(SysLog 注释"本集团"代码空操作最讽刺)→ 新增 `resolveModuleUsersWithinGroup`(非admin的all→集团收口,fail-closed)+Score/Task/SysLog 三处切换; SCORE-P1-002 participantIds 校验; TASK-P1-003 客户对象守卫
+- 同批: 无扩展名上传真拒绝(replace 场景旧扩展兜底)/CLAUDE JDK17 残留/Node engines+CI 对齐 22/打包 ci.yml 保留原路径/tenant 反向白名单 4 死表新采纳
+- 门禁: 全量 **580/580**+前端 **188/188**+测试服部署(health UP)矩阵 **20/20**+FileService 41/41; 构造器注入扩张连锁适配 5 测试文件 30+ 处(成本记录)
+- 测试服已部署本轮 jar(rsync+docker build), 生产未触碰

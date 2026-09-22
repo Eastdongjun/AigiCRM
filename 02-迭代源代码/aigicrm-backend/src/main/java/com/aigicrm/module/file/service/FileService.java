@@ -395,7 +395,9 @@ public class FileService {
         String scope = file.getFileScope() != null ? file.getFileScope() : "private";
         try {
             // 先存新文件（沿用原文件的 scope/uploaderId 目录，保证 key 下载路由语义一致）
-            String newKey = uploadStorage(newFile, scope, file.getUploaderId());
+            // 【GPT三轮 FILE-P1-008】无扩展名拒绝后, replace 的 null 文件名场景改用旧文件扩展兜底
+            // (类型继承自已过白名单的旧文件, 治理语义不破), 保持 M-2② 的 ossUrl 更新行为可测
+            String newKey = uploadStorage(newFile, scope, file.getUploaderId(), extOf(file.getFileName()));
             String oldKey = file.getOssKey();
             long oldSize = file.getFileSize() != null ? file.getFileSize() : 0L;
             // ossUrl 与 upload 的 URL 方案一致：本地走 key 下载路由，OSS 走桶地址（保证替换后两种模式均可下载）
@@ -435,10 +437,21 @@ public class FileService {
      * 返回存储 key（scope/userId 目录 + 唯一文件名），供 upload 与 replaceFile 共用，行为与原先一致。
      */
     private String uploadStorage(MultipartFile file, String scope, Long userId) throws Exception {
+        return uploadStorage(file, scope, userId, null);
+    }
+
+    /**
+     * @param fallbackExt 替换场景的旧文件扩展兜底: 客户端未提供文件名(消毒后无扩展名)时,
+     *                    继承旧文件扩展再过白名单——避免"必须带文件名"破坏既有替换链路
+     */
+    private String uploadStorage(MultipartFile file, String scope, Long userId, String fallbackExt) throws Exception {
         // 【安全 2026-08-08 上传路径穿越】originalFilename 可能含 ../ 或路径分隔符，消毒后再拼落盘路径
         String originalFilename = sanitizeFilename(file.getOriginalFilename());
         // 【PR-01 N-09 2026-09-18】上传文件类型白名单：仅允许办公文档/图片/音视频/压缩包/文本。
         // 阻断可执行脚本与 HTML/SVG（未来某路径改 inline 即 XSS/恶意分发）。未知类型 400 拒绝。
+        if (fallbackExt != null && !fallbackExt.isBlank() && originalFilename.lastIndexOf('.') < 0) {
+            originalFilename = originalFilename + "." + fallbackExt;
+        }
         assertAllowedUploadType(originalFilename, file.getContentType());
         String dir = scope + "/" + userId;
         String fileKey = dir + "/" + resolveUniqueFilename(dir, originalFilename);
@@ -725,17 +738,27 @@ public class FileService {
             "mp3", "wav", "m4a", "mp4", "mov", "avi", "mkv",
             "zip", "rar", "7z", "tar", "gz");
 
-    static void assertAllowedUploadType(String sanitizedFilename, String contentType) {
-        String ext = "";
+    /** 取文件名扩展(无扩展名返回 null); 供替换场景兜底继承 */
+    private static String extOf(String filename) {
+        if (filename == null) return null;
+        int dot = filename.lastIndexOf('.');
+        if (dot < 0 || dot == filename.length() - 1) return null;
+        return filename.substring(dot + 1).toLowerCase(java.util.Locale.ROOT);
+    }
+
+    static void assertAllowedUploadType(String sanitizedFilename, String contentType) {        String ext = "";
         boolean hasExt = false;
         int dot = sanitizedFilename == null ? -1 : sanitizedFilename.lastIndexOf('.');
         if (dot >= 0 && dot < sanitizedFilename.length() - 1) {
             hasExt = true;
             ext = sanitizedFilename.substring(dot + 1).toLowerCase(java.util.Locale.ROOT);
         }
-        // 无扩展名文件（如表单上传缺省文件名兜底的 unnamed）无法按扩展名执行，放行；
-        // 下载链路统一 attachment，不解析执行。有扩展名则必须在白名单内。
-        if (!hasExt) return;
+        // 【GPT三轮 FILE-P1-008 2026-09-22】无扩展名文件拒绝——对齐上方 javadoc 声明与白名单哲学:
+        // 白名单体系下"未知类型"不默认放行; 旧代码此处 return 放行与注释相反(FILE-P2-004 挂账清偿)。
+        // 前端/小程序无 unnamed 兜底依赖(仅 sanitizeFilename 对穿越序列的消毒产物, 该产物在类型层拒绝属预期)
+        if (!hasExt) {
+            throw new BusinessException(400, "不支持的文件类型: 缺少扩展名");
+        }
         if (!ALLOWED_UPLOAD_EXTS.contains(ext)) {
             throw new BusinessException(400, "不支持的文件类型");
         }

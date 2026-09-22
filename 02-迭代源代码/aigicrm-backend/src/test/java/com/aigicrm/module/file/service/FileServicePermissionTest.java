@@ -760,6 +760,20 @@ class FileServicePermissionTest {
         assertEquals("unnamed", FileService.sanitizeFilename(null));
     }
 
+    // ====== 上传类型断言负向(GPT三轮 FILE-P1-008): 无扩展名必须拒绝, 对齐 javadoc 声明 ======
+    @org.junit.jupiter.api.Test
+    void uploadType_noExtension_rejected() {
+        org.junit.jupiter.api.Assertions.assertThrows(com.aigicrm.common.BusinessException.class,
+                () -> FileService.assertAllowedUploadType("unnamed", "application/octet-stream"));
+        org.junit.jupiter.api.Assertions.assertThrows(com.aigicrm.common.BusinessException.class,
+                () -> FileService.assertAllowedUploadType("报告", null));
+        // 白名单内正常类型仍放行(不抛)
+        FileService.assertAllowedUploadType("报告.pdf", "application/pdf");
+        // 白名单外有扩展名仍拒绝
+        org.junit.jupiter.api.Assertions.assertThrows(com.aigicrm.common.BusinessException.class,
+                () -> FileService.assertAllowedUploadType("evil.exe", "application/x-msdownload"));
+    }
+
     // ====== 缩略图子采样解码回归（2026-08-09 生产 OOM 复盘）======
     // 原实现 ImageIO.read() 整图解码 5MB+ JPEG（~96MB/张），激励查询页首屏并发生成时撑爆 -Xmx512m 堆 → 500。
     // 修复改为 ImageReader 子采样解码（只解码 ~2×目标像素）。以下用例锁死大图/PNG透明/小图/非图片各分支行为。

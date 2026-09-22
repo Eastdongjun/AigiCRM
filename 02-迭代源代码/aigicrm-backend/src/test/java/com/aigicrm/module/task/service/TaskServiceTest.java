@@ -30,7 +30,9 @@ class TaskServiceTest {
     private final BizCustomerMapper customerMapper = mock(BizCustomerMapper.class);
     private final OrgScopeResolver orgScopeResolver = mock(OrgScopeResolver.class);
     private final com.aigicrm.module.customer.mapper.BizCustomerLogMapper customerLogMapper = mock(com.aigicrm.module.customer.mapper.BizCustomerLogMapper.class);
-    private final TaskService svc = new TaskService(taskMapper, userMapper, customerMapper, customerLogMapper, orgScopeResolver);
+    // 【GPT三轮 TASK-P1-003】create 增客户对象守卫 → 注入 mock(用例 task 均不带 customerId, 守卫不触发)
+    private final com.aigicrm.common.engine.CustomerAccessService customerAccessService = mock(com.aigicrm.common.engine.CustomerAccessService.class);
+    private final TaskService svc = new TaskService(taskMapper, userMapper, customerMapper, customerLogMapper, orgScopeResolver, customerAccessService);
 
     @BeforeAll
     static void initTableInfo() {
@@ -57,6 +59,9 @@ class TaskServiceTest {
         when(userMapper.selectById(20L)).thenReturn(assignee);
         // 【GPT复审 P1-04】创建侧新增可见性断言: 可见集合包含目标人(Mockito List 默认空集=仅本人, 需显式给范围)
         when(orgScopeResolver.resolveModuleUsers(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.eq("task")))
+                .thenReturn(java.util.List.of(7L, 20L));
+        // 【GPT三轮 ACL-P1-001】TaskService 已切 WithinGroup 入口, 桩同口径返回(否则 mock 默认 null → 集团收口空集 → 403)
+        when(orgScopeResolver.resolveModuleUsersWithinGroup(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.eq("task")))
                 .thenReturn(java.util.List.of(7L, 20L));
         BizTask task = new BizTask();
         task.setTitle("提交选型方案");

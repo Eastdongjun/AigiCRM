@@ -42,7 +42,8 @@ public class ScoreService {
 
     /** 【2026-09-19 接入权限矩阵】积分可见用户集合：矩阵 (score,view) 显式配置优先，未配置回退角色数据范围 */
     private List<Long> visibleUserIds() {
-        return scopeResolver.resolveModuleUsers(SecurityUtils.getCurrentUser(), "score");
+        // 【GPT三轮 ACL-P1-001 2026-09-22】sys_user 非租户表, null(all) 必须集团收口, 否则放大为全平台
+        return scopeResolver.resolveModuleUsersWithinGroup(SecurityUtils.getCurrentUser(), "score");
     }
 
     // ====== 积分项 CRUD ======
@@ -160,6 +161,14 @@ public class ScoreService {
         // 【GPT复审 P1-03 修复 2026-09-21】服务端强制校验: 目标人员在可管理范围、积分项存在、
         // 分数落在积分项 min~max —— 此前信任客户端, 直接 API 调用可写范围外人员与异常分值
         List<Long> saveVisible = visibleUserIds();
+        // 【GPT三轮 SCORE-P1-002 2026-09-22】participantIds 独立于 entries 构造并直接落库,
+        // 必须与 submitted 同口径逐一校验: 旧代码只校验 submitted, 范围外 userId 不提交 entry
+        // 即可混入参与名单(名单污染显示顺序与后续口径)。saveVisible 经 WithinGroup 收口, 非 admin 恒非 null
+        for (Long uid : participantSet) {
+            if (saveVisible != null && !saveVisible.contains(uid)) {
+                throw new BusinessException("参与人员不在可管理范围: " + uid);
+            }
+        }
         Map<Long, BizScoreItem> itemMap = new HashMap<>();
         for (BizScoreItem it : listItems()) itemMap.put(it.getId(), it);
         for (Map.Entry<String, Integer> chk : submitted.entrySet()) {

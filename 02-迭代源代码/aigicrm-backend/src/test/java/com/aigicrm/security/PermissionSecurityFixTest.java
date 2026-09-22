@@ -145,7 +145,7 @@ class PermissionSecurityFixTest {
         SysUserMapper userMapper = mock(SysUserMapper.class);
         SysDeptMapper deptMapper = mock(SysDeptMapper.class);
         SysConfigService cfg = mock(SysConfigService.class);
-        OrgScopeResolver r = new OrgScopeResolver(userMapper, deptMapper, cfg, mock(SysRoleOrgMapper.class));
+        OrgScopeResolver r = new OrgScopeResolver(userMapper, deptMapper, cfg, mock(SysRoleOrgMapper.class), null);
 
         // 本人 dept=11; 授权组织 22/222。子树收集按"无子节点"处理(每个组织=自身);
         // 部门→用户 解析返回三个用户, 断言三个部门(11/22/222)的用户全部可见。
@@ -173,7 +173,7 @@ class PermissionSecurityFixTest {
         SysDeptMapper deptMapper = mock(SysDeptMapper.class);
         SysConfigService cfg = mock(SysConfigService.class);
         SysRoleOrgMapper roleOrgMapper = mock(SysRoleOrgMapper.class);
-        OrgScopeResolver r = new OrgScopeResolver(userMapper, deptMapper, cfg, roleOrgMapper);
+        OrgScopeResolver r = new OrgScopeResolver(userMapper, deptMapper, cfg, roleOrgMapper, null);
 
         SecurityUser su = new SecurityUser();
         su.setUserId(5L);
@@ -295,7 +295,7 @@ class PermissionSecurityFixTest {
     void deptAndChildren_resolvesAsDeptTree() {
         SysUserMapper userMapper = mock(SysUserMapper.class);
         SysDeptMapper deptMapper = mock(SysDeptMapper.class);
-        OrgScopeResolver r = new OrgScopeResolver(userMapper, deptMapper, mock(SysConfigService.class), mock(SysRoleOrgMapper.class));
+        OrgScopeResolver r = new OrgScopeResolver(userMapper, deptMapper, mock(SysConfigService.class), mock(SysRoleOrgMapper.class), null);
         when(deptMapper.selectList(any())).thenReturn(List.of()); // 无子节点
         when(userMapper.selectList(any())).thenReturn(List.of(user(1L, 11L), user(2L, 11L)));
         SecurityUser su = new SecurityUser();

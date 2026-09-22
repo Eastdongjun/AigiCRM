@@ -32,8 +32,9 @@ case "$MODE" in
   dev)      zip -qr "$OUT" "$(basename "$ROOT")" "${BASE_EX[@]}" ;;
   internal) zip -qr "$OUT" "$(basename "$ROOT")" "${INTERNAL_EX[@]}" ;;
   external) zip -qr "$OUT" "$(basename "$ROOT")" "${EXTERNAL_EX[@]}"
-            # GPT外审 AUD-P1-012: CI workflow 居仓库根 .github/(打包根之外), 显式纳入使外审可见流水线门禁
-            [ -f "$ROOT/../.github/workflows/ci.yml" ] && zip -qj "$OUT" "$ROOT/../.github/workflows/ci.yml"
+            # GPT外审 AUD-P1-012/CI-P1-010: CI workflow 居仓库根 .github/(打包根之外)。
+            # 保留原路径加入包内(-j 平铺会让外审误判"不在 GitHub Actions 识别位置", 三轮实证)
+            ( cd "$ROOT/.." && zip -q "$OUT" .github/workflows/ci.yml )
             # GPT外审 AUD-P2-001: 附 manifest 明示"包含/不包含",避免误当可直接部署的完整包
             cat > /tmp/pkg-manifest.md <<'MANIFEST'
 # 本包内容边界(external 脱敏档)

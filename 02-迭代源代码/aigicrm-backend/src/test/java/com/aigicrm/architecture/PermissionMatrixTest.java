@@ -1145,9 +1145,10 @@ public class PermissionMatrixTest {
         Path serviceSrc = Paths.get("src/main/java/com/aigicrm/module/score/service/ScoreService.java")
                 .toAbsolutePath().normalize();
         String serviceBody = readSource(serviceSrc, "ScoreService");
+        // 【GPT三轮 ACL-P1-001】矩阵入口升级为 WithinGroup(全局表 null=all 须集团收口), 断言同步收紧
         assertTrue(serviceBody.contains("private List<Long> visibleUserIds()")
-                        && serviceBody.contains("scopeResolver.resolveModuleUsers(SecurityUtils.getCurrentUser(), \"score\")"),
-                "ScoreService 必须通过 OrgScopeResolver 矩阵入口(模块 score)取得可见用户集合，使权限矩阵勾选对积分生效");
+                        && serviceBody.contains("scopeResolver.resolveModuleUsersWithinGroup(SecurityUtils.getCurrentUser(), \"score\")"),
+                "ScoreService 必须通过 OrgScopeResolver 矩阵入口(模块 score, WithinGroup 集团收口版)取得可见用户集合，使权限矩阵勾选对积分生效");
         assertTrue(serviceBody.contains("public Map<String, Object> getGrid(String period)")
                         && serviceBody.contains("new LambdaQueryWrapper<SysUser>().eq(SysUser::getStatus, 1)")
                         && serviceBody.contains("if (visible != null) userWrapper.in(SysUser::getId, visible)")

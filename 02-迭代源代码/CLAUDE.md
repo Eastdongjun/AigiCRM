@@ -142,13 +142,14 @@ npm run build    # 退出码 0
 ```
 **lint / type-check：本项目未配置（JS 项目）→ 门禁中如实标 `N/A` 并说明，不得虚报 PASS。** 后续接入 ESLint/TS 后再加入放行组合。
 
-### 3. 后端门禁（`aigicrm-backend`，必须 JDK 17）
+### 3. 后端门禁（`aigicrm-backend`，必须 JDK 21——与 pom `java.version=21` 一致）
 ```bash
-export JAVA_HOME=/opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home   # 本机默认 JDK 25 与 Lombok 不兼容
+# 本机多 JDK 时显式指 21(2026-09-22 对齐: 历史文档曾要求 JDK17, 已随 Boot 4.1 升级过期)
+export JAVA_HOME=$(/usr/libexec/java_home -v 21)
 cd aigicrm-backend
 mvn -B clean verify     # 编译 + 单测/集成 0 Failed + 打包退出码 0；无测试崩溃、无未经说明的跳过
 ```
-没有 Wrapper 时用 `mvn`；Gradle 项目用 `./gradlew clean check build`（本项目不用）。
+有 Maven Wrapper（`./mvnw`，工具链 3.9.9 冻结）；本机直跑用 `MAVEN_SKIP_RC=true mvn`。
 
 ### 4. 运行与冒烟验证
 构建通过后还必须：应用能启动（`docker-compose up -d` 或 `mvn spring-boot:run`）、启动日志无致功能失效的 ERROR/Exception、健康检查与关键接口正常、MySQL/Redis 依赖连接正常。只编译能跑但启动不了，不算 PASS。冒烟：`scripts/smoke-test.sh prod`。
