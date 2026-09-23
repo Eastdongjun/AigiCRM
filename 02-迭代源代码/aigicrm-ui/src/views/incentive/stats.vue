@@ -12,6 +12,10 @@
         <span class="tab-item" :class="{ active: activeTab === 'rank' }" @click="activeTab = 'rank'">
           <el-icon><User /></el-icon> 客户排行
         </span>
+        <!-- 【2026-09-23 需求】个人排行: 按人员统计四项激励数据 -->
+        <span class="tab-item" :class="{ active: activeTab === 'person' }" @click="activeTab = 'person'">
+          <el-icon><Trophy /></el-icon> 个人排行
+        </span>
       </div>
       <el-select v-model="period" style="width:150px" size="small" @change="loadData">
         <el-option v-for="p in periodOptions" :key="p.value" :label="p.label" :value="p.value" />
@@ -23,6 +27,9 @@
 
     <!-- 客户排行 -->
     <RankTableView v-if="activeTab === 'rank'" />
+
+    <!-- 个人排行(按人员统计四项激励) -->
+    <PersonRankTableView v-if="activeTab === 'person'" />
   </div>
 </template>
 
@@ -32,6 +39,7 @@ import { useIncentiveStats, IncentiveStatsKey } from '@/composables/useIncentive
 import StatsCards from './StatsCards.vue'
 import StatsTableView from './StatsTableView.vue'
 import RankTableView from './RankTableView.vue'
+import PersonRankTableView from './PersonRankTableView.vue'
 
 // 共享上下文: 父级实例化一次并 provide,各视图子组件 inject
 const stats = useIncentiveStats()

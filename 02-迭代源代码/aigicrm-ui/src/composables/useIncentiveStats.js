@@ -3,7 +3,7 @@
 // 概览卡/统计表/个人排行/部门排行 4 个视图组件 inject 同一上下文。
 // 共享内容：周期/Tab/加载态 + 分类树/个人记录/全员聚合/排行数据 + 各计算派生 + 导出动作。
 import { ref, computed, inject } from 'vue'
-import { getCategoryTree, getRecords, getCategoryStats, getCustomerRecords } from '@/api/incentive'
+import { getCategoryTree, getRecords, getCategoryStats, getCustomerRecords, getScoreboard } from '@/api/incentive'
 import { cachedGet } from '@/utils/layout-cache'
 import { useUserStore } from '@/store/user'
 import { buildPeriodOptions, periodQueryValue } from '@/utils/incentive-period'
@@ -29,6 +29,11 @@ export function useIncentiveStats() {
   const categories = ref([])
   const scoreboard = ref([])
   const deptList = ref([])
+  // 【2026-09-23 需求】个人排行: 按人员统计四项激励(后端 /incentive/scoreboard 按人聚合)
+  const personBoard = ref([])
+  const personPageNum = ref(1)
+  const personPageSize = ref(15)
+  const pagedPersonBoard = computed(() => personBoard.value.slice((personPageNum.value - 1) * personPageSize.value, personPageNum.value * personPageSize.value))
   // 客户排行矩阵分页（前端切片）
   const pageNum = ref(1)
   const pageSize = ref(15)
@@ -132,12 +137,14 @@ export function useIncentiveStats() {
     // 【性能 2026-08-08】五个接口相互独立，由串行 await 改为并发 Promise.allSettled
     // （单页从 ~5×RTT 降到 ~1×max(RTT)，缓解激励统计页卡顿）；各接口独立容错。
     try {
-      const [catRes, recRes, csRes, sbRes] = await Promise.allSettled([
+      const [catRes, recRes, csRes, sbRes, pbRes] = await Promise.allSettled([
         cachedGet('categoryTree', getCategoryTree),
         // 【2026-08-08 分享制】顶部"我的"卡片只统计本人上传记录（显式传本人 userId）
         getRecords({ period: p, userId: userStore.userId }),
         getCategoryStats({ period: p }),
         getCustomerRecords({ period: p }),
+        // 【2026-09-23 个人排行】按人员聚合四项激励(总积分/分类细分/三阶段文件)
+        getScoreboard({ period: p }),
       ])
 
       if (catRes.status === 'fulfilled') {
@@ -161,6 +168,11 @@ export function useIncentiveStats() {
         recordCount: row.recordCount || row.count || 0,
         byCategory: buildCustomerCategoryMap(row.records || []),
       }))
+      // 【2026-09-23 个人排行】后端已按总积分降序并给出 rank/realName/officeName/byCategory
+      if (pbRes.status === 'fulfilled') {
+        personBoard.value = pbRes.value?.data || []
+        personPageNum.value = 1
+      }
     } finally {
       loading.value = false
     }
@@ -181,6 +193,7 @@ export function useIncentiveStats() {
   return {
     userStore, loading, period, activeTab, records, catStat, categories,
     scoreboard, deptList, pageNum, pageSize, pagedScoreboard, periodOptions,
+    personBoard, personPageNum, personPageSize, pagedPersonBoard,
     catColors, catIcons,
     totalCategories, shareableCount, fileCountOf, totalRecords, totalScore,
     tableTotalFiles, tableTotalScore, tableTotalPre, tableTotalMid, tableTotalPost,
