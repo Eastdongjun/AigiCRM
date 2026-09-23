@@ -1,6 +1,7 @@
 // 生产环境档案模板（真实客户端）。
 //
-// ⚠️ 本文件是**模板**，供需要显式固定生产接口时复制为 config/env.js 使用。
+// ⚠️ 本文件是**模板**，供需要显式固定生产接口时复制为 aigicrm-miniprogram/config/env.js 使用。
+// 2026-09-23 从 aigicrm-miniprogram/config/ 移出代码包（模板不参与打包，见 docs/env-templates/）。
 //
 // 通常情况下**不需要**它：config/env.js 会在运行时按
 // wx.getAccountInfoSync().miniProgram.envVersion 自动选择接口地址

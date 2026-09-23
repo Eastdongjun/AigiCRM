@@ -9,7 +9,8 @@
 //   · release / trial 包在**运行时**自动切到真实接口，无需手工改文件。
 //   · 需要连本地/测试后端时，**不要覆盖本文件**，改为新建本机覆盖档
 //     `config/env.local.js`（已 gitignore，不入库）：
-//        cp config/env.local.example.js config/env.local.js
+//        cp ../docs/env-templates/env.local.example.js config/env.local.js
+//     （模板在 docs/env-templates/，2026-09-23 移出代码包：example 不参与打包）
 //     本文件在 develop 档采用其中的地址；删除该文件即回到 demo 档。
 //   · 本机覆盖档**只影响 develop 档**：release/trial 永远走生产地址，
 //     避免本机调试配置污染正式包。
