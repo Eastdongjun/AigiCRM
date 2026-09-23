@@ -14,9 +14,10 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 MP="$ROOT/aigicrm-miniprogram/config"
-PROFILE="$MP/env.local.example.js"
+# 【2026-09-23 对齐 3e46baeb】模板已移至 docs/env-templates(DevTools 依赖分析 0 未使用), 断言语义不变
+PROFILE="$ROOT/docs/env-templates/env.local.example.js"
 DEFAULT="$MP/env.js"
-PROD_EXAMPLE="$MP/env.prod.example.js"
+PROD_EXAMPLE="$ROOT/docs/env-templates/env.prod.example.js"
 LOCAL="$MP/env.local.js"
 fail() { echo "FAIL: $*" >&2; exit 1; }
 
