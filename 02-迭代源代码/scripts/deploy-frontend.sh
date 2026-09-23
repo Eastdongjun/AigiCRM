@@ -33,7 +33,7 @@ ssh_prod "
 
 echo "=== [3.4/5] 注入常用页面 chunk prefetch(浏览器解析 HTML 即后台预取,首次点击菜单秒开) ==="
 # 在服务器 NAS dist 上注入:chunk 文件名与本地构建一致,部署后修改 index.html
-ssh_prod "python3 - <<'PYIN'
+ssh_prod "PYTHONIOENCODING=utf-8 python3 - <<'PYIN'
 import os, re
 idx = '$NAS_DIST_DIR/index.html'
 s = open(idx, encoding='utf-8').read()

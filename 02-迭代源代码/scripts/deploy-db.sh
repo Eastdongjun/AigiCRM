@@ -34,13 +34,16 @@ fi
 echo "=== [1/4] 生产数据库备份 ==="
 # 【DeepSeek四审 P0-2 修复 2026-09-22】旧写法 mysqldump 失败后分号仍执行 ls, ssh 返回 ls 的 0 = 假绿,
 # 旧备份可掩盖本次失败而迁移照跑。改为: 记录本次目标文件 → mysqldump 显式判错 → 校验本次文件存在且非空
+# 【2026-09-23 上线实测】本地 env DB_PASSWORD 与容器 root 口令不符(1045)——改为服务端从
+# ycmn-mysql 容器自身 MYSQL_ROOT_PASSWORD 派生(仅存在于远端 shell 变量,不回传不落盘)
 ssh_prod "
+  PW=\$(docker exec ${APP_SLUG}-mysql sh -c 'printf %s \"\$MYSQL_ROOT_PASSWORD\"')
   BK=$DEPLOY_DIR/backup-pre-migrate-\$(date +%Y%m%d-%H%M%S).sql
-  if ! docker exec -e MYSQL_PWD=\"$DB_PASSWORD\" ${APP_SLUG}-mysql mysqldump -uroot --default-character-set=utf8mb4 --single-transaction $DB_NAME > \"\$BK\"; then
+  if ! docker exec -e MYSQL_PWD=\"\$PW\" ${APP_SLUG}-mysql mysqldump -uroot --default-character-set=utf8mb4 --single-transaction $DB_NAME > \"\$BK\"; then
     echo '❌ mysqldump 失败, 中止(不得依赖旧备份继续迁移)'; exit 1
   fi
   if [ ! -s \"\$BK\" ]; then echo '❌ 备份文件为空, 中止'; exit 1; fi
-  echo '备份完成:'; ls -la \"\$BK\"
+  echo '备份完成:'; ls -la \"\$BK\" | awk '{print \$5, \$9}'
 "
 
 echo "=== [2/4] 上传迁移目录到生产 ==="
@@ -65,12 +68,13 @@ echo "=== [3/4] Flyway repair + migrate ==="
 #   ⑤ 上传后断言 .sql 数量 > 0, 否则 flyway 报 "No migrations found" 也算成功
 #   ⑥ 失败判定补上 "did not follow the filename convention" / "No migrations found" 两种伪成功输出
 ssh_prod "
-  TABLE_CNT=\$(docker exec -e MYSQL_PWD=\"$DB_PASSWORD\" ${APP_SLUG}-mysql mysql -uroot -N -e \"SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='$DB_NAME'\" 2>/dev/null)
+  PW=\$(docker exec ${APP_SLUG}-mysql sh -c 'printf %s \"\$MYSQL_ROOT_PASSWORD\"')
+  TABLE_CNT=\$(docker exec -e MYSQL_PWD=\"\$PW\" ${APP_SLUG}-mysql mysql -uroot -N -e \"SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='$DB_NAME'\" 2>/dev/null)
   echo \"迁移前: 表数 \$TABLE_CNT\"
   REPAIR=\$(docker run --rm --network ${APP_SLUG}_default -v $DEPLOY_DIR/flyway-sql:/flyway/sql \
     flyway/flyway:9.22.3-alpine \
     -url='jdbc:mysql://${APP_SLUG}-mysql:3306/$DB_NAME?characterEncoding=UTF-8&connectionCollation=utf8mb4_general_ci&useSSL=false&allowPublicKeyRetrieval=true' \
-    -user=root -password=\"$DB_PASSWORD\" \
+    -user=root -password=\"\$PW\" \
     -validateMigrationNaming=true \
     -ignoreMigrationPatterns='*:missing' \
     repair 2>&1) || true
@@ -78,7 +82,7 @@ ssh_prod "
   OUT=\$(docker run --rm --network ${APP_SLUG}_default -v $DEPLOY_DIR/flyway-sql:/flyway/sql \
     flyway/flyway:9.22.3-alpine \
     -url='jdbc:mysql://${APP_SLUG}-mysql:3306/$DB_NAME?characterEncoding=UTF-8&connectionCollation=utf8mb4_general_ci&useSSL=false&allowPublicKeyRetrieval=true' \
-    -user=root -password=\"$DB_PASSWORD\" \
+    -user=root -password=\"\$PW\" \
     -validateMigrationNaming=true \
     -baselineOnMigrate=true \
     -ignoreMigrationPatterns='*:missing' \
@@ -92,7 +96,8 @@ ssh_prod "
 
 echo "=== [4/4] 结构验证 ==="
 ssh_prod "
-  docker exec -e MYSQL_PWD="$DB_PASSWORD" ${APP_SLUG}-mysql mysql -uroot -N --default-character-set=utf8mb4 -e \"
+  PW=\$(docker exec ${APP_SLUG}-mysql sh -c 'printf %s \"\$MYSQL_ROOT_PASSWORD\"')
+  docker exec -e MYSQL_PWD=\"\$PW\" ${APP_SLUG}-mysql mysql -uroot -N --default-character-set=utf8mb4 -e \"
     SELECT '表数', COUNT(*) FROM information_schema.tables WHERE table_schema='$DB_NAME';
     SELECT '菜单', COUNT(*) FROM $DB_NAME.sys_menu;
     SELECT '客户', COUNT(*) FROM $DB_NAME.biz_customer;
