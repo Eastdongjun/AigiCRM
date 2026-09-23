@@ -18,6 +18,7 @@ import com.aigicrm.module.system.mapper.SysUserMapper;
 import com.aigicrm.module.system.mapper.SysUserRoleMapper;
 import com.aigicrm.module.system.mapper.SysRoleMapper;
 import com.aigicrm.module.system.entity.SysRole;
+import com.aigicrm.module.system.entity.SysDept;
 import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -71,6 +72,27 @@ public class SysUserService {
     /** 【2026-08-14 缓存自愈】用户级权限版本递增：evict 漏网/Redis 写失败时，缓存与 DB 版本比对自愈 */
     private void bumpPermVersion(Long userId) {
         jdbc.update("UPDATE sys_user SET perm_version = perm_version + 1 WHERE id=?", userId);
+    }
+
+    /** 主集团顶级组织兜底(sys_group id=1 对应的组织根,与 MybatisPlusConfig.applyGroupScope 退主集团口径一致) */
+    private static final Long DEFAULT_ROOT_ORG_ID = 1L;
+
+    /**
+     * 【租户可见性 2026-09-23】默认组织落库:org_id 是集团/法人推导链的兜底输入
+     * (无岗位时 user.org_id → dept.group_id)。此前新建用户从不落 org_id ⇒ 集团归属恒空
+     * ⇒ 非 admin 对租户白名单表查询恒空(fail-closed;详见 V2026.09.23.3 迁移注记)。
+     * 规则:部门有集团归属 → org_id=dept_id;否则兜底主集团顶级组织。
+     */
+    private void syncDefaultOrg(SysUser user) {
+        if (user.getOrgId() != null) return; // 显式指定时尊重
+        if (user.getDeptId() != null) {
+            SysDept dept = deptMapper.selectById(user.getDeptId());
+            if (dept != null && dept.getGroupId() != null) {
+                user.setOrgId(user.getDeptId());
+                return;
+            }
+        }
+        user.setOrgId(DEFAULT_ROOT_ORG_ID);
     }
 
     /** 【2026-08-08 用户级 custom 授权】保存用户授权组织（清空重建） */
@@ -247,6 +269,10 @@ public class SysUserService {
         if (!StringUtils.hasText(user.getDataScopeOverride())) {
             user.setDataScopeOverride(null); // 空=跟随角色，与 update 归一一致
         }
+        // 【租户可见性 2026-09-23】默认组织随部门落库:org_id 是集团推导链的兜底输入
+        // (无岗位时 user.org_id → dept.group_id)。此前新建用户从不落 org_id ⇒ 集团归属
+        // 恒空 ⇒ 非 admin 租户白名单表查询恒空(fail-closed,详见 V2026.09.23.3 迁移注记)
+        syncDefaultOrg(user);
         userMapper.insert(user);
 
         // 分配角色
@@ -281,6 +307,14 @@ public class SysUserService {
         existing.setEmail(user.getEmail());
         existing.setDeptId(user.getDeptId());
         existing.setOfficeId(user.getOfficeId());
+        // 【租户可见性 2026-09-23】默认组织随部门重算(与 create 同口径):防调部门后集团归属失联。
+        // 同值重算幂等无害;显式传 org_id 的旧语义不存在(前端表单从未提交该字段)
+        if (user.getDeptId() != null) {
+            SysDept dept = deptMapper.selectById(user.getDeptId());
+            existing.setOrgId(dept != null && dept.getGroupId() != null ? user.getDeptId() : DEFAULT_ROOT_ORG_ID);
+        } else {
+            existing.setOrgId(DEFAULT_ROOT_ORG_ID);
+        }
         // managerId 归一：null/0（前端"无上级"）→ null，配合 ALWAYS 策略落库回写 NULL
         existing.setManagerId(user.getManagerId() != null && user.getManagerId() > 0 ? user.getManagerId() : null);
         existing.setDataScopeOverride(StringUtils.hasText(user.getDataScopeOverride()) ? user.getDataScopeOverride() : null);
