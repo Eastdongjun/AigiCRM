@@ -20,21 +20,35 @@ cd "$REPO_ROOT" || { bad "源码目录不可达"; exit 1; }
 L=$(git rev-parse --short HEAD); R=$(git rev-parse --short origin/main)
 [ "$L" = "$R" ] && ok "本地=远程 ($L)" || bad "未推送: 本地 $L vs 远程 $R"
 
-# [2] 生产健康: 首页 + 登录(带 Origin,防 CORS 回归)
+# [2] 生产健康: 首页 + 匿名公共配置接口(后端全链) + CORS 预检
+# 【2026-09-23】旧法"真实登录 200"因 admin 初口令首登强制改密后必 401 假 FAIL(提示语还误导去查 CORS);
+# 改为无凭据三段硬门禁 + 可选深度登录(软提示不阻断):
+#   ① 公共配置接口=SecurityConfig permitAll 只读接口直查 DB,覆盖 nginx→后端→MySQL 全链;
+#   ② CORS 意图由 OPTIONS 预检承担(匿名,直接断言 ACAO 响应头,比"登录 200"更精准地检 CORS_ORIGINS)。
 echo "--- [2] 生产 API 健康 ---"
 HOME_CODE=$(curl -sk -o /dev/null -w "%{http_code}" --connect-timeout 10 https://www.aigicrm.com/)
+CONFIG_RESP=$(curl -sk --connect-timeout 10 -w "\n%{http_code}" https://www.aigicrm.com/api/system/configs/public)
+CONFIG_CODE="${CONFIG_RESP##*$'\n'}"
+ACAO=$(curl -sk -i -X OPTIONS https://www.aigicrm.com/api/auth/login \
+  -H "Origin: https://www.aigicrm.com" -H "Access-Control-Request-Method: POST" --connect-timeout 10 \
+  | tr -d '\r' | grep -i '^access-control-allow-origin:' | head -1 | tr -d '\n')
+[ "$HOME_CODE" = "200" ] && ok "首页 200" || bad "首页 $HOME_CODE"
+if [ "$CONFIG_CODE" = "200" ] && printf '%s' "$CONFIG_RESP" | grep -qE '"code":[[:space:]]*200'; then
+  ok "公共配置接口 200 (nginx→后端→DB 全链)"
+else
+  bad "公共配置接口 HTTP $CONFIG_CODE —— 后端/DB 不可达"
+fi
+if [ -n "$ACAO" ]; then ok "CORS 预检通过 ($ACAO)"
+else bad "CORS 预检缺 Access-Control-Allow-Origin —— 检查 CORS_ORIGINS"; fi
 if [ -n "${HEALTH_CHECK_PASS:-}" ]; then
   LOGIN_CODE=$(curl -sk -o /dev/null -w "%{http_code}" --connect-timeout 10 -X POST https://www.aigicrm.com/api/auth/login \
     -H "Origin: https://www.aigicrm.com" -H "Content-Type: application/json" \
     -d "{\"username\":\"${HEALTH_CHECK_USER:-admin}\",\"password\":\"$HEALTH_CHECK_PASS\"}")
+  if [ "$LOGIN_CODE" = "200" ]; then ok "深度登录(含Origin) 200"
+  else echo "⚠️  深度登录 $LOGIN_CODE (HEALTH_CHECK_PASS 已失效则更新为当前口令,不阻断交付)"; fi
 else
-  bad "登录检查跳过: 缺少 HEALTH_CHECK_PASS(~/.aigicrm-deploy.env)"
-  LOGIN_CODE="skip"
+  echo "⚠️  深度登录跳过: 缺少 HEALTH_CHECK_PASS(可选,不影响交付门禁)"
 fi
-[ "$HOME_CODE" = "200" ] && ok "首页 200" || bad "首页 $HOME_CODE"
-if [ "$LOGIN_CODE" = "200" ]; then ok "登录(含Origin) 200"
-elif [ "$LOGIN_CODE" = "skip" ]; then :  # 已在上面提示
-else bad "登录(含Origin) $LOGIN_CODE —— 检查 CORS_ORIGINS"; fi
 
 # [3] 生产配置: compose 与实况一致
 echo "--- [3] compose 一致性 ---"

@@ -30,8 +30,10 @@ else
   [ -n "${DB_PASSWORD:-}" ] || { echo "错误: 缺少 DB_PASSWORD（请在 $ENV_FILE 配置）" >&2; exit 1; }
 fi
 
-# 健康检查/冒烟登录凭据 —— 值在部署 env (HEALTH_CHECK_USER/HEALTH_CHECK_PASS)，禁止硬编码入仓。
-# 为空时登录检查会失败并提示，不会静默使用仓库内默认口令。
+# 冒烟登录凭据(可选) —— 值在部署 env (HEALTH_CHECK_USER/HEALTH_CHECK_PASS)，禁止硬编码入仓。
+# 【2026-09-23】check_health 已改为无凭据探活(见下)，部署门禁不再依赖本组变量；
+# 仅供 smoke-test / check-prod-perf 等深度诊断工具使用。注意 admin 初口令首登强制改密后即失效，
+# 须填"当前有效"口令(或专用冒烟账号)，失效时深度工具自行降级，不再阻断部署。
 HEALTH_CHECK_USER="${HEALTH_CHECK_USER:-admin}"
 HEALTH_CHECK_PASS="${HEALTH_CHECK_PASS:-}"
 
@@ -77,21 +79,24 @@ scp_prod() {
 }
 scp_test()  { sshpass -p "$TEST_PASS" scp $SSH_OPTS "$@"; }
 
-# 生产健康检查: 登录 API 带 Origin 必须 200
+# 生产健康检查(【2026-09-23 重设计】无凭据探活):
+# 旧法=真实登录，admin 初口令首登强制改密后必 401 假失败；且失败登录会写安全审计并累计
+# IP 限流计数(AuthService.login)，密集部署日反复探测可能误触爆破告警——探活不应有副作用。
+# 新法=GET /api/system/configs/public(SecurityConfig permitAll 的匿名只读接口，直查 DB)：
+#   一次请求覆盖 DNS→TLS→nginx /api 转发→后端→MySQL 全链，零凭据零副作用。
+#   判据=HTTP 200 且 body 含 "code":200 —— body 断言防 nginx 把 /api 误路由到 SPA 静态回退时
+#   返回 200 index.html 的假阳性(公网 /actuator/health 实测正是这种回退，不能用作探活)。
 check_health() {
   local base="${1:-https://www.aigicrm.com}"
-  [ -n "$HEALTH_CHECK_PASS" ] || { echo "❌ 缺少 HEALTH_CHECK_PASS（请在 $ENV_FILE 配置）" >&2; return 1; }
-  local code
-  code=$(curl -sk -o /dev/null -w "%{http_code}" -X POST "$base/api/auth/login" \
-    -H "Origin: $base" -H "Content-Type: application/json" \
-    -d "{\"username\":\"$HEALTH_CHECK_USER\",\"password\":\"$HEALTH_CHECK_PASS\"}" --connect-timeout 10)
-  if [ "$code" = "200" ]; then
-    echo "✅ 健康检查通过 (登录 API $code)"
+  local resp code
+  resp=$(curl -sk --connect-timeout 10 -w "\n%{http_code}" "$base/api/system/configs/public")
+  code="${resp##*$'\n'}"
+  if [ "$code" = "200" ] && printf '%s' "$resp" | grep -qE '"code":[[:space:]]*200'; then
+    echo "✅ 健康检查通过 (公共配置接口 200: nginx→后端→DB 全链可达)"
     return 0
-  else
-    echo "❌ 健康检查失败 (登录 API $code)" >&2
-    return 1
   fi
+  echo "❌ 健康检查失败 (公共配置接口 HTTP $code, body: $(printf '%s' "$resp" | head -c 200))" >&2
+  return 1
 }
 
 # 部署架构自检(2026-08-15 磁盘架构迁移后强制执行):
