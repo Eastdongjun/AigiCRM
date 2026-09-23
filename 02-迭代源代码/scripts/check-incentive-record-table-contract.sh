@@ -59,7 +59,7 @@ assert_contains "$RECORD_TABLE_SPEC" "pageSizes"
 assert_contains "$RECORD_TABLE_SPEC" "arrayContaining([30, 50, 100])"
 assert_contains "$RECORD_TABLE_SPEC" "onSizeChange(50)"
 
-assert_contains "$UPLOAD_COMPOSABLE" "pageSize = ref(10)"
+assert_contains "$UPLOAD_COMPOSABLE" "pageSize = ref(30)"
 assert_contains "$UPLOAD_COMPOSABLE" "pagedRecords"
 assert_contains "$UPLOAD_COMPOSABLE" "isRecordOwner"
 assert_contains "$UPLOAD_COMPOSABLE" "toggleShare"
