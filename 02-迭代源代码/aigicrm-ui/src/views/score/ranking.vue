@@ -1,13 +1,20 @@
 <template>
   <div class="score-ranking">
-    <div class="header-card">
-      <div class="header-left">
-        <h2 class="header-title">积分排行</h2>
-        <p class="header-desc">按评分汇总展示个人与部门排行</p>
-        <p class="header-period">数据周期：{{ selectedPeriod || '全部' }}</p>
-      </div>
-      <div class="header-right">
-        <el-button @click="showRules = true">积分规则</el-button>
+    <!-- 深蓝主视觉带(对齐 statistics/ana-hero 统一语言: 标题+周期筛选+操作内嵌) -->
+    <div class="rank-hero">
+      <div class="rh-top">
+        <div class="rh-left">
+          <h2 class="rh-title">积分排行</h2>
+          <p class="rh-sub">按评分汇总展示个人与部门排行 · 数据周期 {{ selectedPeriod || '全部' }}</p>
+        </div>
+        <div class="rh-actions">
+          <span class="rh-flbl">评分周期</span>
+          <el-select v-model="selectedPeriod" size="small" class="rh-select" @change="loadData">
+            <!-- 【2026-09-12】移除硬编码的"全部"：得分接口按周期等值过滤，空周期必然 0 条（避免给出无效选项） -->
+            <el-option v-for="p in periodOptions" :key="p.value" :label="p.label" :value="p.value" />
+          </el-select>
+          <el-button size="small" class="rh-ghost" @click="showRules = true">积分规则</el-button>
+        </div>
       </div>
     </div>
 
@@ -16,13 +23,6 @@
         <el-tab-pane name="personal" label="个人排行" />
         <el-tab-pane name="dept" label="部门排行" />
       </el-tabs>
-      <div class="period-select">
-        <span>评分周期</span>
-        <el-select v-model="selectedPeriod" style="width:140px" @change="loadData">
-          <!-- 【2026-09-12】移除硬编码的"全部"：得分接口按周期等值过滤，空周期必然 0 条（避免给出无效选项） -->
-          <el-option v-for="p in periodOptions" :key="p.value" :label="p.label" :value="p.value" />
-        </el-select>
-      </div>
     </div>
 
     <div class="stat-row">
@@ -162,14 +162,29 @@ onMounted(loadData)
 
 <style scoped>
 .score-ranking { min-height: calc(100vh - 100px); display: flex; flex-direction: column; }
-.header-card { background: #fff; border: 1px solid #ebeef5; border-radius: 8px; padding: 24px 28px; display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; }
-.header-title { font-size: 18px; font-weight: 600; color: #333; margin: 0 0 4px; }
-.header-desc { color: #86909c; font-size: 14px; margin: 0 0 2px; }
-.header-period { color: #c0c4cc; font-size: 13px; margin: 0; }
+/* —— 深蓝主视觉带(统一语言, 对齐 statistics/.ana-hero) —— */
+.rank-hero {
+  background: linear-gradient(135deg, #16337a 0%, #1d4ed8 58%, #2563eb 100%);
+  border-radius: 12px; padding: 16px 24px 18px; margin-bottom: 12px; flex-shrink: 0;
+  box-shadow: 0 6px 20px rgba(22, 51, 122, .14);
+}
+.rh-top { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.rh-title { font-size: 20px; font-weight: 700; color: #fff; letter-spacing: .3px; margin: 0 0 4px; }
+.rh-sub { font-size: 13px; color: rgba(255, 255, 255, .72); margin: 0; }
+.rh-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.rh-flbl { font-size: 12px; color: rgba(255, 255, 255, .6); }
+.rh-select { width: 140px }
+.rh-select :deep(.el-select__wrapper) {
+  background: rgba(255, 255, 255, .14);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, .28) inset;
+}
+.rh-select :deep(.el-select__placeholder),
+.rh-select :deep(.el-select__selected-item) { color: #fff }
+.rh-ghost { background: rgba(255, 255, 255, .14); color: #fff; border: 1px solid rgba(255, 255, 255, .3); }
+.rh-ghost:hover, .rh-ghost:focus { background: rgba(255, 255, 255, .24); color: #fff }
 .filter-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
 .rank-tabs { flex: 1; }
 .rank-tabs :deep(.el-tabs__header) { margin: 0; }
-.period-select { display: flex; align-items: center; gap: 8px; color: #666; font-size: 14px; }
 .stat-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 12px; }
 .stat-card { background: #fff; border: 1px solid #ebeef5; border-radius: 8px; padding: 18px 22px; }
 .stat-label { font-size: 13px; color: #86909c; margin-bottom: 8px; }
@@ -184,7 +199,7 @@ onMounted(loadData)
 .rank-num { color: #86909c; font-weight: 500; }
 .trend { font-size: 13px; font-weight: 500; }
 .trend-lead { color: #f56c6c; }
-.trend-up { color: #409eff; }
+.trend-up { color: #1d4ed8; }
 .trend-chase { color: #e6a23c; }
 .rank-footer { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-top: 1px solid #ebeef5; flex-shrink: 0; }
 .footer-note, .footer-time { color: #c0c4cc; font-size: 12px; }
