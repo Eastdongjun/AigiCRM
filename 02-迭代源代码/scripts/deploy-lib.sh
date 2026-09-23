@@ -62,7 +62,7 @@ ssh_test() {
 }
 # 【2026-09-23 生产通道修复】生产 sshd 已收敛为仅公钥(密码登录被服务端拒绝),
 # ssh_prod/scp_prod 优先使用 PROD_KEY 密钥;未配置密钥时回退旧密码通道(测试机仍可用)。
-PROD_KEY="${PROD_KEY:-/Users/dongjun/东来/项目/01-进行中/01-AIGICRM/06-部署与运维/阿里云环境/aigicrm.com.pem}"
+PROD_KEY="${PROD_KEY:-/Users/dongjun/东来/项目/02-已上线/01-AIGICRM/06-部署与运维/阿里云环境/aigicrm.com.pem}"
 # 生产实际部署目录(实测 2026-09-23:容器 WorkingDir=/data/ycmn,jar+compose 均在此;
 # 旧默认 /root/aigicrm 为历史残留,env 未显式覆盖时以实测值为准)
 if [ "${DEPLOY_DIR:-}" = "/root/aigicrm" ] || [ -z "${DEPLOY_DIR:-}" ]; then

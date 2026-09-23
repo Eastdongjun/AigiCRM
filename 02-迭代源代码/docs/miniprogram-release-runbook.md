@@ -35,11 +35,11 @@
 ```bash
 # 1) 确认开发者工具已登录，并打开正确的小程序项目
 /Applications/wechatwebdevtools.app/Contents/MacOS/cli islogin \
-  --project /Users/dongjun/东来/项目/01-进行中/01-AIGICRM/02-迭代源代码/aigicrm-miniprogram \
+  --project /Users/dongjun/东来/项目/02-已上线/01-AIGICRM/02-迭代源代码/aigicrm-miniprogram \
   --port 9420 --lang zh
 
 /Applications/wechatwebdevtools.app/Contents/MacOS/cli open \
-  --project /Users/dongjun/东来/项目/01-进行中/01-AIGICRM/02-迭代源代码/aigicrm-miniprogram \
+  --project /Users/dongjun/东来/项目/02-已上线/01-AIGICRM/02-迭代源代码/aigicrm-miniprogram \
   --port 9420 --lang zh
 
 # 2) 开启 automator WebSocket；保持该进程运行
@@ -48,7 +48,7 @@
 
 # 旧版开发者工具支持 --auto-port 时使用：
 /Applications/wechatwebdevtools.app/Contents/MacOS/cli auto \
-  --project /Users/dongjun/东来/项目/01-进行中/01-AIGICRM/02-迭代源代码/aigicrm-miniprogram \
+  --project /Users/dongjun/东来/项目/02-已上线/01-AIGICRM/02-迭代源代码/aigicrm-miniprogram \
   --port 9420 --auto-port 9421 --lang zh
 
 # 新版开发者工具若 help 中没有 --auto-port，即使 cli auto 返回成功也可能不开放
@@ -56,10 +56,10 @@
 # 需换用兼容的开发者工具/automator 组合，或显式提供有效的 WECHAT_AUTOMATOR_WS。
 
 # 3) 另开终端运行完整移动端 PC 对齐自动化
-cd /Users/dongjun/东来/项目/01-进行中/01-AIGICRM
+cd /Users/dongjun/东来/项目/02-已上线/01-AIGICRM
 02-迭代源代码/scripts/dev-verify.sh changed
 
-cd /Users/dongjun/东来/项目/01-进行中/01-AIGICRM/02-迭代源代码/scripts/miniprogram
+cd /Users/dongjun/东来/项目/02-已上线/01-AIGICRM/02-迭代源代码/scripts/miniprogram
 WECHAT_AUTOMATOR_WS=ws://127.0.0.1:9421 npm run verify:mobile-parity
 
 # 可选：只复测激励附件专项
@@ -111,7 +111,7 @@ MINIPROGRAM_PRIVATE_KEY=~/.wechat-mp/private.wx513e6dd7eabdae7b.key npm run prev
 - 上传前必须先跑本地门禁，确保 PC/小程序差异、PC-only 边界、手工 QA 契约和小程序基础配置仍然一致：
 
 ```bash
-cd /Users/dongjun/东来/项目/01-进行中/01-AIGICRM
+cd /Users/dongjun/东来/项目/02-已上线/01-AIGICRM
 02-迭代源代码/scripts/dev-verify.sh changed
 02-迭代源代码/scripts/check-mobile-manual-qa-contract.sh
 bash 02-迭代源代码/scripts/check-wechat-project-root.sh

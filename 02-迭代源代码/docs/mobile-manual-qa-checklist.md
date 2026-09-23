@@ -2,7 +2,7 @@
 
 ## 使用条件
 
-- 微信开发者工具已导入 `/Users/dongjun/东来/项目/01-进行中/01-AIGICRM/02-迭代源代码/aigicrm-miniprogram`；该目录必须直接包含 `app.json` 和 `project.config.json`。
+- 微信开发者工具已导入 `/Users/dongjun/东来/项目/02-已上线/01-AIGICRM/02-迭代源代码/aigicrm-miniprogram`；该目录必须直接包含 `app.json` 和 `project.config.json`。
 - 导入前运行 `bash scripts/check-wechat-project-root.sh`，避免误打开上一级源码目录或其他项目。
 - `config/env.js` 已临时设置 `demoMode: false`，并指向本地或测试后端。
 - 使用测试账号，不记录密码、token 或 Cookie。
