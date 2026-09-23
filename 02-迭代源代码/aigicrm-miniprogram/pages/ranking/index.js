@@ -1,5 +1,6 @@
 const { getCustomerRankings } = require('../../api/statistics')
 const { getScoreRanking, getRankingStats } = require('../../api/score')
+const { getScoreboard } = require('../../api/incentive')
 const { requireLogin, hasPermission } = require('../../utils/auth')
 const { showError } = require('../../utils/feedback')
 
@@ -151,6 +152,8 @@ Page({
       { key: 'core', title: '核心指标' }
     ], 'incentive'),
     loading: false,
+    // 【2026-09-23 需求同步】四项激励个人排行(按人员聚合, 与 PC 激励统计个人排行同口径)
+    incentiveBoard: [],
     rankingView: buildRankingView({
       loading: false,
       scoreStats: { participantCount: 0, deptCount: 0, topScore: 0, topScoreName: '-', topItemCount: 0, totalItemCount: 0 },
@@ -259,9 +262,15 @@ Page({
       }
       const scoreList = scoreRankings[this.data.scoreActiveTab] || []
       const list = rankings[this.data.activeTab] || []
+      // 【2026-09-23 需求同步】demo 档四项激励个人排行
+      const incentiveBoard = [
+        { rank: 1, realName: '张三', officeName: '华东办', totalScore: 128, recordCount: 9 },
+        { rank: 2, realName: '李四', officeName: '华南办', totalScore: 96, recordCount: 7 }
+      ]
       this.setRankingData({
         incentiveParents,
         rankings,
+        incentiveBoard,
         scoreRankings,
         scoreStats: { participantCount: 18, deptCount: 4, topScore: 96, topScoreName: '张三', topItemCount: 42, totalItemCount: 42 },
         list,
@@ -288,8 +297,13 @@ Page({
       getRankingStats({ period }).catch((error) => {
         showError(error, '学分统计加载失败')
         return {}
+      }),
+      // 【2026-09-23 需求同步】四项激励个人排行(按人员聚合, 与 PC 激励统计同口径)
+      getScoreboard({ period }).catch((error) => {
+        showError(error, '激励个人排行加载失败')
+        return []
       })
-    ]).then(([rankings, personalScores, deptScores, scoreStats]) => {
+    ]).then(([rankings, personalScores, deptScores, scoreStats, incentiveBoard]) => {
       const safeRankings = {
         incentive: rankings && rankings.incentiveRanking || [],
         relationship: rankings && rankings.relationshipRanking || [],
@@ -301,6 +315,7 @@ Page({
       this.setRankingData({
         incentiveParents: rankings && rankings.incentiveParents || [],
         rankings: safeRankings,
+        incentiveBoard: incentiveBoard || [],
         scoreRankings,
         scoreStats: {
           participantCount: scoreStats && scoreStats.participantCount || 0,

@@ -16,6 +16,27 @@
     </view>
   </view>
   <view class="card score-top-card">{{rankingView.topScoreText}}</view>
+  <!-- 【2026-09-23 需求同步】四项激励个人排行(按人员统计, 与 PC 激励统计-个人排行同口径; 周期与积分排行联动) -->
+  <view class="section-head">
+    <view>
+      <view class="section-title">激励个人排行</view>
+      <view class="section-sub">按人员统计四项激励总额，公司级口径</view>
+    </view>
+    <picker mode="selector" range="{{periodOptions}}" range-key="label" value="{{periodIndex}}" bindchange="onPeriodChange">
+      <view class="period-chip">{{rankingView.scorePeriodText}}</view>
+    </picker>
+  </view>
+  <block wx:for="{{incentiveBoard}}" wx:key="rank">
+    <view class="card score-rank-card">
+      <view class="score-rank-no">{{item.rank}}</view>
+      <view class="score-rank-main">
+        <view class="score-rank-title">{{item.realName || '未知'}}</view>
+        <view class="score-rank-meta">{{item.officeName || '—'}} · {{item.recordCount || 0}}条</view>
+      </view>
+      <view class="score-rank-value">{{item.totalScore || 0}}<text>分</text></view>
+    </view>
+  </block>
+  <view wx:if="{{!incentiveBoard.length}}" class="card muted">暂无激励个人排行数据</view>
   <view class="section-head">
     <view>
       <view class="section-title">积分排行</view>
