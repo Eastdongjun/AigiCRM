@@ -36,6 +36,10 @@
         </div>
       </div>
     </div>
+    <!-- ICP 备案(工信部要求: 底部展示并可跳转备案系统) -->
+    <footer class="icp-footer">
+      <a href="https://beian.miit.gov.cn/" target="_blank" rel="noopener noreferrer">陕ICP备2024024412号</a>
+    </footer>
     <ForgotPasswordDialog v-model="forgotPwdVisible" />
   </div>
 </template>
@@ -148,7 +152,21 @@ const handleLogin = async () => {
   align-items: center;
   justify-content: center;
   background: linear-gradient(180deg, #0d1733 0%, #13255e 40%, #1d4ed8 100%);
+  position: relative;
 }
+.icp-footer {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 14px;
+  text-align: center;
+}
+.icp-footer a {
+  font-size: 12px;
+  color: rgba(255, 255, 255, .55);
+  letter-spacing: .5px;
+}
+.icp-footer a:hover { color: rgba(255, 255, 255, .85) }
 .login-box {
   display: flex;
   width: 960px;
