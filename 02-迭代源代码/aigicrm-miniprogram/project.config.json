@@ -1,7 +1,10 @@
 {
   "description": "AIGICRM 微信小程序预览",
   "packOptions": {
-    "ignore": [],
+    "ignore": [
+      { "type": "suffix", "value": ".example.js" },
+      { "type": "suffix", "value": ".disabled-20260915-110357" }
+    ],
     "include": []
   },
   "setting": {
