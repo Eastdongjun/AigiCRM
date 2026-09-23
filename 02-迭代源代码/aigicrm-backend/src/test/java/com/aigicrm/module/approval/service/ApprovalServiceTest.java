@@ -295,6 +295,130 @@ class ApprovalServiceTest {
         verify(seaPoolMapper, times(1)).update(isNull(), any());
     }
 
+    // ====== 【2026-09-23 转移校验前移】submit("transfer") 接收人 fail-fast 测试组 ======
+
+    private ApprovalService newTransferService(SysUserMapper userMapper,
+                                               org.springframework.jdbc.core.JdbcTemplate jdbc,
+                                               BizApprovalMapper approvalMapper) {
+        BizApprovalConfigMapper configMapper = mock(BizApprovalConfigMapper.class);
+        when(configMapper.selectCount(any())).thenReturn(1L);
+        ApprovalConfigService configService = mock(ApprovalConfigService.class);
+        when(configService.createNodes(any(), anyString())).thenReturn(java.util.List.of(7L));
+        return new ApprovalService(
+                configMapper,
+                approvalMapper,
+                mock(BizApprovalNodeMapper.class),
+                mock(BizApprovalFlowMapper.class),
+                mock(BizCustomerMapper.class),
+                userMapper,
+                mock(SysUserRoleMapper.class),
+                mock(SysDeptMapper.class),
+                mock(BizSeaPoolMapper.class),
+                mock(SeaService.class),
+                mock(com.aigicrm.common.scope.OrgScopeResolver.class),
+                mock(SeaConfigService.class),
+                mock(SysUserService.class),
+                configService,
+                mock(com.aigicrm.module.system.service.SysConfigService.class),
+                jdbc,
+                mock(com.aigicrm.security.SecurityAuditService.class));
+    }
+
+    private static com.aigicrm.module.system.entity.SysUser recipient(Long id, Integer status, Integer deleted) {
+        com.aigicrm.module.system.entity.SysUser u = new com.aigicrm.module.system.entity.SysUser();
+        u.setId(id);
+        u.setStatus(status);
+        u.setDeleted(deleted);
+        u.setUsername("rcv");
+        u.setRealName("接收人");
+        return u;
+    }
+
+    @Test
+    void submit_transfer_missingRecipient_rejects() {
+        SecurityUser u = new SecurityUser();
+        u.setUserId(7L);
+        u.setRoleCodes(java.util.List.of("06"));
+        setCurrentUser(u);
+        ApprovalService svc = newTransferService(mock(SysUserMapper.class),
+                mock(org.springframework.jdbc.core.JdbcTemplate.class), mock(BizApprovalMapper.class));
+        BusinessException ex = assertThrows(BusinessException.class,
+                () -> svc.submit("transfer", 42L, null, null));
+        assertTrue(ex.getMessage().contains("缺少接收人"));
+        ex = assertThrows(BusinessException.class,
+                () -> svc.submit("transfer", 42L, null, "{\"foo\":1}"));
+        assertTrue(ex.getMessage().contains("缺少接收人"));
+    }
+
+    @Test
+    void submit_transfer_disabledRecipient_rejects() {
+        SecurityUser u = new SecurityUser();
+        u.setUserId(7L);
+        u.setRoleCodes(java.util.List.of("06"));
+        setCurrentUser(u);
+        SysUserMapper userMapper = mock(SysUserMapper.class);
+        when(userMapper.selectById(9L)).thenReturn(recipient(9L, 0, 0));
+        ApprovalService svc = newTransferService(userMapper,
+                mock(org.springframework.jdbc.core.JdbcTemplate.class), mock(BizApprovalMapper.class));
+        BusinessException ex = assertThrows(BusinessException.class,
+                () -> svc.submit("transfer", 42L, null, "{\"newOwnerId\":9}"));
+        assertTrue(ex.getMessage().contains("接收人不存在或已停用"));
+    }
+
+    @Test
+    void submit_transfer_deletedRecipient_rejects() {
+        SecurityUser u = new SecurityUser();
+        u.setUserId(7L);
+        u.setRoleCodes(java.util.List.of("06"));
+        setCurrentUser(u);
+        SysUserMapper userMapper = mock(SysUserMapper.class);
+        when(userMapper.selectById(9L)).thenReturn(recipient(9L, 1, 1));
+        ApprovalService svc = newTransferService(userMapper,
+                mock(org.springframework.jdbc.core.JdbcTemplate.class), mock(BizApprovalMapper.class));
+        BusinessException ex = assertThrows(BusinessException.class,
+                () -> svc.submit("transfer", 42L, null, "{\"newOwnerId\":9}"));
+        assertTrue(ex.getMessage().contains("接收人不存在或已停用"));
+    }
+
+    @Test
+    void submit_transfer_validRecipientSameGroup_proceeds() {
+        SecurityUser u = new SecurityUser();
+        u.setUserId(7L);
+        u.setRoleCodes(java.util.List.of("06"));
+        u.setCurrentGroupId(1L);
+        setCurrentUser(u);
+        SysUserMapper userMapper = mock(SysUserMapper.class);
+        when(userMapper.selectById(9L)).thenReturn(recipient(9L, 1, 0));
+        org.springframework.jdbc.core.JdbcTemplate jdbc = mock(org.springframework.jdbc.core.JdbcTemplate.class);
+        when(jdbc.queryForList(anyString(), org.mockito.ArgumentMatchers.eq(Long.class),
+                org.mockito.ArgumentMatchers.eq(1L), org.mockito.ArgumentMatchers.eq(1L)))
+                .thenReturn(java.util.List.of(7L, 9L));
+        BizApprovalMapper approvalMapper = mock(BizApprovalMapper.class);
+        when(approvalMapper.selectMaxCodeByPrefix(anyString(), any())).thenReturn(0);
+        ApprovalService svc = newTransferService(userMapper, jdbc, approvalMapper);
+        assertDoesNotThrow(() -> svc.submit("transfer", 42L, null, "{\"newOwnerId\":9}"));
+        verify(approvalMapper, times(1)).insert(any(BizApproval.class));
+    }
+
+    @Test
+    void submit_transfer_crossGroupRecipient_rejects() {
+        SecurityUser u = new SecurityUser();
+        u.setUserId(7L);
+        u.setRoleCodes(java.util.List.of("06"));
+        u.setCurrentGroupId(1L);
+        setCurrentUser(u);
+        SysUserMapper userMapper = mock(SysUserMapper.class);
+        when(userMapper.selectById(9L)).thenReturn(recipient(9L, 1, 0));
+        org.springframework.jdbc.core.JdbcTemplate jdbc = mock(org.springframework.jdbc.core.JdbcTemplate.class);
+        when(jdbc.queryForList(anyString(), org.mockito.ArgumentMatchers.eq(Long.class),
+                org.mockito.ArgumentMatchers.eq(1L), org.mockito.ArgumentMatchers.eq(1L)))
+                .thenReturn(java.util.List.of(7L));
+        ApprovalService svc = newTransferService(userMapper, jdbc, mock(BizApprovalMapper.class));
+        BusinessException ex = assertThrows(BusinessException.class,
+                () -> svc.submit("transfer", 42L, null, "{\"newOwnerId\":9}"));
+        assertTrue(ex.getMessage().contains("接收人不在当前集团"));
+    }
+
     @Test
     void statistics_nonAdmin_scopesCounts() {
         SecurityUser u = new SecurityUser();

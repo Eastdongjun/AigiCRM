@@ -240,6 +240,29 @@ public class ApprovalService {
             }
         }
 
+        // 【2026-09-23 转移校验前移】接收人有效性+集团边界原先只在审批通过时校验(applyApprovalAction),
+        // 接收人失效(停用/删除/跨集团)时错误在审批人端爆发、发起人无感知——单据永远无法生效却显示"已提交"。
+        // 前移到提交时 fail-fast,校验口径与审批执行侧逐字一致(消息复用);审批执行侧校验保留作最终防线。
+        if ("transfer".equals(type)) {
+            if (customerId == null) throw new BusinessException("转移必须指定客户");
+            Long newOwnerId = parseTransferNewOwner(extraData);
+            SysUser newOwner = userMapper.selectById(newOwnerId);
+            if (newOwner == null || newOwner.getStatus() == null || newOwner.getStatus() != 1
+                    || (newOwner.getDeleted() != null && newOwner.getDeleted() == 1)) {
+                throw new BusinessException("接收人不存在或已停用,转移失败;请转交后重试");
+            }
+            if (!SecurityUtils.isAdmin()) {
+                Long sessionGroup = com.aigicrm.common.scope.GroupScopeUtil.currentGroupOrNull();
+                if (sessionGroup != null) {
+                    List<Long> groupMembers = com.aigicrm.common.scope.GroupScopeUtil
+                            .userIdsInGroup(jdbc, sessionGroup);
+                    if (!groupMembers.contains(newOwnerId)) {
+                        throw new BusinessException("接收人不在当前集团,跨集团转移需平台管理员处理");
+                    }
+                }
+            }
+        }
+
         String prefix = "P" + Year.now().getValue() + "-";
         int maxCode = approvalMapper.selectMaxCodeByPrefix(prefix, com.aigicrm.common.scope.GroupScopeUtil.currentGroupOrNull());
         String approvalCode = prefix + String.format("%03d", maxCode + 1);
@@ -738,6 +761,30 @@ public class ApprovalService {
             }
         }
         return defaultValue;
+    }
+
+    /**
+     * 解析转移审批 extraData 中的 newOwnerId(缺失/脏值显式报错,不静默放行到审批执行侧才失败)。
+     * 与 applyApprovalAction transfer 分支的解析口径一致,仅位置前移。
+     */
+    private Long parseTransferNewOwner(String extraData) {
+        if (extraData == null || extraData.isBlank()) {
+            throw new BusinessException("转移申请缺少接收人信息,请重新发起");
+        }
+        try {
+            @SuppressWarnings("unchecked")
+            Map<String, Object> data = new com.fasterxml.jackson.databind.ObjectMapper()
+                    .readValue(extraData, Map.class);
+            Object v = data.get("newOwnerId");
+            if (v == null || v.toString().isBlank()) {
+                throw new BusinessException("转移申请缺少接收人信息,请重新发起");
+            }
+            return Long.valueOf(v.toString());
+        } catch (BusinessException be) {
+            throw be;
+        } catch (Exception e) {
+            throw new BusinessException("转移申请接收人信息格式错误,请重新发起");
+        }
     }
 
     /**

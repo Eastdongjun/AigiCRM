@@ -133,6 +133,23 @@ describe('reminder/index.vue 组件冒烟', () => {
       query: { customerId: '999', type: 'expiring' },
     })
   })
+
+  // 【2026-09-23】ensure-expiring 后端 admin-only(P1-09): 非 admin 挂载不得触发(否则每次进页 403 弹错)
+  it('非 admin 挂载不触发 ensure-expiring，列表照常加载', async () => {
+    mount(ReminderIndex, { global: { stubs } })
+    await flushPromises()
+    expect(ensureExpiring).not.toHaveBeenCalled()
+    expect(getExpiringList).toHaveBeenCalled()
+  })
+
+  it('admin 挂载仍触发 ensure-expiring 物化今日到期提醒', async () => {
+    const { useUserStore } = await import('@/store/user')
+    useUserStore().roles = ['admin']
+    mount(ReminderIndex, { global: { stubs } })
+    await flushPromises()
+    expect(ensureExpiring).toHaveBeenCalledTimes(1)
+    expect(getExpiringList).toHaveBeenCalled()
+  })
 })
 
 // @vue/test-utils 的 flushPromises 工具

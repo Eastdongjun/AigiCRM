@@ -318,18 +318,23 @@ public class CustomerService {
         // 【修复 2026-08-08 全量用户下拉】按数据范围(含系统级开关)过滤，不再返回全部用户
         // 【PR-01 P1-09 2026-09-18】all(=resolve null)对非 admin 收敛为当前集团成员；
         // 无集团归属直接空集（sys_user 非租户表，拦截器管不到，必须显式边界）。
+        // 【2026-09-23 选人边界修正】选人(转移/分享接收人)≠数据可见性:按数据范围(SELF/team)过滤会让
+        // 同集团跨团队的合法转移在发起端就选不到接收人(实测:太原销售员下拉仅 1 名队友,内蒙同事不可选;
+        // 队友恰为现任负责人时下拉恒空——即用户所报"转移客户接收人看不到数据")。与 PR-09 转移集团边界
+        // (审批执行侧仅拦跨集团)对齐:非 admin 一律=当前集团成员,数据范围语义留给各业务数据列表查询。
         LambdaQueryWrapper<SysUser> wrapper = new LambdaQueryWrapper<SysUser>()
-                .eq(SysUser::getStatus, 1).orderByAsc(SysUser::getId);
-        List<Long> visible = scopeResolver.resolve(SecurityUtils.getCurrentUser());
-        if (visible == null && !SecurityUtils.isAdmin()) {
+                .eq(SysUser::getStatus, 1)
+                .eq(SysUser::getDeleted, 0)
+                .orderByAsc(SysUser::getId);
+        if (!SecurityUtils.isAdmin()) {
             Long g = com.aigicrm.common.scope.GroupScopeUtil.currentGroupOrNull();
-            visible = (g == null)
+            List<Long> groupMembers = (g == null)
                     ? List.of()
                     : com.aigicrm.common.scope.GroupScopeUtil.userIdsInGroup(jdbc, g);
+            // 空集合显式空集返回（不依赖各版本对 IN() 空集合的拼接语义）
+            if (groupMembers.isEmpty()) return List.of();
+            wrapper.in(SysUser::getId, groupMembers);
         }
-        // 空集合显式空集返回（不依赖各版本对 IN() 空集合的拼接语义）
-        if (visible != null && visible.isEmpty()) return List.of();
-        if (visible != null) wrapper.in(SysUser::getId, visible);
         List<SysUser> users = userMapper.selectList(wrapper);
         List<Map<String, Object>> result = new ArrayList<>();
         for (SysUser u : users) {
