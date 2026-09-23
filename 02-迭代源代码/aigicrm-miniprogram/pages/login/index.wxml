@@ -17,4 +17,6 @@
     <button class="btn login-btn" loading="{{loginView.submitLoading}}" bindtap="submit">{{loginView.submitText}}</button>
     <button wx:if="{{loginView.showForgotAction}}" class="text-btn forgot-btn" bindtap="openForgot">忘记密码？</button>
   </view>
+  <!-- ICP 备案(工信部要求展示;小程序无法直接跳转外部网页,点击复制备案系统网址) -->
+  <view class="icp-line" bindtap="copyBeianUrl">陕ICP备2024024412号</view>
 </view>
