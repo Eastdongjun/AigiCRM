@@ -93,7 +93,12 @@ export function useCustomerList() {
     ]
     const types = { '成熟创新': { type: 'innovate', label: '成熟创新', color: '#409eff' },
       '突破开拓': { type: 'break', label: '突破开拓', color: '#e6a23c' },
-      '铺垫宣传': { type: 'found', label: '铺垫宣传', color: '#67c23a' } }
+      '铺垫宣传': { type: 'found', label: '铺垫宣传', color: '#67c23a' },
+      // 【2026-09-23 需求】开发类型细分四分类(字典 V2026.09.23.5 拆分,原「新建改建扩建大修」连写项停用)
+      '新建': { type: 'newbuild', label: '新建', color: '#64748b' },
+      '改建': { type: 'rebuild', label: '改建', color: '#64748b' },
+      '扩建': { type: 'expand', label: '扩建', color: '#64748b' },
+      '大修': { type: 'overhaul', label: '大修', color: '#64748b' } }
     const grouped = Object.entries(types).map(([devType, cfg]) => ({
       ...cfg,
       count: filteredAllData.value.filter(c => c.devType === devType).length,
