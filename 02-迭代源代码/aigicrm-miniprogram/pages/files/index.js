@@ -78,7 +78,6 @@ function normalizeDownloadable(item) {
 
 function buildFileRowView(item, data) {
   const canMutateOwnTab = data.activeTab !== '分享给我' && data.activeTab !== '四项激励'
-  const showUploadAction = Boolean(data.canUpload) && (data.activeTab === '公共' || data.activeTab === '私人')
   return {
     ...item,
     typeText: item.type || 'FILE',
@@ -144,7 +143,7 @@ Page({
     this.setData({ ...patch, fileView: buildFileView(nextData) })
   },
 
-  onLoad(options = {}) {
+  onLoad() {
     if (!requireLogin()) return
     if (!getApp().globalData.demoMode && !hasPermission('file:view')) {
       wx.showToast({ title: '没有文件查看权限', icon: 'none' })

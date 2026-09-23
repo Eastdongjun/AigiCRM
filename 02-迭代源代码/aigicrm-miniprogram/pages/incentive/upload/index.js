@@ -178,7 +178,7 @@ function incentiveDetailLabel(category, categories) {
   return `${name || '产品试点'}安装详情`
 }
 
-function incentiveRemarkLabel(category, categories) {
+function incentiveRemarkLabel(category) {
   const name = category && (category.name || category.categoryName) ? (category.name || category.categoryName) : ''
   return `${name || '产品试点'}安装备注`
 }
@@ -336,7 +336,7 @@ function buildUploadViewState(data) {
     showRemarkField: isTrialCategory(selectedCategory, categories),
     detailLabel: incentiveDetailLabel(selectedCategory, categories),
     detailPlaceholder: '记录客户现场问题、安装前情况、过程效果或试点背景',
-    remarkLabel: incentiveRemarkLabel(selectedCategory, categories),
+    remarkLabel: incentiveRemarkLabel(selectedCategory),
     remarkPlaceholder: '补充安装过程、效果反馈、跟踪说明或其他备注',
     periodPickerText: selectedText(data.periodOptions, data.selectedPeriodIndex, '请选择周期'),
     periodPickerClass: `picker-card${data.editId ? ' disabled' : ''}`,

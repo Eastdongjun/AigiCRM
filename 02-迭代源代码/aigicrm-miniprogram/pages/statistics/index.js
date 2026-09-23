@@ -2,7 +2,7 @@ const { getAnalysis, getDashboardData } = require('../../api/statistics')
 const { getScoreRanking } = require('../../api/score')
 const { getDepts } = require('../../api/system')
 const { requireLogin, hasPermission } = require('../../utils/auth')
-const { showError, showErrorWithRetry } = require('../../utils/feedback')
+const { showErrorWithRetry } = require('../../utils/feedback')
 
 const MONTH_LABELS = ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月']
 const CURRENT_YEAR = new Date().getFullYear()

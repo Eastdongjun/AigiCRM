@@ -2,7 +2,7 @@ const { getCustomer, saveCustomerWithIndicator, updateCustomerWithIndicator, che
 const { getDepts, getDictData } = require('../../../api/system')
 const { hasPermission, requireLogin, isAdmin } = require('../../../utils/auth')
 const { showError, showErrorWithRetry } = require('../../../utils/feedback')
-const { getFormDraft, saveFormDraft, forceSaveFormDraft, deleteFormDraft } = require('../../../api/system')
+const { getFormDraft, saveFormDraft, deleteFormDraft } = require('../../../api/system')
 const { readDemoCustomers, saveDemoCustomer } = require('../../../utils/demo-customers')
 
 // 【PR-05 残余 20260921】提交幂等键:同一次提交(含重试/重复发包)共用一个键,成功后换新;
