@@ -104,6 +104,8 @@ public class StatisticsQueryService {
     private final BizCustomerLogMapper customerLogMapper;
     private final BizIncentiveRecordMapper incentiveRecordMapper;
     private final BizIncentiveCategoryMapper incentiveCategoryMapper;
+    // 【2026-09-23】客户排行四项激励聚合与激励模块分享制同口径(applyShareVisibility),复用其授权判定
+    private final com.aigicrm.module.incentive.service.IncentiveService incentiveService;
     private final BizFileMapper fileMapper;
     private final BizCustomerIndicatorMapper indicatorMapper;
     private final BizInvoiceMapper invoiceMapper;
@@ -464,9 +466,6 @@ public class StatisticsQueryService {
      */
     public Map<String, Object> customerRankings(String period) {
         Map<String, Object> data = new LinkedHashMap<>();
-        List<BizCustomer> customers = visibleCustomers(customerService.getAllActiveCustomers());
-        Map<Long, BizCustomer> customerMap = new HashMap<>();
-        for (BizCustomer c : customers) customerMap.put(c.getId(), c);
 
         List<BizIncentiveCategory> categories = incentiveCategoryMapper.selectList(null);
         Map<Long, BizIncentiveCategory> categoryMap = new HashMap<>();
@@ -485,10 +484,26 @@ public class StatisticsQueryService {
         LambdaQueryWrapper<BizIncentiveRecord> recordWrapper = new LambdaQueryWrapper<>();
         recordWrapper.isNotNull(BizIncentiveRecord::getCustomerId);
         if (period != null && !period.isBlank()) recordWrapper.eq(BizIncentiveRecord::getPeriod, period);
+        // 【2026-09-23 口径对齐】四项激励聚合改走激励模块分享制(admin/专项授权→全部；否则本人+他人shared=1)。
+        // 原 G2(2026-09-21) 按客户数据可见性收口: SELF/team 销售的激励排行只剩名下客户 → 用户实测
+        // "客户排行只看得到自己的"；与激励统计页客户排行Tab(getCustomerRecords 分享制)及同页
+        // 个人排行(全员)口径冲突。分享记录引用的他人客户允许展示客户名(与 getCustomerRecords 一致)；
+        // 指标/客情排行(indicatorStats)维持 G2 客户可见性口径不变。
+        incentiveService.applyShareVisibility(recordWrapper);
         List<BizIncentiveRecord> records = incentiveRecordMapper.selectList(recordWrapper);
-        // 【G2 2026-09-21】激励记录随客户可见性同步收口(同 indicatorStats 的指标过滤, 防聚合泄露)
+
+        // 行基底=分享可见记录引用的客户(批量取,含当前账号数据范围外的客户;ownerName 为 exist=false 字段需回填)
+        Set<Long> referencedIds = new HashSet<>();
+        for (BizIncentiveRecord r : records) {
+            if (r.getCustomerId() != null) referencedIds.add(r.getCustomerId());
+        }
+        Map<Long, BizCustomer> customerMap = new HashMap<>();
+        if (!referencedIds.isEmpty()) {
+            for (BizCustomer c : customerMapper.selectBatchIds(referencedIds)) customerMap.put(c.getId(), c);
+            fillCustomerOwnerNames(customerMap.values());
+        }
         records = records.stream()
-                .filter(r -> customerMap.containsKey(r.getCustomerId()))
+                .filter(r -> r.getCustomerId() != null && customerMap.containsKey(r.getCustomerId()))
                 .collect(java.util.stream.Collectors.toList());
         Map<Long, Map<String, Object>> incentiveRows = new LinkedHashMap<>();
         for (BizIncentiveRecord record : records) {
@@ -533,6 +548,20 @@ public class StatisticsQueryService {
         data.put("indicatorRanking", indicatorRanking);
         data.put("coreCount", indicatorRanking.stream().filter(row -> Boolean.TRUE.equals(row.get("core"))).count());
         return data;
+    }
+
+    /** 批量回填客户 ownerName(exist=false 字段,批量取客户后统一补负责人名) */
+    private void fillCustomerOwnerNames(java.util.Collection<BizCustomer> customers) {
+        Set<Long> ownerIds = new HashSet<>();
+        for (BizCustomer c : customers) {
+            if (c.getOwnerId() != null) ownerIds.add(c.getOwnerId());
+        }
+        if (ownerIds.isEmpty()) return;
+        Map<Long, String> nameById = new HashMap<>();
+        for (SysUser u : userMapper.selectBatchIds(ownerIds)) nameById.put(u.getId(), u.getRealName());
+        for (BizCustomer c : customers) {
+            if (c.getOwnerId() != null) c.setOwnerName(nameById.get(c.getOwnerId()));
+        }
     }
 
     private Map<String, Object> customerBaseRow(BizCustomer customer) {

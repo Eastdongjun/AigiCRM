@@ -179,8 +179,10 @@ public class IncentiveService {
     /**
      * 【2026-08-08 分享制+双勾选】记录列表可见性统一：canSeeAllIncentive → 全部；
      * 否则"本人 ∨ (已分享 AND canViewShared)"——面板取消"查看已分享"的用户不可见他人分享记录。
+     * 【2026-09-23】公开给统计模块复用：客户排行(/statistics/customer-rankings)的四项激励聚合
+     * 与本模块同口径(此前统计侧按客户数据可见性收口,SELF/team 销售只剩名下客户,两套口径打架)。
      */
-    private void applyShareVisibility(LambdaQueryWrapper<BizIncentiveRecord> wrapper) {
+    public void applyShareVisibility(LambdaQueryWrapper<BizIncentiveRecord> wrapper) {
         if (canSeeAllIncentive()) return;
         Long userId = SecurityUtils.getCurrentUserId();
         boolean canShared = canViewShared(userId);
