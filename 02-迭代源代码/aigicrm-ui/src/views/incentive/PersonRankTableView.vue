@@ -5,6 +5,8 @@
       <span class="matrix-title">{{ period || '全部周期' }} 四项激励个人排行</span>
       <span class="header-right-actions">
         <span class="rank-count">{{ personBoard.length }}人</span>
+        <!-- 【2026-09-23 需求】导出受独立权限点控制, 管理员在角色管理权限树勾选授予(V2026.09.23.7) -->
+        <el-button v-if="userStore.hasPermission('incentive:person-rank:export')" size="small" type="primary" plain :icon="Download" @click="exportPersonRank">导出</el-button>
       </span>
     </div>
     <el-table :data="pagedPersonBoard" style="width:100%" empty-text="暂无数据" class="rank-matrix"
@@ -61,14 +63,43 @@
 </template>
 
 <script setup>
+import { Download } from '@element-plus/icons-vue'
 import { injectIncentiveStats } from '@/composables/useIncentiveStats'
+import { useUserStore } from '@/store/user'
 import { pageSizes } from '@/utils/pagination'
 
 const { period, personBoard, personPageNum, personPageSize, pagedPersonBoard, rankParents } = injectIncentiveStats()
+const userStore = useUserStore()
 
 const onSizeChange = (size) => {
   personPageSize.value = size
   personPageNum.value = 1
+}
+
+// 【2026-09-23】个人排行导出(前端 CSV, 与客户排行 exportRank 同构; 按钮由 incentive:person-rank:export 控制)
+const exportPersonRank = () => {
+  const periodLabel = period.value || '全部周期'
+  const cats = rankParents.value.flatMap(g => g.children.map(c => c.categoryName))
+  const header = ['排名', '姓名', '办事处', '激励总额', ...cats, '安装前', '安装中', '安装后', '记录数']
+  const rows = personBoard.value.map(r => [
+    r.rank, r.realName || '未知', r.officeName || '—', r.totalScore || 0,
+    ...rankParents.value.flatMap(g => g.children.map(c => r.byCategory?.[c.id]?.[0] || 0)),
+    r.preCount || 0, r.midCount || 0, r.postCount || 0, r.recordCount || 0,
+  ])
+  const esc = (v) => {
+    const s = String(v ?? '')
+    return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s
+  }
+  const csv = '﻿' + [header, ...rows].map(row => row.map(esc).join(',')).join('\n')
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `激励个人排行_${periodLabel}.csv`
+  document.body.appendChild(a)
+  a.click()
+  URL.revokeObjectURL(url)
+  a.remove()
 }
 </script>
 
