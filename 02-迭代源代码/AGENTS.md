@@ -100,3 +100,11 @@ python3 ~/.codex/skills/code-review/scripts/check_permission_strings.py \
 - 知识资产同步(数据字典/权限字典/API清单/配置矩阵)
 - 残余风险披露;回滚方案明确
 - 独立代码审查通过(code-reviewer/security-reviewer)
+
+## 硬性纪律(违反=事故,2026-09-24 起,源自实战踩坑)
+
+1. **迁移序列化**:新建迁移前必须 `ls aigicrm-backend/src/main/resources/db/migration | grep 当天版本号`——并行会话可能已占用该号(2026-09-23 撞 23.4 实证,flyway 拒跑);迁移定位一律按 permission 码/唯一键,**禁止硬编码行 id**(21.1 事故:两库 id 错位→误删权限行→全员 403;StabilityInvariantTest.INV-MIG-001 机器拦截,历史文件祖父豁免)。
+2. **口径单源**:同一业务的可见性/去重判据全库只允许一处定义,复用而非重写(激励=applyShareVisibility 单源;提醒去重双写方同判据;统计侧不得自造过滤)。
+3. **人工文档同步**:功能交付必须同步更新 docs/unified-feature-manifest.md 对应行与 docs/business/ 对应篇——`scripts/gate.sh` 第4项做新鲜度检查,落后源码 3 天以上即门禁失败(上线周零回流的根因就是没这道检查)。
+4. **交付前一键门禁**:`bash scripts/gate.sh`(完整档)——后端全量(含不变量钉)+前端测试构建+文档新鲜度+工作区检查;CI/发布前必跑。
+5. **产品裁决只进台账**:业务口径变化一律记 docs/REQUIREMENTS.md 未决事项→裁决→business/ 落档,不散在会话里(这是最大的熵源)。
