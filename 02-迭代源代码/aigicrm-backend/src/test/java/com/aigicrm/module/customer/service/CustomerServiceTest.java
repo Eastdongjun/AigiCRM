@@ -146,6 +146,67 @@ class CustomerServiceTest {
     }
 
     /**
+     * 【裁决 2026-09-24】最近开票日=纯推导字段: 任何角色(含 admin/customer:date:edit)经客户编辑接口
+     * 直改一律拒绝,纠错走财务页发票补录/作废——替换原"总监或行政可改"双轨(人工值会被重算静默覆盖)。
+     */
+    @Test
+    void update_rejectsManualLastInvoiceDateChange_evenForAdmin() {
+        BizCustomer existing = new BizCustomer();
+        existing.setId(7L);
+        existing.setLastInvoiceDate(java.time.LocalDate.of(2026, 1, 1));
+        existing.setRegisterDate(java.time.LocalDate.of(2025, 6, 1));
+        BizCustomer requested = new BizCustomer();
+        requested.setId(7L);
+        requested.setLastInvoiceDate(java.time.LocalDate.of(2026, 9, 1));
+        requested.setRegisterDate(java.time.LocalDate.of(2025, 6, 1));
+
+        BizCustomerMapper customerMapper = mock(BizCustomerMapper.class);
+        when(customerMapper.selectById(7L)).thenReturn(existing);
+        com.aigicrm.common.engine.CustomerAccessService access =
+                mock(com.aigicrm.common.engine.CustomerAccessService.class);
+        when(access.canEdit(7L)).thenReturn(true);
+        when(access.isInSeaPool(7L)).thenReturn(false);
+        CustomerService service = newService(mock(BizInvoiceMapper.class), mock(BizPaymentMapper.class),
+                customerMapper, mock(OrgScopeResolver.class), mock(BizContactMapper.class), access);
+
+        try (org.mockito.MockedStatic<SecurityUtils> sec = org.mockito.Mockito.mockStatic(SecurityUtils.class)) {
+            sec.when(SecurityUtils::isAdmin).thenReturn(true);
+            sec.when(() -> SecurityUtils.hasAuthority("customer:date:edit")).thenReturn(true);
+            BusinessException ex = assertThrows(BusinessException.class, () -> service.update(requested));
+            assertTrue(ex.getMessage().contains("由开票记录自动推导"));
+        }
+    }
+
+    /** 注册日守卫不变: 无 customer:date:edit 权限改注册日仍按原口径拒绝(开票日未动) */
+    @Test
+    void update_rejectsRegisterDateChange_withoutDateEditAuthority() {
+        BizCustomer existing = new BizCustomer();
+        existing.setId(8L);
+        existing.setLastInvoiceDate(java.time.LocalDate.of(2026, 1, 1));
+        existing.setRegisterDate(java.time.LocalDate.of(2025, 6, 1));
+        BizCustomer requested = new BizCustomer();
+        requested.setId(8L);
+        requested.setLastInvoiceDate(java.time.LocalDate.of(2026, 1, 1));
+        requested.setRegisterDate(java.time.LocalDate.of(2025, 9, 1));
+
+        BizCustomerMapper customerMapper = mock(BizCustomerMapper.class);
+        when(customerMapper.selectById(8L)).thenReturn(existing);
+        com.aigicrm.common.engine.CustomerAccessService access =
+                mock(com.aigicrm.common.engine.CustomerAccessService.class);
+        when(access.canEdit(8L)).thenReturn(true);
+        when(access.isInSeaPool(8L)).thenReturn(false);
+        CustomerService service = newService(mock(BizInvoiceMapper.class), mock(BizPaymentMapper.class),
+                customerMapper, mock(OrgScopeResolver.class), mock(BizContactMapper.class), access);
+
+        try (org.mockito.MockedStatic<SecurityUtils> sec = org.mockito.Mockito.mockStatic(SecurityUtils.class)) {
+            sec.when(SecurityUtils::isAdmin).thenReturn(false);
+            sec.when(() -> SecurityUtils.hasAuthority("customer:date:edit")).thenReturn(false);
+            BusinessException ex = assertThrows(BusinessException.class, () -> service.update(requested));
+            assertTrue(ex.getMessage().contains("注册日"));
+        }
+    }
+
+    /**
      * 【PR-18 统计口径】作废发票后重算"最近开票日"必须排除已作废发票——
      * 断言下发到 Mapper 的查询含 status <> 'voided' 条件(作废票不得驱动保护期)。
      */

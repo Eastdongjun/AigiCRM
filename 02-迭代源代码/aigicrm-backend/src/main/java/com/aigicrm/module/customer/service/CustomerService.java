@@ -359,6 +359,9 @@ public class CustomerService {
     @Transactional
     public void create(BizCustomer customer) {
         customer.setCustomerCode(generateCustomerCode(customer));
+        // 【裁决 2026-09-24】最近开票日=纯推导字段(最后一次非作废开票的日期): 创建时一律清空,
+        // 不接受表单直带——历史开票请在客户财务页补录发票记录(自动驱动保护期,全程留痕)
+        customer.setLastInvoiceDate(null);
         calculateExpireDates(customer);
         customer.setStatus("normal");
         customer.setProtectionStatus("active");
@@ -529,13 +532,19 @@ public class CustomerService {
     }
 
     private void protectCustomerDateFields(BizCustomer existing, BizCustomer requested) {
+        // 【裁决 2026-09-24】最近开票日=纯推导字段(refreshLastInvoiceDate 以最后一次非作废开票维护):
+        // 任何角色(含 admin/customer:date:edit 持有者)不得经客户编辑接口直改,
+        // 纠错走财务页发票补录/作废——替换原"总监或行政可改"的双轨(人工改值会被下次开票重算静默覆盖)。
+        if (fieldChanged(existing.getLastInvoiceDate(), requested.getLastInvoiceDate())) {
+            throw new BusinessException("最近开票日由开票记录自动推导，请在客户财务页补录或作废发票");
+        }
+        requested.setLastInvoiceDate(existing.getLastInvoiceDate());
+        // 注册日仍为受控可改字段: customer:date:edit 权限(总监0/行政05/admin 绑定)
         if (canMaintainProtectedCustomerDates()) return;
-        if (fieldChanged(existing.getRegisterDate(), requested.getRegisterDate())
-                || fieldChanged(existing.getLastInvoiceDate(), requested.getLastInvoiceDate())) {
-            throw new BusinessException("注册日和最近开票日录入后仅总监或行政可修改");
+        if (fieldChanged(existing.getRegisterDate(), requested.getRegisterDate())) {
+            throw new BusinessException("注册日录入后仅总监或行政可修改");
         }
         requested.setRegisterDate(existing.getRegisterDate());
-        requested.setLastInvoiceDate(existing.getLastInvoiceDate());
     }
 
     private boolean canMaintainProtectedCustomerDates() {

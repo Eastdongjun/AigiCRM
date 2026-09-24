@@ -22,8 +22,9 @@
         <el-date-picker v-model="form.registerDate" type="date" value-format="YYYY-MM-DD" placeholder="选择日期" style="width:100%" :disabled="!canEditProtectedDates" />
       </el-form-item>
       <el-form-item label="最近开票日">
-        <el-date-picker v-model="form.lastInvoiceDate" type="date" value-format="YYYY-MM-DD" placeholder="尚无开票可留空" style="width:100%" :disabled="!canEditProtectedDates" />
-        <div class="field-hint">留空表示尚未开票；保护期按「注册日与最近开票日中较晚者 + 360 天」计算</div>
+        <!-- 裁决 2026-09-24: 纯推导字段(最后一次非作废开票),任何角色不可直改;补录/作废走客户财务页 -->
+        <el-input :model-value="form.lastInvoiceDate || '尚未开票'" disabled class="derived-input" />
+        <div class="field-hint">由开票记录自动推导（较晚于注册日者 + 360 天计保护期）；如需修正请到客户财务页补录或作废发票</div>
       </el-form-item>
     </div>
   </div>

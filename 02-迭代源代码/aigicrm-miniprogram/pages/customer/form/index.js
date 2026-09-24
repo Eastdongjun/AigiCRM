@@ -100,7 +100,7 @@ function buildFormView(data) {
     areaPicker: pickerView(Boolean(form.province), `${form.province || ''}${form.city || ''}${form.district || ''}`, '请选择省/市/区'),
     registerDatePicker: pickerView(Boolean(form.registerDate), form.registerDate, '选择日期'),
     lastInvoiceDatePicker: pickerView(Boolean(form.lastInvoiceDate), form.lastInvoiceDate, '尚无开票可留空'),
-    dateTip: `保护期按「注册日与最近开票日中较晚者 + 360 天」计算${data.canEditDates ? '' : '；注册日/最近开票日仅总监或行政可改'}`
+    dateTip: `保护期按「注册日与最近开票日中较晚者 + 360 天」计算${data.canEditDates ? '' : '；注册日仅总监或行政可改'}`
   }
 }
 
