@@ -14,6 +14,11 @@
 | [reminder.md](reminder.md) | 提醒体系:六类提醒/物化/跟进 | ReminderService、CustomerExpireTask |
 | [visibility.md](visibility.md) | 数据范围与集团归属:五档范围/分享制边界 | OrgScopeResolver、GroupScopeUtil、ScopeService |
 | [security-auth.md](security-auth.md) | 认证与会话:登录限流/JWT/集团切换/找回密码 | AuthService、SecurityConfig |
+| [file-center.md](file-center.md) | 文件中心:ACL/配额/分享/公开下载 | FileController、BizFolderAcl |
+| [score.md](score.md) | 积分模块:积分项/录入/排行(与激励分是两套体系) | ScoreController、ScoreService |
+| [task.md](task.md) | 待办任务:可见性 IDOR 收口/状态机/工作台联动 | TaskController、TaskService |
+| [finance.md](finance.md) | 财务记录:开票/回款与保护期联动 | BizInvoice/BizPayment、CustomerController |
+| [system-admin.md](system-admin.md) | 系统管理:orgAdmin 边界/用户规则/角色纪律 | SysUserController、OrgAdminService |
 
 ## 关键规则数值速查(均为生产配置现值)
 
@@ -29,10 +34,5 @@
 
 ## 待补录(未核实,勿引用)
 
-以下领域尚未成文,需要专项核实后再补,当前以代码为准:
-
-- 文件中心:文件夹 ACL 模型、配额扣减时机、公开下载链接规则
-- 积分模块:积分录入口径、与激励分的关系、排行算法
-- 待办任务:任务指派/转交语义、与工作台角标的关系
-- 财务记录:增删口径、与开票日的联动
-- 系统管理五页(用户/角色/岗位/组织/配置)的管理边界与 org-admin 语义
+- `customer.adjust.days`(180)的确切业务用途(超期调整场景,未逐行核实)。
+- 回款(payment)是否有独立提醒/统计口径;开票金额与核心客户判定的联动细节(见 finance.md §5)。
