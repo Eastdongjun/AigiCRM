@@ -100,16 +100,21 @@ Page({
     const list = mode === 'payment' ? this.data.payments : this.data.invoices
     const item = list[index]
     if (!item || !item.id) return
+    // 裁决 2026-09-24: 可删必留痕——editable 弹窗必填原因, 后端记审计快照+逻辑删
     wx.showModal({
       title: mode === 'payment' ? '删除回款记录' : '删除开票记录',
-      content: '确认删除该财务记录？',
+      content: '删除将留痕并可回查,请填写删除原因',
+      editable: true,
+      placeholderText: '删除原因(必填)',
       success: (res) => {
         if (!res.confirm) return
+        const reason = (res.content || '').trim()
+        if (!reason) return wx.showToast({ title: '请填写删除原因', icon: 'none' })
         const action = getApp().globalData.demoMode
           ? Promise.resolve(deleteDemoFinance(this.data.id, mode, item.id))
-          : (mode === 'payment' ? deletePayment(this.data.id, item.id) : deleteInvoice(this.data.id, item.id))
+          : (mode === 'payment' ? deletePayment(this.data.id, item.id, reason) : deleteInvoice(this.data.id, item.id, reason))
         action.then(() => {
-          wx.showToast({ title: '已删除', icon: 'success' })
+          wx.showToast({ title: '已删除(已留痕)', icon: 'success' })
           this.load()
         }).catch((error) => showError(error, '删除财务记录失败'))
       }

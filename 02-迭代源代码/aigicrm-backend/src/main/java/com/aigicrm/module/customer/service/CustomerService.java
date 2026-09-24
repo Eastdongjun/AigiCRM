@@ -56,6 +56,8 @@ public class CustomerService {
     private final com.aigicrm.common.engine.CustomerAccessService customerAccessService;
     private final com.aigicrm.module.system.service.RolePermScopeService rolePermScopeService;
     private final com.aigicrm.module.approval.mapper.BizApprovalMapper approvalMapper;
+    // 【裁决 2026-09-24】财务删除审计(sys_log 快照留痕)
+    private final com.aigicrm.module.system.mapper.SysLogMapper financeAuditLogMapper;
 
     public IPage<BizCustomer> page(int current, int size, String keyword, String industry,
                                     Long officeId, Long regionId, String status, Long ownerId) {
@@ -1287,19 +1289,41 @@ public class CustomerService {
     }
 
     @Transactional
-    public void deleteInvoice(Long customerId, Long invoiceId) {
+    public void deleteInvoice(Long customerId, Long invoiceId, String reason) {
         BizInvoice invoice = invoiceMapper.selectById(invoiceId);
         // 归属校验：记录必须属于请求路径中的客户，防止跨客户删除（IDOR）
         if (invoice == null || !customerId.equals(invoice.getCustomerId())) {
             throw new BusinessException("发票不存在或不属于该客户");
         }
-        // 【PR-18 状态机】仅待核对(暂录)可物理删除; 已确认锁定(更正走作废)、已作废留痕, 均不可删
-        if (!"pending".equals(invoice.getStatus())) {
-            throw new BusinessException("仅待核对状态可删除;已确认记录请使用\"作废\"留痕");
+        // 【裁决 2026-09-24 更新】"发票可以删除,但要有删除记录"——任何状态可删(替换 PR-18 仅待核对可删):
+        // 必填删除原因 + sys_log 审计快照(票号/日期/金额/状态/原因/操作人) + @TableLogic 逻辑删(行保留可回查);
+        // 保护期由 refreshLastInvoiceDate 自动回算。
+        if (reason == null || reason.isBlank()) {
+            throw new BusinessException("请填写删除原因（财务记录删除必须留痕）");
         }
+        logFinanceDeletion("发票", customerId, invoiceId, reason.trim(),
+                "票号=" + invoice.getInvoiceNumber() + ", 日期=" + invoice.getInvoiceDate()
+                        + ", 金额=" + invoice.getAmount() + ", 状态=" + invoice.getStatus());
         invoiceMapper.deleteById(invoiceId);
         refreshLastInvoiceDate(invoice.getCustomerId());
         recalculateCoreStatus(invoice.getCustomerId());
+    }
+
+    /** 财务记录删除审计:完整快照+原因落 sys_log;尽力而为不阻断主流程(LogAspect 层另有 URI 级记录带 IP 兜底) */
+    private void logFinanceDeletion(String kind, Long customerId, Long recordId, String reason, String snapshot) {
+        try {
+            com.aigicrm.module.system.entity.SysLog audit = new com.aigicrm.module.system.entity.SysLog();
+            com.aigicrm.security.SecurityUser current = SecurityUtils.getCurrentUser();
+            audit.setUserId(current != null ? current.getUserId() : null);
+            audit.setUsername(current != null ? current.getUsername() : null);
+            audit.setModule("财务");
+            audit.setAction("删除" + kind);
+            audit.setTargetType("finance_record");
+            audit.setTargetId(recordId);
+            audit.setDetail(snapshot + "; 原因: " + reason + "; customerId=" + customerId);
+            financeAuditLogMapper.insert(audit);
+        } catch (Exception ignored) {
+        }
     }
 
     private void refreshLastInvoiceDate(Long customerId) {
@@ -1569,16 +1593,19 @@ public class CustomerService {
     }
 
     @Transactional
-    public void deletePayment(Long customerId, Long paymentId) {
+    public void deletePayment(Long customerId, Long paymentId, String reason) {
         BizPayment payment = paymentMapper.selectById(paymentId);
         // 归属校验：记录必须属于请求路径中的客户，防止跨客户删除（IDOR）
         if (payment == null || !customerId.equals(payment.getCustomerId())) {
             throw new BusinessException("回款不存在或不属于该客户");
         }
-        // 【PR-18 状态机】仅待核对(暂录)可物理删除; 已确认锁定、已作废留痕, 均不可删
-        if (!"pending".equals(payment.getStatus())) {
-            throw new BusinessException("仅待核对状态可删除;已确认记录请使用\"作废\"留痕");
+        // 【裁决 2026-09-24 更新】与发票同口径: 任何状态可删+必填原因+审计快照+逻辑删
+        if (reason == null || reason.isBlank()) {
+            throw new BusinessException("请填写删除原因（财务记录删除必须留痕）");
         }
+        logFinanceDeletion("回款", customerId, paymentId, reason.trim(),
+                "日期=" + payment.getPaymentDate() + ", 金额=" + payment.getPaymentAmount()
+                        + ", 方式=" + payment.getPaymentMethod() + ", 状态=" + payment.getStatus());
         paymentMapper.deleteById(paymentId);
         recalculateCoreStatus(payment.getCustomerId());
     }

@@ -287,9 +287,11 @@ public class CustomerController {
 
     @PreAuthorize("hasAuthority('finance:manage') or (hasAuthority('customer:edit') and hasAuthority('finance:view'))")
     @DeleteMapping("/{id}/invoices/{invoiceId}")
-    public Result<Void> deleteInvoice(@PathVariable Long id, @PathVariable Long invoiceId) {
+    public Result<Void> deleteInvoice(@PathVariable Long id, @PathVariable Long invoiceId,
+                                      @RequestParam(required = false) String reason) {
+        // 【裁决 2026-09-24】发票可删但必留痕: 原因必填+审计快照+逻辑删(service 内强制)
         accessService.assertCanEdit(id);
-        customerService.deleteInvoice(id, invoiceId);
+        customerService.deleteInvoice(id, invoiceId, reason);
         return Result.ok();
     }
 
@@ -442,9 +444,11 @@ public class CustomerController {
 
     @PreAuthorize("hasAuthority('finance:manage') or (hasAuthority('customer:edit') and hasAuthority('finance:view'))")
     @DeleteMapping("/{id}/payments/{paymentId}")
-    public Result<Void> deletePayment(@PathVariable Long id, @PathVariable Long paymentId) {
+    public Result<Void> deletePayment(@PathVariable Long id, @PathVariable Long paymentId,
+                                      @RequestParam(required = false) String reason) {
+        // 【裁决 2026-09-24】回款同口径: 可删必留痕
         accessService.assertCanEdit(id);
-        customerService.deletePayment(id, paymentId);
+        customerService.deletePayment(id, paymentId, reason);
         return Result.ok();
     }
 

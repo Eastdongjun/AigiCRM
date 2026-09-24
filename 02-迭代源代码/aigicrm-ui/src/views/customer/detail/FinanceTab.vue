@@ -33,7 +33,7 @@
           <template #default="{row}">
             <el-button v-if="row.status === 'pending'" link type="success" size="small" @click="handleConfirmInvoice(row)">确认</el-button>
             <el-button v-if="row.status !== 'voided'" link type="warning" size="small" @click="handleVoidInvoice(row)">作废</el-button>
-            <el-button v-if="row.status === 'pending'" link type="danger" size="small" @click="handleDeleteInvoice(row)">删除</el-button>
+            <el-button link type="danger" size="small" @click="handleDeleteInvoice(row)">删除</el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -70,7 +70,7 @@
           <template #default="{row}">
             <el-button v-if="row.status === 'pending'" link type="success" size="small" @click="handleConfirmPayment(row)">确认</el-button>
             <el-button v-if="row.status !== 'voided'" link type="warning" size="small" @click="handleVoidPayment(row)">作废</el-button>
-            <el-button v-if="row.status === 'pending'" link type="danger" size="small" @click="handleDeletePayment(row)">删除</el-button>
+            <el-button link type="danger" size="small" @click="handleDeletePayment(row)">删除</el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -79,7 +79,7 @@
 
     <!-- 【PR-18】口径脚注: 作废留痕不计入 -->
     <div class="ledger-note">
-      已作废记录保留展示(悬停查看原因), 不计入上方累计与有效总额、不延长保护期; 仅"待核对"暂录可删除, 已确认记录如需更正请使用"作废"。
+      已作废记录保留展示(悬停查看原因), 不计入上方累计与有效总额、不延长保护期。任何记录均可删除(裁决 2026-09-24): 删除必填原因并留审计痕迹, 数据行逻辑保留可回查; 更正常规口径仍推荐"作废"。
     </div>
 
     <el-dialog v-model="showInvoiceDialog" title="录入开票" width="480px" :close-on-click-modal="false">

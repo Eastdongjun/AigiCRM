@@ -75,8 +75,9 @@ export function restoreCustomer(id) {
   return request.post(`/customer/${id}/restore`)
 }
 
-export function deleteInvoice(customerId, invoiceId) {
-  return request.delete(`/customer/${customerId}/invoices/${invoiceId}`)
+// 【裁决 2026-09-24】发票可删但必留痕: 原因必填(query), 后端记审计快照+逻辑删
+export function deleteInvoice(customerId, invoiceId, reason) {
+  return request.delete(`/customer/${customerId}/invoices/${invoiceId}`, { params: { reason } })
 }
 // 【PR-18 台账状态机】确认(pending→confirmed) / 作废(留痕, 统计口径已排除)
 export function confirmInvoice(customerId, invoiceId) {
@@ -137,8 +138,9 @@ export function getPaymentSummary(id) {
 export function addPayment(id, data) {
   return request.post(`/customer/${id}/payments`, data)
 }
-export function deletePayment(customerId, paymentId) {
-  return request.delete(`/customer/${customerId}/payments/${paymentId}`)
+// 【裁决 2026-09-24】回款同口径: 可删必留痕
+export function deletePayment(customerId, paymentId, reason) {
+  return request.delete(`/customer/${customerId}/payments/${paymentId}`, { params: { reason } })
 }
 export function confirmPayment(customerId, paymentId) {
   return request.post(`/customer/${customerId}/payments/${paymentId}/confirm`)

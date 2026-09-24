@@ -62,7 +62,7 @@ describe('客户详情 FinanceTab 台账状态机', () => {
     expect(wrapper.html()).toContain('ledger-voided-row')
   })
 
-  it('操作门控: pending 行有确认/作废/删除, confirmed 行仅作废, voided 行无操作', async () => {
+  it('操作门控(裁决 2026-09-24): 全状态可删除(留痕), 确认仅 pending, 作废 pending+confirmed', async () => {
     const wrapper = mountFinanceTab({
       invoices: [invoiceRow('pending'), invoiceRow('confirmed'), invoiceRow('voided')],
     })
@@ -72,10 +72,12 @@ describe('客户详情 FinanceTab 台账状态机', () => {
     const btnText = (row) => row.findAll('button').map((b) => b.text()).join(',')
     expect(btnText(rows[0])).toContain('确认')
     expect(btnText(rows[0])).toContain('删除')
+    // 裁决 2026-09-24: 删除不再限 pending——任何状态可删(必填原因+审计留痕+逻辑删)
     expect(btnText(rows[1])).not.toContain('确认')
-    expect(btnText(rows[1])).not.toContain('删除')
+    expect(btnText(rows[1])).toContain('删除')
     expect(btnText(rows[1])).toContain('作废')
-    expect(btnText(rows[2])).toBe('')
+    expect(btnText(rows[2])).toContain('删除')
+    expect(btnText(rows[2])).not.toContain('作废')
   })
 
   it('点击确认/作废调用对应处理器', async () => {
