@@ -564,6 +564,12 @@ public class CustomerService {
         // 【议题五.3 裁决 2026-09-19】有业务数据的客户不允许删,转停用:
         assertDeletable(id);
         customerMapper.deleteById(id);
+        // 【裁决 2026-09-24】客户删除留痕(三态不变量: 名下/公海/已删除, 删除是终态必须可追溯):
+        // 完整快照落 sys_log, 管理员经 系统管理-系统日志 查看; 行本身 @TableLogic 逻辑删保留
+        logRecordDeletion("客户", "删除客户", "customer", id,
+                "客户名=" + existing.getCustomerName() + ", 编码=" + existing.getCustomerCode()
+                        + ", 负责人ID=" + existing.getOwnerId() + ", status=" + existing.getStatus()
+                        + "/" + existing.getProtectionStatus() + ", deptId=" + existing.getDeptId());
     }
 
     /**
@@ -1309,21 +1315,26 @@ public class CustomerService {
         recalculateCoreStatus(invoice.getCustomerId());
     }
 
-    /** 财务记录删除审计:完整快照+原因落 sys_log;尽力而为不阻断主流程(LogAspect 层另有 URI 级记录带 IP 兜底) */
-    private void logFinanceDeletion(String kind, Long customerId, Long recordId, String reason, String snapshot) {
+    /** 记录删除审计:完整快照落 sys_log(管理员经系统日志页可查);尽力而为不阻断主流程(LogAspect 层另有 URI 级记录带 IP 兜底) */
+    private void logRecordDeletion(String module, String action, String targetType, Long recordId, String detail) {
         try {
             com.aigicrm.module.system.entity.SysLog audit = new com.aigicrm.module.system.entity.SysLog();
             com.aigicrm.security.SecurityUser current = SecurityUtils.getCurrentUser();
             audit.setUserId(current != null ? current.getUserId() : null);
             audit.setUsername(current != null ? current.getUsername() : null);
-            audit.setModule("财务");
-            audit.setAction("删除" + kind);
-            audit.setTargetType("finance_record");
+            audit.setModule(module);
+            audit.setAction(action);
+            audit.setTargetType(targetType);
             audit.setTargetId(recordId);
-            audit.setDetail(snapshot + "; 原因: " + reason + "; customerId=" + customerId);
+            audit.setDetail(detail);
             financeAuditLogMapper.insert(audit);
         } catch (Exception ignored) {
         }
+    }
+
+    private void logFinanceDeletion(String kind, Long customerId, Long recordId, String reason, String snapshot) {
+        logRecordDeletion("财务", "删除" + kind, "finance_record", recordId,
+                snapshot + "; 原因: " + reason + "; customerId=" + customerId);
     }
 
     private void refreshLastInvoiceDate(Long customerId) {

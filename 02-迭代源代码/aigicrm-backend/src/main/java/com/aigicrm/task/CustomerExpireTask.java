@@ -27,6 +27,59 @@ public class CustomerExpireTask {
     private final SysConfigService configService;
     // 【可观测性 2026-09-22】定时任务指标(放末位保持既有构造参数序稳定): 运行/入海/失败计数 + 末次成功时间
     private final io.micrometer.core.instrument.MeterRegistry meterRegistry;
+    // 【裁决 2026-09-24】公海锁超时释放所需的审批读写
+    private final com.aigicrm.module.approval.mapper.BizApprovalMapper approvalMapper;
+    private final com.aigicrm.module.approval.mapper.BizApprovalNodeMapper approvalNodeMapper;
+    private final com.aigicrm.module.sea.mapper.BizSeaPoolMapper seaPoolMapper;
+
+    /** 【裁决 2026-09-24】公海捞取审批锁超时自动释放: 时长=系统设置 sea.claim.lock.days(默认3,0=不启用)。
+     *  锁定(pending_approval)超过 N 天的池行释放回 available 并清申请人, 同时把对应 claim 审批
+     *  连同 pending 节点置 rejected(防释放后审批人补批造成错误过户);逐行隔离,失败不中断其余释放。 */
+    void releaseStaleClaimLocks() {
+        int lockDays = getConfigInt("sea.claim.lock.days", 3);
+        if (lockDays <= 0) {
+            log.info("公海锁超时释放未启用(sea.claim.lock.days={})", lockDays);
+            return;
+        }
+        java.time.LocalDateTime deadline = java.time.LocalDateTime.now().minusDays(lockDays);
+        List<com.aigicrm.module.sea.entity.BizSeaPool> stale = seaPoolMapper.selectList(
+                new LambdaQueryWrapper<com.aigicrm.module.sea.entity.BizSeaPool>()
+                        .eq(com.aigicrm.module.sea.entity.BizSeaPool::getStatus, "pending_approval")
+                        .lt(com.aigicrm.module.sea.entity.BizSeaPool::getClaimDate, deadline));
+        for (com.aigicrm.module.sea.entity.BizSeaPool lock : stale) {
+            try {
+                lock.setStatus("available");
+                lock.setClaimUserId(null);
+                lock.setClaimDate(null);
+                seaPoolMapper.updateById(lock);
+                com.aigicrm.module.approval.entity.BizApproval claim = approvalMapper.selectOne(
+                        new LambdaQueryWrapper<com.aigicrm.module.approval.entity.BizApproval>()
+                                .eq(com.aigicrm.module.approval.entity.BizApproval::getApprovalType, "claim")
+                                .eq(com.aigicrm.module.approval.entity.BizApproval::getCustomerId, lock.getCustomerId())
+                                .eq(com.aigicrm.module.approval.entity.BizApproval::getStatus, "reviewing")
+                                .orderByDesc(com.aigicrm.module.approval.entity.BizApproval::getId)
+                                .last("LIMIT 1"));
+                if (claim != null) {
+                    approvalMapper.update(null, new com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper<com.aigicrm.module.approval.entity.BizApproval>()
+                            .set(com.aigicrm.module.approval.entity.BizApproval::getStatus, "rejected")
+                            .eq(com.aigicrm.module.approval.entity.BizApproval::getId, claim.getId())
+                            .eq(com.aigicrm.module.approval.entity.BizApproval::getStatus, "reviewing"));
+                    approvalNodeMapper.update(null, new com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper<com.aigicrm.module.approval.entity.BizApprovalNode>()
+                            .set(com.aigicrm.module.approval.entity.BizApprovalNode::getStatus, "rejected")
+                            .set(com.aigicrm.module.approval.entity.BizApprovalNode::getAction, "reject")
+                            .set(com.aigicrm.module.approval.entity.BizApprovalNode::getComment, "捞取审批锁超时自动释放")
+                            .set(com.aigicrm.module.approval.entity.BizApprovalNode::getOperatedAt, java.time.LocalDateTime.now())
+                            .eq(com.aigicrm.module.approval.entity.BizApprovalNode::getApprovalId, claim.getId())
+                            .eq(com.aigicrm.module.approval.entity.BizApprovalNode::getStatus, "pending"));
+                }
+                meterRegistry.counter("sea.claim.lock.released").increment();
+                log.info("公海锁超时释放: customerId={}, 锁定于{}, 审批单{}",
+                        lock.getCustomerId(), lock.getClaimDate(), claim != null ? claim.getId() : "无");
+            } catch (Exception e) {
+                log.error("公海锁超时释放失败 customerId={}: {}", lock.getCustomerId(), e.getMessage());
+            }
+        }
+    }
 
     @Scheduled(cron = "0 0 2 * * ?")
     public void checkCustomerExpire() {
@@ -129,6 +182,8 @@ public class CustomerExpireTask {
 
         // 检查开票超一年的客户
         checkInvoiceOverdue(today);
+        // 【裁决 2026-09-24】公海捞取审批锁超时释放(sea.claim.lock.days, 默认3天/0=不启用)
+        releaseStaleClaimLocks();
         log.info("客户保护期检查完成");
     }
 

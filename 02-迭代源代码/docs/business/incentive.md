@@ -28,7 +28,7 @@
 
 | 排行 | 数据源 | 口径 |
 | --- | --- | --- |
-| 个人排行(`/incentive/stats` Tab、小程序排行中心) | `/incentive/scoreboard` | **公司级全量**(含未分享聚合分);导出按钮 `incentive:person-rank:export` 默认仅 admin 可勾选 |
+| 个人排行(`/incentive/stats` Tab、小程序排行中心) | `/incentive/scoreboard` | **公司级全量**(含未分享聚合分)——**裁决 2026-09-24:允许暴露**聚合分(明细仍走分享制);导出按钮 `incentive:person-rank:export` 默认仅 admin 可勾选 |
 | 客户排行(激励统计页 Tab) | `/incentive/customer-records` | **分享制**(本人+他人 shared);客户名对分享记录引用的客户可见 |
 | 客户排行(独立客户排行页 `/ranking/customer`、小程序排行中心) | `/statistics/customer-rankings` | 四项激励聚合=**分享制**(09-24 对齐);同页客情/六项指标排行=客户可见范围(G2 安全设计,与激励口径**有意不同**,待产品裁决是否统一) |
 

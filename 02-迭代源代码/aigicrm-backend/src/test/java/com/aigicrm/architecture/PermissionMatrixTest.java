@@ -193,11 +193,11 @@ public class PermissionMatrixTest {
 
         assertPreAuthorize(controller.getDeclaredMethod("addInvoice", Long.class, com.aigicrm.module.customer.entity.BizInvoice.class),
                 "hasAuthority('finance:manage') or (hasAuthority('customer:edit') and hasAuthority('finance:view'))");
-        assertPreAuthorize(controller.getDeclaredMethod("deleteInvoice", Long.class, Long.class),
+        assertPreAuthorize(controller.getDeclaredMethod("deleteInvoice", Long.class, Long.class, String.class),
                 "hasAuthority('finance:manage') or (hasAuthority('customer:edit') and hasAuthority('finance:view'))");
         assertPreAuthorize(controller.getDeclaredMethod("addPayment", Long.class, com.aigicrm.module.customer.entity.BizPayment.class),
                 "hasAuthority('finance:manage') or (hasAuthority('customer:edit') and hasAuthority('finance:view'))");
-        assertPreAuthorize(controller.getDeclaredMethod("deletePayment", Long.class, Long.class),
+        assertPreAuthorize(controller.getDeclaredMethod("deletePayment", Long.class, Long.class, String.class),
                 "hasAuthority('finance:manage') or (hasAuthority('customer:edit') and hasAuthority('finance:view'))");
     }
 
@@ -1077,7 +1077,7 @@ public class PermissionMatrixTest {
                         && serviceBody.contains("grantFlag(SecurityUtils.getCurrentUserId(), \"can_view_all\", false)")
                         && serviceBody.contains("grantFlag(SecurityUtils.getCurrentUserId(), \"can_edit\", false)")
                         && serviceBody.contains("grantFlag(SecurityUtils.getCurrentUserId(), \"can_delete\", false)")
-                        && serviceBody.contains("private void applyShareVisibility")
+                        && serviceBody.contains("public void applyShareVisibility") // 2026-09-24 private→public: 统计模块客户排行同口径复用,判据本身未变
                         && serviceBody.contains("w.eq(BizIncentiveRecord::getUserId, userId)")
                         && serviceBody.contains("if (canShared) w.or().eq(BizIncentiveRecord::getShared, 1)"),
                 "激励记录可见性必须保留专项授权看全量，否则只看本人和已分享记录");

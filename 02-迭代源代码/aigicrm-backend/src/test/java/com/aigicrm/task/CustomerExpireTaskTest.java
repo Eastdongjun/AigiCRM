@@ -21,12 +21,35 @@ import static org.mockito.Mockito.*;
 @SuppressWarnings("unchecked")
 class CustomerExpireTaskTest {
 
+    @org.junit.jupiter.api.BeforeAll
+    static void initTableInfo() {
+        // LambdaWrapper 依赖 TableInfo 静态缓存: 本类单跑时无其他类可蹭, 自足初始化(全量跑时幂等)
+        com.baomidou.mybatisplus.core.metadata.TableInfoHelper.initTableInfo(
+                new org.apache.ibatis.builder.MapperBuilderAssistant(
+                        new com.baomidou.mybatisplus.core.MybatisConfiguration(), ""), com.aigicrm.module.customer.entity.BizCustomer.class);
+        com.baomidou.mybatisplus.core.metadata.TableInfoHelper.initTableInfo(
+                new org.apache.ibatis.builder.MapperBuilderAssistant(
+                        new com.baomidou.mybatisplus.core.MybatisConfiguration(), ""), com.aigicrm.module.reminder.entity.BizReminder.class);
+        com.baomidou.mybatisplus.core.metadata.TableInfoHelper.initTableInfo(
+                new org.apache.ibatis.builder.MapperBuilderAssistant(
+                        new com.baomidou.mybatisplus.core.MybatisConfiguration(), ""), com.aigicrm.module.approval.entity.BizApproval.class);
+        com.baomidou.mybatisplus.core.metadata.TableInfoHelper.initTableInfo(
+                new org.apache.ibatis.builder.MapperBuilderAssistant(
+                        new com.baomidou.mybatisplus.core.MybatisConfiguration(), ""), com.aigicrm.module.approval.entity.BizApprovalNode.class);
+        com.baomidou.mybatisplus.core.metadata.TableInfoHelper.initTableInfo(
+                new org.apache.ibatis.builder.MapperBuilderAssistant(
+                        new com.baomidou.mybatisplus.core.MybatisConfiguration(), ""), com.aigicrm.module.sea.entity.BizSeaPool.class);
+    }
+
     private final BizCustomerMapper customerMapper = mock(BizCustomerMapper.class);
     private final BizReminderMapper reminderMapper = mock(BizReminderMapper.class);
     private final SeaService seaService = mock(SeaService.class);
     private final SysConfigService configService = mock(SysConfigService.class);
     private final io.micrometer.core.instrument.simple.SimpleMeterRegistry meterRegistry = new io.micrometer.core.instrument.simple.SimpleMeterRegistry();
-    private final CustomerExpireTask task = new CustomerExpireTask(customerMapper, reminderMapper, seaService, configService, meterRegistry);
+    private final com.aigicrm.module.approval.mapper.BizApprovalMapper approvalMapper = mock(com.aigicrm.module.approval.mapper.BizApprovalMapper.class);
+    private final com.aigicrm.module.approval.mapper.BizApprovalNodeMapper approvalNodeMapper = mock(com.aigicrm.module.approval.mapper.BizApprovalNodeMapper.class);
+    private final com.aigicrm.module.sea.mapper.BizSeaPoolMapper seaPoolMapper = mock(com.aigicrm.module.sea.mapper.BizSeaPoolMapper.class);
+    private final CustomerExpireTask task = new CustomerExpireTask(customerMapper, reminderMapper, seaService, configService, meterRegistry, approvalMapper, approvalNodeMapper, seaPoolMapper);
 
     @Test
     void neverInvoiced_createsInvoiceNever_notOverdue9999() {
@@ -74,5 +97,39 @@ class CustomerExpireTaskTest {
         task.checkCustomerExpire();
 
         verify(reminderMapper, never()).insert(any(BizReminder.class));
+    }
+
+    /**
+     * 【裁决 2026-09-24】公海捞取审批锁超时自动释放: 锁定超过 sea.claim.lock.days(默认3)的池行
+     * 释放回 available 并同步拒绝 reviewing 态 claim 审批及其 pending 节点; 0=不启用。
+     */
+    @Test
+    void staleClaimLock_releasedWithApprovalRejected() {
+        com.aigicrm.module.sea.entity.BizSeaPool stale = new com.aigicrm.module.sea.entity.BizSeaPool();
+        stale.setId(31L);
+        stale.setCustomerId(77L);
+        stale.setStatus("pending_approval");
+        stale.setClaimDate(java.time.LocalDateTime.now().minusDays(5));
+        when(seaPoolMapper.selectList(any())).thenReturn(java.util.List.of(stale));
+        when(configService.getValue("sea.claim.lock.days")).thenReturn("3");
+        com.aigicrm.module.approval.entity.BizApproval claim = new com.aigicrm.module.approval.entity.BizApproval();
+        claim.setId(901L);
+        when(approvalMapper.selectOne(any())).thenReturn(claim);
+
+        task.releaseStaleClaimLocks();
+
+        var poolCap = org.mockito.ArgumentCaptor.forClass(com.aigicrm.module.sea.entity.BizSeaPool.class);
+        verify(seaPoolMapper).updateById(poolCap.capture());
+        org.junit.jupiter.api.Assertions.assertEquals("available", poolCap.getValue().getStatus());
+        org.junit.jupiter.api.Assertions.assertNull(poolCap.getValue().getClaimUserId());
+        verify(approvalMapper).update(org.mockito.ArgumentMatchers.isNull(), any());
+        verify(approvalNodeMapper).update(org.mockito.ArgumentMatchers.isNull(), any());
+    }
+
+    @Test
+    void claimLockRelease_disabledWhenConfigZero() {
+        when(configService.getValue("sea.claim.lock.days")).thenReturn("0");
+        task.releaseStaleClaimLocks();
+        verify(seaPoolMapper, never()).selectList(any());
     }
 }
