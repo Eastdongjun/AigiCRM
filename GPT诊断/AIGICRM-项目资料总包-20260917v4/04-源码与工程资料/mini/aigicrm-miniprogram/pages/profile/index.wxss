@@ -1,5 +1,0 @@
-.profile-action-row{display:flex;align-items:center;gap:14rpx;margin-top:24rpx}
-.profile-action-row button{flex:1;height:64rpx;line-height:62rpx;margin:0;padding:0;border-radius:18rpx;font-size:24rpx;font-weight:740}
-.profile-action-row button::after{border:0}
-.profile-feedback-action{border:1rpx solid #d8e1ee;background:#f8fafc;color:#475569}
-.profile-logout-action{border:0;background:#ef4444;color:#fff}
