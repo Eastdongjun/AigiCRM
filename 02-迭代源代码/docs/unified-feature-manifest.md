@@ -1,96 +1,101 @@
-# AIGICRM Unified Feature Manifest
+# AIGICRM 统一功能清单(权威)
 
-Date: 2026-09-06
+> 本清单是 PC 与微信小程序功能对齐的唯一工作真源(source of truth)。PC 与小程序必须共用同一套后端、数据库、账号、角色、岗位、权限与数据范围模型,允许差异的只有 UI 布局。
+>
+> **版本说明(2026-09-24)**:本文件由 09-15 英文版中文化重写而来,内容逐行对译;相对英文版新增或修正的位置以 ⟦补录 09-24⟧ / ⟦修正 09-24⟧ 标注,未标注行与英文版语义一致(英文版在 git 历史中)。
 
-This manifest is the working source-of-truth for PC and WeChat Mini Program parity. PC and Mini Program must use the same backend, database, account, role, position, permission and data-scope model. Only the UI layout may differ.
+## 1. Feature Key 规则
 
-## 1. Feature Key Rules
+- Feature Key 格式:`module.action`。
+- 页面权限控制页面入口是否可见;按钮权限控制操作是否可见。
+- 后端权限与数据范围校验是最终安全边界,前端显隐只是体验层。
+- 小程序页面必须与 PC 页面映射到同一组 feature key。
+- 首发只在 PC 提供的功能,也必须登记,移动端状态记为 `PC-only`。
 
-- Feature key format: `module.action`.
-- Page permission controls whether the page entry is visible.
-- Button permission controls whether the action is visible.
-- Backend permission and data-scope checks are the final security boundary.
-- Mini Program pages must map to the same feature keys as PC pages.
-- If a feature is PC-only in the first mobile release, it must still be listed with a mobile status of `PC-only`.
+## 2. 模块清单
 
-## 2. Module Manifest
-
-| Feature Key | Module | PC Route/Page | Mini Program Page | Permission | Data Scope | Operation Type | Mobile Status |
+| Feature Key | 模块 | PC 路由/页面 | 小程序页面 | 权限 | 数据范围 | 操作类型 | 移动端状态 |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| `auth.login` | Auth | `/login` | `pages/login/index` | public | current account | login | implemented |
-| `auth.passwordRecovery` | Auth | PC login recovery/support flow | `pages/login/forgot/index` | public | account identity verification | reset own password | implemented |
-| `auth.currentUser` | Auth | layout/store | all pages | authenticated | current account/group | read | implemented |
-| `auth.profile` | Auth/Profile | PC user menu/profile | `pages/profile/index`, `pages/profile/password/index`, `pages/profile/scope/index` | authenticated | current account/group | read/update own password/scope view | implemented |
-| `auth.feedback` | Auth/Profile | PC support/contact fallback | `pages/profile/index` and `pages/profile/feedback/index` | authenticated | current account local draft | local feedback draft | implemented |
-| `auth.wechatBinding` | Auth/Profile | future WeChat account binding | `pages/profile/index` and `pages/profile/wechat/index` | authenticated | current account | binding status/explanation only; OAuth/openid binding not connected | implemented |
-| `auth.legalDocs` | Auth/Profile | public/legal docs | `pages/profile/about/index`, `pages/profile/agreement/index`, `pages/profile/privacy/index` | public/authenticated | static product docs | read | implemented |
-| `dashboard.view` | Dashboard | `/` | `pages/home/index` | `dashboard:view` or `statistics:view` | current user scope | read/statistics | implemented |
-| `app.launcher` | Mobile Shell | PC left menu/application navigation | `pages/app/index` | authenticated | current account permissions | navigate authorized modules | implemented |
-| `customer.list` | Customer | `/customer` | `pages/customer/index` | `customer:view` | unified customer data scope | read | implemented |
-| `customer.detail` | Customer | `/customer/detail/:id` | `pages/customer/detail/index` | `customer:view` | owner/shared/org scope | read | implemented |
-| `customer.add` | Customer | `/customer/add` | `pages/customer/form/index` | `customer:add` | current user/group | create | implemented |
-| `customer.edit` | Customer | `/customer/edit/:id`, detail edit | `pages/customer/form/index?id=:id` | `customer:edit` | editable customer scope | update | implemented |
-| `customer.delete` | Customer | customer table/detail delete | `pages/customer/detail/index` danger-zone delete action | `customer:delete` | editable customer scope | delete | implemented |
-| `customer.release` | Customer/Sea | customer table/detail | `pages/customer/detail/index` | `customer:edit` | editable customer scope | workflow/update | implemented |
-| `customer.share` | Customer | customer detail | `pages/customer/share/index` | `customer:view` to read, `customer:edit` to add/revoke (the legacy `customer:share` code is not a runtime gate) | owner/editable scope | grant/read-share | implemented |
-| `customer.finance` | Customer | customer detail finance tab | `pages/customer/detail/index`, `pages/customer/finance/index`, `pages/customer/finance/form/index` | `customer:view` plus `finance:view`; create/delete requires `customer:edit` plus `finance:view` | same customer visibility/edit scope | read/create/delete finance records | implemented |
-| `customer.contact` | Customer | customer detail contact tab | `pages/customer/detail/index`, `pages/customer/contact/index`, `pages/customer/contact/form/index`, `pages/customer/contact/detail/index` | `customer:view` plus `contact:view`; create/update/delete requires `customer:edit` | same customer visibility/edit scope | read/create/update/delete contacts | implemented |
-| `customer.log` | Customer | customer detail logs tab | `pages/customer/detail/index` and `pages/customer/log/index` | `customer:view`; create requires `customer:edit` | same customer visibility/edit scope | read/create follow-up logs | implemented |
-| `customer.timeline` | Customer | customer detail full timeline | `pages/customer/detail/index` and `pages/customer/timeline/index` | `customer:view` | same customer visibility scope | read timeline | implemented |
-| `customer.indicator` | Customer | customer detail indicator tab | `pages/customer/detail/index` and `pages/customer/indicator/index` | `customer:view`; save requires `customer:edit` | same customer visibility/edit scope | read/update six indicators | implemented |
-| `customer.relationship` | Customer | customer detail relationship score | `pages/customer/detail/index` | `customer:edit` | same customer edit scope | update relationship score | implemented |
-| `customer.filter` | Customer | customer table advanced search/filter | `pages/customer/filter/index` | `customer:view` | unified customer data scope | filter/search | implemented |
-| `customer.import` | Customer | customer toolbar | PC-only by default | `customer:import` | current group/import scope | import | PC-only |
-| `customer.export` | Customer | customer toolbar | PC-only by default | `customer:export` | current query data scope | export | PC-only |
-| `file.list` | File | `/file` | `pages/files/index` (legacy `pages/file/index` redirects here) | `file:view` | folder ACL plus owner/share | read | implemented |
-| `file.download` | File | file list/action | `pages/files/detail/index` | `file:view` plus folder download | folder ACL | download | implemented |
-| `file.upload` | File | file toolbar/dialog | `pages/files/index` | `file:upload` plus folder ACL | folder ACL | upload | implemented |
-| `file.share` | File | file row/dialog | `pages/files/index` share action | `file:share` plus folder ACL | folder ACL | grant/share | implemented |
-| `file.replace` | File | file row | `pages/files/detail/index` action menu | `file:edit` plus folder ACL | folder ACL | update | implemented |
-| `file.delete` | File | file row | `pages/files/index` delete action | `file:delete` plus folder ACL | folder ACL | delete | implemented |
-| `file.folderManage` | File | folder panel | `pages/files/index` and `pages/files/folder-form/index` | `file:folder:manage` plus folder ACL | folder ACL | create/update/delete | implemented |
-| `file.aclView` | File | folder ACL dialog | `pages/files/index` read-only ACL modal | `file:acl:manage` | folder admin ACL | read permissions | implemented |
-| `file.aclManage` | File | folder ACL dialog | PC-only by default | `file:acl:manage` | folder admin ACL | grant/revoke | PC-only |
-| `incentive.index` | Incentive | `/incentive` | `pages/incentive/index`, `pages/incentive/detail/index`, `pages/incentive/upload/index` | `incentive:view` to read, `incentive:add` to upload | incentive category/user grant scope | read/create | implemented |
-| `incentive.legacyCasesAlias` | Incentive | legacy incentive links | `pages/cases/index`, `pages/cases/detail/index` redirect to 四项激励 pages | `incentive:view` | incentive category/user grant scope | compatibility navigation | implemented |
-| `incentive.search` | Incentive | `/incentive/search` | `pages/incentive/index` | `incentive:view` | incentive category/user grant scope | read | implemented |
-| `incentive.markRead` | Incentive | search detail/read | `pages/incentive/index` | `incentive:view` | visible incentive record | update read-state | implemented |
-| `incentive.readStats` | Incentive | search stats panel | `pages/incentive/index` | `incentive:read-stats` | current group/month | statistics | implemented |
-| `incentive.upload` | Incentive | `/incentive` upload dialog | `pages/incentive/upload/index` evidence upload | `incentive:add` | current user/customer scope | create/upload | implemented |
-| `incentive.recordEdit` | Incentive | record table append | `pages/incentive/detail/index` | owner or grant `canEdit` | incentive grant scope | update | implemented |
-| `incentive.recordDelete` | Incentive | record table delete | `pages/incentive/index` latest-record action and `pages/incentive/detail/index` delete action | owner or grant `canDelete` | incentive grant scope | delete | implemented |
-| `incentive.stats` | Incentive | `/incentive/stats` | `pages/statistics/index` and `pages/ranking/index` | `incentive:view` | incentive grant/data scope | statistics | implemented |
-| `reminder.list` | Reminder | `/reminder` | `pages/reminder/index` | `reminder:view` | current user reminders | read | implemented |
-| `reminder.notification` | Reminder/Notification | reminder notification center/detail | `pages/notification/index`, `pages/notification/detail/index` | `reminder:view` | current user reminders/customer visibility | read/process notification | implemented |
-| `reminder.expiring` | Reminder | `/reminder` 到期客户 | `pages/reminder/index` 到期客户 | `reminder:view` | unified customer scope | read | implemented |
-| `reminder.process` | Reminder | reminder row | `pages/reminder/index` | `reminder:view` | current user reminders | update | implemented |
-| `approval.list` | Approval | `/approval` | `pages/approval/index` | `approval:view` | applicant/approver/org scope | read | implemented |
-| `approval.detail` | Approval | approval row | `pages/approval/index` and `pages/approval/detail/index` | `approval:view` | applicant/approver/org scope | read/timeline | implemented |
-| `approval.approve` | Approval | approval row/dashboard | `pages/approval/index` and `pages/approval/detail/index` | `approval:approve` | current approver node | workflow/update | implemented |
-| `approval.reject` | Approval | approval row/dashboard | `pages/approval/index` and `pages/approval/detail/index` | `approval:reject` | current approver node | workflow/update | implemented |
-| `approval.submit` | Approval | customer/sea/reminder flows, `/api/approval/submit` | `pages/customer/detail/index` and `pages/sea/index` | `approval:view` at submit endpoint plus source action permission | source business scope | workflow/create | implemented |
-| `sea.list` | Public Sea | `/sea` | `pages/sea/index` | `sea:view` | visible pool/data scope | read | implemented |
-| `sea.claim` | Public Sea | sea row | `pages/sea/index` and `pages/sea/claim-detail/index` | `sea:claim` plus row `canClaim` | pool/org/user rule | workflow/create | implemented |
-| `sea.edit` | Public Sea | sea row edit/customer form | `pages/sea/index` to `pages/customer/form/index?id=:id&from=sea` | `customer:edit` plus row `canEdit` | pool/customer edit scope | update | implemented |
-| `sea.import` | Public Sea | sea import dialog | PC-only by default | `sea:import` | pool import scope | import | PC-only |
-| `sea.delete` | Public Sea | sea row, `/api/sea/pool/{id}` | `pages/sea/index` row delete action | `sea:pool:delete` plus row `canDelete` and `available` status | pool delete scope | delete | implemented |
-| `sea.config` | Public Sea | system config/pool manager | PC-only by default | `sea:config:view/edit` | config scope | config CRUD | PC-only |
-| `statistics.dashboard` | Statistics | `/statistics`, `/indicator` | PC dashboard; `pages/home/index`, `pages/statistics/index`, `pages/statistics/detail/index`, `pages/indicator/index` | `statistics:view` or `dashboard:view` where applicable | unified customer data scope | statistics | implemented |
-| `score.entry` | Score | `/score/entry` | PC-only by default | `score:entry` page, `score:manage` write | visible users | create/update | PC-only |
-| `score.ranking` | Score | `/score/ranking` | `pages/ranking/index`, `pages/ranking/detail/index`, and `pages/customer/detail/index` customer drilldown | `score:view` | visible users | read/statistics | implemented |
-| `system.user` | System | `/system/user` | PC-only | `system:user:*` | org-admin/user admin scope | account CRUD | PC-only |
-| `system.role` | System | `/system/role` | PC-only | `system:role:*` | current group/global config | role CRUD/grant | PC-only |
-| `system.position` | System | `/system/position` | PC-only | `system:position:*` | current group/org config | position CRUD/rule binding | PC-only |
-| `system.dept` | System | `/system/org` | PC-only | `system:dept:view/edit` | current group/org tree | org CRUD/admin binding | PC-only |
-| `system.config` | System | `/system/config` | PC-only | `system:config:view/edit` | current group/system config | config CRUD | PC-only |
-| `system.log` | System | `/system/log` | PC-only | `system:log:view` | current admin scope | audit read | PC-only |
-| `system.rule` | System | `/system/rule` | PC-only | `system:rule:*` | current group/system config | rule CRUD | PC-only |
-| `system.group` | System | `/system/group` | PC-only | `system:group:*` | super-admin group scope | group CRUD | PC-only |
+| `auth.login` | 认证 | `/login` | `pages/login/index` | 公开 | 当前账号 | 登录 | 已实现 |
+| `auth.passwordRecovery` | 认证 | PC 登录找回/人工支持流程 | `pages/login/forgot/index` | 公开 | 账号身份核验 | 重置本人密码 | 已实现 |
+| `auth.currentUser` | 认证 | 布局/全局 store | 所有页面 | 登录即可 | 当前账号/集团 | 读取 | 已实现 |
+| `auth.profile` | 认证/个人中心 | PC 用户菜单/个人页 | `pages/profile/index`、`pages/profile/password/index`、`pages/profile/scope/index` | 登录即可 | 当前账号/集团 | 读取/改本人密码/查看范围 | 已实现 |
+| `auth.feedback` | 认证/个人中心 | PC 支持/联系兜底入口 | `pages/profile/index` 与 `pages/profile/feedback/index` | 登录即可 | 当前账号本地草稿 | 本地反馈草稿 | 已实现 |
+| `auth.wechatBinding` | 认证/个人中心 | 预留微信账号绑定 | `pages/profile/index` 与 `pages/profile/wechat/index` | 登录即可 | 当前账号 | 仅绑定状态说明;OAuth/openid 绑定未接 | 已实现 |
+| `auth.legalDocs` | 认证/个人中心 | 公开/法务文档 | `pages/profile/about/index`、`pages/profile/agreement/index`、`pages/profile/privacy/index` | 公开/登录 | 静态产品文档 | 读取 | 已实现 |
+| `dashboard.view` | 工作台 | `/` | `pages/home/index` | `dashboard:view` 或 `statistics:view` | 当前用户范围 | 读取/统计 | 已实现 |
+| `app.launcher` | 小程序外壳 | PC 左侧菜单/应用导航 | `pages/app/index` | 登录即可 | 当前账号权限 | 导航至已授权模块 | 已实现 |
+| `customer.list` | 客户 | `/customer` | `pages/customer/index` | `customer:view` | 统一客户数据范围 | 读取 | 已实现 |
+| `customer.detail` | 客户 | `/customer/detail/:id` | `pages/customer/detail/index` | `customer:view` | 负责人/分享/组织范围 | 读取 | 已实现 |
+| `customer.add` | 客户 | `/customer/add` | `pages/customer/form/index` | `customer:add` | 当前用户/集团 | 创建 | 已实现 |
+| `customer.edit` | 客户 | `/customer/edit/:id`、详情编辑 | `pages/customer/form/index?id=:id` | `customer:edit` | 可编辑客户范围 | 更新 | 已实现 |
+| `customer.delete` | 客户 | 客户表格/详情删除 | `pages/customer/detail/index` 危险区删除 | `customer:delete` | 可编辑客户范围 | 删除 | 已实现 |
+| `customer.release` | 客户/公海 | 客户表格/详情释放 | `pages/customer/detail/index` | `customer:edit` | 可编辑客户范围 | 工作流/更新 | 已实现 |
+| `customer.transfer` | 客户 | 客户详情「转移客户」按钮,提交 transfer 审批 | 审批列表/详情可展示转移类单据;发起入口仅在 PC | 入口 `customer:edit` + 提交端 `approval:view`;执行侧校验接收人在册启用+同集团(admin 可跨集团) | 可编辑客户范围+同集团接收人 | 工作流/创建 | 发起 `PC-only`(审批展示已实现) ⟦补录 09-24⟧ |
+| `customer.share` | 客户 | 客户详情分享 | `pages/customer/share/index` | 读 `customer:view`;新增/撤销 `customer:edit`(遗留码 `customer:share` 不作运行时门禁) | 负责人/可编辑范围 | 授予/读取分享 | 已实现 |
+| `customer.finance` | 客户 | 客户详情财务页签 | `pages/customer/detail/index`、`pages/customer/finance/index`、`pages/customer/finance/form/index` | 读 `customer:view`+`finance:view`;增删 `finance:manage` 或(`customer:edit`+`finance:view`) ⟦修正 09-24:原文为"增删仅 customer:edit",V2026.09.23.4 起 finance:manage 为专职授权码⟧ | 同客户可见/可编辑范围 | 财务记录读取/创建/删除 | 已实现 |
+| `customer.contact` | 客户 | 客户详情联系人页签 | `pages/customer/detail/index`、`pages/customer/contact/index`、`pages/customer/contact/form/index`、`pages/customer/contact/detail/index` | 读 `customer:view`+`contact:view`;增改删 `customer:edit` 或 `contact:manage` ⟦修正 09-24:原文为"增改删仅 customer:edit",V2026.09.23.4 起 contact:manage 为专职授权码⟧ | 同客户可见/可编辑范围 | 联系人读取/创建/更新/删除 | 已实现 |
+| `customer.log` | 客户 | 客户详情跟进记录页签 | `pages/customer/detail/index` 与 `pages/customer/log/index` | 读 `customer:view`;创建 `customer:edit` | 同客户可见/可编辑范围 | 跟进记录读取/创建 | 已实现 |
+| `customer.timeline` | 客户 | 客户详情完整时间线 | `pages/customer/detail/index` 与 `pages/customer/timeline/index` | `customer:view` | 同客户可见范围 | 读取时间线 | 已实现 |
+| `customer.indicator` | 客户 | 客户详情核心指标页签 | `pages/customer/detail/index` 与 `pages/customer/indicator/index` | 读 `customer:view`;保存 `customer:edit` | 同客户可见/可编辑范围 | 六项指标读取/更新 | 已实现 |
+| `customer.relationship` | 客户 | 客户详情客情评分 | `pages/customer/detail/index` | `customer:edit` | 同客户可编辑范围 | 更新客情评分 | 已实现 |
+| `customer.filter` | 客户 | 客户表格高级筛选 | `pages/customer/filter/index` | `customer:view` | 统一客户数据范围 | 筛选/搜索 | 已实现 |
+| `customer.import` | 客户 | 客户工具栏导入 | 默认 `PC-only` | `customer:import` | 当前集团/导入范围 | 导入 | `PC-only` |
+| `customer.export` | 客户 | 客户工具栏导出 | 默认 `PC-only` | `customer:export` | 当前查询数据范围 | 导出 | `PC-only` |
+| `task.view` | 待办任务 | `/task` 任务页;工作台任务统计角标 | `pages/home/index` 工作台任务区(`/api/task/list`、`/api/task/statistics`) | `task:view` | 本人任务(管理范围见 task.manage) | 读取/统计 | 已实现 ⟦补录 09-24:英文版整模块缺失,模块 09-19 上线且为 V2026.09.23.1 权限事故主角⟧ |
+| `task.manage` | 待办任务 | 任务页创建/完成/取消/转交 | 管理操作仅 PC | `task:manage` | 任务指派/管理范围 | 创建/完成/取消/编辑转交 | 管理操作 `PC-only` ⟦补录 09-24⟧ |
+| `file.list` | 文件 | `/file` | `pages/files/index`(旧 `pages/file/index` 重定向至此) | `file:view` | 文件夹 ACL+负责人/分享 | 读取 | 已实现 |
+| `file.download` | 文件 | 文件列表/操作 | `pages/files/detail/index` | `file:view`+文件夹下载权 | 文件夹 ACL | 下载 | 已实现 |
+| `file.upload` | 文件 | 文件工具栏/弹窗 | `pages/files/index` | `file:upload`+文件夹 ACL | 文件夹 ACL | 上传 | 已实现 |
+| `file.share` | 文件 | 文件行/弹窗分享 | `pages/files/index` 分享操作 | `file:share`+文件夹 ACL | 文件夹 ACL | 授予/分享 | 已实现 |
+| `file.replace` | 文件 | 文件行替换 | `pages/files/detail/index` 操作菜单 | `file:edit`+文件夹 ACL | 文件夹 ACL | 更新 | 已实现 |
+| `file.delete` | 文件 | 文件行删除 | `pages/files/index` 删除操作 | `file:delete`+文件夹 ACL | 文件夹 ACL | 删除 | 已实现 |
+| `file.folderManage` | 文件 | 文件夹面板管理 | `pages/files/index` 与 `pages/files/folder-form/index` | `file:folder:manage`+文件夹 ACL | 文件夹 ACL | 创建/更新/删除 | 已实现 |
+| `file.aclView` | 文件 | 文件夹 ACL 弹窗只读 | `pages/files/index` 只读 ACL 弹窗 | `file:acl:manage` | 文件夹管理 ACL | 读取权限 | 已实现 |
+| `file.aclManage` | 文件 | 文件夹 ACL 弹窗授权 | 默认 `PC-only` | `file:acl:manage` | 文件夹管理 ACL | 授予/撤销 | `PC-only` |
+| `incentive.index` | 激励(四项激励) | `/incentive` | `pages/incentive/index`、`pages/incentive/detail/index`、`pages/incentive/upload/index` | 读 `incentive:view`;上传 `incentive:add` | 激励分类/用户授权范围 | 读取/创建 | 已实现 |
+| `incentive.legacyCasesAlias` | 激励 | 旧激励链接 | `pages/cases/index`、`pages/cases/detail/index` 重定向至四项激励页 | `incentive:view` | 激励分类/用户授权范围 | 兼容导航 | 已实现 |
+| `incentive.search` | 激励 | `/incentive/search` | `pages/incentive/index` | `incentive:view` | 激励分享制(本人全部+他人已分享) | 读取 | 已实现 |
+| `incentive.markRead` | 激励 | 查询详情/已读 | `pages/incentive/index` | `incentive:view` | 可见激励记录 | 更新已读状态 | 已实现 |
+| `incentive.readStats` | 激励 | 查询页已读统计面板 | `pages/incentive/index` | `incentive:read-stats` | 当前集团/月份 | 统计 | 已实现 |
+| `incentive.readRanking` | 激励 | 系统设置→本月激励查询阅读排行榜页 | `pages/incentive/index` 阅读排行区块 | `incentive:read-ranking:view`(默认仅 admin,其他角色由管理员勾选) | 当前集团/月份 | 统计 | 已实现(权限内可见) ⟦补录 09-24:09-13 上线,英文版缺失⟧ |
+| `incentive.upload` | 激励 | `/incentive` 上传弹窗 | `pages/incentive/upload/index` 佐证上传 | `incentive:add` | 当前用户/客户范围 | 创建/上传 | 已实现 |
+| `incentive.recordEdit` | 激励 | 记录表格追加编辑 | `pages/incentive/detail/index`(含编辑/追加文件入口) | 本人或授权 `canEdit` | 激励授权范围 | 更新 | 已实现 |
+| `incentive.recordDelete` | 激励 | 记录表格删除 | `pages/incentive/index` 最新记录操作与 `pages/incentive/detail/index` 删除 | 本人或授权 `canDelete` | 激励授权范围 | 删除 | 已实现 |
+| `incentive.stats` | 激励 | `/incentive/stats`(激励统计表/客户排行 Tab) | `pages/statistics/index` 与 `pages/ranking/index` | `incentive:view` | 激励授权/数据范围 | 统计 | 已实现 |
+| `incentive.personRank` | 激励 | `/incentive/stats` 个人排行 Tab;导出按钮 | `pages/ranking/index` 排行中心·激励个人排行区块 | 数据 `incentive:view`(公司级聚合,含未分享);导出 `incentive:person-rank:export`(默认仅 admin,可勾选) | 公司级(按人聚合总积分降序) | 统计/导出 | 已实现 ⟦补录 09-24:09-23 上线,英文版缺失⟧ |
+| `reminder.list` | 提醒 | `/reminder` | `pages/reminder/index` | `reminder:view` | 当前用户提醒 | 读取 | 已实现 |
+| `reminder.notification` | 提醒/通知 | 提醒通知中心/详情 | `pages/notification/index`、`pages/notification/detail/index` | `reminder:view` | 当前用户提醒/客户可见范围 | 读取/处理通知 | 已实现 |
+| `reminder.expiring` | 提醒 | `/reminder` 到期客户 | `pages/reminder/index` 到期客户 | `reminder:view` | 统一客户范围 | 读取 | 已实现 |
+| `reminder.process` | 提醒 | 提醒行处理 | `pages/reminder/index` | `reminder:view` | 当前用户提醒 | 更新 | 已实现 |
+| `approval.list` | 审批 | `/approval` | `pages/approval/index` | `approval:view` | 申请人/审批人/组织范围 | 读取 | 已实现 |
+| `approval.detail` | 审批 | 审批行详情 | `pages/approval/index` 与 `pages/approval/detail/index` | `approval:view` | 申请人/审批人/组织范围 | 读取/时间线 | 已实现 |
+| `approval.approve` | 审批 | 审批行/工作台批准 | `pages/approval/index` 与 `pages/approval/detail/index` | `approval:approve` | 当前审批节点 | 工作流/更新 | 已实现 |
+| `approval.reject` | 审批 | 审批行/工作台驳回 | `pages/approval/index` 与 `pages/approval/detail/index` | `approval:reject` | 当前审批节点 | 工作流/更新 | 已实现 |
+| `approval.submit` | 审批 | 客户/公海/提醒等流程,`/api/approval/submit` | `pages/customer/detail/index` 与 `pages/sea/index` | 提交端 `approval:view`+来源操作权限 | 来源业务范围 | 工作流/创建 | 已实现 |
+| `sea.list` | 公海 | `/sea` | `pages/sea/index` | `sea:view` | 可见池/数据范围 | 读取 | 已实现 |
+| `sea.claim` | 公海 | 公海行捞取 | `pages/sea/index` 与 `pages/sea/claim-detail/index` | `sea:claim`+行 `canClaim` | 池/组织/用户规则 | 工作流/创建 | 已实现 |
+| `sea.edit` | 公海 | 公海行编辑/客户表单 | `pages/sea/index` 至 `pages/customer/form/index?id=:id&from=sea` | `customer:edit`+行 `canEdit` | 池/客户编辑范围 | 更新 | 已实现 |
+| `sea.import` | 公海 | 公海导入弹窗 | 默认 `PC-only` | `sea:import` | 池导入范围 | 导入 | `PC-only` |
+| `sea.delete` | 公海 | 公海行删除,`/api/sea/pool/{id}` | `pages/sea/index` 行删除 | `sea:pool:delete`+行 `canDelete` 且 `available` 状态 | 池删除范围 | 删除 | 已实现 |
+| `sea.config` | 公海 | 系统配置/公海池管理 | 默认 `PC-only` | `sea:config:view/edit` | 配置范围 | 配置增删改查 | `PC-only` |
+| `statistics.dashboard` | 统计 | `/statistics`、`/indicator` | PC 仪表盘;`pages/home/index`、`pages/statistics/index`、`pages/statistics/detail/index`、`pages/indicator/index` | `statistics:view` 或适用的 `dashboard:view` | 统一客户数据范围 | 统计 | 已实现 |
+| `statistics.customerRankings` | 统计 | `/ranking/customer`(考核与分析→客户排行:四项激励/客情/六项指标三类排行) | `pages/ranking/index` 排行中心 | `statistics:view` | 四项激励聚合=激励分享制;指标/客情=客户可见范围(口径差异系 G2 安全设计,待产品裁决是否统一) | 统计 | 已实现 ⟦补录 09-24:英文版未单列;口径注释反映 09-24 修复⟧ |
+| `score.entry` | 积分 | `/score/entry` | 默认 `PC-only` | 录入页 `score:entry`,写 `score:manage` | 可见用户 | 创建/更新 | `PC-only` |
+| `score.ranking` | 积分 | `/score/ranking` | `pages/ranking/index`、`pages/ranking/detail/index`、`pages/customer/detail/index` 客户下钻 | `score:view` | 可见用户 | 读取/统计 | 已实现 |
+| `system.user` | 系统 | `/system/user` | `PC-only` | `system:user:*` | 组织管理员/用户管理范围 | 账号增删改查 | `PC-only` |
+| `system.role` | 系统 | `/system/role` | `PC-only` | `system:role:*` | 当前集团/全局配置 | 角色增删改查/授权 | `PC-only` |
+| `system.position` | 系统 | `/system/position` | `PC-only` | `system:position:*` | 当前集团/组织配置 | 岗位增删改查/规则绑定 | `PC-only` |
+| `system.dept` | 系统 | `/system/org` | `PC-only` | `system:dept:view/edit` | 当前集团/组织树 | 组织增删改查/管理员绑定 | `PC-only` |
+| `system.config` | 系统 | `/system/config` | `PC-only` | `system:config:view/edit` | 当前集团/系统配置 | 配置增删改查 | `PC-only` |
+| `system.log` | 系统 | `/system/log` | `PC-only` | `system:log:view` | 当前管理范围 | 审计读取 | `PC-only` |
+| `system.rule` | 系统 | `/system/rule` | `PC-only` | `system:rule:*` | 当前集团/系统配置 | 规则增删改查 | `PC-only` |
+| `system.group` | 系统 | `/system/group` | `PC-only` | `system:group:*` | 超管集团范围 | 集团增删改查 | `PC-only` |
 
-## 3. Immediate Engineering Use
+## 3. 工程使用规则
 
-- Mini Program development must pick one pending feature key at a time.
-- Each feature key requires backend permission verification before UI completion.
-- Each mobile page must call `/api/auth/info`-derived permissions and never maintain its own independent role rules.
-- Any new backend endpoint must be added to `scripts/gen-unified-feature-audit.py` output by re-running the audit.
-- Any new permission code must be added through migration/database config and then regenerated into the permission dictionary.
+- 小程序开发每次只认领一个待办 feature key。
+- 每个 feature key 在 UI 完成前必须先过后端权限验证。
+- 每个小程序页面必须使用 `/api/auth/info` 下发的权限集合,禁止自建独立角色规则。
+- 新增后端端点后必须重跑 `scripts/gen-unified-feature-audit.py` 更新对账输出。
+- 新增权限码必须先经迁移/数据库配置登记,再重新生成权限字典。
