@@ -1,0 +1,732 @@
+[
+ {
+  "severity": "low",
+  "category": "maintainability",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/common/BaseEntity.java",
+  "start_line": 8,
+  "end_line": 8,
+  "content": "Dead code: a full-codebase search shows no entity class extends `BaseEntity` (the only other references are documentation/report files), so this base class contributes nothing at runtime while each entity still re-declares `id/createdAt/updatedAt`. Either migrate the existing entities to extend it (and remove the duplicated fields), or delete this class to avoid two competing sources of truth for audit columns.",
+  "existing_code": "public class BaseEntity {",
+  "suggestion_code": null
+ },
+ {
+  "severity": "low",
+  "category": "maintainability",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/common/BusinessException.java",
+  "start_line": 6,
+  "end_line": 7,
+  "content": "`BusinessException` extends `RuntimeException`, which is `Serializable`, but no `serialVersionUID` is declared. If instances are serialized/deserialized (e.g., session replication, caching, RPC), any future change to the class shape can silently break compatibility with `InvalidClassException`. Declare an explicit `private static final long serialVersionUID = 1L;`.",
+  "existing_code": "public class BusinessException extends RuntimeException {\n    private final int code;",
+  "suggestion_code": "public class BusinessException extends RuntimeException {\n    private static final long serialVersionUID = 1L;\n    private final int code;"
+ },
+ {
+  "severity": "high",
+  "category": "bug",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/common/GlobalExceptionHandler.java",
+  "start_line": 62,
+  "end_line": 62,
+  "content": "`httpStatusOf` misses a 500 mapping, so a business exception carrying 500 is returned as HTTP 400 while the response body says `code=500`. This is not hypothetical: `FieldFilterAdvice` (`throw new BusinessException(500, \"响应数据处理异常\")`) and `AuthService` (lines 355/362) already throw code 500. The mismatch defeats the semantic HTTP mapping this method was introduced for (front-end分流/监控/网关重试), and contradicts the B7 note above. Add an explicit 500 branch.",
+  "existing_code": "            default -> HttpStatus.BAD_REQUEST;",
+  "suggestion_code": "            case 500 -> HttpStatus.INTERNAL_SERVER_ERROR;\n            default -> HttpStatus.BAD_REQUEST;"
+ },
+ {
+  "severity": "medium",
+  "category": "bug",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/common/GlobalExceptionHandler.java",
+  "start_line": 83,
+  "end_line": 84,
+  "content": "`@ResponseStatus(HttpStatus.BAD_REQUEST)` is missing here (and on `handleBindException` below). Unlike the other parameter handlers in this class, these two return `Result.error(400, ...)` with the default HTTP status 200, so clients/网关 that branch on HTTP status will treat parameter-validation failures as success. Add the same annotation for consistency.",
+  "existing_code": "    public Result<Void> handleValidationException(MethodArgumentNotValidException e) {\n        String message = e.getBindingResult().getAllErrors().get(0).getDefaultMessage();",
+  "suggestion_code": "    @ResponseStatus(HttpStatus.BAD_REQUEST)\n    public Result<Void> handleValidationException(MethodArgumentNotValidException e) {\n        String message = e.getBindingResult().getAllErrors().get(0).getDefaultMessage();"
+ },
+ {
+  "severity": "low",
+  "category": "bug",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/common/GlobalExceptionHandler.java",
+  "start_line": 84,
+  "end_line": 85,
+  "content": "Unguarded `get(0)` on the error list: if the binding result contains no errors (e.g. a `BindException` constructed without violations / propagated from nested binding), this throws `IndexOutOfBoundsException` inside the exception handler, masking the original error with a 500. Guard the empty case (same defect in `handleBindException`).",
+  "existing_code": "        String message = e.getBindingResult().getAllErrors().get(0).getDefaultMessage();\n        return Result.error(400, message != null ? message : \"请求参数校验失败\");",
+  "suggestion_code": "        List<ObjectError> errors = e.getBindingResult().getAllErrors();\n        String message = errors.isEmpty() ? null : errors.get(0).getDefaultMessage();\n        return Result.error(400, message != null ? message : \"请求参数校验失败\");"
+ },
+ {
+  "severity": "high",
+  "category": "bug",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/common/idempotency/IdempotencyService.java",
+  "start_line": 83,
+  "end_line": 83,
+  "content": "`abort` 无条件 `DEL`,没有校验当前值仍是本次执行写入的 `PENDING` 占位。由于 `tryBegin` 的锁 TTL 只有 30s,一旦业务执行超过 30s,锁会过期:请求 B 重新 `tryBegin`(再次写入 PENDING)、甚至已 `finish` 写入真实结果 id;此时慢请求 A 失败走到 `abort`,会把 B 的锁/结果一并删除,后续同键请求拿不到结果而重复建客——正是幂等护栏要防的场景。建议改为「比较并删除」(Lua 脚本或先用执行者 token 作为 value,仅当值等于自己的 token 时才 DEL):\n```\nredis.execute(new DefaultRedisScript<>(\n    \"if redis.call('get', KEYS[1]) == ARGV[1] then return redis.call('del', KEYS[1]) else return 0 end\", Long.class),\n    java.util.Collections.singletonList(scopedKey), token);\n```",
+  "existing_code": "            redis.delete(scopedKey);",
+  "suggestion_code": null
+ },
+ {
+  "severity": "medium",
+  "category": "bug",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/common/idempotency/IdempotencyService.java",
+  "start_line": 60,
+  "end_line": 60,
+  "content": "抢占锁 TTL 硬编码 30s,而 `createFull` 是一次含建客+写指标的事务型业务,耗时可能超过 30s(慢 SQL/第三方调用)。锁过期后同键的第二个请求会抢锁成功并重复执行,幂等完全失效,且与 Redis 是否异常无关。建议把 TTL 配置化(如 `aigicrm.idempotency.pending-ttl`)并显著大于业务 P99 超时,或在此方法内对持有者做续期(watchdog)。",
+  "existing_code": "            return Boolean.TRUE.equals(redis.opsForValue().setIfAbsent(scopedKey, PENDING, Duration.ofSeconds(30)));",
+  "suggestion_code": null
+ },
+ {
+  "severity": "low",
+  "category": "performance",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/common/idempotency/IdempotencyService.java",
+  "start_line": 94,
+  "end_line": 94,
+  "content": "`awaitResult` 以 80ms 间隔轮询并 `Thread.sleep` 占用调用方(Web 请求)线程,且对 `waitMs` 没有上限校验:调用方若传入很大的值,会长时间占用 Tomcat 工作线程,高并发下可能拖垮线程池。建议对等待时长做上限裁剪(例如 `Math.min(waitMs, MAX_WAIT_MS)`),并在文档中明确该方法是同步阻塞语义。",
+  "existing_code": "        long deadline = System.currentTimeMillis() + waitMs;",
+  "suggestion_code": null
+ },
+ {
+  "severity": "high",
+  "category": "bug",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/common/engine/FieldFilterAdvice.java",
+  "start_line": 31,
+  "end_line": 31,
+  "content": "`supports` 无条件返回 true，意味着该 Advice 对所有 `HttpMessageConverter` 生效（String、byte[]、Resource、Form 等），与注释「对所有 JSON 响应生效」不符。一旦当前线程存在字段规则，非 JSON 响应（如 `@RestController` 直接 `return \"ok\";`）也会进入 `filterFields`，最终走到 `objectToMap` 转 Map 失败并抛出 500，把本来正常的接口打挂。建议按 converter/contentType 限定为 Jackson JSON 转换器。",
+  "existing_code": "        return true; // 对所有 JSON 响应生效",
+  "suggestion_code": "        return MappingJackson2HttpMessageConverter.class.isAssignableFrom(converterType);"
+ },
+ {
+  "severity": "critical",
+  "category": "bug",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/common/engine/FieldFilterAdvice.java",
+  "start_line": 89,
+  "end_line": 89,
+  "content": "当 `Result.data` 是标量（如 `Result.success(\"ok\")`、`Result.success(100L)`、`Result.success(true)`）或其他非 POJO（String/Number/Boolean/Date）时，`objectToMap` 里 `convertValue` 会抛异常返回 null，随后在此处抛出 500。也就是说只要命中字段规则，所有返回标量 data 的接口都会由 200 变成 500，属于可用性缺陷。建议在 `filterFields` 中对标量类型（非 Map/Collection/Result/POJO）直接原样返回，仅在真正无法脱敏的复杂对象上才 fail-closed；同时 `objectToMap` 的 `catch` 应保留原始异常信息（如 `log.warn` 或包装 cause），否则线上无法定位。",
+  "existing_code": "        throw new com.aigicrm.common.BusinessException(500, \"响应数据处理异常\");",
+  "suggestion_code": null
+ },
+ {
+  "severity": "medium",
+  "category": "bug",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/common/engine/FieldFilterAdvice.java",
+  "start_line": 99,
+  "end_line": 103,
+  "content": "`filterFields(records, ...)` 的返回值被直接丢弃。`filterFields` 对 Collection 分支是**新建 List 返回**（并不原地修改入参），因此这里的调用本身不产生任何效果；目前只是依赖外层 Map 分支的 `e.setValue(filterFields(v, ...))` 兜底才生效，一旦后续有其它调用点直接依赖 `applyFieldFilter`，脱敏会整体静默失效（元素为 POJO 时尤其危险）。同时同一 records 被过滤了两遍，属于重复开销。建议把结果写回，或直接删除该分支交由外层递归统一处理。",
+  "existing_code": "        Object records = map.get(\"records\");\n        if (records instanceof Collection) {\n            filterFields(records, hiddenFields, visibleFields);\n            return;\n        }",
+  "suggestion_code": "        Object records = map.get(\"records\");\n        if (records instanceof Collection) {\n            map.put(\"records\", filterFields(records, hiddenFields, visibleFields));\n            return;\n        }"
+ },
+ {
+  "severity": "medium",
+  "category": "performance",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/common/engine/FieldFilterAdvice.java",
+  "start_line": 121,
+  "end_line": 122,
+  "content": "每次调用都 `new ObjectMapper()` 并执行 `findAndRegisterModules()`，而 `beforeBodyWrite` 是每个响应都会走的拦截点，ObjectMapper 构造 + 模块扫描开销较大，且抛出的异常本应可诊断。建议抽为静态 final 共享实例（ObjectMapper 配置完成后是线程安全的）。",
+  "existing_code": "            ObjectMapper mapper = new ObjectMapper();\n            mapper.findAndRegisterModules();",
+  "suggestion_code": "    private static final ObjectMapper MAPPER = new ObjectMapper().findAndRegisterModules();"
+ },
+ {
+  "severity": "low",
+  "category": "bug",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/common/engine/FieldFilterAdvice.java",
+  "start_line": 76,
+  "end_line": 81,
+  "content": "递归处理嵌套 Map/Collection 时没有深度或环引用保护，异常的自引用对象图会导致无限递归直至 StackOverflowError（相比抛出 500 更难排查）。建议增加深度上限（如超过 N 层停止递归）或使用 identity 集合做环检测。",
+  "existing_code": "            for (Map.Entry<String, Object> e : new ArrayList<>(map.entrySet())) {\n                Object v = e.getValue();\n                if (v instanceof Map || v instanceof Collection) {\n                    e.setValue(filterFields(v, hiddenFields, visibleFields));\n                }\n            }",
+  "suggestion_code": null
+ },
+ {
+  "severity": "low",
+  "category": "maintainability",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/common/scope/ScopeConfig.java",
+  "start_line": 16,
+  "end_line": 16,
+  "content": "This DTO declares `implements Serializable` but no `serialVersionUID`. ScopeConfig instances are embedded in SecurityUser/PermissionContext (which are cached/serialized), so any future field addition/change silently alters the implicit serial version. Add an explicit constant to keep the serialized contract stable and avoid `InvalidClassException` if a Java-serialization based path is ever introduced.",
+  "existing_code": "public class ScopeConfig implements Serializable {",
+  "suggestion_code": "public class ScopeConfig implements Serializable {\n\n    @java.io.Serial\n    private static final long serialVersionUID = 1L;"
+ },
+ {
+  "severity": "critical",
+  "category": "bug",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/common/engine/ActionGuardAspect.java",
+  "start_line": 90,
+  "end_line": 90,
+  "content": "Denial response type is incompatible with the intercepted controller method's declared return type. All `com.aigicrm.module..controller` methods declared in this project return `com.aigicrm.common.Result<T>` (e.g. `CustomerController.create(...)` returns `Result<Long>`), while the advice returns a `ResponseEntity<Map<String,Object>>` as `Object`. Spring AOP's generated proxy (CGLIB/JDK) inserts a `checkcast` to the original return type before returning to the caller, so the very first blocked `create/update/delete/...` call will throw `ClassCastException` and be handled as an unexpected 500 instead of a 403 — the guard silently fails to work as intended. The established pattern in this codebase is to throw `BusinessException`, which `GlobalExceptionHandler` already maps to HTTP 403 with a `Result` body. Replace the returned `ResponseEntity` with a thrown `BusinessException(403, ...)` (and drop the now-pointless `org.springframework.http.ResponseEntity` body building).",
+  "existing_code": "        return org.springframework.http.ResponseEntity.status(403).body(result);",
+  "suggestion_code": "        throw new com.aigicrm.common.BusinessException(403, \"操作被禁止: \" + action + \" 权限不足\");"
+ },
+ {
+  "severity": "medium",
+  "category": "security",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/common/engine/ActionGuardAspect.java",
+  "start_line": 63,
+  "end_line": 63,
+  "content": "Entity resolution is a pure class-name transform (strip `Controller`, lower-case the first char) with no normalization of the rule key. `RuleResult.actionsByEntity` is keyed by the raw `target_entity` value from `sys_permission_rule` (see `PermissionRuleEngine.evaluateActionControl`, which only trims it), so any naming mismatch — snake_case config (`sys_dept`, `customer_order`), capitalized config (`Customer`), or a controller whose name does not match the entity (`SysDeptController` → `sysDept`) — makes `actions == null` and the guard silently falls through to `joinPoint.proceed()`. For an action-control guard this is a fail-open (bypass) path, not just a cosmetic mapping issue. Consider normalizing both sides (strip `Controller`, convert camelCase ↔ snake_case and check both keys) or binding the entity explicitly per controller (e.g. an annotation/constant) so a misconfiguration cannot silently disable the guard.",
+  "existing_code": "        return Character.toLowerCase(name.charAt(0)) + name.substring(1);",
+  "suggestion_code": null
+ },
+ {
+  "severity": "low",
+  "category": "maintainability",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/common/engine/ActionGuardAspect.java",
+  "start_line": 49,
+  "end_line": 51,
+  "content": "Blocked operations are returned as a response without any server-side trace. Every other security-relevant denial in this project is logged (`GlobalExceptionHandler.handleBusinessException` logs at WARN; the permission engine logs fail-closed paths), so an action_control block currently leaves no evidence for auditing/troubleshooting. Add a WARN log containing the resolved entity/action (and preferably the current user) before returning the denial.",
+  "existing_code": "        if (action != null && actions.containsKey(action) && Boolean.FALSE.equals(actions.get(action))) {\n            return buildDeniedResponse(action);\n        }",
+  "suggestion_code": null
+ },
+ {
+  "severity": "medium",
+  "category": "security",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/common/scope/ScopeRequest.java",
+  "start_line": 18,
+  "end_line": 18,
+  "content": "`ScopeRequest` is annotated with Lombok `@Data`, which generates `toString()`/`equals()`/`hashCode()` over all fields. `SecurityUser` (declared with `@Data` as well and holding a `password` field plus the whole permission/scope config) will therefore be dumped verbatim whenever this request object is logged (e.g. debug logging in the scope/ACL resolution path), leaking the credential hash. Exclude the `user` field from the generated `toString` (and prefer identity semantics for it):",
+  "existing_code": "    private SecurityUser user;",
+  "suggestion_code": "    @lombok.ToString.Exclude\n    private SecurityUser user;"
+ },
+ {
+  "severity": "high",
+  "category": "bug",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/common/scope/GroupScopeUtil.java",
+  "start_line": 79,
+  "end_line": 80,
+  "content": "GroupScopeUtil's group-membership query diverges from the login-side resolveGroupIds/UserDetailsServiceImpl semantics in two ways: (1) it filters on sys_position.group_id, a redundant column added without backfill, whereas login derives the group via sys_position.org_id -> sys_dept.group_id; (2) it UNIONs the self-org group unconditionally, which login uses only as a fallback when position-based resolution is empty. Both make group boundaries inconsistent, and the result is used by IncentiveService/CustomerService/ApprovalService/OrgScopeResolver for authorization. Align the query with the login derivation (JOIN sys_dept d ON d.id = p.org_id AND d.group_id = ?) and keep the self-org part as a fallback only.",
+  "existing_code": "                \"SELECT up.user_id FROM sys_user_position up \" +\n                \"JOIN sys_position p ON p.id = up.position_id AND p.group_id = ? \" +",
+  "suggestion_code": null
+ },
+ {
+  "severity": "medium",
+  "category": "security",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/common/scope/ScopeDecision.java",
+  "start_line": 12,
+  "end_line": 13,
+  "content": "`@Data` generates a public no-arg constructor plus public setters. A default-constructed instance has both fields `null`, which this class interprets as **all = 不过滤**, i.e. a *fail-open* default. Any future code path that forgets to populate both fields (or returns `new ScopeDecision()` early) silently grants full data visibility instead of denying access, and an existing decision can be mutated after validation. Recommendation: make the decision immutable (final fields + factory methods `all()/none()/ofUsers()/ofDepts()`), or at least hide the no-arg constructor / setters so that an uninitialized instance can never be produced.",
+  "existing_code": "@Data\npublic class ScopeDecision {",
+  "suggestion_code": null
+ },
+ {
+  "severity": "medium",
+  "category": "bug",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/common/scope/ScopeDecision.java",
+  "start_line": 32,
+  "end_line": 34,
+  "content": "语义不一致: `isAll()` 只有两个字段都为 null 才返回 true,而 `canAccessOwner`/`canAccessDept` 只要对应字段为 null 就判定为“全部可见”。因此当 `visibleUserIds == null` 且 `visibleDeptIds == List.of()`(ORG 锚点决策的形态)时,`isAll()` 为 false,但 `canAccessOwner(anyId)` 返回 true —— 调用方若按 `isAll()` 判断会得出错误结论(如 `resolveModuleUsers` 的 `d.isAll() ? null : d.getVisibleUserIds()`)。建议改为按锚点判断,例如提供 `isAllUsers()` / `isAllDepts()`,或让两个字段的 null/空语义在当前类中保持一致。",
+  "existing_code": "    public boolean isAll() {\n        return visibleUserIds == null && visibleDeptIds == null;\n    }",
+  "suggestion_code": "    /** 是否两个锚点都不做过滤 */\n    public boolean isAll() {\n        return visibleUserIds == null && visibleDeptIds == null;\n    }\n\n    /** OWNER 锚点是否全量(不过滤) */\n    public boolean isAllUsers() {\n        return visibleUserIds == null;\n    }\n\n    /** ORG 锚点是否全量(不过滤) */\n    public boolean isAllDepts() {\n        return visibleDeptIds == null;\n    }"
+ },
+ {
+  "severity": "low",
+  "category": "performance",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/common/scope/ScopeDecision.java",
+  "start_line": 40,
+  "end_line": 40,
+  "content": "`canAccessOwner`/`canAccessDept` 用 `List.contains` 做成员判定,复杂度 O(n)。该判定通常在每个数据行上执行(列表过滤/单条校验热路径),当可见用户/部门集合较大(多角色 union 后可达数千)时会退化为 O(行数 × 范围大小);另外 `OrgScopeResolver.resolveScope` 用 `addAll` 合并多个角色范围,List 不保证去重。建议把可见集合保存为 `Set<Long>`(或在构造时转成 `HashSet`)以获得 O(1) 判定。",
+  "existing_code": "        return visibleUserIds.contains(ownerId);",
+  "suggestion_code": null
+ },
+ {
+  "severity": "medium",
+  "category": "security",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/common/enums/DataScopeType.java",
+  "start_line": 84,
+  "end_line": 84,
+  "content": "`rank()` 直接返回 `ordinal()`,而本枚举在两个 `@Deprecated` 常量(ORG_AND_CHILDREN=5、ORG=6)被夹在 DEPT(4) 与 TEAM(7) 之间的情况下,排序已不再能代表真实数据范围宽度。\n\n后果:`rank()` 被 SysRoleService/SysUserService 的提权防护用于比较(`grantScope.rank() < callerScope.rank()` 才拦截)。但 OrgScopeResolver 中 `org_and_children` 的实际解析范围是「本部门子树 ∪ managedOrgIds 子树」(OrgScopeResolver#resolveDeptScope 279-291 行),其可见集合 ⊇ `dept`;而这里 `ORG_AND_CHILDREN.rank()=5 > DEPT.rank()=4`,被判定为「比 dept 更窄」。因此一个 dept 范围的调用者可以授出 dataScope=org_and_children 的角色(5 < 4 为 false,不拦截),被授权者实际可看到比调用者更大的范围,提权防护被绕过。\n\n建议:不要让 `rank()` 依赖声明顺序,改为在常量中显式声明 rank(例如 DEPT 与 ORG_AND_CHILDREN 取同一 rank,或统一按真实范围宽度赋值),避免后续增删常量时 rank 语义漂移。",
+  "existing_code": "        return this.ordinal();",
+  "suggestion_code": null
+ },
+ {
+  "severity": "low",
+  "category": "maintainability",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/common/enums/DataScopeType.java",
+  "start_line": 91,
+  "end_line": 91,
+  "content": "`needChildren()` 的语义与实现不一致,且在整个代码库中没有任何调用方(全仓搜索仅本文件与文档提及),属于死代码。\n\n实现仅对旧常量 ORG_AND_CHILDREN 返回 true,但按注释语义 REGION(\"本大区及以下\")、OFFICE(\"本办事处及以下\")、DEPT(\"本部门及以下\")、TEAM(\"本人及全部下级\")同样需要递归子组织。当前无调用方,风险仅停留在潜在;一旦后续有人按方法名/注释调用它,会对这些范围漏查子级数据。\n\n建议:要么删除该未使用方法,要么修正判断逻辑使其与各范围的真实递归语义一致(如对 REGION/OFFICE/DEPT/TEAM/ORG_AND_CHILDREN 均返回 true)。",
+  "existing_code": "        return this == ORG_AND_CHILDREN;",
+  "suggestion_code": null
+ },
+ {
+  "severity": "medium",
+  "category": "bug",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/common/engine/CustomerAccessService.java",
+  "start_line": 206,
+  "end_line": 207,
+  "content": "CustomerAccessService's all/no-scope marker is ambiguous and inconsistently applied: OrgScopeResolver.resolve() returns null for dataScope=all, but the batch path only runs its scoped query when visible != null, so a non-admin with all only sees self+shared while canView() treats the same user as able to view everything. Separately, the empty-set-means-all convention is fragile: admin returns an immutable Set.of() for 'all', but a user with no owned/shared customers also gets an empty set, so any caller branching on emptiness can treat zero access as full access (fail-open IDOR). Replace this convention with an explicit Optional<Set<Long>>/isAllDataScope() flag and handle the all case consistently in both paths.",
+  "existing_code": "        List<Long> visible = scopeResolver.resolve(SecurityUtils.getCurrentUser());\n        if (visible != null && !visible.isEmpty()) {",
+  "suggestion_code": null
+ },
+ {
+  "severity": "medium",
+  "category": "bug",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/common/engine/CustomerAccessService.java",
+  "start_line": 54,
+  "end_line": 57,
+  "content": "`SecurityUtils.getCurrentUserId()` returns `null` when there is no `SecurityUser` in the SecurityContext (e.g. async/scheduled execution, anonymous request). `userId.equals(...)` then throws NPE instead of returning `false`. The same pattern exists in `canExport` (`if (userId.equals(customer.getOwnerId()))`). Use a null-safe check, e.g. `if (userId != null && userId.equals(customer.getOwnerId())) return true;`, or bail out early when `userId == null`.",
+  "existing_code": "        Long userId = SecurityUtils.getCurrentUserId();\n\n        // 1. 是负责人\n        if (userId.equals(customer.getOwnerId())) return true;",
+  "suggestion_code": null
+ },
+ {
+  "severity": "medium",
+  "category": "performance",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/common/engine/CustomerAccessService.java",
+  "start_line": 69,
+  "end_line": 70,
+  "content": "Four `hasPoolPerm` calls are made for the *same* poolId, and each one re-reads the pool config (`configMapper.selectById(poolId)` in SeaConfigService.hasPoolPerm) and, when the pool has dept restrictions, reloads the whole `sys_dept` table (`deptMapper.selectList(null)`). In the worst case (user holds no pool permission) a single `canView` performs 4 config SELECTs plus up to 4 full dept scans. Consider fetching the `BizSeaConfig` once (or adding a `hasAnyPoolPerm(poolId, Set<String>, user)` helper that resolves the config a single time) and reusing it for the four permission types.",
+  "existing_code": "            var user = SecurityUtils.getCurrentUser();\n            return seaConfigService.hasPoolPerm(pool.getPoolId(), com.aigicrm.module.sea.service.SeaConfigService.PERM_VIEW, user)",
+  "suggestion_code": null
+ },
+ {
+  "severity": "low",
+  "category": "performance",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/common/engine/CustomerAccessService.java",
+  "start_line": 208,
+  "end_line": 209,
+  "content": "Unbounded query: `visible` is the full visible-user set produced by `OrgScopeResolver` (could be every user of the group), so this builds a potentially huge `owner_id IN (...)` clause and materialises every matching `BizCustomer` entity in memory although only the id is used. Suggest selecting only the id column and/or paging/streaming the result, and note that leaving the id column out also reduces network and GC pressure for large datasets.",
+  "existing_code": "            List<BizCustomer> scopedCustomers = customerMapper.selectList(\n                    new LambdaQueryWrapper<BizCustomer>().in(BizCustomer::getOwnerId, visible));",
+  "suggestion_code": null
+ },
+ {
+  "severity": "low",
+  "category": "maintainability",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/common/engine/CustomerAccessService.java",
+  "start_line": 147,
+  "end_line": 148,
+  "content": "`canExport(Long)` (and `getAccessibleCustomerIds()`) are not referenced anywhere in the backend (no callers found outside this class), so they are effectively dead public API. Dead security-relevant entry points are risky because later callers may assume the guards are complete — `canExport` intentionally skips the unified data-scope layer used by the other actions and would deny export to the very users whose view range includes the customer. Either remove them or wire them up (and document why export deliberately ignores the data-scope anchor).",
+  "existing_code": "    /** 是否有权限导出该客户（敏感字段如营收等） */\n    public boolean canExport(Long customerId) {",
+  "suggestion_code": null
+ },
+ {
+  "severity": "high",
+  "category": "bug",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/common/engine/PermissionRuleEngine.java",
+  "start_line": 108,
+  "end_line": 108,
+  "content": "`is_null` 分支不可达：上面的守卫 `if (value == null || value.isEmpty()) return;` 会在进入 switch 之前直接返回。而 `is_null` 语义上本就不需要 rule_value（配置时通常为空/null），因此 `col IS NULL` 永远不会被生成，`operator=is_null` 的规则静默失效（WHERE 缺失 → 越权可见数据）。建议把 is_null 处理提到 value 守卫之前。",
+  "existing_code": "            case \"is_null\" -> clauses.add(col + \" IS NULL\");",
+  "suggestion_code": null
+ },
+ {
+  "severity": "medium",
+  "category": "bug",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/common/engine/PermissionRuleEngine.java",
+  "start_line": 226,
+  "end_line": 226,
+  "content": "列名为 null 时 `escapeColumn` 返回 null，调用方随后做字符串拼接会生成字面量 `null = 'x'` / `null IN (...)` 子句（evaluateColumnFilter、evaluateOrgFilter 都受影响），SQL 会报错或产生无意义过滤，且没有任何告警。建议与文件内其它“坏配置即拒绝”的口径保持一致，对 null/空白列名直接抛异常（或由调用方显式跳过）。",
+  "existing_code": "        if (col == null) return null;",
+  "suggestion_code": "        if (col == null || col.isBlank()) {\n            throw new IllegalArgumentException(\"非法列名: \" + col);\n        }"
+ },
+ {
+  "severity": "medium",
+  "category": "bug",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/common/engine/PermissionRuleEngine.java",
+  "start_line": 167,
+  "end_line": 167,
+  "content": "这两个 catch 块是死代码，与注释声称的 fail-closed 行为不符：`parseFieldPermissions` / `parseActionPermissions` 全部基于 indexOf/substring/split/Boolean.parseBoolean，对任何输入都不会抛异常。因此 `{\"hidden\":` 这类残缺 JSON 只会被静默忽略（返回时 extractArray 因数组未闭合直接 return），不会抛 503，字段脱敏/操作限制会无声失效——正是注释想避免的场景。建议在解析函数中显式校验结构（键存在但数组缺失/未闭合、JSON 不以 { 开头等）并抛异常，或删除误导性的 catch 注释。",
+  "existing_code": "            log.error(\"权限规则 rule_value 脏数据(field_visible id={}): {} —— 按损坏拒绝\", rule.getId(), e.getMessage());",
+  "suggestion_code": null
+ },
+ {
+  "severity": "medium",
+  "category": "bug",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/common/engine/PermissionRuleEngine.java",
+  "start_line": 213,
+  "end_line": 213,
+  "content": "变量替换只遍历 `ctx.variables`，若白名单变量不在 ctx 中（例如 `evaluate(rules, null)` 时 `VariableContext.from(null)` 返回空 context，或后续新增白名单键但忘了注入），占位符会原样残留：`${user.userId}` 被拼进 SQL WHERE 子句/操作校验，导致语法错误或过滤条件被绕过。建议替换完成后检测残留 `${...}` 并抛异常。",
+  "existing_code": "        String result = template;",
+  "suggestion_code": "        String result = template;\n        for (Map.Entry<String, String> entry : ctx.variables.entrySet()) {\n            String value = entry.getValue();\n            if (value == null) continue; // 防御：变量值为 null 时跳过，避免 NPE\n            result = result.replace(\"${\" + entry.getKey() + \"}\", value);\n        }\n        java.util.regex.Matcher leftover = VAR_PATTERN.matcher(result);\n        if (leftover.find()) {\n            throw new BusinessException(\"变量未解析: ${\" + leftover.group(1) + \"}\");\n        }\n        return result;"
+ },
+ {
+  "severity": "medium",
+  "category": "bug",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/common/engine/PermissionRuleEngine.java",
+  "start_line": 50,
+  "end_line": 50,
+  "content": "field_visible 规则未按 target_entity 隔离：hidden/visible 是从所有实体的规则里合并成一个全局集合，而消费方 FieldFilterAdvice 对所有 JSON 响应统一套用，因此一条绑定到 `order` 的字段隐藏规则也会把 `customer` 响应里的同名字段隐藏（跨实体误伤）。这与本文件为 action_control 专门按 target_entity 分组的意图不一致，建议同样按实体聚合，或强制 field_visible 显式声明 target_entity。",
+  "existing_code": "                case \"field_visible\" -> evaluateFieldVisible(rule, hiddenFields, visibleFields);",
+  "suggestion_code": null
+ },
+ {
+  "severity": "medium",
+  "category": "bug",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/common/engine/PermissionRuleEngine.java",
+  "start_line": 103,
+  "end_line": 103,
+  "content": "对可空字符串做 switch 存在 NPE 风险：`rule.getOperator()`（以及 evaluate/evaluateForEntity 中的 `switch (rule.getRuleType())`）为 null 时（实体字段均可空，无 NOT NULL 约束）会直接抛 NullPointerException，导致整个请求 500；另外未知 operator 会被静默忽略，配置写错时无任何日志。建议先做 null 判断并记录未知操作符告警。",
+  "existing_code": "        switch (op) {",
+  "suggestion_code": null
+ },
+ {
+  "severity": "low",
+  "category": "performance",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/common/engine/PermissionRuleEngine.java",
+  "start_line": 205,
+  "end_line": 206,
+  "content": "每次 `resolve` 调用都重新 `Pattern.compile`（规则数 × 请求数，典型热点路径），正则编译成本可观。建议提升为 static final Pattern 常量并复用（上面残留占位符校验也可复用同一常量）。",
+  "existing_code": "        java.util.regex.Matcher m = java.util.regex.Pattern\n                .compile(\"\\\\$\\\\{([^}]+)}\").matcher(template);",
+  "suggestion_code": "        java.util.regex.Matcher m = VAR_PATTERN.matcher(template);"
+ },
+ {
+  "severity": "medium",
+  "category": "bug",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/common/scope/OrgScopeResolver.java",
+  "start_line": 414,
+  "end_line": 416,
+  "content": "NPE risk: unlike the other public entry points (`resolve`, `resolveScope`, `resolveDeptScope`, `canAccess`) this method does not guard against `user == null`. `resolve(null)` returns an empty (non-null) list, so the null check on line 416 does not short-circuit and `user.getDeptId()` below throws NPE. Callers such as `ScopeService.visibleDeptTree`/`SysUserService` pass `SecurityUtils.getCurrentUser()`, which may legitimately be null outside an authenticated request (e.g. scheduled/async paths). Suggest adding an explicit null guard returning an empty list (fail-closed).",
+  "existing_code": "    public List<Long> resolveVisibleDeptIds(SecurityUser user) {\n        List<Long> u = resolve(user);\n        if (u == null) return null; // all：不过滤",
+  "suggestion_code": "    public List<Long> resolveVisibleDeptIds(SecurityUser user) {\n        if (user == null) return List.of();\n        List<Long> u = resolve(user);\n        if (u == null) return null; // all：不过滤"
+ },
+ {
+  "severity": "medium",
+  "category": "performance",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/common/scope/OrgScopeResolver.java",
+  "start_line": 524,
+  "end_line": 531,
+  "content": "N+1 query: `collectSubtree` issues one `selectList` per department node (recursion depth = subtree size), and it is invoked in loops (`resolveCustom` / `resolveDeptScope(\"custom\")` / `resolveOrgAndChildren` iterate over every `managedOrgIds`, `resolveLedOrgs` iterates over every led dept). For a deep/wide org tree this produces hundreds of round-trips on every data-scope resolution (hot path of list APIs). `SysDeptMapper.selectDescendantIds` already exists and is used in `loadRoleOrgs`; alternatively load the whole enabled dept table once (id/parent_id) and walk it in memory with the same cycle guard.",
+  "existing_code": "        List<Long> children = deptMapper.selectList(new LambdaQueryWrapper<SysDept>()\n                        .eq(SysDept::getParentId, rootId)\n                        .eq(SysDept::getStatus, 1))\n                .stream().map(SysDept::getId).toList();\n        // 环保护：已收集过的节点不再递归，防止 parent_id 环数据死循环\n        for (Long c : children) {\n            if (acc.add(c)) collectSubtree(c, acc);\n        }",
+  "suggestion_code": null
+ },
+ {
+  "severity": "low",
+  "category": "performance",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/common/scope/OrgScopeResolver.java",
+  "start_line": 494,
+  "end_line": 497,
+  "content": "DB query inside a loop (N+1): `selectDescendantIds` is executed once per `sys_role_org` row. For a user with many role-org grants (or `include_children=1` rows) this multiplies round-trips inside a request-scoped resolution. Consider collecting the `include_children=1` org ids and resolving descendants in a single batched query / in-memory dept-tree traversal.",
+  "existing_code": "        for (com.aigicrm.module.system.entity.SysRoleOrg ro : rows) {\n            if (ro.getOrgId() == null) continue;\n            if (ro.getIncludeChildren() != null && ro.getIncludeChildren() == 1) {\n                orgIds.addAll(deptMapper.selectDescendantIds(ro.getOrgId()));",
+  "suggestion_code": null
+ },
+ {
+  "severity": "medium",
+  "category": "bug",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/common/scope/OrgScopeResolver.java",
+  "start_line": 340,
+  "end_line": 340,
+  "content": "The `isTeamScoped(user)` guard assumes that whenever the user's role `dataScope`/`dataScopes` contains `team`, the incoming `base` already contains the whole manager chain. That is not true for the permission-matrix path: `scopeCodes()`/`configuredScopeCodes()` may return an explicit configured scope (e.g. `custom`/`self` for a specific module) for a user whose role dataScope is `team`. In that case the superior chain is silently dropped even though the `KEY_SUPERIOR_SEE_SUBORDINATE` switch is on, yielding a narrower-than-configured visible set. Suggest deciding the guard from the scope codes actually resolved (e.g. `scopes.contains(\"team\")`) instead of the user's role-level dataScope.",
+  "existing_code": "        if (superiorOn && !isTeamScoped(user)) merged.addAll(resolveTeam(userId));",
+  "suggestion_code": null
+ },
+ {
+  "severity": "low",
+  "category": "documentation",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/common/scope/OrgScopeResolver.java",
+  "start_line": 322,
+  "end_line": 322,
+  "content": "Javadoc is now inconsistent with the implementation: `readSwitchFlags()` was changed to fail-closed defaults (`getBooleanValue(key, false)`), but this method's javadoc still documents both switches as 默认开 (default on). This is misleading for anyone relying on the doc to decide whether the keys must be explicitly configured. Update the doc to state the defaults are `false` (explicit opt-in).",
+  "existing_code": "     *   <li>开关1 KEY_SUPERIOR_SEE_SUBORDINATE（默认开）：直接上级默认可见递归下属链（≤5层，复用 resolveTeam）。</li>",
+  "suggestion_code": null
+ },
+ {
+  "severity": "high",
+  "category": "security",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/config/CorsConfig.java",
+  "start_line": 31,
+  "end_line": 32,
+  "content": "`allowCredentials(true)` is combined with `setAllowedOriginPatterns(...)`, and the patterns come entirely from an external property (`cors.allowed-origins` / `CORS_ORIGINS`). Spring only rejects a wildcard for `setAllowedOrigins`, not for `setAllowedOriginPatterns`, so a misconfigured value such as `*` (or `https://*.example.com`) would make Spring echo back any request origin together with `Access-Control-Allow-Credentials: true`, allowing any site to issue credentialed (cookie/session) cross-origin requests. Validate against wildcards or switch to exact matching.",
+  "existing_code": "        config.setAllowCredentials(true);\n        config.setAllowedOriginPatterns(origins);",
+  "suggestion_code": "        config.setAllowCredentials(true);\n        if (origins.contains(\"*\")) {\n            throw new IllegalStateException(\"CORS wildcard '*' cannot be combined with allowCredentials=true\");\n        }\n        config.setAllowedOrigins(origins);"
+ },
+ {
+  "severity": "medium",
+  "category": "security",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/common/util/ClientIpUtils.java",
+  "start_line": 18,
+  "end_line": 19,
+  "content": "Trusted-proxy detection in ClientIpUtils fails for common deployments: the default trusted CIDRs exclude loopback (127.0.0.0/8, ::1) so a co-located nginx peer is not trusted, and ipToLong only understands dotted-quad IPv4 so any IPv6 peer (including ::ffff:x.x.x.x) returns -1 and is rejected. In both cases X-Real-IP is discarded and all requests are attributed to the proxy, collapsing per-IP login rate limiting/audit to one bucket. Include loopback in defaults and handle IPv6 (or at least unwrap IPv4-mapped addresses).",
+  "existing_code": "            \"10.0.0.0/8\", \"172.16.0.0/12\", \"192.168.0.0/16\"\n    };",
+  "suggestion_code": "            \"10.0.0.0/8\", \"172.16.0.0/12\", \"192.168.0.0/16\", \"127.0.0.0/8\"\n    };"
+ },
+ {
+  "severity": "medium",
+  "category": "security",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/common/util/ClientIpUtils.java",
+  "start_line": 35,
+  "end_line": 37,
+  "content": "The returned X-Real-IP value is taken verbatim; it is never validated to be a single well-formed IP. If the trusted proxy is ever configured to forward the client-supplied value (e.g. `proxy_set_header X-Real-IP $http_x_real_ip`) instead of overwriting it, an attacker can inject an arbitrary key that is then used for login throttling and audit. Since the whole point of this utility is anti-spoofing, validate the header value (`ipToLong(realIp) != -1`) and fall back to `remoteAddr` when it is not a valid single address.",
+  "existing_code": "            if (realIp != null && !realIp.isBlank()) {\n                return realIp.trim();\n            }",
+  "suggestion_code": "            if (realIp != null && !realIp.isBlank()) {\n                String candidate = realIp.trim();\n                if (ipToLong(candidate) != -1) {\n                    return candidate;\n                }\n            }"
+ },
+ {
+  "severity": "low",
+  "category": "maintainability",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/common/util/ClientIpUtils.java",
+  "start_line": 23,
+  "end_line": 24,
+  "content": "`configureTrustedCidrs` silently no-ops on blank input and does not validate entries: a malformed CIDR (typo, wrong format) is silently skipped by `isTrustedProxy`, so a misconfiguration can silently drop a legitimate proxy from the trusted list (or, with `0.0.0.0/0`, trust everyone) without any log. Also, blank/empty configuration cannot be expressed, so there is no way to intentionally disable proxy trust. Trim entries, validate them, and log a warning for invalid/empty configuration.",
+  "existing_code": "        if (cidrs == null || cidrs.isBlank()) return;\n        trustedCidrs = cidrs.split(\",\");",
+  "suggestion_code": "        if (cidrs == null || cidrs.isBlank()) return;\n        trustedCidrs = Arrays.stream(cidrs.split(\",\"))\n                .map(String::trim)\n                .filter(s -> !s.isEmpty())\n                .toArray(String[]::new);"
+ },
+ {
+  "severity": "high",
+  "category": "performance",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/common/util/DeptTreeUtils.java",
+  "start_line": 35,
+  "end_line": 35,
+  "content": "N+1 query risk: `collect` issues a separate `selectList` per department node, so the whole subtree is walked with one query per node. This util is called by many list/statistics APIs (ApprovalService, ScopeService, SeaService, ReminderService, StatisticsQueryService) and several of them even call it repeatedly within the same request, so a deep/wide org tree turns a single list request into hundreds of DB round-trips. Recommendation: fetch the department table once (`id`, `parentId` for the whole group) and expand the subtree in memory with an iterative BFS/DFS over a `parentId -> children` map.",
+  "existing_code": "            if (acc.add(d.getId())) collect(m, d.getId(), acc);",
+  "suggestion_code": null
+ },
+ {
+  "severity": "medium",
+  "category": "bug",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/common/util/DeptTreeUtils.java",
+  "start_line": 33,
+  "end_line": 33,
+  "content": "Logic concern: filtering children by `status = 1` also prunes the whole sub-tree of any *disabled* intermediate department, because traversal stops at that node. A department whose parent is disabled will never be returned even though it is enabled itself, which contradicts the documented \"含全部子部门（递归任意层级）\" semantics. If the intent is only to exclude the disabled node itself, the traversal must not be cut off here (e.g. drop the status condition and filter the final set, or keep traversing through disabled nodes and only filter the returned ids). If pruning disabled sub-trees is intentional, please document it explicitly.",
+  "existing_code": "                .eq(SysDept::getStatus, 1));",
+  "suggestion_code": null
+ },
+ {
+  "severity": "low",
+  "category": "performance",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/common/util/DeptTreeUtils.java",
+  "start_line": 31,
+  "end_line": 31,
+  "content": "Only the id (and parentId) is needed by the caller, but `selectList` fetches every column of `sys_dept` (name, code, leader, timestamps, …) for every node visited. Adding a projection reduces both result-set size and per-query overhead, which matters here since this method is invoked per node: `.select(SysDept::getId, SysDept::getParentId)`.",
+  "existing_code": "        List<SysDept> children = m.selectList(new LambdaQueryWrapper<SysDept>()",
+  "suggestion_code": "        List<SysDept> children = m.selectList(new LambdaQueryWrapper<SysDept>()\n                .select(SysDept::getId, SysDept::getParentId)"
+ },
+ {
+  "severity": "low",
+  "category": "security",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/common/scope/DataScopeGuard.java",
+  "start_line": 29,
+  "end_line": 29,
+  "content": "Fail-open convention: `resolved == null` here (and `scope == null` in `isVisible` below) is interpreted as \"all records visible\", i.e. the guard grants access instead of denying it. Any resolver implementation that returns null in an unexpected case (anonymous/unknown user, missing config, refactor) would silently allow writes on any owner. Today `OrgScopeResolver.resolve(null)` returns `List.of()` so it fails closed, but this class depends on that external, undocumented assumption and performs no authentication check of its own. Recommend documenting the null=ALL convention explicitly in the Javadoc and/or using an explicit ALL sentinel, and adding a null-user guard.",
+  "existing_code": "        if (resolved == null) return; // all：不过滤",
+  "suggestion_code": null
+ },
+ {
+  "severity": "medium",
+  "category": "maintainability",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/common/scope/DataScopeGuard.java",
+  "start_line": 17,
+  "end_line": 19,
+  "content": "This component appears to be dead code in the repository: `DataScopeGuard`, `checkOwner`, `isVisible` and `checkOwnerInScope` have no production callers (only `DataScopeGuardTest` references them; `MybatisPlusConfig` mentions the class in a comment). Since the design doc positions this as the unified owner guard for write operations (PUT/DELETE/share), the write path currently receives no protection from it. Please confirm the write endpoints actually inject and call this bean, or remove/mark the class until it is wired in, to avoid the false impression that owner validation is enforced.",
+  "existing_code": "@Component\n@RequiredArgsConstructor\npublic class DataScopeGuard {",
+  "suggestion_code": null
+ },
+ {
+  "severity": "medium",
+  "category": "security",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/config/OssConfig.java",
+  "start_line": 11,
+  "end_line": 14,
+  "content": "Lombok `@Data` on a properties holder that carries credentials generates a `toString()` containing `accessKeyId`/`accessKeySecret`. Any accidental logging of this configuration bean (debug logs, exception messages, actuator output) will leak the OSS secret. Consider excluding sensitive fields, e.g. annotate them with `@ToString.Exclude` (and/or `@JsonProperty(access = Access.WRITE_ONLY)` if the object is ever serialized).",
+  "existing_code": "@Data\n@Configuration\n@ConfigurationProperties(prefix = \"aliyun.oss\")\npublic class OssConfig {",
+  "suggestion_code": "@Data\n@Configuration\n@ConfigurationProperties(prefix = \"aliyun.oss\")\npublic class OssConfig {\n    private String endpoint;\n    private String accessKeyId;\n\n    @ToString.Exclude\n    private String accessKeySecret;"
+ },
+ {
+  "severity": "medium",
+  "category": "bug",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/config/OssConfig.java",
+  "start_line": 20,
+  "end_line": 22,
+  "content": "The `OSS` client created here owns an HTTP connection pool and background threads. Relying on Spring's inferred destroy method is fragile (the bean type is the `OSS` interface); declare the destroy method explicitly so the client is guaranteed to be shut down when the application context closes, otherwise connections/threads leak across restarts.",
+  "existing_code": "    @Bean\n    @ConditionalOnProperty(name = \"file.storage-type\", havingValue = \"oss\")\n    public OSS ossClient() {",
+  "suggestion_code": "    @Bean(destroyMethod = \"shutdown\")\n    @ConditionalOnProperty(name = \"file.storage-type\", havingValue = \"oss\")\n    public OSS ossClient() {"
+ },
+ {
+  "severity": "medium",
+  "category": "security",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/common/util/TrustedProxyConfig.java",
+  "start_line": 13,
+  "end_line": 13,
+  "content": "TrustedProxyConfig's default CIDR list is both overly broad and duplicated: it hard-codes all RFC1918 space (10/8, 172.16/12, 192.168/16), so any directly reachable private host can spoof X-Real-IP, and the same default is repeated in application.yml, so the two will drift and an empty value silently falls back to ClientIpUtils' own defaults. Narrow the default to the actual proxy subnet, keep a single source of truth (YAML), and log the effective trusted CIDRs at startup.",
+  "existing_code": "    public TrustedProxyConfig(@Value(\"${security.trusted-proxy-cidrs:10.0.0.0/8,172.16.0.0/12,192.168.0.0/16}\") String cidrs) {",
+  "suggestion_code": null
+ },
+ {
+  "severity": "medium",
+  "category": "bug",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/common/util/ImportGuard.java",
+  "start_line": 33,
+  "end_line": 35,
+  "content": "Extension matching is case-sensitive, so files uploaded with an upper/mixed-case extension (e.g. `客户导入.XLSX`, common when users rename files on Windows/macOS or when the upload client normalizes names) are rejected with a misleading message even though the file is valid. Normalize the name before comparing.",
+  "existing_code": "        if (filename == null || !(filename.endsWith(\".xlsx\") || filename.endsWith(\".xls\"))) {\n            throw new BusinessException(\"仅支持 .xlsx 或 .xls 格式的文件\");\n        }",
+  "suggestion_code": "        String lower = filename == null ? null : filename.toLowerCase(java.util.Locale.ROOT);\n        if (lower == null || !(lower.endsWith(\".xlsx\") || lower.endsWith(\".xls\"))) {\n            throw new BusinessException(\"仅支持 .xlsx 或 .xls 格式的文件\");\n        }"
+ },
+ {
+  "severity": "medium",
+  "category": "bug",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/common/util/ImportGuard.java",
+  "start_line": 43,
+  "end_line": 43,
+  "content": "Boundary mismatch with the declared contract. The Javadoc states the limit is \"数据行数 ≤ 5000\", but both callers pass a header-inclusive counter (`rowNum` is initialized to 1 for the header and incremented before the call: data row k arrives as rowNum = k+1). With `rowNum > MAX_IMPORT_ROWS` the 5000th data row (rowNum = 5001) is therefore rejected, so the effective limit is 4999 data rows. Either document that `rowNum` is the physical/header-inclusive row number, or have the callers pass the data-row index (rowNum - 1) so the constant really means \"max data rows\".",
+  "existing_code": "        if (rowNum > MAX_IMPORT_ROWS) {",
+  "suggestion_code": null
+ },
+ {
+  "severity": "low",
+  "category": "bug",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/common/util/ImportGuard.java",
+  "start_line": 29,
+  "end_line": 31,
+  "content": "`checkFile` is a public, stateless entry-point guard but dereferences `file` without a null check: passing null (e.g. from a non-Spring caller such as a scheduled job, internal service or unit test) throws a raw NPE instead of the intended business message. Add a null guard so the failure mode stays a controlled `BusinessException`.",
+  "existing_code": "        if (file.isEmpty()) {\n            throw new BusinessException(\"请选择要导入的文件\");\n        }",
+  "suggestion_code": "        if (file == null || file.isEmpty()) {\n            throw new BusinessException(\"请选择要导入的文件\");\n        }"
+ },
+ {
+  "severity": "high",
+  "category": "bug",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/config/SmsConfig.java",
+  "start_line": 22,
+  "end_line": 23,
+  "content": "The SMS client reuses `OssConfig` credentials instead of its own `aliyun.sms.*` properties. This couples SMS to OSS configuration: `OssConfig.ossClient()` is guarded by `@ConditionalOnProperty(name = \"file.storage-type\", havingValue = \"oss\")`, so in deployments where OSS/FTP/local storage is used the `aliyun.oss.access-key-id`/`access-key-secret` properties may be absent and the SMS client will be built with `null` credentials (requests then fail at runtime with an auth error). It also makes it impossible to use a separate AK/SK for SMS. Suggest giving `SmsConfig` its own credential properties (optionally falling back to the OSS ones).",
+  "existing_code": "                .setAccessKeyId(ossConfig.getAccessKeyId())\n                .setAccessKeySecret(ossConfig.getAccessKeySecret())",
+  "suggestion_code": null
+ },
+ {
+  "severity": "medium",
+  "category": "bug",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/config/SmsConfig.java",
+  "start_line": 20,
+  "end_line": 20,
+  "content": "`smsClient` is created unconditionally (unlike `ossClient`), and `AuthService` injects `Client` as a mandatory constructor dependency. With missing `aliyun.sms.sign-name` / `aliyun.sms.template-code` properties the bean is still created and the invalid config only surfaces when a verification code is sent. Consider validating the required properties (or guarding the bean with `@ConditionalOnProperty`) so misconfiguration fails fast at startup.",
+  "existing_code": "    public Client smsClient(OssConfig ossConfig) throws Exception {",
+  "suggestion_code": null
+ },
+ {
+  "severity": "medium",
+  "category": "bug",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/config/SecurityConfig.java",
+  "start_line": 62,
+  "end_line": 62,
+  "content": "只配置了 accessDeniedHandler，未配置 authenticationEntryPoint。ExceptionTranslationFilter 对匿名/未认证请求（未带 token、token 过期被 JwtAuthFilter 放行后走到 anyRequest().authenticated()）走的是 entry point 而不是 accessDeniedHandler；未配置时 Spring Security 使用默认 Http403ForbiddenEntryPoint，返回**空响应体的 403**（既不是 401，也没有 {\"code\":..,\"message\":..} JSON）。这与本处注释宣称的“与全站 Result 口径一致”不符，也会让前端拦截器无法按 401 触发重新登录。建议显式配置 entry point，输出与 JwtAuthFilter.writeUnauthorized 一致的 401 JSON。",
+  "existing_code": "            .exceptionHandling(ex -> ex.accessDeniedHandler(this::auditAccessDenied))",
+  "suggestion_code": "            .exceptionHandling(ex -> ex\n                    .authenticationEntryPoint((request, response, authEx) -> {\n                        response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);\n                        response.setContentType(MediaType.APPLICATION_JSON_VALUE);\n                        response.setCharacterEncoding(StandardCharsets.UTF_8.name());\n                        response.getWriter().write(\"{\\\"code\\\":401,\\\"message\\\":\\\"登录已失效，请重新登录\\\"}\");\n                    })\n                    .accessDeniedHandler(this::auditAccessDenied))"
+ },
+ {
+  "severity": "low",
+  "category": "maintainability",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/config/SecurityConfig.java",
+  "start_line": 75,
+  "end_line": 77,
+  "content": "审计旁路异常被完全吞掉（catch 块内无任何日志），一旦 SecurityAuditService 因 DB/Redis 异常持续失败，安全审计（越权痕迹、IP 阈值告警）会静默失效且无法排查。建议至少以 warn/debug 记录一次，保持“不改变拒绝语义”的同时具备可观测性。",
+  "existing_code": "        } catch (Exception auditEx) {\n            // 审计旁路失败不得改变拒绝语义\n        }",
+  "suggestion_code": "        } catch (Exception auditEx) {\n            // 审计旁路失败不得改变拒绝语义，但需留痕便于排查\n            log.warn(\"安全审计写入失败, uri={}: {}\", request.getRequestURI(), auditEx.getMessage());\n        }"
+ },
+ {
+  "severity": "low",
+  "category": "maintainability",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/config/SecurityConfig.java",
+  "start_line": 30,
+  "end_line": 31,
+  "content": "补充说明：若按上一条建议在 auditAccessDenied 的 catch 中记录日志，需在此处（或类内）补上 Lombok 的 @Slf4j，否则 `log` 变量不存在（本类当前未定义 logger）。",
+  "existing_code": "@RequiredArgsConstructor\npublic class SecurityConfig {",
+  "suggestion_code": "import lombok.extern.slf4j.Slf4j;\n\n@Slf4j\n@RequiredArgsConstructor\npublic class SecurityConfig {"
+ },
+ {
+  "severity": "medium",
+  "category": "performance",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/config/MybatisPlusConfig.java",
+  "start_line": 160,
+  "end_line": 161,
+  "content": "`resolveTenantId` 运行在租户拦截器的 SQL 改写热路径上（每条 SQL、每张白名单表都会调用 `getTenantId()` 一次），因此这里的 `log.warn` 会按「表数 × SQL 数」的频率重复输出，一人多集团时会瞬间刷满日志并带来无谓的字符串拼接开销。建议：1) 降级为 `debug`，或用请求级标记保证每请求只打一次；2) `sorted().findFirst().get()` 对 Optional 直接 `get()` 属于不安全取值（元素为 null 时 `sorted` 还会 NPE），改用 `min()`/`orElseThrow`/`filter(Objects::nonNull)`。",
+  "existing_code": "        Long chosen = groupIds.stream().sorted().findFirst().get();\n        log.warn(\"用户所属集团数={}，租户插件当前仅按最小集团ID={}过滤，其余集团(={})数据本次请求不可见\"",
+  "suggestion_code": "        Long chosen = groupIds.stream().filter(java.util.Objects::nonNull).min(Long::compareTo).orElse(null);\n        if (chosen == null) {\n            return new net.sf.jsqlparser.expression.NullValue();\n        }\n        // 该方法在每条 SQL/每张表的改写路径上都会被调用，重复 WARN 会淹没日志，建议 debug 或按请求去重\n        log.debug(\"用户所属集团数={}，租户插件当前仅按最小集团ID={}过滤，其余集团(={})数据本次请求不可见\""
+ },
+ {
+  "severity": "medium",
+  "category": "security",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/config/MybatisPlusConfig.java",
+  "start_line": 73,
+  "end_line": 74,
+  "content": "启动自检只校验了「白名单表 → 是否有 tenant_id 列」这一个方向，缺少反向校验：若后续迁移新增了一张带 `tenant_id` 的业务表却忘记加入 `TENANT_TABLES`，`ignoreTable` 会返回 true，该表将**静默不做租户隔离（fail-open）**，而自检仍然通过——这与注释宣称的 fail-fast 目标不一致（历史教训 V7 漏配是同类问题）。建议一次性查出当前库中所有含 `tenant_id` 的 `biz_%` 表，与白名单做双向差集校验并在缺配时启动失败/告警；顺带把循环里的 26 次 `queryForObject` 合并为 1 次查询，减少启动时的数据库往返。",
+  "existing_code": "        for (String table : TENANT_TABLES) {\n            Integer cnt = jdbc.queryForObject(",
+  "suggestion_code": "        java.util.Set<String> withTenantId = new java.util.HashSet<>(jdbc.queryForList(\n                \"SELECT TABLE_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND COLUMN_NAME = 'tenant_id'\",\n                String.class));\n        for (String table : TENANT_TABLES) {\n            if (!withTenantId.contains(table)) {\n                throw new IllegalStateException(\"租户白名单表缺少 tenant_id 列, 请确认 Flyway 迁移已执行: \" + table + \" (V9/V2026.09.21.2)\");\n            }\n        }\n        // 反向校验: 库中带 tenant_id 却未纳入白名单的 biz_ 表会被静默放行(fail-open)\n        withTenantId.removeAll(TENANT_TABLES);\n        withTenantId.removeIf(t -> !t.startsWith(\"biz_\"));\n        if (!withTenantId.isEmpty()) {\n            throw new IllegalStateException(\"存在含 tenant_id 但未纳入租户白名单的表, 会造成租户隔离失效: \" + withTenantId);\n        }"
+ },
+ {
+  "severity": "low",
+  "category": "documentation",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/config/MybatisPlusConfig.java",
+  "start_line": 30,
+  "end_line": 30,
+  "content": "注释与常量不一致：这里写「全部 25 张业务表」，但 `TENANT_TABLES` 实际包含 26 个元素（最后一个 `biz_task` 是后续新增的）；同时注释仍称排除「5 张 *_bak_* 快照表」，而这些备份表已在 `V19__drop_backup_tables.sql` 中 DROP。建议同步更新为 26 张并去掉已删除的备份表描述，避免后续维护者按错误数量核对白名单。",
+  "existing_code": "     * 租户白名单：全部 25 张业务表(V9 迁移后全部含 tenant_id 列; 5 张 *_bak_* 快照表",
+  "suggestion_code": null
+ },
+ {
+  "severity": "low",
+  "category": "security",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/config/WhitelistedJsonRedisSerializer.java",
+  "start_line": 28,
+  "end_line": 30,
+  "content": "The class name and Javadoc claim to provide the polymorphic whitelist protection (M5), but the whitelist actually lives entirely in the injected `ObjectMapper`. The constructor accepts any `ObjectMapper` without validation, so if it is ever instantiated with a mapper that has no default typing (or a permissive `LaissezFaireSubTypeValidator`), the caller gets `@class`-driven polymorphic deserialization without any protection (gadget risk) and no warning. Also, `mapper == null` is not rejected early, which produces a deferred NPE on the first serialize/deserialize call.\n\nSuggestion: fail fast in the constructor (non-null check), and ideally verify/document that the mapper has default typing enabled with a `PolymorphicTypeValidator`.",
+  "existing_code": "    public WhitelistedJsonRedisSerializer(ObjectMapper mapper) {\n        this.mapper = mapper;\n    }",
+  "suggestion_code": "    public WhitelistedJsonRedisSerializer(ObjectMapper mapper) {\n        Assert.notNull(mapper, \"ObjectMapper must not be null (must be the whitelist-configured one, see RedisConfig)\");\n        this.mapper = mapper;\n    }"
+ },
+ {
+  "severity": "low",
+  "category": "maintainability",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/config/WhitelistedJsonRedisSerializer.java",
+  "start_line": 35,
+  "end_line": 35,
+  "content": "`serialize(null)` returns an empty byte array while `deserialize(new byte[0])` returns null. This is consistent for a null round-trip (and matches the old serializer), but it also means a value that legitimately serializes to zero bytes is indistinguishable from \"absent\". Since callers (e.g. RedisTemplate operations) may store the empty array as a real key value rather than skipping the write, consider documenting this behavior at the method level or returning `null` for a null input so the contract is unambiguous.",
+  "existing_code": "        if (value == null) return new byte[0];",
+  "suggestion_code": null
+ },
+ {
+  "severity": "medium",
+  "category": "security",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/config/LogAspect.java",
+  "start_line": 35,
+  "end_line": 35,
+  "content": "切点范围与类注释「自动拦截所有 Controller 的写操作」不一致：`com.aigicrm.module..controller..` 只覆盖 module 包下的 controller，包外的写接口会被漏记。例如 `com.aigicrm.task.ScheduledTaskController#checkExpire`（POST /api/system/task/check-expire，仅管理员可触发的全库批处理）不在切点内，属于审计盲区（只有 admin 可调用、又无日志，事后无法追责）。建议按类名/注解收敛到整个 `com.aigicrm` 包，例如 `execution(* com.aigicrm..*Controller.*(..))`（或配合 `@within(org.springframework.web.bind.annotation.RestController)`）。",
+  "existing_code": "            \"execution(* com.aigicrm.module..controller..*(..)) && (\" +",
+  "suggestion_code": "            \"execution(* com.aigicrm..*Controller.*(..)) && (\" +"
+ },
+ {
+  "severity": "medium",
+  "category": "bug",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/config/LogAspect.java",
+  "start_line": 59,
+  "end_line": 59,
+  "content": "成功路径未做长度收敛，与失败路径的截断策略不一致：`resolveDetail` 会把 Map 白名单字段（reason/comment 等自由文本）或实体 getter 的值原样返回，长度不可控；而 `sys_log.detail` 仅为 varchar(1000)（见 V1__baseline.sql:1015）。超长会让 insert 报 `Data too long`，异常被本方法 catch 后只打 debug 日志，结果是这条审计记录被静默丢弃（失败路径专门截断到 200 字符，说明作者已意识到该风险）。建议两条路径统一截断。",
+  "existing_code": "            String detail = resolveDetail(jp, uri);",
+  "suggestion_code": "            String detail = resolveDetail(jp, uri);\n            if (detail != null && detail.length() > 200) {\n                detail = detail.substring(0, 200);\n            }"
+ },
+ {
+  "severity": "low",
+  "category": "maintainability",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/config/LogAspect.java",
+  "start_line": 113,
+  "end_line": 113,
+  "content": "`/system/users` 已被后一个判断 `/system/user` 完全覆盖（\"/system/users\".contains(\"/system/user\") 为 true），前半个 `||` 条件是永远走不到的死分支，可简化为单条件。",
+  "existing_code": "        if (uri.contains(\"/system/users\") || uri.contains(\"/system/user\")) return \"人员\";",
+  "suggestion_code": "        if (uri.contains(\"/system/user\")) return \"人员\";"
+ },
+ {
+  "severity": "low",
+  "category": "bug",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/config/LogAspect.java",
+  "start_line": 111,
+  "end_line": 111,
+  "content": "模块映射疑似复制粘贴错误：激励模块（/api/incentive，IncentiveController 的创建/编辑/删除分类、新增记录等写操作）被归到「文件」，与前端日志页 tab（客户/文件/人员/系统，见 log.vue moduleLabel，'文件' 显示为「文件管理」）语义不符，会让激励相关操作在审计视图里被当成文件操作。请确认是否应为「客户」或新增「激励」模块；若确为有意归并，建议补注释说明。",
+  "existing_code": "        if (uri.contains(\"/incentive\")) return \"文件\";",
+  "suggestion_code": null
+ },
+ {
+  "severity": "medium",
+  "category": "bug",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/config/RedisConfig.java",
+  "start_line": 28,
+  "end_line": 30,
+  "content": "白名单不完整，会导致“写入成功、读取必然抛异常”的缓存脏数据。DefaultTyping.NON_FINAL 会给所有非 final 类型写入 @class 类型信息，而这里的校验器只放行 com.aigicrm. / java.util. / java.time. / java.lang. 四个前缀。任何非 final 的 JDK 类型（如 java.math.BigDecimal、java.math.BigInteger、java.sql.Timestamp、java.text.SimpleDateFormat）被缓存对象的字段引用时，序列化会带上 java.math.BigDecimal 这样的类型标识，反序列化时 BasicPolymorphicTypeValidator 默认拒绝（INDETERMINATE -> InvalidTypeIdException），缓存读取整体失败。CRM 中金额字段常见，一旦有含 BigDecimal 的 DTO 进入缓存即触发。建议补全实际会用到的 JDK 包前缀。",
+  "existing_code": "                        .allowIfSubType(\"java.util.\")\n                        .allowIfSubType(\"java.time.\")\n                        .allowIfSubType(\"java.lang.\")",
+  "suggestion_code": "                        .allowIfSubType(\"java.util.\")\n                        .allowIfSubType(\"java.time.\")\n                        .allowIfSubType(\"java.lang.\")\n                        .allowIfSubType(\"java.math.\")"
+ },
+ {
+  "severity": "medium",
+  "category": "security",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/config/RedisConfig.java",
+  "start_line": 27,
+  "end_line": 27,
+  "content": "白名单过宽，安全收紧效果被削弱：allowIfSubType 按类名前缀匹配，com.aigicrm. 等于把项目内任意（含未来新增）类都设为可多态实例化；java.util. / java.lang. 则放开全部 JDK 集合与包装类型，且上方 setVisibility(ALL, ANY) 允许反射写入私有字段。一旦 Redis 内容被污染（弱口令/内网横向/误写），攻击者可让 Jackson 直接实例化任意项目类并回填私有字段，触发带副作用 setter 的 gadget。当前实际缓存类型只有 com.aigicrm.security.PermissionContext（及其嵌套的 com.aigicrm.* 类型），建议收敛为显式类/最小包范围。",
+  "existing_code": "                        .allowIfSubType(\"com.aigicrm.\")",
+  "suggestion_code": "                        .allowIfSubType(\"com.aigicrm.security.PermissionContext\")\n                        // 仅按需放行最小包范围"
+ },
+ {
+  "severity": "low",
+  "category": "maintainability",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/config/RedisConfig.java",
+  "start_line": 44,
+  "end_line": 44,
+  "content": "RedisTemplate 实现了 InitializingBean，作为 @Bean 返回时 Spring 会在初始化回调阶段自动调用 afterPropertiesSet()，此处手动调用属冗余（重复做一次 serializers 校验）。可删除以简化。",
+  "existing_code": "        template.afterPropertiesSet();",
+  "suggestion_code": null
+ }
+]

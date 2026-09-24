@@ -1,0 +1,1202 @@
+[
+ {
+  "severity": "high",
+  "category": "security",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/auth/dto/LoginRequest.java",
+  "start_line": 10,
+  "end_line": 11,
+  "content": "Sensitive field exposure: Lombok `@Data` auto-generates `toString()`/`equals()`/`hashCode()` that include the plaintext password. Any framework or diagnostic logging of this object (Spring MVC debug logging, `@RestControllerAdvice` handlers, exception dumps, or future `log.info(\"...{}\", request)`) will leak the credential. Exclude the password from `toString()`:\n\n```java\nimport lombok.ToString;\n...\n@ToString.Exclude\nprivate String password;\n```\n(or annotate the class with `@ToString(exclude = \"password\")`).",
+  "existing_code": "    @NotBlank(message = \"密码不能为空\")\n    private String password;",
+  "suggestion_code": "    @NotBlank(message = \"密码不能为空\")\n    @ToString.Exclude\n    private String password;"
+ },
+ {
+  "severity": "low",
+  "category": "security",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/auth/dto/LoginRequest.java",
+  "start_line": 8,
+  "end_line": 9,
+  "content": "Input size is unbounded: only `@NotBlank` is enforced, so an arbitrarily long username/password is accepted. This is forwarded to the authentication/password-hashing logic and can be abused for resource exhaustion (e.g. extremely long BCrypt input). Add reasonable upper bounds using `@Size`, and optionally a lower bound for the password.",
+  "existing_code": "    @NotBlank(message = \"用户名不能为空\")\n    private String username;",
+  "suggestion_code": "    @NotBlank(message = \"用户名不能为空\")\n    @Size(max = 64, message = \"用户名长度不能超过64个字符\")\n    private String username;"
+ },
+ {
+  "severity": "low",
+  "category": "maintainability",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/auth/controller/AuthController.java",
+  "start_line": 39,
+  "end_line": 41,
+  "content": "审计日志落库失败被完全静默吞掉（连日志都没有），一旦 DB/映射出现问题，登录审计将长期缺失而无任何可观测信号。建议至少记录一条 warn 日志。",
+  "existing_code": "        } catch (Exception ignored) {\n            // 尽力而为:登录审计日志落库失败不影响登录主流程\n            }",
+  "suggestion_code": "        } catch (Exception e) {\n            // 尽力而为:登录审计日志落库失败不影响登录主流程\n            log.warn(\"登录审计日志落库失败, username={}\", request.getUsername(), e);\n        }"
+ },
+ {
+  "severity": "low",
+  "category": "maintainability",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/auth/controller/AuthController.java",
+  "start_line": 18,
+  "end_line": 18,
+  "content": "补充上一条：当前类未声明任何 logger 字段，若采纳记录日志的建议，需同时引入 `@Slf4j`（lombok）或自行声明 `private static final Logger log = LoggerFactory.getLogger(AuthController.class);`，否则建议代码无法编译。",
+  "existing_code": "public class AuthController {",
+  "suggestion_code": "@Slf4j\npublic class AuthController {"
+ },
+ {
+  "severity": "medium",
+  "category": "bug",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/auth/controller/AuthController.java",
+  "start_line": 53,
+  "end_line": 57,
+  "content": "OS 判定顺序有误，导致 `Android` / `iOS` 两个分支实际不可达（死代码）：\n- Android UA 形如 `Mozilla/5.0 (Linux; Android 10; ...)`，先被 `ua.contains(\"Linux\")` 命中，永远识别为 Linux；\n- iPhone/iPad UA 形如 `...(iPhone; CPU iPhone OS 17_0 like Mac OS X)...`，先被 `ua.contains(\"Mac OS\")` 命中，永远识别为 macOS。\n建议把移动端判断前置到 Linux/macOS 之前。",
+  "existing_code": "        if (ua.contains(\"Windows\")) os = \"Windows\";\n        else if (ua.contains(\"Mac OS\")) os = \"macOS\";\n        else if (ua.contains(\"Linux\")) os = \"Linux\";\n        else if (ua.contains(\"Android\")) os = \"Android\";\n        else if (ua.contains(\"iPhone\") || ua.contains(\"iOS\")) os = \"iOS\";",
+  "suggestion_code": "        if (ua.contains(\"Windows\")) os = \"Windows\";\n        else if (ua.contains(\"Android\")) os = \"Android\";\n        else if (ua.contains(\"iPhone\") || ua.contains(\"iPad\") || ua.contains(\"iOS\")) os = \"iOS\";\n        else if (ua.contains(\"Mac OS\")) os = \"macOS\";\n        else if (ua.contains(\"Linux\")) os = \"Linux\";"
+ },
+ {
+  "severity": "medium",
+  "category": "bug",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/auth/controller/AuthController.java",
+  "start_line": 80,
+  "end_line": 81,
+  "content": "`Long.parseLong(String.valueOf(gid))` 对非法输入会抛出 `NumberFormatException`，未被捕获时返回 500，而不是语义正确的 400 参数错误；同时用裸 `Map` 接收请求体绕过了 Bean Validation。建议捕获转换异常并抛出明确的业务异常，或改用带 `@NotNull`/`@Min` 校验的 DTO。",
+  "existing_code": "        Object gid = body.get(\"groupId\");\n        Long groupId = gid == null ? null : Long.parseLong(String.valueOf(gid));",
+  "suggestion_code": "        Object gid = body.get(\"groupId\");\n        Long groupId;\n        try {\n            groupId = gid == null ? null : Long.parseLong(String.valueOf(gid).trim());\n        } catch (NumberFormatException e) {\n            throw new BusinessException(400, \"groupId 参数非法\");\n        }"
+ },
+ {
+  "severity": "low",
+  "category": "performance",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/auth/controller/AuthController.java",
+  "start_line": 36,
+  "end_line": 37,
+  "content": "此处重复调用了 `ClientIpUtils.getClientIp(httpRequest)`，与上面已计算的 `ip` 值相同（同一请求内重复解析可信代理网段），建议直接复用 `ip`，避免重复计算且保证限流与审计所用 IP 完全同源。",
+  "existing_code": "            String ipLog = ClientIpUtils.getClientIp(httpRequest);\n            log.setIp(ipLog);",
+  "suggestion_code": "            log.setIp(ip);"
+ },
+ {
+  "severity": "medium",
+  "category": "bug",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/auth/dto/LoginResponse.java",
+  "start_line": 16,
+  "end_line": 16,
+  "content": "`pwdResetRequired` is declared as a nullable `Integer` flag. Any consumer doing `if (resp.getPwdResetRequired())` or comparing with `== 1` can hit an NPE / unboxing failure when the field is not populated (e.g. deserialized legacy payloads or code paths that forget to set it). Prefer a primitive/boxed boolean with a safe default, or document the null semantics.\n\nSuggested: `private Boolean pwdResetRequired = Boolean.FALSE;`",
+  "existing_code": "    private Integer pwdResetRequired;",
+  "suggestion_code": null
+ },
+ {
+  "severity": "low",
+  "category": "style",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/auth/dto/LoginResponse.java",
+  "start_line": 12,
+  "end_line": 12,
+  "content": "Inconsistent style: `java.util.List`/`java.util.ArrayList` are used fully-qualified here while other types rely on imports. Add `import java.util.List; import java.util.ArrayList;` (or use `var`-free explicit imports) for readability and to match the rest of the file/codebase conventions.",
+  "existing_code": "    private java.util.List<Long> groupIds = new java.util.ArrayList<>();",
+  "suggestion_code": null
+ },
+ {
+  "severity": "medium",
+  "category": "bug",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/auth/service/PermissionExplainService.java",
+  "start_line": 38,
+  "end_line": 40,
+  "content": "Both branches read the raw `user.getDataScope()`, which is not guaranteed non-null: `SecurityUser` is rebuilt from the cached `PermissionContext` (`rebuildFromContext` / `ctx.getDataScope()`), so a null scope is possible. The explanation would then literally print `数据范围=null` and the blocker check below would not fire even though the effective scope is SELF. Use the existing `SecurityUser#getEffectiveDataScope()` (which falls back to SELF) for a consistent view. Also, the `单一角色` label is emitted even when `roleCodes` is empty, which reads contradictory with the `(无角色)` placeholder.",
+  "existing_code": "        if (roleCodes.size() <= 1) {\n            scopeExplanations.add(String.format(\"单一角色 %s,数据范围=%s\",\n                    roleCodes.isEmpty() ? \"(无角色)\" : roleCodes.get(0), user.getDataScope()));",
+  "suggestion_code": "        String effectiveScope = user.getEffectiveDataScope();\n        if (roleCodes.size() <= 1) {\n            scopeExplanations.add(String.format(\"%s %s,数据范围=%s\",\n                    roleCodes.isEmpty() ? \"无角色\" : \"单一角色\",\n                    roleCodes.isEmpty() ? \"\" : roleCodes.get(0), effectiveScope));"
+ },
+ {
+  "severity": "low",
+  "category": "maintainability",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/auth/service/PermissionExplainService.java",
+  "start_line": 85,
+  "end_line": 85,
+  "content": "Hard-coding the \"self\" string duplicates `DataScopeType.SELF.getCode()` used everywhere else in the security code base; if the enum code changes this blocker silently stops firing. Use the enum constant together with the null-safe effective scope, and remember to add the missing `com.aigicrm.common.enums.DataScopeType` import.",
+  "existing_code": "        if (\"self\".equals(user.getDataScope())) blockers.add(\"数据范围=self:仅能看自己负责的数据\");",
+  "suggestion_code": "        if (DataScopeType.SELF.getCode().equals(user.getEffectiveDataScope())) blockers.add(\"数据范围=self:仅能看自己负责的数据\");"
+ },
+ {
+  "severity": "low",
+  "category": "maintainability",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/auth/service/PermissionExplainService.java",
+  "start_line": 78,
+  "end_line": 80,
+  "content": "`managedOrgCount` is only present when the collection is non-empty, so the response shape varies between users (key missing vs. present). Since this endpoint is meant to be parsed by tooling/UI, return the count unconditionally to keep the contract stable.",
+  "existing_code": "        if (user.getManagedOrgIds() != null && !user.getManagedOrgIds().isEmpty()) {\n            result.put(\"managedOrgCount\", user.getManagedOrgIds().size());\n        }",
+  "suggestion_code": "        result.put(\"managedOrgCount\",\n                user.getManagedOrgIds() != null ? user.getManagedOrgIds().size() : 0);"
+ },
+ {
+  "severity": "low",
+  "category": "maintainability",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/auth/service/PermissionExplainService.java",
+  "start_line": 23,
+  "end_line": 23,
+  "content": "The error is encoded inside an otherwise successful payload. The controller wraps this map in `Result.ok(...)`, so a client checking only `code/success` will treat a session-less response as a success and then have to special-case the `error` key. Signalling the failure by throwing a business/authorization exception (or by returning a distinct error result) keeps the response contract unambiguous. Note the controller already guards the endpoint with `@PreAuthorize(\"isAuthenticated()\")`, so this path is only reachable for non-`SecurityUser` principals.",
+  "existing_code": "        if (user == null) return Map.of(\"error\", \"无会话上下文\");",
+  "suggestion_code": null
+ },
+ {
+  "severity": "medium",
+  "category": "bug",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/auth/service/AuthService.java",
+  "start_line": 103,
+  "end_line": 104,
+  "content": "The `enabled` argument is inverted for the \"account does not exist\" case: when `user == null` the expression evaluates to `true`, so the audit record says `userExists=false enabled=true`, which is contradictory and will mislead the security investigation this audit trail exists for. `enabled` should be true only when the user exists and its status is not 0 (disabled).",
+  "existing_code": "            securityAudit.loginFailed(username, clientIp, user != null, user == null || user.getStatus() != 0,\n                    failCount, ipFailCount);",
+  "suggestion_code": "            securityAudit.loginFailed(username, clientIp, user != null, user != null && user.getStatus() != 0,\n                    failCount, ipFailCount);"
+ },
+ {
+  "severity": "medium",
+  "category": "bug",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/auth/service/AuthService.java",
+  "start_line": 275,
+  "end_line": 275,
+  "content": "Recursion has no cycle/depth guard. A row whose `parent_id` points to itself (or any parent/child cycle) makes `buildMenuTree(menus, m.getId())` return the node itself again, producing infinite recursion and a `StackOverflowError` (unrecoverable request failure). Since this method already accounts for hand-written/anomalous `sys_menu` rows (see `dedupeByPath`), add a visited-id set (or a depth cap) to make the traversal cycle-safe.",
+  "existing_code": "                .peek(m -> m.setChildren(buildMenuTree(menus, m.getId())))",
+  "suggestion_code": null
+ },
+ {
+  "severity": "medium",
+  "category": "performance",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/auth/service/AuthService.java",
+  "start_line": 144,
+  "end_line": 145,
+  "content": "N+1 query pattern: one `deptMapper.selectById` per position (and the same org id may repeat across positions). This runs on every login, so collect the distinct `orgId`s first and load them with a single `selectBatchIds` call.",
+  "existing_code": "            if (pos.getOrgId() != null) {\n                var dept = deptMapper.selectById(pos.getOrgId());",
+  "suggestion_code": null
+ },
+ {
+  "severity": "medium",
+  "category": "security",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/auth/service/AuthService.java",
+  "start_line": 115,
+  "end_line": 116,
+  "content": "Clearing the IP-wide failure counter on any successful login defeats the intent of `MAX_IP_LOGIN_FAILS` (anti distributed brute force): an attacker holding one valid credential can log in once to reset `login_fail_ip:<ip>` and immediately get another 20 failed attempts against other accounts, indefinitely. Only the per-user key should be cleared on success; the IP-level counter should be left to expire on its own (or be decremented rather than deleted).",
+  "existing_code": "        redisTemplate.delete(failKey);\n        redisTemplate.delete(ipFailKey);",
+  "suggestion_code": "        redisTemplate.delete(failKey);\n        // ipFailKey 不清零: 防止用单个有效账号重置 IP 级爆破计数"
+ },
+ {
+  "severity": "low",
+  "category": "bug",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/auth/service/AuthService.java",
+  "start_line": 323,
+  "end_line": 324,
+  "content": "`increment` creates the key without a TTL and `expire` is a second, non-atomic round trip. If the JVM dies / the `expire` call fails between the two commands, `pwd_reset_ip:<ip>` is left without expiry, which permanently returns 429 for that IP. Use a single atomic operation (Lua script or `opsForValue().set(...)` on creation with TTL) so the counter can never become immortal.",
+  "existing_code": "        redisTemplate.opsForValue().increment(ipRateKey);\n        redisTemplate.expire(ipRateKey, Duration.ofSeconds(RESET_IP_LOCK_SECONDS));",
+  "suggestion_code": null
+ },
+ {
+  "severity": "low",
+  "category": "bug",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/auth/service/AuthService.java",
+  "start_line": 312,
+  "end_line": 315,
+  "content": "Check-then-act race: the key is only written after the SMS has been sent (`set(rateKey, \"1\", ...)` further down), so concurrent requests for the same username all pass `hasKey` and each sends a real SMS. Make the reservation atomic with the check, e.g. `Boolean ok = redisTemplate.opsForValue().setIfAbsent(rateKey, \"1\", Duration.ofSeconds(RATE_LIMIT_SECONDS)); if (!Boolean.TRUE.equals(ok)) throw ...` (and delete the key if sending fails so the user can retry).",
+  "existing_code": "        String rateKey = RESET_RATE_PREFIX + request.getUsername() + \":phone\";\n        if (Boolean.TRUE.equals(redisTemplate.hasKey(rateKey))) {\n            throw new BusinessException(429, \"操作太频繁，请稍后再试\");\n        }",
+  "suggestion_code": null
+ },
+ {
+  "severity": "low",
+  "category": "bug",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/auth/service/AuthService.java",
+  "start_line": 194,
+  "end_line": 195,
+  "content": "`user` is dereferenced below (`user.getDeptId()`, `user.getOfficeId()`, `user.getUsername()`, ...) without a null check, unlike `switchGroup` which guards the same lookup. If the account is removed after the token was issued, this throws an NPE and returns a 500 instead of a 401. Fail fast with an explicit check.",
+  "existing_code": "        SysUser user = userMapper.selectById(userId);\n        List<SysRole> roles = roleMapper.selectRolesByUserId(userId);",
+  "suggestion_code": "        SysUser user = userMapper.selectById(userId);\n        if (user == null) {\n            throw new BusinessException(401, \"未登录\");\n        }\n        List<SysRole> roles = roleMapper.selectRolesByUserId(userId);"
+ },
+ {
+  "severity": "medium",
+  "category": "bug",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/controller/SysAuditLogController.java",
+  "start_line": 31,
+  "end_line": 31,
+  "content": "`size` is taken from the request without any lower-bound validation. The service only clamps the upper bound (`Math.min(size, MAX_PAGE_SIZE)`), so a request such as `?size=-1` (or `0`) is passed straight into `new Page<>(current, size)` and ends up as a negative/zero `LIMIT` in the generated SQL, which either throws a SQL syntax error (HTTP 500) or returns nothing unexpectedly. Please reject/clamp values below 1 on the entry point (e.g. `@Min(1)` with `@Validated`, or `Math.max(1, ...)` when building the page).",
+  "existing_code": "            @RequestParam(defaultValue = \"20\") int size,",
+  "suggestion_code": "            @RequestParam(defaultValue = \"20\") @Min(1) int size,"
+ },
+ {
+  "severity": "medium",
+  "category": "performance",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/controller/SysLogController.java",
+  "start_line": 23,
+  "end_line": 24,
+  "content": "Pagination parameters are not validated: `size` is passed straight through to MyBatis-Plus `Page`, so a caller can request `size=1000000` (or a negative/zero `current`) and trigger an unbounded table scan / huge in-memory result set, which is a cheap DoS vector on an audit-log endpoint. Consider clamping the values before delegating (e.g. `int safeCurrent = Math.max(current, 1); int safeSize = Math.min(Math.max(size, 1), 200);`) or adding `@Validated` + `@Min/@Max` on the parameters.",
+  "existing_code": "            @RequestParam(defaultValue = \"1\") int current,\n            @RequestParam(defaultValue = \"15\") int size,",
+  "suggestion_code": "            @RequestParam(defaultValue = \"1\") int current,\n            @RequestParam(defaultValue = \"15\") int size,"
+ },
+ {
+  "severity": "high",
+  "category": "security",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/controller/SysDictController.java",
+  "start_line": 37,
+  "end_line": 37,
+  "content": "Mass-assignment risk: the request body is bound directly to the persistence entity and then merged by id, so a caller with `system:config:edit` can overwrite fields that should be server-controlled — notably `builtIn`. Because `SysDictService.deleteType` only blocks deletion when `builtIn == 1`, a client can first PUT `{\"builtIn\":0}` to this endpoint (or POST it in `createType`/`createData`) and then DELETE the type, bypassing the \"系统内置字典不允许删除\" protection. `dictCode`/`status`/`createdAt` can likewise be tampered with. Suggest whitelisting the updatable fields (dedicated DTO / explicit setters) and forcing `builtIn`/`createdAt` on the server side.",
+  "existing_code": "    public Result<Void> updateType(@PathVariable Long id, @RequestBody SysDictType type) {",
+  "suggestion_code": null
+ },
+ {
+  "severity": "medium",
+  "category": "bug",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/controller/SysDictController.java",
+  "start_line": 30,
+  "end_line": 30,
+  "content": "No input validation on the write endpoints: the bodies are accepted without `@Valid`/`@Validated` and neither `SysDictType` nor `SysDictData` declares Bean Validation constraints, so null/blank `dictCode`, `dictName`, `dictValue`, etc. can be persisted (e.g. a null `dictCode` makes the duplicate check in `SysDictService.createType` pass and inserts an unusable dictionary entry). Suggest annotating the parameters with `@Valid` and adding constraints such as `@NotBlank`/`@Size` on the entity (or a request DTO), plus matching `@Validated` handling.",
+  "existing_code": "    public Result<Void> createType(@RequestBody SysDictType type) {",
+  "suggestion_code": null
+ },
+ {
+  "severity": "medium",
+  "category": "security",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/controller/SysGroupController.java",
+  "start_line": 27,
+  "end_line": 30,
+  "content": "`create` binds the request body directly to the `SysGroup` entity without validation and, unlike `update` (which forces `group.setId(id)`), it never clears the client-supplied `id`. With MyBatis-Plus `IdType.AUTO`, a non-null `id` in the body is inserted as-is, and fields such as `status` can also be set arbitrarily by the caller (mass assignment). Consider clearing `id`/`status` server-side or introducing a dedicated request DTO annotated with `@Valid` for required fields (`groupName`, `groupCode`).",
+  "existing_code": "    public Result<Void> create(@RequestBody SysGroup group) {\n        groupService.create(group);\n        return Result.ok();\n    }",
+  "suggestion_code": null
+ },
+ {
+  "severity": "medium",
+  "category": "bug",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/controller/SysConfigController.java",
+  "start_line": 87,
+  "end_line": 87,
+  "content": "The Content-Type of the locally stored logo file is hard-coded to `image/png`, but the file under `public/` can be any allowed image type (the upload whitelist in FileService accepts jpg/jpeg/gif/webp/bmp). A non-PNG logo will be served with a wrong MIME type, which may cause the browser to fail or mis-handle rendering (e.g. in BasicSettings/login preview). Derive the content type from the actual file name/content instead.",
+  "existing_code": "                            .header(HttpHeaders.CONTENT_TYPE, \"image/png\")",
+  "suggestion_code": "                            .header(HttpHeaders.CONTENT_TYPE, resolveImageContentType(resource.getFilename()))"
+ },
+ {
+  "severity": "low",
+  "category": "maintainability",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/controller/SysConfigController.java",
+  "start_line": 102,
+  "end_line": 104,
+  "content": "The broad `catch (Exception e)` silently swallows all failures and returns a transparent SVG without any logging. Real failures (e.g. config lookup errors, malformed logo URL, file system problems) become invisible and are very hard to diagnose in production. Add at least a warn-level log before degrading.",
+  "existing_code": "        } catch (Exception e) {\n            return transparentSvg();\n        }",
+  "suggestion_code": "        } catch (Exception e) {\n            org.slf4j.LoggerFactory.getLogger(SysConfigController.class)\n                    .warn(\"logo 加载失败: {}\", e.getMessage());\n            return transparentSvg();\n        }"
+ },
+ {
+  "severity": "medium",
+  "category": "performance",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/controller/SysPositionController.java",
+  "start_line": 81,
+  "end_line": 82,
+  "content": "N+1 query: `positionService.getRules(id)` performs a DB query (`ruleMapper.selectByPositionId`) for every element of `positionIds`, so a request assigning N positions triggers up to N queries. Use a single batch query (e.g. add `SysPositionService.hasAnyRules(Collection<Long> positionIds)` doing one `selectCount(... in(positionIds))` or a `selectByPositionIds` + in-memory check) and evaluate the result once.",
+  "existing_code": "            boolean hasRulePosition = positionIds.stream()\n                    .anyMatch(id -> !positionService.getRules(id).isEmpty());",
+  "suggestion_code": null
+ },
+ {
+  "severity": "high",
+  "category": "security",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/controller/SysPositionController.java",
+  "start_line": 83,
+  "end_line": 83,
+  "content": "Check-then-act (TOCTOU) race: the permission check and the assignment are not atomic. A concurrent request to `PUT /{positionId}/rules` (or any other path that binds rules to the position) can attach permission rules to the position in the window between this check and `assignUserPositions`, letting a non-admin obtain a rule-carrying position and bypass the intended protection. Perform the check inside the same transaction as the assignment (or serialize on the position row, e.g. `SELECT ... FOR UPDATE` / re-validate after assignment with rollback on violation).",
+  "existing_code": "            if (hasRulePosition) throw new BusinessException(\"无权指派携带权限规则的岗位\");",
+  "suggestion_code": null
+ },
+ {
+  "severity": "high",
+  "category": "security",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/controller/SysPositionController.java",
+  "start_line": 59,
+  "end_line": 62,
+  "content": "The rule-binding endpoint lacks the admin guard that `assignUserPositions` enforces for \"positions carrying permission rules are privileged\". A user holding only `system:position:edit` can call this endpoint on a position that is (or later becomes) assigned to them – or on another user's position – and attach arbitrary permission rules, granting those permissions at login. Note `saveRules` also performs no group-scope check on `positionId`, so cross-group positions can be modified. Restrict rule binding to admins, or validate that the submitted rule IDs are a subset of the caller's own effective permissions.",
+  "existing_code": "    @PutMapping(\"/{positionId}/rules\")\n    @PreAuthorize(\"hasAuthority('system:position:edit')\")\n    public Result<Void> updateRules(@PathVariable Long positionId, @RequestBody Map<String, List<Long>> body) {\n        positionService.saveRules(positionId, body.get(\"ruleIds\"));",
+  "suggestion_code": null
+ },
+ {
+  "severity": "medium",
+  "category": "bug",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/controller/SysPositionController.java",
+  "start_line": 61,
+  "end_line": 64,
+  "content": "`body.get(\"ruleIds\")` returns null when the key is absent or explicitly null, and `SysPositionService.saveRules(positionId, null)` deletes all existing bindings and returns. So a malformed/partial request silently wipes the position's permission rules instead of failing. Reject a missing key explicitly (same concern applies to `positionIds` in `assignUserPositions`), e.g. use a typed DTO with `@NotNull`, or throw `BusinessException` when the list is null.",
+  "existing_code": "    public Result<Void> updateRules(@PathVariable Long positionId, @RequestBody Map<String, List<Long>> body) {\n        positionService.saveRules(positionId, body.get(\"ruleIds\"));\n        return Result.ok();\n    }",
+  "suggestion_code": null
+ },
+ {
+  "severity": "medium",
+  "category": "bug",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/controller/SysDeptController.java",
+  "start_line": 78,
+  "end_line": 79,
+  "content": "`deptId` 路径参数被声明但从未使用：删除只以记录主键 `id` 为依据，接口不校验该记录是否真属于 URL 中的 `{deptId}`。OrgAdminService.removeOrgAdmin(id) 仅按记录自身的 orgId 做管辖校验（见 OrgAdminService.java:81-93），因此传入与 `{deptId}` 不一致的 `id` 也能成功删除别的部门的管理员记录——对 admin 或跨组织管辖的账号尤其明显，也容易掩盖前端传参错误。建议要么删除该路径变量，要么在删除前校验记录归属（如按 deptId 查询该记录再删除）。",
+  "existing_code": "    public Result<Void> removeAdmin(@PathVariable Long deptId, @PathVariable Long id) {\n        orgAdminService.removeOrgAdmin(id);",
+  "suggestion_code": null
+ },
+ {
+  "severity": "low",
+  "category": "maintainability",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/controller/SysDeptController.java",
+  "start_line": 41,
+  "end_line": 41,
+  "content": "create/update 直接把请求体绑定到实体 `SysDept` 并透传给 Service，缺少入参校验与字段白名单：\n1) 实体无任何 Bean Validation 约束，`deptName` 为空/全空白会以非法数据入库或抛 DB 异常返回 500（而非 400）；\n2) update 会把客户端可构造的 `parentId` 原样写入，`parentId` 指向自身或其后代时会破坏部门树（SysDeptService.scopeFilter 按 parentId 上溯祖先链的 while 循环在这种情况下会无法终止），建议在服务层加入“不得设为自身或自身后代”的校验；\n3) 客户端还可覆盖 `groupId/legalEntityId/status/deptType` 等非编辑用途字段（over-posting）。\n建议改为专用 DTO + `@Valid`，只暴露允许修改的字段。",
+  "existing_code": "    public Result<Void> create(@RequestBody SysDept dept) {",
+  "suggestion_code": null
+ },
+ {
+  "severity": "low",
+  "category": "bug",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/controller/SysRuleVersionController.java",
+  "start_line": 27,
+  "end_line": 27,
+  "content": "`size` (and `current`) are accepted without any lower-bound validation. The service only clamps the upper bound (`Math.min(size, 100)`), so a request such as `?size=-5` produces a `Page` with a negative size, which MyBatis-Plus renders into the pagination SQL (`LIMIT -5`) and can raise a SQL exception / HTTP 500 instead of a clean error. Please bound the parameter (e.g. `@Min(1)` together with `@Validated`, or clamp with `Math.max(1, size)` before calling the service).",
+  "existing_code": "            @RequestParam(defaultValue = \"20\") int size,",
+  "suggestion_code": "            @RequestParam(defaultValue = \"20\") @Min(1) int size,"
+ },
+ {
+  "severity": "medium",
+  "category": "bug",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/entity/SysDictType.java",
+  "start_line": 17,
+  "end_line": 18,
+  "content": "`createdAt` / `updatedAt` are declared without MyBatis-Plus auto-fill annotations, while the project's `com.aigicrm.common.BaseEntity` (and every other entity such as `SysUser`, `BizCustomer`) maps them via `@TableField(fill = FieldFill.INSERT)` / `@TableField(fill = FieldFill.INSERT_UPDATE)`. As written these columns will remain null on insert/update unless they are set manually, which is inconsistent with the rest of the codebase and can break audit/timestamp logic. Recommend extending `BaseEntity` (and dropping the duplicated `id`/`createdAt`/`updatedAt` fields), or add the missing fill annotations.",
+  "existing_code": "    private LocalDateTime createdAt;\n    private LocalDateTime updatedAt;",
+  "suggestion_code": "    @TableField(fill = FieldFill.INSERT)\n    private LocalDateTime createdAt;\n    @TableField(fill = FieldFill.INSERT_UPDATE)\n    private LocalDateTime updatedAt;"
+ },
+ {
+  "severity": "low",
+  "category": "maintainability",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/controller/RolePermScopeController.java",
+  "start_line": 44,
+  "end_line": 47,
+  "content": "Read endpoint lacks the assignee-type whitelist enforced by its PUT counterpart (`updateAssigneeScopes`). Here `type` is passed straight to `rolePermScopeService.getAssigneeScopes(type, key)` → `WHERE assignee_type=? AND assignee_key=?`, so any unsupported/typo value (e.g. `ROLE`, `POSITON`) silently returns an empty list instead of a clear error, which is hard to diagnose from the UI. Note the javadoc above also claims this is \"岗位级(assigneeType=POSITION)\" while the endpoint actually accepts `USER` (and, unvalidated, anything else). Suggest reusing the same `ScopeConfig.ASSIGNEE_POSITION/USER` check (or a shared validation helper used by both PUT and GET) and fixing the javadoc.",
+  "existing_code": "    @GetMapping(\"/assignee/{type}/{key}\")\n    public Result<List<Map<String, Object>>> getAssigneeScopes(@PathVariable String type, @PathVariable String key) {\n        return Result.ok(rolePermScopeService.getAssigneeScopes(type, key));\n    }",
+  "suggestion_code": "    @GetMapping(\"/assignee/{type}/{key}\")\n    public Result<List<Map<String, Object>>> getAssigneeScopes(@PathVariable String type, @PathVariable String key) {\n        if (!ScopeConfig.ASSIGNEE_POSITION.equals(type) && !ScopeConfig.ASSIGNEE_USER.equals(type)) {\n            throw new BusinessException(\"仅支持岗位(POSITION)/用户(USER)级配置, 角色级请走 /{roleCode}\");\n        }\n        return Result.ok(rolePermScopeService.getAssigneeScopes(type, key));\n    }"
+ },
+ {
+  "severity": "medium",
+  "category": "security",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/controller/SysPermissionRuleController.java",
+  "start_line": 27,
+  "end_line": 28,
+  "content": "The request body is bound directly to the persistence entity and is never validated (`@Valid` would be a no-op here since `SysPermissionRule` declares no constraints). Consequences: (1) clients can over-post server-managed fields such as `id`/`createTime`/`updateTime` — `createTime` is only auto-filled when null, so a caller-supplied value is persisted; (2) arbitrary `ruleType`/`operator`/`targetColumn` strings are persisted verbatim and later consumed by `PermissionRuleEngine`, where an unrecognized `operator` matches no `switch` branch and therefore emits no WHERE clause — i.e. a mis-typed rule silently disables the data-permission filter instead of failing. Recommend accepting a dedicated DTO (or ignoring server-managed fields) and whitelist-validating `ruleType`/`operator` before delegating to the service. The same applies to `update(...)` below.",
+  "existing_code": "    public Result<Void> create(@RequestBody SysPermissionRule rule) {\n        ruleService.create(rule);",
+  "suggestion_code": null
+ },
+ {
+  "severity": "low",
+  "category": "bug",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/controller/SysRoleController.java",
+  "start_line": 38,
+  "end_line": 38,
+  "content": "`getOrgs` unconditionally returns `role.getOrgIds()`, but `SysRoleService.getById` only populates `orgIds` when the role's `dataScope` equals `CUSTOM` (see service lines 67-71); for any other data scope the field stays `null`, so this API responds `200` with `data: null`. The frontend org-scope tree expects a list and will NPE/behave incorrectly on `null`. Return an empty list for the null case to keep the contract stable.",
+  "existing_code": "        return Result.ok(role.getOrgIds());",
+  "suggestion_code": "        List<Long> orgIds = role.getOrgIds();\n        return Result.ok(orgIds == null ? List.of() : orgIds);"
+ },
+ {
+  "severity": "low",
+  "category": "maintainability",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/controller/SysRoleController.java",
+  "start_line": 34,
+  "end_line": 34,
+  "content": "Fully-qualified class names are used inline here for `SysRole` (and `BusinessException` on the next line) even though `SysRole` is already imported and `Result`/`SysRoleService` use simple names. This is inconsistent with the rest of the file and hurts readability; better to add `import com.aigicrm.common.BusinessException;` (SysRole is already imported) and use the simple names.",
+  "existing_code": "        com.aigicrm.module.system.entity.SysRole role = roleService.getById(id);",
+  "suggestion_code": "        SysRole role = roleService.getById(id);"
+ },
+ {
+  "severity": "low",
+  "category": "performance",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/controller/SysUserController.java",
+  "start_line": 28,
+  "end_line": 28,
+  "content": "The page size is not bounded. `PaginationInnerInterceptor` is registered without `setMaxLimit`, so a caller can pass `size=1000000` (or a negative value) and force a very large result set / full-table scan. Clamp the value (e.g. `[1, 100]`) before building the page.",
+  "existing_code": "            @RequestParam(defaultValue = \"15\") int size,",
+  "suggestion_code": "            @RequestParam(defaultValue = \"15\") int size, // 使用前应 clamp 到 [1, 100]"
+ },
+ {
+  "severity": "medium",
+  "category": "security",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/controller/SysUserController.java",
+  "start_line": 45,
+  "end_line": 45,
+  "content": "Fail-open authorization guard: the org-admin scope check is skipped entirely whenever `orgId` is absent (`user.getOrgId() != null` short-circuits). Because `orgId` is bound directly from the client request body (SysUser.orgId is a normal field, no `@JsonIgnore`), a caller holding `system:org:admin` can create a user without any managed-org validation by simply omitting `orgId` (the created row then has org_id = NULL, i.e. bound to no organization at all, and `OrgAdminService.canManageUser` returns false for such rows). The check should fail closed (reject a missing/out-of-scope org) and, better, be enforced in `SysUserService.create` from the authenticated caller's managed orgs rather than trusting a body field.",
+  "existing_code": "        if (SecurityUtils.isOrgAdmin() && user.getOrgId() != null && !orgAdminService.canManageOrg(user.getOrgId())) {",
+  "suggestion_code": "        if (SecurityUtils.isOrgAdmin() && (user.getOrgId() == null || !orgAdminService.canManageOrg(user.getOrgId()))) {"
+ },
+ {
+  "severity": "medium",
+  "category": "bug",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/controller/SysUserController.java",
+  "start_line": 72,
+  "end_line": 73,
+  "content": "`Map.get` returns null when a key is missing, and `@RequestBody` can also bind a JSON literal `null` (making `params` itself null). Both values are passed straight to `SysUserService.changePassword`, which calls `passwordEncoder.matches(oldPassword, ...)` / `passwordEncoder.encode(newPassword)` — Spring Security's encoders throw `IllegalArgumentException` on a null password, turning a malformed request into an HTTP 500 instead of a 400. Validate the presence of both parameters (and `params` itself) before delegating.",
+  "existing_code": "        userService.changePassword(SecurityUtils.getCurrentUserId(),\n                params.get(\"oldPassword\"), params.get(\"newPassword\"));",
+  "suggestion_code": "        if (params == null) throw new BusinessException(\"请求参数不能为空\");\n        String oldPassword = params.get(\"oldPassword\");\n        String newPassword = params.get(\"newPassword\");\n        if (!StringUtils.hasText(oldPassword) || !StringUtils.hasText(newPassword)) {\n            throw new BusinessException(\"原密码和新密码不能为空\");\n        }\n        userService.changePassword(SecurityUtils.getCurrentUserId(), oldPassword, newPassword);"
+ },
+ {
+  "severity": "medium",
+  "category": "security",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/controller/SysUserController.java",
+  "start_line": 56,
+  "end_line": 57,
+  "content": "The org-admin guard only validates the *current* state of the target user (`canManageUser(id)`); the mutated fields in the request body are never scope-checked. `SysUserService.update` copies `deptId`/`officeId`/`status` verbatim from the body, so an org admin who manages this user can relocate them into a department of another organization (or flip their status) — the target org of the *write* is not validated, unlike `create` which validates the target org. Add a scope check on the new organization/department (e.g. resolve the department's org and verify `canManageOrg`) before delegating.",
+  "existing_code": "        user.setId(id);\n        userService.update(user);",
+  "suggestion_code": null
+ },
+ {
+  "severity": "low",
+  "category": "maintainability",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/entity/SysOrgAdmin.java",
+  "start_line": 14,
+  "end_line": 14,
+  "content": "`createdAt` 缺少 `@TableField(fill = FieldFill.INSERT)` 注解，与项目内其他审计实体（SysUser、SysGroup、SysUserPosition、BizFolderAcl 等）不一致。项目已注册的 `MetaObjectHandler` 使用 `strictInsertFill(\"createdAt\", ...)`，只有标注了 fill 的字段才会被自动填充，因此本实体插入后 `createdAt` 在内存对象中始终为 null（仅依赖 DB 的 `DEFAULT CURRENT_TIMESTAMP` 兜底），若后续代码复用插入后的实体对象会读到 null 值。建议补上该注解以保持行为一致。",
+  "existing_code": "    private LocalDateTime createdAt;",
+  "suggestion_code": "    @TableField(fill = FieldFill.INSERT)\n    private LocalDateTime createdAt;"
+ },
+ {
+  "severity": "medium",
+  "category": "bug",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/entity/SysPosition.java",
+  "start_line": 33,
+  "end_line": 37,
+  "content": "The auto-fill field names here do not match the global MetaObjectHandler, which only fills properties named `createdAt` and `updatedAt` (see MybatisPlusConfig#metaObjectHandler: strictInsertFill(\"createdAt\") / strictInsertFill(\"updatedAt\") / strictUpdateFill(\"updatedAt\")). Because these properties are named `createTime`/`updateTime`, the fill handler can never set them.\n\nSince fields annotated with `FieldFill.INSERT/INSERT_UPDATE` are included in the generated INSERT/UPDATE SQL unconditionally, they will be written as NULL, overriding the column defaults (`create_time DEFAULT CURRENT_TIMESTAMP`, `update_time ... ON UPDATE CURRENT_TIMESTAMP`), so the audit timestamps end up empty. This is also inconsistent with the rest of the module (SysUser/SysGroup/SysRole/BizCustomer all use `createdAt`/`updatedAt`).\n\nFix by aligning with the handler (explicit column mapping keeps the existing DB columns), or alternatively extend MetaObjectHandler to also fill `createTime`/`updateTime`.",
+  "existing_code": "    @TableField(fill = FieldFill.INSERT)\n    private LocalDateTime createTime;\n\n    @TableField(fill = FieldFill.INSERT_UPDATE)\n    private LocalDateTime updateTime;",
+  "suggestion_code": "    @TableField(value = \"create_time\", fill = FieldFill.INSERT)\n    private LocalDateTime createdAt;\n\n    @TableField(value = \"update_time\", fill = FieldFill.INSERT_UPDATE)\n    private LocalDateTime updatedAt;"
+ },
+ {
+  "severity": "medium",
+  "category": "maintainability",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/entity/SysRole.java",
+  "start_line": 23,
+  "end_line": 24,
+  "content": "`createdAt`/`updatedAt` are missing the `@TableField(fill = ...)` annotations that sibling entities use (see `SysUser.createdAt/updatedAt`, `SysPosition.createTime/updateTime`). The global `MetaObjectHandler` in `MybatisPlusConfig` uses `strictInsertFill`/`strictUpdateFill`, which only populate fields declared with a fill strategy, so for `SysRole` these columns are never filled by the handler — the code silently depends on the DB defaults (`DEFAULT CURRENT_TIMESTAMP`). Consequences: (1) the in-memory entity returned right after `roleMapper.insert(role)` keeps `createdAt`/`updatedAt == null`; (2) because `SysRole` is also bound directly from the request body in `SysRoleController` (`@RequestBody SysRole role`), a client-supplied `createdAt`/`updatedAt` value is non-null and therefore written verbatim into the column, bypassing the intended generation logic. Adding the fill annotations keeps the entity consistent with the rest of the project and closes the naive timestamp injection path.",
+  "existing_code": "    private LocalDateTime createdAt;\n    private LocalDateTime updatedAt;",
+  "suggestion_code": "    @TableField(fill = FieldFill.INSERT)\n    private LocalDateTime createdAt;\n    @TableField(fill = FieldFill.INSERT_UPDATE)\n    private LocalDateTime updatedAt;"
+ },
+ {
+  "severity": "low",
+  "category": "maintainability",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/mapper/SysAuditLogMapper.java",
+  "start_line": 9,
+  "end_line": 9,
+  "content": "The Javadoc states this mapper is append-only (only insert/select), but extending `BaseMapper<SysAuditLog>` still publishes `updateById`/`update`/`deleteById`/`delete` to every caller. Those calls compile fine and only blow up at runtime with a DB trigger error, so the append-only guarantee is enforced late and non-obviously. Consider narrowing the contract at compile time, e.g. declaring an explicit mapper that exposes only the needed statements (`insert` + `selectPage`/`selectList`), or add a comment/`@Deprecated` note on the inherited mutation methods so callers know they are unsupported.",
+  "existing_code": "public interface SysAuditLogMapper extends BaseMapper<SysAuditLog> {",
+  "suggestion_code": null
+ },
+ {
+  "severity": "low",
+  "category": "maintainability",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/mapper/SysRuleVersionMapper.java",
+  "start_line": 9,
+  "end_line": 9,
+  "content": "The Javadoc states this mapper is \"append-only (仅 insert/select)\", but extending `BaseMapper<SysRuleVersion>` also exposes `updateById`/`update`/`deleteById`/`delete` etc. Nothing prevents the service/controller layer from calling them, so the append-only invariant of a rule-audit table is not actually enforced. Consider not extending `BaseMapper` (declare only `insert`/`selectPage`/`selectList`), or marking this as read-only and overriding the mutation methods to throw `UnsupportedOperationException`.",
+  "existing_code": "public interface SysRuleVersionMapper extends BaseMapper<SysRuleVersion> {",
+  "suggestion_code": null
+ },
+ {
+  "severity": "low",
+  "category": "maintainability",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/entity/SysRuleVersion.java",
+  "start_line": 22,
+  "end_line": 22,
+  "content": "`createdAt` 未声明 MyBatis-Plus 的自动填充注解。项目在 `MybatisPlusConfig#metaObjectHandler()` 中通过 `strictInsertFill(..., \"createdAt\", ...)` 统一填充创建时间，而 `strictInsertFill` 只会对声明了 `@TableField(fill = FieldFill.INSERT)` 的字段生效（参见 `BaseEntity`、`SysUser`、`SysGroup` 等实体）。当前该字段没有任何 fill 声明，实体被 `SysConfigService#recordRuleVersion` 插入时 `createdAt` 为 null；只是因为迁移脚本 `V2026.09.19.5__rule_version.sql` 中 `created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP` 才没有报错，一旦表结构默认值被调整（或改用其它数据源/建表脚本）该插入会直接失败。建议与项目其它实体保持一致，补上 `@TableField(fill = FieldFill.INSERT)`。",
+  "existing_code": "    private LocalDateTime createdAt;",
+  "suggestion_code": "    @TableField(fill = FieldFill.INSERT)\n    private LocalDateTime createdAt;"
+ },
+ {
+  "severity": "low",
+  "category": "maintainability",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/mapper/SysPositionMapper.java",
+  "start_line": 15,
+  "end_line": 15,
+  "content": "Inconsistent parameter binding: sibling mappers in the same package (SysPermissionRuleMapper#selectByUserId, SysRoleOrgMapper#selectByUserId, SysUserOrgMapper#selectByUserId) all bind the userId with `@Param(\"userId\")`. Here the annotation is missing. It happens to work only because the method has a single simple (non-collection) parameter, which MyBatis resolves by value; as soon as a second parameter is added, or `useActualParamName`/`-parameters` behaviour changes, `#{userId}` will no longer resolve and the query fails at runtime. Please declare it explicitly for robustness and consistency.",
+  "existing_code": "    List<SysPosition> selectByUserId(Long userId);",
+  "suggestion_code": "import org.apache.ibatis.annotations.Param;\n...\n    List<SysPosition> selectByUserId(@Param(\"userId\") Long userId);"
+ },
+ {
+  "severity": "low",
+  "category": "bug",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/mapper/SysPositionMapper.java",
+  "start_line": 14,
+  "end_line": 14,
+  "content": "The query has no deterministic ordering, yet its result is surfaced directly as the `positions` list of the login/user-info response (AuthService#getUserInfo) and the entity exposes a `sort` column (see sys_position DDL) meant for exactly this purpose. Without `ORDER BY p.sort`, MySQL may return rows in an arbitrary order (e.g. after plan/insert changes), causing the position list order to change between requests. Suggest adding an explicit sort.",
+  "existing_code": "            \"WHERE up.user_id = #{userId} AND p.status = 1\")",
+  "suggestion_code": "            \"WHERE up.user_id = #{userId} AND p.status = 1 \" +\n            \"ORDER BY p.sort, p.id\")"
+ },
+ {
+  "severity": "high",
+  "category": "bug",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/mapper/SysRoleOrgMapper.java",
+  "start_line": 27,
+  "end_line": 29,
+  "content": "Inconsistent role validity check: `SysRoleMapper.selectRolesByUserId` filters `r.status = 1` (disabled roles must not take effect), but this query joins only `sys_user_role` without joining `sys_role`. As a result, org grants belonging to a **disabled role** are still returned and flow into `SecurityUser.managedOrgIds` (see `UserDetailsServiceImpl` line 123 and `OrgScopeResolver.loadRoleOrgs` line 491), silently widening the user's custom data scope after the role is disabled. Add the same status filter.",
+  "existing_code": "    @Select(\"SELECT DISTINCT ro.* FROM sys_role_org ro \" +\n            \"INNER JOIN sys_user_role ur ON ro.role_id = ur.role_id \" +\n            \"WHERE ur.user_id = #{userId}\")",
+  "suggestion_code": "    @Select(\"SELECT DISTINCT ro.* FROM sys_role_org ro \" +\n            \"INNER JOIN sys_user_role ur ON ro.role_id = ur.role_id \" +\n            \"INNER JOIN sys_role r ON ro.role_id = r.id AND r.status = 1 \" +\n            \"WHERE ur.user_id = #{userId}\")"
+ },
+ {
+  "severity": "low",
+  "category": "maintainability",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/mapper/SysRoleOrgMapper.java",
+  "start_line": 19,
+  "end_line": 19,
+  "content": "`SELECT *` couples the mapping to the current table layout: any column added later is silently fetched and mapped (or fails mapping if the entity lacks the field), and unused columns are transferred on every call. Prefer listing the required columns explicitly.",
+  "existing_code": "    @Select(\"SELECT * FROM sys_role_org WHERE role_id = #{roleId}\")",
+  "suggestion_code": "    @Select(\"SELECT id, role_id, org_id, include_children FROM sys_role_org WHERE role_id = #{roleId}\")"
+ },
+ {
+  "severity": "low",
+  "category": "maintainability",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/entity/SysUser.java",
+  "start_line": 6,
+  "end_line": 6,
+  "content": "Redundant import: `import com.baomidou.mybatisplus.annotation.*;` (line 3) already covers `FieldStrategy`, so this explicit import is dead/redundant. Either drop it or replace the wildcard with explicit imports to keep the import list unambiguous.",
+  "existing_code": "import com.baomidou.mybatisplus.annotation.FieldStrategy;",
+  "suggestion_code": null
+ },
+ {
+  "severity": "medium",
+  "category": "security",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/entity/SysUser.java",
+  "start_line": 17,
+  "end_line": 18,
+  "content": "`@JsonIgnore` only protects the JSON serialization path; Lombok `@Data` still generates `toString()`, `equals()` and `hashCode()` that include `password`, so any accidental `log.info(\"...{}\", user)` / exception message containing the entity would leak the BCrypt hash into logs. Recommend excluding the sensitive fields from Lombok's generated members (same applies to `wechatOpenid`/`wechatUnionid`).",
+  "existing_code": "    @JsonIgnore\n    private String password;",
+  "suggestion_code": "    @JsonIgnore\n    @ToString.Exclude\n    @EqualsAndHashCode.Exclude\n    private String password;"
+ },
+ {
+  "severity": "medium",
+  "category": "bug",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/mapper/SysDeptMapper.java",
+  "start_line": 12,
+  "end_line": 13,
+  "content": "All three recursive CTEs use `UNION ALL` without any depth/cycle guard. Department parent links are user-editable (`sys_dept.parent_id` can be pointed at a descendant or at itself), and any cycle makes the recursion unbounded: MySQL aborts with \"Recursive query aborted after 1001 iterations\" (error 3636). Since these queries sit on the permission/data-scope path (OrgScopeResolver, UserDetailsServiceImpl, SysRoleService.validateRoleOrgsGroup), a single bad row would make any scope resolution over the affected department fail (fail-closed / availability hit). Add a level guard (shown below) or enforce tree integrity at write time.",
+  "existing_code": "    @Select(\"WITH RECURSIVE dept_tree AS (\" +\n            \"  SELECT id FROM sys_dept WHERE id = #{deptId} AND status = 1 \" +",
+  "suggestion_code": "    @Select(\"WITH RECURSIVE dept_tree AS (\" +\n            \"  SELECT id, 0 AS lvl FROM sys_dept WHERE id = #{deptId} AND status = 1 \" +\n            \"  UNION ALL \" +\n            \"  SELECT d.id, t.lvl + 1 FROM sys_dept d INNER JOIN dept_tree t ON d.parent_id = t.id AND d.status = 1 WHERE t.lvl < 100\" +\n            \") SELECT id FROM dept_tree\")"
+ },
+ {
+  "severity": "low",
+  "category": "bug",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/mapper/SysDeptMapper.java",
+  "start_line": 24,
+  "end_line": 24,
+  "content": "Status handling is inconsistent between the sibling queries: `selectDescendantIds` and `selectDescendantGroupIds` both filter `status = 1` in the anchor and the recursive step, while this query walks the whole parent chain regardless of status. As a result the \"effective group\" returned here can be inherited from a disabled (`status = 0`) department, and it also diverges from the data-hygiene SQL that validates the same semantics (`scripts/check-permission-data.sh` line 163 filters `status = 1` on both the anchor and the recursive join). Since the result drives role-scope authorization checks, please confirm the intended semantics and either add the status filter here or document why it is intentionally omitted.",
+  "existing_code": "            \"  SELECT id, parent_id, group_id, 0 AS depth FROM sys_dept WHERE id = #{deptId} \" +",
+  "suggestion_code": null
+ },
+ {
+  "severity": "medium",
+  "category": "bug",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/mapper/SysOrgAdminMapper.java",
+  "start_line": 18,
+  "end_line": 18,
+  "content": "The recursion has no termination/cycle guard other than MySQL's global `cte_max_recursion_depth`. If `sys_dept.parent_id` ever forms a cycle (self-reference or an ancestor loop, e.g. via a bad dept move/import), this query aborts with \"Recursive query aborted after 1001 iterations\" and the whole permission lookup (canManageOrg/canManageUser) fails with a 500 for that user. Consider adding a depth counter (`0 AS depth` in the seed, `t.depth + 1` in the recursive branch, `WHERE t.depth < N`) and/or validating `parent_id` on dept updates so a cycle cannot be persisted.",
+  "existing_code": "            \"  SELECT d2.id FROM sys_dept d2 INNER JOIN org_tree t ON d2.parent_id = t.id AND d2.status = 1\" +",
+  "suggestion_code": null
+ },
+ {
+  "severity": "medium",
+  "category": "bug",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/mapper/SysOrgAdminMapper.java",
+  "start_line": 17,
+  "end_line": 17,
+  "content": "`UNION ALL` in the recursive CTE can emit duplicated org IDs. When a user is admin of both an ancestor org and one of its descendants (very common), both become seed rows and the ancestor's traversal re-emits the whole descendant sub-tree, so the same id appears multiple times (`sys_org_admin` also has no unique key on (user_id, org_id), so duplicate admin rows amplify this). The duplicates propagate into `SecurityUtils.getCurrentManagedOrgIds()` / the permission cache and into `... .in(SysUser::getOrgId, orgIds)` clauses. Prefer de-duplicating the final projection (keep `UNION ALL` for traversal performance).",
+  "existing_code": "            \"  UNION ALL \" +",
+  "suggestion_code": "            \"  UNION ALL \" +"
+ },
+ {
+  "severity": "low",
+  "category": "bug",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/mapper/SysOrgAdminMapper.java",
+  "start_line": 18,
+  "end_line": 18,
+  "content": "`d2.status = 1` inside the recursive branch prunes the entire sub-tree below a disabled dept, not just the disabled node itself. So if a mid-level dept is disabled while its children remain enabled, the admin of the parent org silently loses manageability over those (enabled) sub-orgs, which contradicts the documented \"含递归下级\" semantics. If only the disabled orgs themselves should be hidden, the status filter should be applied to the final result instead of the recursive step (or the recursion should still descend through disabled nodes).",
+  "existing_code": "            \"  SELECT d2.id FROM sys_dept d2 INNER JOIN org_tree t ON d2.parent_id = t.id AND d2.status = 1\" +",
+  "suggestion_code": null
+ },
+ {
+  "severity": "low",
+  "category": "maintainability",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/mapper/SysUserOrgMapper.java",
+  "start_line": 19,
+  "end_line": 19,
+  "content": "`SELECT *` relies on the physical column order/names and will silently pull in any columns added to `sys_user_org` later (breaking mapping if a new column name does not match the entity field, e.g. a column added without a matching property). Prefer listing the mapped columns explicitly to keep the statement stable and consistent with the entity.",
+  "existing_code": "    @Select(\"SELECT * FROM sys_user_org WHERE user_id = #{userId} ORDER BY id\")",
+  "suggestion_code": "    @Select(\"SELECT id, user_id, org_id, include_children FROM sys_user_org WHERE user_id = #{userId} ORDER BY id\")"
+ },
+ {
+  "severity": "medium",
+  "category": "bug",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/mapper/SysUserMapper.java",
+  "start_line": 15,
+  "end_line": 16,
+  "content": "`LIMIT 1` without `ORDER BY` on a multi-row join result is non-deterministic in MySQL. When a user holds several roles (`sys_user_role` has multiple rows), `role_name` and `role_id` are picked from an arbitrary row, and since the `role_name` sub-query joins `sys_role` while the `role_id` sub-query queries `sys_user_role` directly, the two can even be resolved from different rows, producing an inconsistent `role_id`/`role_name` pair. Make the pick deterministic (and identical to the one used in `ORDER BY`) by adding an explicit inner ordering, e.g. `... WHERE ur.user_id = u.id ORDER BY r.id ASC LIMIT 1`.",
+  "existing_code": "            \"(SELECT r.role_name FROM sys_role r JOIN sys_user_role ur ON r.id = ur.role_id WHERE ur.user_id = u.id LIMIT 1) as role_name, \" +\n            \"(SELECT ur.role_id FROM sys_user_role ur WHERE ur.user_id = u.id LIMIT 1) as role_id \" +",
+  "suggestion_code": null
+ },
+ {
+  "severity": "medium",
+  "category": "performance",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/mapper/SysUserMapper.java",
+  "start_line": 23,
+  "end_line": 23,
+  "content": "The sort key repeats the same correlated role sub-query already used in the SELECT list, so for every candidate row MySQL must evaluate the `sys_user_role`/`sys_role` look-up an extra time (the row can only be discarded after the expression is computed, so the LIMIT cannot prune sub-query evaluation). Combined with the `dept_name`/`office_name`/`manager_name` correlated sub-queries this yields 5 extra look-ups per returned row. Consider resolving the role once via a `LEFT JOIN` (or a derived table joined on `ur.user_id`) and using the joined column for both projection and `ORDER BY CASE ... END`.",
+  "existing_code": "            \"ORDER BY CASE (SELECT r.role_code FROM sys_role r JOIN sys_user_role ur ON r.id = ur.role_id WHERE ur.user_id = u.id LIMIT 1) \" +",
+  "suggestion_code": null
+ },
+ {
+  "severity": "medium",
+  "category": "maintainability",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/mapper/SysPermissionRuleMapper.java",
+  "start_line": 32,
+  "end_line": 32,
+  "content": "`selectByUserId` is declared but never referenced anywhere in the project (all call sites of `selectByUserId` belong to `SysPositionMapper`/`SysRoleOrgMapper`/`SysUserOrgMapper`). Meanwhile the actual consumer (`UserDetailsServiceImpl` lines 195-204) loads position/role rules with a per-id query inside a loop, which is exactly the N+1 the batch method was meant to avoid. Either delete this dead method or wire it into the caller; note it only covers position rules, so role rules still need separate handling.",
+  "existing_code": "    List<SysPermissionRule> selectByUserId(@Param(\"userId\") Long userId);",
+  "suggestion_code": null
+ },
+ {
+  "severity": "medium",
+  "category": "performance",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/mapper/SysPermissionRuleMapper.java",
+  "start_line": 17,
+  "end_line": 17,
+  "content": "N+1 query risk: these per-id queries are executed inside loops by their only consumer (`UserDetailsServiceImpl` lines 195-204 calls `selectByPositionId` once per position and `selectByRoleId` once per role on every login/authentication). For a user with multiple positions/roles this produces 1 query per binding. Consider adding batch variants that take a collection and use `IN (...)` (or one UNION query for position+role) and switch the caller to them; keep the single-id methods only if they are used elsewhere.",
+  "existing_code": "    List<SysPermissionRule> selectByPositionId(@Param(\"positionId\") Long positionId);",
+  "suggestion_code": "    /** 批量查岗位关联的规则（去重），避免逐岗位查询造成的 N+1 */\n    @Select(\"<script>SELECT DISTINCT r.* FROM sys_permission_rule r \" +\n            \"INNER JOIN sys_position_rule pr ON r.id = pr.rule_id \" +\n            \"WHERE pr.position_id IN \" +\n            \"<foreach collection='positionIds' item='pid' open='(' separator=',' close=')'>#{pid}</foreach> \" +\n            \"AND r.status = 1 \" +\n            \"ORDER BY r.priority</script>\")\n    List<SysPermissionRule> selectByPositionIds(@Param(\"positionIds\") java.util.Collection<Long> positionIds);\n\n    List<SysPermissionRule> selectByPositionId(@Param(\"positionId\") Long positionId);"
+ },
+ {
+  "severity": "medium",
+  "category": "bug",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/service/SysAuditLogService.java",
+  "start_line": 31,
+  "end_line": 31,
+  "content": "`size`/`current` come straight from HTTP query params (`SysAuditLogController` only sets defaults, no validation) and only the upper bound is clamped here. If a caller passes `size <= 0`, MyBatis-Plus either emits an invalid `LIMIT` (SQL error) or, for negative sizes, degrades to an unbounded query that dumps the whole `sys_audit_log` table; `size = 0` silently returns an empty page. A negative/zero `current` is likewise unguarded. Please clamp both bounds before building the `Page`.",
+  "existing_code": "        return auditLogMapper.selectPage(new Page<>(current, Math.min(size, MAX_PAGE_SIZE)), wrapper)",
+  "suggestion_code": "        int safeCurrent = Math.max(current, 1);\n        int safeSize = Math.min(Math.max(size, 1), MAX_PAGE_SIZE);\n        return auditLogMapper.selectPage(new Page<>(safeCurrent, safeSize), wrapper)"
+ },
+ {
+  "severity": "medium",
+  "category": "bug",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/service/SysMenuService.java",
+  "start_line": 33,
+  "end_line": 33,
+  "content": "Recursion has no cycle/self-reference guard: if the seeded data ever contains a self-parent or a parent cycle (e.g. a menu whose `parent_id` points to itself or forms a loop), `buildTree(list, m.getId())` recurses forever until StackOverflowError. Add a visited-id set (or a max-depth check) to terminate safely.",
+  "existing_code": "                .peek(m -> m.setChildren(buildTree(list, m.getId())))",
+  "suggestion_code": null
+ },
+ {
+  "severity": "low",
+  "category": "performance",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/service/SysMenuService.java",
+  "start_line": 32,
+  "end_line": 32,
+  "content": "`buildTree` rescans the whole `list` on every recursive call, so building the tree is O(n²) (each of the n nodes triggers a full-list filter pass). If the menu table grows (seed migrations + future modules), this degrades quickly. Consider grouping once by parentId (e.g. `Collectors.groupingBy(SysMenu::getParentId)`) and building the hierarchy from that map.",
+  "existing_code": "                .filter(m -> Objects.equals(m.getParentId(), parentId))",
+  "suggestion_code": null
+ },
+ {
+  "severity": "low",
+  "category": "maintainability",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/service/SysMenuService.java",
+  "start_line": 31,
+  "end_line": 34,
+  "content": "`Stream.peek` is documented as being for debugging only and is not guaranteed to run for every element in all stream pipelines; using it here to mutate entities (`setChildren`) makes the side effect implicit and skips the returned list's intended `map`/`collect` semantics. Prefer an explicit loop or `map` that returns the same instance with children populated.",
+  "existing_code": "        return list.stream()\n                .filter(m -> Objects.equals(m.getParentId(), parentId))\n                .peek(m -> m.setChildren(buildTree(list, m.getId())))\n                .collect(Collectors.toList());",
+  "suggestion_code": null
+ },
+ {
+  "severity": "medium",
+  "category": "bug",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/service/SysGroupService.java",
+  "start_line": 30,
+  "end_line": 32,
+  "content": "Check-then-act race condition: the uniqueness check via `selectCount` and the subsequent `insert` are not atomic. Two concurrent requests with the same `groupCode` can both observe `count == 0` and both insert, producing duplicate group codes (the entity comment declares `groupCode` unique, yet no DB unique constraint / locking is applied here). Rely on a unique index on `group_code` and catch `DuplicateKeyException`, or serialize the check with a lock.",
+  "existing_code": "        Long count = groupMapper.selectCount(\n                new LambdaQueryWrapper<SysGroup>().eq(SysGroup::getGroupCode, group.getGroupCode()));\n        if (count > 0) throw new BusinessException(\"集团编码已存在\");",
+  "suggestion_code": null
+ },
+ {
+  "severity": "medium",
+  "category": "bug",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/service/SysGroupService.java",
+  "start_line": 36,
+  "end_line": 39,
+  "content": "Inconsistent with `create`: `update` performs no validation, so a caller can change `groupCode` to a value already used by another group, bypassing the uniqueness rule enforced at creation time and creating duplicate codes. Consider re-checking uniqueness on update (excluding the current id) and/or verifying the record exists before updating.",
+  "existing_code": "    @Transactional\n    public void update(SysGroup group) {\n        groupMapper.updateById(group);\n    }",
+  "suggestion_code": null
+ },
+ {
+  "severity": "low",
+  "category": "maintainability",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/service/SysGroupService.java",
+  "start_line": 24,
+  "end_line": 26,
+  "content": "Dead code: `getById` is never referenced anywhere in the codebase (only `list`, `create`, `update`, `delete` are called from `SysGroupController`). If it is not part of an intended public API, remove it to avoid untested/unmaintained code paths.",
+  "existing_code": "    public SysGroup getById(Long id) {\n        return groupMapper.selectById(id);\n    }",
+  "suggestion_code": null
+ },
+ {
+  "severity": "medium",
+  "category": "performance",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/service/SysConfigService.java",
+  "start_line": 48,
+  "end_line": 49,
+  "content": "N+1 query: `batchUpdate` issues one `selectOne` per element of the incoming list. The controller passes the whole settings payload (potentially dozens/hundreds of rows), so this becomes N+1 round trips. Collect all `configKey`s first and fetch them with a single `in(...)` query, then index by key in a Map.",
+  "existing_code": "            SysConfig existing = configMapper.selectOne(\n                    new LambdaQueryWrapper<SysConfig>().eq(SysConfig::getConfigKey, config.getConfigKey()));",
+  "suggestion_code": "        // 批量按 key 查询,避免循环内逐条 selectOne(N+1)\n        java.util.List<String> keys = configs.stream()\n                .map(SysConfig::getConfigKey).filter(java.util.Objects::nonNull).distinct().toList();\n        java.util.Map<String, SysConfig> existingMap = keys.isEmpty() ? java.util.Map.of()\n                : configMapper.selectList(new LambdaQueryWrapper<SysConfig>().in(SysConfig::getConfigKey, keys))\n                        .stream().collect(java.util.stream.Collectors.toMap(SysConfig::getConfigKey, c -> c, (a, b) -> a));\n        for (SysConfig config : configs) {\n            if (config.getConfigKey() == null) continue;\n            SysConfig existing = existingMap.get(config.getConfigKey());"
+ },
+ {
+  "severity": "medium",
+  "category": "bug",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/service/SysConfigService.java",
+  "start_line": 44,
+  "end_line": 44,
+  "content": "`batchUpdate` performs multiple write operations (potential insert + update for each entry, plus the rule-version insert) without any transaction boundary. If one write fails midway, the configuration is left in a partially updated state, and a rule-version record may already have been written for a change that was never applied. Add `@Transactional(rollbackFor = Exception.class)` (import `org.springframework.transaction.annotation.Transactional`).",
+  "existing_code": "    public void batchUpdate(List<SysConfig> configs) {",
+  "suggestion_code": "    @Transactional(rollbackFor = Exception.class)\n    public void batchUpdate(List<SysConfig> configs) {"
+ },
+ {
+  "severity": "low",
+  "category": "bug",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/service/SysConfigService.java",
+  "start_line": 34,
+  "end_line": 36,
+  "content": "The value is only checked for blank but never trimmed before the truth-value comparison, so a stored value such as \" true\" or \"1 \" (common with SQL seed data / trailing whitespace) silently falls through to `false` instead of resolving to true. Trim once before comparing.",
+  "existing_code": "        String v = getValue(key);\n        if (v == null || v.isBlank()) return defaultValue;\n        return \"1\".equals(v) || \"true\".equalsIgnoreCase(v)",
+  "suggestion_code": "        String v = getValue(key);\n        if (v == null || v.isBlank()) return defaultValue;\n        v = v.trim();\n        return \"1\".equals(v) || \"true\".equalsIgnoreCase(v)"
+ },
+ {
+  "severity": "medium",
+  "category": "bug",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/service/SysConfigService.java",
+  "start_line": 52,
+  "end_line": 54,
+  "content": "Audit-trail gap: the `existing.getConfigValue() != null` guard suppresses the rule-version record when the rule key exists but had no value before (old value `null` → new value set). That is exactly a rule change and should be recorded to keep the history complete. Drop the null guard (the `equals` comparison already handles `null` safely when written as `!java.util.Objects.equals(existing.getConfigValue(), config.getConfigValue())`).",
+  "existing_code": "                if (isRuleKey(config.getConfigKey())\n                        && existing.getConfigValue() != null\n                        && !existing.getConfigValue().equals(config.getConfigValue())) {",
+  "suggestion_code": "                if (isRuleKey(config.getConfigKey())\n                        && !java.util.Objects.equals(existing.getConfigValue(), config.getConfigValue())) {"
+ },
+ {
+  "severity": "low",
+  "category": "maintainability",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/service/SysConfigService.java",
+  "start_line": 74,
+  "end_line": 74,
+  "content": "Maintainability: this method mixes fully-qualified class references (`com.aigicrm.module.system.entity.SysRuleVersion`, `com.aigicrm.security.SecurityUtils`, `org.slf4j.LoggerFactory`) and `var` with the imported-style used in the rest of the file (and the field declared with a fully-qualified mapper type on line 16). Import these types and use a single logger field/`@Slf4j` for consistency and readability.",
+  "existing_code": "            com.aigicrm.module.system.entity.SysRuleVersion rv = new com.aigicrm.module.system.entity.SysRuleVersion();",
+  "suggestion_code": null
+ },
+ {
+  "severity": "low",
+  "category": "performance",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/mapper/SysRoleMapper.java",
+  "start_line": 19,
+  "end_line": 20,
+  "content": "性能/索引：本查询（以及下方 selectActiveUserIdsByRoleId）只按 `ur.role_id` 过滤，而 `sys_user_role` 目前仅有 `PRIMARY KEY(id)` 与 `UNIQUE KEY uk_user_role(user_id, role_id)`（见 V1__baseline.sql:1386-1392）。按最左前缀原则，该唯一索引无法用于 role_id 的单列过滤，MySQL 只能全表/全索引扫描 `sys_user_role`。该方法被 `PermissionCacheService.evictByRole` 反查调用，会随用户-角色绑定数据增长而劣化。建议补一个 `role_id` 单列索引（走迁移脚本），例如：`ALTER TABLE sys_user_role ADD KEY idx_role_id (role_id);`。",
+  "existing_code": "            \"WHERE ur.role_id = #{roleId} AND u.status = 1 AND u.deleted = 0\")\n    List<Long> selectUserIdsByRoleId(@Param(\"roleId\") Long roleId);",
+  "suggestion_code": null
+ },
+ {
+  "severity": "medium",
+  "category": "bug",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/service/SysDictService.java",
+  "start_line": 104,
+  "end_line": 106,
+  "content": "The value resolved from `DICT_COLUMN_MAP` is only compared against the literal \"industry\"; every other mapping falls into the `else` branch and writes `dev_type`. So the map is effectively a hardcoded 2-branch switch, and if anyone adds a third mapping (e.g. \"customer_type\" -> \"customer_type\"), `updateData` will silently overwrite the wrong customer column (`dev_type`) instead of the intended one. The ternary is also duplicated for `.eq` and `.set`. Consider mapping the dict code directly to the target `SFunction`/column and using it once, e.g.:\n\n```java\nprivate static final Map<String, SFunction<BizCustomer, ?>> DICT_COLUMN_MAP = Map.of(\n        \"industry\", BizCustomer::getIndustry,\n        \"dev_type\", BizCustomer::getDevType);\n```\n\nand then apply it via `.eq(column, oldValue).set(column, newValue)`.",
+  "existing_code": "                                    .eq(\"industry\".equals(column)\n                                            ? BizCustomer::getIndustry\n                                            : BizCustomer::getDevType, old.getDictValue())",
+  "suggestion_code": null
+ },
+ {
+  "severity": "medium",
+  "category": "bug",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/service/SysDictService.java",
+  "start_line": 115,
+  "end_line": 117,
+  "content": "`updateData` goes to the trouble of propagating a changed `dictValue` to `biz_customer`, but `deleteData` silently removes the dictionary item and leaves all customer rows still holding the now-orphaned value. This makes the dictionary and customer data inconsistent (dangling industry/dev_type values that no longer resolve to any dict label). Consider either blocking deletion when the value is still referenced, or clearing/nulling the references in the customer table inside a `@Transactional` method (consistent with the sync logic in `updateData`).",
+  "existing_code": "    public void deleteData(Long id) {\n        dictDataMapper.deleteById(id);\n    }",
+  "suggestion_code": null
+ },
+ {
+  "severity": "medium",
+  "category": "bug",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/service/SysDictService.java",
+  "start_line": 49,
+  "end_line": 51,
+  "content": "`deleteType` forbids deleting built-in dictionaries, but `updateType` allows freely changing the `dict_code` of a built-in dictionary (no existence/uniqueness/`builtIn` validation). Since `updateData` resolves the customer column via `DICT_COLUMN_MAP.get(type.getDictCode())`, renaming a built-in code such as `industry`/`dev_type` silently disables the customer-value synchronization and breaks the mapping. Suggest rejecting `dict_code` changes for built-in dict types (or at minimum validating that the code still matches the mapped key).",
+  "existing_code": "    public void updateType(SysDictType type) {\n        dictTypeMapper.updateById(type);\n    }",
+  "suggestion_code": null
+ },
+ {
+  "severity": "high",
+  "category": "performance",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/service/OrgAdminService.java",
+  "start_line": 43,
+  "end_line": 44,
+  "content": "N+1 query: `userMapper.selectById` is invoked once per admin inside the loop, so an org with N admins triggers N+1 round trips. Batch-fetch the users instead (e.g. `selectList(new LambdaQueryWrapper<SysUser>().in(SysUser::getId, userIds))` or `selectBatchIds`), build a `Map<Long, SysUser>` and look users up from it.",
+  "existing_code": "        for (SysOrgAdmin admin : admins) {\n            var user = userMapper.selectById(admin.getUserId());",
+  "suggestion_code": "        List<Long> userIds = admins.stream().map(SysOrgAdmin::getUserId).collect(Collectors.toList());\n        Map<Long, SysUser> userMap = userIds.isEmpty() ? Map.of()\n                : userMapper.selectBatchIds(userIds).stream().collect(Collectors.toMap(SysUser::getId, u -> u));\n        for (SysOrgAdmin admin : admins) {\n            var user = userMap.get(admin.getUserId());"
+ },
+ {
+  "severity": "medium",
+  "category": "bug",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/service/OrgAdminService.java",
+  "start_line": 63,
+  "end_line": 67,
+  "content": "Check-then-act race condition: two concurrent requests can both read `count == 0` and insert duplicate `(org_id, user_id)` rows, bypassing the idempotency intent. Ensure a unique index exists on `sys_org_admin(org_id, user_id)` and catch `DuplicateKeyException` (return normally) instead of relying solely on the pre-check.",
+  "existing_code": "        Long count = orgAdminMapper.selectCount(\n                new LambdaQueryWrapper<SysOrgAdmin>()\n                        .eq(SysOrgAdmin::getOrgId, orgId)\n                        .eq(SysOrgAdmin::getUserId, userId));\n        if (count > 0) return;",
+  "suggestion_code": null
+ },
+ {
+  "severity": "medium",
+  "category": "bug",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/service/OrgAdminService.java",
+  "start_line": 132,
+  "end_line": 133,
+  "content": "Missing empty/null guard: SecurityUtils can return an empty managed-org list or a null current user id, but the code passes the empty collection to .in(...) (invalid SQL) or wraps null in List.of(...) (NPE). Return early / guard null before building the query.",
+  "existing_code": "        List<Long> orgIds = SecurityUtils.getCurrentManagedOrgIds();\n        return userMapper.selectList(",
+  "suggestion_code": "        List<Long> orgIds = SecurityUtils.getCurrentManagedOrgIds();\n        if (orgIds == null || orgIds.isEmpty()) return java.util.Collections.emptyList();\n        return userMapper.selectList("
+ },
+ {
+  "severity": "low",
+  "category": "security",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/service/OrgAdminService.java",
+  "start_line": 39,
+  "end_line": 40,
+  "content": "Unlike `addOrgAdmin`/`removeOrgAdmin`, this read path performs no `canManageOrg(orgId)` scope check, so any caller passing an arbitrary `orgId` (with the `system:dept:view` authority, which org admins typically hold) can enumerate another organization's administrators. Add the same guard used by the write paths for consistency with the file's stated security policy.",
+  "existing_code": "    public List<Map<String, Object>> getOrgAdmins(Long orgId) {\n        List<SysOrgAdmin> admins = orgAdminMapper.selectList(",
+  "suggestion_code": null
+ },
+ {
+  "severity": "medium",
+  "category": "performance",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/service/RolePermScopeService.java",
+  "start_line": 60,
+  "end_line": 64,
+  "content": "N+1 queries: one JDBC round-trip per position and per role code, executed on the login path (`UserDetailsServiceImpl` calls this). For a user with many positions/roles this becomes dozens of queries. Prefer a single batched query, e.g. `... WHERE assignee_type='POSITION' AND assignee_key IN (?,?,...)` (build the placeholders from the list) and one for ROLE.",
+  "existing_code": "            if (positionIds != null) {\n                for (Long pid : positionIds) {\n                    all.addAll(queryConfigs(\"assignee_type='POSITION' AND assignee_key=?\", String.valueOf(pid)));\n                }\n            }",
+  "suggestion_code": null
+ },
+ {
+  "severity": "high",
+  "category": "bug",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/service/RolePermScopeService.java",
+  "start_line": 187,
+  "end_line": 189,
+  "content": "Loop body always exits on the first iteration (cache hit → `return`, DB branch → `return`, DB failure → `throw`), so any roleCode after the first is unreachable. Consequence: if the user's first role has no `role_perm_scope` row, the scope is silently defaulted to OWNER and a later role that legitimately configures ORG is ignored — while `lookup`/`configuredScopes` iterate ALL roles. This makes the anchor inconsistent with the scope resolution and can silently narrow/widen the resolved range. Suggest iterating all roles and only falling back to OWNER after none of them has a row (i.e. `if (rows.isEmpty()) continue;`).",
+  "existing_code": "            for (String roleCode : user.getRoleCodes()) {\n                AnchorCacheEntry hit = anchorCache.get(roleCode + \":\" + module + \":\" + action);\n                if (hit != null && !hit.expired()) return hit.anchor();",
+  "suggestion_code": "            for (String roleCode : user.getRoleCodes()) {\n                AnchorCacheEntry hit = anchorCache.get(roleCode + \":\" + module + \":\" + action);\n                if (hit != null && !hit.expired()) return hit.anchor();\n                // ... query; if (rows.isEmpty()) continue; else cache+return"
+ },
+ {
+  "severity": "high",
+  "category": "bug",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/service/RolePermScopeService.java",
+  "start_line": 259,
+  "end_line": 261,
+  "content": "`anchor` is part of the table's unique key `uk_assignee_ma (assignee_type, assignee_key, module, action, anchor)` (V1 baseline / V9), so this UPSERT does NOT update on an anchor change — switching a config from OWNER to ORG inserts a second row instead, leaving a stale row for the same (assignee, module, action). `lookup` (`SELECT scope_level ... LIMIT 1`) and `anchorOf` (`SELECT anchor ... LIMIT 1`) use no ORDER BY, so which row wins becomes non-deterministic and the effective scope/anchor can flip after any DB re-read. Suggest deleting/upserting all rows for the same (assignee_type, assignee_key, module, action) before insert, or reading with a deterministic `ORDER BY id DESC LIMIT 1`.",
+  "existing_code": "            jdbc.update(\n                    \"INSERT INTO role_perm_scope (role_code, assignee_type, assignee_key, module, action, scope_level, anchor) VALUES (?,?,?,?,?,?,?) \" +\n                    \"ON DUPLICATE KEY UPDATE scope_level=VALUES(scope_level), anchor=VALUES(anchor), role_code=VALUES(role_code)\",",
+  "suggestion_code": null
+ },
+ {
+  "severity": "low",
+  "category": "performance",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/service/RolePermScopeService.java",
+  "start_line": 262,
+  "end_line": 263,
+  "content": "`invalidate(assigneeKey)` is still executed on every loop iteration, performing a full `removeIf` scan of both caches N times for a batch of N configs — the same reason evictAll/bump were hoisted out of the loop below. Since the key (`assigneeKey`) is identical for every iteration here, move this call after the loop.",
+  "existing_code": "                    roleCode, assigneeType, assigneeKey, module.toString(), action.toString(), scope, anchor.toUpperCase());\n            invalidate(assigneeKey);",
+  "suggestion_code": null
+ },
+ {
+  "severity": "medium",
+  "category": "bug",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/service/SysDeptService.java",
+  "start_line": 83,
+  "end_line": 86,
+  "content": "Unbounded ancestor walk: the loop terminates only when `parentId` is null or points to a node absent from the filtered list. With dirty data of the kind this method explicitly tries to defend against (a self-referencing node, or a parent chain that forms a cycle such as A→B→A), `byId.containsKey(cur)` stays true forever and this becomes an infinite loop that pins the request thread. Track visited ids and break out when a node is revisited.",
+  "existing_code": "        while (cur != null && byId.containsKey(cur)) {\n            keep.add(cur);\n            cur = byId.get(cur).getParentId();\n        }",
+  "suggestion_code": "        while (cur != null && byId.containsKey(cur) && keep.add(cur)) {\n            cur = byId.get(cur).getParentId();\n        }"
+ },
+ {
+  "severity": "high",
+  "category": "performance",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/service/SysDeptService.java",
+  "start_line": 36,
+  "end_line": 37,
+  "content": "N+1 query: for every department that has a leaderId a separate `selectById` hits the DB. With a full org tree this means one query per department (and the same leader is re-queried when it leads several departments). Fetch the leader users in a single batch query and build a Map<Long, String> lookup instead.",
+  "existing_code": "            if (dept.getLeaderId() != null) {\n                SysUser leader = userMapper.selectById(dept.getLeaderId());",
+  "suggestion_code": "        Set<Long> leaderIds = all.stream().map(SysDept::getLeaderId).filter(Objects::nonNull).collect(Collectors.toSet());\n        Map<Long, String> leaderNames = leaderIds.isEmpty() ? Collections.emptyMap()\n                : userMapper.selectBatchIds(leaderIds).stream()\n                    .collect(Collectors.toMap(SysUser::getId, SysUser::getRealName, (a, b) -> a));\n        for (SysDept dept : all) {\n            if (dept.getLeaderId() != null) {\n                dept.setLeaderName(leaderNames.get(dept.getLeaderId()));"
+ },
+ {
+  "severity": "medium",
+  "category": "bug",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/service/SysDeptService.java",
+  "start_line": 105,
+  "end_line": 106,
+  "content": "Classic check-then-act race: the child/user counts are read in two independent statements and `deleteById` runs afterwards without any transaction or lock. A concurrent request creating a child department or assigning a user to this department between the check and the delete silently produces an orphan node / user pointing at a deleted dept. Wrap the checks and the delete in a single `@Transactional` block (and/or lock the dept row) so the precondition and the deletion are atomic.",
+  "existing_code": "        Long childCount = deptMapper.selectCount(\n                new LambdaQueryWrapper<SysDept>().eq(SysDept::getParentId, id));",
+  "suggestion_code": null
+ },
+ {
+  "severity": "medium",
+  "category": "maintainability",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/service/SysDeptService.java",
+  "start_line": 123,
+  "end_line": 124,
+  "content": "This method has no caller anywhere in the repository (`softDelete` is only referenced by its own declaration; SysOrgController/compat layer has been removed), so the claim in the Javadoc that it is used by the `/api/org` compat layer is stale — it is effectively dead code that should be deleted or, if it is really meant to stay, must at least perform the same permission-cache invalidation as `update()` (soft-deleting a dept changes the hierarchy derived values cached for users of that dept).",
+  "existing_code": "        dept.setStatus(0);\n        deptMapper.updateById(dept);",
+  "suggestion_code": null
+ },
+ {
+  "severity": "high",
+  "category": "bug",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/service/SysDeptService.java",
+  "start_line": 41,
+  "end_line": 41,
+  "content": "Logic mismatch with `scopeFilter`: the list returned by `scopeFilter` is only guaranteed to contain the user's dept chain, and its topmost element may be a node whose `parentId` is NOT 0 (e.g. the group filter prunes a cross-group parent, which is exactly the case the N-06 hardening in `scopeFilter` is meant to survive). `buildTree(all, 0L)` only keeps nodes whose `parentId == 0`, so such a chain is silently dropped and the whole subtree — including the user's own department — disappears from the returned tree (empty tree). Anchor the tree at the actual roots of the filtered list instead of hard-coding 0L, e.g. build a set of ids present in `all` and treat every node whose parentId is absent from that set as a root.",
+  "existing_code": "        return buildTree(all, 0L);",
+  "suggestion_code": "        Set<Long> ids = all.stream().map(SysDept::getId).collect(Collectors.toSet());\n        Map<Long, List<SysDept>> childrenByParent = all.stream()\n                .collect(Collectors.groupingBy(d -> d.getParentId() == null ? 0L : d.getParentId()));\n        // 以“父节点不在过滤结果中”的节点作为根，避免跨集团剪枝后整棵树被丢弃\n        List<SysDept> roots = all.stream()\n                .filter(d -> d.getParentId() == null || !ids.contains(d.getParentId()))\n                .collect(Collectors.toList());"
+ },
+ {
+  "severity": "medium",
+  "category": "performance",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/service/SysDeptService.java",
+  "start_line": 27,
+  "end_line": 27,
+  "content": "`bumpAllPermVersions()` rewrites every row of `sys_user` (`perm_version = perm_version + 1`) on each department update. On a large user table this is a full-table UPDATE plus one undo/redo record per row, executed synchronously in the request thread, just for a cache-self-healing fallback. Consider limiting to affected users, using a single shared/global permission version key instead of per-row counters, or making the bump asynchronous.",
+  "existing_code": "        jdbc.update(\"UPDATE sys_user SET perm_version = perm_version + 1\");",
+  "suggestion_code": null
+ },
+ {
+  "severity": "medium",
+  "category": "bug",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/service/SysPositionService.java",
+  "start_line": 84,
+  "end_line": 86,
+  "content": "典型的 check-then-act 竞态：先 `selectCount` 判断编码是否存在，再 `insert`，并发下两个请求可同时通过校验并写入相同 code（方法上的 `@Transactional` 默认隔离级别无法阻止）。若 `sys_position.code` 上已有唯一索引，建议直接捕获 `DuplicateKeyException` 转成友好提示；若没有，需要补唯一约束，否则会出现重复编码岗位。",
+  "existing_code": "        Long count = positionMapper.selectCount(\n                new LambdaQueryWrapper<SysPosition>().eq(SysPosition::getCode, position.getCode()));\n        if (count > 0) throw new BusinessException(\"岗位编码已存在\");",
+  "suggestion_code": null
+ },
+ {
+  "severity": "critical",
+  "category": "security",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/service/SysPositionService.java",
+  "start_line": 165,
+  "end_line": 166,
+  "content": "When clearing position bindings/rules (positionIds/ruleIds empty), the method returns before permissionCacheService.evict(...) and bumpPermVersion(...), so revoked permissions remain valid in Redis until TTL. Move the cache invalidation/version bump before the early return (or remove the early return).",
+  "existing_code": "        userPositionMapper.delete(new LambdaQueryWrapper<SysUserPosition>().eq(SysUserPosition::getUserId, userId));\n        if (positionIds == null || positionIds.isEmpty()) return;",
+  "suggestion_code": "        userPositionMapper.delete(new LambdaQueryWrapper<SysUserPosition>().eq(SysUserPosition::getUserId, userId));\n        // 【Redis 权限缓存】用户岗位分配变更立即失效该用户（含清空岗位的场景）\n        permissionCacheService.evict(userId);\n        // 【2026-08-14 缓存自愈】版本递增兜底\n        bumpPermVersion(userId);\n        if (positionIds == null || positionIds.isEmpty()) return;"
+ },
+ {
+  "severity": "high",
+  "category": "security",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/service/SysPositionService.java",
+  "start_line": 140,
+  "end_line": 140,
+  "content": "Missing group-boundary validation: unlike the other methods in this service, these write paths accept a positionId/positionIds without checking the position's groupId, so a non-admin with the edit permission can modify another group's position rules or assign users to another group's positions. Validate with GroupScopeUtil.canAccessGroup/visible group ids before writing.",
+  "existing_code": "    public void saveRules(Long positionId, List<Long> ruleIds) {",
+  "suggestion_code": null
+ },
+ {
+  "severity": "low",
+  "category": "performance",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/service/SysPositionService.java",
+  "start_line": 107,
+  "end_line": 110,
+  "content": "重复失效与重复版本递增：当 `position.getRuleIds() != null` 时，上面的 `saveRules(...)` 内部已经执行过 `evictByPosition` + `bumpUserPermVersionsByPosition`，此处又执行一遍，等于对同一岗位用户多跑一次 `UPDATE sys_user SET perm_version = perm_version + 1`。虽不影响正确性，但属于冗余写放大，建议只在 `ruleIds == null` 的分支里补做失效，或在 saveRules 中统一处理。",
+  "existing_code": "        // 【Redis 权限缓存】岗位字段/规则变更影响该岗位用户，立即失效\n        permissionCacheService.evictByPosition(position.getId());\n        // 【2026-08-14 缓存自愈】版本递增兜底：evict 漏网/Redis 写失败时缓存与 DB 版本比对自愈\n        bumpUserPermVersionsByPosition(position.getId());",
+  "suggestion_code": null
+ },
+ {
+  "severity": "medium",
+  "category": "bug",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/service/SysRuleVersionService.java",
+  "start_line": 19,
+  "end_line": 19,
+  "content": "`size` comes straight from the HTTP request param (`@RequestParam(defaultValue = \"20\") int size`) and only an upper bound is applied. When `size` is negative (e.g. `?size=-1`), MyBatis-Plus's `PaginationInnerInterceptor` treats a negative size as \"no pagination\" and skips the LIMIT clause, so an authenticated user can pull the whole append-only `sys_rule_version` table in one request (and a size of 0 returns an empty/undefined page). Clamp the lower bound as well, e.g. `Math.max(1, Math.min(size, MAX_PAGE_SIZE))`.",
+  "existing_code": "        return ruleVersionMapper.selectPage(new Page<>(current, Math.min(size, 100)),",
+  "suggestion_code": "        return ruleVersionMapper.selectPage(new Page<>(current, Math.max(1, Math.min(size, MAX_PAGE_SIZE))),"
+ },
+ {
+  "severity": "low",
+  "category": "maintainability",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/service/SysRuleVersionService.java",
+  "start_line": 18,
+  "end_line": 18,
+  "content": "Magic number `100` duplicating the page-size cap that `SysAuditLogService` already declares as `private static final int MAX_PAGE_SIZE = 100`. Extracting a shared constant (or a small util) keeps the two read-only query services from drifting apart when the cap changes.",
+  "existing_code": "    public IPage<SysRuleVersion> page(int current, int size, String ruleKey) {",
+  "suggestion_code": "    private static final int MAX_PAGE_SIZE = 100;\n\n    public IPage<SysRuleVersion> page(int current, int size, String ruleKey) {"
+ },
+ {
+  "severity": "medium",
+  "category": "bug",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/service/SysPermissionRuleService.java",
+  "start_line": 37,
+  "end_line": 39,
+  "content": "Check-then-act race: two concurrent `create` calls with the same `code` can both see `count == 0` and pass the validation. The DB has `UNIQUE KEY uk_code` on `sys_permission_rule.code`, so the second insert will throw `DuplicateKeyException` (HTTP 500) rather than the intended `BusinessException(\"规则编码已存在\")`. Suggest relying on the unique constraint and translating the violation, e.g. wrap `ruleMapper.insert(rule)` in a try/catch for `org.springframework.dao.DuplicateKeyException` and rethrow as `BusinessException` (the pre-check can stay as a fast path).",
+  "existing_code": "        Long count = ruleMapper.selectCount(\n                new LambdaQueryWrapper<SysPermissionRule>().eq(SysPermissionRule::getCode, rule.getCode()));\n        if (count > 0) throw new BusinessException(\"规则编码已存在\");",
+  "suggestion_code": null
+ },
+ {
+  "severity": "high",
+  "category": "bug",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/service/SysPermissionRuleService.java",
+  "start_line": 47,
+  "end_line": 50,
+  "content": "`update` is missing the two guards that `create` performs:\n1) No existence check — if `id` does not exist (or is null, e.g. a malformed body), `updateById` silently affects 0 rows and the method still returns success while pointlessly wiping the permission cache and bumping every user's `perm_version`.\n2) No uniqueness check on `code` — the controller sets id from the path but lets the body carry any `code`, so renaming a rule to an already used code will hit the DB `uk_code` unique index and surface as an unhandled `DuplicateKeyException` (HTTP 500) instead of the friendly `BusinessException(\"规则编码已存在\")` used in `create`.\nAlso, since the whole entity comes straight from `@RequestBody`, null required fields (name/code/targetEntity/ruleType) are not validated and will fail at the DB NOT NULL constraint.",
+  "existing_code": "    @Transactional\n    public void update(SysPermissionRule rule) {\n        ruleMapper.updateById(rule);\n        permissionCacheService.evictAll();",
+  "suggestion_code": "    @Transactional\n    public void update(SysPermissionRule rule) {\n        SysPermissionRule exist = (rule == null || rule.getId() == null) ? null : ruleMapper.selectById(rule.getId());\n        if (exist == null) throw new BusinessException(\"规则不存在\");\n        if (rule.getCode() != null && !rule.getCode().equals(exist.getCode())) {\n            Long count = ruleMapper.selectCount(\n                    new LambdaQueryWrapper<SysPermissionRule>().eq(SysPermissionRule::getCode, rule.getCode()));\n            if (count > 0) throw new BusinessException(\"规则编码已存在\");\n        }\n        ruleMapper.updateById(rule);\n        permissionCacheService.evictAll();"
+ },
+ {
+  "severity": "low",
+  "category": "maintainability",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/service/SysPermissionRuleService.java",
+  "start_line": 32,
+  "end_line": 32,
+  "content": "`getById` is never referenced anywhere: `SysPermissionRuleController` only exposes list/create/update/delete. It is effectively dead code — either wire it to a detail endpoint or remove it.",
+  "existing_code": "        return ruleMapper.selectById(id);",
+  "suggestion_code": null
+ },
+ {
+  "severity": "low",
+  "category": "performance",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/service/SysPermissionRuleService.java",
+  "start_line": 23,
+  "end_line": 23,
+  "content": "This runs on every rule create/update/delete and updates the entire `sys_user` table (no WHERE clause), so with a large user table each low-frequency admin action becomes a full-table write (row locks, binlog volume, replication lag). It also deliberately invalidates the permission cache of every user, forcing a full permission-context rebuild on their next request. Note the migrations use `WHERE deleted = 0` for the same statement, so the filter is at least inconsistent here. Suggest adding `WHERE deleted = 0` and, because the identical method is duplicated in `SysDeptService`, `SysRoleService` and `RolePermScopeService`, extracting it into a single shared component that encapsulates the cache eviction + version bump.",
+  "existing_code": "        jdbc.update(\"UPDATE sys_user SET perm_version = perm_version + 1\");",
+  "suggestion_code": "        jdbc.update(\"UPDATE sys_user SET perm_version = perm_version + 1 WHERE deleted = 0\");"
+ },
+ {
+  "severity": "medium",
+  "category": "performance",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/service/SysLogService.java",
+  "start_line": 38,
+  "end_line": 40,
+  "content": "`countByModule` issues 6 separate `selectCount` statements (1 for \"全部\" + 5 in this loop). Worse, every `buildBase()` call re-runs `scopeResolver.resolveModuleUsersWithinGroup(...)`, which itself performs permission evaluation and a `GroupScopeUtil.userIdsInGroup(jdbcTemplate, ...)` SQL query — so a single HTTP request to `/api/system/logs/counts` may trigger up to ~12 DB round trips for identical permission data, and the \"全部\" count is just the sum the DB should compute. Suggest resolving the visible-scope wrapper once and issuing a single `GROUP BY module` aggregate (e.g. `selectMaps` with `.select(SysLog::getModule)` + `groupBy`), then deriving both the per-module map and the total in memory.",
+  "existing_code": "        for (String m : new String[]{\"客户\", \"登录\", \"文件\", \"人员\", \"系统\"}) {\n            counts.put(m, logMapper.selectCount(buildBase(m, startDate, endDate)));\n        }",
+  "suggestion_code": null
+ },
+ {
+  "severity": "low",
+  "category": "performance",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/service/SysLogService.java",
+  "start_line": 31,
+  "end_line": 31,
+  "content": "`size` comes straight from the request (`@RequestParam(defaultValue = \"15\")`) and is not clamped here, and no `maxLimit` is configured on `PaginationInnerInterceptor` (MybatisPlusConfig). A caller can therefore pass an arbitrarily large `size` (e.g. `size=1000000`) and force loading/returning the whole `sys_log` table in one request. Clamp the page parameters in the service (e.g. `size = Math.min(Math.max(size, 1), 200)`).",
+  "existing_code": "        return logMapper.selectPage(new Page<>(current, size), wrapper);",
+  "suggestion_code": null
+ },
+ {
+  "severity": "medium",
+  "category": "security",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/service/SysLogService.java",
+  "start_line": 53,
+  "end_line": 55,
+  "content": "This branch is a fail-open no-op: if a non-admin ever reaches it, no `userId` predicate is added and the query returns the operation logs of the entire platform (exactly the ACL-P1-001 class of bug this code was meant to fix). The comment asserts the invariant is guaranteed by `resolveModuleUsersWithinGroup` (currently true, since that method only returns `null` for users holding the admin role), but the correctness of this security filter then depends silently on a remote method's contract — one refactor of the resolver and audit logs leak platform-wide. Make it fail-closed by default, e.g. treat `null` the same as an empty set (`w.eq(SysLog::getUserId, Long.MIN_VALUE)`) or throw an `IllegalStateException`.",
+  "existing_code": "            if (uids == null) {\n                // 仅 admin 会到达此处(WithinGroup 已保证非 admin 不返回 null)\n            } else if (uids.isEmpty()) {",
+  "suggestion_code": null
+ },
+ {
+  "severity": "low",
+  "category": "bug",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/service/SysLogService.java",
+  "start_line": 62,
+  "end_line": 65,
+  "content": "`LocalDate.parse` throws `DateTimeParseException` for any non-`yyyy-MM-dd` value, which is not caught anywhere in this layer and will surface as a 500 error for a simple bad query parameter. There is also no check that `startDate <= endDate` (a reversed range silently returns an empty page). Consider validating the parameters first (parse once, return an empty result or a `Result.error` for malformed/reversed ranges) instead of propagating the runtime exception.",
+  "existing_code": "        if (startDate != null && !startDate.isEmpty())\n            w.ge(SysLog::getCreatedAt, java.time.LocalDate.parse(startDate).atStartOfDay());\n        if (endDate != null && !endDate.isEmpty())\n            w.lt(SysLog::getCreatedAt, java.time.LocalDate.parse(endDate).plusDays(1).atStartOfDay());",
+  "suggestion_code": null
+ },
+ {
+  "severity": "medium",
+  "category": "performance",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/service/SysUserService.java",
+  "start_line": 162,
+  "end_line": 162,
+  "content": "循环内逐次调用 `deptMapper.selectDescendantIds(orgId)`，每次都是一条独立 SQL（N+1）。组织管理员管辖多个组织、且目标部门不在可见列表时，会放大成 N 条递归查询。建议先一次性收集 `getCurrentManagedOrgIds()`，再用一条带 `IN` 的递归/SQL 查询批量取回所有后代部门 ID，最后在内存中判断 `contains(targetDeptId)`。",
+  "existing_code": "                        if (deptMapper.selectDescendantIds(orgId).contains(targetDeptId)) { allowed = true; break; }",
+  "suggestion_code": null
+ },
+ {
+  "severity": "low",
+  "category": "bug",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/service/SysUserService.java",
+  "start_line": 131,
+  "end_line": 131,
+  "content": "`deptIds` 来源于前端查询参数，`Long::parseLong` 对非法片段（如 `deptIds=1,abc` 或 `1,` 之外的脏值）会抛出未捕获的 `NumberFormatException`，最终以 500 形式返回而非友好提示。建议过滤非数字片段（或捕获异常后返回空结果/参数错误），保证接口健壮性。",
+  "existing_code": "                .map(Long::parseLong)",
+  "suggestion_code": null
+ },
+ {
+  "severity": "medium",
+  "category": "bug",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/service/SysUserService.java",
+  "start_line": 205,
+  "end_line": 205,
+  "content": "审计事件在参数校验与 `userMapper.insert(user)` **之前**记录，此时 `user.getId()` 恒为 null（新用户主键由插入后才生成），且 `username` 可能为空。结果：审计流水丢失目标用户 ID（无法与后续用户记录关联），同时所有因校验失败而被拒绝的创建请求也会写入一条“user_create”成功语义的审计记录，污染审计轨迹。建议把审计调用移到校验通过、`userMapper.insert(user)` 之后，并传入 `user.getId()`。",
+  "existing_code": "        securityAudit.userAdminEvent(\"user_create\", user.getId(), user.getUsername());",
+  "suggestion_code": null
+ },
+ {
+  "severity": "medium",
+  "category": "bug",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/service/SysUserService.java",
+  "start_line": 247,
+  "end_line": 249,
+  "content": "此处为不可达的死代码：方法开头已有 `if (!StringUtils.hasText(user.getDataScopeOverride())) throw new BusinessException(\"数据范围不能为空\");`，因此执行到这里时 `hasText(...)` 必然为 true，该分支永远不会进入，`setDataScopeOverride(null)` 也永远不会生效。建议直接删除该分支（或若确实允许“空=跟随角色”，则应把开头的必填校验一并去掉，二者取其一，避免语义矛盾）。",
+  "existing_code": "        if (!StringUtils.hasText(user.getDataScopeOverride())) {\n            user.setDataScopeOverride(null); // 空=跟随角色，与 update 归一一致\n        }",
+  "suggestion_code": null
+ },
+ {
+  "severity": "medium",
+  "category": "bug",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/service/SysUserService.java",
+  "start_line": 376,
+  "end_line": 376,
+  "content": "破坏性操作 `purgeByUser` 被放在“用户存在性校验”和“非 admin 操作者禁止删除 admin 账号”这两道授权校验之前执行。语义上属于先做后判（check-after-act）：对不存在的 userId 或未授权的调用者也会先触发草稿清理，仅依赖外层 `@Transactional` 回滚兜底（若未来该方法的事务传播方式或调用链变化，将造成无授权数据删除）。建议将 `purgeByUser` 移到 `user == null` 与 `hasAdminRole` 校验通过之后、正式删除流程之中。",
+  "existing_code": "        formDraftService.purgeByUser(userId);",
+  "suggestion_code": null
+ },
+ {
+  "severity": "medium",
+  "category": "performance",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/service/SysRoleService.java",
+  "start_line": 288,
+  "end_line": 289,
+  "content": "循环内逐条查库（N+1）：对每个选中菜单都要 `selectById(cur)` 查自身、再 `selectById(parentId)` 查父节点，向下还有对 `expanded` 每个元素的一次 `selectById` 权限校验，一次保存可能产生数十次单行查询。建议一次性把涉及的菜单（含祖先链）批量查出并缓存到 `Map<Long, SysMenu>`（如 `menuMapper.selectBatchIds`），后续在内存中遍历父链，避免 N+1。",
+  "existing_code": "            while (cur != null && guard++ < 20) { // 环保护\n                com.aigicrm.module.system.entity.SysMenu m = menuMapper.selectById(cur);",
+  "suggestion_code": null
+ },
+ {
+  "severity": "medium",
+  "category": "performance",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/service/SysRoleService.java",
+  "start_line": 372,
+  "end_line": 372,
+  "content": "同样存在循环内逐条查询（N+1）：每个 orgId 依次执行 `deptMapper.selectById`、`deptMapper.selectEffectiveGroupId`、`deptMapper.selectDescendantGroupIds` 共 3 次单行/子树查询；orgIds 较多时（角色可勾选上百个组织）请求耗时会线性放大。建议批量查询部门及其集团信息（一次 `selectBatchIds`/一次 group 查询）后在内存中做校验与子树判定。",
+  "existing_code": "            if (deptMapper.selectById(orgId) == null) {",
+  "suggestion_code": null
+ },
+ {
+  "severity": "medium",
+  "category": "bug",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/service/SysRoleService.java",
+  "start_line": 108,
+  "end_line": 109,
+  "content": "审计记录的目标角色 ID 恒为 null：此处 `role` 尚未 `insert`，自增主键还没回填，`permissionChange(\"role_create\", role.getId(), ...)` 落库的 detail 永远是 `roleId=null`，无法定位新建角色。另外由于 `create` 带 `@Transactional`，而 `SecurityAuditService.persist` 是普通 `insert`（同事务、非 REQUIRES_NEW），一旦后续校验抛 `BusinessException` 回滚，这条“先写”的审计也会被一并回滚，提前记审计并无收益。建议把审计调用移到 `roleMapper.insert(role)` 之后（或改用独立事务写入），使审计既带真实角色 ID 又不随业务回滚丢失。",
+  "existing_code": "        securityAudit.permissionChange(\"role_create\", role.getId(), role.getRoleName(),\n                com.aigicrm.security.SecurityUtils.getCurrentUserId());",
+  "suggestion_code": null
+ },
+ {
+  "severity": "low",
+  "category": "maintainability",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/service/SysRoleService.java",
+  "start_line": 162,
+  "end_line": 162,
+  "content": "冗余判空（死分支）：进入 `if (hasRoleFields)` 之前已对 `existing` 做过 null 判断并在为 null 时抛出 `BusinessException`，因此此处 `existing != null` 恒为 true，该分支的 else 逻辑不可达，建议删除以免误导读者的边界判断。",
+  "existing_code": "            if (role.getRoleCode() != null && existing != null && existing.getRoleCode() != null",
+  "suggestion_code": null
+ },
+ {
+  "severity": "medium",
+  "category": "bug",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/service/SysRoleService.java",
+  "start_line": 172,
+  "end_line": 175,
+  "content": "部分更新会静默清空 custom 数据范围配置：`saveRoleOrgs` 第一步就执行 `roleOrgMapper.deleteByRoleId(role.getId())`，而此处只要 `dataScope != null` 就调用它。若调用方只传 `dataScope=\"custom\"` 而未带 `orgIds`（`orgIds == null`），已有 role_org 关联会被全部删除且不再回填，角色的自定义数据范围直接变为空。建议仅在 `orgIds` 显式提供、或 dataScope 明确切换到非 custom（需要清空）时才执行保存。",
+  "existing_code": "        // 如果传了 dataScope，同步更新组织关联\n        if (role.getDataScope() != null) {\n            saveRoleOrgs(role);\n        }",
+  "suggestion_code": "        // 如果传了 dataScope，同步更新组织关联；orgIds 未提供且仍为 custom 时不可清空既有配置\n        if (role.getDataScope() != null\n                && (role.getOrgIds() != null\n                    || !DataScopeType.CUSTOM.getCode().equals(role.getDataScope()))) {\n            saveRoleOrgs(role);\n        }"
+ },
+ {
+  "severity": "low",
+  "category": "security",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/service/SysRoleService.java",
+  "start_line": 208,
+  "end_line": 210,
+  "content": "本方法修改角色的 custom 数据范围（并覆盖既有 role_org 配置），属于权限变更，但缺少 `securityAudit.permissionChange(...)` 审计调用，而同类的 create/update/delete 均有记录，导致“谁能看多少数据”的变更在审计日志中出现盲区。建议在保存前补一条审计事件（如 `role_update_orgs`）。",
+  "existing_code": "        saveRoleOrgs(role);\n        // 【Redis 权限缓存】custom 数据范围组织集变更立即失效\n        permissionCacheService.evictByRole(roleId);",
+  "suggestion_code": null
+ }
+]

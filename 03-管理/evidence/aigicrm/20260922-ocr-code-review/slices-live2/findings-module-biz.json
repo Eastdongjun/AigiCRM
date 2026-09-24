@@ -1,0 +1,532 @@
+[
+ {
+  "severity": "medium",
+  "category": "bug",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/incentive/controller/IncentivePermissionController.java",
+  "start_line": 90,
+  "end_line": 90,
+  "content": "`Long.valueOf(o.toString())` (and the same pattern for `body.get(\"userId\")`) is called on attacker-controllable request data without validation. A non-numeric / null-ish userIds element, an empty string, or a JSON decimal such as `1.0` (Jackson parses it as `Double`, whose `toString()` is `\"1.0\"`) throws an uncaught `NumberFormatException`, surfacing as HTTP 500 instead of a friendly business error. Validate/normalize the input and convert parse failures into `BusinessException`.",
+  "existing_code": "                if (o != null) userIds.add(Long.valueOf(o.toString()));",
+  "suggestion_code": "                if (o == null) continue;\n                try {\n                    userIds.add(Long.valueOf(o.toString().trim()));\n                } catch (NumberFormatException e) {\n                    throw new BusinessException(\"人员ID非法：\" + o);\n                }"
+ },
+ {
+  "severity": "medium",
+  "category": "performance",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/incentive/controller/IncentivePermissionController.java",
+  "start_line": 97,
+  "end_line": 98,
+  "content": "Two issues in this loop:\n1) One `jdbc.update` round-trip per user → N database round trips for a batch grant. Prefer `jdbc.batchUpdate(sql, batchArgs)` to reduce latency.\n2) The method has no `@Transactional`; if a later iteration fails (e.g. invalid id / DB error), the rows already upserted remain committed, leaving the grant half-applied. Wrap the whole batch in a transaction so the operation is all-or-nothing.",
+  "existing_code": "        Long operator = SecurityUtils.getCurrentUserId();\n        for (Long userId : userIds) {",
+  "suggestion_code": null
+ },
+ {
+  "severity": "medium",
+  "category": "bug",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/incentive/controller/IncentivePermissionController.java",
+  "start_line": 112,
+  "end_line": 113,
+  "content": "`toInt` only recognizes `Boolean` and `Number`; any other type (notably a JSON string such as `\"0\"` / `\"1\"`, which Jackson can produce for form/checkbox payloads) silently falls back to the default. This is dangerous for `canViewShared`, whose default is 1: sending `canViewShared: \"0\"` to revoke share-view access silently keeps it enabled. Also there is no range validation, so values like `2`/`-1` are persisted as-is. Parse strings explicitly and reject values outside {0,1}.",
+  "existing_code": "        if (v instanceof Number) return ((Number) v).intValue();\n        return defaultValue;",
+  "suggestion_code": "        if (v instanceof Number) return ((Number) v).intValue();\n        if (v instanceof CharSequence) {\n            String s = v.toString().trim();\n            if (\"1\".equals(s) || \"true\".equalsIgnoreCase(s)) return 1;\n            if (\"0\".equals(s) || \"false\".equalsIgnoreCase(s)) return 0;\n        }\n        return defaultValue;"
+ },
+ {
+  "severity": "medium",
+  "category": "bug",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/incentive/controller/IncentiveController.java",
+  "start_line": 82,
+  "end_line": 83,
+  "content": "The javadoc above this method states the method-level `@PreAuthorize` \"硬码\" was removed so that a salesperson who no longer has the `incentive:edit` code can still edit their own record (\"本人恒可\"), but the actual annotation requires `incentive:view`. Any user lacking that authority is rejected before the in-method ownership guard runs, contradicting the documented \"owner can always edit\" behavior. Please align the code with the documented intent (or update/remove the stale comment) — note `deleteRecord` has the same stale comment/annotation pair.",
+  "existing_code": "    @PreAuthorize(\"hasAuthority('incentive:view')\")\n    @PutMapping(\"/records/{id}\")",
+  "suggestion_code": null
+ },
+ {
+  "severity": "medium",
+  "category": "bug",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/incentive/controller/IncentiveController.java",
+  "start_line": 90,
+  "end_line": 90,
+  "content": "Potential NPE: `.equals(...)` is called on the nullable DB field `getUserId()` (`existing.getUserId()` in `updateRecord`, `incRecord.getUserId()` in the other ownership check), so legacy/imported rows with a null `userId` throw NPE instead of returning the intended 403. Use a null-safe comparison (e.g. `Objects.equals`), as the service layer already does for `customerId`.",
+  "existing_code": "            if (existing == null || !existing.getUserId().equals(user.getUserId())) {",
+  "suggestion_code": "            if (existing == null || !java.util.Objects.equals(existing.getUserId(), user.getUserId())) {"
+ },
+ {
+  "severity": "medium",
+  "category": "bug",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/incentive/entity/BizIncentiveRecord.java",
+  "start_line": 66,
+  "end_line": 67,
+  "content": "The closing bracket is stripped unconditionally as soon as the value starts with `[`, regardless of whether it actually ends with `]`. For a truncated/legacy value such as `\"[1,2\"` the last character (a digit) is removed and the last file ID is silently lost, while a value like `\"1,2]\"` (leading bracket lost) degenerates to an empty list, i.e. `hasAnyFile()`/`hasFiles()` report \"no file\". In addition, `\"[\"` makes `substring(1, 0)` throw `StringIndexOutOfBoundsException`, which is only hidden by the broad catch below. Strip the brackets independently with a length guard.",
+  "existing_code": "            String inner = json.trim();\n            if (inner.startsWith(\"[\")) inner = inner.substring(1, inner.length() - 1);",
+  "suggestion_code": "            String inner = json.trim();\n            if (inner.startsWith(\"[\")) inner = inner.substring(1);\n            if (inner.endsWith(\"]\")) inner = inner.substring(0, inner.length() - 1);"
+ },
+ {
+  "severity": "low",
+  "category": "bug",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/incentive/entity/BizIncentiveRecord.java",
+  "start_line": 81,
+  "end_line": 81,
+  "content": "Returning `null` for an empty list makes the setter/getter pair asymmetric: `setFileIds(Collections.emptyList())` stores `null`, so `getFileIds()` yields an empty list but the column keeps its previous value — MyBatis-Plus's default NOT_NULL field strategy skips null fields on `updateById`, so \"clear all files\" can never be persisted and stale file references survive. Prefer an explicit `\"[]\"` value (or document the null semantics clearly).",
+  "existing_code": "        if (ids == null || ids.isEmpty()) return null;",
+  "suggestion_code": null
+ },
+ {
+  "severity": "low",
+  "category": "maintainability",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/incentive/entity/BizIncentiveRecord.java",
+  "start_line": 74,
+  "end_line": 76,
+  "content": "Swallowing every exception without any log makes corrupted `file_id`/`file_*_id` data indistinguishable from a genuinely empty slot: file references silently disappear from statistics and the user only sees \"please upload at least one file\". Log the offending raw value at debug/warn level so dirty data can be traced.",
+  "existing_code": "        } catch (Exception e) {\n            return List.of();\n        }",
+  "suggestion_code": null
+ },
+ {
+  "severity": "high",
+  "category": "security",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/score/mapper/BizScoreEntryMapper.java",
+  "start_line": 11,
+  "end_line": 11,
+  "content": "Tenant isolation is fail-open here: the `(#{tenantId} IS NULL OR tenant_id = #{tenantId})` escape clause means that whenever `tenantId` is null (e.g. `GroupScopeUtil.currentGroupOrNull()` returns null for a platform-level caller, or a new caller simply omits the argument) the statement silently degrades back to the original bug the comment claims to fix — deleting the whole group's `biz_score_entry` rows for that period. Prefer fail-closed: drop the `IS NULL` branch so a null tenant matches nothing (callers should validate/throw when the current group cannot be resolved). Additionally, when `tenantId` is null MyBatis passes JdbcType.OTHER by default, which errors on stricter databases, so declare the JDBC type explicitly.",
+  "existing_code": "    @Delete(\"DELETE FROM biz_score_entry WHERE period = #{period} AND (#{tenantId} IS NULL OR tenant_id = #{tenantId})\")",
+  "suggestion_code": "    @Delete(\"DELETE FROM biz_score_entry WHERE period = #{period} AND tenant_id = #{tenantId,jdbcType=BIGINT})\")"
+ },
+ {
+  "severity": "low",
+  "category": "maintainability",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/score/mapper/BizScoreEntryMapper.java",
+  "start_line": 12,
+  "end_line": 12,
+  "content": "`physicalDeleteByPeriod` on this entry mapper has no call sites anywhere in the codebase (ScoreService only invokes the participant mapper's version), so this is currently dead code that also exposes an unused hard-delete path on scoring data. Either wire it up where the entry cleanup is actually needed, or remove it until a caller exists.",
+  "existing_code": "    int physicalDeleteByPeriod(@Param(\"period\") String period, @Param(\"tenantId\") Long tenantId);",
+  "suggestion_code": null
+ },
+ {
+  "severity": "high",
+  "category": "bug",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/score/controller/ScoreController.java",
+  "start_line": 56,
+  "end_line": 57,
+  "content": "`entries` and `period` are read straight from the request body without any validation. `ScoreService.batchSave` immediately does `for (Map<String, Object> e : entries)` (line 153 of ScoreService), so a request body missing `entries` (or with `entries: null`) throws an unhandled NPE → HTTP 500. Likewise a missing/blank `period` is passed to the DB query/persist path, writing score entries with a null period. Validate the payload before delegating.",
+  "existing_code": "        String period = (String) body.get(\"period\");\n        List<Map<String, Object>> entries = (List<Map<String, Object>>) body.get(\"entries\");",
+  "suggestion_code": "        String period = (String) body.get(\"period\");\n        if (period == null || period.isBlank()) {\n            throw new IllegalArgumentException(\"period 不能为空\");\n        }\n        List<Map<String, Object>> entries = (List<Map<String, Object>>) body.get(\"entries\");\n        if (entries == null) {\n            entries = java.util.Collections.emptyList();\n        }"
+ },
+ {
+  "severity": "medium",
+  "category": "security",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/score/controller/ScoreController.java",
+  "start_line": 25,
+  "end_line": 25,
+  "content": "The request body is bound directly to the persistence entity without `@Valid`/validation. For `addItem` the client can supply an arbitrary `id` (auto-increment PK) and audit fields, and there is no check that `scoreMin <= scoreMax`; for `updateItem` the client can also overwrite `deleted`/`createdAt`/`updatedAt`. Prefer a dedicated request DTO with bean validation, or at minimum validate the score range and null the server-managed fields before delegating.",
+  "existing_code": "    public Result<BizScoreItem> addItem(@RequestBody BizScoreItem item) {",
+  "suggestion_code": null
+ },
+ {
+  "severity": "medium",
+  "category": "bug",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/score/entity/BizScoreEntry.java",
+  "start_line": 17,
+  "end_line": 17,
+  "content": "The `deleted` column is declared without `@TableLogic`, which is inconsistent with every other entity in the project (e.g. the sibling `BizScoreItem` at line 17 uses `@TableLogic`). Consequences: (1) MyBatis-Plus queries on this entity (`selectList`/`selectById` used in `ScoreService`) do not append `deleted = 0`, so any row marked deleted=1 would still be returned to callers; (2) `entryMapper.deleteById(...)` in `ScoreService` (line 226) performs a physical DELETE and the `deleted` field is therefore never written/read, making it effectively dead. Please confirm the intent: if soft-delete is expected, add `@TableLogic` (note that adding it will interact with the `uk_period_item_user` unique key, so the re-insert path in `ScoreService` must reuse/revive the soft-deleted row instead of inserting); if physical delete is really intended, the unused `deleted` field/column should be dropped to avoid misleading readers.",
+  "existing_code": "    private Integer deleted;",
+  "suggestion_code": "    @TableLogic\n    private Integer deleted;"
+ },
+ {
+  "severity": "high",
+  "category": "security",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/score/mapper/BizScoreParticipantMapper.java",
+  "start_line": 11,
+  "end_line": 12,
+  "content": "The `#{tenantId} IS NULL OR tenant_id = #{tenantId}` fallback defeats the stated goal of this change (\"显式租户条件…跨租户清库收口\"). In MySQL `NULL IS NULL` evaluates to TRUE, so when `tenantId` is null the OR-branch short-circuits and the statement becomes `DELETE FROM biz_score_participant WHERE period = ?` — i.e. it physically wipes ALL tenants' participant lists for that period. Callers can and do pass null: `ScoreService` line 232 passes `GroupScopeUtil.currentGroupOrNull()`, which returns null both for the platform admin and for a non-admin whose group cannot be resolved (see `GroupScopeUtil` javadoc: \"取不到任何集团归属 → null, 调用方必须按 fail-closed 处理(空结果/拒绝)\"). Because the mapper cannot distinguish those two cases, a fail-closed situation is silently converted into the most destructive possible cross-tenant delete, and this also bypasses the MyBatis-Plus tenant interceptor (which is deliberately disabled when `aigicrm.tenant.enable=false`, as the entry-mapper comment notes). Recommend making the null case fail-closed (delete nothing) and letting callers that legitimately need a cross-tenant/admin cleanup use a separate, explicitly named method, e.g.:\n\n```java\n@Delete(\"<script>DELETE FROM biz_score_participant WHERE period = #{period}\"\n        + \"<if test='tenantId != null'> AND tenant_id = #{tenantId}</if>\"\n        + \"<if test='tenantId == null'> AND 1 = 0</if></script>\")\nint physicalDeleteByPeriod(@Param(\"period\") String period, @Param(\"tenantId\") Long tenantId);\n```",
+  "existing_code": "    @Delete(\"DELETE FROM biz_score_participant WHERE period = #{period} AND (#{tenantId} IS NULL OR tenant_id = #{tenantId})\")\n    int physicalDeleteByPeriod(@Param(\"period\") String period, @Param(\"tenantId\") Long tenantId);",
+  "suggestion_code": null
+ },
+ {
+  "severity": "medium",
+  "category": "bug",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/score/service/ScoreService.java",
+  "start_line": 86,
+  "end_line": 87,
+  "content": "`visibleUserIds()` can legitimately return an empty list (fail-closed when a non-admin has no group, see `resolveModuleUsersWithinGroup`). MyBatis-Plus renders `in(column, emptyCollection)` as `IN ()`, which raises an SQL syntax error instead of returning an empty result. Guard with `!visible.isEmpty()` (the `visible.isEmpty()` case should return no rows, not run an invalid `IN`). The same pattern exists in `exportGrid` (`ew.in(BizScoreEntry::getUserId, visible)`).",
+  "existing_code": "        List<Long> visible = visibleUserIds();\n        if (visible != null) userWrapper.in(SysUser::getId, visible);",
+  "suggestion_code": null
+ },
+ {
+  "severity": "medium",
+  "category": "performance",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/score/service/ScoreService.java",
+  "start_line": 291,
+  "end_line": 296,
+  "content": "N+1 query problem: `userMapper.selectById(uid)` is executed per ranking row and `deptMapper.selectById(user.getDeptId())` per user. With company-wide ranking (period=\"全部\" fetches all entries) this issues 2 DB round-trips per participant. Suggest batch-loading users with `userMapper.selectBatchIds(sortedUids)` and departments with `deptMapper.selectBatchIds(deptIds)` before the loop, then reading from the maps.",
+  "existing_code": "            SysUser user = userMapper.selectById(uid);\n            if (user == null) continue;\n\n            String officeName = \"\";\n            if (user.getDeptId() != null) {\n                var dept = deptMapper.selectById(user.getDeptId());",
+  "suggestion_code": null
+ },
+ {
+  "severity": "medium",
+  "category": "bug",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/score/service/ScoreService.java",
+  "start_line": 60,
+  "end_line": 61,
+  "content": "`selectCount(null)` returns the total number of items, not the maximum `sortOrder`. The comment says \"默认排到最后\" but if items have been deleted, the count is smaller than the existing max sortOrder, so the new item may collide with an existing sortOrder and not appear last. Use a max-aggregate query instead (e.g. `selectObjs(new QueryWrapper<BizScoreItem>().select(\"COALESCE(MAX(sort_order),0)\"))`).",
+  "existing_code": "            Long maxSort = itemMapper.selectCount(null);\n            item.setSortOrder(maxSort.intValue() + 1);",
+  "suggestion_code": null
+ },
+ {
+  "severity": "medium",
+  "category": "bug",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/score/service/ScoreService.java",
+  "start_line": 186,
+  "end_line": 186,
+  "content": "Potential NPE: `getScoreMin()`/`getScoreMax()` are unboxed here; if an item was created without min/max (nullable columns), this throws NullPointerException. Also note `toInt` maps an unparsable client value to 0, so a malformed score is silently persisted as 0 rather than rejected. Please null-check the bounds (or enforce NOT NULL on the entity/DDL) and treat non-numeric input as an error.",
+  "existing_code": "            if (v < chkItem.getScoreMin() || v > chkItem.getScoreMax()) {",
+  "suggestion_code": null
+ },
+ {
+  "severity": "medium",
+  "category": "bug",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/score/service/ScoreService.java",
+  "start_line": 71,
+  "end_line": 73,
+  "content": "`deleteItem` performs a physical delete of the item but leaves orphan rows in `biz_score_entry` referencing the removed item. Those entries still contribute to `ranking`/`deptRanking`/`rankingStats` (which load entries without joining items), producing rankings with scores for non-existent items. Consider deleting/soft-deleting related entries or excluding unknown itemIds when aggregating.",
+  "existing_code": "    public void deleteItem(Long id) {\n        itemMapper.deleteById(id);\n    }",
+  "suggestion_code": null
+ },
+ {
+  "severity": "low",
+  "category": "bug",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/score/service/ScoreService.java",
+  "start_line": 233,
+  "end_line": 233,
+  "content": "The previous participant roster is physically deleted unconditionally, but it is only reinserted when `participantIds != null`. A caller that omits `participantIds` (optional parameter) therefore silently wipes the period's saved roster/column order, and `getGrid` will fall back to the full active-user list. Move the delete inside the `if (participantIds != null)` block or reject null explicitly.",
+  "existing_code": "        participantMapper.physicalDeleteByPeriod(period, groupForDelete);",
+  "suggestion_code": null
+ },
+ {
+  "severity": "low",
+  "category": "bug",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/score/service/ScoreService.java",
+  "start_line": 306,
+  "end_line": 306,
+  "content": "Trend logic collapses two cases into \"追赶\": when the user keeps the same rank as the previous period (`rank == prevRank`), the UI reports \"追赶\", which is misleading. Also `getPrevRanks` sorts only by total score while `ranking` breaks ties by non-zero item count, so the compared ranks are computed with different ordering rules and can produce spurious trends. Suggest adding a \"持平/保持\" branch and aligning the tie-break rules.",
+  "existing_code": "                trend = rank < prevRank ? \"上升\" : \"追赶\";",
+  "suggestion_code": null
+ },
+ {
+  "severity": "high",
+  "category": "security",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/incentive/service/IncentiveService.java",
+  "start_line": 89,
+  "end_line": 90,
+  "content": "Fail-open cross-group leak: `OrgScopeResolver.resolve()` returns `null` for the \"all\" data scope, and here `null` means \"no filter at all\". `sys_user` is a global table without `tenant_id`, so the tenant interceptor cannot narrow it — a user with an ALL-range role would see every user of every group in this dropdown. `OrgScopeResolver.resolveModuleUsersWithinGroup` (added for exactly this case) collapes \"all\" to the current group's member set. Please use the group-safe entry point.",
+  "existing_code": "        List<Long> visible = scopeResolver.resolve(SecurityUtils.getCurrentUser());\n        if (visible != null) wrapper.in(SysUser::getId, visible);",
+  "suggestion_code": "        List<Long> visible = scopeResolver.resolveModuleUsersWithinGroup(SecurityUtils.getCurrentUser(), \"incentive\");\n        if (visible != null) wrapper.in(SysUser::getId, visible);"
+ },
+ {
+  "severity": "high",
+  "category": "performance",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/incentive/service/IncentiveService.java",
+  "start_line": 703,
+  "end_line": 713,
+  "content": "N+1 query in a loop: for every ranked user this executes `userMapper.selectById` and (when officeId is set) `deptMapper.selectById`. With a few hundred participants this is hundreds of round trips per scoreboard/deptRanking request. Collect all `userAgg.keySet()` (and the officeIds) up front and resolve them with one `selectByIds` + one dept `selectByIds`, then look up from the maps in the loop (the pattern already used in `getRecords`).",
+  "existing_code": "            SysUser user = userMapper.selectById(e.getKey());\n            if (user != null) {\n                item.put(\"realName\", user.getRealName());\n                item.put(\"deptId\", user.getDeptId());\n                String officeName = \"未知\";\n                if (user.getOfficeId() != null) {\n                    SysDept office = deptMapper.selectById(user.getOfficeId());\n                    if (office != null) officeName = office.getDeptName();\n                }\n                item.put(\"officeName\", officeName);\n            }",
+  "suggestion_code": null
+ },
+ {
+  "severity": "high",
+  "category": "performance",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/incentive/service/IncentiveService.java",
+  "start_line": 925,
+  "end_line": 926,
+  "content": "N+1 query per record: `userMapper.selectById` is called twice per row inside the loop, while customers/categories were already batch-loaded above. Build one `Map<Long, SysUser>` from `userMapper.selectByIds(uidSet)` (collect `userId` + `updatedBy` before the loop, exactly as `getRecords` does) and read names from the map here.",
+  "existing_code": "            if (r.getUserId() != null) { SysUser u = userMapper.selectById(r.getUserId()); if (u != null) r.setUserName(u.getRealName()); }\n            if (r.getUpdatedBy() != null) { SysUser up = userMapper.selectById(r.getUpdatedBy()); if (up != null) r.setUpdatedByName(up.getRealName()); }",
+  "suggestion_code": null
+ },
+ {
+  "severity": "medium",
+  "category": "performance",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/incentive/service/IncentiveService.java",
+  "start_line": 403,
+  "end_line": 408,
+  "content": "N+1 inside the recalculation loop: besides `categoryMapper.selectById(r.getCategoryId())`, `calcScore` → `isPlanCategory`/`isVisitExchangeCategory` may issue up to two more `categoryMapper.selectById(parentId)` calls per record, so a full recalculation performs 1–3 DB round trips per historical row. Pre-load all categories into a `Map<Long, BizIncentiveCategory>` once (as `categoryMainOrder` already receives) and pass the parent code into `calcScore` instead of re-querying.",
+  "existing_code": "        List<BizIncentiveRecord> all = recordMapper.selectList(null);\n        int changed = 0;\n        for (BizIncentiveRecord r : all) {\n            BizIncentiveCategory category = categoryMapper.selectById(r.getCategoryId());\n            int base = (category != null && category.getScore() != null) ? category.getScore() : 0;\n            int newScore = calcScore(r, category, base);",
+  "suggestion_code": null
+ },
+ {
+  "severity": "medium",
+  "category": "bug",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/incentive/service/IncentiveService.java",
+  "start_line": 295,
+  "end_line": 298,
+  "content": "Logic bug: when the requested top-level category has no children the `in(...)` restriction is skipped entirely, so the query silently returns records of *all* categories (subject only to share visibility) instead of an empty/limited result — the filter just disappears. Include the parent id itself in the set (as `getCustomerRecords` does for `mainCategoryId`) so the constraint is always applied.",
+  "existing_code": "            List<Long> childIds = children.stream().map(BizIncentiveCategory::getId).toList();\n            if (!childIds.isEmpty()) {\n                wrapper.in(BizIncentiveRecord::getCategoryId, childIds);\n            }",
+  "suggestion_code": "            List<Long> childIds = new ArrayList<>(children.stream().map(BizIncentiveCategory::getId).toList());\n            childIds.add(parentCategoryId);\n            wrapper.in(BizIncentiveRecord::getCategoryId, childIds);"
+ },
+ {
+  "severity": "low",
+  "category": "maintainability",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/incentive/service/IncentiveService.java",
+  "start_line": 509,
+  "end_line": 511,
+  "content": "Dead/redundant expression: `r.getFilePreId() != null ? r.getFilePreId() : null` is equivalent to `r.getFilePreId()` (same for mid/post). The ternary adds no null-safety and obscures the intent — `hasFiles` already tolerates a null argument. Simplify to the direct getters.",
+  "existing_code": "        boolean hasPre  = r.hasFiles(r.getFilePreId() != null ? r.getFilePreId() : null);\n        boolean hasMid  = r.hasFiles(r.getFileMidId() != null ? r.getFileMidId() : null);\n        boolean hasPost = r.hasFiles(r.getFilePostId() != null ? r.getFilePostId() : null);",
+  "suggestion_code": "        boolean hasPre  = r.hasFiles(r.getFilePreId());\n        boolean hasMid  = r.hasFiles(r.getFileMidId());\n        boolean hasPost = r.hasFiles(r.getFilePostId());"
+ },
+ {
+  "severity": "low",
+  "category": "bug",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/statistics/controller/StatisticsController.java",
+  "start_line": 58,
+  "end_line": 58,
+  "content": "`year` has no range validation. The service turns `0` into the current year but passes any other value straight into `LocalDateTime.of(year, m, 1, 0, 0)`, which throws `DateTimeException` for out-of-range years (e.g. requested with `?year=1000000000`, still a valid `int`). That surfaces as an HTTP 500 instead of a 400. Consider validating/clamping the parameter at the boundary, e.g. restrict to a sane range.",
+  "existing_code": "    public Result<Map<String, Object>> analysis(@RequestParam(defaultValue = \"0\") int year,",
+  "suggestion_code": "    public Result<Map<String, Object>> analysis(@RequestParam(defaultValue = \"0\") @Min(0) @Max(9999) int year,"
+ },
+ {
+  "severity": "medium",
+  "category": "bug",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/statistics/service/StatisticsQueryService.java",
+  "start_line": 634,
+  "end_line": 635,
+  "content": "业务口径不一致：同一循环内 `total`/`monthNew`/`recent5` 都按 B5 统一口径排除了 `sea`/`archived`，但 `active` 的查询没有 `notIn(status, \"sea\", \"archived\")`。分子（active）与分母（total）来自不同口径的人群，activeRate 可能大于 100%（归档客户保护状态通常仍为 active），也违背 B5「归档不参与统计」的注释。建议给 aw 补上同样的 notIn 条件。",
+  "existing_code": "            aw.eq(BizCustomer::getDeleted, 0).eq(BizCustomer::getProtectionStatus, \"active\")\n              .eq(BizCustomer::getOfficeId, dept.getId());",
+  "suggestion_code": "            aw.eq(BizCustomer::getDeleted, 0).notIn(BizCustomer::getStatus, \"sea\", \"archived\") // B5 统一口径\n              .eq(BizCustomer::getProtectionStatus, \"active\")\n              .eq(BizCustomer::getOfficeId, dept.getId());"
+ },
+ {
+  "severity": "medium",
+  "category": "bug",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/statistics/service/StatisticsQueryService.java",
+  "start_line": 438,
+  "end_line": 438,
+  "content": "核心客户判定与全局规则不一致：类内 `isCoreCustomer`（及方法注释「核心客户=指标分>=12 且开票、回款均达标」、customerRankings 的注释「>=12 且开票/回款均 >=100 万」）要求开票与回款同时达标，这里只校验了开票金额，导致 regionRanking 的 coreCount 高于 customerRanking/coreCount。建议复用 isCoreCustomer 并传入回款合计。",
+  "existing_code": "            int core = (s >= 12 && invT.compareTo(THRESHOLD) >= 0) ? 1 : 0;",
+  "suggestion_code": "            java.math.BigDecimal payT = paymentTotals.getOrDefault(ind.getCustomerId(), java.math.BigDecimal.ZERO);\n            int core = isCoreCustomer(s, invT, payT) ? 1 : 0;"
+ },
+ {
+  "severity": "medium",
+  "category": "bug",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/statistics/service/StatisticsQueryService.java",
+  "start_line": 804,
+  "end_line": 804,
+  "content": "NPE 风险：`switch` 表达式对 selector 为 null 会直接抛 NullPointerException。`approval_type` 为可空字段（实体仅 `private String approvalType;`，历史/异常数据可能为 null），一旦为空整个「团队动态」接口 500。建议先做 null 兜底。",
+  "existing_code": "            String typeText = switch (appr.getApprovalType()) {",
+  "suggestion_code": "            String approvalType = appr.getApprovalType() != null ? appr.getApprovalType() : \"\";\n            String typeText = switch (approvalType) {"
+ },
+ {
+  "severity": "high",
+  "category": "performance",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/statistics/service/StatisticsQueryService.java",
+  "start_line": 767,
+  "end_line": 769,
+  "content": "N+1 查询：该循环对每条活动分别 `userMapper.selectById` 与 `customerMapper.selectById`（后续激励/文件/审批/客户/日志 5 个循环同样如此），并且 `buildActivity` 内部还会对每个 user 再执行 `deptMapper.selectById`，一次请求最多产生 30+ 次单条查询。建议先收集所有涉及的 userId/ownerId/customerId，用 `selectByIds` 批量预取为 Map 后再组装（本文件其他位置已是批量预取，此处应统一）。",
+  "existing_code": "        for (BizCustomerLog log : customerLogMapper.selectList(logWrapper)) {\n            SysUser user = userMapper.selectById(log.getUserId());\n            BizCustomer customer = customerMapper.selectById(log.getCustomerId());",
+  "suggestion_code": null
+ },
+ {
+  "severity": "high",
+  "category": "performance",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/statistics/service/StatisticsQueryService.java",
+  "start_line": 625,
+  "end_line": 625,
+  "content": "循环内执行数据库查询（N+1）：每个办事处（deptType=3）在循环内执行 1(total)+1(active)+1(monthNew)+5(recent5) = 8 次 `selectCount`，办事处数量为 N 时共 8N 次往返，经营分析接口随组织增长线性劣化。建议改为一条 `GROUP BY office_id`（含最近 5 个月）的聚合 SQL 或一次性批量统计。",
+  "existing_code": "        for (var dept : allDepts) {",
+  "suggestion_code": null
+ },
+ {
+  "severity": "medium",
+  "category": "performance",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/statistics/service/StatisticsQueryService.java",
+  "start_line": 163,
+  "end_line": 163,
+  "content": "循环内执行数据库查询：日报按「本月每一天」各执行一次 `fileMapper.selectCount`（最多 31 次往返），weeklyStats 同理。数据量不随天数增长，但接口 RT 随天数线性上升。建议用一条 `GROUP BY DATE(created_at)` 的聚合查询在内存补齐空日。",
+  "existing_code": "        for (LocalDate cursor : monthDaysThrough(today)) {",
+  "suggestion_code": null
+ },
+ {
+  "severity": "medium",
+  "category": "performance",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/statistics/service/StatisticsQueryService.java",
+  "start_line": 516,
+  "end_line": 516,
+  "content": "重复重计算：`customerRankings` 已完成 `getAllActiveCustomers()` 与客户 Map 的构建，这里再次调用 `indicatorStats()` 会重新全量加载客户、指标、发票、回款并做一遍排名聚合（且该方法内部又调用一次 `getAllActiveCustomers()`），同一请求内重复 2 遍重查询。建议抽取一个共享的私有方法/上下文对象（或在同一请求内缓存），避免重复加载。",
+  "existing_code": "        Map<String, Object> indicatorStats = indicatorStats();",
+  "suggestion_code": null
+ },
+ {
+  "severity": "low",
+  "category": "documentation",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/statistics/service/StatisticsQueryService.java",
+  "start_line": 241,
+  "end_line": 241,
+  "content": "注释与实现相矛盾（文档过期）：紧邻的下一行 `allCustomers` 已改为 `visibleCustomers(...)` 做数据范围过滤，且指标随后按可见客户剔除（G2 2026-09-21 安全收口），此处仍写「不做数据范围过滤」；`applyCustomerScope` 的 Javadoc 也仍声明 indicatorStats 是「明确不做数据范围过滤」的例外。建议同步更新注释，避免后续维护者按旧口径回退安全修复。",
+  "existing_code": "        // 【2026-08-08 设计规则：核心客户六项指标全员可见】公司级指标展示，不做数据范围过滤。",
+  "suggestion_code": null
+ },
+ {
+  "severity": "medium",
+  "category": "bug",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/task/entity/BizTask.java",
+  "start_line": 28,
+  "end_line": 29,
+  "content": "Unlike every other entity in this project (e.g. `BizCustomer`, `BizContact`, `SysUser`, which annotate the audit columns with `@TableField(fill = FieldFill.INSERT)` / `@TableField(fill = FieldFill.INSERT_UPDATE)`), `BizTask` declares `createdAt`/`updatedAt` without fill annotations. The registered `MetaObjectHandler.metaObjectHandler()` uses `strictInsertFill`/`strictUpdateFill`, which only populate fields that carry a fill strategy, so these fields stay null on the entity instance after insert/update. `TaskController` returns `taskViewService.toRow(taskService.createFromMap(body))` and `TaskViewService.toRow` exposes `createdAt`, so the create response always returns `createdAt: null` even though the DB has a default. Add the fill annotations to keep behavior consistent with the rest of the codebase (the DB default then no longer silently hides the gap).",
+  "existing_code": "    private LocalDateTime createdAt;\n    private LocalDateTime updatedAt;",
+  "suggestion_code": "    @TableField(fill = FieldFill.INSERT)\n    private LocalDateTime createdAt;\n    @TableField(fill = FieldFill.INSERT_UPDATE)\n    private LocalDateTime updatedAt;"
+ },
+ {
+  "severity": "low",
+  "category": "performance",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/task/controller/TaskController.java",
+  "start_line": 28,
+  "end_line": 29,
+  "content": "分页参数 `current`/`size` 未做边界校验：客户端可传入 `size=100000000`（或负数、`current<=0`），MyBatis-Plus 会按该值拼装 LIMIT，导致单次查询拉取海量数据（内存/DB 压力，可被用于放大请求），负值还可能生成非法的 offset。建议对参数做钳制/校验，例如在方法内 `current = Math.max(current, 1); size = Math.min(Math.max(size, 1), 200);`（或在类上加 `@Validated` 并对参数使用 `@Min(1)`/`@Max(...)`）。",
+  "existing_code": "            @RequestParam(defaultValue = \"1\") int current,\n            @RequestParam(defaultValue = \"20\") int size,",
+  "suggestion_code": null
+ },
+ {
+  "severity": "low",
+  "category": "maintainability",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/task/service/TaskService.java",
+  "start_line": 21,
+  "end_line": 21,
+  "content": "Unused import: every use of `List` in this class is written as the fully-qualified `java.util.List`, so this import is dead code and should be removed (or the fully-qualified usages replaced by the import).",
+  "existing_code": "import java.util.List;",
+  "suggestion_code": null
+ },
+ {
+  "severity": "high",
+  "category": "performance",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/task/service/TaskService.java",
+  "start_line": 205,
+  "end_line": 208,
+  "content": "N+1 query: for every record in the page, `fillNames` issues up to 2 additional `selectById` calls (sys_user + biz_customer). With the unbounded `size` of this endpoint, one request can trigger thousands of extra point queries. Batch-load the referenced users/customers (e.g. collect the distinct ids from the page, use `selectBatchIds`, then fill names from the resulting maps).",
+  "existing_code": "        IPage<BizTask> page = taskMapper.selectPage(new Page<>(current, size), wrapper);\n        for (BizTask t : page.getRecords()) {\n            fillNames(t);\n        }",
+  "suggestion_code": null
+ },
+ {
+  "severity": "medium",
+  "category": "performance",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/task/service/TaskService.java",
+  "start_line": 181,
+  "end_line": 183,
+  "content": "`size`/`current` are not clamped before being passed to `new Page<>(...)`. The global `PaginationInnerInterceptor` is constructed without `maxLimit`, so a caller can pass a huge (or negative) size and force a full-table scan plus the N+1 name lookups below. Clamp the parameters here (or set `maxLimit` on the interceptor).",
+  "existing_code": "    public IPage<BizTask> page(int current, int size, String status, Long assigneeId,\n                                Long customerId, Boolean overdue) {\n        Long currentUserId = SecurityUtils.getCurrentUserId();",
+  "suggestion_code": "    public IPage<BizTask> page(int current, int size, String status, Long assigneeId,\n                                Long customerId, Boolean overdue) {\n        current = Math.max(current, 1);\n        size = Math.min(Math.max(size, 1), 100);\n        Long currentUserId = SecurityUtils.getCurrentUserId();"
+ },
+ {
+  "severity": "medium",
+  "category": "bug",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/task/service/TaskService.java",
+  "start_line": 160,
+  "end_line": 162,
+  "content": "`update` bypasses the invariants enforced by `create`: a blank/whitespace title is accepted here (only the null-check is applied), and a `dueDate` in the past is accepted although `create` rejects it. Apply the same validation to the update path so tasks cannot be edited into an invalid state.",
+  "existing_code": "        if (update.getTitle() != null) existing.setTitle(update.getTitle());\n        if (update.getDetail() != null) existing.setDetail(update.getDetail());\n        if (update.getDueDate() != null) existing.setDueDate(update.getDueDate());",
+  "suggestion_code": "        if (update.getTitle() != null) {\n            if (update.getTitle().trim().isEmpty()) {\n                throw new BusinessException(\"任务标题不能为空\");\n            }\n            existing.setTitle(update.getTitle().trim());\n        }\n        if (update.getDetail() != null) existing.setDetail(update.getDetail());\n        if (update.getDueDate() != null) {\n            if (update.getDueDate().isBefore(LocalDate.now())) {\n                throw new BusinessException(\"计划时间不能早于今天\");\n            }\n            existing.setDueDate(update.getDueDate());\n        }"
+ },
+ {
+  "severity": "low",
+  "category": "bug",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/task/service/TaskService.java",
+  "start_line": 48,
+  "end_line": 49,
+  "content": "`LocalDate.parse` on client-supplied input throws an unhandled `DateTimeParseException`, which surfaces as HTTP 500 instead of a 400/BusinessException. Parse defensively and translate the failure into `BusinessException`.",
+  "existing_code": "        if (body.get(\"dueDate\") != null) task.setDueDate(LocalDate.parse(body.get(\"dueDate\").toString()));\n        if (body.get(\"customerId\") instanceof Number n) task.setCustomerId(n.longValue());",
+  "suggestion_code": null
+ },
+ {
+  "severity": "medium",
+  "category": "bug",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/task/service/TaskService.java",
+  "start_line": 141,
+  "end_line": 142,
+  "content": "`transfer` has no status guard, unlike `update` (\"已完成的任务不可编辑\") and `complete`/`cancel`. A completed or cancelled task can therefore still be re-assigned, which silently moves it into another user's statistics/history. Reject non-pending/in-progress tasks here.",
+  "existing_code": "    public void transfer(Long id, Long newAssigneeId) {\n        BizTask task = getOwnOrManaged(id);",
+  "suggestion_code": "    public void transfer(Long id, Long newAssigneeId) {\n        BizTask task = getOwnOrManaged(id);\n        if (\"completed\".equals(task.getStatus()) || \"cancelled\".equals(task.getStatus())) {\n            throw new BusinessException(\"已完成或已取消的任务不能转交\");\n        }"
+ },
+ {
+  "severity": "medium",
+  "category": "performance",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/task/ScheduledTaskController.java",
+  "start_line": 25,
+  "end_line": 25,
+  "content": "手动触发会在 Tomcat 请求线程上同步执行整个批处理。`CustomerExpireTask.checkCustomerExpire()` 会对全库客户做多轮 `selectList` + 逐条 `updateById`/`selectCount`/`insert`（还有开票超期两轮全库扫描），客户量大时耗时可达数十秒到数分钟，极易超过网关/nginx 的读超时（默认 30~60s）。用户看到超时/连接中断，但后台任务仍在继续执行，管理员无法判断是否成功，也容易重复点击。建议改为异步触发（交给专用单线程执行器并立即返回“已提交”），或用注入的 `TaskExecutor` 执行、必要时记录执行状态供查询。",
+  "existing_code": "        customerExpireTask.checkCustomerExpire();",
+  "suggestion_code": "        // 建议:交给专用单线程执行器异步执行并立即返回,避免请求线程长时间阻塞/超时\n        taskExecutor.execute(customerExpireTask::checkCustomerExpire);\n        return Result.ok(\"客户保护期检查已提交\");"
+ },
+ {
+  "severity": "medium",
+  "category": "bug",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/task/ScheduledTaskController.java",
+  "start_line": 20,
+  "end_line": 24,
+  "content": "该入口没有任何重入/并发保护：管理员连续点击、或多个管理员同时调用时，会与 2:00 的 `@Scheduled` 任务并发跑同一批数据。下游的“先 `selectCount` 判重再 `insert` 提醒”与“先判状态再 `updateById`”都是典型的 check-then-act，非原子，并发执行会产生重复的 expiring/invoice 提醒甚至重复入公海记录。建议在此处加一个进程级互斥（如 `AtomicBoolean` 或 `ReentrantLock.tryLock()`），正在执行时直接返回冲突提示。",
+  "existing_code": "    public Result<String> checkExpire() {\n        // M9: 触发全库批处理仅限系统管理员(原 system:config:view 销售员/行政均可触发,存在滥用风险)\n        if (!SecurityUtils.isAdmin()) {\n            throw new BusinessException(403, \"仅系统管理员可触发该任务\");\n        }",
+  "suggestion_code": "    private static final java.util.concurrent.atomic.AtomicBoolean RUNNING =\n            new java.util.concurrent.atomic.AtomicBoolean(false);\n\n    @PostMapping(\"/check-expire\")\n    public Result<String> checkExpire() {\n        // M9: 触发全库批处理仅限系统管理员\n        if (!SecurityUtils.isAdmin()) {\n            throw new BusinessException(403, \"仅系统管理员可触发该任务\");\n        }\n        // 防止与定时任务/重复点击并发执行同一批数据(下游去重为非原子的 check-then-act)\n        if (!RUNNING.compareAndSet(false, true)) {\n            throw new BusinessException(409, \"任务正在执行中，请稍后再试\");\n        }\n        try {\n            customerExpireTask.checkCustomerExpire();\n        } finally {\n            RUNNING.set(false);\n        }\n        return Result.ok(\"客户保护期检查完成\");\n    }"
+ },
+ {
+  "severity": "high",
+  "category": "bug",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/task/CustomerExpireTask.java",
+  "start_line": 65,
+  "end_line": 65,
+  "content": "`enteredSea` is declared (line `int enteredSea = 0, warned = 0, failed = 0;`), used in the summary and in `customer_expire_entered_sea_total`, but it is never incremented anywhere in this method — only `warned++` exists. Result: the log line always reports `入海0` and the Micrometer counter `customer_expire_entered_sea_total` is always a no-op, so the observability added here is silently broken. Increment it after a successful `addToSea`.",
+  "existing_code": "                        seaService.addToSea(customer.getId(), \"保护期满\");",
+  "suggestion_code": "                        seaService.addToSea(customer.getId(), \"保护期满\");\n                        enteredSea++;"
+ },
+ {
+  "severity": "high",
+  "category": "bug",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/task/CustomerExpireTask.java",
+  "start_line": 118,
+  "end_line": 119,
+  "content": "`MeterRegistry.gauge(String, Number)` holds only a **weak reference** to the supplied `Number`. `System.currentTimeMillis()` boxes a temporary `Long` that is garbage-collected right after this statement, so the registered gauge will report `NaN` (and Micrometer logs a warning) instead of a timestamp — the metric never works as intended. Register the gauge once against a stable holder field, e.g. `private final AtomicLong lastSuccessEpochMs = new AtomicLong();` and in a `@PostConstruct` call `meterRegistry.gauge(\"customer_expire_last_success_epoch_ms\", lastSuccessEpochMs);`, then just `set()` the value here.",
+  "existing_code": "            meterRegistry.gauge(\"customer_expire_last_success_epoch_ms\",\n                    System.currentTimeMillis());",
+  "suggestion_code": "            lastSuccessEpochMs.set(System.currentTimeMillis());"
+ },
+ {
+  "severity": "medium",
+  "category": "performance",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/task/CustomerExpireTask.java",
+  "start_line": 79,
+  "end_line": 79,
+  "content": "N+1 pattern in CustomerExpireTask: a `selectCount` round-trip is issued per customer on BOTH the expire/sea path and the invoice-overdue path (plus one `updateById`/`insert` per customer). The invoice path is worse: `neverInvoiced`/`overdueCustomers` can contain the whole customer table, so the query runs once per row and its two list queries are also fully un-paged. Batch-load the pending `expiring` reminders for the candidate customer ids in a single query (`in` + in-memory membership check) instead of one query per customer, and consider paging the customer scan.",
+  "existing_code": "                long existExpiring = reminderMapper.selectCount(",
+  "suggestion_code": null
+ },
+ {
+  "severity": "medium",
+  "category": "bug",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/task/CustomerExpireTask.java",
+  "start_line": 61,
+  "end_line": 61,
+  "content": "This guard can never be false, so it is dead logic: the query above already excludes `status = 'sea'` customers, and the branch that runs before it sets `customer.setStatus(\"expired\")` on the very same in-memory object. It therefore always evaluates to true and gives a false impression of idempotency. If the intent is to detect a previously-pooled customer, snapshot the status before mutating it (or drop the check and rely on the idempotency now implemented in `SeaService.addToSea`).",
+  "existing_code": "                if (!\"sea\".equals(customer.getStatus())) {",
+  "suggestion_code": null
+ },
+ {
+  "severity": "low",
+  "category": "maintainability",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/task/CustomerExpireTask.java",
+  "start_line": 102,
+  "end_line": 102,
+  "content": "Logging only `e.getMessage()` discards the stack trace, which makes the very failures this block is designed to surface (unique-key conflicts, DB errors) much harder to diagnose. Pass the exception object as the last parameter so Logback appends the stack trace.",
+  "existing_code": "            log.error(\"客户 {}({}) 保护期处理失败, 已跳过继续: {}\", customer.getCustomerName(), customer.getId(), e.getMessage());",
+  "suggestion_code": "            log.error(\"客户 {}({}) 保护期处理失败, 已跳过继续\", customer.getCustomerName(), customer.getId(), e);"
+ },
+ {
+  "severity": "medium",
+  "category": "bug",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/task/CustomerExpireTask.java",
+  "start_line": 156,
+  "end_line": 156,
+  "content": "Inconsistent error isolation: the expire loop was explicitly hardened to continue on a single bad record (see the B1 comment), but `checkInvoiceOverdue` iterates without any per-customer try/catch, so one failing `insert` (e.g. duplicate reminder, DB constraint) aborts all remaining invoice reminders, and `checkInvoiceOverdue` is invoked from within the outer try-less flow — the whole scheduled run then ends with an exception and no summary is logged. Apply the same per-customer isolation here.",
+  "existing_code": "        for (BizCustomer customer : overdueCustomers) {",
+  "suggestion_code": null
+ },
+ {
+  "severity": "low",
+  "category": "bug",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/task/CustomerExpireTask.java",
+  "start_line": 71,
+  "end_line": 71,
+  "content": "Off-by-one in the warning boundary: `warningDate` is `today + warningDays`, and `isBefore` is exclusive, so a customer expiring exactly on the 30th day is not treated as \"即将到期（30天内）\" and gets its reminder one day later. Use `!expireDate.isAfter(warningDate)` (or `isBefore(today.plusDays(warningDays + 1))`) if day-30 should be included.",
+  "existing_code": "            } else if (expireDate.isBefore(warningDate)) {",
+  "suggestion_code": "            } else if (!expireDate.isAfter(warningDate)) {"
+ }
+]

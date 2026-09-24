@@ -1,0 +1,8 @@
+severity	category	path	start	end	title
+high	security	02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/auth/dto/LoginRequest.java	10	11	Sensitive field exposure: Lombok `@Data` auto-generates `toString()`/`equals()`/`hashCode()` that include the plaintext password. Any framew
+medium	bug	02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/auth/controller/AuthController.java	53	57	OS 判定顺序有误，导致 `Android` / `iOS` 两个分支实际不可达（死代码）：
+medium	bug	02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/auth/controller/AuthController.java	80	81	`Long.parseLong(String.valueOf(gid))` 对非法输入会抛出 `NumberFormatException`，未被捕获时返回 500，而不是语义正确的 400 参数错误；同时用裸 `Map` 接收请求体绕过了 Bean Validation。建议捕
+low	maintainability	02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/auth/controller/AuthController.java	18	18	补充上一条：当前类未声明任何 logger 字段，若采纳记录日志的建议，需同时引入 `@Slf4j`（lombok）或自行声明 `private static final Logger log = LoggerFactory.getLogger(AuthController.cl
+low	performance	02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/auth/controller/AuthController.java	36	37	此处重复调用了 `ClientIpUtils.getClientIp(httpRequest)`，与上面已计算的 `ip` 值相同（同一请求内重复解析可信代理网段），建议直接复用 `ip`，避免重复计算且保证限流与审计所用 IP 完全同源。
+low	maintainability	02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/auth/controller/AuthController.java	39	41	审计日志落库失败被完全静默吞掉（连日志都没有），一旦 DB/映射出现问题，登录审计将长期缺失而无任何可观测信号。建议至少记录一条 warn 日志。
+low	security	02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/auth/dto/LoginRequest.java	8	9	Input size is unbounded: only `@NotBlank` is enforced, so an arbitrarily long username/password is accepted. This is forwarded to the authen

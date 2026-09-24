@@ -1,0 +1,142 @@
+[
+ {
+  "severity": "high",
+  "category": "bug",
+  "path": "02-迭代源代码/aigicrm-ui/src/views/customer/add-common.css",
+  "start_line": 9,
+  "end_line": 9,
+  "content": "`:last-of-type` matches the last sibling **of the same element type**, not the last element carrying this class. In `add.vue` the direct children of `el-form` are the six `div.section-block` roots followed by `el-form-item` (also a `div`) and `div.form-actions`; the last `div` sibling is therefore `.form-actions`, so this selector matches nothing. Result: the final section (IndicatorSection) keeps its `border-bottom` and the 28px `margin-bottom`, producing a stray divider line above the remark field. Use a selector that is independent of sibling element types, e.g. `.section-block:not(:has(+ .section-block))`, or have the parent/section add an explicit last class.",
+  "existing_code": ".section-block:last-of-type { border-bottom: none; margin-bottom: 12px; }",
+  "suggestion_code": ".section-block:not(:has(+ .section-block)) { border-bottom: none; margin-bottom: 12px; }"
+ },
+ {
+  "severity": "medium",
+  "category": "maintainability",
+  "path": "02-迭代源代码/aigicrm-ui/src/views/customer/add-common.css",
+  "start_line": 50,
+  "end_line": 50,
+  "content": "The file header claims these class names are “page private”, but the stylesheet is imported non-scoped, so `.section-block`, `.form-row`, and especially the very generic `.full-width` become global rules that can silently restyle unrelated components anywhere in the app (or be overridden by them, depending on import order). Consider namespacing the shared classes (e.g. `.cust-add-section`, `.cust-add-row`) or scoping them to the page root (`.customer-add .full-width`).",
+  "existing_code": ".full-width { grid-column: 1 / -1; }",
+  "suggestion_code": null
+ },
+ {
+  "severity": "low",
+  "category": "maintainability",
+  "path": "02-迭代源代码/aigicrm-ui/src/views/customer/add-common.css",
+  "start_line": 49,
+  "end_line": 49,
+  "content": "The two/three-column grids are fixed with no responsive fallback; on narrow viewports (mobile/tablet, or a collapsed sidebar) each 3-column row squeezes the form controls to an unusable width. Add a media query that collapses these rows to a single column below the project’s breakpoint.",
+  "existing_code": ".form-row.three { grid-template-columns: 1fr 1fr 1fr; }",
+  "suggestion_code": null
+ },
+ {
+  "severity": "medium",
+  "category": "maintainability",
+  "path": "02-迭代源代码/aigicrm-ui/src/views/system/perm-common.css",
+  "start_line": 197,
+  "end_line": 201,
+  "content": "This stylesheet is injected non-scoped (see header comment) and is imported by several SFCs, so every selector leaks into the global stylesheet. `.action-btns` is a very generic name that is likely to collide with other views/components; a collision here silently changes layout outside the perm pages. Prefix it (e.g. `.perm-action-btns`) and update the corresponding template in CategoryManager.vue.",
+  "existing_code": ".action-btns {\n  display: flex;\n  justify-content: center;\n  gap: 2px;\n}",
+  "suggestion_code": ".perm-action-btns {\n  display: flex;\n  justify-content: center;\n  gap: 2px;\n}"
+ },
+ {
+  "severity": "medium",
+  "category": "bug",
+  "path": "02-迭代源代码/aigicrm-ui/src/views/system/perm-common.css",
+  "start_line": 122,
+  "end_line": 122,
+  "content": "`.cat-group-actions` is permanently `opacity: 0` and only revealed by `:hover`. The row action buttons (edit/delete) become unreachable on touch devices (no hover state) and for keyboard users who tab into the buttons (opacity stays 0, so focus is invisible). Reveal the actions on focus as well, or use a media query to keep them always visible on coarse pointers.",
+  "existing_code": ".cat-group-head:hover .cat-group-actions { opacity: 1; }",
+  "suggestion_code": ".cat-group-head:hover .cat-group-actions,\n.cat-group-head:focus-within .cat-group-actions { opacity: 1; }\n@media (hover: none) {\n  .cat-group-actions { opacity: 1; }\n}"
+ },
+ {
+  "severity": "low",
+  "category": "documentation",
+  "path": "02-迭代源代码/aigicrm-ui/src/views/system/perm-common.css",
+  "start_line": 220,
+  "end_line": 220,
+  "content": "This section comment has no rules attached to it (the following `.perm-tree-*` block is labelled \"激励授权层级人员树\"). It looks like leftover/vestigial docs from a removed 公海池可见范围树 section and is misleading — remove it or add the styles it claims to describe.",
+  "existing_code": "/* 公海池可见范围树 */",
+  "suggestion_code": null
+ },
+ {
+  "severity": "medium",
+  "category": "bug",
+  "path": "02-迭代源代码/aigicrm-ui/src/style.css",
+  "start_line": 32,
+  "end_line": 35,
+  "content": "Page offset hack is coupled to the old `.main-content` 20px padding. Pagination now renders inside `.page-shell` (padding `12px 14px`), so `margin-left/right: -20px` bleeds 6px past each side and `bottom/-margin-bottom: -20px` bleeds ~8px past the bottom of the white rounded container — the sticky bar's corners will visibly stick out of the 16px radius. Offset values should be driven by the shell's own padding (or a shared CSS variable) instead of hard-coded 20px.",
+  "existing_code": ".pagination,\n.pagination-row {\n  position: sticky;\n  bottom: -20px;",
+  "suggestion_code": ".pagination,\n.pagination-row {\n  position: sticky;\n  bottom: 0;"
+ },
+ {
+  "severity": "medium",
+  "category": "maintainability",
+  "path": "02-迭代源代码/aigicrm-ui/src/style.css",
+  "start_line": 77,
+  "end_line": 77,
+  "content": "Magic number `116px` and `100vh` are brittle: 116px hard-codes the header height, so any header/layout change silently breaks the minimum page height, and `100vh` on mobile browsers includes the collapsing URL bar and causes overflow/scroll jitter. Use a CSS variable for the chrome height and `100dvh` (with `100vh` fallback) for the viewport unit.",
+  "existing_code": "  min-height:calc(100vh - 116px);",
+  "suggestion_code": "  min-height:calc(100dvh - var(--app-chrome-height, 116px));"
+ },
+ {
+  "severity": "low",
+  "category": "maintainability",
+  "path": "02-迭代源代码/aigicrm-ui/src/style.css",
+  "start_line": 12,
+  "end_line": 16,
+  "content": "These three custom properties are never referenced anywhere in the project (verified by search), so they are dead declarations that mislead future readers into thinking a theming token system exists. Either wire them into the actual styles (e.g. use `--primary-color` for the active/primary accents) or remove them.",
+  "existing_code": ":root {\n  --primary-color: #409eff;\n  --sidebar-bg: #1d2b3a;\n  --sidebar-active: #409eff;\n}",
+  "suggestion_code": null
+ },
+ {
+  "severity": "low",
+  "category": "maintainability",
+  "path": "02-迭代源代码/aigicrm-ui/src/style.css",
+  "start_line": 1,
+  "end_line": 5,
+  "content": "A universal `margin/padding: 0` reset is destructive for downstream content (lists, rich-text/editor output, `p`/`h*` inside third-party widgets) and forces every page to re-add spacing, which is exactly what the `!important`/negative-margin overrides in this file are compensating for. Scope the reset to what is actually needed. Also `box-sizing: border-box` is not inherited by pseudo-elements, which is a common source of 1-2px overflow — include `::before, ::after`.",
+  "existing_code": "* {\n  margin: 0;\n  padding: 0;\n  box-sizing: border-box;\n}",
+  "suggestion_code": "html, body, #app, div, span, p, h1, h2, h3, h4, h5, h6, ul, ol, li, table, th, td, form, input, button, img,\n*::before, *::after {\n  margin: 0;\n  padding: 0;\n  box-sizing: border-box;\n}"
+ },
+ {
+  "severity": "medium",
+  "category": "maintainability",
+  "path": "02-迭代源代码/aigicrm-ui/src/views/incentive/rank-common.css",
+  "start_line": 3,
+  "end_line": 3,
+  "content": "The header comment claims the class names are page-private and the file is meant to be imported non-scoped (`非 scoped 便于跨子组件复用`), but selectors like `.card`, `.table-header`, `.name-wrap`, `.num-cell`, `.score-pill`, `.cell-cnt` are highly generic and are already used by other views (`.card` in 403.vue / reminder/detail.vue / statistics/index.vue; `.table-header` is duplicated verbatim in the sibling incentive/StatsTableView.vue:104). If anyone follows the comment and imports this file non-scoped, these rules will leak globally and override unrelated pages. Either keep the scoped import and fix the comment, or namespace the selectors (e.g. `.rank-*`) before sharing them across components.",
+  "existing_code": ".card { background: #fff; border: 1px solid #ebeef5; border-radius: 12px; padding: 24px; }",
+  "suggestion_code": null
+ },
+ {
+  "severity": "high",
+  "category": "bug",
+  "path": "02-迭代源代码/aigicrm-ui/src/views/incentive/rank-common.css",
+  "start_line": 9,
+  "end_line": 9,
+  "content": "Deep selectors targeting Element Plus internals (`td`/`th`/`.el-table__row`) are dead rules under the current import mode. Both consumers load this file as `<style scoped src=\"./rank-common.css\">` (RankTableView.vue:70, DeptRankTableView.vue:59), so the compiler appends a `[data-v-*]` attribute to the **last** compound selector of every rule: `.rank-matrix .el-table__body td` becomes `.rank-matrix .el-table__body td[data-v-*]`. The `td`/`th` nodes are rendered inside the `el-table` child component and never carry the parent's scope id, so the row hover highlight and the body cell padding never apply (visually the matrix rows will not get the 5px padding or hover color). Wrap the table internals in `:deep()`, e.g. `.rank-matrix :deep(.el-table__body td) { ... }`. Note this also contradicts the file header comment (\"非 scoped 便于跨子组件复用\") — please align the comment with the actual scoped usage.",
+  "existing_code": ".rank-matrix .el-table__row:hover > td { background: #f5f9ff !important; }",
+  "suggestion_code": ".rank-matrix :deep(.el-table__row:hover > td) { background: #f5f9ff !important; }"
+ },
+ {
+  "severity": "medium",
+  "category": "bug",
+  "path": "02-迭代源代码/aigicrm-ui/src/views/incentive/rank-common.css",
+  "start_line": 48,
+  "end_line": 48,
+  "content": "The group-header rule can never match. Both callers pass the class through the column property: `:class-name=\"'cat-group cat-group-' + (pi % 4)\"` (RankTableView.vue:32 / DeptRankTableView.vue:32), which puts `cat-group-N` on the header/body **cell itself**, not on an ancestor — but this selector requires an ancestor `.cat-group-0` wrapping `.el-table__header th`. It should target the cell directly, and (see the note above) must be wrapped in `:deep()` because `th` belongs to `el-table`. In addition, the 4 hard-coded rgba backgrounds duplicate the color that is already encoded by `cat-group-N`; consider driving the tint from one accent variable (`--cat-accent`) so the palette stays in sync with the `pi % 4` mapping. Also note the header colors are fought against the component's inline `:header-cell-style` via `!important`, which is fragile — prefer configuring the header style in one place.",
+  "existing_code": ".cat-group-0 .el-table__header th { background: rgba(64,158,255,.07) !important; box-shadow: inset 3px 0 0 #3b82f6; }",
+  "suggestion_code": ".rank-matrix :deep(.el-table__header th.cat-group-0) { background: rgba(64,158,255,.07) !important; box-shadow: inset 3px 0 0 #3b82f6; }"
+ },
+ {
+  "severity": "medium",
+  "category": "maintainability",
+  "path": "02-迭代源代码/aigicrm-ui/src/views/incentive/rank-common.css",
+  "start_line": 25,
+  "end_line": 25,
+  "content": "`.rank-num` is declared twice with identical specificity (here and again a few lines below with `color: #86909c; font-weight: 500;`), so `color: #94a3b8` and `font-weight: 600` in this block are dead declarations — only `font-size: 13px` survives. Keeping an intentionally shadowed rule plus a comment that pins the behaviour to a line number in an external baseline (\"基线 505 行\") is confusing and will silently rot when either file changes. Please merge into a single rule with the intended values and drop the line-number reference.",
+  "existing_code": ".rank-num { color: #94a3b8; font-weight: 600; font-size: 13px; }",
+  "suggestion_code": ".rank-num { color: #86909c; font-weight: 500; font-size: 13px; }"
+ }
+]

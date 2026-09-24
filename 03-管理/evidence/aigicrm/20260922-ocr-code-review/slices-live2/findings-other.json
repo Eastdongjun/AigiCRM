@@ -1,0 +1,152 @@
+[
+ {
+  "severity": "medium",
+  "category": "bug",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/common/entity/BizFormDraft.java",
+  "start_line": 21,
+  "end_line": 22,
+  "content": "`createdAt`/`updatedAt` lack the `@TableField(fill = ...)` auto-fill annotations used by every other entity in this module (see `BaseEntity`/`BizCustomer`). The registered `MetaObjectHandler` (MybatisPlusConfig L181-193) uses `strictInsertFill`/`strictUpdateFill`, which only act on fields explicitly marked with `FieldFill`. As a result the in-memory entity is never populated:\n- after `insert`, `updatedAt`/`createdAt` stay `null` even though the DB defaults fill the columns, so `FormDraftService.toRow()` returns `updatedAt = null` for a newly created draft;\n- after `updateById`, `updatedAt` keeps the stale value read from the DB.\nEither extend `BaseEntity` (removing the duplicated `id`/`createdAt`/`updatedAt` fields) or annotate the fields as shown.",
+  "existing_code": "    private LocalDateTime createdAt;\n    private LocalDateTime updatedAt;",
+  "suggestion_code": "    @TableField(fill = FieldFill.INSERT)\n    private LocalDateTime createdAt;\n    @TableField(fill = FieldFill.INSERT_UPDATE)\n    private LocalDateTime updatedAt;"
+ },
+ {
+  "severity": "medium",
+  "category": "performance",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/common/mapper/BizFormDraftMapper.java",
+  "start_line": 16,
+  "end_line": 17,
+  "content": "`purgeExpired` executes an unbounded global DELETE. On a large table a single statement can hold row/gap locks for a long time and cause replication lag; typically a cleanup job should delete in bounded batches (e.g. add `LIMIT` and loop) so the lock window stays small. Additionally there is no guard on `days`: if 0 or a negative value were ever passed (misconfiguration / caller change), the condition matches every row and all non-expired drafts — including freshly saved ones — would be wiped. Consider validating `days > 0` before issuing the statement (or asserting it in the caller).",
+  "existing_code": "    @Delete(\"DELETE FROM biz_form_draft WHERE updated_at < DATE_SUB(NOW(), INTERVAL #{days} DAY)\")\n    int purgeExpired(@Param(\"days\") int days);",
+  "suggestion_code": null
+ },
+ {
+  "severity": "high",
+  "category": "bug",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/common/controller/FormDraftController.java",
+  "start_line": 44,
+  "end_line": 46,
+  "content": "The 409 conflict branch discards the payload the service explicitly provides for conflict resolution. `FormDraftService.ConflictException` carries `getServerDraft()` / `toBody()` precisely so the client can render the documented \"覆盖 / 使用服务器版本\" choice (see both the controller/class Javadoc and the service Javadoc). Returning `Result.error(409, ...)` drops that data (the `Result.error(int, String)` factory cannot carry `data`), so the conflict flow described in the requirement is unimplemented and the client can only see a generic message. Either build a Result with the conflict body attached, or return the exception to a handler that preserves it.",
+  "existing_code": "        } catch (FormDraftService.ConflictException e) {\n            return Result.error(409, \"草稿已在其他设备修改\");\n        }",
+  "suggestion_code": "        } catch (FormDraftService.ConflictException e) {\n            Result<Object> conflict = Result.error(409, \"草稿已在其他设备修改\");\n            conflict.setData(e.toBody());\n            return conflict;\n        }"
+ },
+ {
+  "severity": "low",
+  "category": "bug",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/common/controller/FormDraftController.java",
+  "start_line": 39,
+  "end_line": 40,
+  "content": "`body.get(\"draftData\").toString()` silently corrupts the draft when the client posts a structured JSON value instead of a pre-serialized string: for a JSON object `Map#toString()` yields a non-JSON representation such as `{a=1}` (and `[1, 2]` for arrays), which is then persisted and useless to the frontend. Validate the type (require a String, or convert via the JSON mapper) and reject/marshal accordingly rather than relying on `toString()`.",
+  "existing_code": "        String data = body.get(\"draftData\") != null ? body.get(\"draftData\").toString() : null;\n        Integer version = body.get(\"version\") instanceof Number n ? n.intValue() : null;",
+  "suggestion_code": "        Object rawData = body.get(\"draftData\");\n        String data = rawData instanceof String s ? s : (rawData != null ? objectMapper.writeValueAsString(rawData) : null);\n        Integer version = body.get(\"version\") instanceof Number n ? n.intValue() : null;"
+ },
+ {
+  "severity": "medium",
+  "category": "bug",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/common/service/FormDraftService.java",
+  "start_line": 145,
+  "end_line": 146,
+  "content": "`toBody()` is never invoked anywhere (the controller's `ConflictException` handler only returns `Result.error(409, ...)`), so the server draft advertised by the design (\"附带当前服务器草稿供客户端展示覆盖/使用服务器版本\") is never delivered — dead code / unfulfilled contract. Also `Map.of` rejects null values, so if `serverDraft.getVersion()` is null (possible for rows not written by this service) the conflict response throws NPE instead of returning 409. Use a null-safe map (`LinkedHashMap`) and wire it into the conflict handling.",
+  "existing_code": "        public Map<String, Object> toBody() {\n            return Map.of(",
+  "suggestion_code": null
+ },
+ {
+  "severity": "high",
+  "category": "bug",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/common/service/FormDraftService.java",
+  "start_line": 69,
+  "end_line": 71,
+  "content": "Lost-update race condition: the version check (read) and the write are separate, non-atomic steps and there is no `@Transactional`/conditional UPDATE. Two devices saving concurrently both read version=1, both pass the `serverV != clientV` check, and both write — the second write silently overwrites the first (version becomes 2 instead of 3), so the \"optimistic lock\" contract is not actually enforced. Use an atomic conditional update and verify the affected row count (e.g. `UPDATE biz_form_draft SET draft_data=?, version=version+1 WHERE id=? AND version=?`, retry/throw 409 when 0 rows), or enable MyBatis-Plus `@Version` optimistic locking with `OptimisticLockerInnerInterceptor`.",
+  "existing_code": "            existing.setDraftData(draftData);\n            existing.setVersion(serverV + 1);\n            draftMapper.updateById(existing);",
+  "suggestion_code": null
+ },
+ {
+  "severity": "high",
+  "category": "bug",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/common/service/FormDraftService.java",
+  "start_line": 83,
+  "end_line": 84,
+  "content": "Same check-then-act race on the insert path: two concurrent first-time saves both see `existing == null` and both insert. Depending on whether a unique index exists on (user_id, group_id, draft_type) this either produces duplicate rows (breaking the `selectOne` calls, which would then throw `TooManyResultsException`) or a `DuplicateKeyException` surfacing as HTTP 500. Wrap the save in a transaction and handle the duplicate-key case by re-reading and retrying/raising a 409 conflict.",
+  "existing_code": "        draft.setVersion(1);\n        draftMapper.insert(draft);",
+  "suggestion_code": null
+ },
+ {
+  "severity": "medium",
+  "category": "bug",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/common/service/FormDraftService.java",
+  "start_line": 57,
+  "end_line": 58,
+  "content": "The 7-day retention rule is only applied in `getDraft`; `saveDraft`/`forceSaveDraft` blindly reuse a row that may already be expired. A client that saves without a prior read (or whose read did not clean the row) will hit `serverV != clientV` and receive a spurious 409 against stale data, even though the draft should be treated as absent. Extract the expiry check used in `getDraft` into a helper and apply it here (delete/ignore the expired row and treat the save as a new draft).",
+  "existing_code": "                                  String draftData, Integer clientVersion) {\n        BizFormDraft existing = draftMapper.selectOne(new LambdaQueryWrapper<BizFormDraft>()",
+  "suggestion_code": null
+ },
+ {
+  "severity": "low",
+  "category": "maintainability",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/common/service/FormDraftService.java",
+  "start_line": 117,
+  "end_line": 119,
+  "content": "`purgeExpired()` has no caller in the codebase (no scheduled task or controller invokes it), so the intended active cleanup never runs and only the lazy path in `getDraft` executes. Either register a `@Scheduled` job (with a distributed lock if multiple instances run) or remove the method to avoid dead code.",
+  "existing_code": "    public int purgeExpired() {\n        return draftMapper.purgeExpired(RETENTION_DAYS);\n    }",
+  "suggestion_code": null
+ },
+ {
+  "severity": "low",
+  "category": "performance",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/common/service/FormDraftService.java",
+  "start_line": 100,
+  "end_line": 100,
+  "content": "Redundant database round-trip: `forceSaveDraft` already queried the existing draft and then calls `saveDraft`, which repeats the same `selectOne`. Reuse the already-fetched `existing` (or build the new entity inline) to save a query.",
+  "existing_code": "        return saveDraft(draftType, userId, groupId, draftData, 0);",
+  "suggestion_code": null
+ },
+ {
+  "severity": "medium",
+  "category": "bug",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/common/controller/ScopeController.java",
+  "start_line": 34,
+  "end_line": 34,
+  "content": "Potential NPE: `SecurityUtils.getCurrentUser()` is contractually nullable (it returns `null` whenever the principal is not a `SecurityUser`). The `users()` endpoint is safe because `ScopeService.visibleUsers` explicitly handles `user == null` (see `if (user == null || !user.hasRole(\"admin\"))`), but the `depts()` path does not: `ScopeService.visibleDeptTree` → `OrgScopeResolver.resolveVisibleDeptIds` returns an empty (non-null) list for a null user and then dereferences `user.getDeptId()`, throwing an NPE (HTTP 500). Guard against a null current user here (or make the resolver fail closed) to keep the two scope endpoints consistent.",
+  "existing_code": "        return Result.ok(new ArrayList<Object>(scopeService.visibleDeptTree(SecurityUtils.getCurrentUser())));",
+  "suggestion_code": "        var user = SecurityUtils.getCurrentUser();\n        if (user == null) {\n            return Result.error(401, \"未登录\");\n        }\n        return Result.ok(new ArrayList<Object>(scopeService.visibleDeptTree(user)));"
+ },
+ {
+  "severity": "low",
+  "category": "bug",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/common/service/ScopeService.java",
+  "start_line": 114,
+  "end_line": 118,
+  "content": "父链遍历缺少环检测：若 sys_dept 的 parent_id 因脏数据成环（A→B→A 或自引用），`byId.containsKey(cur)` 恒为 true，本 while 会死循环（CPU 打满）。建议用 `keep.add(cur)` 的返回值作为终止条件。",
+  "existing_code": "        Long cur = myDeptId;\n        while (cur != null && byId.containsKey(cur)) {\n            keep.add(cur);\n            cur = byId.get(cur).getParentId();\n        }",
+  "suggestion_code": "        Long cur = myDeptId;\n        while (cur != null && byId.containsKey(cur)) {\n            if (!keep.add(cur)) break; // 环保护：parent_id 成环时终止\n            cur = byId.get(cur).getParentId();\n        }"
+ },
+ {
+  "severity": "medium",
+  "category": "bug",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/common/service/ScopeService.java",
+  "start_line": 64,
+  "end_line": 65,
+  "content": "口径不一致：`all` 分支显式过滤 `deleted=0 AND status=1`（\"全部启用用户\"），但这里直接 `selectByIds(u)`，只靠 @TableLogic 过滤 deleted，缺少 `status=1`。而 `OrgScopeResolver.resolveSingle` 的 self/default 分支与 `appendSystemLevelScopes` 都会无条件下推本人 id，被停用的用户仍会出现在下拉里，两个分支返回结果不一致。建议改为与 all 分支同口径的 wrapper 查询（顺带复用 deptScope 的 SQL 过滤，避免把全量结果拉回内存再过滤）。",
+  "existing_code": "        return userMapper.selectByIds(u).stream()\n                .filter(x -> deptScope == null || deptScope.contains(x.getDeptId()))",
+  "suggestion_code": "        return userMapper.selectList(new LambdaQueryWrapper<SysUser>()\n                        .eq(SysUser::getDeleted, 0).eq(SysUser::getStatus, 1)\n                        .in(SysUser::getId, u)\n                        .in(deptScope != null, SysUser::getDeptId, deptScope)\n                        .orderByAsc(SysUser::getRealName))\n                .stream().map(this::toUserMap).toList();"
+ },
+ {
+  "severity": "medium",
+  "category": "bug",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/common/service/ScopeService.java",
+  "start_line": 124,
+  "end_line": 125,
+  "content": "原地修改 Mapper 返回的实体存在状态泄漏风险：MyBatis 一级缓存（同一 SqlSession/事务内）对相同 statement+参数会返回同一批实体对象，`buildPartialTree` 用 `if (children == null)` 后 append，同一请求内第二次组装同一批部门时 children 会重复挂接（列表重复、甚至自我嵌套），并可能污染其他 service 拿到的同一批实体。建议组装前先清空 children（或复制成 VO）。",
+  "existing_code": "        Map<Long, SysDept> byId = new HashMap<>();\n        for (SysDept d : depts) byId.put(d.getId(), d);",
+  "suggestion_code": "        Map<Long, SysDept> byId = new HashMap<>();\n        for (SysDept d : depts) {\n            d.setChildren(null); // 防 MyBatis 一级缓存复用同一实体造成子节点重复挂接\n            byId.put(d.getId(), d);\n        }"
+ },
+ {
+  "severity": "low",
+  "category": "maintainability",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/common/service/ScopeService.java",
+  "start_line": 45,
+  "end_line": 45,
+  "content": "`user == null` 为死分支：`OrgScopeResolver.resolve(null)` 返回的是空列表（第 69 行），并非 null，所以能进入本分支时 user 必非 null；该 null 判断永远不会成立，会误导后续维护者以为这里能兜住匿名请求（匿名请求实际在第 54 行 `u.isEmpty()` 处返回空集）。如确需防御建议保留但补注释说明契约。",
+  "existing_code": "            if (user == null || !user.hasRole(\"admin\")) {",
+  "suggestion_code": null
+ }
+]

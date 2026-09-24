@@ -1,0 +1,12 @@
+run_id: 20260922-ocr-code-review
+date: 2026-09-22T07:50:21Z
+ocr_version: open-code-review v1.12.8 (5c7b3838) darwin/arm64
+git_head: d983702d997a464eeafbfcfd92c6a00fc4993728
+git_status:
+?? .zcodeignore
+?? "02-\350\277\255\344\273\243\346\272\220\344\273\243\347\240\201/scripts/miniprogram/probe-clean.mjs"
+?? "02-\350\277\255\344\273\243\346\272\220\344\273\243\347\240\201/scripts/miniprogram/probe-console.mjs"
+?? "02-\350\277\255\344\273\243\346\272\220\344\273\243\347\240\201/scripts/miniprogram/probe-quiet.mjs"
+?? "02-\350\277\255\344\273\243\346\272\220\344\273\243\347\240\201/scripts/miniprogram/probe-storage.mjs"
+?? "03-\347\256\241\347\220\206/"
+--- scan scope preview ---

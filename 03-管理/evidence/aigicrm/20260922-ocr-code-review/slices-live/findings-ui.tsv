@@ -1,0 +1,15 @@
+severity	category	path	start	end	title
+high	bug	02-迭代源代码/aigicrm-ui/src/views/customer/add-common.css	9	9	`:last-of-type` matches the last sibling **of the same element type**, not the last element carrying this class. In `add.vue` the direct chi
+high	bug	02-迭代源代码/aigicrm-ui/src/views/incentive/rank-common.css	9	9	Deep selectors targeting Element Plus internals (`td`/`th`/`.el-table__row`) are dead rules under the current import mode. Both consumers lo
+medium	bug	02-迭代源代码/aigicrm-ui/src/style.css	32	35	Page offset hack is coupled to the old `.main-content` 20px padding. Pagination now renders inside `.page-shell` (padding `12px 14px`), so `
+medium	maintainability	02-迭代源代码/aigicrm-ui/src/style.css	77	77	Magic number `116px` and `100vh` are brittle: 116px hard-codes the header height, so any header/layout change silently breaks the minimum pa
+medium	maintainability	02-迭代源代码/aigicrm-ui/src/views/customer/add-common.css	50	50	The file header claims these class names are “page private”, but the stylesheet is imported non-scoped, so `.section-block`, `.form-row`, an
+medium	maintainability	02-迭代源代码/aigicrm-ui/src/views/incentive/rank-common.css	3	3	The header comment claims the class names are page-private and the file is meant to be imported non-scoped (`非 scoped 便于跨子组件复用`), but select
+medium	maintainability	02-迭代源代码/aigicrm-ui/src/views/incentive/rank-common.css	25	25	`.rank-num` is declared twice with identical specificity (here and again a few lines below with `color: #86909c; font-weight: 500;`), so `co
+medium	bug	02-迭代源代码/aigicrm-ui/src/views/incentive/rank-common.css	48	48	The group-header rule can never match. Both callers pass the class through the column property: `:class-name="'cat-group cat-group-' + (pi %
+medium	bug	02-迭代源代码/aigicrm-ui/src/views/system/perm-common.css	122	122	`.cat-group-actions` is permanently `opacity: 0` and only revealed by `:hover`. The row action buttons (edit/delete) become unreachable on t
+medium	maintainability	02-迭代源代码/aigicrm-ui/src/views/system/perm-common.css	197	201	This stylesheet is injected non-scoped (see header comment) and is imported by several SFCs, so every selector leaks into the global stylesh
+low	maintainability	02-迭代源代码/aigicrm-ui/src/style.css	1	5	A universal `margin/padding: 0` reset is destructive for downstream content (lists, rich-text/editor output, `p`/`h*` inside third-party wid
+low	maintainability	02-迭代源代码/aigicrm-ui/src/style.css	12	16	These three custom properties are never referenced anywhere in the project (verified by search), so they are dead declarations that mislead 
+low	maintainability	02-迭代源代码/aigicrm-ui/src/views/customer/add-common.css	49	49	The two/three-column grids are fixed with no responsive fallback; on narrow viewports (mobile/tablet, or a collapsed sidebar) each 3-column 
+low	documentation	02-迭代源代码/aigicrm-ui/src/views/system/perm-common.css	220	220	This section comment has no rules attached to it (the following `.perm-tree-*` block is labelled "激励授权层级人员树"). It looks like leftover/vestig

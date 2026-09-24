@@ -1,0 +1,574 @@
+
+Preview: 567 file(s) changed  |  +50452  -0
+
+Will review (452):
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/AigicrmApplication.java                                                  +15   -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/common/BaseEntity.java                                                   +17   -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/common/BusinessException.java                                            +18   -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/common/GlobalExceptionHandler.java                                       +173  -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/common/PageResult.java                                                   +21   -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/common/Result.java                                                       +33   -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/common/annotation/AigicrmLog.java                                        +24   -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/common/engine/ActionGuardAspect.java                                     +92   -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/common/engine/CustomerAccessService.java                                 +228  -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/common/engine/FieldFilterAdvice.java                                     +128  -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/common/engine/PermissionRuleEngine.java                                  +341  -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/common/enums/DataScopeType.java                                          +93   -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/common/idempotency/IdempotencyService.java                               +114  -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/common/scope/DataScopeGuard.java                                         +47   -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/common/scope/GroupScopeUtil.java                                         +108  -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/common/scope/OrgScopeResolver.java                                       +565  -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/common/scope/ScopeConfig.java                                            +29   -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/common/scope/ScopeDecision.java                                          +49   -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/common/scope/ScopeRequest.java                                           +30   -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/common/util/ClientIpUtils.java                                           +81   -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/common/util/DeptTreeUtils.java                                           +38   -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/common/util/ImportGuard.java                                             +47   -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/common/util/TrustedProxyConfig.java                                      +16   -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/config/CorsConfig.java                                                   +41   -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/config/LogAspect.java                                                    +186  -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/config/MybatisPlusConfig.java                                            +194  -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/config/OssConfig.java                                                    +25   -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/config/RedisConfig.java                                                  +47   -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/config/SecurityConfig.java                                               +93   -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/config/SmsConfig.java                                                    +28   -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/config/WhitelistedJsonRedisSerializer.java                               +53   -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/approval/controller/ApprovalConfigController.java                 +49   -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/approval/controller/ApprovalController.java                       +96   -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/approval/entity/BizApproval.java                                  +27   -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/approval/entity/BizApprovalConfig.java                            +21   -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/approval/entity/BizApprovalFlow.java                              +18   -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/approval/entity/BizApprovalNode.java                              +29   -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/approval/mapper/BizApprovalConfigMapper.java                      +14   -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/approval/mapper/BizApprovalFlowMapper.java                        +7    -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/approval/mapper/BizApprovalMapper.java                            +20   -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/approval/mapper/BizApprovalNodeMapper.java                        +7    -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/approval/service/ApprovalConfigService.java                       +149  -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/approval/service/ApprovalService.java                             +765  -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/auth/controller/AuthController.java                               +116  -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/auth/controller/PermissionExplainController.java                  +29   -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/auth/dto/ForgotPasswordLookupRequest.java                         +10   -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/auth/dto/ForgotPasswordLookupResponse.java                        +11   -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/auth/dto/ForgotPasswordResetRequest.java                          +16   -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/auth/dto/ForgotPasswordSendCodeRequest.java                       +14   -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/auth/dto/LoginRequest.java                                        +13   -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/auth/dto/LoginResponse.java                                       +17   -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/auth/dto/PositionSummary.java                                     +15   -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/auth/dto/UserInfoResponse.java                                    +24   -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/auth/service/AuthService.java                                     +435  -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/auth/service/PermissionExplainService.java                        +91   -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/common/controller/FormDraftController.java                        +69   -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/common/controller/ScopeController.java                            +36   -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/common/entity/BizFormDraft.java                                   +23   -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/common/mapper/BizFormDraftMapper.java                             +18   -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/common/service/FormDraftService.java                              +153  -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/common/service/ScopeService.java                                  +138  -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/customer/controller/CustomerController.java                       +558  -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/customer/dto/CustomerImportDTO.java                               +56   -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/customer/dto/CustomerImportResult.java                            +22   -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/customer/entity/BizContact.java                                   +23   -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/customer/entity/BizCustomer.java                                  +116  -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/customer/entity/BizCustomerIndicator.java                         +30   -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/customer/entity/BizCustomerLog.java                               +20   -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/customer/entity/BizCustomerShare.java                             +19   -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/customer/entity/BizInvoice.java                                   +37   -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/customer/entity/BizPayment.java                                   +36   -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/customer/listener/CustomerImportListener.java                     +95   -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/customer/mapper/BizContactMapper.java                             +9    -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/customer/mapper/BizCustomerIndicatorMapper.java                   +9    -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/customer/mapper/BizCustomerLogMapper.java                         +7    -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/customer/mapper/BizCustomerMapper.java                            +16   -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/customer/mapper/BizCustomerShareMapper.java                       +9    -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/customer/mapper/BizInvoiceMapper.java                             +20   -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/customer/mapper/BizPaymentMapper.java                             +20   -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/customer/service/CustomerService.java                             +1617 -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/file/controller/FileController.java                               +230  -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/file/controller/FileReconciliationController.java                 +32   -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/file/controller/FolderAclController.java                          +47   -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/file/entity/BizFile.java                                          +32   -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/file/entity/BizFileFolder.java                                    +27   -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/file/entity/BizFileShare.java                                     +21   -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/file/entity/BizFolderAcl.java                                     +18   -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/file/mapper/BizFileFolderMapper.java                              +7    -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/file/mapper/BizFileMapper.java                                    +7    -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/file/mapper/BizFileShareMapper.java                               +9    -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/file/mapper/BizFolderAclMapper.java                               +7    -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/file/service/FileReconciliationService.java                       +99   -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/file/service/FileService.java                                     +937  -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/file/service/FolderAclService.java                                +119  -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/file/service/FolderPermissionService.java                         +171  -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/incentive/controller/IncentiveController.java                     +204  -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/incentive/controller/IncentivePermissionController.java           +153  -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/incentive/entity/BizIncentiveCategory.java                        +29   -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/incentive/entity/BizIncentiveRecord.java                          +107  -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/incentive/mapper/BizIncentiveCategoryMapper.java                  +7    -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/incentive/mapper/BizIncentiveRecordMapper.java                    +7    -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/incentive/service/IncentiveService.java                           +1162 -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/reminder/controller/ReminderController.java                       +77   -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/reminder/entity/BizReminder.java                                  +30   -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/reminder/mapper/BizReminderMapper.java                            +7    -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/reminder/service/ReminderService.java                             +367  -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/score/controller/ScoreController.java                             +96   -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/score/entity/BizScoreEntry.java                                   +22   -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/score/entity/BizScoreItem.java                                    +27   -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/score/entity/BizScoreParticipant.java                             +21   -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/score/mapper/BizScoreEntryMapper.java                             +13   -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/score/mapper/BizScoreItemMapper.java                              +7    -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/score/mapper/BizScoreParticipantMapper.java                       +13   -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/score/service/ScoreService.java                                   +511  -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/sea/controller/SeaController.java                                 +245  -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/sea/entity/BizSeaConfig.java                                      +46   -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/sea/entity/BizSeaPool.java                                        +40   -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/sea/listener/SeaImportListener.java                               +103  -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/sea/mapper/BizSeaConfigMapper.java                                +7    -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/sea/mapper/BizSeaPoolMapper.java                                  +7    -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/sea/service/SeaConfigService.java                                 +327  -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/sea/service/SeaService.java                                       +323  -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/statistics/controller/StatisticsController.java                   +69   -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/statistics/service/StatisticsQueryService.java                    +905  -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/controller/RolePermScopeController.java                    +70   -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/controller/SysAuditLogController.java                      +36   -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/controller/SysConfigController.java                        +113  -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/controller/SysDeptController.java                          +82   -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/controller/SysDictController.java                          +92   -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/controller/SysGroupController.java                         +46   -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/controller/SysLogController.java                           +40   -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/controller/SysMenuController.java                          +24   -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/controller/SysPermissionRuleController.java                +46   -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/controller/SysPositionController.java                      +88   -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/controller/SysRoleController.java                          +69   -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/controller/SysRuleVersionController.java                   +33   -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/controller/SysUserController.java                          +84   -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/entity/SysAuditLog.java                                    +22   -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/entity/SysConfig.java                                      +16   -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/entity/SysDept.java                                        +31   -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/entity/SysDictData.java                                    +19   -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/entity/SysDictType.java                                    +19   -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/entity/SysGroup.java                                       +35   -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/entity/SysLog.java                                         +21   -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/entity/SysMenu.java                                        +27   -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/entity/SysOrgAdmin.java                                    +15   -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/entity/SysPermissionRule.java                              +62   -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/entity/SysPosition.java                                    +42   -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/entity/SysPositionRule.java                                +15   -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/entity/SysRole.java                                        +32   -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/entity/SysRoleMenu.java                                    +13   -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/entity/SysRoleOrg.java                                     +21   -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/entity/SysRoleRule.java                                    +15   -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/entity/SysRuleVersion.java                                 +23   -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/entity/SysUser.java                                        +78   -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/entity/SysUserOrg.java                                     +22   -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/entity/SysUserPosition.java                                +26   -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/entity/SysUserRole.java                                    +13   -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/mapper/SysAuditLogMapper.java                              +10   -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/mapper/SysConfigMapper.java                                +7    -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/mapper/SysDeptMapper.java                                  +38   -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/mapper/SysDictDataMapper.java                              +7    -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/mapper/SysDictTypeMapper.java                              +7    -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/mapper/SysGroupMapper.java                                 +9    -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/mapper/SysLogMapper.java                                   +7    -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/mapper/SysMenuMapper.java                                  +28   -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/mapper/SysOrgAdminMapper.java                              +21   -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/mapper/SysPermissionRuleMapper.java                        +33   -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/mapper/SysPositionMapper.java                              +16   -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/mapper/SysPositionRuleMapper.java                          +7    -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/mapper/SysRoleMapper.java                                  +29   -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/mapper/SysRoleMenuMapper.java                              +7    -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/mapper/SysRoleOrgMapper.java                               +31   -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/mapper/SysRoleRuleMapper.java                              +7    -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/mapper/SysRuleVersionMapper.java                           +10   -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/mapper/SysUserMapper.java                                  +26   -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/mapper/SysUserOrgMapper.java                               +25   -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/mapper/SysUserPositionMapper.java                          +15   -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/mapper/SysUserRoleMapper.java                              +7    -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/service/OrgAdminService.java                               +140  -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/service/RolePermScopeService.java                          +309  -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/service/SysAuditLogService.java                            +46   -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/service/SysConfigService.java                              +94   -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/service/SysDeptService.java                                +133  -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/service/SysDictService.java                                +118  -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/service/SysGroupService.java                               +48   -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/service/SysLogService.java                                 +88   -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/service/SysMenuService.java                                +36   -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/service/SysPermissionRuleService.java                      +62   -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/service/SysPositionService.java                            +179  -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/service/SysRoleService.java                                +395  -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/service/SysRuleVersionService.java                         +37   -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/service/SysUserService.java                                +433  -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/task/controller/TaskController.java                               +79   -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/task/entity/BizTask.java                                          +40   -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/task/mapper/BizTaskMapper.java                                    +10   -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/task/service/TaskService.java                                     +263  -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/task/service/TaskViewService.java                                 +37   -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/security/JwtAuthFilter.java                                              +156  -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/security/JwtTokenProvider.java                                           +278  -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/security/PermissionCacheService.java                                     +139  -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/security/PermissionContext.java                                          +52   -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/security/SecurityAuditService.java                                       +192  -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/security/SecurityUser.java                                               +84   -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/security/SecurityUtils.java                                              +120  -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/security/UserDetailsServiceImpl.java                                     +297  -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/task/CustomerExpireTask.java                                             +193  -0   
+  [S]  02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/task/ScheduledTaskController.java                                        +28   -0   
+  [S]  02-迭代源代码/aigicrm-miniprogram/api/approval.js                                                                                +31   -0   
+  [S]  02-迭代源代码/aigicrm-miniprogram/api/auth.js                                                                                    +47   -0   
+  [S]  02-迭代源代码/aigicrm-miniprogram/api/customer.js                                                                                +84   -0   
+  [S]  02-迭代源代码/aigicrm-miniprogram/api/file.js                                                                                    +124  -0   
+  [S]  02-迭代源代码/aigicrm-miniprogram/api/incentive.js                                                                               +84   -0   
+  [S]  02-迭代源代码/aigicrm-miniprogram/api/reminder.js                                                                                +29   -0   
+  [S]  02-迭代源代码/aigicrm-miniprogram/api/score.js                                                                                   +11   -0   
+  [S]  02-迭代源代码/aigicrm-miniprogram/api/sea.js                                                                                     +23   -0   
+  [S]  02-迭代源代码/aigicrm-miniprogram/api/statistics.js                                                                              +31   -0   
+  [S]  02-迭代源代码/aigicrm-miniprogram/api/system.js                                                                                  +25   -0   
+  [S]  02-迭代源代码/aigicrm-miniprogram/api/task.js                                                                                    +7    -0   
+  [S]  02-迭代源代码/aigicrm-miniprogram/app.js                                                                                         +31   -0   
+  [S]  02-迭代源代码/aigicrm-miniprogram/app.json                                                                                       +84   -0   
+  [S]  02-迭代源代码/aigicrm-miniprogram/config/env.js                                                                                  +67   -0   
+  [S]  02-迭代源代码/aigicrm-miniprogram/config/env.local.example.js                                                                    +17   -0   
+  [S]  02-迭代源代码/aigicrm-miniprogram/config/env.prod.example.js                                                                     +22   -0   
+  [S]  02-迭代源代码/aigicrm-miniprogram/data/demo.js                                                                                   +36   -0   
+  [S]  02-迭代源代码/aigicrm-miniprogram/pages/app/index.js                                                                             +50   -0   
+  [S]  02-迭代源代码/aigicrm-miniprogram/pages/app/index.json                                                                           +1    -0   
+  [S]  02-迭代源代码/aigicrm-miniprogram/pages/approval/detail/index.js                                                                 +199  -0   
+  [S]  02-迭代源代码/aigicrm-miniprogram/pages/approval/detail/index.json                                                               +1    -0   
+  [S]  02-迭代源代码/aigicrm-miniprogram/pages/approval/index.js                                                                        +397  -0   
+  [S]  02-迭代源代码/aigicrm-miniprogram/pages/approval/index.json                                                                      +3    -0   
+  [S]  02-迭代源代码/aigicrm-miniprogram/pages/cases/detail/index.js                                                                    +25   -0   
+  [S]  02-迭代源代码/aigicrm-miniprogram/pages/cases/detail/index.json                                                                  +1    -0   
+  [S]  02-迭代源代码/aigicrm-miniprogram/pages/cases/index.js                                                                           +25   -0   
+  [S]  02-迭代源代码/aigicrm-miniprogram/pages/cases/index.json                                                                         +4    -0   
+  [S]  02-迭代源代码/aigicrm-miniprogram/pages/customer/contact/detail/index.js                                                         +47   -0   
+  [S]  02-迭代源代码/aigicrm-miniprogram/pages/customer/contact/detail/index.json                                                       +1    -0   
+  [S]  02-迭代源代码/aigicrm-miniprogram/pages/customer/contact/form/index.js                                                           +82   -0   
+  [S]  02-迭代源代码/aigicrm-miniprogram/pages/customer/contact/form/index.json                                                         +1    -0   
+  [S]  02-迭代源代码/aigicrm-miniprogram/pages/customer/contact/index.js                                                                +101  -0   
+  [S]  02-迭代源代码/aigicrm-miniprogram/pages/customer/contact/index.json                                                              +1    -0   
+  [S]  02-迭代源代码/aigicrm-miniprogram/pages/customer/detail/index.js                                                                 +462  -0   
+  [S]  02-迭代源代码/aigicrm-miniprogram/pages/customer/detail/index.json                                                               +3    -0   
+  [S]  02-迭代源代码/aigicrm-miniprogram/pages/customer/filter/index.js                                                                 +141  -0   
+  [S]  02-迭代源代码/aigicrm-miniprogram/pages/customer/filter/index.json                                                               +1    -0   
+  [S]  02-迭代源代码/aigicrm-miniprogram/pages/customer/finance/form/index.js                                                           +101  -0   
+  [S]  02-迭代源代码/aigicrm-miniprogram/pages/customer/finance/form/index.json                                                         +1    -0   
+  [S]  02-迭代源代码/aigicrm-miniprogram/pages/customer/finance/index.js                                                                +120  -0   
+  [S]  02-迭代源代码/aigicrm-miniprogram/pages/customer/finance/index.json                                                              +1    -0   
+  [S]  02-迭代源代码/aigicrm-miniprogram/pages/customer/form/index.js                                                                   +510  -0   
+  [S]  02-迭代源代码/aigicrm-miniprogram/pages/customer/form/index.json                                                                 +1    -0   
+  [S]  02-迭代源代码/aigicrm-miniprogram/pages/customer/index.js                                                                        +275  -0   
+  [S]  02-迭代源代码/aigicrm-miniprogram/pages/customer/index.json                                                                      +1    -0   
+  [S]  02-迭代源代码/aigicrm-miniprogram/pages/customer/indicator/index.js                                                              +89   -0   
+  [S]  02-迭代源代码/aigicrm-miniprogram/pages/customer/indicator/index.json                                                            +1    -0   
+  [S]  02-迭代源代码/aigicrm-miniprogram/pages/customer/log/index.js                                                                    +61   -0   
+  [S]  02-迭代源代码/aigicrm-miniprogram/pages/customer/log/index.json                                                                  +1    -0   
+  [S]  02-迭代源代码/aigicrm-miniprogram/pages/customer/share/index.js                                                                  +104  -0   
+  [S]  02-迭代源代码/aigicrm-miniprogram/pages/customer/share/index.json                                                                +1    -0   
+  [S]  02-迭代源代码/aigicrm-miniprogram/pages/customer/timeline/index.js                                                               +265  -0   
+  [S]  02-迭代源代码/aigicrm-miniprogram/pages/customer/timeline/index.json                                                             +1    -0   
+  [S]  02-迭代源代码/aigicrm-miniprogram/pages/file/index.js                                                                            +25   -0   
+  [S]  02-迭代源代码/aigicrm-miniprogram/pages/file/index.json                                                                          +1    -0   
+  [S]  02-迭代源代码/aigicrm-miniprogram/pages/files/detail/index.js                                                                    +100  -0   
+  [S]  02-迭代源代码/aigicrm-miniprogram/pages/files/detail/index.json                                                                  +1    -0   
+  [S]  02-迭代源代码/aigicrm-miniprogram/pages/files/folder-form/index.js                                                               +46   -0   
+  [S]  02-迭代源代码/aigicrm-miniprogram/pages/files/folder-form/index.json                                                             +1    -0   
+  [S]  02-迭代源代码/aigicrm-miniprogram/pages/files/index.js                                                                           +557  -0   
+  [S]  02-迭代源代码/aigicrm-miniprogram/pages/files/index.json                                                                         +4    -0   
+  [S]  02-迭代源代码/aigicrm-miniprogram/pages/home/index.js                                                                            +188  -0   
+  [S]  02-迭代源代码/aigicrm-miniprogram/pages/home/index.json                                                                          +1    -0   
+  [S]  02-迭代源代码/aigicrm-miniprogram/pages/incentive/detail/index.js                                                                +595  -0   
+  [S]  02-迭代源代码/aigicrm-miniprogram/pages/incentive/detail/index.json                                                              +1    -0   
+  [S]  02-迭代源代码/aigicrm-miniprogram/pages/incentive/index.js                                                                       +1077 -0   
+  [S]  02-迭代源代码/aigicrm-miniprogram/pages/incentive/index.json                                                                     +1    -0   
+  [S]  02-迭代源代码/aigicrm-miniprogram/pages/incentive/upload/index.js                                                                +1021 -0   
+  [S]  02-迭代源代码/aigicrm-miniprogram/pages/incentive/upload/index.json                                                              +1    -0   
+  [S]  02-迭代源代码/aigicrm-miniprogram/pages/indicator/index.js                                                                       +74   -0   
+  [S]  02-迭代源代码/aigicrm-miniprogram/pages/indicator/index.json                                                                     +4    -0   
+  [S]  02-迭代源代码/aigicrm-miniprogram/pages/login/forgot/index.js                                                                    +64   -0   
+  [S]  02-迭代源代码/aigicrm-miniprogram/pages/login/forgot/index.json                                                                  +1    -0   
+  [S]  02-迭代源代码/aigicrm-miniprogram/pages/login/index.js                                                                           +70   -0   
+  [S]  02-迭代源代码/aigicrm-miniprogram/pages/login/index.json                                                                         +1    -0   
+  [S]  02-迭代源代码/aigicrm-miniprogram/pages/notification/detail/index.js                                                             +51   -0   
+  [S]  02-迭代源代码/aigicrm-miniprogram/pages/notification/detail/index.json                                                           +1    -0   
+  [S]  02-迭代源代码/aigicrm-miniprogram/pages/notification/index.js                                                                    +95   -0   
+  [S]  02-迭代源代码/aigicrm-miniprogram/pages/notification/index.json                                                                  +1    -0   
+  [S]  02-迭代源代码/aigicrm-miniprogram/pages/profile/about/index.js                                                                   +1    -0   
+  [S]  02-迭代源代码/aigicrm-miniprogram/pages/profile/about/index.json                                                                 +1    -0   
+  [S]  02-迭代源代码/aigicrm-miniprogram/pages/profile/agreement/index.js                                                               +1    -0   
+  [S]  02-迭代源代码/aigicrm-miniprogram/pages/profile/agreement/index.json                                                             +1    -0   
+  [S]  02-迭代源代码/aigicrm-miniprogram/pages/profile/feedback/index.js                                                                +43   -0   
+  [S]  02-迭代源代码/aigicrm-miniprogram/pages/profile/feedback/index.json                                                              +1    -0   
+  [S]  02-迭代源代码/aigicrm-miniprogram/pages/profile/index.js                                                                         +103  -0   
+  [S]  02-迭代源代码/aigicrm-miniprogram/pages/profile/index.json                                                                       +1    -0   
+  [S]  02-迭代源代码/aigicrm-miniprogram/pages/profile/password/index.js                                                                +63   -0   
+  [S]  02-迭代源代码/aigicrm-miniprogram/pages/profile/password/index.json                                                              +1    -0   
+  [S]  02-迭代源代码/aigicrm-miniprogram/pages/profile/privacy/index.js                                                                 +1    -0   
+  [S]  02-迭代源代码/aigicrm-miniprogram/pages/profile/privacy/index.json                                                               +1    -0   
+  [S]  02-迭代源代码/aigicrm-miniprogram/pages/profile/scope/index.js                                                                   +10   -0   
+  [S]  02-迭代源代码/aigicrm-miniprogram/pages/profile/scope/index.json                                                                 +1    -0   
+  [S]  02-迭代源代码/aigicrm-miniprogram/pages/profile/wechat/index.js                                                                  +9    -0   
+  [S]  02-迭代源代码/aigicrm-miniprogram/pages/profile/wechat/index.json                                                                +1    -0   
+  [S]  02-迭代源代码/aigicrm-miniprogram/pages/ranking/detail/index.js                                                                  +37   -0   
+  [S]  02-迭代源代码/aigicrm-miniprogram/pages/ranking/detail/index.json                                                                +1    -0   
+  [S]  02-迭代源代码/aigicrm-miniprogram/pages/ranking/index.js                                                                         +342  -0   
+  [S]  02-迭代源代码/aigicrm-miniprogram/pages/ranking/index.json                                                                       +1    -0   
+  [S]  02-迭代源代码/aigicrm-miniprogram/pages/reminder/index.js                                                                        +377  -0   
+  [S]  02-迭代源代码/aigicrm-miniprogram/pages/reminder/index.json                                                                      +3    -0   
+  [S]  02-迭代源代码/aigicrm-miniprogram/pages/sea/claim-detail/index.js                                                                +67   -0   
+  [S]  02-迭代源代码/aigicrm-miniprogram/pages/sea/claim-detail/index.json                                                              +1    -0   
+  [S]  02-迭代源代码/aigicrm-miniprogram/pages/sea/index.js                                                                             +466  -0   
+  [S]  02-迭代源代码/aigicrm-miniprogram/pages/sea/index.json                                                                           +3    -0   
+  [S]  02-迭代源代码/aigicrm-miniprogram/pages/statistics/detail/index.js                                                               +196  -0   
+  [S]  02-迭代源代码/aigicrm-miniprogram/pages/statistics/detail/index.json                                                             +1    -0   
+  [S]  02-迭代源代码/aigicrm-miniprogram/pages/statistics/index.js                                                                      +396  -0   
+  [S]  02-迭代源代码/aigicrm-miniprogram/pages/statistics/index.json                                                                    +1    -0   
+  [S]  02-迭代源代码/aigicrm-miniprogram/project.config.json                                                                            +36   -0   
+  [S]  02-迭代源代码/aigicrm-miniprogram/utils/auth.js                                                                                  +80   -0   
+  [S]  02-迭代源代码/aigicrm-miniprogram/utils/demo-contacts.js                                                                         +32   -0   
+  [S]  02-迭代源代码/aigicrm-miniprogram/utils/demo-customers.js                                                                        +21   -0   
+  [S]  02-迭代源代码/aigicrm-miniprogram/utils/demo-finance.js                                                                          +29   -0   
+  [S]  02-迭代源代码/aigicrm-miniprogram/utils/demo-folders.js                                                                          +25   -0   
+  [S]  02-迭代源代码/aigicrm-miniprogram/utils/demo-reminders.js                                                                        +14   -0   
+  [S]  02-迭代源代码/aigicrm-miniprogram/utils/feedback-draft.js                                                                        +7    -0   
+  [S]  02-迭代源代码/aigicrm-miniprogram/utils/feedback.js                                                                              +35   -0   
+  [S]  02-迭代源代码/aigicrm-miniprogram/utils/incentive-files.js                                                                       +146  -0   
+  [S]  02-迭代源代码/aigicrm-miniprogram/utils/request.js                                                                               +91   -0   
+  [S]  02-迭代源代码/aigicrm-ui/src/App.vue                                                                                             +66   -0   
+  [S]  02-迭代源代码/aigicrm-ui/src/api/approval.js                                                                                     +30   -0   
+  [S]  02-迭代源代码/aigicrm-ui/src/api/auth.js                                                                                         +30   -0   
+  [S]  02-迭代源代码/aigicrm-ui/src/api/customer.js                                                                                     +167  -0   
+  [S]  02-迭代源代码/aigicrm-ui/src/api/file.js                                                                                         +73   -0   
+  [S]  02-迭代源代码/aigicrm-ui/src/api/incentive.js                                                                                    +77   -0   
+  [S]  02-迭代源代码/aigicrm-ui/src/api/reminder.js                                                                                     +27   -0   
+  [S]  02-迭代源代码/aigicrm-ui/src/api/score.js                                                                                        +29   -0   
+  [S]  02-迭代源代码/aigicrm-ui/src/api/sea.js                                                                                          +50   -0   
+  [S]  02-迭代源代码/aigicrm-ui/src/api/statistics.js                                                                                   +29   -0   
+  [S]  02-迭代源代码/aigicrm-ui/src/api/system.js                                                                                       +208  -0   
+  [S]  02-迭代源代码/aigicrm-ui/src/api/task.js                                                                                         +26   -0   
+  [S]  02-迭代源代码/aigicrm-ui/src/components/FilePreview.vue                                                                          +97   -0   
+  [S]  02-迭代源代码/aigicrm-ui/src/composables/useCustomerDetail.js                                                                    +232  -0   
+  [S]  02-迭代源代码/aigicrm-ui/src/composables/useCustomerForm.js                                                                      +318  -0   
+  [S]  02-迭代源代码/aigicrm-ui/src/composables/useCustomerList.js                                                                      +414  -0   
+  [S]  02-迭代源代码/aigicrm-ui/src/composables/useFilePage.js                                                                          +314  -0   
+  [S]  02-迭代源代码/aigicrm-ui/src/composables/useIncentiveStats.js                                                                    +190  -0   
+  [S]  02-迭代源代码/aigicrm-ui/src/composables/useIncentiveUpload.js                                                                   +708  -0   
+  [S]  02-迭代源代码/aigicrm-ui/src/composables/usePermissionData.js                                                                    +232  -0   
+  [S]  02-迭代源代码/aigicrm-ui/src/composables/useUserList.js                                                                          +314  -0   
+  [S]  02-迭代源代码/aigicrm-ui/src/layout/index.vue                                                                                    +713  -0   
+  [S]  02-迭代源代码/aigicrm-ui/src/main.js                                                                                             +226  -0   
+  [S]  02-迭代源代码/aigicrm-ui/src/router/access.js                                                                                    +9    -0   
+  [S]  02-迭代源代码/aigicrm-ui/src/router/index.js                                                                                     +292  -0   
+  [S]  02-迭代源代码/aigicrm-ui/src/store/user.js                                                                                       +108  -0   
+  [S]  02-迭代源代码/aigicrm-ui/src/style.css                                                                                           +79   -0   
+  [S]  02-迭代源代码/aigicrm-ui/src/utils/app-version.js                                                                                +3    -0   
+  [S]  02-迭代源代码/aigicrm-ui/src/utils/confirm.js                                                                                    +22   -0   
+  [S]  02-迭代源代码/aigicrm-ui/src/utils/customer-empty-state.js                                                                       +5    -0   
+  [S]  02-迭代源代码/aigicrm-ui/src/utils/customer-fields.js                                                                            +96   -0   
+  [S]  02-迭代源代码/aigicrm-ui/src/utils/customer-status.js                                                                            +22   -0   
+  [S]  02-迭代源代码/aigicrm-ui/src/utils/download.js                                                                                   +47   -0   
+  [S]  02-迭代源代码/aigicrm-ui/src/utils/incentive-detail.js                                                                           +79   -0   
+  [S]  02-迭代源代码/aigicrm-ui/src/utils/incentive-period.js                                                                           +34   -0   
+  [S]  02-迭代源代码/aigicrm-ui/src/utils/incentive-read-ranking.js                                                                     +67   -0   
+  [S]  02-迭代源代码/aigicrm-ui/src/utils/incentive-read.js                                                                             +12   -0   
+  [S]  02-迭代源代码/aigicrm-ui/src/utils/layout-cache.js                                                                               +26   -0   
+  [S]  02-迭代源代码/aigicrm-ui/src/utils/list-filter.js                                                                                +68   -0   
+  [S]  02-迭代源代码/aigicrm-ui/src/utils/pagination.js                                                                                 +52   -0   
+  [S]  02-迭代源代码/aigicrm-ui/src/utils/reminder-detail.js                                                                            +156  -0   
+  [S]  02-迭代源代码/aigicrm-ui/src/utils/request.js                                                                                    +98   -0   
+  [S]  02-迭代源代码/aigicrm-ui/src/utils/time-label.js                                                                                 +101  -0   
+  [S]  02-迭代源代码/aigicrm-ui/src/utils/token.js                                                                                      +115  -0   
+  [S]  02-迭代源代码/aigicrm-ui/src/views/approval/index.vue                                                                            +600  -0   
+  [S]  02-迭代源代码/aigicrm-ui/src/views/customer/AddressSection.vue                                                                   +57   -0   
+  [S]  02-迭代源代码/aigicrm-ui/src/views/customer/AdvFilterDialog.vue                                                                  +77   -0   
+  [S]  02-迭代源代码/aigicrm-ui/src/views/customer/BasicSection.vue                                                                     +94   -0   
+  [S]  02-迭代源代码/aigicrm-ui/src/views/customer/BizSection.vue                                                                       +57   -0   
+  [S]  02-迭代源代码/aigicrm-ui/src/views/customer/ColPickerDialog.vue                                                                  +23   -0   
+  [S]  02-迭代源代码/aigicrm-ui/src/views/customer/ContactsSection.vue                                                                  +54   -0   
+  [S]  02-迭代源代码/aigicrm-ui/src/views/customer/ImportDialog.vue                                                                     +80   -0   
+  [S]  02-迭代源代码/aigicrm-ui/src/views/customer/IndicatorSection.vue                                                                 +53   -0   
+  [S]  02-迭代源代码/aigicrm-ui/src/views/customer/MainTable.vue                                                                        +130  -0   
+  [S]  02-迭代源代码/aigicrm-ui/src/views/customer/OrgSection.vue                                                                       +73   -0   
+  [S]  02-迭代源代码/aigicrm-ui/src/views/customer/ReleaseDialog.vue                                                                    +29   -0   
+  [S]  02-迭代源代码/aigicrm-ui/src/views/customer/StatCards.vue                                                                        +27   -0   
+  [S]  02-迭代源代码/aigicrm-ui/src/views/customer/TopBar.vue                                                                           +30   -0   
+  [S]  02-迭代源代码/aigicrm-ui/src/views/customer/add-common.css                                                                       +53   -0   
+  [S]  02-迭代源代码/aigicrm-ui/src/views/customer/add.vue                                                                              +93   -0   
+  [S]  02-迭代源代码/aigicrm-ui/src/views/customer/detail.vue                                                                           +203  -0   
+  [S]  02-迭代源代码/aigicrm-ui/src/views/customer/detail/FinanceTab.vue                                                                +132  -0   
+  [S]  02-迭代源代码/aigicrm-ui/src/views/customer/detail/IncentiveTab.vue                                                              +62   -0   
+  [S]  02-迭代源代码/aigicrm-ui/src/views/customer/detail/IndicatorTab.vue                                                              +41   -0   
+  [S]  02-迭代源代码/aigicrm-ui/src/views/customer/detail/InfoTab.vue                                                                   +180  -0   
+  [S]  02-迭代源代码/aigicrm-ui/src/views/customer/detail/LogsTab.vue                                                                   +94   -0   
+  [S]  02-迭代源代码/aigicrm-ui/src/views/customer/list.vue                                                                             +67   -0   
+  [S]  02-迭代源代码/aigicrm-ui/src/views/dashboard/index.vue                                                                           +560  -0   
+  [S]  02-迭代源代码/aigicrm-ui/src/views/error/403.vue                                                                                 +56   -0   
+  [S]  02-迭代源代码/aigicrm-ui/src/views/file/AclDialog.vue                                                                            +156  -0   
+  [S]  02-迭代源代码/aigicrm-ui/src/views/file/CreateFolderDialog.vue                                                                   +38   -0   
+  [S]  02-迭代源代码/aigicrm-ui/src/views/file/FileTable.vue                                                                            +182  -0   
+  [S]  02-迭代源代码/aigicrm-ui/src/views/file/FolderPanel.vue                                                                          +137  -0   
+  [S]  02-迭代源代码/aigicrm-ui/src/views/file/RenameFolderDialog.vue                                                                   +41   -0   
+  [S]  02-迭代源代码/aigicrm-ui/src/views/file/ShareDialog.vue                                                                          +46   -0   
+  [S]  02-迭代源代码/aigicrm-ui/src/views/file/UploadDialog.vue                                                                         +102  -0   
+  [S]  02-迭代源代码/aigicrm-ui/src/views/file/index.vue                                                                                +144  -0   
+  [S]  02-迭代源代码/aigicrm-ui/src/views/incentive/DeptRankTableView.vue                                                               +59   -0   
+  [S]  02-迭代源代码/aigicrm-ui/src/views/incentive/IncentiveFilterBar.vue                                                              +58   -0   
+  [S]  02-迭代源代码/aigicrm-ui/src/views/incentive/RankTableView.vue                                                                   +70   -0   
+  [S]  02-迭代源代码/aigicrm-ui/src/views/incentive/RecordTable.vue                                                                     +112  -0   
+  [S]  02-迭代源代码/aigicrm-ui/src/views/incentive/StatsCards.vue                                                                      +43   -0   
+  [S]  02-迭代源代码/aigicrm-ui/src/views/incentive/StatsDetail.vue                                                                     +152  -0   
+  [S]  02-迭代源代码/aigicrm-ui/src/views/incentive/StatsTableView.vue                                                                  +137  -0   
+  [S]  02-迭代源代码/aigicrm-ui/src/views/incentive/SubCategoryPanel.vue                                                                +52   -0   
+  [S]  02-迭代源代码/aigicrm-ui/src/views/incentive/UploadDialog.vue                                                                    +286  -0   
+  [S]  02-迭代源代码/aigicrm-ui/src/views/incentive/index.vue                                                                           +91   -0   
+  [S]  02-迭代源代码/aigicrm-ui/src/views/incentive/rank-common.css                                                                     +84   -0   
+  [S]  02-迭代源代码/aigicrm-ui/src/views/incentive/search.vue                                                                          +1048 -0   
+  [S]  02-迭代源代码/aigicrm-ui/src/views/incentive/stats.vue                                                                           +54   -0   
+  [S]  02-迭代源代码/aigicrm-ui/src/views/indicator/index.vue                                                                           +159  -0   
+  [S]  02-迭代源代码/aigicrm-ui/src/views/login/ForgotPasswordDialog.vue                                                                +448  -0   
+  [S]  02-迭代源代码/aigicrm-ui/src/views/login/index.vue                                                                               +317  -0   
+  [S]  02-迭代源代码/aigicrm-ui/src/views/ranking/customer.vue                                                                          +178  -0   
+  [S]  02-迭代源代码/aigicrm-ui/src/views/reminder/detail.vue                                                                           +231  -0   
+  [S]  02-迭代源代码/aigicrm-ui/src/views/reminder/index.vue                                                                            +314  -0   
+  [S]  02-迭代源代码/aigicrm-ui/src/views/score/entry.vue                                                                               +212  -0   
+  [S]  02-迭代源代码/aigicrm-ui/src/views/score/ranking.vue                                                                             +191  -0   
+  [S]  02-迭代源代码/aigicrm-ui/src/views/sea/index.vue                                                                                 +302  -0   
+  [S]  02-迭代源代码/aigicrm-ui/src/views/sea/records.vue                                                                               +221  -0   
+  [S]  02-迭代源代码/aigicrm-ui/src/views/statistics/index.vue                                                                          +385  -0   
+  [S]  02-迭代源代码/aigicrm-ui/src/views/system/BasicSettings.vue                                                                      +225  -0   
+  [S]  02-迭代源代码/aigicrm-ui/src/views/system/CategoryManager.vue                                                                    +275  -0   
+  [S]  02-迭代源代码/aigicrm-ui/src/views/system/DictManager.vue                                                                        +279  -0   
+  [S]  02-迭代源代码/aigicrm-ui/src/views/system/PermGrantDialog.vue                                                                    +85   -0   
+  [S]  02-迭代源代码/aigicrm-ui/src/views/system/PermMatrixManager.vue                                                                  +72   -0   
+  [S]  02-迭代源代码/aigicrm-ui/src/views/system/PermScopeManager.vue                                                                   +259  -0   
+  [S]  02-迭代源代码/aigicrm-ui/src/views/system/SeaConfigManager.vue                                                                   +380  -0   
+  [S]  02-迭代源代码/aigicrm-ui/src/views/system/UserFilterBar.vue                                                                      +40   -0   
+  [S]  02-迭代源代码/aigicrm-ui/src/views/system/UserFormDialog.vue                                                                     +121  -0   
+  [S]  02-迭代源代码/aigicrm-ui/src/views/system/UserPager.vue                                                                          +29   -0   
+  [S]  02-迭代源代码/aigicrm-ui/src/views/system/UserTable.vue                                                                          +136  -0   
+  [S]  02-迭代源代码/aigicrm-ui/src/views/system/approvalConfig.vue                                                                     +139  -0   
+  [S]  02-迭代源代码/aigicrm-ui/src/views/system/config.vue                                                                             +93   -0   
+  [S]  02-迭代源代码/aigicrm-ui/src/views/system/dept.vue                                                                               +283  -0   
+  [S]  02-迭代源代码/aigicrm-ui/src/views/system/group.vue                                                                              +133  -0   
+  [S]  02-迭代源代码/aigicrm-ui/src/views/system/incentive-read-ranking.vue                                                             +201  -0   
+  [S]  02-迭代源代码/aigicrm-ui/src/views/system/log.vue                                                                                +282  -0   
+  [S]  02-迭代源代码/aigicrm-ui/src/views/system/perm-common.css                                                                        +267  -0   
+  [S]  02-迭代源代码/aigicrm-ui/src/views/system/position.vue                                                                           +236  -0   
+  [S]  02-迭代源代码/aigicrm-ui/src/views/system/role.vue                                                                               +316  -0   
+  [S]  02-迭代源代码/aigicrm-ui/src/views/system/rule.vue                                                                               +190  -0   
+  [S]  02-迭代源代码/aigicrm-ui/src/views/system/user.vue                                                                               +42   -0   
+  [S]  02-迭代源代码/aigicrm-ui/src/views/task/index.vue                                                                                +231  -0   
+
+Excluded from review (115):
+  [S]  02-迭代源代码/aigicrm-miniprogram/app.wxss                                               (unsupported_ext)
+  [S]  02-迭代源代码/aigicrm-miniprogram/config/env.local.js.disabled-20260915-110357           (unsupported_ext)
+  [S]  02-迭代源代码/aigicrm-miniprogram/pages/app/index.wxml                                   (unsupported_ext)
+  [S]  02-迭代源代码/aigicrm-miniprogram/pages/approval/detail/index.wxml                       (unsupported_ext)
+  [S]  02-迭代源代码/aigicrm-miniprogram/pages/approval/detail/index.wxss                       (unsupported_ext)
+  [S]  02-迭代源代码/aigicrm-miniprogram/pages/approval/index.wxml                              (unsupported_ext)
+  [S]  02-迭代源代码/aigicrm-miniprogram/pages/approval/index.wxss                              (unsupported_ext)
+  [S]  02-迭代源代码/aigicrm-miniprogram/pages/cases/detail/index.wxml                          (unsupported_ext)
+  [S]  02-迭代源代码/aigicrm-miniprogram/pages/cases/index.wxml                                 (unsupported_ext)
+  [S]  02-迭代源代码/aigicrm-miniprogram/pages/cases/index.wxss                                 (unsupported_ext)
+  [S]  02-迭代源代码/aigicrm-miniprogram/pages/customer/contact/detail/index.wxml               (unsupported_ext)
+  [S]  02-迭代源代码/aigicrm-miniprogram/pages/customer/contact/form/index.wxml                 (unsupported_ext)
+  [S]  02-迭代源代码/aigicrm-miniprogram/pages/customer/contact/form/index.wxss                 (unsupported_ext)
+  [S]  02-迭代源代码/aigicrm-miniprogram/pages/customer/contact/index.wxml                      (unsupported_ext)
+  [S]  02-迭代源代码/aigicrm-miniprogram/pages/customer/contact/index.wxss                      (unsupported_ext)
+  [S]  02-迭代源代码/aigicrm-miniprogram/pages/customer/detail/index.wxml                       (unsupported_ext)
+  [S]  02-迭代源代码/aigicrm-miniprogram/pages/customer/detail/index.wxss                       (unsupported_ext)
+  [S]  02-迭代源代码/aigicrm-miniprogram/pages/customer/filter/index.wxml                       (unsupported_ext)
+  [S]  02-迭代源代码/aigicrm-miniprogram/pages/customer/filter/index.wxss                       (unsupported_ext)
+  [S]  02-迭代源代码/aigicrm-miniprogram/pages/customer/finance/form/index.wxml                 (unsupported_ext)
+  [S]  02-迭代源代码/aigicrm-miniprogram/pages/customer/finance/form/index.wxss                 (unsupported_ext)
+  [S]  02-迭代源代码/aigicrm-miniprogram/pages/customer/finance/index.wxml                      (unsupported_ext)
+  [S]  02-迭代源代码/aigicrm-miniprogram/pages/customer/finance/index.wxss                      (unsupported_ext)
+  [S]  02-迭代源代码/aigicrm-miniprogram/pages/customer/form/index.wxml                         (unsupported_ext)
+  [S]  02-迭代源代码/aigicrm-miniprogram/pages/customer/form/index.wxss                         (unsupported_ext)
+  [S]  02-迭代源代码/aigicrm-miniprogram/pages/customer/index.wxml                              (unsupported_ext)
+  [S]  02-迭代源代码/aigicrm-miniprogram/pages/customer/indicator/index.wxml                    (unsupported_ext)
+  [S]  02-迭代源代码/aigicrm-miniprogram/pages/customer/indicator/index.wxss                    (unsupported_ext)
+  [S]  02-迭代源代码/aigicrm-miniprogram/pages/customer/log/index.wxml                          (unsupported_ext)
+  [S]  02-迭代源代码/aigicrm-miniprogram/pages/customer/log/index.wxss                          (unsupported_ext)
+  [S]  02-迭代源代码/aigicrm-miniprogram/pages/customer/share/index.wxml                        (unsupported_ext)
+  [S]  02-迭代源代码/aigicrm-miniprogram/pages/customer/share/index.wxss                        (unsupported_ext)
+  [S]  02-迭代源代码/aigicrm-miniprogram/pages/customer/timeline/index.wxml                     (unsupported_ext)
+  [S]  02-迭代源代码/aigicrm-miniprogram/pages/customer/timeline/index.wxss                     (unsupported_ext)
+  [S]  02-迭代源代码/aigicrm-miniprogram/pages/file/index.wxml                                  (unsupported_ext)
+  [S]  02-迭代源代码/aigicrm-miniprogram/pages/files/detail/index.wxml                          (unsupported_ext)
+  [S]  02-迭代源代码/aigicrm-miniprogram/pages/files/folder-form/index.wxml                     (unsupported_ext)
+  [S]  02-迭代源代码/aigicrm-miniprogram/pages/files/folder-form/index.wxss                     (unsupported_ext)
+  [S]  02-迭代源代码/aigicrm-miniprogram/pages/files/index.wxml                                 (unsupported_ext)
+  [S]  02-迭代源代码/aigicrm-miniprogram/pages/files/index.wxss                                 (unsupported_ext)
+  [S]  02-迭代源代码/aigicrm-miniprogram/pages/home/index.wxml                                  (unsupported_ext)
+  [S]  02-迭代源代码/aigicrm-miniprogram/pages/home/index.wxss                                  (unsupported_ext)
+  [S]  02-迭代源代码/aigicrm-miniprogram/pages/incentive/detail/index.wxml                      (unsupported_ext)
+  [S]  02-迭代源代码/aigicrm-miniprogram/pages/incentive/detail/index.wxss                      (unsupported_ext)
+  [S]  02-迭代源代码/aigicrm-miniprogram/pages/incentive/index.wxml                             (unsupported_ext)
+  [S]  02-迭代源代码/aigicrm-miniprogram/pages/incentive/index.wxss                             (unsupported_ext)
+  [S]  02-迭代源代码/aigicrm-miniprogram/pages/incentive/upload/index.wxml                      (unsupported_ext)
+  [S]  02-迭代源代码/aigicrm-miniprogram/pages/incentive/upload/index.wxss                      (unsupported_ext)
+  [S]  02-迭代源代码/aigicrm-miniprogram/pages/indicator/index.wxml                             (unsupported_ext)
+  [S]  02-迭代源代码/aigicrm-miniprogram/pages/indicator/index.wxss                             (unsupported_ext)
+  [S]  02-迭代源代码/aigicrm-miniprogram/pages/login/forgot/index.wxml                          (unsupported_ext)
+  [S]  02-迭代源代码/aigicrm-miniprogram/pages/login/forgot/index.wxss                          (unsupported_ext)
+  [S]  02-迭代源代码/aigicrm-miniprogram/pages/login/index.wxml                                 (unsupported_ext)
+  [S]  02-迭代源代码/aigicrm-miniprogram/pages/notification/detail/index.wxml                   (unsupported_ext)
+  [S]  02-迭代源代码/aigicrm-miniprogram/pages/notification/detail/index.wxss                   (unsupported_ext)
+  [S]  02-迭代源代码/aigicrm-miniprogram/pages/notification/index.wxml                          (unsupported_ext)
+  [S]  02-迭代源代码/aigicrm-miniprogram/pages/notification/index.wxss                          (unsupported_ext)
+  [S]  02-迭代源代码/aigicrm-miniprogram/pages/profile/about/index.wxml                         (unsupported_ext)
+  [S]  02-迭代源代码/aigicrm-miniprogram/pages/profile/about/index.wxss                         (unsupported_ext)
+  [S]  02-迭代源代码/aigicrm-miniprogram/pages/profile/agreement/index.wxml                     (unsupported_ext)
+  [S]  02-迭代源代码/aigicrm-miniprogram/pages/profile/agreement/index.wxss                     (unsupported_ext)
+  [S]  02-迭代源代码/aigicrm-miniprogram/pages/profile/feedback/index.wxml                      (unsupported_ext)
+  [S]  02-迭代源代码/aigicrm-miniprogram/pages/profile/feedback/index.wxss                      (unsupported_ext)
+  [S]  02-迭代源代码/aigicrm-miniprogram/pages/profile/index.wxml                               (unsupported_ext)
+  [S]  02-迭代源代码/aigicrm-miniprogram/pages/profile/index.wxss                               (unsupported_ext)
+  [S]  02-迭代源代码/aigicrm-miniprogram/pages/profile/password/index.wxml                      (unsupported_ext)
+  [S]  02-迭代源代码/aigicrm-miniprogram/pages/profile/privacy/index.wxml                       (unsupported_ext)
+  [S]  02-迭代源代码/aigicrm-miniprogram/pages/profile/privacy/index.wxss                       (unsupported_ext)
+  [S]  02-迭代源代码/aigicrm-miniprogram/pages/profile/scope/index.wxml                         (unsupported_ext)
+  [S]  02-迭代源代码/aigicrm-miniprogram/pages/profile/scope/index.wxss                         (unsupported_ext)
+  [S]  02-迭代源代码/aigicrm-miniprogram/pages/profile/wechat/index.wxml                        (unsupported_ext)
+  [S]  02-迭代源代码/aigicrm-miniprogram/pages/profile/wechat/index.wxss                        (unsupported_ext)
+  [S]  02-迭代源代码/aigicrm-miniprogram/pages/ranking/detail/index.wxml                        (unsupported_ext)
+  [S]  02-迭代源代码/aigicrm-miniprogram/pages/ranking/index.wxml                               (unsupported_ext)
+  [S]  02-迭代源代码/aigicrm-miniprogram/pages/ranking/index.wxss                               (unsupported_ext)
+  [S]  02-迭代源代码/aigicrm-miniprogram/pages/reminder/index.wxml                              (unsupported_ext)
+  [S]  02-迭代源代码/aigicrm-miniprogram/pages/reminder/index.wxss                              (unsupported_ext)
+  [S]  02-迭代源代码/aigicrm-miniprogram/pages/sea/claim-detail/index.wxml                      (unsupported_ext)
+  [S]  02-迭代源代码/aigicrm-miniprogram/pages/sea/index.wxml                                   (unsupported_ext)
+  [S]  02-迭代源代码/aigicrm-miniprogram/pages/sea/index.wxss                                   (unsupported_ext)
+  [S]  02-迭代源代码/aigicrm-miniprogram/pages/statistics/detail/index.wxml                     (unsupported_ext)
+  [S]  02-迭代源代码/aigicrm-miniprogram/pages/statistics/detail/index.wxss                     (unsupported_ext)
+  [S]  02-迭代源代码/aigicrm-miniprogram/pages/statistics/index.wxml                            (unsupported_ext)
+  [S]  02-迭代源代码/aigicrm-miniprogram/pages/statistics/index.wxss                            (unsupported_ext)
+  [S]  02-迭代源代码/aigicrm-ui/src/api/system.spec.js                                          (default_path)
+  [S]  02-迭代源代码/aigicrm-ui/src/composables/useCustomerDetail.spec.js                       (default_path)
+  [S]  02-迭代源代码/aigicrm-ui/src/composables/useCustomerForm.spec.js                         (default_path)
+  [S]  02-迭代源代码/aigicrm-ui/src/composables/useIncentiveUpload.spec.js                      (default_path)
+  [S]  02-迭代源代码/aigicrm-ui/src/router/access.spec.js                                       (default_path)
+  [S]  02-迭代源代码/aigicrm-ui/src/router/legacy-routes.spec.js                                (default_path)
+  [S]  02-迭代源代码/aigicrm-ui/src/store/user.spec.js                                          (default_path)
+  [S]  02-迭代源代码/aigicrm-ui/src/utils/app-version.spec.js                                   (default_path)
+  [S]  02-迭代源代码/aigicrm-ui/src/utils/customer-empty-state.spec.js                          (default_path)
+  [S]  02-迭代源代码/aigicrm-ui/src/utils/customer-fields.spec.js                               (default_path)
+  [S]  02-迭代源代码/aigicrm-ui/src/utils/customer-status.spec.js                               (default_path)
+  [S]  02-迭代源代码/aigicrm-ui/src/utils/incentive-detail.spec.js                              (default_path)
+  [S]  02-迭代源代码/aigicrm-ui/src/utils/incentive-period.spec.js                              (default_path)
+  [S]  02-迭代源代码/aigicrm-ui/src/utils/incentive-read-ranking.spec.js                        (default_path)
+  [S]  02-迭代源代码/aigicrm-ui/src/utils/incentive-read.spec.js                                (default_path)
+  [S]  02-迭代源代码/aigicrm-ui/src/utils/list-filter.spec.js                                   (default_path)
+  [S]  02-迭代源代码/aigicrm-ui/src/utils/pagination.spec.js                                    (default_path)
+  [S]  02-迭代源代码/aigicrm-ui/src/utils/region-data.js                                        (too_large)
+  [S]  02-迭代源代码/aigicrm-ui/src/utils/reminder-detail.spec.js                               (default_path)
+  [S]  02-迭代源代码/aigicrm-ui/src/utils/time-label.spec.js                                    (default_path)
+  [S]  02-迭代源代码/aigicrm-ui/src/utils/token.spec.js                                         (default_path)
+  [S]  02-迭代源代码/aigicrm-ui/src/views/customer/detail/FinanceTab.spec.js                    (default_path)
+  [S]  02-迭代源代码/aigicrm-ui/src/views/customer/detail/InfoTab.spec.js                       (default_path)
+  [S]  02-迭代源代码/aigicrm-ui/src/views/incentive/RecordTable.spec.js                         (default_path)
+  [S]  02-迭代源代码/aigicrm-ui/src/views/incentive/StatsDetail.spec.js                         (default_path)
+  [S]  02-迭代源代码/aigicrm-ui/src/views/incentive/search.spec.js                              (default_path)
+  [S]  02-迭代源代码/aigicrm-ui/src/views/reminder/detail.spec.js                               (default_path)
+  [S]  02-迭代源代码/aigicrm-ui/src/views/reminder/index.spec.js                                (default_path)
+  [S]  02-迭代源代码/aigicrm-ui/src/views/system/PermScopeManager.spec.js                       (default_path)
+  [S]  02-迭代源代码/aigicrm-ui/src/views/system/incentive-read-ranking.spec.js                 (default_path)
+  [S]  02-迭代源代码/aigicrm-ui/src/views/system/user.spec.js                                   (default_path)
+

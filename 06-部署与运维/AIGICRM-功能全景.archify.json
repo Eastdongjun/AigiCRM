@@ -1,0 +1,304 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "AIGICRM 功能全景",
+    "locale": "zh-CN",
+    "quality_profile": "showcase",
+    "views": [
+      {
+        "id": "main-workline",
+        "label": "主作业线",
+        "focus": [
+          "miniapp",
+          "pc",
+          "customer",
+          "incentive",
+          "insight"
+        ],
+        "note": "业务员日常主线:进入客户 → 沉淀激励佐证 → 汇入积分与排行。"
+      },
+      {
+        "id": "customer-care",
+        "label": "客户看护",
+        "focus": [
+          "customer",
+          "sea",
+          "reminder"
+        ],
+        "note": "公海流转与到期看护守住客户资产不流失。"
+      },
+      {
+        "id": "collab-content",
+        "label": "协同与内容",
+        "focus": [
+          "coop",
+          "incentive",
+          "file"
+        ],
+        "note": "审批/任务协同与激励附件沉淀在文件中心。"
+      }
+    ]
+  },
+  "components": [
+    {
+      "id": "pc",
+      "type": "frontend",
+      "label": "PC 管理端",
+      "sublabel": "Web · 15 视图",
+      "pos": [
+        40,
+        200
+      ],
+      "size": [
+        140,
+        60
+      ]
+    },
+    {
+      "id": "miniapp",
+      "type": "frontend",
+      "label": "微信小程序",
+      "sublabel": "46 页 · 移动作业",
+      "pos": [
+        40,
+        450
+      ],
+      "size": [
+        140,
+        60
+      ]
+    },
+    {
+      "id": "sea",
+      "type": "backend",
+      "label": "公海池",
+      "sublabel": "退回 · 捞取 · 删除保护",
+      "pos": [
+        270,
+        90
+      ],
+      "size": [
+        150,
+        60
+      ]
+    },
+    {
+      "id": "coop",
+      "type": "backend",
+      "label": "协同中心",
+      "sublabel": "审批流转 · 任务指派",
+      "pos": [
+        560,
+        90
+      ],
+      "size": [
+        150,
+        60
+      ]
+    },
+    {
+      "id": "sysmgmt",
+      "type": "backend",
+      "label": "系统管理",
+      "sublabel": "用户/角色/权限/组织/字典",
+      "tag": "仅 PC",
+      "pos": [
+        800,
+        90
+      ],
+      "size": [
+        160,
+        60
+      ]
+    },
+    {
+      "id": "customer",
+      "type": "backend",
+      "label": "客户管理",
+      "sublabel": "列表/360°/时间线/分享",
+      "tag": "经营中枢",
+      "pos": [
+        270,
+        270
+      ],
+      "size": [
+        150,
+        64
+      ]
+    },
+    {
+      "id": "incentive",
+      "type": "backend",
+      "label": "四项激励",
+      "sublabel": "上传/编辑 · 积分 · 阅读排行",
+      "pos": [
+        530,
+        270
+      ],
+      "size": [
+        150,
+        64
+      ]
+    },
+    {
+      "id": "insight",
+      "type": "backend",
+      "label": "统计与积分洞察",
+      "sublabel": "看板 · 指标 · 排行 · score",
+      "pos": [
+        800,
+        270
+      ],
+      "size": [
+        160,
+        64
+      ]
+    },
+    {
+      "id": "reminder",
+      "type": "backend",
+      "label": "到期提醒",
+      "sublabel": "到期看护 · 提醒捞取",
+      "pos": [
+        270,
+        450
+      ],
+      "size": [
+        150,
+        60
+      ]
+    },
+    {
+      "id": "file",
+      "type": "backend",
+      "label": "文件中心",
+      "sublabel": "公共/私人/激励分享",
+      "pos": [
+        530,
+        450
+      ],
+      "size": [
+        150,
+        60
+      ]
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "region",
+      "label": "客户经营",
+      "wraps": [
+        "customer",
+        "sea",
+        "reminder"
+      ]
+    },
+    {
+      "kind": "region",
+      "label": "协同与内容",
+      "wraps": [
+        "coop",
+        "incentive",
+        "file"
+      ]
+    },
+    {
+      "kind": "region",
+      "label": "经营洞察",
+      "wraps": [
+        "insight"
+      ]
+    },
+    {
+      "kind": "region",
+      "label": "平台底座 · 仅 PC",
+      "wraps": [
+        "sysmgmt"
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "pc-to-customer",
+      "from": "pc",
+      "to": "customer",
+      "label": "Web 作业",
+      "variant": "emphasis"
+    },
+    {
+      "id": "mini-to-customer",
+      "from": "miniapp",
+      "to": "customer",
+      "label": "移动作业",
+      "variant": "emphasis"
+    },
+    {
+      "id": "customer-to-sea",
+      "from": "customer",
+      "to": "sea",
+      "label": "退公/捞取"
+    },
+    {
+      "id": "customer-to-coop",
+      "from": "customer",
+      "to": "coop",
+      "label": "转移/延期/指派"
+    },
+    {
+      "id": "customer-to-incentive",
+      "from": "customer",
+      "to": "incentive",
+      "label": "经营佐证",
+      "variant": "emphasis",
+      "labelDy": -20,
+      "labelDx": -15
+    },
+    {
+      "id": "customer-to-reminder",
+      "from": "customer",
+      "to": "reminder",
+      "label": "到期看护",
+      "labelDy": 40
+    },
+    {
+      "id": "incentive-to-file",
+      "from": "incentive",
+      "to": "file",
+      "label": "附件存取",
+      "labelDy": 40
+    },
+    {
+      "id": "incentive-to-insight",
+      "from": "incentive",
+      "to": "insight",
+      "label": "积分/排行汇总"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "双端一体",
+      "items": [
+        "小程序 46 页与 PC 15 视图共用同一 JWT 账号与权限码",
+        "双端对齐由 06-pc-mini-parity 矩阵守卫"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "以客户为中心",
+      "items": [
+        "客户 360° 是经营中枢,公海/到期/协同/激励全部围绕客户展开",
+        "激励佐证挂客户沉淀进时间线,删除受票款与在途审批保护"
+      ]
+    },
+    {
+      "dot": "violet",
+      "title": "洞察与底座",
+      "items": [
+        "统计/指标/排行/积分(score)口径统一,数据范围随权限收口",
+        "系统管理仅 PC:用户/角色/组织/字典,权限勾选即时生效"
+      ]
+    }
+  ]
+}

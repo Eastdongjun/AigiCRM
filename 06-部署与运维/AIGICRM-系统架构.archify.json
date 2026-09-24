@@ -1,0 +1,237 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "AIGICRM 系统架构",
+    "locale": "zh-CN",
+    "quality_profile": "showcase",
+    "views": [
+      {
+        "id": "request-path",
+        "label": "请求主链路",
+        "focus": [
+          "miniapp",
+          "pc",
+          "nginx",
+          "backend",
+          "mysql"
+        ],
+        "note": "小程序与 PC 同一账号体系,经 Nginx 反代进入后端,落库 MySQL。"
+      },
+      {
+        "id": "session-guard",
+        "label": "会话与防护",
+        "focus": [
+          "backend",
+          "redis"
+        ],
+        "note": "JWT 黑名单、登录失败限流与幂等 strict 均以 Redis 为唯一热点状态。"
+      },
+      {
+        "id": "attachment-path",
+        "label": "附件链路",
+        "focus": [
+          "backend",
+          "oss"
+        ],
+        "note": "四项激励佐证文件直传阿里云 OSS,下载走签名 URL。"
+      }
+    ]
+  },
+  "components": [
+    {
+      "id": "pc",
+      "type": "frontend",
+      "label": "PC 管理端",
+      "sublabel": "Vue 3 · aigicrm-ui",
+      "pos": [
+        40,
+        110
+      ],
+      "size": [
+        140,
+        60
+      ]
+    },
+    {
+      "id": "miniapp",
+      "type": "frontend",
+      "label": "微信小程序",
+      "sublabel": "aigicrm-miniprogram",
+      "pos": [
+        40,
+        305
+      ],
+      "size": [
+        140,
+        60
+      ]
+    },
+    {
+      "id": "nginx",
+      "type": "cloud",
+      "label": "Nginx",
+      "sublabel": ":80/:443 反代+静态托管",
+      "pos": [
+        270,
+        305
+      ],
+      "size": [
+        150,
+        64
+      ]
+    },
+    {
+      "id": "backend",
+      "type": "backend",
+      "label": "Spring Boot 后端",
+      "sublabel": "aigicrm-backend :8080",
+      "tag": "JWT · RBAC · Flyway",
+      "pos": [
+        530,
+        305
+      ],
+      "size": [
+        160,
+        64
+      ]
+    },
+    {
+      "id": "redis",
+      "type": "database",
+      "label": "Redis",
+      "sublabel": "shared-redis :6379",
+      "tag": "黑名单·限流·幂等",
+      "pos": [
+        530,
+        110
+      ],
+      "size": [
+        150,
+        60
+      ]
+    },
+    {
+      "id": "mysql",
+      "type": "database",
+      "label": "MySQL 8",
+      "sublabel": "shared-mysql :3306",
+      "tag": "utf8mb4 · 35 迁移",
+      "pos": [
+        810,
+        305
+      ],
+      "size": [
+        150,
+        60
+      ]
+    },
+    {
+      "id": "oss",
+      "type": "external",
+      "label": "阿里云 OSS",
+      "sublabel": "oss-cn-beijing",
+      "tag": "激励佐证附件",
+      "pos": [
+        810,
+        465
+      ],
+      "size": [
+        150,
+        60
+      ]
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "region",
+      "label": "云服务器 · Docker Compose",
+      "wraps": [
+        "nginx",
+        "backend",
+        "redis",
+        "mysql"
+      ]
+    },
+    {
+      "kind": "security-group",
+      "label": "公网仅 80/443",
+      "wraps": [
+        "nginx"
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "pc-to-nginx",
+      "from": "pc",
+      "to": "nginx",
+      "label": "HTTPS",
+      "variant": "emphasis"
+    },
+    {
+      "id": "miniapp-to-nginx",
+      "from": "miniapp",
+      "to": "nginx",
+      "label": "HTTPS API",
+      "variant": "emphasis",
+      "labelDx": -45,
+      "labelDy": 45
+    },
+    {
+      "id": "nginx-to-backend",
+      "from": "nginx",
+      "to": "backend",
+      "label": "反代 :8080"
+    },
+    {
+      "id": "backend-to-redis",
+      "from": "backend",
+      "to": "redis",
+      "label": "会话/限流/幂等",
+      "fromSide": "top",
+      "toSide": "bottom"
+    },
+    {
+      "id": "backend-to-mysql",
+      "from": "backend",
+      "to": "mysql",
+      "label": "MyBatis · 事务"
+    },
+    {
+      "id": "backend-to-oss",
+      "from": "backend",
+      "to": "oss",
+      "label": "附件直传+签名下载",
+      "variant": "dashed"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "客户端",
+      "items": [
+        "小程序与 PC 同一账号体系(JWT),权限双端同源(功能+范围+锚点)",
+        "小程序 46 页,与 PC 管理面按 06-pc-mini-parity 矩阵对齐"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "服务端",
+      "items": [
+        "Spring Boot 单体模块化:客户/激励/审批/提醒/公海/文件",
+        "Flyway 迁移链 35 项,部署时 deploy-db.sh 先行",
+        "定时任务内置:客户到期/提醒捞取/告警巡检"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "安全边界",
+      "items": [
+        "MySQL/Redis 仅容器网可达,不暴露公网",
+        "Actuator 经 Nginx 收敛:health 匿名无详情,metrics 认证保护",
+        "登录失败限流(账号+IP)与幂等 strict 模式"
+      ]
+    }
+  ]
+}

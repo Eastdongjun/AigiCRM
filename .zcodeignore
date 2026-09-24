@@ -1,0 +1,120 @@
+# 依赖与构建产物
+node_modules/
+target/
+dist/
+.vite/
+logs/
+**/logs/
+*.tar.gz
+*.zip
+
+# 上传的业务数据（含客户真实文件，不进版本库）
+uploads/
+
+# 系统垃圾
+.DS_Store
+__MACOSX/
+*.log
+
+# 敏感凭据（本地配置含生产 SSH/MySQL 凭据，禁止入库）
+.claude/settings.local.json
+settings.local.json
+
+# Python 缓存
+__pycache__/
+*.pyc
+
+# TLS 私钥（禁止入库）
+*.key
+*.pem
+
+# SonarQube 本地缓存（含 secrets 扫描认证缓存，禁止入库）
+**/.sonar-cache/
+*secrets-auth-cache*
+.sonar/
+
+# graphify 图谱产物（本地重建，不提交）
+graphify-out/
+.backup-*/
+
+# 本机/自动化运行产物（正式证据统一落到中央 Agent runs 目录）
+02-迭代源代码/test-results/
+02-迭代源代码/engineering/evidence/
+02-迭代源代码/20260910-opencode-dev-upload-envversion-guard-001/
+05-测试与质量/evidence/
+05-测试与质量/audit-evidence/
+
+# 本机 Codex/编辑器状态
+.codex/
+.vscode/settings.json
+
+# 数据库 dump/备份(含密码哈希与业务数据,禁止入库)
+08-备份索引/
+aigicrm_database_test.sql
+sql/init.sql
+**/sql/init.sql
+**/aigicrm_database_test.sql
+**/aigicrm_database_test.sql.bak-*
+**/password-hash-backup.txt
+*.dump
+
+# 微信开发者工具的本机私有配置（含本机路径/编译设置，按微信惯例不入库；
+# project.config.json 与 config/env.*.example.js 模板仍入库）
+02-迭代源代码/aigicrm-miniprogram/project.private.config.json
+
+# 小程序本机覆盖档（开发者工具连本地/测试后端的地址，按机器不同，不入库）
+02-迭代源代码/aigicrm-miniprogram/config/env.local.js
+
+# Superpowers worktrees
+.worktrees/
+
+# aigicrm-ui/engineering 有意不提交（记忆决策保留，非 .gitignore 疏漏）
+02-迭代源代码/aigicrm-ui/engineering/
+ssl/
+aigicrm-backend/.settings/org.eclipse.m2e.core.prefs
+/default.conf
+/verify.sh
+02-迭代源代码/img/04-原型设计/
+02-迭代源代码/engineering/evidence/ui-full-test/
+02-迭代源代码/engineering/features/NEXT-INCENTIVE-UPLOAD.md
+
+# 小程序上传工具（scripts/miniprogram，miniprogram-ci 包装）：锁文件与预览二维码不入库；密钥一律放仓库外
+02-迭代源代码/scripts/miniprogram/package-lock.json
+02-迭代源代码/scripts/miniprogram/preview-qrcode.png
+
+# ZCode agent 工具目录(计划文件等,非项目资产)
+.zcode/
+
+# Mimosa 安全钩子本机运行状态(hook-state/会话快照,会话级临时产物,非项目资产;
+# 2026-09-20 曾把未跟踪清单撑到 95KB 触发 dev-verify 契约管道 SIGPIPE 误报)
+.mimosa/
+
+# ===== ↑ 以上同步自 .gitignore（「从 .gitignore 同步」只重写以上部分）=====
+.git/
+.hg/
+.svn/
+bower_components/
+jspm_packages/
+site-packages/
+venv/
+coverage/
+htmlcov/
+lcov-report/
+cmakefiles/
+cmake-build-*/
+bazel-*/
+pods/
+deriveddata/
+storybook-static/
+playwright-report/
+test-results/
+allure-results/
+allure-report/
+cdk.out/
+*.egg-info/
+*.dist-info/
+eggs/
+pip-wheel-metadata/
+wheels/
+# ----- ↑ 以上为 ZCode 默认排除规则（自定义规则请写在本行下方，不会被同步/恢复改动）-----
+# 自定义规则写在下方（本行提示可删除）

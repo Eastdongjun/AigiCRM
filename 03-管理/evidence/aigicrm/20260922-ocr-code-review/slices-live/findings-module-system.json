@@ -1,0 +1,72 @@
+[
+ {
+  "severity": "high",
+  "category": "security",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/auth/dto/LoginRequest.java",
+  "start_line": 10,
+  "end_line": 11,
+  "content": "Sensitive field exposure: Lombok `@Data` auto-generates `toString()`/`equals()`/`hashCode()` that include the plaintext password. Any framework or diagnostic logging of this object (Spring MVC debug logging, `@RestControllerAdvice` handlers, exception dumps, or future `log.info(\"...{}\", request)`) will leak the credential. Exclude the password from `toString()`:\n\n```java\nimport lombok.ToString;\n...\n@ToString.Exclude\nprivate String password;\n```\n(or annotate the class with `@ToString(exclude = \"password\")`).",
+  "existing_code": "    @NotBlank(message = \"密码不能为空\")\n    private String password;",
+  "suggestion_code": "    @NotBlank(message = \"密码不能为空\")\n    @ToString.Exclude\n    private String password;"
+ },
+ {
+  "severity": "low",
+  "category": "security",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/auth/dto/LoginRequest.java",
+  "start_line": 8,
+  "end_line": 9,
+  "content": "Input size is unbounded: only `@NotBlank` is enforced, so an arbitrarily long username/password is accepted. This is forwarded to the authentication/password-hashing logic and can be abused for resource exhaustion (e.g. extremely long BCrypt input). Add reasonable upper bounds using `@Size`, and optionally a lower bound for the password.",
+  "existing_code": "    @NotBlank(message = \"用户名不能为空\")\n    private String username;",
+  "suggestion_code": "    @NotBlank(message = \"用户名不能为空\")\n    @Size(max = 64, message = \"用户名长度不能超过64个字符\")\n    private String username;"
+ },
+ {
+  "severity": "low",
+  "category": "maintainability",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/auth/controller/AuthController.java",
+  "start_line": 39,
+  "end_line": 41,
+  "content": "审计日志落库失败被完全静默吞掉（连日志都没有），一旦 DB/映射出现问题，登录审计将长期缺失而无任何可观测信号。建议至少记录一条 warn 日志。",
+  "existing_code": "        } catch (Exception ignored) {\n            // 尽力而为:登录审计日志落库失败不影响登录主流程\n            }",
+  "suggestion_code": "        } catch (Exception e) {\n            // 尽力而为:登录审计日志落库失败不影响登录主流程\n            log.warn(\"登录审计日志落库失败, username={}\", request.getUsername(), e);\n        }"
+ },
+ {
+  "severity": "low",
+  "category": "maintainability",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/auth/controller/AuthController.java",
+  "start_line": 18,
+  "end_line": 18,
+  "content": "补充上一条：当前类未声明任何 logger 字段，若采纳记录日志的建议，需同时引入 `@Slf4j`（lombok）或自行声明 `private static final Logger log = LoggerFactory.getLogger(AuthController.class);`，否则建议代码无法编译。",
+  "existing_code": "public class AuthController {",
+  "suggestion_code": "@Slf4j\npublic class AuthController {"
+ },
+ {
+  "severity": "medium",
+  "category": "bug",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/auth/controller/AuthController.java",
+  "start_line": 53,
+  "end_line": 57,
+  "content": "OS 判定顺序有误，导致 `Android` / `iOS` 两个分支实际不可达（死代码）：\n- Android UA 形如 `Mozilla/5.0 (Linux; Android 10; ...)`，先被 `ua.contains(\"Linux\")` 命中，永远识别为 Linux；\n- iPhone/iPad UA 形如 `...(iPhone; CPU iPhone OS 17_0 like Mac OS X)...`，先被 `ua.contains(\"Mac OS\")` 命中，永远识别为 macOS。\n建议把移动端判断前置到 Linux/macOS 之前。",
+  "existing_code": "        if (ua.contains(\"Windows\")) os = \"Windows\";\n        else if (ua.contains(\"Mac OS\")) os = \"macOS\";\n        else if (ua.contains(\"Linux\")) os = \"Linux\";\n        else if (ua.contains(\"Android\")) os = \"Android\";\n        else if (ua.contains(\"iPhone\") || ua.contains(\"iOS\")) os = \"iOS\";",
+  "suggestion_code": "        if (ua.contains(\"Windows\")) os = \"Windows\";\n        else if (ua.contains(\"Android\")) os = \"Android\";\n        else if (ua.contains(\"iPhone\") || ua.contains(\"iPad\") || ua.contains(\"iOS\")) os = \"iOS\";\n        else if (ua.contains(\"Mac OS\")) os = \"macOS\";\n        else if (ua.contains(\"Linux\")) os = \"Linux\";"
+ },
+ {
+  "severity": "medium",
+  "category": "bug",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/auth/controller/AuthController.java",
+  "start_line": 80,
+  "end_line": 81,
+  "content": "`Long.parseLong(String.valueOf(gid))` 对非法输入会抛出 `NumberFormatException`，未被捕获时返回 500，而不是语义正确的 400 参数错误；同时用裸 `Map` 接收请求体绕过了 Bean Validation。建议捕获转换异常并抛出明确的业务异常，或改用带 `@NotNull`/`@Min` 校验的 DTO。",
+  "existing_code": "        Object gid = body.get(\"groupId\");\n        Long groupId = gid == null ? null : Long.parseLong(String.valueOf(gid));",
+  "suggestion_code": "        Object gid = body.get(\"groupId\");\n        Long groupId;\n        try {\n            groupId = gid == null ? null : Long.parseLong(String.valueOf(gid).trim());\n        } catch (NumberFormatException e) {\n            throw new BusinessException(400, \"groupId 参数非法\");\n        }"
+ },
+ {
+  "severity": "low",
+  "category": "performance",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/auth/controller/AuthController.java",
+  "start_line": 36,
+  "end_line": 37,
+  "content": "此处重复调用了 `ClientIpUtils.getClientIp(httpRequest)`，与上面已计算的 `ip` 值相同（同一请求内重复解析可信代理网段），建议直接复用 `ip`，避免重复计算且保证限流与审计所用 IP 完全同源。",
+  "existing_code": "            String ipLog = ClientIpUtils.getClientIp(httpRequest);\n            log.setIp(ipLog);",
+  "suggestion_code": "            log.setIp(ip);"
+ }
+]

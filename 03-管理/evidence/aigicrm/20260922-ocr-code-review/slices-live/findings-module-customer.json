@@ -1,0 +1,172 @@
+[
+ {
+  "severity": "medium",
+  "category": "bug",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/approval/controller/ApprovalController.java",
+  "start_line": 62,
+  "end_line": 64,
+  "content": "`Long.valueOf(value)` throws `NumberFormatException` for any non-numeric/empty input (e.g. `customerId=abc` or `customerId=`), which is not caught here and will surface as an uncontrolled HTTP 500 instead of a 400 validation error. Since `params` comes straight from the request body, this is user-triggerable. Please parse defensively (blank -> null, malformed -> explicit 400).",
+  "existing_code": "    private Long parseLongOrNull(String value) {\n        return value == null ? null : Long.valueOf(value);\n    }",
+  "suggestion_code": "    private Long parseLongOrNull(String value) {\n        if (value == null || value.isBlank()) {\n            return null;\n        }\n        try {\n            return Long.valueOf(value.trim());\n        } catch (NumberFormatException e) {\n            // return a client error instead of letting it bubble up as a 500\n            throw new BusinessException(400, \"customerId 格式不正确\");\n        }\n    }"
+ },
+ {
+  "severity": "medium",
+  "category": "performance",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/approval/controller/ApprovalController.java",
+  "start_line": 26,
+  "end_line": 26,
+  "content": "`size` is taken from the request without any upper bound, so a caller can request e.g. `size=1000000`, forcing a full-table scan/page materialization and a large response (memory/DB pressure). Clamp it to a sane maximum (and `current`/`size` to positive values).",
+  "existing_code": "            @RequestParam(defaultValue = \"15\") int size,",
+  "suggestion_code": "            @RequestParam(defaultValue = \"15\") int size,   // clamp: size = Math.min(Math.max(size, 1), 100)"
+ },
+ {
+  "severity": "low",
+  "category": "security",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/approval/controller/ApprovalController.java",
+  "start_line": 67,
+  "end_line": 68,
+  "content": "This is a state-changing operation (reassigning an approver) but it is guarded only by the read permission `approval:view`. The admin check happens later in the service, so it is not a direct privilege escalation, but the annotation is misleading and couples authorization to an implementation detail of the service. Prefer an explicit write/admin authority here for defense in depth. Also, `body.get(\"newApproverId\")` may be null when the key is missing, which then reaches the service as a null id — validate it here and return a 400.",
+  "existing_code": "    @PreAuthorize(\"hasAuthority('approval:view')\")\n    @PutMapping(\"/{id}/nodes/{nodeId}/transfer\")",
+  "suggestion_code": "    @PreAuthorize(\"hasAuthority('approval:approve')\")\n    @PutMapping(\"/{id}/nodes/{nodeId}/transfer\")"
+ },
+ {
+  "severity": "medium",
+  "category": "security",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/approval/controller/ApprovalConfigController.java",
+  "start_line": 29,
+  "end_line": 31,
+  "content": "Binding the persistence entity directly to the request body with no `@Valid`/whitelist means every writable column is client-controlled (mass assignment): the caller can pass `id`, `status`, `createdAt`, `updatedAt` on create/update. Setting `status` lets a caller create a config that is invisible to `list()` (which filters `status=1`) or resurrect/soft-delete a config, bypassing the dedicated delete endpoint. Consider a request DTO exposing only the editable fields (flowName/flowType/approverType/approverIds/signMode/sortOrder) and validating it with `@Valid`, so `status`/`id`/audit timestamps stay server-controlled.",
+  "existing_code": "    public Result<BizApprovalConfig> create(@RequestBody BizApprovalConfig config) {\n        return Result.ok(configService.create(config));\n    }",
+  "suggestion_code": null
+ },
+ {
+  "severity": "low",
+  "category": "bug",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/approval/controller/ApprovalConfigController.java",
+  "start_line": 37,
+  "end_line": 39,
+  "content": "The update returns `Result.ok()` unconditionally. Since the service calls `configMapper.updateById(config)`, which silently affects 0 rows when the id does not exist (or was already soft-deleted), a caller updating a bogus id gets a success response while nothing changed. Recommend verifying the record exists (e.g., `getById`/affected-rows from the service) and returning a not-found error to avoid false-positive success.",
+  "existing_code": "        config.setId(id);\n        configService.update(config);\n        return Result.ok();",
+  "suggestion_code": null
+ },
+ {
+  "severity": "medium",
+  "category": "bug",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/approval/mapper/BizApprovalConfigMapper.java",
+  "start_line": 12,
+  "end_line": 12,
+  "content": "The result order is the sole determinant of the serial stage sequence (see `ApprovalConfigService.createNodes`, which assigns `nodeOrder` from the list index and relies on \"config 按 sort_order 即串行阶段序\"). `ORDER BY sort_order` alone is non-deterministic when several configs share the same sort_order, so different executions of the same approval flow can produce different stage ordering. Add a tie-breaker column.",
+  "existing_code": "    @Select(\"SELECT * FROM biz_approval_config WHERE flow_type = #{flowType} AND status = 1 ORDER BY sort_order\")",
+  "suggestion_code": "    @Select(\"SELECT * FROM biz_approval_config WHERE flow_type = #{flowType} AND status = 1 ORDER BY sort_order, id\")"
+ },
+ {
+  "severity": "low",
+  "category": "maintainability",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/approval/mapper/BizApprovalConfigMapper.java",
+  "start_line": 13,
+  "end_line": 13,
+  "content": "The literal `status = 1` duplicates the \"enabled\" status semantics that are also hardcoded in `ApprovalConfigService.list()`/`delete()`. If the meaning of the status values changes, this inline SQL will silently diverge from the wrapper-based queries. Consider extracting a shared constant (e.g. `STATUS_ENABLED`) and referencing it, or reverting to the `LambdaQueryWrapper` style used elsewhere in the service.",
+  "existing_code": "    List<BizApprovalConfig> selectByFlowType(String flowType);",
+  "suggestion_code": null
+ },
+ {
+  "severity": "medium",
+  "category": "performance",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/approval/service/ApprovalConfigService.java",
+  "start_line": 132,
+  "end_line": 141,
+  "content": "DEPT 分支在循环内逐部门发起一次数据库查询，当配置了多个部门时会产生 N+1 查询（部门越多、SQL 越多）。建议收集全部部门 ID 后用一次 `in` 批量查询，或在 mapper 中直接写 JOIN 查询。",
+  "existing_code": "                    List<Long> deptUserIds = new ArrayList<>();\n                    for (Integer did : ids) {\n                        List<SysUser> deptUsers = userMapper.selectList(\n                            new LambdaQueryWrapper<SysUser>()\n                                .eq(SysUser::getDeptId, did.longValue())\n                                .eq(SysUser::getStatus, 1)\n                                .eq(SysUser::getDeleted, 0));\n                        deptUsers.forEach(u -> deptUserIds.add(u.getId()));\n                    }\n                    return deptUserIds;",
+  "suggestion_code": "                    List<Long> deptIds = ids.stream().map(Integer::longValue).distinct().toList();\n                    if (deptIds.isEmpty()) return Collections.emptyList();\n                    return userMapper.selectList(\n                            new LambdaQueryWrapper<SysUser>()\n                                .in(SysUser::getDeptId, deptIds)\n                                .eq(SysUser::getStatus, 1)\n                                .eq(SysUser::getDeleted, 0))\n                        .stream().map(SysUser::getId).toList();"
+ },
+ {
+  "severity": "medium",
+  "category": "bug",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/approval/service/ApprovalConfigService.java",
+  "start_line": 145,
+  "end_line": 147,
+  "content": "外层 catch 捕获所有异常后直接返回空列表且没有任何日志：JSON 解析失败、DB 异常等真实故障会被静默吞掉，表现为“解析不出审批人”，调用方（ApprovalService.submit）据此抛出“审批流程已配置但无有效审批人”，把系统故障误报为配置问题，问题极难定位。建议至少记录 error 日志（含 flowType/configId），并区分“配置为空”与“解析/查询异常”。",
+  "existing_code": "        } catch (Exception e) {\n            return Collections.emptyList();\n        }",
+  "suggestion_code": "        } catch (Exception e) {\n            log.error(\"解析审批人失败 configId={}, approverType={}: {}\",\n                    cfg.getId(), cfg.getApproverType(), e.getMessage(), e);\n            return Collections.emptyList();\n        }"
+ },
+ {
+  "severity": "low",
+  "category": "performance",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/approval/service/ApprovalConfigService.java",
+  "start_line": 114,
+  "end_line": 114,
+  "content": "`valid` 是 List，`filter(valid::contains)` 每次判含都是 O(n) 线性扫描，approver 数量大时整体退化为 O(n²)。建议先将有效用户收集到 Set 再过滤。",
+  "existing_code": "                    return requested.stream().filter(valid::contains).toList();",
+  "suggestion_code": "                    java.util.Set<Long> validSet = new java.util.HashSet<>(valid);\n                    return requested.stream().filter(validSet::contains).toList();"
+ },
+ {
+  "severity": "medium",
+  "category": "bug",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/approval/mapper/BizApprovalMapper.java",
+  "start_line": 10,
+  "end_line": 10,
+  "content": "取号查询本身不参与任何锁定/原子分配：调用方 `ApprovalService.submit()` 是「先查 MAX，再 insert」两步操作（非原子 compound operation）。同一租户下两个并发提交会读到同一个 maxCode，随后第二条 insert 撞上 `uk_tenant_approval_code` 唯一键（V2026.09.21.3）抛 DuplicateKeyException，被 GlobalExceptionHandler 转成 5xx，而不是优雅的业务提示（代码库中未见对该异常的重试）。建议至少让取号在事务内对同租户取号序列加锁（例如对候选行 `FOR UPDATE`、或改用独立序号表/`INSERT ... SELECT MAX+1` 单语句分配），并在服务层对唯一键冲突做有限次重试。",
+  "existing_code": "    @Select(\"SELECT IFNULL(MAX(CAST(SUBSTRING(approval_code, LENGTH(#{prefix}) + 1) AS UNSIGNED)), 0) FROM biz_approval WHERE approval_code LIKE CONCAT(#{prefix}, '%') AND (#{tenantId} IS NULL OR tenant_id = #{tenantId})\")",
+  "suggestion_code": null
+ },
+ {
+  "severity": "low",
+  "category": "bug",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/approval/mapper/BizApprovalMapper.java",
+  "start_line": 11,
+  "end_line": 11,
+  "content": "截取偏移量用 `LENGTH(#{prefix})`：MySQL 的 LENGTH() 返回的是字节长度而非字符长度，当前唯一调用点传的是纯 ASCII 前缀（\"P\"+年份+\"-\"）所以暂时正确，但一旦前缀含中文/多字节字符（如大区名），SUBSTRING 的起始位置就会错位，取号结果失真。同项目 `BizCustomerMapper.selectMaxCodeByPrefix` 的做法是把 `prefixLen` 作为参数从 Java 侧传入（String.length() 为字符数），建议此处对齐：改用 `CHAR_LENGTH(#{prefix})` 或新增 `@Param(\"prefixLen\") int prefixLen`。",
+  "existing_code": "    int selectMaxCodeByPrefix(@org.apache.ibatis.annotations.Param(\"prefix\") String prefix, @org.apache.ibatis.annotations.Param(\"tenantId\") Long tenantId);",
+  "suggestion_code": null
+ },
+ {
+  "severity": "medium",
+  "category": "bug",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/approval/service/ApprovalService.java",
+  "start_line": 238,
+  "end_line": 239,
+  "content": "Check-then-act race when generating `approvalCode`: `selectMaxCodeByPrefix` + `insert` is not atomic, so two concurrent submits in the same group can read the same max value and persist two approvals with the identical code (the pool lock above only serializes the `claim` type). Back this with a DB unique constraint on (tenant/group, approval_code) plus a retry, or derive the sequence atomically.",
+  "existing_code": "        int maxCode = approvalMapper.selectMaxCodeByPrefix(prefix, com.aigicrm.common.scope.GroupScopeUtil.currentGroupOrNull());\n        String approvalCode = prefix + String.format(\"%03d\", maxCode + 1);",
+  "suggestion_code": null
+ },
+ {
+  "severity": "high",
+  "category": "bug",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/approval/service/ApprovalService.java",
+  "start_line": 460,
+  "end_line": 461,
+  "content": "NPE risk: `n.getNodeOrder()` is an `Integer` compared against the primitive `int nextStage`, so it is auto-unboxed here. Unlike the loop above (which guards with `n.getNodeOrder() != null && ...`), this activation loop has no null guard. Any node whose `nodeOrder` is null (e.g. legacy nodes built from a flow with a null `sortOrder`) will throw NullPointerException while activating the next stage, aborting the whole approve transaction. Add the same null check used in the sibling loop.",
+  "existing_code": "        for (BizApprovalNode n : nodes) {\n            if (n.getNodeOrder() == nextStage && \"waiting\".equals(n.getStatus())) {",
+  "suggestion_code": "        for (BizApprovalNode n : nodes) {\n            if (n.getNodeOrder() != null && n.getNodeOrder() == nextStage && \"waiting\".equals(n.getStatus())) {"
+ },
+ {
+  "severity": "medium",
+  "category": "bug",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/approval/service/ApprovalService.java",
+  "start_line": 288,
+  "end_line": 289,
+  "content": "ApprovalService can create duplicate pending nodes for the same (approvalId, approverId): in the legacy creation path the same leaderId is inserted for every flow row (and the approverRoleId branch is skipped whenever a leader exists), and transferNode does not check whether the target user already has a pending/waiting node. approve()/reject() then call selectOne(approvalId + approverId + status=pending), which throws TooManyResultsException (HTTP 500) instead of processing the approval. Deduplicate approvers before inserting nodes and reject transfers that would create a second pending task (also reject no-op transfers).",
+  "existing_code": "            for (BizApprovalFlow flow : flows) {\n                if (leaderId != null) {",
+  "suggestion_code": null
+ },
+ {
+  "severity": "medium",
+  "category": "performance",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/approval/service/ApprovalService.java",
+  "start_line": 114,
+  "end_line": 117,
+  "content": "ApprovalService has N+1 lookups in both list and detail: fillApprovalNames does two selectById per record on the page, and detail does one userMapper.selectById per approval node. Collect the distinct applicantId/customerId/approverId values and batch-load them with one in(...) query each, then map names in memory.",
+  "existing_code": "        IPage<BizApproval> page = approvalMapper.selectPage(new Page<>(current, size), wrapper);\n        for (BizApproval a : page.getRecords()) {\n            fillApprovalNames(a);\n        }",
+  "suggestion_code": null
+ },
+ {
+  "severity": "low",
+  "category": "bug",
+  "path": "02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/approval/service/ApprovalService.java",
+  "start_line": 200,
+  "end_line": 201,
+  "content": "Validation gap: when `type` is `claim` but `customerId` is null, the whole pool-availability/permission/locking block is silently skipped (`&& customerId != null`), so a locked-in \"reviewing\" approval is created. On approval, `executeApprovalAction` calls `completeClaim(null, ...)`, whose `eq(customerId, null)` matches nothing and returns silently — an approved approval that changes nothing. Reject the submission explicitly instead of skipping the checks.",
+  "existing_code": "        // 公海捞取：检查是否已被他人申请\n        if (\"claim\".equals(type) && customerId != null) {",
+  "suggestion_code": null
+ }
+]

@@ -1,0 +1,269 @@
+### check_schema_entity.py (baseline=V1__baseline.sql + migrations) ###
+实体 46 个, SQL 表 70 张
+
+ERROR (8):
+  [biz_invoice] 实体字段 source (String) -> 列 source 在表中不存在
+  [biz_invoice] 实体字段 confirmedBy (Long) -> 列 confirmed_by 在表中不存在
+  [biz_invoice] 实体字段 confirmedAt (java.time.LocalDateTime) -> 列 confirmed_at 在表中不存在
+  [biz_invoice] 实体字段 voidedReason (String) -> 列 voided_reason 在表中不存在
+  [biz_payment] 实体字段 source (String) -> 列 source 在表中不存在
+  [biz_payment] 实体字段 confirmedBy (Long) -> 列 confirmed_by 在表中不存在
+  [biz_payment] 实体字段 confirmedAt (java.time.LocalDateTime) -> 列 confirmed_at 在表中不存在
+  [biz_payment] 实体字段 voidedReason (String) -> 列 voided_reason 在表中不存在
+
+INFO (24):
+  [biz_customer_bak_0624] SQL 中有表但无实体(未检查)
+  [biz_customer_file] SQL 中有表但无实体(未检查)
+  [biz_customer_transfer] SQL 中有表但无实体(未检查)
+  [biz_file_permission] SQL 中有表但无实体(未检查)
+  [biz_incentive_grant] SQL 中有表但无实体(未检查)
+  [biz_incentive_permission] SQL 中有表但无实体(未检查)
+  [biz_incentive_read] SQL 中有表但无实体(未检查)
+  [biz_sea_config_bak_0624] SQL 中有表但无实体(未检查)
+  [biz_sea_config_bak_0629] SQL 中有表但无实体(未检查)
+  [biz_sea_config_region] SQL 中有表但无实体(未检查)
+  [biz_sea_config_scope] SQL 中有表但无实体(未检查)
+  [biz_sea_pool_bak_0624] SQL 中有表但无实体(未检查)
+  [biz_sea_pool_bak_poolid_0721] SQL 中有表但无实体(未检查)
+  [perm_scope_field] SQL 中有表但无实体(未检查)
+  [perm_scope_org] SQL 中有表但无实体(未检查)
+  [perm_scope_shadow_diff] SQL 中有表但无实体(未检查)
+  [role_perm_scope] SQL 中有表但无实体(未检查)
+  [sys_legal_entity] SQL 中有表但无实体(未检查)
+  [sys_role_bak_20260808] SQL 中有表但无实体(未检查)
+  [sys_role_org_bak_20260808] SQL 中有表但无实体(未检查)
+  [sys_token_blacklist] SQL 中有表但无实体(未检查)
+  [sys_user_archive] SQL 中有表但无实体(未检查)
+  [sys_user_bak_wll_0721] SQL 中有表但无实体(未检查)
+  [sys_user_column_pref] SQL 中有表但无实体(未检查)
+
+结论: 8 个错误, 0 个警告
+EXIT=1
+
+### check_api_wiring.py ###
+前端调用 181 条, 后端端点 212 个
+
+OK (181 条已匹配)
+
+后端全部端点:
+  DELETE /api/approval/config/{id}
+  DELETE /api/customer/{id}
+  DELETE /api/customer/{id}/contacts/{contactId}
+  DELETE /api/customer/{id}/invoices/{invoiceId}
+  DELETE /api/customer/{id}/payments/{paymentId}
+  DELETE /api/customer/{id}/shares/{userId}
+  DELETE /api/draft/{draftType}
+  DELETE /api/file/folders/{id}
+  DELETE /api/file/folders/{id}/acl/{roleId}
+  DELETE /api/file/{id}
+  DELETE /api/incentive/categories/{id}
+  DELETE /api/incentive/permission/{id}
+  DELETE /api/incentive/records/{id}
+  DELETE /api/score/items/{id}
+  DELETE /api/sea/configs/{id}
+  DELETE /api/sea/pool/{id}
+  DELETE /api/system/depts/{deptId}/admins/{id}
+  DELETE /api/system/depts/{id}
+  DELETE /api/system/dict/data/{id}
+  DELETE /api/system/dict/types/{id}
+  DELETE /api/system/groups/{id}
+  DELETE /api/system/positions/{id}
+  DELETE /api/system/roles/{id}
+  DELETE /api/system/rules/{id}
+  DELETE /api/system/users/{id}
+  GET /api/approval/config/list
+  GET /api/approval/list
+  GET /api/approval/statistics
+  GET /api/approval/{id}
+  GET /api/auth/info
+  GET /api/auth/permission-explain
+  GET /api/common/scope/depts
+  GET /api/common/scope/users
+  GET /api/customer/check-name
+  GET /api/customer/export
+  GET /api/customer/group-names
+  GET /api/customer/import/template
+  GET /api/customer/list
+  GET /api/customer/list/counts
+  GET /api/customer/rankings
+  GET /api/customer/statistics
+  GET /api/customer/users/simple
+  GET /api/customer/{id}
+  GET /api/customer/{id}/contacts
+  GET /api/customer/{id}/indicator
+  GET /api/customer/{id}/invoices
+  GET /api/customer/{id}/invoices/summary
+  GET /api/customer/{id}/logs
+  GET /api/customer/{id}/payments
+  GET /api/customer/{id}/payments/summary
+  GET /api/customer/{id}/shares
+  GET /api/draft/{draftType}
+  GET /api/file/download-token
+  GET /api/file/download/**
+  GET /api/file/download/public/**
+  GET /api/file/download/{id}
+  GET /api/file/folders
+  GET /api/file/folders/{id}/acl
+  GET /api/file/folders/{id}/permissions
+  GET /api/file/list
+  GET /api/file/reconciliation
+  GET /api/file/shared-to-me
+  GET /api/file/shared-to-me/count
+  GET /api/file/storage
+  GET /api/incentive/categories
+  GET /api/incentive/category-stats
+  GET /api/incentive/customer-records
+  GET /api/incentive/permission/check
+  GET /api/incentive/permission/list
+  GET /api/incentive/ranking
+  GET /api/incentive/read-ranking
+  GET /api/incentive/read-stats
+  GET /api/incentive/records
+  GET /api/incentive/score/customer/{customerId}
+  GET /api/incentive/scoreboard
+  GET /api/incentive/users
+  GET /api/reminder/expiring-list
+  GET /api/reminder/list
+  GET /api/reminder/pending-count
+  GET /api/reminder/{id}
+  GET /api/score/export/grid
+  GET /api/score/grid
+  GET /api/score/ranking
+  GET /api/score/ranking/stats
+  GET /api/sea/claim-records
+  GET /api/sea/configs
+  GET /api/sea/configs/visible
+  GET /api/sea/list
+  GET /api/sea/org-tree
+  GET /api/sea/statistics
+  GET /api/statistics/analysis
+  GET /api/statistics/customer-rankings
+  GET /api/statistics/daily-stats
+  GET /api/statistics/dashboard
+  GET /api/statistics/indicator-stats
+  GET /api/statistics/team-activities
+  GET /api/statistics/weekly-stats
+  GET /api/system/audit-logs
+  GET /api/system/configs
+  GET /api/system/configs/logo
+  GET /api/system/configs/public
+  GET /api/system/depts
+  GET /api/system/depts/tree
+  GET /api/system/depts/{deptId}/admins
+  GET /api/system/dict/data/type/{typeId}
+  GET /api/system/dict/data/{dictCode}
+  GET /api/system/dict/types
+  GET /api/system/groups
+  GET /api/system/logs
+  GET /api/system/logs/counts
+  GET /api/system/menus/tree
+  GET /api/system/perm-scopes/assignee/{type}/{key}
+  GET /api/system/perm-scopes/{roleCode}
+  GET /api/system/positions
+  GET /api/system/positions/users/{userId}
+  GET /api/system/positions/{positionId}/rules
+  GET /api/system/roles
+  GET /api/system/roles/{id}
+  GET /api/system/roles/{id}/orgs
+  GET /api/system/rule-versions
+  GET /api/system/rules
+  GET /api/system/users
+  GET /api/system/users/{id}
+  GET /api/task/list
+  GET /api/task/statistics
+  POST /api/approval/config
+  POST /api/approval/submit
+  POST /api/approval/{id}/approve
+  POST /api/approval/{id}/reject
+  POST /api/auth/forgot-password/lookup
+  POST /api/auth/forgot-password/reset
+  POST /api/auth/forgot-password/send-code
+  POST /api/auth/login
+  POST /api/auth/logout
+  POST /api/auth/switch-group
+  POST /api/customer/add
+  POST /api/customer/full
+  POST /api/customer/import
+  POST /api/customer/{id}/archive
+  POST /api/customer/{id}/contacts
+  POST /api/customer/{id}/indicator
+  POST /api/customer/{id}/invoices
+  POST /api/customer/{id}/invoices/{invoiceId}/confirm
+  POST /api/customer/{id}/invoices/{invoiceId}/void
+  POST /api/customer/{id}/logs
+  POST /api/customer/{id}/payments
+  POST /api/customer/{id}/payments/{paymentId}/confirm
+  POST /api/customer/{id}/payments/{paymentId}/void
+  POST /api/customer/{id}/release
+  POST /api/customer/{id}/restore
+  POST /api/customer/{id}/shares
+  POST /api/file/folders
+  POST /api/file/folders/{id}/acl
+  POST /api/file/upload
+  POST /api/file/{id}/replace
+  POST /api/file/{id}/share
+  POST /api/incentive/categories
+  POST /api/incentive/permission/grant
+  POST /api/incentive/records
+  POST /api/incentive/records/recalculate
+  POST /api/incentive/records/{id}/read
+  POST /api/reminder/ensure-expiring
+  POST /api/reminder/{id}/process
+  POST /api/score/entries/batch
+  POST /api/score/items
+  POST /api/sea/configs
+  POST /api/sea/import
+  POST /api/system/depts
+  POST /api/system/depts/{deptId}/admins
+  POST /api/system/dict/data
+  POST /api/system/dict/types
+  POST /api/system/groups
+  POST /api/system/positions
+  POST /api/system/roles
+  POST /api/system/rules
+  POST /api/system/task/check-expire
+  POST /api/system/users
+  POST /api/system/users/change-password
+  POST /api/system/users/{id}/reset-password
+  POST /api/task
+  POST /api/task/{id}/cancel
+  POST /api/task/{id}/complete
+  POST /api/task/{id}/transfer
+  PUT /api/approval/config/{id}
+  PUT /api/approval/{id}/nodes/{nodeId}/transfer
+  PUT /api/customer/{id}
+  PUT /api/customer/{id}/contacts/{contactId}
+  PUT /api/customer/{id}/full
+  PUT /api/customer/{id}/relationship
+  PUT /api/draft/{draftType}
+  PUT /api/draft/{draftType}/force
+  PUT /api/file/folders/{id}
+  PUT /api/file/folders/{id}/download
+  PUT /api/incentive/categories/{id}
+  PUT /api/incentive/records/{id}
+  PUT /api/score/items/{id}
+  PUT /api/sea/configs/{id}
+  PUT /api/system/configs
+  PUT /api/system/depts/{id}
+  PUT /api/system/dict/data/{id}
+  PUT /api/system/dict/types/{id}
+  PUT /api/system/groups/{id}
+  PUT /api/system/perm-scopes/assignee/{type}/{key}
+  PUT /api/system/perm-scopes/{roleCode}
+  PUT /api/system/positions/users/{userId}
+  PUT /api/system/positions/{id}
+  PUT /api/system/positions/{positionId}/rules
+  PUT /api/system/roles/{id}
+  PUT /api/system/roles/{id}/orgs
+  PUT /api/system/rules/{id}
+  PUT /api/system/users/{id}
+  PUT /api/task/{id}
+EXIT=0
+
+### check_permission_strings.py (baseline=V1__baseline.sql + migrations) ###
+@PreAuthorize 用到的权限 60 个, sys_menu 中存在的权限 75 个
+
+ERROR - 权限字符串在菜单中不存在, 相关端点将 403 (1):
+  incentive:read-ranking:view
+      com/aigicrm/module/incentive/controller/IncentiveController.java
+EXIT=1

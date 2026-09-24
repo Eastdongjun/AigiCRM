@@ -1,0 +1,347 @@
+{
+  "kind": "miniprogram-console-verification",
+  "generated_at": "2026-09-20T16:22:42.913510+00:00",
+  "project": "/Users/dongjun/东来/项目/01-进行中/01-AIGICRM/02-迭代源代码/aigicrm-miniprogram",
+  "client": "PenguinHarness",
+  "grep_pattern": "error|not defined|Cannot read|ReferenceError|TypeError|SyntaxError",
+  "wechatide": "/Applications/wechatwebdevtools.app/Contents/MacOS/wechatide",
+  "ide": {
+    "versionRelation": "equal",
+    "loginUser": "天池登山客",
+    "tokenRequired": false
+  },
+  "scope": {
+    "total_pages": 46,
+    "pages": [
+      "pages/login/index",
+      "pages/login/forgot/index",
+      "pages/home/index",
+      "pages/customer/index",
+      "pages/customer/detail/index",
+      "pages/customer/form/index",
+      "pages/customer/finance/index",
+      "pages/customer/finance/form/index",
+      "pages/customer/contact/index",
+      "pages/customer/contact/form/index",
+      "pages/customer/contact/detail/index",
+      "pages/customer/share/index",
+      "pages/customer/log/index",
+      "pages/customer/timeline/index",
+      "pages/customer/filter/index",
+      "pages/customer/indicator/index",
+      "pages/file/index",
+      "pages/files/index",
+      "pages/files/folder-form/index",
+      "pages/files/detail/index",
+      "pages/incentive/index",
+      "pages/incentive/upload/index",
+      "pages/incentive/detail/index",
+      "pages/ranking/index",
+      "pages/ranking/detail/index",
+      "pages/statistics/index",
+      "pages/statistics/detail/index",
+      "pages/cases/index",
+      "pages/cases/detail/index",
+      "pages/indicator/index",
+      "pages/app/index",
+      "pages/profile/index",
+      "pages/profile/password/index",
+      "pages/profile/scope/index",
+      "pages/profile/feedback/index",
+      "pages/profile/about/index",
+      "pages/profile/agreement/index",
+      "pages/profile/privacy/index",
+      "pages/profile/wechat/index",
+      "pages/approval/index",
+      "pages/approval/detail/index",
+      "pages/reminder/index",
+      "pages/notification/index",
+      "pages/notification/detail/index",
+      "pages/sea/index",
+      "pages/sea/claim-detail/index"
+    ]
+  },
+  "summary": {
+    "verified": 46,
+    "with_console_error": 0,
+    "clean": true
+  },
+  "records": [
+    {
+      "page": "pages/login/index",
+      "compiled": true,
+      "console_matched": false,
+      "console_raw": ""
+    },
+    {
+      "page": "pages/login/forgot/index",
+      "compiled": true,
+      "console_matched": false,
+      "console_raw": ""
+    },
+    {
+      "page": "pages/home/index",
+      "compiled": true,
+      "console_matched": false,
+      "console_raw": ""
+    },
+    {
+      "page": "pages/customer/index",
+      "compiled": true,
+      "console_matched": false,
+      "console_raw": ""
+    },
+    {
+      "page": "pages/customer/detail/index",
+      "compiled": true,
+      "console_matched": false,
+      "console_raw": ""
+    },
+    {
+      "page": "pages/customer/form/index",
+      "compiled": true,
+      "console_matched": false,
+      "console_raw": ""
+    },
+    {
+      "page": "pages/customer/finance/index",
+      "compiled": true,
+      "console_matched": false,
+      "console_raw": ""
+    },
+    {
+      "page": "pages/customer/finance/form/index",
+      "compiled": true,
+      "console_matched": false,
+      "console_raw": ""
+    },
+    {
+      "page": "pages/customer/contact/index",
+      "compiled": true,
+      "console_matched": false,
+      "console_raw": ""
+    },
+    {
+      "page": "pages/customer/contact/form/index",
+      "compiled": true,
+      "console_matched": false,
+      "console_raw": ""
+    },
+    {
+      "page": "pages/customer/contact/detail/index",
+      "compiled": true,
+      "console_matched": false,
+      "console_raw": ""
+    },
+    {
+      "page": "pages/customer/share/index",
+      "compiled": true,
+      "console_matched": false,
+      "console_raw": ""
+    },
+    {
+      "page": "pages/customer/log/index",
+      "compiled": true,
+      "console_matched": false,
+      "console_raw": ""
+    },
+    {
+      "page": "pages/customer/timeline/index",
+      "compiled": true,
+      "console_matched": false,
+      "console_raw": ""
+    },
+    {
+      "page": "pages/customer/filter/index",
+      "compiled": true,
+      "console_matched": false,
+      "console_raw": ""
+    },
+    {
+      "page": "pages/customer/indicator/index",
+      "compiled": true,
+      "console_matched": false,
+      "console_raw": ""
+    },
+    {
+      "page": "pages/file/index",
+      "compiled": true,
+      "console_matched": false,
+      "console_raw": ""
+    },
+    {
+      "page": "pages/files/index",
+      "compiled": true,
+      "console_matched": false,
+      "console_raw": ""
+    },
+    {
+      "page": "pages/files/folder-form/index",
+      "compiled": true,
+      "console_matched": false,
+      "console_raw": ""
+    },
+    {
+      "page": "pages/files/detail/index",
+      "compiled": true,
+      "console_matched": false,
+      "console_raw": ""
+    },
+    {
+      "page": "pages/incentive/index",
+      "compiled": true,
+      "console_matched": false,
+      "console_raw": ""
+    },
+    {
+      "page": "pages/incentive/upload/index",
+      "compiled": true,
+      "console_matched": false,
+      "console_raw": ""
+    },
+    {
+      "page": "pages/incentive/detail/index",
+      "compiled": true,
+      "console_matched": false,
+      "console_raw": ""
+    },
+    {
+      "page": "pages/ranking/index",
+      "compiled": true,
+      "console_matched": false,
+      "console_raw": ""
+    },
+    {
+      "page": "pages/ranking/detail/index",
+      "compiled": true,
+      "console_matched": false,
+      "console_raw": ""
+    },
+    {
+      "page": "pages/statistics/index",
+      "compiled": true,
+      "console_matched": false,
+      "console_raw": ""
+    },
+    {
+      "page": "pages/statistics/detail/index",
+      "compiled": true,
+      "console_matched": false,
+      "console_raw": ""
+    },
+    {
+      "page": "pages/cases/index",
+      "compiled": true,
+      "console_matched": false,
+      "console_raw": ""
+    },
+    {
+      "page": "pages/cases/detail/index",
+      "compiled": true,
+      "console_matched": false,
+      "console_raw": ""
+    },
+    {
+      "page": "pages/indicator/index",
+      "compiled": true,
+      "console_matched": false,
+      "console_raw": ""
+    },
+    {
+      "page": "pages/app/index",
+      "compiled": true,
+      "console_matched": false,
+      "console_raw": ""
+    },
+    {
+      "page": "pages/profile/index",
+      "compiled": true,
+      "console_matched": false,
+      "console_raw": ""
+    },
+    {
+      "page": "pages/profile/password/index",
+      "compiled": true,
+      "console_matched": false,
+      "console_raw": ""
+    },
+    {
+      "page": "pages/profile/scope/index",
+      "compiled": true,
+      "console_matched": false,
+      "console_raw": ""
+    },
+    {
+      "page": "pages/profile/feedback/index",
+      "compiled": true,
+      "console_matched": false,
+      "console_raw": ""
+    },
+    {
+      "page": "pages/profile/about/index",
+      "compiled": true,
+      "console_matched": false,
+      "console_raw": ""
+    },
+    {
+      "page": "pages/profile/agreement/index",
+      "compiled": true,
+      "console_matched": false,
+      "console_raw": ""
+    },
+    {
+      "page": "pages/profile/privacy/index",
+      "compiled": true,
+      "console_matched": false,
+      "console_raw": ""
+    },
+    {
+      "page": "pages/profile/wechat/index",
+      "compiled": true,
+      "console_matched": false,
+      "console_raw": ""
+    },
+    {
+      "page": "pages/approval/index",
+      "compiled": true,
+      "console_matched": false,
+      "console_raw": ""
+    },
+    {
+      "page": "pages/approval/detail/index",
+      "compiled": true,
+      "console_matched": false,
+      "console_raw": ""
+    },
+    {
+      "page": "pages/reminder/index",
+      "compiled": true,
+      "console_matched": false,
+      "console_raw": ""
+    },
+    {
+      "page": "pages/notification/index",
+      "compiled": true,
+      "console_matched": false,
+      "console_raw": ""
+    },
+    {
+      "page": "pages/notification/detail/index",
+      "compiled": true,
+      "console_matched": false,
+      "console_raw": ""
+    },
+    {
+      "page": "pages/sea/index",
+      "compiled": true,
+      "console_matched": false,
+      "console_raw": ""
+    },
+    {
+      "page": "pages/sea/claim-detail/index",
+      "compiled": true,
+      "console_matched": false,
+      "console_raw": ""
+    }
+  ]
+}

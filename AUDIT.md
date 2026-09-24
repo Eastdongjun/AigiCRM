@@ -36,6 +36,21 @@ detect_stack(stack-profile.json)→ 扫描器按栈选择 → 统一问题模型
    服务端 SonarQube(Eastdongjun_AigiCRM)被本编排器复用而非替代;中央证据目录
    (Agent/00-管理/项目执行/.../evidence/)仍为发布级证据的最终归宿,`.audit/reports/` 为项目内快照。
 
+## 与 JEV 的分工(本地 System One 决策模型)
+
+| 职责 | 归属 |
+|---|---|
+| 规则扫描(Sonar/ruff/secret/静态) | .audit 内建扫描器 |
+| **分诊**:误报判断/处置路由/风险分级 | **JEV**(`jev_triage.py`,>0.7采纳 0.5~0.7复核 <0.5转人工) |
+| 深度语义/业务/根因审查 | Agent(LLM),结论注入 agent-review-*.json |
+| 自动整改+复测闭环 | Agent(按规范§15流程) |
+
+```bash
+python3 .audit/scripts/jev_triage.py     # 对最新 findings 做 JEV 三判断
+```
+
+注意:JEV scorer 为 CC-BY-NC(非商业)许可,分诊仅作开发期 advisory,不作为发布门禁依据。
+
 ## 基线
 
 首跑基线见 `.audit/baseline/`(由首次 full/quick 结果归档);当前门禁:CRITICAL=0 HIGH=0 Secret=0。
