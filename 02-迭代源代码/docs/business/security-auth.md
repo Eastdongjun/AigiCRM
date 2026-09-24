@@ -28,5 +28,5 @@
 
 ## 5. 越权防护要点
 
-- @PreAuthorize(权限码)+ 数据范围 + 对象级守卫三层;服务层拒绝统一 400"无权"语义(AccessDeniedException 由全局处理器转 403 文案,**不落日志**)。
+- @PreAuthorize(权限码)+ 数据范围 + 对象级守卫三层;服务层拒绝统一 400"无权"语义。403 越权拒绝**已汇入结构化安全审计**(BS-A09 2026-09-19:SecurityConfig.accessDeniedHandler 统一出口,留 uri/用户/IP 痕迹+IP 阈值告警)——2026-09-24 更正本文旧说法"不落日志"(该说法源于 BS-A09 之前的状态;服务层 400"无权"业务异常确实仅 WARN 日志,排查仍靠探测,两者勿混)。
 - 用户管理三写接口(update/delete/reset-password)守卫:`admin ∨ orgAdmin 且可管理该用户`(2026-09-22 P0 修复:原短路写法曾允许行政改 admin)。

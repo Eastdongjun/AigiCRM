@@ -83,7 +83,7 @@
 | `sea.config` | 公海 | 系统配置/公海池管理 | 默认 `PC-only` | `sea:config:view/edit` | 配置范围 | 配置增删改查 | `PC-only` |
 | `statistics.dashboard` | 统计 | `/statistics`、`/indicator` | PC 仪表盘;`pages/home/index`、`pages/statistics/index`、`pages/statistics/detail/index`、`pages/indicator/index` | `statistics:view` 或适用的 `dashboard:view` | 统一客户数据范围 | 统计 | 已实现 |
 | `statistics.customerRankings` | 统计 | `/ranking/customer`(考核与分析→客户排行:四项激励/客情/六项指标三类排行) | `pages/ranking/index` 排行中心 | `statistics:view` | 四项激励聚合=激励分享制;指标/客情=客户可见范围(口径差异系 G2 安全设计,待产品裁决是否统一) | 统计 | 已实现 ⟦补录 09-24:英文版未单列;口径注释反映 09-24 修复⟧ |
-| `score.entry` | 积分 | `/score/entry` | 默认 `PC-only` | 录入页 `score:entry`,写 `score:manage` | 可见用户 | 创建/更新 | `PC-only` |
+| `score.entry` | 积分 | `/score/entry` | 默认 `PC-only` | 页面 `score:entry`,**批量录入 `/score/entries/batch` 也是 `score:entry`**(积分项 CRUD 才是 `score:manage`) ⟦修正 09-24:原文"写 score:manage"为英文原文笔误,与代码不符;GPT 二轮审查 P1-013 抓出⟧ | 集团内积分可见集合 | 批量录入/创建更新 | `PC-only` |
 | `score.ranking` | 积分 | `/score/ranking` | `pages/ranking/index`、`pages/ranking/detail/index`、`pages/customer/detail/index` 客户下钻 | `score:view` | 可见用户 | 读取/统计 | 已实现 |
 | `system.user` | 系统 | `/system/user` | `PC-only` | `system:user:*` | 组织管理员/用户管理范围 | 账号增删改查 | `PC-only` |
 | `system.role` | 系统 | `/system/role` | `PC-only` | `system:role:*` | 当前集团/全局配置 | 角色增删改查/授权 | `PC-only` |
