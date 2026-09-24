@@ -83,11 +83,27 @@ public class IncentiveService {
     /** 人员列表（公开）：激励页下拉框用 */
     public List<Map<String, Object>> getUserList() {
         List<Map<String, Object>> list = new ArrayList<>();
-        // 【修复 2026-08-08 全量用户下拉】不再返回全部用户，按数据范围(含系统级开关)过滤
+        // 【2026-09-23 选人边界修正】人员筛选下拉必须与查看语义(canViewIncentiveUser)同口径:
+        // 原按数据范围(scopeResolver.resolve)过滤,跨团队同事不出现在下拉里——但后端允许查看
+        // 任何"有已分享记录"的人,分享制是全公司口径 → 列表看得到他人 shared 记录却选不到人,
+        // 与客户转移选人同族缺陷。口径=本人+有 shared 记录的作者(被取消"查看已分享"者仅本人);
+        // admin/专项授权(canSeeAllIncentive)→ 全量(覆盖上传弹窗代录选人场景)。
         LambdaQueryWrapper<SysUser> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(SysUser::getDeleted, 0).eq(SysUser::getStatus, 1);
-        List<Long> visible = scopeResolver.resolve(SecurityUtils.getCurrentUser());
-        if (visible != null) wrapper.in(SysUser::getId, visible);
+        if (!canSeeAllIncentive()) {
+            Long self = SecurityUtils.getCurrentUserId();
+            java.util.Set<Long> selectable = new java.util.HashSet<>();
+            if (self != null) selectable.add(self);
+            if (canViewShared(self)) {
+                for (BizIncentiveRecord r : recordMapper.selectList(new LambdaQueryWrapper<BizIncentiveRecord>()
+                        .select(BizIncentiveRecord::getUserId)
+                        .eq(BizIncentiveRecord::getShared, 1))) {
+                    if (r.getUserId() != null) selectable.add(r.getUserId());
+                }
+            }
+            if (selectable.isEmpty()) return List.of();
+            wrapper.in(SysUser::getId, selectable);
+        }
         List<SysUser> users = userMapper.selectList(wrapper);
         for (SysUser u : users) {
             Map<String, Object> m = new HashMap<>();

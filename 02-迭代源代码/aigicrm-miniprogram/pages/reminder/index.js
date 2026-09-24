@@ -1,7 +1,6 @@
 const { getReminderList, getExpiringList, getPendingCount, processReminder, ensureExpiring } = require('../../api/reminder')
 const { submitApproval } = require('../../api/approval')
-const { getDepts } = require('../../api/system')
-const { getCustomerSimpleUsers } = require('../../api/customer')
+const { getDepts, getScopeUsers } = require('../../api/system')
 const { reminderRecords } = require('../../data/demo')
 const { hasPermission, requireLogin, isAdmin } = require('../../utils/auth')
 const { showError } = require('../../utils/feedback')
@@ -261,7 +260,8 @@ Page({
           showError(error, '部门筛选加载失败')
           return []
         }),
-        getCustomerSimpleUsers().catch((error) => {
+        // 负责人筛选=范围感知人员(2026-09-23:选人接口改集团边界后,筛选用它会列出范围外人→空列表)
+        getScopeUsers().catch((error) => {
           showError(error, '负责人筛选加载失败')
           return []
         })

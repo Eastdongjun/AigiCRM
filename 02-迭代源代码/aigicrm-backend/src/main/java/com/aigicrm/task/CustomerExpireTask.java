@@ -75,14 +75,22 @@ public class CustomerExpireTask {
                     customer.setStatus("warning");
                     customerMapper.updateById(customer);
                 }
-                // 创建即将到期提醒（去重）
+                // 创建即将到期提醒（去重:pending 存在或今日已处理均不建——与 ReminderService.ensureExpiring
+                // 同一判据,双口径曾是 401 条 pending 积压的根因;凌晨2点跑,processedToday 只拦 0-2 点处理过的情形）
                 long existExpiring = reminderMapper.selectCount(
                         new LambdaQueryWrapper<BizReminder>()
                                 .eq(BizReminder::getCustomerId, customer.getId())
                                 .eq(BizReminder::getReminderType, "expiring")
                                 .eq(BizReminder::getStatus, "pending")
                 );
-                if (existExpiring == 0) {
+                long processedToday = existExpiring > 0 ? 1 : reminderMapper.selectCount(
+                        new LambdaQueryWrapper<BizReminder>()
+                                .eq(BizReminder::getCustomerId, customer.getId())
+                                .eq(BizReminder::getReminderType, "expiring")
+                                .eq(BizReminder::getStatus, "processed")
+                                .ge(BizReminder::getProcessedAt, today.atStartOfDay())
+                );
+                if (existExpiring == 0 && processedToday == 0) {
                     long daysLeft = ChronoUnit.DAYS.between(today, expireDate);
                     BizReminder reminder = new BizReminder();
                     reminder.setCustomerId(customer.getId());

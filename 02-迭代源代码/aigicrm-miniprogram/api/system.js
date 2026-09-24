@@ -12,11 +12,17 @@ function getDictData(dictCode) {
   return request({ url: '/api/system/dict/data/' + dictCode })
 }
 
+/** 当前用户数据范围可见人员（id/realName）——负责人"筛选"下拉专用(2026-09-23):
+ *  筛选用范围感知(选范围外人只得空列表);选人(转移/分享接收人)仍走 customer/users/simple(集团边界) */
+function getScopeUsers() {
+  return request({ url: '/api/common/scope/users' })
+}
+
 module.exports = {
   getFormDraft,
   saveFormDraft,
   forceSaveFormDraft,
-  deleteFormDraft, getDepts, getDictData }
+  deleteFormDraft, getDepts, getDictData, getScopeUsers }
 
 // 【议题四裁决】表单草稿(7天保留/账号+集团隔离/版本冲突检测)
 function getFormDraft(draftType) { return request({ url: '/api/draft/' + draftType }) }

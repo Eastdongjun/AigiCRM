@@ -161,20 +161,31 @@ public class ReminderService {
                 if (user != null) row.put("ownerName", user.getRealName());
             }
 
-            // 查今日跟进状态
+            // 跟进状态(【2026-09-23 去重口径统一】随 ensureExpiring 改为"pending 存在即不新建"后,
+            // 今日行可能不存在:reminderId 指向当前 pending(无则今日已处理行),todayFollowedUp=今日处理过)
             LocalDateTime todayStart = today.atStartOfDay();
-            LocalDateTime todayEnd = today.plusDays(1).atStartOfDay();
-            BizReminder todayReminder = reminderMapper.selectOne(
+            BizReminder currentPending = reminderMapper.selectOne(
                     new LambdaQueryWrapper<BizReminder>()
                             .eq(BizReminder::getCustomerId, c.getId())
                             .eq(BizReminder::getReminderType, "expiring")
-                            .ge(BizReminder::getCreatedAt, todayStart)
-                            .lt(BizReminder::getCreatedAt, todayEnd)
+                            .eq(BizReminder::getStatus, "pending")
+                            .orderByDesc(BizReminder::getId)
                             .last("LIMIT 1")
             );
+            BizReminder todayProcessed = reminderMapper.selectOne(
+                    new LambdaQueryWrapper<BizReminder>()
+                            .eq(BizReminder::getCustomerId, c.getId())
+                            .eq(BizReminder::getReminderType, "expiring")
+                            .eq(BizReminder::getStatus, "processed")
+                            .ge(BizReminder::getProcessedAt, todayStart)
+                            .orderByDesc(BizReminder::getId)
+                            .last("LIMIT 1")
+            );
+            boolean followedToday = todayProcessed != null;
+            BizReminder todayReminder = currentPending != null ? currentPending : todayProcessed;
             // S8: GET 只读，不再自动建提醒——今日提醒物化由 POST /ensure-expiring 显式触发
             row.put("reminderId", todayReminder == null ? null : todayReminder.getId());
-            row.put("todayFollowedUp", todayReminder != null && "processed".equals(todayReminder.getStatus()));
+            row.put("todayFollowedUp", followedToday);
 
             return row;
         }).collect(Collectors.toList());
@@ -195,7 +206,6 @@ public class ReminderService {
         LocalDate deadline = LocalDate.now().plusDays(warningDays);
         LocalDate today = LocalDate.now();
         LocalDateTime todayStart = today.atStartOfDay();
-        LocalDateTime todayEnd = today.plusDays(1).atStartOfDay();
 
         LambdaQueryWrapper<BizCustomer> wrapper = new LambdaQueryWrapper<>();
         wrapper.isNotNull(BizCustomer::getExpireDate)
@@ -207,12 +217,21 @@ public class ReminderService {
         }
 
         for (BizCustomer c : customerMapper.selectList(wrapper)) {
-            Long exist = reminderMapper.selectCount(new LambdaQueryWrapper<BizReminder>()
+            // 【2026-09-23 去重口径统一】原判据="今日没建过就建"(createdAt 当日窗口),与凌晨任务
+            // CustomerExpireTask 的"存在 pending 就不建"互相打架:页面每次触发都新造一条 pending,
+            // 旧的永不清 → 生产积压 401 条 pending。统一为:存在 pending 或今日已处理 → 不建
+            // (处理完当天不重复建,次日由本方法或凌晨任务再物化一条新的跟进待办)。
+            Long pending = reminderMapper.selectCount(new LambdaQueryWrapper<BizReminder>()
                     .eq(BizReminder::getCustomerId, c.getId())
                     .eq(BizReminder::getReminderType, "expiring")
-                    .ge(BizReminder::getCreatedAt, todayStart)
-                    .lt(BizReminder::getCreatedAt, todayEnd));
-            if (exist == null || exist == 0) {
+                    .eq(BizReminder::getStatus, "pending"));
+            Long processedToday = pending != null && pending > 0 ? 1L : reminderMapper.selectCount(
+                    new LambdaQueryWrapper<BizReminder>()
+                            .eq(BizReminder::getCustomerId, c.getId())
+                            .eq(BizReminder::getReminderType, "expiring")
+                            .eq(BizReminder::getStatus, "processed")
+                            .ge(BizReminder::getProcessedAt, todayStart));
+            if ((pending == null || pending == 0) && (processedToday == null || processedToday == 0)) {
                 BizReminder r = new BizReminder();
                 r.setCustomerId(c.getId());
                 r.setReminderType("expiring");
@@ -253,14 +272,12 @@ public class ReminderService {
         }
         Long totalExpiring = customerMapper.selectCount(custWrapper);
 
-        // 查今日已跟进的客户数
+        // 查今日已跟进的客户数(【2026-09-23】口径随去重统一改 processedAt:今日处理过=今日跟进)
         LocalDateTime todayStart = today.atStartOfDay();
-        LocalDateTime todayEnd = today.plusDays(1).atStartOfDay();
         LambdaQueryWrapper<BizReminder> remWrapper = new LambdaQueryWrapper<BizReminder>()
                 .eq(BizReminder::getReminderType, "expiring")
                 .eq(BizReminder::getStatus, "processed")
-                .ge(BizReminder::getCreatedAt, todayStart)
-                .lt(BizReminder::getCreatedAt, todayEnd);
+                .ge(BizReminder::getProcessedAt, todayStart);
         if (visibleOwners != null) {
             remWrapper.in(BizReminder::getOwnerId, visibleOwners.isEmpty() ? List.of(-1L) : visibleOwners);
         }

@@ -104,8 +104,7 @@ import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { getExpiringList, getReminderList, processReminder, ensureExpiring } from '@/api/reminder'
 import { submitApproval } from '@/api/approval'
-import { getScopeDepts } from '@/api/system'
-import { getSimpleUserList } from '@/api/customer'
+import { getScopeDepts, getScopeUsers } from '@/api/system'
 import { useUserStore } from '@/store/user'
 import { paginate, pageSizes } from '@/utils/pagination'
 import { buildReminderDetailLocation, remainingDaysTagType, remainingDaysText } from '@/utils/reminder-detail'
@@ -264,7 +263,8 @@ onMounted(async () => {
     offices.value = res.data || []
   } catch (e) {}
   try {
-    const res = await getSimpleUserList()
+    // 负责人筛选=范围感知人员(选范围外人只会得到空列表);2026-09-23 前误用选人接口(集团全量)
+    const res = await getScopeUsers()
     owners.value = res.data || []
   } catch (e) {}
   nextTick(updateTableHeight)

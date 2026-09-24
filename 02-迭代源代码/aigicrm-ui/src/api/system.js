@@ -51,6 +51,11 @@ export function getDeptList() {
 export function getScopeDepts() {
   return request.get('/common/scope/depts')
 }
+// 当前用户数据范围可见人员（id/realName/deptId），供负责人"筛选"下拉——筛选用范围感知,
+// 选人(转移/分享接收人)用 customer/users/simple(集团边界),两类下拉勿混用
+export function getScopeUsers(params) {
+  return request.get('/common/scope/users', { params })
+}
 export function createDept(data) {
   return request.post('/system/depts', data)
 }

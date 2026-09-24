@@ -9,7 +9,7 @@ vi.mock('@/api/reminder', () => ({
   ensureExpiring: vi.fn(),
 }))
 vi.mock('@/api/approval', () => ({ submitApproval: vi.fn() }))
-vi.mock('@/api/system', () => ({ getScopeDepts: vi.fn() }))
+vi.mock('@/api/system', () => ({ getScopeDepts: vi.fn(), getScopeUsers: vi.fn() }))
 vi.mock('@/api/customer', () => ({ getSimpleUserList: vi.fn() }))
 
 // 部分 mock vue-router：保留 createRouter 真实现（utils/request 会 import 真实 router 实例），
@@ -22,8 +22,7 @@ vi.mock('vue-router', async (importOriginal) => {
 
 import ReminderIndex from './index.vue'
 import { getExpiringList, getReminderList, ensureExpiring } from '@/api/reminder'
-import { getScopeDepts } from '@/api/system'
-import { getSimpleUserList } from '@/api/customer'
+import { getScopeDepts, getScopeUsers } from '@/api/system'
 
 // EP 组件最小 stub：仅保留分页切片行为可测所需的 el-pagination
 const stubs = {
@@ -48,7 +47,7 @@ function mockData() {
   ] } })
   getReminderList.mockResolvedValue({ data: { records: [] } })
   getScopeDepts.mockResolvedValue({ data: [{ id: 10, deptName: '太原办' }] })
-  getSimpleUserList.mockResolvedValue({ data: [{ id: 1, realName: '张三' }] })
+  getScopeUsers.mockResolvedValue({ data: [{ id: 1, realName: '张三' }] })
 }
 
 describe('reminder/index.vue 组件冒烟', () => {
@@ -93,11 +92,11 @@ describe('reminder/index.vue 组件冒烟', () => {
     expect(getExpiringList).toHaveBeenCalledTimes(2)
   })
 
-  it('获取部门和负责人下拉数据', async () => {
+  it('获取部门和负责人下拉数据(负责人=范围感知接口)', async () => {
     mount(ReminderIndex, { global: { stubs } })
     await flushPromises()
     expect(getScopeDepts).toHaveBeenCalled()
-    expect(getSimpleUserList).toHaveBeenCalled()
+    expect(getScopeUsers).toHaveBeenCalled()
   })
 
   it('点击行（openDetail）跳转到提醒详情页并带上提醒/客户/类型', async () => {
