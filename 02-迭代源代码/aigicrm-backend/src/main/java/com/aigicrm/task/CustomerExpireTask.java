@@ -221,11 +221,17 @@ public class CustomerExpireTask {
             createInvoiceReminder(customer, "invoice_overdue", overdueDays);
         }
 
+        // 【裁决 2026-09-24 GPT清单P1-018 带默认值】从未开票提醒建客宽限期: 系统设置 invoice.never.grace.days
+        // (默认30,0=无宽限保持原行为)。建客 created_at 早于(今天-宽限天数)才纳入催首次开票,
+        // 刚建的客户不再当晚被催开票;按日界(当天0点)比较,任务凌晨2点跑不受时分影响。
+        int neverGraceDays = getConfigInt("invoice.never.grace.days", 30);
         List<BizCustomer> neverInvoiced = customerMapper.selectList(
                 new LambdaQueryWrapper<BizCustomer>()
                         .eq(BizCustomer::getDeleted, 0)
                         .notIn(BizCustomer::getStatus, "sea", "archived") // 【B5 2026-09-22】归档不参与统计/提醒/到期检查(统一口径)
                         .isNull(BizCustomer::getLastInvoiceDate)
+                        // 宽限天数<=0 时跳过 created_at 条件(条件重载),保持原"从未开票即提醒"行为
+                        .lt(neverGraceDays > 0, BizCustomer::getCreatedAt, today.minusDays(neverGraceDays).atStartOfDay())
         );
         for (BizCustomer customer : neverInvoiced) {
             createInvoiceReminder(customer, "invoice_never", 0);

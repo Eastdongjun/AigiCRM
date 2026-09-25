@@ -100,6 +100,69 @@ class CustomerExpireTaskTest {
     }
 
     /**
+     * 【裁决 2026-09-24 GPT清单P1-018 带默认值】从未开票提醒建客宽限期(invoice.never.grace.days, 默认30, 0=无宽限):
+     * mapper 为 mock, SQL 过滤不会真执行, 故除行为断言外还捕获第 3 次 selectList(从未开票查询)的 wrapper,
+     * 断言 created_at < (今天-30)0点 条件确实下推——否则宽限内用例缺少代码改动也会绿。
+     */
+    private com.baomidou.mybatisplus.core.conditions.AbstractWrapper<BizCustomer, ?, ?> captureNeverQuery() {
+        org.mockito.ArgumentCaptor<com.baomidou.mybatisplus.core.conditions.Wrapper<BizCustomer>> cap =
+                org.mockito.ArgumentCaptor.forClass(com.baomidou.mybatisplus.core.conditions.Wrapper.class);
+        // selectList 调用顺序: 1)保护期 2)开票超期 3)从未开票
+        verify(customerMapper, times(3)).selectList(cap.capture());
+        com.baomidou.mybatisplus.core.conditions.AbstractWrapper<BizCustomer, ?, ?> neverQuery =
+                (com.baomidou.mybatisplus.core.conditions.AbstractWrapper<BizCustomer, ?, ?>) cap.getAllValues().get(2);
+        org.junit.jupiter.api.Assertions.assertTrue(
+                neverQuery.getTargetSql().contains("created_at"),
+                "从未开票查询应含 created_at 宽限条件, 实际: " + neverQuery.getTargetSql());
+        java.time.LocalDateTime expectedCutoff = LocalDate.now().minusDays(30).atStartOfDay();
+        org.junit.jupiter.api.Assertions.assertTrue(
+                neverQuery.getParamNameValuePairs().containsValue(expectedCutoff),
+                "宽限阈值应为(今天-30)0点(默认30, 未单独配配置键), 实际参数: " + neverQuery.getParamNameValuePairs());
+        return neverQuery;
+    }
+
+    @Test
+    void neverInvoiced_withinGraceDays_noReminder() {
+        BizCustomer fresh = new BizCustomer();
+        fresh.setId(21L);
+        fresh.setCustomerName("建客10天客户(宽限内)");
+        fresh.setLastInvoiceDate(null);
+        fresh.setOwnerId(12L);
+        fresh.setOfficeId(4L);
+        fresh.setCreatedAt(java.time.LocalDateTime.now().minusDays(10));
+
+        // selectList 调用顺序：1)保护期到期 2)开票超期(非空) 3)从未开票(NULL+created_at宽限过滤, 建客10天<宽限30天被排除)
+        when(customerMapper.selectList(any())).thenReturn(List.of(), List.of(), List.of());
+        when(reminderMapper.selectCount(any())).thenReturn(0L);
+
+        task.checkCustomerExpire();
+
+        captureNeverQuery();
+        verify(reminderMapper, never()).insert(any(BizReminder.class));
+    }
+
+    @Test
+    void neverInvoiced_beyondGraceDays_createsReminder() {
+        BizCustomer aged = new BizCustomer();
+        aged.setId(22L);
+        aged.setCustomerName("建客40天客户(宽限外)");
+        aged.setLastInvoiceDate(null);
+        aged.setOwnerId(12L);
+        aged.setOfficeId(4L);
+        aged.setCreatedAt(java.time.LocalDateTime.now().minusDays(40));
+
+        // 建客40天 > 宽限30天, 未被 created_at 条件排除, 照常建 invoice_never 提醒
+        when(customerMapper.selectList(any())).thenReturn(List.of(), List.of(), List.of(aged));
+        when(reminderMapper.selectCount(any())).thenReturn(0L);
+
+        task.checkCustomerExpire();
+
+        captureNeverQuery();
+        verify(reminderMapper).insert(argThat((BizReminder r) ->
+                "invoice_never".equals(r.getReminderType()) && r.getOverdueDays() == 0));
+    }
+
+    /**
      * 【裁决 2026-09-24】公海捞取审批锁超时自动释放: 锁定超过 sea.claim.lock.days(默认3)的池行
      * 释放回 available 并同步拒绝 reviewing 态 claim 审批及其 pending 节点; 0=不启用。
      */
