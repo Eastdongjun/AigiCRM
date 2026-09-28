@@ -109,6 +109,22 @@
       </div>
     </div>
 
+    <!-- 【2026-09-25】核心客户指标摘要: 只读展示,编辑仍在「核心指标」页签(用户要求置于商务关系深度下方) -->
+    <div class="indicator-summary-card">
+      <div class="relation-title"><el-icon color="#409eff"><TrendCharts /></el-icon> 核心客户指标</div>
+      <div class="ind-sum-row ind-sum-threshold">
+        <span class="ind-num">01</span>
+        <span class="ind-name">开票回款 · 硬性门槛 ≥ ¥100万</span>
+        <span class="ind-status" :class="bothThresholdMet ? 'pass' : 'fail'">{{ bothThresholdMet ? '✓ 达标' : '✗ 未达标' }}</span>
+      </div>
+      <div class="ind-sum-row" v-for="ind in indicatorDefs" :key="ind.code">
+        <span class="ind-num">{{ ind.code }}</span>
+        <span class="ind-name">{{ ind.label }}</span>
+        <span class="ind-val">{{ indicatorOptionLabel(ind) }}</span>
+      </div>
+      <div class="ind-sum-total">总分 <b class="ind-total">{{ indicatorTotal }}</b> / 15 <span v-if="indicatorTotal < 12" class="ind-warn">⚠ 需调整定位</span></div>
+    </div>
+
     <el-dialog v-model="showContactDialog" :title="editingContact ? '编辑联系人' : '添加联系人'" width="440px" :close-on-click-modal="false">
       <el-form :model="contactForm" label-width="50px">
         <el-form-item label="姓名"><el-input v-model="contactForm.name" /></el-form-item>
@@ -131,7 +147,15 @@ const {
   openEditContact, handleSaveContact, handleDeleteContact, relationshipOptions,
   indicator, selectRelationship, expireLevel, statusLabel, handleExtend,
   openTransfer, confirmTransfer, showTransferDialog, transferUserId, allUsers,
+  indicatorDefs, indicatorForm, indicatorTotal, bothThresholdMet,
 } = injectCustomerDetail()
+
+// 核心指标摘要: 把当前分值翻译成「档位名 · 分值」(取值与指标页签同源 indicatorForm)
+const indicatorOptionLabel = (ind) => {
+  const v = indicatorForm[ind.field]
+  const opt = (ind.options || []).find((o) => parseInt(o.dictValue) === v)
+  return opt ? `${opt.dictLabel} · ${v}分` : v ? `${v}分` : '未评'
+}
 
 // 转移候选 = 可选用户列表排除当前负责人
 const transferCandidates = computed(() =>
@@ -172,6 +196,17 @@ const transferCandidates = computed(() =>
 .contact-acts { display:flex }
 .relation-card { background:#fafbfc; border-radius:10px; padding:18px 20px; margin-bottom:16px; border:1px solid #f0f1f3 }
 .relation-title { display:flex; align-items:center; gap:6px; font-size:14px; font-weight:600; color:#333; margin-bottom:12px }
+/* 核心客户指标摘要卡(只读, 与客情卡同族样式) */
+.indicator-summary-card { background:#fafbfc; border-radius:10px; padding:18px 20px; margin-bottom:16px; border:1px solid #f0f1f3 }
+.ind-sum-row { display:flex; align-items:center; gap:14px; padding:10px 0; border-bottom:1px solid #f0f1f3 }
+.ind-sum-row:last-of-type { border-bottom:none }
+.ind-sum-threshold { background:#fff; border-radius:8px; padding:10px 14px; margin-bottom:4px }
+.ind-num { width:26px; height:26px; border-radius:50%; background:#409eff; color:#fff; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; flex-shrink:0 }
+.ind-name { flex:1; font-size:14px; color:#333 }
+.ind-val { font-size:13px; color:#1f2329; font-weight:500 }
+.ind-status { font-size:13px; font-weight:600 }.ind-status.pass { color:#52c41a }.ind-status.fail { color:#f56c6c }
+.ind-sum-total { margin-top:10px; padding-top:12px; border-top:2px solid #f0f0f0; font-size:14px; color:#666 }
+.ind-total { font-size:22px; color:#409eff }.ind-warn { color:#fa8c16; font-size:12px; margin-left:8px }
 .relation-options { display:grid; grid-template-columns:repeat(4,1fr); gap:10px }
 .relation-opt { display:flex; align-items:center; justify-content:center; gap:6px; padding:14px 8px; border:2px solid #e8e8e8; border-radius:8px; cursor:pointer; transition:all .15s; font-size:13px; color:#666; background:#fff }
 .relation-opt:hover { border-color:#409eff; color:#409eff }

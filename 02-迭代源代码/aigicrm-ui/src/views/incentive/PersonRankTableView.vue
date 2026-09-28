@@ -45,15 +45,7 @@
           </el-table-column>
         </el-table-column>
       </template>
-      <el-table-column label="安装前" min-width="66" align="center">
-        <template #default="{ row }"><span class="num-cell">{{ row.preCount || 0 }}</span></template>
-      </el-table-column>
-      <el-table-column label="安装中" min-width="66" align="center">
-        <template #default="{ row }"><span class="num-cell">{{ row.midCount || 0 }}</span></template>
-      </el-table-column>
-      <el-table-column label="安装后" min-width="66" align="center">
-        <template #default="{ row }"><span class="num-cell">{{ row.postCount || 0 }}</span></template>
-      </el-table-column>
+      <!-- 【2026-09-25】安装前/中/后三列按用户要求从表格隐藏(数据仍随行返回,导出同步隐藏) -->
       <el-table-column label="记录数" min-width="70" align="center">
         <template #default="{ row }"><span class="num-cell">{{ row.recordCount || 0 }}</span></template>
       </el-table-column>
@@ -80,11 +72,11 @@ const onSizeChange = (size) => {
 const exportPersonRank = () => {
   const periodLabel = period.value || '全部周期'
   const cats = rankParents.value.flatMap(g => g.children.map(c => c.categoryName))
-  const header = ['排名', '姓名', '办事处', '激励总额', ...cats, '安装前', '安装中', '安装后', '记录数']
+  const header = ['排名', '姓名', '办事处', '激励总额', ...cats, '记录数']
   const rows = personBoard.value.map(r => [
     r.rank, r.realName || '未知', r.officeName || '—', r.totalScore || 0,
     ...rankParents.value.flatMap(g => g.children.map(c => r.byCategory?.[c.id]?.[0] || 0)),
-    r.preCount || 0, r.midCount || 0, r.postCount || 0, r.recordCount || 0,
+    r.recordCount || 0,
   ])
   const esc = (v) => {
     const s = String(v ?? '')
