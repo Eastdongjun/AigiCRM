@@ -47,7 +47,7 @@ grep -q "homeView.expiringRows" "$ROOT/aigicrm-miniprogram/pages/home/index.wxml
 grep -q "'/api/statistics/dashboard'" "$api" || { echo "FAIL: dashboard API route is missing" >&2; exit 1; }
 grep -q "@PreAuthorize(\"hasAnyAuthority('statistics:view','dashboard:view')\")" "$backend" || { echo "FAIL: dashboard backend permission is not shared with statistics/dashboard view" >&2; exit 1; }
 grep -q "countExpiringTodayByScope" "$service" || { echo "FAIL: dashboard today-expiring does not use scope-aware count" >&2; exit 1; }
-grep -q "dashboard.view.*implemented" "$manifest" || { echo "FAIL: dashboard manifest status is stale" >&2; exit 1; }
+grep -q "dashboard.view.*已实现" "$manifest" || { echo "FAIL: dashboard manifest status is stale" >&2; exit 1; }
 grep -Fq '| 工作台 | View dashboard | `GET /api/statistics/dashboard` | `statistics:view` or `dashboard:view` | Current user/org/group scope inside service | Read/statistics | Yes | Implemented |' "$ROOT/docs/function-permission-matrix.md" || { echo "FAIL: dashboard matrix mobile status is stale" >&2; exit 1; }
 grep -Fq '| Home | `pages/home/index` | Authenticated plus `dashboard:view` or `statistics:view` for dashboard cards | `/api/auth/info`, `/api/statistics/dashboard`, reminder pending/expiring APIs | Shows user, role, dashboard cards and quick entries when permitted |' "$ROOT/docs/function-permission-matrix.md" || { echo "FAIL: home mobile page matrix row is stale" >&2; exit 1; }
 grep -q 'verify:mobile-shell' "$automator_package" || { echo "FAIL: mobile shell DevTools automator script is not exposed" >&2; exit 1; }

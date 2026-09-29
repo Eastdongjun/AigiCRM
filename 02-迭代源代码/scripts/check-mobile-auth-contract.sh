@@ -109,7 +109,7 @@ grep -Fq '| Profile Password | Change own password | `POST /api/system/users/cha
   || fail "own password change matrix status is stale"
 grep -Fq '| 人员管理 | Admin reset user password | `POST /api/system/users/{id}/reset-password` | `system:user:edit` or `system:org:admin` | Target user/admin scope | Credential mutation | Yes | No |' "$MATRIX" \
   || fail "admin password reset PC-only matrix boundary is stale"
-grep -Fq '| `auth.wechatBinding` | Auth/Profile | future WeChat account binding | `pages/profile/index` and `pages/profile/wechat/index` | authenticated | current account | binding status/explanation only; OAuth/openid binding not connected | implemented |' "$MANIFEST" \
+grep -Fq '| `auth.wechatBinding` | 认证/个人中心 | 预留微信账号绑定 | `pages/profile/index` 与 `pages/profile/wechat/index` | 登录即可 | 当前账号 | 仅绑定状态说明;OAuth/openid 绑定未接 | 已实现 |' "$MANIFEST" \
   || fail "wechat binding manifest status is stale"
 
 echo "PASS: mobile auth group switch and password recovery contract is aligned."

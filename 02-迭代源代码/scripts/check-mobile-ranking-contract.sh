@@ -82,7 +82,7 @@ grep -q "rankingDetailView.deptText" "$ROOT/aigicrm-miniprogram/pages/ranking/de
 grep -q "@GetMapping(\"/ranking\")" "$backend" || { echo "FAIL: backend ranking route is missing" >&2; exit 1; }
 grep -q "@GetMapping(\"/ranking/stats\")" "$backend" || { echo "FAIL: backend ranking stats route is missing" >&2; exit 1; }
 grep -q "hasAuthority('score:view')" "$backend" || { echo "FAIL: backend ranking permission is missing" >&2; exit 1; }
-grep -q "score.ranking.*implemented" "$manifest" || { echo "FAIL: score.ranking manifest status is stale" >&2; exit 1; }
+grep -q "score.ranking.*已实现" "$manifest" || { echo "FAIL: score.ranking manifest status is stale" >&2; exit 1; }
 grep -q "score.entry.*PC-only" "$manifest" || { echo "FAIL: score.entry manifest must stay PC-only until mobile write approval" >&2; exit 1; }
 grep -Fq '| 学分录入 | Grid | `GET /api/score/grid` | `score:manage` | Managed users/depts | Read | Yes | No |' "$matrix" || { echo "FAIL: score entry grid matrix must stay PC-only" >&2; exit 1; }
 grep -Fq '| 学分录入 | Batch entry | `POST /api/score/entries/batch` | `score:entry` | Managed users/depts | Batch mutation | Yes | No |' "$matrix" || { echo "FAIL: score entry batch matrix must stay PC-only" >&2; exit 1; }

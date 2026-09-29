@@ -220,7 +220,7 @@ for pattern in "saveDemoFinance" "readDemoFinance"; do
     exit 1
   fi
 done
-for pattern in "deleteDemoFinance" "deleteInvoice(this.data.id, item.id)" "deletePayment(this.data.id, item.id)" "deleteRecord(e)"; do
+for pattern in "deleteDemoFinance" "deleteInvoice(this.data.id, item.id, reason)" "deletePayment(this.data.id, item.id, reason)" "deleteRecord(e)"; do
   if ! rg -Fq "$pattern" "$ROOT/aigicrm-miniprogram/pages/customer/finance/index.js" "$ROOT/aigicrm-miniprogram/utils/demo-finance.js"; then
     echo "FAIL: mobile finance delete boundary missing $pattern"
     exit 1
@@ -306,7 +306,7 @@ if rg -n "\\{\\{content\\.length\\}\\}|\\{\\{content\\}\\}|\\{\\{saving\\}\\}|ma
   exit 1
 fi
 
-for pattern in "function addCustomer(data)" "function updateCustomer(id, data)" "function deleteCustomer(id)" "function checkCustomerName(name)" "function saveCustomerRelationship(id, score)" "function addCustomerContact(id, data)" "function updateCustomerContact(id, contactId, data)" "function deleteCustomerContact(id, contactId)" "function addInvoice(id, data)" "function deleteInvoice(id, invoiceId)" "function addPayment(id, data)" "function deletePayment(id, paymentId)"; do
+for pattern in "function addCustomer(data)" "function updateCustomer(id, data)" "function deleteCustomer(id)" "function checkCustomerName(name)" "function saveCustomerRelationship(id, score)" "function addCustomerContact(id, data)" "function updateCustomerContact(id, contactId, data)" "function deleteCustomerContact(id, contactId)" "function addInvoice(id, data)" "function deleteInvoice(id, invoiceId, reason)" "function addPayment(id, data)" "function deletePayment(id, paymentId, reason)"; do
   if ! rg -Fq "$pattern" "$API"; then
     echo "FAIL: customer API missing $pattern"
     exit 1

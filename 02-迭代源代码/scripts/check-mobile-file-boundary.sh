@@ -181,6 +181,6 @@ grep -Fq "wx.switchTab({ url: '/pages/files/index' })" "$LEGACY_PAGE" || fail 'l
 grep -Fq '正在打开文件库' "$LEGACY_WXML" || fail 'legacy file page still renders an alternate file center'
 grep -Fq '@PostMapping("/{id}/share")' "$CONTROLLER" || fail 'backend file share route disappeared'
 grep -Fq '@PostMapping("/{id}/replace")' "$CONTROLLER" || fail 'backend file replace route disappeared'
-grep -Fq '`file.folderManage` | File | folder panel | `pages/files/index` and `pages/files/folder-form/index`' "$MANIFEST" || fail 'file folderManage manifest does not point to mobile folder management'
-grep -Fq '`file.aclView` | File | folder ACL dialog | `pages/files/index` read-only ACL modal' "$MANIFEST" || fail 'file aclView manifest does not protect mobile read-only ACL view'
+grep -Fq '`file.folderManage` | 文件 | 文件夹面板管理 | `pages/files/index` 与 `pages/files/folder-form/index`' "$MANIFEST" || fail 'file folderManage manifest does not point to mobile folder management'
+grep -Fq '`file.aclView` | 文件 | 文件夹 ACL 弹窗只读 | `pages/files/index` 只读 ACL 弹窗' "$MANIFEST" || fail 'file aclView manifest does not protect mobile read-only ACL view'
 echo 'PASS: mobile file high-risk boundary is aligned.'

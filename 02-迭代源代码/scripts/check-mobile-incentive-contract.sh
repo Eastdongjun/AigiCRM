@@ -521,8 +521,8 @@ grep -q '"navigationBarTitleText":"四项激励详情"' "$legacy_cases_detail_js
 ! grep -Eq 'cases-page|case-detail-page' "$legacy_cases_wxml" "$legacy_cases_detail_wxml" || { echo "FAIL: legacy cases compatibility shell still carries standalone case page classes" >&2; exit 1; }
 ! grep -Eq 'case-(card|detail|category|status|title|customer|meta|accent|main)' "$legacy_cases_style" || { echo "FAIL: legacy cases compatibility shell still carries standalone case UI styles" >&2; exit 1; }
 ! grep -Eq 'cases-page|case-(card|category|status|title|customer|meta|accent|main)' "$app_wxss" || { echo "FAIL: global mini-program styles still carry standalone case UI styles" >&2; exit 1; }
-grep -q "incentive.index.*implemented" "$manifest" || { echo "FAIL: incentive.index manifest status is stale" >&2; exit 1; }
-grep -q "incentive.recordDelete.*implemented" "$manifest" || { echo "FAIL: incentive record delete manifest status is stale" >&2; exit 1; }
+grep -q "incentive.index.*已实现" "$manifest" || { echo "FAIL: incentive.index manifest status is stale" >&2; exit 1; }
+grep -q "incentive.recordDelete.*已实现" "$manifest" || { echo "FAIL: incentive record delete manifest status is stale" >&2; exit 1; }
 # 【PR-13 残余 2026-09-20】激励上传表单草稿接线(复刻客户表单议题四模式)
 UPLOAD_JS="$ROOT/aigicrm-miniprogram/pages/incentive/upload/index.js"
 for pattern in \

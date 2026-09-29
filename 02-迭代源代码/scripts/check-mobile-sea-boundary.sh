@@ -134,6 +134,6 @@ grep -Fq "filterState.enterReason === '保护期满'" "$AUTOMATOR_SCRIPT" || fai
 grep -Fq '/pages/customer/detail/index?id=501&from=sea' "$AUTOMATOR_SCRIPT" || fail 'public sea DevTools automator does not assert customer archive navigation'
 grep -Fq '/pages/customer/form/index?id=501&from=sea' "$AUTOMATOR_SCRIPT" || fail 'public sea DevTools automator does not assert edit navigation'
 grep -Fq 'sea-center-actions.png' "$AUTOMATOR_SCRIPT" || fail 'public sea DevTools automator does not capture UI evidence'
-grep -Fq '`sea.edit` | Public Sea | sea row edit/customer form | `pages/sea/index` to `pages/customer/form/index?id=:id&from=sea`' "$MANIFEST" || fail 'sea edit manifest does not point to mobile customer edit route'
-grep -Fq '`sea.delete` | Public Sea | sea row, `/api/sea/pool/{id}` | `pages/sea/index` row delete action' "$MANIFEST" || fail 'sea delete manifest does not point to mobile row delete action'
+grep -Fq '`sea.edit` | 公海 | 公海行编辑/客户表单 | `pages/sea/index` 至 `pages/customer/form/index?id=:id&from=sea`' "$MANIFEST" || fail 'sea edit manifest does not point to mobile customer edit route'
+grep -Fq '`sea.delete` | 公海 | 公海行删除,`/api/sea/pool/{id}` | `pages/sea/index` 行删除' "$MANIFEST" || fail 'sea delete manifest does not point to mobile row delete action'
 echo 'PASS: mobile public-sea high-risk boundary is aligned.'
