@@ -12,9 +12,6 @@
           <th class="col-sub">激励细分</th>
           <th class="col-score">激励积分</th>
           <th class="col-count">数量</th>
-          <th class="col-stage">安装前</th>
-          <th class="col-stage">安装中</th>
-          <th class="col-stage">安装后</th>
           <th class="col-total">总积分</th>
           <th class="col-op">明细</th>
         </tr>
@@ -40,15 +37,6 @@
             <td class="col-sub">{{ child.categoryName }}</td>
             <td class="col-score">{{ child.score }}</td>
             <td class="col-count">{{ child.uploadCount }}</td>
-            <td class="col-stage">
-              <span :class="child.preCount > 0 ? 'stage-active' : 'stage-zero'">{{ child.preCount }}</span>
-            </td>
-            <td class="col-stage">
-              <span :class="child.midCount > 0 ? 'stage-active' : 'stage-zero'">{{ child.midCount }}</span>
-            </td>
-            <td class="col-stage">
-              <span :class="child.postCount > 0 ? 'stage-active' : 'stage-zero'">{{ child.postCount }}</span>
-            </td>
             <td class="col-total">
               <span :class="child.totalScore > 0 ? 'score-active' : 'score-zero'">{{ child.totalScore }}</span>
             </td>
@@ -63,9 +51,6 @@
           <td colspan="2"><strong>合计</strong></td>
           <td><strong class="purple">{{ totalCategories }}项</strong></td>
           <td><strong>{{ tableTotalFiles }}</strong></td>
-          <td><strong class="blue">{{ tableTotalPre }}</strong></td>
-          <td><strong class="blue">{{ tableTotalMid }}</strong></td>
-          <td><strong class="blue">{{ tableTotalPost }}</strong></td>
           <td><strong class="blue">{{ tableTotalScore }}</strong></td>
           <td></td>
         </tr>
@@ -83,7 +68,7 @@ const router = useRouter()
 
 const {
   totalCategories, groupedData, catColors, period,
-  tableTotalFiles, tableTotalPre, tableTotalMid, tableTotalPost, tableTotalScore,
+  tableTotalFiles, tableTotalScore,
 } = injectIncentiveStats()
 
 // 【2026-09-13】行下钻：把当前周期带给明细页，便于直接刷新/分享
@@ -115,7 +100,6 @@ function openDetail(child, group) {
 .col-cat { width: 180px; vertical-align: middle; border-right: 1px solid #f0f0f0; }
 .col-score { width: 100px; text-align: center; }
 .col-count { width: 80px; text-align: center; }
-.col-stage { width: 80px; text-align: center; }
 .col-total { width: 100px; text-align: center; }
 
 .cat-label { display: inline-flex; align-items: center; gap: 4px; font-size: 14px; font-weight: 600; }
@@ -126,8 +110,6 @@ function openDetail(child, group) {
 
 .score-active { color: #409eff; font-weight: 600; }
 .score-zero { color: #c0c4cc; }
-.stage-active { color: #10b981; font-weight: 600; }
-.stage-zero { color: #c0c4cc; }
 
 .total-row { background: #fafafa; }
 .total-row td { border-top: 2px solid #ebeef5; padding: 14px 16px; text-align: center; }
