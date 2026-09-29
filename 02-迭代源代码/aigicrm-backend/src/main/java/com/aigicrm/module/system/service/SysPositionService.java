@@ -139,6 +139,9 @@ public class SysPositionService {
     @Transactional
     public void saveRules(Long positionId, List<Long> ruleIds) {
         positionRuleMapper.delete(new LambdaQueryWrapper<SysPositionRule>().eq(SysPositionRule::getPositionId, positionId));
+        // 【2026-09-29 复审修复】清空规则也是权限变更: 缓存失效+版本递增必须在 early-return 之前
+        permissionCacheService.evictByPosition(positionId);
+        bumpUserPermVersionsByPosition(positionId);
         if (ruleIds == null || ruleIds.isEmpty()) return;
         for (Long ruleId : ruleIds) {
             SysPositionRule pr = new SysPositionRule();
@@ -146,10 +149,6 @@ public class SysPositionService {
             pr.setRuleId(ruleId);
             positionRuleMapper.insert(pr);
         }
-        // 【Redis 权限缓存】规则绑定变更立即失效该岗位用户缓存
-        permissionCacheService.evictByPosition(positionId);
-        // 【2026-08-14 缓存自愈】版本递增兜底：evict 漏网/Redis 写失败时缓存与 DB 版本比对自愈
-        bumpUserPermVersionsByPosition(positionId);
     }
 
     // ==================== 用户-岗位分配 ====================
@@ -163,6 +162,9 @@ public class SysPositionService {
     @Transactional
     public void assignUserPositions(Long userId, List<Long> positionIds) {
         userPositionMapper.delete(new LambdaQueryWrapper<SysUserPosition>().eq(SysUserPosition::getUserId, userId));
+        // 【2026-09-29 同类缺陷】清空全部岗位也是权限变更: 缓存失效+版本递增必须在 early-return 之前
+        permissionCacheService.evict(userId);
+        bumpPermVersion(userId);
         if (positionIds == null || positionIds.isEmpty()) return;
         for (int i = 0; i < positionIds.size(); i++) {
             SysUserPosition up = new SysUserPosition();
@@ -171,9 +173,5 @@ public class SysPositionService {
             up.setIsPrimary(i == 0 ? 1 : 0); // 第一个设为主岗位
             userPositionMapper.insert(up);
         }
-        // 【Redis 权限缓存】用户岗位分配变更立即失效该用户
-        permissionCacheService.evict(userId);
-        // 【2026-08-14 缓存自愈】版本递增兜底：evict 漏网/Redis 写失败时缓存与 DB 版本比对自愈
-        bumpPermVersion(userId);
     }
 }

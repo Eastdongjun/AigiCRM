@@ -59,6 +59,12 @@ public class SysPositionController {
     @PutMapping("/{positionId}/rules")
     @PreAuthorize("hasAuthority('system:position:edit')")
     public Result<Void> updateRules(@PathVariable Long positionId, @RequestBody Map<String, List<Long>> body) {
+        // 【安全 2026-09-29 P1 复审修复】岗位规则=权限定义本身, 绑定/解绑等同改写岗位下
+        // 全部用户的数据/字段权限——比"指派携带规则的岗位"更特权, 一律 admin-only,
+        // 堵住持 system:position:edit 的非 admin 绕过 assignUserPositions 提权防护的旁路。
+        if (!SecurityUtils.isAdmin()) {
+            throw new BusinessException("仅系统管理员可修改岗位权限规则");
+        }
         positionService.saveRules(positionId, body.get("ruleIds"));
         return Result.ok();
     }

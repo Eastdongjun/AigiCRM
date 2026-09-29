@@ -12,7 +12,19 @@ ROOT = Path(__file__).resolve().parents[1]
 MANIFEST_PAGE_PATTERN = re.compile(r"pages/[A-Za-z0-9_./:-]+(?:\?[^`|), ]+)?")
 MANIFEST_PC_ROUTE_PATTERN = re.compile(r"`(/[^`]+)`")
 MANIFEST_PERMISSION_TOKEN_PATTERN = re.compile(r"`([^`]+)`")
-MANIFEST_MOBILE_STATUSES = {"implemented", "planned", "PC-only"}
+# 【2026-09-29 对齐 manifest 中文化 2b80b62e】状态词表扩为双语; 判定按"剥离注记后的规范化前缀"
+# 规范化: 去 ` 反引号/⟦…⟧ 补录注记/首尾空白 后, 前缀匹配任一已知状态即合法
+MANIFEST_MOBILE_STATUSES = {
+    "implemented": "implemented",
+    "已实现": "implemented",
+    "planned": "planned",
+    "规划中": "planned",
+    "PC-only": "PC-only",
+}
+MANIFEST_MOBILE_STATUS_PREFIXES = tuple(
+    sorted(MANIFEST_MOBILE_STATUSES.keys(), key=len, reverse=True)
+)
+MANIFEST_ANNOTATION_PATTERN = __import__("re").compile(r"⟦[^⟧]*⟧")
 FEATURE_KEY_PATTERN = re.compile(r"^[a-z][a-z0-9]*(?:\.[a-z][A-Za-z0-9]*)+$")
 MANIFEST_NON_PERMISSION_TOKENS = {"public", "authenticated"}
 
@@ -145,11 +157,28 @@ def assert_manifest_mobile_statuses() -> list[str]:
     ):
         feature_key = columns[0].strip("`")
         mini_program_column = columns[3]
-        mobile_status = columns[7]
+        raw_status = columns[7]
+        # 规范化: 反引号→原样剥离; ⟦补录注记⟧→剥离; 取已知状态前缀归一
+        normalized_status = MANIFEST_ANNOTATION_PATTERN.sub(
+            "", raw_status
+        ).replace("`", "").strip()
+        # PC-only 作为功能定性可在句中(如"发起 `PC-only`(审批展示已实现)"),按词元包含判定
+        mobile_status = (
+            "PC-only"
+            if "PC-only" in normalized_status
+            else next(
+                (
+                    canonical
+                    for prefix, canonical in MANIFEST_MOBILE_STATUSES.items()
+                    if normalized_status.startswith(prefix)
+                ),
+                None,
+            )
+        )
         pages = MANIFEST_PAGE_PATTERN.findall(mini_program_column)
-        if mobile_status not in MANIFEST_MOBILE_STATUSES:
+        if mobile_status is None:
             errors.append(
-                f"line {line_number} {feature_key}: unknown mobile status {mobile_status!r}"
+                f"line {line_number} {feature_key}: unknown mobile status {raw_status!r}"
             )
         if mobile_status == "PC-only" and pages:
             errors.append(

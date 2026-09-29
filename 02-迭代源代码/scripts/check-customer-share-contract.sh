@@ -45,6 +45,7 @@ grep -q '.share-submit-btn' "$WXSS"
 grep -q '.share-cancel-btn' "$WXSS"
 grep -q '.share-top-cancel' "$WXSS"
 grep -q 'height:50rpx' "$WXSS"
-grep -q "customer:edit.*add/revoke" "$MANIFEST"
+# 【2026-09-29 锚点重钉】manifest 中文化(2b80b62e)后英文 add/revoke 断连; 重钉为分享行中文语义(新增/撤销走 customer:edit 门控)
+grep -q "customer.share.*新增/撤销.*customer:edit" "$MANIFEST"
 
 echo "PASS: customer share read/mutation permissions match backend, mobile page, and manifest."
