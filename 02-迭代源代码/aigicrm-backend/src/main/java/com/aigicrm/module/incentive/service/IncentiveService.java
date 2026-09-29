@@ -1009,6 +1009,8 @@ public class IncentiveService {
             String ind = cust != null ? cust.getIndustry() : "其他";
             item.put("customerName", cust != null ? cust.getCustomerName() : null);
             item.put("ownerName", cust != null ? cust.getOwnerName() : null);
+            // 【2026-09-29】客户排行销售视图(06只看自己名下客户,rank保留公司级序号)需要按负责人过滤
+            item.put("ownerId", cust != null ? cust.getOwnerId() : null);
             item.put("industry", ind);
             item.put("industryOrder", orderMap.getOrDefault(ind, 99));
             item.put("count", e.getValue().size());

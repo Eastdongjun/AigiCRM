@@ -5,6 +5,7 @@
 import { ref, computed, inject } from 'vue'
 import { getCategoryTree, getRecords, getCategoryStats, getCustomerRecords, getScoreboard } from '@/api/incentive'
 import { cachedGet } from '@/utils/layout-cache'
+import { filterCustomerRankRows } from '@/utils/customer-rank'
 import { useUserStore } from '@/store/user'
 import { buildPeriodOptions, periodQueryValue } from '@/utils/incentive-period'
 
@@ -162,12 +163,21 @@ export function useIncentiveStats() {
       if (recRes.status === 'fulfilled') records.value = recRes.value?.data || []
       // 激励统计表：全员聚合
       if (csRes.status === 'fulfilled') catStat.value = csRes.value?.data || { byCategory: [], totalFiles: 0, totalScore: 0 }
-      if (sbRes.status === 'fulfilled') scoreboard.value = (sbRes.value?.data || []).map((row, index) => ({
-        ...row,
-        rank: index + 1,
-        recordCount: row.recordCount || row.count || 0,
-        byCategory: buildCustomerCategoryMap(row.records || []),
-      }))
+      if (sbRes.status === 'fulfilled') {
+        // rank 先按全量(公司级)定序,再做销售行过滤——序号保留公司级名次不重编
+        const rankedRows = (sbRes.value?.data || []).map((row, index) => ({
+          ...row,
+          rank: index + 1,
+          recordCount: row.recordCount || row.count || 0,
+          byCategory: buildCustomerCategoryMap(row.records || []),
+        }))
+        // 【2026-09-29 裁决】客户排行销售视图: 06销售只看自己名下客户的行(非admin),rank不变
+        scoreboard.value = filterCustomerRankRows(
+          rankedRows,
+          userStore.userId,
+          !userStore.isAdmin() && (userStore.roles || []).includes('06'),
+        )
+      }
       // 【2026-09-23 个人排行】后端已按总积分降序并给出 rank/realName/officeName/byCategory
       if (pbRes.status === 'fulfilled') {
         personBoard.value = pbRes.value?.data || []
