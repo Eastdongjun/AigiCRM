@@ -34,7 +34,7 @@ export const INDICATOR_CORE_THRESHOLD = 12
 /** 五项评分字段定义：options 的 dictValue 为字符串（与后端字典返回口径一致），分值 0-3 */
 export const INDICATOR_FIELDS = [
   {
-    code: '01',
+    code: '02',
     field: 'relationshipScore',
     label: '高层（客情程度）',
     options: [
@@ -45,7 +45,7 @@ export const INDICATOR_FIELDS = [
     ]
   },
   {
-    code: '02',
+    code: '03',
     field: 'indicator02',
     label: '渠道（编码数量）',
     options: [
@@ -56,7 +56,7 @@ export const INDICATOR_FIELDS = [
     ]
   },
   {
-    code: '03',
+    code: '04',
     field: 'indicator03',
     label: '基层（分厂车间）',
     options: [
@@ -67,7 +67,7 @@ export const INDICATOR_FIELDS = [
     ]
   },
   {
-    code: '04',
+    code: '05',
     field: 'indicator04',
     label: '产品（密封润滑防腐）',
     options: [
@@ -78,7 +78,7 @@ export const INDICATOR_FIELDS = [
     ]
   },
   {
-    code: '05',
+    code: '06',
     field: 'indicator05',
     label: '项目（项目资金）',
     options: [
