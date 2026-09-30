@@ -88,10 +88,37 @@ public class SysDeptService {
     }
 
     public void create(SysDept dept) {
+        // 【P1 2026-09-29 复审修复·集团边界】与 SysPosition 家族(REQ-005)同口径:
+        // 未传 groupId 兜底当前集团(无集团 fail-closed,不默认建到主集团——P0-02);
+        // 显式指定越权集团拒绝。读路径已收窄(N-06),写路径此前只看权限码。
+        if (dept.getGroupId() == null) {
+            List<Long> g = com.aigicrm.common.scope.GroupScopeUtil.visibleGroupIds();
+            if (g != null && g.isEmpty()) throw new BusinessException("当前账号无有效集团归属，无法创建部门");
+            dept.setGroupId(g == null ? 1L : g.get(0));
+        } else if (!com.aigicrm.common.scope.GroupScopeUtil.canAccessGroup(dept.getGroupId())) {
+            throw new BusinessException("无权在该集团创建部门");
+        }
         deptMapper.insert(dept);
     }
 
     public void update(SysDept dept) {
+        // 【P1 2026-09-29 复审修复·集团边界】三向校验(与 SysPosition.update 同口径):
+        // 目标部门越权拒;新归属越权拒;新父节点越权拒(脏数据防线:parent 跨集团=变相迁移)。
+        if (dept.getId() != null) {
+            SysDept existing = deptMapper.selectById(dept.getId());
+            if (existing != null && !com.aigicrm.common.scope.GroupScopeUtil.canAccessGroup(existing.getGroupId())) {
+                throw new BusinessException("无权操作其他集团的部门");
+            }
+        }
+        if (dept.getGroupId() != null && !com.aigicrm.common.scope.GroupScopeUtil.canAccessGroup(dept.getGroupId())) {
+            throw new BusinessException("无权将部门归属到其他集团");
+        }
+        if (dept.getParentId() != null) {
+            SysDept parent = deptMapper.selectById(dept.getParentId());
+            if (parent != null && !com.aigicrm.common.scope.GroupScopeUtil.canAccessGroup(parent.getGroupId())) {
+                throw new BusinessException("无权将部门挂到其他集团的部门下");
+            }
+        }
         deptMapper.updateById(dept);
         // 【Redis 权限缓存】部门 groupId/legalEntityId/层级变更影响用户缓存的派生值(集团/法人/范围)，
         // 全量失效(低频操作)避免旧上下文残留。
@@ -101,6 +128,11 @@ public class SysDeptService {
     }
 
     public void delete(Long id) {
+        // 【P1 2026-09-29 复审修复·集团边界】目标部门越权先于子部门/用户检查拒绝(与读路径同口径)
+        SysDept target = deptMapper.selectById(id);
+        if (target != null && !com.aigicrm.common.scope.GroupScopeUtil.canAccessGroup(target.getGroupId())) {
+            throw new BusinessException("无权删除其他集团的部门");
+        }
         // 存在子部门时不允许删除，避免产生孤立节点
         Long childCount = deptMapper.selectCount(
                 new LambdaQueryWrapper<SysDept>().eq(SysDept::getParentId, id));
