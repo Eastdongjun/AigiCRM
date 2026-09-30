@@ -510,9 +510,18 @@ public class CustomerService {
             customer.setOwnerId(existing.getOwnerId());
             customer.setStatus(existing.getStatus());
             customer.setProtectionStatus(existing.getProtectionStatus());
-        } else if (!SecurityUtils.isAdmin() && fieldChanged(existing.getOwnerId(), customer.getOwnerId())) {
+        } else if (!SecurityUtils.isAdmin()) {
             // 【M1 2026-08-10】非池客户负责人变更: 非 admin 只能走转移/审批流程, 防无审批转交
-            throw new BusinessException("客户负责人变更请通过转移/审批流程操作");
+            if (fieldChanged(existing.getOwnerId(), customer.getOwnerId())) {
+                throw new BusinessException("客户负责人变更请通过转移/审批流程操作");
+            }
+            // 【P2 2026-09-30 复审修复·流程字段冻结】非 admin 经通用编辑不得改 status/protectionStatus
+            // ——状态迁移各有专门流程(释放/捞取/归档/恢复/保护期机制), 通用编辑绕过即越权;
+            // 值未变(表单原样回传)不算变更放行, 与池分支 fieldChanged 口径一致。
+            if (fieldChanged(existing.getStatus(), customer.getStatus())
+                    || fieldChanged(existing.getProtectionStatus(), customer.getProtectionStatus())) {
+                throw new BusinessException("客户状态/保护状态变更请通过归档、恢复、释放或保护期机制操作");
+            }
         }
         protectCustomerDateFields(existing, customer);
         // 【P2-2 2026-08-12 A3】始终按最终负责人(请求显式或库内现有)重同步 dept_id——

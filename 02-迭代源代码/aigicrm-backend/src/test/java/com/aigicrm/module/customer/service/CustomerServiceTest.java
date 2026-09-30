@@ -653,6 +653,112 @@ class CustomerServiceTest {
         assertThrows(BusinessException.class, () -> svc.update(req));
     }
 
+    // ===== 【P2 2026-09-30 复审修复】非池客户通用 update 流程字段冻结 =====
+    // 公海池分支已禁 ownerId/status/protectionStatus, 非池分支此前仅禁非 admin 的 ownerId——
+    // 持编辑权限者可直提 status/protectionStatus 绕过 释放/归档/恢复/保护 专门流程。
+
+    private CustomerService newNonPoolSvc(BizCustomerMapper customerMapper, CustomerAccessService accessService) {
+        return newService(mock(BizInvoiceMapper.class), mock(BizPaymentMapper.class),
+                customerMapper, mock(OrgScopeResolver.class), mock(BizContactMapper.class), accessService);
+    }
+
+    @Test
+    void update_nonPool_nonAdmin_statusChange_rejected() {
+        BizCustomer existing = new BizCustomer();
+        existing.setId(2L);
+        existing.setOwnerId(200L);
+        existing.setStatus("normal");
+        BizCustomerMapper customerMapper = mock(BizCustomerMapper.class);
+        when(customerMapper.selectById(2L)).thenReturn(existing);
+        CustomerAccessService accessService = mock(CustomerAccessService.class);
+        when(accessService.canEdit(2L)).thenReturn(true);
+        when(accessService.isInSeaPool(2L)).thenReturn(false);
+        CustomerService svc = newNonPoolSvc(customerMapper, accessService);
+        BizCustomer req = new BizCustomer();
+        req.setId(2L);
+        req.setStatus("archived"); // 绕过归档流程直改状态
+        try (org.mockito.MockedStatic<SecurityUtils> sec = org.mockito.Mockito.mockStatic(SecurityUtils.class)) {
+            sec.when(SecurityUtils::isAdmin).thenReturn(false);
+            assertThrows(BusinessException.class, () -> svc.update(req),
+                    "非 admin 不可经通用编辑改客户状态");
+        }
+        verify(customerMapper, never()).updateById(any(BizCustomer.class));
+    }
+
+    @Test
+    void update_nonPool_nonAdmin_protectionStatusChange_rejected() {
+        BizCustomer existing = new BizCustomer();
+        existing.setId(3L);
+        existing.setOwnerId(200L);
+        existing.setStatus("normal");
+        existing.setProtectionStatus("none");
+        BizCustomerMapper customerMapper = mock(BizCustomerMapper.class);
+        when(customerMapper.selectById(3L)).thenReturn(existing);
+        CustomerAccessService accessService = mock(CustomerAccessService.class);
+        when(accessService.canEdit(3L)).thenReturn(true);
+        when(accessService.isInSeaPool(3L)).thenReturn(false);
+        CustomerService svc = newNonPoolSvc(customerMapper, accessService);
+        BizCustomer req = new BizCustomer();
+        req.setId(3L);
+        req.setProtectionStatus("expiring");
+        try (org.mockito.MockedStatic<SecurityUtils> sec = org.mockito.Mockito.mockStatic(SecurityUtils.class)) {
+            sec.when(SecurityUtils::isAdmin).thenReturn(false);
+            assertThrows(BusinessException.class, () -> svc.update(req),
+                    "非 admin 不可经通用编辑改保护状态");
+        }
+        verify(customerMapper, never()).updateById(any(BizCustomer.class));
+    }
+
+    @Test
+    void update_nonPool_nonAdmin_sameStatusEcho_allowed() {
+        // PC/小程序编辑表单可能原样回传当前状态值: 值未变不算变更, 必须放行(不破坏正常编辑)
+        BizCustomer existing = new BizCustomer();
+        existing.setId(4L);
+        existing.setOwnerId(200L);
+        existing.setStatus("normal");
+        existing.setProtectionStatus("none");
+        BizCustomerMapper customerMapper = mock(BizCustomerMapper.class);
+        when(customerMapper.selectById(4L)).thenReturn(existing);
+        CustomerAccessService accessService = mock(CustomerAccessService.class);
+        when(accessService.canEdit(4L)).thenReturn(true);
+        when(accessService.isInSeaPool(4L)).thenReturn(false);
+        CustomerService svc = newNonPoolSvc(customerMapper, accessService);
+        BizCustomer req = new BizCustomer();
+        req.setId(4L);
+        req.setCustomerName("正常改名");
+        req.setStatus("normal");           // 原值回传
+        req.setProtectionStatus("none");   // 原值回传
+        try (org.mockito.MockedStatic<SecurityUtils> sec = org.mockito.Mockito.mockStatic(SecurityUtils.class)) {
+            sec.when(SecurityUtils::isAdmin).thenReturn(false);
+            svc.update(req);
+        }
+        verify(customerMapper).updateById(any(BizCustomer.class));
+    }
+
+    @Test
+    void update_nonPool_admin_statusChange_stillAllowed() {
+        BizCustomer existing = new BizCustomer();
+        existing.setId(5L);
+        existing.setOwnerId(200L);
+        existing.setStatus("normal");
+        BizCustomerMapper customerMapper = mock(BizCustomerMapper.class);
+        when(customerMapper.selectById(5L)).thenReturn(existing);
+        CustomerAccessService accessService = mock(CustomerAccessService.class);
+        when(accessService.canEdit(5L)).thenReturn(true);
+        when(accessService.isInSeaPool(5L)).thenReturn(false);
+        CustomerService svc = newNonPoolSvc(customerMapper, accessService);
+        BizCustomer req = new BizCustomer();
+        req.setId(5L);
+        req.setStatus("archived");
+        try (org.mockito.MockedStatic<SecurityUtils> sec = org.mockito.Mockito.mockStatic(SecurityUtils.class)) {
+            sec.when(SecurityUtils::isAdmin).thenReturn(true);
+            svc.update(req); // admin 保持既有自由(运维通道)
+        }
+        ArgumentCaptor<BizCustomer> captor = ArgumentCaptor.forClass(BizCustomer.class);
+        verify(customerMapper).updateById(captor.capture());
+        assertEquals("archived", captor.getValue().getStatus(), "admin 改状态不受冻结影响");
+    }
+
     @Test
     void update_poolCustomer_businessFieldChange_allowed_ownerKept() {
         BizCustomer existing = new BizCustomer();
