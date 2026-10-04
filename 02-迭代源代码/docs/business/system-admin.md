@@ -14,7 +14,7 @@
 ## 2. 用户管理规则
 
 - 建用户必填:账号/姓名/手机号/角色/**数据范围**(缺一报"XX不能为空")。
-- **org_id 自动落库**(2026-09-23 根修):insert 前 syncDefaultOrg——部门有集团→org=部门节点,否则兜底主集团顶级组织 1,显式指定尊重;编辑随部门重算。漏配 org 的用户对非 admin 是全租户表盲(fail-closed,见 [visibility.md](visibility.md) §2)。
+- **org_id 自动落库**(2026-09-23 根修):insert 前 syncDefaultOrg——部门有集团→org=部门节点,否则兜底主集团顶级组织 1,显式指定尊重;编辑随部门重算。漏配 org 的用户对非 admin 是全租户表盲(fail-closed,见 [visibility.md](visibility.md) §2)。**【裁决 2026-10-04】单集团部署,兜底组织 1 维持现状**——"误分配集团"风险单集团下不存在(GPT P0-002 据此关闭;引入第二集团时需重评为"拒绝保存")。
 - 重置密码发临时口令并置 pwd_reset_required(首登强制改密);admin 初口令同机制。
 - 用户管理五写接口守卫统一:`admin ∨ canManageUser(target)`。
 
