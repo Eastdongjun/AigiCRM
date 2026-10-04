@@ -201,7 +201,7 @@ import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { useUserStore } from '@/store/user'
 import { getDashboardData, getTeamActivities, getWeeklyStats, getDailyStats } from '@/api/statistics'
-import { getReminderList, getExpiringList, getPendingCount } from '@/api/reminder'
+import { getReminderList, getExpiringList } from '@/api/reminder'
 import { getApprovalList, approve as apiApprove, reject as apiReject } from '@/api/approval'
 
 const router = useRouter()
@@ -210,7 +210,6 @@ const stats = ref({})
 const reminders = ref([])
 const activities = ref([])
 const approvals = ref([])
-const pendingReminderCount = ref(0)
 
 // ——— 快捷入口 ———
 const quickActions = [
@@ -221,13 +220,6 @@ const quickActions = [
   { label: '公海捞取', icon: 'Promotion', path: '/sea' },
   { label: '数据统计', icon: 'DataAnalysis', path: '/statistics' },
 ]
-
-// ——— 问候语 ———
-const greetingText = computed(() => {
-  const h = new Date().getHours()
-  const g = h < 12 ? '早上好' : h < 18 ? '下午好' : '晚上好'
-  return `${g}，${userStore.realName}。今日待处理 ${pendingReminderCount.value} 项提醒，${approvals.value.length} 条审批。`
-})
 
 // ——— 保护期占比 ———
 const protectionRate = computed(() => {
@@ -292,10 +284,10 @@ const loadTaskStats = async () => {
   } catch { taskStats.value = {} }
 }
 // 【PR-11 后续批次】岗位差异化(议题三裁决后):self=销售卡片;非self=管理卡片
-const userStore2 = useUserStore()
-const isSalesRole = computed(() => userStore2.dataScope === 'self')
+// 【D17 修复】userStore2 与上方 userStore 重复获取，统一用 userStore
+const isSalesRole = computed(() => userStore.dataScope === 'self')
 const scopeLabel = computed(() => {
-    const s = userStore2.dataScope
+    const s = userStore.dataScope
     if (s === 'all') return '全量'
     if (s === 'custom' || s === 'dept') return '部门范围'
     if (s === 'team') return '团队'
@@ -318,12 +310,10 @@ const loadRoleData = async () => {
       myUploadCount.value = scoreRes.data.itemCount || 0
     }
     const readList = readRes?.data || []
-    const mine = readList.find(r => r.userId === userStore2.userId) || readList[0]
-    if (mine) {
-      myReadCount.value = mine.readCount || 0
-      myReadTotal.value = (mine.publishedCount || 0) + (mine.readCount || 0) > 0
-        ? mine.publishedCount || 0 : 0
-    }
+    // 【L5 修复】只取本人记录；找不到本人时显示 0/0 占位，不再拿列表第一人冒充；myReadTotal 直写已发布数
+    const mine = readList.find(r => r.userId === userStore.userId)
+    myReadCount.value = mine?.readCount || 0
+    myReadTotal.value = mine?.publishedCount || 0
   } catch { /* 数据缺失时卡片显示 0 */ }
 }
 const loadData = async () => {
@@ -342,29 +332,28 @@ const loadData = async () => {
       dotCls: item.daysLeft <= 7 ? 'dot-red' : 'dot-orange',
       isShare: false,
     }))
-    // 追加分享提醒（分开查三种类型）
+    // 追加分享提醒（三类并发拉取）
+    // 【D18】三类分享提醒互不依赖，串行 for 改为 Promise.all 并发（对齐 reminder/index.vue 2026-08-08 改法）；单路失败降级为空不阻塞其他路
     try {
       const types = ['share_to', 'share_by', 'share_owner']
       const labelMap = { share_to: '客户已分享给你', share_by: '你分享了客户', share_owner: '你的客户被分享' }
-      for (const t of types) {
-        try {
-          const sr = await getReminderList({ current: 1, size: 5, type: t, status: 'pending' })
-          for (const item of (sr.data?.records || [])) {
-            reminders.value.unshift({
-              id: item.id,
-              customerName: item.customerName,
-              desc: labelMap[item.reminderType] || '分享提醒',
-              daysTag: '分享',
-              daysTagCls: 'dt-blue',
-              extra: '',
-              dotCls: 'dot-blue',
-              isShare: true,
-            })
-          }
-        } catch {}
-      }
+      const srs = await Promise.all(types.map(t =>
+        getReminderList({ current: 1, size: 5, type: t, status: 'pending' }).catch(() => null)))
+      types.forEach((t, i) => {
+        for (const item of (srs[i]?.data?.records || [])) {
+          reminders.value.unshift({
+            id: item.id,
+            customerName: item.customerName,
+            desc: labelMap[item.reminderType] || '分享提醒',
+            daysTag: '分享',
+            daysTagCls: 'dt-blue',
+            extra: '',
+            dotCls: 'dot-blue',
+            isShare: true,
+          })
+        }
+      })
     } catch {}
-    try { const pc = await getPendingCount(); pendingReminderCount.value = pc.data || 0 } catch {}
   } catch {}
   try { const r = await getTeamActivities(); activities.value = r.data || [] } catch {}
   try {
@@ -413,11 +402,6 @@ onMounted(() => { loadData(); loadRoleData(); loadTaskStats() })
 .stat-scope-note a { color:#409eff; cursor:pointer; margin-left:8px }
 
 .dashboard { }
-
-/* —— 头部 —— */
-.page-header { margin-bottom: 24px; }
-.page-title { font-size: 22px; font-weight: 700; color: var(--ds-text-1, #1f2329); margin: 0 0 4px; letter-spacing: .2px; }
-.greeting { font-size: 14px; color: var(--ds-text-3, #86909c); margin: 0; }
 
 /* —— 核心指标 · 深蓝主视觉带 —— */
 .hero-band {

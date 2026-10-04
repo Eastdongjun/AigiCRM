@@ -136,8 +136,10 @@ const loadData = async () => {
       const types = ['share_to', 'share_by', 'share_owner']
       const labelMap = { share_to: '客户已分享给你', share_by: '你分享了客户', share_owner: '你的客户被分享' }
       // 【性能 2026-08-08】三个分享类型互不依赖，串行 for 改为 Promise.all 并发
+      // 【M8 修复】三路(分享/开票/到期)统一携带 keyword/ownerId/deptId，搜索后分享/开票同样受过滤
+      // （后端 /reminder/list 已支持 ownerId/deptId 过滤；keyword 形参暂未参与服务端过滤，传参保持口径一致，后端补齐即生效）
       const srs = await Promise.all(types.map(t =>
-        getReminderList({ current: 1, size: 20, type: t, status: 'pending', deptId: query.deptId })))
+        getReminderList({ current: 1, size: 20, type: t, status: 'pending', keyword: query.keyword, ownerId: query.ownerId, deptId: query.deptId })))
       for (let i = 0; i < types.length; i++) {
         const t = types[i]
         for (const item of (srs[i]?.data?.records || [])) {
@@ -159,7 +161,7 @@ const loadData = async () => {
     try {
       const itypes = ['invoice_overdue', 'invoice_never']
       const irs = await Promise.all(itypes.map(t =>
-        getReminderList({ current: 1, size: 20, type: t, status: 'pending', deptId: query.deptId })))
+        getReminderList({ current: 1, size: 20, type: t, status: 'pending', keyword: query.keyword, ownerId: query.ownerId, deptId: query.deptId })))
       for (let i = 0; i < itypes.length; i++) {
         const t = itypes[i]
         for (const item of (irs[i]?.data?.records || [])) {
@@ -183,14 +185,6 @@ const loadData = async () => {
     tableData.value = [...shareRecords, ...invoiceRecords, ...expiring]
     total.value = tableData.value.length
   } catch (e) {}
-}
-
-const resetQuery = () => {
-  query.keyword = ''
-  query.deptId = null
-  query.ownerId = null
-  query.current = 1
-  loadData()
 }
 
 // 客户端分页
@@ -308,11 +302,6 @@ onBeforeUnmount(() => {
 }
 .rem-pager-info { color: #909399; white-space: nowrap; margin-right: auto; }
 .rem-pager .el-pagination { flex-shrink: 0; }
-.days-danger { color: #f56c6c; font-weight: bold; }
-.days-warning { color: #e6a23c; font-weight: bold; }
-.days-normal { color: #67c23a; }
-.followed-tag { color: #67c23a; font-size: 13px; font-weight: 500; }
-.unfollowed-tag { color: #e6a23c; font-size: 13px; }
 .table-area :deep(.el-table td.el-table__cell) { font-size: 14px; padding: 10px 0 }
 .table-area :deep(.el-table th.el-table__cell) { font-size: 14px; font-weight: 600; padding: 10px 0 }
 </style>

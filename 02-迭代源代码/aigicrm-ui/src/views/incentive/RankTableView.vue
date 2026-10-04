@@ -5,7 +5,8 @@
       <span class="matrix-title">{{ period || '全部周期' }} 四项激励客户排行</span>
       <span class="header-right-actions">
         <span class="rank-count">{{ scoreboard.length }}个客户</span>
-        <el-button size="small" type="primary" plain :icon="Download" @click="exportRank('personal')">导出</el-button>
+        <!-- 2026-10-04 D11：exportRank 清理死掉的部门排行分支后不再需要参数 -->
+        <el-button size="small" type="primary" plain :icon="Download" @click="exportRank()">导出</el-button>
       </span>
     </div>
     <el-table :data="pagedScoreboard" style="width:100%" empty-text="暂无数据" class="rank-matrix"

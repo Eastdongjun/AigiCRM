@@ -241,6 +241,23 @@
         </div>
       </template>
     </el-drawer>
+
+    <!-- 【P3 修复】转交弹窗：openTransfer 置 transferVisible 后此前无对应 UI，功能不可用；append-to-body 保证浮于详情抽屉之上 -->
+    <el-dialog v-model="transferVisible" title="转交审批节点" width="440px" append-to-body>
+      <div class="transfer-node-info" v-if="transferNode">
+        当前审批人：{{ transferNode.approverName || '待分配' }}（第 {{ transferNode.nodeOrder || '-' }} 级）
+      </div>
+      <el-radio-group v-model="transferTargetId" class="transfer-candidates">
+        <el-radio v-for="u in transferCandidates" :key="u.id" :value="u.id" class="transfer-candidate">
+          {{ u.realName || u.username }}
+        </el-radio>
+      </el-radio-group>
+      <el-empty v-if="!transferCandidates.length" description="暂无可转交候选人" :image-size="60" />
+      <template #footer>
+        <el-button @click="transferVisible = false">取消</el-button>
+        <el-button type="primary" :disabled="!transferTargetId" :loading="transferLoading" @click="confirmTransfer">确认转交</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -253,7 +270,8 @@ import request from '@/utils/request'
 import { pageSizes } from '@/utils/pagination'
 
 const userStore = useUserStore()
-const isAdmin = computed(() => userStore.isAdmin)
+// 【P4 修复】isAdmin 是 Pinia action，须调用取值；此前当属性访问恒真，非 admin 也见"转交"按钮
+const isAdmin = computed(() => userStore.isAdmin())
 const canApprove = computed(() => userStore.hasPermission('approval:approve'))
 const transferVisible = ref(false)
 const transferNode = ref(null)
@@ -279,7 +297,8 @@ const confirmTransfer = async () => {
     ElMessage.success('已转交')
     transferVisible.value = false
     loadData()
-    if (detailVisible.value) showDetail(selectedApproval.value)
+    // 【P3 修复】转交成功后刷新详情轨迹；原写法误调不存在的 showDetail（实际为 openDetail），确认必抛 ReferenceError
+    if (detailVisible.value && selectedApproval.value) openDetail(selectedApproval.value)
   } catch (e) {
     // 错误提示由 request 拦截器统一弹出
   } finally { transferLoading.value = false }
@@ -557,4 +576,15 @@ onBeforeUnmount(() => {
   justify-content: flex-end;
   gap: 8px;
 }
+/* 【P3】转交弹窗：当前审批人提示 + 候选人纵向单选列表 */
+.transfer-node-info {
+  margin-bottom: 12px;
+  padding: 8px 12px;
+  border-radius: 6px;
+  background: #f4f6fa;
+  color: #606266;
+  font-size: 13px;
+}
+.transfer-candidates { display: flex; flex-direction: column; gap: 4px; }
+.transfer-candidate { height: auto; padding: 6px 0; margin-right: 0; }
 </style>

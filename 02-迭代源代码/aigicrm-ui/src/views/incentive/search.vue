@@ -1,5 +1,7 @@
 <template>
-  <!-- 页面骨架（2026-09-20）：全局 .page-shell 已提供灰画布+白色整体容器，页内只保留三段小布局(筛选条 / 客户卡网格 / 底部分页) -->
+  <!-- 页面骨架（2026-09-20）：全局 .page-shell 已提供灰画布+白色整体容器，页内只保留三段小布局(筛选条 / 客户卡网格 / 底部分页)。
+       【D9 2026-10-04 拆分】灯箱预览拆至 SearchLightbox.vue、客户详情(三联拨盘+已读观察器)拆至 SearchDetailDialog.vue、
+       纯工具函数拆至 search-helpers.js，本组件只保留筛选/网格/分页与两者编排，行为不变。 -->
   <div class="isc-page">
     <div class="bar">
       <div class="bar-row">
@@ -76,10 +78,10 @@
         </div>
         <div v-if="c.records[0]" class="card-bd">
           <div class="card-meta">
-            <span class="rec-tag" :class="'rec-tag-'+getCls(c.records[0])">{{ getMain(c.records[0]) }}</span>
+            <span class="rec-tag" :class="'rec-tag-'+getCls(catMap, c.records[0])">{{ getMain(catMap, c.records[0]) }}</span>
             <span class="card-sub">{{ c.records[0].categoryName }}</span>
             <span class="card-info">{{ c.records[0].period }} · {{ c.records[0].userName }}</span>
-            <span class="card-pts" :style="{color:scoreColor(getCls(c.records[0]))}">+{{ c.records[0].score }}</span>
+            <span class="card-pts" :style="{color:scoreColor(getCls(catMap, c.records[0]))}">+{{ c.records[0].score }}</span>
           </div>
           <div v-if="getFiles(c.records[0]).length" class="card-imgs">
             <div v-for="f in getFiles(c.records[0]).slice(0,4)" :key="f.id" class="card-img">
@@ -112,294 +114,35 @@
       <el-pagination v-model:current-page="pageNum" :page-size="pageSize" :total="custs.length" :page-sizes="pageSizes(pageSize)" layout="sizes, prev, pager, next, jumper" size="small" background @size-change="onSizeChange" />
     </div>
 
-    <!-- 图片/视频灯箱预览：深色底 + 顶部信息条 + 左右切换 + 缩略图条 + 键盘方向键 -->
-    <el-dialog v-model="previewVisible" width="1000px" top="3vh" :close-on-click-modal="true" destroy-on-close append-to-body class="preview-dlg">
-      <template #header></template>
-      <div class="pv-wrap" v-if="previewCurrent">
-        <div class="pv-bar">
-          <span class="pv-name">{{ previewName || '文件预览' }}</span>
-          <span v-if="previewCurrent.tag" class="pv-tag">{{ previewCurrent.tag }}</span>
-          <span v-if="previewCount > 1" class="pv-count">{{ previewIndex + 1 }} / {{ previewCount }}</span>
-          <span class="pv-spacer"></span>
-          <el-button size="small" @click="downloadPreview"><el-icon><Download /></el-icon> 下载</el-button>
-          <el-button size="small" circle @click="previewVisible=false"><el-icon><Close /></el-icon></el-button>
-        </div>
-        <div class="pv-stage">
-          <button v-if="previewCount > 1" class="pv-nav prev" @click="previewStep(-1)"><el-icon><ArrowLeft /></el-icon></button>
-          <video v-if="previewType==='video'" :src="previewUrl" controls autoplay class="pv-media" />
-          <img v-else-if="previewType==='image' && !previewError" :src="previewUrl" class="pv-media" @error="onPreviewError" />
-          <iframe v-else-if="previewType==='pdf'" :src="previewDocUrl" class="pv-frame" v-loading="previewDocLoading" element-loading-text="加载文档…"></iframe>
-          <div v-else-if="previewType==='text'" class="pv-text" v-loading="previewDocLoading" element-loading-text="加载文本…">
-            <pre v-if="previewDocText">{{ previewDocText }}</pre>
-            <div v-else-if="previewDocFailed" class="pv-text-failed">文本加载失败，可尝试下载</div>
-          </div>
-          <div v-else-if="previewType==='other'" class="pv-missing">
-            <el-icon :size="34"><Document /></el-icon>
-            <div class="pv-missing-title">{{ previewName || '该格式暂不支持在线预览' }}</div>
-            <div class="pv-missing-hint">office 等文档格式暂不支持在线预览，请下载后查看</div>
-            <el-button size="small" type="primary" plain @click="downloadPreview"><el-icon><Download /></el-icon> 下载文件</el-button>
-          </div>
-          <div v-else class="pv-missing">
-            <el-icon :size="34"><WarningFilled /></el-icon>
-            <div class="pv-missing-title">该文件当前不可用</div>
-            <div class="pv-missing-hint">文件可能已被清理，或本环境的存储中还没有这个文件</div>
-            <el-button size="small" type="primary" plain @click="downloadPreview">仍要下载试试</el-button>
-          </div>
-          <button v-if="previewCount > 1" class="pv-nav next" @click="previewStep(1)"><el-icon><ArrowRight /></el-icon></button>
-        </div>
-        <div v-if="previewCount > 1" class="pv-thumbs">
-          <div v-for="(f,i) in previewList" :key="f.id" class="pv-thumb" :class="{active:i===previewIndex}" @click="previewIndex=i; previewError=false">
-            <img v-if="f.type==='image' && !thumbFailed.has(f.id)" :src="thumbUrl(f.id)" @error="markThumbFailed(f.id)" />
-            <span v-else-if="f.type==='image'" class="pv-thumb-na">不可用</span>
-            <div v-else-if="f.type==='video'" class="pv-thumb-vid"><el-icon :size="18"><VideoPlay /></el-icon></div>
-            <div v-else class="pv-thumb-doc"><el-icon :size="16"><Document /></el-icon></div>
-            <span v-if="f.tag" class="pv-thumb-tag">{{ f.tag }}</span>
-          </div>
-        </div>
-      </div>
-    </el-dialog>
-
-    <el-dialog v-model="detailVisible" width="1320px" top="3vh" :close-on-click-modal="true" destroy-on-close class="detail-dlg">
-      <template #header></template>
-      <div class="dtl-wrap" v-if="detailCust">
-        <!-- 吸顶操作条：长明细滚动时仍能看到客户与返回入口 -->
-        <div class="dtl-bar">
-          <span class="dtl-back" @click="detailVisible=false">← 返回列表</span>
-          <span class="dtl-bar-name">{{ detailCust.customerName }}</span>
-          <span class="dtl-bar-meta">共 {{ recordTotal }} 条激励记录</span>
-          <span class="dtl-bar-pts"><b>{{ detailCust.totalScore }}</b> 分</span>
-        </div>
-
-        <!-- 客户概览：台账式——左身份右合计。整页唯一的大胆元素是右侧超大累计分值(胆量花在一处) -->
-        <div class="dtl-hero">
-          <div class="dtl-avatar">{{ (detailCust.customerName || '?').charAt(0) }}</div>
-          <div class="dtl-hero-main">
-            <div class="dtl-hero-name">{{ detailCust.customerName }}</div>
-            <div class="dtl-hero-tags">
-              <span v-if="detailCust.industry" class="dtl-pill blue">{{ detailCust.industry }}</span>
-              <span class="dtl-pill grey">最近更新 {{ lastUpdateText }}</span>
-            </div>
-          </div>
-          <div class="dtl-hero-score">
-            <div class="dtl-score-line"><span class="dtl-score-big">{{ detailCust.totalScore }}</span><span class="dtl-score-unit">分</span></div>
-            <div class="dtl-score-caption">累计积分</div>
-            <div class="dtl-hero-sub">
-              <span><b>{{ recordTotal }}</b> 条记录</span>
-              <span><b>{{ recordsByMonth.length }}</b> 个月份</span>
-              <span v-if="unreadCount" class="unread"><b>{{ unreadCount }}</b> 未读</span>
-            </div>
-          </div>
-        </div>
-
-        <!-- 时间轴工具条：记录多了以后的关键检索入口（2026-09-20）——
-             关键字搜索(分类/产品/上传人/描述/备注/附件名) + 时间正序(按时间增量)/倒序切换 + 命中计数 -->
-        <div class="dtl-toolbar">
-          <el-input
-            v-model="detailKeyword" size="small" clearable
-            placeholder="搜索：分类 / 产品 / 上传人 / 描述 / 备注 / 附件名"
-            :prefix-icon="Search" class="dtl-toolbar-search"
-          />
-          <el-radio-group v-model="detailOrder" size="small">
-            <el-radio-button value="desc">最新在前</el-radio-button>
-            <el-radio-button value="asc">按时间增量</el-radio-button>
-          </el-radio-group>
-          <span class="dtl-toolbar-hit">
-            {{ detailKeyword ? `命中 ${filteredRecords.length} / ${recordTotal} 条` : `${recordTotal} 条` }}
-          </span>
-          <el-button v-if="detailKeyword" link size="small" @click="detailKeyword=''">清除</el-button>
-        </div>
-
-        <!-- 【2026-09-20 深夜】详情主从骨架：左侧月份时间轴导航 + 右侧当前月份内容卡 -->
-        <div v-if="recordsByMonth.length" class="dtl-body">
-          <!-- 左栏：iOS 日期选择器式三联拨盘(年/月/日)——各自吸附居中、拨动联动级联，右侧内容跟随 -->
-          <aside class="dtl-dial">
-            <!-- 实时时间：每秒跳动的时钟 + 回到今天 -->
-            <div class="dtl-dial-now">
-              <span class="dtl-dial-now-date">{{ nowDateText }}</span>
-              <span class="dtl-dial-now-time">{{ nowTimeText }}</span>
-              <span class="dtl-dial-today" @click="goToday">回到今天</span>
-            </div>
-            <div class="dtl-dial-cols">
-            <div class="dtl-dial-band"></div>
-            <div class="dtl-dial-col">
-              <div class="dtl-dial-scroll" :ref="el => (dialEls.year.value = el)" @scroll="onDialScroll('year')">
-                <div v-for="y in dialYears" :key="y" class="dtl-dial-item" :class="{active: y===selYear, dim: !dialYearHas(y), today: y===todayY}" :data-key="y" @click="dialPick('year', y)">{{ y }}</div>
-              </div>
-            </div>
-            <div class="dtl-dial-col">
-              <div class="dtl-dial-scroll" :ref="el => (dialEls.month.value = el)" @scroll="onDialScroll('month')">
-                <div v-for="m in dialMonths" :key="m.m" class="dtl-dial-item" :class="{active: m.m===selMonth, dim: !m.group, today: m.m===todayM}"
-                  :data-key="String(m.m)" @click="dialPick('month', String(m.m))">
-                  {{ m.label }}<i v-if="m.group && monthUnread(m.group)" class="w-dot"></i>
-                </div>
-              </div>
-            </div>
-            <div class="dtl-dial-col">
-              <div class="dtl-dial-scroll" :ref="el => (dialEls.day.value = el)" @scroll="onDialScroll('day')">
-                <div v-for="it in dialDays" :key="it.d" class="dtl-dial-item" :class="{active: it.d===selDay, dim: !it.has, today: it.d===todayD}"
-                  :data-key="String(it.d)" @click="dialPick('day', String(it.d))">{{ it.label }}</div>
-              </div>
-            </div>
-            </div><!-- /dtl-dial-cols -->
-          </aside>
-          <section class="dtl-pane">
-            <div class="dtl-pane-head">
-              <span class="dtl-month-label">{{ selYear }}年{{ selMonth }}月<template v-if="selDay"> · {{ selDay }}日</template></span>
-              <span class="dtl-month-count">{{ displayItems.length }} 条</span>
-            </div>
-            <template v-if="displayItems.length">
-              <div v-for="r in displayItems" :key="r.id" class="dtl-item" :data-id="r.id" :data-day="recDay(r)">
-              <!-- 每个元素独立成块：信息瓦片(时间/阶段/得分/上传人/周期/行业/产品) + 宽块(详情正文/安装备注/附件凭证) -->
-              <div class="dtl-ecard">
-                <!-- 一行紧凑元信息条：时间/阶段/得分/上传人/周期/行业/产品 收进一行, 版面让给正文与图片 -->
-                <div class="dtl-metabar">
-                  <span class="dtl-meta time"><i v-if="r.unread" class="dtl-udot"></i>{{ fmtDay(r.createdAt) }} {{ fmtTime(r.createdAt) }}<em v-if="relativeDay(r.createdAt)">{{ relativeDay(r.createdAt) }}</em></span>
-                  <span class="dtl-meta stage"><i class="dtl-stage-dot" :style="{ background: scoreColor(getCls(r)) }"></i>{{ getMain(r) }}<em>{{ r.categoryName }}</em></span>
-                  <span class="dtl-meta dtl-score" :style="{ color: scoreColor(getCls(r)) }">+{{ r.score }} 分</span>
-                  <span class="dtl-meta"><em>上传人</em>{{ r.userName }}</span>
-                  <span class="dtl-meta" v-if="r.period"><em>周期</em>{{ r.period }}</span>
-                  <span class="dtl-meta" v-if="r.industry"><em>行业</em>{{ r.industry }}</span>
-                  <span class="dtl-meta" v-if="r.relatedProducts"><em>相关产品</em>{{ r.relatedProducts }}</span>
-                  <span class="dtl-meta" v-if="r.specificProduct"><em>具体产品</em>{{ r.specificProduct }}</span>
-                </div>
-                <div v-if="r.preInstallQuestion" class="dtl-eblock">
-                  <div class="dtl-eblock-label"><el-icon style="vertical-align:-2px;margin-right:4px"><Notebook /></el-icon>{{ detailLabelOf(r) }}</div>
-                  <div class="dtl-eblock-text">{{ r.preInstallQuestion }}</div>
-                </div>
-                <div v-if="r.remark && isTrialRec(r)" class="dtl-eblock remark">
-                  <div class="dtl-eblock-label"><el-icon style="vertical-align:-2px;margin-right:4px"><Warning /></el-icon>{{ r.categoryName }}安装备注</div>
-                  <div class="dtl-eblock-text">{{ r.remark }}</div>
-                </div>
-                <div v-if="getFiles(r).length" class="dtl-eblock files-block">
-                  <div class="dtl-eblock-label">附件凭证 · {{ getFiles(r).length }} 项</div>
-                  <div class="dtl-files">
-                  <div v-for="f in getFiles(r)" :key="f.id" class="dtl-file">
-                    <template v-if="f.type==='image' && !thumbFailed.has(f.id)">
-                      <div class="dtl-img-wrap">
-                        <img :src="thumbUrl(f.id)" @click="preview(f.id, f.type, f.label, previewableOf(r))" @error="markThumbFailed(f.id)" />
-                        <div v-if="f.tag" class="dtl-file-tag" :style="{color:tagColor(f.tag), borderColor:tagColor(f.tag)}">{{ f.tag }}</div>
-                        <div class="dtl-file-acts">
-                          <el-button size="small" circle type="primary" @click.stop="preview(f.id, f.type, f.label, previewableOf(r))"><el-icon><ZoomIn /></el-icon></el-button>
-                          <el-button size="small" circle @click.stop="downloadFile(f.id, f.label)"><el-icon><Download /></el-icon></el-button>
-                        </div>
-                      </div>
-                    </template>
-                    <div v-else-if="f.type==='image'" class="dtl-file-doc" @click="preview(f.id, f.type, f.label, previewableOf(r))">
-                      <span v-if="f.tag" class="dtl-file-tag inline" :style="{color:tagColor(f.tag), borderColor:tagColor(f.tag)}">{{ f.tag }}</span>
-                      <el-icon :size="26"><Picture /></el-icon>
-                      <span class="doc-label">{{ f.label }}</span>
-                      <el-button size="small" circle @click.stop="preview(f.id, f.type, f.label, previewableOf(r))"><el-icon><ZoomIn /></el-icon></el-button>
-                    </div>
-                    <div v-else-if="f.type==='video'" class="dtl-file-vid">
-                      <video :src="fileUrl(f.id)" controls preload="metadata"></video>
-                      <div class="dtl-file-meta">
-                        <span v-if="f.tag" class="dtl-file-tag inline" :style="{color:tagColor(f.tag), borderColor:tagColor(f.tag)}">{{ f.tag }}</span>
-                        <span class="doc-label">{{ f.label }}</span>
-                        <el-button size="small" circle @click.stop="preview(f.id, f.type, f.label, previewableOf(r))"><el-icon><ZoomIn /></el-icon></el-button>
-                        <el-button size="small" circle @click.stop="downloadFile(f.id, f.label)"><el-icon><Download /></el-icon></el-button>
-                      </div>
-                    </div>
-                    <div v-else class="dtl-file-doc" @click="preview(f.id, f.type, f.label, previewableOf(r))">
-                      <span v-if="f.tag" class="dtl-file-tag inline" :style="{color:tagColor(f.tag), borderColor:tagColor(f.tag)}">{{ f.tag }}</span>
-                      <el-icon :size="26"><Document /></el-icon>
-                      <span class="doc-label">{{ f.label }}</span>
-                      <el-button size="small" circle @click.stop="downloadFile(f.id, f.label)"><el-icon><Download /></el-icon></el-button>
-                    </div>
-                  </div>
-                </div>
-                </div><!-- /files-block -->
-              </div><!-- /dtl-ecard -->
-            </div>
-            </template>
-            <div v-else class="dtl-pane-empty">
-              <el-icon :size="34"><Calendar /></el-icon>
-              <div class="dtl-pane-empty-title">{{ selYear }}年{{ selMonth }}月<template v-if="selDay"> · {{ selDay }}日</template>，此时间无数据</div>
-              <div class="dtl-pane-empty-hint">拨动左侧年 / 月 / 日选择盘，亮起的选项才有激励记录</div>
-            </div>
-          </section>
-        </div>
-        <el-empty v-else :description="detailKeyword ? '没有匹配「' + detailKeyword + '」的记录' : '该客户暂无激励记录'" :image-size="90">
-          <el-button v-if="detailKeyword" size="small" @click="detailKeyword=''">清除搜索</el-button>
-        </el-empty>
-
-        <!-- 底部操作条 -->
-        <div class="dtl-footer">
-          <span class="dtl-footer-hint">共 {{ recordTotal }} 条记录 · {{ recordsByMonth.length }} 个月份</span>
-          <el-button size="small" @click="detailVisible=false">关闭</el-button>
-        </div>
-      </div>
-    </el-dialog>
+    <!-- 灯箱预览（图片/视频/文档）与客户详情弹窗（三联拨盘时间轴） -->
+    <SearchLightbox ref="lightbox" :thumb-failed="thumbFailed" @thumb-failed="markThumbFailed" />
+    <SearchDetailDialog v-model="detailVisible" :cust="detailCust" :cat-map="catMap" :thumb-failed="thumbFailed"
+      @preview="preview" @thumb-failed="markThumbFailed" />
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onBeforeUnmount, nextTick, watch } from 'vue'
-import { getActivePinia } from 'pinia'
-import { getCategoryTree, markIncentiveRead } from '@/api/incentive'
+import { ref, computed, onMounted } from 'vue'
+import { getCategoryTree } from '@/api/incentive'
 import { isCurrentMonth, sortByScore } from '@/utils/incentive-read'
 import { cachedGet } from '@/utils/layout-cache'
-import { getToken, getDownloadToken, refreshDownloadToken } from '@/utils/token'
-import { downloadFile as downloadFileUtil } from '@/utils/download'
-import { Search, User, VideoPlay, Document, ZoomIn, Download, Filter, Folder, OfficeBuilding, PriceTag, Calendar, MapLocation, Notebook, Warning, Close, ArrowLeft, ArrowRight, Picture } from '@element-plus/icons-vue'
+import { Search, User, VideoPlay, Document, Filter, Folder, OfficeBuilding, PriceTag, Calendar, MapLocation, Picture } from '@element-plus/icons-vue'
 import request from '@/utils/request'
-import { ElMessage } from 'element-plus'
 import { paginate, pageSizes } from '@/utils/pagination'
-import { groupRecordsByMonth, filterRecordsByKeyword, relativeDay } from '@/utils/time-label'
-import { useUserStore } from '@/store/user'
+// 【D10 2026-10-04】五大类产品目录改共享常量（原与 useIncentiveUpload.js 各硬编码一份）
+import { PRODUCT_CATS as productCats, PRODUCT_CAT_KEYS as productCatKeys } from './product-catalog'
+// 【D9 2026-10-04】文件/分类纯工具拆至共享模块；灯箱与详情弹窗拆为子组件
+import { thumbUrl, downloadFile, getFiles, getMain, getCls, scoreColor } from './search-helpers'
+import SearchLightbox from './SearchLightbox.vue'
+import SearchDetailDialog from './SearchDetailDialog.vue'
 
 const fCustomer=ref(''),fSales=ref(''),fIndustry=ref(''),fDevType=ref(''),fDateRange=ref(null),fOrgIds=ref([]),showFilter=ref(false)
 const fProdCat=ref(''),fProdSub=ref('')
 const scoreOrder=ref('')
-const productCats={ '涂层类':['防腐','加固','钢结构','煤气管道','其他'], '防滑板类':['公共区','装置区'], '机封类':['水泵','渣泵','介质泵'], '密封类':['静密封','动密封','橡胶密封'], '润滑类':['润滑油','润滑脂','润滑剂'] }
-const productCatKeys=Object.keys(productCats)
 const custs=ref([]),catMap=ref({})
-// 图片/视频灯箱：一次打开记录内的全部可预览文件，支持左右切换、缩略图条与键盘方向键
-const previewVisible=ref(false),previewList=ref([]),previewIndex=ref(0),previewError=ref(false),thumbFailed=ref(new Set())
-const previewCurrent=computed(()=>previewList.value[previewIndex.value]||null)
-const previewCount=computed(()=>previewList.value.length)
-const previewUrl=computed(()=>previewCurrent.value?fileUrl(previewCurrent.value.id):'')
-// 文件种类: 图片/视频走原通道; 文档按扩展名分 pdf(浏览器内建阅读器)/text(排版展示)/other(暂不支持→下载兜底)
-const KIND_EXT = {
-  pdf: /\.pdf$/i,
-  text: /\.(txt|md|log|csv|json|xml|html?)$/i,
-}
-function kindOf(f){
-  if (f?.type === 'video') return 'video'
-  if (f?.type === 'image') return 'image'
-  const n = f?.label || ''
-  if (KIND_EXT.pdf.test(n)) return 'pdf'
-  if (KIND_EXT.text.test(n)) return 'text'
-  return 'other'
-}
-const previewType=computed(()=>previewCurrent.value?kindOf(previewCurrent.value):'image')
-// 文档预览载荷: pdf → blob objectURL(iframe 内建阅读器); text → 拉文本前端排版; other → 下载兜底卡
-const previewDocUrl=ref(''),previewDocText=ref(''),previewDocLoading=ref(false),previewDocFailed=ref(false)
-let previewDocObjUrl=''
-async function loadDocPreview(){
-  if (previewDocObjUrl) { URL.revokeObjectURL(previewDocObjUrl); previewDocObjUrl='' }
-  previewDocUrl.value='';previewDocText.value='';previewDocFailed.value=false
-  const cur=previewCurrent.value
-  if(!cur)return
-  const kind=kindOf(cur)
-  if(kind!=='pdf'&&kind!=='text')return
-  previewDocLoading.value=true
-  try{
-    const res=await fetch(fileUrl(cur.id))
-    if(!res.ok)throw new Error('http '+res.status)
-    if(kind==='pdf'){
-      const blob=await res.blob()
-      previewDocObjUrl=URL.createObjectURL(blob.type?blob:new Blob([blob],{type:'application/pdf'}))
-      previewDocUrl.value=previewDocObjUrl
-    }else{
-      previewDocText.value=await res.text()
-    }
-  }catch{previewDocFailed.value=true}
-  finally{previewDocLoading.value=false}
-}
-watch(previewIndex,()=>{previewError.value=false;loadDocPreview()})
-watch(previewVisible,v=>{if(!v){if(previewDocObjUrl){URL.revokeObjectURL(previewDocObjUrl);previewDocObjUrl=''}previewDocUrl.value='';previewDocText.value=''}})
-onBeforeUnmount(()=>{if(previewDocObjUrl)URL.revokeObjectURL(previewDocObjUrl)})
-const previewName=computed(()=>previewCurrent.value?.label||'')
+// 缩略图加载失败标记：网格卡片 / 详情附件 / 灯箱缩略图共享同一份（打开灯箱时重置）
+const thumbFailed=ref(new Set())
+function markThumbFailed(id){thumbFailed.value=new Set([...thumbFailed.value,Number(id)])}
 const loading=ref(false)
 // 客户卡片网格分页（前端切片）
 const pageNum = ref(1)
@@ -409,119 +152,22 @@ const pageSize = ref(8)
 const onSizeChange = (size) => { pageSize.value = size; pageNum.value = 1 }
 const pagedCusts = computed(() => paginate(custs.value, pageNum.value, pageSize.value))
 const detailVisible=ref(false),detailCust=ref(null)
-// 详情弹窗概览用：取该客户最新一条记录的时间（无记录时显示 —）
-const lastUpdateText = computed(() => { const r = latestRecord(detailCust.value); return r ? fmtDt(r.createdAt) : '—' })
 const industries=['冶金','煤矿','化工','电力','有色金属','机械','工程公司','维修厂','其他终端客户']
 const devTypes=['成熟创新','突破开拓','铺垫宣传']
 const userList=ref([]),orgTree=ref([])
-const userStore=getActivePinia() ? useUserStore() : null
 const activeFilterCount=computed(()=>[fSales.value,fIndustry.value,fDevType.value,fDateRange.value,fOrgIds.value?.length>0].filter(v=>!!v).length)
 
-// 取客户记录中最新一条（排序已按品类，不与时间线顺序绑定）
-function latestRecord(c){let best=null;for(const r of (c?.records||[])){if(!best||String(r.createdAt||'')>String(best.createdAt||''))best=r}return best}
-// 【修复 2026-08-14】下载 token 未就绪时不拼 token=（避免产生必然 403 的空 token 请求）；
-// token 就绪后 getDownloadToken() 读取的 dlToken ref 变化会触发渲染链重跑，<img> 自动用带 token 的 URL 重载
-function fileUrl(id){const t=getDownloadToken();return t?'/api/file/download/'+id+'?token='+t:'/api/file/download/'+id}
-function thumbUrl(id){const t=getDownloadToken();return t?'/api/file/download/'+id+'?token='+t+'&thumbnail=1':'/api/file/download/'+id}
-// 打开灯箱：gallery 传入该记录的可预览文件（图片/视频）列表，可左右切换；不传则只看单个文件
+// 灯箱：委托子组件打开；缩略图失败标记随打开重置（原 preview 行为）
+const lightbox = ref(null)
 async function preview(id,type,name,gallery){
-  await refreshDownloadToken()
-  const norm=f=>({id:Number(f.id),type:f.type==='video'?'video':f.type==='image'?'image':'file',label:f.label||'',tag:f.tag||''})
-  const clicked=norm({id,type,label:name})
-  let list=(Array.isArray(gallery)?gallery:[]).filter(f=>f&&f.id!=null).map(norm)
-  let idx=list.findIndex(f=>f.id===clicked.id)
-  if(idx<0){list=[clicked];idx=0}
-  previewList.value=list;previewIndex.value=idx;previewError.value=false;thumbFailed.value=new Set();previewVisible.value=true
-  nextTick(loadDocPreview)
+  thumbFailed.value=new Set()
+  await lightbox.value?.open(id,type,name,gallery)
 }
-// 灯箱左右切换（循环）
-function previewStep(delta){const n=previewList.value.length;if(n<2)return;previewIndex.value=(previewIndex.value+delta+n)%n;previewError.value=false}
-// 灯箱主图加载失败：不再只是替换成占位图，而是给出可读的失败原因 + 下载兜底
-function onPreviewError(){previewError.value=true}
-// 缩略图失败：标记该文件不可用（用清晰文字块替代 7px 灰字的占位图）
-function markThumbFailed(id){thumbFailed.value=new Set([...thumbFailed.value,Number(id)])}
-function onPreviewKeydown(e){
-  if(!previewVisible.value)return
-  if(e.key==='ArrowRight'){previewStep(1)}else if(e.key==='ArrowLeft'){previewStep(-1)}
-}
-// 记录内全部附件进灯箱：图片/视频直接预览, 文档按种类预览(pdf/text)或下载兜底
-function previewableOf(r){return getFiles(r).map(f=>({id:f.id,type:f.type,label:f.label,tag:f.tag}))}
-// 【需求】文件下载(FEAT 0804):window.open 下载在新标签闪开/被拦截时表现为"没反应";
-// 改为 fetch blob + a.download 强制保存,任何浏览器/任何状态下可靠触发
-async function downloadFile(id, name) {
-  if (!id) return
-  await refreshDownloadToken()
-  await downloadFileUtil(fileUrl(id), { name: name || ('file-' + id), headers: { 'Authorization': 'Bearer ' + (getToken() || '') } })
-}
-function downloadPreview(){ const f=previewCurrent.value; if(f) downloadFile(f.id, f.label) }
-async function showDetail(c){
-  detailCust.value=c;detailVisible.value=true
-  detailKeyword.value='';detailOrder.value='desc' // 换客户详情即复位检索与方向(年月日由 recordsByMonth watcher 校准)
-  // 【2026-09-20】已读/未读与小程序同逻辑：不再打开即全标已读，
-  // 记录滚动进入视野时逐条标记（乐观更新+失败回滚），未读数实时反映在概览胶囊上
-  await nextTick()
-  dialPad()
-  alignDial('year', selYear.value); alignDial('month', String(selMonth.value)); alignDial('day', '0')
-  setupReadObserver()
-  setupPaneObserver()
-}
-const unreadCount = computed(() => (detailCust.value?.records || []).filter(r => r.unread).length)
+// 客户详情：设置当前客户并打开弹窗（弹窗内部自复位检索/拨盘/观察器）
+function showDetail(c){ detailCust.value=c; detailVisible.value=true }
 
-// 视野即读：IntersectionObserver 监听时间轴内每条记录，进入视野 40% 即调用已读接口
-let readObserver = null
-function setupReadObserver(){
-  destroyReadObserver()
-  const wrap = document.querySelector('.detail-dlg .dtl-pane')
-  if (!wrap || typeof IntersectionObserver === 'undefined') return
-  readObserver = new IntersectionObserver((entries) => {
-    for (const en of entries) {
-      if (!en.isIntersecting) continue
-      readObserver.unobserve(en.target)
-      markVisibleRead(Number(en.target.dataset.id))
-    }
-  }, { root: wrap, threshold: 0.4 })
-  wrap.querySelectorAll('.dtl-item[data-id]').forEach(el => readObserver.observe(el))
-}
-function destroyReadObserver(){ if (readObserver) { readObserver.disconnect(); readObserver = null } }
-function markVisibleRead(id){
-  const c = detailCust.value
-  const rec = c && (c.records || []).find(r => Number(r.id) === id)
-  if (!rec || !rec.unread) return
-  rec.unread = false                                  // 乐观更新（与小程序 markRead 同口径）
-  c.unread = (c.records || []).some(r => r.unread)
-  markIncentiveRead(id).catch(() => { rec.unread = true; c.unread = true })  // 失败回滚
-}
-
-function parseIds(v){if(!v)return[];if(typeof v==='number')return[v];try{const a=JSON.parse(v);return Array.isArray(a)?a.map(x=>Number(x)):[v]}catch{return String(v).split(',').map(s=>s.trim()).filter(Boolean)}}
-function splitNames(n){if(!n)return[];return String(n).split(',').map(s=>s.trim()).filter(Boolean)}
-function pushFiles(f, ids, names, tag){
-  const idList=parseIds(ids), nameList=splitNames(names)
-  idList.forEach((id,i)=>{f.push({id:Number(id),label:nameList[i]||'文件',type:detectType(nameList[i]||''),tag})})
-}
-function getFiles(r){
-  const f=[]
-  pushFiles(f, r.filePreId, r.filePreName, '安装前')
-  pushFiles(f, r.fileMidId, r.fileMidName, '安装中')
-  pushFiles(f, r.filePostId, r.filePostName, '安装后')
-  pushFiles(f, r.fileId, r.fileName, '')
-  pushFiles(f, r.fileTrackId, r.fileTrackName, '跟踪')
-  return f.filter(x => x.id)
-}
-function detectType(n){if(!n)return'doc';if(/\.(jpg|jpeg|png|gif|webp|bmp)$/i.test(n))return'image';if(/\.(mp4|mov|avi|webm)$/i.test(n))return'video';return'doc'}
-function getMain(r){const c=catMap.value[r.categoryId];if(!c)return'';if(c.parentId===0)return c.categoryName;const p=catMap.value[c.parentId];if(!p)return c.categoryName;const gp=catMap.value[p.parentId];return gp&&gp.parentId===0?gp.categoryName:p.categoryName}
-function getCls(r){const c=catMap.value[r.categoryId];if(!c)return'';if(c.parentId===0)return c.categoryCode||'';const p=catMap.value[c.parentId];if(!p)return'';const gp=catMap.value[p.parentId];return(gp&&gp.parentId===0?gp.categoryCode:p.categoryCode)||''}
-function scoreColor(c){return{visit:'#d97706',exchange:'#2563eb',plan:'#7c3aed',trial:'#059669'}[c]||'#303133'}
-// 文件槽位标签颜色（安装前蓝/安装中绿/安装后橙/跟踪紫）
-function tagColor(t){return{安装前:'#2563eb',安装中:'#059669',安装后:'#f59e0b',跟踪:'#7c3aed'}[t]||'#6b7280'}
-// 详情字段标签 = 子分类名 + 阶段词（与上传弹窗一致）
-function detailLabelOf(r){const code=getCls(r);const sub=r.categoryName||'';if(code==='plan')return sub+'文件详情描述';if(code==='visit'||code==='exchange')return sub+'详情描述';return sub+'安装详情'}
-// 是否产品试点记录（安装备注仅试点有）
-function isTrialRec(r){return (getCls(r)||'').startsWith('trial')}
-function fmtDt(t){if(!t)return'';const d=new Date(t);return d.getFullYear()+'-'+(d.getMonth()+1).toString().padStart(2,'0')+'-'+d.getDate().toString().padStart(2,'0')+' '+d.getHours().toString().padStart(2,'0')+':'+d.getMinutes().toString().padStart(2,'0')}
-// 详情左栏日期块：日(粗) + 时刻(灰) 分行显示
-function fmtDay(t){if(!t)return'';const d=new Date(t);return (d.getMonth()+1).toString().padStart(2,'0')+'月'+d.getDate().toString().padStart(2,'0')+'日'}
-function fmtTime(t){if(!t)return'';const d=new Date(t);return d.getHours().toString().padStart(2,'0')+':'+d.getMinutes().toString().padStart(2,'0')}
-
+// 【M6 2026-10-04】请求序号守卫：慢的旧响应后到不再覆盖新结果，loading 以最后一个请求结束为准
+let searchSeq = 0
 async function doSearch(){
   pageNum.value = 1
   const p={}
@@ -532,15 +178,21 @@ async function doSearch(){
   if(fDateRange.value?.length===2){p.startDate=fDateRange.value[0];p.endDate=fDateRange.value[1]}
   if(fOrgIds.value?.length){p.orgIds=fOrgIds.value.join(',')}
   if(fProdSub.value)p.product=fProdSub.value
+  const seq = ++searchSeq
   // 【2026-08-08 首次加载体验】加 loading 态，避免首次并发请求时误显示"暂无数据"
   loading.value = true
   if(scoreOrder.value)p.scoreOrder=scoreOrder.value
   try{
     const res=await request.get('/incentive/customer-records',{params:p})
+    if (seq !== searchSeq) return   // 已有更新的请求在途/完成，丢弃本次旧响应
     const rows=(res.data||[]).filter(c=>c.records?.length>0&&c.customerName)
     rows.forEach(c=>{c.isNew=(c.records||[]).some(r=>isCurrentMonth(r.createdAt));c.unread=(c.records||[]).some(r=>r.unread)})
     custs.value=sortByScore(rows,scoreOrder.value)
-  }catch(e){ElMessage.error('查询失败')}finally{loading.value=false}
+  }catch(e){
+    // 【D13 2026-10-04】失败由 request 拦截器统一提示，本地不再叠加笼统"查询失败"；保留旧数据
+  }finally{
+    if (seq === searchSeq) loading.value = false
+  }
 }
 function doReset(){fCustomer.value='';fSales.value='';fIndustry.value='';fDevType.value='';fDateRange.value=null;fOrgIds.value=[];fProdCat.value='';fProdSub.value='';scoreOrder.value='';doSearch()}
 async function loadCats(){try{const res=await cachedGet('categoryTree',getCategoryTree);const walk=l=>{l.forEach(c=>{catMap.value[c.id]=c;if(c.children)walk(c.children)})};walk(res.data||[])}catch(e){}}
@@ -551,204 +203,8 @@ async function loadOrgs(){try{const res=await cachedGet('depts',()=>request.get(
   const rootIds=new Set(filtered.map(d=>d.id))
   const fixed=filtered.map(d=>({...d,parentId:rootIds.has(d.parentId)?d.parentId:0}))
   orgTree.value=build(fixed)}catch(e){}}
-// 时间轴：记录按月倒序分组（展示口径，不改动接口返回顺序）
-// 【2026-09-20 详情工具条】记录检索 + 时间轴方向；打开新客户详情时自动复位
-const detailKeyword = ref('')
-const detailOrder = ref('desc')
-const filteredRecords = computed(() => filterRecordsByMonthSafe())
-const recordsByMonth=computed(()=>groupRecordsByMonth(filteredRecords.value, detailOrder.value))
-// 【2026-09-20 深夜】主从骨架状态: 左栏时间轴选中的月份 → 右栏只渲染该月内容
-const selYear = ref('')
-const selMonth = ref(1)  // 1-12, 拨盘位置(不要求该月有数据)
-const selDay = ref(0)     // 0 = 整月, 拨盘位置
-// 选中 = 拨盘位置: 年+月定位组, 无则 null(右栏出"此时间无数据"); 有则再按日过滤
-const monthKeyStr = computed(() => selYear.value + '-' + String(selMonth.value).padStart(2, '0'))
-const activeGroup = computed(() => recordsByMonth.value.find(g => g.key === monthKeyStr.value) || null)
-const displayItems = computed(() => {
-  const g = activeGroup.value
-  if (!g || !g.items || !g.items.length) return []
-  if (!selDay.value) return g.items
-  return g.items.filter(r => recDay(r) === selDay.value)
-})
-function monthUnread(g){ return (g.items || []).filter(r => r.unread).length }
-// 台账要有合计：书脊节点展示该月分值小计(结构装置编码真实信息)
-function monthScore(g){ return (g.items || []).reduce((s, r) => s + (Number(r.score) || 0), 0) }
-// 实时时间：每秒跳动的时钟(拨盘即实时日历, 年/月/日盘上标记今天)
-const now = ref(new Date())
-let nowTimer = null
-onMounted(() => { nowTimer = setInterval(() => { now.value = new Date() }, 1000) })
-onBeforeUnmount(() => clearInterval(nowTimer))
-const nowDateText = computed(() => { const d = now.value; return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0') + ' 周' + '日一二三四五六'[d.getDay()] })
-const nowTimeText = computed(() => now.value.toTimeString().slice(0, 8))
-const todayY = computed(() => String(now.value.getFullYear()))
-const todayM = computed(() => now.value.getMonth() + 1)
-const todayD = computed(() => now.value.getDate())
-function goToday(){ selYear.value = todayY.value; selMonth.value = todayM.value; selDay.value = todayD.value }
-// 三联拨盘数据：年列表 / 所选年的月份 / 所选月的可选日(0=整月)
-const wheelEl = ref(null)
-const dialEls = { year: ref(null), month: ref(null), day: ref(null) }
-const wheelGroups = computed(() => {
-  const out = []
-  for (const g of recordsByMonth.value) {
-    const m = /^(\d{4})年(.+)$/.exec(g.label || '')
-    const year = m ? m[1] : '其他'
-    let last = out[out.length - 1]
-    if (!last || last.year !== year) { last = { year, months: [] }; out.push(last) }
-    last.months.push(g)
-  }
-  return out
-})
-// 年份盘自增：从最早记录年份到当前系统年份连续生成(每年跨年自动多一年), 无数据年份置暗
-const dialYears = computed(() => {
-  const nowY = new Date().getFullYear()
-  const dataYears = wheelGroups.value.map(yg => Number(yg.year)).filter(y => !isNaN(y))
-  const min = dataYears.length ? Math.min(...dataYears, nowY) : nowY
-  const max = dataYears.length ? Math.max(...dataYears, nowY) : nowY
-  const out = []
-  for (let y = min; y <= max; y++) out.push(String(y))
-  return out
-})
-function dialYearHas(y){ return wheelGroups.value.some(yg => yg.year === y) }
-// 月盘展示全 12 个月(无数据的月份置灰不可选)——条目足够多, 拨盘才真正可拨动(iOS 同款)
-const dialMonths = computed(() => {
-  const yg = wheelGroups.value.find(y => y.year === selYear.value)
-  const map = new Map((yg?.months || []).map(g => [Number(monthShort(g).replace('月', '')), g]))
-  return Array.from({ length: 12 }, (_, i) => ({ m: i + 1, label: (i + 1) + '月', group: map.get(i + 1) || null }))
-})
-// 记录日期解析：兼容 "2026-08-15 10:30" / ISO "T" 分隔 / 时间戳三种格式
-function recDay(r){
-  const t = r?.createdAt
-  if (t == null) return NaN
-  const str = String(t).replace(/-/g, '/').replace('T', ' ')
-  const d = new Date(t instanceof Number ? t : (isNaN(Number(str)) ? str : Number(t)))
-  return d.getDate()
-}
-// 日历盘: 整月 + 该月 1..月末(按拨盘选中的年+月生成完整日历, 与是否有记录无关; 闰年由 Date 正确处理)
-const dialDays = computed(() => {
-  const y = Number(selYear.value), m = Number(selMonth.value)
-  if (!y || !m) return [{ d: 0, label: '整月', has: true }]
-  const total = new Date(y, m, 0).getDate()
-  const g = recordsByMonth.value.find(x => x.key === monthKeyStr.value)
-  const withData = new Set((g?.items || []).map(recDay).filter(d => !isNaN(d)))
-  return [{ d: 0, label: '整月', has: true },
-    ...Array.from({ length: total }, (_, i) => ({ d: i + 1, label: (i + 1) + '日', has: withData.has(i + 1) }))]
-})
-function monthShort(g){ const m = /^(\d{4})年(.+)$/.exec(g.label || ''); return m ? m[2] : g.label }
-// 拨盘视觉：条目随距中心距离缩放淡出(iOS 拨盘质感)
-const dialRaf = {}; const dialTimers = {}
-function styleDial(col){
-  const el = dialEls[col].value; if (!el) return
-  const b = el.getBoundingClientRect(); const cy = b.top + b.height / 2
-  el.querySelectorAll('.dtl-dial-item').forEach(it => {
-    if (it.classList.contains('dim') && !it.classList.contains('active')) { it.style.opacity = '.16'; it.style.transform = 'scale(.92)'; return }
-    const r = it.getBoundingClientRect()
-    const t = Math.max(0, 1 - Math.abs(r.top + r.height / 2 - cy) / 200)
-    it.style.opacity = (0.25 + 0.75 * t).toFixed(2)
-    it.style.transform = 'scale(' + (0.9 + 0.1 * t).toFixed(3) + ')'
-  })
-}
-// 居中填充: CSS 百分比竖向 padding 按宽度解析不可用, 按列高 JS 设置(首尾条目才能滚到中心)
-function dialPad(){
-  for (const col of ['year', 'month', 'day']) {
-    const el = dialEls[col].value; if (!el) continue
-    const pad = Math.max(0, el.clientHeight / 2 - 21)
-    el.style.paddingTop = pad + 'px'
-    el.style.paddingBottom = pad + 'px'
-  }
-}
-function centerKey(col){
-  const el = dialEls[col].value; if (!el) return null
-  const b = el.getBoundingClientRect(); const cy = b.top + b.height / 2
-  let best = null, bd = Infinity
-  el.querySelectorAll('.dtl-dial-item').forEach(it => {
-    const r = it.getBoundingClientRect()
-    const d = Math.abs(r.top + r.height / 2 - cy)
-    if (d < bd) { bd = d; best = it }
-  })
-  return best
-}
-// 停稳后取居中条目为选中值，并按列级联(年→月重排, 月→日重排)
-function onDialScroll(col){
-  if (!dialRaf[col]) dialRaf[col] = requestAnimationFrame(() => { dialRaf[col] = 0; styleDial(col) })
-  clearTimeout(dialTimers[col])
-  dialTimers[col] = setTimeout(() => {
-    if (Date.now() < dialFollowLock) return   // 内容跟随引起的程序滚动不改选中
-    dialTimers[col] = null
-    const el = centerKey(col)
-    if (!el) return
-    const k = el.dataset.key
-    if (col === 'year' && k !== selYear.value) { selYear.value = k; selDay.value = 0 }
-    else if (col === 'month' && Number(k) !== selMonth.value) { selMonth.value = Number(k); selDay.value = 0 }
-    else if (col === 'day' && Number(k) !== selDay.value) selDay.value = Number(k)
-  }, 150)
-}
-function dialPick(col, key){
-  if (col === 'year') { if (key !== selYear.value) { selYear.value = key; selDay.value = 0 } }
-  else if (col === 'month') { if (Number(key) !== selMonth.value) { selMonth.value = Number(key); selDay.value = 0 } }
-  else if (col === 'day') { selDay.value = Number(key) }
-}
-// 【双向跟随】右侧内容滚动 → 左侧"日"拨片自动对位到视野顶部记录的日期
-// 仅整月模式(selDay=0)下移动拨片视觉位置, 不改筛选; 手动拨日期才过滤
-let dialFollowLock = 0
-function followDialDay(day){
-  if (!day || isNaN(day) || selDay.value !== 0) return
-  const el = dialEls.day.value
-  const it = el?.querySelector('.dtl-dial-item[data-key="' + day + '"]')
-  if (!it) return
-  dialFollowLock = Date.now() + 450        // 程序滚动窗口期内, 拨盘停稳不改变选中
-  it.scrollIntoView({ block: 'center' })
-}
-let paneObserver = null
-function setupPaneObserver(){
-  destroyPaneObserver()
-  const pane = document.querySelector('.detail-dlg .dtl-pane')
-  if (!pane || typeof IntersectionObserver === 'undefined') return
-  paneObserver = new IntersectionObserver((entries) => {
-    const top = entries.filter(e => e.isIntersecting)
-      .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top)[0]
-    if (top) followDialDay(Number(top.target.dataset.day))
-  }, { root: pane, threshold: 0.2 })
-  pane.querySelectorAll('.dtl-item[data-day]').forEach(el => paneObserver.observe(el))
-}
-function destroyPaneObserver(){ if (paneObserver) { paneObserver.disconnect(); paneObserver = null } }
-onBeforeUnmount(destroyPaneObserver)
-// 选中值被外部改变(级联/重置/点选)后, 对应拨盘无动画对位并刷新视觉
-function alignDial(col, key){
-  nextTick(() => {
-    const el = dialEls[col].value
-    const it = el?.querySelector('.dtl-dial-item[data-key="' + key + '"]')
-    if (!it || !el) return
-    const r = it.getBoundingClientRect(), b = el.getBoundingClientRect()
-    if (Math.abs(r.top + r.height / 2 - (b.top + b.height / 2)) > 4) it.scrollIntoView({ block: 'center' })
-    styleDial(col)
-  })
-}
-watch(selYear, () => alignDial('year', selYear.value))
-watch(selMonth, () => { alignDial('month', String(selMonth.value)) })
-watch(selDay, () => alignDial('day', String(selDay.value)))
-onBeforeUnmount(() => Object.values(dialTimers).forEach(clearTimeout))
-// 月份列表变化(换客户/搜索/换向)时校准选中月份到首项
-watch(recordsByMonth, (list) => {
-  const first = list[0]
-  const ym = /^(\d{4})年(\d{1,2})月/.exec(first?.label || '')
-  selYear.value = ym ? ym[1] : String(new Date().getFullYear())
-  selMonth.value = ym ? Number(ym[2]) : new Date().getMonth() + 1
-  selDay.value = 0
-  nextTick(dialPad)
-  alignDial('year', selYear.value); alignDial('month', String(selMonth.value)); alignDial('day', '0')
-}, { immediate: true })
-// 搜索/换向会重建记录节点，需要重新挂监听；关弹窗/卸载时清理
-watch([detailKeyword, detailOrder, selYear, selMonth, selDay], () => { if (detailVisible.value) nextTick(() => { setupReadObserver(); setupPaneObserver() }) })
-watch(detailVisible, (v) => { if (!v) { destroyReadObserver(); destroyPaneObserver() } })
-onBeforeUnmount(destroyReadObserver)
-const recordTotal=computed(()=>detailCust.value?.records?.length||0)
-function filterRecordsByMonthSafe() {
-  const source = detailCust.value?.records || []
-  return filterRecordsByKeyword(source, detailKeyword.value)
-}
 
-onMounted(()=>{loadCats();loadUsers();loadOrgs();doSearch();window.addEventListener('keydown',onPreviewKeydown)})
-onBeforeUnmount(()=>window.removeEventListener('keydown',onPreviewKeydown))
+onMounted(()=>{loadCats();loadUsers();loadOrgs();doSearch()})
 </script>
 
 <style scoped>
@@ -806,209 +262,6 @@ onBeforeUnmount(()=>window.removeEventListener('keydown',onPreviewKeydown))
 .rec-tag-visit{background:#fef3c7;color:#b45309}.rec-tag-exchange{background:#dbeafe;color:#1e40af}
 .rec-tag-plan{background:#ede9fe;color:#6d28d9}.rec-tag-trial{background:#d1fae5;color:#065f46}
 
-.d-page{max-width:1000px;margin:0 auto;padding:40px 20px}
-.d-top{margin-bottom:40px}
-.d-back{font-size:14px;color:#999;cursor:pointer;display:inline-block;margin-bottom:16px}
-.d-back:hover{color:#555}
-.d-name{font-size:24px;font-weight:700;margin-bottom:4px}
-.d-subt{font-size:14px;color:#888}
-
-.d-list{position:relative;padding-left:140px}
-.d-list::before{content:'';position:absolute;left:8px;top:0;bottom:0;width:2px;background:#e8eaed}
-
-.d-node{position:relative;margin-bottom:40px}
-.d-node:last-child{margin-bottom:0}
-.d-node-left{position:absolute;left:-132px;top:0;width:120px;text-align:right}
-.d-node-dot{position:absolute;right:-16px;top:5px;width:10px;height:10px;border-radius:50%;background:#409eff;border:2px solid #fff;box-shadow:0 0 0 2px #409eff;z-index:1}
-.d-node-time{font-size:13px;color:#333;font-weight:500}
-
-.d-node-right{}
-.d-node-tags{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px;font-size:14px}
-.d-node-sub{color:#333;font-weight:600}
-.d-node-who{color:#999;font-size:13px}
-
-.d-node-imgs{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px}
-.d-node-img{position:relative;border-radius:8px;overflow:hidden;border:1px solid #eee}
-.d-node-img img{width:100%;height:220px;object-fit:cover;display:block;cursor:pointer}
-.d-node-vid{width:100%;height:220px;background:#111;display:flex;align-items:center;justify-content:center;color:#fff;font-size:28px;cursor:pointer}
-.d-node-doc{width:100%;height:220px;background:#fefce8;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#a16207;cursor:pointer;font-size:13px;text-align:center;padding:16px}
-.d-node-lbl{position:absolute;bottom:0;left:0;right:0;padding:4px 10px;background:rgba(0,0,0,.55);color:#fff;font-size:10px;font-weight:600;text-align:center}
-
-/* ===== 图片/视频灯箱预览（2026-09-13） ===== */
-.preview-dlg :deep(.el-dialog){background:transparent;box-shadow:none;border-radius:16px;overflow:hidden}
-.preview-dlg :deep(.el-dialog__header){display:none}
-.preview-dlg :deep(.el-dialog__body){padding:0}
-.pv-wrap{background:#0b1220;border-radius:16px;overflow:hidden;box-shadow:0 24px 60px rgba(0,0,0,.5)}
-.pv-bar{display:flex;align-items:center;gap:10px;padding:12px 16px;background:rgba(255,255,255,.06);
-  border-bottom:1px solid rgba(255,255,255,.08);color:#e5eaf3}
-.pv-name{font-size:14px;font-weight:600;max-width:46%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.pv-tag{font-size:11px;color:#9ec5ff;background:rgba(64,158,255,.18);border:1px solid rgba(64,158,255,.36);
-  border-radius:999px;padding:2px 10px;white-space:nowrap}
-.pv-count{font-size:12px;color:#8b97a8;font-variant-numeric:tabular-nums}
-.pv-spacer{flex:1}
-.pv-bar :deep(.el-button){background:rgba(255,255,255,.10);border-color:rgba(255,255,255,.16);color:#e5eaf3}
-.pv-bar :deep(.el-button:hover){background:rgba(64,158,255,.28);border-color:rgba(64,158,255,.45);color:#fff}
-.pv-stage{position:relative;display:flex;align-items:center;justify-content:center;min-height:420px;padding:16px}
-.pv-media{max-width:100%;max-height:74vh;border-radius:10px;background:#05070d;display:block}
-.pv-nav{position:absolute;top:50%;transform:translateY(-50%);width:44px;height:44px;border-radius:50%;border:none;
-  background:rgba(255,255,255,.12);color:#fff;font-size:20px;display:flex;align-items:center;justify-content:center;
-  cursor:pointer;transition:all .18s;backdrop-filter:blur(6px)}
-.pv-nav:hover{background:rgba(64,158,255,.85);transform:translateY(-50%) scale(1.06)}
-.pv-nav.prev{left:18px}
-.pv-nav.next{right:18px}
-.pv-thumbs{display:flex;gap:8px;padding:10px 16px 14px;overflow-x:auto;border-top:1px solid rgba(255,255,255,.08)}
-.pv-thumb{position:relative;width:76px;height:56px;flex-shrink:0;border-radius:8px;overflow:hidden;cursor:pointer;
-  border:2px solid transparent;background:rgba(255,255,255,.06);transition:all .15s}
-.pv-thumb:hover{border-color:rgba(64,158,255,.6)}
-.pv-thumb.active{border-color:#409eff;box-shadow:0 0 0 2px rgba(64,158,255,.28)}
-.pv-thumb img{width:100%;height:100%;object-fit:cover;display:block}
-.pv-thumb-vid{width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:#cfe2ff}
-.pv-thumb-na{width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:11px;color:#aab6c8;background:rgba(255,255,255,.06)}
-.pv-frame{width:86%;height:72vh;border:none;border-radius:10px;background:#fff;display:block}
-.pv-text{width:80%;height:72vh;overflow:auto;border-radius:10px;background:#fff;color:#1f2937;padding:28px 34px}
-.pv-text pre{margin:0;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:13.5px;line-height:1.8;white-space:pre-wrap;word-break:break-word}
-.pv-text-failed{color:#f56c6c;font-size:14px;text-align:center;padding-top:40vh;margin:-28px 0 0 -34px}
-.pv-thumb-doc{width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:#cfe2ff;background:rgba(255,255,255,.06)}
-.pv-missing{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;color:#c9d4e3;padding:60px 20px;text-align:center}
-.pv-missing-title{font-size:15px;font-weight:600;color:#e5eaf3}
-.pv-missing-hint{font-size:12px;color:#8b97a8;max-width:420px;line-height:1.7}
-.pv-thumb-tag{position:absolute;left:2px;bottom:2px;font-size:9px;color:#fff;background:rgba(0,0,0,.5);
-  border-radius:4px;padding:0 4px;line-height:14px}
-
-/* ===== 激励查询「查看详情」弹窗（2026-09-20 高级感重设计：灰画布 + 白浮层卡 + 静默元信息） ===== */
-.detail-dlg :deep(.el-dialog){border-radius:20px;overflow:hidden;box-shadow:0 24px 64px rgba(15,23,42,.22)}
-.detail-dlg :deep(.el-dialog__header){display:none}
-.detail-dlg :deep(.el-dialog__body){padding:0;background:#f5f7fa}
-.dtl-wrap{max-width:1280px;margin:0 auto;background:transparent;display:flex;flex-direction:column;max-height:92vh}
-
-/* 吸顶操作条 */
-.dtl-bar{position:sticky;top:0;z-index:6;display:flex;align-items:center;gap:12px;padding:12px 28px;
-  background:rgba(255,255,255,.94);backdrop-filter:blur(10px);border-bottom:1px solid #eef0f3}
-.dtl-back{font-size:13px;color:#4e5969;cursor:pointer;display:inline-flex;align-items:center;gap:4px;
-  padding:4px 10px;border-radius:8px;transition:all .15s;flex-shrink:0}
-.dtl-back:hover{color:#409eff;background:#ecf5ff}
-.dtl-bar-name{font-size:14px;font-weight:600;color:#1f2329;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.dtl-bar-meta{font-size:12px;color:#86909c;flex-shrink:0}
-.dtl-bar-pts{margin-left:auto;font-size:12px;color:#86909c;flex-shrink:0;
-  background:#f2f6ff;border-radius:999px;padding:3px 12px}
-.dtl-bar-pts b{font-size:15px;color:#409eff;margin-right:2px}
-
-/* 客户概览：白浮层卡，排版即层级 */
-.dtl-hero{display:flex;align-items:center;gap:18px;margin:0;padding:24px 28px 22px;
-  background:linear-gradient(118deg,#0d2352 0%,#153e8f 52%,#1d4ed8 100%);border-bottom:none}
-.dtl-avatar{width:58px;height:58px;border-radius:18px;flex-shrink:0;color:#fff;font-size:24px;font-weight:700;
-  display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.16);
-  border:1px solid rgba(255,255,255,.28);backdrop-filter:blur(6px)}
-.dtl-hero-main{flex:1;min-width:0}
-.dtl-hero-name{font-size:22px;font-weight:800;color:#fff;line-height:1.3;margin-bottom:9px;letter-spacing:-.2px;
-  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.dtl-hero-tags{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-.dtl-pill{font-size:12px;border-radius:999px;padding:3px 12px;border:none;white-space:nowrap}
-.dtl-pill.blue{color:#1d6fd0;background:#e8f2ff;border-color:transparent}
-.dtl-pill.green{color:#0d7a4a;background:#e7f8ef;border-color:transparent}
-.dtl-pill.grey{color:#6b7280;background:#f4f5f7;border-color:transparent}
-.dtl-pill.red{color:#e11d48;background:#ffe9ee;border-color:transparent}
-.dtl-hero .dtl-pill{background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.22)}
-.dtl-hero .dtl-pill.blue{color:#dbeafe;background:rgba(255,255,255,.14)}
-.dtl-hero .dtl-pill.grey{color:rgba(255,255,255,.82);background:rgba(255,255,255,.10)}
-/* 台账式概览合计：整页唯一的大胆元素(56px 超大分值)，副行静默退后 */
-.dtl-hero-score{margin-left:auto;flex-shrink:0;text-align:right;display:flex;flex-direction:column;align-items:flex-end}
-.dtl-score-line{display:flex;align-items:baseline;gap:5px}
-.dtl-score-big{font-size:54px;font-weight:800;color:#fff;line-height:1;letter-spacing:-1.5px;font-variant-numeric:tabular-nums;
-  text-shadow:0 2px 12px rgba(13,35,82,.35)}
-.dtl-score-unit{font-size:15px;font-weight:700;color:#f5b94b}
-.dtl-score-caption{font-size:11px;color:rgba(255,255,255,.72);margin-top:7px;letter-spacing:3px}
-.dtl-hero-sub{display:flex;gap:20px;margin-top:12px;font-size:12px;color:rgba(255,255,255,.68)}
-.dtl-hero-sub span{display:inline-flex;align-items:baseline;padding-left:12px;border-left:1px solid rgba(255,255,255,.18)}
-.dtl-hero-sub span:first-child{padding-left:0;border-left:none}
-.dtl-hero-sub b{font-size:15px;font-weight:700;color:#fff;margin-right:4px;font-variant-numeric:tabular-nums}
-.dtl-hero-sub .unread b,.dtl-hero-sub .unread{color:#f5b94b}
-
-/* 【2026-09-20】详情工具条：灰画布上的白色工具胶囊（搜索 + 时间方向切换 + 命中计数） */
-.dtl-toolbar{display:flex;align-items:center;gap:10px;margin:14px 20px 0;padding:10px 14px;flex-wrap:wrap;
-  background:#fff;border:1px solid #e5e9f0;border-radius:14px;
-  box-shadow:0 1px 2px rgba(16,24,40,.03),0 6px 18px rgba(16,24,40,.05)}
-.dtl-toolbar-search{width:280px}
-.dtl-toolbar-hit{font-size:12px;color:#6b7280;white-space:nowrap}
-/* 方向切换统一成分段控件（无描边软填充，选中深底白字），与整页"去线条"语言一致 */
-.dtl-toolbar :deep(.el-radio-button__inner){border:none!important;background:#f2f4f7;color:#4e5969;
-  box-shadow:none!important;font-weight:600;padding:4px 12px}
-.dtl-toolbar :deep(.el-radio-button__original-radio:checked + .el-radio-button__inner){background:#1f2329;color:#fff}
-.dtl-toolbar :deep(.el-radio-button:first-child .el-radio-button__inner){border-radius:8px 0 0 8px}
-.dtl-toolbar :deep(.el-radio-button:last-child .el-radio-button__inner){border-radius:0 8px 8px 0}
-
-/* 【2026-09-20 深夜】主从骨架：左月份时间轴导航(竖线+节点) + 右当前月份内容卡 */
-.dtl-body{display:grid;grid-template-columns:250px minmax(0,1fr);gap:14px;flex:1;min-height:0;
-  margin:14px 20px 0}
-/* iOS 日期选择器式三联拨盘(年/月/日)：三列各自吸附居中 + 贯通选中带 + 距离缩放淡出(JS 驱动) */
-.dtl-dial{position:relative;background:#fff;border:1px solid #e5e9f0;border-radius:14px;min-height:0;
-  box-shadow:0 1px 2px rgba(16,24,40,.03),0 6px 18px rgba(16,24,40,.05);display:flex;flex-direction:column;overflow:hidden}
-.dtl-dial-now{display:flex;align-items:baseline;gap:9px;padding:12px 14px 9px;border-bottom:1px solid #eef0f3;flex-shrink:0}
-.dtl-dial-now-date{font-size:12px;color:#6b7280;font-variant-numeric:tabular-nums}
-.dtl-dial-now-time{font-size:19px;font-weight:800;color:#1d4ed8;font-variant-numeric:tabular-nums;letter-spacing:.5px;line-height:1}
-.dtl-dial-today{margin-left:auto;font-size:11px;font-weight:600;color:#2563eb;cursor:pointer;padding:3px 9px;
-  border-radius:999px;background:#eff4fe;transition:background .15s}
-.dtl-dial-today:hover{background:#dbe6fb}
-.dtl-dial-cols{position:relative;display:flex;gap:2px;padding:8px 4px;flex:1;min-height:0}
-.dtl-dial-band{position:absolute;left:10px;right:10px;top:50%;height:42px;transform:translateY(-50%);
-  background:#eaf1fe;border:1px solid #dbe6fb;border-radius:12px;pointer-events:none;z-index:0}
-.dtl-dial-col{flex:1;min-width:0;display:flex;flex-direction:column}
-.dtl-dial-scroll{flex:1;overflow-y:auto;scroll-snap-type:y mandatory;overscroll-behavior:contain;
-  padding:0;scrollbar-width:none;position:relative;z-index:1;text-align:center}
-.dtl-dial-scroll::-webkit-scrollbar{display:none}
-.dtl-dial-item{position:relative;height:42px;scroll-snap-align:center;display:flex;align-items:center;justify-content:center;gap:4px;
-  cursor:pointer;opacity:.25;transform:scale(.9);transition:opacity .15s,transform .15s;
-  font-size:15px;font-weight:700;color:#111827;font-variant-numeric:tabular-nums}
-.dtl-dial-item.today::after{content:'';position:absolute;bottom:5px;left:50%;transform:translateX(-50%);
-  width:4px;height:4px;border-radius:50%;background:#2563eb}
-.dtl-dial-item.active{font-weight:800;color:#153e8f}
-.dtl-dial-item:hover{color:#1d4ed8}
-.dtl-dial-item.dim{opacity:.16}
-.dtl-pane-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;
-  padding:70px 0;color:#8a94a3}
-.dtl-pane-empty-title{font-size:15px;font-weight:600;color:#6b7280}
-.dtl-pane-empty-hint{font-size:12px;color:#9ca3af}
-.w-dot{width:5px;height:5px;border-radius:50%;background:#e11d48;flex-shrink:0}
-.dtl-pane{overflow-y:auto;padding:0 6px 6px}
-.dtl-pane::-webkit-scrollbar{width:6px}
-.dtl-pane::-webkit-scrollbar-thumb{background:#d3d9e2;border-radius:999px}
-.dtl-pane::-webkit-scrollbar-track{background:transparent}
-.dtl-pane-head{display:flex;align-items:baseline;gap:10px;padding:8px 6px 14px}
-.dtl-pane::-webkit-scrollbar{width:6px}
-.dtl-pane::-webkit-scrollbar-thumb{background:#d3d9e2;border-radius:999px}
-.dtl-pane::-webkit-scrollbar-track{background:transparent}
-
-.dtl-month-label{font-size:16px;font-weight:800;color:#111827;background:transparent;border-radius:0;padding:0;letter-spacing:.2px}
-.dtl-month-count{font-size:12px;color:#6b7280}
-.dtl-item{position:relative;margin-bottom:14px}
-.dtl-item:last-child{margin-bottom:4px}
-/* 【2026-09-20 深夜V】每个元素独立成块：信息瓦片网格 + 宽块，整条记录一张独立定义卡 */
-.dtl-ecard{background:#fff;border:1px solid #e5e9f0;border-radius:16px;padding:22px 24px;
-  box-shadow:0 1px 2px rgba(16,24,40,.03),0 6px 18px rgba(16,24,40,.05);
-  display:flex;flex-direction:column;gap:16px}
-/* 一行紧凑元信息条：标签灰小字内联, 值深色; 时间/得分加重, 未读红点 */
-.dtl-metabar{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 20px;padding:2px 2px 0}
-.dtl-meta{display:inline-flex;align-items:baseline;gap:5px;font-size:13px;font-weight:600;color:#1f2937;white-space:nowrap}
-.dtl-meta em{font-style:normal;font-size:11px;font-weight:500;color:#8a94a3;letter-spacing:.5px}
-.dtl-meta.time{font-size:16px;font-weight:800;color:#1d4ed8;font-variant-numeric:tabular-nums;letter-spacing:.2px}
-.dtl-meta.time em{font-weight:500;color:#8a94a3;margin-left:2px}
-.dtl-meta.stage em{font-weight:600;color:#6b7280}
-.dtl-score{font-size:15.5px;font-weight:800;font-variant-numeric:tabular-nums;letter-spacing:-.2px}
-.dtl-stage-dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;flex-shrink:0;align-self:center}
-.dtl-udot{display:inline-block;width:7px;height:7px;border-radius:50%;background:#e11d48;
-  box-shadow:0 0 0 3px rgba(225,29,72,.12);margin-right:6px;align-self:center;flex-shrink:0}
-.dtl-eblock{background:#f8fafd;border:1px solid #edf1f7;border-radius:12px;padding:15px 20px}
-.dtl-eblock.remark{background:#fffaf2;border-color:#f3e4c8}
-.dtl-eblock-label{font-size:12px;font-weight:600;color:#4b5563;margin-bottom:6px;letter-spacing:1px}
-.dtl-eblock.remark .dtl-eblock-label{color:#a16207}
-.dtl-eblock-text{font-size:15px;color:#111827;line-height:1.9;white-space:pre-wrap;word-break:break-word}
-@media (max-width: 760px){
-  .dtl-body{grid-template-columns:1fr}
-  .dtl-dial{max-height:230px}
-}
-
-
-
 /* 底部翻页区：计数在左、分页器在右，窄屏自动换行（与 reminder 的 .rem-pager 同口径）
    2026-09-13 修复：本轮给分页器补了「每页条数」下拉与跳页输入（layout 变宽）时，
    误删了 .search-pager / .search-pager-count 两条样式 ⇒ 容器退化成 block、无内边距，
@@ -1018,31 +271,4 @@ onBeforeUnmount(()=>window.removeEventListener('keydown',onPreviewKeydown))
 .search-pager-count{font-size:13px;color:#606266;white-space:nowrap;margin-right:auto}
 .search-pager-count b{color:#409eff;font-weight:700;margin:0 2px}
 .search-pager .el-pagination{flex-shrink:0}
-
-/* 附件网格：16:9 瓦片压缩高度，避免失败占位时空洞感；网格保底一行的 */
-.dtl-files{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px}
-.files-block{padding:16px 20px}
-.dtl-file{min-width:0}
-.dtl-file-meta{display:flex;align-items:center;gap:8px;margin-top:6px}
-.dtl-img-wrap{position:relative;border-radius:14px;overflow:hidden;background:#f2f4f8}
-.dtl-file img{width:100%;aspect-ratio:3/2;object-fit:cover;cursor:pointer;display:block;transition:transform .25s}
-.dtl-file img:hover{transform:scale(1.03)}
-.dtl-file-tag{position:absolute;top:8px;left:8px;font-size:11px;font-weight:600;background:rgba(255,255,255,.94);
-  padding:2px 8px;border-radius:999px;border:1px solid transparent;white-space:nowrap;z-index:1}
-.dtl-file-tag.inline{position:static;background:#fff;flex-shrink:0}
-.dtl-file-vid{display:flex;flex-direction:column}
-.dtl-file-vid video{width:100%;aspect-ratio:3/2;border-radius:12px;background:#0b1020;display:block;object-fit:cover}
-.dtl-file-doc{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;
-  aspect-ratio:3/2;padding:12px;border:none;border-radius:12px;background:#f7f8fa;
-  color:#646a73;font-size:13px;text-align:center;cursor:pointer;transition:all .15s}
-.dtl-file-doc:hover{background:#e8f2ff;color:#1d6fd0}
-.dtl-file-doc .dtl-file-tag.inline{position:absolute;top:8px;left:8px}
-.doc-label{color:#1f2329;font-weight:500;font-size:13px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.dtl-file-acts{position:absolute;top:8px;right:8px;display:flex;gap:6px;opacity:0;transition:opacity .2s;z-index:2}
-.dtl-img-wrap:hover .dtl-file-acts{opacity:1}
-
-/* 底部操作条：画布上透明收尾 */
-.dtl-footer{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:14px 20px 16px;
-  padding:10px 6px 0;background:transparent;border-top:1px solid #e2e8f0}
-.dtl-footer-hint{font-size:12px;color:#6b7280}
 </style>

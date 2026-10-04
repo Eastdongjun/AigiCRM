@@ -71,6 +71,16 @@ Page({
     this.setData({ id: options.id || '', canEdit: getApp().globalData.demoMode || hasPermission('customer:edit') }, () => this.refreshFinanceListView())
     this.load()
   },
+
+  /** 【M14 2026-10-04】从开票/回款表单返回时刷新列表(此前保存返回后列表不刷新)。
+   *  对齐 customer/index.js 既有 onShow 模式：首次 onShow 跳过(onLoad 已加载)，加载中不重复请求。 */
+  onShow() {
+    if (!this.didInitialShow) {
+      this.didInitialShow = true
+      return
+    }
+    if (!this.data.loading) this.load()
+  },
   refreshFinanceListView() {
     this.setData({ financeListView: buildFinanceListView(this.data) })
   },

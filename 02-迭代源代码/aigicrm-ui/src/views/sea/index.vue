@@ -155,7 +155,9 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted, onBeforeUnmount, nextTick } from 'vue'
+// 【D5 2026-10-04】脚本按全项目常规多行风格展开（此前多语句挤单行、空 catch 无注释），
+// 逻辑与展开前完全一致；空 catch 统一标注「错误已由 request 拦截器提示」（对齐 customer/ImportDialog 风格）
+import { ref, reactive, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Upload, Right, Clock, CircleCheck, Document, Tickets } from '@element-plus/icons-vue'
@@ -165,26 +167,70 @@ import { getDictData, getScopeDepts } from '@/api/system'
 import { submitApproval } from '@/api/approval'
 import { useUserStore } from '@/store/user'
 import { pageSizes } from '@/utils/pagination'
+// 【D6 2026-10-04】表格高度统一走共享 composable（替代本页内联的 ResizeObserver 实现）
+import { useTableHeight } from './useTableHeight'
 
-const router = useRouter(); const userStore = useUserStore()
+const router = useRouter()
+const userStore = useUserStore()
 const canImport = computed(() => userStore.hasPermission('sea:import'))
 const emptyTableText = computed(() => pools.value.length
   ? '暂无符合条件的公海客户'
   : '当前账号暂无可见公海池，请联系管理员检查数据范围')
 
-const showImportDialog = ref(false); const importFile = ref(null); const importLoading = ref(false); const importResult = ref(null); const uploadRef = ref(null)
+// ---- 批量导入弹窗 ----
+const showImportDialog = ref(false)
+const importFile = ref(null)
+const importLoading = ref(false)
+const importResult = ref(null)
+const uploadRef = ref(null)
 const handleFileChange = (file) => { importFile.value = file.raw }
 const handleExceed = () => { ElMessage.warning('只能上传一个文件') }
-const handleDownloadTemplate = async () => { try { await downloadImportTemplate(); ElMessage.success('模板下载成功') } catch(e) { ElMessage.error('模板下载失败') } }
-const handleImport = async () => { if(!importFile.value) return; importLoading.value=true; importResult.value=null; try { const res=await importSeaCustomers(importFile.value); importResult.value=res.data; if(res.data.successCount>0){loadData();loadStats()} } catch(e) {} finally { importLoading.value=false } }
-const closeImportDialog = () => { importFile.value=null; importResult.value=null; if(uploadRef.value) uploadRef.value.clearFiles() }
+const handleDownloadTemplate = async () => {
+  try {
+    await downloadImportTemplate()
+    ElMessage.success('模板下载成功')
+  } catch (e) {
+    ElMessage.error('模板下载失败')
+  }
+}
+const handleImport = async () => {
+  if (!importFile.value) return
+  importLoading.value = true
+  importResult.value = null
+  try {
+    const res = await importSeaCustomers(importFile.value)
+    importResult.value = res.data
+    if (res.data.successCount > 0) {
+      loadData()
+      loadStats()
+    }
+  } catch (e) {
+    // 错误已由 request 拦截器提示
+  } finally {
+    importLoading.value = false
+  }
+}
+const closeImportDialog = () => {
+  importFile.value = null
+  importResult.value = null
+  if (uploadRef.value) uploadRef.value.clearFiles()
+}
 
-const tableData = ref([]); const total = ref(0); const stats = ref({}); const pools = ref([]); const selectedPool = ref(null); const statusFilter = ref(''); const industryOptions = ref([]); const deptTree = ref([])
-const listLoading = ref(false); const claimingId = ref(null)
-const query = reactive({ current:1, size:15, industry:'', enterReason:'', keyword:'', deptId:null })
+// ---- 列表与筛选 ----
+const tableData = ref([])
+const total = ref(0)
+const stats = ref({})
+const pools = ref([])
+const selectedPool = ref(null)
+const statusFilter = ref('')
+const industryOptions = ref([])
+const deptTree = ref([])
+const listLoading = ref(false)
+const claimingId = ref(null)
+const query = reactive({ current: 1, size: 15, industry: '', enterReason: '', keyword: '', deptId: null })
 const currentPool = computed(() => pools.value.find(p => p.id === selectedPool.value))
 const hasFilters = computed(() => Boolean(selectedPool.value || statusFilter.value || query.industry || query.enterReason || query.keyword || query.deptId))
-const setStatus = (s) => { statusFilter.value=s; query.current=1; loadData() }
+const setStatus = (s) => { statusFilter.value = s; query.current = 1; loadData() }
 const clearPool = () => { selectedPool.value = null; search() }
 const resetFilters = () => {
   selectedPool.value = null
@@ -199,21 +245,45 @@ const resetFilters = () => {
 
 const loadData = async () => {
   listLoading.value = true
-  try { const res=await getSeaList({...query, poolId:selectedPool.value||undefined, status:statusFilter.value||undefined}); tableData.value=res.data?.records||[]; total.value=res.data?.total||0 } catch(e) {
-  } finally { listLoading.value = false }
+  try {
+    const res = await getSeaList({ ...query, poolId: selectedPool.value || undefined, status: statusFilter.value || undefined })
+    tableData.value = res.data?.records || []
+    total.value = res.data?.total || 0
+  } catch (e) {
+    // 错误已由 request 拦截器提示
+  } finally {
+    listLoading.value = false
+  }
 }
 // 筛选变化回到第 1 页（分页 @change 仍用 loadData 保持当前页）
 const search = () => { query.current = 1; loadData() }
-const loadStats = async () => { try { const res=await getSeaStatistics(); stats.value=res.data||{} } catch(e) {} }
-const loadPools = async () => { try { const res=await getVisibleSeaConfigs(); pools.value=res.data||[] } catch(e) {} }
+const loadStats = async () => {
+  try {
+    const res = await getSeaStatistics()
+    stats.value = res.data || {}
+  } catch (e) {
+    // 错误已由 request 拦截器提示
+  }
+}
+const loadPools = async () => {
+  try {
+    const res = await getVisibleSeaConfigs()
+    pools.value = res.data || []
+  } catch (e) {
+    // 错误已由 request 拦截器提示
+  }
+}
 
 const handleClaim = async (row) => {
   try {
-    await ElMessageBox.confirm(`确定捞取「${row.customerName}」？将发起审批申请`,'捞取确认')
+    await ElMessageBox.confirm(`确定捞取「${row.customerName}」？将发起审批申请`, '捞取确认')
     claimingId.value = row.id
-    await submitApproval({type:'claim',customerId:String(row.customerId),actionAfterApprove:'客户归属→本人'})
-    ElMessage.success('捞取申请已提交'); loadData(); loadStats(); userStore.refreshBadges()
-  } catch(e) {
+    await submitApproval({ type: 'claim', customerId: String(row.customerId), actionAfterApprove: '客户归属→本人' })
+    ElMessage.success('捞取申请已提交')
+    loadData()
+    loadStats()
+    userStore.refreshBadges()
+  } catch (e) {
     // 【修复 2026-08-09 B5】区分用户取消与后端 403/失败,不再静默吞错
     if (e !== 'cancel' && e !== 'close') {
       ElMessage.error(e?.response?.data?.message || e?.message || '捞取失败')
@@ -223,24 +293,49 @@ const handleClaim = async (row) => {
   }
 }
 const handleEdit = (row) => router.push(`/customer/edit/${row.customerId}?from=sea`)
-const handleDelete = async (row) => { try { await ElMessageBox.confirm(`确定删除「${row.customerName}」？不可恢复。`,'删除确认',{type:'warning'}); await deleteSeaPool(row.id); ElMessage.success('已删除'); loadData(); loadStats() } catch(e) {} }
+const handleDelete = async (row) => {
+  try {
+    await ElMessageBox.confirm(`确定删除「${row.customerName}」？不可恢复。`, '删除确认', { type: 'warning' })
+    await deleteSeaPool(row.id)
+    ElMessage.success('已删除')
+    loadData()
+    loadStats()
+  } catch (e) {
+    // 用户取消（cancel/close）静默；其余错误已由 request 拦截器提示
+  }
+}
 
-const getDays = (row) => { if(!row.enterDate) return 0; return Math.floor((new Date()-new Date(row.enterDate))/(86400000)) }
+const getDays = (row) => {
+  if (!row.enterDate) return 0
+  return Math.floor((new Date() - new Date(row.enterDate)) / 86400000)
+}
 // 入池天数分档着色：>30 天红、>14 天橙、其余中性
-const daysTone = (row) => { const d = getDays(row); return d > 30 ? 'over' : d > 14 ? 'warn' : '' }
-const getReasonText = (r) => ({protection_expired:'保护期满',abandoned:'放弃客户',resignation:'离职交接'}[r]||r)
-const getStatusText = (s) => ({available:'待捞取',pending_approval:'审批中',claimed:'已捞取'}[s]||s)
-const getStatusType = (s) => ({available:'primary',pending_approval:'warning',claimed:'success'}[s]||'info')
+const daysTone = (row) => {
+  const d = getDays(row)
+  return d > 30 ? 'over' : d > 14 ? 'warn' : ''
+}
+const getReasonText = (r) => ({ protection_expired: '保护期满', abandoned: '放弃客户', resignation: '离职交接' }[r] || r)
+const getStatusText = (s) => ({ available: '待捞取', pending_approval: '审批中', claimed: '已捞取' }[s] || s)
+const getStatusType = (s) => ({ available: 'primary', pending_approval: 'warning', claimed: 'success' }[s] || 'info')
 
-const tableWrapRef = ref(null); const tableHeight = ref(300); let resizeObserver = null
-const updateTableHeight = () => { if(tableWrapRef.value) tableHeight.value = tableWrapRef.value.clientHeight }
+// 【D6 2026-10-04】表格高度：与 records.vue 共用 useTableHeight（容器实测 + ResizeObserver）
+const { tableWrapRef, tableHeight } = useTableHeight()
+
 onMounted(async () => {
-  loadPools(); loadData(); loadStats()
-  try { const res=await getScopeDepts(); deptTree.value=res.data||[] } catch(e) {}
-  try { const res=await getDictData('industry'); industryOptions.value=(res.data||[]).map(d=>d.dictValue) } catch(e) { industryOptions.value=['煤矿','化工','电力','洗煤厂','有色'] }
-  nextTick(updateTableHeight); if(tableWrapRef.value) { resizeObserver=new ResizeObserver(updateTableHeight); resizeObserver.observe(tableWrapRef.value) }
+  loadPools()
+  loadData()
+  loadStats()
+  try {
+    const res = await getScopeDepts()
+    deptTree.value = res.data || []
+  } catch (e) {
+    // 错误已由 request 拦截器提示
+  }
+  try {
+    const res = await getDictData('industry')
+    industryOptions.value = (res.data || []).map(d => d.dictValue)
+  } catch (e) { industryOptions.value = ['煤矿', '化工', '电力', '洗煤厂', '有色'] }
 })
-onBeforeUnmount(() => { if(resizeObserver) resizeObserver.disconnect() })
 </script>
 
 <style scoped>

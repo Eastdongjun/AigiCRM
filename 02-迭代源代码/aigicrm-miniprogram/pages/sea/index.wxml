@@ -12,7 +12,7 @@
     <view wx:for="{{seaView.statsCards}}" wx:key="key" class="card"><view class="num">{{item.valueText}}</view><view class="muted">{{item.label}}</view></view>
   </view>
   <view class="search-bar">
-    <input class="search-input" placeholder="搜索客户名称" confirm-type="search" bindconfirm="search" />
+    <input class="search-input" placeholder="搜索客户名称" value="{{keyword}}" bindinput="onKeywordInput" confirm-type="search" bindconfirm="search" />
     <button class="sea-search-action" bindtap="loadRecords">搜索</button>
   </view>
   <view class="tabs">

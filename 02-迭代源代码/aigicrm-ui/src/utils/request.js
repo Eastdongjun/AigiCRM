@@ -44,7 +44,12 @@ request.interceptors.request.use(
 // 响应拦截器
 request.interceptors.response.use(
   response => {
-    sessionExpiredHandled = false // 有成功响应说明会话正常，重置标记
+    // 【C2 2026-10-04】成功响应不再无条件重置 401 去重标记：
+    // 过期临界窗口内，过期前发出、服务端在过期前已处理完的在途 200，其响应可能
+    // 晚于同一批请求的 401 到达——无条件重置会让去重护栏失效，同批后续 401 再次
+    // 触发多条「登录已过期」通知/跳转。仅当本地重新持有有效 token（用户已重新
+    // 登录）时才重置，重新武装护栏，保留下一次会话过期仍能正常提示。
+    if (sessionExpiredHandled && isTokenValid()) sessionExpiredHandled = false
     const res = response.data
     if (res.code !== 200) {
       // 登录接口的 401 是密码错误，不是会话过期
@@ -71,7 +76,8 @@ request.interceptors.response.use(
       400: '请求参数有误',
       403: '没有操作权限',
       404: '请求的接口不存在',
-      413: '文件过大，超出上传限制（最大 500MB）',
+      // 【D21】413 上限由 nginx 配置决定，不在前端硬编码具体数字（与 download.js 口径统一）
+      413: '文件过大，超出上传限制',
       429: '操作太频繁，请稍后再试',
       500: '服务器繁忙，请稍后再试',
       502: '服务暂时不可用，请稍后再试',

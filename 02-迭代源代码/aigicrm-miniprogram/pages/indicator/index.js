@@ -6,6 +6,10 @@ function normalizeNumber(value) {
   return Number(value || 0)
 }
 
+// 【D32 2026-10-04】指标满分口径: 客情分(0-3) + 四项核心指标(各 0-3) 共 5 项合计 15 分,
+// 后端 StatisticsQueryService#indicatorScore 即这 5 项求和; 与 PC 客户详情「总分 x / 15」同口径
+const INDICATOR_FULL_SCORE = 15
+
 function buildIndicatorView(state = {}) {
   const stats = state.stats || {}
   const ranking = (state.ranking || []).map((item, index) => ({
@@ -21,7 +25,7 @@ function buildIndicatorView(state = {}) {
     metrics: [
       { label: '覆盖客户', value: normalizeNumber(stats.coveredCount), className: 'metric-value' },
       { label: '核心客户', value: normalizeNumber(stats.coreCount), className: 'metric-value success' },
-      { label: '平均分', value: `${normalizeNumber(stats.avgScore)} / 15`, className: 'metric-value' },
+      { label: '平均分', value: `${normalizeNumber(stats.avgScore)} / ${INDICATOR_FULL_SCORE}`, className: 'metric-value' },
       { label: '财务达标率', value: `${normalizeNumber(stats.qualifyRate)}%`, className: 'metric-value' }
     ],
     ranking,
@@ -52,7 +56,8 @@ Page({
   },
 
   onShow() {
-    // Refresh after returning from group/context changes without duplicating the initial load.
+    // 【D33 2026-10-04】回流刷新: 从客户详情等页面修改核心指标后返回时保持最新;
+    // 首次进入由 onLoad 负责首拉(stats 仍为空时跳过, 避免与 onLoad 重复加载)
     if (!getApp().globalData.demoMode && Object.keys(this.data.stats || {}).length > 0) this.loadStats()
   },
 

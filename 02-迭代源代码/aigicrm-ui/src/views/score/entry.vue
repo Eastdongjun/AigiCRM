@@ -73,7 +73,8 @@
               </td>
               <td class="col-prod">
                 <el-select v-model="item.product" size="small" :disabled="!isAdmin" placeholder="选择产品">
-                  <el-option v-for="p in allProductOptions" :key="p.dictLabel" :label="p.dictLabel" :value="p.dictLabel" />
+                  <!-- 2026-10-04 D14：产品下拉接线按大类联动过滤（原 getProductOptions 定义后从未接线） -->
+                  <el-option v-for="p in getProductOptions(item.category)" :key="p.dictLabel" :label="p.dictLabel" :value="p.dictLabel" />
                 </el-select>
               </td>
               <td class="col-range">
@@ -136,20 +137,34 @@ const hiddenUsers = computed(() => userPool.value.filter(u => !visibleUsers.valu
 const categoryOptions = ref([]), productOptions = ref([]), rangeOptions = ref([])
 const maxRange = computed(() => Math.max(...items.value.map(i => i.scoreMax || 5), 5))
 
+// 【D13 2026-10-04】错误处理统一口径：request 拦截器已对所有非 silent 请求弹全局错误提示，
+// 本地不再叠加笼统文案（如"查询失败/保存失败"），catch 仅用于阻断后续流程；确认框取消与接口失败分开处理。
 const loadDicts = async () => { try { categoryOptions.value = (await getDictData('score_category')).data||[] } catch{}; try { productOptions.value = (await getDictData('score_product')).data||[] } catch{}; try { rangeOptions.value = (await getDictData('score_range')).data||[] } catch{} }
-const allProductOptions = computed(() => productOptions.value)
-const getProductOptions = (catCode) => catCode ? productOptions.value.filter(p => p.dictValue === catCode) : productOptions.value
+// 【D14 2026-10-04】按大类联动过滤产品下拉：score_product 字典项的 dictValue 存所属大类码时生效；
+// 若线上字典未按该口径维护（过滤结果为空），回退展示全部产品，避免空下拉卡死录入。
+const getProductOptions = (catCode) => {
+  if (!catCode) return productOptions.value
+  const filtered = productOptions.value.filter(p => p.dictValue === catCode)
+  return filtered.length ? filtered : productOptions.value
+}
 const onCategoryChange = (item) => { item.product = '' }
 const onRangeChange = async (item, val) => { const p=val.split('-'); item.scoreMin=parseInt(p[0])||0; item.scoreMax=parseInt(p[1])||5; if(item.id) try{await updateScoreItem(item.id,{scoreMin:item.scoreMin,scoreMax:item.scoreMax})}catch{} }
 
 const loadGrid = async () => { try { const d=(await getScoreGrid(period.value)).data||{}; items.value=d.items||[]; userPool.value=d.pool||[]; visibleUsers.value=d.users||[]; scores.value=d.scores||{} } catch{} }
-const getScore = (itemId, userId) => scores.value[itemId+'_'+userId] || ''
+// 【L3 2026-10-04】0 分是合法得分：用 ?? 区分"未评分(undefined/null)"与"0 分"，原 || 会把 0 显示成空
+const getScore = (itemId, userId) => scores.value[itemId+'_'+userId] ?? ''
 const setScore = (itemId, userId, event) => { const v=parseInt(event.target.value)||0; const item=items.value.find(i=>i.id===itemId); const mx=item?.scoreMax||5; const mn=item?.scoreMin||0; event.target.value=Math.max(mn,Math.min(mx,v)); scores.value[itemId+'_'+userId]=Math.max(mn,Math.min(mx,v)) }
 const getUserTotal = (userId) => { let s=0; for(const item of items.value) s+=scores.value[item.id+'_'+userId]||0; return s }
 
-const handleSave = async () => { saving.value=true; try { const entries=[]; for(const item of items.value) for(const u of visibleUsers.value) { const s=scores.value[item.id+'_'+u.id]; if(s!==undefined&&s!==''&&s!==null) entries.push({itemId:item.id,userId:u.id,score:s}) }; await batchSaveEntries({period:period.value,entries,participantIds:visibleUsers.value.map(u=>u.id)}); ElMessage.success('保存成功') } catch{ElMessage.error('保存失败')}; saving.value=false }
+// 保存失败由拦截器统一提示具体原因，本地不再弹笼统"保存失败"造成双重提示
+const handleSave = async () => { saving.value=true; try { const entries=[]; for(const item of items.value) for(const u of visibleUsers.value) { const s=scores.value[item.id+'_'+u.id]; if(s!==undefined&&s!==''&&s!==null) entries.push({itemId:item.id,userId:u.id,score:s}) }; await batchSaveEntries({period:period.value,entries,participantIds:visibleUsers.value.map(u=>u.id)}); ElMessage.success('保存成功') } catch{}; saving.value=false }
 const handleAddRow = async () => { try { const r=await addScoreItem({category:'',product:'',scoreMin:0,scoreMax:5}); if(r.data) items.value.push(r.data); ElMessage.success('已添加') } catch{} }
-const handleDeleteRow = async (item, idx) => { try { await ElMessageBox.confirm('确定删除？所有周期数据一并删除。','提示',{type:'warning'}); await deleteScoreItem(item.id); items.value.splice(idx,1); ElMessage.success('已删除') } catch{} }
+// 删除行：确认框取消 → 直接返回不动数据；接口失败 → 拦截器已提示，本地不再叠加（行不删除）
+const handleDeleteRow = async (item, idx) => {
+  try { await ElMessageBox.confirm('确定删除？所有周期数据一并删除。','提示',{type:'warning'}) } catch { return }
+  try { await deleteScoreItem(item.id) } catch { return }
+  items.value.splice(idx,1); ElMessage.success('已删除')
+}
 const handleRemoveUser = (user) => { visibleUsers.value = visibleUsers.value.filter(u => u.id !== user.id) }
 const handleAddUser = (user) => { if(!visibleUsers.value.some(u=>u.id===user.id)) visibleUsers.value=[...visibleUsers.value,{id:user.id,realName:user.realName}] }
 // 【需求】导出(FEAT 0804):window.open 被拦截时"没反应",改 fetch blob + a.download 强制下载

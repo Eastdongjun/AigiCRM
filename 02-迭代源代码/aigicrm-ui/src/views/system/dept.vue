@@ -136,12 +136,15 @@ const loadData = async () => {
     const res = await getDeptTree()
     deptTree.value = res.data || []
     // 加载管理员计数
-    for (const node of flattenTree(deptTree.value)) {
+    // 【性能 2026-10-04】各组织的管理员数互不依赖，串行 for 改为 Promise.all 并发（参照 reminder 页 2026-08-08 改法）；
+    // 单组织失败记 0，不影响其余组织
+    const nodes = flattenTree(deptTree.value)
+    await Promise.all(nodes.map(async (node) => {
       try {
         const r = await getDeptAdmins(node.id)
         adminCounts[node.id] = (r.data || []).length
       } catch (e) { adminCounts[node.id] = 0 }
-    }
+    }))
   } catch (e) {}
 }
 
@@ -218,7 +221,9 @@ const handleDelete = async (row) => {
 
 const loadUsers = async () => {
   try {
-    const res = await getUserList({ current: 1, size: 100 })
+    // 【M1 2026-10-04】负责人下拉整装一页，size 上限 500（与 usePermissionData.loadAllUsers 同口径）。
+    // 超过 500 人时该下拉可能选不全——后端 /system/users 支持 keyword 分页，如需支持超大组织再改远程检索。
+    const res = await getUserList({ current: 1, size: 500 })
     userList.value = res.data?.records || []
   } catch (e) {}
 }

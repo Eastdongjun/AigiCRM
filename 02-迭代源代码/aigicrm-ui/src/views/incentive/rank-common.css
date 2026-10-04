@@ -1,5 +1,6 @@
 /* 激励排行矩阵共享样式（C4 拆组件 2026-08-09）
-   由 RankTableView / DeptRankTableView 各自 import，类名页面私有，非 scoped 便于跨子组件复用 */
+   由 RankTableView / PersonRankTableView 各自 import，类名页面私有，非 scoped 便于跨子组件复用
+   （2026-10-04 D11：删除从未被挂载的死组件 DeptRankTableView，引用说明同步移除） */
 .card { background: #fff; border: 1px solid #ebeef5; border-radius: 12px; padding: 24px; }
 .table-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; font-size: 14px; color: #86909c; }
 .header-right-actions { display: flex; align-items: center; gap: 10px; }

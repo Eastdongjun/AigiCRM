@@ -238,7 +238,8 @@ Page({
       const dictValues = (list || []).map((item) => item.dictValue || item.dictLabel).filter(Boolean)
       this.setSeaData({ industryOptions: dictValues, industryPickerOptions: ['全部行业', ...dictValues] })
     }).catch((error) => {
-      showErrorWithRetry(error, '行业字典加载失败，请重试', () => this.loadIndustryDict())
+      // 【P7】重试回调须指向真实存在的方法名 loadIndustryOptions（原误写 loadIndustryDict，点重试必抛 TypeError）
+      showErrorWithRetry(error, '行业字典加载失败，请重试', () => this.loadIndustryOptions())
       this.setSeaData({ industryOptions: [], industryPickerOptions: ['全部行业'] })
     })
   },
@@ -302,7 +303,8 @@ Page({
       this.setSeaData({ stats: stats || {} })
     }).catch((error) => {
       this.setSeaData({ stats: {} })
-      showErrorWithRetry(error, '公海统计加载失败', () => this.loadStatistics())
+      // 【P7】重试回调须指向真实存在的方法名 loadStats（原误写 loadStatistics，点重试必抛 TypeError）
+      showErrorWithRetry(error, '公海统计加载失败', () => this.loadStats())
     })
   },
 
@@ -312,6 +314,8 @@ Page({
       return
     }
 
+    // 【M20】请求序号守卫：筛选/搜索快速切换时，慢返回的旧响应直接丢弃，防止覆盖新列表
+    const requestSeq = (this._recordsReqSeq = (this._recordsReqSeq || 0) + 1)
     this.setSeaData({ loading: true })
     getSeaList({
       current: 1,
@@ -323,11 +327,22 @@ Page({
       industry: this.data.industry || undefined,
       enterReason: this.data.enterReason || undefined
     }).then((page) => {
+      if (requestSeq !== this._recordsReqSeq) return
       const rows = page && (page.records || page.list || page.rows)
       this.setSeaData({ records: (rows || []).map(normalizeSea) })
-    }).catch((error) => showErrorWithRetry(error, '公海加载失败', () => this.loadRecords())).finally(() => {
+    }).catch((error) => {
+      if (requestSeq !== this._recordsReqSeq) return
+      showErrorWithRetry(error, '公海加载失败', () => this.loadRecords())
+    }).finally(() => {
+      // 旧请求不清理新请求的 loading 态（由最新请求自己的 finally 收尾）
+      if (requestSeq !== this._recordsReqSeq) return
       this.setSeaData({ loading: false })
     })
+  },
+
+  // 【L15】搜索输入双绑（对齐 reminder/approval 页写法），否则点搜索按钮时用的仍是旧 keyword
+  onKeywordInput(e) {
+    this.setSeaData({ keyword: e.detail.value || '' })
   },
 
   search(e) {

@@ -2,34 +2,15 @@ const { getCustomerCounts, getCustomerList } = require('../../api/customer')
 const { hasPermission, requireLogin } = require('../../utils/auth')
 const { showError } = require('../../utils/feedback')
 const { readDemoCustomers } = require('../../utils/demo-customers')
+// 【D24/D27 2026-10-04】状态文案、筛选草稿读取/参数拼装统一引用组内共享模块
+const { customerStatusLabel, customerStatusTone, emptyAdvancedFilter, readFilterDraft, clearFilterDraft, parseFilterDraft, buildCustomerFilterParams } = require('./shared')
+
+/** 列表分页大小（与服务端 page 接口约定 current/size，total 由服务端返回） */
+const PAGE_SIZE = 20
 
 function normalizePage(payload) {
   if (Array.isArray(payload)) return payload
   return payload && Array.isArray(payload.records) ? payload.records : []
-}
-
-function normalizeStatusKey(status) {
-  return status === undefined || status === null ? '' : String(status).trim().toLowerCase()
-}
-
-function customerStatusLabel(status) {
-  const labels = {
-    normal: '正常',
-    warning: '预警',
-    protected: '保护期',
-    expired: '超期',
-    sea: '公海',
-    active: '正常',
-    available: '公海'
-  }
-  return labels[normalizeStatusKey(status)] || status || '正常'
-}
-
-function customerStatusTone(status) {
-  const label = customerStatusLabel(status)
-  if (label === '保护期' || label === '预警') return 'blue-accent'
-  if (label === '超期') return 'red-accent'
-  return 'green-accent'
 }
 
 function normalizeCustomer(item) {
@@ -67,18 +48,26 @@ function buildCustomerRowView(item) {
 
 function buildCustomerView(data) {
   const counts = data.countCards || []
-  const customers = (data.customers || []).map(buildCustomerRowView)
+  const customers = Array.isArray(data.customers) ? data.customers : []
   const isLoading = Boolean(data.loading)
+  const isLoadingMore = Boolean(data.loadingMore)
+  // 【P6 2026-10-04】总数优先用接口返回的 total(此前误把已加载条数当总数);
+  // 演示模式无接口,由 loadCustomers 以本地过滤结果数兜底
+  const total = Number(data.total) || customers.length
   return {
     summaryText: `全部 ${(counts[0] && counts[0].value) || '-'} · 我的 ${(counts[1] && counts[1].value) || '-'} · 共享 ${(counts[2] && counts[2].value) || '-'}`,
     filterText: `${data.filter || '全部'}⌄`,
     statusFilterText: `${(((data.statusFilters || []).find((item) => item.value === (data.statusFilter || '')) || {}).label) || '全部状态'}⌄`,
     showReset: Boolean(data.keyword || data.filter !== '全部' || data.statusFilter || data.hasAdvancedFilter),
-    countText: `共 ${customers.length} 家`,
+    countText: `共 ${total} 家`,
     showLoading: isLoading,
     loadingText: '加载中...',
     customers,
-    showEmpty: !isLoading && customers.length === 0
+    showEmpty: !isLoading && customers.length === 0,
+    // 【P6 2026-10-04】触底加载更多/没有更多 的底部提示
+    showLoadMore: isLoadingMore,
+    loadMoreText: '加载更多中...',
+    showNoMore: !isLoading && !isLoadingMore && customers.length > 0 && !data.hasMore
   }
 }
 
@@ -86,6 +75,11 @@ Page({
   data: {
     keyword: '',
     customers: [],
+    // 【P6 2026-10-04】分页状态：当前页/服务端总数/是否还有下一页/加载更多中
+    currentPage: 1,
+    total: 0,
+    hasMore: false,
+    loadingMore: false,
     countCards: [
       { label: '全部', value: '-' },
       { label: '我的', value: '-' },
@@ -105,7 +99,7 @@ Page({
       { label: '即将到期', value: 'expiring' },
       { label: '已到期', value: 'expired' }
     ],
-    advancedFilter: { industry: '', status: '', deptId: '', ownerId: '', protect: '', province: '', city: '' },
+    advancedFilter: emptyAdvancedFilter(),
     hasAdvancedFilter: false,
     customerView: buildCustomerView({ customers: [], countCards: [], filter: '全部', keyword: '', hasAdvancedFilter: false, loading: false })
   },
@@ -134,23 +128,11 @@ Page({
       this.didInitialShow = true
       return
     }
-    const draft = wx.getStorageSync('customerFilterDraft')
+    // 【D27 2026-10-04】草稿 key/字段清单/恢复逻辑统一走 shared(此前三处字段清单各写一份,漏改即静默丢条件)
+    const draft = readFilterDraft()
     if (draft) {
-      wx.removeStorageSync('customerFilterDraft')
-      this.setCustomerData({
-        keyword: draft.keyword || '',
-        filter: draft.devType || '全部',
-        advancedFilter: {
-          industry: draft.industry || '',
-          status: draft.status || '',
-          deptId: draft.deptId || '',
-          ownerId: draft.ownerId || '',
-          protect: draft.protect || '',
-          province: draft.province || '',
-          city: draft.city || ''
-        },
-        hasAdvancedFilter: Boolean(draft.industry || draft.status || draft.deptId || draft.ownerId || draft.protect || draft.province || draft.city)
-      })
+      clearFilterDraft()
+      this.setCustomerData(parseFilterDraft(draft))
     }
     if (this.hasLoaded) this.loadCustomers()
   },
@@ -166,7 +148,7 @@ Page({
   openAdvancedFilter() { wx.navigateTo({ url: '/pages/customer/filter/index' }) },
 
   resetFilters() {
-    this.setCustomerData({ keyword: '', filter: '全部', statusFilter: '', advancedFilter: { industry: '', status: '', deptId: '', ownerId: '', protect: '', province: '', city: '' }, hasAdvancedFilter: false })
+    this.setCustomerData({ keyword: '', filter: '全部', statusFilter: '', advancedFilter: emptyAdvancedFilter(), hasAdvancedFilter: false })
     this.loadCustomers()
   },
 
@@ -201,7 +183,9 @@ Page({
     }).catch((error) => showError(error, '客户数量加载失败'))
   },
 
-  loadCustomers() {
+  /** 【P6 2026-10-04】分页加载：page=1 重置列表(筛选/搜索/刷新走这里)，
+   *  page>1 追加(触底 onReachBottom)。此前写死 current:1/size:20，第 21 条起不可见。 */
+  loadCustomers(page = 1) {
     if (getApp().globalData.demoMode) {
       const savedCustomers = readDemoCustomers()
       const rows = [
@@ -218,6 +202,11 @@ Page({
       const filtered = rows.filter((item) => (!keyword || `${item.name}${item.industry}${item.ownerName}`.toLowerCase().includes(keyword)) && (this.data.filter === '全部' || item.devType === this.data.filter) && (!statusLabels || statusLabels.includes(item.statusLabel || item.status || '')) && (!advanced.industry || item.industry === advanced.industry) && (!protectLabels || protectLabels.includes(item.statusLabel || item.status || '')) && (!advanced.province || (item.province || '').includes(advanced.province)) && (!advanced.city || (item.city || '').includes(advanced.city)))
       this.setCustomerData({
         customers: filtered,
+        // 演示模式一次性本地过滤完，无分页：总数=过滤结果数，无更多页
+        currentPage: 1,
+        total: filtered.length,
+        hasMore: false,
+        loadingMore: false,
         countCards: [
           { label: '全部', value: 128 + savedCustomers.length },
           { label: '我的', value: 48 + savedCustomers.length },
@@ -228,34 +217,31 @@ Page({
       return
     }
 
-    this.setCustomerData({ loading: true })
-    getCustomerList(this.buildCustomerParams()).then((payload) => {
+    // 加载更多触发的请求与前一个请求并发保护（首屏 loading 由按钮/筛选入口天然防重）
+    if (page > 1 && (this.data.loading || this.data.loadingMore)) return
+    this.setCustomerData(page === 1 ? { loading: true, loadingMore: false } : { loadingMore: true })
+    const params = { current: page, size: PAGE_SIZE, ...buildCustomerFilterParams(this.data) }
+    getCustomerList(params).then((payload) => {
       const rows = normalizePage(payload).map(normalizeCustomer)
-      this.setCustomerData({ customers: this.data.filter === '全部' ? rows : rows.filter((item) => item.devType === this.data.filter) })
-    }).catch((error) => showError(error, '客户加载失败')).finally(() => {
-      this.setCustomerData({ loading: false })
+      const visible = this.data.filter === '全部' ? rows : rows.filter((item) => item.devType === this.data.filter)
+      const total = Number(payload && payload.total) || 0
+      // hasMore 优先以服务端 total 判定(后端已按同样条件过滤)；total 缺失时按本页是否取满兜底
+      const hasMore = total ? page * PAGE_SIZE < total : rows.length >= PAGE_SIZE
+      this.setCustomerData({
+        customers: page === 1 ? visible : this.data.customers.concat(visible),
+        currentPage: page,
+        total,
+        hasMore
+      })
+    }).catch((error) => showError(error, page === 1 ? '客户加载失败' : '加载更多失败')).finally(() => {
+      this.setCustomerData({ loading: false, loadingMore: false })
     })
   },
 
-  buildCustomerParams() {
-    const params = {
-      current: 1,
-      size: 20,
-      keyword: this.data.keyword.trim() || undefined,
-      devType: this.data.filter === '全部' ? undefined : this.data.filter
-    }
-    const advanced = this.data.advancedFilter || {}
-    if (advanced.industry) params.industry = advanced.industry
-    // 【对齐 PC 2026-09-21】status 域(normal/warning)与 protectionStatus 域(active/expiring/expired)是两个不同字段,
-    // 此前快捷保护筛选误传 status=active → 后端按 status 等值匹配恒空; 现分开传参
-    if (advanced.status) params.status = advanced.status
-    if (advanced.deptId) params.deptId = advanced.deptId
-    if (advanced.ownerId) params.ownerId = advanced.ownerId
-    const protects = [this.data.statusFilter, advanced.protect].filter(Boolean)
-    if (protects.length) params.protectionStatus = [...new Set(protects)].join(',')
-    if (advanced.province) params.province = advanced.province.trim()
-    if (advanced.city) params.city = advanced.city.trim()
-    return params
+  /** 【P6 2026-10-04】触底加载下一页 */
+  onReachBottom() {
+    if (!this.data.hasMore || this.data.loading || this.data.loadingMore) return
+    this.loadCustomers(this.data.currentPage + 1)
   },
 
   openDetail(e) {

@@ -29,7 +29,9 @@
           </div>
         </template>
       </el-table-column>
-      <el-table-column label="激励总额" width="92" align="center" sortable :sort-by="'totalScore'">
+      <!-- 2026-10-04 M7：去掉本列 sortable——表格数据是当前页 15 条的前端切片，列排序只会重排本页、
+           与"排名/全榜"语义冲突（客户排行表 RankTableView 同列本就无 sortable）；两表口径统一 -->
+      <el-table-column label="激励总额" width="92" align="center">
         <template #default="{ row }"><span class="score-pill">{{ row.totalScore || 0 }}<em>分</em></span></template>
       </el-table-column>
       <template v-for="(parent, pi) in rankParents" :key="'p' + parent.id">

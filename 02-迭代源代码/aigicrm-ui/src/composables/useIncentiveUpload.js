@@ -13,6 +13,8 @@ import { useUserStore } from '@/store/user'
 import request from '@/utils/request'
 import { getDownloadToken, refreshDownloadToken } from '@/utils/token'
 import { buildPeriodOptions, periodQueryValue, defaultRecordPeriod } from '@/utils/incentive-period'
+// 【D10 2026-10-04】五大类产品目录改为共享常量（原先与 incentive/search.vue 各硬编码一份）
+import { PRODUCT_CATS, PRODUCT_CAT_KEYS } from '@/views/incentive/product-catalog'
 
 export const IncentiveUploadKey = Symbol('incentiveUpload')
 
@@ -106,8 +108,8 @@ export function useIncentiveUpload() {
   const selectedIndustry = ref('')
   const relatedProducts = ref('')
   const specificProduct = ref('')
-  const productCats = { '涂层类': ['防腐', '加固', '钢结构', '煤气管道', '其他'], '防滑板类': ['公共区', '装置区'], '机封类': ['水泵', '渣泵', '介质泵'], '密封类': ['静密封', '动密封', '橡胶密封'], '润滑类': ['润滑油', '润滑脂', '润滑剂'] }
-  const productCatKeys = Object.keys(productCats)
+  const productCats = PRODUCT_CATS
+  const productCatKeys = PRODUCT_CAT_KEYS
   const relatedCat = ref('')
   const relatedSub = ref('')
   watch([relatedCat, relatedSub], () => { relatedProducts.value = relatedCat.value && relatedSub.value ? relatedCat.value + '-' + relatedSub.value : relatedCat.value || relatedSub.value })

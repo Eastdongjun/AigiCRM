@@ -3,7 +3,7 @@
     <template v-if="mode === 'overview'">
       <!-- 权限体系总览 -->
       <el-alert type="info" :closable="false" style="margin-bottom:16px">
-        <template #title>系统包含5种权限：菜单权限（能进哪个页面）、数据权限（能看到多少数据）、操作权限（能改/删数据）、组织管理权限（能管哪个组织的人）、激励专项权限（能编辑/删除激励）</template>
+        <template #title>系统包含5种权限：菜单权限（能进哪个页面）、数据权限（能看到多少数据）、操作权限（能改/删数据）、组织管理权限（能管哪个组织的人）、激励专项权限（查看分享/查看全部/编辑/删除激励）</template>
       </el-alert>
 
       <el-row :gutter="16">

@@ -18,7 +18,10 @@ export function importSeaCustomers(file) {
   const formData = new FormData()
   formData.append('file', file)
   return request.post('/sea/import', formData, {
-    headers: { 'Content-Type': 'multipart/form-data' }
+    headers: { 'Content-Type': 'multipart/form-data' },
+    // 【M10 2026-10-04】大文件导入对齐 customer.js importCustomers 的 120s 超时：
+    // 全局 30s 会让前端先报"请求超时"而服务端可能仍在写入完成，诱导用户重复导入
+    timeout: 120000
   })
 }
 

@@ -1,6 +1,8 @@
 const { getCustomerShares, getCustomerSimpleUsers, addCustomerShares, removeCustomerShare } = require('../../../api/customer')
 const { hasPermission, requireLogin } = require('../../../utils/auth')
 const { showError } = require('../../../utils/feedback')
+// 【D24 2026-10-04】返回兜底逻辑收敛到组内 shared(各表单共用同一份)
+const { navigateBackWithFallback } = require('../shared')
 
 function buildShareItem(item, index) {
   return {
@@ -94,11 +96,6 @@ Page({
   },
   goBack() {
     if (this.data.saving) return
-    const pages = typeof getCurrentPages === 'function' ? getCurrentPages() : []
-    if (pages.length > 1) {
-      wx.navigateBack()
-      return
-    }
-    wx.navigateTo({ url: `/pages/customer/detail/index?id=${this.data.id}` })
+    navigateBackWithFallback(`/pages/customer/detail/index?id=${this.data.id}`)
   }
 })

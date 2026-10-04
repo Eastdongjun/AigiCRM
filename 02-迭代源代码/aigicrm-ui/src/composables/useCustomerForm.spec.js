@@ -18,6 +18,9 @@ vi.mock('@/api/customer', () => ({
   getSimpleUserList: vi.fn(),
   getContacts: vi.fn(),
   addContact: vi.fn(),
+  // 【P2 2026-10-04】编辑提交现按原行集 diff 调用更新/删除，mock 需补齐
+  updateContact: vi.fn(),
+  deleteContact: vi.fn(),
   getIndicator: vi.fn(),
   getCustomerGroupNames: vi.fn(),
 }))
@@ -31,6 +34,7 @@ import { useCustomerForm } from './useCustomerForm'
 import {
   saveCustomerWithIndicator, updateCustomerWithIndicator, getCustomer,
   getSimpleUserList, getContacts, getIndicator, getCustomerGroupNames, addContact,
+  updateContact, deleteContact,
 } from '@/api/customer'
 import { getDeptList, getDictData } from '@/api/system'
 import { ElMessage } from 'element-plus'
@@ -49,6 +53,8 @@ function mockLoad() {
   saveCustomerWithIndicator.mockResolvedValue({ data: 1001 })
   updateCustomerWithIndicator.mockResolvedValue({ data: null })
   addContact.mockResolvedValue({ data: null })
+  updateContact.mockResolvedValue({ data: null })
+  deleteContact.mockResolvedValue({ data: null })
 }
 
 describe('useCustomerForm 新增客户字段', () => {
@@ -100,7 +106,10 @@ describe('useCustomerForm 新增客户字段', () => {
   it('「最近开票日」默认留空，注册日默认今天（避免未开票客户被记为当天开票）', () => {
     const { form } = useCustomerForm()
     expect(form.lastInvoiceDate).toBe('')
-    expect(form.registerDate).toBe(new Date().toISOString().split('T')[0])
+    // 【L2 2026-10-04】默认注册日改本地日期（此前 UTC 口径在东八区 0:00-8:00 会默认成昨天）
+    const now = new Date()
+    const localToday = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0')
+    expect(form.registerDate).toBe(localToday)
   })
 
   it('日期清空时提交 null 而不是空串', async () => {
@@ -166,6 +175,38 @@ describe('useCustomerForm 新增客户字段', () => {
     expect(addContact).toHaveBeenCalledWith(1001, {
       name: '李四', position: '采购', phone: '13800000000', remark: '',
     })
+  })
+
+  // ===== P2 2026-10-04 编辑联系人 diff 提交（此前修改/删除被静默丢弃）=====
+
+  it('编辑时已有联系人按 diff 提交：修改调 update、移除调 delete、新行调 add、未变行不动', async () => {
+    route.params = { id: '306' }
+    getCustomer.mockResolvedValue({ data: { id: 306, customerName: '联系人diff客户', status: 'normal' } })
+    getContacts.mockResolvedValue({ data: [
+      { id: 11, name: '张一', position: '采购', phone: '13800000001', remark: '' },
+      { id: 12, name: '张二', position: '', phone: '', remark: '' },
+      { id: 13, name: '张三', position: ' ', phone: '', remark: '' },
+    ] })
+
+    const ctx = useCustomerForm()
+    await ctx.loadFormData()
+    // 修改 11 的职位、删除 12（splice）、新增一行；13 保持原样（含未 trim 的纯空格，不应判为变更）
+    ctx.contacts.value[0].position = '采购总监'
+    ctx.contacts.value.splice(1, 1)
+    ctx.contacts.value.push({ name: '李四', position: '', phone: '13900000000', remark: '' })
+    ctx.formRef.value = { validate: async () => true }
+
+    await ctx.handleSubmit()
+    await flushPromises()
+
+    expect(updateContact).toHaveBeenCalledTimes(1)
+    expect(updateContact).toHaveBeenCalledWith('306', 11, {
+      name: '张一', position: '采购总监', phone: '13800000001', remark: '',
+    })
+    expect(deleteContact).toHaveBeenCalledTimes(1)
+    expect(deleteContact).toHaveBeenCalledWith('306', 12)
+    expect(addContact).toHaveBeenCalledTimes(1)
+    expect(addContact).toHaveBeenCalledWith('306', { name: '李四', position: '', phone: '13900000000', remark: '' })
   })
 
   it('新建客户录入客情评分后，随客户一起保存指标', async () => {

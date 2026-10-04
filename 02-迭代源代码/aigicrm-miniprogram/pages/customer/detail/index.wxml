@@ -105,7 +105,7 @@
   <view wx:if="{{detailView.showIndicatorSection}}" class="card customer-section-card aligned-section-card">
     <view class="customer-section-head">
       <view class="section-title">核心客户六项指标</view>
-      <text class="customer-section-score">{{indicatorSummary.scoreTotal}} / 15</text>
+      <text class="customer-section-score">{{indicatorSummary.scoreTotal}} / {{indicatorMaxScore}}</text>
     </view>
     <view class="indicator-summary-grid">
       <view class="indicator-summary-item">
@@ -120,7 +120,7 @@
       </view>
       <view class="indicator-summary-item">
         <text class="indicator-summary-label">五项评分</text>
-        <text class="indicator-summary-value">{{indicatorSummary.scoreTotal}} / 15</text>
+        <text class="indicator-summary-value">{{indicatorSummary.scoreTotal}} / {{indicatorMaxScore}}</text>
         <text class="indicator-status {{indicatorSummary.scoreStatusClass}}">{{indicatorSummary.scoreStatusText}}</text>
       </view>
       <view class="indicator-summary-item">

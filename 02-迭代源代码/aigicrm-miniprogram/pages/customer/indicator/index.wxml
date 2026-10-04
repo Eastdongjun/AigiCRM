@@ -10,7 +10,7 @@
     <view class="form-section-title">核心客户六项指标</view>
     <view class="threshold-card refined-threshold">
       <view class="threshold-title">硬性指标</view>
-      <view class="muted">开票、回款均 >= 100 万；五项总分 >= 12 分为核心客户。</view>
+      <view class="muted">{{coreThresholdTip}}</view><!-- D25 2026-10-04: 门槛数字由 shared 常量拼装，不再硬编码 -->
     </view>
 
     <block wx:for="{{indicatorItems}}" wx:key="field">

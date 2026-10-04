@@ -75,7 +75,8 @@
         </el-table-column>
       </el-table>
       <div class="table-footer">
-        <span>更新时间: {{ new Date().toLocaleString() }}</span>
+        <!-- 2026-10-04 D15：移除“更新时间: 渲染时刻”展示——/statistics/indicator-stats 不返回
+             任何数据时间字段（见后端 StatisticsQueryService.indicatorStats），new Date() 属伪造时间 -->
         <span>按核心五项总分从高到低排序，0分客户不展示</span>
       </div>
     </div>

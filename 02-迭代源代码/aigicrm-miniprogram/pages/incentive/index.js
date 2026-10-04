@@ -1,5 +1,5 @@
-const { deleteRecord, getCategoryStats, getCategoryTree, getCustomerRecords, getGrantCheck, getRanking, getReadRanking, getReadStats, getRecords, getScoreboard, getUsers, markIncentiveRead, updateRecord } = require('../../api/incentive')
-const { getDownloadUrl, uploadFile } = require('../../api/file')
+const { deleteRecord, getCategoryStats, getCategoryTree, getCustomerRecords, getGrantCheck, getRanking, getReadRanking, getReadStats, getRecords, getScoreboard, getUsers, markIncentiveRead } = require('../../api/incentive')
+const { getDownloadUrl } = require('../../api/file')
 const { getDepts } = require('../../api/system')
 const { incentiveRecords } = require('../../data/demo')
 const { hasPermission, isAdmin, requireLogin, getToken } = require('../../utils/auth')
@@ -349,7 +349,6 @@ Page({
     canUploadEvidence: false,
     canDeleteRecords: false,
     canEditRecords: false,
-    selected: null,
     previewing: false,
     previewVideoPath: ''
   },
@@ -390,6 +389,8 @@ Page({
       this.loadCategories()
       this.loadScoreboard()
       this.loadReadStats()
+      // 【L13 2026-10-04】与 onLoad 对称补齐: 阅读排行随回流刷新, 避免从详情页返回后数据陈旧
+      this.loadReadRanking()
     }
   },
 
@@ -690,7 +691,11 @@ Page({
     }
     const params = {}
     if (stat.parentId) params.parentCategoryId = stat.parentId
+    // 【M19 2026-10-04】请求序号守卫: 快速切换分类时只采纳最新一次请求,
+    // 迟到的旧响应不再覆盖新弹层(含 finally 关 loading, 避免旧请求提前关掉新弹层的加载态)
+    const requestSeq = this._statDetailSeq = (this._statDetailSeq || 0) + 1
     getRecords(params).then((rows) => {
+      if (requestSeq !== this._statDetailSeq) return
       const source = Array.isArray(rows) ? rows : (rows && (rows.records || rows.rows || rows.list || rows.data)) || []
       const records = source
         .filter((item) => {
@@ -706,7 +711,10 @@ Page({
         'statDetail.totalScore': totalScore,
         statDetailView: buildStatDetailView(statDetail)
       })
-    }).catch((error) => showError(error, '统计明细加载失败')).finally(() => {
+    }).catch((error) => {
+      if (requestSeq === this._statDetailSeq) showError(error, '统计明细加载失败')
+    }).finally(() => {
+      if (requestSeq !== this._statDetailSeq) return
       const statDetail = { ...this.data.statDetail, loading: false }
       this.setData({ 'statDetail.loading': false, statDetailView: buildStatDetailView(statDetail) })
     })
@@ -820,7 +828,9 @@ Page({
     this.loadRecords()
   },
 
-  choose(e) {
+  // 【D32 2026-10-04】排序 picker 由无宾语的 choose 改名 chooseOrder(与 chooseUser/chooseOrg 命名一致);
+  // 不用 sort 是因本页已有记录排序方法 sort(), 避免覆盖
+  chooseOrder(e) {
     const orderMap = ['', 'desc', 'asc']
     const index = Number(e.detail.value) || 0
     this.setData({ selectedOrderIndex: index, order: orderMap[index] || '' }, () => this.refreshIncentiveView())
@@ -1070,27 +1080,8 @@ Page({
     wx.navigateTo({ url: `/pages/customer/detail/index?id=${record.customerId}&from=incentive` })
   },
 
-  closeDetail() { this.setData({ selected: null }) },
-
-  uploadEvidence() {
-    const selected = this.data.selected
-    if (!this.data.canUploadEvidence || !selected || !selected.id || getApp().globalData.demoMode) {
-      wx.showToast({ title: '演示记录不可上传', icon: 'none' }); return
-    }
-    wx.chooseMessageFile({ count: 1, type: 'file', success: (res) => {
-      const file = res.tempFiles && res.tempFiles[0]
-      if (!file) return
-      wx.showLoading({ title: '上传中...' })
-      uploadFile(file.path, null, 'incentive').then((uploaded) => {
-        const fileId = uploaded && uploaded.id
-        if (!fileId) throw new Error('上传结果缺少文件 ID')
-        return updateRecord(selected.id, { fileId: JSON.stringify([fileId]) })
-      }).then(() => {
-        wx.showToast({ title: '上传成功', icon: 'success' })
-        this.closeDetail(); this.loadRecords()
-      }).catch((error) => showError(error, '上传失败')).finally(() => wx.hideLoading())
-    } })
-  },
+  // 【D31 2026-10-04】已删除 selected/uploadEvidence/closeDetail 死代码:
+  // wxml 无对应绑定(上传入口早已由页头 goUpload 承接), updateRecord/uploadFile import 一并移除
 
   refresh() {
     this.loadRecords()

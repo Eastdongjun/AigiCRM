@@ -158,6 +158,9 @@ async function loadData() {
   try {
     const res = await getCustomerRankings({ period: periodQueryValue(period.value) })
     rankingData.value = res.data || {}
+  } catch {
+    // 【D13 2026-10-04】失败由 request 拦截器统一提示；此处补 catch 兜底
+    // （原 try/finally 无 catch 会产生 unhandled rejection），失败时保留旧数据
   } finally {
     loading.value = false
   }

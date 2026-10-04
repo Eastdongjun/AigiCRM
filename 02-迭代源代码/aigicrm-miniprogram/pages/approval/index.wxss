@@ -23,7 +23,6 @@
 .approval-queue-grid text{display:block;overflow:hidden;color:#7c8ba1;font-size:20rpx;line-height:26rpx;text-overflow:ellipsis;white-space:nowrap}
 .approval-queue-grid view view{margin-top:4rpx;overflow:hidden;color:#334155;font-size:23rpx;font-weight:800;line-height:30rpx;text-overflow:ellipsis;white-space:nowrap}
 .approval-action-row{display:flex;align-items:center;justify-content:flex-end;gap:10rpx;margin-top:18rpx;flex-wrap:wrap}
-.approval-modal-action-row{margin-top:16rpx}
 .approval-action-row button{min-width:96rpx;height:50rpx;line-height:48rpx;margin:0;padding:0 18rpx;border-radius:14rpx;font-size:22rpx;font-weight:700}
 .approval-action-row button::after{border:0}
 .approval-link-action{border:1rpx solid #d8e1ee;background:#f8fafc;color:#475569}

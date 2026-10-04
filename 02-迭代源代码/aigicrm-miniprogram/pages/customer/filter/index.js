@@ -2,6 +2,8 @@ const { requireLogin, hasPermission } = require('../../../utils/auth')
 const { showError } = require('../../../utils/feedback')
 const { getDictData, getDepts } = require('../../../api/system')
 const { getCustomerSimpleUsers } = require('../../../api/customer')
+// 【D27 2026-10-04】筛选草稿 storage key/字段清单统一由组内 shared 提供(与客户列表页读取同源)
+const { saveFilterDraft } = require('../shared')
 
 function flattenDepts(nodes = [], depth = 0) {
   const rows = []
@@ -70,8 +72,10 @@ Page({
   onLoad() {
     if (!requireLogin()) return
     if (!getApp().globalData.demoMode && !hasPermission('customer:view')) {
+      // 【D28 2026-10-04】补 return：无权限分支此前缺 return，已提示无权限并返回仍继续拉筛选下拉数据
       wx.showToast({ title: '没有客户查看权限', icon: 'none' })
       setTimeout(() => wx.navigateBack(), 500)
+      return
     }
     this.loadFilterOptions()
   },
@@ -123,7 +127,9 @@ Page({
     const protect = this.data.protectOptions[this.data.selectedProtectIndex] || {}
     const dept = this.data.deptOptions[this.data.selectedDeptIndex] || {}
     const owner = this.data.ownerOptions[this.data.selectedOwnerIndex] || {}
-    wx.setStorageSync('customerFilterDraft', {
+    // 【D27 2026-10-04】key 与字段清单由 shared 统一(saveFilterDraft 按清单挑值落盘)，
+    // 与客户列表页读取同源，防止三处字段清单漂移导致静默丢条件
+    saveFilterDraft({
       keyword: this.data.keyword.trim(),
       devType: this.data.devType,
       industry: industry.value || '',

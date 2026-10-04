@@ -144,14 +144,20 @@ const handleEditType = (row) => {
 }
 
 const handleDeleteType = async (row) => {
-  await ElMessageBox.confirm(`确定删除字典类型「${row.dictName}」及其所有数据？`, '提示', { type: 'warning' })
-  await deleteDictType(row.id)
-  ElMessage.success('删除成功')
-  loadDictTypes()
-  if (currentType.value?.id === row.id) {
-    currentType.value = null
-    dictDataList.value = []
-  }
+  // 【L1 2026-10-04】confirm 必须单独 try/catch：裸 await 时点"取消"即 unhandled rejection；
+  // 取消=直接返回不删除，与删除接口失败（request 拦截器已统一弹错）分开处理
+  try {
+    await ElMessageBox.confirm(`确定删除字典类型「${row.dictName}」及其所有数据？`, '提示', { type: 'warning' })
+  } catch { return }
+  try {
+    await deleteDictType(row.id)
+    ElMessage.success('删除成功')
+    loadDictTypes()
+    if (currentType.value?.id === row.id) {
+      currentType.value = null
+      dictDataList.value = []
+    }
+  } catch (e) {}
 }
 
 const submitType = async () => {
@@ -190,10 +196,15 @@ const handleEditData = (row) => {
 }
 
 const handleDeleteData = async (row) => {
-  await ElMessageBox.confirm(`确定删除「${row.dictLabel}」？`, '提示', { type: 'warning' })
-  await deleteDictData(row.id)
-  ElMessage.success('删除成功')
-  loadDictData(currentType.value.id)
+  // 【L1 2026-10-04】同上：confirm 取消不再产生 unhandled rejection，取消与接口失败分开
+  try {
+    await ElMessageBox.confirm(`确定删除「${row.dictLabel}」？`, '提示', { type: 'warning' })
+  } catch { return }
+  try {
+    await deleteDictData(row.id)
+    ElMessage.success('删除成功')
+    loadDictData(currentType.value.id)
+  } catch (e) {}
 }
 
 const submitData = async () => {

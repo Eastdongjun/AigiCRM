@@ -61,7 +61,7 @@
         <picker mode="selector" range="{{userNames}}" value="{{selectedUserIndex}}" bindchange="chooseUser">
           <view class="ranking-tab">{{incentiveView.userText}}</view>
         </picker>
-        <picker mode="selector" range="{{orderOptions}}" value="{{selectedOrderIndex}}" bindchange="choose">
+        <picker mode="selector" range="{{orderOptions}}" value="{{selectedOrderIndex}}" bindchange="chooseOrder">
           <view class="ranking-tab">{{incentiveView.orderText}}</view>
         </picker>
       </view>

@@ -53,7 +53,27 @@ Page({
       this.tick()
     }).catch((error) => showError(error, '验证码发送失败')).finally(() => this.applyState({ loading: false }))
   },
-  tick() { if (this.data.countdown <= 0) return; setTimeout(() => { this.applyState({ countdown: this.data.countdown - 1 }); this.tick() }, 1000) },
+  // 【质量评审 M17】倒计时句柄存 this._countdownTimer, 离开页面时清理,
+  // 防止递归 setTimeout 对已卸载页面继续 setData(原版不存句柄无法停止)
+  tick() {
+    if (this.data.countdown <= 0) return
+    this._countdownTimer = setTimeout(() => {
+      this._countdownTimer = null
+      this.applyState({ countdown: this.data.countdown - 1 })
+      this.tick()
+    }, 1000)
+  },
+  // 停止倒计时并清句柄; resetCountdown=true 时归零计数:
+  // 若只停定时器不清 countdown, 残留的 "Xs" 会让 sendCode 被永久锁死无法重发
+  stopCountdown(resetCountdown) {
+    if (this._countdownTimer) {
+      clearTimeout(this._countdownTimer)
+      this._countdownTimer = null
+    }
+    if (resetCountdown && this.data.countdown) this.applyState({ countdown: 0 })
+  },
+  onHide() { this.stopCountdown(true) },
+  onUnload() { this.stopCountdown(false) },
   verifyCode() { if (!this.data.code.trim()) return wx.showToast({ title: '请输入验证码', icon: 'none' }); this.applyState({ step: 3 }) },
   reset() {
     if (this.data.newPassword.length < 6 || this.data.newPassword !== this.data.confirmPassword || this.data.loading) return wx.showToast({ title: '请检查新密码', icon: 'none' })

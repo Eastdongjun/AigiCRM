@@ -28,7 +28,7 @@
               clearable
               check-strictly
               node-key="id"
-              :props="{ label: 'deptName', children: 'children' }"
+              :props="deptTreeProps"
               placeholder="选择部门（含全部子部门）"
               style="width:100%"
               @change="onDeptFilterChange" />
@@ -41,7 +41,7 @@
               check-strictly
               show-checkbox
               node-key="id"
-              :props="{ label: 'orgName', children: 'children' }"
+              :props="deptTreeProps"
               placeholder="选择组织（可多选）"
               style="width:100%"
               clearable
@@ -74,4 +74,9 @@ const {
   canFilterByOrg, canFilterByUsers, filterOrgTree, filterUserOptions,
   onDeptFilterChange, clearAdvFilter,
 } = injectCustomerList()
+
+// 【M3 2026-10-04】部门树与组织树同源（filterOrgTree 来自 /system/depts/tree，节点是后端 SysDept），
+// label 统一取 deptName：后端 SysDept 无 orgName 字段，此前组织树按 orgName 取 label 节点全部空白。
+// 两棵树 props 相同，合并为一个常量去重。
+const deptTreeProps = { label: 'deptName', children: 'children' }
 </script>

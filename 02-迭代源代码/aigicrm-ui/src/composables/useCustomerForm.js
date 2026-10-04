@@ -8,6 +8,7 @@ import request from '@/utils/request'
 import { ElMessage } from 'element-plus'
 import {
   getCustomer, saveCustomerWithIndicator, updateCustomerWithIndicator, getSimpleUserList, getContacts, addContact,
+  updateContact, deleteContact,
   getIndicator, getCustomerGroupNames,
 } from '@/api/customer'
 import { getDeptList, getDictData } from '@/api/system'
@@ -25,6 +26,16 @@ function newSubmitKey() {
 
 
 export const CustomerFormKey = Symbol('customerForm')
+
+// 联系人参与 diff 的字段（与 loadFormData 装载、contactRows 提交口径一致）
+const CONTACT_FIELDS = ['name', 'position', 'phone', 'remark']
+
+// 【L2 2026-10-04】本地日期串（YYYY-MM-DD，口径同 useCustomerDetail.js fmtDate）：
+// toISOString() 是 UTC，东八区 0:00-8:00 会取到"昨天"，导致注册日默认值/保护期起算偏一天
+const toLocalDateStr = (d) => {
+  const dt = d || new Date()
+  return dt.getFullYear() + '-' + String(dt.getMonth() + 1).padStart(2, '0') + '-' + String(dt.getDate()).padStart(2, '0')
+}
 
 /** 子组件注入父级 customer/add.vue 提供的共享上下文 */
 export function injectCustomerForm() {
@@ -61,6 +72,9 @@ export function useCustomerForm() {
   const isPoolCustomer = computed(() => customerStatus.value === 'sea')
   const detailQuery = computed(() => (route.query.from ? { from: route.query.from } : {}))
   const contacts = ref([])
+  // 【P2 2026-10-04】编辑提交时的联系人 diff 基准：loadFormData 装入的原行集快照。
+  // 此前编辑提交只新增无 id 的行，已有联系人的修改/删除被静默丢弃；现按快照做三路 diff（增/改/删）。
+  const originalContacts = ref([])
 
   // 【2026-09-13】客情五项评分(0-3 分/项)：此前只能在客户详情页录入, 建档时无入口 →
   // 新客户综合得分与核心客户判定恒为 0, 须事后进详情页补录; 现在新增/编辑页即可录入。
@@ -74,7 +88,8 @@ export function useCustomerForm() {
   // "注册日和最近开票日录入后仅总监或行政可修改"（存不了）；总监/行政则把 NULL 静默写成今天。
   const CREATE_DEFAULTS = {
     hasTerminal: 0,
-    registerDate: new Date().toISOString().split('T')[0]
+    // 【L2 2026-10-04】默认注册日改本地日期（此前 toISOString 取 UTC 日期，东八区凌晨默认成昨天）
+    registerDate: toLocalDateStr(new Date())
   }
 
   const form = reactive({
@@ -225,10 +240,28 @@ export function useCustomerForm() {
       const indicator = shouldSaveIndicator() ? { ...indicatorForm } : null
       if (isEdit.value) {
         await updateCustomerWithIndicator(route.params.id, { customer: buildPayload(), indicator })
+        // 【P2 2026-10-04】联系人与 loadFormData 装入的原行集(originalContacts)做 diff 后提交：
+        // 无 id 的新行 → 新增；带 id 且内容有变的行 → 更新；原行集中被移除的行 → 删除。
+        // 后端契约：PUT/DELETE /customer/{id}/contacts/{contactId}（与详情页联系人管理同源）。
+        // 注：无 contact:view 权限时 getContacts 返回空列表 → 快照为空 → 不会误删库内联系人。
+        const pendingById = new Map(originalContacts.value.map(c => [c.id, c]))
         for (const c of rows) {
           if (!c.id) {
             await addContact(route.params.id, c)
+            continue
           }
+          const old = pendingById.get(c.id)
+          // contactRows 已统一 trim，原行同样按 trim 后比较，避免纯空格改动误判为变更
+          const changed = old && CONTACT_FIELDS.some(k => String(old[k] || '').trim() !== c[k])
+          if (changed) {
+            await updateContact(route.params.id, c.id, {
+              name: c.name, position: c.position, phone: c.phone, remark: c.remark,
+            })
+          }
+          pendingById.delete(c.id)
+        }
+        for (const removed of pendingById.values()) {
+          await deleteContact(route.params.id, removed.id)
         }
         ElMessage.success('客户更新成功')
         router.push({ path: `/customer/detail/${route.params.id}`, query: detailQuery.value })
@@ -247,7 +280,10 @@ export function useCustomerForm() {
         router.push('/customer')
       }
     } catch (e) {
-      // 提示由 utils/request 响应拦截器统一弹出；此处只负责复位 loading，避免重复弹窗
+      // 提示由 utils/request 响应拦截器统一弹出；此处只负责复位 loading，避免重复弹窗。
+      // 【L6 2026-10-04】提交失败后弃用当前幂等键：失败后用户通常会改表单再提交，沿用旧键
+      // 会"同键携带不同请求体"，违背幂等键语义；下次提交由 newSubmitKey 生成新键
+      createSubmitKey = null
     } finally {
       loading.value = false
     }
@@ -293,8 +329,11 @@ export function useCustomerForm() {
       } catch (e) { customerStatus.value = '' }
       try {
         const res = await getContacts(route.params.id)
-        contacts.value = (res.data || []).map(c => ({ id: c.id, name: c.name, position: c.position, phone: c.phone, remark: c.remark }))
-      } catch (e) { contacts.value = [] }
+        const list = (res.data || []).map(c => ({ id: c.id, name: c.name, position: c.position, phone: c.phone, remark: c.remark }))
+        contacts.value = list
+        // 深拷贝快照：contacts 行会被表单原地编辑（v-model），diff 基准必须与编辑隔离（P2）
+        originalContacts.value = list.map(c => ({ ...c }))
+      } catch (e) { contacts.value = []; originalContacts.value = [] }
       try {
         const res = await getIndicator(route.params.id)
         const ind = res.data

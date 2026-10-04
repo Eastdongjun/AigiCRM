@@ -199,40 +199,17 @@ const handleLogin = async () => {
   gap: 10px;
   margin-bottom: 48px;
 }
-.brand-icon {
-  width: 36px;
-  height: 36px;
-  background: linear-gradient(135deg, #2563eb, #6083e4);
-  border-radius: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #fff;
-  font-weight: bold;
-  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.35);
-}
 .brand-logo-img {
   width: 36px;
   height: 36px;
   border-radius: 8px;
   object-fit: contain;
 }
-.brand-text {
-  font-size: 18px;
-  font-weight: 700;
-  letter-spacing: 1px;
-}
 .system-title {
   font-size: 38px;
   font-weight: 700;
   margin-bottom: 8px;
   letter-spacing: 4px;
-}
-.system-title :deep(.highlight) {
-  background: linear-gradient(90deg, #6083e4, #93b0ec);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
 }
 .system-subtitle {
   font-size: 15px;

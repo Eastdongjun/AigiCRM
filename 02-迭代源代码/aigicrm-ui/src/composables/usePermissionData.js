@@ -12,43 +12,6 @@ import { confirmAction } from '@/utils/confirm'
 const activeTab = ref('basic')
 const permLoadError = ref(false)
 
-const permOverview = [
-  {
-    icon: '📋', title: '菜单权限',
-    tag: '角色管理 → 权限',
-    tagType: 'primary',
-    desc: '控制用户能看到哪些页面和功能。分配时勾选菜单树即可，共 39 个权限点。',
-    buttons: [{ label: '前往配置 →', tab: 'perm' }]
-  },
-  {
-    icon: '📊', title: '数据权限',
-    tag: '角色管理 → 编辑',
-    tagType: 'warning',
-    desc: '控制用户能看到多少条数据。7级：全部 → 本组织及下级 → 仅本组织 → 本部门及下级 → 仅本部门 → 仅本人。',
-    buttons: [{ label: '前往配置 →', tab: 'perm' }]
-  },
-  {
-    icon: '✏️', title: '操作权限',
-    tag: '系统内置',
-    tagType: 'success',
-    desc: '内置规则：每个人只能编辑/删除自己的客户和激励记录，管理员例外。无需手动配置。',
-    buttons: []
-  },
-  {
-    icon: '🏢', title: '组织管理权限',
-    tag: '组织管理 → 管理',
-    tagType: 'danger',
-    desc: '指定组织的管理员，能管理该组织及下级的所有用户。当前已配置 1 个组织管理员。',
-    buttons: [{ label: '前往配置 →', type: 'warning', href: '/system/org' }]
-  },
-  {
-    icon: '⭐', title: '激励专项权限',
-    tag: '激励类别与权限',
-    tagType: 'warning',
-    desc: '独立于菜单权限，按人配置 查看已分享/查看全部。编辑/删除由角色 admin∨销售总监 控制。看全部=含未分享也可见。分享的记录对全员默认可见。',
-    buttons: [{ label: '前往配置 →', type: 'warning', tab: 'incentiveCategory' }]
-  }
-]
 const allRoles = ref([])
 const menuTree = ref([])
 const rolePermMap = ref({}) // roleId -> Set of menuIds
@@ -93,6 +56,52 @@ const permModules = computed(() => {
   return groups.filter(g => g.items.length > 0)
 })
 
+// 【D2 2026-10-04】权限点总数从菜单树动态计算（旧文案写死"39 个"，菜单一变即失真）
+const permPointCount = computed(() => permModules.value.reduce((sum, g) => sum + g.items.length, 0))
+
+// 【D1 2026-10-04】权限总览文案对齐当前实现：
+//  - 数据范围为 self/team/dept/office/region/all/custom 七档（与 role.vue、UserFormDialog.vue 选项一致），
+//    旧文案"全部→本组织及下级→仅本组织→…"为过期层级；
+//  - 激励专项自 2026-08-16 授权表化后编辑/删除为按人勾选（见 permForm 四开关），旧文案"由角色 admin∨销售总监 控制"已失真；
+//  - 组织管理员数不再写死（后端仅有按组织查询接口，无汇总口径）。
+const permOverview = computed(() => [
+  {
+    icon: '📋', title: '菜单权限',
+    tag: '角色管理 → 权限',
+    tagType: 'primary',
+    desc: `控制用户能看到哪些页面和功能。分配时勾选菜单树即可，共 ${permPointCount.value} 个权限点。`,
+    buttons: [{ label: '前往配置 →', tab: 'perm' }]
+  },
+  {
+    icon: '📊', title: '数据权限',
+    tag: '角色管理 → 编辑',
+    tagType: 'warning',
+    desc: '控制用户能看到多少条数据。共 7 档：全部(本集团) → 本大区及以下 → 本办事处及以下 → 本部门及以下 → 本人及下级 → 仅本人 → 自定义组织。',
+    buttons: [{ label: '前往配置 →', tab: 'perm' }]
+  },
+  {
+    icon: '✏️', title: '操作权限',
+    tag: '系统内置',
+    tagType: 'success',
+    desc: '内置规则：每个人只能编辑/删除自己的客户和激励记录，管理员例外。无需手动配置。',
+    buttons: []
+  },
+  {
+    icon: '🏢', title: '组织管理权限',
+    tag: '组织管理 → 管理',
+    tagType: 'danger',
+    desc: '指定组织的管理员，能管理该组织及下级的所有用户。在各组织的「管理」入口按组织配置。',
+    buttons: [{ label: '前往配置 →', type: 'warning', href: '/system/org' }]
+  },
+  {
+    icon: '⭐', title: '激励专项权限',
+    tag: '激励类别与权限',
+    tagType: 'warning',
+    desc: '独立于菜单权限，按人勾选 查看已分享/查看全部/可编辑/可删除 四项开关。看全部=含未分享也可见。分享的记录对全员默认可见。',
+    buttons: [{ label: '前往配置 →', type: 'warning', tab: 'incentiveCategory' }]
+  }
+])
+
 const hasPerm = (role, item) => {
   const set = rolePermMap.value[role.id]
   return set ? set.has(item.id) : false
@@ -124,12 +133,13 @@ const loadPermData = async () => {
   try { const res = await getRoleList(); allRoles.value = res.data || [] } catch { permLoadError.value = true }
   try { const res = await getMenuTree(); menuTree.value = res.data || [] } catch { permLoadError.value = true }
   // 加载每个角色的菜单权限
-  for (const role of allRoles.value) {
+  // 【性能 2026-10-04】各角色的菜单绑定互不依赖，串行 for 改为 Promise.all 并发（参照 reminder 页 2026-08-08 改法）
+  await Promise.all(allRoles.value.map(async (role) => {
     try {
       const r = await request.get(`/system/roles/${role.id}`)
       rolePermMap.value[role.id] = new Set(r.data?.menuIds || [])
     } catch {}
-  }
+  }))
 }
 
 // 四项激励权限

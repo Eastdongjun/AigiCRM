@@ -8,9 +8,13 @@
         <el-radio-button value="USER">按用户</el-radio-button>
       </el-radio-group>
       <el-select v-if="assigneeMode !== 'ROLE'" v-model="selectedKey" size="small" placeholder="选择岗位/用户"
-                 style="width: 220px; margin-left: 10px" filterable @change="loadScopesForSelected">
+                 style="width: 220px; margin-left: 10px" filterable
+                 :filter-method="assigneeMode === 'USER' ? searchUserOptions : undefined"
+                 @change="loadScopesForSelected"
+                 @focus="assigneeMode === 'USER' && searchUserOptions('')">
         <el-option v-for="o in assigneeOptions" :key="o.key" :label="o.label" :value="o.key" />
       </el-select>
+
       <el-button size="small" style="margin-left: 8px" @click="loadAll">刷新</el-button>
     </div>
     <div class="ps-layout">
@@ -112,7 +116,6 @@ const assigneeMode = ref('ROLE')
 const selectedKey = ref('')
 const assigneeOptions = ref([])
 const positions = ref([])
-const users = ref([])
 
 // scopeMap[key][permission] = { scope, anchor }
 const scopeMap = ref({})
@@ -219,19 +222,36 @@ const onModeChange = async () => {
         if (!positions.value.length) positions.value = (await getPositionList()).data || []
         assigneeOptions.value = positions.value.map(p => ({ key: String(p.id), label: `${p.name}（岗位）` }))
       } else {
-        if (!users.value.length) users.value = (await getUserList({ page: 1, size: 200 })).data?.records || []
-        assigneeOptions.value = users.value.map(u => ({ key: String(u.id), label: `${u.realName || u.username}（用户）` }))
+        // 【M1 2026-10-04】参数名对齐后端契约：GET /system/users 只认 current/size/keyword，
+        // 此前传 page 后端收不到（恒回第 1 页）；且 200 条封顶选不全，
+        // 改为聚焦/输入时走 searchUserOptions 按 keyword 远程检索（不整装截断列表）。
+        await searchUserOptions('')
       }
     } catch { assigneeOptions.value = [] }
   }
 }
 
+// 【M1 2026-10-04】按用户：keyword 远程过滤（后端 SysUserController.page 支持 keyword），
+// 每次最多取 50 条匹配项；已选中项不在结果中时钉在首位，避免回显 label 退化成裸 key。
+let usersPrev = [] // 上一轮检索结果（含已选中项的 label 缓存）
+const searchUserOptions = async (query) => {
+  try {
+    const res = await getUserList({ current: 1, size: 50, keyword: query || undefined })
+    const records = res.data?.records || []
+    const opts = records.map(u => ({ key: String(u.id), label: `${u.realName || u.username}（用户）` }))
+    if (selectedKey.value && !opts.some(o => o.key === selectedKey.value)) {
+      const sel = usersPrev.find(o => o.key === selectedKey.value)
+      if (sel) opts.unshift(sel)
+    }
+    usersPrev = opts
+    assigneeOptions.value = opts
+  } catch { /* 检索失败保留现有选项 */ }
+}
+
 const loadAll = async () => {
   await loadPermData()
-  // 角色级: 每个角色加载范围配置
-  for (const role of allRoles.value) {
-    await loadScopesFor('ROLE', role.roleCode)
-  }
+  // 【性能 2026-10-04】各角色的范围配置互不依赖，串行 for 改为 Promise.all 并发（参照 reminder 页 2026-08-08 改法）
+  await Promise.all(allRoles.value.map(role => loadScopesFor('ROLE', role.roleCode)))
   if (selectedKey.value) await loadScopesForSelected()
   if (!current.value && modules.value.length) current.value = modules.value[0].name
 }

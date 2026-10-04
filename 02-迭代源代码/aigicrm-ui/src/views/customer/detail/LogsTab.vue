@@ -53,8 +53,9 @@ const handleSubmit = async () => {
   }
   submitting.value = true
   try {
-    // 先记录跟进日志(复用原有 submitLog 逻辑)
-    await submitLog()
+    // 先记录跟进日志(submitLog 返回是否成功:失败时其内部已弹错误提示,此处不建任务、不弹成功、保留表单内容供重试)
+    const logSaved = await submitLog()
+    if (!logSaved) return
 
     // 如果勾选了生成任务,创建关联任务
     if (generateTask.value && taskTitle.value.trim()) {

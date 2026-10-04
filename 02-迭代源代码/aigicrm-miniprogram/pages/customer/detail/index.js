@@ -3,23 +3,8 @@ const { submitApproval } = require('../../../api/approval')
 const { hasPermission, requireLogin } = require('../../../utils/auth')
 const { showError } = require('../../../utils/feedback')
 const { readDemoCustomers } = require('../../../utils/demo-customers')
-
-function normalizeStatusKey(status) {
-  return status === undefined || status === null ? '' : String(status).trim().toLowerCase()
-}
-
-function customerStatusLabel(status) {
-  const labels = {
-    normal: '正常',
-    warning: '预警',
-    protected: '保护期',
-    expired: '超期',
-    sea: '公海',
-    active: '正常',
-    available: '公海'
-  }
-  return labels[normalizeStatusKey(status)] || status || '正常'
-}
+// 【D24/D25 2026-10-04】状态文案、五项指标配置、核心客户阈值统一引用组内 shared(单一出处)
+const { customerStatusLabel, INDICATOR_FIELDS, INDICATOR_ITEMS, CORE_INVOICE_AMOUNT_THRESHOLD, CORE_PAYMENT_AMOUNT_THRESHOLD, CORE_INDICATOR_SCORE_THRESHOLD, INDICATOR_MAX_SCORE } = require('../shared')
 
 function normalizeDetail(item) {
   const terminalValue = item.hasTerminal
@@ -80,11 +65,13 @@ function statusView(met, okText, warnText) {
 function buildIndicatorSummary(invoiceSummary, paymentSummary, indicator) {
   const invoiceAmount = amountOf(invoiceSummary, 'totalAmount', 'invoiceAmount')
   const paymentAmount = amountOf(paymentSummary, 'totalAmount', 'paidAmount')
-  const scoreTotal = ['relationshipScore', 'indicator02', 'indicator03', 'indicator04', 'indicator05']
+  const scoreTotal = INDICATOR_FIELDS
     .reduce((sum, key) => sum + toNumber((indicator || {})[key]), 0)
-  const invoiceMet = invoiceAmount >= 100
-  const paymentMet = paymentAmount >= 100
-  const scoreMet = scoreTotal >= 12
+  // 【D25 2026-10-04】核心客户阈值单一出处：开票/回款各 >=100 万 + 五项合计 >=12 分，
+  // 之前 100/100/12 魔法数在 js 与两处 wxml 提示里各写一份；现统一引用 shared 常量
+  const invoiceMet = invoiceAmount >= CORE_INVOICE_AMOUNT_THRESHOLD
+  const paymentMet = paymentAmount >= CORE_PAYMENT_AMOUNT_THRESHOLD
+  const scoreMet = scoreTotal >= CORE_INDICATOR_SCORE_THRESHOLD
   const invoiceView = statusView(invoiceMet, '达标', '未达标')
   const paymentView = statusView(paymentMet, '达标', '未达标')
   const scoreView = statusView(scoreMet, '达标', '未达标')
@@ -154,13 +141,12 @@ function buildDetailView(data) {
   const canViewContacts = Boolean(data.canViewContacts)
   const canViewFinance = Boolean(data.canViewFinance)
   const fromSea = data.from === 'sea'
-  const indicatorRows = [
-    { key: 'relationshipScore', label: '高层（客情程度）', valueText: `${toNumber(indicator.relationshipScore)} / 3` },
-    { key: 'indicator02', label: '渠道（编码数量）', valueText: `${toNumber(indicator.indicator02)} / 3` },
-    { key: 'indicator03', label: '基层（分厂车间）', valueText: `${toNumber(indicator.indicator03)} / 3` },
-    { key: 'indicator04', label: '产品（密封润滑防腐）', valueText: `${toNumber(indicator.indicator04)} / 3` },
-    { key: 'indicator05', label: '项目（项目资金）', valueText: `${toNumber(indicator.indicator05)} / 3` }
-  ]
+  // 【D24 2026-10-04】指标行由 shared 的五项配置生成(此前字段清单在表单/维护页/详情三处各写一份)
+  const indicatorRows = INDICATOR_ITEMS.map((item) => ({
+    key: item.field,
+    label: `${item.name}（${item.desc}）`,
+    valueText: `${toNumber(indicator[item.field])} / 3`
+  }))
   return {
     showLoading: loading,
     loadingText: '加载中...',
@@ -219,7 +205,7 @@ function buildDetailView(data) {
       { key: 'invoice', label: '开票门槛', valueText: `${coreSummary.invoiceAmount} 万`, statusText: coreSummary.invoiceStatusText, statusClass: coreSummary.invoiceStatusClass },
       { key: 'payment', label: '回款门槛', valueText: `${coreSummary.paymentAmount} 万`, statusText: coreSummary.paymentStatusText, statusClass: coreSummary.paymentStatusClass },
       { key: 'relationship', label: '客情评分', valueText: `${toNumber(indicator.relationshipScore)} / 3`, statusText: `${toNumber(indicator.relationshipScore)}分`, statusClass: toNumber(indicator.relationshipScore) >= 2 ? 'ok' : 'warn' },
-      { key: 'score', label: '五项评分', valueText: `${coreSummary.scoreTotal} / 15`, statusText: coreSummary.scoreStatusText, statusClass: coreSummary.scoreStatusClass }
+      { key: 'score', label: '五项评分', valueText: `${coreSummary.scoreTotal} / ${INDICATOR_MAX_SCORE}`, statusText: coreSummary.scoreStatusText, statusClass: coreSummary.scoreStatusClass }
     ],
     relationshipScoreText: String(toNumber(indicator.relationshipScore)),
     indicatorRows
@@ -238,6 +224,8 @@ Page({
     paymentSummary: null,
     indicator: {},
     indicatorSummary: buildIndicatorSummary({}, {}, {}),
+    // 【D25 2026-10-04】五项满分单一出处(shared)，wxml「x / 15」统一引用
+    indicatorMaxScore: INDICATOR_MAX_SCORE,
     relationshipOptions: [
       { label: '陌生', value: 0 },
       { label: '知道', value: 1 },
@@ -280,6 +268,17 @@ Page({
       relationshipOptionsView: buildRelationshipOptions(this.data.relationshipOptions, this.data.indicator, demoMode || hasPermission('customer:edit'))
     })
     this.loadDetail()
+  },
+
+  /** 【M14 2026-10-04】从子页(编辑表单/联系人/财务/指标/跟进)返回时刷新详情。
+   *  此前全模块仅客户列表页有 onShow，子表单保存返回后详情不刷新；
+   *  对齐 customer/index.js 既有模式：首次 onShow 跳过(onLoad 已加载)，加载中不重复请求。 */
+  onShow() {
+    if (!this.didInitialShow) {
+      this.didInitialShow = true
+      return
+    }
+    if (!this.data.loading) this.loadDetail()
   },
 
   loadDetail() {

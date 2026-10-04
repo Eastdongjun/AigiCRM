@@ -7,7 +7,6 @@
     </view>
     <view class="home-actions">
       <text class="home-icon" bindtap="openReminder">♧</text>
-      <text class="home-icon">⚙</text>
     </view>
   </view>
   <view class="welcome-card">
@@ -20,17 +19,21 @@
     </view>
     <view class="welcome-date">{{today.date}}<text>{{today.weekday}}</text></view>
   </view>
+  <!-- 【PR-10 前端】我的待办任务摘要(数据来自 loadHomeData 的 taskSummary);
+       小程序端暂无任务列表页, 仅展示待办/逾期数量, 不接跳转入口(避免制造死入口) -->
+  <view wx:if="{{taskSummary}}" class="home-task-summary">
+    <text>{{taskSummary}}</text>
+  </view>
   <view wx:if="{{showDashboardCards}}" class="grid home-stats">
     <block wx:for="{{cards}}" wx:key="*this">
       <view class="card stat-card">
         <view class="stat-topline"></view>
         <view class="stat-value">{{item[0]}}<text>家</text></view>
         <view class="stat-label">{{item[1]}}</view>
-        <view class="stat-trend">▲ 本月新增</view>
       </view>
     </block>
   </view>
-  <view class="section-heading"><text>快捷入口</text><text class="muted">应用中心 ›</text></view>
+  <view class="section-heading"><text>快捷入口</text></view>
   <view class="card quick-grid">
     <view class="quick-item" bindtap="openNewCustomer"><view class="quick-icon blue">＋</view><text>新客户</text></view>
     <view class="quick-item" bindtap="openIncentive"><view class="quick-icon cyan">♜</view><text>四项激励</text></view>

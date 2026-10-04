@@ -1,5 +1,6 @@
 import request from '@/utils/request'
 import { downloadFile } from '@/utils/download'
+import { getToken } from '@/utils/token'
 
 export function getCustomerList(params) {
   return request.get('/customer/list', { params })
@@ -160,10 +161,11 @@ export function importCustomers(file) {
 }
 
 export function downloadImportTemplate() {
-  const token = localStorage.getItem('token')
+  // 【D20 2026-10-04】token 统一走 token.js getToken() 唯一入口：
+  // 此前裸读 localStorage，未登录时会拼出 'Bearer null' 发给后端
   return downloadFile('/api/customer/import/template', {
     name: '客户导入模板.xlsx',
-    headers: { Authorization: `Bearer ${token}` }
+    headers: { Authorization: `Bearer ${getToken() || ''}` }
   })
 }
 

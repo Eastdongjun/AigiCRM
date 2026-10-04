@@ -42,6 +42,7 @@ Page({
     roleName: '',
     appName: 'AIGICRM',
     pendingCount: 0,
+    taskSummary: '',
     expiring: [],
     canViewDashboard: false,
     showDashboardCards: false,

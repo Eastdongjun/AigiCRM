@@ -4,6 +4,8 @@ const { hasPermission, requireLogin, isAdmin } = require('../../../utils/auth')
 const { showError, showErrorWithRetry } = require('../../../utils/feedback')
 const { getFormDraft, saveFormDraft, deleteFormDraft } = require('../../../api/system')
 const { readDemoCustomers, saveDemoCustomer } = require('../../../utils/demo-customers')
+// 【D24/D25 2026-10-04】五项指标配置/求和/视图、核心阈值提示、返回兜底统一引用组内共享模块
+const { INDICATOR_FIELDS, sumIndicatorScore, buildIndicatorItems, CORE_THRESHOLD_TIP, navigateBackWithFallback } = require('../shared')
 
 // 【PR-05 残余 20260921】提交幂等键:同一次提交(含重试/重复发包)共用一个键,成功后换新;
 // 小程序无 crypto.randomUUID,用时间戳+随机串(键只需唯一,服务端按 用户+键 作用域隔离)
@@ -12,7 +14,15 @@ function newSubmitKey() {
   return 'mp-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 12)
 }
 
-function today() { return new Date().toISOString().split('T')[0] }
+/** 【L7 2026-10-04】本地时区当天。此前用 toISOString()（UTC），东八区 0:00-8:00 间
+ *  会得到"昨天"，新建客户默认注册日偏一天 → 保护期起算错位。
+ *  契约不变：仅影响新建默认值；编辑回填仍必须用库内值（见 emptyForm 注释）。 */
+function today() {
+  const now = new Date()
+  const month = String(now.getMonth() + 1).padStart(2, '0')
+  const day = String(now.getDate()).padStart(2, '0')
+  return `${now.getFullYear()}-${month}-${day}`
+}
 
 /** 新建默认值（与 PC 端一致：终端=否、注册日=当天）。
  *  编辑时必须用库内值覆盖（含 null）——否则"今天"会被当成用户输入提交，
@@ -31,14 +41,7 @@ function emptyForm() {
 
 const TERMINAL_OPTIONS = ['否', '是']
 const MANUAL_GROUP_LABEL = '其他（手动输入）'
-const INDICATOR_FIELDS = ['relationshipScore', 'indicator02', 'indicator03', 'indicator04', 'indicator05']
-const INDICATOR_ITEMS = [
-  { field: 'relationshipScore', name: '高层', desc: '客情程度', options: ['陌生', '知道', '熟悉', '支持'] },
-  { field: 'indicator02', name: '渠道', desc: '编码数量', options: ['一两个码', '有效编码', '多种编码', '全部畅通'] },
-  { field: 'indicator03', name: '基层', desc: '分厂车间', options: ['一两个', '1/3分厂', '2/3分厂', '全部部门'] },
-  { field: 'indicator04', name: '产品', desc: '密封润滑防腐', options: ['一两个', '一大类', '两大类', '三大类'] },
-  { field: 'indicator05', name: '项目', desc: '项目资金', options: ['日常计划', '改造大修', '安全环保', '新建配套'] }
-]
+// 【D24 2026-10-04】INDICATOR_FIELDS/INDICATOR_ITEMS 移至组内 shared.js 单一出处(与指标维护页共用)
 
 /** 演示模式专用候选（仅 demoMode 分支使用）。
  * 【PR-04 2026-09-19】真实环境接口失败/空返回一律"报错 + 空选项"，
@@ -55,19 +58,7 @@ const FALLBACK = {
 const indexOfValue = (list, value) => (list || []).findIndex((item) => String(item) === String(value))
 const indexOfId = (list, value) => (list || []).findIndex((item) => String(item && item.id) === String(value))
 const emptyIndicatorForm = () => INDICATOR_FIELDS.reduce((result, field) => ({ ...result, [field]: 0 }), {})
-const sumIndicatorScore = (form) => INDICATOR_FIELDS.reduce((sum, field) => sum + (Number(form && form[field]) || 0), 0)
-const buildIndicatorItems = (form) => INDICATOR_ITEMS.map((item) => {
-  const value = Number(form && form[item.field]) || 0
-  return {
-    ...item,
-    value,
-    optionsView: item.options.map((label, score) => ({
-      label,
-      score,
-      className: value === score ? 'score-option active' : 'score-option'
-    }))
-  }
-})
+// 【D24 2026-10-04】sumIndicatorScore/buildIndicatorItems 移至组内 shared.js(与指标维护页共用同一份)
 function pickerView(selected, text, placeholder) {
   return {
     text: selected ? text : placeholder,
@@ -114,6 +105,8 @@ Page({
     industryOptions: [], devTypeOptions: [], terminalOptions: TERMINAL_OPTIONS,
     indicatorForm: emptyIndicatorForm(), indicatorItems: buildIndicatorItems(emptyIndicatorForm()), indicatorLoaded: false, indicatorTotal: 0,
     manualGroupLabel: MANUAL_GROUP_LABEL,
+    // 【D25 2026-10-04】核心客户门槛提示由 shared 常量拼装，wxml 不再硬编码 100 万/12 分
+    coreThresholdTip: CORE_THRESHOLD_TIP,
     industryIndex: -1, devTypeIndex: 0, terminalIndex: 0,
     regionIndex: -1, officeIndex: -1, ownerIndex: -1, managerIndex: -1, groupIndex: -1,
     region: [], deptName: '', customerStatus: '', isPoolCustomer: false, originalOwnerId: null, canEditDates: true,
@@ -153,7 +146,9 @@ Page({
       // 编辑态注册日/最近开票日仅 admin 或 customer:date:edit 可改（与 PC canEditProtectedDates 一致）
       canEditDates: !id || getApp().globalData.demoMode || isAdmin() || hasPermission('customer:date:edit')
     }, () => this.refreshFormView())
-    this.loadOptions().then(() => (id ? this.loadDetail() : this.prefillOwner()))
+    // 【M13 2026-10-04】记录选项加载 Promise：草稿恢复确认时挂在它后面，
+    // 保证 applyCustomer 重算 picker 索引时下拉候选已就绪(选项未加载时索引恒为 -1)
+    this.optionsPromise = this.loadOptions().then(() => (id ? this.loadDetail() : this.prefillOwner()))
     if (!id) this.tryRestoreDraft() // 【议题四】新建时检查草稿恢复
   },
 
@@ -218,8 +213,10 @@ Page({
     return (offices || []).filter((o) => String(o.parentId) === String(regionId))
   },
 
-  /** 新建时默认第一负责人=当前登录人（与 PC 一致） */
+  /** 新建时默认第一负责人=当前登录人（与 PC 一致）。
+   *  【M13 2026-10-04】草稿恢复已带负责人时不覆盖（草稿里用户选的负责人优先于默认值）。 */
   prefillOwner() {
+    if (this.data.form.ownerId) return
     const currentUser = getApp().globalData.currentUser || {}
     const ownerId = currentUser.userId || (getApp().globalData.demoMode ? FALLBACK.users[0].id : null)
     if (!ownerId) return
@@ -448,6 +445,9 @@ Page({
     action
       .then(() => {
         createSubmitKey = null // 成功后换新键,下一次新建客户是全新提交
+        // 【M12 2026-10-04】置已提交标志：500ms 后 navigateBack 触发 onUnload→autoSaveDraft，
+        // 此前会把刚 deleteFormDraft 清掉的草稿原样存回(新建成功后草稿"复活")
+        this.submitted = true
         deleteFormDraft('customer_form').catch(() => {}) // 【议题四】提交成功清草稿
         wx.showToast({ title: this.data.isEdit ? '保存成功' : '新增成功', icon: 'success' })
         setTimeout(() => wx.navigateBack(), 500)
@@ -461,6 +461,8 @@ Page({
   onUnload() { this.autoSaveDraft() },
 
   autoSaveDraft() {
+    // 【M12 2026-10-04】已成功提交的表单不再存草稿(内容已入库,存回即"复活"已清掉的草稿)
+    if (this.submitted) return
     if (this.data.isEdit || this.data.saving) return
     if (getApp().globalData.demoMode) return
     const form = this.data.form || {}
@@ -473,6 +475,16 @@ Page({
       .catch(() => {}) // 自动保存静默失败(网络差等),不打扰用户
   },
 
+  /** 【M13 2026-10-04】草稿恢复前判断用户是否已有输入(ownerId 除外——新建会预填当前登录人)：
+   *  草稿弹窗异步到达时表单可能已被填过，需提示恢复会覆盖当前内容 */
+  hasManualInput() {
+    const f = this.data.form || {}
+    const textFields = ['customerName', 'alias', 'invoiceName', 'groupName', 'branchCompany', 'unitName', 'capacity', 'province', 'city', 'district', 'address', 'remark', 'industry', 'devType']
+    if (textFields.some((key) => String(f[key] || '').trim())) return true
+    if (f.regionId || f.officeId || f.managerId) return true
+    return sumIndicatorScore(this.data.indicatorForm) > 0
+  },
+
   tryRestoreDraft() {
     if (getApp().globalData.demoMode) return
     getFormDraft('customer_form').then((result) => {
@@ -481,15 +493,30 @@ Page({
       let parsed
       try { parsed = JSON.parse(draft.draftData) } catch (e) { return }
       if (!parsed || !parsed.form || !parsed.form.customerName) return
+      // 弹窗到达时用户已有输入则明确提示覆盖(wx.showModal 期间页面不可交互,快照即最新)
+      const overwriteTip = this.hasManualInput() ? '；恢复将覆盖当前已输入的内容' : ''
       wx.showModal({
         title: '发现未完成的草稿',
-        content: `客户"${parsed.form.customerName}"的录入未完成(保存于 ${String(draft.updatedAt || '').slice(0, 16)}),是否恢复?`,
+        content: `客户"${parsed.form.customerName}"的录入未完成(保存于 ${String(draft.updatedAt || '').slice(0, 16)}),是否恢复?${overwriteTip}`,
         confirmText: '恢复',
         cancelText: '放弃',
         success: (res) => {
           if (res.confirm) {
-            this.setData({ form: parsed.form, indicatorForm: parsed.indicatorForm || this.data.indicatorForm, draftVersion: draft.version || 1 },
-              () => this.refreshFormView())
+            // 【M13 2026-10-04】恢复复用 applyCustomer(编辑回填)重算 picker 索引与办事处候选，
+            // 此前只回填 form 不重建索引，界面显示值与提交值不一致；
+            // 并挂在 optionsPromise 之后执行，保证候选列表已就绪再算索引
+            const apply = () => {
+              this.applyCustomer(parsed.form)
+              if (parsed.indicatorForm) {
+                // 重建指标视图(此前 indicatorItems 不更新,恢复的分数界面不显示);
+                // indicatorLoaded 保持 false——未从库内加载,维持"零分指标不随组合提交"口径(shouldSaveIndicator)
+                const indicatorForm = INDICATOR_FIELDS.reduce((result, field) => ({ ...result, [field]: Number(parsed.indicatorForm[field]) || 0 }), {})
+                this.setData({ indicatorForm, indicatorItems: buildIndicatorItems(indicatorForm), indicatorTotal: sumIndicatorScore(indicatorForm) })
+              }
+              this.setData({ draftVersion: draft.version || 1 }, () => this.refreshFormView())
+            }
+            if (this.optionsPromise) this.optionsPromise.then(apply)
+            else apply()
           } else {
             deleteFormDraft('customer_form').catch(() => {})
           }
@@ -500,11 +527,7 @@ Page({
 
   cancel() {
     if (this.data.saving) return
-    const pages = typeof getCurrentPages === 'function' ? getCurrentPages() : []
-    if (pages.length > 1) {
-      wx.navigateBack()
-      return
-    }
-    wx.navigateTo({ url: '/pages/customer/index' })
+    // 【D24 2026-10-04】返回兜底逻辑收敛到 shared.navigateBackWithFallback(组内各表单共用)
+    navigateBackWithFallback('/pages/customer/index')
   }
 })

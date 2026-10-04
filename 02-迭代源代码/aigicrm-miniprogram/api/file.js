@@ -70,9 +70,8 @@ function replaceFile(id, filePath) {
   return new Promise((resolve, reject) => wx.uploadFile({
     url: buildUrl(globalData.apiBaseUrl, '/api/file/' + id + '/replace'), filePath, name: 'file',
     header: token ? { Authorization: 'Bearer ' + token } : {},
-    success(res) {
-      try { const body = JSON.parse(res.data || '{}'); if (res.statusCode >= 200 && res.statusCode < 300 && (body.code === undefined || body.code === 200)) resolve(body.data !== undefined ? body.data : body); else reject(new Error(body.message || '替换失败')) } catch (error) { reject(error) }
-    },
+    // 【M21】响应判定与 401 踢登录复用 utils/request 统一封装, 不再各自复制口径
+    success(res) { request.settleUploadResponse(res, '替换失败').then(resolve, reject) },
     fail: reject
   }))
 }
@@ -89,14 +88,8 @@ function uploadFile(filePath, folderId, scope, options = {}) {
       name: 'file',
       formData,
       header: token ? { Authorization: 'Bearer ' + token } : {},
-      success(res) {
-        try {
-          const body = JSON.parse(res.data || '{}')
-          if (res.statusCode >= 200 && res.statusCode < 300 && (body.code === undefined || body.code === 200)) {
-            resolve(body.data !== undefined ? body.data : body)
-          } else reject(new Error(body.message || '上传失败'))
-        } catch (error) { reject(error) }
-      },
+      // 【M21】响应判定与 401 踢登录复用 utils/request 统一封装, 不再各自复制口径
+      success(res) { request.settleUploadResponse(res, '上传失败').then(resolve, reject) },
       fail: reject
     })
     if (options && typeof options.onProgress === 'function' && task && typeof task.onProgressUpdate === 'function') {

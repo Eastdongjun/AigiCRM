@@ -1,9 +1,8 @@
 
-/* 【PR-10 前端】首页待办任务摘要 */
+/* 【PR-10 前端】首页待办任务摘要(小程序端暂无任务列表页,摘要条仅展示数量不接跳转) */
 .home-task-summary {
   display: flex; align-items: center; gap: 12rpx;
   margin: 16rpx 24rpx 0; padding: 20rpx 24rpx;
   background: #eff6ff; border-radius: 12rpx;
   font-size: 26rpx; color: #1e40af;
 }
-.task-arrow { margin-left: auto; color: #93c5fd; font-size: 32rpx; }

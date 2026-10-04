@@ -95,6 +95,14 @@ Page({
     wx.showModal({ title: '清除缓存', content: '将清除本地登录会话和页面缓存，需要重新登录。', success: (result) => {
       if (!result.confirm) return
       wx.clearStorageSync()
+      // 【质量评审 L10】对齐 utils/auth.js logout 的完整会话清理:
+      // 只清 Storage 不清 globalData 会残留 currentUser/permissions/groupIds/currentGroupId,
+      // 与退出登录/修改密码后的行为不一致(内存态权限继续生效)
+      const globalData = getApp().globalData
+      globalData.currentUser = null
+      globalData.permissions = []
+      globalData.groupIds = []
+      globalData.currentGroupId = null
       wx.showToast({ title: '缓存已清除', icon: 'success' })
       setTimeout(() => wx.redirectTo({ url: '/pages/login/index' }), 700)
     } })

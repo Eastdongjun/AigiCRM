@@ -70,21 +70,3 @@
   </view>
 </view>
 
-  <view wx:if="{{approvalView.selectedApproval}}" class="modal-mask">
-    <view class="card modal-card">
-    <view class="modal-head"><view class="modal-title">审批详情</view><button class="ghost-btn" bindtap="closeDetail">关闭</button></view>
-    <view class="detail-row"><text>事项</text><text>{{approvalView.selectedApproval.titleText}}</text></view>
-    <view class="detail-row"><text>申请人</text><text>{{approvalView.selectedApproval.applicantText}}</text></view>
-    <view class="detail-row"><text>状态</text><text>{{approvalView.selectedApproval.statusText}}</text></view>
-    <view class="refined-reason">{{approvalView.selectedApproval.reasonText}}</view>
-    <view wx:if="{{approvalView.selectedApproval.showNodes}}" class="approval-modal-nodes">
-      <view class="form-section-title">节点时间线</view>
-      <block wx:for="{{approvalView.selectedApproval.nodesView}}" wx:key="key"><view class="approval-node-row"><text>{{item.titleText}}</text><text>{{item.statusText}}</text></view><view class="approval-node-comment">{{item.commentText}}</view></block>
-    </view>
-    <textarea class="comment-input polished-textarea compact-textarea" value="{{comment}}" bindinput="onCommentInput" placeholder="填写审批意见（可选）"></textarea>
-    <view class="approval-action-row approval-modal-action-row">
-      <button wx:if="{{approvalView.selectedApproval.showRejectAction}}" class="approval-reject-action" data-id="{{approvalView.selectedApproval.id}}" bindtap="reject">驳回</button>
-      <button wx:if="{{approvalView.selectedApproval.showApproveAction}}" class="approval-approve-action" data-id="{{approvalView.selectedApproval.id}}" bindtap="approve">通过</button>
-    </view>
-  </view>
-</view>

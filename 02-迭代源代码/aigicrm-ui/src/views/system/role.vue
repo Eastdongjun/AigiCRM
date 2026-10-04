@@ -66,7 +66,7 @@
         <template v-if="editForm.dataScope === 'custom'">
           <el-divider content-position="left">组织矩阵</el-divider>
           <el-alert type="info" :closable="false" style="margin-bottom:12px">
-            勾选角色可访问的组织。每个组织可独立设置"包含下级"。
+            勾选角色可访问的组织，勾选即包含其全部下级组织。
           </el-alert>
           <div class="org-matrix">
             <div v-for="org in flatOrgs" :key="org.id" class="org-matrix-row">
@@ -74,14 +74,6 @@
                 :model-value="orgMatrix[org.id] !== undefined"
                 @change="(checked) => toggleOrg(org.id, checked)">
                 <span :style="{ paddingLeft: (org._level || 0) * 16 + 'px' }">{{ org.deptName }}</span>
-              </el-checkbox>
-              <el-checkbox
-                v-if="orgMatrix[org.id] !== undefined"
-                v-model="orgMatrix[org.id]"
-                :true-label="1" :false-label="0"
-                size="small"
-                style="margin-left:8px">
-                包含下级
               </el-checkbox>
             </div>
           </div>
@@ -132,7 +124,7 @@
 import { ref, reactive, onMounted, computed } from 'vue'
 import { Plus } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { getRoleList, getRole, createRole, updateRole, deleteRole, getMenuTree, getDeptTree, getRoleOrgs, updateRoleOrgs } from '@/api/system'
+import { getRoleList, getRole, createRole, updateRole, deleteRole, getMenuTree, getDeptTree, getRoleOrgs } from '@/api/system'
 import { useUserStore } from '@/store/user'
 
 const userStore = useUserStore()
@@ -151,12 +143,16 @@ const checkedMenuIds = ref([])
 const currentRoleId = ref(null)
 const saving = ref(false)
 
-/** 组织矩阵: { [orgId]: 0|1 }  0=仅本组织, 1=包含下级 */
+/** 组织矩阵: { [orgId]: 1 }  勾选的组织（含下级）
+ *  【P1 2026-10-04 契约对齐】后端 saveRoleOrgs 对每个 org 固定写 include_children=1
+ *  (SysRoleService.java:356)、GET /system/roles/{id}/orgs 只回 List<Long> 组织ID，
+ *  "每组织是否含下级"无任何持久化/回显通道，故移除原"包含下级"勾选，勾选即含下级。
+ */
 const orgMatrix = reactive({})
 
 const editForm = reactive({ id: null, roleName: '', roleCode: '', description: '', dataScope: 'self', orgId: null, sortOrder: 0 })
 
-/** 数据范围中文标签映射（与后端 DataScopeType 六级范围一致） */
+/** 数据范围中文标签映射（与后端 DataScopeType 枚举一致：self/team/dept/office/region/all/custom） */
 const scopeMap = { self: '仅本人', team: '本人及下级', dept: '本部门及以下', office: '本办事处及以下', region: '本大区及以下', all: '全部', custom: '自定义' }
 const scopeLabel = s => scopeMap[s] || s || '仅本人'
 
@@ -195,7 +191,7 @@ const onScopeChange = (val) => {
 
 const toggleOrg = (orgId, checked) => {
   if (checked) {
-    orgMatrix[orgId] = 0 // 默认不包含下级
+    orgMatrix[orgId] = 1 // 后端保存时固定 include_children=1（含下级）
   } else {
     delete orgMatrix[orgId]
   }
@@ -206,11 +202,14 @@ const openDialog = async (row) => {
     Object.assign(editForm, row)
     // 如果是自定义，加载已配置的组织矩阵
     if (row.dataScope === 'custom') {
+      // 先清空旧状态再加载：加载失败时不携带上一会话的残留勾选（所见即所存）
+      Object.keys(orgMatrix).forEach(k => delete orgMatrix[k])
       try {
+        // 【P1 2026-10-04 契约对齐】GET /system/roles/{id}/orgs 返回 List<Long> 组织ID（非对象数组），
+        // 旧代码按 o.orgId 取值恒 undefined 导致编辑回显勾选全部丢失
         const res = await getRoleOrgs(row.id)
-        const orgs = res.data || []
-        Object.keys(orgMatrix).forEach(k => delete orgMatrix[k])
-        orgs.forEach(o => { orgMatrix[o.orgId] = o.includeChildren || 0 })
+        const orgIds = res.data || []
+        orgIds.forEach(id => { orgMatrix[id] = 1 })
       } catch (e) {}
     }
   } else {
@@ -223,18 +222,19 @@ const openDialog = async (row) => {
 const handleSave = async () => {
   saving.value = true
   try {
+    // 【P1 2026-10-04 组织矩阵静默丢失修复】后端 POST/PUT /system/roles 请求体支持 orgIds(List<Long>)，
+    // create/update 内部同事务调用 saveRoleOrgs(SysRoleService.java:127/174)。
+    // 旧链路有两个断点：
+    //   1) 新增时 createRole 返回 Result<Void> 无新 id（SysRoleController.java:50），editForm.id 恒 null，
+    //      后续 updateRoleOrgs 永不执行，勾选的组织静默丢失还提示"保存成功"；
+    //   2) 编辑时单独调 updateRoleOrgs 传 [{orgId,includeChildren}]，与后端 List<Long> 契约不符必 400，
+    //      且 update 先清空 role_org 再补写为两步非原子。
+    // 现统一走请求体 orgIds 一次落库；非 custom 传空数组（后端 saveRoleOrgs 对非 custom 清空后直接返回）。
+    const payload = { ...editForm, orgIds: Object.keys(orgMatrix).map(Number) }
     if (editForm.id) {
-      await updateRole(editForm.id, editForm)
+      await updateRole(editForm.id, payload)
     } else {
-      await createRole(editForm)
-    }
-    // 自定义数据范围时，保存组织矩阵
-    if (editForm.dataScope === 'custom' && editForm.id) {
-      const orgIds = Object.entries(orgMatrix).map(([orgId, includeChildren]) => ({
-        orgId: Number(orgId),
-        includeChildren
-      }))
-      await updateRoleOrgs(editForm.id, orgIds)
+      await createRole(payload)
     }
     ElMessage.success('保存成功')
     dialogVisible.value = false

@@ -1,19 +1,20 @@
-const { createFolder, renameFolder } = require('../../../api/file')
+const { renameFolder } = require('../../../api/file')
 const { hasPermission, requireLogin } = require('../../../utils/auth')
 const { showError } = require('../../../utils/feedback')
 const { saveDemoFolder } = require('../../../utils/demo-folders')
 
 function buildFolderFormView(data) {
-  const isEdit = Boolean(data.id)
+  // 【D36】本页唯一入口是 files 列表"重命名"(必带 id)；"新建"走 files 首页 showModal 弹窗，
+  // 原"新建文件夹"标题与创建分支属旧方案残留，已删除，页面固定为重命名身份
   return {
-    titleText: isEdit ? '重命名文件夹' : '新建文件夹',
+    titleText: '重命名文件夹',
     nameValue: data.name || '',
     nameMaxLength: 60,
     namePlaceholder: '请输入文件夹名称',
-    submitText: data.saving ? '保存中...' : (isEdit ? '保存名称' : '创建文件夹'),
+    submitText: data.saving ? '保存中...' : '保存名称',
     submitLoading: Boolean(data.saving),
-    successText: isEdit ? '已重命名' : '已创建',
-    errorText: isEdit ? '重命名失败' : '创建失败'
+    successText: '已重命名',
+    errorText: '重命名失败'
   }
 }
 
@@ -28,6 +29,8 @@ Page({
     if (!requireLogin()) return
     if (!getApp().globalData.demoMode && !hasPermission('file:folder:manage')) { wx.showToast({ title: '没有文件夹管理权限', icon: 'none' }); wx.navigateBack(); return }
     this.applyState({ id: options.id || '', name: options.name ? decodeURIComponent(options.name) : '' })
+    // 【D36】导航栏标题与页面模式保持一致（json 里为同名兜底）
+    wx.setNavigationBarTitle({ title: this.data.folderFormView.titleText })
   },
   applyState(patch, callback) {
     const next = { ...this.data, ...patch }
@@ -36,10 +39,12 @@ Page({
   input(e) { this.applyState({ name: e.detail.value }) },
   submit() {
     if (!this.data.name.trim() || this.data.saving) return wx.showToast({ title: '请输入文件夹名称', icon: 'none' })
+    // 【D36】原创建分支参数口径(scope)与后端 BizFileFolder(folderName/folderType/parentId)不一致且已无入口，删除；缺 id 直接拒绝
+    if (!this.data.id) return wx.showToast({ title: '缺少文件夹ID，无法重命名', icon: 'none' })
     this.applyState({ saving: true })
     const action = getApp().globalData.demoMode
       ? Promise.resolve(saveDemoFolder(this.data.name.trim(), this.data.id))
-      : (this.data.id ? renameFolder(this.data.id, this.data.name.trim()) : createFolder({ folderName: this.data.name.trim(), name: this.data.name.trim(), scope: 'private' }))
+      : renameFolder(this.data.id, this.data.name.trim())
     action.then(() => { wx.showToast({ title: this.data.folderFormView.successText, icon: 'success' }); setTimeout(() => wx.navigateBack(), 500) }).catch((error) => showError(error, this.data.folderFormView.errorText)).finally(() => this.applyState({ saving: false }))
   },
   back() { wx.navigateBack() }

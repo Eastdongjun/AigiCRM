@@ -99,16 +99,25 @@ async function loadConfigs() {
 }
 
 async function loadOptions() {
-  try { const r1 = await request.get('/system/roles'); roleOptions.value = r1.data || [] } catch(e){}
-  try { const r3 = await request.get('/customer/users/simple'); userOptions.value = (r3.data||[]).map(u=>({id:u.id, realName:u.realName})) } catch(e){}
+  // 【D3 2026-10-04】清理复制残留变量名 r1/r3 → 语义命名。
+  // 注：审批配置 CRUD 仍直调 /approval/config*（api/approval.js 暂无对应封装函数）；
+  //    收口到 api 层需在 src/api/approval.js 补函数，该文件不在本批次可改范围，留待 api 层批次处理。
+  try { const roleRes = await request.get('/system/roles'); roleOptions.value = roleRes.data || [] } catch(e){}
+  try { const userRes = await request.get('/customer/users/simple'); userOptions.value = (userRes.data||[]).map(u=>({id:u.id, realName:u.realName})) } catch(e){}
+}
+
+function parseApproverIds(raw) {
+  // 【L1 2026-10-04】approverIds 为 JSON 字符串，异常/历史脏数据时兜底空数组，避免打开弹窗即抛错
+  try { return JSON.parse(raw || '[]') } catch (e) { return [] }
 }
 
 function parseNames(row) {
-  try { const ids = JSON.parse(row.approverIds||'[]'); return ids.length ? ids.join(', ') : '未设置' } catch(e){ return '未设置' }
+  const ids = parseApproverIds(row.approverIds)
+  return ids.length ? ids.join(', ') : '未设置'
 }
 
 function openDialog(row) {
-  if (row) { Object.assign(form, row); approverIds.value = JSON.parse(row.approverIds||'[]') }
+  if (row) { Object.assign(form, row); approverIds.value = parseApproverIds(row.approverIds) }
   else { Object.assign(form, {id:null,flowName:'',flowType:'',approverType:'USER',signMode:'ANY',sortOrder:0}); approverIds.value=[] }
   visible.value = true
 }

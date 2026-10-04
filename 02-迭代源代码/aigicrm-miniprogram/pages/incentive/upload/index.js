@@ -297,6 +297,9 @@ function buildUploadViewState(data) {
         ...file,
         fileIndex,
         displayIndex: fileIndex + 1,
+        // 【L11】existing/草稿恢复文件 filePath 恒为空串, 直接拿 filePath 当 wx:key 会整组重复:
+        // 依次用本地临时路径 → 服务端文件 id → 附件 URL 兜底, 最后按下标保证唯一
+        fileKey: file.filePath || (file.fileId ? `id-${file.fileId}` : (file.fileUrl ? `url-${file.fileUrl}` : `idx-${fileIndex}`)),
         isImage: file.fileKind === 'image' || isImageFile(file.fileName, file.filePath),
         // 【PR-13 首批 2026-09-19】逐文件上传反馈:pending/uploading/done/failed(+失败原因)
         uploadState: file.uploadedId ? 'done' : (file.uploadState || 'pending'),
@@ -345,7 +348,10 @@ function buildUploadViewState(data) {
     showPeriodPreserveHint: Boolean(data.editId),
     shareLocked: Boolean(data.editId && !data.canToggleShare),
     submitLoading: Boolean(data.loading),
-    submitDisabled: data.loading || !canSubmitUpload(data, selectedCategory, categories),
+    // 【M18 2026-10-04】submitDisabled 只表达"提交中"禁用: 表单未就绪不再进 disabled(微信原生禁用
+    // 按钮会吞掉点击, 用户点不出任何反馈), 改为 submitIncomplete 置灰样式 + submit() 点击时 toast 原因
+    submitDisabled: Boolean(data.loading),
+    submitIncomplete: !canSubmitUpload(data, selectedCategory, categories),
     submitText: data.loading ? '提交中' : '提交激励',
     cancelText: data.editId ? '取消追加' : '取消上传',
     cancelDisabled: Boolean(data.loading),
@@ -769,25 +775,27 @@ Page({
   },
 
   submit() {
+    // 【M18 2026-10-04】按钮 disabled 属性只保留给"提交中"态, 表单未就绪时按钮可点击;
+    // 此处按缺失项逐条校验并 toast, 保证用户知道为何不能提交(原先 submitDisabled 早退
+    // 会把"请补齐客户和分类"/"请至少上传 1 个文件"两条提示挡成不可达死代码)
+    if (this.data.loading) return // 提交中重复点击静默忽略(已有全屏 loading 反馈)
     const customer = this.data.customers[this.data.selectedCustomerIndex]
     const category = this.data.categories[this.data.selectedCategoryIndex]
-    if (this.data.uploadView.submitDisabled) return
+    if (!customer || !category) {
+      wx.showToast({ title: '请补齐客户和分类', icon: 'none' })
+      return
+    }
     const selectedFiles = this.data.fileSlots.flatMap((slot, slotIndex) => {
       if (slot.hidden) return []
       const files = slot.files && slot.files.length ? slot.files : (slot.filePath ? [slot] : [])
       return files.map((file, fileIndex) => ({ ...file, key: slot.key, slotIndex, fileIndex }))
     })
-    if (!customer || !category) {
-      wx.showToast({ title: '请补齐客户和分类', icon: 'none' })
-      return
-    }
     const code = categoryCodeOf(category, this.data.categories)
     const isSingleSlot = ['visit', 'exchange', 'plan'].includes(code)
     if (isSingleSlot && selectedFiles.length === 0) {
       wx.showToast({ title: '请至少上传 1 个文件', icon: 'none' })
       return
     }
-    if (this.data.loading) return
     this.setUploadData({ loading: true, uploadProgress: 0, uploadProgressFile: '' })
     wx.showLoading({ title: '上传中' })
     this.uploadPendingFiles(selectedFiles, customer, category, isSingleSlot)
@@ -921,7 +929,11 @@ Page({
   // 离开自动保存(新建模式,仅真实环境;客户+分类已选才存) / 进入询问恢复 / 提交成功清除;
   // 乐观锁版本防多端覆盖; 已上传到服务端的附件按 id 恢复(existing), 本地暂存文件不跨会话。
   onHide() { this.autoSaveDraft() },
-  onUnload() { this.autoSaveDraft() },
+  onUnload() {
+    // 【L12】标记已卸载: 草稿保存请求照常发出完成, 仅回调里不再对已卸载页面 setData
+    this._unloaded = true
+    this.autoSaveDraft()
+  },
 
   autoSaveDraft() {
     if (this.data.editId || this.data.loading) return
@@ -950,6 +962,8 @@ Page({
       shared: this.data.shared !== 0,
       uploadedFiles
     }, this.data.draftVersion).then((result) => {
+      // 【L12】页面已卸载: 存储本身已完成, 只是跳过界面回写(draftVersion 无处可用)
+      if (this._unloaded) return
       const d = result && result.data
       if (d && d.version) this.setData({ draftVersion: d.version })
     }).catch(() => {}) // 自动保存静默失败,不打扰用户

@@ -1,0 +1,7 @@
+/* 客户列表页（2026-10-04 P6 分页新增底部提示样式；此前本页无独立 wxss） */
+.list-end-tip {
+  margin: 20rpx 0;
+  color: #94a3b8;
+  font-size: 23rpx;
+  text-align: center;
+}

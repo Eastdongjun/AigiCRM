@@ -77,20 +77,6 @@ function flattenDepts(nodes = [], depth = 0) {
   return rows
 }
 
-function buildApprovalNodeView(node, index) {
-  const order = node.nodeOrder || index + 1
-  const approverName = node.approverName || '审批人'
-  const statusText = node.statusLabel || nodeStatusText(node.status, node.action)
-  const actionText = node.action ? ` ${node.action}` : ''
-  return {
-    ...node,
-    key: node.id || `${order}-${approverName}`,
-    titleText: `${order}. ${approverName}`,
-    statusText: `${statusText}${actionText}`,
-    commentText: node.comment || '暂无意见'
-  }
-}
-
 function buildApprovalItemView(item, state = {}) {
   const customerNameText = item.customerName || '-'
   const customerIndustryText = item.customerIndustry || '-'
@@ -112,8 +98,6 @@ function buildApprovalItemView(item, state = {}) {
     createdAtText: item.createdAt || '-',
     updatedAtText: item.updatedAt || '-',
     timeText: `发起 ${item.createdAt || '-'} · 更新 ${item.updatedAt || '-'}`,
-    nodesView: (item.nodes || []).map(buildApprovalNodeView),
-    showNodes: Boolean(item.nodes && item.nodes.length),
     showCustomerAction: Boolean(item.customerId),
     showRejectAction,
     showApproveAction,
@@ -145,7 +129,6 @@ function pickOption(options = [], index, field, fallback) {
 
 function buildApprovalView(data) {
   const list = (data.approvals || []).map((item) => buildApprovalItemView(item, data))
-  const selectedApproval = data.selectedApproval ? buildApprovalItemView(data.selectedApproval, data) : null
   const isLoading = Boolean(data.loading)
   const activeTab = (data.tabs || []).find((item) => item.key === data.tab) || {}
   const typeText = pickOption(data.typeOptions, data.selectedTypeIndex, 'label', '全部类型')
@@ -169,8 +152,7 @@ function buildApprovalView(data) {
     showLoading: isLoading,
     loadingText: '加载中...',
     list,
-    showEmpty: !isLoading && list.length === 0,
-    selectedApproval
+    showEmpty: !isLoading && list.length === 0
   }
 }
 
@@ -201,8 +183,6 @@ Page({
     loading: false,
     canApprove: false,
     canReject: false
-    ,selectedApproval: null
-    ,comment: ''
     ,submitCustomerId: ''
     ,approvalView: buildApprovalView({
       approvals: [],
@@ -213,8 +193,7 @@ Page({
       selectedTypeIndex: 0,
       deptOptions: [],
       selectedDeptIndex: 0,
-      loading: false,
-      selectedApproval: null
+      loading: false
     })
   },
 
@@ -327,14 +306,16 @@ Page({
     this.loadApprovals()
   },
 
+  // 【D35】selectedApproval 详情弹窗为永假死代码已删除：selectedApproval 从未被赋非空值，
+  // 弹窗（wxml）与 approve/reject/openCustomer 里的 selectedApproval 回退分支一并移除
   approve(e) {
-    const item = this.data.selectedApproval || (e.currentTarget.dataset.id ? this.data.approvals.find((row) => String(row.id) === String(e.currentTarget.dataset.id)) : this.data.approvals[e.currentTarget.dataset.index])
+    const item = e.currentTarget.dataset.id ? this.data.approvals.find((row) => String(row.id) === String(e.currentTarget.dataset.id)) : this.data.approvals[e.currentTarget.dataset.index]
     if (!item || !isPending(item) || !this.data.canApprove) return
     this.handleApprovalAction(item.id, 'approve')
   },
 
   reject(e) {
-    const item = this.data.selectedApproval || (e.currentTarget.dataset.id ? this.data.approvals.find((row) => String(row.id) === String(e.currentTarget.dataset.id)) : this.data.approvals[e.currentTarget.dataset.index])
+    const item = e.currentTarget.dataset.id ? this.data.approvals.find((row) => String(row.id) === String(e.currentTarget.dataset.id)) : this.data.approvals[e.currentTarget.dataset.index]
     if (!item || !isPending(item) || !this.data.canReject) return
     this.handleApprovalAction(item.id, 'reject')
   },
@@ -346,14 +327,10 @@ Page({
   },
 
   openCustomer(e) {
-    const item = this.data.selectedApproval || this.data.approvals[e.currentTarget.dataset.index]
+    const item = this.data.approvals[e.currentTarget.dataset.index]
     if (!item || !item.customerId) return wx.showToast({ title: '未关联客户', icon: 'none' })
     wx.navigateTo({ url: `/pages/customer/detail/index?id=${item.customerId}&from=approval` })
   },
-
-  closeDetail() { this.setApprovalData({ selectedApproval: null, comment: '' }) },
-
-  onCommentInput(e) { this.setData({ comment: e.detail.value }) },
 
   submitReleaseApproval() {
     const customerId = this.data.submitCustomerId
@@ -374,19 +351,22 @@ Page({
     if (getApp().globalData.demoMode) {
       const status = action === 'approve' ? 'approved' : 'rejected'
       const approvals = this.data.approvals.map((item) => String(item.id) === String(id) ? { ...item, status, statusLabel: approvalStatusText(status), isPending: pendingStatus(status) } : item)
-      this.setApprovalData({ approvals, selectedApproval: null, comment: '' })
+      this.setApprovalData({ approvals })
       wx.showToast({ title: action === 'approve' ? '处理完成' : '已驳回', icon: 'success' })
       return
     }
     const request = action === 'approve' ? approveApproval : rejectApproval
+    // 【D35】审批意见输入框随死弹窗删除，移动端固定提交默认意见（与删除前实际线上行为一致）
     wx.showLoading({ title: action === 'approve' ? '审批通过中' : '审批驳回中' })
-    request(id, { comment: this.data.comment.trim() || '移动端处理' }).then(() => {
+    request(id, { comment: '移动端处理' }).then(() => {
+      // 【L17】loading 与 toast 共用原生单例：先 hideLoading 再 showToast，否则成功提示被后置 hideLoading 一并关掉
+      wx.hideLoading()
       wx.showToast({ title: '处理完成', icon: 'success' })
-      this.setApprovalData({ selectedApproval: null, comment: '' })
       this.loadApprovals()
       this.loadStats()
-    }).catch((error) => showError(error, '处理失败')).finally(() => {
+    }).catch((error) => {
       wx.hideLoading()
+      showError(error, '处理失败')
     })
   },
 

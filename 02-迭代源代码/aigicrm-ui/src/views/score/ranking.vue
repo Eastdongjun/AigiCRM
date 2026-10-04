@@ -74,7 +74,8 @@
       <el-pagination v-if="personalList.length > pageSize" v-model:current-page="pageNum" :page-size="pageSize" :total="personalList.length" :page-sizes="pageSizes(pageSize)" layout="sizes, prev, pager, next, jumper" size="small" background @size-change="onSizeChange" style="justify-content:flex-end;margin-top:12px" />
       <div class="rank-footer">
         <span class="footer-note">同分时按文件数排序，文件数相同则按姓名排序</span>
-        <span class="footer-time">最近更新：{{ new Date().toLocaleString() }}</span>
+        <!-- 2026-10-04 D15：移除“最近更新：渲染时刻”展示——/score/ranking 与 /score/ranking/stats
+             均不返回数据时间字段，用 new Date() 属伪造时间（接口返回字段见后端 ScoreService.ranking/rankingStats） -->
       </div>
     </div>
 
@@ -143,7 +144,10 @@ async function loadData() {
     personalList.value = personal.data || []
     deptList.value = dept.data || []
     stats.value = stat.data || {}
-  } catch {}
+  } catch {
+    // 【D13 2026-10-04】失败由 request 拦截器统一提示（Promise.all 任一失败即整体失败），
+    // 本地保留旧数据不再叠加笼统文案
+  }
 }
 
 function trendClass(value) {

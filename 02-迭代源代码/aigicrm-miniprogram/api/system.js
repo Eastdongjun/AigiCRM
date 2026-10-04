@@ -1,4 +1,7 @@
 const request = require('../utils/request')
+// 【D38】表单草稿接口已迁至 ./draft(域归位); 此处再导出仅为过渡兼容,
+// 存量调用方(pages/customer/form、pages/incentive/upload)迁移由后续去重批完成。
+const draft = require('./draft')
 
 /** 部门列表（大区 deptType=2 / 办事处 deptType=3）——客户表单"所属大区/办事处"下拉用。
  *  后端 /api/system/depts 已按 FEAT-20260804-DICT-DEPT-READ 放宽为"登录即可读"，
@@ -18,14 +21,13 @@ function getScopeUsers() {
   return request({ url: '/api/common/scope/users' })
 }
 
+// 【D38】exports 统一放文件尾: 此前写在函数定义前靠声明提升才成立, 易在维护中踩坑
 module.exports = {
-  getFormDraft,
-  saveFormDraft,
-  forceSaveFormDraft,
-  deleteFormDraft, getDepts, getDictData, getScopeUsers }
-
-// 【议题四裁决】表单草稿(7天保留/账号+集团隔离/版本冲突检测)
-function getFormDraft(draftType) { return request({ url: '/api/draft/' + draftType }) }
-function saveFormDraft(draftType, draftData, version) { return request({ url: '/api/draft/' + draftType, method: 'PUT', data: { draftData: JSON.stringify(draftData), version: version || 0 } }) }
-function forceSaveFormDraft(draftType, draftData) { return request({ url: '/api/draft/' + draftType + '/force', method: 'PUT', data: { draftData: JSON.stringify(draftData) } }) }
-function deleteFormDraft(draftType) { return request({ url: '/api/draft/' + draftType, method: 'DELETE' }) }
+  getFormDraft: draft.getFormDraft,
+  saveFormDraft: draft.saveFormDraft,
+  forceSaveFormDraft: draft.forceSaveFormDraft,
+  deleteFormDraft: draft.deleteFormDraft,
+  getDepts,
+  getDictData,
+  getScopeUsers
+}

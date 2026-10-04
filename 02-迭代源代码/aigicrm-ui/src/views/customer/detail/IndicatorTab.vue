@@ -8,7 +8,7 @@
     <div class="ind-row" v-for="(ind, idx) in indicatorDefs" :key="ind.code">
       <span class="ind-num">{{ ind.code }}</span>
       <span class="ind-name">{{ ind.label }}</span>
-      <el-select v-model="indicatorForm[ind.field]" size="small" style="width:170px" :disabled="readonly" @change="onIndicatorChange">
+      <el-select v-model="indicatorForm[ind.field]" size="small" style="width:170px" :disabled="readonly">
         <el-option v-for="opt in ind.options" :key="opt.dictValue" :label="`${opt.dictValue}分 · ${opt.dictLabel}`" :value="parseInt(opt.dictValue)" />
       </el-select>
     </div>
@@ -24,7 +24,7 @@ import { injectCustomerDetail } from '@/composables/useCustomerDetail'
 
 const {
   readonly, indicatorDefs, indicatorForm, indicatorTotal, bothThresholdMet,
-  onIndicatorChange, handleSaveIndicator,
+  handleSaveIndicator,
 } = injectCustomerDetail()
 </script>
 

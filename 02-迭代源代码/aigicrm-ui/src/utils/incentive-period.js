@@ -12,13 +12,18 @@
 
 export const PERIOD_ALL = { label: '全部', value: '' }
 
-/** 周期下拉选项：默认覆盖 2030→2025，每含 全年/下半年/上半年 三项。 */
-export function buildPeriodOptions({ fromYear = 2030, toYear = 2025 } = {}) {
+/** 周期下拉选项：默认覆盖 当前年+1 → 当前年-5（随时间滚动），每年含 全年/下半年/上半年 三项。 */
+export function buildPeriodOptions({ fromYear, toYear, now = new Date() } = {}) {
+  // 【D23 2026-10-04】默认年份窗由硬编码 2030→2025 改为围绕当前年动态生成：
+  // 旧写法 2031 年起默认选项不再包含当前年，新周期将无法在下拉中选择。
+  const year = now.getFullYear()
+  const from = fromYear ?? year + 1
+  const to = toYear ?? year - 5
   const options = [PERIOD_ALL]
-  for (let year = fromYear; year >= toYear; year--) {
-    options.push({ label: `${year}全年`, value: `${year}全年` })
-    options.push({ label: `${year}下半年`, value: `${year}下半年` })
-    options.push({ label: `${year}上半年`, value: `${year}上半年` })
+  for (let y = from; y >= to; y--) {
+    options.push({ label: `${y}全年`, value: `${y}全年` })
+    options.push({ label: `${y}下半年`, value: `${y}下半年` })
+    options.push({ label: `${y}上半年`, value: `${y}上半年` })
   }
   return options
 }

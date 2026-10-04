@@ -83,8 +83,9 @@
 
     <!-- 分页 -->
     <div class="list-pager">
+      <!-- 【P5 修复】翻页直接 loadData；原 @change 强制重置回第 1 页导致永久卡第一页（对齐 approval 写法） -->
       <el-pagination v-model:current-page="query.current" v-model:page-size="query.size" :total="total"
-        layout="prev, pager, next" size="small" @change="() => { query.current = 1; loadData() }" />
+        layout="prev, pager, next" size="small" @change="loadData" />
     </div>
 
     <!-- 完成弹窗 -->

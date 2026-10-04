@@ -3,8 +3,12 @@ const { hasPermission, requireLogin } = require('../../../utils/auth')
 const { showError } = require('../../../utils/feedback')
 const { readDemoContacts, deleteDemoContact } = require('../../../utils/demo-contacts')
 
+/** 【D28 2026-10-04】手机号取值统一优先级：后端契约字段 phone 优先，mobile 仅兼容历史演示数据。
+ *  此前本页两处相反(openDetail 用 mobile||phone、editContact 用 phone||mobile)，取值口径漂移。 */
+const phoneOf = (item) => item.phone || item.mobile || ''
+
 function buildContactItem(item, index) {
-  const phone = item.mobile || item.phone || ''
+  const phone = phoneOf(item)
   return {
     ...item,
     viewId: item.id || `contact-${index}`,
@@ -47,6 +51,16 @@ Page({
     this.applyState({ id: options.id || '', canEdit: getApp().globalData.demoMode || hasPermission('customer:edit') })
     this.load()
   },
+
+  /** 【M14 2026-10-04】从联系人表单/详情返回时刷新列表(此前保存返回后列表不刷新)。
+   *  对齐 customer/index.js 既有 onShow 模式：首次 onShow 跳过(onLoad 已加载)，加载中不重复请求。 */
+  onShow() {
+    if (!this.didInitialShow) {
+      this.didInitialShow = true
+      return
+    }
+    if (!this.data.loading) this.load()
+  },
   load() {
     if (!this.data.id) return
     if (getApp().globalData.demoMode) return this.applyState({ contacts: [{ id: 1, name: '李经理', position: '采购负责人', mobile: '138****0001' }, { id: 2, name: '王工', position: '技术负责人', mobile: '139****0002' }, ...readDemoContacts(this.data.id)] })
@@ -61,7 +75,7 @@ Page({
   openDetail(e) {
     const item = this.data.contacts[Number(e.currentTarget.dataset.index)]
     if (!item) return
-    wx.navigateTo({ url: `/pages/customer/contact/detail/index?name=${encodeURIComponent(item.name || item.contactName || '')}&position=${encodeURIComponent(item.position || item.title || '')}&mobile=${encodeURIComponent(item.mobile || item.phone || '')}&remark=${encodeURIComponent(item.remark || '')}` })
+    wx.navigateTo({ url: `/pages/customer/contact/detail/index?name=${encodeURIComponent(item.name || item.contactName || '')}&position=${encodeURIComponent(item.position || item.title || '')}&mobile=${encodeURIComponent(phoneOf(item))}&remark=${encodeURIComponent(item.remark || '')}` })
   },
   editContact(e) {
     if (!this.data.canEdit) return wx.showToast({ title: '没有联系人编辑权限', icon: 'none' })
@@ -72,7 +86,7 @@ Page({
       `contactId=${encodeURIComponent(item.id || '')}`,
       `name=${encodeURIComponent(item.name || item.contactName || '')}`,
       `position=${encodeURIComponent(item.position || item.title || '')}`,
-      `phone=${encodeURIComponent(item.phone || item.mobile || '')}`,
+      `phone=${encodeURIComponent(phoneOf(item))}`,
       `remark=${encodeURIComponent(item.remark || '')}`
     ].join('&')
     wx.navigateTo({ url: `/pages/customer/contact/form/index?${query}` })

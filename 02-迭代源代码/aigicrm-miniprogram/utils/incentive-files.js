@@ -84,55 +84,38 @@ function buildSlotFiles(ids, names, tag, meta) {
   return files
 }
 
-function pushFiles(files, ids, names, tag, meta) {
-  files.push(...buildSlotFiles(ids, names, tag, meta))
+// 【D39 单表维护】五个佐证槽位的字段映射(单一数据源)。同一槽位的元数据字段在
+// 历史接口/PC 端存在多套键名(filePreUrl/filePrePath/filePreOssKey…), 因此逐键回退
+// 取第一个非空值——这是历史字段兼容, 旧键在存量数据清空前不可删。id 侧
+// filePreId(单值) 与 filePreIds(逗号串/JSON 数组) 同理回退。此映射原先在
+// buildIncentiveFiles 与 buildIncentiveFileGroups 两个函数里完整重复, 已提取为本表。
+const EVIDENCE_SLOTS = [
+  { key: 'pre', label: '安装前', hint: '现场问题、安装前状态、方案资料', idKeys: ['filePreId', 'filePreIds'], nameKey: 'filePreName', metaKeys: ['filePreUrl', 'filePrePath', 'filePreOssKey', 'filePreType', 'filePreMimeType'] },
+  { key: 'mid', label: '安装中', hint: '安装过程、调试过程、现场记录', idKeys: ['fileMidId', 'fileMidIds'], nameKey: 'fileMidName', metaKeys: ['fileMidUrl', 'fileMidPath', 'fileMidOssKey', 'fileMidType', 'fileMidMimeType'] },
+  { key: 'post', label: '安装后', hint: '运行结果、验收报告、客户反馈', idKeys: ['filePostId', 'filePostIds'], nameKey: 'filePostName', metaKeys: ['filePostUrl', 'filePostPath', 'filePostOssKey', 'filePostType', 'filePostMimeType'] },
+  { key: 'track', label: '跟踪', hint: '回访、复盘、持续跟踪资料', idKeys: ['fileTrackId', 'fileTrackIds'], nameKey: 'fileTrackName', metaKeys: ['fileTrackUrl', 'fileTrackPath', 'fileTrackOssKey', 'fileTrackType', 'fileTrackMimeType'] },
+  { key: 'evidence', label: '佐证', hint: '交流、拜访、方案等非安装类资料', idKeys: ['fileId', 'fileIds'], nameKey: 'fileName', metaKeys: ['fileUrl', 'filePath', 'ossKey', 'fileKey', 'fileType', 'fileMimeType'] }
+]
+
+// 与原写法 `record.filePreId || record.filePreIds` 语义一致: 取第一个真值(0/''/null 均跳过)
+function pickFirstTruthy(record, keys) {
+  return keys.map((key) => record[key]).find(Boolean)
+}
+
+function slotFiles(record, slot) {
+  return buildSlotFiles(pickFirstTruthy(record, slot.idKeys), record[slot.nameKey], slot.label, pickSlotValue(record, slot.metaKeys))
 }
 
 function buildIncentiveFiles(record) {
-  const files = []
-  if (!record) return files
-  pushFiles(files, record.filePreId || record.filePreIds, record.filePreName, '安装前', pickSlotValue(record, ['filePreUrl', 'filePrePath', 'filePreOssKey', 'filePreType', 'filePreMimeType']))
-  pushFiles(files, record.fileMidId || record.fileMidIds, record.fileMidName, '安装中', pickSlotValue(record, ['fileMidUrl', 'fileMidPath', 'fileMidOssKey', 'fileMidType', 'fileMidMimeType']))
-  pushFiles(files, record.filePostId || record.filePostIds, record.filePostName, '安装后', pickSlotValue(record, ['filePostUrl', 'filePostPath', 'filePostOssKey', 'filePostType', 'filePostMimeType']))
-  pushFiles(files, record.fileTrackId || record.fileTrackIds, record.fileTrackName, '跟踪', pickSlotValue(record, ['fileTrackUrl', 'fileTrackPath', 'fileTrackOssKey', 'fileTrackType', 'fileTrackMimeType']))
-  pushFiles(files, record.fileId || record.fileIds, record.fileName, '佐证', pickSlotValue(record, ['fileUrl', 'filePath', 'ossKey', 'fileKey', 'fileType', 'fileMimeType']))
-  return files
+  if (!record) return []
+  return EVIDENCE_SLOTS.reduce((files, slot) => files.concat(slotFiles(record, slot)), [])
 }
 
 function buildIncentiveFileGroups(record) {
   if (!record) return []
-  return [
-    {
-      key: 'pre',
-      label: '安装前',
-      hint: '现场问题、安装前状态、方案资料',
-      files: buildSlotFiles(record.filePreId || record.filePreIds, record.filePreName, '安装前', pickSlotValue(record, ['filePreUrl', 'filePrePath', 'filePreOssKey', 'filePreType', 'filePreMimeType']))
-    },
-    {
-      key: 'mid',
-      label: '安装中',
-      hint: '安装过程、调试过程、现场记录',
-      files: buildSlotFiles(record.fileMidId || record.fileMidIds, record.fileMidName, '安装中', pickSlotValue(record, ['fileMidUrl', 'fileMidPath', 'fileMidOssKey', 'fileMidType', 'fileMidMimeType']))
-    },
-    {
-      key: 'post',
-      label: '安装后',
-      hint: '运行结果、验收报告、客户反馈',
-      files: buildSlotFiles(record.filePostId || record.filePostIds, record.filePostName, '安装后', pickSlotValue(record, ['filePostUrl', 'filePostPath', 'filePostOssKey', 'filePostType', 'filePostMimeType']))
-    },
-    {
-      key: 'track',
-      label: '跟踪',
-      hint: '回访、复盘、持续跟踪资料',
-      files: buildSlotFiles(record.fileTrackId || record.fileTrackIds, record.fileTrackName, '跟踪', pickSlotValue(record, ['fileTrackUrl', 'fileTrackPath', 'fileTrackOssKey', 'fileTrackType', 'fileTrackMimeType']))
-    },
-    {
-      key: 'evidence',
-      label: '佐证',
-      hint: '交流、拜访、方案等非安装类资料',
-      files: buildSlotFiles(record.fileId || record.fileIds, record.fileName, '佐证', pickSlotValue(record, ['fileUrl', 'filePath', 'ossKey', 'fileKey', 'fileType', 'fileMimeType']))
-    }
-  ].filter((group) => group.files.length)
+  return EVIDENCE_SLOTS
+    .map((slot) => ({ key: slot.key, label: slot.label, hint: slot.hint, files: slotFiles(record, slot) }))
+    .filter((group) => group.files.length)
 }
 
 module.exports = {

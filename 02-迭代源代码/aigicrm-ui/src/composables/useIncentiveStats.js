@@ -29,7 +29,6 @@ export function useIncentiveStats() {
   const catStat = ref({ byCategory: [], totalFiles: 0, totalScore: 0 })  // 全员聚合 — 供激励统计表
   const categories = ref([])
   const scoreboard = ref([])
-  const deptList = ref([])
   // 【2026-09-23 需求】个人排行: 按人员统计四项激励(后端 /incentive/scoreboard 按人聚合)
   const personBoard = ref([])
   const personPageNum = ref(1)
@@ -104,17 +103,13 @@ export function useIncentiveStats() {
   })
 
   // ---- 排行导出（CSV，含 BOM 防中文乱码）----
-  const exportRank = (type) => {
+  // 【2026-10-04 D11】删除死组件 DeptRankTableView 后，'dept' 部门排行导出分支再无调用方
+  // （deptList 原本只被该死组件消费、永远为空，导出必然空文件），一并清理为仅客户排行导出。
+  const exportRank = () => {
     const periodLabel = period.value || '全部周期'
     const cats = rankParents.value.flatMap(g => g.children.map(c => c.categoryName))
-    let header, rows
-    if (type === 'personal') {
-      header = ['排名', '客户', '激励总额', ...cats, '上传数']
-      rows = scoreboard.value.map((r, i) => [i + 1, r.customerName, r.totalScore, ...rankParents.value.flatMap(g => g.children.map(c => r.byCategory?.[c.id]?.[0] || 0)), r.recordCount || r.count || 0])
-    } else {
-      header = ['排名', '部门', '激励总额', ...cats, '参与人数']
-      rows = deptList.value.map((r, i) => [i + 1, r.deptName, r.totalScore, ...rankParents.value.flatMap(g => g.children.map(c => r.byCategory?.[c.id]?.[0] || 0)), r.participantCount])
-    }
+    const header = ['排名', '客户', '激励总额', ...cats, '上传数']
+    const rows = scoreboard.value.map((r, i) => [i + 1, r.customerName, r.totalScore, ...rankParents.value.flatMap(g => g.children.map(c => r.byCategory?.[c.id]?.[0] || 0)), r.recordCount || r.count || 0])
     const esc = (v) => {
       const s = String(v ?? '')
       return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s
@@ -124,7 +119,7 @@ export function useIncentiveStats() {
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = `激励${type === 'personal' ? '客户' : '部门'}排行_${periodLabel}.csv`
+    a.download = `激励客户排行_${periodLabel}.csv`
     document.body.appendChild(a)
     a.click()
     URL.revokeObjectURL(url)
@@ -202,7 +197,7 @@ export function useIncentiveStats() {
 
   return {
     userStore, loading, period, activeTab, records, catStat, categories,
-    scoreboard, deptList, pageNum, pageSize, pagedScoreboard, periodOptions,
+    scoreboard, pageNum, pageSize, pagedScoreboard, periodOptions,
     personBoard, personPageNum, personPageSize, pagedPersonBoard,
     catColors, catIcons,
     totalCategories, shareableCount, fileCountOf, totalRecords, totalScore,

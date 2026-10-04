@@ -335,7 +335,9 @@ const isCurrentMonth = (i) => filterYear.value === currentYear && i + 1 === curr
 const arrSum = (arr) => (arr || []).reduce((s, v) => s + v, 0)
 const arrAvg = (arr) => {
   if (!arr || !arr.length) return 0
-  const filled = arr.filter((_, i) => i < currentMonth)
+  // 【M9 修复】仅所选年份为当前年才按 currentMonth 截断（参照 isCurrentMonth 口径）；历史年份统计全年 12 个月
+  const months = filterYear.value === currentYear ? currentMonth : 12
+  const filled = arr.filter((_, i) => i < months)
   return filled.length ? (filled.reduce((s, v) => s + v, 0) / filled.length).toFixed(1) : 0
 }
 const peakMonth = (arr) => {

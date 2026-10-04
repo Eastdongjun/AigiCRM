@@ -14,10 +14,11 @@
 
     <!-- 筛选栏(搜索已合并至顶部主搜索框,此处只留维度筛选) -->
     <div class="filter-bar">
-      <el-select v-model="filters.industry" placeholder="行业" size="small" clearable style="width:110px">
+      <!-- 【C1 2026-10-04】行业/状态筛选变化必须重置页码（否则过滤结果变少时停在旧页码可能越界白屏，同 search() 修复） -->
+      <el-select v-model="filters.industry" placeholder="行业" size="small" clearable style="width:110px" @change="onQuickFilterChange">
         <el-option v-for="ind in allIndustries" :key="ind" :label="ind" :value="ind" />
       </el-select>
-      <el-select v-model="filters.status" placeholder="状态" size="small" clearable style="width:90px">
+      <el-select v-model="filters.status" placeholder="状态" size="small" clearable style="width:90px" @change="onQuickFilterChange">
         <el-option label="正常" value="normal" /><el-option label="预警" value="warning" /><el-option label="超期" value="expired" /><el-option label="已归档" value="archived" />
       </el-select>
       <!-- 【议题五.4】显示已归档: 后端 include_archived(默认口径+含归档), 勾选即重载 -->
@@ -27,7 +28,8 @@
     </div>
 
     <!-- 表格 -->
-    <el-table :data="filteredList" stripe :empty-text="emptyTableText" :default-sort="{ prop: 'customerCode', order: 'descending' }"
+    <!-- 【D6 2026-10-04】表格高度统一走共享 composable（:max-height=视口-358，替代原 CSS calc 魔法数） -->
+    <el-table :data="filteredList" :max-height="tableMaxHeight" stripe :empty-text="emptyTableText" :default-sort="{ prop: 'customerCode', order: 'descending' }"
       @row-click="viewDetail" :row-style="{ cursor: 'pointer' }" :row-class-name="archiveRowClass" style="width:100%">
       <el-table-column type="index" width="50" label="#" sortable :index="(i) => (page - 1) * pageSize + i + 1" />
       <el-table-column v-if="vis('customerCode')" prop="customerCode" label="编号" min-width="140" sortable />
@@ -92,6 +94,7 @@
 
 <script setup>
 import { injectCustomerList } from '@/composables/useCustomerList'
+import { useViewportMaxHeight } from '@/views/sea/useTableHeight'
 import { terminalLabel } from '@/utils/customer-fields'
 
 const {
@@ -101,10 +104,16 @@ const {
   getProtectClass, getProtectText, getExpireColor,
   viewDetail, openRelease, handleDelete,
   showArchived, toggleArchived, handleArchive, handleRestore,
+  onQuickFilterChange,
 } = injectCustomerList()
 
 // 已归档行置灰(默认隐藏, 勾选"显示已归档"才出现)
 const archiveRowClass = ({ row }) => (row.status === 'archived' ? 'archived-row' : '')
+
+// 【D6 2026-10-04】表格高度统一走共享 composable（与公海两页同源）：
+// 358 = 顶部栏+统计卡+Tab+筛选栏+分页等页面固定占用（沿用原 calc(100vh - 358px) 的同一口径），
+// 由官方 :max-height 接管，替代此前 .el-table/.el-table__body-wrapper 双处 calc + 57px 表头二次扣减
+const { tableMaxHeight } = useViewportMaxHeight(358)
 </script>
 
 <style scoped>
@@ -124,11 +133,8 @@ const archiveRowClass = ({ row }) => (row.status === 'archived' ? 'archived-row'
 .filter-count { font-size: 12px; color: #909399; margin-left: auto; }
 :deep(.archived-row) { color: #b9bcc2; }
 :deep(.archived-row .cell) { color: #b9bcc2; }
-.main-card :deep(.el-table) { max-height: calc(100vh - 358px); }
-.main-card :deep(.el-table__inner-wrapper) { min-height: 0; }
-.main-card :deep(.el-table__body-wrapper) { flex: 1; min-height: 0; max-height: calc(100vh - 358px - 57px); overflow-y: auto; }
-.main-card :deep(.el-table__header-wrapper) { flex-shrink: 0; }
-.main-card :deep(.el-table__empty-block) { flex: 1; }
+/* 【D6 2026-10-04】表格高度改由 :max-height 属性驱动（见 useTableHeight），
+   原双处 calc 魔法数（100vh-358px / 再扣 57px 表头）已移除 */
 
 .main-card :deep(.el-table th) { white-space: nowrap; }
 .main-card :deep(.el-table th .cell) { display: flex !important; align-items: center !important; gap: 2px; white-space: nowrap; }

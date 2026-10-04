@@ -249,12 +249,16 @@ Page({
     })
   },
 
-  setStatisticsData(payload) {
+  // 【D32 2026-10-04】统一状态写法: 页面内所有状态变更一律走本方法(与指标页 applyState 同一模式),
+  // 一次 setData 同时落补丁与重建 statsView, 不再混用裸 setData/嵌套回调等多种写法。
+  // 方法名保留 setStatisticsData 不改 applyState: scripts/check-mobile-statistics-contract.sh
+  // 与 scripts/miniprogram/verify-statistics-center.mjs 按此方法名做门禁/callMethod, 属对外契约
+  setStatisticsData(patch) {
     const next = {
-      ...payload,
+      ...patch,
       statsView: buildStatsView({
         ...this.data,
-        ...payload
+        ...patch
       })
     }
     this.setData(next)
@@ -374,20 +378,19 @@ Page({
     }
     walk(0, 0)
     const selectedDeptIndex = Math.min(this.data.selectedDeptIndex, result.length - 1)
-    this.setData({ deptOptions: result, selectedDeptIndex }, () => {
-      this.setData({ statsView: buildStatsView({ ...this.data, deptOptions: result, selectedDeptIndex }) })
-    })
+    // 【D32】并入 setStatisticsData: 原先裸 setData + 回调里二次 setData 重建视图, 现一次完成
+    this.setStatisticsData({ deptOptions: result, selectedDeptIndex })
   },
 
   chooseYear(e) {
-    this.setData({ selectedYearIndex: Number(e.detail.value) || 0 })
+    this.setStatisticsData({ selectedYearIndex: Number(e.detail.value) || 0 })
     this.loadStats()
   },
 
   chooseDept(e) {
     const index = Number(e.detail.value) || 0
     const dept = this.data.deptOptions[index]
-    this.setData({ selectedDeptIndex: index, deptId: dept && dept.id ? dept.id : '' })
+    this.setStatisticsData({ selectedDeptIndex: index, deptId: dept && dept.id ? dept.id : '' })
     this.loadStats()
   },
 

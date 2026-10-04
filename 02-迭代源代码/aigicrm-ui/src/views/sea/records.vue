@@ -111,11 +111,13 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, onBeforeUnmount, nextTick } from 'vue'
+import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { Back } from '@element-plus/icons-vue'
 import { getClaimRecords } from '@/api/sea'
 import { pageSizes } from '@/utils/pagination'
+// 【D6 2026-10-04】表格高度统一走共享 composable（替代本页内联的 ResizeObserver 实现）
+import { useTableHeight } from './useTableHeight'
 
 const router = useRouter()
 const records = ref([])
@@ -157,24 +159,11 @@ const getStatusText = (s) => ({ approved: '已通过', rejected: '已驳回', re
 const getStatusType = (s) => ({ approved: 'success', rejected: 'danger', reviewing: 'warning' }[s] || 'info')
 
 // 表格高度：动态计算可用高度，保证分页器完整显示、不被裁切
-const tableWrapRef = ref(null)
-const tableHeight = ref(300)
-let resizeObserver = null
-const updateTableHeight = () => {
-  if (tableWrapRef.value) tableHeight.value = tableWrapRef.value.clientHeight
-}
+// 【D6 2026-10-04】与 sea/index.vue 共用 useTableHeight（容器实测 + ResizeObserver）
+const { tableWrapRef, tableHeight } = useTableHeight()
 
 onMounted(() => {
   loadData()
-  nextTick(updateTableHeight)
-  if (tableWrapRef.value) {
-    resizeObserver = new ResizeObserver(updateTableHeight)
-    resizeObserver.observe(tableWrapRef.value)
-  }
-})
-
-onBeforeUnmount(() => {
-  if (resizeObserver) resizeObserver.disconnect()
 })
 </script>
 

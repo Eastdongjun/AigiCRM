@@ -5,13 +5,14 @@
 // 弹窗内部工作态（导入文件/导入结果等）留在各弹窗组件内，仅注入共享态与刷新回调。
 // 注：本次重构顺带清除历史遗留死代码（三套列设置中的两套、未接线多条件筛选、未接线表格高度机等），
 //     保留的列设置 = 模板实际使用的内存态（无 localStorage 持久化）。
-import { ref, reactive, computed, inject } from 'vue'
+import { ref, reactive, computed, inject, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { getCustomerList, getCustomerStatistics, getCustomerListCounts, releaseCustomer, deleteCustomer, archiveCustomer, restoreCustomer } from '@/api/customer'
-import { getDeptList, getDictData } from '@/api/system'
+import { getCustomerList, getCustomerStatistics, getCustomerListCounts, releaseCustomer, deleteCustomer, archiveCustomer, restoreCustomer, getSimpleUserList } from '@/api/customer'
+import { getDeptList, getDictData, getDeptTree } from '@/api/system'
 import { useUserStore } from '@/store/user'
 import { downloadFile } from '@/utils/download'
+import { getToken } from '@/utils/token'
 import { paginate } from '@/utils/pagination'
 import { filterCustomers } from '@/utils/list-filter'
 import { customerEmptyText } from '@/utils/customer-empty-state'
@@ -127,6 +128,10 @@ export function useCustomerList() {
   const advFilterCount = computed(() => {
     let n = 0
     for (const k in advFilter) {
+      // 【M4 2026-10-04】角标补统计部门条件：deptIds 由 deptId 派生（onDeptFilterChange
+      // 收集子部门），只按 deptId 计 1 个条件，避免同一条件双计
+      if (k === 'deptIds') continue
+      if (k === 'deptId') { if (advFilter.deptId) n++; continue }
       const v = advFilter[k]
       if (v) {
         if (k === 'orgIds' || k === 'userIds') { if (v.length) n++ }
@@ -215,23 +220,26 @@ export function useCustomerList() {
 
   const loadFilterData = async () => {
     try {
-      const token = localStorage.getItem('token')
       // 【布局级缓存】auth/info 由布局加载并缓存 30s，这里直接读 store，避免每页重复请求
       await userStore.fetchUserInfo()
       const ds = userStore.dataScope
       const mgd = userStore.managedOrgIds || []
       canFilterByOrg.value = ds === 'all' || mgd.length > 0
       if (canFilterByOrg.value) {
-        const orgRes = await fetch('/api/system/depts/tree', { headers: { Authorization: 'Bearer ' + token } }).then(r => r.json())
+        // 【D4 2026-10-04】改走统一 request 封装（api 层）：自动带 token、统一错误映射与 401 处理；
+        // 此前裸 fetch + 手拼 Authorization，请求失败时丢失拦截器的提示/登出能力
+        const orgRes = await getDeptTree()
         filterOrgTree.value = orgRes?.data || []
       }
       if (ds === 'all' || ds === 'org_and_children' || mgd.length > 0) {
         // 用简易用户接口（只需 customer:view，不需要 system:user:view——避免销售员等角色 403）
-        const userRes = await fetch('/api/customer/users/simple', { headers: { Authorization: 'Bearer ' + token } }).then(r => r.json())
+        const userRes = await getSimpleUserList()
         filterUserOptions.value = (userRes?.data || []).map(u => ({ id: u.id, realName: u.realName }))
         canFilterByUsers.value = filterUserOptions.value.length > 1
       }
-    } catch (e) {}
+    } catch (e) {
+      // 错误已由 request 拦截器提示
+    }
   }
 
   // 客户业务参数:从公开配置读取(提醒/调整期),配置改动即时生效,不再硬编码
@@ -303,8 +311,18 @@ export function useCustomerList() {
   }
 
   const clearAdvFilter = () => {
-    Object.assign(advFilter, { industry: '', province: '', city: '', status: '', protect: '', owner: '', regDate: null, expDate: null, orgIds: [], userIds: [] })
+    // 【M4 2026-10-04】清空全部必须连同部门字段一起重置：deptId 置 null 即清空树选中（v-model），
+    // deptIds 是其派生的子部门集合；此前漏清导致"清空后部门过滤仍生效"
+    Object.assign(advFilter, { industry: '', province: '', city: '', status: '', protect: '', owner: '', regDate: null, expDate: null, orgIds: [], userIds: [], deptId: null, deptIds: [] })
   }
+
+  // 【C1 2026-10-04】高级筛选任意条件变化（弹窗内即时编辑/清空全部/部门树选择）统一重置页码：
+  // 筛选后结果变少时停在旧页码可能越界白屏（分页最佳实践，同 search() 的既有修复）。
+  // 弹窗内各控件是即时生效的 v-model 绑定，统一在源头 watch，避免逐控件接 @change 漏接
+  watch(advFilter, () => { page.value = 1 }, { deep: true })
+
+  // 【C1 2026-10-04】快速筛选（行业/状态）变化后同理必须重置页码（筛选项纯本地过滤，无需重载）
+  const onQuickFilterChange = () => { page.value = 1 }
 
   const viewDetail = (row) => {
     router.push(`/customer/detail/${row.id}`)
@@ -326,7 +344,9 @@ export function useCustomerList() {
         else params.append('filter_' + f.field, f.value)
       })
     }
-    const token = localStorage.getItem('token')
+    // 【D4 2026-10-04】token 改经 utils/token 统一读取（与 request.js 同源），不再裸读 localStorage；
+    // 下载本体仍走统一 downloadFile（超时/中文失败提示），blob 经封装层支持需改 utils/download.js（本批次文件范围外）
+    const token = getToken()
     const url = `/api/customer/export?${params.toString()}`
     // F3/F4: 统一下载工具（带 Authorization header + 超时 + 失败提示）
     await downloadFile(url, { name: '客户列表.xlsx', headers: { Authorization: `Bearer ${token}` } })
@@ -412,7 +432,7 @@ export function useCustomerList() {
     isShared, getExpireColor, getDaysLeft, getStatusType, getStatusText, getProtectClass, getProtectText,
     loadData, loadStats, loadScopeCounts, refreshAll,
     loadFilterData, loadBizConfig, loadRegions, loadIndustryOptions,
-    search, onTabChange, onDeptFilterChange, clearAdvFilter, viewDetail,
+    search, onTabChange, onDeptFilterChange, onQuickFilterChange, clearAdvFilter, viewDetail,
     handleExport, handleDelete, openRelease, confirmRelease,
   }
 }

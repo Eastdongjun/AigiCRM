@@ -125,7 +125,7 @@
     </view>
     <view class="selected-file-list">
       <view wx:for="{{uploadView.selectedFileSlotsView}}" wx:for-item="slot" wx:key="key" class="selected-slot-group">
-        <view wx:for="{{slot.files}}" wx:for-item="file" wx:key="filePath" class="selected-file-row">
+        <view wx:for="{{slot.files}}" wx:for-item="file" wx:key="fileKey" class="selected-file-row">
           <image wx:if="{{file.isImage}}" class="selected-file-thumb" src="{{file.filePath}}" mode="aspectFill" catchtap="previewSelectedFile" data-index="{{slot.slotIndex}}" data-file-index="{{file.fileIndex}}" />
           <view class="selected-file-main">
             <text class="selected-file-label">{{slot.label}} {{file.displayIndex}}</text>
@@ -149,7 +149,9 @@
     </view>
     <view class="form-actions">
       <button class="form-action cancel-action" bindtap="cancelUpload" disabled="{{uploadView.cancelDisabled}}">{{uploadView.cancelText}}</button>
-      <button class="form-action submit-action" bindtap="submit" loading="{{uploadView.submitLoading}}" disabled="{{uploadView.submitDisabled}}">{{uploadView.submitText}}</button>
+      <!-- M18: disabled 只表达"提交中";表单未就绪保持可点(submitIncomplete 置灰样式),点击由 submit() toast 缺失原因。
+           disabled 绑定名 submitDisabled 为契约脚本钉住的字面量, 勿改 -->
+      <button class="form-action submit-action {{uploadView.submitIncomplete ? 'action-disabled' : ''}}" bindtap="submit" loading="{{uploadView.submitLoading}}" disabled="{{uploadView.submitDisabled}}">{{uploadView.submitText}}</button>
     </view>
   </view>
 </view>

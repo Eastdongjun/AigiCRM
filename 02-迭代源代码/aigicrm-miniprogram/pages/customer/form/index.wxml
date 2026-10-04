@@ -133,7 +133,7 @@
       <text>客情五项指标</text>
       <text class="indicator-total">{{indicatorTotal}} / 15 分</text>
     </view>
-    <view class="tip">开票、回款均 >= 100 万；五项总分 >= 12 分为核心客户。</view>
+    <view class="tip">{{coreThresholdTip}}</view><!-- D25 2026-10-04: 门槛数字由 shared 常量拼装，不再硬编码 -->
 
     <block wx:for="{{indicatorItems}}" wx:key="field">
       <view class="indicator-item">

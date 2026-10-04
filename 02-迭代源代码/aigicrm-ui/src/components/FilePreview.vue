@@ -69,8 +69,14 @@ async function download() {
 
 async function openInBrowser() {
   if (!props.url) return
-  const opened = window.open(props.url, '_blank', 'noopener')
-  if (!opened) {
+  // 【M11 2026-10-04】此前 window.open(url, '_blank', 'noopener')：按 HTML 规范，
+  // 第三参 features 含 noopener 时返回值恒为 null，"被拦截"判断永远成立，
+  // 导致每次都弹假警告并强制重复下载。改为不带 features 调用——只有真被弹窗拦截
+  // 时才返回 null；打开成功后手动置空 opener，补回 noopener 的防逆向标签页引用语义。
+  const opened = window.open(props.url, '_blank')
+  if (opened) {
+    opened.opener = null
+  } else {
     ElMessage.warning('浏览器拦截了新窗口，已改为下载文件')
     await download()
   }

@@ -11,7 +11,7 @@ import {
 } from '@/api/file'
 import { useUserStore } from '@/store/user'
 import { downloadFile } from '@/utils/download'
-import { getDownloadToken, refreshDownloadToken } from '@/utils/token'
+import { getToken, getDownloadToken, refreshDownloadToken } from '@/utils/token'
 
 export const FilePageKey = Symbol('filePage')
 
@@ -24,7 +24,6 @@ export function injectFilePage() {
 
 export function useFilePage() {
   const userStore = useUserStore()
-  const token = localStorage.getItem('token')
 
   // ---- 页面导航态 ----
   const activeTab = ref('public')
@@ -238,7 +237,10 @@ export function useFilePage() {
 
   const handleDownload = (row) => {
     const url = downloadUrlOf(row)
-    downloadFile(url, { name: row.fileName, headers: { Authorization: `Bearer ${token}` } })
+    // 【C3 2026-10-04】token 改为下载时实时获取（对齐 FilePreview）：
+    // 切换集团会重签 token 且不刷新页面（store/user.js switchGroup），此前组合式函数
+    // 初始化时一次性捕获的 token 会一直是旧集团 JWT，切换后下载仍走旧集团上下文。
+    downloadFile(url, { name: row.fileName, headers: { Authorization: `Bearer ${getToken() || ''}` } })
   }
 
   // ---- 删除（确认 + 刷新，含共享态回写）----

@@ -25,6 +25,9 @@ vi.mock('@/utils/layout-cache', () => ({
 }))
 
 import SearchView from './search.vue'
+// 【D9 2026-10-04】灯箱拆为 SearchLightbox 子组件后，灯箱态(count/index/name/type/step)
+// 经 findComponent + defineExpose 访问；页面仍暴露 preview/showDetail 委托入口
+import SearchLightbox from './SearchLightbox.vue'
 import request from '@/utils/request'
 import { getCategoryTree } from '@/api/incentive'
 import { __dlToken } from '@/utils/token'
@@ -263,34 +266,36 @@ describe('incentive/search.vue 缩略图下载 token（空 token 403 修复 2026
     ]
     await wrapper.vm.preview(2, 'video', '中.mp4', gallery)
     await flushPromises()
+    const lb = wrapper.findComponent(SearchLightbox)
 
-    expect(wrapper.vm.previewCount).toBe(2)
-    expect(wrapper.vm.previewIndex).toBe(1)   // 打开的是第 2 个
+    expect(lb.vm.count).toBe(2)
+    expect(lb.vm.index).toBe(1)   // 打开的是第 2 个
     expect(wrapper.find('.pv-wrap').exists()).toBe(true)
     expect(wrapper.findAll('.pv-thumb')).toHaveLength(2)
     expect(wrapper.find('.pv-name').text()).toBe('中.mp4')
 
     // 右→ 循环回到第 1 个
-    wrapper.vm.previewStep(1)
-    expect(wrapper.vm.previewIndex).toBe(0)
+    lb.vm.step(1)
+    expect(lb.vm.index).toBe(0)
     // 左→ 回到最后一个
-    wrapper.vm.previewStep(-1)
-    expect(wrapper.vm.previewIndex).toBe(1)
-    // 键盘方向键
+    lb.vm.step(-1)
+    expect(lb.vm.index).toBe(1)
+    // 键盘方向键（灯箱组件自持监听）
     window.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft' }))
-    expect(wrapper.vm.previewIndex).toBe(0)
+    expect(lb.vm.index).toBe(0)
   })
 
   it('灯箱预览：传入的 gallery 不含当前文件时退化为单文件预览', async () => {
     const wrapper = mount(SearchView, { global: mountGlobal })
     await flushPromises()
+    const lb = wrapper.findComponent(SearchLightbox)
 
     await wrapper.vm.preview(99, 'image', '孤儿图.jpg', [{ id: 1, type: 'image', label: '别的.jpg' }])
     await flushPromises()
 
-    expect(wrapper.vm.previewCount).toBe(1)
-    expect(wrapper.vm.previewName).toBe('孤儿图.jpg')
-    expect(wrapper.vm.previewType).toBe('image')
+    expect(lb.vm.count).toBe(1)
+    expect(lb.vm.name).toBe('孤儿图.jpg')
+    expect(lb.vm.type).toBe('image')
   })
 })
 

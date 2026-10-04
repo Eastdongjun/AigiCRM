@@ -169,7 +169,8 @@ Page({
   },
 
   onShow() {
-    if (this.data.loaded) this.loadFiles()
+    // 【M20】onShow 防重入：列表请求进行中则跳过本次刷新，避免每次返回页面叠加并发请求
+    if (this.data.loaded && !this._filesLoading) this.loadFiles()
   },
 
   async loadFiles() {
@@ -179,6 +180,9 @@ Page({
       this.setFileData({ folders, files, filteredFiles: this.filterFiles(files), capacity: demoCapacity, tabCounts: this.demoTabCounts(files), loaded: true })
       return
     }
+    // 【M20】请求序号守卫：Tab/筛选快速切换时，慢返回的旧响应直接丢弃，防止覆盖新列表
+    const requestSeq = (this._filesReqSeq = (this._filesReqSeq || 0) + 1)
+    this._filesLoading = true
     let folders = []
     let files = []
     let capacity = this.data.capacity
@@ -204,9 +208,13 @@ Page({
       folders = []
       files = []
       // 【PR-04】真实模式失败：报错 + 空列表（空态样式），不再显示演示数据
-      showErrorWithRetry(error, '文件加载失败，请重试', () => this.loadFiles())
+      // 【M20】已被更新请求取代的旧失败不再弹错（新请求的结果会接管界面）
+      if (requestSeq === this._filesReqSeq) showErrorWithRetry(error, '文件加载失败，请重试', () => this.loadFiles())
       capacity = { used: '-', total: '-', percent: 0, hint: '存储统计暂未同步' }
+    } finally {
+      this._filesLoading = false
     }
+    if (requestSeq !== this._filesReqSeq) return
     const normalizedFiles = files.map((item, index) => this.normalizeFile(item, index))
     this.setFileData({ folders: folders.map(item => ({ id: item.id, name: item.name || item.folderName || '未命名文件夹' })), files: normalizedFiles, filteredFiles: this.filterFiles(normalizedFiles), capacity, loaded: true })
     this.loadTabCounts()
@@ -389,7 +397,8 @@ Page({
       if (!file || !file.path) return
       this.setData({ uploading: true })
       wx.showLoading({ title: '上传中' })
-      uploadFile(file.path, this.data.activeFolderId || null, this.activeFileScope()).then(() => { wx.showToast({ title: '上传成功', icon: 'success' }); this.data.activeFolderId ? this.openFolder({ currentTarget: { dataset: { id: this.data.activeFolderId, name: this.data.activeFolderName } } }) : this.loadFiles() }).catch((error) => showError(error, '上传失败')).finally(() => { this.setData({ uploading: false }); wx.hideLoading() })
+      // 【L17】loading 与 toast 共用原生单例：必须先 hideLoading 再 showToast，否则成功提示被 finally 里的 hideLoading 一并关掉
+      uploadFile(file.path, this.data.activeFolderId || null, this.activeFileScope()).then(() => { wx.hideLoading(); wx.showToast({ title: '上传成功', icon: 'success' }); this.data.activeFolderId ? this.openFolder({ currentTarget: { dataset: { id: this.data.activeFolderId, name: this.data.activeFolderName } } }) : this.loadFiles() }).catch((error) => { wx.hideLoading(); showError(error, '上传失败') }).finally(() => { this.setData({ uploading: false }) })
     }, fail: (error) => { if (error && error.errMsg && !error.errMsg.includes('cancel')) showError(error, '选择文件失败') } })
   },
   runDevUploadSmoke() {
@@ -410,10 +419,11 @@ Page({
         data: content,
         encoding: 'utf8',
         success: () => {
+          // 【L17】先 hideLoading 再 showToast（共用原生单例，见 uploadFile 处注释）
           uploadFile(filePath, this.data.activeFolderId || null, this.activeFileScope())
-            .then(() => { wx.showToast({ title: '自测上传成功', icon: 'success' }); this.data.activeFolderId ? this.openFolder({ currentTarget: { dataset: { id: this.data.activeFolderId, name: this.data.activeFolderName } } }) : this.loadFiles() })
-            .catch((error) => showError(error, '自测上传失败'))
-            .finally(() => { cleanupTempFile(); this.setData({ uploading: false }); wx.hideLoading() })
+            .then(() => { wx.hideLoading(); wx.showToast({ title: '自测上传成功', icon: 'success' }); this.data.activeFolderId ? this.openFolder({ currentTarget: { dataset: { id: this.data.activeFolderId, name: this.data.activeFolderName } } }) : this.loadFiles() })
+            .catch((error) => { wx.hideLoading(); showError(error, '自测上传失败') })
+            .finally(() => { cleanupTempFile(); this.setData({ uploading: false }) })
         },
         fail: (error) => { this.setData({ uploading: false }); wx.hideLoading(); showError(error, '自测文件创建失败') }
       })
@@ -473,14 +483,15 @@ Page({
         wx.showLoading({ title: '替换中...' })
         replaceFile(item.id, file.path).then((result) => {
           const version = result && result.version ? `，版本 ${result.version}` : ''
+          // 【L17】先 hideLoading 再 showToast（共用原生单例，见 uploadFile 处注释）
+          wx.hideLoading()
           wx.showToast({ title: `替换成功${version}`, icon: 'success' })
           this.data.activeFolderId
             ? this.openFolder({ currentTarget: { dataset: { id: this.data.activeFolderId, name: this.data.activeFolderName } } })
             : this.loadFiles()
           this.loadTabCounts()
-        }).catch((error) => showError(error, '替换失败')).finally(() => {
+        }).catch((error) => { wx.hideLoading(); showError(error, '替换失败') }).finally(() => {
           this.setFileData({ replacingId: '' })
-          wx.hideLoading()
         })
       },
       fail: (error) => { if (error && error.errMsg && !error.errMsg.includes('cancel')) showError(error, '选择文件失败') }

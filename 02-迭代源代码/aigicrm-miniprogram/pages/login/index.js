@@ -78,10 +78,10 @@ Page({
     }).finally(() => {
       this.applyState({ loading: false })
     })
-  }
-  ,openForgot() { wx.navigateTo({ url: '/pages/login/forgot/index' }) }
+  },
+  openForgot() { wx.navigateTo({ url: '/pages/login/forgot/index' }) },
   // ICP 备案号点击:小程序不允许直接跳转外部网页,复制备案系统网址供浏览器打开
-  ,copyBeianUrl() {
+  copyBeianUrl() {
     wx.setClipboardData({
       data: 'https://beian.miit.gov.cn/',
       success: () => wx.showToast({ title: '备案网址已复制', icon: 'success' })
