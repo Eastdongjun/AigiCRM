@@ -24,7 +24,23 @@ services:
       #    属于误配置。数据库初始化现已由 Flyway 链负责（含 V2026.09.11.6 的全新库种子）。
       #    新建空库时若确需该 legacy 种子文件，请先从备份恢复 ./sql/init.sql 再解除注释。
       # - ./sql/init.sql:/docker-entrypoint-initdb.d/init.sql
-    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_general_ci
+    # 【容量加固 2026-10-05】MySQL 此前全默认（max_connections=151 / buffer_pool=128M / slow_log=OFF），显式调优：
+    # - max-connections=300：覆盖后端 Hikari 池 30 连接(application.yml) + Flyway/备份/运维连接余量；
+    #   151 默认值在多客户端与运维并发下有耗尽风险
+    # - innodb-buffer-pool-size=536870912(512M)：生产宿主机总内存暂无证据
+    #   (remote-inventory.txt 仅含磁盘/容器清单，无 free/meminfo)，按容量加固批任务规则取 512M 兜底
+    #   ——较默认 128M 提升 4 倍，6.7G 数据量下热数据可驻留缓存；拿到宿主机内存证据后按 ≥6G→1G 重估
+    # - slow-query-log=1 + long-query-time=2：记录 >2s 慢查询，为后续容量评估提供实测数据
+    # - slow-query-log-file=/var/lib/mysql/slow.log：落在 /var/lib/mysql 即宿主机
+    #   ${MYSQL_DATA_DIR:-/data/database/mysql-data}/slow.log（bind mount 见上），便于直接巡检
+    # ⚠️ 生效需 recreate 容器（docker compose up -d mysql 会因 command 变化自动重建）
+    command: >
+      --character-set-server=utf8mb4 --collation-server=utf8mb4_general_ci
+      --max-connections=300
+      --innodb-buffer-pool-size=536870912
+      --slow-query-log=1
+      --long-query-time=2
+      --slow-query-log-file=/var/lib/mysql/slow.log
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
       interval: 10s

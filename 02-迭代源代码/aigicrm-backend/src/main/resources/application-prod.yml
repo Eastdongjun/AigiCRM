@@ -2,6 +2,24 @@
 # - 关闭 Swagger / API 文档（生产不应暴露接口清单）
 # - SQL 日志从 StdOutImpl(全量打印) 改为 Slf4jImpl + com.aigicrm=info（生产不打印 SQL）
 # 激活: 生产容器设 SPRING_PROFILES_ACTIVE=prod（deploy-backend.sh 已带）
+#
+# 【容量加固 2026-10-05】生产 profile 同步钉住连接池与 Tomcat 线程（与 application.yml 同值）：
+# 即便基础档被改动，prod 档仍有独立兜底，容量参数不随基础档漂移。
+
+# 生产 Tomcat 线程模型钉住（依据见 application.yml 同批注释）：
+server:
+  tomcat:
+    threads:
+      max: 200  # 工作线程上限（显式钉住默认值）
+    accept-count: 200  # 满线程排队长度，与线程数对齐
+
+# 生产 Hikari 连接池钉住（依据见 application.yml 同批注释）：
+spring:
+  datasource:
+    hikari:
+      maximum-pool-size: 30  # 匹配 MySQL max_connections=300（docker-compose.prod.yml），留管理连接余量
+      minimum-idle: 10  # 常驻热连接
+      connection-timeout: 10000  # 毫秒；默认 30s 收紧为快速失败
 
 springdoc:
   api-docs:
