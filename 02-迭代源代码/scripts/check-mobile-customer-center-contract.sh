@@ -8,6 +8,8 @@ DETAIL_WXML="$ROOT/aigicrm-miniprogram/pages/customer/detail/index.wxml"
 DETAIL_WXSS="$ROOT/aigicrm-miniprogram/pages/customer/detail/index.wxss"
 LIST_WXML="$ROOT/aigicrm-miniprogram/pages/customer/index.wxml"
 LIST_JS="$ROOT/aigicrm-miniprogram/pages/customer/index.js"
+# 【D27 锚点重钉 2026-10-05】筛选参数拼装/草稿字段清单收敛到 pages/customer/shared.js 单一出处,拼装锚点改钉 shared
+SHARED_JS="$ROOT/aigicrm-miniprogram/pages/customer/shared.js"
 FILTER_JS="$ROOT/aigicrm-miniprogram/pages/customer/filter/index.js"
 FILTER_WXML="$ROOT/aigicrm-miniprogram/pages/customer/filter/index.wxml"
 FILTER_WXSS="$ROOT/aigicrm-miniprogram/pages/customer/filter/index.wxss"
@@ -56,10 +58,13 @@ require_line 'item.metaText' "$LIST_WXML"
 ! grep -Fq 'item.statusLabel || item.status' "$LIST_WXML" || fail 'customer list WXML must not duplicate status fallback logic'
 ! grep -Fq 'item.statusTone ||' "$LIST_WXML" || fail 'customer list WXML must not duplicate status tone fallback logic'
 ! grep -Fq "'C' + item.id" "$LIST_WXML" || fail 'customer list WXML must not build customer code text inline'
-require_line 'params.industry = advanced.industry' "$LIST_JS"
-require_line 'params.status = advanced.status' "$LIST_JS"
-require_line 'params.deptId = advanced.deptId' "$LIST_JS"
-require_line 'params.ownerId = advanced.ownerId' "$LIST_JS"
+# 【D27 锚点重钉 2026-10-05】高级筛选参数拼装移入 shared.buildCustomerFilterParams,列表页以 buildCustomerParams 薄委托调用
+require_line 'buildCustomerFilterParams(this.data)' "$LIST_JS"
+require_line 'function buildCustomerFilterParams({ keyword, filter, statusFilter, advancedFilter })' "$SHARED_JS"
+require_line 'params.industry = advanced.industry' "$SHARED_JS"
+require_line 'params.status = advanced.status' "$SHARED_JS"
+require_line 'params.deptId = advanced.deptId' "$SHARED_JS"
+require_line 'params.ownerId = advanced.ownerId' "$SHARED_JS"
 require_line 'getDictData' "$FILTER_JS"
 require_line 'getDepts' "$FILTER_JS"
 require_line 'getCustomerSimpleUsers' "$FILTER_JS"

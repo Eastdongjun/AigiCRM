@@ -28,7 +28,10 @@ grep -q "submitLoading" "$PAGE"
 grep -q "submitText" "$PAGE"
 grep -q "cancelText" "$PAGE"
 grep -q "cancelDisabled" "$PAGE"
-grep -q "getCurrentPages" "$PAGE"
+# 【D24 锚点重钉 2026-10-05】返回兜底逻辑(栈深判断 getCurrentPages)收敛到 pages/customer/shared.js 的
+# navigateBackWithFallback,本页改为引用共享函数;意图不变:直达分享页时返回不失灵
+grep -q "navigateBackWithFallback" "$PAGE"
+grep -q "getCurrentPages" "$ROOT/aigicrm-miniprogram/pages/customer/shared.js"
 grep -q "shareView.submitLoading" "$WXML"
 grep -q "shareView.submitText" "$WXML"
 grep -q "shareView.cancelDisabled" "$WXML"

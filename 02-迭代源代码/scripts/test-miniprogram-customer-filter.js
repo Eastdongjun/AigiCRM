@@ -5,8 +5,11 @@
 // 2) status 域只收 normal/warning(高级筛选页选项即合法域);
 // 3) province/city 透传(后端 LIKE 包含);
 // 4) 演示模式本地过滤对齐 PC contains 语义; 5) 高级筛选 apply 草稿字段齐全。
+// 【D27 2026-10-04】筛选参数拼装已收敛到 pages/customer/shared.js 的 buildCustomerFilterParams
+// (列表页不再持有 buildCustomerParams 方法),本脚本调用点同步改为直接驱动 shared 函数。
 
 const assert = require('node:assert/strict')
+const { buildCustomerFilterParams } = require('../aigicrm-miniprogram/pages/customer/shared.js')
 
 let listPageConfig = null
 global.Page = (config) => { listPageConfig = config }
@@ -34,12 +37,12 @@ function createListPage() {
   return page
 }
 
-// --- 1. buildCustomerParams: 保护域/状态域分离 + 省市透传 ---
+// --- 1. 筛选参数拼装(shared.buildCustomerFilterParams): 保护域/状态域分离 + 省市透传 ---
 {
   const page = createListPage()
   page.data.statusFilter = 'expiring'
   page.data.advancedFilter = { industry: '煤矿', status: 'warning', deptId: '', ownerId: '11', protect: 'expired', province: '山西', city: '太原' }
-  const params = page.buildCustomerParams()
+  const params = buildCustomerFilterParams(page.data)
   assert.equal(params.industry, '煤矿')
   assert.equal(params.status, 'warning', '高级客户状态应走 status 域')
   assert.equal(params.ownerId, '11')
@@ -52,7 +55,7 @@ function createListPage() {
 
 {
   const page = createListPage()
-  const params = page.buildCustomerParams()
+  const params = buildCustomerFilterParams(page.data)
   assert.ok(!('protectionStatus' in params), '未选保护状态时不应产生 protectionStatus 参数')
   assert.ok(!('status' in params), '未选客户状态时不应产生 status 参数')
 }

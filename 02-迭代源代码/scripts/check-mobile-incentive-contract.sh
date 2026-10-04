@@ -16,13 +16,9 @@ style="$ROOT/aigicrm-miniprogram/pages/incentive/index.wxss"
 json="$ROOT/aigicrm-miniprogram/pages/incentive/index.json"
 app_json="$ROOT/aigicrm-miniprogram/app.json"
 app_wxss="$ROOT/aigicrm-miniprogram/app.wxss"
-legacy_cases_page="$ROOT/aigicrm-miniprogram/pages/cases/index.js"
-legacy_cases_detail="$ROOT/aigicrm-miniprogram/pages/cases/detail/index.js"
-legacy_cases_wxml="$ROOT/aigicrm-miniprogram/pages/cases/index.wxml"
-legacy_cases_detail_wxml="$ROOT/aigicrm-miniprogram/pages/cases/detail/index.wxml"
-legacy_cases_style="$ROOT/aigicrm-miniprogram/pages/cases/index.wxss"
-legacy_cases_json="$ROOT/aigicrm-miniprogram/pages/cases/index.json"
-legacy_cases_detail_json="$ROOT/aigicrm-miniprogram/pages/cases/detail/index.json"
+# 【2026-10-05】pages/cases/* 兼容壳整树已在 1b3c865b 随死页面清理删除(含 app.json 注册),
+# 读取这些文件的 legacy_cases_* 变量与检查一并移除; 保留"app.json 不得回潮注册 cases"等负向防回潮检查
+attachment_util="$ROOT/aigicrm-miniprogram/utils/attachment.js"
 profile_page="$ROOT/aigicrm-miniprogram/pages/profile/index.js"
 profile_wxml="$ROOT/aigicrm-miniprogram/pages/profile/index.wxml"
 manifest="$ROOT/docs/unified-feature-manifest.md"
@@ -36,7 +32,6 @@ grep -q "hasPermission('incentive:view')" "$page" || { echo "FAIL: incentive vie
 grep -q "hasPermission('incentive:add')" "$page" || { echo "FAIL: incentive upload gate is missing" >&2; exit 1; }
 grep -q "没有四项激励查看权限" "$page" || { echo "FAIL: incentive view denial copy must use four-incentive naming" >&2; exit 1; }
 grep -q "没有四项激励查看权限" "$detail_page" || { echo "FAIL: incentive detail view denial copy must use four-incentive naming" >&2; exit 1; }
-grep -q "没有四项激励查看权限" "$legacy_cases_detail" || { echo "FAIL: legacy cases detail denial copy must use four-incentive naming" >&2; exit 1; }
 grep -q "没有四项激励删除权限" "$page" || { echo "FAIL: incentive list delete denial copy must use four-incentive naming" >&2; exit 1; }
 grep -q "没有四项激励追加权限" "$page" || { echo "FAIL: incentive list append denial copy must use four-incentive naming" >&2; exit 1; }
 grep -q "没有四项激励删除权限" "$detail_page" || { echo "FAIL: incentive detail delete denial copy must use four-incentive naming" >&2; exit 1; }
@@ -220,10 +215,14 @@ grep -q 'removeRecord' "$page" || { echo "FAIL: incentive mobile list record del
 grep -q 'deleteRecord(record.id)' "$page" || { echo "FAIL: incentive mobile list record delete does not call delete API" >&2; exit 1; }
 grep -q 'openCustomer(e)' "$page" || { echo "FAIL: incentive mobile list customer archive action is missing" >&2; exit 1; }
 grep -Fq '/pages/customer/detail/index?id=${record.customerId}&from=incentive' "$page" || { echo "FAIL: incentive mobile list customer archive route is stale" >&2; exit 1; }
-grep -q 'wx.downloadFile' "$page" || { echo "FAIL: incentive mobile list attachments cannot download from server" >&2; exit 1; }
-grep -q 'wx.previewImage' "$page" || { echo "FAIL: incentive mobile list images cannot preview" >&2; exit 1; }
-grep -q 'wx.openDocument' "$page" || { echo "FAIL: incentive mobile list documents cannot open" >&2; exit 1; }
-grep -q 'getFileSystemManager' "$page" || { echo "FAIL: incentive mobile list attachments cannot save locally" >&2; exit 1; }
+# 【E5 去重 2026-10-05】列表页附件「下载/预览/打开/保存」已收口 utils/attachment.js, 页面经
+# fetchRemoteAttachment 接线; 原页面内 wx.downloadFile/wx.previewImage/wx.openDocument/
+# getFileSystemManager 字面量检查改为「页面接线 + 共享模块具备能力」两段式(detail/upload 页同理)
+grep -q 'fetchRemoteAttachment' "$page" || { echo "FAIL: incentive mobile list attachments cannot download from server" >&2; exit 1; }
+grep -q 'wx.downloadFile' "$attachment_util" || { echo "FAIL: incentive mobile list attachments cannot download from server" >&2; exit 1; }
+grep -q 'wx.previewImage' "$attachment_util" || { echo "FAIL: incentive mobile list images cannot preview" >&2; exit 1; }
+grep -q 'wx.openDocument' "$attachment_util" || { echo "FAIL: incentive mobile list documents cannot open" >&2; exit 1; }
+grep -q 'getFileSystemManager' "$attachment_util" || { echo "FAIL: incentive mobile list attachments cannot save locally" >&2; exit 1; }
 grep -q 'previewLoading' "$page" || { echo "FAIL: incentive mobile list attachment loading state must be normalized in JS" >&2; exit 1; }
 grep -q 'record-file-list' "$wxml" || { echo "FAIL: incentive mobile list attachment UI is missing" >&2; exit 1; }
 grep -q 'record-file-group' "$wxml" || { echo "FAIL: incentive mobile list attachment UI does not render PC slot groups" >&2; exit 1; }
@@ -324,7 +323,8 @@ grep -q 'wx.chooseMedia' "$upload_page" || { echo "FAIL: incentive upload cannot
 grep -q "mediaType: \\['image'\\]" "$upload_page" || { echo "FAIL: incentive upload image picker is not limited to images" >&2; exit 1; }
 grep -q 'wx.previewImage' "$upload_page" || { echo "FAIL: incentive upload selected images cannot preview" >&2; exit 1; }
 grep -q 'wx.openDocument' "$upload_page" || { echo "FAIL: incentive upload selected documents cannot open" >&2; exit 1; }
-grep -q 'getFileSystemManager' "$upload_page" || { echo "FAIL: incentive upload selected files cannot save locally" >&2; exit 1; }
+# 【E5 去重 2026-10-05】上传页保存能力改用共享 saveDownloadedFileToDisk(能力本体在 utils/attachment.js)
+grep -q 'saveDownloadedFileToDisk' "$upload_page" || { echo "FAIL: incentive upload selected files cannot save locally" >&2; exit 1; }
 grep -q '文件槽位' "$upload_wxml" || { echo "FAIL: incentive upload slot UI is missing" >&2; exit 1; }
 grep -q 'wx:for="{{uploadView.slotOptionsView}}"' "$upload_wxml" || { echo "FAIL: incentive upload UI does not render normalized PC slot options" >&2; exit 1; }
 grep -q 'wx:if="{{item.visible}}"' "$upload_wxml" || { echo "FAIL: incentive upload UI does not hide non-PC slots from normalized state" >&2; exit 1; }
@@ -455,10 +455,9 @@ grep -q 'relativeDayText' "$detail_page" || { echo "FAIL: incentive detail metab
 grep -q 'bindtap="removeRecord"' "$detail_wxml" || { echo "FAIL: incentive detail delete UI is missing" >&2; exit 1; }
 grep -q 'item.showDeleteAction' "$detail_wxml" || { echo "FAIL: incentive detail delete UI must use normalized per-record action visibility" >&2; exit 1; }
 ! grep -q 'wx:if="{{canDeleteRecord}}"' "$detail_wxml" || { echo "FAIL: incentive detail WXML must not bind raw delete permission directly" >&2; exit 1; }
-grep -q 'wx.downloadFile' "$detail_page" || { echo "FAIL: incentive detail attachments cannot be downloaded from server" >&2; exit 1; }
-grep -q 'wx.previewImage' "$detail_page" || { echo "FAIL: incentive detail images cannot preview" >&2; exit 1; }
-grep -q 'wx.openDocument' "$detail_page" || { echo "FAIL: incentive detail documents cannot open" >&2; exit 1; }
-grep -q 'getFileSystemManager' "$detail_page" || { echo "FAIL: incentive detail attachments cannot save locally" >&2; exit 1; }
+# 【E5 去重 2026-10-05】详情页与列表页同口径: 附件能力经 fetchRemoteAttachment 共用 utils/attachment.js
+# (下载/预览/打开/保存的 wx API 能力本体已在上方列表页检查块对 $attachment_util 校验)
+grep -q 'fetchRemoteAttachment' "$detail_page" || { echo "FAIL: incentive detail attachments cannot be downloaded from server" >&2; exit 1; }
 grep -q 'previewAttachment' "$detail_wxml" || { echo "FAIL: incentive detail preview action is missing" >&2; exit 1; }
 grep -q 'downloadAttachment' "$detail_wxml" || { echo "FAIL: incentive detail download action is missing" >&2; exit 1; }
 grep -q 'detailView.previewLoading' "$detail_wxml" || { echo "FAIL: incentive detail attachment UI must use normalized preview loading" >&2; exit 1; }
@@ -508,18 +507,12 @@ grep -q '记录人：' "$timeline_page" || { echo "FAIL: customer timeline creat
 ! grep -q '!loading && showEmpty' "$timeline_wxml" || { echo "FAIL: customer timeline WXML must not duplicate empty-state loading logic" >&2; exit 1; }
 grep -q '"pagePath": "pages/incentive/index"' "$app_json" || { echo "FAIL: incentive tab is not bound to the PC-parity incentive workbench" >&2; exit 1; }
 ! grep -q '"pagePath": "pages/cases/index"' "$app_json" || { echo "FAIL: stale cases tab still exposes an alternate incentive surface" >&2; exit 1; }
-grep -q "wx.switchTab({ url: '/pages/incentive/index' })" "$legacy_cases_page" || { echo "FAIL: legacy cases index does not redirect to incentive workbench" >&2; exit 1; }
-grep -q "wx.redirectTo({ url: .*pages/incentive/detail/index" "$legacy_cases_detail" || { echo "FAIL: legacy cases detail does not redirect to incentive detail" >&2; exit 1; }
+# 【2026-10-05】cases 兼容壳已删: 原直接读取 pages/cases/* 文件的重定向/标题/样式检查随之移除,
+# 保留上方 app.json 防回潮与下方 profile 入口/app.wxss 全局样式防回潮检查
 grep -q 'openIncentive' "$profile_page" || { echo "FAIL: profile incentive entry still uses stale cases naming" >&2; exit 1; }
 grep -q 'bindtap="openIncentive"' "$profile_wxml" || { echo "FAIL: profile incentive entry does not navigate through incentive naming" >&2; exit 1; }
 ! grep -q 'openCases' "$profile_page" || { echo "FAIL: profile page still exposes stale openCases handler" >&2; exit 1; }
 ! grep -q 'bindtap="openCases"' "$profile_wxml" || { echo "FAIL: profile page still binds stale openCases handler" >&2; exit 1; }
-grep -q 'incentive-redirect-page' "$legacy_cases_wxml" || { echo "FAIL: legacy cases index shell does not present as incentive redirect" >&2; exit 1; }
-grep -q 'incentive-redirect-page' "$legacy_cases_detail_wxml" || { echo "FAIL: legacy cases detail shell does not present as incentive redirect" >&2; exit 1; }
-grep -q '"navigationBarTitleText": "四项激励"' "$legacy_cases_json" || { echo "FAIL: legacy cases index title must present four-incentive naming" >&2; exit 1; }
-grep -q '"navigationBarTitleText":"四项激励详情"' "$legacy_cases_detail_json" || { echo "FAIL: legacy cases detail title must present four-incentive naming" >&2; exit 1; }
-! grep -Eq 'cases-page|case-detail-page' "$legacy_cases_wxml" "$legacy_cases_detail_wxml" || { echo "FAIL: legacy cases compatibility shell still carries standalone case page classes" >&2; exit 1; }
-! grep -Eq 'case-(card|detail|category|status|title|customer|meta|accent|main)' "$legacy_cases_style" || { echo "FAIL: legacy cases compatibility shell still carries standalone case UI styles" >&2; exit 1; }
 ! grep -Eq 'cases-page|case-(card|category|status|title|customer|meta|accent|main)' "$app_wxss" || { echo "FAIL: global mini-program styles still carry standalone case UI styles" >&2; exit 1; }
 grep -q "incentive.index.*已实现" "$manifest" || { echo "FAIL: incentive.index manifest status is stale" >&2; exit 1; }
 grep -q "incentive.recordDelete.*已实现" "$manifest" || { echo "FAIL: incentive record delete manifest status is stale" >&2; exit 1; }

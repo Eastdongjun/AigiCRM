@@ -4,6 +4,9 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 FORM="$ROOT/aigicrm-miniprogram/pages/customer/form/index.js"
 FORM_WXML="$ROOT/aigicrm-miniprogram/pages/customer/form/index.wxml"
+# 【D24/D25 锚点重钉 2026-10-05】五项指标配置/选项视图/核心门槛阈值/各表单返回兜底收敛到
+# pages/customer/shared.js 单一出处,相关锚点改钉 shared
+SHARED="$ROOT/aigicrm-miniprogram/pages/customer/shared.js"
 API="$ROOT/aigicrm-miniprogram/api/customer.js"
 HOME="$ROOT/aigicrm-miniprogram/pages/home/index.js"
 DETAIL_JS="$ROOT/aigicrm-miniprogram/pages/customer/detail/index.js"
@@ -48,14 +51,30 @@ for pattern in "hasPermission(id ? 'customer:edit' : 'customer:add')" "readDemoC
   fi
 done
 
-for pattern in "getCustomerIndicator" "INDICATOR_ITEMS" "indicatorForm" "indicatorItems" "optionsView" "className" "selectIndicatorScore(e)" "shouldSaveIndicator()" "indicatorPayload()" "return this.shouldSaveIndicator() ? { ...this.data.indicatorForm } : null"; do
+for pattern in "getCustomerIndicator" "indicatorForm" "indicatorItems" "buildIndicatorItems" "className" "selectIndicatorScore(e)" "shouldSaveIndicator()" "indicatorPayload()" "return this.shouldSaveIndicator() ? { ...this.data.indicatorForm } : null"; do
   if ! rg -Fq "$pattern" "$FORM"; then
     echo "FAIL: mobile customer form must save PC five-indicator fields inline: $pattern"
     exit 1
   fi
 done
 
-for pattern in "客情五项指标" "{{indicatorTotal}} / 15 分" "开票、回款均 >= 100 万；五项总分 >= 12 分为核心客户。" 'bindtap="selectIndicatorScore"' 'score-option' 'indicator-inline-card'; do
+# 【D24 锚点重钉 2026-10-05】五项指标配置与选项视图构建(INDICATOR_ITEMS/optionsView)移入 shared,表单/指标维护页/详情共用
+for pattern in "INDICATOR_ITEMS" "optionsView" "className: value === score ? 'score-option active' : 'score-option'"; do
+  if ! rg -Fq "$pattern" "$SHARED"; then
+    echo "FAIL: mobile customer five-indicator config missing in shared: $pattern"
+    exit 1
+  fi
+done
+
+# 【D25 锚点重钉 2026-10-05】核心客户门槛数字(100 万/100 万/12 分)由 shared 常量拼装 CORE_THRESHOLD_TIP,wxml 引用绑定
+for pattern in "CORE_INVOICE_AMOUNT_THRESHOLD = 100" "CORE_PAYMENT_AMOUNT_THRESHOLD = 100" "CORE_INDICATOR_SCORE_THRESHOLD = 12" "CORE_THRESHOLD_TIP"; do
+  if ! rg -Fq "$pattern" "$SHARED"; then
+    echo "FAIL: mobile customer core threshold constants missing in shared: $pattern"
+    exit 1
+  fi
+done
+
+for pattern in "客情五项指标" "{{indicatorTotal}} / 15 分" "{{coreThresholdTip}}" 'bindtap="selectIndicatorScore"' 'score-option' 'indicator-inline-card'; do
   if ! rg -Fq "$pattern" "$FORM_WXML" "$ROOT/aigicrm-miniprogram/pages/customer/form/index.wxss"; then
     echo "FAIL: mobile customer form inline indicator UI missing $pattern"
     exit 1
@@ -139,7 +158,13 @@ for pattern in 'form-actions' 'form-cancel-btn' 'form-submit-btn' 'form-top-canc
     exit 1
   fi
 done
-for pattern in "cancelText: isEdit ? '取消编辑' : '取消新增'" "cancelDisabled" "getCurrentPages"; do
+# 【D24 锚点重钉 2026-10-05】各表单 goBack/cancel 兜底改用 shared.navigateBackWithFallback,
+# getCurrentPages 栈深判断统一钉在 shared(下方 contact/finance/log/customer 表单同)
+if ! rg -Fq "getCurrentPages" "$SHARED"; then
+  echo "FAIL: shared navigateBackWithFallback missing getCurrentPages stack check"
+  exit 1
+fi
+for pattern in "cancelText: isEdit ? '取消编辑' : '取消新增'" "cancelDisabled" "navigateBackWithFallback"; do
   if ! rg -Fq "$pattern" "$ROOT/aigicrm-miniprogram/pages/customer/contact/form/index.js"; then
     echo "FAIL: mobile contact form cancel state/action missing $pattern"
     exit 1
@@ -268,7 +293,7 @@ for pattern in 'form-actions' 'form-cancel-btn' 'form-submit-btn' 'form-top-canc
     exit 1
   fi
 done
-for pattern in "cancelText: isInvoice ? '取消开票' : '取消回款'" "cancelDisabled" "getCurrentPages"; do
+for pattern in "cancelText: isInvoice ? '取消开票' : '取消回款'" "cancelDisabled" "navigateBackWithFallback"; do
   if ! rg -Fq "$pattern" "$ROOT/aigicrm-miniprogram/pages/customer/finance/form/index.js"; then
     echo "FAIL: mobile finance form cancel state/action missing $pattern"
     exit 1
@@ -295,7 +320,7 @@ for pattern in 'form-actions' 'form-cancel-btn' 'form-submit-btn' 'form-top-canc
     exit 1
   fi
 done
-for pattern in "cancelText: '取消记录'" "cancelDisabled" "getCurrentPages"; do
+for pattern in "cancelText: '取消记录'" "cancelDisabled" "navigateBackWithFallback"; do
   if ! rg -Fq "$pattern" "$LOG_JS"; then
     echo "FAIL: mobile customer log form cancel state/action missing $pattern"
     exit 1
@@ -421,7 +446,7 @@ for pattern in 'customer-form-actions' 'form-cancel-btn' 'form-submit-btn' 'form
   fi
 done
 
-for pattern in "cancelText: data.isEdit ? '取消编辑' : '取消新增'" "cancelDisabled" "getCurrentPages"; do
+for pattern in "cancelText: data.isEdit ? '取消编辑' : '取消新增'" "cancelDisabled" "navigateBackWithFallback"; do
   if ! rg -Fq "$pattern" "$FORM"; then
     echo "FAIL: mobile customer form cancel state/action missing $pattern"
     exit 1
