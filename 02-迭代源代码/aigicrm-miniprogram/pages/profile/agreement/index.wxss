@@ -1,1 +1,2 @@
-.profile-doc-page{min-height:100vh;padding:40rpx 28rpx;background:#f5f8fc;box-sizing:border-box}.title{display:block;color:#172033;font-size:40rpx;font-weight:850}.updated{display:block;margin-top:14rpx;color:#8ea3c0;font-size:24rpx}.doc-section{padding:30rpx;margin-top:22rpx;border-radius:24rpx;background:#fff;border:1rpx solid #e5edf6;box-shadow:0 10rpx 26rpx rgba(35,57,96,.05)}.heading{display:block;color:#172033;font-size:30rpx;font-weight:800;margin-bottom:16rpx}.body{display:block;color:#5f718b;font-size:27rpx;line-height:1.9}
+/* 【E9 去重】说明页样式与 privacy 页完全相同，统一 @import 共享副本（见 ../doc-shared.wxss） */
+@import "../doc-shared.wxss";

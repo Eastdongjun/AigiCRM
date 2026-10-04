@@ -17,6 +17,7 @@ import { paginate } from '@/utils/pagination'
 import { filterCustomers } from '@/utils/list-filter'
 import { customerEmptyText } from '@/utils/customer-empty-state'
 import { customerStatusTagType, customerStatusText } from '@/utils/customer-status'
+import { INDUSTRY_FALLBACK_OPTIONS } from '@/utils/dict-fallback'
 
 export const CustomerListKey = Symbol('customerList')
 
@@ -264,7 +265,7 @@ export function useCustomerList() {
     try {
       const res = await getDictData('industry')
       industryOptions.value = (res.data || []).map(d => d.dictValue)
-    } catch (e) { industryOptions.value = ['煤矿', '化工', '电力', '洗煤厂', '有色', '其他'] }
+    } catch (e) { industryOptions.value = INDUSTRY_FALLBACK_OPTIONS }
   }
 
   // ---- 导航/筛选动作 ----

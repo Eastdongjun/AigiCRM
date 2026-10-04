@@ -16,10 +16,6 @@ function addRecord(data) {
   return request({ url: '/api/incentive/records', method: 'POST', data })
 }
 
-function createRecord(data) {
-  return request({ url: '/api/incentive/records', method: 'POST', data })
-}
-
 function markIncentiveRead(recordId) {
   return request({ url: '/api/incentive/records/' + recordId + '/read', method: 'POST' })
 }
@@ -69,7 +65,6 @@ module.exports = {
   addRecord,
   getRecords,
   getCustomerRecords,
-  createRecord,
   markIncentiveRead,
   getReadStats,
   getCategoryStats,

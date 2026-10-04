@@ -1,7 +1,4 @@
 const request = require('../utils/request')
-// 【D38】表单草稿接口已迁至 ./draft(域归位); 此处再导出仅为过渡兼容,
-// 存量调用方(pages/customer/form、pages/incentive/upload)迁移由后续去重批完成。
-const draft = require('./draft')
 
 /** 部门列表（大区 deptType=2 / 办事处 deptType=3）——客户表单"所属大区/办事处"下拉用。
  *  后端 /api/system/depts 已按 FEAT-20260804-DICT-DEPT-READ 放宽为"登录即可读"，
@@ -22,11 +19,9 @@ function getScopeUsers() {
 }
 
 // 【D38】exports 统一放文件尾: 此前写在函数定义前靠声明提升才成立, 易在维护中踩坑
+// 【E10】草稿接口过渡再导出已移除: 存量调用方(customer/form、incentive/upload)
+// 均已改引 ./draft, system 模块回归纯系统字典/部门/范围职责。
 module.exports = {
-  getFormDraft: draft.getFormDraft,
-  saveFormDraft: draft.saveFormDraft,
-  forceSaveFormDraft: draft.forceSaveFormDraft,
-  deleteFormDraft: draft.deleteFormDraft,
   getDepts,
   getDictData,
   getScopeUsers

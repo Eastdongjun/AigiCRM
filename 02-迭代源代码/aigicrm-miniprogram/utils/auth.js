@@ -1,4 +1,6 @@
 const config = require('../config/env')
+// 【E7】getGlobalData 收敛至 app-context 单一出处(原复制移除, 行为不变)
+const { getGlobalData } = require('./app-context')
 
 const LEGACY_TOKEN_KEY = 'AIGICRM_TOKEN'
 
@@ -8,13 +10,6 @@ const LEGACY_TOKEN_KEY = 'AIGICRM_TOKEN'
 // 或跨环境身份串用。key 后缀取运行时 apiBaseUrl，demo 档固定 'demo'。
 function tokenStorageKey() {
   return LEGACY_TOKEN_KEY + '::' + (config.apiBaseUrl || 'demo')
-}
-
-function getGlobalData() {
-  const app = typeof getApp === 'function' ? getApp() : null
-  if (!app) return {}
-  if (!app.globalData) app.globalData = {}
-  return app.globalData
 }
 
 function getToken() {

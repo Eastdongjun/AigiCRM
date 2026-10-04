@@ -1,12 +1,7 @@
 const request = require('../utils/request')
 const { setToken } = require('../utils/auth')
-
-function getGlobalData() {
-  const app = typeof getApp === 'function' ? getApp() : null
-  if (!app) return {}
-  if (!app.globalData) app.globalData = {}
-  return app.globalData
-}
+// 【E7】getGlobalData 收敛至 utils/app-context 单一出处(原复制移除, 行为不变)
+const { getGlobalData } = require('../utils/app-context')
 
 function login(data) {
   return request({ url: '/api/auth/login', method: 'POST', data })

@@ -8,6 +8,7 @@ import { cachedGet } from '@/utils/layout-cache'
 import { filterCustomerRankRows } from '@/utils/customer-rank'
 import { useUserStore } from '@/store/user'
 import { buildPeriodOptions, periodQueryValue } from '@/utils/incentive-period'
+import { exportCsv } from '@/utils/csv'
 
 export const IncentiveStatsKey = Symbol('incentiveStats')
 
@@ -105,25 +106,14 @@ export function useIncentiveStats() {
   // ---- 排行导出（CSV，含 BOM 防中文乱码）----
   // 【2026-10-04 D11】删除死组件 DeptRankTableView 后，'dept' 部门排行导出分支再无调用方
   // （deptList 原本只被该死组件消费、永远为空，导出必然空文件），一并清理为仅客户排行导出。
+  // 【2026-10-04 E4 去重】esc/BOM/Blob 下载逻辑提取到 utils/csv.js（与 PersonRankTableView.exportPersonRank 共用），
+  // 此处只保留表头/行数据组装与文件名，导出内容不变
   const exportRank = () => {
     const periodLabel = period.value || '全部周期'
     const cats = rankParents.value.flatMap(g => g.children.map(c => c.categoryName))
     const header = ['排名', '客户', '激励总额', ...cats, '上传数']
     const rows = scoreboard.value.map((r, i) => [i + 1, r.customerName, r.totalScore, ...rankParents.value.flatMap(g => g.children.map(c => r.byCategory?.[c.id]?.[0] || 0)), r.recordCount || r.count || 0])
-    const esc = (v) => {
-      const s = String(v ?? '')
-      return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s
-    }
-    const csv = '﻿' + [header, ...rows].map(row => row.map(esc).join(',')).join('\n')
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `激励客户排行_${periodLabel}.csv`
-    document.body.appendChild(a)
-    a.click()
-    URL.revokeObjectURL(url)
-    a.remove()
+    exportCsv([header, ...rows], `激励客户排行_${periodLabel}.csv`)
   }
 
   const loadData = async () => {

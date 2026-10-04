@@ -14,6 +14,7 @@ import {
 import { getDeptList, getDictData } from '@/api/system'
 import regionData from '@/utils/region-data'
 import { INDICATOR_FIELDS, sumIndicatorScore } from '@/utils/customer-fields'
+import { INDUSTRY_FALLBACK_OPTIONS } from '@/utils/dict-fallback'
 import { useUserStore } from '@/store/user'
 
 // 【PR-05 残余 20260921】幂等键工具:http 非安全上下文(如 http://IP 测试环境)无 crypto.randomUUID,
@@ -311,7 +312,7 @@ export function useCustomerForm() {
     try {
       const res = await getDictData('industry')
       industryOptions.value = (res.data || []).map(d => d.dictValue)
-    } catch (e) { industryOptions.value = ['煤矿', '化工', '电力', '洗煤厂', '有色', '其他'] }
+    } catch (e) { industryOptions.value = INDUSTRY_FALLBACK_OPTIONS }
     try {
       const res = await getDictData('dev_type')
       devTypeOptions.value = (res.data || []).map(d => d.dictValue)

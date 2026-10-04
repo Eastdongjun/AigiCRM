@@ -5,6 +5,8 @@ const { reminderRecords } = require('../../data/demo')
 const { hasPermission, requireLogin, isAdmin } = require('../../utils/auth')
 const { showError } = require('../../utils/feedback')
 const { isProcessed, markProcessed } = require('../../utils/demo-reminders')
+// 【E6 去重】部门树扁平化原与 approval/index 复制一份, 收敛到 utils/tree
+const { flattenDepts } = require('../../utils/tree')
 
 function normalizePage(payload) {
   if (Array.isArray(payload)) return payload
@@ -124,15 +126,6 @@ function normalizeReminder(item) {
     updatedAtDisplay: displayText(normalized.updatedAt),
     processActionDisplay: displayText(normalized.processActionLabel, '已处理')
   }
-}
-
-function flattenDepts(nodes = [], depth = 0) {
-  const rows = []
-  for (const node of Array.isArray(nodes) ? nodes : []) {
-    rows.push({ id: node.id, name: `${'　'.repeat(depth)}${node.deptName || node.name || '未命名部门'}` })
-    rows.push(...flattenDepts(node.children || [], depth + 1))
-  }
-  return rows
 }
 
 function buildReminderView(state) {

@@ -8,6 +8,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { getUserList, getUserById, createUser, updateUser, resetPassword, deleteUser, getDeptList, getRoleList, getPositionList, getUserPositions, assignUserPositions } from '@/api/system'
 import { getSimpleUserList } from '@/api/customer'
 import { useUserStore } from '@/store/user'
+import { formatSize } from '@/utils/format'
 
 export const UserListKey = Symbol('userList')
 
@@ -125,12 +126,8 @@ export function useUserList() {
     return null
   }
 
-  const formatSize = (bytes) => {
-    if (!bytes) return '0'
-    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(0) + 'KB'
-    if (bytes < 1024 * 1024 * 1024) return (bytes / (1024 * 1024)).toFixed(0) + 'MB'
-    return (bytes / (1024 * 1024 * 1024)).toFixed(1) + 'GB'
-  }
+  // 【去重 2026-10-04】formatSize 统一提取到 utils/format.js：原先与文件管理页两份口径漂移
+  // （空值 '0' vs '—'、无 B 档、取整无空格），现随统一口径展示（新契约见 utils/format.js 头注释）
 
   // 角色标签色：按角色名映射，未识别用默认
   const roleTagType = (name) => {

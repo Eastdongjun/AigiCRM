@@ -12,6 +12,7 @@ import {
 import { useUserStore } from '@/store/user'
 import { downloadFile } from '@/utils/download'
 import { getToken, getDownloadToken, refreshDownloadToken } from '@/utils/token'
+import { formatSize } from '@/utils/format'
 
 export const FilePageKey = Symbol('filePage')
 
@@ -269,14 +270,8 @@ export function useFilePage() {
   }
 
   // === 工具函数 ===
-  const formatSize = (bytes) => {
-    if (!bytes) return '—'
-    if (bytes < 1024) return bytes + 'B'
-    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB'
-    if (bytes < 1024 * 1024 * 1024) return (bytes / (1024 * 1024)).toFixed(1) + ' MB'
-    return (bytes / (1024 * 1024 * 1024)).toFixed(1) + ' GB'
-  }
-
+  // 【去重 2026-10-04】formatSize 统一提取到 utils/format.js（与人员管理页共用同一口径，
+  // 契约见该文件头注释）；本页原内联实现即该统一口径，行为不变
   const getFileExt = (name) => {
     if (!name) return 'other'
     const ext = name.split('.').pop()?.toLowerCase()

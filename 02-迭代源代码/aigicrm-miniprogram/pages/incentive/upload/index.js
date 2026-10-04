@@ -1,8 +1,11 @@
 const { getCustomerList } = require('../../../api/customer')
 const { getCategoryTree, addRecord, getRecords, updateRecord } = require('../../../api/incentive')
 const { getDownloadUrl, uploadFile } = require('../../../api/file')
-const { getDictData, getFormDraft, saveFormDraft, deleteFormDraft } = require('../../../api/system')
-const { requireLogin, hasPermission, getToken } = require('../../../utils/auth')
+const { getDictData } = require('../../../api/system')
+// 【E10】表单草稿接口自 api/system 迁至 api/draft(D38 域归位收尾), 引用随迁
+const { getFormDraft, saveFormDraft, deleteFormDraft } = require('../../../api/draft')
+const { requireLogin, hasPermission } = require('../../../utils/auth')
+const { fetchRemoteAttachment, saveDownloadedFileToDisk } = require('../../../utils/attachment')
 const { showError, showErrorWithRetry } = require('../../../utils/feedback')
 
 function flattenCategories(nodes = [], result = []) {
@@ -704,50 +707,23 @@ Page({
     if (file.existing && (file.fileId || file.fileUrl)) return this.fetchExistingFile(file, 'download')
     if (!file.filePath) return
     recordAttachmentAction('saveFile', { tempFilePath: file.filePath })
-    const options = {
-      tempFilePath: file.filePath,
-      success: () => wx.showToast({ title: '已保存到本机', icon: 'success' }),
-      fail: (error) => showError(error, '下载保存失败')
-    }
-    const fs = typeof wx.getFileSystemManager === 'function' ? wx.getFileSystemManager() : null
-    if (fs && typeof fs.saveFile === 'function') return fs.saveFile(options)
-    return wx.saveFile(options)
+    return saveDownloadedFileToDisk(file.filePath, '下载保存失败')
   },
 
+  // 【E5 去重】既有附件的下载/预览共用 utils/attachment.js; 本页与列表/详情页的既定差异:
+  // busy=fileActionLoading、无视频分支、图片按 fileKind/扩展名判定、hideLoading 在 complete
+  // 统一收、保存失败文案"下载保存失败"
   fetchExistingFile(file, mode) {
-    if (this.data.fileActionLoading) return
-    const downloadUrl = getDownloadUrl({ id: file.fileId, fileUrl: file.fileUrl, url: file.fileUrl })
-    if (!downloadUrl) return wx.showToast({ title: '附件地址缺失', icon: 'none' })
-    this.setUploadData({ fileActionLoading: true })
-    wx.showLoading({ title: mode === 'download' ? '下载中' : '准备预览' })
-    return new Promise((resolve) => {
-      wx.downloadFile({
-        url: downloadUrl,
-        header: getToken() ? { Authorization: 'Bearer ' + getToken() } : {},
-        success: (result) => {
-          if (result.statusCode !== 200) return showError(new Error('文件下载失败'), '文件下载失败')
-          if (mode === 'download') return this.saveTempFile(result.tempFilePath)
-          if (file.fileKind === 'image' || isImageFile(file.fileName, '')) {
-            wx.previewImage({ urls: [result.tempFilePath], fail: (error) => showError(error, '图片预览失败') })
-            return
-          }
-          wx.openDocument({ filePath: result.tempFilePath, showMenu: true, fail: (error) => showError(error, '无法直接预览，可下载后查看') })
-        },
-        fail: (error) => showError(error, '文件下载失败'),
-        complete: () => { wx.hideLoading(); this.setUploadData({ fileActionLoading: false }); resolve() }
-      })
+    return fetchRemoteAttachment({
+      url: getDownloadUrl({ id: file.fileId, fileUrl: file.fileUrl, url: file.fileUrl }),
+      mode,
+      file,
+      isBusy: this.data.fileActionLoading,
+      setBusy: (busy) => this.setUploadData({ fileActionLoading: busy }),
+      isImage: (item) => item.fileKind === 'image' || isImageFile(item.fileName, ''),
+      saveFailTitle: '下载保存失败',
+      hideLoadingBeforeResult: false
     })
-  },
-
-  saveTempFile(tempFilePath) {
-    const options = {
-      tempFilePath,
-      success: () => wx.showToast({ title: '已保存到本机', icon: 'success' }),
-      fail: (error) => showError(error, '下载保存失败')
-    }
-    const fs = typeof wx.getFileSystemManager === 'function' ? wx.getFileSystemManager() : null
-    if (fs && typeof fs.saveFile === 'function') return fs.saveFile(options)
-    return wx.saveFile(options)
   },
 
   removeSelectedFile(event) {

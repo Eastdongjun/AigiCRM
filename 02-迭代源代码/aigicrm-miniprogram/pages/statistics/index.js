@@ -3,6 +3,8 @@ const { getScoreRanking } = require('../../api/score')
 const { getDepts } = require('../../api/system')
 const { requireLogin, hasPermission } = require('../../utils/auth')
 const { showErrorWithRetry } = require('../../utils/feedback')
+// 【E6 去重】组织树构建原与 incentive applyOrgs / sea applyDepts 三处同构, 收敛到 utils/tree
+const { buildDeptLevelOptions } = require('../../utils/tree')
 
 const MONTH_LABELS = ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月']
 const CURRENT_YEAR = new Date().getFullYear()
@@ -358,25 +360,8 @@ Page({
   },
 
   applyDepts(list) {
-    const source = list || []
-    const filtered = source.filter((item) => item && item.deptType !== 1)
-    const byParent = {}
-    filtered.forEach((item) => {
-      const parentId = filtered.some((node) => String(node.id) === String(item.parentId)) ? item.parentId : 0
-      const key = String(parentId || 0)
-      if (!byParent[key]) byParent[key] = []
-      byParent[key].push(item)
-    })
-    const result = [{ id: '', deptName: '全部部门', label: '全部部门' }]
-    const walk = (parentId, level) => {
-      ;(byParent[String(parentId || 0)] || [])
-        .sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0))
-        .forEach((item) => {
-          result.push({ ...item, label: `${'  '.repeat(level)}${item.deptName || item.name || '未命名部门'}` })
-          walk(item.id, level + 1)
-        })
-    }
-    walk(0, 0)
+    // 组织树构建共用 utils/tree.js(incentive/sea/statistics 三处同构), statistics 侧用默认"全部部门"口径
+    const result = buildDeptLevelOptions(list)
     const selectedDeptIndex = Math.min(this.data.selectedDeptIndex, result.length - 1)
     // 【D32】并入 setStatisticsData: 原先裸 setData + 回调里二次 setData 重建视图, 现一次完成
     this.setStatisticsData({ deptOptions: result, selectedDeptIndex })

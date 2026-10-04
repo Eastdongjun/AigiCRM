@@ -2,9 +2,11 @@ const { deleteRecord, getCategoryStats, getCategoryTree, getCustomerRecords, get
 const { getDownloadUrl } = require('../../api/file')
 const { getDepts } = require('../../api/system')
 const { incentiveRecords } = require('../../data/demo')
-const { hasPermission, isAdmin, requireLogin, getToken } = require('../../utils/auth')
+const { hasPermission, isAdmin, requireLogin } = require('../../utils/auth')
+const { fetchRemoteAttachment } = require('../../utils/attachment')
 const { showError, showErrorWithRetry } = require('../../utils/feedback')
 const { buildIncentiveFileGroups, buildIncentiveFiles } = require('../../utils/incentive-files')
+const { buildDeptLevelOptions } = require('../../utils/tree')
 
 function normalizeRecords(customers) {
   return (customers || []).map((customer) => {
@@ -518,25 +520,8 @@ Page({
   },
 
   applyOrgs(list) {
-    const source = list || []
-    const filtered = source.filter((item) => item && item.deptType !== 1)
-    const byParent = {}
-    filtered.forEach((item) => {
-      const parentId = filtered.some((node) => String(node.id) === String(item.parentId)) ? item.parentId : 0
-      const key = String(parentId || 0)
-      if (!byParent[key]) byParent[key] = []
-      byParent[key].push(item)
-    })
-    const result = [{ id: '', deptName: '全部组织', label: '全部组织' }]
-    const walk = (parentId, level) => {
-      ;(byParent[String(parentId || 0)] || [])
-        .sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0))
-        .forEach((item) => {
-          result.push({ ...item, label: `${'  '.repeat(level)}${item.deptName || item.name || '未命名组织'}` })
-          walk(item.id, level + 1)
-        })
-    }
-    walk(0, 0)
+    // 组织树构建共用 utils/tree.js(incentive/sea/statistics 三处同构); 本页差异仅根节点文案"全部组织"
+    const result = buildDeptLevelOptions(list, { rootLabel: '全部组织', fallbackName: '未命名组织' })
     this.setData({ orgOptions: result, selectedOrgIndex: Math.min(this.data.selectedOrgIndex, result.length - 1) }, () => this.refreshIncentiveView())
   },
 
@@ -1024,54 +1009,18 @@ Page({
     return this.fetchAttachment(file, 'download')
   },
 
+  // 【E5 去重】下载/预览/保存共用 utils/attachment.js; 本页差异: busy=previewing(复位需联动
+  // 刷新 incentiveView)、视频写 previewVideoPath、保存失败文案"保存失败"、success 内先收 loading
   fetchAttachment(file, mode) {
-    if (this.data.previewing) return
-    const url = getDownloadUrl(file)
-    if (!url) return wx.showToast({ title: '附件地址缺失', icon: 'none' })
-    this.setData({ previewing: true }, () => this.refreshIncentiveView())
-    wx.showLoading({ title: mode === 'download' ? '下载中' : '准备预览' })
-    return new Promise((resolve) => {
-      wx.downloadFile({
-        url,
-        header: getToken() ? { Authorization: 'Bearer ' + getToken() } : {},
-        success: (result) => {
-          // hideLoading 在全屏 API 之前收掉, 避免"必须配对使用"警告
-          wx.hideLoading()
-          if (result.statusCode !== 200) return showError(new Error('文件下载失败'), '文件下载失败')
-          if (mode === 'download') return this.saveDownloadedFile(result.tempFilePath)
-          this.openDownloadedFile(file, result.tempFilePath)
-        },
-        fail: (error) => { wx.hideLoading(); showError(error, '文件下载失败') },
-        complete: () => { this.setData({ previewing: false }, () => this.refreshIncentiveView()); resolve() }
-      })
+    return fetchRemoteAttachment({
+      url: getDownloadUrl(file),
+      mode,
+      file,
+      isBusy: this.data.previewing,
+      setBusy: (busy) => this.setData({ previewing: busy }, () => this.refreshIncentiveView()),
+      isImage: (item) => item.type === 'image',
+      onVideo: (tempFilePath) => this.setData({ previewVideoPath: tempFilePath })
     })
-  },
-
-  openDownloadedFile(file, tempFilePath) {
-    if (file.type === 'image') {
-      wx.previewImage({ urls: [tempFilePath], fail: (error) => showError(error, '图片预览失败') })
-      return
-    }
-    if (file.type === 'video') {
-      this.setData({ previewVideoPath: tempFilePath })
-      return
-    }
-    wx.openDocument({
-      filePath: tempFilePath,
-      showMenu: true,
-      fail: (error) => showError(error, '无法直接预览，可下载后查看')
-    })
-  },
-
-  saveDownloadedFile(tempFilePath) {
-    const options = {
-      tempFilePath,
-      success: () => wx.showToast({ title: '已保存到本机', icon: 'success' }),
-      fail: (error) => showError(error, '保存失败')
-    }
-    const fs = typeof wx.getFileSystemManager === 'function' ? wx.getFileSystemManager() : null
-    if (fs && typeof fs.saveFile === 'function') return fs.saveFile(options)
-    return wx.saveFile(options)
   },
 
   openCustomer(e) {

@@ -61,6 +61,7 @@ import { Download } from '@element-plus/icons-vue'
 import { injectIncentiveStats } from '@/composables/useIncentiveStats'
 import { useUserStore } from '@/store/user'
 import { pageSizes } from '@/utils/pagination'
+import { exportCsv } from '@/utils/csv'
 
 const { period, personBoard, personPageNum, personPageSize, pagedPersonBoard, rankParents } = injectIncentiveStats()
 const userStore = useUserStore()
@@ -71,6 +72,8 @@ const onSizeChange = (size) => {
 }
 
 // 【2026-09-23】个人排行导出(前端 CSV, 与客户排行 exportRank 同构; 按钮由 incentive:person-rank:export 控制)
+// 【2026-10-04 E4 去重】esc/BOM/Blob 下载逻辑提取到 utils/csv.js（与 useIncentiveStats.exportRank 共用），
+// 此处只保留表头/行数据组装与文件名，导出内容不变
 const exportPersonRank = () => {
   const periodLabel = period.value || '全部周期'
   const cats = rankParents.value.flatMap(g => g.children.map(c => c.categoryName))
@@ -80,20 +83,7 @@ const exportPersonRank = () => {
     ...rankParents.value.flatMap(g => g.children.map(c => r.byCategory?.[c.id]?.[0] || 0)),
     r.recordCount || 0,
   ])
-  const esc = (v) => {
-    const s = String(v ?? '')
-    return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s
-  }
-  const csv = '﻿' + [header, ...rows].map(row => row.map(esc).join(',')).join('\n')
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = `激励个人排行_${periodLabel}.csv`
-  document.body.appendChild(a)
-  a.click()
-  URL.revokeObjectURL(url)
-  a.remove()
+  exportCsv([header, ...rows], `激励个人排行_${periodLabel}.csv`)
 }
 </script>
 

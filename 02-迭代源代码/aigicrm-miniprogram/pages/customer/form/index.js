@@ -2,7 +2,8 @@ const { getCustomer, saveCustomerWithIndicator, updateCustomerWithIndicator, che
 const { getDepts, getDictData } = require('../../../api/system')
 const { hasPermission, requireLogin, isAdmin } = require('../../../utils/auth')
 const { showError, showErrorWithRetry } = require('../../../utils/feedback')
-const { getFormDraft, saveFormDraft, deleteFormDraft } = require('../../../api/system')
+// 【E10】表单草稿接口自 api/system 迁至 api/draft(D38 域归位收尾), 引用随迁
+const { getFormDraft, saveFormDraft, deleteFormDraft } = require('../../../api/draft')
 const { readDemoCustomers, saveDemoCustomer } = require('../../../utils/demo-customers')
 // 【D24/D25 2026-10-04】五项指标配置/求和/视图、核心阈值提示、返回兜底统一引用组内共享模块
 const { INDICATOR_FIELDS, sumIndicatorScore, buildIndicatorItems, CORE_THRESHOLD_TIP, navigateBackWithFallback } = require('../shared')

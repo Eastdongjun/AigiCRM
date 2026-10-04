@@ -1,13 +1,8 @@
 const { clearToken, getToken } = require('./auth')
+// 【E7】getGlobalData/buildUrl 收敛至 app-context 单一出处(原两份复制移除, 行为不变)
+const { getGlobalData, buildUrl } = require('./app-context')
 
 let redirectingToLogin = false
-
-function getGlobalData() {
-  const app = typeof getApp === 'function' ? getApp() : null
-  if (!app) return {}
-  if (!app.globalData) app.globalData = {}
-  return app.globalData
-}
 
 function requestError(message, details) {
   const error = new Error(message || '请求失败')
@@ -54,16 +49,6 @@ function sanitizeData(data) {
     if (value !== undefined && value !== null && value !== '') result[key] = value
     return result
   }, {})
-}
-
-function buildUrl(baseUrl, path) {
-  const normalizedBase = String(baseUrl || '').replace(/\/+$/, '')
-  const normalizedPath = String(path || '').replace(/^\/+/, '')
-  if (!normalizedBase) return '/' + normalizedPath
-  if (normalizedBase.endsWith('/api') && normalizedPath.startsWith('api/')) {
-    return normalizedBase + '/' + normalizedPath.slice(4)
-  }
-  return normalizedBase + '/' + normalizedPath
 }
 
 function request(options) {

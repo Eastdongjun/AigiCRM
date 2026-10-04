@@ -3,6 +3,9 @@ const { getDepts } = require('../../api/system')
 const { approvalRecords } = require('../../data/demo')
 const { hasPermission, requireLogin } = require('../../utils/auth')
 const { showError } = require('../../utils/feedback')
+// 【E6 去重】审批类型/状态映射与部门树扁平化原与 approval/detail、reminder 各复制一份, 收敛到共享模块
+const { approvalStatusText, approvalTypeLabel, normalizeApprovalNode, pendingStatus } = require('../../utils/label-maps')
+const { flattenDepts } = require('../../utils/tree')
 
 function normalizeApproval(item) {
   const type = item.type || item.approvalType || 'unknown'
@@ -29,52 +32,8 @@ function normalizeApproval(item) {
   }
 }
 
-function approvalTypeLabel(type) {
-  const map = {
-    claim: '捞取',
-    transfer: '转移',
-    extend: '延期',
-    storage: '空间',
-    customer_release: '客户释放',
-    customer_transfer: '客户转交',
-    return_to_pool: '退回公海'
-  }
-  return map[type] || (type ? String(type) : '-')
-}
-
-function approvalStatusText(status) {
-  const map = { pending: '待提交', PENDING: '待提交', WAITING: '待审批', '待审批': '待审批', reviewing: '审批中', approved: '已通过', rejected: '已驳回' }
-  return map[status] || status || '-'
-}
-
-function nodeStatusText(status, action) {
-  if (action === 'cancelled') return '已作废'
-  const map = { pending: '待审批', PENDING: '待审批', WAITING: '待审批', '待审批': '待审批', approved: '已通过', rejected: '已驳回' }
-  return map[status] || status || '待审批'
-}
-
-function normalizeApprovalNode(node) {
-  return {
-    ...node,
-    statusLabel: nodeStatusText(node.status, node.action)
-  }
-}
-
 function isPending(item) {
   return Boolean(item && item.isPending)
-}
-
-function pendingStatus(status) {
-  return ['pending', 'PENDING', 'WAITING', '待审批'].includes(status)
-}
-
-function flattenDepts(nodes = [], depth = 0) {
-  const rows = []
-  for (const node of Array.isArray(nodes) ? nodes : []) {
-    rows.push({ id: node.id, name: `${'　'.repeat(depth)}${node.deptName || node.name || '未命名部门'}` })
-    rows.push(...flattenDepts(node.children || [], depth + 1))
-  }
-  return rows
 }
 
 function buildApprovalItemView(item, state = {}) {

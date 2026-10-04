@@ -18,29 +18,26 @@ function buildProfileView(data) {
   }
 }
 
+// 【E9 去重】演示档初始态单一出处: 此前 data 散字段与 profileView 构造参数整段
+// 复制两份, 改任意一份都会造成初始展示不一致, 故收敛为同一常量。onLoad 拉到真实
+// 用户后经 applyState 覆盖, 初始演示值仅 demo 档可见, 行为不变。
+const DEMO_PROFILE_STATE = {
+  userName: '演示用户',
+  userInitial: '演',
+  roleName: '业务员',
+  orgName: '晋蒙业务部',
+  scopeName: '本部门及以下',
+  positionNames: '业务员',
+  groupIds: [],
+  currentGroupId: null,
+  switchingGroup: false
+}
+
 Page({
   data: {
-    userName: '演示用户',
-    userInitial: '演',
-    roleName: '业务员',
-    orgName: '晋蒙业务部',
-    scopeName: '本部门及以下',
-    positionNames: '业务员',
-    groupIds: [],
-    currentGroupId: null,
+    ...DEMO_PROFILE_STATE,
     groupIndex: 0,
-    switchingGroup: false,
-    profileView: buildProfileView({
-      userName: '演示用户',
-      userInitial: '演',
-      roleName: '业务员',
-      orgName: '晋蒙业务部',
-      scopeName: '本部门及以下',
-      positionNames: '业务员',
-      groupIds: [],
-      currentGroupId: null,
-      switchingGroup: false
-    })
+    profileView: buildProfileView(DEMO_PROFILE_STATE)
   },
 
   onLoad() {

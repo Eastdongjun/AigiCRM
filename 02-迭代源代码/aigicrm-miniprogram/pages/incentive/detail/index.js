@@ -4,7 +4,8 @@
 const { deleteRecord, getCustomerRecords, getGrantCheck, getScoreByCustomer, markIncentiveRead } = require('../../../api/incentive')
 const { incentiveRecords } = require('../../../data/demo')
 const { getDownloadUrl, getDownloadToken } = require('../../../api/file')
-const { hasPermission, isAdmin, requireLogin, getToken } = require('../../../utils/auth')
+const { hasPermission, isAdmin, requireLogin } = require('../../../utils/auth')
+const { fetchRemoteAttachment } = require('../../../utils/attachment')
 const { showError } = require('../../../utils/feedback')
 const { buildIncentiveFiles } = require('../../../utils/incentive-files')
 
@@ -517,53 +518,18 @@ Page({
     if (getApp().globalData.demoMode) return wx.showToast({ title: '演示附件不可下载', icon: 'none' })
     return this.fetchAttachment(file, 'download')
   },
+  // 【E5 去重】下载/预览/保存共用 utils/attachment.js; 本页差异: busy=previewing(经 setDetailData
+  // 联动重建 detailView)、视频写 previewVideoPath、保存失败文案"保存失败"、success 内先收 loading
   fetchAttachment(file, mode) {
-    if (this.data.previewing) return
-    const url = getDownloadUrl(file)
-    if (!url) return wx.showToast({ title: '附件地址缺失', icon: 'none' })
-    this.setDetailData({ previewing: true })
-    wx.showLoading({ title: mode === 'download' ? '下载中' : '准备预览' })
-    return new Promise((resolve) => {
-      wx.downloadFile({
-        url,
-        header: getToken() ? { Authorization: 'Bearer ' + getToken() } : {},
-        success: (result) => {
-          // hideLoading 必须在 previewImage/openDocument 等全屏 API 之前收掉,
-          // 否则 loading 层被顶掉后再配对 hideLoading 会触发"必须配对使用"警告
-          wx.hideLoading()
-          if (result.statusCode !== 200) return showError(new Error('文件下载失败'), '文件下载失败')
-          if (mode === 'download') return this.saveDownloadedFile(result.tempFilePath)
-          this.openDownloadedFile(file, result.tempFilePath)
-        },
-        fail: (error) => { wx.hideLoading(); showError(error, '文件下载失败') },
-        complete: () => { this.setDetailData({ previewing: false }); resolve() }
-      })
+    return fetchRemoteAttachment({
+      url: getDownloadUrl(file),
+      mode,
+      file,
+      isBusy: this.data.previewing,
+      setBusy: (busy) => this.setDetailData({ previewing: busy }),
+      isImage: (item) => item.type === 'image',
+      onVideo: (tempFilePath) => this.setData({ previewVideoPath: tempFilePath })
     })
-  },
-  openDownloadedFile(file, tempFilePath) {
-    if (file.type === 'image') {
-      wx.previewImage({ urls: [tempFilePath], fail: (error) => showError(error, '图片预览失败') })
-      return
-    }
-    if (file.type === 'video') {
-      this.setData({ previewVideoPath: tempFilePath })
-      return
-    }
-    wx.openDocument({
-      filePath: tempFilePath,
-      showMenu: true,
-      fail: (error) => showError(error, '无法直接预览，可下载后查看')
-    })
-  },
-  saveDownloadedFile(tempFilePath) {
-    const options = {
-      tempFilePath,
-      success: () => wx.showToast({ title: '已保存到本机', icon: 'success' }),
-      fail: (error) => showError(error, '保存失败')
-    }
-    const fs = typeof wx.getFileSystemManager === 'function' ? wx.getFileSystemManager() : null
-    if (fs && typeof fs.saveFile === 'function') return fs.saveFile(options)
-    return wx.saveFile(options)
   },
   closeVideoPreview() {
     this.setData({ previewVideoPath: '' })

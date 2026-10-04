@@ -1,21 +1,6 @@
 const request = require('../utils/request')
-
-function getGlobalData() {
-  const app = typeof getApp === 'function' ? getApp() : null
-  if (!app) return {}
-  if (!app.globalData) app.globalData = {}
-  return app.globalData
-}
-
-function buildUrl(baseUrl, path) {
-  const normalizedBase = String(baseUrl || '').replace(/\/+$/, '')
-  const normalizedPath = String(path || '').replace(/^\/+/, '')
-  if (!normalizedBase) return '/' + normalizedPath
-  if (normalizedBase.endsWith('/api') && normalizedPath.startsWith('api/')) {
-    return normalizedBase + '/' + normalizedPath.slice(4)
-  }
-  return normalizedBase + '/' + normalizedPath
-}
+// 【E7】getGlobalData/buildUrl 收敛至 utils/app-context 单一出处(原两份复制移除, 行为不变)
+const { getGlobalData, buildUrl } = require('../utils/app-context')
 
 function encodeDownloadPath(path) {
   return String(path || '').split('/').filter(Boolean).map(encodeURIComponent).join('/')

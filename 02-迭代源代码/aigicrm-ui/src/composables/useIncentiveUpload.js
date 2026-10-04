@@ -15,6 +15,8 @@ import { getDownloadToken, refreshDownloadToken } from '@/utils/token'
 import { buildPeriodOptions, periodQueryValue, defaultRecordPeriod } from '@/utils/incentive-period'
 // 【D10 2026-10-04】五大类产品目录改为共享常量（原先与 incentive/search.vue 各硬编码一份）
 import { PRODUCT_CATS, PRODUCT_CAT_KEYS } from '@/views/incentive/product-catalog'
+import { INDUSTRY_FALLBACK_OPTIONS } from '@/utils/dict-fallback'
+import { mediaTypeOf, isImageName } from '@/utils/media-type'
 
 export const IncentiveUploadKey = Symbol('incentiveUpload')
 
@@ -54,7 +56,8 @@ export function useIncentiveUpload() {
   const fileUrl = (id) => { const t = getDownloadToken(); return t ? '/api/file/download/' + id + '?token=' + t : '/api/file/download/' + id }
   const parseFids = (v) => { if (!v) return []; if (typeof v === 'number') return [v]; try { const a = JSON.parse(v); return Array.isArray(a) ? a.map(x => Number(x)) : [v] } catch { return String(v).split(',').map(s => s.trim()).filter(Boolean) } }
   const splitNames = (n) => { if (!n) return []; return String(n).split(',').map(s => s.trim()).filter(Boolean) }
-  const fileType = (n) => { if (!n) return 'doc'; if (/\.(jpg|jpeg|png|gif|webp|bmp)$/i.test(n)) return 'image'; if (/\.(mp4|mov|avi|webm)$/i.test(n)) return 'video'; return 'doc' }
+  // 文件名三态判定(image/video/doc)统一在 utils/media-type.js，与客户详情页 detectType 同源
+  const fileType = mediaTypeOf
   // 安装文件预览:统一走 FilePreview(图片/视频预览+下载,文档显示下载入口);多文件取第一个
   const previewFile = async (id, name) => {
     const ids = parseFids(id), names = splitNames(name)
@@ -350,7 +353,7 @@ export function useIncentiveUpload() {
       const res = await getDictData('industry')
       industryOptions.value = (res.data || []).map(d => d.dictValue)
     } catch (e) {
-      industryOptions.value = ['煤矿', '化工', '电力', '洗煤厂', '有色', '其他']
+      industryOptions.value = INDUSTRY_FALLBACK_OPTIONS
     }
   }
 
@@ -486,7 +489,8 @@ export function useIncentiveUpload() {
   }
 
   // ---- 文件槽管理 ----
-  const isImage = (name) => /\.(jpg|jpeg|png|gif|webp|bmp)$/i.test(name || '')
+  // 图片扩展名判定统一在 utils/media-type.js
+  const isImage = isImageName
   // 【需求】文件预览 blob URL 缓存:模板渲染时若每次 createObjectURL 会反复创建大 blob 且不释放,
   // 导致上传后 UI 重渲染卡顿/内存泄漏(FEAT 0804 性能修复)。改为首次创建缓存,移除时 revoke。
   const getObjectURL = (file) => {

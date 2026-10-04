@@ -1,0 +1,4 @@
+/* 【E9 去重】用户协议/隐私政策两个说明页的 wxss 原为逐字符相同的两份复制，
+   统一收敛到此文件，两页 @import 引用；wxss 无页面级隔离变量，此处类名仅被
+   引用页(agreement/privacy)生效，不会外溢。 */
+.profile-doc-page{min-height:100vh;padding:40rpx 28rpx;background:#f5f8fc;box-sizing:border-box}.title{display:block;color:#172033;font-size:40rpx;font-weight:850}.updated{display:block;margin-top:14rpx;color:#8ea3c0;font-size:24rpx}.doc-section{padding:30rpx;margin-top:22rpx;border-radius:24rpx;background:#fff;border:1rpx solid #e5edf6;box-shadow:0 10rpx 26rpx rgba(35,57,96,.05)}.heading{display:block;color:#172033;font-size:30rpx;font-weight:800;margin-bottom:16rpx}.body{display:block;color:#5f718b;font-size:27rpx;line-height:1.9}

@@ -4,6 +4,9 @@ const { getDepts, getDictData } = require('../../api/system')
 const { seaRecords } = require('../../data/demo')
 const { hasPermission, requireLogin } = require('../../utils/auth')
 const { showError, showErrorWithRetry } = require('../../utils/feedback')
+// 【E6 去重】捞取申请状态映射原与 sea/claim-detail 复制一份; 组织树构建原与 incentive/statistics 同构, 均收敛到共享模块
+const { claimStatusText } = require('../../utils/label-maps')
+const { buildDeptLevelOptions } = require('../../utils/tree')
 
 const FALLBACK_INDUSTRIES = ['煤矿', '化工', '电力', '洗煤厂', '有色', '制造业', '能源', '其他']
 const FALLBACK_DEPTS = [
@@ -77,22 +80,6 @@ function seaStatusKey(status) {
   if (key === 'pending_approval') return 'pending_approval'
   if (key === 'claimed') return 'claimed'
   return key
-}
-
-function claimStatusText(status) {
-  const map = {
-    approved: '已通过',
-    APPROVED: '已通过',
-    rejected: '已驳回',
-    REJECTED: '已驳回',
-    reviewing: '待审批',
-    REVIEWING: '待审批',
-    pending: '待审批',
-    PENDING: '待审批',
-    WAITING: '待审批',
-    '待审批': '待审批'
-  }
-  return map[status] || status || '-'
 }
 
 function normalizeClaimRecord(item) {
@@ -272,25 +259,8 @@ Page({
   },
 
   applyDepts(list) {
-    const source = list || []
-    const filtered = source.filter((item) => item && item.deptType !== 1)
-    const byParent = {}
-    filtered.forEach((item) => {
-      const parentId = filtered.some((node) => String(node.id) === String(item.parentId)) ? item.parentId : 0
-      const key = String(parentId || 0)
-      if (!byParent[key]) byParent[key] = []
-      byParent[key].push(item)
-    })
-    const result = [{ id: '', deptName: '全部部门', label: '全部部门' }]
-    const walk = (parentId, level) => {
-      ;(byParent[String(parentId || 0)] || [])
-        .sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0))
-        .forEach((item) => {
-          result.push({ ...item, label: `${'  '.repeat(level)}${item.deptName || item.name || '未命名部门'}` })
-          walk(item.id, level + 1)
-        })
-    }
-    walk(0, 0)
+    // 组织树构建共用 utils/tree.js(incentive/sea/statistics 三处同构), sea 侧用默认"全部部门"口径
+    const result = buildDeptLevelOptions(list)
     this.setSeaData({ deptOptions: result, selectedDeptIndex: Math.min(this.data.selectedDeptIndex, result.length - 1) })
   },
 

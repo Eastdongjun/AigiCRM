@@ -2,6 +2,8 @@ const { approveApproval, getApprovalDetail, rejectApproval } = require('../../..
 const { approvalRecords } = require('../../../data/demo')
 const { hasPermission, requireLogin } = require('../../../utils/auth')
 const { showError } = require('../../../utils/feedback')
+// 【E6 去重】审批类型/状态映射原与 approval/index 各复制一份, 收敛到 utils/label-maps
+const { approvalStatusText, approvalTypeLabel, nodeStatusText, normalizeApprovalNode, pendingStatus } = require('../../../utils/label-maps')
 
 function formatApprovalSupplement(value) {
   if (!value) return ''
@@ -28,7 +30,7 @@ function normalize(item) {
     customerName: item.customerName || '',
     customerIndustry: item.customerIndustry || '',
     status,
-    isPending: pending(status),
+    isPending: pendingStatus(status),
     statusLabel: approvalStatusText(status),
     applicant: item.applicantName || item.createByName || item.creatorName || '申请人',
     currentNode: item.currentNode || '',
@@ -39,39 +41,6 @@ function normalize(item) {
     nodes: (item.nodes || []).map(normalizeApprovalNode)
   }
 }
-
-function approvalTypeLabel(type) {
-  const map = {
-    claim: '捞取',
-    transfer: '转移',
-    extend: '延期',
-    storage: '空间',
-    customer_release: '客户释放',
-    customer_transfer: '客户转交',
-    return_to_pool: '退回公海'
-  }
-  return map[type] || (type ? String(type) : '-')
-}
-
-function approvalStatusText(status) {
-  const map = { pending: '待提交', PENDING: '待提交', WAITING: '待审批', '待审批': '待审批', reviewing: '审批中', approved: '已通过', rejected: '已驳回' }
-  return map[status] || status || '-'
-}
-
-function nodeStatusText(status, action) {
-  if (action === 'cancelled') return '已作废'
-  const map = { pending: '待审批', PENDING: '待审批', WAITING: '待审批', '待审批': '待审批', approved: '已通过', rejected: '已驳回' }
-  return map[status] || status || '待审批'
-}
-
-function normalizeApprovalNode(node) {
-  return {
-    ...node,
-    statusLabel: nodeStatusText(node.status, node.action)
-  }
-}
-
-function pending(status) { return ['pending', 'PENDING', 'WAITING', '待审批'].includes(status) }
 
 function buildNodeView(node, index) {
   const order = node.nodeOrder || index + 1
@@ -174,7 +143,7 @@ Page({
   onCommentInput(e) { this.setData({ comment: e.detail.value }) },
   action(type) {
     const { approval } = this.data
-    if (!approval || !pending(approval.status) || (type === 'approve' ? !this.data.canApprove : !this.data.canReject)) return
+    if (!approval || !pendingStatus(approval.status) || (type === 'approve' ? !this.data.canApprove : !this.data.canReject)) return
     if (type === 'reject' && !this.data.comment.trim()) return wx.showToast({ title: '请填写驳回原因', icon: 'none' })
     if (getApp().globalData.demoMode) {
       const status = type === 'approve' ? 'approved' : 'rejected'
