@@ -244,6 +244,12 @@ Page({
     this.loadCustomers(this.data.currentPage + 1)
   },
 
+  /** 列表请求参数拼装(含分页)。筛选条件拼装同源 shared.buildCustomerFilterParams(D27 单一出处)；
+   *  保留为页面方法：DevTools 自动化 verify-customer-center.mjs 通过 callMethod('buildCustomerParams') 驱动。 */
+  buildCustomerParams() {
+    return { current: this.data.currentPage, size: PAGE_SIZE, ...buildCustomerFilterParams(this.data) }
+  },
+
   openDetail(e) {
     const id = e.currentTarget.dataset.id
     wx.navigateTo({ url: `/pages/customer/detail/index?id=${id}&from=customer` })

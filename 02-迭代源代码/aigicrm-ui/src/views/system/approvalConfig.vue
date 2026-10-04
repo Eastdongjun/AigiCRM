@@ -78,9 +78,13 @@
 
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue'
-import request from '@/utils/request'
 import { ElMessage } from 'element-plus'
 import { useUserStore } from '@/store/user'
+// 【D3 2026-10-05 api 层收口】页面不再裸调 URL：审批配置 CRUD 走 api/approval.js 封装，
+// 角色列表复用 api/system.getRoleList，精简用户列表复用 api/customer.getSimpleUserList
+import { getApprovalConfigList, createApprovalConfig, updateApprovalConfig, deleteApprovalConfig } from '@/api/approval'
+import { getRoleList } from '@/api/system'
+import { getSimpleUserList } from '@/api/customer'
 
 const userStore = useUserStore()
 const canEditConfig = computed(() => userStore.hasPermission('system:config:edit'))
@@ -94,16 +98,13 @@ const roleOptions = ref([])
 onMounted(() => { loadConfigs(); loadOptions() })
 
 async function loadConfigs() {
-  const res = await request.get('/approval/config/list')
+  const res = await getApprovalConfigList()
   configList.value = res.data || []
 }
 
 async function loadOptions() {
-  // 【D3 2026-10-04】清理复制残留变量名 r1/r3 → 语义命名。
-  // 注：审批配置 CRUD 仍直调 /approval/config*（api/approval.js 暂无对应封装函数）；
-  //    收口到 api 层需在 src/api/approval.js 补函数，该文件不在本批次可改范围，留待 api 层批次处理。
-  try { const roleRes = await request.get('/system/roles'); roleOptions.value = roleRes.data || [] } catch(e){}
-  try { const userRes = await request.get('/customer/users/simple'); userOptions.value = (userRes.data||[]).map(u=>({id:u.id, realName:u.realName})) } catch(e){}
+  try { const roleRes = await getRoleList(); roleOptions.value = roleRes.data || [] } catch(e){}
+  try { const userRes = await getSimpleUserList(); userOptions.value = (userRes.data||[]).map(u=>({id:u.id, realName:u.realName})) } catch(e){}
 }
 
 function parseApproverIds(raw) {
@@ -127,8 +128,8 @@ async function doSave() {
   if (!approverIds.value.length) return ElMessage.warning('请选择审批人')
   const payload = { ...form, approverIds: JSON.stringify(approverIds.value) }
   try {
-    if (form.id) await request.put(`/approval/config/${form.id}`, payload)
-    else await request.post('/approval/config', payload)
+    if (form.id) await updateApprovalConfig(form.id, payload)
+    else await createApprovalConfig(payload)
     ElMessage.success('保存成功')
     visible.value = false
     loadConfigs()
@@ -136,7 +137,7 @@ async function doSave() {
 }
 
 async function doDelete(id) {
-  await request.delete(`/approval/config/${id}`)
+  await deleteApprovalConfig(id)
   ElMessage.success('已删除')
   loadConfigs()
 }

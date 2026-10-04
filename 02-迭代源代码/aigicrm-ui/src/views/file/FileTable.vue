@@ -66,7 +66,7 @@
 <script setup>
 import { ref } from 'vue'
 import { ElMessage } from 'element-plus'
-import { View } from '@element-plus/icons-vue'
+// 【D16】View 图标已由 main.js menuIconList 全局注册(app.component)，本地 import 冗余已删；模板 <View/> 仍可解析
 import { replaceFile } from '@/api/file'
 import { injectFilePage } from '@/composables/useFilePage'
 import { pageSizes } from '@/utils/pagination'

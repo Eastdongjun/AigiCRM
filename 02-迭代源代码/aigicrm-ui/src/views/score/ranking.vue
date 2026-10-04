@@ -206,5 +206,6 @@ onMounted(loadData)
 .trend-up { color: #1d4ed8; }
 .trend-chase { color: #e6a23c; }
 .rank-footer { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-top: 1px solid #ebeef5; flex-shrink: 0; }
-.footer-note, .footer-time { color: #c0c4cc; font-size: 12px; }
+/* 2026-10-04 D15：移除"最近更新"假时间后，.footer-time 选择器一并清理（模板已无该 class） */
+.footer-note { color: #c0c4cc; font-size: 12px; }
 </style>

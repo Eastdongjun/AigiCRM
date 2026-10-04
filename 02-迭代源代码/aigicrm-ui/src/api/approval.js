@@ -28,3 +28,17 @@ export function getApprovalStatistics() {
 export function transferApprovalNode(approvalId, nodeId, newApproverId) {
   return request.put(`/approval/${approvalId}/nodes/${nodeId}/transfer`, { newApproverId })
 }
+
+// ---- 审批流程配置 CRUD（对应后端 ApprovalConfigController，D3 2026-10-05 收口：页面不再裸调 URL） ----
+export function getApprovalConfigList() {
+  return request.get('/approval/config/list')
+}
+export function createApprovalConfig(data) {
+  return request.post('/approval/config', data)
+}
+export function updateApprovalConfig(id, data) {
+  return request.put(`/approval/config/${id}`, data)
+}
+export function deleteApprovalConfig(id) {
+  return request.delete(`/approval/config/${id}`)
+}

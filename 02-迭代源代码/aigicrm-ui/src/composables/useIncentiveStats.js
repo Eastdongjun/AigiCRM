@@ -1,6 +1,7 @@
 // 激励统计页共享态（C4 拆组件 2026-08-09）
 // 页面级 provide/inject（per-route）：incentive/stats.vue 实例化一次并 provide，
-// 概览卡/统计表/个人排行/部门排行 4 个视图组件 inject 同一上下文。
+// 概览卡/激励统计表/客户排行/个人排行 4 个视图组件 inject 同一上下文
+// （2026-10-04 D11 删除从未挂载的部门排行死组件 DeptRankTableView 后，实际即这 4 个视图）。
 // 共享内容：周期/Tab/加载态 + 分类树/个人记录/全员聚合/排行数据 + 各计算派生 + 导出动作。
 import { ref, computed, inject } from 'vue'
 import { getCategoryTree, getRecords, getCategoryStats, getCustomerRecords, getScoreboard } from '@/api/incentive'
