@@ -95,7 +95,13 @@ public class MybatisPlusConfig {
         if (tenantEnabled) {
             interceptor.addInnerInterceptor(buildTenantInterceptor());
         }
-        interceptor.addInnerInterceptor(new PaginationInnerInterceptor(DbType.MYSQL));
+        // 【容量加固 2026-10-05】分页 size 上限护栏：所有走分页拦截器的查询单页最多 500 行。
+        // 依据：PC 客户列表前端单次拉 500（useCustomerList.js）是当前合法上限；此前 size 参数
+        // 无任何 cap（Controller 仅 defaultValue=15），恶意/失控的 size=10万 会放大扫描与传输。
+        // 导出等非分页自定义 SQL 不受影响。
+        PaginationInnerInterceptor pagination = new PaginationInnerInterceptor(DbType.MYSQL);
+        pagination.setMaxLimit(500L);
+        interceptor.addInnerInterceptor(pagination);
         return interceptor;
     }
 

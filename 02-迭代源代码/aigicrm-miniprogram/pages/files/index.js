@@ -170,7 +170,12 @@ Page({
 
   onShow() {
     // 【M20】onShow 防重入：列表请求进行中则跳过本次刷新，避免每次返回页面叠加并发请求
-    if (this.data.loaded && !this._filesLoading) this.loadFiles()
+    // 【容量止血 2026-10-05】再加 30s 节流：回流 3 个请求的放大器之一；30s 内回流不重拉，
+    // 上传/删除成功后的显式刷新路径不受影响（只拦 onShow 重入）。
+    const now = Date.now()
+    const throttled = now - (this._lastShowTs || 0) < 30000
+    if (!throttled) this._lastShowTs = now
+    if (this.data.loaded && !this._filesLoading && !throttled) this.loadFiles()
   },
 
   async loadFiles() {

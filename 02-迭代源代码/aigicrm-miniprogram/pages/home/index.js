@@ -74,6 +74,12 @@ Page({
       this._loadedOnce = true
       return
     }
+    // 【容量止血 2026-10-05】onShow 30s 节流：微信每次返回页面/切前台都触发 onShow，
+    // 无节流时首页 4 个请求被高频放大(容量评估流量模型专项)；30s 内的回流不重拉，
+    // 下拉刷新/按钮等显式刷新路径不受影响（只拦 onShow 重入）。
+    const now = Date.now()
+    if (now - (this._lastShowTs || 0) < 30000) return
+    this._lastShowTs = now
     if (!getApp().globalData.demoMode) this.loadHomeData()
   },
 

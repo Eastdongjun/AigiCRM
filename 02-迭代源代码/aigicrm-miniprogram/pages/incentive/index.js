@@ -387,6 +387,12 @@ Page({
   // 【修复 2026-09-20】分类树随 onShow 刷新(此前仅 onLoad, 登录前失败后一直空树); 统计由树完成后串联
   onShow() {
     if (this._loadedOnce) {
+      // 【容量止血 2026-10-05】onShow 30s 节流：本页回流 5-6 个请求(含 loadScoreboard 内部 2 个)，
+      // 是小程序端最大流量放大器(容量评估流量模型专项)；30s 内回流不重拉，超过 30s 返回照常刷新，
+      // 搜索/切分类等显式操作不受影响。已读标记后立即返回看不到最新排行的窗口最长 30s，可接受。
+      const now = Date.now()
+      if (now - (this._lastShowTs || 0) < 30000) return
+      this._lastShowTs = now
       this.loadRecords()
       this.loadCategories()
       this.loadScoreboard()
