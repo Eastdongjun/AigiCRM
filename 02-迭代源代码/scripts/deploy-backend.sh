@@ -36,6 +36,18 @@ ssh_prod "ls -la $DEPLOY_DIR/app.jar"
 echo "=== [3/5] 重建镜像 ==="
 ssh_prod "cd $DEPLOY_DIR && docker build -q -t ${APP_SLUG}-backend:2.7.0 -f Dockerfile-run . 2>&1 | tail -1"
 
+# 【2026-10-06 事故硬门禁】镜像内 jar 校验和必须等于刚上传的 jar——
+# 根因: 服务器 Dockerfile-run 的 COPY 文件名与上传文件名不一致(app.jar vs ycmn-backend-1.0.0.jar),
+# docker build 静默使用构建目录里的陈旧 jar, 9-23 起多次"部署成功"实际都在发旧代码(15:27 才修复)。
+# 本校验让任何 COPY 源错位立刻 fail-closed, 而不是无声上旧包。
+LOCAL_MD5=$(md5 -q "/tmp/${APP_SLUG}-backend-new.jar")
+IMAGE_MD5=$(ssh_prod "docker run --rm --entrypoint sh ${APP_SLUG}-backend:2.7.0 -c 'md5sum /app/app.jar' | cut -d' ' -f1" | tr -d '\r\n ')
+echo "jar 校验: 本地=${LOCAL_MD5} 镜像内=${IMAGE_MD5}"
+if [ "$LOCAL_MD5" != "$IMAGE_MD5" ]; then
+  echo "❌ 镜像内 jar 与本次上传不一致(构建吃了陈旧文件/COPY 源错位), 中止部署" >&2
+  exit 1
+fi
+
 echo "=== [4/5] 重启后端容器 ==="
 ssh_prod "
   docker stop ${APP_SLUG}-backend && docker rm ${APP_SLUG}-backend

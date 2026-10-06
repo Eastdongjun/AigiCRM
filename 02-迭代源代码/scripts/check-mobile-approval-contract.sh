@@ -42,11 +42,16 @@ grep -Fq "currentNode" "$PAGE" || fail 'mobile approval list must retain PC curr
 grep -Fq "updatedAt" "$PAGE" || fail 'mobile approval list must retain PC updated time'
 grep -Fq "approvalTypeLabel" "$PAGE" || fail 'mobile approval list must normalize approval type labels like PC'
 grep -Fq "approvalStatusText" "$PAGE" || fail 'mobile approval list must normalize approval status text like PC'
-grep -Fq "nodeStatusText" "$PAGE" || fail 'mobile approval list must normalize node status text like PC'
+# 【2026-09-30 锚点重钉】68947aee 去重正确移除列表页未用的 nodeStatusText 导入(行为不变);
+# 节点状态文案归一的真实使用点在详情页 —— 钉随代码走到正确的文件, 断言语义不降
+DETAIL="$ROOT/aigicrm-miniprogram/pages/approval/detail/index.js"
+grep -Fq "nodeStatusText" "$DETAIL" || fail 'mobile approval detail must normalize node status text like PC'
 grep -Fq "isPending: pendingStatus(status)" "$PAGE" || fail 'mobile approval list must normalize PC pending status variants before WXML'
 grep -Fq "pendingStatus(status)" "$PAGE" || fail 'mobile approval list pending status helper is missing'
-grep -Fq "PENDING: '待提交'" "$PAGE" || fail 'mobile approval list must display PC pending status variants as labels'
-grep -Fq "WAITING: '待审批'" "$PAGE" || fail 'mobile approval list must display PC waiting status variants as labels'
+# 【2026-09-30 锚点重钉】E6 去重后状态映射收敛到共享模块 utils/label-maps —— 钉随代码移到共享模块
+LABEL_MAPS="$ROOT/aigicrm-miniprogram/utils/label-maps.js"
+grep -Fq "PENDING: '待提交'" "$LABEL_MAPS" || fail 'mobile label-maps must display PC pending status variants as labels'
+grep -Fq "WAITING: '待审批'" "$LABEL_MAPS" || fail 'mobile label-maps must display PC waiting status variants as labels'
 grep -Fq "buildApprovalView" "$PAGE" || fail 'mobile approval list must normalize page view state before WXML'
 grep -Fq "buildApprovalItemView" "$PAGE" || fail 'mobile approval list must normalize list rows before WXML'
 grep -Fq "showRejectAction" "$PAGE" || fail 'mobile approval list must normalize reject action visibility before WXML'
