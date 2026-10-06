@@ -447,7 +447,7 @@ export function useCustomerList() {
     showReleaseDialog, releaseTarget, releaseReason, releaseLoading,
     page, pageSize, total,
     canDelete, canRelease, showArchived, toggleArchived, handleArchive, handleRestore,
-    tabs, filteredList,
+    tabs, filteredList, tabCounts,
     advFilterCount, allIndustries, emptyTableText,
     isShared, getExpireColor, getDaysLeft, getStatusType, getStatusText, getProtectClass, getProtectText,
     loadData, loadStats, loadScopeCounts, refreshAll,
