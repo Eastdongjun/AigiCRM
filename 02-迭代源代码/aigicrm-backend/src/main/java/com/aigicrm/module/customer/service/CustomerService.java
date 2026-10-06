@@ -59,6 +59,162 @@ public class CustomerService {
     // 【裁决 2026-09-24】财务删除审计(sys_log 快照留痕)
     private final com.aigicrm.module.system.mapper.SysLogMapper financeAuditLogMapper;
 
+    /**
+     * 【容量加固·客户列表服务端分页 2026-10-05】列表统一查询条件对象:
+     * 分页(pageList)/类型页签计数(countByDevType)/导出(exportList)三口径共用一份条件拼装,
+     * 取代"PC 前端一次拉 500 条 + 本地三层过滤"模式(容量评估流量模型高危项)。
+     * userIds 与 ownerName 为同列的两个独立 AND 条件(对齐本地 filterCustomers 语义);
+     * officeIds 对齐本地 orgIds:所属组织单元命中 office 或 dept 即算。
+     */
+    public record ListFilter(String keyword, String industry, Long officeId, Long regionId, Long deptId,
+                             String status, Long ownerId, String scope, String devType, String groupName,
+                             String protectionStatus, String province, String city,
+                             java.time.LocalDate regDateStart, java.time.LocalDate regDateEnd,
+                             java.time.LocalDate expDateStart, java.time.LocalDate expDateEnd,
+                             java.util.List<Long> userIds, java.util.List<Long> officeIds, String ownerName) {}
+
+    /** 服务端分页查询(新口径入口) */
+    public IPage<BizCustomer> pageList(ListFilter f, int current, int size) {
+        LambdaQueryWrapper<BizCustomer> wrapper = buildListWrapper(f, f.devType(), null);
+        wrapper.orderByDesc(BizCustomer::getCreatedAt);
+        IPage<BizCustomer> page = customerMapper.selectPage(new Page<>(current, size), wrapper);
+        fillCustomerNames(page.getRecords());
+        return page;
+    }
+
+    /** 五个开发类型页签计数(键=页面页签名,含"全部"),与 pageList 同口径但不加 devType 条件;
+     *  另附"预警中/已超期"两计数(状态覆盖统计,供 StatCards 概览条,替代原基于一次拉 500 条的本地计数) */
+    public Map<String, Long> countByDevType(ListFilter f) {
+        Map<String, Long> result = new LinkedHashMap<>();
+        List<String> types = List.of("全部", "成熟创新", "突破开拓", "铺垫宣传", "新建改建扩建大修");
+        for (String type : types) {
+            String devType = "全部".equals(type) ? "" : type;
+            result.put(type, customerMapper.selectCount(buildListWrapper(f, devType, null)));
+        }
+        result.put("预警中", customerMapper.selectCount(buildListWrapper(f, "", "warning")));
+        result.put("已超期", customerMapper.selectCount(buildListWrapper(f, "", "expired")));
+        return result;
+    }
+
+    /**
+     * 导出清单(不分页,受数据范围控制):走 selectList 而非 selectPage——
+     * 【修复 2026-10-05】分页拦截器已设 maxLimit=500,旧实现 page(1,10000) 会被静默截断
+     * (生产客户数 604>500 即丢数据);selectList 不经分页拦截器,无此限制。
+     */
+    public List<BizCustomer> exportList(ListFilter f) {
+        LambdaQueryWrapper<BizCustomer> wrapper = buildListWrapper(f, f.devType(), null);
+        wrapper.orderByDesc(BizCustomer::getCreatedAt);
+        return customerMapper.selectList(wrapper);
+    }
+
+    /**
+     * 统一条件拼装。devTypeOverride 非空时按指定类型过滤(计数场景逐类型调用),空串表示不加类型条件;
+     * statusOverride 非空时覆盖 f.status()(计数场景的"预警中/已超期"状态口径);
+     * scope 分支: shared_to_me/shared_by_me/mine/默认(数据范围+自动分享)。
+     */
+    private LambdaQueryWrapper<BizCustomer> buildListWrapper(ListFilter f, String devTypeOverride, String statusOverride) {
+        LambdaQueryWrapper<BizCustomer> wrapper = new LambdaQueryWrapper<>();
+        if ("shared_to_me".equals(f.scope()) || "shared_by_me".equals(f.scope())) {
+            Long uid = SecurityUtils.getCurrentUserId();
+            List<BizCustomerShare> shares = shareMapper.selectList(new LambdaQueryWrapper<BizCustomerShare>()
+                    .eq("shared_to_me".equals(f.scope()) ? BizCustomerShare::getSharedToUserId : BizCustomerShare::getSharedByUserId, uid));
+            List<Long> ids = shares.stream().map(BizCustomerShare::getCustomerId)
+                    .distinct().toList();
+            if (ids.isEmpty()) {
+                wrapper.apply("1 = 0"); // 无分享记录→恒空集(与旧实现返回空页一致)
+            } else {
+                wrapper.in(BizCustomer::getId, ids);
+            }
+        } else if ("mine".equals(f.scope())) {
+            wrapper.eq(BizCustomer::getOwnerId, SecurityUtils.getCurrentUserId());
+        } else {
+            applyDataScope(wrapper);
+            applyAutoShare(wrapper);
+        }
+        applyFilterConditions(wrapper, f, devTypeOverride, statusOverride);
+        return wrapper;
+    }
+
+    /** 全量筛选条件(基础+高级,原先散在 page() 与 applyCommonFilters 两处,现统一) */
+    private void applyFilterConditions(LambdaQueryWrapper<BizCustomer> wrapper, ListFilter f, String devType, String statusOverride) {
+        wrapper.eq(BizCustomer::getDeleted, 0);
+        String status = statusOverride != null ? statusOverride : f.status();
+        // 【议题五.4 裁决】归档客户默认隐藏;status=include_archived 时包含(显式传 'archived' 即只看归档)
+        if ("include_archived".equals(status)) {
+            wrapper.notIn(BizCustomer::getStatus, "sea", "archived");
+        } else if (StringUtils.hasText(status)) {
+            String[] arr = status.split(",");
+            if (arr.length > 1) wrapper.in(BizCustomer::getStatus, (Object[]) arr);
+            else wrapper.eq(BizCustomer::getStatus, status);
+        } else {
+            wrapper.notIn(BizCustomer::getStatus, "sea", "archived");
+        }
+        if (StringUtils.hasText(f.keyword())) {
+            // 【议题五.1 裁决 2026-09-19】搜索增强:别名同权重 OR + 空格多词 AND
+            String[] words = f.keyword().trim().split("\\s+");
+            wrapper.and(w -> {
+                for (String word : words) {
+                    w.and(inner -> inner.like(BizCustomer::getCustomerName, word)
+                            .or().like(BizCustomer::getAlias, word)
+                            .or().like(BizCustomer::getCustomerCode, word));
+                }
+            });
+        }
+        if (StringUtils.hasText(f.industry())) {
+            String[] arr = f.industry().split(",");
+            if (arr.length > 1) wrapper.in(BizCustomer::getIndustry, (Object[]) arr);
+            else wrapper.eq(BizCustomer::getIndustry, f.industry());
+        }
+        if (f.officeId() != null) wrapper.eq(BizCustomer::getOfficeId, f.officeId());
+        if (f.regionId() != null) wrapper.eq(BizCustomer::getRegionId, f.regionId());
+        if (f.deptId() != null) {
+            // 部门筛选：含该部门全部子部门（部门可无限嵌套）
+            java.util.List<Long> deptIds = getDescendantDeptIds(f.deptId());
+            deptIds.add(f.deptId());
+            wrapper.in(BizCustomer::getDeptId, deptIds);
+        }
+        if (f.ownerId() != null) wrapper.eq(BizCustomer::getOwnerId, f.ownerId());
+        // 【对齐 PC 高级筛选 2026-09-21】protectionStatus 精确(逗号多值), province/city LIKE 包含
+        if (StringUtils.hasText(f.protectionStatus())) {
+            String[] arr = f.protectionStatus().split(",");
+            if (arr.length > 1) wrapper.in(BizCustomer::getProtectionStatus, (Object[]) arr);
+            else wrapper.eq(BizCustomer::getProtectionStatus, f.protectionStatus());
+        }
+        if (StringUtils.hasText(f.province())) wrapper.like(BizCustomer::getProvince, f.province().trim());
+        if (StringUtils.hasText(f.city())) wrapper.like(BizCustomer::getCity, f.city().trim());
+        if (StringUtils.hasText(devType)) wrapper.eq(BizCustomer::getDevType, devType);
+        if (StringUtils.hasText(f.groupName())) wrapper.eq(BizCustomer::getGroupName, f.groupName());
+        // ---- 【容量加固 2026-10-05】高级筛选服务端化新增四组条件 ----
+        if (f.regDateStart() != null) wrapper.ge(BizCustomer::getRegisterDate, f.regDateStart());
+        if (f.regDateEnd() != null) wrapper.le(BizCustomer::getRegisterDate, f.regDateEnd());
+        if (f.expDateStart() != null) wrapper.ge(BizCustomer::getExpireDate, f.expDateStart());
+        if (f.expDateEnd() != null) wrapper.le(BizCustomer::getExpireDate, f.expDateEnd());
+        if (f.userIds() != null && !f.userIds().isEmpty()) {
+            List<Long> ids = f.userIds().stream().distinct().toList();
+            if (ids.size() == 1) wrapper.eq(BizCustomer::getOwnerId, ids.get(0));
+            else wrapper.in(BizCustomer::getOwnerId, ids);
+        }
+        if (f.officeIds() != null && !f.officeIds().isEmpty()) {
+            // 对齐本地 orgIds 语义(所选组织单元下的客户): office 或 dept 命中即算;
+            // 本地旧实现基于已拉取数据的 owner 间接推导,服务端直接按字段匹配(语义更准且无数据依赖)
+            wrapper.and(w -> w.in(BizCustomer::getOfficeId, f.officeIds())
+                    .or().in(BizCustomer::getDeptId, f.officeIds()));
+        }
+        if (StringUtils.hasText(f.ownerName())) {
+            // 负责人按姓名模糊:与本地 includes 语义一致;名字无任何匹配用户时恒空集
+            List<Long> matched = userMapper.selectList(new LambdaQueryWrapper<com.aigicrm.module.system.entity.SysUser>()
+                            .like(com.aigicrm.module.system.entity.SysUser::getRealName, f.ownerName().trim()))
+                    .stream().map(com.aigicrm.module.system.entity.SysUser::getId).distinct().toList();
+            if (matched.isEmpty()) {
+                wrapper.eq(BizCustomer::getOwnerId, -1L);
+            } else if (matched.size() == 1) {
+                wrapper.eq(BizCustomer::getOwnerId, matched.get(0));
+            } else {
+                wrapper.in(BizCustomer::getOwnerId, matched);
+            }
+        }
+    }
+
     public IPage<BizCustomer> page(int current, int size, String keyword, String industry,
                                     Long officeId, Long regionId, String status, Long ownerId) {
         return page(current, size, keyword, industry, officeId, regionId, status, ownerId, null, null, null, null);
@@ -83,185 +239,21 @@ public class CustomerService {
     }
 
     /**
-     * 【对齐 PC 高级筛选 2026-09-21】保护状态/省/市三维在 PC 端是客户端过滤(一次性加载大页后本地筛),
-     * 小程序分页小(size=20), 本地筛会截断结果 —— 提升为服务端参数:
-     * protectionStatus 精确匹配(protection_status 域: active/expiring/expired, 逗号多值),
-     * province/city LIKE 包含(PC 客户端为 contains 语义)。
+     * 【对齐 PC 高级筛选 2026-09-21】protectionStatus 精确 / province / city LIKE。
+     * 【容量加固 2026-10-05】本重载保留作兼容入口(条件拼装已统一迁入 buildListWrapper/applyFilterConditions,
+     * 供 pageList/countByDevType/exportList 三口径共用;shared_to_me/shared_by_me 分支亦在其中统一处理)。
      */
     public IPage<BizCustomer> page(int current, int size, String keyword, String industry,
                                     Long officeId, Long regionId, String status, Long ownerId, String scope,
                                     String devType, String groupName, Long deptId,
                                     String protectionStatus, String province, String city) {
-        Long currentUserId = SecurityUtils.getCurrentUserId();
-
-        // scope 筛选: mine / shared_by_me / shared_to_me
-        if ("shared_to_me".equals(scope)) {
-            return pageSharedToMe(current, size, keyword, industry, officeId, regionId, status, currentUserId);
-        }
-        if ("shared_by_me".equals(scope)) {
-            return pageSharedByMe(current, size, keyword, industry, officeId, regionId, status, currentUserId);
-        }
-
-        LambdaQueryWrapper<BizCustomer> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(BizCustomer::getDeleted, 0);
-        // 【议题五.4 裁决】归档客户默认隐藏;status 筛选传 "include_archived" 时包含
-        if (!"include_archived".equals(status)) {
-            wrapper.ne(BizCustomer::getStatus, "archived");
-        }
-
-        if ("mine".equals(scope)) {
-            wrapper.eq(BizCustomer::getOwnerId, currentUserId);
-        } else if (false) { // disabled: all users use data scope (设计历史, 监督面板要求保留)
-            // 默认：自己的客户 + 分享给我的客户
-            List<BizCustomerShare> shares = shareMapper.selectList(
-                    new LambdaQueryWrapper<BizCustomerShare>().eq(BizCustomerShare::getSharedToUserId, currentUserId));
-            List<Long> sharedIds = shares.stream().map(BizCustomerShare::getCustomerId).toList();
-            if (!sharedIds.isEmpty()) {
-                wrapper.and(w -> w.eq(BizCustomer::getOwnerId, currentUserId)
-                        .or().in(BizCustomer::getId, sharedIds));
-            } else {
-                wrapper.eq(BizCustomer::getOwnerId, currentUserId);
-            }
-        } else {
-            // 管理员 - 数据范围过滤
-            applyDataScope(wrapper);
-            applyAutoShare(wrapper);
-        }
-
-        if (StringUtils.hasText(keyword)) {
-            // 【议题五.1 裁决 2026-09-19】搜索增强:
-            // 1) 别名命中:alias 独立字段(简称/曾用名)与主名/编码同权重 OR;
-            // 2) 多词 AND:空格分词,每个词都须命中(名称∪别名∪编码),命中面更准。
-            String[] words = keyword.trim().split("\\s+");
-            wrapper.and(w -> {
-                for (String word : words) {
-                    w.and(inner -> inner.like(BizCustomer::getCustomerName, word)
-                            .or().like(BizCustomer::getAlias, word)
-                            .or().like(BizCustomer::getCustomerCode, word));
-                }
-            });
-        }
-        if (StringUtils.hasText(industry)) {
-            String[] arr = industry.split(",");
-            if (arr.length > 1) wrapper.in(BizCustomer::getIndustry, (Object[]) arr);
-            else wrapper.eq(BizCustomer::getIndustry, industry);
-        }
-        if (officeId != null) {
-            wrapper.eq(BizCustomer::getOfficeId, officeId);
-        }
-        if (regionId != null) {
-            wrapper.eq(BizCustomer::getRegionId, regionId);
-        }
-        if (deptId != null) {
-            // 部门筛选：含该部门全部子部门（部门可无限嵌套）
-            java.util.List<Long> deptIds = getDescendantDeptIds(deptId);
-            deptIds.add(deptId);
-            wrapper.in(BizCustomer::getDeptId, deptIds);
-        }
-        // 【修复 2026-09-20 议题五.4 缺口】status=include_archived 此前落入下方 eq 分支
-        // (按字面 'include_archived' 精确匹配) → 恒空集, "筛选含归档"实际不可用。
-        // 语义: include_archived = 默认口径(不含公海)但不排除归档; 显式状态值仍精确过滤
-        // (显式传 'archived' 即"只看已归档")。
-        if ("include_archived".equals(status)) {
-            wrapper.notIn(BizCustomer::getStatus, "sea", "archived"); // B5 统一口径: 排sea+archived
-        } else if (StringUtils.hasText(status)) {
-            String[] arr = status.split(",");
-            if (arr.length > 1) wrapper.in(BizCustomer::getStatus, (Object[]) arr);
-            else wrapper.eq(BizCustomer::getStatus, status);
-        } else {
-            wrapper.notIn(BizCustomer::getStatus, "sea", "archived"); // B5 统一口径: 排sea+archived
-        }
-        if (ownerId != null) {
-            wrapper.eq(BizCustomer::getOwnerId, ownerId);
-        }
-        if (StringUtils.hasText(protectionStatus)) {
-            String[] arr = protectionStatus.split(",");
-            if (arr.length > 1) wrapper.in(BizCustomer::getProtectionStatus, (Object[]) arr);
-            else wrapper.eq(BizCustomer::getProtectionStatus, protectionStatus);
-        }
-        if (StringUtils.hasText(province)) {
-            wrapper.like(BizCustomer::getProvince, province.trim());
-        }
-        if (StringUtils.hasText(city)) {
-            wrapper.like(BizCustomer::getCity, city.trim());
-        }
-        if (StringUtils.hasText(devType)) {
-            wrapper.eq(BizCustomer::getDevType, devType);
-        }
-        if (StringUtils.hasText(groupName)) {
-            wrapper.eq(BizCustomer::getGroupName, groupName);
-        }
-        wrapper.orderByDesc(BizCustomer::getCreatedAt);
-
-        IPage<BizCustomer> page = customerMapper.selectPage(new Page<>(current, size), wrapper);
-
-        fillCustomerNames(page.getRecords());
-        return page;
+        return pageList(new ListFilter(keyword, industry, officeId, regionId, deptId, status, ownerId, scope,
+                devType, groupName, protectionStatus, province, city,
+                null, null, null, null, null, null, null), current, size);
     }
 
-    private IPage<BizCustomer> pageSharedToMe(int current, int size, String keyword, String industry,
-                                                Long officeId, Long regionId, String status, Long userId) {
-        List<BizCustomerShare> shares = shareMapper.selectList(
-                new LambdaQueryWrapper<BizCustomerShare>().eq(BizCustomerShare::getSharedToUserId, userId));
-        List<Long> customerIds = shares.stream().map(BizCustomerShare::getCustomerId).toList();
-        if (customerIds.isEmpty()) return new Page<>(current, size, 0);
-
-        LambdaQueryWrapper<BizCustomer> wrapper = new LambdaQueryWrapper<>();
-        wrapper.in(BizCustomer::getId, customerIds).eq(BizCustomer::getDeleted, 0);
-        applyCommonFilters(wrapper, keyword, industry, officeId, regionId, status);
-        wrapper.orderByDesc(BizCustomer::getCreatedAt);
-        IPage<BizCustomer> page = customerMapper.selectPage(new Page<>(current, size), wrapper);
-        fillCustomerNames(page.getRecords());
-        return page;
-    }
-
-    private IPage<BizCustomer> pageSharedByMe(int current, int size, String keyword, String industry,
-                                                Long officeId, Long regionId, String status, Long userId) {
-        List<BizCustomerShare> shares = shareMapper.selectList(
-                new LambdaQueryWrapper<BizCustomerShare>().eq(BizCustomerShare::getSharedByUserId, userId));
-        List<Long> customerIds = shares.stream().map(BizCustomerShare::getCustomerId).distinct().toList();
-        if (customerIds.isEmpty()) return new Page<>(current, size, 0);
-
-        LambdaQueryWrapper<BizCustomer> wrapper = new LambdaQueryWrapper<>();
-        wrapper.in(BizCustomer::getId, customerIds).eq(BizCustomer::getDeleted, 0);
-        applyCommonFilters(wrapper, keyword, industry, officeId, regionId, status);
-        wrapper.orderByDesc(BizCustomer::getCreatedAt);
-        IPage<BizCustomer> page = customerMapper.selectPage(new Page<>(current, size), wrapper);
-        fillCustomerNames(page.getRecords());
-        return page;
-    }
-
-    private void applyCommonFilters(LambdaQueryWrapper<BizCustomer> wrapper, String keyword,
-                                     String industry, Long officeId, Long regionId, String status) {
-        if (StringUtils.hasText(keyword)) {
-            // 【议题五.1 裁决 2026-09-19】搜索增强:
-            // 1) 别名命中:alias 独立字段(简称/曾用名)与主名/编码同权重 OR;
-            // 2) 多词 AND:空格分词,每个词都须命中(名称∪别名∪编码),命中面更准。
-            String[] words = keyword.trim().split("\\s+");
-            wrapper.and(w -> {
-                for (String word : words) {
-                    w.and(inner -> inner.like(BizCustomer::getCustomerName, word)
-                            .or().like(BizCustomer::getAlias, word)
-                            .or().like(BizCustomer::getCustomerCode, word));
-                }
-            });
-        }
-        if (StringUtils.hasText(industry)) wrapper.eq(BizCustomer::getIndustry, industry);
-        if (officeId != null) wrapper.eq(BizCustomer::getOfficeId, officeId);
-        if (regionId != null) wrapper.eq(BizCustomer::getRegionId, regionId);
-        // 【2026-09-20 议题五.4 口径对齐】分享视图与主列表同口径: 归档默认隐藏;
-        // include_archived 含归档不含公海; 显式状态值精确过滤(可显式查 'archived')。
-        if ("include_archived".equals(status)) {
-            wrapper.notIn(BizCustomer::getStatus, "sea", "archived"); // B5 统一口径: 排sea+archived
-        } else if (StringUtils.hasText(status)) {
-            String[] arr = status.split(",");
-            if (arr.length > 1) wrapper.in(BizCustomer::getStatus, (Object[]) arr);
-            else wrapper.eq(BizCustomer::getStatus, status);
-        } else {
-            wrapper.notIn(BizCustomer::getStatus, "sea", "archived"); // B5 统一口径: 排sea+archived
-            wrapper.ne(BizCustomer::getStatus, "archived");
-        }
-    }
+    // 【容量加固 2026-10-05】pageSharedToMe/pageSharedByMe/applyCommonFilters 三方法已删除:
+    // 分享视图的 scope 分支与全量条件统一并入 buildListWrapper/applyFilterConditions(三口径共用)。
 
     public Map<String, Long> listScopeCounts() {
         Long userId = SecurityUtils.getCurrentUserId();

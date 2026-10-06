@@ -54,8 +54,77 @@ public class CustomerController {
             @RequestParam(required = false) Long deptId,
             @RequestParam(required = false) String protectionStatus,
             @RequestParam(required = false) String province,
-            @RequestParam(required = false) String city) {
-        return Result.ok(customerService.page(current, size, keyword, industry, officeId, regionId, status, ownerId, scope, devType, groupName, deptId, protectionStatus, province, city));
+            @RequestParam(required = false) String city,
+            // ---- 【容量加固·服务端分页 2026-10-05】高级筛选全部提升为服务端参数 ----
+            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate regDateStart,
+            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate regDateEnd,
+            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate expDateStart,
+            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate expDateEnd,
+            @RequestParam(required = false) String userIds,
+            @RequestParam(required = false) String officeIds,
+            @RequestParam(required = false) String ownerName) {
+        return Result.ok(customerService.pageList(buildListFilter(keyword, industry, officeId, regionId, status,
+                ownerId, scope, devType, groupName, deptId, protectionStatus, province, city,
+                regDateStart, regDateEnd, expDateStart, expDateEnd, userIds, officeIds, ownerName), current, size));
+    }
+
+    /**
+     * 【容量加固·服务端分页 2026-10-05】类型页签计数:与 /list 同参数(无分页),
+     * 返回五个开发类型页签(含"全部")在当前筛选下的计数,供前端页签角标。
+     */
+    @PreAuthorize("hasAuthority('customer:view')")
+    @GetMapping("/list/counts-by-filter")
+    public Result<Map<String, Long>> countsByFilter(
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) String industry,
+            @RequestParam(required = false) Long officeId,
+            @RequestParam(required = false) Long regionId,
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) Long ownerId,
+            @RequestParam(required = false) String scope,
+            @RequestParam(required = false) String groupName,
+            @RequestParam(required = false) Long deptId,
+            @RequestParam(required = false) String protectionStatus,
+            @RequestParam(required = false) String province,
+            @RequestParam(required = false) String city,
+            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate regDateStart,
+            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate regDateEnd,
+            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate expDateStart,
+            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate expDateEnd,
+            @RequestParam(required = false) String userIds,
+            @RequestParam(required = false) String officeIds,
+            @RequestParam(required = false) String ownerName) {
+        return Result.ok(customerService.countByDevType(buildListFilter(keyword, industry, officeId, regionId, status,
+                ownerId, scope, null, groupName, deptId, protectionStatus, province, city,
+                regDateStart, regDateEnd, expDateStart, expDateEnd, userIds, officeIds, ownerName)));
+    }
+
+    /** /list 与 /list/counts-by-filter 共用的条件组装(含 csv 长整型解析) */
+    private CustomerService.ListFilter buildListFilter(String keyword, String industry, Long officeId, Long regionId,
+                                                        String status, Long ownerId, String scope, String devType,
+                                                        String groupName, Long deptId, String protectionStatus,
+                                                        String province, String city,
+                                                        java.time.LocalDate rs, java.time.LocalDate re,
+                                                        java.time.LocalDate es, java.time.LocalDate ee,
+                                                        String userIds, String officeIds, String ownerName) {
+        return new CustomerService.ListFilter(keyword, industry, officeId, regionId, deptId, status, ownerId, scope,
+                devType, groupName, protectionStatus, province, city, rs, re, es, ee,
+                parseLongCsv(userIds), parseLongCsv(officeIds), ownerName);
+    }
+
+    private static List<Long> parseLongCsv(String csv) {
+        if (csv == null || csv.isBlank()) return null;
+        List<Long> ids = new java.util.ArrayList<>();
+        for (String part : csv.split(",")) {
+            String t = part.trim();
+            if (t.isEmpty()) continue;
+            try {
+                ids.add(Long.parseLong(t));
+            } catch (NumberFormatException ignored) {
+                // 容错:脏值跳过(与既有 csv 参数宽松风格一致)
+            }
+        }
+        return ids.isEmpty() ? null : ids;
     }
 
     @PreAuthorize("hasAuthority('customer:view')")
@@ -532,16 +601,33 @@ public class CustomerController {
             @RequestParam(required = false) Long officeId,
             @RequestParam(required = false) Long regionId,
             @RequestParam(required = false) String status,
+            @RequestParam(required = false) String scope,
+            @RequestParam(required = false) String devType,
+            @RequestParam(required = false) Long deptId,
+            @RequestParam(required = false) String protectionStatus,
+            @RequestParam(required = false) String province,
+            @RequestParam(required = false) String city,
+            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate regDateStart,
+            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate regDateEnd,
+            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate expDateStart,
+            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate expDateEnd,
+            @RequestParam(required = false) String userIds,
+            @RequestParam(required = false) String officeIds,
+            @RequestParam(required = false) String ownerName,
             HttpServletResponse response) throws Exception {
         response.setContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
         response.setHeader("Content-Disposition", "attachment;filename=" +
                 URLEncoder.encode("客户列表.xlsx", StandardCharsets.UTF_8));
-        // 查全部（不分页），受数据范围控制
-        IPage<BizCustomer> page = customerService.page(1, 10000, keyword, industry, officeId, regionId, status, null);
+        // 【容量加固 2026-10-05】查全部（不分页），受数据范围控制——
+        // 改走 exportList(selectList):旧实现 page(1,10000) 会被分页拦截器 maxLimit=500 静默截断;
+        // 同时导出与列表共享 buildListWrapper 全量条件(含高级筛选),口径一致。
+        java.util.List<BizCustomer> rows = customerService.exportList(buildListFilter(keyword, industry, officeId,
+                regionId, status, null, scope, devType, null, deptId, protectionStatus, province, city,
+                regDateStart, regDateEnd, expDateStart, expDateEnd, userIds, officeIds, ownerName));
         EasyExcel.write(response.getOutputStream(), BizCustomer.class)
                 .excludeColumnFieldNames(List.of("deleted", "createdAt", "updatedAt", "id"))
                 .sheet("客户列表")
-                .doWrite(page.getRecords());
+                .doWrite(rows);
     }
 
     @PreAuthorize("hasAuthority('customer:view')")

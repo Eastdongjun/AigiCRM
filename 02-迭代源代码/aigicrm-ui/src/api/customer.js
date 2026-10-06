@@ -50,6 +50,11 @@ export function getCustomerListCounts() {
   return request.get('/customer/list/counts')
 }
 
+// 【容量加固·服务端分页 2026-10-05】五个开发类型页签计数(与 /customer/list 同参数,不含分页)
+export function getCustomerListCountsByFilter(params) {
+  return request.get('/customer/list/counts-by-filter', { params })
+}
+
 export function getSimpleUserList() {
   return request.get('/customer/users/simple')
 }

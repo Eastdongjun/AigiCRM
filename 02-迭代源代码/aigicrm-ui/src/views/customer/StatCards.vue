@@ -2,7 +2,7 @@
   <!-- 概览 · 紧凑深蓝条(与文件管理页同一设计语言;比四张彩卡省一行,表格多一屏) -->
   <div class="cust-strip">
     <div class="cs-stat">
-      <div class="cs-num">{{ filteredAllData.length }}</div>
+      <div class="cs-num">{{ total }}</div>
       <div class="cs-lbl">客户总数</div>
     </div>
     <div class="cs-divider"></div>
@@ -28,12 +28,15 @@
 import { computed } from 'vue'
 import { injectCustomerList } from '@/composables/useCustomerList'
 
-const { filteredAllData, tabs, activeTab, tableData } = injectCustomerList()
+// 【容量加固·服务端分页 2026-10-05】计数改服务端口径:
+// 客户总数=当前筛选下的服务端 total(原为已拉取 500 条的本地过滤长度);
+// 预警中/已超期=counts-by-filter 的状态覆盖计数(原为本地过滤当前拉取集)
+const { tabs, activeTab, total, tabCounts } = injectCustomerList()
 
 const activeTabCount = computed(() => tabs.value.find((t) => t.type === activeTab.value)?.count || 0)
 const activeTabLabel = computed(() => tabs.value.find((t) => t.type === activeTab.value)?.label || '当前分类')
-const warningCount = computed(() => tableData.value.filter((c) => c.status === 'warning').length)
-const expiredCount = computed(() => tableData.value.filter((c) => c.status === 'expired').length)
+const warningCount = computed(() => tabCounts.value['预警中'] || 0)
+const expiredCount = computed(() => tabCounts.value['已超期'] || 0)
 </script>
 
 <style scoped>

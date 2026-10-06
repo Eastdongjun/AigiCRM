@@ -10,15 +10,18 @@
     <MainTable />
 
     <!-- 分页 -->
+    <!-- 【容量加固·服务端分页 2026-10-05】total 改服务端返回;翻页/改页大小触发重载(原为本地切片) -->
     <div style="display:flex;justify-content:flex-end;padding:4px 16px;background:#fff;border-top:1px solid #ebeef5;flex-shrink:0">
       <el-pagination
         v-model:current-page="page"
         v-model:page-size="pageSize"
         :page-sizes="[30, 50, 100]"
-        :total="currentTabData.length"
+        :total="total"
         layout="total, sizes, prev, pager, next, jumper"
         background
         size="small"
+        @current-change="onCurrentChange"
+        @size-change="onSizeChange"
       />
     </div>
 
@@ -46,7 +49,7 @@ const list = useCustomerList()
 provide(CustomerListKey, list)
 
 const {
-  activeTab, page, pageSize, currentTabData,
+  activeTab, page, pageSize, total, onCurrentChange, onSizeChange,
   loadBizConfig, loadData, loadStats, loadScopeCounts,
   loadRegions, loadIndustryOptions, loadFilterData,
 } = list

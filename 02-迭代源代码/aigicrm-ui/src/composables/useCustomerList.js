@@ -13,11 +13,10 @@ import { getDeptList, getDictData, getDeptTree } from '@/api/system'
 import { useUserStore } from '@/store/user'
 import { downloadFile } from '@/utils/download'
 import { getToken } from '@/utils/token'
-import { paginate } from '@/utils/pagination'
-import { filterCustomers } from '@/utils/list-filter'
 import { customerEmptyText } from '@/utils/customer-empty-state'
 import { customerStatusTagType, customerStatusText } from '@/utils/customer-status'
 import { INDUSTRY_FALLBACK_OPTIONS } from '@/utils/dict-fallback'
+import { getCustomerListCountsByFilter } from '@/api/customer'
 
 export const CustomerListKey = Symbol('customerList')
 
@@ -50,6 +49,9 @@ export function useCustomerList() {
 
   // ---- 数据态 ----
   const tableData = ref([])
+  // 【容量加固·服务端分页 2026-10-05】总数与页签计数改由服务端返回(此前一次拉 500 条本地分页/本地过滤)
+  const total = ref(0)
+  const tabCounts = ref({})
   const customerStats = ref({})
   const scopeCounts = ref({})
   const regionList = ref([])
@@ -89,40 +91,25 @@ export function useCustomerList() {
   const canDelete = computed(() => userStore.hasPermission('customer:delete'))
   const canRelease = computed(() => userStore.hasPermission('customer:edit'))
 
-  const tabs = computed(() => {
-    const all = [
-      { type: 'all', label: '全部', color: '#303133', count: filteredAllData.value.length, data: filteredAllData.value }
-    ]
-    const types = { '成熟创新': { type: 'innovate', label: '成熟创新', color: '#409eff' },
-      '突破开拓': { type: 'break', label: '突破开拓', color: '#e6a23c' },
-      '铺垫宣传': { type: 'found', label: '铺垫宣传', color: '#67c23a' },
-      // 【2026-09-23 需求修正】「新建改建扩建大修」是一个完整分类词(V2026.09.23.6 撤销拆分),客户列表加本分类页签
-      '新建改建扩建大修': { type: 'engineering', label: '新建改建扩建大修', color: '#64748b' } }
-    const grouped = Object.entries(types).map(([devType, cfg]) => ({
-      ...cfg,
-      count: filteredAllData.value.filter(c => c.devType === devType).length,
-      data: filteredAllData.value.filter(c => c.devType === devType)
-    }))
-    return [...all, ...grouped]
-  })
+  // 【容量加固·服务端分页 2026-10-05】页签改为静态定义 + 服务端计数(tabCounts):
+  // 原实现基于"一次拉 500 条"的本地分区计数,数据不全即计数失真;现由 /list/counts-by-filter 按当前筛选返回
+  const TAB_DEFS = [
+    { type: 'all', label: '全部', color: '#303133' },
+    { type: 'innovate', label: '成熟创新', color: '#409eff' },
+    { type: 'break', label: '突破开拓', color: '#e6a23c' },
+    { type: 'found', label: '铺垫宣传', color: '#67c23a' },
+    // 【2026-09-23 需求修正】「新建改建扩建大修」是一个完整分类词(V2026.09.23.6 撤销拆分),客户列表含本分类页签
+    { type: 'engineering', label: '新建改建扩建大修', color: '#64748b' },
+  ]
+  const TAB_DEV_TYPE = { innovate: '成熟创新', break: '突破开拓', found: '铺垫宣传', engineering: '新建改建扩建大修' }
 
-  const filteredAllData = computed(() =>
-    filterCustomers(tableData.value, searchText.value, filters, advFilter, {
-      uidsSource: tableData.value, orgKeys: ['officeId', 'orgId'],
-    })
-  )
+  const tabs = computed(() => TAB_DEFS.map(d => ({
+    ...d,
+    count: tabCounts.value[d.type === 'all' ? '全部' : TAB_DEV_TYPE[d.type]] ?? 0,
+  })))
 
-  const currentTabData = computed(() => {
-    const tab = tabs.value.find(t => t.type === activeTab.value)
-    if (!tab) return []
-    // 【2026-09-23 UI】搜索合并:原 filters.search(表内第二个搜索框)与顶部 searchText 并存致同页双搜索框;
-    // 统一由顶部 searchText 驱动(同时作用于全量与当前Tab),filters.search 仅作兼容字段保留
-    return filterCustomers(tab.data, searchText.value, filters, advFilter, {
-      uidsSource: tableData.value, orgKeys: ['officeId', 'deptId'],
-    })
-  })
-
-  const filteredList = computed(() => paginate(currentTabData.value, page.value, pageSize.value))
+  // 【容量加固·服务端分页 2026-10-05】表格数据=服务端当前页(filteredList 不再本地过滤/本地分页)
+  const filteredList = computed(() => tableData.value)
 
   const emptyTableText = computed(() => customerEmptyText(tableData.value))
 
@@ -142,7 +129,7 @@ export function useCustomerList() {
     return n
   })
 
-  const allIndustries = computed(() => [...new Set(tableData.value.map(r => r.industry).filter(Boolean))].sort())
+  const allIndustries = computed(() => industryOptions.value.length ? industryOptions.value : INDUSTRY_FALLBACK_OPTIONS)
 
   // ---- 表格辅助 ----
   const isShared = (row) => {
@@ -181,25 +168,60 @@ export function useCustomerList() {
   }
 
   // ---- 加载 ----
+  // 【容量加固·服务端分页 2026-10-05】原"一次拉 500 条 + 本地三层过滤(filterCustomers) + 本地分页"
+  // 改为服务端分页/服务端过滤:搜索词/快速筛选/高级筛选/页签全部拼为查询参数;
+  // 三层过滤语义逐项对齐——keyword 多词AND、行业/状态精确(csv)、省市包含(LIKE)、保护=protectionStatus、
+  // 负责人=姓名模糊(后端解析为 ownerId)、注册/到期区间 ge/le、组织=office或dept命中、人员=ownerId IN、
+  // 部门=含子树。orgIds 旧本地实现基于已拉数据间接推导 owner,服务端按字段直配(语义更准)。
+  const buildListParams = () => {
+    const p = { keyword: (searchText.value || '').trim(), scope: query.scope }
+    const industry = filters.industry || query.industry || (query.industries?.length ? query.industries.join(',') : '')
+    if (industry) p.industry = industry
+    if (advFilter.industry) p.industry = advFilter.industry
+    if (query.regionId) p.regionId = query.regionId
+    else if (query.regionIds?.length) p.regionId = query.regionIds[0]
+    // 状态合并:高级筛选与快速筛选同列同语义(eq),高级筛选优先;归档开关按旧行为覆盖为 include_archived
+    const status = advFilter.status || filters.status || query.status || (query.statuses?.length ? query.statuses.join(',') : '')
+    p.status = showArchived.value ? 'include_archived' : (status || '')
+    const devType = TAB_DEV_TYPE[activeTab.value]
+    if (devType) p.devType = devType
+    if (advFilter.province) p.province = advFilter.province.trim()
+    if (advFilter.city) p.city = advFilter.city.trim()
+    if (advFilter.protect) p.protectionStatus = advFilter.protect
+    if (advFilter.owner) p.ownerName = advFilter.owner
+    if (advFilter.regDate && advFilter.regDate.length === 2) { p.regDateStart = advFilter.regDate[0]; p.regDateEnd = advFilter.regDate[1] }
+    if (advFilter.expDate && advFilter.expDate.length === 2) { p.expDateStart = advFilter.expDate[0]; p.expDateEnd = advFilter.expDate[1] }
+    if (advFilter.orgIds?.length) p.officeIds = advFilter.orgIds.join(',')
+    if (advFilter.userIds?.length) p.userIds = advFilter.userIds.join(',')
+    if (advFilter.deptId) p.deptId = advFilter.deptId
+    ;(query.filters || []).forEach(f => {
+      p[f.field] = Array.isArray(f.value) ? f.value.join(',') : f.value
+    })
+    return p
+  }
+
   const loadData = async () => {
     try {
-      const params = { current: 1, size: 500, keyword: query.keyword, scope: query.scope }
-      if (query.industry) params.industry = query.industry
-      if (query.industries && query.industries.length) params.industry = query.industries.join(',')
-      if (query.regionId) params.regionId = query.regionId
-      if (query.regionIds && query.regionIds.length) params.regionId = query.regionIds[0]
-      if (query.status) params.status = query.status
-      if (query.statuses && query.statuses.length) params.status = query.statuses.join(',')
-      // 【议题五.4】显示已归档: 后端语义 include_archived=默认口径(不含公海)+含归档, 覆盖状态下拉
-      if (showArchived.value) params.status = 'include_archived'
-      if (query.filters && query.filters.length) {
-        query.filters.forEach(f => {
-          params[f.field] = Array.isArray(f.value) ? f.value.join(',') : f.value
-        })
-      }
+      const params = { ...buildListParams(), current: page.value, size: pageSize.value }
       const res = await getCustomerList(params)
-      tableData.value = res.data.records
+      tableData.value = res.data.records || []
+      total.value = res.data.total || 0
+      loadTabCounts()
     } catch (e) {}
+  }
+
+  const loadTabCounts = async () => {
+    try {
+      const res = await getCustomerListCountsByFilter(buildListParams())
+      tabCounts.value = res.data || {}
+    } catch (e) {}
+  }
+
+  // 【容量加固】输入/筛选变化统一 400ms 防抖后走服务端(原为纯本地即时过滤,现需一次轻量请求)
+  let reloadTimer = null
+  const debouncedReload = () => {
+    clearTimeout(reloadTimer)
+    reloadTimer = setTimeout(() => { loadData() }, 400)
   }
 
   const loadStats = async () => {
@@ -270,19 +292,19 @@ export function useCustomerList() {
 
   // ---- 导航/筛选动作 ----
   const search = () => {
-    query.keyword = searchText.value
-    query.current = 1
-    // 显示分页变量是 page（el-pagination v-model:current-page="page"），筛选后必须重置，
-    // 否则过滤结果变少时停在旧页码可能越界白屏（分页最佳实践）
+    // 【容量加固·服务端分页 2026-10-05】搜索词经 watch(searchText) 已防抖触发服务端查询;
+    // 显式点击/回车仍立即加载一次(即时反馈),并重置页码
     page.value = 1
     loadData()
   }
 
   const onTabChange = () => {
+    // 【容量加固·服务端分页】页签=服务端 devType 参数,切换必须重载;沿用旧版"切页签清快速筛选"的行为
     page.value = 1
     filters.search = ''
     filters.industry = ''
     filters.status = ''
+    loadData()
   }
 
   // 部门筛选：选中部门 → 收集其全部子部门 id（部门可无限嵌套）
@@ -317,13 +339,19 @@ export function useCustomerList() {
     Object.assign(advFilter, { industry: '', province: '', city: '', status: '', protect: '', owner: '', regDate: null, expDate: null, orgIds: [], userIds: [], deptId: null, deptIds: [] })
   }
 
-  // 【C1 2026-10-04】高级筛选任意条件变化（弹窗内即时编辑/清空全部/部门树选择）统一重置页码：
-  // 筛选后结果变少时停在旧页码可能越界白屏（分页最佳实践，同 search() 的既有修复）。
+  // 【C1 2026-10-04→服务端分页 2026-10-05】高级筛选任意变化统一重置页码并防抖重载:
   // 弹窗内各控件是即时生效的 v-model 绑定，统一在源头 watch，避免逐控件接 @change 漏接
-  watch(advFilter, () => { page.value = 1 }, { deep: true })
+  watch(advFilter, () => { page.value = 1; debouncedReload() }, { deep: true })
 
-  // 【C1 2026-10-04】快速筛选（行业/状态）变化后同理必须重置页码（筛选项纯本地过滤，无需重载）
-  const onQuickFilterChange = () => { page.value = 1 }
+  // 【容量加固·服务端分页】搜索词输入即查(400ms 防抖,替代旧的本地即时过滤体验)
+  watch(searchText, () => { page.value = 1; debouncedReload() })
+
+  // 快速筛选（行业/状态）变化:同上重置页码+防抖重载(原为纯本地过滤无需请求)
+  const onQuickFilterChange = () => { page.value = 1; debouncedReload() }
+
+  // 分页事件(服务端分页:v-model 已更新页码/页大小,此处触发重载)
+  const onCurrentChange = () => { loadData() }
+  const onSizeChange = () => { page.value = 1; loadData() }
 
   const viewDetail = (row) => {
     router.push(`/customer/detail/${row.id}`)
@@ -331,22 +359,13 @@ export function useCustomerList() {
 
   // ---- 操作 ----
   const handleExport = async () => {
+    // 【容量加固·服务端分页 2026-10-05】导出与列表共用同一份筛选参数(buildListParams):
+    // 此前导出只带快速筛选 query.*,高级筛选条件不进导出(口径不一致);后端 /export 已同步支持全部参数,
+    // 并改走不分页 selectList(旧 page(1,10000) 会被 maxLimit=500 截断)
     const params = new URLSearchParams()
-    if (query.keyword) params.append('keyword', query.keyword)
-    if (query.industry) params.append('industry', query.industry)
-    if (query.industries && query.industries.length) query.industries.forEach(v => params.append('industries', v))
-    if (query.regionId) params.append('regionId', query.regionId)
-    if (query.regionIds && query.regionIds.length) query.regionIds.forEach(v => params.append('regionIds', v))
-    if (query.status) params.append('status', query.status)
-    if (query.statuses && query.statuses.length) query.statuses.forEach(v => params.append('statuses', v))
-    if (query.filters && query.filters.length) {
-      query.filters.forEach(f => {
-        if (Array.isArray(f.value)) f.value.forEach(v => params.append('filter_' + f.field, v))
-        else params.append('filter_' + f.field, f.value)
-      })
-    }
-    // 【D4 2026-10-04】token 改经 utils/token 统一读取（与 request.js 同源），不再裸读 localStorage；
-    // 下载本体仍走统一 downloadFile（超时/中文失败提示），blob 经封装层支持需改 utils/download.js（本批次文件范围外）
+    Object.entries(buildListParams()).forEach(([k, v]) => {
+      if (v !== '' && v !== null && v !== undefined) params.append(k, String(v))
+    })
     const token = getToken()
     const url = `/api/customer/export?${params.toString()}`
     // F3/F4: 统一下载工具（带 Authorization header + 超时 + 失败提示）
@@ -426,14 +445,15 @@ export function useCustomerList() {
     allCols, visibleCols, vis,
     showAdvFilter, colPickerVisible, showImportDialog,
     showReleaseDialog, releaseTarget, releaseReason, releaseLoading,
-    page, pageSize,
+    page, pageSize, total,
     canDelete, canRelease, showArchived, toggleArchived, handleArchive, handleRestore,
-    tabs, filteredAllData, currentTabData, filteredList,
+    tabs, filteredList,
     advFilterCount, allIndustries, emptyTableText,
     isShared, getExpireColor, getDaysLeft, getStatusType, getStatusText, getProtectClass, getProtectText,
     loadData, loadStats, loadScopeCounts, refreshAll,
     loadFilterData, loadBizConfig, loadRegions, loadIndustryOptions,
     search, onTabChange, onDeptFilterChange, onQuickFilterChange, clearAdvFilter, viewDetail,
+    onCurrentChange, onSizeChange,
     handleExport, handleDelete, openRelease, confirmRelease,
   }
 }

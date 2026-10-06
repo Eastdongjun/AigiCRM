@@ -24,7 +24,8 @@
       <!-- 【议题五.4】显示已归档: 后端 include_archived(默认口径+含归档), 勾选即重载 -->
       <el-checkbox v-model="showArchived" size="small" @change="toggleArchived">显示已归档</el-checkbox>
       <el-button size="small" @click="colPickerVisible = true">列设置</el-button>
-      <span class="filter-count">共 {{ filteredList.length }} 条</span>
+      <!-- 【容量加固·服务端分页 2026-10-05】条数=服务端 total(原为本地过滤后切片长度) -->
+      <span class="filter-count">共 {{ total }} 条</span>
     </div>
 
     <!-- 表格 -->
@@ -99,7 +100,7 @@ import { terminalLabel } from '@/utils/customer-fields'
 
 const {
   activeTab, onTabChange, tabs, filters, allIndustries,
-  colPickerVisible, filteredList, emptyTableText, page, pageSize,
+  colPickerVisible, filteredList, total, emptyTableText, page, pageSize,
   canDelete, canRelease, vis, isShared, getStatusType, getStatusText,
   getProtectClass, getProtectText, getExpireColor,
   viewDetail, openRelease, handleDelete,
