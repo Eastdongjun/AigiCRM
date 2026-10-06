@@ -11,6 +11,12 @@
 # The script is intentionally local-first. It packages the current project source
 # and the mirrored production backup tree, then removes dated backup sets older
 # than the rolling retention window.
+#
+# 【备份新鲜度修复 2026-10-07】打包前先做"镜像拉新"：此前 database/files/deploy 三个 tar
+# 打包的是 09-生产环境备份 的陈旧镜像（launchd 修复后 10-05/10-06 两晚连续打包了 9-23 的旧库，
+# 即"每天在跑但跑的是旧数据"的假新鲜）。现每晚从生产拉当天库 dump（约 2MB）与两个关键部署
+# 配置进镜像再打包；拉新失败不阻断备份（降级打包现有镜像并在日志留痕）。
+# uploads 大件（3.7G/晚）不经 Mac 中转：服务器 NAS daily 已有新鲜全量，Mac 保留基线镜像即可。
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -31,6 +37,57 @@ log() {
   printf '[%s] %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$*"
 }
 
+# ---- 镜像拉新（见文件头说明；全部失败均只记日志，不中断备份）----
+refresh_prod_mirror() {
+  local env_file="${AIGICRM_DEPLOY_ENV:-$HOME/.aigicrm-deploy.env}"
+  if [ ! -f "$env_file" ]; then
+    log "mirror refresh skipped: 部署 env 不存在($env_file)，将打包现有镜像"
+    return 0
+  fi
+  # 子 shell 内 source，避免部署密钥变量污染本脚本其余部分
+  (
+    set -a
+    # shellcheck disable=SC1090
+    . "$env_file"
+    set +a
+    # PROD_KEY 在部署 env 中通常未显式定义（deploy-lib 同款默认路径兜底）
+    local key="${PROD_KEY:-$WORKSPACE_ROOT/06-部署与运维/阿里云环境/aigicrm.com.pem}"
+    if [ ! -f "$key" ]; then
+      log "mirror refresh skipped: 密钥不存在($key)"
+      exit 0
+    fi
+    local host="${PROD_USER:-root}@${PROD_HOST:?PROD_HOST missing}"
+    local opts="-o BatchMode=yes -o ConnectTimeout=20 -o StrictHostKeyChecking=no"
+    local latest
+    latest="$(ssh -i "$key" $opts "$host" \
+      "ls -1 /Aigicrm/files/backup/daily/ 2>/dev/null | grep -E '^[0-9]{8}\$' | sort | tail -1" || true)"
+    if [ -z "$latest" ]; then
+      log "mirror refresh: 服务器 daily 目录不可达或为空，降级打包现有镜像"
+      exit 0
+    fi
+    local dump="/Aigicrm/files/backup/daily/$latest/ycmn-db-$latest.sql"
+    mkdir -p "$PROD_MIRROR_DIR/database"
+    if scp -i "$key" $opts "$host:$dump" "$PROD_MIRROR_DIR/database/ycmn-production.sql.tmp" 2>/dev/null \
+       && [ -s "$PROD_MIRROR_DIR/database/ycmn-production.sql.tmp" ]; then
+      mv -f "$PROD_MIRROR_DIR/database/ycmn-production.sql.tmp" "$PROD_MIRROR_DIR/database/ycmn-production.sql"
+      log "mirror refresh: 库 dump 已拉新(daily/$latest → ycmn-production.sql)"
+    else
+      rm -f "$PROD_MIRROR_DIR/database/ycmn-production.sql.tmp"
+      log "mirror refresh: 库 dump 拉取失败，降级打包现有镜像"
+    fi
+    # 两个关键部署配置小文件顺带对齐（Dockerfile-run/nginx-ssl.conf，服务器为准）
+    mkdir -p "$PROD_MIRROR_DIR/deploy"
+    for f in Dockerfile-run nginx-ssl.conf; do
+      if scp -i "$key" $opts "$host:/root/ycmn/$f" "$PROD_MIRROR_DIR/deploy/$f.tmp" 2>/dev/null \
+         && [ -s "$PROD_MIRROR_DIR/deploy/$f.tmp" ]; then
+        mv -f "$PROD_MIRROR_DIR/deploy/$f.tmp" "$PROD_MIRROR_DIR/deploy/$f"
+      else
+        rm -f "$PROD_MIRROR_DIR/deploy/$f.tmp"
+      fi
+    done
+  ) || log "mirror refresh: 子步骤异常，继续按现有镜像打包"
+}
+
 archive_if_exists() {
   local output="$1"
   shift
@@ -47,6 +104,8 @@ archive_if_exists() {
 }
 
 log "creating daily backup in $DEST"
+
+refresh_prod_mirror
 
 (
   cd "$WORKSPACE_ROOT"
@@ -89,6 +148,11 @@ fi
   echo
   echo "## SHA256"
   shasum -a 256 "$DEST"/*.tar.gz 2>/dev/null || true
+  echo
+  echo "## Mirror freshness"
+  echo "- database/ycmn-production.sql: $(stat -f '%Sm' "$PROD_MIRROR_DIR/database/ycmn-production.sql" 2>/dev/null || echo '缺失(拉新失败?)')"
+  echo "- deploy/Dockerfile-run: $(stat -f '%Sm' "$PROD_MIRROR_DIR/deploy/Dockerfile-run" 2>/dev/null || echo 缺失)"
+  echo "- deploy/nginx-ssl.conf: $(stat -f '%Sm' "$PROD_MIRROR_DIR/deploy/nginx-ssl.conf" 2>/dev/null || echo 缺失)"
 ) > "$MANIFEST"
 
 if command -v python3 >/dev/null 2>&1; then
