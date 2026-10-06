@@ -114,37 +114,103 @@ public class StatisticsQueryService {
     private final SysDeptMapper deptMapper;
     private final SysLogMapper sysLogMapper;
     private final BizApprovalMapper approvalMapper;
+    // 【容量加固 2026-10-06】看板范围签名需要与 applyDataScope 同源的锚点解析(见 dashboardScopeKey)
+    private final com.aigicrm.module.system.service.RolePermScopeService rolePermScopeService;
 
     /**
      * 看板汇总
      * 【需求】首页统计卡片：客户/公海/审批/到期提醒
      * 【方法】委托各模块 Service 做数据范围感知统计
      * 【业务规则】到期=expireDate 距今天数；todayExpiring 为当日到期且仍在客户范围内的数量
-     * 【容量加固 2026-10-06】30s 用户级 TTL 缓存(照 RolePermScopeService 同款模式)：
-     * 单次聚合 ~12 路作用域感知 SQL,1000 用户高频进入时垄断连接池(并发仿真 600 用户即劣化至 13s)；
-     * 仪表盘计数容忍 ≤30s 陈旧(与权限范围缓存同口径),写操作后最迟 30s 反映。
+     * 【容量加固 2026-10-06】缓存三段演进：
+     *   ①30s 用户级 TTL 缓存（当日首版）：600 用户级从 13s 劣化拉回全绿；
+     *   ②TTL 0~50% 随机抖动：防"整 30s 齐过期→集中重算"的 miss 风暴；
+     *   ③【本轮】同范围用户共享缓存条目：统计口径实际由 applyDataScope 的
+     *     (角色锚点 × 可见用户/部门集合 × 规则引擎条件) 决定，同范围用户结果完全一致——
+     *     缓存键从 userId 换成"范围签名"，1000 用户若只有 N 个不同范围，miss 率降为 1/N。
+     *     范围签名取 ScopeDecision 的可见集合（OWNER 锚点=可见用户集 / ORG 锁点=可见部门集 / all），
+     *     admin 走规则引擎条件指纹（无规则时=纯 all）。签名相同⇒12 路统计 SQL 结果必然相同。
+     *     仪表盘计数容忍 ≤30s 陈旧（与权限范围缓存同口径），写操作后最迟 30s 反映。
+     * 【不变量】expiringDetails 的"今日剩余天数"按天粒度变化——TTL 内跨日瞬间最多陈旧 30s，可接受。
      */
     private static final long DASHBOARD_TTL_MS = 30_000L;
     private record DashboardCacheEntry(Map<String, Object> value, long expireAt) {}
-    private final java.util.concurrent.ConcurrentHashMap<Long, DashboardCacheEntry> dashboardCache =
+    private final java.util.concurrent.ConcurrentHashMap<String, DashboardCacheEntry> dashboardCache =
             new java.util.concurrent.ConcurrentHashMap<>();
 
     public Map<String, Object> dashboard() {
         Long userId = SecurityUtils.getCurrentUserId();
-        DashboardCacheEntry hit = dashboardCache.get(userId);
-        if (hit != null && System.currentTimeMillis() < hit.expireAt()) {
-            return hit.value();
+        // 审批卡片(approvalStats)按 userId 过滤(applicant/approver)，用户级单独缓存；
+        // 其余 8 项均为范围决定，走共享缓存。
+        String scopeKey = dashboardScopeKey();
+        DashboardCacheEntry hit = dashboardCache.get(scopeKey);
+        ApprovalCacheEntry apprHit = approvalStatsCache.get(userId);
+        boolean dashFresh = hit != null && System.currentTimeMillis() < hit.expireAt();
+        boolean apprFresh = apprHit != null && System.currentTimeMillis() < apprHit.expireAt();
+        if (dashFresh && apprFresh) {
+            return mergeDashboard(hit.value(), apprHit.value());
         }
-        Map<String, Object> data = computeDashboard();
-        // 【防过期风暴】TTL 加 0~50% 随机抖动：1000 用户级"整 30s 齐过期→集中重算打满池"的
-        // 长尾(p95 18s)来自 miss 同步峰，抖动后过期时刻摊开(20-30s 各异)，miss 速率平滑
-        long ttl = DASHBOARD_TTL_MS / 2 + (long) (Math.random() * (DASHBOARD_TTL_MS / 2));
-        dashboardCache.put(userId, new DashboardCacheEntry(data, System.currentTimeMillis() + ttl));
+
+        Map<String, Object> shared = dashFresh ? hit.value() : computeDashboardShared();
+        Map<String, Long> approvals = apprFresh ? apprHit.value() : approvalService.statistics(userId);
+        if (!dashFresh) {
+            // 【防过期风暴】TTL 加 0~50% 随机抖动：同范围条目过期时刻各异，miss 速率平滑
+            long ttl = DASHBOARD_TTL_MS / 2 + (long) (Math.random() * (DASHBOARD_TTL_MS / 2));
+            dashboardCache.put(scopeKey, new DashboardCacheEntry(shared, System.currentTimeMillis() + ttl));
+        }
+        if (!apprFresh) {
+            long ttl = DASHBOARD_TTL_MS / 2 + (long) (Math.random() * (DASHBOARD_TTL_MS / 2));
+            approvalStatsCache.put(userId, new ApprovalCacheEntry(approvals, System.currentTimeMillis() + ttl));
+        }
+        return mergeDashboard(shared, approvals);
+    }
+
+    /** 共享段与用户段合并为新 Map（不改动缓存内条目，防止返回对象被序列化/复用时交叉污染） */
+    private Map<String, Object> mergeDashboard(Map<String, Object> shared, Map<String, Long> approvals) {
+        Map<String, Object> data = new HashMap<>(shared);
+        data.put("approvalStats", approvals);
         return data;
     }
 
-    private Map<String, Object> computeDashboard() {
-        Long userId = SecurityUtils.getCurrentUserId();
+    /**
+     * 看板范围签名：与 applyDataScope 的判定输入一一对应——
+     * admin → "adm:" + 规则引擎对 customer 的 WHERE 指纹（无规则即纯 all）；
+     * 非 admin → 解析 ScopeDecision：all ⇒ "all"；ORG 锚点 ⇒ "org:"+有序 deptIds；OWNER 锚点 ⇒ "own:"+有序 userIds。
+     * 同签名用户对全部 8 个范围统计的结果必然一致（这些查询只依赖上述可见集合与规则条件）。
+     */
+    private String dashboardScopeKey() {
+        var user = SecurityUtils.getCurrentUser();
+        if (user == null) return "anon";
+        if (SecurityUtils.isAdmin()) {
+            String ruleWhere = (user.getPermissionRules() == null || user.getPermissionRules().isEmpty())
+                    ? null : com.aigicrm.common.engine.PermissionRuleEngine
+                    .evaluateForEntity(user.getPermissionRules(), user, "customer");
+            return "adm:" + (ruleWhere == null ? "all" : Integer.toHexString(ruleWhere.hashCode()));
+        }
+        com.aigicrm.common.scope.ScopeRequest req = com.aigicrm.common.scope.ScopeRequest.builder()
+                .user(user)
+                .module("customer")
+                .action("view")
+                .anchor(rolePermScopeService.anchorOf(user, "customer", "view"))
+                .build();
+        com.aigicrm.common.scope.ScopeDecision d = orgScopeResolver.resolveScope(req);
+        if (d.isAll()) return "all";
+        if (req.getAnchor() == com.aigicrm.common.scope.ScopeRequest.AnchorType.ORG) {
+            java.util.List<Long> ids = d.getVisibleDeptIds();
+            if (ids == null || ids.isEmpty()) return "org:none";
+            return "org:" + ids.stream().sorted().map(String::valueOf).collect(java.util.stream.Collectors.joining(","));
+        }
+        java.util.List<Long> ids = d.getVisibleUserIds();
+        if (ids == null || ids.isEmpty()) return "own:none";
+        return "own:" + ids.stream().sorted().map(String::valueOf).collect(java.util.stream.Collectors.joining(","));
+    }
+
+    private record ApprovalCacheEntry(Map<String, Long> value, long expireAt) {}
+    private final java.util.concurrent.ConcurrentHashMap<Long, ApprovalCacheEntry> approvalStatsCache =
+            new java.util.concurrent.ConcurrentHashMap<>();
+
+    /** 范围共享的 8 项统计（不含 approvalStats） */
+    private Map<String, Object> computeDashboardShared() {
         Map<String, Object> data = new HashMap<>();
 
         data.put("myCustomers", customerService.countByScope());
@@ -152,7 +218,6 @@ public class StatisticsQueryService {
         data.put("expiring", customerService.countExpiringByScope());
         data.put("expired", customerService.countExpiredByScope());
         data.put("seaStats", seaService.statistics());
-        data.put("approvalStats", approvalService.statistics(userId));
 
         LocalDate today = LocalDate.now();
         List<BizCustomer> expiringList = customerService.getExpiringByScope(5);
