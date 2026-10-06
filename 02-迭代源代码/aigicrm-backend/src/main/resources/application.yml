@@ -16,14 +16,14 @@ spring:
     # 无公开默认密码：本地/测试/生产均必须经环境变量注入，避免误连或弱口令漂移
     password: ${DB_PASSWORD}
     driver-class-name: com.mysql.cj.jdbc.Driver
-    # 【容量加固 2026-10-05】Hikari 连接池显式调优（此前全默认：maximum-pool-size=10 / connection-timeout=30s）：
-    # - maximum-pool-size=30：对齐 Tomcat 200 工作线程的触库并发（并非 200 线程同时等连接，
-    #   按 ~15% 同时进出数据库估算），并与 MySQL max_connections=300（docker-compose.prod.yml）留足余量
+    # 【容量加固 2026-10-05→10-06】Hikari 连接池显式调优（此前全默认：maximum-pool-size=10 / connection-timeout=30s）：
+    # - maximum-pool-size=50：对齐 Tomcat 200 工作线程的触库并发；10-06 并发仿真实测 600 用户时
+    #   池 30 打满成为瓶颈（Little 定律恰 30 在途），提至 50；MySQL max_connections=300 余量充足
     # - minimum-idle=10：常驻热连接，避免低峰池完全收缩后早高峰集中重建连接的抖动
     # - connection-timeout=10000：取池等待从默认 30s 收紧到 10s，连接耗尽时快速失败暴露问题，
     #   而不是让请求挂 30s 后才报错拖垮上游线程
     hikari:
-      maximum-pool-size: 30
+      maximum-pool-size: 50
       minimum-idle: 10
       connection-timeout: 10000  # 单位毫秒
   # Flyway 迁移（2026-08-09 引入）

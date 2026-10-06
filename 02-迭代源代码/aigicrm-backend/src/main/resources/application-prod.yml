@@ -13,11 +13,11 @@ server:
       max: 200  # 工作线程上限（显式钉住默认值）
     accept-count: 200  # 满线程排队长度，与线程数对齐
 
-# 生产 Hikari 连接池钉住（依据见 application.yml 同批注释）：
+# 生产 Hikari 连接池钉住（依据见 application.yml 同批注释；10-06 并发仿真后 30→50）：
 spring:
   datasource:
     hikari:
-      maximum-pool-size: 30  # 匹配 MySQL max_connections=300（docker-compose.prod.yml），留管理连接余量
+      maximum-pool-size: 50  # 匹配 MySQL max_connections=300（docker-compose.prod.yml），留管理连接余量
       minimum-idle: 10  # 常驻热连接
       connection-timeout: 10000  # 毫秒；默认 30s 收紧为快速失败
 

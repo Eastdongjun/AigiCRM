@@ -704,7 +704,28 @@ public class IncentiveService {
     }
 
     // 个人积分榜
+    // 【容量加固 2026-10-06】30s TTL 缓存(公司级,按 period 键,照 RolePermScopeService 同款模式)：
+    // 原实现每次请求全表 selectList + JVM 聚合,而结果是公司级全员相同的(并发仿真 600 用户时 p50 4.6s)；
+    // 全员共享同缓存命中率极高；激励记录写入后最迟 30s 反映(排行页天然容忍)。
+    private static final long SCOREBOARD_TTL_MS = 30_000L;
+    private record ScoreboardCacheEntry(List<Map<String, Object>> value, long expireAt) {}
+    private final java.util.concurrent.ConcurrentHashMap<String, ScoreboardCacheEntry> scoreboardCache =
+            new java.util.concurrent.ConcurrentHashMap<>();
+
     public List<Map<String, Object>> scoreboard(String period) {
+        String key = (period == null || period.isBlank()) ? "" : period;
+        ScoreboardCacheEntry hit = scoreboardCache.get(key);
+        if (hit != null && System.currentTimeMillis() < hit.expireAt()) {
+            return hit.value();
+        }
+        List<Map<String, Object>> result = computeScoreboard(period);
+        // 【防过期风暴】TTL 加 0~50% 随机抖动，把集中过期重算摊开（同 StatisticsQueryService.dashboard）
+        long ttl = SCOREBOARD_TTL_MS / 2 + (long) (Math.random() * (SCOREBOARD_TTL_MS / 2));
+        scoreboardCache.put(key, new ScoreboardCacheEntry(result, System.currentTimeMillis() + ttl));
+        return result;
+    }
+
+    private List<Map<String, Object>> computeScoreboard(String period) {
         LambdaQueryWrapper<BizIncentiveRecord> wrapper = new LambdaQueryWrapper<>();
         if (period != null && !period.isBlank()) wrapper.eq(BizIncentiveRecord::getPeriod, period);
         // 【2026-08-08 分享制】个人排行=公司级展示，不做可见性过滤，全员看到全公司排行（含未分享）

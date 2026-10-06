@@ -120,8 +120,30 @@ public class StatisticsQueryService {
      * 【需求】首页统计卡片：客户/公海/审批/到期提醒
      * 【方法】委托各模块 Service 做数据范围感知统计
      * 【业务规则】到期=expireDate 距今天数；todayExpiring 为当日到期且仍在客户范围内的数量
+     * 【容量加固 2026-10-06】30s 用户级 TTL 缓存(照 RolePermScopeService 同款模式)：
+     * 单次聚合 ~12 路作用域感知 SQL,1000 用户高频进入时垄断连接池(并发仿真 600 用户即劣化至 13s)；
+     * 仪表盘计数容忍 ≤30s 陈旧(与权限范围缓存同口径),写操作后最迟 30s 反映。
      */
+    private static final long DASHBOARD_TTL_MS = 30_000L;
+    private record DashboardCacheEntry(Map<String, Object> value, long expireAt) {}
+    private final java.util.concurrent.ConcurrentHashMap<Long, DashboardCacheEntry> dashboardCache =
+            new java.util.concurrent.ConcurrentHashMap<>();
+
     public Map<String, Object> dashboard() {
+        Long userId = SecurityUtils.getCurrentUserId();
+        DashboardCacheEntry hit = dashboardCache.get(userId);
+        if (hit != null && System.currentTimeMillis() < hit.expireAt()) {
+            return hit.value();
+        }
+        Map<String, Object> data = computeDashboard();
+        // 【防过期风暴】TTL 加 0~50% 随机抖动：1000 用户级"整 30s 齐过期→集中重算打满池"的
+        // 长尾(p95 18s)来自 miss 同步峰，抖动后过期时刻摊开(20-30s 各异)，miss 速率平滑
+        long ttl = DASHBOARD_TTL_MS / 2 + (long) (Math.random() * (DASHBOARD_TTL_MS / 2));
+        dashboardCache.put(userId, new DashboardCacheEntry(data, System.currentTimeMillis() + ttl));
+        return data;
+    }
+
+    private Map<String, Object> computeDashboard() {
         Long userId = SecurityUtils.getCurrentUserId();
         Map<String, Object> data = new HashMap<>();
 
