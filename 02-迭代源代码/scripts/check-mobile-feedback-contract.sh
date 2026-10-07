@@ -45,40 +45,8 @@ for page in $(find "$ROOT/aigicrm-miniprogram/pages" -name '*.js' -type f -exec 
     grep -Fq 'requireLogin' "$page" || fail "API page does not enforce login: $page"
   fi
 done
-grep -Fq 'notification-actions' "$NOTIFICATION_WXML" || fail 'notification list actions must use compact local action row'
-grep -Fq 'notification-link-action' "$NOTIFICATION_WXML" || fail 'notification list secondary actions must use compact local style'
-grep -Fq 'notification-primary-action' "$NOTIFICATION_WXML" || fail 'notification list primary action must use compact local style'
-grep -Fq 'catchtap="openCustomer"' "$NOTIFICATION_WXML" || fail 'notification list must expose customer archive action'
-grep -Fq '客户档案' "$NOTIFICATION_WXML" || fail 'notification list customer action copy must match customer archive convention'
-grep -Fq 'openCustomer(event)' "$NOTIFICATION_JS" || fail 'notification list must implement customer archive navigation'
-grep -Fq '/pages/customer/detail/index?id=${item.customerId}&from=notification' "$NOTIFICATION_JS" \
-  || fail 'notification list must route to customer archive detail'
-grep -Fq 'buildNotificationView' "$NOTIFICATION_JS" || fail 'notification list display state must be normalized in JS'
-grep -Fq 'applyState(patch' "$NOTIFICATION_JS" || fail 'notification list normalized state refresh is missing'
-grep -Fq 'notificationView.showLoading' "$NOTIFICATION_WXML" || fail 'notification list loading must use normalized view state'
-grep -Fq 'notificationView.rows' "$NOTIFICATION_WXML" || fail 'notification list rows must use normalized view state'
-grep -Fq 'notificationView.showEmpty' "$NOTIFICATION_WXML" || fail 'notification list empty state must use normalized view state'
-grep -Fq 'item.showCustomerAction' "$NOTIFICATION_WXML" || fail 'notification list customer action must use normalized view state'
-! grep -Eq "\\{\\{loading\\}\\}|notifications\\.length|wx:if=\"\\{\\{item\\.customerId\\}\\}\"|\\{\\{item\\.title\\}\\}|\\{\\{item\\.content\\}\\}|\\{\\{item\\.customerName\\}\\}" "$NOTIFICATION_WXML" \
-  || fail 'notification list WXML must not keep loading/list/customer fallback logic'
-grep -Fq '.notification-actions button' "$NOTIFICATION_WXSS" || fail 'notification list compact action styles disappeared'
-grep -Fq 'height:50rpx' "$NOTIFICATION_WXSS" || fail 'notification list actions must stay compact'
-grep -Fq 'notification-detail-actions' "$NOTIFICATION_DETAIL_WXML" || fail 'notification detail actions must use compact local action row'
-grep -Fq 'bindtap="openCustomer"' "$NOTIFICATION_DETAIL_WXML" || fail 'notification detail must expose customer archive action'
-grep -Fq '查看客户完整档案' "$NOTIFICATION_DETAIL_WXML" || fail 'notification detail customer action copy must match customer archive convention'
-grep -Fq 'openCustomer()' "$NOTIFICATION_DETAIL_JS" || fail 'notification detail must implement customer archive navigation'
-grep -Fq '/pages/customer/detail/index?id=${this.data.customerId}&from=notification' "$NOTIFICATION_DETAIL_JS" \
-  || fail 'notification detail must route to customer archive detail'
-grep -Fq 'buildNotificationDetailView' "$NOTIFICATION_DETAIL_JS" || fail 'notification detail display state must be normalized in JS'
-grep -Fq 'applyState(patch' "$NOTIFICATION_DETAIL_JS" || fail 'notification detail normalized state refresh is missing'
-grep -Fq 'notificationDetailView.titleText' "$NOTIFICATION_DETAIL_WXML" || fail 'notification detail title must use normalized view state'
-grep -Fq 'notificationDetailView.contentText' "$NOTIFICATION_DETAIL_WXML" || fail 'notification detail content must use normalized view state'
-grep -Fq 'notificationDetailView.customerText' "$NOTIFICATION_DETAIL_WXML" || fail 'notification detail customer must use normalized view state'
-grep -Fq 'notificationDetailView.processLoading' "$NOTIFICATION_DETAIL_WXML" || fail 'notification detail loading must use normalized view state'
-! grep -Eq "\\|\\| '暂无通知内容'|\\|\\| '-'|\\{\\{content\\}\\}|\\{\\{customer\\}\\}|\\{\\{processing\\}\\}|wx:if=\"\\{\\{customerId\\}\\}\"" "$NOTIFICATION_DETAIL_WXML" \
-  || fail 'notification detail WXML must not keep fallback/display branching logic'
-grep -Fq '.notification-detail-actions button' "$NOTIFICATION_DETAIL_WXSS" || fail 'notification detail compact action styles disappeared'
-grep -Fq 'height:52rpx' "$NOTIFICATION_DETAIL_WXSS" || fail 'notification detail actions must stay compact'
+# 【钉随代码 2026-10-07】notification 两页随 1b3c865b 死页面清理删除(提醒=reminder 模块+tabBar 角标承载),
+# 页面级钉随页面退役; automator 脚本与 feedback.js 共享助手钉保留
 grep -Fq 'feedback-clear-action' "$FEEDBACK_WXML" || fail 'feedback clear action must use compact local style'
 grep -Fq 'feedback-save-action' "$FEEDBACK_WXML" || fail 'feedback save action must use compact local style'
 grep -Fq 'buildFeedbackView' "$FEEDBACK_JS" || fail 'feedback page display state must be normalized in JS'

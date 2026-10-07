@@ -163,22 +163,27 @@ grep -Fq 'removeFolder' "$PAGE" || fail 'mobile file folder delete action disapp
 grep -Fq 'bindtap="openFolderForm"' "$WXML" || fail 'mobile file folder create UI disappeared'
 grep -Fq 'bindtap="openFolderEdit"' "$WXML" || fail 'mobile file folder rename UI disappeared'
 grep -Fq 'bindtap="removeFolder"' "$WXML" || fail 'mobile file folder delete UI disappeared'
-grep -Fq "hasPermission('file:folder:manage')" "$FOLDER_FORM" || fail 'mobile file folder form permission gate disappeared'
-grep -Fq 'createFolder' "$FOLDER_FORM" || fail 'mobile file folder create API disappeared'
+grep -Fq "hasPermission('file:folder:manage')" "$PAGE" || fail 'mobile file folder permission gate (create+manage) disappeared'
+# 【2026-10-07 钉随代码】D36: 创建分支自 folder-form 移除(口径不符且无入口), 创建=files 页 showModal+createFolder
+grep -Fq 'createFolder' "$PAGE" || fail 'mobile file folder create API disappeared'
+grep -Fq '新建文件夹' "$PAGE" || fail 'mobile file folder create copy moved to files page'
 grep -Fq 'renameFolder' "$FOLDER_FORM" || fail 'mobile file folder rename API disappeared'
 grep -Fq 'buildFolderFormView' "$FOLDER_FORM" || fail 'mobile file folder form display state must be normalized in JS'
 grep -Fq 'applyState(patch' "$FOLDER_FORM" || fail 'mobile file folder form normalized state refresh is missing'
 grep -Fq 'folderFormView.titleText' "$FOLDER_FORM_WXML" || fail 'mobile file folder form title must use normalized view state'
 grep -Fq 'folderFormView.nameValue' "$FOLDER_FORM_WXML" || fail 'mobile file folder form input must use normalized view state'
 grep -Fq 'folderFormView.submitLoading' "$FOLDER_FORM_WXML" || fail 'mobile file folder form loading must use normalized view state'
-grep -Fq '创建文件夹' "$FOLDER_FORM" || fail 'mobile file folder create form copy disappeared'
+
 grep -Fq '保存名称' "$FOLDER_FORM" || fail 'mobile file folder rename form copy disappeared'
 ! grep -Eq "id \\?|\\{\\{id|\\{\\{name\\}\\}|\\{\\{saving\\}\\}|maxlength=\"60\"" "$FOLDER_FORM_WXML" \
   || fail 'mobile file folder form WXML must not keep id/name/saving fallback logic'
 grep -Fq "showError(error, '分享失败')" "$PAGE" || fail 'mobile file share failure feedback disappeared'
 grep -Fq 'catch((error) => showError(error, '\''替换失败'\''))' "$DETAIL" || fail 'mobile file replace failure feedback disappeared'
-grep -Fq "wx.switchTab({ url: '/pages/files/index' })" "$LEGACY_PAGE" || fail 'legacy file page does not redirect to unified files page'
-grep -Fq '正在打开文件库' "$LEGACY_WXML" || fail 'legacy file page still renders an alternate file center'
+# 【2026-10-07 钉随代码】1b3c865b 死页面清理删除 pages/file 跳转壳(app.json 已无该注册, 无存量导航可达);
+# 兼容目标"不再有旧文件中心"由"页面不存在"达成, 保底防复活
+if [ -e "$LEGACY_PAGE" ] || [ -e "$LEGACY_WXML" ]; then
+  fail 'legacy file page must not be revived (removed with app.json registration in 1b3c865b)'
+fi
 grep -Fq '@PostMapping("/{id}/share")' "$CONTROLLER" || fail 'backend file share route disappeared'
 grep -Fq '@PostMapping("/{id}/replace")' "$CONTROLLER" || fail 'backend file replace route disappeared'
 grep -Fq '`file.folderManage` | 文件 | 文件夹面板管理 | `pages/files/index` 与 `pages/files/folder-form/index`' "$MANIFEST" || fail 'file folderManage manifest does not point to mobile folder management'

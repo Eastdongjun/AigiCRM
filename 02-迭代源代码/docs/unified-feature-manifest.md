@@ -46,7 +46,7 @@
 | `customer.export` | 客户 | 客户工具栏导出 | 默认 `PC-only` | `customer:export` | 当前查询数据范围 | 导出 | `PC-only` |
 | `task.view` | 待办任务 | `/task` 任务页;工作台任务统计角标 | `pages/home/index` 工作台任务区(`/api/task/list`、`/api/task/statistics`) | `task:view` | 本人任务(管理范围见 task.manage) | 读取/统计 | 已实现 ⟦补录 09-24:英文版整模块缺失,模块 09-19 上线且为 V2026.09.23.1 权限事故主角⟧ |
 | `task.manage` | 待办任务 | 任务页创建/完成/取消/转交 | 管理操作仅 PC | `task:manage` | 任务指派/管理范围 | 创建/完成/取消/编辑转交 | 管理操作 `PC-only` ⟦补录 09-24⟧ |
-| `file.list` | 文件 | `/file` | `pages/files/index`(旧 `pages/file/index` 重定向至此) | `file:view` | 文件夹 ACL+负责人/分享 | 读取 | 已实现 |
+| `file.list` | 文件 | `/file` | `pages/files/index` ⟦更正 10-07:旧 file 页及重定向壳随 1b3c865b 死页面清理删除,无存量导航可达⟧ | `file:view` | 文件夹 ACL+负责人/分享 | 读取 | 已实现 |
 | `file.download` | 文件 | 文件列表/操作 | `pages/files/detail/index` | `file:view`+文件夹下载权 | 文件夹 ACL | 下载 | 已实现 |
 | `file.upload` | 文件 | 文件工具栏/弹窗 | `pages/files/index` | `file:upload`+文件夹 ACL | 文件夹 ACL | 上传 | 已实现 |
 | `file.share` | 文件 | 文件行/弹窗分享 | `pages/files/index` 分享操作 | `file:share`+文件夹 ACL | 文件夹 ACL | 授予/分享 | 已实现 |
@@ -56,7 +56,7 @@
 | `file.aclView` | 文件 | 文件夹 ACL 弹窗只读 | `pages/files/index` 只读 ACL 弹窗 | `file:acl:manage` | 文件夹管理 ACL | 读取权限 | 已实现 |
 | `file.aclManage` | 文件 | 文件夹 ACL 弹窗授权 | 默认 `PC-only` | `file:acl:manage` | 文件夹管理 ACL | 授予/撤销 | `PC-only` |
 | `incentive.index` | 激励(四项激励) | `/incentive` | `pages/incentive/index`、`pages/incentive/detail/index`、`pages/incentive/upload/index` | 读 `incentive:view`;上传 `incentive:add` | 激励分类/用户授权范围 | 读取/创建 | 已实现 |
-| `incentive.legacyCasesAlias` | 激励 | 旧激励链接 | `pages/cases/index`、`pages/cases/detail/index` 重定向至四项激励页 | `incentive:view` | 激励分类/用户授权范围 | 兼容导航 | 已实现 |
+| `incentive.legacyCasesAlias` | 激励 | 旧激励链接 | `pages/incentive/index` ⟦更正 10-07:cases 重定向壳随 1b3c865b 删除,兼容由历史路由表外无引用保证⟧ | `incentive:view` | 激励分类/用户授权范围 | 兼容导航 | 已实现 |
 | `incentive.search` | 激励 | `/incentive/search` | `pages/incentive/index` | `incentive:view` | 激励分享制(本人全部+他人已分享) | 读取 | 已实现 |
 | `incentive.markRead` | 激励 | 查询详情/已读 | `pages/incentive/index` | `incentive:view` | 可见激励记录 | 更新已读状态 | 已实现 |
 | `incentive.readStats` | 激励 | 查询页已读统计面板 | `pages/incentive/index` | `incentive:read-stats` | 当前集团/月份 | 统计 | 已实现 |
@@ -67,7 +67,7 @@
 | `incentive.stats` | 激励 | `/incentive/stats`(激励统计表/客户排行 Tab) | `pages/statistics/index` 与 `pages/ranking/index` | `incentive:view` | 激励授权/数据范围 | 统计 | 已实现 |
 | `incentive.personRank` | 激励 | `/incentive/stats` 个人排行 Tab;导出按钮 | `pages/ranking/index` 排行中心·激励个人排行区块 | 数据 `incentive:view`(公司级聚合,含未分享);导出 `incentive:person-rank:export`(默认仅 admin,可勾选) | 公司级(按人聚合总积分降序) | 统计/导出 | 已实现 ⟦补录 09-24:09-23 上线,英文版缺失⟧ |
 | `reminder.list` | 提醒 | `/reminder` | `pages/reminder/index` | `reminder:view` | 当前用户提醒 | 读取 | 已实现 |
-| `reminder.notification` | 提醒/通知 | 提醒通知中心/详情 | `pages/notification/index`、`pages/notification/detail/index` | `reminder:view` | 当前用户提醒/客户可见范围 | 读取/处理通知 | 已实现 |
+| `reminder.notification` | 提醒/通知 | 提醒通知中心/详情 | `pages/reminder/index` ⟦更正 10-07:notification 两页随 1b3c865b 死页面清理删除,提醒由 reminder 模块+tabBar 角标承载⟧ | `reminder:view` | 当前用户提醒/客户可见范围 | 读取/处理通知 | 已实现 |
 | `reminder.expiring` | 提醒 | `/reminder` 到期客户 | `pages/reminder/index` 到期客户 | `reminder:view` | 统一客户范围 | 读取 | 已实现 |
 | `reminder.process` | 提醒 | 提醒行处理 | `pages/reminder/index` | `reminder:view` | 当前用户提醒 | 更新 | 已实现 |
 | `approval.list` | 审批 | `/approval` | `pages/approval/index` | `approval:view` | 申请人/审批人/组织范围 | 读取 | 已实现 |

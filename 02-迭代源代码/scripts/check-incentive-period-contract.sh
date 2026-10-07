@@ -38,9 +38,9 @@ done
 
 assert_contains "$PERIOD_UTIL" "export const PERIOD_ALL = { label: '全部', value: '' }"
 assert_contains "$PERIOD_UTIL" "export function buildPeriodOptions"
-assert_contains "$PERIOD_UTIL" "\${year}全年"
-assert_contains "$PERIOD_UTIL" "\${year}下半年"
-assert_contains "$PERIOD_UTIL" "\${year}上半年"
+assert_contains "$PERIOD_UTIL" "\${y}全年"
+assert_contains "$PERIOD_UTIL" "\${y}下半年"
+assert_contains "$PERIOD_UTIL" "\${y}上半年"
 assert_contains "$PERIOD_UTIL" "export function periodQueryValue"
 assert_contains "$PERIOD_UTIL" "return value ? value : undefined"
 assert_contains "$PERIOD_UTIL" "export function defaultRecordPeriod"

@@ -383,9 +383,9 @@ def main() -> int:
             "pages/incentive/detail/index",
             "pages/incentive/upload/index",
         },
+        # 【钉随代码 2026-10-07】cases 重定向壳随 1b3c865b 删除, 功能由激励页承接
         "incentive.legacyCasesAlias": {
-            "pages/cases/index",
-            "pages/cases/detail/index",
+            "pages/incentive/index",
         },
         "incentive.upload": {"pages/incentive/upload/index"},
         "customer.finance": {
@@ -412,9 +412,9 @@ def main() -> int:
         "approval.approve": {"pages/approval/index", "pages/approval/detail/index"},
         "approval.reject": {"pages/approval/index", "pages/approval/detail/index"},
         "approval.submit": {"pages/customer/detail/index", "pages/sea/index"},
+        # 【钉随代码 2026-10-07】notification 两页随 1b3c865b 删除, 提醒由 reminder 模块承载
         "reminder.notification": {
-            "pages/notification/index",
-            "pages/notification/detail/index",
+            "pages/reminder/index",
         },
         "score.ranking": {
             "pages/ranking/index",

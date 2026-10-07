@@ -42,8 +42,10 @@ grep -Fq 'seaStatusText' "$PAGE" || fail 'mobile sea list must normalize sea row
 grep -Fq 'seaReasonText' "$PAGE" || fail 'mobile sea list must normalize PC enter-reason labels'
 grep -Fq 'claimStatusText' "$PAGE" || fail 'mobile sea claim records must normalize approval status labels like PC'
 grep -Fq "PENDING_APPROVAL: '审批中'" "$PAGE" || fail 'mobile sea row status must display PC uppercase status variants'
-grep -Fq "WAITING: '待审批'" "$PAGE" || fail 'mobile sea claim status must display PC waiting status variants'
-grep -Fq "WAITING: '待审批'" "$ROOT/aigicrm-miniprogram/pages/sea/claim-detail/index.js" || fail 'mobile sea claim detail must display PC waiting status variants'
+# 【2026-10-07 钉随代码】E6 去重后 claim 状态映射收敛 label-maps —— 字面量钉共享模块, 两页钉共享函数消费
+grep -Fq "WAITING: '待审批'" "$ROOT/aigicrm-miniprogram/utils/label-maps.js" || fail 'label-maps must display PC waiting status variants'
+grep -Fq 'claimStatusText' "$PAGE" || fail 'mobile sea claim status must use shared claimStatusText'
+grep -Fq 'claimStatusText' "$ROOT/aigicrm-miniprogram/pages/sea/claim-detail/index.js" || fail 'mobile sea claim detail must use shared claimStatusText'
 grep -Fq 'buildClaimView' "$ROOT/aigicrm-miniprogram/pages/sea/claim-detail/index.js" || fail 'mobile sea claim detail must normalize view state before WXML'
 grep -Fq 'setClaimData' "$ROOT/aigicrm-miniprogram/pages/sea/claim-detail/index.js" || fail 'mobile sea claim detail must refresh normalized view state with data changes'
 grep -Fq 'claimView.statusText' "$ROOT/aigicrm-miniprogram/pages/sea/claim-detail/index.wxml" || fail 'mobile sea claim detail must display normalized status text'

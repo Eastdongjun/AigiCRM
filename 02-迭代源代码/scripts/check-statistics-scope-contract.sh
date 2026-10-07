@@ -38,8 +38,10 @@ for label, method, pattern in (
         raise SystemExit(f"FAIL: {label}")
     print(f"PASS: {label}")
 
-dashboard = method_body("dashboard")
-if not re.search(r"customerService\.countExpiringTodayByScope\(\)", dashboard):
+# 【2026-10-07 钉随代码】容量加固(2026-10-06)后 dashboard 方法体=缓存壳, 统计装配移入 loadDashboard;
+# 钉随实现下沉到真实方法体
+dashboard_impl = method_body("computeDashboardShared")
+if not re.search(r"customerService\.countExpiringTodayByScope\(\)", dashboard_impl):
     raise SystemExit("FAIL: dashboard today-expiring count must use scope-aware customer service")
 print("PASS: dashboard today-expiring count uses scope-aware service")
 

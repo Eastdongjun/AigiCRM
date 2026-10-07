@@ -134,9 +134,22 @@ public class FileController {
                 return ResponseEntity.status(403).build();
             }
 
+            // 【P2 2026-09-30 复审修复·元数据校验】物理在 public/ 段还不足够:
+            // 必须存在未删 biz_file 行且 fileScope=public。防"行已逻辑删/范围已改而物理残留"的匿名拉取。
+            // 元数据不存在默认 404(不泄漏存在性);范围非 public 403。匿名语义不引入按登录用户的
+            // canDownloadFile 判定, 只按行的公开性收口(登录下载走 /download/{id} 与 /download/{key})。
+            String fileKey = relative.toString().replace('\\', '/');
+            BizFile meta = fileService.getFileByKey(fileKey);
+            if (meta == null) {
+                return ResponseEntity.notFound().build();
+            }
+            if (!"public".equals(meta.getFileScope())) {
+                return ResponseEntity.status(403).build();
+            }
+
             Resource resource = new UrlResource(resolved.toUri());
             if (resource.exists()) {
-                String filename = resolved.getFileName().toString();
+                String filename = meta.getFileName() != null ? meta.getFileName() : resolved.getFileName().toString();
                 String encodedFilename = java.net.URLEncoder.encode(filename, java.nio.charset.StandardCharsets.UTF_8).replace("+", "%20");
                 MediaType mediaType = MediaTypeFactory.getMediaType(filename).orElse(MediaType.APPLICATION_OCTET_STREAM);
                 // 安全修复 2026-08-10: 与 FileService.dispositionFor 一致——SVG/HTML 等活性内容强制 attachment, 防匿名存储型XSS

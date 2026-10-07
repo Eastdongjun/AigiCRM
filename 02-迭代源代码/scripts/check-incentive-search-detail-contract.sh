@@ -8,6 +8,8 @@ set -o pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 SEARCH_VIEW="$ROOT/aigicrm-ui/src/views/incentive/search.vue"
+# 【2026-10-07 钉随代码】1b3c865b 把详情弹窗/视野即读抽取为 SearchDetailDialog 组件 —— 钉随迁移
+DETAIL_COMPONENT="$ROOT/aigicrm-ui/src/views/incentive/SearchDetailDialog.vue"
 SEARCH_SPEC="$ROOT/aigicrm-ui/src/views/incentive/search.spec.js"
 TIME_UTIL="$ROOT/aigicrm-ui/src/utils/time-label.js"
 TIME_UTIL_SPEC="$ROOT/aigicrm-ui/src/utils/time-label.spec.js"
@@ -30,25 +32,25 @@ assert_contains() {
   grep -Fq "$needle" "$file" || fail "Missing '$needle' in $file"
 }
 
-for file in "$SEARCH_VIEW" "$SEARCH_SPEC" "$TIME_UTIL" "$TIME_UTIL_SPEC" "$API" "$API_DOC" "$FEATURE_AUDIT"; do
+for file in "$SEARCH_VIEW" "$DETAIL_COMPONENT" "$SEARCH_SPEC" "$TIME_UTIL" "$TIME_UTIL_SPEC" "$API" "$API_DOC" "$FEATURE_AUDIT"; do
   assert_file "$file"
 done
 
 assert_contains "$SEARCH_VIEW" "request.get('/incentive/customer-records'"
 assert_contains "$SEARCH_VIEW" "showDetail(c)"
-assert_contains "$SEARCH_VIEW" "markIncentiveRead(id)"
+assert_contains "$DETAIL_COMPONENT" "markIncentiveRead(id)"
 # 【2026-09-20 详情工具条升级】分组调用升级为"过滤后记录+方向参数"形态;
 # 同时钉住详情页内检索与时间方向两个新能力, 防回退
-assert_contains "$SEARCH_VIEW" "groupRecordsByMonth(filteredRecords.value, detailOrder.value)"
-assert_contains "$SEARCH_VIEW" "filterRecordsByKeyword"
-assert_contains "$SEARCH_VIEW" "detailKeyword"
+assert_contains "$DETAIL_COMPONENT" "groupRecordsByMonth(filteredRecords.value, detailOrder.value)"
+assert_contains "$DETAIL_COMPONENT" "filterRecordsByKeyword"
+assert_contains "$DETAIL_COMPONENT" "detailKeyword"
 assert_contains "$TIME_UTIL" "export function filterRecordsByKeyword"
-assert_contains "$SEARCH_VIEW" "relativeDay(r.createdAt)"
-assert_contains "$SEARCH_VIEW" "暂无激励记录"
-assert_contains "$SEARCH_VIEW" "preview(f.id, f.type, f.label, previewableOf(r))"
-assert_contains "$SEARCH_VIEW" "downloadFile(f.id, f.label)"
-assert_contains "$SEARCH_VIEW" "recordsByMonth.length"
-assert_contains "$SEARCH_VIEW" "detailCust.totalScore"
+assert_contains "$DETAIL_COMPONENT" "relativeDay(r.createdAt)"
+assert_contains "$DETAIL_COMPONENT" "暂无激励记录"
+assert_contains "$DETAIL_COMPONENT" "preview(f.id, f.type, f.label, previewableOf(r))"
+assert_contains "$DETAIL_COMPONENT" "downloadFile(f.id, f.label)"
+assert_contains "$DETAIL_COMPONENT" "recordsByMonth.length"
+assert_contains "$DETAIL_COMPONENT" "cust.totalScore"
 
 assert_contains "$SEARCH_SPEC" "查看详情：弹窗渲染客户概览与记录时间线"
 assert_contains "$SEARCH_SPEC" "查看详情：无记录时展示空态而不是空白"
