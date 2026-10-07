@@ -41,6 +41,10 @@ spring:
       port: ${REDIS_PORT:6379}
       password: ${REDIS_PASSWORD:}
       database: 0
+      # 【Redis 宕机演练修复 2026-10-07】Lettuce 命令超时（默认无超时=故障时认证链路挂死，
+      # 实测停 Redis 后带 token 请求挂 30s 被客户端掐断，JwtTokenProvider 的 DB 回退被阻塞
+      # 型调用卡住到不了）。3s 超时后 hasKey 抛异常 → 既有 catch → 回退 DB 黑名单表，链路降级可用。
+      timeout: 3000  # 毫秒
   servlet:
     multipart:
       max-file-size: 500MB

@@ -31,6 +31,13 @@ logging:
   level:
     com.aigicrm: info
 
+# 【Redis 宕机演练修复 2026-10-07】生产档独立钉住 Lettuce 命令超时（依据见 application.yml 同批注释；
+# 测试档默认 3s，生产同为 3s：超时后认证链回退 DB 黑名单，登录限流等快速失败，不再挂死线程）
+spring:
+  data:
+    redis:
+      timeout: 3000
+
 mybatis-plus:
   configuration:
     log-impl: org.apache.ibatis.logging.slf4j.Slf4jImpl
