@@ -193,11 +193,15 @@ public class FileController {
             // 优先尝试本地文件
             Resource resource = new UrlResource(resolved.toUri());
             if (resource.exists()) {
+                // 【P2 2026-10-07 复审修复】disposition 与 /download/{id}、/download/public 同口径:
+                // 纯图(不含SVG)/视频 inline 预览, 其余(SVG/HTML 等活性内容)强制 attachment,
+                // 防历史/旁路落库文件在登录态直接执行(存储型 XSS)。
                 String filename = resolved.getFileName().toString();
                 String encodedFilename = java.net.URLEncoder.encode(filename, java.nio.charset.StandardCharsets.UTF_8).replace("+", "%20");
                 MediaType mediaType = MediaTypeFactory.getMediaType(filename).orElse(MediaType.APPLICATION_OCTET_STREAM);
+                String disp = com.aigicrm.module.file.service.FileService.dispositionFor(filename);
                 return ResponseEntity.ok()
-                        .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename*=UTF-8''" + encodedFilename)
+                        .header(HttpHeaders.CONTENT_DISPOSITION, disp + "; filename*=UTF-8''" + encodedFilename)
                         .contentType(mediaType)
                         .body(resource);
             }
