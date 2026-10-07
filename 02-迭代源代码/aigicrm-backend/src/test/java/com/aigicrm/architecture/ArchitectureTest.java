@@ -2,6 +2,7 @@ package com.aigicrm.architecture;
 
 import com.tngtech.archunit.core.domain.JavaClasses;
 import com.tngtech.archunit.core.importer.ClassFileImporter;
+import com.tngtech.archunit.core.importer.ImportOption;
 import com.tngtech.archunit.lang.EvaluationResult;
 import org.junit.jupiter.api.Test;
 
@@ -15,7 +16,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * 分层架构约束
  *
  * 【需求】防止分层腐化：Controller 直查 Mapper / 直用 Entity 等越层访问
- * 【方法】ArchUnit 静态依赖分析，随 mvn test 执行
+ * 【方法】ArchUnit 静态依赖分析，随 mvn test 执行；只扫描生产类(DO_NOT_INCLUDE_TESTS)，
+ *           测试脚手架(如 controller 包内构造 entity 夹具的回归测试)不是分层规则的治理对象
  * 【业务规则】controller -> service -> mapper/entity；禁止跳层；
  *             已知技术债见 docs/TECH_DEBT.md，重构一个移除一个
  */
@@ -38,7 +40,9 @@ public class ArchitectureTest {
 
     @Test
     void controller_must_not_depend_on_mapper() {
-        JavaClasses classes = new ClassFileImporter().importPackages("com.aigicrm");
+        JavaClasses classes = new ClassFileImporter()
+                .withImportOption(ImportOption.Predefined.DO_NOT_INCLUDE_TESTS)
+                .importPackages("com.aigicrm");
         EvaluationResult result = noClasses()
                 .that().resideInAPackage("..controller..")
                 .should().dependOnClassesThat().resideInAPackage("..mapper..")
@@ -51,7 +55,9 @@ public class ArchitectureTest {
 
     @Test
     void controller_must_not_depend_on_entity() {
-        JavaClasses classes = new ClassFileImporter().importPackages("com.aigicrm");
+        JavaClasses classes = new ClassFileImporter()
+                .withImportOption(ImportOption.Predefined.DO_NOT_INCLUDE_TESTS)
+                .importPackages("com.aigicrm");
         EvaluationResult result = noClasses()
                 .that().resideInAPackage("..controller..")
                 .should().dependOnClassesThat().resideInAPackage("..entity..")
@@ -64,7 +70,9 @@ public class ArchitectureTest {
 
     @Test
     void service_must_not_depend_on_controller() {
-        JavaClasses classes = new ClassFileImporter().importPackages("com.aigicrm");
+        JavaClasses classes = new ClassFileImporter()
+                .withImportOption(ImportOption.Predefined.DO_NOT_INCLUDE_TESTS)
+                .importPackages("com.aigicrm");
         EvaluationResult result = noClasses()
                 .that().resideInAPackage("..service..")
                 .should().dependOnClassesThat().resideInAPackage("..controller..")

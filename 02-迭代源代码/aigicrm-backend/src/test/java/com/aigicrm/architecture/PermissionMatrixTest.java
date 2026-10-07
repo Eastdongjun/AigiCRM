@@ -974,7 +974,7 @@ public class PermissionMatrixTest {
                 serviceBody.indexOf("public IPage<Map<String, Object>> expiringPage"),
                 serviceBody.indexOf("/** S8: 物化今日到期的 expiring 提醒"));
         assertTrue(expiringPageBody.contains("S8: GET 只读，不再自动建提醒")
-                        && expiringPageBody.contains("reminderMapper.selectOne(")
+                        && expiringPageBody.contains("reminderMapper.selectList(")
                         && expiringPageBody.contains("row.put(\"reminderId\"")
                         && expiringPageBody.contains("row.put(\"todayFollowedUp\"")
                         && !expiringPageBody.contains("reminderMapper.insert"),
