@@ -121,7 +121,10 @@ class JwtAuthFilterTest {
         com.aigicrm.security.SecurityUser su = new com.aigicrm.security.SecurityUser();
         su.setUserId(1L);
         su.setUsername("admin");
-        su.setPwdChangedAt(java.time.LocalDateTime.now().plusSeconds(30));
+        // 【CI 修复 2026-10-07】生产比对(JwtAuthFilter:70)将 pwdChanged_at 按 Asia/Shanghai 墙钟
+        // 转 epoch——本测试此前用系统默认时区构造 LocalDateTime，UTC 跑(如 GitHub Actions)时
+        // 墙钟差 8 小时导致改密时刻恒早于签发、401 变 200。改为与生产同口径的上海墙钟，时区无关。
+        su.setPwdChangedAt(java.time.LocalDateTime.now(java.time.ZoneId.of("Asia/Shanghai")).plusSeconds(30));
         when(uds.loadUserByUsername("1")).thenReturn(su);
 
         MockHttpServletRequest req = new MockHttpServletRequest("GET", "/api/customer/list");
@@ -143,7 +146,7 @@ class JwtAuthFilterTest {
         com.aigicrm.security.SecurityUser su = new com.aigicrm.security.SecurityUser();
         su.setUserId(1L);
         su.setUsername("admin");
-        su.setPwdChangedAt(java.time.LocalDateTime.now().minusSeconds(60));
+        su.setPwdChangedAt(java.time.LocalDateTime.now(java.time.ZoneId.of("Asia/Shanghai")).minusSeconds(60));
         when(uds.loadUserByUsername("1")).thenReturn(su);
 
         MockHttpServletRequest req = new MockHttpServletRequest("GET", "/api/customer/list");
