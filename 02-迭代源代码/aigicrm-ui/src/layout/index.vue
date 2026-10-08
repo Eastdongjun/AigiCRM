@@ -80,13 +80,14 @@
               <el-icon class="header-icon"><QuestionFilled /></el-icon>
             </div>
           </el-tooltip>
-          <!-- 【批④ 2026-08-10 多集团会话】集团切换入口(仅多集团用户显示) -->
+          <!-- 【批④ 2026-08-10 多集团会话】集团切换入口(仅多集团用户显示);
+               2026-10-08 显示集团名而非裸 ID(名称缺失回退"集团 <id>") -->
           <el-dropdown v-if="userStore.canSwitchGroup" trigger="click" class="group-dropdown" @command="handleSwitchGroup">
-            <span class="group-switch"><el-icon><OfficeBuilding /></el-icon> 集团:{{ userStore.currentGroupId }} <el-icon><ArrowDown /></el-icon></span>
+            <span class="group-switch"><el-icon><OfficeBuilding /></el-icon> {{ userStore.currentGroupName || ('集团 ' + userStore.currentGroupId) }} <el-icon><ArrowDown /></el-icon></span>
             <template #dropdown>
               <el-dropdown-menu>
                 <el-dropdown-item v-for="g in userStore.groupIds" :key="g" :command="g" :disabled="g === userStore.currentGroupId">
-                  集团 {{ g }}{{ g === userStore.currentGroupId ? '（当前）' : '' }}
+                  {{ userStore.groupNames[g] || ('集团 ' + g) }}{{ g === userStore.currentGroupId ? '（当前）' : '' }}
                 </el-dropdown-item>
               </el-dropdown-menu>
             </template>

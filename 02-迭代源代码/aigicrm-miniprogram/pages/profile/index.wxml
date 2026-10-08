@@ -11,7 +11,7 @@
   </view>
   <view wx:if="{{profileView.showGroupCard}}" class="card scope-card">
     <text class="muted">当前集团</text>
-    <picker mode="selector" range="{{groupIds}}" value="{{groupIndex}}" bindchange="changeGroup" disabled="{{profileView.groupDisabled}}"><text class="pill">{{profileView.currentGroupText}}⌄</text></picker>
+    <picker mode="selector" range="{{profileView.groupNamesText}}" value="{{groupIndex}}" bindchange="changeGroup" disabled="{{profileView.groupDisabled}}"><text class="pill">{{profileView.currentGroupText}}⌄</text></picker>
     <text class="muted scope-note">{{profileView.groupNoteText}}</text>
   </view>
   <view class="card scope-card">

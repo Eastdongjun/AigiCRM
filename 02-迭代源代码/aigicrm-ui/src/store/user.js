@@ -27,6 +27,9 @@ export const useUserStore = defineStore('user', {
     // 【批④ 2026-08-10 多集团会话】
     groupIds: [],
     currentGroupId: null,
+    // 【2026-10-08】集团名(展示用): 顶栏"集团:{{id}}"渲染裸数字的根修
+    groupNames: {},
+    currentGroupName: '',
     // 公共配置缓存（布局级：避免每页重复请求 configs/public）
     publicConfig: null,
     _userLoadedAt: 0,
@@ -55,7 +58,7 @@ export const useUserStore = defineStore('user', {
       this.permissions = new Set(data.permissions)
       this.menus = data.menus
       this.managedOrgIds = data.managedOrgIds || []
-      this.applyGroupInfo(data.groupIds, data.currentGroupId)
+      this.applyGroupInfo(data.groupIds, data.currentGroupId, data.groupNames, data.currentGroupName)
       this._userLoadedAt = now
     },
     async loadSystemConfig(force = false) {
@@ -84,17 +87,19 @@ export const useUserStore = defineStore('user', {
     hasPermission(permission) {
       return this.permissions.has(permission)
     },
-    // 【批④】从登录响应写入集团信息
-    applyGroupInfo(groupIds, currentGroupId) {
+    // 【批④】从登录响应写入集团信息(2026-10-08 起带名称: 展示层不再渲染裸 ID)
+    applyGroupInfo(groupIds, currentGroupId, groupNames, currentGroupName) {
       this.groupIds = groupIds || []
       this.currentGroupId = currentGroupId ?? null
+      this.groupNames = groupNames || {}
+      this.currentGroupName = currentGroupName || this.groupNames[this.currentGroupId] || ''
     },
     // 【批④】切换当前集团(重签 token 后强制刷新用户信息)
     async switchGroup(groupId) {
       const { switchGroup: api } = await import('@/api/auth')
       const res = await api(groupId)
       localStorage.setItem('token', res.data.token)
-      this.applyGroupInfo(res.data.groupIds, res.data.currentGroupId)
+      this.applyGroupInfo(res.data.groupIds, res.data.currentGroupId, res.data.groupNames, res.data.currentGroupName)
       await this.fetchUserInfo(true)
     },
     isAdmin() {

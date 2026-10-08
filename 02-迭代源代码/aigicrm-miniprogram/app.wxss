@@ -22,7 +22,10 @@ page{background:#f5f7fb;color:#172033;font-family:-apple-system,BlinkMacSystemFo
 .login-orb-one{top:-100rpx;right:-100rpx;width:300rpx;height:300rpx;background:rgba(62,141,243,.16)}
 .login-orb-two{left:-120rpx;bottom:90rpx;width:260rpx;height:260rpx;background:rgba(16,185,129,.12)}
 .icp-line{position:absolute;left:0;right:0;bottom:26rpx;z-index:1;text-align:center;color:#94a3b8;font-size:22rpx;letter-spacing:1rpx}
-.login-panel{position:relative;z-index:1;padding:48rpx 42rpx;border:1rpx solid rgba(214,225,240,.9);border-radius:34rpx;background:rgba(255,255,255,.94);box-shadow:0 28rpx 70rpx rgba(31,55,95,.13)}
+/* 【2026-10-08 用户反馈】登录页品牌区居中：AI 徽标/kicker/AIGICRM 标题整体居中(此前左对齐);
+   表单字段/按钮恢复占满宽度左对齐标签 */
+.login-panel{position:relative;z-index:1;padding:48rpx 42rpx;border:1rpx solid rgba(214,225,240,.9);border-radius:34rpx;background:rgba(255,255,255,.94);box-shadow:0 28rpx 70rpx rgba(31,55,95,.13);display:flex;flex-direction:column;align-items:center;text-align:center}
+.login-field,.login-btn{width:100%;text-align:left}
 .login-brand-mark{width:84rpx;height:84rpx;border-radius:26rpx;background:linear-gradient(135deg,#1d4ed8,#10b8cf);color:#fff;display:flex;align-items:center;justify-content:center;font-size:30rpx;font-weight:900;box-shadow:0 16rpx 30rpx rgba(37,99,235,.24)}
 .login-kicker{margin-top:28rpx;color:#2364d8;font-size:23rpx;font-weight:700}
 .login-title{margin-top:8rpx;color:#172033;font-size:52rpx;line-height:1.1}
@@ -31,7 +34,8 @@ page{background:#f5f7fb;color:#172033;font-family:-apple-system,BlinkMacSystemFo
 .field-label{display:block;margin-bottom:10rpx;color:#34445c;font-size:24rpx;font-weight:700}
 .input{box-sizing:border-box;width:100%;height:92rpx;margin-top:0;border:1rpx solid #d8e3f1;border-radius:20rpx;background:#f8fbff;color:#172033}
 .login-btn{margin-top:34rpx;width:100%;font-size:29rpx}
-.forgot-btn{margin:26rpx auto 0;padding:0;background:transparent}
+/* 【2026-10-08 用户反馈】忘记密码按钮太小：加大点击区(上下 padding 16rpx/左右 48rpx)与字号 */
+.forgot-btn{margin:26rpx auto 0;padding:16rpx 48rpx;background:transparent;font-size:27rpx;line-height:1.4}
 .home-title-row,.customer-top{padding:4rpx 4rpx 24rpx}
 .home-title,.customer-title{color:#172033;font-size:42rpx;line-height:1.15;font-weight:900}
 .welcome-card{position:relative;overflow:hidden;border-radius:32rpx;background:linear-gradient(135deg,#1d4ed8 0%,#3e8df3 55%,#12b8cf 100%);box-shadow:0 20rpx 44rpx rgba(35,100,216,.24)}

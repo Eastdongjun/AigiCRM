@@ -19,6 +19,10 @@ public class UserInfoResponse {
     private List<PositionSummary> positions;
     private List<Long> groupIds;
     private Long currentGroupId;
+    /** 【2026-10-08】当前集团名(展示用; 修复前端渲染裸 ID) */
+    private String currentGroupName;
+    /** 【2026-10-08】集团 id→名称映射(切换器显示名字; 与 groupIds 对齐) */
+    private java.util.Map<Long, String> groupNames;
     private Set<String> permissions;
     private List<SysMenu> menus;
 }

@@ -4,13 +4,18 @@ const { showError } = require('../../utils/feedback')
 
 function buildProfileView(data) {
   const groupIds = Array.isArray(data.groupIds) ? data.groupIds : []
+  const groupNames = data.groupNames || {}
+  const groupNamesText = groupIds.map((id) => groupNames[id] || ('集团 ' + id))
+  // 【2026-10-08】当前集团显示名字而非裸 ID(此前渲染 currentGroupId="1"); 名称缺失回退"集团 <id>"
+  const currentGroupText = (data.currentGroupId != null && (groupNames[data.currentGroupId] || '集团 ' + data.currentGroupId)) || '选择集团'
   return {
     userInitialText: data.userInitial || '用',
     userNameText: data.userName || '当前用户',
     heroSubText: `${data.orgName || '未设置组织'} · ${data.roleName || '未设置岗位'}`,
     positionText: data.positionNames || '未设置岗位',
     showGroupCard: groupIds.length > 0,
-    currentGroupText: data.currentGroupId || '选择集团',
+    currentGroupText,
+    groupNamesText,
     groupNoteText: data.switchingGroup ? '切换中...' : '切换后刷新权限',
     groupDisabled: Boolean(data.switchingGroup),
     scopeText: data.scopeName || '按权限范围',
@@ -53,6 +58,7 @@ Page({
         scopeName: user.dataScopeName || '按权限范围',
         positionNames: (user.positions || []).map((position) => position.name).filter(Boolean).join('、') || '未设置岗位',
         groupIds: user.groupIds || [],
+        groupNames: user.groupNames || {},
         currentGroupId: user.currentGroupId || null,
         groupIndex: Math.max(0, (user.groupIds || []).indexOf(user.currentGroupId))
       })
@@ -70,7 +76,7 @@ Page({
     this.applyState({ switchingGroup: true })
     switchSessionGroup(groupId).then(() => loadCurrentUser()).then((user) => {
       const groupIds = user.groupIds || []
-      this.applyState({ groupIds, currentGroupId: user.currentGroupId || null, groupIndex: Math.max(0, groupIds.indexOf(user.currentGroupId)) })
+      this.applyState({ groupIds, groupNames: user.groupNames || {}, currentGroupId: user.currentGroupId || null, groupIndex: Math.max(0, groupIds.indexOf(user.currentGroupId)) })
       wx.showToast({ title: '集团已切换', icon: 'success' })
     }).catch((error) => {
       this.applyState({ groupIndex: Math.max(0, this.data.groupIds.indexOf(this.data.currentGroupId)) })

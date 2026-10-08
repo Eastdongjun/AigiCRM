@@ -7,6 +7,7 @@ import com.aigicrm.common.BusinessException;
 import com.aigicrm.config.SmsConfig;
 import com.aigicrm.module.auth.dto.*;
 import com.aigicrm.module.system.entity.SysDept;
+import com.aigicrm.module.system.entity.SysGroup;
 import com.aigicrm.module.system.entity.SysMenu;
 import com.aigicrm.module.system.entity.SysRole;
 import com.aigicrm.module.system.entity.SysUser;
@@ -60,6 +61,7 @@ public class AuthService {
     private final SysMenuMapper menuMapper;
     private final SysDeptMapper deptMapper;
     private final com.aigicrm.module.system.mapper.SysPositionMapper positionMapper;
+    private final com.aigicrm.module.system.mapper.SysGroupMapper groupMapper;
     private final JwtTokenProvider jwtTokenProvider;
     private final PasswordEncoder passwordEncoder;
     private final RedisTemplate<String, Object> redisTemplate;
@@ -132,9 +134,22 @@ public class AuthService {
         response.setRealName(user.getRealName());
         response.setGroupIds(groupIds);
         response.setCurrentGroupId(currentGroupId);
+        // 【2026-10-08】集团名(展示用): 修复小程序/PC"当前集团 1"渲染裸 ID。名称缺失时前端回退"集团 <id>"
+        response.getGroupNames().putAll(loadGroupNames(groupIds));
+        response.setCurrentGroupName(response.getGroupNames().get(currentGroupId));
         // 【2026-08-14 安全 P0】首登强制改密标记随登录下发(初始/重置口令为随机值)
         response.setPwdResetRequired(user.getPwdResetRequired());
         return response;
+    }
+
+    /** 【2026-10-08】集团 id→名称映射(批量一次查询; 名称缺失的脏 id 不进映射, 前端回退显示"集团 <id>") */
+    private java.util.Map<Long, String> loadGroupNames(java.util.List<Long> groupIds) {
+        java.util.Map<Long, String> names = new java.util.LinkedHashMap<>();
+        if (groupIds == null || groupIds.isEmpty()) return names;
+        for (SysGroup g : groupMapper.selectBatchIds(groupIds)) {
+            if (g != null && g.getGroupName() != null) names.put(g.getId(), g.getGroupName());
+        }
+        return names;
     }
 
     /** 【批④】岗位→组织→集团推导(与 UserDetailsServiceImpl:146-164 同口径; 无岗位回退用户默认组织) */
@@ -176,6 +191,8 @@ public class AuthService {
         response.setRealName(user != null ? user.getRealName() : "");
         response.setGroupIds(groupIds);
         response.setCurrentGroupId(groupId);
+        response.getGroupNames().putAll(loadGroupNames(groupIds));
+        response.setCurrentGroupName(response.getGroupNames().get(groupId));
         return response;
     }
 
@@ -233,6 +250,9 @@ public class AuthService {
                 .toList());
         response.setGroupIds(SecurityUtils.getCurrentGroupIds());
         response.setCurrentGroupId(SecurityUtils.getCurrentUser().getCurrentGroupId());
+        // 【2026-10-08】集团名(展示用), 与 LoginResponse 同口径
+        response.setGroupNames(loadGroupNames(response.getGroupIds()));
+        response.setCurrentGroupName(response.getGroupNames().get(response.getCurrentGroupId()));
         response.setPermissions(permissions);
         response.setMenus(menuTree);
         return response;
