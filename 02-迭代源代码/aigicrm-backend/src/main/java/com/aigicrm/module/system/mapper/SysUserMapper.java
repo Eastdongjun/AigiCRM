@@ -9,6 +9,27 @@ import org.apache.ibatis.annotations.Select;
 
 public interface SysUserMapper extends BaseMapper<SysUser> {
 
+    /**
+     * 【P2 2026-10-09 配额并发修复】条件扣减配额(原子):
+     * WHERE storage_used + size <= storage_quota 命中才加, 影响行数 0 = 配额不足。
+     * 并发上传在数据库端串行判定, 消除"两请求同过内存检查"的超配额竞态。参数全 #{} 绑定。
+     */
+    @org.apache.ibatis.annotations.Update(
+            "UPDATE sys_user SET storage_used = storage_used + #{size} "
+                    + "WHERE id = #{userId} AND storage_used + #{size} <= storage_quota")
+    int tryConsumeQuota(@org.apache.ibatis.annotations.Param("userId") Long userId,
+                        @org.apache.ibatis.annotations.Param("size") long size);
+
+    /**
+     * 【P2 2026-10-09 配额并发修复】数据库端原子增减(删除归还/替换差额/上传失败补偿):
+     * GREATEST(0, ...) 守护不越负数界, 消除读改写丢失更新。参数全 #{} 绑定。
+     */
+    @org.apache.ibatis.annotations.Update(
+            "UPDATE sys_user SET storage_used = GREATEST(0, storage_used + #{delta}) WHERE id = #{userId}")
+    int adjustStorageUsed(@org.apache.ibatis.annotations.Param("userId") Long userId,
+                          @org.apache.ibatis.annotations.Param("delta") long delta);
+
+
     @Select("SELECT u.*, d.dept_name, " +
             "(SELECT d2.dept_name FROM sys_dept d2 WHERE d2.id = u.office_id) as office_name, " +
             "(SELECT su.real_name FROM sys_user su WHERE su.id = u.manager_id) as manager_name, " +

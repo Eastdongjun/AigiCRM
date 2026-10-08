@@ -218,11 +218,8 @@ class FileServicePermissionTest {
 
     @Test
     void upload_aclGranted_uploadSucceeds() throws Exception {
-        SysUser user = new SysUser();
-        user.setId(1L);
-        user.setStorageUsed(0L);
-        user.setStorageQuota(1024L * 1024 * 1024);
-        when(userMapper.selectById(1L)).thenReturn(user);
+        // 【2026-10-09 配额原子化】上传配额改条件扣减(WHERE used+size<=quota), 桩随新交互
+        when(userMapper.tryConsumeQuota(eq(1L), anyLong())).thenReturn(1);
         MultipartFile mf = new MockMultipartFile("file", "test.txt", "text/plain",
                 new ByteArrayInputStream(new byte[0]));
         try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
@@ -516,11 +513,6 @@ class FileServicePermissionTest {
     @Test
     void replaceFile_success_versionIncrementsAndStorageDelta() {
         when(fileMapper.selectById(9L)).thenReturn(aReplaceableFile());
-        SysUser user = new SysUser();
-        user.setId(1L);
-        user.setStorageUsed(100L);
-        user.setStorageQuota(1024L * 1024L);
-        when(userMapper.selectById(1L)).thenReturn(user);
         MultipartFile mf = new MockMultipartFile("file", "new.txt", "text/plain", new byte[25]);
         try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
             m.when(SecurityUtils::getCurrentUserId).thenReturn(1L);
@@ -537,10 +529,9 @@ class FileServicePermissionTest {
             verify(fileMapper).updateById(fileCap.capture());
             assertNotEquals("private/1/old.txt", fileCap.getValue().getOssKey());
             assertTrue(fileCap.getValue().getOssKey().startsWith("private/1/"));
-            // 存储差额：100 - 10 + 25 = 115
-            ArgumentCaptor<SysUser> userCap = ArgumentCaptor.forClass(SysUser.class);
-            verify(userMapper).updateById(userCap.capture());
-            assertEquals(115L, userCap.getValue().getStorageUsed());
+            // 【2026-10-09 配额原子化】存储差额改 DB 端原子增减: delta = 25 - 10 = +15
+            verify(userMapper).adjustStorageUsed(eq(1L), eq(15L));
+            verify(userMapper, never()).updateById(any(SysUser.class));
         }
     }
 

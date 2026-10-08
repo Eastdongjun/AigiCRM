@@ -47,7 +47,7 @@ require_line '| 公海配置 | Org tree for config | `GET /api/sea/org-tree` | `
 require_line '| 审批配置 | Config list | `GET /api/approval/config/list` | `system:config:view` | Config/admin scope | Read | Yes | No |'
 require_line '| 学分录入 | Grid | `GET /api/score/grid` | `score:manage` | Managed users/depts | Read | Yes | No |'
 require_line '| 学分录入 | Batch entry | `POST /api/score/entries/batch` | `score:entry` | Managed users/depts | Batch mutation | Yes | No |'
-require_line '| 学分导出 | Export grid | `GET /api/score/export/grid` | `score:view` | Same grid/ranking scope | Export | Yes | No |'
+require_line '| 学分导出 | Export grid | `GET /api/score/export/grid` | `score:manage` | Same grid/ranking scope | Export | Yes | No |'
 
 assert_absent '/api/customer/import' 'customer import'
 assert_absent '/api/customer/export' 'customer export'

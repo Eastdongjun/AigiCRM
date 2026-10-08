@@ -213,12 +213,14 @@ public class FileService {
             throw new BusinessException(403, "没有访问权限，请联系管理员授权");
         }
 
-        // 检查存储空间
+        // 【P2 2026-10-09 配额并发修复】配额检查与扣减原子化: WHERE used+size<=quota 命中才扣,
+        // 0 行=配额不足——并发上传在 DB 端串行判定, 消除"两请求同过内存检查"的超配额竞态。
         if ("private".equals(scope)) {
-            SysUser user = userMapper.selectById(userId);
-            if (user != null && user.getStorageUsed() + file.getSize() > user.getStorageQuota()) {
-                throw new BusinessException("存储空间不足，当前已用: " + formatSize(user.getStorageUsed()) +
-                        "，配额: " + formatSize(user.getStorageQuota()));
+            if (userMapper.tryConsumeQuota(userId, file.getSize()) == 0) {
+                SysUser user = userMapper.selectById(userId);
+                throw new BusinessException("存储空间不足，当前已用: " +
+                        formatSize(user != null ? user.getStorageUsed() : 0L) +
+                        "，配额: " + formatSize(user != null ? user.getStorageQuota() : 0L));
             }
         }
 
@@ -248,17 +250,12 @@ public class FileService {
             bizFile.setUploaderId(userId);
             fileMapper.insert(bizFile);
 
-            // 更新用户已用空间
-            if ("private".equals(scope)) {
-                SysUser user = userMapper.selectById(userId);
-                if (user != null) {
-                    user.setStorageUsed(user.getStorageUsed() + file.getSize());
-                    userMapper.updateById(user);
-                }
-            }
-
             return bizFile;
         } catch (Exception e) {
+            // 【P2 2026-10-09】扣减成功后存储/入库失败 → 补偿归还(GREATEST 守护)
+            if ("private".equals(scope)) {
+                userMapper.adjustStorageUsed(userId, -file.getSize());
+            }
             throw new BusinessException("文件上传失败: " + e.getMessage());
         }
     }
@@ -369,13 +366,9 @@ public class FileService {
         // 逻辑删除
         fileMapper.deleteById(fileId);
 
-        // 归还存储空间
-        if ("private".equals(file.getFileScope())) {
-            SysUser user = userMapper.selectById(file.getUploaderId());
-            if (user != null) {
-                user.setStorageUsed(Math.max(0, user.getStorageUsed() - file.getFileSize()));
-                userMapper.updateById(user);
-            }
+        // 【P2 2026-10-09 配额并发修复】归还改数据库端原子增减, 消除读改写丢失更新
+        if ("private".equals(file.getFileScope()) && file.getFileSize() != null) {
+            userMapper.adjustStorageUsed(file.getUploaderId(), -file.getFileSize());
         }
     }
 
@@ -415,14 +408,9 @@ public class FileService {
             file.setReplacedAt(LocalDateTime.now());
             fileMapper.updateById(file);
             deleteStorage(oldKey);
-            // 私人文件存储差额（最小 0）
+            // 【P2 2026-10-09 配额并发修复】差额调整改数据库端原子(GREATEST 守护最小 0)
             if ("private".equals(scope)) {
-                SysUser user = userMapper.selectById(file.getUploaderId());
-                if (user != null) {
-                    long delta = newFile.getSize() - oldSize;
-                    user.setStorageUsed(Math.max(0, user.getStorageUsed() + delta));
-                    userMapper.updateById(user);
-                }
+                userMapper.adjustStorageUsed(file.getUploaderId(), newFile.getSize() - oldSize);
             }
             return file;
         } catch (BusinessException e) {
