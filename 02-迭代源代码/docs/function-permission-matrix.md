@@ -335,7 +335,7 @@ Legend: `V` view, `C` create, `U` update, `D` delete, `I` import, `E` export, `A
 | 学分录入 | Batch entry | `POST /api/score/entries/batch` | `score:entry` | Managed users/depts | Batch mutation | Yes | No |
 | 学分排行 | Ranking | `GET /api/score/ranking` | `score:view` | Role/org/group scope | Read/statistics | Yes | Implemented |
 | 学分排行 | Ranking stats | `GET /api/score/ranking/stats` | `score:view` | Role/org/group scope | Read/statistics | Yes | Implemented |
-| 学分导出 | Export grid | `GET /api/score/export/grid` | `score:view` | Same grid/ranking scope | Export | Yes | No |
+| 学分导出 | Export grid | `GET /api/score/export/grid` | `score:manage` | Same grid/ranking scope | Export | Yes | No |
 
 ## System Management
 

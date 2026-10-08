@@ -1129,7 +1129,9 @@ public class PermissionMatrixTest {
                 "hasAuthority('score:view')");
         assertPreAuthorize(controller.getDeclaredMethod("exportGrid", String.class,
                         jakarta.servlet.http.HttpServletResponse.class),
-                "hasAuthority('score:view')");
+                // 【2026-10-08 需求对齐】导出与前端按钮同门 score:manage(录入页仅管理员见导出按钮),
+                // 原挂 score:view 使只读查看者可直连 API 导出全量积分
+                "hasAuthority('score:manage')");
 
         assertTrue(loadPermissionCodes().contains("score:ranking"),
                 "兼容权限码 score:ranking 必须保留在权限字典中；运行时排行榜统一使用 score:view");

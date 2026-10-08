@@ -16,11 +16,11 @@
 - 建用户必填:账号/姓名/手机号/角色/**数据范围**(缺一报"XX不能为空")。
 - **org_id 自动落库**(2026-09-23 根修):insert 前 syncDefaultOrg——部门有集团→org=部门节点,否则兜底主集团顶级组织 1,显式指定尊重;编辑随部门重算。漏配 org 的用户对非 admin 是全租户表盲(fail-closed,见 [visibility.md](visibility.md) §2)。**【裁决 2026-10-04】单集团部署,兜底组织 1 维持现状**——"误分配集团"风险单集团下不存在(GPT P0-002 据此关闭;引入第二集团时需重评为"拒绝保存")。
 - 重置密码发临时口令并置 pwd_reset_required(首登强制改密);admin 初口令同机制。
-- 用户管理五写接口守卫统一:`admin ∨ canManageUser(target)`。
+- 写接口守卫实际口径(【更正 2026-10-08 需求对齐】原"五写接口统一公式"与实现不符):**update/delete/reset-password 三接口统一 `admin ∨ canManageUser(target)`**;**create=功能权限 `system:user:add` + orgAdmin 调用方按 canManageOrg 校验**(非 orgAdmin 非 admin 持码者无对象级守卫,由可授角色/数据范围约束兜底);**change-password=自助接口**(仅校验旧密码)。
 
 ## 3. 角色与权限管理
 
-- 角色权限=菜单树勾选(sys_role_menu);**每权限码只绑一行菜单 + 必须带父链根菜单**(id=10 业务核心),否则权限矩阵对账与小程序 menus 树都会异常。
+- 角色权限=菜单树勾选(sys_role_menu);权限码与菜单行按 **permission 码**对账(渲染层按 path 去重)。【更正 2026-10-08】"每权限码只绑一行菜单"不是 DB 不变量:sys_menu.permission 无唯一约束、无菜单写接口,且同码多路由为合法模式(V2026.09.21.1 迁移注释明确定性),生产尚存少量手工写入的同 path 冗余行(AuthService 注释在案,仅渲染层消除重复)。
 - `perm_version` 版本号驱动权限缓存即时生效(勾选/撤销 403→200→403 往返可验)。
 - 敏感权限(如 system:user:edit、incentive:person-rank:export、incentive:read-ranking:view)默认仅 admin,其他角色由管理员勾选放开。
 - **迁移纪律**:改 sys_menu/sys_role_menu 一律按 permission 码定位,禁硬编码行 id(legacy 库与重放库 id 错位曾致全员 403,23.1 事故)。

@@ -43,6 +43,8 @@ class SeaServiceTest {
         // 单测环境无 Spring 容器：手动初始化 MyBatis-Plus lambda 缓存(LambdaQueryWrapper 依赖)
         TableInfoHelper.initTableInfo(new MapperBuilderAssistant(new MybatisConfiguration(), ""), BizSeaPool.class);
         TableInfoHelper.initTableInfo(new MapperBuilderAssistant(new MybatisConfiguration(), ""), BizSeaConfig.class);
+        // completeClaim 用 LambdaUpdateWrapper<BizCustomer> 显式置空开票基准(2026-10-08 修复)
+        TableInfoHelper.initTableInfo(new MapperBuilderAssistant(new MybatisConfiguration(), ""), BizCustomer.class);
     }
 
     private void setCurrentUser(SecurityUser u) {
@@ -87,9 +89,10 @@ class SeaServiceTest {
         CustomerService customerService = mock(CustomerService.class);
         BizCustomerMapper custMapper = customerMapper();
         SeaConfigService configService = new SeaConfigService(configMapper, poolMapper, deptMapper, userMapper);
-        // SeaService 字段顺序: seaPoolMapper, seaConfigMapper, customerMapper, userMapper, deptMapper, seaConfigService, customerService
+        // SeaService 字段顺序: seaPoolMapper, seaConfigMapper, customerMapper, userMapper, deptMapper, seaConfigService, customerService, configService
         SeaService seaService = new SeaService(poolMapper, configMapper, custMapper,
-                userMapper, deptMapper, configService, customerService);
+                userMapper, deptMapper, configService, customerService,
+                mock(com.aigicrm.module.system.service.SysConfigService.class));
 
         // page() 内部: visiblePoolIdsOrNull() = [10](启用池), 禁用池 20 被排除
         IPage<BizSeaPool> result = seaService.page(1, 15, null, null, null, null, null, null, "available");
@@ -150,7 +153,8 @@ class SeaServiceTest {
                     || SeaConfigService.PERM_CLAIM.equals(permission);
         });
         SeaService service = new SeaService(poolMapper, configMapper, customerMapper(),
-                mock(SysUserMapper.class), mock(SysDeptMapper.class), configService, mock(CustomerService.class));
+                mock(SysUserMapper.class), mock(SysDeptMapper.class), configService, mock(CustomerService.class),
+                mock(com.aigicrm.module.system.service.SysConfigService.class));
 
         IPage<BizSeaPool> page = service.page(1, 15, null, null, null, null, null, null, "available");
 
@@ -164,7 +168,8 @@ class SeaServiceTest {
 
     private SeaService newSeaService(BizSeaPoolMapper poolMapper, SeaConfigService configService) {
         return new SeaService(poolMapper, mock(BizSeaConfigMapper.class), customerMapper(),
-                mock(SysUserMapper.class), mock(SysDeptMapper.class), configService, mock(CustomerService.class));
+                mock(SysUserMapper.class), mock(SysDeptMapper.class), configService, mock(CustomerService.class),
+                mock(com.aigicrm.module.system.service.SysConfigService.class));
     }
 
     @Test
@@ -203,5 +208,64 @@ class SeaServiceTest {
         BusinessException ex = assertThrows(BusinessException.class, () -> svc.deletePool(1L));
         assertEquals(403, ex.getCode());
         assertEquals("资源不存在或无权访问", ex.getMessage());
+    }
+
+    // ===== completeClaim 捞取重置口径（2026-10-08 需求对齐 P1 修复） =====
+
+    @Test
+    void completeClaim_resetsProtectionFromConfigAndClearsExtension() {
+        // 捞取=归新负责人重新起算:①天数走 sys_config(原硬编码360/180,管理员改配置不生效);
+        // ②清零 approvedExtendDays(原残留延期在下次开票重算时叠加,公海回收被架空);
+        // ③显式置空 lastInvoiceDate(updateById 的 NOT_NULL 策略不写 null,必须 wrapper set)
+        SecurityUser admin = new SecurityUser();
+        admin.setUserId(7L);
+        setCurrentUser(admin);
+
+        BizSeaPool pool = new BizSeaPool();
+        pool.setId(100L);
+        pool.setCustomerId(500L);
+        pool.setStatus("pending_approval");
+        BizSeaPoolMapper poolMapper = mock(BizSeaPoolMapper.class);
+        when(poolMapper.selectOne(any())).thenReturn(pool);
+
+        BizCustomer customer = new BizCustomer();
+        customer.setId(500L);
+        customer.setApprovedExtendDays(360); // 原负责人任内审批的延期(残留源)
+        customer.setLastInvoiceDate(java.time.LocalDate.now().minusDays(200));
+        BizCustomerMapper custMapper = mock(BizCustomerMapper.class);
+        when(custMapper.selectById(500L)).thenReturn(customer);
+
+        com.aigicrm.module.system.service.SysConfigService sysConfig =
+                mock(com.aigicrm.module.system.service.SysConfigService.class);
+        when(sysConfig.getValue("customer.protection.days")).thenReturn("180"); // 管理员改过配置
+        when(sysConfig.getValue("customer.adjust.days")).thenReturn("90");
+
+        CustomerService customerService = mock(CustomerService.class);
+        SeaService svc = new SeaService(poolMapper, mock(BizSeaConfigMapper.class), custMapper,
+                mock(SysUserMapper.class), mock(SysDeptMapper.class), mock(SeaConfigService.class),
+                customerService, sysConfig);
+
+        svc.completeClaim(500L, 7L);
+
+        java.time.LocalDate today = java.time.LocalDate.now();
+        ArgumentCaptor<BizCustomer> cap = ArgumentCaptor.forClass(BizCustomer.class);
+        verify(custMapper).updateById(cap.capture());
+        BizCustomer saved = cap.getValue();
+        assertEquals(7L, saved.getOwnerId());
+        assertEquals(today, saved.getRegisterDate(), "登记日应重置为捞取日");
+        assertEquals(today.plusDays(180), saved.getExpireDate(), "保护期天数应走 sys_config(180),不再硬编码360");
+        assertEquals(today.plusDays(90), saved.getAdjustDate(), "调整期天数应走 sys_config(90)");
+        assertEquals(java.lang.Integer.valueOf(0), saved.getApprovedExtendDays(), "捞取必须清零历史延期,防叠加架空公海回收");
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<com.baomidou.mybatisplus.core.conditions.Wrapper<BizCustomer>> wcap =
+                ArgumentCaptor.forClass(com.baomidou.mybatisplus.core.conditions.Wrapper.class);
+        verify(custMapper).update(isNull(), wcap.capture());
+        com.baomidou.mybatisplus.core.conditions.AbstractWrapper<BizCustomer, ?, ?> w =
+                (com.baomidou.mybatisplus.core.conditions.AbstractWrapper<BizCustomer, ?, ?>) wcap.getValue();
+        assertTrue(w.getSqlSet().contains("last_invoice_date"),
+                "必须显式 set last_invoice_date(开票推导基准随新周期重置): " + w.getSqlSet());
+        assertTrue(w.getParamNameValuePairs().containsValue(null), "last_invoice_date 应置 null");
+        verify(customerService).removeAllShares(500L);
     }
 }

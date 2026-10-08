@@ -33,6 +33,7 @@ normal(正常) → warning(临期,≤30天) → expired(到期) → sea(公海�
 
 - 开票记录增删会**回算开票推导部分**,但**不收回**已批延期(累计延期独立叠加;延期模型裁决待定)。
 - **【裁决 2026-09-24】最近开票日=纯推导字段**(最后一次非作废开票,任何角色不可直改,纠错走发票补录/作废);**注册日**录入后仅 customer:date:edit 持有者(总监 0/行政 05/admin 绑定)可改。
+- **【修复 2026-10-08 需求对齐】开票增删/客户编辑回算路径(`calculateExpireDates`)的基准日已收口为同一 COALESCE 口径**(原实现取 max(注册日,开票日),开票日早于注册日的客户两条路径到期日互相覆盖跳动)。本节公式现为全系统唯一口径。
 
 ## 4. 延期流程
 
@@ -45,13 +46,14 @@ normal(正常) → warning(临期,≤30天) → expired(到期) → sea(公海�
 | 情形 | 动作 |
 | --- | --- |
 | 已到期(≤今天) | protection_status=expired、status=expired;**若办事处配置了公海池则入池**(无池配置保持 expired——防 pool_id=NULL 孤儿行,普通用户不可见也捞不了) |
-| 30 天内到期 | protection_status=expiring、status=warning;物化一条 expiring 待办提醒(去重规则见 [reminder.md](reminder.md)) |
+| 30 天内到期(含第 30 天) | protection_status=expiring、status=warning;物化一条 expiring 待办提醒(去重规则见 [reminder.md](reminder.md))。【修复 2026-10-08】任务侧原 `isBefore` 漏掉剩余恰好 30 天的客户(页面/角标/补生成为含边界口径),已对齐为同一窗口 |
 
 ## 6. 公海池
 
 - 池按**办事处**配置(matchSeaConfig);同一办事处无配置则不自动入池,手动释放同理。
 - **释放**:负责人手动,客户进入所在办事处公海池(可见性按池级权限)。
 - **捞取(claim)**:池内 available 状态可申请 → 提交审批 → **原子锁**(条件更新 status available→pending_approval,并发双捞只有一方成功)→ 审批通过 owner 变更为申请人、移出池。
+- **【修复 2026-10-08 需求对齐 P1】捞取=新周期重新起算**:登记日重置为捞取日、保护期/调整期天数走 sys_config(`customer.protection.days`/`customer.adjust.days`,原实现硬编码 360/180)、**清零 `approved_extend_days`**(延期是原负责人任内的审批,残留会在下次开票重算时叠加进新保护期,公海回收被架空)、显式置空最近开票日(开票推导基准随新周期重置)。历史发票行不受影响。
 - **捞取锁超时释放(裁决 2026-09-24)**:审批锁时长=系统设置 `sea.claim.lock.days`(默认 3 天,0=不启用,管理员可在系统配置页手改);超时由凌晨任务自动释放池行回 available,并同步把对应 claim 审批连同 pending 节点置为 rejected(防释放后补批造成错误过户)。
 - **删除**:仅 available 状态且持 `sea:pool:delete`;池编辑(`sea.edit`)不改属主/状态,防池编辑者自领绕过捞取审批。
 
@@ -65,6 +67,7 @@ PC 客户详情「转移客户」→ 选接收人(候选=当前集团成员,排�
 ```
 
 - 接收人校验在**提交时与审批执行时双重把关**,口径逐字一致。
+- **部门同步含显式清空(【修复 2026-10-08】)**:接收人无部门时客户 dept_id 置空(与创建/编辑 2026-08-12 A3 同口径)——updateById 的 NOT_NULL 策略不写 null,必须显式 set,否则残留旧负责人部门致 ORG 锚点错误关联。
 - 小程序端可查看/审批转移类单据,**发起入口仅 PC**。
 
 ## 8. 分享

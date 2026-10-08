@@ -55,6 +55,9 @@ class ApprovalServiceTest {
         TableInfoHelper.initTableInfo(new MapperBuilderAssistant(new MybatisConfiguration(), ""), BizApproval.class);
         TableInfoHelper.initTableInfo(new MapperBuilderAssistant(new MybatisConfiguration(), ""),
                 com.aigicrm.module.approval.entity.BizApprovalNode.class);
+        // transfer 执行分支用 LambdaUpdateWrapper<BizCustomer> 显式同步部门(2026-10-08 修复)
+        TableInfoHelper.initTableInfo(new MapperBuilderAssistant(new MybatisConfiguration(), ""),
+                com.aigicrm.module.customer.entity.BizCustomer.class);
     }
 
     /** 【PR-02】approve/reject 阶段语义测试用:需要拿到 SeaService/ConfigMapper 实例做验证 */
@@ -619,6 +622,66 @@ class ApprovalServiceTest {
         verify(nodeMapper, times(1)).update(isNull(), any());
         verify(approvalMapper, times(1)).update(isNull(), any());
         verify(seaService, times(1)).completeClaim(42L, 7L);
+    }
+
+    @Test
+    void approve_transfer_clearsDeptWhenRecipientHasNone() {
+        // 【修复 2026-10-08 需求对齐】转移时接收人无部门 → 客户部门必须显式清空:
+        // updateById 的 NOT_NULL 策略不写 null 字段,原"有部门才 set"会残留旧负责人部门,
+        // ORG 锚点(biz_customer.dept_id)据此错误关联;与创建/编辑路径 2026-08-12 A3 同口径。
+        SecurityUser u = new SecurityUser();
+        u.setUserId(7L);
+        setCurrentUser(u, "approval:view");
+
+        com.aigicrm.module.approval.entity.BizApproval approval = approvalOf(18L, "transfer", 42L);
+        approval.setExtraData("{\"newOwnerId\":9}");
+        BizApprovalMapper approvalMapper = mock(BizApprovalMapper.class);
+        when(approvalMapper.selectById(18L)).thenReturn(approval);
+        when(approvalMapper.selectByIdForUpdate(18L)).thenReturn(approval);
+        when(approvalMapper.update(isNull(), any())).thenReturn(1);
+
+        BizApprovalNodeMapper nodeMapper = mock(BizApprovalNodeMapper.class);
+        when(nodeMapper.selectOne(any())).thenReturn(node(501L, 7L, 1, null, null, "pending"));
+        when(nodeMapper.update(isNull(), any())).thenReturn(1);
+        when(nodeMapper.selectList(any())).thenReturn(java.util.List.of(node(501L, 7L, 1, null, null, "approved")));
+
+        BizCustomerMapper customerMapper = mock(BizCustomerMapper.class);
+        com.aigicrm.module.customer.entity.BizCustomer customer = new com.aigicrm.module.customer.entity.BizCustomer();
+        customer.setId(42L);
+        customer.setDeptId(66L); // 旧负责人部门(残留源)
+        when(customerMapper.selectById(42L)).thenReturn(customer);
+        SysUserMapper userMapper = mock(SysUserMapper.class);
+        com.aigicrm.module.system.entity.SysUser newOwner = new com.aigicrm.module.system.entity.SysUser();
+        newOwner.setId(9L);
+        newOwner.setStatus(1);
+        newOwner.setDeleted(0);
+        newOwner.setDeptId(null); // 接收人无部门
+        when(userMapper.selectById(9L)).thenReturn(newOwner);
+
+        ApprovalService svc = new ApprovalService(
+                mock(BizApprovalConfigMapper.class), approvalMapper, nodeMapper,
+                mock(BizApprovalFlowMapper.class), customerMapper, userMapper,
+                mock(SysUserRoleMapper.class), mock(SysDeptMapper.class),
+                mock(BizSeaPoolMapper.class), mock(SeaService.class),
+                mock(com.aigicrm.common.scope.OrgScopeResolver.class), mock(SeaConfigService.class),
+                mock(SysUserService.class), mock(ApprovalConfigService.class),
+                mock(com.aigicrm.module.system.service.SysConfigService.class),
+                mock(org.springframework.jdbc.core.JdbcTemplate.class),
+                mock(com.aigicrm.security.SecurityAuditService.class));
+
+        assertDoesNotThrow(() -> svc.approve(18L, "同意"));
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<com.baomidou.mybatisplus.core.conditions.Wrapper<com.aigicrm.module.customer.entity.BizCustomer>> wcap =
+                ArgumentCaptor.forClass(com.baomidou.mybatisplus.core.conditions.Wrapper.class);
+        verify(customerMapper).update(isNull(), wcap.capture());
+        com.baomidou.mybatisplus.core.conditions.AbstractWrapper<com.aigicrm.module.customer.entity.BizCustomer, ?, ?> w =
+                (com.baomidou.mybatisplus.core.conditions.AbstractWrapper<com.aigicrm.module.customer.entity.BizCustomer, ?, ?>) wcap.getValue();
+        String sqlSet = w.getSqlSet();
+        assertTrue(sqlSet.contains("owner_id"), "转移应写 owner_id: " + sqlSet);
+        assertTrue(sqlSet.contains("transfer_date"), "转移应写 transfer_date: " + sqlSet);
+        assertTrue(sqlSet.contains("dept_id"), "必须显式 set dept_id(接收人无部门时清空): " + sqlSet);
+        assertTrue(w.getParamNameValuePairs().containsValue(null), "接收人无部门时 dept_id 值应为 null: " + w.getParamNameValuePairs());
     }
 
     /** 驳回级联:串行未激活的 waiting 节点一并作废 */

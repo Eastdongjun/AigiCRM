@@ -1,6 +1,7 @@
 package com.aigicrm.module.sea.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.alibaba.excel.EasyExcel;
@@ -20,6 +21,7 @@ import com.aigicrm.module.system.entity.SysDept;
 import com.aigicrm.module.system.entity.SysUser;
 import com.aigicrm.module.system.mapper.SysDeptMapper;
 import com.aigicrm.module.system.mapper.SysUserMapper;
+import com.aigicrm.module.system.service.SysConfigService;
 import com.aigicrm.security.SecurityUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -45,6 +47,7 @@ public class SeaService {
     private final SysDeptMapper deptMapper;
     private final SeaConfigService seaConfigService;
     private final CustomerService customerService;
+    private final SysConfigService configService;
 
     /**
      * 当前用户可见且启用的公海池ID。
@@ -245,18 +248,43 @@ public class SeaService {
         // 更新客户归属
         BizCustomer customer = customerMapper.selectById(pool.getCustomerId());
         if (customer != null) {
+            // 【修复 2026-10-08 需求对齐 P1】捞取=归新负责人重新起算,与文档 customer-lifecycle.md §3
+            // "唯一公式"同口径(customer-lifecycle.md:27-33):
+            // ①保护期/调整期天数走 sys_config(此前硬编码 360/180,管理员改配置对捞取路径不生效);
+            // ②清零 approvedExtendDays——延期是原负责人任内的审批,跨公海生命周期残留会在下次开票/
+            //   编辑触发 calculateExpireDates 时叠加进新保护期(公海回收机制被架空,复核实证);
+            // ③显式置空 lastInvoiceDate——开票推导基准随新周期重置;updateById 的 NOT_NULL 策略
+            //   不写 null 字段,必须用 LambdaUpdateWrapper 显式 set。
+            LocalDate today = LocalDate.now();
             customer.setOwnerId(claimUserId);
             customer.setStatus("normal");
             customer.setProtectionStatus("active");
-            customer.setRegisterDate(LocalDate.now());
-            customer.setExpireDate(LocalDate.now().plusDays(360));
-            customer.setAdjustDate(LocalDate.now().plusDays(180));
+            customer.setRegisterDate(today);
+            customer.setExpireDate(today.plusDays(getConfigInt("customer.protection.days", 360)));
+            customer.setAdjustDate(today.plusDays(getConfigInt("customer.adjust.days", 180)));
+            customer.setApprovedExtendDays(0);
             customerMapper.updateById(customer);
+            customerMapper.update(null, new LambdaUpdateWrapper<BizCustomer>()
+                    .eq(BizCustomer::getId, customer.getId())
+                    .set(BizCustomer::getLastInvoiceDate, null));
 
             // 【修复 FEAT-20260804-SHARE-CLEANUP】客户被捞取后归属新负责人，清理原有分享记录，
             // 避免原负责人分享出去的同事在客户易主后仍长期保留访问权限
             customerService.removeAllShares(customerId);
         }
+    }
+
+    /** 与 CustomerService.getConfigInt 同口径:sys_config 脏值/缺省回退默认值 */
+    private int getConfigInt(String key, int defaultValue) {
+        String val = configService.getValue(key);
+        if (val != null) {
+            try {
+                return Integer.parseInt(val.trim());
+            } catch (NumberFormatException ignored) {
+                // 配置脏值回退默认值
+            }
+        }
+        return defaultValue;
     }
 
     /**

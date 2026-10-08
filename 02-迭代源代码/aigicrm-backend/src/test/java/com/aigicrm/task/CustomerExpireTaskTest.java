@@ -103,6 +103,30 @@ class CustomerExpireTaskTest {
         verify(reminderMapper, never()).insert(any(BizReminder.class));
     }
 
+    @Test
+    void expiring_exactlyAtWarningBoundary_materializes() {
+        // 【修复 2026-10-08 需求对齐】剩余恰好30天:页面/角标/补生成口径(le)本就含第30天,
+        // 凌晨任务原 isBefore 漏掉该边界客户(同窗两口径差1天)。修后任务与页面同窗。
+        BizCustomer boundary = new BizCustomer();
+        boundary.setId(3L);
+        boundary.setCustomerName("恰好30天到期客户");
+        boundary.setExpireDate(LocalDate.now().plusDays(30));
+        boundary.setOwnerId(13L);
+        boundary.setOfficeId(5L);
+
+        when(customerMapper.selectList(any())).thenReturn(List.of(boundary), List.of(), List.of());
+        when(configService.getValue("customer.warning.days")).thenReturn(null); // 默认30
+        when(reminderMapper.selectCount(any())).thenReturn(0L);
+
+        task.checkCustomerExpire();
+
+        verify(customerMapper).updateById(argThat((BizCustomer c) ->
+                "expiring".equals(c.getProtectionStatus()) && "warning".equals(c.getStatus())));
+        verify(reminderMapper).insert(argThat((BizReminder r) ->
+                "expiring".equals(r.getReminderType())
+                        && r.getOverdueDays() != null && r.getOverdueDays() == 30));
+    }
+
     /**
      * 【裁决 2026-09-24 GPT清单P1-018 带默认值】从未开票提醒建客宽限期(invoice.never.grace.days, 默认30, 0=无宽限):
      * mapper 为 mock, SQL 过滤不会真执行, 故除行为断言外还捕获第 3 次 selectList(从未开票查询)的 wrapper,

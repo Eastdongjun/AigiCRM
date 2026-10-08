@@ -721,11 +721,16 @@ public class ApprovalService {
                             }
                             customer.setOwnerId(newOwnerId);
                             customer.setTransferDate(LocalDate.now());
-                            // 部门同步:客户归属部门=新负责人部门(与创建时 syncCustomerDeptId 同口径)
-                            if (newOwner.getDeptId() != null) {
-                                customer.setDeptId(newOwner.getDeptId());
-                            }
-                            customerMapper.updateById(customer);
+                            // 部门同步:客户归属部门=新负责人部门(与创建/编辑 persistCustomerDeptId 同口径)。
+                            // 【修复 2026-10-08 需求对齐】接收人无部门时必须显式清空——updateById 的
+                            // NOT_NULL 策略不写 null 字段,仅条件 set 会残留旧负责人部门,ORG 锚点
+                            // (biz_customer.dept_id)据此错误关联;2026-08-12 A3 已在创建/编辑路径补齐
+                            // 同款问题,本处为转移分支补齐。
+                            customerMapper.update(null, new LambdaUpdateWrapper<BizCustomer>()
+                                    .eq(BizCustomer::getId, customer.getId())
+                                    .set(BizCustomer::getOwnerId, newOwnerId)
+                                    .set(BizCustomer::getTransferDate, LocalDate.now())
+                                    .set(BizCustomer::getDeptId, newOwner.getDeptId()));
                         }
                     } catch (BusinessException be) {
                         throw be; // 业务校验失败直接透传(不走通用 catch 拼接)

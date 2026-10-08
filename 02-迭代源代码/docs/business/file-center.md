@@ -14,10 +14,10 @@
 | 文件夹增删改 | `file:folder:manage` |
 | 文件夹 ACL 授予/撤销 | `file:acl:manage`(授权操作仅 PC;小程序只读查看) |
 
-## 2. 文件夹 ACL 模型
+## 2. 文件夹 ACL 模型(【更正 2026-10-08 需求对齐】按实际实现记录)
 
-- 每文件夹一行 ACL(`biz_folder_acl.perms`),按用户授予读/写语义;未授权文件夹不可见其内容。
-- 文件夹树面板管理(增删改),ACL 弹窗单独授权;`file:view` 只读查看 ACL,`file:acl:manage` 才能改。
+- ACL 按**角色**授予而非按用户:`biz_folder_acl(folder_id, role_id, perms)`,同一文件夹可挂多角色多行(唯一键 uk_folder_role);判定经 `userHasRole(userId, acl.roleId)` 桥接。未授权文件夹不可见其内容。
+- 文件夹树面板管理(增删改),ACL 弹窗单独授权;**查看与修改 ACL 都要求 `file:acl:manage`**(后端 GET/PUT 与小程序一致,与 function-permission-matrix.md 同口径——原文档"file:view 只读查看"系独错)。
 
 ## 3. 存储配额
 

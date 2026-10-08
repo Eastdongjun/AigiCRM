@@ -17,8 +17,11 @@
 | 操作 | 权限码 |
 | --- | --- |
 | 积分项增删改 | `score:manage` |
-| 批量录入(`/score/entries/batch`) | `score:entry`(录入页);含 Excel 导入导出(导出文件名 `{period}积分录入.xlsx`) |
+| 批量录入(`/score/entries/batch`) | `score:entry`(录入页) |
+| 积分导出(`/score/export/grid`,文件名 `{period}积分录入.xlsx`) | `score:manage`【修复 2026-10-08:原挂 `score:view` 使只读查看者可直连 API 导出全量积分;现与前端导出按钮(仅管理员可见)同门】 |
 | 网格/排行/统计查看 | `score:view` |
+
+> **Excel 只有导出没有导入**(2026-10-08 核对:全控制器与前端均无导入入口),如需批量导入走客户导入或另行立项。
 
 ## 3. 可见性口径
 

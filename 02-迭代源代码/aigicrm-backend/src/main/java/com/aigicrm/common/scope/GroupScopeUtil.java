@@ -95,8 +95,11 @@ public final class GroupScopeUtil {
     }
 
     /**
-     * 【PR-01 2026-09-18】某集团成员用户 id（与登录 resolveGroupIds 同口径：
-     * 任职组织→集团，兼本人直属组织→集团）。原生 SQL/JdbcTemplate 无法走租户拦截器
+     * 【PR-01 2026-09-18】某集团成员用户 id。与登录 AuthService.resolveGroupIds 真正同口径
+     * (visibility.md §2):岗位经 position.org_id→dept.group_id 推导(有岗位优先),无岗位者才回退
+     * 本人 org_id→dept.group_id——原实现直挂 sys_position.group_id 且无条件 UNION,与登录链是
+     * 两套口径(岗位 group_id 与其 org 部门 group_id 不一致时同一用户两处归属不同集团),
+     * 【修复 2026-10-08 需求对齐】收口为单一推导。原生 SQL/JdbcTemplate 无法走租户拦截器
      * （sys_user 非租户表），必须显式套本方法做集团边界。admin 调用方自行决定不过滤。
      * 静态方法 + 显式传 JdbcTemplate：避免给热路径 Service 增加构造器依赖。
      */
@@ -104,10 +107,12 @@ public final class GroupScopeUtil {
         if (jdbc == null || groupId == null) return List.of();
         return jdbc.queryForList(
                 "SELECT up.user_id FROM sys_user_position up " +
-                "JOIN sys_position p ON p.id = up.position_id AND p.group_id = ? " +
+                "JOIN sys_position p ON p.id = up.position_id " +
+                "JOIN sys_dept pd ON pd.id = p.org_id AND pd.group_id = ? " +
                 "UNION " +
                 "SELECT u.id FROM sys_user u " +
-                "JOIN sys_dept d ON d.id = u.org_id AND d.group_id = ?",
+                "JOIN sys_dept d ON d.id = u.org_id AND d.group_id = ? " +
+                "WHERE NOT EXISTS (SELECT 1 FROM sys_user_position up2 WHERE up2.user_id = u.id)",
                 Long.class, groupId, groupId);
     }
 

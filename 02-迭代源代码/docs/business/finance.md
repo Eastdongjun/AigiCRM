@@ -37,7 +37,7 @@
 
 ## 4. 与提醒的联动
 
-- 从未开票 → `invoice_never` 提醒;最近开票距今 >365 天 → `invoice_overdue` 提醒(见 [reminder.md](reminder.md) §1)。
+- 从未开票 → `invoice_never` 提醒(**建客超过宽限期才触发**:系统设置 `invoice.never.grace.days` 默认 30 天,0=无宽限;裁决 2026-09-24 P1-018,补记于 2026-10-08);最近开票距今 >365 天 → `invoice_overdue` 提醒(见 [reminder.md](reminder.md) §1)。
 
 ## 5. 待核实(未逐行验证,引用前先查代码)
 

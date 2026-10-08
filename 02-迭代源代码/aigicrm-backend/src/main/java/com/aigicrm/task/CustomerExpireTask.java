@@ -182,8 +182,10 @@ public class CustomerExpireTask {
                         log.info("客户 {} 所在办事处未配置公海池，保持过期状态", customer.getCustomerName());
                     }
                 }
-            } else if (expireDate.isBefore(warningDate)) {
-                // 即将到期（30天内）
+            } else if (!expireDate.isAfter(warningDate)) {
+                // 即将到期（30天内,含第30天——【修复 2026-10-08 需求对齐】与 ReminderService 的
+                // le(expireDate, today+warningDays) 口径对齐,原 isBefore 使剩余恰好30天的客户
+                // 页面可见/计角标/补生成会物化,凌晨任务却不物化,同窗两口径差1天）
                 if (!"expiring".equals(customer.getProtectionStatus())) {
                     customer.setProtectionStatus("expiring");
                     customer.setStatus("warning");

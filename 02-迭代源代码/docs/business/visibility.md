@@ -19,12 +19,13 @@
 
 ```
 用户集团集合 = 岗位 position.org_id → dept.group_id(有岗位优先)
-             ∪ sys_user.org_id → dept.group_id
+             ∪ sys_user.org_id → dept.group_id(仅无岗位者回退)
 ```
 
 - **org_id 为空的非 admin 用户:全部租户白名单表查询恒空**(tenant_id=NULL 恒假)——fail-closed 设计,不是 bug。
 - admin 角色豁免租户条件,这会掩盖普通用户的数据不可见问题(单一 admin 账号验收测不出)。
 - 历史事故与根修:legacy 库 67 用户 org 从未配置(V2026.09.23.3 回填);新建/编辑用户自动落 org(SysUserService.syncDefaultOrg,2026-09-23)。
+- **【修复 2026-10-08 需求对齐】`GroupScopeUtil.userIdsInGroup` 已收口为与登录推导链同口径**:原实现直挂 `sys_position.group_id` 且无条件 UNION(岗位 group_id 与其 org 部门 group_id 不一致时,同一用户登录推导与选人/转移校验归属不同集团);现改为岗位经 `position.org_id→dept.group_id` 推导、无岗位者才回退本人 org——单集团部署下行为不变,多集团上线前隐患已消除。
 
 ## 3. 两类"选人/筛选"下拉的分工(09-24 定型)
 

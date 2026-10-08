@@ -89,7 +89,9 @@ public class ScoreController {
     // ====== 导出 ======
 
     @GetMapping("/export/grid")
-    @PreAuthorize("hasAuthority('score:view')")
+    // 【修复 2026-10-08 需求对齐】导出与前端按钮同门(score:manage,录入页仅管理员可见导出按钮);
+    // 原挂 score:view 使只读查看者可直连 API 导出全量积分
+    @PreAuthorize("hasAuthority('score:manage')")
     public void exportGrid(@RequestParam String period, HttpServletResponse response) throws Exception {
         scoreService.exportGrid(period, response);
     }
