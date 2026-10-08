@@ -113,7 +113,10 @@ export function useIncentiveStats() {
     const periodLabel = period.value || '全部周期'
     const cats = rankParents.value.flatMap(g => g.children.map(c => c.categoryName))
     const header = ['排名', '客户', '激励总额', ...cats, '上传数']
-    const rows = scoreboard.value.map((r, i) => [i + 1, r.customerName, r.totalScore, ...rankParents.value.flatMap(g => g.children.map(c => r.byCategory?.[c.id]?.[0] || 0)), r.recordCount || r.count || 0])
+    // 【FM2 2026-10-07】排名直取 r.rank（loadData 在销售过滤前已按公司级定序），
+    // 不再用 i+1 按导出视图重编——06销售过滤后 i+1 会显示 1..N 假名次，违背 2026-09-29 裁决；
+    // 表格展示(RankTableView)与个人排行导出(PersonRankTableView)均已直取 r.rank，此处对齐
+    const rows = scoreboard.value.map((r) => [r.rank, r.customerName, r.totalScore, ...rankParents.value.flatMap(g => g.children.map(c => r.byCategory?.[c.id]?.[0] || 0)), r.recordCount || r.count || 0])
     exportCsv([header, ...rows], `激励客户排行_${periodLabel}.csv`)
   }
 

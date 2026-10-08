@@ -111,7 +111,8 @@ export function useCustomerList() {
   // 【容量加固·服务端分页 2026-10-05】表格数据=服务端当前页(filteredList 不再本地过滤/本地分页)
   const filteredList = computed(() => tableData.value)
 
-  const emptyTableText = computed(() => customerEmptyText(tableData.value))
+  // 【FM3 2026-10-07】空态判定带服务端 total（tableData 现为当前页，单看它区分不了"筛选无匹配"与"范围无数据"）
+  const emptyTableText = computed(() => customerEmptyText(tableData.value, total.value))
 
   const advFilterCount = computed(() => {
     let n = 0
@@ -175,6 +176,7 @@ export function useCustomerList() {
   // 部门=含子树。orgIds 旧本地实现基于已拉数据间接推导 owner,服务端按字段直配(语义更准)。
   const buildListParams = () => {
     const p = { keyword: (searchText.value || '').trim(), scope: query.scope }
+    // 行业合并:高级筛选与快速筛选同列同语义(eq),高级筛选优先——与下方状态列口径一致
     const industry = filters.industry || query.industry || (query.industries?.length ? query.industries.join(',') : '')
     if (industry) p.industry = industry
     if (advFilter.industry) p.industry = advFilter.industry
@@ -200,10 +202,18 @@ export function useCustomerList() {
     return p
   }
 
+  // 【FM1 2026-10-07】请求序号守卫（照 search.vue M6 现成模式）：搜索/筛选变化会连发请求，
+  // 慢的旧响应后到会覆盖新结果（旧数据闪回/页签计数错乱）；发请求前自增序号并在写回前比对，不等则丢弃。
+  // 计数器放组合式函数闭包内，作用域等价 search.vue 的 script setup 顶层（每路由实例独立一套）
+  let listSeq = 0
+  let countsSeq = 0
+
   const loadData = async () => {
+    const seq = ++listSeq
     try {
       const params = { ...buildListParams(), current: page.value, size: pageSize.value }
       const res = await getCustomerList(params)
+      if (seq !== listSeq) return // 已有更新的列表请求在途/完成，丢弃本次旧响应
       tableData.value = res.data.records || []
       total.value = res.data.total || 0
       loadTabCounts()
@@ -211,8 +221,10 @@ export function useCustomerList() {
   }
 
   const loadTabCounts = async () => {
+    const seq = ++countsSeq
     try {
       const res = await getCustomerListCountsByFilter(buildListParams())
+      if (seq !== countsSeq) return // 已有更新的计数请求在途/完成，丢弃本次旧响应
       tabCounts.value = res.data || {}
     } catch (e) {}
   }
@@ -295,6 +307,9 @@ export function useCustomerList() {
     // 【容量加固·服务端分页 2026-10-05】搜索词经 watch(searchText) 已防抖触发服务端查询;
     // 显式点击/回车仍立即加载一次(即时反馈),并重置页码
     page.value = 1
+    // 【FL4 2026-10-07】立即加载前清掉 watch(searchText) 挂起的防抖定时器:
+    // 否则回车立即加载后防抖到点又补一枪,输入→回车常态连发 2-3 组冗余请求
+    clearTimeout(reloadTimer)
     loadData()
   }
 

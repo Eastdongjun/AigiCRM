@@ -1,5 +1,10 @@
-export function customerEmptyText(records) {
-  return records.length
+// 【FM3 2026-10-07】服务端分页改造后（2026-10-05）列表数据=当前页，原"records 有值即提示筛选"
+// 的判定失真：当前页为空 ≠ 全量为空，搜不到时会误导用户去找管理员查数据范围。
+// 空态判定改基于服务端返回的筛选后 total：
+//   - 当前页空但 total>0（筛选仍有匹配/页码越界）→ 提示调整筛选条件
+//   - total===0（数据范围内本就无客户，或筛选无任何匹配）→ 原数据范围文案
+export function customerEmptyText(records, total) {
+  return records.length || (total || 0) > 0
     ? '暂无符合筛选条件的客户'
     : '当前数据范围内暂无可见客户，请联系管理员检查数据范围'
 }
