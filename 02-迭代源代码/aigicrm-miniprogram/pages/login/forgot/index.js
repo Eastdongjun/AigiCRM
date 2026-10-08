@@ -76,7 +76,8 @@ Page({
   onUnload() { this.stopCountdown(false) },
   verifyCode() { if (!this.data.code.trim()) return wx.showToast({ title: '请输入验证码', icon: 'none' }); this.applyState({ step: 3 }) },
   reset() {
-    if (this.data.newPassword.length < 6 || this.data.newPassword !== this.data.confirmPassword || this.data.loading) return wx.showToast({ title: '请检查新密码', icon: 'none' })
+    // 【口径统一 2026-10-08】与 PC 忘记密码弹窗/首登改密同标准 ≥8 位(此前 6 位不一致)
+    if (this.data.newPassword.length < 8 || this.data.newPassword !== this.data.confirmPassword || this.data.loading) return wx.showToast({ title: '新密码至少8位且两次一致', icon: 'none' })
     this.applyState({ loading: true })
     forgotPasswordReset({ username: this.data.username.trim(), method: this.data.method, code: this.data.code.trim(), newPassword: this.data.newPassword }).then(() => { wx.showToast({ title: '密码已重置', icon: 'success' }); setTimeout(() => wx.navigateBack(), 700) }).catch((error) => showError(error, '密码重置失败')).finally(() => this.applyState({ loading: false }))
   },
