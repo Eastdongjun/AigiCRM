@@ -14,12 +14,17 @@ server:
     accept-count: 200  # 满线程排队长度，与线程数对齐
 
 # 生产 Hikari 连接池钉住（依据见 application.yml 同批注释；10-06 并发仿真后 30→50）：
+# 【Redis 宕机演练修复 2026-10-07】同块并入 Lettuce 命令超时（此前另起 spring: 块造成
+# 重复键，prod 启动即 SnakeYAML 解析失败——测试/CI 均不激活 prod 档故漏网，已加解析测试钉住）：
 spring:
   datasource:
     hikari:
       maximum-pool-size: 50  # 匹配 MySQL max_connections=300（docker-compose.prod.yml），留管理连接余量
       minimum-idle: 10  # 常驻热连接
       connection-timeout: 10000  # 毫秒；默认 30s 收紧为快速失败
+  data:
+    redis:
+      timeout: 3000  # 认证链回退 DB 黑名单，登录限流等快速失败，不再挂死线程
 
 springdoc:
   api-docs:
@@ -30,13 +35,6 @@ springdoc:
 logging:
   level:
     com.aigicrm: info
-
-# 【Redis 宕机演练修复 2026-10-07】生产档独立钉住 Lettuce 命令超时（依据见 application.yml 同批注释；
-# 测试档默认 3s，生产同为 3s：超时后认证链回退 DB 黑名单，登录限流等快速失败，不再挂死线程）
-spring:
-  data:
-    redis:
-      timeout: 3000
 
 mybatis-plus:
   configuration:
