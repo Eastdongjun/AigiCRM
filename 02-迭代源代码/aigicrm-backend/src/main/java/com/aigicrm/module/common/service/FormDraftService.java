@@ -4,6 +4,7 @@ import com.aigicrm.common.BusinessException;
 import com.aigicrm.module.common.entity.BizFormDraft;
 import com.aigicrm.module.common.mapper.BizFormDraftMapper;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -66,9 +67,20 @@ public class FormDraftService {
                 // 冲突:客户端持有的版本与服务端不一致(另一端已保存过)
                 throw new ConflictException(existing);
             }
+            // 【P2 2026-10-08 复审修复·乐观锁原子化】旧实现"查版本→updateById"两步非原子:
+            // 两请求同读同版本都过判, 后写静默覆盖先写。改为 WHERE id=? AND version=? 条件更新
+            // (MyBatis-Plus wrapper 参数化绑定), 影响行数 0 = 并发写者已胜出 → 回读最新草稿抛 409。
+            int rows = draftMapper.update(null, new LambdaUpdateWrapper<BizFormDraft>()
+                    .eq(BizFormDraft::getId, existing.getId())
+                    .eq(BizFormDraft::getVersion, serverV)
+                    .set(BizFormDraft::getDraftData, draftData)
+                    .set(BizFormDraft::getVersion, serverV + 1));
+            if (rows == 0) {
+                BizFormDraft current = draftMapper.selectById(existing.getId());
+                throw new ConflictException(current != null ? current : existing);
+            }
             existing.setDraftData(draftData);
             existing.setVersion(serverV + 1);
-            draftMapper.updateById(existing);
             return existing;
         }
         if (clientV > 0) {
