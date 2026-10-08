@@ -126,4 +126,25 @@ class CustomerControllerTest {
         customer.setOwnerId(ownerId);
         return customer;
     }
+
+    /**
+     * 【L3 2026-10-08】userIds/officeIds CSV 解析:去重(officeIds 下游 in 条件此前不去重)
+     * + 上限 200 截断(防构造巨型 IN 放大查询);脏值跳过/空串返回 null 的既有容错语义不变。
+     */
+    @Test
+    void parseLongCsv_dedupesAndCapsAtTwoHundred() {
+        assertEquals(List.of(1L, 2L), CustomerController.parseLongCsv("1,2,1"), "重复 id 必须去重");
+        assertEquals(List.of(3L), CustomerController.parseLongCsv("3,x,"), "脏值跳过(既有容错)");
+        assertEquals(null, CustomerController.parseLongCsv(null));
+        assertEquals(null, CustomerController.parseLongCsv("x"));
+
+        StringBuilder csv = new StringBuilder();
+        for (int i = 1; i <= 250; i++) {
+            if (i > 1) csv.append(',');
+            csv.append(i);
+        }
+        List<Long> capped = CustomerController.parseLongCsv(csv.toString());
+        assertEquals(200, capped.size(), "250 个 id 必须截断到 200");
+        assertEquals(200L, capped.get(199), "截断保序取前 200");
+    }
 }

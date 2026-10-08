@@ -49,7 +49,11 @@ class CustomerExpireTaskTest {
     private final com.aigicrm.module.approval.mapper.BizApprovalMapper approvalMapper = mock(com.aigicrm.module.approval.mapper.BizApprovalMapper.class);
     private final com.aigicrm.module.approval.mapper.BizApprovalNodeMapper approvalNodeMapper = mock(com.aigicrm.module.approval.mapper.BizApprovalNodeMapper.class);
     private final com.aigicrm.module.sea.mapper.BizSeaPoolMapper seaPoolMapper = mock(com.aigicrm.module.sea.mapper.BizSeaPoolMapper.class);
-    private final CustomerExpireTask task = new CustomerExpireTask(customerMapper, reminderMapper, seaService, configService, meterRegistry, approvalMapper, approvalNodeMapper, seaPoolMapper);
+    // 【H2 2026-10-08】系统身份包装依赖:mock 默认 loadUserByUsername 返回 null → 包装降级为
+    // 无身份执行,既有直调方法的无认证行为与断言不受影响
+    private final org.springframework.security.core.userdetails.UserDetailsService userDetailsService =
+            mock(org.springframework.security.core.userdetails.UserDetailsService.class);
+    private final CustomerExpireTask task = new CustomerExpireTask(customerMapper, reminderMapper, seaService, configService, meterRegistry, approvalMapper, approvalNodeMapper, seaPoolMapper, userDetailsService);
 
     @Test
     void neverInvoiced_createsInvoiceNever_notOverdue9999() {
@@ -194,5 +198,48 @@ class CustomerExpireTaskTest {
         when(configService.getValue("sea.claim.lock.days")).thenReturn("0");
         task.releaseStaleClaimLocks();
         verify(seaPoolMapper, never()).selectList(any());
+    }
+
+    /**
+     * 【H2 2026-10-08】2AM 任务链系统身份包装:任务体内以 admin(id=1) 认证运行(租户拦截器
+     * 对 admin 放行=跨集团,prod 下查询不再被改写为恒空),结束后还原为进入前的认证(通常 null)。
+     */
+    @Test
+    void systemIdentityWrapper_setsAdminDuringRunAndRestoresAfter() {
+        org.springframework.security.core.context.SecurityContextHolder.clearContext();
+        com.aigicrm.security.SecurityUser admin = new com.aigicrm.security.SecurityUser();
+        admin.setUserId(1L);
+        admin.setUsername("admin");
+        admin.setRoleCodes(java.util.List.of("admin"));
+        when(userDetailsService.loadUserByUsername("1")).thenReturn(admin);
+
+        java.util.concurrent.atomic.AtomicReference<org.springframework.security.core.Authentication> duringRun =
+                new java.util.concurrent.atomic.AtomicReference<>();
+        task.runWithSystemIdentity(() -> duringRun.set(
+                org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication()));
+
+        org.junit.jupiter.api.Assertions.assertNotNull(duringRun.get(), "任务体内必须有系统身份认证");
+        org.junit.jupiter.api.Assertions.assertTrue(duringRun.get().isAuthenticated());
+        org.junit.jupiter.api.Assertions.assertSame(admin, duringRun.get().getPrincipal(),
+                "系统身份必须是 id=1 的 admin 账号");
+        org.junit.jupiter.api.Assertions.assertNull(
+                org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication(),
+                "任务结束后必须还原为进入前的认证(此处为 null),线程复用不得泄漏系统身份");
+    }
+
+    /** 【H2】admin 加载失败(库异常/admin 被禁用)时降级为无身份执行,不抛错不阻断任务 */
+    @Test
+    void systemIdentityWrapper_toleratesAdminLoadFailure() {
+        org.springframework.security.core.context.SecurityContextHolder.clearContext();
+        when(userDetailsService.loadUserByUsername("1"))
+                .thenThrow(new org.springframework.security.core.userdetails.UsernameNotFoundException("admin"));
+
+        java.util.concurrent.atomic.AtomicBoolean ran = new java.util.concurrent.atomic.AtomicBoolean(false);
+        task.runWithSystemIdentity(() -> ran.set(true));
+
+        org.junit.jupiter.api.Assertions.assertTrue(ran.get(), "加载失败必须降级执行任务体,不得阻断");
+        org.junit.jupiter.api.Assertions.assertNull(
+                org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication(),
+                "降级路径不得污染 SecurityContext");
     }
 }

@@ -320,6 +320,45 @@ class IncentiveShareVisibilityTest {
                 "个人排行应公司级全量，不加可见性过滤，实际: " + sql);
     }
 
+    /**
+     * 【C3 2026-10-08】scoreboard 缓存键必须含集团+身份两维:同 period 下
+     * 同身份同集团二次调用命中缓存(不再查库);切 admin(全集团榜)或第二集团(本集团榜)
+     * 都必须换键重算——否则 admin 榜与非 admin 榜/跨集团榜互相污染。
+     */
+    @Test
+    void scoreboardCache_separatesAdminAndGroupDimensions() {
+        when(recordMapper.selectList(any())).thenReturn(List.of());
+        IncentiveService svc = newService();
+        java.util.concurrent.atomic.AtomicBoolean admin = new java.util.concurrent.atomic.AtomicBoolean(false);
+        com.aigicrm.security.SecurityUser group1User = new com.aigicrm.security.SecurityUser();
+        group1User.setCurrentGroupId(1L);
+        com.aigicrm.security.SecurityUser group2User = new com.aigicrm.security.SecurityUser();
+        group2User.setCurrentGroupId(2L);
+        java.util.concurrent.atomic.AtomicReference<com.aigicrm.security.SecurityUser> userRef =
+                new java.util.concurrent.atomic.AtomicReference<>(group1User);
+
+        try (MockedStatic<SecurityUtils> sec = mockStatic(SecurityUtils.class)) {
+            sec.when(SecurityUtils::isAdmin).thenAnswer(inv -> admin.get());
+            sec.when(SecurityUtils::getCurrentUser).thenAnswer(inv -> userRef.get());
+
+            // 同身份同集团:第二次命中 30s 缓存,不重算
+            svc.scoreboard("2026-10");
+            svc.scoreboard("2026-10");
+            verify(recordMapper, org.mockito.Mockito.times(1)).selectList(any());
+
+            // admin 全集团榜:不同键 → 重算
+            admin.set(true);
+            svc.scoreboard("2026-10");
+            verify(recordMapper, org.mockito.Mockito.times(2)).selectList(any());
+
+            // 第二集团非 admin 本集团榜:又一不同键 → 重算
+            admin.set(false);
+            userRef.set(group2User);
+            svc.scoreboard("2026-10");
+            verify(recordMapper, org.mockito.Mockito.times(3)).selectList(any());
+        }
+    }
+
     // ==================== updateRecord：支持分享开关字段 ====================
 
     /** 更新记录带 shared 字段 → 写回 shared（本人/授权可开关分享） */

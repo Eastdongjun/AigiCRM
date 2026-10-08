@@ -713,7 +713,14 @@ public class IncentiveService {
             new java.util.concurrent.ConcurrentHashMap<>();
 
     public List<Map<String, Object>> scoreboard(String period) {
-        String key = (period == null || period.isBlank()) ? "" : period;
+        // 【C3 2026-10-08】缓存键补集团+身份两维:原键只有 period,而 biz_incentive_record 在租户白名单内——
+        // admin 被 ignoreTable 放行=全集团合并榜, 非 admin 被改写 tenant_id=当前集团=本集团榜,
+        // 同 period 键会让两类榜互染。集团前缀与租户拦截器同口径(GroupScopeUtil.tenantCachePrefix,
+        // 取不到集团=fail-closed 固定前缀),admin 用 "adm:" / 非 admin 用 "usr:" 区分。
+        // 第二集团前置条件已补:第二集团上线即天然隔离,无需再动此键。
+        String periodKey = (period == null || period.isBlank()) ? "" : period;
+        String key = com.aigicrm.common.scope.GroupScopeUtil.tenantCachePrefix()
+                + (SecurityUtils.isAdmin() ? "adm:" : "usr:") + periodKey;
         ScoreboardCacheEntry hit = scoreboardCache.get(key);
         if (hit != null && System.currentTimeMillis() < hit.expireAt()) {
             return hit.value();

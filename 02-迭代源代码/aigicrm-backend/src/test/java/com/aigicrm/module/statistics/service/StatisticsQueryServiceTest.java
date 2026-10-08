@@ -89,6 +89,8 @@ class StatisticsQueryServiceTest {
     @Mock private SysDeptMapper deptMapper;
     @Mock private SysLogMapper sysLogMapper;
     @Mock private BizApprovalMapper approvalMapper;
+    // 【C1/C2 2026-10-08】dashboardScopeKey 非 admin 分支依赖锚点解析(service 构造注入,此前无该分支直达测试)
+    @Mock private com.aigicrm.module.system.service.RolePermScopeService rolePermScopeService;
 
     @Test
     void dashboardUsesScopeAwareCustomerCountsIncludingTodayExpiring() {
@@ -402,5 +404,54 @@ class StatisticsQueryServiceTest {
 
     private BigDecimal money(String value) {
         return new BigDecimal(value);
+    }
+
+    /**
+     * 【C1/C2 2026-10-08】看板范围签名必须并入集团前缀与规则引擎指纹:
+     * C1——applyDataScope 对非 admin 同样追加 applyRuleEngineFilter,同可见集合(all)不同规则
+     *      的用户键必须不同(无规则=固定值 all);
+     * C2——键前缀含当前集团(currentGroupId),不同集团同 "all" 范围不得共享键(取不到集团=fail-closed 固定前缀)。
+     */
+    @Test
+    void dashboardScopeKey_includesGroupPrefixAndRuleFingerprint() {
+        com.aigicrm.security.SecurityUser user = new com.aigicrm.security.SecurityUser();
+        user.setUserId(7L);
+        user.setCurrentGroupId(2L);
+        com.aigicrm.module.system.entity.SysPermissionRule rule =
+                new com.aigicrm.module.system.entity.SysPermissionRule();
+        rule.setRuleType("column_filter");
+        rule.setTargetEntity("customer");
+        rule.setTargetColumn("industry");
+        rule.setOperator("eq");
+        rule.setRuleValue("冶金");
+        rule.setStatus(1);
+        user.setPermissionRules(List.of(rule));
+        when(orgScopeResolver.resolveScope(org.mockito.ArgumentMatchers.any()))
+                .thenReturn(com.aigicrm.common.scope.ScopeDecision.all());
+
+        try (MockedStatic<SecurityUtils> security = org.mockito.Mockito.mockStatic(SecurityUtils.class)) {
+            security.when(SecurityUtils::getCurrentUser).thenReturn(user);
+            security.when(SecurityUtils::isAdmin).thenReturn(false);
+            security.when(SecurityUtils::getCurrentGroupIds).thenReturn(List.of(2L));
+
+            String withRule = service.dashboardScopeKey();
+            assertTrue(withRule.startsWith("g2:all|"), "键应为 集团前缀g2 + 范围all + 规则指纹, 实际: " + withRule);
+            org.junit.jupiter.api.Assertions.assertNotEquals("all",
+                    withRule.substring(withRule.lastIndexOf('|') + 1),
+                    "有 customer 规则时指纹不得是固定值 all(同集合不同规则会互串, C1)");
+
+            // 无规则 → 指纹固定值 all
+            user.setPermissionRules(List.of());
+            String noRule = service.dashboardScopeKey();
+            assertTrue(noRule.startsWith("g2:all|all"), "无规则时指纹应为固定值 all, 实际: " + noRule);
+
+            // C2: 集团前缀随 currentGroupId 变化;取不到集团时=fail-closed 固定前缀
+            user.setCurrentGroupId(3L);
+            assertTrue(service.dashboardScopeKey().startsWith("g3:"), "不同集团键前缀必须不同");
+            user.setCurrentGroupId(null);
+            security.when(SecurityUtils::getCurrentGroupIds).thenReturn(List.of());
+            assertTrue(service.dashboardScopeKey().startsWith("g-none:"),
+                    "取不到集团时必须用 fail-closed 固定前缀, 实际: " + service.dashboardScopeKey());
+        }
     }
 }

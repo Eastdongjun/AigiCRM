@@ -112,7 +112,11 @@ public class CustomerController {
                 parseLongCsv(userIds), parseLongCsv(officeIds), ownerName);
     }
 
-    private static List<Long> parseLongCsv(String csv) {
+    /** 【L3 2026-10-08】userIds/officeIds CSV 数量上限:防构造巨型 IN 列表放大查询;
+     *  常规筛选远用不到 200 个,超限截断取前 200(静默截断,与 csv 参数既有宽松容错风格一致)。 */
+    private static final int CSV_ID_LIMIT = 200;
+
+    static List<Long> parseLongCsv(String csv) { // 包可见:供同包单测直接断言去重/上限(L3)
         if (csv == null || csv.isBlank()) return null;
         List<Long> ids = new java.util.ArrayList<>();
         for (String part : csv.split(",")) {
@@ -124,7 +128,10 @@ public class CustomerController {
                 // 容错:脏值跳过(与既有 csv 参数宽松风格一致)
             }
         }
-        return ids.isEmpty() ? null : ids;
+        if (ids.isEmpty()) return null;
+        // 【L3 2026-10-08】去重(officeIds 下游 in 条件此前不去重,userIds 下游原有 distinct 统一前置)
+        // + 上限 200 截断(巨型 IN 放大向量护栏)
+        return ids.stream().distinct().limit(CSV_ID_LIMIT).toList();
     }
 
     @PreAuthorize("hasAuthority('customer:view')")

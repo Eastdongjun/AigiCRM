@@ -60,6 +60,33 @@ public final class GroupScopeUtil {
     }
 
     /**
+     * 【审查 C2/C3 2026-10-08】共享缓存键的集团前缀——取值口径与 MybatisPlusConfig 租户拦截器
+     * (buildTenantInterceptor → getTenantId/resolveTenantId) 逐字对齐:
+     * <ul>
+     *   <li>会话有当前集团(currentGroupId) → "g{groupId}:";</li>
+     *   <li>无当前集团但有所属集团 → 取排序最小集团(与 resolveTenantId 的多集团 fail-closed 同口径)
+     *       → "g{min}:";</li>
+     *   <li>取不到任何集团 → 固定前缀 "g-none:"(fail-closed:此时租户插件把查询改写为
+     *       tenant_id = NULL 恒空, 该类用户结果同为空集, 共享同一键不会与任何真实集团互串)。</li>
+     * </ul>
+     * 用途:统计看板/积分榜等"同范围共享缓存"的键前缀,防止跨集团用户互串缓存条目
+     * (单集团部署暂不触发, 第二集团上线即生效)。注:admin 的租户拦截器走 ignoreTable
+     * 直接放行(跨集团), 该前缀对 admin 只是额外的缓存命名空间, 不改变查询语义。
+     */
+    public static String tenantCachePrefix() {
+        var user = SecurityUtils.getCurrentUser();
+        if (user != null && user.getCurrentGroupId() != null) {
+            return "g" + user.getCurrentGroupId() + ":";
+        }
+        List<Long> groupIds = SecurityUtils.getCurrentGroupIds();
+        if (groupIds == null || groupIds.isEmpty()) {
+            return "g-none:"; // fail-closed 固定前缀(对应租户插件 tenant_id = NULL 恒空)
+        }
+        // 多集团取排序最小 id, 与 MybatisPlusConfig.resolveTenantId 同口径
+        return "g" + groupIds.stream().sorted().findFirst().get() + ":";
+    }
+
+    /**
      * 非 admin 且无有效集团归属时为 true。调用方(原生 SQL/列表过滤)遇到此情况
      * 必须返回空集或拒绝访问，禁止回退到任意集团。
      */

@@ -129,7 +129,8 @@ public class StatisticsQueryService {
      *     (角色锚点 × 可见用户/部门集合 × 规则引擎条件) 决定，同范围用户结果完全一致——
      *     缓存键从 userId 换成"范围签名"，1000 用户若只有 N 个不同范围，miss 率降为 1/N。
      *     范围签名取 ScopeDecision 的可见集合（OWNER 锚点=可见用户集 / ORG 锁点=可见部门集 / all），
-     *     admin 走规则引擎条件指纹（无规则时=纯 all）。签名相同⇒12 路统计 SQL 结果必然相同。
+     *     并入集团前缀与规则引擎条件指纹（admin 与非 admin 同取，无规则时=固定值 all，见 dashboardScopeKey
+     *     的 C1/C2 2026-10-08 注释）。签名相同⇒12 路统计 SQL 结果必然相同。
      *     仪表盘计数容忍 ≤30s 陈旧（与权限范围缓存同口径），写操作后最迟 30s 反映。
      * 【不变量】expiringDetails 的"今日剩余天数"按天粒度变化——TTL 内跨日瞬间最多陈旧 30s，可接受。
      */
@@ -174,18 +175,28 @@ public class StatisticsQueryService {
 
     /**
      * 看板范围签名：与 applyDataScope 的判定输入一一对应——
-     * admin → "adm:" + 规则引擎对 customer 的 WHERE 指纹（无规则即纯 all）；
-     * 非 admin → 解析 ScopeDecision：all ⇒ "all"；ORG 锚点 ⇒ "org:"+有序 deptIds；OWNER 锚点 ⇒ "own:"+有序 userIds。
+     * 集团前缀 × (admin / 可见集合) × 规则引擎条件指纹。
+     * 【C2 2026-10-08】所有签名并入集团前缀(GroupScopeUtil.tenantCachePrefix，取值与租户拦截器
+     *   getTenantId/resolveTenantId 同口径):原 "all"/"own:..." 等键无集团维度，第二集团上线后
+     *   同键跨集团互串(取不到集团=fail-closed 固定前缀 "g-none:"，不与任何真实集团互串)。
+     * 【C1 2026-10-08】非 admin 分支同样并入规则引擎指纹:applyDataScope 对非 admin 在可见集合之外
+     *   还会追加 applyRuleEngineFilter(同一 evaluateForEntity(rules, user, "customer") 维度)，
+     *   同可见集合不同规则的两用户统计口径不同，原签名漏该维度会互相命中对方口径；无规则=固定值 "all"
+     *   (与 admin 分支同一取法)。
+     * admin → "adm:" + 规则指纹（无规则即纯 all）；
+     * 非 admin → 解析 ScopeDecision：all ⇒ "all"；ORG 锚点 ⇒ "org:"+有序 deptIds；OWNER 锚点 ⇒ "own:"+有序 userIds，
+     * 均以 "|"+规则指纹 收尾。
      * 同签名用户对全部 8 个范围统计的结果必然一致（这些查询只依赖上述可见集合与规则条件）。
      */
-    private String dashboardScopeKey() {
+    String dashboardScopeKey() { // 包可见:供同包单测直接断言键维度(C1/C2)
         var user = SecurityUtils.getCurrentUser();
         if (user == null) return "anon";
+        // 【C2】集团前缀:与 MybatisPlusConfig 租户拦截器取 tenant_id 同口径(currentGroupId→最小集团→fail-closed)
+        String groupPrefix = com.aigicrm.common.scope.GroupScopeUtil.tenantCachePrefix();
+        // 【C1】规则引擎指纹:与 applyDataScope→applyRuleEngineFilter 同一维度,admin 与非 admin 都并入
+        String ruleFp = ruleFingerprint(user);
         if (SecurityUtils.isAdmin()) {
-            String ruleWhere = (user.getPermissionRules() == null || user.getPermissionRules().isEmpty())
-                    ? null : com.aigicrm.common.engine.PermissionRuleEngine
-                    .evaluateForEntity(user.getPermissionRules(), user, "customer");
-            return "adm:" + (ruleWhere == null ? "all" : Integer.toHexString(ruleWhere.hashCode()));
+            return groupPrefix + "adm:" + ruleFp;
         }
         com.aigicrm.common.scope.ScopeRequest req = com.aigicrm.common.scope.ScopeRequest.builder()
                 .user(user)
@@ -194,15 +205,31 @@ public class StatisticsQueryService {
                 .anchor(rolePermScopeService.anchorOf(user, "customer", "view"))
                 .build();
         com.aigicrm.common.scope.ScopeDecision d = orgScopeResolver.resolveScope(req);
-        if (d.isAll()) return "all";
-        if (req.getAnchor() == com.aigicrm.common.scope.ScopeRequest.AnchorType.ORG) {
+        String base;
+        if (d.isAll()) {
+            base = "all";
+        } else if (req.getAnchor() == com.aigicrm.common.scope.ScopeRequest.AnchorType.ORG) {
             java.util.List<Long> ids = d.getVisibleDeptIds();
-            if (ids == null || ids.isEmpty()) return "org:none";
-            return "org:" + ids.stream().sorted().map(String::valueOf).collect(java.util.stream.Collectors.joining(","));
+            base = (ids == null || ids.isEmpty()) ? "org:none"
+                    : "org:" + ids.stream().sorted().map(String::valueOf).collect(java.util.stream.Collectors.joining(","));
+        } else {
+            java.util.List<Long> ids = d.getVisibleUserIds();
+            base = (ids == null || ids.isEmpty()) ? "own:none"
+                    : "own:" + ids.stream().sorted().map(String::valueOf).collect(java.util.stream.Collectors.joining(","));
         }
-        java.util.List<Long> ids = d.getVisibleUserIds();
-        if (ids == null || ids.isEmpty()) return "own:none";
-        return "own:" + ids.stream().sorted().map(String::valueOf).collect(java.util.stream.Collectors.joining(","));
+        return groupPrefix + base + "|" + ruleFp;
+    }
+
+    /**
+     * 规则引擎指纹:PermissionRuleEngine.evaluateForEntity(rules, user, "customer") 的 WHERE 指纹，
+     * 无规则(或无 customer 实体匹配规则)时=固定值 "all"——与 CustomerService.applyDataScope 尾部
+     * 追加的 applyRuleEngineFilter 完全同维度，签名漏掉该维度会让同可见集合不同规则的用户互串统计。
+     */
+    private static String ruleFingerprint(com.aigicrm.security.SecurityUser user) {
+        if (user.getPermissionRules() == null || user.getPermissionRules().isEmpty()) return "all";
+        String ruleWhere = com.aigicrm.common.engine.PermissionRuleEngine
+                .evaluateForEntity(user.getPermissionRules(), user, "customer");
+        return (ruleWhere == null || ruleWhere.isEmpty()) ? "all" : Integer.toHexString(ruleWhere.hashCode());
     }
 
     private record ApprovalCacheEntry(Map<String, Long> value, long expireAt) {}

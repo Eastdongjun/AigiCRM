@@ -96,15 +96,31 @@ public class CustomerService {
         return result;
     }
 
+    /** 【M1 内存护栏 2026-10-08】导出行数上限:selectList 全量物化无上限,数据增长后单请求内存放大
+     *  (customer:export 可反复触发);超限截断并日志留痕。业务上当前生产 604 行距 5 万护栏很远,
+     *  分页/流式导出属后续优化,不在本次范围。 */
+    private static final int EXPORT_MAX_ROWS = 50_000;
+
     /**
      * 导出清单(不分页,受数据范围控制):走 selectList 而非 selectPage——
      * 【修复 2026-10-05】分页拦截器已设 maxLimit=500,旧实现 page(1,10000) 会被静默截断
      * (生产客户数 604>500 即丢数据);selectList 不经分页拦截器,无此限制。
+     * 【H1 2026-10-08】补回填名称:旧路径 page(1,10000) 内含 fillCustomerNames,改 selectList 后
+     * 漏了同款调用,ownerName/managerName/officeName/regionName 为 exist=false 字段,
+     * 导出 xlsx 负责人/管理上级/办事处/大区四列恒空(与 pageList 同款修复)。
      */
     public List<BizCustomer> exportList(ListFilter f) {
         LambdaQueryWrapper<BizCustomer> wrapper = buildListWrapper(f, f.devType(), null);
         wrapper.orderByDesc(BizCustomer::getCreatedAt);
-        return customerMapper.selectList(wrapper);
+        List<BizCustomer> rows = customerMapper.selectList(wrapper);
+        if (rows.size() > EXPORT_MAX_ROWS) {
+            // 【M1】超限截断留痕(内存护栏):截断后再回填名称,避免白填被丢弃的行
+            org.slf4j.LoggerFactory.getLogger(CustomerService.class)
+                    .warn("导出结果 {} 行超过上限 {} 行,已截断(内存护栏)", rows.size(), EXPORT_MAX_ROWS);
+            rows = List.copyOf(rows.subList(0, EXPORT_MAX_ROWS));
+        }
+        fillCustomerNames(rows);
+        return rows;
     }
 
     /**
@@ -180,8 +196,9 @@ public class CustomerService {
             if (arr.length > 1) wrapper.in(BizCustomer::getProtectionStatus, (Object[]) arr);
             else wrapper.eq(BizCustomer::getProtectionStatus, f.protectionStatus());
         }
-        if (StringUtils.hasText(f.province())) wrapper.like(BizCustomer::getProvince, f.province().trim());
-        if (StringUtils.hasText(f.city())) wrapper.like(BizCustomer::getCity, f.city().trim());
+        // 【L2 2026-10-08】province/city LIKE 值经 escapeLike 转义 % _ 通配符,防用户输入通配符放宽匹配面
+        if (StringUtils.hasText(f.province())) wrapper.like(BizCustomer::getProvince, escapeLike(f.province().trim()));
+        if (StringUtils.hasText(f.city())) wrapper.like(BizCustomer::getCity, escapeLike(f.city().trim()));
         if (StringUtils.hasText(devType)) wrapper.eq(BizCustomer::getDevType, devType);
         if (StringUtils.hasText(f.groupName())) wrapper.eq(BizCustomer::getGroupName, f.groupName());
         // ---- 【容量加固 2026-10-05】高级筛选服务端化新增四组条件 ----
@@ -202,8 +219,9 @@ public class CustomerService {
         }
         if (StringUtils.hasText(f.ownerName())) {
             // 负责人按姓名模糊:与本地 includes 语义一致;名字无任何匹配用户时恒空集
+            // 【L2 2026-10-08】LIKE 值经 escapeLike 转义 % _ 通配符,防用户输入通配符放宽匹配面
             List<Long> matched = userMapper.selectList(new LambdaQueryWrapper<com.aigicrm.module.system.entity.SysUser>()
-                            .like(com.aigicrm.module.system.entity.SysUser::getRealName, f.ownerName().trim()))
+                            .like(com.aigicrm.module.system.entity.SysUser::getRealName, escapeLike(f.ownerName().trim())))
                     .stream().map(com.aigicrm.module.system.entity.SysUser::getId).distinct().toList();
             if (matched.isEmpty()) {
                 wrapper.eq(BizCustomer::getOwnerId, -1L);
@@ -213,6 +231,16 @@ public class CustomerService {
                 wrapper.in(BizCustomer::getOwnerId, matched);
             }
         }
+    }
+
+    /**
+     * 【L2 2026-10-08】LIKE 通配符转义:% 与 _ 前加反斜杠(先转义反斜杠自身,防止用户输入的
+     * 反斜杠与后续转义符配对错位),用户输入按字面量匹配,不能借 % _ 放宽匹配面。
+     * keyword 多词搜索(客户名/别名/编码 OR+AND)保持既有语义不动,不接入本转义。
+     */
+    private static String escapeLike(String value) {
+        if (value == null) return null;
+        return value.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_");
     }
 
     public IPage<BizCustomer> page(int current, int size, String keyword, String industry,

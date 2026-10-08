@@ -31,6 +31,13 @@ public class CustomerExpireTask {
     private final com.aigicrm.module.approval.mapper.BizApprovalMapper approvalMapper;
     private final com.aigicrm.module.approval.mapper.BizApprovalNodeMapper approvalNodeMapper;
     private final com.aigicrm.module.sea.mapper.BizSeaPoolMapper seaPoolMapper;
+    // 【H2 2026-10-08】定时任务系统身份:定时线程无 SecurityContext,prod 租户拦截器会把这些查询
+    // 改写为恒空——以系统身份(admin, id=1)执行 2AM 任务链。放末位保持既有构造参数序稳定
+    // (与 meterRegistry 注释同口径;UserDetailsService 复用登录链路的完整装配,与 JwtAuthFilter 同款注入)。
+    private final org.springframework.security.core.userdetails.UserDetailsService userDetailsService;
+
+    /** 【H2】系统身份用户 id:内置 admin(id=1),租户拦截器 ignoreTable 对 admin 放行=跨集团 */
+    private static final long SYSTEM_ADMIN_USER_ID = 1L;
 
     /** 【裁决 2026-09-24】公海捞取审批锁超时自动释放: 时长=系统设置 sea.claim.lock.days(默认3,0=不启用)。
      *  锁定(pending_approval)超过 N 天的池行释放回 available 并清申请人, 同时把对应 claim 审批
@@ -83,6 +90,60 @@ public class CustomerExpireTask {
 
     @Scheduled(cron = "0 0 2 * * ?")
     public void checkCustomerExpire() {
+        // 【H2 2026-10-08】整个 2AM 任务链(到期/宽限/开票超期/公海锁释放)以系统身份执行:
+        // 定时线程无 SecurityContext,prod 租户拦截器(TenantLineInnerInterceptor)会把无会话查询
+        // 改写为 tenant_id = NULL 恒空,锁释放/宽限静默失效。全局维护任务以系统身份跨集团处理
+        // 全部租户数据属预期语义(与拦截器 ignoreTable 对 admin 放行一致);try-finally 还原,
+        // 测试直调方法时无认证也能正确运行并还原(见 runWithSystemIdentity)。
+        runWithSystemIdentity(this::doCheckCustomerExpire);
+    }
+
+    /**
+     * 【H2 2026-10-08】以系统身份(admin, id=1)执行任务体,finally 还原进入前的认证状态。
+     * <ul>
+     *   <li>admin 加载失败/被禁用(库异常)→ 降级为无身份执行并留痕,不阻断任务——与修复前行为
+     *       一致,此时租户插件开启下查询恒空,问题在日志与空结果中可见而非被吞;</li>
+     *   <li>定时线程池线程复用,系统身份不得泄漏:finally 里把认证还原为进入前的值(通常为 null);</li>
+     *   <li>每次运行时加载(而非启动时缓存一次):任务日跑一次成本可忽略,且权限/角色变更即时生效
+     *       (UserDetailsService 自带 Redis 权限缓存)。</li>
+     * </ul>
+     */
+    void runWithSystemIdentity(Runnable body) {
+        org.springframework.security.core.Authentication previous =
+                org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+        org.springframework.security.core.Authentication systemAuth = buildSystemAuthentication();
+        if (systemAuth == null) {
+            body.run();
+            return;
+        }
+        try {
+            org.springframework.security.core.context.SecurityContextHolder.getContext().setAuthentication(systemAuth);
+            body.run();
+        } finally {
+            // 还原为进入前的认证(定时线程通常为 null),即使任务体抛错也必须还原
+            org.springframework.security.core.context.SecurityContextHolder.getContext().setAuthentication(previous);
+        }
+    }
+
+    /** 【H2】构建系统身份认证:loadUserByUsername("1") 走 id=1 的内置 admin,复用登录链路的
+     *  完整装配(角色/权限/集团);任何失败返回 null(调用方降级为无身份执行)。 */
+    private org.springframework.security.core.Authentication buildSystemAuthentication() {
+        try {
+            org.springframework.security.core.userdetails.UserDetails details =
+                    userDetailsService.loadUserByUsername(String.valueOf(SYSTEM_ADMIN_USER_ID));
+            if (!(details instanceof com.aigicrm.security.SecurityUser securityUser)) {
+                return null;
+            }
+            return new org.springframework.security.authentication.UsernamePasswordAuthenticationToken(
+                    securityUser, null, details.getAuthorities());
+        } catch (Exception e) {
+            log.warn("系统身份(admin id={})加载失败, 任务将以无身份执行(租户插件开启时查询会被改写为恒空): {}",
+                    SYSTEM_ADMIN_USER_ID, e.getMessage());
+            return null;
+        }
+    }
+
+    private void doCheckCustomerExpire() {
         log.info("开始检查客户保护期...");
         LocalDate today = LocalDate.now();
         int warningDays = getConfigInt("customer.warning.days", 30);

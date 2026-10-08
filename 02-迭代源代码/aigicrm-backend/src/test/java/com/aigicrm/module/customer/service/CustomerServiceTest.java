@@ -382,6 +382,94 @@ class CustomerServiceTest {
             java.util.Collection<Object> vals2 = w2.getParamNameValuePairs().values();
             assertTrue(vals2.contains("expiring") && vals2.contains("expired"), "逗号多值应展开为 in 条件");
             assertTrue(vals2.contains("%山西%") && vals2.contains("%太原%"), "省/市应为 LIKE 包含语义(与 PC contains 对齐)");
+
+            // 【L2 2026-10-08】LIKE 通配符转义:用户输入的 %/_ 按字面量匹配,不得放宽匹配面
+            svc.page(1, 10, null, null, null, null, null, null, null, null, null, null, null, "50%部", "太原_市");
+            verify(customerMapper, times(3)).selectPage(any(), captor.capture());
+            var w3 = (LambdaQueryWrapper<BizCustomer>) captor.getValue();
+            w3.getSqlSegment();
+            java.util.Collection<Object> vals3 = w3.getParamNameValuePairs().values();
+            assertTrue(vals3.contains("%50\\%部%"), "省筛选的 % 应被转义为字面量, 实际: " + vals3);
+            assertTrue(vals3.contains("%太原\\_市%"), "市筛选的 _ 应被转义为字面量, 实际: " + vals3);
+        }
+    }
+
+    /**
+     * 【H1 2026-10-08】导出必须回填名称:exportList 改走 selectList 后漏了 pageList 同款
+     * fillCustomerNames,ownerName/officeName 为 exist=false 字段 → 导出 xlsx 负责人/办事处列恒空(回归)。
+     */
+    @Test
+    void exportList_fillsOwnerAndOfficeNames() {
+        BizCustomerMapper customerMapper = mock(BizCustomerMapper.class);
+        BizCustomer row = new BizCustomer();
+        row.setId(1L);
+        row.setOwnerId(11L);
+        row.setOfficeId(3L);
+        when(customerMapper.selectList(any())).thenReturn(List.of(row));
+        SysUserMapper userMapper = mock(SysUserMapper.class);
+        SysUser owner = new SysUser();
+        owner.setId(11L);
+        owner.setRealName("张三");
+        when(userMapper.selectByIds(org.mockito.ArgumentMatchers.<java.util.Collection<? extends java.io.Serializable>>any()))
+                .thenReturn(List.of(owner));
+        SysDeptMapper deptMapper = mock(SysDeptMapper.class);
+        com.aigicrm.module.system.entity.SysDept office = new com.aigicrm.module.system.entity.SysDept();
+        office.setId(3L);
+        office.setDeptName("太原办事处");
+        when(deptMapper.selectByIds(org.mockito.ArgumentMatchers.<java.util.Collection<? extends java.io.Serializable>>any()))
+                .thenReturn(List.of(office));
+        CustomerService svc = new CustomerService(customerMapper,
+                mock(BizCustomerLogMapper.class), mock(BizInvoiceMapper.class),
+                mock(BizCustomerShareMapper.class), mock(BizCustomerIndicatorMapper.class),
+                mock(BizContactMapper.class), mock(BizPaymentMapper.class),
+                userMapper, deptMapper, mock(BizReminderMapper.class), mock(JdbcTemplate.class),
+                mock(SysConfigService.class), mock(OrgScopeResolver.class),
+                mock(CustomerAccessService.class),
+                mock(com.aigicrm.module.system.service.RolePermScopeService.class),
+                mock(com.aigicrm.module.approval.mapper.BizApprovalMapper.class),
+                mock(com.aigicrm.module.system.mapper.SysLogMapper.class));
+
+        // 【门禁修复 2026-10-08】同文件列表路径测试既定模式:mockStatic 钉死 getCurrentUser=null,
+        // 否则 surefire 同 JVM 复用线程上,先跑的 ApprovalServiceTest/SeaServiceTest 等类
+        // setAuthentication 后未 clearContext,泄漏的非 admin 用户使 applyDataScope 走到
+        // 未打桩的 scopeResolver.resolveScope → 返回 null → NPE,与本测试断言无关
+        try (MockedStatic<SecurityUtils> security = mockStatic(SecurityUtils.class)) {
+            security.when(SecurityUtils::getCurrentUser).thenReturn(null); // applyDataScope 走拒绝分支, 与本断言无关
+
+            var exported = svc.exportList(new CustomerService.ListFilter(
+                    null, null, null, null, null, null, null, null, null, null,
+                    null, null, null, null, null, null, null, null, null, null));
+
+            assertEquals(1, exported.size());
+            assertEquals("张三", exported.get(0).getOwnerName(), "导出必须回填负责人名称(H1 回归)");
+            assertEquals("太原办事处", exported.get(0).getOfficeName(), "导出必须回填办事处名称(H1 回归)");
+        }
+    }
+
+    /** 【M1 2026-10-08】导出上限护栏:全量 selectList 超 50_000 行时截断到 50_000(单请求内存护栏) */
+    @Test
+    void exportList_truncatesAtCap() {
+        BizCustomerMapper customerMapper = mock(BizCustomerMapper.class);
+        List<BizCustomer> many = new ArrayList<>();
+        for (int i = 0; i < 50_001; i++) {
+            BizCustomer c = new BizCustomer();
+            c.setId((long) i);
+            many.add(c);
+        }
+        when(customerMapper.selectList(any())).thenReturn(many);
+        CustomerService svc = newService(mock(BizInvoiceMapper.class), mock(BizPaymentMapper.class),
+                customerMapper, mock(OrgScopeResolver.class));
+
+        // 【门禁修复 2026-10-08】同上:钉死 getCurrentUser=null,隔离同 JVM 先行测试类泄漏的
+        // SecurityContextHolder,使数据范围分支确定(与本测试的截断护栏断言无关)
+        try (MockedStatic<SecurityUtils> security = mockStatic(SecurityUtils.class)) {
+            security.when(SecurityUtils::getCurrentUser).thenReturn(null); // applyDataScope 走拒绝分支, 与本断言无关
+
+            var exported = svc.exportList(new CustomerService.ListFilter(
+                    null, null, null, null, null, null, null, null, null, null,
+                    null, null, null, null, null, null, null, null, null, null));
+
+            assertEquals(50_000, exported.size(), "导出超限必须截断到 50_000 行(内存护栏)");
         }
     }
 
