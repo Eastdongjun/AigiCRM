@@ -68,7 +68,9 @@ jobs:
         run: |
           set -e
           cd "02-迭代源代码/aigicrm-miniprogram"
-          find . -name "*.js" -not -path "./node_modules/*" -print0 | xargs -0 -n1 node --check
+          # 【IL1·2026-10-08 审查修复】排除模式改为任意层级——旧 "./node_modules/*" 只匹配
+          # 顶层目录，日后装依赖时嵌套 node_modules/miniprogram_npm 会被语法检查误扫
+          find . -name "*.js" -not -path "*/node_modules/*" -not -path "*/miniprogram_npm/*" -print0 | xargs -0 -n1 node --check
           echo "全部 js 语法通过"
 
   sonarcloud:

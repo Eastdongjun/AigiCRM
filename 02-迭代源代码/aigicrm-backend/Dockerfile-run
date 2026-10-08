@@ -1,5 +1,24 @@
-FROM eclipse-temurin:21-jre
+# ============================================================================
+# 生产运行镜像模板（backend jar 的运行时镜像，与 aigicrm-backend/Dockerfile 的
+# 构建镜像区分：本文件不参与 mvn 构建，只在部署机上以部署目录为上下文构建）。
+#
+# 【IM4·2026-10-08 审查修复】权威来源 = 生产服务器 /root/ycmn/Dockerfile-run，
+# 本地镜像 08-备份索引/09-生产环境备份/deploy/Dockerfile-run 每晚由
+# scripts/backup-retention.sh 从服务器对齐。本模板此前漂移为 21-jre + Xmx256m +
+# COPY target/...（按模板重建必 OOM 回退），现已与生产权威副本逐行同构——
+# 按此模板重建 = 生产等价。
+#
+# 构建上下文要求（与生产部署目录一致）：
+#   - app.jar：deploy-backend.sh 上传的已验证 jar（禁止改名，md5 门禁按此校验）
+#   - jdk21/ ：宿主机解压好的 JRE21 目录
+#
+# 2026-08-14 JDK21 升级说明：以本地缓存的 17-jre 镜像为底（复用层），
+# 宿主机解压好的 JRE21 直接 COPY（规避老 Docker overlay 对容器内 tar 的 ENOSYS）。
+# ============================================================================
+FROM eclipse-temurin:17-jre
+COPY jdk21 /opt/jdk21
 WORKDIR /app
-COPY target/aigicrm-backend-1.0.0.jar app.jar
+COPY app.jar app.jar
+ENV JAVA_HOME=/opt/jdk21 PATH=/opt/jdk21/bin:$PATH
 EXPOSE 8080
-ENTRYPOINT ["java", "-Xmx256m", "-jar", "app.jar"]
+ENTRYPOINT ["java", "-Xmx1536m", "-jar", "app.jar"]

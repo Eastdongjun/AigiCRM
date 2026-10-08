@@ -16,6 +16,11 @@ APP_SLUG="${APP_SLUG:-aigicrm}"
 DB_NAME="${DB_NAME:-aigicrm}"
 DEPLOY_DIR="${DEPLOY_DIR:-/root/aigicrm}"
 DEPLOY_DATA_DIR="${DEPLOY_DATA_DIR:-/data/aigicrm}"
+# 【IL2·2026-10-08 审查修复 + 复核遗留延伸】生产后端镜像 tag 单一来源：
+# deploy-backend.sh（build/md5 门禁/docker run 三处）与 rollback.sh（回滚重建两处）共用引用，
+# 升版只改这一行——此前 2.7.0 在两脚本共五处硬编码，漏改任一处会让"构建的镜像"与
+# "门禁校验/重启/回滚使用的镜像"指向不同对象（门禁校验错对象，或部署新版、回滚旧 tag）。
+BACKEND_TAG="${BACKEND_TAG:-2.7.0}"
 
 # DB 凭据必须存在（禁止脚本内硬编码，一律经 env 注入）
 #

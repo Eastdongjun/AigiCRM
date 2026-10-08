@@ -34,11 +34,15 @@ rollback_frontend() {
 
 rollback_backend() {
   echo "=== 回滚后端 (旧 jar 从 NAS 备份恢复) ==="
+  # 【IH6/IL2 延伸·2026-10-08 复核遗留修复】回滚同样是生产执行路径，必须与 deploy-backend.sh 同口径：
+  #   - CORS 按 09-22 收敛裁决（权威=仓库 docker-compose.prod.yml 的 https://www.aigicrm.com）——
+  #     旧参数会在回滚时把 localhost:5173/3000 调试源重新带回生产 docker run；
+  #   - 镜像 tag 引用 deploy-lib.sh 的 BACKEND_TAG 单一来源（原 2.7.0 硬编码，部署侧升版后此处会指向旧 tag）。
   ssh_prod "
     jar=\$(ls -t $NAS_BACKUP_DIR/${APP_SLUG}-backend-jar-*.jar $NAS_BACKUP_DIR/aigicrm-backend-jar-*.jar 2>/dev/null | head -1)
     [ -z \"\$jar\" ] && { echo '❌ 无可用 jar 备份'; exit 1; }
     cp \$jar $DEPLOY_DIR/app.jar
-    cd $DEPLOY_DIR && docker build -q -t ${APP_SLUG}-backend:2.7.0 -f Dockerfile-run .
+    cd $DEPLOY_DIR && docker build -q -t ${APP_SLUG}-backend:${BACKEND_TAG} -f Dockerfile-run .
     docker stop ${APP_SLUG}-backend && docker rm ${APP_SLUG}-backend
     docker run -d --name ${APP_SLUG}-backend --network ${APP_SLUG}_default --restart always \
       -p 127.0.0.1:8080:8080 \
@@ -48,10 +52,10 @@ rollback_backend() {
       -e UPLOAD_DIR=/app/uploads -e STORAGE_TYPE=local -e TZ=Asia/Shanghai \
       -e OSS_ENDPOINT=oss-cn-beijing.aliyuncs.com -e OSS_ACCESS_KEY_ID=your-key \
       -e OSS_ACCESS_KEY_SECRET=your-secret -e OSS_BUCKET_NAME=your-bucket \
-      -e CORS_ORIGINS=https://www.aigicrm.com,http://localhost:5173,http://localhost:3000 \
+      -e CORS_ORIGINS=https://www.aigicrm.com \
       -e JWT_SECRET="$JWT_SECRET" \
       -v /Aigicrm/files/uploads:/app/uploads \
-      ${APP_SLUG}-backend:2.7.0
+      ${APP_SLUG}-backend:${BACKEND_TAG}
     echo '后端容器已重建'
   "
 }
