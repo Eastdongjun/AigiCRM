@@ -76,18 +76,34 @@ Page({
     }
     // 【容量止血 2026-10-05】onShow 30s 节流：微信每次返回页面/切前台都触发 onShow，
     // 无节流时首页 4 个请求被高频放大(容量评估流量模型专项)；30s 内的回流不重拉，
-    // 下拉刷新/按钮等显式刷新路径不受影响（只拦 onShow 重入）。
+    // 只拦 onShow 重入 —— 下拉刷新(onPullDownRefresh)是显式刷新路径, 不受限。
     const now = Date.now()
     if (now - (this._lastShowTs || 0) < 30000) return
     this._lastShowTs = now
     if (!getApp().globalData.demoMode) this.loadHomeData()
   },
 
+  // 【PM4 2026-10-07】首页节流后补手动刷新手段: 处理提醒/任务回来数据陈旧时下拉自救。
+  // _lastShowTs 置 0 = 绕过 onShow 节流一次并重新起算(下拉后紧随的首次回流重拉,
+  // 之后恢复节流);显式刷新不受 30s 节流限制(节流只拦 onShow 重入)。
+  onPullDownRefresh() {
+    this._lastShowTs = 0
+    if (getApp().globalData.demoMode) {
+      // 演示模式无接口可拉,数据在 onLoad 已固定,直接收起下拉动画
+      wx.stopPullDownRefresh()
+      return
+    }
+    this.loadHomeData().then(() => wx.stopPullDownRefresh())
+  },
+
   loadHomeData() {
     const canViewDashboard = hasPermission('dashboard:view') || hasPermission('statistics:view')
     this.setData({ canViewDashboard, showDashboardCards: canViewDashboard, cards: [] })
+    // 【PM4 2026-10-07】各请求收进 tasks 并聚合返回: 下拉刷新(onPullDownRefresh)用它收尾
+    // stopPullDownRefresh;各链路自带 catch(错误已在各自分支处理), 聚合结果恒 resolve
+    const tasks = []
     if (canViewDashboard) {
-      getDashboardData().then((dashboard) => {
+      tasks.push(getDashboardData().then((dashboard) => {
         this.setData({ showDashboardCards: true, cards: [
           [dashboard.myCustomers || 0, '我的客户'],
           [dashboard.inProtection || 0, '在保护期'],
@@ -98,12 +114,12 @@ Page({
       }).catch((error) => {
         this.setData({ showDashboardCards: false })
         showError(error, '看板数据加载失败')
-      })
+      }))
     }
 
     // 【PR-10 前端】我的待办任务数量(首页显示,不加底部菜单)
     if (!getApp().globalData.demoMode) {
-      getTaskStatistics().then((stats) => {
+      tasks.push(getTaskStatistics().then((stats) => {
         const pending = (stats && stats.pending) || 0
         const overdue = (stats && stats.overdue) || 0
         this.setData({
@@ -111,10 +127,10 @@ Page({
             ? (overdue > 0 ? `待办 ${pending} 件(逾期 ${overdue})` : `待办 ${pending} 件`)
             : ''
         })
-      }).catch(() => this.setData({ taskSummary: '' }))
+      }).catch(() => this.setData({ taskSummary: '' })))
     }
 
-    loadCurrentUser().then((user) => {
+    tasks.push(loadCurrentUser().then((user) => {
       const userName = user.realName || user.username || '当前用户'
       this.setData({
         userName,
@@ -125,9 +141,10 @@ Page({
     }).catch((error) => {
       this.setData({ userName: '未登录', userInitial: '未' })
       showError(error, '用户信息加载失败')
-    })
-    getPendingCount().then((count) => this.setData({ pendingCount: count || 0 })).catch((error) => showError(error, '提醒数量加载失败'))
-    getExpiringList({ current: 1, size: 5 }).then((page) => this.applyState({ expiring: (page.records || page.list || page.rows || []).slice(0, 5) })).catch((error) => showError(error, '到期提醒加载失败'))
+    }))
+    tasks.push(getPendingCount().then((count) => this.setData({ pendingCount: count || 0 })).catch((error) => showError(error, '提醒数量加载失败')))
+    tasks.push(getExpiringList({ current: 1, size: 5 }).then((page) => this.applyState({ expiring: (page.records || page.list || page.rows || []).slice(0, 5) })).catch((error) => showError(error, '到期提醒加载失败')))
+    return Promise.all(tasks)
   },
 
   openIncentive() {

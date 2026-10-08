@@ -10,7 +10,11 @@ App({
     permissions: [],
     groupIds: [],
     currentGroupId: null,
-    permissionRefreshPromise: null
+    permissionRefreshPromise: null,
+    // 【PR-12 契约修复 2026-10-07】写操作成功的强制刷新标记: 写页(激励上传/详情删除、文件夹重命名)
+    // 成功回调按域置位(incentive/files), 对应列表页 onShow 消费后清零并把 _lastShowTs 归零,
+    // 绕过 30s 节流一次 —— 保证"写完回来立刻见结果"(PR-12 契约);节流只拦纯回流的流量放大
+    forceRefresh: { incentive: false, files: false }
   },
 
   onLaunch() {

@@ -45,7 +45,13 @@ Page({
     const action = getApp().globalData.demoMode
       ? Promise.resolve(saveDemoFolder(this.data.name.trim(), this.data.id))
       : renameFolder(this.data.id, this.data.name.trim())
-    action.then(() => { wx.showToast({ title: this.data.folderFormView.successText, icon: 'success' }); setTimeout(() => wx.navigateBack(), 500) }).catch((error) => showError(error, this.data.folderFormView.errorText)).finally(() => this.applyState({ saving: false }))
+    action.then(() => {
+      // 【PR-12 契约修复 2026-10-07】重命名成功置强制刷新标记: files 列表 onShow 命中即绕过 30s 节流一次,
+      // 返回立刻见新名(该页无手动刷新入口);节流只拦纯回流,不拦写后回流
+      getApp().globalData.forceRefresh.files = true
+      wx.showToast({ title: this.data.folderFormView.successText, icon: 'success' })
+      setTimeout(() => wx.navigateBack(), 500)
+    }).catch((error) => showError(error, this.data.folderFormView.errorText)).finally(() => this.applyState({ saving: false }))
   },
   back() { wx.navigateBack() }
 })

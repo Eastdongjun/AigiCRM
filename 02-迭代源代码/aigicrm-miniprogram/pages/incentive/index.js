@@ -387,6 +387,15 @@ Page({
   // 【修复 2026-09-20】分类树随 onShow 刷新(此前仅 onLoad, 登录前失败后一直空树); 统计由树完成后串联
   onShow() {
     if (this._loadedOnce) {
+      // 【PR-12 契约修复 2026-10-07】写后回流的强制刷新: 上传/追加(upload finishSubmit)与
+      // 删除(detail removeRecord)成功后置 globalData.forceRefresh.incentive, 此处命中即清标记
+      // 并把 _lastShowTs 归零 —— 绕过下方 30s 节流一次。"写完回来立刻见结果"是 PR-12 契约,
+      // 节流只拦纯回流的流量放大,不拦写后回流。
+      const forceRefresh = getApp().globalData.forceRefresh
+      if (forceRefresh && forceRefresh.incentive) {
+        forceRefresh.incentive = false
+        this._lastShowTs = 0 // 归零使下方 TTL 判定必然通过(绕过节流一次), 刷新后 _lastShowTs 重新起算
+      }
       // 【容量止血 2026-10-05】onShow 30s 节流：本页回流 5-6 个请求(含 loadScoreboard 内部 2 个)，
       // 是小程序端最大流量放大器(容量评估流量模型专项)；30s 内回流不重拉，超过 30s 返回照常刷新，
       // 搜索/切分类等显式操作不受影响。已读标记后立即返回看不到最新排行的窗口最长 30s，可接受。

@@ -908,12 +908,16 @@ Page({
   onUnload() {
     // 【L12】标记已卸载: 草稿保存请求照常发出完成, 仅回调里不再对已卸载页面 setData
     this._unloaded = true
+    // 【M12 对齐 customer/form 2026-10-07】已成功提交后卸载不再触发草稿自动保存
+    // (autoSaveDraft 首行有同款守卫, 此处短路是双保险)
+    if (this._submitted) return
     this.autoSaveDraft()
   },
 
   autoSaveDraft() {
-    if (this.data.editId || this.data.loading) return
-    if (getApp().globalData.demoMode) return
+    if (getApp().globalData.demoMode || this.data.editId || this.data.loading || this._submitted) return
+    // 演示模式/编辑态/加载中不存草稿; 【M12 对齐 customer/form 2026-10-07】提交成功后草稿已被
+    // deleteFormDraft 清除, 再存回即"草稿复活", 恢复再提交=激励重复入库 → _submitted 一律不存(上方守卫)
     const customer = this.data.customers[this.data.selectedCustomerIndex]
     const category = this.data.categories[this.data.selectedCategoryIndex]
     if (!customer || !category) return // 关键选项未选齐不存(等价"空表单不存")
@@ -1010,6 +1014,13 @@ Page({
   },
 
   finishSubmit() {
+    // 【M12 对齐 customer/form 2026-10-07】置已提交标志: switchTab 会卸载本页并触发
+    // onUnload→autoSaveDraft, 此前会把刚 deleteFormDraft 清掉的草稿原样存回(草稿"复活"),
+    // 恢复再提交=激励重复入库;标志必须先于 switchTab 置位
+    this._submitted = true
+    // 【PR-12 契约修复 2026-10-07】写成功置强制刷新标记: 列表 onShow 命中即绕过 30s 节流一次,
+    // "写完回来立刻见结果";节流只拦纯回流,不拦写后回流
+    getApp().globalData.forceRefresh.incentive = true
     if (!this.data.editId) deleteFormDraft('incentive_upload').catch(() => {}) // 【PR-13】提交成功清草稿
     wx.showToast({ title: this.data.editId ? '追加成功' : '上传成功', icon: 'success' })
     // 【PR-12 2026-09-19 首批】激励列表是 tabBar 页,navigateTo 跳 tab 会被微信拒绝

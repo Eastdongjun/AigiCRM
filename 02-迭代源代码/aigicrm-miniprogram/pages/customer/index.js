@@ -219,9 +219,13 @@ Page({
 
     // 加载更多触发的请求与前一个请求并发保护（首屏 loading 由按钮/筛选入口天然防重）
     if (page > 1 && (this.data.loading || this.data.loadingMore)) return
+    // 【PM5 2026-10-07】请求序号守卫(照 files 页 _filesReqSeq 模式): 筛选/搜索触发 page-1 重载时,
+    // 在途的 loadMore(page>1)迟归响应不得再写 customers/currentPage —— 否则旧页行拼接进新列表(重复行)
+    const requestSeq = (this._custReqSeq = (this._custReqSeq || 0) + 1)
     this.setCustomerData(page === 1 ? { loading: true, loadingMore: false } : { loadingMore: true })
     const params = { current: page, size: PAGE_SIZE, ...buildCustomerFilterParams(this.data) }
     getCustomerList(params).then((payload) => {
+      if (requestSeq !== this._custReqSeq) return // 已被更新请求取代, 旧响应整体丢弃
       const rows = normalizePage(payload).map(normalizeCustomer)
       const visible = this.data.filter === '全部' ? rows : rows.filter((item) => item.devType === this.data.filter)
       const total = Number(payload && payload.total) || 0
@@ -233,7 +237,11 @@ Page({
         total,
         hasMore
       })
-    }).catch((error) => showError(error, page === 1 ? '客户加载失败' : '加载更多失败')).finally(() => {
+    }).catch((error) => {
+      // 【PM5】已被更新请求取代的旧失败不再弹错(新请求的结果会接管界面)
+      if (requestSeq === this._custReqSeq) showError(error, page === 1 ? '客户加载失败' : '加载更多失败')
+    }).finally(() => {
+      if (requestSeq !== this._custReqSeq) return // loading/loadingMore 由最新请求的 finally 复位
       this.setCustomerData({ loading: false, loadingMore: false })
     })
   },

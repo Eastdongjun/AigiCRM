@@ -565,6 +565,9 @@ Page({
       success: (result) => {
         if (!result.confirm) return
         deleteRecord(record.id).then(() => {
+          // 【PR-12 契约修复 2026-10-07】删除成功置强制刷新标记: 返回列表时 onShow 绕过 30s 节流一次,
+          // 立刻见删除结果;节流只拦纯回流,不拦写后回流
+          getApp().globalData.forceRefresh.incentive = true
           wx.showToast({ title: '已删除', icon: 'success' })
           const rest = this.data.records.filter((row) => String(row.id) !== String(record.id))
           if (!rest.length) return setTimeout(() => wx.navigateBack(), 300)

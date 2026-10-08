@@ -172,6 +172,14 @@ Page({
     // 【M20】onShow 防重入：列表请求进行中则跳过本次刷新，避免每次返回页面叠加并发请求
     // 【容量止血 2026-10-05】再加 30s 节流：回流 3 个请求的放大器之一；30s 内回流不重拉，
     // 上传/删除成功后的显式刷新路径不受影响（只拦 onShow 重入）。
+    // 【PR-12 契约修复 2026-10-07】写后回流的强制刷新: folder-form 重命名成功后置
+    // globalData.forceRefresh.files, 此处命中即清标记并把 _lastShowTs 归零 —— 绕过 30s 节流一次。
+    // "写完回来立刻见结果"是 PR-12 契约, 节流只拦纯回流的流量放大,不拦写后回流。
+    const forceRefresh = getApp().globalData.forceRefresh
+    if (forceRefresh && forceRefresh.files) {
+      forceRefresh.files = false
+      this._lastShowTs = 0 // 归零使下方 throttled 判定为 false(绕过节流一次), 刷新后 _lastShowTs 重新起算
+    }
     const now = Date.now()
     const throttled = now - (this._lastShowTs || 0) < 30000
     if (!throttled) this._lastShowTs = now
