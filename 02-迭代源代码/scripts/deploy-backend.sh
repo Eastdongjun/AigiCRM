@@ -22,6 +22,14 @@ if [ -z "${APP_DB_USER:-}" ] || [ -z "${APP_DB_PASSWORD:-}" ]; then
   echo "错误: 缺少 APP_DB_USER/APP_DB_PASSWORD（应用最小权限账号，请在部署 env 配置）" >&2
   exit 1
 fi
+# 【2026-10-07 忘记密码修复】短信凭据必须存在——占位值会让 sendSms 必败(忘记密码验证码 500)。
+# 真实凭据来自部署 env 的 OSS_ACCESS_KEY_ID/OSS_ACCESS_KEY_SECRET(RAM 用户 aigicrm-sms,
+# 仅授 AliyunDysmsFullAccess；密钥名沿用 OSS 前缀因 SmsConfig 复用 OssConfig 凭据)。
+if [ -z "${OSS_ACCESS_KEY_ID:-}" ] || [ -z "${OSS_ACCESS_KEY_SECRET:-}" ] \
+   || [ "${OSS_ACCESS_KEY_ID}" = "your-key" ] || [ "${OSS_ACCESS_KEY_SECRET}" = "your-secret" ]; then
+  echo "错误: 缺少或占位的 OSS_ACCESS_KEY_ID/OSS_ACCESS_KEY_SECRET（短信凭据，请在部署 env 配置）" >&2
+  exit 1
+fi
 
 echo "=== [1/5] 从测试服务器提取已验证 jar (commit: $COMMIT) ==="
 ssh_test "docker cp ${APP_SLUG}-backend:/app/app.jar /tmp/${APP_SLUG}-backend-new.jar"
@@ -69,8 +77,8 @@ ssh_prod "
     -e SPRING_PROFILES_ACTIVE=prod \
     -e TENANT_ENABLE=true \
     -e UPLOAD_DIR=/app/uploads -e STORAGE_TYPE=local -e TZ=Asia/Shanghai \
-    -e OSS_ENDPOINT=oss-cn-beijing.aliyuncs.com -e OSS_ACCESS_KEY_ID=your-key \
-    -e OSS_ACCESS_KEY_SECRET=your-secret -e OSS_BUCKET_NAME=your-bucket \
+    -e OSS_ENDPOINT=oss-cn-beijing.aliyuncs.com -e OSS_ACCESS_KEY_ID="$OSS_ACCESS_KEY_ID" \
+    -e OSS_ACCESS_KEY_SECRET="$OSS_ACCESS_KEY_SECRET" -e OSS_BUCKET_NAME=aigicrm-files \
     -e CORS_ORIGINS=https://www.aigicrm.com \
     -e JWT_SECRET="$JWT_SECRET" \
     -v /Aigicrm/files/uploads:/app/uploads \
