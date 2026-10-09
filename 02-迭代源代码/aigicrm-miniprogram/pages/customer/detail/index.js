@@ -1,4 +1,4 @@
-const { deleteCustomer, getCustomer, getCustomerContacts, getCustomerLogs, getInvoiceSummary, getPaymentSummary, getCustomerIndicator, saveCustomerRelationship, releaseCustomer } = require('../../../api/customer')
+const { deleteCustomer, getCustomer, getCustomerContacts, getCustomerLogs, getInvoiceSummary, getPaymentSummary, getCustomerIndicator, saveCustomerRelationship, releaseCustomer, archiveCustomer } = require('../../../api/customer')
 const { submitApproval } = require('../../../api/approval')
 const { hasPermission, requireLogin } = require('../../../utils/auth')
 const { showError } = require('../../../utils/feedback')
@@ -161,6 +161,9 @@ function buildDetailView(data) {
     showIndicatorEditAction: hasDetail && canEdit,
     showEditAction: hasDetail && canEdit,
     showReleaseSection: hasDetail && !fromSea && canEdit,
+    // 【闭环 2026-10-09 用户反馈】归档入口: 有开票/回款的客户不允许删除(议题五.3),停止跟进走归档;
+    // 与释放同权限口径(canEdit),已归档客户不再显示(MP 默认口径列表也不会拉到归档客户,防御性判 status)
+    showArchiveSection: hasDetail && !fromSea && canEdit && detail && detail.status !== 'archived',
     showDeleteSection: hasDetail && canDelete,
     showActionCard: hasDetail,
     showContactsAction: hasDetail && canViewContacts,
@@ -380,6 +383,23 @@ Page({
           wx.showToast({ title: '已释放到公海', icon: 'success' })
           this.goBack()
         }).catch((error) => showError(error, '释放失败'))
+      }
+    })
+  },
+
+  // 【闭环 2026-10-09 用户反馈】有开票/回款的客户拒删,停止跟进的正确出口=归档
+  archiveCurrentCustomer() {
+    if (!this.data.id || !hasPermission('customer:edit')) return wx.showToast({ title: '没有归档权限', icon: 'none' })
+    wx.showModal({
+      title: '归档客户',
+      content: `归档后“${(this.data.detail && this.data.detail.customerName) || '该客户'}”默认隐藏、不参与统计与提醒；如需恢复请在电脑端客户列表勾选“显示已归档”操作。确认归档？`,
+      success: (res) => {
+        if (!res.confirm) return
+        if (getApp().globalData.demoMode) return wx.showToast({ title: '归档已提交', icon: 'success' })
+        archiveCustomer(this.data.id).then(() => {
+          wx.showToast({ title: '客户已归档', icon: 'success' })
+          setTimeout(() => this.goBack(), 300)
+        }).catch((error) => showError(error, '归档失败'))
       }
     })
   },

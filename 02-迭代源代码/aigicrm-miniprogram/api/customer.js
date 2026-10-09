@@ -47,6 +47,9 @@ function getCustomerIndicator(id) { return request({ url: '/api/customer/' + id 
 function saveCustomerIndicator(id, data) { return request({ url: '/api/customer/' + id + '/indicator', method: 'POST', data }) }
 function saveCustomerRelationship(id, score) { return request({ url: '/api/customer/' + id + '/relationship', method: 'PUT', data: { score } }) }
 function releaseCustomer(id, reason) { return request({ url: '/api/customer/' + id + '/release', method: 'POST', data: { reason: reason || '移动端释放' } }) }
+// 【闭环 2026-10-09 用户反馈】删除拒删指引原指向不存在的"停用";归档=停止跟进的真实入口
+// (后端 POST /customer/{id}/archive, 默认隐藏+不参与统计提醒, PC 端可恢复)
+function archiveCustomer(id) { return request({ url: '/api/customer/' + id + '/archive', method: 'POST' }) }
 
 module.exports = {
   getCustomerList,
@@ -80,5 +83,6 @@ module.exports = {
   getCustomerIndicator,
   saveCustomerIndicator,
   saveCustomerRelationship,
-  releaseCustomer
+  releaseCustomer,
+  archiveCustomer
 }

@@ -627,8 +627,10 @@ public class CustomerService {
                 new LambdaQueryWrapper<com.aigicrm.module.customer.entity.BizPayment>()
                         .eq(com.aigicrm.module.customer.entity.BizPayment::getCustomerId, id));
         if (invoiceCount > 0 || paymentCount > 0) {
+            // 【文案修复 2026-10-09 用户反馈】原指引"请使用'停用'"是断头路——系统客户域没有
+            // 叫"停用"的功能,实际停止跟进的入口是"归档"(议题五.4:默认隐藏+不参与统计提醒,可恢复)
             throw new BusinessException(String.format(
-                    "该客户有 %d 笔开票、%d 笔回款,不允许删除;如需停止跟进请使用\"停用\"",
+                    "该客户有 %d 笔开票、%d 笔回款,不允许删除;如需停止跟进请使用\"归档\"",
                     invoiceCount, paymentCount));
         }
         // 【议题五.3 裁决 2026-09-20 补齐】在途审批(reviewing/pending)任一存在同样拒删——

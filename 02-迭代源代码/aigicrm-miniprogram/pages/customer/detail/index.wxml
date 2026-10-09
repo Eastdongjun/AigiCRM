@@ -139,9 +139,14 @@
     <button class="btn customer-action-btn flat" bindtap="releaseToSea">释放到公海</button>
   </view>
 
+  <!-- 【闭环 2026-10-09 用户反馈】停止跟进的出口: 归档(拒删客户的正确去向,与电脑端口径一致) -->
+  <view wx:if="{{detailView.showArchiveSection}}" class="card customer-section-card">
+    <button class="btn customer-action-btn flat" bindtap="archiveCurrentCustomer">归档（停止跟进）</button>
+  </view>
+
   <view wx:if="{{detailView.showDeleteSection}}" class="card customer-section-card danger-zone-card">
     <view class="section-title">危险操作</view>
-    <view class="muted danger-zone-copy">删除客户会移除该客户资料，操作不可恢复。</view>
+    <view class="muted danger-zone-copy">删除客户会移除该客户资料，操作不可恢复。有开票/回款记录的客户不允许删除，停止跟进请使用「归档」。</view>
     <button class="customer-delete-action" bindtap="deleteCurrentCustomer">删除客户</button>
   </view>
 

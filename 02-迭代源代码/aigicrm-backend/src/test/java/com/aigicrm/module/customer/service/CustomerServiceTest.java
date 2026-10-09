@@ -1578,6 +1578,9 @@ class CustomerServiceTest {
         BusinessException ex = assertThrows(BusinessException.class, () -> svc.delete(501L));
         assertTrue(ex.getMessage().contains("不允许删除"), "实际: " + ex.getMessage());
         assertTrue(ex.getMessage().contains("3 笔开票"), "提示须含影响范围: " + ex.getMessage());
+        // 【文案修复 2026-10-09】拒删指引必须指向真实存在的功能"归档"(系统无客户域"停用")
+        assertTrue(ex.getMessage().contains("归档"), "指引须指向归档入口: " + ex.getMessage());
+        assertFalse(ex.getMessage().contains("停用"), "不得再指引不存在的'停用': " + ex.getMessage());
         verify(customerMapper, never()).deleteById(any(Long.class));
     }
 
