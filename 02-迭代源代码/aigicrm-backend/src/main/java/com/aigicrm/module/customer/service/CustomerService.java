@@ -161,6 +161,13 @@ public class CustomerService {
         } else if (StringUtils.hasText(status)) {
             String[] arr = status.split(",");
             if (arr.length > 1) wrapper.in(BizCustomer::getStatus, (Object[]) arr);
+            else if ("expired".equals(status)) {
+                // 【口径统一 2026-10-09 用户裁决】列表/统计卡「已超期」= expireDate<今日 且排除公海/归档,
+                // 与统计页/工作台同判据(数字-钻取-统计卡三处一致)。status 列等值匹配 'expired' 只命中
+                // "无公海池配置"办事处的到期客户(到期入池即转 sea), 会漏掉绝大多数超期客户
+                wrapper.lt(BizCustomer::getExpireDate, java.time.LocalDate.now())
+                        .notIn(BizCustomer::getStatus, "sea", "archived");
+            }
             else wrapper.eq(BizCustomer::getStatus, status);
         } else {
             wrapper.notIn(BizCustomer::getStatus, "sea", "archived");
@@ -800,7 +807,12 @@ public class CustomerService {
 
     public long countExpiredByScope() {
         LambdaQueryWrapper<BizCustomer> w = new LambdaQueryWrapper<>();
-        w.eq(BizCustomer::getDeleted, 0).eq(BizCustomer::getProtectionStatus, "expired");
+        // 【口径统一 2026-10-09 用户裁决】工作台「已超期」= expireDate<今日 且排除公海/归档——
+        // 与统计页 StatisticsQueryService 同判据(此前 protection_status='expired' 不排公海,
+        // 工作台29 vs 统计页2 两页数字不一致; 且到期客户实际已被凌晨任务转 sea+expired,
+        // 排除公海后 protection_status 等值与日期判据唯一差异是"任务跑过没有", 日期版确定性更高)
+        w.eq(BizCustomer::getDeleted, 0).notIn(BizCustomer::getStatus, "sea", "archived")
+                .lt(BizCustomer::getExpireDate, java.time.LocalDate.now());
         applyDataScope(w);
         return customerMapper.selectCount(w);
     }

@@ -70,6 +70,19 @@
 
 ---
 
+## 5. 已超期指标(2026-10-09 裁决)
+
+| 维度 | 口径 |
+|---|---|
+| **判据** | `expire_date < 今日` 且 `status NOT IN (sea, archived)` 且 `deleted=0`(受数据范围控制) |
+| **适用范围** | **三处同判据**:工作台 hero「已超期」、统计页「已超期」、客户列表 status=expired 钻取/快速筛选/统计卡 |
+| **不含公海** | 到期客户会被凌晨任务转入公海(status→sea),公海客户无负责人不计数——工作台旧口径(protection_status='expired' 不排公海)已废弃(曾致工作台 29 vs 统计页 2 两页不一致) |
+| **代码实现** | `CustomerService.countExpiredByScope()`(工作台)与 `applyFilterConditions` status='expired' 翻译(列表/统计卡),与 `StatisticsQueryService` 统计页完全同判据;2 测试钉(CustomerServiceTest) |
+
+**验证**:`✅ 三处同判据` — 2026-10-09 测试环境实测两页数字一致。
+
+---
+
 ## 修改流程
 
 1. 任何口径变更须先经业务决策会裁决;

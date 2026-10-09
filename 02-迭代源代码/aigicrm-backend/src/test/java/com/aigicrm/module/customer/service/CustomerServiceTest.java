@@ -1767,4 +1767,56 @@ class CustomerServiceTest {
         assertTrue(w.getParamNameValuePairs().containsValue("share_to"), "仅 share_to");
         assertTrue(w.getParamNameValuePairs().containsValue("pending"), "仅 pending");
     }
+
+    // ===== 【口径统一 2026-10-09 用户裁决】已超期=expireDate<今日 且排除公海/归档,三处(工作台/统计页/列表钻取)同判据 =====
+
+    @Test
+    void countExpiredByScope_dateCriteria_excludesSeaArchived() {
+        BizCustomerMapper customerMapper = mock(BizCustomerMapper.class);
+        when(customerMapper.selectCount(any())).thenReturn(0L);
+        CustomerService svc = newService(mock(BizInvoiceMapper.class), mock(BizPaymentMapper.class),
+                customerMapper, mock(OrgScopeResolver.class));
+
+        try (MockedStatic<SecurityUtils> security = mockStatic(SecurityUtils.class)) {
+            security.when(SecurityUtils::getCurrentUserId).thenReturn(7L);
+            security.when(SecurityUtils::getCurrentUser).thenReturn(null);
+            svc.countExpiredByScope();
+            ArgumentCaptor<LambdaQueryWrapper<BizCustomer>> cap =
+                    ArgumentCaptor.forClass((Class) LambdaQueryWrapper.class);
+            verify(customerMapper).selectCount(cap.capture());
+            LambdaQueryWrapper<BizCustomer> w = cap.getValue();
+            String sql = w.getSqlSegment();
+            // 判据=expire_date < 今日 + status NOT IN (sea, archived);不再 protection_status='expired'(不排公海旧口径)
+            assertTrue(sql.contains("expire_date"), "按到期日期判定: " + sql);
+            assertTrue(sql.contains("NOT IN"), "排除公海/归档: " + sql);
+            assertTrue(w.getParamNameValuePairs().containsValue("sea"), "排除 sea");
+            assertTrue(w.getParamNameValuePairs().containsValue("archived"), "排除 archived");
+            assertTrue(w.getParamNameValuePairs().containsValue(java.time.LocalDate.now()), "上界=今日");
+            assertFalse(w.getParamNameValuePairs().containsValue("expired"), "不再等值 protection_status=expired");
+        }
+    }
+
+    @Test
+    void page_statusExpired_translatesToDateCriteria() {
+        BizCustomerMapper customerMapper = mock(BizCustomerMapper.class);
+        when(customerMapper.selectPage(any(), any())).thenReturn(new Page<>(1, 10, 0));
+        CustomerService svc = newService(mock(BizInvoiceMapper.class), mock(BizPaymentMapper.class),
+                customerMapper, mock(OrgScopeResolver.class));
+
+        try (MockedStatic<SecurityUtils> security = mockStatic(SecurityUtils.class)) {
+            security.when(SecurityUtils::getCurrentUserId).thenReturn(7L);
+            security.when(SecurityUtils::getCurrentUser).thenReturn(null);
+            // 列表/统计卡 status=expired(工作台钻取/快速筛选同参): 与统计页同判据
+            svc.page(1, 10, null, null, null, null, "expired", null);
+            ArgumentCaptor<LambdaQueryWrapper<BizCustomer>> cap =
+                    ArgumentCaptor.forClass((Class) LambdaQueryWrapper.class);
+            verify(customerMapper).selectPage(any(), cap.capture());
+            LambdaQueryWrapper<BizCustomer> w = cap.getValue();
+            String sql = w.getSqlSegment();
+            assertTrue(sql.contains("expire_date"), "已超期=日期判据: " + sql);
+            assertTrue(sql.contains("NOT IN"), "排除公海/归档: " + sql);
+            assertFalse(w.getParamNameValuePairs().containsValue("expired"),
+                    "status 列等值 'expired' 只命中无池办事处的到期客户(入池即转 sea),不再使用");
+        }
+    }
 }

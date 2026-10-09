@@ -17,6 +17,8 @@ normal(正常) → warning(临期,≤30天) → expired(到期) → sea(公海�
 
 - 归档与公海客户**不参与**统计、提醒、到期检查(2026-09-22 B5 统一口径)。
 - 软删不物理删除,列表按 deleted=0 过滤。
+- **客户列表默认页签=「成熟创新」**(裁决 2026-10-09:首屏聚焦在跟客户,与统计卡口径一致;`useCustomerList.js` sanitizeTab 兜底维持 innovate)。
+- **「已超期」指标口径=expire_date<今日 且排除公海/归档**,工作台/统计页/列表钻取三处同判据(裁决 2026-10-09,详见 [metrics-definition.md](../metrics-definition.md) §5)。
 
 ## 2. 创建与归属
 

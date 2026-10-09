@@ -32,15 +32,16 @@
       </div>
       <div class="hero-divider"></div>
       <!-- 【A3 2026-10-08】点击落到客户列表「超期」筛选（tab=all 全分类口径），数字与落地内容对应 -->
+      <!-- 【口径统一 2026-10-09 用户裁决】已超期=expireDate<今日且不含公海/归档，与统计页/列表钻取同判据，「（含公海）」标注移除 -->
       <div class="hero-metric drill" @click="$router.push({ path: '/customer', query: { status: 'expired', tab: 'all' } })">
-        <div class="hm-label">已超期（含公海）</div>
+        <div class="hm-label">已超期</div>
         <div class="hm-num">
           {{ stats.expired || 0 }}<span class="hm-chip chip-red" v-if="stats.expired">需处理</span>
         </div>
         <div class="hm-sub">点击查看超期客户 · 今日到期 {{ stats.todayExpiring || 0 }}</div>
       </div>
     </div>
-    <!-- 骨架屏：与上方 hero-band 同形，避免首屏跳变（统计页口径不含公海，此处标注"含公海"消歧） -->
+    <!-- 骨架屏：与上方 hero-band 同形，避免首屏跳变（已超期口径 2026-10-09 统一为不含公海，与统计页一致） -->
     <div class="hero-band hero-skeleton" v-else aria-busy="true">
       <el-skeleton :rows="3" animated />
       <!-- 【D13 二轮】聚合超 4s 未完成时给出进行中文案，不再无限期静默停留 -->
