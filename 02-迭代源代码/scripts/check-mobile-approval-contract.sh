@@ -50,7 +50,8 @@ grep -Fq "isPending: pendingStatus(status)" "$PAGE" || fail 'mobile approval lis
 grep -Fq "pendingStatus(status)" "$PAGE" || fail 'mobile approval list pending status helper is missing'
 # 【2026-09-30 锚点重钉】E6 去重后状态映射收敛到共享模块 utils/label-maps —— 钉随代码移到共享模块
 LABEL_MAPS="$ROOT/aigicrm-miniprogram/utils/label-maps.js"
-grep -Fq "PENDING: '待提交'" "$LABEL_MAPS" || fail 'mobile label-maps must display PC pending status variants as labels'
+# 【2026-10-09 钉随代码】2fe92ad7 UI冲刺有意统一 pending 文案「待提交」→「待审批」(与PC及页签一致), 钉随重锚
+grep -Fq "PENDING: '待审批'" "$LABEL_MAPS" || fail 'mobile label-maps must display PC pending status variants as labels'
 grep -Fq "WAITING: '待审批'" "$LABEL_MAPS" || fail 'mobile label-maps must display PC waiting status variants as labels'
 grep -Fq "buildApprovalView" "$PAGE" || fail 'mobile approval list must normalize page view state before WXML'
 grep -Fq "buildApprovalItemView" "$PAGE" || fail 'mobile approval list must normalize list rows before WXML'
