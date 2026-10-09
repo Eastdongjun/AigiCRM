@@ -335,6 +335,10 @@ class CustomerServiceTest {
             assertTrue(w1.getParamNameValuePairs().containsValue("sea"), "include_archived 仍应排除公海");
             assertFalse(w1.getParamNameValuePairs().containsValue("include_archived"),
                     "不得按字面 include_archived 等值过滤(恒空集)");
+            // 【回归钉 2026-10-09 NM005 反馈】include_archived 不得排除归档——B5 机械替换曾把本分支
+            // ne(sea) 改成 notIn(sea,archived),参数多出 archived 但旧断言察觉不到(假绿灯),用户归档后看不到
+            assertFalse(w1.getParamNameValuePairs().containsValue("archived"),
+                    "include_archived 必须包含归档行(参数含 archived=被排除)");
 
             svc.page(1, 10, null, null, null, null, null, null, null, null, null, null);
             verify(customerMapper, times(2)).selectPage(any(), captor.capture());

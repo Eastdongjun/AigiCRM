@@ -157,7 +157,10 @@ public class CustomerService {
         String status = statusOverride != null ? statusOverride : f.status();
         // 【议题五.4 裁决】归档客户默认隐藏;status=include_archived 时包含(显式传 'archived' 即只看归档)
         if ("include_archived".equals(status)) {
-            wrapper.notIn(BizCustomer::getStatus, "sea", "archived");
+            // 【回归修复 2026-10-09 NM005 反馈】此处必须是 ne(sea) 而非 B5 统一口径的
+            // notIn(sea,archived): "显示已归档"=包含归档仅排公海。B5 批量替换(2026-09-22 31处)误伤本特例,
+            // 勾选后归档客户仍被过滤=勾了没用,用户归档后自己看不到。测试已补 assertFalse(archived) 钉住。
+            wrapper.ne(BizCustomer::getStatus, "sea");
         } else if (StringUtils.hasText(status)) {
             String[] arr = status.split(",");
             if (arr.length > 1) wrapper.in(BizCustomer::getStatus, (Object[]) arr);
