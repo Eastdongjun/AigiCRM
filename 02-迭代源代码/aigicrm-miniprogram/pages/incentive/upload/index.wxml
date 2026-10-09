@@ -116,10 +116,12 @@
         <view class="upload-copy">
           <view class="upload-title">{{uploadView.currentSlotTitle}}</view>
           <view class="upload-hint">{{uploadView.currentSlotHint}}</view>
-          <view class="upload-actions">
+          <view class="upload-actions" wx:if="{{!uploadView.currentSlotFull}}">
             <button class="upload-action primary" catchtap="chooseImage">选图片</button>
             <button class="upload-action" catchtap="chooseFile">选文件</button>
           </view>
+          <!-- 【工作流复核确认修复】满员隐藏添加入口(PC 同口径), 避免点了被吞 -->
+          <view class="upload-hint" wx:else>该槽位已满（每槽最多 5 个文件）</view>
         </view>
       </view>
     </view>

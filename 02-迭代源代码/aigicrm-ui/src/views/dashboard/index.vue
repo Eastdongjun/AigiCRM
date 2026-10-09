@@ -4,13 +4,15 @@
     <!-- 核心指标 · 深蓝主视觉带(企业级:白字统排,语义差异用小徽标表达) -->
     <!-- 【2026-10-08 UI 整改 D13】六路聚合接口加载中先渲染骨架屏,慢接口期间不再显示误导性 0 值 -->
     <div class="hero-band" v-if="!pageLoading">
-      <div class="hero-metric drill" @click="$router.push('/customer')">
+      <!-- 【工作流复核确认修复】钻取统一带 tab=all(与已超期卡同口径): 否则落默认"成熟创新"页签
+           叠加 devType 过滤, 数字与落地列表严重不对应(实测 264→20) -->
+      <div class="hero-metric drill" @click="$router.push({ path: '/customer', query: { tab: 'all' } })">
         <div class="hm-label">客户总数</div>
         <div class="hm-num">{{ stats.myCustomers || 0 }}</div>
         <div class="hm-sub">本月新增 {{ stats.monthNew || 0 }} · 公海 {{ stats.seaStats?.total || 0 }}</div>
       </div>
       <div class="hero-divider"></div>
-      <div class="hero-metric drill" @click="$router.push({ path: '/customer', query: { status: 'normal' } })">
+      <div class="hero-metric drill" @click="$router.push({ path: '/customer', query: { status: 'normal', tab: 'all' } })">
         <div class="hm-label">在保护期</div>
         <div class="hm-num">{{ stats.inProtection || 0 }}</div>
         <div class="hm-sub">占比 {{ protectionRate }}%</div>
@@ -51,7 +53,8 @@
     <!-- 运营指标 · 白色定义卡四联(任何角色都是完整四列) -->
     <!-- 【PR-10 前端 2026-09-19】待办任务; 【PR-11 后续批次】销售=self激励/阅读, 管理=审批概览/范围 -->
     <div class="stat-row secondary" v-if="!pageLoading">
-      <div class="stat-card drill" @click="$router.push('/task')">
+      <!-- 【工作流复核确认修复】待办任务卡加 task:view 门控(后端 /api/task/* 均要求该权限, 无权限角色点击即 403) -->
+      <div class="stat-card drill" v-if="userStore.hasPermission('task:view')" @click="$router.push('/task')">
         <div class="stat-info">
           <div class="stat-label">待办任务</div>
           <div class="stat-num">{{ taskStats.pending || 0 }}</div>
@@ -359,13 +362,15 @@ const loadReminders = async () => {
     const r = await getExpiringList({ current: 1, size: 5 })
     const list = r.data?.records || []
     reminders.value = list.map(item => ({
+      // 【工作流复核确认修复】字段契约对齐: /reminder/expiring-list 实际返回 remainingDays(无 daysLeft/overdueDays),
+      // 原读错字段名致天数标签/到期文案/红橙分级全部失效(>300天无开票提示为死代码, 已移除)
       id: item.customerId || item.id,
       customerName: item.customerName,
-      desc: item.daysLeft != null ? (item.daysLeft <= 7 ? '保护期即将到期' : '') : '',
-      daysTag: item.daysLeft != null ? item.daysLeft + '天' : '',
-      daysTagCls: item.daysLeft <= 7 ? 'dt-orange' : 'dt-red',
-      extra: item.overdueDays > 300 ? item.overdueDays + '天无开票' : '',
-      dotCls: item.daysLeft <= 7 ? 'dot-red' : 'dot-orange',
+      desc: item.remainingDays != null ? (item.remainingDays <= 7 ? '保护期即将到期' : '') : '',
+      daysTag: item.remainingDays != null ? item.remainingDays + '天' : '',
+      daysTagCls: item.remainingDays <= 7 ? 'dt-orange' : 'dt-red',
+      extra: '',
+      dotCls: item.remainingDays != null && item.remainingDays <= 7 ? 'dot-red' : 'dot-orange',
       isShare: false,
     }))
     // 追加分享提醒（三类并发拉取）
@@ -447,7 +452,8 @@ const formatRelativeTime = (time) => {
   const d = Math.floor(h / 24)
   if (d === 1) return '昨天'
   if (d < 7) return d + '天前'
-  return new Date(time).toLocaleDateString()
+  // 【工作流复核确认修复】7 天以上分支与 diff 同用补 Z 的 UTC 口径解析(原用原始串本地时区解析, 同一串两种口径差 8 小时, 落尾日期可能差一天)
+  return new Date(timeStr).toLocaleDateString()
 }
 
 onMounted(() => { loadData(); loadRoleData(); loadTaskStats() })

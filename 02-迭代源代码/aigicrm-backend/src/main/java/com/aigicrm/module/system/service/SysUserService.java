@@ -386,6 +386,11 @@ public class SysUserService {
         if (!passwordEncoder.matches(oldPassword, user.getPassword())) {
             throw new BusinessException("原密码错误");
         }
+        // 【工作流复核确认修复】后端补长度校验: 前端三入口口径分裂(顶栏≥6/首登与忘记密码≥8),
+        // 后端此前零校验——顶栏可成功设置 6-7 位弱密码。统一 8-30(与首登改密/忘记密码同口径)
+        if (newPassword == null || newPassword.length() < 8 || newPassword.length() > 30) {
+            throw new BusinessException("新密码长度须为 8-30 位");
+        }
         user.setPassword(passwordEncoder.encode(newPassword));
         // 【2026-08-14 安全 P0】DB 级改密时刻(旧 token 失效依据) + 清除首登强制改密标记。
         // 截断到秒：MySQL DATETIME(0) 对小数秒**四舍五入**，不截断会把改密时刻进位到下一秒，

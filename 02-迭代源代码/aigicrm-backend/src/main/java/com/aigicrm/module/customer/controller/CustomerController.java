@@ -639,8 +639,11 @@ public class CustomerController {
 
     @PreAuthorize("hasAuthority('customer:view')")
     @GetMapping("/check-name")
-    public Result<java.util.Map<String, Object>> checkName(@RequestParam String name) {
-        boolean exists = customerService.existsByName(name);
+    public Result<java.util.Map<String, Object>> checkName(@RequestParam String name,
+            @RequestParam(required = false) Long excludeId) {
+        // 【工作流复核确认修复】excludeId: 编辑已有客户时排除自身——原名失焦查重命中自己,
+        // 弹"此客户已由你创建请更换名称"误导用户
+        boolean exists = customerService.existsByName(name, excludeId);
         java.util.Map<String, Object> result = new java.util.HashMap<>();
         result.put("exists", exists);
         if (exists) {

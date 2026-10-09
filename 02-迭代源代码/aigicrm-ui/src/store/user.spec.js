@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 
-vi.mock('@/api/auth', () => ({ getUserInfo: vi.fn() }))
+vi.mock('@/api/auth', () => ({ getUserInfo: vi.fn(), logout: vi.fn().mockResolvedValue({}) }))
 vi.mock('@/api/reminder', () => ({ getPendingCount: vi.fn() }))
 vi.mock('@/api/approval', () => ({ getApprovalStatistics: vi.fn() }))
 vi.mock('@/api/system', () => ({ getPublicConfig: vi.fn() }))

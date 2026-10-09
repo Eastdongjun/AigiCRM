@@ -11,7 +11,7 @@ function normalizeInvoice(item) {
     invoiceNumber: item.invoiceNumber || item.invoiceNo || item.code || '开票记录',
     invoiceType: item.invoiceType || item.type || '-',
     invoiceCompany: item.invoiceCompany || item.companyName || item.company || '-',
-    amountText: item.amount || item.totalAmount || '-',
+    amountText: (item.amount != null ? item.amount : (item.totalAmount != null ? item.totalAmount : '-')),
     invoiceDateText: item.invoiceDate || item.date || '-',
     status: item.status || '已记录'
   }
@@ -21,7 +21,7 @@ function normalizePayment(item) {
   return {
     ...item,
     paymentNumber: item.paymentNumber || item.paymentNo || item.code || '回款记录',
-    paymentAmountText: item.paymentAmount || item.amount || item.totalAmount || '-',
+    paymentAmountText: (item.paymentAmount != null ? item.paymentAmount : ((item.amount != null ? item.amount : (item.totalAmount != null ? item.totalAmount : '-')))),
     paymentDateText: item.paymentDate || item.date || '-',
     paymentMethod: item.paymentMethod || item.method || '-',
     remark: item.remark || '-',

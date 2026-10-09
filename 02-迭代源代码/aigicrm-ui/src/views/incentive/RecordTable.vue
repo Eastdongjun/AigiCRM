@@ -19,9 +19,9 @@
       <el-table-column label="安装文件" min-width="180" show-overflow-tooltip>
         <template #default="{ row }">
           <div class="install-files">
-            <span v-if="row.filePreName" class="file-tag" :class="{previewable: fileType(row.filePreName)!=='doc'}" @click="previewFile(row.filePreId, row.filePreName)"><b>前</b>{{ row.filePreName }}</span>
-            <span v-if="row.fileMidName" class="file-tag" :class="{previewable: fileType(row.fileMidName)!=='doc'}" @click="previewFile(row.fileMidId, row.fileMidName)"><b>中</b>{{ row.fileMidName }}</span>
-            <span v-if="row.filePostName" class="file-tag" :class="{previewable: fileType(row.filePostName)!=='doc'}" @click="previewFile(row.filePostId, row.filePostName)"><b>后</b>{{ row.filePostName }}</span>
+            <span v-if="row.filePreName" class="file-tag" :class="{previewable: fileType(row.filePreName)!=='doc'}" @click.stop="previewFile(row.filePreId, row.filePreName)"><b>前</b>{{ row.filePreName }}</span>
+            <span v-if="row.fileMidName" class="file-tag" :class="{previewable: fileType(row.fileMidName)!=='doc'}" @click.stop="previewFile(row.fileMidId, row.fileMidName)"><b>中</b>{{ row.fileMidName }}</span>
+            <span v-if="row.filePostName" class="file-tag" :class="{previewable: fileType(row.filePostName)!=='doc'}" @click.stop="previewFile(row.filePostId, row.filePostName)"><b>后</b>{{ row.filePostName }}</span>
             <span v-if="!row.filePreName && !row.fileMidName && !row.filePostName" class="file-cell">
               <el-icon class="file-icon"><Document /></el-icon>{{ row.fileName || '—' }}
             </span>
@@ -35,12 +35,14 @@
       </el-table-column>
       <el-table-column label="共享" min-width="66" align="center">
         <template #default="{ row }">
-          <el-switch
-            v-if="isRecordOwner(row)"
-            :model-value="!!row.shared"
-            size="small"
-            @change="(v) => toggleShare(row, v)"
-          />
+          <!-- 【工作流复核确认修复】外包 .stop 防冒泡: 点开关会同时执行开关并弹出行点击的追加弹窗 -->
+          <span v-if="isRecordOwner(row)" @click.stop>
+            <el-switch
+              :model-value="!!row.shared"
+              size="small"
+              @change="(v) => toggleShare(row, v)"
+            />
+          </span>
           <span v-else :class="row.shared ? 'shared-yes' : 'shared-no'">{{ row.shared ? '● 共享' : '—' }}</span>
         </template>
       </el-table-column>
@@ -56,8 +58,8 @@
       </el-table-column>
       <el-table-column label="操作" width="110" fixed="right" align="center">
         <template #default="{ row }">
-          <el-button v-if="userStore.isAdmin() || canEdit || row.userId === userStore.userId" link type="primary" size="small" @click="startReplace(row)">追加</el-button>
-          <el-button v-if="userStore.isAdmin() || canDelete || row.userId === userStore.userId" link type="danger" size="small" @click="handleDeleteRecord(row)">删除</el-button>
+          <el-button v-if="userStore.isAdmin() || canEdit || row.userId === userStore.userId" link type="primary" size="small" @click.stop="startReplace(row)">追加</el-button>
+          <el-button v-if="userStore.isAdmin() || canDelete || row.userId === userStore.userId" link type="danger" size="small" @click.stop="handleDeleteRecord(row)">删除</el-button>
         </template>
       </el-table-column>
     </el-table>

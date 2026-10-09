@@ -315,17 +315,39 @@ Page({
       return
     }
     const request = action === 'approve' ? approveApproval : rejectApproval
-    // 【D35】审批意见输入框随死弹窗删除，移动端固定提交默认意见（与删除前实际线上行为一致）
-    wx.showLoading({ title: action === 'approve' ? '审批通过中' : '审批驳回中' })
-    request(id, { comment: '移动端处理' }).then(() => {
+    // 【工作流复核确认修复】意见收集对齐 PC 口径(通过默认"同意", 驳回必填原因):
+    // 原固定提交"移动端处理"——列表与详情两入口校验不同, 且审批留痕无信息量
+    const collectComment = () => new Promise((resolve) => {
+      if (action === 'approve') { resolve('同意'); return }
+      wx.showModal({
+        title: '驳回原因',
+        editable: true,
+        placeholderText: '请填写驳回原因（必填）',
+        success: (res) => {
+          if (!res.confirm) { resolve(null); return }
+          const comment = String(res.content || '').trim()
+          if (!comment) {
+            wx.showToast({ title: '请填写驳回原因', icon: 'none' })
+            resolve(null); return
+          }
+          resolve(comment)
+        },
+        fail: () => resolve(null)
+      })
+    })
+    collectComment().then((comment) => {
+      if (!comment) return
+      wx.showLoading({ title: action === 'approve' ? '审批通过中' : '审批驳回中' })
+      return request(id, { comment }).then(() => {
       // 【L17】loading 与 toast 共用原生单例：先 hideLoading 再 showToast，否则成功提示被后置 hideLoading 一并关掉
       wx.hideLoading()
       wx.showToast({ title: '处理完成', icon: 'success' })
       this.loadApprovals()
       this.loadStats()
-    }).catch((error) => {
-      wx.hideLoading()
-      showError(error, '处理失败')
+      }).catch((error) => {
+        wx.hideLoading()
+        showError(error, '处理失败')
+      })
     })
   },
 

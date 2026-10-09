@@ -58,7 +58,7 @@ const uploadOne = async (file) => {
   formData.append('scope', activeTab.value)
   // folderId 为 null 时不携带（后端 Long 类型收到字符串 "null" 会 400）
   if (selectedFolderId.value != null) formData.append('folderId', selectedFolderId.value)
-  const res = await request.post('/file/upload', formData, { headers: { 'Content-Type': 'multipart/form-data' } })
+  const res = await request.post('/file/upload', formData, { timeout: 600000, headers: { 'Content-Type': 'multipart/form-data' } }) // 【工作流复核确认修复】上传放宽超时(全局 30s 会让大文件中途断)
   if (!res.data?.id) throw new Error(res.data?.message || '上传失败')
 }
 

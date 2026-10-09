@@ -18,7 +18,7 @@
     </div>
     <template #footer>
       <el-button @click="showReleaseDialog = false">取消</el-button>
-      <el-button type="danger" :loading="releaseLoading" :disabled="!canConfirmRelease" @click="confirmRelease">确认释放</el-button>
+      <el-button type="warning" :loading="releaseLoading" :disabled="!canConfirmRelease" @click="confirmRelease">确认释放</el-button>
     </template>
   </el-dialog>
 </template>

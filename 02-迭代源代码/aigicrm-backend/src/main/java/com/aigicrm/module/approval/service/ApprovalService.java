@@ -647,6 +647,12 @@ public class ApprovalService {
         stats.put("rejectedThisMonth", approvalMapper.selectCount(
                 scoped.clone().eq(BizApproval::getStatus, "rejected")
                         .ge(BizApproval::getUpdatedAt, monthStart)));
+        // 【工作流复核确认修复】补全量口径键: 页签角标原用 ThisMonth 而列表 tab=approved/rejected 返回
+        // 全部历史,凡有历史单据角标与分页 total 必对不上(INV-12)。前端角标换用全量键,ThisMonth 保留给指标条。
+        stats.put("approvedTotal", approvalMapper.selectCount(
+                scoped.clone().eq(BizApproval::getStatus, "approved")));
+        stats.put("rejectedTotal", approvalMapper.selectCount(
+                scoped.clone().eq(BizApproval::getStatus, "rejected")));
         return stats;
     }
 

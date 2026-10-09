@@ -5,7 +5,7 @@ describe('customer-status', () => {
   it('maps known status codes to Chinese labels and tag types', () => {
     expect(customerStatusText('normal')).toBe('正常')
     expect(customerStatusText('warning')).toBe('预警')
-    expect(customerStatusText('expired')).toBe('超期')
+    expect(customerStatusText('expired')).toBe('已超期') // 【INV-11 术语统一 2026-10-15】
     expect(customerStatusText('sea')).toBe('公海')
     expect(customerStatusTagType('expired')).toBe('danger')
   })

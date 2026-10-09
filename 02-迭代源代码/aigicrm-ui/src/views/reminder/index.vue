@@ -69,10 +69,11 @@
           <template #default="{ row }">
             <el-button link type="primary" size="small" @click.stop="openDetail(row)">详情</el-button>
             <template v-if="row._type === 'share'">
-              <el-button link type="primary" size="small" @click.stop="handleProcessShare(row)">已读</el-button>
+              <!-- 【INV-11 术语统一】"已读"→"已处理"(与详情页同口径) -->
+              <el-button link type="primary" size="small" @click.stop="handleProcessShare(row)">已处理</el-button>
             </template>
             <template v-else-if="row._type === 'invoice'">
-              <el-button link type="primary" size="small" @click.stop="handleProcessShare(row)">已读</el-button>
+              <el-button link type="primary" size="small" @click.stop="handleProcessShare(row)">已处理</el-button>
             </template>
             <template v-else>
               <el-button v-if="!row.todayFollowedUp" link type="primary" size="small" @click.stop="handleFollowUp(row)">已跟进</el-button>
@@ -146,10 +147,11 @@ const loadData = async () => {
       const types = ['share_to', 'share_by', 'share_owner']
       const labelMap = { share_to: '客户已分享给你', share_by: '你分享了客户', share_owner: '你的客户被分享' }
       // 【性能 2026-08-08】三个分享类型互不依赖，串行 for 改为 Promise.all 并发
-      // 【M8 修复】三路(分享/开票/到期)统一携带 keyword/ownerId/deptId，搜索后分享/开票同样受过滤
-      // （后端 /reminder/list 已支持 ownerId/deptId 过滤；keyword 形参暂未参与服务端过滤，传参保持口径一致，后端补齐即生效）
+      // 【M8 修复】三路(分享/开票/到期)统一携带 keyword/ownerId/deptId
+      // 【工作流复核确认修复】窗口 20→200(超出上限的提醒在本页永不可见不可处理); keyword 后端 /reminder/list
+      // 不消费,改为合并后统一按客户名客户端过滤(此前搜索对分享/开票路完全无效)
       const srs = await Promise.all(types.map(t =>
-        getReminderList({ current: 1, size: 20, type: t, status: 'pending', keyword: query.keyword, ownerId: query.ownerId, deptId: query.deptId })))
+        getReminderList({ current: 1, size: 200, type: t, status: 'pending', ownerId: query.ownerId, deptId: query.deptId })))
       for (let i = 0; i < types.length; i++) {
         const t = types[i]
         for (const item of (srs[i]?.data?.records || [])) {
@@ -170,8 +172,9 @@ const loadData = async () => {
     let invoiceRecords = []
     try {
       const itypes = ['invoice_overdue', 'invoice_never']
+      // 【工作流复核确认修复】窗口 20→200, 同分享路; keyword 同样走合并后客户端过滤
       const irs = await Promise.all(itypes.map(t =>
-        getReminderList({ current: 1, size: 20, type: t, status: 'pending', keyword: query.keyword, ownerId: query.ownerId, deptId: query.deptId })))
+        getReminderList({ current: 1, size: 200, type: t, status: 'pending', ownerId: query.ownerId, deptId: query.deptId })))
       for (let i = 0; i < itypes.length; i++) {
         const t = itypes[i]
         for (const item of (irs[i]?.data?.records || [])) {
@@ -192,7 +195,14 @@ const loadData = async () => {
         }
       }
     } catch {}
-    tableData.value = [...shareRecords, ...invoiceRecords, ...expiring]
+    // 【工作流复核确认修复】合并后按搜索词统一客户端过滤(后端仅到期路支持 keyword; 到期路已滤,
+    // 分享/开票路在此补齐), 避免搜索后无关行全量混入
+    const kw = (query.keyword || '').trim().toLowerCase()
+    const merged = kw
+      ? [...shareRecords, ...invoiceRecords, ...expiring].filter(r =>
+          String(r.customerName || '').toLowerCase().includes(kw))
+      : [...shareRecords, ...invoiceRecords, ...expiring]
+    tableData.value = merged
     total.value = tableData.value.length
   } catch (e) {
   } finally {
@@ -206,7 +216,7 @@ const pagedData = computed(() => paginate(tableData.value, query.current, query.
 const handleClearAll = async () => {
   try {
     // 【UI 整改 2026-10-08】确认弹窗收敛到 confirmAction：批量清空属批量不可逆操作，红色确认钮
-    await confirmAction('确认清空所有提醒？分享/开票提醒标记已读，到期提醒标记已跟进。', '一键清空', { confirmText: '清空' })
+    await confirmAction('确认清空所有提醒？分享/开票提醒标记已处理，到期提醒标记已跟进。', '一键清空', { confirmText: '清空' })
   } catch { return }
   const all = tableData.value.filter(r => r.reminderId)
   let done = 0
@@ -214,6 +224,8 @@ const handleClearAll = async () => {
     try { await processReminder(r.reminderId); done++ } catch {}
   }
   ElMessage.success(`已处理 ${done} 条提醒`)
+  // 【工作流复核确认修复】处理后重置回第一页: 列表缩短后当前页可能越界(出现"16-15/共15条"区间错乱+空表)
+  query.current = 1
   loadData()
   userStore.refreshBadges()
 }
@@ -221,13 +233,19 @@ const handleClearAll = async () => {
 const handleProcessShare = async (row) => {
   try {
     await processReminder(row.reminderId)
-    ElMessage.success('已标记已读')
+    ElMessage.success('已标记处理')
+    query.current = 1 // 处理后列表缩短, 防当前页越界
     loadData()
     userStore.refreshBadges()
   } catch (e) {}
 }
 
 const handleFollowUp = async (row) => {
+  // 【工作流复核确认修复】到期行提醒实体未物化(reminderId=null)时不可处理, 明确提示而非静默失败
+  if (!row.reminderId) {
+    ElMessage.warning('该客户今日提醒尚未生成，请先在「今日跟进」或详情页处理')
+    return
+  }
   try {
     await processReminder(row.reminderId)
     row.todayFollowedUp = true
@@ -237,8 +255,12 @@ const handleFollowUp = async (row) => {
 }
 
 const handleExtend = async (row) => {
+  // 【工作流复核确认修复】提交审批前加确认(原直接提交审批单, 误触即发起流程)
   try {
-    await submitApproval({ type: 'extend', customerId: String(row.customerId), actionAfterApprove: '保护期延长' })
+    await confirmAction(`确定为「${row.customerName || '该客户'}」提交保护期延期审批？`, '申请延期', { confirmText: '提交审批' })
+  } catch { return }
+  try {
+    await submitApproval({ type: 'extend', customerId: String(row.customerId), actionAfterApprove: '保护期延长360天' })
     ElMessage.success('延期申请已提交，等待审批')
   } catch (e) {}
 }

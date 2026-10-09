@@ -1,5 +1,5 @@
 <template>
-  <div class="indicator-page">
+  <div v-loading="loading" class="indicator-page">
     <!-- 标题：与生产菜单(id=108)、router meta.title 统一为「核心客户六项指标」 -->
     <h3 class="page-title">核心客户六项指标</h3>
 
@@ -90,8 +90,11 @@ import { getIndicatorStats } from '@/api/statistics'
 const data = ref({})
 const customerRanking = computed(() => data.value.customerRanking || [])
 
+const loading = ref(false)
 const loadData = async () => {
+  loading.value = true
   try { const r = await getIndicatorStats(); data.value = r.data || {} } catch {}
+  finally { loading.value = false }
 }
 onMounted(loadData)
 </script>
@@ -100,11 +103,6 @@ onMounted(loadData)
 .indicator-page { min-height: calc(100vh - 100px); display: flex; flex-direction: column; }
 .page-title { font-size: 18px; font-weight: 600; color: #333; margin: 0 0 12px; }
 
-/* Tab */
-.tab-bar { display: flex; gap: 8px; margin-bottom: 12px; }
-.tab-item { padding: 8px 20px; border: 1px solid #ebeef5; border-radius: 20px; font-size: 14px; color: #666; cursor: pointer; transition: all .2s; }
-.tab-item:hover { color: var(--el-color-primary); border-color: var(--el-color-primary); }
-.tab-item.active { color: var(--el-color-primary); border-color: var(--el-color-primary); background: var(--el-color-primary-light-9); font-weight: 600; }
 
 /* 统计卡片 */
 .stat-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 12px; }

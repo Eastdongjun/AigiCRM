@@ -303,6 +303,13 @@ const donutSegs = computed(() => {
     top.push({ name: '其他', count: restCount, pct: (restCount / total) * 100,
       pctLabel: ((restCount / total) * 100).toFixed(1) })
   }
+  // 【工作流复核确认修复】行业为空的客户计入"未填行业"段: 原实现既不进扇区也不进"其他",
+  // 图例合计与中心数字(totalCustomers)对不上(实测 268 vs 272)
+  const noIndustry = Math.max(0, (analysis.value.totalCustomers || 0) - total)
+  if (noIndustry > 0) {
+    top.push({ name: '未填行业', count: noIndustry, pct: (noIndustry / (total + noIndustry)) * 100,
+      pctLabel: ((noIndustry / (total + noIndustry)) * 100).toFixed(1) })
+  }
   return top.map((s, i) => ({ ...s, color: DONUT_COLORS[i % DONUT_COLORS.length] }))
 })
 

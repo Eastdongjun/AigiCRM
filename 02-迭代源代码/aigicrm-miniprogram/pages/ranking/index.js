@@ -295,7 +295,7 @@ Page({
         return []
       }),
       getRankingStats({ period }).catch((error) => {
-        showError(error, '学分统计加载失败')
+        showError(error, '积分统计加载失败')
         return {}
       }),
       // 【2026-09-23 需求同步】四项激励个人排行(按人员聚合, 与 PC 激励统计同口径)

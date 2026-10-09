@@ -19,7 +19,7 @@
         <el-option v-for="ind in allIndustries" :key="ind" :label="ind" :value="ind" />
       </el-select>
       <el-select v-model="filters.status" placeholder="状态" size="small" clearable style="width:90px" @change="onQuickFilterChange">
-        <el-option label="正常" value="normal" /><el-option label="预警" value="warning" /><el-option label="超期" value="expired" /><el-option label="已归档" value="archived" />
+        <el-option label="正常" value="normal" /><el-option label="预警" value="warning" /><el-option label="已超期" value="expired" /><el-option label="已归档" value="archived" />
       </el-select>
       <!-- 【议题五.4】显示已归档: 后端 include_archived(默认口径+含归档), 勾选即重载 -->
       <el-checkbox v-model="showArchived" size="small" @change="toggleArchived">显示已归档</el-checkbox>
@@ -45,9 +45,11 @@
         <el-button size="small" type="primary" plain style="margin-left:10px" @click="loadData">重试</el-button>
       </template>
     </el-alert>
-    <!-- 【C10 二轮 2026-10-08】内容列一律 min-width：窄视口下 el-table 出横向滚动条，
+    <!-- 【工作流复核确认修复】移除列头排序: 服务端分页下裸 sortable 只重排当前页 30 条且默认箭头与真实顺序(createdAt desc)不符,
+         待后端 order 参数支持后再启用(与公海池排序遗留同队列) -->
+<!-- 【C10 二轮 2026-10-08】内容列一律 min-width：窄视口下 el-table 出横向滚动条，
          列不再被压到单字宽不可读；文本列统一 dashIfEmpty 空值占位（同表一种口径） -->
-    <el-table ref="tableRef" v-loading="listLoading" :data="filteredList" :max-height="tableMaxHeight" stripe :default-sort="{ prop: 'customerCode', order: 'descending' }"
+    <el-table ref="tableRef" v-loading="listLoading" :data="filteredList" :max-height="tableMaxHeight" stripe
       @row-click="viewDetail" @selection-change="onSelectionChange" :row-style="{ cursor: 'pointer' }" :row-class-name="archiveRowClass" style="width:100%">
       <template #empty>
         <div class="table-empty">
@@ -56,46 +58,46 @@
         </div>
       </template>
       <el-table-column type="selection" width="42" :selectable="(row) => !isShared(row)" />
-      <el-table-column type="index" width="50" label="#" sortable :index="(i) => (page - 1) * pageSize + i + 1" />
-      <el-table-column v-if="vis('customerCode')" prop="customerCode" label="编号" min-width="140" sortable show-overflow-tooltip />
-      <el-table-column v-if="vis('customerName')" prop="customerName" label="客户全称" min-width="220" sortable show-overflow-tooltip />
-      <el-table-column v-if="vis('invoiceName')" prop="invoiceName" label="开票名称" min-width="130" show-overflow-tooltip sortable :formatter="dashIfEmpty" />
-      <el-table-column v-if="vis('groupName')" prop="groupName" label="集团" min-width="100" show-overflow-tooltip sortable :formatter="dashIfEmpty" />
-      <el-table-column v-if="vis('branchCompany')" prop="branchCompany" label="分公司" min-width="100" show-overflow-tooltip sortable :formatter="dashIfEmpty" />
-      <el-table-column v-if="vis('unitName')" prop="unitName" label="所属单位" min-width="100" show-overflow-tooltip sortable :formatter="dashIfEmpty" />
-      <el-table-column v-if="vis('industry')" prop="industry" label="行业" min-width="70" sortable :formatter="dashIfEmpty" />
-      <el-table-column v-if="vis('hasTerminal')" prop="hasTerminal" label="终端" width="60" align="center" sortable>
+      <el-table-column type="index" width="50" label="#" :index="(i) => (page - 1) * pageSize + i + 1" />
+      <el-table-column v-if="vis('customerCode')" prop="customerCode" label="编号" min-width="140" show-overflow-tooltip />
+      <el-table-column v-if="vis('customerName')" prop="customerName" label="客户全称" min-width="220" show-overflow-tooltip />
+      <el-table-column v-if="vis('invoiceName')" prop="invoiceName" label="开票名称" min-width="130" show-overflow-tooltip :formatter="dashIfEmpty" />
+      <el-table-column v-if="vis('groupName')" prop="groupName" label="集团" min-width="100" show-overflow-tooltip :formatter="dashIfEmpty" />
+      <el-table-column v-if="vis('branchCompany')" prop="branchCompany" label="分公司" min-width="100" show-overflow-tooltip :formatter="dashIfEmpty" />
+      <el-table-column v-if="vis('unitName')" prop="unitName" label="所属单位" min-width="100" show-overflow-tooltip :formatter="dashIfEmpty" />
+      <el-table-column v-if="vis('industry')" prop="industry" label="行业" min-width="70" :formatter="dashIfEmpty" />
+      <el-table-column v-if="vis('hasTerminal')" prop="hasTerminal" label="终端" width="60" align="center">
         <template #default="{ row }">{{ terminalLabel(row.hasTerminal) }}</template>
       </el-table-column>
       <!-- 【C10】数值列右对齐（与 FinanceTab 金额列惯例一致）+ 空值占位 -->
-      <el-table-column v-if="vis('capacity')" prop="capacity" label="产能" min-width="70" align="right" header-align="right" sortable :formatter="dashIfEmpty" />
-      <el-table-column v-if="vis('province')" label="省市" min-width="70" show-overflow-tooltip sortable prop="province">
+      <el-table-column v-if="vis('capacity')" prop="capacity" label="产能" min-width="70" align="right" header-align="right" :formatter="dashIfEmpty" />
+      <el-table-column v-if="vis('province')" label="省市" min-width="70" show-overflow-tooltip prop="province">
         <template #default="{ row }">{{ (row.province || row.city) ? (row.province || '') + (row.city || '') : '—' }}</template>
       </el-table-column>
-      <el-table-column v-if="vis('address')" prop="address" label="厂址" min-width="130" show-overflow-tooltip sortable :formatter="dashIfEmpty" />
-      <el-table-column v-if="vis('registerDate')" prop="registerDate" label="注册日" min-width="90" sortable :formatter="dashIfEmpty" />
-      <el-table-column v-if="vis('lastInvoiceDate')" prop="lastInvoiceDate" label="最近开票" min-width="90" sortable :formatter="dashIfEmpty" />
-      <el-table-column v-if="vis('transferDate')" prop="transferDate" label="转移日" min-width="90" sortable :formatter="dashIfEmpty" />
-      <el-table-column v-if="vis('expireDate')" prop="expireDate" label="到期日" min-width="90" sortable>
+      <el-table-column v-if="vis('address')" prop="address" label="厂址" min-width="130" show-overflow-tooltip :formatter="dashIfEmpty" />
+      <el-table-column v-if="vis('registerDate')" prop="registerDate" label="注册日" min-width="90" :formatter="dashIfEmpty" />
+      <el-table-column v-if="vis('lastInvoiceDate')" prop="lastInvoiceDate" label="最近开票" min-width="90" :formatter="dashIfEmpty" />
+      <el-table-column v-if="vis('transferDate')" prop="transferDate" label="转移日" min-width="90" :formatter="dashIfEmpty" />
+      <el-table-column v-if="vis('expireDate')" prop="expireDate" label="到期日" min-width="90">
         <template #default="{ row }">
           <span :style="{ color: getExpireColor(row), fontWeight: 'bold' }">{{ row.expireDate || '—' }}</span>
         </template>
       </el-table-column>
-      <el-table-column v-if="vis('adjustDate')" prop="adjustDate" label="调整日" min-width="90" sortable>
+      <el-table-column v-if="vis('adjustDate')" prop="adjustDate" label="调整日" min-width="90">
         <template #default="{ row }"><span v-if="row.adjustDate">{{ row.adjustDate }}</span><span v-else>—</span></template>
       </el-table-column>
-      <el-table-column v-if="vis('regionName')" prop="regionName" label="大区" min-width="70" sortable :formatter="dashIfEmpty" />
-      <el-table-column v-if="vis('officeName')" prop="officeName" label="办事处" min-width="80" sortable :formatter="dashIfEmpty" />
-      <el-table-column v-if="vis('deptName')" prop="deptName" label="部门" min-width="80" sortable :formatter="dashIfEmpty" />
-      <el-table-column v-if="vis('ownerName')" prop="ownerName" label="负责人" min-width="70" sortable :formatter="dashIfEmpty" />
-      <el-table-column v-if="vis('managerName')" prop="managerName" label="上级" min-width="70" sortable :formatter="dashIfEmpty" />
-      <el-table-column label="状态" width="90" align="center" sortable prop="status">
+      <el-table-column v-if="vis('regionName')" prop="regionName" label="大区" min-width="70" :formatter="dashIfEmpty" />
+      <el-table-column v-if="vis('officeName')" prop="officeName" label="办事处" min-width="80" :formatter="dashIfEmpty" />
+      <el-table-column v-if="vis('deptName')" prop="deptName" label="部门" min-width="80" :formatter="dashIfEmpty" />
+      <el-table-column v-if="vis('ownerName')" prop="ownerName" label="负责人" min-width="70" :formatter="dashIfEmpty" />
+      <el-table-column v-if="vis('managerName')" prop="managerName" label="上级" min-width="70" :formatter="dashIfEmpty" />
+      <el-table-column label="状态" width="90" align="center" prop="status">
         <template #default="{ row }">
           <el-tag v-if="isShared(row)" type="warning" size="small" effect="dark" round>被分享</el-tag>
           <el-tag v-else :type="getStatusType(row)" size="small" effect="dark" round>{{ getStatusText(row) }}</el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="保护" width="80" align="center" sortable prop="protectionStatus">
+      <el-table-column label="保护" width="80" align="center" prop="protectionStatus">
         <template #default="{ row }">
           <span class="protect-tag" :class="getProtectClass(row)">{{ getProtectText(row) }}</span>
         </template>

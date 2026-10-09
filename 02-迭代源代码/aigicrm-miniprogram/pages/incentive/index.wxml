@@ -228,7 +228,7 @@
   <view wx:if="{{incentiveView.showRanking}}">
     <view class="card ranking-panel">
       <view class="section-row">
-        <view class="section-title no-margin">客户积分榜</view>
+        <view class="section-title no-margin">个人积分榜</view> <!-- 【工作流复核确认修复】数据源为按人员聚合的 scoreboard, 原名"客户积分榜"名实不符 -->
         <button class="stats-refresh-btn" bindtap="loadScoreboard">↻</button>
       </view>
       <block wx:for="{{scoreboard}}" wx:key="id">
@@ -241,7 +241,7 @@
           <view class="score-value">{{item.scoreText}}</view>
         </view>
       </block>
-      <view wx:if="{{incentiveView.showScoreboardEmpty}}" class="muted">暂无客户积分排行</view>
+      <view wx:if="{{incentiveView.showScoreboardEmpty}}" class="muted">暂无个人积分排行</view>
     </view>
     <view class="card ranking-panel">
       <view class="section-title">部门排行</view>

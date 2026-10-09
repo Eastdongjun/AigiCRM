@@ -559,7 +559,9 @@ export function useIncentiveUpload() {
     // (分类/筛选/表格/弹窗)反复重渲染,上传时主线程卡顿(FEAT 0804 性能修复)
     let lastAt = 0
     let lastPct = -1
+    // 【工作流复核确认修复】上传放宽超时到 10 分钟: 全局 axios 30s 超时会让大文件(弹窗承诺 500MB)中途必断
     const res = await request.post('/file/upload', formData, {
+      timeout: 600000,
       headers: { 'Content-Type': 'multipart/form-data' },
       onUploadProgress: (e) => {
         const filePct = e.total ? Math.round((e.loaded / e.total) * 100) : 0

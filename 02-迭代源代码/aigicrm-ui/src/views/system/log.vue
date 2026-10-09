@@ -21,7 +21,8 @@
     <!-- 筛选栏 -->
     <div class="toolbar">
       <div class="toolbar-left">
-        <el-date-picker v-model="dateRange" type="daterange" start-placeholder="开始" end-placeholder="结束"
+        <!-- 【工作流复核确认修复】审计 Tab 隐藏日期筛选: 后端审计接口不支持日期参数, 原控件可见但选了毫无变化 -->
+        <el-date-picker v-if="activeTab !== '__audit__'" v-model="dateRange" type="daterange" start-placeholder="开始" end-placeholder="结束"
           value-format="YYYY-MM-DD" style="width:240px" size="small" @change="onDateChange" />
         <el-input v-if="activeTab !== '__audit__'" v-model="keyword" placeholder="搜索操作人/对象..." clearable size="small" style="width:180px"
           @keyup.enter="search" @clear="search" />

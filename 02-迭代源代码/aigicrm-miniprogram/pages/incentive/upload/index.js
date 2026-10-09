@@ -364,6 +364,8 @@ function buildUploadViewState(data) {
     fileActionLoading: Boolean(data.fileActionLoading),
     currentSlotTitle: hasCurrentFile ? currentSlot.fileName : `选择${currentSlot.label || '槽位'}文件`,
     currentSlotHint: hasCurrentFile ? '已选择文件，可预览图片/打开文档，也可下载保存；每个槽位最多 5 个文件' : (currentSlot.hint || ''),
+    // 【工作流复核确认修复】当前槽满员标记(满员隐藏添加入口, 与 PC 同口径)
+    currentSlotFull: (currentSlot.files || []).length >= MAX_FILES_PER_SLOT,
     slotOptionsView,
     selectedFileSlotsView,
     showAudit: Boolean(data.editId && data.auditRecord),
@@ -632,6 +634,11 @@ Page({
   setSelectedSlotFile(filePath, fileName, fileKind) {
     const index = this.data.selectedSlotIndex
     const slot = this.data.fileSlots[index] || {}
+    // 【工作流复核确认修复】满员拒绝+明确提示: 原静默 slice 截断, 现场多选的佐证照片被无声吞掉
+    if ((slot.files || []).length >= MAX_FILES_PER_SLOT) {
+      wx.showToast({ title: `每槽最多 ${MAX_FILES_PER_SLOT} 个文件，当前槽已满`, icon: 'none' })
+      return
+    }
     const files = (slot.files || []).concat({
       filePath,
       fileName,

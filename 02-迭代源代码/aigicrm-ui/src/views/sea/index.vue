@@ -142,7 +142,7 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { Upload, Right, Clock, CircleCheck, Document, Tickets } from '@element-plus/icons-vue'
+import { Upload, Tickets } from '@element-plus/icons-vue'
 import { getSeaList, getSeaStatistics, getVisibleSeaConfigs, deleteSeaPool, importSeaCustomers } from '@/api/sea'
 import { downloadImportTemplate } from '@/api/customer'
 import { getDictData, getScopeDepts } from '@/api/system'

@@ -1,4 +1,7 @@
 const { deleteSeaPool, getSeaList, getSeaStatistics, getVisibleSeaConfigs, getClaimRecords } = require('../../api/sea')
+
+// 【工作流复核确认修复】公海分页页大小(原写死 20 无加载更多)
+const SEA_PAGE_SIZE = 20
 const { submitApproval } = require('../../api/approval')
 const { getDepts, getDictData } = require('../../api/system')
 const { seaRecords } = require('../../data/demo')
@@ -149,6 +152,12 @@ function buildSeaView(data) {
     refreshText: isLoading ? '刷新中' : '刷新',
     showLoading: isLoading,
     loadingText: '加载中...',
+    // 【工作流复核确认修复】触底加载更多视图字段(照客户页 P6)
+    loadingMore: Boolean(data.loadingMore),
+    showLoadMore: Boolean(data.loadingMore),
+    loadMoreText: '加载更多中...',
+    hasMore: Boolean(data.hasMore),
+    showNoMore: !isLoading && !data.loadingMore && records.length > 0 && !data.hasMore,
     records,
     showEmpty: !isLoading && records.length === 0,
     claimRecords,
@@ -278,36 +287,50 @@ Page({
     })
   },
 
-  loadRecords() {
+  loadRecords(pageArg) {
     if (getApp().globalData.demoMode) {
       this.setSeaData({ records: seaRecords.map(normalizeSea) })
       return
     }
 
-    // 【M20】请求序号守卫：筛选/搜索快速切换时，慢返回的旧响应直接丢弃，防止覆盖新列表
+    // 【工作流复核确认修复】分页加载: 原写死 current:1/size:20, 第 21 条起公海客户在小程序端
+    // 永远不可见(不可浏览/捞取/编辑), 且统计卡显示全量数字与可见列表矛盾(照客户页 P6 模式)
+    const page = pageArg || 1
     const requestSeq = (this._recordsReqSeq = (this._recordsReqSeq || 0) + 1)
-    this.setSeaData({ loading: true })
+    // 【M20】请求序号守卫：筛选/搜索快速切换时，慢返回的旧响应直接丢弃，防止覆盖新列表
+    this.setSeaData(page === 1 ? { loading: true, loadingMore: false } : { loadingMore: true })
     getSeaList({
-      current: 1,
-      size: 20,
+      current: page,
+      size: SEA_PAGE_SIZE,
       keyword: this.data.keyword,
       poolId: this.data.poolId || undefined,
       deptId: this.data.deptId || undefined,
       status: this.data.status || undefined,
       industry: this.data.industry || undefined,
       enterReason: this.data.enterReason || undefined
-    }).then((page) => {
+    }).then((pageData) => {
       if (requestSeq !== this._recordsReqSeq) return
-      const rows = page && (page.records || page.list || page.rows)
-      this.setSeaData({ records: (rows || []).map(normalizeSea) })
+      const rows = (pageData && (pageData.records || pageData.list || pageData.rows)) || []
+      const total = Number(pageData && pageData.total) || 0
+      this.setSeaData({
+        records: page === 1 ? rows.map(normalizeSea) : this.data.records.concat(rows.map(normalizeSea)),
+        currentPage: page,
+        total,
+        hasMore: total ? page * SEA_PAGE_SIZE < total : rows.length >= SEA_PAGE_SIZE
+      })
     }).catch((error) => {
       if (requestSeq !== this._recordsReqSeq) return
       showErrorWithRetry(error, '公海加载失败', () => this.loadRecords())
     }).finally(() => {
       // 旧请求不清理新请求的 loading 态（由最新请求自己的 finally 收尾）
       if (requestSeq !== this._recordsReqSeq) return
-      this.setSeaData({ loading: false })
+      this.setSeaData({ loading: false, loadingMore: false })
     })
+  },
+
+  onReachBottom() {
+    if (!this.data.seaView || !this.data.seaView.hasMore || this.data.seaView.loading || this.data.seaView.loadingMore) return
+    this.loadRecords((this.data.currentPage || 1) + 1)
   },
 
   // 【L15】搜索输入双绑（对齐 reminder/approval 页写法），否则点搜索按钮时用的仍是旧 keyword

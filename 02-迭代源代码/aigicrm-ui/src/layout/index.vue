@@ -234,7 +234,9 @@ const menuGroups = computed(() => {
   // 用户进入后无法从菜单回到（断头页）。前端合成注入"业务核心"分组（该页仅要求登录态，无独立权限码）；
   // 后端菜单将来下发同名菜单时按 path 去重不会重复出现
   const bizGroup = groups.find(g => g.menuName === '业务核心')
-  if (bizGroup && !bizGroup.children.some(c => c.path === '/task')) {
+  // 【工作流复核确认修复】注入加 task:view 权限门控: 后端 /api/task/* 均要求该权限码,
+  // 无权限角色(如行政 05)原可见菜单, 点入即 403 报错+空数据页(死入口)
+  if (bizGroup && userStore.hasPermission('task:view') && !bizGroup.children.some(c => c.path === '/task')) {
     bizGroup.children.push({
       id: 'fe-task-entry', menuType: 2, path: '/task', menuName: '我的任务', icon: 'List', subChildren: [],
     })
@@ -298,8 +300,8 @@ const submitPassword = async () => {
   if (pwdForm.newPassword !== pwdForm.confirmPassword) {
     return ElMessage.warning('两次输入的新密码不一致')
   }
-  if (pwdForm.newPassword.length < 6) {
-    return ElMessage.warning('新密码不能少于6位')
+  if (pwdForm.newPassword.length < 8 || pwdForm.newPassword.length > 30) {
+    return ElMessage.warning('新密码长度须为 8-30 位')
   }
   pwdLoading.value = true
   try {
@@ -309,7 +311,7 @@ const submitPassword = async () => {
     userStore.logout()
     router.push('/login')
   } catch (e) {
-    ElMessage.error(e?.response?.data?.message || '修改失败，请检查原密码是否正确')
+    // 【工作流复核确认修复】错误详情由 request 拦截器统一弹出(原双弹同文案)
   }
   pwdLoading.value = false
 }
@@ -369,9 +371,11 @@ const hasPerm = (p) => userStore.hasPermission(p)
 const handleSwitchGroup = async (groupId) => {
   try {
     await userStore.switchGroup(groupId)
-    ElMessage.success(`已切换到集团 ${groupId}`)
+    // 【工作流复核确认修复】切换成功后刷新角标(数据域已变, 旧集团角标是错值) + 提示显示集团名(INV-11)
+    userStore.refreshBadges()
+    ElMessage.success(`已切换到${userStore.currentGroupName || '集团 ' + groupId}`)
   } catch (e) {
-    ElMessage.error('集团切换失败')
+    // 失败详情由拦截器弹出(原双弹: 真实原因+笼统文案各一条)
   }
 }
 

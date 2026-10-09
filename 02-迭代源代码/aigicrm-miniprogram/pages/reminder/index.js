@@ -32,7 +32,7 @@ function reminderTypeLabel(type) {
     invoice: '开票提醒',
     invoice_overdue: '开票超期提醒',
     invoice_never: '待首次开票提醒',
-    share_to: '客户分享给你',
+    share_to: '客户已分享给你',
     share_by: '你分享了客户',
     share_owner: '你的客户被分享',
     follow: '跟进提醒'
@@ -54,7 +54,7 @@ function isReadOnlyReminder(type) {
 }
 
 function reminderProcessActionLabel(type) {
-  return isReadOnlyReminder(type) ? '已读' : '已跟进'
+  return isReadOnlyReminder(type) ? '已处理' : '已跟进'
 }
 
 function reminderTimingText(item, remainingDays) {
@@ -83,7 +83,9 @@ function normalizeReminder(item) {
   const type = item.type || item.reminderType || 'follow'
   const status = item.status || 'pending'
   const normalized = {
-    id: item.id,
+    // 【工作流复核确认修复】expiring-list 行无 id 只有 reminderId: id 用 reminderId 兜底,
+    // 原 process/processAll 以 item.id 守卫 → 到期行"已跟进/一键清空"点击后静默失效
+    id: item.id || item.reminderId,
     reminderId: item.reminderId || item.id,
     customerId: item.customerId,
     customerName: item.customerName || item.title || '未命名提醒',
@@ -318,11 +320,11 @@ Page({
       markProcessed(item.id)
       this.applyState({ reminders: this.data.reminders.filter((row) => row.id !== item.id), selectedReminder: null, selectedReminderIndex: -1 })
       this.loadPendingCount()
-      wx.showToast({ title: item.processActionLabel === '已读' ? '已标记已读' : '已标记今日跟进', icon: 'success' })
+      wx.showToast({ title: item.processActionLabel === '已处理' ? '已标记处理' : '已标记今日跟进', icon: 'success' })
       return
     }
     processReminder(item.id).then(() => {
-      wx.showToast({ title: item.processActionLabel === '已读' ? '已标记已读' : '已标记今日跟进', icon: 'success' })
+      wx.showToast({ title: item.processActionLabel === '已处理' ? '已标记处理' : '已标记今日跟进', icon: 'success' })
       this.refresh()
     }).catch((error) => showError(error, '处理失败'))
   },
@@ -337,7 +339,7 @@ Page({
     submitApproval({
       type: 'extend',
       customerId: String(item.customerId),
-      actionAfterApprove: '保护期延长'
+      actionAfterApprove: '保护期延长360天'
     }).then(() => {
       wx.showToast({ title: '延期申请已提交', icon: 'success' })
     }).catch((error) => showError(error, '延期申请失败'))

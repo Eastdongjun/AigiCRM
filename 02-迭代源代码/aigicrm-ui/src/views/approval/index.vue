@@ -41,13 +41,13 @@
       <el-tab-pane name="approved">
         <template #label>
           <span class="tab-dot dot-green"></span>
-          <span>已通过</span> <span class="tab-count">{{ stats.approvedThisMonth || 0 }}</span>
+          <span>已通过</span> <span class="tab-count">{{ stats.approvedTotal ?? (stats.approvedThisMonth || 0) }}</span>
         </template>
       </el-tab-pane>
       <el-tab-pane name="rejected">
         <template #label>
           <span class="tab-dot dot-red"></span>
-          <span>已驳回</span> <span class="tab-count">{{ stats.rejectedThisMonth || 0 }}</span>
+          <span>已驳回</span> <span class="tab-count">{{ stats.rejectedTotal ?? (stats.rejectedThisMonth || 0) }}</span>
         </template>
       </el-tab-pane>
       <el-tab-pane name="all">

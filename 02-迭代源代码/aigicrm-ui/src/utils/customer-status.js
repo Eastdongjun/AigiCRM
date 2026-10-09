@@ -6,7 +6,7 @@
 export const CUSTOMER_STATUS_MAP = {
   normal: { text: '正常', type: 'success' },
   warning: { text: '预警', type: 'warning' },
-  expired: { text: '超期', type: 'danger' },
+  expired: { text: '已超期', type: 'danger' },
   sea: { text: '公海', type: 'info' },
   archived: { text: '已归档', type: 'info' }
 }

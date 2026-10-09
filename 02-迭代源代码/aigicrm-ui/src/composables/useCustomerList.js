@@ -8,7 +8,7 @@
 import { ref, reactive, computed, inject, watch, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { getCustomerList, getCustomerStatistics, getCustomerListCounts, releaseCustomer, deleteCustomer, archiveCustomer, restoreCustomer, getSimpleUserList } from '@/api/customer'
+import { getCustomerList, getCustomerStatistics, releaseCustomer, deleteCustomer, archiveCustomer, restoreCustomer, getSimpleUserList } from '@/api/customer'
 import { getDeptList, getDictData, getDeptTree } from '@/api/system'
 import { useUserStore } from '@/store/user'
 import { downloadFile } from '@/utils/download'
@@ -62,8 +62,9 @@ export function useCustomerList() {
   if (initIndustry) filters.industry = initIndustry
   const pendingOfficeName = String(route.query.office || '')
   // 【议题五.4】归档筛选: 默认隐藏归档客户, 勾选后列表含归档(后端 include_archived)
+  // 【工作流复核确认修复】勾选/取消时同步清空快速+高级状态选择(与"状态优先"新口径配套, 防旧状态残留再冲突)
   const showArchived = ref(false)
-  const toggleArchived = (val) => { showArchived.value = val; query.status = ''; query.statuses = []; page.value = 1; loadData() }
+  const toggleArchived = (val) => { showArchived.value = val; query.status = ''; query.statuses = []; filters.status = ''; advFilter.status = ''; page.value = 1; loadData() }
   const advFilterTab = ref('basic')
   const advFilter = reactive({ industry: '', province: '', city: '', status: '', protect: '', owner: '', regDate: null, expDate: null, orgIds: [], userIds: [], deptId: null, deptIds: [] })
   const canFilterByOrg = ref(false)
@@ -79,7 +80,6 @@ export function useCustomerList() {
   const total = ref(0)
   const tabCounts = ref({})
   const customerStats = ref({})
-  const scopeCounts = ref({})
   const regionList = ref([])
   const industryOptions = ref([])
   const warningDays = ref(30)
@@ -215,9 +215,11 @@ export function useCustomerList() {
     if (advFilter.industry) p.industry = advFilter.industry
     if (query.regionId) p.regionId = query.regionId
     else if (query.regionIds?.length) p.regionId = query.regionIds[0]
-    // 状态合并:高级筛选与快速筛选同列同语义(eq),高级筛选优先;归档开关按旧行为覆盖为 include_archived
+    // 状态合并:高级筛选与快速筛选同列同语义(eq),高级筛选优先;归档开关与具体状态互斥——
+    // 【工作流复核确认修复】具体状态优先(选中"已归档"即只看归档), 仅在无状态选择时 include_archived
+    // 生效(原 showArchived 无条件覆盖, 勾选后任何状态下拉选择都静默失效且 UI 仍显示已选状态)
     const status = advFilter.status || filters.status || query.status || (query.statuses?.length ? query.statuses.join(',') : '')
-    p.status = showArchived.value ? 'include_archived' : (status || '')
+    p.status = status || (showArchived.value ? 'include_archived' : '')
     const devType = TAB_DEV_TYPE[activeTab.value]
     if (devType) p.devType = devType
     if (advFilter.province) p.province = advFilter.province.trim()
@@ -302,13 +304,6 @@ export function useCustomerList() {
     try {
       const res = await getCustomerStatistics()
       customerStats.value = res.data || {}
-    } catch (e) {}
-  }
-
-  const loadScopeCounts = async () => {
-    try {
-      const res = await getCustomerListCounts()
-      scopeCounts.value = res.data || {}
     } catch (e) {}
   }
 
@@ -519,7 +514,7 @@ export function useCustomerList() {
       ElMessage.success('客户已删除')
       refreshAll()
     } catch (e) {
-      if (e?.response?.data?.message) ElMessage.error(e.response.data.message)
+      // 【工作流复核确认修复】错误提示由 request 拦截器统一弹出, 此处不再重复弹同文案(原双弹)
     }
   }
 
@@ -538,7 +533,7 @@ export function useCustomerList() {
       ElMessage.success('客户已归档')
       refreshAll()
     } catch (e) {
-      if (e?.response?.data?.message) ElMessage.error(e.response.data.message)
+      // 【工作流复核确认修复】错误提示由 request 拦截器统一弹出, 此处不再重复弹同文案(原双弹)
     }
   }
   const handleRestore = async (row) => {
@@ -547,7 +542,7 @@ export function useCustomerList() {
       ElMessage.success('客户已恢复')
       refreshAll()
     } catch (e) {
-      if (e?.response?.data?.message) ElMessage.error(e.response.data.message)
+      // 【工作流复核确认修复】错误提示由 request 拦截器统一弹出, 此处不再重复弹同文案(原双弹)
     }
   }
 
@@ -570,7 +565,7 @@ export function useCustomerList() {
       showReleaseDialog.value = false
       refreshAll()
     } catch (e) {
-      if (e?.response?.data?.message) ElMessage.error(e.response.data.message)
+      // 【工作流复核确认修复】错误提示由 request 拦截器统一弹出, 此处不再重复弹同文案(原双弹)
     } finally {
       releaseLoading.value = false
     }
@@ -610,7 +605,7 @@ export function useCustomerList() {
         {
           confirmButtonText: '确认释放', cancelButtonText: '取消', inputType: 'textarea',
           inputPlaceholder: '请输入释放原因（必填）', inputValidator: (v) => (v && v.trim()) ? true : '释放原因必填',
-          confirmButtonClass: 'el-button--danger',
+          confirmButtonClass: 'el-button--warning',
         }
       )
       reason = value.trim()
@@ -650,7 +645,7 @@ export function useCustomerList() {
   return {
     activeTab, searchText, filters, advFilterTab, advFilter,
     canFilterByOrg, canFilterByUsers, filterOrgTree, filterUserOptions, query,
-    tableData, customerStats, scopeCounts, regionList, industryOptions,
+    tableData, customerStats, regionList, industryOptions,
     warningDays, adjustDays,
     allCols, visibleCols, vis,
     showAdvFilter, colPickerVisible, showImportDialog,
@@ -663,7 +658,7 @@ export function useCustomerList() {
     listLoading, listError, tableRef, selectedRows, onSelectionChange,
     batchReleasable, batchArchivable, batchDeletable,
     handleBatchRelease, handleBatchArchive, handleBatchDelete,
-    loadData, loadStats, loadScopeCounts, refreshAll,
+    loadData, loadStats, refreshAll,
     loadFilterData, loadBizConfig, loadRegions, loadIndustryOptions,
     search, onTabChange, onDeptFilterChange, onQuickFilterChange, clearAdvFilter, viewDetail,
     onCurrentChange, onSizeChange,

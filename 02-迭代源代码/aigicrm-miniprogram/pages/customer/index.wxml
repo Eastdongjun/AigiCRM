@@ -12,7 +12,7 @@
   <view class="customer-search">
     <text class="search-symbol">⌕</text>
     <input class="customer-search-input" placeholder="搜索客户名称 / 编号" value="{{keyword}}" bindinput="onKeywordInput" confirm-type="search" bindconfirm="search"/>
-    <button class="filter-btn" bindtap="search">筛选</button>
+    <button class="filter-btn" bindtap="search">搜索</button> <!-- 【工作流复核确认修复】行为是执行搜索, 旁有"高级"才是筛选入口 -->
   </view>
   <view class="filter-scroll">
     <picker mode="selector" range="{{filters}}" bindchange="chooseFilter"><view class="filter-pill active">{{customerView.filterText}}</view></picker>

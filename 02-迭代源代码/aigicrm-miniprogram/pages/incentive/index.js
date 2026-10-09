@@ -233,12 +233,13 @@ function buildIncentiveView(data) {
     orderText: `${pickOption(data.orderOptions, data.selectedOrderIndex, '默认排序')}⌄`,
     readPeriodText: `${pickOption(data.readPeriodOptions, data.selectedReadPeriodIndex, data.readPeriod || currentMonth(), 'label')}⌄`,
     showRecordEmpty: !isLoading && (data.records || []).length === 0,
-    showCategoryEmpty: (data.categoryTree || []).length === 0,
-    showCategoryStatsEmpty: (data.categoryStats || []).length === 0,
-    showScoreboardEmpty: (data.scoreboard || []).length === 0,
-    showDeptRankingEmpty: (data.deptRanking || []).length === 0,
-    showReadStatsEmpty: (data.readStats || []).length === 0,
-    showReadRankingEmpty: (data.readRanking || []).length === 0,
+    // 【工作流复核确认修复】空态统一加 !isLoading 守卫(与 records tab 同口径, 弱网首屏不显示"暂无"假空态)
+    showCategoryEmpty: !isLoading && (data.categoryTree || []).length === 0,
+    showCategoryStatsEmpty: !isLoading && (data.categoryStats || []).length === 0,
+    showScoreboardEmpty: !isLoading && (data.scoreboard || []).length === 0,
+    showDeptRankingEmpty: !isLoading && (data.deptRanking || []).length === 0,
+    showReadStatsEmpty: !isLoading && (data.readStats || []).length === 0,
+    showReadRankingEmpty: !isLoading && (data.readRanking || []).length === 0,
     showReadStatsPanel: Boolean(data.canViewReadStats),
     showReadRankingPanel: Boolean(data.canViewReadRanking),
     showNoReadPermission: !data.canViewReadStats && !data.canViewReadRanking
@@ -641,7 +642,7 @@ Page({
     }
     Promise.all([
       getScoreboard().catch((error) => {
-        showError(error, '客户积分榜加载失败')
+        showError(error, '个人积分榜加载失败')
         return []
       }),
       getRanking({ type: 'dept' }).catch((error) => {

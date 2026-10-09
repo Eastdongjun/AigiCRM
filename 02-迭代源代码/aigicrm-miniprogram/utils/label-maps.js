@@ -49,8 +49,9 @@ function claimStatusText(status) {
     APPROVED: '已通过',
     rejected: '已驳回',
     REJECTED: '已驳回',
-    reviewing: '待审批',
-    REVIEWING: '待审批',
+    // 【INV-11 术语修正】reviewing 统一「审批中」——与同文件 approvalStatusText 及 PC 2026-10-08 收口一致
+    reviewing: '审批中',
+    REVIEWING: '审批中',
     pending: '待审批',
     PENDING: '待审批',
     WAITING: '待审批',

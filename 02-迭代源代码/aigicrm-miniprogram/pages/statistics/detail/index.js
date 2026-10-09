@@ -50,12 +50,14 @@ function normalizeWeekly(weekly = {}) {
 }
 
 function normalizeActivities(activities = []) {
+  // 【工作流复核确认修复】字段契约对齐: /statistics/team-activities 实际返回 {title,user,dept,time},
+  // 原读 type/content/actor 三键均不存在 → 每行显示"动态 / - / - / 时间", 面板内容不可用
   return (Array.isArray(activities) ? activities : []).map((item, index) => ({
-    id: item.id || `${item.type || 'activity'}-${index}`,
-    typeDisplay: displayText(item.type, '动态'),
-    contentDisplay: displayText(item.content || item.description),
-    actorDisplay: displayText(item.actor || item.userName),
-    timeDisplay: displayText(item.createdAt || item.time)
+    id: item.id || `activity-${index}`,
+    typeDisplay: '动态',
+    contentDisplay: displayText(item.title),
+    actorDisplay: displayText([item.user, item.dept].filter(Boolean).join(' · ')),
+    timeDisplay: displayText(item.time)
   }))
 }
 
@@ -104,7 +106,7 @@ function buildDetailView(state) {
       { label: '保护期客户', value: stats.inProtection || 0 },
       { label: '即将到期', value: stats.expiring || 0 },
       { label: '今日到期', value: stats.todayExpiring || 0 },
-      { label: '已过期', value: stats.expired || 0 },
+      { label: '已超期', value: stats.expired || 0 },
       { label: '本月新增', value: stats.monthNew || 0 }
     ],
     approvalRows: [
@@ -114,7 +116,8 @@ function buildDetailView(state) {
     ],
     seaRows: [
       { label: '公海客户', value: seaStats.total || seaStats.count || 0 },
-      { label: '可捞取', value: seaStats.available || 0 }
+      // 【工作流复核确认修复】原"可捞取"读 seaStats.available(后端无此字段, 恒 0); 换成真实键 pendingApproval
+      { label: '待捞取审批', value: seaStats.pendingApproval || 0 }
     ],
     activities,
     showActivityEmpty: activities.length === 0,

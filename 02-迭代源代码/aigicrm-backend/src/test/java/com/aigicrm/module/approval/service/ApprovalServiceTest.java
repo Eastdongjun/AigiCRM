@@ -442,8 +442,9 @@ class ApprovalServiceTest {
 
         assertEquals(1L, stats.get("pending"));
         assertEquals(3L, stats.get("mine"));
-        // mine/reviewing/all/approvedThisMonth/rejectedThisMonth 共 5 次，均带数据范围过滤
-        verify(approvalMapper, times(5)).selectCount(any());
+        // mine/reviewing/all/approvedThisMonth/rejectedThisMonth + approvedTotal/rejectedTotal 共 7 次，均带数据范围过滤
+        // 【2026-10-15】新增全量键: 页签角标与列表 total 口径一致(INV-12)
+        verify(approvalMapper, times(7)).selectCount(any());
     }
 
     /** 回归：参与审批列表为空时不得生成 IN ()（原代码无空守卫导致 SQL 语法错误，生产已出故障） */
@@ -467,7 +468,7 @@ class ApprovalServiceTest {
         @SuppressWarnings("unchecked")
 
         ArgumentCaptor<LambdaQueryWrapper<BizApproval>> cap = ArgumentCaptor.forClass(LambdaQueryWrapper.class);
-        verify(approvalMapper, times(5)).selectCount(cap.capture());
+        verify(approvalMapper, times(7)).selectCount(cap.capture());
         for (LambdaQueryWrapper<BizApproval> w : cap.getAllValues()) {
             String sql = w.getSqlSegment();
             assertTrue(sql == null || !sql.contains("IN ()"), "空参与列表不得生成 IN ()，实际: " + sql);

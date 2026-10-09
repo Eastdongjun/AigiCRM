@@ -38,7 +38,8 @@
           </el-form-item>
         </el-col>
         <el-col :span="12">
-          <el-form-item label="邮箱">
+          <!-- 【工作流复核确认修复】挂 prop=email: useUserList 的 email 校验规则已定义但 form-item 未挂 prop 从未生效 -->
+          <el-form-item label="邮箱" prop="email">
             <el-input v-model="editForm.email" placeholder="邮箱地址" />
           </el-form-item>
         </el-col>

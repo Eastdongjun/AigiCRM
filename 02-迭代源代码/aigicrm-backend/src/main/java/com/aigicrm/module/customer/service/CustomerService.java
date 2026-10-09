@@ -446,10 +446,18 @@ public class CustomerService {
     }
 
     public boolean existsByName(String customerName) {
+        return existsByName(customerName, null);
+    }
+
+    /** 【工作流复核确认修复】excludeId 非空时排除该客户(编辑场景查重不命中自身) */
+    public boolean existsByName(String customerName, Long excludeId) {
         // 【修复 2026-08-10 P2-01】重名探测限定在当前用户数据范围内——
         // 此前任何登录用户可探测全公司任意客户名并获知创建人(跨范围信息泄露)
         LambdaQueryWrapper<BizCustomer> w = new LambdaQueryWrapper<BizCustomer>()
                 .eq(BizCustomer::getCustomerName, customerName);
+        if (excludeId != null) {
+            w.ne(BizCustomer::getId, excludeId);
+        }
         List<Long> scopeUserIds = getCurrentScopeUserIds();
         if (scopeUserIds != null) {
             w.in(BizCustomer::getOwnerId, scopeUserIds);

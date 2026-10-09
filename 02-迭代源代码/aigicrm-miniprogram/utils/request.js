@@ -60,6 +60,8 @@ function request(options) {
     wx.request({
       url: buildUrl(baseUrl, options.url),
       method: options.method || 'GET',
+      // 【工作流复核确认修复】显式 30s 超时(原无配置, 弱网按微信默认 60s 挂起, 按钮 loading 转满全程); 与 PC 同口径
+      timeout: options.timeout || 30000,
       data: sanitizeData(options.data),
       header: {
         'content-type': 'application/json',
@@ -85,7 +87,12 @@ function request(options) {
         }))
       },
       fail(error) {
-        reject(requestError(error.errMsg || '网络请求失败', {
+        // 【工作流复核确认修复】 errMsg 中文化: 原样 toast 'request:fail timeout' 类英文技术串给用户
+        const rawMsg = error.errMsg || '网络请求失败'
+        let friendly = '网络请求失败，请检查网络后重试'
+        if (rawMsg.indexOf('timeout') >= 0) friendly = '网络超时，请稍后重试'
+        else if (rawMsg.indexOf('fail') >= 0 && rawMsg.indexOf('SSL') >= 0) friendly = '安全连接失败，请稍后重试'
+        reject(requestError(friendly, {
           statusCode: 0,
           code: 'NETWORK_ERROR',
           cause: error

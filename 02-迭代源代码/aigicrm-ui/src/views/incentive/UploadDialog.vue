@@ -68,7 +68,8 @@
             <img v-if="!file._existing && isImage(file.name)" :src="getObjectURL(file)" class="file-card-img" />
             <div v-else class="file-card-icon"><el-icon :size="file._existing?20:24"><Document /></el-icon></div>
             <span v-if="fileType(file.name) === 'video'" class="file-card-play"><el-icon><VideoPlay /></el-icon></span>
-            <span class="file-card-del" @click.stop="removeSlotFile('pre', idx)"><el-icon><Close /></el-icon></span>
+            <!-- 【工作流复核确认修复】追加模式已有文件不可删(后端 null 合并跳过→删空槽假成功); 删除走记录删除 -->
+            <span v-if="!file._existing" class="file-card-del" @click.stop="removeSlotFile('pre', idx)"><el-icon><Close /></el-icon></span>
             <span class="file-card-name">{{ file.name?.substring(0, 8) }}{{ file.name?.length > 8 ? '…' : '' }}</span>
           </div>
           <div v-if="installFiles.pre.length < MAX_FILES" class="file-card add" @click="pickFile('pre')">
@@ -98,7 +99,7 @@
                   <el-icon :size="file._existing?20:24"><Document /></el-icon>
                 </div>
                 <span v-if="fileType(file.name) === 'video'" class="file-card-play"><el-icon><VideoPlay /></el-icon></span>
-                <span class="file-card-del" @click.stop="removeSlotFile(slot.key, idx)"><el-icon><Close /></el-icon></span>
+                <span v-if="!file._existing" class="file-card-del" @click.stop="removeSlotFile(slot.key, idx)"><el-icon><Close /></el-icon></span>
                 <span class="file-card-name">{{ file.name?.substring(0, 8) }}{{ file.name?.length > 8 ? '…' : '' }}</span>
               </div>
               <div v-if="installFiles[slot.key].length < MAX_FILES" class="file-card add" @click="pickFile(slot.key)">
@@ -121,7 +122,7 @@
             <img v-if="!file._existing && isImage(file.name)" :src="getObjectURL(file)" class="file-card-img" />
             <div v-else class="file-card-icon"><el-icon :size="20"><Document /></el-icon></div>
             <span v-if="fileType(file.name) === 'video'" class="file-card-play"><el-icon><VideoPlay /></el-icon></span>
-            <span class="file-card-del" @click.stop="removeSlotFile('track', idx)"><el-icon><Close /></el-icon></span>
+            <span v-if="!file._existing" class="file-card-del" @click.stop="removeSlotFile('track', idx)"><el-icon><Close /></el-icon></span>
             <span class="file-card-name">{{ file.name?.substring(0, 8) }}{{ file.name?.length > 8 ? '…' : '' }}</span>
           </div>
           <div v-if="trackFile.length < MAX_FILES" class="file-card add" @click="pickTrackFile()">

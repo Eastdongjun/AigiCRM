@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { getUserInfo } from '@/api/auth'
+import { getUserInfo, logout as apiLogout } from '@/api/auth'
 import { getPendingCount } from '@/api/reminder'
 import { getApprovalStatistics } from '@/api/approval'
 import { getPublicConfig } from '@/api/system'
@@ -108,6 +108,10 @@ export const useUserStore = defineStore('user', {
       return this.roles.includes('admin') || this.username === 'admin'
     },
     logout() {
+      // 【工作流复核确认修复】先调后端 /auth/logout 注销拉黑当前 token(原只本地清除,
+      // 后端"注销即拉黑"机制成死代码, rememberMe 7 天有效期内退出的 token 服务端仍可用)
+      // fire-and-forget: 本地清理不因注销请求失败而阻塞
+      apiLogout().catch(() => {})
       this.$reset()
       localStorage.removeItem('token')
     }

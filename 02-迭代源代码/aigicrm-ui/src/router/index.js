@@ -113,7 +113,7 @@ const routes = [
         component: () => import('@/views/task/index.vue'),
         // 【A1 2026-10-08 二轮】工作台"待办任务"卡直达的本页此前无任何侧栏入口（断头页），
         // layout 会把「我的任务」合成注入"业务核心"分组菜单（后端菜单树不含该页，前端补位）
-        meta: { title: '我的任务', parentTitle: '业务核心', icon: 'List', requiresAuth: true }
+        meta: { title: '我的任务', parentTitle: '业务核心', icon: 'List', requiresAuth: true, permission: 'task:view' } // 【工作流复核确认修复】路由守卫补权限(对齐后端 task:view)
       },
       {
         path: 'reminder',

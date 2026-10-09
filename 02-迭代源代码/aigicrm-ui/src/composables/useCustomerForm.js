@@ -54,6 +54,7 @@ export function useCustomerForm() {
   const dupInfo = reactive({ exists: false, createdBy: "", createdAt: "" })
   const loading = ref(false)
   const customerStatus = ref('') // 编辑加载时记录的客户状态(sea=公海池内, 负责人字段需禁用)
+  const loadFailed = ref(false) // 【工作流复核确认修复】编辑数据加载失败标记(阻断提交防空表单覆盖)
   const regions = ref([])
   const offices = ref([])
   const users = ref([])
@@ -121,7 +122,7 @@ export function useCustomerForm() {
   })
 
   const rules = {
-    customerName: [{ required: true, message: '请输入客户全称', trigger: 'blur' }],
+    customerName: [{ required: true, message: '请输入订货客户全称', trigger: 'blur' }],
     devType: [{ required: true, message: '请选择开发类型', trigger: 'change' }],
     industry: [{ required: true, message: '请选择行业', trigger: 'change' }],
     regionId: [{ required: true, message: '请选择所属大区', trigger: 'change' }],
@@ -201,7 +202,8 @@ export function useCustomerForm() {
     const n = form.customerName?.trim()
     if (!n || n.length < 2) { dupInfo.exists = false; return }
     try {
-      const res = await request.get('/customer/check-name', { params: { name: n } })
+      // 【工作流复核确认修复】编辑场景排除自身, 原名失焦不再误报"此客户已存在"
+      const res = await request.get('/customer/check-name', { params: { name: n, excludeId: isEdit.value ? route.params.id : undefined } })
       if (res?.data) Object.assign(dupInfo, res.data)
     } catch (e) { dupInfo.exists = false }
   }
@@ -232,6 +234,11 @@ export function useCustomerForm() {
   const shouldSaveIndicator = () => indicatorLoaded.value || sumIndicatorScore(indicatorForm) > 0
 
   const handleSubmit = async () => {
+    // 【工作流复核确认修复】编辑数据没加载成功就不允许提交(防空表单整包覆盖原客户)
+    if (isEdit.value && loadFailed.value) {
+      ElMessage.error('客户数据加载失败，请刷新重试；为防覆盖原始数据已禁止提交')
+      return
+    }
     const valid = await formRef.value.validate().catch(() => false)
     if (!valid) {
       // 【C11 2026-10-08】校验失败自动定位：滚动到首个错误字段（长表单不用凭红字逐段找；
@@ -294,8 +301,16 @@ export function useCustomerForm() {
         createSubmitKey = null
         const newId = res.data
         if (newId) {
-          for (const c of rows) {
-            await addContact(newId, c)
+          try {
+            for (const c of rows) {
+              await addContact(newId, c)
+            }
+          } catch (e) {
+            // 【工作流复核确认修复】客户已创建但联系人保存失败: 引导去详情页补录,
+            // 不留在表单页(原实现改后重试会再次创建客户, 击穿幂等防重的目标场景)
+            ElMessage.warning('客户已创建，但联系人保存失败——请到客户详情页补录联系人')
+            router.push(`/customer/detail/${newId}`)
+            return
           }
         }
         ElMessage.success('客户添加成功')
@@ -343,7 +358,7 @@ export function useCustomerForm() {
     try {
       const res = await getDictData('dev_type')
       devTypeOptions.value = (res.data || []).map(d => d.dictValue)
-    } catch (e) { devTypeOptions.value = ['成熟创新', '突破开拓', '铺垫宣传'] }
+    } catch (e) { devTypeOptions.value = ['成熟创新', '突破开拓', '铺垫宣传', '新建改建扩建大修'] } // 【工作流复核确认修复】兜底补第四类(与列表/后端同口径)
 
     if (isEdit.value) {
       try {
@@ -354,7 +369,12 @@ export function useCustomerForm() {
         Object.keys(form).forEach(k => { if (c[k] !== undefined) form[k] = c[k] })
         customerStatus.value = c.status || ''
         if (c.province) regionValue.value = [c.province, c.city, c.district].filter(Boolean)
-      } catch (e) { customerStatus.value = '' }
+      } catch (e) {
+        // 【工作流复核确认修复】客户数据加载失败必须阻断提交: 原实现空表单+新建默认值(注册日=今天)
+        // 可整包覆盖原客户, 是 INV-01 保护期锚点被误改的前端入口
+        loadFailed.value = true
+        customerStatus.value = ''
+      }
       try {
         const res = await getContacts(route.params.id)
         const list = (res.data || []).map(c => ({ id: c.id, name: c.name, position: c.position, phone: c.phone, remark: c.remark }))
