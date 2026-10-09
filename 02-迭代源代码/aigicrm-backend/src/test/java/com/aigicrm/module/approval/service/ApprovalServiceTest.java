@@ -849,4 +849,56 @@ class ApprovalServiceTest {
                 (com.aigicrm.module.approval.entity.BizApprovalNode x) ->
                         Long.valueOf(20L).equals(x.getApproverId())));
     }
+
+    /** 【回归修复 2026-10-09 公海死循环】延期审批重算基准=max(开票日,注册日)——legacy 老票不得把
+     *  到期日拖回过去(生产 303: 2015年老票+捞取日2026-07-28, COALESCE 旧口径延期即变 2017 年过期) */
+    @Test
+    void approve_extend_legacyInvoiceKeepsExpireAnchoredToRegister() {
+        SecurityUser u = new SecurityUser();
+        u.setUserId(7L);
+        setCurrentUser(u, "approval:view");
+
+        com.aigicrm.module.approval.entity.BizApproval approval = approvalOf(21L, "extend", 42L);
+        BizApprovalMapper approvalMapper = mock(BizApprovalMapper.class);
+        when(approvalMapper.selectById(21L)).thenReturn(approval);
+        when(approvalMapper.selectByIdForUpdate(21L)).thenReturn(approval);
+        when(approvalMapper.update(isNull(), any())).thenReturn(1);
+
+        com.aigicrm.module.approval.entity.BizApprovalNode mine = node(601L, 7L, 1, null, null, "approved");
+        BizApprovalNodeMapper nodeMapper = mock(BizApprovalNodeMapper.class);
+        when(nodeMapper.selectOne(any())).thenReturn(node(601L, 7L, 1, null, null, "pending"));
+        when(nodeMapper.update(isNull(), any())).thenReturn(1);
+        when(nodeMapper.selectList(any())).thenReturn(java.util.List.of(mine));
+
+        BizCustomerMapper customerMapper = mock(BizCustomerMapper.class);
+        com.aigicrm.module.customer.entity.BizCustomer customer = new com.aigicrm.module.customer.entity.BizCustomer();
+        customer.setId(42L);
+        customer.setRegisterDate(java.time.LocalDate.of(2026, 7, 28));
+        customer.setLastInvoiceDate(java.time.LocalDate.of(2015, 5, 12));
+        customer.setApprovedExtendDays(0);
+        when(customerMapper.selectById(42L)).thenReturn(customer);
+
+        ApprovalService svc = new ApprovalService(
+                mock(BizApprovalConfigMapper.class), approvalMapper, nodeMapper,
+                mock(BizApprovalFlowMapper.class), customerMapper,
+                mock(SysUserMapper.class), mock(SysUserRoleMapper.class), mock(SysDeptMapper.class),
+                mock(BizSeaPoolMapper.class), mock(SeaService.class),
+                mock(com.aigicrm.common.scope.OrgScopeResolver.class),
+                mock(SeaConfigService.class), mock(SysUserService.class), mock(ApprovalConfigService.class),
+                mock(com.aigicrm.module.system.service.SysConfigService.class),
+                mock(org.springframework.jdbc.core.JdbcTemplate.class),
+                mock(com.aigicrm.security.SecurityAuditService.class));
+
+        assertDoesNotThrow(() -> svc.approve(21L, "同意"));
+
+        ArgumentCaptor<com.aigicrm.module.customer.entity.BizCustomer> cap =
+                ArgumentCaptor.forClass(com.aigicrm.module.customer.entity.BizCustomer.class);
+        verify(customerMapper).updateById(cap.capture());
+        com.aigicrm.module.customer.entity.BizCustomer saved = cap.getValue();
+        // 基准=max(2015-05-12, 2026-07-28)=注册(捞取)日: expire=2026-07-28+360(保护)+360(本次延期)
+        java.time.LocalDate expected = java.time.LocalDate.of(2026, 7, 28).plusDays(360).plusDays(360);
+        assertEquals(expected, saved.getExpireDate(), "实际: " + saved.getExpireDate());
+        assertEquals(360, saved.getApprovedExtendDays());
+        assertTrue(saved.getExpireDate().isAfter(java.time.LocalDate.now()), "延期后到期日必须在未来");
+    }
 }

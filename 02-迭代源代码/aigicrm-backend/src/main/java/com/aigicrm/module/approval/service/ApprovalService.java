@@ -675,8 +675,14 @@ public class ApprovalService {
                             ? customer.getApprovedExtendDays() : 0;
                     customer.setApprovedExtendDays(accumulated + extendDays);
                     // 重算开票推导部分并叠加累计延期(唯一公式,与开票增删路径同源)
-                    java.time.LocalDate baseDate = customer.getLastInvoiceDate() != null
-                            ? customer.getLastInvoiceDate() : customer.getRegisterDate();
+                    // 【回归修复 2026-10-09 公海死循环】基准日=max(开票日,注册日)——COALESCE(开票日优先)
+                    // 使 legacy 老票(生产实证 2015/2024 年)把基准拖回过去,延期审批一通过到期日即变
+                    // 过去日期,凌晨任务踢回公海(302/303 "捞取→掉海→再捞"死循环)。与
+                    // CustomerService.calculateExpireDates 同口径。
+                    java.time.LocalDate baseDate = customer.getLastInvoiceDate() != null && customer.getRegisterDate() != null
+                            ? (customer.getLastInvoiceDate().isAfter(customer.getRegisterDate())
+                                    ? customer.getLastInvoiceDate() : customer.getRegisterDate())
+                            : (customer.getLastInvoiceDate() != null ? customer.getLastInvoiceDate() : customer.getRegisterDate());
                     java.time.LocalDate invoiceExpiry = baseDate != null
                             ? baseDate.plusDays(getConfigInt("customer.protection.days", 360)) : null;
                     if (invoiceExpiry != null) {

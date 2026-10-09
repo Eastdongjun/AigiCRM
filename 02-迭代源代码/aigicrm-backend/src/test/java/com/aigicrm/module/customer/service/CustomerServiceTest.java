@@ -1826,4 +1826,53 @@ class CustomerServiceTest {
                     "status 列等值 'expired' 只命中无池办事处的到期客户(入池即转 sea),不再使用");
         }
     }
+
+    // ===== 【回归修复 2026-10-09 公海死循环】legacy 老票不得把保护期基准拖到注册(捞取)日之前 =====
+
+    @Test
+    void recalc_legacyInvoiceBeforeRegister_keepsExpireAnchoredToRegister() {
+        BizInvoiceMapper invoiceMapper = mock(BizInvoiceMapper.class);
+        BizPaymentMapper paymentMapper = mock(BizPaymentMapper.class);
+        BizCustomerMapper customerMapper = mock(BizCustomerMapper.class);
+        BizCustomerIndicatorMapper indicatorMapper = mock(BizCustomerIndicatorMapper.class);
+
+        CustomerService service = new CustomerService(
+                customerMapper, mock(BizCustomerLogMapper.class),
+                invoiceMapper, mock(BizCustomerShareMapper.class),
+                indicatorMapper, mock(BizContactMapper.class), paymentMapper,
+                mock(SysUserMapper.class), mock(SysDeptMapper.class),
+                mock(BizReminderMapper.class), mock(JdbcTemplate.class),
+                mock(SysConfigService.class), mock(OrgScopeResolver.class),
+                mock(CustomerAccessService.class),
+                mock(com.aigicrm.module.system.service.RolePermScopeService.class),
+                mock(com.aigicrm.module.approval.mapper.BizApprovalMapper.class),
+                mock(com.aigicrm.module.system.mapper.SysLogMapper.class));
+
+        // 生产 302 号客户复刻: legacy 票 2024-09-11, 最近捞取(注册)日 2026-09-08, 已批延期 360 天。
+        // COALESCE(开票日优先)旧口径算出 expire=2026-09-01(过去)→凌晨任务踢回公海→死循环
+        BizInvoice legacy = new BizInvoice();
+        legacy.setId(5L);
+        legacy.setCustomerId(1L);
+        legacy.setInvoiceDate(java.time.LocalDate.of(2024, 9, 11));
+        when(invoiceMapper.selectList(any())).thenReturn(List.of(legacy));
+        when(invoiceMapper.selectById(5L)).thenReturn(legacy);
+
+        BizCustomer customer = new BizCustomer();
+        customer.setId(1L);
+        customer.setRegisterDate(java.time.LocalDate.of(2026, 9, 8));
+        customer.setLastInvoiceDate(java.time.LocalDate.of(2024, 9, 11));
+        customer.setApprovedExtendDays(360);
+        when(customerMapper.selectById(1L)).thenReturn(customer);
+        when(invoiceMapper.sumAmountByCustomerId(1L)).thenReturn(java.math.BigDecimal.ZERO);
+        when(paymentMapper.sumAmountByCustomerId(1L)).thenReturn(java.math.BigDecimal.ZERO);
+        when(indicatorMapper.selectOne(any())).thenReturn(null);
+
+        service.voidInvoice(1L, 5L, "回算保护期(测试)");
+
+        // 基准=max(开票日,注册日)=注册日(捞取承诺的保护期起点), 不得被 2024 年老票拖回过去
+        java.time.LocalDate expected = java.time.LocalDate.of(2026, 9, 8).plusDays(360).plusDays(360);
+        assertEquals(expected, customer.getExpireDate(),
+                "expire 应=注册(捞取)日+360+已批延期, 实际: " + customer.getExpireDate());
+        assertTrue(customer.getExpireDate().isAfter(java.time.LocalDate.now()), "捞取后保护期必须在未来");
+    }
 }

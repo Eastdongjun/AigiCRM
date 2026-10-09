@@ -1173,12 +1173,16 @@ public class CustomerService {
      * </ul>
      */
     private void calculateExpireDates(BizCustomer customer) {
-        // 【修复 2026-10-08 需求对齐】基准日=COALESCE(最近开票日, 注册日),与文档 §3"唯一公式"及
-        // 延期审批路径(ApprovalService extend 分支)同口径——原实现取 max(注册日,开票日),开票日早于
-        // 注册日的客户两路径算出到期日不同且互相覆盖跳动。
-        LocalDate baseDate = customer.getLastInvoiceDate() != null
-                ? customer.getLastInvoiceDate()
-                : customer.getRegisterDate();
+        // 【回归修复 2026-10-09 公海死循环事故】基准日=max(最近开票日, 注册日)。
+        // 10-08 需求对齐批为统一两路径口径改为 COALESCE(开票日优先), 引入回归: legacy 客户的老发票
+        // (生产实证 2015/2024 年)永远把基准拖回过去——捞取/延期给的保护期(expire=起算日+360)在下一次
+        // 重算时被覆盖成过去日期, 凌晨任务判过期踢回公海, 用户陷入"捞取→掉海→再捞"死循环
+        // (生产 302/303 双客户三轮实证)。max 语义: 开票晚于注册日照常刷新保护期; 老票/补录旧票
+        // 不得把基准拉到客户建立/最近捞取日之前——两路径(本方法与延期审批)同用 max 保持一致。
+        LocalDate baseDate = customer.getLastInvoiceDate() != null && customer.getRegisterDate() != null
+                ? (customer.getLastInvoiceDate().isAfter(customer.getRegisterDate())
+                        ? customer.getLastInvoiceDate() : customer.getRegisterDate())
+                : (customer.getLastInvoiceDate() != null ? customer.getLastInvoiceDate() : customer.getRegisterDate());
         if (baseDate != null) {
             int protectionDays = getConfigInt("customer.protection.days", 360);
             int adjustDays = getConfigInt("customer.adjust.days", 180);
