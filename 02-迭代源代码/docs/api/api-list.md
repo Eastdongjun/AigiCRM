@@ -1,10 +1,10 @@
 # AIGICRM API 清单(自动生成)
 
-> 生成时间: 2026-09-22 | 来源: 后端 controller 源码扫描
+> 生成时间: 2026-10-09 | 来源: 后端 controller 源码扫描
 > 本文件由 scripts/gen-api.py 自动生成,**禁止手改**;接口变更后重新运行。
 > 权限码与 docs/permission/permission-dict.md 对应。
 
-## 接口清单(212 个)
+## 接口清单(213 个)
 
 | 方法 | 路径 | 权限码 | 方法名 | 文件 |
 |---|---|---|---|---|
@@ -38,6 +38,7 @@
 | GET | `/api/customer/import/template` | `hasAuthority('customer:import')` | downloadTemplate | CustomerController.java |
 | GET | `/api/customer/list` | `hasAuthority('customer:view')` | page | CustomerController.java |
 | GET | `/api/customer/list/counts` | `hasAuthority('customer:view')` | listCounts | CustomerController.java |
+| GET | `/api/customer/list/counts-by-filter` | `hasAuthority('customer:view')` | countsByFilter | CustomerController.java |
 | GET | `/api/customer/rankings` | `hasAuthority('score:view') or hasAuthority('ranking:customer:view') or hasAuthority('statistics:view')` | rankings | CustomerController.java |
 | GET | `/api/customer/statistics` | `hasAuthority('customer:view')` | statistics | CustomerController.java |
 | GET | `/api/customer/users/simple` | `hasAuthority('customer:view')` | simpleUserList | CustomerController.java |
@@ -127,7 +128,7 @@
 | GET | `/api/reminder/{id}` | `hasAuthority('reminder:view')` | detail | ReminderController.java |
 | POST | `/api/reminder/{id}/process` | `hasAuthority('reminder:view')` | process | ReminderController.java |
 | POST | `/api/score/entries/batch` | `hasAuthority('score:entry')` | batchSave | ScoreController.java |
-| GET | `/api/score/export/grid` | `hasAuthority('score:view')` | exportGrid | ScoreController.java |
+| GET | `/api/score/export/grid` | `hasAuthority('score:manage')` | exportGrid | ScoreController.java |
 | GET | `/api/score/grid` | `hasAuthority('score:view')` | getGrid | ScoreController.java |
 | POST | `/api/score/items` | `hasAuthority('score:manage')` | addItem | ScoreController.java |
 | DELETE | `/api/score/items/{id}` | `hasAuthority('score:manage')` | deleteItem | ScoreController.java |
