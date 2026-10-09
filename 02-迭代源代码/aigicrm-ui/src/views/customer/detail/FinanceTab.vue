@@ -6,27 +6,32 @@
         <div class="fin-title"><el-icon><Document /></el-icon> 开票记录</div>
         <div class="fin-summary">
           <span>累计 <b>{{ invoiceSummary.totalCount }}</b> 次</span>
-          <span>有效总额 <b class="red">{{ invoiceSummary.totalAmount }}</b> 万</span>
+          <span>有效总额 <b class="red">{{ formatWan(invoiceSummary.totalAmount) }}</b><template v-if="hasAmount(invoiceSummary.totalAmount)"> 万</template></span>
           <el-button v-if="!readonly" size="small" type="primary" @click="showInvoiceDialog = true">+ 录入开票</el-button>
         </div>
       </div>
       <el-table :data="invoices" stripe size="small" v-if="invoices.length" :row-class-name="ledgerRowClass">
         <el-table-column prop="invoiceDate" label="日期" width="105" />
-        <el-table-column prop="invoiceNumber" label="发票号" width="140" />
+        <!-- 【C10 三轮 2026-10-09】19 位发票号在 width=140 下折行（截图 04「26322000005922182551」两行）：
+             改 min-width=170 + 超长悬浮完整值，与全表 show-overflow-tooltip 口径一致 -->
+        <el-table-column prop="invoiceNumber" label="发票号" min-width="170" show-overflow-tooltip :formatter="dashIfEmpty" />
         <el-table-column prop="invoiceType" label="类型" width="100">
           <template #default="{row}"><el-tag size="small">{{ row.invoiceType }}</el-tag></template>
         </el-table-column>
-        <el-table-column prop="invoiceCompany" label="开票单位" min-width="130" />
+        <el-table-column prop="invoiceCompany" label="开票单位" min-width="130" show-overflow-tooltip :formatter="dashIfEmpty" />
         <el-table-column prop="amount" label="金额(万)" width="85" align="right">
-          <template #default="{row}"><b>{{ row.amount }}</b>万</template>
+          <!-- 【UI 整改 2026-10-08】金额空值显示 '—' 且不渲染"万"后缀（历史导入行曾出现孤立"万"字）；0 为有效金额 -->
+          <template #default="{row}">
+            <template v-if="hasAmount(row.amount)"><b>{{ formatWan(row.amount) }}</b>万</template>
+            <span v-else>—</span>
+          </template>
         </el-table-column>
         <el-table-column label="状态" width="96">
           <template #default="{row}">
             <el-tooltip v-if="row.status === 'voided'" :content="'作废原因: ' + (row.voidedReason || '未填写')" placement="top">
-              <el-tag size="small" type="info">已作废</el-tag>
+              <el-tag size="small" :type="financeStatus(row.status).type">{{ financeStatus(row.status).text }}</el-tag>
             </el-tooltip>
-            <el-tag v-else-if="row.status === 'pending'" size="small" type="warning">待核对</el-tag>
-            <el-tag v-else size="small" type="success">已确认</el-tag>
+            <el-tag v-else size="small" :type="financeStatus(row.status).type">{{ financeStatus(row.status).text }}</el-tag>
           </template>
         </el-table-column>
         <el-table-column v-if="!readonly" label="操作" width="150" align="center">
@@ -37,33 +42,35 @@
           </template>
         </el-table-column>
       </el-table>
-      <div v-else class="empty-text">暂无开票记录</div>
+      <div v-else class="empty-text">暂无开票记录，点击右上角「录入开票」开始记录</div>
     </div>
 
     <!-- 回款 -->
     <div class="finance-card">
       <div class="fin-head">
-        <div class="fin-title"><el-icon color="#67c23a"><Money /></el-icon> 回款记录</div>
+        <div class="fin-title"><el-icon color="var(--el-color-success)"><Money /></el-icon> 回款记录</div>
         <div class="fin-summary">
           <span>累计 <b>{{ paymentSummary.totalCount }}</b> 次</span>
-          <span>有效总额 <b class="red">{{ paymentSummary.totalAmount }}</b> 万</span>
+          <span>有效总额 <b class="red">{{ formatWan(paymentSummary.totalAmount) }}</b><template v-if="hasAmount(paymentSummary.totalAmount)"> 万</template></span>
           <el-button v-if="!readonly" size="small" type="primary" @click="showPaymentDialog = true">+ 录入回款</el-button>
         </div>
       </div>
       <el-table :data="payments" stripe size="small" v-if="payments.length" :row-class-name="ledgerRowClass">
         <el-table-column prop="paymentDate" label="日期" width="105" />
         <el-table-column prop="paymentAmount" label="金额(万)" width="85" align="right">
-          <template #default="{row}"><b>{{ row.paymentAmount }}</b>万</template>
+          <template #default="{row}">
+            <template v-if="hasAmount(row.paymentAmount)"><b>{{ formatWan(row.paymentAmount) }}</b>万</template>
+            <span v-else>—</span>
+          </template>
         </el-table-column>
-        <el-table-column prop="paymentMethod" label="方式" width="95" />
-        <el-table-column prop="remark" label="备注" min-width="130" show-overflow-tooltip />
+        <el-table-column prop="paymentMethod" label="方式" width="95" :formatter="dashIfEmpty" />
+        <el-table-column prop="remark" label="备注" min-width="130" show-overflow-tooltip :formatter="dashIfEmpty" />
         <el-table-column label="状态" width="96">
           <template #default="{row}">
             <el-tooltip v-if="row.status === 'voided'" :content="'作废原因: ' + (row.voidedReason || '未填写')" placement="top">
-              <el-tag size="small" type="info">已作废</el-tag>
+              <el-tag size="small" :type="financeStatus(row.status).type">{{ financeStatus(row.status).text }}</el-tag>
             </el-tooltip>
-            <el-tag v-else-if="row.status === 'pending'" size="small" type="warning">待核对</el-tag>
-            <el-tag v-else size="small" type="success">已确认</el-tag>
+            <el-tag v-else size="small" :type="financeStatus(row.status).type">{{ financeStatus(row.status).text }}</el-tag>
           </template>
         </el-table-column>
         <el-table-column v-if="!readonly" label="操作" width="150" align="center">
@@ -74,7 +81,7 @@
           </template>
         </el-table-column>
       </el-table>
-      <div v-else class="empty-text">暂无回款记录</div>
+      <div v-else class="empty-text">暂无回款记录，点击右上角「录入回款」开始记录</div>
     </div>
 
     <!-- 【PR-18】口径脚注: 作废留痕不计入 -->
@@ -107,6 +114,9 @@
 
 <script setup>
 import { injectCustomerDetail } from '@/composables/useCustomerDetail'
+import { formatWan, dashIfEmpty } from '@/utils/format'
+// 【B7 2026-10-08】台账状态三态映射收敛到 utils/status-maps.js 唯一来源
+import { FINANCE_LEDGER_STATUS, statusOf } from '@/utils/status-maps'
 
 const {
   readonly, invoices, invoiceSummary, payments, paymentSummary,
@@ -117,16 +127,20 @@ const {
 
 // 已作废行置灰(记录保留展示, 金额不计入口径)
 const ledgerRowClass = ({ row }) => (row.status === 'voided' ? 'ledger-voided-row' : '')
+// 金额空值判定：仅 null/undefined/'' 算无数据；0 是有效金额，正常渲染（0.00万）
+const hasAmount = (v) => v !== null && v !== undefined && v !== ''
+// 【B7 2026-10-08】开票/回款两表状态章统一走 status-maps（文案+type 一处维护）
+const financeStatus = (s) => statusOf(FINANCE_LEDGER_STATUS, s)
 </script>
 
 <style scoped>
-.finance-card { background:#fafbfc; border-radius:10px; padding:18px 20px; margin-bottom:14px; border:1px solid #f0f1f3 }
+.finance-card { background:#fafbfc; border-radius: var(--radius-md); padding:18px 20px; margin-bottom:14px; border:1px solid #f0f1f3 }
 .fin-head { display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; flex-wrap:wrap; gap:10px }
 .fin-title { display:flex; align-items:center; gap:6px; font-size:14px; font-weight:600; color:#333 }
 .fin-summary { display:flex; align-items:center; gap:14px; font-size:13px; color:#666 }
-.fin-summary b { color:#333 }.fin-summary .red { color:#f56c6c; font-size:15px }
-.empty-text { color:#c0c4cc; text-align:center; padding:24px 0; font-size:13px }
-.ledger-note { color:#909399; font-size:12px; padding:2px 4px 10px }
+.fin-summary b { color:#333 }.fin-summary .red { color:var(--el-color-danger); font-size:15px }
+.empty-text { color: var(--text-placeholder); text-align:center; padding:24px 0; font-size:13px }
+.ledger-note { color:var(--el-color-info); font-size:12px; padding:2px 4px 10px }
 :deep(.ledger-voided-row) { color:#b9bcc2; text-decoration:line-through }
 :deep(.ledger-voided-row .el-tag) { text-decoration:none }
 </style>

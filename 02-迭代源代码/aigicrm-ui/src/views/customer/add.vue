@@ -108,8 +108,8 @@ onBeforeUnmount(() => { observer?.disconnect() })
 .back-btn { font-size: 14px; color: #606266; margin-top: 4px; }
 .title-wrap { display: flex; flex-direction: column; gap: 4px; }
 .add-title { font-size: 20px; font-weight: 700; color: #1f2329; margin: 0; letter-spacing: .2px; }
-.add-sub { font-size: 12px; color: #909399; }
-.req-star { color: #f56c6c; font-weight: 600; }
+.add-sub { font-size: 12px; color: var(--el-color-info); }
+.req-star { color: var(--el-color-danger); font-weight: 600; }
 
 .section-nav {
   position: sticky; top: 0; z-index: 10;
@@ -121,7 +121,7 @@ onBeforeUnmount(() => { observer?.disconnect() })
 }
 .nav-chip {
   font-size: 13px; color: #4e5969; cursor: pointer;
-  padding: 5px 14px; border-radius: 999px;
+  padding: 5px 14px; border-radius: var(--radius-pill);
   background: #fff; border: 1px solid #e5e6eb;
   transition: all .18s; user-select: none;
 }
@@ -160,6 +160,6 @@ onBeforeUnmount(() => { observer?.disconnect() })
   padding: 14px 24px; margin-top: 16px;
   box-shadow: 0 -4px 16px rgba(15, 23, 42, .06);
 }
-.action-hint { font-size: 12px; color: #909399; }
+.action-hint { font-size: 12px; color: var(--el-color-info); }
 .action-btns { display: flex; gap: 12px; }
 </style>

@@ -4,13 +4,14 @@
 // 共享内容：Tab/选中文件夹/权限态 + 列表与计数数据 + 加载刷新动作 + 弹窗显隐与目标 + 下载工具。
 // 弹窗内部工作态（待上传列表、表单值、ACL 列表等）留在各弹窗组件内，仅注入共享态与刷新回调。
 import { ref, computed, inject } from 'vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ElMessage } from 'element-plus'
 import {
   getFolderTree, getFileList, deleteFile, deleteFolder,
   getStorageInfo, getSharedToMe, getSharedToMeCount, getFolderPermissions,
 } from '@/api/file'
 import { useUserStore } from '@/store/user'
 import { downloadFile } from '@/utils/download'
+import { confirmAction } from '@/utils/confirm'
 import { getToken, getDownloadToken, refreshDownloadToken } from '@/utils/token'
 import { formatSize } from '@/utils/format'
 
@@ -128,7 +129,10 @@ export function useFilePage() {
     } catch (e) {}
   }
 
+  // 【C12/D13 2026-10-08 二轮】文件列表补加载态：fetch 期间 FileTable v-loading，不再空白易误读为"暂无数据"
+  const filesLoading = ref(false)
   const loadFiles = async () => {
+    filesLoading.value = true
     try {
       if (activeTab.value === 'shared_to_me') {
         const res = await getSharedToMe({ ...query.value, keyword: keyword.value })
@@ -145,7 +149,11 @@ export function useFilePage() {
       const res = await getFileList(params)
       files.value = res.data?.records || []
       fileTotal.value = res.data?.total || 0
-    } catch (e) {}
+    } catch (e) {
+      // 错误已由 request 拦截器提示
+    } finally {
+      filesLoading.value = false
+    }
   }
 
   const loadTabCounts = async () => {
@@ -247,7 +255,8 @@ export function useFilePage() {
   // ---- 删除（确认 + 刷新，含共享态回写）----
   const handleDelete = async (row) => {
     try {
-      await ElMessageBox.confirm(`确定删除 "${row.fileName}"？`, '删除确认', { type: 'warning' })
+      // 【UI 整改 2026-10-08】删除类确认走 confirmAction：红色确认钮 + 取消左置（统一 utils/confirm.js 约定）
+      await confirmAction(`确定删除「${row.fileName}」？删除后不可恢复。`, '删除确认', { confirmText: '删除' })
       await deleteFile(row.id)
       ElMessage.success('删除成功')
       refreshAll()
@@ -256,7 +265,7 @@ export function useFilePage() {
 
   const handleDeleteFolder = async (folder) => {
     try {
-      await ElMessageBox.confirm(`确定删除文件夹 "${folder.folderName}"？`, '删除确认', { type: 'warning' })
+      await confirmAction(`确定删除文件夹「${folder.folderName}」？夹内文件将一并删除且不可恢复。`, '删除确认', { confirmText: '删除' })
       await deleteFolder(folder.id)
       ElMessage.success('删除成功')
       if (selectedFolderId.value === folder.id) {
@@ -296,7 +305,7 @@ export function useFilePage() {
 
   return {
     activeTab, selectedFolderId, keyword, query,
-    files, fileTotal, allFolders, folderPerms, folderDownloadable,
+    files, fileTotal, filesLoading, allFolders, folderPerms, folderDownloadable,
     publicCount, privateCount, incentiveCount, sharedToMeCount,
     storageUsed, storageQuota, storagePercent,
     uploadVisible, createFolderVisible, renameFolderVisible, renameFolderTarget,

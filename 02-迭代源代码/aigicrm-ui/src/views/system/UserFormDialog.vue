@@ -68,7 +68,8 @@
       </el-form-item>
       <el-row :gutter="24">
         <el-col :span="12">
-          <el-form-item label="数据范围" required>
+          <!-- 【C11 2026-10-08】星标=真校验：补 prop 接入 formRules.dataScopeOverride，未选时字段下方红字（不再只靠保存时全局 toast） -->
+          <el-form-item label="数据范围" prop="dataScopeOverride">
             <el-select v-model="editForm.dataScopeOverride" style="width:100%" placeholder="请选择数据范围">
               <el-option label="仅本人" value="self" />
               <el-option label="本人及下级" value="team" />
@@ -115,7 +116,7 @@ const {
 </script>
 
 <style scoped>
-.org-hint { font-size: 12px; color: #909399; line-height: 1.5; margin-top: 2px; }
-.acct-hint { font-size: 11px; color: #67c23a; margin-bottom: 6px }
+.org-hint { font-size: 12px; color: var(--el-color-info); line-height: 1.5; margin-top: 2px; }
+.acct-hint { font-size: 12px; color: var(--el-color-success); margin-bottom: 6px }
 .user-form :deep(.el-form-item) { margin-bottom: 18px }
 </style>

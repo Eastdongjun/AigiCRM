@@ -46,10 +46,10 @@ router.onError(() => { routeLoading.value = false })
   gap: 10px;
   background: #fff;
   padding: 14px 24px;
-  border-radius: 10px;
+  border-radius: var(--radius-md);
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
   font-size: 14px;
-  /* 白底上的正文需要 4.5:1 对比度；#409eff 仅 2.78:1，改用同色系 #2a76cf (4.57:1)。 */
+  /* 白底上的正文需要 4.5:1 对比度；var(--el-color-primary) 仅 2.78:1，改用同色系 #2a76cf (4.57:1)。 */
   color: #2a76cf;
 }
 .route-spinner {

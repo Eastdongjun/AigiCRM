@@ -2,7 +2,7 @@
 // 页面级 provide/inject（per-route）：customer/add.vue 实例化一次并 provide，
 // 5 个表单 section 子组件(基本信息/业务分类/归属负责人/地址/联系人) inject 同一上下文。
 // 共享内容：form 表单态与校验规则 + 部门/用户/字典选项 + 联系人列表 + 重复名称检测 + 提交动作。
-import { ref, reactive, computed, inject } from 'vue'
+import { ref, reactive, computed, inject, nextTick } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import request from '@/utils/request'
 import { ElMessage } from 'element-plus'
@@ -131,8 +131,13 @@ export function useCustomerForm() {
 
   // ---- 开发类型角标 ----
   const devTypeTagStyle = (t) => {
-    const m = { '成熟创新': 'background:#ecf5ff;color:#409eff', '突破开拓': 'background:#fdf6ec;color:#e6a23c', '铺垫宣传': 'background:#f0f9eb;color:#67c23a' }
-    return m[t] || 'background:#f5f7fa;color:#909399'
+    // 【B5 2026-10-08 二轮】底色/文字色一律走主题变量（内联样式支持 CSS 变量），不再写字面量
+    const m = {
+      '成熟创新': 'background:var(--el-color-primary-light-9);color:var(--el-color-primary)',
+      '突破开拓': 'background:var(--el-color-warning-light-9);color:var(--el-color-warning)',
+      '铺垫宣传': 'background:var(--el-color-success-light-9);color:var(--el-color-success)',
+    }
+    return m[t] || 'background:#f5f7fa;color:var(--el-color-info)'
   }
   const devTypeTagText = (t) => ({ '成熟创新': '创新', '突破开拓': '突破', '铺垫宣传': '铺垫' }[t] || '')
 
@@ -157,14 +162,18 @@ export function useCustomerForm() {
 
   /**
    * 联系人行校验：填了职位/电话/备注但没填姓名的行，提交时会被丢弃（后端按姓名判重、无姓名不落库）。
-   * 此前是静默丢弃 → 用户以为已保存。现在返回错误文案并在提交前拦截。
+   * 此前是静默丢弃 → 用户以为已保存。现在按行产出错误态（contactErrors），提交前拦截并滚动到错误行。
    * 整行全空视为未填写，不报错（允许保留空行）。
    */
+  // 【C11 2026-10-08】行内字段级报错：错误落在具体联系人的"姓名"输入框下方，不再只弹全局 toast
+  const contactErrors = ref([])
   const validateContacts = () => {
-    const idx = contacts.value.findIndex(c =>
-      !String(c.name || '').trim()
-      && ['position', 'phone', 'remark'].some(k => String(c[k] || '').trim()))
-    return idx < 0 ? '' : `第 ${idx + 1} 行联系人未填姓名，请补全或删除该行`
+    contactErrors.value = contacts.value.map(c =>
+      (!String(c.name || '').trim() && ['position', 'phone', 'remark'].some(k => String(c[k] || '').trim()))
+        ? '该行未填姓名，请补全或删除'
+        : '')
+    const idx = contactErrors.value.findIndex(Boolean)
+    return idx < 0 ? '' : `第 ${idx + 1} 行联系人未填姓名`
   }
 
   /** 提交用联系人行：去掉全空行、统一 trim */
@@ -224,11 +233,23 @@ export function useCustomerForm() {
 
   const handleSubmit = async () => {
     const valid = await formRef.value.validate().catch(() => false)
-    if (!valid) return
+    if (!valid) {
+      // 【C11 2026-10-08】校验失败自动定位：滚动到首个错误字段（长表单不用凭红字逐段找；
+      // 锚点导航的 IntersectionObserver 会随滚动自动高亮所在分组）
+      nextTick(() => {
+        document.querySelector('.customer-add .el-form-item.is-error')
+          ?.scrollIntoView?.({ behavior: 'smooth', block: 'center' })
+      })
+      return
+    }
 
     const contactError = validateContacts()
     if (contactError) {
-      ElMessage.error(contactError)
+      // 【C11 2026-10-08】联系人错误改为行内字段级报错（ContactsSection 红框+行内文案）+ 滚动定位
+      nextTick(() => {
+        document.querySelector('.contact-row.contact-error')
+          ?.scrollIntoView?.({ behavior: 'smooth', block: 'center' })
+      })
       return
     }
     const rows = contactRows()
@@ -278,7 +299,13 @@ export function useCustomerForm() {
           }
         }
         ElMessage.success('客户添加成功')
-        router.push('/customer')
+        // 【UI 整改 2026-10-08·A3】新增成功后跳新客户详情页（与编辑分支回详情对齐），
+        // 用户可立即核对回显与继续补录联系人/指标；拿不到 newId 时兜底回列表
+        if (newId) {
+          router.push(`/customer/detail/${newId}`)
+        } else {
+          router.push('/customer')
+        }
       }
     } catch (e) {
       // 提示由 utils/request 响应拦截器统一弹出；此处只负责复位 loading，避免重复弹窗。
@@ -349,7 +376,7 @@ export function useCustomerForm() {
   return {
     formRef, dupInfo, loading, regions, offices, users, groupNameOptions,
     filteredOffices, regionValue, industryOptions, devTypeOptions,
-    isEdit, isPoolCustomer, canEditProtectedDates, detailQuery, contacts, form, rules,
+    isEdit, isPoolCustomer, canEditProtectedDates, detailQuery, contacts, contactErrors, form, rules,
     indicatorForm, indicatorTotal, indicatorLoaded,
     devTypeTagStyle, devTypeTagText, onRegionChange,
     handleRegionChange, addContactRow, goBack, checkDup, handleSubmit, loadFormData,

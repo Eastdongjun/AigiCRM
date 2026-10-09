@@ -165,37 +165,38 @@ onMounted(load)
 .read-ranking-page { display: flex; flex-direction: column; gap: 12px; padding-bottom: 16px; }
 .page-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
 .page-header h2 { font-size: 18px; font-weight: 600; color: #333; margin: 0 0 4px; }
-.head-hint { font-size: 12px; color: var(--ds-text-3, #6b7280); }
+.head-hint { font-size: 12px; color: var(--text-muted); }
 .head-right { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
 .mb12 { margin-bottom: 4px; }
 
 .stat-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
 .stat-card { background: #fff; border: 1px solid #ebeef5; border-radius: 12px; padding: 18px 22px; }
-.sc-label { font-size: 13px; color: #86909c; margin-bottom: 4px; }
-.sc-num { font-size: 32px; font-weight: 700; line-height: 1.2; }
-.sc-num.blue { color: #409eff; }
-.sc-num.green { color: #67c23a; }
+.sc-label { font-size: 13px; color: var(--text-muted); margin-bottom: 4px; }
+/* 【B6 三轮 2026-10-09】大数字唯一档 --font-num-hero(30px)，收敛 32px 游离档 */
+.sc-num { font-size: var(--font-num-hero); font-weight: 700; line-height: 1.2; }
+.sc-num.blue { color: var(--el-color-primary); }
+.sc-num.green { color: var(--el-color-success); }
 .sc-num.purple { color: #8b5cf6; }
-.sc-num.yellow { color: #e6a23c; }
-.sc-desc { font-size: 12px; color: var(--ds-text-3, #6b7280); margin-top: 4px; }
+.sc-num.yellow { color: var(--el-color-warning); }
+.sc-desc { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
 
-.table-card { display: flex; flex-direction: column; background: #fff; border: 1px solid #e4e7ed; border-radius: 10px; padding: 14px 16px; }
+.table-card { display: flex; flex-direction: column; background: #fff; border: 1px solid #e4e7ed; border-radius: var(--radius-md); padding: 14px 16px; }
 .table-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 10px; }
 .table-title { font-size: 15px; font-weight: 600; color: #333; }
-.table-count { font-size: 12px; color: var(--ds-text-3, #6b7280); }
+.table-count { font-size: 12px; color: var(--text-muted); }
 .medal { font-size: 18px; }
-.rank-num { color: #909399; font-weight: 600; }
-.num-read { color: #67c23a; }
-.num-unread { color: #c0c4cc; }
+.rank-num { color: var(--el-color-info); font-weight: 600; }
+.num-read { color: var(--el-color-success); }
+.num-unread { color: var(--text-placeholder); }
 .rate-cell { display: flex; align-items: center; gap: 10px; }
 .rate-cell :deep(.el-progress) { flex: 1; }
 .rate-text { font-size: 12px; color: #606266; width: 48px; text-align: right; }
-.rate-excellent :deep(.el-progress-bar__inner) { background-color: #67c23a; }
-.rate-good :deep(.el-progress-bar__inner) { background-color: #409eff; }
-.rate-fair :deep(.el-progress-bar__inner) { background-color: #e6a23c; }
+.rate-excellent :deep(.el-progress-bar__inner) { background-color: var(--el-color-success); }
+.rate-good :deep(.el-progress-bar__inner) { background-color: var(--el-color-primary); }
+.rate-fair :deep(.el-progress-bar__inner) { background-color: var(--el-color-warning); }
 .rate-none :deep(.el-progress-bar__inner) { background-color: #dcdfe6; }
 
 .table-footer { display: flex; align-items: center; justify-content: space-between; padding: 10px 2px 0; margin-top: 8px; border-top: 1px solid #f0f2f5; }
 .footer-count { font-size: 13px; color: #606266; }
-.footer-count b { color: #409eff; font-weight: 700; margin: 0 2px; }
+.footer-count b { color: var(--el-color-primary); font-weight: 700; margin: 0 2px; }
 </style>

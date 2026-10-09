@@ -39,7 +39,7 @@
         empty-text="暂无安全审计记录" :height="tableHeight">
         <el-table-column label="时间" min-width="130">
           <template #default="{ row }">
-            <span style="color:#409eff">{{ formatTime(row.createdAt) }}</span>
+            <span style="color:var(--el-color-primary)">{{ formatTime(row.createdAt) }}</span>
           </template>
         </el-table-column>
         <el-table-column prop="eventType" label="事件" min-width="130" />
@@ -52,7 +52,7 @@
       <el-table v-else :data="tableData" stripe style="width:100%" size="small" empty-text="暂无日志记录" :height="tableHeight">
         <el-table-column label="时间" min-width="110">
           <template #default="{ row }">
-            <span style="color:#409eff">{{ formatTime(row.createdAt) }}</span>
+            <span style="color:var(--el-color-primary)">{{ formatTime(row.createdAt) }}</span>
           </template>
         </el-table-column>
         <el-table-column prop="username" label="操作人" min-width="75" />
@@ -229,7 +229,7 @@ onBeforeUnmount(() => {
 .log-page { height: calc(100vh - 100px); display: flex; flex-direction: column; }
 .page-header { margin-bottom: 12px; }
 .page-header h2 { font-size: 18px; font-weight: 600; color: #333; margin: 0 0 4px; }
-.page-desc { font-size: 13px; color: #86909c; margin: 0; }
+.page-desc { font-size: 13px; color: var(--text-muted); margin: 0; }
 
 /* Tab行 */
 .tab-row { display: flex; align-items: center; margin-bottom: 12px; }
@@ -237,7 +237,7 @@ onBeforeUnmount(() => {
 .tab-item { padding: 6px 14px; border-radius: 20px; font-size: 13px; color: #666; cursor: pointer; transition: all .2s; display: inline-flex; align-items: center; gap: 4px; }
 .tab-item:hover { background: #eef4ff; color: #1d4ed8; }
 .tab-item.active { background: #eef4ff; color: #1d4ed8; font-weight: 600; }
-.tab-badge { display: inline-flex; align-items: center; justify-content: center; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; background: #e8e8e8; color: #666; font-size: 11px; font-weight: 600; }
+.tab-badge { display: inline-flex; align-items: center; justify-content: center; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; background: #e8e8e8; color: #666; font-size: 12px; font-weight: 600; }
 .tab-item.active .tab-badge { background: #1d4ed8; color: #fff; }
 
 /* 筛选栏 */
@@ -262,10 +262,10 @@ onBeforeUnmount(() => {
 /* 模块标签 */
 .module-tag { padding: 2px 10px; border-radius: 4px; font-size: 12px; font-weight: 500; }
 .mod-blue { color: #1d4ed8; background: #eef4ff; }
-.mod-green { color: #67c23a; background: #f0f9eb; }
-.mod-orange { color: #e6a23c; background: #fdf6ec; }
+.mod-green { color: var(--el-color-success); background: #f0f9eb; }
+.mod-orange { color: var(--el-color-warning); background: #fdf6ec; }
 .mod-purple { color: #9b59b6; background: #f3ecf9; }
-.mod-gray { color: #909399; background: #f4f4f5; }
+.mod-gray { color: var(--el-color-info); background: #f4f4f5; }
 
 /* 分页 */
 .list-pager {
@@ -275,7 +275,7 @@ onBeforeUnmount(() => {
   padding: 10px 16px;
   border-top: 1px solid #f0f2f5;
   background: #fafbfc;
-  color: #999;
+  color: var(--text-muted);
   font-size: 12px;
   flex-shrink: 0;
 }

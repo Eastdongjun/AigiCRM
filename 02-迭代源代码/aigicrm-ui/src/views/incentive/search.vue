@@ -217,18 +217,18 @@ onMounted(()=>{loadCats();loadUsers();loadOrgs();doSearch()})
 .bar-adv{margin-top:12px;padding:16px 18px 18px;background:#f7f9fc;border-radius:12px;border:none;box-shadow:none}
 .adv-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
 .adv-title{display:flex;align-items:center;gap:6px;font-size:14px;font-weight:600;color:#1f2329}
-.adv-title .el-icon{color:#409eff;font-size:15px}
+.adv-title .el-icon{color:var(--el-color-primary);font-size:15px}
 .adv-header-right{display:flex;align-items:center;gap:10px}
 .adv-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px 14px}
-.adv-field{min-width:0;background:#fff;border:none;border-radius:10px;padding:6px 10px 8px;transition:box-shadow .2s}
+.adv-field{min-width:0;background:#fff;border:none;border-radius: var(--radius-md);padding:6px 10px 8px;transition:box-shadow .2s}
 .adv-field:hover{box-shadow:0 2px 8px rgba(16,24,40,.07)}
 .adv-field.span-2{grid-column:span 2}
 .adv-field.span-4{grid-column:1/-1}
 .adv-field-label{display:flex;align-items:center;gap:5px;font-size:12px;font-weight:600;color:#3a4a5a;margin-bottom:5px}
-.adv-field-label .el-icon{font-size:13px;color:#409eff}
+.adv-field-label .el-icon{font-size:13px;color:var(--el-color-primary)}
 .adv-field :deep(.el-select),.adv-field :deep(.el-date-picker){width:100%}
 .kw-main{width:240px}
-.cnt{display:flex;align-items:center;gap:4px;font-size:13px;color:#409eff;font-weight:600;white-space:nowrap;margin-left:auto}
+.cnt{display:flex;align-items:center;gap:4px;font-size:13px;color:var(--el-color-primary);font-weight:600;white-space:nowrap;margin-left:auto}
 
 /* 客户卡：白容器内的中性浅灰瓦片，悬浮抬升变白 */
 .card{background:#f2f4f7;border:none;border-radius:12px;overflow:hidden;display:flex;flex-direction:column;min-height:264px;transition:background .18s,box-shadow .18s,transform .18s}
@@ -237,29 +237,29 @@ onMounted(()=>{loadCats();loadUsers();loadOrgs();doSearch()})
 /* 【2026-09-20】客户名完整显示：独占整行(basis 100%)，最多两行，标签换行到名下不再挤占宽度 */
 .card-name{font-size:15px;font-weight:700;flex:1 1 100%;min-width:0;line-height:1.45;
   display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;word-break:break-all}
-.card-ind{font-size:11px;padding:2px 8px;background:#eef0f4;border-radius:999px;color:#6b7280;white-space:nowrap}
-.card-num{font-size:12px;padding:2px 0;background:transparent;border-radius:0;color:#409eff;font-weight:800;white-space:nowrap}
+.card-ind{font-size:12px;padding:2px 8px;background:#eef0f4;border-radius: var(--radius-pill);color:#6b7280;white-space:nowrap}
+.card-num{font-size:12px;padding:2px 0;background:transparent;border-radius:0;color:var(--el-color-primary);font-weight:800;white-space:nowrap}
 .card-bd{flex:1;padding:0 18px 16px}
 .card-meta{display:flex;align-items:center;gap:6px;margin-bottom:10px;flex-wrap:wrap;font-size:13px}
-.card-sub{color:#555}.card-info{color:#999;font-size:12px}
+.card-sub{color:#555}.card-info{color: var(--text-muted);font-size:12px}
 .card-pts{margin-left:auto;font-weight:600;font-size:15px}
 .card-imgs{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
 .card-img{width:100%;min-width:0}
 .img-wrap{position:relative;border:none;border-radius:8px;overflow:hidden}
-.img-tag{position:absolute;top:0;left:50%;transform:translateX(-50%);font-size:10px;color:#999;background:rgba(255,255,255,.85);padding:2px 8px;border-radius:0 0 4px 4px;white-space:nowrap;z-index:1}
-.card-img img{width:100%;aspect-ratio:1/1;object-fit:cover;cursor:pointer;transition:transform .3s;display:block;border-radius:6px}
+.img-tag{position:absolute;top:0;left:50%;transform:translateX(-50%);font-size:12px;color: var(--text-muted);background:rgba(255,255,255,.85);padding:2px 8px;border-radius:0 0 4px 4px;white-space:nowrap;z-index:1}
+.card-img img{width:100%;aspect-ratio:1/1;object-fit:cover;cursor:pointer;transition:transform .3s;display:block;border-radius: var(--radius-sm)}
 .card-img img:hover{transform:scale(1.06)}
-.img-vid{width:100%;aspect-ratio:1/1;background:linear-gradient(135deg,#1a1a2e,#2d2d44);border-radius:6px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:24px;cursor:pointer;position:relative;overflow:hidden}
+.img-vid{width:100%;aspect-ratio:1/1;background:linear-gradient(135deg,#1a1a2e,#2d2d44);border-radius: var(--radius-sm);display:flex;align-items:center;justify-content:center;color:#fff;font-size:24px;cursor:pointer;position:relative;overflow:hidden}
 .vid-overlay{width:48px;height:48px;border-radius:50%;background:rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px);transition:transform .2s}
 .img-vid:hover .vid-overlay{transform:scale(1.1)}
 .img-doc{width:100%;aspect-ratio:1/1;background:#eef0f4;border:none;border-radius:8px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;cursor:pointer;color:#9aa3ad;transition:all .15s}
-.img-doc:hover{background:#e3ecf7;color:#409eff}
-.doc-name{font-size:10px;max-width:80px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:center}
-.card-ft{text-align:center;padding:11px;border-top:none;margin-top:auto;font-size:13px;color:#409eff;cursor:pointer;font-weight:600}
+.img-doc:hover{background:#e3ecf7;color:var(--el-color-primary)}
+.doc-name{font-size:12px;max-width:80px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:center}
+.card-ft{text-align:center;padding:11px;border-top:none;margin-top:auto;font-size:13px;color:var(--el-color-primary);cursor:pointer;font-weight:600}
 .card-ft:hover{background:#f0f7ff}
 
 .rec-tag{display:inline-block;padding:3px 10px;border-radius:4px;font-size:12px;font-weight:600}
-.rec-tag-visit{background:#fef3c7;color:#b45309}.rec-tag-exchange{background:#dbeafe;color:#1e40af}
+.rec-tag-visit{background:#fef3c7;color:var(--chart-amber-deep)}.rec-tag-exchange{background:#dbeafe;color:#1e40af}
 .rec-tag-plan{background:#ede9fe;color:#6d28d9}.rec-tag-trial{background:#d1fae5;color:#065f46}
 
 /* 底部翻页区：计数在左、分页器在右，窄屏自动换行（与 reminder 的 .rem-pager 同口径）
@@ -269,6 +269,6 @@ onMounted(()=>{loadCats();loadUsers();loadOrgs();doSearch()})
 .search-pager{display:flex;align-items:center;flex-wrap:wrap;gap:12px;padding:10px 20px 14px;
   border-top:1px solid #eef0f3;margin:0 20px}  /* 【2026-09-20】详情卡区与分页区的浅色分割线 */
 .search-pager-count{font-size:13px;color:#606266;white-space:nowrap;margin-right:auto}
-.search-pager-count b{color:#409eff;font-weight:700;margin:0 2px}
+.search-pager-count b{color:var(--el-color-primary);font-weight:700;margin:0 2px}
 .search-pager .el-pagination{flex-shrink:0}
 </style>

@@ -9,7 +9,7 @@
         <el-button size="small" type="primary" plain :icon="Download" @click="exportRank()">导出</el-button>
       </span>
     </div>
-    <el-table :data="pagedScoreboard" style="width:100%" empty-text="暂无数据" class="rank-matrix"
+    <el-table :data="pagedScoreboard" style="width:100%" empty-text="当前周期暂无客户激励记录，上传激励文件后在此排行" class="rank-matrix"
       :header-cell-style="{ background: '#f7f9fc', color: '#1f2329', fontWeight: 600, borderBottom: '1px solid #e8ebf0' }"
       :row-style="{ height: '46px' }">
       <el-table-column label="排名" width="64" align="center">
@@ -31,7 +31,7 @@
       </el-table-column>
       <template v-for="(parent, pi) in rankParents" :key="'p' + parent.id">
         <el-table-column :label="parent.categoryName" align="center" :class-name="'cat-group cat-group-' + (pi % 4)">
-          <el-table-column v-for="child in parent.children" :key="child.id" :label="child.categoryName" min-width="72" align="center">
+          <el-table-column v-for="child in parent.children" :key="child.id" :label="child.categoryName" min-width="80" align="center">
             <template #default="{ row }">
               <span v-if="row.byCategory?.[child.id]" class="cell-pill">
                 <b class="cell-cnt">{{ row.byCategory[child.id][0] }}</b><span class="cell-unit">条</span>

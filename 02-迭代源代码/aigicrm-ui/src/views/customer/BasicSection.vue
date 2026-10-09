@@ -77,18 +77,18 @@ const groupOptions = computed(() => {
 .field-hint {
   font-size: 12px;
   line-height: 1.4;
-  color: #909399;
+  color: var(--el-color-info);
   margin-top: 4px;
 }
 .dup-warning {
   display: flex;
   align-items: center;
   gap: 4px;
-  color: #f56c6c;
+  color: var(--el-color-danger);
   font-size: 12px;
   margin-top: 6px;
   padding: 8px 12px;
   background: #fef0f0;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
 }
 </style>

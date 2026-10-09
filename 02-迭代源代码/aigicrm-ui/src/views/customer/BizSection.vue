@@ -43,7 +43,7 @@ const { form, devTypeOptions, industryOptions, devTypeTagStyle, devTypeTagText }
 
 <style scoped>
 .opt-tag {
-  font-size: 11px;
+  font-size: 12px;
   padding: 1px 6px;
   border-radius: 4px;
   margin-left: 8px;
@@ -51,7 +51,7 @@ const { form, devTypeOptions, industryOptions, devTypeTagStyle, devTypeTagText }
 .field-hint {
   font-size: 12px;
   line-height: 1.4;
-  color: #909399;
+  color: var(--el-color-info);
   margin-top: 4px;
 }
 </style>

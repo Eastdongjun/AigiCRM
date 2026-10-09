@@ -4,15 +4,16 @@
 // 共享内容：Tab/搜索/筛选/分页 + 客户数据与计数 + 列设置 + 高级筛选组织人员树 + 弹窗显隐与目标 + 加载刷新动作。
 // 弹窗内部工作态（导入文件/导入结果等）留在各弹窗组件内，仅注入共享态与刷新回调。
 // 注：本次重构顺带清除历史遗留死代码（三套列设置中的两套、未接线多条件筛选、未接线表格高度机等），
-//     保留的列设置 = 模板实际使用的内存态（无 localStorage 持久化）。
-import { ref, reactive, computed, inject, watch } from 'vue'
-import { useRouter } from 'vue-router'
+//     保留的列设置自 UI 整改 2026-10-08 起持久化到 localStorage（刷新不丢）；tab/搜索词/页码同步 route.query。
+import { ref, reactive, computed, inject, watch, nextTick } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { getCustomerList, getCustomerStatistics, getCustomerListCounts, releaseCustomer, deleteCustomer, archiveCustomer, restoreCustomer, getSimpleUserList } from '@/api/customer'
 import { getDeptList, getDictData, getDeptTree } from '@/api/system'
 import { useUserStore } from '@/store/user'
 import { downloadFile } from '@/utils/download'
 import { getToken } from '@/utils/token'
+import { confirmAction } from '@/utils/confirm'
 import { customerEmptyText } from '@/utils/customer-empty-state'
 import { customerStatusTagType, customerStatusText } from '@/utils/customer-status'
 import { INDUSTRY_FALLBACK_OPTIONS } from '@/utils/dict-fallback'
@@ -31,10 +32,35 @@ export function useCustomerList() {
   const router = useRouter()
   const userStore = useUserStore()
 
+  // 【容量加固·服务端分页】页签静态定义 + 服务端计数(tabCounts)（须先于下方 route.query 初始化，供 tab 参数校验）
+  // 【B7 2026-10-08】页签点色一律引用主题变量，不再写字面量（全部=主文字色/突破=warning/铺垫=success/工程=info）
+  const TAB_DEFS = [
+    { type: 'all', label: '全部', color: 'var(--el-text-color-primary)' },
+    { type: 'innovate', label: '成熟创新', color: 'var(--el-color-primary)' },
+    { type: 'break', label: '突破开拓', color: 'var(--el-color-warning)' },
+    { type: 'found', label: '铺垫宣传', color: 'var(--el-color-success)' },
+    // 【2026-09-23 需求修正】「新建改建扩建大修」是一个完整分类词(V2026.09.23.6 撤销拆分),客户列表含本分类页签
+    { type: 'engineering', label: '新建改建扩建大修', color: 'var(--el-color-info)' },
+  ]
+  const TAB_DEV_TYPE = { innovate: '成熟创新', break: '突破开拓', found: '铺垫宣传', engineering: '新建改建扩建大修' }
+
   // ---- 页面导航/筛选态 ----
-  const activeTab = ref('innovate')
-  const searchText = ref('')
+  // 【UI 整改 2026-10-08·列表态保持】activeTab/搜索词/页码初始值改从 route.query 恢复
+  // （detail 页"返回客户列表"带参回跳），列表每次加载成功后再同步回 route.query，
+  // 消除此前"进详情返回即丢筛选条件"（原 activeTab 每次重置 'innovate'）
+  const route = useRoute()
+  const sanitizeTab = (v) => (TAB_DEFS.some(d => d.type === v) ? v : 'innovate')
+  const activeTab = ref(sanitizeTab(String(route.query.tab || '')))
+  const searchText = ref(String(route.query.kw || ''))
   const filters = reactive({ search: '', industry: '', status: '' })
+  // 【A3 2026-10-08·下钻带参接入】工作台「已超期」卡 / 统计页行业与办事处下钻跳
+  // /customer?status=..&industry=..&office=..：status/industry 落到快速筛选条（用户可见可清除），
+  // office 在部门树加载后解析为组织子树（见 loadFilterData）。首次加载即按参数过滤，消费后 URL 由 syncListQuery 清干净
+  const initStatus = String(route.query.status || '')
+  if (['normal', 'warning', 'expired', 'archived'].includes(initStatus)) filters.status = initStatus
+  const initIndustry = String(route.query.industry || '')
+  if (initIndustry) filters.industry = initIndustry
+  const pendingOfficeName = String(route.query.office || '')
   // 【议题五.4】归档筛选: 默认隐藏归档客户, 勾选后列表含归档(后端 include_archived)
   const showArchived = ref(false)
   const toggleArchived = (val) => { showArchived.value = val; query.status = ''; query.statuses = []; page.value = 1; loadData() }
@@ -59,7 +85,7 @@ export function useCustomerList() {
   const warningDays = ref(30)
   const adjustDays = ref(180)
 
-  // ---- 列设置（内存态，页面级模板实际使用）----
+  // ---- 列设置（localStorage 持久化；【UI 整改 2026-10-08】此前为内存态，刷新即重置为全列）----
   const allCols = [
     { key: 'customerCode', label: '编号' }, { key: 'customerName', label: '客户全称' }, { key: 'invoiceName', label: '开票名称' },
     { key: 'groupName', label: '集团' }, { key: 'branchCompany', label: '分公司' },
@@ -71,7 +97,24 @@ export function useCustomerList() {
     { key: 'adjustDate', label: '调整日' }, { key: 'regionName', label: '大区' }, { key: 'officeName', label: '办事处' },
     { key: 'deptName', label: '部门' },
   ]
-  const visibleCols = ref(allCols.map(c => c.key))
+  const VISIBLE_COLS_KEY = 'aigicrm.customer.visibleCols'
+  const defaultVisibleCols = () => allCols.map(c => c.key)
+  const loadVisibleCols = () => {
+    try {
+      const raw = localStorage.getItem(VISIBLE_COLS_KEY)
+      if (!raw) return defaultVisibleCols()
+      const arr = JSON.parse(raw)
+      if (!Array.isArray(arr)) return defaultVisibleCols()
+      // 过滤掉已下线的列 key，避免历史残留配置撑出幽灵列
+      return arr.filter(k => allCols.some(c => c.key === k))
+    } catch (e) {
+      return defaultVisibleCols()
+    }
+  }
+  const visibleCols = ref(loadVisibleCols())
+  watch(visibleCols, (v) => {
+    try { localStorage.setItem(VISIBLE_COLS_KEY, JSON.stringify(v)) } catch (e) {}
+  }, { deep: true })
   const vis = (key) => visibleCols.value.includes(key)
 
   // ---- 弹窗显隐与目标 ----
@@ -84,24 +127,13 @@ export function useCustomerList() {
   const releaseLoading = ref(false)
 
   // ---- 分页 ----
-  const page = ref(1)
+  // 【UI 整改 2026-10-08·列表态保持】页码从 route.query 恢复（detail 返回带参回跳）
+  const page = ref(Math.max(1, parseInt(route.query.page, 10) || 1))
   const pageSize = ref(30)
 
   // ---- 计算 ----
   const canDelete = computed(() => userStore.hasPermission('customer:delete'))
   const canRelease = computed(() => userStore.hasPermission('customer:edit'))
-
-  // 【容量加固·服务端分页 2026-10-05】页签改为静态定义 + 服务端计数(tabCounts):
-  // 原实现基于"一次拉 500 条"的本地分区计数,数据不全即计数失真;现由 /list/counts-by-filter 按当前筛选返回
-  const TAB_DEFS = [
-    { type: 'all', label: '全部', color: '#303133' },
-    { type: 'innovate', label: '成熟创新', color: '#409eff' },
-    { type: 'break', label: '突破开拓', color: '#e6a23c' },
-    { type: 'found', label: '铺垫宣传', color: '#67c23a' },
-    // 【2026-09-23 需求修正】「新建改建扩建大修」是一个完整分类词(V2026.09.23.6 撤销拆分),客户列表含本分类页签
-    { type: 'engineering', label: '新建改建扩建大修', color: '#64748b' },
-  ]
-  const TAB_DEV_TYPE = { innovate: '成熟创新', break: '突破开拓', found: '铺垫宣传', engineering: '新建改建扩建大修' }
 
   const tabs = computed(() => TAB_DEFS.map(d => ({
     ...d,
@@ -112,7 +144,8 @@ export function useCustomerList() {
   const filteredList = computed(() => tableData.value)
 
   // 【FM3 2026-10-07】空态判定带服务端 total（tableData 现为当前页，单看它区分不了"筛选无匹配"与"范围无数据"）
-  const emptyTableText = computed(() => customerEmptyText(tableData.value, total.value))
+  // 【UI 整改 2026-10-08】带搜索词时改提示"未找到与XX匹配"，不再误导去找管理员查数据范围
+  const emptyTableText = computed(() => customerEmptyText(tableData.value, total.value, buildListParams().keyword))
 
   const advFilterCount = computed(() => {
     let n = 0
@@ -138,9 +171,9 @@ export function useCustomerList() {
     return row.ownerId && row.ownerId !== userStore.userId
   }
   const getExpireColor = (row) => {
-    if (row.protectionStatus === 'expired') return '#f56c6c'
-    if (row.protectionStatus === 'expiring') return '#e6a23c'
-    return '#409eff'
+    if (row.protectionStatus === 'expired') return 'var(--el-color-danger)'
+    if (row.protectionStatus === 'expiring') return 'var(--el-color-warning)'
+    return 'var(--el-color-primary)'
   }
   const getDaysLeft = (row) => {
     if (!row.expireDate) return 999
@@ -208,16 +241,45 @@ export function useCustomerList() {
   let listSeq = 0
   let countsSeq = 0
 
+  // 【UI 整改 2026-10-08·D13 加载态】列表请求期间 MainTable 表格 v-loading（参照 sea/index.vue 既有写法）
+  const listLoading = ref(false)
+  // 【C12 2026-10-08】列表加载失败页面级错误态（区别于空态）：失败时 MainTable 顶部显示错误条+重试，
+  // 不再把失败静默吞成"空列表"；成功加载即清除
+  const listError = ref(false)
+
+  // 【UI 整改 2026-10-08·列表态保持】把 tab/搜索词/页码同步进 route.query（replace 不产生历史记录），
+  // detail 页"返回客户列表"据此带参回跳；默认值不入参保持 URL 干净
+  const syncListQuery = () => {
+    const q = {}
+    if (activeTab.value && activeTab.value !== 'innovate') q.tab = activeTab.value
+    const kw = (searchText.value || '').trim()
+    if (kw) q.kw = kw
+    if (page.value > 1) q.page = String(page.value)
+    const cur = route.query
+    if (String(cur.tab || '') !== (q.tab || '') || String(cur.kw || '') !== (q.kw || '') || String(cur.page || '') !== (q.page || '')) {
+      router.replace({ query: q }).catch(() => {})
+    }
+  }
+
   const loadData = async () => {
     const seq = ++listSeq
+    listLoading.value = true
     try {
       const params = { ...buildListParams(), current: page.value, size: pageSize.value }
       const res = await getCustomerList(params)
       if (seq !== listSeq) return // 已有更新的列表请求在途/完成，丢弃本次旧响应
       tableData.value = res.data.records || []
       total.value = res.data.total || 0
+      listError.value = false
+      syncListQuery()
       loadTabCounts()
-    } catch (e) {}
+    } catch (e) {
+      // 【C12 2026-10-08】不再静默：错误详情已由 request 拦截器提示，这里补页面级错误态供重试
+      if (seq === listSeq) listError.value = true
+    } finally {
+      // 仅由最新一次请求熄灯；旧请求晚到时不得关掉在途新请求的 loading
+      if (seq === listSeq) listLoading.value = false
+    }
   }
 
   const loadTabCounts = async () => {
@@ -271,6 +333,25 @@ export function useCustomerList() {
         const userRes = await getSimpleUserList()
         filterUserOptions.value = (userRes?.data || []).map(u => ({ id: u.id, realName: u.realName }))
         canFilterByUsers.value = filterUserOptions.value.length > 1
+      }
+      // 【A3 2026-10-08】统计页办事处下钻带来的 office 名称参数：树加载后解析为该组织+全部子部门的
+      // orgIds 筛选（与高级筛选"所属组织"同一参数通道，UI 高级筛选弹窗里可见可清）。树不可用时静默放弃
+      if (pendingOfficeName && filterOrgTree.value.length) {
+        const findByName = (nodes) => {
+          for (const n of nodes || []) {
+            if (n.deptName === pendingOfficeName) return n
+            const hit = findByName(n.children)
+            if (hit) return hit
+          }
+          return null
+        }
+        const node = findByName(filterOrgTree.value)
+        if (node) {
+          const ids = []
+          const collect = (ns) => { for (const n of ns || []) { ids.push(n.id); collect(n.children) } }
+          collect([node])
+          advFilter.orgIds = ids
+        }
       }
     } catch (e) {
       // 错误已由 request 拦截器提示
@@ -354,12 +435,35 @@ export function useCustomerList() {
     Object.assign(advFilter, { industry: '', province: '', city: '', status: '', protect: '', owner: '', regDate: null, expDate: null, orgIds: [], userIds: [], deptId: null, deptIds: [] })
   }
 
+  // 【UI 整改 2026-10-08】clearSearch 程序化清空时挂起下方两个筛选 watch（由其自行立即加载一次，避免同参连发两枪）
+  let suppressFilterWatch = false
+
+  // 【UI 整改 2026-10-08·⑦空态】是否存在可清空的搜索/筛选条件（空态区据此显示"清空搜索与筛选"按钮）
+  const hasActiveFilter = computed(() => {
+    if (String(searchText.value || '').trim()) return true
+    if (filters.industry || filters.status) return true
+    return advFilterCount.value > 0
+  })
+
+  // 【UI 整改 2026-10-08·⑦空态】一键清空搜索词+快速筛选+高级筛选并回第一页（MainTable 空态按钮）
+  const clearSearch = () => {
+    suppressFilterWatch = true
+    searchText.value = ''
+    filters.industry = ''
+    filters.status = ''
+    clearAdvFilter()
+    page.value = 1
+    clearTimeout(reloadTimer)
+    loadData()
+    nextTick(() => { suppressFilterWatch = false })
+  }
+
   // 【C1 2026-10-04→服务端分页 2026-10-05】高级筛选任意变化统一重置页码并防抖重载:
   // 弹窗内各控件是即时生效的 v-model 绑定，统一在源头 watch，避免逐控件接 @change 漏接
-  watch(advFilter, () => { page.value = 1; debouncedReload() }, { deep: true })
+  watch(advFilter, () => { if (suppressFilterWatch) return; page.value = 1; debouncedReload() }, { deep: true })
 
   // 【容量加固·服务端分页】搜索词输入即查(400ms 防抖,替代旧的本地即时过滤体验)
-  watch(searchText, () => { page.value = 1; debouncedReload() })
+  watch(searchText, () => { if (suppressFilterWatch) return; page.value = 1; debouncedReload() })
 
   // 快速筛选（行业/状态）变化:同上重置页码+防抖重载(原为纯本地过滤无需请求)
   const onQuickFilterChange = () => { page.value = 1; debouncedReload() }
@@ -369,7 +473,14 @@ export function useCustomerList() {
   const onSizeChange = () => { page.value = 1; loadData() }
 
   const viewDetail = (row) => {
-    router.push(`/customer/detail/${row.id}`)
+    // 【UI 整改 2026-10-08·列表态保持】携带当前 tab/搜索词/页码进详情 query，
+    // detail 页"返回客户列表"据此带参回跳（键名与 syncListQuery 同一套）
+    const listQuery = {}
+    if (activeTab.value && activeTab.value !== 'innovate') listQuery.tab = activeTab.value
+    const kw = (searchText.value || '').trim()
+    if (kw) listQuery.kw = kw
+    if (page.value > 1) listQuery.page = String(page.value)
+    router.push({ path: `/customer/detail/${row.id}`, query: listQuery })
   }
 
   // ---- 操作 ----
@@ -388,11 +499,12 @@ export function useCustomerList() {
   }
 
   const handleDelete = async (row) => {
+    // 【C9 三轮 2026-10-09】删除确认收敛到 utils/confirm.js confirmAction（统一红色确认钮/取消左置/app-confirm 皮肤）
     try {
-      await ElMessageBox.confirm(
+      await confirmAction(
         `确认删除客户 “${row.customerName}”（编号 ${row.customerCode}）？删除后不可恢复。`,
         '删除客户',
-        { type: 'warning', confirmButtonText: '确认删除', cancelButtonText: '取消', confirmButtonClass: 'el-button--danger' }
+        { confirmText: '确认删除' }
       )
     } catch (e) {
       return // 用户取消
@@ -408,10 +520,12 @@ export function useCustomerList() {
 
   // 【议题五.4】归档: 默认隐藏+不参与统计与到期提醒; 恢复: 回到 normal
   const handleArchive = async (row) => {
+    // 【C9 三轮 2026-10-09】归档确认同样收敛到 confirmAction；归档可恢复、非危险操作，danger:false 不染红
     try {
-      await ElMessageBox.confirm(
+      await confirmAction(
         `确认归档客户 “${row.customerName}”？归档后列表默认隐藏, 不参与统计与到期提醒, 可随时恢复。`,
-        '归档客户', { type: 'warning', confirmButtonText: '确认归档', cancelButtonText: '取消' }
+        '归档客户',
+        { confirmText: '确认归档', danger: false }
       )
     } catch (e) { return }
     try {
@@ -439,6 +553,11 @@ export function useCustomerList() {
   }
 
   const confirmRelease = async () => {
+    // 【UI 整改 2026-10-08·⑧】释放原因必填（ReleaseDialog 确认钮已空值禁用，此处兜底防绕过）
+    if (!String(releaseReason.value || '').trim()) {
+      ElMessage.warning('请填写释放原因')
+      return
+    }
     releaseLoading.value = true
     try {
       await releaseCustomer(releaseTarget.value.id, releaseReason.value)
@@ -452,6 +571,77 @@ export function useCustomerList() {
     }
   }
 
+  // ---- 批量操作（【UI 整改 2026-10-08·D15】此前全应用零批量操作；行级动作口径见 MainTable :selectable）----
+  const tableRef = ref(null) // MainTable 回传 el-table 实例，批量完成后 clearSelection 清空勾选
+  const selectedRows = ref([])
+  const onSelectionChange = (rows) => { selectedRows.value = rows }
+  // selection 列已按 isShared 禁选；此处再按动作口径过滤：释放/归档仅未归档行（归档行只可恢复），删除不限归档
+  const batchReleasable = computed(() => selectedRows.value.filter(r => !isShared(r) && r.status !== 'archived'))
+  const batchArchivable = computed(() => selectedRows.value.filter(r => !isShared(r) && r.status !== 'archived'))
+  const batchDeletable = computed(() => selectedRows.value.filter(r => !isShared(r)))
+
+  /** 批量执行：逐条调用、统计成功/失败，结束后清空勾选并统一刷新（失败明细已由请求层提示） */
+  const runBatch = async (rows, action, successLabel) => {
+    let ok = 0
+    let fail = 0
+    for (const r of rows) {
+      try { await action(r); ok++ } catch (e) { fail++ }
+    }
+    if (ok) ElMessage.success(`${successLabel} ${ok} 个客户`)
+    if (fail) ElMessage.warning(`${fail} 个客户操作失败，请重试`)
+    tableRef.value?.clearSelection?.()
+    selectedRows.value = []
+    refreshAll()
+  }
+
+  const handleBatchRelease = async () => {
+    const rows = batchReleasable.value
+    if (!rows.length) return ElMessage.warning('所选客户中没有可释放的客户（已归档行请先恢复）')
+    let reason = ''
+    try {
+      const { value } = await ElMessageBox.prompt(
+        `将为选中的 ${rows.length} 个客户填写同一释放原因（必填）。释放后负责人清空、进入公海池，其他用户可捞取。`,
+        '批量释放客户',
+        {
+          confirmButtonText: '确认释放', cancelButtonText: '取消', inputType: 'textarea',
+          inputPlaceholder: '请输入释放原因（必填）', inputValidator: (v) => (v && v.trim()) ? true : '释放原因必填',
+          confirmButtonClass: 'el-button--danger',
+        }
+      )
+      reason = value.trim()
+    } catch (e) {
+      return // 用户取消
+    }
+    await runBatch(rows, (r) => releaseCustomer(r.id, reason), '已释放')
+  }
+
+  const handleBatchArchive = async () => {
+    const rows = batchArchivable.value
+    if (!rows.length) return ElMessage.warning('所选客户中没有可归档的客户（已归档行请先恢复）')
+    try {
+      await confirmAction(
+        `确认归档选中的 ${rows.length} 个客户？归档后列表默认隐藏，不参与统计与到期提醒，可随时恢复。`,
+        '批量归档客户',
+        { confirmText: '确认归档', danger: false }
+      )
+    } catch (e) { return }
+    await runBatch(rows, (r) => archiveCustomer(r.id), '已归档')
+  }
+
+  const handleBatchDelete = async () => {
+    const rows = batchDeletable.value
+    if (!rows.length) return ElMessage.warning('请先勾选要删除的客户')
+    try {
+      // 【D15】批量删除走 confirmAction 红色确认（utils/confirm 统一危险操作视觉）
+      await confirmAction(
+        `确认删除选中的 ${rows.length} 个客户？删除后不可恢复。`,
+        '批量删除客户',
+        { confirmText: '确认删除' }
+      )
+    } catch (e) { return }
+    await runBatch(rows, (r) => deleteCustomer(r.id), '已删除')
+  }
+
   return {
     activeTab, searchText, filters, advFilterTab, advFilter,
     canFilterByOrg, canFilterByUsers, filterOrgTree, filterUserOptions, query,
@@ -463,8 +653,11 @@ export function useCustomerList() {
     page, pageSize, total,
     canDelete, canRelease, showArchived, toggleArchived, handleArchive, handleRestore,
     tabs, filteredList, tabCounts,
-    advFilterCount, allIndustries, emptyTableText,
+    advFilterCount, allIndustries, emptyTableText, hasActiveFilter, clearSearch,
     isShared, getExpireColor, getDaysLeft, getStatusType, getStatusText, getProtectClass, getProtectText,
+    listLoading, listError, tableRef, selectedRows, onSelectionChange,
+    batchReleasable, batchArchivable, batchDeletable,
+    handleBatchRelease, handleBatchArchive, handleBatchDelete,
     loadData, loadStats, loadScopeCounts, refreshAll,
     loadFilterData, loadBizConfig, loadRegions, loadIndustryOptions,
     search, onTabChange, onDeptFilterChange, onQuickFilterChange, clearAdvFilter, viewDetail,

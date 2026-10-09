@@ -55,7 +55,7 @@
 
   <view wx:if="{{detailView.showFinanceSection}}" class="card customer-section-card aligned-section-card">
     <view class="customer-section-head">
-      <view class="section-title">财务摘要</view>
+      <view class="section-title">开票回款</view>
       <button class="text-btn" bindtap="openFinance">查看明细</button>
     </view>
     <view class="customer-metric-grid finance-summary-grid">

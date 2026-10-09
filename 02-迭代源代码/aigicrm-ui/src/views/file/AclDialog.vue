@@ -150,7 +150,7 @@ const handleDownloadableChange = async (val) => {
 .acl-perms { display: flex; flex-wrap: wrap; gap: 4px 16px; padding: 4px 0 }
 .acl-download-row { display: flex; align-items: center; justify-content: space-between; font-size: 13px; color: #666 }
 .acl-list { max-height: 260px; overflow: auto; display: flex; flex-direction: column; gap: 6px }
-.acl-item { display: flex; align-items: center; gap: 8px; padding: 8px 10px; background: #f5f7fa; border-radius: 6px }
+.acl-item { display: flex; align-items: center; gap: 8px; padding: 8px 10px; background: #f5f7fa; border-radius: var(--radius-sm) }
 .acl-role { font-size: 13px; font-weight: 500; color: #303133; min-width: 80px; flex-shrink: 0 }
 .acl-tags { flex: 1; display: flex; flex-wrap: wrap; gap: 4px }
 </style>

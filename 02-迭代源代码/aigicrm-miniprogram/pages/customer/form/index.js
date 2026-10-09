@@ -147,6 +147,8 @@ Page({
       // 编辑态注册日/最近开票日仅 admin 或 customer:date:edit 可改（与 PC canEditProtectedDates 一致）
       canEditDates: !id || getApp().globalData.demoMode || isAdmin() || hasPermission('customer:date:edit')
     }, () => this.refreshFormView())
+    // 【A4 三轮 2026-10-09】导航栏标题与 PC 对齐（新增客户/编辑客户）：原固定「客户表单」，PC 无此概念
+    wx.setNavigationBarTitle({ title: id ? '编辑客户' : '新增客户' })
     // 【M13 2026-10-04】记录选项加载 Promise：草稿恢复确认时挂在它后面，
     // 保证 applyCustomer 重算 picker 索引时下拉候选已就绪(选项未加载时索引恒为 -1)
     this.optionsPromise = this.loadOptions().then(() => (id ? this.loadDetail() : this.prefillOwner()))

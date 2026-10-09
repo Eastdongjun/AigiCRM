@@ -12,7 +12,7 @@
             <span style="font-weight:600;font-size:14px">{{ pool.poolName }}</span>
             <el-tag :type="pool.status===1?'success':'info'" size="small">{{ pool.status===1?'启用':'禁用' }}</el-tag>
           </div>
-          <div style="color:#909399;font-size:12px;line-height:1.8">
+          <div style="color:var(--el-color-info);font-size:12px;line-height:1.8">
             <div><el-icon style="vertical-align:middle"><OfficeBuilding /></el-icon> {{ pool.regionNames || '未设置' }}</div>
             <div><el-icon style="vertical-align:middle"><View /></el-icon> {{ pool.visibleNames || '未设置' }}</div>
             <div><el-icon style="vertical-align:middle"><Sort /></el-icon> 排序: {{ pool.sortOrder }}</div>
@@ -138,7 +138,7 @@
         <el-divider content-position="left"><el-icon><Setting /></el-icon> 其他设置</el-divider>
         <el-form-item label="启用状态">
           <el-switch v-model="poolForm.status" :active-value="1" :inactive-value="0" active-text="启用" inactive-text="禁用" />
-          <div style="font-size:12px;color:#909399;margin-top:4px">禁用的公海池不在公海页面展示，也不再接收新释放的客户。<span v-if="poolForm.status === 0" style="color:#e6a23c">⚠️ 池内已有的客户记录将不可见且不可删除，重新启用后恢复。</span></div>
+          <div style="font-size:12px;color:var(--el-color-info);margin-top:4px">禁用的公海池不在公海页面展示，也不再接收新释放的客户。<span v-if="poolForm.status === 0" style="color:var(--el-color-warning)">⚠️ 池内已有的客户记录将不可见且不可删除，重新启用后恢复。</span></div>
         </el-form-item>
         <el-form-item label="排序">
           <el-input-number v-model="poolForm.sortOrder" :min="0" />
@@ -154,7 +154,8 @@
 
 <script setup>
 import { ref, reactive, computed, onMounted, nextTick } from 'vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ElMessage } from 'element-plus'
+import { confirmAction } from '@/utils/confirm'
 import { Plus, OfficeBuilding, View, Sort, Select, Setting, User } from '@element-plus/icons-vue'
 import { getSeaConfigs, createSeaConfig, updateSeaConfig, deleteSeaConfig, getOrgTree } from '@/api/sea'
 import { useUserStore } from '@/store/user'
@@ -314,7 +315,8 @@ const handleEditPool = (row) => {
 
 const handleDeletePool = async (row) => {
   try {
-    await ElMessageBox.confirm(`确定删除公海池「${row.poolName}」？`, '提示', { type: 'warning' })
+    // 【UI 整改 2026-10-08】删除类确认走 confirmAction：红色确认钮 + 取消左置
+    await confirmAction(`确定删除公海池「${row.poolName}」？删除后不可恢复。`, '删除确认', { confirmText: '删除' })
     await deleteSeaConfig(row.id)
     ElMessage.success('删除成功')
     loadSeaPools()
@@ -376,5 +378,5 @@ onMounted(() => { loadSeaPools(); loadOrgTree() })
 <style scoped>
 .tree-card { border: 1px solid #e4e7ed; border-radius: 8px; padding: 10px 12px; background: #fafbfc }
 .tree-card-header { display: flex; align-items: center; gap: 5px; font-size: 13px; font-weight: 600; color: #4e5969; margin-bottom: 6px }
-.tree-card-tip { font-size: 11px; color: #909399; margin-top: 6px; line-height: 1.5 }
+.tree-card-tip { font-size: 12px; color: var(--el-color-info); margin-top: 6px; line-height: 1.5 }
 </style>

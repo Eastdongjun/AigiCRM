@@ -15,14 +15,14 @@ const { query, total, loadData } = injectUserList()
 </script>
 
 <style scoped>
-.section-box { background: #fff; border: 1px solid #e4e7ed; border-radius: 10px; padding: 14px 20px; flex-shrink: 0 }
+.section-box { background: #fff; border: 1px solid #e4e7ed; border-radius: var(--radius-md); padding: 14px 20px; flex-shrink: 0 }
 .list-pager {
   display: flex;
   justify-content: flex-end;
   align-items: center;
   padding: 10px 0;
   border-top: 1px solid #ebeef5;
-  color: #999;
+  color: var(--text-muted);
   font-size: 12px;
   flex-shrink: 0;
 }

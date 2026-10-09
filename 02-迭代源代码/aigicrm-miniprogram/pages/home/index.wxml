@@ -38,7 +38,7 @@
     <view class="quick-item" bindtap="openNewCustomer"><view class="quick-icon blue">＋</view><text>新客户</text></view>
     <view class="quick-item" bindtap="openIncentive"><view class="quick-icon cyan">♜</view><text>四项激励</text></view>
     <view class="quick-item" bindtap="openIncentiveUpload"><view class="quick-icon orange">▣</view><text>四项激励上传</text></view>
-    <view class="quick-item" bindtap="openApproval"><view class="quick-icon green">✓</view><text>审批中心<em wx:if="{{pendingCount}}">{{pendingCount}}</em></text></view>
+    <view class="quick-item" bindtap="openApproval"><view class="quick-icon green">✓</view><text>审批管理<em wx:if="{{pendingCount}}">{{pendingCount}}</em></text></view>
     <view class="quick-item" bindtap="openReminder"><view class="quick-icon red">♧</view><text>提醒</text></view>
     <view class="quick-item" bindtap="openStatistics"><view class="quick-icon purple">▥</view><text>客户统计</text></view>
   </view>

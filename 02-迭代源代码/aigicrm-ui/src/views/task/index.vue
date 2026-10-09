@@ -84,13 +84,15 @@
     <!-- 分页 -->
     <div class="list-pager">
       <!-- 【P5 修复】翻页直接 loadData；原 @change 强制重置回第 1 页导致永久卡第一页（对齐 approval 写法） -->
+      <!-- 【C9 2026-10-08 二轮】补齐 sizes/jumper，与其他列表页分页形态一致 -->
       <el-pagination v-model:current-page="query.current" v-model:page-size="query.size" :total="total"
-        layout="prev, pager, next" size="small" @change="loadData" />
+        :page-sizes="pageSizes(query.size)" layout="sizes, prev, pager, next, jumper" size="small"
+        @size-change="query.current = 1" @change="loadData" />
     </div>
 
     <!-- 完成弹窗 -->
     <el-dialog v-model="completeVisible" title="完成任务" width="440px">
-      <p style="color:#909399;font-size:13px;margin-bottom:12px">{{ completingTask?.title }}</p>
+      <p style="color:var(--el-color-info);font-size:13px;margin-bottom:12px">{{ completingTask?.title }}</p>
       <el-input v-model="completionNote" type="textarea" :rows="3" placeholder="完成结果（必填，不是简单勾掉）" />
       <template #footer>
         <el-button @click="completeVisible=false">取消</el-button>
@@ -113,6 +115,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { getTaskList, getTaskStatistics, completeTask, cancelTask } from '@/api/task'
+import { pageSizes } from '@/utils/pagination'
 
 const loading = ref(false)
 const tasks = ref([])
@@ -203,7 +206,7 @@ onMounted(() => { loadData(); loadStats() })
 .page-desc { color: #94a3b8; font-size: 13px; margin: 0 }
 /* 【2026-09-20 Bento 统计卡】主卡(待办)渐变宽卡 + 三张浅灰瓦片小卡；数字滚动由 disp 驱动 */
 .stat-bento { display: grid; grid-template-columns: 1.5fr 1fr 1fr 1fr; gap: 14px; margin-bottom: 18px; align-items: stretch }
-.stat-card { border: none; border-radius: 16px; display: flex; gap: 14px; align-items: flex-start; padding: 20px 22px; height: 100%;
+.stat-card { border: none; border-radius: var(--radius-lg); display: flex; gap: 14px; align-items: flex-start; padding: 20px 22px; height: 100%;
   box-sizing: border-box; transition: transform .18s, box-shadow .18s }
 .stat-card:hover { transform: translateY(-2px) }
 .stat-card.primary { background: linear-gradient(135deg, #3b82f6 0%, #2563eb 60%, #1d4ed8 100%); color: #fff;
@@ -222,7 +225,8 @@ onMounted(() => { loadData(); loadStats() })
 .stat-card.mini.green .stat-icon-chip { background: #dcfce7; color: #16a34a }
 .stat-info { min-width: 0 }
 .stat-label { font-size: 12px; color: #9ca3af; letter-spacing: 1px }
-.stat-num { font-size: 28px; font-weight: 800; margin-top: 4px; line-height: 1.1; font-variant-numeric: tabular-nums }
+/* 【B6】大数字唯一档 --font-num-hero(30px)，与工作台/统计页同一角色同一档 */
+.stat-num { font-size: var(--font-num-hero); font-weight: 800; margin-top: 4px; line-height: 1.1; font-variant-numeric: tabular-nums }
 .stat-card.mini.orange .stat-num { color: #ea580c }
 .stat-card.mini.red .stat-num { color: #dc2626 }
 .stat-card.mini.green .stat-num { color: #16a34a }

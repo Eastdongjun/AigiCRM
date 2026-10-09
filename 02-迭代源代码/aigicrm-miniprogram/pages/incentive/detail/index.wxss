@@ -12,7 +12,8 @@
   display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #2364d8, #4d8cf5);
   box-shadow: 0 8rpx 18rpx rgba(35, 100, 216, .28); }
 .customer-main { flex: 1; min-width: 0; }
-.customer-name { font-size: 30rpx; font-weight: 800; color: #172033; line-height: 1.4; word-break: break-all;
+/* white-space:normal 显式声明:覆盖 app.wxss .customer-name 的全局 nowrap+ellipsis,保住本页 2 行截断 */
+.customer-name { font-size: 30rpx; font-weight: 800; color: #172033; line-height: 1.4; word-break: break-all; white-space: normal;
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .customer-tags { display: flex; align-items: center; gap: 12rpx; flex-wrap: wrap; margin-top: 12rpx; }
 .customer-pill { font-size: 20rpx; border-radius: 999rpx; padding: 4rpx 16rpx; white-space: nowrap; }
@@ -107,8 +108,8 @@
   background: #fff5f5; color: #dc2626; border: 1rpx solid #fecaca; font-size: 23rpx; font-weight: 700; }
 .mini-action.danger::after { border: none; }
 
-/* 视频预览:底部浮层播放器 */
-.video-layer { position: fixed; left: 28rpx; right: 28rpx; bottom: 40rpx; z-index: 9; display: flex; flex-direction: column; gap: 14rpx; }
+/* 视频预览:底部浮层播放器(bottom 叠加 safe-area,避免全面屏 Home 条遮挡关闭按钮) */
+.video-layer { position: fixed; left: 28rpx; right: 28rpx; bottom: calc(40rpx + env(safe-area-inset-bottom)); z-index: 9; display: flex; flex-direction: column; gap: 14rpx; }
 .video-player { width: 100%; height: 420rpx; border-radius: 24rpx; overflow: hidden; background: #0f172a; }
 .video-close { align-self: center; background: rgba(23, 32, 51, .82); color: #fff; font-size: 24rpx;
   padding: 12rpx 44rpx; border-radius: 999rpx; }

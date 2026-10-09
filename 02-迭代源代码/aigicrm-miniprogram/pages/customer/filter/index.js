@@ -37,7 +37,8 @@ Page({
   data: {
     keyword: '',
     devType: '全部',
-    devTypes: ['全部', '成熟创新', '突破开拓', '铺垫宣传'],
+    // 【A4 2026-10-08 二轮】补齐第 4 分类「新建改建扩建大修」，与 PC 客户列表/高级筛选同口径
+    devTypes: ['全部', '成熟创新', '突破开拓', '铺垫宣传', '新建改建扩建大修'],
     selectedDevTypeIndex: 0,
     industryOptions: [{ value: '', label: '全部行业' }],
     // 【对齐 PC 2026-09-21】客户状态域 = status 字段(normal/warning); '超期'属保护状态域, 移入保护选择器

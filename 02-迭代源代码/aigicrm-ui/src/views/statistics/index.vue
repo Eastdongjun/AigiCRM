@@ -1,5 +1,6 @@
 <template>
-  <div class="statistics-page">
+  <!-- 【UI 整改 2026-10-08】加载态：首屏与切年份/部门/刷新期间整页遮罩，慢查询不再无感知停留旧数据 -->
+  <div v-loading="pageLoading" class="statistics-page">
     <!-- 数据概览 · 深蓝主视觉带(指标白字统排 + 筛选内嵌) -->
     <div class="ana-hero">
       <div class="ah-top">
@@ -85,8 +86,8 @@
           <div class="x-labels"><span v-for="m in 12" :key="m">{{ m }}月</span></div>
         </div>
         <div class="chart-chips">
-          <span class="cc">年累计 <b>{{ arrSum(analysis.monthlyCustomers) }}</b></span>
-          <span class="cc">月均 <b>{{ arrAvg(analysis.monthlyCustomers) }}</b></span>
+          <span class="cc">年累计 <b>{{ formatInt(arrSum(analysis.monthlyCustomers)) }}</b></span>
+          <span class="cc">月均 <b>{{ formatInt(arrAvg(analysis.monthlyCustomers)) }}</b></span>
           <span class="cc">峰值 <b>{{ peakMonth(analysis.monthlyCustomers) }}</b></span>
         </div>
       </div>
@@ -114,8 +115,8 @@
           <div class="x-labels"><span v-for="m in 12" :key="m">{{ m }}月</span></div>
         </div>
         <div class="chart-chips">
-          <span class="cc">年累计 <b>{{ arrSum(analysis.monthlyFiles) }}</b></span>
-          <span class="cc">月均 <b>{{ arrAvg(analysis.monthlyFiles) }}</b></span>
+          <span class="cc">年累计 <b>{{ formatInt(arrSum(analysis.monthlyFiles)) }}</b></span>
+          <span class="cc">月均 <b>{{ formatInt(arrAvg(analysis.monthlyFiles)) }}</b></span>
           <span class="cc">峰值 <b>{{ peakMonth(analysis.monthlyFiles) }}</b></span>
         </div>
       </div>
@@ -138,7 +139,8 @@
             </div>
           </div>
           <div class="donut-legend">
-            <div v-for="seg in donutSegs" :key="seg.name" class="dl-row">
+            <!-- 【A3 2026-10-08】行业扇区/图例行可下钻：点击落到客户列表同行业筛选，与工作台"点击直达"预期一致 -->
+            <div v-for="seg in donutSegs" :key="seg.name" class="dl-row drillable" title="点击查看该行业客户" @click="drillCustomer({ industry: seg.name })">
               <span class="dl-dot" :style="{ background: seg.color }"></span>
               <span class="dl-name">{{ seg.name }}</span>
               <div class="dl-track"><div class="dl-fill" :style="{ width: seg.pct + '%', background: seg.color }"></div></div>
@@ -161,7 +163,8 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="o in analysis.officeComparison || []" :key="o.officeName">
+            <!-- 【A3 2026-10-08】办事处行可下钻：点击落到客户列表同办事处（含子部门）筛选 -->
+            <tr v-for="o in analysis.officeComparison || []" :key="o.officeName" class="drillable" title="点击查看该办事处客户" @click="drillCustomer({ office: o.officeName })">
               <td class="office-name"><strong>{{ o.officeName }}</strong></td>
               <td>{{ o.customerCount }}</td>
               <td>{{ o.monthNew }}</td>
@@ -225,7 +228,7 @@
         <div class="biz-col">
           <div class="biz-title">文件 & 激励</div>
           <div class="biz-kv">
-            <div class="kv-row"><span>年度文件</span><strong class="blue">{{ arrSum(analysis.monthlyFiles) }} 份</strong></div>
+            <div class="kv-row"><span>年度文件</span><strong class="blue">{{ formatInt(arrSum(analysis.monthlyFiles)) }} 份</strong></div>
             <div class="kv-sub">{{ filterYear }}年累计上传</div>
           </div>
           <div class="biz-kv">
@@ -251,19 +254,34 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { getAnalysis } from '@/api/statistics'
 import { getScoreRanking } from '@/api/score'
 import { getScopeDepts } from '@/api/system'
+// 【B6 三轮 2026-10-09】汇总数(年累计/月均/年度文件)统一千分位口径
+import { formatInt } from '@/utils/format'
 
+const router = useRouter()
 const currentYear = new Date().getFullYear()
 const currentMonth = new Date().getMonth() + 1
 const filterYear = ref(currentYear)
 const filterOffice = ref(null)
 const yearOptions = computed(() => { const a = []; for (let y = 2030; y >= 2024; y--) a.push(y); return a })
 
+// 【A3 2026-10-08】图表下钻：跳客户列表并携带筛选参数（useCustomerList 消费 status/industry/office）；
+// tab=all 保持全分类口径，避免落进默认"成熟创新"页签造成数字对不上
+const drillCustomer = ({ industry, office }) => {
+  const query = { tab: 'all' }
+  if (industry) query.industry = industry
+  if (office) query.office = office
+  router.push({ path: '/customer', query })
+}
+
 const analysis = ref({})
 const officeList = ref([])
 const scoreTop5 = ref([])
+// 【UI 整改 2026-10-08】加载态：loadAll（切年份/部门/刷新共用）期间置 true
+const pageLoading = ref(false)
 
 const protectionRate = computed(() => {
   const t = analysis.value.totalCustomers || 0
@@ -367,9 +385,14 @@ const trendCls = (o) => {
 }
 
 const loadAll = async () => {
-  try { const r = await getAnalysis({ year: filterYear.value, deptId: filterOffice.value, officeId: null }); analysis.value = r.data || {} } catch {}
-  try { const r = await getScoreRanking({ type: 'personal' }); scoreTop5.value = (r.data || []).slice(0, 5) } catch {}
-  try { const r = await getScopeDepts(); officeList.value = r.data || [] } catch {}
+  pageLoading.value = true
+  try {
+    try { const r = await getAnalysis({ year: filterYear.value, deptId: filterOffice.value, officeId: null }); analysis.value = r.data || {} } catch {}
+    try { const r = await getScoreRanking({ type: 'personal' }); scoreTop5.value = (r.data || []).slice(0, 5) } catch {}
+    try { const r = await getScopeDepts(); officeList.value = r.data || [] } catch {}
+  } finally {
+    pageLoading.value = false
+  }
 }
 
 onMounted(loadAll)
@@ -378,11 +401,11 @@ onMounted(loadAll)
 <style scoped>
 .statistics-page { height: calc(100vh - 80px); display: flex; flex-direction: column; gap: 14px; overflow-y: auto }
 
-/* —— 数据概览 · 深蓝主视觉带 —— */
+/* —— 数据概览 · 深蓝主视觉带（渐变/投影接线 :root 的 --hero-gradient/--hero-shadow 令牌） —— */
 .ana-hero {
-  background: linear-gradient(135deg, #16337a 0%, #1d4ed8 58%, #2563eb 100%);
+  background: var(--hero-gradient);
   border-radius: 12px; padding: 16px 24px 18px; flex-shrink: 0;
-  box-shadow: 0 6px 20px rgba(22, 51, 122, .14);
+  box-shadow: var(--hero-shadow);
 }
 .ah-top { display: flex; align-items: center; margin-bottom: 14px; }
 .ah-title { font-size: 15px; font-weight: 700; color: #fff; letter-spacing: .3px }
@@ -404,10 +427,11 @@ onMounted(loadAll)
 .ah-metric { min-width: 0 }
 .ah-divider { width: 1px; background: rgba(255, 255, 255, .18); margin: 4px 0 }
 .ah-label { font-size: 12px; color: rgba(255, 255, 255, .72); margin-bottom: 6px; letter-spacing: .3px }
-.ah-num { font-size: 28px; font-weight: 700; line-height: 1.1; color: #fff; display: flex; align-items: center; gap: 8px }
+/* 【B6】大数字唯一档 --font-num-hero(30px)，收敛此前 28/30/32 三档并存 */
+.ah-num { font-size: var(--font-num-hero); font-weight: 700; line-height: 1.1; color: #fff; display: flex; align-items: center; gap: 8px }
 .ah-sub { font-size: 12px; color: rgba(255, 255, 255, .58); margin-top: 6px }
 .ah-up { color: #fcd34d; font-weight: 600 }
-.ah-chip { font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 999px; white-space: nowrap }
+.ah-chip { font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: var(--radius-pill); white-space: nowrap }
 .chip-amber { background: rgba(251, 191, 36, .22); color: #fcd34d; border: 1px solid rgba(251, 191, 36, .45) }
 .chip-red { background: rgba(248, 113, 113, .2); color: #fca5a5; border: 1px solid rgba(248, 113, 113, .45) }
 .ah-track { height: 4px; background: rgba(255, 255, 255, .18); border-radius: 2px; margin: 8px 0 0; overflow: hidden }
@@ -419,8 +443,8 @@ onMounted(loadAll)
 .card-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
 .ch-title { display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 700; color: #1f2329 }
 .ch-dot { width: 8px; height: 8px; border-radius: 2px; display: inline-block }
-.d-blue { background: #1d4ed8 } .d-amber { background: #f59e0b }
-.card-unit { font-size: 12px; color: #c0c4cc; font-weight: normal; }
+.d-blue { background: #1d4ed8 } .d-amber { background: var(--chart-amber) }
+.card-unit { font-size: 12px; color: #6b7280; font-weight: normal; }
 
 /* —— 面积趋势图 —— */
 .chart-card { display: flex; flex-direction: column; }
@@ -428,14 +452,14 @@ onMounted(loadAll)
 .area-svg { width: 100%; height: 190px; display: block; }
 .grid-lines line { stroke: #f0f3f8; stroke-width: 1; }
 .line-blue { fill: none; stroke: #1d4ed8; stroke-width: 2.5; stroke-linejoin: round; stroke-linecap: round }
-.line-amber { fill: none; stroke: #f59e0b; stroke-width: 2.5; stroke-linejoin: round; stroke-linecap: round }
+.line-amber { fill: none; stroke: var(--chart-amber); stroke-width: 2.5; stroke-linejoin: round; stroke-linecap: round }
 .pt { fill: #fff; stroke: #1d4ed8; stroke-width: 2 }
-.pt.pt-amber { stroke: #f59e0b }
+.pt.pt-amber { stroke: var(--chart-amber) }
 .pt-now { fill: #1d4ed8 }
-.pt-amber-now { fill: #f59e0b }
-.x-labels { display: flex; justify-content: space-between; padding: 6px 14px 0; font-size: 10.5px; color: #94a3b8; }
+.pt-amber-now { fill: var(--chart-amber) }
+.x-labels { display: flex; justify-content: space-between; padding: 6px 14px 0; font-size: 12px; color: #6b7280; }
 .chart-chips { display: flex; gap: 10px; margin-top: 12px; padding-top: 12px; border-top: 1px solid #f2f4f8; }
-.cc { font-size: 12px; color: #86909c; background: #f7f9fc; border-radius: 6px; padding: 4px 12px; }
+.cc { font-size: 12px; color: var(--text-muted); background: #f7f9fc; border-radius: var(--radius-sm); padding: 4px 12px; }
 .cc b { color: #1d4ed8; font-size: 13px; margin-left: 4px }
 
 /* —— 环形占比 —— */
@@ -451,50 +475,54 @@ onMounted(loadAll)
   display: flex; flex-direction: column; align-items: center; justify-content: center;
   box-shadow: 0 2px 10px rgba(15, 23, 42, .08);
 }
-.donut-center b { font-size: 26px; font-weight: 700; color: #1d337a; line-height: 1.1 }
-.donut-center span { font-size: 11px; color: #94a3b8; margin-top: 3px }
+.donut-center b { font-size: 26px; font-weight: 700; color: var(--brand-navy); line-height: 1.1 }
+.donut-center span { font-size: 12px; color: #6b7280; margin-top: 3px }
 .donut-legend { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 10px; }
-.dl-row { display: flex; align-items: center; gap: 8px; font-size: 12.5px; }
+.dl-row { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+/* 【A3】可下钻行统一可点击暗示 */
+.drillable { cursor: pointer; border-radius: var(--radius-sm); transition: background .15s; }
+.dl-row.drillable:hover { background: #f5f8ff; }
+.office-table tr.drillable:hover td { background: #f5f8ff; }
 .dl-dot { width: 9px; height: 9px; border-radius: 3px; flex-shrink: 0 }
 .dl-name { width: 64px; color: #4e5969; white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
 .dl-track { flex: 1; height: 6px; background: #f2f4f8; border-radius: 3px; overflow: hidden }
 .dl-fill { height: 100%; border-radius: 3px; }
 .dl-count { width: 30px; text-align: right; font-weight: 700; color: #1f2329 }
-.dl-pct { width: 44px; text-align: right; color: #94a3b8; font-size: 11.5px }
+.dl-pct { width: 44px; text-align: right; color: #6b7280; font-size: 12px }
 
 /* —— 办事处表格 —— */
 .office-table { width: 100%; border-collapse: collapse; font-size: 13px; }
-.office-table th { text-align: left; padding: 8px 6px; color: #86909c; font-weight: 500; border-bottom: 1px solid #ebeef5; }
+.office-table th { text-align: left; padding: 8px 6px; color: var(--text-muted); font-weight: 500; border-bottom: 1px solid #ebeef5; }
 .office-table td { padding: 10px 6px; border-bottom: 1px solid #f5f5f5; }
 .office-name { font-weight: 600; }
 .spark { display: flex; align-items: flex-end; gap: 3px; height: 22px; }
 .spark-bar { width: 8px; background: #6083e4; border-radius: 2px; min-height: 3px; }
-.trend-up { color: #16a34a; font-weight: 500; } .trend-down { color: #f56c6c; font-weight: 500; } .trend-flat { color: #999; }
+.trend-up { color: #16a34a; font-weight: 500; } .trend-down { color: var(--el-color-danger); font-weight: 500; } .trend-flat { color: var(--text-muted); }
 
 /* —— 业务总览 —— */
 .biz-overview { margin-bottom: 0; }
 .biz-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 24px; }
 .biz-col { min-width: 0; }
 .biz-title { font-size: 13px; font-weight: 700; color: #4e5969; margin-bottom: 14px; }
-.biz-note { font-size: 12px; color: #c0c4cc; margin-top: 10px; }
+.biz-note { font-size: 12px; color: #6b7280; margin-top: 10px; }
 .status-bar-row { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
 .sb-label { width: 32px; font-size: 13px; color: #666; flex-shrink: 0; }
 .sb-track { flex: 1; height: 8px; background: #f0f2f5; border-radius: 4px; overflow: hidden; }
 .sb-fill { height: 100%; border-radius: 4px; transition: width .4s; }
-.sb-blue { background: #1d4ed8; } .sb-amber { background: #f59e0b; } .sb-red { background: #f56c6c; }
+.sb-blue { background: #1d4ed8; } .sb-amber { background: var(--chart-amber); } .sb-red { background: var(--el-color-danger); }
 .sb-count { width: 24px; text-align: right; font-size: 14px; }
-.blue { color: #1d4ed8; } .amber { color: #d97706; } .red { color: #f56c6c; }
+.blue { color: #1d4ed8; } .amber { color: #d97706; } .red { color: var(--el-color-danger); }
 .biz-kv { margin-bottom: 12px; }
 .kv-row { display: flex; justify-content: space-between; font-size: 13px; }
-.kv-sub { font-size: 11px; color: #c0c4cc; margin-top: 2px; }
+.kv-sub { font-size: 12px; color: #6b7280; margin-top: 2px; }
 .top5-row { display: flex; align-items: center; gap: 8px; padding: 5px 0; font-size: 13px; }
-.top5-rank { width: 20px; height: 20px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 600; color: #fff; flex-shrink: 0; }
+.top5-rank { width: 20px; height: 20px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; color: #fff; flex-shrink: 0; }
 .r1 { background: #1d4ed8; } .r2 { background: #4a6ee0; } .r3 { background: #7a94e9; }
 .r4, .r5 { background: #c0c4cc; }
 .top5-name { width: 52px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex-shrink: 0 }
 .top5-track { flex: 1; height: 6px; background: #f2f4f8; border-radius: 3px; overflow: hidden }
 .top5-fill { height: 100%; border-radius: 3px; background: linear-gradient(90deg, #6083e4, #1d4ed8) }
-.top5-score { width: 30px; text-align: right; color: #1d337a }
+.top5-score { width: 30px; text-align: right; color: var(--brand-navy) }
 
 @media (max-width: 1280px) {
   .ah-metrics { grid-template-columns: repeat(2, 1fr auto); }

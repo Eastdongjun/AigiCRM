@@ -100,7 +100,7 @@ Page({
     this.applyState({ loading: true })
     Promise.all([getCustomerInvoices(this.data.id), getCustomerPayments(this.data.id)]).then(([invoices, payments]) => {
       this.applyState({ invoices: rows(invoices).map(normalizeInvoice), payments: rows(payments).map(normalizePayment) })
-    }).catch((error) => showError(error, '财务明细加载失败')).finally(() => this.applyState({ loading: false }))
+    }).catch((error) => showError(error, '开票回款加载失败')).finally(() => this.applyState({ loading: false }))
   },
   switchTab(e) { this.applyState({ tab: e.currentTarget.dataset.tab }) },
   deleteRecord(e) {

@@ -32,7 +32,7 @@
     <!-- 表格区域 -->
     <div class="table-area">
       <div class="table-wrap" ref="tableWrapRef">
-      <el-table :data="pagedData" stripe style="width:100%" size="default" :height="tableHeight"
+      <el-table v-loading="listLoading" :data="pagedData" stripe style="width:100%" size="default" :height="tableHeight"
         @row-click="openDetail" :row-style="{ cursor: 'pointer' }" title="点击查看提醒详情">
         <el-table-column label="类型" width="70" align="center">
           <template #default="{ row }">
@@ -41,18 +41,22 @@
             <el-tag v-else type="info" size="small">到期</el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="customerName" label="客户名称" min-width="220" show-overflow-tooltip />
-        <el-table-column label="提示内容" min-width="160" show-overflow-tooltip>
+        <el-table-column label="客户名称" min-width="220" show-overflow-tooltip>
+          <template #default="{ row }">{{ row.customerName || '—' }}</template>
+        </el-table-column>
+        <!-- 【UI 整改 2026-10-08】到期日合并进提示内容：分享/开票行无到期日，原先独立"到期日"列整列渲染
+             「—」连片且白占 100px 列宽；现到期日期只在有值时随提示内容展示 -->
+        <el-table-column label="提示内容" min-width="220" show-overflow-tooltip>
           <template #default="{ row }">
             <span v-if="row._type === 'share'">{{ row._shareLabel }}</span>
-            <span v-else-if="row._type === 'invoice'">{{ row._invoiceLabel }}</span>
-            <span v-else>{{ row.remainingDays }}天后到期</span>
+            <span v-else-if="row._type === 'invoice'">
+              {{ row._invoiceLabel }}<template v-if="row.expireDate"> · {{ row.expireDate }}</template>
+            </span>
+            <span v-else>{{ row.expireDate || '—' }} 到期 · 剩 {{ row.remainingDays }} 天</span>
           </template>
         </el-table-column>
-        <el-table-column prop="expireDate" label="到期日" width="100">
-          <template #default="{ row }"><span v-if="row._type !== 'share'">{{ row.expireDate || '—' }}</span><span v-else>—</span></template>
-        </el-table-column>
-        <el-table-column prop="ownerName" label="负责人" width="80" />
+        <!-- 【C10 三轮 2026-10-09】空值占位统一 dashIfEmpty（此前负责人列空白与同表客户名 '—' 两种口径） -->
+        <el-table-column prop="ownerName" label="负责人" width="80" :formatter="dashIfEmpty" />
         <el-table-column label="状态" width="90" align="center">
           <template #default="{ row }">
             <!-- 状态列改中性色：此前与「类型」列同色同形，两列无法区分（浏览器视觉走查发现） -->
@@ -101,13 +105,16 @@
 <script setup>
 import { ref, reactive, computed, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ElMessage } from 'element-plus'
 import { getExpiringList, getReminderList, processReminder, ensureExpiring } from '@/api/reminder'
 import { submitApproval } from '@/api/approval'
 import { getScopeDepts, getScopeUsers } from '@/api/system'
 import { useUserStore } from '@/store/user'
 import { paginate, pageSizes } from '@/utils/pagination'
 import { buildReminderDetailLocation, remainingDaysTagType, remainingDaysText } from '@/utils/reminder-detail'
+import { confirmAction } from '@/utils/confirm'
+// 【C10 三轮 2026-10-09】表格空值占位唯一 formatter
+import { dashIfEmpty } from '@/utils/format'
 
 const userStore = useUserStore()
 const router = useRouter()
@@ -116,6 +123,8 @@ const tableData = ref([])
 const total = ref(0)
 const offices = ref([])
 const owners = ref([])
+// 【UI 整改 2026-10-08】列表加载态：三路提醒并发拉取期间表格遮罩
+const listLoading = ref(false)
 
 const query = reactive({
   current: 1,
@@ -127,6 +136,7 @@ const query = reactive({
 
 const search = () => { query.current = 1; loadData() }
 const loadData = async () => {
+  listLoading.value = true
   try {
     const res = await getExpiringList(query)
     const expiring = (res.data?.records || []).map(r => ({ ...r, _type: 'expiring' }))
@@ -184,7 +194,10 @@ const loadData = async () => {
     } catch {}
     tableData.value = [...shareRecords, ...invoiceRecords, ...expiring]
     total.value = tableData.value.length
-  } catch (e) {}
+  } catch (e) {
+  } finally {
+    listLoading.value = false
+  }
 }
 
 // 客户端分页
@@ -192,7 +205,8 @@ const pagedData = computed(() => paginate(tableData.value, query.current, query.
 
 const handleClearAll = async () => {
   try {
-    await ElMessageBox.confirm('确认清空所有提醒？分享/开票提醒标记已读，到期提醒标记已跟进。', '一键清空', { type: 'warning' })
+    // 【UI 整改 2026-10-08】确认弹窗收敛到 confirmAction：批量清空属批量不可逆操作，红色确认钮
+    await confirmAction('确认清空所有提醒？分享/开票提醒标记已读，到期提醒标记已跟进。', '一键清空', { confirmText: '清空' })
   } catch { return }
   const all = tableData.value.filter(r => r.reminderId)
   let done = 0
@@ -276,7 +290,7 @@ onBeforeUnmount(() => {
 <style scoped>
 .page-header { margin-bottom: 12px; display: flex; align-items: baseline; gap: 10px; }
 .page-header h2 { font-size: 18px; font-weight: 600; color: #333; }
-.page-hint { font-size: 12px; color: #909399; }
+.page-hint { font-size: 12px; color: var(--el-color-info); }
 .toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
 .toolbar-left { display: flex; gap: 8px; }
 .toolbar-right { display: flex; gap: 8px; }
@@ -294,13 +308,13 @@ onBeforeUnmount(() => {
   max-width: 100%;
   padding: 10px 16px;
   border-top: 1px solid #f0f2f5;
-  color: #909399;
+  color: var(--el-color-info);
   font-size: 12px;
   flex-shrink: 0;
   background: #fafbfc;
   overflow-x: auto;
 }
-.rem-pager-info { color: #909399; white-space: nowrap; margin-right: auto; }
+.rem-pager-info { color: var(--el-color-info); white-space: nowrap; margin-right: auto; }
 .rem-pager .el-pagination { flex-shrink: 0; }
 .table-area :deep(.el-table td.el-table__cell) { font-size: 14px; padding: 10px 0 }
 .table-area :deep(.el-table th.el-table__cell) { font-size: 14px; font-weight: 600; padding: 10px 0 }

@@ -90,7 +90,9 @@ Page({
     canAdd: false,
     canViewSea: false,
     filter: '全部',
-    filters: ['全部', '成熟创新', '突破开拓', '铺垫宣传'],
+    // 【A4 2026-10-08 二轮】补齐第 4 分类「新建改建扩建大修」：PC 端 2026-09-23 已加(V2026.09.23.6)，
+    // 此前 MP 硬编码列表未同步，两端分类口径不一致
+    filters: ['全部', '成熟创新', '突破开拓', '铺垫宣传', '新建改建扩建大修'],
     // 【对齐 PC 2026-09-20】保护状态快捷筛选(PC 高级筛选「保护」同参数: active/expiring/expired)
     statusFilter: '',
     statusFilters: [

@@ -2,7 +2,7 @@
   <view class="stats-hero">
     <view>
       <view class="stats-kicker">经营看板</view>
-      <view class="stats-title">经营统计</view>
+      <view class="stats-title">统计分析</view>
       <view class="stats-sub">客户、审批、保护期风险一屏掌握</view>
       <view class="stats-hero-metrics">
         <text wx:for="{{statsView.heroMetrics}}" wx:key="*this">{{item}}</text>

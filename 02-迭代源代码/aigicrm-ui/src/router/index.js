@@ -15,6 +15,13 @@ const routes = [
     component: () => import('@/views/error/403.vue'),
     meta: { title: '无权限' }
   },
+  // 【C12 2026-10-08 二轮】404 兜底：深链错误路径不再白屏（catchAll 放最后，不拦截已定义路由）
+  {
+    path: '/:pathMatch(.*)*',
+    name: 'NotFound',
+    component: () => import('@/views/error/NotFound.vue'),
+    meta: { title: '页面不存在' }
+  },
   {
     path: '/',
     component: () => import('@/layout/index.vue'),
@@ -27,29 +34,34 @@ const routes = [
         meta: { title: '工作台', icon: 'Monitor', permission: 'dashboard:view' }
       },
       // 客户管理
+      // 【A1 三轮 2026-10-09】客户组四条路由补 parentTitle「客户管理」：此前客户列表/新增客户面包屑只有两级，
+      // 而同构的公海池/激励统计/统计分析为三级，同构页面信息路径深浅不一
       {
         path: 'customer',
         name: 'CustomerList',
         component: () => import('@/views/customer/list.vue'),
-        meta: { title: '客户列表', icon: 'User', permission: 'customer:view' }
+        meta: { title: '客户列表', parentTitle: '客户管理', icon: 'User', permission: 'customer:view' }
       },
       {
         path: 'customer/add',
         name: 'CustomerAdd',
         component: () => import('@/views/customer/add.vue'),
-        meta: { title: '新增客户', permission: 'customer:add' }
+        // 【A1 三轮】侧栏「新增客户」常驻菜单项已隐藏（与列表页「+ 新客户」主按钮完全重复，动作型入口不入导航），
+        // 路由保留作页面载体；进入时高亮归位到客户列表
+        meta: { title: '新增客户', parentTitle: '客户管理', activeMenu: '/customer', permission: 'customer:add' }
       },
       {
         path: 'customer/edit/:id',
         name: 'CustomerEdit',
         component: () => import('@/views/customer/add.vue'),
-        meta: { title: '编辑客户', permission: 'customer:edit' }
+        // activeMenu：详情/编辑类路由不在侧栏菜单中，高亮归位到所属列表菜单（layout 按 meta.activeMenu 计算当前态）
+        meta: { title: '编辑客户', parentTitle: '客户管理', activeMenu: '/customer', permission: 'customer:edit' }
       },
       {
         path: 'customer/detail/:id',
         name: 'CustomerDetail',
         component: () => import('@/views/customer/detail.vue'),
-        meta: { title: '客户详情', permission: 'customer:view' }
+        meta: { title: '客户详情', parentTitle: '客户管理', activeMenu: '/customer', permission: 'customer:view' }
       },
       // 文件管理
       {
@@ -65,7 +77,9 @@ const routes = [
         component: () => import('@/views/incentive/index.vue'),
         // 【2026-09-13 口径统一】本路由即「激励上传」页：菜单码、后端上传接口 @PreAuthorize、
         // 小程序上传入口用的都是 incentive:add（此前路由写 incentive:view，与菜单码不一致）
-        meta: { title: '四项激励', icon: 'Trophy', permission: 'incentive:add' }
+        // 【A1 三轮 2026-10-09】meta.title 四项激励→激励上传：生产侧栏菜单项名为「激励上传」（菜单名来自后端 menuName，
+        // 不受此影响），原 title 使面包屑显示「首页/四项激励」与高亮菜单项不同词；补 parentTitle 与激励查询/统计同构三级
+        meta: { title: '激励上传', parentTitle: '四项激励', icon: 'Trophy', permission: 'incentive:add' }
       },
       {
         path: 'incentive/stats',
@@ -78,7 +92,7 @@ const routes = [
         path: 'incentive/stats/detail/:childId',
         name: 'IncentiveStatsDetail',
         component: () => import('@/views/incentive/StatsDetail.vue'),
-        meta: { title: '激励明细', parentTitle: '激励统计', icon: 'Document', permission: 'incentive:view' }
+        meta: { title: '激励明细', parentTitle: '激励统计', activeMenu: '/incentive/stats', icon: 'Document', permission: 'incentive:view' }
       },
       {
         path: 'incentive/search',
@@ -90,14 +104,16 @@ const routes = [
         path: 'incentive/ranking',
         name: 'LegacyIncentiveRanking',
         component: () => import('@/views/score/ranking.vue'),
-        meta: { title: '积分排行', parentTitle: '积分管理', icon: 'Medal', permission: 'score:view' }
+        meta: { title: '积分排行', parentTitle: '考核与分析', activeMenu: '/score/ranking', icon: 'Medal', permission: 'score:view' }
       },
       // 提醒管理
       {
         path: 'task',
         name: 'TaskList',
         component: () => import('@/views/task/index.vue'),
-        meta: { title: '我的任务', requiresAuth: true }
+        // 【A1 2026-10-08 二轮】工作台"待办任务"卡直达的本页此前无任何侧栏入口（断头页），
+        // layout 会把「我的任务」合成注入"业务核心"分组菜单（后端菜单树不含该页，前端补位）
+        meta: { title: '我的任务', parentTitle: '业务核心', icon: 'List', requiresAuth: true }
       },
       {
         path: 'reminder',
@@ -110,7 +126,7 @@ const routes = [
         path: 'reminder/detail/:id',
         name: 'ReminderDetail',
         component: () => import('@/views/reminder/detail.vue'),
-        meta: { title: '提醒详情', parentTitle: '提醒管理', icon: 'Document', permission: 'reminder:view' }
+        meta: { title: '提醒详情', parentTitle: '提醒管理', activeMenu: '/reminder', icon: 'Document', permission: 'reminder:view' }
       },
       // 公海管理
       {
@@ -137,25 +153,28 @@ const routes = [
         path: 'statistics',
         name: 'Statistics',
         component: () => import('@/views/statistics/index.vue'),
-        meta: { title: '统计分析', icon: 'TrendCharts', permission: 'statistics:view' }
+        // 【A1 2026-10-08 二轮】补 parentTitle：与积分录入/积分排行同挂「考核与分析」组，同组面包屑深度一致
+        meta: { title: '统计分析', parentTitle: '考核与分析', icon: 'TrendCharts', permission: 'statistics:view' }
       },
       {
         path: 'score/entry',
         name: 'ScoreEntry',
         component: () => import('@/views/score/entry.vue'),
-        meta: { title: '积分录入', parentTitle: '积分管理', icon: 'Edit', permission: 'score:entry' }
+        meta: { title: '积分录入', parentTitle: '考核与分析', icon: 'Edit', permission: 'score:entry' }
       },
       {
         path: 'score/ranking',
         name: 'ScoreRanking',
         component: () => import('@/views/score/ranking.vue'),
-        meta: { title: '积分排行', parentTitle: '积分管理', icon: 'Medal', permission: 'score:view' }
+        meta: { title: '积分排行', parentTitle: '考核与分析', icon: 'Medal', permission: 'score:view' }
       },
       {
         path: 'ranking/customer',
         name: 'CustomerRanking',
         component: () => import('@/views/ranking/customer.vue'),
-        meta: { title: '客户排行', parentTitle: '统计分析', icon: 'DataLine', permission: 'statistics:view' }
+        // 【A1 2026-10-08 二轮】parentTitle 校正：原写「统计分析」是把同组兄弟页当父级展示，
+        // 统一改挂后端菜单组「考核与分析」，同组页面面包屑深度一致
+        meta: { title: '客户排行', parentTitle: '考核与分析', icon: 'DataLine', permission: 'statistics:view' }
       },
       // 核心客户六项指标
       // 标题统一为「核心客户六项指标」：生产菜单(id=108)与页面 <h3> 均用此名，
@@ -185,7 +204,7 @@ const routes = [
         path: 'system/dept',
         name: 'LegacyDeptManage',
         component: () => import('@/views/system/dept.vue'),
-        meta: { title: '组织架构', icon: 'OfficeBuilding', permission: 'system:dept:view' }
+        meta: { title: '组织架构', activeMenu: '/system/org', icon: 'OfficeBuilding', permission: 'system:dept:view' }
       },
       {
         path: 'system/role',
@@ -246,8 +265,12 @@ const router = createRouter({
 })
 
 // 路由守卫
+// 【A4 三轮 2026-10-09】品牌名唯一来源：此前 document.title 后缀硬编码 'AIGICRM'，与页内品牌
+// 「运筹马年·市场资源管理系统」（登录页大标题、侧栏 logo=后端 system.name 下发）脱节，系统双名并存。
+// 登录前用默认品牌；登录后跟随 userStore.systemName（由后端配置下发，见 store/user.js loadSystemConfig）
+const BRAND_NAME = '运筹马年·市场资源管理系统'
 router.beforeEach(async (to, from, next) => {
-  document.title = (to.meta.title ? to.meta.title + ' - ' : '') + 'AIGICRM'
+  document.title = (to.meta.title ? to.meta.title + ' - ' : '') + BRAND_NAME
   if (to.path === '/login') {
     next()
   } else if (!isTokenValid()) {
@@ -260,6 +283,7 @@ router.beforeEach(async (to, from, next) => {
     // 动态 import 避免 router ↔ store 循环依赖。
     const { useUserStore } = await import('@/store/user')
     const userStore = useUserStore()
+    if (userStore.systemName) document.title = (to.meta.title ? to.meta.title + ' - ' : '') + userStore.systemName
     if (!userStore.userId || userStore.permissions.size === 0) {
       try {
         await userStore.fetchUserInfo(true)

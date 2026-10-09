@@ -103,16 +103,17 @@ onMounted(loadData)
 /* Tab */
 .tab-bar { display: flex; gap: 8px; margin-bottom: 12px; }
 .tab-item { padding: 8px 20px; border: 1px solid #ebeef5; border-radius: 20px; font-size: 14px; color: #666; cursor: pointer; transition: all .2s; }
-.tab-item:hover { color: #409eff; border-color: #409eff; }
-.tab-item.active { color: #409eff; border-color: #409eff; background: #ecf5ff; font-weight: 600; }
+.tab-item:hover { color: var(--el-color-primary); border-color: var(--el-color-primary); }
+.tab-item.active { color: var(--el-color-primary); border-color: var(--el-color-primary); background: var(--el-color-primary-light-9); font-weight: 600; }
 
 /* 统计卡片 */
 .stat-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 12px; }
 .stat-card { background: #fff; border: 1px solid #ebeef5; border-radius: 12px; padding: 20px 24px; }
-.sc-label { font-size: 13px; color: #86909c; margin-bottom: 4px; }
-.sc-num { font-size: 36px; font-weight: 700; line-height: 1.2; }
-.sc-num.blue { color: #409eff; } .sc-num.green { color: #67c23a; } .sc-num.yellow { color: #e6a23c; }
-.sc-desc { font-size: 12px; color: #c0c4cc; margin-top: 4px; }
+.sc-label { font-size: 13px; color: var(--text-muted); margin-bottom: 4px; }
+/* 【B6 三轮 2026-10-09】大数字唯一档 --font-num-hero(30px)，收敛 36px 游离档 */
+.sc-num { font-size: var(--font-num-hero); font-weight: 700; line-height: 1.2; }
+.sc-num.blue { color: var(--el-color-primary); } .sc-num.green { color: var(--el-color-success); } .sc-num.yellow { color: var(--el-color-warning); }
+.sc-desc { font-size: 12px; color: var(--text-placeholder); margin-top: 4px; }
 
 /* 表格区域 */
 .table-area {
@@ -131,20 +132,20 @@ onMounted(loadData)
 }
 .rank-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
 .rank-title { font-size: 15px; font-weight: 600; }
-.rank-count { font-size: 13px; color: #86909c; }
+.rank-count { font-size: 13px; color: var(--text-muted); }
 
 /* 排名 */
 .medal { font-size: 20px; line-height: 1; }
-.rank-num { color: #86909c; font-weight: 500; }
+.rank-num { color: var(--text-muted); font-weight: 500; }
 
 /* 数据样式 */
-.core-yes { color: #f56c6c; font-weight: 600; }
-.core-no { color: #c0c4cc; }
-.score-green { color: #67c23a; font-weight: 600; }
-.score-blue { color: #409eff; }
+.core-yes { color: var(--el-color-danger); font-weight: 600; }
+.core-no { color: var(--text-placeholder); }
+.score-green { color: var(--el-color-success); font-weight: 600; }
+.score-blue { color: var(--el-color-primary); }
 .level-tag { padding: 2px 8px; border-radius: 4px; font-size: 12px; font-weight: 500; }
-.level-good { color: #f56c6c; background: #fef0f0; }
-.level-normal { color: #86909c; background: #f4f4f5; }
+.level-good { color: var(--el-color-danger); background: #fef0f0; }
+.level-normal { color: var(--text-muted); background: #f4f4f5; }
 
 /* 页脚 */
 .table-footer {
@@ -154,7 +155,7 @@ onMounted(loadData)
   padding: 10px 0;
   border-top: 1px solid #ebeef5;
   font-size: 12px;
-  color: #c0c4cc;
+  color: var(--text-placeholder);
   flex-shrink: 0;
 }
 </style>

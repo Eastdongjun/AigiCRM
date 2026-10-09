@@ -150,7 +150,7 @@
         </el-form-item>
         <el-form-item label="分值">
           <el-input-number v-model="categoryForm.score" :min="0" :max="100" />
-          <span style="color:#999;font-size:12px;margin-left:8px">顶级类别分值为0，子项设置实际分值</span>
+          <span style="color: var(--text-muted);font-size:12px;margin-left:8px">顶级类别分值为0，子项设置实际分值</span>
         </el-form-item>
         <el-form-item label="排序">
           <el-input-number v-model="categoryForm.sortOrder" :min="0" />
@@ -190,14 +190,14 @@ const collapsed = ref(new Set())
 const categoryDialogVisible = ref(false)
 const categoryForm = reactive({ id: null, parentId: 0, categoryName: '', categoryCode: '', score: 0, sortOrder: 0, status: 1 })
 // 类别卡片彩色边条
-const catAccents = ['#409eff', '#f97316', '#8b5cf6', '#10b981', '#f59e0b', '#ef4444']
+const catAccents = ['var(--el-color-primary)', 'var(--chart-amber-deep)', '#8b5cf6', '#10b981', 'var(--chart-amber)', '#ef4444']
 // 权限人员头像渐变（按姓名哈希取色）
 const avatarPalette = [
-  'linear-gradient(135deg,#409eff,#36cfc9)',
-  'linear-gradient(135deg,#f59e0b,#f97316)',
+  'linear-gradient(135deg, var(--el-color-primary), #36cfc9)',
+  'linear-gradient(135deg,var(--chart-amber),var(--chart-amber-deep))',
   'linear-gradient(135deg,#8b5cf6,#6366f1)',
   'linear-gradient(135deg,#10b981,#34d399)',
-  'linear-gradient(135deg,#f43f5e,#f97316)',
+  'linear-gradient(135deg,#f43f5e,var(--chart-amber-deep))',
 ]
 const avatarStyle = (name) => {
   let h = 0

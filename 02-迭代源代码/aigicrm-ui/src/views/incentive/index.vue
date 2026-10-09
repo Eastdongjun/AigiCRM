@@ -76,16 +76,16 @@ onMounted(() => {
 /* Cat Tabs */
 .cat-tabs-bar { flex-shrink:0 }
 .cat-tabs { display:flex; gap:0; background:#f2f4f7; border-radius:12px; padding:4px; overflow:hidden }
-.cat-tab { flex:1; display:flex; align-items:center; justify-content:center; gap:8px; padding:12px 8px; font-size:14px; color:#606266; cursor:pointer; border-radius:10px; transition:all .25s; font-weight:500; position:relative }
+.cat-tab { flex:1; display:flex; align-items:center; justify-content:center; gap:8px; padding:12px 8px; font-size:14px; color:#606266; cursor:pointer; border-radius: var(--radius-md); transition:all .25s; font-weight:500; position:relative }
 .cat-tab:hover { background:rgba(255,255,255,.6) }
 /* 激活态统一深蓝主色(与工作台/文件页同一设计语言),弃用四色彩虹 */
 .cat-tab.active {
   font-weight: 700; color: #fff;
-  background: linear-gradient(135deg, #1d4ed8, #2563eb);
+  background: var(--hero-gradient);
   box-shadow: 0 2px 8px rgba(29, 78, 216, .28);
 }
 .cat-tab-icon { font-size:16px; display:flex }
-.cat-tab-badge { font-size:11px; padding:1px 7px; border-radius:10px; background:rgba(0,0,0,.08); font-weight:600 }
+.cat-tab-badge { font-size:12px; padding:1px 7px; border-radius: var(--radius-md); background:rgba(0,0,0,.08); font-weight:600 }
 .cat-tab.active .cat-tab-badge { background:rgba(255,255,255,.25) }
 
 .main-layout { display:flex; border:1px solid #e8ecf1; border-radius:12px; overflow:hidden; flex:1; min-height:0; background:#fff }

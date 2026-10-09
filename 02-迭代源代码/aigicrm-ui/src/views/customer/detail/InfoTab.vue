@@ -99,7 +99,7 @@
     </div>
 
     <div class="relation-card">
-      <div class="relation-title"><el-icon color="#f56c6c"><StarFilled /></el-icon> 客情 · 商务关系深度</div>
+      <div class="relation-title"><el-icon color="var(--el-color-danger)"><StarFilled /></el-icon> 客情 · 商务关系深度</div>
       <div class="relation-options">
         <div v-for="opt in relationshipOptions" :key="opt.value"
           class="relation-opt" :class="{on: (indicator?.relationshipScore || 0) == opt.value}"
@@ -111,7 +111,7 @@
 
     <!-- 【2026-09-25】核心客户指标摘要: 只读展示,编辑仍在「核心指标」页签(用户要求置于商务关系深度下方) -->
     <div class="indicator-summary-card">
-      <div class="relation-title"><el-icon color="#409eff"><TrendCharts /></el-icon> 核心客户指标</div>
+      <div class="relation-title"><el-icon color="var(--el-color-primary)"><TrendCharts /></el-icon> 核心客户指标</div>
       <div class="ind-sum-row ind-sum-threshold">
         <span class="ind-num">01</span>
         <span class="ind-name">开票回款 · 硬性门槛 ≥ ¥100万</span>
@@ -164,52 +164,52 @@ const transferCandidates = computed(() =>
 
 <style scoped>
 .protect-actions { display:flex; gap:8px; flex-shrink:0 }
-.transfer-hint { color:#909399; font-size:12px; padding:2px 0 6px 80px }
+.transfer-hint { color:var(--el-color-info); font-size:12px; padding:2px 0 6px 80px }
 .info-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:14px; margin-bottom:16px }
-.info-card { background:#fafbfc; border-radius:10px; padding:18px 20px; border:1px solid #f0f1f3 }
+.info-card { background:#fafbfc; border-radius: var(--radius-md); padding:18px 20px; border:1px solid #f0f1f3 }
 .info-card-head { display:flex; align-items:center; gap:8px; font-size:14px; font-weight:600; color:#333; margin-bottom:14px }
 .info-card-icon { display:flex; align-items:center; justify-content:center; width:28px; height:28px; border-radius:7px; font-size:14px }
-.c-blue { background:#ecf5ff; color:#409eff }.c-orange { background:#fdf6ec; color:#e6a23c }
+.c-blue { background:var(--el-color-primary-light-9); color:var(--el-color-primary) }.c-orange { background:#fdf6ec; color:var(--el-color-warning) }
 .c-purple { background:#f5f0ff; color:#9c27b0 }.c-teal { background:#e6fffb; color:#13c2c2 }
 .info-rows { display:flex; flex-direction:column; gap:0 }
 .info-row { display:flex; padding:10px 0; border-bottom:1px solid #f5f5f5 }
 .info-row:last-child { border-bottom:none }
-.lbl { width:85px; color:#909399; font-size:13px; flex-shrink:0 }
+.lbl { width:85px; color:var(--el-color-info); font-size:13px; flex-shrink:0 }
 .val { color:#1f2329; font-size:14px; font-weight:500 }
 .protect-badge { font-size:12px; padding:2px 8px; border-radius:4px; font-weight:600 }
-.badge-blue { color:#67c23a; background:#f0f9eb }.badge-orange { color:#e6a23c; background:#fdf6ec }.badge-red { color:#f56c6c; background:#fef0f0 }
-.protect-bar { display:flex; align-items:center; justify-content:space-between; background:#fafbfc; border-radius:10px; padding:16px 24px; margin-bottom:16px; border:1px solid #f0f1f3 }
+.badge-blue { color:var(--el-color-success); background:#f0f9eb }.badge-orange { color:var(--el-color-warning); background:#fdf6ec }.badge-red { color:var(--el-color-danger); background:#fef0f0 }
+.protect-bar { display:flex; align-items:center; justify-content:space-between; background:#fafbfc; border-radius: var(--radius-md); padding:16px 24px; margin-bottom:16px; border:1px solid #f0f1f3 }
 .protect-dates { display:flex; align-items:center; gap:20px }
-.protect-date-item { text-align:center }.pd-label { font-size:12px; color:#909399 }.pd-value { font-size:16px; font-weight:600; color:#333 }
-.pd-value.exp-red { color:#f56c6c }.pd-value.exp-orange { color:#e6a23c }
-.protect-divider { color:#c0c4cc; font-size:18px }
-.remark-card { background:#fafbfc; border-radius:10px; padding:16px 20px; margin-bottom:16px; border:1px solid #f0f1f3 }
+.protect-date-item { text-align:center }.pd-label { font-size:12px; color:var(--el-color-info) }.pd-value { font-size:16px; font-weight:600; color:#333 }
+.pd-value.exp-red { color:var(--el-color-danger) }.pd-value.exp-orange { color:var(--el-color-warning) }
+.protect-divider { color: var(--text-placeholder); font-size:18px }
+.remark-card { background:#fafbfc; border-radius: var(--radius-md); padding:16px 20px; margin-bottom:16px; border:1px solid #f0f1f3 }
 .remark-title { display:flex; align-items:center; gap:6px; font-size:14px; font-weight:600; color:#333; margin-bottom:10px }
 .remark-body { font-size:13px; color:#4e5969; white-space:pre-wrap; word-break:break-all; line-height:1.6 }
-.contact-card { background:#fafbfc; border-radius:10px; padding:18px 20px; margin-bottom:16px; border:1px solid #f0f1f3 }
+.contact-card { background:#fafbfc; border-radius: var(--radius-md); padding:18px 20px; margin-bottom:16px; border:1px solid #f0f1f3 }
 .contact-head { display:flex; justify-content:space-between; align-items:center; margin-bottom:14px }
 .contact-title { display:flex; align-items:center; gap:6px; font-size:14px; font-weight:600; color:#333 }
 .contact-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:10px }
 .contact-item { display:flex; align-items:center; gap:12px; padding:12px; background:#fff; border-radius:8px; border:1px solid #f0f1f3 }
-.contact-avatar { width:36px; height:36px; border-radius:50%; background:#ecf5ff; color:#409eff; display:flex; align-items:center; justify-content:center; font-size:14px; font-weight:700 }
-.contact-info { flex:1 }.contact-name { font-size:14px; font-weight:500; color:#333 }.contact-sub { font-size:12px; color:#909399; margin-top:2px }
+.contact-avatar { width:36px; height:36px; border-radius:50%; background:var(--el-color-primary-light-9); color:var(--el-color-primary); display:flex; align-items:center; justify-content:center; font-size:14px; font-weight:700 }
+.contact-info { flex:1 }.contact-name { font-size:14px; font-weight:500; color:#333 }.contact-sub { font-size:12px; color:var(--el-color-info); margin-top:2px }
 .contact-acts { display:flex }
-.relation-card { background:#fafbfc; border-radius:10px; padding:18px 20px; margin-bottom:16px; border:1px solid #f0f1f3 }
+.relation-card { background:#fafbfc; border-radius: var(--radius-md); padding:18px 20px; margin-bottom:16px; border:1px solid #f0f1f3 }
 .relation-title { display:flex; align-items:center; gap:6px; font-size:14px; font-weight:600; color:#333; margin-bottom:12px }
 /* 核心客户指标摘要卡(只读, 与客情卡同族样式) */
-.indicator-summary-card { background:#fafbfc; border-radius:10px; padding:18px 20px; margin-bottom:16px; border:1px solid #f0f1f3 }
+.indicator-summary-card { background:#fafbfc; border-radius: var(--radius-md); padding:18px 20px; margin-bottom:16px; border:1px solid #f0f1f3 }
 .ind-sum-row { display:flex; align-items:center; gap:14px; padding:10px 0; border-bottom:1px solid #f0f1f3 }
 .ind-sum-row:last-of-type { border-bottom:none }
 .ind-sum-threshold { background:#fff; border-radius:8px; padding:10px 14px; margin-bottom:4px }
-.ind-num { width:26px; height:26px; border-radius:50%; background:#409eff; color:#fff; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; flex-shrink:0 }
+.ind-num { width:26px; height:26px; border-radius:50%; background:var(--el-color-primary); color:#fff; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; flex-shrink:0 }
 .ind-name { flex:1; font-size:14px; color:#333 }
 .ind-val { font-size:13px; color:#1f2329; font-weight:500 }
-.ind-status { font-size:13px; font-weight:600 }.ind-status.pass { color:#52c41a }.ind-status.fail { color:#f56c6c }
+.ind-status { font-size:13px; font-weight:600 }.ind-status.pass { color:#52c41a }.ind-status.fail { color:var(--el-color-danger) }
 .ind-sum-total { margin-top:10px; padding-top:12px; border-top:2px solid #f0f0f0; font-size:14px; color:#666 }
-.ind-total { font-size:22px; color:#409eff }.ind-warn { color:#fa8c16; font-size:12px; margin-left:8px }
+.ind-total { font-size:22px; color:var(--el-color-primary) }.ind-warn { color:#fa8c16; font-size:12px; margin-left:8px }
 .relation-options { display:grid; grid-template-columns:repeat(4,1fr); gap:10px }
 .relation-opt { display:flex; align-items:center; justify-content:center; gap:6px; padding:14px 8px; border:2px solid #e8e8e8; border-radius:8px; cursor:pointer; transition:all .15s; font-size:13px; color:#666; background:#fff }
-.relation-opt:hover { border-color:#409eff; color:#409eff }
-.relation-opt.on { border-color:#409eff; background:#ecf5ff; color:#409eff; font-weight:600 }
-.empty-text { color:#c0c4cc; text-align:center; padding:24px 0; font-size:13px }
+.relation-opt:hover { border-color:var(--el-color-primary); color:var(--el-color-primary) }
+.relation-opt.on { border-color:var(--el-color-primary); background:var(--el-color-primary-light-9); color:var(--el-color-primary); font-weight:600 }
+.empty-text { color: var(--text-placeholder); text-align:center; padding:24px 0; font-size:13px }
 </style>

@@ -48,11 +48,11 @@ const {
 </script>
 
 <style scoped>
-.filter-strip { display:flex; align-items:center; justify-content:space-between; background:#fff; border:1px solid #e8ecf1; border-radius:10px; padding:10px 16px; flex-shrink:0 }
+.filter-strip { display:flex; align-items:center; justify-content:space-between; background:#fff; border:1px solid #e8ecf1; border-radius: var(--radius-md); padding:10px 16px; flex-shrink:0 }
 .filter-left { display:flex; align-items:center; gap:8px; flex-wrap:wrap }
 .filter-group { display:flex; align-items:center; gap:6px }
 .filter-label { font-size:12px; font-weight:600; color:#4e5969; white-space:nowrap }
 .filter-divider { width:1px; height:22px; background:#e8ecf1; margin:0 4px }
 .filter-right { display:flex; align-items:center }
-.file-count { display:flex; align-items:center; gap:4px; font-size:13px; font-weight:600; color:#409eff; white-space:nowrap }
+.file-count { display:flex; align-items:center; gap:4px; font-size:13px; font-weight:600; color:var(--el-color-primary); white-space:nowrap }
 </style>

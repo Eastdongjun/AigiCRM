@@ -17,29 +17,11 @@
       </div>
     </div>
 
-    <!-- 统计 · 深蓝条(与全站设计语言一致) -->
-    <div class="sea-strip">
-      <div class="ss-metric">
-        <div class="ss-num">{{ stats.total || 0 }}</div>
-        <div class="ss-lbl">池内待捞</div>
-      </div>
-      <div class="ss-divider"></div>
-      <div class="ss-metric">
-        <div class="ss-num">{{ stats.newThisMonth || 0 }}</div>
-        <div class="ss-lbl">本月入池</div>
-      </div>
-      <div class="ss-divider"></div>
-      <div class="ss-metric">
-        <div class="ss-num" :class="{ 'ss-alert': (stats.pendingApproval || 0) > 0 }">{{ stats.pendingApproval || 0 }}</div>
-        <div class="ss-lbl">待审批捞取</div>
-      </div>
-      <div class="ss-divider"></div>
-      <div class="ss-metric">
-        <div class="ss-num">{{ stats.claimedThisMonth || 0 }}</div>
-        <div class="ss-lbl">本月成功</div>
-      </div>
-      <div class="ss-tip">{{ currentPool ? currentPool.poolName : '全部公海池' }} · {{ currentPool ? (currentPool.regionNames || '全部区域') : pools.length + ' 个池' }}</div>
-    </div>
+    <!-- 统计 · 深蓝条（【C9 二轮 2026-10-08】收口为全局 MetricStrip 组件，与客户列表/审批管理同源） -->
+    <MetricStrip
+      :metrics="stripMetrics"
+      :tip="`${currentPool ? currentPool.poolName : '全部公海池'} · ${currentPool ? (currentPool.regionNames || '全部区域') : pools.length + ' 个池'}`"
+    />
 
     <!-- 筛选栏 -->
     <div class="sea-filter">
@@ -101,7 +83,7 @@
           <el-table-column label="进入时间" width="100">
             <template #default="{row}">{{ row.enterDate?.substring(0,10) }}</template>
           </el-table-column>
-          <el-table-column label="入池天数" width="80" align="center">
+          <el-table-column label="入池天数" width="80" align="right" header-align="right">
             <template #default="{row}"><span class="sea-days" :class="daysTone(row)">{{ getDays(row) }}天</span></template>
           </el-table-column>
           <el-table-column label="原因" width="90">
@@ -159,7 +141,7 @@
 // 逻辑与展开前完全一致；空 catch 统一标注「错误已由 request 拦截器提示」（对齐 customer/ImportDialog 风格）
 import { ref, reactive, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ElMessage } from 'element-plus'
 import { Upload, Right, Clock, CircleCheck, Document, Tickets } from '@element-plus/icons-vue'
 import { getSeaList, getSeaStatistics, getVisibleSeaConfigs, deleteSeaPool, importSeaCustomers } from '@/api/sea'
 import { downloadImportTemplate } from '@/api/customer'
@@ -167,6 +149,11 @@ import { getDictData, getScopeDepts } from '@/api/system'
 import { submitApproval } from '@/api/approval'
 import { useUserStore } from '@/store/user'
 import { pageSizes } from '@/utils/pagination'
+import { confirmAction } from '@/utils/confirm'
+// 【B7/C9 2026-10-08】公海状态映射收敛到 utils/status-maps.js 唯一来源，删除本地副本
+import { SEA_CLAIM_STATUS, statusOf } from '@/utils/status-maps'
+// 【C9 二轮 2026-10-08】深蓝指标条全局组件
+import MetricStrip from '@/components/MetricStrip.vue'
 // 【D6 2026-10-04】表格高度统一走共享 composable（替代本页内联的 ResizeObserver 实现）
 import { useTableHeight } from './useTableHeight'
 
@@ -229,6 +216,13 @@ const listLoading = ref(false)
 const claimingId = ref(null)
 const query = reactive({ current: 1, size: 15, industry: '', enterReason: '', keyword: '', deptId: null })
 const currentPool = computed(() => pools.value.find(p => p.id === selectedPool.value))
+// 【C9 二轮】指标条数据：待审批数>0 附琥珀徽标（数字不染红，对齐全站警示徽标手法）
+const stripMetrics = computed(() => [
+  { num: stats.value.total || 0, label: '池内待捞' },
+  { num: stats.value.newThisMonth || 0, label: '本月入池' },
+  { num: stats.value.pendingApproval || 0, label: '待审批捞取', chip: (stats.value.pendingApproval || 0) > 0 ? '待审批' : '' },
+  { num: stats.value.claimedThisMonth || 0, label: '本月成功' },
+])
 const hasFilters = computed(() => Boolean(selectedPool.value || statusFilter.value || query.industry || query.enterReason || query.keyword || query.deptId))
 const setStatus = (s) => { statusFilter.value = s; query.current = 1; loadData() }
 const clearPool = () => { selectedPool.value = null; search() }
@@ -276,11 +270,13 @@ const loadPools = async () => {
 
 const handleClaim = async (row) => {
   try {
-    await ElMessageBox.confirm(`确定捞取「${row.customerName}」？将发起审批申请`, '捞取确认')
+    // 【UI 整改 2026-10-08】确认弹窗收敛到 confirmAction（捞取非删除类，普通确认钮）
+    await confirmAction(`确定捞取「${row.customerName}」？将发起审批申请`, '捞取确认', { danger: false, confirmText: '确认捞取' })
     claimingId.value = row.id
     await submitApproval({ type: 'claim', customerId: String(row.customerId), actionAfterApprove: '客户归属→本人' })
-    ElMessage.success('捞取申请已提交')
-    loadData()
+    ElMessage.success('捞取申请已提交，已为你切到「审批中」筛选')
+    // 【UI 整改 2026-10-08】提交成功后自动切到「审批中」筛选，行状态翻转为「审批中」直接可见，不必手动切页签
+    setStatus('pending_approval')
     loadStats()
     userStore.refreshBadges()
   } catch (e) {
@@ -295,7 +291,8 @@ const handleClaim = async (row) => {
 const handleEdit = (row) => router.push(`/customer/edit/${row.customerId}?from=sea`)
 const handleDelete = async (row) => {
   try {
-    await ElMessageBox.confirm(`确定删除「${row.customerName}」？不可恢复。`, '删除确认', { type: 'warning' })
+    // 【UI 整改 2026-10-08】删除类确认走 confirmAction：红色确认钮 + 取消左置
+    await confirmAction(`确定删除「${row.customerName}」？删除后不可恢复。`, '删除确认', { confirmText: '删除' })
     await deleteSeaPool(row.id)
     ElMessage.success('已删除')
     loadData()
@@ -315,8 +312,9 @@ const daysTone = (row) => {
   return d > 30 ? 'over' : d > 14 ? 'warn' : ''
 }
 const getReasonText = (r) => ({ protection_expired: '保护期满', abandoned: '放弃客户', resignation: '离职交接' }[r] || r)
-const getStatusText = (s) => ({ available: '待捞取', pending_approval: '审批中', claimed: '已捞取' }[s] || s)
-const getStatusType = (s) => ({ available: 'primary', pending_approval: 'warning', claimed: 'success' }[s] || 'info')
+// 【B7/C9 2026-10-08】状态文案/配色统一走 utils/status-maps.js（与捞取记录页同源）
+const getStatusText = (s) => statusOf(SEA_CLAIM_STATUS, s).text
+const getStatusType = (s) => statusOf(SEA_CLAIM_STATUS, s).type
 
 // 【D6 2026-10-04】表格高度：与 records.vue 共用 useTableHeight（容器实测 + ResizeObserver）
 const { tableWrapRef, tableHeight } = useTableHeight()
@@ -344,26 +342,14 @@ onMounted(async () => {
 /* Hero */
 .sea-hero { display:flex; justify-content:space-between; align-items:center; padding:0 0 16px; flex-shrink:0 }
 .sea-hero-left h1 { font-size:20px; font-weight:700; color:#1f2329; margin:0 0 4px }
-.sea-hero-sub { font-size:13px; color:#909399 }
+.sea-hero-sub { font-size:13px; color:var(--el-color-info) }
 .sea-hero-right { display:flex; gap:8px; align-items:center }
 
-/* Stats · 深蓝条 */
-.sea-strip {
-  display:flex; align-items:center; gap:24px;
-  background:linear-gradient(135deg,#16337a 0%,#1d4ed8 58%,#2563eb 100%);
-  border-radius:12px; padding:14px 24px; margin-bottom:14px; flex-shrink:0;
-  box-shadow:0 6px 20px rgba(22,51,122,.14)
-}
-.ss-metric { min-width:76px }
-.ss-num { font-size:24px; font-weight:700; color:#fff; line-height:1.2 }
-.ss-num.ss-alert { color:#fca5a5 }
-.ss-lbl { font-size:12px; color:rgba(255,255,255,.66); margin-top:2px }
-.ss-divider { width:1px; height:34px; background:rgba(255,255,255,.18) }
-.ss-tip { margin-left:auto; font-size:12px; color:rgba(255,255,255,.55) }
+/* Stats · 深蓝条已收口为全局 MetricStrip 组件（C9 二轮），本页不再保留条带样式 */
 
 /* Filter */
-.sea-filter { background:#fff; border-radius:10px; padding:14px 18px; margin-bottom:12px; display:flex; justify-content:space-between; align-items:center; box-shadow:0 1px 3px rgba(0,0,0,.04); flex-shrink:0 }
-.filter-summary { display:flex; align-items:center; gap:8px; margin:-4px 0 12px; color:#909399; font-size:12px; flex-shrink:0 }
+.sea-filter { background:#fff; border-radius: var(--radius-md); padding:14px 18px; margin-bottom:12px; display:flex; justify-content:space-between; align-items:center; box-shadow:0 1px 3px rgba(0,0,0,.04); flex-shrink:0 }
+.filter-summary { display:flex; align-items:center; gap:8px; margin:-4px 0 12px; color:var(--el-color-info); font-size:12px; flex-shrink:0 }
 .sea-status-tabs { display:flex; gap:4px; background:#f2f4f7; padding:3px; border-radius:8px }
 .sea-tab { padding:5px 16px; border-radius:7px; font-size:13px; cursor:pointer; color:#606266; transition:all .2s; font-weight:500 }
 .sea-tab:hover { background:rgba(255,255,255,.6) }
@@ -372,20 +358,21 @@ onMounted(async () => {
 .f-sel { width:120px } .f-kw { width:200px } .f-dept { width:180px }
 
 /* Table */
-.sea-table-wrap { flex:1; min-height:0; display:flex; flex-direction:column; background:#fff; border-radius:10px; box-shadow:0 1px 3px rgba(0,0,0,.04); overflow:hidden }
+.sea-table-wrap { flex:1; min-height:0; display:flex; flex-direction:column; background:#fff; border-radius: var(--radius-md); box-shadow:0 1px 3px rgba(0,0,0,.04); overflow:hidden }
 .sea-table-inner { flex:1; min-height:0; padding:8px 12px 0 }
 .sea-page :deep(.el-table td.el-table__cell), .sea-page :deep(.el-table th.el-table__cell) { height:38px; padding:3px 0 }
-.sea-link { color:#409eff; cursor:pointer; font-weight:500 } .sea-link:hover { color:#66b1ff; text-decoration:underline }
-/* 入池天数按停留时长分档（此前一律橙色，与「待审批/超期」语义混用） */
-.sea-days { font-weight:700; color: var(--ds-text-2, #4e5969) }
-.sea-days.warn { color:#e6a23c } .sea-days.over { color:#f56c6c }
+.sea-link { color:var(--el-color-primary); cursor:pointer; font-weight:500 } .sea-link:hover { color:var(--el-color-primary-light-3); text-decoration:underline }
+/* 入池天数按停留时长分档（此前一律橙色，与「待审批/超期」语义混用）；
+   【B8】死变量 --ds-text-2 清除，改用 :root 的 --text-secondary */
+.sea-days { font-weight:700; color: var(--text-secondary) }
+.sea-days.warn { color:var(--el-color-warning) } .sea-days.over { color:var(--el-color-danger) }
 :deep(.sea-op-col .cell) { white-space: nowrap }
-.sea-pager { display:flex; justify-content:space-between; align-items:center; padding:10px 16px; border-top:1px solid #f0f2f5; color:#909399; font-size:12px; flex-shrink:0; background:#fafbfc }
-.sea-pager-info { color:#909399; white-space:nowrap }
+.sea-pager { display:flex; justify-content:space-between; align-items:center; padding:10px 16px; border-top:1px solid #f0f2f5; color:var(--el-color-info); font-size:12px; flex-shrink:0; background:#fafbfc }
+.sea-pager-info { color:var(--el-color-info); white-space:nowrap }
 
 .import-step { margin-bottom:16px } .step-label { font-size:14px; font-weight:600; color:#333; margin-bottom:8px }
 .import-result { margin-top:16px } .fail-list { max-height:200px; overflow-y:auto; margin-top:8px; border:1px solid #ebeef5; border-radius:4px; padding:8px; background:#fafafa }
 .fail-header { font-size:13px; font-weight:600; color:#333; margin-bottom:4px }
 .fail-item { font-size:12px; line-height:22px; display:flex; gap:8px }
-.fail-row { color:#999; width:60px; flex-shrink:0 } .fail-name { color:#333 } .fail-reason { color:#f56c6c; flex:1 }
+.fail-row { color: var(--text-muted); width:60px; flex-shrink:0 } .fail-name { color:#333 } .fail-reason { color:var(--el-color-danger); flex:1 }
 </style>

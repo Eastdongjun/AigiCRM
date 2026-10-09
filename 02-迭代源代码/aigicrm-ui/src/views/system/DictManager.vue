@@ -63,11 +63,12 @@
 
   <!-- 字典类型编辑弹窗 -->
   <el-dialog v-model="typeDialogVisible" :title="typeForm.id ? '编辑字典类型' : '新增字典类型'" width="420px">
-    <el-form :model="typeForm" label-width="80px">
-      <el-form-item label="名称">
+    <!-- 【UI 整改 2026-10-08】字段级校验：:rules + required 星标，报错落在字段下方 -->
+    <el-form ref="typeFormRef" :model="typeForm" :rules="typeFormRules" label-width="80px">
+      <el-form-item label="名称" prop="dictName">
         <el-input v-model="typeForm.dictName" placeholder="如：行业类型" />
       </el-form-item>
-      <el-form-item label="编码">
+      <el-form-item label="编码" prop="dictCode">
         <el-input v-model="typeForm.dictCode" placeholder="如：industry" :disabled="!!typeForm.id" />
       </el-form-item>
       <el-form-item label="备注">
@@ -82,11 +83,11 @@
 
   <!-- 字典数据编辑弹窗 -->
   <el-dialog v-model="dataDialogVisible" :title="dataForm.id ? '编辑字典数据' : '新增字典数据'" width="420px">
-    <el-form :model="dataForm" label-width="80px">
-      <el-form-item label="标签">
+    <el-form ref="dataFormRef" :model="dataForm" :rules="dataFormRules" label-width="80px">
+      <el-form-item label="标签" prop="dictLabel">
         <el-input v-model="dataForm.dictLabel" placeholder="显示名称" />
       </el-form-item>
-      <el-form-item label="数据值">
+      <el-form-item label="数据值" prop="dictValue">
         <el-input v-model="dataForm.dictValue" placeholder="实际存储值" />
       </el-form-item>
       <el-form-item label="排序">
@@ -104,8 +105,9 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, computed } from 'vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ref, reactive, onMounted, computed, nextTick } from 'vue'
+import { ElMessage } from 'element-plus'
+import { confirmAction } from '@/utils/confirm'
 import { Plus, Files, Collection, PriceTag } from '@element-plus/icons-vue'
 import {
   getDictTypes, createDictType, updateDictType, deleteDictType,
@@ -120,6 +122,15 @@ const dictTypes = ref([])
 const currentType = ref(null)
 const typeDialogVisible = ref(false)
 const typeForm = reactive({ id: null, dictName: '', dictCode: '', remark: '' })
+// 【UI 整改 2026-10-08】名称类必填字段级校验（与 customer 表单同规范）
+const typeFormRef = ref(null)
+const typeFormRules = {
+  dictName: [{ required: true, message: '请输入字典名称', trigger: 'blur' }],
+  dictCode: [
+    { required: true, message: '请输入字典编码', trigger: 'blur' },
+    { pattern: /^[a-zA-Z][a-zA-Z0-9_]*$/, message: '编码须为字母开头的字母/数字/下划线', trigger: 'blur' },
+  ],
+}
 
 const loadDictTypes = async () => {
   try {
@@ -136,18 +147,21 @@ const handleTypeSelect = (row) => {
 const handleAddType = () => {
   Object.assign(typeForm, { id: null, dictName: '', dictCode: '', remark: '' })
   typeDialogVisible.value = true
+  nextTick(() => typeFormRef.value?.clearValidate())
 }
 
 const handleEditType = (row) => {
   Object.assign(typeForm, { id: row.id, dictName: row.dictName, dictCode: row.dictCode, remark: row.remark || '' })
   typeDialogVisible.value = true
+  nextTick(() => typeFormRef.value?.clearValidate())
 }
 
 const handleDeleteType = async (row) => {
   // 【L1 2026-10-04】confirm 必须单独 try/catch：裸 await 时点"取消"即 unhandled rejection；
   // 取消=直接返回不删除，与删除接口失败（request 拦截器已统一弹错）分开处理
   try {
-    await ElMessageBox.confirm(`确定删除字典类型「${row.dictName}」及其所有数据？`, '提示', { type: 'warning' })
+    // 【UI 整改 2026-10-08】删除类确认走 confirmAction：红色确认钮 + 取消左置
+    await confirmAction(`确定删除字典类型「${row.dictName}」及其所有数据？`, '删除确认', { confirmText: '删除' })
   } catch { return }
   try {
     await deleteDictType(row.id)
@@ -161,6 +175,9 @@ const handleDeleteType = async (row) => {
 }
 
 const submitType = async () => {
+  // 【UI 整改 2026-10-08】先走字段级校验，报错定位到字段
+  const valid = await typeFormRef.value.validate().catch(() => false)
+  if (!valid) return
   try {
     if (typeForm.id) {
       await updateDictType(typeForm.id, typeForm)
@@ -177,6 +194,11 @@ const submitType = async () => {
 const dictDataList = ref([])
 const dataDialogVisible = ref(false)
 const dataForm = reactive({ id: null, dictTypeId: null, dictLabel: '', dictValue: '', sortOrder: 0, status: 1 })
+const dataFormRef = ref(null)
+const dataFormRules = {
+  dictLabel: [{ required: true, message: '请输入显示标签', trigger: 'blur' }],
+  dictValue: [{ required: true, message: '请输入数据值', trigger: 'blur' }],
+}
 
 const loadDictData = async (typeId) => {
   try {
@@ -188,17 +210,19 @@ const loadDictData = async (typeId) => {
 const handleAddData = () => {
   Object.assign(dataForm, { id: null, dictTypeId: currentType.value.id, dictLabel: '', dictValue: '', sortOrder: 0, status: 1 })
   dataDialogVisible.value = true
+  nextTick(() => dataFormRef.value?.clearValidate())
 }
 
 const handleEditData = (row) => {
   Object.assign(dataForm, { id: row.id, dictTypeId: row.dictTypeId, dictLabel: row.dictLabel, dictValue: row.dictValue, sortOrder: row.sortOrder, status: row.status })
   dataDialogVisible.value = true
+  nextTick(() => dataFormRef.value?.clearValidate())
 }
 
 const handleDeleteData = async (row) => {
   // 【L1 2026-10-04】同上：confirm 取消不再产生 unhandled rejection，取消与接口失败分开
   try {
-    await ElMessageBox.confirm(`确定删除「${row.dictLabel}」？`, '提示', { type: 'warning' })
+    await confirmAction(`确定删除「${row.dictLabel}」？`, '删除确认', { confirmText: '删除' })
   } catch { return }
   try {
     await deleteDictData(row.id)
@@ -208,6 +232,8 @@ const handleDeleteData = async (row) => {
 }
 
 const submitData = async () => {
+  const valid = await dataFormRef.value.validate().catch(() => false)
+  if (!valid) return
   try {
     if (dataForm.id) {
       await updateDictData(dataForm.id, dataForm)
@@ -235,7 +261,7 @@ onMounted(loadDictTypes)
   width: 380px;
   flex-shrink: 0;
   background: #fff;
-  border-radius: 10px;
+  border-radius: var(--radius-md);
   padding: 14px;
   border: 1px solid #e4e7ed;
   box-shadow: 0 1px 3px rgba(0,0,0,.04);
@@ -247,7 +273,7 @@ onMounted(loadDictTypes)
   flex: 1;
   min-width: 0;
   background: #fff;
-  border-radius: 10px;
+  border-radius: var(--radius-md);
   padding: 14px;
   border: 1px solid #e4e7ed;
   box-shadow: 0 1px 3px rgba(0,0,0,.04);
@@ -273,17 +299,17 @@ onMounted(loadDictTypes)
   transition: all .18s;
   background: #fafbfc;
 }
-.dict-type-item:hover { border-color: #b3d3f8; background: #f5f9ff }
+.dict-type-item:hover { border-color: #b3d3f8; background: var(--el-color-primary-light-9) }
 .dict-type-item.active {
-  border-color: #409eff;
-  background: #ecf5ff;
-  box-shadow: 0 0 0 1px #409eff inset;
+  border-color: var(--el-color-primary);
+  background: var(--el-color-primary-light-9);
+  box-shadow: 0 0 0 1px var(--el-color-primary) inset;
 }
 .dict-type-name { display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; color: #1f2329 }
-.dict-type-ico { color: #409eff; font-size: 15px }
+.dict-type-ico { color: var(--el-color-primary); font-size: 15px }
 .dict-type-item.active .dict-type-ico { color: #1f6fd6 }
 .dict-type-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
-.dict-type-code { font-size: 11px; color: #a8abb2; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; margin: 3px 0 4px 21px }
+.dict-type-code { font-size: 12px; color: #6b7280; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; margin: 3px 0 4px 21px }
 .dict-type-acts { margin-left: 21px; display: flex; gap: 2px; opacity: 0; transition: opacity .15s }
 .dict-type-item:hover .dict-type-acts, .dict-type-item.active .dict-type-acts { opacity: 1 }
 .dict-empty-tip { display: flex; align-items: center; justify-content: center; height: 100%; min-height: 260px }

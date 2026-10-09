@@ -85,11 +85,11 @@ const handleSubmit = async () => {
 .task-gen { display:flex; gap:8px; align-items:center; margin-top:8px; flex-wrap:wrap }
 .timeline { padding-left:8px }
 .timeline-item { position:relative; padding:0 0 18px 24px }
-.tl-dot { position:absolute; left:-2px; top:8px; width:10px; height:10px; border-radius:50%; background:#409eff; border:2px solid #fff; box-shadow:0 0 0 2px #409eff }
+.tl-dot { position:absolute; left:-2px; top:8px; width:10px; height:10px; border-radius:50%; background:var(--el-color-primary); border:2px solid #fff; box-shadow:0 0 0 2px var(--el-color-primary) }
 .timeline-item::before { content:''; position:absolute; left:2px; top:18px; bottom:0; width:2px; background:#e8e8e8 }
 .timeline-item:last-child::before { display:none }
 .tl-card { background:#fafbfc; border-radius:8px; padding:14px 16px; border:1px solid #f0f1f3 }
 .tl-text { font-size:14px; color:#333; line-height:1.6; margin-bottom:6px }
-.tl-meta { display:flex; gap:16px; font-size:12px }.tl-user { color:#409eff }.tl-time { color:#999 }
-.empty-text { color:#c0c4cc; text-align:center; padding:24px 0; font-size:13px }
+.tl-meta { display:flex; gap:16px; font-size:12px }.tl-user { color:var(--el-color-primary) }.tl-time { color: var(--text-muted) }
+.empty-text { color: var(--text-placeholder); text-align:center; padding:24px 0; font-size:13px }
 </style>

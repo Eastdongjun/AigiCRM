@@ -455,12 +455,12 @@ onBeforeUnmount(() => { destroyReadObserver(); destroyPaneObserver() })
   background:rgba(255,255,255,.94);backdrop-filter:blur(10px);border-bottom:1px solid #eef0f3}
 .dtl-back{font-size:13px;color:#4e5969;cursor:pointer;display:inline-flex;align-items:center;gap:4px;
   padding:4px 10px;border-radius:8px;transition:all .15s;flex-shrink:0}
-.dtl-back:hover{color:#409eff;background:#ecf5ff}
+.dtl-back:hover{color:var(--el-color-primary);background:var(--el-color-primary-light-9)}
 .dtl-bar-name{font-size:14px;font-weight:600;color:#1f2329;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.dtl-bar-meta{font-size:12px;color:#86909c;flex-shrink:0}
-.dtl-bar-pts{margin-left:auto;font-size:12px;color:#86909c;flex-shrink:0;
-  background:#f2f6ff;border-radius:999px;padding:3px 12px}
-.dtl-bar-pts b{font-size:15px;color:#409eff;margin-right:2px}
+.dtl-bar-meta{font-size:12px;color: var(--text-muted);flex-shrink:0}
+.dtl-bar-pts{margin-left:auto;font-size:12px;color: var(--text-muted);flex-shrink:0;
+  background:#f2f6ff;border-radius: var(--radius-pill);padding:3px 12px}
+.dtl-bar-pts b{font-size:15px;color:var(--el-color-primary);margin-right:2px}
 
 /* 客户概览：白浮层卡，排版即层级 */
 .dtl-hero{display:flex;align-items:center;gap:18px;margin:0;padding:24px 28px 22px;
@@ -472,7 +472,7 @@ onBeforeUnmount(() => { destroyReadObserver(); destroyPaneObserver() })
 .dtl-hero-name{font-size:22px;font-weight:800;color:#fff;line-height:1.3;margin-bottom:9px;letter-spacing:-.2px;
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .dtl-hero-tags{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-.dtl-pill{font-size:12px;border-radius:999px;padding:3px 12px;border:none;white-space:nowrap}
+.dtl-pill{font-size:12px;border-radius: var(--radius-pill);padding:3px 12px;border:none;white-space:nowrap}
 .dtl-pill.blue{color:#1d6fd0;background:#e8f2ff;border-color:transparent}
 .dtl-pill.grey{color:#6b7280;background:#f4f5f7;border-color:transparent}
 .dtl-hero .dtl-pill{background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.22)}
@@ -484,7 +484,7 @@ onBeforeUnmount(() => { destroyReadObserver(); destroyPaneObserver() })
 .dtl-score-big{font-size:54px;font-weight:800;color:#fff;line-height:1;letter-spacing:-1.5px;font-variant-numeric:tabular-nums;
   text-shadow:0 2px 12px rgba(13,35,82,.35)}
 .dtl-score-unit{font-size:15px;font-weight:700;color:#f5b94b}
-.dtl-score-caption{font-size:11px;color:rgba(255,255,255,.72);margin-top:7px;letter-spacing:3px}
+.dtl-score-caption{font-size:12px;color:rgba(255,255,255,.72);margin-top:7px;letter-spacing:3px}
 .dtl-hero-sub{display:flex;gap:20px;margin-top:12px;font-size:12px;color:rgba(255,255,255,.68)}
 .dtl-hero-sub span{display:inline-flex;align-items:baseline;padding-left:12px;border-left:1px solid rgba(255,255,255,.18)}
 .dtl-hero-sub span:first-child{padding-left:0;border-left:none}
@@ -512,9 +512,9 @@ onBeforeUnmount(() => { destroyReadObserver(); destroyPaneObserver() })
   box-shadow:0 1px 2px rgba(16,24,40,.03),0 6px 18px rgba(16,24,40,.05);display:flex;flex-direction:column;overflow:hidden}
 .dtl-dial-now{display:flex;align-items:baseline;gap:9px;padding:12px 14px 9px;border-bottom:1px solid #eef0f3;flex-shrink:0}
 .dtl-dial-now-date{font-size:12px;color:#6b7280;font-variant-numeric:tabular-nums}
-.dtl-dial-now-time{font-size:19px;font-weight:800;color:#1d4ed8;font-variant-numeric:tabular-nums;letter-spacing:.5px;line-height:1}
-.dtl-dial-today{margin-left:auto;font-size:11px;font-weight:600;color:#2563eb;cursor:pointer;padding:3px 9px;
-  border-radius:999px;background:#eff4fe;transition:background .15s}
+.dtl-dial-now-time{font-size:20px;font-weight:800;color:#1d4ed8;font-variant-numeric:tabular-nums;letter-spacing:.5px;line-height:1}
+.dtl-dial-today{margin-left:auto;font-size:12px;font-weight:600;color:#2563eb;cursor:pointer;padding:3px 9px;
+  border-radius: var(--radius-pill);background:#eff4fe;transition:background .15s}
 .dtl-dial-today:hover{background:#dbe6fb}
 .dtl-dial-cols{position:relative;display:flex;gap:2px;padding:8px 4px;flex:1;min-height:0}
 .dtl-dial-band{position:absolute;left:10px;right:10px;top:50%;height:42px;transform:translateY(-50%);
@@ -538,7 +538,7 @@ onBeforeUnmount(() => { destroyReadObserver(); destroyPaneObserver() })
 .w-dot{width:5px;height:5px;border-radius:50%;background:#e11d48;flex-shrink:0}
 .dtl-pane{overflow-y:auto;padding:0 6px 6px}
 .dtl-pane::-webkit-scrollbar{width:6px}
-.dtl-pane::-webkit-scrollbar-thumb{background:#d3d9e2;border-radius:999px}
+.dtl-pane::-webkit-scrollbar-thumb{background:#d3d9e2;border-radius: var(--radius-pill)}
 .dtl-pane::-webkit-scrollbar-track{background:transparent}
 .dtl-pane-head{display:flex;align-items:baseline;gap:10px;padding:8px 6px 14px}
 .dtl-month-label{font-size:16px;font-weight:800;color:#111827;background:transparent;border-radius:0;padding:0;letter-spacing:.2px}
@@ -546,17 +546,17 @@ onBeforeUnmount(() => { destroyReadObserver(); destroyPaneObserver() })
 .dtl-item{position:relative;margin-bottom:14px}
 .dtl-item:last-child{margin-bottom:4px}
 /* 【2026-09-20 深夜V】每个元素独立成块：信息瓦片网格 + 宽块，整条记录一张独立定义卡 */
-.dtl-ecard{background:#fff;border:1px solid #e5e9f0;border-radius:16px;padding:22px 24px;
+.dtl-ecard{background:#fff;border:1px solid #e5e9f0;border-radius: var(--radius-lg);padding:22px 24px;
   box-shadow:0 1px 2px rgba(16,24,40,.03),0 6px 18px rgba(16,24,40,.05);
   display:flex;flex-direction:column;gap:16px}
 /* 一行紧凑元信息条：标签灰小字内联, 值深色; 时间/得分加重, 未读红点 */
 .dtl-metabar{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 20px;padding:2px 2px 0}
 .dtl-meta{display:inline-flex;align-items:baseline;gap:5px;font-size:13px;font-weight:600;color:#1f2937;white-space:nowrap}
-.dtl-meta em{font-style:normal;font-size:11px;font-weight:500;color:#8a94a3;letter-spacing:.5px}
+.dtl-meta em{font-style:normal;font-size:12px;font-weight:500;color:#8a94a3;letter-spacing:.5px}
 .dtl-meta.time{font-size:16px;font-weight:800;color:#1d4ed8;font-variant-numeric:tabular-nums;letter-spacing:.2px}
 .dtl-meta.time em{font-weight:500;color:#8a94a3;margin-left:2px}
 .dtl-meta.stage em{font-weight:600;color:#6b7280}
-.dtl-score{font-size:15.5px;font-weight:800;font-variant-numeric:tabular-nums;letter-spacing:-.2px}
+.dtl-score{font-size:16px;font-weight:800;font-variant-numeric:tabular-nums;letter-spacing:-.2px}
 .dtl-stage-dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;flex-shrink:0;align-self:center}
 .dtl-udot{display:inline-block;width:7px;height:7px;border-radius:50%;background:#e11d48;
   box-shadow:0 0 0 3px rgba(225,29,72,.12);margin-right:6px;align-self:center;flex-shrink:0}
@@ -578,8 +578,8 @@ onBeforeUnmount(() => { destroyReadObserver(); destroyPaneObserver() })
 .dtl-img-wrap{position:relative;border-radius:14px;overflow:hidden;background:#f2f4f8}
 .dtl-file img{width:100%;aspect-ratio:3/2;object-fit:cover;cursor:pointer;display:block;transition:transform .25s}
 .dtl-file img:hover{transform:scale(1.03)}
-.dtl-file-tag{position:absolute;top:8px;left:8px;font-size:11px;font-weight:600;background:rgba(255,255,255,.94);
-  padding:2px 8px;border-radius:999px;border:1px solid transparent;white-space:nowrap;z-index:1}
+.dtl-file-tag{position:absolute;top:8px;left:8px;font-size:12px;font-weight:600;background:rgba(255,255,255,.94);
+  padding:2px 8px;border-radius: var(--radius-pill);border:1px solid transparent;white-space:nowrap;z-index:1}
 .dtl-file-tag.inline{position:static;background:#fff;flex-shrink:0}
 .dtl-file-vid{display:flex;flex-direction:column}
 .dtl-file-vid video{width:100%;aspect-ratio:3/2;border-radius:12px;background:#0b1020;display:block;object-fit:cover}

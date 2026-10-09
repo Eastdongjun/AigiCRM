@@ -42,8 +42,8 @@
                   <th class="perm-item">权限项</th>
                   <th v-for="col in matrixCols" :key="col.key" class="ps-role-col">
                     {{ col.label }}
-                    <el-link v-if="canEditScope && assigneeMode !== 'ROLE'" type="danger" :underline="false" style="font-size:11px" @click="resetAssignee(col)">恢复默认</el-link>
-                    <el-link v-else-if="canEditScope" type="primary" :underline="false" style="font-size:11px" @click="resetRole(col)">恢复默认</el-link>
+                    <el-link v-if="canEditScope && assigneeMode !== 'ROLE'" type="danger" :underline="false" style="font-size:12px" @click="resetAssignee(col)">恢复默认</el-link>
+                    <el-link v-else-if="canEditScope" type="primary" :underline="false" style="font-size:12px" @click="resetRole(col)">恢复默认</el-link>
                   </th>
                 </tr>
               </thead>
@@ -264,16 +264,16 @@ onMounted(loadAll)
 .ps-tabs { margin-bottom: 10px; display: flex; align-items: center; }
 .ps-layout { display: flex; flex: 1; min-height: 0; gap: 16px; }
 .ps-sidebar { width: 170px; flex-shrink: 0; border-right: 1px solid #ebe5f5; padding-right: 12px; overflow-y: auto; }
-.ps-sidebar-title { font-size: 12px; color: #909399; padding: 4px 8px 8px; }
-.ps-nav { padding: 8px 10px; border-radius: 6px; cursor: pointer; font-size: 13px; color: #606266; margin-bottom: 2px; }
+.ps-sidebar-title { font-size: 12px; color: var(--el-color-info); padding: 4px 8px 8px; }
+.ps-nav { padding: 8px 10px; border-radius: var(--radius-sm); cursor: pointer; font-size: 13px; color: #606266; margin-bottom: 2px; }
 .ps-nav:hover { background: #f5f7fa; }
-.ps-nav.active { background: #ecf5ff; color: #409eff; font-weight: 600; }
+.ps-nav.active { background: var(--el-color-primary-light-9); color: var(--el-color-primary); font-weight: 600; }
 .ps-body { flex: 1; overflow-y: auto; min-width: 0; }
 .ps-tip { font-size: 12px; color: #606266; margin-bottom: 10px; }
-.ps-readonly { color: #e6a23c; }
+.ps-readonly { color: var(--el-color-warning); }
 .ps-table-wrap { overflow-x: auto; }
-.ps-action { font-size: 11px; color: #909399; margin-left: 6px; }
+.ps-action { font-size: 12px; color: #6b7280; margin-left: 6px; }
 .ps-cell { text-align: center; min-width: 180px; white-space: nowrap; }
-.ps-scope-na { font-size: 11px; color: #b0b3ba; margin-left: 6px; cursor: help; }
+.ps-scope-na { font-size: 12px; color: #6b7280; margin-left: 6px; cursor: help; }
 .ps-role-col { min-width: 130px; }
 </style>

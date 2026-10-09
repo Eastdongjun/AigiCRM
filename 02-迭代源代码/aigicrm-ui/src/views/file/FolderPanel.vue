@@ -4,7 +4,7 @@
 
     <!-- 全部文件 -->
     <div class="folder-root" :class="{ active: !selectedFolderId }" @click="selectFolder(null)">
-      <el-icon color="#409eff"><FolderOpened /></el-icon>
+      <el-icon color="var(--el-color-primary)"><FolderOpened /></el-icon>
       <span class="folder-root-name">全部文件</span>
       <span class="folder-count-badge">{{ fileTotal }}</span>
     </div>
@@ -76,20 +76,20 @@ const {
   align-items: center;
   gap: 6px;
   padding: 8px 10px;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   cursor: pointer;
   margin-bottom: 4px;
   transition: background 0.15s;
 }
 .folder-root:hover { background: #f5f7fa; }
-.folder-root.active { background: #ecf5ff; }
-.folder-root-name { flex: 1; font-size: 13px; color: #409eff; font-weight: 500; }
+.folder-root.active { background: var(--el-color-primary-light-9); }
+.folder-root-name { flex: 1; font-size: 13px; color: var(--el-color-primary); font-weight: 500; }
 .folder-count-badge {
-  background: #409eff;
+  background: var(--el-color-primary);
   color: #fff;
-  font-size: 11px;
+  font-size: 12px;
   padding: 1px 7px;
-  border-radius: 10px;
+  border-radius: var(--radius-md);
   font-weight: 600;
 }
 .folder-item {
@@ -97,41 +97,41 @@ const {
   align-items: center;
   gap: 6px;
   padding: 7px 10px;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   cursor: pointer;
   font-size: 13px;
   color: #333;
   transition: background 0.15s;
 }
 .folder-item:hover { background: #f5f7fa; }
-.folder-item.active { background: #ecf5ff; color: #409eff; }
+.folder-item.active { background: var(--el-color-primary-light-9); color: var(--el-color-primary); }
 .folder-name { flex: 1; }
 .folder-count {
   background: #e6e8eb;
   color: #666;
-  font-size: 11px;
+  font-size: 12px;
   padding: 1px 6px;
   border-radius: 8px;
   font-weight: 500;
 }
-.folder-item.active .folder-count { background: #d0e4ff; color: #409eff; }
+.folder-item.active .folder-count { background: var(--el-color-primary-light-7); color: var(--el-color-primary); }
 .folder-actions { display: none; align-items: center; gap: 8px; }
 .folder-item:hover .folder-actions { display: inline-flex; }
 .folder-item:hover .folder-count { display: none; }
 .folder-act {
   font-size: 14px;
-  color: #999;
+  color: var(--text-muted);
   cursor: pointer;
   transition: color 0.15s;
 }
-.folder-act:hover { color: #409eff; }
-.folder-act-danger:hover { color: #f56c6c; }
+.folder-act:hover { color: var(--el-color-primary); }
+.folder-act-danger:hover { color: var(--el-color-danger); }
 .new-folder-btn {
   width: 100%;
   margin-top: 16px;
   border-style: dashed;
 }
 .storage-info { margin-top: auto; padding-top: 16px; }
-.storage-label { font-size: 12px; color: #999; margin-bottom: 4px; }
-.storage-text { font-size: 11px; color: #999; margin-top: 4px; }
+.storage-label { font-size: 12px; color: var(--text-muted); margin-bottom: 4px; }
+.storage-text { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
 </style>

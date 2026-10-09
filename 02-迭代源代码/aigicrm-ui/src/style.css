@@ -10,9 +10,47 @@ html, body, #app {
 }
 
 :root {
+  /* ===== 设计令牌(2026-10-08 UI 整改批次①) =====
+     原三个"声明了但全仓零引用"的死变量(--primary-color/--sidebar-bg/--sidebar-active)
+     就此启用并接线到 layout/dashboard;后续页面一律引用令牌,不再散落硬编码色值。 */
+  /* 品牌主色(与 --el-color-primary 同源,供非 Element Plus 场景引用) */
   --primary-color: #1d4ed8;
-  --sidebar-bg: #1d2b3a;
-  --sidebar-active: #1d4ed8;
+  /* 侧栏深色体系。注:el-menu 的 background-color/text-color/active-text-color 三个组件 prop
+     需要字面色值参与 hover 混色计算,无法直接传 CSS 变量,取值须与此处令牌保持一致(layout/index.vue) */
+  --sidebar-bg: #001629;
+  --sidebar-text: #bfcbd9;
+  --sidebar-active: #6083e4;
+  /* 文字灰阶(白底对比度均 ≥ 4.5:1,达 WCAG AA);--text-placeholder 仅限占位符/空态/禁用态 */
+  --text-primary: #1f2329;
+  --text-secondary: #4e5969;
+  --text-muted: #6b7280;
+  --text-placeholder: #94a3b8;
+  --border-light: #ebeef5;
+  /* 圆角与阴影(收敛此前 11 档圆角、4 种手写阴影配方)；--radius-pill 供胶囊/徽标专用，替代散落的 999px */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+  --radius-pill: 999px;
+  --shadow-card: 0 1px 2px rgba(16, 24, 40, .04), 0 10px 28px rgba(16, 24, 40, .06);
+  --shadow-card-hover: 0 4px 16px rgba(15, 23, 42, .06);
+  --shadow-pop: 0 8px 24px rgba(15, 23, 42, .12);
+  /* ===== 设计令牌批次②(2026-10-08 UI 整改第2轮) ===== */
+  /* 品牌深蓝大数字色(统一此前 #16337a/#1d337a 双胞胎) */
+  --brand-navy: #16337a;
+  /* 深蓝主视觉带唯一渐变/投影：hero 横幅/头像/登录按钮等处的 135deg 品牌蓝渐变已全部接线到本令牌
+     （【B5/B8 三轮 2026-10-09】清除 layout/index.vue 等 5 处两段式 #1d4ed8→#2563eb 复制串），改品牌色只需改这里 */
+  --hero-gradient: linear-gradient(135deg, #16337a 0%, #1d4ed8 58%, #2563eb 100%);
+  --hero-shadow: 0 6px 20px rgba(22, 51, 122, .14);
+  /* 警示橙收敛(B5)：图表/分类琥珀唯一值 --chart-amber；白底文字用深档 --chart-amber-deep(白底 5.0:1 达标)。
+     【B5 三轮 2026-10-09 修复】此前写成了 "--chart-amber: var(--chart-amber)" 自引用，
+     CSS 自定义属性循环引用在 Chromium 中计算为 guaranteed-invalid(透明)，
+     导致统计页图例点/折线/状态条与排行页奖牌整条琥珀线不渲染——这里落回真实字面值。
+     非图表的警示语义一律走 --el-color-warning，不再使用散值 */
+  --chart-amber: #fbbf24;
+  --chart-amber-deep: #b45309;
+  /* 字阶令牌(B6)：hero/统计大数字唯一档(收敛 28/30/32 三档)；正文常规档 12/13/14，奇数档已清理 */
+  --font-num-hero: 30px;
+
   /* 企业主色统一(2026-09-23 UI 批次): Element Plus 主题变量对齐深蓝设计语言 */
   --el-color-primary: #1d4ed8;
   --el-color-primary-light-3: #6083e4;
@@ -22,6 +60,17 @@ html, body, #app {
   --el-color-primary-light-9: #e8edfb;
   --el-color-primary-dark-2: #173ead;
 }
+
+/* ===== 【B7 徽章 effect 使用规则】(2026-10-08 整改成文) =====
+   类型/类别章 = effect="dark"(如客户状态、公海/审批标签,深底白字醒目)；
+   状态章     = effect="light"(默认,弱底色可读)；
+   弱化/次要标签 = effect="plain"(仅描边,用于不抢焦点的辅助信息)。
+   新增标签一律按此选择,同一屏不混用两种质感表达同一语义。 */
+
+/* ===== 【B6 数字排版】等宽数字(2026-10-08 整改；三轮补 .stat-value=捞取记录页统计卡) =====
+   统计大数字与表格数值统一 tabular-nums,位数变化时数字宽度不跳动 */
+.hm-num, .stat-num, .ah-num, .cs-num, .ss-num, .ap-num, .sc-num, .stat-value { font-variant-numeric: tabular-nums; }
+.el-table { font-variant-numeric: tabular-nums; }
 
 /* 滚动条样式 */
 ::-webkit-scrollbar {
@@ -43,7 +92,7 @@ html, body, #app {
   bottom: -20px;
   background: #fff;
   padding: 12px 16px !important;
-  border-top: 1px solid #ebeef5;
+  border-top: 1px solid var(--border-light);
   z-index: 5;
   margin-left: -20px;
   margin-right: -20px;
@@ -51,14 +100,14 @@ html, body, #app {
 }
 
 /* ===== 统一确认弹窗（删除/撤销）2026-08-08 ===== */
-.app-confirm { border-radius: 12px; padding-bottom: 8px; }
+.app-confirm { border-radius: var(--radius-md); padding-bottom: 8px; }
 .app-confirm .el-message-box__header { padding-bottom: 6px; }
-.app-confirm .el-message-box__title { font-weight: 600; color: #1f2329; font-size: 15px; }
+.app-confirm .el-message-box__title { font-weight: 600; color: var(--text-primary); font-size: 15px; }
 .app-confirm .el-message-box__status { font-size: 20px; }
 .app-confirm .el-message-box__content {
   text-align: left;
   line-height: 1.7;
-  color: #4e5969;
+  color: var(--text-secondary);
   font-size: 13px;
   padding: 4px 0 2px;
 }
@@ -74,16 +123,16 @@ html, body, #app {
   border-radius: 7px;
   font-weight: 500;
 }
-.app-confirm .el-message-box__btns .el-button--danger { background: #f56c6c; border-color: #f56c6c; }
+.app-confirm .el-message-box__btns .el-button--danger { background: var(--el-color-danger); border-color: var(--el-color-danger); }
 .app-confirm .el-message-box__btns .el-button--danger:hover { background: #f78989; border-color: #f78989; }
 
 /* ===== 【2026-09-20 全局页面骨架】灰画布上的白色整体容器 =====
    结构：.main-content(#f5f7fa 灰画布, padding 20px) → .page-shell(白色整体容器)
    → 页面自身的小布局(筛选条/表格/卡网格/分页)。
    所有菜单页一次获得统一骨架；页内 el-card 软化为容器的一部分(去描边投影)。 */
-.page-shell{background:#fff;border-radius:16px;padding:12px 14px;
+.page-shell{background:#fff;border-radius:var(--radius-lg);padding:12px 14px;
   min-height:calc(100vh - 116px);
-  box-shadow:0 1px 2px rgba(16,24,40,.04),0 10px 28px rgba(16,24,40,.06)}
+  box-shadow:var(--shadow-card)}
 .page-shell .el-card{border:none;box-shadow:none;background:transparent}
 
 /* ============ 下拉面板统一企业化(2026-09-23 UI 批次) ============ */
@@ -91,9 +140,9 @@ html, body, #app {
 .el-select__popper.el-popper,
 .el-tree-select__popper.el-popper,
 .el-dropdown__popper.el-popper {
-  border-radius: 10px !important;
+  border-radius: var(--radius-md) !important;
   border: 1px solid #e8ecf1 !important;
-  box-shadow: 0 8px 24px rgba(15, 23, 42, .12) !important;
+  box-shadow: var(--shadow-pop) !important;
   padding: 4px !important;
   overflow: hidden;
 }
@@ -103,32 +152,32 @@ html, body, #app {
 /* 普通下拉项:行高/悬停/选中态 */
 .el-select-dropdown__item {
   height: 34px; line-height: 34px;
-  border-radius: 6px; margin: 1px 0; padding: 0 10px;
+  border-radius: var(--radius-sm); margin: 1px 0; padding: 0 10px;
   transition: background .15s, color .15s;
 }
 .el-select-dropdown__item.is-hovering { background: #eef4ff; }
 .el-select-dropdown__item.is-selected {
-  color: #1d4ed8; font-weight: 600; background: #eef4ff;
+  color: var(--primary-color); font-weight: 600; background: #eef4ff;
 }
 .el-select-dropdown__item.is-disabled { opacity: .45; }
 
 /* 树选择(部门/组织):节点行距/圆角/悬停/选中,缩进线弱化 */
 .el-tree-select__popper .el-tree-node__content {
-  height: 34px; border-radius: 6px; margin: 1px 4px; padding-right: 8px;
+  height: 34px; border-radius: var(--radius-sm); margin: 1px 4px; padding-right: 8px;
   transition: background .15s, color .15s;
 }
 .el-tree-select__popper .el-tree-node__content:hover { background: #eef4ff; }
 .el-tree-select__popper .el-tree .is-current > .el-tree-node__content {
-  background: #eef4ff; color: #1d4ed8; font-weight: 600;
+  background: #eef4ff; color: var(--primary-color); font-weight: 600;
 }
 .el-tree-select__popper .el-tree .is-current > .el-tree-node__content .el-checkbox__input.is-checked .el-checkbox__inner,
-.el-tree-select__popper .el-tree .is-current > .el-tree-node__content .el-checkbox__inner { border-color: #1d4ed8; }
-.el-tree-select__popper .el-tree-node__expand-icon { color: #94a3b8; }
+.el-tree-select__popper .el-tree .is-current > .el-tree-node__content .el-checkbox__inner { border-color: var(--primary-color); }
+.el-tree-select__popper .el-tree-node__expand-icon { color: var(--text-placeholder); }
 .el-tree-select__popper .el-tree-node__expand-icon.is-leaf { opacity: .25; }
-.el-tree-select__popper .el-select-dropdown__empty { padding: 18px 0; color: #94a3b8; }
+.el-tree-select__popper .el-select-dropdown__empty { padding: 18px 0; color: var(--text-placeholder); }
 
 /* ============ 空态/加载态统一(2026-09-23 UI 批次) ============ */
 .el-empty { padding: 36px 0; }
-.el-empty__description p { color: #94a3b8; font-size: 13px; letter-spacing: .3px; }
+.el-empty__description p { color: var(--text-placeholder); font-size: 13px; letter-spacing: .3px; }
 .el-table__empty-block { min-height: 180px; }
 .el-loading-mask { backdrop-filter: blur(1px); }

@@ -17,7 +17,9 @@
           <el-icon><Trophy /></el-icon> 个人排行
         </span>
       </div>
-      <el-select v-model="period" style="width:150px" size="small" @change="loadData">
+      <!-- 【A2 三轮 2026-10-09】period 默认空串=「全部周期」，此前未设 placeholder 时 el-select 渲染裸「请选择」，
+           用户无法得知当前筛选语义；placeholder 与 PERIOD_ALL 选项 label 对齐 -->
+      <el-select v-model="period" placeholder="全部周期" style="width:150px" size="small" @change="loadData">
         <el-option v-for="p in periodOptions" :key="p.value" :label="p.label" :value="p.value" />
       </el-select>
     </div>
@@ -58,5 +60,5 @@ onMounted(loadData)
 .tab-item { display: inline-flex; align-items: center; gap: 4px; padding: 10px 28px; font-size: 14px; cursor: pointer; color: #666; border: 1px solid #ebeef5; background: #fafafa; margin-left: -1px; }
 .tab-item:first-child { border-radius: 8px 0 0 8px; margin-left: 0; }
 .tab-item:last-child { border-radius: 0 8px 8px 0; }
-.tab-item.active { background: #ecf5ff; color: #409eff; font-weight: 600; border-color: #409eff; z-index: 1; position: relative; }
+.tab-item.active { background: var(--el-color-primary-light-9); color: var(--el-color-primary); font-weight: 600; border-color: var(--el-color-primary); z-index: 1; position: relative; }
 </style>

@@ -2,7 +2,8 @@
   <div class="customer-detail" v-if="customer" v-loading="loading">
     <!-- 导航行 -->
     <div class="top-bar">
-      <span class="back-link" @click="$router.push(readonly ? '/sea' : '/customer')">
+      <!-- 【UI 整改 2026-10-08】返回改 goBack：从列表进来时携带 tab/搜索词/页码带参回跳，返回不再丢筛选 -->
+      <span class="back-link" @click="goBack">
         <el-icon><ArrowLeft /></el-icon> {{ readonly ? '返回公海池' : '返回客户列表' }}
       </span>
       <div class="top-actions" v-if="!readonly">
@@ -56,8 +57,8 @@
       </div>
       <div class="overview-item">
         <span class="overview-label">下一任务</span>
-        <!-- 任务模块属 PR-10(待业务决策),此处只占位不代建 -->
-        <span class="overview-value muted">—（任务模块规划中）</span>
+        <!-- 【UI 整改 2026-10-08·⑫】不向用户暴露"任务模块规划中"路线图信息，改用户视角引导话术 -->
+        <span class="overview-value muted">暂无，可在跟进日志中安排</span>
       </div>
     </div>
 
@@ -122,7 +123,7 @@
 
     <!-- 分享弹窗 -->
     <el-dialog v-model="showShareDialog" title="分享客户" width="480px">
-      <p style="color:#909399;margin-bottom:12px;font-size:13px">选择用户后，该用户可查看此客户信息（只读）</p>
+      <p style="color:var(--el-color-info);margin-bottom:12px;font-size:13px">选择用户后，该用户可查看此客户信息（只读）</p>
       <div v-if="shares.length" style="margin-bottom:12px;display:flex;flex-wrap:wrap;gap:6px">
         <el-tag v-for="s in shares" :key="s.id" closable size="small" @close="handleRemoveShare(s)">{{ s.sharedToUserName }}</el-tag>
       </div>
@@ -158,8 +159,24 @@ const {
   invoiceSummary, paymentSummary, avatarColor, bothThresholdMet, indicatorTotal, incentiveRecords,
   canViewFinance,
   canViewContacts,
+  route, router,
   loadAll, loadDicts, loadUsers, loadIncentiveRecords,
 } = detail
+
+// 【UI 整改 2026-10-08·③列表态保持】返回客户列表时携带来源列表的 tab/搜索词/页码
+//（列表页 viewDetail 跳转时写入 query），消除"进详情返回即丢筛选条件"；
+// 非列表来源（公海/分享只读）无这些参数，回列表落默认态
+const goBack = () => {
+  if (readonly.value) {
+    router.push('/sea')
+    return
+  }
+  const query = {}
+  if (route.query.tab) query.tab = String(route.query.tab)
+  if (route.query.kw) query.kw = String(route.query.kw)
+  if (route.query.page) query.page = String(route.query.page)
+  router.push({ path: '/customer', query })
+}
 
 onMounted(() => { loadAll(); loadDicts(); loadUsers() })
 watch(customer, (v) => { if (v?.customerName) loadIncentiveRecords() })
@@ -167,37 +184,41 @@ watch(customer, (v) => { if (v?.customerName) loadIncentiveRecords() })
 
 <style scoped>
 .top-bar { display:flex; justify-content:space-between; align-items:center; margin-bottom:16px }
-.back-link { color:#409eff; font-size:14px; cursor:pointer; display:flex; align-items:center; gap:4px }
-.back-link:hover { color:#66b1ff }
+/* 【UI 整改 2026-10-08】返回链接改主题变量，不再硬编码 var(--el-color-primary) */
+.back-link { color:var(--el-color-primary); font-size:14px; cursor:pointer; display:flex; align-items:center; gap:4px }
+.back-link:hover { color:var(--el-color-primary-light-3) }
 .top-actions { display:flex; gap:8px }
-.hero-card { background:linear-gradient(135deg,#1d39c4,#409eff); border-radius:12px; padding:28px 32px; color:#fff; margin-bottom:16px; display:flex; justify-content:space-between; align-items:center; box-shadow:0 4px 20px rgba(64,158,255,.25) }
+/* 【UI 整改 2026-10-08·⑨】hero 渐变/阴影对齐品牌深蓝体系（#16337a→#1d4ed8→#2563eb，同 StatCards.vue 客户条带），
+   替换偏亮蓝紫的 #1d39c4→var(--el-color-primary) 旧渐变 */
+.hero-card { background:var(--hero-gradient); border-radius:12px; padding:28px 32px; color:#fff; margin-bottom:16px; display:flex; justify-content:space-between; align-items:center; box-shadow:var(--hero-shadow) }
 .hero-left { display:flex; align-items:center; gap:20px }
 .hero-avatar { width:60px; height:60px; border-radius:14px; display:flex; align-items:center; justify-content:center; font-size:24px; font-weight:800; border:2px solid rgba(255,255,255,.3); flex-shrink:0 }
 .hero-main h1 { font-size:22px; font-weight:700; margin:0 0 6px; letter-spacing:.5px }
 .hero-meta { display:flex; gap:10px; flex-wrap:wrap }
-.meta-tag { display:inline-flex; align-items:center; gap:4px; font-size:12px; padding:3px 10px; background:rgba(255,255,255,.15); border-radius:6px; opacity:.9 }
+.meta-tag { display:inline-flex; align-items:center; gap:4px; font-size:12px; padding:3px 10px; background:rgba(255,255,255,.15); border-radius: var(--radius-sm); opacity:.9 }
 .hero-right { text-align:right; display:flex; flex-direction:column; align-items:flex-end; gap:8px }
 .hero-badge { display:inline-flex; align-items:center; gap:4px; padding:6px 16px; border-radius:20px; font-size:13px; font-weight:600 }
 .hero-badge.core { background:rgba(82,196,26,.3) }.hero-badge.non { background:rgba(255,255,255,.12) }
 .hero-expire { text-align:right }.expire-date { font-size:28px; font-weight:700 }
-.expire-tag { display:inline-flex; align-items:center; gap:4px; padding:2px 10px; border-radius:10px; font-size:12px; margin-top:2px }
+.expire-tag { display:inline-flex; align-items:center; gap:4px; padding:2px 10px; border-radius: var(--radius-md); font-size:12px; margin-top:2px }
 .expire-tag.lvl-red { background:rgba(245,108,108,.3) }.expire-tag.lvl-orange { background:rgba(230,162,60,.3) }.expire-tag.lvl-blue { background:rgba(255,255,255,.2) }
 .stat-cards { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:20px }
 /* 【PR-11 首批】统一作业概览条 */
-.overview-strip { display:flex; gap:24px; flex-wrap:wrap; background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:12px 16px; margin-bottom:14px }
+.overview-strip { display:flex; gap:24px; flex-wrap:wrap; background:#f8fafc; border:1px solid #e2e8f0; border-radius: var(--radius-md); padding:12px 16px; margin-bottom:14px }
 .overview-item { min-width:220px; flex:1 }
 .overview-label { display:block; font-size:12px; color:#94a3b8; margin-bottom:4px }
 .overview-value { font-size:13px; color:#334155; word-break:break-all }
 .overview-value.muted { color:#cbd5e1 }
-.expire-days { font-size:12px; color:#64748b; text-align:right; margin-top:4px }
-.stat-card { background:#fff; border-radius:10px; padding:18px 16px; display:flex; align-items:center; gap:14px; box-shadow:0 1px 3px rgba(0,0,0,.04); transition:box-shadow .2s }
+/* 【UI 整改 2026-10-08·⑨】蓝底 hero 上的辅助字改近白色（原 #64748b 对比度约 1.6:1 不可读，现 ≥4.5:1） */
+.expire-days { font-size:12px; color:rgba(255,255,255,.92); text-align:right; margin-top:4px }
+.stat-card { background:#fff; border-radius: var(--radius-md); padding:18px 16px; display:flex; align-items:center; gap:14px; box-shadow:0 1px 3px rgba(0,0,0,.04); transition:box-shadow .2s }
 .stat-card:hover { box-shadow:0 4px 12px rgba(0,0,0,.08) }
 .stat-icon-box { width:44px; height:44px; border-radius:12px; display:flex; align-items:center; justify-content:center; font-size:20px }
-.stat-icon-box.gold { background:#fef3e2; color:#e6a23c }.stat-icon-box.red { background:#fef0f0; color:#f56c6c }
-.stat-icon-box.blue { background:#ecf5ff; color:#409eff }.stat-icon-box.green { background:#f0f9eb; color:#67c23a }
+.stat-icon-box.gold { background:#fef3e2; color:var(--el-color-warning) }.stat-icon-box.red { background:#fef0f0; color:var(--el-color-danger) }
+.stat-icon-box.blue { background:var(--el-color-primary-light-9); color:var(--el-color-primary) }.stat-icon-box.green { background:#f0f9eb; color:var(--el-color-success) }
 .stat-num { font-size:22px; font-weight:700; color:#1f2329; line-height:1.2 }
-.stat-label { font-size:12px; color:#909399; margin-top:2px }
-.detail-tabs { background:#fff; border-radius:10px; padding:4px 20px 20px; box-shadow:0 1px 3px rgba(0,0,0,.04) }
+.stat-label { font-size:12px; color:var(--el-color-info); margin-top:2px }
+.detail-tabs { background:#fff; border-radius: var(--radius-md); padding:4px 20px 20px; box-shadow:0 1px 3px rgba(0,0,0,.04) }
 .detail-tabs :deep(.el-tabs__header) { margin-bottom:16px }
 .detail-tabs :deep(.el-tabs__item) { font-size:14px; font-weight:500 }
 </style>

@@ -1,12 +1,12 @@
 <view class="page profile-doc-page">
   <view class="doc-brand-card">
     <view class="logo">A</view>
-    <text class="title">AIGICRM</text>
+    <text class="title">运筹马年·市场资源管理系统</text>
     <text class="version">{{version}}</text>
   </view>
   <view class="doc-section">
     <text class="heading">关于系统</text>
-    <text class="body">AIGICRM 为客户管理、四项激励、审批与文件协作提供统一工作台。PC 与小程序共用同一套账号、数据权限和业务规则。</text>
+    <text class="body">运筹马年·市场资源管理系统 为客户管理、四项激励、审批与文件协作提供统一工作台。PC 与小程序共用同一套账号、数据权限和业务规则。</text>
   </view>
   <view class="doc-section">
     <text class="heading">服务范围</text>

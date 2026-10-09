@@ -98,6 +98,6 @@ async function openInBrowser() {
 
 .doc-fallback {
   padding: 50px 0;
-  color: #909399;
+  color: var(--el-color-info);
 }
 </style>

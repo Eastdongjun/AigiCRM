@@ -73,7 +73,7 @@
 .score-meta{margin-top:6rpx;color:#7c8ba1;font-size:22rpx}
 .score-value{color:#172033;font-size:26rpx;font-weight:850;white-space:nowrap}
 
-/* 「更新」重设计: 圆形图标按钮(与经营统计页同款) */
+/* 「更新」重设计: 圆形图标按钮(与统计分析页同款) */
 .stats-refresh-btn { width: 56rpx; height: 56rpx; min-width: 0; margin: 0; padding: 0; border-radius: 50%;
   border: 1rpx solid #cfe0f7; background: #f5f9ff; color: #1d4ed8; font-size: 30rpx; line-height: 54rpx;
   display: flex; align-items: center; justify-content: center; }

@@ -8,8 +8,12 @@
       </el-button>
     </div>
     <div v-if="contacts.length" class="contacts-list">
-      <div v-for="(c, idx) in contacts" :key="idx" class="contact-row">
-        <el-input v-model="c.name" placeholder="姓名" />
+      <!-- 【C11 2026-10-08】联系人校验错误行内呈现：错误行红框+姓名框下方红字，提交时自动滚动到此 -->
+      <div v-for="(c, idx) in contacts" :key="idx" class="contact-row" :class="{ 'contact-error': contactErrors[idx] }">
+        <div class="contact-name-cell">
+          <el-input v-model="c.name" placeholder="姓名" @input="contactErrors[idx] = ''" />
+          <div v-if="contactErrors[idx]" class="contact-err-text">{{ contactErrors[idx] }}</div>
+        </div>
         <el-input v-model="c.position" placeholder="职位" />
         <el-input v-model="c.phone" placeholder="电话" />
         <el-input v-model="c.remark" placeholder="备注" />
@@ -26,7 +30,7 @@
 import { injectCustomerForm } from '@/composables/useCustomerForm'
 import './add-common.css'
 
-const { contacts, addContactRow } = injectCustomerForm()
+const { contacts, contactErrors, addContactRow } = injectCustomerForm()
 </script>
 
 <style scoped>
@@ -43,11 +47,15 @@ const { contacts, addContactRow } = injectCustomerForm()
   border: 1px solid #f0f1f3;
 }
 .empty-hint {
-  color: #c0c4cc;
+  color: var(--text-placeholder);
   font-size: 13px;
   text-align: center;
   padding: 16px 0;
   background: #fafbfc;
   border-radius: 8px;
 }
+/* 【C11】错误行内报错样式 */
+.contact-row.contact-error { border-color: var(--el-color-danger); background: #fff8f8; }
+.contact-name-cell { display: flex; flex-direction: column; gap: 4px; }
+.contact-err-text { font-size: 12px; color: var(--el-color-danger); line-height: 1.3; }
 </style>

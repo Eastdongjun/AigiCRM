@@ -84,6 +84,7 @@ export function scoreColor(c) {
 }
 
 // 文件槽位标签颜色（安装前蓝/安装中绿/安装后橙/跟踪紫）
+// 【B5 2026-10-08】琥珀统一走 --chart-amber 令牌（内联样式支持 CSS 变量），不再散落字面量
 export function tagColor(t) {
-  return { 安装前: '#2563eb', 安装中: '#059669', 安装后: '#f59e0b', 跟踪: '#7c3aed' }[t] || '#6b7280'
+  return { 安装前: '#2563eb', 安装中: '#059669', 安装后: 'var(--chart-amber)', 跟踪: '#7c3aed' }[t] || '#6b7280'
 }

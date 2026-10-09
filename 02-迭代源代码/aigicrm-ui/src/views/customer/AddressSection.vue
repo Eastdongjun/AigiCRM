@@ -41,18 +41,18 @@ const { form, regionValue, regionData, canEditProtectedDates, handleRegionChange
 .field-hint {
   font-size: 12px;
   line-height: 1.4;
-  color: #909399;
+  color: var(--el-color-info);
   margin-top: 4px;
 }
 .protect-hint {
   display: flex;
   align-items: center;
   gap: 4px;
-  color: #409eff;
+  color: var(--el-color-primary);
   font-size: 13px;
   height: 32px;
   padding: 0 12px;
-  background: #ecf5ff;
-  border-radius: 6px;
+  background: var(--el-color-primary-light-9);
+  border-radius: var(--radius-sm);
 }
 </style>

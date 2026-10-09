@@ -39,14 +39,14 @@ const { userStore, activeParent, groupedChildren, startUpload } = injectIncentiv
 
 <style scoped>
 .left-panel { flex:0 0 240px; background:#fafbfd; padding:16px; border-right:1px solid #f0f2f5; overflow-y:auto }
-.sub-hint { display:flex; align-items:center; gap:8px; margin-bottom:12px; color:#909399; font-size:13px }
+.sub-hint { display:flex; align-items:center; gap:8px; margin-bottom:12px; color:var(--el-color-info); font-size:13px }
 .sub-group { margin-bottom:4px }
-.group-header { font-size:13px; font-weight:700; color:#1f2329; padding:10px 0 6px 12px; border-left:3px solid #409eff; margin-top:8px }
+.group-header { font-size:13px; font-weight:700; color:#1f2329; padding:10px 0 6px 12px; border-left:3px solid var(--el-color-primary); margin-top:8px }
 .sub-item { display:flex; justify-content:space-between; align-items:center; padding:10px 0 10px 12px; border-bottom:1px solid #f5f5f5; transition:background .15s }
 .sub-item:hover { background:#f0f4ff }
 .sub-item.flat { padding-left:0 }
 .sub-name { font-size:13px; color:#333; font-weight:500 }
 .sub-actions { display:flex; align-items:center; gap:10px }
-.score-badge { display:inline-block; min-width:28px; text-align:center; padding:2px 8px; border-radius:10px; font-size:12px; font-weight:600 }
-.score-0 { color:#bbb; background:#f5f5f5 } .score-1 { color:#e6a23c; background:#fff7ed } .score-2 { color:#67c23a; background:#f0f9eb } .score-3 { color:#f56c6c; background:#fef0f0 }
+.score-badge { display:inline-block; min-width:28px; text-align:center; padding:2px 8px; border-radius: var(--radius-md); font-size:12px; font-weight:600 }
+.score-0 { color:#bbb; background:#f5f5f5 } .score-1 { color:var(--el-color-warning); background:#fff7ed } .score-2 { color:var(--el-color-success); background:#f0f9eb } .score-3 { color:var(--el-color-danger); background:#fef0f0 }
 </style>

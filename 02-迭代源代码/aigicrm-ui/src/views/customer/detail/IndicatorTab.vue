@@ -32,10 +32,10 @@ const {
 .indicator-panel { }
 .ind-row { display:flex; align-items:center; gap:14px; padding:12px 0; border-bottom:1px solid #f5f5f5 }
 .ind-row:last-child { border-bottom:none }
-.ind-num { width:28px; height:28px; border-radius:50%; background:#409eff; color:#fff; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; flex-shrink:0 }
+.ind-num { width:28px; height:28px; border-radius:50%; background:var(--el-color-primary); color:#fff; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; flex-shrink:0 }
 .ind-name { flex:1; font-size:14px; color:#333 }
-.ind-status { font-size:13px; font-weight:600 }.ind-status.pass { color:#52c41a }.ind-status.fail { color:#f56c6c }
+.ind-status { font-size:13px; font-weight:600 }.ind-status.pass { color:#52c41a }.ind-status.fail { color:var(--el-color-danger) }
 .ind-actions { display:flex; justify-content:space-between; align-items:center; margin-top:16px; padding-top:14px; border-top:2px solid #f0f0f0; font-size:14px; color:#666 }
-.ind-total { font-size:24px; color:#409eff }.ind-warn { color:#fa8c16; font-size:12px; margin-left:8px }
+.ind-total { font-size:24px; color:var(--el-color-primary) }.ind-warn { color:#fa8c16; font-size:12px; margin-left:8px }
 .main-threshold { background:#fafbfc; border-radius:8px; padding:14px 16px; margin-bottom:4px }
 </style>

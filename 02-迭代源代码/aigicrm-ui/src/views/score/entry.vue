@@ -113,7 +113,8 @@
 
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ElMessage } from 'element-plus'
+import { confirmAction } from '@/utils/confirm'
 import { Plus, Delete } from '@element-plus/icons-vue'
 import { getScoreGrid, batchSaveEntries, addScoreItem, updateScoreItem, deleteScoreItem } from '@/api/score'
 import { getDictData } from '@/api/system'
@@ -156,12 +157,14 @@ const getScore = (itemId, userId) => scores.value[itemId+'_'+userId] ?? ''
 const setScore = (itemId, userId, event) => { const v=parseInt(event.target.value)||0; const item=items.value.find(i=>i.id===itemId); const mx=item?.scoreMax||5; const mn=item?.scoreMin||0; event.target.value=Math.max(mn,Math.min(mx,v)); scores.value[itemId+'_'+userId]=Math.max(mn,Math.min(mx,v)) }
 const getUserTotal = (userId) => { let s=0; for(const item of items.value) s+=scores.value[item.id+'_'+userId]||0; return s }
 
-// 保存失败由拦截器统一提示具体原因，本地不再弹笼统"保存失败"造成双重提示
-const handleSave = async () => { saving.value=true; try { const entries=[]; for(const item of items.value) for(const u of visibleUsers.value) { const s=scores.value[item.id+'_'+u.id]; if(s!==undefined&&s!==''&&s!==null) entries.push({itemId:item.id,userId:u.id,score:s}) }; await batchSaveEntries({period:period.value,entries,participantIds:visibleUsers.value.map(u=>u.id)}); ElMessage.success('保存成功') } catch{}; saving.value=false }
+// 保存失败由拦截器统一提示具体原因，本地不再弹笼统"保存失败"造成双重提示；
+// 【C12 2026-10-08 二轮】失败分支显式留痕(console.error)，避免静默失败被误读为保存成功
+const handleSave = async () => { saving.value=true; try { const entries=[]; for(const item of items.value) for(const u of visibleUsers.value) { const s=scores.value[item.id+'_'+u.id]; if(s!==undefined&&s!==''&&s!==null) entries.push({itemId:item.id,userId:u.id,score:s}) }; await batchSaveEntries({period:period.value,entries,participantIds:visibleUsers.value.map(u=>u.id)}); ElMessage.success('保存成功') } catch(e){ console.error('积分保存失败', e) }; saving.value=false }
 const handleAddRow = async () => { try { const r=await addScoreItem({category:'',product:'',scoreMin:0,scoreMax:5}); if(r.data) items.value.push(r.data); ElMessage.success('已添加') } catch{} }
 // 删除行：确认框取消 → 直接返回不动数据；接口失败 → 拦截器已提示，本地不再叠加（行不删除）
 const handleDeleteRow = async (item, idx) => {
-  try { await ElMessageBox.confirm('确定删除？所有周期数据一并删除。','提示',{type:'warning'}) } catch { return }
+  // 【UI 整改 2026-10-08】删除类确认走 confirmAction：红色确认钮 + 取消左置
+  try { await confirmAction('确定删除？所有周期数据一并删除。','删除确认',{ confirmText: '删除' }) } catch { return }
   try { await deleteScoreItem(item.id) } catch { return }
   items.value.splice(idx,1); ElMessage.success('已删除')
 }
@@ -189,10 +192,10 @@ onMounted(() => { loadDicts(); loadGrid() })
 .se-period { display:flex; align-items:center; gap:0; background:#f2f4f7; border-radius:8px; overflow:hidden }
 .se-year { width:80px } .se-year :deep(.el-input__wrapper) { box-shadow:none; background:transparent }
 .se-half { display:flex }
-.se-half span { padding:7px 14px; font-size:13px; cursor:pointer; color:#606266; transition:all .15s; border-radius:6px; margin:2px }
-.se-half span.on { background:#fff; color:#409eff; font-weight:600; box-shadow:0 1px 3px rgba(0,0,0,.08) }
+.se-half span { padding:7px 14px; font-size:13px; cursor:pointer; color:#606266; transition:all .15s; border-radius: var(--radius-sm); margin:2px }
+.se-half span.on { background:#fff; color:var(--el-color-primary); font-weight:600; box-shadow:0 1px 3px rgba(0,0,0,.08) }
 .se-head-right { display:flex; align-items:center; gap:10px }
-.se-hint { font-size:12px; color:#909399 }
+.se-hint { font-size:12px; color:var(--el-color-info) }
 
 .se-table-card { flex:1; min-height:0; background:#fff; border-radius:12px; border:1px solid #e8ecf1; overflow:hidden; box-shadow:0 1px 3px rgba(0,0,0,.03) }
 .se-table-wrap { overflow:auto; max-height:100% }
@@ -201,7 +204,7 @@ onMounted(() => { loadDicts(); loadGrid() })
 .se-table th,.se-table td { border:1px solid #f0f1f3; padding:8px 6px; text-align:center; white-space:nowrap }
 .se-table thead th { background:#f8f9fb; color:#4e5969; font-weight:500; position:sticky; top:0; z-index:2 }
 
-.col-idx { width:36px; color:#909399 } .col-cat { min-width:110px; width:110px } .col-prod { min-width:200px; width:200px } .col-range { min-width:90px; width:90px }
+.col-idx { width:36px; color:var(--el-color-info) } .col-cat { min-width:110px; width:110px } .col-prod { min-width:200px; width:200px } .col-range { min-width:90px; width:90px }
 .col-op { width:44px } .col-user { min-width:72px; width:72px } .col-add-user { width:36px }
 
 .se-th-group th { background:#f2f4f7; font-size:13px; font-weight:600; color:#1f2329; padding:10px 6px }
@@ -209,19 +212,19 @@ onMounted(() => { loadDicts(); loadGrid() })
 .se-th-row th { font-weight:600; font-size:13px; color:#4e5969 }
 
 .se-user-head { display:flex; align-items:center; justify-content:center; gap:2px; font-size:12px }
-.se-user-rm { cursor:pointer; color:#c0c4cc; font-size:14px } .se-user-rm:hover { color:#f56c6c }
-.se-add-user-btn { font-size:18px; color:#409eff }
+.se-user-rm { cursor:pointer; color: var(--text-placeholder); font-size:14px } .se-user-rm:hover { color:var(--el-color-danger) }
+.se-add-user-btn { font-size:18px; color:var(--el-color-primary) }
 
 .se-data-row:hover { background:#fafbfc }
 .se-data-row :deep(.el-select) { width:100% } .se-data-row :deep(.el-input__inner) { font-size:13px; color:#1f2329 }
 
-.se-input { width:54px; height:30px; border:1px solid #e5e6eb; border-radius:6px; text-align:center; font-size:13px; outline:none; transition:border-color .15s }
-.se-input:focus { border-color:#409eff; box-shadow:0 0 0 3px rgba(64,158,255,.1) }
+.se-input { width:54px; height:30px; border:1px solid #e5e6eb; border-radius: var(--radius-sm); text-align:center; font-size:13px; outline:none; transition:border-color .15s }
+.se-input:focus { border-color:var(--el-color-primary); box-shadow:0 0 0 3px color-mix(in srgb, var(--el-color-primary) 10%, transparent) }
 .se-input::-webkit-inner-spin-button { -webkit-appearance:none }
 
 .se-add-row td { background:#fafbfc; text-align:left!important; padding:10px 16px!important }
-.se-total-row { background:#f5f7fa } .se-total-row td { border-top:2px solid #409eff; font-weight:700 }
+.se-total-row { background:#f5f7fa } .se-total-row td { border-top:2px solid var(--el-color-primary); font-weight:700 }
 
-.se-pick-empty { color:#c0c4cc; font-size:13px; text-align:center; padding:12px 0 }
-.se-pick-item { padding:8px 12px; cursor:pointer; font-size:13px; border-radius:4px } .se-pick-item:hover { background:#ecf5ff; color:#409eff }
+.se-pick-empty { color: var(--text-placeholder); font-size:13px; text-align:center; padding:12px 0 }
+.se-pick-item { padding:8px 12px; cursor:pointer; font-size:13px; border-radius:4px } .se-pick-item:hover { background:var(--el-color-primary-light-9); color:var(--el-color-primary) }
 </style>

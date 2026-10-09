@@ -57,7 +57,8 @@ const formRef = ref(null)
 const userInputRef = ref(null)
 const loading = ref(false)
 const forgotPwdVisible = ref(false)
-const systemName = ref('AIGICRM')
+// 【A4 三轮】默认品牌与页内展示一致（配置加载后由后端 system.name 覆写）
+const systemName = ref('运筹马年·市场资源管理系统')
 const systemSubtitle = ref('市场资源管理系统')
 const systemLogo = ref('')
 
@@ -236,7 +237,7 @@ const handleLogin = async () => {
   height: 18px;
   border-radius: 50%;
   background: rgba(96, 131, 228, .35);
-  font-size: 11px;
+  font-size: 12px;
   margin-right: 10px;
   vertical-align: middle;
 }
@@ -303,8 +304,8 @@ const handleLogin = async () => {
   height: 48px;
   font-size: 16px;
   letter-spacing: 6px;
-  border-radius: 6px;
-  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%) !important;
+  border-radius: var(--radius-sm);
+  background: var(--hero-gradient) !important;
   border: none !important;
   box-shadow: 0 4px 14px rgba(29, 78, 216, 0.35);
 }

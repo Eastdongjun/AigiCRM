@@ -13,7 +13,7 @@
       <el-col :span="6">
         <el-card shadow="hover" class="stat-card">
           <div class="stat-body">
-            <el-icon :size="36" color="#409eff"><Document /></el-icon>
+            <el-icon :size="36" color="var(--el-color-primary)"><Document /></el-icon>
             <div>
               <div class="stat-value blue">{{ kpi.total || 0 }}</div>
               <div class="stat-label">总记录</div>
@@ -24,7 +24,7 @@
       <el-col :span="6">
         <el-card shadow="hover" class="stat-card">
           <div class="stat-body">
-            <el-icon :size="36" color="#67c23a"><CircleCheck /></el-icon>
+            <el-icon :size="36" color="var(--el-color-success)"><CircleCheck /></el-icon>
             <div>
               <div class="stat-value green">{{ kpi.approved || 0 }}</div>
               <div class="stat-label">已通过</div>
@@ -35,7 +35,7 @@
       <el-col :span="6">
         <el-card shadow="hover" class="stat-card">
           <div class="stat-body">
-            <el-icon :size="36" color="#f56c6c"><CircleClose /></el-icon>
+            <el-icon :size="36" color="var(--el-color-danger)"><CircleClose /></el-icon>
             <div>
               <div class="stat-value red">{{ kpi.rejected || 0 }}</div>
               <div class="stat-label">已驳回</div>
@@ -46,7 +46,7 @@
       <el-col :span="6">
         <el-card shadow="hover" class="stat-card">
           <div class="stat-body">
-            <el-icon :size="36" color="#e6a23c"><Clock /></el-icon>
+            <el-icon :size="36" color="var(--el-color-warning)"><Clock /></el-icon>
             <div>
               <div class="stat-value orange">{{ kpi.pending || 0 }}</div>
               <div class="stat-label">待审批</div>
@@ -76,7 +76,7 @@
       <el-table v-loading="loading" :data="records" stripe style="width: 100%" size="small" :height="tableHeight">
         <el-table-column label="申请日期" min-width="110">
           <template #default="{ row }">
-            <span style="color: #999; font-size: 12px">{{ formatDate(row.applyDate) }}</span>
+            <span style="color: var(--text-muted); font-size: 12px">{{ formatDate(row.applyDate) }}</span>
           </template>
         </el-table-column>
         <el-table-column prop="customerName" label="客户名称" min-width="180" show-overflow-tooltip />
@@ -96,7 +96,7 @@
         </el-table-column>
         <el-table-column label="审批时间" min-width="110">
           <template #default="{ row }">
-            <span style="color: #999; font-size: 12px">{{ formatDate(row.approveTime) }}</span>
+            <span style="color: var(--text-muted); font-size: 12px">{{ formatDate(row.approveTime) }}</span>
           </template>
         </el-table-column>
       </el-table>
@@ -116,6 +116,8 @@ import { useRouter } from 'vue-router'
 import { Back } from '@element-plus/icons-vue'
 import { getClaimRecords } from '@/api/sea'
 import { pageSizes } from '@/utils/pagination'
+// 【B7/C9 2026-10-08】审批状态映射收敛到 utils/status-maps.js 唯一来源（reviewing 与审批页页签统一叫「审批中」）
+import { APPROVAL_STATUS, statusOf } from '@/utils/status-maps'
 // 【D6 2026-10-04】表格高度统一走共享 composable（替代本页内联的 ResizeObserver 实现）
 import { useTableHeight } from './useTableHeight'
 
@@ -155,8 +157,9 @@ const formatDate = (dt) => {
   return String(dt).substring(0, 16).replace('T', ' ')
 }
 
-const getStatusText = (s) => ({ approved: '已通过', rejected: '已驳回', reviewing: '待审批' }[s] || s)
-const getStatusType = (s) => ({ approved: 'success', rejected: 'danger', reviewing: 'warning' }[s] || 'info')
+// 【B7/C9 2026-10-08】状态文案/配色统一走 utils/status-maps.js（与审批管理页同源）
+const getStatusText = (s) => statusOf(APPROVAL_STATUS, s).text
+const getStatusType = (s) => statusOf(APPROVAL_STATUS, s).type
 
 // 表格高度：动态计算可用高度，保证分页器完整显示、不被裁切
 // 【D6 2026-10-04】与 sea/index.vue 共用 useTableHeight（容器实测 + ResizeObserver）
@@ -170,16 +173,17 @@ onMounted(() => {
 <style scoped>
 .page-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
 .page-header h2 { font-size: 18px; font-weight: 600; color: #333; }
-.page-desc { color: #999; font-size: 13px; }
+.page-desc { color: var(--text-muted); font-size: 13px; }
 .stat-cards { margin-bottom: 12px; }
 .stat-card { border-radius: 8px; }
 .stat-body { display: flex; align-items: center; gap: 16px; }
-.stat-value { font-size: 32px; font-weight: bold; line-height: 1.2; }
-.stat-value.blue { color: #409eff; }
-.stat-value.green { color: #67c23a; }
-.stat-value.red { color: #f56c6c; }
-.stat-value.orange { color: #e6a23c; }
-.stat-label { color: #999; font-size: 12px; margin-top: 4px; }
+/* 【B6 三轮 2026-10-09】大数字唯一档 --font-num-hero(30px)，收敛 32px 游离档 */
+.stat-value { font-size: var(--font-num-hero); font-weight: bold; line-height: 1.2; }
+.stat-value.blue { color: var(--el-color-primary); }
+.stat-value.green { color: var(--el-color-success); }
+.stat-value.red { color: var(--el-color-danger); }
+.stat-value.orange { color: var(--el-color-warning); }
+.stat-label { color: var(--text-muted); font-size: 12px; margin-top: 4px; }
 .claim-records { height: calc(100vh - 100px); display: flex; flex-direction: column; }
 .toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
 .toolbar-left { display: flex; gap: 8px; }
@@ -203,7 +207,7 @@ onMounted(() => {
   padding: 10px 16px;
   border-top: 1px solid #f0f2f5;
   background: #fafbfc;
-  color: #999;
+  color: var(--text-muted);
   font-size: 12px;
   flex-shrink: 0;
 }

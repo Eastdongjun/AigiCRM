@@ -1,6 +1,6 @@
 <template>
   <el-dialog v-model="shareDialogVisible" title="分享文件" width="450px">
-    <p style="margin-bottom:12px;color:#999;font-size:13px">
+    <p style="margin-bottom:12px;color: var(--text-muted);font-size:13px">
       分享 <b>{{ shareFileTarget?.fileName }}</b> 给其他用户（只读权限）
     </p>
     <el-select v-model="shareUserIds" multiple filterable placeholder="选择用户..." style="width:100%">

@@ -259,10 +259,11 @@ export function useIncentiveUpload() {
   watch([searchText, filterCustomer, filterGroup, filterTier, activeTab, selectedUser, selectedPeriod], () => { pageNum.value = 1 })
 
   const scoreColor = (score) => {
+    // 【B5 2026-10-08】语义色字面量改主题变量（内联样式支持 CSS 变量），与全站色板同源
     if (score === 0) return '#c0c4cc'
-    if (score === 1) return '#e6a23c'
-    if (score === 2) return '#67c23a'
-    return '#f56c6c'
+    if (score === 1) return 'var(--el-color-warning)'
+    if (score === 2) return 'var(--el-color-success)'
+    return 'var(--el-color-danger)'
   }
 
   const formatDate = (dt) => {

@@ -40,8 +40,11 @@ function reminderTypeLabel(type) {
   return labels[key] || (type ? String(type) : '提醒')
 }
 
-function reminderStatusText(status) {
+// 【A4 三轮 2026-10-09】与 PC 端状态词对齐：分享类未处理=「待查看」(只读,无需跟进)、其余未处理=「待处理」。
+// 此前 MP 只有「待处理/已处理」，同一条分享提醒在 PC 显示「待查看」、MP 显示「待处理」，两端状态叫法不同
+function reminderStatusText(status, type) {
   if (!status) return '—'
+  if (!PROCESSED_STATUSES.has(normalizeKey(status)) && type && normalizeKey(type).startsWith('share')) return '待查看'
   return PROCESSED_STATUSES.has(normalizeKey(status)) ? '已处理' : '待处理'
 }
 
@@ -93,7 +96,7 @@ function normalizeReminder(item) {
     processActionLabel: reminderProcessActionLabel(type),
     canExtend: !isReadOnlyReminder(type),
     status,
-    statusText: reminderStatusText(status),
+    statusText: reminderStatusText(status, type),
     timingText: reminderTimingText({ ...item, type }, remainingDays),
     expireDate: item.expireDate || item.dueDate || '',
     lastInvoiceDate: item.lastInvoiceDate || customer.lastInvoiceDate || '',

@@ -35,7 +35,7 @@
   flex-shrink: 0;
   color: #fff;
 }
-.perm-sec-icon.icon-cat { background: linear-gradient(135deg, #409eff, #3a7afe); box-shadow: 0 4px 10px rgba(64, 158, 255, 0.22); }
+.perm-sec-icon.icon-cat { background: linear-gradient(135deg, var(--el-color-primary), var(--el-color-primary-light-3)); box-shadow: 0 4px 10px rgba(64, 158, 255, 0.22); }
 .perm-sec-icon.icon-perm { background: linear-gradient(135deg, #8b5cf6, #6366f1); box-shadow: 0 4px 10px rgba(139, 92, 246, 0.22); }
 .perm-sec-text h3 {
   margin: 0;
@@ -46,24 +46,24 @@
 .perm-sec-text p {
   margin: 3px 0 0;
   font-size: 12px;
-  color: #86909c;
+  color: var(--text-muted);
 }
 .perm-sec-body {
   padding: 16px 20px 20px;
 }
 .cat-empty {
-  color: #909399;
+  color: var(--el-color-info);
   font-size: 13px;
   padding: 24px 0;
   text-align: center;
 }
-.cat-error { color: #f56c6c; }
+.cat-error { color: var(--el-color-danger); }
 
 /* 类别卡片（左侧彩色边条） */
 .cat-group {
   position: relative;
   border: 1px solid #e9ecf1;
-  border-radius: 10px;
+  border-radius: var(--radius-md);
   margin-bottom: 10px;
   overflow: hidden;
   background: #fff;
@@ -75,7 +75,7 @@
   position: absolute;
   left: 0; top: 0; bottom: 0;
   width: 4px;
-  background: var(--cat-accent, #409eff);
+  background: var(--cat-accent, var(--el-color-primary));
 }
 .cat-group-head {
   display: flex;
@@ -98,7 +98,7 @@
 }
 .cat-name { font-size: 14px; font-weight: 600; color: #1f2329; }
 .cat-code {
-  font-size: 11px;
+  font-size: 12px;
   color: #7c8695;
   background: #e9edf3;
   border-radius: 5px;
@@ -107,7 +107,7 @@
 }
 .cat-count {
   font-size: 12px;
-  color: #909399;
+  color: var(--el-color-info);
   display: inline-flex;
   align-items: center;
   gap: 4px;
@@ -126,14 +126,14 @@
   transition: transform 0.2s, color 0.2s;
   display: inline-flex;
 }
-.cat-arrow.expanded { transform: rotate(180deg); color: #409eff; }
+.cat-arrow.expanded { transform: rotate(180deg); color: var(--el-color-primary); }
 .cat-group-body { padding: 8px 12px 10px; }
-.cat-no-child { color: #c0c4cc; font-size: 13px; text-align: center; padding: 16px 0; }
+.cat-no-child { color: var(--text-placeholder); font-size: 13px; text-align: center; padding: 16px 0; }
 
 /* 子类别表格 */
 .cat-child-name { font-size: 13px; font-weight: 500; color: #303133; }
 .cat-child-code {
-  font-size: 11px;
+  font-size: 12px;
   color: #7c8695;
   background: #f2f4f8;
   border-radius: 5px;
@@ -149,8 +149,8 @@
   font-size: 12px;
   font-weight: 600;
 }
-.cat-score-zero { color: #c0c4cc; }
-.cat-order { color: #86909c; font-size: 12px; }
+.cat-score-zero { color: var(--text-placeholder); }
+.cat-order { color: var(--text-muted); font-size: 12px; }
 .cat-status-on, .cat-status-off { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; }
 .cat-status-on { color: #10b981; font-weight: 600; }
 .cat-status-on i, .cat-status-off i { width: 6px; height: 6px; border-radius: 50%; display: inline-block; }
@@ -159,7 +159,7 @@
 .cat-status-off i { background: #c0c4cc; }
 
 /* 权限人员列表 */
-.perm-index { color: #c0c4cc; font-size: 12px; }
+.perm-index { color: var(--text-placeholder); font-size: 12px; }
 .perm-person { display: flex; align-items: center; gap: 10px; }
 .perm-avatar {
   width: 34px;
@@ -176,22 +176,22 @@
 }
 .perm-person-text { display: flex; flex-direction: column; min-width: 0; }
 .perm-name { font-size: 13px; font-weight: 600; color: #1f2329; }
-.perm-username { font-size: 11px; color: #a8abb2; }
+.perm-username { font-size: 12px; color: #6b7280; }
 .perm-org { display: flex; flex-direction: column; gap: 2px; }
 .perm-office { font-size: 12px; color: #4e5969; }
-.perm-role { align-self: flex-start; font-size: 11px; padding: 1px 8px; border-radius: 10px; }
-.perm-role.role-admin { background: #ecf5ff; color: #409eff; }
-.perm-role.role-director { background: #fdf2e6; color: #e6a23c; }
-.perm-role.role-sale { background: #f0f9eb; color: #67c23a; }
+.perm-role { align-self: flex-start; font-size: 12px; padding: 1px 8px; border-radius: var(--radius-md); }
+.perm-role.role-admin { background: var(--el-color-primary-light-9); color: var(--el-color-primary); }
+.perm-role.role-director { background: #fdf2e6; color: var(--el-color-warning); }
+.perm-role.role-sale { background: #f0f9eb; color: var(--el-color-success); }
 .perm-view { display: flex; gap: 6px; flex-wrap: wrap; }
-.perm-pill { font-size: 11px; padding: 2px 9px; border-radius: 10px; font-weight: 600; }
-.pill-shared { background: #ecf5ff; color: #409eff; }
+.perm-pill { font-size: 12px; padding: 2px 9px; border-radius: var(--radius-md); font-weight: 600; }
+.pill-shared { background: var(--el-color-primary-light-9); color: var(--el-color-primary); }
 .pill-all { background: #f0f0ff; color: #8b5cf6; }
-.pill-edit { background: #fdf6ec; color: #e6a23c; }
-.pill-del { background: #fef0f0; color: #f56c6c; }
-.perm-pill-off { font-size: 11px; color: #c0c4cc; }
+.pill-edit { background: #fdf6ec; color: var(--el-color-warning); }
+.pill-del { background: #fef0f0; color: var(--el-color-danger); }
+.perm-pill-off { font-size: 12px; color: #6b7280; }
 .perm-ok { color: #10b981; font-size: 12px; font-weight: 600; }
-.perm-ok-danger { color: #f56c6c; }
+.perm-ok-danger { color: var(--el-color-danger); }
 .perm-off { color: #d5dbe3; font-size: 13px; }
 
 .action-btns {
@@ -213,7 +213,7 @@
 .perm-item-col { text-align: left !important; color: #555; min-width: 100px }
 .perm-role-col { width: 70px; cursor: pointer; user-select: none }
 .perm-role-col:hover { background: #f0f5ff }
-.perm-yes { color: #409eff; font-weight: 700; font-size: 16px }
+.perm-yes { color: var(--el-color-primary); font-weight: 700; font-size: 16px }
 .perm-no { color: #ddd }
 .first-in-group td { border-top: 2px solid #e8eaed }
 
@@ -222,15 +222,15 @@
 /* 激励授权层级人员树 */
 .perm-tree-wrap { width: 100%; border: 1px solid #e4e7ed; border-radius: 8px; overflow: hidden }
 .perm-tree-tools { display: flex; align-items: center; gap: 8px; padding: 8px 10px; background: #fafbfc; border-bottom: 1px solid #eef0f4 }
-.perm-tree-count { font-size: 12px; color: #909399; margin-left: auto }
-.perm-tree-count b { color: #409eff; font-size: 14px }
+.perm-tree-count { font-size: 12px; color: var(--el-color-info); margin-left: auto }
+.perm-tree-count b { color: var(--el-color-primary); font-size: 14px }
 .perm-tree-scroll .el-tree { padding: 6px 4px }
-.perm-tree-hint { font-size: 11px; color: #a0a6b0; padding: 6px 10px; border-top: 1px solid #eef0f4; background: #fcfcfd }
+.perm-tree-hint { font-size: 12px; color: #6b7280; padding: 6px 10px; border-top: 1px solid #eef0f4; background: #fcfcfd }
 
 /* 添加授权弹窗 */
 .perm-grant-header { display: flex; align-items: center; gap: 12px; }
 .perm-grant-header-icon {
-  width: 38px; height: 38px; border-radius: 10px;
+  width: 38px; height: 38px; border-radius: var(--radius-md);
   display: inline-flex; align-items: center; justify-content: center;
   color: #fff;
   background: linear-gradient(135deg, #8b5cf6, #6366f1);
@@ -238,14 +238,14 @@
   flex-shrink: 0;
 }
 .perm-grant-header-title { font-size: 15px; font-weight: 600; color: #1f2329; }
-.perm-grant-header-sub { font-size: 12px; color: #909399; margin-top: 2px; }
+.perm-grant-header-sub { font-size: 12px; color: var(--el-color-info); margin-top: 2px; }
 .perm-grant-body { display: flex; flex-direction: column; gap: 14px; padding-top: 4px; }
 .perm-grant-sec-title {
   display: flex; align-items: center; gap: 6px;
   font-size: 13px; font-weight: 600; color: #303133;
   margin-bottom: 8px;
 }
-.perm-grant-sec-title .el-icon { color: #409eff; }
+.perm-grant-sec-title .el-icon { color: var(--el-color-primary); }
 .perm-grant-opts {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -259,9 +259,9 @@
   background: #fafbfc;
   transition: border-color 0.15s, background 0.15s;
 }
-.perm-grant-opt:hover { border-color: #b3d3f8; background: #f5f9ff; }
+.perm-grant-opt:hover { border-color: #b3d3f8; background: var(--el-color-primary-light-9); }
 .perm-grant-opt-text { display: flex; flex-direction: column; min-width: 0; }
 .perm-grant-opt-name { font-size: 13px; font-weight: 600; color: #1f2329; }
-.perm-grant-opt-desc { font-size: 11px; color: #a0a6b0; margin-top: 1px; }
-.perm-grant-footer-count { font-size: 12px; color: #909399; margin-right: auto; }
-.perm-grant-footer-count b { color: #409eff; font-size: 14px; }
+.perm-grant-opt-desc { font-size: 12px; color: #6b7280; margin-top: 1px; }
+.perm-grant-footer-count { font-size: 12px; color: var(--el-color-info); margin-right: auto; }
+.perm-grant-footer-count b { color: var(--el-color-primary); font-size: 14px; }

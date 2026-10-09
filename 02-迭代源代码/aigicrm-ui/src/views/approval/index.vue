@@ -10,29 +10,13 @@
       </div>
     </div>
 
-    <!-- 统计 · 深蓝条(点击指标直达对应Tab,与全站设计语言一致) -->
-    <div class="appr-strip">
-      <div class="ap-metric" @click="activeTab = 'pending'; loadData()">
-        <div class="ap-num">{{ stats.pending || 0 }}</div>
-        <div class="ap-lbl">待审批</div>
-      </div>
-      <div class="ap-divider"></div>
-      <div class="ap-metric" @click="activeTab = 'mine'; loadData()">
-        <div class="ap-num">{{ stats.mine || 0 }}</div>
-        <div class="ap-lbl">我发起的</div>
-      </div>
-      <div class="ap-divider"></div>
-      <div class="ap-metric" @click="activeTab = 'approved'; loadData()">
-        <div class="ap-num">{{ stats.approvedThisMonth || 0 }}</div>
-        <div class="ap-lbl">本月通过</div>
-      </div>
-      <div class="ap-divider"></div>
-      <div class="ap-metric" @click="activeTab = 'rejected'; loadData()">
-        <div class="ap-num" :class="{ 'ap-alert': (stats.rejectedThisMonth || 0) > 0 }">{{ stats.rejectedThisMonth || 0 }}</div>
-        <div class="ap-lbl">本月驳回</div>
-      </div>
-      <div class="ap-tip">点击指标直达对应状态 · 实时同步今日 {{ stats.all || 0 }} 条</div>
-    </div>
+    <!-- 统计 · 深蓝条(点击指标直达对应Tab) 【C9 二轮 2026-10-08】收口为全局 MetricStrip 组件 -->
+    <MetricStrip
+      interactive
+      :metrics="stripMetrics"
+      :tip="`点击指标直达对应状态 · 实时同步今日 ${stats.all || 0} 条`"
+      @metric-click="onStripClick"
+    />
 
     <!-- Tab 栏 -->
     <el-tabs v-model="activeTab" @tab-change="search" style="margin-bottom: 0">
@@ -108,8 +92,17 @@
     <!-- 表格区域 -->
     <div class="table-area">
       <div class="table-wrap" ref="tableWrapRef">
-      <el-table :data="tableData" stripe style="width: 100%" size="small" :height="tableHeight">
-        <el-table-column prop="approvalCode" label="编号" min-width="120">
+      <el-table v-loading="listLoading" :data="tableData" stripe style="width: 100%" size="small" :height="tableHeight">
+        <template #empty>
+          <div class="ap-empty">
+            <p class="ap-empty-text">{{ emptyTabText }}</p>
+            <div class="ap-empty-actions">
+              <el-button v-if="activeTab === 'pending'" size="small" @click="router.push('/sea')">去公海池发起捞取</el-button>
+              <el-button v-if="activeTab === 'pending' && (stats.mine || 0) > 0" size="small" type="primary" plain @click="switchTab('mine')">查看我发起的 {{ stats.mine }} 条</el-button>
+            </div>
+          </div>
+        </template>
+        <el-table-column prop="approvalCode" label="编号" min-width="120" sortable>
           <template #default="{ row }">
             <el-button link type="primary" class="code-link" @click.stop="openDetail(row)">{{ row.approvalCode }}</el-button>
           </template>
@@ -121,21 +114,23 @@
         </el-table-column>
         <el-table-column label="客户" min-width="160" show-overflow-tooltip>
           <template #default="{ row }">
-            <div>{{ row.customerName }}</div>
+            <!-- 【A2 三轮 2026-10-09】空值占位 '—'：与详情抽屉「未关联客户」、全站 dashIfEmpty 同一口径，
+                 此前空值整格留白（截图 07 P2026-041 行） -->
+            <div>{{ row.customerName || '—' }}</div>
             <div class="sub-text" v-if="row.customerIndustry">{{ row.customerIndustry }}</div>
           </template>
         </el-table-column>
-        <el-table-column prop="applicantName" label="申请人" min-width="80" />
-        <el-table-column prop="currentNode" label="当前节点" min-width="100" />
-        <el-table-column prop="actionAfterApprove" label="通过后动作" min-width="140" show-overflow-tooltip />
-        <el-table-column label="状态" min-width="70" align="center">
+        <el-table-column prop="applicantName" label="申请人" min-width="80" sortable :formatter="dashIfEmpty" />
+        <el-table-column prop="currentNode" label="当前节点" min-width="100" :formatter="dashIfEmpty" />
+        <el-table-column prop="actionAfterApprove" label="通过后动作" min-width="140" show-overflow-tooltip :formatter="dashIfEmpty" />
+        <el-table-column prop="status" label="状态" min-width="70" align="center" sortable>
           <template #default="{ row }">
             <el-tag :type="getApprovalStatusType(row.status)" size="small" effect="dark">
               {{ getApprovalStatusText(row.status) }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="时间" min-width="100">
+        <el-table-column prop="createdAt" label="时间" min-width="100" sortable>
           <template #default="{ row }">{{ row.createdAt?.substring(0, 10) }}</template>
         </el-table-column>
         <el-table-column label="操作" min-width="90" align="center" v-if="activeTab === 'pending' && (canApprove || canReject)">
@@ -263,13 +258,21 @@
 
 <script setup>
 import { ref, reactive, computed, onMounted, onBeforeUnmount, nextTick } from 'vue'
+import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useUserStore } from '@/store/user'
 import { getApprovalList, getApprovalDetail, approve, reject, getApprovalStatistics, transferApprovalNode } from '@/api/approval'
 import request from '@/utils/request'
 import { pageSizes } from '@/utils/pagination'
+// 【C9 二轮 2026-10-08】深蓝指标条全局组件
+import MetricStrip from '@/components/MetricStrip.vue'
+// 【C9 三轮 2026-10-09】审批状态映射收口到 utils/status-maps.js 唯一来源（pending=warning 橙，与页签/时间线同色）；
+// 【A2/C10 三轮】表格空值占位唯一口径 dashIfEmpty
+import { APPROVAL_STATUS, statusOf } from '@/utils/status-maps'
+import { dashIfEmpty } from '@/utils/format'
 
 const userStore = useUserStore()
+const router = useRouter()
 // 【P4 修复】isAdmin 是 Pinia action，须调用取值；此前当属性访问恒真，非 admin 也见"转交"按钮
 const isAdmin = computed(() => userStore.isAdmin())
 const canApprove = computed(() => userStore.hasPermission('approval:approve'))
@@ -308,6 +311,30 @@ const activeTab = ref('pending')
 const tableData = ref([])
 const total = ref(0)
 const stats = ref({})
+// 【UI 整改 2026-10-08】列表加载态：列表请求期间表格遮罩，慢接口不再静默
+const listLoading = ref(false)
+
+// 【C9 二轮 2026-10-08】深蓝指标条收口为全局 MetricStrip：四指标与点击直达页签的映射集中在此
+const STRIP_TABS = ['pending', 'mine', 'approved', 'rejected']
+const stripMetrics = computed(() => [
+  { num: stats.value.pending || 0, label: '待审批' },
+  { num: stats.value.mine || 0, label: '我发起的' },
+  { num: stats.value.approvedThisMonth || 0, label: '本月通过' },
+  { num: stats.value.rejectedThisMonth || 0, label: '本月驳回', alert: (stats.value.rejectedThisMonth || 0) > 0 },
+])
+const onStripClick = (i) => { activeTab.value = STRIP_TABS[i] || 'pending'; loadData() }
+
+// 【UI 整改 2026-10-08】空态按页签给语境文案（替换默认"暂无数据"）
+const EMPTY_TAB_TEXT = {
+  pending: '暂无待审批单据，客户捞取 / 转移 / 延期申请提交后将在此出现',
+  mine: '你还没有发起过审批申请',
+  reviewing: '暂无审批中的申请',
+  approved: '本月暂无已通过的审批',
+  rejected: '本月暂无驳回记录',
+  all: '暂无审批记录',
+}
+const emptyTabText = computed(() => EMPTY_TAB_TEXT[activeTab.value] || '暂无审批记录')
+const switchTab = (tab) => { activeTab.value = tab; loadData() }
 const detailVisible = ref(false)
 const detailLoading = ref(false)
 const actionLoading = ref(false)
@@ -326,11 +353,15 @@ const loadDeptTree = async () => {
 }
 
 const loadData = async () => {
+  listLoading.value = true
   try {
     const res = await getApprovalList({ ...query, tab: activeTab.value })
     tableData.value = res.data?.records || []
     total.value = res.data?.total || 0
-  } catch (e) {}
+  } catch (e) {
+  } finally {
+    listLoading.value = false
+  }
 }
 // 筛选/Tab 变化回到第 1 页（分页 @change 仍用 loadData 保持当前页）
 const search = () => { query.current = 1; loadData() }
@@ -405,19 +436,17 @@ const getTypeText = (type) => {
 }
 
 const getTypeTag = (type) => {
-  const map = { claim: 'primary', transfer: 'warning', extend: 'success', storage: 'info' }
+  // 【B7 三轮 2026-10-09】类型章不再占用 success 绿（绿=「已通过/正常」成功语义，撞色导致色义不可预期）；
+  // 「延期」改 warning 橙（时间警示语义），success 从类型映射中整体退出
+  const map = { claim: 'primary', transfer: 'warning', extend: 'warning', storage: 'info' }
   return map[type] || 'info'
 }
 
-const getApprovalStatusType = (status) => {
-  const map = { pending: 'info', reviewing: 'warning', approved: 'success', rejected: 'danger' }
-  return map[status] || 'info'
-}
+// 【C9 三轮 2026-10-09】本地映射删除，统一走 utils/status-maps.js 的 APPROVAL_STATUS
+// （此前本地 pending='info' 蓝灰 与唯一来源的 pending='warning' 橙冲突，status-maps 的「唯一来源」契约未生效）
+const getApprovalStatusType = (status) => statusOf(APPROVAL_STATUS, status).type
 
-const getApprovalStatusText = (status) => {
-  const map = { pending: '待提交', reviewing: '审批中', approved: '已通过', rejected: '已驳回' }
-  return map[status] || status
-}
+const getApprovalStatusText = (status) => statusOf(APPROVAL_STATUS, status).text
 
 const getNodeTimelineType = (status, action) => {
   if (status === 'approved' || action === 'approve') return 'success'
@@ -477,33 +506,26 @@ onBeforeUnmount(() => {
 <style scoped>
 .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
 .page-header h2 { font-size: 18px; font-weight: 600; color: #333; }
-.page-desc { color: #999; font-size: 13px; font-weight: normal; margin-left: 8px; }
-.header-right-info { display: flex; align-items: center; gap: 6px; color: #67c23a; font-size: 13px; }
+.page-desc { color: var(--text-muted); font-size: 13px; font-weight: normal; margin-left: 8px; }
+.header-right-info { display: flex; align-items: center; gap: 6px; color: var(--el-color-success); font-size: 13px; }
 
-/* 统计 · 深蓝条 */
-.appr-strip {
-  display: flex; align-items: center; gap: 24px;
-  background: linear-gradient(135deg, #16337a 0%, #1d4ed8 58%, #2563eb 100%);
-  border-radius: 12px; padding: 14px 24px; margin-bottom: 12px;
-  box-shadow: 0 6px 20px rgba(22, 51, 122, .14);
-}
-.ap-metric { min-width: 76px; cursor: pointer }
-.ap-num { font-size: 24px; font-weight: 700; color: #fff; line-height: 1.2 }
-.ap-num.ap-alert { color: #fca5a5 }
-.ap-lbl { font-size: 12px; color: rgba(255, 255, 255, .66); margin-top: 2px }
-.ap-divider { width: 1px; height: 34px; background: rgba(255, 255, 255, .18) }
-.ap-tip { margin-left: auto; font-size: 12px; color: rgba(255, 255, 255, .55) }
+/* 统计 · 深蓝条已收口为全局 MetricStrip 组件（C9 二轮），本页不再保留条带样式 */
 .tab-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 4px; }
-.dot-orange { background: #e6a23c; }
-.dot-blue { background: #409eff; }
-.dot-purple { background: #9b59b6; }
-.dot-green { background: #67c23a; }
-.dot-red { background: #f56c6c; }
-.dot-gray { background: #909399; }
+/* 【UI 整改 2026-10-08】彩点入语义组：warning/success/danger/info 用 EP 语义色。
+   【B7 三轮 2026-10-09】页签点与状态章同源：状态类页签色 = status-maps 里该状态的 type 色
+   （待审批/审批中同warning橙、已通过success绿、已驳回danger红），
+   「审批中」不再用主色浅档紫（与表格橙色章不同源、被评审判为第三套语言）；
+   我发起的=品牌主色 var(--el-color-primary)，全部=中性 info 灰（非状态页签不占语义色） */
+.dot-orange { background: var(--el-color-warning); }
+.dot-blue { background: var(--el-color-primary); }
+.dot-purple { background: var(--el-color-warning); }
+.dot-green { background: var(--el-color-success); }
+.dot-red { background: var(--el-color-danger); }
+.dot-gray { background: var(--el-color-info); }
 
-.tab-count { color: #999; font-size: 13px; margin-left: 2px; }
+.tab-count { color: var(--text-muted); font-size: 13px; margin-left: 2px; }
 .code-link { padding: 0; height: auto; font-weight: 500; }
-.sub-text { font-size: 12px; color: #999; }
+.sub-text { font-size: 12px; color: var(--text-muted); }
 .approval-manage { height: calc(100vh - 124px); display: flex; flex-direction: column; }
 
 .toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
@@ -529,7 +551,7 @@ onBeforeUnmount(() => {
   padding: 10px 16px;
   border-top: 1px solid #f0f2f5;
   background: #fafbfc;
-  color: #999;
+  color: var(--text-muted);
   font-size: 12px;
   flex-shrink: 0;
 }
@@ -541,7 +563,7 @@ onBeforeUnmount(() => {
   align-items: flex-start;
   margin-bottom: 16px;
 }
-.detail-code { color: #409eff; font-weight: 600; margin-bottom: 6px; }
+.detail-code { color: var(--el-color-primary); font-weight: 600; margin-bottom: 6px; }
 .detail-title { color: #303133; font-size: 16px; font-weight: 600; }
 .detail-descriptions { margin-bottom: 18px; }
 .section-title { font-size: 14px; font-weight: 600; color: #303133; margin: 16px 0 10px; }
@@ -550,7 +572,7 @@ onBeforeUnmount(() => {
   padding: 10px 12px;
   border: 1px solid #ebeef5;
   background: #fafafa;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   color: #606266;
   white-space: pre-wrap;
   word-break: break-word;
@@ -580,11 +602,15 @@ onBeforeUnmount(() => {
 .transfer-node-info {
   margin-bottom: 12px;
   padding: 8px 12px;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   background: #f4f6fa;
   color: #606266;
   font-size: 13px;
 }
 .transfer-candidates { display: flex; flex-direction: column; gap: 4px; }
 .transfer-candidate { height: auto; padding: 6px 0; margin-right: 0; }
+/* 【UI 整改 2026-10-08】空态定制：语境文案 + 入口按钮（替换表格默认"暂无数据"整屏空白） */
+.ap-empty { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 48px 0; }
+.ap-empty-text { margin: 0; color: var(--el-text-color-secondary, #606266); font-size: 13px; }
+.ap-empty-actions { display: flex; gap: 8px; }
 </style>

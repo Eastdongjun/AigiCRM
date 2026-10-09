@@ -40,11 +40,12 @@
 
     <!-- 编辑对话框 -->
     <el-dialog v-model="dialogVisible" :title="editForm.id ? '编辑岗位' : '新增岗位'" width="500px">
-      <el-form :model="editForm" label-width="90px">
-        <el-form-item label="岗位名称" required>
+<!-- 【UI 整改 2026-10-08】字段级校验：:rules + required 星标，报错落在字段下方 -->
+      <el-form ref="formRef" :model="editForm" :rules="formRules" label-width="90px">
+        <el-form-item label="岗位名称" prop="name">
           <el-input v-model="editForm.name" placeholder="如：华东大区经理" maxlength="50" />
         </el-form-item>
-        <el-form-item label="岗位编码" required>
+        <el-form-item label="岗位编码" prop="code">
           <el-input v-model="editForm.code" :disabled="!!editForm.id" placeholder="如：east_manager" />
         </el-form-item>
         <el-form-item label="描述">
@@ -88,7 +89,7 @@
                 {{ ruleTypeLabel(rule.ruleType) }}
               </el-tag>
             </div>
-            <div style="font-size:12px;color:#909399;margin-top:2px">
+            <div style="font-size:12px;color:var(--el-color-info);margin-top:2px">
               {{ rule.description || rule.code }} — 目标: {{ rule.targetEntity }}
             </div>
           </el-checkbox>
@@ -103,9 +104,10 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, computed } from 'vue'
+import { ref, reactive, onMounted, computed, nextTick } from 'vue'
 import { Plus } from '@element-plus/icons-vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ElMessage } from 'element-plus'
+import { confirmAction } from '@/utils/confirm'
 import { getPositionList, createPosition, updatePosition, deletePosition, getRuleList, getPositionRules, updatePositionRules, getDeptTree } from '@/api/system'
 import { useUserStore } from '@/store/user'
 
@@ -126,6 +128,15 @@ const editForm = reactive({
   id: null, name: '', code: '', description: '',
   orgId: null, sort: 0, status: 1
 })
+// 【UI 整改 2026-10-08】名称类必填字段级校验（与 customer 表单同规范）
+const formRef = ref(null)
+const formRules = {
+  name: [{ required: true, message: '请输入岗位名称', trigger: 'blur' }],
+  code: [
+    { required: true, message: '请输入岗位编码', trigger: 'blur' },
+    { pattern: /^[a-zA-Z][a-zA-Z0-9_]*$/, message: '编码须为字母开头的字母/数字/下划线', trigger: 'blur' },
+  ],
+}
 
 /** 规则类型标签 */
 const ruleTypeMap = {
@@ -173,9 +184,14 @@ const openDialog = (row) => {
     })
   }
   dialogVisible.value = true
+  // 打开弹窗清掉上一次校验残留的红字
+  nextTick(() => formRef.value?.clearValidate())
 }
 
 const handleSave = async () => {
+  // 【UI 整改 2026-10-08】先走字段级校验，报错定位到字段
+  const valid = await formRef.value.validate().catch(() => false)
+  if (!valid) return
   try {
     if (editForm.id) {
       await updatePosition(editForm.id, editForm)
@@ -192,7 +208,8 @@ const handleSave = async () => {
 
 const handleDelete = async (row) => {
   try {
-    await ElMessageBox.confirm(`确定删除岗位 ${row.name}？`, '提示')
+    // 【UI 整改 2026-10-08】删除类确认走 confirmAction：红色确认钮 + 取消左置
+    await confirmAction(`确定删除岗位「${row.name}」？删除后不可恢复。`, '删除确认', { confirmText: '删除' })
     await deletePosition(row.id)
     ElMessage.success('删除成功')
     loadData()
@@ -231,6 +248,6 @@ onMounted(() => {
 <style scoped>
 .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
 .page-header h2 { font-size: 20px; }
-.rule-item { padding: 8px 12px; border: 1px solid #e5e5e5; border-radius: 6px; }
+.rule-item { padding: 8px 12px; border: 1px solid #e5e5e5; border-radius: var(--radius-sm); }
 .rule-item:hover { background: #f5f7fa; }
 </style>

@@ -1,9 +1,9 @@
 <view class="page profile-doc-page">
-  <text class="title">AIGICRM 用户协议</text>
+  <text class="title">运筹马年·市场资源管理系统 用户协议</text>
   <text class="updated">版本：移动端预览版</text>
   <view class="doc-section">
     <text class="heading">一、服务说明</text>
-    <text class="body">AIGICRM 用于企业客户管理、业务协作和内部审批。用户应使用本人账号登录，并在授权范围内使用系统功能。</text>
+    <text class="body">运筹马年·市场资源管理系统 用于企业客户管理、业务协作和内部审批。用户应使用本人账号登录，并在授权范围内使用系统功能。</text>
   </view>
   <view class="doc-section">
     <text class="heading">二、账号与数据</text>

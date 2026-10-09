@@ -1,6 +1,7 @@
 <template>
   <div class="file-list-panel">
-    <el-table :data="files" style="width: 100%" size="small">
+    <!-- 【C12/D13 2026-10-08 二轮】列表请求期间 v-loading，与其他 18 处列表加载反馈对齐 -->
+    <el-table v-loading="filesLoading" :data="files" style="width: 100%" size="small">
       <el-table-column label="文件名称" min-width="100" show-overflow-tooltip>
         <template #default="{ row }">
           <div class="file-name-cell">
@@ -72,7 +73,7 @@ import { injectFilePage } from '@/composables/useFilePage'
 import { pageSizes } from '@/utils/pagination'
 
 const {
-  files, fileTotal, query, activeTab, folderPerms, folderDownloadable,
+  files, fileTotal, filesLoading, query, activeTab, folderPerms, folderDownloadable,
   loadFiles, loadFolders, loadTabCounts,
   handlePreview, handleDownload, openShareDialog, handleDelete,
   formatSize, getFileExt, getFileExtLabel, getFileType,
@@ -139,12 +140,12 @@ const handleReplaceChosen = async (e) => {
 .icon-doc { background: #4a90d9; }
 .icon-xls { background: #34a853; }
 .icon-pdf { background: #ea4335; }
-.icon-ppt { background: #e6a23c; }
+.icon-ppt { background: var(--el-color-warning); }
 .icon-img { background: #9b59b6; }
 .icon-video { background: #10b981; }
-.icon-other { background: #909399; }
+.icon-other { background: var(--el-color-info); }
 .type-tag {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
   padding: 2px 6px;
   border-radius: 3px;
@@ -152,10 +153,10 @@ const handleReplaceChosen = async (e) => {
 .type-doc { color: #4a90d9; background: #eaf2fc; }
 .type-xls { color: #34a853; background: #e8f5e9; }
 .type-pdf { color: #ea4335; background: #fce8e6; }
-.type-ppt { color: #e6a23c; background: #fdf6ec; }
+.type-ppt { color: var(--el-color-warning); background: #fdf6ec; }
 .type-img { color: #9b59b6; background: #f3e8ff; }
 .type-video { color: #10b981; background: #ecfdf5; }
-.type-other { color: #909399; background: #f4f4f5; }
+.type-other { color: var(--el-color-info); background: #f4f4f5; }
 
 /* 操作图标 */
 .action-icons {
@@ -165,12 +166,12 @@ const handleReplaceChosen = async (e) => {
 }
 .act-icon {
   font-size: 16px;
-  color: #999;
+  color: var(--text-muted);
   cursor: pointer;
   transition: color 0.15s;
 }
-.act-icon:hover { color: #409eff; }
-.act-danger:hover { color: #f56c6c; }
+.act-icon:hover { color: var(--el-color-primary); }
+.act-danger:hover { color: var(--el-color-danger); }
 .file-footer {
   display: flex;
   justify-content: space-between;
@@ -178,5 +179,5 @@ const handleReplaceChosen = async (e) => {
   margin-top: auto;
   padding-top: 12px;
 }
-.file-total { font-size: 12px; color: #999; }
+.file-total { font-size: 12px; color: var(--text-muted); }
 </style>

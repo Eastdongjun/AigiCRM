@@ -141,7 +141,7 @@ function buildStatsView(state = {}) {
     refreshLoading: loading,
     refreshText: loading ? '刷新中' : '刷新',
     showLoading: loading,
-    loadingText: '经营统计加载中...',
+    loadingText: '统计分析加载中...',
     heroMetrics: [
       `本月新增 ${stats.monthNew || 0}`,
       `待审批 ${approvalStats.pending || 0}`

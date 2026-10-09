@@ -173,15 +173,15 @@ onMounted(loadData)
 .customer-ranking-page { min-height: calc(100vh - 100px); display: flex; flex-direction: column; }
 .page-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; margin-bottom: 12px; }
 .page-title { font-size: 18px; font-weight: 600; color: #303133; margin: 0; }
-.page-desc { font-size: 13px; color: #86909c; margin: 6px 0 0; }
+.page-desc { font-size: 13px; color: var(--text-muted); margin: 6px 0 0; }
 .period-select { width: 150px; flex-shrink: 0; }
 .stat-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 12px; }
 .stat-card { background: #fff; border: 1px solid #ebeef5; border-radius: 8px; padding: 16px 18px; }
-.sc-label { font-size: 13px; color: #86909c; margin-bottom: 4px; }
+.sc-label { font-size: 13px; color: var(--text-muted); margin-bottom: 4px; }
 .sc-num { font-size: 30px; font-weight: 700; line-height: 1.2; }
-.sc-num.blue { color: #409eff; }
-.sc-num.green { color: #67c23a; }
-.sc-num.yellow { color: #e6a23c; }
+.sc-num.blue { color: var(--el-color-primary); }
+.sc-num.green { color: var(--el-color-success); }
+.sc-num.yellow { color: var(--el-color-warning); }
 .sc-desc { font-size: 12px; color: #a8abb2; margin-top: 4px; }
 .tab-bar { display: flex; gap: 0; margin-bottom: 12px; }
 .tab-item { display: inline-flex; align-items: center; padding: 9px 22px; border: 1px solid #ebeef5; margin-left: -1px; background: #fafafa; color: #606266; cursor: pointer; font-size: 14px; }
@@ -192,11 +192,11 @@ onMounted(loadData)
 .table-area :deep(.el-table td.el-table__cell),
 .table-area :deep(.el-table th.el-table__cell) { height: 40px; padding: 4px 0; box-sizing: border-box; }
 .rank-num { color: #606266; font-weight: 600; }
-.score-pill { display: inline-flex; align-items: center; justify-content: center; min-width: 56px; padding: 2px 8px; border-radius: 12px; background: #ecf5ff; color: #409eff; font-weight: 600; }
-.score-pill.green { background: #f0f9eb; color: #67c23a; }
+.score-pill { display: inline-flex; align-items: center; justify-content: center; min-width: 56px; padding: 2px 8px; border-radius: 12px; background: var(--el-color-primary-light-9); color: var(--el-color-primary); font-weight: 600; }
+.score-pill.green { background: #f0f9eb; color: var(--el-color-success); }
 .completion { color: #303133; font-size: 12px; }
-.cell-dash { color: #c0c4cc; }
+.cell-dash { color: var(--text-placeholder); }
 /* 两级表头: 第一行(一级组)整行浅底深蓝加粗,与二级明细区分; 门槛未达(万<100)红色弱标 */
 .table-area :deep(.ind-group-head) { background: #f7f9fc !important; color: #1d4ed8; font-weight: 700; }
-.threshold-miss { color: #f56c6c; font-weight: 600; }
+.threshold-miss { color: var(--el-color-danger); font-weight: 600; }
 </style>

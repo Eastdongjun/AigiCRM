@@ -9,16 +9,18 @@
         <el-button v-if="userStore.hasPermission('incentive:person-rank:export')" size="small" type="primary" plain :icon="Download" @click="exportPersonRank">导出</el-button>
       </span>
     </div>
-    <el-table :data="pagedPersonBoard" style="width:100%" empty-text="暂无数据" class="rank-matrix"
+    <el-table :data="pagedPersonBoard" style="width:100%" empty-text="当前周期暂无个人激励记录，上传激励文件后在此排行" class="rank-matrix"
       :header-cell-style="{ background: '#f7f9fc', color: '#1f2329', fontWeight: 600, borderBottom: '1px solid #e8ebf0' }"
       :row-style="{ height: '46px' }">
-      <el-table-column label="排名" width="64" align="center">
+      <!-- 【A2/B7 三轮 2026-10-09】12 类目矩阵总宽必然超主视口：排名/人员固定左侧，横向滚动时身份列常驻（列优先级）；
+               类目子列 72→80 + 表头 12px 紧凑内边距，五~六字类目名不再断字换行（如「价值服务手册」） -->
+      <el-table-column label="排名" width="64" align="center" fixed="left">
         <template #default="{ row }">
           <span v-if="row.rank <= 3" :class="'rank-medal rank-medal-' + row.rank">{{ ['🥇','🥈','🥉'][row.rank - 1] }}</span>
           <span v-else class="rank-num">{{ row.rank }}</span>
         </template>
       </el-table-column>
-      <el-table-column label="人员" min-width="170">
+      <el-table-column label="人员" min-width="150" fixed="left">
         <template #default="{ row }">
           <div class="name-wrap">
             <span class="name-avatar" :class="'av-' + (row.rank <= 3 ? row.rank : 4)">{{ (row.realName || '?').charAt(0) }}</span>
@@ -36,7 +38,7 @@
       </el-table-column>
       <template v-for="(parent, pi) in rankParents" :key="'p' + parent.id">
         <el-table-column :label="parent.categoryName" align="center" :class-name="'cat-group cat-group-' + (pi % 4)">
-          <el-table-column v-for="child in parent.children" :key="child.id" :label="child.categoryName" min-width="72" align="center">
+          <el-table-column v-for="child in parent.children" :key="child.id" :label="child.categoryName" min-width="80" align="center">
             <template #default="{ row }">
               <span v-if="row.byCategory?.[child.id]" class="cell-pill">
                 <b class="cell-cnt">{{ row.byCategory[child.id][0] }}</b><span class="cell-unit">条</span>

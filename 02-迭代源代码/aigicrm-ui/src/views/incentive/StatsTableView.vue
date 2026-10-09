@@ -86,15 +86,15 @@ function openDetail(child, group) {
 
 <style scoped>
 .card { background: #fff; border: 1px solid #ebeef5; border-radius: 12px; padding: 24px; }
-.table-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; font-size: 14px; color: #86909c; }
+.table-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; font-size: 14px; color: var(--text-muted); }
 .stats-table { width: 100%; border-collapse: collapse; font-size: 14px; }
-.stats-table th { text-align: left; padding: 12px 16px; color: #f56c6c; font-weight: 500; border-bottom: 2px solid #f56c6c; background: #fff; }
+.stats-table th { text-align: left; padding: 12px 16px; color: var(--el-color-danger); font-weight: 500; border-bottom: 2px solid var(--el-color-danger); background: #fff; }
 .stats-table td { padding: 14px 16px; border-bottom: 1px solid #f5f5f5; color: #333; }
 .stats-table tbody tr:hover { background: #fafbfc; }
 .clickable-row { cursor: pointer; }
 .clickable-row:hover { background: #f0f7ff !important; }
 .col-op { width: 70px; text-align: center; }
-.detail-link { color: #409eff; }
+.detail-link { color: var(--el-color-primary); }
 .detail-link:hover { text-decoration: underline; }
 
 .col-cat { width: 180px; vertical-align: middle; border-right: 1px solid #f0f0f0; }
@@ -103,17 +103,17 @@ function openDetail(child, group) {
 .col-total { width: 100px; text-align: center; }
 
 .cat-label { display: inline-flex; align-items: center; gap: 4px; font-size: 14px; font-weight: 600; }
-.cat-blue { color: #409eff; }
-.cat-orange { color: #e6a23c; }
-.cat-red { color: #f56c6c; }
-.cat-yellow { color: #e6a23c; }
+.cat-blue { color: var(--el-color-primary); }
+.cat-orange { color: var(--el-color-warning); }
+.cat-red { color: var(--el-color-danger); }
+.cat-yellow { color: var(--el-color-warning); }
 
-.score-active { color: #409eff; font-weight: 600; }
-.score-zero { color: #c0c4cc; }
+.score-active { color: var(--el-color-primary); font-weight: 600; }
+.score-zero { color: var(--text-placeholder); }
 
 .total-row { background: #fafafa; }
 .total-row td { border-top: 2px solid #ebeef5; padding: 14px 16px; text-align: center; }
 .total-row td:first-child { text-align: left; }
 .purple { color: #9b59b6; }
-.blue { color: #409eff; }
+.blue { color: var(--el-color-primary); }
 </style>

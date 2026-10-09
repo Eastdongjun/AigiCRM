@@ -2,7 +2,7 @@
   <view class="hero">
     <view class="row">
       <view>
-        <view class="hero-title">提醒中心</view>
+        <view class="hero-title">提醒管理</view>
         <view class="hero-sub">同 PC 待办提醒 · 当前待处理 {{pendingCount}} 条</view>
       </view>
       <button class="ghost-btn" bindtap="refresh" loading="{{reminderView.refreshLoading}}">{{reminderView.refreshText}}</button>

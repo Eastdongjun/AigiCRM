@@ -40,14 +40,14 @@ const { indicatorForm, indicatorTotal } = injectCustomerForm()
 .indicator-sum {
   font-size: 12px;
   line-height: 1.6;
-  color: #909399;
+  color: var(--el-color-info);
   padding: 8px 12px;
   background: #fafbfc;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
 }
 .indicator-sum .num {
   font-size: 14px;
   font-weight: 700;
-  color: #e6a23c;
+  color: var(--el-color-warning);
 }
 </style>

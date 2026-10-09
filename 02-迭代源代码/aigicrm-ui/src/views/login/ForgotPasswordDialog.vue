@@ -343,7 +343,7 @@ onBeforeUnmount(() => clearInterval(timer))
   gap: 12px;
   padding: 14px 16px;
   border: 2px solid #e8ecf1;
-  border-radius: 10px;
+  border-radius: var(--radius-md);
   cursor: pointer;
   transition: all 0.25s;
   position: relative;
@@ -359,7 +359,7 @@ onBeforeUnmount(() => clearInterval(timer))
 .method-icon {
   width: 40px;
   height: 40px;
-  border-radius: 10px;
+  border-radius: var(--radius-md);
   display: flex;
   align-items: center;
   justify-content: center;

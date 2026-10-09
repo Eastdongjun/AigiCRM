@@ -93,9 +93,9 @@ function formatDate(value) {
 
 function scoreColor(value) {
   const score = Number(value) || 0
-  if (score >= 3) return '#f56c6c'
-  if (score >= 2) return '#e6a23c'
-  return '#409eff'
+  if (score >= 3) return 'var(--el-color-danger)'
+  if (score >= 2) return 'var(--el-color-warning)'
+  return 'var(--el-color-primary)'
 }
 
 function fileUrl(id) {
@@ -141,12 +141,12 @@ onMounted(load)
 .card { background: #fff; border: 1px solid #ebeef5; border-radius: 12px; padding: 20px 24px; }
 .detail-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 16px; flex-wrap: wrap; }
 .title { font-size: 16px; font-weight: 600; color: #1d2129; }
-.subtitle { font-size: 13px; color: #86909c; margin-left: 6px; }
+.subtitle { font-size: 13px; color: var(--text-muted); margin-left: 6px; }
 .meta { display: flex; align-items: center; gap: 18px; font-size: 13px; color: #4e5969; }
 .meta b { color: #1d2129; }
-.blue { color: #409eff; }
+.blue { color: var(--el-color-primary); }
 .files { display: flex; flex-direction: column; gap: 2px; }
-.file-tag { color: #409eff; cursor: pointer; }
+.file-tag { color: var(--el-color-primary); cursor: pointer; }
 .file-tag:hover { text-decoration: underline; }
-.empty { color: #c0c4cc; }
+.empty { color: var(--text-placeholder); }
 </style>

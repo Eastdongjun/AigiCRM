@@ -22,7 +22,9 @@ export const useUserStore = defineStore('user', {
     badgeReminder: 0,
     badgeApproval: 0,
     // 系统配置
-    systemName: 'AIGICRM',
+    // 【A4 三轮 2026-10-09】默认值与页内品牌一致（此前 'AIGICRM' 与登录页/侧栏品牌双名并存）；
+    // 生产由后端 system.name 配置覆写，此处仅影响配置加载前的首帧与 document.title 跟随
+    systemName: '运筹马年·市场资源管理系统',
     systemLogo: '',
     // 【批④ 2026-08-10 多集团会话】
     groupIds: [],

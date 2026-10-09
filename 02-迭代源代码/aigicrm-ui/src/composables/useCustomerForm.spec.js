@@ -147,7 +147,9 @@ describe('useCustomerForm 新增客户字段', () => {
     await flushPromises()
 
     expect(saveCustomerWithIndicator).not.toHaveBeenCalled()
-    expect(ElMessage.error).toHaveBeenCalledWith('第 1 行联系人未填姓名，请补全或删除该行')
+    // 【C11 2026-10-08 二轮】联系人错误改为行内字段级报错（contactErrors 落到具体行的姓名框下方），
+    // 不再弹全局 toast；validateContacts 仍返回行号文案用于滚动定位
+    expect(ctx.contactErrors.value).toEqual(['该行未填姓名，请补全或删除'])
   })
 
   it('整行全空的联系人视为未填写，不拦截提交也不落库', async () => {
@@ -346,5 +348,31 @@ describe('useCustomerForm 新增客户字段', () => {
     expect(payload.invoiceName).toBeNull()
     expect(payload.groupName).toBeNull()
     expect(payload.remark).toBeNull()
+  })
+
+  // 【UI 整改 2026-10-08】新增成功后跳新客户详情页（与编辑分支回详情对齐），不再落回列表
+  it('新增成功后跳转新客户详情页', async () => {
+    saveCustomerWithIndicator.mockResolvedValue({ data: 1001 })
+    const ctx = useCustomerForm()
+    ctx.formRef.value = { validate: async () => true }
+    ctx.form.customerName = '落点测试客户'
+
+    await ctx.handleSubmit()
+    await flushPromises()
+
+    expect(ElMessage.success).toHaveBeenCalledWith('客户添加成功')
+    expect(push).toHaveBeenCalledWith('/customer/detail/1001')
+  })
+
+  it('新增成功但接口未返回新 id 时兜底回客户列表', async () => {
+    saveCustomerWithIndicator.mockResolvedValue({ data: null })
+    const ctx = useCustomerForm()
+    ctx.formRef.value = { validate: async () => true }
+    ctx.form.customerName = '无id兜底客户'
+
+    await ctx.handleSubmit()
+    await flushPromises()
+
+    expect(push).toHaveBeenCalledWith('/customer')
   })
 })

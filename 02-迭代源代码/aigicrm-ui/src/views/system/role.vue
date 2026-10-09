@@ -37,12 +37,13 @@
 
     <!-- 提示：角色管理包含【菜单权限】（点「权限」按钮分配菜单）+【数据权限】（data_scope 下拉选择数据范围） -->
     <el-dialog v-model="dialogVisible" :title="editForm.id ? '编辑角色' : '新增角色'" width="600px">
-      <el-form :model="editForm" label-width="110px">
+<!-- 【UI 整改 2026-10-08】字段级校验：:rules + required 星标，报错落在字段下方，替代保存时静默失败 -->
+      <el-form ref="formRef" :model="editForm" :rules="formRules" label-width="110px">
         <el-divider content-position="left">基本信息</el-divider>
-        <el-form-item label="角色名称" required>
+        <el-form-item label="角色名称" prop="roleName">
           <el-input v-model="editForm.roleName" placeholder="如：大区经理" maxlength="20" show-word-limit />
         </el-form-item>
-        <el-form-item label="角色编码" required>
+        <el-form-item label="角色编码" prop="roleCode">
           <el-input v-model="editForm.roleCode" :disabled="!!editForm.id" placeholder="英文标识，如：area_manager" />
         </el-form-item>
         <el-form-item label="描述">
@@ -50,7 +51,7 @@
         </el-form-item>
 
         <el-divider content-position="left">权限设置</el-divider>
-        <el-form-item label="数据范围" prop="dataScope" required>
+        <el-form-item label="数据范围" prop="dataScope">
           <el-select v-model="editForm.dataScope" style="width:100%" placeholder="选择数据可见范围" @change="onScopeChange">
             <el-option label="仅本人" value="self" />
             <el-option label="本人及下级" value="team" />
@@ -121,9 +122,10 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, computed } from 'vue'
+import { ref, reactive, onMounted, computed, nextTick } from 'vue'
 import { Plus } from '@element-plus/icons-vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ElMessage } from 'element-plus'
+import { confirmAction } from '@/utils/confirm'
 import { getRoleList, getRole, createRole, updateRole, deleteRole, getMenuTree, getDeptTree, getRoleOrgs } from '@/api/system'
 import { useUserStore } from '@/store/user'
 
@@ -151,6 +153,16 @@ const saving = ref(false)
 const orgMatrix = reactive({})
 
 const editForm = reactive({ id: null, roleName: '', roleCode: '', description: '', dataScope: 'self', orgId: null, sortOrder: 0 })
+// 【UI 整改 2026-10-08】名称类必填字段级校验（与 customer 表单同规范）
+const formRef = ref(null)
+const formRules = {
+  roleName: [{ required: true, message: '请输入角色名称', trigger: 'blur' }],
+  roleCode: [
+    { required: true, message: '请输入角色编码', trigger: 'blur' },
+    { pattern: /^[a-zA-Z][a-zA-Z0-9_]*$/, message: '编码须为字母开头的字母/数字/下划线', trigger: 'blur' },
+  ],
+  dataScope: [{ required: true, message: '请选择数据范围', trigger: 'change' }],
+}
 
 /** 数据范围中文标签映射（与后端 DataScopeType 枚举一致：self/team/dept/office/region/all/custom） */
 const scopeMap = { self: '仅本人', team: '本人及下级', dept: '本部门及以下', office: '本办事处及以下', region: '本大区及以下', all: '全部', custom: '自定义' }
@@ -217,9 +229,14 @@ const openDialog = async (row) => {
     Object.keys(orgMatrix).forEach(k => delete orgMatrix[k])
   }
   dialogVisible.value = true
+  // 打开弹窗清掉上一次校验残留的红字
+  nextTick(() => formRef.value?.clearValidate())
 }
 
 const handleSave = async () => {
+  // 【UI 整改 2026-10-08】先走字段级校验，报错定位到字段
+  const valid = await formRef.value.validate().catch(() => false)
+  if (!valid) return
   saving.value = true
   try {
     // 【P1 2026-10-04 组织矩阵静默丢失修复】后端 POST/PUT /system/roles 请求体支持 orgIds(List<Long>)，
@@ -248,7 +265,8 @@ const handleSave = async () => {
 
 const handleDelete = async (row) => {
   try {
-    await ElMessageBox.confirm(`确定删除角色 ${row.roleName}？`, '提示')
+    // 【UI 整改 2026-10-08】删除类确认走 confirmAction：红色确认钮 + 取消左置
+    await confirmAction(`确定删除角色「${row.roleName}」？删除后不可恢复。`, '删除确认', { confirmText: '删除' })
     await deleteRole(row.id)
     ElMessage.success('删除成功')
     loadData()
@@ -309,8 +327,8 @@ onMounted(() => {
 <style scoped>
 .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
 .page-header h2 { font-size: 20px; }
-.form-tip { font-size: 12px; color: #909399; margin-top: 4px; }
-.org-matrix { max-height: 320px; overflow-y: auto; border: 1px solid #e5e5e5; border-radius: 6px; padding: 8px; }
+.form-tip { font-size: 12px; color: var(--el-color-info); margin-top: 4px; }
+.org-matrix { max-height: 320px; overflow-y: auto; border: 1px solid #e5e5e5; border-radius: var(--radius-sm); padding: 8px; }
 .org-matrix-row { display: flex; align-items: center; padding: 4px 0; }
 .org-matrix-row:hover { background: #f5f7fa; }
 </style>

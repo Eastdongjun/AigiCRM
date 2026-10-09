@@ -4,7 +4,7 @@
     <view class="files-head-top">
       <view class="files-head-copy">
         <view class="files-head-overline">DOCUMENT CENTER</view>
-        <view class="files-head-title">文件库</view>
+        <view class="files-head-title">文件管理</view>
         <view class="files-head-sub">资料统一管理，协作随时可见</view>
       </view>
       <button wx:if="{{fileView.showUploadAction}}" class="head-add" loading="{{uploading}}" bindtap="uploadFile">＋</button>

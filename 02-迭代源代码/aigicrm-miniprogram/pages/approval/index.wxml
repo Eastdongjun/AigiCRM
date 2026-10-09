@@ -2,7 +2,7 @@
   <view class="hero">
     <view class="row">
       <view>
-        <view class="hero-title">审批中心</view>
+        <view class="hero-title">审批管理</view>
         <view class="hero-sub">PC 与移动端同一审批流</view>
       </view>
       <button class="ghost-btn" bindtap="refresh" loading="{{approvalView.refreshLoading}}">{{approvalView.refreshText}}</button>

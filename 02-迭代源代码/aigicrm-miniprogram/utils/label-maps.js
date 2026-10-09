@@ -17,9 +17,9 @@ function approvalTypeLabel(type) {
   return map[type] || (type ? String(type) : '-')
 }
 
-// 审批状态 → 文案
+// 审批状态 → 文案(pending 统一为「待审批」,与 PC 端及本端页签一致,消灭「待提交」旧叫法)
 function approvalStatusText(status) {
-  const map = { pending: '待提交', PENDING: '待提交', WAITING: '待审批', '待审批': '待审批', reviewing: '审批中', approved: '已通过', rejected: '已驳回' }
+  const map = { pending: '待审批', PENDING: '待审批', WAITING: '待审批', '待审批': '待审批', reviewing: '审批中', approved: '已通过', rejected: '已驳回' }
   return map[status] || status || '-'
 }
 

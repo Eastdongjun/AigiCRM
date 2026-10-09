@@ -11,8 +11,10 @@
              （即"角色管理->菜单权限"里实际勾选的内容）动态渲染，不再是与权限完全脱节的硬编码结构。
              menus 是两层：顶层(menuType=1)是分组标签，子节点(menuType=2)是可点击页面；
              按钮权限点(menuType=3)和隐藏路由(visible=0)后端已经过滤掉，这里不用再处理。 -->
+        <!-- el-menu 三个颜色 prop 需字面色值参与 hover 混色,取值须与 style.css :root 的
+             --sidebar-bg/--sidebar-text/--sidebar-active 令牌保持一致;当前态高亮按 meta.activeMenu 计算 -->
         <el-menu
-          :default-active="$route.path"
+          :default-active="activeMenuPath"
           :collapse="isCollapse"
           router
           background-color="#001629"
@@ -58,7 +60,7 @@
       <!-- 顶部栏 -->
       <el-header class="header">
         <div class="header-left">
-          <el-icon class="collapse-btn" @click="isCollapse = !isCollapse">
+          <el-icon class="collapse-btn" @click="toggleCollapse">
             <Fold v-if="!isCollapse" />
             <Expand v-else />
           </el-icon>
@@ -188,7 +190,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted, onBeforeUnmount } from 'vue'
+import { ref, reactive, computed, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage, ElNotification } from 'element-plus'
 import { useUserStore } from '@/store/user'
@@ -202,13 +204,18 @@ const userStore = useUserStore()
 // 【修复 FEAT-20260804-DYNAMIC-MENU】把后端下发的两层 menus 树整理成"分组+可点击页面"，
 // 过滤掉没有任何可见子页面的空分组（比如角色没被授权该分组下任何页面时）
 // 【2026-08-15 审计 H4】后端已按 path 去重; 前端再兜底一次, 防历史冗余菜单行导致侧边栏同页渲染两次
+// 【A1 三轮 2026-10-09】动作型入口不入导航：侧栏「新增客户」与客户列表页右上「+ 新客户」主按钮功能完全重复
+// （常见 CRM 惯例是仅保留列表入口 + 按钮）。路由 /customer/add 保留作页面载体（按钮跳转/面包屑不受影响），
+// 仅从侧栏菜单树中滤除；后端将来若停发该菜单行，此过滤为空操作
+const HIDDEN_ACTION_PATHS = new Set(['/customer/add'])
 const menuGroups = computed(() => {
   const seenPaths = new Set()
-  return (userStore.menus || [])
+  const groups = (userStore.menus || [])
     .map(group => ({
       ...group,
       children: (group.children || [])
         .filter(c => c.menuType === 2 && c.path)
+        .filter(c => !HIDDEN_ACTION_PATHS.has(c.path))
         .filter(c => {
           if (seenPaths.has(c.path)) return false
           seenPaths.add(c.path)
@@ -223,6 +230,16 @@ const menuGroups = computed(() => {
         }))
     }))
     .filter(group => group.children.length > 0)
+  // 【A1 2026-10-08 二轮】「我的任务」(/task) 是工作台"待办任务"卡直达页，但后端菜单树没有该页，
+  // 用户进入后无法从菜单回到（断头页）。前端合成注入"业务核心"分组（该页仅要求登录态，无独立权限码）；
+  // 后端菜单将来下发同名菜单时按 path 去重不会重复出现
+  const bizGroup = groups.find(g => g.menuName === '业务核心')
+  if (bizGroup && !bizGroup.children.some(c => c.path === '/task')) {
+    bizGroup.children.push({
+      id: 'fe-task-entry', menuType: 2, path: '/task', menuName: '我的任务', icon: 'List', subChildren: [],
+    })
+  }
+  return groups
 })
 // 提醒/审批两个菜单项的角标数量走独立的未读计数接口，不属于菜单树本身的数据
 const badgeFor = (path) => {
@@ -238,7 +255,29 @@ const firstAccessiblePath = () => {
     .find(item => item.path)
   return firstMenu?.path || '/403'
 }
-const isCollapse = ref(false)
+// 【2026-10-08 UI 整改 A1】当前态高亮：detail/edit 等深链路由不在侧栏菜单中(如 /customer/detail/358)，
+// 按 meta.activeMenu 归位到所属列表菜单，修复深入两级后侧栏无任何高亮的问题
+const activeMenuPath = computed(() => route.meta?.activeMenu || route.path)
+
+// 【A1 2026-10-08 二轮】当前菜单项滚出侧栏视口时自动滚动定位（如 /system/user 在"系统管理"
+// 长菜单深处），路由切换后对 .is-active 菜单项执行 scrollIntoView，保证当前态对用户始终可见
+watch([activeMenuPath, menuGroups], () => {
+  nextTick(() => {
+    document.querySelector('.sidebar .el-menu-item.is-active')
+      ?.scrollIntoView?.({ block: 'nearest' })
+  })
+})
+
+// 【2026-10-08 UI 整改 D16】侧栏折叠态持久化：刷新/重登保持用户偏好
+const SIDEBAR_COLLAPSE_KEY = 'aigicrm_sidebar_collapsed'
+const readStoredCollapse = () => {
+  try { return localStorage.getItem(SIDEBAR_COLLAPSE_KEY) === '1' } catch { return false }
+}
+const isCollapse = ref(readStoredCollapse())
+const toggleCollapse = () => {
+  isCollapse.value = !isCollapse.value
+  try { localStorage.setItem(SIDEBAR_COLLAPSE_KEY, isCollapse.value ? '1' : '0') } catch { /* 存储不可用(隐私模式等)时静默 */ }
+}
 
 // 个人信息
 const showProfile = ref(false)
@@ -352,14 +391,14 @@ const handleCommand = (command) => {
 </script>
 
 <style scoped>
-.group-switch { cursor: pointer; font-size: 13px; color: #606266; display: inline-flex; align-items: center; gap: 3px; margin-right: 14px; padding: 4px 8px; border: 1px solid #e4e7ed; border-radius: 4px; }
-.group-switch:hover { color: #1d4ed8; border-color: #bfdbfe; background: #eef4ff; }
+.group-switch { cursor: pointer; font-size: 13px; color: var(--text-secondary); display: inline-flex; align-items: center; gap: 3px; margin-right: 14px; padding: 4px 8px; border: 1px solid #e4e7ed; border-radius: 4px; }
+.group-switch:hover { color: var(--el-color-primary); border-color: #bfdbfe; background: #eef4ff; }
 
 .layout-container {
   height: 100vh;
 }
 .sidebar {
-  background-color: #001629;
+  background-color: var(--sidebar-bg);
   transition: width 0.3s;
   overflow: hidden;
   display: flex;
@@ -386,7 +425,7 @@ const handleCommand = (command) => {
   height: 32px;
   background: #1d4ed8;
   color: #fff;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   align-items: center;
   justify-content: center;
   font-size: 16px;
@@ -394,16 +433,19 @@ const handleCommand = (command) => {
 .logo-img {
   width: 32px;
   height: 32px;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   object-fit: contain;
 }
 .el-menu {
   border-right: none;
 }
+/* 【2026-10-08 UI 整改①】侧栏当前态配色接线到 :root 令牌（与上方 el-menu prop 同值，令牌为唯一来源） */
+.sidebar :deep(.el-menu-item.is-active) { color: var(--sidebar-active); }
 .menu-group-label {
   padding: 16px 20px 6px;
   font-size: 12px;
-  color: rgba(191,203,217,0.4);
+  color: var(--sidebar-text);
+  opacity: .4;
   letter-spacing: 1px;
 }
 /* 客户管理子菜单缩进 */
@@ -430,10 +472,10 @@ const handleCommand = (command) => {
   min-width: 18px;
   height: 18px;
   padding: 0 5px;
-  background: #f56c6c;
+  background: var(--el-color-danger);
   color: #fff;
   border-radius: 9px;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
   line-height: 1;
   flex-shrink: 0;
@@ -455,7 +497,7 @@ const handleCommand = (command) => {
 .collapse-btn {
   font-size: 20px;
   cursor: pointer;
-  color: #666;
+  color: var(--text-secondary);
 }
 .header-right {
   display: flex;
@@ -469,19 +511,19 @@ const handleCommand = (command) => {
   justify-content: center;
   width: 36px;
   height: 36px;
-  border-radius: 10px;
+  border-radius: var(--radius-md);
   cursor: pointer;
   transition: all .2s;
 }
 .icon-btn:hover {
-  background: rgba(64,158,255,.1);
+  background: var(--el-color-primary-light-9);
 }
 .icon-btn:hover .header-icon {
-  color: #1d4ed8;
+  color: var(--el-color-primary);
   transform: scale(1.08);
 }
 .header-icon {
-  font-size: 19px;
+  font-size: 20px;
   color: #5f6672;
   transition: all .2s;
 }
@@ -493,9 +535,9 @@ const handleCommand = (command) => {
   height: 16px;
   padding: 0 4px;
   border-radius: 8px;
-  background: #f56c6c;
+  background: var(--el-color-danger);
   color: #fff;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 600;
   line-height: 16px;
   text-align: center;
@@ -511,21 +553,21 @@ const handleCommand = (command) => {
   gap: 9px;
   cursor: pointer;
   padding: 5px 10px;
-  border-radius: 10px;
+  border-radius: var(--radius-md);
   transition: background .2s;
 }
 .user-info:hover {
-  background: rgba(64,158,255,.09);
+  background: var(--el-color-primary-light-9);
 }
 .user-avatar-wrap {
   position: relative;
   display: inline-flex;
 }
 .user-avatar {
-  background: linear-gradient(135deg, #1d4ed8, #2563eb);
+  background: var(--hero-gradient);
   color: #fff;
   font-weight: 600;
-  box-shadow: 0 2px 6px rgba(64,158,255,.35);
+  box-shadow: 0 2px 6px rgba(29,78,216,.35);
 }
 .online-dot {
   position: absolute;
@@ -544,18 +586,18 @@ const handleCommand = (command) => {
 }
 .user-name {
   font-weight: 600;
-  color: #1f2329;
+  color: var(--text-primary);
   font-size: 13px;
 }
 .user-dept {
-  color: #8f959e;
-  font-size: 11px;
+  color: var(--text-muted);
+  font-size: 12px;
   white-space: nowrap;
 }
 .dot-sep {
   font-style: normal;
   margin: 0 4px;
-  color: #c0c4cc;
+  color: var(--text-placeholder);
 }
 .user-caret {
   font-size: 12px;
@@ -581,7 +623,7 @@ const handleCommand = (command) => {
   border-radius: 8px;
 }
 .user-avatar-lg {
-  background: linear-gradient(135deg, #1d4ed8, #2563eb);
+  background: var(--hero-gradient);
   color: #fff;
   font-weight: 600;
 }
@@ -593,18 +635,18 @@ const handleCommand = (command) => {
 }
 .um-name {
   font-weight: 600;
-  color: #1f2329;
+  color: var(--text-primary);
   font-size: 13px;
 }
 .um-role {
-  color: #8f959e;
-  font-size: 11px;
+  color: var(--text-muted);
+  font-size: 12px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 .user-menu .el-dropdown-menu__item {
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   padding: 8px 12px;
   font-size: 13px;
 }
@@ -614,10 +656,10 @@ const handleCommand = (command) => {
   vertical-align: -2px;
 }
 .logout-item {
-  color: #f56c6c;
+  color: var(--el-color-danger);
 }
 .logout-item:hover {
-  color: #f56c6c !important;
+  color: var(--el-color-danger) !important;
   background: #fef0f0 !important;
 }
 /* 个人信息弹窗 */
@@ -631,11 +673,11 @@ const handleCommand = (command) => {
   margin-bottom: 16px;
 }
 .profile-avatar {
-  background: linear-gradient(135deg, #1d4ed8, #2563eb);
+  background: var(--hero-gradient);
   color: #fff;
   font-size: 22px;
   font-weight: 600;
-  box-shadow: 0 4px 12px rgba(64,158,255,.35);
+  box-shadow: 0 4px 12px rgba(29,78,216,.35);
 }
 .profile-head-meta {
   display: flex;
@@ -645,26 +687,26 @@ const handleCommand = (command) => {
 .profile-name {
   font-size: 18px;
   font-weight: 700;
-  color: #1f2329;
+  color: var(--text-primary);
 }
 .profile-tags {
   display: flex;
   gap: 8px;
 }
 .role-tag {
-  font-size: 11px;
-  color: #1d4ed8;
-  background: rgba(64,158,255,.12);
+  font-size: 12px;
+  color: var(--el-color-primary);
+  background: var(--el-color-primary-light-9);
   padding: 2px 10px;
-  border-radius: 10px;
+  border-radius: var(--radius-md);
   font-weight: 600;
 }
 .scope-tag {
-  font-size: 11px;
+  font-size: 12px;
   color: #10b981;
   background: rgba(16,185,129,.12);
   padding: 2px 10px;
-  border-radius: 10px;
+  border-radius: var(--radius-md);
   font-weight: 600;
 }
 .profile-group {
@@ -673,13 +715,13 @@ const handleCommand = (command) => {
 .profile-group-title {
   font-size: 12px;
   font-weight: 600;
-  color: #8f959e;
+  color: var(--text-muted);
   margin-bottom: 6px;
   padding-left: 2px;
 }
 .profile-rows {
   border: 1px solid #ebeef5;
-  border-radius: 10px;
+  border-radius: var(--radius-md);
   overflow: hidden;
 }
 .profile-row {
@@ -693,11 +735,11 @@ const handleCommand = (command) => {
 }
 .pl {
   width: 84px;
-  color: #8f959e;
+  color: var(--text-muted);
   flex-shrink: 0;
 }
 .pv {
-  color: #1f2329;
+  color: var(--text-primary);
   font-weight: 500;
 }
 .main-content {

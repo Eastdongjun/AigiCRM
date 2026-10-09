@@ -17,7 +17,7 @@
             </template>
             <div style="font-size:13px;color:#606266;line-height:1.8;min-height:80px">{{ item.desc }}</div>
             <div style="margin-top:12px">
-              <span style="font-size:12px;color:#909399">配置入口：</span>
+              <span style="font-size:12px;color:var(--el-color-info)">配置入口：</span>
               <el-button v-for="btn in item.buttons" :key="btn.label" size="small" :type="btn.type || 'primary'" link @click="btn.tab ? activeTab=btn.tab : router.push(btn.href)">{{ btn.label }}</el-button>
             </div>
           </el-card>

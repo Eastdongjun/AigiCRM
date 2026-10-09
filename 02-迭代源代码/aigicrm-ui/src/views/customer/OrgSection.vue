@@ -56,7 +56,7 @@ const {
 .field-hint {
   font-size: 12px;
   line-height: 1.4;
-  color: #909399;
+  color: var(--el-color-info);
   margin-top: 4px;
 }
 .field-static {
@@ -68,6 +68,6 @@ const {
   color: #606266;
   background: #f7f8fa;
   border: 1px solid #e5e6eb;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
 }
 </style>

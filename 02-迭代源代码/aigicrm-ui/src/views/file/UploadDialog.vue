@@ -91,12 +91,12 @@ const startUploads = async () => {
   transition: border-color .2s, background .2s;
   background: #fafbfc;
 }
-.upload-dropzone:hover { border-color: #409eff; background: #f5f9ff }
-.upload-dropzone .el-icon--upload { font-size: 44px; color: #c0c4cc; margin-bottom: 8px }
+.upload-dropzone:hover { border-color: var(--el-color-primary); background: var(--el-color-primary-light-9) }
+.upload-dropzone .el-icon--upload { font-size: 44px; color: var(--text-placeholder); margin-bottom: 8px }
 .upload-dropzone .el-upload__text { color: #606266; font-size: 13px; margin-bottom: 6px }
-.upload-dropzone .el-upload__text em { color: #409eff; font-style: normal }
-.upload-dropzone .el-upload__tip { color: #909399; font-size: 12px; margin-top: 8px }
+.upload-dropzone .el-upload__text em { color: var(--el-color-primary); font-style: normal }
+.upload-dropzone .el-upload__tip { color: var(--el-color-info); font-size: 12px; margin-top: 8px }
 .upload-pending { margin-top: 10px; text-align: left; max-height: 160px; overflow: auto }
 .upload-pending-item { display: flex; justify-content: space-between; gap: 10px; font-size: 12px; color: #303133; padding: 4px 8px; background: #f0f2f5; border-radius: 4px; margin-bottom: 4px }
-.upload-pending-size { color: #909399; flex-shrink: 0 }
+.upload-pending-size { color: var(--el-color-info); flex-shrink: 0 }
 </style>

@@ -25,12 +25,12 @@ const { userStore, query, total, deptTree, search, onDeptFilterChange, openDialo
 </script>
 
 <style scoped>
-.section-box { background: #fff; border: 1px solid #e4e7ed; border-radius: 10px; padding: 14px 20px; flex-shrink: 0 }
+.section-box { background: #fff; border: 1px solid #e4e7ed; border-radius: var(--radius-md); padding: 14px 20px; flex-shrink: 0 }
 .filter-box { display: flex; flex-direction: column; gap: 12px; padding: 16px 20px }
 .filter-head { display: flex; align-items: center; justify-content: space-between }
 .filter-title { display: flex; align-items: baseline; gap: 10px }
-.filter-title-text { font-size: 17px; font-weight: 700; color: #1f2329; letter-spacing: 0.5px }
-.filter-title-count { font-size: 12px; color: #909399; background: #f4f4f5; border-radius: 20px; padding: 2px 10px }
+.filter-title-text { font-size: 16px; font-weight: 700; color: #1f2329; letter-spacing: 0.5px }
+.filter-title-count { font-size: 12px; color: var(--el-color-info); background: #f4f4f5; border-radius: 20px; padding: 2px 10px }
 .filter-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap }
 .filter-search { width: 260px }
 .filter-select { width: 200px }

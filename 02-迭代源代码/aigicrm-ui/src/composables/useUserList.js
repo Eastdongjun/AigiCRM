@@ -3,12 +3,13 @@
 // 筛选栏/表格/翻页/新增编辑弹窗 inject 同一上下文。
 // 共享内容：查询参数与数据 + 部门树/角色/人员下拉 + 弹窗表单态 + 加载/增删改动作。
 // 表格高度机（tableWrapRef/tableHeight/ResizeObserver）留在 UserTable 组件内（本页模板真在用）。
-import { ref, reactive, computed, inject } from 'vue'
+import { ref, reactive, computed, inject, nextTick } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { getUserList, getUserById, createUser, updateUser, resetPassword, deleteUser, getDeptList, getRoleList, getPositionList, getUserPositions, assignUserPositions } from '@/api/system'
 import { getSimpleUserList } from '@/api/customer'
 import { useUserStore } from '@/store/user'
 import { formatSize } from '@/utils/format'
+import { confirmAction } from '@/utils/confirm'
 
 export const UserListKey = Symbol('userList')
 
@@ -49,7 +50,10 @@ export function useUserList() {
     phone: [{ required: true, message: '请输入手机号', trigger: 'blur' }],
     email: [
       { type: 'email', message: '邮箱格式不正确', trigger: 'blur' }
-    ]
+    ],
+    // 【C11 2026-10-08】数据范围星标=真校验：此前 el-form-item 只挂 required 星号而 formRules 无此规则，
+    // 星标与实际校验不符（保存靠 handleSave 全局 toast 兜底）；现在字段级红字与星标口径一致
+    dataScopeOverride: [{ required: true, message: '请选择数据范围', trigger: 'change' }],
   }
 
   // ---- 计算 ----
@@ -146,21 +150,33 @@ export function useUserList() {
     return Math.min(100, Math.round((used / quota) * 100))
   }
   const storageColor = (row) => {
+    // 【B5 2026-10-08】语义色字面量改主题变量（el-progress color prop 落到内联样式，支持 CSS 变量）
     const p = storagePercent(row)
-    if (p >= 90) return '#f56c6c'
-    if (p >= 70) return '#e6a23c'
-    return '#67c23a'
+    if (p >= 90) return 'var(--el-color-danger)'
+    if (p >= 70) return 'var(--el-color-warning)'
+    return 'var(--el-color-success)'
   }
 
   // ---- 加载 ----
+  // 【D13/C12 2026-10-08】30 行高频页补加载态与失败错误态：fetch 期间表格 v-loading，
+  // 失败不再静默成"空列表"（UserTable 顶部错误条+重试按钮）
+  const listLoading = ref(false)
+  const listError = ref(false)
   const loadData = async () => {
+    listLoading.value = true
     try {
       const params = { current: query.current, size: query.size, keyword: query.keyword, status: query.status }
       if (query.deptId != null) params.deptIds = descendantIds(query.deptId).join(',')
       const res = await getUserList(params)
       tableData.value = res.data?.records || []
       total.value = res.data?.total || 0
-    } catch (e) {}
+      listError.value = false
+    } catch (e) {
+      // 错误详情已由 request 拦截器提示；此处置页面级错误态供重试
+      listError.value = true
+    } finally {
+      listLoading.value = false
+    }
   }
 
   const loadDepts = async () => {
@@ -244,8 +260,15 @@ export function useUserList() {
 
   const handleSave = async () => {
     const valid = await formRef.value.validate().catch(() => false)
-    if (!valid) return
-    // 【2026-08-08 需求】数据范围必选，不允许跟随角色/留空
+    if (!valid) {
+      // 【C11 2026-10-08】校验失败自动定位：滚动到弹窗内首个错误字段（不只在底部 toast 提示）
+      nextTick(() => {
+        document.querySelector('.el-dialog .el-form-item.is-error')
+          ?.scrollIntoView?.({ behavior: 'smooth', block: 'center' })
+      })
+      return
+    }
+    // 【2026-08-08 需求】数据范围必选，不允许跟随角色/留空（formRules 已有字段级校验，此处兜底防绕过）
     if (!editForm.dataScopeOverride) { ElMessage.warning('请选择数据范围'); return }
     saving.value = true
     try {
@@ -274,7 +297,8 @@ export function useUserList() {
 
   const handleResetPwd = async (row) => {
     try {
-      await ElMessageBox.confirm(`确定重置 ${row.realName} 的密码？将生成随机临时密码并要求首登改密。`, '提示')
+      // 【UI 整改 2026-10-08】确认弹窗收敛到 confirmAction（重置密码影响登录凭据，红色确认钮）
+      await confirmAction(`确定重置「${row.realName}」的密码？将生成随机临时密码并要求首登改密。`, '重置密码', { confirmText: '重置' })
       const res = await resetPassword(row.id)
       // 【2026-08-14 安全 P0】临时密码随机生成，展示一次供转交
       await ElMessageBox.alert(
@@ -287,10 +311,11 @@ export function useUserList() {
 
   const handleDelete = async (row) => {
     try {
-      await ElMessageBox.confirm(
-        `确定删除用户 ${row.realName}？该用户名下的客户将自动释放到公海池。`,
+      // 【UI 整改 2026-10-08】删除类确认走 confirmAction：红色确认钮 + 取消左置
+      await confirmAction(
+        `确定删除用户「${row.realName}」？该用户名下的客户将自动释放到公海池。`,
         '删除用户',
-        { type: 'warning', confirmButtonText: '确认删除', cancelButtonText: '取消' }
+        { confirmText: '确认删除' }
       )
       await deleteUser(row.id)
       ElMessage.success('用户已删除，客户已释放到公海')
@@ -300,7 +325,7 @@ export function useUserList() {
 
   return {
     userStore,
-    tableData, total, depts, deptTree, roles, userOptions, query,
+    tableData, total, depts, deptTree, roles, userOptions, query, listLoading, listError,
     dialogVisible, saving, formRef, orgPath, cascaderProps, editForm, formRules,
     orgHintText, latestAccountHint,
     loadData, loadDepts, loadRoles, loadUserOptions, loadPositions, allPositions,

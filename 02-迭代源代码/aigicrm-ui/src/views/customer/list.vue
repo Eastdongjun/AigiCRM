@@ -15,7 +15,7 @@
       <el-pagination
         v-model:current-page="page"
         v-model:page-size="pageSize"
-        :page-sizes="[30, 50, 100]"
+        :page-sizes="pageSizeOptions"
         :total="total"
         layout="total, sizes, prev, pager, next, jumper"
         background
@@ -36,6 +36,7 @@
 <script setup>
 import { provide, onMounted } from 'vue'
 import { useCustomerList, CustomerListKey } from '@/composables/useCustomerList'
+import { pageSizes } from '@/utils/pagination'
 import TopBar from './TopBar.vue'
 import StatCards from './StatCards.vue'
 import MainTable from './MainTable.vue'
@@ -47,6 +48,9 @@ import ReleaseDialog from './ReleaseDialog.vue'
 // 共享上下文: 父级实例化一次并 provide,各区块/弹窗 inject
 const list = useCustomerList()
 provide(CustomerListKey, list)
+
+// 【UI 整改 2026-10-08】每页条数选项走 utils/pagination 统一口径，消除 [30,50,100] 硬编码
+const pageSizeOptions = pageSizes(30)
 
 const {
   activeTab, page, pageSize, total, onCurrentChange, onSizeChange,

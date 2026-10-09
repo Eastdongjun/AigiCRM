@@ -99,7 +99,8 @@
 <script setup>
 import { ref, reactive, onMounted, computed } from 'vue'
 import { Plus } from '@element-plus/icons-vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ElMessage } from 'element-plus'
+import { confirmAction } from '@/utils/confirm'
 import { getRuleList, createRule, updateRule, deleteRule } from '@/api/system'
 import { useUserStore } from '@/store/user'
 
@@ -170,7 +171,8 @@ const handleSave = async () => {
 
 const handleDelete = async (row) => {
   try {
-    await ElMessageBox.confirm(`确定删除权限规则 ${row.name}？`, '提示')
+    // 【UI 整改 2026-10-08】删除类确认走 confirmAction：红色确认钮 + 取消左置
+    await confirmAction(`确定删除权限规则「${row.name}」？删除后不可恢复。`, '删除确认', { confirmText: '删除' })
     await deleteRule(row.id)
     ElMessage.success('删除成功')
     loadData()
@@ -185,6 +187,6 @@ onMounted(() => {
 <style scoped>
 .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
 .page-header h2 { font-size: 20px; }
-.form-tip { font-size: 12px; color: #909399; margin-top: 4px; }
-.form-tip code { background: #f5f7fa; padding: 0 4px; border-radius: 3px; color: #409eff; }
+.form-tip { font-size: 12px; color: var(--el-color-info); margin-top: 4px; }
+.form-tip code { background: #f5f7fa; padding: 0 4px; border-radius: 3px; color: var(--el-color-primary); }
 </style>

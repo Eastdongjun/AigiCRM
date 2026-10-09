@@ -97,16 +97,16 @@ const onSizeChange = (size) => {
 
 <style scoped>
 .install-files .file-tag.previewable { cursor: pointer; text-decoration: underline; }
-.install-files .file-tag.previewable:hover { color: #409eff; }
+.install-files .file-tag.previewable:hover { color: var(--el-color-primary); }
 .right-panel { flex:1; background:#fff; padding:14px 18px; display:flex; flex-direction:column; min-height:0 }
 .right-panel .el-table { flex:1; min-height:0 }
 .list-footer { display:flex; align-items:center; justify-content:space-between; padding:10px 2px 0; margin-top:8px; border-top:1px solid #f0f2f5 }
 .list-footer-count { font-size:13px; color:#606266 }
-.list-footer-count b { color:#409eff; font-weight:700; margin:0 2px }
+.list-footer-count b { color:var(--el-color-primary); font-weight:700; margin:0 2px }
 .file-cell { display: inline-flex; align-items: center; gap: 4px; }
-.file-icon { color: #909399; font-size: 14px; flex-shrink: 0; }
-.customer-link { color: #409eff; cursor: pointer; }
+.file-icon { color: var(--el-color-info); font-size: 14px; flex-shrink: 0; }
+.customer-link { color: var(--el-color-primary); cursor: pointer; }
 .customer-link:hover { text-decoration: underline; }
-.shared-yes { color: #67c23a; font-size: 12px; font-weight: 500; }
-.shared-no { color: #c0c4cc; }
+.shared-yes { color: var(--el-color-success); font-size: 12px; font-weight: 500; }
+.shared-no { color: var(--text-placeholder); }
 </style>

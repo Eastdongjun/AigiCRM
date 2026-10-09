@@ -53,16 +53,16 @@
         <span class="rank-title">个人排行</span>
         <span class="rank-count">{{ personalList.length }}人</span>
       </div>
-      <el-table :data="pagedPersonal" stripe style="width:100%" size="small" empty-text="暂无数据">
+      <el-table :data="pagedPersonal" stripe style="width:100%" size="small" empty-text="本周期暂无个人积分记录，可在「积分录入」提交评分">
         <el-table-column label="排名" min-width="60" align="center">
           <template #default="{ row }"><span class="rank-num">{{ row.rank }}</span></template>
         </el-table-column>
         <el-table-column prop="realName" label="姓名" min-width="120" />
         <el-table-column prop="officeName" label="办事处" min-width="100" />
-        <el-table-column label="总积分" min-width="100" align="center">
+        <el-table-column label="总积分" min-width="100" align="right" header-align="right">
           <template #default="{ row }"><strong>{{ row.totalScore }}分</strong></template>
         </el-table-column>
-        <el-table-column label="文件数" min-width="80" align="center">
+        <el-table-column label="文件数" min-width="80" align="right" header-align="right">
           <template #default="{ row }">{{ row.itemCount }}个</template>
         </el-table-column>
         <el-table-column label="趋势" min-width="80" align="center">
@@ -83,18 +83,18 @@
       <div class="rank-header">
         <span class="rank-title">部门排行</span>
       </div>
-      <el-table :data="pagedDept" stripe style="width:100%" size="small" empty-text="暂无数据">
+      <el-table :data="pagedDept" stripe style="width:100%" size="small" empty-text="本周期暂无部门积分记录，可在「积分录入」提交评分">
         <el-table-column label="排名" min-width="60" align="center">
           <template #default="{ row }"><span class="rank-num">{{ row.rank }}</span></template>
         </el-table-column>
         <el-table-column prop="deptName" label="部门" min-width="140" />
-        <el-table-column label="总积分" min-width="100" align="center">
+        <el-table-column label="总积分" min-width="100" align="right" header-align="right">
           <template #default="{ row }"><strong>{{ row.totalScore }}分</strong></template>
         </el-table-column>
-        <el-table-column label="参与人数" min-width="100" align="center">
+        <el-table-column label="参与人数" min-width="100" align="right" header-align="right">
           <template #default="{ row }">{{ row.participantCount }}人</template>
         </el-table-column>
-        <el-table-column label="人均积分" min-width="100" align="center">
+        <el-table-column label="人均积分" min-width="100" align="right" header-align="right">
           <template #default="{ row }">{{ row.avgScore }}分</template>
         </el-table-column>
       </el-table>
@@ -168,9 +168,9 @@ onMounted(loadData)
 .score-ranking { min-height: calc(100vh - 100px); display: flex; flex-direction: column; }
 /* —— 深蓝主视觉带(统一语言, 对齐 statistics/.ana-hero) —— */
 .rank-hero {
-  background: linear-gradient(135deg, #16337a 0%, #1d4ed8 58%, #2563eb 100%);
+  background: var(--hero-gradient);
   border-radius: 12px; padding: 16px 24px 18px; margin-bottom: 12px; flex-shrink: 0;
-  box-shadow: 0 6px 20px rgba(22, 51, 122, .14);
+  box-shadow: var(--hero-shadow);
 }
 .rh-top { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
 .rh-title { font-size: 20px; font-weight: 700; color: #fff; letter-spacing: .3px; margin: 0 0 4px; }
@@ -191,21 +191,23 @@ onMounted(loadData)
 .rank-tabs :deep(.el-tabs__header) { margin: 0; }
 .stat-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 12px; }
 .stat-card { background: #fff; border: 1px solid #ebeef5; border-radius: 8px; padding: 18px 22px; }
-.stat-label { font-size: 13px; color: #86909c; margin-bottom: 8px; }
-.stat-num { font-size: 32px; font-weight: 700; color: #1d2129; line-height: 1.1; }
-.stat-desc { font-size: 12px; color: #c0c4cc; margin-top: 6px; }
+.stat-label { font-size: 13px; color: var(--text-muted); margin-bottom: 8px; }
+/* 【B6 三轮 2026-10-09】大数字唯一档 --font-num-hero(30px)；【B5/B6】色统一 --brand-navy（原 #1d2129 近黑，与工作台/统计页深蓝三轨并存） */
+.stat-num { font-size: var(--font-num-hero); font-weight: 700; color: var(--brand-navy); line-height: 1.1; }
+.stat-desc { font-size: 12px; color: #6b7280; margin-top: 6px; }
 .table-area { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
 .table-area :deep(.el-table) { flex: 1; }
 .table-area :deep(.el-table td.el-table__cell), .table-area :deep(.el-table th.el-table__cell) { height: 40px; padding: 4px 0; box-sizing: border-box; }
 .rank-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
 .rank-title { font-size: 15px; font-weight: 600; }
-.rank-count { color: #86909c; font-size: 13px; }
-.rank-num { color: #86909c; font-weight: 500; }
+.rank-count { color: var(--text-muted); font-size: 13px; }
+.rank-num { color: var(--text-muted); font-weight: 500; }
 .trend { font-size: 13px; font-weight: 500; }
-.trend-lead { color: #f56c6c; }
+/* 【UI 整改 2026-10-08】趋势色重排：「领先」改金系（var(--chart-amber-deep)，白底 5.3:1），红色仅保留危险语义 */
+.trend-lead { color: var(--chart-amber-deep); }
 .trend-up { color: #1d4ed8; }
-.trend-chase { color: #e6a23c; }
+.trend-chase { color: var(--el-color-warning); }
 .rank-footer { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-top: 1px solid #ebeef5; flex-shrink: 0; }
 /* 2026-10-04 D15：移除"最近更新"假时间后，.footer-time 选择器一并清理（模板已无该 class） */
-.footer-note { color: #c0c4cc; font-size: 12px; }
+.footer-note { color: #6b7280; font-size: 12px; }
 </style>

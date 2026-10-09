@@ -19,12 +19,12 @@
         <el-table-column label="大区编码" width="80" align="center">
           <template #default="{ row }">
             <span v-if="row.deptType === 2 && row.deptCode">{{ row.deptCode }}</span>
-            <span v-else-if="row.deptType === 2" style="color: #f56c6c">未设置</span>
-            <span v-else style="color: #c0c4cc">—</span>
+            <span v-else-if="row.deptType === 2" style="color: var(--el-color-danger)">未设置</span>
+            <span v-else style="color: var(--text-placeholder)">—</span>
           </template>
         </el-table-column>
         <el-table-column label="负责人" width="80" align="center">
-          <template #default="{ row }"><span v-if="row.leaderName">{{ row.leaderName }}</span><span v-else style="color:#c0c4cc">—</span></template>
+          <template #default="{ row }"><span v-if="row.leaderName">{{ row.leaderName }}</span><span v-else style="color: var(--text-placeholder)">—</span></template>
         </el-table-column>
         <el-table-column prop="sortOrder" label="排序" width="60" align="center" />
         <el-table-column label="状态" width="65" align="center">
@@ -43,17 +43,18 @@
     </div>
 
     <el-dialog v-model="dialogVisible" :title="editForm.id ? '编辑部门' : '新增部门'" width="500px">
-      <el-form :model="editForm" label-width="80px">
+      <!-- 【UI 整改 2026-10-08】字段级校验：:rules + required 星标，报错落在字段下方，替代全局 toast -->
+      <el-form ref="formRef" :model="editForm" :rules="formRules" label-width="80px">
         <el-form-item label="上级部门">
           <el-tree-select v-model="editForm.parentId" :data="deptTree" :props="{ label: 'deptName', value: 'id', children: 'children' }" check-strictly placeholder="根节点" style="width:100%" clearable />
         </el-form-item>
-        <el-form-item label="部门名称"><el-input v-model="editForm.deptName" /></el-form-item>
-        <el-form-item label="集团归属" prop="groupId" required>
+        <el-form-item label="部门名称" prop="deptName"><el-input v-model="editForm.deptName" placeholder="请输入部门名称" /></el-form-item>
+        <el-form-item label="集团归属" prop="groupId">
           <el-select v-model="editForm.groupId" placeholder="选择所属集团" style="width:100%">
             <el-option v-for="g in groupList" :key="g.id" :label="g.groupName" :value="g.id" />
           </el-select>
         </el-form-item>
-        <el-form-item label="组织类型" prop="deptType" required>
+        <el-form-item label="组织类型" prop="deptType">
           <el-select v-model="editForm.deptType" style="width:100%">
             <el-option label="公司/总部" :value="1" />
             <el-option label="大区" :value="2" />
@@ -68,7 +69,7 @@
           <el-select v-model="editForm.leaderId" placeholder="选择负责人" style="width:100%" clearable filterable>
             <el-option v-for="u in userList" :key="u.id" :label="u.realName" :value="u.id">
               <span>{{ u.realName }}</span>
-              <span style="color:#999;margin-left:8px;font-size:12px">{{ u.roleName }}</span>
+              <span style="color: var(--text-muted);margin-left:8px;font-size:12px">{{ u.roleName }}</span>
             </el-option>
           </el-select>
         </el-form-item>
@@ -108,9 +109,10 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, computed } from 'vue'
+import { ref, reactive, onMounted, computed, nextTick } from 'vue'
 import { Plus } from '@element-plus/icons-vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ElMessage } from 'element-plus'
+import { confirmAction } from '@/utils/confirm'
 import { getDeptTree, createDept, updateDept, deleteDept, getUserList, getGroupList, getDeptAdmins, addDeptAdmin, removeDeptAdmin } from '@/api/system'
 import { useUserStore } from '@/store/user'
 
@@ -122,6 +124,13 @@ const userList = ref([])
 const groupList = ref([])
 const dialogVisible = ref(false)
 const editForm = reactive({ id: null, parentId: 0, groupId: null, deptName: '', deptType: 1, deptCode: '', leaderId: null, sortOrder: 0 })
+// 【UI 整改 2026-10-08】名称类必填字段级校验（与 customer 表单同规范）
+const formRef = ref(null)
+const formRules = {
+  deptName: [{ required: true, message: '请输入部门名称', trigger: 'blur' }],
+  groupId: [{ required: true, message: '请选择集团归属', trigger: 'change' }],
+  deptType: [{ required: true, message: '请选择组织类型', trigger: 'change' }],
+}
 
 // 组织管理员
 const adminDialogVisible = ref(false)
@@ -159,6 +168,8 @@ const openDialog = (row, parentId) => {
     Object.assign(editForm, { id: null, parentId: pid, groupId: parent?.groupId ?? null, deptName: '', deptType: defaultType, deptCode: '', leaderId: null, sortOrder: 0 })
   }
   dialogVisible.value = true
+  // 打开弹窗清掉上一次校验残留的红字
+  nextTick(() => formRef.value?.clearValidate())
 }
 
 // 组织层级校验：1=公司/总部 2=大区 3=办事处 4=部门；子级类型必须等于父级类型+1
@@ -182,14 +193,9 @@ const validateDeptHierarchy = () => {
 }
 
 const handleSave = async () => {
-  if (!editForm.deptType) {
-    ElMessage.warning('请选择组织类型')
-    return
-  }
-  if (!editForm.groupId) {
-    ElMessage.warning('请选择集团归属')
-    return
-  }
+  // 【UI 整改 2026-10-08】先走字段级校验（报错落字段下），业务层级校验保留
+  const valid = await formRef.value.validate().catch(() => false)
+  if (!valid) return
   if (!validateDeptHierarchy()) {
     ElMessage.warning('组织类型层级不合法：根节点须为公司/总部，大区须挂在公司/总部下，办事处须挂在大区下，部门须挂在办事处下')
     return
@@ -212,7 +218,8 @@ const handleDelete = async (row) => {
     return
   }
   try {
-    await ElMessageBox.confirm(`确定删除部门「${row.deptName}」？`, '提示', { type: 'warning' })
+    // 【UI 整改 2026-10-08】删除类确认走 confirmAction：红色确认钮 + 取消左置
+    await confirmAction(`确定删除部门「${row.deptName}」？删除后不可恢复。`, '删除确认', { confirmText: '删除' })
     await deleteDept(row.id)
     ElMessage.success('删除成功')
     loadData()
@@ -279,7 +286,7 @@ onMounted(() => {
 
 <style scoped>
 .dept-manage { height: calc(100vh - 80px); display: flex; flex-direction: column; gap: 10px }
-.section-box { background: #fff; border: 1px solid #e4e7ed; border-radius: 10px; padding: 16px 20px; flex-shrink: 0 }
+.section-box { background: #fff; border: 1px solid #e4e7ed; border-radius: var(--radius-md); padding: 16px 20px; flex-shrink: 0 }
 .section-box.table-box { flex: 1; padding: 0; display: flex; flex-direction: column; overflow: hidden }
 .section-box.table-box > div:first-child { flex: 1; overflow: auto; padding: 4px 0 }
 .section-box.table-box :deep(.el-table th) { font-size: 14px; font-weight: 700; color: #1f2329; background: #f8f9fb }

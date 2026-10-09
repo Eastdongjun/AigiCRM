@@ -221,11 +221,11 @@ onMounted(load)
   color: #333;
   margin-bottom: 12px;
   padding-left: 8px;
-  border-left: 3px solid #409eff;
+  border-left: 3px solid var(--el-color-primary);
 }
 .title-action { margin-left: auto; }
 .actions { display: flex; gap: 8px; }
-.days-danger { color: #f56c6c; font-weight: 600; }
-.days-warning { color: #e6a23c; font-weight: 600; }
-.days-normal { color: #67c23a; font-weight: 600; }
+.days-danger { color: var(--el-color-danger); font-weight: 600; }
+.days-warning { color: var(--el-color-warning); font-weight: 600; }
+.days-normal { color: var(--el-color-success); font-weight: 600; }
 </style>
