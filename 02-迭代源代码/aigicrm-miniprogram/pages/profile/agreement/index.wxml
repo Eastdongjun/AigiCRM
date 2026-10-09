@@ -1,16 +1,30 @@
 <view class="page profile-doc-page">
-  <text class="title">运筹马年·市场资源管理系统 用户协议</text>
-  <text class="updated">版本：移动端预览版</text>
+  <text class="title">运筹马年·市场资源管理系统 用户服务协议</text>
+  <text class="updated">版本：v1.0.9 · 2026-10-09</text>
   <view class="doc-section">
     <text class="heading">一、服务说明</text>
-    <text class="body">运筹马年·市场资源管理系统 用于企业客户管理、业务协作和内部审批。用户应使用本人账号登录，并在授权范围内使用系统功能。</text>
+    <text class="body">运筹马年·市场资源管理系统（以下简称"本系统"）为所在组织的授权人员提供企业客户管理、业务协作与内部审批服务，本小程序是本系统的移动端入口。使用本小程序即表示你已阅读、理解并同意本协议全部条款；如不同意，请停止使用并退出登录。</text>
   </view>
   <view class="doc-section">
-    <text class="heading">二、账号与数据</text>
-    <text class="body">请妥善保管账号信息，不得转借账号或绕过权限访问数据。业务数据的保留、修改和分享遵循所在组织的管理制度。</text>
+    <text class="heading">二、账号与授权同意</text>
+    <text class="body">1. 本小程序仅面向由所在组织管理员开通账号的授权用户，须使用本人账号登录，不得转借账号或绕过权限访问数据。</text>
+    <text class="body">2. 首次登录及使用过程中，我们按照《隐私政策》的说明处理你的个人信息（包括手机号），在取得你的授权同意后才会收集和使用。</text>
+    <text class="body">3. 密码须不少于 8 位；忘记密码时可通过绑定的手机号接收短信验证码重置。为验证身份发送验证码时，该手机号将被提交给短信服务商用于发送验证码，此项为你使用找回密码功能的前提。</text>
   </view>
   <view class="doc-section">
-    <text class="heading">三、服务使用</text>
-    <text class="body">删除、释放、捞取、分享和审批等操作可能影响业务流程，请在确认信息后提交。异常操作请及时联系管理员。</text>
+    <text class="heading">三、用户信息的收集与使用</text>
+    <text class="body">我们仅在为客户提供客户管理业务功能所必需的范围内收集和使用信息，信息类型、目的、方式和用途以《隐私政策》为准。你在客户联系人等业务表单中填写的第三方联系人手机号等商务联系信息，属于所在组织的业务数据，由所在组织管理；你应确保已获得信息主体的同意，并仅将其用于商务联络目的。</text>
+  </view>
+  <view class="doc-section">
+    <text class="heading">四、服务使用规范</text>
+    <text class="body">删除、释放、捞取、分享、归档和审批等操作可能影响业务流程与同事协作，请在确认信息后提交。不得利用本系统从事违反法律法规或损害他人合法权益的活动；异常操作请及时联系管理员。</text>
+  </view>
+  <view class="doc-section">
+    <text class="heading">五、服务变更与终止</text>
+    <text class="body">我们可能因业务调整对服务内容进行升级、变更或中止，并将尽可能提前告知。你退出登录或所在组织注销账号后，本地会话信息将被移除，服务随之终止。</text>
+  </view>
+  <view class="doc-section">
+    <text class="heading">六、其他</text>
+    <text class="body">本协议与《隐私政策》共同构成你与我们之间关于使用本小程序的完整约定。协议更新时将在本页面公示，涉及个人信息处理方式的重大变更会再次征得你的同意。问题与建议可通过所在组织管理员向我们反馈。</text>
   </view>
 </view>

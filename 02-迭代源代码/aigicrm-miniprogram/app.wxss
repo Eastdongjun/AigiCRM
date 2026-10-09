@@ -34,6 +34,13 @@ page{background:#f5f7fb;color:#172033;font-family:-apple-system,BlinkMacSystemFo
 .field-label{display:block;margin-bottom:10rpx;color:#34445c;font-size:24rpx;font-weight:700}
 .input{box-sizing:border-box;width:100%;height:92rpx;margin-top:0;border:1rpx solid #d8e3f1;border-radius:20rpx;background:#f8fbff;color:#172033}
 .login-btn{margin-top:34rpx;width:100%;font-size:29rpx}
+/* 【审核合规 2026-10-09】收集用户信息前的授权同意行: 勾选框+协议/隐私可点击链接 */
+.agreement-row{margin-top:22rpx;width:100%;display:flex;align-items:flex-start;gap:10rpx;text-align:left}
+.agreement-check{flex-shrink:0;padding:2rpx 0}
+.agreement-check-box{width:32rpx;height:32rpx;border-radius:8rpx;border:2rpx solid #9fb3cc;background:#fff;color:#fff;font-size:22rpx;line-height:30rpx;text-align:center}
+.agreement-check-box.checked{background:#2563eb;border-color:#2563eb}
+.agreement-text{flex:1;color:#677892;font-size:23rpx;line-height:1.6}
+.agreement-link{color:#2563eb;font-weight:600}
 /* 【2026-10-08 用户反馈】忘记密码按钮太小：加大点击区(上下 padding 16rpx/左右 48rpx)与字号 */
 .forgot-btn{margin:26rpx auto 0;padding:16rpx 48rpx;background:transparent;font-size:27rpx;line-height:1.4}
 .home-title-row,.customer-top{padding:4rpx 4rpx 24rpx}

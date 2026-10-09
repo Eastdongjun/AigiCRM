@@ -15,6 +15,17 @@
       <input class="input" placeholder="请输入密码" password value="{{password}}" bindinput="onPasswordInput" />
     </view>
     <button class="btn login-btn" loading="{{loginView.submitLoading}}" bindtap="submit">{{loginView.submitText}}</button>
+    <!-- 【审核合规 2026-10-09】收集用户信息(含手机号)前须取得授权同意: 勾选+可点开的协议/隐私政策 -->
+    <view class="agreement-row">
+      <view class="agreement-check" bindtap="toggleAgreed">
+        <view class="agreement-check-box {{agreed ? 'checked' : ''}}">{{agreed ? '✓' : ''}}</view>
+      </view>
+      <view class="agreement-text">
+        我已阅读并同意
+        <text class="agreement-link" catchtap="openAgreement">《用户服务协议》</text>和
+        <text class="agreement-link" catchtap="openPrivacyDoc">《隐私政策》</text>
+      </view>
+    </view>
     <button wx:if="{{loginView.showForgotAction}}" class="text-btn forgot-btn" bindtap="openForgot">忘记密码？</button>
   </view>
   <!-- ICP 备案(工信部要求展示;小程序无法直接跳转外部网页,点击复制备案系统网址) -->

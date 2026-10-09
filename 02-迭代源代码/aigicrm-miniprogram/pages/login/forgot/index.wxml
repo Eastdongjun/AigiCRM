@@ -20,7 +20,8 @@
     </block>
     <block wx:if="{{forgotView.showResetStep}}">
       <view class="label">新密码</view>
-      <input class="input polished-input" password data-field="newPassword" value="{{newPassword}}" bindinput="input" placeholder="至少 6 位"/>
+      <!-- 【工作流复核确认 2026-10-09】占位文案与 JS 校验(≥8位)及 PC 口径对齐, 原文案会误导用户输 6-7 位被拒 -->
+      <input class="input polished-input" password data-field="newPassword" value="{{newPassword}}" bindinput="input" placeholder="至少 8 位"/>
       <view class="label">确认密码</view>
       <input class="input polished-input" password data-field="confirmPassword" value="{{confirmPassword}}" bindinput="input" placeholder="再次输入新密码"/>
     </block>

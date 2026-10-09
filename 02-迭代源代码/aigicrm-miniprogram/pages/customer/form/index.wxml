@@ -108,11 +108,12 @@
     </picker>
 
     <view class="label">最近开票日</view>
-    <!-- 裁决 2026-09-24: 纯推导字段(最后一次非作废开票),任何角色不可直改;修正走客户财务页补录/作废 -->
+    <!-- 裁决 2026-09-24: 纯推导字段(最后一次非作废开票),任何角色不可直改;修正走客户详情「开票回款」页签补录/作废 -->
     <view class="picker-value derived-value">
       <text>{{formView.lastInvoiceDatePicker.text}}</text>
     </view>
-    <view class="tip">最近开票日由开票记录自动推导；如需修正请到客户详情-财务页补录或作废发票</view>
+    <!-- 【INV-11 术语修正 2026-10-09 工作流复核确认】"客户详情-财务页"实为「开票回款」页签,指引须指向真实入口 -->
+    <view class="tip">最近开票日由开票记录自动推导；如需修正请到客户详情「开票回款」页签补录或作废发票</view>
     <view class="tip">{{formView.dateTip}}</view>
   </view>
 
