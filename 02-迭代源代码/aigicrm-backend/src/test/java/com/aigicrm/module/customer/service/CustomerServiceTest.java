@@ -73,6 +73,7 @@ class CustomerServiceTest {
         TableInfoHelper.initTableInfo(assistant, BizInvoice.class);
         TableInfoHelper.initTableInfo(assistant, BizPayment.class);
         TableInfoHelper.initTableInfo(assistant, com.aigicrm.module.approval.entity.BizApproval.class);
+        TableInfoHelper.initTableInfo(assistant, com.aigicrm.module.reminder.entity.BizReminder.class);
     }
 
     /** 解析 wrapper 条件为 列名→值列表（IN 展开为多值，eq 为单值） */
@@ -1643,5 +1644,127 @@ class CustomerServiceTest {
         // 非归档状态不可恢复
         BusinessException ex = assertThrows(BusinessException.class, () -> svc.restore(501L));
         assertTrue(ex.getMessage().contains("不在归档"));
+    }
+
+    // ===== 【2026-10-09】死分享提醒清理(分享撤销/客户终态时 pending 一并清, 根治列表 customerName 整列「—」) =====
+
+    @SuppressWarnings("unchecked")
+    @Test
+    void delete_cleansSharesAndPendingShareReminders() {
+        BizCustomerMapper customerMapper = mock(BizCustomerMapper.class);
+        when(customerMapper.selectById(501L)).thenReturn(new BizCustomer());
+        BizInvoiceMapper invoiceMapper = mock(BizInvoiceMapper.class);
+        when(invoiceMapper.selectCount(any())).thenReturn(0L);
+        BizPaymentMapper paymentMapper = mock(BizPaymentMapper.class);
+        when(paymentMapper.selectCount(any())).thenReturn(0L);
+        BizCustomerShareMapper shareMapper = mock(BizCustomerShareMapper.class);
+        BizReminderMapper reminderMapper = mock(BizReminderMapper.class);
+        CustomerAccessService accessService = mock(CustomerAccessService.class);
+        when(accessService.canDelete(501L)).thenReturn(true);
+
+        CustomerService svc = new CustomerService(
+                customerMapper, mock(BizCustomerLogMapper.class),
+                invoiceMapper, shareMapper,
+                mock(BizCustomerIndicatorMapper.class),
+                mock(BizContactMapper.class), paymentMapper,
+                mock(SysUserMapper.class), mock(SysDeptMapper.class),
+                reminderMapper, mock(JdbcTemplate.class), mock(SysConfigService.class),
+                mock(OrgScopeResolver.class), accessService,
+                mock(com.aigicrm.module.system.service.RolePermScopeService.class),
+                mock(com.aigicrm.module.approval.mapper.BizApprovalMapper.class),
+                mock(com.aigicrm.module.system.mapper.SysLogMapper.class));
+
+        svc.delete(501L);
+        // 删除是终态: 分享行与 pending 分享提醒一并清理(悬挂提醒回填不到客户名)
+        verify(shareMapper).delete(any());
+        ArgumentCaptor<LambdaQueryWrapper<com.aigicrm.module.reminder.entity.BizReminder>> cap =
+                ArgumentCaptor.forClass((Class) LambdaQueryWrapper.class);
+        verify(reminderMapper, times(1)).delete(cap.capture());
+        LambdaQueryWrapper<com.aigicrm.module.reminder.entity.BizReminder> w = cap.getValue();
+        assertTrue(w.getSqlSegment().contains("customer_id"), "按客户定位: " + w.getSqlSegment());
+        assertTrue(w.getSqlSegment().contains("reminder_type"), "限分享三类: " + w.getSqlSegment());
+        assertTrue(w.getParamNameValuePairs().containsValue("pending"), "仅清 pending");
+        assertTrue(w.getParamNameValuePairs().containsValue("share_to"), "share_to 在清理范围");
+    }
+
+    @Test
+    void archive_cleansPendingShareRemindersButKeepsShareRows() {
+        BizCustomerMapper customerMapper = mock(BizCustomerMapper.class);
+        BizCustomer cust = new BizCustomer();
+        cust.setId(501L);
+        cust.setStatus("normal");
+        when(customerMapper.selectById(501L)).thenReturn(cust);
+        BizCustomerShareMapper shareMapper = mock(BizCustomerShareMapper.class);
+        BizReminderMapper reminderMapper = mock(BizReminderMapper.class);
+        CustomerAccessService accessService = mock(CustomerAccessService.class);
+        when(accessService.canEdit(501L)).thenReturn(true);
+
+        CustomerService svc = new CustomerService(
+                customerMapper, mock(BizCustomerLogMapper.class),
+                mock(BizInvoiceMapper.class), shareMapper,
+                mock(BizCustomerIndicatorMapper.class),
+                mock(BizContactMapper.class), mock(BizPaymentMapper.class),
+                mock(SysUserMapper.class), mock(SysDeptMapper.class),
+                reminderMapper, mock(JdbcTemplate.class), mock(SysConfigService.class),
+                mock(OrgScopeResolver.class), accessService,
+                mock(com.aigicrm.module.system.service.RolePermScopeService.class),
+                mock(com.aigicrm.module.approval.mapper.BizApprovalMapper.class),
+                mock(com.aigicrm.module.system.mapper.SysLogMapper.class));
+
+        svc.archive(501L);
+        assertEquals("archived", cust.getStatus());
+        // 归档可恢复: 分享行保留, 仅清 pending 分享提醒(同 V2026.09.23.8 死 pending 判据)
+        verify(shareMapper, never()).delete(any());
+        verify(reminderMapper, times(1)).delete(any());
+    }
+
+    @Test
+    void removeAllShares_cleansPendingShareReminders() {
+        BizCustomerShareMapper shareMapper = mock(BizCustomerShareMapper.class);
+        BizReminderMapper reminderMapper = mock(BizReminderMapper.class);
+        CustomerService svc = new CustomerService(
+                mock(BizCustomerMapper.class), mock(BizCustomerLogMapper.class),
+                mock(BizInvoiceMapper.class), shareMapper,
+                mock(BizCustomerIndicatorMapper.class), mock(BizContactMapper.class),
+                mock(BizPaymentMapper.class), mock(SysUserMapper.class), mock(SysDeptMapper.class),
+                reminderMapper, mock(JdbcTemplate.class), mock(SysConfigService.class),
+                mock(OrgScopeResolver.class), mock(CustomerAccessService.class),
+                mock(com.aigicrm.module.system.service.RolePermScopeService.class),
+                mock(com.aigicrm.module.approval.mapper.BizApprovalMapper.class),
+                mock(com.aigicrm.module.system.mapper.SysLogMapper.class));
+
+        // 入海/捞取/管理端清空三路径均经此口,分享撤销后三类 pending 提醒随分享失效
+        svc.removeAllShares(501L);
+        verify(shareMapper).delete(any());
+        verify(reminderMapper, times(1)).delete(any());
+    }
+
+    @SuppressWarnings("unchecked")
+    @Test
+    void removeShare_cleansOnlyTargetUserPendingShareTo() {
+        BizCustomerShareMapper shareMapper = mock(BizCustomerShareMapper.class);
+        BizReminderMapper reminderMapper = mock(BizReminderMapper.class);
+        CustomerService svc = new CustomerService(
+                mock(BizCustomerMapper.class), mock(BizCustomerLogMapper.class),
+                mock(BizInvoiceMapper.class), shareMapper,
+                mock(BizCustomerIndicatorMapper.class), mock(BizContactMapper.class),
+                mock(BizPaymentMapper.class), mock(SysUserMapper.class), mock(SysDeptMapper.class),
+                reminderMapper, mock(JdbcTemplate.class), mock(SysConfigService.class),
+                mock(OrgScopeResolver.class), mock(CustomerAccessService.class),
+                mock(com.aigicrm.module.system.service.RolePermScopeService.class),
+                mock(com.aigicrm.module.approval.mapper.BizApprovalMapper.class),
+                mock(com.aigicrm.module.system.mapper.SysLogMapper.class));
+
+        svc.removeShare(501L, 66L);
+        verify(shareMapper).delete(any());
+        ArgumentCaptor<LambdaQueryWrapper<com.aigicrm.module.reminder.entity.BizReminder>> cap =
+                ArgumentCaptor.forClass((Class) LambdaQueryWrapper.class);
+        verify(reminderMapper, times(1)).delete(cap.capture());
+        LambdaQueryWrapper<com.aigicrm.module.reminder.entity.BizReminder> w = cap.getValue();
+        // 单个移除只清被移除者的 share_to,不误伤分享人/负责人侧的成组通知
+        assertTrue(w.getSqlSegment().contains("owner_id"), "按被移除人定位: " + w.getSqlSegment());
+        assertTrue(w.getParamNameValuePairs().containsValue(66L), "目标用户 66");
+        assertTrue(w.getParamNameValuePairs().containsValue("share_to"), "仅 share_to");
+        assertTrue(w.getParamNameValuePairs().containsValue("pending"), "仅 pending");
     }
 }

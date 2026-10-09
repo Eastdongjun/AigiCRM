@@ -168,7 +168,8 @@
         <div v-for="item in reminders" :key="item.id" class="remind-row">
           <span class="r-dot" :class="item.dotCls"></span>
           <div class="r-body">
-            <div class="r-main">{{ item.customerName }}{{ item.desc ? ' · ' + item.desc : '' }}</div>
+            <!-- 【2026-10-09】customerName 为空(如死提醒)时不再渲染前导「·」 -->
+            <div class="r-main">{{ [item.customerName, item.desc].filter(Boolean).join(' · ') }}</div>
             <div class="r-sub">
               <span v-if="item.daysTag" class="days-tag" :class="item.daysTagCls">{{ item.daysTag }}</span>
               <span class="r-extra">{{ item.extra || '' }}</span>
@@ -188,7 +189,8 @@
           <span class="a-dot"></span>
           <div class="a-body">
             <div class="a-main">{{ a.title }}</div>
-            <div class="a-meta">{{ a.user }} · {{ a.dept }} · {{ formatRelativeTime(a.time) }}</div>
+            <!-- 【2026-10-09】空部门时不再出现双分隔点(「· · 」),空段全部静默折叠 -->
+            <div class="a-meta">{{ [a.user, a.dept, formatRelativeTime(a.time)].filter(Boolean).join(' · ') }}</div>
           </div>
         </div>
         </div>
@@ -537,7 +539,8 @@ onMounted(() => { loadData(); loadRoleData(); loadTaskStats() })
 .hbar-row { display: flex; align-items: center; gap: 10px }
 .hbar-lbl { width: 32px; font-size: 12px; color: var(--text-muted); font-weight: 500; text-align: right; flex-shrink: 0 }
 .hbar-track { flex: 1; height: 20px; background: #f5f6f7; border-radius: var(--radius-md); overflow: hidden }
-.hbar-fill { height: 100%; border-radius: var(--radius-md); transition: width .6s ease }
+/* 【E19 回退修复 2026-10-09】0.6s 超全站 0.15-0.4s 锚点且与同页 hero 填充 0.4s 双节奏 → 对齐 0.4s */
+.hbar-fill { height: 100%; border-radius: var(--radius-md); transition: width .4s ease }
 .hbar-blue { background: linear-gradient(90deg, var(--el-color-primary-light-3), var(--el-color-primary)) }
 .hbar-green { background: linear-gradient(90deg, #95d475, var(--el-color-success)) }
 .hbar-fill.hb-now { background: linear-gradient(90deg, #ff9a76, #e8684a) }

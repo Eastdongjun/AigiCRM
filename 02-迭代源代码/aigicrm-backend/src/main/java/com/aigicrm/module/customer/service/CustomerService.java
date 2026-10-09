@@ -593,6 +593,9 @@ public class CustomerService {
         // 【议题五.3 裁决 2026-09-19】有业务数据的客户不允许删,转停用:
         assertDeletable(id);
         customerMapper.deleteById(id);
+        // 【2026-10-09】客户删除是终态,分享行与 pending 分享提醒一并清理:
+        // 悬挂的分享提醒在列表上表现为 customerName 整列「—」(客户已被 @TableLogic 过滤,回填查不到)
+        removeAllShares(id);
         // 【裁决 2026-09-24】客户删除留痕(三态不变量: 名下/公海/已删除, 删除是终态必须可追溯):
         // 完整快照落 sys_log, 管理员经 系统管理-系统日志 查看; 行本身 @TableLogic 逻辑删保留
         logRecordDeletion("客户", "删除客户", "customer", id,
@@ -642,6 +645,9 @@ public class CustomerService {
         }
         existing.setStatus("archived");
         customerMapper.updateById(existing);
+        // 【2026-10-09】归档客户不参与提醒(议题五.4 裁决口径,死 pending 判据同 V2026.09.23.8);
+        // 分享行保留备 restore,仅清 pending 分享提醒(一次性确认类,恢复不回填)
+        cleanPendingShareReminders(id);
     }
 
     /** 【议题五.4】恢复(从归档恢复正常) */
@@ -1552,12 +1558,35 @@ public class CustomerService {
                 new LambdaQueryWrapper<BizCustomerShare>()
                         .eq(BizCustomerShare::getCustomerId, customerId)
                         .eq(BizCustomerShare::getSharedToUserId, userId));
+        // 【2026-10-09】被移除者的 pending share_to 随分享失效(分享已不存在,提醒永无合法处理路径);
+        // share_by/share_owner 属分享人/负责人侧的成组通知,其他分享仍在时不误伤
+        reminderMapper.delete(new LambdaQueryWrapper<BizReminder>()
+                .eq(BizReminder::getCustomerId, customerId)
+                .eq(BizReminder::getOwnerId, userId)
+                .eq(BizReminder::getReminderType, "share_to")
+                .eq(BizReminder::getStatus, "pending"));
     }
 
     public void removeAllShares(Long customerId) {
         shareMapper.delete(
                 new LambdaQueryWrapper<BizCustomerShare>()
                         .eq(BizCustomerShare::getCustomerId, customerId));
+        // 【2026-10-09】分享全部撤销(入海/捞取/删除/管理端清空)时,三类 pending 分享提醒
+        // 指向的分享已不存在,一并清理;processed 历史留痕不动
+        cleanPendingShareReminders(customerId);
+    }
+
+    /**
+     * 【2026-10-09】清理客户全部 pending 分享提醒(share_to/share_by/share_owner)。
+     * 背景: 分享被撤销/客户终态转移后这些提醒悬挂留存,列表上 customerName 整列「—」
+     * (客户被 @TableLogic 过滤,批量回填查不到)。与 V2026.09.23.8 到期提醒死 pending
+     * 清理同口径: 客户不存在/已删/入海/归档即死,无合法处理路径。
+     */
+    private void cleanPendingShareReminders(Long customerId) {
+        reminderMapper.delete(new LambdaQueryWrapper<BizReminder>()
+                .eq(BizReminder::getCustomerId, customerId)
+                .in(BizReminder::getReminderType, java.util.List.of("share_to", "share_by", "share_owner"))
+                .eq(BizReminder::getStatus, "pending"));
     }
 
     // ====== 联系人 ======

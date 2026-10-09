@@ -89,30 +89,33 @@
       已作废记录保留展示(悬停查看原因), 不计入上方累计与有效总额、不延长保护期。任何记录均可删除(裁决 2026-09-24): 删除必填原因并留审计痕迹, 数据行逻辑保留可回查; 更正常规口径仍推荐"作废"。
     </div>
 
+    <!-- 【C11 补漏 2026-10-09】开票/回款弹窗此前无 :rules(第 1 轮所有权交界漏项):
+         必填+金额>0 与 useCustomerDetail 提交守卫同口径, 校验不过不触达提交 -->
     <el-dialog v-model="showInvoiceDialog" title="录入开票" width="480px" :close-on-click-modal="false">
-      <el-form :model="invoiceForm" label-width="80px">
-        <el-form-item label="开票日期"><el-date-picker v-model="invoiceForm.invoiceDate" type="date" value-format="YYYY-MM-DD" style="width:100%" /></el-form-item>
-        <el-form-item label="发票号码"><el-input v-model="invoiceForm.invoiceNumber" /></el-form-item>
+      <el-form ref="invoiceFormRef" :model="invoiceForm" :rules="ledgerRules.invoice" label-width="80px">
+        <el-form-item label="开票日期" prop="invoiceDate"><el-date-picker v-model="invoiceForm.invoiceDate" type="date" value-format="YYYY-MM-DD" style="width:100%" /></el-form-item>
+        <el-form-item label="发票号码" prop="invoiceNumber"><el-input v-model="invoiceForm.invoiceNumber" /></el-form-item>
         <el-form-item label="发票类型"><el-select v-model="invoiceForm.invoiceType" style="width:100%"><el-option label="增值税专票" value="增值税专票" /><el-option label="增值税普票" value="增值税普票" /></el-select></el-form-item>
         <el-form-item label="开票单位"><el-input v-model="invoiceForm.invoiceCompany" /></el-form-item>
-        <el-form-item label="金额(万)"><el-input-number v-model="invoiceForm.amount" :min="0" :precision="2" style="width:100%" /></el-form-item>
+        <el-form-item label="金额(万)" prop="amount"><el-input-number v-model="invoiceForm.amount" :min="0" :precision="2" style="width:100%" /></el-form-item>
       </el-form>
-      <template #footer><el-button @click="showInvoiceDialog=false">取消</el-button><el-button type="primary" @click="handleAddInvoice">确认录入</el-button></template>
+      <template #footer><el-button @click="showInvoiceDialog=false">取消</el-button><el-button type="primary" @click="submitInvoice">确认录入</el-button></template>
     </el-dialog>
 
     <el-dialog v-model="showPaymentDialog" title="录入回款" width="480px" :close-on-click-modal="false">
-      <el-form :model="paymentForm" label-width="80px">
-        <el-form-item label="回款日期"><el-date-picker v-model="paymentForm.paymentDate" type="date" value-format="YYYY-MM-DD" style="width:100%" /></el-form-item>
-        <el-form-item label="金额(万)"><el-input-number v-model="paymentForm.paymentAmount" :min="0" :precision="2" style="width:100%" /></el-form-item>
+      <el-form ref="paymentFormRef" :model="paymentForm" :rules="ledgerRules.payment" label-width="80px">
+        <el-form-item label="回款日期" prop="paymentDate"><el-date-picker v-model="paymentForm.paymentDate" type="date" value-format="YYYY-MM-DD" style="width:100%" /></el-form-item>
+        <el-form-item label="金额(万)" prop="paymentAmount"><el-input-number v-model="paymentForm.paymentAmount" :min="0" :precision="2" style="width:100%" /></el-form-item>
         <el-form-item label="回款方式"><el-input v-model="paymentForm.paymentMethod" /></el-form-item>
         <el-form-item label="备注"><el-input v-model="paymentForm.remark" type="textarea" :rows="2" /></el-form-item>
       </el-form>
-      <template #footer><el-button @click="showPaymentDialog=false">取消</el-button><el-button type="primary" @click="handleAddPayment">确认录入</el-button></template>
+      <template #footer><el-button @click="showPaymentDialog=false">取消</el-button><el-button type="primary" @click="submitPayment">确认录入</el-button></template>
     </el-dialog>
   </div>
 </template>
 
 <script setup>
+import { ref } from 'vue'
 import { injectCustomerDetail } from '@/composables/useCustomerDetail'
 import { formatWan, dashIfEmpty } from '@/utils/format'
 // 【B7 2026-10-08】台账状态三态映射收敛到 utils/status-maps.js 唯一来源
@@ -131,6 +134,35 @@ const ledgerRowClass = ({ row }) => (row.status === 'voided' ? 'ledger-voided-ro
 const hasAmount = (v) => v !== null && v !== undefined && v !== ''
 // 【B7 2026-10-08】开票/回款两表状态章统一走 status-maps（文案+type 一处维护）
 const financeStatus = (s) => statusOf(FINANCE_LEDGER_STATUS, s)
+
+// 【C11 补漏 2026-10-09】弹窗内联校验: 必填+金额>0, 与 useCustomerDetail 提交守卫同口径
+// (录入守卫历来拒 0 金额, 0 仅作为历史导入行的合法展示值)
+const invoiceFormRef = ref(null)
+const paymentFormRef = ref(null)
+const amountRule = {
+  required: true, trigger: 'blur',
+  validator: (_r, v, cb) => (v === null || v === undefined || v === '' || Number(v) <= 0)
+    ? cb(new Error('金额必须大于 0')) : cb(),
+}
+const ledgerRules = {
+  invoice: {
+    invoiceDate: [{ required: true, message: '请选择开票日期', trigger: 'change' }],
+    invoiceNumber: [{ required: true, message: '请填写发票号码', trigger: 'blur' }],
+    amount: [amountRule],
+  },
+  payment: {
+    paymentDate: [{ required: true, message: '请选择回款日期', trigger: 'change' }],
+    paymentAmount: [amountRule],
+  },
+}
+const submitInvoice = async () => {
+  try { await invoiceFormRef.value?.validate() } catch { return }
+  handleAddInvoice()
+}
+const submitPayment = async () => {
+  try { await paymentFormRef.value?.validate() } catch { return }
+  handleAddPayment()
+}
 </script>
 
 <style scoped>

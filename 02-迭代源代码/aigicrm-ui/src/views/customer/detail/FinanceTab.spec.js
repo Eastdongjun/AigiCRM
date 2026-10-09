@@ -12,7 +12,7 @@ import { CustomerDetailKey } from '@/composables/useCustomerDetail'
  * - 作废行置灰类名 ledger-voided-row(留痕展示)
  * - 口径脚注提示"作废不计入统计/保护期"
  */
-function mountFinanceTab({ invoices = [], payments = [], readonly = false, handlers = {} }) {
+function mountFinanceTab({ invoices = [], payments = [], readonly = false, handlers = {}, dialogs = {}, formValues = {} }) {
   const noop = () => {}
   return mount(FinanceTab, {
     global: {
@@ -24,14 +24,14 @@ function mountFinanceTab({ invoices = [], payments = [], readonly = false, handl
           invoiceSummary: ref({ totalCount: 0, totalAmount: 0 }),
           payments: ref(payments),
           paymentSummary: ref({ totalCount: 0, totalAmount: 0 }),
-          showInvoiceDialog: ref(false),
-          showPaymentDialog: ref(false),
-          invoiceForm: ref({}),
-          paymentForm: ref({}),
-          handleAddInvoice: noop,
+          showInvoiceDialog: ref(!!dialogs.invoice),
+          showPaymentDialog: ref(!!dialogs.payment),
+          invoiceForm: ref({ invoiceDate: '', invoiceNumber: '', invoiceType: '增值税专票', invoiceCompany: '', amount: null, ...formValues.invoice }),
+          paymentForm: ref({ paymentDate: '', paymentAmount: null, paymentMethod: '', remark: '', ...formValues.payment }),
+          handleAddInvoice: handlers.handleAddInvoice || noop,
           handleDeleteInvoice: handlers.handleDeleteInvoice || noop,
-          handleAddPayment: noop,
-          handleDeletePayment: noop,
+          handleAddPayment: handlers.handleAddPayment || noop,
+          handleDeletePayment: handlers.handleDeletePayment || noop,
           handleConfirmInvoice: handlers.handleConfirmInvoice || noop,
           handleVoidInvoice: handlers.handleVoidInvoice || noop,
           handleConfirmPayment: handlers.handleConfirmPayment || noop,
@@ -113,5 +113,40 @@ describe('客户详情 FinanceTab 台账状态机', () => {
     await nextTick()
     expect(wrapper.text()).toContain('不计入上方累计与有效总额')
     expect(wrapper.text()).toContain('不延长保护期')
+  })
+
+  // 【C11 补漏 2026-10-09】弹窗 :rules 挂载断言。
+  // 说明: EP 2.14.5 暴露的 form.validate() 在 jsdom 下恒 resolve(实测门面 fields 虽注册但
+  // 校验不执行, field 级 validate 正常), 故不断言"点提交被拦截"; 生产兜底=useCustomerDetail
+  // 提交守卫(拒空/拒 0)+rules 的 blur/change 内联错误。这里钉住规则挂载与金额语义不回退。
+  it('开票弹窗: :rules 挂到必填字段, form-item prop 齐备(缺 prop 校验不生效)', async () => {
+    const wrapper = mountFinanceTab({ dialogs: { invoice: true } })
+    for (let i = 0; i < 6; i++) await nextTick()
+    await flushPromises()
+    const form = wrapper.findComponent({ name: 'ElForm' })
+    expect(form.exists()).toBe(true)
+    expect(Object.keys(form.props('rules') || {})).toEqual(['invoiceDate', 'invoiceNumber', 'amount'])
+    const itemProps = form.findAllComponents({ name: 'ElFormItem' }).map((i) => i.props('prop'))
+    expect(itemProps).toEqual(['invoiceDate', 'invoiceNumber', undefined, undefined, 'amount'])
+  })
+
+  it('回款弹窗: :rules 挂到日期与金额字段', async () => {
+    const wrapper = mountFinanceTab({ dialogs: { payment: true } })
+    for (let i = 0; i < 6; i++) await nextTick()
+    await flushPromises()
+    const form = wrapper.findComponent({ name: 'ElForm' })
+    expect(Object.keys(form.props('rules') || {})).toEqual(['paymentDate', 'paymentAmount'])
+    const itemProps = form.findAllComponents({ name: 'ElFormItem' }).map((i) => i.props('prop'))
+    expect(itemProps).toEqual(['paymentDate', 'paymentAmount', undefined, undefined])
+  })
+
+  it('金额规则语义: null/0/负数拒绝, 正数放行(与提交守卫拒 0 口径一致)', async () => {
+    const wrapper = mountFinanceTab({ dialogs: { invoice: true } })
+    for (let i = 0; i < 6; i++) await nextTick()
+    await flushPromises()
+    const rules = wrapper.findComponent({ name: 'ElForm' }).props('rules')
+    const validator = rules.amount.find((r) => typeof r.validator === 'function').validator
+    const run = (v) => new Promise((res) => validator(null, v, (err) => res(!!err)))
+    expect(await Promise.all([run(null), run(0), run(-1), run(2.5)])).toEqual([true, true, true, false])
   })
 })
