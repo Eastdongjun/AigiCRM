@@ -63,13 +63,22 @@ else
   bad "不在 git 仓库内,无法检查新鲜度"
 fi
 
-# [5] 工作区(交付级必须干净;本项只告警不阻断——避免迭代中被卡)
+# [5] 业务不变量契约(2026-10-09 三案复盘建立: INV-10 指引可达性——拒绝性提示指引的
+#     功能必须真实存在且可达;"停用"断头路事故的自动化防线;清单见 docs/business/invariants.md)
+echo "--- [5] 业务不变量契约 ---"
+if bash "$SCRIPT_DIR/check-invariants-contract.sh" > /tmp/gate-inv.log 2>&1; then
+  ok "业务不变量契约(INV-10)"
+else
+  bad "业务不变量契约违例(INV-10 指引可达性——断头路):"; grep "FAIL" /tmp/gate-inv.log | head -5
+fi
+
+# [6] 工作区(交付级必须干净;本项只告警不阻断——避免迭代中被卡)
 DIRTY=$(cd "$REPO" 2>/dev/null && git status --porcelain | wc -l | tr -d ' ')
 [ "${DIRTY:-0}" -eq 0 ] && ok "工作区干净" || echo "⚠️  工作区有 ${DIRTY} 项未提交(交付前必须收口)"
 
-# [6] 可选: 权限矩阵回归(显式开启才跑, 需测试环境)
+# [7] 可选: 权限矩阵回归(显式开启才跑, 需测试环境)
 if [ "${AIGI_MATRIX:-0}" = "1" ]; then
-  echo "--- [6] 权限矩阵回归 ---"
+  echo "--- [7] 权限矩阵回归 ---"
   if AIGI_TEST_USER=admin AIGI_TEST_PASS="${AIGI_TEST_PASS:?开启矩阵需提供 AIGI_TEST_PASS}" \
      bash "$SCRIPT_DIR/verify-perm-matrix.sh" > /tmp/gate-matrix.log 2>&1; then
     ok "权限矩阵回归"
