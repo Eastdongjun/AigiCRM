@@ -59,10 +59,26 @@ public class SecurityConfig {
             // 【BS-A09 2026-09-19】越权拒绝(403)统一汇入安全审计:@PreAuthorize/anyRequest 拒绝
             // 都走此处,留 uri/用户/IP 结构化痕迹 + IP 阈值告警。响应保持与原默认一致的 403 语义
             // (补 JSON 体,与全站 Result 口径一致,前端拦截器按状态码处理不受影响)。
-            .exceptionHandling(ex -> ex.accessDeniedHandler(this::auditAccessDenied))
+            // 【2026-10-09 工作流复核确认修复】未认证(无 token/过期 token)补 401 入口点:
+            // 原默认 Http403ForbiddenEntryPoint 返回 403+空 body——MP 请求层只认 401 才清令牌
+            // 踢回登录,过期用户被困业务页(所有请求 toast"请求失败";PC 靠本地解 JWT exp 兜底,
+            // MP 无对应机制)。401=未认证/403=已认证无权,语义归位后两端零改动闭环。
+            .exceptionHandling(ex -> ex
+                    .accessDeniedHandler(this::auditAccessDenied)
+                    .authenticationEntryPoint(this::unauthenticatedEntry))
             .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
+    }
+
+    /** 未认证/凭证过期统一入口: 401+JSON(与全站 Result 口径一致; 前端拦截器按 401 清令牌回登录) */
+    private void unauthenticatedEntry(HttpServletRequest request, HttpServletResponse response,
+                                      org.springframework.security.core.AuthenticationException ex)
+            throws IOException {
+        response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+        response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+        response.setCharacterEncoding(StandardCharsets.UTF_8.name());
+        response.getWriter().write("{\"code\":401,\"message\":\"登录已过期，请重新登录\"}");
     }
 
     private void auditAccessDenied(HttpServletRequest request, HttpServletResponse response,

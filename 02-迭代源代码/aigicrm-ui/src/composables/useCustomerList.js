@@ -480,6 +480,11 @@ export function useCustomerList() {
     const kw = (searchText.value || '').trim()
     if (kw) listQuery.kw = kw
     if (page.value > 1) listQuery.page = String(page.value)
+    // 【工作流复核确认修复 2026-10-09】被分享行(非本人客户)进详情按只读打开:
+    // readonly 此前仅由 query.from=share 驱动但全 UI 无生成点,被分享用户可见可点
+    // 全部写按钮,与分享弹窗"该用户可查看此客户信息(只读)"承诺矛盾(后端 assertCanEdit
+    // 有兜底,此处补齐 UI 层口径,与列表端 isShared 禁选/操作列「—」同判据)
+    if (isShared(row)) listQuery.readonly = '1'
     router.push({ path: `/customer/detail/${row.id}`, query: listQuery })
   }
 
