@@ -440,9 +440,8 @@ public class IncentiveService {
                 existing.setShared(update.getShared());
             }
         }
-        // 【工作流复检修复 2026-10-10】与 removeFile 同口径的五槽合计≥1 不变量：PUT 对槽位传
-        // 空串（非 null）可清空任意槽，五槽全空串即得到无文件记录——堵住该路径，两接口口径一致。
-        // 仅约束"本次触碰槽位字段"的变更：不带文件的历史记录做纯业务字段编辑不受影响。
+        // 【五轮复检对齐】防御性留置：现行语义下 PUT 空白=未提供、合法槽位必含≥1个ID，本守卫在
+        // 正常路径不可达；防的是未来 merge 语义变化或存量脏数据(五槽全空记录)被槽位编辑意外固化。
         if (fileTouched && !existing.hasAnyFile()) {
             throw new BusinessException(400, "记录至少须保留一份文件；如需删除整条记录请使用「删除」");
         }
@@ -642,6 +641,13 @@ public class IncentiveService {
         }
         if (!r.hasAnyFile()) {
             throw new BusinessException("请至少上传一个文件");
+        }
+        // 【五轮复检修复】create 与 update 同口径: 槽位非空白值必须是合法 JSON 数组
+        // (parseJsonArray 会把脏串静默解析为空列表绕过归属核对, 原样落库成脏数据)
+        for (String v : new String[]{r.getFilePreId(), r.getFileMidId(), r.getFilePostId(), r.getFileId(), r.getFileTrackId()}) {
+            if (v != null && !v.isBlank() && !SLOT_JSON_RE.matcher(v.trim()).matches()) {
+                throw new BusinessException(400, "安装文件槽位格式非法（应为文件ID数组）");
+            }
         }
         // 文件引用核对：全部槽位文件 ID 必须存在且属于当前用户（防伪造引用他人文件）
         List<Long> fileIds = collectFileIds(r);

@@ -66,7 +66,7 @@
         </div>
         <div class="file-slot-cards">
           <div v-for="(file, idx) in installFiles.pre" :key="idx" class="file-card has" @click.stop="previewCardFile(file)">
-            <img v-if="(file._existing ? thumbsReady : true) && isImage(file.name) && !file._thumbFailed" :src="file._existing ? existingThumb(file) : getObjectURL(file)" class="file-card-img" @error="file._thumbFailed = true" />
+            <img v-if="(file._existing ? (thumbsReady && file.id) : true) && isImage(file.name) && !file._thumbFailed" :src="file._existing ? existingThumb(file) : getObjectURL(file)" class="file-card-img" @error="file._thumbFailed = true" />
             <div v-else class="file-card-icon"><el-icon :size="file._existing?20:24"><Document /></el-icon></div>
             <span v-if="fileType(file.name) === 'video'" class="file-card-play"><el-icon><VideoPlay /></el-icon></span>
             <!-- 已有文件也可移除（用户裁决 2026-10-10：上传错了需要修改；确认后走后端原子移除） -->
@@ -95,7 +95,7 @@
             </div>
             <div class="file-slot-cards">
               <div v-for="(file, idx) in installFiles[slot.key]" :key="idx" class="file-card has" @click.stop="previewCardFile(file)">
-                <img v-if="(file._existing ? thumbsReady : true) && isImage(file.name) && !file._thumbFailed" :src="file._existing ? existingThumb(file) : getObjectURL(file)" class="file-card-img" @error="file._thumbFailed = true" />
+                <img v-if="(file._existing ? (thumbsReady && file.id) : true) && isImage(file.name) && !file._thumbFailed" :src="file._existing ? existingThumb(file) : getObjectURL(file)" class="file-card-img" @error="file._thumbFailed = true" />
                 <div v-else class="file-card-icon">
                   <el-icon :size="file._existing?20:24"><Document /></el-icon>
                 </div>
@@ -120,7 +120,7 @@
         </div>
         <div class="file-slot-cards">
           <div v-for="(file, idx) in trackFile" :key="idx" class="file-card has" @click.stop="previewCardFile(file)">
-            <img v-if="(file._existing ? thumbsReady : true) && isImage(file.name) && !file._thumbFailed" :src="file._existing ? existingThumb(file) : getObjectURL(file)" class="file-card-img" @error="file._thumbFailed = true" />
+            <img v-if="(file._existing ? (thumbsReady && file.id) : true) && isImage(file.name) && !file._thumbFailed" :src="file._existing ? existingThumb(file) : getObjectURL(file)" class="file-card-img" @error="file._thumbFailed = true" />
             <div v-else class="file-card-icon"><el-icon :size="20"><Document /></el-icon></div>
             <span v-if="fileType(file.name) === 'video'" class="file-card-play"><el-icon><VideoPlay /></el-icon></span>
             <span class="file-card-del" @click.stop="handleRemoveSlotFile('track', idx)"><el-icon><Close /></el-icon></span>

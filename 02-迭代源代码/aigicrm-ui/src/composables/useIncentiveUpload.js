@@ -201,7 +201,8 @@ export function useIncentiveUpload() {
           } else if (parent.parentId === 0) {
             majorMinor = parent.categoryName + ' · ' + cat.categoryName
             groupName = parent.categoryName
-            tier = cat.categoryName
+            // 【五轮复检修复】二级结构 majorMinor 尾段已含子类名, tier 置空防 meta 行重复展示
+            tier = ''
           }
         }
       }
@@ -410,6 +411,8 @@ export function useIncentiveUpload() {
     if (!open) {
       releasePreviewBlobs()
       installFiles.pre = []; installFiles.mid = []; installFiles.post = []; trackFile.value = []
+      // 【五轮复检修复】预览框渲染在弹窗之外, blob 已 revoke 不关会黑屏(对齐 resetDialogFields 注释意图)
+      previewVisible.value = false
     }
   })
   // 【四轮复检修复】路由离开(组件卸载)兜底释放已选文件 blob——原先弹窗开着切路由无人清理
@@ -580,14 +583,16 @@ export function useIncentiveUpload() {
     if (!f || !f._existing || !f.id || !pendingReplace.value) return
     const label = SLOT_LABELS[slotKey] || '槽位'
     const shortName = (f.name || '').substring(0, 24)
+    // 【五轮复检修复】自增提到确认弹窗之前: 确认框开着期间提交不再穿透(原计数在 confirm 之后,
+    // 弹窗期提交快照仍带在途移除的文件 id, 网络乱序时可复活)
+    removingInFlight.value++
     try {
       await confirmAction(
         `从「${label}」移除文件「${shortName}」？移除后本条记录积分将按最新规则重算，原文件仍保留在文件库中可追溯。`,
         '移除文件',
         { confirmText: '移除' }
       )
-    } catch { return }
-    removingInFlight.value++
+    } catch { removingInFlight.value--; return }
     try {
       await removeRecordFile(pendingReplace.value.id, { slot: slotKey, fileId: f.id })
       // 【工作流复检修复 2026-10-10】确认弹窗期间用户可再删别的文件，旧下标会剔错元素——
@@ -613,23 +618,34 @@ export function useIncentiveUpload() {
     removeSlotFile(slotKey, idx)
   }
 
+  // 【五轮复检修复】上传中禁选新文件: 提交快照在提交时读取, 中途新加不进本次上传且关闭弹窗时被静默丢弃
   const pickFile = (slotKey) => {
+    if (uploading.value) { ElMessage.warning('文件上传处理中，请等待完成'); return }
     currentSlot.value = slotKey
     fileInputRef.value?.click()
   }
 
   const pickTrackFile = () => {
+    if (uploading.value) { ElMessage.warning('文件上传处理中，请等待完成'); return }
     currentSlot.value = 'track'
     fileInputRef.value?.click()
   }
 
   const handleFileSelected = (event) => {
     const files = Array.from(event.target.files)
+    // 【五轮复检修复】multiple 多选超限不再静默截断——用户会误以为全部选中
+    const capNotice = (list, key) => {
+      const merged = [...list, ...files]
+      if (merged.length > MAX_FILES) {
+        ElMessage.warning(`每槽位最多 ${MAX_FILES} 个文件，已保留前 ${MAX_FILES} 个`)
+      }
+      return merged.slice(0, MAX_FILES)
+    }
     if (currentSlot.value === 'track') {
-      trackFile.value = [...trackFile.value, ...files].slice(0, MAX_FILES)
+      trackFile.value = capNotice(trackFile.value)
     } else if (currentSlot.value) {
       // 追加到槽位：保留槽内已有文件（含此前已选未上传的新文件），再拼接本次选择，最多 MAX_FILES
-      installFiles[currentSlot.value] = [...installFiles[currentSlot.value], ...files].slice(0, MAX_FILES)
+      installFiles[currentSlot.value] = capNotice(installFiles[currentSlot.value])
     }
     currentSlot.value = null
     event.target.value = ''

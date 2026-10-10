@@ -495,6 +495,14 @@ Page({
       this.setData({ customers, customerNames: customers.map((item) => item.customerName || item.name || '未命名客户'), categories, categoryParentNodes: deriveCategoryParents(categories), categoryNames: categories.map((item) => item.name) }, () => this.refreshUploadViewState())
       if (this.data.editId) this.loadEditRecord()
       else this.tryRestoreDraft() // 【PR-13】新建模式: 选项就绪后检查草稿恢复(客户/分类索引依赖选项)
+      // 【五轮复检修复】草稿恢复的已上传图片同样需要 dlToken 才能显示远端缩略图(原只编辑模式取)
+      if (!this.data.editId) {
+        getDownloadToken().then((res) => {
+          if (this._unloaded) return
+          this.setData({ dlToken: (res && (res.token || (res.data && res.data.token))) || '' },
+            () => this.refreshUploadViewState())
+        }).catch(() => {})
+      }
     }).catch((error) => showError(error, '上传选项加载失败'))
   },
 
@@ -502,6 +510,7 @@ Page({
     if (!this.data.editId) return
     if (getApp().globalData.demoMode) return wx.showToast({ title: '演示记录不可追加', icon: 'none' })
     getRecords({}).then((rows) => {
+      if (this._unloaded) return // 【五轮复检修复】加载在途卸载不再对已销毁页 setData
       const records = Array.isArray(rows) ? rows : (rows && (rows.records || rows.data || rows.list)) || []
       const record = records.find((item) => String(item.id) === String(this.data.editId))
       if (!record) throw new Error('找不到四项激励记录')
@@ -806,6 +815,9 @@ Page({
               [`fileSlots[${index}].fileName`]: firstFile.fileName || '',
               [`fileSlots[${index}].fileKind`]: firstFile.fileKind || ''
             }, () => this.refreshUploadViewState())
+            // 【五轮复检修复】后端已重算积分, 置刷新标记防列表 30s 节流导致返回时数据陈旧
+            const gData = getApp().globalData
+            if (gData.forceRefresh) gData.forceRefresh.incentive = true
             wx.showToast({ title: '已移除并重算积分', icon: 'none', duration: 2000 })
           })
           .catch((err) => {
