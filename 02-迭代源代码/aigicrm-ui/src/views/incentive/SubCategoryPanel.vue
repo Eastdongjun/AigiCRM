@@ -45,13 +45,17 @@ import { injectIncentiveUpload } from '@/composables/useIncentiveUpload'
 
 const { userStore, activeParent, groupedChildren, startUpload } = injectIncentiveUpload()
 
-// 折叠偏好持久化；首次访问按屏幕宽度给默认值（<1600 时表格需要宽度，默认收起）
+// 折叠偏好持久化；首次访问按屏幕宽度给默认值（<1600 时表格需要宽度，默认收起）。
+// 【工作流复检修复 2026-10-10】"阻止所有 Cookie"的 Safari/部分内嵌 WebView 里 localStorage
+// 访问直接抛 SecurityError(Quota)——裸读写会中断 setup 炸掉整个面板，包 try/catch 优雅降级
 const PANEL_PREF_KEY = 'incentive.subPanelExpanded'
-const savedPref = localStorage.getItem(PANEL_PREF_KEY)
+const readPanelPref = () => { try { return localStorage.getItem(PANEL_PREF_KEY) } catch { return null } }
+const writePanelPref = (v) => { try { localStorage.setItem(PANEL_PREF_KEY, v) } catch { /* 隐私模式不可写,仅本次会话生效 */ } }
+const savedPref = readPanelPref()
 const panelCollapsed = ref(savedPref === null ? window.innerWidth < 1600 : savedPref !== '1')
 const setPanelExpanded = (expanded) => {
   panelCollapsed.value = !expanded
-  localStorage.setItem(PANEL_PREF_KEY, expanded ? '1' : '0')
+  writePanelPref(expanded ? '1' : '0')
 }
 </script>
 

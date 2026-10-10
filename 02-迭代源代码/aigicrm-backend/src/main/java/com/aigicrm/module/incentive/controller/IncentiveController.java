@@ -82,15 +82,7 @@ public class IncentiveController {
     @PreAuthorize("hasAuthority('incentive:view')")
     @PutMapping("/records/{id}")
     public Result<Void> updateRecord(@PathVariable Long id, @RequestBody BizIncentiveRecord record) {
-        SecurityUser user = SecurityUtils.getCurrentUser();
-        boolean isAdmin = SecurityUtils.isAdmin();
-        // 【2026-08-14 RBAC 收敛】授权判定：admin ∨ incentive:manage 权限码 ∨ 本人记录
-        if (!isAdmin && !incentiveService.canEdit()) {
-            BizIncentiveRecord existing = incentiveService.getRecordById(id);
-            if (existing == null || !existing.getUserId().equals(user.getUserId())) {
-                throw new BusinessException(403, "无权编辑他人记录");
-            }
-        }
+        assertCanEditRecord(id);
         incentiveService.updateRecord(id, record);
         return Result.ok();
     }
@@ -103,20 +95,28 @@ public class IncentiveController {
     @PreAuthorize("hasAuthority('incentive:view')")
     @PostMapping("/records/{id}/remove-file")
     public Result<Void> removeFile(@PathVariable Long id, @RequestBody RemoveFileBody body) {
-        SecurityUser user = SecurityUtils.getCurrentUser();
-        boolean isAdmin = SecurityUtils.isAdmin();
-        if (!isAdmin && !incentiveService.canEdit()) {
-            BizIncentiveRecord existing = incentiveService.getRecordById(id);
-            if (existing == null || !existing.getUserId().equals(user.getUserId())) {
-                throw new BusinessException(403, "无权编辑他人记录");
-            }
-        }
+        assertCanEditRecord(id);
         incentiveService.removeFile(id, body.slot(), body.fileId());
         return Result.ok();
     }
 
     /** remove-file 请求体：slot ∈ file/pre/mid/post/track */
     public record RemoveFileBody(String slot, Long fileId) {}
+
+    /**
+     * 【2026-08-14 RBAC 收敛】编辑归属判定：admin ∨ incentive:manage 授权 ∨ 本人记录。
+     * 【工作流复检修复 2026-10-10】updateRecord/removeFile 原为两段复制粘贴守卫，单边改动会
+     * 造成两接口权限口径漂移——收敛为单一方法，两接口共用同一判定。
+     */
+    private void assertCanEditRecord(Long id) {
+        SecurityUser user = SecurityUtils.getCurrentUser();
+        if (SecurityUtils.isAdmin() || incentiveService.canEdit()) return;
+        BizIncentiveRecord existing = incentiveService.getRecordById(id);
+        if (existing == null || !existing.getUserId().equals(user.getUserId())) {
+            throw new BusinessException(403, "无权编辑他人记录");
+        }
+    }
+
 
     /** 批量重算所有历史记录积分（按最新规则） */
     @PreAuthorize("hasAuthority('incentive:edit')")

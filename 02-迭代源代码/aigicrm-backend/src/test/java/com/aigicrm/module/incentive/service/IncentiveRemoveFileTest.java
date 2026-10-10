@@ -37,7 +37,7 @@ import static org.mockito.Mockito.when;
 
 /**
  * 【用户裁决 2026-10-10】编辑历史文件可移除单个文件（上传错了需要修改）：
- * removeFile 服务语义——槽位数组剔除该文件ID、显式 SET 写回（删空槽位必须置 NULL，
+ * removeFile 服务语义——行锁读(FOR UPDATE 串行化并发删除)、槽位数组剔除该文件ID、显式 SET 写回（删空槽位必须置 NULL，
  * updateById 默认策略会跳过 null 造成假成功）、五槽合计移除后须 ≥1、重算积分+盖修改人章。
  */
 @ExtendWith(MockitoExtension.class)
@@ -102,7 +102,7 @@ class IncentiveRemoveFileTest {
     void removeFile_ok_writesSlotAndAudit() {
         try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
             stubUser(m);
-            when(recordMapper.selectById(5L)).thenReturn(recordWithFiles());
+            when(recordMapper.selectByIdForUpdate(5L)).thenReturn(recordWithFiles());
             stubCategory();
 
             newService().removeFile(5L, "pre", 100L);
@@ -127,7 +127,7 @@ class IncentiveRemoveFileTest {
             stubUser(m);
             BizIncentiveRecord r = recordWithFiles();
             r.setFilePreId("[100]");
-            when(recordMapper.selectById(5L)).thenReturn(r);
+            when(recordMapper.selectByIdForUpdate(5L)).thenReturn(r);
             stubCategory();
 
             newService().removeFile(5L, "pre", 100L);
@@ -150,7 +150,7 @@ class IncentiveRemoveFileTest {
             BizIncentiveRecord r = recordWithFiles();
             r.setFilePreId("[100]");
             r.setFileMidId(null);
-            when(recordMapper.selectById(5L)).thenReturn(r);
+            when(recordMapper.selectByIdForUpdate(5L)).thenReturn(r);
 
             BusinessException ex = assertThrows(BusinessException.class,
                     () -> newService().removeFile(5L, "pre", 100L));
@@ -164,7 +164,7 @@ class IncentiveRemoveFileTest {
     void removeFile_invalidSlot_rejected() {
         try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
             stubUser(m);
-            when(recordMapper.selectById(5L)).thenReturn(recordWithFiles());
+            when(recordMapper.selectByIdForUpdate(5L)).thenReturn(recordWithFiles());
             BusinessException ex = assertThrows(BusinessException.class,
                     () -> newService().removeFile(5L, "main", 100L));
             assertTrue(ex.getMessage().contains("无效槽位"), ex.getMessage());
@@ -176,7 +176,7 @@ class IncentiveRemoveFileTest {
     void removeFile_fileNotInSlot_rejected() {
         try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
             stubUser(m);
-            when(recordMapper.selectById(5L)).thenReturn(recordWithFiles());
+            when(recordMapper.selectByIdForUpdate(5L)).thenReturn(recordWithFiles());
             BusinessException ex = assertThrows(BusinessException.class,
                     () -> newService().removeFile(5L, "pre", 999L));
             assertTrue(ex.getMessage().contains("不在此记录的该槽位"), ex.getMessage());
@@ -188,10 +188,32 @@ class IncentiveRemoveFileTest {
     void removeFile_recordNotFound_404() {
         try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
             stubUser(m);
-            when(recordMapper.selectById(404L)).thenReturn(null);
+            when(recordMapper.selectByIdForUpdate(404L)).thenReturn(null);
             BusinessException ex = assertThrows(BusinessException.class,
                     () -> newService().removeFile(404L, "pre", 100L));
             assertEquals(404, ex.getCode());
+        }
+    }
+
+    /** 【工作流复检修复 2026-10-10】PUT 空串清空全部槽位须被拒：与 removeFile 同口径五槽≥1 */
+    @Test
+    void updateRecord_clearAllSlots_rejected() {
+        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
+            stubUser(m);
+            BizIncentiveRecord existing = recordWithFiles();
+            when(recordMapper.selectById(5L)).thenReturn(existing);
+
+            BizIncentiveRecord update = new BizIncentiveRecord();
+            update.setFilePreId("");
+            update.setFileMidId("");
+            update.setFilePostId("");
+            update.setFileTrackId("");
+            update.setFileId("");
+
+            BusinessException ex = assertThrows(BusinessException.class,
+                    () -> newService().updateRecord(5L, update));
+            assertTrue(ex.getMessage().contains("至少须保留一份文件"), ex.getMessage());
+            verify(recordMapper, never()).updateById(any(BizIncentiveRecord.class));
         }
     }
 }

@@ -396,6 +396,14 @@ export function useIncentiveUpload() {
     relatedSub.value = ''
     previewVisible.value = false // 【2026-08-12】重置时关预览,防 blob revoke 后预览框黑屏
   }
+  // 【工作流复检修复 2026-10-10】取消/ESC/右上角关闭只置 false 不走 resetDialogFields，
+  // 新选文件的预览 blob 释放被推迟到下次打开——与注释"关闭/重置时释放"不符；关闭即释放
+  // （只 revoke blob，不清列表：清列表会连带弹窗动画期间闪空，下次打开 startUpload/startReplace 会重置）
+  const releasePreviewBlobs = () => {
+    const release = (list) => { for (const f of list) { if (f && f._url) { URL.revokeObjectURL(f._url); f._url = null } } }
+    release(installFiles.pre); release(installFiles.mid); release(installFiles.post); release(trackFile.value)
+  }
+  watch(showCustomerDialog, (open) => { if (!open) releasePreviewBlobs() })
 
   // ---- 上传流程 ----
   const startUpload = (child) => {
@@ -439,8 +447,9 @@ export function useIncentiveUpload() {
     pendingReplace.value = row
     selectedCustomerId.value = row.customerId
     resetDialogFields()
-    // 已有图片缩略图需要有效 download token；刷新完成后 bump 触发卡片重渲染换上新 token URL
-    refreshDownloadToken().then(() => { thumbNonce.value++ }).catch(() => {})
+    // 已有图片缩略图需要有效 download token：预热拉取；渲染由 thumbsReady(getDownloadToken 为
+    // 响应式 ref)自动门控，token 就绪/换新时 watch 清 _thumbFailed 防闩锁(工作流复检修复)
+    refreshDownloadToken().catch(() => {})
     // 保留已有文件，标记为已上传（name + id + _existing）
     const parseExisting = (namesStr, idsJson) => {
       if (!namesStr) return []
@@ -494,10 +503,18 @@ export function useIncentiveUpload() {
   // ---- 文件槽管理 ----
   // 图片扩展名判定统一在 utils/media-type.js
   const isImage = isImageName
-  // 已有图片文件卡片的远端缩略图 nonce：token 刷新完成后 bump，模板重渲染拿到新 token URL
-  const thumbNonce = ref(0)
+  // 已有图片缩略图（工作流复检修复 2026-10-10）：
+  // ①thumbsReady 门控——getDownloadToken 内部读的是响应式 ref，token 未就绪时不渲染 <img>，
+  //   避免裸请求 401；token 就绪/换新自动重渲染（比 thumbNonce 机制更直接）
+  // ②watch 清 _thumbFailed——token 过期中途 401 会置失败标记，token 换新后必须复位，
+  //   否则 v-if 恒 false 把 <img> 永久闩死在图标分支（复检证实的闩锁）
+  const thumbsReady = computed(() => !!getDownloadToken())
+  const clearThumbFailures = () => {
+    for (const key of ['pre', 'mid', 'post']) installFiles[key].forEach((f) => { if (f) f._thumbFailed = false })
+    trackFile.value.forEach((f) => { if (f) f._thumbFailed = false })
+  }
+  watch(() => getDownloadToken(), (t) => { if (t) clearThumbFailures() })
   const existingThumb = (file) => {
-    void thumbNonce.value
     if (!file || !file._existing || !file.id || !isImage(file.name)) return ''
     return fileUrl(file.id)
   }
@@ -551,7 +568,10 @@ export function useIncentiveUpload() {
     } catch { return }
     try {
       await removeRecordFile(pendingReplace.value.id, { slot: slotKey, fileId: f.id })
-      list.splice(idx, 1)
+      // 【工作流复检修复 2026-10-10】确认弹窗期间用户可再删别的文件，旧下标会剔错元素——
+      // await 后按对象身份重新定位再 splice（删除按 fileId 在后端原子完成，此处只对齐本地视图）
+      const i = list.indexOf(f)
+      if (i >= 0) list.splice(i, 1)
       ElMessage.success('已移除，积分已重算')
       loadRecords()
     } catch (e) {
@@ -560,6 +580,9 @@ export function useIncentiveUpload() {
   }
   // 统一入口：新文件本地剔除；已有文件走后端原子移除
   const handleRemoveSlotFile = (slotKey, idx) => {
+    // 【工作流复检修复 2026-10-10】上传进行中禁止移除：提交流程已捕获待传文件集合，
+    // 中途剔除只影响界面不影响快照，落库后"删掉的"文件会复活
+    if (uploading.value) { ElMessage.warning('文件上传处理中，请稍后再移除'); return }
     const list = slotKey === 'track' ? trackFile.value : installFiles[slotKey]
     const f = list[idx]
     if (f && f._existing) return removeExistingSlotFile(slotKey, idx)
@@ -756,7 +779,7 @@ export function useIncentiveUpload() {
     canToggleShare, isRecordOwner,
     searchCustomers, loadSharedCustomerIds,
     loadCategories, loadUsers, loadDeptTree, onDeptChange, loadRecords,
-    isImage, existingThumb, getObjectURL, removeSlotFile, handleRemoveSlotFile, pickFile, pickTrackFile, handleFileSelected,
+    isImage, existingThumb, thumbsReady, getObjectURL, removeSlotFile, handleRemoveSlotFile, pickFile, pickTrackFile, handleFileSelected,
     uploadOne, confirmUpload,
   }
 }

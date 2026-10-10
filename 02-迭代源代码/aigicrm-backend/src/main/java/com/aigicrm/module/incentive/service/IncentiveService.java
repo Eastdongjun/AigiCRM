@@ -434,6 +434,12 @@ public class IncentiveService {
                 existing.setShared(update.getShared());
             }
         }
+        // 【工作流复检修复 2026-10-10】与 removeFile 同口径的五槽合计≥1 不变量：PUT 对槽位传
+        // 空串（非 null）可清空任意槽，五槽全空串即得到无文件记录——堵住该路径，两接口口径一致。
+        // 仅约束"本次触碰槽位字段"的变更：不带文件的历史记录做纯业务字段编辑不受影响。
+        if (fileTouched && !existing.hasAnyFile()) {
+            throw new BusinessException(400, "记录至少须保留一份文件；如需删除整条记录请使用「删除」");
+        }
 
         // 审计：记录最后修改人（updated_at 由 DB ON UPDATE 自动维护）
         existing.setUpdatedBy(SecurityUtils.getCurrentUserId());
@@ -460,7 +466,9 @@ public class IncentiveService {
      */
     @Transactional
     public void removeFile(Long id, String slot, Long fileId) {
-        BizIncentiveRecord existing = recordMapper.selectById(id);
+        // 【工作流复检修复 2026-10-10】锁定读：守卫是 check-then-act，普通快照读下并发两事务
+        // 各删不同槽的最后一份文件可双双通过"五槽合计≥1"（产出空壳记录）；FOR UPDATE 串行化同记录并发删除
+        BizIncentiveRecord existing = recordMapper.selectByIdForUpdate(id);
         if (existing == null) throw new BusinessException(404, "记录不存在");
         if (fileId == null) throw new BusinessException(400, "缺少文件ID");
 

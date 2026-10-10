@@ -734,6 +734,9 @@ Page({
   },
 
   removeSelectedFile(event) {
+    // 【工作流复检修复 2026-10-10】两道锁：提交上传中禁改(提交流程已捕获文件快照, 中途移除
+    // 只改界面不改快照, 落库后"删掉的"文件会复活)；移除请求在途禁并发(旧下标会剔错文件)
+    if (this.data.loading || this._removingFile) return
     const index = Number(event.currentTarget.dataset.index)
     const fileIndex = Number(event.currentTarget.dataset.fileIndex || 0)
     const slot = this.data.fileSlots[index] || {}
@@ -741,7 +744,7 @@ Page({
     // 【用户裁决 2026-10-10】已有文件移除须立即真实生效：走后端原子接口(剔除→重算积分→审计)。
     // 此前本地剔除是假删——编辑提交 payload 只带本次新上传ID, 该槽没传新文件时后端 null 合并跳过, 刷新后文件复活。
     if (file.existing && file.fileId && this.data.editId) {
-      this.removeExistingFileRemotely(slot, file, index, fileIndex)
+      this.removeExistingFileRemotely(slot, file, index)
       return
     }
     const files = (slot.files || []).filter((_, idx) => idx !== fileIndex)
@@ -754,8 +757,10 @@ Page({
     }, () => this.refreshUploadViewState())
   },
 
-  /** 已有文件真删：确认→调 remove-file→本地剔除。slotKey(filePreId)→后端槽位(pre) 映射 */
-  removeExistingFileRemotely(slot, file, index, fileIndex) {
+  /** 已有文件真删：确认→调 remove-file→本地剔除。slotKey(filePreId)→后端槽位(pre) 映射。
+   *  【工作流复检修复 2026-10-10】mask 阻挡在途再点；回调前 _unloaded 守卫(防已卸载页 setData)；
+   *  剔除按 fileId 身份定位(不按下标)；showError 传 error 对象+兜底文案(传字符串会恒显"操作失败") */
+  removeExistingFileRemotely(slot, file, index) {
     const SLOT_KEYS = { fileId: 'file', filePreId: 'pre', fileMidId: 'mid', filePostId: 'post', fileTrackId: 'track' }
     const slotName = slot.label || '槽位'
     const fileName = (file.fileName || '').slice(0, 20)
@@ -766,11 +771,15 @@ Page({
       confirmColor: '#e54d42',
       success: (res) => {
         if (!res.confirm) return
-        wx.showLoading({ title: '移除中' })
+        this._removingFile = true
+        wx.showLoading({ title: '移除中', mask: true })
         removeRecordFile(this.data.editId, SLOT_KEYS[slot.key] || slot.key, file.fileId)
           .then(() => {
+            this._removingFile = false
             wx.hideLoading()
-            const files = (this.data.fileSlots[index].files || []).filter((_, idx) => idx !== fileIndex)
+            if (this._unloaded) return
+            const files = (this.data.fileSlots[index].files || [])
+              .filter((x) => !(x.existing && String(x.fileId) === String(file.fileId)))
             const firstFile = files[0] || {}
             this.setData({
               [`fileSlots[${index}].files`]: files,
@@ -781,8 +790,10 @@ Page({
             wx.showToast({ title: '已移除并重算积分', icon: 'none', duration: 2000 })
           })
           .catch((err) => {
+            this._removingFile = false
             wx.hideLoading()
-            showError(err && err.message ? err.message : '移除失败')
+            if (this._unloaded) return
+            showError(err || '移除失败', '移除失败')
           })
       }
     })
@@ -821,7 +832,9 @@ Page({
       return
     }
     this.setUploadData({ loading: true, uploadProgress: 0, uploadProgressFile: '' })
-    wx.showLoading({ title: '上传中' })
+    // 【工作流复检修复 2026-10-10】mask:true 阻挡触摸穿透——上传中仍可点"移除"删待传文件,
+    // 但提交快照已捕获该文件, 落库后会"复活"(假删); mask 与 removeSelectedFile 的 loading 守卫双保险
+    wx.showLoading({ title: '上传中', mask: true })
     this.uploadPendingFiles(selectedFiles, customer, category, isSingleSlot)
   },
 

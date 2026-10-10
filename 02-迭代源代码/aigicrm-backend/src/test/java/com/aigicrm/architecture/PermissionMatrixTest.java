@@ -1050,12 +1050,16 @@ public class PermissionMatrixTest {
         assertTrue(controllerBody.contains("SecurityUser user = SecurityUtils.getCurrentUser()")
                         && controllerBody.contains("boolean isAdmin = SecurityUtils.isAdmin()"),
                 "IncentiveController.updateRecord/deleteRecord 必须基于当前用户和 admin 状态做方法内守卫");
-        assertTrue(controllerBody.contains("if (!isAdmin && !incentiveService.canEdit())")
-                        && controllerBody.contains("BizIncentiveRecord existing = incentiveService.getRecordById(id)")
+        // 【工作流复检修复 2026-10-10】updateRecord/removeFile 两段复制粘贴守卫收敛为共享
+        // assertCanEditRecord（防单边改动造成两接口权限口径漂移）——契约钉同步重钉到共享形态
+        assertTrue(controllerBody.contains("private void assertCanEditRecord(Long id)")
+                        && controllerBody.contains("if (SecurityUtils.isAdmin() || incentiveService.canEdit()) return;")
                         && controllerBody.contains("!existing.getUserId().equals(user.getUserId())")
                         && controllerBody.contains("throw new BusinessException(403, \"无权编辑他人记录\")")
-                        && controllerBody.contains("incentiveService.updateRecord(id, record)"),
-                "IncentiveController.updateRecord 必须保留 admin/can_edit/本人记录三段式编辑守卫");
+                        && controllerBody.contains("assertCanEditRecord(id);")
+                        && controllerBody.contains("incentiveService.updateRecord(id, record)")
+                        && controllerBody.contains("incentiveService.removeFile(id, body.slot(), body.fileId())"),
+                "IncentiveController.updateRecord/removeFile 必须经共享 assertCanEditRecord 保留 admin/can_edit/本人记录三段式编辑守卫");
         assertTrue(controllerBody.contains("if (!isAdmin && !incentiveService.canDelete())")
                         && controllerBody.contains("BizIncentiveRecord incRecord = incentiveService.getRecordById(id)")
                         && controllerBody.contains("!incRecord.getUserId().equals(user.getUserId())")
