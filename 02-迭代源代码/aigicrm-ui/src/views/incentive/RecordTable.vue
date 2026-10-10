@@ -2,21 +2,18 @@
   <!-- 右侧：已上传文件表格 -->
   <div class="right-panel">
     <el-table :data="pagedRecords" stripe style="width:100%" empty-text="暂无已上传文件" size="small" scrollbar-always-on @row-click="startReplace" :row-style="{cursor:'pointer'}">
-      <el-table-column label="大类·子类" min-width="120" show-overflow-tooltip>
-        <template #default="{ row }">{{ row.majorMinor }}</template>
-      </el-table-column>
-      <el-table-column prop="industry" label="行业" min-width="64">
-        <template #default="{ row }">{{ row.industry || '—' }}</template>
-      </el-table-column>
-      <el-table-column prop="relatedProducts" label="相关产品" min-width="110" show-overflow-tooltip>
-        <template #default="{ row }">{{ row.relatedProducts || '—' }}</template>
-      </el-table-column>
-      <el-table-column label="分" min-width="45" align="center">
+      <!-- 双行行卡（2026-10-10 重设计）：11列收6列，行业/相关产品/上传人/日期/修改收进第二行灰字meta，空值零占位 -->
+      <el-table-column label="大类·子类" min-width="200">
         <template #default="{ row }">
-          <span :style="{ color: scoreColor(row.score), fontWeight: 600 }">{{ row.score }}</span>
+          <div class="cell-main">{{ row.majorMinor }}</div>
+          <div v-if="row.industry || row.relatedProducts" class="cell-meta">
+            <template v-if="row.industry">{{ row.industry }}</template>
+            <template v-if="row.industry && row.relatedProducts"> · </template>
+            <template v-if="row.relatedProducts">{{ row.relatedProducts }}</template>
+          </div>
         </template>
       </el-table-column>
-      <el-table-column label="安装文件" min-width="180" show-overflow-tooltip>
+      <el-table-column label="安装文件" min-width="200">
         <template #default="{ row }">
           <div class="install-files">
             <span v-if="row.filePreName" class="file-tag" :class="{previewable: fileType(row.filePreName)!=='doc'}" @click.stop="previewFile(row.filePreId, row.filePreName)"><b>前</b>{{ row.filePreName }}</span>
@@ -28,9 +25,17 @@
           </div>
         </template>
       </el-table-column>
-      <el-table-column label="客户" min-width="120" show-overflow-tooltip>
+      <el-table-column label="客户" min-width="180">
         <template #default="{ row }">
-          <span class="customer-link">{{ row.customerName || '—' }}</span>
+          <div class="cell-main customer-link">{{ row.customerName || '—' }}</div>
+          <div class="cell-meta">
+            {{ [row.userName, formatDate(row.createdAt)].filter(Boolean).join(' · ') }}<template v-if="row.updatedByName"> · 改 {{ row.updatedByName }} {{ formatDate(row.updatedAt) }}</template>
+          </div>
+        </template>
+      </el-table-column>
+      <el-table-column label="分" width="56" align="center">
+        <template #default="{ row }">
+          <span :style="{ color: scoreColor(row.score), fontWeight: 600 }">{{ row.score }}</span>
         </template>
       </el-table-column>
       <el-table-column label="共享" min-width="56" align="center">
@@ -46,21 +51,10 @@
           <span v-else :class="row.shared ? 'shared-yes' : 'shared-no'">{{ row.shared ? '● 共享' : '—' }}</span>
         </template>
       </el-table-column>
-      <el-table-column label="上传日期" min-width="96">
-        <template #default="{ row }">{{ formatDate(row.createdAt) }}</template>
-      </el-table-column>
-      <el-table-column prop="userName" label="上传人" min-width="64" />
-      <!-- 操作紧跟上传人（用户 2026-10-10 要求）；修改人+修改时间合并为「修改」一列收尾，消除两列大面积留白 -->
       <el-table-column label="操作" width="104" align="center">
         <template #default="{ row }">
           <el-button v-if="userStore.isAdmin() || canEdit || row.userId === userStore.userId" link type="primary" size="small" @click.stop="startReplace(row)">追加</el-button>
           <el-button v-if="userStore.isAdmin() || canDelete || row.userId === userStore.userId" link type="danger" size="small" @click.stop="handleDeleteRecord(row)">删除</el-button>
-        </template>
-      </el-table-column>
-      <el-table-column label="修改" min-width="100" show-overflow-tooltip>
-        <template #default="{ row }">
-          <span v-if="!row.updatedByName" class="shared-no">—</span>
-          <span v-else>{{ row.updatedByName }} · {{ formatDate(row.updatedAt) }}</span>
         </template>
       </el-table-column>
     </el-table>
@@ -101,6 +95,11 @@ const onSizeChange = (size) => {
 <style scoped>
 .install-files .file-tag.previewable { cursor: pointer; text-decoration: underline; }
 .install-files .file-tag.previewable:hover { color: var(--el-color-primary); }
+/* 双行行卡：主行业务信息，meta行灰字审计信息，两行各自单行省略 */
+.cell-main { font-size:13px; color:#1f2329; font-weight:500; overflow:hidden; text-overflow:ellipsis; white-space:nowrap }
+.cell-main.customer-link { color:var(--el-color-primary); cursor:pointer }
+.cell-main.customer-link:hover { text-decoration: underline; }
+.cell-meta { font-size:12px; color:var(--el-text-color-secondary); margin-top:2px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap }
 /* min-width:0 让右栏随视口收缩（flex 子项默认 min-width:auto 会被表格最小列宽顶死，
    窄屏下整表被 .main-layout 的 overflow:hidden 隐形裁切）；收缩后由 el-table 自带横向滚动接管 */
 .right-panel { flex:1; min-width:0; background:#fff; padding:14px 18px; display:flex; flex-direction:column; min-height:0 }
