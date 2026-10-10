@@ -1,10 +1,10 @@
 # AIGICRM API 清单(自动生成)
 
-> 生成时间: 2026-10-09 | 来源: 后端 controller 源码扫描
+> 生成时间: 2026-10-10 | 来源: 后端 controller 源码扫描
 > 本文件由 scripts/gen-api.py 自动生成,**禁止手改**;接口变更后重新运行。
 > 权限码与 docs/permission/permission-dict.md 对应。
 
-## 接口清单(213 个)
+## 接口清单(214 个)
 
 | 方法 | 路径 | 权限码 | 方法名 | 文件 |
 |---|---|---|---|---|
@@ -118,6 +118,7 @@
 | DELETE | `/api/incentive/records/{id}` | `hasAuthority('incentive:view')` | deleteRecord | IncentiveController.java |
 | PUT | `/api/incentive/records/{id}` | `hasAuthority('incentive:view')` | updateRecord | IncentiveController.java |
 | POST | `/api/incentive/records/{id}/read` | `hasAuthority('incentive:view')` | markRead | IncentiveController.java |
+| POST | `/api/incentive/records/{id}/remove-file` | `hasAuthority('incentive:view')` | removeFile | IncentiveController.java |
 | GET | `/api/incentive/score/customer/{customerId}` | `hasAuthority('incentive:view')` | getScoreByCustomer | IncentiveController.java |
 | GET | `/api/incentive/scoreboard` | `hasAuthority('incentive:view')` | scoreboard | IncentiveController.java |
 | GET | `/api/incentive/users` | `hasAuthority('incentive:view')` | userList | IncentiveController.java |

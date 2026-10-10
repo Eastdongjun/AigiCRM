@@ -55,7 +55,8 @@ async function main() {
   await expectReject(request({ url: '/api/failure' }), { message: '服务暂不可用', code: 500 })
 
   nextResponse = (options) => options.fail({ errMsg: 'request:fail timeout' })
-  await expectReject(request({ url: '/api/network' }), { message: 'request:fail timeout', code: 'NETWORK_ERROR' })
+  // 【2026-10-10 钉随代码】63d786fb 有意把网络错误 toast 英文技术串改中文友好文案
+  await expectReject(request({ url: '/api/network' }), { message: '网络超时，请稍后重试', code: 'NETWORK_ERROR' })
 
   auth.setToken('session-token')
   auth.logout()

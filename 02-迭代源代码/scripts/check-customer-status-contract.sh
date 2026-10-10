@@ -37,7 +37,8 @@ done
 assert_contains "$UTIL" "export const CUSTOMER_STATUS_MAP"
 assert_contains "$UTIL" "normal: { text: '正常', type: 'success' }"
 assert_contains "$UTIL" "warning: { text: '预警', type: 'warning' }"
-assert_contains "$UTIL" "expired: { text: '超期', type: 'danger' }"
+# 【2026-10-10 钉随代码】93fd8ddb QA扫尾有意统一术语"超期→已超期"(PC+MP全端一致)
+assert_contains "$UTIL" "expired: { text: '已超期', type: 'danger' }"
 assert_contains "$UTIL" "sea: { text: '公海', type: 'info' }"
 assert_contains "$UTIL" "export function customerStatusText"
 assert_contains "$UTIL" "CUSTOMER_STATUS_MAP[status]?.text || '—'"
