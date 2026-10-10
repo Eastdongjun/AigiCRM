@@ -5,7 +5,7 @@
       <el-table-column label="大类·子类" min-width="120" show-overflow-tooltip>
         <template #default="{ row }">{{ row.majorMinor }}</template>
       </el-table-column>
-      <el-table-column prop="industry" label="行业" min-width="70">
+      <el-table-column prop="industry" label="行业" min-width="64">
         <template #default="{ row }">{{ row.industry || '—' }}</template>
       </el-table-column>
       <el-table-column prop="relatedProducts" label="相关产品" min-width="110" show-overflow-tooltip>
@@ -28,12 +28,12 @@
           </div>
         </template>
       </el-table-column>
-      <el-table-column label="客户" min-width="100" show-overflow-tooltip>
+      <el-table-column label="客户" min-width="120" show-overflow-tooltip>
         <template #default="{ row }">
           <span class="customer-link">{{ row.customerName || '—' }}</span>
         </template>
       </el-table-column>
-      <el-table-column label="共享" min-width="66" align="center">
+      <el-table-column label="共享" min-width="56" align="center">
         <template #default="{ row }">
           <!-- 【工作流复核确认修复】外包 .stop 防冒泡: 点开关会同时执行开关并弹出行点击的追加弹窗 -->
           <span v-if="isRecordOwner(row)" @click.stop>
@@ -46,20 +46,21 @@
           <span v-else :class="row.shared ? 'shared-yes' : 'shared-no'">{{ row.shared ? '● 共享' : '—' }}</span>
         </template>
       </el-table-column>
-      <el-table-column label="上传日期" min-width="90">
+      <el-table-column label="上传日期" min-width="96">
         <template #default="{ row }">{{ formatDate(row.createdAt) }}</template>
       </el-table-column>
-      <el-table-column prop="userName" label="上传人" min-width="65" />
-      <el-table-column label="修改人" min-width="65">
-        <template #default="{ row }">{{ row.updatedByName || '—' }}</template>
-      </el-table-column>
-      <el-table-column label="修改时间" min-width="90">
-        <template #default="{ row }">{{ row.updatedByName ? formatDate(row.updatedAt) : '—' }}</template>
-      </el-table-column>
-      <el-table-column label="操作" width="110" fixed="right" align="center">
+      <el-table-column prop="userName" label="上传人" min-width="64" />
+      <!-- 操作紧跟上传人（用户 2026-10-10 要求）；修改人+修改时间合并为「修改」一列收尾，消除两列大面积留白 -->
+      <el-table-column label="操作" width="104" align="center">
         <template #default="{ row }">
           <el-button v-if="userStore.isAdmin() || canEdit || row.userId === userStore.userId" link type="primary" size="small" @click.stop="startReplace(row)">追加</el-button>
           <el-button v-if="userStore.isAdmin() || canDelete || row.userId === userStore.userId" link type="danger" size="small" @click.stop="handleDeleteRecord(row)">删除</el-button>
+        </template>
+      </el-table-column>
+      <el-table-column label="修改" min-width="100" show-overflow-tooltip>
+        <template #default="{ row }">
+          <span v-if="!row.updatedByName" class="shared-no">—</span>
+          <span v-else>{{ row.updatedByName }} · {{ formatDate(row.updatedAt) }}</span>
         </template>
       </el-table-column>
     </el-table>
@@ -100,7 +101,9 @@ const onSizeChange = (size) => {
 <style scoped>
 .install-files .file-tag.previewable { cursor: pointer; text-decoration: underline; }
 .install-files .file-tag.previewable:hover { color: var(--el-color-primary); }
-.right-panel { flex:1; background:#fff; padding:14px 18px; display:flex; flex-direction:column; min-height:0 }
+/* min-width:0 让右栏随视口收缩（flex 子项默认 min-width:auto 会被表格最小列宽顶死，
+   窄屏下整表被 .main-layout 的 overflow:hidden 隐形裁切）；收缩后由 el-table 自带横向滚动接管 */
+.right-panel { flex:1; min-width:0; background:#fff; padding:14px 18px; display:flex; flex-direction:column; min-height:0 }
 .right-panel .el-table { flex:1; min-height:0 }
 .list-footer { display:flex; align-items:center; justify-content:space-between; padding:10px 2px 0; margin-top:8px; border-top:1px solid #f0f2f5 }
 .list-footer-count { font-size:13px; color:#606266 }
