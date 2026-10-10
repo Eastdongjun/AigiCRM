@@ -439,6 +439,8 @@ export function useIncentiveUpload() {
     pendingReplace.value = row
     selectedCustomerId.value = row.customerId
     resetDialogFields()
+    // 已有图片缩略图需要有效 download token；刷新完成后 bump 触发卡片重渲染换上新 token URL
+    refreshDownloadToken().then(() => { thumbNonce.value++ }).catch(() => {})
     // 保留已有文件，标记为已上传（name + id + _existing）
     const parseExisting = (namesStr, idsJson) => {
       if (!namesStr) return []
@@ -492,6 +494,13 @@ export function useIncentiveUpload() {
   // ---- 文件槽管理 ----
   // 图片扩展名判定统一在 utils/media-type.js
   const isImage = isImageName
+  // 已有图片文件卡片的远端缩略图 nonce：token 刷新完成后 bump，模板重渲染拿到新 token URL
+  const thumbNonce = ref(0)
+  const existingThumb = (file) => {
+    void thumbNonce.value
+    if (!file || !file._existing || !file.id || !isImage(file.name)) return ''
+    return fileUrl(file.id)
+  }
   // 【需求】文件预览 blob URL 缓存:模板渲染时若每次 createObjectURL 会反复创建大 blob 且不释放,
   // 导致上传后 UI 重渲染卡顿/内存泄漏(FEAT 0804 性能修复)。改为首次创建缓存,移除时 revoke。
   const getObjectURL = (file) => {
@@ -746,7 +755,8 @@ export function useIncentiveUpload() {
     resetDialogFields, startUpload, handleDeleteRecord, toggleShare, startReplace,
     canToggleShare, isRecordOwner,
     searchCustomers, loadSharedCustomerIds,
-    isImage, getObjectURL, removeSlotFile, handleRemoveSlotFile, pickFile, pickTrackFile, handleFileSelected,
+    loadCategories, loadUsers, loadDeptTree, onDeptChange, loadRecords,
+    isImage, existingThumb, getObjectURL, removeSlotFile, handleRemoveSlotFile, pickFile, pickTrackFile, handleFileSelected,
     uploadOne, confirmUpload,
   }
 }
