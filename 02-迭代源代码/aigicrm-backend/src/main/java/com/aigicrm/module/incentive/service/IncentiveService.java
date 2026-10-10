@@ -279,6 +279,13 @@ public class IncentiveService {
         if (childCount != null && childCount > 0) {
             throw new BusinessException("该类别下有 " + childCount + " 个子项，请先删除子项");
         }
+        // 【七轮复检修复】记录引用守卫: 悬空 category_id 的存量记录被编辑/移除时重算积分
+        // 会以 category=null 得 base=0 把 score 静默落 0 分(无外键约束兜底, 须应用层拦截)
+        Long usedCount = recordMapper.selectCount(
+                new LambdaQueryWrapper<BizIncentiveRecord>().eq(BizIncentiveRecord::getCategoryId, id));
+        if (usedCount != null && usedCount > 0) {
+            throw new BusinessException("该分类下仍有 " + usedCount + " 条激励记录，请先处理记录后再删除分类");
+        }
         categoryMapper.deleteById(id);
     }
 

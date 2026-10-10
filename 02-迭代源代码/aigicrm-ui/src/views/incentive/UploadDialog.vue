@@ -70,7 +70,7 @@
             <div v-else class="file-card-icon"><el-icon :size="file._existing?20:24"><Document /></el-icon></div>
             <span v-if="fileType(file.name) === 'video'" class="file-card-play"><el-icon><VideoPlay /></el-icon></span>
             <!-- 已有文件也可移除（用户裁决 2026-10-10：上传错了需要修改；确认后走后端原子移除） -->
-            <span class="file-card-del" @click.stop="handleRemoveSlotFile('pre', idx)"><el-icon><Close /></el-icon></span>
+            <span class="file-card-del" role="button" tabindex="0" aria-label="移除文件" @click.stop="handleRemoveSlotFile('pre', idx)" @keydown.enter.stop.prevent="handleRemoveSlotFile('pre', idx)"><el-icon><Close /></el-icon></span>
             <span class="file-card-name">{{ file.name?.substring(0, 8) }}{{ file.name?.length > 8 ? '…' : '' }}</span>
           </div>
           <div v-if="installFiles.pre.length < MAX_FILES" class="file-card add" @click="pickFile('pre')">
@@ -100,7 +100,7 @@
                   <el-icon :size="file._existing?20:24"><Document /></el-icon>
                 </div>
                 <span v-if="fileType(file.name) === 'video'" class="file-card-play"><el-icon><VideoPlay /></el-icon></span>
-                <span class="file-card-del" @click.stop="handleRemoveSlotFile(slot.key, idx)"><el-icon><Close /></el-icon></span>
+                <span class="file-card-del" role="button" tabindex="0" aria-label="移除文件" @click.stop="handleRemoveSlotFile(slot.key, idx)" @keydown.enter.stop.prevent="handleRemoveSlotFile(slot.key, idx)"><el-icon><Close /></el-icon></span>
                 <span class="file-card-name">{{ file.name?.substring(0, 8) }}{{ file.name?.length > 8 ? '…' : '' }}</span>
               </div>
               <div v-if="installFiles[slot.key].length < MAX_FILES" class="file-card add" @click="pickFile(slot.key)">
@@ -123,7 +123,7 @@
             <img v-if="(file._existing ? (thumbsReady && file.id) : true) && isImage(file.name) && !file._thumbFailed" :src="file._existing ? existingThumb(file) : getObjectURL(file)" class="file-card-img" @error="file._thumbFailed = true" />
             <div v-else class="file-card-icon"><el-icon :size="20"><Document /></el-icon></div>
             <span v-if="fileType(file.name) === 'video'" class="file-card-play"><el-icon><VideoPlay /></el-icon></span>
-            <span class="file-card-del" @click.stop="handleRemoveSlotFile('track', idx)"><el-icon><Close /></el-icon></span>
+            <span class="file-card-del" role="button" tabindex="0" aria-label="移除文件" @click.stop="handleRemoveSlotFile('track', idx)" @keydown.enter.stop.prevent="handleRemoveSlotFile('track', idx)"><el-icon><Close /></el-icon></span>
             <span class="file-card-name">{{ file.name?.substring(0, 8) }}{{ file.name?.length > 8 ? '…' : '' }}</span>
           </div>
           <div v-if="trackFile.length < MAX_FILES" class="file-card add" @click="pickTrackFile()">

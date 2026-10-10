@@ -925,6 +925,7 @@ Page({
         wx.hideLoading()
         this.setUploadData({ loading: false })
         const names = failed.slice(0, 3).map((item) => item.fileName).join('、') + (failed.length > 3 ? ` 等 ${failed.length} 个文件` : '')
+        if (this._unloaded) return // 【七轮复检修复】卸载后不跨页弹重试窗
         wx.showModal({
           title: '部分文件上传失败',
           content: `${names} 上传失败。已成功的文件不会重传,可重试失败项或移除后再提交。`,
@@ -947,6 +948,7 @@ Page({
 
   /** 逐文件字段写回 fileSlots 源(带 slotIndex/fileIndex 定位;uploadedId 落源,重试才跳得过) */
   setFileUploadField(item, field, value) {
+    if (this._unloaded) return // 【七轮复检修复】上传在途回退, 不再对已卸载页 setData
     if (item.slotIndex == null || item.fileIndex == null) return
     const source = (this.data.fileSlots[item.slotIndex] || {}).files
     if (!source || !source[item.fileIndex]) return // 单文件槽无 files 数组时仅内存态(uploadedId 仍在 item 上)
@@ -1109,6 +1111,8 @@ Page({
   },
 
   finishSubmit() {
+    // 【七轮复检修复】已卸载不强制 switchTab 拉回用户(落库已完成, 数据不丢)
+    if (this._unloaded) return
     // 【M12 对齐 customer/form 2026-10-07】置已提交标志: switchTab 会卸载本页并触发
     // onUnload→autoSaveDraft, 此前会把刚 deleteFormDraft 清掉的草稿原样存回(草稿"复活"),
     // 恢复再提交=激励重复入库;标志必须先于 switchTab 置位

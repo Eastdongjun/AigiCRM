@@ -537,7 +537,10 @@ export function useIncentiveUpload() {
   watch(() => getDownloadToken(), (t) => { if (t) clearThumbFailures() })
   const existingThumb = (file) => {
     if (!file || !file._existing || !file.id || !isImage(file.name)) return ''
-    return fileUrl(file.id)
+    // 【七轮复检修复】卡片是 88px 级展示, 走后端 thumbnail=1(≤300px 缩略图, 查询页同款),
+    // 不再全尺寸下载原图; 点卡片大图预览仍是全尺寸(previewFile 不带该参数)
+    const u = fileUrl(file.id)
+    return u + (u.includes('?') ? '&' : '?') + 'thumbnail=1'
   }
   // 【需求】文件预览 blob URL 缓存:模板渲染时若每次 createObjectURL 会反复创建大 blob 且不释放,
   // 导致上传后 UI 重渲染卡顿/内存泄漏(FEAT 0804 性能修复)。改为首次创建缓存,移除时 revoke。
