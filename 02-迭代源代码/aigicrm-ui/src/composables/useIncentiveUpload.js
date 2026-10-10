@@ -298,7 +298,7 @@ export function useIncentiveUpload() {
       if (parentCategories.value.length > 0 && !activeTab.value) {
         activeTab.value = String(parentCategories.value[0].id)
       }
-    } catch (e) {}
+    } catch (e) { console.warn('[incentive] 数据加载失败, 已降级为空态:', e) }
   }
 
   // 用户列表缓存(与分类树同策略,10分钟)
@@ -314,7 +314,7 @@ export function useIncentiveUpload() {
         data = res.data || []
       }
       userList.value = data
-    } catch (e) {}
+    } catch (e) { console.warn('[incentive] 数据加载失败, 已降级为空态:', e) }
   }
 
   // 部门树（范围感知接口：当前用户可见部门树，含子部门）
@@ -322,7 +322,7 @@ export function useIncentiveUpload() {
     try {
       const res = await request.get('/common/scope/depts')
       deptTree.value = res.data || []
-    } catch (e) {}
+    } catch (e) { console.warn('[incentive] 数据加载失败, 已降级为空态:', e) }
   }
 
   // 部门变更：人员下拉数据源切换为该部门（含子部门）可见用户；清空部门恢复原数据源
@@ -335,7 +335,7 @@ export function useIncentiveUpload() {
         if (selectedUser.value && !userList.value.some(u => u.id === selectedUser.value)) {
           selectedUser.value = null
         }
-      } catch (e) {}
+      } catch (e) { console.warn('[incentive] 数据加载失败, 已降级为空态:', e) }
     } else {
       loadUsers()
     }
@@ -347,7 +347,7 @@ export function useIncentiveUpload() {
       // 选「全部」时省略 period 参数（后端仅在周期非空时过滤）
       const res = await getRecords({ userId: selectedUser.value, period: periodQueryValue(selectedPeriod.value), parentCategoryId: parentId })
       records.value = res.data || []
-    } catch (e) {}
+    } catch (e) { console.warn('[incentive] 数据加载失败, 已降级为空态:', e) }
   }
 
   const loadIndustries = async () => {
@@ -375,7 +375,7 @@ export function useIncentiveUpload() {
         canEdit.value = res.data.canEdit || false
         canDelete.value = res.data.canDelete || false
       }
-    } catch (e) {}
+    } catch (e) { console.warn('[incentive] 数据加载失败, 已降级为空态:', e) }
   }
 
   // ---- 弹窗重置 ----
@@ -437,7 +437,7 @@ export function useIncentiveUpload() {
       await deleteRecord(row.id)
       ElMessage.success('删除成功')
       loadRecords()
-    } catch (e) {}
+    } catch (e) { console.warn('[incentive] 数据加载失败, 已降级为空态:', e) }
   }
 
   // 【2026-08-08 分享制】开关记录分享：开→全员可见，关→仅本人+管理员+专项授权可见
@@ -508,7 +508,7 @@ export function useIncentiveUpload() {
         ...c,
         _shared: sharedCustomerIds.value.has(c.id)
       }))
-    } catch (e) {}
+    } catch (e) { console.warn('[incentive] 数据加载失败, 已降级为空态:', e) }
     customerLoading.value = false
   }
 
@@ -600,7 +600,11 @@ export function useIncentiveUpload() {
       const i = list.indexOf(f)
       if (i >= 0) list.splice(i, 1)
       ElMessage.success('已移除，积分已重算')
-      loadRecords()
+      // 【六轮复检修复】移除在后端已盖修改人章/重算积分, 用最新记录刷新 pendingReplace,
+      // 弹窗审计区(最后修改人/时间)不再停留在旧快照
+      await loadRecords()
+      const fresh = records.value.find((r) => r.id === pendingReplace.value?.id)
+      if (fresh) pendingReplace.value = fresh
     } catch (e) {
       ElMessage.error(e.message || '移除失败')
     } finally {
@@ -634,7 +638,7 @@ export function useIncentiveUpload() {
   const handleFileSelected = (event) => {
     const files = Array.from(event.target.files)
     // 【五轮复检修复】multiple 多选超限不再静默截断——用户会误以为全部选中
-    const capNotice = (list, key) => {
+    const capNotice = (list) => {
       const merged = [...list, ...files]
       if (merged.length > MAX_FILES) {
         ElMessage.warning(`每槽位最多 ${MAX_FILES} 个文件，已保留前 ${MAX_FILES} 个`)

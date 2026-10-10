@@ -14,7 +14,7 @@
           <div v-for="item in group.items" :key="item.id" class="sub-item">
             <span class="sub-name">{{ item.categoryName }}</span>
             <div class="sub-actions">
-              <span class="score-badge" :class="'score-' + Math.min(item.score, 3)">{{ item.score }}分</span>
+              <span class="score-badge" :class="'score-' + Math.min(item.score ?? 0, 3)">{{ item.score ?? 0 }}分</span>
               <el-button v-if="userStore.hasPermission('incentive:add')" size="small" plain :icon="Upload" @click="startUpload(item)">上传文件</el-button>
             </div>
           </div>
@@ -23,7 +23,7 @@
           <div class="sub-item flat">
             <span class="sub-name">{{ group.categoryName }}</span>
             <div class="sub-actions">
-              <span class="score-badge" :class="'score-' + Math.min(group.score, 3)">{{ group.score }}分</span>
+              <span class="score-badge" :class="'score-' + Math.min(group.score ?? 0, 3)">{{ group.score ?? 0 }}分</span>
               <el-button v-if="userStore.hasPermission('incentive:add')" size="small" plain :icon="Upload" @click="startUpload(group)">上传文件</el-button>
             </div>
           </div>

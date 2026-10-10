@@ -473,8 +473,10 @@ Page({
     }
     // 【PR-04】真实模式接口失败：报错并置空，不回退硬编码演示行业
     getDictData('industry').then((list) => {
+      if (this._unloaded) return // 【六轮复检修复】同上
       this.setData({ industryOptions: (list || []).map((item) => item.dictValue || item.dictLabel).filter(Boolean) }, () => this.refreshUploadViewState())
     }).catch((error) => {
+      if (this._unloaded) return
       showErrorWithRetry(error, '行业字典加载失败，请重试', () => this.loadIndustries())
       this.setData({ industryOptions: [] }, () => this.refreshUploadViewState())
     })
@@ -489,6 +491,7 @@ Page({
       return
     }
     Promise.all([getCustomerList({ current: 1, size: 100 }), getCategoryTree()]).then(([customerRes, categoryRes]) => {
+      if (this._unloaded) return // 【六轮复检修复】进页秒退不再对已卸载页 setData
       const page = customerRes && (customerRes.records || customerRes.data || customerRes)
       const customers = Array.isArray(page) ? page : (page.records || [])
       const categories = flattenCategories(categoryRes || [])

@@ -19,9 +19,9 @@
       <el-table-column label="安装文件" min-width="200">
         <template #default="{ row }">
           <div class="install-files">
-            <span v-if="row.filePreName" class="file-tag" :class="{previewable: fileType(row.filePreName)!=='doc'}" @click.stop="previewFile(row.filePreId, row.filePreName)"><b>前</b>{{ row.filePreName }}</span>
-            <span v-if="row.fileMidName" class="file-tag" :class="{previewable: fileType(row.fileMidName)!=='doc'}" @click.stop="previewFile(row.fileMidId, row.fileMidName)"><b>中</b>{{ row.fileMidName }}</span>
-            <span v-if="row.filePostName" class="file-tag" :class="{previewable: fileType(row.filePostName)!=='doc'}" @click.stop="previewFile(row.filePostId, row.filePostName)"><b>后</b>{{ row.filePostName }}</span>
+            <span v-if="row.filePreName" class="file-tag" :class="{previewable: firstType(row.filePreName)!=='doc'}" @click.stop="previewFile(row.filePreId, row.filePreName)"><b>前</b>{{ row.filePreName }}</span>
+            <span v-if="row.fileMidName" class="file-tag" :class="{previewable: firstType(row.fileMidName)!=='doc'}" @click.stop="previewFile(row.fileMidId, row.fileMidName)"><b>中</b>{{ row.fileMidName }}</span>
+            <span v-if="row.filePostName" class="file-tag" :class="{previewable: firstType(row.filePostName)!=='doc'}" @click.stop="previewFile(row.filePostId, row.filePostName)"><b>后</b>{{ row.filePostName }}</span>
             <span v-if="!row.filePreName && !row.fileMidName && !row.filePostName" class="file-cell">
               <el-icon class="file-icon"><Document /></el-icon>{{ row.fileName || '—' }}
             </span>
@@ -31,9 +31,7 @@
       <el-table-column label="客户" min-width="180">
         <template #default="{ row }">
           <div class="cell-main customer-link">{{ row.customerName || '—' }}</div>
-          <div v-if="row.userName || row.createdAt || row.updatedByName" class="cell-meta">
-            {{ [row.userName, row.createdAt ? formatDate(row.createdAt) : ''].filter(Boolean).join(' · ') }}<template v-if="row.updatedByName"> · 改 {{ row.updatedByName }} {{ formatDate(row.updatedAt) }}</template>
-          </div>
+          <div v-if="row.userName || row.createdAt || row.updatedByName" class="cell-meta">{{ metaLine(row) }}</div>
         </template>
       </el-table-column>
       <el-table-column label="分" width="56" align="center">
@@ -87,6 +85,17 @@ const {
   canEdit, canDelete, scoreColor, formatDate, fileType, previewFile,
   startReplace, toggleShare, handleDeleteRecord, isRecordOwner,
 } = injectIncentiveUpload()
+
+// 【六轮复检修复】meta 行整体拼接: 空 userName/createdAt 不产生孤立「·」前缀,
+// updatedAt 缺失时只显示「改 张三」不再带「—」
+const metaLine = (row) => {
+  const head = [row.userName, row.createdAt ? formatDate(row.createdAt) : ''].filter(Boolean).join(' · ')
+  const tail = row.updatedByName ? `改 ${row.updatedByName}${row.updatedAt ? ' ' + formatDate(row.updatedAt) : ''}` : ''
+  return [head, tail].filter(Boolean).join(' · ')
+}
+// 【六轮复检修复】previewable 按首文件名判定: 多文件槽位名是逗号连接串,
+// 整串判定以末尾扩展名为准会与点击后实际预览的第一个文件错位
+const firstType = (names) => fileType(String(names || '').split(',')[0].trim())
 
 // 切换每页条数后回到第 1 页（否则可能停在一个已不存在的页码上看到空表）
 const onSizeChange = (size) => {

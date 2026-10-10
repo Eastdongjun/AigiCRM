@@ -218,6 +218,37 @@ class IncentiveRemoveFileTest {
         }
     }
 
+    /** 【六轮复检修复】20 位数字(超 Long 范围)拒绝: 防 parseJsonArray 溢出被吞成"恒空"脏槽位 */
+    @Test
+    void updateRecord_slotOverflowDigits_rejected() {
+        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
+            stubUser(m);
+            when(recordMapper.selectByIdForUpdate(5L)).thenReturn(recordWithFiles());
+            BizIncentiveRecord update = new BizIncentiveRecord();
+            update.setFilePreId("[99999999999999999999]");
+            BusinessException ex = assertThrows(BusinessException.class,
+                    () -> newService().updateRecord(5L, update));
+            assertTrue(ex.getMessage().contains("槽位格式非法"), ex.getMessage());
+        }
+    }
+
+    /** 【六轮复检修复】槽位串超 varchar(500) 上限拒绝: 防 DB 层报 500/非严格模式截断 */
+    @Test
+    void updateRecord_slotTooLong_rejected() {
+        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
+            stubUser(m);
+            when(recordMapper.selectByIdForUpdate(5L)).thenReturn(recordWithFiles());
+            StringBuilder sb = new StringBuilder("[");
+            for (int i = 0; i < 40; i++) { if (i > 0) sb.append(","); sb.append("1000000000").append(i); }
+            sb.append("]");
+            BizIncentiveRecord update = new BizIncentiveRecord();
+            update.setFilePreId(sb.toString());
+            BusinessException ex = assertThrows(BusinessException.class,
+                    () -> newService().updateRecord(5L, update));
+            assertTrue(ex.getMessage().contains("超出上限"), ex.getMessage());
+        }
+    }
+
     /** 【三轮复检修复】PUT 槽位脏串(非 JSON 数组)直接拒绝, 不落库 */
     @Test
     void updateRecord_dirtySlotJson_rejected() {

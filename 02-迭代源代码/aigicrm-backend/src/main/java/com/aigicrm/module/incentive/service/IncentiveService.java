@@ -456,13 +456,30 @@ public class IncentiveService {
         recordMapper.updateById(existing);
     }
 
+    /** 【六轮复检修复】槽位共享校验: 格式正则 + 长度上限, create/update 同口径 */
+    private static void assertValidSlotJson(String v) {
+        String t = v.trim();
+        if (!SLOT_JSON_RE.matcher(t).matches()) {
+            throw new BusinessException(400, "安装文件槽位格式非法（应为文件ID数组）");
+        }
+        if (t.length() > SLOT_JSON_MAX_LEN) {
+            throw new BusinessException(400, "槽位文件数量超出上限");
+        }
+    }
+
     /** 槽位值是否为"本次实际提供"(非 null 且非空白)——与 mergeSlotJson 的空串=未提供语义一致 */
     private static boolean isProvidedSlot(String v) {
         return v != null && !v.isBlank();
     }
 
-    /** 槽位 JSON 合法形态: "[1,2]"（至少一个纯数字 ID；空/白串视为未提供） */
-    private static final java.util.regex.Pattern SLOT_JSON_RE = java.util.regex.Pattern.compile("^\\[\\d+(,\\d+)*\\]$");
+    /**
+     * 槽位 JSON 合法形态: "[1,2]"（至少一个纯数字 ID；空/白串视为未提供）。
+     * 【六轮复检修复】ID 限定 1-18 位(18 位以内恒在 Long 范围, 防 20 位数字落库后
+     * parseJsonArray 溢出被吞成"看似有值实则恒空"的脏槽位)。
+     */
+    private static final java.util.regex.Pattern SLOT_JSON_RE = java.util.regex.Pattern.compile("^\\[\\d{1,18}(,\\d{1,18})*\\]$");
+    /** 槽位列 DDL 为 varchar(500)，超长数组必须显式拒绝而非落库报 500/非严格模式截断 */
+    private static final int SLOT_JSON_MAX_LEN = 500;
 
     /** 【三轮复检修复】槽位合并统一入口: 空白=未提供跳过; 非法格式 400; 合法则覆盖 */
     private void mergeSlotJson(BizIncentiveRecord update, BizIncentiveRecord existing, String field) {
@@ -476,9 +493,7 @@ public class IncentiveService {
             default -> v = null;
         }
         if (v == null || v.isBlank()) return;
-        if (!SLOT_JSON_RE.matcher(v.trim()).matches()) {
-            throw new BusinessException(400, "安装文件槽位格式非法（应为文件ID数组）");
-        }
+        assertValidSlotJson(v);
         switch (field) {
             case "filePreId" -> existing.setFilePreId(v.trim());
             case "fileMidId" -> existing.setFileMidId(v.trim());
@@ -645,9 +660,7 @@ public class IncentiveService {
         // 【五轮复检修复】create 与 update 同口径: 槽位非空白值必须是合法 JSON 数组
         // (parseJsonArray 会把脏串静默解析为空列表绕过归属核对, 原样落库成脏数据)
         for (String v : new String[]{r.getFilePreId(), r.getFileMidId(), r.getFilePostId(), r.getFileId(), r.getFileTrackId()}) {
-            if (v != null && !v.isBlank() && !SLOT_JSON_RE.matcher(v.trim()).matches()) {
-                throw new BusinessException(400, "安装文件槽位格式非法（应为文件ID数组）");
-            }
+            if (v != null && !v.isBlank()) assertValidSlotJson(v);
         }
         // 文件引用核对：全部槽位文件 ID 必须存在且属于当前用户（防伪造引用他人文件）
         List<Long> fileIds = collectFileIds(r);
