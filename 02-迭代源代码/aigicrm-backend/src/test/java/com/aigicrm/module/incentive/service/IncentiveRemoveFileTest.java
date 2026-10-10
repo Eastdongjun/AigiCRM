@@ -201,7 +201,7 @@ class IncentiveRemoveFileTest {
         try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
             stubUser(m);
             BizIncentiveRecord existing = recordWithFiles();
-            when(recordMapper.selectById(5L)).thenReturn(existing);
+            when(recordMapper.selectByIdForUpdate(5L)).thenReturn(existing);
 
             BizIncentiveRecord update = new BizIncentiveRecord();
             update.setFilePreId("");

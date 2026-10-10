@@ -216,7 +216,7 @@ class IncentiveUploadValidationTest {
             existing.setUserId(2L);
             existing.setCategoryId(1L);
             existing.setCustomerId(10L);
-            when(recordMapper.selectById(1L)).thenReturn(existing);
+            when(recordMapper.selectByIdForUpdate(1L)).thenReturn(existing);
 
             BizIncentiveRecord update = new BizIncentiveRecord();
             update.setCustomerId(99L);
@@ -238,7 +238,7 @@ class IncentiveUploadValidationTest {
             existing.setUserId(2L);
             existing.setCategoryId(1L);
             existing.setCustomerId(10L);
-            when(recordMapper.selectById(1L)).thenReturn(existing);
+            when(recordMapper.selectByIdForUpdate(1L)).thenReturn(existing);
             when(categoryMapper.selectById(1L)).thenReturn(new BizIncentiveCategory());
 
             BizIncentiveRecord update = new BizIncentiveRecord();
@@ -262,7 +262,7 @@ class IncentiveUploadValidationTest {
             existing.setUserId(2L);
             existing.setCategoryId(1L);
             existing.setCustomerId(10L);
-            when(recordMapper.selectById(1L)).thenReturn(existing);
+            when(recordMapper.selectByIdForUpdate(1L)).thenReturn(existing);
             when(categoryMapper.selectById(1L)).thenReturn(new BizIncentiveCategory());
 
             BizIncentiveRecord update = new BizIncentiveRecord();
@@ -291,7 +291,7 @@ class IncentiveUploadValidationTest {
             existing.setCategoryId(1L);
             existing.setCustomerId(10L);
             existing.setFilePreId("[869]");
-            when(recordMapper.selectById(1L)).thenReturn(existing);
+            when(recordMapper.selectByIdForUpdate(1L)).thenReturn(existing);
             when(categoryMapper.selectById(1L)).thenReturn(new BizIncentiveCategory());
 
             BizIncentiveRecord update = new BizIncentiveRecord();
@@ -317,7 +317,7 @@ class IncentiveUploadValidationTest {
             existing.setCategoryId(1L);
             existing.setCustomerId(10L);
             existing.setFilePreId("[869]");
-            when(recordMapper.selectById(1L)).thenReturn(existing);
+            when(recordMapper.selectByIdForUpdate(1L)).thenReturn(existing);
             when(fileMapper.selectCount(any())).thenReturn(0L);
 
             BizIncentiveRecord update = new BizIncentiveRecord();

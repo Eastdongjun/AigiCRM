@@ -381,7 +381,9 @@ public class IncentiveService {
      */
     @Transactional
     public void updateRecord(Long id, BizIncentiveRecord update) {
-        BizIncentiveRecord existing = recordMapper.selectById(id);
+        // 【复检修复】行锁读与 removeFile 对称：PUT 无锁快照+全实体覆写会把并发 removeFile 已移除的
+        // 槽位引用按旧快照写回(移除被静默回滚)；FOR UPDATE 串行化两接口对同一记录的交错
+        BizIncentiveRecord existing = recordMapper.selectByIdForUpdate(id);
         if (existing == null) return;
 
         // 合并可编辑业务字段（全部 != null 才合并；user_id/created_at/period/category_id 保持不动——

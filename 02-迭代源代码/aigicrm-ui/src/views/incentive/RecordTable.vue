@@ -97,8 +97,8 @@ const onSizeChange = (size) => {
 .install-files .file-tag.previewable:hover { color: var(--el-color-primary); }
 /* 双行行卡：主行业务信息，meta行灰字审计信息，两行各自单行省略 */
 .cell-main { font-size:13px; color:#1f2329; font-weight:500; overflow:hidden; text-overflow:ellipsis; white-space:nowrap }
-.cell-main.customer-link { color:var(--el-color-primary); cursor:pointer }
-.cell-main.customer-link:hover { text-decoration: underline; }
+/* 【复检修复】客户名仅作主色调标识——无独立点击行为, 去掉 pointer/hover 假链接暗示 */
+.cell-main.customer-link { color:var(--el-color-primary); }
 .cell-meta { font-size:12px; color:var(--el-text-color-secondary); margin-top:2px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap }
 /* min-width:0 让右栏随视口收缩（flex 子项默认 min-width:auto 会被表格最小列宽顶死，
    窄屏下整表被 .main-layout 的 overflow:hidden 隐形裁切）；收缩后由 el-table 自带横向滚动接管 */

@@ -48,7 +48,7 @@ class IncentiveSpecificProductTest {
         existing.setCategoryId(1L);
         existing.setFilePreId("[1]");
         existing.setRemark("old");
-        when(recMapper.selectById(10L)).thenReturn(existing);
+        when(recMapper.selectByIdForUpdate(10L)).thenReturn(existing);
         when(catMapper.selectById(eq(1L))).thenReturn(null); // 积分 base=0，不干扰
 
         IncentiveService svc = newService(recMapper, catMapper);
@@ -76,7 +76,7 @@ class IncentiveSpecificProductTest {
         existing.setCategoryId(1L);
         existing.setCreatedAt(java.time.LocalDateTime.now().minusDays(3));
         existing.setFilePreId("[1]");
-        when(recMapper.selectById(10L)).thenReturn(existing);
+        when(recMapper.selectByIdForUpdate(10L)).thenReturn(existing);
         when(catMapper.selectById(eq(1L))).thenReturn(null);
 
         IncentiveService svc = newService(recMapper, catMapper);
@@ -107,7 +107,7 @@ class IncentiveSpecificProductTest {
         existing.setId(10L);
         existing.setUserId(1L);
         existing.setCategoryId(1L);
-        when(recMapper.selectById(10L)).thenReturn(existing);
+        when(recMapper.selectByIdForUpdate(10L)).thenReturn(existing);
         when(catMapper.selectById(eq(1L))).thenReturn(null);
 
         IncentiveService svc = newService(recMapper, catMapper);
@@ -136,7 +136,7 @@ class IncentiveSpecificProductTest {
         existing.setUserId(1L);
         existing.setCategoryId(1L);
         existing.setShared(1);
-        when(recMapper.selectById(10L)).thenReturn(existing);
+        when(recMapper.selectByIdForUpdate(10L)).thenReturn(existing);
         when(catMapper.selectById(eq(1L))).thenReturn(null);
 
         IncentiveService svc = newService(recMapper, catMapper);

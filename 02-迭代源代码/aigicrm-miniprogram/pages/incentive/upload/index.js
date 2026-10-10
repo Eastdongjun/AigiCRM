@@ -747,6 +747,12 @@ Page({
       this.removeExistingFileRemotely(slot, file, index)
       return
     }
+    // 【复检修复】已有文件但缺 fileId(URL-fallback 防御分支, 当前数据契约不可达):
+    // 本地剔除=假删(提交不带该槽则刷新复活), 诚实拦截并引导到 PC 处理
+    if (file.existing) {
+      wx.showToast({ title: '该文件暂不支持在小程序移除，请在电脑端处理', icon: 'none', duration: 2500 })
+      return
+    }
     const files = (slot.files || []).filter((_, idx) => idx !== fileIndex)
     const firstFile = files[0] || {}
     this.setData({
@@ -813,7 +819,7 @@ Page({
     // 【M18 2026-10-04】按钮 disabled 属性只保留给"提交中"态, 表单未就绪时按钮可点击;
     // 此处按缺失项逐条校验并 toast, 保证用户知道为何不能提交(原先 submitDisabled 早退
     // 会把"请补齐客户和分类"/"请至少上传 1 个文件"两条提示挡成不可达死代码)
-    if (this.data.loading) return // 提交中重复点击静默忽略(已有全屏 loading 反馈)
+    if (this.data.loading || this._removingFile) return // 提交中/移除在途重复点击静默忽略(已有全屏 loading 反馈)【复检修复: 与移除入口防线对称】
     const customer = this.data.customers[this.data.selectedCustomerIndex]
     const category = this.data.categories[this.data.selectedCategoryIndex]
     if (!customer || !category) {

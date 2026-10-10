@@ -1,6 +1,7 @@
 <template>
   <!-- 关联客户 + 安装文件 弹窗 -->
-  <el-dialog v-model="showCustomerDialog" width="780px" top="2vh" :close-on-click-modal="false" class="upload-dlg">
+  <el-dialog v-model="showCustomerDialog" width="780px" :close-on-click-modal="false"
+             :close-on-press-escape="!uploading" :before-close="handleDialogBeforeClose" class="upload-dlg">
     <template #header>
       <div class="dlg-header">
         <div class="dlg-header-left">
@@ -169,7 +170,7 @@
           <div class="progress-text">{{ uploadProgressText }} — {{ uploadProgress }}%</div>
         </div>
         <div class="dlg-footer-btns">
-          <el-button size="large" @click="showCustomerDialog=false">取消</el-button>
+          <el-button size="large" :disabled="uploading" @click="showCustomerDialog=false">取消</el-button>
           <el-button type="primary" size="large" :loading="uploading" :disabled="!canSubmit" @click="confirmUpload">
             {{ pendingReplace?'追加提交':'上传并提交' }}
           </el-button>
@@ -178,13 +179,11 @@
     </template>
   </el-dialog>
 
-  <!-- 安装文件预览(图片放大/视频播放/文档下载)——0812 视频预览功能的上传弹窗入口,此前遗漏挂载导致点卡片无反应 -->
-  <FilePreview v-model:visible="previewVisible" :url="previewUrl" :type="previewType" :file-name="previewName" />
 </template>
 
 <script setup>
+import { ElMessage } from 'element-plus'
 import { injectIncentiveUpload } from '@/composables/useIncentiveUpload'
-import FilePreview from '@/components/FilePreview.vue'
 
 const {
   showCustomerDialog, pendingReplace, pendingChild,
@@ -193,11 +192,17 @@ const {
   categoryCodeOf, specificProduct,
   secTitle, detailLabel, isSingleSlot, preInstallQuestion, isTrial, remarkLabel, remarkText,
   slotLabel, MAX_FILES, installFiles, isImage, existingThumb, thumbsReady, fileType, getObjectURL, removeSlotFile, handleRemoveSlotFile, pickFile, previewCardFile,
-  previewVisible, previewUrl, previewType, previewName,
-  fileSlots, trackFile, pickTrackFile,
+    fileSlots, trackFile, pickTrackFile,
   shareToTeam, uploading, totalNewFiles, uploadProgress, uploadProgressText, canSubmit, confirmUpload,
   canToggleShare, formatDate,
 } = injectIncentiveUpload()
+
+// 【复检修复】上传进行中拦截关闭(取消按钮已 :disabled, ESC 经 :close-on-press-escape, X/兜底走此处):
+// 放行关闭则 confirmUpload 继续上传落库(用户明确取消仍产生记录), 且收尾会踢掉用户新开的弹窗
+const handleDialogBeforeClose = (done) => {
+  if (uploading.value) { ElMessage.warning('文件上传处理中，请等待完成'); return }
+  done()
+}
 </script>
 
 <style scoped>
@@ -284,4 +289,8 @@ const {
 .progress-bar { height: 6px; background: #e8e8e8; border-radius: 3px; overflow: hidden }
 .progress-fill { height: 100%; background: linear-gradient(90deg, var(--el-color-primary), var(--el-color-primary-light-3)); border-radius: 3px; transition: width .3s ease }
 .progress-text { font-size: 12px; color: var(--el-color-info); margin-top: 4px; text-align: center }
+/* 【复检修复】触屏设备无稳定 hover, 移除 X 恒可见(原来 opacity:0 只 hover 显) */
+@media (hover: none) {
+  .file-card-del { opacity: 1 }
+}
 </style>

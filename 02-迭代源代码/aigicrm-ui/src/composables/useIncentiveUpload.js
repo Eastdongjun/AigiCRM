@@ -434,7 +434,9 @@ export function useIncentiveUpload() {
     const target = val ? 1 : 0
     try {
       await updateRecord(row.id, { shared: target })
-      row.shared = target
+      // 【复检修复】row 是 enrichedRecords computed 展开出的非响应式副本, 直改不触发重渲染
+      // (开关回弹旧值); 刷新数据源让 computed 重算——与其他写路径(删除/移除/提交)成功后一致
+      loadRecords()
       ElMessage.success(val ? '已分享（全员可见）' : '已取消分享')
     } catch (e) {
       ElMessage.error('操作失败：' + (e.message || '请检查权限'))
@@ -453,9 +455,15 @@ export function useIncentiveUpload() {
     // 保留已有文件，标记为已上传（name + id + _existing）
     const parseExisting = (namesStr, idsJson) => {
       if (!namesStr) return []
-      const names = namesStr.split(', ')
+      // 【复检修复】与 splitNames 的 ','+trim 口径对齐(原 split(', ') 在名字含","时错位);
+      // id 解析失败/缺失不再静默——提交时 getKeptIds 会过滤无 id 文件造成静默丢失
+      const names = namesStr.split(',').map((s) => s.trim()).filter(Boolean)
       let ids = []
-      try { ids = idsJson ? JSON.parse(idsJson) : [] } catch { ids = [] }
+      let parseFailed = false
+      try { ids = idsJson ? JSON.parse(idsJson) : [] } catch { ids = []; parseFailed = true }
+      if (parseFailed || (names.length && ids.length < names.length)) {
+        ElMessage.warning('部分已有文件信息异常（缺少文件ID），请刷新页面后重试')
+      }
       return names.map((name, i) => ({ name, id: ids[i] || null, _existing: true }))
     }
     installFiles.pre = parseExisting(row.filePreName, row.filePreId)
@@ -778,7 +786,6 @@ export function useIncentiveUpload() {
     resetDialogFields, startUpload, handleDeleteRecord, toggleShare, startReplace,
     canToggleShare, isRecordOwner,
     searchCustomers, loadSharedCustomerIds,
-    loadCategories, loadUsers, loadDeptTree, onDeptChange, loadRecords,
     isImage, existingThumb, thumbsReady, getObjectURL, removeSlotFile, handleRemoveSlotFile, pickFile, pickTrackFile, handleFileSelected,
     uploadOne, confirmUpload,
   }

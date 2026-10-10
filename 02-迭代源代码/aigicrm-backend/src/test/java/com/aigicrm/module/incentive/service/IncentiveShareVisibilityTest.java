@@ -369,7 +369,7 @@ class IncentiveShareVisibilityTest {
         existing.setCategoryId(1L);
         existing.setShared(0);
         existing.setUserId(1L);
-        when(recordMapper.selectById(1L)).thenReturn(existing);
+        when(recordMapper.selectByIdForUpdate(1L)).thenReturn(existing);
         com.aigicrm.module.incentive.entity.BizIncentiveCategory cat =
                 new com.aigicrm.module.incentive.entity.BizIncentiveCategory();
         cat.setId(1L);

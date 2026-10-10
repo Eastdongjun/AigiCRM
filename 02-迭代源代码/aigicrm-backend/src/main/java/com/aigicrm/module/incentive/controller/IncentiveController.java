@@ -112,7 +112,7 @@ public class IncentiveController {
         SecurityUser user = SecurityUtils.getCurrentUser();
         if (SecurityUtils.isAdmin() || incentiveService.canEdit()) return;
         BizIncentiveRecord existing = incentiveService.getRecordById(id);
-        if (existing == null || !existing.getUserId().equals(user.getUserId())) {
+        if (existing == null || existing.getUserId() == null || !existing.getUserId().equals(user.getUserId())) {
             throw new BusinessException(403, "无权编辑他人记录");
         }
     }
@@ -137,7 +137,7 @@ public class IncentiveController {
         if (!isAdmin && !incentiveService.canDelete()) {
             // 变量名避开受限标识符 record（SonarLint S6213）
             BizIncentiveRecord incRecord = incentiveService.getRecordById(id);
-            if (incRecord == null || !incRecord.getUserId().equals(user.getUserId())) {
+            if (incRecord == null || incRecord.getUserId() == null || !incRecord.getUserId().equals(user.getUserId())) {
                 throw new BusinessException(403, "无权删除他人记录");
             }
         }
