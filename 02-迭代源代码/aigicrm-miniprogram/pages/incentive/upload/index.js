@@ -305,8 +305,8 @@ function buildUploadViewState(data) {
         fileKey: file.filePath || (file.fileId ? `id-${file.fileId}` : (file.fileUrl ? `url-${file.fileUrl}` : `idx-${fileIndex}`)),
         isImage: file.fileKind === 'image' || isImageFile(file.fileName, file.filePath),
         // 【三轮复检修复】已有图片接入远端缩略图(原只绑本地 filePath, existing 恒空串=灰底空白)
-        thumbUrl: (file.existing && file.fileId && (file.fileKind === 'image' || isImageFile(file.fileName, '')) && this._dlToken)
-          ? (getDownloadUrl({ id: file.fileId }, true) + '&token=' + encodeURIComponent(this._dlToken))
+        thumbUrl: (file.existing && file.fileId && (file.fileKind === 'image' || isImageFile(file.fileName, '')) && data.dlToken)
+          ? (getDownloadUrl({ id: file.fileId }, true) + '&token=' + encodeURIComponent(data.dlToken))
           : '',
         // 【PR-13 首批 2026-09-19】逐文件上传反馈:pending/uploading/done/failed(+失败原因)
         uploadState: file.uploadedId ? 'done' : (file.uploadState || 'pending'),
@@ -506,11 +506,14 @@ Page({
       const record = records.find((item) => String(item.id) === String(this.data.editId))
       if (!record) throw new Error('找不到四项激励记录')
       this.fillEditRecord(record)
-      // 【三轮复检修复】编辑模式取下载 token 供已有图片远端缩略图(详情页同模式)
+      // 【四轮复检修复】编辑模式取下载 token 供已有图片远端缩略图(详情页同模式)。
+      // request 层已解包 body.data → then 入参就是 {token}(四轮复检证实原 res.data.token 恒 undefined);
+      // token 存 data.dlToken 而非实例属性——buildUploadViewState 是模块级函数, 读不到 this(四轮复检证实)
       getDownloadToken().then((res) => {
-        this._dlToken = (res && res.data && res.data.token) || ''
-        this.refreshUploadViewState()
-      }).catch(() => { this._dlToken = '' })
+        if (this._unloaded) return
+        this.setData({ dlToken: (res && (res.token || (res.data && res.data.token))) || '' },
+          () => this.refreshUploadViewState())
+      }).catch(() => { if (!this._unloaded) this.setData({ dlToken: '' }) })
     }).catch((error) => showError(error, '四项激励记录加载失败'))
   },
 

@@ -2,7 +2,7 @@
 // 页面级 provide/inject（per-route）：incentive/index.vue 实例化一次并 provide，
 // 筛选条/子分类面板/文件表格/上传弹窗/文件预览 inject 同一上下文。
 // 共享内容：分类树/记录/权限 + 筛选与分页 + 上传弹窗全部状态(客户/文件槽/进度/分享) + 上传/追加/删除动作。
-import { ref, reactive, computed, watch, inject } from 'vue'
+import { ref, reactive, computed, watch, inject, onUnmounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { confirmAction } from '@/utils/confirm'
 import { Box, Location, ChatDotSquare, Document } from '@element-plus/icons-vue'
@@ -412,6 +412,8 @@ export function useIncentiveUpload() {
       installFiles.pre = []; installFiles.mid = []; installFiles.post = []; trackFile.value = []
     }
   })
+  // 【四轮复检修复】路由离开(组件卸载)兜底释放已选文件 blob——原先弹窗开着切路由无人清理
+  onUnmounted(() => releasePreviewBlobs())
 
   // ---- 上传流程 ----
   const startUpload = (child) => {
@@ -569,6 +571,9 @@ export function useIncentiveUpload() {
   // 专用接口原子完成 槽位剔除→重算积分→盖修改人章；物理文件保留只解除引用。
   // 与 removeSlotFile（新文件本地剔除）分流，避免"攒到提交才生效"与删空槽假成功。
   const SLOT_LABELS = { pre: '安装前', mid: '安装中', post: '安装后', track: '跟踪记录' }
+  // 【四轮复检修复】移除请求在途计数: 提交快照读的是本地列表, 在途移除未落地前提交会把
+  // 已移除文件的 id 一起 PUT 回去(后写覆盖让移除复活)
+  const removingInFlight = ref(0)
   const removeExistingSlotFile = async (slotKey, idx) => {
     const list = slotKey === 'track' ? trackFile.value : installFiles[slotKey]
     const f = list[idx]
@@ -582,6 +587,7 @@ export function useIncentiveUpload() {
         { confirmText: '移除' }
       )
     } catch { return }
+    removingInFlight.value++
     try {
       await removeRecordFile(pendingReplace.value.id, { slot: slotKey, fileId: f.id })
       // 【工作流复检修复 2026-10-10】确认弹窗期间用户可再删别的文件，旧下标会剔错元素——
@@ -592,6 +598,8 @@ export function useIncentiveUpload() {
       loadRecords()
     } catch (e) {
       ElMessage.error(e.message || '移除失败')
+    } finally {
+      removingInFlight.value--
     }
   }
   // 统一入口：新文件本地剔除；已有文件走后端原子移除
@@ -663,6 +671,8 @@ export function useIncentiveUpload() {
 
   // 提交：每个槽位支持多文件上传（最多5个），ID序列化为JSON数组
   const confirmUpload = async () => {
+    // 【四轮复检修复】移除在途禁止提交: 快照会带上正在被移除的文件 id
+    if (removingInFlight.value > 0) { ElMessage.warning('文件移除处理中，请稍候再提交'); return }
     if (!canSubmit.value) return
     uploading.value = true
     uploadProgress.value = 0

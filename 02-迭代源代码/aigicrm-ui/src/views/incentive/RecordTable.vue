@@ -6,7 +6,10 @@
       <el-table-column label="大类·子类" min-width="200">
         <template #default="{ row }">
           <div class="cell-main">{{ row.majorMinor }}</div>
-          <div v-if="row.industry || row.relatedProducts" class="cell-meta">
+          <div v-if="row.tier || row.industry || row.relatedProducts" class="cell-meta">
+            <!-- 三级分类时 majorMinor 只到中类, 叶子子类(tier)在此补全(四轮复检) -->
+            <template v-if="row.tier">{{ row.tier }}</template>
+            <template v-if="row.tier && (row.industry || row.relatedProducts)"> · </template>
             <template v-if="row.industry">{{ row.industry }}</template>
             <template v-if="row.industry && row.relatedProducts"> · </template>
             <template v-if="row.relatedProducts">{{ row.relatedProducts }}</template>

@@ -401,8 +401,10 @@ public class IncentiveService {
         if (update.getSpecificProduct() != null) existing.setSpecificProduct(update.getSpecificProduct());
         if (update.getPreInstallQuestion() != null) existing.setPreInstallQuestion(update.getPreInstallQuestion());
         // 文件字段 + 分享开关（【2026-08-08 分享制】本人随时可开关分享）
-        boolean fileTouched = update.getFilePreId() != null || update.getFileMidId() != null
-                || update.getFilePostId() != null || update.getFileId() != null || update.getFileTrackId() != null;
+        // 【四轮复检修复】与 mergeSlotJson"空串=未提供"对齐: 只有非空白槽位才算触碰,
+        // 否则五槽全空的存量脏数据做纯业务字段编辑(前端回传空串)会被守卫误拒
+        boolean fileTouched = isProvidedSlot(update.getFilePreId()) || isProvidedSlot(update.getFileMidId())
+                || isProvidedSlot(update.getFilePostId()) || isProvidedSlot(update.getFileId()) || isProvidedSlot(update.getFileTrackId());
         // 【真机UAT修复 2026-09-22】文件归属只校验"本次新引入"的引用:编辑/追加场景合并后的记录
         // 天然携带原上传人的存量文件(admin 或 can_edit 编辑他人记录、追加者≠原作者都属正常业务),
         // 存量引用在原上传时已按 create 同口径校验过。此前对合并后全量校验 uploader==当前编辑人,
@@ -453,6 +455,11 @@ public class IncentiveService {
         existing.setScore(calcScore(existing, category, base));
 
         recordMapper.updateById(existing);
+    }
+
+    /** 槽位值是否为"本次实际提供"(非 null 且非空白)——与 mergeSlotJson 的空串=未提供语义一致 */
+    private static boolean isProvidedSlot(String v) {
+        return v != null && !v.isBlank();
     }
 
     /** 槽位 JSON 合法形态: "[1,2]"（至少一个纯数字 ID；空/白串视为未提供） */
@@ -569,14 +576,20 @@ public class IncentiveService {
             int base = (category != null && category.getScore() != null) ? category.getScore() : 0;
             int newScore = calcScore(r, category, base);
             if (!Integer.valueOf(newScore).equals(r.getScore())) {
-                r.setScore(newScore);
-                // 【三轮复检修复】只写 score 列(显式列级 SET): 全实体 updateById 会把快照里的
-                // 槽位JSON/updatedBy 一并写回, 与并发 removeFile 交错时移除被旧快照静默回滚
-                recordMapper.update(null,
-                        new com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper<BizIncentiveRecord>()
-                                .eq(BizIncentiveRecord::getId, r.getId())
-                                .set(BizIncentiveRecord::getScore, newScore));
-                changed++;
+                // 【四轮复检修复】score 有变化时行锁重读最新态重算再写: 全表快照到写入之间的
+                // 并发 removeFile(其自身会按最新规则重算 score)会被本循环按旧快照口径覆盖虚高;
+                // 行锁窗口内重算, 与 removeFile 对同一记录串行化
+                BizIncentiveRecord fresh = recordMapper.selectByIdForUpdate(r.getId());
+                if (fresh == null) continue;
+                int lockedScore = calcScore(fresh, category, base);
+                if (!Integer.valueOf(lockedScore).equals(fresh.getScore())) {
+                    fresh.setScore(lockedScore);
+                    recordMapper.update(null,
+                            new com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper<BizIncentiveRecord>()
+                                    .eq(BizIncentiveRecord::getId, fresh.getId())
+                                    .set(BizIncentiveRecord::getScore, lockedScore));
+                    changed++;
+                }
             }
         }
         return changed;
