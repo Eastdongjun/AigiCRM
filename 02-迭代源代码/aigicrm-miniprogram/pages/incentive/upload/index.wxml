@@ -128,7 +128,7 @@
     <view class="selected-file-list">
       <view wx:for="{{uploadView.selectedFileSlotsView}}" wx:for-item="slot" wx:key="key" class="selected-slot-group">
         <view wx:for="{{slot.files}}" wx:for-item="file" wx:key="fileKey" class="selected-file-row">
-          <image wx:if="{{file.isImage}}" class="selected-file-thumb" src="{{file.filePath}}" mode="aspectFill" catchtap="previewSelectedFile" data-index="{{slot.slotIndex}}" data-file-index="{{file.fileIndex}}" />
+          <image wx:if="{{file.isImage}}" class="selected-file-thumb" src="{{file.thumbUrl || file.filePath}}" mode="aspectFill" catchtap="previewSelectedFile" data-index="{{slot.slotIndex}}" data-file-index="{{file.fileIndex}}" />
           <view class="selected-file-main">
             <text class="selected-file-label">{{slot.label}} {{file.displayIndex}}</text>
             <text class="selected-file-name">{{file.fileName}}</text>

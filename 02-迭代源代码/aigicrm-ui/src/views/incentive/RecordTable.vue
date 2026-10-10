@@ -28,8 +28,8 @@
       <el-table-column label="客户" min-width="180">
         <template #default="{ row }">
           <div class="cell-main customer-link">{{ row.customerName || '—' }}</div>
-          <div class="cell-meta">
-            {{ [row.userName, formatDate(row.createdAt)].filter(Boolean).join(' · ') }}<template v-if="row.updatedByName"> · 改 {{ row.updatedByName }} {{ formatDate(row.updatedAt) }}</template>
+          <div v-if="row.userName || row.createdAt || row.updatedByName" class="cell-meta">
+            {{ [row.userName, row.createdAt ? formatDate(row.createdAt) : ''].filter(Boolean).join(' · ') }}<template v-if="row.updatedByName"> · 改 {{ row.updatedByName }} {{ formatDate(row.updatedAt) }}</template>
           </div>
         </template>
       </el-table-column>
@@ -109,8 +109,6 @@ const onSizeChange = (size) => {
 .list-footer-count b { color:var(--el-color-primary); font-weight:700; margin:0 2px }
 .file-cell { display: inline-flex; align-items: center; gap: 4px; }
 .file-icon { color: var(--el-color-info); font-size: 14px; flex-shrink: 0; }
-.customer-link { color: var(--el-color-primary); cursor: pointer; }
-.customer-link:hover { text-decoration: underline; }
 .shared-yes { color: var(--el-color-success); font-size: 12px; font-weight: 500; }
 .shared-no { color: var(--text-placeholder); }
 </style>

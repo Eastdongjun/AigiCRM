@@ -408,11 +408,13 @@ public class IncentiveService {
         // 存量引用在原上传时已按 create 同口径校验过。此前对合并后全量校验 uploader==当前编辑人,
         // 会把编辑他人记录整体误拒(实测 record 266: 原作者文件 869, admin 编辑被"无效文件引用"拒绝)。
         Set<Long> beforeFileIds = fileTouched ? new HashSet<>(collectFileIds(existing)) : Collections.emptySet();
-        if (update.getFilePreId() != null) existing.setFilePreId(update.getFilePreId());
-        if (update.getFileMidId() != null) existing.setFileMidId(update.getFileMidId());
-        if (update.getFilePostId() != null) existing.setFilePostId(update.getFilePostId());
-        if (update.getFileId() != null) existing.setFileId(update.getFileId());
-        if (update.getFileTrackId() != null) existing.setFileTrackId(update.getFileTrackId());
+        // 【三轮复检修复】槽位只接受合法 JSON 数组: 空白串一律视为"未提供"(清空槽位的唯一
+        // 途径=remove-file 专用接口, 统一空槽表示为 NULL), 非法脏串直接拒绝不落库
+        mergeSlotJson(update, existing, "filePreId");
+        mergeSlotJson(update, existing, "fileMidId");
+        mergeSlotJson(update, existing, "filePostId");
+        mergeSlotJson(update, existing, "fileId");
+        mergeSlotJson(update, existing, "fileTrackId");
         // 【DeepSeek四审 P1 修复 2026-09-22】update 新增文件槽时与 create 同口径核对归属:
         // 旧代码只赋值不校验, 填他人/不存在文件 ID 也能保住上传材料分。核对对象=新引入的文件 ID
         if (fileTouched) {
@@ -453,11 +455,41 @@ public class IncentiveService {
         recordMapper.updateById(existing);
     }
 
+    /** 槽位 JSON 合法形态: "[1,2]"（至少一个纯数字 ID；空/白串视为未提供） */
+    private static final java.util.regex.Pattern SLOT_JSON_RE = java.util.regex.Pattern.compile("^\\[\\d+(,\\d+)*\\]$");
+
+    /** 【三轮复检修复】槽位合并统一入口: 空白=未提供跳过; 非法格式 400; 合法则覆盖 */
+    private void mergeSlotJson(BizIncentiveRecord update, BizIncentiveRecord existing, String field) {
+        String v;
+        switch (field) {
+            case "filePreId" -> v = update.getFilePreId();
+            case "fileMidId" -> v = update.getFileMidId();
+            case "filePostId" -> v = update.getFilePostId();
+            case "fileId" -> v = update.getFileId();
+            case "fileTrackId" -> v = update.getFileTrackId();
+            default -> v = null;
+        }
+        if (v == null || v.isBlank()) return;
+        if (!SLOT_JSON_RE.matcher(v.trim()).matches()) {
+            throw new BusinessException(400, "安装文件槽位格式非法（应为文件ID数组）");
+        }
+        switch (field) {
+            case "filePreId" -> existing.setFilePreId(v.trim());
+            case "fileMidId" -> existing.setFileMidId(v.trim());
+            case "filePostId" -> existing.setFilePostId(v.trim());
+            case "fileId" -> existing.setFileId(v.trim());
+            case "fileTrackId" -> existing.setFileTrackId(v.trim());
+            default -> { }
+        }
+    }
+
     /**
      * 移除记录某槽位中的单个文件（【用户裁决 2026-10-10】上传错了需要修改）
      *
      * 【方法】解析槽位 JSON 数组 → 剔除该文件 ID → 显式 SET 写回（含清空为 NULL）→ 重算积分 → 盖修改人章
-     * 【业务规则】物理文件保留（biz_file 原件不动），只解除记录槽位引用，误删可恢复、审计可追溯；
+     * 【业务规则】物理文件保留（biz_file 原件不动），只解除记录槽位引用——文件原件留在文件库
+     *             可查可重挂；操作级留痕(何时谁移除了哪个文件)为 V2 审计日志事项，当前仅盖
+     *             最后修改人/时间章；
      *             全记录五槽合计移除后须 ≥1 份文件（防空壳记录：分数还在证据全无）；
      *             槽位 whitelist：file/pre/mid/post/track
      * 【参数】id 记录ID；slot 槽位；fileId 要移除的文件ID
@@ -538,7 +570,12 @@ public class IncentiveService {
             int newScore = calcScore(r, category, base);
             if (!Integer.valueOf(newScore).equals(r.getScore())) {
                 r.setScore(newScore);
-                recordMapper.updateById(r);
+                // 【三轮复检修复】只写 score 列(显式列级 SET): 全实体 updateById 会把快照里的
+                // 槽位JSON/updatedBy 一并写回, 与并发 removeFile 交错时移除被旧快照静默回滚
+                recordMapper.update(null,
+                        new com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper<BizIncentiveRecord>()
+                                .eq(BizIncentiveRecord::getId, r.getId())
+                                .set(BizIncentiveRecord::getScore, newScore));
                 changed++;
             }
         }

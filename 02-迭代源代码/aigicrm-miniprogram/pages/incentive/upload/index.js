@@ -1,6 +1,6 @@
 const { getCustomerList } = require('../../../api/customer')
 const { getCategoryTree, addRecord, getRecords, updateRecord, removeRecordFile } = require('../../../api/incentive')
-const { getDownloadUrl, uploadFile } = require('../../../api/file')
+const { getDownloadUrl, getDownloadToken, uploadFile } = require('../../../api/file')
 const { getDictData } = require('../../../api/system')
 // 【E10】表单草稿接口自 api/system 迁至 api/draft(D38 域归位收尾), 引用随迁
 const { getFormDraft, saveFormDraft, deleteFormDraft } = require('../../../api/draft')
@@ -304,6 +304,10 @@ function buildUploadViewState(data) {
         // 依次用本地临时路径 → 服务端文件 id → 附件 URL 兜底, 最后按下标保证唯一
         fileKey: file.filePath || (file.fileId ? `id-${file.fileId}` : (file.fileUrl ? `url-${file.fileUrl}` : `idx-${fileIndex}`)),
         isImage: file.fileKind === 'image' || isImageFile(file.fileName, file.filePath),
+        // 【三轮复检修复】已有图片接入远端缩略图(原只绑本地 filePath, existing 恒空串=灰底空白)
+        thumbUrl: (file.existing && file.fileId && (file.fileKind === 'image' || isImageFile(file.fileName, '')) && this._dlToken)
+          ? (getDownloadUrl({ id: file.fileId }, true) + '&token=' + encodeURIComponent(this._dlToken))
+          : '',
         // 【PR-13 首批 2026-09-19】逐文件上传反馈:pending/uploading/done/failed(+失败原因)
         uploadState: file.uploadedId ? 'done' : (file.uploadState || 'pending'),
         uploadStateText: uploadStateText(file),
@@ -502,6 +506,11 @@ Page({
       const record = records.find((item) => String(item.id) === String(this.data.editId))
       if (!record) throw new Error('找不到四项激励记录')
       this.fillEditRecord(record)
+      // 【三轮复检修复】编辑模式取下载 token 供已有图片远端缩略图(详情页同模式)
+      getDownloadToken().then((res) => {
+        this._dlToken = (res && res.data && res.data.token) || ''
+        this.refreshUploadViewState()
+      }).catch(() => { this._dlToken = '' })
     }).catch((error) => showError(error, '四项激励记录加载失败'))
   },
 
@@ -726,7 +735,8 @@ Page({
       mode,
       file,
       isBusy: this.data.fileActionLoading,
-      setBusy: (busy) => this.setUploadData({ fileActionLoading: busy }),
+      // 【三轮复检修复】卸载后不再 setData(与新代码 _unloaded 守卫口径一致)
+    setBusy: (busy) => { if (this._unloaded) return; this.setUploadData({ fileActionLoading: busy }) },
       isImage: (item) => item.fileKind === 'image' || isImageFile(item.fileName, ''),
       saveFailTitle: '下载保存失败',
       hideLoadingBeforeResult: false
@@ -747,9 +757,9 @@ Page({
       this.removeExistingFileRemotely(slot, file, index)
       return
     }
-    // 【复检修复】已有文件但缺 fileId(URL-fallback 防御分支, 当前数据契约不可达):
-    // 本地剔除=假删(提交不带该槽则刷新复活), 诚实拦截并引导到 PC 处理
-    if (file.existing) {
+    // 【三轮复检修复】仅"编辑态且缺 fileId"(URL-fallback 防御分支)才拦截——本地剔除=假删。
+    // 新建模式(含草稿恢复的已上传文件)本地剔除即真删: 记录未创建, 提交快照不含即不挂载
+    if (file.existing && this.data.editId) {
       wx.showToast({ title: '该文件暂不支持在小程序移除，请在电脑端处理', icon: 'none', duration: 2500 })
       return
     }

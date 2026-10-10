@@ -195,13 +195,14 @@ class IncentiveRemoveFileTest {
         }
     }
 
-    /** 【工作流复检修复 2026-10-10】PUT 空串清空全部槽位须被拒：与 removeFile 同口径五槽≥1 */
+    /** 【三轮复检修复】PUT 槽位空串=未提供(清空唯一途径=remove-file)：文件保留不丢，不抛错 */
     @Test
-    void updateRecord_clearAllSlots_rejected() {
+    void updateRecord_blankSlots_ignored_filesPreserved() {
         try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
             stubUser(m);
             BizIncentiveRecord existing = recordWithFiles();
             when(recordMapper.selectByIdForUpdate(5L)).thenReturn(existing);
+            when(categoryMapper.selectById(1L)).thenReturn(new BizIncentiveCategory());
 
             BizIncentiveRecord update = new BizIncentiveRecord();
             update.setFilePreId("");
@@ -210,9 +211,26 @@ class IncentiveRemoveFileTest {
             update.setFileTrackId("");
             update.setFileId("");
 
+            newService().updateRecord(5L, update);
+            assertTrue(existing.getFilePreIds().containsAll(java.util.List.of(100L, 101L)),
+                    "空串视为未提供, 已有文件不得被清空: " + existing.getFilePreIds());
+            verify(recordMapper).updateById(any(BizIncentiveRecord.class));
+        }
+    }
+
+    /** 【三轮复检修复】PUT 槽位脏串(非 JSON 数组)直接拒绝, 不落库 */
+    @Test
+    void updateRecord_dirtySlotJson_rejected() {
+        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
+            stubUser(m);
+            when(recordMapper.selectByIdForUpdate(5L)).thenReturn(recordWithFiles());
+
+            BizIncentiveRecord update = new BizIncentiveRecord();
+            update.setFilePreId("abc");
+
             BusinessException ex = assertThrows(BusinessException.class,
                     () -> newService().updateRecord(5L, update));
-            assertTrue(ex.getMessage().contains("至少须保留一份文件"), ex.getMessage());
+            assertTrue(ex.getMessage().contains("槽位格式非法"), ex.getMessage());
             verify(recordMapper, never()).updateById(any(BizIncentiveRecord.class));
         }
     }

@@ -403,7 +403,15 @@ export function useIncentiveUpload() {
     const release = (list) => { for (const f of list) { if (f && f._url) { URL.revokeObjectURL(f._url); f._url = null } } }
     release(installFiles.pre); release(installFiles.mid); release(installFiles.post); release(trackFile.value)
   }
-  watch(showCustomerDialog, (open) => { if (!open) releasePreviewBlobs() })
+  // 【三轮复检修复】只 revoke 不清列表会被弹窗关闭同帧重渲染的 getObjectURL 重建 _url 抵消
+  // (复检员 jsdom 运行级证实: 存活blob数=1)。关闭即清列表——弹窗已隐藏无视觉影响,
+  // 重开由 startUpload/startReplace 的 resetDialogFields 重新填充
+  watch(showCustomerDialog, (open) => {
+    if (!open) {
+      releasePreviewBlobs()
+      installFiles.pre = []; installFiles.mid = []; installFiles.post = []; trackFile.value = []
+    }
+  })
 
   // ---- 上传流程 ----
   const startUpload = (child) => {
