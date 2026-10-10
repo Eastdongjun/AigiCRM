@@ -95,6 +95,29 @@ public class IncentiveController {
         return Result.ok();
     }
 
+    /**
+     * 【用户裁决 2026-10-10】编辑历史文件时可移除单个已有文件（上传错了需要修改）。
+     * 服务端原子完成"槽位数组剔除该文件ID→重算积分→盖修改人章"；物理文件保留只解除引用。
+     * 权限同 updateRecord：admin ∨ incentive:manage 授权 ∨ 本人记录。
+     */
+    @PreAuthorize("hasAuthority('incentive:view')")
+    @PostMapping("/records/{id}/remove-file")
+    public Result<Void> removeFile(@PathVariable Long id, @RequestBody RemoveFileBody body) {
+        SecurityUser user = SecurityUtils.getCurrentUser();
+        boolean isAdmin = SecurityUtils.isAdmin();
+        if (!isAdmin && !incentiveService.canEdit()) {
+            BizIncentiveRecord existing = incentiveService.getRecordById(id);
+            if (existing == null || !existing.getUserId().equals(user.getUserId())) {
+                throw new BusinessException(403, "无权编辑他人记录");
+            }
+        }
+        incentiveService.removeFile(id, body.slot(), body.fileId());
+        return Result.ok();
+    }
+
+    /** remove-file 请求体：slot ∈ file/pre/mid/post/track */
+    public record RemoveFileBody(String slot, Long fileId) {}
+
     /** 批量重算所有历史记录积分（按最新规则） */
     @PreAuthorize("hasAuthority('incentive:edit')")
     @PostMapping("/records/recalculate")

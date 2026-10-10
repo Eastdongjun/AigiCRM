@@ -445,6 +445,78 @@ public class IncentiveService {
         recordMapper.updateById(existing);
     }
 
+    /**
+     * 移除记录某槽位中的单个文件（【用户裁决 2026-10-10】上传错了需要修改）
+     *
+     * 【方法】解析槽位 JSON 数组 → 剔除该文件 ID → 显式 SET 写回（含清空为 NULL）→ 重算积分 → 盖修改人章
+     * 【业务规则】物理文件保留（biz_file 原件不动），只解除记录槽位引用，误删可恢复、审计可追溯；
+     *             全记录五槽合计移除后须 ≥1 份文件（防空壳记录：分数还在证据全无）；
+     *             槽位 whitelist：file/pre/mid/post/track
+     * 【参数】id 记录ID；slot 槽位；fileId 要移除的文件ID
+     * 【返回】无；记录/槽位/文件不存在或不属于该槽位时抛 BusinessException
+     * 【注意】归属校验在 Controller 完成（同 updateRecord：admin ∨ canEdit 授权 ∨ 本人）；
+     *         显式 LambdaUpdateWrapper 而非 updateById——MP 默认策略跳过 null 字段，
+     *         删空槽位（字段须置 NULL）用 updateById 会静默不生效（假成功）
+     */
+    @Transactional
+    public void removeFile(Long id, String slot, Long fileId) {
+        BizIncentiveRecord existing = recordMapper.selectById(id);
+        if (existing == null) throw new BusinessException(404, "记录不存在");
+        if (fileId == null) throw new BusinessException(400, "缺少文件ID");
+
+        List<Long> ids = switch (slot == null ? "" : slot) {
+            case "file" -> existing.getFileIds();
+            case "pre" -> existing.getFilePreIds();
+            case "mid" -> existing.getFileMidIds();
+            case "post" -> existing.getFilePostIds();
+            case "track" -> existing.getFileTrackIds();
+            default -> null;
+        };
+        if (ids == null) throw new BusinessException(400, "无效槽位: " + slot);
+        if (!ids.contains(fileId)) throw new BusinessException(400, "该文件不在此记录的该槽位中");
+
+        // 全记录守卫：五槽合计移除后至少保留 1 份文件
+        int total = existing.getFileIds().size() + existing.getFilePreIds().size()
+                + existing.getFileMidIds().size() + existing.getFilePostIds().size()
+                + existing.getFileTrackIds().size();
+        if (total - 1 < 1) {
+            throw new BusinessException(400, "记录至少须保留一份文件；如需删除整条记录请使用「删除」");
+        }
+
+        List<Long> next = new ArrayList<>(ids);
+        next.remove(fileId);
+        String nextJson = next.isEmpty() ? null
+                : "[" + next.stream().map(String::valueOf).collect(Collectors.joining(",")) + "]";
+
+        // 先在内存实体上应用变更，供 calcScore 按移除后的口径重算
+        switch (slot) {
+            case "file" -> existing.setFileIds(next);
+            case "pre" -> existing.setFilePreIds(next);
+            case "mid" -> existing.setFileMidIds(next);
+            case "post" -> existing.setFilePostIds(next);
+            case "track" -> existing.setFileTrackIds(next);
+            default -> { /* unreachable，上方已校验 */ }
+        }
+        BizIncentiveCategory category = categoryMapper.selectById(existing.getCategoryId());
+        int base = (category != null && category.getScore() != null) ? category.getScore() : 0;
+        existing.setScore(calcScore(existing, category, base));
+
+        com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper<BizIncentiveRecord> uw =
+                new com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper<BizIncentiveRecord>()
+                        .eq(BizIncentiveRecord::getId, id)
+                        .set(BizIncentiveRecord::getScore, existing.getScore())
+                        .set(BizIncentiveRecord::getUpdatedBy, SecurityUtils.getCurrentUserId());
+        switch (slot) {
+            case "file" -> uw.set(BizIncentiveRecord::getFileId, nextJson);
+            case "pre" -> uw.set(BizIncentiveRecord::getFilePreId, nextJson);
+            case "mid" -> uw.set(BizIncentiveRecord::getFileMidId, nextJson);
+            case "post" -> uw.set(BizIncentiveRecord::getFilePostId, nextJson);
+            case "track" -> uw.set(BizIncentiveRecord::getFileTrackId, nextJson);
+            default -> { /* unreachable */ }
+        }
+        recordMapper.update(null, uw);
+    }
+
     /** 批量重算所有历史记录的积分（按新规则） */
     @Transactional
     public int recalculateAllScores() {

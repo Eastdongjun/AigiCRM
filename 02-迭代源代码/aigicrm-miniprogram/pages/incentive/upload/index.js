@@ -1,5 +1,5 @@
 const { getCustomerList } = require('../../../api/customer')
-const { getCategoryTree, addRecord, getRecords, updateRecord } = require('../../../api/incentive')
+const { getCategoryTree, addRecord, getRecords, updateRecord, removeRecordFile } = require('../../../api/incentive')
 const { getDownloadUrl, uploadFile } = require('../../../api/file')
 const { getDictData } = require('../../../api/system')
 // 【E10】表单草稿接口自 api/system 迁至 api/draft(D38 域归位收尾), 引用随迁
@@ -737,6 +737,13 @@ Page({
     const index = Number(event.currentTarget.dataset.index)
     const fileIndex = Number(event.currentTarget.dataset.fileIndex || 0)
     const slot = this.data.fileSlots[index] || {}
+    const file = (slot.files || [])[fileIndex] || {}
+    // 【用户裁决 2026-10-10】已有文件移除须立即真实生效：走后端原子接口(剔除→重算积分→审计)。
+    // 此前本地剔除是假删——编辑提交 payload 只带本次新上传ID, 该槽没传新文件时后端 null 合并跳过, 刷新后文件复活。
+    if (file.existing && file.fileId && this.data.editId) {
+      this.removeExistingFileRemotely(slot, file, index, fileIndex)
+      return
+    }
     const files = (slot.files || []).filter((_, idx) => idx !== fileIndex)
     const firstFile = files[0] || {}
     this.setData({
@@ -745,6 +752,40 @@ Page({
       [`fileSlots[${index}].fileName`]: firstFile.fileName || '',
       [`fileSlots[${index}].fileKind`]: firstFile.fileKind || ''
     }, () => this.refreshUploadViewState())
+  },
+
+  /** 已有文件真删：确认→调 remove-file→本地剔除。slotKey(filePreId)→后端槽位(pre) 映射 */
+  removeExistingFileRemotely(slot, file, index, fileIndex) {
+    const SLOT_KEYS = { fileId: 'file', filePreId: 'pre', fileMidId: 'mid', filePostId: 'post', fileTrackId: 'track' }
+    const slotName = slot.label || '槽位'
+    const fileName = (file.fileName || '').slice(0, 20)
+    wx.showModal({
+      title: '移除文件',
+      content: `从「${slotName}」移除「${fileName}」？移除后积分将按最新规则重算，原文件仍保留在文件库可追溯。`,
+      confirmText: '移除',
+      confirmColor: '#e54d42',
+      success: (res) => {
+        if (!res.confirm) return
+        wx.showLoading({ title: '移除中' })
+        removeRecordFile(this.data.editId, SLOT_KEYS[slot.key] || slot.key, file.fileId)
+          .then(() => {
+            wx.hideLoading()
+            const files = (this.data.fileSlots[index].files || []).filter((_, idx) => idx !== fileIndex)
+            const firstFile = files[0] || {}
+            this.setData({
+              [`fileSlots[${index}].files`]: files,
+              [`fileSlots[${index}].filePath`]: firstFile.filePath || '',
+              [`fileSlots[${index}].fileName`]: firstFile.fileName || '',
+              [`fileSlots[${index}].fileKind`]: firstFile.fileKind || ''
+            }, () => this.refreshUploadViewState())
+            wx.showToast({ title: '已移除并重算积分', icon: 'none', duration: 2000 })
+          })
+          .catch((err) => {
+            wx.hideLoading()
+            showError(err && err.message ? err.message : '移除失败')
+          })
+      }
+    })
   },
 
   cancelUpload() {

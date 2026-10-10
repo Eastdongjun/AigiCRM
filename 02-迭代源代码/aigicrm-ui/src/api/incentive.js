@@ -33,6 +33,12 @@ export function updateRecord(id, data) {
   return request.put(`/incentive/records/${id}`, data)
 }
 
+// 【用户裁决 2026-10-10】移除记录槽位中的单个已有文件（上传错了需要修改）：
+// 后端原子完成 剔除槽位文件ID→重算积分→盖修改人章；物理文件保留只解除引用
+export function removeRecordFile(recordId, data) {
+  return request.post(`/incentive/records/${recordId}/remove-file`, data)
+}
+
 export function getScoreboard(params) {
   return request.get('/incentive/scoreboard', { params })
 }

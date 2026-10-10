@@ -6,7 +6,7 @@ import { ref, reactive, computed, watch, inject } from 'vue'
 import { ElMessage } from 'element-plus'
 import { confirmAction } from '@/utils/confirm'
 import { Box, Location, ChatDotSquare, Document } from '@element-plus/icons-vue'
-import { getCategoryTree, getRecords, addRecord, deleteRecord, updateRecord, checkIncentivePermission } from '@/api/incentive'
+import { getCategoryTree, getRecords, addRecord, deleteRecord, updateRecord, removeRecordFile, checkIncentivePermission } from '@/api/incentive'
 import { getCustomerList } from '@/api/customer'
 import { getDictData } from '@/api/system'
 import { useUserStore } from '@/store/user'
@@ -523,6 +523,40 @@ export function useIncentiveUpload() {
     list.splice(idx, 1)
   }
 
+  // 【用户裁决 2026-10-10】移除已有文件（上传错了需要修改）：立即真实生效，
+  // 专用接口原子完成 槽位剔除→重算积分→盖修改人章；物理文件保留只解除引用。
+  // 与 removeSlotFile（新文件本地剔除）分流，避免"攒到提交才生效"与删空槽假成功。
+  const SLOT_LABELS = { pre: '安装前', mid: '安装中', post: '安装后', track: '跟踪记录' }
+  const removeExistingSlotFile = async (slotKey, idx) => {
+    const list = slotKey === 'track' ? trackFile.value : installFiles[slotKey]
+    const f = list[idx]
+    if (!f || !f._existing || !f.id || !pendingReplace.value) return
+    const label = SLOT_LABELS[slotKey] || '槽位'
+    const shortName = (f.name || '').substring(0, 24)
+    try {
+      await confirmAction(
+        `从「${label}」移除文件「${shortName}」？移除后本条记录积分将按最新规则重算，原文件仍保留在文件库中可追溯。`,
+        '移除文件',
+        { confirmText: '移除' }
+      )
+    } catch { return }
+    try {
+      await removeRecordFile(pendingReplace.value.id, { slot: slotKey, fileId: f.id })
+      list.splice(idx, 1)
+      ElMessage.success('已移除，积分已重算')
+      loadRecords()
+    } catch (e) {
+      ElMessage.error(e.message || '移除失败')
+    }
+  }
+  // 统一入口：新文件本地剔除；已有文件走后端原子移除
+  const handleRemoveSlotFile = (slotKey, idx) => {
+    const list = slotKey === 'track' ? trackFile.value : installFiles[slotKey]
+    const f = list[idx]
+    if (f && f._existing) return removeExistingSlotFile(slotKey, idx)
+    removeSlotFile(slotKey, idx)
+  }
+
   const pickFile = (slotKey) => {
     currentSlot.value = slotKey
     fileInputRef.value?.click()
@@ -712,7 +746,7 @@ export function useIncentiveUpload() {
     resetDialogFields, startUpload, handleDeleteRecord, toggleShare, startReplace,
     canToggleShare, isRecordOwner,
     searchCustomers, loadSharedCustomerIds,
-    isImage, getObjectURL, removeSlotFile, pickFile, pickTrackFile, handleFileSelected,
+    isImage, getObjectURL, removeSlotFile, handleRemoveSlotFile, pickFile, pickTrackFile, handleFileSelected,
     uploadOne, confirmUpload,
   }
 }
