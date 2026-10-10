@@ -1,7 +1,7 @@
 <template>
   <!-- 右侧：已上传文件表格 -->
   <div class="right-panel">
-    <el-table :data="pagedRecords" stripe style="width:100%" empty-text="暂无已上传文件" size="small" @row-click="startReplace" :row-style="{cursor:'pointer'}">
+    <el-table :data="pagedRecords" stripe style="width:100%" empty-text="暂无已上传文件" size="small" scrollbar-always-on @row-click="startReplace" :row-style="{cursor:'pointer'}">
       <el-table-column label="大类·子类" min-width="120" show-overflow-tooltip>
         <template #default="{ row }">{{ row.majorMinor }}</template>
       </el-table-column>
