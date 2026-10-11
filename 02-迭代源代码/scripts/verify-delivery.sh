@@ -52,11 +52,14 @@ fi
 
 # [3] 生产配置: compose 与实况一致
 echo "--- [3] compose 一致性 ---"
+# 【修正 2026-10-11】生产容器实名 ycmn-backend(历史 aigicrm-backend 已改名), 原脚本只 inspect
+# 旧名 → 恒 "≠ 运行()" 与 "CORS_ORIGINS 缺失" 双假 FAIL(检查姿势错, 非生产问题)。
+BACKEND_CTR=$(ssh_prod "docker ps --format '{{.Names}}' | grep -E '^(aigicrm|ycmn)-backend$' | head -1" 2>/dev/null | tail -1)
 COMPOSE_IMG=$(ssh_prod "grep -E '^  backend:' -A 5 ${DEPLOY_DIR}/docker-compose.yml | grep 'image:' | awk '{print \$2}' | head -1" 2>/dev/null)
-RUN_IMG=$(ssh_prod "docker inspect aigicrm-backend --format '{{.Config.Image}}'" 2>/dev/null)
-[ "$COMPOSE_IMG" = "$RUN_IMG" ] && ok "compose 镜像=$RUN_IMG 与运行一致" || bad "compose($COMPOSE_IMG) ≠ 运行($RUN_IMG)"
-CORS_OK=$(ssh_prod "docker inspect aigicrm-backend --format '{{range .Config.Env}}{{println .}}{{end}}' | grep -c CORS_ORIGINS" 2>/dev/null)
-[ "$CORS_OK" -ge 1 ] && ok "CORS_ORIGINS 已配置" || bad "CORS_ORIGINS 缺失"
+RUN_IMG=$(ssh_prod "docker inspect ${BACKEND_CTR:-ycmn-backend} --format '{{.Config.Image}}'" 2>/dev/null | tail -1)
+[ -n "$COMPOSE_IMG" ] && [ "$COMPOSE_IMG" = "$RUN_IMG" ] && ok "compose 镜像=$RUN_IMG 与运行一致" || bad "compose($COMPOSE_IMG) ≠ 运行($RUN_IMG)"
+CORS_OK=$(ssh_prod "docker inspect ${BACKEND_CTR:-ycmn-backend} --format '{{range .Config.Env}}{{println .}}{{end}}' | grep -c CORS_ORIGINS" 2>/dev/null | tail -1)
+[ "${CORS_OK:-0}" -ge 1 ] 2>/dev/null && ok "CORS_ORIGINS 已配置" || bad "CORS_ORIGINS 缺失"
 
 # [4] 存储挂载
 echo "--- [4] 存储 ---"
@@ -67,10 +70,13 @@ DATA_OK=$(ssh_prod "mountpoint -q /data && echo yes || echo no" 2>/dev/null)
 
 # [5] 备份机制
 echo "--- [5] 备份 ---"
-CRON_OK=$(ssh_prod "crontab -l 2>/dev/null | grep -c aigicrm-daily-backup" 2>/dev/null)
-TODAY_BACKUP=$(ssh_prod "ls /Aigicrm/files/backup/daily/$(date +%Y%m%d)/aigicrm-db-*.sql 2>/dev/null | wc -l" 2>/dev/null)
-[ "$CRON_OK" -ge 1 ] && ok "每日备份 cron 已配置" || bad "备份 cron 缺失"
-[ "${TODAY_BACKUP:-0}" -ge 1 ] && ok "今日数据库备份存在" || bad "今日备份缺失(注意:凌晨 02:30 前运行属正常)"
+# 【修正 2026-10-11】生产实际脚本/文件名是 ycmn-daily-backup.sh 与 ycmn-db-*.sql(历史命名),
+# 原检查只 grep aigicrm-* 关键词 → 每日备份明明在跑却恒报"缺失"(检查姿势错,非生产问题)。
+# 改为双命名兼容;并防 SSH 间歇时段输出被污染成多行导致 [: integer expression 假 FAIL。
+CRON_OK=$(ssh_prod "crontab -l 2>/dev/null | grep -cE 'aigicrm-daily-backup|ycmn-daily-backup'" 2>/dev/null | tail -1)
+TODAY_BACKUP=$(ssh_prod "ls /Aigicrm/files/backup/daily/\$(date +%Y%m%d)/*-db-*.sql 2>/dev/null | wc -l" 2>/dev/null | tail -1)
+[ "${CRON_OK:-0}" -ge 1 ] 2>/dev/null && ok "每日备份 cron 已配置" || bad "备份 cron 缺失"
+[ "${TODAY_BACKUP:-0}" -ge 1 ] 2>/dev/null && ok "今日数据库备份存在" || bad "今日备份缺失(注意:凌晨 02:30 前运行属正常)"
 
 echo "══════════════════════════════════════════════════"
 echo "结果: PASS=$PASS FAIL=$FAIL"
