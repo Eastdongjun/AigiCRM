@@ -245,45 +245,49 @@ for pattern in "saveDemoFinance" "readDemoFinance"; do
     exit 1
   fi
 done
-for pattern in "deleteDemoFinance" "deleteInvoice(this.data.id, item.id, reason)" "deletePayment(this.data.id, item.id, reason)" "deleteRecord(e)"; do
-  if ! rg -Fq "$pattern" "$ROOT/aigicrm-miniprogram/pages/customer/finance/index.js" "$ROOT/aigicrm-miniprogram/utils/demo-finance.js"; then
-    echo "FAIL: mobile finance delete boundary missing $pattern"
+# 【2026-10-11 钉随裁决】0e747a5f 阶段总额制改造: MP 财务页转只读历史展示(历史开票/回款),
+# 删除入口随逐笔维护界面一并下线(删除仍走 PC FinanceTab, e9f5ad61 带留痕); demo 持久化钉保留
+for pattern in "deleteDemoFinance"; do
+  if ! rg -Fq "$pattern" "$ROOT/aigicrm-miniprogram/utils/demo-finance.js"; then
+    echo "FAIL: mobile demo finance persistence missing $pattern"
     exit 1
   fi
 done
-for pattern in 'catchtap="deleteRecord"' 'data-mode="invoice"' 'data-mode="payment"' 'finance-delete-btn'; do
-  if ! rg -Fq "$pattern" "$ROOT/aigicrm-miniprogram/pages/customer/finance/index.wxml" "$ROOT/aigicrm-miniprogram/pages/customer/finance/index.wxss"; then
-    echo "FAIL: mobile finance delete UI missing $pattern"
-    exit 1
-  fi
-done
+# 删除 UI 三钉随界面下线退役(防复活守卫替代)
+if rg -Fq 'catchtap="deleteRecord"' "$ROOT/aigicrm-miniprogram/pages/customer/finance/index.wxml"; then
+  echo "FAIL: mobile finance delete UI must not be revived (read-only history per 2026-10-10 stage-amount ruling)"
+  exit 1
+fi
 for pattern in 'height:50rpx' 'border:1rpx solid #fecaca' 'finance-delete-btn::after'; do
   if ! rg -Fq "$pattern" "$ROOT/aigicrm-miniprogram/pages/customer/finance/index.wxss"; then
     echo "FAIL: mobile finance compact delete style missing $pattern"
     exit 1
   fi
 done
-for pattern in "normalizeInvoice" "normalizePayment" "invoiceType" "invoiceCompany" "paymentMethod" "remark"; do
+# 【2026-10-11 钉随重构】阶段总额制后逐笔记录转历史只读展示: normalize* 更名 normalizeHistory*
+for pattern in "normalizeHistoryInvoice" "normalizeHistoryPayment" "invoiceType" "invoiceCompany" "paymentMethod" "remark"; do
   if ! rg -Fq "$pattern" "$ROOT/aigicrm-miniprogram/pages/customer/finance/index.js" "$ROOT/aigicrm-miniprogram/pages/customer/finance/index.wxml" "$AUTOMATOR"; then
     echo "FAIL: mobile finance PC field parity missing $pattern"
     exit 1
   fi
 done
-for pattern in "buildFinanceListView" "refreshFinanceListView" "financeListView" "invoiceEmptyText" "paymentEmptyText" "invoiceRows" "paymentRows" "showAddAction" "showDeleteAction" "applyState(patch"; do
+# 【2026-10-11 钉随重构】财务页视图态=buildStageView(阶段总额+三态+历史明细折叠)
+for pattern in "buildStageView" "refreshStageView" "stageView" "emptyText" "invoiceRows" "paymentRows" "showAddAction" "coreTagText"; do
   if ! rg -Fq "$pattern" "$ROOT/aigicrm-miniprogram/pages/customer/finance/index.js" "$ROOT/aigicrm-miniprogram/pages/customer/finance/index.wxml"; then
-    echo "FAIL: mobile finance list WXML state must be normalized in JS: $pattern"
+    echo "FAIL: mobile finance stage view must be normalized in JS: $pattern"
     exit 1
   fi
 done
-for pattern in "invoiceTypeOptions" "chooseInvoiceType" "form.invoiceType" "发票类型" "增值税专票" "增值税普票"; do
+# 【2026-10-11 钉随裁决】阶段总额制: 发票/回款逐笔表单→阶段数据表单(周期 H1/H2/FY + 年度 + 两金额)
+for pattern in "PERIOD_TYPES" "上半年" "下半年" "全年" "saveCustomerStageAmount" "invoiceAmount" "paymentAmount"; do
   if ! rg -Fq "$pattern" "$ROOT/aigicrm-miniprogram/pages/customer/finance/form/index.js" "$ROOT/aigicrm-miniprogram/pages/customer/finance/form/index.wxml"; then
-    echo "FAIL: mobile finance invoice form field parity missing $pattern"
+    echo "FAIL: mobile finance stage form field parity missing $pattern"
     exit 1
   fi
 done
-for pattern in "buildFinanceFormView" "refreshFinanceFormView" "financeFormView" "invoiceTypeText" "submitText" "invoicePrimaryFields" "invoiceAmountFields" "paymentFields" "remarkValue" "submitLoading" "cancelDisabled" "cancelText" "applyState(patch"; do
+for pattern in "buildStageFormView" "stageFormView" "submitText" "submitLoading" "cancelDisabled" "cancelText"; do
   if ! rg -Fq "$pattern" "$ROOT/aigicrm-miniprogram/pages/customer/finance/form/index.js" "$ROOT/aigicrm-miniprogram/pages/customer/finance/form/index.wxml"; then
-    echo "FAIL: mobile finance form WXML state must be normalized in JS: $pattern"
+    echo "FAIL: mobile finance stage form WXML state must be normalized in JS: $pattern"
     exit 1
   fi
 done
@@ -293,7 +297,7 @@ for pattern in 'form-actions' 'form-cancel-btn' 'form-submit-btn' 'form-top-canc
     exit 1
   fi
 done
-for pattern in "cancelText: isInvoice ? '取消开票' : '取消回款'" "cancelDisabled" "navigateBackWithFallback"; do
+for pattern in "cancelText: '取消'" "cancelDisabled" "navigateBackWithFallback"; do
   if ! rg -Fq "$pattern" "$ROOT/aigicrm-miniprogram/pages/customer/finance/form/index.js"; then
     echo "FAIL: mobile finance form cancel state/action missing $pattern"
     exit 1
@@ -372,7 +376,8 @@ for pattern in 'bindtap="selectRelationship"' 'relationship-option' 'relationshi
   fi
 done
 
-for pattern in "buildIndicatorSummary" "invoiceMet" "paymentMet" "scoreTotal" "coreMet" "invoiceStatusClass" "coreSummaryText"; do
+# 【2026-10-11 钉随裁决】三态化: coreMet 布尔下线, 前端只消费后端 coreType(真核心/争核心/非核心)
+for pattern in "buildIndicatorSummary" "invoiceMet" "paymentMet" "scoreTotal" "coreType" "invoiceStatusClass" "coreSummaryText"; do
   if ! rg -Fq "$pattern" "$DETAIL_JS"; then
     echo "FAIL: mobile customer indicator summary missing $pattern"
     exit 1
@@ -393,7 +398,8 @@ for pattern in "terminalLabel" "capacity" "managerName" "deptName" "branchCompan
   fi
 done
 
-for pattern in "开票门槛" "回款门槛" "五项评分" "核心状态" "indicator-summary-grid" "indicator-detail-list"; do
+# 【2026-10-11 钉随裁决】三态化后摘要标签: 年度开票/年度回款(金额展示), 核心状态(三态)
+for pattern in "年度开票" "年度回款" "五项评分" "核心状态" "indicator-summary-grid" "indicator-detail-list"; do
   if ! rg -Fq "$pattern" "$DETAIL_WXML" "$DETAIL_WXSS"; then
     echo "FAIL: mobile customer indicator summary UI missing $pattern"
     exit 1

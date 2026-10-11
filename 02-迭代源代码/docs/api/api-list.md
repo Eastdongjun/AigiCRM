@@ -1,10 +1,10 @@
 # AIGICRM API 清单(自动生成)
 
-> 生成时间: 2026-10-10 | 来源: 后端 controller 源码扫描
+> 生成时间: 2026-10-11 | 来源: 后端 controller 源码扫描
 > 本文件由 scripts/gen-api.py 自动生成,**禁止手改**;接口变更后重新运行。
 > 权限码与 docs/permission/permission-dict.md 对应。
 
-## 接口清单(214 个)
+## 接口清单(216 个)
 
 | 方法 | 路径 | 权限码 | 方法名 | 文件 |
 |---|---|---|---|---|
@@ -73,6 +73,8 @@
 | GET | `/api/customer/{id}/shares` | `hasAuthority('customer:view')` | getShares | CustomerController.java |
 | POST | `/api/customer/{id}/shares` | `hasAuthority('customer:edit')` | addShares | CustomerController.java |
 | DELETE | `/api/customer/{id}/shares/{userId}` | `hasAuthority('customer:edit')` | removeShare | CustomerController.java |
+| GET | `/api/customer/{id}/stage-amounts` | `hasAuthority('customer:view')` | getStageAmounts | CustomerController.java |
+| POST | `/api/customer/{id}/stage-amounts` | `hasAuthority('finance:manage') or (hasAuthority('customer:edit') and hasAuthority('finance:view'))` | saveStageAmount | CustomerController.java |
 | DELETE | `/api/draft/{draftType}` | `isAuthenticated()` | delete | FormDraftController.java |
 | GET | `/api/draft/{draftType}` | `isAuthenticated()` | get | FormDraftController.java |
 | PUT | `/api/draft/{draftType}` | `isAuthenticated()` | save | FormDraftController.java |

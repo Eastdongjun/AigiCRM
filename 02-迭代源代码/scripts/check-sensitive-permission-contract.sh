@@ -21,7 +21,9 @@ grep -Fq "hasPermission('finance:view')" "$MOBILE_DETAIL_JS" \
   || fail 'mobile detail missing finance:view gate'
 grep -Fq "hasPermission('contact:view')" "$MOBILE_DETAIL_JS" \
   || fail 'mobile detail missing contact:view gate'
-grep -Fq 'const financeRequest = this.data.canViewFinance' "$MOBILE_DETAIL_JS" \
+# 【2026-10-11 钉随裁决】2026-10-10 裁决: 财务摘要改阶段总额判定口径, 逐笔 financeRequest 下线
+# 换 stageRequest 条件请求(getCustomerStageAmounts), 条件守卫语义不变(canViewFinance)
+grep -Fq 'const stageRequest = this.data.canViewFinance' "$MOBILE_DETAIL_JS" \
   || fail 'mobile detail finance request is not conditional'
 grep -Fq 'const contactsRequest = this.data.canViewContacts' "$MOBILE_DETAIL_JS" \
   || fail 'mobile detail contact request is not conditional'

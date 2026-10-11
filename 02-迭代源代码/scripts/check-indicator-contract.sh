@@ -82,8 +82,10 @@ if awk '/int indicatorScore|indicatorScore\(/,/^    }/' "$STATS" | grep -Fq 'get
 fi
 
 # ---- 6) 其余既有断言 ----
-grep -Fq 'BizPaymentMapper' "$STATS" || fail 'statistics must load payment totals'
-grep -Fq 'isCoreCustomer' "$STATS" || fail 'statistics must centralize core-customer threshold logic'
+# 【2026-10-11 钉随裁决】2026-10-10 用户裁决: 判定金额源换 biz_customer_stage_amount(阶段总额制),
+# 逐笔 invoice/payment mapper 不再用于判定——钉随重锚为阶段总额 mapper
+grep -Fq 'BizCustomerStageAmountMapper' "$STATS" || fail 'statistics must load stage-amount totals (2026-10-10 ruling)'
+grep -Fq 'coreTypeOf' "$STATS" || fail 'statistics must centralize core-customer threshold logic (coreTypeOf)'  # 【钉随裁决】三态化后入口=coreTypeOf(真核心/争核心)
 grep -Fq '开票、回款均 ≥ 100万' "$DOC" || fail 'operator documentation must state both financial thresholds'
 grep -Fq '五项评分满分 15 分' "$DOC" || fail 'operator documentation must state the 5-item / 15-point rule'
 
