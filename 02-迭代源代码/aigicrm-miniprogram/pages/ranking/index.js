@@ -62,7 +62,8 @@ function customerListView(rows, activeTab, parents) {
     parentStatsText: parentStatsText(item, parents),
     showCore: activeTab === 'core',
     coreScoreText: `高层 ${item.relationshipScore || 0} · 渠道 ${item.indicator02 || 0} · 基层 ${item.indicator03 || 0} · 产品 ${item.indicator04 || 0} · 项目 ${item.indicator05 || 0}`,
-    coreFinanceText: `开票 ${item.invoiceTotal || 0} 万 · 回款 ${item.paymentTotal || 0} 万 · 核心 ${item.core ? '是' : '否'}`
+    // 【裁决 2026-10-10】核心三态: 年度开票/回款双>=100万=真核心, 有数据未双达标=争核心(后端 coreType)
+    coreFinanceText: `年度开票 ${item.invoiceTotal || 0} 万 · 年度回款 ${item.paymentTotal || 0} 万 · ${item.coreType === 'core' ? '真核心' : item.coreType === 'quasi' ? '争核心' : '非核心'}`
   }))
 }
 

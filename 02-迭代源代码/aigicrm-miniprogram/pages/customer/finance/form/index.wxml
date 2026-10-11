@@ -2,48 +2,37 @@
   <view class="hero">
     <view class="row">
       <view>
-        <view class="hero-title">{{financeFormView.title}}</view>
-        <view class="hero-sub">与 PC 财务记录共用同一接口和权限</view>
+        <view class="hero-title">{{stageFormView.title}}</view>
+        <view class="hero-sub">半年末 / 年末录入总额，与 PC 共用同一接口和权限</view>
       </view>
-      <button class="form-top-cancel" bindtap="goBack" disabled="{{financeFormView.cancelDisabled}}">返回</button>
+      <button class="form-top-cancel" bindtap="goBack" disabled="{{stageFormView.cancelDisabled}}">返回</button>
     </view>
   </view>
 
   <view class="card form-card polished-form-card">
-    <view class="form-section-title">{{financeFormView.sectionTitle}}</view>
-    <block wx:if="{{financeFormView.isInvoice}}">
-      <block wx:for="{{financeFormView.invoicePrimaryFields}}" wx:key="field">
-        <view class="label">{{item.label}}</view>
-        <!-- L8 2026-10-04: 日期字段改 picker mode=date(不再自由文本手输) -->
-        <picker wx:if="{{item.type === 'date'}}" mode="date" value="{{item.value}}" data-field="{{item.field}}" bindchange="chooseDate">
-          <view class="input polished-input">{{item.value || item.placeholder}}</view>
-        </picker>
-        <input wx:else class="input polished-input" type="{{item.type}}" data-field="{{item.field}}" value="{{item.value}}" bindinput="input" placeholder="{{item.placeholder}}"/>
-      </block>
-      <view class="label">发票类型</view>
-      <picker mode="selector" range="{{invoiceTypeOptions}}" value="{{invoiceTypeIndex}}" bindchange="chooseInvoiceType">
-        <view class="input polished-input picker-input">{{financeFormView.invoiceTypeText}}</view>
-      </picker>
-      <block wx:for="{{financeFormView.invoiceAmountFields}}" wx:key="field">
-        <view class="label">{{item.label}}</view>
-        <input class="input polished-input" type="{{item.type}}" data-field="{{item.field}}" value="{{item.value}}" bindinput="input" placeholder="{{item.placeholder}}"/>
-      </block>
-    </block>
-    <block wx:else>
-      <block wx:for="{{financeFormView.paymentFields}}" wx:key="field">
-        <view class="label">{{item.label}}</view>
-        <!-- L8 2026-10-04: 日期字段改 picker mode=date(不再自由文本手输) -->
-        <picker wx:if="{{item.type === 'date'}}" mode="date" value="{{item.value}}" data-field="{{item.field}}" bindchange="chooseDate">
-          <view class="input polished-input">{{item.value || item.placeholder}}</view>
-        </picker>
-        <input wx:else class="input polished-input" type="{{item.type}}" data-field="{{item.field}}" value="{{item.value}}" bindinput="input" placeholder="{{item.placeholder}}"/>
-      </block>
-      <view class="label">备注</view>
-      <textarea class="textarea polished-textarea compact-textarea" data-field="remark" value="{{financeFormView.remarkValue}}" bindinput="input" placeholder="{{financeFormView.remarkPlaceholder}}"/>
-    </block>
+    <view class="form-section-title">{{stageFormView.sectionTitle}}</view>
+
+    <view class="label">年份</view>
+    <picker mode="selector" range="{{yearOptions}}" bindchange="chooseYear">
+      <view class="input polished-input picker-input">{{stageFormView.yearText}} 年</view>
+    </picker>
+
+    <view class="label">周期</view>
+    <picker mode="selector" range="{{periodTypeOptions}}" range-key="label" bindchange="choosePeriodType">
+      <view class="input polished-input picker-input">{{stageFormView.periodText}}</view>
+    </picker>
+
+    <view class="label">阶段内开票额(万)</view>
+    <input class="input polished-input" type="digit" data-field="invoiceAmount" value="{{stageFormView.invoiceValue}}" bindinput="input" placeholder="未开票可留空"/>
+
+    <view class="label">阶段性回款额(万)</view>
+    <input class="input polished-input" type="digit" data-field="paymentAmount" value="{{stageFormView.paymentValue}}" bindinput="input" placeholder="未回款可留空"/>
+
+    <view class="stage-form-tip">两项至少填一项且大于 0；同一周期重复保存即覆盖修改（改动留审计痕迹）。全年行年末录入，可与上/下半年合计不相等——核心判定优先取全年行。</view>
+
     <view class="form-actions">
-      <button class="form-cancel-btn" bindtap="goBack" disabled="{{financeFormView.cancelDisabled}}">{{financeFormView.cancelText}}</button>
-      <button class="form-submit-btn" loading="{{financeFormView.submitLoading}}" bindtap="submit">{{financeFormView.submitText}}</button>
+      <button class="form-cancel-btn" bindtap="goBack" disabled="{{stageFormView.cancelDisabled}}">{{stageFormView.cancelText}}</button>
+      <button class="form-submit-btn" loading="{{stageFormView.submitLoading}}" bindtap="submit">{{stageFormView.submitText}}</button>
     </view>
   </view>
 </view>

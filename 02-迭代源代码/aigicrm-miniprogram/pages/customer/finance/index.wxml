@@ -2,18 +2,53 @@
   <view class="hero">
     <view class="row">
       <view>
-        <view class="hero-title">开票回款</view>
-        <view class="hero-sub">客户开票与回款记录</view>
+        <view class="hero-title">阶段性开票回款</view>
+        <view class="hero-sub">半年末 / 年末录入总额（2026-10-10 起总额制）</view>
       </view>
       <button class="ghost-btn" bindtap="goBack">返回</button>
     </view>
   </view>
-  <view class="tabs">
-    <view wx:for="{{financeListView.tabs}}" wx:key="key" class="{{item.className}}" data-tab="{{item.key}}" bindtap="switchTab">{{item.text}}</view>
+
+  <view wx:if="{{stageView.showLoading}}" class="card muted">加载中...</view>
+
+  <!-- 判定摘要条: 年度金额与三态(真核心/争核心/非核心)由后端按阶段总额算好 -->
+  <view wx:if="{{stageView.hasVerdict}}" class="card stage-verdict-card">
+    <view class="stage-verdict-row">
+      <text>{{stageView.verdictText}}</text>
+      <text class="stage-verdict-amounts">开票 {{stageView.invoiceText}} 万 · 回款 {{stageView.paymentText}} 万</text>
+    </view>
+    <text class="{{stageView.coreTagClass}}">{{stageView.coreTagText}}</text>
   </view>
-  <view wx:if="{{financeListView.showLoading}}" class="card muted">加载中...</view>
-  <block wx:if="{{financeListView.showInvoices}}">
-    <block wx:for="{{financeListView.invoiceRows}}" wx:key="id">
+
+  <block wx:for="{{stageView.stageRows}}" wx:key="id">
+    <view class="card stage-row-card">
+      <view class="row stage-row-head">
+        <text class="stage-period">{{item.periodLabel}}</text>
+        <button wx:if="{{stageView.showAddAction}}" class="text-btn" data-year="{{item.periodYear}}" data-type="{{item.periodType}}" catchtap="openForm">编辑</button>
+      </view>
+      <view class="detail-row"><text>阶段内开票额</text><text>{{item.invoiceText}} 万</text></view>
+      <view class="detail-row"><text>阶段性回款额</text><text>{{item.paymentText}} 万</text></view>
+      <view class="detail-row"><text>阶段差额(开票−回款)</text><text>{{item.gapText}} 万</text></view>
+      <view class="detail-row stage-upd-row"><text>更新</text><text>{{item.updText}}</text></view>
+    </view>
+  </block>
+  <view wx:if="{{stageView.emptyText}}" class="card muted">{{stageView.emptyText}}</view>
+
+  <view class="card stage-note">
+    半年末录「上半年 / 下半年」总额，年末录「全年」总额；全年行与上/下半年独立录入，核心判定优先取全年行。真核心 = 判定年度开票、回款均 ≥ 100 万；争核心 = 有阶段数据但未双达标。录入开票额 &gt; 0 的阶段会按阶段末日期顺延保护期。
+  </view>
+
+  <button wx:if="{{stageView.showAddAction}}" class="btn finance-add-btn" bindtap="openForm">录入阶段数据</button>
+
+  <!-- 历史逐笔明细(只读): 2026-10-10 逐笔录入制时期的台账, 首次展开懒加载 -->
+  <view class="card history-toggle-card" bindtap="toggleHistory">
+    <view class="row">
+      <text class="history-toggle-title">历史逐笔明细（只读）</text>
+      <text class="muted">开票 {{stageView.invoiceCount}} 笔 · 回款 {{stageView.paymentCount}} 笔 {{stageView.historyOpen ? '▲' : '▼'}}</text>
+    </view>
+  </view>
+  <block wx:if="{{stageView.historyOpen}}">
+    <block wx:for="{{stageView.invoiceRows}}" wx:key="id">
       <view class="card finance-row">
         <view class="row">
           <text class="finance-no">{{item.invoiceNumber}}</text>
@@ -23,15 +58,10 @@
         <view class="detail-row"><text>日期</text><text>{{item.invoiceDateText}}</text></view>
         <view class="detail-row"><text>发票类型</text><text>{{item.invoiceType}}</text></view>
         <view class="detail-row"><text>开票单位</text><text>{{item.invoiceCompany}}</text></view>
-        <view wx:if="{{financeListView.showDeleteAction}}" class="finance-actions">
-          <button class="finance-delete-btn" data-mode="invoice" data-index="{{index}}" catchtap="deleteRecord">删除</button>
-        </view>
       </view>
     </block>
-    <view wx:if="{{financeListView.invoiceEmptyText}}" class="card muted">{{financeListView.invoiceEmptyText}}</view>
-  </block>
-  <block wx:if="{{financeListView.showPayments}}">
-    <block wx:for="{{financeListView.paymentRows}}" wx:key="id">
+    <view wx:if="{{stageView.invoiceCount === 0}}" class="card muted">暂无历史开票记录</view>
+    <block wx:for="{{stageView.paymentRows}}" wx:key="id">
       <view class="card finance-row">
         <view class="row">
           <text class="finance-no">{{item.paymentNumber}}</text>
@@ -41,12 +71,8 @@
         <view class="detail-row"><text>日期</text><text>{{item.paymentDateText}}</text></view>
         <view class="detail-row"><text>回款方式</text><text>{{item.paymentMethod}}</text></view>
         <view class="detail-row"><text>备注</text><text>{{item.remark}}</text></view>
-        <view wx:if="{{financeListView.showDeleteAction}}" class="finance-actions">
-          <button class="finance-delete-btn" data-mode="payment" data-index="{{index}}" catchtap="deleteRecord">删除</button>
-        </view>
       </view>
     </block>
-    <view wx:if="{{financeListView.paymentEmptyText}}" class="card muted">{{financeListView.paymentEmptyText}}</view>
+    <view wx:if="{{stageView.paymentCount === 0}}" class="card muted">暂无历史回款记录</view>
   </block>
-  <button wx:if="{{financeListView.showAddAction}}" class="btn finance-add-btn" bindtap="openForm">{{financeListView.addText}}</button>
 </view>

@@ -1,105 +1,113 @@
-const { addInvoice, addPayment } = require('../../../../api/customer')
+const { saveCustomerStageAmount } = require('../../../../api/customer')
 const { hasPermission, requireLogin } = require('../../../../utils/auth')
 const { showError } = require('../../../../utils/feedback')
-const { saveDemoFinance } = require('../../../../utils/demo-finance')
 // 【D24 2026-10-04】返回兜底逻辑收敛到组内 shared(各表单共用同一份)
 const { navigateBackWithFallback } = require('../../shared')
 
-function buildFinanceFormView(data) {
-  const isInvoice = data.mode === 'invoice'
+const PERIOD_TYPES = [
+  { value: 'H1', label: '上半年' },
+  { value: 'H2', label: '下半年' },
+  { value: 'FY', label: '全年' }
+]
+
+function buildYearOptions() {
+  const current = new Date().getFullYear()
+  const years = []
+  for (let y = current + 1; y >= 2015; y--) years.push(String(y))
+  return years
+}
+
+function buildStageFormView(data) {
   const form = data.form || {}
-  // 【L8 2026-10-04】开票/回款日期改 picker mode=date(type: 'date' 由 wxml 分支渲染日期选择器)，
-  // 此前是自由文本只判非空，脏格式直接落库
-  const invoicePrimaryFields = [
-    { field: 'invoiceDate', label: '开票日期 *', value: form.invoiceDate || '', placeholder: '请选择开票日期', type: 'date' },
-    { field: 'invoiceNumber', label: '发票号码 *', value: form.invoiceNumber || '', placeholder: '请输入发票号码', type: 'text' }
-  ]
-  const invoiceAmountFields = [
-    { field: 'amount', label: '开票金额 *', value: form.amount || '', placeholder: '请输入金额', type: 'digit' },
-    { field: 'invoiceCompany', label: '开票单位', value: form.invoiceCompany || '', placeholder: '请输入开票单位', type: 'text' }
-  ]
-  const paymentFields = [
-    { field: 'paymentDate', label: '回款日期 *', value: form.paymentDate || '', placeholder: '请选择回款日期', type: 'date' },
-    { field: 'paymentAmount', label: '回款金额 *', value: form.paymentAmount || '', placeholder: '请输入金额', type: 'digit' },
-    { field: 'paymentMethod', label: '回款方式', value: form.paymentMethod || '', placeholder: '请输入回款方式', type: 'text' }
-  ]
+  const periodType = PERIOD_TYPES.find((item) => item.value === form.periodType) || PERIOD_TYPES[0]
   return {
-    isInvoice,
-    title: isInvoice ? '新增开票' : '新增回款',
-    sectionTitle: isInvoice ? '开票信息' : '回款信息',
+    title: data.isEdit ? '修改阶段数据' : '录入阶段数据',
+    sectionTitle: '周期与金额（单位：万元）',
+    yearText: String(form.periodYear || ''),
+    periodText: periodType.label,
+    invoiceValue: form.invoiceAmount === null || form.invoiceAmount === undefined ? '' : String(form.invoiceAmount),
+    paymentValue: form.paymentAmount === null || form.paymentAmount === undefined ? '' : String(form.paymentAmount),
     submitText: data.saving ? '保存中...' : '保存',
     submitLoading: Boolean(data.saving),
-    cancelText: isInvoice ? '取消开票' : '取消回款',
-    cancelDisabled: Boolean(data.saving),
-    invoiceTypeText: form.invoiceType || '请选择发票类型',
-    amountLabel: isInvoice ? '开票金额 *' : '回款金额 *',
-    invoicePrimaryFields,
-    invoiceAmountFields,
-    paymentFields,
-    remarkValue: form.remark || '',
-    remarkPlaceholder: '请输入备注'
+    cancelText: '取消',
+    cancelDisabled: Boolean(data.saving)
   }
 }
 
 Page({
   data: {
     id: '',
-    mode: 'invoice',
-    form: {},
-    invoiceTypeOptions: ['增值税专票', '增值税普票'],
-    invoiceTypeIndex: 0,
+    isEdit: false,
     saving: false,
-    financeFormView: buildFinanceFormView({
-      mode: 'invoice',
-      form: { invoiceType: '增值税专票' },
-      saving: false
-    })
+    yearOptions: buildYearOptions(),
+    periodTypeOptions: PERIOD_TYPES,
+    form: { periodYear: new Date().getFullYear(), periodType: 'H1', invoiceAmount: null, paymentAmount: null },
+    stageFormView: null
   },
+
   onLoad(options) {
     if (!requireLogin()) return
-    if (!getApp().globalData.demoMode && (!hasPermission('finance:view') || !hasPermission('customer:edit'))) { wx.showToast({ title: '没有财务编辑权限', icon: 'none' }); wx.navigateBack(); return }
-    const mode = options.mode === 'payment' ? 'payment' : 'invoice'
-    const form = mode === 'invoice'
-      ? { invoiceDate: '', invoiceNumber: '', invoiceType: '增值税专票', invoiceCompany: '', amount: '' }
-      : { paymentDate: '', paymentAmount: '', paymentMethod: '', remark: '' }
-    this.setData({
-      id: options.id || '',
-      mode,
-      form,
-      financeFormView: buildFinanceFormView({ ...this.data, mode, form })
-    })
+    if (!getApp().globalData.demoMode && (!hasPermission('finance:view') || !hasPermission('customer:edit'))) {
+      wx.showToast({ title: '没有财务编辑权限', icon: 'none' })
+      wx.navigateBack()
+      return
+    }
+    // 编辑模式: 列表页带 periodYear/periodType 预填(同周期重复保存即覆盖修改)
+    const periodYear = Number(options.periodYear) || new Date().getFullYear()
+    const periodType = PERIOD_TYPES.some((item) => item.value === options.periodType) ? options.periodType : 'H1'
+    const isEdit = Boolean(options.periodYear)
+    const form = { periodYear, periodType, invoiceAmount: null, paymentAmount: null }
+    this.setData({ id: options.id || '', isEdit, form, stageFormView: buildStageFormView({ ...this.data, isEdit, form }) })
   },
-  refreshFinanceFormView() {
-    this.setData({ financeFormView: buildFinanceFormView(this.data) })
+
+  refreshStageFormView() {
+    this.setData({ stageFormView: buildStageFormView(this.data) })
   },
+
   applyState(patch, callback) {
     const next = { ...this.data, ...patch }
-    this.setData({ ...patch, financeFormView: buildFinanceFormView(next) }, callback)
+    this.setData({ ...patch, stageFormView: buildStageFormView(next) }, callback)
   },
+
+  chooseYear(e) {
+    this.applyState({ 'form.periodYear': Number(this.data.yearOptions[Number(e.detail.value)]) || new Date().getFullYear() })
+  },
+
+  choosePeriodType(e) {
+    const item = PERIOD_TYPES[Number(e.detail.value)] || PERIOD_TYPES[0]
+    this.applyState({ 'form.periodType': item.value })
+  },
+
   input(e) {
-    this.applyState({ [`form.${e.currentTarget.dataset.field}`]: e.detail.value })
+    const field = e.currentTarget.dataset.field
+    const raw = String(e.detail.value || '').trim()
+    const value = raw === '' ? null : Number(raw)
+    this.applyState({ [`form.${field}`]: Number.isFinite(value) && value >= 0 ? value : null })
   },
-  /** 【L8 2026-10-04】日期字段由 picker mode=date 选择赋值(不再手输) */
-  chooseDate(e) {
-    this.applyState({ [`form.${e.currentTarget.dataset.field}`]: e.detail.value })
-  },
-  chooseInvoiceType(e) {
-    const index = Number(e.detail.value || 0)
-    const invoiceType = this.data.invoiceTypeOptions[index] || this.data.invoiceTypeOptions[0]
-    this.applyState({ invoiceTypeIndex: index, 'form.invoiceType': invoiceType })
-  },
+
   submit() {
     const form = this.data.form
-    const required = this.data.mode === 'invoice' ? [form.invoiceDate, form.invoiceNumber, form.amount] : [form.paymentDate, form.paymentAmount]
-    if (required.some((value) => !String(value || '').trim()) || this.data.saving) return wx.showToast({ title: '请填写必填项', icon: 'none' })
-    // 【L8 2026-10-04】日期格式双保险：picker 已保证格式，此处再校验一次 YYYY-MM-DD，
-    // 防止后续改动引入手输路径时脏格式落库(财务日期参与保护期/核心客户金额口径)
-    const dateField = this.data.mode === 'invoice' ? form.invoiceDate : form.paymentDate
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(String(dateField || ''))) return wx.showToast({ title: '日期格式须为 YYYY-MM-DD', icon: 'none' })
+    if (this.data.saving) return
+    if (!form.periodYear) return wx.showToast({ title: '请选择周期', icon: 'none' })
+    const hasInvoice = form.invoiceAmount !== null && form.invoiceAmount !== undefined && form.invoiceAmount > 0
+    const hasPayment = form.paymentAmount !== null && form.paymentAmount !== undefined && form.paymentAmount > 0
+    if (!hasInvoice && !hasPayment) return wx.showToast({ title: '开票额与回款额至少填一项且大于 0', icon: 'none' })
     this.applyState({ saving: true })
-    const action = getApp().globalData.demoMode ? Promise.resolve(saveDemoFinance(this.data.id, this.data.mode, form)) : (this.data.mode === 'invoice' ? addInvoice(this.data.id, form) : addPayment(this.data.id, form))
-    action.then(() => { wx.showToast({ title: '已保存', icon: 'success' }); setTimeout(() => wx.navigateBack(), 500) }).catch((error) => showError(error, '保存失败')).finally(() => this.applyState({ saving: false }))
+    const payload = {
+      periodYear: form.periodYear,
+      periodType: form.periodType,
+      invoiceAmount: hasInvoice ? form.invoiceAmount : null,
+      paymentAmount: hasPayment ? form.paymentAmount : null
+    }
+    const action = getApp().globalData.demoMode
+      ? Promise.resolve()
+      : saveCustomerStageAmount(this.data.id, payload)
+    action.then(() => {
+      wx.showToast({ title: '已保存，判定与保护期已同步', icon: 'none', duration: 1800 })
+      setTimeout(() => wx.navigateBack(), 600)
+    }).catch((error) => showError(error, '保存失败')).finally(() => this.applyState({ saving: false }))
   },
+
   goBack() {
     if (this.data.saving) return
     navigateBackWithFallback(`/pages/customer/finance/index?id=${this.data.id}`)

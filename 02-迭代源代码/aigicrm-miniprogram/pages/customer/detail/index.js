@@ -1,4 +1,4 @@
-const { deleteCustomer, getCustomer, getCustomerContacts, getCustomerLogs, getInvoiceSummary, getPaymentSummary, getCustomerIndicator, saveCustomerRelationship, releaseCustomer, archiveCustomer } = require('../../../api/customer')
+const { deleteCustomer, getCustomer, getCustomerContacts, getCustomerLogs, getCustomerIndicator, getCustomerStageAmounts, saveCustomerRelationship, releaseCustomer, archiveCustomer } = require('../../../api/customer')
 const { submitApproval } = require('../../../api/approval')
 const { hasPermission, requireLogin } = require('../../../utils/auth')
 const { showError } = require('../../../utils/feedback')
@@ -46,15 +46,6 @@ function toNumber(value) {
   return Number.isFinite(num) ? num : 0
 }
 
-function amountOf(summary, ...keys) {
-  const source = summary || {}
-  for (const key of keys) {
-    const value = toNumber(source[key])
-    if (value) return value
-  }
-  return 0
-}
-
 function statusView(met, okText, warnText) {
   return {
     statusClass: met ? 'ok' : 'warn',
@@ -62,21 +53,30 @@ function statusView(met, okText, warnText) {
   }
 }
 
-function buildIndicatorSummary(invoiceSummary, paymentSummary, indicator) {
-  const invoiceAmount = amountOf(invoiceSummary, 'totalAmount', 'invoiceAmount')
-  const paymentAmount = amountOf(paymentSummary, 'totalAmount', 'paidAmount')
+function buildIndicatorSummary(stageSummary, indicator) {
+  const stage = stageSummary || {}
+  const invoiceAmount = toNumber(stage.annualInvoiceAmount)
+  const paymentAmount = toNumber(stage.annualPaymentAmount)
   const scoreTotal = INDICATOR_FIELDS
     .reduce((sum, key) => sum + toNumber((indicator || {})[key]), 0)
-  // 【D25 2026-10-04】核心客户阈值单一出处：开票/回款各 >=100 万 + 五项合计 >=12 分，
-  // 之前 100/100/12 魔法数在 js 与两处 wxml 提示里各写一份；现统一引用 shared 常量
+  // 【裁决 2026-10-10】核心三态=纯金额门槛(年度开票/回款双>=100万=真核心, 有数据未双达标=争核心,
+  // 无数据=非核心)。五项评分不再参与判定, 保留为客情参考; 判定结果由后端按阶段总额一处算好回传,
+  // 前端只消费 coreType, 不复刻口径(防两端漂移)。阈值常量仍引用 shared 单一出处。
+  const coreType = stage.coreType || ''
   const invoiceMet = invoiceAmount >= CORE_INVOICE_AMOUNT_THRESHOLD
   const paymentMet = paymentAmount >= CORE_PAYMENT_AMOUNT_THRESHOLD
-  const scoreMet = scoreTotal >= CORE_INDICATOR_SCORE_THRESHOLD
   const invoiceView = statusView(invoiceMet, '达标', '未达标')
   const paymentView = statusView(paymentMet, '达标', '未达标')
-  const scoreView = statusView(scoreMet, '达标', '未达标')
-  const coreView = statusView(invoiceMet && paymentMet && scoreMet, '已满足', '未满足')
+  // 五项评分=客情参考: 12 分线仅作"良好/参考"提示, 不再卡核心身份
+  const scoreView = statusView(scoreTotal >= CORE_INDICATOR_SCORE_THRESHOLD, '良好', '参考')
+  const coreView = coreType === 'core'
+    ? { statusClass: 'ok', statusText: '已满足' }
+    : coreType === 'quasi'
+      ? { statusClass: 'warn', statusText: '争取中' }
+      : { statusClass: 'warn', statusText: '无数据' }
   return {
+    baseYear: toNumber(stage.baseYear),
+    coreType,
     invoiceAmount,
     paymentAmount,
     invoiceMet,
@@ -87,13 +87,11 @@ function buildIndicatorSummary(invoiceSummary, paymentSummary, indicator) {
     paymentStatusText: paymentView.statusText,
     bothMet: invoiceMet && paymentMet,
     scoreTotal,
-    scoreMet,
     scoreStatusClass: scoreView.statusClass,
     scoreStatusText: scoreView.statusText,
-    coreMet: invoiceMet && paymentMet && scoreMet,
     coreStatusClass: coreView.statusClass,
     coreStatusText: coreView.statusText,
-    coreSummaryText: invoiceMet && paymentMet && scoreMet ? '核心客户' : '待提升'
+    coreSummaryText: coreType === 'core' ? '真核心' : coreType === 'quasi' ? '争核心' : '非核心'
   }
 }
 
@@ -132,9 +130,8 @@ function buildDetailView(data) {
   const indicator = data.indicator || {}
   const contacts = (data.contacts || []).map(buildContactView)
   const logs = (data.logs || []).map(buildLogView)
-  const invoiceSummary = data.invoiceSummary || {}
-  const paymentSummary = data.paymentSummary || {}
-  const coreSummary = buildIndicatorSummary(invoiceSummary, paymentSummary, indicator)
+  // 【裁决 2026-10-10】判定金额源=阶段总额摘要(后端一处算好), 逐笔 invoiceSummary 不再参与判定
+  const coreSummary = buildIndicatorSummary(data.stageSummary, indicator)
   const hasDetail = Boolean(detail)
   const canEdit = Boolean(data.canEdit)
   const canDelete = Boolean(data.canDelete)
@@ -196,19 +193,27 @@ function buildDetailView(data) {
     showNoContacts: contacts.length === 0,
     logs,
     showNoLogs: logs.length === 0,
-    financeRows: [
-      { key: 'invoice', label: '开票金额', valueText: textOrDash(invoiceSummary.totalAmount || invoiceSummary.invoiceAmount) },
-      { key: 'payment', label: '回款金额', valueText: textOrDash(paymentSummary.totalAmount || paymentSummary.paidAmount) },
-      { key: 'unpaid', label: '待回款', valueText: textOrDash(paymentSummary.unpaidAmount || paymentSummary.pendingAmount) }
-    ],
+    financeRows: (function () {
+      // 【裁决 2026-10-10】开票回款卡改阶段口径: 年度金额取后端判定摘要;
+      // 待回款 = 全部阶段开票合计 − 回款合计(历史逐笔已按年汇入阶段行, 口径连续)
+      const rows = (data.stageSummary && data.stageSummary.rows) || []
+      const totalInvoice = rows.reduce((sum, r) => sum + toNumber(r.invoiceAmount), 0)
+      const totalPayment = rows.reduce((sum, r) => sum + toNumber(r.paymentAmount), 0)
+      const yearTag = coreSummary.baseYear ? `(${coreSummary.baseYear})` : ''
+      return [
+        { key: 'invoice', label: `年度开票${yearTag}`, valueText: textOrDash(coreSummary.invoiceAmount || '') },
+        { key: 'payment', label: `年度回款${yearTag}`, valueText: textOrDash(coreSummary.paymentAmount || '') },
+        { key: 'unpaid', label: '待回款', valueText: textOrDash(Math.round((totalInvoice - totalPayment) * 100) / 100 || '') }
+      ]
+    })(),
     coreVerdictText: coreSummary.coreSummaryText,
     coreVerdictStatusText: coreSummary.coreStatusText,
     coreVerdictStatusClass: coreSummary.coreStatusClass,
     coreVerdictRows: [
-      { key: 'invoice', label: '开票门槛', valueText: `${coreSummary.invoiceAmount} 万`, statusText: coreSummary.invoiceStatusText, statusClass: coreSummary.invoiceStatusClass },
-      { key: 'payment', label: '回款门槛', valueText: `${coreSummary.paymentAmount} 万`, statusText: coreSummary.paymentStatusText, statusClass: coreSummary.paymentStatusClass },
+      { key: 'invoice', label: '年度开票', valueText: `${coreSummary.invoiceAmount} 万`, statusText: coreSummary.invoiceStatusText, statusClass: coreSummary.invoiceStatusClass },
+      { key: 'payment', label: '年度回款', valueText: `${coreSummary.paymentAmount} 万`, statusText: coreSummary.paymentStatusText, statusClass: coreSummary.paymentStatusClass },
       { key: 'relationship', label: '客情评分', valueText: `${toNumber(indicator.relationshipScore)} / 3`, statusText: `${toNumber(indicator.relationshipScore)}分`, statusClass: toNumber(indicator.relationshipScore) >= 2 ? 'ok' : 'warn' },
-      { key: 'score', label: '五项评分', valueText: `${coreSummary.scoreTotal} / ${INDICATOR_MAX_SCORE}`, statusText: coreSummary.scoreStatusText, statusClass: coreSummary.scoreStatusClass }
+      { key: 'score', label: '五项评分', valueText: `${coreSummary.scoreTotal} / ${INDICATOR_MAX_SCORE}`, statusText: coreSummary.scoreStatusText + '·不计判定', statusClass: coreSummary.scoreStatusClass }
     ],
     relationshipScoreText: String(toNumber(indicator.relationshipScore)),
     indicatorRows
@@ -225,8 +230,9 @@ Page({
     logs: [],
     invoiceSummary: null,
     paymentSummary: null,
+    stageSummary: null,
     indicator: {},
-    indicatorSummary: buildIndicatorSummary({}, {}, {}),
+    indicatorSummary: buildIndicatorSummary({}, {}),
     // 【D25 2026-10-04】五项满分单一出处(shared)，wxml「x / 15」统一引用
     indicatorMaxScore: INDICATOR_MAX_SCORE,
     relationshipOptions: [
@@ -245,7 +251,7 @@ Page({
     canDelete: false,
     canViewFinance: false,
     canViewContacts: false,
-    detailView: buildDetailView({ detail: null, contacts: [], logs: [], invoiceSummary: {}, paymentSummary: {}, indicator: {} })
+    detailView: buildDetailView({ detail: null, contacts: [], logs: [], stageSummary: {}, indicator: {} })
   },
 
   setDetailData(patch) {
@@ -321,11 +327,25 @@ Page({
         }),
         invoiceSummary: { totalAmount: 120 },
         paymentSummary: { totalAmount: 105, unpaidAmount: 15 },
+        stageSummary: {
+          rows: [
+            { periodLabel: '2026上半年', invoiceAmount: 120, paymentAmount: 105 }
+          ],
+          baseYear: 2026,
+          annualInvoiceAmount: 120,
+          annualPaymentAmount: 105,
+          coreType: 'core'
+        },
         indicator,
         relationshipOptionsView: buildRelationshipOptions(this.data.relationshipOptions, indicator, this.data.canEdit),
         indicatorSummary: buildIndicatorSummary(
-          { totalAmount: 120 },
-          { totalAmount: 105, unpaidAmount: 15 },
+          {
+            rows: [{ periodLabel: '2026上半年', invoiceAmount: 120, paymentAmount: 105 }],
+            baseYear: 2026,
+            annualInvoiceAmount: 120,
+            annualPaymentAmount: 105,
+            coreType: 'core'
+          },
           indicator
         )
       })
@@ -336,20 +356,21 @@ Page({
     getCustomer(this.data.id).then((detail) => {
       this.setDetailData({ detail: normalizeDetail(detail || {}) })
       const contactsRequest = this.data.canViewContacts ? getCustomerContacts(this.data.id) : Promise.resolve([])
-      const financeRequest = this.data.canViewFinance
-        ? Promise.all([getInvoiceSummary(this.data.id), getPaymentSummary(this.data.id)])
-        : Promise.resolve([{}, {}])
-      return Promise.all([contactsRequest, getCustomerLogs(this.data.id), financeRequest, getCustomerIndicator(this.data.id)])
-    }).then(([contacts, logs, [invoiceSummary, paymentSummary], indicator]) => {
+      // 【裁决 2026-10-10】财务摘要改阶段总额判定口径(后端含三态), 逐笔 summary 请求下线
+      const stageRequest = this.data.canViewFinance
+        ? getCustomerStageAmounts(this.data.id)
+        : Promise.resolve({})
+      return Promise.all([contactsRequest, getCustomerLogs(this.data.id), stageRequest, getCustomerIndicator(this.data.id)])
+    }).then(([contacts, logs, stageSummary, indicator]) => {
       const normalizedIndicator = indicator || {}
+      const emptyStage = { rows: [], coreType: '', baseYear: 0, annualInvoiceAmount: 0, annualPaymentAmount: 0 }
       this.setDetailData({
         contacts: contacts || [],
         logs: logs || [],
-        invoiceSummary: invoiceSummary || {},
-        paymentSummary: paymentSummary || {},
+        stageSummary: stageSummary || emptyStage,
         indicator: normalizedIndicator,
         relationshipOptionsView: buildRelationshipOptions(this.data.relationshipOptions, normalizedIndicator, this.data.canEdit),
-        indicatorSummary: buildIndicatorSummary(invoiceSummary || {}, paymentSummary || {}, normalizedIndicator)
+        indicatorSummary: buildIndicatorSummary(stageSummary || emptyStage, normalizedIndicator)
       })
     }).catch((error) => showError(error, '无权查看或客户不存在')).finally(() => {
       this.setDetailData({ loading: false })

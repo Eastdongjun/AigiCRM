@@ -27,9 +27,14 @@
         <div class="sc-desc">五项指标总分大于 0 分</div>
       </div>
       <div class="stat-card">
-        <div class="sc-label">核心客户</div>
-        <div class="sc-num yellow">{{ coreCount }}</div>
-        <div class="sc-desc">五项评分≥12，开票/回款均≥100万</div>
+        <div class="sc-label">真核心</div>
+        <div class="sc-num green">{{ coreCount }}</div>
+        <div class="sc-desc">年度开票、回款均≥100万</div>
+      </div>
+      <div class="stat-card">
+        <div class="sc-label">争核心</div>
+        <div class="sc-num yellow">{{ quasiCount }}</div>
+        <div class="sc-desc">有阶段数据，门槛未双达标</div>
       </div>
     </div>
 
@@ -37,6 +42,12 @@
       <span class="tab-item" :class="{ active: activeTab === 'incentive' }" @click="activeTab = 'incentive'">四项激励客户排行</span>
       <span class="tab-item" :class="{ active: activeTab === 'relationship' }" @click="activeTab = 'relationship'">客情商务关系深度排行</span>
       <span class="tab-item" :class="{ active: activeTab === 'indicator' }" @click="activeTab = 'indicator'">核心客户六项指标排行</span>
+      <!-- 【裁决 2026-10-10】核心类型筛选: 区分真核心/争核心 -->
+      <el-select v-if="activeTab === 'indicator'" v-model="coreFilter" size="small" class="core-filter">
+        <el-option label="全部核心类型" value="" />
+        <el-option label="真核心" value="core" />
+        <el-option label="争核心" value="quasi" />
+      </el-select>
     </div>
 
     <div class="table-area">
@@ -78,7 +89,7 @@
         </el-table-column>
       </el-table>
 
-      <el-table v-else :data="indicatorRanking" stripe size="small" style="width:100%" empty-text="暂无核心客户六项指标排行数据" :header-cell-class-name="indHeaderClass">
+      <el-table v-else :data="filteredIndicatorRanking" stripe size="small" style="width:100%" empty-text="暂无核心客户六项指标排行数据" :header-cell-class-name="indHeaderClass">
         <el-table-column label="排名" width="62" align="center">
           <template #default="{ $index }"><span class="rank-num">{{ $index + 1 }}</span></template>
         </el-table-column>
@@ -86,13 +97,13 @@
         <el-table-column prop="ownerName" label="负责人" min-width="90" />
         <el-table-column prop="industry" label="行业" min-width="95" />
         <!-- 两级表头: 一级=六项指标分类, 二级=具体指标(一级包含二级, 口径同 customer-fields INDICATOR_FIELDS) -->
-        <el-table-column label="硬性门槛 ≥¥100万" align="center">
-          <el-table-column label="开票金额" min-width="95" align="center">
+        <el-table-column label="年度门槛 ≥¥100万/年" align="center">
+          <el-table-column label="年度开票" min-width="95" align="center">
             <template #default="{ row }">
               <span :class="{ 'threshold-miss': (Number(row.invoiceTotal) || 0) < 100 }">{{ moneyText(row.invoiceTotal) }}</span>
             </template>
           </el-table-column>
-          <el-table-column label="回款金额" min-width="95" align="center">
+          <el-table-column label="年度回款" min-width="95" align="center">
             <template #default="{ row }">
               <span :class="{ 'threshold-miss': (Number(row.paymentTotal) || 0) < 100 }">{{ moneyText(row.paymentTotal) }}</span>
             </template>
@@ -108,9 +119,11 @@
             <template #default="{ row }"><span class="score-pill">{{ row.totalScore }}分</span></template>
           </el-table-column>
         </el-table-column>
-        <el-table-column label="是否核心" min-width="85" align="center" fixed="right">
+        <el-table-column label="核心类型" min-width="85" align="center" fixed="right">
           <template #default="{ row }">
-            <el-tag :type="row.core ? 'success' : 'info'" size="small">{{ row.core ? '是' : '否' }}</el-tag>
+            <el-tag :type="row.coreType === 'core' ? 'success' : row.coreType === 'quasi' ? 'warning' : 'info'" size="small">
+              {{ row.coreType === 'core' ? '真核心' : row.coreType === 'quasi' ? '争核心' : '—' }}
+            </el-tag>
           </template>
         </el-table-column>
       </el-table>
@@ -137,7 +150,12 @@ const incentiveRanking = computed(() => rankingData.value.incentiveRanking || []
 const indicatorRanking = computed(() => rankingData.value.indicatorRanking || [])
 const relationshipRanking = computed(() => rankingData.value.relationshipRanking || [])
 
-const coreCount = computed(() => indicatorRanking.value.filter(row => row.core).length)
+const coreCount = computed(() => indicatorRanking.value.filter(row => row.coreType === 'core').length)
+const quasiCount = computed(() => indicatorRanking.value.filter(row => row.coreType === 'quasi').length)
+// 【裁决 2026-10-10】核心类型筛选(真核心/争核心); 筛选后排名序号仍按原榜次呈现
+const coreFilter = ref('')
+const filteredIndicatorRanking = computed(() =>
+  !coreFilter.value ? indicatorRanking.value : indicatorRanking.value.filter(row => row.coreType === coreFilter.value))
 
 function relationshipLabel(score) {
   return ['陌生', '知道', '熟悉', '支持'][score] || '陌生'
@@ -175,7 +193,7 @@ onMounted(loadData)
 .page-title { font-size: 18px; font-weight: 600; color: #303133; margin: 0; }
 .page-desc { font-size: 13px; color: var(--text-muted); margin: 6px 0 0; }
 .period-select { width: 150px; flex-shrink: 0; }
-.stat-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 12px; }
+.stat-row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 14px; margin-bottom: 12px; }
 .stat-card { background: #fff; border: 1px solid #ebeef5; border-radius: 8px; padding: 16px 18px; }
 .sc-label { font-size: 13px; color: var(--text-muted); margin-bottom: 4px; }
 .sc-num { font-size: 30px; font-weight: 700; line-height: 1.2; }
@@ -183,7 +201,8 @@ onMounted(loadData)
 .sc-num.green { color: var(--el-color-success); }
 .sc-num.yellow { color: var(--el-color-warning); }
 .sc-desc { font-size: 12px; color: #a8abb2; margin-top: 4px; }
-.tab-bar { display: flex; gap: 0; margin-bottom: 12px; }
+.tab-bar { display: flex; gap: 0; margin-bottom: 12px; align-items: center; }
+.core-filter { width: 140px; margin-left: 14px; flex-shrink: 0; }
 .tab-item { display: inline-flex; align-items: center; padding: 9px 22px; border: 1px solid #ebeef5; margin-left: -1px; background: #fafafa; color: #606266; cursor: pointer; font-size: 14px; }
 .tab-item:first-child { margin-left: 0; border-radius: 8px 0 0 8px; }
 .tab-item:last-child { border-radius: 0 8px 8px 0; }

@@ -108,16 +108,18 @@ class StabilityInvariantTest {
     }
 
     /**
-     * INV-FINANCE-001|最近开票日=纯推导字段,全库唯一写点在 CustomerService 的三处固定位置
-     * 源自裁决 2026-09-24:人工直改与发票重算双写互相覆盖;现仅允许 create 清空/protect 回填旧值/refresh 推导。
+     * INV-FINANCE-001|最近开票日=纯推导字段,全库唯一写点在 CustomerService 的四处固定位置
+     * 源自裁决 2026-09-24:人工直改与发票重算双写互相覆盖;允许 create 清空/protect 回填旧值/refresh 推导。
+     * 【2026-10-10 裁决演进】逐笔开票录入入口下线后新增第 4 写点: saveStageAmount 阶段总额接力
+     * (开票额>0 时以阶段末日期前移刷新, 只前进不后退, 不晚于今天)——保护期由阶段录入接力。
      * Controller 中的唯一出现必须是导入模板样例行(sample),不得出现在任何真实客户写路径。
      */
     @Test
     void lastInvoiceDate_singleWriterInService() {
         String service = readSource("com/aigicrm/module/customer/service/CustomerService.java", "CustomerService");
         String controller = readSource("com/aigicrm/module/customer/controller/CustomerController.java", "CustomerController");
-        assertEquals(3, countOccurrences(service, "setLastInvoiceDate"),
-                "INV-FINANCE-001: CustomerService 内写点应恰为 3(create 清空/protect 回填/refresh 推导),多了=出现绕过推导的写入");
+        assertEquals(4, countOccurrences(service, "setLastInvoiceDate"),
+                "INV-FINANCE-001: CustomerService 内写点应恰为 4(create 清空/protect 回填/refresh 推导/阶段总额接力),多了=出现绕过推导的写入");
         assertEquals(1, countOccurrences(controller, "setLastInvoiceDate"));
         assertEquals(1, countOccurrences(controller, "sample.setLastInvoiceDate"),
                 "Controller 唯一出现必须是导入模板样例行");

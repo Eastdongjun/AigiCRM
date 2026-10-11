@@ -6,147 +6,135 @@ import FinanceTab from './FinanceTab.vue'
 import { CustomerDetailKey } from '@/composables/useCustomerDetail'
 
 /**
- * 【PR-18 台账状态机】财务 Tab 状态标记与操作门控断言(2026-09-20):
- * - 状态列三态: pending=待核对 / confirmed=已确认 / voided=已作废(含原因提示)
- * - 操作按状态收口: 仅 pending 可"确认/删除"(后端同口径), 非 voided 可"作废"
- * - 作废行置灰类名 ledger-voided-row(留痕展示)
- * - 口径脚注提示"作废不计入统计/保护期"
+ * 【裁决 2026-10-10】FinanceTab 阶段总额制重设计后的 UI 契约:
+ * - 主体=阶段性开票回款表(周期/两金额/差额/编辑), 判定头展示基准年+三态(真核心/争核心/非核心)
+ * - 逐笔录入入口下线: 历史明细收进只读折叠区(发票/回款表无操作列), 作废行仍置灰留痕
+ * - 录入/编辑弹窗: 周期(年+上半年/下半年/全年)+两金额, 至少一项>0 的守卫在 useCustomerDetail
  */
-function mountFinanceTab({ invoices = [], payments = [], readonly = false, handlers = {}, dialogs = {}, formValues = {} }) {
+function mountFinanceTab({
+  stageRows = [], coreType = '', baseYear = 0, annualInvoiceAmount = 0, annualPaymentAmount = 0,
+  invoices = [], payments = [], invoiceSummary = { totalCount: 0, totalAmount: 0 },
+  paymentSummary = { totalCount: 0, totalAmount: 0 }, readonly = false, handlers = {},
+} = {}) {
   const noop = () => {}
-  return mount(FinanceTab, {
-    global: {
-      plugins: [ElementPlus],
-      provide: {
-        [CustomerDetailKey]: {
-          readonly: ref(readonly),
-          invoices: ref(invoices),
-          invoiceSummary: ref({ totalCount: 0, totalAmount: 0 }),
-          payments: ref(payments),
-          paymentSummary: ref({ totalCount: 0, totalAmount: 0 }),
-          showInvoiceDialog: ref(!!dialogs.invoice),
-          showPaymentDialog: ref(!!dialogs.payment),
-          invoiceForm: ref({ invoiceDate: '', invoiceNumber: '', invoiceType: '增值税专票', invoiceCompany: '', amount: null, ...formValues.invoice }),
-          paymentForm: ref({ paymentDate: '', paymentAmount: null, paymentMethod: '', remark: '', ...formValues.payment }),
-          handleAddInvoice: handlers.handleAddInvoice || noop,
-          handleDeleteInvoice: handlers.handleDeleteInvoice || noop,
-          handleAddPayment: handlers.handleAddPayment || noop,
-          handleDeletePayment: handlers.handleDeletePayment || noop,
-          handleConfirmInvoice: handlers.handleConfirmInvoice || noop,
-          handleVoidInvoice: handlers.handleVoidInvoice || noop,
-          handleConfirmPayment: handlers.handleConfirmPayment || noop,
-          handleVoidPayment: handlers.handleVoidPayment || noop,
+  const stageSummary = ref({ rows: stageRows, coreType, baseYear, annualInvoiceAmount, annualPaymentAmount })
+  return {
+    stageSummary,
+    wrapper: mount(FinanceTab, {
+      global: {
+        plugins: [ElementPlus],
+        provide: {
+          [CustomerDetailKey]: {
+            readonly: ref(readonly),
+            invoices: ref(invoices),
+            invoiceSummary: ref(invoiceSummary),
+            payments: ref(payments),
+            paymentSummary: ref(paymentSummary),
+            stageSummary,
+            showStageDialog: ref(false),
+            stageForm: ref({ periodYear: 2026, periodType: 'H1', invoiceAmount: null, paymentAmount: null }),
+            openStageDialog: handlers.openStageDialog || noop,
+            handleSaveStageAmount: handlers.handleSaveStageAmount || noop,
+            coreType: ref(coreType),
+            coreTypeLabel: ref(coreType === 'core' ? '真核心' : coreType === 'quasi' ? '争核心' : '非核心'),
+          },
         },
       },
-    },
-  })
+    }),
+  }
 }
+
+const stageRow = (over = {}) => ({
+  id: 1, periodYear: 2026, periodType: 'H1', periodLabel: '2026上半年',
+  invoiceAmount: 120, paymentAmount: 80, updatedByName: '张三', updatedAt: '2026-07-02T10:30:00', ...over,
+})
 
 const invoiceRow = (status) => ({
   id: 1, invoiceDate: '2026-01-10', invoiceNumber: 'F-001', invoiceType: '增值税专票',
   invoiceCompany: '测试单位', amount: 12.5, status, voidedReason: status === 'voided' ? '开错票重开' : null,
 })
 
-describe('客户详情 FinanceTab 台账状态机', () => {
-  it('状态列按 pending/confirmed/voided 三态渲染, 作废行置灰留痕', async () => {
-    const wrapper = mountFinanceTab({
-      invoices: [invoiceRow('pending'), invoiceRow('confirmed'), invoiceRow('voided')],
+async function settle(wrapper) {
+  for (let i = 0; i < 6; i++) await nextTick()
+  await flushPromises()
+}
+
+describe('客户详情 FinanceTab 阶段总额制(2026-10-10)', () => {
+  it('主体为阶段表: 周期/两金额/差额/更新人, 判定头展示基准年与年度金额', async () => {
+    const { wrapper } = mountFinanceTab({
+      stageRows: [stageRow(), stageRow({ id: 2, periodType: 'FY', periodLabel: '2026全年', invoiceAmount: 150, paymentAmount: 110 })],
+      coreType: 'core', baseYear: 2026, annualInvoiceAmount: 150, annualPaymentAmount: 110,
     })
-    for (let i = 0; i < 6; i++) await nextTick() // el-table 列注册/单元格渲染跨帧完成(双表时更多)
-    await flushPromises()
+    await settle(wrapper)
     const text = wrapper.text()
-    expect(text).toContain('待核对')
-    expect(text).toContain('已确认')
-    expect(text).toContain('已作废')
-    // 作废原因经 el-tooltip 悬停展示(popper 懒渲染), 这里断言行级置灰类与标签
-    expect(wrapper.html()).toContain('ledger-voided-row')
+    expect(text).toContain('阶段性开票回款')
+    expect(text).toContain('按 2026 年度')
+    expect(text).toContain('真核心')
+    expect(text).toContain('2026上半年')
+    expect(text).toContain('2026全年')
+    // 阶段差额 = 开票-回款 (formatWan 两位小数)
+    expect(text).toContain('40.00万')
   })
 
-  it('操作门控(裁决 2026-09-24): 全状态可删除(留痕), 确认仅 pending, 作废 pending+confirmed', async () => {
-    const wrapper = mountFinanceTab({
-      invoices: [invoiceRow('pending'), invoiceRow('confirmed'), invoiceRow('voided')],
-    })
-    for (let i = 0; i < 6; i++) await nextTick() // el-table 列注册/单元格渲染跨帧完成(双表时更多)
-    await flushPromises()
-    const rows = wrapper.findAll('.el-table__row')
-    const btnText = (row) => row.findAll('button').map((b) => b.text()).join(',')
-    expect(btnText(rows[0])).toContain('确认')
-    expect(btnText(rows[0])).toContain('删除')
-    // 裁决 2026-09-24: 删除不再限 pending——任何状态可删(必填原因+审计留痕+逻辑删)
-    expect(btnText(rows[1])).not.toContain('确认')
-    expect(btnText(rows[1])).toContain('删除')
-    expect(btnText(rows[1])).toContain('作废')
-    expect(btnText(rows[2])).toContain('删除')
-    expect(btnText(rows[2])).not.toContain('作废')
+  it('录入按钮存在且触发新建弹窗; readonly 下隐藏', async () => {
+    const openStageDialog = vi.fn()
+    const { wrapper } = mountFinanceTab({ handlers: { openStageDialog } })
+    await settle(wrapper)
+    const btn = wrapper.findAll('button').find((b) => b.text().includes('录入阶段数据'))
+    expect(btn.exists()).toBe(true)
+    btn.trigger('click')
+    expect(openStageDialog).toHaveBeenCalledWith(null)
   })
 
-  it('点击确认/作废调用对应处理器', async () => {
-    const onConfirm = vi.fn()
-    const onVoid = vi.fn()
-    const wrapper = mountFinanceTab({
-      invoices: [invoiceRow('pending')],
-      handlers: { handleConfirmInvoice: onConfirm, handleVoidInvoice: onVoid },
-    })
-    for (let i = 0; i < 6; i++) await nextTick()
-    await flushPromises()
-    wrapper.findAll('button').find((b) => b.text().trim() === '确认').trigger('click')
-    expect(onConfirm).toHaveBeenCalledOnce()
-    wrapper.findAll('button').find((b) => b.text().trim() === '作废').trigger('click')
-    expect(onVoid).toHaveBeenCalledOnce()
+  it('readonly(共享/公海只读)不显示录入与编辑操作', async () => {
+    const { wrapper } = mountFinanceTab({ readonly: true, stageRows: [stageRow()] })
+    await settle(wrapper)
+    const text = wrapper.text()
+    expect(text).not.toContain('录入阶段数据')
+    expect(wrapper.findAll('button').every((b) => !b.text().includes('编辑'))).toBe(true)
   })
 
-  it('回款区同样有状态列与确认/作废操作', async () => {
-    const onConfirmPay = vi.fn()
-    const wrapper = mountFinanceTab({
-      payments: [{ id: 9, paymentDate: '2026-02-01', paymentAmount: 3.2, paymentMethod: '银行', remark: '', status: 'pending' }],
-      handlers: { handleConfirmPayment: onConfirmPay },
+  it('行内"编辑"按钮以行参触发 openStageDialog(编辑制 upsert 入口)', async () => {
+    const openStageDialog = vi.fn()
+    const row = stageRow()
+    const { wrapper } = mountFinanceTab({ stageRows: [row], handlers: { openStageDialog } })
+    await settle(wrapper)
+    wrapper.findAll('button').find((b) => b.text().trim() === '编辑').trigger('click')
+    expect(openStageDialog).toHaveBeenCalledWith(row)
+  })
+
+  it('无阶段数据时展示空态引导', async () => {
+    const { wrapper } = mountFinanceTab({})
+    await settle(wrapper)
+    expect(wrapper.text()).toContain('暂无阶段数据')
+  })
+
+  it('历史逐笔明细收进只读折叠区: 状态三态渲染, 作废行置灰, 无任何操作按钮', async () => {
+    const { wrapper } = mountFinanceTab({
+      invoices: [invoiceRow('pending'), invoiceRow('voided')],
+      invoiceSummary: { totalCount: 2, totalAmount: 12.5 },
     })
-    for (let i = 0; i < 6; i++) await nextTick()
-    await flushPromises()
+    await settle(wrapper)
+    expect(wrapper.text()).toContain('历史逐笔明细')
+    expect(wrapper.text()).toContain('开票 2 笔')
+    // 折叠面板展开(不依赖点击动画, el-collapse-item 内容已渲染)
     expect(wrapper.text()).toContain('待核对')
-    wrapper.findAll('button').find((b) => b.text().trim() === '确认').trigger('click')
-    expect(onConfirmPay).toHaveBeenCalledOnce()
+    expect(wrapper.html()).toContain('ledger-voided-row')
+    // 只读历史: 不再有确认/作废/删除/录入开票按钮
+    const btns = wrapper.findAll('button').map((b) => b.text().trim())
+    expect(btns).not.toContain('确认')
+    expect(btns).not.toContain('作废')
+    expect(btns).not.toContain('删除')
+    expect(btns).not.toContain('录入开票')
+    expect(btns).not.toContain('录入回款')
   })
 
-  it('口径脚注说明作废不计入统计与保护期', async () => {
-    const wrapper = mountFinanceTab({})
-    await nextTick()
-    expect(wrapper.text()).toContain('不计入上方累计与有效总额')
-    expect(wrapper.text()).toContain('不延长保护期')
-  })
-
-  // 【C11 补漏 2026-10-09】弹窗 :rules 挂载断言。
-  // 说明: EP 2.14.5 暴露的 form.validate() 在 jsdom 下恒 resolve(实测门面 fields 虽注册但
-  // 校验不执行, field 级 validate 正常), 故不断言"点提交被拦截"; 生产兜底=useCustomerDetail
-  // 提交守卫(拒空/拒 0)+rules 的 blur/change 内联错误。这里钉住规则挂载与金额语义不回退。
-  it('开票弹窗: :rules 挂到必填字段, form-item prop 齐备(缺 prop 校验不生效)', async () => {
-    const wrapper = mountFinanceTab({ dialogs: { invoice: true } })
-    for (let i = 0; i < 6; i++) await nextTick()
-    await flushPromises()
-    const form = wrapper.findComponent({ name: 'ElForm' })
-    expect(form.exists()).toBe(true)
-    expect(Object.keys(form.props('rules') || {})).toEqual(['invoiceDate', 'invoiceNumber', 'amount'])
-    const itemProps = form.findAllComponents({ name: 'ElFormItem' }).map((i) => i.props('prop'))
-    expect(itemProps).toEqual(['invoiceDate', 'invoiceNumber', undefined, undefined, 'amount'])
-  })
-
-  it('回款弹窗: :rules 挂到日期与金额字段', async () => {
-    const wrapper = mountFinanceTab({ dialogs: { payment: true } })
-    for (let i = 0; i < 6; i++) await nextTick()
-    await flushPromises()
-    const form = wrapper.findComponent({ name: 'ElForm' })
-    expect(Object.keys(form.props('rules') || {})).toEqual(['paymentDate', 'paymentAmount'])
-    const itemProps = form.findAllComponents({ name: 'ElFormItem' }).map((i) => i.props('prop'))
-    expect(itemProps).toEqual(['paymentDate', 'paymentAmount', undefined, undefined])
-  })
-
-  it('金额规则语义: null/0/负数拒绝, 正数放行(与提交守卫拒 0 口径一致)', async () => {
-    const wrapper = mountFinanceTab({ dialogs: { invoice: true } })
-    for (let i = 0; i < 6; i++) await nextTick()
-    await flushPromises()
-    const rules = wrapper.findComponent({ name: 'ElForm' }).props('rules')
-    const validator = rules.amount.find((r) => typeof r.validator === 'function').validator
-    const run = (v) => new Promise((res) => validator(null, v, (err) => res(!!err)))
-    expect(await Promise.all([run(null), run(0), run(-1), run(2.5)])).toEqual([true, true, true, false])
+  it('口径脚注: 半年/全年总额制与真核心/争核心判定口径', async () => {
+    const { wrapper } = mountFinanceTab({})
+    await settle(wrapper)
+    const text = wrapper.text()
+    expect(text).toContain('真核心 = 判定年度开票、回款均 ≥ 100 万')
+    expect(text).toContain('争核心 = 有阶段数据但未双达标')
+    expect(text).toContain('顺延保护期')
   })
 })

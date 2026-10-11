@@ -1,3 +1,4 @@
 /* 【D24 2026-10-04】返回/取消/提交按钮样式与组内各表单完全相同，统一 @import 共享副本 */
 @import "../../shared.wxss";
 .form-card{margin-top:24rpx}.label{margin-top:20rpx;color:#475569;font-size:26rpx}.label:first-child{margin-top:0}.input,.textarea{width:100%;box-sizing:border-box;margin-top:10rpx;padding:0 20rpx;height:76rpx;border:1rpx solid #dbeafe;border-radius:14rpx;background:#f8fbff;font-size:27rpx}.textarea{height:180rpx;padding-top:18rpx;line-height:1.6}.submit-btn{margin-top:30rpx}
+.stage-form-tip{color:#94a3b8;font-size:22rpx;line-height:1.8;padding:6rpx 0 0}

@@ -230,8 +230,11 @@ export function useCustomerForm() {
     return payload
   }
 
-  /** 有评分或库内已有指标行才写库：全 0 且无指标行时不建空记录 */
-  const shouldSaveIndicator = () => indicatorLoaded.value || sumIndicatorScore(indicatorForm) > 0
+  /** 有评分或库内已有指标行才写库：全 0 且无指标行时不建空记录。
+   *  【裁决 2026-10-10】首次录入客户不体现五项指标(表单区块已按编辑态隐藏),
+   *  新建一律不提交指标(null=只存客户), 指标在客户详情"核心指标"页签维护。 */
+  const shouldSaveIndicator = () =>
+    isEdit.value && (indicatorLoaded.value || sumIndicatorScore(indicatorForm) > 0)
 
   const handleSubmit = async () => {
     // 【工作流复核确认修复】编辑数据没加载成功就不允许提交(防空表单整包覆盖原客户)

@@ -128,8 +128,8 @@
     <view wx:else class="tip">客户保存后可继续添加联系人</view>
   </view>
 
-  <!-- 客情五项指标：与 PC 新增/编辑表单同口径，保存客户后同步保存 -->
-  <view class="card form-card indicator-inline-card">
+  <!-- 客情五项指标：【裁决 2026-10-10】首次录入客户不体现, 仅编辑态展示(维护入口在客户详情核心指标) -->
+  <view wx:if="{{isEdit}}" class="card form-card indicator-inline-card">
     <view class="section-title row">
       <text>客情五项指标</text>
       <text class="indicator-total">{{indicatorTotal}} / 15 分</text>

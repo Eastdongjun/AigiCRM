@@ -114,15 +114,17 @@
       <div class="relation-title"><el-icon color="var(--el-color-primary)"><TrendCharts /></el-icon> 核心客户指标</div>
       <div class="ind-sum-row ind-sum-threshold">
         <span class="ind-num">01</span>
-        <span class="ind-name">开票回款 · 硬性门槛 ≥ ¥100万</span>
-        <span class="ind-status" :class="bothThresholdMet ? 'pass' : 'fail'">{{ bothThresholdMet ? '✓ 达标' : '✗ 未达标' }}</span>
+        <span class="ind-name">开票回款 · 年度硬性门槛 ≥ ¥100万/年</span>
+        <span class="ind-status" :class="coreType === 'core' ? 'pass' : coreType === 'quasi' ? 'half' : 'fail'">
+          {{ coreType === 'core' ? '✓ 真核心' : coreType === 'quasi' ? '◐ 争核心' : '— 非核心' }}
+        </span>
       </div>
       <div class="ind-sum-row" v-for="ind in indicatorDefs" :key="ind.code">
         <span class="ind-num">{{ ind.code }}</span>
         <span class="ind-name">{{ ind.label }}</span>
         <span class="ind-val">{{ indicatorOptionLabel(ind) }}</span>
       </div>
-      <div class="ind-sum-total">总分 <b class="ind-total">{{ indicatorTotal }}</b> / 15 <span v-if="indicatorTotal < 12" class="ind-warn">⚠ 需调整定位</span></div>
+      <div class="ind-sum-total">五项总分 <b class="ind-total">{{ indicatorTotal }}</b> / 15（客情参考，不参与核心判定）</div>
     </div>
 
     <el-dialog v-model="showContactDialog" :title="editingContact ? '编辑联系人' : '添加联系人'" width="440px" :close-on-click-modal="false">
@@ -147,7 +149,7 @@ const {
   openEditContact, handleSaveContact, handleDeleteContact, relationshipOptions,
   indicator, selectRelationship, expireLevel, statusLabel, handleExtend,
   openTransfer, confirmTransfer, showTransferDialog, transferUserId, allUsers,
-  indicatorDefs, indicatorForm, indicatorTotal, bothThresholdMet,
+  indicatorDefs, indicatorForm, indicatorTotal, coreType,
 } = injectCustomerDetail()
 
 // 核心指标摘要: 把当前分值翻译成「档位名 · 分值」(取值与指标页签同源 indicatorForm)
@@ -204,7 +206,7 @@ const transferCandidates = computed(() =>
 .ind-num { width:26px; height:26px; border-radius:50%; background:var(--el-color-primary); color:#fff; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; flex-shrink:0 }
 .ind-name { flex:1; font-size:14px; color:#333 }
 .ind-val { font-size:13px; color:#1f2329; font-weight:500 }
-.ind-status { font-size:13px; font-weight:600 }.ind-status.pass { color:#52c41a }.ind-status.fail { color:var(--el-color-danger) }
+.ind-status { font-size:13px; font-weight:600 }.ind-status.pass { color:#52c41a }.ind-status.half { color:#fa8c16 }.ind-status.fail { color:#999 }
 .ind-sum-total { margin-top:10px; padding-top:12px; border-top:2px solid #f0f0f0; font-size:14px; color:#666 }
 .ind-total { font-size:22px; color:var(--el-color-primary) }.ind-warn { color:#fa8c16; font-size:12px; margin-left:8px }
 .relation-options { display:grid; grid-template-columns:repeat(4,1fr); gap:10px }

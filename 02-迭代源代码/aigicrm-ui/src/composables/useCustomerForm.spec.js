@@ -211,23 +211,21 @@ describe('useCustomerForm 新增客户字段', () => {
     expect(addContact).toHaveBeenCalledWith('306', { name: '李四', position: '', phone: '13900000000', remark: '' })
   })
 
-  it('新建客户录入客情评分后，随客户一起保存指标', async () => {
+  it('【裁决 2026-10-10】新建不提交指标(首次录入不体现五项区块), 指标在详情页维护', async () => {
     const ctx = useCustomerForm()
     ctx.formRef.value = { validate: async () => true }
     ctx.form.customerName = '核心客户'
+    // 新建模式下表单区块已隐藏, 此处模拟防御: 即便 indicatorForm 残留分值也不得随新建提交
     ctx.indicatorForm.relationshipScore = 3
     ctx.indicatorForm.indicator03 = 2
 
     await ctx.handleSubmit()
     await flushPromises()
 
-    // composable 在 setup 之外调用，computed/ref 需显式取值
     expect(ctx.indicatorTotal.value).toBe(5)
-    // 【PR-05】指标随客户在同一次组合提交里(同事务),不再有独立的 saveIndicator 调用
     expect(saveCustomerWithIndicator).toHaveBeenCalledTimes(1)
-    expect(saveCustomerWithIndicator.mock.calls[0][0].indicator).toEqual({
-      relationshipScore: 3, indicator02: 0, indicator03: 2, indicator04: 0, indicator05: 0,
-    })
+    // 新建恒 null(只存客户), 指标改由客户详情「核心指标」页签维护
+    expect(saveCustomerWithIndicator.mock.calls[0][0].indicator).toBeNull()
   })
 
   it('客情全 0 且库内无指标行时不创建空指标记录', async () => {

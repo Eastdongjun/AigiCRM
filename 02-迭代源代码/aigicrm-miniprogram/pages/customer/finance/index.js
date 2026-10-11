@@ -1,66 +1,92 @@
-const { getCustomerInvoices, getCustomerPayments, deleteInvoice, deletePayment } = require('../../../api/customer')
+const { getCustomerStageAmounts, getCustomerInvoices, getCustomerPayments } = require('../../../api/customer')
 const { hasPermission, requireLogin } = require('../../../utils/auth')
 const { showError } = require('../../../utils/feedback')
-const { readDemoFinance, deleteDemoFinance } = require('../../../utils/demo-finance')
 
-function rows(payload) { return Array.isArray(payload) ? payload : (payload && (payload.records || payload.list || payload.rows)) || [] }
+function toNumber(value) {
+  const num = Number(value)
+  return Number.isFinite(num) ? num : 0
+}
 
-function normalizeInvoice(item) {
+function moneyText(value) {
+  const n = toNumber(value)
+  if (!n) return '0'
+  return String(Math.round(n * 100) / 100)
+}
+
+function normalizeHistoryInvoice(item) {
   return {
     ...item,
-    invoiceNumber: item.invoiceNumber || item.invoiceNo || item.code || '开票记录',
-    invoiceType: item.invoiceType || item.type || '-',
-    invoiceCompany: item.invoiceCompany || item.companyName || item.company || '-',
-    amountText: (item.amount != null ? item.amount : (item.totalAmount != null ? item.totalAmount : '-')),
-    invoiceDateText: item.invoiceDate || item.date || '-',
+    invoiceNumber: item.invoiceNumber || item.invoiceNo || '开票记录',
+    invoiceType: item.invoiceType || '-',
+    invoiceCompany: item.invoiceCompany || '-',
+    amountText: item.amount != null ? item.amount : '-',
+    invoiceDateText: item.invoiceDate || '-',
     status: item.status || '已记录'
   }
 }
 
-function normalizePayment(item) {
+function normalizeHistoryPayment(item) {
   return {
     ...item,
-    paymentNumber: item.paymentNumber || item.paymentNo || item.code || '回款记录',
-    paymentAmountText: (item.paymentAmount != null ? item.paymentAmount : ((item.amount != null ? item.amount : (item.totalAmount != null ? item.totalAmount : '-')))),
-    paymentDateText: item.paymentDate || item.date || '-',
-    paymentMethod: item.paymentMethod || item.method || '-',
+    paymentNumber: item.paymentNumber || '回款记录',
+    paymentAmountText: item.paymentAmount != null ? item.paymentAmount : '-',
+    paymentDateText: item.paymentDate || '-',
+    paymentMethod: item.paymentMethod || '-',
     remark: item.remark || '-',
     status: item.status || '已记录'
   }
 }
 
-function buildFinanceListView(data) {
-  const invoiceActive = data.tab === 'invoice'
-  const invoices = Array.isArray(data.invoices) ? data.invoices : []
-  const payments = Array.isArray(data.payments) ? data.payments : []
+/** 【裁决 2026-10-10】阶段总额视图: 判定三态由后端摘要回传(coreType/baseYear/年度金额), 前端只展示 */
+function buildStageView(data) {
+  const summary = data.stageSummary || {}
+  const rows = Array.isArray(summary.rows) ? summary.rows : []
+  const coreType = summary.coreType || ''
+  const baseYear = toNumber(summary.baseYear)
+  const stageRows = rows.map((row) => {
+    const gap = toNumber(row.invoiceAmount) - toNumber(row.paymentAmount)
+    return {
+      ...row,
+      invoiceText: moneyText(row.invoiceAmount),
+      paymentText: moneyText(row.paymentAmount),
+      // 阶段差额=开票-回款, 负值(回款超开票)自带负号
+      gapText: moneyText(gap),
+      updText: `${row.updatedByName || '-'} · ${String(row.updatedAt || '').replace('T', ' ').slice(0, 16)}`
+    }
+  })
   return {
-    tabs: [
-      { key: 'invoice', text: '开票明细', className: `tab ${invoiceActive ? 'active' : ''}` },
-      { key: 'payment', text: '回款明细', className: `tab ${invoiceActive ? '' : 'active'}` }
-    ],
     showLoading: Boolean(data.loading),
-    showInvoices: invoiceActive,
-    showPayments: !invoiceActive,
-    invoiceRows: invoices,
-    paymentRows: payments,
-    addText: invoiceActive ? '新增开票' : '新增回款',
+    hasVerdict: baseYear > 0,
+    verdictText: baseYear ? `按 ${baseYear} 年度` : '',
+    invoiceText: moneyText(summary.annualInvoiceAmount),
+    paymentText: moneyText(summary.annualPaymentAmount),
+    coreTagText: coreType === 'core' ? '真核心' : coreType === 'quasi' ? '争核心' : '非核心',
+    coreTagClass: `stage-core-tag ${coreType === 'core' ? 'core' : coreType === 'quasi' ? 'quasi' : 'none'}`,
+    stageRows,
+    emptyText: !data.loading && stageRows.length === 0 ? '暂无阶段数据，点击下方「录入阶段数据」开始记录（半年末 / 年末录入总额）' : '',
     showAddAction: Boolean(data.canEdit),
-    showDeleteAction: Boolean(data.canEdit),
-    invoiceEmptyText: !data.loading && invoices.length === 0 ? '暂无开票明细' : '',
-    paymentEmptyText: !data.loading && payments.length === 0 ? '暂无回款明细' : ''
+    historyOpen: Boolean(data.historyOpen),
+    historyToggleText: data.historyOpen ? '收起历史明细' : '展开历史明细（只读）',
+    invoiceCount: (data.invoices || []).length,
+    paymentCount: (data.payments || []).length,
+    invoiceRows: data.invoices || [],
+    paymentRows: data.payments || []
   }
 }
 
 Page({
   data: {
     id: '',
-    tab: 'invoice',
-    invoices: [],
-    payments: [],
     loading: false,
     canEdit: false,
-    financeListView: buildFinanceListView({ tab: 'invoice', loading: false, invoices: [], payments: [], canEdit: false })
+    stageSummary: null,
+    historyOpen: false,
+    historyLoaded: false,
+    invoices: [],
+    payments: [],
+    stageView: buildStageView({ loading: false })
   },
+
   onLoad(options) {
     if (!requireLogin()) return
     if (!getApp().globalData.demoMode && !hasPermission('finance:view')) {
@@ -68,12 +94,11 @@ Page({
       wx.navigateBack()
       return
     }
-    this.setData({ id: options.id || '', canEdit: getApp().globalData.demoMode || hasPermission('customer:edit') }, () => this.refreshFinanceListView())
+    this.setData({ id: options.id || '', canEdit: getApp().globalData.demoMode || hasPermission('customer:edit') }, () => this.refreshStageView())
     this.load()
   },
 
-  /** 【M14 2026-10-04】从开票/回款表单返回时刷新列表(此前保存返回后列表不刷新)。
-   *  对齐 customer/index.js 既有 onShow 模式：首次 onShow 跳过(onLoad 已加载)，加载中不重复请求。 */
+  /** 【M14 对齐】从阶段表单返回时刷新(保存返回后列表不刷新) */
   onShow() {
     if (!this.didInitialShow) {
       this.didInitialShow = true
@@ -81,55 +106,63 @@ Page({
     }
     if (!this.data.loading) this.load()
   },
-  refreshFinanceListView() {
-    this.setData({ financeListView: buildFinanceListView(this.data) })
+
+  refreshStageView() {
+    this.setData({ stageView: buildStageView(this.data) })
   },
+
   applyState(patch, callback) {
     const next = { ...this.data, ...patch }
-    this.setData({ ...patch, financeListView: buildFinanceListView(next) }, callback)
+    this.setData({ ...patch, stageView: buildStageView(next) }, callback)
   },
+
   load() {
     if (!this.data.id) return
     if (getApp().globalData.demoMode) {
-      const saved = readDemoFinance(this.data.id)
-      return this.applyState({
-        invoices: [{ id: 1, invoiceNo: 'DEMO-INV-001', invoiceType: '增值税专票', invoiceCompany: '东来智能科技有限公司', amount: 180000, invoiceDate: '2026-08-12', status: '已开票' }, ...saved.invoices].map(normalizeInvoice),
-        payments: [{ id: 1, paymentNo: 'DEMO-PAY-001', amount: 80000, paymentDate: '2026-08-30', paymentMethod: '银行转账', remark: '首付款到账', status: '已回款' }, ...saved.payments].map(normalizePayment)
-      })
+      const demoSummary = {
+        rows: [
+          { periodLabel: '2026上半年', invoiceAmount: 60, paymentAmount: 50, updatedByName: '张三', updatedAt: '2026-07-02 10:30' },
+          { periodLabel: '2025全年', invoiceAmount: 180, paymentAmount: 150, updatedByName: '张三', updatedAt: '2026-01-08 09:12' }
+        ],
+        baseYear: 2026,
+        annualInvoiceAmount: 60,
+        annualPaymentAmount: 50,
+        coreType: 'quasi'
+      }
+      return this.applyState({ stageSummary: demoSummary, invoices: [], payments: [] })
     }
     this.applyState({ loading: true })
-    Promise.all([getCustomerInvoices(this.data.id), getCustomerPayments(this.data.id)]).then(([invoices, payments]) => {
-      this.applyState({ invoices: rows(invoices).map(normalizeInvoice), payments: rows(payments).map(normalizePayment) })
-    }).catch((error) => showError(error, '开票回款加载失败')).finally(() => this.applyState({ loading: false }))
+    getCustomerStageAmounts(this.data.id).then((summary) => {
+      this.applyState({ stageSummary: summary || {} })
+    }).catch((error) => showError(error, '阶段开票回款加载失败')).finally(() => this.applyState({ loading: false }))
   },
-  switchTab(e) { this.applyState({ tab: e.currentTarget.dataset.tab }) },
-  deleteRecord(e) {
+
+  /** 历史逐笔明细(2026-10-10 逐笔录入制时期的台账)只读折叠; 首次展开懒加载一次 */
+  toggleHistory() {
+    const next = !this.data.historyOpen
+    if (next && !this.data.historyLoaded && !getApp().globalData.demoMode) {
+      Promise.all([getCustomerInvoices(this.data.id), getCustomerPayments(this.data.id)])
+        .then(([invoices, payments]) => {
+          const invList = Array.isArray(invoices) ? invoices : []
+          const payList = Array.isArray(payments) ? payments : []
+          this.applyState({
+            historyOpen: true, historyLoaded: true,
+            invoices: invList.map(normalizeHistoryInvoice),
+            payments: payList.map(normalizeHistoryPayment)
+          })
+        })
+        .catch((error) => showError(error, '历史明细加载失败'))
+      return
+    }
+    this.applyState({ historyOpen: next })
+  },
+
+  openForm(e) {
     if (!this.data.canEdit) return wx.showToast({ title: '没有财务编辑权限', icon: 'none' })
-    const mode = e.currentTarget.dataset.mode
-    const index = Number(e.currentTarget.dataset.index)
-    const list = mode === 'payment' ? this.data.payments : this.data.invoices
-    const item = list[index]
-    if (!item || !item.id) return
-    // 裁决 2026-09-24: 可删必留痕——editable 弹窗必填原因, 后端记审计快照+逻辑删
-    wx.showModal({
-      title: mode === 'payment' ? '删除回款记录' : '删除开票记录',
-      content: '删除将留痕并可回查,请填写删除原因',
-      editable: true,
-      placeholderText: '删除原因(必填)',
-      success: (res) => {
-        if (!res.confirm) return
-        const reason = (res.content || '').trim()
-        if (!reason) return wx.showToast({ title: '请填写删除原因', icon: 'none' })
-        const action = getApp().globalData.demoMode
-          ? Promise.resolve(deleteDemoFinance(this.data.id, mode, item.id))
-          : (mode === 'payment' ? deletePayment(this.data.id, item.id, reason) : deleteInvoice(this.data.id, item.id, reason))
-        action.then(() => {
-          wx.showToast({ title: '已删除(已留痕)', icon: 'success' })
-          this.load()
-        }).catch((error) => showError(error, '删除财务记录失败'))
-      }
-    })
+    const dataset = (e && e.currentTarget && e.currentTarget.dataset) || {}
+    const periodQuery = dataset.year ? `&periodYear=${dataset.year}&periodType=${dataset.type}` : ''
+    wx.navigateTo({ url: `/pages/customer/finance/form/index?id=${this.data.id}${periodQuery}` })
   },
-  openForm() { wx.navigateTo({ url: `/pages/customer/finance/form/index?id=${this.data.id}&mode=${this.data.tab}` }) },
+
   goBack() { wx.navigateBack() }
 })

@@ -24,7 +24,8 @@
         <div class="anchor-target" id="sec-org"><OrgSection /></div>
         <div class="anchor-target" id="sec-address"><AddressSection /></div>
         <div class="anchor-target" id="sec-contacts"><ContactsSection /></div>
-        <div class="anchor-target" id="sec-indicator"><IndicatorSection /></div>
+        <!-- 【裁决 2026-10-10】客情五项指标首次录入不体现: 新建不渲染, 编辑/详情维护(IndicatorTab 即维护入口) -->
+        <div v-if="isEdit" class="anchor-target" id="sec-indicator"><IndicatorSection /></div>
 
         <el-form-item label="备注" class="remark-field">
           <el-input v-model="form.remark" type="textarea" :rows="3" placeholder="备注信息（选填）" />
@@ -46,7 +47,7 @@
 </template>
 
 <script setup>
-import { provide, onMounted, onBeforeUnmount, ref, nextTick } from 'vue'
+import { provide, onMounted, onBeforeUnmount, ref, computed, nextTick } from 'vue'
 import { useCustomerForm, CustomerFormKey } from '@/composables/useCustomerForm'
 import BasicSection from './BasicSection.vue'
 import BizSection from './BizSection.vue'
@@ -63,14 +64,18 @@ provide(CustomerFormKey, ctx)
 const { form, goBack, isEdit, formRef, rules, loading, handleSubmit, loadFormData } = ctx
 
 // ——— 分段锚点导航(IntersectionObserver 滚动高亮) ———
-const sections = [
-  { id: 'sec-basic', label: '基本信息' },
-  { id: 'sec-biz', label: '业务分类' },
-  { id: 'sec-org', label: '归属负责人' },
-  { id: 'sec-address', label: '地址信息' },
-  { id: 'sec-contacts', label: '联系人' },
-  { id: 'sec-indicator', label: '经营指标' }
-]
+// 【裁决 2026-10-10】经营指标锚点仅编辑态出现(新建不渲染五项指标区块)
+const sections = computed(() => {
+  const base = [
+    { id: 'sec-basic', label: '基本信息' },
+    { id: 'sec-biz', label: '业务分类' },
+    { id: 'sec-org', label: '归属负责人' },
+    { id: 'sec-address', label: '地址信息' },
+    { id: 'sec-contacts', label: '联系人' }
+  ]
+  if (isEdit.value) base.push({ id: 'sec-indicator', label: '经营指标' })
+  return base
+})
 const activeSection = ref('sec-basic')
 let observer = null
 

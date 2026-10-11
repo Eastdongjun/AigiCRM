@@ -455,6 +455,7 @@ class PermissionSecurityFixTest {
                     mock(com.aigicrm.module.customer.mapper.BizCustomerIndicatorMapper.class),
                     mock(com.aigicrm.module.customer.mapper.BizContactMapper.class),
                     mock(com.aigicrm.module.customer.mapper.BizPaymentMapper.class),
+                    mock(com.aigicrm.module.customer.mapper.BizCustomerStageAmountMapper.class),
                     mock(com.aigicrm.module.system.mapper.SysUserMapper.class),
                     mock(com.aigicrm.module.system.mapper.SysDeptMapper.class),
                     mock(com.aigicrm.module.reminder.mapper.BizReminderMapper.class),

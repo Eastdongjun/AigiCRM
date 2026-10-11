@@ -28,8 +28,9 @@
         </div>
       </div>
       <div class="hero-right">
-        <div class="hero-badge" :class="isCore ? 'core' : 'non'">
-          <el-icon><Medal /></el-icon> {{ isCore ? '核心客户' : '非核心' }}
+        <!-- 【裁决 2026-10-10】核心三态: 真核心(年度双>=100万)/争核心(有数据未双达标)/非核心 -->
+        <div class="hero-badge" :class="coreType || 'non'">
+          <el-icon><Medal /></el-icon> {{ coreTypeLabel }}
         </div>
         <div class="hero-expire">
           <div class="expire-date">{{ customer.expireDate }}</div>
@@ -88,8 +89,15 @@
       <div class="stat-card">
         <div class="stat-icon-box green"><el-icon><CircleCheck /></el-icon></div>
         <div class="stat-body">
-          <div class="stat-num">{{ invoiceSummary.totalCount + paymentSummary.totalCount }}</div>
-          <div class="stat-label">开票+回款</div>
+          <div class="stat-num">{{ fmtWanShort(annualInvoiceAmount) }}<span class="stat-unit">万</span></div>
+          <div class="stat-label">年度开票{{ stageSummary.baseYear ? `(${stageSummary.baseYear})` : '' }}</div>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon-box gold"><el-icon><Money /></el-icon></div>
+        <div class="stat-body">
+          <div class="stat-num">{{ fmtWanShort(annualPaymentAmount) }}<span class="stat-unit">万</span></div>
+          <div class="stat-label">年度回款{{ stageSummary.baseYear ? `(${stageSummary.baseYear})` : '' }}</div>
         </div>
       </div>
     </div>
@@ -99,13 +107,14 @@
       <el-tab-pane label="基本信息" name="info"><InfoTab /></el-tab-pane>
       <el-tab-pane v-if="canViewFinance" name="finance">
         <template #label>
-          <span>开票回款 <el-tag size="small" :type="bothThresholdMet?'success':'danger'">{{ bothThresholdMet?'✓达标':'✗未达标'}}</el-tag></span>
+          <span>开票回款 <el-tag size="small" :type="coreType === 'core' ? 'success' : coreType === 'quasi' ? 'warning' : 'info'">{{ coreTypeLabel }}</el-tag></span>
         </template>
         <FinanceTab />
       </el-tab-pane>
       <el-tab-pane name="indicator">
         <template #label>
-          <span>核心指标 <el-tag size="small" :type="indicatorTotal >= 12 ? 'success' : 'warning'">{{ indicatorTotal }}/15</el-tag></span>
+          <!-- 五项评分=客情参考(2026-10-10 起不参与核心判定), 展示保持低噪 -->
+          <span>核心指标 <el-tag size="small" type="info">{{ indicatorTotal }}/15</el-tag></span>
         </template>
         <IndicatorTab />
       </el-tab-pane>
@@ -155,13 +164,21 @@ const canShareCustomer = userStore.hasPermission('customer:edit')
 const {
   customer, loading, activeTab, readonly, readonlyTag, handleEdit,
   showShareDialog, shares, shareUserIds, allUsers, handleAddShare, handleRemoveShare,
-  isCore, expireLevel, statusLabel, incentiveScore, indicator, totalScore, expireDaysLeft, latestLog,
-  invoiceSummary, paymentSummary, avatarColor, bothThresholdMet, indicatorTotal, incentiveRecords,
+  expireLevel, statusLabel, incentiveScore, indicator, totalScore, expireDaysLeft, latestLog,
+  avatarColor, indicatorTotal, incentiveRecords,
+  coreType, coreTypeLabel, stageSummary, annualInvoiceAmount, annualPaymentAmount,
   canViewFinance,
   canViewContacts,
   route, router,
   loadAll, loadDicts, loadUsers, loadIncentiveRecords,
 } = detail
+
+// 年度金额短格式: 130.50 → "130.5"; 无数据时 computed 已兜底 0
+const fmtWanShort = (v) => {
+  const n = Number(v)
+  if (!Number.isFinite(n)) return '0'
+  return String(Math.round(n * 100) / 100)
+}
 
 // 【UI 整改 2026-10-08·③列表态保持】返回客户列表时携带来源列表的 tab/搜索词/页码
 //（列表页 viewDetail 跳转时写入 query），消除"进详情返回即丢筛选条件"；
@@ -198,7 +215,7 @@ watch(customer, (v) => { if (v?.customerName) loadIncentiveRecords() })
 .meta-tag { display:inline-flex; align-items:center; gap:4px; font-size:12px; padding:3px 10px; background:rgba(255,255,255,.15); border-radius: var(--radius-sm); opacity:.9 }
 .hero-right { text-align:right; display:flex; flex-direction:column; align-items:flex-end; gap:8px }
 .hero-badge { display:inline-flex; align-items:center; gap:4px; padding:6px 16px; border-radius:20px; font-size:13px; font-weight:600 }
-.hero-badge.core { background:rgba(82,196,26,.3) }.hero-badge.non { background:rgba(255,255,255,.12) }
+.hero-badge.core { background:rgba(82,196,26,.3) }.hero-badge.quasi { background:rgba(250,173,20,.35) }.hero-badge.non { background:rgba(255,255,255,.12) }
 .hero-expire { text-align:right }.expire-date { font-size:28px; font-weight:700 }
 .expire-tag { display:inline-flex; align-items:center; gap:4px; padding:2px 10px; border-radius: var(--radius-md); font-size:12px; margin-top:2px }
 .expire-tag.lvl-red { background:rgba(245,108,108,.3) }.expire-tag.lvl-orange { background:rgba(230,162,60,.3) }.expire-tag.lvl-blue { background:rgba(255,255,255,.2) }
@@ -217,6 +234,7 @@ watch(customer, (v) => { if (v?.customerName) loadIncentiveRecords() })
 .stat-icon-box.gold { background:#fef3e2; color:var(--el-color-warning) }.stat-icon-box.red { background:#fef0f0; color:var(--el-color-danger) }
 .stat-icon-box.blue { background:var(--el-color-primary-light-9); color:var(--el-color-primary) }.stat-icon-box.green { background:#f0f9eb; color:var(--el-color-success) }
 .stat-num { font-size:22px; font-weight:700; color:#1f2329; line-height:1.2 }
+.stat-unit { font-size:12px; font-weight:500; margin-left:2px }
 .stat-label { font-size:12px; color:var(--el-color-info); margin-top:2px }
 .detail-tabs { background:#fff; border-radius: var(--radius-md); padding:4px 20px 20px; box-shadow:0 1px 3px rgba(0,0,0,.04) }
 .detail-tabs :deep(.el-tabs__header) { margin-bottom:16px }

@@ -371,6 +371,29 @@ public class CustomerController {
         return Result.ok();
     }
 
+    // ====== 阶段开票回款(2026-10-10 半年/全年总额录入制, 逐笔录入入口同批下线改只读历史) ======
+
+    /** 阶段列表+判定摘要; 无 finance:view 只见空骨架(与 invoices 口径一致, 财务数据不外露) */
+    @PreAuthorize("hasAuthority('customer:view')")
+    @GetMapping("/{id}/stage-amounts")
+    public Result<Map<String, Object>> getStageAmounts(@PathVariable Long id) {
+        accessService.assertCanView(id);
+        if (!SecurityUtils.hasAuthority("finance:view")) {
+            return Result.ok(Map.of("rows", List.of(), "coreType", "", "baseYear", 0,
+                    "annualInvoiceAmount", 0, "annualPaymentAmount", 0));
+        }
+        return Result.ok(customerService.getStageAmountSummary(id));
+    }
+
+    @PreAuthorize("hasAuthority('finance:manage') or (hasAuthority('customer:edit') and hasAuthority('finance:view'))")
+    @PostMapping("/{id}/stage-amounts")
+    public Result<Void> saveStageAmount(@PathVariable Long id,
+                                        @RequestBody com.aigicrm.module.customer.dto.StageAmountRequest req) {
+        accessService.assertCanEdit(id);
+        customerService.saveStageAmount(id, req);
+        return Result.ok();
+    }
+
     // ====== 客户指标 ======
 
     @PreAuthorize("hasAuthority('customer:view')")

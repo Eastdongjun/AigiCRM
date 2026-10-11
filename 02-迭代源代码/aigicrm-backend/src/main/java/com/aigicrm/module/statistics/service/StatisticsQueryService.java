@@ -7,13 +7,9 @@ import com.aigicrm.module.approval.service.ApprovalService;
 import com.aigicrm.module.customer.entity.BizCustomer;
 import com.aigicrm.module.customer.entity.BizCustomerIndicator;
 import com.aigicrm.module.customer.entity.BizCustomerLog;
-import com.aigicrm.module.customer.entity.BizInvoice;
-import com.aigicrm.module.customer.entity.BizPayment;
 import com.aigicrm.module.customer.mapper.BizCustomerIndicatorMapper;
 import com.aigicrm.module.customer.mapper.BizCustomerLogMapper;
 import com.aigicrm.module.customer.mapper.BizCustomerMapper;
-import com.aigicrm.module.customer.mapper.BizInvoiceMapper;
-import com.aigicrm.module.customer.mapper.BizPaymentMapper;
 import com.aigicrm.module.customer.service.CustomerService;
 import com.aigicrm.module.file.entity.BizFile;
 import com.aigicrm.module.file.mapper.BizFileMapper;
@@ -48,7 +44,9 @@ import java.util.Set;
  * 【需求】统计看板/日报/周报/指标排行/经营分析/团队动态的数据查询与组装
  * 【方法】聚合多个模块 Mapper 查询后在内存组装，不跨服务写操作
  * 【业务规则】数据范围由 customerService/seaService/approvalService 感知；
- *             指标达标阈值 100 万元；核心客户=指标分>=12 且开票、回款均达标
+ *             【裁决 2026-10-10】核心三态=纯金额门槛(年度开票/回款双>=100万=core 真核心,
+ *             有数据未双达标=quasi 争核心, 无数据=非核心); 五项评分不再参与判定, 保留为客情参考;
+ *             金额源=阶段总额(biz_customer_stage_amount)年度口径, 逐笔发票/回款录入已下线改只读历史
  * 【注意】只读服务，不落库；调用方（Controller）负责权限注解
  */
 @Service
@@ -57,11 +55,62 @@ public class StatisticsQueryService {
 
     private static final java.math.BigDecimal CORE_THRESHOLD = new java.math.BigDecimal("100");
 
-    static boolean isCoreCustomer(int score, java.math.BigDecimal invoiceTotal,
-                                  java.math.BigDecimal paymentTotal) {
-        return score >= 12
-                && invoiceTotal.compareTo(CORE_THRESHOLD) >= 0
-                && paymentTotal.compareTo(CORE_THRESHOLD) >= 0;
+    /** 【裁决 2026-10-10】核心三态: core=真核心(年度双>=100万) quasi=争核心(有数据未双达标)。
+     *  仅对"有阶段数据"的客户调用; 无数据客户即非核心, 无需进本方法。 */
+    static String coreTypeOf(java.math.BigDecimal invoice, java.math.BigDecimal payment) {
+        boolean invoiceMet = invoice != null && invoice.compareTo(CORE_THRESHOLD) >= 0;
+        boolean paymentMet = payment != null && payment.compareTo(CORE_THRESHOLD) >= 0;
+        return invoiceMet && paymentMet ? "core" : "quasi";
+    }
+
+    /** 阶段行"有数据" = 开票额或回款额任一 > 0(两值均 0 的行不算数据, 不驱动判定) */
+    static boolean hasStageAmount(com.aigicrm.module.customer.entity.BizCustomerStageAmount r) {
+        return (r.getInvoiceAmount() != null && r.getInvoiceAmount().signum() > 0)
+                || (r.getPaymentAmount() != null && r.getPaymentAmount().signum() > 0);
+    }
+
+    private static java.math.BigDecimal nvl(java.math.BigDecimal v) { return v == null ? java.math.BigDecimal.ZERO : v; }
+
+    /**
+     * 【裁决 2026-10-10】阶段总额年度口径: 每客户 → [年度开票额, 年度回款额]。
+     * 年度 = 最近有数据年(有数据行的最大 period_year); 该年全年行(FY)有数据时取全年行两值
+     * (全年行优先, 与上下半年独立录入可不相等), 否则上半年+下半年合计。
+     * 与 CustomerService.computeCoreType / 迁移 V2026.10.10.1 回填同口径, 改动须三处同步。
+     */
+    static Map<Long, java.math.BigDecimal[]> annualAmountsByCustomer(
+            List<com.aigicrm.module.customer.entity.BizCustomerStageAmount> rows) {
+        Map<Long, Map<Integer, List<com.aigicrm.module.customer.entity.BizCustomerStageAmount>>> byCustomerYear = new HashMap<>();
+        for (com.aigicrm.module.customer.entity.BizCustomerStageAmount r : rows) {
+            if (r.getCustomerId() == null) continue;
+            byCustomerYear.computeIfAbsent(r.getCustomerId(), k -> new HashMap<>())
+                    .computeIfAbsent(r.getPeriodYear(), k -> new ArrayList<>()).add(r);
+        }
+        Map<Long, java.math.BigDecimal[]> result = new HashMap<>();
+        for (var e : byCustomerYear.entrySet()) {
+            int baseYear = 0;
+            for (var ye : e.getValue().entrySet()) {
+                if (ye.getValue().stream().anyMatch(StatisticsQueryService::hasStageAmount)) {
+                    baseYear = Math.max(baseYear, ye.getKey());
+                }
+            }
+            if (baseYear == 0) continue;
+            List<com.aigicrm.module.customer.entity.BizCustomerStageAmount> yearRows = e.getValue().get(baseYear);
+            var fy = yearRows.stream()
+                    .filter(r -> "FY".equals(r.getPeriodType()) && hasStageAmount(r)).findFirst().orElse(null);
+            java.math.BigDecimal inv;
+            java.math.BigDecimal pay;
+            if (fy != null) {
+                inv = nvl(fy.getInvoiceAmount());
+                pay = nvl(fy.getPaymentAmount());
+            } else {
+                List<com.aigicrm.module.customer.entity.BizCustomerStageAmount> halves = yearRows.stream()
+                        .filter(r -> "H1".equals(r.getPeriodType()) || "H2".equals(r.getPeriodType())).toList();
+                inv = halves.stream().map(r -> nvl(r.getInvoiceAmount())).reduce(java.math.BigDecimal.ZERO, java.math.BigDecimal::add);
+                pay = halves.stream().map(r -> nvl(r.getPaymentAmount())).reduce(java.math.BigDecimal.ZERO, java.math.BigDecimal::add);
+            }
+            result.put(e.getKey(), new java.math.BigDecimal[]{inv, pay});
+        }
+        return result;
     }
 
     static int indicatorScore(BizCustomerIndicator indicator) {
@@ -108,8 +157,8 @@ public class StatisticsQueryService {
     private final com.aigicrm.module.incentive.service.IncentiveService incentiveService;
     private final BizFileMapper fileMapper;
     private final BizCustomerIndicatorMapper indicatorMapper;
-    private final BizInvoiceMapper invoiceMapper;
-    private final BizPaymentMapper paymentMapper;
+    // 【裁决 2026-10-10】判定金额源换 biz_customer_stage_amount; 逐笔 invoice/payment mapper 不再用于判定
+    private final com.aigicrm.module.customer.mapper.BizCustomerStageAmountMapper stageAmountMapper;
     private final SysUserMapper userMapper;
     private final SysDeptMapper deptMapper;
     private final SysLogMapper sysLogMapper;
@@ -364,51 +413,38 @@ public class StatisticsQueryService {
                 .filter(ind -> ind.getCustomerId() != null && customerMap.containsKey(ind.getCustomerId()))
                 .collect(java.util.stream.Collectors.toList());
 
-        // 【PR-18 统计口径】核心客户开票/回款合计排除已作废(voided)台账——作废仅保留痕迹不计入金额
-        List<BizInvoice> allInvoices = invoiceMapper.selectList(
-                new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<BizInvoice>()
-                        .ne(BizInvoice::getStatus, "voided"));
-        Map<Long, java.math.BigDecimal> invoiceTotals = new HashMap<>();
-        for (BizInvoice inv : allInvoices) {
-            if (inv.getCustomerId() != null && inv.getAmount() != null) {
-                invoiceTotals.merge(inv.getCustomerId(), inv.getAmount(), java.math.BigDecimal::add);
-            }
-        }
-        java.math.BigDecimal THRESHOLD = CORE_THRESHOLD;
-        List<BizPayment> allPayments = paymentMapper.selectList(
-                new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<BizPayment>()
-                        .ne(BizPayment::getStatus, "voided"));
-        Map<Long, java.math.BigDecimal> paymentTotals = new HashMap<>();
-        for (BizPayment payment : allPayments) {
-            if (payment.getCustomerId() != null && payment.getPaymentAmount() != null) {
-                paymentTotals.merge(payment.getCustomerId(), payment.getPaymentAmount(), java.math.BigDecimal::add);
-            }
-        }
+        // 【裁决 2026-10-10】核心判定金额源换阶段总额年度口径(纯金额三态, 五项评分不再参与);
+        // 逐笔发票/回款录入入口已下线改只读历史, 不再作为判定数据源
+        Map<Long, java.math.BigDecimal[]> annualAmounts = annualAmountsByCustomer(
+                stageAmountMapper.selectList(null));
 
         // 【2026-09-13 修复"卡片全 0 而表格有数据"的口径不一致】
         // 此前四张卡片只统计"当前登录用户自己负责的客户"（myCustomers/myIndicators），而下方「客户排行」是
         // 全公司口径 —— 同一页面两套范围：登录人（如 admin）名下客户恰好没有指标记录时，卡片 4 个 0 而表格有数据。
         // 现统一为全公司口径，与本方法"核心客户六项指标全员可见、不做数据范围过滤"的既定规则、以及卡片文案
-        // （覆盖客户数/核心客户数/指标平均分/达标率均为公司级语义）保持一致。
+        // （覆盖客户数/真核心数/争核心数/指标平均分均为公司级语义）保持一致。
         int coveredCount = indicators.size();
         int coreCount = 0;
+        int quasiCount = 0;
         double scoreSum = 0;
         for (BizCustomerIndicator ind : indicators) {
             int s = indicatorScore(ind);
             scoreSum += s;
-            java.math.BigDecimal invTotal = invoiceTotals.getOrDefault(ind.getCustomerId(), java.math.BigDecimal.ZERO);
-            java.math.BigDecimal paymentTotal = paymentTotals.getOrDefault(ind.getCustomerId(), java.math.BigDecimal.ZERO);
-            if (isCoreCustomer(s, invTotal, paymentTotal)) coreCount++;
+            java.math.BigDecimal[] ann = annualAmounts.get(ind.getCustomerId());
+            if (ann != null) {
+                if ("core".equals(coreTypeOf(ann[0], ann[1]))) coreCount++;
+                else quasiCount++;
+            }
         }
         int qualifyCount = 0;
         for (BizCustomer c : allCustomers) {
-            java.math.BigDecimal inv = invoiceTotals.getOrDefault(c.getId(), java.math.BigDecimal.ZERO);
-            java.math.BigDecimal payment = paymentTotals.getOrDefault(c.getId(), java.math.BigDecimal.ZERO);
-            if (inv.compareTo(THRESHOLD) >= 0 && payment.compareTo(THRESHOLD) >= 0) qualifyCount++;
+            java.math.BigDecimal[] ann = annualAmounts.get(c.getId());
+            if (ann != null && ann[0].compareTo(CORE_THRESHOLD) >= 0 && ann[1].compareTo(CORE_THRESHOLD) >= 0) qualifyCount++;
         }
 
         data.put("coveredCount", coveredCount);
         data.put("coreCount", coreCount);
+        data.put("quasiCount", quasiCount);
         data.put("avgScore", coveredCount > 0 ? Math.round(scoreSum / coveredCount * 10) / 10.0 : 0);
         data.put("qualifyRate", allCustomers.size() > 0 ? Math.round(qualifyCount * 1000.0 / allCustomers.size()) / 10.0 : 0);
 
@@ -418,8 +454,10 @@ public class StatisticsQueryService {
             if (c == null) continue;
             int s = indicatorScore(ind);
             if (s <= 0) continue;
-            java.math.BigDecimal invTotal = invoiceTotals.getOrDefault(ind.getCustomerId(), java.math.BigDecimal.ZERO);
-            java.math.BigDecimal paymentTotal = paymentTotals.getOrDefault(ind.getCustomerId(), java.math.BigDecimal.ZERO);
+            java.math.BigDecimal[] ann = annualAmounts.get(ind.getCustomerId());
+            java.math.BigDecimal invTotal = ann != null ? ann[0] : java.math.BigDecimal.ZERO;
+            java.math.BigDecimal paymentTotal = ann != null ? ann[1] : java.math.BigDecimal.ZERO;
+            String coreType = ann != null ? coreTypeOf(invTotal, paymentTotal) : "";
             Map<String, Object> row = new LinkedHashMap<>();
             row.put("customerId", ind.getCustomerId());
             row.put("customerName", c.getCustomerName());
@@ -434,7 +472,8 @@ public class StatisticsQueryService {
             row.put("indicator04", ind.getIndicator04() != null ? ind.getIndicator04() : 0);
             row.put("indicator05", ind.getIndicator05() != null ? ind.getIndicator05() : 0);
             row.put("totalScore", s);
-            row.put("core", isCoreCustomer(s, invTotal, paymentTotal));
+            row.put("core", "core".equals(coreType));
+            row.put("coreType", coreType);
             customerRanking.add(row);
         }
         customerRanking.sort((a, b) -> {
@@ -456,9 +495,8 @@ public class StatisticsQueryService {
             BizCustomer c = customerMap.get(ind.getCustomerId());
             if (c == null || c.getOwnerId() == null) continue;
             int s = indicatorScore(ind);
-            java.math.BigDecimal invTotal = invoiceTotals.getOrDefault(ind.getCustomerId(), java.math.BigDecimal.ZERO);
-            java.math.BigDecimal paymentTotal = paymentTotals.getOrDefault(ind.getCustomerId(), java.math.BigDecimal.ZERO);
-            int core = isCoreCustomer(s, invTotal, paymentTotal) ? 1 : 0;
+            java.math.BigDecimal[] ann = annualAmounts.get(ind.getCustomerId());
+            int core = (ann != null && "core".equals(coreTypeOf(ann[0], ann[1]))) ? 1 : 0;
             ownerScores.computeIfAbsent(c.getOwnerId(), k -> new ArrayList<>()).add(new int[]{s, core});
         }
 
@@ -550,8 +588,8 @@ public class StatisticsQueryService {
                 if (dept != null) officeName = dept.getDeptName();
             }
             int s = indicatorScore(ind);
-            java.math.BigDecimal invT = invoiceTotals.getOrDefault(ind.getCustomerId(), java.math.BigDecimal.ZERO);
-            int core = (s >= 12 && invT.compareTo(THRESHOLD) >= 0) ? 1 : 0;
+            java.math.BigDecimal[] annT = annualAmounts.get(ind.getCustomerId());
+            int core = (annT != null && "core".equals(coreTypeOf(annT[0], annT[1]))) ? 1 : 0;
             int[] agg = officeAgg.computeIfAbsent(officeName.isEmpty() ? "未知" : officeName, k -> new int[3]);
             agg[0] += s;
             agg[1] += 1;
@@ -576,7 +614,8 @@ public class StatisticsQueryService {
     /**
      * 客户排行
      * 【需求】统一展示客户对象的四项激励、客情商务关系深度、核心客户六项指标排行
-     * 【业务规则】三类排行均为客户口径，按分值降序；0 分客户不展示；核心客户保持 >=12 且开票/回款均 >=100 万
+     * 【业务规则】三类排行均为客户口径，按分值降序；0 分客户不展示；
+     *             核心三态=年度开票/回款双>=100万为真核心, 有数据未双达标为争核心(裁决 2026-10-10)
      */
     public Map<String, Object> customerRankings(String period) {
         Map<String, Object> data = new LinkedHashMap<>();
@@ -660,7 +699,8 @@ public class StatisticsQueryService {
         data.put("incentiveRanking", incentiveRanking);
         data.put("relationshipRanking", relationshipRanking);
         data.put("indicatorRanking", indicatorRanking);
-        data.put("coreCount", indicatorRanking.stream().filter(row -> Boolean.TRUE.equals(row.get("core"))).count());
+        data.put("coreCount", indicatorRanking.stream().filter(row -> "core".equals(row.get("coreType"))).count());
+        data.put("quasiCount", indicatorRanking.stream().filter(row -> "quasi".equals(row.get("coreType"))).count());
         return data;
     }
 

@@ -21,13 +21,13 @@
 
     <div class="indicator-sum">
       五项合计 <span class="num">{{ indicatorTotal }}</span> / {{ INDICATOR_MAX_SCORE }} 分 ·
-      核心客户要求合计 ≥ {{ INDICATOR_CORE_THRESHOLD }} 分，且开票与回款各 ≥ 100 万（系统自动判定）
+      客情参考，不参与核心判定（核心判定 = 年度开票、回款各 ≥ 100 万，系统按阶段总额自动判定）
     </div>
   </div>
 </template>
 
 <script setup>
-import { INDICATOR_FIELDS, INDICATOR_MAX_SCORE, INDICATOR_CORE_THRESHOLD } from '@/utils/customer-fields'
+import { INDICATOR_FIELDS, INDICATOR_MAX_SCORE } from '@/utils/customer-fields'
 import { injectCustomerForm } from '@/composables/useCustomerForm'
 import './add-common.css'
 

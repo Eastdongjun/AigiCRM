@@ -13,6 +13,7 @@ import {
   getContacts, addContact, updateContact, deleteContact,
   getIndicator, saveIndicator, saveRelationship,
   getShares, addShares, removeShare, getSimpleUserList,
+  getStageAmounts, saveStageAmount,
 } from '@/api/customer'
 import { getDictData } from '@/api/system'
 import { submitApproval } from '@/api/approval'
@@ -21,7 +22,7 @@ import request from '@/utils/request'
 import { getDownloadToken, refreshDownloadToken } from '@/utils/token'
 import { downloadFile } from '@/utils/download'
 import { useUserStore } from '@/store/user'
-import { INDICATOR_FIELDS, INDICATOR_CORE_THRESHOLD, sumIndicatorScore } from '@/utils/customer-fields'
+import { INDICATOR_FIELDS, sumIndicatorScore } from '@/utils/customer-fields'
 import { mediaTypeOf } from '@/utils/media-type'
 
 export const CustomerDetailKey = Symbol('customerDetail')
@@ -56,6 +57,12 @@ export function useCustomerDetail() {
   const showContactDialog = ref(false); const showShareDialog = ref(false); const showTransferDialog = ref(false); const transferUserId = ref(null)
   const shareUserIds = ref([]); const editingContact = ref(null)
 
+  // 【裁决 2026-10-10】阶段总额(半年/全年录入制)与三态判定——判定口径由后端一处算好
+  // (baseYear/年度金额/coreType), 前端不复刻算法只消费结果, 防两端漂移
+  const stageSummary = ref({ rows: [], coreType: '', baseYear: 0, annualInvoiceAmount: 0, annualPaymentAmount: 0 })
+  const showStageDialog = ref(false)
+  const stageForm = reactive({ periodYear: new Date().getFullYear(), periodType: 'H1', invoiceAmount: null, paymentAmount: null })
+
   const invoiceForm = reactive({ invoiceDate:'', invoiceNumber:'', invoiceType:'增值税专票', invoiceCompany:'', amount:null })
   const paymentForm = reactive({ paymentDate:'', paymentAmount:null, paymentMethod:'', remark:'' })
   const contactForm = reactive({ name:'', position:'', phone:'', remark:'' })
@@ -77,10 +84,17 @@ export function useCustomerDetail() {
   // 五项指标定义与新增/编辑表单共用同一份口径（utils/customer-fields.js），避免两处标签漂移
   const indicatorDefs = ref(INDICATOR_FIELDS)
   const indicatorTotal = computed(() => sumIndicatorScore(indicatorForm))
-  const invoiceThresholdMet = computed(() => (invoiceSummary.value.totalAmount||0) >= 100)
-  const paymentThresholdMet = computed(() => (paymentSummary.value.totalAmount||0) >= 100)
+  // 【裁决 2026-10-10】核心判定=纯金额三态, 金额源=阶段总额年度口径(后端算好回传):
+  // core=真核心(年度双>=100万) / quasi=争核心(有数据未双达标) / ''=非核心(无数据);
+  // 五项评分不再参与判定, indicatorTotal 仅为客情参考
+  const coreType = computed(() => stageSummary.value.coreType || '')
+  const isCore = computed(() => coreType.value === 'core')
+  const coreTypeLabel = computed(() => ({ core: '真核心', quasi: '争核心' }[coreType.value] || '非核心'))
+  const annualInvoiceAmount = computed(() => Number(stageSummary.value.annualInvoiceAmount) || 0)
+  const annualPaymentAmount = computed(() => Number(stageSummary.value.annualPaymentAmount) || 0)
+  const invoiceThresholdMet = computed(() => annualInvoiceAmount.value >= 100)
+  const paymentThresholdMet = computed(() => annualPaymentAmount.value >= 100)
   const bothThresholdMet = computed(() => invoiceThresholdMet.value && paymentThresholdMet.value)
-  const isCore = computed(() => bothThresholdMet.value && indicatorTotal.value >= INDICATOR_CORE_THRESHOLD)
   const totalScore = computed(() => incentiveScore.value + (indicator.value?.relationshipScore||0))
   const expireLevel = computed(() => {
     const d = customer.value?.expireDate
@@ -117,7 +131,7 @@ export function useCustomerDetail() {
   const loadAll = async () => {
     try {
       const cRes = await getCustomer(customerId.value); customer.value = cRes.data
-      const [lRes, invRes, summRes, payRes, paySummRes, cRes2, indRes, shaRes, scoreRes] = await Promise.all([
+      const [lRes, invRes, summRes, payRes, paySummRes, cRes2, indRes, shaRes, scoreRes, stageRes] = await Promise.all([
         getCustomerLogs(customerId.value),
         canViewFinance.value ? getInvoices(customerId.value) : Promise.resolve({ data: [] }),
         canViewFinance.value ? getInvoiceSummary(customerId.value) : Promise.resolve({ data: { totalCount: 0, totalAmount: 0 } }),
@@ -125,9 +139,11 @@ export function useCustomerDetail() {
         canViewFinance.value ? getPaymentSummary(customerId.value) : Promise.resolve({ data: { totalCount: 0, totalAmount: 0 } }),
         canViewContacts.value ? getContacts(customerId.value) : Promise.resolve({ data: [] }),
         getIndicator(customerId.value), getShares(customerId.value), getScoreByCustomer(customerId.value),
+        canViewFinance.value ? getStageAmounts(customerId.value) : Promise.resolve({ data: null }),
       ])
       logs.value = lRes.data || []; invoices.value = invRes.data || []; invoiceSummary.value = summRes.data || {}
       payments.value = payRes.data || []; paymentSummary.value = paySummRes.data || {}; contacts.value = cRes2.data || []
+      if (stageRes.data) stageSummary.value = stageRes.data
       indicator.value = indRes.data; shares.value = shaRes.data || []; incentiveScore.value = scoreRes.data || 0
       if (indicator.value) {
         INDICATOR_FIELDS.forEach((f) => { indicatorForm[f.field] = indicator.value[f.field] || 0 })
@@ -183,7 +199,8 @@ export function useCustomerDetail() {
   const handleEdit = () => router.push(`/customer/edit/${customerId.value}`)
   // 【PR-18 台账状态机】确认/作废后统一刷新(金额汇总已排除 voided, 客户最近开票日/指标联动)
   // 【重构 2026-10-04】开票/回款的新增、删除四处 handler 原各自内联近似复制的 Promise.all 刷新块,统一改调本函数(取刷新超集,最终状态一致)
-  const reloadFinance = async () => { const [invRes,summRes,payRes,paySummRes,indRes,cRes] = await Promise.all([getInvoices(customerId.value),getInvoiceSummary(customerId.value),getPayments(customerId.value),getPaymentSummary(customerId.value),getIndicator(customerId.value),getCustomer(customerId.value)]); invoices.value=invRes.data||[]; invoiceSummary.value=summRes.data||{}; payments.value=payRes.data||[]; paymentSummary.value=paySummRes.data||{}; indicator.value=indRes.data; customer.value=cRes.data }
+  // 【2026-10-10】阶段总额同刷(保存阶段后保护期/判定联动)
+  const reloadFinance = async () => { const [invRes,summRes,payRes,paySummRes,indRes,cRes,stageRes] = await Promise.all([getInvoices(customerId.value),getInvoiceSummary(customerId.value),getPayments(customerId.value),getPaymentSummary(customerId.value),getIndicator(customerId.value),getCustomer(customerId.value),getStageAmounts(customerId.value)]); invoices.value=invRes.data||[]; invoiceSummary.value=summRes.data||{}; payments.value=payRes.data||[]; paymentSummary.value=paySummRes.data||{}; indicator.value=indRes.data; customer.value=cRes.data; if(stageRes.data) stageSummary.value=stageRes.data }
   const handleAddInvoice = async () => { if(!invoiceForm.invoiceDate||!invoiceForm.invoiceNumber||!invoiceForm.amount) return ElMessage.warning('请填写完整'); try { await addInvoice(customerId.value,{...invoiceForm}); ElMessage.success('已添加'); showInvoiceDialog.value=false; Object.assign(invoiceForm,{invoiceDate:'',invoiceNumber:'',invoiceType:'增值税专票',invoiceCompany:'',amount:null}); await reloadFinance() } catch(e) { notifyActionFailure(e, '开票记录保存失败') } }
   const handleDeleteInvoice = async (row) => { try { const { value } = await ElMessageBox.prompt('删除将留痕(审计快照+逻辑删),保护期自动回算。请填写删除原因(必填)', '删除开票记录', { confirmButtonText:'删除', cancelButtonText:'取消', confirmButtonClass:'el-button--danger', inputType:'textarea', inputValidator:(v)=> (v&&v.trim()) ? true : '删除原因必填' }); await deleteInvoice(customerId.value,row.id,value.trim()); ElMessage.success('已删除(已留痕)'); await reloadFinance() } catch(e) { if (e !== 'cancel' && e !== 'close') notifyActionFailure(e, '开票记录删除失败') } }
   const handleAddPayment = async () => { if(!paymentForm.paymentDate||!paymentForm.paymentAmount) return ElMessage.warning('请填写完整'); try { await addPayment(customerId.value,{...paymentForm}); ElMessage.success('已添加'); showPaymentDialog.value=false; Object.assign(paymentForm,{paymentDate:'',paymentAmount:null,paymentMethod:'',remark:''}); await reloadFinance() } catch(e) { notifyActionFailure(e, '回款记录保存失败') } }
@@ -192,6 +209,37 @@ export function useCustomerDetail() {
   const handleVoidInvoice = async (row) => { try { const { value } = await ElMessageBox.prompt('作废后该笔不再计入统计/保护期, 记录保留留痕。请填写作废原因(必填)', '作废开票记录', { confirmButtonText:'作废', cancelButtonText:'取消', confirmButtonClass:'el-button--warning', inputType:'textarea', inputValidator:(v)=> (v&&v.trim()) ? true : '作废原因必填' }); await voidInvoice(customerId.value,row.id,value.trim()); ElMessage.success('已作废'); await reloadFinance() } catch(e) { if (e !== 'cancel' && e !== 'close') notifyActionFailure(e, '开票记录作废失败') } }
   const handleConfirmPayment = async (row) => { try { await confirmPayment(customerId.value,row.id); ElMessage.success('已确认'); await reloadFinance() } catch(e) { notifyActionFailure(e, '回款确认失败') } }
   const handleVoidPayment = async (row) => { try { const { value } = await ElMessageBox.prompt('作废后该笔不再计入统计, 记录保留留痕。请填写作废原因(必填)', '作废回款记录', { confirmButtonText:'作废', cancelButtonText:'取消', confirmButtonClass:'el-button--warning', inputType:'textarea', inputValidator:(v)=> (v&&v.trim()) ? true : '作废原因必填' }); await voidPayment(customerId.value,row.id,value.trim()); ElMessage.success('已作废'); await reloadFinance() } catch(e) { if (e !== 'cancel' && e !== 'close') notifyActionFailure(e, '回款作废失败') } }
+  // 【裁决 2026-10-10】阶段总额录入(半年/全年总额制, 取代逐笔录入入口): 编辑制 upsert
+  const openStageDialog = (row) => {
+    if (row) {
+      stageForm.periodYear = row.periodYear
+      stageForm.periodType = row.periodType
+      stageForm.invoiceAmount = Number(row.invoiceAmount) || 0
+      stageForm.paymentAmount = Number(row.paymentAmount) || 0
+    } else {
+      stageForm.periodYear = new Date().getFullYear()
+      stageForm.periodType = 'H1'
+      stageForm.invoiceAmount = null
+      stageForm.paymentAmount = null
+    }
+    showStageDialog.value = true
+  }
+  const handleSaveStageAmount = async () => {
+    const inv = stageForm.invoiceAmount, pay = stageForm.paymentAmount
+    if ((inv === null || inv === undefined || Number(inv) <= 0) && (pay === null || pay === undefined || Number(pay) <= 0)) {
+      return ElMessage.warning('阶段内开票额与阶段性回款额至少填一项且大于 0')
+    }
+    try {
+      await saveStageAmount(customerId.value, {
+        periodYear: Number(stageForm.periodYear), periodType: stageForm.periodType,
+        invoiceAmount: inv === null || inv === undefined ? null : Number(inv),
+        paymentAmount: pay === null || pay === undefined ? null : Number(pay),
+      })
+      ElMessage.success('阶段数据已保存，核心判定与保护期已同步')
+      showStageDialog.value = false
+      await reloadFinance()
+    } catch (e) { notifyActionFailure(e, '阶段数据保存失败') }
+  }
   const openEditContact = (row) => { editingContact.value=row; Object.assign(contactForm,{name:row.name,position:row.position,phone:row.phone,remark:row.remark}); showContactDialog.value=true }
   const handleSaveContact = async () => { if(!contactForm.name) return ElMessage.warning('请填写姓名'); try { editingContact.value ? await updateContact(customerId.value,editingContact.value.id,{...contactForm}) : await addContact(customerId.value,{...contactForm}); ElMessage.success(editingContact.value?'已更新':'已添加'); showContactDialog.value=false; editingContact.value=null; Object.assign(contactForm,{name:'',position:'',phone:'',remark:''}); contacts.value = (await getContacts(customerId.value)).data||[] } catch(e) { notifyActionFailure(e, '联系人保存失败') } }
   const handleDeleteContact = async (row) => { try { await ElMessageBox.confirm('确认删除?','提示'); await deleteContact(customerId.value,row.id); ElMessage.success('已删除'); contacts.value = (await getContacts(customerId.value)).data||[] } catch(e) { if (e !== 'cancel' && e !== 'close') notifyActionFailure(e, '联系人删除失败') } }
@@ -226,9 +274,11 @@ export function useCustomerDetail() {
     contacts, indicator, shares, allUsers, incentiveScore, incentiveRecords, catMap,
     showInvoiceDialog, showPaymentDialog, showContactDialog, showShareDialog, shareUserIds, editingContact,
     showTransferDialog, transferUserId,
+    stageSummary, showStageDialog, stageForm, openStageDialog, handleSaveStageAmount,
     invoiceForm, paymentForm, contactForm, indicatorForm,
     avatarColor, relationshipOptions, indicatorDefs, indicatorTotal, invoiceThresholdMet,
-    paymentThresholdMet, bothThresholdMet, isCore, totalScore, expireLevel, statusLabel,
+    paymentThresholdMet, bothThresholdMet, isCore, coreType, coreTypeLabel,
+    annualInvoiceAmount, annualPaymentAmount, totalScore, expireLevel, statusLabel,
     loadAll: loadAllFn, loadDicts: loadDictsFn, loadUsers: loadUsersFn, loadIncentiveRecords,
     getMainCategory, getSubCategory, parentCodeOf, detailLabelOf, isTrialRec, scoreColor,
     parseId, getFiles, detectType, fmtDate, downloadIncentiveFile,

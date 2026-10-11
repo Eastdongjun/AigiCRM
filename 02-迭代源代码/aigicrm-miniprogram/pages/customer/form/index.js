@@ -411,6 +411,9 @@ Page({
   },
 
   shouldSaveIndicator() {
+    // 【裁决 2026-10-10】新建一律不提交指标(首次录入不体现五项区块), 指标在客户详情维护;
+    // 编辑态维持"有评分或库内已有指标行才写库"口径
+    if (!this.data.isEdit) return false
     return this.data.indicatorLoaded || sumIndicatorScore(this.data.indicatorForm) > 0
   },
 

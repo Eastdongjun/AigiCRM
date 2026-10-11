@@ -45,6 +45,10 @@ function addPayment(id, data) { return request({ url: '/api/customer/' + id + '/
 function deletePayment(id, paymentId, reason) { return request({ url: '/api/customer/' + id + '/payments/' + paymentId + '?reason=' + encodeURIComponent(reason || ''), method: 'DELETE' }) }
 function getCustomerIndicator(id) { return request({ url: '/api/customer/' + id + '/indicator' }) }
 function saveCustomerIndicator(id, data) { return request({ url: '/api/customer/' + id + '/indicator', method: 'POST', data }) }
+/** 【裁决 2026-10-10】开票回款阶段总额(半年/全年录入制): 返回 { rows, baseYear, annualInvoiceAmount, annualPaymentAmount, coreType }，
+ *  判定口径后端一处算好(真核心/争核心/非核心)，前端只消费不复刻 */
+function getCustomerStageAmounts(id) { return request({ url: '/api/customer/' + id + '/stage-amounts' }) }
+function saveCustomerStageAmount(id, data) { return request({ url: '/api/customer/' + id + '/stage-amounts', method: 'POST', data }) }
 function saveCustomerRelationship(id, score) { return request({ url: '/api/customer/' + id + '/relationship', method: 'PUT', data: { score } }) }
 function releaseCustomer(id, reason) { return request({ url: '/api/customer/' + id + '/release', method: 'POST', data: { reason: reason || '移动端释放' } }) }
 // 【闭环 2026-10-09 用户反馈】删除拒删指引原指向不存在的"停用";归档=停止跟进的真实入口
@@ -82,6 +86,8 @@ module.exports = {
   deletePayment,
   getCustomerIndicator,
   saveCustomerIndicator,
+  getCustomerStageAmounts,
+  saveCustomerStageAmount,
   saveCustomerRelationship,
   releaseCustomer,
   archiveCustomer

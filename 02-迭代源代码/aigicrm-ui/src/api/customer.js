@@ -30,6 +30,16 @@ export function updateCustomerWithIndicator(id, data) {
   return request.put(`/customer/${id}/full`, data)
 }
 
+// 【裁决 2026-10-10】开票回款阶段总额(半年/全年录入制, 取代逐笔录入入口):
+// GET 返回 { rows, baseYear, annualInvoiceAmount, annualPaymentAmount, coreType }——判定口径后端一处算好
+export function getStageAmounts(id) {
+  return request.get(`/customer/${id}/stage-amounts`)
+}
+
+export function saveStageAmount(id, data) {
+  return request.post(`/customer/${id}/stage-amounts`, data)
+}
+
 export function deleteCustomer(id) {
   return request.delete(`/customer/${id}`)
 }

@@ -47,6 +47,7 @@ public class CustomerService {
     private final BizCustomerIndicatorMapper indicatorMapper;
     private final BizContactMapper contactMapper;
     private final BizPaymentMapper paymentMapper;
+    private final BizCustomerStageAmountMapper stageAmountMapper;
     private final SysUserMapper userMapper;
     private final SysDeptMapper deptMapper;
     private final BizReminderMapper reminderMapper;
@@ -1007,22 +1008,24 @@ public class CustomerService {
     }
 
     private List<Map<String, Object>> customerCoreIndicatorRanking() {
+        // 【裁决 2026-10-10】金额源换阶段总额年度口径(逐笔发票/回款不再参与判定, 顺带消除旧 SQL
+        // 漏排除 voided 的口径差异); 真核心/争核心三态直接取 indicator.core_type 落库标记
+        // (与 recalculateCoreStatus 同源)。年度金额=最近有数据年, 全年行有数据优先否则 H1+H2。
         java.util.List<Object> args = new java.util.ArrayList<>();
-        String gcOuter = groupCondition("c", args);
-        // 子查询开票/回款同样按集团过滤（参数顺序与 SQL 出现顺序一致：inv、pay 在外层条件之前）
-        String gcInv;
-        String gcPay;
+        // 参数顺序与 SQL 占位符出现顺序一致: ann 子查询 tenant 条件在前, 外层 gc 在后(两值相同, 仍按序绑定)
+        String gcAnn;
+        String gcOuter;
         if (com.aigicrm.security.SecurityUtils.isAdmin()) {
-            gcInv = "";
-            gcPay = "";
+            gcAnn = "";
+            gcOuter = "";
         } else {
             Long g = com.aigicrm.common.scope.GroupScopeUtil.currentGroupOrNull();
             if (g == null) {
-                gcInv = "";
-                gcPay = "";
+                gcAnn = "";
+                gcOuter = " AND 1=0";
             } else {
-                gcInv = " AND tenant_id = ?";
-                gcPay = " AND tenant_id = ?";
+                gcAnn = " AND tenant_id = ?";
+                gcOuter = " AND c.tenant_id = ?";
                 args.add(g);
                 args.add(g);
             }
@@ -1035,23 +1038,36 @@ public class CustomerService {
                        COALESCE(i.indicator_03, 0) AS indicator03,
                        COALESCE(i.indicator_04, 0) AS indicator04,
                        COALESCE(i.indicator_05, 0) AS indicator05,
-                       COALESCE(inv.invoiceAmount, 0) AS invoiceAmount,
-                       COALESCE(pay.paymentAmount, 0) AS paymentAmount,
+                       COALESCE(ann.invoiceAmount, 0) AS invoiceAmount,
+                       COALESCE(ann.paymentAmount, 0) AS paymentAmount,
                        (COALESCE(i.relationship_score, 0) + COALESCE(i.indicator_02, 0) + COALESCE(i.indicator_03, 0)
                         + COALESCE(i.indicator_04, 0) + COALESCE(i.indicator_05, 0)) AS totalScore,
-                       CASE WHEN COALESCE(inv.invoiceAmount, 0) >= 100 AND COALESCE(pay.paymentAmount, 0) >= 100
-                             AND (COALESCE(i.relationship_score, 0) + COALESCE(i.indicator_02, 0) + COALESCE(i.indicator_03, 0)
-                                  + COALESCE(i.indicator_04, 0) + COALESCE(i.indicator_05, 0)) >= 12
-                            THEN 1 ELSE 0 END AS coreCustomer
+                       COALESCE(i.core_type, '') AS coreType,
+                       CASE WHEN COALESCE(i.core_type, '') = 'core' THEN 1 ELSE 0 END AS coreCustomer
                 FROM biz_customer c
                 JOIN biz_customer_indicator i ON i.customer_id = c.id
                 LEFT JOIN sys_user owner ON owner.id = c.owner_id
-                LEFT JOIN (SELECT customer_id, SUM(amount) AS invoiceAmount FROM biz_invoice WHERE deleted = 0"""
-                + gcInv + " GROUP BY customer_id) inv ON inv.customer_id = c.id\n"
-                + "                LEFT JOIN (SELECT customer_id, SUM(payment_amount) AS paymentAmount FROM biz_payment WHERE deleted = 0"
-                + gcPay + " GROUP BY customer_id) pay ON pay.customer_id = c.id\n"
-                + "                WHERE c.deleted = 0" + gcOuter + "\n"
-                + """
+                LEFT JOIN (
+                  SELECT b.customer_id,
+                         CASE WHEN fy.id IS NOT NULL THEN fy.invoice_amount
+                              ELSE IFNULL(h1.invoice_amount, 0) + IFNULL(h2.invoice_amount, 0) END AS invoiceAmount,
+                         CASE WHEN fy.id IS NOT NULL THEN fy.payment_amount
+                              ELSE IFNULL(h1.payment_amount, 0) + IFNULL(h2.payment_amount, 0) END AS paymentAmount
+                  FROM (
+                    SELECT customer_id, MAX(period_year) AS y
+                    FROM biz_customer_stage_amount
+                    WHERE deleted = 0 AND (invoice_amount > 0 OR payment_amount > 0)""" + gcAnn + "\n" + """
+                    GROUP BY customer_id
+                  ) b
+                  LEFT JOIN biz_customer_stage_amount fy ON fy.customer_id = b.customer_id AND fy.period_year = b.y
+                       AND fy.period_type = 'FY' AND fy.deleted = 0
+                       AND (fy.invoice_amount > 0 OR fy.payment_amount > 0)
+                  LEFT JOIN biz_customer_stage_amount h1 ON h1.customer_id = b.customer_id AND h1.period_year = b.y
+                       AND h1.period_type = 'H1' AND h1.deleted = 0
+                  LEFT JOIN biz_customer_stage_amount h2 ON h2.customer_id = b.customer_id AND h2.period_year = b.y
+                       AND h2.period_type = 'H2' AND h2.deleted = 0
+                ) ann ON ann.customer_id = c.id
+                WHERE c.deleted = 0""" + gcOuter + "\n" + """
                   AND (COALESCE(i.relationship_score, 0) + COALESCE(i.indicator_02, 0) + COALESCE(i.indicator_03, 0)
                        + COALESCE(i.indicator_04, 0) + COALESCE(i.indicator_05, 0)) > 0
                 ORDER BY totalScore DESC, coreCustomer DESC, customerName ASC
@@ -1429,6 +1445,10 @@ public class CustomerService {
     public void saveIndicator(Long customerId, BizCustomerIndicator data) {
         data.setCustomerId(customerId);
         data.setUpdatedBy(SecurityUtils.getCurrentUserId());
+        // 【裁决 2026-10-10】核心三态只能由 recalculateCoreStatus 判定写入;
+        // updateById 跳过 null 字段, 显式置空即屏蔽域外输入对 core_type/is_core 的覆盖
+        data.setCoreType(null);
+        data.setIsCore(null);
 
         BizCustomerIndicator existing = getIndicator(customerId);
         if (existing != null) {
@@ -1484,24 +1504,208 @@ public class CustomerService {
         recalculateCoreStatus(customerId);
     }
 
+    /** 【裁决 2026-10-10】核心客户年度门槛(万元): 开票、回款均 >= 100 万/年。
+     *  与 StatisticsQueryService.CORE_THRESHOLD、MP shared.js 同口径, 改动须三处同步。 */
+    private static final BigDecimal CORE_ANNUAL_THRESHOLD = new BigDecimal("100");
+
+    /**
+     * 【裁决 2026-10-10】核心客户三态判定(纯金额门槛, 五项评分不再参与, 保留为客情参考)。
+     * 年度口径 = 最近有数据年(全年行有数据时优先取全年行, 否则上半年+下半年合计):
+     *   core  = 真核心: 基准年开票 >= 100 万 且 回款 >= 100 万;
+     *   quasi = 争核心: 有阶段数据但未双达标;
+     *   ''    = 非核心: 无任何有数据阶段行(开票、回款均 <= 0 的行不算数据)。
+     * 与迁移 V2026.10.10.1 回填口径同源, 改动须两处同步。
+     */
+    private String computeCoreType(Long customerId) {
+        List<BizCustomerStageAmount> rows = stageAmountMapper.selectList(
+                new LambdaQueryWrapper<BizCustomerStageAmount>()
+                        .eq(BizCustomerStageAmount::getCustomerId, customerId));
+        int baseYear = rows.stream()
+                .filter(r -> isPositiveAmount(r.getInvoiceAmount()) || isPositiveAmount(r.getPaymentAmount()))
+                .mapToInt(BizCustomerStageAmount::getPeriodYear).max().orElse(0);
+        if (baseYear == 0) return "";
+        BigDecimal invoice;
+        BigDecimal payment;
+        BizCustomerStageAmount fy = rows.stream()
+                .filter(r -> r.getPeriodYear() == baseYear && "FY".equals(r.getPeriodType())
+                        && (isPositiveAmount(r.getInvoiceAmount()) || isPositiveAmount(r.getPaymentAmount())))
+                .findFirst().orElse(null);
+        if (fy != null) {
+            invoice = fy.getInvoiceAmount();
+            payment = fy.getPaymentAmount();
+        } else {
+            BigDecimal[] halves = rows.stream()
+                    .filter(r -> r.getPeriodYear() == baseYear && ("H1".equals(r.getPeriodType()) || "H2".equals(r.getPeriodType())))
+                    .reduce(new BigDecimal[]{BigDecimal.ZERO, BigDecimal.ZERO},
+                            (acc, r) -> {
+                                acc[0] = acc[0].add(r.getInvoiceAmount() == null ? BigDecimal.ZERO : r.getInvoiceAmount());
+                                acc[1] = acc[1].add(r.getPaymentAmount() == null ? BigDecimal.ZERO : r.getPaymentAmount());
+                                return acc;
+                            },
+                            (a, b) -> a);
+            invoice = halves[0];
+            payment = halves[1];
+        }
+        boolean invoiceMet = invoice != null && invoice.compareTo(CORE_ANNUAL_THRESHOLD) >= 0;
+        boolean paymentMet = payment != null && payment.compareTo(CORE_ANNUAL_THRESHOLD) >= 0;
+        return invoiceMet && paymentMet ? "core" : "quasi";
+    }
+
+    private boolean isPositiveAmount(BigDecimal v) {
+        return v != null && v.signum() > 0;
+    }
+
+    /** 核心三态落库(含 is_core 兼容列同步)。判定与五项解耦后, 无指标行的客户也自动建行落标记。 */
     private void recalculateCoreStatus(Long customerId) {
-        BigDecimal invoiceAmount = invoiceMapper.sumAmountByCustomerId(customerId);
-        BigDecimal paymentAmount = paymentMapper.sumAmountByCustomerId(customerId);
+        String coreType = computeCoreType(customerId);
         BizCustomerIndicator indicator = getIndicator(customerId);
-        if (indicator == null) return;
-
-        int indicatorSum = zeroIfNull(indicator.getRelationshipScore()) + zeroIfNull(indicator.getIndicator02())
-                + zeroIfNull(indicator.getIndicator03()) + zeroIfNull(indicator.getIndicator04())
-                + zeroIfNull(indicator.getIndicator05());
-
-        boolean thresholdMet = invoiceAmount.compareTo(new BigDecimal("100")) >= 0
-                && paymentAmount.compareTo(new BigDecimal("100")) >= 0;
-        boolean isCore = thresholdMet && indicatorSum >= 12;
-        indicator.setIsCore(isCore ? 1 : 0);
+        if (indicator == null) {
+            indicator = new BizCustomerIndicator();
+            indicator.setCustomerId(customerId);
+            indicator.setCoreType(coreType);
+            indicator.setIsCore("core".equals(coreType) ? 1 : 0);
+            indicator.setUpdatedBy(SecurityUtils.getCurrentUserId());
+            indicatorMapper.insert(indicator);
+            return;
+        }
+        indicator.setCoreType(coreType);
+        indicator.setIsCore("core".equals(coreType) ? 1 : 0);
         indicatorMapper.updateById(indicator);
     }
 
     private int zeroIfNull(Integer val) { return val == null ? 0 : val; }
+
+    // ====== 阶段开票回款(2026-10-10 半年/全年总额录入制) ======
+
+    private static final Set<String> PERIOD_TYPES = Set.of("H1", "H2", "FY");
+    private static final int PERIOD_YEAR_MIN = 2000;
+
+    /** 周期展示名: 与用户口径一致——2026上半年 / 2026下半年 / 2026全年 */
+    private String periodLabel(int year, String type) {
+        String suffix = switch (type) {
+            case "H1" -> "上半年";
+            case "H2" -> "下半年";
+            default -> "全年";
+        };
+        return year + suffix;
+    }
+
+    /**
+     * 阶段列表 + 判定摘要(一处算好, PC/MP 两端直接展示, 避免口径两端复刻漂移)。
+     * 返回: rows(年倒序, 年内 全年>下半年>上半年), baseYear/annualInvoiceAmount/annualPaymentAmount/coreType。
+     */
+    public Map<String, Object> getStageAmountSummary(Long customerId) {
+        List<BizCustomerStageAmount> rows = stageAmountMapper.selectList(
+                new LambdaQueryWrapper<BizCustomerStageAmount>()
+                        .eq(BizCustomerStageAmount::getCustomerId, customerId));
+        Map<String, String> nameById = new HashMap<>();
+        rows.stream().map(BizCustomerStageAmount::getUpdatedBy).filter(Objects::nonNull).distinct().forEach(uid -> {
+            SysUser u = userMapper.selectById(uid);
+            if (u != null) nameById.put(String.valueOf(uid), u.getRealName());
+        });
+        rows.forEach(r -> {
+            r.setPeriodLabel(periodLabel(r.getPeriodYear(), r.getPeriodType()));
+            r.setUpdatedByName(r.getUpdatedBy() == null ? null : nameById.get(String.valueOf(r.getUpdatedBy())));
+        });
+        // 年倒序; 年内 全年(FY) > 下半年(H2) > 上半年(H1)
+        rows.sort((a, b) -> {
+            int byYear = Integer.compare(b.getPeriodYear(), a.getPeriodYear());
+            if (byYear != 0) return byYear;
+            return Integer.compare(periodRank(b.getPeriodType()), periodRank(a.getPeriodType()));
+        });
+
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("rows", rows);
+        result.put("coreType", computeCoreType(customerId));
+        result.put("baseYear", 0);
+        result.put("annualInvoiceAmount", BigDecimal.ZERO);
+        result.put("annualPaymentAmount", BigDecimal.ZERO);
+        // 基准年与年度金额摘要(与 computeCoreType 同口径, 展示判定头用)
+        int baseYear = rows.stream()
+                .filter(r -> isPositiveAmount(r.getInvoiceAmount()) || isPositiveAmount(r.getPaymentAmount()))
+                .mapToInt(BizCustomerStageAmount::getPeriodYear).max().orElse(0);
+        if (baseYear > 0) {
+            result.put("baseYear", baseYear);
+            List<BizCustomerStageAmount> yearRows = rows.stream()
+                    .filter(r -> r.getPeriodYear() == baseYear).toList();
+            boolean fyExists = yearRows.stream().anyMatch(r -> "FY".equals(r.getPeriodType())
+                    && (isPositiveAmount(r.getInvoiceAmount()) || isPositiveAmount(r.getPaymentAmount())));
+            List<BizCustomerStageAmount> basis = fyExists
+                    ? yearRows.stream().filter(r -> "FY".equals(r.getPeriodType())).toList()
+                    : yearRows.stream().filter(r -> "H1".equals(r.getPeriodType()) || "H2".equals(r.getPeriodType())).toList();
+            result.put("annualInvoiceAmount", basis.stream().map(r -> nvl(r.getInvoiceAmount())).reduce(BigDecimal.ZERO, BigDecimal::add));
+            result.put("annualPaymentAmount", basis.stream().map(r -> nvl(r.getPaymentAmount())).reduce(BigDecimal.ZERO, BigDecimal::add));
+        }
+        return result;
+    }
+
+    private BigDecimal nvl(BigDecimal v) { return v == null ? BigDecimal.ZERO : v; }
+
+    private int periodRank(String type) {
+        return switch (type == null ? "" : type) { case "H1" -> 1; case "H2" -> 2; default -> 3; };
+    }
+
+    /**
+     * 保存(录入/修改)一个周期的阶段总额。编辑制 upsert: 唯一键(customer, year, type)+FOR UPDATE 行锁,
+     * 并发下读到-写入串行化。金额单位万元, 至少一项 > 0; 未填的一项按 0(即"该周期无回款"也是合法录入)。
+     * 审计: 改动快照落 sys_log。保护期接力: 开票额>0 时以阶段末日期(H1→6-30, H2/FY→12-31, 不晚于今天)
+     * 前移刷新 lastInvoiceDate(只前进不后退) 并重算到期日——逐笔录入下线后保护期由阶段录入接力。
+     */
+    @Transactional
+    public void saveStageAmount(Long customerId, com.aigicrm.module.customer.dto.StageAmountRequest req) {
+        BizCustomer customer = customerMapper.selectById(customerId);
+        if (customer == null) throw new BusinessException("客户不存在");
+        String type = req.periodType() == null ? "" : req.periodType().trim();
+        if (!PERIOD_TYPES.contains(type)) throw new BusinessException("周期类型无效(须为 上半年/下半年/全年)");
+        int year = req.periodYear() == null ? 0 : req.periodYear();
+        if (year < PERIOD_YEAR_MIN || year > LocalDate.now().getYear() + 1)
+            throw new BusinessException("周期年份无效");
+        BigDecimal invoice = nvl(req.invoiceAmount()).setScale(2, java.math.RoundingMode.HALF_UP);
+        BigDecimal payment = nvl(req.paymentAmount()).setScale(2, java.math.RoundingMode.HALF_UP);
+        if (invoice.signum() < 0 || payment.signum() < 0) throw new BusinessException("金额不能为负数");
+        if (invoice.signum() == 0 && payment.signum() == 0)
+            throw new BusinessException("阶段内开票额与阶段性回款额至少填一项且大于 0");
+        if (invoice.compareTo(new BigDecimal("999999999999.99")) > 0
+                || payment.compareTo(new BigDecimal("999999999999.99")) > 0)
+            throw new BusinessException("金额超出上限");
+
+        BizCustomerStageAmount existing = stageAmountMapper.selectByPeriodForUpdate(customerId, year, type);
+        String before = existing == null ? "无(首次录入)"
+                : "开票 " + existing.getInvoiceAmount() + " 万 / 回款 " + existing.getPaymentAmount() + " 万";
+        Long uid = SecurityUtils.getCurrentUserId();
+        if (existing == null) {
+            BizCustomerStageAmount row = new BizCustomerStageAmount();
+            row.setCustomerId(customerId);
+            row.setPeriodYear(year);
+            row.setPeriodType(type);
+            row.setInvoiceAmount(invoice);
+            row.setPaymentAmount(payment);
+            row.setCreatedBy(uid);
+            row.setUpdatedBy(uid);
+            stageAmountMapper.insert(row);
+        } else {
+            existing.setInvoiceAmount(invoice);
+            existing.setPaymentAmount(payment);
+            existing.setUpdatedBy(uid);
+            stageAmountMapper.updateById(existing);
+        }
+        logRecordDeletion("客户", "保存阶段开票回款", "stage_amount", customerId,
+                periodLabel(year, type) + ": " + before + " → 开票 " + invoice + " 万 / 回款 " + payment + " 万; customerId=" + customerId);
+
+        if (invoice.signum() > 0) {
+            LocalDate periodEnd = "H1".equals(type)
+                    ? LocalDate.of(year, 6, 30) : LocalDate.of(year, 12, 31);
+            // 提前录入进行中的周期时按今天封顶, 防止把保护期推到未来
+            LocalDate effective = periodEnd.isAfter(LocalDate.now()) ? LocalDate.now() : periodEnd;
+            LocalDate current = customer.getLastInvoiceDate();
+            if (current == null || effective.isAfter(current)) {
+                customer.setLastInvoiceDate(effective);
+                calculateExpireDates(customer);
+                customerMapper.updateById(customer);
+            }
+        }
+        recalculateCoreStatus(customerId);
+    }
 
     // ====== 客户分享 ======
 

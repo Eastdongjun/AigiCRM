@@ -83,8 +83,8 @@ class StatisticsQueryServiceTest {
     @Mock private com.aigicrm.module.incentive.service.IncentiveService incentiveService;
     @Mock private BizFileMapper fileMapper;
     @Mock private BizCustomerIndicatorMapper indicatorMapper;
-    @Mock private BizInvoiceMapper invoiceMapper;
-    @Mock private BizPaymentMapper paymentMapper;
+    // 【裁决 2026-10-10】判定金额源换阶段总额(invoice/payment mapper 已从 service 移除)
+    @Mock private com.aigicrm.module.customer.mapper.BizCustomerStageAmountMapper stageAmountMapper;
     @Mock private SysUserMapper userMapper;
     @Mock private SysDeptMapper deptMapper;
     @Mock private SysLogMapper sysLogMapper;
@@ -153,8 +153,7 @@ class StatisticsQueryServiceTest {
         customer.setOwnerId(8L);
         when(customerService.getAllActiveCustomers()).thenReturn(List.of(customer));
         when(indicatorMapper.selectList(null)).thenReturn(List.of());
-        when(invoiceMapper.selectList(org.mockito.ArgumentMatchers.<com.baomidou.mybatisplus.core.conditions.Wrapper<com.aigicrm.module.customer.entity.BizInvoice>>any())).thenReturn(List.of());
-        when(paymentMapper.selectList(org.mockito.ArgumentMatchers.<com.baomidou.mybatisplus.core.conditions.Wrapper<com.aigicrm.module.customer.entity.BizPayment>>any())).thenReturn(List.of());
+        when(stageAmountMapper.selectList(org.mockito.ArgumentMatchers.any())).thenReturn(List.of());
 
         try (MockedStatic<SecurityUtils> security = org.mockito.Mockito.mockStatic(SecurityUtils.class)) {
             security.when(SecurityUtils::getCurrentUserId).thenReturn(7L);
@@ -197,8 +196,7 @@ class StatisticsQueryServiceTest {
         otherIndicator.setIndicator04(1);
         otherIndicator.setIndicator05(2);
         when(indicatorMapper.selectList(null)).thenReturn(List.of(mineIndicator, otherIndicator));
-        when(invoiceMapper.selectList(org.mockito.ArgumentMatchers.<com.baomidou.mybatisplus.core.conditions.Wrapper<com.aigicrm.module.customer.entity.BizInvoice>>any())).thenReturn(List.of());
-        when(paymentMapper.selectList(org.mockito.ArgumentMatchers.<com.baomidou.mybatisplus.core.conditions.Wrapper<com.aigicrm.module.customer.entity.BizPayment>>any())).thenReturn(List.of());
+        when(stageAmountMapper.selectList(org.mockito.ArgumentMatchers.any())).thenReturn(List.of());
 
         try (MockedStatic<SecurityUtils> security = org.mockito.Mockito.mockStatic(SecurityUtils.class)) {
             security.when(SecurityUtils::getCurrentUserId).thenReturn(7L);
@@ -248,8 +246,7 @@ class StatisticsQueryServiceTest {
         // indicatorStats(客情/指标排行)内部依赖: 全空,聚焦激励排行断言
         when(customerService.getAllActiveCustomers()).thenReturn(List.of());
         when(indicatorMapper.selectList(null)).thenReturn(List.of());
-        when(invoiceMapper.selectList(org.mockito.ArgumentMatchers.<com.baomidou.mybatisplus.core.conditions.Wrapper<com.aigicrm.module.customer.entity.BizInvoice>>any())).thenReturn(List.of());
-        when(paymentMapper.selectList(org.mockito.ArgumentMatchers.<com.baomidou.mybatisplus.core.conditions.Wrapper<com.aigicrm.module.customer.entity.BizPayment>>any())).thenReturn(List.of());
+        when(stageAmountMapper.selectList(org.mockito.ArgumentMatchers.any())).thenReturn(List.of());
 
         var result = service.customerRankings(null);
 
@@ -289,13 +286,53 @@ class StatisticsQueryServiceTest {
                 ((LambdaQueryWrapper<SysLog>) wrapper).getSqlSegment().contains("user_id")));
     }
 
+    /** 【裁决 2026-10-10】核心三态=纯金额门槛(年度开票/回款双>=100万=core; 有数据未双达标=quasi)。
+     *  五项评分不再参与判定(旧 isCoreCustomer 的 score>=12 条件废除)。 */
     @Test
-    void coreCustomer_requiresScoreAndBothFinancialThresholds() {
-        assertTrue(StatisticsQueryService.isCoreCustomer(12, money("100"), money("100")));
-        assertTrue(StatisticsQueryService.isCoreCustomer(15, money("120"), money("150")));
-        assertFalse(StatisticsQueryService.isCoreCustomer(11, money("100"), money("100")));
-        assertFalse(StatisticsQueryService.isCoreCustomer(12, money("99.99"), money("100")));
-        assertFalse(StatisticsQueryService.isCoreCustomer(12, money("100"), money("99.99")));
+    void coreType_pureAmountThresholds() {
+        assertEquals("core", StatisticsQueryService.coreTypeOf(money("100"), money("100")));
+        assertEquals("core", StatisticsQueryService.coreTypeOf(money("120"), money("150")));
+        assertEquals("quasi", StatisticsQueryService.coreTypeOf(money("99.99"), money("100")));
+        assertEquals("quasi", StatisticsQueryService.coreTypeOf(money("100"), money("99.99")));
+        assertEquals("quasi", StatisticsQueryService.coreTypeOf(money("5"), money("0")));
+    }
+
+    /** 年度口径: 最近有数据年 + 全年行有数据优先, 否则上半年+下半年合计; 两值均 0 的行不算数据 */
+    @Test
+    void annualAmounts_latestDataYear_fullYearRowPreferred() {
+        var row = new com.aigicrm.module.customer.entity.BizCustomerStageAmount();
+        java.util.function.BiFunction<Integer, String, com.aigicrm.module.customer.entity.BizCustomerStageAmount> mk =
+                (year, type) -> {
+                    var r = new com.aigicrm.module.customer.entity.BizCustomerStageAmount();
+                    r.setCustomerId(101L);
+                    r.setPeriodYear(year);
+                    r.setPeriodType(type);
+                    r.setInvoiceAmount(BigDecimal.ZERO);
+                    r.setPaymentAmount(BigDecimal.ZERO);
+                    return r;
+                };
+        var h1 = mk.apply(2026, "H1"); h1.setInvoiceAmount(money("60")); h1.setPaymentAmount(money("50"));
+        var h2 = mk.apply(2026, "H2"); h2.setInvoiceAmount(money("80")); h2.setPaymentAmount(money("70"));
+        var oldFy = mk.apply(2025, "FY"); oldFy.setInvoiceAmount(money("999")); oldFy.setPaymentAmount(money("999"));
+        var zeroRow = mk.apply(2027, "H1"); // 两值均 0: 不算数据, 不得抬基准年
+        var ann = StatisticsQueryService.annualAmountsByCustomer(java.util.List.of(h1, h2, oldFy, zeroRow));
+        // 基准年=2026(有数据), 无 FY 行 → H1+H2 = 开票140/回款120
+        assertEquals(money("140"), ann.get(101L)[0]);
+        assertEquals(money("120"), ann.get(101L)[1]);
+
+        var fy = mk.apply(2026, "FY"); fy.setInvoiceAmount(money("130")); fy.setPaymentAmount(money("90"));
+        var ann2 = StatisticsQueryService.annualAmountsByCustomer(java.util.List.of(h1, h2, fy));
+        // FY 行有数据 → 优先于 H1+H2(全年行是年末权威汇总, 可与半年合计不等)
+        assertEquals(money("130"), ann2.get(101L)[0]);
+        assertEquals(money("90"), ann2.get(101L)[1]);
+
+        // 全年行两值全 0 → 不算数据, 回落 H1+H2
+        var fyZero = mk.apply(2026, "FY");
+        var ann3 = StatisticsQueryService.annualAmountsByCustomer(java.util.List.of(h1, h2, fyZero));
+        assertEquals(money("140"), ann3.get(101L)[0]);
+        // 只有全 0 行的客户不进结果(无数据=非核心, 调用方以 null 判非核心)
+        org.junit.jupiter.api.Assertions.assertFalse(
+                StatisticsQueryService.annualAmountsByCustomer(java.util.List.of(zeroRow)).containsKey(101L));
     }
 
     @Test
@@ -335,34 +372,22 @@ class StatisticsQueryServiceTest {
 
 
     /**
-     * 【PR-18 统计口径】指标统计的开票/回款聚合必须排除已作废(voided)台账——
-     * 作废记录只留痕不计入金额。断言下发到 Mapper 的查询条件包含 status <> 'voided'
-     * (与既有 uploader_id 范围断言同风格, 防口径回退)。
+     * 【裁决 2026-10-10】判定金额源必须是阶段总额表(biz_customer_stage_amount), 不再逐笔聚合发票/回款
+     * (逐笔录入入口已下线改只读历史; 旧"排除 voided"口径随之作废——阶段表无作废概念)。
+     * 断言 indicatorStats 下发 stageAmountMapper.selectList(防金额源回退到逐笔)。
      */
     @Test
-    void indicatorStatsExcludesVoidedLedgerFromTotals() {
+    void indicatorStatsUsesStageAmountTableAsAmountSource() {
         when(customerService.getAllActiveCustomers()).thenReturn(List.of());
         when(indicatorMapper.selectList(null)).thenReturn(List.of());
-        when(invoiceMapper.selectList(org.mockito.ArgumentMatchers.<com.baomidou.mybatisplus.core.conditions.Wrapper<com.aigicrm.module.customer.entity.BizInvoice>>any())).thenReturn(List.of());
-        when(paymentMapper.selectList(org.mockito.ArgumentMatchers.<com.baomidou.mybatisplus.core.conditions.Wrapper<com.aigicrm.module.customer.entity.BizPayment>>any())).thenReturn(List.of());
+        when(stageAmountMapper.selectList(org.mockito.ArgumentMatchers.any())).thenReturn(List.of());
 
         try (MockedStatic<SecurityUtils> security = org.mockito.Mockito.mockStatic(SecurityUtils.class)) {
             security.when(SecurityUtils::getCurrentUserId).thenReturn(7L);
 
             service.indicatorStats();
 
-            org.mockito.Mockito.verify(invoiceMapper).selectList(
-                    org.mockito.ArgumentMatchers.argThat(w ->
-                            w != null && ((com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<?>) w)
-                                    .getSqlSegment().contains("status")
-                            && ((com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<?>) w)
-                                    .getParamNameValuePairs().containsValue("voided")));
-            org.mockito.Mockito.verify(paymentMapper).selectList(
-                    org.mockito.ArgumentMatchers.argThat(w ->
-                            w != null && ((com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<?>) w)
-                                    .getSqlSegment().contains("status")
-                            && ((com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<?>) w)
-                                    .getParamNameValuePairs().containsValue("voided")));
+            org.mockito.Mockito.verify(stageAmountMapper).selectList(org.mockito.ArgumentMatchers.any());
         }
     }
 
@@ -386,8 +411,7 @@ class StatisticsQueryServiceTest {
         otherIndicator.setCustomerId(101L);
         otherIndicator.setRelationshipScore(3);
         when(indicatorMapper.selectList(null)).thenReturn(java.util.List.of(mineIndicator, otherIndicator));
-        when(invoiceMapper.selectList(org.mockito.ArgumentMatchers.<com.baomidou.mybatisplus.core.conditions.Wrapper<com.aigicrm.module.customer.entity.BizInvoice>>any())).thenReturn(java.util.List.of());
-        when(paymentMapper.selectList(org.mockito.ArgumentMatchers.<com.baomidou.mybatisplus.core.conditions.Wrapper<com.aigicrm.module.customer.entity.BizPayment>>any())).thenReturn(java.util.List.of());
+        when(stageAmountMapper.selectList(org.mockito.ArgumentMatchers.any())).thenReturn(java.util.List.of());
 
         try (org.mockito.MockedStatic<com.aigicrm.security.SecurityUtils> security = org.mockito.Mockito.mockStatic(com.aigicrm.security.SecurityUtils.class)) {
             security.when(com.aigicrm.security.SecurityUtils::getCurrentUserId).thenReturn(7L);

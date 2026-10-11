@@ -59,8 +59,12 @@ const buildIndicatorItems = (form) => INDICATOR_ITEMS.map((item) => {
 
 // ===== 核心客户判定阈值（单一出处；与 PC 端 aigicrm-ui/src/utils/customer-fields.js 同口径） =====
 
-/** 核心客户判定业务口径：开票、回款累计金额均 >= 100 万（单位：万元，硬门槛），
- *  且客情五项评分合计 >= 12 分（满分 15 分）。改动阈值须与 PC 端同步。 */
+/** 【裁决 2026-10-10】核心客户三态=纯金额门槛(与后端 CustomerService/StatisticsQueryService 同口径):
+ *  真核心 core   = 判定年度(最近有数据年, 全年行优先否则上半年+下半年合计)开票、回款均 >= 100 万;
+ *  争核心 quasi  = 有阶段数据但未双达标;
+ *  非核心 ''     = 无任何有数据阶段行。
+ *  五项评分不再参与判定(保留为客情参考, 12 分线仅作"良好/参考"提示);
+ *  判定结果由后端按阶段总额(biz_customer_stage_amount)一处算好回传, 前端只消费 coreType。 */
 const CORE_INVOICE_AMOUNT_THRESHOLD = 100
 const CORE_PAYMENT_AMOUNT_THRESHOLD = 100
 const CORE_INDICATOR_SCORE_THRESHOLD = 12
@@ -68,8 +72,14 @@ const CORE_INDICATOR_SCORE_THRESHOLD = 12
 /** 五项评分满分（5 项 × 3 分），详情页「x / 15」展示用 */
 const INDICATOR_MAX_SCORE = 15
 
-/** 表单/指标维护页的门槛提示文案：由常量拼装，wxml 不再硬编码数字 */
-const CORE_THRESHOLD_TIP = `开票、回款均 >= ${CORE_INVOICE_AMOUNT_THRESHOLD} 万；五项总分 >= ${CORE_INDICATOR_SCORE_THRESHOLD} 分为核心客户。`
+/** 核心三态展示标签(与后端 core_type 枚举一一对应) */
+function coreTypeLabel(coreType) {
+  return coreType === 'core' ? '真核心' : coreType === 'quasi' ? '争核心' : '非核心'
+}
+
+/** 表单/指标维护页的门槛提示文案：由常量拼装，wxml 不再硬编码数字。
+ *  【2026-10-10】核心判定已改纯金额三态, 此处文案同步(五项为客情参考)。 */
+const CORE_THRESHOLD_TIP = `核心判定（2026-10-10 起）：年度开票、回款均 >= ${CORE_INVOICE_AMOUNT_THRESHOLD} 万为真核心，有阶段数据未双达标为争核心。五项评分为客情参考，不参与判定。`
 
 // ===== 表单页返回兜底（各表单 goBack 共用；栈内多页正常返回，直达页跳回 fallback） =====
 
@@ -161,6 +171,7 @@ module.exports = {
   CORE_INDICATOR_SCORE_THRESHOLD,
   INDICATOR_MAX_SCORE,
   CORE_THRESHOLD_TIP,
+  coreTypeLabel,
   navigateBackWithFallback,
   CUSTOMER_FILTER_DRAFT_KEY,
   CUSTOMER_FILTER_DRAFT_FIELDS,
