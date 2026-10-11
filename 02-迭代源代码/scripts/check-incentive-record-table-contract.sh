@@ -81,7 +81,12 @@ assert_contains "$API" "/incentive/records"
 assert_contains "$CONTROLLER" "@PutMapping(\"/records/{id}\")"
 assert_contains "$CONTROLLER" "@DeleteMapping(\"/records/{id}\")"
 assert_contains "$CONTROLLER" "SecurityUser user = SecurityUtils.getCurrentUser()"
-assert_contains "$CONTROLLER" "if (!isAdmin && !incentiveService.canEdit())"
+# 【2026-10-11 钉随重构】2c1c5c62 把 updateRecord/removeFile 两段复制粘贴编辑守卫收敛为
+# 共享 assertCanEditRecord(防单边改动致两接口口径漂移)——钉随重锚: 共享方法存在+快速通道语义+两调用点
+assert_contains "$CONTROLLER" "private void assertCanEditRecord(Long id)"
+assert_contains "$CONTROLLER" "if (SecurityUtils.isAdmin() || incentiveService.canEdit()) return"
+assert_contains "$CONTROLLER" "assertCanEditRecord(id);"
+assert_contains "$CONTROLLER" "assertCanEditRecord(id);"
 assert_contains "$CONTROLLER" "throw new BusinessException(403, \"无权编辑他人记录\")"
 assert_contains "$CONTROLLER" "if (!isAdmin && !incentiveService.canDelete())"
 assert_contains "$CONTROLLER" "throw new BusinessException(403, \"无权删除他人记录\")"
