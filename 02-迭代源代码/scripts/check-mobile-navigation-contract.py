@@ -82,6 +82,11 @@ def scroll_preservation_violations():
                 continue
             if target.lstrip("/").startswith("pages/login"):
                 continue
+            # 【2026-10-12 钉随体检P1】登录后 pwdResetRequired=1 强制改密引导:
+            # 后端对未改密用户非白名单路径一律 403, redirectTo 到改密页(白名单端点)是
+            # 唯一出路; 非栈保持敏感的会话流, 与跳登录同类
+            if rel == "pages/login/index.js" and target.lstrip("/").startswith("pages/profile/password"):
+                continue
             stack_breakers.append(f"{rel} -> {target}")
     return page_scroll_hits, stack_breakers
 

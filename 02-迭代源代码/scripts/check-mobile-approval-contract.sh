@@ -21,8 +21,13 @@ fail() { echo "FAIL: $*" >&2; exit 1; }
 
 grep -Fq "url: '/api/approval/submit'" "$API" || fail 'mobile API wrapper does not target approval submit'
 grep -Fq "method: 'POST'" "$API" || fail 'mobile approval submit must use POST'
-grep -Fq "submitApproval({ type: 'customer_release', customerId:" "$PAGE" || fail 'mobile page does not submit customer release approval'
-grep -Fq "actionAfterApprove: 'release'" "$PAGE" || fail 'mobile release action contract is missing'
+# 【2026-10-12 钉随体检H2】ff5f01a8 有意移除 MP『发起客户释放审批』死入口:
+# 无出厂流程配置提交必 400, executeApprovalAction 无 customer_release 分支即便走完审批零业务生效;
+# PC 释放走直连接口。钉随退役 + 防复活守卫
+if rg -Fq "submitApproval({ type: 'customer_release'" "$PAGE"; then
+  fail 'mobile must not revive the customer-release submit dead entry (H2: submit always 400, zero business effect; PC uses direct endpoint)'
+fi
+# 同上随 H2 退役(actionAfterApprove: release 属同一死入口)
 grep -Fq "customerId: 1" "$DEMO" || fail 'demo approval records must link to customer archive'
 grep -Fq "customerName: '山西晋能集团中阳煤业'" "$DEMO" || fail 'demo approval records must expose customer name'
 grep -Fq "customerIndustry: '煤矿'" "$DEMO" || fail 'demo approval records must expose customer industry'

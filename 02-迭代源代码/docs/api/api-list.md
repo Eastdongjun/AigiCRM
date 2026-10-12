@@ -1,10 +1,10 @@
 # AIGICRM API 清单(自动生成)
 
-> 生成时间: 2026-10-11 | 来源: 后端 controller 源码扫描
+> 生成时间: 2026-10-12 | 来源: 后端 controller 源码扫描
 > 本文件由 scripts/gen-api.py 自动生成,**禁止手改**;接口变更后重新运行。
 > 权限码与 docs/permission/permission-dict.md 对应。
 
-## 接口清单(216 个)
+## 接口清单(217 个)
 
 | 方法 | 路径 | 权限码 | 方法名 | 文件 |
 |---|---|---|---|---|
@@ -85,6 +85,7 @@
 | GET | `/api/file/download/{id}` | `hasAuthority('file:view')` | downloadById | FileController.java |
 | GET | `/api/file/folders` | `hasAuthority('file:view')` | getFolderTree | FileController.java |
 | POST | `/api/file/folders` | `hasAuthority('file:folder:manage')` | createFolder | FileController.java |
+| GET | `/api/file/folders/acl-roles` | `hasAuthority('file:acl:manage')` | aclRoles | FolderAclController.java |
 | DELETE | `/api/file/folders/{id}` | `hasAuthority('file:folder:manage')` | deleteFolder | FileController.java |
 | PUT | `/api/file/folders/{id}` | `hasAuthority('file:folder:manage')` | renameFolder | FileController.java |
 | GET | `/api/file/folders/{id}/acl` | `hasAuthority('file:acl:manage')` | listAcl | FolderAclController.java |
