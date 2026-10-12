@@ -242,8 +242,10 @@ const handleProcessShare = async (row) => {
 
 const handleFollowUp = async (row) => {
   // 【工作流复核确认修复】到期行提醒实体未物化(reminderId=null)时不可处理, 明确提示而非静默失败
+  // 【体检 P2 2026-10-12】指引改为真实出路(INV-10): 原文案指向不存在的「今日跟进」页,
+  // 降级详情页又无处理按钮——实际出路是次日 2AM 凌晨任务自动物化, 或请管理员在提醒页触发补生成
   if (!row.reminderId) {
-    ElMessage.warning('该客户今日提醒尚未生成，请先在「今日跟进」或详情页处理')
+    ElMessage.warning('该客户今日提醒实体尚未生成（每日 2:00 自动补建）；如需立即处理，请联系管理员在提醒管理页触发补生成，或明日再来跟进')
     return
   }
   try {

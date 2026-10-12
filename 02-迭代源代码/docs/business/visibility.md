@@ -2,15 +2,20 @@
 
 > 来源锚点:`OrgScopeResolver`、`GroupScopeUtil`、`ScopeService`、`MybatisPlusConfig`(租户拦截器)。核实日期 2026-09-24。
 
-## 1. 数据范围五档
+## 1. 数据范围七档(DataScopeType 有效值, 2026-10-12 核对)
 
 | 档 | 语义 |
 | --- | --- |
 | `all` | 全部(仅 admin 真跨集团;非 admin 的 all 收敛为当前集团) |
-| `self` | 仅本人 |
-| `team` | 本团队(部门树向下,深度上限 5) |
+| `region` | 本大区及以下(按区域类型祖先锚点) |
+| `dept` | 本部门及以下(部门树向下) |
 | `office` | 本办事处 |
+| `team` | 本团队(部门树向下,深度上限 5) |
+| `self` | 仅本人 |
 | `custom` | 自定义组织集合(sys_role_org) |
+
+> 【体检 2026-10-12 文档修正】原写"五档"漏 region/dept 两档——两者在 OrgScopeResolver 双锚点
+> 均有完整活跃分支、在用户级覆盖合法集 VALID_DATA_SCOPES 内、且配置界面可选,是真实有效档位。
 
 - 优先级:用户级 override > 岗位绑定 > 角色默认;多角色并集。
 - 模块级细化:`resolveModuleUsers(user, module)` 支持 statistics/reminder/score/system 等模块各自的范围配置。
@@ -41,7 +46,7 @@
 
 | 模块/数据 | 口径 |
 | --- | --- |
-| 客户/文件/提醒/审批/任务 | 数据范围(五档)+集团租户 |
+| 客户/文件/提醒/审批/任务 | 数据范围(七档)+集团租户 |
 | 激励记录 | **分享制**(独立体系,见 [incentive.md](incentive.md) §3) |
 | 激励个人排行/积分榜 | 公司级全量(含未分享聚合) |
 | 统计-四项激励客户排行 | 分享制(09-24 对齐) |

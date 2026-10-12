@@ -462,7 +462,9 @@ const getNodeTagType = (status, action) => {
 
 const getNodeStatusText = (status, action) => {
   if (action === 'cancelled') return '已作废'
-  const map = { pending: '待审批', approved: '已通过', rejected: '已驳回' }
+  // 【体检 2026-10-12】补 waiting 键: 串行流程(PR-02)第 2 阶段起节点常态为 waiting,
+  // 原兜底直显英文「waiting」, 与小程序端 label-maps 口径不一
+  const map = { pending: '待审批', waiting: '待审批', approved: '已通过', rejected: '已驳回' }
   return map[status] || status || '待审批'
 }
 

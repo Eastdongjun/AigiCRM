@@ -23,7 +23,9 @@ import java.util.Map;
  * 本服务遍历 biz_file 元数据,逐条检查磁盘文件是否存在,输出结构化对账报告;
  * 不删除任何引用,不掩盖缺失(总册:"不删除引用掩盖缺失")。</p>
  *
- * <p>权限:仅 file:manage 或 admin(核对是管理操作,非普通用户自服务)。</p>
+ * <p>权限:仅 file:folder:manage 或 admin(核对是管理操作,非普通用户自服务;体检 2026-10-12
+ * 修正——原注释的 file:manage 权限码全库不存在)。另:存在性检查只查本地磁盘,STORAGE_TYPE
+ * 切 oss 后需补 OSS 探测,当前 local 部署未触发(体检登记的潜伏项)。</p>
  */
 @Slf4j
 @Service

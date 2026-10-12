@@ -265,7 +265,9 @@ export function useFilePage() {
 
   const handleDeleteFolder = async (folder) => {
     try {
-      await confirmAction(`确定删除文件夹「${folder.folderName}」？夹内文件将一并删除且不可恢复。`, '删除确认', { confirmText: '删除' })
+      // 【体检 2026-10-12】文案与后端行为对齐: deleteFolder 对非空夹(含文件/子夹)一律拒绝
+      // ("文件夹内还有文件，请先清空后再删除"), 原文案承诺级联删除与实际相反
+      await confirmAction(`确定删除文件夹「${folder.folderName}」？仅空文件夹可删除，夹内有文件或子文件夹时需先清空。`, '删除确认', { confirmText: '删除' })
       await deleteFolder(folder.id)
       ElMessage.success('删除成功')
       if (selectedFolderId.value === folder.id) {

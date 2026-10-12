@@ -21,7 +21,10 @@ function normalizeHistoryInvoice(item) {
     invoiceCompany: item.invoiceCompany || '-',
     amountText: item.amount != null ? item.amount : '-',
     invoiceDateText: item.invoiceDate || '-',
-    status: item.status || '已记录'
+    // 【体检 P2 2026-10-12】状态中文映射+作废灰显标记——原直显英文码(confirmed/voided),
+    // 用户无法辨识已作废; PC 端 FINANCE_LEDGER_STATUS 同口径
+    status: financeStatusText(item.status),
+    voided: item.status === 'voided'
   }
 }
 
@@ -33,8 +36,15 @@ function normalizeHistoryPayment(item) {
     paymentDateText: item.paymentDate || '-',
     paymentMethod: item.paymentMethod || '-',
     remark: item.remark || '-',
-    status: item.status || '已记录'
+    status: financeStatusText(item.status),
+    voided: item.status === 'voided'
   }
+}
+
+/** 台账状态 → 中文(PC FINANCE_LEDGER_STATUS 同口径); pending 为批量导入预留态 */
+function financeStatusText(status) {
+  const map = { confirmed: '已确认', voided: '已作废', pending: '待核对' }
+  return map[status] || status || '已记录'
 }
 
 /** 【裁决 2026-10-10】阶段总额视图: 判定三态由后端摘要回传(coreType/baseYear/年度金额), 前端只展示 */

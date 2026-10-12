@@ -1,20 +1,33 @@
 # 财务记录(开票/回款)
 
-> 来源锚点:`CustomerController` 财务端点、`BizInvoice/BizPayment` 实体、`CustomerService` 保护期公式。核实日期 2026-09-24。
+> 来源锚点:`CustomerController` 财务端点、`BizInvoice/BizPayment/BizCustomerStageAmount` 实体、`CustomerService` 保护期公式。核实日期 2026-10-12(补录 2026-10-10 阶段总额裁决)。
 
 ## 1. 数据模型
 
+> **【裁决 2026-10-10】开票回款改阶段总额制(现行主口径)**:录入载体为阶段行
+> `biz_customer_stage_amount`(唯一键 customer_id+period_year+period_type,半年/全年一行两金额——
+> 开票额+回款额,万元,FOR UPDATE 行锁 upsert);存量逐笔票/款按年聚合回填 FY 行(V2026.10.10.1)。
+> **逐笔发票/回款录入入口已下线改只读历史**(FinanceTab 历史明细只读折叠区),逐笔写端点
+> (add/void/confirm/delete)保留但无 UI 消费——confirm 对留作批量导入预留(裁决 2026-10-09),
+> add/void/delete 为悬空能力,纠错一律走阶段行编辑覆盖。**核心客户三态判定的金额源=阶段总额
+> 年度口径**(纯金额门槛,五项评分不再参与,见 StatisticsQueryService 注释)。
+> 阶段总额表已入租户白名单(体检 H4 2026-10-12: insert 自动补租户/查询自动隔离)。
+
 | 实体 | 关键字段 | 说明 |
 | --- | --- | --- |
-| 开票 `biz_invoice` | invoice_date/invoice_number/invoice_type/invoice_company/amount/created_by | 一客户多票 |
-| 回款 `biz_payment` | (同构:日期/金额/经手) | 与开票分列 |
+| 阶段总额 `biz_customer_stage_amount`(现行录入) | period_year/period_type(H1/H2/FY)/invoice_amount/payment_amount | 半年/全年一行两金额,upsert 覆盖式录入 |
+| 开票 `biz_invoice`(历史只读) | invoice_date/invoice_number/invoice_type/invoice_company/amount/created_by | 一客户多票;存量+导入承接,录入入口已下线 |
+| 回款 `biz_payment`(历史只读) | (同构:日期/金额/经手) | 与开票分列;存量+导入承接,录入入口已下线 |
 
-财务记录挂在客户详情财务页签,PC 与小程序同源。
+财务记录挂在客户详情财务页签,PC 与小程序同源(小程序阶段数据为只读历史口径)。
 
 ## 2. 权限
 
 - 读:`customer:view` + `finance:view`(无 finance:view 时页签返回空,不报错)。
 - 增删:`finance:manage` **或**(`customer:edit` + `finance:view`)——V2026.09.23.4 起 finance:manage 为可勾选专职授权码,两类持有者都可操作。
+  > ⚠️【体检 2026-10-12 已知缺口】阶段数据保存端点叠加 assertCanEdit(非 admin 须 customer:edit):
+  > 仅持 finance:manage 的专职授权码用户在后端会被拒(小程序入口焊死/PC 按钮可见必败)——
+  > "专职授权点"与防御纵深冲突,待产品裁决(放开 assertCanEdit 或收紧授权码语义),暂登记不改动。
 
 ## 3. 与保护期的联动(核心业务规则)
 
@@ -52,7 +65,9 @@
 
 - 从未开票 → `invoice_never` 提醒(**建客超过宽限期才触发**:系统设置 `invoice.never.grace.days` 默认 30 天,0=无宽限;裁决 2026-09-24 P1-018,补记于 2026-10-08);最近开票距今 >365 天 → `invoice_overdue` 提醒(见 [reminder.md](reminder.md) §1)。
 
-## 5. 待核实(未逐行验证,引用前先查代码)
+## 5. 已核实(原"待核实"段, 2026-10-12 收口)
 
-- 回款(payment)是否有独立提醒/统计口径;
-- 开票金额是否参与核心客户判定(六项指标的开票/回款 ≥100 万阈值来自统计侧,联动细节在 statistics 模块)。
+- 回款(payment):无独立提醒;统计口径与开票合并进阶段行两金额。
+- 开票金额参与核心客户判定:**【裁决 2026-10-10 已定案】判定金额源=阶段总额年度口径**
+  (纯金额三态:真核心/争核心按年度门槛,五项评分不再参与),联动实现见 StatisticsQueryService
+  与 CustomerService.computeCoreType;判定详情见 [customer-lifecycle.md](customer-lifecycle.md)。

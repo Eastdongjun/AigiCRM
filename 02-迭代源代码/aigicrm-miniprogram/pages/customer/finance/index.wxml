@@ -52,7 +52,7 @@
       <view class="card finance-row">
         <view class="row">
           <text class="finance-no">{{item.invoiceNumber}}</text>
-          <text class="pill">{{item.status}}</text>
+          <text class="pill {{item.voided ? 'pill-voided' : ''}}">{{item.status}}</text>
         </view>
         <view class="detail-row"><text>金额</text><text>{{item.amountText}}</text></view>
         <view class="detail-row"><text>日期</text><text>{{item.invoiceDateText}}</text></view>
@@ -65,7 +65,7 @@
       <view class="card finance-row">
         <view class="row">
           <text class="finance-no">{{item.paymentNumber}}</text>
-          <text class="pill">{{item.status}}</text>
+          <text class="pill {{item.voided ? 'pill-voided' : ''}}">{{item.status}}</text>
         </view>
         <view class="detail-row"><text>金额</text><text>{{item.paymentAmountText}}</text></view>
         <view class="detail-row"><text>日期</text><text>{{item.paymentDateText}}</text></view>

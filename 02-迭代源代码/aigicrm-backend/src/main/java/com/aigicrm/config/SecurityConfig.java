@@ -44,7 +44,9 @@ public class SecurityConfig {
             .csrf(AbstractHttpConfigurer::disable)
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> {
-                auth.requestMatchers("/api/auth/login", "/api/auth/captcha", "/api/auth/forgot-password/**",
+                // 【体检 2026-10-12】移除 /api/auth/captcha 残留白名单: 验证码端点后端不存在、
+                // 前端零调用(放行的是 404 路径, 无危害但暴露面文档与实际不符), security-auth.md 同步剔除
+                auth.requestMatchers("/api/auth/login", "/api/auth/forgot-password/**",
                         "/api/system/configs/public", "/api/system/configs/logo",
                         "/api/file/download/public/**",
                         "/actuator/health").permitAll(); // 【可观测性】仅 health 匿名(无详情); metrics/prometheus 由 anyRequest authenticated 保护

@@ -328,7 +328,11 @@ Page({
 
   process(e) {
     const item = this.data.reminders[e.currentTarget.dataset.index]
-    if (!item || !item.id) return
+    // 【体检 P2 2026-10-12】未物化行(id 空)给出明确反馈而非静默 return——与 PC 端同场景
+    // 的告警口径一致(此前点击「已跟进」无任何反应)
+    if (!item || !item.id) {
+      return wx.showToast({ title: '该提醒实体尚未生成，请联系管理员补生成或明日再处理', icon: 'none', duration: 2500 })
+    }
     if (getApp().globalData.demoMode) {
       markProcessed(item.id)
       this.applyState({ reminders: this.data.reminders.filter((row) => row.id !== item.id), selectedReminder: null, selectedReminderIndex: -1 })

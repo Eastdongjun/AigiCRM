@@ -22,7 +22,7 @@
 
 ## 4. 端点暴露面(与探活)
 
-- 匿名放行仅:`/api/auth/login`、`/api/auth/captcha`、`/api/auth/forgot-password/**`、`/api/system/configs/public`、`/api/system/configs/logo`、`/api/file/download/public/**`、`/actuator/health`。
+- 匿名放行仅:`/api/auth/login`、`/api/auth/forgot-password/**`、`/api/system/configs/public`、`/api/system/configs/logo`、`/api/file/download/public/**`、`/actuator/health`。(2026-10-12 移除 `/api/auth/captcha`:验证码端点后端不存在、前端零调用,属残留白名单)
 - **公网 nginx 把 /actuator/health 回退到 SPA 首页**(200 的 index.html),不可用作探活;部署脚本探活用 `/api/system/configs/public`(判据=HTTP 200 且 body 含 "code":200,防回退假阳性)。
 - metrics/prometheus 需认证;探活类脚本禁止真实登录(失败登录会污染审计与限流计数)。
 

@@ -13,7 +13,8 @@ import java.util.Map;
 
 /**
  * 【PR-19 2026-09-19】附件核对端点(管理操作)。
- * 权限:file:manage(或 admin)——核对是数据治理,非普通用户自服务。
+ * 权限:file:folder:manage(或 admin)——核对是数据治理,非普通用户自服务。
+ * (体检 2026-10-12 修正: 原注释写 file:manage, 该权限码全库不存在, 实际 @PreAuthorize 挂的是 file:folder:manage)
  */
 @RestController
 @RequestMapping("/api/file/reconciliation")

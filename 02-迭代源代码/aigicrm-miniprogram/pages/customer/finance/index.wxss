@@ -15,3 +15,6 @@
 .stage-note{color:#94a3b8;font-size:22rpx;line-height:1.8}
 .history-toggle-card{display:flex;flex-direction:row;justify-content:space-between;align-items:center}
 .history-toggle-title{font-size:26rpx;font-weight:600;color:#475569}
+
+/* 【体检 P2 2026-10-12】作废行灰显(与 PC ledger-voided 同语义) */
+.pill-voided{background:#f1f5f9;color:#94a3b8}

@@ -30,6 +30,15 @@ else
   bad "前端测试失败:"; grep -E "FAIL|Tests.*[1-9].*failed" /tmp/gate-fe.log | head -5
 fi
 
+# [2b] 小程序语法门禁【体检 P2 2026-10-12】——三端门禁此前缺小程序一端:
+#      MP 无测试框架, node --check 全量语法检查是能做到的最低门禁(历史上靠 CI 单独跑, 本地一键门禁缺失)
+echo "--- [2b] 小程序语法(node --check 全量) ---"
+if (cd "$SCRIPT_DIR/../aigicrm-miniprogram" && find . -name '*.js' -not -path './node_modules/*' -print0 | xargs -0 -n1 node --check > /tmp/gate-mp.log 2>&1); then
+  ok "小程序语法"
+else
+  bad "小程序语法失败:"; head -10 /tmp/gate-mp.log
+fi
+
 # [3] 前端构建(quick 跳过)
 if [ "$QUICK" != "--quick" ]; then
   echo "--- [3] 前端构建 ---"
