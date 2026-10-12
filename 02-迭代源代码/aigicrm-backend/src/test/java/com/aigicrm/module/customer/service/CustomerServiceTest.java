@@ -44,7 +44,7 @@ import java.util.regex.Pattern;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNull;import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertNull;import static org.junit.jupiter.api.Assertions.assertNotNull;import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
@@ -1893,5 +1893,61 @@ class CustomerServiceTest {
         assertEquals(expected, customer.getExpireDate(),
                 "expire 应=注册(捞取)日+360+已批延期, 实际: " + customer.getExpireDate());
         assertTrue(customer.getExpireDate().isAfter(java.time.LocalDate.now()), "捞取后保护期必须在未来");
+    }
+
+    // ===== 【测试H1修复 2026-10-13】auto_share users 元素类型归一(字符串数字/非法值不再 500) =====
+
+    private CustomerService newAutoShareService(SysConfigService configService) {
+        return new CustomerService(
+                mock(BizCustomerMapper.class),
+                mock(BizCustomerLogMapper.class),
+                mock(BizInvoiceMapper.class),
+                mock(BizCustomerShareMapper.class),
+                mock(BizCustomerIndicatorMapper.class),
+                mock(BizContactMapper.class),
+                mock(BizPaymentMapper.class),
+                mock(com.aigicrm.module.customer.mapper.BizCustomerStageAmountMapper.class),
+                mock(SysUserMapper.class),
+                mock(SysDeptMapper.class),
+                mock(BizReminderMapper.class),
+                mock(JdbcTemplate.class),
+                configService,
+                mock(OrgScopeResolver.class),
+                mock(com.aigicrm.common.engine.CustomerAccessService.class),
+                mock(com.aigicrm.module.system.service.RolePermScopeService.class),
+                mock(com.aigicrm.module.approval.mapper.BizApprovalMapper.class),
+                mock(com.aigicrm.module.system.mapper.SysLogMapper.class));
+    }
+
+    @Test
+    void autoShareUsers_stringNumericElement_normalizedAndNotCrash() {
+        // 生产踩雷形态: users 混入字符串数字 ["136"] → 旧实现 ClassCastException, 全体非admin列表500
+        SysConfigService configService = mock(SysConfigService.class);
+        when(configService.getValue("customer.auto_share")).thenReturn(
+                "{\"superior\":false,\"admin\":false,\"roles\":[],\"users\":[\"136\", 11, \"abc\"]}");
+        CustomerService service = newAutoShareService(configService);
+        try (MockedStatic<SecurityUtils> sec = mockStatic(SecurityUtils.class)) {
+            sec.when(SecurityUtils::getCurrentUserId).thenReturn(11L);
+            List<Long> ids = assertDoesNotThrow(() ->
+                    ReflectionTestUtils.invokeMethod(service, "getAutoShareOwnerIds"));
+            // 本人(11)命中豁免列表 → 空=不过滤
+            assertTrue(ids == null || ids.isEmpty(), "本人命中 users 豁免应返回空(不加过滤), 实际: " + ids);
+        }
+    }
+
+    @Test
+    void autoShareUsers_stringElementOfOthers_ignoredWithoutCrash() {
+        // 字符串形态但非本人: 不炸、不豁免, 回落到默认 ownerIds(仅本人)
+        SysConfigService configService = mock(SysConfigService.class);
+        when(configService.getValue("customer.auto_share")).thenReturn(
+                "{\"superior\":false,\"admin\":false,\"roles\":[],\"users\":[\"136\", \"abc\"]}");
+        CustomerService service = newAutoShareService(configService);
+        try (MockedStatic<SecurityUtils> sec = mockStatic(SecurityUtils.class)) {
+            sec.when(SecurityUtils::getCurrentUserId).thenReturn(11L);
+            List<Long> ids = assertDoesNotThrow(() ->
+                    ReflectionTestUtils.invokeMethod(service, "getAutoShareOwnerIds"));
+            assertNotNull(ids);
+            assertEquals(List.of(11L), ids, "非豁免用户应回落到仅本人, 字符串元素被归一忽略而非抛 ClassCastException");
+        }
     }
 }

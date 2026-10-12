@@ -90,7 +90,7 @@
 /* 【#4+#7 2026-10-12】佐证照片墙: 图片缩略图/视频封面/文档面卡统一 3:2 瓦片, 行内底边严格对齐 */
 .wall-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12rpx; }
 .wall-tile { position: relative; min-width: 0; }
-.wall-thumb { width: 100%; aspect-ratio: 3/2; border-radius: 14rpx; background: #eef3f9; display: block; }
+.wall-thumb { width: 100%; height: 160rpx; border-radius: 14rpx; background: #eef3f9; display: block; }
 .wall-video-face, .wall-doc-face { width: 100%; aspect-ratio: 3/2; border-radius: 14rpx; box-sizing: border-box; padding: 12rpx;
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8rpx; overflow: hidden; }
 .wall-video-face { background: linear-gradient(135deg, #16213e, #2d2d44); color: #fff; }

@@ -768,17 +768,38 @@ public class CustomerService {
         }
 
         // 规则4: 指定人员 → 不加过滤
+        // 【测试H1修复 2026-10-13】users 元素类型归一: 配置可经界面/JSON写入口混入字符串数字("136")或非法值,
+        // 旧实现仅容 Integer/Long, 字符串直接 ClassCastException 令全体非admin的列表/页签计数500。
+        // 归一为 Long, 非法元素忽略并告警(不阻断列表), 用户命中任一合法豁免id即不加过滤。
         Object usersObj = cfg.get("users");
         if (usersObj instanceof java.util.List && !((java.util.List<?>)usersObj).isEmpty()) {
             for (Object uid : (java.util.List<?>)usersObj) {
-                long targetId = uid instanceof Integer ? ((Integer)uid).longValue() : (Long)uid;
-                if (currentUserId.equals(targetId)) {
+                Long exemptId = toLongOrNull(uid);
+                if (exemptId == null) {
+                    org.slf4j.LoggerFactory.getLogger(CustomerService.class)
+                            .warn("customer.auto_share users 含非法元素({}), 已忽略——请到系统设置核对配置", uid);
+                    continue;
+                }
+                if (currentUserId.equals(exemptId)) {
                     return java.util.Collections.emptyList();
                 }
             }
         }
 
         return new java.util.ArrayList<>(ownerIds);
+    }
+
+    /** auto_share users 元素类型归一: Number→longValue; 纯数字字符串→解析; 其余返回 null(非法) */
+    private static Long toLongOrNull(Object value) {
+        if (value instanceof Number) return ((Number) value).longValue();
+        if (value instanceof String s) {
+            try {
+                return Long.valueOf(((String) s).trim());
+            } catch (NumberFormatException e) {
+                return null;
+            }
+        }
+        return null;
     }
 
     /** 在客户查询时追加自动共享范围 */
