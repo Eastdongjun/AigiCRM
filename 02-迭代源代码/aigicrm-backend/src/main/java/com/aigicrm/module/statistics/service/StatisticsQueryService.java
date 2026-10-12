@@ -190,35 +190,37 @@ public class StatisticsQueryService {
 
     public Map<String, Object> dashboard() {
         Long userId = SecurityUtils.getCurrentUserId();
-        // 审批卡片(approvalStats)按 userId 过滤(applicant/approver)，用户级单独缓存；
-        // 其余 8 项均为范围决定，走共享缓存。
+        // 用户级缓存: 审批卡片(approvalStats 按 userId 过滤)与公海卡片(seaStats 按用户本人
+        // 部门/池可见度判定)——【体检 P1 2026-10-12】seaStats 从共享段移入用户段: 公海池可见性
+        // 是范围签名之外的独立维度, 同签名不同池可见度的用户会在 TTL 内互串公海统计;
+        // 其余 7 项为范围决定, 走共享缓存。
         String scopeKey = dashboardScopeKey();
         DashboardCacheEntry hit = dashboardCache.get(scopeKey);
-        ApprovalCacheEntry apprHit = approvalStatsCache.get(userId);
+        UserStatsCacheEntry userHit = userStatsCache.get(userId);
         boolean dashFresh = hit != null && System.currentTimeMillis() < hit.expireAt();
-        boolean apprFresh = apprHit != null && System.currentTimeMillis() < apprHit.expireAt();
-        if (dashFresh && apprFresh) {
-            return mergeDashboard(hit.value(), apprHit.value());
+        boolean userFresh = userHit != null && System.currentTimeMillis() < userHit.expireAt();
+        if (dashFresh && userFresh) {
+            return mergeDashboard(hit.value(), userHit.value());
         }
 
         Map<String, Object> shared = dashFresh ? hit.value() : computeDashboardShared();
-        Map<String, Long> approvals = apprFresh ? apprHit.value() : approvalService.statistics(userId);
+        Map<String, Object> userStats = userFresh ? userHit.value() : computeDashboardUser(userId);
         if (!dashFresh) {
             // 【防过期风暴】TTL 加 0~50% 随机抖动：同范围条目过期时刻各异，miss 速率平滑
             long ttl = DASHBOARD_TTL_MS / 2 + (long) (Math.random() * (DASHBOARD_TTL_MS / 2));
             dashboardCache.put(scopeKey, new DashboardCacheEntry(shared, System.currentTimeMillis() + ttl));
         }
-        if (!apprFresh) {
+        if (!userFresh) {
             long ttl = DASHBOARD_TTL_MS / 2 + (long) (Math.random() * (DASHBOARD_TTL_MS / 2));
-            approvalStatsCache.put(userId, new ApprovalCacheEntry(approvals, System.currentTimeMillis() + ttl));
+            userStatsCache.put(userId, new UserStatsCacheEntry(userStats, System.currentTimeMillis() + ttl));
         }
-        return mergeDashboard(shared, approvals);
+        return mergeDashboard(shared, userStats);
     }
 
     /** 共享段与用户段合并为新 Map（不改动缓存内条目，防止返回对象被序列化/复用时交叉污染） */
-    private Map<String, Object> mergeDashboard(Map<String, Object> shared, Map<String, Long> approvals) {
+    private Map<String, Object> mergeDashboard(Map<String, Object> shared, Map<String, Object> userStats) {
         Map<String, Object> data = new HashMap<>(shared);
-        data.put("approvalStats", approvals);
+        data.putAll(userStats);
         return data;
     }
 
@@ -281,11 +283,20 @@ public class StatisticsQueryService {
         return (ruleWhere == null || ruleWhere.isEmpty()) ? "all" : Integer.toHexString(ruleWhere.hashCode());
     }
 
-    private record ApprovalCacheEntry(Map<String, Long> value, long expireAt) {}
-    private final java.util.concurrent.ConcurrentHashMap<Long, ApprovalCacheEntry> approvalStatsCache =
+    /** 【体检 P1 2026-10-12】用户级看板缓存段(approvalStats+seaStats, 均为签名外用户维度);
+     *  取代原仅审批的 ApprovalCacheEntry(两维度并入同一段, 缓存条目数不变) */
+    private record UserStatsCacheEntry(Map<String, Object> value, long expireAt) {}
+    private final java.util.concurrent.ConcurrentHashMap<Long, UserStatsCacheEntry> userStatsCache =
             new java.util.concurrent.ConcurrentHashMap<>();
 
-    /** 范围共享的 8 项统计（不含 approvalStats） */
+    private Map<String, Object> computeDashboardUser(Long userId) {
+        Map<String, Object> data = new HashMap<>();
+        data.put("approvalStats", approvalService.statistics(userId));
+        data.put("seaStats", seaService.statistics());
+        return data;
+    }
+
+    /** 范围共享的 7 项统计（不含 approvalStats/seaStats 两个用户级维度） */
     private Map<String, Object> computeDashboardShared() {
         Map<String, Object> data = new HashMap<>();
 
@@ -293,7 +304,6 @@ public class StatisticsQueryService {
         data.put("inProtection", customerService.countInProtectionByScope());
         data.put("expiring", customerService.countExpiringByScope());
         data.put("expired", customerService.countExpiredByScope());
-        data.put("seaStats", seaService.statistics());
 
         LocalDate today = LocalDate.now();
         List<BizCustomer> expiringList = customerService.getExpiringByScope(5);
@@ -814,7 +824,10 @@ public class StatisticsQueryService {
             if (total == 0) continue;
 
             LambdaQueryWrapper<BizCustomer> aw = new LambdaQueryWrapper<>();
+            // 【体检 P1 2026-10-12】活跃率分子补 notIn(sea/archived)与分母/同方法 inProtection 对齐:
+            // 归档不清 protectionStatus, 不排时分子可含归档客户(虚高, 极端时 >100%)
             aw.eq(BizCustomer::getDeleted, 0).eq(BizCustomer::getProtectionStatus, "active")
+              .notIn(BizCustomer::getStatus, "sea", "archived")
               .eq(BizCustomer::getOfficeId, dept.getId());
             applyCustomerScope(aw);
             long active = customerMapper.selectCount(aw);

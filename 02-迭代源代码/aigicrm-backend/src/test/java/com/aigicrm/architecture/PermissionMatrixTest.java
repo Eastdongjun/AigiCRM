@@ -470,7 +470,9 @@ public class PermissionMatrixTest {
                 "logo 配置缺失、越界或异常时必须回退透明 SVG，避免登录页破图或泄露错误");
     }
 
-    /** 【2026-08-14】FolderAclController 5 个端点必须全部收口到 file:acl:manage(替换原 isAuthenticated), 一个都不能漏 */
+    /** 【2026-08-14】FolderAclController 端点必须全部收口到 file:acl:manage(替换原 isAuthenticated), 一个都不能漏。
+     *  【体检 P1 2026-10-12】5→6: 新增 aclRoles 轻量角色字典(05/06 等 file:acl:manage 持有者的
+     *  角色下拉原来走 /system/roles 恒 403, 新增授权路径断裂), 同权限收口 */
     @Test
     void folderAclEndpoints_requireFileAclManage() {
         Set<String> annotated = new TreeSet<>();
@@ -480,8 +482,8 @@ public class PermissionMatrixTest {
                 annotated.add(m.getName());
             }
         }
-        assertEquals(Set.of("listAcl", "saveAcl", "removeAcl", "setDownloadable", "permissions"), annotated,
-                "FolderAclController 5 个端点必须全部携带 hasAuthority('file:acl:manage')");
+        assertEquals(Set.of("listAcl", "saveAcl", "removeAcl", "setDownloadable", "permissions", "aclRoles"), annotated,
+                "FolderAclController 6 个端点必须全部携带 hasAuthority('file:acl:manage')");
     }
 
     /** 文件删除是高风险动作：入口必须要求 file:delete，服务层仍必须保留文件夹级 P_DELETE 守卫。 */

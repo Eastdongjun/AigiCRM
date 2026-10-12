@@ -69,6 +69,11 @@ public class ScoreService {
     }
 
     public void deleteItem(Long id) {
+        // 【体检 P1 2026-10-12】级联删除该积分项的全部评分明细: 前端确认弹窗承诺"所有周期数据
+        // 一并删除", 此前只删 item 行——孤儿 entry 继续进排行(幽灵分数), 且仅当他人再保存同周期
+        // 才被顺带清扫; 无 FK 无级联(DDL), 须业务层显式删
+        entryMapper.delete(new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<com.aigicrm.module.score.entity.BizScoreEntry>()
+                .eq(com.aigicrm.module.score.entity.BizScoreEntry::getItemId, id));
         itemMapper.deleteById(id);
     }
 

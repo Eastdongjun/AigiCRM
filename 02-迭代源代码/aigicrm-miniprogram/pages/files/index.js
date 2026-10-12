@@ -200,8 +200,10 @@ Page({
     let files = []
     let capacity = this.data.capacity
     try {
+      const folderScope = this.activeFileScope()
       const [folderResponse, storageInfo] = await Promise.all([
-        getFolders(),
+        // 【体检 P1 2026-10-12】带 scope 请求: 后端缺省只回公共树, 私人 Tab 此前恒空
+        getFolders(this.data.activeTab === '公共' || this.data.activeTab === '私人' ? folderScope : undefined),
         getStorageInfo().catch((error) => {
           showError(error, '存储统计加载失败')
           return null
@@ -209,9 +211,17 @@ Page({
       ])
       if (storageInfo) capacity = normalizeCapacity(storageInfo)
       const rawFolders = folderResponse?.data || folderResponse?.records || []
-      const folderScope = this.activeFileScope()
+      // 【体检 P1 2026-10-12】树只映射顶层会丢子夹(公共子文件夹不可见)——递归展平为芯片列表,
+      // 子夹名前加「·」标识层级, 点按仍按各自 id 进入
+      const flattenFolders = (list, depth, out) => {
+        (list || []).forEach((f) => {
+          out.push({ id: f.id, name: (depth > 0 ? '· ' : '') + (f.name || f.folderName || '未命名文件夹') })
+          if (f.children && f.children.length) flattenFolders(f.children, depth + 1, out)
+        })
+        return out
+      }
       folders = (this.data.activeTab === '公共' || this.data.activeTab === '私人')
-        ? rawFolders.filter((item) => item.folderType === folderScope)
+        ? flattenFolders(rawFolders.filter((item) => item.folderType === folderScope), 0, [])
         : []
       const fileResponse = this.data.activeTab === '分享给我'
         ? await getSharedToMe(this.buildFileListParams())
@@ -229,7 +239,7 @@ Page({
     }
     if (requestSeq !== this._filesReqSeq) return
     const normalizedFiles = files.map((item, index) => this.normalizeFile(item, index))
-    this.setFileData({ folders: folders.map(item => ({ id: item.id, name: item.name || item.folderName || '未命名文件夹' })), files: normalizedFiles, filteredFiles: this.filterFiles(normalizedFiles), capacity, loaded: true })
+    this.setFileData({ folders, files: normalizedFiles, filteredFiles: this.filterFiles(normalizedFiles), capacity, loaded: true })
     this.loadTabCounts()
   },
 

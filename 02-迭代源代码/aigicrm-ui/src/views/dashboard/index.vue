@@ -62,7 +62,8 @@
         </div>
         <el-icon class="stat-icon" :size="22"><List /></el-icon>
       </div>
-      <div class="stat-card">
+      <!-- 【体检 P1 2026-10-12】本月完成任务卡同步 task:view 门控(数据源同 /api/task/statistics, 无权限恒 0 且请求弹假错) -->
+      <div class="stat-card" v-if="userStore.hasPermission('task:view')">
         <div class="stat-info">
           <div class="stat-label">本月完成任务</div>
           <div class="stat-num">{{ taskStats.completedThisMonth || 0 }}</div>
@@ -74,7 +75,8 @@
         <div class="stat-info">
           <div class="stat-label">我的激励积分</div>
           <div class="stat-num">{{ myScore || 0 }}</div>
-          <div class="stat-sub">四项激励 · 本月上传 {{ myUploadCount || 0 }} 次</div>
+          <!-- 【体检 P1】口径随数据源改为全年周期(scoreboard 按年聚合), 原文案"本月上传"与实际口径不符 -->
+          <div class="stat-sub">四项激励 · 本年上传 {{ myUploadCount || 0 }} 次</div>
         </div>
         <el-icon class="stat-icon" :size="22"><Trophy /></el-icon>
       </div>
@@ -229,6 +231,7 @@ import { useUserStore } from '@/store/user'
 import { getDashboardData, getTeamActivities, getWeeklyStats, getDailyStats } from '@/api/statistics'
 import { getReminderList, getExpiringList } from '@/api/reminder'
 import { getApprovalList, approve as apiApprove, reject as apiReject } from '@/api/approval'
+import { defaultRecordPeriod } from '@/utils/incentive-period'
 
 const router = useRouter()
 const userStore = useUserStore()
@@ -327,19 +330,22 @@ const myReadTotal = ref(0)
 const loadRoleData = async () => {
   if (!isSalesRole.value) return
   try {
-    const [scoreRes, readRes] = await Promise.all([
-      import('@/api/score').then(m => m.getMyScore()),
+    // 【体检 P1 2026-10-12】原调 getMyScore 全库不存在(api/score.js 无此导出, 后端亦无 /score/me
+    // 端点)——TypeError 被 catch 静默吞, Promise.all 首路必败连累阅读卡, 双卡恒 0。
+    // 改接真实数据源 /incentive/scoreboard(按人聚合含 totalScore/recordCount), 周期取当前年
+    // 「全年」(defaultRecordPeriod 与写入口同口径)
+    const [boardRes, readRes] = await Promise.all([
+      import('@/api/incentive').then(m => m.getScoreboard({ period: defaultRecordPeriod() })),
       import('@/api/incentive').then(m => m.getReadStats ? m.getReadStats() : Promise.resolve({ data: [] })),
     ])
-    if (scoreRes?.data) {
-      myScore.value = scoreRes.data.totalScore || 0
-      myUploadCount.value = scoreRes.data.itemCount || 0
-    }
+    const mine = (boardRes?.data || []).find(r => r.userId === userStore.userId)
+    myScore.value = mine?.totalScore || 0
+    myUploadCount.value = mine?.recordCount || 0
     const readList = readRes?.data || []
     // 【L5 修复】只取本人记录；找不到本人时显示 0/0 占位，不再拿列表第一人冒充；myReadTotal 直写已发布数
-    const mine = readList.find(r => r.userId === userStore.userId)
-    myReadCount.value = mine?.readCount || 0
-    myReadTotal.value = mine?.publishedCount || 0
+    const mineRead = readList.find(r => r.userId === userStore.userId)
+    myReadCount.value = mineRead?.readCount || 0
+    myReadTotal.value = mineRead?.publishedCount || 0
   } catch { /* 数据缺失时卡片显示 0 */ }
 }
 // 【2026-10-08 UI 整改 D13】首屏六路聚合接口统一 pageLoading：加载中渲染 el-skeleton
@@ -456,7 +462,12 @@ const formatRelativeTime = (time) => {
   return new Date(timeStr).toLocaleDateString()
 }
 
-onMounted(() => { loadData(); loadRoleData(); loadTaskStats() })
+onMounted(() => {
+  loadData(); loadRoleData()
+  // 【体检 P1 2026-10-12】/api/task/statistics 要求 task:view, 无权限角色(如行政05)此前
+  // 每次进工作台必弹"没有访问权限"假错误——数据请求与待办卡同步门控
+  if (userStore.hasPermission('task:view')) loadTaskStats()
+})
 </script>
 
 <style scoped>

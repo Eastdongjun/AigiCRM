@@ -267,5 +267,7 @@ class SeaServiceTest {
                 "必须显式 set last_invoice_date(开票推导基准随新周期重置): " + w.getSqlSet());
         assertTrue(w.getParamNameValuePairs().containsValue(null), "last_invoice_date 应置 null");
         verify(customerService).removeAllShares(500L);
+        // 【体检 P1 2026-10-12】INV-05 四路径全量口径: 捞取完成同样清全部类型 pending 提醒
+        verify(customerService).cleanPendingReminders(500L);
     }
 }

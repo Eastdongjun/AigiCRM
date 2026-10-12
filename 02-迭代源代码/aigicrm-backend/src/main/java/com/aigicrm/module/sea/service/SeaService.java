@@ -203,6 +203,9 @@ public class SeaService {
         // 【修复 FEAT-20260804-SHARE-CLEANUP】客户进入公海即失去原负责人归属，此前不清理
         // biz_customer_share，导致原来被分享查看的同事在客户易主后仍长期保留访问权限。
         customerService.removeAllShares(customerId);
+        // 【体检 P1 2026-10-12】入海即清全部类型 pending 提醒(INV-05 全量口径):
+        // 池内客户的 expiring/invoice_* 死 pending 无合法处理路径, 是「—」死行供给源
+        customerService.cleanPendingReminders(customerId);
     }
 
     /**
@@ -271,6 +274,9 @@ public class SeaService {
             // 【修复 FEAT-20260804-SHARE-CLEANUP】客户被捞取后归属新负责人，清理原有分享记录，
             // 避免原负责人分享出去的同事在客户易主后仍长期保留访问权限
             customerService.removeAllShares(customerId);
+            // 【体检 P1 2026-10-12】捞取完成同样清全部类型 pending 提醒(INV-05 四路径之一);
+            // 池内期间理论无新生成, 此处兜底入海时点之后的漏网死行
+            customerService.cleanPendingReminders(customerId);
         }
     }
 

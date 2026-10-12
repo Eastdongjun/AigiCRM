@@ -231,7 +231,20 @@ Page({
       ? this.buildReminderParams()
       : { ...this.buildReminderParams(), status: 'pending' }
     loader(params).then((payload) => {
-      this.applyState({ reminders: normalizePage(payload).map(normalizeReminder) })
+      let rows = normalizePage(payload).map(normalizeReminder)
+      // 【体检 P1 2026-10-12】待处理模式的 keyword 后端 /reminder/list 不消费(形参零引用),
+      // PC 已知情改客户端过滤而 MP 未同步——搜索框可见但恒无效; 此处同款客户端兜底。
+      // 到期模式走 /expiring-list, 后端已消费 keyword, 不重复过滤
+      if (this.data.viewMode !== 'expiring') {
+        const kw = this.data.keyword.trim().toLowerCase()
+        if (kw) {
+          rows = rows.filter((item) =>
+            String(item.customerName || '').toLowerCase().includes(kw)
+            || String(item.customerCode || '').toLowerCase().includes(kw)
+            || String(item.typeLabel || '').toLowerCase().includes(kw))
+        }
+      }
+      this.applyState({ reminders: rows })
     }).catch((error) => showError(error, '提醒加载失败')).finally(() => {
       this.applyState({ loading: false })
     })

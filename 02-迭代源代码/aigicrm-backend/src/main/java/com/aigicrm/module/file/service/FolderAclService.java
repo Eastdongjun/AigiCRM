@@ -47,6 +47,23 @@ public class FolderAclService {
     }
 
     /**
+     * 【体检 P1 2026-10-12】ACL 授权面轻量角色字典: /system/roles 要求 system:role:view
+     * (仅 admin/0), 而 file:acl:manage 持有者(05/06、非 admin 夹主/上级链)打开弹窗时角色
+     * 下拉 403 恒空、保存恒禁用——新增授权路径断裂。本端点按 ACL 自身权限放行, 只暴露
+     * 启用角色的 id+名称(最小暴露面, 供授权下拉选择)。
+     */
+    public List<Map<String, Object>> listAclRoles() {
+        return roleMapper.selectList(new LambdaQueryWrapper<SysRole>()
+                        .eq(SysRole::getStatus, 1)
+                        .orderByAsc(SysRole::getId)).stream().map(r -> {
+                    Map<String, Object> row = new LinkedHashMap<>();
+                    row.put("id", r.getId());
+                    row.put("roleName", r.getRoleName());
+                    return row;
+                }).collect(Collectors.toList());
+    }
+
+    /**
      * 【Task 5 审查遗留】controller 原始 body 解析入口：body/roleId/perms 缺省或类型非法
      * （roleId 非数字 / perms 非数组）一律抛 BusinessException("参数错误")，
      * 避免 NumberFormatException/ClassCastException/NPE 冒泡成 500；解析成功后走 saveAcl 原有校验。

@@ -2,8 +2,10 @@
   <div class="log-panel">
     <div class="log-write" v-if="!readonly">
       <el-input v-model="newLog" type="textarea" :rows="3" placeholder="输入跟进记录..." resize="vertical" />
-      <!-- 【PR-10】跟进日志生成任务:明确承诺形成待办(总册口径) -->
-      <div class="task-gen" v-if="newLog.trim()">
+      <!-- 【PR-10】跟进日志生成任务:明确承诺形成待办(总册口径);
+           【体检 P1 2026-10-12】按 task:manage 门控(POST /api/task 要求该权限, 行政05等可写跟进
+           但无任务权限的角色勾选后"日志已保存+任务创建403"部分成功) -->
+      <div class="task-gen" v-if="newLog.trim() && canCreateTask">
         <el-checkbox v-model="generateTask" size="small">生成下一步任务</el-checkbox>
         <template v-if="generateTask">
           <el-input v-model="taskTitle" placeholder="任务标题(如:提交选型方案)" size="small" style="width:220px" />
@@ -31,13 +33,19 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { ElMessage } from 'element-plus'
 import { injectCustomerDetail } from '@/composables/useCustomerDetail'
 import { createTask } from '@/api/task'
 import { addCustomerLog, getCustomerLogs } from '@/api/customer'
+import { useUserStore } from '@/store/user'
 
 const { readonly, newLog, logs, submitLog, customerId } = injectCustomerDetail()
+const userStore = useUserStore()
+
+// 【体检 P1 2026-10-12】POST /api/task 挂 task:manage(仅 admin/0/06), 无权限角色隐藏勾选项
+// 防"日志已落库+任务创建 403"的部分成功
+const canCreateTask = computed(() => userStore.hasPermission('task:manage'))
 
 // 【PR-10】任务生成状态
 const generateTask = ref(false)

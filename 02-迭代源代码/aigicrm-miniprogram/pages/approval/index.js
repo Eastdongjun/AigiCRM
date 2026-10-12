@@ -77,7 +77,9 @@ function buildApprovalTabs(tabs = [], tab, stats = {}) {
   return tabs.map((item) => ({
     ...item,
     activeClass: tab === item.key ? 'active' : '',
-    countText: String(stats[item.countKey] || 0)
+    // 【体检 2026-10-12】已通过/已驳回角标换全量口径 approvedTotal/rejectedTotal(INV-12 同款,
+    // PC 已改 MP 漏改): 角标用 ThisMonth 而列表 tab 返回全量历史, 数字必不一致; 旧后端回退 ThisMonth
+    countText: String(stats[item.countKey] ?? (stats[item.fallbackKey] || 0))
   }))
 }
 
@@ -124,8 +126,8 @@ Page({
       { key: 'pending', label: '待审批', countKey: 'pending' },
       { key: 'mine', label: '我发起的', countKey: 'mine' },
       { key: 'reviewing', label: '审批中', countKey: 'reviewing' },
-      { key: 'approved', label: '已通过', countKey: 'approvedThisMonth' },
-      { key: 'rejected', label: '已驳回', countKey: 'rejectedThisMonth' },
+      { key: 'approved', label: '已通过', countKey: 'approvedTotal', fallbackKey: 'approvedThisMonth' },
+      { key: 'rejected', label: '已驳回', countKey: 'rejectedTotal', fallbackKey: 'rejectedThisMonth' },
       { key: 'all', label: '全部', countKey: 'all' }
     ],
     keyword: '',

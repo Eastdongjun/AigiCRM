@@ -111,8 +111,9 @@ function buildDetailView(state) {
     ],
     approvalRows: [
       { label: '待审批', value: approvalStats.pending || 0 },
-      { label: '已通过', value: approvalStats.approved || 0 },
-      { label: '已驳回', value: approvalStats.rejected || 0 }
+      // 【体检 P1 2026-10-12】后端统计键为 approvedTotal/rejectedTotal, approved/rejected 从不写→恒 0
+      { label: '已通过', value: approvalStats.approvedTotal ?? (approvalStats.approvedThisMonth || 0) },
+      { label: '已驳回', value: approvalStats.rejectedTotal ?? (approvalStats.rejectedThisMonth || 0) }
     ],
     seaRows: [
       { label: '公海客户', value: seaStats.total || seaStats.count || 0 },
@@ -163,7 +164,7 @@ Page({
     this.applyState({ loading: true })
     if (getApp().globalData.demoMode) {
       this.applyState({
-        stats: normalizeStats({ myCustomers: 128, inProtection: 86, expiring: 8, expired: 5, todayExpiring: 2, monthNew: 12, seaStats: {}, approvalStats: { pending: 3, approved: 8, rejected: 1 } }),
+        stats: normalizeStats({ myCustomers: 128, inProtection: 86, expiring: 8, expired: 5, todayExpiring: 2, monthNew: 12, seaStats: {}, approvalStats: { pending: 3, approvedTotal: 8, rejectedTotal: 1 } }),
         activities: [
           { type: '客户', content: '完成客户跟进记录', actor: '当前用户', createdAt: '今天 09:30' },
           { type: '审批', content: '提交一条审批申请', actor: '当前用户', createdAt: '昨天 16:20' }

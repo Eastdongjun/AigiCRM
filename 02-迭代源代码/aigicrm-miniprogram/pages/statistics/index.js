@@ -196,8 +196,10 @@ function buildStatsView(state = {}) {
     ],
     approvalRows: [
       { className: 'pending', value: approvalStats.pending || 0, label: '待审批' },
-      { className: 'approved', value: approvalStats.approved || 0, label: '已通过' },
-      { className: 'rejected', value: approvalStats.rejected || 0, label: '已驳回' }
+      // 【体检 P1 2026-10-12】后端统计键是 approvedTotal/rejectedTotal(INV-12 已补全量口径),
+      // 此前读 approved/rejected 后端从不写→恒 0; 兼容旧后端回退 ThisMonth(PC 同款 ?? 兜底)
+      { className: 'approved', value: approvalStats.approvedTotal ?? (approvalStats.approvedThisMonth || 0), label: '已通过' },
+      { className: 'rejected', value: approvalStats.rejectedTotal ?? (approvalStats.rejectedThisMonth || 0), label: '已驳回' }
     ],
     monthlyCustomer: {
       ...state.monthlyCustomerSummary,
@@ -295,7 +297,7 @@ Page({
         monthlyFiles: [8, 12, 9, 14, 11, 16, 10, 13, 12, 7, 5, 3]
       }
       this.setStatisticsData({
-        stats: enrichDashboardStats({ myCustomers: 128, inProtection: 86, expiring: 8, expired: 5, todayExpiring: 2, monthNew: 12, seaStats: {}, approvalStats: { pending: 3, approved: 8, rejected: 1 } }, demoAnalysis),
+        stats: enrichDashboardStats({ myCustomers: 128, inProtection: 86, expiring: 8, expired: 5, todayExpiring: 2, monthNew: 12, seaStats: {}, approvalStats: { pending: 3, approvedTotal: 8, rejectedTotal: 1 } }, demoAnalysis),
         analysis: demoAnalysis,
         ...buildTrendState(demoAnalysis),
         officeComparison: [

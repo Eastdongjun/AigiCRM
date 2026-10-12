@@ -285,25 +285,39 @@ Page({
     }
     this.setRankingData({ loading: true })
     const period = this.currentPeriod()
+    // 【体检 P1 2026-10-12】按权限门控请求: 页面入口是三码 OR, 但积分榜三路要 score:view、
+    // 激励个人榜要 incentive:view——只持部分权限的角色此前每次进页必吃 4 条 403 弹错。
+    // 无对应权限的区块直接置空(空态), 不再发起必败请求; demo 模式恒放开
+    const demo = Boolean(getApp().globalData.demoMode)
+    const canScore = demo || hasPermission('score:view')
+    const canIncentive = demo || hasPermission('incentive:view')
     Promise.all([
       getCustomerRankings({ period: this.currentCustomerPeriodParam() }),
-      getScoreRanking({ period, type: 'personal' }).catch((error) => {
-        showError(error, '个人积分排行加载失败')
-        return []
-      }),
-      getScoreRanking({ period, type: 'dept' }).catch((error) => {
-        showError(error, '部门积分排行加载失败')
-        return []
-      }),
-      getRankingStats({ period }).catch((error) => {
-        showError(error, '积分统计加载失败')
-        return {}
-      }),
+      canScore
+        ? getScoreRanking({ period, type: 'personal' }).catch((error) => {
+            showError(error, '个人积分排行加载失败')
+            return []
+          })
+        : Promise.resolve([]),
+      canScore
+        ? getScoreRanking({ period, type: 'dept' }).catch((error) => {
+            showError(error, '部门积分排行加载失败')
+            return []
+          })
+        : Promise.resolve([]),
+      canScore
+        ? getRankingStats({ period }).catch((error) => {
+            showError(error, '积分统计加载失败')
+            return {}
+          })
+        : Promise.resolve({}),
       // 【2026-09-23 需求同步】四项激励个人排行(按人员聚合, 与 PC 激励统计同口径)
-      getScoreboard({ period }).catch((error) => {
-        showError(error, '激励个人排行加载失败')
-        return []
-      })
+      canIncentive
+        ? getScoreboard({ period }).catch((error) => {
+            showError(error, '激励个人排行加载失败')
+            return []
+          })
+        : Promise.resolve([])
     ]).then(([rankings, personalScores, deptScores, scoreStats, incentiveBoard]) => {
       const safeRankings = {
         incentive: rankings && rankings.incentiveRanking || [],

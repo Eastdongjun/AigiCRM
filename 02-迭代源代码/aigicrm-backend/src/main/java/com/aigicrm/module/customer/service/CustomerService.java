@@ -615,6 +615,9 @@ public class CustomerService {
         // 【2026-10-09】客户删除是终态,分享行与 pending 分享提醒一并清理:
         // 悬挂的分享提醒在列表上表现为 customerName 整列「—」(客户已被 @TableLogic 过滤,回填查不到)
         removeAllShares(id);
+        // 【体检 P1 2026-10-12】INV-05 全量口径: 删除是终态, 该客户全部类型的 pending 提醒
+        // (expiring/invoice_*)一并清理, 防死行重新积压(摸底 59 条的主供给源)
+        cleanPendingReminders(id);
         // 【裁决 2026-09-24】客户删除留痕(三态不变量: 名下/公海/已删除, 删除是终态必须可追溯):
         // 完整快照落 sys_log, 管理员经 系统管理-系统日志 查看; 行本身 @TableLogic 逻辑删保留
         logRecordDeletion("客户", "删除客户", "customer", id,
@@ -657,6 +660,22 @@ public class CustomerService {
         }
     }
 
+    /**
+     * 【体检 P1 2026-10-12】在途审批守卫(释放口): 与 assertDeletable 同判据——
+     * 释放进公海后, 在途的延期/转移审批若再通过会把客户拉回私海/盲改属主(双归属),
+     * 须先处理审批再释放。到期自动入海(CustomerExpireTask)不经此口, 由执行侧守卫兜底。
+     */
+    public void assertNoActiveApprovals(Long id) {
+        long activeApprovals = approvalMapper.selectCount(
+                new LambdaQueryWrapper<com.aigicrm.module.approval.entity.BizApproval>()
+                        .eq(com.aigicrm.module.approval.entity.BizApproval::getCustomerId, id)
+                        .in(com.aigicrm.module.approval.entity.BizApproval::getStatus, "reviewing", "pending"));
+        if (activeApprovals > 0) {
+            throw new BusinessException(String.format(
+                    "该客户有 %d 条在途审批,不允许释放进公海;请先完成或驳回审批", activeApprovals));
+        }
+    }
+
     /** 【议题五.4 裁决】归档:默认隐藏,可筛"含归档";归档客户不参与统计与到期提醒 */
     public void archive(Long id) {
         BizCustomer existing = customerMapper.selectById(id);
@@ -666,9 +685,10 @@ public class CustomerService {
         }
         existing.setStatus("archived");
         customerMapper.updateById(existing);
-        // 【2026-10-09】归档客户不参与提醒(议题五.4 裁决口径,死 pending 判据同 V2026.09.23.8);
-        // 分享行保留备 restore,仅清 pending 分享提醒(一次性确认类,恢复不回填)
-        cleanPendingShareReminders(id);
+        // 【体检 P1 2026-10-12】归档客户不参与提醒(议题五.4 裁决口径), 且 INV-05 全量口径:
+        // 全部类型 pending 一并清(死 pending 判据同 V2026.09.23.8); 分享行保留备 restore,
+        // 恢复后按各自规则重新生成, 不回填
+        cleanPendingReminders(id);
     }
 
     /** 【议题五.4】恢复(从归档恢复正常) */
@@ -1702,6 +1722,10 @@ public class CustomerService {
                 customer.setLastInvoiceDate(effective);
                 calculateExpireDates(customer);
                 customerMapper.updateById(customer);
+                // 【体检 P1 2026-10-12】治愈回收: 重新开票(开票日前移)后, pending 的
+                // invoice_never/invoice_overdue 提醒即清——凌晨任务按新事实重建,
+                // 防「待首次开票/已超期N天(N冻结)」旧文案持续误导跟进
+                cleanInvoicePendingReminders(customerId);
             }
         }
         recalculateCoreStatus(customerId);
@@ -1807,6 +1831,30 @@ public class CustomerService {
         // 【2026-10-09】分享全部撤销(入海/捞取/删除/管理端清空)时,三类 pending 分享提醒
         // 指向的分享已不存在,一并清理;processed 历史留痕不动
         cleanPendingShareReminders(customerId);
+    }
+
+    /**
+     * 【体检 P1 2026-10-12】清理客户全部类型的 pending 提醒(INV-05 全量口径)。
+     * 背景: 四个生命周期钩子(删除/归档/入海/捞取)此前只清分享类, expiring/invoice_* 类
+     * 死 pending 无常驻清理, 积压成「—」死行(2026-10-12 生产摸底 59 条; INV-05 条文为
+     * 不限类型)。processed 历史留痕不动; 恢复/重新捞取后按各自规则重新生成。
+     */
+    public void cleanPendingReminders(Long customerId) {
+        reminderMapper.delete(new LambdaQueryWrapper<BizReminder>()
+                .eq(BizReminder::getCustomerId, customerId)
+                .eq(BizReminder::getStatus, "pending"));
+    }
+
+    /**
+     * 【体检 P1 2026-10-12】治愈回收: 客户重新开票(lastInvoiceDate 前移)后,
+     * pending 的 invoice_never/invoice_overdue 提醒不再回收也不改判, 旧文案持续显示
+     * 「待首次开票/已超期N天」且 N 冻结在创建日——治愈即清, 由凌晨任务按新事实重建。
+     */
+    private void cleanInvoicePendingReminders(Long customerId) {
+        reminderMapper.delete(new LambdaQueryWrapper<BizReminder>()
+                .eq(BizReminder::getCustomerId, customerId)
+                .in(BizReminder::getReminderType, java.util.List.of("invoice_never", "invoice_overdue"))
+                .eq(BizReminder::getStatus, "pending"));
     }
 
     /**

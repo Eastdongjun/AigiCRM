@@ -44,4 +44,16 @@ public class FolderAclController {
     public Result<Map<String, Object>> permissions(@PathVariable Long id) {
         return Result.ok(aclService.permissions(id, SecurityUtils.getCurrentUserId()));
     }
+
+    /**
+     * 【体检 P1 2026-10-12】ACL 授权面专用的轻量角色字典: 弹窗原本拉 /system/roles(要求
+     * system:role:view, 仅 admin/0 持有), 而 file:acl:manage 授 admin/05/0/06——05/06 与
+     * 非 admin 夹主/上级链打开弹窗时角色下拉 403 被静默吞, 恒空且保存按钮恒禁用, 新增授权
+     * 路径整体断裂。改走本端点按 ACL 自身权限放行, 只暴露 id+名称(最小面)。
+     */
+    @GetMapping("/acl-roles")
+    @PreAuthorize("hasAuthority('file:acl:manage')")
+    public Result<List<Map<String, Object>>> aclRoles() {
+        return Result.ok(aclService.listAclRoles());
+    }
 }

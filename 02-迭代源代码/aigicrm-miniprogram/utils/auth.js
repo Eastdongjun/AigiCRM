@@ -59,6 +59,10 @@ function requireLogin() {
 
 function logout() {
   const globalData = getGlobalData()
+  // 【体检 P1 2026-10-12】注销即拉黑: 先调服务端 /auth/logout(按 jti 拉黑当前 token)再清本地——
+  // 此前只清本地, 退出后 token 在有效期内服务端仍可用; PC 已同款修复, 此处对齐。
+  // 函数内惰性 require 避免 utils/auth ↔ api/auth 循环依赖; 尽力而为, 失败不阻断本地登出
+  try { require('../api/auth').logout().catch(() => {}) } catch (e) { /* 网络异常不阻断登出 */ }
   clearToken()
   globalData.currentUser = null
   globalData.permissions = []

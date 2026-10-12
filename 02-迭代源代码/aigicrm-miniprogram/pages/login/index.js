@@ -80,8 +80,17 @@ Page({
       rememberMe: true
     }).then((res) => {
       setToken(res.token)
+      // 【体检 P1 2026-10-12】首登/被重置强制改密: 后端 JwtAuthFilter 对 pwdResetRequired=1 的非白名单
+      // 路径一律 403, MP 此前忽略标记直进首页→业务全面 403 无出路; PC 已有完整闭环, 此处对齐——
+      // 引导到修改密码页(该端点在服务端白名单), 改密成功后回登录页重新登录
+      if (res && res.pwdResetRequired === 1) {
+        wx.showToast({ title: '首次登录须先修改密码', icon: 'none', duration: 2500 })
+        setTimeout(() => wx.redirectTo({ url: '/pages/profile/password/index' }), 600)
+        return null
+      }
       return loadCurrentUser()
-    }).then(() => {
+    }).then((user) => {
+      if (!user) return
       // 同意留痕: 记录用户已同意的协议版本,便于后续版本升级时重新征得同意
       try { wx.setStorageSync('user_agreement_version', AGREEMENT_VERSION) } catch (e) { /* 存储失败不阻断登录 */ }
       wx.switchTab({ url: '/pages/home/index' })

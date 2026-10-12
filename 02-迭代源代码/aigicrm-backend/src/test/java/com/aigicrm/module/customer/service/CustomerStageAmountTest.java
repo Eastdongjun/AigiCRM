@@ -47,6 +47,7 @@ class CustomerStageAmountTest {
     private final BizCustomerIndicatorMapper indicatorMapper = mock(BizCustomerIndicatorMapper.class);
     private final BizCustomerStageAmountMapper stageAmountMapper = mock(BizCustomerStageAmountMapper.class);
     private final SysUserMapper userMapper = mock(SysUserMapper.class);
+    private final BizReminderMapper reminderMapper = mock(BizReminderMapper.class);
     private final SysConfigService configService = mock(SysConfigService.class);
     private final CustomerService service = new CustomerService(
             customerMapper,
@@ -59,7 +60,7 @@ class CustomerStageAmountTest {
             stageAmountMapper,
             userMapper,
             mock(SysDeptMapper.class),
-            mock(BizReminderMapper.class),
+            reminderMapper,
             mock(JdbcTemplate.class),
             configService,
             mock(OrgScopeResolver.class),
@@ -71,7 +72,8 @@ class CustomerStageAmountTest {
     @BeforeAll
     static void initTableInfo() {
         // LambdaQueryWrapper 依赖实体列缓存(自足 init, 不蹭其他测试类的静态缓存——单跑必挂的老坑)
-        for (Class<?> t : List.of(BizCustomer.class, BizCustomerIndicator.class, BizCustomerStageAmount.class)) {
+        for (Class<?> t : List.of(BizCustomer.class, BizCustomerIndicator.class, BizCustomerStageAmount.class,
+                com.aigicrm.module.reminder.entity.BizReminder.class)) {
             if (TableInfoHelper.getTableInfo(t) == null) {
                 TableInfoHelper.initTableInfo(
                         new com.baomidou.mybatisplus.core.MybatisMapperBuilderAssistant(new MybatisConfiguration(), ""), t);
@@ -207,6 +209,42 @@ class CustomerStageAmountTest {
             ArgumentCaptor<BizCustomer> c4 = ArgumentCaptor.forClass(BizCustomer.class);
             verify(customerMapper, times(1)).updateById(c4.capture());
             assertEquals(LocalDate.now(), c4.getValue().getLastInvoiceDate(), "未来阶段末按今天封顶");
+        }
+    }
+
+    // ====== 【体检 P1 2026-10-12】治愈回收: 重新开票(开票日前移)即清 invoice 类 pending 提醒 ======
+
+    @SuppressWarnings("unchecked")
+    @Test
+    void saveStageAmountInvoiceHealedCleansInvoicePendingReminders() {
+        when(stageAmountMapper.selectByPeriodForUpdate(501L, 2026, "H1")).thenReturn(null);
+        when(stageAmountMapper.selectList(any())).thenReturn(List.of());
+        stubNoIndicator();
+        when(configService.getValue(anyString())).thenReturn(null);
+
+        try (MockedStatic<SecurityUtils> sec = mockStatic(SecurityUtils.class)) {
+            sec.when(SecurityUtils::getCurrentUserId).thenReturn(7L);
+            sec.when(SecurityUtils::getCurrentUser).thenReturn(null);
+            // ① 从未开票客户首次录开票额 → 治愈 invoice_never/invoice_overdue: pending 的 invoice 提醒即清
+            when(customerMapper.selectById(501L)).thenReturn(customerWith(null));
+            service.saveStageAmount(501L, new StageAmountRequest(2026, "H1", bd("120"), bd("0")));
+            ArgumentCaptor<com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<com.aigicrm.module.reminder.entity.BizReminder>> cap =
+                    ArgumentCaptor.forClass((Class) com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper.class);
+            verify(reminderMapper, times(1)).delete(cap.capture());
+            // 先取 sqlSegment 触发 in() 参数的懒绑定, 再读参数值(MP 3.5.6 行为)
+            String healSeg = cap.getValue().getSqlSegment();
+            assertTrue(healSeg.contains("customer_id") && healSeg.contains("reminder_type") && healSeg.contains("status"),
+                    "治愈清理按客户+类型+状态定位, 实际段: " + healSeg);
+            assertTrue(cap.getValue().getParamNameValuePairs().containsValue("invoice_never"), "治愈清理须含 invoice_never");
+            assertTrue(cap.getValue().getParamNameValuePairs().containsValue("invoice_overdue"), "治愈清理须含 invoice_overdue");
+            assertTrue(cap.getValue().getParamNameValuePairs().containsValue("pending"), "仅清 pending");
+
+            // ② 零开票(只录回款)不驱动治愈清理
+            reset(reminderMapper);
+            reset(customerMapper);
+            when(customerMapper.selectById(501L)).thenReturn(customerWith(null));
+            service.saveStageAmount(501L, new StageAmountRequest(2026, "H2", null, bd("88")));
+            verify(reminderMapper, never()).delete(any());
         }
     }
 

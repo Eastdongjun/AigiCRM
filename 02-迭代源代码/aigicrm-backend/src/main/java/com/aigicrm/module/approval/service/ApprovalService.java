@@ -244,6 +244,17 @@ public class ApprovalService {
             }
         }
 
+        // 【体检 P1 2026-10-12】公海守卫(提交侧): 池内客户禁止发起延期/转移——审批通过会把
+        // 客户拉回私海口径(延期直接 setStatus(normal)、转移盲改属主), 而池行仍 available 可被
+        // 他人再捞, 造成双归属。与编辑接口的池内禁改守卫(CustomerService)同防线, 此处补审批入口。
+        if (("extend".equals(type) || "transfer".equals(type)) && customerId != null) {
+            BizCustomer guard = customerMapper.selectById(customerId);
+            if (guard != null && "sea".equals(guard.getStatus())) {
+                throw new BusinessException("客户已在公海池中，不能发起"
+                        + ("extend".equals(type) ? "保护期延期" : "客户转移") + "；请先捞取回私海再操作");
+            }
+        }
+
         // 【2026-09-23 转移校验前移】接收人有效性+集团边界原先只在审批通过时校验(applyApprovalAction),
         // 接收人失效(停用/删除/跨集团)时错误在审批人端爆发、发起人无感知——单据永远无法生效却显示"已提交"。
         // 前移到提交时 fail-fast,校验口径与审批执行侧逐字一致(消息复用);审批执行侧校验保留作最终防线。
@@ -683,6 +694,12 @@ public class ApprovalService {
                 // (=开票推导+累计已批延期)——删票回算开票部分不收回已批延期。
                 BizCustomer customer = customerMapper.selectById(approval.getCustomerId());
                 if (customer != null) {
+                    // 【体检 P1 2026-10-12】公海守卫(执行侧): 在途期间客户被释放进公海时,
+                    // 延期执行无条件 setStatus(normal) 会把客户拉回私海而池行残留——双归属。
+                    // 拒绝执行并随事务回滚(approve 是 @Transactional), 审批人应改走驳回。
+                    if ("sea".equals(customer.getStatus())) {
+                        throw new BusinessException("客户已进入公海，该延期审批不再适用；请驳回此单（捞取回私海后再发起）");
+                    }
                     int extendDays = getConfigInt("customer.extend.days", 360);
                     int accumulated = customer.getApprovedExtendDays() != null
                             ? customer.getApprovedExtendDays() : 0;
@@ -720,6 +737,12 @@ public class ApprovalService {
                         Long newOwnerId = Long.valueOf(data.get("newOwnerId").toString());
                         BizCustomer customer = customerMapper.selectById(approval.getCustomerId());
                         if (customer != null) {
+                            // 【体检 P1 2026-10-12】公海守卫(执行侧): 在途期间客户入海后, 转移执行
+                            // 直接改属主绕过"池内禁改属主"防线(编辑接口同款守卫见 CustomerService),
+                            // 且新负责人列表看不到 sea 客户、池行仍可被他人捞走属主被静默覆盖。
+                            if ("sea".equals(customer.getStatus())) {
+                                throw new BusinessException("客户已进入公海，该转移审批不再适用；请驳回此单（捞取回私海后再发起）");
+                            }
                             // 【PR-09】接收人有效性:必须存在、启用、未删除
                             SysUser newOwner = userMapper.selectById(newOwnerId);
                             if (newOwner == null || newOwner.getStatus() == null || newOwner.getStatus() != 1

@@ -152,7 +152,9 @@ function buildDetailView(data) {
     showContactsSection: hasDetail && canViewContacts,
     showFinanceSection: hasDetail && canViewFinance,
     showCoreVerdictSection: hasDetail,
-    showExtendAction: hasDetail,
+    // 【体检 P1 2026-10-12】延期按钮补 !fromSea 守卫(与释放/归档同款): 公海客户发起延期,
+    // 审批通过会把客户拉回私海而池行残留——双归属; 后端提交侧已同步加守卫, 此处前端纵深
+    showExtendAction: hasDetail && !fromSea,
     showRelationshipSection: hasDetail,
     showIndicatorSection: hasDetail,
     showIndicatorEditAction: hasDetail && canEdit,

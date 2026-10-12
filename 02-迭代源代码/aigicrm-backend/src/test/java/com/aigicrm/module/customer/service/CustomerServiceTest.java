@@ -1689,16 +1689,22 @@ class CustomerServiceTest {
                 mock(com.aigicrm.module.system.mapper.SysLogMapper.class));
 
         svc.delete(501L);
-        // 删除是终态: 分享行与 pending 分享提醒一并清理(悬挂提醒回填不到客户名)
+        // 删除是终态: 分享行与 pending 分享提醒一并清理(悬挂提醒回填不到客户名);
+        // 【体检 P1 2026-10-12】INV-05 全量口径: 再补一次全类型 pending 清理(expiring/invoice_* 死行供给源)
         verify(shareMapper).delete(any());
+        @SuppressWarnings("unchecked")
         ArgumentCaptor<LambdaQueryWrapper<com.aigicrm.module.reminder.entity.BizReminder>> cap =
                 ArgumentCaptor.forClass((Class) LambdaQueryWrapper.class);
-        verify(reminderMapper, times(1)).delete(cap.capture());
-        LambdaQueryWrapper<com.aigicrm.module.reminder.entity.BizReminder> w = cap.getValue();
-        assertTrue(w.getSqlSegment().contains("customer_id"), "按客户定位: " + w.getSqlSegment());
-        assertTrue(w.getSqlSegment().contains("reminder_type"), "限分享三类: " + w.getSqlSegment());
-        assertTrue(w.getParamNameValuePairs().containsValue("pending"), "仅清 pending");
-        assertTrue(w.getParamNameValuePairs().containsValue("share_to"), "share_to 在清理范围");
+        verify(reminderMapper, times(2)).delete(cap.capture());
+        LambdaQueryWrapper<com.aigicrm.module.reminder.entity.BizReminder> shareScoped = cap.getAllValues().get(0);
+        assertTrue(shareScoped.getSqlSegment().contains("customer_id"), "按客户定位: " + shareScoped.getSqlSegment());
+        assertTrue(shareScoped.getSqlSegment().contains("reminder_type"), "限分享三类: " + shareScoped.getSqlSegment());
+        assertTrue(shareScoped.getParamNameValuePairs().containsValue("pending"), "仅清 pending");
+        assertTrue(shareScoped.getParamNameValuePairs().containsValue("share_to"), "share_to 在清理范围");
+        LambdaQueryWrapper<com.aigicrm.module.reminder.entity.BizReminder> allTypes = cap.getAllValues().get(1);
+        assertTrue(allTypes.getSqlSegment().contains("customer_id"), "按客户定位: " + allTypes.getSqlSegment());
+        assertFalse(allTypes.getSqlSegment().contains("reminder_type"), "全类型清理不限提醒类型: " + allTypes.getSqlSegment());
+        assertTrue(allTypes.getParamNameValuePairs().containsValue("pending"), "仅清 pending");
     }
 
     @Test
@@ -1727,9 +1733,15 @@ class CustomerServiceTest {
 
         svc.archive(501L);
         assertEquals("archived", cust.getStatus());
-        // 归档可恢复: 分享行保留, 仅清 pending 分享提醒(同 V2026.09.23.8 死 pending 判据)
+        // 归档可恢复: 分享行保留; 【体检 P1 2026-10-12】INV-05 全量口径——清全部类型 pending 提醒
         verify(shareMapper, never()).delete(any());
-        verify(reminderMapper, times(1)).delete(any());
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<LambdaQueryWrapper<com.aigicrm.module.reminder.entity.BizReminder>> archiveCap =
+                ArgumentCaptor.forClass((Class) LambdaQueryWrapper.class);
+        verify(reminderMapper, times(1)).delete(archiveCap.capture());
+        assertFalse(archiveCap.getValue().getSqlSegment().contains("reminder_type"),
+                "归档清理不限提醒类型(全类型): " + archiveCap.getValue().getSqlSegment());
+        assertTrue(archiveCap.getValue().getParamNameValuePairs().containsValue("pending"), "仅清 pending");
     }
 
     @Test

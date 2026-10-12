@@ -464,6 +464,9 @@ public class CustomerController {
         if (seaService.matchSeaConfig(customer.getOfficeId()) == null) {
             throw new BusinessException("该客户所属办事处未配置公海池，无法释放");
         }
+        // 【体检 P1 2026-10-12】在途审批守卫: 有延期/转移审批在途时释放, 审批通过会把池内客户
+        // 拉回私海/盲改属主(双归属); 与删除口的 assertDeletable 同判据
+        customerService.assertNoActiveApprovals(id);
         String reason = body.getOrDefault("reason", "放弃客户");
         seaService.addToSea(id, reason);
         // 释放后删除该客户的所有分享

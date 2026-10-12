@@ -337,6 +337,13 @@ class ApprovalServiceTest {
     private ApprovalService newTransferService(SysUserMapper userMapper,
                                                org.springframework.jdbc.core.JdbcTemplate jdbc,
                                                BizApprovalMapper approvalMapper) {
+        return newTransferService(userMapper, jdbc, approvalMapper, mock(BizCustomerMapper.class));
+    }
+
+    private ApprovalService newTransferService(SysUserMapper userMapper,
+                                               org.springframework.jdbc.core.JdbcTemplate jdbc,
+                                               BizApprovalMapper approvalMapper,
+                                               BizCustomerMapper customerMapper) {
         BizApprovalConfigMapper configMapper = mock(BizApprovalConfigMapper.class);
         when(configMapper.selectCount(any())).thenReturn(1L);
         ApprovalConfigService configService = mock(ApprovalConfigService.class);
@@ -346,7 +353,7 @@ class ApprovalServiceTest {
                 approvalMapper,
                 mock(BizApprovalNodeMapper.class),
                 mock(BizApprovalFlowMapper.class),
-                mock(BizCustomerMapper.class),
+                customerMapper,
                 userMapper,
                 mock(SysUserRoleMapper.class),
                 mock(SysDeptMapper.class),
@@ -385,6 +392,33 @@ class ApprovalServiceTest {
         ex = assertThrows(BusinessException.class,
                 () -> svc.submit("transfer", 42L, null, "{\"foo\":1}"));
         assertTrue(ex.getMessage().contains("缺少接收人"));
+    }
+
+    @Test
+    void submit_extendOrTransfer_seaCustomer_rejectsBeforeCreatingApproval() {
+        // 【体检 P1 2026-10-12】公海守卫(提交侧): 池内客户禁发起延期/转移——审批通过会把客户
+        // 拉回私海/盲改属主而池行残留(双归属); 私海客户不受影响
+        SecurityUser u = new SecurityUser();
+        u.setUserId(7L);
+        u.setRoleCodes(java.util.List.of("06"));
+        setCurrentUser(u);
+
+        BizCustomerMapper customerMapper = mock(BizCustomerMapper.class);
+        com.aigicrm.module.customer.entity.BizCustomer sea = new com.aigicrm.module.customer.entity.BizCustomer();
+        sea.setId(42L);
+        sea.setStatus("sea");
+        when(customerMapper.selectById(42L)).thenReturn(sea);
+        BizApprovalMapper approvalMapper = mock(BizApprovalMapper.class);
+        ApprovalService svc = newTransferService(mock(SysUserMapper.class),
+                mock(org.springframework.jdbc.core.JdbcTemplate.class), approvalMapper, customerMapper);
+
+        BusinessException extendEx = assertThrows(BusinessException.class,
+                () -> svc.submit("extend", 42L, null, null));
+        assertTrue(extendEx.getMessage().contains("公海"), "延期守卫: " + extendEx.getMessage());
+        BusinessException transferEx = assertThrows(BusinessException.class,
+                () -> svc.submit("transfer", 42L, null, "{\"newOwnerId\":9}"));
+        assertTrue(transferEx.getMessage().contains("公海"), "转移守卫: " + transferEx.getMessage());
+        verify(approvalMapper, never()).insert(any(BizApproval.class));
     }
 
     @Test

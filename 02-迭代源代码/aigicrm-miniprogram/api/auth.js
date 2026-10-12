@@ -28,6 +28,12 @@ function switchGroup(groupId) {
   })
 }
 
+// 【体检 P1 2026-10-12】服务端注销: 后端按 jti 拉黑当前 token(防被盗 token 复用, 有效期内不再可用);
+// PC 已接(store/user.js 先调 apiLogout), MP 此前只清本地未同步——两端行为分裂
+function logout() {
+  return request({ url: '/api/auth/logout', method: 'POST' })
+}
+
 function forgotPasswordLookup(data) { return request({ url: '/api/auth/forgot-password/lookup', method: 'POST', data }) }
 function forgotPasswordSendCode(data) { return request({ url: '/api/auth/forgot-password/send-code', method: 'POST', data }) }
 function forgotPasswordReset(data) { return request({ url: '/api/auth/forgot-password/reset', method: 'POST', data }) }
@@ -36,6 +42,7 @@ module.exports = {
   login,
   loadCurrentUser,
   switchGroup,
+  logout,
   forgotPasswordLookup,
   forgotPasswordSendCode,
   forgotPasswordReset

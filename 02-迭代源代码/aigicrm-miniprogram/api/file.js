@@ -40,7 +40,11 @@ function getDownloadToken() {
   return request({ url: '/api/file/download-token' })
 }
 
-function getFolders() { return request({ url: '/api/file/folders' }) }
+// 【体检 P1 2026-10-12】带 scope 请求文件夹树: 后端 @RequestParam(defaultValue="public")——
+// 不带参恒返回公共树, 私人 Tab 再按 folderType 过滤必为空(PC 端已带 scope, MP 此前漏传)
+function getFolders(scope) {
+  return request({ url: '/api/file/folders', data: scope ? { scope } : {} })
+}
 function createFolder(data) { return request({ url: '/api/file/folders', method: 'POST', data }) }
 function renameFolder(id, folderName) { return request({ url: '/api/file/folders/' + id, method: 'PUT', data: { folderName } }) }
 function deleteFolder(id) { return request({ url: '/api/file/folders/' + id, method: 'DELETE' }) }

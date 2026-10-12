@@ -44,8 +44,7 @@
 <script setup>
 import { ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
-import { getFolderAcl, saveFolderAcl, removeFolderAcl, setFolderDownloadable, getFolderPermissions } from '@/api/file'
-import { getRoleList } from '@/api/system'
+import { getFolderAcl, saveFolderAcl, removeFolderAcl, setFolderDownloadable, getFolderPermissions, getAclRoles } from '@/api/file'
 import { injectFilePage } from '@/composables/useFilePage'
 
 const { aclDialogVisible, aclFolder, selectedFolderId, loadFolderPerms, folderDownloadable } = injectFilePage()
@@ -89,7 +88,10 @@ watch([aclDialogVisible, aclFolder], async ([vis, folder]) => {
     aclSelectedPerms.value = []
     if (!allRoles.value.length) {
       try {
-        const res = await getRoleList()
+        // 【体检 P1 2026-10-12】角色字典改走 ACL 专用轻量端点(file:acl:manage 同权限放行):
+        // 原 /system/roles 要求 system:role:view(仅 admin/0), 05/06 与非 admin 夹主打开弹窗
+        // 时下拉 403 被静默吞恒空, 保存按钮恒禁用——新增授权路径断裂
+        const res = await getAclRoles()
         allRoles.value = res.data || []
       } catch (e) {}
     }

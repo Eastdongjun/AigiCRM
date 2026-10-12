@@ -294,6 +294,10 @@ public class AuthService {
                         || (m.getMenuType() == 2 && m.getPath() != null && !m.getPath().isBlank()))
                 .filter(m -> m.getVisible() == null || m.getVisible() == 1)
                 .peek(m -> m.setChildren(buildMenuTree(menus, m.getId())))
+                // 【体检 P1 2026-10-12】零子节点的容器节点(目录/组锚点)不下发: 角色只勾锚点未勾
+                // 任何子页时, 锚点以空 children 渲染为可点叶子, 点击落入 catchAll NotFound
+                // (五个 *-group 锚点在路由表无对应路由)。真正的叶子菜单(menu_type=2 带 path)不受影响。
+                .filter(m -> m.getMenuType() == 2 || (m.getChildren() != null && !m.getChildren().isEmpty()))
                 .sorted(Comparator.comparingInt(m -> m.getSortOrder() != null ? m.getSortOrder() : 0))
                 .collect(Collectors.toList());
     }
