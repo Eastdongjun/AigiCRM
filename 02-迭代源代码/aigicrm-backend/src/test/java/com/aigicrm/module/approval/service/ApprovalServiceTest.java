@@ -201,6 +201,40 @@ class ApprovalServiceTest {
     }
 
     @Test
+    void submit_claim_atomicLockWritesClaimDate_forTimeoutRelease() {
+        // 【体检 H5 2026-10-12】锁定必须写 claim_date: 超时释放任务 releaseStaleClaimLocks 以
+        // lt(claim_date, deadline) 筛超时行, 锁定不写时间戳则 SQL 中 NULL 永不命中——无人审批的锁
+        // 永久 pending_approval 锁死池行(体检 H5 断链, 此处契约钉防回归)
+        SecurityUser u = new SecurityUser();
+        u.setUserId(7L);
+        u.setDataScope("all");
+        setCurrentUser(u);
+
+        BizSeaPool pool = new BizSeaPool();
+        pool.setId(3L);
+        pool.setCustomerId(42L);
+        pool.setStatus("available");
+
+        BizSeaPoolMapper seaPoolMapper = mock(BizSeaPoolMapper.class);
+        when(seaPoolMapper.selectOne(any())).thenReturn(pool);
+        when(seaPoolMapper.update(isNull(), any())).thenReturn(1);
+
+        BizApprovalMapper approvalMapper = mock(BizApprovalMapper.class);
+        when(approvalMapper.selectMaxCodeByPrefix(anyString(), any())).thenReturn(0);
+
+        ApprovalService svc = newService(seaPoolMapper, approvalMapper, mock(BizApprovalNodeMapper.class));
+        assertDoesNotThrow(() -> svc.submit("claim", 42L, null, null));
+
+        @SuppressWarnings("unchecked")
+        org.mockito.ArgumentCaptor<com.baomidou.mybatisplus.core.conditions.Wrapper<BizSeaPool>> captor =
+                org.mockito.ArgumentCaptor.forClass(com.baomidou.mybatisplus.core.conditions.Wrapper.class);
+        verify(seaPoolMapper, times(1)).update(isNull(), captor.capture());
+        String sqlSet = ((com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper<BizSeaPool>) captor.getValue()).getSqlSet();
+        assertTrue(sqlSet.contains("claim_date"), "锁定更新必须写入 claim_date(超时释放依赖), 实际: " + sqlSet);
+        assertTrue(sqlSet.contains("claim_user_id"), "锁定更新必须写入 claim_user_id, 实际: " + sqlSet);
+    }
+
+    @Test
     void submit_claim_withoutPoolPermOrLegacyAuthority_rejectsBeforeLockingPool() {
         SecurityUser u = new SecurityUser();
         u.setUserId(7L);

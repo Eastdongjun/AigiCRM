@@ -35,11 +35,16 @@ public class MybatisPlusConfig {
     private static final Set<String> TENANT_TABLES = Set.of(
             "biz_approval", "biz_approval_config", "biz_approval_flow", "biz_approval_node",
             "biz_contact", "biz_customer", "biz_customer_indicator", "biz_customer_log",
-            "biz_customer_share", "biz_customer_transfer", "biz_file", "biz_file_folder",
-            "biz_file_share", "biz_folder_acl", "biz_incentive_category",
-            "biz_incentive_permission", "biz_incentive_record", "biz_invoice", "biz_payment",
-            "biz_reminder", "biz_score_entry", "biz_score_item", "biz_score_participant",
-            "biz_sea_config", "biz_sea_pool", "biz_task"); // 【G2 2026-09-21】task 进租户隔离(列守卫迁移 V2026.09.21.2)
+            "biz_customer_share", "biz_customer_stage_amount", "biz_customer_transfer",
+            "biz_file", "biz_file_folder", "biz_file_share", "biz_folder_acl",
+            "biz_incentive_category", "biz_incentive_permission", "biz_incentive_record",
+            "biz_invoice", "biz_payment", "biz_reminder", "biz_score_entry", "biz_score_item",
+            "biz_score_participant", "biz_sea_config", "biz_sea_pool", "biz_task");
+    // 【体检 H4 2026-10-12】biz_customer_stage_amount(V2026.10.10.1 新表, tenant_id NOT NULL DEFAULT '1')
+    // 此前漏白名单: 新录行走 MP insert 不自动补租户恒落默认 1, 而排行子查询手动按租户过滤——
+    // 集团≠1 的阶段金额被滤为 0 且污染核心客户判定金额源(2026-10-12 生产摸底: 单集团 16 行全对, 0 行受害)。
+    // 该表全部读写在用户请求上下文(定时任务不触及), 白名单化后 insert 自动补租户/查询自动隔离。
+    // 实体无 tenantId 字段是刻意: 租户列由插件维护, 业务代码不读写(与其余白名单表同范式)。
 
     /** 租户插件开关（默认关闭；环境变量 TENANT_ENABLE 可覆盖） */
     @Value("${aigicrm.tenant.enable:false}")

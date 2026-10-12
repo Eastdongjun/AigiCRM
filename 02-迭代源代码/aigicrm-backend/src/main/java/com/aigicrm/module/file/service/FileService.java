@@ -267,6 +267,13 @@ public class FileService {
         if (!"public".equals(type) && !"private".equals(type)) {
             throw new BusinessException("不支持的文件夹类型");
         }
+        // 【体检 H3 2026-10-12】parentId=0 与 null 同为根级（0 是 DDL 哨兵，buildFolderTree 以 0 为根）。
+        // PC(CreateFolderDialog selectedFolderId||0) 与 MP(建夹恒传 0) 均传 0，此前 0 被当真实父夹
+        // 做 P_UPLOAD 校验（selectById(0)=null→403），非 admin 建根夹恒败。归一化后走根级规则：
+        // 私人根免门槛，公共根保留管理员门槛；insert 省略 null 字段落列默认 0，与存量根夹一致。
+        if (folder.getParentId() != null && folder.getParentId() == 0L) {
+            folder.setParentId(null);
+        }
         // 【文件权限体系】创建子文件夹需父文件夹上传权限（管理员/本人/上级链/ACL upload），
         // public 类型带 parentId 同样按父夹 P_UPLOAD 判定（ACL 授权角色可在已授权公共夹下建子夹）；
         // 根级公共文件夹（无 parentId）保留管理员门槛。

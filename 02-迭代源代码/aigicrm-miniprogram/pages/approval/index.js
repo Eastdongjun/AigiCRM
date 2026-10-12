@@ -1,4 +1,4 @@
-const { approveApproval, getApprovalList, getApprovalStatistics, rejectApproval, submitApproval } = require('../../api/approval')
+const { approveApproval, getApprovalList, getApprovalStatistics, rejectApproval } = require('../../api/approval')
 const { getDepts } = require('../../api/system')
 const { approvalRecords } = require('../../data/demo')
 const { hasPermission, requireLogin } = require('../../utils/auth')
@@ -142,7 +142,6 @@ Page({
     loading: false,
     canApprove: false,
     canReject: false
-    ,submitCustomerId: ''
     ,approvalView: buildApprovalView({
       approvals: [],
       stats: {},
@@ -290,21 +289,6 @@ Page({
     if (!item || !item.customerId) return wx.showToast({ title: '未关联客户', icon: 'none' })
     wx.navigateTo({ url: `/pages/customer/detail/index?id=${item.customerId}&from=approval` })
   },
-
-  submitReleaseApproval() {
-    const customerId = this.data.submitCustomerId
-    if (!getApp().globalData.demoMode && !customerId) return wx.showToast({ title: '请先输入客户ID', icon: 'none' })
-    if (getApp().globalData.demoMode) {
-      wx.showToast({ title: '已提交审批', icon: 'success' })
-      return
-    }
-    submitApproval({ type: 'customer_release', customerId: customerId || '1', actionAfterApprove: 'release' }).then(() => {
-      wx.showToast({ title: '已提交审批', icon: 'success' })
-      this.loadApprovals(); this.loadStats()
-    }).catch((error) => showError(error, '提交失败'))
-  },
-
-  onSubmitCustomerId(e) { this.setData({ submitCustomerId: e.detail.value }) },
 
   handleApprovalAction(id, action) {
     if (getApp().globalData.demoMode) {

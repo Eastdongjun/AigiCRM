@@ -63,10 +63,8 @@
     </view>
   </block>
   <view wx:if="{{approvalView.showEmpty}}" class="card muted">暂无审批事项</view>
-  <view class="card approval-submit-card">
-    <view class="section-title">发起客户释放审批</view>
-    <input class="search-input approval-input" placeholder="输入客户ID" value="{{submitCustomerId}}" bindinput="onSubmitCustomerId"/>
-    <button class="btn approval-submit-btn" bindtap="submitReleaseApproval">提交审批</button>
-  </view>
+  <!-- 【体检 H2 2026-10-12】移除"发起客户释放审批"死入口: 无出厂流程配置提交必 400,
+       且后端 executeApprovalAction 无 customer_release 分支即便走完审批也零业务生效;
+       PC 端释放走直连接口不经审批, 本卡片是唯一发起口(生产审批历史仅 claim/extend, 从未成功用过) -->
 </view>
 

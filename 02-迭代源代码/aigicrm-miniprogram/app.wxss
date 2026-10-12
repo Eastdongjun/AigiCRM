@@ -159,9 +159,6 @@ page{background:#f5f7fb;color:#172033;font-family:-apple-system,BlinkMacSystemFo
 .contact-detail-name,.file-detail-name{margin-top:18rpx}
 .file-preview-video{width:100%;margin-top:24rpx;border-radius:16rpx;background:#000;overflow:hidden}
 .file-preview-btn{margin-top:28rpx;width:100%}
-.approval-submit-card{margin-top:20rpx}
-.approval-input{margin-top:12rpx}
-.approval-submit-btn{margin-top:16rpx;width:100%}
 .finance-add-btn,.customer-action-btn{margin-top:22rpx;width:100%}
 .customer-action-btn.flat{margin-top:0}
 .incentive-detail-card{margin-top:24rpx;border:2rpx solid #bfdbfe;background:linear-gradient(180deg,#ffffff,#f8fbff)}

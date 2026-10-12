@@ -359,10 +359,14 @@ Page({
         const name = String(result.content || '').trim()
         if (!result.confirm || !name) return
         wx.showLoading({ title: '创建中' })
-        createFolder({ folderName: name, folderType: this.activeFileScope(), parentId: 0 }).then(() => {
+        // 【体检 H3 2026-10-12】带当前文件夹上下文(与上传同参): 浏览夹内时建的是子夹;
+        // 根级传 0, 后端已把 0 归一化为根级哨兵(此前恒传 0 被 403)
+        createFolder({ folderName: name, folderType: this.activeFileScope(), parentId: this.data.activeFolderId || 0 }).then(() => {
           wx.hideLoading()
           wx.showToast({ title: '已创建', icon: 'success' })
-          this.loadFiles()
+          this.data.activeFolderId
+            ? this.openFolder({ currentTarget: { dataset: { id: this.data.activeFolderId, name: this.data.activeFolderName } } })
+            : this.loadFiles()
         }).catch((error) => {
           wx.hideLoading()
           showError(error, '新建文件夹失败')

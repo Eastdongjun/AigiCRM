@@ -127,6 +127,17 @@ class MybatisPlusConfigTest {
     }
 
     @Test
+    void stageAmountTableIsTenantIsolated() {
+        // 【体检 H4 2026-10-12】biz_customer_stage_amount 必须在租户白名单: 此前漏配致
+        // 新录行走 MP insert 不自动补 tenant_id 恒落默认 1, 集团≠1 的阶段金额被排行子查询滤为 0
+        // 且污染核心客户判定金额源(2026-10-12 生产摸底 0 行受害, 单集团)。契约钉防再漏配
+        authAs(List.of(7L));
+        String out = MybatisPlusConfig.buildTenantInterceptor().parserSingle(
+                "SELECT * FROM biz_customer_stage_amount WHERE customer_id = 1", null);
+        assertTrue(out.contains("tenant_id = 7"), "阶段总额表应附加租户条件，实际: " + out);
+    }
+
+    @Test
     void emptyGroupIdsRendersNullCondition() {
         authAs(List.of());
         String out = MybatisPlusConfig.buildTenantInterceptor().parserSingle(

@@ -31,8 +31,10 @@ function nodeStatusText(status, action) {
 }
 
 // 是否"待处理"状态(列表页 pendingStatus 与详情页 pending 同一实现)
+// 【体检 H1 2026-10-12】补 reviewing: 后端 2026-08-10 起发起即写 status='reviewing'(pending 仅库默认/历史存量),
+// 白名单不含 reviewing 导致移动端审批人对所有新单看不到通过/驳回按钮——demo 数据 status=pending 曾掩盖此断链
 function pendingStatus(status) {
-  return ['pending', 'PENDING', 'WAITING', '待审批'].includes(status)
+  return ['pending', 'PENDING', 'WAITING', '待审批', 'reviewing', 'REVIEWING'].includes(status)
 }
 
 function normalizeApprovalNode(node) {

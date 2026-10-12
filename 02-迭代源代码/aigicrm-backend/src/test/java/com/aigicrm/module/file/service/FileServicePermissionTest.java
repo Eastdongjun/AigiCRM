@@ -135,6 +135,41 @@ class FileServicePermissionTest {
     }
 
     @Test
+    void createFolder_rootParentIdZero_private_nonAdmin_succeeds() {
+        // 【体检 H3 2026-10-12】parentId=0 是根级哨兵(DDL 默认值, buildFolderTree 以 0 为根):
+        // PC(selectedFolderId||0) 与 MP(根级传 0) 均传 0, 此前被当真实父夹校验 check(0)→403,
+        // 非 admin 建根级私人夹恒败。归一化后 0=根级, 不得触发父夹权限校验
+        BizFileFolder folder = new BizFileFolder();
+        folder.setFolderType("private");
+        folder.setParentId(0L);
+        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
+            m.when(SecurityUtils::getCurrentUserId).thenReturn(2L);
+            m.when(SecurityUtils::isAdmin).thenReturn(false);
+            svc.createFolder(folder);
+            verify(folderPermissionService, never()).check(org.mockito.ArgumentMatchers.anyLong(),
+                    org.mockito.ArgumentMatchers.anyString(), org.mockito.ArgumentMatchers.anyLong());
+            verify(folderMapper).insert(folder);
+            // 归一化为 null 后 insert 由 MP 省略 null 字段落列默认 0, 与存量根夹哨兵一致
+            assertNull(folder.getParentId());
+        }
+    }
+
+    @Test
+    void createFolder_rootParentIdZero_public_nonAdmin_keepsAdminGate() {
+        // 【体检 H3 2026-10-12】归一化不放宽根级公共夹管理员门槛(与 parentId=null 同规则)
+        BizFileFolder folder = new BizFileFolder();
+        folder.setFolderType("public");
+        folder.setParentId(0L);
+        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
+            m.when(SecurityUtils::getCurrentUserId).thenReturn(2L);
+            m.when(SecurityUtils::isAdmin).thenReturn(false);
+            BusinessException ex = assertThrows(BusinessException.class, () -> svc.createFolder(folder));
+            assertEquals("公共文件夹只有管理员才能创建", ex.getMessage());
+            verify(folderMapper, never()).insert(any(BizFileFolder.class));
+        }
+    }
+
+    @Test
     void renameFolder_withoutEditPermission_throws403() {
         BizFileFolder folder = new BizFileFolder();
         folder.setId(100L);

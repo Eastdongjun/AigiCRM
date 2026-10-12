@@ -230,9 +230,13 @@ public class ApprovalService {
                 throw new BusinessException("该客户已被他人申请捞取，正在审批中");
             }
             // 原子锁定：条件更新防止并发双捞（仅 status=available 可更新，affected==1 才成功）
+            // 【体检 H5 2026-10-12】锁定同时写入 claim_date——超时释放任务(CustomerExpireTask
+            // .releaseStaleClaimLocks)以 lt(claim_date, 截止) 筛超时行, 不写时间戳则 NULL 永不命中,
+            // 无人审批的锁永久 pending_approval 锁死池行(此前生产 0 行受害, 纯代码修复)
             int locked = seaPoolMapper.update(null, new LambdaUpdateWrapper<BizSeaPool>()
                     .set(BizSeaPool::getStatus, "pending_approval")
                     .set(BizSeaPool::getClaimUserId, applicantId)
+                    .set(BizSeaPool::getClaimDate, LocalDateTime.now())
                     .eq(BizSeaPool::getId, pool.getId())
                     .eq(BizSeaPool::getStatus, "available"));
             if (locked != 1) {
@@ -570,6 +574,9 @@ public class ApprovalService {
                 if (pool != null) {
                     pool.setStatus("available");
                     pool.setClaimUserId(null);
+                    // 【体检 H5 2026-10-12】同步清 claim_date(锁定时已写入), 与超时释放口径一致,
+                    // 防 available 行残留旧时间戳干扰排查
+                    pool.setClaimDate(null);
                     seaPoolMapper.updateById(pool);
                 }
             }
