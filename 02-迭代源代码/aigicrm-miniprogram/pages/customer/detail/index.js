@@ -4,7 +4,11 @@ const { hasPermission, requireLogin } = require('../../../utils/auth')
 const { showError } = require('../../../utils/feedback')
 const { readDemoCustomers } = require('../../../utils/demo-customers')
 // 【D24/D25 2026-10-04】状态文案、五项指标配置、核心客户阈值统一引用组内 shared(单一出处)
-const { customerStatusLabel, INDICATOR_FIELDS, INDICATOR_ITEMS, CORE_INVOICE_AMOUNT_THRESHOLD, CORE_PAYMENT_AMOUNT_THRESHOLD, CORE_INDICATOR_SCORE_THRESHOLD, INDICATOR_MAX_SCORE } = require('../shared')
+// 【#10 2026-10-12】客情选项同步走 shared 新文案 + 后台字典 relationship_depth 覆盖
+const { customerStatusLabel, INDICATOR_FIELDS, INDICATOR_ITEMS, CORE_INVOICE_AMOUNT_THRESHOLD, CORE_PAYMENT_AMOUNT_THRESHOLD, CORE_INDICATOR_SCORE_THRESHOLD, INDICATOR_MAX_SCORE, RELATIONSHIP_OPTIONS, fetchRelationshipDictOptions } = require('../shared')
+const { getDictData } = require('../../../api/system')
+
+const INITIAL_RELATIONSHIP_OPTIONS = RELATIONSHIP_OPTIONS.map((label, value) => ({ label, value }))
 
 function normalizeDetail(item) {
   const terminalValue = item.hasTerminal
@@ -189,7 +193,7 @@ function buildDetailView(data) {
       ['最近开票', detail.lastInvoiceDate],
       ['保护到期', detail.expireDate],
       ['地址', detail.address]
-    ].map(([label, value]) => ({ label, valueText: textOrDash(value) })) : [],
+    ].map(([label, value]) => ({ label, valueText: textOrDash(value), isExpireRow: label === '保护到期' })) : [],
     remarkText: detail ? textOrDash(detail.remark) : '-',
     contacts,
     showNoContacts: contacts.length === 0,
@@ -212,10 +216,10 @@ function buildDetailView(data) {
     coreVerdictStatusText: coreSummary.coreStatusText,
     coreVerdictStatusClass: coreSummary.coreStatusClass,
     coreVerdictRows: [
-      { key: 'invoice', label: '年度开票', valueText: `${coreSummary.invoiceAmount} 万`, statusText: coreSummary.invoiceStatusText, statusClass: coreSummary.invoiceStatusClass },
-      { key: 'payment', label: '年度回款', valueText: `${coreSummary.paymentAmount} 万`, statusText: coreSummary.paymentStatusText, statusClass: coreSummary.paymentStatusClass },
-      { key: 'relationship', label: '客情评分', valueText: `${toNumber(indicator.relationshipScore)} / 3`, statusText: `${toNumber(indicator.relationshipScore)}分`, statusClass: toNumber(indicator.relationshipScore) >= 2 ? 'ok' : 'warn' },
-      { key: 'score', label: '五项评分', valueText: `${coreSummary.scoreTotal} / ${INDICATOR_MAX_SCORE}`, statusText: coreSummary.scoreStatusText + '·不计判定', statusClass: coreSummary.scoreStatusClass }
+      { key: 'invoice', label: '年度开票', valueText: `${coreSummary.invoiceAmount} 万`, thresholdText: '≥100万/年', statusText: coreSummary.invoiceStatusText, statusClass: coreSummary.invoiceStatusClass },
+      { key: 'payment', label: '年度回款', valueText: `${coreSummary.paymentAmount} 万`, thresholdText: '≥100万/年', statusText: coreSummary.paymentStatusText, statusClass: coreSummary.paymentStatusClass },
+      { key: 'relationship', label: '客情评分', valueText: `${toNumber(indicator.relationshipScore)} / 3`, thresholdText: '0-3分·参考', statusText: `${toNumber(indicator.relationshipScore)}分`, statusClass: toNumber(indicator.relationshipScore) >= 2 ? 'ok' : 'warn' },
+      { key: 'score', label: '五项评分', valueText: `${coreSummary.scoreTotal} / ${INDICATOR_MAX_SCORE}`, thresholdText: `满分${INDICATOR_MAX_SCORE}·不计判定`, statusText: coreSummary.scoreStatusText, statusClass: coreSummary.scoreStatusClass }
     ],
     relationshipScoreText: String(toNumber(indicator.relationshipScore)),
     indicatorRows
@@ -237,18 +241,8 @@ Page({
     indicatorSummary: buildIndicatorSummary({}, {}),
     // 【D25 2026-10-04】五项满分单一出处(shared)，wxml「x / 15」统一引用
     indicatorMaxScore: INDICATOR_MAX_SCORE,
-    relationshipOptions: [
-      { label: '陌生', value: 0 },
-      { label: '知道', value: 1 },
-      { label: '熟悉', value: 2 },
-      { label: '支持', value: 3 }
-    ],
-    relationshipOptionsView: buildRelationshipOptions([
-      { label: '陌生', value: 0 },
-      { label: '知道', value: 1 },
-      { label: '熟悉', value: 2 },
-      { label: '支持', value: 3 }
-    ], {}, false),
+    relationshipOptions: INITIAL_RELATIONSHIP_OPTIONS,
+    relationshipOptionsView: buildRelationshipOptions(INITIAL_RELATIONSHIP_OPTIONS, {}, false),
     canEdit: false,
     canDelete: false,
     canViewFinance: false,
@@ -278,7 +272,22 @@ Page({
       canViewContacts: demoMode || hasPermission('contact:view'),
       relationshipOptionsView: buildRelationshipOptions(this.data.relationshipOptions, this.data.indicator, demoMode || hasPermission('customer:edit'))
     })
+    this.loadRelationshipDict()
     this.loadDetail()
+  },
+
+  /** 【#10 2026-10-12】后台字典覆盖客情选项(幂等一次): 成功后按当前指标重建选中态, 失败静默保持兜底文案 */
+  loadRelationshipDict() {
+    if (this._relationshipDictLoaded || getApp().globalData.demoMode) return
+    this._relationshipDictLoaded = true
+    fetchRelationshipDictOptions(getDictData).then((labels) => {
+      if (!labels) return
+      const options = labels.map((label, value) => ({ label, value }))
+      this.setData({
+        relationshipOptions: options,
+        relationshipOptionsView: buildRelationshipOptions(options, this.data.indicator, this.data.canEdit)
+      })
+    })
   },
 
   /** 【M14 2026-10-04】从子页(编辑表单/联系人/财务/指标/跟进)返回时刷新详情。

@@ -447,7 +447,7 @@ async function verifyListPage(miniProgram) {
   await page.waitFor(300)
   const files = await page.data('records[0].files')
   assertAttachmentTags(files, ['安装前', '安装中', '安装后', '跟踪', '佐证'], 'list page')
-  assert((await page.$$('.record-file-row')).length === 5, 'list page attachment rows are missing')
+  assert((await page.$$('.wall-tile')).length === 5, 'list page attachment tiles are missing')  // 【#4 2026-10-12】佐证照片墙重锚
   const listText = (await textList(await page.$$('.incentive-record-card'))).join('\n')
   assert(listText.includes('已读'), 'list page must expose read status for customer records')
   await page.callMethod('toggleCustomerRecords', eventWithDataset({ index: 0 }))

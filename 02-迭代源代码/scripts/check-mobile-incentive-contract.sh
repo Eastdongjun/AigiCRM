@@ -84,7 +84,7 @@ grep -q 'upload page selected image download must call saveFile' "$automator_scr
 grep -q 'upload page selected document must call openDocument' "$automator_script" || { echo "FAIL: incentive DevTools automator does not assert upload selected-document preview action" >&2; exit 1; }
 grep -q 'upload page selected document download must call saveFile' "$automator_script" || { echo "FAIL: incentive DevTools automator does not assert upload selected-document download action" >&2; exit 1; }
 grep -q 'file-tile' "$automator_script" || { echo "FAIL: incentive DevTools automator does not assert detail attachment tiles" >&2; exit 1; }
-grep -q 'record-file-row' "$automator_script" || { echo "FAIL: incentive DevTools automator does not assert list attachment rows" >&2; exit 1; }
+grep -q 'wall-tile' "$automator_script" || { echo "FAIL: incentive DevTools automator does not assert list attachment tiles" >&2; exit 1; }  # 【#4 2026-10-12】列表佐证改照片墙重锚
 grep -q 'timeline-file-row' "$automator_script" || { echo "FAIL: incentive DevTools automator does not assert customer timeline attachment rows" >&2; exit 1; }
 grep -q 'timeline-attachments.png' "$automator_script" || { echo "FAIL: incentive DevTools automator does not capture customer timeline attachment evidence" >&2; exit 1; }
 grep -q 'read-stats-ranking.png' "$automator_script" || { echo "FAIL: incentive DevTools automator does not capture read stats/ranking evidence" >&2; exit 1; }
@@ -224,7 +224,7 @@ grep -q 'wx.previewImage' "$attachment_util" || { echo "FAIL: incentive mobile l
 grep -q 'wx.openDocument' "$attachment_util" || { echo "FAIL: incentive mobile list documents cannot open" >&2; exit 1; }
 grep -q 'getFileSystemManager' "$attachment_util" || { echo "FAIL: incentive mobile list attachments cannot save locally" >&2; exit 1; }
 grep -q 'previewLoading' "$page" || { echo "FAIL: incentive mobile list attachment loading state must be normalized in JS" >&2; exit 1; }
-grep -q 'record-file-list' "$wxml" || { echo "FAIL: incentive mobile list attachment UI is missing" >&2; exit 1; }
+grep -q 'record-file-wall' "$wxml" || { echo "FAIL: incentive mobile list attachment UI is missing" >&2; exit 1; }  # 【#4 2026-10-12】佐证照片墙重锚
 grep -q 'record-file-group' "$wxml" || { echo "FAIL: incentive mobile list attachment UI does not render PC slot groups" >&2; exit 1; }
 grep -q 'data-group-index' "$wxml" || { echo "FAIL: incentive mobile list grouped attachment actions lack slot index" >&2; exit 1; }
 grep -q 'catchtap="previewAttachment"' "$wxml" || { echo "FAIL: incentive mobile list preview UI is missing" >&2; exit 1; }

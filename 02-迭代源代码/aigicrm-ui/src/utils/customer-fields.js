@@ -31,18 +31,39 @@ export const INDICATOR_MAX_SCORE = 15
 /** 核心客户五项评分门槛（合计 ≥12 分，且开票/回款各 ≥100 万） */
 export const INDICATOR_CORE_THRESHOLD = 12
 
+/** 客情·商务关系深度选项(高层/客情程度 0-3 分)。
+ * 【#10 2026-10-12】文案单一出处 + 后台字典 relationship_depth 优先: 页面不再各自硬编码,
+ * 运行时 fetchRelationshipOptions() 拉字典(登录即可读)覆盖, 本表为字典缺行/接口失败的兜底。
+ * 分值 value(0-3) 与库内存量数字不变, 切文案不影响统计与排行分值。 */
+export const RELATIONSHIP_OPTIONS_FALLBACK = [
+  { dictValue: '0', dictLabel: '商务少' },
+  { dictValue: '1', dictLabel: '纯商务' },
+  { dictValue: '2', dictLabel: '感情商务' },
+  { dictValue: '3', dictLabel: '多样性' }
+]
+
+/** 拉取后台客情字典(按 sort_order 排序;空/异常回退兜底文案) */
+export async function fetchRelationshipOptions(getDictData) {
+  try {
+    const rows = await getDictData('relationship_depth')
+    const options = (rows || [])
+      .filter((r) => r && r.dictValue !== null && r.dictValue !== undefined && r.status !== 0)
+      .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
+      .map((r) => ({ dictValue: String(r.dictValue), dictLabel: r.dictLabel }))
+      .filter((r) => r.dictLabel)
+    return options.length ? options : RELATIONSHIP_OPTIONS_FALLBACK
+  } catch (e) {
+    return RELATIONSHIP_OPTIONS_FALLBACK
+  }
+}
+
 /** 五项评分字段定义：options 的 dictValue 为字符串（与后端字典返回口径一致），分值 0-3 */
 export const INDICATOR_FIELDS = [
   {
     code: '02',
     field: 'relationshipScore',
     label: '高层（客情程度）',
-    options: [
-      { dictValue: '0', dictLabel: '陌生' },
-      { dictValue: '1', dictLabel: '知道' },
-      { dictValue: '2', dictLabel: '熟悉' },
-      { dictValue: '3', dictLabel: '支持' }
-    ]
+    options: RELATIONSHIP_OPTIONS_FALLBACK
   },
   {
     code: '03',

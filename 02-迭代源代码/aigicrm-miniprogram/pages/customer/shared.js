@@ -33,8 +33,34 @@ function customerStatusTone(status) {
 
 const INDICATOR_FIELDS = ['relationshipScore', 'indicator02', 'indicator03', 'indicator04', 'indicator05']
 
+// 【#10 2026-10-12】客情·商务关系深度选项: 新文案为兜底(与后台字典 relationship_depth 同口径),
+// 页面可用 applyRelationshipDictOptions 用字典数据实时覆盖 INDICATOR_ITEMS[0].options;
+// 分值=数组下标(0-3)不变, 切文案不影响统计与排行
+const RELATIONSHIP_OPTIONS = ['商务少', '纯商务', '感情商务', '多样性']
+
+/** 字典行 → 客情选项数组; 空返回 null(调用方保持兜底文案) */
+function relationshipOptionsFromDict(rows) {
+  const labels = (rows || [])
+    .filter((r) => r && r.dictValue !== null && r.dictValue !== undefined && r.status !== 0)
+    .sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0))
+    .map((r) => r.dictLabel)
+    .filter(Boolean)
+  return labels.length ? labels.slice(0, 4) : null
+}
+
+/** 拉后台字典覆盖客情选项(传入 api.getDictData; 失败静默保持兜底) */
+function fetchRelationshipDictOptions(getDictData) {
+  return getDictData('relationship_depth')
+    .then((rows) => {
+      const labels = relationshipOptionsFromDict(rows)
+      if (labels) INDICATOR_ITEMS[0].options = labels
+      return labels
+    })
+    .catch(() => null)
+}
+
 const INDICATOR_ITEMS = [
-  { field: 'relationshipScore', name: '高层', desc: '客情程度', options: ['陌生', '知道', '熟悉', '支持'] },
+  { field: 'relationshipScore', name: '高层', desc: '客情程度', options: RELATIONSHIP_OPTIONS.slice() },
   { field: 'indicator02', name: '渠道', desc: '编码数量', options: ['一两个码', '有效编码', '多种编码', '全部畅通'] },
   { field: 'indicator03', name: '基层', desc: '分厂车间', options: ['一两个', '1/3分厂', '2/3分厂', '全部部门'] },
   { field: 'indicator04', name: '产品', desc: '密封润滑防腐', options: ['一两个', '一大类', '两大类', '三大类'] },
@@ -164,6 +190,8 @@ module.exports = {
   customerStatusTone,
   INDICATOR_FIELDS,
   INDICATOR_ITEMS,
+  RELATIONSHIP_OPTIONS,
+  fetchRelationshipDictOptions,
   sumIndicatorScore,
   buildIndicatorItems,
   CORE_INVOICE_AMOUNT_THRESHOLD,

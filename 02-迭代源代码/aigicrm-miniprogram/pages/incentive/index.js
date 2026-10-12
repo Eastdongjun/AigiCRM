@@ -1,5 +1,5 @@
 const { deleteRecord, getCategoryStats, getCategoryTree, getCustomerRecords, getGrantCheck, getRanking, getReadRanking, getReadStats, getRecords, getScoreboard, getUsers, markIncentiveRead } = require('../../api/incentive')
-const { getDownloadUrl } = require('../../api/file')
+const { getDownloadUrl, getDownloadToken } = require('../../api/file')
 const { getDepts } = require('../../api/system')
 const { incentiveRecords } = require('../../data/demo')
 const { hasPermission, isAdmin, requireLogin } = require('../../utils/auth')
@@ -7,6 +7,19 @@ const { fetchRemoteAttachment } = require('../../utils/attachment')
 const { showError, showErrorWithRetry } = require('../../utils/feedback')
 const { buildIncentiveFileGroups, buildIncentiveFiles } = require('../../utils/incentive-files')
 const { buildDeptLevelOptions } = require('../../utils/tree')
+
+// 【#4+#7 2026-10-12】列表页佐证照片墙: 缩略图凭证模块级缓存(取一次复用), 未就绪时图片退化为
+// 文档面卡仍可点开大图; TAG_COLORS 与详情页同款槽位配色
+let dlTokenCache = ''
+function setIncentiveDlToken(token) { dlTokenCache = token || '' }
+const TAG_COLORS = { 安装前: '#b45309', 安装中: '#1d4fd7', 安装后: '#047857', 跟踪: '#7c3aed', 佐证: '#64748b' }
+function listThumbUrlOf(file) {
+  if (file.type !== 'image' || file.id == null) return ''
+  const base = getDownloadUrl(file, true)
+  if (!base) return ''
+  const sep = base.indexOf('?') >= 0 ? '&' : '?'
+  return base + sep + 'token=' + encodeURIComponent(dlTokenCache)
+}
 
 function normalizeRecords(customers) {
   return (customers || []).map((customer) => {
@@ -142,7 +155,13 @@ function buildFileGroupView(fileGroups) {
     slotText: `${group.label} ${(group.files || []).length}`,
     files: (group.files || []).map((file, fileIndex) => ({
       ...file,
-      fileIndex
+      fileIndex,
+      showThumb: file.type === 'image' && Boolean(listThumbUrlOf(file)),
+      thumbUrl: listThumbUrlOf(file),
+      nameDisplay: file.name || '附件',
+      tagText: file.tag || '',
+      tagColor: TAG_COLORS[file.tag] || '#64748b',
+      showTag: Boolean(file.tag)
     }))
   }))
 }
@@ -374,7 +393,9 @@ Page({
       canDeleteRecords: !getApp().globalData.demoMode && isAdmin()
     })
     this.loadGrantCheck()
-    this.loadRecords()
+    this.ensureDlToken().then(() => {
+      this.loadRecords()
+    })
     this.loadCategories()
     this.loadUsers()
     this.loadOrgs()
@@ -403,7 +424,9 @@ Page({
       const now = Date.now()
       if (now - (this._lastShowTs || 0) < 30000) return
       this._lastShowTs = now
-      this.loadRecords()
+      this.ensureDlToken().then(() => {
+        this.loadRecords()
+      })
       this.loadCategories()
       this.loadScoreboard()
       this.loadReadStats()
@@ -1047,6 +1070,20 @@ Page({
 
   // 【D31 2026-10-04】已删除 selected/uploadEvidence/closeDetail 死代码:
   // wxml 无对应绑定(上传入口早已由页头 goUpload 承接), updateRecord/uploadFile import 一并移除
+
+  // 【#4+#7 2026-10-12】照片墙缩略图凭证: 幂等取一次写模块缓存;失败不阻断列表(token 空→退化面卡)
+  ensureDlToken() {
+    if (getApp().globalData.demoMode) return Promise.resolve()
+    if (dlTokenCache || this._dlTokenPromise) return this._dlTokenPromise || Promise.resolve()
+    this._dlTokenPromise = getDownloadToken().then((result) => {
+      this._dlTokenPromise = null
+      const token = result && (result.token || (result.data && result.data.token)) || ''
+      setIncentiveDlToken(token)
+    }).catch(() => {
+      this._dlTokenPromise = null
+    }).then(() => {})
+    return this._dlTokenPromise
+  },
 
   refresh() {
     this.loadRecords()

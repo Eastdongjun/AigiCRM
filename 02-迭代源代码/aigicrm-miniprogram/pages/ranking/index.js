@@ -57,13 +57,34 @@ function customerListView(rows, activeTab, parents) {
     title: item.customerName || '未命名客户',
     scoreText: activeTab === 'relationship' ? (item.relationshipScore || 0) : (item.totalScore || 0),
     ownerIndustryText: `${item.ownerName || '未分配负责人'} · ${item.industry || '未填写行业'}`,
+    // 【#8 2026-10-12】核心客情卡片三行长文本改小表格: 负责人/行业两列表 + 五项指标五格 + 财务两列带核心徽章
+    ownerIndustryRows: [
+      { label: '负责人', value: item.ownerName || '未分配' },
+      { label: '行业', value: item.industry || '未填写' }
+    ],
     showIncentive: activeTab === 'incentive',
     recordCountText: `上传 ${item.recordCount || 0} 条`,
     parentStatsText: parentStatsText(item, parents),
     showCore: activeTab === 'core',
     coreScoreText: `高层 ${item.relationshipScore || 0} · 渠道 ${item.indicator02 || 0} · 基层 ${item.indicator03 || 0} · 产品 ${item.indicator04 || 0} · 项目 ${item.indicator05 || 0}`,
+    indicatorCells: [
+      { key: 'rel', label: '高层', value: item.relationshipScore || 0 },
+      { key: 'ch', label: '渠道', value: item.indicator02 || 0 },
+      { key: 'base', label: '基层', value: item.indicator03 || 0 },
+      { key: 'prod', label: '产品', value: item.indicator04 || 0 },
+      { key: 'proj', label: '项目', value: item.indicator05 || 0 }
+    ],
+    financeCells: [
+      { key: 'invoice', label: '年度开票', value: `${item.invoiceTotal || 0} 万` },
+      { key: 'payment', label: '年度回款', value: `${item.paymentTotal || 0} 万` }
+    ],
     // 【裁决 2026-10-10】核心三态: 年度开票/回款双>=100万=真核心, 有数据未双达标=争核心(后端 coreType)
-    coreFinanceText: `年度开票 ${item.invoiceTotal || 0} 万 · 年度回款 ${item.paymentTotal || 0} 万 · ${item.coreType === 'core' ? '真核心' : item.coreType === 'quasi' ? '争核心' : '非核心'}`
+    coreFinanceText: `年度开票 ${item.invoiceTotal || 0} 万 · 年度回款 ${item.paymentTotal || 0} 万 · ${item.coreType === 'core' ? '真核心' : item.coreType === 'quasi' ? '争核心' : '非核心'}`,
+    coreBadge: item.coreType === 'core'
+      ? { text: '真核心', className: 'core' }
+      : item.coreType === 'quasi'
+        ? { text: '争核心', className: 'quasi' }
+        : { text: '非核心', className: 'none' }
   }))
 }
 

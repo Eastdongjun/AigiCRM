@@ -22,7 +22,7 @@ import request from '@/utils/request'
 import { getDownloadToken, refreshDownloadToken } from '@/utils/token'
 import { downloadFile } from '@/utils/download'
 import { useUserStore } from '@/store/user'
-import { INDICATOR_FIELDS, sumIndicatorScore } from '@/utils/customer-fields'
+import { INDICATOR_FIELDS, sumIndicatorScore, RELATIONSHIP_OPTIONS_FALLBACK, fetchRelationshipOptions } from '@/utils/customer-fields'
 import { mediaTypeOf } from '@/utils/media-type'
 
 export const CustomerDetailKey = Symbol('customerDetail')
@@ -80,7 +80,13 @@ export function useCustomerDetail() {
     for (const c of n) h = (h * 31 + c.charCodeAt(0)) % 997
     return colors[h % colors.length]
   })
-  const relationshipOptions = ref([{label:'陌生',value:'0',icon:'0'},{label:'知道',value:'1',icon:'1'},{label:'熟悉',value:'2',icon:'2'},{label:'支持',value:'3',icon:'3'}])
+  // 【#10 2026-10-12】客情选项: 兜底新文案立即渲染, 后台字典 relationship_depth 拉到后覆盖(改字典即改文案, 无需发版)
+  const relationshipOptions = ref(
+    RELATIONSHIP_OPTIONS_FALLBACK.map((o) => ({ label: o.dictLabel, value: o.dictValue, icon: o.dictValue }))
+  )
+  fetchRelationshipOptions(getDictData).then((options) => {
+    relationshipOptions.value = options.map((o) => ({ label: o.dictLabel, value: o.dictValue, icon: o.dictValue }))
+  })
   // 五项指标定义与新增/编辑表单共用同一份口径（utils/customer-fields.js），避免两处标签漂移
   const indicatorDefs = ref(INDICATOR_FIELDS)
   const indicatorTotal = computed(() => sumIndicatorScore(indicatorForm))

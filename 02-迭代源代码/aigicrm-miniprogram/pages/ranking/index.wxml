@@ -87,11 +87,32 @@
         <view class="ranking-title">{{item.displayRank}}. {{item.title}}</view>
         <text class="ranking-score">{{item.scoreText}} 分</text>
       </view>
-      <view class="ranking-meta">{{item.ownerIndustryText}}</view>
+      <!-- 【#8 2026-10-12】负责人/行业小表格(替代一行"·"串联文本) -->
+      <view class="rank-kv-table">
+        <view wx:for="{{item.ownerIndustryRows}}" wx:for-item="kv" wx:key="label" class="rank-kv-cell">
+          <text class="rank-kv-label">{{kv.label}}</text>
+          <text class="rank-kv-value">{{kv.value}}</text>
+        </view>
+      </view>
       <view wx:if="{{item.showIncentive}}" class="ranking-meta">{{item.recordCountText}}</view>
       <view wx:if="{{item.showIncentive}}" class="ranking-meta">{{item.parentStatsText}}</view>
-      <view wx:if="{{item.showCore}}" class="ranking-meta">{{item.coreScoreText}}</view>
-      <view wx:if="{{item.showCore}}" class="ranking-meta">{{item.coreFinanceText}}</view>
+      <!-- 【#8】五项指标: 一行五格, 数字大标签小 -->
+      <view wx:if="{{item.showCore}}" class="rank-indicator-strip">
+        <view wx:for="{{item.indicatorCells}}" wx:for-item="cell" wx:key="key" class="rank-indicator-cell">
+          <text class="rank-indicator-value">{{cell.value}}</text>
+          <text class="rank-indicator-label">{{cell.label}}</text>
+        </view>
+      </view>
+      <!-- 【#8】财务两列 + 核心三态徽章(真核心/争核心/非核心, #9d 排行区分) -->
+      <view wx:if="{{item.showCore}}" class="rank-finance-row">
+        <view class="rank-kv-table">
+          <view wx:for="{{item.financeCells}}" wx:for-item="kv" wx:key="key" class="rank-kv-cell">
+            <text class="rank-kv-label">{{kv.label}}</text>
+            <text class="rank-kv-value">{{kv.value}}</text>
+          </view>
+        </view>
+        <text class="rank-core-badge {{item.coreBadge.className}}">{{item.coreBadge.text}}</text>
+      </view>
     </view>
   </block>
   <view wx:if="{{rankingView.showCustomerEmpty}}" class="card muted">暂无排行数据</view>

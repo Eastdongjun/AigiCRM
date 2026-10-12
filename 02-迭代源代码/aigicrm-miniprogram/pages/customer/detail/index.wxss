@@ -124,45 +124,57 @@
   border: 0;
 }
 
-.core-verdict-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 14rpx;
-}
-
-.core-verdict-item {
-  min-width: 0;
-  min-height: 132rpx;
-  padding: 18rpx 16rpx;
+/* 【#2 2026-10-12】核心判定四宫格改四列表格(指标/当前/门槛/状态),逐行对照更直观 */
+.core-verdict-table {
   border: 1rpx solid #dbe7f5;
   border-radius: 16rpx;
+  overflow: hidden;
   background: #fff;
+}
+
+.core-verdict-tr {
+  display: flex;
+  align-items: center;
+  min-height: 78rpx;
+  padding: 10rpx 18rpx;
+  border-top: 1rpx solid #eaf0f8;
   box-sizing: border-box;
 }
 
-.core-verdict-label,
-.core-verdict-value {
-  display: block;
-}
+.core-verdict-tr:first-child { border-top: none; }
 
-.core-verdict-label {
-  overflow: hidden;
+.core-verdict-th {
+  min-height: 60rpx;
+  background: #f4f8fd;
   color: #64748b;
   font-size: 22rpx;
-  line-height: 1.35;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  font-weight: 700;
 }
 
-.core-verdict-value {
-  margin-top: 8rpx;
+.core-verdict-td {
+  flex: 1;
+  min-width: 0;
   overflow: hidden;
-  color: #0f172a;
-  font-size: 30rpx;
-  font-weight: 800;
-  line-height: 1.25;
   text-overflow: ellipsis;
   white-space: nowrap;
+  font-size: 25rpx;
+  color: #334155;
+  padding-right: 10rpx;
+}
+
+.core-verdict-td:last-child { padding-right: 0; text-align: right; }
+
+.core-verdict-label { color: #64748b; font-size: 23rpx; }
+
+.core-verdict-value {
+  color: #0f172a;
+  font-size: 27rpx;
+  font-weight: 800;
+}
+
+.core-verdict-threshold {
+  color: #94a3b8;
+  font-size: 22rpx;
 }
 
 .relationship-options {
@@ -361,3 +373,10 @@
 .customer-edit-action { margin: 0; padding: 8rpx 22rpx; height: auto; line-height: 1.6; border-radius: 999rpx;
   background: #e8f1ff; color: #1d4fd7; font-size: 22rpx; font-weight: 700; border: 1rpx solid #c7dcfb; }
 .customer-edit-action::after { border: none; }
+
+/* 【#1 2026-10-12】「保护到期」行内嵌申请延期入口(用户裁决:挪至保护期信息旁,原核心判定区下方独立按钮退役) */
+.detail-row-tail { display: flex; align-items: center; gap: 12rpx; min-width: 0; justify-content: flex-end; }
+.detail-row-tail text { min-width: 0; text-align: right; }
+.extend-inline-btn { margin: 0; padding: 4rpx 18rpx; height: auto; line-height: 1.6; border-radius: 999rpx;
+  background: #e8f1ff; color: #1d4fd7; font-size: 22rpx; font-weight: 700; border: 1rpx solid #c7dcfb; flex-shrink: 0; }
+.extend-inline-btn::after { border: none; }

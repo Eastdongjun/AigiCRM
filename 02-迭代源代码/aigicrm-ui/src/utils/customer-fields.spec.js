@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   TERMINAL_OPTIONS, terminalLabel,
   INDICATOR_FIELDS, INDICATOR_MAX_SCORE, INDICATOR_CORE_THRESHOLD, sumIndicatorScore,
+  RELATIONSHIP_OPTIONS_FALLBACK, fetchRelationshipOptions,
 } from './customer-fields'
 
 describe('customer-fields', () => {
@@ -39,6 +40,26 @@ describe('customer-fields 客情五项指标', () => {
     })
     expect(INDICATOR_MAX_SCORE).toBe(15)
     expect(INDICATOR_CORE_THRESHOLD).toBe(12)
+  })
+
+  it('【#10 2026-10-12】客情·商务关系深度文案=字典新口径(商务少/纯商务/感情商务/多样性), 分值 0-3 不变', () => {
+    expect(RELATIONSHIP_OPTIONS_FALLBACK.map(o => o.dictLabel)).toEqual(['商务少', '纯商务', '感情商务', '多样性'])
+    expect(RELATIONSHIP_OPTIONS_FALLBACK.map(o => o.dictValue)).toEqual(['0', '1', '2', '3'])
+    expect(INDICATOR_FIELDS[0].options).toBe(RELATIONSHIP_OPTIONS_FALLBACK)
+  })
+
+  it('【#10】fetchRelationshipOptions: 字典行按 sortOrder 排序, 空/异常回退兜底文案', async () => {
+    const fromDict = await fetchRelationshipOptions(async () => [
+      { dictValue: '2', dictLabel: '感情商务', sortOrder: 3, status: 1 },
+      { dictValue: '0', dictLabel: '商务少', sortOrder: 1, status: 1 },
+      { dictValue: '1', dictLabel: '纯商务', sortOrder: 2, status: 1 },
+      { dictValue: '9', dictLabel: '脏行', sortOrder: 4, status: 0 },
+    ])
+    expect(fromDict.map(o => o.dictLabel)).toEqual(['商务少', '纯商务', '感情商务'])
+    const empty = await fetchRelationshipOptions(async () => [])
+    expect(empty).toBe(RELATIONSHIP_OPTIONS_FALLBACK)
+    const failed = await fetchRelationshipOptions(async () => { throw new Error('down') })
+    expect(failed).toBe(RELATIONSHIP_OPTIONS_FALLBACK)
   })
 
   it('合计五项得分，缺失/脏值按 0 计', () => {

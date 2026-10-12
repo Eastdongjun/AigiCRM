@@ -27,3 +27,21 @@
 .score-rule-card{margin:14rpx 0 4rpx;padding:20rpx 22rpx}
 .score-rule-card view{font-size:25rpx;font-weight:850;color:#172033;margin-bottom:8rpx}
 .score-rule-card text{display:block;font-size:22rpx;color:#7c8ba1;line-height:1.55}
+
+/* 【#8 2026-10-12】客户卡片小表格化: kv 两列表 + 五项指标条 + 财务行 + 核心徽章 */
+.rank-kv-table { display: grid; grid-template-columns: 1fr 1fr; gap: 10rpx; margin-top: 16rpx; }
+.rank-kv-cell { display: flex; align-items: baseline; gap: 10rpx; min-width: 0; background: #f6f8fc; border-radius: 12rpx; padding: 12rpx 16rpx; }
+.rank-kv-label { flex-shrink: 0; color: #94a3b8; font-size: 21rpx; }
+.rank-kv-value { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #172033; font-size: 24rpx; font-weight: 700; }
+.rank-indicator-strip { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10rpx; margin-top: 16rpx; }
+.rank-indicator-cell { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4rpx;
+  background: #f6f8fc; border-radius: 12rpx; padding: 14rpx 0 10rpx; }
+.rank-indicator-value { color: #0f172a; font-size: 32rpx; font-weight: 800; line-height: 1.1; }
+.rank-indicator-label { color: #94a3b8; font-size: 20rpx; }
+.rank-finance-row { display: flex; align-items: stretch; gap: 10rpx; margin-top: 16rpx; }
+.rank-finance-row .rank-kv-table { flex: 1; margin-top: 0; }
+.rank-finance-row .rank-kv-table .rank-kv-cell { flex-direction: column; align-items: flex-start; gap: 4rpx; }
+.rank-core-badge { flex-shrink: 0; align-self: center; border-radius: 999rpx; padding: 10rpx 22rpx; font-size: 23rpx; font-weight: 800; border: 1rpx solid transparent; }
+.rank-core-badge.core { background: #dcfce7; color: #047857; border-color: #bbf7d0; }
+.rank-core-badge.quasi { background: #ffedd5; color: #c2410c; border-color: #fed7aa; }
+.rank-core-badge.none { background: #f1f5f9; color: #64748b; border-color: #e2e8f0; }

@@ -72,3 +72,20 @@
 
 /* 两级分类: 子类选择器跟在大类下方 */
 .category-child-picker { margin-top: 16rpx; }
+
+/* 【#3 2026-10-12】客户选择半屏搜索层 */
+.cs-mask { position: fixed; inset: 0; z-index: 30; background: rgba(15, 23, 42, .5); display: flex; align-items: flex-end; }
+.cs-sheet { width: 100%; max-height: 78vh; background: #fff; border-radius: 32rpx 32rpx 0 0; padding: 24rpx 28rpx 40rpx; box-sizing: border-box; display: flex; flex-direction: column; }
+.cs-sheet-head { display: flex; align-items: center; justify-content: space-between; }
+.cs-sheet-title { font-size: 32rpx; font-weight: 800; color: #172033; }
+.cs-sheet-close { padding: 8rpx 16rpx; color: #94a3b8; font-size: 30rpx; }
+.cs-search-row { display: flex; align-items: center; gap: 16rpx; margin-top: 20rpx; }
+.cs-search-input { flex: 1; height: 76rpx; padding: 0 26rpx; border: 1rpx solid #dbeafe; border-radius: 18rpx; background: #f8fbff; font-size: 27rpx; }
+.cs-search-clear { color: #2563eb; font-size: 24rpx; flex-shrink: 0; }
+.cs-count-row { margin-top: 14rpx; color: #94a3b8; font-size: 22rpx; }
+.cs-list { flex: 1; min-height: 240rpx; max-height: 52vh; margin-top: 10rpx; }
+.cs-item { padding: 22rpx 8rpx; border-bottom: 1rpx solid #eef2f8; }
+.cs-item.on .cs-item-name { color: #2563eb; font-weight: 800; }
+.cs-item-name { color: #172033; font-size: 28rpx; font-weight: 600; }
+.cs-item-meta { margin-top: 6rpx; color: #94a3b8; font-size: 22rpx; }
+.cs-empty { padding: 60rpx 0; text-align: center; color: #94a3b8; font-size: 25rpx; }

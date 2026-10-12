@@ -135,6 +135,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { getCustomerRankings } from '@/api/statistics'
 import { buildPeriodOptions, periodQueryValue } from '@/utils/incentive-period'
+import { RELATIONSHIP_OPTIONS_FALLBACK } from '@/utils/customer-fields'
 
 const loading = ref(false)
 const activeTab = ref('incentive')
@@ -158,7 +159,9 @@ const filteredIndicatorRanking = computed(() =>
   !coreFilter.value ? indicatorRanking.value : indicatorRanking.value.filter(row => row.coreType === coreFilter.value))
 
 function relationshipLabel(score) {
-  return ['陌生', '知道', '熟悉', '支持'][score] || '陌生'
+  // 【#10 2026-10-12】客情文案单一出处(customer-fields), 不再本地硬编码数组
+  const hit = RELATIONSHIP_OPTIONS_FALLBACK.find((o) => Number(o.dictValue) === Number(score))
+  return (hit && hit.dictLabel) || (RELATIONSHIP_OPTIONS_FALLBACK[0] && RELATIONSHIP_OPTIONS_FALLBACK[0].dictLabel) || ''
 }
 
 function moneyText(value) {

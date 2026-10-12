@@ -551,6 +551,9 @@ onBeforeUnmount(() => { destroyReadObserver(); destroyPaneObserver() })
   display:flex;flex-direction:column;gap:16px}
 /* 一行紧凑元信息条：标签灰小字内联, 值深色; 时间/得分加重, 未读红点 */
 .dtl-metabar{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 20px;padding:2px 2px 0}
+/* 【#6 A 2026-10-12】metabar 固定两行高: 各记录 meta 数量不同导致换行数不同, 图片区顶边随之下移错位;
+   固定最小高度让所有记录卡片的附件区顶边落在同一横线 */
+.dtl-metabar{min-height:48px;align-content:flex-start}
 .dtl-meta{display:inline-flex;align-items:baseline;gap:5px;font-size:13px;font-weight:600;color:#1f2937;white-space:nowrap}
 .dtl-meta em{font-style:normal;font-size:12px;font-weight:500;color:#8a94a3;letter-spacing:.5px}
 .dtl-meta.time{font-size:16px;font-weight:800;color:#1d4ed8;font-variant-numeric:tabular-nums;letter-spacing:.2px}
@@ -565,6 +568,8 @@ onBeforeUnmount(() => { destroyReadObserver(); destroyPaneObserver() })
 .dtl-eblock-label{font-size:12px;font-weight:600;color:#4b5563;margin-bottom:6px;letter-spacing:1px}
 .dtl-eblock.remark .dtl-eblock-label{color:#a16207}
 .dtl-eblock-text{font-size:15px;color:#111827;line-height:1.9;white-space:pre-wrap;word-break:break-word}
+/* 【#6 A 2026-10-12】问询/备注限三行: 可选块有无/长短是图片区顶边错位的另一来源, 收敛行数把差异压到一行内 */
+.dtl-ecard > .dtl-eblock:not(.files-block) .dtl-eblock-text{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
 @media (max-width: 760px){
   .dtl-body{grid-template-columns:1fr}
   .dtl-dial{max-height:230px}
@@ -581,8 +586,14 @@ onBeforeUnmount(() => { destroyReadObserver(); destroyPaneObserver() })
 .dtl-file-tag{position:absolute;top:8px;left:8px;font-size:12px;font-weight:600;background:rgba(255,255,255,.94);
   padding:2px 8px;border-radius: var(--radius-pill);border:1px solid transparent;white-space:nowrap;z-index:1}
 .dtl-file-tag.inline{position:static;background:#fff;flex-shrink:0}
-.dtl-file-vid{display:flex;flex-direction:column}
+.dtl-file-vid{position:relative;display:flex;flex-direction:column}
 .dtl-file-vid video{width:100%;aspect-ratio:3/2;border-radius:12px;background:#0b1020;display:block;object-fit:cover}
+/* 【#6 B 2026-10-12】视频瓦片文件名/按钮收进画面底部悬浮条: 原先 meta 单占一行使视频瓦片比图片瓦片高一截,
+   同行图片/视频混排底边不齐; 现所有瓦片统一 3:2, 底边严格对齐 */
+.dtl-file-vid .dtl-file-meta{position:absolute;left:0;right:0;bottom:0;margin-top:0;padding:22px 10px 8px;
+  background:linear-gradient(180deg,rgba(11,16,32,0),rgba(11,16,32,.82));border-radius:0 0 12px 12px}
+.dtl-file-vid .dtl-file-meta .doc-label{color:#fff}
+.dtl-file-vid .dtl-file-meta .el-button{background:rgba(255,255,255,.16);border-color:rgba(255,255,255,.35)}
 .dtl-file-doc{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;
   aspect-ratio:3/2;padding:12px;border:none;border-radius:12px;background:#f7f8fa;
   color:#646a73;font-size:13px;text-align:center;cursor:pointer;transition:all .15s}

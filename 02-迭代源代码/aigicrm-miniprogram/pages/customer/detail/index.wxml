@@ -23,7 +23,14 @@
       <text class="pill">{{detailView.industryText}}</text>
       <text class="pill">{{detailView.devTypeText}}</text>
     </view>
-    <view wx:for="{{detailView.baseRows}}" wx:key="label" class="detail-row"><text>{{item.label}}</text><text>{{item.valueText}}</text></view>
+    <view wx:for="{{detailView.baseRows}}" wx:key="label" class="detail-row">
+      <text>{{item.label}}</text>
+      <view wx:if="{{item.isExpireRow && detailView.showExtendAction}}" class="detail-row-tail">
+        <text>{{item.valueText}}</text>
+        <button class="extend-inline-btn" size="mini" catchtap="submitExtendApproval">申请延期</button>
+      </view>
+      <text wx:else>{{item.valueText}}</text>
+    </view>
   </view>
 
   <view wx:if="{{detailView.hasDetail}}" class="card customer-section-card">
@@ -78,16 +85,21 @@
       </view>
       <button wx:if="{{detailView.showIndicatorEditAction}}" class="core-verdict-action" bindtap="openIndicatorForm">维护指标</button>
     </view>
-    <view class="core-verdict-grid">
-      <view wx:for="{{detailView.coreVerdictRows}}" wx:key="key" class="core-verdict-item">
-        <text class="core-verdict-label">{{item.label}}</text>
-        <view class="core-verdict-value">{{item.valueText}}</view>
-        <text class="indicator-status {{item.statusClass}}">{{item.statusText}}</text>
+    <view class="core-verdict-table">
+      <view class="core-verdict-tr core-verdict-th">
+        <text class="core-verdict-td">指标</text>
+        <text class="core-verdict-td">当前</text>
+        <text class="core-verdict-td">门槛</text>
+        <text class="core-verdict-td">状态</text>
+      </view>
+      <view wx:for="{{detailView.coreVerdictRows}}" wx:key="key" class="core-verdict-tr">
+        <text class="core-verdict-td core-verdict-label">{{item.label}}</text>
+        <text class="core-verdict-td core-verdict-value">{{item.valueText}}</text>
+        <text class="core-verdict-td core-verdict-threshold">{{item.thresholdText}}</text>
+        <text class="core-verdict-td indicator-status {{item.statusClass}}">{{item.statusText}}</text>
       </view>
     </view>
   </view>
-
-  <button wx:if="{{detailView.showExtendAction}}" class="btn customer-action-btn" bindtap="submitExtendApproval">申请保护期延期</button>
 
   <view wx:if="{{detailView.showRelationshipSection}}" class="card customer-section-card aligned-section-card">
     <view class="customer-section-head">

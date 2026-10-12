@@ -7,12 +7,10 @@
     <view class="form-section-title">基础信息</view>
     <view class="field">
       <text class="label">客户 *</text>
-      <picker mode="selector" range="{{customerNames}}" bindchange="chooseCustomer">
-        <view class="picker-card">
-          <text class="{{uploadView.customerPicker.className}}">{{uploadView.customerPicker.text}}</text>
-          <text class="picker-arrow">⌄</text>
-        </view>
-      </picker>
+      <view class="picker-card" bindtap="openCustomerSheet">
+        <text class="{{uploadView.customerPicker.className}}">{{uploadView.customerPicker.text}}</text>
+        <text class="picker-arrow">⌄</text>
+      </view>
       <view wx:if="{{uploadView.showCustomerConfirm}}" class="customer-confirm">
         <text class="customer-confirm-name">{{uploadView.selectedCustomerName}}</text>
         <text class="customer-confirm-meta">{{uploadView.selectedCustomerMeta}}</text>
@@ -155,5 +153,27 @@
            disabled 绑定名 submitDisabled 为契约脚本钉住的字面量, 勿改 -->
       <button class="form-action submit-action {{uploadView.submitIncomplete ? 'action-disabled' : ''}}" bindtap="submit" loading="{{uploadView.submitLoading}}" disabled="{{uploadView.submitDisabled}}">{{uploadView.submitText}}</button>
     </view>
+  </view>
+</view>
+
+<!-- 【#3 2026-10-12】客户选择改半屏搜索层: 关键字过滤客户名称,替代滚轮 picker -->
+<view wx:if="{{customerSheet.open}}" class="cs-mask" bindtap="closeCustomerSheet">
+  <view class="cs-sheet" catchtap="noop">
+    <view class="cs-sheet-head">
+      <text class="cs-sheet-title">选择客户</text>
+      <text class="cs-sheet-close" bindtap="closeCustomerSheet">✕</text>
+    </view>
+    <view class="cs-search-row">
+      <input class="cs-search-input" value="{{customerSheet.keyword}}" placeholder="输入关键字搜索客户名称" confirm-type="search" bindinput="inputCustomerKeyword" />
+      <text wx:if="{{customerSheet.keyword}}" class="cs-search-clear" bindtap="clearCustomerKeyword">清空</text>
+    </view>
+    <view class="cs-count-row" wx:if="{{customerSheet.keyword}}">匹配 {{customerSheet.filtered.length}} / {{customerSheet.total}} 个客户</view>
+    <scroll-view scroll-y class="cs-list">
+      <view wx:for="{{customerSheet.filtered}}" wx:key="index" class="cs-item {{item.index === selectedCustomerIndex ? 'on' : ''}}" data-index="{{item.index}}" bindtap="pickCustomer">
+        <view class="cs-item-name">{{item.name}}</view>
+        <view wx:if="{{item.meta}}" class="cs-item-meta">{{item.meta}}</view>
+      </view>
+      <view wx:if="{{!customerSheet.filtered.length}}" class="cs-empty">没有匹配「{{customerSheet.keyword}}」的客户</view>
+    </scroll-view>
   </view>
 </view>

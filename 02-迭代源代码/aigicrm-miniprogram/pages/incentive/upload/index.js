@@ -386,6 +386,8 @@ Page({
   data: {
     customers: [],
     customerNames: [],
+    // 【#3 2026-10-12】客户选择半屏搜索层: open/keyword/filtered[{index,name,meta}]/total
+    customerSheet: { open: false, keyword: '', filtered: [], total: 0 },
     categories: [],
     categoryNames: [],
     industryOptions: [],
@@ -586,10 +588,44 @@ Page({
 
   chooseCustomer(e) {
     const index = Number(e.detail.value)
+    this.applyCustomerSelection(index)
+  },
+  // 【#3 2026-10-12】半屏搜索层: 打开/输入过滤/选中复用同一赋值链路
+  applyCustomerSelection(index) {
     const customer = this.data.customers[index]
-    const industryIndex = customer && customer.industry ? this.data.industryOptions.indexOf(customer.industry) : -1
+    if (!customer) return
+    const industryIndex = customer.industry ? this.data.industryOptions.indexOf(customer.industry) : -1
     this.setData({ selectedCustomerIndex: index, selectedIndustryIndex: industryIndex }, () => this.refreshUploadViewState())
   },
+  openCustomerSheet() {
+    this.setData({ 'customerSheet.open': true, 'customerSheet.keyword': '' }, () => this.refreshCustomerSheet())
+  },
+  closeCustomerSheet() {
+    this.setData({ 'customerSheet.open': false })
+  },
+  clearCustomerKeyword() {
+    this.setData({ 'customerSheet.keyword': '' }, () => this.refreshCustomerSheet())
+  },
+  inputCustomerKeyword(e) {
+    this.setData({ 'customerSheet.keyword': (e.detail.value || '').trim() }, () => this.refreshCustomerSheet())
+  },
+  refreshCustomerSheet() {
+    const keyword = (this.data.customerSheet.keyword || '').toLowerCase()
+    const customers = this.data.customers || []
+    const filtered = customers
+      .map((item, index) => ({
+        index,
+        name: item.customerName || item.name || '未命名客户',
+        meta: [item.industry, item.devType].filter(Boolean).join(' · ')
+      }))
+      .filter((item) => !keyword || item.name.toLowerCase().includes(keyword) || (item.meta && item.meta.toLowerCase().includes(keyword)))
+    this.setData({ 'customerSheet.filtered': filtered, 'customerSheet.total': customers.length })
+  },
+  pickCustomer(e) {
+    const index = Number(e.currentTarget.dataset.index)
+    this.setData({ 'customerSheet.open': false }, () => this.applyCustomerSelection(index))
+  },
+  noop() {},
   applyCategorySelection(selectedCategoryIndex) {
     const category = this.data.categories[selectedCategoryIndex]
     const fileSlots = applyCategorySlotMode(this.data.fileSlots, category, this.data.categories)

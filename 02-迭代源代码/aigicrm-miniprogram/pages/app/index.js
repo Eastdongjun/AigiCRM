@@ -46,6 +46,15 @@ Page({
   openApp(e) {
     const key = e.currentTarget.dataset.key
     const routes = { customer: '/pages/customer/index', incentiveUpload: '/pages/incentive/upload/index', incentiveQuery: '/pages/incentive/index', reminder: '/pages/reminder/index', approval: '/pages/approval/index', sea: '/pages/sea/index', indicator: '/pages/indicator/index', statistics: '/pages/statistics/index', ranking: '/pages/ranking/index' }
-    if (routes[key]) wx.navigateTo({ url: routes[key] })
+    // 【#11 2026-10-12】tabBar 页必须 switchTab:navigateTo 跳 tabBar 页静默失败,
+    // 应用中心点「四项激励」(pages/incentive/index 为底部 tab)无反应的根因
+    const tabPages = ['/pages/home/index', '/pages/incentive/index', '/pages/files/index', '/pages/app/index', '/pages/profile/index']
+    const url = routes[key]
+    if (!url) return
+    if (tabPages.indexOf(url) >= 0) {
+      wx.switchTab({ url })
+    } else {
+      wx.navigateTo({ url })
+    }
   }
 })

@@ -144,7 +144,7 @@ require_line 'detailView.showDeleteSection' "$DETAIL_WXML"
 require_line '.customer-section-head' "$DETAIL_WXSS"
 require_line '.customer-metric-grid' "$DETAIL_WXSS"
 require_line '.core-verdict-card' "$DETAIL_WXSS"
-require_line '.core-verdict-grid' "$DETAIL_WXSS"
+require_line '.core-verdict-table' "$DETAIL_WXSS"  # 【#2 2026-10-12】四宫格改四列表格重锚
 require_line '.indicator-detail-list' "$DETAIL_WXSS"
 require_line 'indicator-detail-row' "$DETAIL_WXML"
 require_line 'customer-detail-link-action' "$DETAIL_WXML"

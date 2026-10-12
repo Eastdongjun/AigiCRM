@@ -85,21 +85,28 @@
         <view class="slot-row" wx:if="{{item.showFiles}}">
           <text wx:for="{{item.slotPills}}" wx:for-item="slot" wx:key="*this" class="slot-pill">{{slot}}</text>
         </view>
-        <view class="record-file-list grouped" wx:if="{{item.showFiles}}">
+        <view class="record-file-wall grouped" wx:if="{{item.showFiles}}">
           <view wx:for="{{item.fileGroupsView}}" wx:for-item="group" wx:key="key" class="record-file-group">
             <view class="record-file-group-head">
               <text>{{group.label}}</text>
               <text>{{group.countText}}</text>
             </view>
-            <view wx:for="{{group.files}}" wx:for-item="file" wx:key="id" class="record-file-row">
-              <view class="record-file-icon {{file.type}}">{{file.typeText}}</view>
-              <view class="record-file-main">
-                <view class="record-file-name">{{file.name}}</view>
-                <view class="record-file-meta">可预览 / 可下载</view>
-              </view>
-              <view class="record-file-actions">
-                <button class="mini-action" loading="{{incentiveView.previewLoading}}" catchtap="previewAttachment" data-record-index="{{index}}" data-group-index="{{group.groupIndex}}" data-file-index="{{file.fileIndex}}">打开</button>
-                <button class="mini-action secondary" loading="{{incentiveView.previewLoading}}" catchtap="downloadAttachment" data-record-index="{{index}}" data-group-index="{{group.groupIndex}}" data-file-index="{{file.fileIndex}}">下载</button>
+            <view class="wall-grid">
+              <view wx:for="{{group.files}}" wx:for-item="file" wx:key="id" class="wall-tile">
+                <image wx:if="{{file.showThumb}}" class="wall-thumb" src="{{file.thumbUrl}}" mode="aspectFill" lazy-load="{{true}}" catchtap="previewAttachment" data-record-index="{{index}}" data-group-index="{{group.groupIndex}}" data-file-index="{{file.fileIndex}}" />
+                <view wx:elif="{{file.type === 'video'}}" class="wall-video-face" catchtap="previewAttachment" data-record-index="{{index}}" data-group-index="{{group.groupIndex}}" data-file-index="{{file.fileIndex}}">
+                  <view class="wall-play-icon">▶</view>
+                  <text class="wall-face-name">{{file.nameDisplay}}</text>
+                </view>
+                <view wx:else class="wall-doc-face" catchtap="previewAttachment" data-record-index="{{index}}" data-group-index="{{group.groupIndex}}" data-file-index="{{file.fileIndex}}">
+                  <text class="wall-doc-type">{{file.typeText}}</text>
+                  <text class="wall-face-name">{{file.nameDisplay}}</text>
+                </view>
+                <text wx:if="{{file.showTag}}" class="wall-tag" style="color: {{file.tagColor}}; border-color: {{file.tagColor}};">{{file.tagText}}</text>
+                <view class="wall-acts">
+                  <button class="wall-act-btn" loading="{{incentiveView.previewLoading}}" catchtap="previewAttachment" data-record-index="{{index}}" data-group-index="{{group.groupIndex}}" data-file-index="{{file.fileIndex}}">打开</button>
+                  <button class="wall-act-btn secondary" catchtap="downloadAttachment" data-record-index="{{index}}" data-group-index="{{group.groupIndex}}" data-file-index="{{file.fileIndex}}">下载</button>
+                </view>
               </view>
             </view>
           </view>
@@ -124,21 +131,28 @@
               <view class="ranking-score">{{child.scoreText}}</view>
             </view>
             <view wx:if="{{child.showSummary}}" class="customer-record-summary">{{child.summaryText}}</view>
-            <view class="record-file-list compact grouped" wx:if="{{child.showFiles}}">
+            <view class="record-file-wall compact grouped" wx:if="{{child.showFiles}}">
               <view wx:for="{{child.fileGroupsView}}" wx:for-item="group" wx:key="key" class="record-file-group">
                 <view class="record-file-group-head">
                   <text>{{group.label}}</text>
                   <text>{{group.countText}}</text>
                 </view>
-                <view wx:for="{{group.files}}" wx:for-item="file" wx:key="id" class="record-file-row">
-                  <view class="record-file-icon {{file.type}}">{{file.typeText}}</view>
-                  <view class="record-file-main">
-                    <view class="record-file-name">{{file.name}}</view>
-                    <view class="record-file-meta">可预览 / 可下载</view>
-                  </view>
-                  <view class="record-file-actions">
-                    <button class="mini-action" loading="{{incentiveView.previewLoading}}" catchtap="previewAttachment" data-record-index="{{index}}" data-child-index="{{childIndex}}" data-group-index="{{group.groupIndex}}" data-file-index="{{file.fileIndex}}">打开</button>
-                    <button class="mini-action secondary" loading="{{incentiveView.previewLoading}}" catchtap="downloadAttachment" data-record-index="{{index}}" data-child-index="{{childIndex}}" data-group-index="{{group.groupIndex}}" data-file-index="{{file.fileIndex}}">下载</button>
+                <view class="wall-grid">
+                  <view wx:for="{{group.files}}" wx:for-item="file" wx:key="id" class="wall-tile">
+                    <image wx:if="{{file.showThumb}}" class="wall-thumb" src="{{file.thumbUrl}}" mode="aspectFill" lazy-load="{{true}}" catchtap="previewAttachment" data-record-index="{{index}}" data-child-index="{{childIndex}}" data-group-index="{{group.groupIndex}}" data-file-index="{{file.fileIndex}}" />
+                    <view wx:elif="{{file.type === 'video'}}" class="wall-video-face" catchtap="previewAttachment" data-record-index="{{index}}" data-child-index="{{childIndex}}" data-group-index="{{group.groupIndex}}" data-file-index="{{file.fileIndex}}">
+                      <view class="wall-play-icon">▶</view>
+                      <text class="wall-face-name">{{file.nameDisplay}}</text>
+                    </view>
+                    <view wx:else class="wall-doc-face" catchtap="previewAttachment" data-record-index="{{index}}" data-child-index="{{childIndex}}" data-group-index="{{group.groupIndex}}" data-file-index="{{file.fileIndex}}">
+                      <text class="wall-doc-type">{{file.typeText}}</text>
+                      <text class="wall-face-name">{{file.nameDisplay}}</text>
+                    </view>
+                    <text wx:if="{{file.showTag}}" class="wall-tag" style="color: {{file.tagColor}}; border-color: {{file.tagColor}};">{{file.tagText}}</text>
+                    <view class="wall-acts">
+                      <button class="wall-act-btn" loading="{{incentiveView.previewLoading}}" catchtap="previewAttachment" data-record-index="{{index}}" data-child-index="{{childIndex}}" data-group-index="{{group.groupIndex}}" data-file-index="{{file.fileIndex}}">打开</button>
+                      <button class="wall-act-btn secondary" catchtap="downloadAttachment" data-record-index="{{index}}" data-child-index="{{childIndex}}" data-group-index="{{group.groupIndex}}" data-file-index="{{file.fileIndex}}">下载</button>
+                    </view>
                   </view>
                 </view>
               </view>
@@ -200,21 +214,28 @@
             <view class="ranking-score">{{detail.scoreText}}</view>
           </view>
           <view class="stats-detail-remark">{{detail.remarkText}}</view>
-          <view class="record-file-list compact grouped" wx:if="{{detail.showFiles}}">
+          <view class="record-file-wall compact grouped" wx:if="{{detail.showFiles}}">
             <view wx:for="{{detail.fileGroupsView}}" wx:for-item="group" wx:key="key" class="record-file-group">
               <view class="record-file-group-head">
                 <text>{{group.label}}</text>
                 <text>{{group.countText}}</text>
               </view>
-              <view wx:for="{{group.files}}" wx:for-item="file" wx:key="id" class="record-file-row">
-                <view class="record-file-icon {{file.type}}">{{file.typeText}}</view>
-                <view class="record-file-main">
-                  <view class="record-file-name">{{file.name}}</view>
-                  <view class="record-file-meta">可预览 / 可下载</view>
-                </view>
-                <view class="record-file-actions">
-                  <button class="mini-action" loading="{{incentiveView.previewLoading}}" catchtap="previewStatDetailAttachment" data-detail-index="{{detailIndex}}" data-group-index="{{group.groupIndex}}" data-file-index="{{file.fileIndex}}">打开</button>
-                  <button class="mini-action secondary" loading="{{incentiveView.previewLoading}}" catchtap="downloadStatDetailAttachment" data-detail-index="{{detailIndex}}" data-group-index="{{group.groupIndex}}" data-file-index="{{file.fileIndex}}">下载</button>
+              <view class="wall-grid">
+                <view wx:for="{{group.files}}" wx:for-item="file" wx:key="id" class="wall-tile">
+                  <image wx:if="{{file.showThumb}}" class="wall-thumb" src="{{file.thumbUrl}}" mode="aspectFill" lazy-load="{{true}}" catchtap="previewStatDetailAttachment" data-detail-index="{{detailIndex}}" data-group-index="{{group.groupIndex}}" data-file-index="{{file.fileIndex}}" />
+                  <view wx:elif="{{file.type === 'video'}}" class="wall-video-face" catchtap="previewStatDetailAttachment" data-detail-index="{{detailIndex}}" data-group-index="{{group.groupIndex}}" data-file-index="{{file.fileIndex}}">
+                    <view class="wall-play-icon">▶</view>
+                    <text class="wall-face-name">{{file.nameDisplay}}</text>
+                  </view>
+                  <view wx:else class="wall-doc-face" catchtap="previewStatDetailAttachment" data-detail-index="{{detailIndex}}" data-group-index="{{group.groupIndex}}" data-file-index="{{file.fileIndex}}">
+                    <text class="wall-doc-type">{{file.typeText}}</text>
+                    <text class="wall-face-name">{{file.nameDisplay}}</text>
+                  </view>
+                  <text wx:if="{{file.showTag}}" class="wall-tag" style="color: {{file.tagColor}}; border-color: {{file.tagColor}};">{{file.tagText}}</text>
+                  <view class="wall-acts">
+                    <button class="wall-act-btn" loading="{{incentiveView.previewLoading}}" catchtap="previewStatDetailAttachment" data-detail-index="{{detailIndex}}" data-group-index="{{group.groupIndex}}" data-file-index="{{file.fileIndex}}">打开</button>
+                    <button class="wall-act-btn secondary" catchtap="downloadStatDetailAttachment" data-detail-index="{{detailIndex}}" data-group-index="{{group.groupIndex}}" data-file-index="{{file.fileIndex}}">下载</button>
+                  </view>
                 </view>
               </view>
             </view>
