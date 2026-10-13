@@ -43,7 +43,7 @@ grep -q "rankingView.customerPeriodText" "$ROOT/aigicrm-miniprogram/pages/rankin
 grep -q "scoreList" "$page" || { echo "FAIL: mobile ranking page has no score ranking list model" >&2; exit 1; }
 grep -q "scoreListView" "$page" || { echo "FAIL: mobile ranking page must normalize score rows before WXML rendering" >&2; exit 1; }
 grep -q "customerListView" "$page" || { echo "FAIL: mobile ranking page must normalize customer rows before WXML rendering" >&2; exit 1; }
-grep -q "parentStatsText" "$page" || { echo "FAIL: mobile ranking page must normalize PC incentive parent stats text" >&2; exit 1; }
+grep -q "parentStatsRows" "$page" || { echo "FAIL: mobile ranking page must normalize PC incentive parent stats rows" >&2; exit 1; }
 grep -q "tabView" "$page" || { echo "FAIL: mobile ranking page must normalize tab active classes" >&2; exit 1; }
 grep -q "buildRankingView" "$page" || { echo "FAIL: mobile ranking page must normalize shell state before WXML rendering" >&2; exit 1; }
 grep -q "setRankingData" "$page" || { echo "FAIL: mobile ranking page must refresh normalized shell state with data changes" >&2; exit 1; }

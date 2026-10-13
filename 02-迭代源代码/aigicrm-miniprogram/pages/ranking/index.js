@@ -43,11 +43,11 @@ function scoreListView(rows, activeTab) {
   }))
 }
 
-function parentStatsText(item, parents) {
+function parentStatsRows(item, parents) {
   return (parents || []).map((parent) => {
     const stat = item.byParent && item.byParent[parent.id] ? item.byParent[parent.id] : {}
-    return `${stat.count || 0} 条/${stat.score || 0} 分 ${parent.categoryName}`
-  }).join(' · ')
+    return { id: parent.id, name: parent.categoryName, count: stat.count || 0, score: stat.score || 0 }
+  })
 }
 
 function customerListView(rows, activeTab, parents) {
@@ -63,8 +63,9 @@ function customerListView(rows, activeTab, parents) {
       { label: '行业', value: item.industry || '未填写' }
     ],
     showIncentive: activeTab === 'incentive',
-    recordCountText: `上传 ${item.recordCount || 0} 条`,
-    parentStatsText: parentStatsText(item, parents),
+    // 【#12 2026-10-13】激励明细改三列表格: 四分类行 + 合计行(替代"上传N条"+"·串联"两行长文本)
+    incentiveRows: parentStatsRows(item, parents),
+    incentiveTotal: { count: item.recordCount || 0, score: item.totalScore || 0 },
     showCore: activeTab === 'core',
     coreScoreText: `高层 ${item.relationshipScore || 0} · 渠道 ${item.indicator02 || 0} · 基层 ${item.indicator03 || 0} · 产品 ${item.indicator04 || 0} · 项目 ${item.indicator05 || 0}`,
     indicatorCells: [

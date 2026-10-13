@@ -94,8 +94,24 @@
           <text class="rank-kv-value">{{kv.value}}</text>
         </view>
       </view>
-      <view wx:if="{{item.showIncentive}}" class="ranking-meta">{{item.recordCountText}}</view>
-      <view wx:if="{{item.showIncentive}}" class="ranking-meta">{{item.parentStatsText}}</view>
+      <!-- 【#12 2026-10-13】四项激励明细三列表格(类型/条数/得分+合计行),替代两行长文本 -->
+      <view wx:if="{{item.showIncentive}}" class="rank-stat-table">
+        <view class="rank-stat-row head">
+          <text class="rank-stat-name">激励类型</text>
+          <text class="rank-stat-num">条数</text>
+          <text class="rank-stat-num">得分</text>
+        </view>
+        <view wx:for="{{item.incentiveRows}}" wx:for-item="row" wx:key="id" class="rank-stat-row">
+          <text class="rank-stat-name">{{row.name}}</text>
+          <text class="rank-stat-num">{{row.count}}</text>
+          <text class="rank-stat-num">{{row.score}}</text>
+        </view>
+        <view class="rank-stat-row total">
+          <text class="rank-stat-name">合计</text>
+          <text class="rank-stat-num">{{item.incentiveTotal.count}}</text>
+          <text class="rank-stat-num">{{item.incentiveTotal.score}}</text>
+        </view>
+      </view>
       <!-- 【#8】五项指标: 一行五格, 数字大标签小 -->
       <view wx:if="{{item.showCore}}" class="rank-indicator-strip">
         <view wx:for="{{item.indicatorCells}}" wx:for-item="cell" wx:key="key" class="rank-indicator-cell">
