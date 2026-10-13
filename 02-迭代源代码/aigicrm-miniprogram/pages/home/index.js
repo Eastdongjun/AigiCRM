@@ -40,7 +40,7 @@ Page({
     userInitial: '未',
     orgName: '',
     roleName: '',
-    appName: '运筹马年·市场资源管理系统',
+    appName: 'AIGICRM',
     pendingCount: 0,
     taskSummary: '',
     expiring: [],
@@ -58,7 +58,7 @@ Page({
   onLoad() {
     if (!requireLogin()) return
     const app = getApp()
-    this.setData({ appName: app.globalData.appName || '运筹马年·市场资源管理系统' })
+    this.setData({ appName: app.globalData.appName || 'AIGICRM' })
     if (app.globalData.demoMode) {
       this.setData({ userName: '张三', userInitial: '张', orgName: '晋蒙业务部', roleName: '业务员', canViewDashboard: true, showDashboardCards: true })
       this.applyState({ pendingCount: reminderRecords.length, expiring: reminderRecords.filter((item) => item.expireDate) })

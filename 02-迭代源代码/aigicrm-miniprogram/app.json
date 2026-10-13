@@ -43,7 +43,7 @@
     "pages/sea/claim-detail/index"
   ],
   "window": {
-    "navigationBarTitleText": "运筹马年·市场资源管理系统",
+    "navigationBarTitleText": "AIGICRM",
     "navigationBarBackgroundColor": "#f4f8ff",
     "navigationBarTextStyle": "black",
     "backgroundColor": "#f4f8ff"

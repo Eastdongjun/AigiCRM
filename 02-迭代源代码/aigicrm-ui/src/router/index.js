@@ -265,10 +265,9 @@ const router = createRouter({
 })
 
 // 路由守卫
-// 【A4 三轮 2026-10-09】品牌名唯一来源：此前 document.title 后缀硬编码 'AIGICRM'，与页内品牌
-// 「运筹马年·市场资源管理系统」（登录页大标题、侧栏 logo=后端 system.name 下发）脱节，系统双名并存。
-// 登录前用默认品牌；登录后跟随 userStore.systemName（由后端配置下发，见 store/user.js loadSystemConfig）
-const BRAND_NAME = '运筹马年·市场资源管理系统'
+// 品牌名唯一来源：登录前用默认品牌；登录后跟随 userStore.systemName（由后端配置下发，见 store/user.js loadSystemConfig）
+// 【2026-10-13】品牌回归 'AIGICRM'（A4 三轮曾统一为运筹马年·市场资源管理系统，已按用户指令撤销）
+const BRAND_NAME = 'AIGICRM'
 router.beforeEach(async (to, from, next) => {
   document.title = (to.meta.title ? to.meta.title + ' - ' : '') + BRAND_NAME
   if (to.path === '/login') {

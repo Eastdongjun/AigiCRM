@@ -61,7 +61,7 @@ if (envVersion === 'release') {
 }
 
 module.exports = {
-  appName: '运筹马年·市场资源管理系统', // 【A4 三轮 2026-10-09】与页内品牌/PC system.name 统一，消除系统双名并存
+  appName: 'AIGICRM', // 【2026-10-13】品牌回归 AIGICRM(A4 曾统一为运筹马年·市场资源管理系统,已按用户指令撤销);法务页用全称
   apiBaseUrl: apiBaseUrl,
   // 无接口地址时一律按 demo 运行，避免"地址配错却假装联网"。
   demoMode: !apiBaseUrl

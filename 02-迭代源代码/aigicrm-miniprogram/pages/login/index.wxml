@@ -4,7 +4,7 @@
   <view class="login-panel">
     <view class="login-brand-mark">AI</view>
     <view class="login-kicker">智能客户运营工作台</view>
-    <view class="hero-title login-title">运筹马年·市场资源管理系统</view>
+    <view class="hero-title login-title">AIGICRM</view>
     <view class="login-copy">{{loginView.copyText}}</view>
     <view wx:if="{{loginView.showAccountFields}}" class="login-field">
       <text class="field-label">用户名</text>

@@ -57,8 +57,8 @@ const formRef = ref(null)
 const userInputRef = ref(null)
 const loading = ref(false)
 const forgotPwdVisible = ref(false)
-// 【A4 三轮】默认品牌与页内展示一致（配置加载后由后端 system.name 覆写）
-const systemName = ref('运筹马年·市场资源管理系统')
+// 默认品牌与页内展示一致（配置加载后由后端 system.name 覆写）
+const systemName = ref('AIGICRM')
 const systemSubtitle = ref('市场资源管理系统')
 const systemLogo = ref('')
 

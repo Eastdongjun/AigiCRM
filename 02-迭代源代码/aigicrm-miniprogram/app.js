@@ -3,7 +3,7 @@ const { getToken, purgeLegacyToken } = require('./utils/auth')
 
 App({
   globalData: {
-    appName: config.appName || '运筹马年·市场资源管理系统',
+    appName: config.appName || 'AIGICRM',
     apiBaseUrl: config.apiBaseUrl,
     demoMode: config.demoMode,
     currentUser: null,

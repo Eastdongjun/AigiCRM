@@ -1,9 +1,9 @@
 <view class="page profile-doc-page">
-  <text class="title">运筹马年·市场资源管理系统 用户服务协议</text>
+  <text class="title">AIGICRM·市场资源管理系统 用户服务协议</text>
   <text class="updated">版本：v1.0.9 · 2026-10-09</text>
   <view class="doc-section">
     <text class="heading">一、服务说明</text>
-    <text class="body">运筹马年·市场资源管理系统（以下简称"本系统"）为所在组织的授权人员提供企业客户管理、业务协作与内部审批服务，本小程序是本系统的移动端入口。使用本小程序即表示你已阅读、理解并同意本协议全部条款；如不同意，请停止使用并退出登录。</text>
+    <text class="body">AIGICRM·市场资源管理系统（以下简称"本系统"）为所在组织的授权人员提供企业客户管理、业务协作与内部审批服务，本小程序是本系统的移动端入口。使用本小程序即表示你已阅读、理解并同意本协议全部条款；如不同意，请停止使用并退出登录。</text>
   </view>
   <view class="doc-section">
     <text class="heading">二、账号与授权同意</text>

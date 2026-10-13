@@ -22,9 +22,9 @@ export const useUserStore = defineStore('user', {
     badgeReminder: 0,
     badgeApproval: 0,
     // 系统配置
-    // 【A4 三轮 2026-10-09】默认值与页内品牌一致（此前 'AIGICRM' 与登录页/侧栏品牌双名并存）；
+    // 【2026-10-13】品牌回归 'AIGICRM'（A4 三轮曾统一为运筹马年·市场资源管理系统，已按用户指令撤销）
     // 生产由后端 system.name 配置覆写，此处仅影响配置加载前的首帧与 document.title 跟随
-    systemName: '运筹马年·市场资源管理系统',
+    systemName: 'AIGICRM',
     systemLogo: '',
     // 【批④ 2026-08-10 多集团会话】
     groupIds: [],
