@@ -1,13 +1,11 @@
 <view class="page profile-page">
-  <view class="hero">
+  <!-- 【用户裁决C 2026-10-13】头部紧凑化: 头像80rpx横排, 岗位并入副标题(原三行竖排偏大, 与其他页hero不齐) -->
+  <view class="hero profile-hero">
     <view class="profile-avatar">{{profileView.userInitialText}}</view>
-    <view class="profile-name">{{profileView.userNameText}}</view>
-    <view class="hero-sub">{{profileView.heroSubText}}</view>
-  </view>
-  <view class="card scope-card">
-    <text class="muted">当前岗位</text>
-    <text class="pill">{{profileView.positionText}}</text>
-    <text class="muted scope-note">统一岗位上下文</text>
+    <view class="profile-hero-main">
+      <view class="profile-name">{{profileView.userNameText}}</view>
+      <view class="hero-sub">{{profileView.heroSubText}}</view>
+    </view>
   </view>
   <view wx:if="{{profileView.showGroupCard}}" class="card scope-card">
     <text class="muted">当前集团</text>

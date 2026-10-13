@@ -11,7 +11,9 @@ function buildProfileView(data) {
   return {
     userInitialText: data.userInitial || '用',
     userNameText: data.userName || '当前用户',
-    heroSubText: `${data.orgName || '未设置组织'} · ${data.roleName || '未设置岗位'}`,
+    // 【用户裁决C 2026-10-13】岗位并进 hero 副标题(原「组织·角色」与岗位信息重复):
+    // 岗位缺失时回退角色名, 再回退组织
+    heroSubText: `${data.positionNames || data.roleName || data.orgName || '未设置岗位'}`,
     positionText: data.positionNames || '未设置岗位',
     showGroupCard: groupIds.length > 0,
     currentGroupText,

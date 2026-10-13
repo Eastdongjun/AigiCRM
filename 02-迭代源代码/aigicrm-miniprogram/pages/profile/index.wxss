@@ -3,3 +3,11 @@
 .profile-action-row button::after{border:0}
 .profile-feedback-action{border:1rpx solid #d8e1ee;background:#f8fafc;color:#475569}
 .profile-logout-action{border:0;background:#ef4444;color:#fff}
+
+/* 【用户裁决C 2026-10-13】我的页头部紧凑化: 头像80rpx横排+右侧姓名/岗位, 高度对齐其他页 hero;
+   原 112rpx 头像三行竖排约 290rpx, 偏大且与全站 hero 语言不齐 */
+.profile-hero { display: flex; align-items: center; gap: 24rpx; padding: 30rpx 32rpx; }
+.profile-hero .profile-avatar { width: 80rpx; height: 80rpx; border-radius: 24rpx; font-size: 38rpx; flex-shrink: 0; }
+.profile-hero-main { min-width: 0; display: flex; flex-direction: column; gap: 8rpx; }
+.profile-hero .profile-name { margin-top: 0; font-size: 36rpx; }
+.profile-hero .hero-sub { margin-top: 0; }
