@@ -25,17 +25,24 @@ def fix_mojibake(txt):
     except Exception:
         return 2, txt
 
-def guard_repo_path(path, what):
-    """生成器只允许写项目目录内的路径, 拒绝越仓写入(路径穿越收敛, 2026-09-21 安全轮)。"""
+def guard_repo_path(path, what, allow_tempdir=False):
+    """生成器只允许写项目目录(或系统临时目录, 供 check-doc-freshness 临时产物用)内的路径,
+    拒绝越仓写入(路径穿越收敛, 2026-09-21 安全轮; 复审 2026-10-13 补 tempdir 豁免——
+    缺失曾使 check-doc-freshness 的字典生成被 guard 拒绝且退出码被吃掉, 两项新鲜度校验静默失效)。"""
     import os
     repo_root = os.path.realpath(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     p = os.path.realpath(path)
-    if not (p == repo_root or p.startswith(repo_root + os.sep)):
-        sys.exit('拒绝: %s 路径必须在项目目录内(%s): %s' % (what, repo_root, p))
+    allowed = p == repo_root or p.startswith(repo_root + os.sep)
+    if not allowed and allow_tempdir:
+        import tempfile
+        tmp_root = os.path.realpath(tempfile.gettempdir())
+        allowed = p == tmp_root or p.startswith(tmp_root + os.sep)
+    if not allowed:
+        sys.exit('拒绝: %s 路径必须在项目目录(或系统临时目录)内(%s): %s' % (what, repo_root, p))
     return p
 
 def main(out_path, host_label):
-    out_path = guard_repo_path(out_path, '输出文件')
+    out_path = guard_repo_path(out_path, '输出文件', allow_tempdir=True)
     tables = {}
     for line in open('/tmp/dict-tables.txt', encoding='utf-8'):
         p = line.rstrip('\n').split('\t')

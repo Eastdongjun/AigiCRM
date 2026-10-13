@@ -444,6 +444,44 @@ async function verifyListPage(miniProgram) {
   assert(await page.data('records[0].name') === '高分客户', 'descending score order must put high score first')
   await page.callMethod('chooseOrder', { detail: { value: 2 } })
   assert(await page.data('records[0].name') === '低分客户', 'ascending score order must put low score first')
+
+  // 【F7 复审钉 2026-10-13】排序/筛选态真实点击瓦片: 视图 records 是内存装饰源的重排子集,
+  // 裸下标寻址会打开错误客户的文件。注入两条不同分数、不同附件 id 的记录, 降序后 tap 第二张
+  // 卡(低分, 附件 id 301 系)的首瓦片"打开", 断言 previewImage 收到的 url 属于低分记录(301),
+  // 而非榜首高分记录(311 系)。单记录注入 + tap 首瓦片的老形态测不出此回归(fileIndex=0 与
+  // recordIndex=0 恒重合), 本段同时补上 F25 钉的真实区分度。
+  const highItem = {
+    ...item,
+    id: 9003,
+    name: '高分客户',
+    files: item.files.map((f, i) => ({ ...f, id: 311 + i })),
+    fileGroups: [{ key: 'pre', label: '附件', hint: '高分记录附件', files: item.files.map((f, i) => ({ ...f, id: 311 + i })) }],
+    records: [{ id: 9004, categoryName: '高分子记录', unread: false, canEdit: false, canDelete: false }]
+  }
+  const twoViews = await page.callMethod('rebuildRecordViews', [
+    { ...item, id: 9001, name: '低分客户', score: 1 },
+    highItem
+  ])
+  await page.setData({ allRecords: twoViews, records: twoViews, category: '全部' })
+  await page.callMethod('sort')
+  await page.callMethod('chooseOrder', { detail: { value: 1 } }) // 降序: records=[高分, 低分]
+  await page.waitFor(400)
+  assert(await page.data('records[0].name') === '高分客户', 'desc order must put high score first before tapping')
+  await resetAttachmentActionCalls(miniProgram)
+  await enableRealAttachmentMode(miniProgram)
+  const orderCards = await page.$$('.incentive-record-card')
+  assert(orderCards.length === 2, `sorted view must render 2 cards, got ${orderCards.length}`)
+  const lowCardOpenBtn = await orderCards[1].$('.wall-act-btn')
+  assert(lowCardOpenBtn, 'low-score card must expose wall open button')
+  await lowCardOpenBtn.tap()
+  await page.waitFor(300)
+  const sortedTapCalls = await attachmentActionCalls(miniProgram)
+  assert(sortedTapCalls.previewImage.length === 1,
+    `sorted-state tap must open image preview: ${actionCallSummary(sortedTapCalls)}`)
+  const tappedUrls = ((sortedTapCalls.downloadFile[0] || {}).url || '') + ',' + ((sortedTapCalls.previewImage[0] || {}).urls || []).join(',')
+  assert(tappedUrls.includes('download/301'),
+    `sorted-state tap on low-score card must open its own file (id 301), got: ${tappedUrls}`)
+
   const views = await page.callMethod('rebuildRecordViews', [item])
   await page.setData({ allRecords: views, records: views, order: '', selectedOrderIndex: 0 })
   await page.callMethod('sort')

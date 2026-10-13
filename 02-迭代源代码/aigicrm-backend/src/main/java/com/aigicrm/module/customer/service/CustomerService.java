@@ -804,6 +804,8 @@ public class CustomerService {
 
     /** 在客户查询时追加自动共享范围 */
     private void applyAutoShare(LambdaQueryWrapper<BizCustomer> wrapper) {
+        // 【F18 复审 2026-10-13】auto_share 未配置时零成本直退(此前会先付一次 scope 解析成本)
+        if (getAutoShareConfig().isEmpty()) return;
         // 【F18 2026-10-13】数据范围为 all(本集团全量)的用户不再被 auto_share 收窄:
         // auto_share 各规则(superior/roles)本意是给数据范围受限的用户扩大可见, 对已全量可见的用户
         // 只剩收窄副作用——roles 的"同组织互看"曾把 dataScope=all 的销售总监从全量 285 收窄到组织 16 条,
@@ -815,18 +817,23 @@ public class CustomerService {
         wrapper.in(BizCustomer::getOwnerId, shareOwnerIds);
     }
 
-    /** 当前用户客户查看范围是否为全量(all); admin 恒全量。与 applyDataScope 同一解析链路 */
-    private boolean isDataScopeAll() {
-        if (SecurityUtils.isAdmin()) return true;
+    /** 客户查看范围的统一解析请求(F18 复审: isDataScopeAll 与 applyDataScope 共用, 消除复制粘贴口径分裂) */
+    private com.aigicrm.common.scope.ScopeRequest buildCustomerViewScopeRequest() {
         var scopeUser = SecurityUtils.getCurrentUser();
-        if (scopeUser == null) return false;
-        com.aigicrm.common.scope.ScopeRequest req = com.aigicrm.common.scope.ScopeRequest.builder()
+        if (scopeUser == null) return null;
+        return com.aigicrm.common.scope.ScopeRequest.builder()
                 .user(scopeUser)
                 .module("customer")
                 .action("view")
                 .anchor(rolePermScopeService.anchorOf(scopeUser, "customer", "view"))
                 .build();
-        return scopeResolver.resolveScope(req).isAll();
+    }
+
+    /** 当前用户客户查看范围是否为全量(all); admin 恒全量。与 applyDataScope 同一解析链路 */
+    private boolean isDataScopeAll() {
+        if (SecurityUtils.isAdmin()) return true;
+        com.aigicrm.common.scope.ScopeRequest req = buildCustomerViewScopeRequest();
+        return req != null && scopeResolver.resolveScope(req).isAll();
     }
 
 

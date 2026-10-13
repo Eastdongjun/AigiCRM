@@ -497,12 +497,17 @@ Page({
     this.setData(upd, () => this.refreshIncentiveView())
   },
 
-  /** 【setData 瘦身】装饰后的组数据(含原始 records)只存页面内存, 视图按需构建; 子记录原始数据按组 id 索引供懒展开 */
+  /** 【setData 瘦身】装饰后的组数据(含原始 records)只存页面内存, 视图按需构建; 子记录原始数据按组 id 索引供懒展开;
+   *  【F7 复审根修】装饰源同时按 id 索引(_decoratedById), 照片墙取文件以 id 锚定, 不受排序/筛选重排影响 */
   rebuildRecordViews(decorated) {
     this._allDecorated = decorated
     this._childRawById = {}
+    this._decoratedById = {}
     ;(decorated || []).forEach((group) => {
-      if (group && group.id !== undefined && group.id !== null) this._childRawById[group.id] = group.records || []
+      if (group && group.id !== undefined && group.id !== null) {
+        this._childRawById[group.id] = group.records || []
+        this._decoratedById[group.id] = group
+      }
     })
     return (decorated || []).map(buildRecordView)
   },
@@ -1042,9 +1047,10 @@ Page({
   },
 
   findRecordFile(event) {
-    // 【F7 2026-10-13】setData 瘦身后视图已剥离 files/fileGroups, 父级照片墙取文件改走
-    // 页面内存装饰源(_allDecorated 与 data.records 同序), 与 findChildRecord 同款手法。
-    const record = (this._allDecorated || [])[event.currentTarget.dataset.recordIndex]
+    // 【F7 复审根修 2026-10-13】视图 records 经排序/筛选是内存装饰源的重排子集, 裸下标会在
+    // 筛选/排序态解析到错误客户的文件——必须以 id 锚定(与 findChildRecord 真正同款)。
+    const view = this.data.records[event.currentTarget.dataset.recordIndex]
+    const record = view && view.id != null && this._decoratedById ? this._decoratedById[view.id] : null
     const groupIndex = event.currentTarget.dataset.groupIndex
     const fileIndex = event.currentTarget.dataset.fileIndex
     if (record && record.fileGroups && groupIndex !== undefined && fileIndex !== undefined) {

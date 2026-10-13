@@ -92,6 +92,11 @@ grep -q "switchTab', eventWithDataset({ key: 'reads' })" "$automator_script" || 
 grep -q "read page expected stats and ranking panels" "$automator_script" || { echo "FAIL: incentive DevTools automator does not assert read stats/ranking panels" >&2; exit 1; }
 grep -q "assertAttachmentTags(files, \\['安装前', '安装中', '安装后', '跟踪', '佐证'\\], 'detail page')" "$automator_script" || { echo "FAIL: incentive DevTools automator does not assert all PC attachment slots on detail page" >&2; exit 1; }
 grep -q "assertAttachmentTags(wallFiles, \\['安装前', '安装中', '安装后', '跟踪', '佐证'\\], 'list page')" "$automator_script" || { echo "FAIL: incentive DevTools automator does not assert all PC attachment slots on list page" >&2; exit 1; }
+# 【F23 复审钉 2026-10-13】重锚后的关键断言字面量锚定(grep -F 固定串): 防脚本退化回旧数据模型
+# (裸 setData 注入/choose 旧方法名/records[0].files)或删掉排序态真实 tap 归属断言。
+for anchor_token in 'rebuildRecordViews' 'chooseOrder' 'wall-act-btn' 'records[0].childRecordsView[0].unread' 'sepDial' 'download/301'; do
+  grep -qF "$anchor_token" "$automator_script" || { echo "FAIL: incentive automator must keep anchored assertion token: $anchor_token" >&2; exit 1; }
+done
 grep -q "assertAttachmentTags(files, \\['安装前', '安装中', '安装后', '跟踪', '佐证'\\], 'timeline page')" "$automator_script" || { echo "FAIL: incentive DevTools automator does not assert all PC attachment slots on timeline page" >&2; exit 1; }
 grep -q 'calls.downloadFile.length === 3' "$automator_script" || { echo "FAIL: incentive DevTools automator does not assert image preview, document preview, and document download fetches" >&2; exit 1; }
 grep -q 'calls.previewImage.length === 1' "$automator_script" || { echo "FAIL: incentive DevTools automator does not assert previewImage calls" >&2; exit 1; }
@@ -179,7 +184,7 @@ grep -q 'wx:for-index="wallGroupIdx"' "$wxml" || { echo "FAIL: incentive wall gr
 grep -q 'wx:for-index="wallFileIdx"' "$wxml" || { echo "FAIL: incentive wall file loops must declare wx:for-index (inner-index shadowing guard)" >&2; exit 1; }
 # 【F24 2026-10-13】setData 瘦身负向钉(1MB 真机预算): 视图不得回携签名缩略图 URL,
 # buildRecordView 必须持续剥离 files/fileGroups 原始大数组(改由 thumb.wxs 渲染层拼 URL)
-! grep -Eq "thumbUrl[[:space:]]*[:=]" "$page" || { echo "FAIL: incentive view must not rebuild signed thumbUrl into data (setData 1MB budget)" >&2; exit 1; }
+! grep -Eq "thumbUrl['\\\"]?[[:space:]]*[:=]" "$page" || { echo "FAIL: incentive view must not rebuild signed thumbUrl into data (setData 1MB budget)" >&2; exit 1; }
 grep -q "files: _omitFiles, fileGroups: _omitGroups" "$page" || { echo "FAIL: buildRecordView must keep stripping files/fileGroups from view data" >&2; exit 1; }
 ! grep -Eq "activeTab ===|industries\\[selectedIndustryIndex\\]|devTypes\\[selectedDevTypeIndex\\]|productOptions\\[selectedProductIndex\\]|orgOptions\\[selectedOrgIndex\\]|userNames\\[selectedUserIndex\\]|orderOptions\\[selectedOrderIndex\\]|readPeriodOptions\\[selectedReadPeriodIndex\\]|startDate \\|\\||endDate \\|\\|" "$wxml" || { echo "FAIL: incentive mobile filters/tabs WXML must not keep array-index fallback logic" >&2; exit 1; }
 ! grep -Eq "categoryTree\\.length|categoryStats\\.length|scoreboard\\.length|deptRanking\\.length|readStats\\.length|readRanking\\.length|statDetail\\.records\\.length|statDetail\\.parentName \\|\\||index \\+ 1|item\\.realName \\|\\||item\\.readCount \\|\\||item\\.count \\|\\||detail\\.fileGroupsView\\.length" "$wxml" || { echo "FAIL: incentive mobile stats/ranking/read WXML must not keep fallback/count logic" >&2; exit 1; }

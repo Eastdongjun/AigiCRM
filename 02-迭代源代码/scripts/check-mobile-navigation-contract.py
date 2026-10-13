@@ -145,11 +145,18 @@ def main() -> int:
         return 1
     declared = set(re.findall(r"['\"](/pages/[^'\"]+)['\"]", tab_pages_decl.group(1)))
     json_tabs = {p.lstrip("/") for p in tab_pages}
-    if {p.lstrip("/") for p in declared} != json_tabs:
+    declared_tabs = {p.lstrip("/") for p in declared}
+    if declared_tabs != json_tabs:
         print("FAIL: pages/app/index.js tabPages list has drifted from app.json tabBar.list:")
-        print(f"  only in app/index.js: {sorted(declared - tab_pages)}")
-        print(f"  only in app.json:     {sorted(tab_pages - declared)}")
+        print(f"  only in app/index.js: {sorted(declared_tabs - json_tabs)}")
+        print(f"  only in app.json:     {sorted(json_tabs - declared_tabs)}")
         print("  add/remove a tab requires updating both, or the entry degrades to a silent dead button")
+        return 1
+    # 【F22 复审钉 2026-10-13】消费一致性: 数组一致但分流改走别的数据源时, 一致性钉不设防——
+    # 再钉 openApp 必须经 tabPages.indexOf 消费并以 wx.switchTab 简写跳转(#11 修复形态)。
+    open_app_src = app_center.read_text(encoding="utf-8")
+    if "wx.switchTab({ url })" not in open_app_src or "tabPages.indexOf(url)" not in open_app_src:
+        print("FAIL: openApp must consume the tabPages list via tabPages.indexOf(url) and route with wx.switchTab({ url })")
         return 1
     page_scroll_hits, stack_breakers = scroll_preservation_violations()
     if page_scroll_hits:

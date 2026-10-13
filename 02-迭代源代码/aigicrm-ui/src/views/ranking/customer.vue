@@ -135,7 +135,8 @@
 import { computed, onMounted, ref } from 'vue'
 import { getCustomerRankings } from '@/api/statistics'
 import { buildPeriodOptions, periodQueryValue } from '@/utils/incentive-period'
-import { RELATIONSHIP_OPTIONS_FALLBACK } from '@/utils/customer-fields'
+import { getDictData } from '@/api/system'
+import { RELATIONSHIP_OPTIONS_FALLBACK, fetchRelationshipOptions } from '@/utils/customer-fields'
 
 const loading = ref(false)
 const activeTab = ref('incentive')
@@ -160,8 +161,10 @@ const filteredIndicatorRanking = computed(() =>
 
 function relationshipLabel(score) {
   // 【#10 2026-10-12】客情文案单一出处(customer-fields), 不再本地硬编码数组
+  // 【F4 复审 2026-10-13】字典缺行/停用档位时未命中不再回落第 0 档文案(会把存量分值错显为
+  // 第一档), 显 '—' 如实表达"该档字典行不存在"
   const hit = RELATIONSHIP_OPTIONS_FALLBACK.find((o) => Number(o.dictValue) === Number(score))
-  return (hit && hit.dictLabel) || (RELATIONSHIP_OPTIONS_FALLBACK[0] && RELATIONSHIP_OPTIONS_FALLBACK[0].dictLabel) || ''
+  return (hit && hit.dictLabel) || '—'
 }
 
 function moneyText(value) {
@@ -187,7 +190,13 @@ async function loadData() {
   }
 }
 
-onMounted(loadData)
+onMounted(() => {
+  loadData()
+  // 【F4 复审 2026-10-13】排行页自身触发客情字典拉取(幂等, 原地同步兜底数组): 此前全仓
+  // 唯一触发点在客户详情页, 未开过详情的会话里排行标签始终是硬编码文案。
+  // 局限: FALLBACK 非响应式, fetch 晚于首次渲染时标签随下一次重渲染(切tab/翻页)更新。
+  fetchRelationshipOptions(getDictData)
+})
 </script>
 
 <style scoped>
