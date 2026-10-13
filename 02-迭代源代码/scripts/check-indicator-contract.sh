@@ -58,9 +58,11 @@ field_count="$(grep -c "field: '" "$FIELDS" || true)"
 # ---- 3) 前端计分公式必须恰好由这 5 项求和 ----
 grep -Fq 'INDICATOR_FIELDS.reduce' "$FIELDS" || fail 'shared total must sum INDICATOR_FIELDS (sumIndicatorScore)'
 grep -Fq 'sumIndicatorScore(' "$COMPOSABLE" || fail 'customer detail must reuse the shared total (sumIndicatorScore)'
-# 防漂移：详情页不得再复制一份五项标签口径（dictLabel 只在共享定义里出现）
-if grep -Fq 'dictLabel' "$COMPOSABLE"; then
-  fail 'customer detail must not duplicate the 5-item label definitions (single source: utils/customer-fields.js)'
+# 防漂移：详情页不得再**内联定义**指标/客情标签口径。c1f43a27 客情字典化后, 消费共享
+# RELATIONSHIP_OPTIONS_FALLBACK 的 .dictLabel 字段是合法用法(单一来源仍是 customer-fields);
+# 禁的是在本文件内出现 label/dictLabel 键值对字面量(第二份口径)
+if grep -Eq "dictLabel: *'" "$COMPOSABLE"; then
+  fail 'customer detail must not INLINE-define label definitions (consume shared utils/customer-fields.js; reading .dictLabel from shared constants is allowed)'
 fi
 
 # ---- 4) 后端计分公式必须恰好是这 5 项 ----
