@@ -2,7 +2,17 @@
 # 权限码字典 markdown 生成(由 gen-permission-dict.sh 调用)
 import sys, datetime
 
+def guard_repo_path(path, what):
+    """生成器只允许写项目目录内的路径, 拒绝越仓写入(路径穿越收敛, 2026-09-21 安全轮)。"""
+    import os
+    repo_root = os.path.realpath(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    p = os.path.realpath(path)
+    if not (p == repo_root or p.startswith(repo_root + os.sep)):
+        sys.exit('拒绝: %s 路径必须在项目目录内(%s): %s' % (what, repo_root, p))
+    return p
+
 def main(out_path, label):
+    out_path = guard_repo_path(out_path, '输出文件')
     menus = []
     for line in open('/tmp/perm-menus.txt', encoding='utf-8'):
         p = line.rstrip('\n').split('\t')

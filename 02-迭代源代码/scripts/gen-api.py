@@ -58,7 +58,23 @@ def extract_apis(controller_dir):
                 annotation_lines = []
     return apis
 
+def guard_repo_path(path, what, allow_tempdir=False):
+    """生成器只允许写项目目录(或系统临时目录, 供 check-doc-freshness 临时产物用)内的路径,
+    拒绝越仓写入(路径穿越收敛, 2026-09-21 安全轮)。"""
+    repo_root = os.path.realpath(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    p = os.path.realpath(path)
+    allowed = p == repo_root or p.startswith(repo_root + os.sep)
+    if not allowed and allow_tempdir:
+        import tempfile
+        tmp_root = os.path.realpath(tempfile.gettempdir())
+        allowed = p == tmp_root or p.startswith(tmp_root + os.sep)
+    if not allowed:
+        sys.exit('拒绝: %s 路径必须在项目目录(或系统临时目录)内(%s): %s' % (what, repo_root, p))
+    return p
+
 def main(ctrl_dir, out_path):
+    ctrl_dir = guard_repo_path(ctrl_dir, 'controller 根目录')
+    out_path = guard_repo_path(out_path, '输出文件', allow_tempdir=True)
     apis = extract_apis(ctrl_dir)
     apis.sort(key=lambda a: (a['path'], a['method']))
     L = []
