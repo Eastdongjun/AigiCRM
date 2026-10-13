@@ -34,18 +34,28 @@ function customerStatusTone(status) {
 const INDICATOR_FIELDS = ['relationshipScore', 'indicator02', 'indicator03', 'indicator04', 'indicator05']
 
 // 【#10 2026-10-12】客情·商务关系深度选项: 新文案为兜底(与后台字典 relationship_depth 同口径),
-// 页面可用 applyRelationshipDictOptions 用字典数据实时覆盖 INDICATOR_ITEMS[0].options;
-// 分值=数组下标(0-3)不变, 切文案不影响统计与排行
+// 页面可用 fetchRelationshipDictOptions 用字典数据实时覆盖 INDICATOR_ITEMS[0].options;
+// 【F9 2026-10-13】分值口径对齐 PC(utils/customer-fields.js): 档位下标必须来自 dictValue,
+// 后台调 sort_order 或停用中间档不再造成 MP 静默存成另一档分值。
 const RELATIONSHIP_OPTIONS = ['商务少', '纯商务', '感情商务', '多样性']
 
-/** 字典行 → 客情选项数组; 空返回 null(调用方保持兜底文案) */
+/** 字典行 → 客情选项数组; 空返回 null(调用方保持兜底文案)。
+ * 下标=dictValue(0-3): 行缺失的档位用兜底文案补位(防下标前移), 脏值(非0-3整数)丢弃。 */
 function relationshipOptionsFromDict(rows) {
-  const labels = (rows || [])
-    .filter((r) => r && r.dictValue !== null && r.dictValue !== undefined && r.status !== 0)
-    .sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0))
-    .map((r) => r.dictLabel)
-    .filter(Boolean)
-  return labels.length ? labels.slice(0, 4) : null
+  const valid = (rows || []).filter((r) => r && r.dictValue !== null && r.dictValue !== undefined && r.status !== 0)
+  if (!valid.length) return null
+  const byValue = {}
+  let maxValue = -1
+  valid.forEach((r) => {
+    const v = Number(r.dictValue)
+    if (!Number.isInteger(v) || v < 0 || v > 3) return
+    if (r.dictLabel) byValue[v] = r.dictLabel
+    if (v > maxValue) maxValue = v
+  })
+  if (maxValue < 0) return null
+  const labels = []
+  for (let v = 0; v <= maxValue; v++) labels.push(byValue[v] || RELATIONSHIP_OPTIONS[v] || `档位${v}`)
+  return labels
 }
 
 /** 拉后台字典覆盖客情选项(传入 api.getDictData; 失败静默保持兜底) */
@@ -191,6 +201,7 @@ module.exports = {
   INDICATOR_FIELDS,
   INDICATOR_ITEMS,
   RELATIONSHIP_OPTIONS,
+  relationshipOptionsFromDict,
   fetchRelationshipDictOptions,
   sumIndicatorScore,
   buildIndicatorItems,

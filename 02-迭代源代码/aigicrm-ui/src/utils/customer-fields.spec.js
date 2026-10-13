@@ -69,4 +69,26 @@ describe('customer-fields 客情五项指标', () => {
     expect(sumIndicatorScore({ relationshipScore: null, indicator02: undefined, indicator03: '' })).toBe(0)
     expect(sumIndicatorScore(null)).toBe(0)
   })
+
+  it('【F3+F4 2026-10-13】真实链路返回 Result 包装({code,message,data})行数组在 .data: 字典生效且单源同步', async () => {
+    const snapshot = [...RELATIONSHIP_OPTIONS_FALLBACK]
+    try {
+      const wrapped = {
+        code: 200, message: 'ok',
+        data: [
+          { dictValue: '0', dictLabel: '字典文案A', sortOrder: 1, status: 1 },
+          { dictValue: '1', dictLabel: '字典文案B', sortOrder: 2, status: 1 },
+          { dictValue: '2', dictLabel: '字典文案C', sortOrder: 3, status: 1 },
+          { dictValue: '3', dictLabel: '字典文案D', sortOrder: 4, status: 1 },
+        ],
+      }
+      const options = await fetchRelationshipOptions(async () => wrapped)
+      expect(options.map((o) => o.dictLabel)).toEqual(['字典文案A', '字典文案B', '字典文案C', '字典文案D'])
+      expect(RELATIONSHIP_OPTIONS_FALLBACK.map((o) => o.dictLabel))
+        .toEqual(['字典文案A', '字典文案B', '字典文案C', '字典文案D'])
+    } finally {
+      RELATIONSHIP_OPTIONS_FALLBACK.length = 0
+      RELATIONSHIP_OPTIONS_FALLBACK.push(...snapshot)
+    }
+  })
 })

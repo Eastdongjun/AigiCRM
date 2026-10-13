@@ -804,10 +804,29 @@ public class CustomerService {
 
     /** 在客户查询时追加自动共享范围 */
     private void applyAutoShare(LambdaQueryWrapper<BizCustomer> wrapper) {
+        // 【F18 2026-10-13】数据范围为 all(本集团全量)的用户不再被 auto_share 收窄:
+        // auto_share 各规则(superior/roles)本意是给数据范围受限的用户扩大可见, 对已全量可见的用户
+        // 只剩收窄副作用——roles 的"同组织互看"曾把 dataScope=all 的销售总监从全量 285 收窄到组织 16 条,
+        // 与工作台/统计(纯 dataScope 口径)自相矛盾。与 admin 规则同型豁免。
+        if (isDataScopeAll()) return;
         java.util.List<Long> shareOwnerIds = getAutoShareOwnerIds();
         if (shareOwnerIds.isEmpty()) return;
         if (shareOwnerIds.size() <= 1) return;
         wrapper.in(BizCustomer::getOwnerId, shareOwnerIds);
+    }
+
+    /** 当前用户客户查看范围是否为全量(all); admin 恒全量。与 applyDataScope 同一解析链路 */
+    private boolean isDataScopeAll() {
+        if (SecurityUtils.isAdmin()) return true;
+        var scopeUser = SecurityUtils.getCurrentUser();
+        if (scopeUser == null) return false;
+        com.aigicrm.common.scope.ScopeRequest req = com.aigicrm.common.scope.ScopeRequest.builder()
+                .user(scopeUser)
+                .module("customer")
+                .action("view")
+                .anchor(rolePermScopeService.anchorOf(scopeUser, "customer", "view"))
+                .build();
+        return scopeResolver.resolveScope(req).isAll();
     }
 
 

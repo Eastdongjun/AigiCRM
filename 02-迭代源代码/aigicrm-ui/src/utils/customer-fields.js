@@ -45,13 +45,21 @@ export const RELATIONSHIP_OPTIONS_FALLBACK = [
 /** 拉取后台客情字典(按 sort_order 排序;空/异常回退兜底文案) */
 export async function fetchRelationshipOptions(getDictData) {
   try {
-    const rows = await getDictData('relationship_depth')
+    const res = await getDictData('relationship_depth')
+    // 【F3 2026-10-13】axios 拦截器返回 Result 包装({code,message,data}), 行数组在 .data;
+    // 旧实现把包装对象当行数组用, filter 抛 TypeError 被 catch 静默吞掉, 字典永不生效。
+    const rows = Array.isArray(res) ? res : Array.isArray(res?.data) ? res.data : null
     const options = (rows || [])
       .filter((r) => r && r.dictValue !== null && r.dictValue !== undefined && r.status !== 0)
       .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
       .map((r) => ({ dictValue: String(r.dictValue), dictLabel: r.dictLabel }))
       .filter((r) => r.dictLabel)
-    return options.length ? options : RELATIONSHIP_OPTIONS_FALLBACK
+    if (!options.length) return RELATIONSHIP_OPTIONS_FALLBACK
+    // 【F4 2026-10-13】单一出处落地: 原地同步兜底数组, INDICATOR_FIELDS[0].options 与
+    // 排行页等所有静态引用消费方(编辑表单/指标摘要)随字典更新, 消除同页两套文案漂移。
+    RELATIONSHIP_OPTIONS_FALLBACK.length = 0
+    RELATIONSHIP_OPTIONS_FALLBACK.push(...options)
+    return options
   } catch (e) {
     return RELATIONSHIP_OPTIONS_FALLBACK
   }

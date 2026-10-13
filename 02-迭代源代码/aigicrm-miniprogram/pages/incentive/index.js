@@ -10,8 +10,13 @@ const { buildDeptLevelOptions } = require('../../utils/tree')
 
 // 【#4+#7 2026-10-12】列表页佐证照片墙: 缩略图凭证模块级缓存(取一次复用), 未就绪时图片退化为
 // 文档面卡仍可点开大图; TAG_COLORS 与详情页同款槽位配色
+// 【F21 2026-10-13】缓存按用户隔离: 换账号登录后旧凭证立即失效重取, 杜绝跨用户下载凭证滞留。
 let dlTokenCache = ''
-function setIncentiveDlToken(token) { dlTokenCache = token || '' }
+let dlTokenCacheUserId = null
+function setIncentiveDlToken(token, userId) {
+  dlTokenCache = token || ''
+  dlTokenCacheUserId = token ? (userId ?? null) : null
+}
 const TAG_COLORS = { 安装前: '#b45309', 安装中: '#1d4fd7', 安装后: '#047857', 跟踪: '#7c3aed', 佐证: '#64748b' }
 // 【setData 瘦身 2026-10-13】缩略图 URL 拼接移交 thumb.wxs(渲染层), 此处仅维护 token 供其引用
 
@@ -464,7 +469,9 @@ Page({
 
   applyRecordActionFlags() {
     // 【setData 瘦身 2026-10-13】视图不再携带原始 records(重建会丢懒加载的子记录明细),
-    // grant 到达只影响两个操作位, 就地局部更新
+    // grant 到达只影响操作位, 就地局部更新
+    // 【F8 2026-10-13】子记录操作位同批刷新: 原始源(_childRawById)重算 + 已展开的 childRecordsView
+    // 就地同步——旧代码只刷父级, 子级沿用 grant 前初值, 业务员误缺追加/删除按钮至下次 loadRecords。
     const upd = {}
     ;['allRecords', 'records'].forEach((key) => {
       ;(this.data[key] || []).forEach((item, i) => {
@@ -472,6 +479,19 @@ Page({
         upd[`${key}[${i}].canEdit`] = this.canEditRecord(item)
         upd[`${key}[${i}].showAppendAction`] = Boolean(this.canEditRecord(item))
         upd[`${key}[${i}].showDeleteAction`] = Boolean(this.canDeleteRecord(item))
+        const children = (item.id != null && this._childRawById && this._childRawById[item.id]) || []
+        children.forEach((child) => {
+          child.canDelete = this.canDeleteRecord(child)
+          child.canEdit = this.canEditRecord(child)
+        })
+        ;(item.childRecordsView || []).forEach((cv, j) => {
+          const childCanEdit = Boolean(cv.canEdit !== undefined ? this.canEditRecord(cv) : false)
+          const childCanDelete = Boolean(cv.canDelete !== undefined ? this.canDeleteRecord(cv) : false)
+          upd[`${key}[${i}].childRecordsView[${j}].canEdit`] = childCanEdit
+          upd[`${key}[${i}].childRecordsView[${j}].canDelete`] = childCanDelete
+          upd[`${key}[${i}].childRecordsView[${j}].showAppendAction`] = childCanEdit
+          upd[`${key}[${i}].childRecordsView[${j}].showDeleteAction`] = childCanDelete
+        })
       })
     })
     this.setData(upd, () => this.refreshIncentiveView())
@@ -1022,7 +1042,9 @@ Page({
   },
 
   findRecordFile(event) {
-    const record = this.data.records[event.currentTarget.dataset.recordIndex]
+    // 【F7 2026-10-13】setData 瘦身后视图已剥离 files/fileGroups, 父级照片墙取文件改走
+    // 页面内存装饰源(_allDecorated 与 data.records 同序), 与 findChildRecord 同款手法。
+    const record = (this._allDecorated || [])[event.currentTarget.dataset.recordIndex]
     const groupIndex = event.currentTarget.dataset.groupIndex
     const fileIndex = event.currentTarget.dataset.fileIndex
     if (record && record.fileGroups && groupIndex !== undefined && fileIndex !== undefined) {
@@ -1114,11 +1136,22 @@ Page({
   // 【#4+#7 2026-10-12】照片墙缩略图凭证: 幂等取一次写模块缓存;失败不阻断列表(token 空→退化面卡)
   ensureDlToken() {
     if (getApp().globalData.demoMode) return Promise.resolve()
-    if (dlTokenCache || this._dlTokenPromise) return this._dlTokenPromise || Promise.resolve()
+    // 【F21 2026-10-13】缓存按用户隔离: 换账号后旧缓存作废;且早退前把有效 token 补写进
+    // 当前页面实例的 data(thumb.wxs 读 data.dlToken 拼缩略图 URL, 旧早退分支不 setData
+    // 导致换账号后新页面实例缩略图全空)。
+    const user = getApp().globalData.currentUser
+    const userId = user ? (user.id != null ? user.id : user.username) : null
+    const cacheUsable = Boolean(dlTokenCache) && dlTokenCacheUserId != null && dlTokenCacheUserId === userId
+    if (!cacheUsable && dlTokenCache) {
+      setIncentiveDlToken('', null)
+      this._dlTokenPromise = null
+    }
+    if (cacheUsable && !this.data.dlToken) this.setData({ dlToken: dlTokenCache })
+    if (cacheUsable || this._dlTokenPromise) return this._dlTokenPromise || Promise.resolve()
     this._dlTokenPromise = getDownloadToken().then((result) => {
       this._dlTokenPromise = null
       const token = result && (result.token || (result.data && result.data.token)) || ''
-      setIncentiveDlToken(token)
+      setIncentiveDlToken(token, userId)
       // token 进 data 一份: wxml 经 thumb.wxs 用它拼每个瓦片的缩略图 URL, 晚到自动补齐
       this.setData({ dlToken: token })
     }).catch(() => {

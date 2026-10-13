@@ -590,10 +590,11 @@ onBeforeUnmount(() => { destroyReadObserver(); destroyPaneObserver() })
 .dtl-file-vid video{width:100%;aspect-ratio:3/2;border-radius:12px;background:#0b1020;display:block;object-fit:cover}
 /* 【#6 B 2026-10-12】视频瓦片文件名/按钮收进画面底部悬浮条: 原先 meta 单占一行使视频瓦片比图片瓦片高一截,
    同行图片/视频混排底边不齐; 现所有瓦片统一 3:2, 底边严格对齐 */
+/* 【F5 2026-10-13】悬浮条容器不拦截指针(否则盖住 video 原生播放/进度/全屏控制栏), 内部按钮恢复可点 */
 .dtl-file-vid .dtl-file-meta{position:absolute;left:0;right:0;bottom:0;margin-top:0;padding:22px 10px 8px;
-  background:linear-gradient(180deg,rgba(11,16,32,0),rgba(11,16,32,.82));border-radius:0 0 12px 12px}
+  background:linear-gradient(180deg,rgba(11,16,32,0),rgba(11,16,32,.82));border-radius:0 0 12px 12px;pointer-events:none}
 .dtl-file-vid .dtl-file-meta .doc-label{color:#fff}
-.dtl-file-vid .dtl-file-meta .el-button{background:rgba(255,255,255,.16);border-color:rgba(255,255,255,.35)}
+.dtl-file-vid .dtl-file-meta .el-button{background:rgba(255,255,255,.16);border-color:rgba(255,255,255,.35);pointer-events:auto}
 .dtl-file-doc{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;
   aspect-ratio:3/2;padding:12px;border:none;border-radius:12px;background:#f7f8fa;
   color:#646a73;font-size:13px;text-align:center;cursor:pointer;transition:all .15s}

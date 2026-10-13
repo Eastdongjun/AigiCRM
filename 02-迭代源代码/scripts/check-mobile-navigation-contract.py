@@ -135,6 +135,22 @@ def main() -> int:
         print("FAIL: navigateTo/redirectTo to a tabBar page is rejected by WeChat (dead button); use switchTab:")
         print("\n".join(f"  {item}" for item in tab_hits))
         return 1
+    # 【F22 2026-10-13】openApp 的 switchTab 分流清单(pages/app/index.js tabPages 数组)必须与
+    # app.json tabBar.list 保持一致: 增删 tab 漏改数组会退回"tabBar 页 navigateTo 静默失败"死按钮,
+    # 且本检查的字面量 URL 正则抓不到映射表简写形态, 单独钉一致性。
+    app_center = PAGES_DIR / "app" / "index.js"
+    tab_pages_decl = re.search(r"const tabPages = \[([^\]]*)\]", app_center.read_text(encoding="utf-8"))
+    if not tab_pages_decl:
+        print("FAIL: pages/app/index.js no longer declares the tabPages switchTab list (#11 fix guard)")
+        return 1
+    declared = set(re.findall(r"['\"](/pages/[^'\"]+)['\"]", tab_pages_decl.group(1)))
+    json_tabs = {p.lstrip("/") for p in tab_pages}
+    if {p.lstrip("/") for p in declared} != json_tabs:
+        print("FAIL: pages/app/index.js tabPages list has drifted from app.json tabBar.list:")
+        print(f"  only in app/index.js: {sorted(declared - tab_pages)}")
+        print(f"  only in app.json:     {sorted(tab_pages - declared)}")
+        print("  add/remove a tab requires updating both, or the entry degrades to a silent dead button")
+        return 1
     page_scroll_hits, stack_breakers = scroll_preservation_violations()
     if page_scroll_hits:
         print("FAIL: wx.pageScrollTo breaks native scroll preservation on back navigation:")

@@ -91,7 +91,7 @@ grep -q 'read-stats-ranking.png' "$automator_script" || { echo "FAIL: incentive 
 grep -q "switchTab', eventWithDataset({ key: 'reads' })" "$automator_script" || { echo "FAIL: incentive DevTools automator does not switch to read stats/ranking tab" >&2; exit 1; }
 grep -q "read page expected stats and ranking panels" "$automator_script" || { echo "FAIL: incentive DevTools automator does not assert read stats/ranking panels" >&2; exit 1; }
 grep -q "assertAttachmentTags(files, \\['安装前', '安装中', '安装后', '跟踪', '佐证'\\], 'detail page')" "$automator_script" || { echo "FAIL: incentive DevTools automator does not assert all PC attachment slots on detail page" >&2; exit 1; }
-grep -q "assertAttachmentTags(files, \\['安装前', '安装中', '安装后', '跟踪', '佐证'\\], 'list page')" "$automator_script" || { echo "FAIL: incentive DevTools automator does not assert all PC attachment slots on list page" >&2; exit 1; }
+grep -q "assertAttachmentTags(wallFiles, \\['安装前', '安装中', '安装后', '跟踪', '佐证'\\], 'list page')" "$automator_script" || { echo "FAIL: incentive DevTools automator does not assert all PC attachment slots on list page" >&2; exit 1; }
 grep -q "assertAttachmentTags(files, \\['安装前', '安装中', '安装后', '跟踪', '佐证'\\], 'timeline page')" "$automator_script" || { echo "FAIL: incentive DevTools automator does not assert all PC attachment slots on timeline page" >&2; exit 1; }
 grep -q 'calls.downloadFile.length === 3' "$automator_script" || { echo "FAIL: incentive DevTools automator does not assert image preview, document preview, and document download fetches" >&2; exit 1; }
 grep -q 'calls.previewImage.length === 1' "$automator_script" || { echo "FAIL: incentive DevTools automator does not assert previewImage calls" >&2; exit 1; }
@@ -172,6 +172,15 @@ grep -q 'customer-record-list' "$wxml" || { echo "FAIL: incentive mobile custome
 grep -q 'data-child-index' "$wxml" || { echo "FAIL: incentive mobile customer detail list child record actions lack record index" >&2; exit 1; }
 ! grep -Eq "item\\.files\\.length|item\\.fileGroups &&|item\\.records &&|item\\.expanded \\?|child\\.categoryName \\|\\||child\\.period \\|\\||child\\.score \\|\\||child\\.preInstallQuestion \\|\\||child\\.fileGroups &&|group\\.files\\.length" "$wxml" || { echo "FAIL: incentive mobile records WXML must not keep record/file fallback branching logic" >&2; exit 1; }
 ! grep -Eq "wx:for-index=\"groupIndex\"|wx:for-index=\"fileIndex\"" "$wxml" || { echo "FAIL: incentive mobile attachment WXML must not derive file action indexes in template" >&2; exit 1; }
+# 【F25 2026-10-13】照片墙循环必须显式命名内层索引: 内层默认 index 遮蔽外层 record index 会让
+# data-record-index 错取文件下标(H2 同款回归), 显式 wallGroupIdx/wallFileIdx 是防线, 真实点击钉在
+# verify-incentive-attachments.mjs(tap 瓦片按钮经 WXML 绑定断言 previewImage 收到正确文件)。
+grep -q 'wx:for-index="wallGroupIdx"' "$wxml" || { echo "FAIL: incentive wall group loops must declare wx:for-index (inner-index shadowing guard)" >&2; exit 1; }
+grep -q 'wx:for-index="wallFileIdx"' "$wxml" || { echo "FAIL: incentive wall file loops must declare wx:for-index (inner-index shadowing guard)" >&2; exit 1; }
+# 【F24 2026-10-13】setData 瘦身负向钉(1MB 真机预算): 视图不得回携签名缩略图 URL,
+# buildRecordView 必须持续剥离 files/fileGroups 原始大数组(改由 thumb.wxs 渲染层拼 URL)
+! grep -Eq "thumbUrl[[:space:]]*[:=]" "$page" || { echo "FAIL: incentive view must not rebuild signed thumbUrl into data (setData 1MB budget)" >&2; exit 1; }
+grep -q "files: _omitFiles, fileGroups: _omitGroups" "$page" || { echo "FAIL: buildRecordView must keep stripping files/fileGroups from view data" >&2; exit 1; }
 ! grep -Eq "activeTab ===|industries\\[selectedIndustryIndex\\]|devTypes\\[selectedDevTypeIndex\\]|productOptions\\[selectedProductIndex\\]|orgOptions\\[selectedOrgIndex\\]|userNames\\[selectedUserIndex\\]|orderOptions\\[selectedOrderIndex\\]|readPeriodOptions\\[selectedReadPeriodIndex\\]|startDate \\|\\||endDate \\|\\|" "$wxml" || { echo "FAIL: incentive mobile filters/tabs WXML must not keep array-index fallback logic" >&2; exit 1; }
 ! grep -Eq "categoryTree\\.length|categoryStats\\.length|scoreboard\\.length|deptRanking\\.length|readStats\\.length|readRanking\\.length|statDetail\\.records\\.length|statDetail\\.parentName \\|\\||index \\+ 1|item\\.realName \\|\\||item\\.readCount \\|\\||item\\.count \\|\\||detail\\.fileGroupsView\\.length" "$wxml" || { echo "FAIL: incentive mobile stats/ranking/read WXML must not keep fallback/count logic" >&2; exit 1; }
 grep -q '全部人员' "$page" || { echo "FAIL: incentive mobile user selector UI is missing" >&2; exit 1; }

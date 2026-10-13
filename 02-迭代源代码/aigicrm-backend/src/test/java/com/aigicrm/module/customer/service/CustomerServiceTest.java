@@ -1950,4 +1950,51 @@ class CustomerServiceTest {
             assertEquals(List.of(11L), ids, "非豁免用户应回落到仅本人, 字符串元素被归一忽略而非抛 ClassCastException");
         }
     }
+
+    @Test
+    void autoShare_rolesHitButDataScopeAll_notNarrowed() {
+        // 【F18 2026-10-13】dataScope=all(销售总监形态): roles 规则命中也不得把列表从全量收窄到组织——
+        // 交付前审查实测 NO001 列表仅 16 条而工作台全量 285, 列表与统计口径自相矛盾。
+        SysConfigService configService = mock(SysConfigService.class);
+        when(configService.getValue("customer.auto_share")).thenReturn(
+                "{\"superior\":false,\"admin\":false,\"roles\":[\"0\"],\"users\":[]}");
+        SysUserMapper userMapper = mock(SysUserMapper.class);
+        com.aigicrm.module.system.entity.SysUser orgMate = new com.aigicrm.module.system.entity.SysUser();
+        orgMate.setId(1L);
+        when(userMapper.selectList(any())).thenReturn(List.of(orgMate));
+        OrgScopeResolver resolver = mock(OrgScopeResolver.class);
+        when(resolver.resolveScope(any())).thenReturn(com.aigicrm.common.scope.ScopeDecision.all());
+        CustomerService service = new CustomerService(
+                mock(BizCustomerMapper.class),
+                mock(BizCustomerLogMapper.class),
+                mock(BizInvoiceMapper.class),
+                mock(BizCustomerShareMapper.class),
+                mock(BizCustomerIndicatorMapper.class),
+                mock(BizContactMapper.class),
+                mock(BizPaymentMapper.class),
+                mock(com.aigicrm.module.customer.mapper.BizCustomerStageAmountMapper.class),
+                userMapper,
+                mock(SysDeptMapper.class),
+                mock(BizReminderMapper.class),
+                mock(JdbcTemplate.class),
+                configService,
+                resolver,
+                mock(com.aigicrm.common.engine.CustomerAccessService.class),
+                mock(com.aigicrm.module.system.service.RolePermScopeService.class),
+                mock(com.aigicrm.module.approval.mapper.BizApprovalMapper.class),
+                mock(com.aigicrm.module.system.mapper.SysLogMapper.class));
+        try (MockedStatic<SecurityUtils> sec = mockStatic(SecurityUtils.class)) {
+            sec.when(SecurityUtils::isAdmin).thenReturn(false);
+            sec.when(SecurityUtils::getCurrentUserId).thenReturn(11L);
+            sec.when(SecurityUtils::getCurrentUser).thenReturn(mock(SecurityUser.class));
+            sec.when(SecurityUtils::getCurrentRoleCodes).thenReturn(List.of("0"));
+            sec.when(SecurityUtils::getCurrentOrgId).thenReturn(1L);
+            com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<BizCustomer> w =
+                    new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<>();
+            ReflectionTestUtils.invokeMethod(service, "applyAutoShare", w);
+            Map<String, List<Long>> cols = columnValues(w);
+            assertFalse(cols.containsKey("owner_id"),
+                    "dataScope=all 用户不应被 auto_share roles 收窄到组织, 实际: " + cols);
+        }
+    }
 }

@@ -292,6 +292,9 @@ async function verifyDetailPage(miniProgram) {
 
   // 客户台账概览 + 拨盘位置语义(整月兜底 / 每月完整天数 / 对位聚焦月)
   let view = await page.data('detailView')
+  // 【F23 2026-10-13】记住聚焦月(9月)的拨盘值: 下方"回到今天"空态后 dialValue 已跳到今天(10月),
+  // 旧代码用空态后的 dialValue 拨回"整月"实际拨到 10 月 → 注入的 9 月数据全被滤掉, find 拿 undefined
+  const sepDial = Array.isArray(view.dialValue) ? view.dialValue.slice() : []
   assert(view.customerName === '自动化测试客户', 'detail page hero must render customer name')
   assert(view.scoreText === '14', 'detail page hero must render customer total score')
   assert(view.dialMonths.length === 12, 'detail page month dial must keep 12 months')
@@ -315,8 +318,8 @@ async function verifyDetailPage(miniProgram) {
   assert(view.paneEmptyTitle.indexOf('，此时间无数据') >= 0, `detail page empty state copy is wrong: ${view.paneEmptyTitle}`)
   await screenshot(miniProgram, 'detail-dial-emptyday.png')
 
-  // 回到整月继续附件断言
-  await page.callMethod('onDialChange', { detail: { value: [view.dialValue[0], view.dialValue[1], 0] } })
+  // 回到整月继续附件断言(用注入数据的 9 月拨盘值, 不用空态后已跳到今天的 dialValue)
+  await page.callMethod('onDialChange', { detail: { value: [sepDial[0], sepDial[1], 0] } })
   await page.waitFor(300)
   view = await page.data('detailView')
   const files = view.items.find((item) => item.id === 9001).files
@@ -427,26 +430,27 @@ async function verifyListPage(miniProgram) {
   await page.callMethod('sort')
   await page.waitFor(500)
 
-  assert((await page.$$('.record-file-list')).length === 1, 'list page attachment list is missing')
   assert(await page.data('order') === '', 'list page score order should default to PC-like unsorted state')
-  await page.setData({
-    allRecords: [
-      { ...item, id: 'low-score', name: '低分客户', score: 1 },
-      { ...item, id: 'high-score', name: '高分客户', score: 9 }
-    ],
-    category: '全部'
-  })
+  // 【F23 重锚 2026-10-13】setData 瘦身后裸注入不再驱动附件 UI: 视图经 rebuildRecordViews 构建、
+  // 原始 records/files/fileGroups 存页面内存(_allDecorated/_childRawById)——注入必须走同一归一化链路
+  const orderViews = await page.callMethod('rebuildRecordViews', [
+    { ...item, id: 9001, name: '低分客户', score: 1 },
+    { ...item, id: 9003, name: '高分客户', score: 9 }
+  ])
+  await page.setData({ allRecords: orderViews, records: orderViews, category: '全部' })
   await page.callMethod('sort')
   assert(await page.data('records[0].name') === '低分客户', 'default score order must preserve source order')
-  await page.callMethod('choose', { detail: { value: 1 } })
+  await page.callMethod('chooseOrder', { detail: { value: 1 } })
   assert(await page.data('records[0].name') === '高分客户', 'descending score order must put high score first')
-  await page.callMethod('choose', { detail: { value: 2 } })
+  await page.callMethod('chooseOrder', { detail: { value: 2 } })
   assert(await page.data('records[0].name') === '低分客户', 'ascending score order must put low score first')
-  await page.setData({ allRecords: [item], order: '', selectedOrderIndex: 0 })
+  const views = await page.callMethod('rebuildRecordViews', [item])
+  await page.setData({ allRecords: views, records: views, order: '', selectedOrderIndex: 0 })
   await page.callMethod('sort')
   await page.waitFor(300)
-  const files = await page.data('records[0].files')
-  assertAttachmentTags(files, ['安装前', '安装中', '安装后', '跟踪', '佐证'], 'list page')
+  const fileGroupsView = await page.data('records[0].fileGroupsView')
+  const wallFiles = (fileGroupsView || []).flatMap((group) => group.files || [])
+  assertAttachmentTags(wallFiles, ['安装前', '安装中', '安装后', '跟踪', '佐证'], 'list page')
   assert((await page.$$('.wall-tile')).length === 5, 'list page attachment tiles are missing')  // 【#4 2026-10-12】佐证照片墙重锚
   const listText = (await textList(await page.$$('.incentive-record-card'))).join('\n')
   assert(listText.includes('已读'), 'list page must expose read status for customer records')
@@ -455,18 +459,28 @@ async function verifyListPage(miniProgram) {
   const childText = (await textList(await page.$$('.customer-record-list'))).join('\n')
   assert(childText.includes('未读'), 'list page expanded child records must expose read status')
   await page.callMethod('markChildRecordRead', 0, 0)
-  assert(await page.data('records[0].records[0].unread') === false, 'child record detail open must mark child record read')
-  await page.setData({ 'records[0].unread': true, 'records[0].records[0].unread': true })
+  assert(await page.data('records[0].childRecordsView[0].unread') === false, 'child record detail open must mark child record read')
+  await page.setData({ 'records[0].unread': true, 'records[0].childRecordsView[0].unread': true })
   await page.callMethod('markRecordRead', 0)
   assert(await page.data('records[0].unread') === false, 'record detail open must mark customer record read')
-  assert(await page.data('records[0].records[0].unread') === false, 'record detail open must mark all child records read')
+  assert(await page.data('records[0].childRecordsView[0].unread') === false, 'record detail open must mark all child records read')
 
   const buttons = await textList(await page.$$('button'))
   assert(buttons.filter((text) => text === '打开').length === 5, 'list page must show open button per attachment')
   assert(buttons.filter((text) => text === '下载').length === 5, 'list page must show download button per attachment')
 
+  // 【F25 2026-10-13】真实点击瓦片按钮(经 WXML 绑定与 dataset 传递): 合成 dataset 的 callMethod
+  // 绕过模板绑定, 测不出 wx:for 内层 index 遮蔽外层 record index 的回归(H2 同款)
   await resetAttachmentActionCalls(miniProgram)
   await enableRealAttachmentMode(miniProgram)
+  const openButtons = await page.$$('.wall-act-btn')
+  assert(openButtons.length >= 2, 'list page wall action buttons are missing')
+  await openButtons[0].tap()
+  await page.waitFor(300)
+  const tapCalls = await attachmentActionCalls(miniProgram)
+  assert(tapCalls.previewImage.length === 1, `wall tile tap must open image preview via template binding: ${actionCallSummary(tapCalls)}`)
+  await resetAttachmentActionCalls(miniProgram)
+
   await page.callMethod('previewAttachment', eventWithDataset({ recordIndex: 0, fileIndex: 0 }))
   await page.waitFor(300)
   await page.setData({ previewing: false })
