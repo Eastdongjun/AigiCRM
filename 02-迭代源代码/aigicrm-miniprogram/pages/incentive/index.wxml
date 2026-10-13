@@ -1,3 +1,4 @@
+<wxs src="./thumb.wxs" module="thumb" />
 <view class="page incentive-workbench">
   <view class="hero">
     <view class="row">
@@ -93,14 +94,14 @@
             </view>
             <view class="wall-grid">
               <view wx:for="{{group.files}}" wx:for-item="file" wx:for-index="wallFileIdx" wx:key="id" class="wall-tile">
-                <image wx:if="{{file.showThumb}}" class="wall-thumb" src="{{file.thumbUrl}}" mode="aspectFill" lazy-load="{{true}}" catchtap="previewAttachment" data-record-index="{{index}}" data-group-index="{{group.groupIndex}}" data-file-index="{{file.fileIndex}}" />
+                <image wx:if="{{file.type === 'image' && file.id}}" class="wall-thumb" src="{{thumb.thumbSrc(file, apiBase, dlToken)}}" mode="aspectFill" lazy-load="{{true}}" catchtap="previewAttachment" data-record-index="{{index}}" data-group-index="{{group.groupIndex}}" data-file-index="{{file.fileIndex}}" />
                 <view wx:elif="{{file.type === 'video'}}" class="wall-video-face" catchtap="previewAttachment" data-record-index="{{index}}" data-group-index="{{group.groupIndex}}" data-file-index="{{file.fileIndex}}">
                   <view class="wall-play-icon">▶</view>
-                  <text class="wall-face-name">{{file.nameDisplay}}</text>
+                  <text class="wall-face-name">{{file.name}}</text>
                 </view>
                 <view wx:else class="wall-doc-face" catchtap="previewAttachment" data-record-index="{{index}}" data-group-index="{{group.groupIndex}}" data-file-index="{{file.fileIndex}}">
                   <text class="wall-doc-type">{{file.typeText}}</text>
-                  <text class="wall-face-name">{{file.nameDisplay}}</text>
+                  <text class="wall-face-name">{{file.name}}</text>
                 </view>
                 <text wx:if="{{file.showTag}}" class="wall-tag" style="color: {{file.tagColor}}; border-color: {{file.tagColor}};">{{file.tagText}}</text>
                 <view class="wall-acts">
@@ -139,14 +140,14 @@
                 </view>
                 <view class="wall-grid">
                   <view wx:for="{{group.files}}" wx:for-item="file" wx:for-index="wallFileIdx" wx:key="id" class="wall-tile">
-                    <image wx:if="{{file.showThumb}}" class="wall-thumb" src="{{file.thumbUrl}}" mode="aspectFill" lazy-load="{{true}}" catchtap="previewAttachment" data-record-index="{{index}}" data-child-index="{{childIndex}}" data-group-index="{{group.groupIndex}}" data-file-index="{{file.fileIndex}}" />
+                    <image wx:if="{{file.type === 'image' && file.id}}" class="wall-thumb" src="{{thumb.thumbSrc(file, apiBase, dlToken)}}" mode="aspectFill" lazy-load="{{true}}" catchtap="previewAttachment" data-record-index="{{index}}" data-child-index="{{childIndex}}" data-group-index="{{group.groupIndex}}" data-file-index="{{file.fileIndex}}" />
                     <view wx:elif="{{file.type === 'video'}}" class="wall-video-face" catchtap="previewAttachment" data-record-index="{{index}}" data-child-index="{{childIndex}}" data-group-index="{{group.groupIndex}}" data-file-index="{{file.fileIndex}}">
                       <view class="wall-play-icon">▶</view>
-                      <text class="wall-face-name">{{file.nameDisplay}}</text>
+                      <text class="wall-face-name">{{file.name}}</text>
                     </view>
                     <view wx:else class="wall-doc-face" catchtap="previewAttachment" data-record-index="{{index}}" data-child-index="{{childIndex}}" data-group-index="{{group.groupIndex}}" data-file-index="{{file.fileIndex}}">
                       <text class="wall-doc-type">{{file.typeText}}</text>
-                      <text class="wall-face-name">{{file.nameDisplay}}</text>
+                      <text class="wall-face-name">{{file.name}}</text>
                     </view>
                     <text wx:if="{{file.showTag}}" class="wall-tag" style="color: {{file.tagColor}}; border-color: {{file.tagColor}};">{{file.tagText}}</text>
                     <view class="wall-acts">
@@ -222,14 +223,14 @@
               </view>
               <view class="wall-grid">
                 <view wx:for="{{group.files}}" wx:for-item="file" wx:for-index="wallFileIdx" wx:key="id" class="wall-tile">
-                  <image wx:if="{{file.showThumb}}" class="wall-thumb" src="{{file.thumbUrl}}" mode="aspectFill" lazy-load="{{true}}" catchtap="previewStatDetailAttachment" data-detail-index="{{detailIndex}}" data-group-index="{{group.groupIndex}}" data-file-index="{{file.fileIndex}}" />
+                  <image wx:if="{{file.type === 'image' && file.id}}" class="wall-thumb" src="{{thumb.thumbSrc(file, apiBase, dlToken)}}" mode="aspectFill" lazy-load="{{true}}" catchtap="previewStatDetailAttachment" data-detail-index="{{detailIndex}}" data-group-index="{{group.groupIndex}}" data-file-index="{{file.fileIndex}}" />
                   <view wx:elif="{{file.type === 'video'}}" class="wall-video-face" catchtap="previewStatDetailAttachment" data-detail-index="{{detailIndex}}" data-group-index="{{group.groupIndex}}" data-file-index="{{file.fileIndex}}">
                     <view class="wall-play-icon">▶</view>
-                    <text class="wall-face-name">{{file.nameDisplay}}</text>
+                    <text class="wall-face-name">{{file.name}}</text>
                   </view>
                   <view wx:else class="wall-doc-face" catchtap="previewStatDetailAttachment" data-detail-index="{{detailIndex}}" data-group-index="{{group.groupIndex}}" data-file-index="{{file.fileIndex}}">
                     <text class="wall-doc-type">{{file.typeText}}</text>
-                    <text class="wall-face-name">{{file.nameDisplay}}</text>
+                    <text class="wall-face-name">{{file.name}}</text>
                   </view>
                   <text wx:if="{{file.showTag}}" class="wall-tag" style="color: {{file.tagColor}}; border-color: {{file.tagColor}};">{{file.tagText}}</text>
                   <view class="wall-acts">

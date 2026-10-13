@@ -1,0 +1,7 @@
+// 【setData 瘦身 2026-10-13】缩略图 URL 在渲染层拼接: 此前每文件带整条签名 URL(JWT 数百字节)
+// 进 setData, 68 客户组 903 文件膨胀 233KB; 现在 data 只存一份 apiBase/dlToken, 视图按需拼
+function thumbSrc(file, apiBase, token) {
+  if (!file || !file.id || !apiBase || !token) return ''
+  return apiBase + '/api/file/download/' + file.id + '?thumbnail=1&token=' + token
+}
+module.exports = { thumbSrc: thumbSrc }

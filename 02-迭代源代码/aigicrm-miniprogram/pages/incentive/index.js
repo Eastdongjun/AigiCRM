@@ -13,13 +13,7 @@ const { buildDeptLevelOptions } = require('../../utils/tree')
 let dlTokenCache = ''
 function setIncentiveDlToken(token) { dlTokenCache = token || '' }
 const TAG_COLORS = { 安装前: '#b45309', 安装中: '#1d4fd7', 安装后: '#047857', 跟踪: '#7c3aed', 佐证: '#64748b' }
-function listThumbUrlOf(file) {
-  if (file.type !== 'image' || file.id == null) return ''
-  const base = getDownloadUrl(file, true)
-  if (!base) return ''
-  const sep = base.indexOf('?') >= 0 ? '&' : '?'
-  return base + sep + 'token=' + encodeURIComponent(dlTokenCache)
-}
+// 【setData 瘦身 2026-10-13】缩略图 URL 拼接移交 thumb.wxs(渲染层), 此处仅维护 token 供其引用
 
 function normalizeRecords(customers) {
   return (customers || []).map((customer) => {
@@ -75,7 +69,8 @@ function buildSummary(records) {
   records.forEach((item) => {
     if (item.category) categorySet.add(item.category)
     recordCount += item.count || 0
-    fileCount += (item.files || []).length
+    // 【setData 瘦身 2026-10-13】视图已不带原始 files 数组, 用构造期预算的 fileCountTotal
+    fileCount += item.fileCountTotal !== undefined ? item.fileCountTotal : (item.files || []).length
     unreadCount += item.unread ? 1 : 0
     score += item.score || 0
   })
@@ -153,12 +148,11 @@ function buildFileGroupView(fileGroups) {
     groupIndex,
     countText: `${(group.files || []).length} 个`,
     slotText: `${group.label} ${(group.files || []).length}`,
+    // 【setData 瘦身 2026-10-13】不再生成 thumbUrl(签名 URL 每条数百字节, 903 文件共 233KB)与
+    // nameDisplay(与 file.name 重复)——缩略图 URL 由 thumb.wxs 在渲染层用 apiBase+dlToken 拼接
     files: (group.files || []).map((file, fileIndex) => ({
       ...file,
       fileIndex,
-      showThumb: file.type === 'image' && Boolean(listThumbUrlOf(file)),
-      thumbUrl: listThumbUrlOf(file),
-      nameDisplay: file.name || '附件',
       tagText: file.tag || '',
       tagColor: TAG_COLORS[file.tag] || '#64748b',
       showTag: Boolean(file.tag)
@@ -186,19 +180,26 @@ function buildChildRecordView(record) {
 
 function buildRecordView(record) {
   const fileGroupsView = buildFileGroupView(record.fileGroups)
-  const childRecordsView = (record.records || []).map(buildChildRecordView)
+  // 【setData 瘦身 2026-10-13】子记录明细懒构造(点展开才生成, 见 toggleCustomerRecords);
+  // 原始 records/files/fileGroups 大数组不进 data(存页面内存 _childRawById/_allDecorated),
+  // 68 客户组曾因此把 setData 顶到 1470KB(超 1MB 真机硬限)
+  const childCount = (record.records || []).length
+  const childRecordsView = record.expanded ? (record.records || []).map(buildChildRecordView) : []
+  const { records: _omitRecords, files: _omitFiles, fileGroups: _omitGroups, ...rest } = record
   return {
-    ...record,
+    ...rest,
     scoreText: `${record.score || 0} 分`,
     countText: `${record.count || 0}条`,
     fileCountText: `${(record.files || []).length}文件`,
+    fileCountTotal: fileGroupsView.reduce((sum, group) => sum + (group.files || []).length, 0),
     readStatusText: record.unread ? '未读' : '已读',
     readStatusClass: record.unread ? 'tag-unread' : 'tag-read',
     showNewTag: Boolean(record.isNew),
     showFiles: fileGroupsView.length > 0,
     fileGroupsView,
     slotPills: fileGroupsView.map((group) => group.slotText),
-    showExpandAction: childRecordsView.length > 1,
+    childCount,
+    showExpandAction: childCount > 1,
     expandText: record.expanded ? '收起记录' : '全部记录',
     showCustomerAction: Boolean(record.customerId),
     showAppendAction: Boolean(record.canEdit),
@@ -381,6 +382,7 @@ Page({
 
   onLoad() {
     if (!requireLogin()) return
+    this.setData({ apiBase: (getApp().globalData && getApp().globalData.apiBaseUrl) || '' })
     if (!getApp().globalData.demoMode && !hasPermission('incentive:view')) {
       wx.showToast({ title: '没有四项激励查看权限', icon: 'none' })
       wx.switchTab({ url: '/pages/home/index' })
@@ -461,16 +463,35 @@ Page({
   },
 
   applyRecordActionFlags() {
-    const decorate = (item) => buildRecordView({ ...item, canDelete: this.canDeleteRecord(item), canEdit: this.canEditRecord(item), records: (item.records || []).map((record) => ({ ...record, canDelete: this.canDeleteRecord(record), canEdit: this.canEditRecord(record) })) })
-    const allRecords = (this.data.allRecords || []).map(decorate)
-    const records = (this.data.records || []).map(decorate)
-    this.setData({ allRecords, records }, () => this.refreshIncentiveView())
+    // 【setData 瘦身 2026-10-13】视图不再携带原始 records(重建会丢懒加载的子记录明细),
+    // grant 到达只影响两个操作位, 就地局部更新
+    const upd = {}
+    ;['allRecords', 'records'].forEach((key) => {
+      ;(this.data[key] || []).forEach((item, i) => {
+        upd[`${key}[${i}].canDelete`] = this.canDeleteRecord(item)
+        upd[`${key}[${i}].canEdit`] = this.canEditRecord(item)
+        upd[`${key}[${i}].showAppendAction`] = Boolean(this.canEditRecord(item))
+        upd[`${key}[${i}].showDeleteAction`] = Boolean(this.canDeleteRecord(item))
+      })
+    })
+    this.setData(upd, () => this.refreshIncentiveView())
+  },
+
+  /** 【setData 瘦身】装饰后的组数据(含原始 records)只存页面内存, 视图按需构建; 子记录原始数据按组 id 索引供懒展开 */
+  rebuildRecordViews(decorated) {
+    this._allDecorated = decorated
+    this._childRawById = {}
+    ;(decorated || []).forEach((group) => {
+      if (group && group.id !== undefined && group.id !== null) this._childRawById[group.id] = group.records || []
+    })
+    return (decorated || []).map(buildRecordView)
   },
 
   loadRecords() {
     const app = getApp()
     if (app.globalData.demoMode) {
-      const records = incentiveRecords.map((item) => buildRecordView({ category: item.category || item.type || item.categoryName || '未分类', count: item.count || 1, files: buildIncentiveFiles(item), fileGroups: buildIncentiveFileGroups(item), canDelete: false, ...item }))
+      const decorated = incentiveRecords.map((item) => ({ category: item.category || item.type || item.categoryName || '未分类', count: item.count || 1, files: buildIncentiveFiles(item), fileGroups: buildIncentiveFileGroups(item), canDelete: false, ...item }))
+      const records = this.rebuildRecordViews(decorated)
       const filtered = this.applyLocalRecordFilters(records)
       this.setData({ allRecords: records, records: filtered, categories: ['全部', ...new Set(records.map((item) => item.category))], summary: buildSummary(filtered) }, () => this.refreshIncentiveView())
       this.sort()
@@ -480,7 +501,8 @@ Page({
     this.setData({ loading: true }, () => this.refreshIncentiveView())
     const params = this.buildRecordParams()
     getCustomerRecords(params).then((rows) => {
-      const records = normalizeRecords(rows).map((item) => buildRecordView({ ...item, canDelete: this.canDeleteRecord(item), canEdit: this.canEditRecord(item), records: (item.records || []).map((record) => ({ ...record, canDelete: this.canDeleteRecord(record), canEdit: this.canEditRecord(record) })) }))
+      const decorated = normalizeRecords(rows).map((item) => ({ ...item, canDelete: this.canDeleteRecord(item), canEdit: this.canEditRecord(item), records: (item.records || []).map((record) => ({ ...record, canDelete: this.canDeleteRecord(record), canEdit: this.canEditRecord(record) })) }))
+      const records = this.rebuildRecordViews(decorated)
       this.setData({ allRecords: records, records, categories: ['全部', ...new Set(records.map((item) => item.category))], summary: buildSummary(records) }, () => this.refreshIncentiveView())
       this.sort()
     }).catch((error) => showErrorWithRetry(error, '四项激励加载失败', () => this.loadRecords())).finally(() => {
@@ -755,7 +777,7 @@ Page({
     const categoryNames = this.data.categoryNames || []
     let records = this.applyLocalRecordFilters(this.data.allRecords)
       .filter((item) => !categoryNames.length || categoryNames.indexOf(item.category) !== -1)
-    records = records.map(buildRecordView)
+    // 【setData 瘦身】视图对象直接排序(全部筛选字段在视图顶层), 重建会丢懒加载的子记录明细
     if (this.data.order === 'asc') records.sort((a, b) => (Number(a.score) || 0) - (Number(b.score) || 0))
     if (this.data.order === 'desc') records.sort((a, b) => (Number(b.score) || 0) - (Number(a.score) || 0))
     this.setData({ records, summary: buildSummary(records) }, () => this.refreshIncentiveView())
@@ -877,9 +899,16 @@ Page({
     const record = this.data.records[recordIndex]
     if (!record) return
     const updates = { [`records[${recordIndex}].unread`]: false }
-    ;(record.records || []).forEach((_, childIndex) => {
-      updates[`records[${recordIndex}].records[${childIndex}].unread`] = false
+    // 【setData 瘦身】子级未读态更新到视图明细(展开态可见)与页面内存原始数据
+    const children = (this._childRawById && this._childRawById[record.id]) || []
+    ;(this.data.records[recordIndex].childRecordsView || []).forEach((child, childIndex) => {
+      if (child.unread) {
+        updates[`records[${recordIndex}].childRecordsView[${childIndex}].unread`] = false
+        updates[`records[${recordIndex}].childRecordsView[${childIndex}].readStatusText`] = '已读'
+        updates[`records[${recordIndex}].childRecordsView[${childIndex}].readStatusClass`] = 'tag-read inline-read-status'
+      }
     })
+    children.forEach((child) => { child.unread = false })
     this.setData(updates)
 
     if (!getApp().globalData.demoMode && record.recordIds && record.recordIds.length) {
@@ -887,9 +916,6 @@ Page({
         this.loadReadStats()
       }).catch((error) => {
         const rollback = { [`records[${recordIndex}].unread`]: true }
-        ;(record.records || []).forEach((item, childIndex) => {
-          rollback[`records[${recordIndex}].records[${childIndex}].unread`] = Boolean(item.unread)
-        })
         this.setData(rollback)
         showError(error, '标记失败')
       })
@@ -900,15 +926,20 @@ Page({
     const parentIndex = Number(recordIndex)
     const itemIndex = Number(childIndex)
     const parent = this.data.records[parentIndex]
-    const record = parent && parent.records ? parent.records[itemIndex] : null
+    // 【setData 瘦身】原始子记录从页面内存取(视图已不携带), 视图层更新读态
+    const record = parent ? ((this._childRawById && this._childRawById[parent.id]) || [])[itemIndex] : null
     if (!record) return
-    this.setData({ [`records[${parentIndex}].records[${itemIndex}].unread`]: false })
+    this.setData({
+      [`records[${parentIndex}].childRecordsView[${itemIndex}].unread`]: false,
+      [`records[${parentIndex}].childRecordsView[${itemIndex}].readStatusText`]: '已读',
+      [`records[${parentIndex}].childRecordsView[${itemIndex}].readStatusClass`]: 'tag-read inline-read-status'
+    })
 
     if (!getApp().globalData.demoMode && record.id) {
       markIncentiveRead(record.id).then(() => {
         this.loadReadStats()
       }).catch((error) => {
-        this.setData({ [`records[${parentIndex}].records[${itemIndex}].unread`]: Boolean(record.unread) })
+        this.setData({ [`records[${parentIndex}].childRecordsView[${itemIndex}].unread`]: Boolean(record.unread) })
         showError(error, '标记失败')
       })
     }
@@ -933,7 +964,15 @@ Page({
     const index = Number(e.currentTarget.dataset.index)
     const record = this.data.records[index]
     if (!record) return
-    this.setData({ [`records[${index}]`]: buildRecordView({ ...record, expanded: !record.expanded }) })
+    // 【setData 瘦身】子记录明细点开才构造(从页面内存的原始数据), 收起即清空
+    const expanded = !record.expanded
+    const children = (this._childRawById && this._childRawById[record.id]) || []
+    const childRecordsView = expanded ? children.map(buildChildRecordView) : []
+    this.setData({
+      [`records[${index}].expanded`]: expanded,
+      [`records[${index}].expandText`]: expanded ? '收起记录' : '全部记录',
+      [`records[${index}].childRecordsView`]: childRecordsView
+    })
   },
 
   removeRecord(e) {
@@ -995,7 +1034,8 @@ Page({
 
   findChildRecord(event) {
     const parent = this.data.records[event.currentTarget.dataset.recordIndex]
-    return parent && parent.records ? parent.records[event.currentTarget.dataset.childIndex] : null
+    // 【setData 瘦身】原始子记录从页面内存取(视图已不携带 records 数组)
+    return parent ? ((this._childRawById && this._childRawById[parent.id]) || [])[event.currentTarget.dataset.childIndex] : null
   },
 
   findChildRecordFile(event) {
@@ -1079,6 +1119,8 @@ Page({
       this._dlTokenPromise = null
       const token = result && (result.token || (result.data && result.data.token)) || ''
       setIncentiveDlToken(token)
+      // token 进 data 一份: wxml 经 thumb.wxs 用它拼每个瓦片的缩略图 URL, 晚到自动补齐
+      this.setData({ dlToken: token })
     }).catch(() => {
       this._dlTokenPromise = null
     }).then(() => {})
