@@ -1,4 +1,4 @@
-<wxs src="../../thumb.wxs" module="thumb" />
+<wxs src="../thumb.wxs" module="thumb" />
 <view class="page cd-page">
   <view wx:if="{{!loaded}}" class="cd-empty">加载中...</view>
   <view wx:if="{{loaded && !record}}" class="cd-empty">客户激励数据不存在</view>
@@ -62,6 +62,12 @@
           <view class="cd-child-more" data-index="{{childIdx}}" catchtap="onChildMore">···</view>
         </view>
       </view>
+    </view>
+
+    <!-- 吸底操作栏(原红圈④收敛为两个: 追加激励/客户档案) -->
+    <view class="cd-bottom-bar">
+      <view wx:if="{{record.showAppendAction}}" class="cd-bottom-btn primary" bindtap="onAppend">＋ 追加激励</view>
+      <view wx:if="{{record.showCustomerAction}}" class="cd-bottom-btn ghost" bindtap="onOpenCustomer">客户档案</view>
     </view>
 
     <view class="cd-bottom-space"></view>
