@@ -1,0 +1,70 @@
+<wxs src="../../thumb.wxs" module="thumb" />
+<view class="page cd-page">
+  <view wx:if="{{!loaded}}" class="cd-empty">加载中...</view>
+  <view wx:if="{{loaded && !record}}" class="cd-empty">客户激励数据不存在</view>
+  <block wx:if="{{loaded && record}}">
+    <!-- 客户头部: 名称/行业·最新大类/记录·文件数 + 总分 -->
+    <view class="cd-hero">
+      <view class="cd-hero-main">
+        <view class="cd-name">{{record.name}}</view>
+        <view class="cd-chips">
+          <text class="cd-chip">{{record.industry}}</text>
+          <text wx:if="{{record.category}}" class="cd-chip blue">{{record.category}}</text>
+        </view>
+        <view class="cd-statline">{{record.countText}} · {{record.fileCountText}}</view>
+      </view>
+      <view class="cd-score">
+        <text class="cd-score-num">{{record.score}}</text>
+        <text class="cd-score-unit">分</text>
+      </view>
+    </view>
+
+    <!-- 分类锚点(原红圈①汇总行的新家): 点击滚动到对应分组 -->
+    <view wx:if="{{record.showFiles}}" class="card cd-anchor-card">
+      <scroll-view scroll-x class="cd-anchor-scroll" enable-flex>
+        <view class="cd-anchor-row">
+          <view wx:for="{{record.fileGroupsView}}" wx:key="groupIndex" wx:for-item="group" wx:for-index="anchorIdx" class="cd-anchor-chip" data-idx="{{anchorIdx}}" bindtap="scrollToGroup">{{group.slotText}}</view>
+        </view>
+      </scroll-view>
+    </view>
+
+    <!-- 分组照片墙(原红圈②角标职责由分组标题承担,原③按钮删除: 点图预览/长按下载) -->
+    <view wx:if="{{record.showFiles}}" class="card cd-wall-card">
+      <view wx:for="{{record.fileGroupsView}}" wx:for-item="group" wx:for-index="wallGroupIdx" wx:key="groupIndex" class="record-file-group" id="cd-group-{{wallGroupIdx}}">
+        <view class="record-file-group-head"><text>{{group.label}}</text><text>{{group.countText}}</text></view>
+        <view class="wall-grid">
+          <view wx:for="{{group.files}}" wx:for-item="file" wx:for-index="wallFileIdx" wx:key="id" class="wall-tile" catchtap="onTileTap" catchlongpress="onTileLongPress" data-group-index="{{group.groupIndex}}" data-file-index="{{file.fileIndex}}">
+            <image wx:if="{{file.type === 'image' && file.id}}" class="wall-thumb" src="{{thumb.thumbSrc(file, apiBase, dlToken)}}" mode="aspectFill" lazy-load="{{true}}" />
+            <view wx:elif="{{file.type === 'video'}}" class="wall-video-face">
+              <view class="wall-play-icon">▶</view>
+              <text class="wall-face-name">{{file.name}}</text>
+            </view>
+            <view wx:else class="wall-doc-face">
+              <text class="wall-doc-type">{{file.typeText}}</text>
+              <text class="wall-face-name">{{file.name}}</text>
+            </view>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 历史记录(默认展开,原列表页折叠区移入): 点行=详情, 行尾···=追加/删除 -->
+    <view class="card cd-history-card">
+      <view class="cd-section-title">历史记录 · {{children.length}}</view>
+      <view wx:if="{{!children.length}}" class="cd-empty slim">暂无历史记录</view>
+      <view wx:for="{{children}}" wx:for-item="child" wx:for-index="childIdx" wx:key="id" class="cd-child-row">
+        <view class="cd-child-main" data-index="{{childIdx}}" catchtap="onChildDetail">
+          <view class="cd-child-title"><text class="cd-child-cat">{{child.titleText}}</text><text class="{{child.readStatusClass}}">{{child.readStatusText}}</text></view>
+          <view class="cd-child-meta">{{child.metaText}}</view>
+        </view>
+        <view class="cd-child-side">
+          <text class="cd-child-score">{{child.scoreText}}</text>
+          <view class="cd-child-more" data-index="{{childIdx}}" catchtap="onChildMore">···</view>
+        </view>
+      </view>
+    </view>
+
+    <view class="cd-bottom-space"></view>
+    <video wx:if="{{previewVideoPath}}" src="{{previewVideoPath}}" controls class="cd-video"></video>
+  </block>
+</view>

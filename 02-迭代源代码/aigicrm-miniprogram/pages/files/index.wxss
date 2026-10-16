@@ -39,3 +39,26 @@
 .files-capacity-divider { background: rgba(255, 255, 255, .28); }
 .files-head-card .head-add { margin: 0; width: 68rpx; height: 68rpx; line-height: 64rpx; padding: 0; border-radius: 22rpx; background: rgba(255, 255, 255, .16); border: 1rpx solid rgba(255, 255, 255, .35); color: #fff; font-size: 36rpx; }
 .files-head-card .capacity-icon { color: rgba(255, 255, 255, .45); }
+
+/* 【需求A 2026-10-16】文件行改版: 两行全名 + 双 meta + 行尾「···」,时间分组标题,面包屑 */
+.files-page .breadcrumb { color: #2563eb; font-size: 27rpx; font-weight: 700; }
+.file-group-head { margin: 22rpx 4rpx 12rpx; color: #172033; font-size: 24rpx; font-weight: 800; }
+.file-group-head::before { content: ''; display: inline-block; width: 8rpx; height: 22rpx; margin-right: 12rpx; border-radius: 4rpx; background: linear-gradient(180deg, #2348bf, #4285f4); vertical-align: -4rpx; }
+.file-list .file-group-head:first-child { margin-top: 4rpx; }
+.file-row .file-name { white-space: normal; word-break: break-all; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; text-overflow: clip; font-size: 27rpx; font-weight: 700; line-height: 1.4; }
+.file-row .file-meta.sub { margin-top: 2rpx; color: #a8b4c2; }
+.file-more-btn { flex-shrink: 0; margin-left: 12rpx; width: 64rpx; height: 64rpx; display: flex; align-items: center; justify-content: center; border-radius: 18rpx; background: #f1f5fb; color: #64748b; font-size: 30rpx; font-weight: 700; letter-spacing: 2rpx; }
+.file-more-btn:active { background: #e2e9f5; }
+
+/* 【需求A】半屏操作面板: 自绘(带图标/删除红),点遮罩或取消关闭 */
+.sheet-mask { position: fixed; inset: 0; z-index: 60; background: rgba(15, 23, 42, .5); }
+.sheet-panel { position: absolute; left: 0; right: 0; bottom: 0; background: #fff; border-radius: 32rpx 32rpx 0 0; padding: 30rpx 28rpx calc(24rpx + env(safe-area-inset-bottom)); animation: sheet-up .22s ease-out; }
+@keyframes sheet-up { from { transform: translateY(40%); opacity: .4; } to { transform: translateY(0); opacity: 1; } }
+.sheet-file-name { color: #172033; font-size: 26rpx; font-weight: 800; padding: 0 8rpx 20rpx; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sheet-grid { display: flex; flex-wrap: wrap; }
+.sheet-act { width: 25%; box-sizing: border-box; padding: 18rpx 0 16rpx; display: flex; flex-direction: column; align-items: center; gap: 10rpx; color: #334155; font-size: 23rpx; font-weight: 600; }
+.sheet-act-icon { width: 76rpx; height: 76rpx; border-radius: 24rpx; background: #eff6ff; color: #2563eb; display: flex; align-items: center; justify-content: center; font-size: 34rpx; font-weight: 700; }
+.sheet-act.danger { color: #b91c1c; }
+.sheet-act.danger .sheet-act-icon { background: #fef2f2; color: #dc2626; }
+.sheet-act:active .sheet-act-icon { opacity: .7; }
+.sheet-cancel { margin-top: 20rpx; height: 84rpx; line-height: 84rpx; text-align: center; border-radius: 22rpx; background: #f1f5fb; color: #475569; font-size: 26rpx; font-weight: 700; }

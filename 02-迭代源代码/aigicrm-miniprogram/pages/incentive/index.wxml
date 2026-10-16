@@ -68,103 +68,31 @@
       </view>
     </view>
     <view wx:if="{{incentiveView.showLoading}}" class="card muted">{{incentiveView.loadingText}}</view>
+    <!-- 【需求B+C 2026-10-16】客户维度=紧凑封面卡: 列表页只留识别信息(封面/名称/行业·大类/积分/未读/NEW),
+         全部明细与操作下沉到客户激励详情页(openCustomerDetail);原红圈①②③④从列表页消失 -->
     <block wx:for="{{records}}" wx:key="id">
-      <view class="card incentive-record-card" bindtap="showDetail" data-index="{{index}}">
-        <view class="incentive-record-head">
-          <view class="incentive-record-title">{{item.name}}</view>
-          <view class="ranking-score">{{item.score}} 分</view>
+      <view class="cust-card" data-index="{{index}}" bindtap="openCustomerDetail">
+        <view class="cust-cover">
+          <image wx:if="{{item.coverFile.id}}" class="cust-cover-img" src="{{thumb.thumbSrc(item.coverFile, apiBase, dlToken)}}" mode="aspectFill" lazy-load="{{true}}" />
+          <view wx:else class="cust-cover-fallback"><text>{{item.coverChar}}</text></view>
+          <view wx:if="{{item.showNewTag}}" class="cust-new">NEW</view>
         </view>
-        <view class="tag-row refined-tag-row">
-          <text class="pill">{{item.industry}}</text>
-          <text class="pill">{{item.category}}</text>
-          <text class="pill">{{item.countText}}</text>
-          <text class="pill">{{item.fileCountText}}</text>
-          <text wx:if="{{item.showNewTag}}" class="tag-new">NEW</text>
-          <text class="{{item.readStatusClass}}">{{item.readStatusText}}</text>
-        </view>
-        <view class="incentive-record-summary">{{item.summary}}</view>
-        <view class="slot-row" wx:if="{{item.showFiles}}">
-          <text wx:for="{{item.slotPills}}" wx:for-item="slot" wx:key="*this" class="slot-pill">{{slot}}</text>
-        </view>
-        <view class="record-file-wall grouped" wx:if="{{item.showFiles}}">
-          <view wx:for="{{item.fileGroupsView}}" wx:for-item="group" wx:for-index="wallGroupIdx" wx:key="key" class="record-file-group">
-            <view class="record-file-group-head">
-              <text>{{group.label}}</text>
-              <text>{{group.countText}}</text>
-            </view>
-            <view class="wall-grid">
-              <view wx:for="{{group.files}}" wx:for-item="file" wx:for-index="wallFileIdx" wx:key="id" class="wall-tile">
-                <image wx:if="{{file.type === 'image' && file.id}}" class="wall-thumb" src="{{thumb.thumbSrc(file, apiBase, dlToken)}}" mode="aspectFill" lazy-load="{{true}}" catchtap="previewAttachment" data-record-index="{{index}}" data-group-index="{{group.groupIndex}}" data-file-index="{{file.fileIndex}}" />
-                <view wx:elif="{{file.type === 'video'}}" class="wall-video-face" catchtap="previewAttachment" data-record-index="{{index}}" data-group-index="{{group.groupIndex}}" data-file-index="{{file.fileIndex}}">
-                  <view class="wall-play-icon">▶</view>
-                  <text class="wall-face-name">{{file.name}}</text>
-                </view>
-                <view wx:else class="wall-doc-face" catchtap="previewAttachment" data-record-index="{{index}}" data-group-index="{{group.groupIndex}}" data-file-index="{{file.fileIndex}}">
-                  <text class="wall-doc-type">{{file.typeText}}</text>
-                  <text class="wall-face-name">{{file.name}}</text>
-                </view>
-                <text wx:if="{{file.showTag}}" class="wall-tag" style="color: {{file.tagColor}}; border-color: {{file.tagColor}};">{{file.tagText}}</text>
-                <view class="wall-acts">
-                  <button class="wall-act-btn" loading="{{incentiveView.previewLoading}}" catchtap="previewAttachment" data-record-index="{{index}}" data-group-index="{{group.groupIndex}}" data-file-index="{{file.fileIndex}}">打开</button>
-                  <button class="wall-act-btn secondary" catchtap="downloadAttachment" data-record-index="{{index}}" data-group-index="{{group.groupIndex}}" data-file-index="{{file.fileIndex}}">下载</button>
-                </view>
-              </view>
-            </view>
+        <view class="cust-body">
+          <view class="cust-name-row">
+            <text class="cust-name">{{item.name}}</text>
+            <text wx:if="{{item.unread}}" class="cust-unread-dot"></text>
           </view>
-        </view>
-        <view class="incentive-record-foot">
-          <view class="muted">查看后自动标记为已读</view>
-          <button wx:if="{{item.showExpandAction}}" class="mini-action secondary" catchtap="toggleCustomerRecords" data-index="{{index}}">{{item.expandText}}</button>
-          <button wx:if="{{item.showAppendAction}}" class="mini-action" catchtap="appendRecord" data-index="{{index}}">追加</button>
-          <button wx:if="{{item.showDeleteAction}}" class="mini-action danger" catchtap="removeRecord" data-index="{{index}}">删除最新</button>
-          <button wx:if="{{item.showCustomerAction}}" class="text-btn" catchtap="openCustomer" data-index="{{index}}">客户档案</button>
-        </view>
-        <view wx:if="{{item.expanded}}" class="customer-record-list">
-          <view wx:for="{{item.childRecordsView}}" wx:for-item="child" wx:for-index="childIndex" wx:key="id" class="customer-record-row">
-            <view class="customer-record-head">
-              <view>
-                <view class="customer-record-title">
-                  <text>{{child.titleText}}</text>
-                  <text class="{{child.readStatusClass}}">{{child.readStatusText}}</text>
-                </view>
-                <view class="customer-record-meta">{{child.metaText}}</view>
-              </view>
-              <view class="ranking-score">{{child.scoreText}}</view>
-            </view>
-            <view wx:if="{{child.showSummary}}" class="customer-record-summary">{{child.summaryText}}</view>
-            <view class="record-file-wall compact grouped" wx:if="{{child.showFiles}}">
-              <view wx:for="{{child.fileGroupsView}}" wx:for-item="group" wx:for-index="wallGroupIdx" wx:key="key" class="record-file-group">
-                <view class="record-file-group-head">
-                  <text>{{group.label}}</text>
-                  <text>{{group.countText}}</text>
-                </view>
-                <view class="wall-grid">
-                  <view wx:for="{{group.files}}" wx:for-item="file" wx:for-index="wallFileIdx" wx:key="id" class="wall-tile">
-                    <image wx:if="{{file.type === 'image' && file.id}}" class="wall-thumb" src="{{thumb.thumbSrc(file, apiBase, dlToken)}}" mode="aspectFill" lazy-load="{{true}}" catchtap="previewAttachment" data-record-index="{{index}}" data-child-index="{{childIndex}}" data-group-index="{{group.groupIndex}}" data-file-index="{{file.fileIndex}}" />
-                    <view wx:elif="{{file.type === 'video'}}" class="wall-video-face" catchtap="previewAttachment" data-record-index="{{index}}" data-child-index="{{childIndex}}" data-group-index="{{group.groupIndex}}" data-file-index="{{file.fileIndex}}">
-                      <view class="wall-play-icon">▶</view>
-                      <text class="wall-face-name">{{file.name}}</text>
-                    </view>
-                    <view wx:else class="wall-doc-face" catchtap="previewAttachment" data-record-index="{{index}}" data-child-index="{{childIndex}}" data-group-index="{{group.groupIndex}}" data-file-index="{{file.fileIndex}}">
-                      <text class="wall-doc-type">{{file.typeText}}</text>
-                      <text class="wall-face-name">{{file.name}}</text>
-                    </view>
-                    <text wx:if="{{file.showTag}}" class="wall-tag" style="color: {{file.tagColor}}; border-color: {{file.tagColor}};">{{file.tagText}}</text>
-                    <view class="wall-acts">
-                      <button class="wall-act-btn" loading="{{incentiveView.previewLoading}}" catchtap="previewAttachment" data-record-index="{{index}}" data-child-index="{{childIndex}}" data-group-index="{{group.groupIndex}}" data-file-index="{{file.fileIndex}}">打开</button>
-                      <button class="wall-act-btn secondary" catchtap="downloadAttachment" data-record-index="{{index}}" data-child-index="{{childIndex}}" data-group-index="{{group.groupIndex}}" data-file-index="{{file.fileIndex}}">下载</button>
-                    </view>
-                  </view>
-                </view>
-              </view>
-            </view>
-            <view class="customer-record-actions">
-              <button class="mini-action secondary" catchtap="showChildDetail" data-record-index="{{index}}" data-child-index="{{childIndex}}">详情</button>
-              <button wx:if="{{child.showAppendAction}}" class="mini-action" catchtap="appendChildRecord" data-record-index="{{index}}" data-child-index="{{childIndex}}">追加</button>
-              <button wx:if="{{child.showDeleteAction}}" class="mini-action danger" catchtap="removeChildRecord" data-record-index="{{index}}" data-child-index="{{childIndex}}">删除</button>
-            </view>
+          <view class="cust-meta">
+            <text class="cust-pill">{{item.industry}}</text>
+            <text wx:if="{{item.category}}" class="cust-pill blue">{{item.category}}</text>
           </view>
+          <view class="cust-nums">{{item.countText}} · {{item.fileCountText}}</view>
         </view>
+        <view class="cust-score">
+          <text class="cust-score-num">{{item.score}}</text>
+          <text class="cust-score-unit">分</text>
+        </view>
+        <view class="cust-arrow">›</view>
       </view>
     </block>
     <view wx:if="{{incentiveView.showRecordEmpty}}" class="card muted">暂无四项激励记录</view>

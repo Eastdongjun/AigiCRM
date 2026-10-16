@@ -22,6 +22,7 @@
     "pages/incentive/index",
     "pages/incentive/upload/index",
     "pages/incentive/detail/index",
+    "pages/incentive/customer-detail/index",
     "pages/ranking/index",
     "pages/ranking/detail/index",
     "pages/statistics/index",

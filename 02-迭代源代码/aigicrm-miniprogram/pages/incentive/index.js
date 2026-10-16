@@ -1,4 +1,4 @@
-const { deleteRecord, getCategoryStats, getCategoryTree, getCustomerRecords, getGrantCheck, getRanking, getReadRanking, getReadStats, getRecords, getScoreboard, getUsers, markIncentiveRead } = require('../../api/incentive')
+const { getCategoryStats, getCategoryTree, getCustomerRecords, getGrantCheck, getRanking, getReadRanking, getReadStats, getRecords, getScoreboard, getUsers } = require('../../api/incentive')
 const { getDownloadUrl, getDownloadToken } = require('../../api/file')
 const { getDepts } = require('../../api/system')
 const { incentiveRecords } = require('../../data/demo')
@@ -42,7 +42,6 @@ function normalizeRecords(customers) {
       files: latest ? buildIncentiveFiles(latest) : [],
       fileGroups: latest ? buildIncentiveFileGroups(latest) : [],
       records: records.map((item) => ({ ...item, files: buildIncentiveFiles(item), fileGroups: buildIncentiveFileGroups(item) })),
-      expanded: false,
       detail: latest
     }
   })
@@ -185,12 +184,16 @@ function buildChildRecordView(record) {
 
 function buildRecordView(record) {
   const fileGroupsView = buildFileGroupView(record.fileGroups)
-  // 【setData 瘦身 2026-10-13】子记录明细懒构造(点展开才生成, 见 toggleCustomerRecords);
-  // 原始 records/files/fileGroups 大数组不进 data(存页面内存 _childRawById/_allDecorated),
-  // 68 客户组曾因此把 setData 顶到 1470KB(超 1MB 真机硬限)
-  const childCount = (record.records || []).length
-  const childRecordsView = record.expanded ? (record.records || []).map(buildChildRecordView) : []
+  // 【setData 瘦身 2026-10-13】原始 records/files/fileGroups 大数组不进 data(存页面内存
+  // _childRawById/_allDecorated), 68 客户组曾因此把 setData 顶到 1470KB(超 1MB 真机硬限)
+  // 【需求C 2026-10-16】列表页=封面卡: 子记录视图不再进 data(点卡时在 openCustomerDetail 现构建),
+  // 新增封面字段 coverFile(首图,仅传 id 供 thumb.wxs)/coverChar(无图时渐变首字)
   const { records: _omitRecords, files: _omitFiles, fileGroups: _omitGroups, ...rest } = record
+  let coverFile = null
+  for (let gi = 0; gi < fileGroupsView.length && !coverFile; gi += 1) {
+    const hit = (fileGroupsView[gi].files || []).find((file) => file.type === 'image' && file.id)
+    if (hit) coverFile = { id: hit.id }
+  }
   return {
     ...rest,
     scoreText: `${record.score || 0} 分`,
@@ -202,14 +205,12 @@ function buildRecordView(record) {
     showNewTag: Boolean(record.isNew),
     showFiles: fileGroupsView.length > 0,
     fileGroupsView,
-    slotPills: fileGroupsView.map((group) => group.slotText),
-    childCount,
-    showExpandAction: childCount > 1,
-    expandText: record.expanded ? '收起记录' : '全部记录',
+    coverFile: coverFile || {},
+    coverChar: (record.name || '客').trim().charAt(0).toUpperCase(),
+    childCount: (record.records || []).length,
     showCustomerAction: Boolean(record.customerId),
     showAppendAction: Boolean(record.canEdit),
-    showDeleteAction: Boolean(record.canDelete),
-    childRecordsView
+    showDeleteAction: Boolean(record.canDelete)
   }
 }
 
@@ -914,182 +915,37 @@ Page({
     wx.navigateTo({ url: '/pages/incentive/upload/index' })
   },
 
-  markRead(e) {
-    const index = e.currentTarget.dataset.index
-    this.markRecordRead(index)
-  },
-
-  markRecordRead(index) {
-    const recordIndex = Number(index)
-    const record = this.data.records[recordIndex]
-    if (!record) return
-    const updates = { [`records[${recordIndex}].unread`]: false }
-    // 【setData 瘦身】子级未读态更新到视图明细(展开态可见)与页面内存原始数据
-    const children = (this._childRawById && this._childRawById[record.id]) || []
-    ;(this.data.records[recordIndex].childRecordsView || []).forEach((child, childIndex) => {
-      if (child.unread) {
-        updates[`records[${recordIndex}].childRecordsView[${childIndex}].unread`] = false
-        updates[`records[${recordIndex}].childRecordsView[${childIndex}].readStatusText`] = '已读'
-        updates[`records[${recordIndex}].childRecordsView[${childIndex}].readStatusClass`] = 'tag-read inline-read-status'
-      }
-    })
-    children.forEach((child) => { child.unread = false })
-    this.setData(updates)
-
-    if (!getApp().globalData.demoMode && record.recordIds && record.recordIds.length) {
-      Promise.all(record.recordIds.map((id) => markIncentiveRead(id))).then(() => {
-        this.loadReadStats()
-      }).catch((error) => {
-        const rollback = { [`records[${recordIndex}].unread`]: true }
-        this.setData(rollback)
-        showError(error, '标记失败')
-      })
-    }
-  },
-
-  markChildRecordRead(recordIndex, childIndex) {
-    const parentIndex = Number(recordIndex)
-    const itemIndex = Number(childIndex)
-    const parent = this.data.records[parentIndex]
-    // 【setData 瘦身】原始子记录从页面内存取(视图已不携带), 视图层更新读态
-    const record = parent ? ((this._childRawById && this._childRawById[parent.id]) || [])[itemIndex] : null
-    if (!record) return
-    this.setData({
-      [`records[${parentIndex}].childRecordsView[${itemIndex}].unread`]: false,
-      [`records[${parentIndex}].childRecordsView[${itemIndex}].readStatusText`]: '已读',
-      [`records[${parentIndex}].childRecordsView[${itemIndex}].readStatusClass`]: 'tag-read inline-read-status'
-    })
-
-    if (!getApp().globalData.demoMode && record.id) {
-      markIncentiveRead(record.id).then(() => {
-        this.loadReadStats()
-      }).catch((error) => {
-        this.setData({ [`records[${parentIndex}].childRecordsView[${itemIndex}].unread`]: Boolean(record.unread) })
-        showError(error, '标记失败')
-      })
-    }
-  },
-
-  showDetail(e) {
-    const index = e.currentTarget.dataset.index
-    const record = this.data.records[index]
-    if (!record) return
-    this.markRecordRead(index)
-    wx.navigateTo({ url: `/pages/incentive/detail/index?id=${record.id}` })
-  },
-
-  showChildDetail(e) {
-    this.markChildRecordRead(e.currentTarget.dataset.recordIndex, e.currentTarget.dataset.childIndex)
-    const record = this.findChildRecord(e)
-    if (!record || !record.id) return
-    wx.navigateTo({ url: `/pages/incentive/detail/index?id=${record.id}` })
-  },
-
-  toggleCustomerRecords(e) {
+  // 【需求C 2026-10-16】封面卡点入 → 客户激励详情页: 子记录视图此刻现构建(单客户量级,setData 无压力),
+  // 已读/追加/删除的落地全在详情页(read 事件回写本卡免整页刷新, 变更走 forceRefresh 既有契约)
+  openCustomerDetail(e) {
     const index = Number(e.currentTarget.dataset.index)
     const record = this.data.records[index]
     if (!record) return
-    // 【setData 瘦身】子记录明细点开才构造(从页面内存的原始数据), 收起即清空
-    const expanded = !record.expanded
-    const children = (this._childRawById && this._childRawById[record.id]) || []
-    const childRecordsView = expanded ? children.map(buildChildRecordView) : []
-    this.setData({
-      [`records[${index}].expanded`]: expanded,
-      [`records[${index}].expandText`]: expanded ? '收起记录' : '全部记录',
-      [`records[${index}].childRecordsView`]: childRecordsView
-    })
-  },
-
-  removeRecord(e) {
-    const record = this.data.records[e.currentTarget.dataset.index]
-    if (!record || !record.id || !record.canDelete) return wx.showToast({ title: '没有四项激励删除权限', icon: 'none' })
-    if (getApp().globalData.demoMode) return wx.showToast({ title: '演示记录不可删除', icon: 'none' })
-    wx.showModal({
-      title: '删除四项激励记录',
-      content: `确认删除“${record.name || record.category || '该记录'}”？`,
-      success: (result) => {
-        if (!result.confirm) return
-        deleteRecord(record.id).then(() => {
-          wx.showToast({ title: '已删除', icon: 'success' })
-          this.refresh()
-        }).catch((error) => showError(error, '删除四项激励记录失败'))
+    const children = ((this._childRawById && this._childRawById[record.id]) || []).map(buildChildRecordView)
+    wx.navigateTo({
+      url: '/pages/incentive/customer-detail/index',
+      events: {
+        read: (payload) => {
+          const id = payload && payload.id
+          const rowIndex = this.data.records.findIndex((item) => item.id === id)
+          if (rowIndex < 0 || !this.data.records[rowIndex].unread) return
+          this.setData({
+            [`records[${rowIndex}].unread`]: false,
+            [`records[${rowIndex}].readStatusText`]: '已读',
+            [`records[${rowIndex}].readStatusClass`]: 'tag-read'
+          })
+        }
+      },
+      success: (res) => {
+        res.eventChannel.emit('payload', { record, children })
       }
     })
   },
 
-  removeChildRecord(e) {
-    const record = this.findChildRecord(e)
-    if (!record || !record.id || !record.canDelete) return wx.showToast({ title: '没有四项激励删除权限', icon: 'none' })
-    if (getApp().globalData.demoMode) return wx.showToast({ title: '演示记录不可删除', icon: 'none' })
-    wx.showModal({
-      title: '删除四项激励记录',
-      content: `确认删除“${record.categoryName || record.category || '该记录'}”？`,
-      success: (result) => {
-        if (!result.confirm) return
-        deleteRecord(record.id).then(() => {
-          wx.showToast({ title: '已删除', icon: 'success' })
-          this.refresh()
-        }).catch((error) => showError(error, '删除四项激励记录失败'))
-      }
-    })
-  },
-
-  appendRecord(e) {
-    const record = this.data.records[e.currentTarget.dataset.index]
-    if (!record || !record.id || !record.canEdit) return wx.showToast({ title: '没有四项激励追加权限', icon: 'none' })
-    wx.navigateTo({ url: `/pages/incentive/upload/index?id=${record.id}` })
-  },
-
-  appendChildRecord(e) {
-    const record = this.findChildRecord(e)
-    if (!record || !record.id || !record.canEdit) return wx.showToast({ title: '没有四项激励追加权限', icon: 'none' })
-    wx.navigateTo({ url: `/pages/incentive/upload/index?id=${record.id}` })
-  },
-
-  findRecordFile(event) {
-    // 【F7 复审根修 2026-10-13】视图 records 经排序/筛选是内存装饰源的重排子集, 裸下标会在
-    // 筛选/排序态解析到错误客户的文件——必须以 id 锚定(与 findChildRecord 真正同款)。
-    const view = this.data.records[event.currentTarget.dataset.recordIndex]
-    const record = view && view.id != null && this._decoratedById ? this._decoratedById[view.id] : null
-    const groupIndex = event.currentTarget.dataset.groupIndex
-    const fileIndex = event.currentTarget.dataset.fileIndex
-    if (record && record.fileGroups && groupIndex !== undefined && fileIndex !== undefined) {
-      const group = record.fileGroups[Number(groupIndex)]
-      return group && group.files ? group.files[Number(fileIndex)] : null
-    }
-    return record && record.files ? record.files[event.currentTarget.dataset.fileIndex] : null
-  },
-
-  findChildRecord(event) {
-    const parent = this.data.records[event.currentTarget.dataset.recordIndex]
-    // 【setData 瘦身】原始子记录从页面内存取(视图已不携带 records 数组)
-    return parent ? ((this._childRawById && this._childRawById[parent.id]) || [])[event.currentTarget.dataset.childIndex] : null
-  },
-
-  findChildRecordFile(event) {
-    const record = this.findChildRecord(event)
-    const groupIndex = event.currentTarget.dataset.groupIndex
-    const fileIndex = event.currentTarget.dataset.fileIndex
-    if (record && record.fileGroups && groupIndex !== undefined && fileIndex !== undefined) {
-      const group = record.fileGroups[Number(groupIndex)]
-      return group && group.files ? group.files[Number(fileIndex)] : null
-    }
-    return record && record.files ? record.files[event.currentTarget.dataset.fileIndex] : null
-  },
-
-  previewAttachment(event) {
-    const file = event.currentTarget.dataset.childIndex !== undefined ? this.findChildRecordFile(event) : this.findRecordFile(event)
-    if (!file) return
-    if (getApp().globalData.demoMode) return wx.showToast({ title: '演示附件不可打开', icon: 'none' })
-    return this.fetchAttachment(file, 'preview')
-  },
-
-  downloadAttachment(event) {
-    const file = event.currentTarget.dataset.childIndex !== undefined ? this.findChildRecordFile(event) : this.findRecordFile(event)
-    if (!file) return
-    if (getApp().globalData.demoMode) return wx.showToast({ title: '演示附件不可下载', icon: 'none' })
-    return this.fetchAttachment(file, 'download')
-  },
+  // 【需求C 2026-10-16】列表页巨卡拆分后, removeRecord/removeChildRecord/appendRecord/
+  // appendChildRecord/previewAttachment/downloadAttachment/findRecordFile/findChildRecord(File)/
+  // openCustomer/toggleCustomerRecords/markRead 系列全部下沉到 customer-detail 详情页,
+  // 本页仅保留 openCustomerDetail 入口与统计面板的附件处理(findStatDetailFile 系)。
 
   findStatDetailFile(event) {
     const record = this.data.statDetail.records[event.currentTarget.dataset.detailIndex]
@@ -1128,12 +984,6 @@ Page({
       isImage: (item) => item.type === 'image',
       onVideo: (tempFilePath) => this.setData({ previewVideoPath: tempFilePath })
     })
-  },
-
-  openCustomer(e) {
-    const record = this.data.records[e.currentTarget.dataset.index]
-    if (!record || !record.customerId) return
-    wx.navigateTo({ url: `/pages/customer/detail/index?id=${record.customerId}&from=incentive` })
   },
 
   // 【D31 2026-10-04】已删除 selected/uploadEvidence/closeDetail 死代码:

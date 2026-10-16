@@ -76,8 +76,39 @@ function normalizeDownloadable(item) {
   return !perms.length || perms.includes('download')
 }
 
+// 【需求A 2026-10-16】时间分组桶: 今天/本周/更早;解析失败一律归"更早"保证文件不丢
+const FILE_GROUP_ORDER = ['今天', '本周', '更早']
+function parseUpdatedBucket(text) {
+  const raw = String(text || '')
+  if (!raw) return '更早'
+  if (raw.includes('今天')) return '今天'
+  if (raw.includes('昨天')) return '本周'
+  const match = raw.match(/(\d{4})[-/](\d{1,2})[-/](\d{1,2})/)
+  if (match) {
+    const d = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]))
+    if (!Number.isNaN(d.getTime())) {
+      const now = new Date()
+      const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime()
+      const diff = startOfToday - d.getTime()
+      if (diff <= 0) return '今天'
+      if (diff < 7 * 86400000) return '本周'
+    }
+  }
+  return '更早'
+}
+
 function buildFileRowView(item, data) {
   const canMutateOwnTab = data.activeTab !== '分享给我' && data.activeTab !== '四项激励'
+  const showDownload = item.canDownload !== false
+  const showReplace = Boolean(data.canReplace && canMutateOwnTab)
+  const showDelete = Boolean(data.canDelete && canMutateOwnTab)
+  const showShare = Boolean(data.canShare && canMutateOwnTab)
+  // 【需求A】行内按钮全部收进「⋯」半屏面板;打开保留为整行首选操作(点行=打开)
+  const sheetActions = [{ key: 'open', label: '打开' }]
+  if (showDownload) sheetActions.push({ key: 'download', label: '下载' })
+  if (showShare) sheetActions.push({ key: 'share', label: '分享' })
+  if (showReplace) sheetActions.push({ key: 'replace', label: '替换' })
+  if (showDelete) sheetActions.push({ key: 'delete', label: '删除', danger: true })
   return {
     ...item,
     typeText: item.type || 'FILE',
@@ -86,13 +117,12 @@ function buildFileRowView(item, data) {
     sizeText: item.size || '-',
     uploaderNameText: item.uploaderName || '—',
     updatedAtText: item.updatedAt || '-',
-    metaText: `${item.folder || '未分类'} · ${item.size || '-'} · ${item.uploaderName || '—'} · ${item.updatedAt || '-'}`,
-    showDownload: item.canDownload !== false,
-    showReplace: Boolean(data.canReplace && canMutateOwnTab),
-    replaceLoading: String(data.replacingId || '') === String(item.id || ''),
-    showDelete: Boolean(data.canDelete && canMutateOwnTab),
-    showShare: Boolean(data.canShare && canMutateOwnTab),
-    showMore: !data.canShare || !canMutateOwnTab
+    // 【需求A】meta 拆两段: 行内只放 大小·时间(与名字同区), 文件夹·上传人放次要位
+    metaBrief: `${item.size || '-'} · ${item.updatedAt || '-'}`,
+    metaExtra: `${item.folder || '未分类'} · ${item.uploaderName || '—'}`,
+    bucket: parseUpdatedBucket(item.updatedAt),
+    sheetActions,
+    replaceLoading: String(data.replacingId || '') === String(item.id || '')
   }
 }
 
@@ -109,11 +139,16 @@ function buildFileView(data) {
     activeClass: data.activeTab === item ? 'active' : '',
     countText: String((data.tabCounts && data.tabCounts[item]) || 0)
   }))
-  const files = (data.filteredFiles || []).map((item) => buildFileRowView(item, data))
+  const files = (data.filteredFiles || []).map((item, index) => ({ ...buildFileRowView(item, data), flatIndex: index }))
   const folders = data.folders || []
   const hasActiveFolder = Boolean(data.activeFolderName)
   const hasManageFolders = folders.length > 0
   const showUploadAction = Boolean(data.canUpload) && (data.activeTab === '公共' || data.activeTab === '私人')
+  // 【需求A】时间分组(今天/本周/更早),每组带 flatIndex 锚回 filteredFiles 供既有处理器复用
+  const fileGroups = FILE_GROUP_ORDER.map((label) => {
+    const groupFiles = files.filter((item) => item.bucket === label)
+    return { key: label, label, count: groupFiles.length, files: groupFiles }
+  }).filter((group) => group.count > 0)
   return {
     showUploadAction,
     tabs,
@@ -121,11 +156,14 @@ function buildFileView(data) {
     folderCountText: `${folders.length} 个文件夹`,
     showFolderList: !hasActiveFolder,
     showClearFolder: hasActiveFolder,
+    breadcrumbText: hasActiveFolder ? `全部文件 › ${data.activeFolderName}` : '',
+    listTitle: hasActiveFolder ? '' : '最近文件',
     folders,
     // 【PR-04】兜底文件夹卡片（客户文档/团队共享）仅演示模式显示；真实模式空就是空
     showFallbackFolders: !folders.length && isDemoMode(),
     showManageFolders: hasManageFolders,
     showManageEmpty: !hasManageFolders,
+    fileGroups,
     files,
     fileCountText: `${files.length} 个文件`,
     showFileList: files.length > 0,
@@ -136,7 +174,7 @@ function buildFileView(data) {
 }
 
 Page({
-  data: { keyword: '', activeTab: '公共', activeFolderId: '', activeFolderName: '', tabs: ['公共', '私人', '四项激励', '分享给我'], tabCounts: { 公共: 0, 私人: 0, 四项激励: 0, 分享给我: 0 }, folders: [], files: [], filteredFiles: [], capacity: { used: '-', total: '-', percent: 0, hint: '存储统计加载中' }, canUpload: false, canReplace: false, canDelete: false, canShare: false, canManageFolder: false, canViewFolderAcl: false, canDevUploadSmoke: false, uploading: false, replacingId: '', loaded: false, aclVisible: false, aclLoading: false, aclFolderName: '', aclRows: [], previewing: false, previewVideoPath: '', fileView: buildFileView({ tabs: ['公共', '私人', '四项激励', '分享给我'], tabCounts: { 公共: 0, 私人: 0, 四项激励: 0, 分享给我: 0 }, folders: [], filteredFiles: [], activeTab: '公共', activeFolderName: '', previewVideoPath: '' }) },
+  data: { keyword: '', activeTab: '公共', activeFolderId: '', activeFolderName: '', tabs: ['公共', '私人', '四项激励', '分享给我'], tabCounts: { 公共: 0, 私人: 0, 四项激励: 0, 分享给我: 0 }, folders: [], files: [], filteredFiles: [], capacity: { used: '-', total: '-', percent: 0, hint: '存储统计加载中' }, canUpload: false, canReplace: false, canDelete: false, canShare: false, canManageFolder: false, canViewFolderAcl: false, canDevUploadSmoke: false, uploading: false, replacingId: '', loaded: false, aclVisible: false, aclLoading: false, aclFolderName: '', aclRows: [], previewing: false, previewVideoPath: '', actionSheet: { visible: false, index: -1, name: '', actions: [] }, fileView: buildFileView({ tabs: ['公共', '私人', '四项激励', '分享给我'], tabCounts: { 公共: 0, 私人: 0, 四项激励: 0, 分享给我: 0 }, folders: [], filteredFiles: [], activeTab: '公共', activeFolderName: '', previewVideoPath: '' }) },
 
   setFileData(patch) {
     const nextData = { ...this.data, ...patch }
@@ -589,6 +627,27 @@ Page({
         }
       })
     }).catch((error) => showError(error, '用户列表加载失败'))
+  },
+  // 【需求A 2026-10-16】「⋯」/长按 → 自绘半屏操作面板;动作按权限显隐(buildFileRowView 已算好),
+  // 分发复用既有处理器(合成 dataset.index 事件),权限/确认/刷新逻辑零改动
+  openActionSheet(event) {
+    const index = Number(event.currentTarget.dataset.index)
+    const item = this.data.filteredFiles[index]
+    if (!item) return
+    const view = this.data.fileView.files[index] || {}
+    this.setData({ actionSheet: { visible: true, index, name: item.name || '未命名文件', actions: view.sheetActions || [{ key: 'open', label: '打开' }] } })
+  },
+  closeActionSheet() { this.setData({ 'actionSheet.visible': false }) },
+  onSheetAction(event) {
+    const act = event.currentTarget.dataset.act
+    const index = this.data.actionSheet.index
+    this.setData({ 'actionSheet.visible': false })
+    const synthetic = { currentTarget: { dataset: { index } } }
+    if (act === 'open') return this.openFile(synthetic)
+    if (act === 'download') return this.downloadFile(synthetic)
+    if (act === 'share') return this.shareFile(synthetic)
+    if (act === 'replace') return this.replaceListFile(synthetic)
+    if (act === 'delete') return this.removeFile(synthetic)
   },
   switchTab(event) { wx.switchTab({ url: event.currentTarget.dataset.url }) }
 })

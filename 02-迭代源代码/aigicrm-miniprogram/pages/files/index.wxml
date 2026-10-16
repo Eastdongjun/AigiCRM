@@ -35,23 +35,40 @@
       </view>
     </scroll-view>
   </view>
-  <view class="section-row"><view class="section-title">最近文件</view><view class="section-count">{{fileView.fileCountText}}</view></view>
+  <view class="section-row">
+    <view class="section-title" wx:if="{{fileView.listTitle}}">{{fileView.listTitle}}</view>
+    <view class="breadcrumb" wx:if="{{fileView.breadcrumbText}}">{{fileView.breadcrumbText}}</view>
+    <view class="section-count">{{fileView.fileCountText}}</view>
+  </view>
   <view wx:if="{{fileView.showFileList}}" class="file-list">
-    <view wx:for="{{fileView.files}}" wx:key="id" class="file-row" data-index="{{index}}" bindtap="openFile">
-      <view class="file-type {{item.tone}}">{{item.typeText}}</view>
-      <view class="file-info"><view class="file-name">{{item.nameText}}</view><view class="file-meta">{{item.metaText}}</view></view>
-      <view class="file-row-actions">
-        <button class="mini-action" loading="{{previewing}}" catchtap="previewFile" data-index="{{index}}">打开</button>
-        <button wx:if="{{item.showDownload}}" class="mini-action secondary" loading="{{previewing}}" catchtap="downloadFile" data-index="{{index}}">下载</button>
-        <button wx:if="{{item.showReplace}}" class="mini-action secondary" loading="{{item.replaceLoading}}" catchtap="replaceListFile" data-index="{{index}}">替换</button>
-        <button wx:if="{{item.showDelete}}" class="mini-action danger" catchtap="removeFile" data-index="{{index}}">删除</button>
+    <block wx:for="{{fileView.fileGroups}}" wx:key="key" wx:for-item="group" wx:for-index="groupIdx">
+      <view class="file-group-head">{{group.label}} · {{group.count}}</view>
+      <view wx:for="{{group.files}}" wx:key="id" wx:for-item="file" class="file-row" data-index="{{file.flatIndex}}" bindtap="openFile" bind:longpress="openActionSheet">
+        <view class="file-type {{file.tone}}">{{file.typeText}}</view>
+        <view class="file-info">
+          <view class="file-name">{{file.nameText}}</view>
+          <view class="file-meta">{{file.metaBrief}}</view>
+          <view class="file-meta sub">{{file.metaExtra}}</view>
+        </view>
+        <view class="file-more-btn" catchtap="openActionSheet" data-index="{{file.flatIndex}}">···</view>
       </view>
-      <button wx:if="{{item.showShare}}" class="file-share-action" catchtap="shareFile" data-index="{{index}}">分享</button>
-      <text wx:if="{{item.showMore}}" class="file-more">···</text>
-    </view>
+    </block>
   </view>
   <video wx:if="{{previewVideoPath}}" src="{{previewVideoPath}}" controls class="file-preview-video"></video>
   <view wx:if="{{fileView.showEmpty}}" class="empty-state"><text class="empty-icon">⌁</text><text>暂未找到匹配文件</text></view>
+  <!-- 【需求A 2026-10-16】操作面板: 行尾「···」或长按呼出, 打开/下载/分享/替换/删除按权限显隐 -->
+  <view wx:if="{{actionSheet.visible}}" class="sheet-mask" catchtap="closeActionSheet">
+    <view class="sheet-panel" catchtap="noop">
+      <view class="sheet-file-name">{{actionSheet.name}}</view>
+      <view class="sheet-grid">
+        <view wx:for="{{actionSheet.actions}}" wx:key="key" wx:for-item="act" class="sheet-act {{act.key === 'delete' ? 'danger' : ''}}" data-act="{{act.key}}" catchtap="onSheetAction">
+          <text class="sheet-act-icon">{{act.key === 'open' ? '▸' : act.key === 'download' ? '⇣' : act.key === 'share' ? '↗' : act.key === 'replace' ? '⇄' : '✕'}}</text>
+          <text>{{act.label}}</text>
+        </view>
+      </view>
+      <view class="sheet-cancel" catchtap="closeActionSheet">取消</view>
+    </view>
+  </view>
   <view wx:if="{{canManageFolder}}" class="files-manage-card">
     <view class="files-manage-head"><text>文件夹管理</text><button class="folder-new-action" bindtap="openFolderForm">新建</button></view>
     <block wx:if="{{fileView.showManageFolders}}">
