@@ -76,6 +76,7 @@ class ApprovalServiceTest {
                 seaService,
                 mock(com.aigicrm.common.scope.OrgScopeResolver.class),
                 mock(SeaConfigService.class),
+                mock(com.aigicrm.common.engine.CustomerAccessService.class),
                 mock(SysUserService.class),
                 mock(ApprovalConfigService.class),
                 mock(com.aigicrm.module.system.service.SysConfigService.class),
@@ -146,8 +147,9 @@ class ApprovalServiceTest {
                 mock(SeaService.class),
                 mock(com.aigicrm.common.scope.OrgScopeResolver.class),
                 seaConfigService,
+                mock(com.aigicrm.common.engine.CustomerAccessService.class),
                 mock(SysUserService.class),
-                configService, 
+                configService,
                 mock(com.aigicrm.module.system.service.SysConfigService.class),
                 mock(org.springframework.jdbc.core.JdbcTemplate.class),
                 mock(com.aigicrm.security.SecurityAuditService.class));
@@ -361,6 +363,7 @@ class ApprovalServiceTest {
                 mock(SeaService.class),
                 mock(com.aigicrm.common.scope.OrgScopeResolver.class),
                 mock(SeaConfigService.class),
+                mock(com.aigicrm.common.engine.CustomerAccessService.class),
                 mock(SysUserService.class),
                 configService,
                 mock(com.aigicrm.module.system.service.SysConfigService.class),
@@ -733,6 +736,7 @@ class ApprovalServiceTest {
                 mock(SysUserRoleMapper.class), mock(SysDeptMapper.class),
                 mock(BizSeaPoolMapper.class), mock(SeaService.class),
                 mock(com.aigicrm.common.scope.OrgScopeResolver.class), mock(SeaConfigService.class),
+                mock(com.aigicrm.common.engine.CustomerAccessService.class),
                 mock(SysUserService.class), mock(ApprovalConfigService.class),
                 mock(com.aigicrm.module.system.service.SysConfigService.class),
                 mock(org.springframework.jdbc.core.JdbcTemplate.class),
@@ -799,12 +803,20 @@ class ApprovalServiceTest {
         BizApprovalMapper approvalMapper = mock(BizApprovalMapper.class);
         when(approvalMapper.selectMaxCodeByPrefix(anyString(), any())).thenReturn(0); // 【G2】取号带租户参数
 
+        // 【P0 2026-10-16】extend 守卫补归属校验后, 此用例需客户存在且可查看才能到达无审批人守卫
+        BizCustomerMapper customerMapperCfg = mock(BizCustomerMapper.class);
+        com.aigicrm.module.customer.entity.BizCustomer cCfg = new com.aigicrm.module.customer.entity.BizCustomer();
+        cCfg.setId(42L); cCfg.setStatus("normal");
+        when(customerMapperCfg.selectById(42L)).thenReturn(cCfg);
+        com.aigicrm.common.engine.CustomerAccessService accessCfg = mock(com.aigicrm.common.engine.CustomerAccessService.class);
+        when(accessCfg.canView(42L)).thenReturn(true);
         ApprovalService svc = new ApprovalService(
                 configMapper, approvalMapper, mock(BizApprovalNodeMapper.class),
-                mock(BizApprovalFlowMapper.class), mock(BizCustomerMapper.class),
+                mock(BizApprovalFlowMapper.class), customerMapperCfg,
                 mock(SysUserMapper.class), mock(SysUserRoleMapper.class), mock(SysDeptMapper.class),
                 mock(BizSeaPoolMapper.class), mock(SeaService.class),
                 mock(com.aigicrm.common.scope.OrgScopeResolver.class), mock(SeaConfigService.class),
+                accessCfg,
                 mock(SysUserService.class), configService, 
                 mock(com.aigicrm.module.system.service.SysConfigService.class),
                 mock(org.springframework.jdbc.core.JdbcTemplate.class),
@@ -832,12 +844,20 @@ class ApprovalServiceTest {
         when(approvalMapper.selectMaxCodeByPrefix(anyString(), any())).thenReturn(0); // 【G2】取号带租户参数
 
         BizApprovalNodeMapper nodeMapper = mock(BizApprovalNodeMapper.class);
+        // 【P0 2026-10-16】extend 守卫补归属校验后, 此用例需客户存在且可查看才能到达零节点守卫
+        BizCustomerMapper customerMapper42 = mock(BizCustomerMapper.class);
+        com.aigicrm.module.customer.entity.BizCustomer c42 = new com.aigicrm.module.customer.entity.BizCustomer();
+        c42.setId(42L); c42.setStatus("normal");
+        when(customerMapper42.selectById(42L)).thenReturn(c42);
+        com.aigicrm.common.engine.CustomerAccessService accessOk = mock(com.aigicrm.common.engine.CustomerAccessService.class);
+        when(accessOk.canView(42L)).thenReturn(true);
         ApprovalService svc = new ApprovalService(
                 configMapper, approvalMapper, nodeMapper,
-                flowMapper, mock(BizCustomerMapper.class),
+                flowMapper, customerMapper42,
                 userMapper, mock(SysUserRoleMapper.class), mock(SysDeptMapper.class),
                 mock(BizSeaPoolMapper.class), mock(SeaService.class),
                 mock(com.aigicrm.common.scope.OrgScopeResolver.class), mock(SeaConfigService.class),
+                accessOk,
                 mock(SysUserService.class), mock(ApprovalConfigService.class), 
                 mock(com.aigicrm.module.system.service.SysConfigService.class),
                 mock(org.springframework.jdbc.core.JdbcTemplate.class),
@@ -904,6 +924,7 @@ class ApprovalServiceTest {
                 userMapper, mock(SysUserRoleMapper.class), mock(SysDeptMapper.class),
                 mock(BizSeaPoolMapper.class), mock(SeaService.class),
                 mock(com.aigicrm.common.scope.OrgScopeResolver.class), mock(SeaConfigService.class),
+                mock(com.aigicrm.common.engine.CustomerAccessService.class),
                 mock(SysUserService.class), mock(ApprovalConfigService.class), 
                 mock(com.aigicrm.module.system.service.SysConfigService.class),
                 mock(org.springframework.jdbc.core.JdbcTemplate.class),
@@ -953,7 +974,8 @@ class ApprovalServiceTest {
                 mock(SysUserMapper.class), mock(SysUserRoleMapper.class), mock(SysDeptMapper.class),
                 mock(BizSeaPoolMapper.class), mock(SeaService.class),
                 mock(com.aigicrm.common.scope.OrgScopeResolver.class),
-                mock(SeaConfigService.class), mock(SysUserService.class), mock(ApprovalConfigService.class),
+                mock(SeaConfigService.class),
+                mock(com.aigicrm.common.engine.CustomerAccessService.class), mock(SysUserService.class), mock(ApprovalConfigService.class),
                 mock(com.aigicrm.module.system.service.SysConfigService.class),
                 mock(org.springframework.jdbc.core.JdbcTemplate.class),
                 mock(com.aigicrm.security.SecurityAuditService.class));

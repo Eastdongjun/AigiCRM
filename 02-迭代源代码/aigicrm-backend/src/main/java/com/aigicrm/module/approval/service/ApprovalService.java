@@ -56,6 +56,8 @@ public class ApprovalService {
     private final SeaService seaService;
     private final OrgScopeResolver scopeResolver;
     private final SeaConfigService seaConfigService;
+    // 【P0 2026-10-16 体检修复】延期审批 extend 分支的归属/查看权限校验
+    private final com.aigicrm.common.engine.CustomerAccessService customerAccessService;
     private final SysUserService userService;
     /** 【PR-02】节点实例化收敛到 ApprovalConfigService.createNodes(唯一的实例化入口) */
     private final ApprovalConfigService approvalConfigService;
@@ -252,6 +254,18 @@ public class ApprovalService {
             if (guard != null && "sea".equals(guard.getStatus())) {
                 throw new BusinessException("客户已在公海池中，不能发起"
                         + ("extend".equals(type) ? "保护期延期" : "客户转移") + "；请先捞取回私海再操作");
+            }
+            // 【P0 2026-10-16 体检修复】extend 提交侧归属校验: 发起人必须对该客户有查看权限
+            // (负责人/被分享/数据范围/公海池可见, 与详情页 canView 同链路)。
+            // 旧实现只拦"池内客户", 任何持 incentive:view 者可对无权限客户发起 +360 天延期,
+            // 审批人误批即生效(体检 P0-2 / 测试报告 M1)。
+            if ("extend".equals(type) && customerId != null) {
+                if (guard == null) {
+                    throw new BusinessException("客户不存在, 无法发起保护期延期");
+                }
+                if (!SecurityUtils.isAdmin() && !customerAccessService.canView(customerId)) {
+                    throw new BusinessException(403, "您没有该客户的查看权限, 无法发起保护期延期");
+                }
             }
         }
 

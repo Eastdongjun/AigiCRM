@@ -50,6 +50,7 @@ class ApprovalApproveRejectSecurityTest {
             mock(SysUserMapper.class), mock(SysUserRoleMapper.class), mock(SysDeptMapper.class),
             mock(BizSeaPoolMapper.class), mock(SeaService.class),
             mock(com.aigicrm.common.scope.OrgScopeResolver.class), mock(SeaConfigService.class),
+                mock(com.aigicrm.common.engine.CustomerAccessService.class),
             mock(SysUserService.class), mock(ApprovalConfigService.class), 
                 mock(com.aigicrm.module.system.service.SysConfigService.class),
                 mock(org.springframework.jdbc.core.JdbcTemplate.class),
