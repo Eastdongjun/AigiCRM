@@ -3,6 +3,11 @@ package com.aigicrm.module.system.service;
 import com.aigicrm.common.BusinessException;
 import com.aigicrm.module.customer.entity.BizCustomer;
 import com.aigicrm.module.customer.mapper.BizCustomerMapper;
+import com.aigicrm.module.file.entity.BizFile;
+import com.aigicrm.module.file.entity.BizFileFolder;
+import com.aigicrm.module.file.mapper.BizFileFolderMapper;
+import com.aigicrm.module.file.mapper.BizFileMapper;
+import com.aigicrm.module.file.service.FileService;
 import com.aigicrm.module.system.entity.SysDept;
 import com.aigicrm.module.system.entity.SysLog;
 import com.aigicrm.module.system.entity.SysUser;
@@ -26,15 +31,17 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
- * 【回收站 2026-10-18】已删除客户/人员的查看与恢复。
+ * 【回收站 2026-10-18】已删除客户/人员/文件的查看与恢复。
  *
  * <p>设计边界(不影响现有功能): 本服务只读 deleted=1 的行(显式 SQL 绕过 @TableLogic), 不改动任何
- * 现有列表/查询口径; 恢复动作携带四道闸门, 防止"恢复即脏数据":</p>
+ * 现有列表/查询口径; 恢复动作携带闸门, 防止"恢复即脏数据":</p>
  * <ul>
  *   <li>客户: 同名活跃客户存在 → 拒绝(防重复卡, 如 290 条旧数据中 158 条重复);</li>
  *   <li>客户: 原负责人已被删除/不存在 → 拒绝(恢复后无人可见, 应先恢复人员或改派);</li>
  *   <li>客户: 公海池仍有 available/pending_approval 残留 → 拒绝(防私海+池内双归属);</li>
- *   <li>人员: 账号名已被活跃用户占用 → 拒绝; 恢复后角色/岗位/组织归属需重新分配(删除时已清除)。</li>
+ *   <li>人员: 账号名已被活跃用户占用 → 拒绝; 恢复后角色/岗位/组织归属需重新分配(删除时已清除);</li>
+ *   <li>文件: 内容已被 deleteStorage 物理清除 → 拒绝(仅保留删除记录); 原文件夹不存在/私有文件
+ *       上传人已删除/存储配额不足 → 拒绝。</li>
  * </ul>
  *
  * <p>权限: 控制器层 @PreAuthorize 校验 system:recycle:view / system:recycle:restore, 默认仅系统管理员。</p>
@@ -49,6 +56,9 @@ public class RecycleService {
     private final SysUserMapper userMapper;
     private final SysDeptMapper deptMapper;
     private final SysLogMapper logMapper;
+    private final BizFileMapper fileMapper;
+    private final BizFileFolderMapper fileFolderMapper;
+    private final FileService fileService;
     private final JdbcTemplate jdbc;
     private final com.aigicrm.security.PermissionCacheService permissionCacheService;
 
@@ -137,6 +147,61 @@ public class RecycleService {
         return "人员已恢复；删除时已清除其角色/岗位/组织归属，请到「人员管理」重新分配角色后再通知本人登录";
     }
 
+    // ==================== 已删除文件 ====================
+
+    public PageResult<DeletedFileRow> deletedFiles(int current, int size, String keyword) {
+        int safeSize = Math.min(Math.max(size, 1), MAX_PAGE_SIZE);
+        int safeCurrent = Math.max(current, 1);
+        String pattern = "%" + (keyword == null ? "" : keyword.trim()) + "%";
+        List<BizFile> rows = fileMapper.selectDeletedPage(pattern, (safeCurrent - 1) * safeSize, safeSize);
+        long total = fileMapper.countDeleted(pattern);
+        Map<Long, String> uploaderNames = namesOf(rows.stream().map(BizFile::getUploaderId)
+                .filter(Objects::nonNull).collect(Collectors.toSet()));
+        Map<Long, String> folderNames = folderNamesOf(rows);
+        List<DeletedFileRow> records = rows.stream()
+                .map(f -> new DeletedFileRow(
+                        f.getId(), f.getFileName(), f.getFileSize(), f.getFileScope(),
+                        f.getUploaderId(), uploaderNames.get(f.getUploaderId()),
+                        f.getFolderId(), folderNames.get(f.getFolderId()),
+                        f.getUpdatedAt(), fileService.contentExists(f.getOssKey())))
+                .toList();
+        return new PageResult<>(records, total);
+    }
+
+    @Transactional
+    public String restoreFile(Long id) {
+        BizFile f = fileMapper.selectByIdIncludingDeleted(id);
+        if (f == null || !Objects.equals(f.getDeleted(), 1)) {
+            throw new BusinessException("该文件不在回收站（可能已被恢复或已被彻底删除）");
+        }
+        // 删除文件时 deleteStorage 已物理清除字节: 内容不在则元数据恢复出来也是坏链接, fail-closed
+        if (!fileService.contentExists(f.getOssKey())) {
+            throw new BusinessException("文件内容已在删除时物理清除，无法恢复（仅保留删除记录，如需找回请联系管理员从备份还原）");
+        }
+        if (f.getFolderId() != null && fileFolderMapper.selectById(f.getFolderId()) == null) {
+            throw new BusinessException("原文件夹已删除，无法恢复；请先重建文件夹后再恢复");
+        }
+        if ("private".equals(f.getFileScope())) {
+            if (f.getUploaderId() == null) {
+                throw new BusinessException("私有文件缺少上传人，无法恢复");
+            }
+            SysUser uploader = userMapper.selectByIdIncludingDeleted(f.getUploaderId());
+            if (uploader == null || Objects.equals(uploader.getDeleted(), 1)) {
+                throw new BusinessException("上传人已被删除，请先在回收站恢复该人员，再恢复其私有文件");
+            }
+            long size = f.getFileSize() != null ? f.getFileSize() : 0L;
+            if (size > 0 && userMapper.tryConsumeQuota(f.getUploaderId(), size) == 0) {
+                throw new BusinessException("上传者存储配额不足，无法恢复该文件");
+            }
+        }
+        if (fileMapper.restoreDeleted(id) != 1) {
+            throw new BusinessException("恢复失败：数据状态已变化，请刷新后重试");
+        }
+        writeAuditLog("恢复文件", "biz_file", id,
+                "文件名=" + f.getFileName() + ", scope=" + f.getFileScope() + ", 大小=" + f.getFileSize());
+        return "文件已恢复";
+    }
+
     // ==================== 内部 ====================
 
     private Map<Long, String> ownerNamesOf(List<BizCustomer> rows) {
@@ -158,6 +223,17 @@ public class RecycleService {
         if (ids.isEmpty()) return names;
         for (SysDept d : deptMapper.selectBatchIds(ids)) {
             names.put(d.getId(), d.getDeptName());
+        }
+        return names;
+    }
+
+    /** 文件夹为硬删除(仅允许空夹删除), 查不到即原文件夹已不存在 */
+    private Map<Long, String> folderNamesOf(List<BizFile> rows) {
+        Map<Long, String> names = new HashMap<>();
+        Set<Long> ids = rows.stream().map(BizFile::getFolderId).filter(Objects::nonNull).collect(Collectors.toSet());
+        if (ids.isEmpty()) return names;
+        for (BizFileFolder folder : fileFolderMapper.selectBatchIds(ids)) {
+            names.put(folder.getId(), folder.getFolderName());
         }
         return names;
     }
@@ -189,5 +265,10 @@ public class RecycleService {
 
     public record DeletedUserRow(Long id, String username, String realName, Long deptId, String deptName,
                                  String phone, Integer status, LocalDateTime deletedAt) {
+    }
+
+    public record DeletedFileRow(Long id, String fileName, Long fileSize, String fileScope,
+                                 Long uploaderId, String uploaderName, Long folderId, String folderName,
+                                 LocalDateTime deletedAt, boolean contentAvailable) {
     }
 }

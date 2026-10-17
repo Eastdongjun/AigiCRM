@@ -3,6 +3,11 @@ package com.aigicrm.module.system.service;
 import com.aigicrm.common.BusinessException;
 import com.aigicrm.module.customer.entity.BizCustomer;
 import com.aigicrm.module.customer.mapper.BizCustomerMapper;
+import com.aigicrm.module.file.entity.BizFile;
+import com.aigicrm.module.file.entity.BizFileFolder;
+import com.aigicrm.module.file.mapper.BizFileFolderMapper;
+import com.aigicrm.module.file.mapper.BizFileMapper;
+import com.aigicrm.module.file.service.FileService;
 import com.aigicrm.module.system.entity.SysDept;
 import com.aigicrm.module.system.entity.SysLog;
 import com.aigicrm.module.system.entity.SysUser;
@@ -16,6 +21,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -28,17 +34,21 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-/** 【回收站 2026-10-18】已删除客户/人员列表与恢复闸门 */
+/** 【回收站 2026-10-18】已删除客户/人员/文件列表与恢复闸门 */
 class RecycleServiceTest {
 
     private final BizCustomerMapper customerMapper = mock(BizCustomerMapper.class);
     private final SysUserMapper userMapper = mock(SysUserMapper.class);
     private final SysDeptMapper deptMapper = mock(SysDeptMapper.class);
     private final SysLogMapper logMapper = mock(SysLogMapper.class);
+    private final BizFileMapper fileMapper = mock(BizFileMapper.class);
+    private final BizFileFolderMapper fileFolderMapper = mock(BizFileFolderMapper.class);
+    private final FileService fileService = mock(FileService.class);
     private final JdbcTemplate jdbc = mock(JdbcTemplate.class);
     private final PermissionCacheService permissionCacheService = mock(PermissionCacheService.class);
     private final RecycleService service = new RecycleService(
-            customerMapper, userMapper, deptMapper, logMapper, jdbc, permissionCacheService);
+            customerMapper, userMapper, deptMapper, logMapper,
+            fileMapper, fileFolderMapper, fileService, jdbc, permissionCacheService);
 
     private static BizCustomer deletedCustomer(Long ownerId) {
         BizCustomer c = new BizCustomer();
@@ -199,5 +209,93 @@ class RecycleServiceTest {
 
         assertTrue(ex.getMessage().contains("原部门已不存在"), "实际: " + ex.getMessage());
         verify(userMapper, never()).restoreDeleted(anyLong());
+    }
+
+    // ==================== 已删除文件 ====================
+
+    private static BizFile deletedFile(Long id, String scope, Long folderId, Long uploaderId, long size) {
+        BizFile f = new BizFile();
+        f.setId(id);
+        f.setFileName("测试文件.pdf");
+        f.setFileSize(size);
+        f.setFileScope(scope);
+        f.setFolderId(folderId);
+        f.setUploaderId(uploaderId);
+        f.setDeleted(1);
+        f.setOssKey("public/1/测试文件.pdf");
+        return f;
+    }
+
+    @Test
+    void deletedFiles_namesAndContentFlagFilled() {
+        when(fileMapper.selectDeletedPage(anyString(), eq(0), eq(20)))
+                .thenReturn(List.of(deletedFile(11L, "public", 7L, 9L, 1024)));
+        when(fileMapper.countDeleted(anyString())).thenReturn(1L);
+        SysUser uploader = deletedUser(9L, "admin", null);
+        uploader.setDeleted(0);
+        uploader.setRealName("管理员");
+        when(userMapper.selectNamesByIds(anyCollection())).thenReturn(List.of(uploader));
+        BizFileFolder folder = new BizFileFolder();
+        folder.setId(7L);
+        folder.setFolderName("公共资料");
+        when(fileFolderMapper.selectBatchIds(anyCollection())).thenReturn(List.of(folder));
+        when(fileService.contentExists(anyString())).thenReturn(true);
+
+        RecycleService.PageResult<RecycleService.DeletedFileRow> page = service.deletedFiles(1, 20, "");
+
+        assertEquals(1, page.total());
+        assertEquals("管理员", page.records().get(0).uploaderName());
+        assertEquals("公共资料", page.records().get(0).folderName());
+        assertTrue(page.records().get(0).contentAvailable());
+    }
+
+    @Test
+    void restoreFile_contentPhysicallyDeleted_rejected() {
+        when(fileMapper.selectByIdIncludingDeleted(11L)).thenReturn(deletedFile(11L, "public", null, 9L, 1024));
+        when(fileService.contentExists(anyString())).thenReturn(false);
+
+        BusinessException ex = assertThrows(BusinessException.class, () -> service.restoreFile(11L));
+
+        assertTrue(ex.getMessage().contains("物理清除"), "实际: " + ex.getMessage());
+        verify(fileMapper, never()).restoreDeleted(anyLong());
+    }
+
+    @Test
+    void restoreFile_folderMissing_rejected() {
+        when(fileMapper.selectByIdIncludingDeleted(11L)).thenReturn(deletedFile(11L, "public", 7L, 9L, 1024));
+        when(fileService.contentExists(anyString())).thenReturn(true);
+        when(fileFolderMapper.selectById(7L)).thenReturn(null);
+
+        BusinessException ex = assertThrows(BusinessException.class, () -> service.restoreFile(11L));
+
+        assertTrue(ex.getMessage().contains("原文件夹已删除"), "实际: " + ex.getMessage());
+        verify(fileMapper, never()).restoreDeleted(anyLong());
+    }
+
+    @Test
+    void restoreFile_privateQuotaInsufficient_rejected() {
+        when(fileMapper.selectByIdIncludingDeleted(11L)).thenReturn(deletedFile(11L, "private", null, 9L, 1024));
+        when(fileService.contentExists(anyString())).thenReturn(true);
+        SysUser uploader = deletedUser(9L, "u9", null);
+        uploader.setDeleted(0);
+        when(userMapper.selectByIdIncludingDeleted(9L)).thenReturn(uploader);
+        when(userMapper.tryConsumeQuota(9L, 1024L)).thenReturn(0);
+
+        BusinessException ex = assertThrows(BusinessException.class, () -> service.restoreFile(11L));
+
+        assertTrue(ex.getMessage().contains("配额不足"), "实际: " + ex.getMessage());
+        verify(fileMapper, never()).restoreDeleted(anyLong());
+    }
+
+    @Test
+    void restoreFile_success_writesAudit() {
+        when(fileMapper.selectByIdIncludingDeleted(11L)).thenReturn(deletedFile(11L, "public", null, 9L, 1024));
+        when(fileService.contentExists(anyString())).thenReturn(true);
+        when(fileMapper.restoreDeleted(11L)).thenReturn(1);
+
+        String message = service.restoreFile(11L);
+
+        assertEquals("文件已恢复", message);
+        verify(logMapper).insert(any(SysLog.class));
     }
 }

@@ -7,7 +7,7 @@
           <span class="head-accent" aria-hidden="true"></span>
           <h2>回收站</h2>
         </div>
-        <p class="head-desc">查看并恢复已删除的客户与人员，删除留痕可追溯</p>
+        <p class="head-desc">查看并恢复已删除的客户、人员与文件，删除留痕可追溯</p>
       </div>
       <div class="head-stats">
         <div class="stat">
@@ -18,6 +18,11 @@
         <div class="stat">
           <span class="stat-num">{{ counts.users }}</span>
           <span class="stat-label">已删除人员</span>
+        </div>
+        <span class="stat-divider" aria-hidden="true"></span>
+        <div class="stat">
+          <span class="stat-num">{{ counts.files }}</span>
+          <span class="stat-label">已删除文件</span>
         </div>
       </div>
     </div>
@@ -39,7 +44,7 @@
         <div class="toolbar-actions">
           <el-input
             v-model="keyword" clearable class="search-input"
-            :placeholder="activeTab === 'customers' ? '搜索客户名称或编号' : '搜索姓名或账号'"
+            :placeholder="searchPlaceholder"
             :prefix-icon="Search" @keyup.enter="search" @clear="search"
           />
           <el-tooltip content="刷新列表" placement="top">
@@ -51,7 +56,7 @@
       <!-- 口径提示 -->
       <div class="info-strip">
         <el-icon class="info-icon"><InfoFilled /></el-icon>
-        <span>删除是终态留痕：这里只展示仍可恢复的软删数据。恢复客户会校验同名活跃客户、原负责人与公海残留；恢复人员后需在人员管理重新分配角色。</span>
+        <span>删除是终态留痕：这里只展示仍可恢复的软删数据。恢复客户会校验同名活跃客户、原负责人与公海残留；恢复人员后需在人员管理重新分配角色；文件在删除时已物理清除内容，仅内容仍在存储中的文件可恢复。</span>
       </div>
 
       <!-- 首屏骨架 -->
@@ -97,6 +102,61 @@
               <el-button link type="primary" size="small" :icon="RefreshLeft" @click="handleRestoreCustomer(row)">
                 恢复
               </el-button>
+            </template>
+          </el-table-column>
+        </el-table>
+
+        <!-- 已删除文件 -->
+        <el-table
+          v-else-if="activeTab === 'files'" v-loading="loading" :data="rows" class="recycle-table"
+          style="width:100%" empty-text="暂无已删除文件"
+        >
+          <el-table-column label="文件名" min-width="260">
+            <template #default="{ row }">
+              <div class="name-cell">
+                <span class="file-icon" aria-hidden="true"><el-icon><Document /></el-icon></span>
+                <span class="name-text" :title="row.fileName">{{ row.fileName }}</span>
+              </div>
+            </template>
+          </el-table-column>
+          <el-table-column label="大小" min-width="100">
+            <template #default="{ row }"><span class="muted-text">{{ formatSize(row.fileSize) }}</span></template>
+          </el-table-column>
+          <el-table-column label="归属" min-width="90" align="center">
+            <template #default="{ row }">
+              <el-tag size="small" :type="scopeTagType(row.fileScope)" effect="plain">{{ scopeLabel(row.fileScope) }}</el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column label="上传人" min-width="110">
+            <template #default="{ row }">
+              <span v-if="row.uploaderName">{{ row.uploaderName }}</span>
+              <el-tag v-else-if="row.uploaderId" size="small" type="warning" effect="plain">上传人已删除</el-tag>
+              <span v-else class="muted-text">-</span>
+            </template>
+          </el-table-column>
+          <el-table-column label="所在文件夹" min-width="140">
+            <template #default="{ row }">
+              <span v-if="row.folderName">{{ row.folderName }}</span>
+              <span v-else-if="row.folderId" class="muted-text">文件夹已删除</span>
+              <span v-else class="muted-text">根目录</span>
+            </template>
+          </el-table-column>
+          <el-table-column label="删除时间" min-width="160">
+            <template #default="{ row }"><span class="time-text">{{ formatTime(row.deletedAt) }}</span></template>
+          </el-table-column>
+          <el-table-column label="内容状态" min-width="100" align="center">
+            <template #default="{ row }">
+              <el-tag size="small" :type="row.contentAvailable ? 'success' : 'info'" effect="plain">
+                {{ row.contentAvailable ? '可恢复' : '已清除' }}
+              </el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column v-if="canRestore" label="操作" width="110" align="right" fixed="right">
+            <template #default="{ row }">
+              <el-button v-if="row.contentAvailable" link type="primary" size="small" :icon="RefreshLeft" @click="handleRestoreFile(row)">
+                恢复
+              </el-button>
+              <span v-else class="muted-text restore-unavailable">不可恢复</span>
             </template>
           </el-table-column>
         </el-table>
@@ -162,8 +222,12 @@
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { InfoFilled, Refresh, RefreshLeft, Search } from '@element-plus/icons-vue'
-import { getDeletedCustomers, getDeletedUsers, restoreDeletedCustomer, restoreDeletedUser } from '@/api/recycle'
+import { Document, InfoFilled, Refresh, RefreshLeft, Search } from '@element-plus/icons-vue'
+import {
+  getDeletedCustomers, getDeletedUsers, getDeletedFiles,
+  restoreDeletedCustomer, restoreDeletedUser, restoreDeletedFile,
+} from '@/api/recycle'
+import { formatSize } from '@/utils/format'
 import { useUserStore } from '@/store/user'
 
 const userStore = useUserStore()
@@ -172,6 +236,7 @@ const canRestore = computed(() => userStore.hasPermission('system:recycle:restor
 const tabs = [
   { key: 'customers', label: '已删除客户' },
   { key: 'users', label: '已删除人员' },
+  { key: 'files', label: '已删除文件' },
 ]
 const activeTab = ref('customers')
 const keyword = ref('')
@@ -181,12 +246,21 @@ const total = ref(0)
 const rows = ref([])
 const loading = ref(false)
 const firstLoading = ref(true)
-const counts = reactive({ customers: 0, users: 0 })
+const counts = reactive({ customers: 0, users: 0, files: 0 })
 
 const formatTime = (value) => {
   if (!value) return '-'
   return String(value).replace('T', ' ').slice(0, 19)
 }
+
+const scopeLabel = (scope) => ({ public: '公共', private: '私有', incentive: '激励' }[scope] || scope || '-')
+const scopeTagType = (scope) => ({ public: 'primary', private: 'info', incentive: 'warning' }[scope] || 'info')
+
+const searchPlaceholder = computed(() => ({
+  customers: '搜索客户名称或编号',
+  users: '搜索姓名或账号',
+  files: '搜索文件名或存储路径',
+}[activeTab.value] || '搜索'))
 
 async function loadData() {
   loading.value = true
@@ -194,7 +268,9 @@ async function loadData() {
     const params = { current: current.value, size: size.value, keyword: keyword.value.trim() }
     const res = activeTab.value === 'customers'
       ? await getDeletedCustomers(params)
-      : await getDeletedUsers(params)
+      : activeTab.value === 'users'
+        ? await getDeletedUsers(params)
+        : await getDeletedFiles(params)
     rows.value = res.data?.records || []
     total.value = res.data?.total || 0
     counts[activeTab.value] = total.value
@@ -208,12 +284,14 @@ async function loadData() {
 
 async function loadCounts() {
   try {
-    const [customers, users] = await Promise.all([
+    const [customers, users, files] = await Promise.all([
       getDeletedCustomers({ current: 1, size: 1 }),
       getDeletedUsers({ current: 1, size: 1 }),
+      getDeletedFiles({ current: 1, size: 1 }),
     ])
     counts.customers = customers.data?.total || 0
     counts.users = users.data?.total || 0
+    counts.files = files.data?.total || 0
   } catch (e) {
     // 计数失败不阻断列表
   }
@@ -272,6 +350,25 @@ async function handleRestoreUser(row) {
   try {
     const res = await restoreDeletedUser(row.id)
     ElMessage.success(res.data?.message || '人员已恢复')
+    await Promise.all([loadData(), loadCounts()])
+  } catch (e) {
+    // 错误提示由 request 拦截器统一弹出
+  }
+}
+
+async function handleRestoreFile(row) {
+  try {
+    await ElMessageBox.confirm(
+      `确认恢复文件“${row.fileName}”？系统会先校验文件内容是否仍在存储中、原文件夹是否存在；私有文件还会校验上传者配额。`,
+      '恢复文件',
+      { confirmButtonText: '确认恢复', cancelButtonText: '取消' }
+    )
+  } catch (e) {
+    return
+  }
+  try {
+    const res = await restoreDeletedFile(row.id)
+    ElMessage.success(res.data?.message || '文件已恢复')
     await Promise.all([loadData(), loadCounts()])
   } catch (e) {
     // 错误提示由 request 拦截器统一弹出
@@ -345,6 +442,11 @@ onMounted(() => {
   font-size: 14px; font-weight: 600; flex-shrink: 0;
 }
 .monogram-user { border-radius: 50%; background: #eef6f1; color: #2f8f5b; }
+.file-icon {
+  display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px;
+  border-radius: 8px; background: #f1f3f7; color: #5c6675; font-size: 15px; flex-shrink: 0;
+}
+.restore-unavailable { font-size: 12px; }
 .name-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .mono-text { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12.5px; color: #3f4a5a; }
 .muted-text { color: #7a8494; }

@@ -17,3 +17,11 @@ export function restoreDeletedCustomer(id) {
 export function restoreDeletedUser(id) {
   return request.post(`/system/recycle/users/${id}/restore`)
 }
+
+export function getDeletedFiles(params) {
+  return request.get('/system/recycle/files', { params })
+}
+
+export function restoreDeletedFile(id) {
+  return request.post(`/system/recycle/files/${id}/restore`)
+}

@@ -93,7 +93,7 @@
 | `system.dept` | 系统 | `/system/org` | `PC-only` | `system:dept:view/edit` | 当前集团/组织树 | 组织增删改查/管理员绑定 | `PC-only` |
 | `system.config` | 系统 | `/system/config` | `PC-only` | `system:config:view/edit` | 当前集团/系统配置 | 配置增删改查 | `PC-only` |
 | `system.log` | 系统 | `/system/log` | `PC-only` | `system:log:view` | 当前管理范围 | 审计读取 | `PC-only` |
-| `system.recycle` | 系统 | `/system/recycle` 回收站(已删除客户/已删除人员,搜索+分页) | `PC-only` | `system:recycle:view`(页面/列表)+`system:recycle:restore`(恢复),默认仅系统管理员,其他角色由管理员在角色管理勾选 | 当前集团(客户);人员为全局 | 读取已删除数据/恢复(客户校验同名活跃卡/原负责人在册/公海无残留;人员校验账号未占用,角色需重新分配) | `PC-only` ⟦补录 10-18⟧ |
+| `system.recycle` | 系统 | `/system/recycle` 回收站(已删除客户/已删除人员/已删除文件,搜索+分页) | `PC-only` | `system:recycle:view`(页面/列表)+`system:recycle:restore`(恢复),默认仅系统管理员,其他角色由管理员在角色管理勾选 | 当前集团(客户/文件);人员为全局 | 读取已删除数据/恢复(客户校验同名活跃卡/原负责人在册/公海无残留;人员校验账号未占用,角色需重新分配;文件仅内容仍在存储中可恢复,并校验原文件夹/上传人/私有配额) | `PC-only` ⟦补录 10-18⟧ |
 | `system.rule` | 系统 | `/system/rule` | `PC-only` | `system:rule:*` | 当前集团/系统配置 | 规则增删改查 | `PC-only` |
 | `system.group` | 系统 | `/system/group` | `PC-only` | `system:group:*` | 超管集团范围 | 集团增删改查 | `PC-only` |
 

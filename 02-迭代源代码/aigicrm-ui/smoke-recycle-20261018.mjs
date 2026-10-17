@@ -43,6 +43,15 @@ await page.waitForTimeout(1200);
 const searchRows = await page.locator('.el-table__row').count();
 ok('人员搜索 zhangsan 命中', searchRows >= 1, `rows=${searchRows}`);
 
+// 切已删除文件页签
+await page.locator('.seg-item', { hasText: '已删除文件' }).first().click();
+await page.waitForTimeout(1200);
+const fileRows = await page.locator('.el-table__row').count();
+ok(`已删除文件有数据行(${fileRows})`, fileRows > 0);
+const fileHeader = (await page.locator('.el-table').innerText()).replace(/\s+/g, ' ');
+ok('文件表头含归属/内容状态', fileHeader.includes('归属') && fileHeader.includes('内容状态'));
+ok('文件行出现可恢复/已清除标记', fileHeader.includes('可恢复') || fileHeader.includes('已清除'));
+
 await page.screenshot({ path: '/tmp/smoke-recycle.png', fullPage: false });
 await browser.close();
 console.log(results.join('\n'));

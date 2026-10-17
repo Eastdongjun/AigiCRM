@@ -510,6 +510,25 @@ public class FileService {
         return Paths.get(uploadDir, fileKey);
     }
 
+    /**
+     * 【回收站 2026-10-18】文件内容是否仍在存储中。
+     * 删除文件时 deleteStorage 会物理清除字节, 仅保留元数据软删行; 只有内容仍存在
+     * (删除失败残留/OSS 版本保留等) 时才允许恢复元数据, 否则恢复出来也是坏链接。
+     * fail-closed: 检查异常一律按不可恢复处理。
+     */
+    public boolean contentExists(String fileKey) {
+        if (fileKey == null || fileKey.isBlank()) return false;
+        try {
+            if (isLocal()) {
+                return Files.exists(Paths.get(uploadDir, fileKey));
+            }
+            return ossClient().doesObjectExist(ossConfig.getBucketName(), fileKey);
+        } catch (Exception e) {
+            log.warn("文件内容存在性检查失败 fileKey={}", fileKey, e);
+            return false;
+        }
+    }
+
     /** 安全内联判定: 仅纯图片(不含 SVG——可内嵌脚本执行, 存存储型XSS)、视频与 PDF 可 inline, 其余一律 attachment。
      *  2026-08-10 安全修复: 原先 svg 也在 inline 名单, 配合任意上传可被匿名/分享 URL 直接执行窃取 localStorage JWT。
      *  2026-10-17 PDF 加入 inline: 浏览器内建 PDF 阅读器需 inline+Range 才能边下边看(前端阅读器直链流式,

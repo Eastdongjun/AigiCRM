@@ -53,4 +53,19 @@ public class RecycleController {
     public Result<Map<String, String>> restoreUser(@PathVariable Long id) {
         return Result.ok(Map.of("message", recycleService.restoreUser(id)));
     }
+
+    @PreAuthorize("hasAuthority('system:recycle:view')")
+    @GetMapping("/files")
+    public Result<RecycleService.PageResult<RecycleService.DeletedFileRow>> deletedFiles(
+            @RequestParam(defaultValue = "1") int current,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(required = false) String keyword) {
+        return Result.ok(recycleService.deletedFiles(current, size, keyword));
+    }
+
+    @PreAuthorize("hasAuthority('system:recycle:restore')")
+    @PostMapping("/files/{id}/restore")
+    public Result<Map<String, String>> restoreFile(@PathVariable Long id) {
+        return Result.ok(Map.of("message", recycleService.restoreFile(id)));
+    }
 }
