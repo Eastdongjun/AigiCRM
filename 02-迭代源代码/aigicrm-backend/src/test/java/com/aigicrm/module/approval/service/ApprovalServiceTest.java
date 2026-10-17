@@ -1065,4 +1065,208 @@ class ApprovalServiceTest {
         BusinessException ex = assertThrows(BusinessException.class, () -> svc.submit("extend", 42L, null, null));
         assertTrue(ex.getMessage().contains("自审自批"), "实际: " + ex.getMessage());
     }
+
+    // ===== 【延期B 2026-10-17 用户裁决】天数进审批单/审批人可改 =====
+
+    /** 提交侧:extend 快照申请天数进 extraData(默认 sys_config,显式传值优先) */
+    @Test
+    void submit_extend_snapshotsDaysIntoExtraData() {
+        SecurityUser u = new SecurityUser();
+        u.setUserId(7L);
+        u.setRoleCodes(java.util.List.of("06"));
+        setCurrentUser(u);
+
+        com.aigicrm.module.system.service.SysConfigService configService =
+                mock(com.aigicrm.module.system.service.SysConfigService.class);
+        when(configService.getValue("customer.extend.days")).thenReturn("270");
+
+        BizApprovalConfigMapper configMapper = mock(BizApprovalConfigMapper.class);
+        when(configMapper.selectCount(any())).thenReturn(1L);
+        when(configMapper.selectOne(any())).thenReturn(null);
+
+        BizApprovalMapper approvalMapper = mock(BizApprovalMapper.class);
+        when(approvalMapper.selectMaxCodeByPrefix(anyString(), any())).thenReturn(0);
+        BizCustomerMapper customerMapperCfg = mock(BizCustomerMapper.class);
+        com.aigicrm.module.customer.entity.BizCustomer cCfg = new com.aigicrm.module.customer.entity.BizCustomer();
+        cCfg.setId(42L); cCfg.setStatus("normal");
+        when(customerMapperCfg.selectById(42L)).thenReturn(cCfg);
+        com.aigicrm.common.engine.CustomerAccessService accessCfg = mock(com.aigicrm.common.engine.CustomerAccessService.class);
+        when(accessCfg.canView(42L)).thenReturn(true);
+
+        // 配置化流程:createNodes 解析出审批人 8(≠申请人 7),节点行经 nodeMapper.selectList 反映
+        com.aigicrm.module.approval.service.ApprovalConfigService approvalConfigService =
+                mock(com.aigicrm.module.approval.service.ApprovalConfigService.class);
+        when(approvalConfigService.createNodes(any(), anyString())).thenReturn(java.util.List.of(8L));
+        BizApprovalNodeMapper nodeMapper = mock(BizApprovalNodeMapper.class);
+        when(nodeMapper.selectList(any())).thenReturn(java.util.List.of(node(801L, 8L, 1, "ALL", 10L, "pending")));
+
+        ApprovalService svc = new ApprovalService(
+                configMapper, approvalMapper, nodeMapper,
+                mock(BizApprovalFlowMapper.class), customerMapperCfg,
+                mock(SysUserMapper.class), mock(SysUserRoleMapper.class), mock(SysDeptMapper.class),
+                mock(BizSeaPoolMapper.class), mock(SeaService.class),
+                mock(com.aigicrm.common.scope.OrgScopeResolver.class), mock(SeaConfigService.class),
+                accessCfg, mock(SysUserService.class), approvalConfigService, configService,
+                mock(org.springframework.jdbc.core.JdbcTemplate.class),
+                mock(com.aigicrm.security.SecurityAuditService.class));
+
+        assertDoesNotThrow(() -> svc.submit("extend", 42L, null, null));
+        ArgumentCaptor<BizApproval> cap = ArgumentCaptor.forClass(BizApproval.class);
+        verify(approvalMapper).insert(cap.capture());
+        assertTrue(cap.getValue().getExtraData().contains("\"extendDays\":270"),
+                "未带天数的提交须快照 sys_config 值, 实际: " + cap.getValue().getExtraData());
+
+        // 显式传 90 天:显式值优先于配置
+        org.mockito.Mockito.clearInvocations(approvalMapper);
+        assertDoesNotThrow(() -> svc.submit("extend", 42L, null, "{\"extendDays\":90}"));
+        verify(approvalMapper).insert(cap.capture());
+        assertTrue(cap.getValue().getExtraData().contains("\"extendDays\":90"),
+                "显式天数须原样进单, 实际: " + cap.getValue().getExtraData());
+
+        // 越界值拒绝
+        BusinessException ex2 = assertThrows(BusinessException.class,
+                () -> svc.submit("extend", 42L, null, "{\"extendDays\":0}"));
+        assertTrue(ex2.getMessage().contains("1~3650"), "实际: " + ex2.getMessage());
+    }
+
+    /** 执行侧:审批单 extraData.extendDays 优先于 sys_config(90 天生效,不再用配置 360) */
+    @Test
+    void approve_extend_extraDataDaysUsedOverConfig() {
+        SecurityUser u = new SecurityUser();
+        u.setUserId(7L);
+        setCurrentUser(u, "approval:view");
+
+        com.aigicrm.module.approval.entity.BizApproval approval = approvalOf(31L, "extend", 42L);
+        approval.setExtraData("{\"extendDays\":90}");
+        BizApprovalMapper approvalMapper = mock(BizApprovalMapper.class);
+        when(approvalMapper.selectById(31L)).thenReturn(approval);
+        when(approvalMapper.selectByIdForUpdate(31L)).thenReturn(approval);
+        when(approvalMapper.update(isNull(), any())).thenReturn(1);
+
+        com.aigicrm.module.approval.entity.BizApprovalNode mine = node(611L, 7L, 1, null, null, "approved");
+        BizApprovalNodeMapper nodeMapper = mock(BizApprovalNodeMapper.class);
+        when(nodeMapper.selectOne(any())).thenReturn(node(611L, 7L, 1, null, null, "pending"));
+        when(nodeMapper.update(isNull(), any())).thenReturn(1);
+        when(nodeMapper.selectList(any())).thenReturn(java.util.List.of(mine));
+
+        BizCustomerMapper customerMapper = mock(BizCustomerMapper.class);
+        com.aigicrm.module.customer.entity.BizCustomer customer = new com.aigicrm.module.customer.entity.BizCustomer();
+        customer.setId(42L);
+        customer.setRegisterDate(java.time.LocalDate.of(2026, 1, 1));
+        customer.setApprovedExtendDays(0);
+        when(customerMapper.selectById(42L)).thenReturn(customer);
+
+        ApprovalService svc = new ApprovalService(
+                mock(BizApprovalConfigMapper.class), approvalMapper, nodeMapper,
+                mock(BizApprovalFlowMapper.class), customerMapper,
+                mock(SysUserMapper.class), mock(SysUserRoleMapper.class), mock(SysDeptMapper.class),
+                mock(BizSeaPoolMapper.class), mock(SeaService.class),
+                mock(com.aigicrm.common.scope.OrgScopeResolver.class), mock(SeaConfigService.class),
+                mock(com.aigicrm.common.engine.CustomerAccessService.class), mock(SysUserService.class),
+                mock(ApprovalConfigService.class),
+                mock(com.aigicrm.module.system.service.SysConfigService.class),
+                mock(org.springframework.jdbc.core.JdbcTemplate.class),
+                mock(com.aigicrm.security.SecurityAuditService.class));
+
+        assertDoesNotThrow(() -> svc.approve(31L, "同意"));
+
+        ArgumentCaptor<com.aigicrm.module.customer.entity.BizCustomer> cap =
+                ArgumentCaptor.forClass(com.aigicrm.module.customer.entity.BizCustomer.class);
+        verify(customerMapper).updateById(cap.capture());
+        com.aigicrm.module.customer.entity.BizCustomer saved = cap.getValue();
+        assertEquals(90, saved.getApprovedExtendDays(), "执行天数须取审批单 extraData(90), 非 sys_config 默认(360)");
+        java.time.LocalDate expected = java.time.LocalDate.of(2026, 1, 1).plusDays(360).plusDays(90);
+        assertEquals(expected, saved.getExpireDate(), "实际: " + saved.getExpireDate());
+    }
+
+    /** 审批人调整:approve 带 extendDays=180 → 合并进 extraData(执行/留痕单源)且按 180 生效 */
+    @Test
+    void approve_extend_daysOverrideMergedAndExecuted() {
+        SecurityUser u = new SecurityUser();
+        u.setUserId(7L);
+        setCurrentUser(u, "approval:view");
+
+        com.aigicrm.module.approval.entity.BizApproval approval = approvalOf(32L, "extend", 42L);
+        approval.setExtraData("{\"extendDays\":360}");
+        BizApprovalMapper approvalMapper = mock(BizApprovalMapper.class);
+        when(approvalMapper.selectById(32L)).thenReturn(approval);
+        when(approvalMapper.selectByIdForUpdate(32L)).thenReturn(approval);
+        when(approvalMapper.update(isNull(), any())).thenReturn(1);
+
+        com.aigicrm.module.approval.entity.BizApprovalNode mine = node(621L, 7L, 1, null, null, "approved");
+        BizApprovalNodeMapper nodeMapper = mock(BizApprovalNodeMapper.class);
+        when(nodeMapper.selectOne(any())).thenReturn(node(621L, 7L, 1, null, null, "pending"));
+        when(nodeMapper.update(isNull(), any())).thenReturn(1);
+        when(nodeMapper.selectList(any())).thenReturn(java.util.List.of(mine));
+
+        BizCustomerMapper customerMapper = mock(BizCustomerMapper.class);
+        com.aigicrm.module.customer.entity.BizCustomer customer = new com.aigicrm.module.customer.entity.BizCustomer();
+        customer.setId(42L);
+        customer.setRegisterDate(java.time.LocalDate.of(2026, 1, 1));
+        customer.setApprovedExtendDays(0);
+        when(customerMapper.selectById(42L)).thenReturn(customer);
+
+        ApprovalService svc = new ApprovalService(
+                mock(BizApprovalConfigMapper.class), approvalMapper, nodeMapper,
+                mock(BizApprovalFlowMapper.class), customerMapper,
+                mock(SysUserMapper.class), mock(SysUserRoleMapper.class), mock(SysDeptMapper.class),
+                mock(BizSeaPoolMapper.class), mock(SeaService.class),
+                mock(com.aigicrm.common.scope.OrgScopeResolver.class), mock(SeaConfigService.class),
+                mock(com.aigicrm.common.engine.CustomerAccessService.class), mock(SysUserService.class),
+                mock(ApprovalConfigService.class),
+                mock(com.aigicrm.module.system.service.SysConfigService.class),
+                mock(org.springframework.jdbc.core.JdbcTemplate.class),
+                mock(com.aigicrm.security.SecurityAuditService.class));
+
+        assertDoesNotThrow(() -> svc.approve(32L, "同意", 180));
+
+        assertTrue(approval.getExtraData().contains("\"extendDays\":180"),
+                "调整值须合并回审批单 extraData, 实际: " + approval.getExtraData());
+        verify(approvalMapper).updateById(approval);
+        ArgumentCaptor<com.aigicrm.module.customer.entity.BizCustomer> cap =
+                ArgumentCaptor.forClass(com.aigicrm.module.customer.entity.BizCustomer.class);
+        verify(customerMapper).updateById(cap.capture());
+        assertEquals(180, cap.getValue().getApprovedExtendDays(), "执行须按审批人调整后的 180 天");
+    }
+
+    /** 非 extend 单带 extendDays → 拒绝;越界天数 → 拒绝(均不落任何节点流转) */
+    @Test
+    void approve_extendDaysGuard_nonExtendAndOutOfRangeRejected() {
+        SecurityUser u = new SecurityUser();
+        u.setUserId(7L);
+        setCurrentUser(u, "approval:view");
+
+        com.aigicrm.module.approval.entity.BizApproval claim = approvalOf(33L, "claim", 42L);
+        BizApprovalMapper approvalMapper = mock(BizApprovalMapper.class);
+        when(approvalMapper.selectById(33L)).thenReturn(claim);
+        when(approvalMapper.selectByIdForUpdate(33L)).thenReturn(claim);
+
+        BizApprovalNodeMapper nodeMapper = mock(BizApprovalNodeMapper.class);
+        when(nodeMapper.selectOne(any())).thenReturn(node(631L, 7L, 1, null, null, "pending"));
+
+        ApprovalService svc = new ApprovalService(
+                mock(BizApprovalConfigMapper.class), approvalMapper, nodeMapper,
+                mock(BizApprovalFlowMapper.class), mock(BizCustomerMapper.class),
+                mock(SysUserMapper.class), mock(SysUserRoleMapper.class), mock(SysDeptMapper.class),
+                mock(BizSeaPoolMapper.class), mock(SeaService.class),
+                mock(com.aigicrm.common.scope.OrgScopeResolver.class), mock(SeaConfigService.class),
+                mock(com.aigicrm.common.engine.CustomerAccessService.class), mock(SysUserService.class),
+                mock(ApprovalConfigService.class),
+                mock(com.aigicrm.module.system.service.SysConfigService.class),
+                mock(org.springframework.jdbc.core.JdbcTemplate.class),
+                mock(com.aigicrm.security.SecurityAuditService.class));
+
+        BusinessException ex = assertThrows(BusinessException.class, () -> svc.approve(33L, "同意", 30));
+        assertTrue(ex.getMessage().contains("仅延期审批"), "实际: " + ex.getMessage());
+        verify(nodeMapper, never()).update(isNull(), any());
+
+        com.aigicrm.module.approval.entity.BizApproval extend = approvalOf(34L, "extend", 42L);
+        when(approvalMapper.selectById(34L)).thenReturn(extend);
+        when(approvalMapper.selectByIdForUpdate(34L)).thenReturn(extend);
+        BusinessException ex2 = assertThrows(BusinessException.class, () -> svc.approve(34L, "同意", 0));
+        assertTrue(ex2.getMessage().contains("1~3650"), "实际: " + ex2.getMessage());
+        BusinessException ex3 = assertThrows(BusinessException.class, () -> svc.approve(34L, "同意", 4000));
+        assertTrue(ex3.getMessage().contains("1~3650"), "实际: " + ex3.getMessage());
+        verify(nodeMapper, never()).update(isNull(), any());
+    }
 }

@@ -21,6 +21,11 @@ import { getCustomerListCountsByFilter } from '@/api/customer'
 
 export const CustomerListKey = Symbol('customerList')
 
+// 【⑬A 2026-10-17 用户裁决】默认页签 'innovate'(成熟创新)→'all'(全部)：成熟创新=0 的销售员(14/31)
+// 打开列表即空表(此前配套误导文案已由 ⑬B 修复)，裁决改为默认展示全部客户。
+// 导出常量供 spec 钉住默认值，防止后续重构悄悄翻回 'innovate'。
+export const CUSTOMER_LIST_DEFAULT_TAB = 'all'
+
 /** 子组件注入父级 customer/list.vue 提供的共享上下文 */
 export function injectCustomerList() {
   const ctx = inject(CustomerListKey)
@@ -47,9 +52,10 @@ export function useCustomerList() {
   // ---- 页面导航/筛选态 ----
   // 【UI 整改 2026-10-08·列表态保持】activeTab/搜索词/页码初始值改从 route.query 恢复
   // （detail 页"返回客户列表"带参回跳），列表每次加载成功后再同步回 route.query，
-  // 消除此前"进详情返回即丢筛选条件"（原 activeTab 每次重置 'innovate'）
+  // 消除此前"进详情返回即丢筛选条件"（原 activeTab 每次重置）
+  // 【⑬A 2026-10-17】回退默认 'innovate'→CUSTOMER_LIST_DEFAULT_TAB('all')，见常量处注释
   const route = useRoute()
-  const sanitizeTab = (v) => (TAB_DEFS.some(d => d.type === v) ? v : 'innovate')
+  const sanitizeTab = (v) => (TAB_DEFS.some(d => d.type === v) ? v : CUSTOMER_LIST_DEFAULT_TAB)
   const activeTab = ref(sanitizeTab(String(route.query.tab || '')))
   const searchText = ref(String(route.query.kw || ''))
   const filters = reactive({ search: '', industry: '', status: '' })
@@ -145,7 +151,12 @@ export function useCustomerList() {
 
   // 【FM3 2026-10-07】空态判定带服务端 total（tableData 现为当前页，单看它区分不了"筛选无匹配"与"范围无数据"）
   // 【UI 整改 2026-10-08】带搜索词时改提示"未找到与XX匹配"，不再误导去找管理员查数据范围
-  const emptyTableText = computed(() => customerEmptyText(tableData.value, total.value, buildListParams().keyword))
+  // 【⑬B 2026-10-17】带页签第四参：非"全部"页签空表用 tabCounts['全部']（counts 接口同口径但不含 devType）
+  // 区分"该分类为空"与"数据范围无客户"，修 NM005/郑磊案的误导文案
+  const emptyTableText = computed(() => customerEmptyText(tableData.value, total.value, buildListParams().keyword, {
+    allTotal: tabCounts.value['全部'],
+    tabLabel: TAB_DEV_TYPE[activeTab.value],
+  }))
 
   const advFilterCount = computed(() => {
     let n = 0
@@ -253,7 +264,7 @@ export function useCustomerList() {
   // detail 页"返回客户列表"据此带参回跳；默认值不入参保持 URL 干净
   const syncListQuery = () => {
     const q = {}
-    if (activeTab.value && activeTab.value !== 'innovate') q.tab = activeTab.value
+    if (activeTab.value && activeTab.value !== CUSTOMER_LIST_DEFAULT_TAB) q.tab = activeTab.value
     const kw = (searchText.value || '').trim()
     if (kw) q.kw = kw
     if (page.value > 1) q.page = String(page.value)
@@ -266,6 +277,9 @@ export function useCustomerList() {
   const loadData = async () => {
     const seq = ++listSeq
     listLoading.value = true
+    // 【⑬B 2026-10-17】页签计数与列表并发发起（原在列表成功后才发）：空态文案的"该分类为空"分支
+    // 依赖 tabCounts['全部']，晚发会让误导性数据范围文案先闪一拍；counts 更轻量通常先回
+    loadTabCounts()
     try {
       const params = { ...buildListParams(), current: page.value, size: pageSize.value }
       const res = await getCustomerList(params)
@@ -274,7 +288,6 @@ export function useCustomerList() {
       total.value = res.data.total || 0
       listError.value = false
       syncListQuery()
-      loadTabCounts()
     } catch (e) {
       // 【C12 2026-10-08】不再静默：错误详情已由 request 拦截器提示，这里补页面级错误态供重试
       if (seq === listSeq) listError.value = true
@@ -471,7 +484,7 @@ export function useCustomerList() {
     // 【UI 整改 2026-10-08·列表态保持】携带当前 tab/搜索词/页码进详情 query，
     // detail 页"返回客户列表"据此带参回跳（键名与 syncListQuery 同一套）
     const listQuery = {}
-    if (activeTab.value && activeTab.value !== 'innovate') listQuery.tab = activeTab.value
+    if (activeTab.value && activeTab.value !== CUSTOMER_LIST_DEFAULT_TAB) listQuery.tab = activeTab.value
     const kw = (searchText.value || '').trim()
     if (kw) listQuery.kw = kw
     if (page.value > 1) listQuery.page = String(page.value)

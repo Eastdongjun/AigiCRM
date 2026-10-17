@@ -292,6 +292,16 @@ public class ApprovalService {
             }
         }
 
+        // 【延期B 2026-10-17 用户裁决】天数进审批单:提交时把申请天数快照进 extraData(审批人可见、
+        // 审批通过前可调整,approve 侧 extendDays 参数覆盖此值)。默认取 sys_config
+        // customer.extend.days;申请人显式传 extendDays 时校验 1~3650 后采用。存量/未带天数的
+        // 在途单由执行侧回退 sys_config,兼容 2026-10-17 前发起的单据。
+        if ("extend".equals(type)) {
+            Integer requestedDays = extractExtendDaysOrNull(extraData);
+            int days = requestedDays != null ? requestedDays : getConfigInt("customer.extend.days", 360);
+            extraData = mergeExtraDataField(extraData, "extendDays", days);
+        }
+
         String prefix = "P" + Year.now().getValue() + "-";
         int maxCode = approvalMapper.selectMaxCodeByPrefix(prefix, com.aigicrm.common.scope.GroupScopeUtil.currentGroupOrNull());
         String approvalCode = prefix + String.format("%03d", maxCode + 1);
@@ -426,6 +436,16 @@ public class ApprovalService {
 
     @Transactional
     public void approve(Long approvalId, String comment) {
+        approve(approvalId, comment, null);
+    }
+
+    /**
+     * 【延期B 2026-10-17 用户裁决】审批人可改延期天数:
+     * extendDaysOverride 非 null 时仅限 extend 单,校验 1~3650 后合并进 extraData.extendDays
+     * (执行侧单源读取)。串行/会签多节点下以最后一次带调整的审批为准;节点流转注释追加天数留痕。
+     */
+    @Transactional
+    public void approve(Long approvalId, String comment, Integer extendDaysOverride) {
         Long approverId = SecurityUtils.getCurrentUserId();
         // 【PR-22 活体发现 2026-09-19】先锁审批主行再操作节点:串行化同单并发,
         // 消除双人各自锁自己节点再互取消对方的 AB-BA 死锁;败者等锁后看到节点已被取消,
@@ -455,6 +475,18 @@ public class ApprovalService {
             throw new BusinessException("申请人不能审批自己发起的申请(自审自批已被禁止)；请联系管理员转交审批节点");
         }
 
+        // 【延期B 2026-10-17】审批人调整延期天数:先校验(类型/范围)后生效,失败随事务回滚不留半态;
+        // 调整值合并进 extraData 并在节点意见中留痕
+        Integer adjustedExtendDays = null;
+        if (extendDaysOverride != null) {
+            if (!"extend".equals(approval.getApprovalType())) {
+                throw new BusinessException("仅延期审批可调整延期天数");
+            }
+            adjustedExtendDays = validateExtendDays(extendDaysOverride);
+            comment = (comment == null || comment.isBlank() ? "" : comment.trim())
+                    + "；延期天数: " + adjustedExtendDays + " 天";
+        }
+
         // 【PR-02 2026-09-19 并发/重复点击】条件流转:仅 pending 可被审批。affected=0 说明
         // 重复点击或并发竞争中他人已处理,直接拒绝——多人同时通过结果唯一。
         int transitioned = approvalNodeMapper.update(null, new LambdaUpdateWrapper<BizApprovalNode>()
@@ -468,6 +500,11 @@ public class ApprovalService {
             throw new BusinessException("该审批已处理，请刷新后查看");
         }
         node.setStatus("approved");
+        // 【延期B】调整值持久化进审批单(执行侧单源读 extraData.extendDays;多节点下后调整者覆盖)
+        if (adjustedExtendDays != null) {
+            approval.setExtraData(mergeExtraDataField(approval.getExtraData(), "extendDays", adjustedExtendDays));
+            approvalMapper.updateById(approval);
+        }
         advanceApproval(approval, node);
     }
 
@@ -723,6 +760,8 @@ public class ApprovalService {
                 // 【议题一裁决 2026-09-19 保护期决策表】延期天数走 sys_config(customer.extend.days,
                 // 管理员可改,与保护期同口径);approved_extend_days 累加后由统一公式重算到期日
                 // (=开票推导+累计已批延期)——删票回算开票部分不收回已批延期。
+                // 【延期B 2026-10-17】天数改从审批单 extraData.extendDays 读取(提交快照+审批人
+                // 可调整的最终值);2026-10-17 前的存量在途单无此键,回退 sys_config 保持旧行为。
                 BizCustomer customer = customerMapper.selectById(approval.getCustomerId());
                 if (customer != null) {
                     // 【体检 P1 2026-10-12】公海守卫(执行侧): 在途期间客户被释放进公海时,
@@ -731,7 +770,7 @@ public class ApprovalService {
                     if ("sea".equals(customer.getStatus())) {
                         throw new BusinessException("客户已进入公海，该延期审批不再适用；请驳回此单（捞取回私海后再发起）");
                     }
-                    int extendDays = getConfigInt("customer.extend.days", 360);
+                    int extendDays = resolveExtendDays(approval);
                     int accumulated = customer.getApprovedExtendDays() != null
                             ? customer.getApprovedExtendDays() : 0;
                     customer.setApprovedExtendDays(accumulated + extendDays);
@@ -839,6 +878,61 @@ public class ApprovalService {
             }
         }
         return defaultValue;
+    }
+
+    // ===== 【延期B 2026-10-17】天数进审批单的三件辅助:提取/校验/合并 extraData =====
+
+    /** 校验延期天数:1~3650 整数(3650=10年硬顶,防误输巨值把到期日推到不可预期纪元) */
+    private int validateExtendDays(Integer raw) {
+        int d = raw;
+        if (d < 1 || d > 3650) {
+            throw new BusinessException("延期天数须在 1~3650 天之间");
+        }
+        return d;
+    }
+
+    /** 从 extraData JSON 提取 extendDays;无 extraData/无键/脏格式返回 null(调用方回退默认) */
+    private Integer extractExtendDaysOrNull(String extraData) {
+        if (extraData == null || extraData.isBlank()) return null;
+        try {
+            Map<String, Object> data = new com.fasterxml.jackson.databind.ObjectMapper()
+                    .readValue(extraData, Map.class);
+            Object v = data.get("extendDays");
+            if (v == null) return null;
+            return validateExtendDays(v instanceof Number n ? n.intValue()
+                    : Integer.parseInt(String.valueOf(v).trim()));
+        } catch (BusinessException be) {
+            throw be;
+        } catch (Exception e) {
+            // extraData 非 JSON 或格式脏:按未携带处理(提交侧快照默认值),与转移解析的显式报错口径不同——
+            // 延期 extraData 申请人不直接构造,脏值来源只有历史数据,不阻断主流程
+            return null;
+        }
+    }
+
+    /** 执行侧取延期天数:审批单 extraData.extendDays 优先,存量单无此键回退 sys_config */
+    private int resolveExtendDays(BizApproval approval) {
+        Integer fromApproval = extractExtendDaysOrNull(approval.getExtraData());
+        return fromApproval != null ? fromApproval : getConfigInt("customer.extend.days", 360);
+    }
+
+    /** 合并字段进 extraData JSON(保留其他键,如转移的 newOwnerId);输入脏 JSON 时以新对象重建 */
+    private String mergeExtraDataField(String extraData, String key, Object value) {
+        try {
+            Map<String, Object> data = (extraData == null || extraData.isBlank())
+                    ? new java.util.HashMap<>()
+                    : new com.fasterxml.jackson.databind.ObjectMapper().readValue(extraData, Map.class);
+            data.put(key, value);
+            return new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(data);
+        } catch (Exception e) {
+            Map<String, Object> fresh = new java.util.HashMap<>();
+            fresh.put(key, value);
+            try {
+                return new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(fresh);
+            } catch (Exception impossible) {
+                return "{\"" + key + "\":" + value + "}";
+            }
+        }
     }
 
     /**

@@ -2102,4 +2102,56 @@ class CustomerServiceTest {
                 mock(com.aigicrm.module.approval.mapper.BizApprovalMapper.class),
                 mock(com.aigicrm.module.system.mapper.SysLogMapper.class));
     }
+
+    /** 【延期A 2026-10-17 用户裁决】新开票重置已批准延期: 旧基准上批出的 approved_extend_days
+     *  不得与新票基准的保护期双重叠加(镜像对照: voidInvoice 删票回算不收回延期) */
+    @Test
+    void addInvoice_resetsApprovedExtendDays() {
+        BizInvoiceMapper invoiceMapper = mock(BizInvoiceMapper.class);
+        BizPaymentMapper paymentMapper = mock(BizPaymentMapper.class);
+        BizCustomerMapper customerMapper = mock(BizCustomerMapper.class);
+        BizCustomerIndicatorMapper indicatorMapper = mock(BizCustomerIndicatorMapper.class);
+
+        CustomerService service = new CustomerService(
+                customerMapper, mock(BizCustomerLogMapper.class),
+                invoiceMapper, mock(BizCustomerShareMapper.class),
+                indicatorMapper, mock(BizContactMapper.class), paymentMapper,
+                mock(com.aigicrm.module.customer.mapper.BizCustomerStageAmountMapper.class),
+                mock(SysUserMapper.class), mock(SysDeptMapper.class),
+                mock(BizReminderMapper.class), mock(JdbcTemplate.class),
+                mock(SysConfigService.class), mock(OrgScopeResolver.class),
+                mock(CustomerAccessService.class),
+                mock(com.aigicrm.module.system.service.RolePermScopeService.class),
+                mock(com.aigicrm.module.approval.mapper.BizApprovalMapper.class),
+                mock(com.aigicrm.module.system.mapper.SysLogMapper.class));
+
+        // 旧票 2025-06-01 基准 + 已批延期 360;再开一张 2026-10-17 的新票
+        BizInvoice fresh = new BizInvoice();
+        fresh.setId(9L);
+        fresh.setInvoiceDate(java.time.LocalDate.of(2026, 10, 17));
+        when(invoiceMapper.selectList(any())).thenReturn(List.of(fresh));
+        when(invoiceMapper.sumAmountByCustomerId(1L)).thenReturn(java.math.BigDecimal.ZERO);
+        when(paymentMapper.sumAmountByCustomerId(1L)).thenReturn(java.math.BigDecimal.ZERO);
+        when(indicatorMapper.selectOne(any())).thenReturn(null);
+
+        BizCustomer customer = new BizCustomer();
+        customer.setId(1L);
+        customer.setRegisterDate(java.time.LocalDate.of(2025, 1, 1));
+        customer.setLastInvoiceDate(java.time.LocalDate.of(2025, 6, 1));
+        customer.setApprovedExtendDays(360);
+        when(customerMapper.selectById(1L)).thenReturn(customer);
+
+        try (MockedStatic<SecurityUtils> security = mockStatic(SecurityUtils.class)) {
+            security.when(SecurityUtils::getCurrentUserId).thenReturn(7L);
+            security.when(SecurityUtils::getCurrentUser).thenReturn(null);
+            service.addInvoice(1L, fresh);
+        }
+
+        assertEquals(0, customer.getApprovedExtendDays(), "新开票必须清零已批准延期");
+        // 新基准=max(新票 2026-10-17, 注册 2025-01-01)=新票日: expire=新票日+360+0(旧延期不再叠加)
+        assertEquals(java.time.LocalDate.of(2026, 10, 17).plusDays(360), customer.getExpireDate(),
+                "实际: " + customer.getExpireDate());
+        // 重置落库一次 + 重算落库一次(refreshLastInvoiceDate 末尾的 updateById)
+        verify(customerMapper, times(2)).updateById(customer);
+    }
 }

@@ -1256,11 +1256,14 @@ public class CustomerService {
 
     /**
      * 【议题一裁决 2026-09-19 保护期决策表】统一公式:
-     * expireDate = 开票推导到期日(随开票增删浮动,管理员可配天数) + approved_extend_days(只增不减)
+     * expireDate = 开票推导到期日(随开票增删浮动,管理员可配天数) + approved_extend_days
      * <ul>
      *   <li>删票回算开票推导部分(纠正误录);已审批延期不收回(信任审批);两者独立叠加;</li>
+     *   <li>【延期A 2026-10-17 用户裁决】新开票重置 approved_extend_days 为 0:新发票把基准日
+     *       推到新开票日,旧基准上批出的延期不得与新保护期双重叠加(见 addInvoice);删票/作废回算不重置;</li>
      *   <li>天数走 sys_config: customer.protection.days(360)/customer.adjust.days(180),
-     *       管理员可在系统设置修改——延期天数 customer.extend.days 同口径(在 ApprovalService 消费)。</li>
+     *       管理员可在系统设置修改——延期天数自 2026-10-17 延期B 起进审批单 extraData.extendDays
+     *       (提交快照+审批人可调),存量单回退 customer.extend.days(ApprovalService 消费)。</li>
      * </ul>
      */
     private void calculateExpireDates(BizCustomer customer) {
@@ -1364,6 +1367,17 @@ public class CustomerService {
         invoice.setCustomerId(customerId);
         invoice.setCreatedBy(SecurityUtils.getCurrentUserId());
         invoiceMapper.insert(invoice);
+        // 【延期A 2026-10-17 用户裁决】新开票重置已批准延期:新发票把保护期基准日推到新开票日,
+        // 旧基准上批出的 approved_extend_days 若继续叠加会双重延长(新基准360天+旧延期),故清零——
+        // 与公海捞取清零(SeaService,延期是原负责人任内的审批)同一哲学。删票/作废回算不收回
+        // 已批延期(2026-09-19 议题一裁决维持);存量数据零迁移(有延期的客户下次开票自然归零)。
+        // 先落库清零再走 refreshLastInvoiceDate 重算(其内部重读客户行,读到的是已清零值)。
+        BizCustomer resetTarget = customerMapper.selectById(customerId);
+        if (resetTarget != null && resetTarget.getApprovedExtendDays() != null
+                && resetTarget.getApprovedExtendDays() != 0) {
+            resetTarget.setApprovedExtendDays(0);
+            customerMapper.updateById(resetTarget);
+        }
         refreshLastInvoiceDate(customerId);
         recalculateCoreStatus(customerId);
     }

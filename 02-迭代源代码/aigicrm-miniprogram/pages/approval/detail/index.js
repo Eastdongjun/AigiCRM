@@ -19,7 +19,23 @@ function formatApprovalSupplement(value) {
 function normalize(item) {
   const type = item.type || item.approvalType || 'unknown'
   const status = item.status || item.approvalStatus || 'pending'
-  const supplement = formatApprovalSupplement(item.extraData || item.reason || item.comment)
+  // 【延期B 2026-10-17】延期单天数进审批单:提取 extraData.extendDays 成行展示,
+  // 申请补充区不再裸显 {"extendDays":N} 原始 JSON(其余键保留原展示)
+  let extendDays = null
+  let supplementSource = item.extraData || item.reason || item.comment
+  if (type === 'extend' && item.extraData) {
+    try {
+      const parsed = JSON.parse(item.extraData)
+      const n = Number(parsed.extendDays)
+      if (Number.isFinite(n) && n > 0) extendDays = n
+      const rest = { ...parsed }
+      delete rest.extendDays
+      supplementSource = Object.keys(rest).length
+        ? JSON.stringify(rest, null, 2)
+        : (item.reason || item.comment || '')
+    } catch (e) { /* 脏 extraData:天数保持 null(展示回退),原样走申请补充 */ }
+  }
+  const supplement = formatApprovalSupplement(supplementSource)
   return {
     ...item,
     approvalCode: item.approvalCode || item.code || item.id || '',
@@ -37,6 +53,7 @@ function normalize(item) {
     actionAfterApprove: item.actionAfterApprove || '',
     createdAt: item.createdAt || item.createTime || '',
     updatedAt: item.updatedAt || item.updateTime || '',
+    extendDays,
     reason: supplement || '暂无说明',
     nodes: (item.nodes || []).map(normalizeApprovalNode)
   }
@@ -91,6 +108,11 @@ function buildApprovalView(approval, state = {}) {
     applicantText: approval.applicant || '申请人',
     currentNodeText: approval.currentNode || '-',
     actionAfterApproveText: approval.actionAfterApprove || '-',
+    // 【延期B 2026-10-17】延期单展示申请天数;调整入口在电脑端(小程序通过=按当前天数)
+    showExtendDays: approval.type === 'extend',
+    extendDaysText: approval.extendDays != null
+      ? `${approval.extendDays} 天（如需调整天数请在电脑端审批）`
+      : '以系统配置为准',
     showCustomer: Boolean(approval.customerName || approval.customerIndustry),
     customerText: `${customerNameText} ${customerIndustryText}`.trim(),
     createdAtText: approval.createdAt || '-',

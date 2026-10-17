@@ -20,6 +20,7 @@
     <view class="detail-row"><text>申请人</text><text>{{approvalView.applicantText}}</text></view>
     <view class="detail-row"><text>当前节点</text><text>{{approvalView.currentNodeText}}</text></view>
     <view class="detail-row"><text>通过后动作</text><text>{{approvalView.actionAfterApproveText}}</text></view>
+    <view wx:if="{{approvalView.showExtendDays}}" class="detail-row"><text>申请延期天数</text><text>{{approvalView.extendDaysText}}</text></view>
     <view wx:if="{{approvalView.showCustomer}}" class="detail-row"><text>客户</text><text>{{approvalView.customerText}}</text></view>
     <view class="detail-row"><text>申请时间</text><text>{{approvalView.createdAtText}}</text></view>
     <view class="detail-row"><text>更新时间</text><text>{{approvalView.updatedAtText}}</text></view>

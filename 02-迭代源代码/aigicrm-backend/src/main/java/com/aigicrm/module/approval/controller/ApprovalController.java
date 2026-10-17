@@ -76,7 +76,16 @@ public class ApprovalController {
     @PostMapping("/{id}/approve")
     @AigicrmLog(module = "审批", action = "审批通过", targetType = "approval")
     public Result<Void> approve(@PathVariable Long id, @RequestBody(required = false) Map<String, String> params) {
-        approvalService.approve(id, params != null ? params.get("comment") : null);
+        // 【延期B 2026-10-17】审批人可调延期天数:extendDays 可选,仅 extend 单生效(服务端校验类型+范围)
+        Integer extendDays = null;
+        if (params != null && params.get("extendDays") != null && !params.get("extendDays").isBlank()) {
+            try {
+                extendDays = Integer.valueOf(params.get("extendDays").trim());
+            } catch (NumberFormatException e) {
+                throw new com.aigicrm.common.BusinessException("延期天数必须是整数");
+            }
+        }
+        approvalService.approve(id, params != null ? params.get("comment") : null, extendDays);
         return Result.ok();
     }
 

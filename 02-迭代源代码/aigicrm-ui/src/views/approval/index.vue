@@ -184,11 +184,15 @@
             <el-descriptions-item label="申请人">{{ selectedApproval.applicantName || '-' }}</el-descriptions-item>
             <el-descriptions-item label="当前节点">{{ selectedApproval.currentNode || '-' }}</el-descriptions-item>
             <el-descriptions-item label="通过后动作">{{ selectedApproval.actionAfterApprove || '-' }}</el-descriptions-item>
+            <!-- 【延期B 2026-10-17】天数进审批单:延期单展示申请天数(提交快照,审批人可在通过时调整) -->
+            <el-descriptions-item v-if="selectedApproval.approvalType === 'extend'" label="申请延期天数">
+              {{ extendDaysOf(selectedApproval) != null ? extendDaysOf(selectedApproval) + ' 天' : '以系统配置为准' }}
+            </el-descriptions-item>
             <el-descriptions-item label="发起时间">{{ formatDateTime(selectedApproval.createdAt) }}</el-descriptions-item>
             <el-descriptions-item label="更新时间">{{ formatDateTime(selectedApproval.updatedAt) }}</el-descriptions-item>
           </el-descriptions>
 
-          <div v-if="selectedApproval.extraData" class="extra-data">
+          <div v-if="selectedApproval.extraData && !isExtendOnlyExtra(selectedApproval)" class="extra-data">
             <div class="section-title">申请补充</div>
             <pre>{{ formatExtraData(selectedApproval.extraData) }}</pre>
           </div>
@@ -251,6 +255,24 @@
       <template #footer>
         <el-button @click="transferVisible = false">取消</el-button>
         <el-button type="primary" :disabled="!transferTargetId" :loading="transferLoading" @click="confirmTransfer">确认转交</el-button>
+      </template>
+    </el-dialog>
+
+    <!-- 【延期B 2026-10-17】延期审批专用弹窗:申请天数预填(来自审批单快照),审批人可调整后通过 -->
+    <el-dialog v-model="extendApproveVisible" title="延期审批" width="420px" append-to-body>
+      <el-form label-width="90px">
+        <el-form-item label="客户">{{ extendApproveTarget?.customerName || '-' }}</el-form-item>
+        <el-form-item label="延期天数">
+          <el-input-number v-model="extendDaysInput" :min="1" :max="3650" :step="30" style="width: 180px" />
+          <span class="extend-days-hint">天（可在 1~3650 间调整，默认为申请值）</span>
+        </el-form-item>
+        <el-form-item label="审批意见">
+          <el-input v-model="approveCommentInput" type="textarea" :rows="2" placeholder="审批意见" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="extendApproveVisible = false">取消</el-button>
+        <el-button type="success" :loading="actionLoading" @click="confirmExtendApprove">通过并延期</el-button>
       </template>
     </el-dialog>
   </div>
@@ -390,6 +412,15 @@ const openDetail = async (row) => {
 }
 
 const handleApprove = async (row) => {
+  // 【延期B 2026-10-17】延期单走专用弹窗:审批人可调天数(1~3650)后通过;
+  // 调整值随 approve 请求提交,服务端合并进审批单 extraData 并按调整值执行
+  if (row.approvalType === 'extend') {
+    extendApproveTarget.value = row
+    extendDaysInput.value = extendDaysOf(row) ?? 360
+    approveCommentInput.value = '同意'
+    extendApproveVisible.value = true
+    return
+  }
   try {
     const { value } = await ElMessageBox.prompt('请输入审批意见', '审批通过', {
       inputValue: '同意',
@@ -433,6 +464,59 @@ const handleReject = async (row) => {
 const getTypeText = (type) => {
   const map = { claim: '捞取', transfer: '转移', extend: '延期', storage: '空间' }
   return map[type] || type
+}
+
+// ===== 【延期B 2026-10-17】延期天数进审批单 =====
+const extendApproveVisible = ref(false)
+const extendApproveTarget = ref(null)
+const extendDaysInput = ref(360)
+const approveCommentInput = ref('同意')
+
+/** 从审批单 extraData 解析申请延期天数(提交时快照;旧单无此键返回 null → 展示"以系统配置为准") */
+const extendDaysOf = (row) => {
+  try {
+    const data = JSON.parse(row?.extraData || '{}')
+    const n = Number(data.extendDays)
+    return Number.isFinite(n) && n > 0 ? n : null
+  } catch (e) {
+    return null
+  }
+}
+
+/** 延期单 extraData 只剩 extendDays 一个键时不再重复展示原始 JSON(天数已在描述区成行) */
+const isExtendOnlyExtra = (row) => {
+  if (row?.approvalType !== 'extend') return false
+  try {
+    const keys = Object.keys(JSON.parse(row.extraData || '{}'))
+    return keys.length <= 1 && keys.every(k => k === 'extendDays')
+  } catch (e) {
+    return false
+  }
+}
+
+const confirmExtendApprove = async () => {
+  const days = Number(extendDaysInput.value)
+  if (!Number.isFinite(days) || days < 1 || days > 3650) {
+    ElMessage.warning('延期天数须在 1~3650 天之间')
+    return
+  }
+  if (!approveCommentInput.value.trim()) {
+    ElMessage.warning('请填写审批意见')
+    return
+  }
+  actionLoading.value = true
+  try {
+    await approve(extendApproveTarget.value.id, { comment: approveCommentInput.value.trim(), extendDays: String(days) })
+    ElMessage.success('审批通过')
+    extendApproveVisible.value = false
+    detailVisible.value = false
+    loadData()
+    loadStats()
+    userStore.refreshBadges()
+  } catch (e) {
+  } finally {
+    actionLoading.value = false
+  }
 }
 
 const getTypeTag = (type) => {
@@ -510,6 +594,7 @@ onBeforeUnmount(() => {
 .page-header h2 { font-size: 18px; font-weight: 600; color: #333; }
 .page-desc { color: var(--text-muted); font-size: 13px; font-weight: normal; margin-left: 8px; }
 .header-right-info { display: flex; align-items: center; gap: 6px; color: var(--el-color-success); font-size: 13px; }
+.extend-days-hint { margin-left: 8px; color: var(--el-text-color-secondary); font-size: 12px; }
 
 /* 统计 · 深蓝条已收口为全局 MetricStrip 组件（C9 二轮），本页不再保留条带样式 */
 .tab-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 4px; }

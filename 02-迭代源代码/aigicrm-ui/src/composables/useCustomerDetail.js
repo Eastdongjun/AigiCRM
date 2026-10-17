@@ -205,7 +205,9 @@ export function useCustomerDetail() {
   }
   // 【修复 2026-10-04】返回是否保存成功(不再吞错让调用方误判成功):LogsTab 据此决定是否继续建任务/弹成功;失败时错误提示仍在此处统一弹出
   const submitLog = async () => { if(!newLog.value.trim()) return false; try { await addCustomerLog(customerId.value,{content:newLog.value}); ElMessage.success('已记录'); newLog.value=''; logs.value = (await getCustomerLogs(customerId.value)).data||[]; return true } catch(e) { notifyActionFailure(e, '跟进日志保存失败'); return false } }
-  const handleExtend = async () => { try { await ElMessageBox.confirm('确认申请延期？审批通过后保护期延长360天','申请延期'); await submitApproval({type:'extend',customerId:String(customer.value.id),actionAfterApprove:'保护期+360天'}); ElMessage.success('延期申请已提交') } catch(e) { if (e !== 'cancel' && e !== 'close') notifyActionFailure(e, '延期申请失败') } }
+  // 【延期B 2026-10-17】天数进审批单:提交不带天数(服务端快照 sys_config customer.extend.days 进 extraData),
+  // 审批人可在通过时调整——文案与 actionAfterApprove 不再硬编码"360天"
+  const handleExtend = async () => { try { await ElMessageBox.confirm('确认申请延期？延期天数将进入审批单，审批人可通过时调整','申请延期'); await submitApproval({type:'extend',customerId:String(customer.value.id),actionAfterApprove:'延长保护期(天数见审批单)'}); ElMessage.success('延期申请已提交') } catch(e) { if (e !== 'cancel' && e !== 'close') notifyActionFailure(e, '延期申请失败') } }
   const handleEdit = () => router.push(`/customer/edit/${customerId.value}`)
   // 【PR-18 台账状态机】确认/作废后统一刷新(金额汇总已排除 voided, 客户最近开票日/指标联动)
   // 【重构 2026-10-04】开票/回款的新增、删除四处 handler 原各自内联近似复制的 Promise.all 刷新块,统一改调本函数(取刷新超集,最终状态一致)

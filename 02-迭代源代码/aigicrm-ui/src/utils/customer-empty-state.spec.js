@@ -32,3 +32,33 @@ describe('客户列表空状态', () => {
     expect(customerEmptyText([], 3, '热连轧')).toBe('暂无符合筛选条件的客户')
   })
 })
+
+// 【⑬B 2026-10-17】页签分支：非"全部"页签 total=0 区分"该分类为空"与"数据范围无客户"
+// （NM005/郑磊案：成熟创新=0 的销售员 14/31 打开列表被"联系管理员"文案误导成权限问题）
+describe('客户列表空状态·页签分支', () => {
+  it('非全部页签 total=0 且全部页签有客户时提示该分类为空（不再误导去找管理员）', () => {
+    expect(customerEmptyText([], 0, '', { allTotal: 11, tabLabel: '成熟创新' }))
+      .toBe('「成熟创新」分类下暂无客户，可切换「全部」页签查看（共 11 个）')
+  })
+
+  it('计数未回时先按该分类为空口径，不闪"联系管理员"文案', () => {
+    expect(customerEmptyText([], 0, '', { tabLabel: '成熟创新' }))
+      .toBe('「成熟创新」分类下暂无客户，可切换「全部」页签查看')
+  })
+
+  it('非全部页签且全部页签计数确证为 0 时回落数据范围口径', () => {
+    expect(customerEmptyText([], 0, '', { allTotal: 0, tabLabel: '成熟创新' })).toContain('数据范围')
+  })
+
+  it('有搜索词时搜索口径优先于页签口径', () => {
+    expect(customerEmptyText([], 0, '热连轧', { allTotal: 11, tabLabel: '成熟创新' })).toContain('未找到与')
+  })
+
+  it('全部页签（不传 tabLabel）保持数据范围口径不受第四参影响', () => {
+    expect(customerEmptyText([], 0, '', { allTotal: 0 })).toContain('数据范围')
+  })
+
+  it('页签空表但 total>0（页码越界等）仍走筛选口径', () => {
+    expect(customerEmptyText([], 5, '', { allTotal: 11, tabLabel: '成熟创新' })).toBe('暂无符合筛选条件的客户')
+  })
+})
