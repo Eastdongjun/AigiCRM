@@ -28,7 +28,10 @@
               <el-input v-model="form.password" type="password" placeholder="请输入密码" prefix-icon="Lock" show-password @keyup.enter="handleLogin" />
             </el-form-item>
             <div class="form-options">
-              <el-checkbox v-model="form.rememberMe">记住账号密码</el-checkbox>
+              <div class="remember-group">
+                <el-checkbox v-model="form.rememberUser">记住账号</el-checkbox>
+                <el-checkbox v-model="form.rememberPass">记住密码</el-checkbox>
+              </div>
               <a class="forgot-link" href="javascript:void(0)" @click="forgotPwdVisible = true">忘记密码?</a>
             </div>
             <el-button type="primary" class="login-btn" :loading="loading" @click="handleLogin">登 录</el-button>
@@ -45,7 +48,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, watch, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { login } from '@/api/auth'
 import { getPublicConfig } from '@/api/system'
@@ -65,8 +68,13 @@ const systemLogo = ref('')
 const form = reactive({
   username: '',
   password: '',
-  rememberMe: true
+  // 【2026-10-17 用户口径】两个独立勾选项: 记住账号 / 记住密码。默认只勾"记住账号"
+  // (隐私保守默认); 记住密码依赖账号(无账号的密码无从回填)——勾密码自动带勾账号, 取消账号连密码一起取消
+  rememberUser: true,
+  rememberPass: false
 })
+watch(() => form.rememberPass, (v) => { if (v) form.rememberUser = true })
+watch(() => form.rememberUser, (v) => { if (!v) form.rememberPass = false })
 
 // 【记住账号密码 2026-10-17】此前"记住我"只记账号。密码以 base64(UTF-8 安全编码)存
 // localStorage——内网企业系统的常规取舍: 防"路过瞟一眼明文", 不防本机有控制权的人;
@@ -83,14 +91,25 @@ function clearRemembered() {
   localStorage.removeItem(REMEMBER_KEY_USER)
   localStorage.removeItem(REMEMBER_KEY_PASS)
 }
+/** 按两个独立勾选项落盘: 只记账号 / 账号+密码 / 全不记(密码项取消时密码必清) */
+function persistRemembered(password) {
+  if (form.rememberPass) saveRemembered(form.username, password)
+  else if (form.rememberUser) {
+    localStorage.setItem(REMEMBER_KEY_USER, form.username)
+    localStorage.removeItem(REMEMBER_KEY_PASS)
+  } else clearRemembered()
+}
 
 onMounted(async () => {
   const saved = localStorage.getItem(REMEMBER_KEY_USER)
   if (saved) {
     form.username = saved
+    form.rememberUser = true
     const savedPass = decodePass(localStorage.getItem(REMEMBER_KEY_PASS))
-    if (savedPass) form.password = savedPass
-    form.rememberMe = true
+    if (savedPass) {
+      form.password = savedPass
+      form.rememberPass = true
+    }
   }
   try {
     const res = await getPublicConfig()
@@ -139,21 +158,18 @@ const handleLogin = async () => {
         const { changePassword } = await import('@/api/system')
         await changePassword({ oldPassword: form.password, newPassword: value })
         // 改密成功: 记住密码须存"新"密码(旧口令已作废)
-        if (form.rememberMe) saveRemembered(form.username, value)
-        else clearRemembered()
+        persistRemembered(value)
         localStorage.removeItem('token')
         ElMessage.success('密码已修改，请用新密码重新登录')
         return
       } catch (e) {
-        if (form.rememberMe) saveRemembered(form.username, form.password)
-        else clearRemembered()
+        persistRemembered(form.password)
         localStorage.removeItem('token')
         ElMessage.warning('未完成密码修改，请重新登录')
         return
       }
     }
-    if (form.rememberMe) saveRemembered(form.username, form.password)
-    else clearRemembered()
+    persistRemembered(form.password)
     ElMessage.success('登录成功')
     router.push('/dashboard')
   } catch (e) {
@@ -310,6 +326,7 @@ const handleLogin = async () => {
   align-items: center;
   margin-bottom: 28px;
 }
+.remember-group { display: flex; gap: 18px; align-items: center; }
 .forgot-link {
   color: #2563eb;
   font-size: 13px;
