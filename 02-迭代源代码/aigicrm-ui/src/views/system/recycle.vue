@@ -76,7 +76,7 @@
         >
           <el-table-column label="客户全称" min-width="240">
             <template #default="{ row }">
-              <div class="name-cell">
+              <div class="name-cell clickable" @click.stop="openCustomerDetail(row)">
                 <span class="monogram" aria-hidden="true">{{ (row.customerName || '?').charAt(0) }}</span>
                 <span class="name-text">{{ row.customerName || '未命名客户' }}</span>
               </div>
@@ -101,10 +101,14 @@
           <el-table-column label="删除时间" min-width="160">
             <template #default="{ row }"><span class="time-text">{{ formatTime(row.deletedAt) }}</span></template>
           </el-table-column>
-          <el-table-column v-if="canRestore" label="操作" width="100" align="right" fixed="right">
+          <el-table-column v-if="canRestore || canPurge" label="操作" width="220" align="right" fixed="right">
             <template #default="{ row }">
-              <el-button link type="primary" size="small" :icon="RefreshLeft" @click="handleRestoreCustomer(row)">
+              <el-button link type="primary" size="small" @click.stop="openCustomerDetail(row)">详情</el-button>
+              <el-button v-if="canRestore" link type="primary" size="small" :icon="RefreshLeft" @click.stop="handleRestoreCustomer(row)">
                 恢复
+              </el-button>
+              <el-button v-if="canPurge" link type="danger" size="small" @click.stop="handleHardDeleteCustomer(row)">
+                彻底删除
               </el-button>
             </template>
           </el-table-column>
@@ -117,7 +121,7 @@
         >
           <el-table-column label="文件名" min-width="260">
             <template #default="{ row }">
-              <div class="name-cell">
+              <div class="name-cell clickable" @click.stop="openFileDetail(row)">
                 <span class="file-icon" aria-hidden="true"><el-icon><Document /></el-icon></span>
                 <span class="name-text" :title="row.fileName">{{ row.fileName }}</span>
               </div>
@@ -155,12 +159,15 @@
               </el-tag>
             </template>
           </el-table-column>
-          <el-table-column v-if="canRestore" label="操作" width="110" align="right" fixed="right">
+          <el-table-column v-if="canRestore || canPurge" label="操作" width="220" align="right" fixed="right">
             <template #default="{ row }">
-              <el-button v-if="row.contentAvailable" link type="primary" size="small" :icon="RefreshLeft" @click="handleRestoreFile(row)">
+              <el-button link type="primary" size="small" @click.stop="openFileDetail(row)">详情</el-button>
+              <el-button v-if="canRestore && row.contentAvailable" link type="primary" size="small" :icon="RefreshLeft" @click.stop="handleRestoreFile(row)">
                 恢复
               </el-button>
-              <span v-else class="muted-text restore-unavailable">不可恢复</span>
+              <el-button v-if="canPurge" link type="danger" size="small" @click.stop="handleHardDeleteFile(row)">
+                彻底删除
+              </el-button>
             </template>
           </el-table-column>
         </el-table>
@@ -172,7 +179,7 @@
         >
           <el-table-column label="姓名" min-width="140">
             <template #default="{ row }">
-              <div class="name-cell">
+              <div class="name-cell clickable" @click.stop="openUserDetail(row)">
                 <span class="monogram monogram-user" aria-hidden="true">{{ (row.realName || row.username || '?').charAt(0) }}</span>
                 <span class="name-text">{{ row.realName || '未填写姓名' }}</span>
               </div>
@@ -201,10 +208,14 @@
           <el-table-column label="删除时间" min-width="160">
             <template #default="{ row }"><span class="time-text">{{ formatTime(row.deletedAt) }}</span></template>
           </el-table-column>
-          <el-table-column v-if="canRestore" label="操作" width="100" align="right" fixed="right">
+          <el-table-column v-if="canRestore || canPurge" label="操作" width="220" align="right" fixed="right">
             <template #default="{ row }">
-              <el-button link type="primary" size="small" :icon="RefreshLeft" @click="handleRestoreUser(row)">
+              <el-button link type="primary" size="small" @click.stop="openUserDetail(row)">详情</el-button>
+              <el-button v-if="canRestore" link type="primary" size="small" :icon="RefreshLeft" @click.stop="handleRestoreUser(row)">
                 恢复
+              </el-button>
+              <el-button v-if="canPurge" link type="danger" size="small" @click.stop="handleHardDeleteUser(row)">
+                彻底删除
               </el-button>
             </template>
           </el-table-column>
@@ -220,17 +231,113 @@
         </div>
       </template>
     </div>
+
+    <!-- 详情抽屉：客户/人员/文件 -->
+    <el-drawer v-model="detailVisible" :title="detailTitle" size="540px" destroy-on-close>
+      <div v-loading="detailLoading" class="detail-body">
+        <!-- 客户详情 -->
+        <template v-if="detailType === 'customer' && detailData">
+          <el-descriptions :column="1" border size="small">
+            <el-descriptions-item label="客户全称">{{ detailData.customer.customerName || '-' }}</el-descriptions-item>
+            <el-descriptions-item label="编号">{{ detailData.customer.customerCode || '-' }}</el-descriptions-item>
+            <el-descriptions-item label="开票名称">{{ detailData.customer.invoiceName || '-' }}</el-descriptions-item>
+            <el-descriptions-item label="原负责人">{{ detailData.ownerName || (detailData.customer.ownerId ? '负责人已删除' : '未分配') }}</el-descriptions-item>
+            <el-descriptions-item label="行业 / 分类">{{ (detailData.customer.industry || '-') + ' / ' + (detailData.customer.devType || '-') }}</el-descriptions-item>
+            <el-descriptions-item label="省市县">{{ [detailData.customer.province, detailData.customer.city, detailData.customer.district].filter(Boolean).join(' ') || '-' }}</el-descriptions-item>
+            <el-descriptions-item label="厂址">{{ detailData.customer.address || '-' }}</el-descriptions-item>
+            <el-descriptions-item label="产能">{{ detailData.customer.capacity || '-' }}</el-descriptions-item>
+            <el-descriptions-item label="注册日">{{ detailData.customer.registerDate || '-' }}</el-descriptions-item>
+            <el-descriptions-item label="最近开票">{{ detailData.customer.lastInvoiceDate || '-' }}</el-descriptions-item>
+            <el-descriptions-item label="到期日">{{ detailData.customer.expireDate || '-' }}</el-descriptions-item>
+            <el-descriptions-item label="创建时间">{{ formatTime(detailData.customer.createdAt) }}</el-descriptions-item>
+            <el-descriptions-item label="删除时间">{{ formatTime(detailData.customer.updatedAt) }}</el-descriptions-item>
+          </el-descriptions>
+          <div class="detail-section-title">关联数据</div>
+          <div class="related-grid">
+            <span v-for="(count, label) in detailData.related" :key="label" class="related-chip" :class="{ zero: !count }">
+              {{ label }} <b>{{ count }}</b>
+            </span>
+          </div>
+          <p class="detail-hint">存在发票、回款、激励、指标、日志、阶段金额或审批单时不能彻底删除；分享、提醒、公海残留会随彻底删除一并清理。</p>
+        </template>
+
+        <!-- 人员详情 -->
+        <template v-else-if="detailType === 'user' && detailData">
+          <el-descriptions :column="1" border size="small">
+            <el-descriptions-item label="姓名">{{ detailData.user.realName || '-' }}</el-descriptions-item>
+            <el-descriptions-item label="账号">{{ detailData.user.username || '-' }}</el-descriptions-item>
+            <el-descriptions-item label="手机号">{{ detailData.user.phone || '-' }}</el-descriptions-item>
+            <el-descriptions-item label="邮箱">{{ detailData.user.email || '-' }}</el-descriptions-item>
+            <el-descriptions-item label="原部门">{{ detailData.deptName || (detailData.user.deptId ? '部门已删除' : '未分配') }}</el-descriptions-item>
+            <el-descriptions-item label="账号状态">{{ detailData.user.status === 1 ? '启用' : '停用' }}</el-descriptions-item>
+            <el-descriptions-item label="数据范围覆盖">{{ detailData.user.dataScopeOverride || '未设置' }}</el-descriptions-item>
+            <el-descriptions-item label="离职状态">{{ detailData.user.leaveStatus || '-' }}</el-descriptions-item>
+            <el-descriptions-item label="创建时间">{{ formatTime(detailData.user.createdAt) }}</el-descriptions-item>
+            <el-descriptions-item label="删除时间">{{ formatTime(detailData.user.updatedAt) }}</el-descriptions-item>
+          </el-descriptions>
+          <div class="detail-section-title">关联数据</div>
+          <div class="related-grid">
+            <span v-for="(count, label) in detailData.related" :key="label" class="related-chip" :class="{ zero: !count }">
+              {{ label }} <b>{{ count }}</b>
+            </span>
+          </div>
+          <p class="detail-hint">存在名下客户、审批、激励、文件、日志等业务关联时不能彻底删除；角色/岗位/组织关联会在彻底删除时一并清理，系统日志保留账号名。</p>
+        </template>
+
+        <!-- 文件详情 -->
+        <template v-else-if="detailType === 'file' && detailData">
+          <el-descriptions :column="1" border size="small">
+            <el-descriptions-item label="文件名">{{ detailData.file.fileName || '-' }}</el-descriptions-item>
+            <el-descriptions-item label="大小">{{ formatSize(detailData.file.fileSize) }}</el-descriptions-item>
+            <el-descriptions-item label="文件类型">{{ detailData.fileType || '-' }}</el-descriptions-item>
+            <el-descriptions-item label="归属">{{ scopeLabel(detailData.file.fileScope) }}</el-descriptions-item>
+            <el-descriptions-item label="上传人">{{ detailData.file.uploaderName || (detailData.file.uploaderId ? '上传人已删除' : '-') }}</el-descriptions-item>
+            <el-descriptions-item label="所在文件夹">{{ detailData.file.folderName || (detailData.file.folderId ? '文件夹已删除' : '根目录') }}</el-descriptions-item>
+            <el-descriptions-item label="内容状态">
+              <el-tag size="small" :type="detailData.file.contentAvailable ? 'success' : 'info'" effect="plain">
+                {{ detailData.file.contentAvailable ? '可恢复' : '已清除' }}
+              </el-tag>
+            </el-descriptions-item>
+            <el-descriptions-item label="创建时间">{{ formatTime(detailData.createdAt) }}</el-descriptions-item>
+            <el-descriptions-item label="删除时间">{{ formatTime(detailData.file.deletedAt) }}</el-descriptions-item>
+          </el-descriptions>
+          <div class="detail-actions">
+            <el-button v-if="detailData.file.contentAvailable" type="primary" plain :icon="Download" @click="downloadRecycleFile(detailData.file)">
+              下载文件
+            </el-button>
+            <span v-else class="muted-text">文件内容已物理清除，仅保留删除记录</span>
+          </div>
+          <p class="detail-hint">文件仍被激励记录引用时不能彻底删除；彻底删除会同时清除物理内容与台账记录。</p>
+        </template>
+      </div>
+
+      <template #footer>
+        <div class="detail-footer">
+          <el-button @click="detailVisible = false">关闭</el-button>
+          <el-button v-if="canRestore && detailData && detailCanRestore" type="primary" plain @click="restoreFromDetail">
+            恢复
+          </el-button>
+          <el-button v-if="canPurge && detailData" type="danger" @click="hardDeleteFromDetail">
+            彻底删除
+          </el-button>
+        </div>
+      </template>
+    </el-drawer>
   </div>
 </template>
 
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Document, Delete, InfoFilled, Refresh, RefreshLeft, Search } from '@element-plus/icons-vue'
+import { Document, Delete, Download, InfoFilled, Refresh, RefreshLeft, Search } from '@element-plus/icons-vue'
 import {
   getDeletedCustomers, getDeletedUsers, getDeletedFiles,
   restoreDeletedCustomer, restoreDeletedUser, restoreDeletedFile, purgeDeletedFiles,
+  getDeletedCustomerDetail, getDeletedUserDetail, getDeletedFileDetail,
+  hardDeleteCustomer, hardDeleteUser, hardDeleteFile,
 } from '@/api/recycle'
+import { downloadFile } from '@/utils/download'
+import { getToken } from '@/utils/token'
 import { formatSize } from '@/utils/format'
 import { useUserStore } from '@/store/user'
 
@@ -252,6 +359,18 @@ const rows = ref([])
 const loading = ref(false)
 const firstLoading = ref(true)
 const counts = reactive({ customers: 0, users: 0, files: 0 })
+
+// 详情抽屉
+const detailVisible = ref(false)
+const detailLoading = ref(false)
+const detailType = ref('')
+const detailData = ref(null)
+const detailRow = ref(null)
+const detailTitle = computed(() => ({ customer: '客户详情', user: '人员详情', file: '文件详情' }[detailType.value] || '详情'))
+const detailCanRestore = computed(() => {
+  if (detailType.value === 'file') return Boolean(detailData.value?.file?.contentAvailable)
+  return Boolean(detailData.value)
+})
 
 const formatTime = (value) => {
   if (!value) return '-'
@@ -400,6 +519,90 @@ async function handlePurgeFiles() {
   }
 }
 
+// ===== 详情 =====
+async function openDetail(type, row, fetcher) {
+  detailType.value = type
+  detailRow.value = row
+  detailData.value = null
+  detailVisible.value = true
+  detailLoading.value = true
+  try {
+    const res = await fetcher(row.id)
+    detailData.value = res.data || null
+  } catch (e) {
+    detailVisible.value = false
+  } finally {
+    detailLoading.value = false
+  }
+}
+
+const openCustomerDetail = (row) => openDetail('customer', row, getDeletedCustomerDetail)
+const openUserDetail = (row) => openDetail('user', row, getDeletedUserDetail)
+const openFileDetail = (row) => openDetail('file', row, getDeletedFileDetail)
+
+// ===== 彻底删除 =====
+const HARD_DELETE_LABEL = { customer: '客户', user: '人员', file: '文件' }
+
+async function hardDelete(kind, row) {
+  const label = HARD_DELETE_LABEL[kind]
+  const name = kind === 'customer' ? row.customerName : kind === 'user' ? (row.realName || row.username) : row.fileName
+  try {
+    await ElMessageBox.confirm(
+      `确认彻底删除${label}“${name}”？此操作不可恢复；如存在业务关联（发票、回款、激励、日志等）系统会拒绝并说明原因。`,
+      `彻底删除${label}`,
+      { confirmButtonText: '彻底删除', cancelButtonText: '取消', type: 'warning' }
+    )
+  } catch (e) {
+    return
+  }
+  try {
+    const res = kind === 'customer' ? await hardDeleteCustomer(row.id)
+      : kind === 'user' ? await hardDeleteUser(row.id)
+        : await hardDeleteFile(row.id)
+    ElMessage.success(res.data?.message || `${label}已彻底删除`)
+    detailVisible.value = false
+    await Promise.all([loadData(), loadCounts()])
+  } catch (e) {
+    // 错误提示由 request 拦截器统一弹出（业务关联拒绝原因在 message 中）
+  }
+}
+
+const handleHardDeleteCustomer = (row) => hardDelete('customer', row)
+const handleHardDeleteUser = (row) => hardDelete('user', row)
+const handleHardDeleteFile = (row) => hardDelete('file', row)
+const hardDeleteFromDetail = () => {
+  if (!detailRow.value) return
+  hardDelete(detailType.value, detailRow.value)
+}
+
+async function restoreFromDetail() {
+  if (!detailRow.value) return
+  const row = detailRow.value
+  try {
+    if (detailType.value === 'customer') {
+      const res = await restoreDeletedCustomer(row.id)
+      ElMessage.success(res.data?.message || '客户已恢复')
+    } else if (detailType.value === 'user') {
+      const res = await restoreDeletedUser(row.id)
+      ElMessage.success(res.data?.message || '人员已恢复')
+    } else {
+      const res = await restoreDeletedFile(row.id)
+      ElMessage.success(res.data?.message || '文件已恢复')
+    }
+    detailVisible.value = false
+    await Promise.all([loadData(), loadCounts()])
+  } catch (e) {
+    // 错误提示由 request 拦截器统一弹出
+  }
+}
+
+async function downloadRecycleFile(row) {
+  await downloadFile(`/api/system/recycle/files/${row.id}/content`, {
+    name: row.fileName || '文件',
+    headers: { Authorization: `Bearer ${getToken()}` },
+  })
+}
+
 onMounted(() => {
   loadData()
   loadCounts()
@@ -472,6 +675,20 @@ onMounted(() => {
   border-radius: 8px; background: #f1f3f7; color: #5c6675; font-size: 15px; flex-shrink: 0;
 }
 .restore-unavailable { font-size: 12px; }
+
+/* 详情 */
+.name-cell.clickable { cursor: pointer; }
+.name-cell.clickable:hover .name-text { color: var(--el-color-primary); }
+.detail-body { min-height: 200px; }
+.detail-section-title { margin: 16px 0 8px; font-size: 13px; font-weight: 600; color: var(--el-text-color-primary); }
+.related-grid { display: flex; flex-wrap: wrap; gap: 8px; }
+.related-chip { padding: 4px 10px; border-radius: 6px; background: #f2f5f9; color: #3f4a5a; font-size: 12px; }
+.related-chip b { margin-left: 4px; color: var(--el-color-primary); font-variant-numeric: tabular-nums; }
+.related-chip.zero { color: #9aa4b2; }
+.related-chip.zero b { color: #9aa4b2; }
+.detail-hint { margin-top: 12px; font-size: 12px; line-height: 1.6; color: #7a8494; }
+.detail-actions { margin-top: 16px; display: flex; align-items: center; gap: 10px; }
+.detail-footer { display: flex; justify-content: flex-end; gap: 8px; }
 .name-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .mono-text { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12.5px; color: #3f4a5a; }
 .muted-text { color: #7a8494; }

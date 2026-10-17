@@ -51,6 +51,8 @@ import java.util.stream.Collectors;
 public class RecycleService {
 
     private static final int MAX_PAGE_SIZE = 100;
+    /** 客户彻底删除时随删的辅助关联(不阻断删除); 其余业务关联存在即拒绝 */
+    private static final Set<String> CUSTOMER_AUX_REFS = Set.of("分享", "提醒", "公海池记录");
 
     private final BizCustomerMapper customerMapper;
     private final SysUserMapper userMapper;
@@ -145,6 +147,144 @@ public class RecycleService {
         writeAuditLog("恢复人员", "sys_user", id,
                 "账号=" + u.getUsername() + ", 姓名=" + u.getRealName() + ", 部门ID=" + u.getDeptId());
         return "人员已恢复；删除时已清除其角色/岗位/组织归属，请到「人员管理」重新分配角色后再通知本人登录";
+    }
+
+    // ==================== 详情 ====================
+
+    public DeletedCustomerDetail deletedCustomerDetail(Long id) {
+        BizCustomer c = customerMapper.selectByIdIncludingDeleted(id);
+        if (c == null || !Objects.equals(c.getDeleted(), 1)) {
+            throw new BusinessException("该客户不在回收站（可能已被恢复或已被彻底删除）");
+        }
+        String ownerName = c.getOwnerId() == null ? null
+                : namesOf(Set.of(c.getOwnerId())).get(c.getOwnerId());
+        return new DeletedCustomerDetail(c, ownerName, customerRelated(id));
+    }
+
+    public DeletedUserDetail deletedUserDetail(Long id) {
+        SysUser u = userMapper.selectByIdIncludingDeleted(id);
+        if (u == null || !Objects.equals(u.getDeleted(), 1)) {
+            throw new BusinessException("该人员不在回收站（可能已被恢复或已被彻底删除）");
+        }
+        Map<String, Object> safe = new java.util.LinkedHashMap<>();
+        safe.put("id", u.getId());
+        safe.put("username", u.getUsername());
+        safe.put("realName", u.getRealName());
+        safe.put("phone", u.getPhone());
+        safe.put("email", u.getEmail());
+        safe.put("deptId", u.getDeptId());
+        safe.put("status", u.getStatus());
+        safe.put("dataScopeOverride", u.getDataScopeOverride());
+        safe.put("leaveStatus", u.getLeaveStatus());
+        safe.put("createdAt", u.getCreatedAt());
+        safe.put("updatedAt", u.getUpdatedAt());
+        SysDept dept = u.getDeptId() == null ? null : deptMapper.selectById(u.getDeptId());
+        return new DeletedUserDetail(safe, dept == null ? null : dept.getDeptName(), userRelated(id));
+    }
+
+    public DeletedFileDetail deletedFileDetail(Long id) {
+        BizFile f = requireDeletedFile(id);
+        Map<Long, String> uploader = f.getUploaderId() == null ? Map.of()
+                : namesOf(Set.of(f.getUploaderId()));
+        Map<Long, String> folders = folderNamesOf(List.of(f));
+        DeletedFileRow row = new DeletedFileRow(f.getId(), f.getFileName(), f.getFileSize(), f.getFileScope(),
+                f.getUploaderId(), uploader.get(f.getUploaderId()),
+                f.getFolderId(), folders.get(f.getFolderId()), f.getUpdatedAt(),
+                fileService.contentExists(f.getOssKey()));
+        return new DeletedFileDetail(row, f.getFileType(), f.getCreatedAt(), f.getOssUrl());
+    }
+
+    // ==================== 彻底删除(不可恢复) ====================
+
+    /** 客户彻底删除: 财务/激励/跟进/指标/阶段金额/审批等业务关联存在时拒绝; 分享/提醒/公海残留随删 */
+    @Transactional
+    public String hardDeleteCustomer(Long id) {
+        BizCustomer c = customerMapper.selectByIdIncludingDeleted(id);
+        if (c == null || !Objects.equals(c.getDeleted(), 1)) {
+            throw new BusinessException("该客户不在回收站（可能已被恢复或已被彻底删除）");
+        }
+        Map<String, Long> related = customerRelated(id);
+        List<String> blocked = related.entrySet().stream()
+                .filter(e -> !CUSTOMER_AUX_REFS.contains(e.getKey()) && e.getValue() > 0)
+                .map(e -> e.getKey() + " " + e.getValue())
+                .toList();
+        if (!blocked.isEmpty()) {
+            throw new BusinessException("存在关联数据（" + String.join("、", blocked)
+                    + "），不能彻底删除；请先处理这些记录");
+        }
+        jdbc.update("DELETE FROM biz_customer_share WHERE customer_id = ?", id);
+        jdbc.update("DELETE FROM biz_reminder WHERE customer_id = ?", id);
+        jdbc.update("DELETE FROM biz_sea_pool WHERE customer_id = ?", id);
+        int deleted = jdbc.update("DELETE FROM biz_customer WHERE id = ? AND deleted = 1", id);
+        if (deleted != 1) {
+            throw new BusinessException("彻底删除失败：数据状态已变化，请刷新后重试");
+        }
+        writeAuditLog("彻底删除客户", "customer", id,
+                "客户名=" + c.getCustomerName() + ", 编码=" + c.getCustomerCode());
+        return "客户已彻底删除（不可恢复）";
+    }
+
+    /** 人员彻底删除: 仍被业务数据引用时拒绝; 角色/岗位/组织关联随删 */
+    @Transactional
+    public String hardDeleteUser(Long id) {
+        SysUser u = userMapper.selectByIdIncludingDeleted(id);
+        if (u == null || !Objects.equals(u.getDeleted(), 1)) {
+            throw new BusinessException("该人员不在回收站（可能已被恢复或已被彻底删除）");
+        }
+        Map<String, Long> related = userRelated(id);
+        List<String> blocked = related.entrySet().stream()
+                .filter(e -> e.getValue() > 0)
+                .map(e -> e.getKey() + " " + e.getValue())
+                .toList();
+        if (!blocked.isEmpty()) {
+            throw new BusinessException("存在业务关联（" + String.join("、", blocked)
+                    + "），不能彻底删除；请先处理这些记录");
+        }
+        jdbc.update("DELETE FROM sys_user_role WHERE user_id = ?", id);
+        jdbc.update("DELETE FROM sys_user_position WHERE user_id = ?", id);
+        jdbc.update("DELETE FROM sys_user_org WHERE user_id = ?", id);
+        jdbc.update("DELETE FROM sys_org_admin WHERE user_id = ?", id);
+        int deleted = jdbc.update("DELETE FROM sys_user WHERE id = ? AND deleted = 1", id);
+        if (deleted != 1) {
+            throw new BusinessException("彻底删除失败：数据状态已变化，请刷新后重试");
+        }
+        permissionCacheService.evict(id);
+        writeAuditLog("彻底删除人员", "sys_user", id,
+                "账号=" + u.getUsername() + ", 姓名=" + u.getRealName());
+        return "人员已彻底删除（不可恢复）";
+    }
+
+    /** 文件彻底删除: 激励记录仍引用时拒绝; 物理内容与台账行一并清除 */
+    @Transactional
+    public String hardDeleteFile(Long id) {
+        BizFile f = requireDeletedFile(id);
+        if (fileService.isIncentiveEvidence(id)) {
+            throw new BusinessException("该文件仍被激励记录引用，不能彻底删除；请先在激励模块处理记录");
+        }
+        fileService.deleteStoredContent(f.getOssKey());
+        int deleted = jdbc.update("DELETE FROM biz_file WHERE id = ? AND deleted = 1", id);
+        if (deleted != 1) {
+            throw new BusinessException("彻底删除失败：数据状态已变化，请刷新后重试");
+        }
+        writeAuditLog("彻底删除文件", "biz_file", id,
+                "文件名=" + f.getFileName() + ", scope=" + f.getFileScope());
+        return "文件已彻底删除（不可恢复）";
+    }
+
+    /** 回收站文件内容下载(仅详情查看, 已由控制器校验 system:recycle:view) */
+    public void writeFileContent(Long id, jakarta.servlet.http.HttpServletResponse response) {
+        BizFile f;
+        try {
+            f = requireDeletedFile(id);
+        } catch (BusinessException e) {
+            response.setStatus(404);
+            return;
+        }
+        if (!fileService.contentExists(f.getOssKey())) {
+            response.setStatus(404);
+            return;
+        }
+        fileService.writeStoredContent(f.getOssKey(), f.getFileName(), f.getFileType(), response);
     }
 
     // ==================== 已删除文件 ====================
@@ -287,6 +427,51 @@ public class RecycleService {
         return names;
     }
 
+    private BizFile requireDeletedFile(Long id) {
+        BizFile f = fileMapper.selectByIdIncludingDeleted(id);
+        if (f == null || !Objects.equals(f.getDeleted(), 1)) {
+            throw new BusinessException("该文件不在回收站（可能已被恢复或已被彻底删除）");
+        }
+        return f;
+    }
+
+    /** 客户关联数据计数(与彻底删除守卫同源; 含软删行, 因为删客户会孤立它们) */
+    private Map<String, Long> customerRelated(Long customerId) {
+        Map<String, Long> m = new java.util.LinkedHashMap<>();
+        m.put("发票", countRows("SELECT COUNT(*) FROM biz_invoice WHERE customer_id = ?", customerId));
+        m.put("回款", countRows("SELECT COUNT(*) FROM biz_payment WHERE customer_id = ?", customerId));
+        m.put("激励记录", countRows("SELECT COUNT(*) FROM biz_incentive_record WHERE customer_id = ?", customerId));
+        m.put("六项指标", countRows("SELECT COUNT(*) FROM biz_customer_indicator WHERE customer_id = ?", customerId));
+        m.put("跟进日志", countRows("SELECT COUNT(*) FROM biz_customer_log WHERE customer_id = ?", customerId));
+        m.put("阶段金额", countRows("SELECT COUNT(*) FROM biz_customer_stage_amount WHERE customer_id = ?", customerId));
+        m.put("审批单", countRows("SELECT COUNT(*) FROM biz_approval WHERE customer_id = ?", customerId));
+        m.put("分享", countRows("SELECT COUNT(*) FROM biz_customer_share WHERE customer_id = ?", customerId));
+        m.put("提醒", countRows("SELECT COUNT(*) FROM biz_reminder WHERE customer_id = ?", customerId));
+        m.put("公海池记录", countRows("SELECT COUNT(*) FROM biz_sea_pool WHERE customer_id = ?", customerId));
+        return m;
+    }
+
+    /** 人员业务关联计数(全部阻断彻底删除; 审计日志 sys_log 保留 username 不在此列) */
+    private Map<String, Long> userRelated(Long userId) {
+        Map<String, Long> m = new java.util.LinkedHashMap<>();
+        m.put("名下客户", countRows("SELECT COUNT(*) FROM biz_customer WHERE owner_id = ?", userId));
+        m.put("审批申请", countRows("SELECT COUNT(*) FROM biz_approval WHERE applicant_id = ?", userId));
+        m.put("审批节点", countRows("SELECT COUNT(*) FROM biz_approval_node WHERE approver_id = ?", userId));
+        m.put("激励记录", countRows("SELECT COUNT(*) FROM biz_incentive_record WHERE user_id = ?", userId));
+        m.put("上传文件", countRows("SELECT COUNT(*) FROM biz_file WHERE uploader_id = ?", userId));
+        m.put("跟进日志", countRows("SELECT COUNT(*) FROM biz_customer_log WHERE user_id = ?", userId));
+        m.put("提醒", countRows("SELECT COUNT(*) FROM biz_reminder WHERE owner_id = ?", userId));
+        m.put("被分享", countRows("SELECT COUNT(*) FROM biz_customer_share WHERE shared_to_user_id = ?", userId));
+        m.put("阶段金额", countRows("SELECT COUNT(*) FROM biz_customer_stage_amount WHERE created_by = ? OR updated_by = ?", userId, userId));
+        m.put("转移记录", countRows("SELECT COUNT(*) FROM biz_customer_transfer WHERE from_user_id = ? OR to_user_id = ? OR operator_id = ?", userId, userId, userId));
+        return m;
+    }
+
+    private long countRows(String sql, Object... args) {
+        Long n = jdbc.queryForObject(sql, Long.class, args);
+        return n == null ? 0L : n;
+    }
+
     /** 恢复留痕: 与删除同口径写 sys_log(管理员可在 系统管理-日志管理 回查) */
     private void writeAuditLog(String action, String targetType, Long targetId, String detail) {
         SysLog log = new SysLog();
@@ -319,5 +504,14 @@ public class RecycleService {
     public record DeletedFileRow(Long id, String fileName, Long fileSize, String fileScope,
                                  Long uploaderId, String uploaderName, Long folderId, String folderName,
                                  LocalDateTime deletedAt, boolean contentAvailable) {
+    }
+
+    public record DeletedCustomerDetail(BizCustomer customer, String ownerName, Map<String, Long> related) {
+    }
+
+    public record DeletedUserDetail(Map<String, Object> user, String deptName, Map<String, Long> related) {
+    }
+
+    public record DeletedFileDetail(DeletedFileRow file, String fileType, LocalDateTime createdAt, String url) {
     }
 }

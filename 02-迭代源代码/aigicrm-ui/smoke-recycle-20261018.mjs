@@ -37,11 +37,11 @@ const headerText = (await page.locator('.el-table').innerText()).replace(/\s+/g,
 ok('人员表头含账号/删除时间', headerText.includes('账号') && headerText.includes('删除时间'));
 
 // 搜索联动
-await page.locator('input[placeholder*="姓名"]').first().fill('zhangsan');
+await page.locator('input[placeholder*="姓名"]').first().fill('wangleilei');
 await page.keyboard.press('Enter');
 await page.waitForTimeout(1200);
 const searchRows = await page.locator('.el-table__row').count();
-ok('人员搜索 zhangsan 命中', searchRows >= 1, `rows=${searchRows}`);
+ok('人员搜索 wangleilei 命中', searchRows >= 1, `rows=${searchRows}`);
 
 // 切已删除文件页签
 await page.locator('.seg-item', { hasText: '已删除文件' }).first().click();

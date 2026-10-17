@@ -30,6 +30,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyCollection;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -343,6 +344,102 @@ class RecycleServiceTest {
         assertEquals(2, purged);
         verify(fileService).deleteStoredContent("public/1/x.pdf");
         verify(fileService).deleteStoredContent("private/9/y.txt");
+        verify(logMapper).insert(any(SysLog.class));
+    }
+
+    // ==================== 详情与彻底删除 ====================
+
+    private void stubNoRelated() {
+        when(jdbc.queryForObject(anyString(), eq(Long.class), any(Object[].class))).thenReturn(0L);
+    }
+
+    @Test
+    void deletedCustomerDetail_returnsOwnerAndRelatedCounts() {
+        when(customerMapper.selectByIdIncludingDeleted(42L)).thenReturn(deletedCustomer(9L));
+        SysUser owner = deletedUser(9L, "s9", null);
+        owner.setDeleted(0);
+        owner.setRealName("原负责人");
+        when(userMapper.selectNamesByIds(anyCollection())).thenReturn(List.of(owner));
+        stubNoRelated();
+
+        RecycleService.DeletedCustomerDetail detail = service.deletedCustomerDetail(42L);
+
+        assertEquals("原负责人", detail.ownerName());
+        assertTrue(detail.related().containsKey("发票"));
+        assertEquals(0L, detail.related().get("发票"));
+    }
+
+    @Test
+    void hardDeleteCustomer_withBusinessRefs_rejected() {
+        when(customerMapper.selectByIdIncludingDeleted(42L)).thenReturn(deletedCustomer(9L));
+        stubNoRelated();
+        when(jdbc.queryForObject(contains("biz_invoice"), eq(Long.class), any(Object[].class))).thenReturn(1L);
+
+        BusinessException ex = assertThrows(BusinessException.class, () -> service.hardDeleteCustomer(42L));
+
+        assertTrue(ex.getMessage().contains("发票 1"), "实际: " + ex.getMessage());
+        verify(jdbc, never()).update(eq("DELETE FROM biz_customer WHERE id = ? AND deleted = 1"), any(Object[].class));
+    }
+
+    @Test
+    void hardDeleteCustomer_clean_success_writesAudit() {
+        when(customerMapper.selectByIdIncludingDeleted(42L)).thenReturn(deletedCustomer(null));
+        stubNoRelated();
+        when(jdbc.update(eq("DELETE FROM biz_customer WHERE id = ? AND deleted = 1"), any(Object[].class))).thenReturn(1);
+
+        String message = service.hardDeleteCustomer(42L);
+
+        assertTrue(message.contains("彻底删除"));
+        verify(jdbc).update(eq("DELETE FROM biz_customer WHERE id = ? AND deleted = 1"), any(Object[].class));
+        verify(logMapper).insert(any(SysLog.class));
+    }
+
+    @Test
+    void hardDeleteUser_withRefs_rejected() {
+        when(userMapper.selectByIdIncludingDeleted(5L)).thenReturn(deletedUser(5L, "old5", 30L));
+        stubNoRelated();
+        when(jdbc.queryForObject(contains("biz_file"), eq(Long.class), any(Object[].class))).thenReturn(2L);
+
+        BusinessException ex = assertThrows(BusinessException.class, () -> service.hardDeleteUser(5L));
+
+        assertTrue(ex.getMessage().contains("上传文件 2"), "实际: " + ex.getMessage());
+        verify(jdbc, never()).update(eq("DELETE FROM sys_user WHERE id = ? AND deleted = 1"), any(Object[].class));
+    }
+
+    @Test
+    void hardDeleteUser_clean_success_evictsCache() {
+        when(userMapper.selectByIdIncludingDeleted(5L)).thenReturn(deletedUser(5L, "old5", 30L));
+        stubNoRelated();
+        when(jdbc.update(eq("DELETE FROM sys_user WHERE id = ? AND deleted = 1"), any(Object[].class))).thenReturn(1);
+
+        String message = service.hardDeleteUser(5L);
+
+        assertTrue(message.contains("彻底删除"));
+        verify(permissionCacheService).evict(5L);
+        verify(logMapper).insert(any(SysLog.class));
+    }
+
+    @Test
+    void hardDeleteFile_referencedByIncentive_rejected() {
+        when(fileMapper.selectByIdIncludingDeleted(11L)).thenReturn(deletedFile(11L, "public", null, 9L, 1024));
+        when(fileService.isIncentiveEvidence(11L)).thenReturn(true);
+
+        BusinessException ex = assertThrows(BusinessException.class, () -> service.hardDeleteFile(11L));
+
+        assertTrue(ex.getMessage().contains("激励记录"), "实际: " + ex.getMessage());
+        verify(fileService, never()).deleteStoredContent(anyString());
+    }
+
+    @Test
+    void hardDeleteFile_success_removesContentAndRow() {
+        when(fileMapper.selectByIdIncludingDeleted(11L)).thenReturn(deletedFile(11L, "public", null, 9L, 1024));
+        when(fileService.isIncentiveEvidence(11L)).thenReturn(false);
+        when(jdbc.update(contains("DELETE FROM biz_file"), any(Object[].class))).thenReturn(1);
+
+        String message = service.hardDeleteFile(11L);
+
+        assertTrue(message.contains("彻底删除"));
+        verify(fileService).deleteStoredContent("public/1/测试文件.pdf");
         verify(logMapper).insert(any(SysLog.class));
     }
 }

@@ -1,10 +1,10 @@
 # AIGICRM API 清单(自动生成)
 
-> 生成时间: 2026-10-12 | 来源: 后端 controller 源码扫描
+> 生成时间: 2026-10-18 | 来源: 后端 controller 源码扫描
 > 本文件由 scripts/gen-api.py 自动生成,**禁止手改**;接口变更后重新运行。
 > 权限码与 docs/permission/permission-dict.md 对应。
 
-## 接口清单(217 个)
+## 接口清单(231 个)
 
 | 方法 | 路径 | 权限码 | 方法名 | 文件 |
 |---|---|---|---|---|
@@ -198,6 +198,20 @@
 | PUT | `/api/system/positions/{id}` | `hasAuthority('system:position:edit')` | update | SysPositionController.java |
 | GET | `/api/system/positions/{positionId}/rules` | `hasAuthority('system:position:view')` | getRules | SysPositionController.java |
 | PUT | `/api/system/positions/{positionId}/rules` | `hasAuthority('system:position:edit')` | updateRules | SysPositionController.java |
+| GET | `/api/system/recycle/customers` | `hasAuthority('system:recycle:view')` | deletedCustomers | RecycleController.java |
+| GET | `/api/system/recycle/customers/{id}` | `hasAuthority('system:recycle:view')` | deletedCustomerDetail | RecycleController.java |
+| POST | `/api/system/recycle/customers/{id}/purge` | `hasAuthority('system:recycle:purge')` | hardDeleteCustomer | RecycleController.java |
+| POST | `/api/system/recycle/customers/{id}/restore` | `hasAuthority('system:recycle:restore')` | restoreCustomer | RecycleController.java |
+| GET | `/api/system/recycle/files` | `hasAuthority('system:recycle:view')` | deletedFiles | RecycleController.java |
+| POST | `/api/system/recycle/files/purge` | `hasAuthority('system:recycle:purge')` | purgeFiles | RecycleController.java |
+| GET | `/api/system/recycle/files/{id}` | `hasAuthority('system:recycle:view')` | deletedFileDetail | RecycleController.java |
+| GET | `/api/system/recycle/files/{id}/content` | `hasAuthority('system:recycle:view')` | fileContent | RecycleController.java |
+| POST | `/api/system/recycle/files/{id}/purge` | `hasAuthority('system:recycle:purge')` | hardDeleteFile | RecycleController.java |
+| POST | `/api/system/recycle/files/{id}/restore` | `hasAuthority('system:recycle:restore')` | restoreFile | RecycleController.java |
+| GET | `/api/system/recycle/users` | `hasAuthority('system:recycle:view')` | deletedUsers | RecycleController.java |
+| GET | `/api/system/recycle/users/{id}` | `hasAuthority('system:recycle:view')` | deletedUserDetail | RecycleController.java |
+| POST | `/api/system/recycle/users/{id}/purge` | `hasAuthority('system:recycle:purge')` | hardDeleteUser | RecycleController.java |
+| POST | `/api/system/recycle/users/{id}/restore` | `hasAuthority('system:recycle:restore')` | restoreUser | RecycleController.java |
 | GET | `/api/system/roles` | `hasAuthority('system:role:view')` | list | SysRoleController.java |
 | POST | `/api/system/roles` | `hasAuthority('system:role:add')` | create | SysRoleController.java |
 | DELETE | `/api/system/roles/{id}` | `hasAuthority('system:role:delete')` | delete | SysRoleController.java |

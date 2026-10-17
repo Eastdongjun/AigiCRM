@@ -29,3 +29,28 @@ export function restoreDeletedFile(id) {
 export function purgeDeletedFiles() {
   return request.post('/system/recycle/files/purge')
 }
+
+// 详情与彻底删除（2026-10-18）
+export function getDeletedCustomerDetail(id) {
+  return request.get(`/system/recycle/customers/${id}`)
+}
+
+export function getDeletedUserDetail(id) {
+  return request.get(`/system/recycle/users/${id}`)
+}
+
+export function getDeletedFileDetail(id) {
+  return request.get(`/system/recycle/files/${id}`)
+}
+
+export function hardDeleteCustomer(id) {
+  return request.post(`/system/recycle/customers/${id}/purge`)
+}
+
+export function hardDeleteUser(id) {
+  return request.post(`/system/recycle/users/${id}/purge`)
+}
+
+export function hardDeleteFile(id) {
+  return request.post(`/system/recycle/files/${id}/purge`)
+}

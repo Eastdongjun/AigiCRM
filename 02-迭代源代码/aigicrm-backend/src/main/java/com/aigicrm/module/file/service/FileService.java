@@ -435,13 +435,21 @@ public class FileService {
     /** 【决策5 2026-10-18 用户裁决·佐证锁定】fileId 被任一激励记录引用(五槽任一)即为计分佐证,禁替换;
      *  槽解析与上方共享激励文件的五槽读取同源(getFileIds/Pre/Mid/Post/Track) */
     private void assertNotIncentiveEvidence(Long fileId) {
+        if (isIncentiveEvidence(fileId)) {
+            throw new BusinessException("该文件是激励计分佐证，不能替换；请在激励模块删除后重新上传（将重新计分）");
+        }
+    }
+
+    /** 【回收站 2026-10-18】文件是否被任一激励记录五槽引用(供彻底删除守卫复用, 与替换守卫同源) */
+    public boolean isIncentiveEvidence(Long fileId) {
         for (BizIncentiveRecord r : incentiveRecordMapper.selectList(new LambdaQueryWrapper<>())) {
             if (r.getFileIds().contains(fileId) || r.getFilePreIds().contains(fileId)
                     || r.getFileMidIds().contains(fileId) || r.getFilePostIds().contains(fileId)
                     || r.getFileTrackIds().contains(fileId)) {
-                throw new BusinessException("该文件是激励计分佐证，不能替换；请在激励模块删除后重新上传（将重新计分）");
+                return true;
             }
         }
+        return false;
     }
 
     /**
@@ -518,6 +526,42 @@ public class FileService {
      */
     public void deleteStoredContent(String fileKey) {
         deleteStorage(fileKey);
+    }
+
+    /**
+     * 【回收站 2026-10-18】把存储内容写回响应(仅供回收站详情下载, 已按权限校验)。
+     * 本地直接读盘; OSS 走 getObject 流式写出。失败置 500, 不抛异常穿透响应。
+     */
+    public void writeStoredContent(String fileKey, String fileName, String contentType,
+                                   jakarta.servlet.http.HttpServletResponse response) {
+        try {
+            response.setContentType(contentType != null && !contentType.isBlank()
+                    ? contentType : "application/octet-stream");
+            String name = fileName != null && !fileName.isBlank() ? fileName : "file";
+            String encoded = java.net.URLEncoder.encode(name, java.nio.charset.StandardCharsets.UTF_8)
+                    .replace("+", "%20");
+            response.setHeader("Content-Disposition", "attachment; filename*=UTF-8''" + encoded);
+            if (isLocal()) {
+                Path path = Paths.get(uploadDir, fileKey);
+                if (!Files.exists(path)) {
+                    response.setStatus(404);
+                    return;
+                }
+                response.setContentLengthLong(Files.size(path));
+                Files.copy(path, response.getOutputStream());
+            } else {
+                com.aliyun.oss.model.OSSObject obj =
+                        ossClient().getObject(ossConfig.getBucketName(), fileKey);
+                try (java.io.InputStream in = obj.getObjectContent()) {
+                    in.transferTo(response.getOutputStream());
+                } finally {
+                    obj.close();
+                }
+            }
+        } catch (Exception e) {
+            log.warn("回收站文件内容写出失败 fileKey={}: {}", fileKey, e.getMessage());
+            response.setStatus(500);
+        }
     }
 
     /**
