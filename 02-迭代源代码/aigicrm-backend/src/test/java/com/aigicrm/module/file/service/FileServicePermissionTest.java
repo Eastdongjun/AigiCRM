@@ -845,6 +845,31 @@ class FileServicePermissionTest {
         java.nio.file.Files.deleteIfExists(f);
     }
 
+    /** 【文件回收站 2026-10-18】删除只做逻辑删, 物理内容必须保留供回收站恢复 */
+    @Test
+    void deleteFile_keepsContentForRecycle() throws Exception {
+        java.nio.file.Path content = java.nio.file.Paths.get(
+                System.getProperty("java.io.tmpdir"), "recycle-keep.txt");
+        java.nio.file.Files.writeString(content, "keep-for-recycle");
+
+        BizFile file = new BizFile();
+        file.setId(9L);
+        file.setFileScope("public");
+        file.setOssKey("recycle-keep.txt");
+        file.setFileName("recycle-keep.txt");
+        when(fileMapper.selectById(9L)).thenReturn(file);
+
+        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
+            m.when(SecurityUtils::isAdmin).thenReturn(true);
+            m.when(SecurityUtils::getCurrentUserId).thenReturn(1L);
+            svc.deleteFile(9L);
+        }
+
+        assertTrue(java.nio.file.Files.exists(content), "删除只进回收站，物理内容应保留");
+        verify(fileMapper).deleteById(9L);
+        java.nio.file.Files.deleteIfExists(content);
+    }
+
     @Test
     void writeThumbnail_smallImage_passesThrough() throws Exception {
         java.nio.file.Path f = java.nio.file.Files.createTempFile("thumb-small", ".png");

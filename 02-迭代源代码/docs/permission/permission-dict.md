@@ -6,7 +6,7 @@
 >
 > **状态列口径**: `启用` = sys_menu.status=1，该码会出现在角色管理页的配置树中(SysMenuService.tree() 带 status=1 过滤)，**管理员可勾选授予**; `停用` = status=0，**管理员看不到、也无法授予**（即便数据库里存在绑定）。
 
-## 一、权限码清单(79 条；数据库 73 条 + 兼容/历史 6 条；启用 71 / 停用 2)
+## 一、权限码清单(80 条；数据库 74 条 + 兼容/历史 6 条；启用 72 / 停用 2)
 
 | 权限码 | 菜单名 | 类型 | 路径 | 状态 | 绑定的角色 |
 |---|---|---|---|---|---|
@@ -73,6 +73,7 @@
 | `system:position:delete` | 删除岗位 | 3 | `NULL` | 启用 | 系统管理员,销售总监 |
 | `system:position:edit` | 岗位编辑 | 3 | `NULL` | 启用 | 系统管理员,销售总监 |
 | `system:position:view` | 岗位管理 | 2 | `/system/position` | 启用 | 系统管理员,销售总监 |
+| `system:recycle:purge` | 清空文件回收站 | 3 | `NULL` | 启用 | 系统管理员 |
 | `system:recycle:restore` | 恢复已删除数据 | 3 | `NULL` | 启用 | 系统管理员 |
 | `system:recycle:view` | 回收站 | 2 | `/system/recycle` | 启用 | 系统管理员 |
 | `system:role:add` | 角色新增 | 3 | `` | 启用 | 系统管理员,销售总监 |
@@ -153,6 +154,7 @@
 | `system:position:delete` | ✅ |   |   | ✅ |
 | `system:position:edit` | ✅ |   |   | ✅ |
 | `system:position:view` | ✅ |   |   | ✅ |
+| `system:recycle:purge` | ✅ |   |   |   |
 | `system:recycle:restore` | ✅ |   |   |   |
 | `system:recycle:view` | ✅ |   |   |   |
 | `system:role:add` | ✅ |   |   | ✅ |

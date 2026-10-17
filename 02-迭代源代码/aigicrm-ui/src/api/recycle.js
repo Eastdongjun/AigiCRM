@@ -25,3 +25,7 @@ export function getDeletedFiles(params) {
 export function restoreDeletedFile(id) {
   return request.post(`/system/recycle/files/${id}/restore`)
 }
+
+export function purgeDeletedFiles() {
+  return request.post('/system/recycle/files/purge')
+}

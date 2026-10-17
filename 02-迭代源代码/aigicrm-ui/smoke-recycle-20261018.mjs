@@ -51,6 +51,7 @@ ok(`已删除文件有数据行(${fileRows})`, fileRows > 0);
 const fileHeader = (await page.locator('.el-table').innerText()).replace(/\s+/g, ' ');
 ok('文件表头含归属/内容状态', fileHeader.includes('归属') && fileHeader.includes('内容状态'));
 ok('文件行出现可恢复/已清除标记', fileHeader.includes('可恢复') || fileHeader.includes('已清除'));
+ok('清空回收站按钮可见(admin 有 purge 权限)', (await page.locator('button', { hasText: '清空回收站' }).count()) > 0);
 
 await page.screenshot({ path: '/tmp/smoke-recycle.png', fullPage: false });
 await browser.close();

@@ -18,7 +18,9 @@ import com.aigicrm.security.PermissionCacheService;
 import org.junit.jupiter.api.Test;
 import org.springframework.jdbc.core.JdbcTemplate;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -296,6 +298,51 @@ class RecycleServiceTest {
         String message = service.restoreFile(11L);
 
         assertEquals("文件已恢复", message);
+        verify(logMapper).insert(any(SysLog.class));
+    }
+
+    // ==================== 文件回收站清理 ====================
+
+    private static Map<String, Object> fileRow(Long id, String ossKey) {
+        Map<String, Object> row = new HashMap<>();
+        row.put("id", id);
+        row.put("oss_key", ossKey);
+        return row;
+    }
+
+    @Test
+    void purgeExpiredFiles_retentionDisabled_noop() {
+        assertEquals(0, service.purgeExpiredFiles(0));
+        verify(jdbc, never()).queryForList(anyString());
+        verify(fileService, never()).deleteStoredContent(anyString());
+    }
+
+    @Test
+    void purgeExpiredFiles_deletesContentAndRow() {
+        when(jdbc.queryForList(anyString(), any(Object[].class)))
+                .thenReturn(List.of(fileRow(11L, "public/1/x.pdf")));
+        when(jdbc.update(anyString(), eq(11L))).thenReturn(1);
+
+        int purged = service.purgeExpiredFiles(30);
+
+        assertEquals(1, purged);
+        verify(fileService).deleteStoredContent("public/1/x.pdf");
+        verify(jdbc).update(anyString(), eq(11L));
+        verify(logMapper).insert(any(SysLog.class));
+    }
+
+    @Test
+    void purgeAllDeletedFiles_clearsAll() {
+        when(jdbc.queryForList(anyString()))
+                .thenReturn(List.of(fileRow(11L, "public/1/x.pdf"), fileRow(12L, "private/9/y.txt")));
+        when(jdbc.update(anyString(), eq(11L))).thenReturn(1);
+        when(jdbc.update(anyString(), eq(12L))).thenReturn(1);
+
+        int purged = service.purgeAllDeletedFiles();
+
+        assertEquals(2, purged);
+        verify(fileService).deleteStoredContent("public/1/x.pdf");
+        verify(fileService).deleteStoredContent("private/9/y.txt");
         verify(logMapper).insert(any(SysLog.class));
     }
 }

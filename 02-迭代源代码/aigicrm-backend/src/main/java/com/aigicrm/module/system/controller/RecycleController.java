@@ -68,4 +68,12 @@ public class RecycleController {
     public Result<Map<String, String>> restoreFile(@PathVariable Long id) {
         return Result.ok(Map.of("message", recycleService.restoreFile(id)));
     }
+
+    /** 【文件回收站 2026-10-18】管理员手动清空: 物理删除全部已删文件的存储内容与台账行 */
+    @PreAuthorize("hasAuthority('system:recycle:purge')")
+    @PostMapping("/files/purge")
+    public Result<Map<String, Object>> purgeFiles() {
+        int purged = recycleService.purgeAllDeletedFiles();
+        return Result.ok(Map.of("message", "已清空文件回收站，共清理 " + purged + " 个文件", "purged", purged));
+    }
 }

@@ -47,6 +47,10 @@
             :placeholder="searchPlaceholder"
             :prefix-icon="Search" @keyup.enter="search" @clear="search"
           />
+          <el-button
+            v-if="activeTab === 'files' && canPurge" type="danger" plain :icon="Delete"
+            @click="handlePurgeFiles"
+          >清空回收站</el-button>
           <el-tooltip content="刷新列表" placement="top">
             <el-button :icon="Refresh" circle class="refresh-btn" aria-label="刷新列表" @click="loadData" />
           </el-tooltip>
@@ -56,7 +60,7 @@
       <!-- 口径提示 -->
       <div class="info-strip">
         <el-icon class="info-icon"><InfoFilled /></el-icon>
-        <span>删除是终态留痕：这里只展示仍可恢复的软删数据。恢复客户会校验同名活跃客户、原负责人与公海残留；恢复人员后需在人员管理重新分配角色；文件在删除时已物理清除内容，仅内容仍在存储中的文件可恢复。</span>
+        <span>删除是终态留痕：这里只展示仍可恢复的软删数据。恢复客户会校验同名活跃客户、原负责人与公海残留；恢复人员后需在人员管理重新分配角色；文件删除后先进入回收站，可在保留期内恢复，超过保留期自动清理，管理员也可手动清空。</span>
       </div>
 
       <!-- 首屏骨架 -->
@@ -222,16 +226,17 @@
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Document, InfoFilled, Refresh, RefreshLeft, Search } from '@element-plus/icons-vue'
+import { Document, Delete, InfoFilled, Refresh, RefreshLeft, Search } from '@element-plus/icons-vue'
 import {
   getDeletedCustomers, getDeletedUsers, getDeletedFiles,
-  restoreDeletedCustomer, restoreDeletedUser, restoreDeletedFile,
+  restoreDeletedCustomer, restoreDeletedUser, restoreDeletedFile, purgeDeletedFiles,
 } from '@/api/recycle'
 import { formatSize } from '@/utils/format'
 import { useUserStore } from '@/store/user'
 
 const userStore = useUserStore()
 const canRestore = computed(() => userStore.hasPermission('system:recycle:restore'))
+const canPurge = computed(() => userStore.hasPermission('system:recycle:purge'))
 
 const tabs = [
   { key: 'customers', label: '已删除客户' },
@@ -369,6 +374,26 @@ async function handleRestoreFile(row) {
   try {
     const res = await restoreDeletedFile(row.id)
     ElMessage.success(res.data?.message || '文件已恢复')
+    await Promise.all([loadData(), loadCounts()])
+  } catch (e) {
+    // 错误提示由 request 拦截器统一弹出
+  }
+}
+
+async function handlePurgeFiles() {
+  try {
+    await ElMessageBox.confirm(
+      `确认清空文件回收站？将物理删除当前 ${counts.files} 个已删除文件的存储内容与记录，此操作不可恢复。`,
+      '清空文件回收站',
+      { confirmButtonText: '确认清空', cancelButtonText: '取消', type: 'warning' }
+    )
+  } catch (e) {
+    return
+  }
+  try {
+    const res = await purgeDeletedFiles()
+    ElMessage.success(res.data?.message || '已清空文件回收站')
+    current.value = 1
     await Promise.all([loadData(), loadCounts()])
   } catch (e) {
     // 错误提示由 request 拦截器统一弹出

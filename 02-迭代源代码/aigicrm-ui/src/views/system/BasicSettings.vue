@@ -47,6 +47,11 @@
         <template #suffix>GB</template>
       </el-input>
     </el-form-item>
+    <el-form-item label="文件回收站保留">
+      <el-input v-model="configMap['file.recycle.retention.days']" style="width: 300px" placeholder="0 表示不自动清理">
+        <template #suffix>天</template>
+      </el-input>
+    </el-form-item>
     <el-form-item label="编号规则">
       <el-select v-model="configMap['customer.code.rule']" style="width: 300px">
         <el-option label="大区首字母-年月-顺序号 (如 NM-202606-001)" value="region_date_seq" />

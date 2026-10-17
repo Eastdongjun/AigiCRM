@@ -367,8 +367,9 @@ public class FileService {
             }
         }
 
-        // 删除实际文件
-        deleteStorage(file.getOssKey());
+        // 【文件回收站 2026-10-18 用户裁决】删除不再物理清除字节: 文件进入回收站,
+        // 由保留期任务(FileRecycleCleanupTask)到期或管理员手动清空时再调 deleteStoredContent。
+        // 逻辑删除 + 配额归还保持原语义(私有文件删除即归还配额, 恢复时重新占用)。
 
         // 逻辑删除
         fileMapper.deleteById(fileId);
@@ -508,6 +509,15 @@ public class FileService {
 
     public Path getLocalFilePath(String fileKey) {
         return Paths.get(uploadDir, fileKey);
+    }
+
+    /**
+     * 【文件回收站 2026-10-18】物理清除存储内容。
+     * 仅供回收站保留期到期/管理员手动清空调用; deleteFile 本身不再物理删除(先进回收站)。
+     * 尽力而为: 清除失败不回滚台账删除, 残留由日志留痕(与既有 deleteStorage 语义一致)。
+     */
+    public void deleteStoredContent(String fileKey) {
+        deleteStorage(fileKey);
     }
 
     /**

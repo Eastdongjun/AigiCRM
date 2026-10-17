@@ -202,6 +202,55 @@ public class RecycleService {
         return "文件已恢复";
     }
 
+    // ==================== 文件回收站清理 ====================
+
+    // native-sql-audit: 回收站保留期清理是系统级维护任务(跨全部集团), 按保留期/台账状态过滤而非会话集团;
+    // 只做物理内容删除与台账硬删, 不经任何业务读接口, 不放大角色可见范围。
+    /**
+     * 清理超过保留期的已删除文件(物理内容+台账行)。retentionDays<=0 视为不自动清理。
+     * 用 JdbcTemplate 直连 SQL 跨租户执行: 系统级维护任务不受会话租户拦截器影响。
+     */
+    @Transactional
+    public int purgeExpiredFiles(int retentionDays) {
+        if (retentionDays <= 0) return 0;
+        LocalDateTime cutoff = LocalDateTime.now().minusDays(retentionDays);
+        List<Map<String, Object>> rows = jdbc.queryForList(
+                "SELECT id, oss_key FROM biz_file WHERE deleted = 1 AND updated_at < ?", cutoff);
+        int purged = purgeFileRows(rows);
+        if (purged > 0) {
+            writeAuditLog("清理文件回收站", "biz_file", null,
+                    "保留期" + retentionDays + "天, 清理" + purged + "个文件");
+        }
+        return purged;
+    }
+
+    /** 管理员手动清空文件回收站: 立即清除全部已删除文件的物理内容与台账行 */
+    @Transactional
+    public int purgeAllDeletedFiles() {
+        List<Map<String, Object>> rows = jdbc.queryForList(
+                "SELECT id, oss_key FROM biz_file WHERE deleted = 1");
+        int purged = purgeFileRows(rows);
+        if (purged > 0) {
+            writeAuditLog("清空文件回收站", "biz_file", null, "手动清空" + purged + "个文件");
+        }
+        return purged;
+    }
+
+    private int purgeFileRows(List<Map<String, Object>> rows) {
+        int purged = 0;
+        for (Map<String, Object> row : rows) {
+            Object idObj = row.get("id");
+            if (idObj == null) continue;
+            Object keyObj = row.get("oss_key");
+            if (keyObj != null) {
+                fileService.deleteStoredContent(String.valueOf(keyObj));
+            }
+            purged += jdbc.update("DELETE FROM biz_file WHERE id = ? AND deleted = 1",
+                    ((Number) idObj).longValue());
+        }
+        return purged;
+    }
+
     // ==================== 内部 ====================
 
     private Map<Long, String> ownerNamesOf(List<BizCustomer> rows) {
