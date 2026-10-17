@@ -2,11 +2,12 @@
   <div class="file-list-panel">
     <!-- 【C12/D13 2026-10-08 二轮】列表请求期间 v-loading，与其他 18 处列表加载反馈对齐 -->
     <el-table v-loading="filesLoading" :data="files" style="width: 100%" size="small">
-      <el-table-column label="文件名称" min-width="100" show-overflow-tooltip>
+      <!-- 【2026-10-17 客户反馈】文件名必须看全: 去 show-overflow-tooltip 截断,列内自动换行(word-break) -->
+      <el-table-column label="文件名称" min-width="220" class-name="name-col">
         <template #default="{ row }">
           <div class="file-name-cell">
             <span class="file-icon" :class="'icon-' + getFileExt(row.fileName)">{{ getFileExtLabel(row.fileName) }}</span>
-            <span>{{ row.fileName }}</span>
+            <span class="file-name-text">{{ row.fileName }}</span>
           </div>
         </template>
       </el-table-column>
@@ -122,8 +123,21 @@ const handleReplaceChosen = async (e) => {
 }
 .file-name-cell {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 8px;
+}
+/* 【2026-10-17】文件名全显: 允许两行内换行(超两行才省略),图标对齐首行 */
+.file-name-text {
+  min-width: 0;
+  word-break: break-all;
+  white-space: normal;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+  line-height: 1.5;
+  padding-top: 4px;
 }
 .file-icon {
   display: inline-flex;
@@ -136,6 +150,7 @@ const handleReplaceChosen = async (e) => {
   font-weight: 700;
   color: #fff;
   flex-shrink: 0;
+  margin-top: 2px;
 }
 .icon-doc { background: #4a90d9; }
 .icon-xls { background: #34a853; }

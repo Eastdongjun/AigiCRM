@@ -33,10 +33,7 @@
       </span>
     </div>
 
-    <!-- 新建文件夹（公共/私人 Tab 按当前文件夹 upload 权限显示） -->
-    <el-button v-if="canCreateFolder" class="new-folder-btn" @click="openCreateFolder">
-      <el-icon><FolderAdd /></el-icon> 新建文件夹
-    </el-button>
+    <!-- 【2026-10-17 客户反馈】新建文件夹按钮移至顶部操作区(views/file/index.vue st-actions),此处不再渲染 -->
 
     <!-- 存储空间（仅私人Tab显示） -->
     <div v-if="activeTab === 'private'" class="storage-info">
@@ -53,7 +50,7 @@ import { injectFilePage } from '@/composables/useFilePage'
 const {
   selectedFolderId, fileTotal, currentFolders, canCreateFolder,
   activeTab, storageUsed, storageQuota, storagePercent,
-  selectFolder, openRenameFolder, openAclDialog, openCreateFolder, handleDeleteFolder,
+  selectFolder, openRenameFolder, openAclDialog, handleDeleteFolder,
 } = injectFilePage()
 </script>
 
@@ -126,11 +123,6 @@ const {
 }
 .folder-act:hover { color: var(--el-color-primary); }
 .folder-act-danger:hover { color: var(--el-color-danger); }
-.new-folder-btn {
-  width: 100%;
-  margin-top: 16px;
-  border-style: dashed;
-}
 .storage-info { margin-top: auto; padding-top: 16px; }
 .storage-label { font-size: 12px; color: var(--text-muted); margin-bottom: 4px; }
 .storage-text { font-size: 12px; color: var(--text-muted); margin-top: 4px; }

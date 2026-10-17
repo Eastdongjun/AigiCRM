@@ -23,7 +23,7 @@ import { getDownloadToken, refreshDownloadToken } from '@/utils/token'
 import { downloadFile } from '@/utils/download'
 import { useUserStore } from '@/store/user'
 import { INDICATOR_FIELDS, sumIndicatorScore, RELATIONSHIP_OPTIONS_FALLBACK, fetchRelationshipOptions } from '@/utils/customer-fields'
-import { mediaTypeOf } from '@/utils/media-type'
+import { mediaTypeOf, previewKindOf } from '@/utils/media-type'
 
 export const CustomerDetailKey = Symbol('customerDetail')
 
@@ -190,12 +190,14 @@ export function useCustomerDetail() {
   // 【修复 2026-08-14】下载 token 未就绪时不拼 token=（避免必然 403 的空 token 请求）
   const fileUrl = (id) => { const t = getDownloadToken(); return t ? '/api/file/download/' + id + '?token=' + t : '/api/file/download/' + id }
   const filePreviewVisible = ref(false), filePreviewUrl = ref(''), filePreviewType = ref('image'), filePreviewName = ref('')
-  // 激励Tab文件预览:复用 FilePreview(图片放大/视频播放/文档下载);点文件行打开预览而非直接下载
+  // 激励Tab文件预览:复用 FilePreview 全格式阅读器。类型判定走 previewKindOf(按文件名→
+  // image/video/pdf/docx/sheet/text)——f.type 是激励侧三态(image/video/doc),doc 会落到
+  // 阅读器"不支持"卡,word/excel/pdf 看不了(2026-10-17 客户反馈补齐)。
   const previewIncentiveFile = async (f) => {
     if (!f?.id) return
     await refreshDownloadToken()
     filePreviewUrl.value = fileUrl(f.id)
-    filePreviewType.value = f.type || detectType(f.label)
+    filePreviewType.value = previewKindOf(f.label)
     filePreviewName.value = f.label
     filePreviewVisible.value = true
   }

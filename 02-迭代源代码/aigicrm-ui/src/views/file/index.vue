@@ -17,6 +17,8 @@
       </div>
       <div class="st-actions">
         <el-input v-model="keyword" placeholder="搜索文件名称..." class="st-search" clearable prefix-icon="Search" @keyup.enter="searchFiles" />
+        <!-- 【2026-10-17 客户反馈】新建文件夹从左侧文件夹树底部移到顶部操作区(原位置不合适) -->
+        <el-button v-if="canCreateFolder" class="st-folder-add" :icon="FolderAdd" @click="openCreateFolder">新建文件夹</el-button>
         <el-button v-if="activeTab!=='incentive'&&activeTab!=='shared_to_me' && folderPerms.includes('upload')"
                    class="st-upload" :icon="Upload" @click="openUpload">上传文件</el-button>
       </div>
@@ -59,13 +61,13 @@
     <RenameFolderDialog />
     <ShareDialog />
     <AclDialog />
-    <FilePreview v-model:visible="previewVisible" :url="previewUrl" :type="previewType" :file-name="previewName" />
+    <FilePreview v-model:visible="previewVisible" :url="previewUrl" :type="previewType" :file-name="previewName" :file-size="previewSize" />
   </div>
 </template>
 
 <script setup>
 import { provide, onMounted, computed } from 'vue'
-import { Upload } from '@element-plus/icons-vue'
+import { Upload, FolderAdd } from '@element-plus/icons-vue'
 import { useFilePage, FilePageKey } from '@/composables/useFilePage'
 import FolderPanel from './FolderPanel.vue'
 import FileTable from './FileTable.vue'
@@ -82,8 +84,8 @@ provide(FilePageKey, filePage)
 
 const {
   activeTab, keyword, tabs, folderPerms, storageUsed, storageQuota,
-  previewVisible, previewUrl, previewType, previewName,
-  switchTab, searchFiles, openUpload,
+  previewVisible, previewUrl, previewType, previewName, previewSize,
+  canCreateFolder, switchTab, searchFiles, openUpload, openCreateFolder,
   loadFolders, loadFolderPerms, loadFiles, loadTabCounts, loadStorage,
 } = filePage
 
@@ -141,6 +143,12 @@ onMounted(() => {
   box-shadow: 0 4px 12px rgba(0, 0, 0, .12);
 }
 .st-upload:hover, .st-upload:focus { background: #eff6ff; color: var(--brand-navy) }
+/* 【2026-10-17】新建文件夹(自树底移入): 描边次级样式,与上传文件主次分明 */
+.st-folder-add {
+  background: rgba(255, 255, 255, .12); color: #fff; font-weight: 600;
+  border: 1px solid rgba(255, 255, 255, .4);
+}
+.st-folder-add:hover, .st-folder-add:focus { background: rgba(255, 255, 255, .22); color: #fff }
 
 .section-box { background: #fff; border: 1px solid #e4e7ed; border-radius: var(--radius-md); padding: 14px 20px; flex-shrink: 0 }
 .section-box.table-box { flex: 1; padding: 0; display: flex; flex-direction: column; overflow: hidden }
