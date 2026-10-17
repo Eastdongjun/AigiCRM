@@ -99,7 +99,8 @@
                 <div class="vid-overlay"><el-icon :size="28"><VideoPlay /></el-icon></div>
                 <div v-if="f.tag" class="img-tag">{{ f.tag }}</div>
               </div>
-              <div v-else class="img-doc" @click="downloadFile(f.id, f.label)">
+              <!-- 【文件阅读器 2026-10-16】文档面卡从直接下载改为打开灯箱内嵌预览（Word/Excel/PDF/文本），灯箱内保留下载 -->
+              <div v-else class="img-doc" @click="preview(f.id, f.type, f.label)">
                 <el-icon :size="24"><Document /></el-icon>
                 <div class="doc-name">{{ f.label?.substring(0,6) }}</div>
               </div>
@@ -132,7 +133,7 @@ import { paginate, pageSizes } from '@/utils/pagination'
 // 【D10 2026-10-04】五大类产品目录改共享常量（原与 useIncentiveUpload.js 各硬编码一份）
 import { PRODUCT_CATS as productCats, PRODUCT_CAT_KEYS as productCatKeys } from './product-catalog'
 // 【D9 2026-10-04】文件/分类纯工具拆至共享模块；灯箱与详情弹窗拆为子组件
-import { thumbUrl, downloadFile, getFiles, getMain, getCls, scoreColor } from './search-helpers'
+import { thumbUrl, getFiles, getMain, getCls, scoreColor } from './search-helpers'
 import SearchLightbox from './SearchLightbox.vue'
 import SearchDetailDialog from './SearchDetailDialog.vue'
 

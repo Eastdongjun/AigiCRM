@@ -38,13 +38,11 @@
         <el-table-column v-for="slot in slots" :key="slot.key" :label="slot.label" min-width="150" show-overflow-tooltip>
           <template #default="{ row }">
             <div class="files">
-              <span
-                v-for="file in slotFiles(row, slot)"
-                :key="`${slot.key}-${file.id}`"
-                class="file-tag"
-                :title="`下载 ${file.name}`"
-                @click="download(file)"
-              >{{ file.name }}</span>
+              <!-- 【文件阅读器 2026-10-16】点文件名=内嵌预览(此前只能下载), 下载移到行尾小图标 -->
+              <span v-for="file in slotFiles(row, slot)" :key="`${slot.key}-${file.id}`" class="file-row">
+                <span class="file-tag" :title="`预览 ${file.name}`" @click="openPreview(file)">{{ file.name }}</span>
+                <el-icon class="file-dl" :title="`下载 ${file.name}`" @click.stop="download(file)"><Download /></el-icon>
+              </span>
               <span v-if="!slotFiles(row, slot).length" class="empty">—</span>
             </div>
           </template>
@@ -54,6 +52,7 @@
         </el-table-column>
       </el-table>
     </div>
+    <FilePreview v-model:visible="previewVisible" :url="previewUrl" type="doc" :file-name="previewName" />
   </div>
 </template>
 
@@ -61,11 +60,13 @@
 import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
+import { Download } from '@element-plus/icons-vue'
 import { getRecords } from '@/api/incentive'
 import { periodQueryValue } from '@/utils/incentive-period'
 import { SLOT_FIELDS, filterRecordsByCategory, slotFiles, sumScore } from '@/utils/incentive-detail'
 import { getDownloadToken, getToken, refreshDownloadToken } from '@/utils/token'
 import { downloadFile as downloadFileUtil } from '@/utils/download'
+import FilePreview from '@/components/FilePreview.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -116,6 +117,18 @@ async function download(file) {
   }
 }
 
+// 内嵌预览：种类由 FilePreview 按文件名判定(Word/Excel/PDF/图片/视频/文本), 不支持的格式在对话框里引导下载
+const previewVisible = ref(false)
+const previewUrl = ref('')
+const previewName = ref('')
+async function openPreview(file) {
+  if (!file?.id) return
+  await refreshDownloadToken()
+  previewUrl.value = fileUrl(file.id)
+  previewName.value = file.name || '文件'
+  previewVisible.value = true
+}
+
 async function load() {
   loading.value = true
   try {
@@ -146,7 +159,10 @@ onMounted(load)
 .meta b { color: #1d2129; }
 .blue { color: var(--el-color-primary); }
 .files { display: flex; flex-direction: column; gap: 2px; }
-.file-tag { color: var(--el-color-primary); cursor: pointer; }
+.file-row { display: inline-flex; align-items: center; gap: 6px; min-width: 0; }
+.file-tag { color: var(--el-color-primary); cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .file-tag:hover { text-decoration: underline; }
+.file-dl { color: var(--el-text-color-secondary); cursor: pointer; flex-shrink: 0; font-size: 14px; }
+.file-dl:hover { color: var(--el-color-primary); }
 .empty { color: var(--text-placeholder); }
 </style>
