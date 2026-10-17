@@ -9,7 +9,10 @@
 import { ref, onBeforeUnmount } from 'vue'
 import { getToken } from '@/utils/token'
 
-export const PREVIEW_SIZE_LIMIT = 30 * 1024 * 1024
+// 【2026-10-17 客户要求】30MB → 300MB：生产实有 61.5MB 的 docx 需要在线看；PDF 已走直链流式
+// (不经本阈值)，视频走 <video> 流式，docx/xlsx 解析大文件慢但可用(加载态兜住)。300MB 仍是
+// 硬顶——超过这个量级浏览器内存本身撑不住，属产品边界不是故障
+export const PREVIEW_SIZE_LIMIT = 300 * 1024 * 1024
 
 const STATUS_MSG = {
   401: '登录已过期，请重新登录',
