@@ -28,49 +28,53 @@
       </scroll-view>
     </view>
 
-    <!-- 分组照片墙(原红圈②角标职责由分组标题承担,原③按钮删除: 点图预览/长按下载) -->
-    <view wx:if="{{record.showFiles}}" class="card cd-wall-card">
-      <view wx:for="{{record.fileGroupsView}}" wx:for-item="group" wx:for-index="wallGroupIdx" wx:key="groupIndex" class="record-file-group" id="cd-group-{{wallGroupIdx}}">
-        <view class="record-file-group-head"><text>{{group.label}}</text><text>{{group.countText}}</text></view>
-        <view class="wall-grid">
-          <view wx:for="{{group.files}}" wx:for-item="file" wx:for-index="wallFileIdx" wx:key="id" class="wall-tile" catchtap="onTileTap" catchlongpress="onTileLongPress" data-group-index="{{group.groupIndex}}" data-file-index="{{file.fileIndex}}">
-            <image wx:if="{{file.type === 'image' && file.id}}" class="wall-thumb" src="{{thumb.thumbSrc(file, apiBase, dlToken)}}" mode="aspectFill" lazy-load="{{true}}" />
-            <view wx:elif="{{file.type === 'video'}}" class="wall-video-face">
-              <view class="wall-play-icon">▶</view>
-              <text class="wall-face-name">{{file.name}}</text>
-            </view>
-            <view wx:else class="wall-doc-face">
-              <text class="wall-doc-type">{{file.typeText}}</text>
-              <text class="wall-face-name">{{file.name}}</text>
+    <!-- 【导航契约】页级滚动改 scroll-view 承载: wx.pageScrollTo 会破坏回退时的原生滚动位置保持,
+         锚点定位用 scroll-into-view(头部 hero/锚点固定, 照片墙+历史记录为滚动体) -->
+    <scroll-view scroll-y class="cd-body" scroll-into-view="{{scrollAnchor}}" scroll-with-animation>
+      <!-- 分组照片墙(原红圈②角标职责由分组标题承担,原③按钮删除: 点图预览/长按下载) -->
+      <view wx:if="{{record.showFiles}}" class="card cd-wall-card">
+        <view wx:for="{{record.fileGroupsView}}" wx:for-item="group" wx:for-index="wallGroupIdx" wx:key="groupIndex" class="record-file-group" id="cd-group-{{wallGroupIdx}}">
+          <view class="record-file-group-head"><text>{{group.label}}</text><text>{{group.countText}}</text></view>
+          <view class="wall-grid">
+            <view wx:for="{{group.files}}" wx:for-item="file" wx:for-index="wallFileIdx" wx:key="id" class="wall-tile" catchtap="onTileTap" catchlongpress="onTileLongPress" data-group-index="{{group.groupIndex}}" data-file-index="{{file.fileIndex}}">
+              <image wx:if="{{file.type === 'image' && file.id}}" class="wall-thumb" src="{{thumb.thumbSrc(file, apiBase, dlToken)}}" mode="aspectFill" lazy-load="{{true}}" />
+              <view wx:elif="{{file.type === 'video'}}" class="wall-video-face">
+                <view class="wall-play-icon">▶</view>
+                <text class="wall-face-name">{{file.name}}</text>
+              </view>
+              <view wx:else class="wall-doc-face">
+                <text class="wall-doc-type">{{file.typeText}}</text>
+                <text class="wall-face-name">{{file.name}}</text>
+              </view>
             </view>
           </view>
         </view>
       </view>
-    </view>
 
-    <!-- 历史记录(默认展开,原列表页折叠区移入): 点行=详情, 行尾···=追加/删除 -->
-    <view class="card cd-history-card">
-      <view class="cd-section-title">历史记录 · {{children.length}}</view>
-      <view wx:if="{{!children.length}}" class="cd-empty slim">暂无历史记录</view>
-      <view wx:for="{{children}}" wx:for-item="child" wx:for-index="childIdx" wx:key="id" class="cd-child-row">
-        <view class="cd-child-main" data-index="{{childIdx}}" catchtap="onChildDetail">
-          <view class="cd-child-title"><text class="cd-child-cat">{{child.titleText}}</text><text class="{{child.readStatusClass}}">{{child.readStatusText}}</text></view>
-          <view class="cd-child-meta">{{child.metaText}}</view>
-        </view>
-        <view class="cd-child-side">
-          <text class="cd-child-score">{{child.scoreText}}</text>
-          <view class="cd-child-more" data-index="{{childIdx}}" catchtap="onChildMore">···</view>
+      <!-- 历史记录(默认展开,原列表页折叠区移入): 点行=详情, 行尾···=追加/删除 -->
+      <view class="card cd-history-card">
+        <view class="cd-section-title">历史记录 · {{children.length}}</view>
+        <view wx:if="{{!children.length}}" class="cd-empty slim">暂无历史记录</view>
+        <view wx:for="{{children}}" wx:for-item="child" wx:for-index="childIdx" wx:key="id" class="cd-child-row">
+          <view class="cd-child-main" data-index="{{childIdx}}" catchtap="onChildDetail">
+            <view class="cd-child-title"><text class="cd-child-cat">{{child.titleText}}</text><text class="{{child.readStatusClass}}">{{child.readStatusText}}</text></view>
+            <view class="cd-child-meta">{{child.metaText}}</view>
+          </view>
+          <view class="cd-child-side">
+            <text class="cd-child-score">{{child.scoreText}}</text>
+            <view class="cd-child-more" data-index="{{childIdx}}" catchtap="onChildMore">···</view>
+          </view>
         </view>
       </view>
-    </view>
+
+      <video wx:if="{{previewVideoPath}}" src="{{previewVideoPath}}" controls class="cd-video"></video>
+      <view class="cd-bottom-space"></view>
+    </scroll-view>
 
     <!-- 吸底操作栏(原红圈④收敛为两个: 追加激励/客户档案) -->
     <view class="cd-bottom-bar">
       <view wx:if="{{record.showAppendAction}}" class="cd-bottom-btn primary" bindtap="onAppend">＋ 追加激励</view>
       <view wx:if="{{record.showCustomerAction}}" class="cd-bottom-btn ghost" bindtap="onOpenCustomer">客户档案</view>
     </view>
-
-    <view class="cd-bottom-space"></view>
-    <video wx:if="{{previewVideoPath}}" src="{{previewVideoPath}}" controls class="cd-video"></video>
   </block>
 </view>

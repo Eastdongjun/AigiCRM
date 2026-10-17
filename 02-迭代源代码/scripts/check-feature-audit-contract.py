@@ -309,7 +309,9 @@ def main() -> int:
     )
     mobile_actions = audit.extract_wxml_actions(ROOT / "aigicrm-miniprogram/pages", ROOT)
     required_mobile_actions = {
-        ("分享", "shareFile", "aigicrm-miniprogram/pages/files/index.wxml"),
+        # 【钉随需求A 2026-10-16】行内分享按钮收敛进「···」面板; 分享可达入口=面板按钮,
+        # shareFile 的权限显隐钉保留在 check-mobile-file-boundary.sh(if (showShare) sheetActions.push)
+        ("···", "openActionSheet", "aigicrm-miniprogram/pages/files/index.wxml"),
         ("＋新客户", "openNewCustomer", "aigicrm-miniprogram/pages/home/index.wxml"),
         ("♜四项激励", "openIncentive", "aigicrm-miniprogram/pages/home/index.wxml"),
         ("✓审批管理", "openApproval", "aigicrm-miniprogram/pages/home/index.wxml"),  # 【2026-10-09 钉随代码】UI冲刺文案改"审批管理"带未读角标

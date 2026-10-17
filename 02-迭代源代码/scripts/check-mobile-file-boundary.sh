@@ -44,8 +44,11 @@ grep -Fq 'deleteFile' "$API" || fail 'mobile file delete API contract disappeare
 grep -Fq "hasPermission('file:delete')" "$PAGE" || fail 'mobile file delete permission gate disappeared'
 grep -Fq 'removeFile' "$PAGE" || fail 'mobile file delete action disappeared'
 grep -Fq 'deleteFile(item.id)' "$PAGE" || fail 'mobile file delete action does not call backend delete API'
-grep -Fq 'catchtap="removeFile"' "$WXML" || fail 'mobile file delete UI disappeared'
-grep -Fq 'mini-action danger' "$WXML" || fail 'mobile file delete UI is not visually scoped as a compact danger action'
+# 【钉随需求A】行内 removeFile 按钮收敛到 openActionSheet(···面板)——JS 侧 removeFile 方法保留
+# 【钉随需求A 2026-10-16】文件行操作面板(···)是全部高危操作的唯一入口
+grep -Fq 'catchtap="openActionSheet"' "$WXML" || fail 'mobile file delete UI disappeared'
+# 【钉随需求A】mini-action danger 收敛为 sheet-act danger(操作面板内删除按钮)
+grep -Fq "act.key === 'delete' ? 'danger'" "$WXML" || fail 'mobile file delete UI is not visually scoped as a compact danger action'
 grep -Fq 'getFolderAcl' "$API" || fail 'mobile file folder ACL read API disappeared'
 grep -Fq 'getStorageInfo' "$PAGE" || fail 'mobile file page no longer loads storage statistics'
 grep -Fq 'normalizeCapacity' "$PAGE" || fail 'mobile file page no longer normalizes storage statistics'
@@ -75,12 +78,13 @@ grep -Fq '{{capacity.hint}}' "$WXML" || fail 'mobile file storage card does not 
 grep -Fq 'tab-count' "$WXML" || fail 'mobile file tabs no longer display PC tab counts'
 grep -Fq 'fileView.tabs' "$WXML" || fail 'mobile file tabs must render normalized tab view state'
 grep -Fq 'item.countText' "$WXML" || fail 'mobile file tabs must display normalized tab counts'
-grep -Fq 'fileView.files' "$WXML" || fail 'mobile file list must render normalized file rows'
-grep -Fq 'item.metaText' "$WXML" || fail 'mobile file rows must display normalized metadata text'
+# 【钉随需求A】fileView.files 重设计为 fileView.fileGroups(时间分组面包屑)
+grep -Fq 'fileView.fileGroups' "$WXML" || fail 'mobile file list must render normalized file rows'
+# 【钉随需求A】metaText 拆为 metaBrief + metaExtra(两行元信息)
+grep -Fq 'file.metaBrief' "$WXML" || fail 'mobile file rows must display normalized metadata text'
 grep -Fq "hasPermission('file:share')" "$PAGE" || fail 'mobile file share permission gate disappeared'
-grep -Fq 'catchtap="shareFile"' "$WXML" || fail 'mobile file share action disappeared'
-grep -Fq 'class="file-share-action"' "$WXML" || fail 'mobile file share action must use compact local style'
-grep -Fq '.file-share-action' "$WXSS" || fail 'mobile file share action compact style disappeared'
+# 【钉随需求A】行内 shareFile 收敛到操作面板 onSheetAction 分发(JS shareFile 方法保留)
+grep -Fq 'catchtap="openActionSheet"' "$WXML" || fail 'mobile file share action disappeared'
 grep -Fq 'class="folder-new-action"' "$WXML" || fail 'mobile file folder create action must use compact local style'
 grep -Fq '.folder-new-action' "$WXSS" || fail 'mobile file folder create compact style disappeared'
 grep -Fq 'getCustomerSimpleUsers' "$PAGE" || fail 'mobile file share user picker disappeared'
@@ -91,7 +95,7 @@ grep -Fq 'ossKey' "$PAGE" || fail 'mobile file list no longer preserves file pat
 grep -Fq 'uploaderName' "$PAGE" || fail 'mobile file list no longer preserves uploader metadata'
 grep -Fq 'typeof item.fileSize === '\''number'\''' "$PAGE" || fail 'mobile file list no longer formats numeric file sizes'
 grep -Fq 'uploaderNameText' "$PAGE" || fail 'mobile file list no longer normalizes uploader metadata'
-grep -Fq 'item.metaText' "$WXML" || fail 'mobile file list no longer displays uploader metadata'
+grep -Fq 'file.metaExtra' "$WXML" || fail 'mobile file list no longer displays uploader metadata'
 grep -Fq 'uploaderName=' "$PAGE" || fail 'mobile file detail navigation no longer passes uploader metadata'
 grep -Fq 'updatedAt=' "$PAGE" || fail 'mobile file detail navigation no longer passes updated time metadata'
 grep -Fq 'path=' "$PAGE" || fail 'mobile file detail navigation no longer passes path download fallback'
@@ -101,14 +105,19 @@ grep -Fq 'wx.downloadFile' "$PAGE" || fail 'mobile file list cannot download fil
 grep -Fq 'wx.previewImage' "$PAGE" || fail 'mobile file list cannot preview images'
 grep -Fq 'wx.openDocument' "$PAGE" || fail 'mobile file list cannot open documents'
 grep -Fq 'wx.saveFile' "$PAGE" || fail 'mobile file list cannot save downloaded files'
-grep -Fq 'catchtap="previewFile"' "$WXML" || fail 'mobile file list preview UI disappeared'
-grep -Fq 'catchtap="downloadFile"' "$WXML" || fail 'mobile file list download UI disappeared'
-grep -Fq 'showDownload: item.canDownload !== false' "$PAGE" || fail 'mobile file list download visibility is not normalized like PC'
-grep -Fq 'item.showDownload' "$WXML" || fail 'mobile file list download UI no longer hides non-downloadable rows like PC'
-grep -Fq 'item.showReplace' "$WXML" || fail 'mobile file list replace UI must use normalized row visibility'
-grep -Fq 'item.replaceLoading' "$WXML" || fail 'mobile file list replace UI must use normalized row loading state'
-grep -Fq 'item.showDelete' "$WXML" || fail 'mobile file list delete UI must use normalized row visibility'
-grep -Fq 'item.showShare' "$WXML" || fail 'mobile file list share UI must use normalized row visibility'
+# 【钉随需求A】行内 previewFile 收敛为整行 bindtap="openFile"(点行即预览, 长按呼面板)
+grep -Fq 'bindtap="openFile"' "$WXML" || fail 'mobile file list preview UI disappeared'
+# 【钉随需求A】行内 downloadFile 收敛到操作面板 onSheetAction(JS downloadFile 方法保留)
+grep -Fq 'catchtap="openActionSheet"' "$WXML" || fail 'mobile file list download UI disappeared'
+# 【钉随需求A 2026-10-16】行内可见性按钮全部收敛进「⋯」面板: 行级可见性归一化仍在 JS(buildFileRowView),
+# 但 WXML 不再引用 item.showXxx, 改为渲染 actionSheet.actions(下载/分享/替换/删除按归一化结果进面板)
+grep -Fq 'const showDownload = item.canDownload !== false' "$PAGE" || fail 'mobile file list download visibility is not normalized like PC'
+grep -Fq "if (showDownload) sheetActions.push({ key: 'download'" "$PAGE" || fail 'mobile file list download UI no longer hides non-downloadable rows like PC'
+grep -Fq "if (showReplace) sheetActions.push({ key: 'replace'" "$PAGE" || fail 'mobile file list replace UI must use normalized row visibility'
+grep -Fq 'replaceLoading: String(data.replacingId' "$PAGE" || fail 'mobile file list replace UI must use normalized row loading state'
+grep -Fq "if (showDelete) sheetActions.push({ key: 'delete'" "$PAGE" || fail 'mobile file list delete UI must use normalized row visibility'
+grep -Fq "if (showShare) sheetActions.push({ key: 'share'" "$PAGE" || fail 'mobile file list share UI must use normalized row visibility'
+grep -Fq 'catchtap="onSheetAction"' "$WXML" || fail 'mobile file action sheet dispatch UI disappeared'
 grep -Fq 'fileView.showManageFolders' "$WXML" || fail 'mobile file folder management list must use normalized visibility'
 grep -Fq 'fileView.showManageEmpty' "$WXML" || fail 'mobile file folder management empty state must use normalized visibility'
 ! grep -Fq 'activeTab === item' "$WXML" || fail 'mobile file WXML must not compute active tab state'
@@ -152,7 +161,8 @@ grep -Fq 'replaceFile' "$API" || fail 'mobile file replace API contract disappea
 grep -Fq "hasPermission('file:edit')" "$PAGE" || fail 'mobile file list replace permission gate disappeared'
 grep -Fq 'replaceListFile' "$PAGE" || fail 'mobile file list replace action disappeared'
 grep -Fq 'replaceFile(item.id, file.path)' "$PAGE" || fail 'mobile file list replace action does not call backend replace API'
-grep -Fq 'catchtap="replaceListFile"' "$WXML" || fail 'mobile file list replace UI disappeared'
+# 【钉随需求A】行内 replaceListFile 收敛到操作面板 onSheetAction(JS 方法保留)
+grep -Fq 'catchtap="openActionSheet"' "$WXML" || fail 'mobile file list replace UI disappeared'
 ! grep -Fq 'replacingId===item.id' "$WXML" || fail 'mobile file WXML must not compare replacing id directly'
 grep -Fq "hasPermission('file:edit')" "$DETAIL" || fail 'mobile file replace permission gate disappeared'
 grep -Fq 'chooseMessageFile' "$DETAIL" || fail 'mobile file replace picker disappeared'

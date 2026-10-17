@@ -5,11 +5,13 @@ const { deleteRecord, markIncentiveRead } = require('../../../api/incentive')
 const { getDownloadUrl, getDownloadToken } = require('../../../api/file')
 const { fetchRemoteAttachment } = require('../../../utils/attachment')
 const { showError } = require('../../../utils/feedback')
+const { requireLogin } = require('../../../utils/auth')
 
 Page({
-  data: { loaded: false, record: null, children: [], apiBase: '', dlToken: '', previewing: false, previewVideoPath: '' },
+  data: { loaded: false, record: null, children: [], apiBase: '', dlToken: '', previewing: false, previewVideoPath: '', scrollAnchor: '' },
 
   onLoad() {
+    if (!requireLogin()) return
     const app = getApp()
     this.setData({ apiBase: app.globalData.apiBaseUrl || '' })
     // eventChannel 缺失/无载荷(异常进入)时 800ms 后落空态,不悬在"加载中"
@@ -53,9 +55,15 @@ Page({
     }).catch(() => { /* token 缺失时图片退化面卡,不阻断 */ })
   },
 
+  // 锚点定位走 scroll-view 的 scroll-into-view(先清空再设目标, 重复点同一锚点也能再次触发)
   scrollToGroup(event) {
     const index = Number(event.currentTarget.dataset.idx) || 0
-    wx.pageScrollTo({ selector: `#cd-group-${index}`, offsetTop: -90, duration: 300, fail: () => {} })
+    const anchor = `cd-group-${index}`
+    if (this.data.scrollAnchor === anchor) {
+      this.setData({ scrollAnchor: '' }, () => this.setData({ scrollAnchor: anchor }))
+    } else {
+      this.setData({ scrollAnchor: anchor })
+    }
   },
 
   findWallFile(event) {

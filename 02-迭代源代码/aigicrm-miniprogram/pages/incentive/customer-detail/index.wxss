@@ -1,6 +1,8 @@
 /* 【需求C 2026-10-16】客户激励详情页: 延续全局设计语言(蓝渐变 hero/白卡/chip/三色语义)。
    照片墙样式自 incentive/index.wxss 拷贝必需子集(wall-* 为页级样式不跨页生效)。 */
-.cd-page { background: #f4f8ff; min-height: 100vh; padding: 24rpx 28rpx 0; box-sizing: border-box; color: #1c2b3a; }
+/* 页级滚动改 scroll-view 承载: 页面自身定高 flex 列, 滚动体=照片墙+历史记录(cd-body) */
+.cd-page { background: #f4f8ff; height: 100vh; padding: 24rpx 28rpx 0; box-sizing: border-box; color: #1c2b3a; display: flex; flex-direction: column; overflow: hidden; }
+.cd-body { flex: 1; min-height: 0; }
 .cd-empty { padding: 80rpx 0; text-align: center; color: #94a3b8; font-size: 26rpx; }
 .cd-empty.slim { padding: 24rpx 0; }
 
