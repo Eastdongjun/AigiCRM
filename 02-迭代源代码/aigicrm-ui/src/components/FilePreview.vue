@@ -14,11 +14,11 @@
     class="file-preview-dlg"
   >
     <div class="preview-body" :class="'kind-' + kind">
-      <!-- 【图片秒开 2026-10-17】展示用 ≤300px 缩略图(18MB 原图 14.8s → 缩略亚秒);
-           点击放大(preview-src-list)才加载原图看全细节 -->
+      <!-- 【图片秒开+大图 2026-10-17】打开瞬间先显示缩略图(占满弹窗,秒开不白屏), 原图后台
+           预载、到货无缝替换成高清(此前只显 300px 缩略导致"图片太小"); 点击放大(preview-src-list)=原图 -->
       <el-image
         v-if="kind === 'image'"
-        :src="thumbSrcOf(url)"
+        :src="imageDisplaySrc"
         :preview-src-list="[url]"
         :initial-index="0"
         fit="contain"
@@ -88,6 +88,23 @@ const kind = computed(() => {
 const mediaError = ref(false)
 watch(() => props.url, () => { mediaError.value = false })
 
+// 【图片秒开+大图】渐进加载: 先缩略(占满弹窗、秒开), 原图 Image() 预载到货换高清。
+// 注意 onload 里不能用 im.src 与 props.url 比较——Image().src 是解析后的绝对地址,
+// props.url 是相对路径, 恒不相等(2026-10-17 实测翻车); 用捕获的原始值比对防串图。
+const fullReady = ref(false)
+const imageDisplaySrc = computed(() => {
+  if (kind.value !== 'image' || !props.url) return props.url
+  return fullReady.value ? props.url : thumbSrcOf(props.url)
+})
+watch(() => [props.url, props.visible], ([u, visible]) => {
+  fullReady.value = false
+  if (!visible || kind.value !== 'image' || !u) return
+  const wanted = u
+  const im = new Image()
+  im.onload = () => { if (props.url === wanted) fullReady.value = true }
+  im.src = u
+}, { immediate: true })
+
 // 【2026-10-17 客户口径】文件在系统里打开=本弹窗(点击文件/下载图标即唤起)。
 // 弹窗内的「下载文件」只负责存本地副本: 文件已在系统阅读器里展示着,保存成功给明确提示即可
 // (此前一度做过"下载后新标签页打开",按用户口径"要在系统里面打开"收敛回系统阅读器本身)。
@@ -128,7 +145,8 @@ async function download() {
 .preview-body.kind-text > * {
   width: 100%;
 }
-.pv-image { max-width: 100%; max-height: 80vh; }
+/* 图片占满弹窗(fit=contain 保比例): 缩略阶段先放大铺满(即时), 原图到货即高清 */
+.pv-image { width: 100%; height: 78vh; }
 .pv-video { max-width: 100%; max-height: 80vh; background: #000; border-radius: 8px; }
 .pv-audio-wrap { display: flex; flex-direction: column; align-items: center; gap: 14px; color: var(--el-color-info); }
 .pv-audio { width: min(560px, 90%); }

@@ -101,8 +101,10 @@ const displaySrc = computed(() => {
 watch(url, (u) => {
   fullLoadedUrl.value = ''
   if (type.value !== 'image' || !u) return
+  const wanted = u
   const im = new Image()
-  im.onload = () => { if (im.src === url.value) fullLoadedUrl.value = u }
+  // 注意 im.src 是解析后的绝对地址, 与相对的 url.value 恒不等——须用捕获原始值比对(2026-10-17 实测翻车点)
+  im.onload = () => { if (url.value === wanted) fullLoadedUrl.value = u }
   im.src = u
 }, { immediate: true })
 
