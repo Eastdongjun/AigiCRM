@@ -70,26 +70,26 @@ const {
   margin-bottom: 12px;
 }
 /* 【2026-10-17 客户反馈】方块底色应用式图标: 圆角方块渐变底 + 白色符号
-   (全部文件=品牌蓝, 文件夹=琥珀黄), 取代原先的细线轮廓图标 */
+   (全部文件=品牌蓝, 文件夹=琥珀黄), 取代原先的细线轮廓图标; 【二轮】整体放大一档 */
 .sq-icon {
-  width: 26px;
-  height: 26px;
-  border-radius: 7px;
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   color: #fff;
   flex-shrink: 0;
-  font-size: 15px;
-  box-shadow: inset 0 -2px 4px rgba(0, 0, 0, .12);
+  font-size: 18px;
+  box-shadow: inset 0 -2px 5px rgba(0, 0, 0, .14);
 }
 .sq-icon--all { background: linear-gradient(135deg, #2563eb, #4285f4); }
 .sq-icon--folder { background: linear-gradient(135deg, #f59e0b, #fbbf24); }
 .folder-root {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 8px 10px;
+  gap: 8px;
+  padding: 10px;
   border-radius: var(--radius-sm);
   cursor: pointer;
   margin-bottom: 4px;
@@ -97,23 +97,23 @@ const {
 }
 .folder-root:hover { background: #f5f7fa; }
 .folder-root.active { background: var(--el-color-primary-light-9); }
-.folder-root-name { flex: 1; font-size: 13px; color: var(--el-color-primary); font-weight: 500; }
+.folder-root-name { flex: 1; font-size: 14px; color: var(--el-color-primary); font-weight: 600; }
 .folder-count-badge {
   background: var(--el-color-primary);
   color: #fff;
   font-size: 12px;
-  padding: 1px 7px;
+  padding: 2px 8px;
   border-radius: var(--radius-md);
   font-weight: 600;
 }
 .folder-item {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 7px 10px;
+  gap: 8px;
+  padding: 9px 10px;
   border-radius: var(--radius-sm);
   cursor: pointer;
-  font-size: 13px;
+  font-size: 14px;
   color: #333;
   transition: background 0.15s;
 }
@@ -124,7 +124,7 @@ const {
   background: #e6e8eb;
   color: #666;
   font-size: 12px;
-  padding: 1px 6px;
+  padding: 2px 7px;
   border-radius: 8px;
   font-weight: 500;
 }
