@@ -14,6 +14,7 @@ import { downloadFile } from '@/utils/download'
 import { confirmAction } from '@/utils/confirm'
 import { getToken, getDownloadToken, refreshDownloadToken } from '@/utils/token'
 import { formatSize } from '@/utils/format'
+import { previewKindOf } from '@/utils/media-type'
 
 export const FilePageKey = Symbol('filePage')
 
@@ -61,6 +62,7 @@ export function useFilePage() {
   const previewUrl = ref('')
   const previewType = ref('file')
   const previewName = ref('')
+  const previewSize = ref(0)
 
   const isAdmin = computed(() => userStore.isAdmin())
 
@@ -239,17 +241,23 @@ export function useFilePage() {
     await refreshDownloadToken()
     previewUrl.value = downloadUrlOf(row, getDownloadToken())
     previewName.value = row.fileName || '文件'
-    const ext = getFileExt(row.fileName)
-    previewType.value = ext === 'img' ? 'image' : ext === 'video' ? 'video' : ext === 'pdf' ? 'pdf' : ['doc', 'xls', 'ppt'].includes(ext) ? 'office' : 'file'
+    previewSize.value = Number(row.fileSize) || 0
+    // 【文件阅读器 2026-10-16】种类判定收口到 utils/media-type.previewKindOf（Word/Excel/PDF 等全部内嵌预览）；
+    // 此前本页自持 getFileExt 四分类表与 FilePreview 口径分叉（mov 本页认视频、灯箱不认等）
+    previewType.value = previewKindOf(row.fileName)
     previewVisible.value = true
   }
 
-  const handleDownload = (row) => {
+  const handleDownload = async (row) => {
+    if (!row) return
     const url = downloadUrlOf(row)
     // 【C3 2026-10-04】token 改为下载时实时获取（对齐 FilePreview）：
     // 切换集团会重签 token 且不刷新页面（store/user.js switchGroup），此前组合式函数
     // 初始化时一次性捕获的 token 会一直是旧集团 JWT，切换后下载仍走旧集团上下文。
-    downloadFile(url, { name: row.fileName, headers: { Authorization: `Bearer ${getToken() || ''}` } })
+    // 【2026-10-17 客户口径】下载完成即用系统文件阅读器打开(与「眼睛」预览同款弹窗);
+    // pptx 等浏览器渲染不了的格式,弹窗会给出"暂不支持"说明,文件本体已存本地。
+    await downloadFile(url, { name: row.fileName, headers: { Authorization: `Bearer ${getToken() || ''}` } })
+    handlePreview(row)
   }
 
   // ---- 删除（确认 + 刷新，含共享态回写）----
@@ -312,7 +320,7 @@ export function useFilePage() {
     storageUsed, storageQuota, storagePercent,
     uploadVisible, createFolderVisible, renameFolderVisible, renameFolderTarget,
     shareDialogVisible, shareFileTarget, aclDialogVisible, aclFolder,
-    previewVisible, previewUrl, previewType, previewName,
+    previewVisible, previewUrl, previewType, previewName, previewSize,
     isAdmin, tabs, currentFolders, canCreateFolder,
     loadFolderPerms, loadFolders, loadFiles, loadTabCounts, loadStorage, refreshAll,
     switchTab, selectFolder, searchFiles,

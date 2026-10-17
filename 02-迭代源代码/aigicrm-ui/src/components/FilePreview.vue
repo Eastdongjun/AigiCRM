@@ -54,10 +54,11 @@
 </template>
 
 <script setup>
-import { computed, defineAsyncComponent, onBeforeUnmount, ref, watch } from 'vue'
+import { computed, defineAsyncComponent, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Download, Document, VideoCamera, Headset } from '@element-plus/icons-vue'
 import { getToken } from '@/utils/token'
+import { downloadFile } from '@/utils/download'
 import { previewKindOf, unsupportedHintOf } from '@/utils/media-type'
 
 // 重型渲染器按需加载：docx-preview / SheetJS 各自在渲染器内部动态 import，首屏零成本
@@ -85,62 +86,17 @@ const kind = computed(() => {
 const mediaError = ref(false)
 watch(() => props.url, () => { mediaError.value = false })
 
-// 【2026-10-17 客户需求】点"下载文件"→ 下载完成的那一刻立即在系统里打开给用户看:
-//   · 浏览器可直显格式(图片/PDF/文本): 保存的同时,把文件写进预开的新标签页立即展示——
-//     不做 tab.location=blob 导航(无头/部分环境静默失败),用同源 document.write 注入
-//     img/embed/iframe(经典打印窗模式, 真实浏览器必渲染; 预开空白标签规避异步链弹窗拦截)
-//   · Word/Excel 等: 弹窗内本来就是在线预览的,下载仅保存本地并给出明确成功提示
-//   · 浏览器打不开的格式(pptx 等): 保存 + 提示从浏览器下载列表用本地程序打开
-//   · 后端对文档类统一 Content-Disposition: attachment,故必须走前端 blob 展示
-const BROWSER_VIEWABLE = new Set(['image', 'pdf', 'text'])
+// 【2026-10-17 客户口径】文件在系统里打开=本弹窗(点击文件/下载图标即唤起)。
+// 弹窗内的「下载文件」只负责存本地副本: 文件已在系统阅读器里展示着,保存成功给明确提示即可
+// (此前一度做过"下载后新标签页打开",按用户口径"要在系统里面打开"收敛回系统阅读器本身)。
 const downloading = ref(false)
-const openObjectUrls = []
-watch(() => props.visible, (v) => { if (!v) releaseObjectUrls() })
-onBeforeUnmount(releaseObjectUrls)
-function releaseObjectUrls() {
-  while (openObjectUrls.length) URL.revokeObjectURL(openObjectUrls.pop())
-}
-function escapeHtml(text) {
-  return String(text || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
-}
-
-function showInTab(tab, objectUrl) {
-  const title = escapeHtml(props.fileName || '文件')
-  const body =
-    kind.value === 'image'
-      ? `<body style="margin:0;background:#f5f7fa;display:flex;align-items:center;justify-content:center;min-height:100vh"><img src="${objectUrl}" alt="${title}" style="max-width:100%;max-height:100vh;object-fit:contain"></body>`
-      : kind.value === 'pdf'
-        ? `<body style="margin:0"><embed src="${objectUrl}" type="application/pdf" style="width:100vw;height:100vh"></body>`
-        : `<body style="margin:0"><iframe src="${objectUrl}" title="${title}" style="width:100vw;height:100vh;border:0"></iframe></body>`
-  const doc = tab.document
-  doc.open()
-  doc.write(`<!doctype html><meta charset="utf-8"><title>${title}</title>${body}`)
-  doc.close()
-}
 
 async function download() {
   if (!props.url || downloading.value) return
-  const viewable = BROWSER_VIEWABLE.has(kind.value)
-  const tab = viewable ? window.open('about:blank', '_blank') : null
   downloading.value = true
   try {
-    const res = await fetch(props.url, { headers: { Authorization: 'Bearer ' + (getToken() || '') } })
-    if (!res.ok) throw new Error('HTTP ' + res.status)
-    const blob = await res.blob()
-    const objectUrl = URL.createObjectURL(blob)
-    openObjectUrls.push(objectUrl)
-    const a = document.createElement('a')
-    a.href = objectUrl
-    a.download = props.fileName || 'file'
-    a.click()
-    if (tab) {
-      showInTab(tab, objectUrl)
-    } else {
-      ElMessage.success(`已下载：${props.fileName || '文件'}（浏览器打不开此格式时，可从右上角下载列表用本地程序打开）`)
-    }
-  } catch (e) {
-    if (tab) tab.close()
-    ElMessage.error('下载失败：' + (e && e.message ? e.message : '网络异常'))
+    await downloadFile(props.url, { name: props.fileName || 'file', headers: { Authorization: 'Bearer ' + (getToken() || '') } })
+    ElMessage.success(`已下载：${props.fileName || '文件'}`)
   } finally {
     downloading.value = false
   }
