@@ -178,11 +178,12 @@ public class IncentiveController {
             @RequestParam(required = false) String salesperson,
             @RequestParam(required = false) String startDate,
             @RequestParam(required = false) String endDate,
+            @RequestParam(required = false) String period,
             @RequestParam(required = false) String orgIds,
             @RequestParam(required = false) String devType,
             @RequestParam(required = false) String product,
             @RequestParam(required = false) String keyword) {
-        return Result.ok(incentiveService.getCustomerRecords(industry, mainCategoryId, customerName, salesperson, startDate, endDate, orgIds, devType, product, keyword));
+        return Result.ok(incentiveService.getCustomerRecords(industry, mainCategoryId, customerName, salesperson, startDate, endDate, period, orgIds, devType, product, keyword));
     }
 
     @PreAuthorize("hasAuthority('incentive:view')")
