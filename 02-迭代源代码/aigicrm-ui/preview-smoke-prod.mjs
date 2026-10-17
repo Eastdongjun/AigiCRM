@@ -80,7 +80,7 @@ try {
       await openPreview(pdfName);
       await page.locator('.preview-body .pv-pdf-frame').waitFor({ state: 'visible', timeout: 30000 });
       const src = await page.locator('.preview-body .pv-pdf-frame').getAttribute('src');
-      ok('pdf iframe 使用 blob URL(CSP 放行)', !!src && src.startsWith('blob:'), src?.slice(0, 30));
+      ok('pdf iframe 直链流式(或兜底 blob)', !!src && (src.includes('/api/file/download/') || src.startsWith('blob:')), src?.slice(0, 40));
       await page.waitForTimeout(1500);
       ok('pdf 无错误/超限提示', await noStatusError());
       await closePreview();

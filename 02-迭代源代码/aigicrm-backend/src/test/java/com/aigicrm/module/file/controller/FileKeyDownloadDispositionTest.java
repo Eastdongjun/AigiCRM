@@ -76,6 +76,14 @@ class FileKeyDownloadDispositionTest {
         assertTrue(d != null && d.startsWith("inline"), "纯图片保持 inline: " + d);
     }
 
+    // 【契约钉 2026-10-17】PDF inline 供阅读器直链流式预览(边下边看); 回退 attachment 会让
+    // 前端 PdfFrame 的直链 iframe 触发下载而非渲染, 预览性能批随之失效——改这里必须连前端一起改。
+    @Test
+    void pdf_inline() throws Exception {
+        String d = dispositionOf("report.pdf");
+        assertTrue(d != null && d.startsWith("inline"), "PDF 应 inline 供流式预览: " + d);
+    }
+
     @Test
     void svg_forcedAttachment() throws Exception {
         String d = dispositionOf("badge.svg");

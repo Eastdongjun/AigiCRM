@@ -11,18 +11,51 @@ server {
     root /usr/share/nginx/html;
     index index.html;
 
-    # 公开文件下载 — 直接从文件系统服务，无需认证
-    location ^~ /api/file/download/public/ {
-        alias /usr/share/nginx/html/uploads-public/;
-        add_header Cache-Control "public, max-age=86400";
-    }
+    # 【2026-10-16 测试环境对齐生产】安全头镜像自 nginx/nginx-ssl.conf(去掉仅 HTTPS 有意义的 HSTS)。
+    # 此前测试服无 CSP/X-Frame-Options, 生产的 blob: iframe 被 CSP 拦掉(PDF 预览坏了)在测试服永远测不出来。
+    # 测试环境必须和生产一样"严", 否则绿灯没有意义。注意 nginx add_header 不继承: 下方有自己 add_header 的 location 须重复。
+    add_header X-Frame-Options DENY always;
+    add_header X-Content-Type-Options nosniff always;
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+    add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; frame-src 'self' blob:; object-src 'none'; frame-ancestors 'none'; base-uri 'self'" always;
 
     # 前端路由支持
     location / {
         try_files $uri $uri/ /index.html;
     }
 
+    # SPA 入口不缓存(同生产); 本 location 有自己的 add_header, 安全头须在此补齐
+    location = /index.html {
+        add_header Cache-Control "no-cache, no-store, must-revalidate";
+        add_header X-Frame-Options DENY always;
+        add_header X-Content-Type-Options nosniff always;
+        add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+        add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; frame-src 'self' blob:; object-src 'none'; frame-ancestors 'none'; base-uri 'self'" always;
+    }
+
+    # 【PDF 流式预览 2026-10-17】文件下载路径放行同源内嵌: 浏览器内建 PDF 阅读器直连此 URL,
+    # 按 Range 分段边下边看(23.5MB PDF 首屏从全量下载完降到秒级)。XFO 收窄 DENY→SAMEORIGIN、
+    # CSP frame-ancestors 收窄 none→self: 仅允许本系统页面内嵌, 外站仍被拒。
+    # 注意 nginx add_header 不继承: 本 location 的安全头须整组重抄(除上述两处收窄外与 server 级一致)。
+    location ^~ /api/file/download/ {
+        proxy_pass http://${BACKEND_HOST}:8080/api/file/download/;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        client_max_body_size 500m;
+        # 后端 Spring Security 对所有响应自带 XFO DENY, 会与本块的 SAMEORIGIN 形成重复头(浏览器取最严=仍拒)——
+        # 先隐掉上游的, 只保留下方 SAMEORIGIN
+        proxy_hide_header X-Frame-Options;
+        add_header X-Frame-Options SAMEORIGIN always;
+        add_header X-Content-Type-Options nosniff always;
+        add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+        add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; frame-src 'self' blob:; object-src 'none'; frame-ancestors 'self'; base-uri 'self'" always;
+    }
+
     # API 代理（^~ 确保优先于下方静态资源正则匹配，否则 /api/.../*.png 等下载会被静态规则拦截导致 404）
+    # 【2026-10-16】移除此前 `location ^~ /api/file/download/public/` 的本地 alias 块: 它把公共文件下载截到
+    # 镜像内不存在的 uploads-public 目录(恒 404), 与后端"物理+库行双校验"的 public 路由不符, 生产亦无此块。
     location ^~ /api/ {
         proxy_pass http://${BACKEND_HOST}:8080/api/;
         proxy_set_header Host $host;
@@ -34,9 +67,13 @@ server {
         client_max_body_size 500m;
     }
 
-    # 静态资源缓存
+    # 静态资源缓存(本 location 有自己的 add_header, 安全头须在此补齐)
     location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)$ {
         expires 30d;
         add_header Cache-Control "public, immutable";
+        add_header X-Frame-Options DENY always;
+        add_header X-Content-Type-Options nosniff always;
+        add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+        add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; frame-src 'self' blob:; object-src 'none'; frame-ancestors 'none'; base-uri 'self'" always;
     }
 }

@@ -494,10 +494,13 @@ public class FileService {
         return Paths.get(uploadDir, fileKey);
     }
 
-    /** 安全内联判定: 仅纯图片(不含 SVG——可内嵌脚本执行, 存存储型XSS)与视频可 inline, 其余一律 attachment。
-     *  2026-08-10 安全修复: 原先 svg 也在 inline 名单, 配合任意上传可被匿名/分享 URL 直接执行窃取 localStorage JWT。 */
+    /** 安全内联判定: 仅纯图片(不含 SVG——可内嵌脚本执行, 存存储型XSS)、视频与 PDF 可 inline, 其余一律 attachment。
+     *  2026-08-10 安全修复: 原先 svg 也在 inline 名单, 配合任意上传可被匿名/分享 URL 直接执行窃取 localStorage JWT。
+     *  2026-10-17 PDF 加入 inline: 浏览器内建 PDF 阅读器需 inline+Range 才能边下边看(前端阅读器直链流式,
+     *  23.5MB PDF 首屏从"全量下载完"降到秒级); PDF 阅读器在浏览器内沙箱渲染, 无 SVG/HTML 的脚本执行面。
+     *  SVG/HTML 等活性内容仍强制 attachment。 */
     private static final java.util.regex.Pattern SAFE_INLINE_EXT =
-            java.util.regex.Pattern.compile("(?i).*\\.(jpg|jpeg|png|gif|webp|bmp|mp4|webm)$");
+            java.util.regex.Pattern.compile("(?i).*\\.(jpg|jpeg|png|gif|webp|bmp|mp4|webm|pdf)$");
 
     public static String dispositionFor(String filename) {
         return filename != null && SAFE_INLINE_EXT.matcher(filename).matches() ? "inline" : "attachment";
