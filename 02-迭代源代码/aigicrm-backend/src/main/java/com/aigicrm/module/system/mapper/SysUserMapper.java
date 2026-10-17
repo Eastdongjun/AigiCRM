@@ -6,6 +6,10 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.aigicrm.module.system.entity.SysUser;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
+import org.apache.ibatis.annotations.Update;
+
+import java.util.Collection;
+import java.util.List;
 
 public interface SysUserMapper extends BaseMapper<SysUser> {
 
@@ -44,4 +48,34 @@ public interface SysUserMapper extends BaseMapper<SysUser> {
             "ORDER BY CASE (SELECT r.role_code FROM sys_role r JOIN sys_user_role ur ON r.id = ur.role_id WHERE ur.user_id = u.id LIMIT 1) " +
             "WHEN '0' THEN 0 WHEN 'admin' THEN 1 WHEN '05' THEN 2 ELSE 3 END, u.username ASC")
     IPage<SysUser> selectUserPage(Page<SysUser> page, @Param("keyword") String keyword, @Param("deptIds") String deptIds, @Param("status") Integer status);
+
+    // ===== 【回收站 2026-10-18】已删除人员(显式 deleted=1 绕过 @TableLogic) =====
+
+    @Select("SELECT * FROM sys_user WHERE deleted = 1 "
+            + "AND (username LIKE #{pattern} OR real_name LIKE #{pattern}) "
+            + "ORDER BY updated_at DESC LIMIT #{offset}, #{size}")
+    List<SysUser> selectDeletedPage(@Param("pattern") String pattern,
+                                    @Param("offset") int offset,
+                                    @Param("size") int size);
+
+    @Select("SELECT COUNT(*) FROM sys_user WHERE deleted = 1 "
+            + "AND (username LIKE #{pattern} OR real_name LIKE #{pattern})")
+    long countDeleted(@Param("pattern") String pattern);
+
+    /** 含已删除行按 id 取(selectById 被 @TableLogic 过滤, 恢复流程需读原行) */
+    @Select("SELECT * FROM sys_user WHERE id = #{id}")
+    SysUser selectByIdIncludingDeleted(@Param("id") Long id);
+
+    /** 活跃用户占用同名账号数: >0 时恢复会造成账号冲突 */
+    @Select("SELECT COUNT(*) FROM sys_user WHERE deleted = 0 AND username = #{username}")
+    long countActiveByUsername(@Param("username") String username);
+
+    /** 恢复账号(deleted=0; 只更新 deleted=1 的行, 并发下重复恢复返回 0) */
+    @Update("UPDATE sys_user SET deleted = 0 WHERE id = #{id} AND deleted = 1")
+    int restoreDeleted(@Param("id") Long id);
+
+    /** 姓名回填含已删除用户(客户原负责人可能已离职删除, 回收站列表仍需显示其姓名) */
+    @Select("<script>SELECT id, real_name FROM sys_user WHERE id IN "
+            + "<foreach collection='ids' item='id' open='(' separator=',' close=')'>#{id}</foreach></script>")
+    List<SysUser> selectNamesByIds(@Param("ids") Collection<Long> ids);
 }

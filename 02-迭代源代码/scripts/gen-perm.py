@@ -2,6 +2,21 @@
 # 权限码字典 markdown 生成(由 gen-permission-dict.sh 调用)
 import sys, datetime
 
+# 兼容/历史权限码(与 PermissionMatrixTest.DOCUMENTED_NON_RUNTIME_PERMISSION_CODES 同源)。
+# 这些码已从 sys_menu 删除或不再作为运行时门禁, 但测试要求字典"一、权限码清单"里可查,
+# 且行内需带 不作为/已废弃/历史残留/统一使用/授权表 之一的口径说明。
+LEGACY_PERMISSION_CODES = [
+    ('customer:share', '历史兼容项, 不作为独立运行时授权(沿用客户访问/编辑守卫)'),
+    ('incentive:delete', '历史兼容项, 不作为独立运行时授权(由授权表与服务范围控制)'),
+    ('incentive:view-all', '历史残留, 不作为运行时授权(改由授权表按人核定)'),
+    ('incentive:view-shared', '历史残留, 不作为运行时授权(改由授权表按人核定)'),
+    ('score:ranking', '历史残留, 不作为独立运行时授权(统一使用 score:view)'),
+    ('sea:pool:delete', '历史残留, 不作为独立运行时授权(运行时由池级 PERM_DELETE 守卫控制)'),
+    ('statistics:scoreboard', '历史残留, 不作为独立运行时授权(统一使用 statistics:view)'),
+    ('system:menu:edit', '历史残留, 不作为运行时授权(菜单由迁移维护)'),
+]
+LEGACY_NOTES = dict(LEGACY_PERMISSION_CODES)
+
 def guard_repo_path(path, what, allow_tempdir=False):
     """生成器只允许写项目目录(或系统临时目录, 供 check-doc-freshness 临时产物用)内的路径,
     拒绝越仓写入(路径穿越收敛, 2026-09-21 安全轮; 复审 2026-10-13 补 tempdir 豁免——
@@ -51,6 +66,14 @@ def main(out_path, label):
 
     enabled_cnt = sum(1 for g in grouped.values() if g['enabled'])
     disabled_cnt = sum(1 for g in grouped.values() if g['has_status'] and not g['enabled'])
+    db_cnt = len(grouped)
+    db_perms = set(grouped)  # 角色矩阵只覆盖库内真实存在的码(兼容码无绑定, 列矩阵无意义)
+    # 已从 sys_menu 消失的兼容码补成表行(状态 '—'), 与库内码同表呈现, 供架构测试与角色配置追溯
+    for code, note in LEGACY_PERMISSION_CODES:
+        if code not in grouped:
+            grouped[code] = {'names': {note}, 'types': {'—'}, 'paths': {'—'},
+                             'enabled': False, 'has_status': False}
+    legacy_cnt = len(grouped) - db_cnt
 
     L = []
     L.append('# AIGICRM 权限码字典(自动生成)')
@@ -63,7 +86,8 @@ def main(out_path, label):
              '(SysMenuService.tree() 带 status=1 过滤)，**管理员可勾选授予**;'
              ' `停用` = status=0，**管理员看不到、也无法授予**（即便数据库里存在绑定）。')
     L.append('')
-    L.append('## 一、权限码清单(%d 条；启用 %d / 停用 %d)' % (len(grouped), enabled_cnt, disabled_cnt))
+    L.append('## 一、权限码清单(%d 条；数据库 %d 条 + 兼容/历史 %d 条；启用 %d / 停用 %d)'
+             % (len(grouped), db_cnt, legacy_cnt, enabled_cnt, disabled_cnt))
     L.append('')
     L.append('| 权限码 | 菜单名 | 类型 | 路径 | 状态 | 绑定的角色 |')
     L.append('|---|---|---|---|---|---|')
@@ -74,9 +98,13 @@ def main(out_path, label):
             st = '—'
         else:
             st = '启用' if g['enabled'] else '**停用**'
+        # 库内仍存在的停用/兼容码: 在菜单名后追注口径, 满足架构测试"非运行时说明"要求
+        name_text = ' / '.join(sorted(g['names']))
+        if perm in LEGACY_NOTES and '停用兼容码' not in name_text and g['has_status']:
+            name_text = name_text + '（' + LEGACY_NOTES[perm] + '）'
         L.append('| `%s` | %s | %s | `%s` | %s | %s |' % (
             perm,
-            ' / '.join(sorted(g['names'])),
+            name_text,
             ' / '.join(sorted(g['types'])),
             ' / '.join(sorted(g['paths'])),
             st,
@@ -91,7 +119,7 @@ def main(out_path, label):
     role_set = sorted(set(r for rs in roles.values() for r in rs))
     L.append('| 权限码 | ' + ' | '.join(role_set) + ' |')
     L.append('|---|' + '---|' * len(role_set))
-    for perm in sorted(grouped):
+    for perm in sorted(db_perms):
         cells = []
         for r in role_set:
             cells.append('✅' if r in roles.get(perm, []) else ' ')

@@ -230,6 +230,14 @@ const routes = [
         component: () => import('@/views/system/log.vue'),
         meta: { title: '日志管理', icon: 'Notebook', permission: 'system:log:view' }
       },
+      // 【回收站 2026-10-18】已删除客户/人员查看与恢复：独立页面，默认仅系统管理员可见，
+      // 其他角色由管理员在角色管理勾选 system:recycle:view / system:recycle:restore 后可见
+      {
+        path: 'system/recycle',
+        name: 'SystemRecycle',
+        component: () => import('@/views/system/recycle.vue'),
+        meta: { title: '回收站', icon: 'Delete', permission: 'system:recycle:view' }
+      },
       {
         path: 'system/rule',
         name: 'PermissionRule',
