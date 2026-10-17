@@ -288,6 +288,38 @@ class ReminderServiceTest {
         assertThrows(BusinessException.class, () -> service.detail(23L));
     }
 
+    /** 【F15① 2026-10-18】软删客户的孤儿提醒(直删绕过 INV-05 清理的残留)不进列表,total 同步扣减 */
+    @Test
+    void page_filtersOrphanRemindersOfSoftDeletedCustomers() {
+        authenticate(1L, "all");
+        when(scopeResolver.resolveModuleUsers(any(), anyString())).thenReturn(null);
+
+        BizReminder alive = new BizReminder();
+        alive.setId(1L);
+        alive.setCustomerId(100L); // 客户存活: selectBatchIds 能查到
+        BizReminder orphan = new BizReminder();
+        orphan.setId(2L);
+        orphan.setCustomerId(200L); // 客户已软删: @TableLogic 下 selectBatchIds 查不到 → 孤儿
+        com.baomidou.mybatisplus.extension.plugins.pagination.Page<BizReminder> p =
+                new com.baomidou.mybatisplus.extension.plugins.pagination.Page<>(1, 15);
+        p.setRecords(new java.util.ArrayList<>(List.of(alive, orphan)));
+        p.setTotal(2);
+        when(reminderMapper.selectPage(any(), any())).thenReturn(p);
+
+        // 回填: 客户批查只回 100(200 被软删滤除); user/dept 批查空
+        BizCustomer living = new BizCustomer();
+        living.setId(100L);
+        living.setCustomerName("存活客户");
+        when(customerMapper.selectBatchIds(any())).thenReturn(List.of(living));
+        when(userMapper.selectBatchIds(any())).thenReturn(List.of());
+        when(deptMapper.selectBatchIds(any())).thenReturn(List.of());
+
+        com.baomidou.mybatisplus.core.metadata.IPage<BizReminder> result = service.page(1, 15, null, null, null, null, null, null);
+        org.junit.jupiter.api.Assertions.assertEquals(1, result.getRecords().size(), "孤儿提醒应被滤除");
+        org.junit.jupiter.api.Assertions.assertEquals(100L, result.getRecords().get(0).getCustomerId());
+        org.junit.jupiter.api.Assertions.assertEquals(1, result.getTotal(), "total 应同步扣减孤儿数");
+    }
+
     private void authenticate(Long userId, String dataScope) {
         SecurityUser user = new SecurityUser();
         user.setUserId(userId);

@@ -159,6 +159,20 @@ public class ReminderService {
                 if (dept != null) r.setOfficeName(dept.getDeptName());
             }
         }
+        // 【F15① 2026-10-18 用户裁决·删除是终态】软删客户的孤儿提醒不再出现在列表:
+        // 应用内删客户会清 pending 提醒(INV-05),但 SQL 直删(如 8-10 的 290 条)绕过该清理,
+        // 残留提醒在"到期提醒页/角标"(查客户表,自动滤已删)看不到、在本列表(查提醒表原始行)却照常
+        // 出现——两接口口径分叉。此处的 customerMap 来自 selectBatchIds(@TableLogic 已排除已删客户),
+        // customer_id 查不到的行即孤儿行,整行滤除并与 total 对齐;与 expiringPage/pendingCount 同口径。
+        if (!rows.isEmpty()) {
+            long orphans = rows.stream().filter(r ->
+                    r.getCustomerId() != null && !customerMap.containsKey(r.getCustomerId())).count();
+            if (orphans > 0) {
+                rows.removeIf(r ->
+                        r.getCustomerId() != null && !customerMap.containsKey(r.getCustomerId()));
+                page.setTotal(Math.max(0, page.getTotal() - orphans));
+            }
+        }
         return page;
     }
 

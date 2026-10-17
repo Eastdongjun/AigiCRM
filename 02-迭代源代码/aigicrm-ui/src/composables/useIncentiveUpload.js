@@ -150,6 +150,11 @@ export function useIncentiveUpload() {
 
   const canSubmit = computed(() => {
     if (!selectedCustomerId.value) return false
+    // 【P1-4 2026-10-18】全类目至少一个文件——与后端 hasAnyFile 守卫对齐,按钮态即拦
+    // (此前 trial 等多槽类 0 文件可点提交,点了才被后端报"请至少上传一个文件")
+    const anyFile = (installFiles.pre.length + installFiles.mid.length + installFiles.post.length) > 0
+      || trackFile.value.length > 0
+    if (!anyFile) return false
     if (isSingleSlot.value) return installFiles.pre.length >= 1
     return true
   })

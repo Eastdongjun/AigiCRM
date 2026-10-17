@@ -219,7 +219,11 @@ function canSubmitUpload(data, selectedCategory, categories) {
   if (!hasCustomer || !hasCategory) return false
   const code = categoryCodeOf(selectedCategory, categories)
   const isSingleSlot = ['visit', 'exchange', 'plan'].includes(code)
-  if (!isSingleSlot) return true
+  if (!isSingleSlot) {
+    // 【P1-4 2026-10-18】trial 等多槽类: 五槽任一有文件才可提交——与后端 hasAnyFile 守卫对齐
+    // (此前 0 文件可点提交,点了才被后端报"请至少上传一个文件")
+    return data.fileSlots.some((slot) => slotFileCount(slot) > 0)
+  }
   const preSlot = data.fileSlots.find((slot) => slot.key === 'filePreId')
   return slotFileCount(preSlot) > 0
 }
