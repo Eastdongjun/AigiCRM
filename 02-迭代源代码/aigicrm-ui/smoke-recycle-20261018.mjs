@@ -18,7 +18,7 @@ await page.waitForURL(/dashboard|customer/, { timeout: 15000 });
 // 侧边栏菜单出现
 await page.goto('http://111.229.37.220/system/recycle');
 await page.waitForSelector('.recycle-page', { timeout: 15000 });
-ok('页面标题=回收站', (await page.locator('.page-header h2').innerText()).includes('回收站'));
+ok('页面标题=回收站', (await page.locator('.recycle-head h2').innerText()).includes('回收站'));
 
 // 客户页签
 await page.waitForSelector('.el-table__row', { timeout: 15000 });
@@ -26,10 +26,10 @@ const custRows = await page.locator('.el-table__row').count();
 ok(`已删除客户有数据行(${custRows})`, custRows > 0);
 const hasRestoreBtn = (await page.locator('.el-table__row').first().getByText('恢复').count()) > 0;
 ok('恢复按钮可见(admin 有 restore 权限)', hasRestoreBtn);
-ok('提示条存在', (await page.locator('.recycle-hint').count()) > 0);
+ok('提示条存在', (await page.locator('.info-strip').count()) > 0);
 
 // 切人员页签
-await page.locator('.el-tabs__item', { hasText: '已删除人员' }).first().click();
+await page.locator('.seg-item', { hasText: '已删除人员' }).first().click();
 await page.waitForTimeout(1200);
 const userRows = await page.locator('.el-table__row').count();
 ok(`已删除人员有数据行(${userRows})`, userRows > 0);
