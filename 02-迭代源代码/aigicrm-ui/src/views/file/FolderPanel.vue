@@ -4,7 +4,8 @@
 
     <!-- 全部文件 -->
     <div class="folder-root" :class="{ active: !selectedFolderId }" @click="selectFolder(null)">
-      <el-icon color="var(--el-color-primary)"><FolderOpened /></el-icon>
+      <!-- 【2026-10-17 客户反馈】细线图标换方块底色应用式图标(圆角方块+白色符号) -->
+      <span class="sq-icon sq-icon--all"><el-icon><FolderOpened /></el-icon></span>
       <span class="folder-root-name">全部文件</span>
       <span class="folder-count-badge">{{ fileTotal }}</span>
     </div>
@@ -17,7 +18,7 @@
       :class="{ active: selectedFolderId === folder.id }"
       @click="selectFolder(folder)"
     >
-      <el-icon><Folder /></el-icon>
+      <span class="sq-icon sq-icon--folder"><el-icon><Folder /></el-icon></span>
       <span class="folder-name">{{ folder.folderName }}</span>
       <span class="folder-count">{{ folder.fileCount || 0 }}</span>
       <span v-if="folder.perms?.includes('edit') || folder.perms?.includes('delete')" class="folder-actions">
@@ -68,6 +69,22 @@ const {
   color: #333;
   margin-bottom: 12px;
 }
+/* 【2026-10-17 客户反馈】方块底色应用式图标: 圆角方块渐变底 + 白色符号
+   (全部文件=品牌蓝, 文件夹=琥珀黄), 取代原先的细线轮廓图标 */
+.sq-icon {
+  width: 26px;
+  height: 26px;
+  border-radius: 7px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  flex-shrink: 0;
+  font-size: 15px;
+  box-shadow: inset 0 -2px 4px rgba(0, 0, 0, .12);
+}
+.sq-icon--all { background: linear-gradient(135deg, #2563eb, #4285f4); }
+.sq-icon--folder { background: linear-gradient(135deg, #f59e0b, #fbbf24); }
 .folder-root {
   display: flex;
   align-items: center;
