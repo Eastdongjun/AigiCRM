@@ -14,16 +14,22 @@
       <div class="pv-stage">
         <button v-if="count > 1" class="pv-nav prev" @click="step(-1)"><el-icon><ArrowLeft /></el-icon></button>
         <video v-if="type==='video'" :src="url" controls autoplay class="pv-media" />
-        <img v-else-if="type==='image' && !error" :src="url" class="pv-media" @error="onImageError" />
-        <iframe v-else-if="type==='pdf'" :src="docUrl" class="pv-frame" v-loading="docLoading" element-loading-text="加载文档…"></iframe>
-        <div v-else-if="type==='text'" class="pv-text" v-loading="docLoading" element-loading-text="加载文本…">
-          <pre v-if="docText">{{ docText }}</pre>
-          <div v-else-if="docFailed" class="pv-text-failed">文本加载失败，可尝试下载</div>
+        <!-- 【图片秒开 2026-10-17】先秒开缩略图, 原图后台预载到货自动换上(displaySrc) -->
+        <img v-else-if="type==='image' && !error" :src="displaySrc" class="pv-media" @error="onImageError" />
+        <!-- 文档类统一走 components/preview 渲染器（与 FilePreview 同源，2026-10-16 文件阅读器） -->
+        <div v-else-if="type==='pdf'" class="pv-doc-panel"><PdfFrame :url="url" :file-name="name" /></div>
+        <div v-else-if="type==='docx'" class="pv-doc-panel"><DocxView :url="url" :file-name="name" /></div>
+        <div v-else-if="type==='sheet'" class="pv-doc-panel"><SheetView :url="url" :file-name="name" /></div>
+        <div v-else-if="type==='text'" class="pv-doc-panel"><TextView :url="url" :file-name="name" /></div>
+        <div v-else-if="type==='audio'" class="pv-missing">
+          <el-icon :size="34"><Headset /></el-icon>
+          <div class="pv-missing-title">{{ name || '音频' }}</div>
+          <audio :src="url" controls class="pv-audio" />
         </div>
-        <div v-else-if="type==='other'" class="pv-missing">
+        <div v-else-if="type==='unsupported'" class="pv-missing">
           <el-icon :size="34"><Document /></el-icon>
           <div class="pv-missing-title">{{ name || '该格式暂不支持在线预览' }}</div>
-          <div class="pv-missing-hint">office 等文档格式暂不支持在线预览，请下载后查看</div>
+          <div class="pv-missing-hint">{{ unsupportedHintOf(name) }}</div>
           <el-button size="small" type="primary" plain @click="downloadCurrent"><el-icon><Download /></el-icon> 下载文件</el-button>
         </div>
         <div v-else class="pv-missing">
@@ -50,10 +56,17 @@
 <script setup>
 // 灯箱内部自持：可见态/文件列表/当前序号/文档预览载荷/键盘导航；
 // 缩略图失败标记（thumbFailed）是页面级共享状态（网格卡片、详情附件、灯箱同源），由 props 传入、失败经 emit 上抛。
-import { ref, computed, watch, onMounted, onBeforeUnmount, nextTick } from 'vue'
-import { Download, Close, ArrowLeft, ArrowRight, Document, VideoPlay, WarningFilled } from '@element-plus/icons-vue'
+import { ref, computed, watch, onMounted, onBeforeUnmount, defineAsyncComponent } from 'vue'
+import { Download, Close, ArrowLeft, ArrowRight, Document, VideoPlay, WarningFilled, Headset } from '@element-plus/icons-vue'
 import { refreshDownloadToken } from '@/utils/token'
+import { previewKindOf, unsupportedHintOf } from '@/utils/media-type'
 import { fileUrl, thumbUrl, downloadFile } from './search-helpers'
+
+// 文档渲染器与 FilePreview 共用，按需懒加载（docx-preview/SheetJS 不进首屏包）
+const PdfFrame = defineAsyncComponent(() => import('@/components/preview/PdfFrame.vue'))
+const DocxView = defineAsyncComponent(() => import('@/components/preview/DocxView.vue'))
+const SheetView = defineAsyncComponent(() => import('@/components/preview/SheetView.vue'))
+const TextView = defineAsyncComponent(() => import('@/components/preview/TextView.vue'))
 
 const props = defineProps({
   // 页面级共享的"缩略图加载失败"文件 id 集合
@@ -66,47 +79,32 @@ const current = computed(() => list.value[index.value] || null)
 const count = computed(() => list.value.length)
 const url = computed(() => current.value ? fileUrl(current.value.id) : '')
 const name = computed(() => current.value?.label || '')
-// 文件种类: 图片/视频走原通道; 文档按扩展名分 pdf(浏览器内建阅读器)/text(排版展示)/other(暂不支持→下载兜底)
-const KIND_EXT = {
-  pdf: /\.pdf$/i,
-  text: /\.(txt|md|log|csv|json|xml|html?)$/i,
-}
+// 文件种类: 图片/视频按记录标注; 其余按文件名经 previewKindOf 统一判定(pdf/docx/sheet/text/audio/unsupported)
+// 【2026-10-16 文件阅读器】此前灯箱自持一份 pdf/text/other 扩展名表与 blob 加载逻辑，与 FilePreview 口径分叉；
+// 现全部收口到 utils/media-type + components/preview，灯箱只负责画廊导航。
 function kindOf(f) {
   if (f?.type === 'video') return 'video'
   if (f?.type === 'image') return 'image'
-  const n = f?.label || ''
-  if (KIND_EXT.pdf.test(n)) return 'pdf'
-  if (KIND_EXT.text.test(n)) return 'text'
-  return 'other'
+  return previewKindOf(f?.label || '')
 }
 const type = computed(() => current.value ? kindOf(current.value) : 'image')
-// 文档预览载荷: pdf → blob objectURL(iframe 内建阅读器); text → 拉文本前端排版; other → 下载兜底卡
-const docUrl = ref(''), docText = ref(''), docLoading = ref(false), docFailed = ref(false)
-let docObjUrl = ''
-async function loadDocPreview() {
-  if (docObjUrl) { URL.revokeObjectURL(docObjUrl); docObjUrl = '' }
-  docUrl.value = ''; docText.value = ''; docFailed.value = false
-  const cur = current.value
-  if (!cur) return
-  const kind = kindOf(cur)
-  if (kind !== 'pdf' && kind !== 'text') return
-  docLoading.value = true
-  try {
-    const res = await fetch(fileUrl(cur.id))
-    if (!res.ok) throw new Error('http ' + res.status)
-    if (kind === 'pdf') {
-      const blob = await res.blob()
-      docObjUrl = URL.createObjectURL(blob.type ? blob : new Blob([blob], { type: 'application/pdf' }))
-      docUrl.value = docObjUrl
-    } else {
-      docText.value = await res.text()
-    }
-  } catch { docFailed.value = true }
-  finally { docLoading.value = false }
-}
-watch(index, () => { error.value = false; loadDocPreview() })
-watch(visible, v => { if (!v) { if (docObjUrl) { URL.revokeObjectURL(docObjUrl); docObjUrl = '' } docUrl.value = ''; docText.value = '' } })
-onBeforeUnmount(() => { if (docObjUrl) URL.revokeObjectURL(docObjUrl) })
+watch(index, () => { error.value = false })
+
+// 【图片秒开 2026-10-17】主图渐进加载: 先显示 ≤300px 缩略(亚秒), 原图后台 Image() 预载,
+// 到货即无缝替换成原图(生产数据有 18MB 的 PNG, 直载原图实测 14.8s)。切图时校验 src 未变才生效。
+const fullLoadedUrl = ref('')
+const displaySrc = computed(() => {
+  if (type.value !== 'image') return url.value
+  if (fullLoadedUrl.value) return fullLoadedUrl.value
+  return current.value ? thumbUrl(current.value.id) : url.value
+})
+watch(url, (u) => {
+  fullLoadedUrl.value = ''
+  if (type.value !== 'image' || !u) return
+  const im = new Image()
+  im.onload = () => { if (im.src === url.value) fullLoadedUrl.value = u }
+  im.src = u
+}, { immediate: true })
 
 // 打开灯箱：gallery 传入该记录的可预览文件（图片/视频）列表，可左右切换；不传则只看单个文件
 async function open(id, fileType, label, gallery) {
@@ -117,7 +115,6 @@ async function open(id, fileType, label, gallery) {
   let idx = l.findIndex(f => f.id === clicked.id)
   if (idx < 0) { l = [clicked]; idx = 0 }
   list.value = l; index.value = idx; error.value = false; visible.value = true
-  nextTick(loadDocPreview)
 }
 
 // 灯箱左右切换（循环）
@@ -178,10 +175,9 @@ defineExpose({ open, step, count, index, name, type })
 .pv-thumb img{width:100%;height:100%;object-fit:cover;display:block}
 .pv-thumb-vid{width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:#cfe2ff}
 .pv-thumb-na{width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:12px;color:#aab6c8;background:rgba(255,255,255,.06)}
-.pv-frame{width:86%;height:72vh;border:none;border-radius: var(--radius-md);background:#fff;display:block}
-.pv-text{width:80%;height:72vh;overflow:auto;border-radius: var(--radius-md);background:#fff;color:#1f2937;padding:28px 34px}
-.pv-text pre{margin:0;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:13px;line-height:1.8;white-space:pre-wrap;word-break:break-word}
-.pv-text-failed{color:var(--el-color-danger);font-size:14px;text-align:center;padding-top:40vh;margin:-28px 0 0 -34px}
+.pv-doc-panel{width:92%;height:74vh;border-radius: var(--radius-md);background:#fff;overflow:hidden;text-align:left;display:flex}
+.pv-doc-panel > *{flex:1;min-width:0}
+.pv-audio{width:min(520px,90%);margin-top:6px}
 .pv-thumb-doc{width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:#cfe2ff;background:rgba(255,255,255,.06)}
 .pv-missing{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;color:#c9d4e3;padding:60px 20px;text-align:center}
 .pv-missing-title{font-size:15px;font-weight:600;color:#e5eaf3}

@@ -14,9 +14,11 @@
     class="file-preview-dlg"
   >
     <div class="preview-body" :class="'kind-' + kind">
+      <!-- 【图片秒开 2026-10-17】展示用 ≤300px 缩略图(18MB 原图 14.8s → 缩略亚秒);
+           点击放大(preview-src-list)才加载原图看全细节 -->
       <el-image
         v-if="kind === 'image'"
-        :src="url"
+        :src="thumbSrcOf(url)"
         :preview-src-list="[url]"
         :initial-index="0"
         fit="contain"
@@ -59,7 +61,7 @@ import { ElMessage } from 'element-plus'
 import { Download, Document, VideoCamera, Headset } from '@element-plus/icons-vue'
 import { getToken } from '@/utils/token'
 import { downloadFile } from '@/utils/download'
-import { previewKindOf, unsupportedHintOf } from '@/utils/media-type'
+import { previewKindOf, unsupportedHintOf, thumbSrcOf } from '@/utils/media-type'
 
 // 重型渲染器按需加载：docx-preview / SheetJS 各自在渲染器内部动态 import，首屏零成本
 const PdfFrame = defineAsyncComponent(() => import('./preview/PdfFrame.vue'))
