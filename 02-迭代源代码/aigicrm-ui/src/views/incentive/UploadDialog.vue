@@ -1,6 +1,7 @@
 <template>
-  <!-- 关联客户 + 安装文件 弹窗 -->
-  <el-dialog v-model="showCustomerDialog" width="780px" :close-on-click-modal="false"
+  <!-- 关联客户 + 安装文件 弹窗（【2026-10-17 客户反馈】780→1080px: 上传/追加是重度操作页,
+       三槽文件墙与审计信息需要横向空间; 文件卡与文件名同步放大一档） -->
+  <el-dialog v-model="showCustomerDialog" width="1080px" :close-on-click-modal="false"
              :close-on-press-escape="!uploading" :before-close="handleDialogBeforeClose" class="upload-dlg">
     <template #header>
       <div class="dlg-header">
@@ -71,7 +72,7 @@
             <span v-if="fileType(file.name) === 'video'" class="file-card-play"><el-icon><VideoPlay /></el-icon></span>
             <!-- 已有文件也可移除（用户裁决 2026-10-10：上传错了需要修改；确认后走后端原子移除） -->
             <span class="file-card-del" role="button" tabindex="0" aria-label="移除文件" @click.stop="handleRemoveSlotFile('pre', idx)" @keydown.enter.stop.prevent="handleRemoveSlotFile('pre', idx)"><el-icon><Close /></el-icon></span>
-            <span class="file-card-name">{{ file.name?.substring(0, 8) }}{{ file.name?.length > 8 ? '…' : '' }}</span>
+            <span class="file-card-name">{{ file.name?.substring(0, 12) }}{{ file.name?.length > 12 ? '…' : '' }}</span>
           </div>
           <div v-if="installFiles.pre.length < MAX_FILES" class="file-card add" @click="pickFile('pre')">
             <el-icon :size="28"><Plus /></el-icon>
@@ -101,7 +102,7 @@
                 </div>
                 <span v-if="fileType(file.name) === 'video'" class="file-card-play"><el-icon><VideoPlay /></el-icon></span>
                 <span class="file-card-del" role="button" tabindex="0" aria-label="移除文件" @click.stop="handleRemoveSlotFile(slot.key, idx)" @keydown.enter.stop.prevent="handleRemoveSlotFile(slot.key, idx)"><el-icon><Close /></el-icon></span>
-                <span class="file-card-name">{{ file.name?.substring(0, 8) }}{{ file.name?.length > 8 ? '…' : '' }}</span>
+                <span class="file-card-name">{{ file.name?.substring(0, 12) }}{{ file.name?.length > 12 ? '…' : '' }}</span>
               </div>
               <div v-if="installFiles[slot.key].length < MAX_FILES" class="file-card add" @click="pickFile(slot.key)">
                 <el-icon :size="28"><Plus /></el-icon>
@@ -124,7 +125,7 @@
             <div v-else class="file-card-icon"><el-icon :size="20"><Document /></el-icon></div>
             <span v-if="fileType(file.name) === 'video'" class="file-card-play"><el-icon><VideoPlay /></el-icon></span>
             <span class="file-card-del" role="button" tabindex="0" aria-label="移除文件" @click.stop="handleRemoveSlotFile('track', idx)" @keydown.enter.stop.prevent="handleRemoveSlotFile('track', idx)"><el-icon><Close /></el-icon></span>
-            <span class="file-card-name">{{ file.name?.substring(0, 8) }}{{ file.name?.length > 8 ? '…' : '' }}</span>
+            <span class="file-card-name">{{ file.name?.substring(0, 12) }}{{ file.name?.length > 12 ? '…' : '' }}</span>
           </div>
           <div v-if="trackFile.length < MAX_FILES" class="file-card add" @click="pickTrackFile()">
             <el-icon :size="28"><Plus /></el-icon>
@@ -253,7 +254,7 @@ const handleDialogBeforeClose = (done) => {
 .file-slot-count { font-size:12px; color:var(--el-color-info); margin-left:auto }
 
 .file-slot-cards { display:flex; flex-wrap:wrap; gap:8px }
-.file-card { width:88px; height:100px; border:2px dashed #dcdfe6; border-radius: var(--radius-md); display:flex; flex-direction:column; align-items:center; justify-content:center; cursor:pointer; transition:all .2s; position:relative; overflow:hidden; background:#fff }
+.file-card { width:104px; height:118px; border:2px dashed #dcdfe6; border-radius: var(--radius-md); display:flex; flex-direction:column; align-items:center; justify-content:center; cursor:pointer; transition:all .2s; position:relative; overflow:hidden; background:#fff }
 .file-card:hover { border-color:var(--el-color-primary); background:var(--el-color-primary-light-9) }
 .file-card.add { gap:2px }
 .file-card.add .el-icon { color: var(--text-placeholder) } .file-card.add:hover .el-icon { color:var(--el-color-primary) }
@@ -264,7 +265,7 @@ const handleDialogBeforeClose = (done) => {
 .file-card-play { position:absolute; left:50%; top:38%; transform:translate(-50%,-50%); width:24px; height:24px; border-radius:50%; background:rgba(0,0,0,.55); color:#fff; display:flex; align-items:center; justify-content:center; font-size:13px; pointer-events:none }
 .file-card-del { position:absolute; top:2px; right:2px; width:20px; height:20px; border-radius:50%; background:rgba(0,0,0,.5); color:#fff; display:flex; align-items:center; justify-content:center; font-size:12px; opacity:0; transition:opacity .15s }
 .file-card:hover .file-card-del { opacity:1 }
-.file-card-name { font-size:12px; color:#606266; text-align:center; margin-top:2px; max-width:80px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; padding:0 2px }
+.file-card-name { font-size:12px; color:#606266; text-align:center; margin-top:2px; max-width:96px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; padding:0 2px }
 .file-card-del:hover { background:var(--el-color-danger) }
 
 .dlg-footer-btns { display:flex; justify-content:flex-end; gap:10px; margin-top:8px }
