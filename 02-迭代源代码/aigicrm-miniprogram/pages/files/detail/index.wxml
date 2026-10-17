@@ -17,6 +17,9 @@
     <view class="detail-row"><text>上传者</text><text>{{detailView.uploaderNameText}}</text></view>
     <view class="detail-row"><text>更新时间</text><text>{{detailView.updatedAtText}}</text></view>
     <video wx:if="{{detailView.showVideo}}" src="{{previewVideoPath}}" controls class="file-preview-video"></video>
-    <button class="btn file-preview-btn" loading="{{previewing}}" bindtap="preview">打开并预览</button>
+    <view class="detail-actions">
+      <button class="btn file-preview-btn" loading="{{previewing}}" bindtap="preview">打开并预览</button>
+      <button class="btn file-download-btn" loading="{{downloading}}" bindtap="download">下载到本机</button>
+    </view>
   </view>
 </view>

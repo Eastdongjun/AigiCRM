@@ -1,0 +1,6 @@
+.tv-page { background: #f4f8ff; min-height: 100vh; padding: 24rpx 28rpx 40rpx; box-sizing: border-box; color: #1c2b3a; }
+.tv-head { background: #fff; border-radius: 20rpx; padding: 22rpx 24rpx; box-shadow: 0 8rpx 22rpx rgba(48, 78, 112, .05); }
+.tv-name { font-size: 28rpx; font-weight: 800; word-break: break-all; }
+.tv-hint { margin-top: 8rpx; font-size: 21rpx; color: #94a3b8; }
+.tv-content { margin-top: 20rpx; background: #fff; border-radius: 20rpx; padding: 24rpx; font-family: Menlo, Consolas, monospace; font-size: 24rpx; line-height: 1.65; word-break: break-all; white-space: pre-wrap; box-shadow: 0 8rpx 22rpx rgba(48, 78, 112, .05); }
+.tv-empty { margin-top: 20rpx; background: #fff; border-radius: 20rpx; padding: 80rpx 30rpx; text-align: center; color: #94a3b8; font-size: 25rpx; }

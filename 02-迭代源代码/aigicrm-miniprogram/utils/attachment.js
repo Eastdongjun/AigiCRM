@@ -9,6 +9,17 @@
 const { getToken } = require('./auth')
 const { showError } = require('./feedback')
 
+const TEXT_EXT_RE = /\.(txt|csv|md|log|json|xml)$/i
+/** 纯文本文件名判定(txt/csv/md/log/json/xml)——openDocument 不支持这些格式, 走文本查看页 */
+function isTextFileName(name) {
+  return TEXT_EXT_RE.test(String(name || ''))
+}
+
+/** 跳文本查看页(下载完成后的临时文件路径跨页面有效) */
+function openTextView(tempFilePath, name) {
+  wx.navigateTo({ url: `/pages/files/textview/index?path=${encodeURIComponent(tempFilePath)}&name=${encodeURIComponent(name || '文本文件')}` })
+}
+
 function attachmentAuthHeader() {
   return getToken() ? { Authorization: 'Bearer ' + getToken() } : {}
 }
@@ -61,7 +72,9 @@ function fetchRemoteAttachment(options) {
           wx.previewImage({ urls: [result.tempFilePath], fail: (error) => showError(error, '图片预览失败') })
           return
         }
-        if (file.type === 'video' && onVideo) return onVideo(result.tempFilePath)
+        if (isTextFileName(file.name || file.label)) return openTextView(result.tempFilePath, file.name || file.label)
+        // 视频判定: 标注 type 或扩展名(既有附件只有 fileKind/文件名, 统一兜住)
+        if ((file.type === 'video' || file.fileKind === 'video' || /\.(mp4|mov|m4v|webm)$/i.test(String(file.name || file.label || ''))) && onVideo) return onVideo(result.tempFilePath)
         wx.openDocument({ filePath: result.tempFilePath, showMenu: true, fail: (error) => showError(error, '无法直接预览，可下载后查看') })
       },
       fail: (error) => {
@@ -87,5 +100,7 @@ function fetchRemoteAttachment(options) {
 module.exports = {
   attachmentAuthHeader,
   fetchRemoteAttachment,
-  saveDownloadedFileToDisk
+  saveDownloadedFileToDisk,
+  isTextFileName,
+  openTextView
 }

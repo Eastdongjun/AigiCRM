@@ -5,7 +5,7 @@ const { getDictData } = require('../../../api/system')
 // 【E10】表单草稿接口自 api/system 迁至 api/draft(D38 域归位收尾), 引用随迁
 const { getFormDraft, saveFormDraft, deleteFormDraft } = require('../../../api/draft')
 const { requireLogin, hasPermission } = require('../../../utils/auth')
-const { fetchRemoteAttachment, saveDownloadedFileToDisk } = require('../../../utils/attachment')
+const { fetchRemoteAttachment, saveDownloadedFileToDisk, isTextFileName, openTextView } = require('../../../utils/attachment')
 const { showError, showErrorWithRetry } = require('../../../utils/feedback')
 
 function flattenCategories(nodes = [], result = []) {
@@ -760,6 +760,15 @@ Page({
       wx.previewImage({ urls: [file.filePath], fail: (error) => showError(error, '图片预览失败') })
       return
     }
+    // 【2026-10-17】视频走 previewMedia 全屏播放、文本走文本查看页——此前统一塞 openDocument,
+    // 视频必然报错"无法直接预览"(openDocument 不认视频), txt/csv 同样打不开
+    const name = file.fileName || ''
+    if (file.fileKind === 'video' || /\.(mp4|mov|m4v|webm)$/i.test(name)) {
+      recordAttachmentAction('previewMedia', { urls: [{ url: file.filePath, type: 'video' }] })
+      wx.previewMedia({ sources: [{ url: file.filePath, type: 'video' }], fail: (error) => showError(error, '视频预览失败') })
+      return
+    }
+    if (isTextFileName(name)) return openTextView(file.filePath, name)
     recordAttachmentAction('openDocument', { filePath: file.filePath, showMenu: true })
     wx.openDocument({
       filePath: file.filePath,
@@ -789,6 +798,9 @@ Page({
       // 【三轮复检修复】卸载后不再 setData(与新代码 _unloaded 守卫口径一致)
     setBusy: (busy) => { if (this._unloaded) return; this.setUploadData({ fileActionLoading: busy }) },
       isImage: (item) => item.fileKind === 'image' || isImageFile(item.fileName, ''),
+      // 【2026-10-17】既有视频附件: 全屏播放(此前落 openDocument 必报错); 文本类由
+      // fetchRemoteAttachment 的文本分支自动接文本查看页
+      onVideo: (tempFilePath) => wx.previewMedia({ sources: [{ url: tempFilePath, type: 'video' }], fail: (error) => showError(error, '视频预览失败') }),
       saveFailTitle: '下载保存失败',
       hideLoadingBeforeResult: false
     })

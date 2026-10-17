@@ -1,0 +1,10 @@
+<view class="page tv-page">
+  <view class="tv-head">
+    <view class="tv-name">{{name}}</view>
+    <view class="tv-hint" wx:if="{{!failed}}">{{truncated ? '内容过长，仅显示前 500KB，可下载查看全量' : (gbkNotice ? '检测到非 UTF-8 编码，若乱码请下载后查看' : '文本预览')}}</view>
+  </view>
+  <view wx:if="{{failed}}" class="tv-empty">
+    <text>该文件过大（超过 2MB）或读取失败，可下载后查看</text>
+  </view>
+  <view wx:else class="tv-content">{{content}}</view>
+</view>

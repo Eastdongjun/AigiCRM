@@ -1,0 +1,5 @@
+/* 文件详情页按钮组: 预览主操作 + 下载次操作 */
+.detail-actions { display: flex; gap: 16rpx; margin-top: 18rpx; }
+.detail-actions .btn { flex: 1; }
+.file-download-btn { background: #fff; color: #1d4fd7; border: 1rpx solid #bfd4f5; border-radius: 22rpx; }
+.file-download-btn::after { border: 0; }

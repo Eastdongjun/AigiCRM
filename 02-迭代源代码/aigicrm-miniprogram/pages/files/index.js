@@ -3,6 +3,7 @@ const { getCustomerSimpleUsers } = require('../../api/customer')
 const { showError, showErrorWithRetry } = require('../../utils/feedback')
 const { hasPermission, requireLogin, getToken } = require('../../utils/auth')
 const { readDemoFolders, removeDemoFolder } = require('../../utils/demo-folders')
+const { isTextFileName, openTextView } = require('../../utils/attachment')
 
 const demoFiles = [
   { id: 'file-001', name: '华东智能制造集团项目方案.pdf', type: 'PDF', size: '8.6 MB', folder: '激励资料', uploaderName: '张三', updatedAt: '今天 10:24', tone: 'red' },
@@ -603,6 +604,8 @@ Page({
       wx.openDocument({ filePath: tempFilePath, showMenu: true, fail: (error) => showError(error, '无法直接预览，可下载后查看') })
       return
     }
+    // 【2026-10-17】txt/csv/md/log/json 走文本查看页(openDocument 不支持文本格式)
+    if (isTextFileName(item.name)) return openTextView(tempFilePath, item.name)
     wx.showModal({ title: '无法直接打开', content: '当前格式暂不支持直接预览，可下载后查看。', showCancel: false })
   },
   saveDownloadedFile(tempFilePath) {

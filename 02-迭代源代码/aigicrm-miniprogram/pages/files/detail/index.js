@@ -1,6 +1,7 @@
 const { getToken, requireLogin, hasPermission } = require('../../../utils/auth')
 const { showError } = require('../../../utils/feedback')
 const { getDownloadUrl, replaceFile } = require('../../../api/file')
+const { saveDownloadedFileToDisk, isTextFileName, openTextView } = require('../../../utils/attachment')
 
 function buildDetailView(data) {
   return {
@@ -15,7 +16,7 @@ function buildDetailView(data) {
 }
 
 Page({
-  data: { id: '', path: '', name: '', type: '', size: '', folder: '', uploaderName: '', updatedAt: '', previewing: false, previewVideoPath: '', canReplace: false, detailView: buildDetailView({}) },
+  data: { id: '', path: '', name: '', type: '', size: '', folder: '', uploaderName: '', updatedAt: '', previewing: false, downloading: false, previewVideoPath: '', canReplace: false, detailView: buildDetailView({}) },
   setDetailData(patch) {
     const nextData = { ...this.data, ...patch }
     this.setData({ ...patch, detailView: buildDetailView(nextData) })
@@ -52,8 +53,10 @@ Page({
     const downloadUrl = getDownloadUrl({ id: this.data.id, ossKey: this.data.path })
     if (!downloadUrl) return showError(new Error('缺少下载地址'), '文件下载失败')
     this.setDetailData({ previewing: true })
+    // 【下载进度 2026-10-17】百分比写进 loading; done 守卫防迟到回调(同 files 页口径)
+    let done = false
     wx.showLoading({ title: '准备预览' })
-    wx.downloadFile({ url: downloadUrl, header: getToken() ? { Authorization: 'Bearer ' + getToken() } : {}, success: (result) => {
+    const task = wx.downloadFile({ url: downloadUrl, header: getToken() ? { Authorization: 'Bearer ' + getToken() } : {}, success: (result) => {
       if (result.statusCode !== 200) return showError(new Error('文件下载失败'), '文件下载失败')
       const suffix = this.data.name.toLowerCase().split('.').pop()
       if (['pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx'].includes(suffix)) {
@@ -62,10 +65,39 @@ Page({
         wx.previewImage({ urls: [result.tempFilePath], fail: (error) => this.showDownloadFallback(error) })
       } else if (['mp4', 'mov', 'm4v', 'webm'].includes(suffix)) {
         this.setDetailData({ previewVideoPath: result.tempFilePath })
+      } else if (isTextFileName(this.data.name)) {
+        // 【2026-10-17】txt/csv/md/log/json 走文本查看页
+        openTextView(result.tempFilePath, this.data.name)
       } else {
         this.showDownloadFallback(new Error('该格式暂不支持预览'))
       }
-    }, fail: (error) => showError(error, '文件下载失败'), complete: () => { wx.hideLoading(); this.setDetailData({ previewing: false }) } })
+    }, fail: (error) => showError(error, '文件下载失败'), complete: () => { done = true; wx.hideLoading(); this.setDetailData({ previewing: false }) } })
+    if (task && typeof task.onProgressUpdate === 'function') {
+      task.onProgressUpdate((res) => {
+        if (done || !res || !res.progress) return
+        wx.showLoading({ title: `加载中 ${Math.min(99, res.progress)}%` })
+      })
+    }
+  },
+
+  // 【2026-10-17】详情页补下载(此前只有预览): 保存到本机, 带进度
+  download() {
+    if (this.data.downloading) return
+    const downloadUrl = getDownloadUrl({ id: this.data.id, ossKey: this.data.path })
+    if (!downloadUrl) return showError(new Error('缺少下载地址'), '文件下载失败')
+    this.setDetailData({ downloading: true })
+    let done = false
+    wx.showLoading({ title: '下载中' })
+    const task = wx.downloadFile({ url: downloadUrl, header: getToken() ? { Authorization: 'Bearer ' + getToken() } : {}, success: (result) => {
+      if (result.statusCode !== 200) return showError(new Error('文件下载失败'), '文件下载失败')
+      saveDownloadedFileToDisk(result.tempFilePath, '保存失败')
+    }, fail: (error) => showError(error, '文件下载失败'), complete: () => { done = true; wx.hideLoading(); this.setDetailData({ downloading: false }) } })
+    if (task && typeof task.onProgressUpdate === 'function') {
+      task.onProgressUpdate((res) => {
+        if (done || !res || !res.progress) return
+        wx.showLoading({ title: `下载中 ${Math.min(99, res.progress)}%` })
+      })
+    }
   },
   showDownloadFallback(error) {
     wx.showModal({
