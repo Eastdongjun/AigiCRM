@@ -43,9 +43,14 @@ function fetchRemoteAttachment(options) {
   if (isBusy) return
   if (!url) return wx.showToast({ title: '附件地址缺失', icon: 'none' })
   setBusy(true)
+  // 【下载进度 2026-10-17】微信 openDocument 无流式(必须整包下载完), 大文件等待只有转圈会显得"卡死"——
+  // 用 DownloadTask.onProgressUpdate 把百分比写进 loading 标题。done 守卫防 success 后迟到的进度回调
+  // 把已收掉的 loading 又顶回来(与 L17 hideLoading/showToast 单例坑同族)。
+  let done = false
+  const progressTitle = (percent) => `${mode === 'download' ? '下载中' : '加载中'} ${Math.min(99, percent)}%`
   wx.showLoading({ title: mode === 'download' ? '下载中' : '准备预览' })
   return new Promise((resolve) => {
-    wx.downloadFile({
+    const task = wx.downloadFile({
       url,
       header: attachmentAuthHeader(),
       success: (result) => {
@@ -64,11 +69,18 @@ function fetchRemoteAttachment(options) {
         showError(error, '文件下载失败')
       },
       complete: () => {
+        done = true
         if (!hideLoadingBeforeResult) wx.hideLoading()
         setBusy(false)
         resolve()
       }
     })
+    if (task && typeof task.onProgressUpdate === 'function') {
+      task.onProgressUpdate((res) => {
+        if (done || !res || !res.progress) return
+        wx.showLoading({ title: progressTitle(res.progress) })
+      })
+    }
   })
 }
 

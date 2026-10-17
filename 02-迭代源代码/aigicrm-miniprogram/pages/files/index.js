@@ -567,8 +567,11 @@ Page({
     const downloadUrl = getDownloadUrl({ id: item.id, ossKey: item.ossKey || item.fileUrl })
     if (!downloadUrl) return showError(new Error('缺少下载地址'), '文件下载失败')
     this.setData({ previewing: true })
+    // 【下载进度 2026-10-17】同 utils/attachment.js: 整包下载场景把百分比写进 loading,
+    // done 守卫防迟到进度回调在 hideLoading 后重新顶出 loading
+    let done = false
     wx.showLoading({ title: mode === 'download' ? '下载中' : '准备预览' })
-    wx.downloadFile({
+    const task = wx.downloadFile({
       url: downloadUrl,
       header: getToken() ? { Authorization: 'Bearer ' + getToken() } : {},
       success: (result) => {
@@ -577,8 +580,14 @@ Page({
         this.openDownloadedFile(item, result.tempFilePath)
       },
       fail: (error) => showError(error, '文件下载失败'),
-      complete: () => { wx.hideLoading(); this.setData({ previewing: false }) }
+      complete: () => { done = true; wx.hideLoading(); this.setData({ previewing: false }) }
     })
+    if (task && typeof task.onProgressUpdate === 'function') {
+      task.onProgressUpdate((res) => {
+        if (done || !res || !res.progress) return
+        wx.showLoading({ title: `${mode === 'download' ? '下载中' : '加载中'} ${Math.min(99, res.progress)}%` })
+      })
+    }
   },
   openDownloadedFile(item, tempFilePath) {
     const suffix = String(item.name || '').toLowerCase().split('.').pop()
