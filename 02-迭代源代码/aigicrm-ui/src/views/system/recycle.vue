@@ -1,35 +1,26 @@
 <template>
   <div class="recycle-page">
-    <!-- 页头：标题 + 两个实时计数（数据来自列表接口 total） -->
-    <div class="recycle-head">
-      <div class="head-main">
-        <div class="head-title-row">
-          <span class="head-accent" aria-hidden="true"></span>
-          <h2>回收站</h2>
-        </div>
-        <p class="head-desc">查看并恢复已删除的客户、人员与文件，删除留痕可追溯</p>
+    <!-- 深蓝渐变主视觉：标题 + 三类删除数据概览 -->
+    <section class="recycle-hero">
+      <div class="hero-copy">
+        <span class="hero-eyebrow">系统管理 · 数据治理</span>
+        <h2 class="hero-title">回收站</h2>
+        <p class="hero-sub">查看、恢复或彻底清理已删除的客户、人员与文件</p>
       </div>
-      <div class="head-stats">
-        <div class="stat">
-          <span class="stat-num">{{ counts.customers }}</span>
-          <span class="stat-label">已删除客户</span>
-        </div>
-        <span class="stat-divider" aria-hidden="true"></span>
-        <div class="stat">
-          <span class="stat-num">{{ counts.users }}</span>
-          <span class="stat-label">已删除人员</span>
-        </div>
-        <span class="stat-divider" aria-hidden="true"></span>
-        <div class="stat">
-          <span class="stat-num">{{ counts.files }}</span>
-          <span class="stat-label">已删除文件</span>
+      <div class="hero-stats">
+        <div v-for="item in statItems" :key="item.key" class="hero-metric" :class="{ active: activeTab === item.key }" @click="switchTab(item.key)">
+          <span class="hm-icon"><el-icon><component :is="item.icon" /></el-icon></span>
+          <span class="hm-body">
+            <span class="hm-num">{{ counts[item.key] }}</span>
+            <span class="hm-label">{{ item.label }}</span>
+          </span>
         </div>
       </div>
-    </div>
+    </section>
 
-    <div class="section-box">
-      <!-- 页签 + 工具栏 -->
-      <div class="toolbar-row">
+    <!-- 列表主卡 -->
+    <section class="recycle-panel">
+      <header class="panel-head">
         <div class="seg" role="tablist">
           <button
             v-for="tab in tabs" :key="tab.key" type="button" role="tab"
@@ -38,10 +29,10 @@
             @click="switchTab(tab.key)"
           >
             {{ tab.label }}
-            <span class="seg-count">{{ tab.key === 'customers' ? counts.customers : counts.users }}</span>
+            <span class="seg-count">{{ tab.key === 'customers' ? counts.customers : tab.key === 'users' ? counts.users : counts.files }}</span>
           </button>
         </div>
-        <div class="toolbar-actions">
+        <div class="panel-actions">
           <el-input
             v-model="keyword" clearable class="search-input"
             :placeholder="searchPlaceholder"
@@ -49,24 +40,20 @@
           />
           <el-button
             v-if="activeTab === 'files' && canPurge" type="danger" plain :icon="Delete"
-            @click="handlePurgeFiles"
+            class="purge-btn" @click="handlePurgeFiles"
           >清空回收站</el-button>
           <el-tooltip content="刷新列表" placement="top">
             <el-button :icon="Refresh" circle class="refresh-btn" aria-label="刷新列表" @click="loadData" />
           </el-tooltip>
         </div>
+      </header>
+
+      <div class="panel-note">
+        <el-icon class="note-icon"><InfoFilled /></el-icon>
+        <span>删除为软删除留痕：客户恢复校验同名活跃卡、负责人与公海残留；人员恢复后需重新分配角色；文件删除先入回收站，保留期内可恢复，超期自动清理。</span>
       </div>
 
-      <!-- 口径提示 -->
-      <div class="info-strip">
-        <el-icon class="info-icon"><InfoFilled /></el-icon>
-        <span>删除是终态留痕：这里只展示仍可恢复的软删数据。恢复客户会校验同名活跃客户、原负责人与公海残留；恢复人员后需在人员管理重新分配角色；文件删除后先进入回收站，可在保留期内恢复，超过保留期自动清理，管理员也可手动清空。</span>
-      </div>
-
-      <!-- 首屏骨架 -->
-      <div v-if="firstLoading" class="table-skeleton">
-        <el-skeleton :rows="6" animated />
-      </div>
+      <div v-if="firstLoading" class="table-skeleton"><el-skeleton :rows="6" animated /></div>
 
       <template v-else>
         <!-- 已删除客户 -->
@@ -74,21 +61,21 @@
           v-if="activeTab === 'customers'" v-loading="loading" :data="rows" class="recycle-table"
           style="width:100%" empty-text="暂无已删除客户"
         >
-          <el-table-column label="客户全称" min-width="240">
+          <el-table-column label="客户全称" min-width="250">
             <template #default="{ row }">
-              <div class="name-cell clickable" @click.stop="openCustomerDetail(row)">
-                <span class="monogram" aria-hidden="true">{{ (row.customerName || '?').charAt(0) }}</span>
-                <span class="name-text">{{ row.customerName || '未命名客户' }}</span>
+              <div class="entity-cell clickable" @click.stop="openCustomerDetail(row)">
+                <span class="entity-avatar avatar-customer" aria-hidden="true">{{ (row.customerName || '?').charAt(0) }}</span>
+                <span class="entity-main">
+                  <span class="entity-name">{{ row.customerName || '未命名客户' }}</span>
+                  <span class="entity-meta">{{ row.customerCode || '-' }}</span>
+                </span>
               </div>
             </template>
           </el-table-column>
-          <el-table-column prop="customerCode" label="编号" min-width="140">
-            <template #default="{ row }"><span class="mono-text">{{ row.customerCode || '-' }}</span></template>
-          </el-table-column>
-          <el-table-column label="原负责人" min-width="120">
+          <el-table-column label="原负责人" min-width="130">
             <template #default="{ row }">
-              <span v-if="row.ownerName">{{ row.ownerName }}</span>
-              <el-tag v-else-if="row.ownerId" size="small" type="warning" effect="plain">负责人已删除</el-tag>
+              <span v-if="row.ownerName" class="text-strong">{{ row.ownerName }}</span>
+              <el-tag v-else-if="row.ownerId" size="small" type="warning" effect="light">负责人已删除</el-tag>
               <span v-else class="muted-text">未分配</span>
             </template>
           </el-table-column>
@@ -96,133 +83,121 @@
             <template #default="{ row }"><span class="muted-text">{{ row.industry || '-' }}</span></template>
           </el-table-column>
           <el-table-column prop="devType" label="分类" min-width="140">
-            <template #default="{ row }"><span class="muted-text">{{ row.devType || '-' }}</span></template>
+            <template #default="{ row }"><span class="type-chip">{{ row.devType || '未分类' }}</span></template>
           </el-table-column>
-          <el-table-column label="删除时间" min-width="160">
+          <el-table-column label="删除时间" min-width="165">
             <template #default="{ row }"><span class="time-text">{{ formatTime(row.deletedAt) }}</span></template>
           </el-table-column>
-          <el-table-column v-if="canRestore || canPurge" label="操作" width="220" align="right" fixed="right">
+          <el-table-column v-if="canRestore || canPurge" label="操作" width="225" align="right" fixed="right">
             <template #default="{ row }">
               <el-button link type="primary" size="small" @click.stop="openCustomerDetail(row)">详情</el-button>
-              <el-button v-if="canRestore" link type="primary" size="small" :icon="RefreshLeft" @click.stop="handleRestoreCustomer(row)">
-                恢复
-              </el-button>
-              <el-button v-if="canPurge" link type="danger" size="small" @click.stop="handleHardDeleteCustomer(row)">
-                彻底删除
-              </el-button>
-            </template>
-          </el-table-column>
-        </el-table>
-
-        <!-- 已删除文件 -->
-        <el-table
-          v-else-if="activeTab === 'files'" v-loading="loading" :data="rows" class="recycle-table"
-          style="width:100%" empty-text="暂无已删除文件"
-        >
-          <el-table-column label="文件名" min-width="260">
-            <template #default="{ row }">
-              <div class="name-cell clickable" @click.stop="openFileDetail(row)">
-                <span class="file-icon" aria-hidden="true"><el-icon><Document /></el-icon></span>
-                <span class="name-text" :title="row.fileName">{{ row.fileName }}</span>
-              </div>
-            </template>
-          </el-table-column>
-          <el-table-column label="大小" min-width="100">
-            <template #default="{ row }"><span class="muted-text">{{ formatSize(row.fileSize) }}</span></template>
-          </el-table-column>
-          <el-table-column label="归属" min-width="90" align="center">
-            <template #default="{ row }">
-              <el-tag size="small" :type="scopeTagType(row.fileScope)" effect="plain">{{ scopeLabel(row.fileScope) }}</el-tag>
-            </template>
-          </el-table-column>
-          <el-table-column label="上传人" min-width="110">
-            <template #default="{ row }">
-              <span v-if="row.uploaderName">{{ row.uploaderName }}</span>
-              <el-tag v-else-if="row.uploaderId" size="small" type="warning" effect="plain">上传人已删除</el-tag>
-              <span v-else class="muted-text">-</span>
-            </template>
-          </el-table-column>
-          <el-table-column label="所在文件夹" min-width="140">
-            <template #default="{ row }">
-              <span v-if="row.folderName">{{ row.folderName }}</span>
-              <span v-else-if="row.folderId" class="muted-text">文件夹已删除</span>
-              <span v-else class="muted-text">根目录</span>
-            </template>
-          </el-table-column>
-          <el-table-column label="删除时间" min-width="160">
-            <template #default="{ row }"><span class="time-text">{{ formatTime(row.deletedAt) }}</span></template>
-          </el-table-column>
-          <el-table-column label="内容状态" min-width="100" align="center">
-            <template #default="{ row }">
-              <el-tag size="small" :type="row.contentAvailable ? 'success' : 'info'" effect="plain">
-                {{ row.contentAvailable ? '可恢复' : '已清除' }}
-              </el-tag>
-            </template>
-          </el-table-column>
-          <el-table-column v-if="canRestore || canPurge" label="操作" width="220" align="right" fixed="right">
-            <template #default="{ row }">
-              <el-button link type="primary" size="small" @click.stop="openFileDetail(row)">详情</el-button>
-              <el-button v-if="canRestore && row.contentAvailable" link type="primary" size="small" :icon="RefreshLeft" @click.stop="handleRestoreFile(row)">
-                恢复
-              </el-button>
-              <el-button v-if="canPurge" link type="danger" size="small" @click.stop="handleHardDeleteFile(row)">
-                彻底删除
-              </el-button>
+              <el-button v-if="canRestore" link type="primary" size="small" :icon="RefreshLeft" @click.stop="handleRestoreCustomer(row)">恢复</el-button>
+              <el-button v-if="canPurge" link type="danger" size="small" @click.stop="handleHardDeleteCustomer(row)">彻底删除</el-button>
             </template>
           </el-table-column>
         </el-table>
 
         <!-- 已删除人员 -->
         <el-table
-          v-else v-loading="loading" :data="rows" class="recycle-table"
+          v-else-if="activeTab === 'users'" v-loading="loading" :data="rows" class="recycle-table"
           style="width:100%" empty-text="暂无已删除人员"
         >
-          <el-table-column label="姓名" min-width="140">
+          <el-table-column label="人员" min-width="200">
             <template #default="{ row }">
-              <div class="name-cell clickable" @click.stop="openUserDetail(row)">
-                <span class="monogram monogram-user" aria-hidden="true">{{ (row.realName || row.username || '?').charAt(0) }}</span>
-                <span class="name-text">{{ row.realName || '未填写姓名' }}</span>
+              <div class="entity-cell clickable" @click.stop="openUserDetail(row)">
+                <span class="entity-avatar avatar-user" aria-hidden="true">{{ (row.realName || row.username || '?').charAt(0) }}</span>
+                <span class="entity-main">
+                  <span class="entity-name">{{ row.realName || '未填写姓名' }}</span>
+                  <span class="entity-meta">{{ row.username }}</span>
+                </span>
               </div>
             </template>
           </el-table-column>
-          <el-table-column prop="username" label="账号" min-width="140">
-            <template #default="{ row }"><span class="mono-text">{{ row.username }}</span></template>
-          </el-table-column>
           <el-table-column label="原部门" min-width="160">
             <template #default="{ row }">
-              <span v-if="row.deptName">{{ row.deptName }}</span>
-              <el-tag v-else-if="row.deptId" size="small" type="warning" effect="plain">部门已删除</el-tag>
+              <span v-if="row.deptName" class="text-strong">{{ row.deptName }}</span>
+              <el-tag v-else-if="row.deptId" size="small" type="warning" effect="light">部门已删除</el-tag>
               <span v-else class="muted-text">未分配</span>
             </template>
           </el-table-column>
           <el-table-column prop="phone" label="手机号" min-width="130">
             <template #default="{ row }"><span class="muted-text">{{ row.phone || '-' }}</span></template>
           </el-table-column>
-          <el-table-column label="账号状态" min-width="90" align="center">
+          <el-table-column label="账号状态" min-width="100" align="center">
             <template #default="{ row }">
-              <el-tag size="small" :type="row.status === 1 ? 'success' : 'info'" effect="plain">
+              <span class="status-chip" :class="row.status === 1 ? 'on' : 'off'">
                 {{ row.status === 1 ? '启用' : '停用' }}
-              </el-tag>
+              </span>
             </template>
           </el-table-column>
-          <el-table-column label="删除时间" min-width="160">
+          <el-table-column label="删除时间" min-width="165">
             <template #default="{ row }"><span class="time-text">{{ formatTime(row.deletedAt) }}</span></template>
           </el-table-column>
-          <el-table-column v-if="canRestore || canPurge" label="操作" width="220" align="right" fixed="right">
+          <el-table-column v-if="canRestore || canPurge" label="操作" width="225" align="right" fixed="right">
             <template #default="{ row }">
               <el-button link type="primary" size="small" @click.stop="openUserDetail(row)">详情</el-button>
-              <el-button v-if="canRestore" link type="primary" size="small" :icon="RefreshLeft" @click.stop="handleRestoreUser(row)">
-                恢复
-              </el-button>
-              <el-button v-if="canPurge" link type="danger" size="small" @click.stop="handleHardDeleteUser(row)">
-                彻底删除
-              </el-button>
+              <el-button v-if="canRestore" link type="primary" size="small" :icon="RefreshLeft" @click.stop="handleRestoreUser(row)">恢复</el-button>
+              <el-button v-if="canPurge" link type="danger" size="small" @click.stop="handleHardDeleteUser(row)">彻底删除</el-button>
+            </template>
+          </el-table-column>
+        </el-table>
+
+        <!-- 已删除文件 -->
+        <el-table
+          v-else v-loading="loading" :data="rows" class="recycle-table"
+          style="width:100%" empty-text="暂无已删除文件"
+        >
+          <el-table-column label="文件" min-width="280">
+            <template #default="{ row }">
+              <div class="entity-cell clickable" @click.stop="openFileDetail(row)">
+                <span class="entity-avatar avatar-file" aria-hidden="true"><el-icon><Document /></el-icon></span>
+                <span class="entity-main">
+                  <span class="entity-name" :title="row.fileName">{{ row.fileName }}</span>
+                  <span class="entity-meta">{{ formatSize(row.fileSize) }}</span>
+                </span>
+              </div>
+            </template>
+          </el-table-column>
+          <el-table-column label="归属" min-width="90" align="center">
+            <template #default="{ row }">
+              <span class="scope-chip" :class="'scope-' + (row.fileScope || 'other')">{{ scopeLabel(row.fileScope) }}</span>
+            </template>
+          </el-table-column>
+          <el-table-column label="上传人" min-width="120">
+            <template #default="{ row }">
+              <span v-if="row.uploaderName" class="text-strong">{{ row.uploaderName }}</span>
+              <el-tag v-else-if="row.uploaderId" size="small" type="warning" effect="light">上传人已删除</el-tag>
+              <span v-else class="muted-text">-</span>
+            </template>
+          </el-table-column>
+          <el-table-column label="所在文件夹" min-width="150">
+            <template #default="{ row }">
+              <span v-if="row.folderName" class="muted-text">{{ row.folderName }}</span>
+              <span v-else-if="row.folderId" class="muted-text">文件夹已删除</span>
+              <span v-else class="muted-text">根目录</span>
+            </template>
+          </el-table-column>
+          <el-table-column label="删除时间" min-width="165">
+            <template #default="{ row }"><span class="time-text">{{ formatTime(row.deletedAt) }}</span></template>
+          </el-table-column>
+          <el-table-column label="内容状态" min-width="105" align="center">
+            <template #default="{ row }">
+              <span class="status-chip" :class="row.contentAvailable ? 'on' : 'off'">
+                {{ row.contentAvailable ? '可恢复' : '已清除' }}
+              </span>
+            </template>
+          </el-table-column>
+          <el-table-column v-if="canRestore || canPurge" label="操作" width="225" align="right" fixed="right">
+            <template #default="{ row }">
+              <el-button link type="primary" size="small" @click.stop="openFileDetail(row)">详情</el-button>
+              <el-button v-if="canRestore && row.contentAvailable" link type="primary" size="small" :icon="RefreshLeft" @click.stop="handleRestoreFile(row)">恢复</el-button>
+              <el-button v-if="canPurge" link type="danger" size="small" @click.stop="handleHardDeleteFile(row)">彻底删除</el-button>
             </template>
           </el-table-column>
         </el-table>
 
         <div class="pager-row">
-          <span class="pager-hint">共 {{ total }} 条</span>
+          <span class="pager-hint">共 <b>{{ total }}</b> 条</span>
           <el-pagination
             v-model:current-page="current" v-model:page-size="size" :total="total"
             :page-sizes="[20, 50, 100]" layout="sizes, prev, pager, next" size="small" background
@@ -230,96 +205,99 @@
           />
         </div>
       </template>
-    </div>
+    </section>
 
-    <!-- 详情抽屉：客户/人员/文件 -->
-    <el-drawer v-model="detailVisible" :title="detailTitle" size="540px" destroy-on-close>
+    <!-- 详情抽屉 -->
+    <el-drawer v-model="detailVisible" size="560px" destroy-on-close class="recycle-detail-drawer">
+      <template #header>
+        <div class="drawer-head">
+          <span class="drawer-icon" :class="'drawer-icon-' + detailType">
+            <el-icon><component :is="detailIcon" /></el-icon>
+          </span>
+          <span class="drawer-copy">
+            <span class="drawer-title">{{ detailTitle }}</span>
+            <span class="drawer-sub">{{ detailSubtitle }}</span>
+          </span>
+        </div>
+      </template>
+
       <div v-loading="detailLoading" class="detail-body">
         <!-- 客户详情 -->
         <template v-if="detailType === 'customer' && detailData">
-          <el-descriptions :column="1" border size="small">
-            <el-descriptions-item label="客户全称">{{ detailData.customer.customerName || '-' }}</el-descriptions-item>
-            <el-descriptions-item label="编号">{{ detailData.customer.customerCode || '-' }}</el-descriptions-item>
-            <el-descriptions-item label="开票名称">{{ detailData.customer.invoiceName || '-' }}</el-descriptions-item>
-            <el-descriptions-item label="原负责人">{{ detailData.ownerName || (detailData.customer.ownerId ? '负责人已删除' : '未分配') }}</el-descriptions-item>
-            <el-descriptions-item label="行业 / 分类">{{ (detailData.customer.industry || '-') + ' / ' + (detailData.customer.devType || '-') }}</el-descriptions-item>
-            <el-descriptions-item label="省市县">{{ [detailData.customer.province, detailData.customer.city, detailData.customer.district].filter(Boolean).join(' ') || '-' }}</el-descriptions-item>
-            <el-descriptions-item label="厂址">{{ detailData.customer.address || '-' }}</el-descriptions-item>
-            <el-descriptions-item label="产能">{{ detailData.customer.capacity || '-' }}</el-descriptions-item>
-            <el-descriptions-item label="注册日">{{ detailData.customer.registerDate || '-' }}</el-descriptions-item>
-            <el-descriptions-item label="最近开票">{{ detailData.customer.lastInvoiceDate || '-' }}</el-descriptions-item>
-            <el-descriptions-item label="到期日">{{ detailData.customer.expireDate || '-' }}</el-descriptions-item>
-            <el-descriptions-item label="创建时间">{{ formatTime(detailData.customer.createdAt) }}</el-descriptions-item>
-            <el-descriptions-item label="删除时间">{{ formatTime(detailData.customer.updatedAt) }}</el-descriptions-item>
-          </el-descriptions>
+          <div class="detail-grid">
+            <div class="detail-item"><span class="di-label">客户全称</span><span class="di-value">{{ detailData.customer.customerName || '-' }}</span></div>
+            <div class="detail-item"><span class="di-label">编号</span><span class="di-value mono-text">{{ detailData.customer.customerCode || '-' }}</span></div>
+            <div class="detail-item"><span class="di-label">开票名称</span><span class="di-value">{{ detailData.customer.invoiceName || '-' }}</span></div>
+            <div class="detail-item"><span class="di-label">原负责人</span><span class="di-value">{{ detailData.ownerName || (detailData.customer.ownerId ? '负责人已删除' : '未分配') }}</span></div>
+            <div class="detail-item"><span class="di-label">行业</span><span class="di-value">{{ detailData.customer.industry || '-' }}</span></div>
+            <div class="detail-item"><span class="di-label">分类</span><span class="di-value">{{ detailData.customer.devType || '-' }}</span></div>
+            <div class="detail-item"><span class="di-label">省市县</span><span class="di-value">{{ [detailData.customer.province, detailData.customer.city, detailData.customer.district].filter(Boolean).join(' ') || '-' }}</span></div>
+            <div class="detail-item"><span class="di-label">厂址</span><span class="di-value">{{ detailData.customer.address || '-' }}</span></div>
+            <div class="detail-item"><span class="di-label">产能</span><span class="di-value">{{ detailData.customer.capacity || '-' }}</span></div>
+            <div class="detail-item"><span class="di-label">注册日</span><span class="di-value">{{ detailData.customer.registerDate || '-' }}</span></div>
+            <div class="detail-item"><span class="di-label">最近开票</span><span class="di-value">{{ detailData.customer.lastInvoiceDate || '-' }}</span></div>
+            <div class="detail-item"><span class="di-label">到期日</span><span class="di-value">{{ detailData.customer.expireDate || '-' }}</span></div>
+            <div class="detail-item"><span class="di-label">创建时间</span><span class="di-value">{{ formatTime(detailData.customer.createdAt) }}</span></div>
+            <div class="detail-item"><span class="di-label">删除时间</span><span class="di-value">{{ formatTime(detailData.customer.updatedAt) }}</span></div>
+          </div>
           <div class="detail-section-title">关联数据</div>
           <div class="related-grid">
             <span v-for="(count, label) in detailData.related" :key="label" class="related-chip" :class="{ zero: !count }">
               {{ label }} <b>{{ count }}</b>
             </span>
           </div>
-          <p class="detail-hint">存在发票、回款、激励、指标、日志、阶段金额或审批单时不能彻底删除；分享、提醒、公海残留会随彻底删除一并清理。</p>
+          <div class="detail-warn">存在发票、回款、激励、指标、日志、阶段金额或审批单时不能彻底删除；分享、提醒、公海残留会随彻底删除一并清理。</div>
         </template>
 
         <!-- 人员详情 -->
         <template v-else-if="detailType === 'user' && detailData">
-          <el-descriptions :column="1" border size="small">
-            <el-descriptions-item label="姓名">{{ detailData.user.realName || '-' }}</el-descriptions-item>
-            <el-descriptions-item label="账号">{{ detailData.user.username || '-' }}</el-descriptions-item>
-            <el-descriptions-item label="手机号">{{ detailData.user.phone || '-' }}</el-descriptions-item>
-            <el-descriptions-item label="邮箱">{{ detailData.user.email || '-' }}</el-descriptions-item>
-            <el-descriptions-item label="原部门">{{ detailData.deptName || (detailData.user.deptId ? '部门已删除' : '未分配') }}</el-descriptions-item>
-            <el-descriptions-item label="账号状态">{{ detailData.user.status === 1 ? '启用' : '停用' }}</el-descriptions-item>
-            <el-descriptions-item label="数据范围覆盖">{{ detailData.user.dataScopeOverride || '未设置' }}</el-descriptions-item>
-            <el-descriptions-item label="离职状态">{{ detailData.user.leaveStatus || '-' }}</el-descriptions-item>
-            <el-descriptions-item label="创建时间">{{ formatTime(detailData.user.createdAt) }}</el-descriptions-item>
-            <el-descriptions-item label="删除时间">{{ formatTime(detailData.user.updatedAt) }}</el-descriptions-item>
-          </el-descriptions>
+          <div class="detail-grid">
+            <div class="detail-item"><span class="di-label">姓名</span><span class="di-value">{{ detailData.user.realName || '-' }}</span></div>
+            <div class="detail-item"><span class="di-label">账号</span><span class="di-value mono-text">{{ detailData.user.username || '-' }}</span></div>
+            <div class="detail-item"><span class="di-label">手机号</span><span class="di-value">{{ detailData.user.phone || '-' }}</span></div>
+            <div class="detail-item"><span class="di-label">邮箱</span><span class="di-value">{{ detailData.user.email || '-' }}</span></div>
+            <div class="detail-item"><span class="di-label">原部门</span><span class="di-value">{{ detailData.deptName || (detailData.user.deptId ? '部门已删除' : '未分配') }}</span></div>
+            <div class="detail-item"><span class="di-label">账号状态</span><span class="di-value">{{ detailData.user.status === 1 ? '启用' : '停用' }}</span></div>
+            <div class="detail-item"><span class="di-label">数据范围覆盖</span><span class="di-value">{{ detailData.user.dataScopeOverride || '未设置' }}</span></div>
+            <div class="detail-item"><span class="di-label">离职状态</span><span class="di-value">{{ detailData.user.leaveStatus || '-' }}</span></div>
+            <div class="detail-item"><span class="di-label">创建时间</span><span class="di-value">{{ formatTime(detailData.user.createdAt) }}</span></div>
+            <div class="detail-item"><span class="di-label">删除时间</span><span class="di-value">{{ formatTime(detailData.user.updatedAt) }}</span></div>
+          </div>
           <div class="detail-section-title">关联数据</div>
           <div class="related-grid">
             <span v-for="(count, label) in detailData.related" :key="label" class="related-chip" :class="{ zero: !count }">
               {{ label }} <b>{{ count }}</b>
             </span>
           </div>
-          <p class="detail-hint">存在名下客户、审批、激励、文件、日志等业务关联时不能彻底删除；角色/岗位/组织关联会在彻底删除时一并清理，系统日志保留账号名。</p>
+          <div class="detail-warn">存在名下客户、审批、激励、文件、日志等业务关联时不能彻底删除；角色、岗位、组织关联会在彻底删除时一并清理，系统日志保留账号名。</div>
         </template>
 
         <!-- 文件详情 -->
         <template v-else-if="detailType === 'file' && detailData">
-          <el-descriptions :column="1" border size="small">
-            <el-descriptions-item label="文件名">{{ detailData.file.fileName || '-' }}</el-descriptions-item>
-            <el-descriptions-item label="大小">{{ formatSize(detailData.file.fileSize) }}</el-descriptions-item>
-            <el-descriptions-item label="文件类型">{{ detailData.fileType || '-' }}</el-descriptions-item>
-            <el-descriptions-item label="归属">{{ scopeLabel(detailData.file.fileScope) }}</el-descriptions-item>
-            <el-descriptions-item label="上传人">{{ detailData.file.uploaderName || (detailData.file.uploaderId ? '上传人已删除' : '-') }}</el-descriptions-item>
-            <el-descriptions-item label="所在文件夹">{{ detailData.file.folderName || (detailData.file.folderId ? '文件夹已删除' : '根目录') }}</el-descriptions-item>
-            <el-descriptions-item label="内容状态">
-              <el-tag size="small" :type="detailData.file.contentAvailable ? 'success' : 'info'" effect="plain">
-                {{ detailData.file.contentAvailable ? '可恢复' : '已清除' }}
-              </el-tag>
-            </el-descriptions-item>
-            <el-descriptions-item label="创建时间">{{ formatTime(detailData.createdAt) }}</el-descriptions-item>
-            <el-descriptions-item label="删除时间">{{ formatTime(detailData.file.deletedAt) }}</el-descriptions-item>
-          </el-descriptions>
+          <div class="detail-grid">
+            <div class="detail-item"><span class="di-label">文件名</span><span class="di-value">{{ detailData.file.fileName || '-' }}</span></div>
+            <div class="detail-item"><span class="di-label">大小</span><span class="di-value">{{ formatSize(detailData.file.fileSize) }}</span></div>
+            <div class="detail-item"><span class="di-label">文件类型</span><span class="di-value">{{ detailData.fileType || '-' }}</span></div>
+            <div class="detail-item"><span class="di-label">归属</span><span class="di-value">{{ scopeLabel(detailData.file.fileScope) }}</span></div>
+            <div class="detail-item"><span class="di-label">上传人</span><span class="di-value">{{ detailData.file.uploaderName || (detailData.file.uploaderId ? '上传人已删除' : '-') }}</span></div>
+            <div class="detail-item"><span class="di-label">所在文件夹</span><span class="di-value">{{ detailData.file.folderName || (detailData.file.folderId ? '文件夹已删除' : '根目录') }}</span></div>
+            <div class="detail-item"><span class="di-label">内容状态</span><span class="di-value">{{ detailData.file.contentAvailable ? '可恢复' : '已清除' }}</span></div>
+            <div class="detail-item"><span class="di-label">创建时间</span><span class="di-value">{{ formatTime(detailData.createdAt) }}</span></div>
+            <div class="detail-item"><span class="di-label">删除时间</span><span class="di-value">{{ formatTime(detailData.file.deletedAt) }}</span></div>
+          </div>
           <div class="detail-actions">
-            <el-button v-if="detailData.file.contentAvailable" type="primary" plain :icon="Download" @click="downloadRecycleFile(detailData.file)">
-              下载文件
-            </el-button>
+            <el-button v-if="detailData.file.contentAvailable" type="primary" plain :icon="Download" @click="downloadRecycleFile(detailData.file)">下载文件</el-button>
             <span v-else class="muted-text">文件内容已物理清除，仅保留删除记录</span>
           </div>
-          <p class="detail-hint">文件仍被激励记录引用时不能彻底删除；彻底删除会同时清除物理内容与台账记录。</p>
+          <div class="detail-warn">文件仍被激励记录引用时不能彻底删除；彻底删除会同时清除物理内容与台账记录。</div>
         </template>
       </div>
 
       <template #footer>
         <div class="detail-footer">
           <el-button @click="detailVisible = false">关闭</el-button>
-          <el-button v-if="canRestore && detailData && detailCanRestore" type="primary" plain @click="restoreFromDetail">
-            恢复
-          </el-button>
-          <el-button v-if="canPurge && detailData" type="danger" @click="hardDeleteFromDetail">
-            彻底删除
-          </el-button>
+          <el-button v-if="canRestore && detailData && detailCanRestore" type="primary" plain @click="restoreFromDetail">恢复</el-button>
+          <el-button v-if="canPurge && detailData" type="danger" @click="hardDeleteFromDetail">彻底删除</el-button>
         </div>
       </template>
     </el-drawer>
@@ -329,7 +307,9 @@
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Document, Delete, Download, InfoFilled, Refresh, RefreshLeft, Search } from '@element-plus/icons-vue'
+import {
+  Avatar, Document, Delete, Download, InfoFilled, Refresh, RefreshLeft, Search, User,
+} from '@element-plus/icons-vue'
 import {
   getDeletedCustomers, getDeletedUsers, getDeletedFiles,
   restoreDeletedCustomer, restoreDeletedUser, restoreDeletedFile, purgeDeletedFiles,
@@ -350,6 +330,11 @@ const tabs = [
   { key: 'users', label: '已删除人员' },
   { key: 'files', label: '已删除文件' },
 ]
+const statItems = [
+  { key: 'customers', label: '已删除客户', icon: User },
+  { key: 'users', label: '已删除人员', icon: Avatar },
+  { key: 'files', label: '已删除文件', icon: Document },
+]
 const activeTab = ref('customers')
 const keyword = ref('')
 const current = ref(1)
@@ -367,6 +352,13 @@ const detailType = ref('')
 const detailData = ref(null)
 const detailRow = ref(null)
 const detailTitle = computed(() => ({ customer: '客户详情', user: '人员详情', file: '文件详情' }[detailType.value] || '详情'))
+const detailIcon = computed(() => ({ customer: User, user: Avatar, file: Document }[detailType.value] || Document))
+const detailSubtitle = computed(() => {
+  if (!detailData.value) return ''
+  if (detailType.value === 'customer') return detailData.value.customer?.customerCode || ''
+  if (detailType.value === 'user') return detailData.value.user?.username || ''
+  return detailData.value.file?.fileName || ''
+})
 const detailCanRestore = computed(() => {
   if (detailType.value === 'file') return Boolean(detailData.value?.file?.contentAvailable)
   return Boolean(detailData.value)
@@ -378,7 +370,6 @@ const formatTime = (value) => {
 }
 
 const scopeLabel = (scope) => ({ public: '公共', private: '私有', incentive: '激励' }[scope] || scope || '-')
-const scopeTagType = (scope) => ({ public: 'primary', private: 'info', incentive: 'warning' }[scope] || 'info')
 
 const searchPlaceholder = computed(() => ({
   customers: '搜索客户名称或编号',
@@ -610,105 +601,174 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.recycle-page { display: flex; flex-direction: column; gap: 14px; }
+.recycle-page { display: flex; flex-direction: column; gap: 16px; }
 
-/* 页头 */
-.recycle-head {
-  display: flex; align-items: center; justify-content: space-between; gap: 24px;
-  background: #fff; border: 1px solid #e4e7ed; border-radius: var(--radius-md, 8px);
-  padding: 18px 22px;
+/* ===== 主视觉 ===== */
+.recycle-hero {
+  position: relative; overflow: hidden;
+  display: flex; align-items: center; justify-content: space-between; gap: 28px;
+  background: var(--hero-gradient);
+  border-radius: var(--radius-lg, 12px);
+  padding: 26px 30px;
+  box-shadow: var(--hero-shadow, 0 10px 28px rgba(16, 42, 80, .18));
 }
-.head-main { min-width: 0; }
-.head-title-row { display: flex; align-items: center; gap: 10px; }
-.head-accent { width: 4px; height: 18px; border-radius: 2px; background: var(--el-color-primary); }
-.head-title-row h2 { margin: 0; font-size: 18px; font-weight: 600; color: var(--el-text-color-primary); }
-.head-desc { margin: 6px 0 0 14px; font-size: 13px; color: var(--el-text-color-secondary); }
-.head-stats { display: flex; align-items: center; gap: 20px; flex-shrink: 0; }
-.stat { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }
-.stat-num { font-size: 22px; font-weight: 600; line-height: 1.1; color: var(--el-color-primary); font-variant-numeric: tabular-nums; }
-.stat-label { font-size: 12px; color: var(--el-text-color-secondary); }
-.stat-divider { width: 1px; height: 28px; background: #e4e7ed; }
+.recycle-hero::after {
+  content: ''; position: absolute; right: -60px; top: -80px; width: 260px; height: 260px;
+  background: radial-gradient(circle, rgba(255, 255, 255, .16), rgba(255, 255, 255, 0));
+  pointer-events: none;
+}
+.hero-copy { position: relative; z-index: 1; min-width: 0; }
+.hero-eyebrow { display: inline-block; font-size: 12px; letter-spacing: 1.2px; color: rgba(255, 255, 255, .66); margin-bottom: 8px; }
+.hero-title { margin: 0; font-size: 24px; font-weight: 700; line-height: 1.2; color: #fff; letter-spacing: .5px; }
+.hero-sub { margin: 8px 0 0; font-size: 13px; line-height: 1.5; color: rgba(255, 255, 255, .78); }
+.hero-stats { position: relative; z-index: 1; display: flex; align-items: stretch; gap: 10px; flex-shrink: 0; }
+.hero-metric {
+  display: flex; align-items: center; gap: 12px; min-width: 132px;
+  padding: 12px 16px; border-radius: 12px;
+  background: rgba(255, 255, 255, .10);
+  border: 1px solid rgba(255, 255, 255, .16);
+  cursor: pointer;
+  transition: background-color .18s ease, border-color .18s ease, transform .18s ease;
+}
+.hero-metric:hover { background: rgba(255, 255, 255, .16); }
+.hero-metric.active { background: rgba(255, 255, 255, .20); border-color: rgba(255, 255, 255, .38); }
+.hero-metric:active { transform: scale(.98); }
+.hm-icon {
+  display: inline-flex; align-items: center; justify-content: center; width: 38px; height: 38px;
+  border-radius: 10px; background: rgba(255, 255, 255, .16); color: #fff; font-size: 19px; flex-shrink: 0;
+}
+.hm-body { display: flex; flex-direction: column; gap: 2px; }
+.hm-num { font-size: var(--font-num-hero, 26px); font-weight: 700; line-height: 1.1; color: #fff; font-variant-numeric: tabular-nums; }
+.hm-label { font-size: 12px; color: rgba(255, 255, 255, .76); white-space: nowrap; }
 
-/* 主体卡片 */
-.section-box { background: #fff; border: 1px solid #e4e7ed; border-radius: var(--radius-md, 8px); padding: 16px 20px 14px; }
-
-/* 工具栏 */
-.toolbar-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
-.seg { display: inline-flex; padding: 3px; gap: 2px; background: #f2f5f9; border-radius: 8px; }
+/* ===== 列表主卡 ===== */
+.recycle-panel {
+  background: #fff; border: 1px solid #e6edf7; border-radius: var(--radius-lg, 12px);
+  box-shadow: 0 10px 30px rgba(16, 42, 80, .06);
+  padding: 18px 22px 14px;
+}
+.panel-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.seg { display: inline-flex; padding: 4px; gap: 2px; background: #f3f6fb; border-radius: 10px; }
 .seg-item {
-  display: inline-flex; align-items: center; gap: 6px; border: 0; background: transparent;
-  padding: 7px 14px; border-radius: 6px; font-size: 13px; color: #5c6675; cursor: pointer;
-  transition: background-color .18s ease, color .18s ease;
+  display: inline-flex; align-items: center; gap: 7px; border: 0; background: transparent;
+  padding: 8px 15px; border-radius: 8px; font-size: 13px; color: #5c6675; cursor: pointer;
+  transition: background-color .18s ease, color .18s ease, box-shadow .18s ease;
 }
 .seg-item:hover { color: var(--el-color-primary); }
-.seg-item.active { background: #fff; color: var(--el-color-primary); font-weight: 600; box-shadow: 0 1px 3px rgba(16, 42, 80, .08); }
+.seg-item.active { background: #fff; color: var(--el-color-primary); font-weight: 600; box-shadow: 0 2px 6px rgba(16, 42, 80, .10); }
 .seg-count {
-  min-width: 20px; padding: 0 5px; border-radius: 9px; background: #e8eef8; color: #53709a;
+  min-width: 22px; padding: 0 6px; border-radius: 10px; background: #e7eef9; color: #53709a;
   font-size: 11px; line-height: 18px; text-align: center; font-variant-numeric: tabular-nums;
 }
 .seg-item.active .seg-count { background: var(--el-color-primary-light-9, #ecf2fe); color: var(--el-color-primary); }
-.toolbar-actions { display: flex; align-items: center; gap: 8px; }
-.search-input { width: 260px; }
+.panel-actions { display: flex; align-items: center; gap: 8px; }
+.search-input { width: 250px; }
 .refresh-btn { color: #5c6675; }
 
-/* 口径提示 */
-.info-strip {
-  display: flex; align-items: flex-start; gap: 8px; margin: 12px 0 4px; padding: 9px 12px;
-  background: #f6f9fe; border: 1px solid #e2ebf8; border-radius: 6px;
-  font-size: 12px; line-height: 1.6; color: #5c6f88;
+.panel-note {
+  display: flex; align-items: flex-start; gap: 8px; margin: 14px 0 6px; padding: 10px 14px;
+  background: #f5f9ff; border: 1px solid #e3edfb; border-left: 3px solid var(--el-color-primary);
+  border-radius: 8px; font-size: 12px; line-height: 1.65; color: #5c6f88;
 }
-.info-icon { color: var(--el-color-primary); margin-top: 2px; flex-shrink: 0; }
+.note-icon { color: var(--el-color-primary); margin-top: 2px; flex-shrink: 0; }
 
-/* 表格 */
+/* ===== 表格 ===== */
 .recycle-table { margin-top: 8px; }
-.recycle-table :deep(.el-table__header th) { background: #f7f9fc; color: #1f2329; font-weight: 600; }
+.recycle-table :deep(.el-table__inner-wrapper::before) { display: none; }
+.recycle-table :deep(.el-table__header th) {
+  background: #f8fafc; color: #1f2329; font-weight: 600; height: 42px;
+  border-bottom: 1px solid #eef2f8;
+}
 .recycle-table :deep(.el-table__row) { transition: background-color .15s ease; }
-.name-cell { display: flex; align-items: center; gap: 10px; min-width: 0; }
-.monogram {
-  display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px;
-  border-radius: 8px; background: #e8f0fe; color: var(--el-color-primary);
-  font-size: 14px; font-weight: 600; flex-shrink: 0;
-}
-.monogram-user { border-radius: 50%; background: #eef6f1; color: #2f8f5b; }
-.file-icon {
-  display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px;
-  border-radius: 8px; background: #f1f3f7; color: #5c6675; font-size: 15px; flex-shrink: 0;
-}
-.restore-unavailable { font-size: 12px; }
+.recycle-table :deep(.el-table__row:hover > td) { background: #f6f9ff !important; }
+.recycle-table :deep(td) { border-bottom: 1px solid #f1f4f9; }
+.recycle-table :deep(.el-table__row) { height: 56px; }
 
-/* 详情 */
-.name-cell.clickable { cursor: pointer; }
-.name-cell.clickable:hover .name-text { color: var(--el-color-primary); }
-.detail-body { min-height: 200px; }
-.detail-section-title { margin: 16px 0 8px; font-size: 13px; font-weight: 600; color: var(--el-text-color-primary); }
-.related-grid { display: flex; flex-wrap: wrap; gap: 8px; }
-.related-chip { padding: 4px 10px; border-radius: 6px; background: #f2f5f9; color: #3f4a5a; font-size: 12px; }
-.related-chip b { margin-left: 4px; color: var(--el-color-primary); font-variant-numeric: tabular-nums; }
-.related-chip.zero { color: #9aa4b2; }
-.related-chip.zero b { color: #9aa4b2; }
-.detail-hint { margin-top: 12px; font-size: 12px; line-height: 1.6; color: #7a8494; }
-.detail-actions { margin-top: 16px; display: flex; align-items: center; gap: 10px; }
-.detail-footer { display: flex; justify-content: flex-end; gap: 8px; }
-.name-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.entity-cell { display: flex; align-items: center; gap: 11px; min-width: 0; }
+.entity-cell.clickable { cursor: pointer; }
+.entity-cell.clickable:hover .entity-name { color: var(--el-color-primary); }
+.entity-avatar {
+  display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 34px;
+  border-radius: 10px; font-size: 15px; font-weight: 600; flex-shrink: 0;
+}
+.avatar-customer { background: linear-gradient(140deg, #e8f0fe, #d7e6ff); color: #1d4ed8; }
+.avatar-user { border-radius: 50%; background: linear-gradient(140deg, #e9f7ef, #d6efe0); color: #2f8f5b; }
+.avatar-file { background: linear-gradient(140deg, #f1f4f9, #e6ebf3); color: #5c6675; }
+.entity-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.entity-name { font-size: 13.5px; color: #1f2329; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; transition: color .15s ease; }
+.entity-meta { font-size: 11.5px; color: #8a94a6; font-variant-numeric: tabular-nums; }
+.type-chip {
+  display: inline-block; padding: 2px 9px; border-radius: 5px; background: #f2f6fc;
+  color: #44618d; font-size: 12px;
+}
+.scope-chip { display: inline-block; padding: 2px 9px; border-radius: 5px; font-size: 12px; }
+.scope-public { background: #eaf1fe; color: #1d4ed8; }
+.scope-private { background: #f1f4f9; color: #5c6675; }
+.scope-incentive { background: #fff5e6; color: #b26a00; }
+.status-chip { display: inline-block; padding: 2px 9px; border-radius: 10px; font-size: 12px; }
+.status-chip.on { background: #eaf7ef; color: #2f8f5b; }
+.status-chip.off { background: #f2f4f7; color: #8a94a6; }
+.text-strong { color: #1f2329; }
 .mono-text { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12.5px; color: #3f4a5a; }
-.muted-text { color: #7a8494; }
+.muted-text { color: #7a8494; font-size: 12.5px; }
 .time-text { color: #7a8494; font-variant-numeric: tabular-nums; font-size: 12.5px; }
 
-/* 分页 */
-.pager-row { display: flex; align-items: center; justify-content: space-between; margin-top: 12px; }
+.pager-row { display: flex; align-items: center; justify-content: space-between; margin-top: 14px; padding-top: 12px; border-top: 1px solid #f1f4f9; }
 .pager-hint { font-size: 12px; color: #7a8494; }
-
-/* 骨架 */
+.pager-hint b { color: var(--el-color-primary); font-variant-numeric: tabular-nums; }
 .table-skeleton { padding: 20px 4px 8px; }
 
+/* ===== 详情抽屉 ===== */
+.drawer-head { display: flex; align-items: center; gap: 12px; }
+.drawer-icon {
+  display: inline-flex; align-items: center; justify-content: center; width: 40px; height: 40px;
+  border-radius: 11px; font-size: 20px; color: #fff; flex-shrink: 0;
+  background: linear-gradient(140deg, #1d4ed8, #3e8df3);
+}
+.drawer-icon-user { background: linear-gradient(140deg, #2f8f5b, #4fb37b); }
+.drawer-icon-file { background: linear-gradient(140deg, #4b5b70, #7a8ba3); }
+.drawer-copy { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.drawer-title { font-size: 16px; font-weight: 600; color: #1f2329; }
+.drawer-sub { font-size: 12px; color: #8a94a6; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.detail-body { min-height: 220px; }
+.detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.detail-item {
+  display: flex; flex-direction: column; gap: 3px; padding: 9px 12px;
+  background: #f8fafc; border: 1px solid #eef2f8; border-radius: 8px; min-width: 0;
+}
+.di-label { font-size: 11.5px; color: #8a94a6; }
+.di-value { font-size: 13px; color: #1f2329; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.detail-section-title { margin: 18px 0 9px; font-size: 13px; font-weight: 600; color: #1f2329; }
+.related-grid { display: flex; flex-wrap: wrap; gap: 7px; }
+.related-chip { padding: 4px 10px; border-radius: 7px; background: #f2f6fc; color: #44618d; font-size: 12px; }
+.related-chip b { margin-left: 4px; color: var(--el-color-primary); font-variant-numeric: tabular-nums; }
+.related-chip.zero { background: #f5f6f8; color: #9aa4b2; }
+.related-chip.zero b { color: #9aa4b2; }
+.detail-warn {
+  margin-top: 14px; padding: 10px 12px; border-radius: 8px; font-size: 12px; line-height: 1.6;
+  background: #fff8ec; border: 1px solid #f6e3c2; color: #8a6520;
+}
+.detail-actions { margin-top: 16px; display: flex; align-items: center; gap: 10px; }
+.detail-footer { display: flex; justify-content: flex-end; gap: 8px; }
+
+/* ===== 响应式 ===== */
+@media (max-width: 1024px) {
+  .recycle-hero { flex-direction: column; align-items: stretch; }
+  .hero-stats { justify-content: space-between; }
+  .hero-metric { flex: 1; min-width: 0; }
+  .detail-grid { grid-template-columns: 1fr; }
+}
 @media (max-width: 768px) {
-  .recycle-head { flex-direction: column; align-items: flex-start; gap: 12px; }
-  .head-stats { align-self: stretch; justify-content: space-between; }
-  .stat { align-items: flex-start; }
-  .search-input { width: 100%; }
-  .toolbar-actions { width: 100%; }
-  .toolbar-row { flex-direction: column; align-items: stretch; }
+  .recycle-hero { padding: 20px; }
+  .hero-stats { flex-direction: column; }
+  .recycle-panel { padding: 14px; }
+  .panel-head { flex-direction: column; align-items: stretch; }
   .seg { width: 100%; }
   .seg-item { flex: 1; justify-content: center; }
+  .panel-actions { width: 100%; flex-wrap: wrap; }
+  .search-input { width: 100%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .hero-metric, .seg-item, .entity-name, .recycle-table :deep(.el-table__row) { transition: none !important; }
 }
 </style>

@@ -17,7 +17,7 @@ await page.goto('http://111.229.37.220/system/recycle');
 await page.waitForSelector('.recycle-table .el-table__row', { timeout: 15000 });
 
 // 客户详情
-await page.locator('.recycle-table .name-cell.clickable').first().click();
+await page.locator('.recycle-table .entity-cell.clickable').first().click();
 await page.waitForSelector('.el-drawer', { timeout: 10000 });
 await page.waitForTimeout(800);
 const drawerText = (await page.locator('.el-drawer').innerText()).replace(/\s+/g, ' ');
@@ -32,7 +32,7 @@ await page.waitForTimeout(600);
 // 文件详情
 await page.locator('.seg-item', { hasText: '已删除文件' }).click();
 await page.waitForTimeout(1200);
-await page.locator('.recycle-table .name-cell.clickable').first().click();
+await page.locator('.recycle-table .entity-cell.clickable').first().click();
 await page.waitForSelector('.el-drawer', { timeout: 10000 });
 await page.waitForTimeout(800);
 const fileDrawer = (await page.locator('.el-drawer').innerText()).replace(/\s+/g, ' ');
