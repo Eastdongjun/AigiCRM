@@ -28,7 +28,7 @@
               <el-input v-model="form.password" type="password" placeholder="请输入密码" prefix-icon="Lock" show-password @keyup.enter="handleLogin" />
             </el-form-item>
             <div class="form-options">
-              <el-checkbox v-model="form.rememberMe">记住我</el-checkbox>
+              <el-checkbox v-model="form.rememberMe">记住账号密码</el-checkbox>
               <a class="forgot-link" href="javascript:void(0)" @click="forgotPwdVisible = true">忘记密码?</a>
             </div>
             <el-button type="primary" class="login-btn" :loading="loading" @click="handleLogin">登 录</el-button>
@@ -68,10 +68,28 @@ const form = reactive({
   rememberMe: true
 })
 
+// 【记住账号密码 2026-10-17】此前"记住我"只记账号。密码以 base64(UTF-8 安全编码)存
+// localStorage——内网企业系统的常规取舍: 防"路过瞟一眼明文", 不防本机有控制权的人;
+// 若后续要求更高再换 WebCrypto + 设备绑定密钥。
+const REMEMBER_KEY_USER = 'aigicrm_remember_username'
+const REMEMBER_KEY_PASS = 'aigicrm_remember_password'
+const encodePass = (p) => btoa(unescape(encodeURIComponent(p || '')))
+const decodePass = (s) => { try { return decodeURIComponent(escape(atob(s || ''))) } catch { return '' } }
+function saveRemembered(username, password) {
+  localStorage.setItem(REMEMBER_KEY_USER, username)
+  localStorage.setItem(REMEMBER_KEY_PASS, encodePass(password))
+}
+function clearRemembered() {
+  localStorage.removeItem(REMEMBER_KEY_USER)
+  localStorage.removeItem(REMEMBER_KEY_PASS)
+}
+
 onMounted(async () => {
-  const saved = localStorage.getItem('aigicrm_remember_username')
+  const saved = localStorage.getItem(REMEMBER_KEY_USER)
   if (saved) {
     form.username = saved
+    const savedPass = decodePass(localStorage.getItem(REMEMBER_KEY_PASS))
+    if (savedPass) form.password = savedPass
     form.rememberMe = true
   }
   try {
@@ -107,11 +125,6 @@ const handleLogin = async () => {
     // 【批④ 2026-08-10 多集团会话】登录响应带回集团信息(多集团用户顶部可切换)
     const { useUserStore } = await import('@/store/user')
     useUserStore().applyGroupInfo(res.data.groupIds, res.data.currentGroupId)
-    if (form.rememberMe) {
-      localStorage.setItem('aigicrm_remember_username', form.username)
-    } else {
-      localStorage.removeItem('aigicrm_remember_username')
-    }
     // 【2026-08-14 安全 P0】首次登录强制改密：初始/重置口令为随机值，后端标记 pwdResetRequired=1
     // 改密后当前 token 即失效（DB 级 pwd_changed_at 撤销），须用新密码重新登录
     if (res.data.pwdResetRequired === 1) {
@@ -125,15 +138,22 @@ const handleLogin = async () => {
         })
         const { changePassword } = await import('@/api/system')
         await changePassword({ oldPassword: form.password, newPassword: value })
+        // 改密成功: 记住密码须存"新"密码(旧口令已作废)
+        if (form.rememberMe) saveRemembered(form.username, value)
+        else clearRemembered()
         localStorage.removeItem('token')
         ElMessage.success('密码已修改，请用新密码重新登录')
         return
       } catch (e) {
+        if (form.rememberMe) saveRemembered(form.username, form.password)
+        else clearRemembered()
         localStorage.removeItem('token')
         ElMessage.warning('未完成密码修改，请重新登录')
         return
       }
     }
+    if (form.rememberMe) saveRemembered(form.username, form.password)
+    else clearRemembered()
     ElMessage.success('登录成功')
     router.push('/dashboard')
   } catch (e) {
