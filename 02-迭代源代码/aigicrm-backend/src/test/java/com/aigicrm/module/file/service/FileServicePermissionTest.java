@@ -875,4 +875,36 @@ class FileServicePermissionTest {
         assertFalse(ok);
         java.nio.file.Files.deleteIfExists(f);
     }
+
+    /** 【决策5 2026-10-18 用户裁决·佐证锁定】被任一激励记录槽位引用的文件=计分佐证,禁替换(防先传A得分再换B) */
+    @Test
+    void replaceFile_incentiveEvidenceFile_rejected() {
+        when(fileMapper.selectById(9L)).thenReturn(aReplaceableFile());
+        MultipartFile mf = new MockMultipartFile("file", "new.txt", "text/plain", new byte[25]);
+        BizIncentiveRecord evidence = new BizIncentiveRecord();
+        evidence.setFilePreIds(java.util.List.of(9L)); // 文件9挂在"安装前"槽
+        when(incentiveRecordMapper.selectList(any())).thenReturn(java.util.List.of(evidence));
+        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
+            m.when(SecurityUtils::getCurrentUserId).thenReturn(1L);
+            when(folderPermissionService.checkFile(9L, FolderPermissionService.P_EDIT, 1L)).thenReturn(true);
+            BusinessException ex = assertThrows(BusinessException.class, () -> svc.replaceFile(9L, mf));
+            assertTrue(ex.getMessage().contains("激励计分佐证"), "实际: " + ex.getMessage());
+            verify(fileMapper, never()).updateById(any(BizFile.class));
+        }
+    }
+
+    /** 佐证锁定不误伤: 无激励记录引用的普通文件照常可替换(存量成功用例的守卫回归) */
+    @Test
+    void replaceFile_nonEvidenceFile_guardSilent() {
+        when(fileMapper.selectById(9L)).thenReturn(aReplaceableFile());
+        MultipartFile mf = new MockMultipartFile("file", "new.txt", "text/plain", new byte[25]);
+        when(incentiveRecordMapper.selectList(any())).thenReturn(java.util.List.of());
+        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
+            m.when(SecurityUtils::getCurrentUserId).thenReturn(1L);
+            when(folderPermissionService.checkFile(9L, FolderPermissionService.P_EDIT, 1L)).thenReturn(true);
+            // 走到存储写入层(即已通过佐证守卫)即算通过——本地落盘成功后 updateById 必被调用
+            svc.replaceFile(9L, mf);
+            verify(fileMapper).updateById(any(BizFile.class));
+        }
+    }
 }

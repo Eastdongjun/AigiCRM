@@ -285,4 +285,38 @@ class CustomerAccessServiceSeaPermTest {
             assertFalse(svc.canDelete(1L));
         }
     }
+
+    // ===== 【决策6 2026-10-18 用户裁决·财务代录】finance:manage 放开财务对象归属 =====
+
+    @Test
+    void assertCanManageFinance_financeManageHolder_nonOwner_passes() {
+        // 财务专责(非负责人100≠owner 200)持 finance:manage → 财务写路径放行(录财务≠编辑客户)
+        BizCustomer cust = customer(200L);
+        try (MockedStatic<SecurityUtils> ms = mockStatic(SecurityUtils.class)) {
+            ms.when(SecurityUtils::isAdmin).thenReturn(false);
+            ms.when(SecurityUtils::getCurrentUserId).thenReturn(100L);
+            ms.when(() -> SecurityUtils.hasAuthority("finance:manage")).thenReturn(true);
+            // 注意: 不 stub canEdit 依赖(即便编辑范围判定会拒绝,也不应走到)
+            org.junit.jupiter.api.Assertions.assertDoesNotThrow(() -> svc.assertCanManageFinance(1L));
+        }
+    }
+
+    @Test
+    void assertCanManageFinance_nonHolder_nonOwner_rejected() {
+        // 未持 finance:manage 的非负责人 → 维持原 assertCanEdit 口径(无权编辑该客户)
+        BizCustomer cust = customer(200L);
+        try (MockedStatic<SecurityUtils> ms = mockStatic(SecurityUtils.class)) {
+            ms.when(SecurityUtils::isAdmin).thenReturn(false);
+            ms.when(SecurityUtils::getCurrentUserId).thenReturn(100L);
+            ms.when(() -> SecurityUtils.hasAuthority("finance:manage")).thenReturn(false);
+            ms.when(() -> SecurityUtils.hasAuthority("customer:edit")).thenReturn(false);
+            when(customerMapper.selectById(1L)).thenReturn(cust);
+            when(seaPoolMapper.selectOne(any())).thenReturn(null);
+            stubDefaultScope();
+
+            com.aigicrm.common.BusinessException ex = org.junit.jupiter.api.Assertions.assertThrows(
+                    com.aigicrm.common.BusinessException.class, () -> svc.assertCanManageFinance(1L));
+            org.junit.jupiter.api.Assertions.assertTrue(ex.getMessage().contains("无权编辑"), "实际: " + ex.getMessage());
+        }
+    }
 }

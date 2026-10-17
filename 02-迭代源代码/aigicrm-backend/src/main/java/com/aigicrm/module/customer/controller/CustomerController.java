@@ -318,7 +318,8 @@ public class CustomerController {
     @PreAuthorize("hasAuthority('finance:manage') or (hasAuthority('customer:edit') and hasAuthority('finance:view'))")
     @PostMapping("/{id}/invoices")
     public Result<Void> addInvoice(@PathVariable Long id, @RequestBody BizInvoice invoice) {
-        accessService.assertCanEdit(id);
+        // 【决策6 2026-10-18】财务代录: finance:manage 持有者放开对象归属(不要求是负责人)
+        accessService.assertCanManageFinance(id);
         customerService.addInvoice(id, invoice);
         return Result.ok();
     }
@@ -327,7 +328,7 @@ public class CustomerController {
     @PreAuthorize("hasAuthority('finance:manage') or (hasAuthority('customer:edit') and hasAuthority('finance:view'))")
     @PostMapping("/{id}/invoices/{invoiceId}/confirm")
     public Result<Void> confirmInvoice(@PathVariable Long id, @PathVariable Long invoiceId) {
-        accessService.assertCanEdit(id); // 【权限审计批次1 2026-09-21】补对象归属校验, 与 deleteInvoice 对齐
+        accessService.assertCanManageFinance(id); // 【决策6 2026-10-18】财务代录同 addInvoice
         customerService.confirmInvoice(id, invoiceId);
         return Result.ok();
     }
@@ -337,7 +338,7 @@ public class CustomerController {
     @PostMapping("/{id}/invoices/{invoiceId}/void")
     public Result<Void> voidInvoice(@PathVariable Long id, @PathVariable Long invoiceId,
                                     @RequestBody Map<String, String> body) {
-        accessService.assertCanEdit(id); // 【权限审计批次1】同上, 原缺失
+        accessService.assertCanManageFinance(id); // 【决策6 2026-10-18】财务代录同 addInvoice
         customerService.voidInvoice(id, invoiceId, body.get("reason"));
         return Result.ok();
     }
@@ -346,7 +347,7 @@ public class CustomerController {
     @PreAuthorize("hasAuthority('finance:manage') or (hasAuthority('customer:edit') and hasAuthority('finance:view'))")
     @PostMapping("/{id}/payments/{paymentId}/confirm")
     public Result<Void> confirmPayment(@PathVariable Long id, @PathVariable Long paymentId) {
-        accessService.assertCanEdit(id); // 【权限审计批次1】同上, 原缺失
+        accessService.assertCanManageFinance(id); // 【决策6 2026-10-18】财务代录同 addInvoice
         customerService.confirmPayment(id, paymentId);
         return Result.ok();
     }
@@ -356,7 +357,7 @@ public class CustomerController {
     @PostMapping("/{id}/payments/{paymentId}/void")
     public Result<Void> voidPayment(@PathVariable Long id, @PathVariable Long paymentId,
                                     @RequestBody Map<String, String> body) {
-        accessService.assertCanEdit(id); // 【权限审计批次1】同上, 原缺失
+        accessService.assertCanManageFinance(id); // 【决策6 2026-10-18】财务代录同 addInvoice
         customerService.voidPayment(id, paymentId, body.get("reason"));
         return Result.ok();
     }
@@ -366,7 +367,7 @@ public class CustomerController {
     public Result<Void> deleteInvoice(@PathVariable Long id, @PathVariable Long invoiceId,
                                       @RequestParam(required = false) String reason) {
         // 【裁决 2026-09-24】发票可删但必留痕: 原因必填+审计快照+逻辑删(service 内强制)
-        accessService.assertCanEdit(id);
+        accessService.assertCanManageFinance(id); // 【决策6 2026-10-18】财务代录同 addInvoice
         customerService.deleteInvoice(id, invoiceId, reason);
         return Result.ok();
     }
@@ -539,7 +540,8 @@ public class CustomerController {
     @PreAuthorize("hasAuthority('finance:manage') or (hasAuthority('customer:edit') and hasAuthority('finance:view'))")
     @PostMapping("/{id}/payments")
     public Result<Void> addPayment(@PathVariable Long id, @RequestBody BizPayment payment) {
-        accessService.assertCanEdit(id);
+        // 【决策6 2026-10-18】财务代录: finance:manage 持有者放开对象归属(不要求是负责人)
+        accessService.assertCanManageFinance(id);
         customerService.addPayment(id, payment);
         return Result.ok();
     }
@@ -549,7 +551,7 @@ public class CustomerController {
     public Result<Void> deletePayment(@PathVariable Long id, @PathVariable Long paymentId,
                                       @RequestParam(required = false) String reason) {
         // 【裁决 2026-09-24】回款同口径: 可删必留痕
-        accessService.assertCanEdit(id);
+        accessService.assertCanManageFinance(id); // 【决策6 2026-10-18】财务代录同 addInvoice
         customerService.deletePayment(id, paymentId, reason);
         return Result.ok();
     }

@@ -164,7 +164,9 @@ public class PermissionMatrixTest {
 
     /** 【2026-08-14】防止权限注解与行级守卫双向静默腐化:
      *  14 个客户写端点须全部携带 @PreAuthorize("hasAuthority('customer:edit')") 声明式注解,
-     *  且方法体内 assertCanEdit 行级守卫必须保留(防御纵深, 正向规则只校验注解不校验守卫) */
+     *  且方法体内行级守卫必须保留(防御纵深, 正向规则只校验注解不校验守卫)。
+     *  【决策6 2026-10-18】8 个财务写端点(发票/回款 录/确认/作废/删)改 assertCanManageFinance
+     *  (finance:manage 放开对象归属, 内部回退 assertCanEdit)——守卫计数两码并计, 仍不小于 14。 */
     @Test
     void customerEditWriteMethods_mustRetainAssertCanEditGuard() {
         Path src = Paths.get("src/main/java/com/aigicrm/module/customer/controller/CustomerController.java")
@@ -177,11 +179,12 @@ public class PermissionMatrixTest {
             throw new IllegalStateException("读取 CustomerController 源码失败", e);
         }
         long annotated = countSubstring(body, "hasAuthority('customer:edit')");
-        long guards = countSubstring(body, "assertCanEdit(");
+        long guards = countSubstring(body, "assertCanEdit(")
+                + countSubstring(body, "assertCanManageFinance(");
         assertTrue(annotated >= 14,
                 () -> "客户写端点应补全 14 处 @PreAuthorize(\"hasAuthority('customer:edit')\"), 实际 " + annotated);
         assertTrue(guards >= 14,
-                () -> "客户写端点须保留 14 处 assertCanEdit 行级守卫(防御纵深), 实际 " + guards
+                () -> "客户写端点须保留 14 处行级守卫(assertCanEdit/assertCanManageFinance, 防御纵深), 实际 " + guards
                         + " 处——守卫缺失, 权限将无兜底");
     }
 

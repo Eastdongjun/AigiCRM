@@ -392,6 +392,10 @@ public class FileService {
         if (!folderPermissionService.checkFile(fileId, FolderPermissionService.P_EDIT, userId)) {
             throw new BusinessException(403, "没有访问权限，请联系管理员授权");
         }
+        // 【决策5 2026-10-18 用户裁决·佐证锁定】激励计分佐证禁替换:佐证文件(安装前三槽/跟踪槽/旧单槽)
+        // 是计分依据(安装前三槽齐全即得分),同 ID 换内容会无声替换计分证据(先传A得分再换B)。
+        // 需更新佐证走激励模块"删除后重传"(删除触发重算,分数随新证据重出)。记录表为百级量,全量扫可接受。
+        assertNotIncentiveEvidence(fileId);
         String scope = file.getFileScope() != null ? file.getFileScope() : "private";
         try {
             // 先存新文件（沿用原文件的 scope/uploaderId 目录，保证 key 下载路由语义一致）
@@ -424,6 +428,18 @@ public class FileService {
             throw e;
         } catch (Exception e) {
             throw new BusinessException("文件替换失败: " + e.getMessage());
+        }
+    }
+
+    /** 【决策5 2026-10-18 用户裁决·佐证锁定】fileId 被任一激励记录引用(五槽任一)即为计分佐证,禁替换;
+     *  槽解析与上方共享激励文件的五槽读取同源(getFileIds/Pre/Mid/Post/Track) */
+    private void assertNotIncentiveEvidence(Long fileId) {
+        for (BizIncentiveRecord r : incentiveRecordMapper.selectList(new LambdaQueryWrapper<>())) {
+            if (r.getFileIds().contains(fileId) || r.getFilePreIds().contains(fileId)
+                    || r.getFileMidIds().contains(fileId) || r.getFilePostIds().contains(fileId)
+                    || r.getFileTrackIds().contains(fileId)) {
+                throw new BusinessException("该文件是激励计分佐证，不能替换；请在激励模块删除后重新上传（将重新计分）");
+            }
         }
     }
 

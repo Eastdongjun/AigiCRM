@@ -36,6 +36,20 @@
       <el-table-column label="激励总额" width="92" align="center">
         <template #default="{ row }"><span class="score-pill">{{ row.totalScore || 0 }}<em>分</em></span></template>
       </el-table-column>
+      <!-- 【决策7 2026-10-18 用户裁决·"三列+合计"】恢复 2026-09-25 隐藏的安装前/中/后三列, 记录数改标"合计"
+           紧随其后(数据 preCount/midCount/postCount 一直随行返回,后端零改动);导出同步恢复 -->
+      <el-table-column label="安装前" min-width="70" align="center">
+        <template #default="{ row }"><span class="num-cell">{{ row.preCount || 0 }}</span></template>
+      </el-table-column>
+      <el-table-column label="安装中" min-width="70" align="center">
+        <template #default="{ row }"><span class="num-cell">{{ row.midCount || 0 }}</span></template>
+      </el-table-column>
+      <el-table-column label="安装后" min-width="70" align="center">
+        <template #default="{ row }"><span class="num-cell">{{ row.postCount || 0 }}</span></template>
+      </el-table-column>
+      <el-table-column label="合计" min-width="70" align="center">
+        <template #default="{ row }"><span class="num-cell">{{ row.recordCount || 0 }}</span></template>
+      </el-table-column>
       <template v-for="(parent, pi) in rankParents" :key="'p' + parent.id">
         <el-table-column :label="parent.categoryName" align="center" :class-name="'cat-group cat-group-' + (pi % 4)">
           <el-table-column v-for="child in parent.children" :key="child.id" :label="child.categoryName" min-width="80" align="center">
@@ -49,10 +63,7 @@
           </el-table-column>
         </el-table-column>
       </template>
-      <!-- 【2026-09-25】安装前/中/后三列按用户要求从表格隐藏(数据仍随行返回,导出同步隐藏) -->
-      <el-table-column label="记录数" min-width="70" align="center">
-        <template #default="{ row }"><span class="num-cell">{{ row.recordCount || 0 }}</span></template>
-      </el-table-column>
+      <!-- 【2026-09-25】安装前/中/后三列曾被要求隐藏 → 【决策7 2026-10-18】恢复(上方"三列+合计"),此处的记录数列已上移改标"合计" -->
     </el-table>
     <el-pagination v-if="personBoard.length > personPageSize" v-model:current-page="personPageNum" :page-size="personPageSize" :total="personBoard.length" :page-sizes="pageSizes(personPageSize)" layout="sizes, prev, pager, next, jumper" size="small" background style="justify-content:flex-end;margin-top:12px" @size-change="onSizeChange" />
   </div>
@@ -79,11 +90,12 @@ const onSizeChange = (size) => {
 const exportPersonRank = () => {
   const periodLabel = period.value || '全部周期'
   const cats = rankParents.value.flatMap(g => g.children.map(c => c.categoryName))
-  const header = ['排名', '姓名', '办事处', '激励总额', ...cats, '记录数']
+  // 【决策7 2026-10-18】导出与表格同构: 恢复安装前/中/后+合计(记录数)列
+  const header = ['排名', '姓名', '办事处', '激励总额', '安装前', '安装中', '安装后', '合计', ...cats]
   const rows = personBoard.value.map(r => [
     r.rank, r.realName || '未知', r.officeName || '—', r.totalScore || 0,
+    r.preCount || 0, r.midCount || 0, r.postCount || 0, r.recordCount || 0,
     ...rankParents.value.flatMap(g => g.children.map(c => r.byCategory?.[c.id]?.[0] || 0)),
-    r.recordCount || 0,
   ])
   exportCsv([header, ...rows], `激励个人排行_${periodLabel}.csv`)
 }

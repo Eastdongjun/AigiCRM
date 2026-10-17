@@ -182,6 +182,19 @@ public class CustomerAccessService {
         }
     }
 
+    /**
+     * 【决策6 2026-10-18 用户裁决·财务代录】财务记录(发票/回款)写路径的对象校验:
+     * 持 finance:manage 的财务专责可对任意客户录财务(录财务 ≠ 编辑客户资料,不要求是负责人);
+     * 未持该码者维持原口径=assertCanEdit(负责人/编辑范围)。@PreAuthorize 已在控制器层
+     * 要求 finance:manage 或 (customer:edit+finance:view),这里只放宽对象归属维度。
+     */
+    public void assertCanManageFinance(Long customerId) {
+        if (SecurityUtils.hasAuthority("finance:manage")) {
+            return;
+        }
+        assertCanEdit(customerId);
+    }
+
     // ==================== 批量方法 ====================
 
     /** 获取当前用户可查看的客户 ID 集合 */
