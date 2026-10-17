@@ -1512,6 +1512,9 @@ public class CustomerService {
     public void saveIndicator(Long customerId, BizCustomerIndicator data) {
         data.setCustomerId(customerId);
         data.setUpdatedBy(SecurityUtils.getCurrentUserId());
+        // 【L2 2026-10-12 测试报告】五项指标分值域校验(0-3, 字典四档): 前端仅给四选项,
+        // 直连接口可越界入库, 污染排行/核心判定的求和口径
+        validateIndicatorScores(data);
         // 【裁决 2026-10-10】核心三态只能由 recalculateCoreStatus 判定写入;
         // updateById 跳过 null 字段, 显式置空即屏蔽域外输入对 core_type/is_core 的覆盖
         data.setCoreType(null);
@@ -1525,6 +1528,19 @@ public class CustomerService {
             indicatorMapper.insert(data);
         }
         recalculateCoreStatus(customerId);
+    }
+
+    /** 【L2】五项指标分值域校验: 每项四档(0-3), null 跳过(updateById 不覆盖 null 字段) */
+    private void validateIndicatorScores(BizCustomerIndicator data) {
+        if (outOfRange(data.getRelationshipScore()) || outOfRange(data.getIndicator02())
+                || outOfRange(data.getIndicator03()) || outOfRange(data.getIndicator04())
+                || outOfRange(data.getIndicator05())) {
+            throw new BusinessException("五项指标分值须在 0-3 之间(每项四档)");
+        }
+    }
+
+    private boolean outOfRange(Integer v) {
+        return v != null && (v < 0 || v > 3);
     }
 
     /**
@@ -1553,6 +1569,10 @@ public class CustomerService {
 
     @Transactional
     public void saveRelationshipScore(Long customerId, int score) {
+        // 【L2 2026-10-12 测试报告】与 saveIndicator 同口径的 0-3 域校验
+        if (score < 0 || score > 3) {
+            throw new BusinessException("客情·商务关系深度分值须在 0-3 之间");
+        }
         BizCustomerIndicator existing = getIndicator(customerId);
         if (existing != null) {
             existing.setRelationshipScore(score);

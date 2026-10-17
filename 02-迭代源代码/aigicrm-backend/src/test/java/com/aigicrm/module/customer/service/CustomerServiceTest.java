@@ -2046,4 +2046,60 @@ class CustomerServiceTest {
                     "非 all 用户 roles 命中应收窄到组织成员(本人+同组织用户), 实际: " + cols);
         }
     }
+
+    // ===== 【L2 2026-10-12 测试报告】五项指标分值域 0-3 服务端校验 =====
+
+    /** saveIndicator: 任一项越界(>3 或 <0)拒绝入库, 不触发任何 mapper 写 */
+    @Test
+    void saveIndicator_scoreOutOfRange_rejects() {
+        com.aigicrm.module.customer.mapper.BizCustomerIndicatorMapper indicatorMapper =
+                mock(BizCustomerIndicatorMapper.class);
+        CustomerService svc = newIndicatorGuardService(indicatorMapper);
+        com.aigicrm.module.customer.entity.BizCustomerIndicator data =
+                new com.aigicrm.module.customer.entity.BizCustomerIndicator();
+        data.setRelationshipScore(2);
+        data.setIndicator03(5); // 越界: 字典四档 0-3
+
+        BusinessException ex = assertThrows(BusinessException.class, () -> svc.saveIndicator(42L, data));
+        assertTrue(ex.getMessage().contains("0-3"), "实际: " + ex.getMessage());
+        verify(indicatorMapper, never()).insert(any(com.aigicrm.module.customer.entity.BizCustomerIndicator.class));
+        verify(indicatorMapper, never()).updateById(any(com.aigicrm.module.customer.entity.BizCustomerIndicator.class));
+
+        com.aigicrm.module.customer.entity.BizCustomerIndicator neg =
+                new com.aigicrm.module.customer.entity.BizCustomerIndicator();
+        neg.setIndicator05(-1); // 越界: 负值
+        BusinessException ex2 = assertThrows(BusinessException.class, () -> svc.saveIndicator(42L, neg));
+        assertTrue(ex2.getMessage().contains("0-3"), "实际: " + ex2.getMessage());
+    }
+
+    /** saveRelationshipScore: 单字段快捷路径同口径校验(前端直连接口可绕过四选项) */
+    @Test
+    void saveRelationshipScore_outOfRange_rejects() {
+        com.aigicrm.module.customer.mapper.BizCustomerIndicatorMapper indicatorMapper =
+                mock(BizCustomerIndicatorMapper.class);
+        CustomerService svc = newIndicatorGuardService(indicatorMapper);
+
+        BusinessException ex = assertThrows(BusinessException.class, () -> svc.saveRelationshipScore(42L, 4));
+        assertTrue(ex.getMessage().contains("0-3"), "实际: " + ex.getMessage());
+        BusinessException ex2 = assertThrows(BusinessException.class, () -> svc.saveRelationshipScore(42L, -1));
+        assertTrue(ex2.getMessage().contains("0-3"), "实际: " + ex2.getMessage());
+        verify(indicatorMapper, never()).insert(any(com.aigicrm.module.customer.entity.BizCustomerIndicator.class));
+        verify(indicatorMapper, never()).updateById(any(com.aigicrm.module.customer.entity.BizCustomerIndicator.class));
+    }
+
+    /** 校验用例共用的最小 mock 组装(校验先于 mapper 访问, mapper 桩仅为防御性兜底) */
+    private CustomerService newIndicatorGuardService(BizCustomerIndicatorMapper indicatorMapper) {
+        return new CustomerService(
+                mock(BizCustomerMapper.class), mock(BizCustomerLogMapper.class),
+                mock(BizInvoiceMapper.class), mock(BizCustomerShareMapper.class),
+                indicatorMapper, mock(BizContactMapper.class), mock(BizPaymentMapper.class),
+                mock(com.aigicrm.module.customer.mapper.BizCustomerStageAmountMapper.class),
+                mock(SysUserMapper.class), mock(SysDeptMapper.class),
+                mock(BizReminderMapper.class), mock(JdbcTemplate.class),
+                mock(SysConfigService.class), mock(OrgScopeResolver.class),
+                mock(CustomerAccessService.class),
+                mock(com.aigicrm.module.system.service.RolePermScopeService.class),
+                mock(com.aigicrm.module.approval.mapper.BizApprovalMapper.class),
+                mock(com.aigicrm.module.system.mapper.SysLogMapper.class));
+    }
 }

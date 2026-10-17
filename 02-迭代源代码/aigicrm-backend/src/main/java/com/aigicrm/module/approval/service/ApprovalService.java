@@ -375,6 +375,16 @@ public class ApprovalService {
             }
             approval.setCurrentNode(flows.isEmpty() ? "" : flows.get(0).getFlowName());
         }
+        // 【L1 2026-10-12 测试报告】自审自批封堵(提交侧): 节点解析结果全部是申请人本人时,
+        // 单据生而无人可审(本人被 approve 侧闸门拦、admin 非节点审批人 400)——直接拒绝提交并
+        // 随事务回滚(含公海锁定释放), 提示走管理员配置独立审批人。混合场景(本人+他人)放行,
+        // 由他人正常审批; approve 侧闸门兜底拦本人。
+        List<BizApprovalNode> created = approvalNodeMapper.selectList(
+                new LambdaQueryWrapper<BizApprovalNode>()
+                        .eq(BizApprovalNode::getApprovalId, approval.getId()));
+        if (!created.isEmpty() && created.stream().allMatch(n -> applicantId.equals(n.getApproverId()))) {
+            throw new BusinessException("审批流程解析出的审批人全部是申请人本人(自审自批已被禁止)，请联系管理员配置独立审批人后再提交");
+        }
         approvalMapper.updateById(approval);
     }
 
@@ -437,6 +447,13 @@ public class ApprovalService {
                         .eq(BizApprovalNode::getStatus, "pending")
         );
         if (node == null) throw new BusinessException("资源不存在或无权访问");
+
+        // 【L1 2026-10-12 测试报告】自审自批闸门(审批侧兜底): 申请人不得审批自己发起的申请
+        // (此前 extend 未配置独立流程时节点回退到直属领导, 领导本人发起即可自批 +360 真实生效)。
+        // 卡死单据由管理员 transferNode 转交处置; 提交侧同批已加"唯一审批人=本人"拒单。
+        if (approverId.equals(approval.getApplicantId())) {
+            throw new BusinessException("申请人不能审批自己发起的申请(自审自批已被禁止)；请联系管理员转交审批节点");
+        }
 
         // 【PR-02 2026-09-19 并发/重复点击】条件流转:仅 pending 可被审批。affected=0 说明
         // 重复点击或并发竞争中他人已处理,直接拒绝——多人同时通过结果唯一。

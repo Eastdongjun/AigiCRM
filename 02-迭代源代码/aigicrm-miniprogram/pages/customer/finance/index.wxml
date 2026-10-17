@@ -35,7 +35,7 @@
   <view wx:if="{{stageView.emptyText}}" class="card muted">{{stageView.emptyText}}</view>
 
   <view class="card stage-note">
-    半年末录「上半年 / 下半年」总额，年末录「全年」总额；全年行与上/下半年独立录入，核心判定优先取全年行。真核心 = 判定年度开票、回款均 ≥ 100 万；争核心 = 有阶段数据但未双达标。录入开票额 &gt; 0 的阶段会按阶段末日期顺延保护期。
+    半年末录「上半年 / 下半年」总额，年末录「全年」总额；全年行与上/下半年独立录入，核心判定优先取全年行。真核心 = 判定年度开票、回款均 ≥ 100 万；争核心 = 有阶段数据但未双达标。录入开票额 &gt; 0 的阶段会刷新保护期起算日（按阶段末日期计，未到期的阶段按当天计，只延长不缩短），保护期 = 起算日 + 保护天数 + 已批准延期。
   </view>
 
   <button wx:if="{{stageView.showAddAction}}" class="btn finance-add-btn" bindtap="openForm">录入阶段数据</button>

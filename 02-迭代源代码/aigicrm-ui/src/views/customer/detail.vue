@@ -159,7 +159,9 @@ const detail = useCustomerDetail()
 provide(CustomerDetailKey, detail)
 const userStore = useUserStore()
 const canEditCustomer = userStore.hasPermission('customer:edit')
-const canShareCustomer = userStore.hasPermission('customer:edit')
+// 【L4 2026-10-12 测试报告】平台 admin 无集团归属(GroupScopeUtil 对 isAdmin 恒 null),分享必 403
+// 「无有效集团归属，禁止共享」——入口隐藏防误导(业务账号不受影响)
+const canShareCustomer = userStore.hasPermission('customer:edit') && !userStore.isAdmin
 
 const {
   customer, loading, activeTab, readonly, readonlyTag, handleEdit,

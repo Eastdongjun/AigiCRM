@@ -101,7 +101,9 @@ class ApprovalServiceTest {
         a.setId(id);
         a.setApprovalType(type);
         a.setCustomerId(customerId);
-        a.setApplicantId(7L);
+        // 【L1 2026-10-12】申请人=8 与审批人=7 分离: 自审自批闸门(approve 侧)生效后,
+        // 同人申请+审批的便捷设定会误触发新守卫
+        a.setApplicantId(8L);
         a.setStatus("reviewing");
         return a;
     }
@@ -579,7 +581,7 @@ class ApprovalServiceTest {
         verify(nodeMapper, times(2)).update(isNull(), any()); // 1=本人条件流转 2=取消兄弟
         // 整单通过(条件更新胜出) + 业务回写恰好一次
         verify(approvalMapper, times(1)).update(isNull(), any());
-        verify(seaService, times(1)).completeClaim(42L, 7L);
+        verify(seaService, times(1)).completeClaim(42L, 8L);
     }
 
     /** 会签(ALL):一人通过后仍 reviewing,全员通过才整单通过 */
@@ -693,7 +695,7 @@ class ApprovalServiceTest {
         // 仅本人条件流转一次;整单通过并回写业务
         verify(nodeMapper, times(1)).update(isNull(), any());
         verify(approvalMapper, times(1)).update(isNull(), any());
-        verify(seaService, times(1)).completeClaim(42L, 7L);
+        verify(seaService, times(1)).completeClaim(42L, 8L);
     }
 
     @Test
@@ -991,5 +993,76 @@ class ApprovalServiceTest {
         assertEquals(expected, saved.getExpireDate(), "实际: " + saved.getExpireDate());
         assertEquals(360, saved.getApprovedExtendDays());
         assertTrue(saved.getExpireDate().isAfter(java.time.LocalDate.now()), "延期后到期日必须在未来");
+    }
+
+    // ===== 【L1 2026-10-12 测试报告】自审自批双闸门 =====
+
+    /** approve 侧闸门: 申请人=当前审批人 → 拒绝(此前 extend 节点回退直属领导,领导本人发起即可自批) */
+    @Test
+    void approve_applicantSelf_rejectsAsSelfApproval() {
+        SecurityUser u = new SecurityUser();
+        u.setUserId(7L);
+        setCurrentUser(u, "approval:view");
+
+        // 申请人=7 与审批人=7 同人(测试报告 L1 场景: 直属领导给自己客户发起延期)
+        com.aigicrm.module.approval.entity.BizApproval approval = approvalOf(31L, "extend", 42L);
+        approval.setApplicantId(7L);
+        BizApprovalMapper approvalMapper = mock(BizApprovalMapper.class);
+        when(approvalMapper.selectById(31L)).thenReturn(approval);
+        when(approvalMapper.selectByIdForUpdate(31L)).thenReturn(approval);
+
+        BizApprovalNodeMapper nodeMapper = mock(BizApprovalNodeMapper.class);
+        when(nodeMapper.selectOne(any())).thenReturn(node(701L, 7L, 1, "ALL", 10L, "pending"));
+
+        ApprovalService svc = newApprovalService(approvalMapper, nodeMapper, mock(SeaService.class), mock(BizApprovalConfigMapper.class));
+
+        BusinessException ex = assertThrows(BusinessException.class, () -> svc.approve(31L, "同意"));
+        assertTrue(ex.getMessage().contains("自审自批"), "实际: " + ex.getMessage());
+        // 节点不得被流转
+        verify(nodeMapper, never()).update(isNull(), any());
+    }
+
+    /** submit 侧闸门: 节点解析结果全部是申请人本人 → 拒绝提交并回滚(不产生生而无人可审的单据) */
+    @Test
+    void submit_onlySelfApproverNodes_rejects() {
+        SecurityUser u = new SecurityUser();
+        u.setUserId(7L);
+        u.setDataScope("all");
+        setCurrentUser(u);
+
+        BizApprovalConfigMapper configMapper = mock(BizApprovalConfigMapper.class);
+        when(configMapper.selectCount(any())).thenReturn(1L);
+        ApprovalConfigService configService = mock(ApprovalConfigService.class);
+        // 配置路径解析出的审批人=申请人本人(7)
+        when(configService.createNodes(any(), anyString())).thenReturn(java.util.List.of(7L));
+
+        BizApprovalMapper approvalMapper = mock(BizApprovalMapper.class);
+        when(approvalMapper.selectMaxCodeByPrefix(anyString(), any())).thenReturn(0);
+
+        // extend 守卫需客户存在且可查看
+        BizCustomerMapper customerMapperCfg = mock(BizCustomerMapper.class);
+        com.aigicrm.module.customer.entity.BizCustomer cCfg = new com.aigicrm.module.customer.entity.BizCustomer();
+        cCfg.setId(42L); cCfg.setStatus("normal");
+        when(customerMapperCfg.selectById(42L)).thenReturn(cCfg);
+        com.aigicrm.common.engine.CustomerAccessService accessCfg = mock(com.aigicrm.common.engine.CustomerAccessService.class);
+        when(accessCfg.canView(42L)).thenReturn(true);
+
+        BizApprovalNodeMapper nodeMapper = mock(BizApprovalNodeMapper.class);
+        when(nodeMapper.selectList(any())).thenReturn(java.util.List.of(node(701L, 7L, 1, "ALL", 10L, "pending")));
+
+        ApprovalService svc = new ApprovalService(
+                configMapper, approvalMapper, nodeMapper,
+                mock(BizApprovalFlowMapper.class), customerMapperCfg,
+                mock(SysUserMapper.class), mock(SysUserRoleMapper.class), mock(SysDeptMapper.class),
+                mock(BizSeaPoolMapper.class), mock(SeaService.class),
+                mock(com.aigicrm.common.scope.OrgScopeResolver.class), mock(SeaConfigService.class),
+                accessCfg,
+                mock(SysUserService.class), configService,
+                mock(com.aigicrm.module.system.service.SysConfigService.class),
+                mock(org.springframework.jdbc.core.JdbcTemplate.class),
+                mock(com.aigicrm.security.SecurityAuditService.class));
+
+        BusinessException ex = assertThrows(BusinessException.class, () -> svc.submit("extend", 42L, null, null));
+        assertTrue(ex.getMessage().contains("自审自批"), "实际: " + ex.getMessage());
     }
 }

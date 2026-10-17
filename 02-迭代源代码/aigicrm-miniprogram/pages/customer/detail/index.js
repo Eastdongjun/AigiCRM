@@ -1,6 +1,6 @@
 const { deleteCustomer, getCustomer, getCustomerContacts, getCustomerLogs, getCustomerIndicator, getCustomerStageAmounts, saveCustomerRelationship, releaseCustomer, archiveCustomer } = require('../../../api/customer')
 const { submitApproval } = require('../../../api/approval')
-const { hasPermission, requireLogin } = require('../../../utils/auth')
+const { hasPermission, requireLogin, isAdmin } = require('../../../utils/auth')
 const { showError } = require('../../../utils/feedback')
 const { readDemoCustomers } = require('../../../utils/demo-customers')
 // 【D24/D25 2026-10-04】状态文案、五项指标配置、核心客户阈值统一引用组内 shared(单一出处)
@@ -170,6 +170,9 @@ function buildDetailView(data) {
     showDeleteSection: hasDetail && canDelete,
     showActionCard: hasDetail,
     showContactsAction: hasDetail && canViewContacts,
+    // 【L4 2026-10-12 测试报告】平台 admin 无集团归属, 分享接口必 403「无有效集团归属，禁止共享」
+    // ——入口隐藏防误导(与 PC detail.vue canShareCustomer 同口径)
+    showSharesAction: hasDetail && !isAdmin(),
     showLogAction: hasDetail && canEdit,
     titleText: detail ? detail.customerName : '',
     statusText: detail ? (detail.statusLabel || customerStatusLabel(detail.status)) : '',

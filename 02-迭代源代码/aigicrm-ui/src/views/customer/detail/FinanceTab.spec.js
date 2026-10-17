@@ -135,6 +135,9 @@ describe('客户详情 FinanceTab 阶段总额制(2026-10-10)', () => {
     const text = wrapper.text()
     expect(text).toContain('真核心 = 判定年度开票、回款均 ≥ 100 万')
     expect(text).toContain('争核心 = 有阶段数据但未双达标')
-    expect(text).toContain('顺延保护期')
+    // 【L3 2026-10-12 测试报告】脚注与实现对齐: 起算日=阶段末(未到期按当天,只延长不缩短),
+    // 非"按阶段末日期顺延"的旧误述
+    expect(text).toContain('刷新保护期起算日')
+    expect(text).toContain('只延长不缩短')
   })
 })
