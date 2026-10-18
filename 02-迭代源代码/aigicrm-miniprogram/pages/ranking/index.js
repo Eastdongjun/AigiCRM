@@ -200,7 +200,10 @@ Page({
 
   onLoad() {
     if (!requireLogin()) return
-    if (!getApp().globalData.demoMode && !(hasPermission('score:view') || hasPermission('ranking:customer:view') || hasPermission('statistics:view'))) {
+    // 【mp-3 2026-10-17】页面首个必发请求 /statistics/customer-rankings 后端只认 statistics:view；
+    // 入口宫格也按 statistics:view 展示。此前页面放行 score:view/ranking:customer:view 会造成
+    // 有入口必有权限、有权限却无入口的误拦截/死链。积分榜区块仍单独按 score:view 门控。
+    if (!getApp().globalData.demoMode && !hasPermission('statistics:view')) {
       wx.showToast({ title: '没有排行查看权限', icon: 'none' })
       wx.switchTab({ url: '/pages/home/index' })
       return

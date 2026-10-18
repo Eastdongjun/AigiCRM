@@ -36,6 +36,18 @@ function isPending(item) {
   return Boolean(item && item.isPending)
 }
 
+// 【mp-1 2026-10-17】分页追加按 id 去重，防止翻页期间新增数据导致重复行
+function mergeById(existing, incoming) {
+  const seen = new Set()
+  return [...(existing || []), ...(incoming || [])].filter((item) => {
+    const id = item && item.id !== undefined && item.id !== null ? String(item.id) : ''
+    if (!id) return true
+    if (seen.has(id)) return false
+    seen.add(id)
+    return true
+  })
+}
+
 function buildApprovalItemView(item, state = {}) {
   const customerNameText = item.customerName || '-'
   const customerIndustryText = item.customerIndustry || '-'
@@ -91,6 +103,8 @@ function pickOption(options = [], index, field, fallback) {
 function buildApprovalView(data) {
   const list = (data.approvals || []).map((item) => buildApprovalItemView(item, data))
   const isLoading = Boolean(data.loading)
+  const loadingMore = Boolean(data.loadingMore)
+  const hasMore = Boolean(data.hasMore)
   const activeTab = (data.tabs || []).find((item) => item.key === data.tab) || {}
   const typeText = pickOption(data.typeOptions, data.selectedTypeIndex, 'label', '全部类型')
   const deptText = pickOption(data.deptOptions, data.selectedDeptIndex, 'name', '全部部门')
@@ -107,13 +121,18 @@ function buildApprovalView(data) {
       { key: 'dept', label: '部门', value: deptText },
       { key: 'keyword', label: '关键词', value: keywordText }
     ],
-    queueResultText: isLoading ? '正在刷新' : `当前 ${list.length} 条`,
+    queueResultText: isLoading ? '正在刷新' : loadingMore ? '加载更多中' : `当前 ${list.length} 条`,
     refreshLoading: isLoading,
     refreshText: isLoading ? '刷新中' : '刷新',
-    showLoading: isLoading,
+    showLoading: isLoading && list.length === 0,
     loadingText: '加载中...',
     list,
-    showEmpty: !isLoading && list.length === 0
+    showEmpty: !isLoading && !loadingMore && list.length === 0 && !hasMore,
+    // 【mp-1】底部加载反馈：追加中 / 已无更多（沿用现有 muted 卡片样式）
+    showLoadMore: loadingMore,
+    loadMoreText: '加载更多中...',
+    showNoMore: !isLoading && !loadingMore && list.length > 0 && !hasMore,
+    noMoreText: '没有更多审批了'
   }
 }
 
@@ -142,6 +161,11 @@ Page({
     deptOptions: [{ id: '', name: '全部部门' }],
     selectedDeptIndex: 0,
     loading: false,
+    loadingMore: false,
+    hasMore: false,
+    currentPage: 1,
+    pageSize: 20,
+    total: 0,
     canApprove: false,
     canReject: false
     ,approvalView: buildApprovalView({
@@ -192,27 +216,48 @@ Page({
     }
   },
 
-  loadApprovals() {
+  loadApprovals(options = {}) {
+    const append = Boolean(options.append)
     if (getApp().globalData.demoMode) {
-      this.setApprovalData({ approvals: approvalRecords.map(normalizeApproval) })
+      const approvals = approvalRecords.map(normalizeApproval)
+      this.setApprovalData({ approvals, loading: false, loadingMore: false, currentPage: 1, total: approvals.length, hasMore: false })
       return
     }
-
-    this.setApprovalData({ loading: true })
-    getApprovalList(this.buildApprovalParams()).then((page) => {
-      const rows = page && (page.records || page.list || page.rows)
-      this.setApprovalData({ approvals: (rows || []).map(normalizeApproval) })
-    }).catch((error) => showError(error, '审批加载失败')).finally(() => {
-      this.setApprovalData({ loading: false })
+    // 【mp-1 2026-10-17】分页加载：切换 Tab/筛选/搜索走重置；触底追加下一页，加载中防重入
+    if (append && (this.data.loading || this.data.loadingMore || !this.data.hasMore)) return
+    const page = append ? (this.data.currentPage || 1) + 1 : 1
+    const pageSize = this.data.pageSize || 20
+    const requestSeq = (this._approvalReqSeq = (this._approvalReqSeq || 0) + 1)
+    this.setApprovalData(append
+      ? { loadingMore: true }
+      : { loading: true, loadingMore: false, currentPage: 1, hasMore: false })
+    getApprovalList(this.buildApprovalParams(page)).then((pageData) => {
+      if (requestSeq !== this._approvalReqSeq) return
+      const rows = (pageData && (pageData.records || pageData.list || pageData.rows)) || []
+      const total = Number(pageData && pageData.total) || 0
+      const normalized = rows.map(normalizeApproval)
+      const approvals = append ? mergeById(this.data.approvals, normalized) : normalized
+      const hasMore = total > 0 ? page * pageSize < total : rows.length >= pageSize
+      this.setApprovalData({ approvals, currentPage: page, total, hasMore })
+    }).catch((error) => {
+      // 旧请求的失败不弹错（新请求会接管界面）
+      if (requestSeq === this._approvalReqSeq) showError(error, '审批加载失败')
+    }).finally(() => {
+      if (requestSeq !== this._approvalReqSeq) return
+      this.setApprovalData({ loading: false, loadingMore: false })
     })
   },
 
-  buildApprovalParams() {
+  onReachBottom() {
+    this.loadApprovals({ append: true })
+  },
+
+  buildApprovalParams(page) {
     const type = this.data.typeOptions[this.data.selectedTypeIndex] || {}
     const dept = this.data.deptOptions[this.data.selectedDeptIndex] || {}
     const params = {
-      current: 1,
-      size: 20,
+      current: page || 1,
+      size: this.data.pageSize || 20,
       tab: this.data.tab,
       keyword: this.data.keyword.trim() || undefined
     }

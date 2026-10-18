@@ -40,6 +40,7 @@
     <view class="breadcrumb" wx:if="{{fileView.breadcrumbText}}">{{fileView.breadcrumbText}}</view>
     <view class="section-count">{{fileView.fileCountText}}</view>
   </view>
+  <view wx:if="{{fileView.showLoading}}" class="muted">{{fileView.loadingText}}</view>
   <view wx:if="{{fileView.showFileList}}" class="file-list">
     <block wx:for="{{fileView.fileGroups}}" wx:key="key" wx:for-item="group" wx:for-index="groupIdx">
       <view class="file-group-head">{{group.label}} · {{group.count}}</view>
@@ -55,6 +56,9 @@
     </block>
   </view>
   <video wx:if="{{previewVideoPath}}" src="{{previewVideoPath}}" controls class="file-preview-video"></video>
+  <!-- 【mp-1】分页反馈：追加加载/无更多；首屏空态仍走下面的 showEmpty -->
+  <view wx:if="{{fileView.showLoadMore}}" class="muted">{{fileView.loadMoreText}}</view>
+  <view wx:if="{{fileView.showNoMore}}" class="muted">{{fileView.noMoreText}}</view>
   <view wx:if="{{fileView.showEmpty}}" class="empty-state"><text class="empty-icon">⌁</text><text>暂未找到匹配文件</text></view>
   <!-- 【需求A 2026-10-16】操作面板: 行尾「···」或长按呼出, 打开/下载/分享/替换/删除按权限显隐 -->
   <view wx:if="{{actionSheet.visible}}" class="sheet-mask" catchtap="closeActionSheet">

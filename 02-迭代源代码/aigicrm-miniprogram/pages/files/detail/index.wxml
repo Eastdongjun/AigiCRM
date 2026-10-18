@@ -19,7 +19,7 @@
     <video wx:if="{{detailView.showVideo}}" src="{{previewVideoPath}}" controls class="file-preview-video"></video>
     <view class="detail-actions">
       <button class="btn file-preview-btn" loading="{{previewing}}" bindtap="preview">打开并预览</button>
-      <button class="btn file-download-btn" loading="{{downloading}}" bindtap="download">下载到本机</button>
+      <button wx:if="{{detailView.showDownloadAction}}" class="btn file-download-btn" loading="{{downloading}}" bindtap="download">下载到本机</button>
     </view>
   </view>
 </view>

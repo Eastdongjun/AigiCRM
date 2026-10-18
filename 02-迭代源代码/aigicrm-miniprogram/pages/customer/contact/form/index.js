@@ -2,6 +2,9 @@ const { addCustomerContact, updateCustomerContact } = require('../../../../api/c
 const { hasPermission, requireLogin } = require('../../../../utils/auth')
 const { showError } = require('../../../../utils/feedback')
 const { saveDemoContact, updateDemoContact } = require('../../../../utils/demo-contacts')
+// 【mp-0 2026-10-17】联系人字段由列表页 encodeURIComponent 一次后传入，此处安全解码一次；
+// id/contactId 是数字标识，保持原值不参与解码。
+const { safeDecodeParam } = require('../../../../utils/query')
 // 【D24 2026-10-04】返回兜底逻辑收敛到组内 shared(各表单共用同一份)
 const { navigateBackWithFallback } = require('../../shared')
 
@@ -42,10 +45,10 @@ Page({
       contactId: options.contactId || '',
       isEdit: Boolean(options.contactId),
       form: {
-        name: options.name || '',
-        position: options.position || '',
-        phone: options.phone || '',
-        remark: options.remark || ''
+        name: safeDecodeParam(options.name || ''),
+        position: safeDecodeParam(options.position || ''),
+        phone: safeDecodeParam(options.phone || ''),
+        remark: safeDecodeParam(options.remark || '')
       }
     })
   },

@@ -1,7 +1,7 @@
 const { getFolders, getStorageInfo, getSharedToMe, getSharedToMeCount, getFileList, uploadFile, replaceFile, deleteFile, deleteFolder, getFolderAcl, shareFile: shareFileApi, getDownloadUrl, createFolder } = require('../../api/file')
 const { getCustomerSimpleUsers } = require('../../api/customer')
 const { showError, showErrorWithRetry } = require('../../utils/feedback')
-const { hasPermission, requireLogin, getToken } = require('../../utils/auth')
+const { hasPermission, requireLogin, getToken, isAdmin } = require('../../utils/auth')
 const { readDemoFolders, removeDemoFolder } = require('../../utils/demo-folders')
 const { isTextFileName, openTextView } = require('../../utils/attachment')
 
@@ -69,6 +69,20 @@ function pageTotal(response) {
   return Number(value || 0)
 }
 
+const ALL_FOLDER_PERMS = ['view', 'upload', 'edit', 'delete', 'share', 'download']
+
+// 【mp-1 2026-10-17】分页追加去重：按后端 id 去重，无 id 的行原样保留（演示/历史数据）
+function mergeById(existing, incoming) {
+  const seen = new Set()
+  return [...(existing || []), ...(incoming || [])].filter((item) => {
+    const id = item && item.id !== undefined && item.id !== null ? String(item.id) : ''
+    if (!id) return true
+    if (seen.has(id)) return false
+    seen.add(id)
+    return true
+  })
+}
+
 function normalizeDownloadable(item) {
   if (item.canDownload === false) return false
   if (item.downloadable === 0 || item.downloadable === false) return false
@@ -100,10 +114,17 @@ function parseUpdatedBucket(text) {
 
 function buildFileRowView(item, data) {
   const canMutateOwnTab = data.activeTab !== '分享给我' && data.activeTab !== '四项激励'
-  const showDownload = item.canDownload !== false
-  const showReplace = Boolean(data.canReplace && canMutateOwnTab)
-  const showDelete = Boolean(data.canDelete && canMutateOwnTab)
-  const showShare = Boolean(data.canShare && canMutateOwnTab)
+  // 【mp-4 2026-10-17】行操作按当前文件夹 ACL + downloadable 收敛（与 PC FileTable 同口径）；
+  // 后端列表不返回 canDownload/isEvidence，downloadable/perms 来自文件夹树（getFolderTree 逐夹回填）。
+  const folderPerms = Array.isArray(data.folderPerms) ? data.folderPerms : []
+  const downloadable = data.folderDownloadable !== 0
+  // 行级 canDownload=false 仍然优先；再叠加当前文件夹的下载开关与 download 权限
+  const showDownload = item.canDownload !== false && downloadable && folderPerms.includes('download')
+  // 激励文件（scope=incentive，folderId=null）是计分佐证，后端 replaceFile 直接拒绝；
+  // 列表未返回 isEvidence，按 scope 保守隐藏替换。
+  const showReplace = Boolean(data.canReplace && canMutateOwnTab && folderPerms.includes('edit') && item.fileScope !== 'incentive')
+  const showDelete = Boolean(data.canDelete && canMutateOwnTab && folderPerms.includes('delete'))
+  const showShare = Boolean(data.canShare && canMutateOwnTab && data.activeTab !== '公共' && folderPerms.includes('share'))
   // 【需求A】行内按钮全部收进「⋯」半屏面板;打开保留为整行首选操作(点行=打开)
   const sheetActions = [{ key: 'open', label: '打开' }]
   if (showDownload) sheetActions.push({ key: 'download', label: '下载' })
@@ -122,6 +143,7 @@ function buildFileRowView(item, data) {
     metaBrief: `${item.size || '-'} · ${item.updatedAt || '-'}`,
     metaExtra: `${item.folder || '未分类'} · ${item.uploaderName || '—'}`,
     bucket: parseUpdatedBucket(item.updatedAt),
+    canDownload: showDownload,
     sheetActions,
     replaceLoading: String(data.replacingId || '') === String(item.id || '')
   }
@@ -144,7 +166,11 @@ function buildFileView(data) {
   const folders = data.folders || []
   const hasActiveFolder = Boolean(data.activeFolderName)
   const hasManageFolders = folders.length > 0
-  const showUploadAction = Boolean(data.canUpload) && (data.activeTab === '公共' || data.activeTab === '私人')
+  // 【mp-4】上传入口同样按当前夹 upload 权限收敛（后端 upload 会校验文件夹 P_UPLOAD）
+  const showUploadAction = Boolean(data.canUpload && (data.folderPerms || []).includes('upload') && (data.activeTab === '公共' || data.activeTab === '私人'))
+  const loading = Boolean(data.loading)
+  const loadingMore = Boolean(data.loadingMore)
+  const hasMore = Boolean(data.hasMore)
   // 【需求A】时间分组(今天/本周/更早),每组带 flatIndex 锚回 filteredFiles 供既有处理器复用
   const fileGroups = FILE_GROUP_ORDER.map((label) => {
     const groupFiles = files.filter((item) => item.bucket === label)
@@ -168,18 +194,61 @@ function buildFileView(data) {
     files,
     fileCountText: `${files.length} 个文件`,
     showFileList: files.length > 0,
-    showEmpty: files.length === 0 && !data.previewVideoPath,
+    showEmpty: files.length === 0 && !data.previewVideoPath && !loading,
+    // 【mp-1】分页反馈：首屏加载 / 追加加载 / 无更多，沿用页面既有 muted 文案样式
+    showLoading: loading && files.length === 0,
+    loadingText: '加载中...',
+    showLoadMore: loadingMore,
+    loadMoreText: '加载更多中...',
+    showNoMore: !loading && !loadingMore && files.length > 0 && !hasMore,
+    noMoreText: '没有更多文件了',
     aclRows: data.aclRows || [],
     showAclRows: Boolean(data.aclRows && data.aclRows.length)
   }
 }
 
 Page({
-  data: { keyword: '', activeTab: '公共', activeFolderId: '', activeFolderName: '', tabs: ['公共', '私人', '四项激励', '分享给我'], tabCounts: { 公共: 0, 私人: 0, 四项激励: 0, 分享给我: 0 }, folders: [], files: [], filteredFiles: [], capacity: { used: '-', total: '-', percent: 0, hint: '存储统计加载中' }, canUpload: false, canReplace: false, canDelete: false, canShare: false, canManageFolder: false, canViewFolderAcl: false, canDevUploadSmoke: false, uploading: false, replacingId: '', loaded: false, aclVisible: false, aclLoading: false, aclFolderName: '', aclRows: [], previewing: false, previewVideoPath: '', actionSheet: { visible: false, index: -1, name: '', actions: [] }, fileView: buildFileView({ tabs: ['公共', '私人', '四项激励', '分享给我'], tabCounts: { 公共: 0, 私人: 0, 四项激励: 0, 分享给我: 0 }, folders: [], filteredFiles: [], activeTab: '公共', activeFolderName: '', previewVideoPath: '' }) },
+  data: { keyword: '', activeTab: '公共', activeFolderId: '', activeFolderName: '', tabs: ['公共', '私人', '四项激励', '分享给我'], tabCounts: { 公共: 0, 私人: 0, 四项激励: 0, 分享给我: 0 }, folders: [], files: [], filteredFiles: [], capacity: { used: '-', total: '-', percent: 0, hint: '存储统计加载中' }, canUpload: false, canReplace: false, canDelete: false, canShare: false, canManageFolder: false, canViewFolderAcl: false, canDevUploadSmoke: false, uploading: false, replacingId: '', loaded: false, loading: false, loadingMore: false, hasMore: false, currentPage: 1, pageSize: 50, folderPerms: [], folderDownloadable: 1, aclVisible: false, aclLoading: false, aclFolderName: '', aclRows: [], previewing: false, previewVideoPath: '', actionSheet: { visible: false, index: -1, name: '', actions: [] }, fileView: buildFileView({ tabs: ['公共', '私人', '四项激励', '分享给我'], tabCounts: { 公共: 0, 私人: 0, 四项激励: 0, 分享给我: 0 }, folders: [], filteredFiles: [], activeTab: '公共', activeFolderName: '', previewVideoPath: '' }) },
 
   setFileData(patch) {
     const nextData = { ...this.data, ...patch }
-    this.setData({ ...patch, fileView: buildFileView(nextData) })
+    // 【mp-4】文件夹 ACL/下载开关随数据一起回填到视图，行按钮只按这里的最终权限显隐
+    const permissionState = this.resolveFolderPermissions(nextData)
+    this.setData({
+      ...patch,
+      folderPerms: permissionState.perms,
+      folderDownloadable: permissionState.downloadable,
+      fileView: buildFileView({ ...nextData, ...permissionState })
+    })
+  },
+
+  /** 当前 Tab/文件夹的有效权限：根目录沿用 PC useFilePage 的默认口径，
+   *  选中文件夹时使用 getFolderTree 返回的该夹 perms/downloadable（管理员 perms 为全量）。 */
+  resolveFolderPermissions(data) {
+    if (data.activeTab === '四项激励' || data.activeTab === '分享给我') {
+      return { perms: ['view', 'download'], downloadable: 1 }
+    }
+    if (!data.activeFolderId) {
+      if (isDemoMode() || isAdmin()) return { perms: ALL_FOLDER_PERMS, downloadable: 1 }
+      return data.activeTab === '公共'
+        ? { perms: ['view', 'upload', 'download'], downloadable: 1 }
+        : { perms: ALL_FOLDER_PERMS, downloadable: 1 }
+    }
+    if (isDemoMode()) return { perms: ALL_FOLDER_PERMS, downloadable: 1 }
+    const folder = (data.folders || []).find((item) => String(item.id) === String(data.activeFolderId))
+    return {
+      perms: folder && Array.isArray(folder.perms) ? folder.perms : [],
+      downloadable: folder && folder.downloadable === 0 ? 0 : 1
+    }
+  },
+
+  hasFolderPermission(action) {
+    return (this.data.folderPerms || []).includes(action)
+  },
+
+  canDownloadItem(item) {
+    if (this.data.folderDownloadable === 0 || !this.hasFolderPermission('download')) return false
+    return !item || item.canDownload !== false
   },
 
   onLoad() {
@@ -225,61 +294,99 @@ Page({
     if (this.data.loaded && !this._filesLoading && !throttled) this.loadFiles()
   },
 
-  async loadFiles() {
+  async loadFiles(options = {}) {
+    const append = Boolean(options.append)
+    if (append && (this._filesLoading || !this.data.hasMore)) return
     if (getApp().globalData.demoMode) {
       const folders = readDemoFolders()
       const files = demoFiles
-      this.setFileData({ folders, files, filteredFiles: this.filterFiles(files), capacity: demoCapacity, tabCounts: this.demoTabCounts(files), loaded: true })
+      this.setFileData({ folders, files, filteredFiles: this.filterFiles(files), capacity: demoCapacity, tabCounts: this.demoTabCounts(files), loaded: true, loading: false, loadingMore: false, currentPage: 1, hasMore: false })
       return
     }
     // 【M20】请求序号守卫：Tab/筛选快速切换时，慢返回的旧响应直接丢弃，防止覆盖新列表
     const requestSeq = (this._filesReqSeq = (this._filesReqSeq || 0) + 1)
+    // 【mp-1 2026-10-17】分页：首屏/切换筛选重置到第 1 页，触底追加下一页；
+    // 任何重置请求都会作废旧请求，追加请求额外受 loading/hasMore 防重入。
+    const page = append ? (this.data.currentPage || 1) + 1 : 1
+    const pageSize = this.data.pageSize || 50
     this._filesLoading = true
-    let folders = []
+    let folders = this.data.folders
     let files = []
+    let total = 0
     let capacity = this.data.capacity
+    let failed = false
+    this.setFileData(append
+      ? { loadingMore: true, currentPage: page }
+      : { loading: true, loadingMore: false, currentPage: 1, hasMore: false })
     try {
       const folderScope = this.activeFileScope()
-      const [folderResponse, storageInfo] = await Promise.all([
-        // 【体检 P1 2026-10-12】带 scope 请求: 后端缺省只回公共树, 私人 Tab 此前恒空
-        getFolders(this.data.activeTab === '公共' || this.data.activeTab === '私人' ? folderScope : undefined),
-        getStorageInfo().catch((error) => {
-          showError(error, '存储统计加载失败')
-          return null
-        })
-      ])
-      if (storageInfo) capacity = normalizeCapacity(storageInfo)
-      const rawFolders = folderResponse?.data || folderResponse?.records || []
-      // 【体检 P1 2026-10-12】树只映射顶层会丢子夹(公共子文件夹不可见)——递归展平为芯片列表,
-      // 子夹名前加「·」标识层级, 点按仍按各自 id 进入
-      const flattenFolders = (list, depth, out) => {
-        (list || []).forEach((f) => {
-          out.push({ id: f.id, name: (depth > 0 ? '· ' : '') + (f.name || f.folderName || '未命名文件夹') })
-          if (f.children && f.children.length) flattenFolders(f.children, depth + 1, out)
-        })
-        return out
+      if (!append) {
+        const [folderResponse, storageInfo] = await Promise.all([
+          // 【体检 P1 2026-10-12】带 scope 请求: 后端缺省只回公共树, 私人 Tab 此前恒空
+          getFolders(this.data.activeTab === '公共' || this.data.activeTab === '私人' ? folderScope : undefined),
+          getStorageInfo().catch((error) => {
+            showError(error, '存储统计加载失败')
+            return null
+          })
+        ])
+        if (storageInfo) capacity = normalizeCapacity(storageInfo)
+        // request 已解包 Result.data；兼容数组与旧式 {data|records} 两种返回形态
+        const rawFolders = Array.isArray(folderResponse) ? folderResponse : (folderResponse?.data || folderResponse?.records || [])
+        // 【体检 P1 2026-10-12】树只映射顶层会丢子夹(公共子文件夹不可见)——递归展平为芯片列表,
+        // 子夹名前加「·」标识层级, 点按仍按各自 id 进入
+        // 【mp-4】保留每个夹的 perms/downloadable，选中夹后用于收敛行内操作
+        const flattenFolders = (list, depth, out) => {
+          (list || []).forEach((f) => {
+            out.push({
+              id: f.id,
+              name: (depth > 0 ? '· ' : '') + (f.name || f.folderName || '未命名文件夹'),
+              perms: Array.isArray(f.perms) ? f.perms : [],
+              downloadable: f.downloadable
+            })
+            if (f.children && f.children.length) flattenFolders(f.children, depth + 1, out)
+          })
+          return out
+        }
+        folders = (this.data.activeTab === '公共' || this.data.activeTab === '私人')
+          ? flattenFolders(rawFolders.filter((item) => item.folderType === folderScope), 0, [])
+          : []
       }
-      folders = (this.data.activeTab === '公共' || this.data.activeTab === '私人')
-        ? flattenFolders(rawFolders.filter((item) => item.folderType === folderScope), 0, [])
-        : []
       const fileResponse = this.data.activeTab === '分享给我'
         ? await getSharedToMe(this.buildFileListParams())
         : await getFileList(this.buildFileListParams())
       files = pageRecords(fileResponse)
+      total = pageTotal(fileResponse)
     } catch (error) {
-      folders = []
-      files = []
-      // 【PR-04】真实模式失败：报错 + 空列表（空态样式），不再显示演示数据
-      // 【M20】已被更新请求取代的旧失败不再弹错（新请求的结果会接管界面）
-      if (requestSeq === this._filesReqSeq) showErrorWithRetry(error, '文件加载失败，请重试', () => this.loadFiles())
-      capacity = { used: '-', total: '-', percent: 0, hint: '存储统计暂未同步' }
+      failed = true
+      if (!append) {
+        folders = []
+        files = []
+        // 【PR-04】真实模式失败：报错 + 空列表（空态样式），不再显示演示数据
+        // 【M20】已被更新请求取代的旧失败不再弹错（新请求的结果会接管界面）
+        capacity = { used: '-', total: '-', percent: 0, hint: '存储统计暂未同步' }
+      }
+      if (requestSeq === this._filesReqSeq) {
+        showErrorWithRetry(error, '文件加载失败，请重试', () => this.loadFiles(append ? { append: true } : undefined))
+      }
     } finally {
-      this._filesLoading = false
+      if (requestSeq === this._filesReqSeq) this._filesLoading = false
     }
     if (requestSeq !== this._filesReqSeq) return
+    if (failed && append) {
+      // 追加失败保留已加载列表，只收起加载态并回退页码；下次触底仍可重试同一页
+      this.setFileData({ loadingMore: false, currentPage: Math.max(page - 1, 1) })
+      return
+    }
     const normalizedFiles = files.map((item, index) => this.normalizeFile(item, index))
-    this.setFileData({ folders, files: normalizedFiles, filteredFiles: this.filterFiles(normalizedFiles), capacity, loaded: true })
-    this.loadTabCounts()
+    const mergedFiles = append ? mergeById(this.data.files, normalizedFiles) : normalizedFiles
+    // 无 total 的旧后端按"本页满页"判断是否还有下一页
+    const hasMore = total > 0 ? page * pageSize < total : files.length >= pageSize
+    this.setFileData({ folders, files: mergedFiles, filteredFiles: this.filterFiles(mergedFiles), capacity, loaded: true, loading: false, loadingMore: false, currentPage: page, hasMore })
+    if (!append) this.loadTabCounts()
+  },
+
+  onReachBottom() {
+    this.loadFiles({ append: true })
   },
 
   activeFileScope() {
@@ -291,8 +398,8 @@ Page({
 
   buildFileListParams(extra = {}) {
     const params = {
-      current: 1,
-      size: 50,
+      current: this.data.currentPage || 1,
+      size: this.data.pageSize || 50,
       keyword: this.data.keyword.trim() || undefined,
       ...extra
     }
@@ -344,6 +451,9 @@ Page({
       type: extension,
       size: typeof item.fileSize === 'number' ? bytesToSize(item.fileSize) : (item.fileSize || item.size || '-'),
       folder: item.folderName || '未分类',
+      folderId: item.folderId || '',
+      fileScope: item.fileScope || '',
+      uploaderId: item.uploaderId || '',
       uploaderName: item.uploaderName || item.uploader || item.createByName || '—',
       updatedAt: item.updateTime || item.updatedAt || '',
       ossKey: item.ossKey || item.fileKey || item.path || '',
@@ -371,11 +481,13 @@ Page({
       this.setFileData({ filteredFiles: this.filterFiles(this.data.files) })
       return
     }
+    // 【mp-1】搜索条件变化：重置页码与列表，从第 1 页重新拉取
+    this.setFileData({ currentPage: 1, hasMore: false })
     this.loadFiles()
   },
   onTabTap(event) {
     const activeTab = event.currentTarget.dataset.tab
-    this.setFileData({ activeTab, activeFolderId: '', activeFolderName: '', filteredFiles: this.filterFiles(this.data.files) })
+    this.setFileData({ activeTab, activeFolderId: '', activeFolderName: '', currentPage: 1, hasMore: false, filteredFiles: this.filterFiles(this.data.files) })
     if (!getApp().globalData.demoMode) this.loadFiles()
   },
   openFolder(event) {
@@ -384,16 +496,13 @@ Page({
     const folderName = event.currentTarget.dataset.name || ''
     if (getApp().globalData.demoMode) {
       const files = demoFiles.filter((item) => item.folder === folderName)
-      return this.setFileData({ activeFolderId: folderId, activeFolderName: folderName, files, filteredFiles: this.filterFiles(files) })
+      return this.setFileData({ activeFolderId: folderId, activeFolderName: folderName, files, filteredFiles: this.filterFiles(files), currentPage: 1, hasMore: false })
     }
-    this.setFileData({ activeFolderId: folderId, activeFolderName: folderName })
-    getFileList(this.buildFileListParams({ folderId })).then((response) => {
-      const records = response?.data?.records || response?.records || []
-      const files = records.map((item, index) => this.normalizeFile(item, index))
-      this.setFileData({ files, filteredFiles: this.filterFiles(files) })
-    }).catch((error) => showError(error, '文件夹加载失败'))
+    // 【mp-1】切换文件夹属于筛选变化：重置分页后走统一首屏加载（含文件夹权限回填）
+    this.setFileData({ activeFolderId: folderId, activeFolderName: folderName, currentPage: 1, hasMore: false })
+    this.loadFiles()
   },
-  clearFolder() { this.loadFiles() },
+  clearFolder() { this.setFileData({ activeFolderId: '', activeFolderName: '', currentPage: 1, hasMore: false }); this.loadFiles() },
   // 【弹窗化 2026-09-20】新建文件夹不再跳整页表单, showModal editable 一步完成; folderType 跟随当前 tab(与 PC 同参)
   openFolderForm() {
     if (this.data.activeTab !== '公共' && this.data.activeTab !== '私人') {
@@ -500,9 +609,14 @@ Page({
     }
   },
   openFile(event) {
-    const item = this.data.filteredFiles[event.currentTarget.dataset.index]
+    const index = Number(event.currentTarget.dataset.index)
+    const item = this.data.filteredFiles[index]
     if (!item || ((!item.id || String(item.id).startsWith('file-')) && !item.ossKey && !item.fileUrl)) return wx.showToast({ title: '演示文件暂不可预览', icon: 'none' })
-    wx.navigateTo({ url: `/pages/files/detail/index?id=${item.id || ''}&path=${encodeURIComponent(item.ossKey || item.fileUrl || '')}&name=${encodeURIComponent(item.name)}&type=${item.type}&size=${encodeURIComponent(item.size)}&folder=${encodeURIComponent(item.folder)}&uploaderName=${encodeURIComponent(item.uploaderName || '')}&updatedAt=${encodeURIComponent(item.updatedAt || '')}` })
+    // 【mp-4】详情页沿用列表行算出的最终门控（文件夹 ACL/downloadable + scope），
+    // 不在详情页仅凭全局权限码重新放开替换/下载。
+    const rowView = (this.data.fileView.files || [])[index] || {}
+    const canReplace = (rowView.sheetActions || []).some((action) => action.key === 'replace')
+    wx.navigateTo({ url: `/pages/files/detail/index?id=${item.id || ''}&path=${encodeURIComponent(item.ossKey || item.fileUrl || '')}&name=${encodeURIComponent(item.name)}&type=${item.type}&size=${encodeURIComponent(item.size)}&folder=${encodeURIComponent(item.folder)}&uploaderName=${encodeURIComponent(item.uploaderName || '')}&updatedAt=${encodeURIComponent(item.updatedAt || '')}&scope=${encodeURIComponent(item.fileScope || '')}&canReplace=${canReplace ? 1 : 0}&canDownload=${rowView.canDownload ? 1 : 0}` })
   },
   findFile(event) {
     return this.data.filteredFiles[event.currentTarget.dataset.index]
@@ -515,11 +629,11 @@ Page({
   downloadFile(event) {
     const item = this.findFile(event)
     if (!item || ((!item.id || String(item.id).startsWith('file-')) && !item.ossKey && !item.fileUrl)) return wx.showToast({ title: '演示文件暂不可下载', icon: 'none' })
-    if (!item.canDownload) return wx.showToast({ title: '该文件夹已关闭下载', icon: 'none' })
+    if (!this.canDownloadItem(item)) return wx.showToast({ title: '该文件夹已关闭下载', icon: 'none' })
     this.fetchFile(item, 'download')
   },
   removeFile(event) {
-    if (!this.data.canDelete) return wx.showToast({ title: '没有文件删除权限', icon: 'none' })
+    if (!this.data.canDelete || !this.hasFolderPermission('delete')) return wx.showToast({ title: '没有文件删除权限', icon: 'none' })
     const item = this.findFile(event)
     if (!item || !item.id || String(item.id).startsWith('file-')) return wx.showToast({ title: '演示文件暂不可删除', icon: 'none' })
     wx.showModal({
@@ -535,9 +649,11 @@ Page({
     })
   },
   replaceListFile(event) {
-    if (!this.data.canReplace || this.data.activeTab === '分享给我') return wx.showToast({ title: '没有文件替换权限', icon: 'none' })
+    // 【mp-4】文件夹 edit ACL + 非激励佐证 scope 才允许替换（后端 replaceFile 对佐证直接拒绝）
+    if (!this.data.canReplace || this.data.activeTab === '分享给我' || this.data.activeTab === '四项激励' || !this.hasFolderPermission('edit')) return wx.showToast({ title: '没有文件替换权限', icon: 'none' })
     const item = this.findFile(event)
     if (!item || !item.id || String(item.id).startsWith('file-')) return wx.showToast({ title: '演示文件暂不可替换', icon: 'none' })
+    if (item.fileScope === 'incentive') return wx.showToast({ title: '激励佐证文件不能替换，请在激励模块删除后重新上传', icon: 'none' })
     if (this.data.replacingId) return
     wx.chooseMessageFile({
       count: 1,
@@ -619,7 +735,7 @@ Page({
     return wx.saveFile(options)
   },
   shareFile(event) {
-    if (!this.data.canShare || this.data.activeTab === '分享给我') return
+    if (!this.data.canShare || this.data.activeTab === '分享给我' || this.data.activeTab === '公共' || this.data.activeTab === '四项激励' || !this.hasFolderPermission('share')) return
     const item = this.data.filteredFiles[event.currentTarget.dataset.index]
     if (!item || !item.id || String(item.id).startsWith('file-')) return wx.showToast({ title: '演示文件暂不可分享', icon: 'none' })
     getCustomerSimpleUsers().then((users) => {

@@ -1,4 +1,7 @@
 const { requireLogin, hasPermission } = require('../../../../utils/auth')
+// 【mp-0 2026-10-17】页面参数统一安全解码一次（导航侧 encodeURIComponent 一次），
+// 避免真机 %XX 原样展示，也避免对已解码文本二次解码。
+const { safeDecodeParam } = require('../../../../utils/query')
 
 function textOrDash(value) {
   return value === undefined || value === null || value === '' ? '-' : String(value)
@@ -35,8 +38,13 @@ Page({
       setTimeout(() => wx.navigateBack(), 500)
       return
     }
-    const name = decodeURIComponent(options.name || '')
-    this.applyState({ name, position: decodeURIComponent(options.position || ''), mobile: decodeURIComponent(options.mobile || ''), remark: decodeURIComponent(options.remark || '') })
+    const name = safeDecodeParam(options.name || '')
+    // 备注是自由文本，最可能包含 % 等字符：原生解码一次 + 失败回退原值。
+    // customer-form 契约锚点钉在这条原生调用上，故此处不改写为通用 helper。
+    const remark = (() => {
+      try { return decodeURIComponent(options.remark || '') } catch (_) { return options.remark || '' }
+    })()
+    this.applyState({ name, position: safeDecodeParam(options.position || ''), mobile: safeDecodeParam(options.mobile || ''), remark })
   },
   call() {
     const phone = this.data.contactDetailView.mobileValue

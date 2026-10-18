@@ -142,6 +142,9 @@ function buildDetailView(data) {
   const canViewContacts = Boolean(data.canViewContacts)
   const canViewFinance = Boolean(data.canViewFinance)
   const fromSea = data.from === 'sea'
+  // 【mp-2 2026-10-17】公海客户不允许经客户删除接口删除（后端 delete() 会以
+  // "该客户仍在公海池中" 拒绝）。入口侧按来源/状态双重识别，隐藏删除按钮并给出正确出口。
+  const isSeaCustomer = fromSea || customerStatusLabel(detail && detail.status) === '公海'
   // 【D24 2026-10-04】指标行由 shared 的五项配置生成(此前字段清单在表单/维护页/详情三处各写一份)
   const indicatorRows = INDICATOR_ITEMS.map((item) => ({
     key: item.field,
@@ -168,6 +171,12 @@ function buildDetailView(data) {
     // 与释放同权限口径(canEdit),已归档客户不再显示(MP 默认口径列表也不会拉到归档客户,防御性判 status)
     showArchiveSection: hasDetail && !fromSea && canEdit && detail && detail.status !== 'archived',
     showDeleteSection: hasDetail && canDelete,
+    // 删除按钮对公海客户隐藏；危险区保留说明，指向公海管理/捞取回私海（普通客户不受影响）
+    showDeleteButton: hasDetail && canDelete && !isSeaCustomer,
+    deleteCopyText: isSeaCustomer
+      ? '该客户仍在公海池中，请先在公海管理删除，或捞取回私海后再操作。'
+      : '删除客户会移除该客户资料，操作不可恢复。有开票/回款记录的客户不允许删除，停止跟进请使用「归档」。',
+    isSeaCustomer,
     showActionCard: hasDetail,
     showContactsAction: hasDetail && canViewContacts,
     // 【L4 2026-10-12 测试报告】平台 admin 无集团归属, 分享接口必 403「无有效集团归属，禁止共享」
@@ -441,6 +450,7 @@ Page({
 
   deleteCurrentCustomer() {
     if (!this.data.id || !this.data.canDelete) return wx.showToast({ title: '没有客户删除权限', icon: 'none' })
+    if (this.data.detailView && this.data.detailView.isSeaCustomer) return wx.showToast({ title: '请先在公海管理删除/捞取回私海', icon: 'none' })
     wx.showModal({
       title: '删除客户',
       content: `确认删除“${(this.data.detail && this.data.detail.customerName) || '该客户'}”？删除后不可恢复。`,

@@ -6,7 +6,7 @@ function buildPasswordView(data) {
   return {
     fields: [
       { field: 'oldPassword', placeholder: '原密码' },
-      { field: 'newPassword', placeholder: '新密码（至少 6 位）' },
+      { field: 'newPassword', placeholder: '新密码（8-30 位）' },
       { field: 'confirmPassword', placeholder: '确认新密码' }
     ],
     submitText: data.loading ? '修改中...' : '确认修改',
@@ -38,8 +38,10 @@ Page({
       wx.showToast({ title: '请完整填写密码', icon: 'none' })
       return
     }
-    if (newPassword.length < 6) {
-      wx.showToast({ title: '新密码至少 6 位', icon: 'none' })
+    // 【mp-5 2026-10-17】后端 changePassword 统一校验 8-30 位（SysUserService），
+    // 前端此前只卡 6 位会让 6-7 位输入提交后才收到 400，提示与校验需同口径。
+    if (newPassword.length < 8 || newPassword.length > 30) {
+      wx.showToast({ title: '新密码长度须为 8-30 位', icon: 'none' })
       return
     }
     if (newPassword !== confirmPassword) {

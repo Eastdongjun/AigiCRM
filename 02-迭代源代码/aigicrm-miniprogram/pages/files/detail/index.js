@@ -2,6 +2,7 @@ const { getToken, requireLogin, hasPermission } = require('../../../utils/auth')
 const { showError } = require('../../../utils/feedback')
 const { getDownloadUrl, replaceFile } = require('../../../api/file')
 const { saveDownloadedFileToDisk, isTextFileName, openTextView } = require('../../../utils/attachment')
+const { safeDecodeParam } = require('../../../utils/query')
 
 function buildDetailView(data) {
   return {
@@ -11,12 +12,14 @@ function buildDetailView(data) {
     sizeText: data.size || '-',
     uploaderNameText: data.uploaderName || '-',
     updatedAtText: data.updatedAt || '-',
+    // 【mp-4 2026-10-17】下载按钮按列表传入的文件夹 ACL/downloadable 结果显隐
+    showDownloadAction: Boolean(data.canDownload),
     showVideo: Boolean(data.previewVideoPath)
   }
 }
 
 Page({
-  data: { id: '', path: '', name: '', type: '', size: '', folder: '', uploaderName: '', updatedAt: '', previewing: false, downloading: false, previewVideoPath: '', canReplace: false, detailView: buildDetailView({}) },
+  data: { id: '', path: '', name: '', type: '', size: '', folder: '', uploaderName: '', updatedAt: '', scope: '', previewing: false, downloading: false, previewVideoPath: '', canReplace: false, canDownload: false, detailView: buildDetailView({}) },
   setDetailData(patch) {
     const nextData = { ...this.data, ...patch }
     this.setData({ ...patch, detailView: buildDetailView(nextData) })
@@ -29,16 +32,24 @@ Page({
       return
     }
     const id = options.id || ''
+    const scope = options.scope || ''
     this.setDetailData({
       id,
-      path: decodeURIComponent(options.path || ''),
-      name: decodeURIComponent(options.name || ''),
+      scope,
+      // 【mp-0 同类】列表导航统一 encodeURIComponent，这里安全解码一次；
+      // 非法 % 转义回退原值，避免文件名/路径含 % 时整页 onLoad 抛错。
+      path: safeDecodeParam(options.path || ''),
+      name: safeDecodeParam(options.name || ''),
       type: options.type || '',
-      size: decodeURIComponent(options.size || ''),
-      folder: decodeURIComponent(options.folder || ''),
-      uploaderName: decodeURIComponent(options.uploaderName || ''),
-      updatedAt: decodeURIComponent(options.updatedAt || ''),
-      canReplace: Boolean(id) && !getApp().globalData.demoMode && hasPermission('file:edit')
+      size: safeDecodeParam(options.size || ''),
+      folder: safeDecodeParam(options.folder || ''),
+      uploaderName: safeDecodeParam(options.uploaderName || ''),
+      updatedAt: safeDecodeParam(options.updatedAt || ''),
+      // 【mp-4】替换入口必须同时满足：列表行已按文件夹 ACL 放行 + 全局 edit 权限 +
+      // 非激励佐证 scope。后端 replaceFile 对 scope=incentive 的计分佐证直接拒绝，
+      // 列表响应也没有 isEvidence 字段，故这里按 scope 保守隐藏（佐证文件保留查看/下载）。
+      canReplace: Boolean(id) && !getApp().globalData.demoMode && hasPermission('file:edit') && options.canReplace === '1' && scope !== 'incentive',
+      canDownload: options.canDownload === '1'
     })
   },
   preview() {
@@ -82,6 +93,7 @@ Page({
 
   // 【2026-10-17】详情页补下载(此前只有预览): 保存到本机, 带进度
   download() {
+    if (!this.data.canDownload) return wx.showToast({ title: '该文件夹已关闭下载', icon: 'none' })
     if (this.data.downloading) return
     const downloadUrl = getDownloadUrl({ id: this.data.id, ossKey: this.data.path })
     if (!downloadUrl) return showError(new Error('缺少下载地址'), '文件下载失败')
@@ -110,6 +122,7 @@ Page({
     })
   },
   replace() {
+    if (!this.data.canReplace) return wx.showToast({ title: '没有文件替换权限', icon: 'none' })
     wx.chooseMessageFile({ count: 1, type: 'file', success: (res) => {
       const file = res.tempFiles && res.tempFiles[0]
       if (!file) return

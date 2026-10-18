@@ -55,6 +55,11 @@
     </view>
   </block>
 
+  <!-- 【mp-1】触底分页反馈：可继续加载（列表为空时也保留点击入口）/追加中/已无更多 -->
+  <view wx:if="{{reminderView.showMoreAction}}" class="card muted reminder-load-more" bindtap="loadMoreReminders">上拉或点击加载更多</view>
+  <view wx:if="{{reminderView.showLoadMore}}" class="card muted">{{reminderView.loadMoreText}}</view>
+  <view wx:if="{{reminderView.showNoMore}}" class="muted reminder-no-more">{{reminderView.noMoreText}}</view>
+
   <view wx:if="{{reminderView.showEmpty}}" class="card empty-state compact-empty">
     <view class="empty-icon">✓</view>
     <text>暂无待处理提醒</text>

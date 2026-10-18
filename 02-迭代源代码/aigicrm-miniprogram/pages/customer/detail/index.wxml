@@ -158,8 +158,8 @@
 
   <view wx:if="{{detailView.showDeleteSection}}" class="card customer-section-card danger-zone-card">
     <view class="section-title">危险操作</view>
-    <view class="muted danger-zone-copy">删除客户会移除该客户资料，操作不可恢复。有开票/回款记录的客户不允许删除，停止跟进请使用「归档」。</view>
-    <button class="customer-delete-action" bindtap="deleteCurrentCustomer">删除客户</button>
+    <view class="muted danger-zone-copy">{{detailView.deleteCopyText}}</view>
+    <button wx:if="{{detailView.showDeleteButton}}" class="customer-delete-action" bindtap="deleteCurrentCustomer">删除客户</button>
   </view>
 
   <view wx:if="{{detailView.showActionCard}}" class="card detail-action-card">

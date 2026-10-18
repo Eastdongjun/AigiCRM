@@ -13,6 +13,22 @@ function normalizePage(payload) {
   return payload && Array.isArray(payload.records) ? payload.records : []
 }
 
+function pageTotal(payload) {
+  return Number(payload && payload.total) || 0
+}
+
+// 【mp-1 2026-10-17】分页追加按 id 去重（到期行 id 已由 reminderId 兜底）
+function mergeById(existing, incoming) {
+  const seen = new Set()
+  return [...(existing || []), ...(incoming || [])].filter((item) => {
+    const id = item && item.id !== undefined && item.id !== null ? String(item.id) : ''
+    if (!id) return true
+    if (seen.has(id)) return false
+    seen.add(id)
+    return true
+  })
+}
+
 const PROCESSED_STATUSES = new Set(['processed', 'read', 'done', 'followed'])
 const MODE_BUTTONS = {
   pending: 'reminder-mode active',
@@ -137,19 +153,28 @@ function buildReminderView(state) {
   const reminders = state.reminders || []
   const dept = (state.deptOptions || [])[state.selectedDeptIndex] || {}
   const owner = (state.ownerOptions || [])[state.selectedOwnerIndex] || {}
+  const loading = Boolean(state.loading)
+  const loadingMore = Boolean(state.loadingMore)
+  const hasMore = Boolean(state.hasMore)
   return {
-    refreshLoading: Boolean(state.loading),
-    refreshText: state.loading ? '刷新中' : '刷新',
+    refreshLoading: loading,
+    refreshText: loading ? '刷新中' : '刷新',
     pendingModeClass: state.viewMode === 'pending' ? MODE_BUTTONS.pending : MODE_BUTTONS.inactive,
     expiringModeClass: state.viewMode === 'expiring' ? MODE_BUTTONS.expiring : MODE_BUTTONS.inactive,
     deptLabel: dept.name || '全部部门',
     ownerLabel: owner.name || '全部负责人',
     listCountText: `当前列表 ${reminders.length} 条`,
-    disableProcessAll: Boolean(state.loading || state.processingAll || reminders.length === 0),
-    showLoading: Boolean(state.loading),
+    disableProcessAll: Boolean(loading || loadingMore || state.processingAll || reminders.length === 0),
+    showLoading: loading && reminders.length === 0,
     loadingText: '加载中...',
-    showEmpty: !state.loading && reminders.length === 0,
-    hasSelectedReminder: Boolean(state.selectedReminder)
+    showEmpty: !loading && !loadingMore && reminders.length === 0 && !hasMore,
+    hasSelectedReminder: Boolean(state.selectedReminder),
+    // 【mp-1】触底分页反馈：可继续加载 / 追加中 / 已无更多
+    showMoreAction: !loading && !loadingMore && hasMore,
+    showLoadMore: loadingMore,
+    loadMoreText: '加载更多中...',
+    showNoMore: !loading && !loadingMore && reminders.length > 0 && !hasMore,
+    noMoreText: '没有更多提醒了'
   }
 }
 
@@ -160,6 +185,11 @@ Page({
     keyword: '',
     viewMode: 'pending',
     loading: false,
+    loadingMore: false,
+    hasMore: false,
+    currentPage: 1,
+    pageSize: 30,
+    total: 0,
     processingAll: false,
     selectedReminder: null,
     selectedReminderIndex: -1,
@@ -220,42 +250,70 @@ Page({
     }).catch((error) => showError(error, '提醒数量加载失败'))
   },
 
-  loadReminders() {
+  loadReminders(options = {}) {
+    const append = Boolean(options.append)
     if (getApp().globalData.demoMode) {
-      this.applyState({ reminders: reminderRecords.filter((item) => !isProcessed(item.id)).map(normalizeReminder) })
+      const reminders = this.filterReminders(reminderRecords.filter((item) => !isProcessed(item.id)).map(normalizeReminder))
+      this.applyState({ reminders, loading: false, loadingMore: false, currentPage: 1, total: reminders.length, hasMore: false })
       return
     }
-    this.applyState({ loading: true })
+    // 【mp-1 2026-10-17】分页加载：切换视图/筛选/搜索重置；触底追加下一页，加载中防重入
+    if (append && (this.data.loading || this.data.loadingMore || !this.data.hasMore)) return
+    const page = append ? (this.data.currentPage || 1) + 1 : 1
+    const pageSize = this.data.pageSize || 30
+    const requestSeq = (this._remindersReqSeq = (this._remindersReqSeq || 0) + 1)
     const loader = this.data.viewMode === 'expiring' ? getExpiringList : getReminderList
     const params = this.data.viewMode === 'expiring'
-      ? this.buildReminderParams()
-      : { ...this.buildReminderParams(), status: 'pending' }
+      ? this.buildReminderParams(page)
+      : { ...this.buildReminderParams(page), status: 'pending' }
+    this.applyState(append
+      ? { loadingMore: true }
+      : { loading: true, loadingMore: false, currentPage: 1, hasMore: false })
     loader(params).then((payload) => {
-      let rows = normalizePage(payload).map(normalizeReminder)
-      // 【体检 P1 2026-10-12】待处理模式的 keyword 后端 /reminder/list 不消费(形参零引用),
-      // PC 已知情改客户端过滤而 MP 未同步——搜索框可见但恒无效; 此处同款客户端兜底。
-      // 到期模式走 /expiring-list, 后端已消费 keyword, 不重复过滤
-      if (this.data.viewMode !== 'expiring') {
-        const kw = this.data.keyword.trim().toLowerCase()
-        if (kw) {
-          rows = rows.filter((item) =>
-            String(item.customerName || '').toLowerCase().includes(kw)
-            || String(item.customerCode || '').toLowerCase().includes(kw)
-            || String(item.typeLabel || '').toLowerCase().includes(kw))
-        }
-      }
-      this.applyState({ reminders: rows })
-    }).catch((error) => showError(error, '提醒加载失败')).finally(() => {
-      this.applyState({ loading: false })
+      if (requestSeq !== this._remindersReqSeq) return
+      const rows = normalizePage(payload).map(normalizeReminder)
+      const total = pageTotal(payload)
+      const merged = append ? mergeById(this.data.reminders, rows) : rows
+      const reminders = this.filterReminders(merged)
+      const hasMore = total > 0 ? page * pageSize < total : rows.length >= pageSize
+      this.applyState({ reminders, currentPage: page, total, hasMore })
+    }).catch((error) => {
+      // 旧请求失败不弹错（新请求会接管界面）
+      if (requestSeq === this._remindersReqSeq) showError(error, '提醒加载失败')
+    }).finally(() => {
+      if (requestSeq !== this._remindersReqSeq) return
+      this.applyState({ loading: false, loadingMore: false })
     })
   },
 
-  buildReminderParams() {
+  // 【体检 P1 2026-10-12】待处理模式的 keyword 后端 /reminder/list 不消费(形参零引用),
+  // PC 已知情改客户端过滤而 MP 未同步——搜索框可见但恒无效; 此处同款客户端兜底。
+  // 到期模式走 /expiring-list, 后端已消费 keyword, 不重复过滤。
+  // 【mp-1】过滤作用于"已加载的累积分页数据"，搜索时重置回第 1 页重新累积。
+  filterReminders(rows) {
+    if (this.data.viewMode === 'expiring') return rows
+    const kw = this.data.keyword.trim().toLowerCase()
+    if (!kw) return rows
+    return rows.filter((item) =>
+      String(item.customerName || '').toLowerCase().includes(kw)
+      || String(item.customerCode || '').toLowerCase().includes(kw)
+      || String(item.typeLabel || '').toLowerCase().includes(kw))
+  },
+
+  onReachBottom() {
+    this.loadReminders({ append: true })
+  },
+
+  loadMoreReminders() {
+    this.loadReminders({ append: true })
+  },
+
+  buildReminderParams(page) {
     const dept = this.data.deptOptions[this.data.selectedDeptIndex] || {}
     const owner = this.data.ownerOptions[this.data.selectedOwnerIndex] || {}
     const params = {
-      current: 1,
-      size: 30,
+      current: page || 1,
+      size: this.data.pageSize || 30,
       keyword: this.data.keyword.trim() || undefined
     }
     if (dept.id) params.deptId = dept.id
@@ -372,7 +430,7 @@ Page({
         if (!result.confirm) return
         if (getApp().globalData.demoMode) {
           rows.forEach((item) => markProcessed(item.id))
-        this.applyState({ reminders: [], selectedReminder: null })
+        this.applyState({ reminders: [], selectedReminder: null, loadingMore: false, currentPage: 1, total: 0, hasMore: false })
           this.loadPendingCount()
           wx.showToast({ title: `已处理 ${rows.length} 条`, icon: 'success' })
           return
