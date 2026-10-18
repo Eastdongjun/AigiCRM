@@ -1526,7 +1526,11 @@ public class CustomerService {
             audit.setTargetId(recordId);
             audit.setDetail(detail);
             financeAuditLogMapper.insert(audit);
-        } catch (Exception ignored) {
+        } catch (Exception e) {
+            // 【P2-3 2026-10-18】尽力而为语义保持(不阻断删除主流程), 但失败必须可见——
+            // 空吞=财务删除留痕静默丢失且不可察觉(LogAspect 的 URI 级兜底不含票号/原因快照)
+            org.slf4j.LoggerFactory.getLogger(CustomerService.class)
+                    .warn("财务删除审计落库失败 module={} action={} recordId={}", module, action, recordId, e);
         }
     }
 
