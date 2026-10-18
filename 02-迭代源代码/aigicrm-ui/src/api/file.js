@@ -28,6 +28,11 @@ export function getStorageInfo() {
   return request.get('/file/storage')
 }
 
+// 存储扩容申请信息：{used,quota,maxQuota,canApply,reason,enabled,allowDecrease}（quota 类字段均为 bytes）
+export function getStorageApplyInfo() {
+  return request.get('/file/storage/apply-info')
+}
+
 export function shareFile(fileId, userIds) {
   return request.post(`/file/${fileId}/share`, { userIds })
 }

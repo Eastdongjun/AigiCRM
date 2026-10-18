@@ -16,6 +16,9 @@
         <view class="capacity-value">{{capacity.used}} <text>/ {{capacity.total}}</text></view>
         <view class="capacity-progress"><view style="width:{{capacity.percent}}%"></view></view>
         <view class="capacity-hint">{{capacity.hint}}</view>
+        <!-- 【D1-A 2026-10-18】仅 canApply 显示入口; 不可申请时透出后端短原因(未授权/在途/已上限) -->
+        <button wx:if="{{storageApplyView.showApplyAction}}" class="storage-apply-btn" bindtap="openStorageApply">申请扩容</button>
+        <view wx:elif="{{storageApplyView.showReason}}" class="storage-apply-reason">{{storageApplyView.reasonText}}</view>
       </view>
       <view class="capacity-icon">▣</view>
     </view>
@@ -100,6 +103,34 @@
         </view>
       </block>
       <view wx:else class="muted">暂无授权角色</view>
+    </view>
+  </view>
+  <!-- 【D1-A 2026-10-18】申请扩容弹窗: 当前配额/上限 + 申请后总配额(GB) + 理由, 页面内自定义样式 -->
+  <view wx:if="{{storageApplyView.visible}}" class="modal-mask" catchtap="closeStorageApply">
+    <view class="card modal-card storage-apply-modal" catchtap="noop">
+      <view class="modal-head">
+        <view class="modal-title">申请扩容</view>
+        <button class="storage-apply-close" bindtap="closeStorageApply">关闭</button>
+      </view>
+      <view class="storage-apply-meta">
+        <view class="storage-apply-meta-row"><text>当前配额</text><text>{{storageApplyView.currentQuotaText}}</text></view>
+        <view class="storage-apply-meta-row"><text>可申请上限</text><text>{{storageApplyView.maxQuotaText}}</text></view>
+      </view>
+      <view class="storage-apply-field">
+        <view class="storage-apply-label">申请后总配额（GB）</view>
+        <input class="storage-apply-input" type="digit" value="{{storageApplyView.quotaInput}}" bindinput="onStorageQuotaInput" placeholder="{{storageApplyView.quotaPlaceholder}}" />
+        <view class="storage-apply-hint">{{storageApplyView.quotaHint}}</view>
+      </view>
+      <view class="storage-apply-field">
+        <view class="storage-apply-label">申请理由</view>
+        <textarea class="storage-apply-textarea" value="{{storageApplyView.reasonInput}}" bindinput="onStorageReasonInput" maxlength="200" placeholder="请说明扩容用途（必填，200字以内）" />
+        <view class="storage-apply-count">{{storageApplyView.reasonCountText}}</view>
+      </view>
+      <view wx:if="{{storageApplyView.errorText}}" class="storage-apply-error">{{storageApplyView.errorText}}</view>
+      <view class="storage-apply-actions">
+        <button class="storage-apply-cancel" bindtap="closeStorageApply" disabled="{{storageApplyView.submitting}}">取消</button>
+        <button class="storage-apply-submit" loading="{{storageApplyView.submitting}}" disabled="{{storageApplyView.submitting}}" bindtap="submitStorageApply">提交申请</button>
+      </view>
     </view>
   </view>
 </view>

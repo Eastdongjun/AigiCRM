@@ -28,6 +28,10 @@ public class FileController {
 
     private final FileService fileService;
     private final com.aigicrm.security.JwtTokenProvider jwtTokenProvider;
+    /** 【D1=A 2026-10-18】存储空间申请资格/上限信息(复用用户服务配置读取) */
+    private final com.aigicrm.module.system.service.SysUserService userService;
+    /** 【D1=A 2026-10-18】在途 storage 单判定(与提交侧同一口径) */
+    private final com.aigicrm.module.approval.service.ApprovalService approvalService;
 
     /** F2: 签发短时下载专用 token（1h，scope=download，仅下载/导出路径可用）——主 JWT 不再进 URL/日志 */
     @GetMapping("/download-token")
@@ -103,6 +107,26 @@ public class FileController {
     @GetMapping("/storage")
     public Result<Map<String, Object>> getStorageInfo() {
         return Result.ok(fileService.getStorageInfo(SecurityUtils.getCurrentUserId()));
+    }
+
+    /**
+     * 【D1=A 2026-10-18】存储空间申请面板(PC/MP 契约):
+     * used/quota(当前值)、maxQuota(生效上限 bytes)、canApply(资格)、reason(不可申请原因)、
+     * enabled(开关)、allowDecrease(首版恒 false)。不新增权限码, 复用 file:view。
+     */
+    @PreAuthorize("hasAuthority('file:view')")
+    @GetMapping("/storage/apply-info")
+    public Result<Map<String, Object>> storageApplyInfo() {
+        Long userId = SecurityUtils.getCurrentUserId();
+        Map<String, Object> info = userService.storageApplyInfo(userId);
+        // 【D1=A】提交后入口立即进入在途态，不能只等提交时后端拒绝；与 submit 共用同一口径。
+        boolean pending = approvalService.hasPendingStorageApply(userId);
+        info.put("pending", pending);
+        if (pending) {
+            info.put("canApply", false);
+            info.put("reason", "您已有进行中的存储空间申请，请等待审批完成");
+        }
+        return Result.ok(info);
     }
 
     @PreAuthorize("hasAuthority('file:view')")

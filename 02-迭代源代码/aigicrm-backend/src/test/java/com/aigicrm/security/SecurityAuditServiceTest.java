@@ -136,6 +136,35 @@ class SecurityAuditServiceTest {
         assertTrue(denied.getDetail().contains("uri=/api/customer/list"));
     }
 
+    /**
+     * 【D1=A 2026-10-18】存储配额审批变更审计: actor/申请人/旧值/新值/审批单 五要素俱全,
+     * 事件行与 append-only 落库都写 detail。
+     */
+    @Test
+    void storageQuotaChanged_recordsActorApplicantOldNewAndApprovalId() {
+        try (var sec = org.mockito.Mockito.mockStatic(SecurityUtils.class)) {
+            sec.when(SecurityUtils::getCurrentUserId).thenReturn(1L);
+
+            svc.storageQuotaChanged(9L, 100L, 200L, 55L);
+        }
+
+        assertTrue(messages().stream().anyMatch(m -> m.startsWith("event=STORAGE_QUOTA_CHANGED")
+                        && m.contains("userId=\"9\"") && m.contains("operator=\"1\"")
+                        && m.contains("actorId=\"1\"") && m.contains("applicantId=\"9\"")
+                        && m.contains("oldQuota=\"100\"") && m.contains("newQuota=\"200\"")
+                        && m.contains("approvalId=\"55\"")),
+                "事件须含 userId/operator/old/new/approvalId, 实际: " + messages());
+
+        var cap = org.mockito.ArgumentCaptor.forClass(com.aigicrm.module.system.entity.SysAuditLog.class);
+        org.mockito.Mockito.verify(auditLogMapper, org.mockito.Mockito.atLeastOnce()).insert(cap.capture());
+        var row = cap.getAllValues().stream()
+                .filter(r -> "STORAGE_QUOTA_CHANGED".equals(r.getEventType())).findFirst().orElseThrow();
+        assertTrue(row.getDetail().contains("applicantId=9")
+                && row.getDetail().contains("oldQuota=100")
+                && row.getDetail().contains("newQuota=200")
+                && row.getDetail().contains("approvalId=55"), "落库 detail 缺要素: " + row.getDetail());
+    }
+
     @Test
     void persistFailure_degradesWithVisibleErrorLog_notThrowing() {
         org.mockito.Mockito.doThrow(new RuntimeException("trigger blocked"))

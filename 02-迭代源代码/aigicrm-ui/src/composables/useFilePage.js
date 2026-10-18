@@ -7,7 +7,7 @@ import { ref, computed, inject } from 'vue'
 import { ElMessage } from 'element-plus'
 import {
   getFolderTree, getFileList, deleteFile, deleteFolder,
-  getStorageInfo, getSharedToMe, getSharedToMeCount, getFolderPermissions,
+  getStorageInfo, getStorageApplyInfo, getSharedToMe, getSharedToMeCount, getFolderPermissions,
 } from '@/api/file'
 import { useUserStore } from '@/store/user'
 import { downloadFile } from '@/utils/download'
@@ -48,6 +48,9 @@ export function useFilePage() {
   const storageUsed = ref('0MB')
   const storageQuota = ref('10GB')
   const storagePercent = ref(0)
+  // 存储扩容申请信息：{used,quota,maxQuota,canApply,reason,enabled,allowDecrease}（bytes）
+  // 与 loadStorage 并行加载；接口失败时保持 null（文件页不展示申请入口，避免误判可申请）
+  const storageApplyInfo = ref(null)
 
   // ---- 弹窗显隐与目标（从多个入口打开，放共享态）----
   const uploadVisible = ref(false)
@@ -58,6 +61,7 @@ export function useFilePage() {
   const shareFileTarget = ref(null)
   const aclDialogVisible = ref(false)
   const aclFolder = ref(null)
+  const storageApplyVisible = ref(false)
   const previewVisible = ref(false)
   const previewUrl = ref('')
   const previewType = ref('file')
@@ -184,6 +188,17 @@ export function useFilePage() {
     } catch (e) {}
   }
 
+  // 扩容申请资格单独加载：提交成功后仅需刷新本接口，无需重拉文件列表/文件夹树
+  const loadStorageApplyInfo = async () => {
+    try {
+      const res = await getStorageApplyInfo()
+      storageApplyInfo.value = res.data || null
+    } catch (e) {
+      // 无 file:view 等异常场景不展示申请入口；错误提示由 request 拦截器统一处理
+      storageApplyInfo.value = null
+    }
+  }
+
   // 各弹窗/操作成功后统一刷新（上传/删除/替换/分享等）
   const refreshAll = async () => {
     await Promise.allSettled([loadFiles(), loadFolders(), loadTabCounts(), loadStorage()])
@@ -224,6 +239,7 @@ export function useFilePage() {
     aclFolder.value = folder
     aclDialogVisible.value = true
   }
+  const openStorageApply = () => { storageApplyVisible.value = true }
 
   // ---- 下载 ----
   const appendToken = (url, token) => {
@@ -318,14 +334,14 @@ export function useFilePage() {
     activeTab, selectedFolderId, keyword, query,
     files, fileTotal, filesLoading, allFolders, folderPerms, folderDownloadable,
     publicCount, privateCount, incentiveCount, sharedToMeCount,
-    storageUsed, storageQuota, storagePercent,
+    storageUsed, storageQuota, storagePercent, storageApplyInfo,
     uploadVisible, createFolderVisible, renameFolderVisible, renameFolderTarget,
-    shareDialogVisible, shareFileTarget, aclDialogVisible, aclFolder,
+    shareDialogVisible, shareFileTarget, aclDialogVisible, aclFolder, storageApplyVisible,
     previewVisible, previewUrl, previewType, previewName, previewSize,
     isAdmin, tabs, currentFolders, canCreateFolder,
-    loadFolderPerms, loadFolders, loadFiles, loadTabCounts, loadStorage, refreshAll,
+    loadFolderPerms, loadFolders, loadFiles, loadTabCounts, loadStorage, loadStorageApplyInfo, refreshAll,
     switchTab, selectFolder, searchFiles,
-    openUpload, openCreateFolder, openRenameFolder, openShareDialog, openAclDialog,
+    openUpload, openCreateFolder, openRenameFolder, openShareDialog, openAclDialog, openStorageApply,
     handlePreview, handleDownload, handleDelete, handleDeleteFolder,
     formatSize, getFileExt, getFileExtLabel, getFileType,
   }

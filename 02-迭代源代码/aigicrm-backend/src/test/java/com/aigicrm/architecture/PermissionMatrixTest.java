@@ -523,6 +523,9 @@ public class PermissionMatrixTest {
                 "hasAuthority('file:view')");
         assertPreAuthorize(controller.getDeclaredMethod("getStorageInfo"),
                 "hasAuthority('file:view')");
+        // 【D1=A 2026-10-18】存储空间申请面板: 沿用 file:view, 不新增权限码
+        assertPreAuthorize(controller.getDeclaredMethod("storageApplyInfo"),
+                "hasAuthority('file:view')");
         assertPreAuthorize(controller.getDeclaredMethod("downloadById", Long.class, String.class,
                         boolean.class, jakarta.servlet.http.HttpServletResponse.class),
                 "hasAuthority('file:view')");

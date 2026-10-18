@@ -1,5 +1,6 @@
-const { getFolders, getStorageInfo, getSharedToMe, getSharedToMeCount, getFileList, uploadFile, replaceFile, deleteFile, deleteFolder, getFolderAcl, shareFile: shareFileApi, getDownloadUrl, createFolder } = require('../../api/file')
+const { getFolders, getStorageInfo, getStorageApplyInfo, getSharedToMe, getSharedToMeCount, getFileList, uploadFile, replaceFile, deleteFile, deleteFolder, getFolderAcl, shareFile: shareFileApi, getDownloadUrl, createFolder } = require('../../api/file')
 const { getCustomerSimpleUsers } = require('../../api/customer')
+const { submitApproval } = require('../../api/approval')
 const { showError, showErrorWithRetry } = require('../../utils/feedback')
 const { hasPermission, requireLogin, getToken, isAdmin } = require('../../utils/auth')
 const { readDemoFolders, removeDemoFolder } = require('../../utils/demo-folders')
@@ -28,6 +29,20 @@ function bytesToSize(value) {
   return `${size.toFixed(fixed)} ${units[index]}`
 }
 
+// 【D1-A】配额展示保留一位小数(10.5 GB 不能显示成 11 GB);文件大小仍走上面的既有口径
+function formatQuotaSize(value) {
+  const bytes = Number(value || 0)
+  if (!Number.isFinite(bytes) || bytes <= 0) return '0 B'
+  const units = ['B', 'KB', 'MB', 'GB', 'TB']
+  let size = bytes
+  let index = 0
+  while (size >= 1024 && index < units.length - 1) {
+    size /= 1024
+    index += 1
+  }
+  return `${size.toFixed(Number.isInteger(size) ? 0 : 1)} ${units[index]}`
+}
+
 function normalizeCapacity(info) {
   const used = Number(info && info.used) || 0
   const quota = Number(info && info.quota) || 0
@@ -38,6 +53,78 @@ function normalizeCapacity(info) {
     percent,
     hint: quota > 0 ? `已使用 ${percent}%，剩余 ${bytesToSize(Math.max(quota - used, 0))}` : '暂未配置存储配额'
   }
+}
+
+const GB_BYTES = 1024 * 1024 * 1024
+
+function toFiniteNumber(value) {
+  if (value === null || value === undefined || value === '') return null
+  const number = Number(value)
+  return Number.isFinite(number) ? number : null
+}
+
+// 【D1-A 2026-10-18】扩容申请信息(bytes):只有 canApply 才露出入口,
+// 不可申请原因(未授权/在途/已上限)按后端 reason 原样展示, 缺失时给短兜底
+function normalizeStorageApplyInfo(info) {
+  const source = info || {}
+  const enabled = source.enabled !== false
+  // enabled 是管理端开关原值: 管理员不受开关限制, 资格只认后端 canApply
+  const canApply = source.canApply === true
+  const quota = toFiniteNumber(source.quota)
+  const maxQuota = toFiniteNumber(source.maxQuota)
+  let reason = String(source.reason || '').trim()
+  if (!reason && !canApply) reason = enabled ? '当前暂不可申请' : '扩容申请未启用'
+  return {
+    enabled,
+    canApply,
+    reason,
+    used: toFiniteNumber(source.used) || 0,
+    quota: quota == null ? 0 : quota,
+    maxQuota: maxQuota == null ? 0 : maxQuota,
+    allowDecrease: source.allowDecrease === true
+  }
+}
+
+function buildStorageApplyView(data) {
+  const info = (data && data.storageApplyInfo) || {}
+  const form = (data && data.storageApplyForm) || {}
+  const reasonInput = String(form.reasonInput || '')
+  const quota = Number(info.quota) || 0
+  const maxQuota = Number(info.maxQuota) || 0
+  return {
+    showApplyAction: Boolean(info.canApply),
+    showReason: !info.canApply && Boolean(info.reason),
+    reasonText: info.reason || '',
+    visible: Boolean(form.visible),
+    submitting: Boolean(form.submitting),
+    quotaInput: String(form.quotaInput || ''),
+    reasonInput,
+    reasonCountText: `${reasonInput.length}/200`,
+    errorText: form.errorText || '',
+    currentQuotaText: formatQuotaSize(quota),
+    maxQuotaText: maxQuota > 0 ? formatQuotaSize(maxQuota) : '未配置',
+    quotaHint: maxQuota > 0
+      ? `需大于当前 ${formatQuotaSize(quota)}，且不超过上限 ${formatQuotaSize(maxQuota)}`
+      : '扩容上限信息暂不可用',
+    quotaPlaceholder: quota > 0 ? `例如 ${Math.ceil(quota / GB_BYTES + 1)}` : '请输入数字'
+  }
+}
+
+// 申请的是"申请后总配额"(GB):必须为数字、大于当前配额、不超过上限;理由必填且 ≤200 字
+function validateStorageApplyInput(form, info) {
+  const quotaInput = String((form && form.quotaInput) || '').trim()
+  const reason = String((form && form.reasonInput) || '').trim()
+  if (!quotaInput) return { error: '请输入申请后的总配额' }
+  if (!/^\d+(\.\d+)?$/.test(quotaInput) || Number(quotaInput) <= 0) return { error: '申请配额需为大于 0 的数字' }
+  const maxQuota = toFiniteNumber(info && info.maxQuota)
+  if (maxQuota == null || maxQuota <= 0) return { error: '扩容上限信息暂不可用，请稍后重试' }
+  const currentQuota = toFiniteNumber(info && info.quota) || 0
+  const quota = Math.round(Number(quotaInput) * GB_BYTES)
+  if (quota <= currentQuota) return { error: `申请配额需大于当前 ${formatQuotaSize(currentQuota)}` }
+  if (quota > maxQuota) return { error: `申请配额不能超过上限 ${formatQuotaSize(maxQuota)}` }
+  if (!reason) return { error: '请填写申请理由' }
+  if (reason.length > 200) return { error: '申请理由不能超过 200 字' }
+  return { quota, reason }
 }
 
 const permissionLabels = {
@@ -208,7 +295,7 @@ function buildFileView(data) {
 }
 
 Page({
-  data: { keyword: '', activeTab: '公共', activeFolderId: '', activeFolderName: '', tabs: ['公共', '私人', '四项激励', '分享给我'], tabCounts: { 公共: 0, 私人: 0, 四项激励: 0, 分享给我: 0 }, folders: [], files: [], filteredFiles: [], capacity: { used: '-', total: '-', percent: 0, hint: '存储统计加载中' }, canUpload: false, canReplace: false, canDelete: false, canShare: false, canManageFolder: false, canViewFolderAcl: false, canDevUploadSmoke: false, uploading: false, replacingId: '', loaded: false, loading: false, loadingMore: false, hasMore: false, currentPage: 1, pageSize: 50, folderPerms: [], folderDownloadable: 1, aclVisible: false, aclLoading: false, aclFolderName: '', aclRows: [], previewing: false, previewVideoPath: '', actionSheet: { visible: false, index: -1, name: '', actions: [] }, fileView: buildFileView({ tabs: ['公共', '私人', '四项激励', '分享给我'], tabCounts: { 公共: 0, 私人: 0, 四项激励: 0, 分享给我: 0 }, folders: [], filteredFiles: [], activeTab: '公共', activeFolderName: '', previewVideoPath: '' }) },
+  data: { keyword: '', activeTab: '公共', activeFolderId: '', activeFolderName: '', tabs: ['公共', '私人', '四项激励', '分享给我'], tabCounts: { 公共: 0, 私人: 0, 四项激励: 0, 分享给我: 0 }, folders: [], files: [], filteredFiles: [], capacity: { used: '-', total: '-', percent: 0, hint: '存储统计加载中' }, canUpload: false, canReplace: false, canDelete: false, canShare: false, canManageFolder: false, canViewFolderAcl: false, canDevUploadSmoke: false, uploading: false, replacingId: '', loaded: false, loading: false, loadingMore: false, hasMore: false, currentPage: 1, pageSize: 50, folderPerms: [], folderDownloadable: 1, aclVisible: false, aclLoading: false, aclFolderName: '', aclRows: [], previewing: false, previewVideoPath: '', actionSheet: { visible: false, index: -1, name: '', actions: [] }, storageApplyInfo: { enabled: false, canApply: false, reason: '', used: 0, quota: 0, maxQuota: 0, allowDecrease: false }, storageApplyForm: { visible: false, submitting: false, quotaInput: '', reasonInput: '', errorText: '' }, storageApplyView: buildStorageApplyView({}), fileView: buildFileView({ tabs: ['公共', '私人', '四项激励', '分享给我'], tabCounts: { 公共: 0, 私人: 0, 四项激励: 0, 分享给我: 0 }, folders: [], filteredFiles: [], activeTab: '公共', activeFolderName: '', previewVideoPath: '' }) },
 
   setFileData(patch) {
     const nextData = { ...this.data, ...patch }
@@ -218,8 +305,34 @@ Page({
       ...patch,
       folderPerms: permissionState.perms,
       folderDownloadable: permissionState.downloadable,
-      fileView: buildFileView({ ...nextData, ...permissionState })
+      fileView: buildFileView({ ...nextData, ...permissionState }),
+      storageApplyView: buildStorageApplyView(nextData)
     })
+  },
+
+  // 【D1-A】扩容弹窗表单/入口信息独立更新, 避免输入时重建整个文件列表视图
+  setStorageApplyForm(patch) {
+    const storageApplyForm = { ...this.data.storageApplyForm, ...patch }
+    this.setData({
+      storageApplyForm,
+      storageApplyView: buildStorageApplyView({ ...this.data, storageApplyForm })
+    })
+  },
+
+  setStorageApplyInfo(info) {
+    const storageApplyInfo = normalizeStorageApplyInfo(info)
+    this.setData({
+      storageApplyInfo,
+      storageApplyView: buildStorageApplyView({ ...this.data, storageApplyInfo })
+    })
+  },
+
+  // 【D1-A】扩容资格独立加载: 不阻塞文件列表/文件夹树, 失败时隐藏入口(与 PC loadStorageApplyInfo 同口径)
+  loadStorageApplyInfo() {
+    if (getApp().globalData.demoMode) return
+    return getStorageApplyInfo().then((info) => {
+      if (info) this.setStorageApplyInfo(info)
+    }).catch(() => { /* 无权限/接口异常: 不展示申请入口 */ })
   },
 
   /** 当前 Tab/文件夹的有效权限：根目录沿用 PC useFilePage 的默认口径，
@@ -274,6 +387,7 @@ Page({
     const canDevUploadSmoke = !globalData.demoMode && isLocalApi && isDevelopEnv
     this.setFileData({ canUpload: globalData.demoMode || hasPermission('file:upload'), canReplace: !globalData.demoMode && hasPermission('file:edit'), canDelete: !globalData.demoMode && hasPermission('file:delete'), canShare: !globalData.demoMode && hasPermission('file:share'), canManageFolder: globalData.demoMode || hasPermission('file:folder:manage'), canViewFolderAcl: !globalData.demoMode && hasPermission('file:acl:manage'), canDevUploadSmoke })
     this.loadFiles()
+    this.loadStorageApplyInfo()
   },
 
   onShow() {
@@ -503,6 +617,56 @@ Page({
     this.loadFiles()
   },
   clearFolder() { this.setFileData({ activeFolderId: '', activeFolderName: '', currentPage: 1, hasMore: false }); this.loadFiles() },
+  // 【D1-A 2026-10-18】容量卡「申请扩容」:页面内自绘弹窗承载 总配额 + 理由 两个字段,
+  // 提交复用审批 submit(type=storage, extraData={quota,reason}); 客户端不传 oldQuota
+  openStorageApply() {
+    if (getApp().globalData.demoMode) return wx.showToast({ title: '演示模式暂不支持扩容申请', icon: 'none' })
+    const info = this.data.storageApplyInfo || {}
+    if (!info.canApply) return wx.showToast({ title: info.reason || '当前暂不可申请扩容', icon: 'none' })
+    if (!info.maxQuota) return wx.showToast({ title: '扩容上限信息暂不可用', icon: 'none' })
+    this.setStorageApplyForm({ visible: true, submitting: false, quotaInput: '', reasonInput: '', errorText: '' })
+  },
+  closeStorageApply() {
+    if (this.data.storageApplyForm.submitting) return
+    this.setStorageApplyForm({ visible: false, errorText: '' })
+  },
+  onStorageQuotaInput(event) {
+    this.setStorageApplyForm({ quotaInput: event.detail.value, errorText: '' })
+  },
+  onStorageReasonInput(event) {
+    this.setStorageApplyForm({ reasonInput: event.detail.value, errorText: '' })
+  },
+  submitStorageApply() {
+    const form = this.data.storageApplyForm || {}
+    if (form.submitting) return
+    const info = this.data.storageApplyInfo || {}
+    if (!info.canApply) {
+      this.setStorageApplyForm({ visible: false })
+      return wx.showToast({ title: info.reason || '当前暂不可申请扩容', icon: 'none' })
+    }
+    const validation = validateStorageApplyInput(form, info)
+    if (validation.error) return this.setStorageApplyForm({ errorText: validation.error })
+    if (getApp().globalData.demoMode) return wx.showToast({ title: '演示模式暂不支持扩容申请', icon: 'none' })
+    this.setStorageApplyForm({ submitting: true, errorText: '' })
+    submitApproval({
+      type: 'storage',
+      extraData: JSON.stringify({ quota: validation.quota, reason: validation.reason })
+    }).then(() => {
+      this.setStorageApplyForm({ visible: false, submitting: false, quotaInput: '', reasonInput: '', errorText: '' })
+      wx.showToast({ title: '扩容申请已提交', icon: 'success' })
+      this.refreshStorageOverview()
+    }).catch((error) => {
+      this.setStorageApplyForm({ submitting: false, errorText: (error && error.message) || '提交失败，请稍后重试' })
+      showError(error, '扩容申请提交失败')
+    })
+  },
+  refreshStorageOverview() {
+    if (getApp().globalData.demoMode) return
+    getStorageInfo().then((info) => {
+      if (info) this.setFileData({ capacity: normalizeCapacity(info) })
+    }).catch((error) => showError(error, '存储统计加载失败'))
+    this.loadStorageApplyInfo()
+  },
   // 【弹窗化 2026-09-20】新建文件夹不再跳整页表单, showModal editable 一步完成; folderType 跟随当前 tab(与 PC 同参)
   openFolderForm() {
     if (this.data.activeTab !== '公共' && this.data.activeTab !== '私人') {

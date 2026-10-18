@@ -4,7 +4,7 @@
 > 本文件由 scripts/gen-api.py 自动生成,**禁止手改**;接口变更后重新运行。
 > 权限码与 docs/permission/permission-dict.md 对应。
 
-## 接口清单(231 个)
+## 接口清单(232 个)
 
 | 方法 | 路径 | 权限码 | 方法名 | 文件 |
 |---|---|---|---|---|
@@ -98,6 +98,7 @@
 | GET | `/api/file/shared-to-me` | `hasAuthority('file:view')` | sharedToMe | FileController.java |
 | GET | `/api/file/shared-to-me/count` | `hasAuthority('file:view')` | sharedToMeCount | FileController.java |
 | GET | `/api/file/storage` | `hasAuthority('file:view')` | getStorageInfo | FileController.java |
+| GET | `/api/file/storage/apply-info` | `hasAuthority('file:view')` | storageApplyInfo | FileController.java |
 | POST | `/api/file/upload` | `hasAuthority('file:upload')` | upload | FileController.java |
 | DELETE | `/api/file/{id}` | `hasAuthority('file:delete')` | deleteFile | FileController.java |
 | POST | `/api/file/{id}/replace` | `hasAuthority('file:edit')` | replaceFile | FileController.java |

@@ -74,6 +74,14 @@ public interface SysUserMapper extends BaseMapper<SysUser> {
     @Update("UPDATE sys_user SET deleted = 0 WHERE id = #{id} AND deleted = 1")
     int restoreDeleted(@Param("id") Long id);
 
+    /**
+     * 【D1=A 存储空间审批 2026-10-18】申请人行悲观锁: 配额审批执行时在事务内先锁行再读当前值,
+     * 串行化同一用户的并发配额变更; 锁内 newQuota<=current 直接拒绝(审批事务回滚)。
+     * 自定义 SQL 不走 @TableLogic, 显式 deleted=0(已删除用户按不存在处理)。
+     */
+    @Select("SELECT * FROM sys_user WHERE id = #{id} AND deleted = 0 FOR UPDATE")
+    SysUser selectByIdForUpdate(@Param("id") Long id);
+
     /** 姓名回填含已删除用户(客户原负责人可能已离职删除, 回收站列表仍需显示其姓名) */
     @Select("<script>SELECT id, real_name FROM sys_user WHERE id IN "
             + "<foreach collection='ids' item='id' open='(' separator=',' close=')'>#{id}</foreach></script>")

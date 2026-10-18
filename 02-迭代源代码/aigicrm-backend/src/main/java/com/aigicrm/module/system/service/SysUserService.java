@@ -1,8 +1,10 @@
 package com.aigicrm.module.system.service;
 import java.util.Arrays;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
@@ -37,6 +39,23 @@ public class SysUserService {
     /** 用户级数据范围合法取值（DataScopeType 七大主码；不含 @Deprecated 的 org/org_and_children） */
     private static final java.util.Set<String> VALID_DATA_SCOPES = java.util.Set.of(
             "self", "team", "dept", "office", "region", "all", "custom");
+
+    // ===== 【D1=A 2026-10-18 存储空间申请】配置键与配额边界 =====
+
+    /** 非管理员申请开关(管理员始终可申请, 不受此开关限制) */
+    public static final String STORAGE_APPLY_ENABLED_KEY = "file.storage.apply.enabled";
+    /** 非管理员授权申请人名单(JSON 数组, 元素 userId) */
+    public static final String STORAGE_APPLY_USERS_KEY = "file.storage.apply.users";
+    /** 单用户配额上限(bytes), 系统设置可改 */
+    public static final String STORAGE_MAX_QUOTA_KEY = "file.storage.max.quota";
+    /** 上限配置非法/缺失时的回退值: 100GB */
+    public static final long DEFAULT_STORAGE_MAX_QUOTA = 100L * 1024 * 1024 * 1024;
+    /** 上限合法区间下界: 1GB(再低会导致正常用户无法申请) */
+    public static final long MIN_STORAGE_MAX_QUOTA = 1L * 1024 * 1024 * 1024;
+    /** 上限合法区间上界: 1TB(防配置误输天文数字) */
+    public static final long MAX_STORAGE_MAX_QUOTA = 1024L * 1024 * 1024 * 1024;
+
+    private static final com.fasterxml.jackson.databind.ObjectMapper JSON = new com.fasterxml.jackson.databind.ObjectMapper();
 
     /** 校验数据范围覆盖取值：空=跟随角色合法；非空必须在合法集合内，否则拒绝 */
     private static void validateDataScopeOverride(String override) {
@@ -542,6 +561,178 @@ public class SysUserService {
         if (user == null) throw new BusinessException("用户不存在");
         user.setStorageQuota(quota);
         userMapper.updateById(user);
+    }
+
+    // ===== 【D1=A 2026-10-18】存储空间申请审批 =====
+    // 规则: 管理员始终可申请; 非管理员须 enabled=true 且 userId 在授权名单 JSON 数组中。
+    // 只允许调高配额(首版), 单用户上限默认 100GB 且限制在 [1GB,1TB], 理由 1-200 字。
+
+    /**
+     * 存储空间申请面板信息(PC/MP 契约):
+     * used/quota(当前账户)、maxQuota(生效上限)、canApply(资格)、reason(不可申请原因)、
+     * enabled(开关原值, 管理端展示用)、allowDecrease(首版恒 false)。
+     */
+    public Map<String, Object> storageApplyInfo(Long userId) {
+        SysUser user = userId == null ? null : userMapper.selectById(userId);
+        if (user == null) throw new BusinessException("用户不存在");
+
+        boolean enabled = isStorageApplyEnabled();
+        boolean canApply = canApplyStorageQuota(userId, enabled);
+        String reason = null;
+        if (!canApply) {
+            reason = !enabled
+                    ? "存储空间申请功能未开放，请联系系统管理员"
+                    : "您不在存储空间申请授权名单中，请联系系统管理员";
+        }
+        long maxQuota = resolveStorageMaxQuota();
+        long currentQuota = user.getStorageQuota() != null ? user.getStorageQuota() : 0L;
+        // 【D1=A】已达上限时入口必须关闭；否则弹窗 min>max 无合法值，只能提交后报错。
+        if (canApply && currentQuota >= maxQuota) {
+            canApply = false;
+            reason = "当前配额已达到系统上限，暂无法继续申请";
+        }
+
+        Map<String, Object> info = new LinkedHashMap<>();
+        info.put("used", user.getStorageUsed() != null ? user.getStorageUsed() : 0L);
+        info.put("quota", currentQuota);
+        info.put("maxQuota", maxQuota);
+        info.put("canApply", canApply);
+        info.put("reason", reason);
+        info.put("enabled", enabled);
+        info.put("allowDecrease", false);
+        return info;
+    }
+
+    /**
+     * 提交侧配额校验(不锁行): 用户存在/未删/启用、申请资格、正整数 bytes、
+     * 必须高于当前配额、不得超过生效上限。返回当前用户(含旧配额), 供审批单快照 oldQuota。
+     */
+    public SysUser validateStorageQuotaRequest(Long userId, Long newQuota) {
+        SysUser user = userId == null ? null : userMapper.selectById(userId);
+        if (user == null || (user.getDeleted() != null && user.getDeleted() == 1)) {
+            throw new BusinessException("用户不存在");
+        }
+        if (user.getStatus() == null || user.getStatus() != 1) {
+            throw new BusinessException("账号已停用，无法申请存储空间");
+        }
+        boolean enabled = isStorageApplyEnabled();
+        if (!canApplyStorageQuota(userId, enabled)) {
+            throw new BusinessException(403, !enabled
+                    ? "存储空间申请功能未开放，请联系系统管理员"
+                    : "您不在存储空间申请授权名单中，无权申请存储空间");
+        }
+        if (newQuota == null || newQuota <= 0) {
+            throw new BusinessException("申请配额必须是正整数(bytes)");
+        }
+        long current = user.getStorageQuota() != null ? user.getStorageQuota() : 0L;
+        if (newQuota <= current) {
+            throw new BusinessException("存储配额只能调高不能降低，申请配额须大于当前配额");
+        }
+        long max = resolveStorageMaxQuota();
+        if (newQuota > max) {
+            throw new BusinessException("申请配额超过系统上限(" + max + " bytes)");
+        }
+        return user;
+    }
+
+    /** 申请理由: trim 后长度须为 1-200, 返回规范化文本 */
+    public String validateStorageApplyReason(String reason) {
+        String normalized = reason == null ? "" : reason.trim();
+        if (normalized.isEmpty()) {
+            throw new BusinessException("申请理由不能为空");
+        }
+        if (normalized.length() > 200) {
+            throw new BusinessException("申请理由长度不能超过200个字符");
+        }
+        return normalized;
+    }
+
+    /**
+     * 审批通过执行配额变更(approve 事务内调用):
+     * 申请人行 SELECT ... FOR UPDATE 锁内读取当前配额, 再次校验只升不降与上限;
+     * 若并发调整导致 newQuota <= current, 抛业务异常随审批事务回滚。
+     * 变更成功后写安全审计(userId/operator/oldQuota/newQuota/approvalId), 审计失败不阻断业务。
+     */
+    @Transactional
+    public void applyStorageQuota(Long userId, Long newQuota, Long approvalId) {
+        SysUser user = userId == null ? null : userMapper.selectByIdForUpdate(userId);
+        if (user == null) {
+            throw new BusinessException("申请人不存在或已删除，存储配额调整失败");
+        }
+        if (user.getStatus() == null || user.getStatus() != 1) {
+            throw new BusinessException("申请人账号已停用，存储配额调整失败");
+        }
+        if (newQuota == null || newQuota <= 0) {
+            throw new BusinessException("申请配额必须是正整数(bytes)");
+        }
+        long current = user.getStorageQuota() != null ? user.getStorageQuota() : 0L;
+        if (newQuota <= current) {
+            throw new BusinessException("存储配额调整失败：申请额度已不高于当前配额(可能已被其他审批调整)，请驳回后重新申请");
+        }
+        long max = resolveStorageMaxQuota();
+        if (newQuota > max) {
+            throw new BusinessException("存储配额调整失败：申请额度超过当前系统上限，请驳回后重新申请");
+        }
+        user.setStorageQuota(newQuota);
+        userMapper.updateById(user);
+        securityAudit.storageQuotaChanged(userId, current, newQuota, approvalId);
+    }
+
+    /** 生效上限: 配置缺失/非法回退 100GB, 并限制在 [1GB, 1TB] */
+    public long resolveStorageMaxQuota() {
+        long configured = DEFAULT_STORAGE_MAX_QUOTA;
+        String raw = null;
+        try {
+            raw = configService.getValue(STORAGE_MAX_QUOTA_KEY);
+        } catch (Exception ignored) {
+            // 配置读取异常按非法处理, 回退默认上限
+        }
+        if (StringUtils.hasText(raw)) {
+            try {
+                configured = Long.parseLong(raw.trim());
+            } catch (NumberFormatException ignored) {
+                configured = DEFAULT_STORAGE_MAX_QUOTA;
+            }
+        }
+        if (configured <= 0) {
+            configured = DEFAULT_STORAGE_MAX_QUOTA;
+        }
+        return Math.max(MIN_STORAGE_MAX_QUOTA, Math.min(MAX_STORAGE_MAX_QUOTA, configured));
+    }
+
+    private boolean isStorageApplyEnabled() {
+        return configService.getBooleanValue(STORAGE_APPLY_ENABLED_KEY, true);
+    }
+
+    /** 资格判定: 管理员始终可申请(不受 enabled/名单限制); 非管理员需 enabled 且命中名单 */
+    private boolean canApplyStorageQuota(Long userId, boolean enabled) {
+        if (SecurityUtils.isAdmin()) return true;
+        return enabled && isStorageApplyUser(userId);
+    }
+
+    /** 授权名单解析: JSON 数组, 兼容数字元素与数字字符串; 脏值/非数组按空名单 fail-closed */
+    private boolean isStorageApplyUser(Long userId) {
+        if (userId == null) return false;
+        String raw = configService.getValue(STORAGE_APPLY_USERS_KEY);
+        if (!StringUtils.hasText(raw)) return false;
+        try {
+            com.fasterxml.jackson.databind.JsonNode node = JSON.readTree(raw.trim());
+            if (node == null || !node.isArray()) return false;
+            for (com.fasterxml.jackson.databind.JsonNode item : node) {
+                if (item == null) continue;
+                if (item.isIntegralNumber() && item.asLong() == userId) return true;
+                if (item.isTextual()) {
+                    try {
+                        if (Long.parseLong(item.asText().trim()) == userId) return true;
+                    } catch (NumberFormatException ignored) {
+                        // 非数字元素忽略
+                    }
+                }
+            }
+        } catch (Exception ignored) {
+            return false; // 配置脏值: 名单不可信, 按未授权处理
+        }
+        return false;
     }
 
     @Transactional

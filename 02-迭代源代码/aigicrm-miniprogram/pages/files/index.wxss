@@ -62,3 +62,30 @@
 .sheet-act.danger .sheet-act-icon { background: #fef2f2; color: #dc2626; }
 .sheet-act:active .sheet-act-icon { opacity: .7; }
 .sheet-cancel { margin-top: 20rpx; height: 84rpx; line-height: 84rpx; text-align: center; border-radius: 22rpx; background: #f1f5fb; color: #475569; font-size: 26rpx; font-weight: 700; }
+
+/* 【D1-A 2026-10-18】容量卡申请扩容入口(仅 canApply) + 不可申请短原因 */
+.storage-apply-btn { display: inline-block; width: auto; height: 56rpx; line-height: 54rpx; margin: 16rpx 0 0; padding: 0 24rpx; border-radius: 999rpx; border: 1rpx solid rgba(255, 255, 255, .5); background: rgba(255, 255, 255, .18); color: #fff; font-size: 23rpx; font-weight: 700; }
+.storage-apply-btn::after { border: 0; }
+.storage-apply-btn:active { background: rgba(255, 255, 255, .3); }
+.storage-apply-reason { margin-top: 12rpx; color: rgba(255, 255, 255, .78); font-size: 22rpx; line-height: 1.45; }
+
+/* 【D1-A】申请扩容弹窗: 沿用页内 modal-mask + card 结构, 表单字号/间距对齐现有 polished 表单 */
+.storage-apply-modal { width: 100%; max-height: 90vh; box-sizing: border-box; margin: 0; overflow-y: auto; }
+.storage-apply-close { height: 52rpx; line-height: 50rpx; margin: 0; padding: 0 20rpx; border-radius: 999rpx; border: 1rpx solid #d9e2ec; background: #f8fafc; color: #475569; font-size: 23rpx; font-weight: 700; }
+.storage-apply-close::after { border: 0; }
+.storage-apply-meta { margin-top: 20rpx; padding: 14rpx 20rpx; border: 1rpx solid #e5edf6; border-radius: 18rpx; background: #f8fbff; }
+.storage-apply-meta-row { display: flex; align-items: center; justify-content: space-between; gap: 18rpx; color: #52627a; font-size: 24rpx; line-height: 1.9; }
+.storage-apply-meta-row text:last-child { color: #172033; font-weight: 750; }
+.storage-apply-field { margin-top: 22rpx; }
+.storage-apply-label { margin-bottom: 12rpx; color: #34445c; font-size: 24rpx; font-weight: 700; }
+.storage-apply-input { height: 80rpx; padding: 0 22rpx; border: 1rpx solid #d8e3f1; border-radius: 18rpx; background: #f8fbff; color: #172033; font-size: 28rpx; }
+.storage-apply-textarea { width: 100%; box-sizing: border-box; min-height: 150rpx; padding: 20rpx 22rpx; border: 1rpx solid #d8e3f1; border-radius: 18rpx; background: #f8fbff; color: #172033; font-size: 26rpx; line-height: 1.6; }
+.storage-apply-hint { margin-top: 10rpx; color: #94a3b8; font-size: 22rpx; line-height: 1.45; }
+.storage-apply-count { margin-top: 8rpx; text-align: right; color: #94a3b8; font-size: 22rpx; }
+.storage-apply-error { margin-top: 16rpx; padding: 14rpx 18rpx; border-radius: 14rpx; background: #fef2f2; color: #b91c1c; font-size: 23rpx; line-height: 1.5; }
+.storage-apply-actions { display: flex; gap: 16rpx; margin-top: 26rpx; }
+.storage-apply-actions button { flex: 1; height: 80rpx; line-height: 78rpx; margin: 0; border-radius: 20rpx; font-size: 26rpx; font-weight: 750; }
+.storage-apply-actions button::after { border: 0; }
+.storage-apply-cancel { background: #f1f5fb; color: #475569; }
+.storage-apply-submit { background: #2563eb; color: #fff; box-shadow: 0 10rpx 22rpx rgba(37, 99, 235, .2); }
+.storage-apply-actions button[disabled] { opacity: .6; }

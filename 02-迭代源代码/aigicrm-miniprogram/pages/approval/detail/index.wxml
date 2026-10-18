@@ -21,6 +21,7 @@
     <view class="detail-row"><text>当前节点</text><text>{{approvalView.currentNodeText}}</text></view>
     <view class="detail-row"><text>通过后动作</text><text>{{approvalView.actionAfterApproveText}}</text></view>
     <view wx:if="{{approvalView.showExtendDays}}" class="detail-row"><text>申请延期天数</text><text>{{approvalView.extendDaysText}}</text></view>
+    <view wx:if="{{approvalView.showStorageQuota}}" class="detail-row"><text>配额调整</text><text>{{approvalView.storageQuotaText}}</text></view>
     <view wx:if="{{approvalView.showCustomer}}" class="detail-row"><text>客户</text><text>{{approvalView.customerText}}</text></view>
     <view class="detail-row"><text>申请时间</text><text>{{approvalView.createdAtText}}</text></view>
     <view class="detail-row"><text>更新时间</text><text>{{approvalView.updatedAtText}}</text></view>
@@ -28,8 +29,14 @@
     <view wx:if="{{approvalView.showCustomerAction}}" class="approval-detail-actions inline-actions">
       <button class="approval-link-action" bindtap="openCustomer">查看客户完整档案</button>
     </view>
-    <view class="form-section-title">申请补充</view>
-    <view class="approval-reason refined-reason">{{approvalView.reasonText}}</view>
+    <block wx:if="{{approvalView.showStorageReason}}">
+      <view class="form-section-title">申请理由</view>
+      <view class="approval-reason refined-reason">{{approvalView.storageReasonText}}</view>
+    </block>
+    <block wx:if="{{approvalView.showSupplement}}">
+      <view class="form-section-title">申请补充</view>
+      <view class="approval-reason refined-reason">{{approvalView.reasonText}}</view>
+    </block>
   </view>
 
   <view wx:if="{{approvalView.showNodes}}" class="card approval-detail-card">

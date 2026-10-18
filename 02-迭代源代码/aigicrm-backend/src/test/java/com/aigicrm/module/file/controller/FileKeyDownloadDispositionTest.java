@@ -33,7 +33,9 @@ class FileKeyDownloadDispositionTest {
 
     @BeforeEach
     void setUp() throws Exception {
-        controller = new FileController(fileService, mock(JwtTokenProvider.class));
+        controller = new FileController(fileService, mock(JwtTokenProvider.class),
+                mock(com.aigicrm.module.system.service.SysUserService.class),
+                mock(com.aigicrm.module.approval.service.ApprovalService.class));
         when(fileService.getLocalFilePath("")).thenReturn(root);
     }
 

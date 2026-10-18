@@ -1,12 +1,13 @@
 # 审批工作流
 
-> 来源锚点:`ApprovalService.submit/approve/reject/applyApprovalAction/transferNode`、`ApprovalConfigService.createNodes`。核实日期 2026-09-24。
+> 来源锚点:`ApprovalService.submit/approve/reject/executeApprovalAction/transferNode`、`ApprovalConfigService.createNodes`、`SysUserService.applyStorageQuota`。核实日期 2026-10-18。
 
 ## 1. 单据模型
 
 - 单号 `P{年份}-NNN`(按租户分组取号,如 P2026-079)。
 - 状态机:`reviewing(审批中) → approved / rejected`;节点实例状态 `pending / waiting / ...`。
 - 单据携带:`applicant_id`、`customer_id`、`action_after_approve`(通过后动作)、`extra_data`(动作参数 JSON)。
+- **类型白名单(D1=A 2026-10-18)**:`claim / transfer / extend / storage`,提交入口未知类型一律 400,不落无法执行的脏单。
 
 ## 2. 审批流解析(提交时定节点)
 
@@ -26,7 +27,17 @@
 | `claim` 公海捞取 | `completeClaim` 按 customerId 定位池内行 | 提交时已原子锁池行;执行时客户已删会产生悬挂回写保护 |
 | `extend` 保护期延期 | 累加 `customer.extend.days` 并按唯一公式重算到期日 | 见 [customer-lifecycle.md](customer-lifecycle.md) §4 |
 | `transfer` 客户转移 | owner/部门/转移日落库 | 双重校验(提交时+执行时):接收人在册/启用/未删+同集团,admin 豁免;解析失败显式报错随事务回滚,不静默成功 |
-| `storage` 存储配额 | 调整申请人配额 | extraData.quota |
+| `storage` 存储配额 | `SysUserService.applyStorageQuota` 调整申请人配额 | 锁申请人行重读当前配额,只升不降+上限复核;extraData=`{quota:new, oldQuota:old, reason}`;并发导致 new<=current 时明确拒绝并回滚 |
+
+### 4.1 storage 存储空间申请(D1=A 2026-10-18)
+
+- 申请资格:系统管理员(role_code=`admin`)始终可申请;非管理员须系统设置 `file.storage.apply.enabled=true` 且 userId 在 `file.storage.apply.users` JSON 数组中。详见 [file-center.md](file-center.md) §3。
+- 提交 body:`{"type":"storage","extraData":"{\"quota\":<新总配额bytes>,\"reason\":\"...\"}"}`;不关联客户(storage 单忽略 customerId)。
+- 提交侧:校验账户在册/启用、申请资格、quota 为正整数 bytes、**必须大于当前配额**、不超过 `file.storage.max.quota` 生效上限(默认 100GB,钳制 [1GB,1TB]);理由 trim 后 1-200 字;同一申请人仅允许一张 reviewing/pending 单。
+- 落单前**忽略客户端 oldQuota**,从库重读当前配额,把 extraData 规范化为 `{"quota":new,"oldQuota":old,"reason":"..."}`。
+- 审批流:`biz_approval_config` 预置 `flow_type='storage'`、审批人=admin 角色、ANY 或签;管理员可调整。旧 `biz_approval_flow` 行保留但新 config 优先。
+- 执行侧:锁申请人行(`SELECT ... FOR UPDATE`)重读当前配额,复核只升不降与上限后更新;并写 `STORAGE_QUOTA_CHANGED` 审计(申请人/操作人/old/new/approvalId),审计失败不阻断业务。
+- 首版**只允许调高**,`allowDecrease=false`;降配不在本版本开放。
 
 ## 5. 提交侧校验(以 claim 为例)
 

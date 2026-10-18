@@ -36,6 +36,11 @@ function getStorageInfo() {
   return request({ url: '/api/file/storage' })
 }
 
+// 【D1-A 2026-10-18】个人存储扩容申请信息:额度/上限/是否可申请/不可申请原因(单位 bytes)
+function getStorageApplyInfo() {
+  return request({ url: '/api/file/storage/apply-info' })
+}
+
 function getDownloadToken() {
   return request({ url: '/api/file/download-token' })
 }
@@ -91,6 +96,7 @@ module.exports = {
   getFileList,
   getDownloadUrl,
   getStorageInfo,
+  getStorageApplyInfo,
   getDownloadToken,
   getFolders,
   createFolder,

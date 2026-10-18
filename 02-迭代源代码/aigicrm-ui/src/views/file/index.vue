@@ -15,6 +15,22 @@
         <div class="st-usage-track"><div class="st-usage-fill" :class="{ warn: usagePercent >= 80 }" :style="{ width: usagePercent + '%' }"></div></div>
         <span class="st-usage-text">{{ usagePercent }}% 已用</span>
       </div>
+      <!-- 扩容申请入口：canApply 时可用；否则禁用并以 tooltip 说明原因（无授权/已有在途申请等） -->
+      <el-tooltip
+        v-if="storageApplyInfo"
+        :content="storageApplyReason"
+        :disabled="storageApplyInfo.canApply"
+        placement="bottom"
+      >
+        <span class="st-apply-wrap">
+          <el-button
+            class="st-apply"
+            :icon="Plus"
+            :disabled="!storageApplyInfo.canApply"
+            @click="openStorageApply"
+          >申请扩容</el-button>
+        </span>
+      </el-tooltip>
       <div class="st-actions">
         <el-input v-model="keyword" placeholder="搜索文件名称..." class="st-search" clearable prefix-icon="Search" @keyup.enter="searchFiles" />
         <!-- 【2026-10-17 客户反馈】新建文件夹从左侧文件夹树底部移到顶部操作区(原位置不合适) -->
@@ -62,12 +78,13 @@
     <ShareDialog />
     <AclDialog />
     <FilePreview v-model:visible="previewVisible" :url="previewUrl" :type="previewType" :file-name="previewName" :file-size="previewSize" />
+    <StorageApplyDialog />
   </div>
 </template>
 
 <script setup>
 import { provide, onMounted, computed } from 'vue'
-import { Upload, FolderAdd } from '@element-plus/icons-vue'
+import { Upload, FolderAdd, Plus } from '@element-plus/icons-vue'
 import { useFilePage, FilePageKey } from '@/composables/useFilePage'
 import FolderPanel from './FolderPanel.vue'
 import FileTable from './FileTable.vue'
@@ -76,6 +93,7 @@ import CreateFolderDialog from './CreateFolderDialog.vue'
 import RenameFolderDialog from './RenameFolderDialog.vue'
 import ShareDialog from './ShareDialog.vue'
 import AclDialog from './AclDialog.vue'
+import StorageApplyDialog from './StorageApplyDialog.vue'
 import FilePreview from '@/components/FilePreview.vue'
 
 // 共享上下文: 父级实例化一次并 provide,各面板/弹窗 inject
@@ -83,11 +101,14 @@ const filePage = useFilePage()
 provide(FilePageKey, filePage)
 
 const {
-  activeTab, keyword, tabs, folderPerms, storageUsed, storageQuota,
+  activeTab, keyword, tabs, folderPerms, storageUsed, storageQuota, storageApplyInfo,
   previewVisible, previewUrl, previewType, previewName, previewSize,
-  canCreateFolder, switchTab, searchFiles, openUpload, openCreateFolder,
-  loadFolders, loadFolderPerms, loadFiles, loadTabCounts, loadStorage,
+  canCreateFolder, switchTab, searchFiles, openUpload, openCreateFolder, openStorageApply,
+  loadFolders, loadFolderPerms, loadFiles, loadTabCounts, loadStorage, loadStorageApplyInfo,
 } = filePage
+
+// 后端已返回可申请状态与不可申请原因；reason 为空时给中性兜底，避免 tooltip 空白
+const storageApplyReason = computed(() => storageApplyInfo.value?.reason || '暂不可申请扩容')
 
 // ——— 配额用量百分比("2.3GB"/"512MB"/"10GB" → %),解析失败则不显示进度条 ———
 const parseSizeToMB = (s) => {
@@ -110,6 +131,7 @@ onMounted(() => {
   loadFiles()
   loadTabCounts()
   loadStorage()
+  loadStorageApplyInfo()
 })
 </script>
 
@@ -152,6 +174,18 @@ onMounted(() => {
   border: 1px solid rgba(255, 255, 255, .4);
 }
 .st-folder-add:hover, .st-folder-add:focus { background: rgba(255, 255, 255, .22); color: #fff }
+/* 【2026-10-18】申请扩容：紧随配额/进度信息的三级操作，描边弱化避免与上传主 CTA 抢焦 */
+.st-apply-wrap { display: inline-flex; flex-shrink: 0; }
+.st-apply {
+  background: rgba(255, 255, 255, .12); color: #fff; font-weight: 600;
+  border: 1px solid rgba(255, 255, 255, .4);
+}
+.st-apply:hover, .st-apply:focus { background: rgba(255, 255, 255, .22); color: #fff }
+.st-apply.is-disabled {
+  background: rgba(255, 255, 255, .08);
+  color: rgba(255, 255, 255, .85);
+  border-color: rgba(255, 255, 255, .26);
+}
 
 .section-box { background: #fff; border: 1px solid #e4e7ed; border-radius: var(--radius-md); padding: 14px 20px; flex-shrink: 0 }
 .section-box.table-box { flex: 1; padding: 0; display: flex; flex-direction: column; overflow: hidden }

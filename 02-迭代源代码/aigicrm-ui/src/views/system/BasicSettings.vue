@@ -59,6 +59,43 @@
         <span class="retention-hint">{{ retentionDays === 0 ? '不自动清理' : '超过保留天数的文件将自动清理' }}</span>
       </div>
     </el-form-item>
+    <el-divider content-position="left">存储扩容申请</el-divider>
+    <div v-if="!canEditConfig" class="readonly-tip">当前账号只读：需 system:config:edit 权限才能修改</div>
+    <el-form-item label="允许申请">
+      <div class="apply-inline">
+        <el-switch v-model="storageApplyEnabled" :disabled="!canEditConfig" />
+        <span class="field-hint">开启后名单内成员可提交；关闭后仅管理员可申请</span>
+      </div>
+    </el-form-item>
+    <el-form-item label="可申请人员">
+      <div class="apply-block">
+        <el-select
+          v-model="storageApplyUsers"
+          multiple
+          filterable
+          placeholder="选择可申请扩容的人员（可多选）"
+          style="width: 100%"
+          :disabled="!canEditConfig"
+        >
+          <el-option v-for="u in allUsers" :key="u.id" :label="u.realName" :value="u.id" />
+        </el-select>
+        <span class="field-hint">管理员始终可申请；名单内人员可提交扩容申请。管理员本人申请时，需在「审批流程配置」中安排其他审批人（禁止自审自批）。</span>
+      </div>
+    </el-form-item>
+    <el-form-item label="单用户配额上限">
+      <div class="apply-inline">
+        <el-input-number
+          v-model="storageMaxQuotaGb"
+          :min="STORAGE_MAX_QUOTA_MIN_GB" :max="STORAGE_MAX_QUOTA_MAX_GB"
+          :step="10" :precision="0" :value-on-clear="STORAGE_MAX_QUOTA_DEFAULT_GB"
+          :disabled="!canEditConfig"
+          controls-position="right" style="width: 180px"
+          aria-label="单用户存储配额上限（GB）"
+        />
+        <span class="quota-unit">GB</span>
+        <span class="field-hint">范围 1–1024 GB，默认 100 GB</span>
+      </div>
+    </el-form-item>
     <el-form-item label="编号规则">
       <el-select v-model="configMap['customer.code.rule']" style="width: 300px">
         <el-option label="大区首字母-年月-顺序号 (如 NM-202606-001)" value="region_date_seq" />
@@ -106,6 +143,18 @@ import { ElMessage } from 'element-plus'
 import { getConfigList, updateConfigs, getRoleList } from '@/api/system'
 import { useUserStore } from '@/store/user'
 import { usePermissionData } from '@/composables/usePermissionData'
+import {
+  STORAGE_APPLY_ENABLED_KEY,
+  STORAGE_APPLY_USERS_KEY,
+  STORAGE_MAX_QUOTA_KEY,
+  STORAGE_GB_BYTES,
+  STORAGE_MAX_QUOTA_DEFAULT_GB,
+  STORAGE_MAX_QUOTA_MAX_GB,
+  STORAGE_MAX_QUOTA_MIN_GB,
+  normalizeStorageApplyUsers,
+  normalizeStorageMaxQuotaBytes,
+  gbToBytes
+} from '@/utils/storage-apply'
 
 const router = useRouter()
 const userStore = useUserStore()
@@ -143,6 +192,23 @@ const normalizeSwitchValue = (value, defaultValue = 'true') => {
   return defaultValue
 }
 
+// 存储扩容申请：开关缺省开启；人员存 JSON 数组（兼容历史脏值）；上限以 bytes 存储、GB 编辑。
+const storageApplyEnabled = computed({
+  get: () => normalizeSwitchValue(configMap[STORAGE_APPLY_ENABLED_KEY], 'true') === 'true',
+  set: (value) => { configMap[STORAGE_APPLY_ENABLED_KEY] = value ? 'true' : 'false' }
+})
+const storageApplyUsers = ref([])
+const storageMaxQuotaGb = computed({
+  get: () => Math.round(normalizeStorageMaxQuotaBytes(configMap[STORAGE_MAX_QUOTA_KEY]) / STORAGE_GB_BYTES),
+  set: (value) => {
+    const gb = Number(value)
+    const safe = Number.isFinite(gb)
+      ? Math.min(STORAGE_MAX_QUOTA_MAX_GB, Math.max(STORAGE_MAX_QUOTA_MIN_GB, Math.round(gb)))
+      : STORAGE_MAX_QUOTA_DEFAULT_GB
+    configMap[STORAGE_MAX_QUOTA_KEY] = String(gbToBytes(safe))
+  }
+})
+
 const loadConfigs = async () => {
   try {
     const res = await getConfigList()
@@ -168,6 +234,11 @@ const loadConfigs = async () => {
         autoShare.users = parsed.users || []
       } catch (e) { /* 历史脏值忽略,使用默认 */ }
     }
+    // 存储扩容申请：缺省/脏值归一后再回填，保存时按同一口径序列化
+    configMap[STORAGE_APPLY_ENABLED_KEY] = normalizeSwitchValue(configMap[STORAGE_APPLY_ENABLED_KEY], 'true')
+    storageApplyUsers.value = normalizeStorageApplyUsers(configMap[STORAGE_APPLY_USERS_KEY])
+    configMap[STORAGE_APPLY_USERS_KEY] = JSON.stringify(storageApplyUsers.value)
+    configMap[STORAGE_MAX_QUOTA_KEY] = String(normalizeStorageMaxQuotaBytes(configMap[STORAGE_MAX_QUOTA_KEY]))
   } catch (e) {
     ElMessage.error(e.message || '系统设置加载失败，请检查服务或数据库状态')
   }
@@ -206,6 +277,11 @@ const onStorageGb = (v) => {
   if (!isNaN(gb) && gb > 0) configMap['user.default.storage'] = String(Math.round(gb * 1073741824))
 }
 const handleSave = async () => {
+  // 仅 system:config:edit 可保存（按钮已按权限隐藏，此处防程序化调用/复制入口绕过）
+  if (!canEditConfig.value) {
+    ElMessage.warning('无权限修改系统设置（需 system:config:edit）')
+    return false
+  }
   // 文件回收站保留天数保存前兜底校验：必须是 0–3650 的整数（0 = 不自动清理）；
   // 输入控件已限制，这里防程序化赋值/历史脏值把非法内容提交给后端。
   if (configMap[RETENTION_KEY] !== undefined && configMap[RETENTION_KEY] !== null && configMap[RETENTION_KEY] !== '') {
@@ -216,6 +292,16 @@ const handleSave = async () => {
     }
     configMap[RETENTION_KEY] = String(days)
   }
+  // 存储扩容申请保存前校验：上限必须是 1–1024 的整数 GB（输入控件已限制，这里兜底）；
+  // 人员名单按 JSON 数组序列化，避免把 Select 的响应式数组直接提交给后端。
+  const maxQuotaGb = Number(storageMaxQuotaGb.value)
+  if (!Number.isInteger(maxQuotaGb) || maxQuotaGb < STORAGE_MAX_QUOTA_MIN_GB || maxQuotaGb > STORAGE_MAX_QUOTA_MAX_GB) {
+    ElMessage.error(`单用户配额上限需为 ${STORAGE_MAX_QUOTA_MIN_GB}–${STORAGE_MAX_QUOTA_MAX_GB} GB 的整数`)
+    return false
+  }
+  configMap[STORAGE_MAX_QUOTA_KEY] = String(gbToBytes(maxQuotaGb))
+  configMap[STORAGE_APPLY_USERS_KEY] = JSON.stringify(normalizeStorageApplyUsers(storageApplyUsers.value))
+  configMap[STORAGE_APPLY_ENABLED_KEY] = storageApplyEnabled.value ? 'true' : 'false'
   try {
     // 客户默认共享规则:把 autoShare 序列化写回 configMap,随保存一并提交(否则该配置永不更新)
     configMap['customer.auto_share'] = JSON.stringify({
@@ -268,4 +354,10 @@ onMounted(() => {
 .retention-field { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .retention-unit { font-size: 13px; color: var(--el-text-color-regular); }
 .retention-hint { font-size: 12px; color: var(--el-text-color-secondary); }
+/* 存储扩容申请区：与既有表单行同宽；说明文字统一次级灰，只读提示对齐输入区 */
+.apply-inline { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.apply-block { display: flex; flex-direction: column; gap: 4px; width: 100%; }
+.field-hint { font-size: 12px; color: var(--el-text-color-secondary); line-height: 1.5; }
+.quota-unit { font-size: 13px; color: var(--el-text-color-regular); }
+.readonly-tip { margin: -4px 0 12px 120px; font-size: 12px; color: var(--el-color-warning); }
 </style>

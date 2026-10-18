@@ -68,6 +68,10 @@ public class ApprovalService {
     /** 【议题二.1 裁决】转交审计 */
     private final com.aigicrm.security.SecurityAuditService securityAudit;
 
+    /** 【D1=A 2026-10-18】审批类型白名单: 未知类型在提交入口一律 400, 不落无法执行的单据 */
+    private static final java.util.Set<String> SUPPORTED_APPROVAL_TYPES =
+            java.util.Set.of("claim", "transfer", "extend", "storage");
+
     public IPage<BizApproval> page(int current, int size, String tab, String type, String keyword, Long userId, Long deptId) {
         LambdaQueryWrapper<BizApproval> wrapper = new LambdaQueryWrapper<>();
 
@@ -204,6 +208,30 @@ public class ApprovalService {
     @Transactional
     public void submit(String type, Long customerId, String actionAfterApprove, String extraData) {
         Long applicantId = SecurityUtils.getCurrentUserId();
+
+        // 【D1=A 2026-10-18】类型白名单: 未知类型 400, 防落"永远无法执行"的脏单
+        type = type == null ? null : type.trim();
+        if (type == null || !SUPPORTED_APPROVAL_TYPES.contains(type)) {
+            throw new BusinessException(400, "不支持的审批类型: " + type);
+        }
+
+        // 【D1=A 存储空间】申请与客户无关: 忽略客户端 customerId;
+        // 忽略客户端 oldQuota, 从库重新取当前配额后规范化 extraData
+        // {"quota":new,"oldQuota":old,"reason":...} 落单(审批详情/执行侧单源读取)。
+        if ("storage".equals(type)) {
+            StorageQuotaRequest request = parseStorageQuotaRequest(extraData);
+            String reason = userService.validateStorageApplyReason(request.reason());
+            // 串行化同一申请人的并发提交: 在任何普通读(会建立 RR 快照)之前先锁用户行,
+            // 保证等锁返回后重新建立的快照能看到前一笔已提交的在途单, 避免并发落两张。
+            jdbc.queryForList("SELECT id FROM sys_user WHERE id = ? AND deleted = 0 FOR UPDATE",
+                    Long.class, applicantId);
+            SysUser current = userService.validateStorageQuotaRequest(applicantId, request.quota());
+            if (hasPendingStorageApply(applicantId)) {
+                throw new BusinessException("您已有进行中的存储空间申请，请等待审批完成后再提交");
+            }
+            extraData = buildStorageExtraData(request.quota(), current.getStorageQuota(), reason);
+            customerId = null;
+        }
 
         // 公海捞取：检查是否已被他人申请
         if ("claim".equals(type) && customerId != null) {
@@ -879,18 +907,10 @@ public class ApprovalService {
                 }
             }
             case "storage" -> {
-                // 存储空间 - 配额调整（解析失败必须显式报错，随事务回滚，不得静默成功）
-                if (approval.getExtraData() != null) {
-                    try {
-                        com.fasterxml.jackson.databind.ObjectMapper om = new com.fasterxml.jackson.databind.ObjectMapper();
-                        @SuppressWarnings("unchecked")
-                        Map<String, Object> data = om.readValue(approval.getExtraData(), Map.class);
-                        Long newQuota = Long.valueOf(data.get("quota").toString());
-                        userService.updateStorageQuota(approval.getApplicantId(), newQuota);
-                    } catch (Exception e) {
-                        throw new BusinessException("审批通过后存储配额调整失败: " + e.getMessage());
-                    }
-                }
+                // 【D1=A 2026-10-18】存储空间配额调整: 执行侧从库锁行取当前值并做"只升不降"复核,
+                // 并发导致 newQuota<=current 时抛明确业务异常, approve 事务整体回滚(不得静默成功)。
+                StorageQuotaRequest request = parseStorageQuotaRequest(approval.getExtraData());
+                userService.applyStorageQuota(approval.getApplicantId(), request.quota(), approval.getId());
             }
         }
     }
@@ -905,6 +925,78 @@ public class ApprovalService {
             }
         }
         return defaultValue;
+    }
+
+    /** 【D1=A 2026-10-18】申请人在途 storage 单(供 apply-info 与提交侧共用同一口径)。 */
+    public boolean hasPendingStorageApply(Long applicantId) {
+        if (applicantId == null) return false;
+        Long active = approvalMapper.selectCount(
+                new LambdaQueryWrapper<BizApproval>()
+                        .eq(BizApproval::getApplicantId, applicantId)
+                        .eq(BizApproval::getApprovalType, "storage")
+                        .in(BizApproval::getStatus, "reviewing", "pending"));
+        return active != null && active > 0;
+    }
+
+    // ===== 【D1=A 2026-10-18】存储空间申请: extraData 解析/规范化 =====
+
+    /** 提交侧/执行侧共用的 storage extraData 视图(quota=新总配额 bytes, reason=申请理由) */
+    private record StorageQuotaRequest(Long quota, String reason) {}
+
+    /**
+     * 解析 storage extraData 的 quota(整数 bytes, 必填且 >0)。缺失/小数/非数字均显式报错,
+     * 不静默放行(提交侧拒绝; 执行侧随审批事务回滚)。oldQuota 仅展示用, 一律忽略客户端值。
+     */
+    private StorageQuotaRequest parseStorageQuotaRequest(String extraData) {
+        if (extraData == null || extraData.isBlank()) {
+            throw new BusinessException("存储空间申请缺少配额信息，请重新发起");
+        }
+        Map<String, Object> data;
+        try {
+            @SuppressWarnings("unchecked")
+            Map<String, Object> parsed = new com.fasterxml.jackson.databind.ObjectMapper()
+                    .readValue(extraData, Map.class);
+            data = parsed;
+        } catch (Exception e) {
+            throw new BusinessException("存储空间申请信息格式错误，请重新发起");
+        }
+        Object rawQuota = data != null ? data.get("quota") : null;
+        if (rawQuota == null) {
+            throw new BusinessException("存储空间申请缺少配额信息，请重新发起");
+        }
+        Long quota;
+        try {
+            if (rawQuota instanceof Number number) {
+                double asDouble = number.doubleValue();
+                if (!Double.isFinite(asDouble) || asDouble != Math.floor(asDouble)
+                        || asDouble > Long.MAX_VALUE) {
+                    throw new NumberFormatException("not an integer");
+                }
+                quota = number.longValue();
+            } else {
+                quota = Long.parseLong(String.valueOf(rawQuota).trim());
+            }
+        } catch (Exception e) {
+            throw new BusinessException("存储空间申请配额格式错误，须为整数(bytes)");
+        }
+        if (quota == null || quota <= 0) {
+            throw new BusinessException("存储空间申请配额必须是正整数(bytes)");
+        }
+        Object rawReason = data.get("reason");
+        return new StorageQuotaRequest(quota, rawReason == null ? null : String.valueOf(rawReason));
+    }
+
+    /** 规范化 storage extraData: 仅保留 {quota(new), oldQuota(库内当前值), reason(trim 后)} */
+    private String buildStorageExtraData(Long newQuota, Long oldQuota, String reason) {
+        Map<String, Object> data = new java.util.LinkedHashMap<>();
+        data.put("quota", newQuota);
+        data.put("oldQuota", oldQuota);
+        data.put("reason", reason);
+        try {
+            return new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(data);
+        } catch (Exception e) {
+            throw new BusinessException("存储空间申请信息生成失败，请重试");
+        }
     }
 
     // ===== 【延期B 2026-10-17】天数进审批单的三件辅助:提取/校验/合并 extraData =====

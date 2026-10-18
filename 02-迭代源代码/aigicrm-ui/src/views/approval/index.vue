@@ -188,11 +188,18 @@
             <el-descriptions-item v-if="selectedApproval.approvalType === 'extend'" label="申请延期天数">
               {{ extendDaysOf(selectedApproval) != null ? extendDaysOf(selectedApproval) + ' 天' : '以系统配置为准' }}
             </el-descriptions-item>
+            <!-- 【D1-A 2026-10-18】存储扩容单：额外信息解析为「当前 → 申请」+ 理由，不再只给原始 JSON -->
+            <el-descriptions-item v-if="selectedApproval.approvalType === 'storage'" label="配额变更">
+              {{ storageQuotaChangeOf(selectedApproval) }}
+            </el-descriptions-item>
+            <el-descriptions-item v-if="selectedApproval.approvalType === 'storage'" label="申请理由">
+              <span class="detail-reason">{{ storageReasonOf(selectedApproval) }}</span>
+            </el-descriptions-item>
             <el-descriptions-item label="发起时间">{{ formatDateTime(selectedApproval.createdAt) }}</el-descriptions-item>
             <el-descriptions-item label="更新时间">{{ formatDateTime(selectedApproval.updatedAt) }}</el-descriptions-item>
           </el-descriptions>
 
-          <div v-if="selectedApproval.extraData && !isExtendOnlyExtra(selectedApproval)" class="extra-data">
+          <div v-if="selectedApproval.extraData && !isExtendOnlyExtra(selectedApproval) && !isStorageOnlyExtra(selectedApproval)" class="extra-data">
             <div class="section-title">申请补充</div>
             <pre>{{ formatExtraData(selectedApproval.extraData) }}</pre>
           </div>
@@ -292,6 +299,11 @@ import MetricStrip from '@/components/MetricStrip.vue'
 // 【A2/C10 三轮】表格空值占位唯一口径 dashIfEmpty
 import { APPROVAL_STATUS, statusOf } from '@/utils/status-maps'
 import { dashIfEmpty } from '@/utils/format'
+import {
+  isStorageExtraOnly,
+  storageApplyReasonText,
+  storageQuotaChangeText
+} from '@/utils/storage-apply'
 
 const userStore = useUserStore()
 const router = useRouter()
@@ -462,7 +474,8 @@ const handleReject = async (row) => {
 }
 
 const getTypeText = (type) => {
-  const map = { claim: '捞取', transfer: '转移', extend: '延期', storage: '空间' }
+  // 【D1-A 2026-10-18】storage 统一称「存储空间」，与筛选下拉/申请入口同名
+  const map = { claim: '捞取', transfer: '转移', extend: '延期', storage: '存储空间' }
   return map[type] || type
 }
 
@@ -493,6 +506,15 @@ const isExtendOnlyExtra = (row) => {
     return false
   }
 }
+
+// ===== 【D1-A 2026-10-18】存储扩容单详情 =====
+const storageQuotaChangeOf = (row) => storageQuotaChangeText(row?.extraData)
+const storageReasonOf = (row) => storageApplyReasonText(row?.extraData)
+
+/** storage 单 extraData 仅含 quota/oldQuota/reason 时不再重复展示原始 JSON（同 extend 做法） */
+const isStorageOnlyExtra = (row) => (
+  row?.approvalType === 'storage' && isStorageExtraOnly(row?.extraData)
+)
 
 const confirmExtendApprove = async () => {
   const days = Number(extendDaysInput.value)
@@ -653,6 +675,7 @@ onBeforeUnmount(() => {
 .detail-code { color: var(--el-color-primary); font-weight: 600; margin-bottom: 6px; }
 .detail-title { color: #303133; font-size: 16px; font-weight: 600; }
 .detail-descriptions { margin-bottom: 18px; }
+.detail-reason { white-space: pre-wrap; word-break: break-word; line-height: 1.6; }
 .section-title { font-size: 14px; font-weight: 600; color: #303133; margin: 16px 0 10px; }
 .extra-data pre {
   margin: 0;

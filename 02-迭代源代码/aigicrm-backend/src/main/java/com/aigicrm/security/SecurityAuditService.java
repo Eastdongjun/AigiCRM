@@ -114,6 +114,28 @@ public class SecurityAuditService {
         event("USER_ORG_CHANGED", "userId", userId, "from", oldOrgId, "to", newOrgId, "actorId", actorId);
     }
 
+    /**
+     * 【D1=A 2026-10-18】存储空间配额审批变更审计:
+     * actorId=审批操作人(执行动作的当前登录人), applicantId=被调整用户,
+     * old/new=调整前后配额(bytes), approvalId=来源审批单。
+     * 事件与 append-only 落库均为旁路, 失败不阻断配额变更业务。
+     */
+    public void storageQuotaChanged(Long applicantId, Long oldQuota, Long newQuota, Long approvalId) {
+        Long actorId = null;
+        try {
+            actorId = SecurityUtils.getCurrentUserId();
+        } catch (Exception ignore) {
+            // 无会话上下文(如内部调用)时 actor 为空
+        }
+        event("STORAGE_QUOTA_CHANGED", "userId", applicantId, "applicantId", applicantId,
+                "oldQuota", oldQuota, "newQuota", newQuota, "approvalId", approvalId,
+                "operator", actorId, "actorId", actorId);
+        persist("STORAGE_QUOTA_CHANGED", actorId, null, null,
+                "userId=" + applicantId + " applicantId=" + applicantId + " oldQuota=" + oldQuota
+                        + " newQuota=" + newQuota + " approvalId=" + approvalId
+                        + " operator=" + actorId);
+    }
+
     /** 登录失败计数已达告警线(计数由 AuthService 限流逻辑持有,此处只负责告警) */
     public void loginFailBurst(String username, String clientIp) {
         alert("LOGIN_FAIL_BURST", "username", username, "ip", clientIp, "threshold", LOGIN_FAIL_ALERT);

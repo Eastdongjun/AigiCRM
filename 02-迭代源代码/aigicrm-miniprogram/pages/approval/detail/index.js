@@ -16,12 +16,66 @@ function formatApprovalSupplement(value) {
   }
 }
 
+function bytesToSize(value) {
+  const bytes = Number(value || 0)
+  if (!Number.isFinite(bytes) || bytes <= 0) return '0 B'
+  const units = ['B', 'KB', 'MB', 'GB', 'TB']
+  let size = bytes
+  let index = 0
+  while (size >= 1024 && index < units.length - 1) {
+    size /= 1024
+    index += 1
+  }
+  const fixed = Number.isInteger(size) ? 0 : 1
+  return `${size.toFixed(fixed)} ${units[index]}`
+}
+
+function toFiniteNumber(value) {
+  if (value === null || value === undefined || value === '') return null
+  const number = Number(value)
+  return Number.isFinite(number) ? number : null
+}
+
+// 【D1-A 2026-10-18】storage 单解析: extraData={quota,oldQuota,reason}(bytes),
+// 与 extend 同理把字段提成行展示, 不再在「申请补充」裸显原始 JSON
+function parseStorageApply(extraData) {
+  if (!extraData) return null
+  let parsed = extraData
+  if (typeof extraData === 'string') {
+    try {
+      parsed = JSON.parse(extraData)
+    } catch (e) {
+      return null
+    }
+  }
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return null
+  const quota = toFiniteNumber(parsed.quota)
+  const oldQuota = toFiniteNumber(parsed.oldQuota)
+  const reason = String(parsed.reason || '').trim()
+  if (quota == null && oldQuota == null && !reason) return null
+  const rest = { ...parsed }
+  delete rest.quota
+  delete rest.oldQuota
+  delete rest.reason
+  return {
+    quota,
+    oldQuota,
+    reason,
+    quotaText: oldQuota != null && quota != null
+      ? `当前 ${bytesToSize(oldQuota)} → 申请 ${bytesToSize(quota)}`
+      : (quota != null ? `申请 ${bytesToSize(quota)}` : '—'),
+    showQuota: quota != null || oldQuota != null,
+    restText: Object.keys(rest).length ? JSON.stringify(rest, null, 2) : ''
+  }
+}
+
 function normalize(item) {
   const type = item.type || item.approvalType || 'unknown'
   const status = item.status || item.approvalStatus || 'pending'
   // 【延期B 2026-10-17】延期单天数进审批单:提取 extraData.extendDays 成行展示,
   // 申请补充区不再裸显 {"extendDays":N} 原始 JSON(其余键保留原展示)
   let extendDays = null
+  let storageApply = null
   let supplementSource = item.extraData || item.reason || item.comment
   if (type === 'extend' && item.extraData) {
     try {
@@ -34,6 +88,16 @@ function normalize(item) {
         ? JSON.stringify(rest, null, 2)
         : (item.reason || item.comment || '')
     } catch (e) { /* 脏 extraData:天数保持 null(展示回退),原样走申请补充 */ }
+  }
+  // 【D1-A】storage 单解析: 配额调整/申请理由成行展示, 申请补充只保留未识别余键
+  if (type === 'storage' && item.extraData) {
+    const parsedStorage = parseStorageApply(item.extraData)
+    if (parsedStorage) {
+      // extraData 未带理由时回退单据 reason/comment, 避免只剩「暂无说明」
+      parsedStorage.reason = parsedStorage.reason || String(item.reason || item.comment || '').trim()
+      storageApply = parsedStorage
+      supplementSource = parsedStorage.restText
+    }
   }
   const supplement = formatApprovalSupplement(supplementSource)
   return {
@@ -54,6 +118,8 @@ function normalize(item) {
     createdAt: item.createdAt || item.createTime || '',
     updatedAt: item.updatedAt || item.updateTime || '',
     extendDays,
+    storageApply,
+    supplementText: supplement,
     reason: supplement || '暂无说明',
     nodes: (item.nodes || []).map(normalizeApprovalNode)
   }
@@ -89,12 +155,16 @@ function buildApprovalView(approval, state = {}) {
       showRejectReason: false,
       showRejectAction: false,
       showApproveAction: false,
+      showStorageQuota: false,
+      showStorageReason: false,
+      showSupplement: false,
       showActions: false,
       nodes: []
     }
   }
   const customerNameText = approval.customerName || '-'
   const customerIndustryText = approval.customerIndustry || ''
+  const storageApply = approval.storageApply || null
   const showRejectAction = Boolean(approval.isPending && state.canReject)
   const showApproveAction = Boolean(approval.isPending && state.canApprove)
   return {
@@ -113,6 +183,12 @@ function buildApprovalView(approval, state = {}) {
     extendDaysText: approval.extendDays != null
       ? `${approval.extendDays} 天（如需调整天数请在电脑端审批）`
       : '以系统配置为准',
+    // 【D1-A】storage 单: 当前配额 → 申请配额 + 申请理由; 无余键时折叠「申请补充」
+    showStorageQuota: Boolean(storageApply && storageApply.showQuota),
+    storageQuotaText: storageApply ? storageApply.quotaText : '',
+    showStorageReason: Boolean(storageApply),
+    storageReasonText: storageApply ? (storageApply.reason || '暂无说明') : '',
+    showSupplement: !storageApply || Boolean(approval.supplementText),
     showCustomer: Boolean(approval.customerName || approval.customerIndustry),
     customerText: `${customerNameText} ${customerIndustryText}`.trim(),
     createdAtText: approval.createdAt || '-',
