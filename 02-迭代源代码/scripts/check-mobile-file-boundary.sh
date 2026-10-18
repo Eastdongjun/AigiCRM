@@ -129,8 +129,9 @@ grep -Fq 'fileView.showManageEmpty' "$WXML" || fail 'mobile file folder manageme
 ! grep -Fq 'item.uploaderName ||' "$WXML" || fail 'mobile file WXML must not duplicate uploader fallback logic'
 ! grep -Fq "activeTab !== '共享给我'" "$WXML" || fail 'mobile file WXML must not duplicate shared-tab action visibility logic'
 grep -Fq 'getDownloadUrl' "$DETAIL" || fail 'mobile file detail no longer supports path-download fallback'
-grep -Fq 'uploaderName: decodeURIComponent' "$DETAIL" || fail 'mobile file detail no longer receives uploader metadata'
-grep -Fq 'updatedAt: decodeURIComponent' "$DETAIL" || fail 'mobile file detail no longer receives updated time metadata'
+# 【mp-0 2026-10-18】参数统一走 safeDecodeParam（单次解码+非法转义回退），不再裸 decodeURIComponent
+grep -Fq 'uploaderName: safeDecodeParam' "$DETAIL" || fail 'mobile file detail no longer receives uploader metadata'
+grep -Fq 'updatedAt: safeDecodeParam' "$DETAIL" || fail 'mobile file detail no longer receives updated time metadata'
 grep -Fq 'buildDetailView' "$DETAIL" || fail 'mobile file detail must normalize view state before WXML'
 grep -Fq 'setDetailData' "$DETAIL" || fail 'mobile file detail must refresh normalized view state with data changes'
 grep -Fq 'detailView.typeText' "$ROOT/aigicrm-miniprogram/pages/files/detail/index.wxml" || fail 'mobile file detail must display normalized file type text'

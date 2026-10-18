@@ -45,6 +45,25 @@ public class FileService {
     /** 字节换算单位:1KB=1024B(文件大小格式化用) */
     private static final long BYTES_PER_KB = 1024L;
 
+    /**
+     * 【性能 file-3 2026-10-18】激励可见集合缓存 TTL：硬上限 30s。
+     * 即使指纹查询漏掉某种变化（例如同一秒内更新且 MAX(updated_at) 未变），
+     * 到期也强制全量重载，撤销/新增激励共享的可见性延迟不超过该值。
+     * 用纳秒单调时钟计时，避免墙上时钟回拨把 30s 窗口意外拉长。
+     */
+    private static final long INCENTIVE_VISIBILITY_TTL_NANOS =
+            java.util.concurrent.TimeUnit.SECONDS.toNanos(30);
+    /** 激励缓存条目超过该阈值时顺手清理过期项，避免长期驻留 */
+    private static final int INCENTIVE_CACHE_PRUNE_THRESHOLD = 256;
+
+    /** 缩略图最长边（与原实现一致：列表预览 ≤300px） */
+    private static final int THUMBNAIL_MAX_DIM = 300;
+    /** 缩略图磁盘缓存条目上限，超过后按最旧 last-modified 清理 */
+    private static final int THUMBNAIL_CACHE_MAX_ENTRIES = 2000;
+    /** 每写入 N 个缩略图触发一次容量巡检（摊销目录遍历成本） */
+    private static final int THUMBNAIL_CACHE_PRUNE_INTERVAL = 200;
+    private static final String THUMBNAIL_CACHE_DIR_NAME = "aigicrm-thumb-cache";
+
     private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(FileService.class);
 
     private final BizFileMapper fileMapper;
@@ -62,6 +81,23 @@ public class FileService {
 
     @Value("${file.upload-dir:./uploads}")
     private String uploadDir;
+
+    /** 缩略图磁盘缓存目录；留空则使用 java.io.tmpdir/aigicrm-thumb-cache */
+    @Value("${file.thumbnail-cache-dir:}")
+    private String thumbnailCacheDir;
+
+    /** 写缓存次数计数（用于摊销容量巡检，非业务状态） */
+    private final java.util.concurrent.atomic.AtomicInteger thumbnailCacheOps = new java.util.concurrent.atomic.AtomicInteger();
+
+    /**
+     * 【性能 file-3 2026-10-18】激励可见 fileId 集合缓存：key=userId:currentGroupId。
+     * 只存"他人 shared=1 记录的五个槽位并集"，失败不写；条目含指纹+过期时间，见
+     * {@link #incentiveVisibleFileIds(Long)} 的安全说明。
+     */
+    private final Map<String, IncentiveVisibilityCache> incentiveVisibilityCache =
+            new java.util.concurrent.ConcurrentHashMap<>();
+    /** 可替换的单调时钟（单测控制 TTL）；生产使用 System.nanoTime */
+    private volatile java.util.function.LongSupplier incentiveCacheClock = System::nanoTime;
 
     private boolean isLocal() {
         return "local".equalsIgnoreCase(storageType);
@@ -129,21 +165,8 @@ public class FileService {
         if (scope != null && !scope.isEmpty()) {
             wrapper.eq(BizFile::getFileScope, scope);
             if ("incentive".equals(scope)) {
-                // 自己的 + 其他人共享的激励文件
-                List<BizIncentiveRecord> sharedRecords = incentiveRecordMapper.selectList(
-                        new LambdaQueryWrapper<BizIncentiveRecord>()
-                                .eq(BizIncentiveRecord::getShared, 1)
-                                .ne(BizIncentiveRecord::getUserId, userId)
-                );
-                Set<Long> fileIdSet = new java.util.LinkedHashSet<>();
-                for (BizIncentiveRecord r : sharedRecords) {
-                    fileIdSet.addAll(r.getFileIds());
-                    fileIdSet.addAll(r.getFilePreIds());
-                    fileIdSet.addAll(r.getFileMidIds());
-                    fileIdSet.addAll(r.getFilePostIds());
-                    fileIdSet.addAll(r.getFileTrackIds());
-                }
-                List<Long> sharedFileIds = new ArrayList<>(fileIdSet);
+                // 自己的 + 其他人共享的激励文件（与下载可见性同源，30s 缓存见 incentiveVisibleFileIds）
+                Set<Long> sharedFileIds = incentiveVisibleFileIds(userId);
 
                 if (sharedFileIds.isEmpty()) {
                     wrapper.eq(BizFile::getUploaderId, userId);
@@ -385,6 +408,8 @@ public class FileService {
             // 并发/重复删除: 台账已不在活跃态, 不得二次归还配额; 幂等返回成功(前端不报错)
             return;
         }
+        // 【性能 file-3】删除后清掉该文件所有版本的缩略图磁盘缓存（逻辑删只保留原图供回收站）
+        evictThumbnailCache(fileId);
 
         // 【P2 2026-10-09 配额并发修复】归还改数据库端原子增减, 消除读改写丢失更新
         if ("private".equals(file.getFileScope()) && file.getFileSize() != null) {
@@ -431,6 +456,8 @@ public class FileService {
             file.setReplaceBy(userId);
             file.setReplacedAt(LocalDateTime.now());
             fileMapper.updateById(file);
+            // 【性能 file-3】版本/ossKey 已变化，旧版本缩略图不再命中新 key；主动清掉避免磁盘残留
+            evictThumbnailCache(fileId);
             deleteStorage(oldKey);
             // 【P2 2026-10-09 配额并发修复】差额调整改数据库端原子(GREATEST 守护最小 0)
             if ("private".equals(scope)) {
@@ -623,8 +650,9 @@ public class FileService {
         try {
             Path filePath = Paths.get(uploadDir, file.getOssKey());
             // 【缩略图 2026-08-09】列表预览场景：图片返回 ≤300px 缩略图，避免激励查询等页首屏全尺寸下载
+            // 【性能 file-3 2026-10-18】授权（上方 canDownloadFile）每次请求都先执行；命中字节缓存后不再读原图
             if (thumbnail) {
-                if (writeThumbnail(filePath, file.getFileName(), response)) return;
+                if (writeThumbnail(file, filePath, response)) return;
                 // 非图片/读取失败 → 回退完整下载
             }
             Resource resource = new UrlResource(filePath.toUri());
@@ -687,21 +715,90 @@ public class FileService {
         response.setStatus(404);
     }
 
-    /** 生成缩略图并写入响应；仅图片返回 true。非图片或读取失败返回 false（调用方回退完整下载）。 */
-    private boolean writeThumbnail(Path filePath, String filename, jakarta.servlet.http.HttpServletResponse response) {
-        String lower = filename == null ? "" : filename.toLowerCase();
+    /**
+     * 生成缩略图并写入响应；仅图片返回 true。非图片或读取失败返回 false（调用方回退完整下载）。
+     * <p>【性能 file-3 2026-10-18】生成的缩略图字节缓存在本地临时目录，键含 fileId/version/ossKey 哈希/
+     * 原文件 size+mtime/目标边长/编码：文件替换后 version/ossKey/mtime 变化自然失效。缓存命中时只读
+     * 缓存文件，不再打开/解码原图；授权在调用方 {@link #downloadById} 中每次请求都先行执行，缓存不参与鉴权。
+     */
+    private boolean writeThumbnail(BizFile file, Path filePath, jakarta.servlet.http.HttpServletResponse response) {
+        String filename = file.getFileName();
+        String lower = filename == null ? "" : filename.toLowerCase(java.util.Locale.ROOT);
         if (!lower.matches(".*\\.(jpg|jpeg|png|gif|webp|bmp)$")) return false;
-        int maxDim = 300;
         boolean png = lower.endsWith(".png");
+
+        Path cacheRoot = thumbnailCacheRoot();
+        Path cacheFile = null;
+        String cacheKey = null;
+        try {
+            Files.createDirectories(cacheRoot);
+            // 原图存在时用精确键（含 size+mtime）；原图已删/不可读时退回同 fileId+version+ossKey 的最新缓存，
+            // 使"已生成过缩略图的原图丢失"仍可命中缓存而不必重新解码（授权已通过，不存在越权面）。
+            cacheKey = thumbnailCacheKey(file, filePath, png);
+            if (cacheKey != null) {
+                Path candidate = cacheRoot.resolve(cacheKey);
+                if (Files.isRegularFile(candidate)) cacheFile = candidate;
+            } else {
+                String prefix = thumbnailCachePrefix(file);
+                if (prefix != null) cacheFile = findCachedThumbnailByPrefix(cacheRoot, prefix, png);
+            }
+        } catch (Exception e) {
+            log.debug("缩略图缓存目录不可用，按无缓存处理: {}", e.getMessage());
+            cacheRoot = null;
+            cacheFile = null;
+        }
+
+        if (cacheFile != null) {
+            byte[] cached = null;
+            try {
+                cached = Files.readAllBytes(cacheFile);
+            } catch (Exception e) {
+                log.debug("缩略图缓存读取失败 {}: {}", cacheFile.getFileName(), e.getMessage());
+            }
+            if (cached != null && cached.length > 0) {
+                try {
+                    writeThumbnailResponse(response, cached, png, cacheFile.getFileName().toString());
+                } catch (Exception e) {
+                    // 缓存已命中、响应可能已提交：不再重试生成/回退完整下载，避免向同一响应追加内容
+                    log.warn("缩略图响应写出失败（缓存命中）file={}: {}", cacheFile.getFileName(), e.getMessage());
+                }
+                return true;
+            }
+        }
+
+        byte[] bytes = generateThumbnailBytes(filePath, png);
+        if (bytes == null) return false;
+
+        if (cacheRoot != null) {
+            if (cacheKey == null) cacheKey = thumbnailCacheKey(file, filePath, png);
+            if (cacheKey != null) storeThumbnail(cacheRoot, cacheKey, bytes);
+        }
+
+        try {
+            writeThumbnailResponse(response, bytes, png,
+                    cacheKey != null ? cacheKey : "generated-" + file.getId());
+        } catch (Exception e) {
+            // 字节已生成、响应可能已提交：此时回退完整下载会向同一响应追加内容，故按成功处理并留日志
+            log.warn("缩略图响应写出失败 fileId={}: {}", file.getId(), e.getMessage());
+        }
+        return true;
+    }
+
+    /**
+     * 解码 + 缩放为缩略图字节（保留原有子采样防 OOM 设计）。
+     * 返回 null 表示非图片/读取失败，调用方回退完整下载。
+     */
+    private byte[] generateThumbnailBytes(Path filePath, boolean png) {
+        int maxDim = THUMBNAIL_MAX_DIM;
         try (javax.imageio.stream.ImageInputStream iis = javax.imageio.ImageIO.createImageInputStream(filePath.toFile())) {
-            if (iis == null) return false;
+            if (iis == null) return null;
             java.util.Iterator<javax.imageio.ImageReader> readers = javax.imageio.ImageIO.getImageReaders(iis);
-            if (!readers.hasNext()) return false;
+            if (!readers.hasNext()) return null;
             javax.imageio.ImageReader reader = readers.next();
             try {
                 reader.setInput(iis, true, true);
                 int w = reader.getWidth(0), h = reader.getHeight(0);
-                if (w <= 0 || h <= 0) return false;
+                if (w <= 0 || h <= 0) return null;
 
                 // 大图子采样解码：只解码部分像素（解码尺寸≈2×目标），避免整图解码——5MB+ JPEG 解码后
                 // 原始像素 ~96MB/张，激励查询页首屏并发生成缩略图时撑爆 -Xmx512m 堆（2026-08-09 OOM 复盘）。
@@ -718,7 +815,7 @@ public class FileService {
                 }
 
                 java.awt.image.BufferedImage img = reader.read(0, param);
-                if (img == null) return false;
+                if (img == null) return null;
 
                 java.awt.image.BufferedImage out = img;
                 if (needScale && (img.getWidth() != nw || img.getHeight() != nh)) {
@@ -731,15 +828,166 @@ public class FileService {
                     g.dispose();
                 }
 
-                response.setContentType(png ? "image/png" : "image/jpeg");
-                response.setHeader(HttpHeaders.CACHE_CONTROL, "public, max-age=3600");
-                javax.imageio.ImageIO.write(out, png ? "png" : "jpg", response.getOutputStream());
-                return true;
+                java.io.ByteArrayOutputStream bos = new java.io.ByteArrayOutputStream(16 * 1024);
+                if (!javax.imageio.ImageIO.write(out, png ? "png" : "jpg", bos)) return null;
+                return bos.toByteArray();
             } finally {
                 reader.dispose();
             }
         } catch (Exception ignored) {
-            return false;
+            return null;
+        }
+    }
+
+    /** 写缩略图响应：私有缓存（不得被共享代理缓存已授权内容）+ 基于缓存键的强 ETag。 */
+    private void writeThumbnailResponse(jakarta.servlet.http.HttpServletResponse response, byte[] bytes,
+                                        boolean png, String etagKey) throws java.io.IOException {
+        response.setContentType(png ? "image/png" : "image/jpeg");
+        response.setHeader(HttpHeaders.CACHE_CONTROL, "private, max-age=3600");
+        response.setHeader(HttpHeaders.ETAG, "\"" + etagKey + "\"");
+        response.setContentLength(bytes.length);
+        response.getOutputStream().write(bytes);
+    }
+
+    private Path thumbnailCacheRoot() {
+        if (thumbnailCacheDir != null && !thumbnailCacheDir.isBlank()) {
+            return Paths.get(thumbnailCacheDir);
+        }
+        return Paths.get(System.getProperty("java.io.tmpdir"), THUMBNAIL_CACHE_DIR_NAME);
+    }
+
+    /**
+     * 缓存键：fileId + version + ossKey 哈希 + 原文件 size + mtime + 目标边长 + 编码。
+     * 文件名只由数字/安全哈希/固定标记拼成，不含任何未净化用户输入；原图不可读时返回 null。
+     */
+    private String thumbnailCacheKey(BizFile file, Path original, boolean png) {
+        if (file.getId() == null || file.getOssKey() == null) return null;
+        try {
+            long size = Files.size(original);
+            long mtime = Files.getLastModifiedTime(original).toMillis();
+            int version = file.getVersion() == null ? 0 : file.getVersion();
+            return thumbnailCachePrefix(file) + size + "-" + mtime + "-" + THUMBNAIL_MAX_DIM
+                    + (png ? ".png" : ".jpg");
+        } catch (Exception e) {
+            // 原图缺失/不可读：由调用方退回"同 fileId+version+ossKey"前缀缓存
+            return null;
+        }
+    }
+
+    private String thumbnailCachePrefix(BizFile file) {
+        if (file.getId() == null || file.getOssKey() == null) return null;
+        int version = file.getVersion() == null ? 0 : file.getVersion();
+        return file.getId() + "-" + version + "-" + sha256Hex(file.getOssKey()).substring(0, 24)
+                + "-";
+    }
+
+    private Path findCachedThumbnailByPrefix(Path cacheRoot, String prefix, boolean png) {
+        String suffix = png ? ".png" : ".jpg";
+        try (java.util.stream.Stream<Path> stream = Files.list(cacheRoot)) {
+            return stream.filter(Files::isRegularFile)
+                    .filter(p -> {
+                        String name = p.getFileName().toString();
+                        return name.startsWith(prefix) && name.endsWith(suffix);
+                    })
+                    .max(java.util.Comparator.comparingLong(this::lastModifiedMillis))
+                    .orElse(null);
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    /** 临时文件 + 原子 move 落缓存，避免并发读到半文件；失败只降级为不使用缓存。 */
+    private void storeThumbnail(Path cacheRoot, String key, byte[] bytes) {
+        Path tmp = null;
+        try {
+            Files.createDirectories(cacheRoot);
+            tmp = Files.createTempFile(cacheRoot, "tmp-", ".part");
+            Files.write(tmp, bytes);
+            Path target = cacheRoot.resolve(key);
+            try {
+                Files.move(tmp, target, StandardCopyOption.ATOMIC_MOVE);
+            } catch (java.nio.file.AtomicMoveNotSupportedException | java.nio.file.FileAlreadyExistsException e) {
+                Files.move(tmp, target, StandardCopyOption.REPLACE_EXISTING);
+            }
+            tmp = null;
+        } catch (Exception e) {
+            log.debug("缩略图缓存写入失败 key={}: {}", key, e.getMessage());
+        } finally {
+            if (tmp != null) {
+                try {
+                    Files.deleteIfExists(tmp);
+                } catch (Exception ignored) {
+                    // 临时文件清理失败不影响响应
+                }
+            }
+        }
+        pruneThumbnailCacheIfNeeded(cacheRoot);
+    }
+
+    /** 条目上限 + 最旧清理：每 {@value #THUMBNAIL_CACHE_PRUNE_INTERVAL} 次写入巡检一次，避免目录无限增长。 */
+    private void pruneThumbnailCacheIfNeeded(Path cacheRoot) {
+        int ops = thumbnailCacheOps.incrementAndGet();
+        if (ops != 1 && ops % THUMBNAIL_CACHE_PRUNE_INTERVAL != 0) return;
+        try (java.util.stream.Stream<Path> stream = Files.list(cacheRoot)) {
+            List<Path> entries = stream.filter(Files::isRegularFile)
+                    .filter(p -> {
+                        String name = p.getFileName().toString();
+                        return name.endsWith(".jpg") || name.endsWith(".png");
+                    })
+                    .sorted(java.util.Comparator.comparingLong(this::lastModifiedMillis))
+                    .collect(Collectors.toList());
+            int excess = entries.size() - THUMBNAIL_CACHE_MAX_ENTRIES;
+            for (int i = 0; i < excess; i++) {
+                try {
+                    Files.deleteIfExists(entries.get(i));
+                } catch (Exception ignored) {
+                    // 单条清理失败不阻断其余
+                }
+            }
+        } catch (Exception e) {
+            log.debug("缩略图缓存容量巡检失败: {}", e.getMessage());
+        }
+    }
+
+    /**
+     * 清掉该 fileId 的所有版本缩略图缓存（替换/删除时调用，尽力而为）。
+     * 文件名以 {@code <fileId>-} 开头，天然按文件隔离，不会误删其他文件条目。
+     */
+    void evictThumbnailCache(Long fileId) {
+        if (fileId == null) return;
+        Path root = thumbnailCacheRoot();
+        if (!Files.isDirectory(root)) return;
+        String prefix = fileId + "-";
+        try (java.util.stream.Stream<Path> stream = Files.list(root)) {
+            stream.filter(Files::isRegularFile)
+                    .filter(p -> p.getFileName().toString().startsWith(prefix))
+                    .forEach(p -> {
+                        try {
+                            Files.deleteIfExists(p);
+                        } catch (Exception ignored) {
+                            // 清理失败仅留下孤立缓存，容量巡检会兜底
+                        }
+                    });
+        } catch (Exception e) {
+            log.debug("缩略图缓存清理失败 fileId={}: {}", fileId, e.getMessage());
+        }
+    }
+
+    private long lastModifiedMillis(Path path) {
+        try {
+            return Files.getLastModifiedTime(path).toMillis();
+        } catch (Exception e) {
+            return 0L;
+        }
+    }
+
+    private static String sha256Hex(String value) {
+        try {
+            byte[] digest = java.security.MessageDigest.getInstance("SHA-256")
+                    .digest(value.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            return java.util.HexFormat.of().formatHex(digest);
+        } catch (java.security.NoSuchAlgorithmException e) {
+            throw new IllegalStateException("SHA-256 不可用", e);
         }
     }
 
@@ -959,23 +1207,96 @@ public class FileService {
      * 【激励文件可见性】与 pageFiles incentive 分支同规则：
      * shared=1 且非本人名下的激励记录中，fileIds/filePreIds/fileMidIds/filePostIds/fileTrackIds
      * 任一集合包含 fileId 即视为列表可见，列表可见即可下载。
+     * <p>【性能 file-3 2026-10-18】原实现每个缩略图请求都 selectList 全量共享记录并逐条解析 5 个 JSON 槽
+     * （N 个缩略图 = N 次全量加载）。现改为每用户缓存可见 fileId 集合 + 每次请求先查轻量指纹。
      */
     private boolean isIncentiveFileVisible(Long fileId, Long userId) {
+        return fileId != null && incentiveVisibleFileIds(userId).contains(fileId);
+    }
+
+    /**
+     * 返回"他人 shared=1 激励记录"五槽文件的并集（可能为空集）。
+     * <p><b>安全性说明（为什么不会越权、何时失效）：</b>
+     * <ul>
+     *   <li>调用前提：{@link #canDownloadFile} 已先走 canAccessFile（管理员/公开文件/上传者/被分享者快速放行），
+     *       只有这些都不满足的激励文件才会进入本方法；cache 只影响"是否可见"的重复计算，不改变判定规则。</li>
+     *   <li>缓存键 = userId + 当前集团；集合只含 {@code shared=1 且 user_id<>本人} 的五槽 fileId，
+     *       绝不会把本人私有/未分享记录放进集合。加载时再次按 shared/userId 过滤，防御 SQL/桩异常。</li>
+     *   <li>每次请求仍先执行轻量指纹查询（COUNT/MAX(id)/MAX(updated_at)，参数绑定、租户插件照常生效），
+     *       指纹变化立即重载；TTL（≤30s）到期即使指纹未变也强制重载，因此撤销激励共享/修改槽位后
+     *       最长 30s 内失效。失败（指纹为 null 或加载抛异常）不使用/不写入缓存。</li>
+     *   <li>空集合按 TTL 缓存（避免不可见文件反复触发全量加载），最长 30s 后重新判定。</li>
+     * </ul>
+     */
+    private Set<Long> incentiveVisibleFileIds(Long userId) {
+        if (userId == null) return Collections.emptySet();
+        String fingerprint = incentiveRecordMapper.selectSharedVisibilityFingerprint(userId);
+        if (fingerprint == null) {
+            // 指纹不可用（异常/无结果）：退回原全量加载口径，且不写缓存
+            return loadIncentiveVisibleFileIds(userId);
+        }
+        long now = incentiveCacheClock.getAsLong();
+        String cacheKey = incentiveCacheKey(userId);
+        IncentiveVisibilityCache cached = incentiveVisibilityCache.get(cacheKey);
+        if (cached != null && cached.expiresAtNanos > now && cached.fingerprint.equals(fingerprint)) {
+            return cached.visibleFileIds;
+        }
+        Set<Long> visible = loadIncentiveVisibleFileIds(userId);
+        incentiveVisibilityCache.put(cacheKey,
+                new IncentiveVisibilityCache(fingerprint, now + INCENTIVE_VISIBILITY_TTL_NANOS, visible));
+        pruneExpiredIncentiveVisibility(now);
+        return visible;
+    }
+
+    /** 按原口径全量加载：SELECT shared=1 AND user_id<>userId，解析五槽 JSON 并合并。 */
+    private Set<Long> loadIncentiveVisibleFileIds(Long userId) {
+        if (userId == null) return Collections.emptySet();
         List<BizIncentiveRecord> sharedRecords = incentiveRecordMapper.selectList(
                 new LambdaQueryWrapper<BizIncentiveRecord>()
                         .eq(BizIncentiveRecord::getShared, 1)
                         .ne(BizIncentiveRecord::getUserId, userId)
         );
+        Set<Long> ids = new java.util.HashSet<>();
         for (BizIncentiveRecord r : sharedRecords) {
-            if (r.getFileIds().contains(fileId)
-                    || r.getFilePreIds().contains(fileId)
-                    || r.getFileMidIds().contains(fileId)
-                    || r.getFilePostIds().contains(fileId)
-                    || r.getFileTrackIds().contains(fileId)) {
-                return true;
+            // 双重校验 shared/userId：即使 mapper 返回越界行也不得进入可见集合
+            if (r == null || !Integer.valueOf(1).equals(r.getShared())
+                    || userId.equals(r.getUserId())) {
+                continue;
             }
+            ids.addAll(r.getFileIds());
+            ids.addAll(r.getFilePreIds());
+            ids.addAll(r.getFileMidIds());
+            ids.addAll(r.getFilePostIds());
+            ids.addAll(r.getFileTrackIds());
         }
-        return false;
+        return ids.isEmpty() ? Collections.emptySet() : Collections.unmodifiableSet(ids);
+    }
+
+    /** 缓存键含当前集团：切换集团后租户过滤口径不同，禁止复用另一集团的集合。 */
+    private String incentiveCacheKey(Long userId) {
+        Long groupId = null;
+        var current = SecurityUtils.getCurrentUser();
+        if (current != null) groupId = current.getCurrentGroupId();
+        return userId + ":" + (groupId == null ? "-" : groupId);
+    }
+
+    /** 条目较多时顺手清掉过期项，防止不同用户的过期集合长期驻留内存。 */
+    private void pruneExpiredIncentiveVisibility(long now) {
+        if (incentiveVisibilityCache.size() < INCENTIVE_CACHE_PRUNE_THRESHOLD) return;
+        incentiveVisibilityCache.values().removeIf(entry -> entry.expiresAtNanos <= now);
+    }
+
+    /** 每用户可见激励文件集合快照（只读；不含任何权限/封禁结论）。 */
+    private static final class IncentiveVisibilityCache {
+        private final String fingerprint;
+        private final long expiresAtNanos;
+        private final Set<Long> visibleFileIds;
+
+        private IncentiveVisibilityCache(String fingerprint, long expiresAtNanos, Set<Long> visibleFileIds) {
+            this.fingerprint = fingerprint;
+            this.expiresAtNanos = expiresAtNanos;
+            this.visibleFileIds = visibleFileIds;
+        }
     }
 
     // ====== 文件分享 ======

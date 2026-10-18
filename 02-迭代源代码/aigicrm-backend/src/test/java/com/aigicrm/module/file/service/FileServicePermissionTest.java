@@ -22,6 +22,7 @@ import com.aigicrm.module.system.entity.SysUser;
 import com.aigicrm.module.system.mapper.SysUserMapper;
 import com.aigicrm.security.SecurityUtils;
 import jakarta.servlet.http.HttpServletResponse;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -59,15 +60,57 @@ class FileServicePermissionTest {
     private final FileService svc = new FileService(fileMapper, folderMapper, fileShareMapper, folderAclMapper,
             incentiveRecordMapper, userMapper, providerOf(ossClient), ossConfig, folderPermissionService);
 
+    private java.nio.file.Path thumbCacheDir;
+
     @BeforeEach
-    void setUp() {
+    void setUp() throws Exception {
         // 绕过 @Value 注入：storageType 固定 local（与生产默认一致，使存储走真实本地落盘路径，替换/下载用例可验证文件内容），
         // uploadDir 指向临时目录，避免下载路径 Paths.get(null,...) 依赖异常吞掉的巧合
         ReflectionTestUtils.setField(svc, "storageType", "local");
         ReflectionTestUtils.setField(svc, "uploadDir", System.getProperty("java.io.tmpdir"));
+        // 【性能 file-3】缩略图缓存目录隔离到本用例临时目录，避免跨用例/跨次运行串味
+        thumbCacheDir = java.nio.file.Files.createTempDirectory("aigicrm-thumb-cache-test-");
+        ReflectionTestUtils.setField(svc, "thumbnailCacheDir", thumbCacheDir.toString());
         // 纯 mock 环境初始化 Lambda 缓存，使 LambdaQueryWrapper.getSqlSegment() 可用
         TableInfoHelper.initTableInfo(new MapperBuilderAssistant(new MybatisConfiguration(), ""), BizFile.class);
         TableInfoHelper.initTableInfo(new MapperBuilderAssistant(new MybatisConfiguration(), ""), BizFileShare.class);
+    }
+
+    @AfterEach
+    void tearDown() throws Exception {
+        if (thumbCacheDir == null) return;
+        try (java.util.stream.Stream<java.nio.file.Path> walk = java.nio.file.Files.walk(thumbCacheDir)) {
+            walk.sorted(java.util.Comparator.reverseOrder()).forEach(p -> {
+                try {
+                    java.nio.file.Files.deleteIfExists(p);
+                } catch (Exception ignored) {
+                    // 测试清理尽力而为
+                }
+            });
+        }
+    }
+
+    /** 【性能 file-3】直接调用 writeThumbnail 的用例需要带 fileId/version/ossKey 的元数据构造缓存键 */
+    private static BizFile thumbnailFile(long id, String fileName) {
+        BizFile file = new BizFile();
+        file.setId(id);
+        file.setFileName(fileName);
+        file.setVersion(1);
+        file.setOssKey("test/" + id + "/" + fileName);
+        return file;
+    }
+
+    /** 写一张测试图片（2×2 渐变，便于验证解码后尺寸/格式） */
+    private static void writeTestImage(java.nio.file.Path path, String format, int width, int height) throws Exception {
+        int type = "png".equals(format)
+                ? java.awt.image.BufferedImage.TYPE_INT_ARGB
+                : java.awt.image.BufferedImage.TYPE_INT_RGB;
+        java.awt.image.BufferedImage image = new java.awt.image.BufferedImage(width, height, type);
+        java.awt.Graphics2D g = image.createGraphics();
+        g.setPaint(new java.awt.GradientPaint(0, 0, java.awt.Color.RED, width, height, java.awt.Color.BLUE));
+        g.fillRect(0, 0, width, height);
+        g.dispose();
+        javax.imageio.ImageIO.write(image, format, path.toFile());
     }
 
     private static ObjectProvider<OSS> providerOf(OSS client) {
@@ -814,7 +857,7 @@ class FileServicePermissionTest {
         javax.imageio.ImageIO.write(big, "jpg", f.toFile());
 
         MockHttpServletResponse resp = new MockHttpServletResponse();
-        Boolean ok = ReflectionTestUtils.invokeMethod(svc, "writeThumbnail", f, "big.jpg", resp);
+        Boolean ok = ReflectionTestUtils.invokeMethod(svc, "writeThumbnail", thumbnailFile(901L, "big.jpg"), f, resp);
         assertNotNull(ok);
         assertTrue(ok);
         assertEquals("image/jpeg", resp.getContentType());
@@ -835,7 +878,7 @@ class FileServicePermissionTest {
         javax.imageio.ImageIO.write(big, "png", f.toFile());
 
         MockHttpServletResponse resp = new MockHttpServletResponse();
-        Boolean ok = ReflectionTestUtils.invokeMethod(svc, "writeThumbnail", f, "big.png", resp);
+        Boolean ok = ReflectionTestUtils.invokeMethod(svc, "writeThumbnail", thumbnailFile(902L, "big.png"), f, resp);
         assertNotNull(ok);
         assertTrue(ok);
         assertEquals("image/png", resp.getContentType());
@@ -881,7 +924,7 @@ class FileServicePermissionTest {
         javax.imageio.ImageIO.write(small, "png", f.toFile());
 
         MockHttpServletResponse resp = new MockHttpServletResponse();
-        Boolean ok = ReflectionTestUtils.invokeMethod(svc, "writeThumbnail", f, "small.png", resp);
+        Boolean ok = ReflectionTestUtils.invokeMethod(svc, "writeThumbnail", thumbnailFile(903L, "small.png"), f, resp);
         assertNotNull(ok);
         assertTrue(ok);
         java.awt.image.BufferedImage thumb = javax.imageio.ImageIO.read(new ByteArrayInputStream(resp.getContentAsByteArray()));
@@ -895,7 +938,7 @@ class FileServicePermissionTest {
         java.nio.file.Path f = java.nio.file.Files.createTempFile("doc", ".txt");
         java.nio.file.Files.writeString(f, "not an image");
         MockHttpServletResponse resp = new MockHttpServletResponse();
-        Boolean ok = ReflectionTestUtils.invokeMethod(svc, "writeThumbnail", f, "doc.txt", resp);
+        Boolean ok = ReflectionTestUtils.invokeMethod(svc, "writeThumbnail", thumbnailFile(904L, "doc.txt"), f, resp);
         assertNotNull(ok);
         assertFalse(ok);
         java.nio.file.Files.deleteIfExists(f);
@@ -931,5 +974,214 @@ class FileServicePermissionTest {
             svc.replaceFile(9L, mf);
             verify(fileMapper).updateById(any(BizFile.class));
         }
+    }
+
+    // ====== 【性能 file-3 2026-10-18】缩略图字节缓存 / 激励可见集合缓存 ======
+
+    @Test
+    void download_thumbnail_afterOriginalDeleted_servesCacheButStillAuthorizes() throws Exception {
+        java.nio.file.Path original = java.nio.file.Files.createTempFile(
+                java.nio.file.Paths.get(System.getProperty("java.io.tmpdir")), "thumb-cache-src-", ".png");
+        writeTestImage(original, "png", 800, 600);
+
+        BizFile file = new BizFile();
+        file.setId(910L);
+        file.setFileName("cached.png");
+        file.setFileScope("public");
+        file.setUploaderId(1L);
+        file.setOssKey(original.getFileName().toString());
+        file.setVersion(1);
+        file.setFileSize(java.nio.file.Files.size(original));
+        when(fileMapper.selectById(910L)).thenReturn(file);
+
+        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
+            m.when(SecurityUtils::getCurrentUserId).thenReturn(1L);
+            m.when(SecurityUtils::isAdmin).thenReturn(false);
+
+            MockHttpServletResponse first = new MockHttpServletResponse();
+            svc.downloadById(910L, null, true, first);
+            assertEquals(200, first.getStatus());
+            assertEquals("image/png", first.getContentType());
+            // 缩略图来自已授权内容，必须 private（不得被共享代理缓存）
+            assertEquals("private, max-age=3600", first.getHeader("Cache-Control"));
+            assertNotNull(first.getHeader("ETag"));
+            assertTrue(first.getContentAsByteArray().length > 0);
+
+            assertTrue(java.nio.file.Files.deleteIfExists(original), "测试前提: 原图已删除");
+
+            MockHttpServletResponse second = new MockHttpServletResponse();
+            svc.downloadById(910L, null, true, second);
+            assertEquals(200, second.getStatus());
+            assertEquals(first.getHeader("ETag"), second.getHeader("ETag"));
+            assertArrayEquals(first.getContentAsByteArray(), second.getContentAsByteArray(),
+                    "第二次应直接命中缓存字节，不再打开原图");
+        }
+
+        // 缓存不参与鉴权：两个请求仍各读一次元数据，canDownloadFile 在 writeThumbnail 之前照常执行
+        verify(fileMapper, times(2)).selectById(910L);
+
+        svc.evictThumbnailCache(910L);
+        try (java.util.stream.Stream<java.nio.file.Path> stream = java.nio.file.Files.list(thumbCacheDir)) {
+            assertFalse(stream.anyMatch(p -> p.getFileName().toString().startsWith("910-")),
+                    "删除/替换清理应移除该 fileId 的缩略图缓存");
+        }
+    }
+
+    @Test
+    void download_thumbnail_cacheHit_doesNotBypassAuthorization() throws Exception {
+        java.nio.file.Path original = java.nio.file.Files.createTempFile(
+                java.nio.file.Paths.get(System.getProperty("java.io.tmpdir")), "thumb-auth-src-", ".jpg");
+        writeTestImage(original, "jpg", 320, 240);
+
+        BizFile file = new BizFile();
+        file.setId(911L);
+        file.setFileName("auth.jpg");
+        file.setFileScope("private");
+        file.setUploaderId(1L);
+        file.setOssKey(original.getFileName().toString());
+        file.setVersion(1);
+        file.setFileSize(java.nio.file.Files.size(original));
+        when(fileMapper.selectById(911L)).thenReturn(file);
+        when(fileShareMapper.selectCount(any())).thenReturn(0L);
+
+        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
+            m.when(SecurityUtils::getCurrentUserId).thenReturn(1L);
+            m.when(SecurityUtils::isAdmin).thenReturn(false);
+            MockHttpServletResponse uploader = new MockHttpServletResponse();
+            svc.downloadById(911L, null, true, uploader);
+            assertEquals(200, uploader.getStatus());
+            assertTrue(uploader.getContentAsByteArray().length > 0);
+        }
+
+        // 缓存已存在，但另一无权限用户仍必须被 403 拦截，且不能返回缓存字节
+        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
+            m.when(SecurityUtils::getCurrentUserId).thenReturn(2L);
+            m.when(SecurityUtils::isAdmin).thenReturn(false);
+            MockHttpServletResponse denied = new MockHttpServletResponse();
+            svc.downloadById(911L, null, true, denied);
+            assertEquals(403, denied.getStatus());
+            assertEquals(0, denied.getContentAsByteArray().length);
+        }
+
+        verify(fileShareMapper, atLeastOnce()).selectCount(any());
+        svc.evictThumbnailCache(911L);
+        java.nio.file.Files.deleteIfExists(original);
+    }
+
+    @Test
+    void incentiveVisibility_twoFileRequests_fullLoadSharedRecordsOnce() {
+        when(incentiveRecordMapper.selectSharedVisibilityFingerprint(2L)).thenReturn("2:10:1700000000");
+        BizIncentiveRecord sharedA = new BizIncentiveRecord();
+        sharedA.setUserId(3L);
+        sharedA.setShared(1);
+        sharedA.setFileIds(List.of(9L));
+        BizIncentiveRecord sharedB = new BizIncentiveRecord();
+        sharedB.setUserId(4L);
+        sharedB.setShared(1);
+        sharedB.setFileTrackIds(List.of(10L));
+        when(incentiveRecordMapper.selectList(any())).thenReturn(List.of(sharedA, sharedB));
+        when(fileShareMapper.selectCount(any())).thenReturn(0L);
+
+        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
+            m.when(SecurityUtils::isAdmin).thenReturn(false);
+            assertTrue(svc.canDownloadFile(anIncentiveFile(9L, 1L), 2L));
+            assertTrue(svc.canDownloadFile(anIncentiveFile(10L, 1L), 2L));
+        }
+
+        // 两个不同文件共用一次全量加载；每个请求仍做一次轻量指纹查询
+        verify(incentiveRecordMapper, times(1)).selectList(any());
+        verify(incentiveRecordMapper, times(2)).selectSharedVisibilityFingerprint(2L);
+    }
+
+    @Test
+    void incentiveVisibility_sharedZeroAndOwnRecords_notVisible() {
+        when(incentiveRecordMapper.selectSharedVisibilityFingerprint(2L)).thenReturn("2:10:1700000000");
+        BizIncentiveRecord notShared = new BizIncentiveRecord();
+        notShared.setUserId(3L);
+        notShared.setShared(0);
+        notShared.setFileIds(List.of(9L));
+        BizIncentiveRecord ownRecord = new BizIncentiveRecord();
+        ownRecord.setUserId(2L);
+        ownRecord.setShared(1);
+        ownRecord.setFileIds(List.of(9L));
+        when(incentiveRecordMapper.selectList(any())).thenReturn(List.of(notShared, ownRecord));
+        when(fileShareMapper.selectCount(any())).thenReturn(0L);
+
+        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
+            m.when(SecurityUtils::isAdmin).thenReturn(false);
+            // 即使 SQL 层过滤失效、mapper 返回了 shared=0 或本人记录，加载侧二次过滤也必须不可见
+            assertFalse(svc.canDownloadFile(anIncentiveFile(9L, 1L), 2L));
+        }
+        verify(incentiveRecordMapper).selectList(any());
+    }
+
+    @Test
+    void incentiveVisibility_fingerprintChange_reloadsSetImmediately() {
+        when(incentiveRecordMapper.selectSharedVisibilityFingerprint(2L))
+                .thenReturn("2:10:1700000000", "3:11:1700000001");
+        BizIncentiveRecord before = new BizIncentiveRecord();
+        before.setUserId(3L);
+        before.setShared(1);
+        before.setFileIds(List.of(9L));
+        BizIncentiveRecord after = new BizIncentiveRecord();
+        after.setUserId(3L);
+        after.setShared(1);
+        after.setFileIds(List.of(10L));
+        when(incentiveRecordMapper.selectList(any())).thenReturn(List.of(before), List.of(after));
+        when(fileShareMapper.selectCount(any())).thenReturn(0L);
+
+        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
+            m.when(SecurityUtils::isAdmin).thenReturn(false);
+            assertTrue(svc.canDownloadFile(anIncentiveFile(9L, 1L), 2L));
+            assertTrue(svc.canDownloadFile(anIncentiveFile(10L, 1L), 2L));
+            // 指纹变化后旧文件立即不可见（撤销共享无需等 TTL）
+            assertFalse(svc.canDownloadFile(anIncentiveFile(9L, 1L), 2L));
+        }
+        verify(incentiveRecordMapper, times(2)).selectList(any());
+    }
+
+    @Test
+    void incentiveVisibility_ttlExpiry_forcesReloadEvenWithSameFingerprint() {
+        java.util.concurrent.atomic.AtomicLong now = new java.util.concurrent.atomic.AtomicLong(1_000_000_000L);
+        ReflectionTestUtils.setField(svc, "incentiveCacheClock", (java.util.function.LongSupplier) now::get);
+        when(incentiveRecordMapper.selectSharedVisibilityFingerprint(2L)).thenReturn("2:10:1700000000");
+        BizIncentiveRecord shared = new BizIncentiveRecord();
+        shared.setUserId(3L);
+        shared.setShared(1);
+        shared.setFileIds(List.of(9L));
+        when(incentiveRecordMapper.selectList(any())).thenReturn(List.of(shared));
+        when(fileShareMapper.selectCount(any())).thenReturn(0L);
+
+        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
+            m.when(SecurityUtils::isAdmin).thenReturn(false);
+            assertTrue(svc.canDownloadFile(anIncentiveFile(9L, 1L), 2L));
+            assertTrue(svc.canDownloadFile(anIncentiveFile(9L, 1L), 2L)); // TTL 内同指纹：复用集合
+            now.addAndGet(java.util.concurrent.TimeUnit.SECONDS.toNanos(30) + 1); // 超过 30s：强制重载
+            assertTrue(svc.canDownloadFile(anIncentiveFile(9L, 1L), 2L));
+        }
+        verify(incentiveRecordMapper, times(2)).selectList(any());
+    }
+
+    @Test
+    void thumbnailCacheKey_invalidatedByVersionAndOriginalMtime() throws Exception {
+        java.nio.file.Path f = java.nio.file.Files.createTempFile("thumb-key-", ".png");
+        writeTestImage(f, "png", 20, 20);
+        BizFile file = thumbnailFile(912L, "key.png");
+
+        String baseKey = ReflectionTestUtils.invokeMethod(svc, "thumbnailCacheKey", file, f, true);
+        assertNotNull(baseKey);
+
+        file.setVersion(2);
+        String versionKey = ReflectionTestUtils.invokeMethod(svc, "thumbnailCacheKey", file, f, true);
+        assertNotEquals(baseKey, versionKey, "version 变化必须换 key");
+
+        file.setVersion(1);
+        long mtime = java.nio.file.Files.getLastModifiedTime(f).toMillis();
+        java.nio.file.Files.setLastModifiedTime(f,
+                java.nio.file.attribute.FileTime.fromMillis(mtime + 5_000L));
+        String mtimeKey = ReflectionTestUtils.invokeMethod(svc, "thumbnailCacheKey", file, f, true);
+        assertNotEquals(baseKey, mtimeKey, "原文件 mtime 变化必须换 key");
+
+        java.nio.file.Files.deleteIfExists(f);
     }
 }
