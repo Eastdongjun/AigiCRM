@@ -24,10 +24,15 @@ const allCount = computed(() => tabs.value.find((t) => t.type === 'all')?.count 
 const warningCount = computed(() => tabCounts.value['预警中'] || 0)
 const expiredCount = computed(() => tabCounts.value['已超期'] || 0)
 
-const metrics = computed(() => [
-  { num: allCount.value, label: '客户总数(全部)' },
-  { num: currentTab.value?.count || 0, label: currentTab.value?.label || '当前分类' },
-  { num: warningCount.value, label: '预警中' },
-  { num: expiredCount.value, label: '已超期', alert: expiredCount.value > 0 },
-])
+// 【ui-5 2026-10-17】默认「全部」页签下 currentTab 就是「全部」，第二位与首位同值同义(截图 20|20)。
+// 仅当切到具体分类页签时才追加该分类计数；不新增数据口径，切换页签后指标仍各自正确。
+const metrics = computed(() => {
+  const list = [{ num: allCount.value, label: '客户总数(全部)' }]
+  if (activeTab.value !== 'all') {
+    list.push({ num: currentTab.value?.count || 0, label: currentTab.value?.label || '当前分类' })
+  }
+  list.push({ num: warningCount.value, label: '预警中' })
+  list.push({ num: expiredCount.value, label: '已超期', alert: expiredCount.value > 0 })
+  return list
+})
 </script>

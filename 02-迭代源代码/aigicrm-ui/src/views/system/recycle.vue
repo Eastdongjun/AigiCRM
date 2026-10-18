@@ -693,9 +693,10 @@ onMounted(() => {
   pointer-events: none;
 }
 .hero-copy { position: relative; z-index: 1; min-width: 0; }
-.hero-eyebrow { display: inline-block; font-size: 12px; letter-spacing: 1.2px; color: rgba(255, 255, 255, .66); margin-bottom: 8px; }
+/* 【对比度 2026-10-17】深蓝 hero 12-13px 辅助字统一 ≥.92：最亮端点 #2563eb 上 4.65:1 达 AA */
+.hero-eyebrow { display: inline-block; font-size: 12px; letter-spacing: 1.2px; color: rgba(255, 255, 255, .92); margin-bottom: 8px; }
 .hero-title { margin: 0; font-size: 24px; font-weight: 700; line-height: 1.2; color: #fff; letter-spacing: .5px; }
-.hero-sub { margin: 8px 0 0; font-size: 13px; line-height: 1.5; color: rgba(255, 255, 255, .78); }
+.hero-sub { margin: 8px 0 0; font-size: 13px; line-height: 1.5; color: rgba(255, 255, 255, .92); }
 .hero-stats { position: relative; z-index: 1; display: flex; align-items: stretch; gap: 10px; flex-shrink: 0; }
 .hero-metric {
   display: flex; align-items: center; gap: 12px; min-width: 132px;
@@ -719,7 +720,7 @@ onMounted(() => {
 }
 .hm-body { display: flex; flex-direction: column; gap: 2px; }
 .hm-num { font-size: var(--font-num-hero, 26px); font-weight: 700; line-height: 1.1; color: #fff; font-variant-numeric: tabular-nums; }
-.hm-label { font-size: 12px; color: rgba(255, 255, 255, .76); white-space: nowrap; }
+.hm-label { font-size: 12px; color: rgba(255, 255, 255, .92); white-space: nowrap; }
 
 /* ===== 列表主卡 ===== */
 .recycle-panel {
@@ -792,7 +793,8 @@ onMounted(() => {
 .avatar-file { background: linear-gradient(140deg, #f1f4f9, #e6ebf3); color: #5c6675; }
 .entity-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .entity-name { font-size: 13.5px; color: #1f2329; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; transition: color .15s ease; }
-.entity-meta { font-size: 11.5px; color: #8a94a6; font-variant-numeric: tabular-nums; }
+/* 【对比度 2026-10-17】#8a94a6 白底 3.06:1 → --text-muted 4.83:1 达 AA */
+.entity-meta { font-size: 11.5px; color: var(--text-muted); font-variant-numeric: tabular-nums; }
 .type-chip {
   display: inline-block; padding: 2px 9px; border-radius: 5px; background: #f2f6fc;
   color: #44618d; font-size: 12px;
@@ -803,7 +805,8 @@ onMounted(() => {
 .scope-incentive { background: #fff5e6; color: #b26a00; }
 .status-chip { display: inline-block; padding: 2px 9px; border-radius: 10px; font-size: 12px; }
 .status-chip.on { background: #eaf7ef; color: #2f8f5b; }
-.status-chip.off { background: #f2f4f7; color: #8a94a6; }
+/* 【对比度 2026-10-17】#8a94a6 on #f2f4f7 仅 2.9:1；#5c6675 为 5.28:1，达 AA */
+.status-chip.off { background: #f2f4f7; color: #5c6675; }
 .text-strong { color: #1f2329; }
 .mono-text { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12.5px; color: #3f4a5a; }
 .muted-text { color: #7a8494; font-size: 12.5px; }
@@ -825,14 +828,14 @@ onMounted(() => {
 .drawer-icon-file { background: linear-gradient(140deg, #4b5b70, #7a8ba3); }
 .drawer-copy { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .drawer-title { font-size: 16px; font-weight: 600; color: #1f2329; }
-.drawer-sub { font-size: 12px; color: #8a94a6; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.drawer-sub { font-size: 12px; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .detail-body { min-height: 220px; }
 .detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .detail-item {
   display: flex; flex-direction: column; gap: 3px; padding: 9px 12px;
   background: #f8fafc; border: 1px solid #eef2f8; border-radius: 8px; min-width: 0;
 }
-.di-label { font-size: 11.5px; color: #8a94a6; }
+.di-label { font-size: 11.5px; color: var(--text-muted); }
 .di-value { font-size: 13px; color: #1f2329; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .detail-section-title { margin: 18px 0 9px; font-size: 13px; font-weight: 600; color: #1f2329; }
 .related-grid { display: flex; flex-wrap: wrap; gap: 7px; }

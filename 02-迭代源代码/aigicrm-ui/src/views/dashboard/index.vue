@@ -6,20 +6,26 @@
     <div class="hero-band" v-if="!pageLoading">
       <!-- 【工作流复核确认修复】钻取统一带 tab=all(与已超期卡同口径): 否则落默认"成熟创新"页签
            叠加 devType 过滤, 数字与落地列表严重不对应(实测 264→20) -->
-      <div class="hero-metric drill" @click="$router.push({ path: '/customer', query: { tab: 'all' } })">
+      <div class="hero-metric drill" role="button" tabindex="0"
+        @click="$router.push({ path: '/customer', query: { tab: 'all' } })"
+        @keydown="onCardKeydown($event, () => $router.push({ path: '/customer', query: { tab: 'all' } }))">
         <div class="hm-label">客户总数</div>
         <div class="hm-num">{{ stats.myCustomers || 0 }}</div>
         <div class="hm-sub">本月新增 {{ stats.monthNew || 0 }} · 公海 {{ stats.seaStats?.total || 0 }}</div>
       </div>
       <div class="hero-divider"></div>
-      <div class="hero-metric drill" @click="$router.push({ path: '/customer', query: { status: 'normal', tab: 'all' } })">
+      <div class="hero-metric drill" role="button" tabindex="0"
+        @click="$router.push({ path: '/customer', query: { status: 'normal', tab: 'all' } })"
+        @keydown="onCardKeydown($event, () => $router.push({ path: '/customer', query: { status: 'normal', tab: 'all' } }))">
         <div class="hm-label">在保护期</div>
         <div class="hm-num">{{ stats.inProtection || 0 }}</div>
         <div class="hm-sub">占比 {{ protectionRate }}%</div>
         <div class="hero-track"><div class="hero-fill" :style="{ width: protectionRate + '%' }"></div></div>
       </div>
       <div class="hero-divider"></div>
-      <div class="hero-metric drill" @click="$router.push('/reminder')">
+      <div class="hero-metric drill" role="button" tabindex="0"
+        @click="$router.push('/reminder')"
+        @keydown="onCardKeydown($event, () => $router.push('/reminder'))">
         <div class="hm-label">即将到期</div>
         <div class="hm-num">
           {{ stats.expiring || 0 }}<span class="hm-chip chip-amber" v-if="stats.expiring">30天内</span>
@@ -35,7 +41,9 @@
       <div class="hero-divider"></div>
       <!-- 【A3 2026-10-08】点击落到客户列表「超期」筛选（tab=all 全分类口径），数字与落地内容对应 -->
       <!-- 【口径统一 2026-10-09 用户裁决】已超期=expireDate<今日且不含公海/归档，与统计页/列表钻取同判据，「（含公海）」标注移除 -->
-      <div class="hero-metric drill" @click="$router.push({ path: '/customer', query: { status: 'expired', tab: 'all' } })">
+      <div class="hero-metric drill" role="button" tabindex="0"
+        @click="$router.push({ path: '/customer', query: { status: 'expired', tab: 'all' } })"
+        @keydown="onCardKeydown($event, () => $router.push({ path: '/customer', query: { status: 'expired', tab: 'all' } }))">
         <div class="hm-label">已超期</div>
         <div class="hm-num">
           {{ stats.expired || 0 }}<span class="hm-chip chip-red" v-if="stats.expired">需处理</span>
@@ -54,7 +62,8 @@
     <!-- 【PR-10 前端 2026-09-19】待办任务; 【PR-11 后续批次】销售=self激励/阅读, 管理=审批概览/范围 -->
     <div class="stat-row secondary" v-if="!pageLoading">
       <!-- 【工作流复核确认修复】待办任务卡加 task:view 门控(后端 /api/task/* 均要求该权限, 无权限角色点击即 403) -->
-      <div class="stat-card drill" v-if="userStore.hasPermission('task:view')" @click="$router.push('/task')">
+      <div class="stat-card drill" v-if="userStore.hasPermission('task:view')" role="button" tabindex="0"
+        @click="$router.push('/task')" @keydown="onCardKeydown($event, () => $router.push('/task'))">
         <div class="stat-info">
           <div class="stat-label">待办任务</div>
           <div class="stat-num">{{ taskStats.pending || 0 }}</div>
@@ -71,7 +80,8 @@
         </div>
         <el-icon class="stat-icon" :size="22"><CircleCheck /></el-icon>
       </div>
-      <div class="stat-card drill" v-if="isSalesRole" @click="$router.push('/score/ranking')">
+      <div class="stat-card drill" v-if="isSalesRole" role="button" tabindex="0"
+        @click="$router.push('/score/ranking')" @keydown="onCardKeydown($event, () => $router.push('/score/ranking'))">
         <div class="stat-info">
           <div class="stat-label">我的激励积分</div>
           <div class="stat-num">{{ myScore || 0 }}</div>
@@ -88,7 +98,8 @@
         </div>
         <el-icon class="stat-icon" :size="22"><Reading /></el-icon>
       </div>
-      <div class="stat-card drill" v-if="!isSalesRole" @click="$router.push('/approval')">
+      <div class="stat-card drill" v-if="!isSalesRole" role="button" tabindex="0"
+        @click="$router.push('/approval')" @keydown="onCardKeydown($event, () => $router.push('/approval'))">
         <div class="stat-info">
           <div class="stat-label">待我审批</div>
           <div class="stat-num">{{ stats.approvalStats?.pending || 0 }}</div>
@@ -120,7 +131,8 @@
 
     <!-- 快捷入口 -->
     <div class="quick-row">
-      <div class="quick-item" v-for="q in quickActions" :key="q.label" @click="$router.push(q.path)">
+      <div class="quick-item" v-for="q in quickActions" :key="q.label" role="button" tabindex="0"
+        @click="$router.push(q.path)" @keydown="onCardKeydown($event, () => $router.push(q.path))">
         <el-icon :size="26"><component :is="q.icon" /></el-icon>
         <span>{{ q.label }}</span>
       </div>
@@ -235,6 +247,15 @@ import { defaultRecordPeriod } from '@/utils/incentive-period'
 
 const router = useRouter()
 const userStore = useUserStore()
+
+// 【可访问性 2026-10-17】指标/快捷入口卡为可点击 div，补 role="button" 后需自行响应
+// Enter/Space（原生 button 才内置该行为）；Space 阻止页面滚动
+const onCardKeydown = (event, action) => {
+  if (event.key === 'Enter' || event.key === ' ' || event.key === 'Spacebar') {
+    event.preventDefault()
+    action()
+  }
+}
 const stats = ref({})
 const reminders = ref([])
 const activities = ref([])
@@ -488,29 +509,39 @@ onMounted(() => {
 }
 /* 骨架屏形态：深蓝底上用半透明白条，避免灰条压蓝底的脏色；display 覆盖为块级，让骨架条占满整带 */
 .hero-skeleton { display: block; --el-skeleton-color: rgba(255, 255, 255, .14); --el-skeleton-to-color: rgba(255, 255, 255, .26); }
-.slow-tip { margin-top: 10px; font-size: 12px; color: rgba(255, 255, 255, .85); }
+/* 深蓝底小字统一 ≥.92：最亮渐变色 #2563eb 上 .92 白字约 4.65:1，达 AA；数字仍为纯白保持层级 */
+.slow-tip { margin-top: 10px; font-size: 12px; color: rgba(255, 255, 255, .92); }
 .hero-metric { min-width: 0; padding: 2px 0; }
 .hero-metric.drill { cursor: pointer; transition: opacity .2s; border-radius: 8px; }
 .hero-metric.drill:hover { opacity: .82; }
+.hero-metric.drill:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
 .hero-divider { width: 1px; background: rgba(255, 255, 255, .18); margin: 4px 0; }
-.hm-label { font-size: 13px; color: rgba(255, 255, 255, .72); margin-bottom: 10px; letter-spacing: .3px; }
+/* 【对比度 2026-10-17】.72→.95：最亮端点 #2563eb 上 3.44→4.82:1，13px 辅助标签达 AA */
+.hm-label { font-size: 13px; color: rgba(255, 255, 255, .95); margin-bottom: 10px; letter-spacing: .3px; }
 /* 【B6】大数字唯一档 --font-num-hero(30px)，收敛此前 32/30/28 三档并存 */
 .hm-num { font-size: var(--font-num-hero); font-weight: 700; line-height: 1.1; color: #fff; display: flex; align-items: center; gap: 10px; }
-/* 【E17】12px 白字压深蓝底，透明度 .6→.8 后对比度才接近 AA */
-.hm-sub { font-size: 12px; color: rgba(255, 255, 255, .8); margin-top: 8px; }
+/* 【E17】12px 白字压深蓝底；【对比度 2026-10-17】.8 在 #2563eb 端点仅 3.89:1，提到 .92（4.65:1）达 AA */
+.hm-sub { font-size: 12px; color: rgba(255, 255, 255, .92); margin-top: 8px; }
 .hm-chip { font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: var(--radius-pill); white-space: nowrap; }
 /* chip-amber 保留唯一语义：警告(即将到期)。进度条改白色半透明，黄色不再一色两义 */
-.chip-amber { background: rgba(251, 191, 36, .22); color: #fcd34d; border: 1px solid rgba(251, 191, 36, .45); }
-.chip-red { background: rgba(248, 113, 113, .2); color: #fca5a5; border: 1px solid rgba(248, 113, 113, .45); }
+/* 【对比度 2026-10-17】原浅黄/浅红字压同色半透明底在 #2563eb 端点仅 3.05/2.65:1；
+   改实心浅色底+深色字：琥珀 8.97:1、红 6.93:1，12px 达 AA（与全站 effect=light 标签同质感） */
+.chip-amber { background: #fbbf24; color: #451a03; border: 1px solid #fbbf24; }
+.chip-red { background: #fecaca; color: #7f1d1d; border: 1px solid #fecaca; }
 .hero-track { height: 4px; background: rgba(255, 255, 255, .18); border-radius: 2px; margin-top: 10px; overflow: hidden; }
 .hero-fill { height: 100%; background: rgba(255, 255, 255, .85); border-radius: 2px; transition: width .4s; }
 .hm-tags { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
 .hm-tag { font-size: 12px; padding: 2px 8px; border-radius: 4px; white-space: nowrap; }
 .ht-strong { color: #fff; background: rgba(248, 113, 113, .32); }
-.ht-plain { color: rgba(255, 255, 255, .85); background: rgba(255, 255, 255, .14); }
+/* 【对比度 2026-10-17】半白底会把底色调亮，白字 .85 仅约 3.5:1；改为纯白+更淡的底(.06)，
+   最亮端点 #2563eb 上约 4.65:1，12px 达 AA 且保留轻量胶囊感 */
+.ht-plain { color: #fff; background: rgba(255, 255, 255, .06); }
 
 /* —— 运营指标 · 白色定义卡(统排:数字同字号同色,语义只用图标色点) —— */
-.stat-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 16px; }
+/* 【ui-1 2026-10-17】固定四列改为 auto-fit：有 task:view 时 4 卡、无权限时 2 卡都不留空列；
+   1200px 以下 4 卡会落成 3+1，故收为两列（1024/768 为 2×2），卡片最小 220px 不挤压 */
+.stat-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-bottom: 16px; }
+@media (max-width: 1200px) { .stat-row { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 .stat-card {
   background: #fff; border: 1px solid var(--border-light);
   border-radius: var(--radius-lg); padding: 20px 24px;
@@ -520,6 +551,7 @@ onMounted(() => {
 }
 .stat-card:hover { box-shadow: var(--shadow-card-hover); transform: translateY(-2px); }
 .stat-card.drill { cursor: pointer; }
+.stat-card.drill:focus-visible { outline: 2px solid var(--el-color-primary); outline-offset: 2px; }
 .stat-label { font-size: 14px; color: var(--text-muted); margin-bottom: 8px; font-weight: 500; }
 /* 【B6】大数字唯一档 --font-num-hero；【B8】深蓝大数字色接线 --brand-navy 令牌 */
 .stat-num { font-size: var(--font-num-hero); font-weight: 700; line-height: 1.15; color: var(--brand-navy); letter-spacing: .2px; }
@@ -543,6 +575,7 @@ onMounted(() => {
   box-shadow: var(--shadow-card);
 }
 .quick-item:hover { border-color: var(--el-color-primary); color: var(--el-color-primary); box-shadow: var(--shadow-card-hover); transform: translateY(-2px); }
+.quick-item:focus-visible { outline: 2px solid var(--el-color-primary); outline-offset: 2px; }
 .quick-item span { font-size: 13px; }
 
 /* —— 每周横向进度条 —— */
@@ -577,7 +610,8 @@ onMounted(() => {
 .pt-gray { color: var(--text-muted); }
 .panel-link { font-size: 13px; color: var(--el-color-primary); cursor: pointer; }
 .panel-link:hover { text-decoration: underline; }
-.empty-tip { text-align: center; color: var(--text-placeholder); padding: 32px 0; font-size: 14px; }
+/* 【对比度 2026-10-17】空态提示属于可读信息，--text-placeholder(#94a3b8) 仅 2.56:1，改用 --text-muted(4.83:1) */
+.empty-tip { text-align: center; color: var(--text-muted); padding: 32px 0; font-size: 14px; }
 
 .remind-list { max-height: 320px; overflow-y: auto }
 .remind-row { display: flex; align-items: flex-start; gap: 12px; padding: 14px 0; border-bottom: 1px solid #f5f5f5; }

@@ -54,7 +54,7 @@ const pageSizeOptions = pageSizes(30)
 
 const {
   activeTab, page, pageSize, total, onCurrentChange, onSizeChange,
-  loadBizConfig, loadData, loadStats, loadScopeCounts,
+  loadBizConfig, loadData, loadStats,
   loadRegions, loadIndustryOptions, loadFilterData,
 } = list
 
@@ -62,7 +62,6 @@ onMounted(() => {
   loadBizConfig()
   loadData()
   loadStats()
-  loadScopeCounts()
   loadRegions()
   loadIndustryOptions()
   loadFilterData()

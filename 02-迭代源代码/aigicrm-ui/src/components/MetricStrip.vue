@@ -5,7 +5,11 @@
   <div class="metric-strip">
     <template v-for="(m, i) in metrics" :key="i">
       <div v-if="i > 0" class="ms-divider"></div>
-      <div class="ms-metric" :class="{ drill: interactive }" @click="interactive && emit('metric-click', i)">
+      <div class="ms-metric" :class="{ drill: interactive }"
+        :role="interactive ? 'button' : null" :tabindex="interactive ? 0 : null"
+        @click="interactive && emit('metric-click', i)"
+        @keydown.enter="interactive && emit('metric-click', i)"
+        @keydown.space.prevent="interactive && emit('metric-click', i)">
         <div class="ms-num" :class="{ 'ms-alert': m.alert }">
           {{ m.num }}<span v-if="m.chip" class="ms-chip">{{ m.chip }}</span>
         </div>
@@ -39,12 +43,17 @@ const emit = defineEmits(['metric-click'])
 }
 .ms-metric { min-width: 76px }
 .ms-metric.drill { cursor: pointer }
+.ms-metric.drill:focus-visible { outline: 2px solid #fff; outline-offset: 3px; border-radius: 6px; }
 .ms-num { font-size: 24px; font-weight: 700; color: #fff; line-height: 1.2; font-variant-numeric: tabular-nums }
-.ms-num.ms-alert { color: #fca5a5 }
+/* 【对比度 2026-10-17】#fca5a5 在最亮端点 #2563eb 仅 2.72:1；#fecaca 为大字号(24px/700) 3.57:1 达 AA 大字 3:1 */
+.ms-num.ms-alert { color: #fecaca }
+/* 【对比度 2026-10-17】浅黄字压琥珀半透明底仅约 3.05:1；改实心琥珀底+深色字 8.97:1，12px 达 AA */
 .ms-chip { font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: var(--radius-pill); white-space: nowrap; margin-left: 8px; vertical-align: 4px;
-  background: rgba(251, 191, 36, .22); color: #fcd34d; border: 1px solid rgba(251, 191, 36, .45) }
-.ms-lbl { font-size: 12px; color: rgba(255, 255, 255, .66); margin-top: 2px }
-.ms-desc { font-size: 12px; color: rgba(255, 255, 255, .48); margin-top: 2px; line-height: 1.4 }
+  background: #fbbf24; color: #451a03; border: 1px solid #fbbf24 }
+/* 【对比度 2026-10-17】12px 小字按最亮渐变端点 #2563eb 取值：.66→.95(3.14→4.82:1)、
+   .48→.92(2.34→4.65:1)、.55→.92(2.63→4.65:1)，全部达 WCAG AA；数字保持纯白维持层级 */
+.ms-lbl { font-size: 12px; color: rgba(255, 255, 255, .95); margin-top: 2px }
+.ms-desc { font-size: 12px; color: rgba(255, 255, 255, .92); margin-top: 2px; line-height: 1.4 }
 .ms-divider { width: 1px; height: 34px; background: rgba(255, 255, 255, .18) }
-.ms-tip { margin-left: auto; font-size: 12px; color: rgba(255, 255, 255, .55) }
+.ms-tip { margin-left: auto; font-size: 12px; color: rgba(255, 255, 255, .92) }
 </style>

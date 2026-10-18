@@ -222,13 +222,22 @@ watch(customer, (v) => { if (v?.customerName) loadIncentiveRecords() })
 .hero-expire { text-align:right }.expire-date { font-size:28px; font-weight:700 }
 .expire-tag { display:inline-flex; align-items:center; gap:4px; padding:2px 10px; border-radius: var(--radius-md); font-size:12px; margin-top:2px }
 .expire-tag.lvl-red { background:rgba(245,108,108,.3) }.expire-tag.lvl-orange { background:rgba(230,162,60,.3) }.expire-tag.lvl-blue { background:rgba(255,255,255,.2) }
-.stat-cards { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:20px }
+/* 【ui-1 2026-10-17】5 张卡固定 4 列会在第二行留 3 个空列；改为自适应：
+   ≥1280 一行 5 张（每张约 190px），1024-1279 收为 3+2，≤900 收为 2 列且末张奇数卡跨满行，避免空洞/挤压 */
+.stat-cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); gap:12px; margin-bottom:20px }
+@media (max-width:1279px) { .stat-cards { grid-template-columns:repeat(3,minmax(0,1fr)) } }
+@media (max-width:900px) {
+  .stat-cards { grid-template-columns:repeat(2,minmax(0,1fr)) }
+  .stat-card:last-child:nth-child(odd) { grid-column:1 / -1 }
+}
 /* 【PR-11 首批】统一作业概览条 */
 .overview-strip { display:flex; gap:24px; flex-wrap:wrap; background:#f8fafc; border:1px solid #e2e8f0; border-radius: var(--radius-md); padding:12px 16px; margin-bottom:14px }
 .overview-item { min-width:220px; flex:1 }
-.overview-label { display:block; font-size:12px; color:#94a3b8; margin-bottom:4px }
+/* 【对比度 2026-10-17】浅色条上的辅助字改用 --text-muted(#6b7280)：在 #f8fafc 上 4.62:1，
+   原 #94a3b8=2.45、#cbd5e1=1.42 均不达 AA */
+.overview-label { display:block; font-size:12px; color:var(--text-muted); margin-bottom:4px }
 .overview-value { font-size:13px; color:#334155; word-break:break-all }
-.overview-value.muted { color:#cbd5e1 }
+.overview-value.muted { color:var(--text-muted) }
 /* 【UI 整改 2026-10-08·⑨】蓝底 hero 上的辅助字改近白色（原 #64748b 对比度约 1.6:1 不可读，现 ≥4.5:1） */
 .expire-days { font-size:12px; color:rgba(255,255,255,.92); text-align:right; margin-top:4px }
 .stat-card { background:#fff; border-radius: var(--radius-md); padding:18px 16px; display:flex; align-items:center; gap:14px; box-shadow:0 1px 3px rgba(0,0,0,.04); transition:box-shadow .2s }
@@ -238,7 +247,8 @@ watch(customer, (v) => { if (v?.customerName) loadIncentiveRecords() })
 .stat-icon-box.blue { background:var(--el-color-primary-light-9); color:var(--el-color-primary) }.stat-icon-box.green { background:#f0f9eb; color:var(--el-color-success) }
 .stat-num { font-size:22px; font-weight:700; color:#1f2329; line-height:1.2 }
 .stat-unit { font-size:12px; font-weight:500; margin-left:2px }
-.stat-label { font-size:12px; color:var(--el-color-info); margin-top:2px }
+/* 【对比度 2026-10-17】--el-color-info(#909399) 白底仅 3.08:1，改 --text-muted(4.83:1) 达 AA */
+.stat-label { font-size:12px; color:var(--text-muted); margin-top:2px }
 .detail-tabs { background:#fff; border-radius: var(--radius-md); padding:4px 20px 20px; box-shadow:0 1px 3px rgba(0,0,0,.04) }
 .detail-tabs :deep(.el-tabs__header) { margin-bottom:16px }
 .detail-tabs :deep(.el-tabs__item) { font-size:14px; font-weight:500 }

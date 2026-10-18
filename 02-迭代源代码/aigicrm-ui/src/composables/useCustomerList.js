@@ -321,7 +321,7 @@ export function useCustomerList() {
   }
 
   // 释放/删除/导入成功后统一刷新
-  const refreshAll = () => { loadData(); loadStats(); loadScopeCounts() }
+  const refreshAll = () => { loadData(); loadStats(); loadTabCounts() }
 
   const loadFilterData = async () => {
     try {
