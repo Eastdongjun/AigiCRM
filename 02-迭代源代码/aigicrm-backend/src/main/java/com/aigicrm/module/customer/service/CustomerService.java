@@ -612,9 +612,28 @@ public class CustomerService {
         if (!customerAccessService.canDelete(id)) {
             throw new org.springframework.security.access.AccessDeniedException("只能删除自己范围内的客户");
         }
+        deleteCustomerRecord(id, existing);
+    }
+
+    /**
+     * 【审查 biz-3 2026-10-18】公海池删除的客户侧统一入口。
+     * 调用方(SeaService.deletePool)已完成池级 PERM_DELETE 与池行结束/锁；这里仍复跑
+     * "无活跃池行 + 票款/在途审批保护 + 分享/提醒清理 + 删除快照"完整流程，
+     * 与客户列表删除共用 {@link #deleteCustomerRecord}，避免公海入口绕过快照留痕。
+     */
+    @Transactional
+    public void deleteFromSeaPool(Long id) {
+        BizCustomer existing = customerMapper.selectById(id);
+        if (existing == null) return; // 已被并发删除: 幂等
+        deleteCustomerRecord(id, existing);
+    }
+
+    /** 客户删除统一内核（调用方已完成权限/入口校验）: 池行守卫→业务保护→软删→分享/提醒→快照 */
+    private void deleteCustomerRecord(Long id, BizCustomer existing) {
         // 【审计 data-2 修复 2026-10-18】客户列表删除必须尊重公海归属:存在未捞取池行
         // (available/pending_approval)时拒绝,引导到公海管理删除(按池级 sea:pool:delete 授权)。
         // 不在此静默删除池行——那会绕过池级权限,且让审批中的捞取单指向已删客户。
+        // 【审查 biz-3 2026-10-18】公海入口调用前已结束池行，因此同一守卫仍成立且不用放开。
         Long activeSeaPoolRows = seaPoolMapper.selectCount(
                 new LambdaQueryWrapper<BizSeaPool>()
                         .eq(BizSeaPool::getCustomerId, id)
@@ -625,8 +644,6 @@ public class CustomerService {
         // 【议题五.3 裁决 2026-09-19】有业务数据的客户不允许删,转停用:
         assertDeletable(id);
         customerMapper.deleteById(id);
-        // 【2026-10-09】客户删除是终态,分享行与 pending 分享提醒一并清理:
-        // 悬挂的分享提醒在列表上表现为 customerName 整列「—」(客户已被 @TableLogic 过滤,回填查不到)
         removeAllShares(id);
         // 【体检 P1 2026-10-12】INV-05 全量口径: 删除是终态, 该客户全部类型的 pending 提醒
         // (expiring/invoice_*)一并清理, 防死行重新积压(摸底 59 条的主供给源)
@@ -1379,6 +1396,9 @@ public class CustomerService {
 
     @Transactional
     public void addInvoice(Long customerId, BizInvoice invoice) {
+        // 【审查 backend-4 2026-10-18】财务写入口自守: 客户必须存在/未删/同集团,
+        // 不依赖控制器层 finance:manage 分支的放行(代录也不能对已删/跨集团客户落台账)
+        customerAccessService.assertFinanceCustomerWritable(customerId);
         invoice.setCustomerId(customerId);
         invoice.setCreatedBy(SecurityUtils.getCurrentUserId());
         invoiceMapper.insert(invoice);
@@ -2057,6 +2077,8 @@ public class CustomerService {
 
     @Transactional
     public void addPayment(Long customerId, BizPayment payment) {
+        // 【审查 backend-4 2026-10-18】与 addInvoice 同口径: 客户存在/未删/同集团
+        customerAccessService.assertFinanceCustomerWritable(customerId);
         payment.setCustomerId(customerId);
         payment.setCreatedBy(SecurityUtils.getCurrentUserId());
         paymentMapper.insert(payment);

@@ -239,12 +239,12 @@ class SeaServiceTest {
 
         assertThrows(BusinessException.class, () -> svc.deletePool(1L));
         verify(custMapper, never()).deleteById(org.mockito.ArgumentMatchers.anyLong());
-        verify(poolMapper, never()).deleteById(org.mockito.ArgumentMatchers.anyLong());
+        verify(poolMapper, never()).delete(any());
     }
 
-    /** 正向: available 且客户可删 → 客户逻辑删 + 池行物理删(池级权限路径不经过 CustomerService.delete 守卫) */
+    /** 正向: available 且客户可删 → 先条件结束池行, 再走 CustomerService 统一删除(分享/提醒/快照) */
     @Test
-    void deletePool_availableCustomer_deletesCustomerAndPoolRow() {
+    void deletePool_availableCustomer_endsPoolThenUnifiedCustomerDelete() {
         BizSeaPoolMapper poolMapper = mock(BizSeaPoolMapper.class);
         BizSeaPool available = new BizSeaPool();
         available.setId(1L);
@@ -252,6 +252,7 @@ class SeaServiceTest {
         available.setCustomerId(500L);
         available.setStatus("available");
         when(poolMapper.selectById(1L)).thenReturn(available);
+        when(poolMapper.delete(any())).thenReturn(1);
 
         BizSeaConfig enabled = new BizSeaConfig();
         enabled.setId(10L);
@@ -260,14 +261,20 @@ class SeaServiceTest {
         when(configService.listVisible()).thenReturn(List.of(enabled));
 
         BizCustomerMapper custMapper = customerMapper();
+        CustomerService customerService = mock(CustomerService.class);
         SeaService svc = new SeaService(poolMapper, mock(BizSeaConfigMapper.class), custMapper,
-                mock(SysUserMapper.class), mock(SysDeptMapper.class), configService,
-                mock(CustomerService.class),
+                mock(SysUserMapper.class), mock(SysDeptMapper.class), configService, customerService,
                 mock(com.aigicrm.module.system.service.SysConfigService.class));
 
         svc.deletePool(1L);
-        verify(custMapper).deleteById(500L);
-        verify(poolMapper).deleteById(1L);
+
+        // 池行条件删除(status=available) 先于统一客户删除; 客户删除的唯一写入口是 CustomerService
+        ArgumentCaptor<LambdaQueryWrapper<BizSeaPool>> cap = ArgumentCaptor.forClass((Class) LambdaQueryWrapper.class);
+        verify(poolMapper).delete(cap.capture());
+        assertTrue(cap.getValue().getSqlSegment().contains("status"), "池行删除必须带状态条件: " + cap.getValue().getSqlSegment());
+        assertTrue(cap.getValue().getParamNameValuePairs().containsValue("available"));
+        verify(customerService).deleteFromSeaPool(500L);
+        verify(custMapper, never()).deleteById(org.mockito.ArgumentMatchers.anyLong());
     }
 
     // ===== completeClaim 捞取重置口径（2026-10-08 需求对齐 P1 修复） =====

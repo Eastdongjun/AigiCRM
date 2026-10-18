@@ -310,15 +310,38 @@ class RecycleServiceTest {
     }
 
     @Test
-    void restoreFile_folderMissing_rejected() {
+    void restoreFile_folderMissing_restoresToRoot() {
+        // 【审查 biz-2 2026-10-18】原文件夹已硬删且 ID 不复用: 恢复到根目录而非报错要求重建旧夹
         stubLockedFile(deletedFile(11L, "public", 7L, 9L, 1024));
         when(fileService.contentExists(anyString())).thenReturn(true);
         when(fileFolderMapper.selectById(7L)).thenReturn(null);
+        when(fileMapper.restoreDeletedToRoot(11L)).thenReturn(1);
 
-        BusinessException ex = assertThrows(BusinessException.class, () -> service.restoreFile(11L));
+        String message = service.restoreFile(11L);
 
-        assertTrue(ex.getMessage().contains("原文件夹已删除"), "实际: " + ex.getMessage());
+        assertTrue(message.contains("根目录"), "恢复提示须说明已改挂根目录: " + message);
+        verify(fileMapper).restoreDeletedToRoot(11L);
         verify(fileMapper, never()).restoreDeleted(anyLong());
+        verify(logMapper).insert(any(SysLog.class));
+    }
+
+    /**
+     * 【审查 data-3 2026-10-18】恢复的 TOCTOU 防线：先对 biz_file 行 FOR UPDATE，
+     * 锁内做内容存在性检查，最后条件恢复；与清理路径锁同一行，清理失败保留台账（见下方用例）。
+     */
+    @Test
+    void restoreFile_locksRowBeforeContentCheck_andConditionalUpdate() {
+        BizFile file = deletedFile(11L, "public", null, 9L, 1024);
+        stubLockedFile(file);
+        when(fileService.contentExists(anyString())).thenReturn(true);
+        when(fileMapper.restoreDeleted(11L)).thenReturn(1);
+
+        service.restoreFile(11L);
+
+        org.mockito.InOrder order = org.mockito.Mockito.inOrder(jdbc, fileService, fileMapper);
+        order.verify(jdbc).query(contains("FOR UPDATE"), org.mockito.ArgumentMatchers.<RowMapper<BizFile>>any(), eq(11L));
+        order.verify(fileService).contentExists("public/1/测试文件.pdf");
+        order.verify(fileMapper).restoreDeleted(11L);
     }
 
     @Test

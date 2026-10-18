@@ -28,7 +28,8 @@ class SysPositionRuleGuardTest {
                 mock(SysUserPositionMapper.class),
                 mock(SysPermissionRuleMapper.class),
                 cache,
-                mock(JdbcTemplate.class));
+                mock(JdbcTemplate.class),
+                mock(SysUserService.class));
     }
 
     @Test

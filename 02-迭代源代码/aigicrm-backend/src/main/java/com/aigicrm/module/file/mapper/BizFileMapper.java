@@ -42,4 +42,12 @@ public interface BizFileMapper extends BaseMapper<BizFile> {
     /** 恢复文件元数据(只更新 deleted=1 的行, 并发重复恢复返回 0) */
     @Update("UPDATE biz_file SET deleted = 0 WHERE id = #{id} AND deleted = 1")
     int restoreDeleted(@Param("id") Long id);
+
+    /**
+     * 【审查 biz-2 2026-10-18】原文件夹已删除时恢复到根目录:
+     * 文件夹是硬删除且 ID 不会复用, 保留旧 folder_id 会让恢复出的文件挂在不存在目录下;
+     * 同一条件更新内清空 folder_id, 原子恢复且不要求用户重建旧 ID。
+     */
+    @Update("UPDATE biz_file SET deleted = 0, folder_id = NULL WHERE id = #{id} AND deleted = 1")
+    int restoreDeletedToRoot(@Param("id") Long id);
 }

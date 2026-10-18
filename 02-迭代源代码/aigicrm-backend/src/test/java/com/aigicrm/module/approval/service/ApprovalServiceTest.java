@@ -989,6 +989,8 @@ class ApprovalServiceTest {
         customer.setLastInvoiceDate(java.time.LocalDate.of(2015, 5, 12));
         customer.setApprovedExtendDays(0);
         when(customerMapper.selectById(42L)).thenReturn(customer);
+        // 【审查 backend-3】执行侧改走行锁读
+        when(customerMapper.selectByIdForUpdate(42L)).thenReturn(customer);
 
         ApprovalService svc = new ApprovalService(
                 mock(BizApprovalConfigMapper.class), approvalMapper, nodeMapper,
@@ -1175,6 +1177,7 @@ class ApprovalServiceTest {
         customer.setRegisterDate(java.time.LocalDate.of(2026, 1, 1));
         customer.setApprovedExtendDays(0);
         when(customerMapper.selectById(42L)).thenReturn(customer);
+        when(customerMapper.selectByIdForUpdate(42L)).thenReturn(customer);
 
         ApprovalService svc = new ApprovalService(
                 mock(BizApprovalConfigMapper.class), approvalMapper, nodeMapper,
@@ -1225,6 +1228,7 @@ class ApprovalServiceTest {
         customer.setRegisterDate(java.time.LocalDate.of(2026, 1, 1));
         customer.setApprovedExtendDays(0);
         when(customerMapper.selectById(42L)).thenReturn(customer);
+        when(customerMapper.selectByIdForUpdate(42L)).thenReturn(customer);
 
         ApprovalService svc = new ApprovalService(
                 mock(BizApprovalConfigMapper.class), approvalMapper, nodeMapper,

@@ -115,12 +115,56 @@ public class SysUserService {
     }
 
     public IPage<SysUser> page(int current, int size, String keyword, String deptIds, Integer status) {
-        String scopedDeptIds = applyGroupScope(deptIds);
+        String scopedDeptIds = applyVisibleDeptScope(deptIds);
         if (scopedDeptIds == null) {
             // 越权请求或本集团确无可见组织：直接返回空页，不下发任何记录
             return new Page<>(current, size, 0);
         }
         return userMapper.selectUserPage(new Page<>(current, size), keyword, scopedDeptIds, status);
+    }
+
+    /**
+     * 【审查 perm-4 2026-10-18】人员列表与详情同口径的可见部门范围。
+     * 旧实现只按集团过滤，同集团内非 admin 也能看到不可见部门的人员（列表/详情口径分裂）。
+     * 现口径与 {@link #getById} 的读守卫一致：
+     * <ul>
+     *   <li>admin：不按部门过滤（仍保留调用方显式 deptIds）；</li>
+     *   <li>非 admin 且 OrgScopeResolver 返回 null（all 范围）：仍受集团边界约束（applyGroupScope）；</li>
+     *   <li>非 admin 其它范围：visibleDeptIds；组织管理员额外并入管辖组织子树；</li>
+     *   <li>可见部门为空 → 返回 null（上层空页）；请求的 deptIds 与可见集合取交集。</li>
+     * </ul>
+     */
+    private String applyVisibleDeptScope(String deptIds) {
+        if (SecurityUtils.isAdmin()) return StringUtils.hasText(deptIds) ? deptIds : "";
+        java.util.List<Long> visibleDeptIds = scopeResolver.resolveVisibleDeptIds(SecurityUtils.getCurrentUser());
+        if (visibleDeptIds == null) {
+            // all 范围：仍须落在当前用户集团的组织集合内（与 getById 的 all 分支同口径）
+            return applyGroupScope(deptIds);
+        }
+        java.util.Set<Long> allowed = new LinkedHashSet<>(visibleDeptIds);
+        if (SecurityUtils.isOrgAdmin()) {
+            java.util.List<Long> managedOrgIds = SecurityUtils.getCurrentManagedOrgIds();
+            if (managedOrgIds != null) {
+                for (Long orgId : managedOrgIds) {
+                    if (orgId == null) continue;
+                    allowed.add(orgId);
+                    java.util.List<Long> descendants = deptMapper.selectDescendantIds(orgId);
+                    if (descendants != null) allowed.addAll(descendants);
+                }
+            }
+        }
+        if (allowed.isEmpty()) return null;
+        if (!StringUtils.hasText(deptIds)) {
+            return allowed.stream().map(String::valueOf).collect(java.util.stream.Collectors.joining(","));
+        }
+        java.util.Set<Long> requested = java.util.Arrays.stream(deptIds.split(","))
+                .map(String::trim)
+                .filter(StringUtils::hasText)
+                .map(Long::parseLong)
+                .collect(java.util.stream.Collectors.toSet());
+        requested.retainAll(allowed);
+        if (requested.isEmpty()) return null;
+        return requested.stream().map(String::valueOf).collect(java.util.stream.Collectors.joining(","));
     }
 
     /**
@@ -168,30 +212,8 @@ public class SysUserService {
         // 持 system:user:view/org:admin 者可按 ID 枚举任意用户全量 PII(0801 泄漏事件同源残留)。
         // 守卫: admin 全量; 本人恒可读; 其余目标用户必须落在当前用户的数据范围可见部门内
         // (self/team/office/region/dept/custom 各范围经 OrgScopeResolver 解析)。
-        if (!SecurityUtils.isAdmin() && !id.equals(SecurityUtils.getCurrentUserId())) {
-            Long targetDeptId = u.getDeptId();
-            java.util.List<Long> visibleDeptIds = scopeResolver.resolveVisibleDeptIds(SecurityUtils.getCurrentUser());
-            boolean allowed;
-            if (visibleDeptIds == null) {
-                // all 范围(总监等): 补集团边界——与列表 applyGroupScope 同口径, 防跨集团枚举
-                allowed = targetDeptId != null;
-                if (allowed) {
-                    String scoped = applyGroupScope(String.valueOf(targetDeptId));
-                    allowed = scoped != null && java.util.Arrays.asList(scoped.split(",")).contains(String.valueOf(targetDeptId));
-                }
-            } else {
-                allowed = targetDeptId != null && visibleDeptIds.contains(targetDeptId);
-                if (!allowed && targetDeptId != null && SecurityUtils.isOrgAdmin()) {
-                    // 组织管理员兜底: 目标在其管辖组织子树内也可读(与写操作 canManageUser 同权)
-                    for (Long orgId : SecurityUtils.getCurrentManagedOrgIds()) {
-                        if (orgId == null) continue;
-                        if (deptMapper.selectDescendantIds(orgId).contains(targetDeptId)) { allowed = true; break; }
-                    }
-                }
-            }
-            if (!allowed) {
-                throw new BusinessException("无权查看该用户");
-            }
+        if (!SecurityUtils.isAdmin() && !id.equals(SecurityUtils.getCurrentUserId()) && !isUserVisible(u)) {
+            throw new BusinessException("无权查看该用户");
         }
         if ("custom".equals(u.getDataScopeOverride())) {
             // 【2026-08-08 用户级 custom 授权】回填个人授权组织，供编辑表单回显
@@ -199,6 +221,46 @@ public class SysUserService {
                     .map(com.aigicrm.module.system.entity.SysUserOrg::getOrgId).toList());
         }
         return u;
+    }
+
+    /**
+     * 【审查 perm-3 2026-10-18】非 admin 写操作（岗位分配等）的目标用户可见性守卫。
+     * 与 {@link #getById} 同口径：目标用户必须存在，且落在调用者数据范围可见部门
+     * （visibleDeptIds）或组织管理员管辖组织子树内；admin 放行；本人恒可操作。
+     */
+    public void assertCanManageUser(Long userId) {
+        if (userId == null) throw new BusinessException("用户不存在");
+        SysUser target = userMapper.selectById(userId);
+        if (target == null) throw new BusinessException("用户不存在");
+        if (SecurityUtils.isAdmin()) return;
+        if (userId.equals(SecurityUtils.getCurrentUserId())) return;
+        if (!isUserVisible(target)) {
+            throw new BusinessException("无权操作该用户");
+        }
+    }
+
+    /** 目标用户是否在当前用户可见范围：visibleDeptIds / 组织管理员管辖子树；all 范围叠加集团边界 */
+    private boolean isUserVisible(SysUser target) {
+        Long targetDeptId = target.getDeptId();
+        java.util.List<Long> visibleDeptIds = scopeResolver.resolveVisibleDeptIds(SecurityUtils.getCurrentUser());
+        if (visibleDeptIds == null) {
+            // all 范围(总监等): 补集团边界——与列表 applyGroupScope 同口径, 防跨集团枚举
+            if (targetDeptId == null) return false;
+            String scoped = applyGroupScope(String.valueOf(targetDeptId));
+            return scoped != null && java.util.Arrays.asList(scoped.split(",")).contains(String.valueOf(targetDeptId));
+        }
+        boolean allowed = targetDeptId != null && visibleDeptIds.contains(targetDeptId);
+        if (!allowed && targetDeptId != null && SecurityUtils.isOrgAdmin()) {
+            // 组织管理员兜底: 目标在其管辖组织子树内也可读(与写操作 canManageUser 同权)
+            java.util.List<Long> managedOrgIds = SecurityUtils.getCurrentManagedOrgIds();
+            if (managedOrgIds != null) {
+                for (Long orgId : managedOrgIds) {
+                    if (orgId == null) continue;
+                    if (deptMapper.selectDescendantIds(orgId).contains(targetDeptId)) return true;
+                }
+            }
+        }
+        return allowed;
     }
 
     /**
@@ -253,8 +315,9 @@ public class SysUserService {
      * 可见范围来源：OrgScopeResolver.resolveVisibleDeptIds（与人员详情读权限同源）；
      * 组织管理员额外允许其管辖组织子树（SecurityUtils.getCurrentManagedOrgIds + dept 子树）。
      * all 范围用户仍受本集团边界约束（与 applyGroupScope/列表同口径）。
+     * 【审查 perm-3 2026-10-18】公开复用：岗位分配时校验岗位所属组织也在同一可见口径内。
      */
-    private void assertTargetOrgVisible(Long deptId, Long officeId, Long orgId) {
+    public void assertTargetOrgVisible(Long deptId, Long officeId, Long orgId) {
         if (SecurityUtils.isAdmin()) return;
         Set<Long> targets = new LinkedHashSet<>();
         if (deptId != null) targets.add(deptId);

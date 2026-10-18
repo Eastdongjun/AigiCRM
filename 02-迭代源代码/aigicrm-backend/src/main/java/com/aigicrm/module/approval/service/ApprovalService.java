@@ -266,6 +266,19 @@ public class ApprovalService {
                 if (!SecurityUtils.isAdmin() && !customerAccessService.canView(customerId)) {
                     throw new BusinessException(403, "您没有该客户的查看权限, 无法发起保护期延期");
                 }
+                // 【审查 backend-3 2026-10-18】同一客户只允许一张在途延期单:
+                // 先对客户行加锁(事务内)串行化并发提交, 再数 reviewing/pending 单据;
+                // 否则双击/并发可落两张单, 审批通过时同一天数会累加两次。
+                jdbc.queryForList("SELECT id FROM biz_customer WHERE id = ? AND deleted = 0 FOR UPDATE",
+                        Long.class, customerId);
+                Long activeExtend = approvalMapper.selectCount(
+                        new LambdaQueryWrapper<BizApproval>()
+                                .eq(BizApproval::getCustomerId, customerId)
+                                .eq(BizApproval::getApprovalType, "extend")
+                                .in(BizApproval::getStatus, "reviewing", "pending"));
+                if (activeExtend != null && activeExtend > 0) {
+                    throw new BusinessException("该客户已有进行中的保护期延期审批，请等待审批完成后再提交");
+                }
             }
             // 【P0 2026-10-17 体检修复】transfer 提交侧归属校验见下方接收人校验之后
             // (先报接收人错误, 再做客户归属校验, 保持既有错误口径)
@@ -773,7 +786,10 @@ public class ApprovalService {
                 // (=开票推导+累计已批延期)——删票回算开票部分不收回已批延期。
                 // 【延期B 2026-10-17】天数改从审批单 extraData.extendDays 读取(提交快照+审批人
                 // 可调整的最终值);2026-10-17 前的存量在途单无此键,回退 sys_config 保持旧行为。
-                BizCustomer customer = customerMapper.selectById(approval.getCustomerId());
+                // 【审查 backend-3 2026-10-18】客户行悲观锁后再读改写 approved_extend_days:
+                // 两张在途延期单并发通过时, 旧 selectById→内存加→updateById 会互相覆盖(少加天数);
+                // 锁内累加保证串行、每单只加一次。approve 为 @Transactional, 锁持有到提交。
+                BizCustomer customer = customerMapper.selectByIdForUpdate(approval.getCustomerId());
                 if (customer != null) {
                     // 【体检 P1 2026-10-12】公海守卫(执行侧): 在途期间客户被释放进公海时,
                     // 延期执行无条件 setStatus(normal) 会把客户拉回私海而池行残留——双归属。

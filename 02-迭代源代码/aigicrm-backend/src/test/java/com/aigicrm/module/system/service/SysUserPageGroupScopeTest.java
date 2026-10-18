@@ -61,6 +61,7 @@ class SysUserPageGroupScopeTest {
     @Mock SysRoleMapper roleMapper;
     @Mock SeaService seaService;
     @Mock SysDeptMapper deptMapper;
+    @Mock com.aigicrm.common.scope.OrgScopeResolver scopeResolver;
 
     /** 纯 mock 单测无 MyBatis 启动，手动注册 TableInfo 供 LambdaQueryWrapper 解析列名 */
     @BeforeAll
@@ -76,7 +77,7 @@ class SysUserPageGroupScopeTest {
                 customerMapper, shareMapper, jdbc, roleMapper, seaService, deptMapper, mock(com.aigicrm.module.system.mapper.SysUserOrgMapper.class),
                 mock(com.aigicrm.security.PermissionCacheService.class),
                 mock(com.aigicrm.security.JwtTokenProvider.class),
-                mock(com.aigicrm.common.scope.OrgScopeResolver.class),
+                scopeResolver,
                 mock(com.aigicrm.security.SecurityAuditService.class),
                 mock(com.aigicrm.module.common.service.FormDraftService.class));
     }
@@ -125,6 +126,8 @@ class SysUserPageGroupScopeTest {
         try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
             m.when(SecurityUtils::isAdmin).thenReturn(false);
             m.when(SecurityUtils::getCurrentGroupIds).thenReturn(List.of(1L));
+            // 显式声明 all 范围(null)以走集团边界分支; 空表 = 本集团无可见部门
+            when(scopeResolver.resolveVisibleDeptIds(any())).thenReturn(null);
             when(deptMapper.selectList(any())).thenReturn(Collections.emptyList());
 
             var result = service.page(1, 15, null, null, null);
@@ -132,5 +135,115 @@ class SysUserPageGroupScopeTest {
             assertEquals(0, result.getTotal(), "无可见部门应返回空页");
             verify(userMapper, never()).selectUserPage(any(), any(), any(), any());
         }
+    }
+
+    // ===== 【审查 perm-4 2026-10-18】列表与详情同口径：非 admin 按可见部门过滤 =====
+
+    private String capturedDeptIds(int current, int size, String requestedDeptIds) {
+        when(userMapper.selectUserPage(any(), any(), any(), any()))
+                .thenReturn(new Page<SysUser>(current, size));
+        SysUserService service = newService();
+        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
+            m.when(SecurityUtils::isAdmin).thenReturn(false);
+            m.when(SecurityUtils::getCurrentUser).thenReturn(new com.aigicrm.security.SecurityUser());
+            m.when(SecurityUtils::isOrgAdmin).thenReturn(false);
+            service.page(current, size, null, requestedDeptIds, null);
+        }
+        ArgumentCaptor<String> deptCaptor = ArgumentCaptor.forClass(String.class);
+        verify(userMapper).selectUserPage(any(), any(), deptCaptor.capture(), any());
+        return deptCaptor.getValue();
+    }
+
+    @Test
+    void nonAdminList_filtersByVisibleDeptIds() {
+        when(scopeResolver.resolveVisibleDeptIds(any())).thenReturn(List.of(100L, 101L));
+
+        String deptIds = capturedDeptIds(1, 15, null);
+
+        assertEquals("100,101", deptIds, "列表必须套用与详情一致的 visibleDeptIds");
+    }
+
+    @Test
+    void nonAdminList_requestedDeptOutsideVisible_returnsEmptyPage() {
+        when(scopeResolver.resolveVisibleDeptIds(any())).thenReturn(List.of(100L));
+        SysUserService service = newService();
+        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
+            m.when(SecurityUtils::isAdmin).thenReturn(false);
+            m.when(SecurityUtils::getCurrentUser).thenReturn(new com.aigicrm.security.SecurityUser());
+            m.when(SecurityUtils::isOrgAdmin).thenReturn(false);
+
+            var result = service.page(1, 15, null, "200", null);
+
+            assertEquals(0, result.getTotal());
+        }
+        verify(userMapper, never()).selectUserPage(any(), any(), any(), any());
+    }
+
+    @Test
+    void nonAdminList_requestedDeptIntersectsVisible() {
+        when(scopeResolver.resolveVisibleDeptIds(any())).thenReturn(List.of(100L));
+
+        String deptIds = capturedDeptIds(1, 15, "100,200");
+
+        assertEquals("100", deptIds, "请求范围必须收敛到可见部门交集");
+    }
+
+    @Test
+    void orgAdminList_includesManagedSubtree() {
+        when(scopeResolver.resolveVisibleDeptIds(any())).thenReturn(List.of(100L));
+        when(deptMapper.selectDescendantIds(50L)).thenReturn(List.of(50L, 200L));
+        when(userMapper.selectUserPage(any(), any(), any(), any()))
+                .thenReturn(new Page<SysUser>(1, 15));
+        SysUserService service = newService();
+        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
+            m.when(SecurityUtils::isAdmin).thenReturn(false);
+            m.when(SecurityUtils::getCurrentUser).thenReturn(new com.aigicrm.security.SecurityUser());
+            m.when(SecurityUtils::isOrgAdmin).thenReturn(true);
+            m.when(SecurityUtils::getCurrentManagedOrgIds).thenReturn(List.of(50L));
+
+            service.page(1, 15, null, null, null);
+        }
+        ArgumentCaptor<String> deptCaptor = ArgumentCaptor.forClass(String.class);
+        verify(userMapper).selectUserPage(any(), any(), deptCaptor.capture(), any());
+        assertEquals("100,50,200", deptCaptor.getValue(), "组织管理员应并入管辖组织子树");
+    }
+
+    @Test
+    void allScopeList_stillBoundByGroup() {
+        // all 范围：resolveVisibleDeptIds=null，仍走集团边界（applyGroupScope）
+        when(scopeResolver.resolveVisibleDeptIds(any())).thenReturn(null);
+        SysDept dept = new SysDept();
+        dept.setId(100L);
+        dept.setGroupId(1L);
+        when(deptMapper.selectList(any())).thenReturn(List.of(dept));
+        when(userMapper.selectUserPage(any(), any(), any(), any()))
+                .thenReturn(new Page<SysUser>(1, 15));
+        SysUserService service = newService();
+        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
+            m.when(SecurityUtils::isAdmin).thenReturn(false);
+            m.when(SecurityUtils::getCurrentUser).thenReturn(new com.aigicrm.security.SecurityUser());
+            m.when(SecurityUtils::getCurrentGroupIds).thenReturn(List.of(1L));
+
+            service.page(1, 15, null, null, null);
+        }
+        ArgumentCaptor<String> deptCaptor = ArgumentCaptor.forClass(String.class);
+        verify(userMapper).selectUserPage(any(), any(), deptCaptor.capture(), any());
+        assertEquals("100", deptCaptor.getValue(), "all 范围仍受集团边界约束");
+    }
+
+    @Test
+    void nonAdminList_emptyVisibleDepts_returnsEmptyPage() {
+        when(scopeResolver.resolveVisibleDeptIds(any())).thenReturn(List.of());
+        SysUserService service = newService();
+        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
+            m.when(SecurityUtils::isAdmin).thenReturn(false);
+            m.when(SecurityUtils::getCurrentUser).thenReturn(new com.aigicrm.security.SecurityUser());
+            m.when(SecurityUtils::isOrgAdmin).thenReturn(false);
+
+            var result = service.page(1, 15, null, null, null);
+
+            assertEquals(0, result.getTotal(), "无可见部门应返回空页");
+        }
+        verify(userMapper, never()).selectUserPage(any(), any(), any(), any());
     }
 }

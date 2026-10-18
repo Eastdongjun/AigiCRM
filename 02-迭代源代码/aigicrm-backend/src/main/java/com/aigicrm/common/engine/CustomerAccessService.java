@@ -187,12 +187,36 @@ public class CustomerAccessService {
      * 持 finance:manage 的财务专责可对任意客户录财务(录财务 ≠ 编辑客户资料,不要求是负责人);
      * 未持该码者维持原口径=assertCanEdit(负责人/编辑范围)。@PreAuthorize 已在控制器层
      * 要求 finance:manage 或 (customer:edit+finance:view),这里只放宽对象归属维度。
+     * 【审查 backend-4 2026-10-18】权限码放行前必须先过客户存在/未删/同集团校验——
+     * 否则代录可对任意 id（含已删/他集团）落发票回款，并把孤儿数据写进台账。
      */
     public void assertCanManageFinance(Long customerId) {
+        assertFinanceCustomerWritable(customerId);
         if (SecurityUtils.hasAuthority("finance:manage")) {
             return;
         }
         assertCanEdit(customerId);
+    }
+
+    /**
+     * 【审查 backend-4 2026-10-18】财务写路径的客户对象校验（存在、未逻辑删除、集团边界）。
+     * 非 admin 用 GroupScopeUtil.canAccessGroup 校验客户 tenant_id（显式绕过租户拦截器取真实值，
+     * 否则跨集团客户会被拦截器改写成"不存在"，无法给出明确 403）。admin 可跨集团。
+     * 供 assertCanManageFinance 与 CustomerService.addInvoice/addPayment 共用。
+     */
+    public void assertFinanceCustomerWritable(Long customerId) {
+        if (customerId == null) {
+            throw new BusinessException("客户不存在或已删除，无法录入财务记录");
+        }
+        if (!SecurityUtils.isAdmin()) {
+            Long tenantId = customerMapper.selectTenantIdById(customerId);
+            if (tenantId != null && !com.aigicrm.common.scope.GroupScopeUtil.canAccessGroup(tenantId)) {
+                throw new BusinessException(403, "无权操作其他集团的客户财务记录");
+            }
+        }
+        if (customerMapper.selectById(customerId) == null) {
+            throw new BusinessException("客户不存在或已删除，无法录入财务记录");
+        }
     }
 
     // ==================== 批量方法 ====================

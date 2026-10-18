@@ -316,14 +316,24 @@ public class SeaService {
         if (visiblePoolIds != null && !visiblePoolIds.contains(pool.getPoolId())) {
             throw new BusinessException(403, "资源不存在或无权访问");
         }
-        // 逻辑删除客户（biz_customer 有 deleted 列，走 MyBatis-Plus 逻辑删除）
-        // 【B4 2026-09-22】复用客户删除业务保护: 有票款/在途审批的公海客户同样不可删, 消除入口差异
+        // 【审查 biz-3 2026-10-18】不能直接 customerMapper.deleteById 绕过客户删除统一流程
+        // (分享/提醒清理由 CustomerService.delete 承担, 且它会拒绝活跃公海池行)。
+        // 顺序: 业务保护 → 条件结束(物理删)池行 → 走客户删除统一内核(含分享/提醒/快照)。
+        // 池行删除带 status='available' 条件: 与并发捞取(available→pending_approval)互斥,
+        // affected=0 说明状态已变化, 返回统一 404 文案并回滚; 客户删除失败则池行随事务回滚。
         if (pool.getCustomerId() != null) {
+            // 【B4 2026-09-22】复用客户删除业务保护: 有票款/在途审批的公海客户同样不可删, 消除入口差异
             customerService.assertDeletable(pool.getCustomerId());
-            customerMapper.deleteById(pool.getCustomerId());
         }
-        // 物理删除公海池记录（biz_sea_pool 无 deleted 列）
-        seaPoolMapper.deleteById(seaPoolId);
+        int ended = seaPoolMapper.delete(new LambdaQueryWrapper<BizSeaPool>()
+                .eq(BizSeaPool::getId, seaPoolId)
+                .eq(BizSeaPool::getStatus, "available"));
+        if (ended != 1) {
+            throw new BusinessException("资源不存在或无权访问");
+        }
+        if (pool.getCustomerId() != null) {
+            customerService.deleteFromSeaPool(pool.getCustomerId());
+        }
     }
 
     /**

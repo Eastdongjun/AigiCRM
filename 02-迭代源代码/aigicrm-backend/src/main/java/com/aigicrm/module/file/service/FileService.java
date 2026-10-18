@@ -339,6 +339,14 @@ public class FileService {
         folderMapper.deleteById(folderId);
     }
 
+    /**
+     * 删除文件（进入回收站）。
+     * 【审查 backend-5 2026-10-18】补事务 + 以逻辑删影响行数为唯一退款凭据：
+     * 旧实现 selectById→deleteById(丢弃返回值)→无条件 adjustStorageUsed，两个并发删除
+     * 都能读到同一行并各退一次配额(重复归还)。现在只有 deleted=0 行被本次请求真正删除
+     * (affected==1)才归还；affected==0 = 重复/并发删除，幂等返回成功且不二次退款。
+     */
+    @org.springframework.transaction.annotation.Transactional
     public void deleteFile(Long fileId) {
         BizFile file = fileMapper.selectById(fileId);
         if (file == null) return;
@@ -372,7 +380,11 @@ public class FileService {
         // 逻辑删除 + 配额归还保持原语义(私有文件删除即归还配额, 恢复时重新占用)。
 
         // 逻辑删除
-        fileMapper.deleteById(fileId);
+        int affected = fileMapper.deleteById(fileId);
+        if (affected != 1) {
+            // 并发/重复删除: 台账已不在活跃态, 不得二次归还配额; 幂等返回成功(前端不报错)
+            return;
+        }
 
         // 【P2 2026-10-09 配额并发修复】归还改数据库端原子增减, 消除读改写丢失更新
         if ("private".equals(file.getFileScope()) && file.getFileSize() != null) {

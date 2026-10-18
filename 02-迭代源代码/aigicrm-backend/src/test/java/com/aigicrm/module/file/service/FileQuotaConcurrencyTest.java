@@ -121,6 +121,7 @@ class FileQuotaConcurrencyTest {
         f.setFileScope("private");
         f.setUploaderId(7L);
         when(fileMapper.selectById(1L)).thenReturn(f);
+        when(fileMapper.deleteById(1L)).thenReturn(1);
         when(folderPermissionService.checkFile(eq(1L), org.mockito.ArgumentMatchers.<String>any(), anyLong())).thenReturn(true);
         try (var m = org.mockito.Mockito.mockStatic(com.aigicrm.security.SecurityUtils.class)) {
             m.when(com.aigicrm.security.SecurityUtils::getCurrentUserId).thenReturn(7L);
@@ -129,6 +130,53 @@ class FileQuotaConcurrencyTest {
         }
         verify(userMapper).adjustStorageUsed(eq(7L), eq(-80L));
         verify(userMapper, never()).updateById(any(SysUser.class));
+    }
+
+    /**
+     * 【审查 backend-5 2026-10-18】重复删除只退款一次：第二次调用台账行已逻辑删
+     * (selectById 被 @TableLogic 过滤为 null)，直接幂等返回，不再归还配额。
+     */
+    @Test
+    void delete_repeatedCall_refundsOnlyOnce() {
+        BizFile f = new BizFile();
+        f.setId(1L);
+        f.setOssKey("private/7/x.bin");
+        f.setFileSize(80L);
+        f.setFileScope("private");
+        f.setUploaderId(7L);
+        when(fileMapper.selectById(1L)).thenReturn(f, (BizFile) null);
+        when(fileMapper.deleteById(1L)).thenReturn(1);
+        when(folderPermissionService.checkFile(eq(1L), org.mockito.ArgumentMatchers.<String>any(), anyLong())).thenReturn(true);
+        try (var m = org.mockito.Mockito.mockStatic(com.aigicrm.security.SecurityUtils.class)) {
+            m.when(com.aigicrm.security.SecurityUtils::getCurrentUserId).thenReturn(7L);
+            m.when(com.aigicrm.security.SecurityUtils::isAdmin).thenReturn(false);
+            svc.deleteFile(1L);
+            svc.deleteFile(1L);
+        }
+        verify(fileMapper, org.mockito.Mockito.times(1)).deleteById(1L);
+        verify(userMapper, org.mockito.Mockito.times(1)).adjustStorageUsed(eq(7L), eq(-80L));
+    }
+
+    /**
+     * 【审查 backend-5 2026-10-18】并发删除：双方都读到活跃行，但只有一方逻辑删影响行数=1；
+     * 败者 affected=0 不得归还配额。
+     */
+    @Test
+    void delete_concurrentAffectedZero_noRefund() {
+        BizFile f = new BizFile();
+        f.setId(1L);
+        f.setFileSize(80L);
+        f.setFileScope("private");
+        f.setUploaderId(7L);
+        when(fileMapper.selectById(1L)).thenReturn(f);
+        when(fileMapper.deleteById(1L)).thenReturn(0); // 他人已删
+        when(folderPermissionService.checkFile(eq(1L), org.mockito.ArgumentMatchers.<String>any(), anyLong())).thenReturn(true);
+        try (var m = org.mockito.Mockito.mockStatic(com.aigicrm.security.SecurityUtils.class)) {
+            m.when(com.aigicrm.security.SecurityUtils::getCurrentUserId).thenReturn(7L);
+            m.when(com.aigicrm.security.SecurityUtils::isAdmin).thenReturn(false);
+            svc.deleteFile(1L);
+        }
+        verify(userMapper, never()).adjustStorageUsed(anyLong(), org.mockito.ArgumentMatchers.anyLong());
     }
 
     @Test

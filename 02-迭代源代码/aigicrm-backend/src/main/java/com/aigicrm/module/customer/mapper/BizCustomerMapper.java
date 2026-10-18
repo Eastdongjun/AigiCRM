@@ -17,6 +17,14 @@ public interface BizCustomerMapper extends BaseMapper<BizCustomer> {
     @Select("SELECT IFNULL(MAX(CAST(SUBSTRING(customer_code, #{prefixLen} + 1) AS UNSIGNED)), 0) FROM biz_customer WHERE customer_code LIKE CONCAT(#{prefix}, '%') AND (#{tenantId} IS NULL OR tenant_id = #{tenantId})")
     int selectMaxCodeByPrefix(@Param("prefix") String prefix, @Param("prefixLen") int prefixLen, @Param("tenantId") Long tenantId);
 
+    /**
+     * 【审查 backend-3 2026-10-18】客户行悲观锁: 延期审批执行侧读改写 approved_extend_days
+     * 必须在锁内完成, 否则两张在途延期单并发通过时互相覆盖(少加天数)。
+     * 仅取未删除行; 调用方须在事务内使用。
+     */
+    @Select("SELECT * FROM biz_customer WHERE id = #{id} AND deleted = 0 FOR UPDATE")
+    BizCustomer selectByIdForUpdate(@Param("id") Long id);
+
     // ===== 【回收站 2026-10-18】已删除客户(显式 deleted=1 绕过 @TableLogic; 租户插件仍按会话集团过滤, admin 忽略) =====
 
     /** 分页查已删除客户(pattern 为已拼好 %kw%，空搜索传 '%%') */
@@ -34,6 +42,15 @@ public interface BizCustomerMapper extends BaseMapper<BizCustomer> {
     /** 含已删除行按 id 取(selectById 被 @TableLogic 过滤, 恢复流程需读原行) */
     @Select("SELECT * FROM biz_customer WHERE id = #{id}")
     BizCustomer selectByIdIncludingDeleted(@Param("id") Long id);
+
+    /**
+     * 【审查 backend-4 2026-10-18】客户所属集团(租户)ID, 显式绕过租户拦截器:
+     * 用于非 admin 财务代录的跨集团拒绝(被拦截器改写会恒空, 看不出"属于其他集团"只剩"不存在")。
+     * 只返回 tenant_id, 不泄露客户资料; deleted=1 视为不存在。
+     */
+    @com.baomidou.mybatisplus.annotation.InterceptorIgnore(tenantLine = "true")
+    @Select("SELECT tenant_id FROM biz_customer WHERE id = #{id} AND deleted = 0")
+    Long selectTenantIdById(@Param("id") Long id);
 
     /** 同名活跃客户数: >0 时恢复会造成重复卡(290 条里 158 条重复即此形态) */
     @Select("SELECT COUNT(*) FROM biz_customer WHERE deleted = 0 AND customer_name = #{name}")

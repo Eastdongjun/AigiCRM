@@ -2268,4 +2268,120 @@ class CustomerServiceTest {
         verify(invoiceMapper).insert(backfilled);
         verify(customerMapper, never()).updateById(any(BizCustomer.class));
     }
+
+    // ===== 【审查 backend-4 2026-10-18】财务写入口客户存在/未删/同集团自守 =====
+
+    @Test
+    void addInvoice_guardRejected_noLedgerInsert() {
+        BizInvoiceMapper invoiceMapper = mock(BizInvoiceMapper.class);
+        CustomerAccessService accessService = mock(CustomerAccessService.class);
+        org.mockito.Mockito.doThrow(new BusinessException("客户不存在或已删除，无法录入财务记录"))
+                .when(accessService).assertFinanceCustomerWritable(501L);
+        CustomerService svc = newService(invoiceMapper, mock(BizPaymentMapper.class),
+                mock(BizCustomerMapper.class), mock(OrgScopeResolver.class),
+                mock(BizContactMapper.class), accessService);
+
+        assertThrows(BusinessException.class, () -> svc.addInvoice(501L, new BizInvoice()));
+        verify(accessService).assertFinanceCustomerWritable(501L);
+        verify(invoiceMapper, never()).insert(any(BizInvoice.class));
+    }
+
+    @Test
+    void addPayment_guardRejected_noLedgerInsert() {
+        BizPaymentMapper paymentMapper = mock(BizPaymentMapper.class);
+        CustomerAccessService accessService = mock(CustomerAccessService.class);
+        org.mockito.Mockito.doThrow(new BusinessException("无权操作其他集团的客户财务记录"))
+                .when(accessService).assertFinanceCustomerWritable(501L);
+        CustomerService svc = newService(mock(BizInvoiceMapper.class), paymentMapper,
+                mock(BizCustomerMapper.class), mock(OrgScopeResolver.class),
+                mock(BizContactMapper.class), accessService);
+
+        assertThrows(BusinessException.class, () -> svc.addPayment(501L, new BizPayment()));
+        verify(accessService).assertFinanceCustomerWritable(501L);
+        verify(paymentMapper, never()).insert(any(BizPayment.class));
+    }
+
+    @Test
+    void addInvoice_guardRunsBeforeInsert() {
+        BizInvoiceMapper invoiceMapper = mock(BizInvoiceMapper.class);
+        CustomerAccessService accessService = mock(CustomerAccessService.class);
+        CustomerService svc = newService(invoiceMapper, mock(BizPaymentMapper.class),
+                mock(BizCustomerMapper.class), mock(OrgScopeResolver.class),
+                mock(BizContactMapper.class), accessService);
+
+        try (MockedStatic<SecurityUtils> security = mockStatic(SecurityUtils.class)) {
+            security.when(SecurityUtils::getCurrentUserId).thenReturn(7L);
+            svc.addInvoice(501L, new BizInvoice());
+        }
+
+        org.mockito.InOrder order = org.mockito.Mockito.inOrder(accessService, invoiceMapper);
+        order.verify(accessService).assertFinanceCustomerWritable(501L);
+        order.verify(invoiceMapper).insert(any(BizInvoice.class));
+    }
+
+    // ===== 【审查 biz-3 2026-10-18】公海删除复用客户删除统一内核(分享/提醒/快照) =====
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void deleteFromSeaPool_softDeletesAndCleansSharesReminders() {
+        BizCustomerMapper customerMapper = mock(BizCustomerMapper.class);
+        BizCustomer customer = new BizCustomer();
+        customer.setId(501L);
+        customer.setCustomerName("公海客户");
+        when(customerMapper.selectById(501L)).thenReturn(customer);
+        BizInvoiceMapper invoiceMapper = mock(BizInvoiceMapper.class);
+        when(invoiceMapper.selectCount(any())).thenReturn(0L);
+        BizPaymentMapper paymentMapper = mock(BizPaymentMapper.class);
+        when(paymentMapper.selectCount(any())).thenReturn(0L);
+        BizSeaPoolMapper seaPoolMapper = mock(BizSeaPoolMapper.class);
+        when(seaPoolMapper.selectCount(any())).thenReturn(0L); // 池行已由 SeaService 结束
+        BizCustomerShareMapper shareMapper = mock(BizCustomerShareMapper.class);
+        BizReminderMapper reminderMapper = mock(BizReminderMapper.class);
+        com.aigicrm.module.system.mapper.SysLogMapper logMapper =
+                mock(com.aigicrm.module.system.mapper.SysLogMapper.class);
+
+        CustomerService svc = new CustomerService(
+                customerMapper, mock(BizCustomerLogMapper.class),
+                invoiceMapper, shareMapper, mock(BizCustomerIndicatorMapper.class),
+                mock(BizContactMapper.class), paymentMapper,
+                mock(com.aigicrm.module.customer.mapper.BizCustomerStageAmountMapper.class),
+                seaPoolMapper, mock(SysUserMapper.class), mock(SysDeptMapper.class),
+                reminderMapper, mock(JdbcTemplate.class), mock(SysConfigService.class),
+                mock(OrgScopeResolver.class), mock(CustomerAccessService.class),
+                mock(com.aigicrm.module.system.service.RolePermScopeService.class),
+                mock(com.aigicrm.module.approval.mapper.BizApprovalMapper.class), logMapper);
+
+        svc.deleteFromSeaPool(501L);
+
+        verify(customerMapper).deleteById(501L);
+        verify(shareMapper).delete(any());
+        verify(reminderMapper, times(2)).delete(any());
+        // 删除快照必须留痕(公海入口不得绕过 CustomerService.delete 的审计)
+        verify(logMapper).insert(any(com.aigicrm.module.system.entity.SysLog.class));
+    }
+
+    @Test
+    void deleteFromSeaPool_activePoolRowStillRejected() {
+        BizCustomerMapper customerMapper = mock(BizCustomerMapper.class);
+        when(customerMapper.selectById(501L)).thenReturn(new BizCustomer());
+        BizSeaPoolMapper seaPoolMapper = mock(BizSeaPoolMapper.class);
+        when(seaPoolMapper.selectCount(any())).thenReturn(1L); // 仍有活跃池行(如并发新入池)
+
+        CustomerService svc = new CustomerService(
+                customerMapper, mock(BizCustomerLogMapper.class),
+                mock(BizInvoiceMapper.class), mock(BizCustomerShareMapper.class),
+                mock(BizCustomerIndicatorMapper.class), mock(BizContactMapper.class),
+                mock(BizPaymentMapper.class),
+                mock(com.aigicrm.module.customer.mapper.BizCustomerStageAmountMapper.class),
+                seaPoolMapper, mock(SysUserMapper.class), mock(SysDeptMapper.class),
+                mock(BizReminderMapper.class), mock(JdbcTemplate.class), mock(SysConfigService.class),
+                mock(OrgScopeResolver.class), mock(CustomerAccessService.class),
+                mock(com.aigicrm.module.system.service.RolePermScopeService.class),
+                mock(com.aigicrm.module.approval.mapper.BizApprovalMapper.class),
+                mock(com.aigicrm.module.system.mapper.SysLogMapper.class));
+
+        BusinessException ex = assertThrows(BusinessException.class, () -> svc.deleteFromSeaPool(501L));
+        assertTrue(ex.getMessage().contains("请先在公海管理删除"), "实际: " + ex.getMessage());
+        verify(customerMapper, never()).deleteById(anyLong());
+    }
 }

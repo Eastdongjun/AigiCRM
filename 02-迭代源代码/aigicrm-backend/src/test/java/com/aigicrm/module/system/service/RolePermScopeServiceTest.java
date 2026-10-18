@@ -66,4 +66,57 @@ class RolePermScopeServiceTest {
                 eq("xingzheng"), eq("ROLE"), eq("xingzheng"), eq("customer"), eq("delete"), eq("dept"), eq("OWNER"));
     }
 
+    /**
+     * 【审查 perm-5 2026-10-18】同键切换锚点: 写入前必须清理其它锚点旧行,
+     * 否则旧唯一键(含 anchor)不会命中, 两条锚点并存 → anchorOf 取第一条无排序。
+     */
+    @Test
+    void updateScopes_switchingAnchor_removesConflictingAnchorRows() {
+        JdbcTemplate jdbc = mock(JdbcTemplate.class);
+        RolePermScopeService svc = new RolePermScopeService(jdbc, mock(com.aigicrm.security.PermissionCacheService.class));
+
+        svc.updateScopes(com.aigicrm.common.scope.ScopeConfig.ASSIGNEE_ROLE, "xingzheng",
+                List.of(Map.of("module", "customer", "action", "view",
+                        "scopeLevel", "dept", "anchor", "ORG")));
+
+        org.mockito.InOrder inOrder = org.mockito.Mockito.inOrder(jdbc);
+        inOrder.verify(jdbc).update(contains("DELETE FROM role_perm_scope"),
+                eq("ROLE"), eq("xingzheng"), eq("customer"), eq("view"), eq("ORG"));
+        inOrder.verify(jdbc).update(contains("INSERT INTO role_perm_scope"),
+                eq("xingzheng"), eq("ROLE"), eq("xingzheng"), eq("customer"), eq("view"), eq("dept"), eq("ORG"));
+    }
+
+    /** 读取锚点带确定性排序(id ASC), 历史重复行取最早一条 */
+    @Test
+    void anchorOf_readsEarliestDeterministically() {
+        JdbcTemplate jdbc = mock(JdbcTemplate.class);
+        RolePermScopeService svc = new RolePermScopeService(jdbc, mock(com.aigicrm.security.PermissionCacheService.class));
+        when(jdbc.queryForList(contains("SELECT anchor"), eq(String.class), eq("xingzheng"), eq("customer"), eq("view")))
+                .thenReturn(List.of("ORG"));
+
+        com.aigicrm.common.scope.ScopeRequest.AnchorType anchor =
+                svc.anchorOf(user("xingzheng"), "customer", "view");
+
+        assertEquals(com.aigicrm.common.scope.ScopeRequest.AnchorType.ORG, anchor);
+        org.mockito.ArgumentCaptor<String> sql = org.mockito.ArgumentCaptor.forClass(String.class);
+        verify(jdbc).queryForList(sql.capture(), eq(String.class), eq("xingzheng"), eq("customer"), eq("view"));
+        org.junit.jupiter.api.Assertions.assertTrue(sql.getValue().contains("ORDER BY id ASC"),
+                "锚点读取必须确定性排序: " + sql.getValue());
+    }
+
+    /** 范围读取同样带确定性排序(id ASC) */
+    @Test
+    void lookup_readsEarliestDeterministically() {
+        JdbcTemplate jdbc = mock(JdbcTemplate.class);
+        RolePermScopeService svc = new RolePermScopeService(jdbc, mock(com.aigicrm.security.PermissionCacheService.class));
+        when(jdbc.queryForList(contains("SELECT scope_level"), eq(String.class), eq("xingzheng"), eq("customer"), eq("view")))
+                .thenReturn(List.of("dept"));
+
+        assertEquals("dept", svc.lookup("xingzheng", "customer", "view"));
+        org.mockito.ArgumentCaptor<String> sql = org.mockito.ArgumentCaptor.forClass(String.class);
+        verify(jdbc).queryForList(sql.capture(), eq(String.class), eq("xingzheng"), eq("customer"), eq("view"));
+        org.junit.jupiter.api.Assertions.assertTrue(sql.getValue().contains("ORDER BY id ASC"),
+                "范围读取必须确定性排序: " + sql.getValue());
+    }
+
 }

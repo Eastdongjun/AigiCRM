@@ -42,8 +42,9 @@ import java.util.stream.Collectors;
  *   <li>客户: 原负责人已被删除/不存在 → 拒绝(恢复后无人可见, 应先恢复人员或改派);</li>
  *   <li>客户: 公海池仍有 available/pending_approval 残留 → 拒绝(防私海+池内双归属);</li>
  *   <li>人员: 账号名已被活跃用户占用 → 拒绝; 恢复后角色/岗位/组织归属需重新分配(删除时已清除);</li>
- *   <li>文件: 内容已被 deleteStorage 物理清除 → 拒绝(仅保留删除记录); 原文件夹不存在/私有文件
- *       上传人已删除/存储配额不足 → 拒绝。</li>
+ *   <li>文件: 内容已被 deleteStorage 物理清除 → 拒绝(仅保留删除记录); 原文件夹已删除 →
+ *       恢复到根目录(folder_id 置空, 文件夹硬删且 ID 不复用, 不要求重建旧夹);
+ *       私有文件上传人已删除/存储配额不足 → 拒绝。</li>
  * </ul>
  *
  * <p>权限: 控制器层 @PreAuthorize 之外再统一校验 {@link SecurityUtils#isAdmin()}, 回收站 HTTP 端点
@@ -338,7 +339,9 @@ public class RecycleService {
 
     @Transactional
     public String restoreFile(Long id) {
-        // 【TOCTOU】锁住台账行再复核: 与彻底删除/批量清理互斥, 防"恢复成功的同时被清理"
+        // 【TOCTOU】锁住台账行再复核: 与彻底删除/批量清理互斥, 防"恢复成功的同时被清理"。
+        // 行锁持有到事务提交, 期间 contentExists 检查 + 条件恢复 UPDATE 在同锁内完成;
+        // 并发清理(同样 FOR UPDATE 同一行)会等待, 提交后复核 deleted=1 失败则跳过。
         BizFile f = lockDeletedFile(id);
         if (f == null) {
             throw new BusinessException("该文件不在回收站（可能已被恢复或已被彻底删除）");
@@ -347,9 +350,10 @@ public class RecycleService {
         if (!fileService.contentExists(f.getOssKey())) {
             throw new BusinessException("文件内容已在删除时物理清除，无法恢复（仅保留删除记录，如需找回请联系管理员从备份还原）");
         }
-        if (f.getFolderId() != null && fileFolderMapper.selectById(f.getFolderId()) == null) {
-            throw new BusinessException("原文件夹已删除，无法恢复；请先重建文件夹后再恢复");
-        }
+        // 【审查 biz-2 2026-10-18】文件夹为硬删除(仅空夹可删), ID 不会重建复用:
+        // 原文件夹已不存在时恢复到根目录(folder_id 置空), 不再要求用户"重建同 ID 文件夹"(不可达指引)。
+        boolean folderMissing = f.getFolderId() != null
+                && fileFolderMapper.selectById(f.getFolderId()) == null;
         if ("private".equals(f.getFileScope())) {
             if (f.getUploaderId() == null) {
                 throw new BusinessException("私有文件缺少上传人，无法恢复");
@@ -363,12 +367,18 @@ public class RecycleService {
                 throw new BusinessException("上传者存储配额不足，无法恢复该文件");
             }
         }
-        if (fileMapper.restoreDeleted(id) != 1) {
+        int restored = folderMissing ? fileMapper.restoreDeletedToRoot(id) : fileMapper.restoreDeleted(id);
+        if (restored != 1) {
             throw new BusinessException("恢复失败：数据状态已变化，请刷新后重试");
         }
+        String message = folderMissing
+                ? "文件已恢复到“" + ("private".equals(f.getFileScope()) ? "我的文件" : "公共文件")
+                        + "”根目录（原文件夹已删除）"
+                : "文件已恢复";
         writeAuditLog("恢复文件", "biz_file", id,
-                "文件名=" + f.getFileName() + ", scope=" + f.getFileScope() + ", 大小=" + f.getFileSize());
-        return "文件已恢复";
+                "文件名=" + f.getFileName() + ", scope=" + f.getFileScope() + ", 大小=" + f.getFileSize()
+                        + (folderMissing ? ", 原文件夹已删除→根目录" : ""));
+        return message;
     }
 
     // ==================== 文件回收站清理 ====================

@@ -56,7 +56,8 @@ class SysPositionServiceTest {
                 mock(SysUserPositionMapper.class),
                 mock(SysPermissionRuleMapper.class),
                 mock(com.aigicrm.security.PermissionCacheService.class),
-                mock(org.springframework.jdbc.core.JdbcTemplate.class));
+                mock(org.springframework.jdbc.core.JdbcTemplate.class),
+                mock(SysUserService.class));
     }
 
     @Test
@@ -208,7 +209,8 @@ class SysPositionServiceTest {
         org.springframework.jdbc.core.JdbcTemplate jdbc = mock(org.springframework.jdbc.core.JdbcTemplate.class);
         SysPositionService service = new SysPositionService(positionMapper,
                 mock(SysPositionRuleMapper.class), userPositionMapper,
-                mock(SysPermissionRuleMapper.class), cache, jdbc);
+                mock(SysPermissionRuleMapper.class), cache, jdbc,
+                mock(SysUserService.class));
         when(positionMapper.selectById(5L)).thenReturn(positionOf(5L, 1L));
         try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
             m.when(SecurityUtils::isAdmin).thenReturn(true);
@@ -232,13 +234,85 @@ class SysPositionServiceTest {
         org.springframework.jdbc.core.JdbcTemplate jdbc = mock(org.springframework.jdbc.core.JdbcTemplate.class);
         SysPositionService service = new SysPositionService(positionMapper,
                 mock(SysPositionRuleMapper.class), mock(SysUserPositionMapper.class),
-                mock(SysPermissionRuleMapper.class), cache, jdbc);
+                mock(SysPermissionRuleMapper.class), cache, jdbc,
+                mock(SysUserService.class));
+        SysPosition p1 = positionOf(1L, 1L);
+        SysPosition p2 = positionOf(2L, 1L);
+        when(positionMapper.selectById(1L)).thenReturn(p1);
+        when(positionMapper.selectById(2L)).thenReturn(p2);
 
-        service.assignUserPositions(9L, List.of(1L, 2L));
+        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
+            m.when(SecurityUtils::isAdmin).thenReturn(true);
+
+            service.assignUserPositions(9L, List.of(1L, 2L));
+        }
 
         org.mockito.InOrder inOrder = org.mockito.Mockito.inOrder(jdbc, cache);
         inOrder.verify(cache).evict(9L);
         inOrder.verify(jdbc).update(org.mockito.ArgumentMatchers.contains("perm_version"),
                 org.mockito.ArgumentMatchers.eq(9L));
+    }
+
+    /** 【审查 perm-3 2026-10-18】非 admin 分配他集团岗位 → 拒绝，清空/写入均不执行 */
+    @Test
+    void assignUserPositions_otherGroupPositionRejected() {
+        SysPositionMapper positionMapper = mock(SysPositionMapper.class);
+        SysUserPositionMapper userPositionMapper = mock(SysUserPositionMapper.class);
+        SysUserService userService = mock(SysUserService.class);
+        SysPositionService service = new SysPositionService(positionMapper,
+                mock(SysPositionRuleMapper.class), userPositionMapper,
+                mock(SysPermissionRuleMapper.class), mock(com.aigicrm.security.PermissionCacheService.class),
+                mock(org.springframework.jdbc.core.JdbcTemplate.class), userService);
+        when(positionMapper.selectById(5L)).thenReturn(positionOf(5L, 2L));
+
+        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
+            m.when(SecurityUtils::isAdmin).thenReturn(false);
+            m.when(SecurityUtils::getCurrentGroupIds).thenReturn(List.of(1L));
+
+            assertThrows(BusinessException.class, () -> service.assignUserPositions(9L, List.of(5L)));
+        }
+        verify(userService).assertCanManageUser(9L);
+        verify(userPositionMapper, never()).delete(any(LambdaQueryWrapper.class));
+        verify(userPositionMapper, never()).insert(any(com.aigicrm.module.system.entity.SysUserPosition.class));
+    }
+
+    /** 【审查 perm-3 2026-10-18】同集团且目标用户可见 → 通过 */
+    @Test
+    void assignUserPositions_visiblePositionAndUser_passes() {
+        SysPositionMapper positionMapper = mock(SysPositionMapper.class);
+        SysUserPositionMapper userPositionMapper = mock(SysUserPositionMapper.class);
+        SysPositionService service = new SysPositionService(positionMapper,
+                mock(SysPositionRuleMapper.class), userPositionMapper,
+                mock(SysPermissionRuleMapper.class), mock(com.aigicrm.security.PermissionCacheService.class),
+                mock(org.springframework.jdbc.core.JdbcTemplate.class), mock(SysUserService.class));
+        when(positionMapper.selectById(5L)).thenReturn(positionOf(5L, 1L));
+
+        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
+            m.when(SecurityUtils::isAdmin).thenReturn(false);
+            m.when(SecurityUtils::getCurrentGroupIds).thenReturn(List.of(1L));
+
+            service.assignUserPositions(9L, List.of(5L));
+        }
+        verify(userPositionMapper).delete(any(LambdaQueryWrapper.class));
+        verify(userPositionMapper).insert(any(com.aigicrm.module.system.entity.SysUserPosition.class));
+    }
+
+    /** 【审查 perm-3 2026-10-18】admin 不受集团/组织边界限制 */
+    @Test
+    void assignUserPositions_adminBypassesGroupBoundary() {
+        SysPositionMapper positionMapper = mock(SysPositionMapper.class);
+        SysUserPositionMapper userPositionMapper = mock(SysUserPositionMapper.class);
+        SysPositionService service = new SysPositionService(positionMapper,
+                mock(SysPositionRuleMapper.class), userPositionMapper,
+                mock(SysPermissionRuleMapper.class), mock(com.aigicrm.security.PermissionCacheService.class),
+                mock(org.springframework.jdbc.core.JdbcTemplate.class), mock(SysUserService.class));
+        when(positionMapper.selectById(5L)).thenReturn(positionOf(5L, 2L));
+
+        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
+            m.when(SecurityUtils::isAdmin).thenReturn(true);
+
+            service.assignUserPositions(9L, List.of(5L));
+        }
+        verify(userPositionMapper).insert(any(com.aigicrm.module.system.entity.SysUserPosition.class));
     }
 }

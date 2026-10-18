@@ -295,7 +295,11 @@ class CustomerAccessServiceSeaPermTest {
         try (MockedStatic<SecurityUtils> ms = mockStatic(SecurityUtils.class)) {
             ms.when(SecurityUtils::isAdmin).thenReturn(false);
             ms.when(SecurityUtils::getCurrentUserId).thenReturn(100L);
+            ms.when(SecurityUtils::getCurrentGroupIds).thenReturn(List.of(1L));
             ms.when(() -> SecurityUtils.hasAuthority("finance:manage")).thenReturn(true);
+            // 【审查 backend-4】对象校验需客户存在且同集团
+            when(customerMapper.selectTenantIdById(1L)).thenReturn(1L);
+            when(customerMapper.selectById(1L)).thenReturn(cust);
             // 注意: 不 stub canEdit 依赖(即便编辑范围判定会拒绝,也不应走到)
             org.junit.jupiter.api.Assertions.assertDoesNotThrow(() -> svc.assertCanManageFinance(1L));
         }
@@ -308,8 +312,10 @@ class CustomerAccessServiceSeaPermTest {
         try (MockedStatic<SecurityUtils> ms = mockStatic(SecurityUtils.class)) {
             ms.when(SecurityUtils::isAdmin).thenReturn(false);
             ms.when(SecurityUtils::getCurrentUserId).thenReturn(100L);
+            ms.when(SecurityUtils::getCurrentGroupIds).thenReturn(List.of(1L));
             ms.when(() -> SecurityUtils.hasAuthority("finance:manage")).thenReturn(false);
             ms.when(() -> SecurityUtils.hasAuthority("customer:edit")).thenReturn(false);
+            when(customerMapper.selectTenantIdById(1L)).thenReturn(1L);
             when(customerMapper.selectById(1L)).thenReturn(cust);
             when(seaPoolMapper.selectOne(any())).thenReturn(null);
             stubDefaultScope();

@@ -757,10 +757,11 @@ public class PermissionMatrixTest {
                 "SeaService.deletePool 必须保留 SeaConfigService.PERM_DELETE 池级删除权限守卫");
         assertTrue(body.contains("visiblePoolIds") && body.contains("!visiblePoolIds.contains(pool.getPoolId())"),
                 "SeaService.deletePool 必须保留可见池范围校验，防止跨池横向删除");
-        assertTrue(body.contains("customerMapper.deleteById(pool.getCustomerId())"),
-                "SeaService.deletePool 必须逻辑删除对应客户，保持客户列表与公海池互斥");
-        assertTrue(body.contains("seaPoolMapper.deleteById(seaPoolId)"),
-                "SeaService.deletePool 必须物理删除对应公海池记录");
+        assertTrue(body.contains("customerService.deleteFromSeaPool(pool.getCustomerId())"),
+                "SeaService.deletePool 必须复用 CustomerService 统一删除流程(软删+分享/提醒/快照), 保持客户列表与公海池互斥");
+        assertTrue(body.contains("seaPoolMapper.delete(new LambdaQueryWrapper<BizSeaPool>()")
+                        && body.contains(".eq(BizSeaPool::getStatus, \"available\")"),
+                "SeaService.deletePool 必须以 status=available 条件结束池行, 与并发捞取互斥");
     }
 
     /** 公海列表是公海域主入口：列表/统计/可见池/捞取记录必须保留 sea:view，并返回池级行操作标记。 */

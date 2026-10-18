@@ -77,7 +77,8 @@ public class RolePermScopeService {
     }
 
     private List<ScopeConfig> queryConfigs(String where, String key) {
-        return jdbc.query("SELECT assignee_type, assignee_key, module, action, scope_level, anchor FROM role_perm_scope WHERE " + where,
+        // 【审查 perm-5 2026-10-18】确定性排序: 同键历史重复行取最早一条(id ASC), 消除读序漂移
+        return jdbc.query("SELECT assignee_type, assignee_key, module, action, scope_level, anchor FROM role_perm_scope WHERE " + where + " ORDER BY id ASC",
                 (rs, i) -> {
                     ScopeConfig c = new ScopeConfig();
                     c.setAssigneeType(rs.getString("assignee_type"));
@@ -140,7 +141,7 @@ public class RolePermScopeService {
         }
         try {
             List<String> rows = jdbc.queryForList(
-                    "SELECT scope_level FROM role_perm_scope WHERE role_code=? AND module=? AND action=? LIMIT 1",
+                    "SELECT scope_level FROM role_perm_scope WHERE role_code=? AND module=? AND action=? ORDER BY id ASC LIMIT 1",
                     String.class, roleCode, module, action);
             String value = rows.isEmpty() ? null : rows.get(0);
             cache.put(key, new CacheEntry(value, System.currentTimeMillis() + CACHE_TTL_MS));
@@ -189,7 +190,7 @@ public class RolePermScopeService {
                 if (hit != null && !hit.expired()) return hit.anchor();
                 try {
                     List<String> rows = jdbc.queryForList(
-                            "SELECT anchor FROM role_perm_scope WHERE role_code=? AND module=? AND action=? LIMIT 1",
+                            "SELECT anchor FROM role_perm_scope WHERE role_code=? AND module=? AND action=? ORDER BY id ASC LIMIT 1",
                             String.class, roleCode, module, action);
                     ScopeRequest.AnchorType a = rows.isEmpty() ? ScopeRequest.AnchorType.OWNER
                             : "ORG".equalsIgnoreCase(rows.get(0)) ? ScopeRequest.AnchorType.ORG : ScopeRequest.AnchorType.OWNER;
@@ -208,14 +209,14 @@ public class RolePermScopeService {
     /** 某角色的全部范围配置 */
     public List<Map<String, Object>> getRoleScopes(String roleCode) {
         return jdbc.queryForList(
-                "SELECT id, module, action, scope_level, anchor FROM role_perm_scope WHERE role_code=? ORDER BY module, action",
+                "SELECT id, module, action, scope_level, anchor FROM role_perm_scope WHERE role_code=? ORDER BY module, action, id ASC",
                 roleCode);
     }
 
     /** 【批③】按主体(岗位/用户)查范围配置(含锚点) */
     public List<Map<String, Object>> getAssigneeScopes(String assigneeType, String assigneeKey) {
         return jdbc.queryForList(
-                "SELECT id, module, action, scope_level, anchor FROM role_perm_scope WHERE assignee_type=? AND assignee_key=? ORDER BY module, action",
+                "SELECT id, module, action, scope_level, anchor FROM role_perm_scope WHERE assignee_type=? AND assignee_key=? ORDER BY module, action, id ASC",
                 assigneeType, assigneeKey);
     }
 
@@ -256,6 +257,13 @@ public class RolePermScopeService {
             }
             // role_code 列同步写(兼容 V7 查询/回滚窗口)
             String roleCode = ScopeConfig.ASSIGNEE_ROLE.equals(assigneeType) ? assigneeKey : "";
+            // 【审查 perm-5 2026-10-18】同一 (assignee,module,action) 只允许一个锚点:
+            // 旧唯一键含 anchor, 切换 OWNER/ORG 时旧行不会被 upsert 命中, 会遗留两条锚点
+            // (anchorOf 取第一条无排序 → 口径漂移)。写入前先清掉同键其它锚点, 保留本锚点行
+            // 走下方 upsert(保留 id/created_at); 迁移 V2026.10.18.4 同键去重并加四列唯一索引。
+            jdbc.update("DELETE FROM role_perm_scope WHERE assignee_type=? AND assignee_key=? "
+                            + "AND module=? AND action=? AND anchor<>?",
+                    assigneeType, assigneeKey, module.toString(), action.toString(), anchor.toUpperCase());
             jdbc.update(
                     "INSERT INTO role_perm_scope (role_code, assignee_type, assignee_key, module, action, scope_level, anchor) VALUES (?,?,?,?,?,?,?) " +
                     "ON DUPLICATE KEY UPDATE scope_level=VALUES(scope_level), anchor=VALUES(anchor), role_code=VALUES(role_code)",

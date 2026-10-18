@@ -22,6 +22,8 @@ public class SysPositionService {
     private final SysPermissionRuleMapper ruleMapper;
     private final com.aigicrm.security.PermissionCacheService permissionCacheService;
     private final org.springframework.jdbc.core.JdbcTemplate jdbc;
+    /** 【审查 perm-3 2026-10-18】目标用户可见性校验复用人员域口径 */
+    private final SysUserService userService;
 
     // ==================== 缓存自愈：权限版本递增 ====================
 
@@ -158,9 +160,29 @@ public class SysPositionService {
         return positionMapper.selectByUserId(userId);
     }
 
-    /** 分配用户岗位（清空重建；第一个设为主岗位） */
+    /**
+     * 分配用户岗位（清空重建；第一个设为主岗位）。
+     * 【审查 perm-3 2026-10-18】分配/取消岗位前校验目标用户对调用者可见
+     * （SysUserService.assertCanManageUser，与人员详情同口径），岗位所属集团与组织
+     * 也必须在调用者可见范围内；admin 放行边界校验。不能只信请求体里的 positionIds。
+     */
     @Transactional
     public void assignUserPositions(Long userId, List<Long> positionIds) {
+        // 目标用户可见性（存在性/跨部门/跨集团）；admin 内部直接放行
+        userService.assertCanManageUser(userId);
+        if (positionIds != null) {
+            for (Long positionId : positionIds) {
+                SysPosition position = positionId != null ? positionMapper.selectById(positionId) : null;
+                if (position == null) throw new BusinessException("岗位不存在");
+                if (!com.aigicrm.security.SecurityUtils.isAdmin()) {
+                    if (!GroupScopeUtil.canAccessGroup(position.getGroupId())) {
+                        throw new BusinessException("无权分配其他集团的岗位");
+                    }
+                    // 岗位所属组织（org_id）同样必须在可见部门/管辖组织子树内
+                    userService.assertTargetOrgVisible(null, null, position.getOrgId());
+                }
+            }
+        }
         userPositionMapper.delete(new LambdaQueryWrapper<SysUserPosition>().eq(SysUserPosition::getUserId, userId));
         // 【2026-09-29 同类缺陷】清空全部岗位也是权限变更: 缓存失效+版本递增必须在 early-return 之前
         permissionCacheService.evict(userId);
