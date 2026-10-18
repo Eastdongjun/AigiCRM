@@ -203,18 +203,21 @@ onMounted(() => { loadData(); loadStats() })
 <style scoped>
 .task-page { padding: 0 }
 .page-header h2 { font-size: 20px; font-weight: 600; margin: 0 0 4px }
-.page-desc { color: #94a3b8; font-size: 13px; margin: 0 }
+/* 【对比度 2026-10-17】#94a3b8 on #fff 仅 2.56:1 → --text-muted 4.83:1，达 AA */
+.page-desc { color: var(--text-muted); font-size: 13px; margin: 0 }
 /* 【2026-09-20 Bento 统计卡】主卡(待办)渐变宽卡 + 三张浅灰瓦片小卡；数字滚动由 disp 驱动 */
 .stat-bento { display: grid; grid-template-columns: 1.5fr 1fr 1fr 1fr; gap: 14px; margin-bottom: 18px; align-items: stretch }
 .stat-card { border: none; border-radius: var(--radius-lg); display: flex; gap: 14px; align-items: flex-start; padding: 20px 22px; height: 100%;
   box-sizing: border-box; transition: transform .18s, box-shadow .18s }
 .stat-card:hover { transform: translateY(-2px) }
-.stat-card.primary { background: linear-gradient(135deg, #3b82f6 0%, #2563eb 60%, #1d4ed8 100%); color: #fff;
+/* 【对比度 2026-10-17】主卡渐变最亮端收敛到 #2563eb（原 #3b82f6 上白字最高仅 3.68:1，任何 alpha 都达不到 AA）；
+   次级字统一 ≥.92：最亮端 #2563eb 上 4.65:1 */
+.stat-card.primary { background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%); color: #fff;
   box-shadow: 0 10px 26px rgba(37, 99, 235, .30) }
 .stat-card.primary:hover { box-shadow: 0 14px 32px rgba(37, 99, 235, .38) }
-.stat-card.primary .stat-label { color: rgba(255, 255, 255, .82) }
+.stat-card.primary .stat-label { color: rgba(255, 255, 255, .92) }
 .stat-card.primary .stat-num { color: #fff; font-size: 40px }
-.stat-card.primary .stat-sub { margin-top: 6px; font-size: 12px; color: rgba(255, 255, 255, .78) }
+.stat-card.primary .stat-sub { margin-top: 6px; font-size: 12px; color: rgba(255, 255, 255, .92) }
 .stat-card.primary .stat-icon-chip { background: rgba(255, 255, 255, .18); color: #fff }
 .stat-card.mini { background: #f2f4f7; align-items: center }
 .stat-card.mini:hover { background: #fff; box-shadow: 0 8px 22px rgba(16, 24, 40, .09) }
@@ -224,13 +227,15 @@ onMounted(() => { loadData(); loadStats() })
 .stat-card.mini.red .stat-icon-chip { background: #fee2e2; color: #dc2626 }
 .stat-card.mini.green .stat-icon-chip { background: #dcfce7; color: #16a34a }
 .stat-info { min-width: 0 }
-.stat-label { font-size: 12px; color: #9ca3af; letter-spacing: 1px }
+/* 【对比度 2026-10-17】#9ca3af on #f2f4f7 仅 2.30:1；--text-muted 在该底为 4.39:1，改用 --text-secondary(6.45:1) */
+.stat-label { font-size: 12px; color: var(--text-secondary); letter-spacing: 1px }
 /* 【B6】大数字唯一档 --font-num-hero(30px)，与工作台/统计页同一角色同一档 */
 .stat-num { font-size: var(--font-num-hero); font-weight: 800; margin-top: 4px; line-height: 1.1; font-variant-numeric: tabular-nums }
 .stat-card.mini.orange .stat-num { color: #ea580c }
 .stat-card.mini.red .stat-num { color: #dc2626 }
 .stat-card.mini.green .stat-num { color: #16a34a }
 .toolbar { display: flex; gap: 16px; align-items: center; margin-bottom: 12px }
-.task-done { text-decoration: line-through; color: #94a3b8 }
+/* 【对比度 2026-10-17】#94a3b8 on #fff 仅 2.56:1 → --text-muted 4.83:1，达 AA */
+.task-done { text-decoration: line-through; color: var(--text-muted) }
 .list-pager { display: flex; justify-content: flex-end; margin-top: 12px }
 </style>

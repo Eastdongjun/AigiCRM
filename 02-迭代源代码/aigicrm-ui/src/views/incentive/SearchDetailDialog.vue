@@ -477,15 +477,17 @@ onBeforeUnmount(() => { destroyReadObserver(); destroyPaneObserver() })
 .dtl-pill.grey{color:#6b7280;background:#f4f5f7;border-color:transparent}
 .dtl-hero .dtl-pill{background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.22)}
 .dtl-hero .dtl-pill.blue{color:#dbeafe;background:rgba(255,255,255,.14)}
-.dtl-hero .dtl-pill.grey{color:rgba(255,255,255,.82);background:rgba(255,255,255,.10)}
+/* 【对比度 2026-10-17】深蓝 hero 白字统一 ≥.92：最亮端 #1d4ed8 上 5.93:1，达 AA */
+.dtl-hero .dtl-pill.grey{color:rgba(255,255,255,.92);background:rgba(255,255,255,.10)}
 /* 台账式概览合计：整页唯一的大胆元素(56px 超大分值)，副行静默退后 */
 .dtl-hero-score{margin-left:auto;flex-shrink:0;text-align:right;display:flex;flex-direction:column;align-items:flex-end}
 .dtl-score-line{display:flex;align-items:baseline;gap:5px}
 .dtl-score-big{font-size:54px;font-weight:800;color:#fff;line-height:1;letter-spacing:-1.5px;font-variant-numeric:tabular-nums;
   text-shadow:0 2px 12px rgba(13,35,82,.35)}
 .dtl-score-unit{font-size:15px;font-weight:700;color:#f5b94b}
-.dtl-score-caption{font-size:12px;color:rgba(255,255,255,.72);margin-top:7px;letter-spacing:3px}
-.dtl-hero-sub{display:flex;gap:20px;margin-top:12px;font-size:12px;color:rgba(255,255,255,.68)}
+/* 【对比度 2026-10-17】.72/.68 → .92：最亮端 #1d4ed8 上 5.93:1，达 AA */
+.dtl-score-caption{font-size:12px;color:rgba(255,255,255,.92);margin-top:7px;letter-spacing:3px}
+.dtl-hero-sub{display:flex;gap:20px;margin-top:12px;font-size:12px;color:rgba(255,255,255,.92)}
 .dtl-hero-sub span{display:inline-flex;align-items:baseline;padding-left:12px;border-left:1px solid rgba(255,255,255,.18)}
 .dtl-hero-sub span:first-child{padding-left:0;border-left:none}
 .dtl-hero-sub b{font-size:15px;font-weight:700;color:#fff;margin-right:4px;font-variant-numeric:tabular-nums}

@@ -198,12 +198,13 @@ const handleLogin = async () => {
   bottom: 14px;
   text-align: center;
 }
+/* 【对比度 2026-10-17】底部深蓝色(#1d4ed8)：白字 .55 仅 3.10:1 → .92 为 5.93:1，达 AA */
 .icp-footer a {
   font-size: 12px;
-  color: rgba(255, 255, 255, .55);
+  color: rgba(255, 255, 255, .92);
   letter-spacing: .5px;
 }
-.icp-footer a:hover { color: rgba(255, 255, 255, .85) }
+.icp-footer a:hover { color: #fff }
 .login-box {
   display: flex;
   width: 960px;
@@ -248,9 +249,10 @@ const handleLogin = async () => {
   margin-bottom: 8px;
   letter-spacing: 4px;
 }
+/* 【对比度 2026-10-17】登录左栏深蓝底：.7 → .92，最亮端 #1d4ed8 上 5.93:1，达 AA */
 .system-subtitle {
   font-size: 15px;
-  color: rgba(255, 255, 255, 0.7);
+  color: rgba(255, 255, 255, .92);
   letter-spacing: 2px;
   margin-bottom: auto;
 }
@@ -258,10 +260,11 @@ const handleLogin = async () => {
   list-style: none;
   padding: 0;
 }
+/* 【对比度 2026-10-17】深蓝底 .72 → .92：最亮端 #1d4ed8 上 5.93:1，达 AA */
 .features li {
   padding: 7px 0;
   font-size: 14px;
-  color: rgba(255, 255, 255, 0.72);
+  color: rgba(255, 255, 255, .92);
   letter-spacing: 0.5px;
 }
 .features li::before {

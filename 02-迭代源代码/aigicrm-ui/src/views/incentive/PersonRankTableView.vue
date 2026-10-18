@@ -105,5 +105,6 @@ const exportPersonRank = () => {
 <style scoped src="./rank-common.css"></style>
 
 <style scoped>
-.name-office { font-size: 12px; color: #94a3b8; margin-top: 2px }
+/* 【对比度 2026-10-17】#94a3b8 on #fff 仅 2.56:1 → --text-muted 4.83:1，达 AA */
+.name-office { font-size: 12px; color: var(--text-muted); margin-top: 2px }
 </style>

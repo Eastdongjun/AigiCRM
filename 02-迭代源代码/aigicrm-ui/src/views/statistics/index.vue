@@ -417,7 +417,8 @@ onMounted(loadAll)
 .ah-top { display: flex; align-items: center; margin-bottom: 14px; }
 .ah-title { font-size: 15px; font-weight: 700; color: #fff; letter-spacing: .3px }
 .ah-filters { margin-left: auto; display: flex; align-items: center; gap: 8px }
-.ah-flbl { font-size: 12px; color: rgba(255, 255, 255, .6) }
+/* 【对比度 2026-10-17】hero 白字统一 ≥.92：最亮端 #2563eb 上 4.65:1，达 AA */
+.ah-flbl { font-size: 12px; color: rgba(255, 255, 255, .92) }
 .ah-select.narrow { width: 96px }
 .ah-select { width: 190px }
 .ah-select :deep(.el-select__wrapper),
@@ -433,10 +434,12 @@ onMounted(loadAll)
 .ah-metrics { display: grid; grid-template-columns: 1fr auto 1fr auto 1fr auto 1fr auto 1fr; gap: 0 24px; align-items: stretch }
 .ah-metric { min-width: 0 }
 .ah-divider { width: 1px; background: rgba(255, 255, 255, .18); margin: 4px 0 }
-.ah-label { font-size: 12px; color: rgba(255, 255, 255, .72); margin-bottom: 6px; letter-spacing: .3px }
+/* 【对比度 2026-10-17】.72 → .92：#2563eb 上 3.44:1 → 4.65:1，达 AA */
+.ah-label { font-size: 12px; color: rgba(255, 255, 255, .92); margin-bottom: 6px; letter-spacing: .3px }
 /* 【B6】大数字唯一档 --font-num-hero(30px)，收敛此前 28/30/32 三档并存 */
 .ah-num { font-size: var(--font-num-hero); font-weight: 700; line-height: 1.1; color: #fff; display: flex; align-items: center; gap: 8px }
-.ah-sub { font-size: 12px; color: rgba(255, 255, 255, .58); margin-top: 6px }
+/* 【对比度 2026-10-17】.58 → .92：#2563eb 上 2.75:1 → 4.65:1，达 AA */
+.ah-sub { font-size: 12px; color: rgba(255, 255, 255, .92); margin-top: 6px }
 .ah-up { color: #fcd34d; font-weight: 600 }
 .ah-chip { font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: var(--radius-pill); white-space: nowrap }
 .chip-amber { background: rgba(251, 191, 36, .22); color: #fcd34d; border: 1px solid rgba(251, 191, 36, .45) }

@@ -809,11 +809,13 @@ onMounted(() => {
 .status-chip.off { background: #f2f4f7; color: #5c6675; }
 .text-strong { color: #1f2329; }
 .mono-text { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12.5px; color: #3f4a5a; }
-.muted-text { color: #7a8494; font-size: 12.5px; }
-.time-text { color: #7a8494; font-variant-numeric: tabular-nums; font-size: 12.5px; }
+/* 【对比度 2026-10-17】#7a8494 on #fff 仅 3.78:1 → --text-muted 4.83:1，达 AA */
+.muted-text { color: var(--text-muted); font-size: 12.5px; }
+.time-text { color: var(--text-muted); font-variant-numeric: tabular-nums; font-size: 12.5px; }
 
 .pager-row { display: flex; align-items: center; justify-content: space-between; margin-top: 14px; padding-top: 12px; border-top: 1px solid #f1f4f9; }
-.pager-hint { font-size: 12px; color: #7a8494; }
+/* 【对比度 2026-10-17】#7a8494 on #fff 仅 3.78:1 → --text-muted 4.83:1，达 AA */
+.pager-hint { font-size: 12px; color: var(--text-muted); }
 .pager-hint b { color: var(--el-color-primary); font-variant-numeric: tabular-nums; }
 .table-skeleton { padding: 20px 4px 8px; }
 

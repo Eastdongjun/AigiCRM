@@ -174,9 +174,10 @@ onMounted(loadData)
 }
 .rh-top { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
 .rh-title { font-size: 20px; font-weight: 700; color: #fff; letter-spacing: .3px; margin: 0 0 4px; }
-.rh-sub { font-size: 13px; color: rgba(255, 255, 255, .72); margin: 0; }
+/* 【对比度 2026-10-17】hero 次级字统一 ≥.92：最亮端 #2563eb 上 4.65:1，达 AA */
+.rh-sub { font-size: 13px; color: rgba(255, 255, 255, .92); margin: 0; }
 .rh-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
-.rh-flbl { font-size: 12px; color: rgba(255, 255, 255, .6); }
+.rh-flbl { font-size: 12px; color: rgba(255, 255, 255, .92); }
 .rh-select { width: 140px }
 .rh-select :deep(.el-select__wrapper) {
   background: rgba(255, 255, 255, .14);

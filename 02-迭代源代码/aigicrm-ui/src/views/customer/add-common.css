@@ -13,7 +13,7 @@
 .section-block .section-label::before {
   counter-increment: form-section;
   content: counter(form-section, decimal-leading-zero);
-  font-size: 12px; font-weight: 700; color: #94a3b8;
+  font-size: 12px; font-weight: 700; color: var(--text-muted); /* 【对比度 2026-10-17】#94a3b8 → --text-muted（白底 4.83:1，达 AA） */
   margin-right: 8px; letter-spacing: 1px;
   font-variant-numeric: tabular-nums;
 }

@@ -125,18 +125,21 @@ onMounted(() => {
 }
 .st-stat { min-width: 72px }
 .st-num { font-size: 22px; font-weight: 700; color: #fff; line-height: 1.2; letter-spacing: .2px }
-.st-lbl { font-size: 12px; color: rgba(255, 255, 255, .66); margin-top: 2px }
+/* 【对比度 2026-10-17】深蓝 hero 最亮端 #2563eb：白字 alpha .66 仅 3.14:1 → .92 为 4.65:1，达 AA */
+.st-lbl { font-size: 12px; color: rgba(255, 255, 255, .92); margin-top: 2px }
 .st-divider { width: 1px; height: 34px; background: rgba(255, 255, 255, .18) }
 .st-usage { flex: 1; max-width: 420px; display: flex; align-items: center; gap: 12px }
 .st-usage-track { flex: 1; height: 6px; background: rgba(255, 255, 255, .18); border-radius: 3px; overflow: hidden }
 .st-usage-fill { height: 100%; background: #fcd34d; border-radius: 3px; transition: width .4s }
 .st-usage-fill.warn { background: #f87171 }
-.st-usage-text { font-size: 12px; color: rgba(255, 255, 255, .78); white-space: nowrap }
+/* 【对比度 2026-10-17】#2563eb 上 .78 仅 3.79:1 → .92 为 4.65:1，达 AA */
+.st-usage-text { font-size: 12px; color: rgba(255, 255, 255, .92); white-space: nowrap }
 .st-actions { margin-left: auto; display: flex; align-items: center; gap: 12px }
 .st-search { width: 240px }
 .st-search :deep(.el-input__wrapper) { background: rgba(255, 255, 255, .14); box-shadow: 0 0 0 1px rgba(255, 255, 255, .28) inset }
 .st-search :deep(.el-input__inner) { color: #fff }
-.st-search :deep(.el-input__inner::placeholder) { color: rgba(255, 255, 255, .55) }
+/* 【对比度 2026-10-17】占位符按项目占位符口径提升：.55 → .85；输入框半透明底上仍低于正文阈值 */
+.st-search :deep(.el-input__inner::placeholder) { color: rgba(255, 255, 255, .85) }
 .st-search :deep(.el-input__prefix) { color: rgba(255, 255, 255, .75) }
 .st-upload {
   background: #fff; color: #1d4ed8; border: none; font-weight: 600;

@@ -25,7 +25,8 @@
 .rank-medal-1 { background: linear-gradient(135deg, #fbbf24, var(--chart-amber)); }
 .rank-medal-2 { background: linear-gradient(135deg, #e2e8f0, #cbd5e1); }
 .rank-medal-3 { background: linear-gradient(135deg, #fcd7b6, #d97706); }
-.rank-num { color: #94a3b8; font-weight: 600; font-size: 13px; }
+/* 【对比度 2026-10-17】#94a3b8 on #fff 仅 2.56:1 → --text-muted 4.83:1，达 AA */
+.rank-num { color: var(--text-muted); font-weight: 600; font-size: 13px; }
 .rank-num { color: var(--text-muted); font-weight: 500; } /* 基线 505 行覆盖规则,级联取后者,须保留 */
 /* 姓名/部门：首字头像 + 加粗 */
 .name-wrap { display: flex; align-items: center; gap: 8px; }
