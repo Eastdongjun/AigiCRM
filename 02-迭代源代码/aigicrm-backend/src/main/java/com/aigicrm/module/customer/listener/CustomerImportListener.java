@@ -7,6 +7,8 @@ import com.aigicrm.module.customer.dto.CustomerImportResult;
 import com.aigicrm.module.customer.entity.BizCustomer;
 import com.aigicrm.module.customer.service.CustomerService;
 
+import java.time.LocalDate;
+
 public class CustomerImportListener implements ReadListener<CustomerImportDTO> {
 
     private final CustomerService customerService;
@@ -48,9 +50,13 @@ public class CustomerImportListener implements ReadListener<CustomerImportDTO> {
             customer.setOwnerId(currentUserId);
             customer.setOfficeId(currentOfficeId);
 
-            // 4. 复用现有创建逻辑
+            // 4. 复用现有创建逻辑（create 内对缺失注册日做当天兜底）
+            boolean registerDateMissing = dto.getRegisterDate() == null;
             customerService.create(customer);
             result.setSuccessCount(result.getSuccessCount() + 1);
+            if (registerDateMissing) {
+                addWarning(rowNum, name, "未填写注册日期，已按导入日期 " + LocalDate.now() + " 兜底计算保护期");
+            }
 
         } catch (Exception e) {
             String name = dto.getCustomerName() != null ? dto.getCustomerName().trim() : null;
@@ -66,6 +72,10 @@ public class CustomerImportListener implements ReadListener<CustomerImportDTO> {
 
     private void addFailure(int row, String customerName, String reason) {
         result.getFailures().add(new CustomerImportResult.FailDetail(row, customerName, reason));
+    }
+
+    private void addWarning(int row, String customerName, String reason) {
+        result.getWarnings().add(new CustomerImportResult.FailDetail(row, customerName, reason));
     }
 
     private BizCustomer toEntity(CustomerImportDTO dto) {

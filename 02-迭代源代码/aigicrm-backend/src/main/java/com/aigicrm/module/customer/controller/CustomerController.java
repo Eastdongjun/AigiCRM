@@ -607,7 +607,7 @@ public class CustomerController {
         refData.add(List.of("县", "选填", "如'清徐县'"));
         refData.add(List.of("厂址", "选填", "详细地址"));
         refData.add(List.of("终端", "选填", "1=是 0=否"));
-        refData.add(List.of("注册日", "选填", "日期格式: 2026-01-15"));
+        refData.add(List.of("注册日", "选填", "日期格式: 2026-01-15；未填按导入当天兜底计算保护期，导入结果会提示"));
         refData.add(List.of("最近开票日", "选填", "日期格式: 2026-06-20"));
         refData.add(List.of("备注", "选填", "任何补充信息，导入时删除示例行"));
 

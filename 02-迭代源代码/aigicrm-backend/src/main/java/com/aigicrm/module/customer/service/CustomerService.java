@@ -395,6 +395,12 @@ public class CustomerService {
     @Transactional
     public void create(BizCustomer customer) {
         customer.setCustomerCode(generateCustomerCode(customer));
+        // 【D3 2026-10-18 用户裁决】新建/导入未填注册日时服务端兜底为当天,
+        // 再由统一公式算出 expireDate/adjustDate——不硬拒绝,但不再产生无保护期基准的新客户。
+        // 存量无日期客户按 D2 裁决维持现状, 不在此修复(仅新建路径)。
+        if (customer.getRegisterDate() == null) {
+            customer.setRegisterDate(LocalDate.now());
+        }
         // 【裁决 2026-09-24】最近开票日=纯推导字段(最后一次非作废开票的日期): 创建时一律清空,
         // 不接受表单直带——历史开票请在客户财务页补录发票记录(自动驱动保护期,全程留痕)
         customer.setLastInvoiceDate(null);

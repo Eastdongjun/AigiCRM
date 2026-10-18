@@ -927,6 +927,29 @@ class CustomerServiceTest {
         assertEquals(100L, captor.getValue().getOwnerId(), "非admin创建必须强制 ownerId=自己");
     }
 
+    /** 【D3 2026-10-18】新建/导入缺失注册日：服务端按当天兜底并算出保护期，不再产生空日期新客户。 */
+    @Test
+    void create_missingRegisterDate_fallsBackToToday_andSetsExpireDate() {
+        BizCustomerMapper customerMapper = mock(BizCustomerMapper.class);
+        CustomerService svc = newService(mock(BizInvoiceMapper.class), mock(BizPaymentMapper.class),
+                customerMapper, mock(OrgScopeResolver.class));
+        BizCustomer req = new BizCustomer();
+        req.setCustomerName("无注册日客户");
+        req.setRegisterDate(null);
+        try (MockedStatic<SecurityUtils> ms = mockStatic(SecurityUtils.class)) {
+            ms.when(SecurityUtils::isAdmin).thenReturn(false);
+            ms.when(SecurityUtils::getCurrentUserId).thenReturn(100L);
+            svc.create(req);
+        }
+        ArgumentCaptor<BizCustomer> captor = ArgumentCaptor.forClass(BizCustomer.class);
+        verify(customerMapper).insert(captor.capture());
+        BizCustomer saved = captor.getValue();
+        assertEquals(java.time.LocalDate.now(), saved.getRegisterDate(), "缺失注册日必须按当天兜底");
+        assertNotNull(saved.getExpireDate(), "兜底后必须生成保护期到期日");
+        assertEquals(java.time.LocalDate.now().plusDays(360), saved.getExpireDate(),
+                "默认保护期 360 天（config mock 返回 null 时走默认值）");
+    }
+
     @Test
     void create_admin_canSpecifyOwnerForDeputyCreation() {
         BizCustomerMapper customerMapper = mock(BizCustomerMapper.class);
