@@ -1,6 +1,29 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
   "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  AIGICRM 每日备份 launchd 示例（不自动安装/不自动加载）
+
+  安装（需用户确认后手动执行）:
+    cp 06-部署与运维/com.donglai.aigicrm.daily-backup.plist.example \
+       ~/Library/LaunchAgents/com.donglai.aigicrm.daily-backup.plist
+    plutil -lint ~/Library/LaunchAgents/com.donglai.aigicrm.daily-backup.plist
+    launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.donglai.aigicrm.daily-backup.plist
+
+  加载校验:
+    launchctl print gui/$(id -u)/com.donglai.aigicrm.daily-backup | grep -E 'state|program|path'
+    # 期望看到 program 指向 02-已上线/01-AIGICRM/02-迭代源代码/scripts/backup-retention.sh
+    # 且 state = waiting / not running（非 running 挂死）
+
+  立即手动验证（不依赖 launchd）:
+    bash "/Users/dongjun/东来/项目/02-已上线/01-AIGICRM/02-迭代源代码/scripts/backup-retention.sh"
+    # 退出码 0 且日志出现 "backup complete: artifacts=N"（N>=1）才算成功
+
+  卸载:
+    launchctl bootout gui/$(id -u)/com.donglai.aigicrm.daily-backup
+
+  注意: 本文件仅是示例；仓库不执行 launchctl，安装/卸载由运维人员显式操作。
+-->
 <plist version="1.0">
 <dict>
   <key>Label</key>
@@ -8,7 +31,8 @@
 
   <key>ProgramArguments</key>
   <array>
-    <string>/Users/dongjun/东来/项目/01-进行中/01-AIGICRM/02-迭代源代码/scripts/backup-retention.sh</string>
+    <string>/bin/bash</string>
+    <string>/Users/dongjun/东来/项目/02-已上线/01-AIGICRM/02-迭代源代码/scripts/backup-retention.sh</string>
   </array>
 
   <key>StartCalendarInterval</key>
@@ -20,10 +44,17 @@
   </dict>
 
   <key>StandardOutPath</key>
-  <string>/Users/dongjun/东来/项目/01-进行中/01-AIGICRM/08-备份索引/10-每日全量备份/backup-retention.out.log</string>
+  <string>/Users/dongjun/Library/Logs/aigicrm-backup.out.log</string>
 
   <key>StandardErrorPath</key>
-  <string>/Users/dongjun/东来/项目/01-进行中/01-AIGICRM/08-备份索引/10-每日全量备份/backup-retention.err.log</string>
+  <string>/Users/dongjun/Library/Logs/aigicrm-backup.err.log</string>
+
+  <key>EnvironmentVariables</key>
+  <dict>
+    <!-- ssh/scp 在 launchd 精简 PATH 下必须能找到 -->
+    <key>PATH</key>
+    <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+  </dict>
 
   <key>RunAtLoad</key>
   <false/>

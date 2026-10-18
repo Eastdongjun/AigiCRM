@@ -5,11 +5,31 @@
 # 而**不要**直接挂/拷到 /etc/nginx/conf.d/default.conf —— 那样 ${BACKEND_HOST} 不会被替换，
 # nginx 会以 `[emerg] host not found in upstream "${BACKEND_HOST}"` 启动失败（实测退出码 1）。
 # BACKEND_HOST 由 compose 按 APP_SLUG 注入：${APP_SLUG:-aigicrm}-backend
+
+# 【file-4 2026-10-17】下载 token 走 query string（...?token=<jwt>），默认 combined 日志的
+# $request 会把完整 URL（含 token）明文写进 access.log。这里生成脱敏副本 $request_redacted：
+# 仅把 token 参数值替换为 ***，其余 URL 原样保留；访问日志只用该变量。请求本身不被改写。
+map $request $request_redacted {
+    default $request;
+    "~^(?<req_pre>.*[?&]token=)[^&\s]*(?<req_post>.*)$" $req_pre***$req_post;
+}
+log_format aigicrm_redacted '$remote_addr - $remote_user [$time_local] "$request_redacted" '
+                             '$status $body_bytes_sent "$http_referer" '
+                             '"$http_user_agent" "$http_x_forwarded_for"';
+
+# 【file-5 2026-10-17】测试环境对齐生产：upstream 长连接复用。
+# 生效前提：proxy_pass 指向本 upstream + proxy_http_version 1.1 + proxy_set_header Connection ""。
+upstream backend_pool {
+    server ${BACKEND_HOST}:8080;
+    keepalive 32;
+}
+
 server {
     listen 80;
     server_name localhost;
     root /usr/share/nginx/html;
     index index.html;
+    access_log /var/log/nginx/access.log aigicrm_redacted;
 
     # 【2026-10-16 测试环境对齐生产】安全头镜像自 nginx/nginx-ssl.conf(去掉仅 HTTPS 有意义的 HSTS)。
     # 此前测试服无 CSP/X-Frame-Options, 生产的 blob: iframe 被 CSP 拦掉(PDF 预览坏了)在测试服永远测不出来。
@@ -18,6 +38,13 @@ server {
     add_header X-Content-Type-Options nosniff always;
     add_header Referrer-Policy "strict-origin-when-cross-origin" always;
     add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; frame-src 'self' blob:; object-src 'none'; frame-ancestors 'none'; base-uri 'self'" always;
+
+    # 【file-5 2026-10-17】gzip 参数对齐生产 nginx/nginx-ssl.conf（JSON/JS/CSS 文本压缩）
+    gzip on;
+    gzip_vary on;
+    gzip_min_length 1k;
+    gzip_comp_level 5;
+    gzip_types text/plain text/css application/json application/javascript text/javascript application/xml image/svg+xml;
 
     # 前端路由支持
     location / {
@@ -37,12 +64,18 @@ server {
     # 按 Range 分段边下边看(23.5MB PDF 首屏从全量下载完降到秒级)。XFO 收窄 DENY→SAMEORIGIN、
     # CSP frame-ancestors 收窄 none→self: 仅允许本系统页面内嵌, 外站仍被拒。
     # 注意 nginx add_header 不继承: 本 location 的安全头须整组重抄(除上述两处收窄外与 server 级一致)。
+    # 【file-5】与生产同款 upstream/长连接/超时参数。
     location ^~ /api/file/download/ {
-        proxy_pass http://${BACKEND_HOST}:8080/api/file/download/;
+        proxy_pass http://backend_pool/api/file/download/;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_http_version 1.1;
+        proxy_set_header Connection "";
+        proxy_connect_timeout 10s;
+        proxy_send_timeout 60s;
+        proxy_read_timeout 60s;
         client_max_body_size 500m;
         # 后端 Spring Security 对所有响应自带 XFO DENY, 会与本块的 SAMEORIGIN 形成重复头(浏览器取最严=仍拒)——
         # 先隐掉上游的, 只保留下方 SAMEORIGIN
@@ -56,12 +89,18 @@ server {
     # API 代理（^~ 确保优先于下方静态资源正则匹配，否则 /api/.../*.png 等下载会被静态规则拦截导致 404）
     # 【2026-10-16】移除此前 `location ^~ /api/file/download/public/` 的本地 alias 块: 它把公共文件下载截到
     # 镜像内不存在的 uploads-public 目录(恒 404), 与后端"物理+库行双校验"的 public 路由不符, 生产亦无此块。
+    # 【file-5】改走 backend_pool 长连接，并显式钉住 connect/send/read 超时（与生产一致）。
     location ^~ /api/ {
-        proxy_pass http://${BACKEND_HOST}:8080/api/;
+        proxy_pass http://backend_pool/api/;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_http_version 1.1;
+        proxy_set_header Connection "";
+        proxy_connect_timeout 10s;
+        proxy_send_timeout 60s;
+        proxy_read_timeout 60s;
 
         # 文件上传大小限制
         client_max_body_size 500m;

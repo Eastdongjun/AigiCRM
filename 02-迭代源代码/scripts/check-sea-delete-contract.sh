@@ -37,8 +37,11 @@ assert_contains "$SERVICE" 'public void deletePool(Long seaPoolId)'
 assert_contains "$SERVICE" '"available".equals(pool.getStatus())'
 assert_contains "$SERVICE" 'hasPoolPerm(pool.getPoolId(), SeaConfigService.PERM_DELETE'
 assert_contains "$SERVICE" '!visiblePoolIds.contains(pool.getPoolId())'
-assert_contains "$SERVICE" 'customerMapper.deleteById(pool.getCustomerId())'
-assert_contains "$SERVICE" 'seaPoolMapper.deleteById(seaPoolId)'
+# 【2026-10-18 biz-3】公海删除必须先条件结束池行，再走客户统一删除内核
+# (分享/提醒清理+删除快照)；禁止回退到直接 customerMapper.deleteById 绕过。
+assert_contains "$SERVICE" 'customerService.deleteFromSeaPool(pool.getCustomerId())'
+assert_contains "$SERVICE" 'seaPoolMapper.delete(new LambdaQueryWrapper<BizSeaPool>()'
+assert_contains "$SERVICE" '.eq(BizSeaPool::getStatus, "available")'
 
 assert_contains "$API" 'export function deleteSeaPool(id)'
 assert_contains "$API" 'request.delete(`/sea/pool/${id}`)'

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # 权限码字典 markdown 生成(由 gen-permission-dict.sh 调用)
-import sys, datetime
+import os, sys, datetime, tempfile
 
 # 兼容/历史权限码(与 PermissionMatrixTest.DOCUMENTED_NON_RUNTIME_PERMISSION_CODES 同源)。
 # 这些码已从 sys_menu 删除或不再作为运行时门禁, 但测试要求字典"一、权限码清单"里可查,
@@ -17,21 +17,43 @@ LEGACY_PERMISSION_CODES = [
 ]
 LEGACY_NOTES = dict(LEGACY_PERMISSION_CODES)
 
-def guard_repo_path(path, what, allow_tempdir=False):
-    """生成器只允许写项目目录(或系统临时目录, 供 check-doc-freshness 临时产物用)内的路径,
-    拒绝越仓写入(路径穿越收敛, 2026-09-21 安全轮; 复审 2026-10-13 补 tempdir 豁免——
-    缺失曾使 check-doc-freshness 的权限字典生成被 guard 拒绝且退出码被吃掉, 新鲜度校验静默失效)。"""
-    import os
+def _allowed_roots(allow_tempdir=False):
     repo_root = os.path.realpath(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-    p = os.path.realpath(path)
-    allowed = p == repo_root or p.startswith(repo_root + os.sep)
-    if not allowed and allow_tempdir:
-        import tempfile
-        tmp_root = os.path.realpath(tempfile.gettempdir())
-        allowed = p == tmp_root or p.startswith(tmp_root + os.sep)
+    roots = [repo_root]
+    if allow_tempdir:
+        roots.append(os.path.realpath(tempfile.gettempdir()))
+        roots.append(os.path.realpath('/tmp'))
+    return roots
+
+def guard_repo_path(path, what, allow_tempdir=False):
+    """生成器只允许写项目目录(或系统临时目录, 供 check-doc-freshness 临时产物用)内的路径。
+    先 abspath 归一化 ..，再 realpath 解析符号链接，最后做根前缀校验；输出父目录在
+    校验通过后才创建，创建后再次 realpath 复核，拒绝越仓/绝对路径逃逸(2026-10-17 加固)。"""
+    if not path or '\x00' in path:
+        sys.exit('拒绝: %s 路径为空或包含 NUL 字节' % what)
+    raw = os.path.abspath(path)
+    p = os.path.realpath(raw)
+    roots = _allowed_roots(allow_tempdir)
+    allowed = any(p == r or p.startswith(r + os.sep) for r in roots)
     if not allowed:
-        sys.exit('拒绝: %s 路径必须在项目目录(或系统临时目录)内(%s): %s' % (what, repo_root, p))
+        sys.exit('拒绝: %s 路径必须在项目目录(或系统临时目录)内(%s): %s' % (what, roots[0], p))
+    parent = os.path.dirname(p) or '.'
+    try:
+        os.makedirs(parent, exist_ok=True)
+    except OSError as exc:
+        sys.exit('拒绝: %s 父目录无法创建(%s): %s' % (what, exc, parent))
+    p = os.path.realpath(raw)
+    if not any(p == r or p.startswith(r + os.sep) for r in roots):
+        sys.exit('拒绝: %s 路径解析后逃逸允许根(%s): %s' % (what, roots[0], p))
     return p
+
+def write_text(path, text, what='输出文件'):
+    """落盘前紧邻调用 guard_repo_path，避免"校验一次后另行 open"的路径穿越/TOCTOU。"""
+    p = guard_repo_path(path, what, allow_tempdir=True)
+    if os.path.isdir(p):
+        sys.exit('拒绝: %s 指向目录而非文件: %s' % (what, p))
+    with open(p, 'w', encoding='utf-8') as f:
+        f.write(text)
 
 def main(out_path, label):
     out_path = guard_repo_path(out_path, '输出文件', allow_tempdir=True)
@@ -126,10 +148,11 @@ def main(out_path, label):
         L.append('| `%s` | %s |' % (perm, ' | '.join(cells)))
     L.append('')
 
-    with open(out_path, 'w', encoding='utf-8') as f:
-        f.write('\n'.join(L) + '\n')
+    write_text(out_path, '\n'.join(L) + '\n')
     print('生成完成: %s (%d 条权限码, 启用 %d / 停用 %d, %d 个角色)' % (
         out_path, len(grouped), enabled_cnt, disabled_cnt, len(role_set)))
 
 if __name__ == '__main__':
+    if len(sys.argv) != 3:
+        sys.exit('用法: gen-perm.py <输出md> <来源标签>')
     main(sys.argv[1], sys.argv[2])

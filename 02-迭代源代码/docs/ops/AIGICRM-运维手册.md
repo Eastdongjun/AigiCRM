@@ -285,7 +285,7 @@ bash scripts/deploy-frontend.sh
 
 流程：
 1. Mac 构建 `npm run build`
-2. 上传 → 切换 NAS dist（`/Aigicrm/files/aigicrm-dist`）
+2. 上传 → 切换 NAS dist（生产现值 `/Aigicrm/files/ycmn-dist`；改名窗口完成后为 `/Aigicrm/files/aigicrm-dist`，一律以部署 env `NAS_DIST_DIR` 为准）
 3. 服务器端注入 prefetch + 写 version.txt
 4. 公网验证
 
@@ -315,34 +315,61 @@ cat sql/migration/xxx.sql | sshpass ... ssh prod 'docker exec -i aigicrm-mysql m
 
 ### 9.1 每日自动备份
 
+**生产（服务器 cron）**：
+
 - cron：`30 2 * * * /usr/local/bin/aigicrm-daily-backup.sh`（生产）
-- 内容：DB dump（aigicrm）+ 上传文件卷（`upload-data`，正确卷已修正）
-- 位置：NAS `/Aigicrm/files/backup/daily/`
+- 内容：DB dump（库名以部署 env `DB_NAME` 为准，当前生产为 `ycmn`）+ **NAS 上传文件目录 `/Aigicrm/files/uploads`**
+  （不再使用旧 `upload-data` 卷；旧卷只读保留，见 `docs/生产部署规范.md` §4）
+- 位置：NAS `/Aigicrm/files/backup/daily/YYYYMMDD/`
 - 保留：14 天自动清理（KEEP_DAYS=14）
-- 产物：`aigicrm-db-YYYYMMDD.sql` + `upload-data-YYYYMMDD.tar.gz` + `report.md`（健康报告）
+- 产物：`<库名>-db-YYYYMMDD.sql` + 上传文件 tar + `report.md`（健康报告）
+
+**Mac 本地每日归档（launchd，fail-closed）**：
+
+- 脚本：`02-迭代源代码/scripts/backup-retention.sh`
+- plist 示例：`06-部署与运维/com.donglai.aigicrm.daily-backup.plist.example`（安装/加载校验命令见文件头注释）
+- 成功判据：退出码 0 且日志出现 `backup complete: artifacts=N`（N≥1）；缺部署 env/SSH 密钥/
+  源目录/备份目录不可写、mirror 拉新失败、产物为空或不可解包时脚本均非零退出，不会打印成功。
 
 ### 9.2 手动全量备份
 
+> 以下 1-3 在**生产服务器**执行。上传文件含大小写同名文件，禁止在 Mac（大小写不敏感）解包/打包
+> （生产部署规范 §4）。数据库口令从容器环境读取，不写进命令行 argv。
+
 ```bash
-# 1. 数据库
-docker exec aigicrm-mysql mysqldump -uroot -p'[DB密码]' --single-transaction --default-character-set=utf8mb4 aigicrm > aigicrm_full_dump.sql
-# 2. 上传文件卷
-docker run --rm -v upload-data:/d alpine tar czf upload-data.tar.gz -C /d .
+# 0. 备份目录
+mkdir -p /Aigicrm/files/backup/manual
+# 1. 数据库（库名以部署 env DB_NAME 为准，当前生产 ycmn）
+docker exec aigicrm-mysql sh -c 'exec mysqldump -uroot -p"$MYSQL_ROOT_PASSWORD" --single-transaction --default-character-set=utf8mb4 ycmn' \
+  > /Aigicrm/files/backup/manual/ycmn-full-$(date +%Y%m%d).sql
+# 2. 上传文件（NAS 真实路径；不要用 upload-data 卷）
+tar -czf /Aigicrm/files/backup/manual/uploads-$(date +%Y%m%d).tar.gz -C /Aigicrm/files/uploads .
 # 3. 镜像
-docker save aigicrm-backend:2.7.0 aigicrm-frontend:2.6.1 mysql:8.0.28 redis:7-alpine | gzip > images.tar.gz
-# 4. 拉取到本地
-rsync -az root@39.99.35.218:/root/aigicrm/backup-dir/ /Users/donglai/正式系统数据备份/01-客户管理系统/
+docker save aigicrm-backend:2.7.0 aigicrm-frontend:2.6.1 mysql:8.0.28 redis:7-alpine | gzip > /Aigicrm/files/backup/manual/images.tar.gz
+# 4. 拉取到本地（在 Mac 执行；目标目录按实际备份盘调整）
+rsync -az root@39.99.35.218:/Aigicrm/files/backup/ <本地备份目录>/Aigicrm-backup/
 ```
 
 ### 9.3 恢复
 
+> **上传文件只能恢复到 NAS `/Aigicrm/files/uploads`**。禁止恢复进 `upload-data` /
+> `aigicrm_upload-data` 卷；旧卷只读保留、**不挂载**（误挂会让 NAS 文件"消失"）。
+> 恢复上传文件前建议先停后端（`docker stop aigicrm-backend`），恢复完成后再启动。
+
 ```bash
-# 数据库
-docker exec -i aigicrm-mysql mysql -uroot -p'[DB密码]' aigicrm < aigicrm_full_dump.sql
-# 上传文件
-docker run --rm -v upload-data:/d alpine sh -c "tar xzf - -C /d" < upload-data.tar.gz
+# 数据库（先备份当前库；口令从容器环境读取）
+docker exec aigicrm-mysql sh -c 'exec mysqldump -uroot -p"$MYSQL_ROOT_PASSWORD" --single-transaction --default-character-set=utf8mb4 ycmn' \
+  > /Aigicrm/files/backup/manual/pre-restore-$(date +%Y%m%d-%H%M%S).sql
+docker exec -i aigicrm-mysql sh -c 'exec mysql -uroot -p"$MYSQL_ROOT_PASSWORD" --default-character-set=utf8mb4 ycmn' \
+  < /Aigicrm/files/backup/manual/ycmn-full-YYYYMMDD.sql
+
+# 上传文件：只恢复到 NAS（在服务器执行；不要在 Mac 解包）
+tar -xzf /Aigicrm/files/backup/manual/uploads-YYYYMMDD.tar.gz -C /Aigicrm/files/uploads
+docker inspect aigicrm-backend --format '{{range .Mounts}}{{.Source}} {{end}}' | grep -q '/Aigicrm/files/uploads' \
+  || { echo '❌ 后端未挂载 NAS /Aigicrm/files/uploads，禁止继续'; }
+
 # 镜像
-docker load < images.tar.gz
+docker load < /Aigicrm/files/backup/manual/images.tar.gz
 # 容器按 containers-inspect.json 重建
 ```
 
@@ -378,8 +405,10 @@ docker load < images.tar.gz
 - 先测后端接口耗时（curl 直连）→ 排除代理（Mac VPN 白名单）
 
 ### 11.4 文件下载 404
-- 检查 `biz_file.oss_key` 对应磁盘文件是否存在
-- 检查上传卷是否挂对（`upload-data`）
+- 检查 `biz_file.oss_key` 对应磁盘文件是否存在（NAS `/Aigicrm/files/uploads`）
+- 检查后端容器挂载是否为 `/Aigicrm/files/uploads`：
+  `docker inspect aigicrm-backend --format '{{range .Mounts}}{{.Source}} {{end}}'`
+- 旧卷 `upload-data` / `aigicrm_upload-data` 只读保留、**不挂载**；误挂旧卷会造成"文件消失"假象
 
 ### 11.5 分页显示错乱
 - 跑 `scripts/check-pagination-anti-patterns.sh`

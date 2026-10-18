@@ -44,24 +44,28 @@ HEALTH_CHECK_PASS="${HEALTH_CHECK_PASS:-}"
 
 SSH_OPTS="${SSH_OPTS:--o ConnectTimeout=20 -o StrictHostKeyChecking=no}"
 
+# 单次 ssh(不做重试)。供需要 stdin 的脚本(printf | ssh_prod_once "bash -s")与
+# 轮询类调用使用——带重试的 ssh_prod 在第一次尝试已消费 stdin, 重试时会读到 EOF。
+ssh_prod_once() {
+  if [ -f "$PROD_KEY" ]; then
+    ssh -i "$PROD_KEY" -o BatchMode=yes $SSH_OPTS "${PROD_USER}@${PROD_HOST}" "$@"
+  else
+    sshpass -p "$PROD_PASS" ssh $SSH_OPTS "${PROD_USER}@${PROD_HOST}" "$@"
+  fi
+}
+
 # ssh 封装带重试(连接建立类瞬时失败自动重试; 3 次后放弃)。
 # 注: 重试仅对"连接未建立"的失败安全——绝大多数瞬时失败(连接重置/拒绝)发生在此阶段, 远程命令未执行;
 # 部署类命令自身幂等(备份覆盖/rm -rf 先行/容器重启), 重试不会造成重复副作用。
 ssh_prod() {
-  local attempt
-  for attempt in 1 2 3; do
-    if [ -f "$PROD_KEY" ]; then
-      ssh -i "$PROD_KEY" -o BatchMode=yes $SSH_OPTS "${PROD_USER}@${PROD_HOST}" "$@" && return 0
-    else
-      sshpass -p "$PROD_PASS" ssh $SSH_OPTS "${PROD_USER}@${PROD_HOST}" "$@" && return 0
-    fi
+  for _ in 1 2 3; do
+    ssh_prod_once "$@" && return 0
     sleep 2
   done
   return 1
 }
 ssh_test() {
-  local attempt
-  for attempt in 1 2 3; do
+  for _ in 1 2 3; do
     sshpass -p "$TEST_PASS" ssh $SSH_OPTS "${TEST_USER}@${TEST_HOST}" "$@" && return 0
     sleep 2
   done
@@ -94,7 +98,7 @@ scp_test()  { sshpass -p "$TEST_PASS" scp $SSH_OPTS "$@"; }
 check_health() {
   local base="${1:-https://www.aigicrm.com}"
   local resp code
-  resp=$(curl -sk --connect-timeout 10 -w "\n%{http_code}" "$base/api/system/configs/public")
+  resp=$(curl -sk --connect-timeout 10 --max-time 20 -w "\n%{http_code}" "$base/api/system/configs/public")
   code="${resp##*$'\n'}"
   if [ "$code" = "200" ] && printf '%s' "$resp" | grep -qE '"code":[[:space:]]*200'; then
     echo "✅ 健康检查通过 (公共配置接口 200: nginx→后端→DB 全链可达)"
@@ -104,12 +108,48 @@ check_health() {
   return 1
 }
 
+# 健康检查重试包装（默认 3 次）：单次网络抖动不应触发后端自动回滚；
+# 3 次均失败仍返回非零，由调用方执行回滚/中止。
+check_health_retry() {
+  local attempts="${1:-3}" i
+  for i in $(seq 1 "$attempts"); do
+    if check_health; then return 0; fi
+    if [ "$i" -lt "$attempts" ]; then
+      echo "  健康检查失败，5 秒后重试 ($i/$attempts)..." >&2
+      sleep 5
+    fi
+  done
+  return 1
+}
+
+# 等待后端就绪(有限次数, 不再无限 until):
+#   - 容器必须处于 running;
+#   - 日志出现 Started AigicrmApplication。
+# 超时返回非零并打印日志尾部, 由调用方决定回滚/中止。
+wait_backend_started() {
+  local attempts="${1:-60}" interval="${2:-5}" i
+  for i in $(seq 1 "$attempts"); do
+    if ssh_prod_once "set -e; [ \"\$(docker inspect -f '{{.State.Running}}' ${APP_SLUG}-backend 2>/dev/null)\" = 'true' ]; docker logs ${APP_SLUG}-backend 2>&1 | grep -q 'Started AigicrmApplication'" >/dev/null 2>&1; then
+      ssh_prod_once "docker logs ${APP_SLUG}-backend 2>&1 | grep -E 'Started AigicrmApplication' | tail -1" || true
+      return 0
+    fi
+    echo "  等待后端启动... ($i/$attempts)"
+    sleep "$interval"
+  done
+  echo "❌ 后端在 $((attempts * interval)) 秒内未就绪 (容器未运行或未见 Started 日志)" >&2
+  ssh_prod_once "docker logs ${APP_SLUG}-backend --tail 50 2>&1" >&2 || true
+  return 1
+}
+
 # 部署架构自检(2026-08-15 磁盘架构迁移后强制执行):
 # 标准布局 = 系统盘仅OS / 数据盘 /data(docker根+部署目录+数据库, 库与程序路径区分) / NAS=文件
-# 只告警不阻断(允许临时偏差), 每次部署开始时输出, 部署者必须肉眼确认 ✅
+# 【ops-3 2026-10-17】自检改为 fail-closed：任一关键项不符即返回非零，调用方(set -e)中止部署。
+# 旧实现只打印 ⚠️ 且恒返回 0，架构偏航时部署仍继续，属 fail-open。
+# 临时例外（需负责人确认）可显式设 AIGICRM_ALLOW_ARCH_DEVIATION=1 降级为告警。
 check_deploy_arch() {
+  local out
   echo "=== 部署架构自检(标准见 docs/生产部署规范.md) ==="
-  ssh_prod "APP_SLUG='$APP_SLUG' DEPLOY_DIR='$DEPLOY_DIR' DEPLOY_DATA_DIR='$DEPLOY_DATA_DIR' bash -s" <<'ARCH_CHECK'
+  if ! out="$(ssh_prod_once "APP_SLUG='$APP_SLUG' DEPLOY_DIR='$DEPLOY_DIR' DEPLOY_DATA_DIR='$DEPLOY_DATA_DIR' bash -s" <<'ARCH_CHECK'
 R=$(docker info --format "{{.DockerRootDir}}" 2>/dev/null)
 [ "$R" = "/data/docker" ] && echo "✅ docker 根=/data/docker" || echo "⚠️ docker 根=$R (标准: /data/docker)"
 M=$(docker inspect ${APP_SLUG}-mysql --format "{{range .Mounts}}{{.Source}} {{end}}" 2>/dev/null | tr " " "\n" | grep -c "^/data/database/mysql-data$")
@@ -119,6 +159,24 @@ L=$(readlink "$DEPLOY_DIR" 2>/dev/null)
 U=$(docker inspect ${APP_SLUG}-backend --format "{{range .Mounts}}{{.Source}} {{end}}" 2>/dev/null | tr " " "\n" | grep -c "^/Aigicrm/files/uploads$")
 [ "$U" = "1" ] && echo "✅ 上传文件=NAS /Aigicrm/files/uploads" || echo "⚠️ 上传文件不在 NAS"
 ARCH_CHECK
+  )"; then
+    echo "❌ 部署架构自检无法执行(ssh/docker 失败)" >&2
+    return 1
+  fi
+  printf '%s\n' "$out"
+  # 输出完整性门禁：4 项检查必须都有结果行（✅ 或 ⚠️）；空输出/远端脚本未执行不得被当成通过
+  if [ "$(printf '%s' "$out" | grep -Ec '^(✅|⚠️)')" -lt 4 ]; then
+    echo "❌ 部署架构自检输出不完整（期望 4 项检查结果）" >&2
+    return 1
+  fi
+  if printf '%s' "$out" | grep -q '⚠️'; then
+    if [ "${AIGICRM_ALLOW_ARCH_DEVIATION:-0}" = "1" ]; then
+      echo "⚠️ 部署架构存在偏差，但已显式设置 AIGICRM_ALLOW_ARCH_DEVIATION=1，继续执行" >&2
+      return 0
+    fi
+    echo "❌ 部署架构自检失败：上述 ⚠️ 项必须修正（临时例外需显式 AIGICRM_ALLOW_ARCH_DEVIATION=1）" >&2
+    return 1
+  fi
   return 0
 }
 

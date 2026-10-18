@@ -51,6 +51,12 @@ if [ "${LOCAL_QA_MODE:-0}" = "1" ]; then
   export REDIS_HOST="${REDIS_HOST:-127.0.0.1}"
   export REDIS_PORT="${REDIS_PORT:-6379}"
 fi
+# 【Mimosa HIGH 2026-10-17】数据库口令只从环境读取（LOCAL_DOCKER_MODE 时从本地容器
+# MYSQL_ROOT_PASSWORD 派生），脚本内不得出现任何可用凭据字面量；缺失即明确报错退出。
+if [ -z "${DB_PASSWORD:-}" ]; then
+  echo "ERROR: DB_PASSWORD is required (or use LOCAL_DOCKER_MODE=1 to read it from aigicrm-local-mysql)." >&2
+  exit 2
+fi
 mkdir -p "$UPLOAD_DIR"
 
 if [ "${LOCAL_QA_MODE:-0}" = "1" ] && [ "${LOCAL_QA_MIGRATE:-true}" = "true" ]; then

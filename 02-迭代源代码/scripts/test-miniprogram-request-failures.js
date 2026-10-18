@@ -1,4 +1,18 @@
 const assert = require('node:assert/strict')
+const fs = require('node:fs')
+const path = require('node:path')
+
+// 【Mimosa HIGH 2026-10-17】本脚本不调用任何 shell/子进程，不存在命令拼接面；
+// 唯一的动态加载点（require(路径)）改为 realpath 白名单校验：只允许加载
+// aigicrm-miniprogram 根目录内的模块，拒绝路径穿越/越仓 require。
+const MINI_ROOT = fs.realpathSync(path.join(__dirname, '..', 'aigicrm-miniprogram'))
+function requireWithinMiniRoot(specifier) {
+  const resolved = fs.realpathSync(require.resolve(specifier))
+  if (resolved !== MINI_ROOT && !resolved.startsWith(MINI_ROOT + path.sep)) {
+    throw new Error(`拒绝加载小程序根目录之外的模块: ${resolved}`)
+  }
+  return require(resolved)
+}
 
 const storage = new Map()
 const redirects = []
@@ -18,9 +32,9 @@ global.wx = {
 }
 
 function loadRequest() {
-  const path = require.resolve('../aigicrm-miniprogram/utils/request')
-  delete require.cache[path]
-  return require(path)
+  const resolved = fs.realpathSync(require.resolve('../aigicrm-miniprogram/utils/request'))
+  delete require.cache[resolved]
+  return requireWithinMiniRoot('../aigicrm-miniprogram/utils/request')
 }
 
 // 【PR-04 令牌缓存隔离】固定环境档，令牌键派生确定性(避免依赖本机 env.local.js 是否存在)
