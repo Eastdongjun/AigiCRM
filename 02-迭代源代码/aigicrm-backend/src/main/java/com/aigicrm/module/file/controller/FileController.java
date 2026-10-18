@@ -139,7 +139,9 @@ public class FileController {
             // 元数据不存在默认 404(不泄漏存在性);范围非 public 403。匿名语义不引入按登录用户的
             // canDownloadFile 判定, 只按行的公开性收口(登录下载走 /download/{id} 与 /download/{key})。
             String fileKey = relative.toString().replace('\\', '/');
-            BizFile meta = fileService.getFileByKey(fileKey);
+            // 【P0 2026-10-17】匿名请求无租户上下文，必须走忽略租户拦截器的 public 专用查询，
+            // 否则 selectOne 被改写为 tenant_id=NULL 恒空 → 公共下载全部 404。
+            BizFile meta = fileService.getPublicFileByKey(fileKey);
             if (meta == null) {
                 return ResponseEntity.notFound().build();
             }

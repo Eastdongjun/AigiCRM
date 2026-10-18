@@ -17,7 +17,9 @@ import com.aigicrm.module.system.mapper.SysUserMapper;
 import com.aigicrm.security.SecurityUser;
 import com.aigicrm.security.SecurityUtils;
 import lombok.RequiredArgsConstructor;
+import org.springframework.jdbc.core.BeanPropertyRowMapper;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -44,15 +46,24 @@ import java.util.stream.Collectors;
  *       上传人已删除/存储配额不足 → 拒绝。</li>
  * </ul>
  *
- * <p>权限: 控制器层 @PreAuthorize 校验 system:recycle:view / system:recycle:restore, 默认仅系统管理员。</p>
+ * <p>权限: 控制器层 @PreAuthorize 之外再统一校验 {@link SecurityUtils#isAdmin()}, 回收站 HTTP 端点
+ * 仅平台管理员可用(定时任务直调 service, 不受控制器守卫影响)。</p>
+ *
+ * <p>清理并发与数据保全: 恢复/彻底删除/批量清理先对 biz_file 行做 {@code SELECT ... FOR UPDATE},
+ * 锁内复核 deleted=1 与内容存在性; 批量清理跳过激励佐证文件; 同一 oss_key 仍有活跃行时只删台账;
+ * 物理内容删除失败时保留台账待下次重试。</p>
  */
 @Service
 @RequiredArgsConstructor
 public class RecycleService {
 
     private static final int MAX_PAGE_SIZE = 100;
-    /** 客户彻底删除时随删的辅助关联(不阻断删除); 其余业务关联存在即拒绝 */
-    private static final Set<String> CUSTOMER_AUX_REFS = Set.of("分享", "提醒", "公海池记录");
+    /** 客户彻底删除时随删的辅助关联(不阻断删除); 其余业务关联(含任务)存在即拒绝 */
+    private static final Set<String> CUSTOMER_AUX_REFS = Set.of("分享", "提醒", "公海池记录", "联系人");
+    /** 人员彻底删除时随删的辅助关联(激励已读行有 NO ACTION 外键); 其余关联存在即拒绝 */
+    private static final Set<String> USER_AUX_REFS = Set.of("激励已读");
+    /** 回收站清理的锁定读(与 BizFileMapper.selectByIdIncludingDeleted 同口径, 额外加行锁) */
+    private static final RowMapper<BizFile> FILE_ROW_MAPPER = new BeanPropertyRowMapper<>(BizFile.class);
 
     private final BizCustomerMapper customerMapper;
     private final SysUserMapper userMapper;
@@ -196,7 +207,7 @@ public class RecycleService {
 
     // ==================== 彻底删除(不可恢复) ====================
 
-    /** 客户彻底删除: 财务/激励/跟进/指标/阶段金额/审批等业务关联存在时拒绝; 分享/提醒/公海残留随删 */
+    /** 客户彻底删除: 财务/激励/跟进/指标/阶段金额/审批/任务等业务关联存在时拒绝; 分享/提醒/公海/联系人随删 */
     @Transactional
     public String hardDeleteCustomer(Long id) {
         BizCustomer c = customerMapper.selectByIdIncludingDeleted(id);
@@ -215,6 +226,8 @@ public class RecycleService {
         jdbc.update("DELETE FROM biz_customer_share WHERE customer_id = ?", id);
         jdbc.update("DELETE FROM biz_reminder WHERE customer_id = ?", id);
         jdbc.update("DELETE FROM biz_sea_pool WHERE customer_id = ?", id);
+        // 联系人随客户硬删(无外键, 软删行一并清掉, 防孤儿)
+        jdbc.update("DELETE FROM biz_contact WHERE customer_id = ?", id);
         int deleted = jdbc.update("DELETE FROM biz_customer WHERE id = ? AND deleted = 1", id);
         if (deleted != 1) {
             throw new BusinessException("彻底删除失败：数据状态已变化，请刷新后重试");
@@ -233,13 +246,15 @@ public class RecycleService {
         }
         Map<String, Long> related = userRelated(id);
         List<String> blocked = related.entrySet().stream()
-                .filter(e -> e.getValue() > 0)
+                .filter(e -> !USER_AUX_REFS.contains(e.getKey()) && e.getValue() > 0)
                 .map(e -> e.getKey() + " " + e.getValue())
                 .toList();
         if (!blocked.isEmpty()) {
             throw new BusinessException("存在业务关联（" + String.join("、", blocked)
                     + "），不能彻底删除；请先处理这些记录");
         }
+        // biz_incentive_read.user_id 为 NO ACTION 外键, 必须随人员行先删, 否则 500
+        jdbc.update("DELETE FROM biz_incentive_read WHERE user_id = ?", id);
         jdbc.update("DELETE FROM sys_user_role WHERE user_id = ?", id);
         jdbc.update("DELETE FROM sys_user_position WHERE user_id = ?", id);
         jdbc.update("DELETE FROM sys_user_org WHERE user_id = ?", id);
@@ -254,14 +269,27 @@ public class RecycleService {
         return "人员已彻底删除（不可恢复）";
     }
 
-    /** 文件彻底删除: 激励记录仍引用时拒绝; 物理内容与台账行一并清除 */
+    /** 文件彻底删除: 激励记录仍引用时拒绝; 行锁内复核后清分享/内容/台账 */
     @Transactional
     public String hardDeleteFile(Long id) {
-        BizFile f = requireDeletedFile(id);
-        if (fileService.isIncentiveEvidence(id)) {
+        // 与恢复/批量清理共用行锁口径: 锁内复核 deleted=1, 防并发恢复后误删活跃文件
+        BizFile f = lockDeletedFile(id);
+        if (f == null) {
+            throw new BusinessException("该文件不在回收站（可能已被恢复或已被彻底删除）");
+        }
+        if (isIncentiveEvidence(id)) {
             throw new BusinessException("该文件仍被激励记录引用，不能彻底删除；请先在激励模块处理记录");
         }
-        fileService.deleteStoredContent(f.getOssKey());
+        String ossKey = f.getOssKey();
+        if (ossKey != null && !ossKey.isBlank() && !hasActiveDuplicateKey(ossKey, id)) {
+            fileService.deleteStoredContent(ossKey);
+            // deleteStoredContent 尽力而为不抛错; 仍存在说明物理删除失败, 保留台账待重试
+            if (fileService.contentExists(ossKey)) {
+                throw new BusinessException("文件内容物理删除失败，已保留删除记录，请稍后重试");
+            }
+        }
+        // 文件分享无外键, 随文件台账一并清理
+        jdbc.update("DELETE FROM biz_file_share WHERE file_id = ?", id);
         int deleted = jdbc.update("DELETE FROM biz_file WHERE id = ? AND deleted = 1", id);
         if (deleted != 1) {
             throw new BusinessException("彻底删除失败：数据状态已变化，请刷新后重试");
@@ -271,7 +299,7 @@ public class RecycleService {
         return "文件已彻底删除（不可恢复）";
     }
 
-    /** 回收站文件内容下载(仅详情查看, 已由控制器校验 system:recycle:view) */
+    /** 回收站文件内容下载(仅详情查看, 已由控制器校验平台管理员 + system:recycle:view) */
     public void writeFileContent(Long id, jakarta.servlet.http.HttpServletResponse response) {
         BizFile f;
         try {
@@ -310,8 +338,9 @@ public class RecycleService {
 
     @Transactional
     public String restoreFile(Long id) {
-        BizFile f = fileMapper.selectByIdIncludingDeleted(id);
-        if (f == null || !Objects.equals(f.getDeleted(), 1)) {
+        // 【TOCTOU】锁住台账行再复核: 与彻底删除/批量清理互斥, 防"恢复成功的同时被清理"
+        BizFile f = lockDeletedFile(id);
+        if (f == null) {
             throw new BusinessException("该文件不在回收站（可能已被恢复或已被彻底删除）");
         }
         // 删除文件时 deleteStorage 已物理清除字节: 内容不在则元数据恢复出来也是坏链接, fail-closed
@@ -349,46 +378,86 @@ public class RecycleService {
     /**
      * 清理超过保留期的已删除文件(物理内容+台账行)。retentionDays<=0 视为不自动清理。
      * 用 JdbcTemplate 直连 SQL 跨租户执行: 系统级维护任务不受会话租户拦截器影响。
+     *
+     * <p>保留 int 返回值供 {@code FileRecycleCleanupTask} 使用; 需要跳过/失败计数时调用
+     * {@link #purgeExpiredFilesWithStats(int)}。</p>
      */
     @Transactional
     public int purgeExpiredFiles(int retentionDays) {
-        if (retentionDays <= 0) return 0;
+        return purgeExpiredFilesWithStats(retentionDays).purged();
+    }
+
+    /** 保留期清理的完整结果(清理/跳过/失败), 定时任务与手动清空共用同一清理内核 */
+    @Transactional
+    public PurgeFilesResult purgeExpiredFilesWithStats(int retentionDays) {
+        if (retentionDays <= 0) return new PurgeFilesResult(0, 0, 0);
         LocalDateTime cutoff = LocalDateTime.now().minusDays(retentionDays);
-        List<Map<String, Object>> rows = jdbc.queryForList(
-                "SELECT id, oss_key FROM biz_file WHERE deleted = 1 AND updated_at < ?", cutoff);
-        int purged = purgeFileRows(rows);
-        if (purged > 0) {
+        List<Long> ids = jdbc.queryForList(
+                "SELECT id FROM biz_file WHERE deleted = 1 AND updated_at < ?", Long.class, cutoff);
+        PurgeFilesResult result = purgeFileRows(ids);
+        if (!result.isEmpty()) {
             writeAuditLog("清理文件回收站", "biz_file", null,
-                    "保留期" + retentionDays + "天, 清理" + purged + "个文件");
+                    "保留期" + retentionDays + "天, 清理" + result.purged()
+                            + "个, 跳过" + result.skipped() + "个, 失败" + result.failed() + "个");
         }
-        return purged;
+        return result;
     }
 
     /** 管理员手动清空文件回收站: 立即清除全部已删除文件的物理内容与台账行 */
     @Transactional
-    public int purgeAllDeletedFiles() {
-        List<Map<String, Object>> rows = jdbc.queryForList(
-                "SELECT id, oss_key FROM biz_file WHERE deleted = 1");
-        int purged = purgeFileRows(rows);
-        if (purged > 0) {
-            writeAuditLog("清空文件回收站", "biz_file", null, "手动清空" + purged + "个文件");
+    public PurgeFilesResult purgeAllDeletedFiles() {
+        List<Long> ids = jdbc.queryForList("SELECT id FROM biz_file WHERE deleted = 1", Long.class);
+        PurgeFilesResult result = purgeFileRows(ids);
+        if (!result.isEmpty()) {
+            writeAuditLog("清空文件回收站", "biz_file", null,
+                    "手动清空: 清理" + result.purged() + "个, 跳过" + result.skipped()
+                            + "个, 失败" + result.failed() + "个");
         }
-        return purged;
+        return result;
     }
 
-    private int purgeFileRows(List<Map<String, Object>> rows) {
+    /**
+     * 逐行清理(每行独立判定, 单行失败不阻断其余):
+     * <ol>
+     *   <li>先对 biz_file 行 {@code FOR UPDATE}, 锁内复核 deleted=1(并发恢复则跳过);</li>
+     *   <li>激励佐证文件跳过(保留台账与内容, 走激励模块处理);</li>
+     *   <li>同一 oss_key 仍有 deleted=0 活跃行时只删已删台账, 不动物理内容;</li>
+     *   <li>删除内容后仍 contentExists=true 视为物理删除失败, 保留台账待下次重试;</li>
+     *   <li>成功才随删 biz_file_share 与台账行。</li>
+     * </ol>
+     */
+    private PurgeFilesResult purgeFileRows(List<Long> ids) {
         int purged = 0;
-        for (Map<String, Object> row : rows) {
-            Object idObj = row.get("id");
-            if (idObj == null) continue;
-            Object keyObj = row.get("oss_key");
-            if (keyObj != null) {
-                fileService.deleteStoredContent(String.valueOf(keyObj));
+        int skipped = 0;
+        int failed = 0;
+        for (Long id : ids) {
+            if (id == null) continue;
+            BizFile f = lockDeletedFile(id);
+            if (f == null) {
+                skipped++;
+                continue;
             }
-            purged += jdbc.update("DELETE FROM biz_file WHERE id = ? AND deleted = 1",
-                    ((Number) idObj).longValue());
+            if (isIncentiveEvidence(id)) {
+                skipped++;
+                continue;
+            }
+            String ossKey = f.getOssKey();
+            if (ossKey != null && !ossKey.isBlank() && !hasActiveDuplicateKey(ossKey, id)) {
+                fileService.deleteStoredContent(ossKey);
+                if (fileService.contentExists(ossKey)) {
+                    failed++;
+                    continue;
+                }
+            }
+            jdbc.update("DELETE FROM biz_file_share WHERE file_id = ?", id);
+            int deleted = jdbc.update("DELETE FROM biz_file WHERE id = ? AND deleted = 1", id);
+            if (deleted == 1) {
+                purged++;
+            } else {
+                skipped++;
+            }
         }
-        return purged;
+        return new PurgeFilesResult(purged, skipped, failed);
     }
 
     // ==================== 内部 ====================
@@ -435,6 +504,41 @@ public class RecycleService {
         return f;
     }
 
+    /** 锁定读: 只返回 deleted=1 的行; 必须在事务内调用(恢复/彻底删除/批量清理共用) */
+    private BizFile lockDeletedFile(Long id) {
+        List<BizFile> rows = jdbc.query(
+                "SELECT * FROM biz_file WHERE id = ? AND deleted = 1 FOR UPDATE", FILE_ROW_MAPPER, id);
+        return rows.isEmpty() ? null : rows.get(0);
+    }
+
+    /** 同一 oss_key 是否仍被活跃台账行引用: 有则只能删已删台账, 不得物理删除共享内容 */
+    private boolean hasActiveDuplicateKey(String ossKey, Long excludeId) {
+        if (ossKey == null || ossKey.isBlank()) return false;
+        return countRows("SELECT COUNT(*) FROM biz_file WHERE oss_key = ? AND deleted = 0 AND id <> ?",
+                ossKey, excludeId) > 0;
+    }
+
+    /**
+     * 清理前的激励佐证判定。优先复用 FileService 口径(五槽引用); 定时任务线程无会话上下文,
+     * 开启租户插件后 mapper 查询会被改写为恒空, 故再用 JdbcTemplate 保守核对一次
+     * (只会多跳过、不会多删)。file_* 列形如 "[1,2]"/"1,2"。
+     */
+    private boolean isIncentiveEvidence(Long fileId) {
+        if (fileService.isIncentiveEvidence(fileId)) return true;
+        String sql = "SELECT COUNT(*) FROM biz_incentive_record WHERE "
+                + "FIND_IN_SET(?, " + jsonIdList("file_id") + ") > 0 "
+                + "OR FIND_IN_SET(?, " + jsonIdList("file_pre_id") + ") > 0 "
+                + "OR FIND_IN_SET(?, " + jsonIdList("file_mid_id") + ") > 0 "
+                + "OR FIND_IN_SET(?, " + jsonIdList("file_post_id") + ") > 0 "
+                + "OR FIND_IN_SET(?, " + jsonIdList("file_track_id") + ") > 0";
+        return countRows(sql, fileId, fileId, fileId, fileId, fileId) > 0;
+    }
+
+    /** 把 "[1,2]"/"1,2" 归一为 FIND_IN_SET 可用的逗号串 */
+    private static String jsonIdList(String column) {
+        return "REPLACE(REPLACE(REPLACE(COALESCE(" + column + ", ''), '[', ''), ']', ''), ' ', '')";
+    }
+
     /** 客户关联数据计数(与彻底删除守卫同源; 含软删行, 因为删客户会孤立它们) */
     private Map<String, Long> customerRelated(Long customerId) {
         Map<String, Long> m = new java.util.LinkedHashMap<>();
@@ -448,10 +552,13 @@ public class RecycleService {
         m.put("分享", countRows("SELECT COUNT(*) FROM biz_customer_share WHERE customer_id = ?", customerId));
         m.put("提醒", countRows("SELECT COUNT(*) FROM biz_reminder WHERE customer_id = ?", customerId));
         m.put("公海池记录", countRows("SELECT COUNT(*) FROM biz_sea_pool WHERE customer_id = ?", customerId));
+        m.put("联系人", countRows("SELECT COUNT(*) FROM biz_contact WHERE customer_id = ?", customerId));
+        // 任务未软删/已软删都算(删客户会孤立台账), 存在即阻断
+        m.put("任务", countRows("SELECT COUNT(*) FROM biz_task WHERE customer_id = ?", customerId));
         return m;
     }
 
-    /** 人员业务关联计数(全部阻断彻底删除; 审计日志 sys_log 保留 username 不在此列) */
+    /** 人员业务关联计数(除 USER_AUX_REFS 外全部阻断彻底删除; 审计日志 sys_log 保留 username 不在此列) */
     private Map<String, Long> userRelated(Long userId) {
         Map<String, Long> m = new java.util.LinkedHashMap<>();
         m.put("名下客户", countRows("SELECT COUNT(*) FROM biz_customer WHERE owner_id = ?", userId));
@@ -464,6 +571,11 @@ public class RecycleService {
         m.put("被分享", countRows("SELECT COUNT(*) FROM biz_customer_share WHERE shared_to_user_id = ?", userId));
         m.put("阶段金额", countRows("SELECT COUNT(*) FROM biz_customer_stage_amount WHERE created_by = ? OR updated_by = ?", userId, userId));
         m.put("转移记录", countRows("SELECT COUNT(*) FROM biz_customer_transfer WHERE from_user_id = ? OR to_user_id = ? OR operator_id = ?", userId, userId, userId));
+        // 激励已读: NO ACTION 外键, 彻底删除时随删(见 USER_AUX_REFS)
+        m.put("激励已读", countRows("SELECT COUNT(*) FROM biz_incentive_read WHERE user_id = ?", userId));
+        // 文件目录/文件分享: 存在即阻断(防目录/分享指向已不存在的人)
+        m.put("文件目录", countRows("SELECT COUNT(*) FROM biz_file_folder WHERE owner_id = ?", userId));
+        m.put("文件分享", countRows("SELECT COUNT(*) FROM biz_file_share WHERE shared_to_user_id = ? OR shared_by_user_id = ?", userId, userId));
         return m;
     }
 
@@ -490,6 +602,13 @@ public class RecycleService {
     }
 
     public record PageResult<T>(List<T> records, long total) {
+    }
+
+    /** 文件回收站清理结果: 已清理/跳过(激励佐证、并发状态变化)/失败(物理删除失败保留台账) */
+    public record PurgeFilesResult(int purged, int skipped, int failed) {
+        public boolean isEmpty() {
+            return purged == 0 && skipped == 0 && failed == 0;
+        }
     }
 
     public record DeletedCustomerRow(Long id, String customerCode, String customerName, Long ownerId,

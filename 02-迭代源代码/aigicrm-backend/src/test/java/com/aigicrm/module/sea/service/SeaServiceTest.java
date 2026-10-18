@@ -210,6 +210,66 @@ class SeaServiceTest {
         assertEquals("资源不存在或无权访问", ex.getMessage());
     }
 
+    // ===== 删除一致性(2026-10-18): 公海管理删除是池行+客户的唯一成对删除路径 =====
+
+    /** 负向: 客户有票款/在途审批(customerService.assertDeletable 拒绝) → 池行与客户都不得删除 */
+    @Test
+    void deletePool_customerNotDeletable_keepsPoolAndCustomer() {
+        BizSeaPoolMapper poolMapper = mock(BizSeaPoolMapper.class);
+        BizSeaPool available = new BizSeaPool();
+        available.setId(1L);
+        available.setPoolId(10L);
+        available.setCustomerId(500L);
+        available.setStatus("available");
+        when(poolMapper.selectById(1L)).thenReturn(available);
+
+        BizSeaConfig enabled = new BizSeaConfig();
+        enabled.setId(10L);
+        SeaConfigService configService = mock(SeaConfigService.class);
+        when(configService.hasPoolPerm(any(), any(), any())).thenReturn(true);
+        when(configService.listVisible()).thenReturn(List.of(enabled));
+
+        CustomerService customerService = mock(CustomerService.class);
+        doThrow(new BusinessException("该客户有 1 笔开票,不允许删除"))
+                .when(customerService).assertDeletable(500L);
+        BizCustomerMapper custMapper = customerMapper();
+        SeaService svc = new SeaService(poolMapper, mock(BizSeaConfigMapper.class), custMapper,
+                mock(SysUserMapper.class), mock(SysDeptMapper.class), configService, customerService,
+                mock(com.aigicrm.module.system.service.SysConfigService.class));
+
+        assertThrows(BusinessException.class, () -> svc.deletePool(1L));
+        verify(custMapper, never()).deleteById(org.mockito.ArgumentMatchers.anyLong());
+        verify(poolMapper, never()).deleteById(org.mockito.ArgumentMatchers.anyLong());
+    }
+
+    /** 正向: available 且客户可删 → 客户逻辑删 + 池行物理删(池级权限路径不经过 CustomerService.delete 守卫) */
+    @Test
+    void deletePool_availableCustomer_deletesCustomerAndPoolRow() {
+        BizSeaPoolMapper poolMapper = mock(BizSeaPoolMapper.class);
+        BizSeaPool available = new BizSeaPool();
+        available.setId(1L);
+        available.setPoolId(10L);
+        available.setCustomerId(500L);
+        available.setStatus("available");
+        when(poolMapper.selectById(1L)).thenReturn(available);
+
+        BizSeaConfig enabled = new BizSeaConfig();
+        enabled.setId(10L);
+        SeaConfigService configService = mock(SeaConfigService.class);
+        when(configService.hasPoolPerm(any(), any(), any())).thenReturn(true);
+        when(configService.listVisible()).thenReturn(List.of(enabled));
+
+        BizCustomerMapper custMapper = customerMapper();
+        SeaService svc = new SeaService(poolMapper, mock(BizSeaConfigMapper.class), custMapper,
+                mock(SysUserMapper.class), mock(SysDeptMapper.class), configService,
+                mock(CustomerService.class),
+                mock(com.aigicrm.module.system.service.SysConfigService.class));
+
+        svc.deletePool(1L);
+        verify(custMapper).deleteById(500L);
+        verify(poolMapper).deleteById(1L);
+    }
+
     // ===== completeClaim 捞取重置口径（2026-10-08 需求对齐 P1 修复） =====
 
     @Test

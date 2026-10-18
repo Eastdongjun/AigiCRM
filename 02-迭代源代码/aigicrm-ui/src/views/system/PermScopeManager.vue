@@ -30,7 +30,7 @@
         <div class="ps-tip">
           每格 = <b>功能</b>(勾选=能做什么) + <b>范围</b>(下拉=对谁的数据) + <b>锚点</b>(按人/按组织)
           · 未配置默认: 查看=角色数据范围, 编辑/删除=仅本人, 锚点=按人
-          · 标注了控制面的模块（如激励授权面板/文件夹权限）不消费本矩阵的范围列
+          · 仅后端真实消费的权限项显示范围列；其余权限码隐藏控件并标注实际控制面（如文件夹权限/激励授权面板）
           <!-- 【2026-09-13】只读角色（无 system:config:edit）不再显示可操作控件：此前能改下拉，
                保存时才被后端 403，属"界面已改、实际没变"的误导 -->
           <span v-if="!canEditScope" class="ps-readonly">（当前账号只读：需 system:config:edit 权限才能修改）</span>
@@ -102,8 +102,10 @@ const current = ref('')
 const modules = computed(() => permModules.value)
 const curModule = computed(() => modules.value.find(m => m.name === current.value))
 
+// 【2026-10-17】七档与角色/人员表单一致（含 custom 自定义组织）
 const scopeOptions = [
   { value: 'all', label: '全部' },
+  { value: 'custom', label: '自定义组织' },
   { value: 'region', label: '本大区及以下' },
   { value: 'office', label: '本办事处及以下' },
   { value: 'dept', label: '本部门及以下' },
@@ -130,30 +132,58 @@ const matrixCols = computed(() => {
   return [{ key: `${assigneeMode.value}:${selectedKey.value}`, label: opt?.label || selectedKey.value, isRole: false }]
 })
 
-const actionOf = (permission) => (permission || '').split(':')[1] || ''
-const moduleOf = (permission) => (permission || '').split(':')[0] || ''
+// 【2026-10-17 矩阵诚实化】权限码 → 后端运行时真实消费的 (module, action) 显式映射。
+// 旧实现用 permission.split(':')[1]：system:log:view 被解析成 (system, log) 死配置，
+// system:user:add 被解析成 (system, user)，后端永不读取，属于"配了不生效"的误导。
+// 只对下列明确消费的权限项显示范围/锚点控件；其余权限码隐藏控件并标注实际控制面。
+const PERMISSION_SCOPE_TARGETS = Object.freeze({
+  'customer:view': { module: 'customer', action: 'view' },
+  'customer:edit': { module: 'customer', action: 'edit' },
+  'customer:delete': { module: 'customer', action: 'delete' },
+  'incentive:view': { module: 'incentive', action: 'view' },
+  'file:view': { module: 'file', action: 'view' },
+  'reminder:view': { module: 'reminder', action: 'view' },
+  'approval:view': { module: 'approval', action: 'view' },
+  'task:view': { module: 'task', action: 'view' },
+  'sea:view': { module: 'sea', action: 'view' },
+  'system:log:view': { module: 'system', action: 'view' },
+})
 
-// 【2026-09-19 矩阵诚实化】数据范围/锚点真正由本矩阵驱动的模块(后端 resolveModuleUsers/ScopeRequest 消费)。
-// 未列出的模块各有自有可见性模型，矩阵对其只做功能勾选；范围下拉隐藏并标明真实控制面，
-// 避免管理员"配了范围但不生效"的误导。
-const SCOPE_DRIVEN_MODULES = new Set(['customer', 'statistics', 'score', 'reminder', 'approval', 'sea', 'system'])
+const scopeTargetOf = (permission) => PERMISSION_SCOPE_TARGETS[permission] || null
+const actionOf = (permission) => {
+  const target = scopeTargetOf(permission)
+  if (target) return target.action
+  const parts = (permission || '').split(':')
+  return parts.length >= 2 ? parts[parts.length - 1] : ''
+}
+const moduleOf = (permission) => scopeTargetOf(permission)?.module || (permission || '').split(':')[0] || ''
+
+// 未接入范围矩阵的模块/权限码：隐去下拉，标注真实控制面，避免管理员误以为配置生效
 const SCOPE_OWNER_HINTS = {
   incentive: '激励授权面板',
   file: '文件夹权限',
   task: '按经办人',
   dashboard: '跟随各模块',
   indicator: '统计分析口径',
+  statistics: '统计分析口径',
+  score: '积分规则',
 }
-const isScopeDriven = (item) => SCOPE_DRIVEN_MODULES.has(moduleOf(item.permission))
+const isScopeDriven = (item) => scopeTargetOf(item.permission) !== null
 const scopeOwnerOf = (item) => SCOPE_OWNER_HINTS[moduleOf(item.permission)] || '模块自身规则'
 
-const scopeOf = (col, item) => scopeMap.value[col.key]?.[item.permission]?.scope || 'self'
-const anchorOf = (col, item) => scopeMap.value[col.key]?.[item.permission]?.anchor || 'OWNER'
+// 后端配置以 (module, action) 为键返回；回显/保存都必须按映射后的键读写，
+// 否则 system:log:view 永远读不到已保存的 system:view 配置。
+const scopeKeyOf = (permission) => {
+  const target = scopeTargetOf(permission)
+  return target ? `${target.module}:${target.action}` : permission
+}
+const scopeOf = (col, item) => scopeMap.value[col.key]?.[scopeKeyOf(item.permission)]?.scope || 'self'
+const anchorOf = (col, item) => scopeMap.value[col.key]?.[scopeKeyOf(item.permission)]?.anchor || 'OWNER'
 
-// 【2026-09-13】写操作需要 system:config:edit（后端 PUT 的 @PreAuthorize 同码）；无该码时控件禁用，
-// 并在事件入口再兜一次，避免"界面已改、实际没变"的假成功
+// 【2026-10-17】编辑门禁与后端对齐：PUT 需 system:config:edit（@PreAuthorize）且 requireAdmin()
+// 仅系统管理员可写；非 admin 即使持 config:edit 也只读，避免"界面已改、实际 403"的假成功。
 const userStore = useUserStore()
-const canEditScope = computed(() => userStore.hasPermission('system:config:edit'))
+const canEditScope = computed(() => userStore.isAdmin() && userStore.hasPermission('system:config:edit'))
 
 const loadScopesFor = async (assigneeType, assigneeKey) => {
   try {
@@ -169,18 +199,22 @@ const loadScopesFor = async (assigneeType, assigneeKey) => {
 }
 
 const saveScope = async (col, item, scopeLevel, anchor = anchorOf(col, item)) => {
-  if (!canEditScope.value) { ElMessage.warning('无权限修改权限范围（需 system:config:edit）'); return }
+  if (!canEditScope.value) { ElMessage.warning('无权限修改权限范围（需系统管理员 + system:config:edit）'); return }
+  // 未接入显式映射的权限码不写死配置（如 system:user:add / sea:config / customer:date）
+  const target = scopeTargetOf(item.permission)
+  if (!target) { ElMessage.warning('该权限项未接入数据范围配置'); return }
   const key = col.key
+  const entryKey = scopeKeyOf(item.permission)
   const [type, assigneeKey] = key.split(':')
-  const prev = scopeMap.value[key]?.[item.permission] || { scope: 'self', anchor: 'OWNER' }
-  scopeMap.value[key] = { ...(scopeMap.value[key] || {}), [item.permission]: { scope: scopeLevel, anchor } }
+  const prev = scopeMap.value[key]?.[entryKey] || { scope: 'self', anchor: 'OWNER' }
+  scopeMap.value[key] = { ...(scopeMap.value[key] || {}), [entryKey]: { scope: scopeLevel, anchor } }
   try {
-    const cfg = [{ module: moduleOf(item.permission), action: actionOf(item.permission), scopeLevel, anchor }]
+    const cfg = [{ module: target.module, action: target.action, scopeLevel, anchor }]
     if (type === 'ROLE') await updateRolePermScopes(assigneeKey, cfg)
     else await updateAssigneePermScopes(type, assigneeKey, cfg)
     ElMessage.success(`${col.label} · ${item.label} 范围 → ${scopeOptions.find(o => o.value === scopeLevel)?.label}(${anchor === 'ORG' ? '按组织' : '按人'})`)
   } catch (e) {
-    scopeMap.value[key] = { ...(scopeMap.value[key] || {}), [item.permission]: prev }
+    scopeMap.value[key] = { ...(scopeMap.value[key] || {}), [entryKey]: prev }
     ElMessage.error('范围保存失败')
   }
 }

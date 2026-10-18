@@ -54,9 +54,10 @@ function mockApi() {
   updateAssigneePermScopes.mockResolvedValue({})
 }
 
-async function mountWithPermissions(permissions) {
+async function mountWithPermissions(permissions, roles = []) {
   const wrapper = mount(PermScopeManager, { global: { stubs } })
   useUserStore().permissions = new Set(permissions)
+  useUserStore().roles = roles
   await flushPromises()
   return wrapper
 }
@@ -72,8 +73,8 @@ describe('PermScopeManager 编辑门控（system:config:edit）', () => {
     mockApi()
   })
 
-  it('持有 system:config:edit 时可保存角色权限范围', async () => {
-    const wrapper = await mountWithPermissions(['system:config:view', 'system:config:edit'])
+  it('admin 且持有 system:config:edit 时可保存角色权限范围', async () => {
+    const wrapper = await mountWithPermissions(['system:config:view', 'system:config:edit'], ['admin'])
     expect(wrapper.vm.canEditScope).toBe(true)
 
     await wrapper.vm.saveScope(col, item, 'office')
@@ -98,6 +99,73 @@ describe('PermScopeManager 编辑门控（system:config:edit）', () => {
     // 不再发出写入请求，也不再出现"界面已改、实际没变"的假成功
     expect(updateRolePermScopes).not.toHaveBeenCalled()
     expect(updateAssigneePermScopes).not.toHaveBeenCalled()
+    expect(ElMessage.warning).toHaveBeenCalled()
+  })
+
+  it('非 admin 即使持 system:config:edit 也只读（与后端 requireAdmin 对齐）', async () => {
+    const wrapper = await mountWithPermissions(['system:config:view', 'system:config:edit'], ['sales'])
+    expect(wrapper.vm.canEditScope).toBe(false)
+
+    await wrapper.vm.saveScope(col, item, 'office')
+    await flushPromises()
+
+    expect(updateRolePermScopes).not.toHaveBeenCalled()
+    expect(ElMessage.warning).toHaveBeenCalled()
+  })
+})
+
+describe('PermScopeManager 权限码 → 后端 (module, action) 显式映射', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia())
+    localStorage.clear()
+    vi.clearAllMocks()
+    mockApi()
+  })
+
+  it('只对真实消费的权限码显示范围控件', async () => {
+    const wrapper = await mountWithPermissions(['system:config:view'], ['admin'])
+    for (const p of ['customer:view', 'customer:edit', 'customer:delete', 'incentive:view',
+      'file:view', 'reminder:view', 'approval:view', 'task:view', 'sea:view', 'system:log:view']) {
+      expect(wrapper.vm.isScopeDriven({ permission: p }), p).toBe(true)
+    }
+    for (const p of ['system:user:add', 'system:role:edit', 'sea:config', 'customer:date', 'statistics:view']) {
+      expect(wrapper.vm.isScopeDriven({ permission: p }), p).toBe(false)
+    }
+    // 不再用 split(':')[1]：三段码必须映射到 view 且 module 为 system
+    expect(wrapper.vm.actionOf('system:log:view')).toBe('view')
+    expect(wrapper.vm.moduleOf('system:log:view')).toBe('system')
+    expect(wrapper.vm.actionOf('system:user:add')).toBe('add')
+    // 七档范围选项与角色/人员表单一致（含 custom）
+    expect(wrapper.vm.scopeOptions.map(o => o.value)).toContain('custom')
+  })
+
+  it('已保存的 (system, view) 配置能回显到 system:log:view 行', async () => {
+    getRolePermScopes.mockResolvedValue({
+      data: [{ module: 'system', action: 'view', scope_level: 'office', anchor: 'ORG' }],
+    })
+    const wrapper = await mountWithPermissions(['system:config:view'], ['admin'])
+    const logItem = { id: 2, label: '操作日志', permission: 'system:log:view' }
+    expect(wrapper.vm.scopeOf(col, logItem)).toBe('office')
+    expect(wrapper.vm.anchorOf(col, logItem)).toBe('ORG')
+  })
+
+  it('system:log:view 保存为 (system, view) 而非死配置 (system, log)', async () => {
+    const wrapper = await mountWithPermissions(['system:config:view', 'system:config:edit'], ['admin'])
+    const logItem = { id: 2, label: '操作日志', permission: 'system:log:view' }
+    await wrapper.vm.saveScope(col, logItem, 'office')
+    await flushPromises()
+
+    expect(updateRolePermScopes).toHaveBeenCalledWith('admin', [
+      { module: 'system', action: 'view', scopeLevel: 'office', anchor: 'OWNER' },
+    ])
+  })
+
+  it('未接入映射的权限码不写入范围配置', async () => {
+    const wrapper = await mountWithPermissions(['system:config:view', 'system:config:edit'], ['admin'])
+    await wrapper.vm.saveScope(col, { id: 3, label: '新增人员', permission: 'system:user:add' }, 'office')
+    await flushPromises()
+
+    expect(updateRolePermScopes).not.toHaveBeenCalled()
     expect(ElMessage.warning).toHaveBeenCalled()
   })
 })

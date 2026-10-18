@@ -8,13 +8,19 @@
         <p class="hero-sub">查看、恢复或彻底清理已删除的客户、人员与文件</p>
       </div>
       <div class="hero-stats">
-        <div v-for="item in statItems" :key="item.key" class="hero-metric" :class="{ active: activeTab === item.key }" @click="switchTab(item.key)">
+        <button
+          v-for="item in statItems" :key="item.key" type="button"
+          class="hero-metric" :class="{ active: activeTab === item.key }"
+          :aria-pressed="activeTab === item.key"
+          :aria-label="`${item.label} ${counts[item.key]} 条，切换到${item.label}列表`"
+          @click="switchTab(item.key)"
+        >
           <span class="hm-icon"><el-icon><component :is="item.icon" /></el-icon></span>
           <span class="hm-body">
             <span class="hm-num">{{ counts[item.key] }}</span>
             <span class="hm-label">{{ item.label }}</span>
           </span>
-        </div>
+        </button>
       </div>
     </section>
 
@@ -43,7 +49,7 @@
             class="purge-btn" @click="handlePurgeFiles"
           >清空回收站</el-button>
           <el-tooltip content="刷新列表" placement="top">
-            <el-button :icon="Refresh" circle class="refresh-btn" aria-label="刷新列表" @click="loadData" />
+            <el-button :icon="Refresh" circle class="refresh-btn" aria-label="刷新列表" @click="refreshPage" />
           </el-tooltip>
         </div>
       </header>
@@ -53,23 +59,34 @@
         <span>删除为软删除留痕：客户恢复校验同名活跃卡、负责人与公海残留；人员恢复后需重新分配角色；文件删除先入回收站，保留期内可恢复，超期自动清理。</span>
       </div>
 
+      <!-- 列表失败错误条（区别于空态）：错误由 request 拦截器提示，此处提供页面级重试 -->
+      <div v-if="listError && !loading" class="list-error" role="alert">
+        <el-icon><WarningFilled /></el-icon>
+        <span class="list-error-text">列表加载失败，请检查网络后重试。</span>
+        <el-button link type="primary" @click="loadData">重试</el-button>
+      </div>
+
       <div v-if="firstLoading" class="table-skeleton"><el-skeleton :rows="6" animated /></div>
 
       <template v-else>
         <!-- 已删除客户 -->
         <el-table
           v-if="activeTab === 'customers'" v-loading="loading" :data="rows" class="recycle-table"
-          style="width:100%" empty-text="暂无已删除客户"
+          style="width:100%" :empty-text="emptyText"
         >
           <el-table-column label="客户全称" min-width="250">
             <template #default="{ row }">
-              <div class="entity-cell clickable" @click.stop="openCustomerDetail(row)">
+              <button
+                type="button" class="entity-cell clickable"
+                :aria-label="`查看客户 ${row.customerName || '未命名客户'} 详情`"
+                @click.stop="openCustomerDetail(row)"
+              >
                 <span class="entity-avatar avatar-customer" aria-hidden="true">{{ (row.customerName || '?').charAt(0) }}</span>
                 <span class="entity-main">
                   <span class="entity-name">{{ row.customerName || '未命名客户' }}</span>
                   <span class="entity-meta">{{ row.customerCode || '-' }}</span>
                 </span>
-              </div>
+              </button>
             </template>
           </el-table-column>
           <el-table-column label="原负责人" min-width="130">
@@ -100,17 +117,21 @@
         <!-- 已删除人员 -->
         <el-table
           v-else-if="activeTab === 'users'" v-loading="loading" :data="rows" class="recycle-table"
-          style="width:100%" empty-text="暂无已删除人员"
+          style="width:100%" :empty-text="emptyText"
         >
           <el-table-column label="人员" min-width="200">
             <template #default="{ row }">
-              <div class="entity-cell clickable" @click.stop="openUserDetail(row)">
+              <button
+                type="button" class="entity-cell clickable"
+                :aria-label="`查看人员 ${row.realName || row.username || '未命名人员'} 详情`"
+                @click.stop="openUserDetail(row)"
+              >
                 <span class="entity-avatar avatar-user" aria-hidden="true">{{ (row.realName || row.username || '?').charAt(0) }}</span>
                 <span class="entity-main">
                   <span class="entity-name">{{ row.realName || '未填写姓名' }}</span>
                   <span class="entity-meta">{{ row.username }}</span>
                 </span>
-              </div>
+              </button>
             </template>
           </el-table-column>
           <el-table-column label="原部门" min-width="160">
@@ -145,17 +166,21 @@
         <!-- 已删除文件 -->
         <el-table
           v-else v-loading="loading" :data="rows" class="recycle-table"
-          style="width:100%" empty-text="暂无已删除文件"
+          style="width:100%" :empty-text="emptyText"
         >
           <el-table-column label="文件" min-width="280">
             <template #default="{ row }">
-              <div class="entity-cell clickable" @click.stop="openFileDetail(row)">
+              <button
+                type="button" class="entity-cell clickable"
+                :aria-label="`查看文件 ${row.fileName || '未命名文件'} 详情`"
+                @click.stop="openFileDetail(row)"
+              >
                 <span class="entity-avatar avatar-file" aria-hidden="true"><el-icon><Document /></el-icon></span>
                 <span class="entity-main">
                   <span class="entity-name" :title="row.fileName">{{ row.fileName }}</span>
                   <span class="entity-meta">{{ formatSize(row.fileSize) }}</span>
                 </span>
-              </div>
+              </button>
             </template>
           </el-table-column>
           <el-table-column label="归属" min-width="90" align="center">
@@ -308,7 +333,7 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
-  Avatar, Document, Delete, Download, InfoFilled, Refresh, RefreshLeft, Search, User,
+  Avatar, Document, Delete, Download, InfoFilled, Refresh, RefreshLeft, Search, User, WarningFilled,
 } from '@element-plus/icons-vue'
 import {
   getDeletedCustomers, getDeletedUsers, getDeletedFiles,
@@ -343,7 +368,25 @@ const total = ref(0)
 const rows = ref([])
 const loading = ref(false)
 const firstLoading = ref(true)
+// 列表失败态（区别于空态）：失败时页内展示错误条 + 重试；请求成功即清除
+const listError = ref(false)
+// 与当前列表数据对应的搜索词（仅在请求成功后更新），空态文案据此区分“无匹配”与“暂无记录”
+const appliedKeyword = ref('')
+// 计数仅由 loadCounts（全量口径）与增删动作后的全量刷新维护，loadData/搜索不得改写，
+// 避免搜索列表把页头/页签计数改成匹配条数
 const counts = reactive({ customers: 0, users: 0, files: 0 })
+
+// 列表/详情请求序号：旧响应（含错误）不得覆盖当前页签/当前详情
+let listSeq = 0
+let detailSeq = 0
+
+const ENTITY_LABEL = { customers: '客户', users: '人员', files: '文件' }
+const emptyText = computed(() => {
+  const kw = appliedKeyword.value.trim()
+  // 搜索无结果时明确提示匹配词；未搜索时才显示“暂无已删除…”
+  if (kw) return `未找到与“${kw}”匹配的${ENTITY_LABEL[activeTab.value] || '记录'}`
+  return `暂无已删除${ENTITY_LABEL[activeTab.value] || '记录'}`
+})
 
 // 详情抽屉
 const detailVisible = ref(false)
@@ -378,25 +421,37 @@ const searchPlaceholder = computed(() => ({
 }[activeTab.value] || '搜索'))
 
 async function loadData() {
+  // 发起时固定页签/搜索词：切页签后旧响应（成功或失败）不得覆盖当前页签的列表/错误态
+  const seq = ++listSeq
+  const tab = activeTab.value
+  const requestedKeyword = keyword.value.trim()
   loading.value = true
+  listError.value = false
   try {
-    const params = { current: current.value, size: size.value, keyword: keyword.value.trim() }
-    const res = activeTab.value === 'customers'
+    const params = { current: current.value, size: size.value, keyword: requestedKeyword }
+    const res = tab === 'customers'
       ? await getDeletedCustomers(params)
-      : activeTab.value === 'users'
+      : tab === 'users'
         ? await getDeletedUsers(params)
         : await getDeletedFiles(params)
+    if (seq !== listSeq || tab !== activeTab.value) return
     rows.value = res.data?.records || []
     total.value = res.data?.total || 0
-    counts[activeTab.value] = total.value
+    appliedKeyword.value = requestedKeyword
+    // 注意：这里不再写 counts —— 列表/搜索的 total 只是匹配条数，不能代表回收站全量计数
   } catch (e) {
-    // 错误提示由 request 拦截器统一弹出
+    // 错误提示由 request 拦截器统一弹出；仅最新且同页签的请求可置错误态
+    if (seq === listSeq && tab === activeTab.value) listError.value = true
   } finally {
-    loading.value = false
-    firstLoading.value = false
+    // 仅最新一次请求熄灯，旧请求晚到不得关掉在途新请求的 loading/首屏骨架
+    if (seq === listSeq) {
+      loading.value = false
+      firstLoading.value = false
+    }
   }
 }
 
+// 全量计数（无 keyword）：供页头统计卡/页签徽标使用，也是清空回收站前的确认口径
 async function loadCounts() {
   try {
     const [customers, users, files] = await Promise.all([
@@ -407,8 +462,10 @@ async function loadCounts() {
     counts.customers = customers.data?.total || 0
     counts.users = users.data?.total || 0
     counts.files = files.data?.total || 0
+    return true
   } catch (e) {
-    // 计数失败不阻断列表
+    // 计数失败不阻断列表；保留上一次全量计数（仍不含搜索条件）
+    return false
   }
 }
 
@@ -417,13 +474,21 @@ function search() {
   loadData()
 }
 
+// 手动刷新：列表 + 全量计数一起更新；搜索词只影响列表，计数始终为全量口径
+function refreshPage() {
+  loadData()
+  loadCounts()
+}
+
 function switchTab(key) {
   if (activeTab.value === key) return
   activeTab.value = key
   current.value = 1
   keyword.value = ''
+  appliedKeyword.value = ''
   rows.value = []
   total.value = 0
+  listError.value = false
   loadData()
 }
 
@@ -491,6 +556,13 @@ async function handleRestoreFile(row) {
 }
 
 async function handlePurgeFiles() {
+  // 确认框数量必须与实际清理范围一致：先重新拉全量计数（不受当前搜索词影响）再展示确认文案；
+  // 拉取失败则不进入确认/清空流程，避免用过期数量误导用户。
+  const countsLoaded = await loadCounts()
+  if (!countsLoaded) {
+    ElMessage.error('无法获取回收站最新数量，请稍后重试')
+    return
+  }
   try {
     await ElMessageBox.confirm(
       `确认清空文件回收站？将物理删除当前 ${counts.files} 个已删除文件的存储内容与记录，此操作不可恢复。`,
@@ -511,7 +583,9 @@ async function handlePurgeFiles() {
 }
 
 // ===== 详情 =====
+// 详情请求同样加序号：快速连点不同行时，旧详情响应/错误不得覆盖新打开的详情
 async function openDetail(type, row, fetcher) {
+  const seq = ++detailSeq
   detailType.value = type
   detailRow.value = row
   detailData.value = null
@@ -519,11 +593,12 @@ async function openDetail(type, row, fetcher) {
   detailLoading.value = true
   try {
     const res = await fetcher(row.id)
+    if (seq !== detailSeq) return
     detailData.value = res.data || null
   } catch (e) {
-    detailVisible.value = false
+    if (seq === detailSeq) detailVisible.value = false
   } finally {
-    detailLoading.value = false
+    if (seq === detailSeq) detailLoading.value = false
   }
 }
 
@@ -628,11 +703,16 @@ onMounted(() => {
   background: rgba(255, 255, 255, .10);
   border: 1px solid rgba(255, 255, 255, .16);
   cursor: pointer;
+  /* 统计卡是真正的 button：重置浏览器默认按钮样式，视觉与改造前一致 */
+  appearance: none; -webkit-appearance: none;
+  font: inherit; color: inherit; text-align: left; line-height: normal;
   transition: background-color .18s ease, border-color .18s ease, transform .18s ease;
 }
 .hero-metric:hover { background: rgba(255, 255, 255, .16); }
 .hero-metric.active { background: rgba(255, 255, 255, .20); border-color: rgba(255, 255, 255, .38); }
 .hero-metric:active { transform: scale(.98); }
+/* 深色主视觉上用白色描边保证键盘焦点可见 */
+.hero-metric:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
 .hm-icon {
   display: inline-flex; align-items: center; justify-content: center; width: 38px; height: 38px;
   border-radius: 10px; background: rgba(255, 255, 255, .16); color: #fff; font-size: 19px; flex-shrink: 0;
@@ -672,6 +752,15 @@ onMounted(() => {
 }
 .note-icon { color: var(--el-color-primary); margin-top: 2px; flex-shrink: 0; }
 
+/* 列表失败错误条 */
+.list-error {
+  display: flex; align-items: center; gap: 8px; margin-top: 12px; padding: 10px 14px;
+  background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px;
+  color: #b91c1c; font-size: 13px;
+}
+.list-error .el-icon { flex-shrink: 0; }
+.list-error-text { flex: 1; }
+
 /* ===== 表格 ===== */
 .recycle-table { margin-top: 8px; }
 .recycle-table :deep(.el-table__inner-wrapper::before) { display: none; }
@@ -684,9 +773,16 @@ onMounted(() => {
 .recycle-table :deep(td) { border-bottom: 1px solid #f1f4f9; }
 .recycle-table :deep(.el-table__row) { height: 56px; }
 
-.entity-cell { display: flex; align-items: center; gap: 11px; min-width: 0; }
-.entity-cell.clickable { cursor: pointer; }
+.entity-cell {
+  display: flex; align-items: center; gap: 11px; min-width: 0;
+  width: 100%; padding: 0; border: 0; background: transparent;
+  /* 实体名称单元格改为原生 button：重置默认样式并补键盘可见焦点 */
+  appearance: none; -webkit-appearance: none;
+  font: inherit; color: inherit; text-align: left;
+}
+.entity-cell.clickable { cursor: pointer; border-radius: 8px; }
 .entity-cell.clickable:hover .entity-name { color: var(--el-color-primary); }
+.entity-cell.clickable:focus-visible { outline: 2px solid var(--el-color-primary); outline-offset: 2px; }
 .entity-avatar {
   display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 34px;
   border-radius: 10px; font-size: 15px; font-weight: 600; flex-shrink: 0;

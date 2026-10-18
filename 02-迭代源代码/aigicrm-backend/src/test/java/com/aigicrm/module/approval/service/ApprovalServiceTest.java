@@ -341,13 +341,33 @@ class ApprovalServiceTest {
     private ApprovalService newTransferService(SysUserMapper userMapper,
                                                org.springframework.jdbc.core.JdbcTemplate jdbc,
                                                BizApprovalMapper approvalMapper) {
-        return newTransferService(userMapper, jdbc, approvalMapper, mock(BizCustomerMapper.class));
+        // 【P0 2026-10-17】transfer 提交侧新增客户归属校验: 默认给可查看的正常客户,
+        // 负向归属用例见 TransferSubmitOwnershipTest。
+        BizCustomerMapper customerMapper = mock(BizCustomerMapper.class);
+        com.aigicrm.module.customer.entity.BizCustomer guardCustomer =
+                new com.aigicrm.module.customer.entity.BizCustomer();
+        guardCustomer.setId(42L);
+        guardCustomer.setStatus("normal");
+        when(customerMapper.selectById(42L)).thenReturn(guardCustomer);
+        com.aigicrm.common.engine.CustomerAccessService accessService =
+                mock(com.aigicrm.common.engine.CustomerAccessService.class);
+        when(accessService.canView(org.mockito.ArgumentMatchers.anyLong())).thenReturn(true);
+        return newTransferService(userMapper, jdbc, approvalMapper, customerMapper, accessService);
     }
 
     private ApprovalService newTransferService(SysUserMapper userMapper,
                                                org.springframework.jdbc.core.JdbcTemplate jdbc,
                                                BizApprovalMapper approvalMapper,
                                                BizCustomerMapper customerMapper) {
+        return newTransferService(userMapper, jdbc, approvalMapper, customerMapper,
+                mock(com.aigicrm.common.engine.CustomerAccessService.class));
+    }
+
+    private ApprovalService newTransferService(SysUserMapper userMapper,
+                                               org.springframework.jdbc.core.JdbcTemplate jdbc,
+                                               BizApprovalMapper approvalMapper,
+                                               BizCustomerMapper customerMapper,
+                                               com.aigicrm.common.engine.CustomerAccessService accessService) {
         BizApprovalConfigMapper configMapper = mock(BizApprovalConfigMapper.class);
         when(configMapper.selectCount(any())).thenReturn(1L);
         ApprovalConfigService configService = mock(ApprovalConfigService.class);
@@ -365,7 +385,7 @@ class ApprovalServiceTest {
                 mock(SeaService.class),
                 mock(com.aigicrm.common.scope.OrgScopeResolver.class),
                 mock(SeaConfigService.class),
-                mock(com.aigicrm.common.engine.CustomerAccessService.class),
+                accessService,
                 mock(SysUserService.class),
                 configService,
                 mock(com.aigicrm.module.system.service.SysConfigService.class),

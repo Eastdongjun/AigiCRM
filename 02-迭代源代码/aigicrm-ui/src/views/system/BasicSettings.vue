@@ -48,9 +48,16 @@
       </el-input>
     </el-form-item>
     <el-form-item label="文件回收站保留">
-      <el-input v-model="configMap['file.recycle.retention.days']" style="width: 300px" placeholder="0 表示不自动清理">
-        <template #suffix>天</template>
-      </el-input>
+      <div class="retention-field">
+        <el-input-number
+          v-model="retentionDays"
+          :min="0" :max="3650" :step="1" :precision="0" :value-on-clear="0"
+          controls-position="right" style="width: 180px"
+          aria-label="文件回收站保留天数"
+        />
+        <span class="retention-unit">天</span>
+        <span class="retention-hint">{{ retentionDays === 0 ? '不自动清理' : '超过保留天数的文件将自动清理' }}</span>
+      </div>
     </el-form-item>
     <el-form-item label="编号规则">
       <el-select v-model="configMap['customer.code.rule']" style="width: 300px">
@@ -111,6 +118,21 @@ const configs = ref([])
 const configMap = reactive({})
 const autoShare = reactive({ superior: true, admin: true, roles: [], users: [] })
 
+// 文件回收站保留天数：后端按字符串存储；UI 用 el-input-number 编辑（整数 0–3650）。
+// 0 明确表示“不自动清理”，读取历史值/脏值时收敛为合法整数后再展示。
+const RETENTION_KEY = 'file.recycle.retention.days'
+const RETENTION_MAX = 3650
+const retentionDays = computed({
+  get() {
+    const n = Number(configMap[RETENTION_KEY])
+    if (!Number.isFinite(n)) return 0
+    return Math.min(RETENTION_MAX, Math.max(0, Math.trunc(n)))
+  },
+  set(val) {
+    configMap[RETENTION_KEY] = String(val ?? 0)
+  }
+})
+
 const normalizeSwitchValue = (value, defaultValue = 'true') => {
   if (value === undefined || value === null || value === '') return defaultValue
   if (value === true || value === 1) return 'true'
@@ -126,6 +148,12 @@ const loadConfigs = async () => {
     const res = await getConfigList()
     configs.value = res.data || []
     configs.value.forEach(c => { configMap[c.configKey] = c.configValue })
+    // 文件回收站保留天数：历史数值收敛为 0–3650 整数，保证输入框展示值与保存值一致
+    const retentionRaw = configMap[RETENTION_KEY]
+    const retentionNum = Number(retentionRaw)
+    if (retentionRaw !== undefined && retentionRaw !== null && retentionRaw !== '' && Number.isFinite(retentionNum)) {
+      configMap[RETENTION_KEY] = String(Math.min(RETENTION_MAX, Math.max(0, Math.trunc(retentionNum))))
+    }
     // 系统级数据范围开关:DB 无行时默认开启(与后端 getBooleanValue 缺省 true 一致),首存即持久化
     configMap['perm.superior.see.subordinate'] = normalizeSwitchValue(configMap['perm.superior.see.subordinate'], 'true')
     configMap['perm.org.leader.see.org'] = normalizeSwitchValue(configMap['perm.org.leader.see.org'], 'true')
@@ -178,6 +206,16 @@ const onStorageGb = (v) => {
   if (!isNaN(gb) && gb > 0) configMap['user.default.storage'] = String(Math.round(gb * 1073741824))
 }
 const handleSave = async () => {
+  // 文件回收站保留天数保存前兜底校验：必须是 0–3650 的整数（0 = 不自动清理）；
+  // 输入控件已限制，这里防程序化赋值/历史脏值把非法内容提交给后端。
+  if (configMap[RETENTION_KEY] !== undefined && configMap[RETENTION_KEY] !== null && configMap[RETENTION_KEY] !== '') {
+    const days = Number(configMap[RETENTION_KEY])
+    if (!Number.isInteger(days) || days < 0 || days > RETENTION_MAX) {
+      ElMessage.error(`文件回收站保留天数需为 0–${RETENTION_MAX} 的整数（0 表示不自动清理）`)
+      return false
+    }
+    configMap[RETENTION_KEY] = String(days)
+  }
   try {
     // 客户默认共享规则:把 autoShare 序列化写回 configMap,随保存一并提交(否则该配置永不更新)
     configMap['customer.auto_share'] = JSON.stringify({
@@ -227,4 +265,7 @@ onMounted(() => {
   border-radius: 8px;
   object-fit: contain;
 }
+.retention-field { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.retention-unit { font-size: 13px; color: var(--el-text-color-regular); }
+.retention-hint { font-size: 12px; color: var(--el-text-color-secondary); }
 </style>

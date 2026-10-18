@@ -264,7 +264,8 @@ export function useFilePage() {
   const handleDelete = async (row) => {
     try {
       // 【UI 整改 2026-10-08】删除类确认走 confirmAction：红色确认钮 + 取消左置（统一 utils/confirm.js 约定）
-      await confirmAction(`确定删除「${row.fileName}」？删除后不可恢复。`, '删除确认', { confirmText: '删除' })
+      // 【2026-10-17 文案对齐】文件删除为软删除，先移入回收站，保留期内管理员可恢复
+      await confirmAction(`确定删除「${row.fileName}」？删除后将移入回收站，保留期内可由管理员恢复。`, '删除确认', { confirmText: '删除' })
       await deleteFile(row.id)
       ElMessage.success('删除成功')
       refreshAll()

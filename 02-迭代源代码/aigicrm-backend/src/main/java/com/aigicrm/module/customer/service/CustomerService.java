@@ -15,6 +15,8 @@ import com.aigicrm.module.system.entity.SysDept;
 import com.aigicrm.module.system.entity.SysUser;
 import com.aigicrm.module.reminder.entity.BizReminder;
 import com.aigicrm.module.reminder.mapper.BizReminderMapper;
+import com.aigicrm.module.sea.entity.BizSeaPool;
+import com.aigicrm.module.sea.mapper.BizSeaPoolMapper;
 import com.aigicrm.module.system.mapper.SysDeptMapper;
 import com.aigicrm.module.system.mapper.SysUserMapper;
 import com.aigicrm.module.system.service.SysConfigService;
@@ -48,6 +50,7 @@ public class CustomerService {
     private final BizContactMapper contactMapper;
     private final BizPaymentMapper paymentMapper;
     private final BizCustomerStageAmountMapper stageAmountMapper;
+    private final BizSeaPoolMapper seaPoolMapper;
     private final SysUserMapper userMapper;
     private final SysDeptMapper deptMapper;
     private final BizReminderMapper reminderMapper;
@@ -608,6 +611,16 @@ public class CustomerService {
         // 取代旧的 checkOwnerOrAdmin(仅负责人/admin)——否则删除范围配置不生效
         if (!customerAccessService.canDelete(id)) {
             throw new org.springframework.security.access.AccessDeniedException("只能删除自己范围内的客户");
+        }
+        // 【审计 data-2 修复 2026-10-18】客户列表删除必须尊重公海归属:存在未捞取池行
+        // (available/pending_approval)时拒绝,引导到公海管理删除(按池级 sea:pool:delete 授权)。
+        // 不在此静默删除池行——那会绕过池级权限,且让审批中的捞取单指向已删客户。
+        Long activeSeaPoolRows = seaPoolMapper.selectCount(
+                new LambdaQueryWrapper<BizSeaPool>()
+                        .eq(BizSeaPool::getCustomerId, id)
+                        .in(BizSeaPool::getStatus, "available", "pending_approval"));
+        if (activeSeaPoolRows != null && activeSeaPoolRows > 0) {
+            throw new BusinessException("该客户仍在公海池中（待捞取或审批中），请先在公海管理删除");
         }
         // 【议题五.3 裁决 2026-09-19】有业务数据的客户不允许删,转停用:
         assertDeletable(id);
@@ -1259,8 +1272,10 @@ public class CustomerService {
      * expireDate = 开票推导到期日(随开票增删浮动,管理员可配天数) + approved_extend_days
      * <ul>
      *   <li>删票回算开票推导部分(纠正误录);已审批延期不收回(信任审批);两者独立叠加;</li>
-     *   <li>【延期A 2026-10-17 用户裁决】新开票重置 approved_extend_days 为 0:新发票把基准日
-     *       推到新开票日,旧基准上批出的延期不得与新保护期双重叠加(见 addInvoice);删票/作废回算不重置;</li>
+     *   <li>【延期规则收敛 2026-10-18 · 审计 biz-0】仅当新开票/阶段总额把最近开票日真正前移
+     *       (新值晚于旧值)时清零 approved_extend_days——新基准上的保护期已覆盖旧延期,不得双重叠加;
+     *       补录早于当前基准的旧票不清零。addInvoice 与 saveStageAmount 共用
+     *       advanceLastInvoiceDate,到期日只重算一次;删票/作废回算不重置;</li>
      *   <li>天数走 sys_config: customer.protection.days(360)/customer.adjust.days(180),
      *       管理员可在系统设置修改——延期天数自 2026-10-17 延期B 起进审批单 extraData.extendDays
      *       (提交快照+审批人可调),存量单回退 customer.extend.days(ApprovalService 消费)。</li>
@@ -1367,18 +1382,14 @@ public class CustomerService {
         invoice.setCustomerId(customerId);
         invoice.setCreatedBy(SecurityUtils.getCurrentUserId());
         invoiceMapper.insert(invoice);
-        // 【延期A 2026-10-17 用户裁决】新开票重置已批准延期:新发票把保护期基准日推到新开票日,
-        // 旧基准上批出的 approved_extend_days 若继续叠加会双重延长(新基准360天+旧延期),故清零——
-        // 与公海捞取清零(SeaService,延期是原负责人任内的审批)同一哲学。删票/作废回算不收回
-        // 已批延期(2026-09-19 议题一裁决维持);存量数据零迁移(有延期的客户下次开票自然归零)。
-        // 先落库清零再走 refreshLastInvoiceDate 重算(其内部重读客户行,读到的是已清零值)。
-        BizCustomer resetTarget = customerMapper.selectById(customerId);
-        if (resetTarget != null && resetTarget.getApprovedExtendDays() != null
-                && resetTarget.getApprovedExtendDays() != 0) {
-            resetTarget.setApprovedExtendDays(0);
-            customerMapper.updateById(resetTarget);
+        // 【延期规则收敛 2026-10-18】新开票是否重置已批准延期,与阶段总额共用同一判定:
+        // 仅当最近开票日真正前移(新值晚于旧值)才清零;补录早于当前基准的旧票不清零。
+        // 旧实现无条件清零,补录历史票也会误伤已批延期。判定/清零/重算集中在
+        // advanceLastInvoiceDate,本方法只负责刷新最近开票日并触发一次到期日重算。
+        BizCustomer customer = customerMapper.selectById(customerId);
+        if (customer != null) {
+            advanceLastInvoiceDate(customer, latestActiveInvoiceDate(customerId));
         }
-        refreshLastInvoiceDate(customerId);
         recalculateCoreStatus(customerId);
     }
 
@@ -1499,6 +1510,16 @@ public class CustomerService {
     }
 
     private void refreshLastInvoiceDate(Long customerId) {
+        BizCustomer customer = customerMapper.selectById(customerId);
+        if (customer != null) {
+            customer.setLastInvoiceDate(latestActiveInvoiceDate(customerId));
+            calculateExpireDates(customer);
+            customerMapper.updateById(customer);
+        }
+    }
+
+    /** 【延期规则收敛 2026-10-18】最近开票日推导查询(排除已作废): addInvoice 与 refresh 共用同一口径 */
+    private LocalDate latestActiveInvoiceDate(Long customerId) {
         // 【PR-18 统计口径】最近开票日排除已作废发票——作废发票不得驱动保护期/到期日计算
         List<BizInvoice> latest = invoiceMapper.selectList(
                 new LambdaQueryWrapper<BizInvoice>()
@@ -1506,12 +1527,33 @@ public class CustomerService {
                         .ne(BizInvoice::getStatus, "voided")
                         .orderByDesc(BizInvoice::getInvoiceDate)
                         .last("LIMIT 1"));
-        BizCustomer customer = customerMapper.selectById(customerId);
-        if (customer != null) {
-            customer.setLastInvoiceDate(latest.isEmpty() ? null : latest.get(0).getInvoiceDate());
-            calculateExpireDates(customer);
-            customerMapper.updateById(customer);
-        }
+        return latest.isEmpty() ? null : latest.get(0).getInvoiceDate();
+    }
+
+    /**
+     * 【延期规则收敛 2026-10-18 · 审计 biz-0】开票驱动保护期基准前移的唯一入口:
+     * addInvoice(逐笔补录)与 saveStageAmount(阶段总额)的前移路径都只经本方法写 lastInvoiceDate。
+     * <ul>
+     *   <li>仅当候选日期晚于当前最近开票日(含当前为空的首个基准)才算"前移":清零
+     *       approved_extend_days 并重算到期日一次——新基准上的保护期已覆盖旧延期,
+     *       继续叠加会造成双重延长(新基准 360 天 + 旧基准批出的延期);</li>
+     *   <li>补录早于/等于当前基准的旧票不算前移:保持基准与已批延期,不清零、不重算
+     *       (旧实现 addInvoice 无条件清零,补录历史票会误伤延期);</li>
+     *   <li>删票/作废仍走 refreshLastInvoiceDate 回算(可能后退),不收回已批延期——
+     *       与 2026-09-19 议题一裁决一致。</li>
+     * </ul>
+     *
+     * @return true=发生前移并已落库(调用方据此决定是否清 invoice 类 pending 提醒)
+     */
+    private boolean advanceLastInvoiceDate(BizCustomer customer, LocalDate candidateDate) {
+        if (customer == null || candidateDate == null) return false;
+        LocalDate current = customer.getLastInvoiceDate();
+        if (current != null && !candidateDate.isAfter(current)) return false;
+        customer.setLastInvoiceDate(candidateDate);
+        customer.setApprovedExtendDays(0);
+        calculateExpireDates(customer);
+        customerMapper.updateById(customer);
+        return true;
     }
 
     // ====== 客户指标 ======
@@ -1798,11 +1840,9 @@ public class CustomerService {
                     ? LocalDate.of(year, 6, 30) : LocalDate.of(year, 12, 31);
             // 提前录入进行中的周期时按今天封顶, 防止把保护期推到未来
             LocalDate effective = periodEnd.isAfter(LocalDate.now()) ? LocalDate.now() : periodEnd;
-            LocalDate current = customer.getLastInvoiceDate();
-            if (current == null || effective.isAfter(current)) {
-                customer.setLastInvoiceDate(effective);
-                calculateExpireDates(customer);
-                customerMapper.updateById(customer);
+            // 【延期规则收敛 2026-10-18】与 addInvoice 同口:仅前移才清零已批延期并重算一次;
+            // 补录早于当前基准的旧周期不清零、不重算(原实现阶段入口从不清零,与逐笔入口双轨)。
+            if (advanceLastInvoiceDate(customer, effective)) {
                 // 【体检 P1 2026-10-12】治愈回收: 重新开票(开票日前移)后, pending 的
                 // invoice_never/invoice_overdue 提醒即清——凌晨任务按新事实重建,
                 // 防「待首次开票/已超期N天(N冻结)」旧文案持续误导跟进

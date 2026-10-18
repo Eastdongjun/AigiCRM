@@ -267,6 +267,8 @@ public class ApprovalService {
                     throw new BusinessException(403, "您没有该客户的查看权限, 无法发起保护期延期");
                 }
             }
+            // 【P0 2026-10-17 体检修复】transfer 提交侧归属校验见下方接收人校验之后
+            // (先报接收人错误, 再做客户归属校验, 保持既有错误口径)
         }
 
         // 【2026-09-23 转移校验前移】接收人有效性+集团边界原先只在审批通过时校验(applyApprovalAction),
@@ -289,6 +291,15 @@ public class ApprovalService {
                         throw new BusinessException("接收人不在当前集团,跨集团转移需平台管理员处理");
                     }
                 }
+            }
+            // 【P0 2026-10-17 体检修复】transfer 提交侧归属校验(与 extend 同口径):
+            // 发起人必须能查看该客户; 客户不存在直接拒绝。放在接收人校验之后, 保持既有错误优先级。
+            BizCustomer transferGuard = customerMapper.selectById(customerId);
+            if (transferGuard == null) {
+                throw new BusinessException("客户不存在, 无法发起客户转移");
+            }
+            if (!SecurityUtils.isAdmin() && !customerAccessService.canView(customerId)) {
+                throw new BusinessException(403, "您没有该客户的查看权限, 无法发起客户转移");
             }
         }
 

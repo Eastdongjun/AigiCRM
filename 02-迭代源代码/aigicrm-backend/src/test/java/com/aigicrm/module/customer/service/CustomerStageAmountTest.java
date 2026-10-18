@@ -58,6 +58,7 @@ class CustomerStageAmountTest {
             mock(BizContactMapper.class),
             paymentMapper,
             stageAmountMapper,
+            mock(com.aigicrm.module.sea.mapper.BizSeaPoolMapper.class),
             userMapper,
             mock(SysDeptMapper.class),
             reminderMapper,
@@ -210,6 +211,67 @@ class CustomerStageAmountTest {
             verify(customerMapper, times(1)).updateById(c4.capture());
             assertEquals(LocalDate.now(), c4.getValue().getLastInvoiceDate(), "未来阶段末按今天封顶");
         }
+    }
+
+    /**
+     * 【延期规则收敛 2026-10-18·审计 biz-0】阶段总额把最近开票日前移时,
+     * 与逐笔 addInvoice 同口清零 approved_extend_days 且只重算一次到期日。
+     */
+    @Test
+    void saveStageAmountForwardDate_resetsApprovedExtendDays() {
+        int stageYear = LocalDate.now().getYear() - 1;
+        LocalDate stageEnd = LocalDate.of(stageYear, 6, 30);
+        BizCustomer customer = customerWith(LocalDate.now().minusYears(2));
+        customer.setRegisterDate(stageEnd.minusYears(1));
+        customer.setApprovedExtendDays(360);
+        customer.setExpireDate(stageEnd.minusDays(1)); // 哨兵: 前移后必须被重算
+        when(customerMapper.selectById(501L)).thenReturn(customer);
+        when(stageAmountMapper.selectByPeriodForUpdate(501L, stageYear, "H1")).thenReturn(null);
+        when(stageAmountMapper.selectList(any())).thenReturn(List.of());
+        stubNoIndicator();
+        when(configService.getValue(anyString())).thenReturn(null);
+
+        try (MockedStatic<SecurityUtils> sec = mockStatic(SecurityUtils.class)) {
+            sec.when(SecurityUtils::getCurrentUserId).thenReturn(7L);
+            sec.when(SecurityUtils::getCurrentUser).thenReturn(null);
+            service.saveStageAmount(501L, new StageAmountRequest(stageYear, "H1", bd("120"), bd("0")));
+        }
+
+        ArgumentCaptor<BizCustomer> cap = ArgumentCaptor.forClass(BizCustomer.class);
+        verify(customerMapper, times(1)).updateById(cap.capture());
+        BizCustomer saved = cap.getValue();
+        assertEquals(stageEnd, saved.getLastInvoiceDate(), "阶段总额前移最近开票日");
+        assertEquals(0, saved.getApprovedExtendDays(), "前移必须清零已批延期,防与新保护期双重叠加");
+        assertEquals(stageEnd.plusDays(360), saved.getExpireDate(), "到期日只按新基准+360 重算一次");
+    }
+
+    /**
+     * 【延期规则收敛 2026-10-18·审计 biz-0】补录早于当前最近开票日的旧周期不算前移:
+     * 不清零已批延期、不回退最近开票日、不重算到期日。
+     */
+    @Test
+    void saveStageAmountBackfilledOldPeriod_keepsApprovedExtendDays() {
+        int stageYear = LocalDate.now().getYear() - 2;
+        LocalDate current = LocalDate.now().minusDays(30);
+        BizCustomer customer = customerWith(current);
+        customer.setApprovedExtendDays(360);
+        LocalDate expireBefore = current.plusDays(360).plusDays(360);
+        customer.setExpireDate(expireBefore);
+        when(customerMapper.selectById(501L)).thenReturn(customer);
+        when(stageAmountMapper.selectByPeriodForUpdate(501L, stageYear, "H1")).thenReturn(null);
+        when(stageAmountMapper.selectList(any())).thenReturn(List.of());
+        stubNoIndicator();
+
+        try (MockedStatic<SecurityUtils> sec = mockStatic(SecurityUtils.class)) {
+            sec.when(SecurityUtils::getCurrentUserId).thenReturn(7L);
+            sec.when(SecurityUtils::getCurrentUser).thenReturn(null);
+            service.saveStageAmount(501L, new StageAmountRequest(stageYear, "H1", bd("100"), bd("0")));
+        }
+
+        assertEquals(360, customer.getApprovedExtendDays(), "补录旧周期不得清零已批延期");
+        assertEquals(current, customer.getLastInvoiceDate(), "补录旧周期不得回退最近开票日");
+        assertEquals(expireBefore, customer.getExpireDate(), "未前移不得重算到期日");
+        verify(customerMapper, never()).updateById(any(BizCustomer.class));
     }
 
     // ====== 【体检 P1 2026-10-12】治愈回收: 重新开票(开票日前移)即清 invoice 类 pending 提醒 ======

@@ -1,5 +1,6 @@
 package com.aigicrm.module.file.mapper;
 
+import com.baomidou.mybatisplus.annotation.InterceptorIgnore;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.aigicrm.module.file.entity.BizFile;
 import org.apache.ibatis.annotations.Param;
@@ -9,6 +10,17 @@ import org.apache.ibatis.annotations.Update;
 import java.util.List;
 
 public interface BizFileMapper extends BaseMapper<BizFile> {
+
+    /**
+     * 【P0 2026-10-17 匿名下载 404】按 oss_key 查询 public 文件元数据。
+     * 匿名请求无登录态/集团上下文, 租户拦截器会把查询改写成 tenant_id = NULL 恒空
+     * （见 MybatisPlusConfig.buildTenantInterceptor）, 导致公共下载全部 404。
+     * 公共文件按"公开范围"授权, 不做租户隔离; SQL 显式收口 file_scope='public' + deleted=0,
+     * 避免绕过拦截器后读出私密/已删除行。
+     */
+    @InterceptorIgnore(tenantLine = "true")
+    @Select("SELECT * FROM biz_file WHERE deleted = 0 AND file_scope = 'public' AND oss_key = #{key} LIMIT 1")
+    BizFile selectPublicByKeyIgnoreTenant(@Param("key") String key);
 
     // ===== 【回收站 2026-10-18】已删除文件(显式 deleted=1 绕过 @TableLogic) =====
 

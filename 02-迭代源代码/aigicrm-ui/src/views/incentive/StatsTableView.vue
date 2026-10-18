@@ -47,11 +47,13 @@
         </template>
       </tbody>
       <tfoot>
+        <!-- 合计行严格按列对齐：激励积分是单项分值，不做合计（留 —）；数量列=文件总数；
+             总积分列=积分总和；“共 X 项”属于规则条数，跟随合计标签，不再占用激励积分列 -->
         <tr class="total-row">
-          <td colspan="2"><strong>合计</strong></td>
-          <td><strong class="purple">{{ totalCategories }}项</strong></td>
-          <td><strong>{{ tableTotalFiles }}</strong></td>
-          <td><strong class="blue">{{ tableTotalScore }}</strong></td>
+          <td colspan="2"><strong>合计</strong><span class="total-sub">共 {{ totalCategories }} 项</span></td>
+          <td class="col-score">—</td>
+          <td class="col-count"><strong>{{ tableTotalFiles }}</strong></td>
+          <td class="col-total"><strong class="blue">{{ tableTotalScore }}</strong></td>
           <td></td>
         </tr>
       </tfoot>
@@ -88,7 +90,8 @@ function openDetail(child, group) {
 .card { background: #fff; border: 1px solid #ebeef5; border-radius: 12px; padding: 24px; }
 .table-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; font-size: 14px; color: var(--text-muted); }
 .stats-table { width: 100%; border-collapse: collapse; font-size: 14px; }
-.stats-table th { text-align: left; padding: 12px 16px; color: var(--el-color-danger); font-weight: 500; border-bottom: 2px solid var(--el-color-danger); background: #fff; }
+/* 【2026-10-17 视觉修复】表头不再整表 danger 红：回到浅灰底 + 常规深灰文字/细分隔线 */
+.stats-table th { text-align: left; padding: 12px 16px; color: #4b5563; font-weight: 600; border-bottom: 1px solid #ebeef5; background: #f8fafc; }
 .stats-table td { padding: 14px 16px; border-bottom: 1px solid #f5f5f5; color: #333; }
 .stats-table tbody tr:hover { background: #fafbfc; }
 .clickable-row { cursor: pointer; }
@@ -114,6 +117,6 @@ function openDetail(child, group) {
 .total-row { background: #fafafa; }
 .total-row td { border-top: 2px solid #ebeef5; padding: 14px 16px; text-align: center; }
 .total-row td:first-child { text-align: left; }
-.purple { color: #9b59b6; }
+.total-sub { margin-left: 8px; font-size: 12px; font-weight: 400; color: var(--text-muted); }
 .blue { color: var(--el-color-primary); }
 </style>

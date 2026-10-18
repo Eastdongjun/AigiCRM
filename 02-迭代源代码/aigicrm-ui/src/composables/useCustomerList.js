@@ -514,8 +514,9 @@ export function useCustomerList() {
   const handleDelete = async (row) => {
     // 【C9 三轮 2026-10-09】删除确认收敛到 utils/confirm.js confirmAction（统一红色确认钮/取消左置/app-confirm 皮肤）
     try {
+      // 【2026-10-17 文案对齐】客户删除为软删除：移入回收站，保留期内管理员可恢复
       await confirmAction(
-        `确认删除客户 “${row.customerName}”（编号 ${row.customerCode}）？删除后不可恢复。`,
+        `确认删除客户 “${row.customerName}”（编号 ${row.customerCode}）？删除后将移入回收站，保留期内可由管理员恢复。`,
         '删除客户',
         { confirmText: '确认删除' }
       )
@@ -647,7 +648,7 @@ export function useCustomerList() {
     try {
       // 【D15】批量删除走 confirmAction 红色确认（utils/confirm 统一危险操作视觉）
       await confirmAction(
-        `确认删除选中的 ${rows.length} 个客户？删除后不可恢复。`,
+        `确认删除选中的 ${rows.length} 个客户？删除后将移入回收站，保留期内可由管理员恢复。`,
         '批量删除客户',
         { confirmText: '确认删除' }
       )

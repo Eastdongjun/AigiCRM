@@ -1,5 +1,9 @@
 package com.aigicrm.module.system.service;
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
@@ -213,11 +217,73 @@ public class SysUserService {
             if (grantScope.rank() < callerScope.rank()) {
                 throw new BusinessException("无权授予超出自身数据范围的角色");
             }
+            // 【P0 2026-10-17 提权防护】授予的角色权限必须是调用者自身权限子集，
+            // 与 SysRoleService.validateGrantableRole/saveRoleMenus 同口径：
+            // 否则持 system:user:edit 的非超管可给用户/自己绑定含未授权权限码的角色，横向提权。
+            validateGrantablePermissions(roleId);
         }
         if (StringUtils.hasText(dataScopeOverride)) {
             DataScopeType overrideScope = DataScopeType.fromCode(dataScopeOverride);
             if (overrideScope.rank() < callerScope.rank()) {
                 throw new BusinessException("无权设置超出自身数据范围的数据范围");
+            }
+        }
+    }
+
+    /** 授予角色的菜单权限码必须是调用者自身权限子集（admin 已在调用入口放行） */
+    private void validateGrantablePermissions(Long roleId) {
+        Set<String> callerPerms = SecurityUtils.getCurrentUser() != null
+                && SecurityUtils.getCurrentUser().getPermissions() != null
+                ? SecurityUtils.getCurrentUser().getPermissions() : Set.of();
+        List<String> granted = jdbc.queryForList(
+                "SELECT DISTINCT m.permission FROM sys_role_menu rm JOIN sys_menu m ON m.id = rm.menu_id "
+                        + "WHERE rm.role_id = ? AND m.permission IS NOT NULL AND m.permission <> ''",
+                String.class, roleId);
+        if (granted == null) return;
+        for (String permission : granted) {
+            if (StringUtils.hasText(permission) && !callerPerms.contains(permission)) {
+                throw new BusinessException("无权授予权限: " + permission);
+            }
+        }
+    }
+
+    /**
+     * 【P0 2026-10-17 用户管理越界】非 admin 创建/更新用户时，目标部门/办事处/组织必须在
+     * 调用者可见范围内。不能只看请求里的 orgId（前端表单根本不传），必须同时校验 deptId/officeId；
+     * 可见范围来源：OrgScopeResolver.resolveVisibleDeptIds（与人员详情读权限同源）；
+     * 组织管理员额外允许其管辖组织子树（SecurityUtils.getCurrentManagedOrgIds + dept 子树）。
+     * all 范围用户仍受本集团边界约束（与 applyGroupScope/列表同口径）。
+     */
+    private void assertTargetOrgVisible(Long deptId, Long officeId, Long orgId) {
+        if (SecurityUtils.isAdmin()) return;
+        Set<Long> targets = new LinkedHashSet<>();
+        if (deptId != null) targets.add(deptId);
+        if (officeId != null) targets.add(officeId);
+        if (orgId != null) targets.add(orgId);
+        if (targets.isEmpty()) return;
+
+        List<Long> visibleDeptIds = scopeResolver.resolveVisibleDeptIds(SecurityUtils.getCurrentUser());
+        Set<Long> managedOrgScope = new HashSet<>();
+        List<Long> managedOrgIds = SecurityUtils.getCurrentManagedOrgIds();
+        if (managedOrgIds != null) {
+            for (Long managedOrgId : managedOrgIds) {
+                if (managedOrgId == null) continue;
+                managedOrgScope.add(managedOrgId);
+                List<Long> descendants = deptMapper.selectDescendantIds(managedOrgId);
+                if (descendants != null) managedOrgScope.addAll(descendants);
+            }
+        }
+        for (Long target : targets) {
+            boolean allowed;
+            if (visibleDeptIds == null) {
+                // all 范围：仍须落在当前用户集团的组织集合内（防跨集团）
+                String scoped = applyGroupScope(String.valueOf(target));
+                allowed = scoped != null && Arrays.asList(scoped.split(",")).contains(String.valueOf(target));
+            } else {
+                allowed = visibleDeptIds.contains(target) || managedOrgScope.contains(target);
+            }
+            if (!allowed) {
+                throw new BusinessException("无权在目标部门/组织下创建或修改用户");
             }
         }
     }
@@ -273,6 +339,8 @@ public class SysUserService {
         // (无岗位时 user.org_id → dept.group_id)。此前新建用户从不落 org_id ⇒ 集团归属
         // 恒空 ⇒ 非 admin 租户白名单表查询恒空(fail-closed,详见 V2026.09.23.3 迁移注记)
         syncDefaultOrg(user);
+        // 【P0 2026-10-17】非 admin 只能在自己的可见组织内建人（含 syncDefaultOrg 推导出的 orgId）
+        assertTargetOrgVisible(user.getDeptId(), user.getOfficeId(), user.getOrgId());
         userMapper.insert(user);
 
         // 分配角色
@@ -302,6 +370,15 @@ public class SysUserService {
         validateDataScopeOverride(user.getDataScopeOverride());
         validateGrantableRoleAndScope(user.getRoleId(), user.getDataScopeOverride());
 
+        // 【P0 2026-10-17】非 admin 更新目标用户时，目标部门/办事处/组织必须在可见范围内；
+        // orgId 与 create 同口径随部门重算（前端不传 orgId，不能作为唯一校验依据）。
+        SysDept targetDept = user.getDeptId() != null ? deptMapper.selectById(user.getDeptId()) : null;
+        Long effectiveOrgId = user.getDeptId() != null
+                ? (targetDept != null && targetDept.getGroupId() != null ? user.getDeptId() : DEFAULT_ROOT_ORG_ID)
+                : DEFAULT_ROOT_ORG_ID;
+        assertTargetOrgVisible(user.getDeptId(), user.getOfficeId(),
+                user.getDeptId() != null ? effectiveOrgId : user.getOrgId());
+
         existing.setRealName(user.getRealName());
         existing.setPhone(user.getPhone());
         existing.setEmail(user.getEmail());
@@ -309,12 +386,7 @@ public class SysUserService {
         existing.setOfficeId(user.getOfficeId());
         // 【租户可见性 2026-09-23】默认组织随部门重算(与 create 同口径):防调部门后集团归属失联。
         // 同值重算幂等无害;显式传 org_id 的旧语义不存在(前端表单从未提交该字段)
-        if (user.getDeptId() != null) {
-            SysDept dept = deptMapper.selectById(user.getDeptId());
-            existing.setOrgId(dept != null && dept.getGroupId() != null ? user.getDeptId() : DEFAULT_ROOT_ORG_ID);
-        } else {
-            existing.setOrgId(DEFAULT_ROOT_ORG_ID);
-        }
+        existing.setOrgId(effectiveOrgId);
         // managerId 归一：null/0（前端"无上级"）→ null，配合 ALWAYS 策略落库回写 NULL
         existing.setManagerId(user.getManagerId() != null && user.getManagerId() > 0 ? user.getManagerId() : null);
         existing.setDataScopeOverride(StringUtils.hasText(user.getDataScopeOverride()) ? user.getDataScopeOverride() : null);

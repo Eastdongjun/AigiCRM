@@ -55,15 +55,15 @@ class FilePublicDownloadMetaTest {
 
     @Test
     void publicFile_withPublicMeta_served() {
-        when(fileService.getFileByKey("public/1/logo.jpg")).thenReturn(meta("public"));
+        when(fileService.getPublicFileByKey("public/1/logo.jpg")).thenReturn(meta("public"));
         var resp = controller.downloadPublic(req("/api/file/download/public/1/logo.jpg"));
         assertEquals(200, resp.getStatusCode().value(), "元数据在且 scope=public → 匿名可读");
     }
 
     @Test
     void publicFile_withoutMeta_404() {
-        // 行被逻辑删(@TableLogic)或从未入库 → getFileByKey=null → 404(评审默认口径)
-        when(fileService.getFileByKey("public/1/logo.jpg")).thenReturn(null);
+        // 行被逻辑删(@TableLogic)或从未入库 → getPublicFileByKey=null → 404(评审默认口径)
+        when(fileService.getPublicFileByKey("public/1/logo.jpg")).thenReturn(null);
         var resp = controller.downloadPublic(req("/api/file/download/public/1/logo.jpg"));
         assertEquals(404, resp.getStatusCode().value(), "物理文件在而元数据不存在 → 404");
     }
@@ -71,7 +71,7 @@ class FilePublicDownloadMetaTest {
     @Test
     void publicPath_withNonPublicMeta_403() {
         // 行被移出 public(如改挂私人/激励范围)而物理文件残留 public/ → 拒
-        when(fileService.getFileByKey("public/1/logo.jpg")).thenReturn(meta("private"));
+        when(fileService.getPublicFileByKey("public/1/logo.jpg")).thenReturn(meta("private"));
         var resp = controller.downloadPublic(req("/api/file/download/public/1/logo.jpg"));
         assertEquals(403, resp.getStatusCode().value(), "元数据范围非 public → 403");
     }

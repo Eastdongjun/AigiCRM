@@ -731,7 +731,7 @@ public class FileService {
         }
     }
 
-    /** 按 oss_key 查询文件记录（key 下载路由的归属校验依据） */
+    /** 按 oss_key 查询文件记录（key 下载路由的归属校验依据，保持租户隔离） */
     public BizFile getFileByKey(String fileKey) {
         return fileMapper.selectOne(
                 new LambdaQueryWrapper<BizFile>()
@@ -739,8 +739,20 @@ public class FileService {
                         .last("LIMIT 1"));
     }
 
+    /**
+     * 【P0 2026-10-17 匿名下载 404】匿名公共下载/Logo 的元数据查询。
+     * 匿名请求无登录态与集团上下文，租户拦截器会把查询改写成 tenant_id = NULL 恒空，
+     * 公共下载因此全部 404。改走 mapper 的 @InterceptorIgnore(tenantLine=true) 查询，
+     * 由 SQL 显式限定 deleted=0 AND file_scope='public' 收口（不放开租户隔离到其他路径）。
+     */
+    public BizFile getPublicFileByKey(String fileKey) {
+        if (fileKey == null || fileKey.isBlank()) return null;
+        return fileMapper.selectPublicByKeyIgnoreTenant(fileKey);
+    }
+
+    /** 仅供匿名 Logo 路径使用：只取 public 范围文件的 OSS 地址（与 downloadPublic 同授权口径） */
     public String getOssUrlByKey(String fileKey) {
-        BizFile file = getFileByKey(fileKey);
+        BizFile file = getPublicFileByKey(fileKey);
         if (file != null && file.getOssUrl() != null && file.getOssUrl().startsWith("http")) {
             return file.getOssUrl();
         }
