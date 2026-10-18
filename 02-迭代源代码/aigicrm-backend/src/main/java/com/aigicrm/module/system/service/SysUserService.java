@@ -411,14 +411,16 @@ public class SysUserService {
 
     @Transactional
     public void deleteUser(Long userId) {
-        securityAudit.userAdminEvent("user_delete", userId, null);
-        formDraftService.purgeByUser(userId);
+        // 【P2-2 2026-10-18】校验前置: 审计/草稿清理原在校验之前——被拒的删除也会落"已删除"审计
+        // 并清空草稿(事务兜底只回滚 DB 写, audit 的 event() 非事务)。拒绝路径必须零副作用。
         SysUser user = userMapper.selectById(userId);
         if (user == null) throw new BusinessException("用户不存在");
         // 【2026-08-15 安全审计 H1 纵深防御】非 admin 操作者禁止删除 admin 角色账号(服务层兜底, 不依赖 controller 守卫)
         if (!SecurityUtils.isAdmin() && hasAdminRole(userId)) {
             throw new BusinessException("无权操作该用户");
         }
+        securityAudit.userAdminEvent("user_delete", userId, null);
+        formDraftService.purgeByUser(userId);
 
         // 1. 将该用户名下所有客户释放到公海
         java.util.List<BizCustomer> customers = customerMapper.selectList(
