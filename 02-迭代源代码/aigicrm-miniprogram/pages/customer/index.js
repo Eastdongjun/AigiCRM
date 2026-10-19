@@ -48,7 +48,9 @@ function buildCustomerRowView(item) {
 
 function buildCustomerView(data) {
   const counts = data.countCards || []
-  const customers = Array.isArray(data.customers) ? data.customers : []
+  // WXML 消费 nameText/metaText/ownerOfficeText/statusText 等派生字段，必须在视图层统一派生；
+  // 直接把接口行透传给视图会导致接口有数据但卡片文字全空（看起来像"加载不出来"）。
+  const customers = Array.isArray(data.customers) ? data.customers.map(buildCustomerRowView) : []
   const isLoading = Boolean(data.loading)
   const isLoadingMore = Boolean(data.loadingMore)
   // 【P6 2026-10-04】总数优先用接口返回的 total(此前误把已加载条数当总数);

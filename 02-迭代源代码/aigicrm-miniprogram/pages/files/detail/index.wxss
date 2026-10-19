@@ -1,5 +1,18 @@
-/* 文件详情页按钮组: 预览主操作 + 下载次操作 */
+/* 文件详情页按钮组: 预览主操作 + 下载次操作
+   两个按钮必须同宽同高：flex:1 只定宽度分配，按钮原生 line-height 会撑出不同高度；
+   次按钮白底+细边框+无投影，视觉上还会比主按钮小一圈。这里固定盒模型并统一投影。 */
 .detail-actions { display: flex; gap: 16rpx; margin-top: 18rpx; }
-.detail-actions .btn { flex: 1; }
-.file-download-btn { background: #fff; color: #1d4fd7; border: 1rpx solid #bfd4f5; border-radius: 22rpx; }
+.detail-actions .btn {
+  flex: 1;
+  width: 0;
+  height: 88rpx;
+  padding: 0;
+  box-sizing: border-box;
+  border: 1rpx solid transparent;
+  border-radius: 22rpx;
+  line-height: 86rpx;
+  box-shadow: 0 14rpx 26rpx rgba(35, 100, 216, .18);
+}
+.file-preview-btn { border-color: transparent; }
+.file-download-btn { background: #fff; color: #1d4fd7; border-color: #bfd4f5; }
 .file-download-btn::after { border: 0; }
