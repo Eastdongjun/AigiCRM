@@ -317,16 +317,21 @@ Page({
       return Promise.resolve()
     }
     this.setStatisticsData({ loading: true })
+    // 【权限门控】/score/ranking 后端要求 score:view; 自定义角色可只授 statistics:view(角色菜单可任意勾选),
+    // 无权限时直接置空, 不发必败请求、不弹 403 重试窗(与 ranking 页积分区块同口径)
+    const canScore = hasPermission('score:view')
     return Promise.all([
       getDashboardData(),
       getAnalysis(this.buildAnalysisParams()).catch((error) => {
         showErrorWithRetry(error, '经营分析加载失败', () => this.loadStats())
         return {}
       }),
-      getScoreRanking({ type: 'personal' }).catch((error) => {
-        showErrorWithRetry(error, '积分排行加载失败', () => this.loadStats())
-        return []
-      })
+      canScore
+        ? getScoreRanking({ type: 'personal' }).catch((error) => {
+            showErrorWithRetry(error, '积分排行加载失败', () => this.loadStats())
+            return []
+          })
+        : Promise.resolve([])
     ]).then(([data, analysis, ranking]) => this.setStatisticsData({
       stats: enrichDashboardStats(data || {}, analysis || {}),
       analysis: analysis || {},

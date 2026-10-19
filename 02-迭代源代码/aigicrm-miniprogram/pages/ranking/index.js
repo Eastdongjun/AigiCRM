@@ -194,10 +194,6 @@ Page({
     this.setData({ ...patch, rankingView: buildRankingView(next) })
   },
 
-  refreshRankingView() {
-    this.setData({ rankingView: buildRankingView(this.data) })
-  },
-
   onLoad() {
     if (!requireLogin()) return
     // 【mp-3 2026-10-17】页面首个必发请求 /statistics/customer-rankings 后端只认 statistics:view；

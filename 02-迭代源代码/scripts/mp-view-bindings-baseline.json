@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "description": "Known false positives for scripts/check-mp-view-bindings.mjs. Each entry is matched by (file, field); line numbers are intentionally not stored so edits do not invalidate the baseline. Every entry must carry a reason and should be re-checked when its page changes.",
+  "entries": [
+    {
+      "file": "pages/customer/form/index.wxml",
+      "field": "optionsView",
+      "reason": "Produced one directory up in pages/customer/shared.js:88 (buildIndicatorItems) and imported at pages/customer/form/index.js:9 via require('../shared'). The guard only inspects same-directory index.js/shared.js by design."
+    },
+    {
+      "file": "pages/customer/indicator/index.wxml",
+      "field": "optionsView",
+      "reason": "Produced one directory up in pages/customer/shared.js:88 (buildIndicatorItems) and imported at pages/customer/indicator/index.js:6 via require('../shared'). The guard only inspects same-directory index.js/shared.js by design."
+    }
+  ]
+}

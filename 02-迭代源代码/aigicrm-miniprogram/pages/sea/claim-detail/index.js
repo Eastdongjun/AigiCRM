@@ -10,7 +10,10 @@ function buildClaimView(data) {
     applicantNameText: data.applicantName || '-',
     approverNameText: data.approverName || '-',
     approveTimeText: data.approveTime || '-',
-    reasonText: data.reason || '暂无审批说明'
+    reasonText: data.reason || '',
+    // 【S5】/sea/claim-records 不返回 reason（后端行字段仅 id/日期/客户/申请人/审批人），
+    // 无来源时整块隐藏，避免恒显示"暂无审批说明"造成"已填写为空"的误读
+    showReason: Boolean(data.reason)
   }
 }
 

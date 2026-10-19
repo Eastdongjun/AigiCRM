@@ -51,7 +51,7 @@
       <view class="approval-list-head"><view class="approval-list-title">{{item.titleText}}</view><text class="pill">{{item.statusText}}</text></view>
       <view class="approval-list-meta"><text>编号 {{item.codeText}}</text><text class="pill">{{item.typeText}}</text><text>{{item.applicantText}}</text></view>
       <view class="approval-list-meta"><text>当前节点 {{item.currentNodeText}}</text><text>通过后动作 {{item.actionAfterApproveText}}</text></view>
-      <view wx:if="{{item.showCustomer}}" class="approval-list-meta"><text>客户 {{item.customerNameText}}</text><text>{{item.customerIndustryText}}</text></view>
+      <view wx:if="{{item.showCustomer}}" class="approval-list-meta"><text>客户 {{item.customerNameText}}</text><text wx:if="{{item.customerIndustryText}}">{{item.customerIndustryText}}</text></view>
       <view class="approval-list-reason">{{item.reasonText}}</view>
       <view class="approval-list-time">{{item.timeText}}</view>
       <view class="approval-action-row">

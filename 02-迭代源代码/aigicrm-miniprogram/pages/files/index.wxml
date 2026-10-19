@@ -83,7 +83,7 @@
         <text>{{item.name}}</text>
         <view>
           <button wx:if="{{canViewFolderAcl}}" class="text-btn" data-id="{{item.id}}" data-name="{{item.name}}" bindtap="viewFolderAcl">权限</button>
-          <button class="text-btn" data-id="{{item.id}}" data-name="{{item.name}}" bindtap="openFolderEdit">重命名</button>
+          <button class="text-btn" data-id="{{item.id}}" data-name="{{item.name}}" data-raw-name="{{item.rawName}}" bindtap="openFolderEdit">重命名</button>
           <button class="text-btn danger-text" data-id="{{item.id}}" data-name="{{item.name}}" bindtap="removeFolder">删除</button>
         </view>
       </view>

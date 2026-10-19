@@ -295,10 +295,15 @@ Page({
 
     // 【工作流复核确认修复】分页加载: 原写死 current:1/size:20, 第 21 条起公海客户在小程序端
     // 永远不可见(不可浏览/捞取/编辑), 且统计卡显示全量数字与可见列表矛盾(照客户页 P6 模式)
-    const page = pageArg || 1
+    // 【搜索修复】pageArg 只接受正整数页码：按钮 click 事件对象不再被当成页码（原 page===1 恒 false，
+    // current 变成事件对象、响应被 append），非页码入参一律按第 1 页处理
+    const page = Number(pageArg) > 0 ? Math.floor(Number(pageArg)) : 1
     const requestSeq = (this._recordsReqSeq = (this._recordsReqSeq || 0) + 1)
     // 【M20】请求序号守卫：筛选/搜索快速切换时，慢返回的旧响应直接丢弃，防止覆盖新列表
-    this.setSeaData(page === 1 ? { loading: true, loadingMore: false } : { loadingMore: true })
+    // 【筛选重载修复】第 1 页立即重置 currentPage/hasMore，避免筛选请求在途时触底按旧页码追页
+    this.setSeaData(page === 1
+      ? { loading: true, loadingMore: false, currentPage: 1, hasMore: false }
+      : { loadingMore: true })
     getSeaList({
       current: page,
       size: SEA_PAGE_SIZE,
@@ -329,7 +334,8 @@ Page({
   },
 
   onReachBottom() {
-    if (!this.data.seaView || !this.data.seaView.hasMore || this.data.seaView.loading || this.data.seaView.loadingMore) return
+    // 【S2】守卫改读页面真实 loading 状态：buildSeaView 不产出 loading 键（原读 seaView.loading 恒 undefined）
+    if (!this.data.seaView || !this.data.seaView.hasMore || this.data.loading || this.data.loadingMore) return
     this.loadRecords((this.data.currentPage || 1) + 1)
   },
 
@@ -341,6 +347,12 @@ Page({
   search(e) {
     this.setSeaData({ keyword: e.detail.value || '' })
     this.loadRecords()
+  },
+
+  // 【S1】搜索按钮 click 事件无 keyword（e.detail 为空），不能复用 search() 否则会清空已输入关键字；
+  // 明确表达"搜索 = 第 1 页、替换列表"
+  searchTap() {
+    this.loadRecords(1)
   },
 
   chooseStatus(e) {

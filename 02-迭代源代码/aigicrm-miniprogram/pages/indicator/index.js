@@ -16,7 +16,13 @@ function buildIndicatorView(state = {}) {
     id: item.customerId || item.id || `rank-${index}`,
     rank: index + 1,
     customerName: item.customerName || item.name || '未命名客户',
-    coreText: item.core ? '核心' : '非核心',
+    // 【核心三态对齐】后端 customerRanking 同时返回 coreType(core/quasi/空), 与排行页/PC 同口径;
+    // 仅看 core 布尔会把争核心(有阶段数据未双达标)误显示成非核心, 空值(无阶段数据)显示 —
+    coreText: item.coreType === 'core'
+      ? '真核心'
+      : item.coreType === 'quasi'
+        ? '争核心'
+        : (item.core ? '真核心' : '—'),
     totalScore: normalizeNumber(item.totalScore)
   }))
   return {

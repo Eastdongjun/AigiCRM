@@ -56,8 +56,11 @@ function buildCustomerView(data) {
   // 【P6 2026-10-04】总数优先用接口返回的 total(此前误把已加载条数当总数);
   // 演示模式无接口,由 loadCustomers 以本地过滤结果数兜底
   const total = Number(data.total) || customers.length
+  // 【C1 2026-10-19】计数卡片有值(含 0)即展示数字,仅缺卡片时用 '-' 占位;
+  // 旧写法 `|| '-'` 会把真实 0 也显示成 '-',与「没有字段时明确显示 0」不一致
+  const countValue = (index) => (counts[index] && counts[index].value !== undefined && counts[index].value !== null ? counts[index].value : '-')
   return {
-    summaryText: `全部 ${(counts[0] && counts[0].value) || '-'} · 我的 ${(counts[1] && counts[1].value) || '-'} · 共享 ${(counts[2] && counts[2].value) || '-'}`,
+    summaryText: `全部 ${countValue(0)} · 我的 ${countValue(1)} · 共享 ${countValue(2)}`,
     filterText: `${data.filter || '全部'}⌄`,
     statusFilterText: `${(((data.statusFilters || []).find((item) => item.value === (data.statusFilter || '')) || {}).label) || '全部状态'}⌄`,
     showReset: Boolean(data.keyword || data.filter !== '全部' || data.statusFilter || data.hasAdvancedFilter),
@@ -176,12 +179,15 @@ Page({
   loadCounts() {
     if (getApp().globalData.demoMode) return
     getCustomerCounts().then((counts) => {
+      // 【C1 2026-10-19】/customer/list/counts 只返回 all/mine/sharedByMe/sharedToMe,
+      // 不存在 shared/sea 键(旧代码恒读成 0)。共享取 sharedToMe(分享给我,即当前用户可见的共享客户),
+      // 与后端 counts 同一口径;该接口不返回公海数,显式显示 0,不再读不存在的键。
       this.setCustomerData({
         countCards: [
           { label: '全部', value: counts.all || 0 },
           { label: '我的', value: counts.mine || counts.self || 0 },
-          { label: '共享', value: counts.shared || 0 },
-          { label: '公海', value: counts.sea || 0 }
+          { label: '共享', value: counts.sharedToMe || 0 },
+          { label: '公海', value: 0 }
         ]
       })
     }).catch((error) => showError(error, '客户数量加载失败'))

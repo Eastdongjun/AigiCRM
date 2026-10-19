@@ -36,7 +36,6 @@ function normalizeRecords(customers) {
       score: customer.totalScore || 0,
       count: customer.count || records.length,
       category: latest ? latest.category || latest.type || latest.categoryName || '未分类' : '未分类',
-      isNew: Boolean(customer.isNew),
       unread: Boolean(customer.unread || records.some((item) => item.unread)),
       summary: latest ? latest.description || latest.remark || latest.product || '暂无详情描述' : '暂无详情描述',
       files: latest ? buildIncentiveFiles(latest) : [],
@@ -202,7 +201,6 @@ function buildRecordView(record) {
     fileCountTotal: fileGroupsView.reduce((sum, group) => sum + (group.files || []).length, 0),
     readStatusText: record.unread ? '未读' : '已读',
     readStatusClass: record.unread ? 'tag-unread' : 'tag-read',
-    showNewTag: Boolean(record.isNew),
     showFiles: fileGroupsView.length > 0,
     fileGroupsView,
     coverFile: coverFile || {},
@@ -265,7 +263,9 @@ function buildIncentiveView(data) {
     showScoreboardEmpty: !isLoading && (data.scoreboard || []).length === 0,
     showDeptRankingEmpty: !isLoading && (data.deptRanking || []).length === 0,
     showReadStatsEmpty: !isLoading && (data.readStats || []).length === 0,
-    showReadRankingEmpty: !isLoading && (data.readRanking || []).length === 0,
+    // 【I5】加载失败与"确实没有数据"分开: 失败时展示错误+重试, 不再伪装成"暂无排行"
+    showReadRankingError: Boolean(data.readRankingError),
+    showReadRankingEmpty: !isLoading && !data.readRankingError && (data.readRanking || []).length === 0,
     showReadStatsPanel: Boolean(data.canViewReadStats),
     showReadRankingPanel: Boolean(data.canViewReadRanking),
     showNoReadPermission: !data.canViewReadStats && !data.canViewReadRanking
@@ -371,6 +371,7 @@ Page({
     readPeriod: currentMonth(),
     readPeriodOptions: buildReadPeriodOptions(),
     selectedReadPeriodIndex: 0,
+    readRankingError: '',
     scoreboard: [],
     deptRanking: [],
     canViewReadStats: false,
@@ -570,8 +571,13 @@ Page({
       const text = [item.customerName, item.name, item.summary, item.remark, item.description, item.relatedProducts, item.specificProduct, item.product].filter(Boolean).join(' ').toLowerCase()
       if (keyword && !text.includes(keyword)) return false
       if (industry && industry !== '全部行业' && item.industry !== industry) return false
-      if (devType && devType !== '全部类型' && item.devType !== devType) return false
-      if (product && product !== '全部产品' && !text.includes(product.toLowerCase())) return false
+      // 【I1】customer-records 按客户分组返回的行不带 devType/产品字段(devType 属客户、产品在子记录),
+      // 服务端已按这两个条件筛过; 本地只在行确实携带该字段时才二次校验, 否则缺失字段被恒判不等会清空全部结果
+      if (devType && devType !== '全部类型' && item.devType && item.devType !== devType) return false
+      if (product && product !== '全部产品') {
+        const productText = [item.relatedProducts, item.specificProduct, item.product].filter(Boolean).join(' ').toLowerCase()
+        if (productText && !productText.includes(product.toLowerCase())) return false
+      }
       if (org && org.id && item.officeId && String(item.officeId) !== String(org.id)) return false
       const dateValue = String(item.createdAt || item.createTime || '').slice(0, 10)
       if (startDate && dateValue && dateValue < startDate) return false
@@ -685,8 +691,12 @@ Page({
     getReadRanking({ period: this.data.readPeriod }).then((payload) => {
       const rows = payload && (payload.records || payload.rows || payload.list || payload.ranking || payload.data || payload)
       const readRanking = Array.isArray(rows) ? rows : []
-      this.setData({ readRanking, readRankingView: buildReadRankingView(readRanking) }, () => this.refreshIncentiveView())
-    }).catch(() => this.setData({ readRanking: [], readRankingView: [] }, () => this.refreshIncentiveView()))
+      this.setData({ readRanking, readRankingView: buildReadRankingView(readRanking), readRankingError: '' }, () => this.refreshIncentiveView())
+    }).catch((error) => {
+      // 【I5】失败不再被空 catch 吞掉: 清空旧数据的同时置错误态并给重试入口, 与真实空数据区分
+      this.setData({ readRanking: [], readRankingView: [], readRankingError: '阅读排行加载失败' }, () => this.refreshIncentiveView())
+      showErrorWithRetry(error, '阅读排行加载失败', () => this.loadReadRanking())
+    })
   },
 
   chooseReadPeriod(e) {
@@ -894,6 +904,9 @@ Page({
       selectedUserIndex: 0,
       selectedOrderIndex: 0,
       order: '',
+      // 【I3】清空必须连分类筛选一起复位: 否则 sort() 仍按旧 categoryNames 过滤, 重新拉取也恢复不了完整列表
+      category: '全部',
+      categoryNames: [],
       startDate: '',
       endDate: ''
     }, () => this.refreshIncentiveView())

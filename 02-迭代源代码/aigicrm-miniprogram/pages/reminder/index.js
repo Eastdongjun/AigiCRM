@@ -1,4 +1,7 @@
 const { getReminderList, getExpiringList, getPendingCount, processReminder, ensureExpiring } = require('../../api/reminder')
+// 【S3】提醒详情接口（GET /api/reminder/{id}）在 api/reminder.js 中无封装；
+// 该文件不在本域可改范围，页面直接复用既有请求层，避免越权修改共享 api 模块
+const request = require('../../utils/request')
 const { submitApproval } = require('../../api/approval')
 const { getDepts, getScopeUsers } = require('../../api/system')
 const { reminderRecords } = require('../../data/demo')
@@ -44,6 +47,7 @@ function reminderTypeLabel(type) {
   const key = normalizeKey(type)
   const labels = {
     expiring: '到期提醒',
+    expire: '到期提醒',
     protect_expiring: '到期提醒',
     invoice: '开票提醒',
     invoice_overdue: '开票超期提醒',
@@ -92,19 +96,40 @@ function remainingDaysText(value) {
   return value === undefined || value === null || value === '' ? '—' : `${value} 天`
 }
 
-function normalizeReminder(item) {
+// 详情接口只回客户 expireDate（无 remainingDays），到期类提醒按自然日补齐剩余天数
+function daysUntil(dateText) {
+  const parts = String(dateText || '').trim().slice(0, 10).split('-')
+  if (parts.length !== 3) return undefined
+  const year = Number(parts[0])
+  const month = Number(parts[1])
+  const day = Number(parts[2])
+  if (!year || !month || !day) return undefined
+  const now = new Date()
+  const todayUtc = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate())
+  const targetUtc = Date.UTC(year, month - 1, day)
+  return Math.round((targetUtc - todayUtc) / 86400000)
+}
+
+function normalizeReminder(item, options = {}) {
   const customer = item.customer || {}
   const region = customer.region || [customer.province, customer.city, customer.district].filter(Boolean).join('')
-  const remainingDays = item.remainingDays ?? customer.remainingDays
-  const type = item.type || item.reminderType || 'follow'
+  const type = item.type || item.reminderType || options.defaultType || 'follow'
   const status = item.status || 'pending'
+  // 【S3】到期时间取值补客户到期日（详情接口把 expireDate 放在 customer 下）；
+  // 到期类提醒缺 remainingDays 时按 expireDate 计算，两个来源都缺失则保持空并由显示层给明确占位
+  const expireDate = item.expireDate || item.dueDate || customer.expireDate || ''
+  let remainingDays = item.remainingDays ?? customer.remainingDays
+  if ((remainingDays === undefined || remainingDays === null || remainingDays === '')
+    && normalizeKey(type) === 'expiring') {
+    remainingDays = daysUntil(expireDate)
+  }
   const normalized = {
     // 【工作流复核确认修复】expiring-list 行无 id 只有 reminderId: id 用 reminderId 兜底,
     // 原 process/processAll 以 item.id 守卫 → 到期行"已跟进/一键清空"点击后静默失效
     id: item.id || item.reminderId,
     reminderId: item.reminderId || item.id,
     customerId: item.customerId,
-    customerName: item.customerName || item.title || '未命名提醒',
+    customerName: item.customerName || customer.customerName || item.title || '未命名提醒',
     customerCode: item.customerCode || customer.customerCode || '',
     customerStatus: item.customerStatus || customer.status || '',
     industry: item.industry || customer.industry || '',
@@ -116,7 +141,7 @@ function normalizeReminder(item) {
     status,
     statusText: reminderStatusText(status, type),
     timingText: reminderTimingText({ ...item, type }, remainingDays),
-    expireDate: item.expireDate || item.dueDate || '',
+    expireDate,
     lastInvoiceDate: item.lastInvoiceDate || customer.lastInvoiceDate || '',
     content: item.content || item.remark || item.reason || '请及时处理该提醒',
     ownerName: item.ownerName || '',
@@ -133,7 +158,8 @@ function normalizeReminder(item) {
     ownerDisplay: displayText(normalized.ownerName),
     officeDisplay: displayText(normalized.officeName),
     statusDisplay: displayText(normalized.statusText || normalized.status, '待处理'),
-    expireDateDisplay: displayText(normalized.expireDate, '-'),
+    // 【S3】无到期数据来源时给明确占位，而非与真实日期混淆的 "-"
+    expireDateDisplay: displayText(normalized.expireDate, '暂无到期日期'),
     customerCodeDisplay: displayText(normalized.customerCode),
     customerStatusDisplay: displayText(normalized.customerStatus),
     industryDisplay: displayText(normalized.industry),
@@ -253,7 +279,9 @@ Page({
   loadReminders(options = {}) {
     const append = Boolean(options.append)
     if (getApp().globalData.demoMode) {
-      const reminders = this.filterReminders(reminderRecords.filter((item) => !isProcessed(item.id)).map(normalizeReminder))
+      const reminders = this.filterReminders(reminderRecords
+        .filter((item) => !isProcessed(item.id))
+        .map((item) => normalizeReminder(item, this.reminderNormalizeOptions())))
       this.applyState({ reminders, loading: false, loadingMore: false, currentPage: 1, total: reminders.length, hasMore: false })
       return
     }
@@ -271,7 +299,8 @@ Page({
       : { loading: true, loadingMore: false, currentPage: 1, hasMore: false })
     loader(params).then((payload) => {
       if (requestSeq !== this._remindersReqSeq) return
-      const rows = normalizePage(payload).map(normalizeReminder)
+      // 【S6】到期客户行接口不返回 type，按当前视图补默认类型，避免统一兜底成"跟进提醒"
+      const rows = normalizePage(payload).map((item) => normalizeReminder(item, this.reminderNormalizeOptions()))
       const total = pageTotal(payload)
       const merged = append ? mergeById(this.data.reminders, rows) : rows
       const reminders = this.filterReminders(merged)
@@ -290,6 +319,10 @@ Page({
   // PC 已知情改客户端过滤而 MP 未同步——搜索框可见但恒无效; 此处同款客户端兜底。
   // 到期模式走 /expiring-list, 后端已消费 keyword, 不重复过滤。
   // 【mp-1】过滤作用于"已加载的累积分页数据"，搜索时重置回第 1 页重新累积。
+  reminderNormalizeOptions() {
+    return { defaultType: this.data.viewMode === 'expiring' ? 'expiring' : '' }
+  },
+
   filterReminders(rows) {
     if (this.data.viewMode === 'expiring') return rows
     const kw = this.data.keyword.trim().toLowerCase()
@@ -379,7 +412,33 @@ Page({
   openDetail(e) {
     const index = Number(e.currentTarget.dataset.index)
     const item = this.data.reminders[index]
-    if (item) this.applyState({ selectedReminder: item, selectedReminderIndex: index })
+    if (!item) return
+    this.applyState({ selectedReminder: item, selectedReminderIndex: index })
+    // 【S3】列表接口只回填客户名/负责人/部门/最近开票日，客户编号/状态/行业/地区/到期日等
+    // 只在详情接口 /api/reminder/{id} 上；打开详情时补拉并合并，失败保持列表行字段可读
+    this.loadReminderDetail(item)
+  },
+
+  loadReminderDetail(item) {
+    if (getApp().globalData.demoMode) return
+    const reminderId = item.reminderId || item.id
+    if (!reminderId) return
+    const requestSeq = (this._detailReqSeq = (this._detailReqSeq || 0) + 1)
+    request({ url: '/api/reminder/' + reminderId }).then((payload) => {
+      if (requestSeq !== this._detailReqSeq || !payload) return
+      const current = this.data.selectedReminder
+      // 用户已关闭/切换详情时丢弃迟到的详情响应
+      if (!current || String(current.id) !== String(item.id)) return
+      const merged = normalizeReminder({
+        ...payload,
+        id: payload.id || item.id,
+        remainingDays: payload.remainingDays ?? item.remainingDays
+      })
+      this.applyState({ selectedReminder: { ...item, ...merged } })
+    }).catch((error) => {
+      // 已关闭/切换详情后，旧请求失败不再打扰用户
+      if (requestSeq === this._detailReqSeq) showError(error, '提醒详情加载失败')
+    })
   },
 
   closeDetail() { this.applyState({ selectedReminder: null, selectedReminderIndex: -1 }) },

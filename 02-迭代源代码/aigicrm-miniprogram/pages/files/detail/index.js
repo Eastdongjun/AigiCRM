@@ -3,6 +3,7 @@ const { showError } = require('../../../utils/feedback')
 const { getDownloadUrl, replaceFile } = require('../../../api/file')
 const { saveDownloadedFileToDisk, isTextFileName, openTextView } = require('../../../utils/attachment')
 const { safeDecodeParam } = require('../../../utils/query')
+const { whenAuthReady } = require('../permission-ready')
 
 function buildDetailView(data) {
   return {
@@ -24,8 +25,12 @@ Page({
     const nextData = { ...this.data, ...patch }
     this.setData({ ...patch, detailView: buildDetailView(nextData) })
   },
-  onLoad(options) {
+  onLoad(options = {}) {
     if (!requireLogin()) return
+    // 【F5】冷启动 permissions 异步回填: 等待在途 /auth/info 后再判权限, 避免误判无权限
+    whenAuthReady().then(() => this.initPage(options))
+  },
+  initPage(options = {}) {
     if (!getApp().globalData.demoMode && !hasPermission('file:view')) {
       wx.showToast({ title: '没有文件查看权限', icon: 'none' })
       setTimeout(() => wx.navigateBack(), 500)
@@ -137,6 +142,8 @@ Page({
           size: file.size ? `${Math.max(file.size / 1024 / 1024, 0.01).toFixed(2)} MB` : this.data.size,
           updatedAt: '刚刚'
         })
+        // 【F4/PR-12】替换成功置强制刷新标记: files 列表 onShow 命中即绕过节流重拉, 返回立刻见新名/大小
+        getApp().globalData.forceRefresh.files = true
         wx.showToast({ title: `替换成功${version}`, icon: 'success' })
       }).catch((error) => showError(error, '替换失败')).finally(() => wx.hideLoading())
     } })

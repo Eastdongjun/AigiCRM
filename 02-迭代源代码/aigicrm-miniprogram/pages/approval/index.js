@@ -50,7 +50,9 @@ function mergeById(existing, incoming) {
 
 function buildApprovalItemView(item, state = {}) {
   const customerNameText = item.customerName || '-'
-  const customerIndustryText = item.customerIndustry || '-'
+  // 【S4】列表接口 BizApproval 瞬态字段只回填 applicantName/customerName，没有行业来源；
+  // 无值时保持空串，由 wxml 隐藏该文本位，避免恒显示 "-" 的假数据位
+  const customerIndustryText = item.customerIndustry || ''
   const showRejectAction = Boolean(state.canReject && item.isPending)
   const showApproveAction = Boolean(state.canApprove && item.isPending)
   return {
@@ -62,7 +64,7 @@ function buildApprovalItemView(item, state = {}) {
     applicantText: item.applicant || '申请人',
     currentNodeText: item.currentNode || '-',
     actionAfterApproveText: item.actionAfterApprove || '-',
-    showCustomer: Boolean(item.customerName || item.customerIndustry),
+    showCustomer: Boolean(item.customerName),
     customerNameText,
     customerIndustryText,
     reasonText: item.reason || '暂无说明',

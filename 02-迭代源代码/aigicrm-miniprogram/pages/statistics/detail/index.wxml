@@ -16,6 +16,7 @@
   <view wx:if="{{detailView.showLoading}}" class="card loading-card">加载中...</view>
   <view wx:if="{{detailView.showCustomer}}" class="card stats-list-card">
     <view class="stats-card-title">客户资产</view>
+    <view wx:if="{{detailView.errors.customer}}" class="muted">{{detailView.errors.customer}}</view>
     <view class="stats-detail-summary">
       <view wx:for="{{detailView.summaryTiles}}" wx:key="label">
         <text>{{item.label}}</text>
@@ -26,14 +27,17 @@
   </view>
   <view wx:if="{{detailView.showApproval}}" class="card stats-list-card">
     <view class="stats-card-title">审批流转</view>
+    <view wx:if="{{detailView.errors.approval}}" class="muted">{{detailView.errors.approval}}</view>
     <view wx:for="{{detailView.approvalRows}}" wx:key="label" class="stats-list-row"><text>{{item.label}}</text><text>{{item.value}}</text></view>
   </view>
   <view wx:if="{{detailView.showSea}}" class="card stats-list-card">
     <view class="stats-card-title">公海池</view>
+    <view wx:if="{{detailView.errors.sea}}" class="muted">{{detailView.errors.sea}}</view>
     <view wx:for="{{detailView.seaRows}}" wx:key="label" class="stats-list-row"><text>{{item.label}}</text><text>{{item.value}}</text></view>
   </view>
   <view wx:if="{{detailView.showActivity}}" class="card stats-list-card">
     <view class="stats-card-title">团队动态</view>
+    <view wx:if="{{detailView.errors.activity}}" class="muted">{{detailView.errors.activity}}</view>
     <view wx:if="{{detailView.showActivityEmpty}}" class="muted">暂无团队动态</view>
     <view wx:for="{{detailView.activities}}" wx:key="id" class="activity-row">
       <view class="activity-main"><text class="activity-type">{{item.typeDisplay}}</text><text>{{item.contentDisplay}}</text></view>
@@ -43,9 +47,11 @@
   <view wx:if="{{detailView.showTrend}}" class="card stats-list-card">
     <view class="stats-card-title">趋势复盘</view>
     <view class="stats-subtitle">本月日报</view>
+    <view wx:if="{{detailView.errors.daily}}" class="muted">{{detailView.errors.daily}}</view>
     <view wx:if="{{detailView.showDailyEmpty}}" class="muted">暂无日报数据</view>
     <view wx:for="{{detailView.dailyRows}}" wx:key="id" class="detail-row"><text>{{item.label}}</text><text>{{item.valueText}}</text></view>
     <view class="stats-subtitle">本月周报</view>
+    <view wx:if="{{detailView.errors.weekly}}" class="muted">{{detailView.errors.weekly}}</view>
     <view wx:if="{{detailView.showWeeklyEmpty}}" class="muted">暂无周报数据</view>
     <view wx:for="{{detailView.weeklyRows}}" wx:key="id" class="detail-row"><text>{{item.label}}</text><text>{{item.valueText}}</text></view>
   </view>

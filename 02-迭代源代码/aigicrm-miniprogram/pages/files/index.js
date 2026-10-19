@@ -5,6 +5,7 @@ const { showError, showErrorWithRetry } = require('../../utils/feedback')
 const { hasPermission, requireLogin, getToken, isAdmin } = require('../../utils/auth')
 const { readDemoFolders, removeDemoFolder } = require('../../utils/demo-folders')
 const { isTextFileName, openTextView } = require('../../utils/attachment')
+const { whenAuthReady } = require('./permission-ready')
 
 const demoFiles = [
   { id: 'file-001', name: '华东智能制造集团项目方案.pdf', type: 'PDF', size: '8.6 MB', folder: '激励资料', uploaderName: '张三', updatedAt: '今天 10:24', tone: 'red' },
@@ -199,6 +200,24 @@ function parseUpdatedBucket(text) {
   return '更早'
 }
 
+// 【F2】后端 /file/list 与 /shared-to-me 只回 folderId(不回 folderName):
+// 用已加载文件夹树的 rawName 反查真实夹名; 根目录才是"未分类",
+// 引用了当前不可见/已删除的文件夹时显示明确占位, 不冒充"未分类"
+function folderNameLookup(folders) {
+  const lookup = {}
+  ;(folders || []).forEach((folder) => {
+    if (folder && folder.id !== undefined && folder.id !== null) {
+      lookup[String(folder.id)] = folder.rawName || folder.name || ''
+    }
+  })
+  return lookup
+}
+
+function resolveFolderText(folderId, folderNames) {
+  if (!folderId) return '未分类'
+  return (folderNames && folderNames[String(folderId)]) || '未知文件夹'
+}
+
 function buildFileRowView(item, data) {
   const canMutateOwnTab = data.activeTab !== '分享给我' && data.activeTab !== '四项激励'
   // 【mp-4 2026-10-17】行操作按当前文件夹 ACL + downloadable 收敛（与 PC FileTable 同口径）；
@@ -240,6 +259,15 @@ function buildFileRowView(item, data) {
 function isDemoMode() {
   const app = typeof getApp === 'function' && getApp()
   return Boolean(app && app.globalData && app.globalData.demoMode)
+}
+
+// 【F3/F6】演示模式 Tab 归属规则: 列表过滤与 Tab 计数共用同一判定,
+// 不再出现"公共计数 0 但列表明明有条目"。演示数据没有 scope/分享关系:
+// 公共与私人共用非激励文件, 分享给我没有可展示的分享数据
+function demoFileMatchesTab(item, activeTab) {
+  if (activeTab === '四项激励') return item.folder === '激励资料'
+  if (activeTab === '分享给我') return false
+  return item.folder !== '激励资料'
 }
 
 function buildFileView(data) {
@@ -366,6 +394,12 @@ Page({
 
   onLoad() {
     if (!requireLogin()) return
+    // 【F5】冷启动 permissions 由 app.onShow 的 /auth/info 异步回填: 有在途请求先等它落地,
+    // 否则 permission 尚未回填时直接判 file:view 会把合法用户误踢回首页
+    whenAuthReady().then(() => this.initPage())
+  },
+
+  initPage() {
     if (!getApp().globalData.demoMode && !hasPermission('file:view')) {
       wx.showToast({ title: '没有文件查看权限', icon: 'none' })
       wx.switchTab({ url: '/pages/home/index' })
@@ -451,9 +485,13 @@ Page({
         // 【mp-4】保留每个夹的 perms/downloadable，选中夹后用于收敛行内操作
         const flattenFolders = (list, depth, out) => {
           (list || []).forEach((f) => {
+            // 【F1】展示名(「· 」层级标记)与真实名分离: rawName 用于重命名提交,
+            // 否则前缀会被当成名字发到接口, 后端只 trim 会永久落库脏名
+            const rawName = f.name || f.folderName || '未命名文件夹'
             out.push({
               id: f.id,
-              name: (depth > 0 ? '· ' : '') + (f.name || f.folderName || '未命名文件夹'),
+              name: (depth > 0 ? '· ' : '') + rawName,
+              rawName,
               perms: Array.isArray(f.perms) ? f.perms : [],
               downloadable: f.downloadable
             })
@@ -491,7 +529,8 @@ Page({
       this.setFileData({ loadingMore: false, currentPage: Math.max(page - 1, 1) })
       return
     }
-    const normalizedFiles = files.map((item, index) => this.normalizeFile(item, index))
+    const folderNames = folderNameLookup(folders)
+    const normalizedFiles = files.map((item, index) => this.normalizeFile(item, index, folderNames))
     const mergedFiles = append ? mergeById(this.data.files, normalizedFiles) : normalizedFiles
     // 无 total 的旧后端按"本页满页"判断是否还有下一页
     const hasMore = total > 0 ? page * pageSize < total : files.length >= pageSize
@@ -523,12 +562,11 @@ Page({
   },
 
   demoTabCounts(files = demoFiles) {
-    return {
-      公共: 0,
-      私人: files.filter((item) => item.folder !== '激励资料').length,
-      四项激励: files.filter((item) => item.folder === '激励资料').length,
-      分享给我: 0
-    }
+    // 【F6】计数与 filterFiles 共用 demoFileMatchesTab, 保证"看到几条 = 显示几条"
+    return (this.data.tabs || []).reduce((counts, tab) => {
+      counts[tab] = files.filter((item) => demoFileMatchesTab(item, tab)).length
+      return counts
+    }, {})
   },
 
   async loadTabCounts() {
@@ -556,7 +594,7 @@ Page({
     }
   },
 
-  normalizeFile(item, index) {
+  normalizeFile(item, index, folderNames) {
     const name = item.name || item.fileName || '未命名文件'
     const extension = name.includes('.') ? name.split('.').pop().toUpperCase() : 'FILE'
     return {
@@ -564,7 +602,8 @@ Page({
       name,
       type: extension,
       size: typeof item.fileSize === 'number' ? bytesToSize(item.fileSize) : (item.fileSize || item.size || '-'),
-      folder: item.folderName || '未分类',
+      // 【F2】列表接口只回 folderId: 按已加载文件夹树反查真实夹名(缺失时给明确占位)
+      folder: item.folderName || resolveFolderText(item.folderId, folderNames),
       folderId: item.folderId || '',
       fileScope: item.fileScope || '',
       uploaderId: item.uploaderId || '',
@@ -578,18 +617,23 @@ Page({
     }
   },
 
-  filterFiles(files = this.data.files) {
-    const keyword = this.data.keyword.trim().toLowerCase()
+  filterFiles(files = this.data.files, context = this.data) {
+    const keyword = String(context.keyword || '').trim().toLowerCase()
     // 真实模式列表已按 scope 服务端过滤(onTabTap→loadFiles 带 scope 重拉), 本地不得按文件夹文字二次筛选
     // —— 真实激励文件 folder 多为'未分类', 文字法会把整表筛空; 文字法仅演示模式(无服务端)使用
     const useLabelScope = Boolean(getApp().globalData.demoMode)
     return files.filter(item => {
-      const matchesTab = !useLabelScope ? true : (this.data.activeTab === '四项激励' ? item.folder === '激励资料' : item.folder !== '激励资料')
+      // 【F3】Tab/keyword 从 context 读取本次变更后的值: 直接读 this.data 会拿到旧值(慢一拍)
+      const matchesTab = !useLabelScope ? true : demoFileMatchesTab(item, context.activeTab)
       return matchesTab && (!keyword || `${item.name}${item.folder}`.toLowerCase().includes(keyword))
     })
   },
 
-  onKeywordInput(event) { const keyword = event.detail.value; this.setFileData({ keyword, filteredFiles: this.filterFiles(this.data.files) }) },
+  onKeywordInput(event) {
+    const keyword = event.detail.value
+    // 【F3】用新关键词过滤: 先 setData 再 filterFiles 会漏掉刚输入的最后一个字符
+    this.setFileData({ keyword, filteredFiles: this.filterFiles(this.data.files, { ...this.data, keyword }) })
+  },
   searchFiles() {
     if (getApp().globalData.demoMode) {
       this.setFileData({ filteredFiles: this.filterFiles(this.data.files) })
@@ -601,7 +645,10 @@ Page({
   },
   onTabTap(event) {
     const activeTab = event.currentTarget.dataset.tab
-    this.setFileData({ activeTab, activeFolderId: '', activeFolderName: '', currentPage: 1, hasMore: false, filteredFiles: this.filterFiles(this.data.files) })
+    const patch = { activeTab, activeFolderId: '', activeFolderName: '', currentPage: 1, hasMore: false }
+    // 【F3】用切换后的 Tab 过滤: 原来的 filterFiles 读 this.data.activeTab 仍是旧 Tab
+    // (演示模式不重拉接口, 错误列表会一直保留)
+    this.setFileData({ ...patch, filteredFiles: this.filterFiles(this.data.files, { ...this.data, ...patch }) })
     if (!getApp().globalData.demoMode) this.loadFiles()
   },
   openFolder(event) {
@@ -696,7 +743,12 @@ Page({
       }
     })
   },
-  openFolderEdit(event) { wx.navigateTo({ url: `/pages/files/folder-form/index?id=${event.currentTarget.dataset.id}&name=${encodeURIComponent(event.currentTarget.dataset.name || '')}` }) },
+  openFolderEdit(event) {
+    // 【F1】只提交真实名(rawName): 列表 name 可能带「· 」层级前缀, 前缀仅用于视图
+    const dataset = event.currentTarget.dataset || {}
+    const name = dataset.rawName ? dataset.rawName : (dataset.name || '')
+    wx.navigateTo({ url: `/pages/files/folder-form/index?id=${dataset.id}&name=${encodeURIComponent(name)}` })
+  },
   removeFolder(event) {
     if (!this.data.canManageFolder) return wx.showToast({ title: '没有文件夹管理权限', icon: 'none' })
     const id = event.currentTarget.dataset.id

@@ -104,7 +104,7 @@ Page({
     allOffices: [],
     regionOptions: [], officeOptions: [], userOptions: [], groupOptions: [], groupPickerOptions: [],
     industryOptions: [], devTypeOptions: [], terminalOptions: TERMINAL_OPTIONS,
-    indicatorForm: emptyIndicatorForm(), indicatorItems: buildIndicatorItems(emptyIndicatorForm()), indicatorLoaded: false, indicatorTotal: 0,
+    indicatorForm: emptyIndicatorForm(), indicatorItems: buildIndicatorItems(emptyIndicatorForm()), indicatorLoaded: false, indicatorLoadFailed: false, indicatorTotal: 0,
     manualGroupLabel: MANUAL_GROUP_LABEL,
     // 【D25 2026-10-04】核心客户门槛提示由 shared 常量拼装，wxml 不再硬编码 100 万/12 分
     coreThresholdTip: CORE_THRESHOLD_TIP,
@@ -269,16 +269,24 @@ Page({
   loadIndicator() {
     if (!this.data.id || getApp().globalData.demoMode) return Promise.resolve()
     return getCustomerIndicator(this.data.id)
-      .then((indicator) => this.applyIndicator(indicator || {}))
-      .catch(() => this.applyIndicator({}))
+      .then((indicator) => this.applyIndicator(indicator || {}, true))
+      .catch((error) => {
+        // 【C7】指标 GET 失败 ≠ 库内指标为 0：只展示占位 0 值且标记未加载成功，
+        // 保存时不下发 indicator，防止用 0 覆盖库内已有评分；失败对用户可见并可重试。
+        this.applyIndicator({}, false)
+        showErrorWithRetry(error, '六项指标加载失败，本次保存不会覆盖已有评分', () => this.loadIndicator())
+      })
   },
 
-  applyIndicator(indicator) {
+  applyIndicator(indicator, loaded) {
     const form = INDICATOR_FIELDS.reduce((result, field) => ({ ...result, [field]: Number(indicator && indicator[field]) || 0 }), {})
+    // loaded 未传时沿用旧语义(有对象即视为已加载)；显式 false 表示加载失败
+    const indicatorLoaded = loaded === undefined ? !!indicator : Boolean(loaded)
     this.setData({
       indicatorForm: form,
       indicatorItems: buildIndicatorItems(form),
-      indicatorLoaded: !!indicator,
+      indicatorLoaded,
+      indicatorLoadFailed: !indicatorLoaded,
       indicatorTotal: sumIndicatorScore(form)
     })
   },
@@ -367,6 +375,8 @@ Page({
   chooseDate(e) { this.setData({ [`form.${e.currentTarget.dataset.field}`]: e.detail.value }, () => this.refreshFormView()) },
 
   selectIndicatorScore(e) {
+    // 【C7】指标未加载时禁止编辑：否则用户以为改了评分，保存时又会因未加载而整包不下发
+    if (this.data.indicatorLoadFailed) return wx.showToast({ title: '指标未加载，请重试后再编辑', icon: 'none' })
     const field = e.currentTarget.dataset.field
     const score = Number(e.currentTarget.dataset.score) || 0
     const form = { ...this.data.indicatorForm, [field]: score }
@@ -414,6 +424,8 @@ Page({
     // 【裁决 2026-10-10】新建一律不提交指标(首次录入不体现五项区块), 指标在客户详情维护;
     // 编辑态维持"有评分或库内已有指标行才写库"口径
     if (!this.data.isEdit) return false
+    // 【C7】指标未成功加载(表单里只是占位 0 值)时一律不提交指标, 否则 PUT /full 会把库内评分覆盖成 0
+    if (this.data.indicatorLoadFailed) return false
     return this.data.indicatorLoaded || sumIndicatorScore(this.data.indicatorForm) > 0
   },
 

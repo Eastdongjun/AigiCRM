@@ -56,7 +56,9 @@ Page({
     const next = { ...this.data, ...patch }
     this.setData({ ...patch, contactFormView: buildContactFormView(next) }, callback)
   },
-  input(e) { this.applyState({ [`form.${e.currentTarget.dataset.field}`]: e.detail.value }) },
+  // 【C2 2026-10-19】整对象更新 form:applyState 用 spread 出的 next 重建视图,
+  // 传 'form.name' 路径键时 next.form 仍是旧对象,视图回写旧值导致连续输入丢字
+  input(e) { this.applyState({ form: { ...this.data.form, [e.currentTarget.dataset.field]: e.detail.value } }) },
   submit() {
     const form = {
       name: String(this.data.form.name || '').trim(),

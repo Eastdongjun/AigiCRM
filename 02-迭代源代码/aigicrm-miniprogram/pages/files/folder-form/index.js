@@ -2,6 +2,7 @@ const { renameFolder } = require('../../../api/file')
 const { hasPermission, requireLogin } = require('../../../utils/auth')
 const { showError } = require('../../../utils/feedback')
 const { saveDemoFolder } = require('../../../utils/demo-folders')
+const { whenAuthReady } = require('../permission-ready')
 
 function buildFolderFormView(data) {
   // 【D36】本页唯一入口是 files 列表"重命名"(必带 id)；"新建"走 files 首页 showModal 弹窗，
@@ -27,6 +28,10 @@ Page({
   },
   onLoad(options = {}) {
     if (!requireLogin()) return
+    // 【F5】冷启动 permissions 异步回填: 等待在途 /auth/info 后再判权限, 避免误判无权限
+    whenAuthReady().then(() => this.initPage(options))
+  },
+  initPage(options = {}) {
     if (!getApp().globalData.demoMode && !hasPermission('file:folder:manage')) { wx.showToast({ title: '没有文件夹管理权限', icon: 'none' }); wx.navigateBack(); return }
     this.applyState({ id: options.id || '', name: options.name ? decodeURIComponent(options.name) : '' })
     // 【D36】导航栏标题与页面模式保持一致（json 里为同名兜底）

@@ -69,20 +69,23 @@ Page({
     this.setData({ ...patch, stageFormView: buildStageFormView(next) }, callback)
   },
 
+  // 【C3 2026-10-19】统一整对象更新 form:applyState 用 next 重建视图,
+  // 传 'form.xxx' 路径键时 next.form 仍是旧对象,选择年份/周期/输入金额后视图落后一拍
   chooseYear(e) {
-    this.applyState({ 'form.periodYear': Number(this.data.yearOptions[Number(e.detail.value)]) || new Date().getFullYear() })
+    const periodYear = Number(this.data.yearOptions[Number(e.detail.value)]) || new Date().getFullYear()
+    this.applyState({ form: { ...this.data.form, periodYear } })
   },
 
   choosePeriodType(e) {
     const item = PERIOD_TYPES[Number(e.detail.value)] || PERIOD_TYPES[0]
-    this.applyState({ 'form.periodType': item.value })
+    this.applyState({ form: { ...this.data.form, periodType: item.value } })
   },
 
   input(e) {
     const field = e.currentTarget.dataset.field
     const raw = String(e.detail.value || '').trim()
     const value = raw === '' ? null : Number(raw)
-    this.applyState({ [`form.${field}`]: Number.isFinite(value) && value >= 0 ? value : null })
+    this.applyState({ form: { ...this.data.form, [field]: Number.isFinite(value) && value >= 0 ? value : null } })
   },
 
   submit() {

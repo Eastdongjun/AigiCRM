@@ -1,7 +1,7 @@
 const { deleteCustomer, getCustomer, getCustomerContacts, getCustomerLogs, getCustomerIndicator, getCustomerStageAmounts, saveCustomerRelationship, releaseCustomer, archiveCustomer } = require('../../../api/customer')
 const { submitApproval } = require('../../../api/approval')
 const { hasPermission, requireLogin, isAdmin } = require('../../../utils/auth')
-const { showError } = require('../../../utils/feedback')
+const { showError, showErrorWithRetry } = require('../../../utils/feedback')
 const { readDemoCustomers } = require('../../../utils/demo-customers')
 // 【D24/D25 2026-10-04】状态文案、五项指标配置、核心客户阈值统一引用组内 shared(单一出处)
 // 【#10 2026-10-12】客情选项同步走 shared 新文案 + 后台字典 relationship_depth 覆盖
@@ -48,6 +48,15 @@ function normalizeDetail(item) {
 function toNumber(value) {
   const num = Number(value)
   return Number.isFinite(num) ? num : 0
+}
+
+/** 【C6】单路请求结果收敛为 { ok, value|error }：任一分支失败不外抛，
+ *  由调用方按区块降级，避免 Promise.all 一处 reject 导致联系人/日志/阶段/指标整块不落稿 */
+function settleRequest(promise) {
+  return promise.then(
+    (value) => ({ ok: true, value }),
+    (error) => ({ ok: false, error })
+  )
 }
 
 function statusView(met, okText, warnText) {
@@ -137,6 +146,9 @@ function buildDetailView(data) {
   // 【裁决 2026-10-10】判定金额源=阶段总额摘要(后端一处算好), 逐笔 invoiceSummary 不再参与判定
   const coreSummary = buildIndicatorSummary(data.stageSummary, indicator)
   const hasDetail = Boolean(detail)
+  // 【C6】阶段总额/指标单路失败时对应区块显式置错误态，不再用 0/非核心伪装成真实数据
+  const stageError = Boolean(data.stageError)
+  const indicatorError = Boolean(data.indicatorError)
   const canEdit = Boolean(data.canEdit)
   const canDelete = Boolean(data.canDelete)
   const canViewContacts = Boolean(data.canViewContacts)
@@ -146,11 +158,13 @@ function buildDetailView(data) {
   // "该客户仍在公海池中" 拒绝）。入口侧按来源/状态双重识别，隐藏删除按钮并给出正确出口。
   const isSeaCustomer = fromSea || customerStatusLabel(detail && detail.status) === '公海'
   // 【D24 2026-10-04】指标行由 shared 的五项配置生成(此前字段清单在表单/维护页/详情三处各写一份)
-  const indicatorRows = INDICATOR_ITEMS.map((item) => ({
-    key: item.field,
-    label: `${item.name}（${item.desc}）`,
-    valueText: `${toNumber(indicator[item.field])} / 3`
-  }))
+  const indicatorRows = indicatorError
+    ? [{ key: '__error__', label: '六项指标加载失败', valueText: '请稍后重试' }]
+    : INDICATOR_ITEMS.map((item) => ({
+      key: item.field,
+      label: `${item.name}（${item.desc}）`,
+      valueText: `${toNumber(indicator[item.field])} / 3`
+    }))
   return {
     showLoading: loading,
     loadingText: '加载中...',
@@ -211,28 +225,32 @@ function buildDetailView(data) {
     showNoContacts: contacts.length === 0,
     logs,
     showNoLogs: logs.length === 0,
-    financeRows: (function () {
-      // 【裁决 2026-10-10】开票回款卡改阶段口径: 年度金额取后端判定摘要;
-      // 待回款 = 全部阶段开票合计 − 回款合计(历史逐笔已按年汇入阶段行, 口径连续)
-      const rows = (data.stageSummary && data.stageSummary.rows) || []
-      const totalInvoice = rows.reduce((sum, r) => sum + toNumber(r.invoiceAmount), 0)
-      const totalPayment = rows.reduce((sum, r) => sum + toNumber(r.paymentAmount), 0)
-      const yearTag = coreSummary.baseYear ? `(${coreSummary.baseYear})` : ''
-      return [
-        { key: 'invoice', label: `年度开票${yearTag}`, valueText: textOrDash(coreSummary.invoiceAmount || '') },
-        { key: 'payment', label: `年度回款${yearTag}`, valueText: textOrDash(coreSummary.paymentAmount || '') },
-        { key: 'unpaid', label: '待回款', valueText: textOrDash(Math.round((totalInvoice - totalPayment) * 100) / 100 || '') }
-      ]
-    })(),
-    coreVerdictText: coreSummary.coreSummaryText,
-    coreVerdictStatusText: coreSummary.coreStatusText,
-    coreVerdictStatusClass: coreSummary.coreStatusClass,
-    coreVerdictRows: [
-      { key: 'invoice', label: '年度开票', valueText: `${coreSummary.invoiceAmount} 万`, thresholdText: '≥100万/年', statusText: coreSummary.invoiceStatusText, statusClass: coreSummary.invoiceStatusClass },
-      { key: 'payment', label: '年度回款', valueText: `${coreSummary.paymentAmount} 万`, thresholdText: '≥100万/年', statusText: coreSummary.paymentStatusText, statusClass: coreSummary.paymentStatusClass },
-      { key: 'relationship', label: '客情评分', valueText: `${toNumber(indicator.relationshipScore)} / 3`, thresholdText: '0-3分·参考', statusText: `${toNumber(indicator.relationshipScore)}分`, statusClass: toNumber(indicator.relationshipScore) >= 2 ? 'ok' : 'warn' },
-      { key: 'score', label: '五项评分', valueText: `${coreSummary.scoreTotal} / ${INDICATOR_MAX_SCORE}`, thresholdText: `满分${INDICATOR_MAX_SCORE}·不计判定`, statusText: coreSummary.scoreStatusText, statusClass: coreSummary.scoreStatusClass }
-    ],
+    financeRows: stageError
+      ? [{ key: '__error__', label: '开票回款数据加载失败', valueText: '请稍后重试' }]
+      : (function () {
+        // 【裁决 2026-10-10】开票回款卡改阶段口径: 年度金额取后端判定摘要;
+        // 待回款 = 全部阶段开票合计 − 回款合计(历史逐笔已按年汇入阶段行, 口径连续)
+        const rows = (data.stageSummary && data.stageSummary.rows) || []
+        const totalInvoice = rows.reduce((sum, r) => sum + toNumber(r.invoiceAmount), 0)
+        const totalPayment = rows.reduce((sum, r) => sum + toNumber(r.paymentAmount), 0)
+        const yearTag = coreSummary.baseYear ? `(${coreSummary.baseYear})` : ''
+        return [
+          { key: 'invoice', label: `年度开票${yearTag}`, valueText: textOrDash(coreSummary.invoiceAmount || '') },
+          { key: 'payment', label: `年度回款${yearTag}`, valueText: textOrDash(coreSummary.paymentAmount || '') },
+          { key: 'unpaid', label: '待回款', valueText: textOrDash(Math.round((totalInvoice - totalPayment) * 100) / 100 || '') }
+        ]
+      })(),
+    coreVerdictText: stageError ? '无法判定' : coreSummary.coreSummaryText,
+    coreVerdictStatusText: stageError ? '加载失败' : coreSummary.coreStatusText,
+    coreVerdictStatusClass: stageError ? 'warn' : coreSummary.coreStatusClass,
+    coreVerdictRows: stageError
+      ? [{ key: 'stage', label: '开票回款', valueText: '加载失败', thresholdText: '-', statusText: '暂时无法判定', statusClass: 'warn' }]
+      : [
+        { key: 'invoice', label: '年度开票', valueText: `${coreSummary.invoiceAmount} 万`, thresholdText: '≥100万/年', statusText: coreSummary.invoiceStatusText, statusClass: coreSummary.invoiceStatusClass },
+        { key: 'payment', label: '年度回款', valueText: `${coreSummary.paymentAmount} 万`, thresholdText: '≥100万/年', statusText: coreSummary.paymentStatusText, statusClass: coreSummary.paymentStatusClass },
+        { key: 'relationship', label: '客情评分', valueText: `${toNumber(indicator.relationshipScore)} / 3`, thresholdText: '0-3分·参考', statusText: `${toNumber(indicator.relationshipScore)}分`, statusClass: toNumber(indicator.relationshipScore) >= 2 ? 'ok' : 'warn' },
+        { key: 'score', label: '五项评分', valueText: `${coreSummary.scoreTotal} / ${INDICATOR_MAX_SCORE}`, thresholdText: `满分${INDICATOR_MAX_SCORE}·不计判定`, statusText: coreSummary.scoreStatusText, statusClass: coreSummary.scoreStatusClass }
+      ],
     relationshipScoreText: String(toNumber(indicator.relationshipScore)),
     indicatorRows
   }
@@ -249,7 +267,9 @@ Page({
     invoiceSummary: null,
     paymentSummary: null,
     stageSummary: null,
+    stageError: false,
     indicator: {},
+    indicatorError: false,
     indicatorSummary: buildIndicatorSummary({}, {}),
     // 【D25 2026-10-04】五项满分单一出处(shared)，wxml「x / 15」统一引用
     indicatorMaxScore: INDICATOR_MAX_SCORE,
@@ -378,23 +398,51 @@ Page({
     this.setDetailData({ loading: true })
     getCustomer(this.data.id).then((detail) => {
       this.setDetailData({ detail: normalizeDetail(detail || {}) })
-      const contactsRequest = this.data.canViewContacts ? getCustomerContacts(this.data.id) : Promise.resolve([])
+      // 【C6】四路并发各自 settle：任一失败只降级对应区块，其余成功数据照常落稿
+      const contactsRequest = this.data.canViewContacts
+        ? settleRequest(getCustomerContacts(this.data.id))
+        : Promise.resolve({ ok: true, value: [] })
       // 【裁决 2026-10-10】财务摘要改阶段总额判定口径(后端含三态), 逐笔 summary 请求下线
       const stageRequest = this.data.canViewFinance
-        ? getCustomerStageAmounts(this.data.id)
-        : Promise.resolve({})
-      return Promise.all([contactsRequest, getCustomerLogs(this.data.id), stageRequest, getCustomerIndicator(this.data.id)])
-    }).then(([contacts, logs, stageSummary, indicator]) => {
-      const normalizedIndicator = indicator || {}
+        ? settleRequest(getCustomerStageAmounts(this.data.id))
+        : Promise.resolve({ ok: true, value: {} })
+      return Promise.all([
+        contactsRequest,
+        settleRequest(getCustomerLogs(this.data.id)),
+        stageRequest,
+        settleRequest(getCustomerIndicator(this.data.id))
+      ])
+    }).then(([contactsResult, logsResult, stageResult, indicatorResult]) => {
       const emptyStage = { rows: [], coreType: '', baseYear: 0, annualInvoiceAmount: 0, annualPaymentAmount: 0 }
+      const failedSections = []
+      // 失败区块用一条错误行占位：wxml 无独立错误态字段，复用现有行渲染且不再误显"暂无"
+      const contacts = contactsResult.ok
+        ? (contactsResult.value || [])
+        : [{ id: '__error__', contactName: '联系人加载失败，请稍后重试', mobile: '-' }]
+      if (!contactsResult.ok) failedSections.push('联系人')
+      const logs = logsResult.ok
+        ? (logsResult.value || [])
+        : [{ id: '__error__', content: '跟进日志加载失败，请稍后重试', createdAt: '-' }]
+      if (!logsResult.ok) failedSections.push('跟进日志')
+      // 阶段失败保留上一次成功摘要(避免用 0 冒充判定), 并置 stageError 让相关卡片显式报错
+      const stageSummary = stageResult.ok ? (stageResult.value || emptyStage) : (this.data.stageSummary || emptyStage)
+      if (!stageResult.ok) failedSections.push('开票回款')
+      // 指标失败同样保留上次成功指标, 不用空对象把五项评分显示成 0
+      const normalizedIndicator = indicatorResult.ok ? (indicatorResult.value || {}) : (this.data.indicator || {})
+      if (!indicatorResult.ok) failedSections.push('六项指标')
       this.setDetailData({
-        contacts: contacts || [],
-        logs: logs || [],
-        stageSummary: stageSummary || emptyStage,
+        contacts,
+        logs,
+        stageSummary,
+        stageError: !stageResult.ok,
         indicator: normalizedIndicator,
+        indicatorError: !indicatorResult.ok,
         relationshipOptionsView: buildRelationshipOptions(this.data.relationshipOptions, normalizedIndicator, this.data.canEdit),
-        indicatorSummary: buildIndicatorSummary(stageSummary || emptyStage, normalizedIndicator)
+        indicatorSummary: buildIndicatorSummary(stageSummary, normalizedIndicator)
       })
+      if (failedSections.length) {
+        showErrorWithRetry({ message: `${failedSections.join('、')}加载失败` }, '部分数据加载失败', () => this.loadDetail())
+      }
     }).catch((error) => showError(error, '无权查看或客户不存在')).finally(() => {
       this.setDetailData({ loading: false })
     })
@@ -506,7 +554,8 @@ Page({
       this.setDetailData({
         indicator,
         relationshipOptionsView: buildRelationshipOptions(this.data.relationshipOptions, indicator, this.data.canEdit),
-        indicatorSummary: buildIndicatorSummary(this.data.invoiceSummary || {}, this.data.paymentSummary || {}, indicator)
+        // 【C5】签名是 (stageSummary, indicator)：判定金额/核心状态一律取阶段总额摘要，与同页核心判定卡同源
+        indicatorSummary: buildIndicatorSummary(this.data.stageSummary || {}, indicator)
       })
       return wx.showToast({ title: '客情已保存', icon: 'success' })
     }
@@ -517,7 +566,8 @@ Page({
         this.setDetailData({
           indicator: normalizedIndicator,
           relationshipOptionsView: buildRelationshipOptions(this.data.relationshipOptions, normalizedIndicator, this.data.canEdit),
-          indicatorSummary: buildIndicatorSummary(this.data.invoiceSummary || {}, this.data.paymentSummary || {}, normalizedIndicator)
+          // 【C5】同上：传阶段摘要而非已下线的逐笔 summary，否则金额/核心判定归零
+          indicatorSummary: buildIndicatorSummary(this.data.stageSummary || {}, normalizedIndicator)
         })
         wx.showToast({ title: '客情已保存', icon: 'success' })
       })

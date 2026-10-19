@@ -374,6 +374,7 @@ miniprogram_check() {
   }
   /bin/bash "$ROOT/scripts/check-mobile-demo-contract.sh"
   /bin/bash "$ROOT/scripts/check-mobile-customer-indicator-edit-contract.sh"
+  /bin/bash "$ROOT/scripts/check-mp-view-bindings.sh"
 
   if command -v node >/dev/null 2>&1; then
     while IFS= read -r file; do

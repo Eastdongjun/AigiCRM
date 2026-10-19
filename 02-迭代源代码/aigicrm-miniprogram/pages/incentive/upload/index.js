@@ -288,7 +288,10 @@ function buildUploadViewState(data) {
   const categories = data.categories || []
   const selectedCategory = categories[data.selectedCategoryIndex]
   const customer = selectedCustomer(data)
-  const currentSlot = data.fileSlots[selectedSlotIndex] || data.fileSlots.find((slot) => !slot.hidden) || {}
+  // 【I2】未选分类时初始 selectedSlotIndex=0 指向隐藏的通用佐证槽; 视图/上传都回落到首个可见槽,
+  // 否则文件写进隐藏槽后既不展示也不进提交快照(被静默丢弃)
+  const selectedSlot = data.fileSlots[selectedSlotIndex]
+  const currentSlot = (selectedSlot && !selectedSlot.hidden ? selectedSlot : data.fileSlots.find((slot) => !slot.hidden)) || {}
   const hasCurrentFile = Boolean(currentSlot.fileName)
   const slotOptionsView = data.fileSlots.map((slot, index) => ({
     ...slot,
@@ -696,8 +699,20 @@ Page({
   },
 
   setSelectedSlotFile(filePath, fileName, fileKind) {
-    const index = this.data.selectedSlotIndex
-    const slot = this.data.fileSlots[index] || {}
+    let index = this.data.selectedSlotIndex
+    let slot = this.data.fileSlots[index]
+    let redirected = false
+    // 【I2】当前指向隐藏槽(未选分类时的初始态/切换分类后的残留)时, 自动落到首个可见槽并提示;
+    // 隐藏槽在 selectedFileSlotsView 不展示、submit 也跳过, 静默写入等于丢文件
+    if (!slot || slot.hidden) {
+      index = this.data.fileSlots.findIndex((item) => !item.hidden)
+      slot = this.data.fileSlots[index]
+      redirected = true
+    }
+    if (!slot) {
+      wx.showToast({ title: '请先选择分类后再上传文件', icon: 'none' })
+      return
+    }
     // 【工作流复核确认修复】满员拒绝+明确提示: 原静默 slice 截断, 现场多选的佐证照片被无声吞掉
     if ((slot.files || []).length >= MAX_FILES_PER_SLOT) {
       wx.showToast({ title: `每槽最多 ${MAX_FILES_PER_SLOT} 个文件，当前槽已满`, icon: 'none' })
@@ -709,12 +724,15 @@ Page({
       fileKind: fileKind || (isImageFile(fileName, filePath) ? 'image' : 'file')
     }).slice(0, MAX_FILES_PER_SLOT)
     const firstFile = files[0] || {}
-    this.setData({
+    const patch = {
       [`fileSlots[${index}].files`]: files,
       [`fileSlots[${index}].filePath`]: firstFile.filePath || '',
       [`fileSlots[${index}].fileName`]: firstFile.fileName || '',
       [`fileSlots[${index}].fileKind`]: firstFile.fileKind || ''
-    }, () => this.refreshUploadViewState())
+    }
+    if (redirected) patch.selectedSlotIndex = index
+    this.setData(patch, () => this.refreshUploadViewState())
+    if (redirected) wx.showToast({ title: `未选择分类，文件已放入「${slot.label}」`, icon: 'none' })
   },
 
   chooseImage() {

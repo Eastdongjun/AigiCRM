@@ -68,14 +68,14 @@
       </view>
     </view>
     <view wx:if="{{incentiveView.showLoading}}" class="card muted">{{incentiveView.loadingText}}</view>
-    <!-- 【需求B+C 2026-10-16】客户维度=紧凑封面卡: 列表页只留识别信息(封面/名称/行业·大类/积分/未读/NEW),
+    <!-- 【需求B+C 2026-10-16】客户维度=紧凑封面卡: 列表页只留识别信息(封面/名称/行业·大类/积分/未读),
          全部明细与操作下沉到客户激励详情页(openCustomerDetail);原红圈①②③④从列表页消失 -->
     <block wx:for="{{records}}" wx:key="id">
       <view class="cust-card" data-index="{{index}}" bindtap="openCustomerDetail">
         <view class="cust-cover">
-          <image wx:if="{{item.coverFile.id}}" class="cust-cover-img" src="{{thumb.thumbSrc(item.coverFile, apiBase, dlToken)}}" mode="aspectFill" lazy-load="{{true}}" />
+          <!-- 【I4】thumb.wxs 在 token/apiBase 缺失时返回空串, 空 src 会渲染成空灰块; 此时退回渐变首字 -->
+          <image wx:if="{{item.coverFile.id && apiBase && dlToken}}" class="cust-cover-img" src="{{thumb.thumbSrc(item.coverFile, apiBase, dlToken)}}" mode="aspectFill" lazy-load="{{true}}" />
           <view wx:else class="cust-cover-fallback"><text>{{item.coverChar}}</text></view>
-          <view wx:if="{{item.showNewTag}}" class="cust-new">NEW</view>
         </view>
         <view class="cust-body">
           <view class="cust-name-row">
@@ -231,6 +231,8 @@
       <block wx:for="{{readRankingView}}" wx:key="userId">
         <view class="stat-row"><text>{{item.rankText}}</text><text>{{item.countText}}</text></view>
       </block>
+      <!-- 【I5】请求失败≠没有数据: 失败给错误态+重试, 空态只在成功且无数据时出现 -->
+      <view wx:if="{{incentiveView.showReadRankingError}}" class="muted">阅读排行加载失败，<text bindtap="loadReadRanking">点击重试</text></view>
       <view wx:if="{{incentiveView.showReadRankingEmpty}}" class="muted">暂无排行</view>
     </view>
     <view wx:if="{{incentiveView.showNoReadPermission}}" class="card muted">暂无阅读统计权限</view>

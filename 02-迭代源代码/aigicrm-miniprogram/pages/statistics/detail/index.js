@@ -61,9 +61,11 @@ function normalizeActivities(activities = []) {
   }))
 }
 
-function trendRow(item, prefix) {
+function trendRow(item, prefix, index) {
+  // 客户/文件两路日报(周报)会拼进同一个 wx:for, 原 id 只取 date/label → 同日两行 key 冲突;
+  // 序列前缀 + 序号保证拼接后全局唯一, 渲染结果不变
   return {
-    id: item.id || item.date || item.day || item.label || item.week || `${prefix}-${item.value || 0}`,
+    id: `${prefix}-${item.id || item.date || item.day || item.label || item.week || index}`,
     label: displayText(item.date || item.day || item.label || item.week),
     valueText: `${prefix} ${Number(item.value || 0)}`
   }
@@ -74,11 +76,13 @@ function buildDetailView(state) {
   const approvalStats = stats.approvalStats || {}
   const seaStats = stats.seaStats || {}
   const activities = normalizeActivities(state.activities)
-  const customerDays = (state.daily && state.daily.customerDays ? state.daily.customerDays : []).map((item) => trendRow(item, '新增客户'))
-  const fileDays = (state.daily && state.daily.fileDays ? state.daily.fileDays : []).map((item) => trendRow(item, '文件'))
-  const customerWeeks = (state.weekly && state.weekly.customerWeeks ? state.weekly.customerWeeks : []).map((item) => trendRow(item, '新增客户'))
-  const fileWeeks = (state.weekly && state.weekly.fileWeeks ? state.weekly.fileWeeks : []).map((item) => trendRow(item, '文件'))
+  const customerDays = (state.daily && state.daily.customerDays ? state.daily.customerDays : []).map((item, index) => trendRow(item, '新增客户', index))
+  const fileDays = (state.daily && state.daily.fileDays ? state.daily.fileDays : []).map((item, index) => trendRow(item, '文件', index))
+  const customerWeeks = (state.weekly && state.weekly.customerWeeks ? state.weekly.customerWeeks : []).map((item, index) => trendRow(item, '新增客户', index))
+  const fileWeeks = (state.weekly && state.weekly.fileWeeks ? state.weekly.fileWeeks : []).map((item, index) => trendRow(item, '文件', index))
   const section = state.section || 'customer'
+  // 四路数据各自独立失败: 失败面板展示错误态, 其余面板照常展示成功数据
+  const loadErrors = state.loadErrors || {}
   return {
     refreshLoading: Boolean(state.loading),
     refreshText: state.loading ? '刷新中' : '刷新',
@@ -121,11 +125,19 @@ function buildDetailView(state) {
       { label: '待捞取审批', value: seaStats.pendingApproval || 0 }
     ],
     activities,
-    showActivityEmpty: activities.length === 0,
+    showActivityEmpty: !loadErrors.activities && activities.length === 0,
+    errors: {
+      customer: loadErrors.stats ? '客户数据加载失败，请下拉刷新重试' : '',
+      approval: loadErrors.stats ? '审批数据加载失败，请下拉刷新重试' : '',
+      sea: loadErrors.stats ? '公海数据加载失败，请下拉刷新重试' : '',
+      activity: loadErrors.activities ? '团队动态加载失败，请下拉刷新重试' : '',
+      daily: loadErrors.daily ? '日报数据加载失败，请下拉刷新重试' : '',
+      weekly: loadErrors.weekly ? '周报数据加载失败，请下拉刷新重试' : ''
+    },
     dailyRows: [...customerDays, ...fileDays],
     weeklyRows: [...customerWeeks, ...fileWeeks],
-    showDailyEmpty: customerDays.length === 0 && fileDays.length === 0,
-    showWeeklyEmpty: customerWeeks.length === 0 && fileWeeks.length === 0
+    showDailyEmpty: !loadErrors.daily && customerDays.length === 0 && fileDays.length === 0,
+    showWeeklyEmpty: !loadErrors.weekly && customerWeeks.length === 0 && fileWeeks.length === 0
   }
 }
 
@@ -136,6 +148,7 @@ Page({
     activities: [],
     daily: normalizeDaily({}),
     weekly: normalizeWeekly({}),
+    loadErrors: {},
     section: 'customer',
     detailView: buildDetailView({
       loading: false,
@@ -166,8 +179,8 @@ Page({
       this.applyState({
         stats: normalizeStats({ myCustomers: 128, inProtection: 86, expiring: 8, expired: 5, todayExpiring: 2, monthNew: 12, seaStats: {}, approvalStats: { pending: 3, approvedTotal: 8, rejectedTotal: 1 } }),
         activities: [
-          { type: '客户', content: '完成客户跟进记录', actor: '当前用户', createdAt: '今天 09:30' },
-          { type: '审批', content: '提交一条审批申请', actor: '当前用户', createdAt: '昨天 16:20' }
+          { title: '完成客户跟进记录', user: '当前用户', dept: '华东办', time: '今天 09:30' },
+          { title: '提交一条审批申请', user: '当前用户', dept: '华东办', time: '昨天 16:20' }
         ],
         daily: normalizeDaily({
           customerDays: [{ date: '本月 01 日', value: 2 }, { date: '本月 02 日', value: 1 }],
@@ -177,16 +190,32 @@ Page({
           customerWeeks: [{ label: 'W1', value: 6 }, { label: '本周', value: 3 }],
           fileWeeks: [{ label: 'W1', value: 8 }, { label: '本周', value: 5 }]
         }),
+        loadErrors: {},
         loading: false
       })
       return Promise.resolve()
     }
-    return Promise.all([getDashboardData(), getTeamActivities(), getDailyStats(), getWeeklyStats()])
+    // 【并发失败隔离】四路各自 catch: 单路失败只标记该面板错误并保留其余成功结果/旧数据,
+    // 不再因 Promise.all 整体 reject 让全页归零
+    const loadErrors = {}
+    let toastShown = false
+    const settle = (promise, key, fallback) => promise.catch((error) => {
+      loadErrors[key] = true
+      if (!toastShown) { toastShown = true; showError(error, fallback) }
+      return null
+    })
+    return Promise.all([
+      settle(getDashboardData(), 'stats', '客户统计加载失败'),
+      settle(getTeamActivities(), 'activities', '团队动态加载失败'),
+      settle(getDailyStats(), 'daily', '日报加载失败'),
+      settle(getWeeklyStats(), 'weekly', '周报加载失败')
+    ])
       .then(([stats, activities, daily, weekly]) => this.applyState({
-        stats: normalizeStats(stats || {}),
-        activities: activities || [],
-        daily: normalizeDaily(daily || {}),
-        weekly: normalizeWeekly(weekly || {})
+        stats: loadErrors.stats ? this.data.stats : normalizeStats(stats || {}),
+        activities: loadErrors.activities ? this.data.activities : (activities || []),
+        daily: loadErrors.daily ? this.data.daily : normalizeDaily(daily || {}),
+        weekly: loadErrors.weekly ? this.data.weekly : normalizeWeekly(weekly || {}),
+        loadErrors
       }))
       .catch((error) => showError(error, '统计明细加载失败'))
       .finally(() => this.applyState({ loading: false }))

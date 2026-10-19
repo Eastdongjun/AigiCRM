@@ -13,7 +13,7 @@
   </view>
   <view class="search-bar">
     <input class="search-input" placeholder="搜索客户名称" value="{{keyword}}" bindinput="onKeywordInput" confirm-type="search" bindconfirm="search" />
-    <button class="sea-search-action" bindtap="loadRecords">搜索</button>
+    <button class="sea-search-action" bindtap="searchTap">搜索</button>
   </view>
   <view class="tabs">
     <picker mode="selector" range="{{['全部状态','待捞取','审批中','已捞取']}}" bindchange="chooseStatus"><view class="tab active">{{seaView.statusText}}</view></picker>
