@@ -125,6 +125,22 @@ describe('incentive/search.vue 分页与搜索测试', () => {
     expect(wrapper.vm.fCustomer).toBe('')
     expect(wrapper.vm.pageNum).toBe(1)
   })
+
+  it('scoreOrder 仅做客户端排序, 不作为死参数发给后端（P2-6）', async () => {
+    // 后端 /incentive/customer-records 不收 scoreOrder(排序由前端 sortByScore 完成)；
+    // 死参数不仅无效, 还会让"排序筛选"看起来是服务端语义——误导排障
+    const wrapper = mount(SearchView, { global: mountGlobal })
+    await flushPromises()
+    request.get.mockClear()
+    wrapper.vm.scoreOrder = 'desc'
+    await wrapper.vm.doSearch()
+    await flushPromises()
+    const call = request.get.mock.calls.find(([url]) => url === '/incentive/customer-records')
+    expect(call, '应发起 customer-records 查询').toBeTruthy()
+    expect(call[1].params.scoreOrder, 'scoreOrder 不应随请求发送').toBeUndefined()
+    // 客户端排序链路保留: 列表仍渲染
+    expect(wrapper.vm.custs.length).toBeGreaterThan(0)
+  })
 })
 
 describe('incentive/search.vue 缩略图下载 token（空 token 403 修复 2026-08-14）', () => {

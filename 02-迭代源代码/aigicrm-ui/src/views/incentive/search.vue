@@ -182,7 +182,8 @@ async function doSearch(){
   const seq = ++searchSeq
   // 【2026-08-08 首次加载体验】加 loading 态，避免首次并发请求时误显示"暂无数据"
   loading.value = true
-  if(scoreOrder.value)p.scoreOrder=scoreOrder.value
+  // 【P2-6 2026-10-19】scoreOrder 不发后端——接口不收该参数(排序由下方 sortByScore 客户端完成),
+  // 死参数会让"分值排序"看似服务端语义, 误导排障
   try{
     const res=await request.get('/incentive/customer-records',{params:p})
     if (seq !== searchSeq) return   // 已有更新的请求在途/完成，丢弃本次旧响应

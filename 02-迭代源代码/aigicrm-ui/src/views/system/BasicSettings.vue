@@ -11,7 +11,7 @@
         <img v-if="configMap['system.logo']" :src="logoPreviewSrc" class="logo-preview" />
         <el-upload
           :action="'/api/file/upload'"
-          :headers="{ Authorization: 'Bearer ' + token }"
+          :headers="uploadHeaders()"
           :data="{ folderId: 0, scope: 'public' }"
           :show-file-list="false"
           accept="image/*"
@@ -143,6 +143,7 @@ import { ElMessage } from 'element-plus'
 import { getConfigList, updateConfigs, getRoleList } from '@/api/system'
 import { useUserStore } from '@/store/user'
 import { usePermissionData } from '@/composables/usePermissionData'
+import { getToken } from '@/utils/token'
 import {
   STORAGE_APPLY_ENABLED_KEY,
   STORAGE_APPLY_USERS_KEY,
@@ -159,7 +160,10 @@ import {
 const router = useRouter()
 const userStore = useUserStore()
 const canEditConfig = computed(() => userStore.hasPermission('system:config:edit'))
-const token = localStorage.getItem('token')
+// 【P2-6 2026-10-19】上传令牌走共享 getToken(与 FilePreview/StatsDetail/recycle 同款)且为渲染期活读:
+// 原裸读 localStorage.getItem('token') 是 setup 时一次性快照(令牌刷新后一直发旧值)且硬编码存储键;
+// 函数式绑定在每次重渲染时重取——el-upload 无行动期读取钩子, 这是绑定态下的最活口径
+const uploadHeaders = () => ({ Authorization: 'Bearer ' + (getToken() || '') })
 // 指定角色/指定人员下拉复用权限矩阵共享数据源（C4: 共享 composable）
 const { allRoles, allUsers, loadAllUsers } = usePermissionData()
 
