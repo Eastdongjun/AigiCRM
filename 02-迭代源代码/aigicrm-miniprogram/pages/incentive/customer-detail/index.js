@@ -43,6 +43,14 @@ function formatDate(value) {
   }
 }
 
+function isImageFile(file) {
+  return file.type === 'image' || file.fileKind === 'image'
+}
+
+function isVideoFile(file) {
+  return file.type === 'video' || file.fileKind === 'video' || /\.(mp4|mov|m4v|webm)$/i.test(file.name || file.label || '')
+}
+
 function collectFiles(record) {
   const groups = record.fileGroupsView || []
   const files = []
@@ -54,12 +62,44 @@ function collectFiles(record) {
   return files
 }
 
+/** 上传链路可能把 UUID 当文件名落库, 附件区展示为「附件 1 · PDF」而不是一串哈希 */
+function displayFileName(file, index) {
+  const name = String(file.name || '').trim()
+  const isHash = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?:\.[a-z0-9]+)?$/i.test(name)
+  if (!isHash) return name || `附件 ${index + 1}`
+  const ext = name.includes('.') ? name.split('.').pop().toUpperCase() : ''
+  return `附件 ${index + 1}${ext ? ` · ${ext}` : ''}`
+}
+
+/** 大标题取分类下的具体产品(如「密封类-静密封」→「静密封」); 与分类同名时不重复展示 */
+function headlineOf(record, category) {
+  const related = String(record.relatedProducts || '').trim()
+  if (!related) return ''
+  const stripped = related.startsWith(category)
+    ? related.slice(category.length).replace(/^[-—·\s]+/, '')
+    : related
+  return stripped && stripped !== category ? stripped : ''
+}
+
+/** 列表接口返回 ISO 时间(2026-09-13T23:22:40), 档案里按 2026-09-13 23:22 展示 */
+function formatDateTime(value) {
+  const raw = String(value || '').trim()
+  const match = raw.match(/^(\d{4})-(\d{1,2})-(\d{1,2})[T\s](\d{1,2}):(\d{2})/)
+  if (match) return `${match[1]}-${pad(match[2])}-${pad(match[3])} ${pad(match[4])}:${match[5]}`
+  return raw.replace('T', ' ').slice(0, 16) || '-'
+}
+
 function decorateRecord(record, index) {
   const files = collectFiles(record)
   const parts = formatDate(record.createdAt || record.createTime || '')
   const score = Number(record.score || record.points || 0)
-  const photos = files.filter((file) => file.type === 'image' || file.fileKind === 'image')
-  const videos = files.filter((file) => file.type === 'video' || file.fileKind === 'video' || /\.(mp4|mov|m4v|webm)$/i.test(file.name || file.label || ''))
+  const category = record.categoryName || record.category || record.type || '未分类'
+  const photos = files.filter(isImageFile)
+  const videos = files.filter(isVideoFile)
+  // 照片/视频在版面内单独展示, 附件区只留需要点开阅读的文档, 避免同一张图重复出现两次
+  const attachments = files
+    .filter((file) => !isImageFile(file) && !isVideoFile(file))
+    .map((file, index) => ({ ...file, displayName: displayFileName(file, index) }))
   return {
     ...record,
     childIndex: index,
@@ -69,13 +109,14 @@ function decorateRecord(record, index) {
     month: parts.month,
     day: parts.day,
     monthKey: parts.key,
-    titleText: record.categoryName || record.category || record.type || '未分类',
+    titleText: category,
+    headline: headlineOf(record, category),
     scoreText: `${score > 0 ? '+' : ''}${score} 分`,
-    metaText: `周期 ${record.period || '未设周期'} · 上传人 ${record.userName || record.updatedByName || '未命名'} · ${record.createdAt || record.createTime || '-'}`,
+    metaText: `周期 ${record.period || '未设周期'} · 上传人 ${record.userName || record.updatedByName || '未命名'} · ${formatDateTime(record.createdAt || record.createTime)}`,
     bodyText: record.preInstallQuestion || record.remark || record.summary || record.description || '暂无详情描述',
     photos,
     videos,
-    attachments: files,
+    attachments,
     fileCountText: files.length ? `${files.length} 个附件` : ''
   }
 }

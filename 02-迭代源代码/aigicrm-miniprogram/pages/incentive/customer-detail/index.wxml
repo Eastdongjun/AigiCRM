@@ -106,7 +106,7 @@
               <text wx:if="{{currentRecord.unread}}" class="cd-unread-tag">未读</text>
             </view>
             <view class="cd-meta">{{currentRecord.metaText}}</view>
-            <view class="cd-record-title">{{currentRecord.titleText}}</view>
+            <view wx:if="{{currentRecord.headline}}" class="cd-record-title">{{currentRecord.headline}}</view>
             <view class="cd-record-body">{{currentRecord.bodyText}}</view>
 
             <view wx:if="{{currentRecord.photos.length}}" class="cd-photo-grid">
@@ -127,7 +127,7 @@
             <view wx:if="{{currentRecord.attachments.length}}" class="cd-attach">
               <view class="cd-attach-head">附件凭证 · {{currentRecord.attachments.length}} 项</view>
               <view class="cd-attach-list">
-                <button wx:for="{{currentRecord.attachments}}" wx:key="id" class="cd-file" data-group="{{item.groupIndex}}" data-file="{{item.fileIndex}}" bindtap="previewAttachment">{{item.name}}</button>
+                <button wx:for="{{currentRecord.attachments}}" wx:key="id" class="cd-file" data-group="{{item.groupIndex}}" data-file="{{item.fileIndex}}" bindtap="previewAttachment">{{item.displayName || item.name}}</button>
               </view>
             </view>
 
