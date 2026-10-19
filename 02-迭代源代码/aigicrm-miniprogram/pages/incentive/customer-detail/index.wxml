@@ -1,141 +1,168 @@
 <wxs src="../thumb.wxs" module="thumb" />
 <view class="page cd-page">
-  <!-- 骨架: 与 PC 主从布局同构(头部 + 左侧日期轨 + 右侧内容卡), 加载完成前不闪空白 -->
   <block wx:if="{{!loaded}}">
-    <view class="cd-skel cd-skel-hero"></view>
-    <view class="cd-skel cd-skel-tabs"></view>
-    <view class="cd-skel-layout">
-      <view class="cd-skel cd-skel-dial">
-        <view class="cd-skel cd-skel-dial-head"></view>
-        <view class="cd-skel-dial-cols">
-          <view wx:for="{{[1,2,3]}}" wx:key="*this" class="cd-skel cd-skel-dial-col"></view>
+    <view class="cd-skeleton">
+      <view class="cd-sk cd-sk-spine"></view>
+      <view class="cd-sk-body">
+        <view class="cd-sk cd-sk-kicker"></view>
+        <view class="cd-sk cd-sk-title"></view>
+        <view class="cd-sk cd-sk-sub"></view>
+        <view class="cd-sk-chips">
+          <view class="cd-sk cd-sk-chip"></view>
+          <view class="cd-sk cd-sk-chip"></view>
+          <view class="cd-sk cd-sk-chip"></view>
         </view>
-      </view>
-      <view class="cd-skel-pane">
-        <view wx:for="{{[1,2,3]}}" wx:key="*this" class="cd-skel cd-skel-row"></view>
+        <view class="cd-sk cd-sk-rule"></view>
+        <view class="cd-sk cd-sk-score"></view>
+        <view class="cd-sk cd-sk-stats"></view>
+        <view class="cd-sk cd-sk-meta"></view>
+        <view class="cd-sk cd-sk-quote"></view>
+        <view class="cd-sk cd-sk-button"></view>
       </view>
     </view>
   </block>
-  <view wx:elif="{{!record}}" class="cd-empty">客户激励数据不存在</view>
+  <view wx:elif="{{!record}}" class="cd-empty-page">客户激励数据不存在</view>
   <block wx:else>
-    <!-- 客户头部: 名称/行业·最新大类/记录·文件数 + 总分 -->
-    <view class="cd-hero">
-      <view class="cd-hero-main">
-        <view class="cd-name">{{record.name}}</view>
+    <view wx:if="{{!inside}}" class="cd-cover">
+      <view class="cd-spine"><text>四项激励档案 · {{coverYear}}</text></view>
+      <view wx:if="{{coverUnread}}" class="cd-ribbon">未读 {{coverUnread}}</view>
+      <view class="cd-cover-body">
+        <view class="cd-kicker">FOUR INCENTIVE ARCHIVE</view>
+        <view class="cd-cover-title">{{record.name}}</view>
+        <view class="cd-cover-sub">客户激励档案 · 一客一册</view>
         <view class="cd-chips">
-          <text class="cd-chip">{{record.industry}}</text>
-          <text wx:if="{{record.category}}" class="cd-chip blue">{{record.category}}</text>
+          <text>{{record.industry}}</text>
+          <text wx:if="{{record.category}}" class="cd-chip-solid">{{record.category}}</text>
+          <text>{{coverYear}} 年</text>
         </view>
-        <view class="cd-statline">{{record.countText}} · {{record.fileCountText}}</view>
-      </view>
-      <view class="cd-score">
-        <text class="cd-score-num">{{record.score}}</text>
-        <text class="cd-score-unit">分</text>
+        <view class="cd-cover-rule"></view>
+        <view class="cd-score-row">
+          <text class="cd-score">{{record.score}}</text>
+          <text class="cd-score-unit">分</text>
+          <text class="cd-score-cap">累计积分</text>
+        </view>
+        <view class="cd-cover-stats">
+          <view><b>{{record.countText}}</b><text>记录</text></view>
+          <view><b>{{groups.length}}</b><text>月份</text></view>
+          <view><b>{{record.fileCountText}}</b><text>文件</text></view>
+          <view><b>{{coverLatest}}</b><text>最近更新</text></view>
+        </view>
+        <view class="cd-cover-meta">负责人 {{coverOwner}} · 档案编号 {{coverCode}}</view>
+        <view wx:if="{{coverRecent.length}}" class="cd-cover-recent">
+          <view class="cd-cover-recent-title">最近记录</view>
+          <view wx:for="{{coverRecent}}" wx:key="recentKey" class="cd-cover-recent-row">
+            <text class="cd-cover-recent-date">{{item.dateText}}</text>
+            <text class="cd-cover-recent-cat">{{item.titleText}}</text>
+            <text class="cd-cover-recent-score">{{item.scoreText}}</text>
+          </view>
+        </view>
+        <view class="cd-cover-quote">“{{coverSummary}}”</view>
+        <button class="cd-open" bindtap="openArchive">打开档案 →</button>
       </view>
     </view>
 
-    <!-- 与 PC 详情一致: 默认按日期主从(左日期轨/右内容), 照片墙保留为次要视图 -->
-    <view wx:if="{{record.showFiles}}" class="cd-view-tabs">
-      <view class="cd-view-tab {{viewMode === 'date' ? 'active' : ''}}" data-mode="date" bindtap="switchViewMode">按日期</view>
-      <view class="cd-view-tab {{viewMode === 'wall' ? 'active' : ''}}" data-mode="wall" bindtap="switchViewMode">照片墙</view>
-    </view>
-
-    <block wx:if="{{viewMode === 'date'}}">
-      <view class="cd-date-layout">
-        <!-- 左栏: 与 PC 一致的三联日期拨盘(年/月/日), picker-view 原生滚轮 + 中间高亮带 -->
-        <view class="cd-dial">
-          <view class="cd-dial-head">
-            <view class="cd-dial-now">
-              <text class="cd-dial-date">{{nowDateText}}</text>
-              <text class="cd-dial-time">{{nowTimeText}}</text>
-            </view>
-            <view class="cd-dial-today" bindtap="goToday">回到今天</view>
-          </view>
-          <view class="cd-dial-cols">
-            <view class="cd-dial-wheel">
-              <view class="cd-dial-band"></view>
-              <picker-view class="cd-dial-picker" indicator-style="height: 72rpx;" value="{{dialValue}}" bindchange="onDialChange">
-                <picker-view-column>
-                  <view wx:for="{{dialYears}}" wx:key="value" class="cd-dial-item {{item.hasData ? '' : 'dim'}}">{{item.label}}</view>
-                </picker-view-column>
-                <picker-view-column>
-                  <view wx:for="{{dialMonths}}" wx:key="value" class="cd-dial-item {{item.hasData ? '' : 'dim'}}">{{item.label}}<view wx:if="{{item.unread}}" class="cd-dial-dot"></view></view>
-                </picker-view-column>
-                <picker-view-column>
-                  <view wx:for="{{dialDays}}" wx:key="value" class="cd-dial-item {{item.hasData ? '' : 'dim'}}">{{item.label}}<view wx:if="{{item.hasData && item.value}}" class="cd-dial-dot"></view></view>
-                </picker-view-column>
-              </picker-view>
-            </view>
-          </view>
+    <view wx:else class="cd-inside">
+      <view class="cd-top">
+        <button class="cd-back" bindtap="closeArchive" aria-label="合上档案">←</button>
+        <view class="cd-top-main">
+          <b>{{record.name}}</b>
+          <text>四项激励档案 · {{coverYear}}</text>
         </view>
+        <button wx:if="{{totalUnread}}" class="cd-unread-chip" bindtap="openUnread">未读 {{totalUnread}} ›</button>
+      </view>
 
-        <!-- 右栏: 所选年/月/日激励内容, 每页 6 条, 加载更多 -->
-        <scroll-view scroll-y class="cd-pane">
-          <view wx:if="{{paneTitle}}" class="cd-pane-head">
-            <view class="cd-pane-title">{{paneTitle}}</view>
-            <view class="cd-pane-sub">{{paneTotal}} 条</view>
+      <view class="cd-body">
+        <scroll-view scroll-y class="cd-timeline">
+          <view class="cd-timeline-head">
+            <text>时间轴</text>
+            <button class="cd-latest" bindtap="latestMonth">最新</button>
           </view>
-          <view wx:if="{{!paneRows.length}}" class="cd-empty slim">此时间暂无记录</view>
-          <view wx:for="{{paneRows}}" wx:key="id" wx:for-item="child" class="cd-rec-card">
-            <view class="cd-rec-main" data-index="{{child.childIndex}}" catchtap="onChildDetail">
-              <view class="cd-rec-top">
-                <text class="cd-rec-cat">{{child.titleText}}</text>
-                <text class="{{child.readStatusClass}}">{{child.readStatusText}}</text>
-                <text class="cd-rec-score">{{child.scoreText}}</text>
-              </view>
-              <view class="cd-rec-meta">{{child.metaText}}</view>
-              <view wx:if="{{child.fileCountText}}" class="cd-rec-fileline">
-                <image wx:if="{{child.coverFile && apiBase && dlToken}}" class="cd-rec-thumb" src="{{thumb.thumbSrc(child.coverFile, apiBase, dlToken)}}" mode="aspectFill" lazy-load="{{true}}" />
-                <text class="cd-rec-filecount">{{child.fileCountText}}</text>
+          <block wx:for="{{groups}}" wx:key="key">
+            <view wx:if="{{item.showYear}}" class="cd-year">{{item.year}}</view>
+            <view class="cd-month {{selectedKey === item.key ? 'cd-month-active' : ''}}" data-key="{{item.key}}" bindtap="selectMonth">
+              <view class="cd-month-dot"></view>
+              <view class="cd-month-main"><b>{{item.monthLabel}}</b><text>{{item.count}} 条</text></view>
+              <view wx:if="{{item.unreadCount}}" class="cd-month-unread"></view>
+            </view>
+          </block>
+        </scroll-view>
+
+        <scroll-view scroll-y class="cd-pane" scroll-into-view="{{paneAnchor}}">
+          <view id="cd-pane-top"></view>
+          <view wx:if="{{currentGroup}}" class="cd-pane-head">
+            <text>{{currentGroup.label}}</text>
+            <text>{{currentGroup.count}} 条</text>
+          </view>
+          <view wx:if="{{!currentRecord}}" class="cd-empty">本时间暂无激励记录</view>
+          <block wx:else>
+            <view class="cd-record-date">
+              <text class="cd-date">{{currentRecord.dateText}}</text>
+              <text class="cd-week">{{currentRecord.weekday}}</text>
+              <text class="cd-score-badge">{{currentRecord.scoreText}}</text>
+            </view>
+            <view class="cd-cat">
+              <view class="cd-cat-dot"></view>
+              <text class="cd-cat-name">{{currentRecord.titleText}}</text>
+              <text wx:if="{{currentRecord.unread}}" class="cd-unread-tag">未读</text>
+            </view>
+            <view class="cd-meta">{{currentRecord.metaText}}</view>
+            <view class="cd-record-title">{{currentRecord.titleText}}</view>
+            <view class="cd-record-body">{{currentRecord.bodyText}}</view>
+
+            <view wx:if="{{currentRecord.photos.length}}" class="cd-photo-grid">
+              <view wx:for="{{currentRecord.photos}}" wx:key="id" class="cd-photo" data-index="{{index}}" bindtap="previewPhoto">
+                <image wx:if="{{apiBase && dlToken}}" class="cd-photo-img" src="{{thumb.thumbSrc(item, apiBase, dlToken)}}" mode="aspectFill" lazy-load="{{true}}" />
+                <view wx:else class="cd-photo-fallback"><text>{{item.name || '照片'}}</text></view>
+                <text wx:if="{{item.tag}}" class="cd-photo-tag">{{item.tag}}</text>
+                <text class="cd-photo-zoom">⤢</text>
               </view>
             </view>
-            <view class="cd-rec-more" data-index="{{child.childIndex}}" catchtap="onChildMore">···</view>
-          </view>
-          <view wx:if="{{hasMore}}" class="cd-load-more" bindtap="loadMore">加载更多（{{paneRows.length}}/{{paneTotal}}）</view>
-          <view wx:elif="{{paneRows.length}}" class="cd-load-end">— 已显示全部 —</view>
-          <view class="cd-bottom-space"></view>
+            <view wx:if="{{currentRecord.photos.length}}" class="cd-photo-hint">点击图片可放大查看</view>
+
+            <view wx:if="{{currentRecord.videos.length}}" class="cd-video" bindtap="previewVideo">
+              <view class="cd-video-play">▶</view>
+              <view class="cd-video-copy"><b>现场安装视频</b><text>{{currentRecord.videos[0].name || '视频'}}</text></view>
+            </view>
+
+            <view wx:if="{{currentRecord.attachments.length}}" class="cd-attach">
+              <view class="cd-attach-head">附件凭证 · {{currentRecord.attachments.length}} 项</view>
+              <view class="cd-attach-list">
+                <button wx:for="{{currentRecord.attachments}}" wx:key="id" class="cd-file" data-group="{{item.groupIndex}}" data-file="{{item.fileIndex}}" bindtap="previewAttachment">{{item.name}}</button>
+              </view>
+            </view>
+
+            <view class="cd-record-foot">
+              <text>第 {{currentIndex + 1}} / {{currentGroup.count}} 页</text>
+              <button class="cd-more" bindtap="onRecordMore">···</button>
+            </view>
+          </block>
+          <view class="cd-pane-bottom"></view>
         </scroll-view>
       </view>
-    </block>
 
-    <block wx:else>
-      <!-- 照片墙(保留): 分类锚点 + 分组缩略图, 点图预览/长按下载 -->
-      <scroll-view scroll-y class="cd-wall-body" scroll-into-view="{{scrollAnchor}}" scroll-with-animation>
-        <view wx:if="{{record.showFiles}}" class="card cd-anchor-card">
-          <scroll-view scroll-x class="cd-anchor-scroll" enable-flex>
-            <view class="cd-anchor-row">
-              <view wx:for="{{record.fileGroupsView}}" wx:key="groupIndex" wx:for-item="group" wx:for-index="anchorIdx" class="cd-anchor-chip" data-idx="{{anchorIdx}}" bindtap="scrollToGroup">{{group.slotText}}</view>
-            </view>
-          </scroll-view>
-        </view>
-        <view wx:if="{{record.showFiles}}" class="card">
-          <view wx:for="{{record.fileGroupsView}}" wx:for-item="group" wx:for-index="wallGroupIdx" wx:key="groupIndex" class="record-file-group" id="cd-group-{{wallGroupIdx}}">
-            <view class="record-file-group-head"><text>{{group.label}}</text><text>{{group.countText}}</text></view>
-            <view class="wall-grid">
-              <view wx:for="{{group.files}}" wx:for-item="file" wx:for-index="wallFileIdx" wx:key="id" class="wall-tile" catchtap="onTileTap" catchlongpress="onTileLongPress" data-group-index="{{group.groupIndex}}" data-file-index="{{file.fileIndex}}">
-                <image wx:if="{{file.type === 'image' && file.id && apiBase && dlToken}}" class="wall-thumb" src="{{thumb.thumbSrc(file, apiBase, dlToken)}}" mode="aspectFill" lazy-load="{{true}}" />
-                <view wx:elif="{{file.type === 'video'}}" class="wall-video-face">
-                  <view class="wall-play-icon">▶</view>
-                  <text class="wall-face-name">{{file.name}}</text>
-                </view>
-                <view wx:else class="wall-doc-face">
-                  <text class="wall-doc-type">{{file.typeText}}</text>
-                  <text class="wall-face-name">{{file.name}}</text>
-                </view>
-              </view>
-            </view>
-          </view>
-        </view>
-        <view wx:if="{{!record.showFiles}}" class="cd-empty slim">暂无附件凭证</view>
-        <video wx:if="{{previewVideoPath}}" src="{{previewVideoPath}}" controls class="cd-video"></video>
-        <view class="cd-bottom-space"></view>
-      </scroll-view>
-    </block>
+      <view wx:if="{{currentGroup}}" class="cd-page-nav">
+        <button disabled="{{currentIndex === 0}}" bindtap="prevRecord" aria-label="上一页">‹</button>
+        <text>{{currentIndex + 1}} / {{currentGroup.count}}</text>
+        <button disabled="{{currentIndex >= currentGroup.count - 1}}" bindtap="nextRecord" aria-label="下一页">›</button>
+      </view>
+    </view>
 
-    <!-- 吸底操作栏(原红圈④收敛为两个: 追加激励/客户档案) -->
-    <view class="cd-bottom-bar">
-      <view wx:if="{{record.showAppendAction}}" class="cd-bottom-btn primary" bindtap="onAppend">＋ 追加激励</view>
-      <view wx:if="{{record.showCustomerAction}}" class="cd-bottom-btn ghost" bindtap="onOpenCustomer">客户档案</view>
+    <view wx:if="{{unreadOpen}}" class="cd-mask" bindtap="closeUnread">
+      <view class="cd-unread-panel" catchtap="noop">
+        <view class="cd-unread-head">
+          <view><b>未读激励</b><text>{{unreadRows.length}} 条待查看</text></view>
+          <button class="cd-unread-close" bindtap="closeUnread" aria-label="关闭未读列表">×</button>
+        </view>
+        <view wx:if="{{!unreadRows.length}}" class="cd-unread-empty">暂无未读激励</view>
+        <scroll-view wx:else scroll-y class="cd-unread-list">
+          <button wx:for="{{unreadRows}}" wx:key="rowKey" class="cd-unread-row" data-key="{{item.key}}" data-index="{{item.index}}" bindtap="jumpUnread">
+            <text class="cd-unread-date">{{item.dateText}}</text>
+            <view class="cd-unread-main"><b>{{item.titleText}}</b><text>{{item.groupLabel}} · {{item.scoreText}}</text></view>
+            <text class="cd-unread-go">›</text>
+          </button>
+        </scroll-view>
+        <button class="cd-unread-all" disabled="{{!unreadRows.length}}" bindtap="markAllRead">全部标为已读</button>
+      </view>
     </view>
   </block>
 </view>
