@@ -1,0 +1,2 @@
+/* 【P2-7 2026-10-19】捞取申请详情页无页级样式: 全部继承 app.wxss 全局工具类
+   (.page/.hero/.card/.detail-row/.refined-reason 等), 本文件为消除"页面缺 wxss"工具告警的一致性占位。 */

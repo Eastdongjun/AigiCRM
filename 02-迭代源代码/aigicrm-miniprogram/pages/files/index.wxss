@@ -22,6 +22,9 @@
 .files-head-overline { color: #94a3b8; font-size: 19rpx; letter-spacing: 4rpx; font-weight: 700; }
 .files-head-title { margin-top: 6rpx; color: #172033; font-size: 40rpx; font-weight: 900; line-height: 1.2; }
 .files-head-sub { margin-top: 8rpx; color: #7c8ba1; font-size: 23rpx; }
+/* 【P2-7 2026-10-19】头部文案列/容量文案列容器: 纵向堆叠占位(子项自带 margin, 容器只兜底防塌陷) */
+.files-head-copy { min-width: 0; }
+.capacity-copy { min-width: 0; flex: 1; }
 .files-capacity-divider { height: 1rpx; background: #eef2f7; margin: 22rpx 0; }
 .files-capacity-row { display: flex; align-items: center; justify-content: space-between; gap: 20rpx; }
 
@@ -89,3 +92,8 @@
 .storage-apply-cancel { background: #f1f5fb; color: #475569; }
 .storage-apply-submit { background: #2563eb; color: #fff; box-shadow: 0 10rpx 22rpx rgba(37, 99, 235, .2); }
 .storage-apply-actions button[disabled] { opacity: .6; }
+
+/* 【P2-7 2026-10-19】ACL 弹窗: 卡片限宽居中(与 storage-apply-modal 同款口径) + 权限标签组 */
+.modal-card { width: 100%; max-width: 620rpx; }
+.tag-list { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8rpx; }
+.mini-tag { background: #eef5ff; color: #2563eb; border-radius: 8rpx; padding: 4rpx 12rpx; font-size: 20rpx; font-weight: 600; }

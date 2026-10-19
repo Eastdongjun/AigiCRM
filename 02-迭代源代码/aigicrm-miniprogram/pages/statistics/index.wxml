@@ -164,7 +164,7 @@
   </view>
 
   <view class="stats-section-head"><text>办事处对比</text><button class="text-btn" bindtap="openDetail">趋势</button></view>
-  <view class="card stats-office-card">
+  <view class="card">
     <block wx:for="{{statsView.officeRows}}" wx:key="id">
       <view class="stats-warning-row">
         <view>

@@ -26,16 +26,16 @@
     <view class="detail-row"><text>申请时间</text><text>{{approvalView.createdAtText}}</text></view>
     <view class="detail-row"><text>更新时间</text><text>{{approvalView.updatedAtText}}</text></view>
     <view class="detail-row"><text>类型</text><text>{{approvalView.typeText}}</text></view>
-    <view wx:if="{{approvalView.showCustomerAction}}" class="approval-detail-actions inline-actions">
+    <view wx:if="{{approvalView.showCustomerAction}}" class="approval-detail-actions">
       <button class="approval-link-action" bindtap="openCustomer">查看客户完整档案</button>
     </view>
     <block wx:if="{{approvalView.showStorageReason}}">
       <view class="form-section-title">申请理由</view>
-      <view class="approval-reason refined-reason">{{approvalView.storageReasonText}}</view>
+      <view class="refined-reason">{{approvalView.storageReasonText}}</view>
     </block>
     <block wx:if="{{approvalView.showSupplement}}">
       <view class="form-section-title">申请补充</view>
-      <view class="approval-reason refined-reason">{{approvalView.reasonText}}</view>
+      <view class="refined-reason">{{approvalView.reasonText}}</view>
     </block>
   </view>
 
@@ -51,7 +51,7 @@
   </view>
 
   <view wx:if="{{approvalView.showRejectReason}}" class="card approval-detail-card">
-    <textarea class="comment-input polished-textarea compact-textarea" value="{{comment}}" bindinput="onCommentInput" placeholder="驳回时必须填写原因"></textarea>
+    <textarea class="polished-textarea compact-textarea" value="{{comment}}" bindinput="onCommentInput" placeholder="驳回时必须填写原因"></textarea>
   </view>
 
   <view wx:if="{{approvalView.showActions}}" class="approval-detail-actions">

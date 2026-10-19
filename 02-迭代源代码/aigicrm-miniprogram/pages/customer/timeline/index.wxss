@@ -6,6 +6,9 @@
 .timeline-month-label{font-size:28rpx;font-weight:900;color:#172033}
 .timeline-month-count{margin-left:auto;padding:6rpx 14rpx;border-radius:999rpx;background:#eef5ff;color:#2563eb;font-size:22rpx;font-weight:800}
 .timeline-item{position:relative;margin:0 0 18rpx 28rpx}
+/* 【P2-7 2026-10-19】时间轴条目卡(automator 选择器锚点)+内容正文排版 */
+.timeline-card{overflow:hidden}
+.timeline-content{margin-top:8rpx;color:#334155;font-size:24rpx;line-height:1.6}
 .timeline-dot{position:absolute;left:-44rpx;top:34rpx;width:18rpx;height:18rpx;border-radius:50%;background:#8ea3c0;box-shadow:0 0 0 7rpx #f5f8fc}
 .timeline-dot.incentive{background:#059669}
 .timeline-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:12rpx;gap:16rpx}

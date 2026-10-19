@@ -14,12 +14,12 @@
 
     <view class="label">年份</view>
     <picker mode="selector" range="{{yearOptions}}" bindchange="chooseYear">
-      <view class="input polished-input picker-input">{{stageFormView.yearText}} 年</view>
+      <view class="input polished-input">{{stageFormView.yearText}} 年</view>
     </picker>
 
     <view class="label">周期</view>
     <picker mode="selector" range="{{periodTypeOptions}}" range-key="label" bindchange="choosePeriodType">
-      <view class="input polished-input picker-input">{{stageFormView.periodText}}</view>
+      <view class="input polished-input">{{stageFormView.periodText}}</view>
     </picker>
 
     <view class="label">阶段内开票额(万)</view>

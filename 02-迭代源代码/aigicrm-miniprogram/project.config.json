@@ -1,5 +1,6 @@
 {
   "description": "AIGICRM 微信小程序预览",
+  "libVersion": "3.17.2",
   "packOptions": {
     "ignore": [
       { "type": "suffix", "value": ".example.js" },

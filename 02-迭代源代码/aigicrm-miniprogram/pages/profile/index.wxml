@@ -1,4 +1,4 @@
-<view class="page profile-page">
+<view class="page">
   <!-- 【用户裁决C 2026-10-13】头部紧凑化: 头像80rpx横排, 岗位并入副标题(原三行竖排偏大, 与其他页hero不齐) -->
   <view class="hero profile-hero">
     <view class="profile-avatar">{{profileView.userInitialText}}</view>

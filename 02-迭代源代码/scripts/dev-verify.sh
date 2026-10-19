@@ -375,6 +375,8 @@ miniprogram_check() {
   /bin/bash "$ROOT/scripts/check-mobile-demo-contract.sh"
   /bin/bash "$ROOT/scripts/check-mobile-customer-indicator-edit-contract.sh"
   /bin/bash "$ROOT/scripts/check-mp-view-bindings.sh"
+  # 【P2-7 2026-10-19】静态 class 定义契约: 无定义=视觉静默退化或冗余 token 债
+  python3 "$ROOT/scripts/check-mp-class-definitions.py"
 
   if command -v node >/dev/null 2>&1; then
     while IFS= read -r file; do

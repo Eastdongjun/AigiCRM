@@ -7,7 +7,7 @@
   <view wx:if="{{indicatorView.showMetrics}}" class="grid indicator-grid">
     <view wx:for="{{indicatorView.metrics}}" wx:key="label" class="metric card"><text>{{item.label}}</text><text class="{{item.className}}">{{item.value}}</text></view>
   </view>
-  <view class="card section indicator-rank-card">
+  <view class="card indicator-rank-card">
     <view class="section-title">客户排行</view>
     <block wx:for="{{indicatorView.ranking}}" wx:key="id">
       <view class="rank-row"><text class="rank-index">{{item.rank}}</text><text class="rank-name">{{item.customerName}}</text><text>{{item.coreText}}</text><text class="rank-score">{{item.totalScore}}</text></view>

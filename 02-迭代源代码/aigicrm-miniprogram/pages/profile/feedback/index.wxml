@@ -1,4 +1,4 @@
-<view class="page feedback-page">
+<view class="page">
   <view class="hero">
     <view class="row">
       <view>
@@ -13,7 +13,7 @@
 
   <view class="card feedback-card">
     <view class="form-section-title">反馈内容</view>
-    <textarea class="comment-input polished-textarea feedback-textarea" maxlength="{{feedbackView.contentMaxLength}}" value="{{feedbackView.contentValue}}" bindinput="onInput" placeholder="{{feedbackView.contentPlaceholder}}"></textarea>
+    <textarea class="polished-textarea feedback-textarea" maxlength="{{feedbackView.contentMaxLength}}" value="{{feedbackView.contentValue}}" bindinput="onInput" placeholder="{{feedbackView.contentPlaceholder}}"></textarea>
     <view class="feedback-actions">
       <button class="feedback-clear-action" bindtap="clearDraft">清空</button>
       <button class="feedback-save-action" bindtap="saveDraft">保存草稿</button>

@@ -35,7 +35,7 @@
 
   <view wx:if="{{detailView.hasDetail}}" class="card customer-section-card">
     <view class="section-title">备注</view>
-    <view class="muted customer-remark-text">{{detailView.remarkText}}</view>
+    <view class="muted">{{detailView.remarkText}}</view>
   </view>
 
   <view wx:if="{{detailView.showContactsSection}}" class="card customer-section-card">
@@ -65,7 +65,7 @@
       <view class="section-title">开票回款</view>
       <button class="text-btn" bindtap="openFinance">查看明细</button>
     </view>
-    <view class="customer-metric-grid finance-summary-grid">
+    <view class="customer-metric-grid">
       <view wx:for="{{detailView.financeRows}}" wx:key="key" class="customer-metric-item">
         <text>{{item.label}}</text>
         <view>{{item.valueText}}</view>

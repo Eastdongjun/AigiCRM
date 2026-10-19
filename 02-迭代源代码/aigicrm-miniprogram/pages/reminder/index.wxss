@@ -12,3 +12,5 @@
 .reminder-warning-action{border:1rpx solid #fed7aa;background:#fff7ed;color:#ea580c}
 .reminder-primary-action{border:0;background:#2563eb;color:#fff;box-shadow:0 8rpx 18rpx rgba(37,99,235,.16)}
 .reminder-modal-actions{margin-top:22rpx}
+/* 【P2-7 2026-10-19】提醒卡元信息行(负责人/部门/状态三段) */
+.reminder-meta{display:flex;flex-wrap:wrap;gap:8rpx 18rpx;margin-top:8rpx;color:#94a3b8;font-size:22rpx}

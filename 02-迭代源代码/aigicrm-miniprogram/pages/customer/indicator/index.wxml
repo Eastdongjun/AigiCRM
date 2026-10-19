@@ -1,4 +1,4 @@
-<view class="page indicator-edit-page">
+<view class="page">
   <view class="hero">
     <view class="hero-title">编辑客户指标</view>
     <view class="hero-sub">开票回款硬性门槛 + 五项评分，每项 0-3 分</view>

@@ -32,7 +32,7 @@
          锚点定位用 scroll-into-view(头部 hero/锚点固定, 照片墙+历史记录为滚动体) -->
     <scroll-view scroll-y class="cd-body" scroll-into-view="{{scrollAnchor}}" scroll-with-animation>
       <!-- 分组照片墙(原红圈②角标职责由分组标题承担,原③按钮删除: 点图预览/长按下载) -->
-      <view wx:if="{{record.showFiles}}" class="card cd-wall-card">
+      <view wx:if="{{record.showFiles}}" class="card">
         <view wx:for="{{record.fileGroupsView}}" wx:for-item="group" wx:for-index="wallGroupIdx" wx:key="groupIndex" class="record-file-group" id="cd-group-{{wallGroupIdx}}">
           <view class="record-file-group-head"><text>{{group.label}}</text><text>{{group.countText}}</text></view>
           <view class="wall-grid">
@@ -53,7 +53,7 @@
       </view>
 
       <!-- 历史记录(默认展开,原列表页折叠区移入): 点行=详情, 行尾···=追加/删除 -->
-      <view class="card cd-history-card">
+      <view class="card">
         <view class="cd-section-title">历史记录 · {{children.length}}</view>
         <view wx:if="{{!children.length}}" class="cd-empty slim">暂无历史记录</view>
         <view wx:for="{{children}}" wx:for-item="child" wx:for-index="childIdx" wx:key="id" class="cd-child-row">
