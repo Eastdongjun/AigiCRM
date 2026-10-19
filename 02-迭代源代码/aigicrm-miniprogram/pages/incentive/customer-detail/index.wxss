@@ -68,3 +68,57 @@
 .tag-unread { font-size: 19rpx; font-weight: 700; color: #b45309; background: #fef3c7; padding: 2rpx 12rpx; border-radius: 999rpx; }
 .tag-read { font-size: 19rpx; font-weight: 600; color: #94a3b8; background: #f1f5f9; padding: 2rpx 12rpx; border-radius: 999rpx; }
 .inline-read-status { flex-shrink: 0; }
+
+/* ===== 2026-10-19 与 PC 详情对齐：左三联日期拨盘 + 右内容主从布局 ===== */
+.cd-view-tabs { display: flex; gap: 8rpx; margin-top: 16rpx; padding: 6rpx; background: #eaf1fc; border-radius: 18rpx; flex-shrink: 0; }
+.cd-view-tab { flex: 1; height: 60rpx; line-height: 60rpx; text-align: center; border-radius: 14rpx; font-size: 23rpx; font-weight: 750; color: #64748b; }
+.cd-view-tab.active { background: #fff; color: #1d4fd7; box-shadow: 0 4rpx 12rpx rgba(29, 79, 215, .14); }
+
+.cd-date-layout { flex: 1; min-height: 0; display: flex; gap: 14rpx; margin-top: 14rpx; }
+.cd-dial { width: 300rpx; flex-shrink: 0; height: 100%; display: flex; flex-direction: column; overflow: hidden; background: #fff; border-radius: 20rpx; box-shadow: 0 8rpx 22rpx rgba(48, 78, 112, .05); }
+.cd-dial-head { display: flex; align-items: center; gap: 8rpx; padding: 12rpx 12rpx 8rpx; border-bottom: 1rpx solid #eef0f3; flex-shrink: 0; }
+.cd-dial-now { flex: 1; min-width: 0; }
+.cd-dial-date { display: block; font-size: 17rpx; color: #6b7280; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cd-dial-time { display: block; font-size: 29rpx; font-weight: 900; color: #1d4ed8; line-height: 1.15; font-variant-numeric: tabular-nums; }
+.cd-dial-today { flex-shrink: 0; font-size: 18rpx; font-weight: 700; color: #2563eb; background: #eef4ff; border-radius: 10rpx; padding: 6rpx 9rpx; }
+.cd-dial-cols { position: relative; flex: 1; min-height: 0; display: flex; padding-top: 8rpx; }
+.cd-dial-wheel { position: relative; width: 100%; height: 648rpx; }
+.cd-dial-band { position: absolute; left: 8rpx; right: 8rpx; top: 50%; height: 72rpx; transform: translateY(-50%); background: #f0f5ff; border-top: 1rpx solid #dbe6fb; border-bottom: 1rpx solid #dbe6fb; border-radius: 10rpx; z-index: 0; }
+.cd-dial-picker { position: relative; z-index: 1; width: 100%; height: 100%; }
+.cd-dial-item { height: 72rpx; display: flex; align-items: center; justify-content: center; gap: 4rpx; font-size: 26rpx; font-weight: 650; color: #334155; }
+.cd-dial-item.dim { opacity: .28; }
+.cd-dial-dot { width: 8rpx; height: 8rpx; border-radius: 50%; background: #ef4444; }
+
+.cd-pane { flex: 1; min-width: 0; height: 100%; }
+.cd-pane-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12rpx; padding: 2rpx 4rpx 12rpx; }
+.cd-pane-title { font-size: 28rpx; font-weight: 900; color: #172033; }
+.cd-pane-sub { flex-shrink: 0; font-size: 19rpx; color: #94a3b8; }
+.cd-rec-card { display: flex; gap: 10rpx; background: #fff; border-radius: 18rpx; padding: 18rpx 16rpx; margin-bottom: 12rpx; box-shadow: 0 6rpx 18rpx rgba(48, 78, 112, .05); }
+.cd-rec-main { flex: 1; min-width: 0; }
+.cd-rec-top { display: flex; align-items: center; gap: 8rpx; }
+.cd-rec-cat { flex: 1; min-width: 0; font-size: 24rpx; font-weight: 800; color: #1c2b3a; white-space: normal; word-break: break-all; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
+.cd-rec-score { flex-shrink: 0; font-size: 21rpx; font-weight: 800; color: #1d4fd7; }
+.cd-rec-meta { margin-top: 6rpx; font-size: 19rpx; color: #94a3b8; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cd-rec-fileline { display: flex; align-items: center; gap: 10rpx; margin-top: 10rpx; }
+.cd-rec-thumb { width: 54rpx; height: 54rpx; border-radius: 10rpx; background: #eef3f9; flex-shrink: 0; }
+.cd-rec-filecount { font-size: 18rpx; color: #64748b; background: #f1f5fb; border-radius: 999rpx; padding: 4rpx 12rpx; }
+.cd-rec-more { width: 50rpx; height: 50rpx; flex-shrink: 0; display: flex; align-items: center; justify-content: center; border-radius: 14rpx; background: #f1f5fb; color: #64748b; font-size: 26rpx; font-weight: 700; letter-spacing: 2rpx; }
+.cd-rec-more:active { background: #e2e9f5; }
+.cd-load-more { margin-top: 4rpx; height: 72rpx; line-height: 72rpx; text-align: center; border-radius: 16rpx; background: #eef4ff; color: #1d4fd7; font-size: 22rpx; font-weight: 750; }
+.cd-load-more:active { background: #dceaff; }
+.cd-load-end { padding: 16rpx 0; text-align: center; color: #cbd5e1; font-size: 18rpx; }
+.cd-wall-body { flex: 1; min-height: 0; }
+
+/* 骨架屏 */
+.cd-skel { background: linear-gradient(90deg, #eef2f7 25%, #f8fafc 37%, #eef2f7 63%); background-size: 400% 100%; animation: cd-shimmer 1.35s ease infinite; border-radius: 20rpx; }
+@keyframes cd-shimmer { 0% { background-position: 100% 50%; } 100% { background-position: 0 50%; } }
+.cd-skel-hero { height: 176rpx; flex-shrink: 0; }
+.cd-skel-tabs { height: 64rpx; margin-top: 16rpx; flex-shrink: 0; }
+.cd-skel-layout { flex: 1; min-height: 0; display: flex; gap: 14rpx; margin-top: 16rpx; }
+.cd-skel-dial { width: 300rpx; display: flex; flex-direction: column; gap: 10rpx; }
+.cd-skel-dial-head { height: 70rpx; }
+.cd-skel-dial-cols { flex: 1; min-height: 0; display: flex; gap: 8rpx; }
+.cd-skel-dial-col { flex: 1; height: 100%; }
+.cd-skel-pane { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 12rpx; }
+.cd-skel-row { height: 148rpx; }
+
