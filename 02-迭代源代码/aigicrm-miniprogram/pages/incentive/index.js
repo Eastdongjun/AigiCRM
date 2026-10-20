@@ -246,6 +246,7 @@ function buildIncentiveView(data) {
     searchLoading: isLoading,
     searchText: isLoading ? '查询中' : '查询',
     showLoading: isLoading,
+    pagerLoading: isLoading,
     loadingText: '加载中...',
     previewLoading: Boolean(data.previewing),
     industryText: `${pickOption(data.industries, data.selectedIndustryIndex, '全部行业')}⌄`,
@@ -866,6 +867,11 @@ Page({
     const names = label && label !== '全部' ? [label] : []
     this.setData({ category: label || '全部', categoryNames: names }, () => this.refreshIncentiveView())
     this.sort()
+  },
+
+  /** 分类树「全部分类」入口：清除分类筛选 */
+  onCategoryAllTap() {
+    this.applyCategoryFilter('全部')
   },
 
   // 【真机UAT修复 2026-09-22】分类树行点击筛选:选中该分类(父分类含直接子类名集合),

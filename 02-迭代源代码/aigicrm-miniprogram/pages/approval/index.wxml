@@ -64,7 +64,7 @@
   </block>
   <view wx:if="{{approvalView.showEmpty}}" class="card muted">暂无审批事项</view>
   <!-- 【分页 2026-10-18】显式分页条：10/30 条每页，替代触底加载更多 -->
-  <pager page="{{page}}" pageSize="{{pageSize}}" total="{{total}}" loading="{{loading}}" bind:change="onPagerChange" />
+  <pager page="{{page}}" pageSize="{{pageSize}}" total="{{total}}" loading="{{approvalView.pagerLoading}}" bind:change="onPagerChange" />
   <!-- 【体检 H2 2026-10-12】移除"发起客户释放审批"死入口: 无出厂流程配置提交必 400,
        且后端 executeApprovalAction 无 customer_release 分支即便走完审批也零业务生效;
        PC 端释放走直连接口不经审批, 本卡片是唯一发起口(生产审批历史仅 claim/extend, 从未成功用过) -->

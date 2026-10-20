@@ -42,14 +42,50 @@
 .customer-record-meta{margin-top:6rpx;color:#7c8ba1;font-size:21rpx;line-height:1.4}
 .customer-record-summary{margin-top:12rpx;color:#52657f;font-size:23rpx;line-height:1.55}
 .customer-record-actions{display:flex;align-items:center;justify-content:flex-end;gap:10rpx;margin-top:14rpx}
-.category-row,.stats-row{display:flex;align-items:center;justify-content:space-between;gap:20rpx;padding:22rpx 0;border-top:1rpx solid #eef3f9;font-size:26rpx;color:#172033}
-.category-row:first-of-type,.stats-row:first-of-type{border-top:0}
-.category-row text:last-child,.stats-row text:last-child{color:#7c8ba1;font-size:24rpx;text-align:right}
-.category-row.level-1{padding-left:28rpx}
-.category-row.level-2{padding-left:56rpx}
-.category-row.level-3{padding-left:84rpx}
-.category-row-hover{background:#f5f8fd}
-.category-row-active text:first-child{color:#2563eb;font-weight:800}
+.stats-row{display:flex;align-items:center;justify-content:space-between;gap:20rpx;padding:22rpx 0;border-top:1rpx solid #eef3f9;font-size:26rpx;color:#172033}
+.stats-row:first-of-type{border-top:0}
+.stats-row text:last-child{color:#7c8ba1;font-size:24rpx;text-align:right}
+
+/* 分类树 2026-10-20 重设计：全部分类入口 + 父级卡片 + 子级缩进连接线 + 徽章/选中态 */
+.category-panel{padding:26rpx 22rpx 22rpx}
+.category-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16rpx;padding:0 4rpx 16rpx}
+.category-title{color:#172033;font-size:27rpx;font-weight:800;letter-spacing:.5rpx}
+.category-sub{margin-top:6rpx;color:#94a3b8;font-size:19rpx}
+.category-count{flex-shrink:0;color:#94a3b8;font-size:19rpx}
+.category-all{display:flex;align-items:center;gap:14rpx;padding:16rpx 18rpx;border:1rpx solid #e7effa;border-radius:16rpx;background:#f8fbff}
+.category-all.is-active{border-color:#cddffb;background:#eef4ff}
+.category-all-hover{opacity:.78}
+.category-all-icon{width:48rpx;height:48rpx;flex-shrink:0;border-radius:14rpx;background:#1d4ed8;color:#fff;font-size:21rpx;font-weight:700;display:flex;align-items:center;justify-content:center}
+.category-all-main{flex:1;min-width:0;display:flex;flex-direction:column;gap:4rpx}
+.category-all-main text:first-child{color:#172033;font-size:24rpx;font-weight:700}
+.category-all-main text:last-child{color:#94a3b8;font-size:18rpx}
+.category-all.is-active .category-all-main text:first-child{color:#1d4ed8}
+.category-tree{margin-top:10rpx}
+.category-node{position:relative;display:flex;align-items:center;gap:14rpx;padding:15rpx 18rpx;border-radius:14rpx}
+.category-node.level-0{margin-top:14rpx;border:1rpx solid #e7effa;background:#f8fbff}
+.category-node.level-1{padding-left:46rpx}
+.category-node.level-2{padding-left:78rpx}
+.category-node.level-3{padding-left:110rpx}
+.category-node.level-1::before,
+.category-node.level-2::before,
+.category-node.level-3::before{content:'';position:absolute;top:0;bottom:0;width:1rpx;background:#e3ebf7}
+.category-node.level-1::before{left:25rpx}
+.category-node.level-2::before{left:57rpx}
+.category-node.level-3::before{left:89rpx}
+.category-node-hover{opacity:.78}
+.category-node-dot{position:relative;z-index:1;width:8rpx;height:8rpx;flex-shrink:0;border-radius:50%;background:#c6d4e6}
+.category-node.level-0 .category-node-dot{width:12rpx;height:12rpx;background:#1d4ed8}
+.category-node-main{flex:1;min-width:0;display:flex;align-items:center;justify-content:space-between;gap:12rpx}
+.category-node-name{color:#334155;font-size:24rpx;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.category-node.level-0 .category-node-name{color:#172033;font-size:26rpx;font-weight:700}
+.category-node-meta{display:flex;align-items:center;gap:8rpx;flex-shrink:0}
+.category-chip{padding:4rpx 10rpx;border-radius:999rpx;background:#f1f5f9;color:#64748b;font-size:17rpx}
+.category-chip.score{background:#eef4ff;color:#1d4ed8}
+.category-node.is-active{background:#eef4ff}
+.category-node.is-active::after{content:'';position:absolute;left:0;top:12rpx;bottom:12rpx;width:4rpx;border-radius:999rpx;background:#1d4ed8}
+.category-node.is-active .category-node-name{color:#1d4ed8;font-weight:750}
+.category-active-tag{flex-shrink:0;padding:4rpx 10rpx;border-radius:999rpx;background:#1d4ed8;color:#fff;font-size:16rpx}
+.category-chevron{flex-shrink:0;color:#b6c5da;font-size:26rpx}
 .stat-drill-row{align-items:flex-start}
 .stat-name{color:#172033;font-size:26rpx;font-weight:800}
 .stat-parent{margin-top:6rpx;color:#7c8ba1;font-size:21rpx}

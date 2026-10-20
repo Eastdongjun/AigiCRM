@@ -310,6 +310,7 @@ function buildFileView(data) {
     showEmpty: files.length === 0 && !data.previewVideoPath && !loading,
     // 首屏加载文案；翻页状态由 <pager loading> 承载
     showLoading: loading && files.length === 0,
+    pagerLoading: loading,
     loadingText: '加载中...',
     aclRows: data.aclRows || [],
     showAclRows: Boolean(data.aclRows && data.aclRows.length)

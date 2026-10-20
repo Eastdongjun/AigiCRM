@@ -115,6 +115,7 @@ function buildApprovalView(data) {
     refreshLoading: isLoading,
     refreshText: isLoading ? '刷新中' : '刷新',
     showLoading: isLoading && list.length === 0,
+    pagerLoading: isLoading,
     loadingText: '加载中...',
     list,
     showEmpty: !isLoading && list.length === 0

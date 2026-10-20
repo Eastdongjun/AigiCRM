@@ -63,6 +63,7 @@ function buildCustomerView(data) {
     showReset: Boolean(data.keyword || data.filter !== '全部' || data.statusFilter || data.hasAdvancedFilter),
     countText: `共 ${total} 家`,
     showLoading: isLoading,
+    pagerLoading: isLoading,
     loadingText: '加载中...',
     customers,
     showEmpty: !isLoading && customers.length === 0

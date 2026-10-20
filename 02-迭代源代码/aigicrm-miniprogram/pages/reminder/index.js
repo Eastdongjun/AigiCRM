@@ -180,6 +180,7 @@ function buildReminderView(state) {
     listCountText: `当前列表 ${reminders.length} 条`,
     disableProcessAll: Boolean(loading || state.processingAll || reminders.length === 0),
     showLoading: loading && reminders.length === 0,
+    pagerLoading: Boolean(loading),
     loadingText: '加载中...',
     showEmpty: !loading && reminders.length === 0,
     hasSelectedReminder: Boolean(state.selectedReminder)

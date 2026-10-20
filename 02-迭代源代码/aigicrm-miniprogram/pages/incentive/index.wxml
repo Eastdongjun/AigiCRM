@@ -97,17 +97,39 @@
       </view>
     </block>
     <view class="incentive-pager">
-      <pager page="{{page}}" pageSize="{{pageSize}}" total="{{pagerTotal}}" loading="{{loading}}" bind:change="onPagerChange" />
+      <pager page="{{page}}" pageSize="{{pageSize}}" total="{{pagerTotal}}" loading="{{incentiveView.pagerLoading}}" bind:change="onPagerChange" />
     </view>
     <view wx:if="{{incentiveView.showRecordEmpty}}" class="card muted">暂无四项激励记录</view>
     <video wx:if="{{previewVideoPath}}" src="{{previewVideoPath}}" controls class="record-file-video"></video>
   </view>
 
-  <view wx:if="{{incentiveView.showCategories}}" class="card">
-    <view class="section-title">分类树 · 点击筛选</view>
-    <view wx:for="{{categoryTreeView}}" wx:key="id" class="category-row level-{{item.level}} {{item.name === category ? 'category-row-active' : ''}}" hover-class="category-row-hover" bindtap="onCategoryRowTap" data-index="{{index}}">
-      <text>{{item.name}}</text>
-      <text>{{item.metaText}}</text>
+  <view wx:if="{{incentiveView.showCategories}}" class="card category-panel">
+    <view class="category-head">
+      <view>
+        <view class="category-title">分类树</view>
+        <view class="category-sub">点击分类筛选记录，再次点击取消</view>
+      </view>
+      <view class="category-count">{{categoryTreeView.length}} 个分类</view>
+    </view>
+    <view class="category-all {{category === '全部' ? 'is-active' : ''}}" hover-class="category-all-hover" bindtap="onCategoryAllTap">
+      <view class="category-all-icon">全</view>
+      <view class="category-all-main"><text>全部分类</text><text>查看所有激励记录</text></view>
+      <text wx:if="{{category === '全部'}}" class="category-active-tag">全部</text>
+      <text wx:else class="category-chevron">›</text>
+    </view>
+    <view class="category-tree">
+      <view wx:for="{{categoryTreeView}}" wx:key="id" class="category-node level-{{item.level}} {{item.name === category ? 'is-active' : ''}}" hover-class="category-node-hover" bindtap="onCategoryRowTap" data-index="{{index}}">
+        <view class="category-node-dot"></view>
+        <view class="category-node-main">
+          <text class="category-node-name">{{item.name}}</text>
+          <view class="category-node-meta">
+            <text wx:if="{{item.score}}" class="category-chip score">{{item.score}} 分</text>
+            <text class="category-chip">{{item.count}} 条</text>
+          </view>
+        </view>
+        <text wx:if="{{item.name === category}}" class="category-active-tag">筛选中</text>
+        <text wx:else class="category-chevron">›</text>
+      </view>
     </view>
     <view wx:if="{{incentiveView.showCategoryEmpty}}" class="muted">暂无分类</view>
   </view>
