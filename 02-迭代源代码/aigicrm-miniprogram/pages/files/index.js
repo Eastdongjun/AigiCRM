@@ -1,4 +1,6 @@
 const { getFolders, getStorageInfo, getStorageApplyInfo, getSharedToMe, getSharedToMeCount, getFileList, uploadFile, replaceFile, deleteFile, deleteFolder, getFolderAcl, shareFile: shareFileApi, getDownloadUrl, createFolder } = require('../../api/file')
+const { getCustomerRecords } = require('../../api/incentive')
+const { buildIncentiveFiles } = require('../../utils/incentive-files')
 const { getCustomerSimpleUsers } = require('../../api/customer')
 const { submitApproval } = require('../../api/approval')
 const { showError, showErrorWithRetry } = require('../../utils/feedback')
@@ -28,6 +30,42 @@ function bytesToSize(value) {
   }
   const fixed = size >= 10 || index === 0 ? 0 : 1
   return `${size.toFixed(fixed)} ${units[index]}`
+}
+
+/** 四项激励记录 → 可检索文件行：客户名/上传人/记录时间来自激励记录，文件来自各槽位 */
+function buildIncentiveFileRows(groups) {
+  const map = new Map()
+  ;(groups || []).forEach((group) => {
+    const customerName = group.customerName || group.name || '未命名客户'
+    ;(group.records || []).forEach((record) => {
+      const recordTime = record.createdAt || record.createTime || ''
+      const files = buildIncentiveFiles(record)
+      files.forEach((file) => {
+        if (!file || !file.id) return
+        const name = file.name || file.fileName || '未命名文件'
+        const extension = name.includes('.') ? name.split('.').pop().toUpperCase() : 'FILE'
+        const row = {
+          id: file.id,
+          name,
+          type: extension,
+          size: typeof file.size === 'number' ? bytesToSize(file.size) : (file.size || '-'),
+          folder: customerName,
+          customerName,
+          uploaderName: record.userName || record.updatedByName || '',
+          updatedAt: recordTime,
+          fileScope: 'incentive',
+          canDownload: true,
+          recordCategory: record.categoryName || record.category || '',
+          tag: file.tag || '',
+          ossKey: file.ossKey || '',
+          fileUrl: file.fileUrl || ''
+        }
+        const existing = map.get(file.id)
+        if (!existing || String(recordTime) > String(existing.updatedAt)) map.set(file.id, row)
+      })
+    })
+  })
+  return Array.from(map.values()).sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt)))
 }
 
 // 【D1-A】配额展示保留一位小数(10.5 GB 不能显示成 11 GB);文件大小仍走上面的既有口径
@@ -234,6 +272,7 @@ function buildFileRowView(item, data) {
   if (showShare) sheetActions.push({ key: 'share', label: '分享' })
   if (showReplace) sheetActions.push({ key: 'replace', label: '替换' })
   if (showDelete) sheetActions.push({ key: 'delete', label: '删除', danger: true })
+  const sizePrefix = item.size && item.size !== '-' ? `${item.size} · ` : ''
   return {
     ...item,
     typeText: item.type || 'FILE',
@@ -243,7 +282,7 @@ function buildFileRowView(item, data) {
     uploaderNameText: item.uploaderName || '—',
     updatedAtText: formatDateTimeText(item.updatedAt),
     // 【需求A】meta 拆两段: 行内只放 大小·时间(与名字同区), 文件夹·上传人放次要位
-    metaBrief: `${item.size || '-'} · ${formatDateTimeText(item.updatedAt)}`,
+    metaBrief: `${sizePrefix}${formatDateTimeText(item.updatedAt)}`,
     metaExtra: `${item.folder || '未分类'} · ${item.uploaderName || '—'}`,
     bucket: parseUpdatedBucket(item.updatedAt),
     canDownload: showDownload,
@@ -289,6 +328,8 @@ function buildFileView(data) {
   // 【分页 2026-10-18】条数优先用服务端 total；拿不到时退回本页条数
   const totalFiles = Number(data.total)
   const fileCount = Number.isFinite(totalFiles) && totalFiles > 0 ? totalFiles : files.length
+  const isIncentiveTab = data.activeTab === '四项激励'
+  const showFolderCard = !isIncentiveTab && data.activeTab !== '分享给我'
   return {
     showUploadAction,
     tabs,
@@ -297,7 +338,8 @@ function buildFileView(data) {
     showFolderList: !hasActiveFolder,
     showClearFolder: hasActiveFolder,
     breadcrumbText: hasActiveFolder ? `全部文件 › ${data.activeFolderName}` : '',
-    listTitle: hasActiveFolder ? '' : '最近文件',
+    listTitle: isIncentiveTab ? '四项激励文件' : (hasActiveFolder ? '' : '最近文件'),
+    showFolderCard,
     folders,
     // 【PR-04】兜底文件夹卡片（客户文档/团队共享）仅演示模式显示；真实模式空就是空
     showFallbackFolders: !folders.length && isDemoMode(),
@@ -459,6 +501,11 @@ Page({
       this.setFileData({ folders, files, filteredFiles: files, capacity: demoCapacity, tabCounts: this.demoTabCounts(demoFiles), loaded: true, loading: false, page: safePage, pageSize, total })
       return
     }
+    // 四项激励 tab：文件行要带客户/人员/时间做检索，改用激励记录接口摊平文件；
+    // 无 incentive:view 时退回通用文件接口（仅文件名检索），避免空 tab。
+    if (this.data.activeTab === '四项激励' && hasPermission('incentive:view')) {
+      return this.loadIncentiveFiles(page, pageSize)
+    }
     // 【M20】请求序号守卫：Tab/筛选/翻页快速切换时，慢返回的旧响应直接丢弃，防止覆盖新列表
     const requestSeq = (this._filesReqSeq = (this._filesReqSeq || 0) + 1)
     this._filesLoading = true
@@ -529,6 +576,44 @@ Page({
     if (!failed && page === 1) this.loadTabCounts()
   },
 
+  /** 四项激励文件：一次拉取激励记录，摊平为客户/人员/时间可检索的文件行；分页与搜索均在本地完成 */
+  loadIncentiveFiles(page = 1, pageSize = this.data.pageSize || 10) {
+    const requestSeq = (this._incentiveReqSeq = (this._incentiveReqSeq || 0) + 1)
+    this._filesLoading = true
+    this.setFileData({ loading: true, page: 1, folders: [] })
+    return getCustomerRecords({}).then((groups) => {
+      if (requestSeq !== this._incentiveReqSeq) return
+      const rows = buildIncentiveFileRows(Array.isArray(groups) ? groups : [])
+      this._incentiveFileRows = rows
+      // Tab 徽标与可检索文件行同口径，避免徽标 1727、列表 1829 的错位
+      this.setFileData({ tabCounts: { ...this.data.tabCounts, '四项激励': rows.length } })
+      this.applyIncentiveFileFilter(page, pageSize)
+    }).catch((error) => {
+      if (requestSeq !== this._incentiveReqSeq) return
+      this._incentiveFileRows = []
+      this.setFileData({ loading: false, files: [], filteredFiles: [], total: 0, page: 1 })
+      showErrorWithRetry(error, '四项激励文件加载失败', () => this.loadIncentiveFiles(1, pageSize))
+    }).finally(() => {
+      if (requestSeq === this._incentiveReqSeq) this._filesLoading = false
+    })
+  },
+
+  applyIncentiveFileFilter(page = 1, pageSize = this.data.pageSize || 10, keywordOverride) {
+    const keyword = String(keywordOverride !== undefined ? keywordOverride : (this.data.keyword || '')).trim().toLowerCase()
+    const all = this._incentiveFileRows || []
+    const filtered = !keyword ? all : all.filter((item) => {
+      const haystack = `${item.name || ''} ${item.customerName || ''} ${item.uploaderName || ''} ${item.recordCategory || ''} ${item.tag || ''} ${item.updatedAt || ''} ${formatDateTimeText(item.updatedAt)}`
+      return haystack.toLowerCase().includes(keyword)
+    })
+    const size = pageSize > 0 ? pageSize : 10
+    const total = filtered.length
+    const totalPages = Math.max(1, Math.ceil(total / size))
+    const safePage = Math.min(Math.max(1, page || 1), totalPages)
+    const start = (safePage - 1) * size
+    const rows = filtered.slice(start, start + size)
+    this.setFileData({ folders: [], files: rows, filteredFiles: rows, loaded: true, loading: false, page: safePage, pageSize: size, total })
+  },
+
   // 【分页 2026-10-18】翻页改由 <pager> 显式驱动，触底不再追加请求
   onReachBottom() {},
 
@@ -537,6 +622,10 @@ Page({
     const detail = (event && event.detail) || {}
     const page = Math.max(1, Number(detail.page) || 1)
     const pageSize = Number(detail.pageSize) || this.data.pageSize || 10
+    if (this.data.activeTab === '四项激励' && this._incentiveFileRows) {
+      this.applyIncentiveFileFilter(page, pageSize)
+      return
+    }
     this.loadFiles({ page, pageSize })
   },
 
@@ -630,6 +719,12 @@ Page({
 
   onKeywordInput(event) {
     const keyword = event.detail.value
+    if (this.data.activeTab === '四项激励' && this._incentiveFileRows) {
+      // 四项激励：客户/人员/时间/文件名都在本地行上，输入即筛选
+      this.setFileData({ keyword })
+      this.applyIncentiveFileFilter(1, this.data.pageSize, keyword)
+      return
+    }
     if (getApp().globalData.demoMode) {
       // 【分页】演示模式本地分页: 关键字即时生效, 回到第 1 页按全量重算
       this.setFileData({ keyword })
@@ -641,13 +736,17 @@ Page({
     this.setFileData({ keyword, filteredFiles: this.filterFiles(this.data.files, { ...this.data, keyword }) })
   },
   searchFiles() {
+    if (this.data.activeTab === '四项激励' && this._incentiveFileRows) {
+      this.applyIncentiveFileFilter(1, this.data.pageSize)
+      return
+    }
     // 【分页】查询条件变化：重置到第 1 页重新拉取（demo 模式在 loadFiles 内本地分页）
     this.loadFiles({ page: 1 })
   },
   onTabTap(event) {
     const activeTab = event.currentTarget.dataset.tab
     // 【分页】切换 Tab 属于筛选变化：清空文件夹并回到第 1 页
-    this.setFileData({ activeTab, activeFolderId: '', activeFolderName: '', page: 1 })
+    this.setFileData({ activeTab, activeFolderId: '', activeFolderName: '', page: 1, ...(activeTab === '四项激励' ? { keyword: '' } : {}) })
     this.loadFiles({ page: 1 })
   },
   openFolder(event) {

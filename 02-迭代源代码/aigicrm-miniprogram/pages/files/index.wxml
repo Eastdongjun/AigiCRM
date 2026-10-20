@@ -21,11 +21,11 @@
     </view>
   </view>
   <button wx:if="{{canDevUploadSmoke}}" class="btn files-smoke-btn" loading="{{uploading}}" bindtap="runDevUploadSmoke">本地上传自测</button>
-  <view class="search-box"><text class="search-icon">⌕</text><input value="{{keyword}}" bindinput="onKeywordInput" bindconfirm="searchFiles" confirm-type="search" placeholder="搜索文件名或文件夹" /><button class="search-action" bindtap="searchFiles">搜索</button></view>
+  <view class="search-box"><text class="search-icon">⌕</text><input value="{{keyword}}" bindinput="onKeywordInput" bindconfirm="searchFiles" confirm-type="search" placeholder="{{activeTab === '四项激励' ? '搜索文件名 / 客户 / 人员 / 时间' : '搜索文件名或文件夹'}}" /><button class="search-action" bindtap="searchFiles">搜索</button></view>
   <scroll-view scroll-x class="file-tabs" enable-flex>
     <view class="file-tab-list"><view wx:for="{{fileView.tabs}}" wx:key="key" class="file-tab {{item.activeClass}}" data-tab="{{item.key}}" bindtap="onTabTap">{{item.label}}<text class="tab-count">{{item.countText}}</text></view></view>
   </scroll-view>
-  <view class="card files-folder-card">
+  <view wx:if="{{fileView.showFolderCard}}" class="card files-folder-card">
     <view class="folder-title"><text>{{fileView.folderTitle}}</text><button wx:if="{{fileView.showClearFolder}}" class="text-btn" bindtap="clearFolder">返回全部</button><text wx:else class="muted">{{fileView.folderCountText}}</text></view>
     <scroll-view wx:if="{{fileView.showFolderList}}" scroll-x class="folder-scroll" enable-flex>
     <view class="folder-list">
@@ -72,7 +72,7 @@
       <view class="sheet-cancel" catchtap="closeActionSheet">取消</view>
     </view>
   </view>
-  <view wx:if="{{canManageFolder}}" class="files-manage-card">
+  <view wx:if="{{canManageFolder && fileView.showFolderCard}}" class="files-manage-card">
     <view class="files-manage-head"><text>文件夹管理</text><button class="folder-new-action" bindtap="openFolderForm">＋ 新建</button></view>
     <block wx:if="{{fileView.showManageFolders}}">
       <view wx:for="{{fileView.folders}}" wx:key="id" class="folder-manage-row">
