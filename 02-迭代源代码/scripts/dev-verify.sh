@@ -118,7 +118,7 @@ changed_breakdown() {
   changed_files | awk '
     NF {
       total++
-      if ($0 ~ /^aigicrm-backend\/src\/main\/resources\/db\/migration\//) migrations++
+      if ($0 ~ /^aigicrm-backend\/src\/main\/resources\/db\/migration\/V[^\/]+\.sql$/) migrations++
       else if ($0 ~ /^aigicrm-backend\//) backend++
       else if ($0 ~ /^aigicrm-ui\//) frontend++
       else if ($0 ~ /^aigicrm-miniprogram\//) miniprogram++
@@ -145,7 +145,7 @@ untracked_breakdown() {
   untracked_files | awk '
     NF {
       total++
-      if ($0 ~ /^aigicrm-backend\/src\/main\/resources\/db\/migration\//) migrations++
+      if ($0 ~ /^aigicrm-backend\/src\/main\/resources\/db\/migration\/V[^\/]+\.sql$/) migrations++
       else if ($0 ~ /^aigicrm-backend\//) backend++
       else if ($0 ~ /^aigicrm-ui\//) frontend++
       else if ($0 ~ /^aigicrm-miniprogram\//) miniprogram++
@@ -166,7 +166,10 @@ untracked_inventory() {
   echo "  summary: $(untracked_breakdown)"
   untracked_files | awk '
     function category(path) {
-      if (path ~ /^aigicrm-backend\/src\/main\/resources\/db\/migration\//) return "migrations"
+      # 【2026-10-20】migrations 桶=Flyway SQL 迁移文件(与 changed_migrations 列路径同口径);
+      # 迁移目录内的 FROZEN-SHA256.txt 等非 SQL 文件归 backend——此前目录前缀计数会让
+      # check-dev-verify-progress-contract 的"计数>0 必须列出 V*.sql 路径"双向断言在改清单时误红
+      if (path ~ /^aigicrm-backend\/src\/main\/resources\/db\/migration\/V[^\/]+\.sql$/) return "migrations"
       if (path ~ /^aigicrm-backend\//) return "backend"
       if (path ~ /^aigicrm-ui\//) return "frontend"
       if (path ~ /^aigicrm-miniprogram\//) return "miniprogram"

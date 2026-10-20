@@ -313,8 +313,9 @@ def main() -> int:
         # shareFile 的权限显隐钉保留在 check-mobile-file-boundary.sh(if (showShare) sheetActions.push)
         ("···", "openActionSheet", "aigicrm-miniprogram/pages/files/index.wxml"),
         ("＋新客户", "openNewCustomer", "aigicrm-miniprogram/pages/home/index.wxml"),
-        ("♜四项激励", "openIncentive", "aigicrm-miniprogram/pages/home/index.wxml"),
-        ("✓审批管理", "openApproval", "aigicrm-miniprogram/pages/home/index.wxml"),  # 【2026-10-09 钉随代码】UI冲刺文案改"审批管理"带未读角标
+        # 【2026-10-20 钉随代码】首页驾驶舱改版(d5d3c6a6): 快捷项=汉字图标块+标题, 原 ♜/✓ 字形图标退役
+        ("激四项激励", "openIncentive", "aigicrm-miniprogram/pages/home/index.wxml"),
+        ("审审批管理", "openApproval", "aigicrm-miniprogram/pages/home/index.wxml"),
         ("全部提醒 ›", "openReminder", "aigicrm-miniprogram/pages/home/index.wxml"),
         ("打开", "previewAttachment", "aigicrm-miniprogram/pages/incentive/detail/index.wxml"),
         ("下载", "downloadAttachment", "aigicrm-miniprogram/pages/incentive/detail/index.wxml"),
