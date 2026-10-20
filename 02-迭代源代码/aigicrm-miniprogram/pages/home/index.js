@@ -33,6 +33,35 @@ function buildHomeView(state = {}) {
   }
 }
 
+/** 客户结构图：我的客户=总数，保护/即将到期/超期三段互斥，百分比相对总数 */
+function buildOverview(cards) {
+  const list = Array.isArray(cards) ? cards : []
+  const total = Number(list[0] && list[0][0]) || 0
+  const tones = ['primary', 'warn', 'danger']
+  const rows = list.slice(1, 4).map((pair, index) => {
+    const count = Number(pair && pair[0]) || 0
+    const percent = total > 0 ? Math.round((count / total) * 1000) / 10 : 0
+    return {
+      label: (pair && pair[1]) || ['在保护期', '即将到期', '已超期'][index],
+      valueText: String(count),
+      percentText: `${percent}%`,
+      barWidth: `${Math.min(100, percent)}%`,
+      tone: tones[index],
+      showBar: count > 0
+    }
+  })
+  const protection = Number(list[1] && list[1][0]) || 0
+  return {
+    total,
+    totalText: String(total),
+    rows,
+    protectionRate: total > 0 ? Math.round((protection / total) * 100) : 0,
+    warnText: String(Number(list[2] && list[2][0]) || 0),
+    expiredText: String(Number(list[3] && list[3][0]) || 0),
+    todayExpiringText: String(Number(list[4] && list[4][0]) || 0)
+  }
+}
+
 Page({
   data: {
     cards: homeCards,
@@ -47,12 +76,13 @@ Page({
     canViewDashboard: false,
     showDashboardCards: false,
     today: formatToday(),
+    overview: buildOverview(homeCards),
     homeView: buildHomeView({})
   },
 
   applyState(patch) {
     const next = { ...this.data, ...patch }
-    this.setData({ ...patch, homeView: buildHomeView(next) })
+    this.setData({ ...patch, overview: buildOverview(next.cards), homeView: buildHomeView(next) })
   },
 
   onLoad() {
@@ -98,13 +128,13 @@ Page({
 
   loadHomeData() {
     const canViewDashboard = hasPermission('dashboard:view') || hasPermission('statistics:view')
-    this.setData({ canViewDashboard, showDashboardCards: canViewDashboard, cards: [] })
+    this.setData({ canViewDashboard, showDashboardCards: canViewDashboard, cards: [], overview: buildOverview([]) })
     // 【PM4 2026-10-07】各请求收进 tasks 并聚合返回: 下拉刷新(onPullDownRefresh)用它收尾
     // stopPullDownRefresh;各链路自带 catch(错误已在各自分支处理), 聚合结果恒 resolve
     const tasks = []
     if (canViewDashboard) {
       tasks.push(getDashboardData().then((dashboard) => {
-        this.setData({ showDashboardCards: true, cards: [
+        this.applyState({ showDashboardCards: true, cards: [
           [dashboard.myCustomers || 0, '我的客户'],
           [dashboard.inProtection || 0, '在保护期'],
           [dashboard.expiring || 0, '即将到期'],
@@ -206,6 +236,10 @@ Page({
       return
     }
     wx.navigateTo({ url: '/pages/statistics/index' })
+  },
+
+  openAppCenter() {
+    wx.switchTab({ url: '/pages/app/index' })
   },
 
   logout

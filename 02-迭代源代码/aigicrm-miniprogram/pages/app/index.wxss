@@ -1,0 +1,134 @@
+/* 应用中心 2026-10-20 改版：按业务模块分组的卡片墙，替代 9 个入口平铺。
+   统一深蓝 + 浅蓝图标，不再使用彩虹色图标。 */
+
+.app-page { padding-bottom: 56rpx; }
+
+.ap-hero {
+  position: relative;
+  overflow: hidden;
+  border-radius: 30rpx;
+  padding: 32rpx 30rpx;
+  color: #fff;
+  background: linear-gradient(135deg, #0d1733 0%, #16337a 58%, #1d4ed8 100%);
+  box-shadow: 0 22rpx 46rpx rgba(13, 23, 51, .24);
+}
+.ap-hero-glow {
+  position: absolute;
+  top: -140rpx;
+  right: -100rpx;
+  width: 360rpx;
+  height: 360rpx;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(96, 165, 250, .32) 0%, rgba(96, 165, 250, 0) 68%);
+}
+.ap-hero-eyebrow {
+  position: relative;
+  font-size: 17rpx;
+  letter-spacing: 4rpx;
+  color: rgba(255, 255, 255, .52);
+}
+.ap-hero-title {
+  position: relative;
+  margin-top: 10rpx;
+  font-size: 42rpx;
+  font-weight: 800;
+  letter-spacing: 1rpx;
+}
+.ap-hero-sub {
+  position: relative;
+  margin-top: 10rpx;
+  font-size: 22rpx;
+  color: rgba(255, 255, 255, .68);
+}
+.ap-hero-meta {
+  position: relative;
+  margin-top: 22rpx;
+  font-size: 19rpx;
+  color: rgba(255, 255, 255, .52);
+}
+
+.ap-module {
+  margin-top: 24rpx;
+  padding: 26rpx 24rpx 24rpx;
+  border-radius: 24rpx;
+  background: #fff;
+  border: 1rpx solid rgba(210, 220, 235, .7);
+  box-shadow: 0 12rpx 32rpx rgba(35, 57, 96, .06);
+}
+.ap-module-head {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+}
+.ap-module-index {
+  width: 54rpx;
+  height: 54rpx;
+  flex-shrink: 0;
+  border-radius: 14rpx;
+  background: #eef4ff;
+  color: #1d4ed8;
+  font-size: 20rpx;
+  font-weight: 700;
+  letter-spacing: .5rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.ap-module-copy { flex: 1; min-width: 0; }
+.ap-module-title { font-size: 27rpx; font-weight: 800; color: #172033; }
+.ap-module-sub { margin-top: 4rpx; font-size: 19rpx; color: #94a3b8; }
+.ap-module-count { flex-shrink: 0; font-size: 18rpx; color: #94a3b8; }
+
+.ap-grid {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 14rpx;
+  margin-top: 20rpx;
+}
+.ap-tile {
+  width: 48%;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+  padding: 18rpx 16rpx;
+  border-radius: 18rpx;
+  background: #f8fbff;
+  border: 1rpx solid #e7effa;
+}
+.ap-tile-wide { width: 100%; }
+.ap-tile-active { background: #eef4ff; }
+.ap-icon {
+  width: 52rpx;
+  height: 52rpx;
+  flex-shrink: 0;
+  border-radius: 14rpx;
+  background: #eaf2ff;
+  color: #1d4ed8;
+  font-size: 22rpx;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.ap-tile-main { flex: 1; min-width: 0; }
+.ap-tile-title {
+  font-size: 23rpx;
+  font-weight: 700;
+  color: #172033;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ap-tile-sub {
+  margin-top: 5rpx;
+  font-size: 18rpx;
+  color: #94a3b8;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ap-arrow { flex-shrink: 0; font-size: 24rpx; color: #b6c5da; font-weight: 600; }
+
+.ap-empty { margin-top: 24rpx; text-align: center; }

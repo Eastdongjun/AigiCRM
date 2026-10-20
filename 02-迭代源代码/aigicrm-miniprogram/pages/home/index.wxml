@@ -1,56 +1,99 @@
 <view class="page home-page">
-  <view class="home-title-row">
-    <view class="home-title-side"></view>
-    <view class="home-title-center">
-      <view class="home-title">{{appName}}</view>
-      <view class="page-caption">移动客户经营驾驶舱</view>
+  <view class="hm-topbar">
+    <view class="hm-brand">
+      <text class="hm-brand-name">AIGICRM</text>
+      <text class="hm-brand-sub">移动客户经营驾驶舱</text>
     </view>
-    <view class="home-actions">
-      <text class="home-icon" bindtap="openReminder">♧</text>
+    <view class="hm-bell" bindtap="openReminder">
+      <text class="hm-bell-glyph">铃</text>
+      <view wx:if="{{pendingCount}}" class="hm-bell-dot">{{pendingCount}}</view>
     </view>
   </view>
-  <view class="welcome-card">
-    <view class="welcome-glow"></view>
-    <view class="avatar">{{userInitial}}</view>
-    <view class="welcome-copy">
-      <view class="welcome-sub">{{today.greeting}}，欢迎回来</view>
-      <view class="welcome-name">{{userName}}</view>
-      <view class="welcome-meta">{{orgName}} · {{roleName}}</view>
-    </view>
-    <view class="welcome-date">{{today.date}}<text>{{today.weekday}}</text></view>
-  </view>
-  <!-- 【PR-10 前端】我的待办任务摘要(数据来自 loadHomeData 的 taskSummary);
-       小程序端暂无任务列表页, 仅展示待办/逾期数量, 不接跳转入口(避免制造死入口) -->
-  <view wx:if="{{taskSummary}}" class="home-task-summary">
-    <text>{{taskSummary}}</text>
-  </view>
-  <view wx:if="{{showDashboardCards}}" class="grid home-stats">
-    <block wx:for="{{cards}}" wx:key="*this">
-      <view class="card stat-card">
-        <view class="stat-topline"></view>
-        <view class="stat-value">{{item[0]}}<text>家</text></view>
-        <view class="stat-label">{{item[1]}}</view>
+
+  <view class="hm-hero">
+    <view class="hm-hero-glow"></view>
+    <view class="hm-hero-head">
+      <view class="hm-hero-copy">
+        <view class="hm-hero-greet">{{today.greeting}}，{{userName}}</view>
+        <view class="hm-hero-meta">{{orgName}}<text wx:if="{{roleName}}"> · {{roleName}}</text></view>
       </view>
-    </block>
+      <view class="hm-hero-date">{{today.date}}<text>{{today.weekday}}</text></view>
+    </view>
+    <view class="hm-hero-metric">
+      <view class="hm-hero-value">{{overview.totalText}}<text>家</text></view>
+      <view class="hm-hero-label">我的客户</view>
+      <view wx:if="{{overview.total}}" class="hm-hero-rate">保护率 {{overview.protectionRate}}%</view>
+    </view>
+    <view class="hm-hero-chips">
+      <view class="hm-hero-chip"><text class="hm-chip-value">{{overview.warnText}}</text><text class="hm-chip-label">即将到期</text></view>
+      <view class="hm-hero-chip"><text class="hm-chip-value">{{overview.expiredText}}</text><text class="hm-chip-label">已超期</text></view>
+      <view class="hm-hero-chip"><text class="hm-chip-value">{{overview.todayExpiringText}}</text><text class="hm-chip-label">今日到期</text></view>
+    </view>
   </view>
-  <view class="section-heading"><text>快捷入口</text></view>
-  <view class="card quick-grid">
-    <view class="quick-item" bindtap="openNewCustomer"><view class="quick-icon blue">＋</view><text>新客户</text></view>
-    <view class="quick-item" bindtap="openIncentive"><view class="quick-icon cyan">♜</view><text>四项激励</text></view>
-    <view class="quick-item" bindtap="openIncentiveUpload"><view class="quick-icon orange">▣</view><text>四项激励上传</text></view>
-    <view class="quick-item" bindtap="openApproval"><view class="quick-icon green">✓</view><text>审批管理<em wx:if="{{pendingCount}}">{{pendingCount}}</em></text></view>
-    <view class="quick-item" bindtap="openReminder"><view class="quick-icon red">♧</view><text>提醒</text></view>
-    <view class="quick-item" bindtap="openStatistics"><view class="quick-icon purple">▥</view><text>客户统计</text></view>
-  </view>
-  <view class="section-heading"><text>到期预警 <em>{{homeView.expiringCountText}}</em></text><text class="muted" bindtap="openReminder">全部提醒 ›</text></view>
-  <view class="card warning-list">
-    <block wx:for="{{homeView.expiringRows}}" wx:key="viewId">
-      <view class="warning-row" bindtap="openCustomer" data-index="{{index}}">
-        <view class="warning-dot"></view>
-        <view class="warning-copy"><view>{{item.customerName}}</view><text>{{item.ownerExpireText}}</text></view>
-        <text class="warning-days">{{item.remainingText}}</text>
+
+  <view wx:if="{{taskSummary}}" class="hm-task"><text class="hm-task-dot"></text><text>{{taskSummary}}</text></view>
+
+  <view wx:if="{{showDashboardCards}}" class="hm-section">
+    <view class="hm-section-head">
+      <text class="hm-section-title">客户结构</text>
+      <text class="hm-section-sub">按状态分布</text>
+    </view>
+    <view class="card hm-chart">
+      <view wx:for="{{overview.rows}}" wx:key="label" class="hm-chart-row">
+        <view class="hm-chart-label"><text class="hm-chart-dot {{item.tone}}"></text><text>{{item.label}}</text></view>
+        <view class="hm-chart-track"><view class="hm-chart-fill {{item.tone}} {{item.showBar ? 'has-bar' : ''}}" style="width: {{item.barWidth}}"></view></view>
+        <view class="hm-chart-value">{{item.valueText}}<text>{{item.percentText}}</text></view>
       </view>
-    </block>
-    <view wx:if="{{homeView.showExpiringEmpty}}" class="empty-state compact-empty"><view class="empty-icon">✓</view><text>暂无到期预警</text></view>
+    </view>
+  </view>
+
+  <view class="hm-section">
+    <view class="hm-section-head">
+      <text class="hm-section-title">常用功能</text>
+      <text class="hm-link" bindtap="openAppCenter">全部应用 ›</text>
+    </view>
+    <view class="card hm-quick">
+      <view class="hm-quick-item" hover-class="hm-quick-active" bindtap="openNewCustomer">
+        <view class="hm-quick-icon">＋</view><text class="hm-quick-title">新客户</text>
+      </view>
+      <view class="hm-quick-item" hover-class="hm-quick-active" bindtap="openIncentive">
+        <view class="hm-quick-icon">激</view><text class="hm-quick-title">四项激励</text>
+      </view>
+      <view class="hm-quick-item" hover-class="hm-quick-active" bindtap="openIncentiveUpload">
+        <view class="hm-quick-icon">传</view><text class="hm-quick-title">四项激励上传</text>
+      </view>
+      <view class="hm-quick-item" hover-class="hm-quick-active" bindtap="openApproval">
+        <view class="hm-quick-icon">审</view><text class="hm-quick-title">审批管理</text>
+      </view>
+      <view class="hm-quick-item" hover-class="hm-quick-active" bindtap="openReminder">
+        <view class="hm-quick-icon">铃</view><text class="hm-quick-title">提醒</text>
+      </view>
+      <view class="hm-quick-item" hover-class="hm-quick-active" bindtap="openStatistics">
+        <view class="hm-quick-icon">统</view><text class="hm-quick-title">客户统计</text>
+      </view>
+    </view>
+  </view>
+
+  <view class="hm-section">
+    <view class="hm-section-head">
+      <text class="hm-section-title">到期预警</text>
+      <view class="hm-section-right">
+        <text class="hm-section-sub">{{homeView.expiringCountText}} 条</text>
+        <text class="hm-link" bindtap="openReminder">全部提醒 ›</text>
+      </view>
+    </view>
+    <view class="card hm-warnings">
+      <block wx:for="{{homeView.expiringRows}}" wx:key="viewId">
+        <view class="hm-warning" bindtap="openCustomer" data-index="{{index}}">
+          <view class="hm-warning-days">{{item.remainingText}}</view>
+          <view class="hm-warning-copy">
+            <view class="hm-warning-name">{{item.customerName}}</view>
+            <view class="hm-warning-meta">{{item.ownerExpireText}}</view>
+          </view>
+          <view class="hm-warning-arrow">›</view>
+        </view>
+      </block>
+      <view wx:if="{{homeView.showExpiringEmpty}}" class="empty-state compact-empty"><view class="empty-icon">✓</view><text>暂无到期预警</text></view>
+    </view>
   </view>
 </view>

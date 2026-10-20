@@ -52,7 +52,7 @@ grep -Fq '| 工作台 | View dashboard | `GET /api/statistics/dashboard` | `stat
 grep -Fq '| Home | `pages/home/index` | Authenticated plus `dashboard:view` or `statistics:view` for dashboard cards | `/api/auth/info`, `/api/statistics/dashboard`, reminder pending/expiring APIs | Shows user, role, dashboard cards and quick entries when permitted |' "$ROOT/docs/function-permission-matrix.md" || { echo "FAIL: home mobile page matrix row is stale" >&2; exit 1; }
 grep -q 'verify:mobile-shell' "$automator_package" || { echo "FAIL: mobile shell DevTools automator script is not exposed" >&2; exit 1; }
 grep -q 'verifyHomePage' "$automator_script" || { echo "FAIL: mobile shell DevTools automator does not verify home dashboard" >&2; exit 1; }
-grep -q 'stat-card' "$automator_script" || { echo "FAIL: mobile shell DevTools automator does not assert dashboard cards" >&2; exit 1; }
+grep -q 'hm-chart-row' "$automator_script" || { echo "FAIL: mobile shell DevTools automator does not assert dashboard chart rows" >&2; exit 1; }
 grep -q '今日到期' "$automator_script" || { echo "FAIL: mobile shell DevTools automator does not assert today-expiring dashboard metric" >&2; exit 1; }
 grep -q 'home dashboard cards must be hidden without dashboard/statistics permission' "$automator_script" || { echo "FAIL: mobile shell DevTools automator does not assert dashboard permission hiding" >&2; exit 1; }
 grep -q 'mobile-shell-home.png' "$automator_script" || { echo "FAIL: mobile shell DevTools automator does not capture home dashboard evidence" >&2; exit 1; }

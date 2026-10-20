@@ -105,7 +105,7 @@ async function verifyHomePage(miniProgram) {
   const page = await miniProgram.reLaunch('/pages/home/index')
   await page.waitFor(1000)
 
-  await page.setData({
+  await page.callMethod('applyState', {
     appName: 'AIGICRM',
     userName: '张三',
     orgName: '华东办事处',
@@ -126,20 +126,20 @@ async function verifyHomePage(miniProgram) {
   })
   await page.waitFor(500)
 
-  assert((await page.$$('.stat-card')).length === 5, 'home dashboard cards are missing')
-  assert((await page.$$('.quick-item')).length === 6, 'home quick entries are missing')
-  assert((await page.$$('.warning-row')).length === 1, 'home expiring warning row is missing')
+  assert((await page.$$('.hm-chart-row')).length === 3, 'home dashboard chart rows are missing')
+  assert((await page.$$('.hm-quick-item')).length === 6, 'home quick entries are missing')
+  assert((await page.$$('.hm-warning')).length === 1, 'home expiring warning row is missing')
 
   const pageText = [
-    ...(await textList(await page.$$('.home-title'))),
-    ...(await textList(await page.$$('.welcome-card'))),
-    ...(await textList(await page.$$('.stat-card'))),
-    ...(await textList(await page.$$('.quick-item'))),
-    ...(await textList(await page.$$('.warning-row')))
+    ...(await textList(await page.$$('.hm-brand'))),
+    ...(await textList(await page.$$('.hm-hero'))),
+    ...(await textList(await page.$$('.hm-chart'))),
+    ...(await textList(await page.$$('.hm-quick-item'))),
+    ...(await textList(await page.$$('.hm-warning')))
   ].join('\n')
-  // 【2026-09-22 校准】f9b02c22 首页重构后预警行渲染 data/demo.js 夹具(经 homeView 视图模型),
-  // 带 expireDate 的演示客户=山西晋能集团中阳煤业; 旧期望"华东智能制造集团"系脚本未随重构更新(结构断言 6入口/1预警行本就通过)
-  for (const expected of ['AIGICRM', '张三', '我的客户', '今日到期', '新客户', '四项激励', '四项激励上传', '审批中心', '提醒', '客户统计', '山西晋能集团中阳煤业']) {
+  // 【2026-10-20 重锚】首页改为 hero + 客户结构图 + 单色入口 + 预警列表;
+  // 预警行按本测试注入的 expiring 夹具渲染(经 homeView 视图模型)
+  for (const expected of ['AIGICRM', '张三', '我的客户', '今日到期', '新客户', '四项激励', '四项激励上传', '审批管理', '提醒', '客户统计', '华东智能制造集团']) {
     assert(pageText.includes(expected), `home page missing ${expected}`)
   }
 
@@ -161,7 +161,7 @@ async function verifyHomePage(miniProgram) {
     '/pages/reminder/index',
     '/pages/statistics/index',
     '/pages/sea/index',
-    '/pages/customer/detail/index?id=1&from=home'
+    '/pages/customer/detail/index?id=501&from=home'
   ]) {
     assert(navigations.some((item) => item.url === expectedUrl), `home navigation missing ${expectedUrl}: ${JSON.stringify(navigations)}`)
   }
@@ -174,7 +174,7 @@ async function verifyHomePermissionDenials(miniProgram) {
   await page.waitFor(800)
 
   assert(await page.data('showDashboardCards') === false, 'home dashboard cards must be hidden without dashboard/statistics permission')
-  assert((await page.$$('.stat-card')).length === 0, 'home dashboard stat cards must not render without dashboard/statistics permission')
+  assert((await page.$$('.hm-chart-row')).length === 0, 'home dashboard chart rows must not render without dashboard/statistics permission')
 
   await page.callMethod('openIncentiveUpload')
   await page.callMethod('openApproval')
@@ -250,7 +250,7 @@ async function verifyPcOnlyBoundary(miniProgram) {
   await page.waitFor(800)
 
   const apps = await page.data('apps')
-  const appText = (await textList(await page.$$('.app-card'))).join('\n')
+  const appText = (await textList(await page.$$('.ap-tile'))).join('\n')
   const rendered = `${apps.map((item) => `${item.key}:${item.title}:${item.subtitle}`).join('\n')}\n${appText}`
   for (const expected of ['四项激励上传', '四项激励', '分类树、统计、排行与记录']) {
     assert(rendered.includes(expected), `app center missing four-incentive naming ${expected}: ${rendered}`)

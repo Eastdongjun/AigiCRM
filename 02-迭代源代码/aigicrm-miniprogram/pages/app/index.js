@@ -12,14 +12,68 @@ const APP_ICONS = {
   ranking: '榜'
 }
 
+// 半宽卡片里的副标题要能一行放下，完整副标题仍保留在 apps 数据里供无障碍/契约使用。
+const TILE_SUBTITLES = {
+  customer: '客户列表与新增',
+  incentiveUpload: '记录、文件与积分',
+  incentiveQuery: '分类、统计与记录',
+  reminder: '到期与待办提醒',
+  approval: '处理审批事项',
+  sea: '可见公海客户',
+  indicator: '核心指标总览',
+  statistics: '客户、审批与公海',
+  ranking: '激励与客情排行'
+}
+
+// 应用中心按业务模块组织，而不是把 9 个入口平铺成菜单。
+// apps 里放应用 key，构建时按当前账号权限过滤，空模块整块隐藏。
+const APP_MODULES = [
+  { key: 'customer', title: '客户经营', subtitle: '客户资产、排行与核心指标', apps: ['customer', 'ranking', 'indicator'] },
+  { key: 'incentive', title: '四项激励', subtitle: '记录、上传与积分', apps: ['incentiveQuery', 'incentiveUpload'] },
+  { key: 'workflow', title: '流程协同', subtitle: '审批、提醒与公海协作', apps: ['approval', 'reminder', 'sea'] },
+  { key: 'analytics', title: '经营分析', subtitle: '全局统计与趋势', apps: ['statistics'] }
+]
+
+function padIndex(index) {
+  return index < 9 ? `0${index + 1}` : String(index + 1)
+}
+
+/** 奇数额模块的最后一项通栏，避免 2 列网格留下半格空白；单应用模块整行展示 */
+function decorateEntries(entries) {
+  const last = entries.length - 1
+  return entries.map((entry, index) => ({
+    ...entry,
+    wide: entries.length === 1 || (entries.length % 2 === 1 && index === last)
+  }))
+}
+
 function buildAppView(apps) {
   const entries = (apps || []).map((item) => ({
     ...item,
-    iconText: APP_ICONS[item.key] || '•'
+    iconText: APP_ICONS[item.key] || '•',
+    tileSubtitle: TILE_SUBTITLES[item.key] || item.subtitle
   }))
+  const byKey = {}
+  entries.forEach((item) => { byKey[item.key] = item })
+  const groups = APP_MODULES
+    .map((module) => ({
+      key: module.key,
+      title: module.title,
+      subtitle: module.subtitle,
+      entries: decorateEntries(module.apps.map((key) => byKey[key]).filter(Boolean))
+    }))
+    .filter((module) => module.entries.length > 0)
+    .map((module, index) => ({
+      ...module,
+      indexText: padIndex(index),
+      countText: `${module.entries.length} 个应用`
+    }))
   return {
     entries,
-    showEmpty: entries.length === 0
+    groups,
+    showEmpty: entries.length === 0,
+    totalText: String(entries.length),
+    groupText: `${groups.length} 个模块`
   }
 }
 
