@@ -29,9 +29,9 @@
     <view class="folder-title"><text>{{fileView.folderTitle}}</text><button wx:if="{{fileView.showClearFolder}}" class="text-btn" bindtap="clearFolder">返回全部</button><text wx:else class="muted">{{fileView.folderCountText}}</text></view>
     <scroll-view wx:if="{{fileView.showFolderList}}" scroll-x class="folder-scroll" enable-flex>
     <view class="folder-list">
-      <view wx:for="{{fileView.folders}}" wx:key="id" class="folder-card" data-id="{{item.id}}" data-name="{{item.name}}" bindtap="openFolder"><text class="folder-icon">▱</text><text>{{item.name}}</text></view>
-      <view wx:if="{{fileView.showFallbackFolders}}" class="folder-card" data-name="客户文档" bindtap="openFolder"><text class="folder-icon">▱</text><text>客户文档</text></view>
-      <view wx:if="{{fileView.showFallbackFolders}}" class="folder-card" data-name="团队共享" bindtap="openFolder"><text class="folder-icon">▱</text><text>团队共享</text></view>
+      <view wx:for="{{fileView.folders}}" wx:key="id" class="folder-card" data-id="{{item.id}}" data-name="{{item.name}}" bindtap="openFolder"><view class="folder-icon"></view><text>{{item.name}}</text></view>
+      <view wx:if="{{fileView.showFallbackFolders}}" class="folder-card" data-name="客户文档" bindtap="openFolder"><view class="folder-icon"></view><text>客户文档</text></view>
+      <view wx:if="{{fileView.showFallbackFolders}}" class="folder-card" data-name="团队共享" bindtap="openFolder"><view class="folder-icon"></view><text>团队共享</text></view>
       </view>
     </scroll-view>
   </view>
@@ -76,7 +76,7 @@
     <view class="files-manage-head"><text>文件夹管理</text><button class="folder-new-action" bindtap="openFolderForm">＋ 新建</button></view>
     <block wx:if="{{fileView.showManageFolders}}">
       <view wx:for="{{fileView.folders}}" wx:key="id" class="folder-manage-row">
-        <view class="folder-manage-icon">▱</view>
+        <view class="folder-manage-icon"><view class="folder-icon"></view></view>
         <text class="folder-manage-name">{{item.name}}</text>
         <view class="folder-manage-more" data-id="{{item.id}}" data-name="{{item.name}}" data-raw-name="{{item.rawName}}" catchtap="openFolderActions">···</view>
       </view>

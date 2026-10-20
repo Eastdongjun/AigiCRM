@@ -167,4 +167,37 @@
 .folder-manage-name { flex: 1; min-width: 0; color: #334155; font-size: 25rpx; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .folder-manage-more { width: 56rpx; height: 56rpx; flex-shrink: 0; border-radius: 14rpx; background: #f5f8fd; color: #64748b; font-size: 26rpx; display: flex; align-items: center; justify-content: center; letter-spacing: 1rpx; }
 
+/* 2026-10-20 文件夹图标：CSS 画的琥珀色立体文件夹（标签 + 主体 + 高光），替代 ▱ 字符 */
+.folder-icon {
+  position: relative;
+  width: 40rpx;
+  height: 30rpx;
+  flex-shrink: 0;
+  border-radius: 5rpx 7rpx 8rpx 8rpx;
+  background: linear-gradient(180deg, #f8c15d 0%, #e99a2c 100%);
+  box-shadow: 0 4rpx 8rpx rgba(217, 133, 35, .18), inset 0 1rpx 0 rgba(255, 255, 255, .5);
+}
+.folder-icon::before {
+  content: '';
+  position: absolute;
+  top: -7rpx;
+  left: 0;
+  width: 20rpx;
+  height: 12rpx;
+  border-radius: 6rpx 6rpx 0 0;
+  background: #f4b24a;
+}
+.folder-icon::after {
+  content: '';
+  position: absolute;
+  top: 9rpx;
+  left: 0;
+  right: 0;
+  height: 1rpx;
+  background: rgba(255, 255, 255, .32);
+}
+.folder-manage-icon .folder-icon { width: 34rpx; height: 26rpx; }
+.folder-manage-icon .folder-icon::before { width: 17rpx; height: 10rpx; top: -6rpx; }
+
+
 
