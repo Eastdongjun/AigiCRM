@@ -34,7 +34,7 @@ import org.mockito.ArgumentCaptor;
 
 /**
  * 【修复 2026-08-09 复核 B1】all 数据范围用户也不得看到禁用池(status=0)的存量客户。
- * 回归保护: visiblePoolIdsOrNull 不再对 all 返回 null(不过滤),而是返回全部启用池 ID。
+ * 回归保护: visiblePoolIds(2026-10-19 前名 visiblePoolIdsOrNull) 不对 all 返回 null(不过滤),而是返回全部启用池 ID。
  */
 class SeaServiceTest {
 
@@ -94,12 +94,12 @@ class SeaServiceTest {
                 userMapper, deptMapper, configService, customerService,
                 mock(com.aigicrm.module.system.service.SysConfigService.class));
 
-        // page() 内部: visiblePoolIdsOrNull() = [10](启用池), 禁用池 20 被排除
+        // page() 内部: visiblePoolIds() = [10](启用池), 禁用池 20 被排除
         IPage<BizSeaPool> result = seaService.page(1, 15, null, null, null, null, null, null, "available");
         assertEquals(1, result.getRecords().size());
         assertEquals(10L, result.getRecords().get(0).getPoolId());
         // 关键断言: 查询条件含 pool_id IN(启用池过滤生效), 且参数值只有启用池 id 10、无禁用池 20。
-        // 修复前 all 用户 visiblePoolIdsOrNull 返回 null → SQL 无 pool_id IN 条件(禁用池也可见)。
+        // 修复前 all 用户旧名 visiblePoolIdsOrNull 返回 null → SQL 无 pool_id IN 条件(禁用池也可见)。
         @SuppressWarnings("unchecked")
         ArgumentCaptor<LambdaQueryWrapper<BizSeaPool>> captor = ArgumentCaptor.forClass(LambdaQueryWrapper.class);
         verify(poolMapper).selectPage(any(), captor.capture());

@@ -50,18 +50,19 @@ public class SeaService {
     private final SysConfigService configService;
 
     /**
-     * 当前用户可见且启用的公海池ID。
+     * 当前用户可见且启用的公海池ID——【P2-4 2026-10-19】永不返回 null(方法名随 B1 修复对齐:
+     * 原 visiblePoolIdsOrNull 名字承诺"或 null 不过滤"是死契约, 诱导调用点写永假的 null 分支)。
      * 【修复 2026-08-09 复核 B1】不再对 all 数据范围返回 null(不过滤)——否则禁用池(status=0)的
      * 存量客户仍会出现在管理员的公海列表/统计/可捞取,与"禁用池不在业务页展示"语义冲突。
      * all 用户 = 全部启用池(保留其全量可见性,但排除禁用池); 非 all 用户 = 可见且启用池。
      */
-    private List<Long> visiblePoolIdsOrNull() {
+    private List<Long> visiblePoolIds() {
         return seaConfigService.listVisible().stream().map(BizSeaConfig::getId).collect(Collectors.toList());
     }
 
     public IPage<BizSeaPool> page(int current, int size, String industry, Long officeId, String enterReason, String keyword, Long poolId, Long deptId, String status) {
-        List<Long> visiblePoolIds = visiblePoolIdsOrNull();
-        if (visiblePoolIds != null && visiblePoolIds.isEmpty()) {
+        List<Long> visiblePoolIds = visiblePoolIds();
+        if (visiblePoolIds.isEmpty()) {
             return new Page<>(current, size); // 无可见公海池
         }
 
@@ -77,11 +78,9 @@ public class SeaService {
         if (StringUtils.hasText(enterReason)) {
             wrapper.eq(BizSeaPool::getEnterReason, enterReason);
         }
-        if (visiblePoolIds != null) {
-            wrapper.in(BizSeaPool::getPoolId, visiblePoolIds);
-        }
+        wrapper.in(BizSeaPool::getPoolId, visiblePoolIds);
         if (poolId != null) {
-            if (visiblePoolIds != null && !visiblePoolIds.contains(poolId)) {
+            if (!visiblePoolIds.contains(poolId)) {
                 return new Page<>(current, size); // 指定了不可见的池
             }
             wrapper.eq(BizSeaPool::getPoolId, poolId);
@@ -133,8 +132,8 @@ public class SeaService {
 
     public Map<String, Long> statistics() {
         Map<String, Long> stats = new HashMap<>();
-        List<Long> visiblePoolIds = visiblePoolIdsOrNull();
-        if (visiblePoolIds != null && visiblePoolIds.isEmpty()) {
+        List<Long> visiblePoolIds = visiblePoolIds();
+        if (visiblePoolIds.isEmpty()) {
             stats.put("total", 0L);
             stats.put("newThisMonth", 0L);
             stats.put("pendingApproval", 0L);
@@ -151,10 +150,10 @@ public class SeaService {
         return stats;
     }
 
-    /** 构造带可见池范围的查询条件(null 表示不限) */
+    /** 构造带可见池范围的查询条件(入参=visiblePoolIds() 产物, 永不为 null) */
     private LambdaQueryWrapper<BizSeaPool> scoped(List<Long> visiblePoolIds) {
         LambdaQueryWrapper<BizSeaPool> w = new LambdaQueryWrapper<>();
-        if (visiblePoolIds != null) w.in(BizSeaPool::getPoolId, visiblePoolIds);
+        w.in(BizSeaPool::getPoolId, visiblePoolIds);
         return w;
     }
 
@@ -312,8 +311,8 @@ public class SeaService {
         if (!seaConfigService.hasPoolPerm(pool.getPoolId(), SeaConfigService.PERM_DELETE, SecurityUtils.getCurrentUser())) {
             throw new BusinessException(403, "资源不存在或无权访问");
         }
-        List<Long> visiblePoolIds = visiblePoolIdsOrNull();
-        if (visiblePoolIds != null && !visiblePoolIds.contains(pool.getPoolId())) {
+        List<Long> visiblePoolIds = visiblePoolIds();
+        if (!visiblePoolIds.contains(pool.getPoolId())) {
             throw new BusinessException(403, "资源不存在或无权访问");
         }
         // 【审查 biz-3 2026-10-18】不能直接 customerMapper.deleteById 绕过客户删除统一流程

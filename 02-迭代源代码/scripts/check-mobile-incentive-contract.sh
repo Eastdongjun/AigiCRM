@@ -154,20 +154,22 @@ grep -q 'buildCategoryTreeView' "$page" || { echo "FAIL: incentive mobile catego
 grep -q 'buildStatDetailView' "$page" || { echo "FAIL: incentive mobile stats detail WXML state must be normalized in JS" >&2; exit 1; }
 grep -q 'buildReadStatsView' "$page" || { echo "FAIL: incentive mobile read stats WXML state must be normalized in JS" >&2; exit 1; }
 grep -q 'buildReadRankingView' "$page" || { echo "FAIL: incentive mobile read ranking WXML state must be normalized in JS" >&2; exit 1; }
-# 【钉随需求C】展开/收起重设计为分类锚点chips+scrollToGroup(历史默认展开, 无toggle按钮)
-grep -q 'scrollToGroup' "$CUSTDETAIL" || { echo "FAIL: incentive mobile customer detail list cannot expand all records" >&2; exit 1; }
-grep -q 'onChildDetail' "$CUSTDETAIL" || { echo "FAIL: incentive mobile customer detail list cannot open child record detail" >&2; exit 1; }
-grep -q 'markChildRead(index)' "$CUSTDETAIL" || { echo "FAIL: incentive mobile list detail open must mark records read" >&2; exit 1; }
-# 【钉随需求C】旧双index签名 markChildRecordRead 随操作下游退役, customer-detail 用 markChildRead(index) || { echo "FAIL: incentive mobile child detail open must mark child record read" >&2; exit 1; }
+# 【钉随一客一册 2026-10-20】分类锚点chips+scrollToGroup 重设计为"封面→左侧月份时间轴+右侧单条翻页"
+# (对齐 PC 时间轴拨片设计): 时间轴月份选择=selectMonth(data-key)+setCurrentGroup, 翻页=prev/nextRecord
+grep -q 'selectMonth' "$CUSTDETAIL" || { echo "FAIL: incentive mobile customer archive timeline month selection is missing" >&2; exit 1; }
+grep -q 'setCurrentGroup' "$CUSTDETAIL" || { echo "FAIL: incentive mobile customer archive cannot browse records by timeline" >&2; exit 1; }
+grep -q 'openRecordDetail' "$CUSTDETAIL" || { echo "FAIL: incentive mobile customer archive cannot open child record detail" >&2; exit 1; }
+grep -q 'markRecordReadByKey(' "$CUSTDETAIL" || { echo "FAIL: incentive mobile archive detail open must mark records read" >&2; exit 1; }
+# 【钉随需求C】旧双index签名 markChildRecordRead 随操作下游退役, 一客一册用 markRecordReadByKey(key, index)
 grep -q 'appendChildRecord' "$page" || { echo "FAIL: incentive mobile customer detail list cannot append child records" >&2; exit 1; }
 grep -q 'removeChildRecord' "$page" || { echo "FAIL: incentive mobile customer detail list cannot delete child records" >&2; exit 1; }
-# 【钉随需求C】旧 findChildRecordFile 重设计为分组照片墙 findWallFile
-# preview/download 在照片墙 onTileTap/onTileLongPress 里完成
-grep -q 'findWallFile' "$CUSTDETAIL" || { echo "FAIL: incentive mobile customer detail list cannot preview/download child record files" >&2; exit 1; }
+# 【钉随一客一册 2026-10-20】旧 findWallFile 照片墙重设计为"版面照片 previewPhoto+文档附件
+# previewAttachmentByFile"(照片/视频版面内联展示, 附件区只留需点开阅读的文档)
+grep -q 'previewAttachmentByFile' "$CUSTDETAIL" || { echo "FAIL: incentive mobile customer archive cannot preview child record files" >&2; exit 1; }
 grep -q '客户维度明细' "$wxml" || { echo "FAIL: incentive mobile customer detail list is missing" >&2; exit 1; }
 grep -q 'readStatusClass' "$page" || { echo "FAIL: incentive mobile list must expose read status like PC" >&2; exit 1; }
-# 【钉随需求C】readStatusText 随操作下游到 customer-detail(列表页改用 unread-dot 红点)
-grep -q 'readStatusText' "$CUSTDETAIL_WXML" || { echo "FAIL: incentive mobile list read status UI is missing" >&2; exit 1; }
+# 【钉随一客一册 2026-10-20】readStatusText 徽章改为当前记录未读标记(currentRecord.unread cd-unread-tag)
+grep -q 'cd-unread-tag' "$CUSTDETAIL_WXML" || { echo "FAIL: incentive mobile archive read status UI is missing" >&2; exit 1; }
 grep -q 'inline-read-status' "$page" || { echo "FAIL: incentive mobile child records must expose read status like PC" >&2; exit 1; }
 grep -q '.tag-read' "$app_wxss" || { echo "FAIL: incentive mobile read status style is missing" >&2; exit 1; }
 grep -q '搜索客户 / 产品 / 关键字' "$wxml" || { echo "FAIL: incentive mobile keyword query UI is missing" >&2; exit 1; }
@@ -230,14 +232,16 @@ grep -q 'record.fileGroups' "$page" || { echo "FAIL: incentive mobile attachment
 grep -q 'canDeleteRecords' "$page" || { echo "FAIL: incentive mobile list delete permission state is missing" >&2; exit 1; }
 grep -q 'getGrantCheck' "$page" || { echo "FAIL: incentive mobile list does not load delete grant" >&2; exit 1; }
 grep -q 'canEditRecords' "$page" || { echo "FAIL: incentive mobile list edit grant state is missing" >&2; exit 1; }
-grep -q 'showAppendAction' "$CUSTDETAIL" || { echo "FAIL: incentive mobile list append visibility must be normalized in JS" >&2; exit 1; }
-grep -q 'showDeleteAction' "$CUSTDETAIL" || { echo "FAIL: incentive mobile list delete visibility must be normalized in JS" >&2; exit 1; }
+# 【钉随一客一册 2026-10-20】行级 showAppendAction/showDeleteAction 收敛为 onRecordMore
+# 面板内 record.canEdit/canDelete 判定(JS 归一化保留, WXML 不暴露权限)
+grep -q 'record.canEdit' "$CUSTDETAIL" || { echo "FAIL: incentive mobile archive append visibility must be normalized in JS" >&2; exit 1; }
+grep -q 'record.canDelete' "$CUSTDETAIL" || { echo "FAIL: incentive mobile archive delete visibility must be normalized in JS" >&2; exit 1; }
 grep -q 'appendRecord' "$page" || { echo "FAIL: incentive mobile list record append action is missing" >&2; exit 1; }
 # 【钉随需求C】追加跳转(编辑模式)从列表页下沉到 customer-detail(goAppend)
 grep -q "pages/incentive/upload/index?id=" "$CUSTDETAIL" || { echo "FAIL: incentive mobile list append action does not open upload edit mode" >&2; exit 1; }
 grep -q 'removeRecord' "$page" || { echo "FAIL: incentive mobile list record delete action is missing" >&2; exit 1; }
-# 【钉随需求C】删除调用从列表页下沉到 customer-detail(removeChild→deleteRecord(child.id))
-grep -q 'deleteRecord(child.id)' "$CUSTDETAIL" || { echo "FAIL: incentive mobile list record delete does not call delete API" >&2; exit 1; }
+# 【钉随需求C→一客一册】删除调用从列表页下沉到 customer-detail(removeRecord→deleteRecord(record.id))
+grep -q 'deleteRecord(record.id)' "$CUSTDETAIL" || { echo "FAIL: incentive mobile archive record delete does not call delete API" >&2; exit 1; }
 # 【钉随需求C】客户档案跳转从列表页下沉到 customer-detail(onOpenCustomer)
 grep -q 'onOpenCustomer' "$CUSTDETAIL" || { echo "FAIL: incentive mobile list customer archive action is missing" >&2; exit 1; }
 # 【钉随需求C】客户档案路由从列表页下沉到 customer-detail(onOpenCustomer)
@@ -254,22 +258,18 @@ grep -q 'previewLoading' "$page" || { echo "FAIL: incentive mobile list attachme
 grep -q 'record-file-wall' "$wxml" || { echo "FAIL: incentive mobile list attachment UI is missing" >&2; exit 1; }  # 【#4 2026-10-12】佐证照片墙重锚
 grep -q 'record-file-group' "$wxml" || { echo "FAIL: incentive mobile list attachment UI does not render PC slot groups" >&2; exit 1; }
 grep -q 'data-group-index' "$wxml" || { echo "FAIL: incentive mobile list grouped attachment actions lack slot index" >&2; exit 1; }
-# 【钉随需求C】previewAttachment 重设计为照片墙 onTileTap(点图即预览)
-grep -q 'catchtap="onTileTap"' "$CUSTDETAIL_WXML" || { echo "FAIL: incentive mobile list preview UI is missing" >&2; exit 1; }
-# 【钉随需求C】downloadAttachment 重设计为照片墙 onTileLongPress(长按即下载)
-grep -q 'catchlongpress="onTileLongPress"' "$CUSTDETAIL_WXML" || { echo "FAIL: incentive mobile list download UI is missing" >&2; exit 1; }
+# 【钉随一客一册 2026-10-20】照片墙 onTileTap/onTileLongPress 重设计为"版面照片 previewPhoto +
+# 附件区文档 previewAttachment"(照片/视频版面内联, 长按下载入口随档案化退役, 下载能力由
+# fetchRemoteAttachment preview 流内承接: 文档下载后 openDocument)
+grep -q 'bindtap="previewPhoto"' "$CUSTDETAIL_WXML" || { echo "FAIL: incentive mobile archive photo preview UI is missing" >&2; exit 1; }
+grep -q 'bindtap="previewAttachment"' "$CUSTDETAIL_WXML" || { echo "FAIL: incentive mobile archive attachment preview UI is missing" >&2; exit 1; }
+grep -q 'fetchRemoteAttachment' "$CUSTDETAIL" || { echo "FAIL: incentive mobile archive attachments cannot preview via shared util" >&2; exit 1; }
 grep -q 'incentiveView.previewLoading' "$wxml" || { echo "FAIL: incentive mobile list attachment UI must use normalized preview loading" >&2; exit 1; }
 ! grep -q 'loading="{{previewing}}"' "$wxml" || { echo "FAIL: incentive mobile list WXML must not bind raw previewing state directly" >&2; exit 1; }
-# 【钉随需求C】appendRecord 重设计为 customer-detail 吸底 onAppend + onChildMore(⋯面板)
-grep -q 'bindtap="onAppend"' "$CUSTDETAIL_WXML" || { echo "FAIL: incentive mobile list append UI is missing" >&2; exit 1; }
-# 【钉随需求C】removeRecord 重设计为 customer-detail onChildMore(⋯半屏面板内删除)
-grep -q 'catchtap="onChildMore"' "$CUSTDETAIL_WXML" || { echo "FAIL: incentive mobile list delete UI is missing" >&2; exit 1; }
-grep -q 'record.showAppendAction' "$CUSTDETAIL_WXML" || { echo "FAIL: incentive mobile list append UI must use normalized action visibility" >&2; exit 1; }
-# 【钉随需求C】item.* 随重设计改为 record.*(封面卡维度) || { echo "FAIL: incentive mobile list delete UI must use normalized action visibility" >&2; exit 1; }
-# 【钉随需求C】child 操作可见性由 onChildMore(⋯面板)内部 JS 判定, 不再暴露在 WXML
-grep -q 'catchtap="onChildMore"' "$CUSTDETAIL_WXML" || { echo "FAIL: incentive mobile child append UI must use normalized action visibility" >&2; exit 1; }
-# 【钉随需求C】同上——child 操作可见性由 onChildMore 面板 JS 判定
-grep -q 'catchtap="onChildMore"' "$CUSTDETAIL_WXML" || { echo "FAIL: incentive mobile child delete UI must use normalized action visibility" >&2; exit 1; }
+# 【钉随一客一册 2026-10-20】吸底 onAppend/onChildMore(⋯面板) 重设计为记录行尾「···」onRecordMore
+# (详情/追加/删除按 record.canEdit/canDelete 在面板 JS 判定, 不暴露 WXML)
+grep -q 'bindtap="onRecordMore"' "$CUSTDETAIL_WXML" || { echo "FAIL: incentive mobile archive record actions UI is missing" >&2; exit 1; }
+grep -q 'onAppend' "$CUSTDETAIL" || { echo "FAIL: incentive mobile archive append action is missing" >&2; exit 1; }
 ! grep -q 'wx:if="{{item.canEdit}}"' "$wxml" || { echo "FAIL: incentive mobile WXML must not bind raw item edit permission directly" >&2; exit 1; }
 ! grep -q 'wx:if="{{item.canDelete}}"' "$wxml" || { echo "FAIL: incentive mobile WXML must not bind raw item delete permission directly" >&2; exit 1; }
 ! grep -q 'wx:if="{{child.canEdit}}"' "$wxml" || { echo "FAIL: incentive mobile WXML must not bind raw child edit permission directly" >&2; exit 1; }

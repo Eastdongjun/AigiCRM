@@ -68,6 +68,8 @@
           <b>{{record.name}}</b>
           <text>四项激励档案 · {{coverYear}}</text>
         </view>
+        <!-- 需求C 已批准能力: 客户档案跳转入口(档案化重设计曾丢失, 契约钉逮回) -->
+        <button wx:if="{{record.customerId}}" class="cd-customer-chip" bindtap="onOpenCustomer">客户档案 ›</button>
         <button wx:if="{{totalUnread}}" class="cd-unread-chip" bindtap="openUnread">未读 {{totalUnread}} ›</button>
       </view>
 

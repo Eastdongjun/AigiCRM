@@ -793,8 +793,8 @@ public class PermissionMatrixTest {
         } catch (IOException e) {
             throw new IllegalStateException("读取 SeaService 源码失败", e);
         }
-        assertTrue(body.contains("visiblePoolIdsOrNull()"),
-                "SeaService.page/statistics 必须通过 visiblePoolIdsOrNull 收口公海池可见范围");
+        assertTrue(body.contains("visiblePoolIds()"),
+                "SeaService.page/statistics 必须通过 visiblePoolIds 收口公海池可见范围(2026-10-19 P2-4 随 B1 语义重命名, OrNull 死契约清除)");
         assertTrue(body.contains("wrapper.in(BizSeaPool::getPoolId, visiblePoolIds)"),
                 "SeaService.page 必须按可见池列表过滤公海记录");
         assertTrue(body.contains("sp.setCanEdit") && body.contains("SeaConfigService.PERM_EDIT"),

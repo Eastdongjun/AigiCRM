@@ -220,6 +220,19 @@
   line-height: 1.4;
   margin: 0;
 }
+/* 需求C 客户档案跳转入口(与未读 chip 同族, 中性蓝灰) */
+.cd-customer-chip {
+  flex-shrink: 0;
+  border: 1rpx solid rgba(58, 84, 128, .28);
+  background: rgba(58, 84, 128, .07);
+  color: #3a5480;
+  border-radius: 999rpx;
+  padding: 7rpx 16rpx;
+  font-size: 19rpx;
+  font-weight: 700;
+  line-height: 1.4;
+  margin: 0;
+}
 .cd-body { flex: 1; min-height: 0; display: flex; }
 .cd-timeline { width: 176rpx; flex-shrink: 0; height: 100%; background: linear-gradient(90deg, #efe8da, #f7f2e7); border-right: 1rpx solid rgba(133, 108, 64, .14); }
 .cd-timeline-head {
