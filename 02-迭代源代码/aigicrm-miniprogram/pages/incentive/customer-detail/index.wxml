@@ -13,7 +13,6 @@
           <view class="cd-sk cd-sk-chip"></view>
         </view>
         <view class="cd-sk cd-sk-rule"></view>
-        <view class="cd-sk cd-sk-score"></view>
         <view class="cd-sk cd-sk-stats"></view>
         <view class="cd-sk cd-sk-meta"></view>
         <view class="cd-sk cd-sk-quote"></view>
@@ -28,7 +27,7 @@
       <view wx:if="{{coverUnread}}" class="cd-ribbon">未读 {{coverUnread}}</view>
       <view class="cd-cover-body">
         <view class="cd-kicker">FOUR INCENTIVE ARCHIVE</view>
-        <view class="cd-cover-title">{{record.name}}</view>
+        <view class="cd-cover-title">{{coverTitle || record.name}}</view>
         <view class="cd-cover-sub">客户激励档案 · 一客一册</view>
         <view class="cd-chips">
           <text>{{record.industry}}</text>
@@ -36,11 +35,6 @@
           <text>{{coverYear}} 年</text>
         </view>
         <view class="cd-cover-rule"></view>
-        <view class="cd-score-row">
-          <text class="cd-score">{{record.score}}</text>
-          <text class="cd-score-unit">分</text>
-          <text class="cd-score-cap">累计积分</text>
-        </view>
         <view class="cd-cover-stats">
           <view><b>{{record.countText}}</b><text>记录</text></view>
           <view><b>{{groups.length}}</b><text>月份</text></view>
@@ -53,8 +47,11 @@
           <view wx:for="{{coverRecent}}" wx:key="recentKey" class="cd-cover-recent-row">
             <text class="cd-cover-recent-date">{{item.dateText}}</text>
             <text class="cd-cover-recent-cat">{{item.titleText}}</text>
-            <text class="cd-cover-recent-score">{{item.scoreText}}</text>
           </view>
+        </view>
+        <view class="cd-cover-watermark">
+          <text class="cd-cover-watermark-mark">{{coverYear}}</text>
+          <text class="cd-cover-watermark-label">CUSTOMER ARCHIVE</text>
         </view>
         <view class="cd-cover-quote">“{{coverSummary}}”</view>
         <button class="cd-open" bindtap="openArchive">打开档案 →</button>
@@ -65,7 +62,7 @@
       <view class="cd-top">
         <button class="cd-back" bindtap="closeArchive" aria-label="合上档案">←</button>
         <view class="cd-top-main">
-          <b>{{record.name}}</b>
+          <b>{{coverTitle || record.name}}</b>
           <text>四项激励档案 · {{coverYear}}</text>
         </view>
         <!-- 需求C 已批准能力: 客户档案跳转入口(档案化重设计曾丢失, 契约钉逮回) -->

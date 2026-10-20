@@ -81,12 +81,26 @@ function headlineOf(record, category) {
   return stripped && stripped !== category ? stripped : ''
 }
 
-/** 列表接口返回 ISO 时间(2026-09-13T23:22:40), 档案里按 2026-09-13 23:22 展示 */
+/** 接口时间 2026-09-13T23:22:40 → 2026-09-13 23:22；列表接口返回 ISO 时间，档案里统一格式化 */
 function formatDateTime(value) {
   const raw = String(value || '').trim()
   const match = raw.match(/^(\d{4})-(\d{1,2})-(\d{1,2})[T\s](\d{1,2}):(\d{2})/)
   if (match) return `${match[1]}-${pad(match[2])}-${pad(match[3])} ${pad(match[4])}:${match[5]}`
   return raw.replace('T', ' ').slice(0, 16) || '-'
+}
+
+/** 客户名形如「xx公司（陈晓彬）」时，封面标题去掉与负责人重复的括号名；非负责人括号（如「（集团）」）保留 */
+function stripOwnerSuffix(name, owner) {
+  const raw = String(name || '').trim()
+  const person = String(owner || '').trim()
+  if (!raw || !person) return raw
+  const suffixes = [`（${person}）`, `(${person})`]
+  for (let i = 0; i < suffixes.length; i += 1) {
+    if (raw.endsWith(suffixes[i])) {
+      return raw.slice(0, -suffixes[i].length).trim() || raw
+    }
+  }
+  return raw
 }
 
 function decorateRecord(record, index) {
@@ -183,6 +197,7 @@ Page({
     unreadOpen: false,
     unreadRows: [],
     coverYear: '',
+    coverTitle: '',
     coverLatest: '-',
     coverSummary: '',
     coverUnread: 0,
@@ -243,17 +258,17 @@ Page({
         totalUnread,
         coverUnread: totalUnread,
         coverYear: first ? first.year : String(new Date().getFullYear()),
+        coverTitle: stripOwnerSuffix(record.name, record.ownerName || (latest && latest.userName)),
         coverLatest: latest ? latest.dateText : '-',
         coverOwner: record.ownerName || (latest && latest.userName) || '未设置',
         coverCode: record.customerCode || (record.customerId ? `C-${record.customerId}` : `C-${record.id || '-'}`),
         coverRecent: sorted.slice(0, 2).map((item, index) => ({
           recentKey: `${item.monthKey || 'unknown'}-${item.childIndex}-${index}`,
           dateText: item.dateText,
-          titleText: item.titleText,
-          scoreText: item.scoreText
+          titleText: item.titleText
         })),
         coverSummary: latest
-          ? `共 ${record.countText || `${children.length} 条`}记录，最近一次为 ${latest.dateText} ${latest.titleText}，累计 ${record.score || 0} 分。`
+          ? `共 ${record.countText || `${children.length} 条`}记录，最近一次为 ${latest.dateText} ${latest.titleText}。`
           : '尚未建立激励记录，上传第一条佐证后会自动成册。'
       })
       wx.setNavigationBarTitle({ title: '四项激励档案', fail: () => {} })

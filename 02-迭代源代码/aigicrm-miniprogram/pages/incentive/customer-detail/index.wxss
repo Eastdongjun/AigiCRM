@@ -33,7 +33,6 @@
 .cd-sk-chips { display: flex; gap: 14rpx; }
 .cd-sk-chip { width: 120rpx; height: 44rpx; border-radius: 999rpx; }
 .cd-sk-rule { width: 120rpx; height: 2rpx; }
-.cd-sk-score { width: 240rpx; height: 120rpx; }
 .cd-sk-stats { width: 100%; height: 92rpx; }
 .cd-sk-meta { width: 520rpx; height: 20rpx; }
 .cd-sk-quote { width: 100%; height: 120rpx; margin-top: auto; }
@@ -131,10 +130,6 @@
 }
 .cd-chips .cd-chip-solid { background: rgba(236, 229, 214, .9); color: #13255e; border-color: transparent; }
 .cd-cover-rule { margin-top: 42rpx; width: 140rpx; height: 1rpx; background: linear-gradient(90deg, rgba(236, 229, 214, .35), transparent); }
-.cd-score-row { display: flex; align-items: flex-end; gap: 12rpx; margin-top: 28rpx; }
-.cd-score { font-family: "Songti SC", "STSong", serif; font-size: 132rpx; line-height: .86; font-weight: 700; color: #e7dfd0; }
-.cd-score-unit { margin-bottom: 10rpx; font-size: 28rpx; color: rgba(236, 229, 214, .5); }
-.cd-score-cap { margin-bottom: 14rpx; font-size: 18rpx; letter-spacing: .16em; color: rgba(236, 229, 214, .48); font-weight: 600; }
 .cd-cover-stats {
   display: flex;
   margin-top: 34rpx;
@@ -152,7 +147,30 @@
 .cd-cover-recent-row { display: flex; align-items: center; gap: 12rpx; padding: 10rpx 0; border-bottom: 1rpx solid rgba(236, 229, 214, .08); }
 .cd-cover-recent-date { flex-shrink: 0; width: 100rpx; font-family: "Songti SC", "STSong", serif; font-size: 20rpx; color: rgba(236, 229, 214, .7); }
 .cd-cover-recent-cat { flex: 1; min-width: 0; font-size: 19rpx; color: rgba(236, 229, 214, .62); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.cd-cover-recent-score { flex-shrink: 0; font-size: 19rpx; color: #e7dfd0; font-weight: 700; }
+.cd-cover-watermark {
+  position: absolute;
+  right: 34rpx;
+  bottom: 300rpx;
+  z-index: 1;
+  text-align: right;
+  pointer-events: none;
+  opacity: .07;
+}
+.cd-cover-watermark-mark {
+  display: block;
+  font-family: "Songti SC", "STSong", serif;
+  font-size: 250rpx;
+  line-height: .8;
+  font-weight: 700;
+  color: #ece5d6;
+}
+.cd-cover-watermark-label {
+  display: block;
+  margin-top: 10rpx;
+  font-size: 17rpx;
+  letter-spacing: .3em;
+  color: #ece5d6;
+}
 .cd-cover-quote {
   margin-top: auto;
   padding: 20rpx 22rpx;
