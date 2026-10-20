@@ -1,11 +1,12 @@
 <view class="page">
-  <!-- 【用户裁决C 2026-10-13】头部紧凑化: 头像80rpx横排, 岗位并入副标题(原三行竖排偏大, 与其他页hero不齐) -->
+  <!-- 2026-10-20 用户令：去掉姓名首字大头像，姓名/岗位左对齐，右侧只保留登录状态 -->
   <view class="hero profile-hero">
-    <view class="profile-avatar">{{profileView.userInitialText}}</view>
     <view class="profile-hero-main">
+      <view class="profile-hero-overline">当前账号</view>
       <view class="profile-name">{{profileView.userNameText}}</view>
       <view class="hero-sub">{{profileView.heroSubText}}</view>
     </view>
+    <view class="profile-hero-status"><text class="profile-status-dot"></text>已登录</view>
   </view>
   <view wx:if="{{profileView.showGroupCard}}" class="card scope-card">
     <text class="muted">当前集团</text>
