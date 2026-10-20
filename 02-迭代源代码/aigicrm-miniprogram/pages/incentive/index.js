@@ -391,6 +391,10 @@ Page({
     categoryTree: [],
     categoryTreeView: [],
     categoryStats: [],
+    categoryStatsPage: 1,
+    categoryStatsPageSize: 10,
+    categoryStatsTotal: 0,
+    categoryStatsPaged: [],
     statDetail: {
       visible: false,
       loading: false,
@@ -415,14 +419,30 @@ Page({
     loading: false,
     readStats: [],
     readStatsView: [],
+    readStatsPage: 1,
+    readStatsPageSize: 10,
+    readStatsTotal: 0,
+    readStatsPaged: [],
     readRanking: [],
     readRankingView: [],
+    readRankingPage: 1,
+    readRankingPageSize: 10,
+    readRankingTotal: 0,
+    readRankingPaged: [],
     readPeriod: currentMonth(),
     readPeriodOptions: buildReadPeriodOptions(),
     selectedReadPeriodIndex: 0,
     readRankingError: '',
     scoreboard: [],
     deptRanking: [],
+    scoreboardPage: 1,
+    scoreboardPageSize: 10,
+    scoreboardTotal: 0,
+    scoreboardPaged: [],
+    deptPage: 1,
+    deptPageSize: 10,
+    deptTotal: 0,
+    deptPaged: [],
     canViewReadStats: false,
     canViewReadRanking: false,
     canUploadEvidence: false,
@@ -690,7 +710,7 @@ Page({
 
   loadCategoryStats() {
     if (getApp().globalData.demoMode) {
-      this.setData({ categoryStats: [{ id: 'trial', name: '产品试点', count: 2, score: 45 }, { id: 'visit', name: '交流拜访', count: 3, score: 28 }] }, () => this.refreshIncentiveView())
+      this.setData({ categoryStats: [{ id: 'trial', name: '产品试点', count: 2, score: 45 }, { id: 'visit', name: '交流拜访', count: 3, score: 28 }] }, () => { this.refreshIncentiveView(); this.applyCategoryStatsPaging(1, this.data.categoryStatsPageSize) })
       return
     }
     getCategoryStats().then((payload) => {
@@ -710,7 +730,7 @@ Page({
           score: item.totalScore || item.score || 0
         }
       }).filter((item) => item.id !== undefined && item.id !== null && item.id !== '') : []
-      this.setData({ categoryStats }, () => this.refreshIncentiveView())
+      this.setData({ categoryStats }, () => { this.refreshIncentiveView(); this.applyCategoryStatsPaging(1, this.data.categoryStatsPageSize) })
     }).catch((error) => showErrorWithRetry(error, '四项激励统计加载失败', () => this.loadCategoryStats()))
   },
 
@@ -718,14 +738,14 @@ Page({
     if (!this.data.canViewReadStats) return
     if (getApp().globalData.demoMode) {
       const readStats = [{ userId: 1, realName: '张三', readCount: 6, unreadCount: 2 }]
-      this.setData({ readStats, readStatsView: buildReadStatsView(readStats) }, () => this.refreshIncentiveView())
+      this.setData({ readStats, readStatsView: buildReadStatsView(readStats) }, () => { this.refreshIncentiveView(); this.applyReadStatsPaging(1, this.data.readStatsPageSize) })
       return
     }
     getReadStats({ period: this.data.readPeriod }).then((rows) => {
       const readStats = rows || []
-      this.setData({ readStats, readStatsView: buildReadStatsView(readStats) }, () => this.refreshIncentiveView())
+      this.setData({ readStats, readStatsView: buildReadStatsView(readStats) }, () => { this.refreshIncentiveView(); this.applyReadStatsPaging(1, this.data.readStatsPageSize) })
     }).catch((error) => {
-      this.setData({ readStats: [], readStatsView: [] }, () => this.refreshIncentiveView())
+      this.setData({ readStats: [], readStatsView: [], readStatsPaged: [], readStatsTotal: 0 }, () => this.refreshIncentiveView())
       showErrorWithRetry(error, '已读统计加载失败', () => this.loadReadStats())
     })
   },
@@ -740,10 +760,10 @@ Page({
     getReadRanking({ period: this.data.readPeriod }).then((payload) => {
       const rows = payload && (payload.records || payload.rows || payload.list || payload.ranking || payload.data || payload)
       const readRanking = Array.isArray(rows) ? rows : []
-      this.setData({ readRanking, readRankingView: buildReadRankingView(readRanking), readRankingError: '' }, () => this.refreshIncentiveView())
+      this.setData({ readRanking, readRankingView: buildReadRankingView(readRanking), readRankingError: '' }, () => { this.refreshIncentiveView(); this.applyReadRankingPaging(1, this.data.readRankingPageSize) })
     }).catch((error) => {
       // 【I5】失败不再被空 catch 吞掉: 清空旧数据的同时置错误态并给重试入口, 与真实空数据区分
-      this.setData({ readRanking: [], readRankingView: [], readRankingError: '阅读排行加载失败' }, () => this.refreshIncentiveView())
+      this.setData({ readRanking: [], readRankingView: [], readRankingPaged: [], readRankingTotal: 0, readRankingError: '阅读排行加载失败' }, () => this.refreshIncentiveView())
       showErrorWithRetry(error, '阅读排行加载失败', () => this.loadReadRanking())
     })
   },
@@ -767,7 +787,7 @@ Page({
           { id: 1, rank: 1, name: '华东销售部', score: 96, records: 13, categoryCount: 4 },
           { id: 2, rank: 2, name: '北方服务部', score: 72, records: 9, categoryCount: 3 }
         ]
-      }, () => this.refreshIncentiveView())
+      }, () => { this.refreshIncentiveView(); this.applyScoreboardPaging(1, this.data.scoreboardPageSize); this.applyDeptPaging(1, this.data.deptPageSize) })
       return
     }
     Promise.all([
@@ -783,12 +803,12 @@ Page({
       this.setData({
         scoreboard: normalizeScoreRows(scoreRows && (scoreRows.records || scoreRows.rows || scoreRows.list || scoreRows.data || scoreRows), 'customer'),
         deptRanking: normalizeScoreRows(deptRows && (deptRows.records || deptRows.rows || deptRows.list || deptRows.data || deptRows), 'dept')
-      }, () => this.refreshIncentiveView())
+      }, () => { this.refreshIncentiveView(); this.applyScoreboardPaging(1, this.data.scoreboardPageSize); this.applyDeptPaging(1, this.data.deptPageSize) })
     })
   },
 
   openStatDetail(e) {
-    const stat = this.data.categoryStats[e.currentTarget.dataset.index]
+    const stat = this.data.categoryStatsPaged[e.currentTarget.dataset.index]
     if (!stat) return
     this.setData({
       statDetail: {
@@ -859,6 +879,8 @@ Page({
     this.setData({ 'statDetail.visible': false, 'statDetail.records': [], statDetailView: buildStatDetailView(statDetail), previewVideoPath: '' })
   },
 
+  noop() {},
+
   /** 分类统计明细搜索：本地过滤全量明细，输入即筛选并回到第 1 页 */
   onStatDetailKeywordInput(e) {
     const keyword = (e && e.detail && e.detail.value) || ''
@@ -883,10 +905,19 @@ Page({
 
   sort() {
     // 分类筛选统一走 categoryNames 名字集合(picker 单选一项;分类树点击含子分类),
-    // 记录的 category 字段是分类名(子分类名),父分类需按"自身+直接子类名"集合匹配
+    // 客户组卡片上的 category 只是"最近一条"的分类; 命中子记录分类也必须保留该客户组,
+    // 否则点「涂层类」时最近一条是「密封类」的客户会被整组过滤掉(点开显示筛选中却没有条目)。
     const categoryNames = this.data.categoryNames || []
-    let records = this.applyLocalRecordFilters(this.data.allRecords)
-      .filter((item) => !categoryNames.length || categoryNames.indexOf(item.category) !== -1)
+    const childMatches = (item) => {
+      if (!categoryNames.length) return true
+      if (categoryNames.indexOf(item.category) !== -1) return true
+      const children = (this._childRawById && this._childRawById[item.id]) || []
+      return children.some((child) => {
+        const name = child.category || child.categoryName || child.type
+        return name && categoryNames.indexOf(name) !== -1
+      })
+    }
+    let records = this.applyLocalRecordFilters(this.data.allRecords).filter(childMatches)
     // 【setData 瘦身】视图对象直接排序(全部筛选字段在视图顶层), 重建会丢懒加载的子记录明细
     if (this.data.order === 'asc') records.sort((a, b) => (Number(a.score) || 0) - (Number(b.score) || 0))
     if (this.data.order === 'desc') records.sort((a, b) => (Number(b.score) || 0) - (Number(a.score) || 0))
@@ -919,6 +950,58 @@ Page({
     this.applyPaging(Number(detail.page) || 1, Number(detail.pageSize) || this.data.pageSize)
   },
 
+  // 分类统计 / 个人与部门排行 / 阅读统计与排行：均为客户端分页，10/30 一页
+  applyCategoryStatsPaging(page, pageSize) {
+    const paged = paginate(this.data.categoryStats, page, pageSize)
+    this.setData({ categoryStatsPaged: paged.rows, categoryStatsPage: paged.page, categoryStatsPageSize: paged.pageSize, categoryStatsTotal: paged.total })
+  },
+  onCategoryStatsPagerChange(e) {
+    const detail = e.detail || {}
+    const current = this.data.categoryStatsPageSize || 10
+    const size = Number(detail.pageSize) || current
+    this.applyCategoryStatsPaging(size === current ? (Number(detail.page) || 1) : 1, size)
+  },
+  applyScoreboardPaging(page, pageSize) {
+    const paged = paginate(this.data.scoreboard, page, pageSize)
+    this.setData({ scoreboardPaged: paged.rows, scoreboardPage: paged.page, scoreboardPageSize: paged.pageSize, scoreboardTotal: paged.total })
+  },
+  onScoreboardPagerChange(e) {
+    const detail = e.detail || {}
+    const current = this.data.scoreboardPageSize || 10
+    const size = Number(detail.pageSize) || current
+    this.applyScoreboardPaging(size === current ? (Number(detail.page) || 1) : 1, size)
+  },
+  applyDeptPaging(page, pageSize) {
+    const paged = paginate(this.data.deptRanking, page, pageSize)
+    this.setData({ deptPaged: paged.rows, deptPage: paged.page, deptPageSize: paged.pageSize, deptTotal: paged.total })
+  },
+  onDeptPagerChange(e) {
+    const detail = e.detail || {}
+    const current = this.data.deptPageSize || 10
+    const size = Number(detail.pageSize) || current
+    this.applyDeptPaging(size === current ? (Number(detail.page) || 1) : 1, size)
+  },
+  applyReadStatsPaging(page, pageSize) {
+    const paged = paginate(this.data.readStatsView, page, pageSize)
+    this.setData({ readStatsPaged: paged.rows, readStatsPage: paged.page, readStatsPageSize: paged.pageSize, readStatsTotal: paged.total })
+  },
+  onReadStatsPagerChange(e) {
+    const detail = e.detail || {}
+    const current = this.data.readStatsPageSize || 10
+    const size = Number(detail.pageSize) || current
+    this.applyReadStatsPaging(size === current ? (Number(detail.page) || 1) : 1, size)
+  },
+  applyReadRankingPaging(page, pageSize) {
+    const paged = paginate(this.data.readRankingView, page, pageSize)
+    this.setData({ readRankingPaged: paged.rows, readRankingPage: paged.page, readRankingPageSize: paged.pageSize, readRankingTotal: paged.total })
+  },
+  onReadRankingPagerChange(e) {
+    const detail = e.detail || {}
+    const current = this.data.readRankingPageSize || 10
+    const size = Number(detail.pageSize) || current
+    this.applyReadRankingPaging(size === current ? (Number(detail.page) || 1) : 1, size)
+  },
+
   switchTab(e) {
     const activeTab = e.currentTarget.dataset.key || 'records'
     this.setData({ activeTab, tabs: buildTabs(activeTab) }, () => this.refreshIncentiveView())
@@ -936,9 +1019,10 @@ Page({
     this.sort()
   },
 
-  /** 分类树「全部分类」入口：清除分类筛选 */
+  /** 分类树「全部分类」入口：清除分类筛选并回到客户记录 */
   onCategoryAllTap() {
     this.applyCategoryFilter('全部')
+    this.switchTab({ currentTarget: { dataset: { key: 'records' } } })
   },
 
   // 【真机UAT修复 2026-09-22】分类树行点击筛选:选中该分类(父分类含直接子类名集合),
@@ -948,6 +1032,7 @@ Page({
     if (!node || !node.name) return
     if (this.data.category === node.name) {
       this.applyCategoryFilter('全部')
+      this.switchTab({ currentTarget: { dataset: { key: 'records' } } })
       return
     }
     const names = [node.name]
@@ -956,6 +1041,8 @@ Page({
     })
     this.setData({ category: node.name, categoryNames: names }, () => this.refreshIncentiveView())
     this.sort()
+    // 筛完直接落到客户记录 tab，用户能立刻看到对应条目，而不是停在树上只有「筛选中」标签
+    this.switchTab({ currentTarget: { dataset: { key: 'records' } } })
   },
 
   chooseUser(e) {

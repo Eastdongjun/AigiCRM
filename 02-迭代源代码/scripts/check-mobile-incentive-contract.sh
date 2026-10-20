@@ -218,7 +218,7 @@ grep -q 'downloadStatDetailAttachment' "$page" || { echo "FAIL: incentive mobile
 grep -q 'getDownloadUrl' "$page" || { echo "FAIL: incentive mobile list/stat attachments must use normalized download URLs" >&2; exit 1; }
 grep -q '统计明细加载失败' "$page" || { echo "FAIL: incentive mobile stats detail failure feedback is missing" >&2; exit 1; }
 grep -q 'stat-drill-row' "$wxml" || { echo "FAIL: incentive mobile category stats rows are not drillable" >&2; exit 1; }
-grep -q 'stats-detail-panel' "$wxml" || { echo "FAIL: incentive mobile stats detail panel UI is missing" >&2; exit 1; }
+grep -q 'stats-detail-sheet' "$wxml" || { echo "FAIL: incentive mobile stats detail drawer UI is missing" >&2; exit 1; }
 grep -q 'stats-detail-customer' "$wxml" || { echo "FAIL: incentive mobile stats detail customer column is missing" >&2; exit 1; }
 grep -q 'stats-detail-sub' "$wxml" || { echo "FAIL: incentive mobile stats detail uploader/time metadata is missing" >&2; exit 1; }
 grep -q 'previewStatDetailAttachment' "$wxml" || { echo "FAIL: incentive mobile stats detail preview UI is missing" >&2; exit 1; }

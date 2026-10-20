@@ -57,7 +57,7 @@
   </view>
   <video wx:if="{{previewVideoPath}}" src="{{previewVideoPath}}" controls class="file-preview-video"></video>
   <!-- 【分页 2026-10-18】最近文件改为显式分页（10/30 条一页），翻页/切换每页条数走 pager 事件 -->
-  <pager page="{{page}}" pageSize="{{pageSize}}" total="{{total}}" loading="{{fileView.pagerLoading}}" bind:change="onPagerChange" />
+  <pager wx:if="{{total > 10}}" page="{{page}}" pageSize="{{pageSize}}" total="{{total}}" loading="{{fileView.pagerLoading}}" bind:change="onPagerChange" />
   <view wx:if="{{fileView.showEmpty}}" class="empty-state"><text class="empty-icon">⌁</text><text>暂未找到匹配文件</text></view>
   <!-- 【需求A 2026-10-16】操作面板: 行尾「···」或长按呼出, 打开/下载/分享/替换/删除按权限显隐 -->
   <view wx:if="{{actionSheet.visible}}" class="sheet-mask" catchtap="closeActionSheet">
@@ -73,15 +73,12 @@
     </view>
   </view>
   <view wx:if="{{canManageFolder}}" class="files-manage-card">
-    <view class="files-manage-head"><text>文件夹管理</text><button class="folder-new-action" bindtap="openFolderForm">新建</button></view>
+    <view class="files-manage-head"><text>文件夹管理</text><button class="folder-new-action" bindtap="openFolderForm">＋ 新建</button></view>
     <block wx:if="{{fileView.showManageFolders}}">
-      <view wx:for="{{fileView.folders}}" wx:key="id" class="files-manage-row">
-        <text>{{item.name}}</text>
-        <view>
-          <button wx:if="{{canViewFolderAcl}}" class="text-btn" data-id="{{item.id}}" data-name="{{item.name}}" bindtap="viewFolderAcl">权限</button>
-          <button class="text-btn" data-id="{{item.id}}" data-name="{{item.name}}" data-raw-name="{{item.rawName}}" bindtap="openFolderEdit">重命名</button>
-          <button class="text-btn danger-text" data-id="{{item.id}}" data-name="{{item.name}}" bindtap="removeFolder">删除</button>
-        </view>
+      <view wx:for="{{fileView.folders}}" wx:key="id" class="folder-manage-row">
+        <view class="folder-manage-icon">▱</view>
+        <text class="folder-manage-name">{{item.name}}</text>
+        <view class="folder-manage-more" data-id="{{item.id}}" data-name="{{item.name}}" data-raw-name="{{item.rawName}}" catchtap="openFolderActions">···</view>
       </view>
     </block>
     <view wx:if="{{fileView.showManageEmpty}}" class="muted">暂无可管理文件夹</view>

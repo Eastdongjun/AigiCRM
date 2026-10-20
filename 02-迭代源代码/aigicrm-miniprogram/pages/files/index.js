@@ -738,6 +738,24 @@ Page({
       }
     })
   },
+  openFolderActions(event) {
+    const dataset = event.currentTarget.dataset || {}
+    const actions = []
+    if (this.data.canViewFolderAcl) actions.push({ key: 'acl', label: '权限设置' })
+    actions.push({ key: 'rename', label: '重命名' })
+    actions.push({ key: 'delete', label: '删除' })
+    wx.showActionSheet({
+      itemList: actions.map((item) => item.label),
+      success: (result) => {
+        const action = actions[result.tapIndex]
+        if (!action) return
+        const forwarded = { currentTarget: { dataset } }
+        if (action.key === 'acl') this.viewFolderAcl(forwarded)
+        if (action.key === 'rename') this.openFolderEdit(forwarded)
+        if (action.key === 'delete') this.removeFolder(forwarded)
+      }
+    })
+  },
   openFolderEdit(event) {
     // 【F1】只提交真实名(rawName): 列表 name 可能带「· 」层级前缀, 前缀仅用于视图
     const dataset = event.currentTarget.dataset || {}

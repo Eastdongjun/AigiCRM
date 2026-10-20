@@ -97,7 +97,7 @@
       </view>
     </block>
     <view class="incentive-pager">
-      <pager page="{{page}}" pageSize="{{pageSize}}" total="{{pagerTotal}}" loading="{{incentiveView.pagerLoading}}" bind:change="onPagerChange" />
+      <pager wx:if="{{pagerTotal > 10}}" page="{{page}}" pageSize="{{pageSize}}" total="{{pagerTotal}}" loading="{{incentiveView.pagerLoading}}" bind:change="onPagerChange" />
     </view>
     <view wx:if="{{incentiveView.showRecordEmpty}}" class="card muted">暂无四项激励记录</view>
     <video wx:if="{{previewVideoPath}}" src="{{previewVideoPath}}" controls class="record-file-video"></video>
@@ -142,28 +142,32 @@
     <view class="stats-row">
       <text>未读客户</text><text>{{summary.unread}}</text>
     </view>
-    <view wx:for="{{categoryStats}}" wx:key="name" class="stats-row stat-drill-row" data-index="{{index}}" bindtap="openStatDetail">
+    <view wx:for="{{categoryStatsPaged}}" wx:key="name" class="stats-row stat-drill-row" data-index="{{index}}" bindtap="openStatDetail">
       <view>
         <view class="stat-name">{{item.name}}</view>
         <view wx:if="{{item.parentName}}" class="stat-parent">{{item.parentName}}</view>
       </view>
       <view class="stat-value">{{item.count}} 文件 / {{item.score}} 分 ›</view>
     </view>
+    <pager wx:if="{{categoryStatsTotal > 10}}" page="{{categoryStatsPage}}" pageSize="{{categoryStatsPageSize}}" total="{{categoryStatsTotal}}" loading="{{incentiveView.pagerLoading}}" bind:change="onCategoryStatsPagerChange" />
     <view wx:if="{{incentiveView.showCategoryStatsEmpty}}" class="muted">暂无统计</view>
-    <view wx:if="{{statDetail.visible}}" class="stats-detail-panel">
-      <view class="section-row">
-        <view>
-          <view class="section-title no-margin">{{statDetail.name}} 明细</view>
-          <view class="stats-detail-meta">{{statDetailView.metaText}}</view>
+    <view wx:if="{{statDetail.visible}}" class="stats-detail-mask" catchtap="closeStatDetail">
+      <view class="stats-detail-sheet" catchtap="noop">
+        <view class="stats-sheet-handle"></view>
+        <view class="stats-detail-sheet-head">
+          <view>
+            <view class="stats-detail-sheet-title">{{statDetail.name}} 明细</view>
+            <view class="stats-detail-meta">{{statDetailView.metaText}}</view>
+          </view>
+          <button class="mini-action secondary" bindtap="closeStatDetail">收起</button>
         </view>
-        <button class="mini-action secondary" bindtap="closeStatDetail">收起</button>
-      </view>
-      <view class="stats-detail-search">
-        <text class="stats-detail-search-icon">⌕</text>
-        <input value="{{statDetail.keyword}}" bindinput="onStatDetailKeywordInput" confirm-type="search" bindconfirm="onStatDetailKeywordInput" placeholder="搜索客户 / 人员 / 备注" />
-        <text wx:if="{{statDetail.keyword}}" class="stats-detail-clear" bindtap="clearStatDetailKeyword">清空</text>
-      </view>
-      <view wx:if="{{statDetail.loading}}" class="muted compact-muted">明细加载中...</view>
+        <view class="stats-detail-search">
+          <text class="stats-detail-search-icon">⌕</text>
+          <input value="{{statDetail.keyword}}" bindinput="onStatDetailKeywordInput" confirm-type="search" bindconfirm="onStatDetailKeywordInput" placeholder="搜索客户 / 人员 / 备注" />
+          <text wx:if="{{statDetail.keyword}}" class="stats-detail-clear" bindtap="clearStatDetailKeyword">清空</text>
+        </view>
+        <scroll-view scroll-y class="stats-detail-scroll">
+          <view wx:if="{{statDetail.loading}}" class="muted compact-muted">明细加载中...</view>
       <block wx:for="{{statDetailView.pagedRecords}}" wx:for-item="detail" wx:key="id">
         <view class="stats-detail-card">
           <view class="stats-detail-head">
@@ -204,6 +208,8 @@
       </block>
       <pager wx:if="{{statDetailView.total > 0}}" page="{{statDetailView.page}}" pageSize="{{statDetailView.pageSize}}" total="{{statDetailView.total}}" loading="{{statDetailView.loading}}" bind:change="onStatDetailPagerChange" />
       <view wx:if="{{statDetailView.showEmpty}}" class="muted compact-muted">{{statDetailView.emptyText}}</view>
+        </scroll-view>
+      </view>
     </view>
   </view>
 
@@ -213,7 +219,7 @@
         <view class="section-title no-margin">个人积分榜</view> <!-- 【工作流复核确认修复】数据源为按人员聚合的 scoreboard, 原名"客户积分榜"名实不符 -->
         <button class="stats-refresh-btn" bindtap="loadScoreboard">↻</button>
       </view>
-      <block wx:for="{{scoreboard}}" wx:key="id">
+      <block wx:for="{{scoreboardPaged}}" wx:key="id">
         <view class="score-row">
           <view class="score-rank">{{item.rank}}</view>
           <view class="score-main">
@@ -223,11 +229,12 @@
           <view class="score-value">{{item.scoreText}}</view>
         </view>
       </block>
+      <pager wx:if="{{scoreboardTotal > 10}}" page="{{scoreboardPage}}" pageSize="{{scoreboardPageSize}}" total="{{scoreboardTotal}}" loading="{{incentiveView.pagerLoading}}" bind:change="onScoreboardPagerChange" />
       <view wx:if="{{incentiveView.showScoreboardEmpty}}" class="muted">暂无个人积分排行</view>
     </view>
     <view class="card ranking-panel">
       <view class="section-title">部门排行</view>
-      <block wx:for="{{deptRanking}}" wx:key="id">
+      <block wx:for="{{deptPaged}}" wx:key="id">
         <view class="score-row">
           <view class="score-rank dept">{{item.rank}}</view>
           <view class="score-main">
@@ -237,6 +244,7 @@
           <view class="score-value">{{item.scoreText}}</view>
         </view>
       </block>
+      <pager wx:if="{{deptTotal > 10}}" page="{{deptPage}}" pageSize="{{deptPageSize}}" total="{{deptTotal}}" loading="{{incentiveView.pagerLoading}}" bind:change="onDeptPagerChange" />
       <view wx:if="{{incentiveView.showDeptRankingEmpty}}" class="muted">暂无部门排行</view>
     </view>
   </view>
@@ -253,16 +261,18 @@
         <view class="section-title no-margin">阅读统计</view>
         <button class="stats-refresh-btn" bindtap="loadReadStats">↻</button>
       </view>
-      <block wx:for="{{readStatsView}}" wx:key="userId">
+      <block wx:for="{{readStatsPaged}}" wx:key="userId">
         <view class="stat-row"><text>{{item.rankText}}</text><text>{{item.countText}}</text></view>
       </block>
+      <pager wx:if="{{readStatsTotal > 10}}" page="{{readStatsPage}}" pageSize="{{readStatsPageSize}}" total="{{readStatsTotal}}" loading="{{incentiveView.pagerLoading}}" bind:change="onReadStatsPagerChange" />
       <view wx:if="{{incentiveView.showReadStatsEmpty}}" class="muted compact-muted">暂无统计</view>
     </view>
     <view wx:if="{{incentiveView.showReadRankingPanel}}" class="card read-panel">
       <view class="section-title">阅读排行</view>
-      <block wx:for="{{readRankingView}}" wx:key="userId">
+      <block wx:for="{{readRankingPaged}}" wx:key="userId">
         <view class="stat-row"><text>{{item.rankText}}</text><text>{{item.countText}}</text></view>
       </block>
+      <pager wx:if="{{readRankingTotal > 10}}" page="{{readRankingPage}}" pageSize="{{readRankingPageSize}}" total="{{readRankingTotal}}" loading="{{incentiveView.pagerLoading}}" bind:change="onReadRankingPagerChange" />
       <!-- 【I5】请求失败≠没有数据: 失败给错误态+重试, 空态只在成功且无数据时出现 -->
       <view wx:if="{{incentiveView.showReadRankingError}}" class="muted">阅读排行加载失败，<text bindtap="loadReadRanking">点击重试</text></view>
       <view wx:if="{{incentiveView.showReadRankingEmpty}}" class="muted">暂无排行</view>

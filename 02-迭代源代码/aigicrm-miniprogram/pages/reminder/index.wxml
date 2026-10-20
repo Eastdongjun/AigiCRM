@@ -56,7 +56,7 @@
   </block>
 
   <!-- 【分页 2026-10-18】显式分页条：10/30 条每页，替代触底加载更多 -->
-  <pager page="{{page}}" pageSize="{{pageSize}}" total="{{total}}" loading="{{reminderView.pagerLoading}}" bind:change="onPagerChange" />
+  <pager wx:if="{{total > 10}}" page="{{page}}" pageSize="{{pageSize}}" total="{{total}}" loading="{{reminderView.pagerLoading}}" bind:change="onPagerChange" />
 
   <view wx:if="{{reminderView.showEmpty}}" class="card empty-state compact-empty">
     <view class="empty-icon">✓</view>

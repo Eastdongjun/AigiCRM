@@ -91,6 +91,14 @@
 .stat-parent{margin-top:6rpx;color:#7c8ba1;font-size:21rpx}
 .stat-value{color:#2563eb;font-size:24rpx;font-weight:800;text-align:right;white-space:nowrap}
 .stats-detail-panel{margin-top:18rpx;padding-top:18rpx;border-top:1rpx solid #e7eef8}
+/* 2026-10-20 统计明细改为底部抽屉：不再把明细插在统计列表下方，避免上下来回滚动 */
+.stats-detail-mask{position:fixed;left:0;right:0;top:0;bottom:0;z-index:60;display:flex;align-items:flex-end;background:rgba(15,23,42,.42)}
+.stats-detail-sheet{width:100%;height:82vh;max-height:82vh;box-sizing:border-box;display:flex;flex-direction:column;padding:18rpx 28rpx calc(110rpx + env(safe-area-inset-bottom));border-radius:28rpx 28rpx 0 0;background:#fff}
+.stats-sheet-handle{width:64rpx;height:6rpx;margin:0 auto 18rpx;flex-shrink:0;border-radius:999rpx;background:#d5e0ef}
+.stats-detail-sheet-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16rpx;flex-shrink:0}
+.stats-detail-sheet-title{color:#172033;font-size:30rpx;font-weight:800}
+.stats-detail-sheet-head .mini-action{flex-shrink:0;margin-top:2rpx}
+.stats-detail-scroll{flex:1;min-height:0;margin-top:6rpx}
 .stats-detail-panel .section-row{display:flex;align-items:flex-start;justify-content:space-between;gap:16rpx}
 .stats-detail-panel .section-row .mini-action{flex-shrink:0;margin-top:2rpx}
 .stats-detail-meta{margin-top:6rpx;color:#7c8ba1;font-size:22rpx}

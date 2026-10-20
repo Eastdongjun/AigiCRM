@@ -40,7 +40,7 @@
     </view>
   </block>
   <!-- 【分页 2026-10-18】显式分页条：10/30 条每页，替代触底加载更多 -->
-  <pager page="{{page}}" pageSize="{{pageSize}}" total="{{total}}" loading="{{customerView.pagerLoading}}" bind:change="onPagerChange" />
+  <pager wx:if="{{total > 10}}" page="{{page}}" pageSize="{{pageSize}}" total="{{total}}" loading="{{customerView.pagerLoading}}" bind:change="onPagerChange" />
   <!-- 悬浮「＋」固定在右下，分页条滑到底时会被压住页码；留出安全区 -->
   <view class="customer-pager-gap"></view>
   <view wx:if="{{customerView.showEmpty}}" class="empty-state card"><view class="empty-icon">⌕</view><text>暂无匹配客户</text></view>

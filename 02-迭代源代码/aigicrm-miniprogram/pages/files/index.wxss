@@ -160,3 +160,11 @@
 }
 .files-top-hint { margin-top: 8rpx; font-size: 18rpx; color: rgba(255, 255, 255, .5); }
 
+/* 2026-10-20 文件夹管理：从「一行三个小按钮」改为紧凑行 + ··· 操作菜单 */
+.folder-manage-row { display: flex; align-items: center; gap: 14rpx; padding: 18rpx 0; border-top: 1rpx solid #eef2f7; }
+.folder-manage-row:first-of-type { border-top: 0; }
+.folder-manage-icon { width: 48rpx; height: 48rpx; flex-shrink: 0; border-radius: 14rpx; background: #fff7e8; color: #d98523; font-size: 24rpx; display: flex; align-items: center; justify-content: center; }
+.folder-manage-name { flex: 1; min-width: 0; color: #334155; font-size: 25rpx; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.folder-manage-more { width: 56rpx; height: 56rpx; flex-shrink: 0; border-radius: 14rpx; background: #f5f8fd; color: #64748b; font-size: 26rpx; display: flex; align-items: center; justify-content: center; letter-spacing: 1rpx; }
+
+

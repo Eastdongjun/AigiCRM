@@ -41,7 +41,7 @@
       </view>
     </view>
   </block>
-  <pager page="{{page}}" pageSize="{{pageSize}}" total="{{total}}" loading="{{seaView.showLoading}}" bind:change="onPagerChange" />
+  <pager wx:if="{{total > 10}}" page="{{page}}" pageSize="{{pageSize}}" total="{{total}}" loading="{{seaView.showLoading}}" bind:change="onPagerChange" />
   <view wx:if="{{seaView.showEmpty}}" class="card muted">暂无公海客户</view>
   <view class="card sea-claim-card">
     <view class="row">
