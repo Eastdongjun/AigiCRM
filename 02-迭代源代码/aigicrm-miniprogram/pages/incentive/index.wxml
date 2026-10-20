@@ -158,8 +158,13 @@
         </view>
         <button class="mini-action secondary" bindtap="closeStatDetail">收起</button>
       </view>
+      <view class="stats-detail-search">
+        <text class="stats-detail-search-icon">⌕</text>
+        <input value="{{statDetail.keyword}}" bindinput="onStatDetailKeywordInput" confirm-type="search" bindconfirm="onStatDetailKeywordInput" placeholder="搜索客户 / 人员 / 备注" />
+        <text wx:if="{{statDetail.keyword}}" class="stats-detail-clear" bindtap="clearStatDetailKeyword">清空</text>
+      </view>
       <view wx:if="{{statDetail.loading}}" class="muted compact-muted">明细加载中...</view>
-      <block wx:for="{{statDetail.records}}" wx:for-item="detail" wx:for-index="detailIndex" wx:key="id">
+      <block wx:for="{{statDetailView.pagedRecords}}" wx:for-item="detail" wx:key="id">
         <view class="stats-detail-card">
           <view class="stats-detail-head">
             <view>
@@ -177,19 +182,19 @@
               </view>
               <view class="wall-grid">
                 <view wx:for="{{group.files}}" wx:for-item="file" wx:for-index="wallFileIdx" wx:key="id" class="wall-tile">
-                  <image wx:if="{{file.type === 'image' && file.id}}" class="wall-thumb" src="{{thumb.thumbSrc(file, apiBase, dlToken)}}" mode="aspectFill" lazy-load="{{true}}" catchtap="previewStatDetailAttachment" data-detail-index="{{detailIndex}}" data-group-index="{{group.groupIndex}}" data-file-index="{{file.fileIndex}}" />
-                  <view wx:elif="{{file.type === 'video'}}" class="wall-video-face" catchtap="previewStatDetailAttachment" data-detail-index="{{detailIndex}}" data-group-index="{{group.groupIndex}}" data-file-index="{{file.fileIndex}}">
+                  <image wx:if="{{file.type === 'image' && file.id}}" class="wall-thumb" src="{{thumb.thumbSrc(file, apiBase, dlToken)}}" mode="aspectFill" lazy-load="{{true}}" catchtap="previewStatDetailAttachment" data-detail-index="{{detail.sourceIndex}}" data-group-index="{{group.groupIndex}}" data-file-index="{{file.fileIndex}}" />
+                  <view wx:elif="{{file.type === 'video'}}" class="wall-video-face" catchtap="previewStatDetailAttachment" data-detail-index="{{detail.sourceIndex}}" data-group-index="{{group.groupIndex}}" data-file-index="{{file.fileIndex}}">
                     <view class="wall-play-icon">▶</view>
                     <text class="wall-face-name">{{file.name}}</text>
                   </view>
-                  <view wx:else class="wall-doc-face" catchtap="previewStatDetailAttachment" data-detail-index="{{detailIndex}}" data-group-index="{{group.groupIndex}}" data-file-index="{{file.fileIndex}}">
+                  <view wx:else class="wall-doc-face" catchtap="previewStatDetailAttachment" data-detail-index="{{detail.sourceIndex}}" data-group-index="{{group.groupIndex}}" data-file-index="{{file.fileIndex}}">
                     <text class="wall-doc-type">{{file.typeText}}</text>
                     <text class="wall-face-name">{{file.name}}</text>
                   </view>
                   <text wx:if="{{file.showTag}}" class="wall-tag" style="color: {{file.tagColor}}; border-color: {{file.tagColor}};">{{file.tagText}}</text>
                   <view class="wall-acts">
-                    <button class="wall-act-btn" loading="{{incentiveView.previewLoading}}" catchtap="previewStatDetailAttachment" data-detail-index="{{detailIndex}}" data-group-index="{{group.groupIndex}}" data-file-index="{{file.fileIndex}}">打开</button>
-                    <button class="wall-act-btn secondary" catchtap="downloadStatDetailAttachment" data-detail-index="{{detailIndex}}" data-group-index="{{group.groupIndex}}" data-file-index="{{file.fileIndex}}">下载</button>
+                    <button class="wall-act-btn" loading="{{incentiveView.previewLoading}}" catchtap="previewStatDetailAttachment" data-detail-index="{{detail.sourceIndex}}" data-group-index="{{group.groupIndex}}" data-file-index="{{file.fileIndex}}">打开</button>
+                    <button class="wall-act-btn secondary" catchtap="downloadStatDetailAttachment" data-detail-index="{{detail.sourceIndex}}" data-group-index="{{group.groupIndex}}" data-file-index="{{file.fileIndex}}">下载</button>
                   </view>
                 </view>
               </view>
@@ -197,7 +202,8 @@
           </view>
         </view>
       </block>
-      <view wx:if="{{statDetailView.showEmpty}}" class="muted compact-muted">该分类暂无激励明细</view>
+      <pager wx:if="{{statDetailView.total > 0}}" page="{{statDetailView.page}}" pageSize="{{statDetailView.pageSize}}" total="{{statDetailView.total}}" loading="{{statDetailView.loading}}" bind:change="onStatDetailPagerChange" />
+      <view wx:if="{{statDetailView.showEmpty}}" class="muted compact-muted">{{statDetailView.emptyText}}</view>
     </view>
   </view>
 

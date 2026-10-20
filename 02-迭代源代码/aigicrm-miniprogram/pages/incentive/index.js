@@ -121,12 +121,51 @@ function buildCategoryTreeView(rows) {
   }))
 }
 
+function filterStatDetailRecords(records, keyword) {
+  const list = Array.isArray(records) ? records : []
+  const kw = String(keyword || '').trim().toLowerCase()
+  if (!kw) return list
+  return list.filter((item) => {
+    const hay = `${item.customerName || ''} ${item.userName || ''} ${item.remarkText || ''} ${item.categoryName || ''}`
+    return hay.toLowerCase().indexOf(kw) >= 0
+  })
+}
+
+function paginateStatDetailRecords(records, page, pageSize) {
+  const list = Array.isArray(records) ? records : []
+  const size = pageSize > 0 ? pageSize : 10
+  const total = list.length
+  const totalPages = Math.max(1, Math.ceil(total / size))
+  const safePage = Math.min(Math.max(1, page || 1), totalPages)
+  const start = (safePage - 1) * size
+  return {
+    // sourceIndex 指向完整 records，附件预览/下载仍按全量数组取数
+    rows: list.slice(start, start + size).map((item, index) => ({ ...item, sourceIndex: start + index })),
+    total,
+    totalPages,
+    page: safePage,
+    pageSize: size
+  }
+}
+
 function buildStatDetailView(statDetail) {
-  const records = statDetail.records || []
+  const all = statDetail.records || []
+  const keyword = statDetail.keyword || ''
+  const filtered = filterStatDetailRecords(all, keyword)
+  const paged = paginateStatDetailRecords(filtered, statDetail.page, statDetail.pageSize)
+  const totalScore = filtered.reduce((sum, item) => sum + (Number(item.score) || 0), 0)
   return {
     ...statDetail,
-    metaText: `${statDetail.parentName || '全部分类'} · ${records.length} 条 · ${statDetail.totalScore || 0} 分`,
-    showEmpty: !statDetail.loading && records.length === 0
+    pagedRecords: paged.rows,
+    page: paged.page,
+    pageSize: paged.pageSize,
+    total: paged.total,
+    totalPages: paged.totalPages,
+    totalScore,
+    keyword,
+    metaText: `${statDetail.parentName || '全部分类'} · ${paged.total} 条 · ${totalScore} 分`,
+    showEmpty: !statDetail.loading && paged.total === 0,
+    emptyText: keyword ? '没有匹配的明细' : '该分类暂无激励明细'
   }
 }
 
@@ -359,7 +398,10 @@ Page({
       parentName: '',
       score: 0,
       records: [],
-      totalScore: 0
+      totalScore: 0,
+      keyword: '',
+      page: 1,
+      pageSize: 10
     },
     statDetailView: buildStatDetailView({ visible: false, loading: false, records: [], totalScore: 0 }),
     allRecords: [],
@@ -756,9 +798,12 @@ Page({
         parentName: stat.parentName || '',
         score: stat.score || 0,
         records: [],
-        totalScore: 0
+        totalScore: 0,
+        keyword: '',
+        page: 1,
+        pageSize: 10
       },
-      statDetailView: buildStatDetailView({ visible: true, loading: true, parentName: stat.parentName || '', records: [], totalScore: 0 })
+      statDetailView: buildStatDetailView({ visible: true, loading: true, parentName: stat.parentName || '', records: [], totalScore: 0, keyword: '', page: 1, pageSize: 10 })
     })
     if (getApp().globalData.demoMode) {
       const records = (incentiveRecords || [])
@@ -812,6 +857,28 @@ Page({
   closeStatDetail() {
     const statDetail = { ...this.data.statDetail, visible: false, records: [] }
     this.setData({ 'statDetail.visible': false, 'statDetail.records': [], statDetailView: buildStatDetailView(statDetail), previewVideoPath: '' })
+  },
+
+  /** 分类统计明细搜索：本地过滤全量明细，输入即筛选并回到第 1 页 */
+  onStatDetailKeywordInput(e) {
+    const keyword = (e && e.detail && e.detail.value) || ''
+    const statDetail = { ...this.data.statDetail, keyword, page: 1 }
+    this.setData({ statDetail, statDetailView: buildStatDetailView(statDetail) })
+  },
+
+  clearStatDetailKeyword() {
+    const statDetail = { ...this.data.statDetail, keyword: '', page: 1 }
+    this.setData({ statDetail, statDetailView: buildStatDetailView(statDetail) })
+  },
+
+  /** 分类统计明细分页：10/30 条切换回第 1 页，每页只渲染当页记录 */
+  onStatDetailPagerChange(e) {
+    const detail = (e && e.detail) || {}
+    const currentSize = this.data.statDetail.pageSize || 10
+    const pageSize = Number(detail.pageSize) || currentSize
+    const page = pageSize === currentSize ? (Number(detail.page) || 1) : 1
+    const statDetail = { ...this.data.statDetail, page, pageSize }
+    this.setData({ statDetail, statDetailView: buildStatDetailView(statDetail) })
   },
 
   sort() {
