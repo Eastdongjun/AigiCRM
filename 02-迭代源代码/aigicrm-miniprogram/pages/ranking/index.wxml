@@ -26,7 +26,7 @@
       <view class="period-chip">{{rankingView.scorePeriodText}}</view>
     </picker>
   </view>
-  <block wx:for="{{incentiveBoard}}" wx:key="rank">
+  <block wx:for="{{incentiveBoardView}}" wx:key="rank">
     <view class="card score-rank-card">
       <view class="score-rank-no">{{item.rank}}</view>
       <view class="score-rank-main">
@@ -36,6 +36,7 @@
       <view class="score-rank-value">{{item.totalScore || 0}}<text>分</text></view>
     </view>
   </block>
+  <pager wx:if="{{incentiveTotal > 0}}" page="{{incentivePage}}" pageSize="{{incentivePageSize}}" total="{{incentiveTotal}}" loading="{{rankingView.showLoading}}" bind:change="onIncentivePagerChange" />
   <view wx:if="{{!incentiveBoard.length}}" class="card muted">暂无激励个人排行数据</view>
   <view class="section-head">
     <view>
@@ -61,6 +62,7 @@
       <view class="score-rank-value">{{item.totalScoreText}}<text>分</text></view>
     </view>
   </block>
+  <pager wx:if="{{scoreTotal > 0}}" page="{{scorePage}}" pageSize="{{scorePageSize}}" total="{{scoreTotal}}" loading="{{rankingView.showLoading}}" bind:change="onScorePagerChange" />
   <view wx:if="{{rankingView.showScoreEmpty}}" class="card muted">暂无积分排行数据</view>
   <view class="card score-rule-card">
     <view>积分规则</view>
@@ -131,5 +133,6 @@
       </view>
     </view>
   </block>
+  <pager wx:if="{{customerTotal > 0}}" page="{{customerPage}}" pageSize="{{customerPageSize}}" total="{{customerTotal}}" loading="{{rankingView.showLoading}}" bind:change="onCustomerPagerChange" />
   <view wx:if="{{rankingView.showCustomerEmpty}}" class="card muted">暂无排行数据</view>
 </view>

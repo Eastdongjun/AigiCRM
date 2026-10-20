@@ -6,6 +6,7 @@ const { hasPermission, isAdmin, requireLogin } = require('../../utils/auth')
 const { fetchRemoteAttachment } = require('../../utils/attachment')
 const { showError, showErrorWithRetry } = require('../../utils/feedback')
 const { buildIncentiveFileGroups, buildIncentiveFiles } = require('../../utils/incentive-files')
+const { paginate } = require('../../utils/paging')
 const { buildDeptLevelOptions } = require('../../utils/tree')
 
 // 【#4+#7 2026-10-12】列表页佐证照片墙: 缩略图凭证模块级缓存(取一次复用), 未就绪时图片退化为
@@ -361,7 +362,12 @@ Page({
     },
     statDetailView: buildStatDetailView({ visible: false, loading: false, records: [], totalScore: 0 }),
     allRecords: [],
+    // records 仍是"筛选+排序后的全量"(汇总/空态/翻页都基于它), pagedRecords 才是列表实际渲染的当页切片
     records: [],
+    pagedRecords: [],
+    page: 1,
+    pageSize: 10,
+    pagerTotal: 0,
     summary: { customers: 0, records: 0, categories: 0, files: 0, unread: 0, score: 0 },
     loading: false,
     readStats: [],
@@ -816,12 +822,40 @@ Page({
     // 【setData 瘦身】视图对象直接排序(全部筛选字段在视图顶层), 重建会丢懒加载的子记录明细
     if (this.data.order === 'asc') records.sort((a, b) => (Number(a.score) || 0) - (Number(b.score) || 0))
     if (this.data.order === 'desc') records.sort((a, b) => (Number(b.score) || 0) - (Number(a.score) || 0))
-    this.setData({ records, summary: buildSummary(records) }, () => this.refreshIncentiveView())
+    // 【分页 2026-10-18】排序/筛选/加载后一律回第 1 页; 分页切片与 total 同一次 setData 落定
+    const paged = paginate(records, 1, this.data.pageSize)
+    this.setData({
+      records,
+      pagedRecords: paged.rows,
+      page: paged.page,
+      pageSize: paged.pageSize,
+      pagerTotal: paged.total,
+      summary: buildSummary(records)
+    }, () => this.refreshIncentiveView())
+  },
+
+  // 【分页 2026-10-18】客户端分页: 页码/页大小变化时重算当页切片; 用 paginate 返回的 page
+  // 写回 data, 数据变少(删记录/筛选收紧)时自动 clamp 到最后一页
+  applyPaging(page, pageSize) {
+    const paged = paginate(this.data.records, page === undefined ? this.data.page : page, pageSize || this.data.pageSize)
+    this.setData({
+      pagedRecords: paged.rows,
+      page: paged.page,
+      pageSize: paged.pageSize,
+      pagerTotal: paged.total
+    })
+  },
+
+  onPagerChange(e) {
+    const detail = e.detail || {}
+    this.applyPaging(Number(detail.page) || 1, Number(detail.pageSize) || this.data.pageSize)
   },
 
   switchTab(e) {
     const activeTab = e.currentTarget.dataset.key || 'records'
     this.setData({ activeTab, tabs: buildTabs(activeTab) }, () => this.refreshIncentiveView())
+    // 【分页 2026-10-18】切回列表 tab 时回第 1 页, 避免停留在旧页码
+    if (activeTab === 'records') this.applyPaging(1)
   },
 
   chooseCategory(e) {
@@ -932,7 +966,8 @@ Page({
   // 已读/追加/删除的落地全在详情页(read 事件回写本卡免整页刷新, 变更走 forceRefresh 既有契约)
   openCustomerDetail(e) {
     const index = Number(e.currentTarget.dataset.index)
-    const record = this.data.records[index]
+    // 【分页 2026-10-18】data-index 对应列表实际渲染的当页数组; 子记录仍按 record.id 索引, 与页码无关
+    const record = this.data.pagedRecords[index]
     if (!record) return
     const children = ((this._childRawById && this._childRawById[record.id]) || []).map(buildChildRecordView)
     wx.navigateTo({
@@ -942,11 +977,19 @@ Page({
           const id = payload && payload.id
           const rowIndex = this.data.records.findIndex((item) => item.id === id)
           if (rowIndex < 0 || !this.data.records[rowIndex].unread) return
-          this.setData({
+          const upd = {
             [`records[${rowIndex}].unread`]: false,
             [`records[${rowIndex}].readStatusText`]: '已读',
             [`records[${rowIndex}].readStatusClass`]: 'tag-read'
-          })
+          }
+          // 列表渲染的是 pagedRecords, 同一客户在当前页时同步刷新未读点
+          const pagedIndex = this.data.pagedRecords.findIndex((item) => item.id === id)
+          if (pagedIndex >= 0) {
+            upd[`pagedRecords[${pagedIndex}].unread`] = false
+            upd[`pagedRecords[${pagedIndex}].readStatusText`] = '已读'
+            upd[`pagedRecords[${pagedIndex}].readStatusClass`] = 'tag-read'
+          }
+          this.setData(upd)
         }
       },
       success: (res) => {

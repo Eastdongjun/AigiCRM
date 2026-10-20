@@ -41,9 +41,8 @@
       </view>
     </view>
   </block>
+  <pager page="{{page}}" pageSize="{{pageSize}}" total="{{total}}" loading="{{seaView.showLoading}}" bind:change="onPagerChange" />
   <view wx:if="{{seaView.showEmpty}}" class="card muted">暂无公海客户</view>
-  <view wx:if="{{seaView.showLoadMore}}" class="card muted">加载更多中...</view>
-  <view wx:if="{{seaView.showNoMore}}" class="list-end-tip">— 没有更多了 —</view>
   <view class="card sea-claim-card">
     <view class="row">
       <view class="section-title">我的捞取申请</view>

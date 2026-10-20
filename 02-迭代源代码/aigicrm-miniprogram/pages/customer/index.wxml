@@ -39,9 +39,10 @@
       </view>
     </view>
   </block>
-  <!-- P6 2026-10-04: 触底加载提示(加载更多中/没有更多) -->
-  <view wx:if="{{customerView.showLoadMore}}" class="card loading-card">{{customerView.loadMoreText}}</view>
-  <view wx:if="{{customerView.showNoMore}}" class="list-end-tip">— 没有更多了 —</view>
+  <!-- 【分页 2026-10-18】显式分页条：10/30 条每页，替代触底加载更多 -->
+  <pager page="{{page}}" pageSize="{{pageSize}}" total="{{total}}" loading="{{loading}}" bind:change="onPagerChange" />
+  <!-- 悬浮「＋」固定在右下，分页条滑到底时会被压住页码；留出安全区 -->
+  <view class="customer-pager-gap"></view>
   <view wx:if="{{customerView.showEmpty}}" class="empty-state card"><view class="empty-icon">⌕</view><text>暂无匹配客户</text></view>
   <view wx:if="{{canAdd}}" class="customer-fab" bindtap="addCustomer">＋</view>
 </view>

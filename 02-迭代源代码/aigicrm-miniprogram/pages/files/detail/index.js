@@ -5,6 +5,15 @@ const { saveDownloadedFileToDisk, isTextFileName, openTextView } = require('../.
 const { safeDecodeParam } = require('../../../utils/query')
 const { whenAuthReady } = require('../permission-ready')
 
+/** 接口时间可能是 2026-08-28T16:50:08，详情页统一展示为 2026-08-28 16:50 */
+function formatDateTime(value) {
+  const raw = String(value || '').trim()
+  const match = raw.match(/^(\d{4})-(\d{1,2})-(\d{1,2})[T\s](\d{1,2}):(\d{2})/)
+  if (!match) return raw || '-'
+  const pad = (part) => String(part).padStart(2, '0')
+  return `${match[1]}-${pad(match[2])}-${pad(match[3])} ${pad(match[4])}:${match[5]}`
+}
+
 function buildDetailView(data) {
   return {
     typeText: data.type || 'FILE',
@@ -12,7 +21,7 @@ function buildDetailView(data) {
     folderText: data.folder || '-',
     sizeText: data.size || '-',
     uploaderNameText: data.uploaderName || '-',
-    updatedAtText: data.updatedAt || '-',
+    updatedAtText: formatDateTime(data.updatedAt),
     // 【mp-4 2026-10-17】下载按钮按列表传入的文件夹 ACL/downloadable 结果显隐
     showDownloadAction: Boolean(data.canDownload),
     showVideo: Boolean(data.previewVideoPath)

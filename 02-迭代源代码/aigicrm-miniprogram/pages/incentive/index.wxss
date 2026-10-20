@@ -113,20 +113,24 @@
 
 /* 【需求C 2026-10-16】客户封面卡: 列表页一客户一卡(封面/名称/行业·大类/积分/未读点),
    整卡点入 customer-detail 详情页;替代原"一卡近一屏"的巨卡 */
+/* 【分页+名称上移 2026-10-18】左侧封面缩为 128rpx 方块(图/首字兜底+「档案」角标),
+   客户名称移入正文首行(最多两行, 前导未读圆点), 封面不再叠遮罩/名称/分数文字 */
 .cust-card { position: relative; display: flex; align-items: center; gap: 18rpx; background: #fff; border-radius: 22rpx; padding: 20rpx; margin-top: 16rpx; box-shadow: 0 8rpx 22rpx rgba(48, 78, 112, .05); }
 .cust-card:active { background: #f8fbff; }
-.cust-cover { position: relative; flex-shrink: 0; width: 144rpx; height: 144rpx; border-radius: 18rpx; overflow: hidden; background: linear-gradient(150deg, #0d1733, #13255e 58%, #1d4ed8); }
+.cust-cover { position: relative; flex-shrink: 0; width: 128rpx; height: 128rpx; border-radius: 18rpx; overflow: hidden; background: linear-gradient(150deg, #0d1733, #13255e 58%, #1d4ed8); }
 .cust-cover-img { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
-.cust-cover-shade { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(8, 18, 38, .05) 30%, rgba(8, 18, 38, .86)); }
-.cust-cover-name { position: absolute; left: 12rpx; right: 12rpx; bottom: 10rpx; z-index: 2; color: #ece5d6; font-size: 18rpx; line-height: 1.35; font-weight: 800; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; text-shadow: 0 1rpx 2rpx rgba(0, 0, 0, .35); }
-.cust-cover-score { position: absolute; top: 10rpx; right: 10rpx; z-index: 2; background: rgba(236, 229, 214, .9); color: #13255e; border-radius: 999rpx; padding: 2rpx 9rpx; font-size: 16rpx; font-weight: 800; line-height: 1.5; }
+.cust-cover-fallback { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: #dbe6ff; font-size: 52rpx; font-weight: 900; letter-spacing: 2rpx; }
+.cust-cover-badge { position: absolute; left: 8rpx; bottom: 8rpx; z-index: 2; background: rgba(236, 229, 214, .92); color: #13255e; border-radius: 999rpx; padding: 2rpx 10rpx; font-size: 16rpx; font-weight: 800; line-height: 1.5; }
 .cust-body { flex: 1; min-width: 0; }
-.cust-meta { display: flex; flex-wrap: wrap; gap: 8rpx; }
+.cust-name-row { display: flex; align-items: flex-start; gap: 8rpx; }
+.cust-unread-dot { flex-shrink: 0; width: 12rpx; height: 12rpx; margin-top: 12rpx; border-radius: 50%; background: #e05252; box-shadow: 0 0 0 4rpx rgba(224, 82, 82, .12); }
+.cust-name { flex: 1; min-width: 0; color: #172033; font-size: 27rpx; font-weight: 850; line-height: 1.35; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
+.cust-meta { display: flex; flex-wrap: wrap; gap: 8rpx; margin-top: 10rpx; }
 .cust-pill { font-size: 19rpx; padding: 3rpx 14rpx; border-radius: 999rpx; background: #f1f5f9; color: #64748b; }
 .cust-pill.blue { background: #eef4ff; color: #1d4fd7; }
-.cust-nums { display: flex; align-items: center; gap: 10rpx; margin-top: 12rpx; font-size: 20rpx; color: #94a3b8; }
-.cust-unread { flex-shrink: 0; font-size: 17rpx; font-weight: 700; color: #8c4a44; background: #f7e9e4; border-radius: 999rpx; padding: 2rpx 10rpx; }
+.cust-nums { margin-top: 8rpx; font-size: 20rpx; color: #94a3b8; }
 .cust-score { flex-shrink: 0; display: flex; align-items: baseline; gap: 4rpx; background: #f4f8ff; border: 1rpx solid #dce8fb; border-radius: 16rpx; padding: 10rpx 16rpx; }
 .cust-score-num { font-size: 32rpx; font-weight: 900; color: #1d4fd7; line-height: 1; }
 .cust-score-unit { font-size: 18rpx; color: #7d9bd8; }
 .cust-arrow { flex-shrink: 0; color: #b6c5da; font-size: 34rpx; font-weight: 700; }
+.incentive-pager { margin-top: 18rpx; }

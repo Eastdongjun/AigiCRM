@@ -1,16 +1,24 @@
 /* 文件详情页按钮组: 预览主操作 + 下载次操作
-   两个按钮必须同宽同高：flex:1 只定宽度分配，按钮原生 line-height 会撑出不同高度；
-   次按钮白底+细边框+无投影，视觉上还会比主按钮小一圈。这里固定盒模型并统一投影。 */
-.detail-actions { display: flex; gap: 16rpx; margin-top: 18rpx; }
+   不再依赖 line-height 垂直居中(原生 button 样式、loading 图标都会把高度撑得不一样):
+   统一盒模型(height/min-height 88rpx + margin/padding 0 + border-box),
+   按钮内部用 flex 居中, 保证真机上两个按钮同高同基线;
+   wx:if 只隐藏下载按钮时, 剩余按钮 flex:1 仍撑满整行且高度不变。 */
+.detail-actions { display: flex; align-items: center; gap: 16rpx; margin-top: 18rpx; }
 .detail-actions .btn {
-  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1 1 0;
   width: 0;
   height: 88rpx;
+  min-height: 88rpx;
+  margin: 0;
   padding: 0;
   box-sizing: border-box;
   border: 1rpx solid transparent;
   border-radius: 22rpx;
-  line-height: 86rpx;
+  line-height: normal;
+  font-size: 26rpx;
   box-shadow: 0 14rpx 26rpx rgba(35, 100, 216, .18);
 }
 .file-preview-btn { border-color: transparent; }

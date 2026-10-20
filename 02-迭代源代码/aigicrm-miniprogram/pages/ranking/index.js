@@ -3,6 +3,10 @@ const { getScoreRanking, getRankingStats } = require('../../api/score')
 const { getScoreboard } = require('../../api/incentive')
 const { requireLogin, hasPermission } = require('../../utils/auth')
 const { showError } = require('../../utils/feedback')
+const { paginate } = require('../../utils/paging')
+
+// 排行榜客户端分页默认页大小（<pager> 可选 10/30）
+const DEFAULT_PAGE_SIZE = 10
 
 function buildPeriodOptions() {
   const year = new Date().getFullYear()
@@ -30,11 +34,12 @@ function defaultPeriodIndex(periods) {
 const SCORE_PERIOD_OPTIONS = buildPeriodOptions()
 const CUSTOMER_PERIOD_OPTIONS = buildCustomerPeriodOptions()
 
-function scoreListView(rows, activeTab) {
+function scoreListView(rows, activeTab, startIndex = 0) {
   const isDept = activeTab === 'dept'
   return (rows || []).map((item, index) => ({
     ...item,
-    displayRank: item.rank || index + 1,
+    // 分页切片后仍按全局名次编号：优先后端 rank，其次用切片起始偏移补全
+    displayRank: item.rank || (startIndex + index + 1),
     title: isDept ? (item.deptName || '未命名部门') : (item.realName || '未命名人员'),
     meta: isDept
       ? `${item.participantCount || 0} 人参与 · 人均 ${item.avgScore || 0} 分`
@@ -50,10 +55,11 @@ function parentStatsRows(item, parents) {
   })
 }
 
-function customerListView(rows, activeTab, parents) {
+function customerListView(rows, activeTab, parents, startIndex = 0) {
   return (rows || []).map((item, index) => ({
     ...item,
-    displayRank: index + 1,
+    // 分页切片后仍按全局名次编号，不能从 1 重新开始
+    displayRank: item.rank || (startIndex + index + 1),
     title: item.customerName || '未命名客户',
     scoreText: activeTab === 'relationship' ? (item.relationshipScore || 0) : (item.totalScore || 0),
     ownerIndustryText: `${item.ownerName || '未分配负责人'} · ${item.industry || '未填写行业'}`,
@@ -89,6 +95,31 @@ function customerListView(rows, activeTab, parents) {
   }))
 }
 
+// 客户端分页：先对完整数组切片，再用切片起始偏移生成视图，保证全局名次连续
+function pagedScoreView(rows, activeTab, page, pageSize) {
+  const paged = paginate(rows, page, pageSize)
+  const startIndex = (paged.page - 1) * paged.pageSize
+  return {
+    rows: paged.rows,
+    view: scoreListView(paged.rows, activeTab, startIndex),
+    page: paged.page,
+    pageSize: paged.pageSize,
+    total: paged.total
+  }
+}
+
+function pagedCustomerView(rows, activeTab, parents, page, pageSize) {
+  const paged = paginate(rows, page, pageSize)
+  const startIndex = (paged.page - 1) * paged.pageSize
+  return {
+    rows: paged.rows,
+    view: customerListView(paged.rows, activeTab, parents, startIndex),
+    page: paged.page,
+    pageSize: paged.pageSize,
+    total: paged.total
+  }
+}
+
 function tabView(tabs, activeKey) {
   return (tabs || []).map((item) => ({
     ...item,
@@ -112,8 +143,6 @@ function pickLabel(options = [], index, fallback) {
 
 function buildRankingView(data) {
   const loading = Boolean(data.loading)
-  const scoreList = data.scoreListView || []
-  const customerList = data.customerListView || []
   const stats = data.scoreStats || {}
   const scorePeriodText = pickLabel(data.periodOptions, data.periodIndex, defaultRecordPeriod())
   const customerPeriodText = pickLabel(data.customerPeriodOptions, data.customerPeriodIndex, '全部')
@@ -135,8 +164,8 @@ function buildRankingView(data) {
       { label: '客户周期', value: customerPeriodText },
       { label: '客户榜单', value: customerTab.title || '四项激励' }
     ],
-    showScoreEmpty: !loading && scoreList.length === 0,
-    showCustomerEmpty: !loading && customerList.length === 0
+    showScoreEmpty: !loading && Number(data.scoreTotal || 0) === 0,
+    showCustomerEmpty: !loading && Number(data.customerTotal || 0) === 0
   }
 }
 
@@ -161,6 +190,16 @@ Page({
     rankings: { incentive: [], relationship: [], core: [] },
     scoreStats: { participantCount: 0, deptCount: 0, topScore: 0, topScoreName: '-', topItemCount: 0, totalItemCount: 0 },
     scoreRankings: { personal: [], dept: [] },
+    // 客户端分页字段：得分榜与客户榜各自独立页码/页大小，默认 10 条
+    scorePage: 1,
+    scorePageSize: DEFAULT_PAGE_SIZE,
+    scoreTotal: 0,
+    customerPage: 1,
+    customerPageSize: DEFAULT_PAGE_SIZE,
+    customerTotal: 0,
+    incentivePage: 1,
+    incentivePageSize: DEFAULT_PAGE_SIZE,
+    incentiveTotal: 0,
     scoreList: [],
     scoreListView: [],
     list: [],
@@ -176,12 +215,16 @@ Page({
     ], 'incentive'),
     loading: false,
     // 【2026-09-23 需求同步】四项激励个人排行(按人员聚合, 与 PC 激励统计个人排行同口径)
+    // incentiveBoard 保留接口完整榜，incentiveBoardView 为当前页切片
     incentiveBoard: [],
+    incentiveBoardView: [],
     rankingView: buildRankingView({
       loading: false,
       scoreStats: { participantCount: 0, deptCount: 0, topScore: 0, topScoreName: '-', topItemCount: 0, totalItemCount: 0 },
       scoreListView: [],
       customerListView: [],
+      scoreTotal: 0,
+      customerTotal: 0,
       periodOptions: SCORE_PERIOD_OPTIONS,
       periodIndex: defaultPeriodIndex(SCORE_PERIOD_OPTIONS),
       customerPeriodOptions: CUSTOMER_PERIOD_OPTIONS,
@@ -210,22 +253,32 @@ Page({
   switchTab(e) {
     const activeTab = e.currentTarget.dataset.key
     const list = this.data.rankings[activeTab] || []
+    // 切换客户榜 tab 回到第 1 页，名次仍按全局顺序生成
+    const paged = pagedCustomerView(list, activeTab, this.data.incentiveParents, 1, this.data.customerPageSize)
     this.setRankingData({
       activeTab,
-      list,
       tabsView: tabView(this.data.tabs, activeTab),
-      customerListView: customerListView(list, activeTab, this.data.incentiveParents)
+      list: paged.rows,
+      customerPage: paged.page,
+      customerPageSize: paged.pageSize,
+      customerTotal: paged.total,
+      customerListView: paged.view
     })
   },
 
   switchScoreTab(e) {
     const scoreActiveTab = e.currentTarget.dataset.key
     const scoreList = this.data.scoreRankings[scoreActiveTab] || []
+    // 切换个人/部门榜回到第 1 页
+    const paged = pagedScoreView(scoreList, scoreActiveTab, 1, this.data.scorePageSize)
     this.setRankingData({
       scoreActiveTab,
-      scoreList,
       scoreTabsView: tabView(this.data.scoreTabs, scoreActiveTab),
-      scoreListView: scoreListView(scoreList, scoreActiveTab)
+      scoreList: paged.rows,
+      scorePage: paged.page,
+      scorePageSize: paged.pageSize,
+      scoreTotal: paged.total,
+      scoreListView: paged.view
     })
   },
 
@@ -282,29 +335,42 @@ Page({
           { rank: 2, deptName: '华南办', totalScore: 342, participantCount: 5, avgScore: 68 }
         ]
       }
-      const scoreList = scoreRankings[this.data.scoreActiveTab] || []
-      const list = rankings[this.data.activeTab] || []
       // 【2026-09-23 需求同步】demo 档四项激励个人排行
       const incentiveBoard = [
         { rank: 1, realName: '张三', officeName: '华东办', totalScore: 128, recordCount: 9 },
         { rank: 2, realName: '李四', officeName: '华南办', totalScore: 96, recordCount: 7 }
       ]
+      // 演示数据同样走客户端分页，刷新/切周期后回到第 1 页
+      const customerPaged = pagedCustomerView(rankings[this.data.activeTab] || [], this.data.activeTab, incentiveParents, 1, this.data.customerPageSize)
+      const scorePaged = pagedScoreView(scoreRankings[this.data.scoreActiveTab] || [], this.data.scoreActiveTab, 1, this.data.scorePageSize)
+      const incentivePaged = paginate(incentiveBoard, 1, this.data.incentivePageSize)
       this.setRankingData({
         incentiveParents,
         rankings,
         incentiveBoard,
+        incentiveBoardView: incentivePaged.rows,
+        incentivePage: incentivePaged.page,
+        incentivePageSize: incentivePaged.pageSize,
+        incentiveTotal: incentivePaged.total,
         scoreRankings,
         scoreStats: { participantCount: 18, deptCount: 4, topScore: 96, topScoreName: '张三', topItemCount: 42, totalItemCount: 42 },
-        list,
-        customerListView: customerListView(list, this.data.activeTab, incentiveParents),
-        scoreList,
-        scoreListView: scoreListView(scoreList, this.data.scoreActiveTab),
+        list: customerPaged.rows,
+        customerPage: customerPaged.page,
+        customerPageSize: customerPaged.pageSize,
+        customerTotal: customerPaged.total,
+        customerListView: customerPaged.view,
+        scoreList: scorePaged.rows,
+        scorePage: scorePaged.page,
+        scorePageSize: scorePaged.pageSize,
+        scoreTotal: scorePaged.total,
+        scoreListView: scorePaged.view,
         scoreTabsView: tabView(this.data.scoreTabs, this.data.scoreActiveTab),
         tabsView: tabView(this.data.tabs, this.data.activeTab)
       })
       return
     }
-    this.setRankingData({ loading: true })
+    // 刷新/切换时间范围：两个榜单各自回到第 1 页（页大小保留用户选择）
+    this.setRankingData({ loading: true, scorePage: 1, customerPage: 1, incentivePage: 1 })
     const period = this.currentPeriod()
     // 【体检 P1 2026-10-12】按权限门控请求: 页面入口是三码 OR, 但积分榜三路要 score:view、
     // 激励个人榜要 incentive:view——只持部分权限的角色此前每次进页必吃 4 条 403 弹错。
@@ -346,12 +412,20 @@ Page({
         core: rankings && rankings.indicatorRanking || []
       }
       const scoreRankings = { personal: personalScores || [], dept: deptScores || [] }
-      const list = safeRankings[this.data.activeTab] || []
-      const scoreList = scoreRankings[this.data.scoreActiveTab] || []
+      const parents = rankings && rankings.incentiveParents || []
+      const incentiveBoardRaw = incentiveBoard || []
+      // 接口返回完整数组后先做客户端分页，再生成列表视图（名次按全局偏移保留）
+      const customerPaged = pagedCustomerView(safeRankings[this.data.activeTab] || [], this.data.activeTab, parents, 1, this.data.customerPageSize)
+      const scorePaged = pagedScoreView(scoreRankings[this.data.scoreActiveTab] || [], this.data.scoreActiveTab, 1, this.data.scorePageSize)
+      const incentivePaged = paginate(incentiveBoardRaw, 1, this.data.incentivePageSize)
       this.setRankingData({
-        incentiveParents: rankings && rankings.incentiveParents || [],
+        incentiveParents: parents,
         rankings: safeRankings,
-        incentiveBoard: incentiveBoard || [],
+        incentiveBoard: incentiveBoardRaw,
+        incentiveBoardView: incentivePaged.rows,
+        incentivePage: incentivePaged.page,
+        incentivePageSize: incentivePaged.pageSize,
+        incentiveTotal: incentivePaged.total,
         scoreRankings,
         scoreStats: {
           participantCount: scoreStats && scoreStats.participantCount || 0,
@@ -361,10 +435,16 @@ Page({
           topItemCount: scoreStats && scoreStats.topItemCount || 0,
           totalItemCount: scoreStats && scoreStats.totalItemCount || 0
         },
-        list,
-        customerListView: customerListView(list, this.data.activeTab, rankings && rankings.incentiveParents || []),
-        scoreList,
-        scoreListView: scoreListView(scoreList, this.data.scoreActiveTab),
+        list: customerPaged.rows,
+        customerPage: customerPaged.page,
+        customerPageSize: customerPaged.pageSize,
+        customerTotal: customerPaged.total,
+        customerListView: customerPaged.view,
+        scoreList: scorePaged.rows,
+        scorePage: scorePaged.page,
+        scorePageSize: scorePaged.pageSize,
+        scoreTotal: scorePaged.total,
+        scoreListView: scorePaged.view,
         scoreTabsView: tabView(this.data.scoreTabs, this.data.scoreActiveTab),
         tabsView: tabView(this.data.tabs, this.data.activeTab)
       })
@@ -372,6 +452,59 @@ Page({
   },
 
   refresh() { this.loadRanking() },
+
+  // <pager> 事件 detail={page,pageSize}：各榜单独立翻页，页大小切换由组件回传 page=1
+  onScorePagerChange(e) {
+    const detail = e.detail || {}
+    const pageSize = Number(detail.pageSize) || this.data.scorePageSize
+    const page = Number(detail.page) || 1
+    const paged = pagedScoreView(
+      this.data.scoreRankings[this.data.scoreActiveTab] || [],
+      this.data.scoreActiveTab,
+      page,
+      pageSize
+    )
+    this.setRankingData({
+      scorePage: paged.page,
+      scorePageSize: paged.pageSize,
+      scoreTotal: paged.total,
+      scoreList: paged.rows,
+      scoreListView: paged.view
+    })
+  },
+
+  onCustomerPagerChange(e) {
+    const detail = e.detail || {}
+    const pageSize = Number(detail.pageSize) || this.data.customerPageSize
+    const page = Number(detail.page) || 1
+    const paged = pagedCustomerView(
+      this.data.rankings[this.data.activeTab] || [],
+      this.data.activeTab,
+      this.data.incentiveParents,
+      page,
+      pageSize
+    )
+    this.setRankingData({
+      customerPage: paged.page,
+      customerPageSize: paged.pageSize,
+      customerTotal: paged.total,
+      list: paged.rows,
+      customerListView: paged.view
+    })
+  },
+
+  onIncentivePagerChange(e) {
+    const detail = e.detail || {}
+    const pageSize = Number(detail.pageSize) || this.data.incentivePageSize
+    const page = Number(detail.page) || 1
+    const paged = paginate(this.data.incentiveBoard || [], page, pageSize)
+    this.setRankingData({
+      incentivePage: paged.page,
+      incentivePageSize: paged.pageSize,
+      incentiveTotal: paged.total,
+      incentiveBoardView: paged.rows
+    })
+  },
 
   openDetail(e) {
     const item = this.data.list[Number(e.currentTarget.dataset.index)]

@@ -1,7 +1,5 @@
 const { deleteSeaPool, getSeaList, getSeaStatistics, getVisibleSeaConfigs, getClaimRecords } = require('../../api/sea')
 
-// 【工作流复核确认修复】公海分页页大小(原写死 20 无加载更多)
-const SEA_PAGE_SIZE = 20
 const { submitApproval } = require('../../api/approval')
 const { getDepts, getDictData } = require('../../api/system')
 const { seaRecords } = require('../../data/demo')
@@ -9,6 +7,7 @@ const { hasPermission, requireLogin } = require('../../utils/auth')
 const { showError, showErrorWithRetry } = require('../../utils/feedback')
 // 【E6 去重】捞取申请状态映射原与 sea/claim-detail 复制一份; 组织树构建原与 incentive/statistics 同构, 均收敛到共享模块
 const { claimStatusText } = require('../../utils/label-maps')
+const { paginate } = require('../../utils/paging')
 const { buildDeptLevelOptions } = require('../../utils/tree')
 
 const FALLBACK_INDUSTRIES = ['煤矿', '化工', '电力', '洗煤厂', '有色', '制造业', '能源', '其他']
@@ -152,12 +151,6 @@ function buildSeaView(data) {
     refreshText: isLoading ? '刷新中' : '刷新',
     showLoading: isLoading,
     loadingText: '加载中...',
-    // 【工作流复核确认修复】触底加载更多视图字段(照客户页 P6)
-    loadingMore: Boolean(data.loadingMore),
-    showLoadMore: Boolean(data.loadingMore),
-    loadMoreText: '加载更多中...',
-    hasMore: Boolean(data.hasMore),
-    showNoMore: !isLoading && !data.loadingMore && records.length > 0 && !data.hasMore,
     records,
     showEmpty: !isLoading && records.length === 0,
     claimRecords,
@@ -169,6 +162,10 @@ function buildSeaView(data) {
 Page({
   data: {
     records: [],
+    // 显式分页：page/pageSize 由 <pager> 双向驱动，total 为服务端返回的总条数
+    page: 1,
+    pageSize: 10,
+    total: 0,
     stats: {},
     pools: [],
     poolId: '',
@@ -288,25 +285,28 @@ Page({
   },
 
   loadRecords(pageArg) {
+    // 显式分页：pageArg 只接受正整数页码；筛选/搜索/刷新/认领后统一取第 1 页，当前页整体替换而非追加
+    const page = Number(pageArg) > 0 ? Math.floor(Number(pageArg)) : 1
+    const pageSize = this.data.pageSize || 10
+
     if (getApp().globalData.demoMode) {
-      this.setSeaData({ records: seaRecords.map(normalizeSea) })
+      // 演示模式无服务端分页：对完整演示数据做本地切片
+      const paged = paginate(seaRecords.map(normalizeSea), page, pageSize)
+      this.setSeaData({
+        records: paged.rows,
+        page: paged.page,
+        pageSize: paged.pageSize,
+        total: paged.total
+      })
       return
     }
 
-    // 【工作流复核确认修复】分页加载: 原写死 current:1/size:20, 第 21 条起公海客户在小程序端
-    // 永远不可见(不可浏览/捞取/编辑), 且统计卡显示全量数字与可见列表矛盾(照客户页 P6 模式)
-    // 【搜索修复】pageArg 只接受正整数页码：按钮 click 事件对象不再被当成页码（原 page===1 恒 false，
-    // current 变成事件对象、响应被 append），非页码入参一律按第 1 页处理
-    const page = Number(pageArg) > 0 ? Math.floor(Number(pageArg)) : 1
     const requestSeq = (this._recordsReqSeq = (this._recordsReqSeq || 0) + 1)
-    // 【M20】请求序号守卫：筛选/搜索快速切换时，慢返回的旧响应直接丢弃，防止覆盖新列表
-    // 【筛选重载修复】第 1 页立即重置 currentPage/hasMore，避免筛选请求在途时触底按旧页码追页
-    this.setSeaData(page === 1
-      ? { loading: true, loadingMore: false, currentPage: 1, hasMore: false }
-      : { loadingMore: true })
+    // 【M20】请求序号守卫：筛选/搜索/快速翻页时，慢返回的旧响应直接丢弃，防止覆盖新列表
+    this.setSeaData({ loading: true, page, pageSize })
     getSeaList({
       current: page,
-      size: SEA_PAGE_SIZE,
+      size: pageSize,
       keyword: this.data.keyword,
       poolId: this.data.poolId || undefined,
       deptId: this.data.deptId || undefined,
@@ -318,25 +318,27 @@ Page({
       const rows = (pageData && (pageData.records || pageData.list || pageData.rows)) || []
       const total = Number(pageData && pageData.total) || 0
       this.setSeaData({
-        records: page === 1 ? rows.map(normalizeSea) : this.data.records.concat(rows.map(normalizeSea)),
-        currentPage: page,
-        total,
-        hasMore: total ? page * SEA_PAGE_SIZE < total : rows.length >= SEA_PAGE_SIZE
+        records: rows.map(normalizeSea),
+        page,
+        total
       })
     }).catch((error) => {
       if (requestSeq !== this._recordsReqSeq) return
-      showErrorWithRetry(error, '公海加载失败', () => this.loadRecords())
+      showErrorWithRetry(error, '公海加载失败', () => this.loadRecords(page))
     }).finally(() => {
       // 旧请求不清理新请求的 loading 态（由最新请求自己的 finally 收尾）
       if (requestSeq !== this._recordsReqSeq) return
-      this.setSeaData({ loading: false, loadingMore: false })
+      this.setSeaData({ loading: false })
     })
   },
 
-  onReachBottom() {
-    // 【S2】守卫改读页面真实 loading 状态：buildSeaView 不产出 loading 键（原读 seaView.loading 恒 undefined）
-    if (!this.data.seaView || !this.data.seaView.hasMore || this.data.loading || this.data.loadingMore) return
-    this.loadRecords((this.data.currentPage || 1) + 1)
+  // <pager> 事件 detail={page,pageSize}：页大小变化时回到第 1 页（组件已按此约定触发）
+  onPagerChange(e) {
+    const detail = e.detail || {}
+    const pageSize = Number(detail.pageSize) || this.data.pageSize
+    const page = Number(detail.page) || 1
+    if (pageSize !== this.data.pageSize) this.setSeaData({ pageSize })
+    this.loadRecords(page)
   },
 
   // 【L15】搜索输入双绑（对齐 reminder/approval 页写法），否则点搜索按钮时用的仍是旧 keyword

@@ -5,3 +5,7 @@
   font-size: 23rpx;
   text-align: center;
 }
+
+/* 悬浮「＋」占位：bottom 144rpx + 108rpx 高，分页条需要让出这一段 */
+.customer-pager-gap { height: 170rpx; }
+

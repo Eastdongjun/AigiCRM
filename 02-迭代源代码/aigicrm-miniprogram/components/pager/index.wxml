@@ -1,0 +1,19 @@
+<view wx:if="{{total > 0 || hasMore}}" class="pager">
+  <view class="pager-info">
+    <text>共 {{total > 0 ? total : '若干'}} {{unit}}</text>
+    <text wx:if="{{total > 0}}" class="pager-page">第 {{page}} / {{totalPages}} 页</text>
+  </view>
+  <view class="pager-main">
+    <button class="pager-btn {{!canPrev || loading ? 'is-disabled' : ''}}" disabled="{{!canPrev || loading}}" bindtap="onPrev">‹ 上一页</button>
+    <view class="pager-sizes">
+      <text
+        wx:for="{{sizeItems}}"
+        wx:key="value"
+        class="pager-size {{item.active ? 'is-active' : ''}}"
+        data-size="{{item.value}}"
+        bindtap="onSize"
+      >{{item.value}} 条</text>
+    </view>
+    <button class="pager-btn {{!canNext || loading ? 'is-disabled' : ''}}" disabled="{{!canNext || loading}}" bindtap="onNext">下一页 ›</button>
+  </view>
+</view>

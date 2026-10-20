@@ -159,18 +159,6 @@ function pageTotal(response) {
 
 const ALL_FOLDER_PERMS = ['view', 'upload', 'edit', 'delete', 'share', 'download']
 
-// 【mp-1 2026-10-17】分页追加去重：按后端 id 去重，无 id 的行原样保留（演示/历史数据）
-function mergeById(existing, incoming) {
-  const seen = new Set()
-  return [...(existing || []), ...(incoming || [])].filter((item) => {
-    const id = item && item.id !== undefined && item.id !== null ? String(item.id) : ''
-    if (!id) return true
-    if (seen.has(id)) return false
-    seen.add(id)
-    return true
-  })
-}
-
 function normalizeDownloadable(item) {
   if (item.canDownload === false) return false
   if (item.downloadable === 0 || item.downloadable === false) return false
@@ -218,6 +206,15 @@ function resolveFolderText(folderId, folderNames) {
   return (folderNames && folderNames[String(folderId)]) || '未知文件夹'
 }
 
+/** 接口时间 2026-08-28T16:44:34 → 2026-08-28 16:44；演示数据的「今天 10:24」原样保留 */
+function formatDateTimeText(value) {
+  const raw = String(value || '').trim()
+  const match = raw.match(/^(\d{4})-(\d{1,2})-(\d{1,2})[T\s](\d{1,2}):(\d{2})/)
+  if (!match) return raw || '-'
+  const pad = (part) => String(part).padStart(2, '0')
+  return `${match[1]}-${pad(match[2])}-${pad(match[3])} ${pad(match[4])}:${match[5]}`
+}
+
 function buildFileRowView(item, data) {
   const canMutateOwnTab = data.activeTab !== '分享给我' && data.activeTab !== '四项激励'
   // 【mp-4 2026-10-17】行操作按当前文件夹 ACL + downloadable 收敛（与 PC FileTable 同口径）；
@@ -244,9 +241,9 @@ function buildFileRowView(item, data) {
     folderText: item.folder || '未分类',
     sizeText: item.size || '-',
     uploaderNameText: item.uploaderName || '—',
-    updatedAtText: item.updatedAt || '-',
+    updatedAtText: formatDateTimeText(item.updatedAt),
     // 【需求A】meta 拆两段: 行内只放 大小·时间(与名字同区), 文件夹·上传人放次要位
-    metaBrief: `${item.size || '-'} · ${item.updatedAt || '-'}`,
+    metaBrief: `${item.size || '-'} · ${formatDateTimeText(item.updatedAt)}`,
     metaExtra: `${item.folder || '未分类'} · ${item.uploaderName || '—'}`,
     bucket: parseUpdatedBucket(item.updatedAt),
     canDownload: showDownload,
@@ -284,13 +281,14 @@ function buildFileView(data) {
   // 【mp-4】上传入口同样按当前夹 upload 权限收敛（后端 upload 会校验文件夹 P_UPLOAD）
   const showUploadAction = Boolean(data.canUpload && (data.folderPerms || []).includes('upload') && (data.activeTab === '公共' || data.activeTab === '私人'))
   const loading = Boolean(data.loading)
-  const loadingMore = Boolean(data.loadingMore)
-  const hasMore = Boolean(data.hasMore)
   // 【需求A】时间分组(今天/本周/更早),每组带 flatIndex 锚回 filteredFiles 供既有处理器复用
   const fileGroups = FILE_GROUP_ORDER.map((label) => {
     const groupFiles = files.filter((item) => item.bucket === label)
     return { key: label, label, count: groupFiles.length, files: groupFiles }
   }).filter((group) => group.count > 0)
+  // 【分页 2026-10-18】条数优先用服务端 total；拿不到时退回本页条数
+  const totalFiles = Number(data.total)
+  const fileCount = Number.isFinite(totalFiles) && totalFiles > 0 ? totalFiles : files.length
   return {
     showUploadAction,
     tabs,
@@ -307,23 +305,19 @@ function buildFileView(data) {
     showManageEmpty: !hasManageFolders,
     fileGroups,
     files,
-    fileCountText: `${files.length} 个文件`,
+    fileCountText: `共 ${fileCount} 个文件`,
     showFileList: files.length > 0,
     showEmpty: files.length === 0 && !data.previewVideoPath && !loading,
-    // 【mp-1】分页反馈：首屏加载 / 追加加载 / 无更多，沿用页面既有 muted 文案样式
+    // 首屏加载文案；翻页状态由 <pager loading> 承载
     showLoading: loading && files.length === 0,
     loadingText: '加载中...',
-    showLoadMore: loadingMore,
-    loadMoreText: '加载更多中...',
-    showNoMore: !loading && !loadingMore && files.length > 0 && !hasMore,
-    noMoreText: '没有更多文件了',
     aclRows: data.aclRows || [],
     showAclRows: Boolean(data.aclRows && data.aclRows.length)
   }
 }
 
 Page({
-  data: { keyword: '', activeTab: '公共', activeFolderId: '', activeFolderName: '', tabs: ['公共', '私人', '四项激励', '分享给我'], tabCounts: { 公共: 0, 私人: 0, 四项激励: 0, 分享给我: 0 }, folders: [], files: [], filteredFiles: [], capacity: { used: '-', total: '-', percent: 0, hint: '存储统计加载中' }, canUpload: false, canReplace: false, canDelete: false, canShare: false, canManageFolder: false, canViewFolderAcl: false, canDevUploadSmoke: false, uploading: false, replacingId: '', loaded: false, loading: false, loadingMore: false, hasMore: false, currentPage: 1, pageSize: 50, folderPerms: [], folderDownloadable: 1, aclVisible: false, aclLoading: false, aclFolderName: '', aclRows: [], previewing: false, previewVideoPath: '', actionSheet: { visible: false, index: -1, name: '', actions: [] }, storageApplyInfo: { enabled: false, canApply: false, reason: '', used: 0, quota: 0, maxQuota: 0, allowDecrease: false }, storageApplyForm: { visible: false, submitting: false, quotaInput: '', reasonInput: '', errorText: '' }, storageApplyView: buildStorageApplyView({}), fileView: buildFileView({ tabs: ['公共', '私人', '四项激励', '分享给我'], tabCounts: { 公共: 0, 私人: 0, 四项激励: 0, 分享给我: 0 }, folders: [], filteredFiles: [], activeTab: '公共', activeFolderName: '', previewVideoPath: '' }) },
+  data: { keyword: '', activeTab: '公共', activeFolderId: '', activeFolderName: '', tabs: ['公共', '私人', '四项激励', '分享给我'], tabCounts: { 公共: 0, 私人: 0, 四项激励: 0, 分享给我: 0 }, folders: [], files: [], filteredFiles: [], capacity: { used: '-', total: '-', percent: 0, hint: '存储统计加载中' }, canUpload: false, canReplace: false, canDelete: false, canShare: false, canManageFolder: false, canViewFolderAcl: false, canDevUploadSmoke: false, uploading: false, replacingId: '', loaded: false, loading: false, page: 1, pageSize: 10, total: 0, folderPerms: [], folderDownloadable: 1, aclVisible: false, aclLoading: false, aclFolderName: '', aclRows: [], previewing: false, previewVideoPath: '', actionSheet: { visible: false, index: -1, name: '', actions: [] }, storageApplyInfo: { enabled: false, canApply: false, reason: '', used: 0, quota: 0, maxQuota: 0, allowDecrease: false }, storageApplyForm: { visible: false, submitting: false, quotaInput: '', reasonInput: '', errorText: '' }, storageApplyView: buildStorageApplyView({}), fileView: buildFileView({ tabs: ['公共', '私人', '四项激励', '分享给我'], tabCounts: { 公共: 0, 私人: 0, 四项激励: 0, 分享给我: 0 }, folders: [], filteredFiles: [], activeTab: '公共', activeFolderName: '', previewVideoPath: '', total: 0 }) },
 
   setFileData(patch) {
     const nextData = { ...this.data, ...patch }
@@ -443,103 +437,106 @@ Page({
   },
 
   async loadFiles(options = {}) {
-    const append = Boolean(options.append)
-    if (append && (this._filesLoading || !this.data.hasMore)) return
+    // 【分页 2026-10-18】最近文件改为显式分页：默认回到第 1 页（筛选/上传/删除后刷新），
+    // pager 翻页时显式传 page/pageSize；每次只替换当前页数据，不再触底追加。
+    const requestedPage = Number(options.page)
+    const page = Number.isFinite(requestedPage) && requestedPage > 0 ? Math.floor(requestedPage) : 1
+    const requestedSize = Number(options.pageSize)
+    const pageSize = Number.isFinite(requestedSize) && requestedSize > 0 ? Math.floor(requestedSize) : (Number(this.data.pageSize) || 10)
     if (getApp().globalData.demoMode) {
       const folders = readDemoFolders()
-      const files = demoFiles
-      this.setFileData({ folders, files, filteredFiles: this.filterFiles(files), capacity: demoCapacity, tabCounts: this.demoTabCounts(files), loaded: true, loading: false, loadingMore: false, currentPage: 1, hasMore: false })
+      // 演示模式没有服务端分页：先按当前文件夹/Tab/关键字过滤全量，再本地切当前页
+      const baseFiles = this.data.activeFolderName
+        ? demoFiles.filter((item) => item.folder === this.data.activeFolderName)
+        : demoFiles
+      const matched = this.filterFiles(baseFiles, this.data)
+      const total = matched.length
+      const totalPages = Math.max(1, Math.ceil(total / pageSize))
+      const safePage = Math.min(page, totalPages)
+      const start = (safePage - 1) * pageSize
+      const files = matched.slice(start, start + pageSize)
+      this.setFileData({ folders, files, filteredFiles: files, capacity: demoCapacity, tabCounts: this.demoTabCounts(demoFiles), loaded: true, loading: false, page: safePage, pageSize, total })
       return
     }
-    // 【M20】请求序号守卫：Tab/筛选快速切换时，慢返回的旧响应直接丢弃，防止覆盖新列表
+    // 【M20】请求序号守卫：Tab/筛选/翻页快速切换时，慢返回的旧响应直接丢弃，防止覆盖新列表
     const requestSeq = (this._filesReqSeq = (this._filesReqSeq || 0) + 1)
-    // 【mp-1 2026-10-17】分页：首屏/切换筛选重置到第 1 页，触底追加下一页；
-    // 任何重置请求都会作废旧请求，追加请求额外受 loading/hasMore 防重入。
-    const page = append ? (this.data.currentPage || 1) + 1 : 1
-    const pageSize = this.data.pageSize || 50
     this._filesLoading = true
     let folders = this.data.folders
     let files = []
     let total = 0
     let capacity = this.data.capacity
     let failed = false
-    this.setFileData(append
-      ? { loadingMore: true, currentPage: page }
-      : { loading: true, loadingMore: false, currentPage: 1, hasMore: false })
+    this.setFileData({ loading: true, page, pageSize })
     try {
       const folderScope = this.activeFileScope()
-      if (!append) {
-        const [folderResponse, storageInfo] = await Promise.all([
-          // 【体检 P1 2026-10-12】带 scope 请求: 后端缺省只回公共树, 私人 Tab 此前恒空
-          getFolders(this.data.activeTab === '公共' || this.data.activeTab === '私人' ? folderScope : undefined),
-          getStorageInfo().catch((error) => {
-            showError(error, '存储统计加载失败')
-            return null
+      const [folderResponse, storageInfo] = await Promise.all([
+        // 【体检 P1 2026-10-12】带 scope 请求: 后端缺省只回公共树, 私人 Tab 此前恒空
+        getFolders(this.data.activeTab === '公共' || this.data.activeTab === '私人' ? folderScope : undefined),
+        getStorageInfo().catch((error) => {
+          showError(error, '存储统计加载失败')
+          return null
+        })
+      ])
+      if (storageInfo) capacity = normalizeCapacity(storageInfo)
+      // request 已解包 Result.data；兼容数组与旧式 {data|records} 两种返回形态
+      const rawFolders = Array.isArray(folderResponse) ? folderResponse : (folderResponse?.data || folderResponse?.records || [])
+      // 【体检 P1 2026-10-12】树只映射顶层会丢子夹(公共子文件夹不可见)——递归展平为芯片列表,
+      // 子夹名前加「·」标识层级, 点按仍按各自 id 进入
+      // 【mp-4】保留每个夹的 perms/downloadable，选中夹后用于收敛行内操作
+      const flattenFolders = (list, depth, out) => {
+        (list || []).forEach((f) => {
+          // 【F1】展示名(「· 」层级标记)与真实名分离: rawName 用于重命名提交,
+          // 否则前缀会被当成名字发到接口, 后端只 trim 会永久落库脏名
+          const rawName = f.name || f.folderName || '未命名文件夹'
+          out.push({
+            id: f.id,
+            name: (depth > 0 ? '· ' : '') + rawName,
+            rawName,
+            perms: Array.isArray(f.perms) ? f.perms : [],
+            downloadable: f.downloadable
           })
-        ])
-        if (storageInfo) capacity = normalizeCapacity(storageInfo)
-        // request 已解包 Result.data；兼容数组与旧式 {data|records} 两种返回形态
-        const rawFolders = Array.isArray(folderResponse) ? folderResponse : (folderResponse?.data || folderResponse?.records || [])
-        // 【体检 P1 2026-10-12】树只映射顶层会丢子夹(公共子文件夹不可见)——递归展平为芯片列表,
-        // 子夹名前加「·」标识层级, 点按仍按各自 id 进入
-        // 【mp-4】保留每个夹的 perms/downloadable，选中夹后用于收敛行内操作
-        const flattenFolders = (list, depth, out) => {
-          (list || []).forEach((f) => {
-            // 【F1】展示名(「· 」层级标记)与真实名分离: rawName 用于重命名提交,
-            // 否则前缀会被当成名字发到接口, 后端只 trim 会永久落库脏名
-            const rawName = f.name || f.folderName || '未命名文件夹'
-            out.push({
-              id: f.id,
-              name: (depth > 0 ? '· ' : '') + rawName,
-              rawName,
-              perms: Array.isArray(f.perms) ? f.perms : [],
-              downloadable: f.downloadable
-            })
-            if (f.children && f.children.length) flattenFolders(f.children, depth + 1, out)
-          })
-          return out
-        }
-        folders = (this.data.activeTab === '公共' || this.data.activeTab === '私人')
-          ? flattenFolders(rawFolders.filter((item) => item.folderType === folderScope), 0, [])
-          : []
+          if (f.children && f.children.length) flattenFolders(f.children, depth + 1, out)
+        })
+        return out
       }
+      folders = (this.data.activeTab === '公共' || this.data.activeTab === '私人')
+        ? flattenFolders(rawFolders.filter((item) => item.folderType === folderScope), 0, [])
+        : []
       const fileResponse = this.data.activeTab === '分享给我'
-        ? await getSharedToMe(this.buildFileListParams())
-        : await getFileList(this.buildFileListParams())
+        ? await getSharedToMe(this.buildFileListParams({ current: page, size: pageSize }))
+        : await getFileList(this.buildFileListParams({ current: page, size: pageSize }))
       files = pageRecords(fileResponse)
       total = pageTotal(fileResponse)
     } catch (error) {
       failed = true
-      if (!append) {
-        folders = []
-        files = []
-        // 【PR-04】真实模式失败：报错 + 空列表（空态样式），不再显示演示数据
-        // 【M20】已被更新请求取代的旧失败不再弹错（新请求的结果会接管界面）
-        capacity = { used: '-', total: '-', percent: 0, hint: '存储统计暂未同步' }
-      }
+      folders = []
+      files = []
+      // 【PR-04】真实模式失败：报错 + 空列表（空态样式），不再显示演示数据
+      // 【M20】已被更新请求取代的旧失败不再弹错（新请求的结果会接管界面）
+      capacity = { used: '-', total: '-', percent: 0, hint: '存储统计暂未同步' }
       if (requestSeq === this._filesReqSeq) {
-        showErrorWithRetry(error, '文件加载失败，请重试', () => this.loadFiles(append ? { append: true } : undefined))
+        showErrorWithRetry(error, '文件加载失败，请重试', () => this.loadFiles({ page, pageSize }))
       }
     } finally {
       if (requestSeq === this._filesReqSeq) this._filesLoading = false
     }
     if (requestSeq !== this._filesReqSeq) return
-    if (failed && append) {
-      // 追加失败保留已加载列表，只收起加载态并回退页码；下次触底仍可重试同一页
-      this.setFileData({ loadingMore: false, currentPage: Math.max(page - 1, 1) })
-      return
-    }
     const folderNames = folderNameLookup(folders)
     const normalizedFiles = files.map((item, index) => this.normalizeFile(item, index, folderNames))
-    const mergedFiles = append ? mergeById(this.data.files, normalizedFiles) : normalizedFiles
-    // 无 total 的旧后端按"本页满页"判断是否还有下一页
-    const hasMore = total > 0 ? page * pageSize < total : files.length >= pageSize
-    this.setFileData({ folders, files: mergedFiles, filteredFiles: this.filterFiles(mergedFiles), capacity, loaded: true, loading: false, loadingMore: false, currentPage: page, hasMore })
-    if (!append) this.loadTabCounts()
+    // 分页替换语义：只保留当前页；flatIndex 由 buildFileView 按 filteredFiles 重新编号
+    this.setFileData({ folders, files: normalizedFiles, filteredFiles: this.filterFiles(normalizedFiles), capacity, loaded: true, loading: false, page, pageSize, total: failed ? 0 : total })
+    if (!failed && page === 1) this.loadTabCounts()
   },
 
-  onReachBottom() {
-    this.loadFiles({ append: true })
+  // 【分页 2026-10-18】翻页改由 <pager> 显式驱动，触底不再追加请求
+  onReachBottom() {},
+
+  // 【分页 2026-10-18】pager 事件 detail={page,pageSize}: 上一页/下一页/切换 10/30 条
+  onPagerChange(event) {
+    const detail = (event && event.detail) || {}
+    const page = Math.max(1, Number(detail.page) || 1)
+    const pageSize = Number(detail.pageSize) || this.data.pageSize || 10
+    this.loadFiles({ page, pageSize })
   },
 
   activeFileScope() {
@@ -551,8 +548,8 @@ Page({
 
   buildFileListParams(extra = {}) {
     const params = {
-      current: this.data.currentPage || 1,
-      size: this.data.pageSize || 50,
+      current: this.data.page || 1,
+      size: this.data.pageSize || 10,
       keyword: this.data.keyword.trim() || undefined,
       ...extra
     }
@@ -571,7 +568,8 @@ Page({
 
   async loadTabCounts() {
     if (getApp().globalData.demoMode) {
-      this.setFileData({ tabCounts: this.demoTabCounts(this.data.files.length ? this.data.files : demoFiles) })
+      // 【分页】Tab 计数始终按演示全量统计，不能只数当前页
+      this.setFileData({ tabCounts: this.demoTabCounts(demoFiles) })
       return
     }
     try {
@@ -631,39 +629,35 @@ Page({
 
   onKeywordInput(event) {
     const keyword = event.detail.value
-    // 【F3】用新关键词过滤: 先 setData 再 filterFiles 会漏掉刚输入的最后一个字符
+    if (getApp().globalData.demoMode) {
+      // 【分页】演示模式本地分页: 关键字即时生效, 回到第 1 页按全量重算
+      this.setFileData({ keyword })
+      this.loadFiles({ page: 1 })
+      return
+    }
+    // 【F3】用新关键词过滤当前页显示: 先 setData 再 filterFiles 会漏掉刚输入的最后一个字符;
+    // 真实模式仍等「搜索」确认后再按关键字请求第 1 页
     this.setFileData({ keyword, filteredFiles: this.filterFiles(this.data.files, { ...this.data, keyword }) })
   },
   searchFiles() {
-    if (getApp().globalData.demoMode) {
-      this.setFileData({ filteredFiles: this.filterFiles(this.data.files) })
-      return
-    }
-    // 【mp-1】搜索条件变化：重置页码与列表，从第 1 页重新拉取
-    this.setFileData({ currentPage: 1, hasMore: false })
-    this.loadFiles()
+    // 【分页】查询条件变化：重置到第 1 页重新拉取（demo 模式在 loadFiles 内本地分页）
+    this.loadFiles({ page: 1 })
   },
   onTabTap(event) {
     const activeTab = event.currentTarget.dataset.tab
-    const patch = { activeTab, activeFolderId: '', activeFolderName: '', currentPage: 1, hasMore: false }
-    // 【F3】用切换后的 Tab 过滤: 原来的 filterFiles 读 this.data.activeTab 仍是旧 Tab
-    // (演示模式不重拉接口, 错误列表会一直保留)
-    this.setFileData({ ...patch, filteredFiles: this.filterFiles(this.data.files, { ...this.data, ...patch }) })
-    if (!getApp().globalData.demoMode) this.loadFiles()
+    // 【分页】切换 Tab 属于筛选变化：清空文件夹并回到第 1 页
+    this.setFileData({ activeTab, activeFolderId: '', activeFolderName: '', page: 1 })
+    this.loadFiles({ page: 1 })
   },
   openFolder(event) {
     const rawFolderId = event.currentTarget.dataset.id
     const folderId = rawFolderId && rawFolderId !== 'undefined' && rawFolderId !== 'null' ? rawFolderId : ''
     const folderName = event.currentTarget.dataset.name || ''
-    if (getApp().globalData.demoMode) {
-      const files = demoFiles.filter((item) => item.folder === folderName)
-      return this.setFileData({ activeFolderId: folderId, activeFolderName: folderName, files, filteredFiles: this.filterFiles(files), currentPage: 1, hasMore: false })
-    }
-    // 【mp-1】切换文件夹属于筛选变化：重置分页后走统一首屏加载（含文件夹权限回填）
-    this.setFileData({ activeFolderId: folderId, activeFolderName: folderName, currentPage: 1, hasMore: false })
-    this.loadFiles()
+    // 【分页】进入文件夹属于筛选变化：回到第 1 页（demo 模式按 activeFolderName 本地过滤后切页）
+    this.setFileData({ activeFolderId: folderId, activeFolderName: folderName, page: 1 })
+    this.loadFiles({ page: 1 })
   },
-  clearFolder() { this.setFileData({ activeFolderId: '', activeFolderName: '', currentPage: 1, hasMore: false }); this.loadFiles() },
+  clearFolder() { this.setFileData({ activeFolderId: '', activeFolderName: '', page: 1 }); this.loadFiles({ page: 1 }) },
   // 【D1-A 2026-10-18】容量卡「申请扩容」:页面内自绘弹窗承载 总配额 + 理由 两个字段,
   // 提交复用审批 submit(type=storage, extraData={quota,reason}); 客户端不传 oldQuota
   openStorageApply() {

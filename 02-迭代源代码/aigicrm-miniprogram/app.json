@@ -1,4 +1,7 @@
 {
+  "usingComponents": {
+    "pager": "/components/pager/index"
+  },
   "pages": [
     "pages/login/index",
     "pages/login/forgot/index",

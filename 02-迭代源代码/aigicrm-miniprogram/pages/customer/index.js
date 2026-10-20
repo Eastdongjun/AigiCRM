@@ -4,9 +4,8 @@ const { showError } = require('../../utils/feedback')
 const { readDemoCustomers } = require('../../utils/demo-customers')
 // 【D24/D27 2026-10-04】状态文案、筛选草稿读取/参数拼装统一引用组内共享模块
 const { customerStatusLabel, customerStatusTone, emptyAdvancedFilter, readFilterDraft, clearFilterDraft, parseFilterDraft, buildCustomerFilterParams } = require('./shared')
-
-/** 列表分页大小（与服务端 page 接口约定 current/size，total 由服务端返回） */
-const PAGE_SIZE = 20
+// 【分页 2026-10-18】演示模式对本地过滤结果做客户端分页
+const { paginate } = require('../../utils/paging')
 
 function normalizePage(payload) {
   if (Array.isArray(payload)) return payload
@@ -52,9 +51,7 @@ function buildCustomerView(data) {
   // 直接把接口行透传给视图会导致接口有数据但卡片文字全空（看起来像"加载不出来"）。
   const customers = Array.isArray(data.customers) ? data.customers.map(buildCustomerRowView) : []
   const isLoading = Boolean(data.loading)
-  const isLoadingMore = Boolean(data.loadingMore)
-  // 【P6 2026-10-04】总数优先用接口返回的 total(此前误把已加载条数当总数);
-  // 演示模式无接口,由 loadCustomers 以本地过滤结果数兜底
+  // 【P6 2026-10-04】总数优先用接口返回的 total；演示模式无接口,由 loadCustomers 以本地过滤结果数兜底
   const total = Number(data.total) || customers.length
   // 【C1 2026-10-19】计数卡片有值(含 0)即展示数字,仅缺卡片时用 '-' 占位;
   // 旧写法 `|| '-'` 会把真实 0 也显示成 '-',与「没有字段时明确显示 0」不一致
@@ -68,11 +65,7 @@ function buildCustomerView(data) {
     showLoading: isLoading,
     loadingText: '加载中...',
     customers,
-    showEmpty: !isLoading && customers.length === 0,
-    // 【P6 2026-10-04】触底加载更多/没有更多 的底部提示
-    showLoadMore: isLoadingMore,
-    loadMoreText: '加载更多中...',
-    showNoMore: !isLoading && !isLoadingMore && customers.length > 0 && !data.hasMore
+    showEmpty: !isLoading && customers.length === 0
   }
 }
 
@@ -80,11 +73,10 @@ Page({
   data: {
     keyword: '',
     customers: [],
-    // 【P6 2026-10-04】分页状态：当前页/服务端总数/是否还有下一页/加载更多中
-    currentPage: 1,
+    // 【分页 2026-10-18】显式分页：当前页 / 每页条数(10,30 可切) / 服务端总数
+    page: 1,
+    pageSize: 10,
     total: 0,
-    hasMore: false,
-    loadingMore: false,
     countCards: [
       { label: '全部', value: '-' },
       { label: '我的', value: '-' },
@@ -193,9 +185,11 @@ Page({
     }).catch((error) => showError(error, '客户数量加载失败'))
   },
 
-  /** 【P6 2026-10-04】分页加载：page=1 重置列表(筛选/搜索/刷新走这里)，
-   *  page>1 追加(触底 onReachBottom)。此前写死 current:1/size:20，第 21 条起不可见。 */
-  loadCustomers(page = 1) {
+  /** 【分页 2026-10-18】显式分页：任何页码都"替换"当前页数据（不再触底追加）。
+   *  pageSize 支持 10/30 切换；筛选/搜索/状态/排序/刷新一律 page=1。 */
+  loadCustomers(page = 1, pageSize = this.data.pageSize) {
+    const size = pageSize > 0 ? pageSize : 10
+    const targetPage = Math.max(1, Number(page) || 1)
     if (getApp().globalData.demoMode) {
       const savedCustomers = readDemoCustomers()
       const rows = [
@@ -210,13 +204,14 @@ Page({
       const demoProtectLabels = { active: ['保护期'], expiring: ['预警'], expired: ['超期'] }
       const protectLabels = demoProtectLabels[this.data.statusFilter || advanced.protect]
       const filtered = rows.filter((item) => (!keyword || `${item.name}${item.industry}${item.ownerName}`.toLowerCase().includes(keyword)) && (this.data.filter === '全部' || item.devType === this.data.filter) && (!statusLabels || statusLabels.includes(item.statusLabel || item.status || '')) && (!advanced.industry || item.industry === advanced.industry) && (!protectLabels || protectLabels.includes(item.statusLabel || item.status || '')) && (!advanced.province || (item.province || '').includes(advanced.province)) && (!advanced.city || (item.city || '').includes(advanced.city)))
+      // 演示模式无服务端分页：对本地过滤结果做客户端分页（total=过滤结果数）
+      const paged = paginate(filtered, targetPage, size)
       this.setCustomerData({
-        customers: filtered,
-        // 演示模式一次性本地过滤完，无分页：总数=过滤结果数，无更多页
-        currentPage: 1,
-        total: filtered.length,
-        hasMore: false,
-        loadingMore: false,
+        customers: paged.rows,
+        page: paged.page,
+        pageSize: paged.pageSize,
+        total: paged.total,
+        loading: false,
         countCards: [
           { label: '全部', value: 128 + savedCustomers.length },
           { label: '我的', value: 48 + savedCustomers.length },
@@ -227,45 +222,52 @@ Page({
       return
     }
 
-    // 加载更多触发的请求与前一个请求并发保护（首屏 loading 由按钮/筛选入口天然防重）
-    if (page > 1 && (this.data.loading || this.data.loadingMore)) return
-    // 【PM5 2026-10-07】请求序号守卫(照 files 页 _filesReqSeq 模式): 筛选/搜索触发 page-1 重载时,
-    // 在途的 loadMore(page>1)迟归响应不得再写 customers/currentPage —— 否则旧页行拼接进新列表(重复行)
+    // 【PM5 2026-10-07】请求序号守卫(照 files 页 _filesReqSeq 模式): 筛选/搜索/翻页触发新请求时,
+    // 在途旧响应不得再写列表 —— 否则慢请求迟归会覆盖新列表/把旧页数据拼进来
     const requestSeq = (this._custReqSeq = (this._custReqSeq || 0) + 1)
-    this.setCustomerData(page === 1 ? { loading: true, loadingMore: false } : { loadingMore: true })
-    const params = { current: page, size: PAGE_SIZE, ...buildCustomerFilterParams(this.data) }
+    // 先同步页码/页大小，分页条立即反映用户操作；总数等响应回来再更新
+    this.setCustomerData({ loading: true, page: targetPage, pageSize: size })
+    const params = { current: targetPage, size, ...buildCustomerFilterParams(this.data) }
     getCustomerList(params).then((payload) => {
       if (requestSeq !== this._custReqSeq) return // 已被更新请求取代, 旧响应整体丢弃
       const rows = normalizePage(payload).map(normalizeCustomer)
       const visible = this.data.filter === '全部' ? rows : rows.filter((item) => item.devType === this.data.filter)
-      const total = Number(payload && payload.total) || 0
-      // hasMore 优先以服务端 total 判定(后端已按同样条件过滤)；total 缺失时按本页是否取满兜底
-      const hasMore = total ? page * PAGE_SIZE < total : rows.length >= PAGE_SIZE
-      this.setCustomerData({
-        customers: page === 1 ? visible : this.data.customers.concat(visible),
-        currentPage: page,
-        total,
-        hasMore
-      })
+      const rawTotal = Number(payload && payload.total)
+      // total 优先用服务端总数；缺失时按"本页是否取满"兜底，保证 pager 能前进且不停在空页
+      const total = rawTotal > 0
+        ? rawTotal
+        : (rows.length >= size ? targetPage * size + 1 : (targetPage - 1) * size + rows.length)
+      const totalPages = Math.max(1, Math.ceil(total / size))
+      // 页码越界（删除/筛选后总数变少）：回到最后一页，避免停在空页
+      if (targetPage > totalPages) {
+        this.loadCustomers(totalPages, size)
+        return
+      }
+      this.setCustomerData({ customers: visible, page: targetPage, total })
     }).catch((error) => {
       // 【PM5】已被更新请求取代的旧失败不再弹错(新请求的结果会接管界面)
-      if (requestSeq === this._custReqSeq) showError(error, page === 1 ? '客户加载失败' : '加载更多失败')
+      if (requestSeq === this._custReqSeq) showError(error, '客户加载失败')
     }).finally(() => {
-      if (requestSeq !== this._custReqSeq) return // loading/loadingMore 由最新请求的 finally 复位
-      this.setCustomerData({ loading: false, loadingMore: false })
+      if (requestSeq !== this._custReqSeq) return // loading 由最新请求的 finally 复位
+      this.setCustomerData({ loading: false })
     })
   },
 
-  /** 【P6 2026-10-04】触底加载下一页 */
-  onReachBottom() {
-    if (!this.data.hasMore || this.data.loading || this.data.loadingMore) return
-    this.loadCustomers(this.data.currentPage + 1)
+  /** 显式分页后不再触底追加；保留空实现避免旧触底逻辑回流 */
+  onReachBottom() {},
+
+  /** 分页条事件：切换页码/每页条数；pageSize 变化时回到第 1 页 */
+  onPagerChange(e) {
+    const detail = e.detail || {}
+    const nextPageSize = Number(detail.pageSize) || this.data.pageSize || 10
+    const nextPage = nextPageSize === this.data.pageSize ? (Number(detail.page) || 1) : 1
+    this.loadCustomers(nextPage, nextPageSize)
   },
 
   /** 列表请求参数拼装(含分页)。筛选条件拼装同源 shared.buildCustomerFilterParams(D27 单一出处)；
    *  保留为页面方法：DevTools 自动化 verify-customer-center.mjs 通过 callMethod('buildCustomerParams') 驱动。 */
   buildCustomerParams() {
-    return { current: this.data.currentPage, size: PAGE_SIZE, ...buildCustomerFilterParams(this.data) }
+    return { current: this.data.page, size: this.data.pageSize, ...buildCustomerFilterParams(this.data) }
   },
 
   openDetail(e) {

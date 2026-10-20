@@ -59,9 +59,8 @@
     </block>
   </view>
   <video wx:if="{{previewVideoPath}}" src="{{previewVideoPath}}" controls class="file-preview-video"></video>
-  <!-- 【mp-1】分页反馈：追加加载/无更多；首屏空态仍走下面的 showEmpty -->
-  <view wx:if="{{fileView.showLoadMore}}" class="muted">{{fileView.loadMoreText}}</view>
-  <view wx:if="{{fileView.showNoMore}}" class="muted">{{fileView.noMoreText}}</view>
+  <!-- 【分页 2026-10-18】最近文件改为显式分页（10/30 条一页），翻页/切换每页条数走 pager 事件 -->
+  <pager page="{{page}}" pageSize="{{pageSize}}" total="{{total}}" loading="{{loading}}" bind:change="onPagerChange" />
   <view wx:if="{{fileView.showEmpty}}" class="empty-state"><text class="empty-icon">⌁</text><text>暂未找到匹配文件</text></view>
   <!-- 【需求A 2026-10-16】操作面板: 行尾「···」或长按呼出, 打开/下载/分享/替换/删除按权限显隐 -->
   <view wx:if="{{actionSheet.visible}}" class="sheet-mask" catchtap="closeActionSheet">

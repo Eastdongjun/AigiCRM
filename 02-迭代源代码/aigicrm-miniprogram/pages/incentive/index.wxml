@@ -70,20 +70,24 @@
     <view wx:if="{{incentiveView.showLoading}}" class="card muted">{{incentiveView.loadingText}}</view>
     <!-- 【需求B+C 2026-10-16】客户维度=紧凑封面卡: 列表页只留识别信息(封面/名称/行业·大类/积分/未读),
          全部明细与操作下沉到客户激励详情页(openCustomerDetail);原红圈①②③④从列表页消失 -->
-    <block wx:for="{{records}}" wx:key="id">
+    <!-- 【分页 2026-10-18】列表只渲染当页切片 pagedRecords; 客户名称移到卡片正文(不再压封面图) -->
+    <block wx:for="{{pagedRecords}}" wx:key="id">
       <view class="cust-card" data-index="{{index}}" bindtap="openCustomerDetail">
         <view class="cust-cover">
           <image wx:if="{{item.coverFile.id && apiBase && dlToken}}" class="cust-cover-img" src="{{thumb.thumbSrc(item.coverFile, apiBase, dlToken)}}" mode="aspectFill" lazy-load="{{true}}" />
-          <view class="cust-cover-shade"></view>
-          <view class="cust-cover-name">{{item.name}}</view>
-          <view class="cust-cover-score">档案</view>
+          <view wx:else class="cust-cover-fallback">{{item.coverChar}}</view>
+          <view class="cust-cover-badge">档案</view>
         </view>
         <view class="cust-body">
+          <view class="cust-name-row">
+            <text wx:if="{{item.unread}}" class="cust-unread-dot"></text>
+            <text class="cust-name">{{item.name}}</text>
+          </view>
           <view class="cust-meta">
             <text class="cust-pill">{{item.industry}}</text>
             <text wx:if="{{item.category}}" class="cust-pill blue">{{item.category}}</text>
           </view>
-          <view class="cust-nums">{{item.countText}} · {{item.fileCountText}}<text wx:if="{{item.unread}}" class="cust-unread">未读</text></view>
+          <view class="cust-nums">{{item.countText}} · {{item.fileCountText}}</view>
         </view>
         <view class="cust-score">
           <text class="cust-score-num">{{item.score}}</text>
@@ -92,6 +96,9 @@
         <view class="cust-arrow">›</view>
       </view>
     </block>
+    <view class="incentive-pager">
+      <pager page="{{page}}" pageSize="{{pageSize}}" total="{{pagerTotal}}" loading="{{loading}}" bind:change="onPagerChange" />
+    </view>
     <view wx:if="{{incentiveView.showRecordEmpty}}" class="card muted">暂无四项激励记录</view>
     <video wx:if="{{previewVideoPath}}" src="{{previewVideoPath}}" controls class="record-file-video"></video>
   </view>
