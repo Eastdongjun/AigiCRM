@@ -5,6 +5,10 @@
 #   --quick: 跳过前端构建(只跑测试), 用于迭代中间快速自检
 # 可选: AIGI_MATRIX=1 追加权限矩阵回归(需测试环境账号, 见 verify-perm-matrix.sh)
 # 退出码: 0=全过, 1=任一必需项失败。CI/交付前必须跑完整档。
+# 【F2 2026-10-21】补齐门禁覆盖:
+#   [2b] 由内联 node --check 收敛为 dev-verify.sh miniprogram(含绑定/类名/JSON/app.json 契约);
+#   [5b] 新增 dev-verify.sh contracts(70+ 本地契约脚本全集 + F1 全量 secret 扫描);
+#   [0]  依赖 preflight fail-closed——缺 rg/python3 等直接判 FAIL, 不让契约假红污染结果。
 set -uo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 QUICK="${1:-}"
@@ -13,6 +17,18 @@ ok()  { echo "✅ $1"; PASS=$((PASS+1)); }
 bad() { echo "❌ $1"; FAIL=$((FAIL+1)); }
 
 echo "════════ AIGICRM 一键门禁 $(date '+%m-%d %H:%M') ════════"
+
+# [0] 依赖 preflight(缺工具=门禁无法如实执行 → 直接 FAIL, fail-closed; 工具用途见各检查段)
+echo "--- [0] 依赖 preflight ---"
+MISSING_TOOLS=""
+for tool in git node npm npx mvn python3 rg; do
+  command -v "$tool" >/dev/null 2>&1 || MISSING_TOOLS="$MISSING_TOOLS $tool"
+done
+if [ -n "$MISSING_TOOLS" ]; then
+  bad "依赖缺失(fail-closed):$MISSING_TOOLS —— mvn=后端测试; node/npm/npx=前端; rg/python3=contracts 契约; git=文件清单"
+else
+  ok "依赖 preflight(git/node/npm/npx/mvn/python3/rg)"
+fi
 
 # [1] 后端全量(含权限矩阵架构钉+稳定性不变量钉)
 echo "--- [1] 后端全量测试 ---"
@@ -30,13 +46,14 @@ else
   bad "前端测试失败:"; grep -E "FAIL|Tests.*[1-9].*failed" /tmp/gate-fe.log | head -5
 fi
 
-# [2b] 小程序语法门禁【体检 P2 2026-10-12】——三端门禁此前缺小程序一端:
-#      MP 无测试框架, node --check 全量语法检查是能做到的最低门禁(历史上靠 CI 单独跑, 本地一键门禁缺失)
-echo "--- [2b] 小程序语法(node --check 全量) ---"
-if (cd "$SCRIPT_DIR/../aigicrm-miniprogram" && find . -name '*.js' -not -path './node_modules/*' -print0 | xargs -0 -n1 node --check > /tmp/gate-mp.log 2>&1); then
-  ok "小程序语法"
+# [2b] 小程序检查【体检 P2 2026-10-12 引入; F2 2026-10-21 收敛】——三端门禁此前缺小程序一端,
+#      且原实现只有 node --check 语法检查。现收敛为 dev-verify.sh miniprogram 单一出处:
+#      语法 + JSON 解析 + 空视图检查 + 视图绑定契约 + 静态类名契约 + app.json 页面完整性。
+echo "--- [2b] 小程序检查(dev-verify.sh miniprogram) ---"
+if bash "$SCRIPT_DIR/dev-verify.sh" miniprogram > /tmp/gate-mp.log 2>&1; then
+  ok "小程序检查(语法/JSON/绑定/类名/app.json)"
 else
-  bad "小程序语法失败:"; head -10 /tmp/gate-mp.log
+  bad "小程序检查失败:"; tail -15 /tmp/gate-mp.log
 fi
 
 # [3] 前端构建(quick 跳过)
@@ -79,6 +96,22 @@ if bash "$SCRIPT_DIR/check-invariants-contract.sh" > /tmp/gate-inv.log 2>&1; the
   ok "业务不变量契约(INV-10)"
 else
   bad "业务不变量契约违例(INV-10 指引可达性——断头路):"; grep "FAIL" /tmp/gate-inv.log | head -5
+fi
+
+# [5b] 本地契约全集【F2 2026-10-21】——70+ check-* 契约脚本与 demo 数据测试原先只在
+#      dev-verify.sh contracts/changed 里存在, 一键门禁从不执行(F2), 移动端/权限契约回归
+#      不阻断交付。现收敛为 dev-verify.sh contracts 单一清单(含 F1 全量 secret 扫描)。
+#      注意: 若因你的功能改动而红, 按 dev-verify.sh 内"契约更新责任表"同提交更新对应契约。
+echo "--- [5b] 本地契约全集(dev-verify.sh contracts, 含 secret 扫描) ---"
+if bash "$SCRIPT_DIR/dev-verify.sh" contracts > /tmp/gate-contracts.log 2>&1; then
+  ok "本地契约全集(contracts)"
+else
+  rc=$?
+  if [ "$rc" -eq 2 ]; then
+    bad "契约依赖缺失(BLOCKED, fail-closed):"; tail -5 /tmp/gate-contracts.log
+  else
+    bad "本地契约违例:"; grep -E "^FAIL|FAIL:" /tmp/gate-contracts.log | head -10; echo "(日志尾部:)"; tail -3 /tmp/gate-contracts.log
+  fi
 fi
 
 # [6] 工作区(交付级必须干净;本项只告警不阻断——避免迭代中被卡)

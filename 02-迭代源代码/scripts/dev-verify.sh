@@ -375,6 +375,7 @@ miniprogram_check() {
     echo "SKIP: aigicrm-miniprogram is not present."
     return 0
   }
+  miniprogram_deps_preflight
   /bin/bash "$ROOT/scripts/check-mobile-demo-contract.sh"
   /bin/bash "$ROOT/scripts/check-mobile-customer-indicator-edit-contract.sh"
   /bin/bash "$ROOT/scripts/check-mp-view-bindings.sh"
@@ -465,7 +466,36 @@ automation_safety() {
   bash "$ROOT/scripts/check-dev-automation-safety.sh"
 }
 
+# 【F2 2026-10-21】契约/小程序检查的依赖 preflight(fail-closed): contracts 被 gate.sh [5b] 与
+#   pre-push 按路径调用后, 缺 rg/python3/node 不再是"某脚本莫名单飞红", 而是统一 BLOCKED(exit 2)
+#   并点名缺哪个工具——CI/换机导致的假红可被一眼区分于真实契约违例。
+contract_deps_preflight() {
+  local missing=""
+  for tool in git node python3 rg; do
+    command -v "$tool" >/dev/null 2>&1 || missing="${missing}${tool} "
+  done
+  [ -z "$missing" ] || blocked "contracts 检查依赖缺失: ${missing}——请安装后重跑(多个 check-* 契约脚本使用 rg; fail-closed, 不静默跳过)"
+}
+
+miniprogram_deps_preflight() {
+  local missing=""
+  for tool in node python3; do
+    command -v "$tool" >/dev/null 2>&1 || missing="${missing}${tool} "
+  done
+  [ -z "$missing" ] || blocked "miniprogram 检查依赖缺失: ${missing}——node --check/JSON 解析需要 node, 类名契约需要 python3(fail-closed)"
+}
+
+# 【F2 2026-10-21 契约更新责任表】P1 修复改动下列领域时, 必须同提交更新对应契约/测试,
+#   否则 contracts(本函数)会把你的正常改动判红——这不是 F2 的故障, 是契约在等你的更新:
+#   A6 统计范围   → scripts/check-statistics-scope-contract.sh(teamActivities 调用与 wrapper.in 断言)
+#   B2 提醒分页   → aigicrm-ui/src/views/reminder/index.spec.js + scripts/check-pagination-anti-patterns.sh
+#   C5 客户表单   → scripts/check-mobile-customer-form-contract.sh + scripts/test-miniprogram-customer-idempotency.js
+#   C2 激励上传   → scripts/check-mobile-incentive-contract.sh
+#   C4 请求空串   → scripts/test-miniprogram-request-failures.js(keepEmpty 用例)
+#   E1 财务权限   → 若放开/收紧 assertCanManageFinance, 同步财务权限契约与 docs/business/finance.md
+#   凭据/冒烟(F1) → scripts/check-secret-scan.sh(违例→改 env 读取+轮换; 历史物→ALLOWLIST 精确条目+理由)
 local_contracts() {
+  contract_deps_preflight
   run "$ROOT/scripts/check-vscode-workspace-contract.sh"
   run "$ROOT/scripts/check-vscode-diagnostics-export.sh"
   run "$ROOT/scripts/check-dev-verify-modes-contract.sh"
@@ -503,6 +533,10 @@ local_contracts() {
   run "$ROOT/scripts/check-mobile-pc-api-parity-contract.sh"
   run "$ROOT/scripts/check-sensitive-permission-contract.sh"
   run "$ROOT/scripts/check-jwt-secret-contract.sh"
+  # 【F1 2026-10-21】全量 secret 扫描(p1-p6 形态, 含 aigicrm-ui/*.mjs)+其行为测试;
+  #   quality-gate.sh 复用同一脚本, 检查逻辑单一出处
+  run "$ROOT/scripts/check-secret-scan.sh"
+  run bash "$ROOT/scripts/test-secret-scan.sh"
   run "$ROOT/scripts/check-prod-config-contract.sh"
   run "$ROOT/scripts/check-client-ip-contract.sh"
   run "$ROOT/scripts/check-customer-status-contract.sh"
@@ -544,6 +578,7 @@ local_contracts() {
   run node "$ROOT/scripts/test-miniprogram-customer-idempotency.js"
   run node "$ROOT/scripts/test-miniprogram-customer-filter.js"
   run node "$ROOT/scripts/test-miniprogram-files-scope.js"
+  run node "$ROOT/scripts/test-miniprogram-reminder-list.js"
   run bash "$ROOT/scripts/test-sea-claim-matrix-safety.sh"
   run "$ROOT/scripts/check-prototype-state-contract.sh"
   run python3 "$ROOT/scripts/check-mobile-navigation-contract.py"
@@ -783,7 +818,8 @@ Modes:
   miniprogram      Check WeChat miniprogram JS/JSON syntax and empty WXML/WXSS files.
   shell-syntax     Check tracked and untracked scripts/*.sh with bash -n.
   python-syntax    Check tracked and untracked Python files with py_compile.
-  contracts        Run local permission, navigation, prototype, and demo-data contracts.
+  contracts        Run local permission, navigation, prototype, demo-data, and secret-scan contracts.
+                   Missing tooling (git/node/python3/rg) fails closed as BLOCKED.
   changed          Run checks selected from currently changed files.
   automation-safety
                    Check daily automation files for forbidden remote/deploy commands.

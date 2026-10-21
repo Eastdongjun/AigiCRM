@@ -1,12 +1,22 @@
 // AIGICRM PC「文件阅读器」生产数据复测 —— 2026-10-17
 // 目的: 测试环境已切生产快照(aigicrm_prod_20261016), 用**真实生产文件**(公共 48 PDF / 激励 DOCX·XLSX·TXT)
 //       复验阅读器, 覆盖生产文件的真实形态(而非合成样本)。受限角色维度已由 preview-smoke.mjs 26/26 覆盖。
-// 用法: BASE=http://111.229.37.220 USER_NAME=<账号> PASS=<口令> node preview-smoke-prod.mjs
+// 用法(2026-10-21 起统一, 见审计 F1): 三值一律经环境变量注入, 缺失即失败:
+//   AIGICRM_SMOKE_BASE=<站点根URL> AIGICRM_SMOKE_USER=<账号> AIGICRM_SMOKE_PASS=<口令> node preview-smoke-prod.mjs
+//   (旧 BASE/USER_NAME/PASS 变量名与默认账号已移除, 凭据轮换由运维负责)
 import { chromium } from '@playwright/test';
 
-const BASE = process.env.BASE || 'http://111.229.37.220';
-const USER = process.env.USER_NAME || 'admin';
-const PASS = process.env.PASS || '';
+function requireSmokeEnv(name) {
+  const value = process.env[name];
+  if (!value) {
+    console.error(`缺少环境变量 ${name}: 冒烟脚本已移除全部内置凭据(审计 F1), 请显式注入后重跑。`);
+    process.exit(1);
+  }
+  return value;
+}
+const BASE = requireSmokeEnv('AIGICRM_SMOKE_BASE');
+const USER = requireSmokeEnv('AIGICRM_SMOKE_USER');
+const PASS = requireSmokeEnv('AIGICRM_SMOKE_PASS');
 const results = [];
 let consoleErrors = [];
 let badResponses = 0;

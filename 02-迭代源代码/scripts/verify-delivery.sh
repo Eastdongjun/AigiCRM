@@ -26,10 +26,14 @@ L=$(git rev-parse --short HEAD); R=$(git rev-parse --short origin/main)
 #   ① 公共配置接口=SecurityConfig permitAll 只读接口直查 DB,覆盖 nginx→后端→MySQL 全链;
 #   ② CORS 意图由 OPTIONS 预检承担(匿名,直接断言 ACAO 响应头,比"登录 200"更精准地检 CORS_ORIGINS)。
 echo "--- [2] 生产 API 健康 ---"
-HOME_CODE=$(curl -sk -o /dev/null -w "%{http_code}" --connect-timeout 10 https://www.aigicrm.com/)
-CONFIG_RESP=$(curl -sk --connect-timeout 10 -w "\n%{http_code}" https://www.aigicrm.com/api/system/configs/public)
+# 【D6 2026-10-21】全部探活去掉 -k 并前置 TLS 证书门禁：证书过期/域不符/被替换必须判 FAIL，
+# 不允许"部署宣称成功而公网用户看到证书告警/中间人伪造探活响应"。
+# 部署机系统 CA 不含生产链时，用 AIGICRM_CACERT 显式指定 CA 包（不回退 -k）。
+if check_prod_tls; then ok "TLS 证书校验通过(系统 CA 链完整 + 未过期)"; else bad "TLS 证书校验失败——先修证书链/固定 CA(AIGICRM_CACERT)，不得以 -k 绕过"; fi
+HOME_CODE=$(curl -s $CURL_CA_OPTS -o /dev/null -w "%{http_code}" --connect-timeout 10 https://www.aigicrm.com/)
+CONFIG_RESP=$(curl -s $CURL_CA_OPTS --connect-timeout 10 -w "\n%{http_code}" https://www.aigicrm.com/api/system/configs/public)
 CONFIG_CODE="${CONFIG_RESP##*$'\n'}"
-ACAO=$(curl -sk -i -X OPTIONS https://www.aigicrm.com/api/auth/login \
+ACAO=$(curl -s $CURL_CA_OPTS -i -X OPTIONS https://www.aigicrm.com/api/auth/login \
   -H "Origin: https://www.aigicrm.com" -H "Access-Control-Request-Method: POST" --connect-timeout 10 \
   | tr -d '\r' | grep -i '^access-control-allow-origin:' | head -1 | tr -d '\n')
 [ "$HOME_CODE" = "200" ] && ok "首页 200" || bad "首页 $HOME_CODE"
@@ -41,7 +45,7 @@ fi
 if [ -n "$ACAO" ]; then ok "CORS 预检通过 ($ACAO)"
 else bad "CORS 预检缺 Access-Control-Allow-Origin —— 检查 CORS_ORIGINS"; fi
 if [ -n "${HEALTH_CHECK_PASS:-}" ]; then
-  LOGIN_CODE=$(curl -sk -o /dev/null -w "%{http_code}" --connect-timeout 10 -X POST https://www.aigicrm.com/api/auth/login \
+  LOGIN_CODE=$(curl -s $CURL_CA_OPTS -o /dev/null -w "%{http_code}" --connect-timeout 10 -X POST https://www.aigicrm.com/api/auth/login \
     -H "Origin: https://www.aigicrm.com" -H "Content-Type: application/json" \
     -d "{\"username\":\"${HEALTH_CHECK_USER:-admin}\",\"password\":\"$HEALTH_CHECK_PASS\"}")
   if [ "$LOGIN_CODE" = "200" ]; then ok "深度登录(含Origin) 200"

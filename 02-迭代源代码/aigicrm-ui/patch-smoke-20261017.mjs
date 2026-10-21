@@ -2,9 +2,21 @@
 // 1) 客户详情·四项激励Tab: 图片/视频/文档点开=阅读器内嵌渲染(此前文档落"不支持"卡)
 // 2) 文件管理·文件名列: 全显不断行截断(两行内换行)
 // 3) 新建文件夹按钮: 移到顶部操作区,左侧树不再有
+// 【审计 F1 2026-10-21】移除内置站点与裸 process.env 凭据读取, 三值统一经环境变量注入, 缺失即失败:
+//   AIGICRM_SMOKE_BASE=<站点根URL> AIGICRM_SMOKE_USER=<账号> AIGICRM_SMOKE_PASS=<口令> node patch-smoke-20261017.mjs
 import { chromium } from '@playwright/test'
 
-const BASE = 'http://111.229.37.220'
+function requireSmokeEnv(name) {
+  const value = process.env[name]
+  if (!value) {
+    console.error(`缺少环境变量 ${name}: 冒烟脚本已移除全部内置凭据(审计 F1), 请显式注入后重跑。`)
+    process.exit(1)
+  }
+  return value
+}
+const BASE = requireSmokeEnv('AIGICRM_SMOKE_BASE')
+const USER = requireSmokeEnv('AIGICRM_SMOKE_USER')
+const PASS = requireSmokeEnv('AIGICRM_SMOKE_PASS')
 const results = []
 let consoleErrors = []
 let badResponses = 0
@@ -23,8 +35,8 @@ const dialog = () => page.locator('.el-dialog').filter({ has: page.locator('.pre
 try {
   // 登录
   await page.goto(BASE + '/login', { waitUntil: 'networkidle' })
-  await page.fill('input[placeholder*="账号"], input[placeholder*="用户名"], input[type="text"]', process.env.USER_NAME)
-  await page.fill('input[type="password"]', process.env.PASS)
+  await page.fill('input[placeholder*="账号"], input[placeholder*="用户名"], input[type="text"]', USER)
+  await page.fill('input[type="password"]', PASS)
   await page.click('button:has-text("登")')
   await page.waitForURL((u) => !String(u).includes('login'), { timeout: 15000 })
 

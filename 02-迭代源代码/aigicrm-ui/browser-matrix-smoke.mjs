@@ -1,11 +1,22 @@
 // AIGICRM 生产站浏览器矩阵冒烟（真实引擎：webkit=Safari 引擎 / firefox）
 // 以 pc-smoke.mjs 为蓝本，参数化 engine。只读操作：登录 / 工作台 / 客户列表翻一页 / 高级筛选弹窗开关 / 提醒页
 // 断言：登录跳转成功、列表行数>0、弹窗可开、无 5xx；console error 如实计数（>0 抄前 3 条）
-// 用法：node browser-matrix-smoke.mjs <webkit|firefox|all>   （默认 all）
+// 用法: AIGICRM_SMOKE_BASE=<站点根URL> AIGICRM_SMOKE_USER=<账号> AIGICRM_SMOKE_PASS=<口令> \
+//       node browser-matrix-smoke.mjs <webkit|firefox|all>   （默认 all）
+// 【审计 F1 2026-10-21】移除内置站点/账号/口令(历史字面量已入 git 历史, 轮换由运维负责)。
 import { firefox, webkit } from '@playwright/test';
 
-const BASE = 'https://www.aigicrm.com';
-const USER = 'admin', PASS = '12345678';
+function requireSmokeEnv(name) {
+  const value = process.env[name];
+  if (!value) {
+    console.error(`缺少环境变量 ${name}: 冒烟脚本已移除全部内置凭据(审计 F1), 请显式注入后重跑。`);
+    process.exit(1);
+  }
+  return value;
+}
+const BASE = requireSmokeEnv('AIGICRM_SMOKE_BASE');
+const USER = requireSmokeEnv('AIGICRM_SMOKE_USER');
+const PASS = requireSmokeEnv('AIGICRM_SMOKE_PASS');
 const arg = process.argv[2] || 'all';
 const ENGINES = arg === 'all' ? ['webkit', 'firefox'] : [arg];
 

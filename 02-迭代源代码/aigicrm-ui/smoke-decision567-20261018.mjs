@@ -1,6 +1,19 @@
 // AIGICRM 决策7 "三列+合计"验证 —— 2026-10-18
 // 激励统计页个人排行 Tab: 表头应含 安装前/安装中/安装后/合计(2026-09-25 隐藏的三列已恢复)。
+// 【审计 F1 2026-10-21】移除内置站点/账号/口令, 三值经环境变量注入, 缺失即失败:
+//   AIGICRM_SMOKE_BASE=<站点根URL> AIGICRM_SMOKE_USER=<账号> AIGICRM_SMOKE_PASS=<口令> node smoke-decision567-20261018.mjs
 import { chromium } from '@playwright/test';
+function requireSmokeEnv(name) {
+  const value = process.env[name];
+  if (!value) {
+    console.error(`缺少环境变量 ${name}: 冒烟脚本已移除全部内置凭据(审计 F1), 请显式注入后重跑。`);
+    process.exit(1);
+  }
+  return value;
+}
+const BASE = requireSmokeEnv('AIGICRM_SMOKE_BASE');
+const USER = requireSmokeEnv('AIGICRM_SMOKE_USER');
+const PASS = requireSmokeEnv('AIGICRM_SMOKE_PASS');
 const results = [];
 function ok(name, cond, note = '') {
   results.push(`${cond ? '✅' : '❌'} ${name}${note ? ' — ' + note : ''}`);
@@ -8,14 +21,14 @@ function ok(name, cond, note = '') {
 }
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 1600, height: 900 } });
-await page.goto('http://111.229.37.220/login');
+await page.goto(`${BASE}/login`);
 const inputs = page.locator('input.el-input__inner');
-await inputs.nth(0).fill('admin');
-await inputs.nth(1).fill('12345678');
+await inputs.nth(0).fill(USER);
+await inputs.nth(1).fill(PASS);
 await page.keyboard.press('Enter');
 await page.waitForURL(/dashboard|incentive|customer/, { timeout: 15000 });
 
-await page.goto('http://111.229.37.220/incentive/stats');
+await page.goto(`${BASE}/incentive/stats`);
 // 切到"个人排行"Tab
 const personTab = page.locator('.tab-item', { hasText: '个人排行' }).first();
 await personTab.waitFor({ state: 'visible', timeout: 15000 });

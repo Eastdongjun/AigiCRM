@@ -33,12 +33,17 @@ else
   bad "git diff --check 发现空白错误:"; cat /tmp/qg-dc1.txt /tmp/qg-dc2.txt 2>/dev/null | sed 's/^/    /' | head -10
 fi
 rm -f /tmp/qg-dc1.txt /tmp/qg-dc2.txt
-# 变更文件里的硬编码密码（粗检：password=xxx / password:"xxx"）
-HARD=$(echo "$CHANGED" | while IFS= read -r f; do
-  [ -f "$REPO/$f" ] || continue
-  grep -nE "password\s*[:=]\s*['\"][^'\"]{6,}['\"]" "$REPO/$f" 2>/dev/null | head -2 | sed "s|^|$f:|"
-done)
-if [ -n "$HARD" ]; then bad "变更文件疑似硬编码密码（应经 ~/.aigicrm-deploy.env 注入）:"; echo "$HARD" | sed 's/^/    /'; else ok "无硬编码密码"; fi
+# 全量 secret 扫描（审计 F1, 2026-10-21 收敛: 检查逻辑唯一出处=scripts/check-secret-scan.sh,
+#   本门禁/dev-verify contracts/gate 全部复用它; 旧"变更文件 password 正则"只扫变更且抓不到 PASS='...'/URL 内嵌/哈希）
+SECRET_OUT="$(bash "$SCRIPT_DIR/check-secret-scan.sh" 2>&1)"
+SECRET_RC=$?
+if [ "$SECRET_RC" -eq 0 ]; then
+  ok "全量 secret 扫描（p1-p6 形态, 含 aigicrm-ui/*.mjs）"
+elif [ "$SECRET_RC" -eq 2 ]; then
+  blk "secret 扫描无法执行（fail-closed）: $(printf '%s' "$SECRET_OUT" | head -2 | tail -1)"
+else
+  bad "secret 扫描发现未豁免疑似凭据:"; printf '%s\n' "$SECRET_OUT" | sed 's/^/    /' | head -15
+fi
 
 # ---------------------------------------------------------------- [2] 前端门禁
 echo "--- [2] 前端 (aigicrm-ui, npm) ---"

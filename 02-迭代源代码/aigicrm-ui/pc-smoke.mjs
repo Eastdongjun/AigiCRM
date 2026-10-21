@@ -1,10 +1,22 @@
-// AIGICRM PC 端生产环境浏览器冒烟（真实 Chromium，走 www.aigicrm.com）
+// AIGICRM PC 端生产环境浏览器冒烟（真实 Chromium）
 // 场景：登录 → 工作台 → 客户列表(服务端分页/页签计数/高级筛选弹窗) → 提醒页 → 审批页(转交弹窗)
 // 判定：全程无 5xx/无未捕获 console error、关键元素可见、分页翻页生效
+// 【审计 F1 2026-10-21】移除内置站点/账号/口令(历史字面量已入 git 历史, 轮换由运维负责)。
+//   三值一律经环境变量注入, 缺失即失败:
+//   AIGICRM_SMOKE_BASE=<站点根URL> AIGICRM_SMOKE_USER=<账号> AIGICRM_SMOKE_PASS=<口令> node pc-smoke.mjs
 import { chromium } from '@playwright/test';
 
-const BASE = 'https://www.aigicrm.com';
-const USER = 'admin', PASS = '12345678';
+function requireSmokeEnv(name) {
+  const value = process.env[name];
+  if (!value) {
+    console.error(`缺少环境变量 ${name}: 冒烟脚本已移除全部内置凭据(审计 F1), 请显式注入后重跑。`);
+    process.exit(1);
+  }
+  return value;
+}
+const BASE = requireSmokeEnv('AIGICRM_SMOKE_BASE');
+const USER = requireSmokeEnv('AIGICRM_SMOKE_USER');
+const PASS = requireSmokeEnv('AIGICRM_SMOKE_PASS');
 const results = [];
 let consoleErrors = 0, badResponses = 0;
 

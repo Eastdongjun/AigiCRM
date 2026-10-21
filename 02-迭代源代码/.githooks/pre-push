@@ -1,5 +1,12 @@
 #!/usr/bin/env bash
 # Local pre-push gate for AIGICRM.
+#
+# 【F2 2026-10-21】在原有 dev-verify.sh pr 之上, 按本次推送内容(按路径)追加触发
+#   dev-verify.sh miniprogram 与 contracts —— 此前 pre-push 只跑 pr(shell/sea/backend/frontend),
+#   70+ 本地契约与小程序绑定/类名检查从不阻断推送(审计 F2)。
+#   推送文件清单取自 pre-push stdin refs 的远端差集(git diff remote_sha..local_sha),
+#   而非工作区 diff: pre-push 时提交已完成、工作区干净, dev-verify.sh changed 的
+#   changed_files()(工作区 diff/cached/untracked)会返回空, 不能复用。
 
 set -u
 
@@ -17,6 +24,56 @@ echo "Set AIGICRM_SKIP_PRE_PUSH=1 to bypass only for emergency local workflows."
 if [ "${AIGICRM_SKIP_PRE_PUSH:-0}" = "1" ]; then
   echo "SKIP: AIGICRM_SKIP_PRE_PUSH=1"
   exit 0
+fi
+
+ZERO_SHA="0000000000000000000000000000000000000000"
+# 新分支取不到共同祖先时的兜底哨兵: 触发全部按路径检查(宁多跑, 不漏跑)
+FALLBACK_ALL="__aigicrm_prepush_fallback_all__"
+
+pushed_files() {
+  # pre-push stdin 每行: "<local ref> <local sha> <remote ref> <remote sha>"
+  local local_ref local_sha remote_ref remote_sha base
+  while read -r local_ref local_sha remote_ref remote_sha; do
+    [ -n "${local_sha:-}" ] || continue
+    # local 为零 = 删除远端分支, 无新内容需要门禁
+    [ "$local_sha" != "$ZERO_SHA" ] || continue
+    if [ "$remote_sha" = "$ZERO_SHA" ]; then
+      base="$(git -C "$ROOT" merge-base origin/main "$local_sha" 2>/dev/null || true)"
+      if [ -n "$base" ]; then
+        git -C "$ROOT" -c core.quotePath=false diff --name-only --relative "$base" "$local_sha"
+      else
+        printf '%s\n' "$FALLBACK_ALL"
+      fi
+    else
+      git -C "$ROOT" -c core.quotePath=false diff --name-only --relative "$remote_sha" "$local_sha"
+    fi
+  done | sort -u
+}
+
+PUSHED="$(pushed_files)"
+
+if [ -z "$PUSHED" ]; then
+  echo "INFO: 本次推送无文件差异(或仅为删除远端分支), 跳过按路径触发的契约/小程序检查。"
+fi
+
+# --- 按路径触发: 小程序改动 → 绑定/类名/语法/JSON 检查 ---
+if printf '%s\n' "$PUSHED" | grep -Eq "^(${FALLBACK_ALL}|aigicrm-miniprogram/)"; then
+  echo "--- pre-push [F2]: 推送含小程序改动 → dev-verify.sh miniprogram ---"
+  bash "$ENTRY" miniprogram || {
+    echo "FAIL: pre-push 小程序检查未通过(绑定/类名/语法/JSON)" >&2
+    exit 1
+  }
+fi
+
+# --- 按路径触发: 源码/脚本/契约/文档/hooks 改动 → 70+ 本地契约全集(含 secret 扫描) ---
+#     仅 deploy/nginx 等运维目录改动时不触发(不在 contracts 覆盖域)
+if printf '%s\n' "$PUSHED" | grep -Eq "^(${FALLBACK_ALL}|\.githooks/|(scripts|aigicrm-backend|aigicrm-ui|aigicrm-miniprogram|docs)/)"; then
+  echo "--- pre-push [F2]: 推送含源码/脚本/文档改动 → dev-verify.sh contracts ---"
+  bash "$ENTRY" contracts || {
+    rc=$?
+    echo "FAIL: pre-push 契约检查未通过(exit=$rc; 若因你的功能改动而红, 按 dev-verify.sh 内契约更新责任表同提交更新契约)" >&2
+    exit 1
+  }
 fi
 
 bash "$ENTRY" pr

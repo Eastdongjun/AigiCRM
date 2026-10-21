@@ -3,15 +3,23 @@
 //   本脚本默认以销售员(team 范围)身份跑, 这是 61% 真实用户的视角。
 // 场景: 登录 → 文件管理「私人」页签 → 逐个打开「测试TA-预览-*」样本(docx/xlsx/pdf/csv×2/txt)
 // 判定: 每个样本的渲染器真的渲染出内容(DOM 断言, 不只看对话框打开)、全程 console.error == 0、无 5xx。
-// 用法: BASE=http://111.229.37.220 USER_NAME=TY002 PASS=123456 node preview-smoke.mjs
-//   生产复验: BASE=https://www.aigicrm.com USER_NAME=<销售员账号> PASS=<口令> node preview-smoke.mjs
-//   (环境变量名用 USER_NAME 而非 USER: 后者在 macOS/Linux shell 里已是当前系统用户名)
+// 用法(2026-10-21 起统一, 见审计 F1): 三值一律经环境变量注入, 缺失即失败:
+//   AIGICRM_SMOKE_BASE=<站点根URL> AIGICRM_SMOKE_USER=<销售员账号> AIGICRM_SMOKE_PASS=<口令> node preview-smoke.mjs
+//   (旧 BASE/USER_NAME/PASS 变量名已废弃; 曾内置的测试环境账号/口令字面量已移除, 轮换由运维负责)
 // 前置: 目标环境里该账号私人区已有 测试TA-预览-{文档.docx,表格.xlsx,文件.pdf,文本.csv,GBK编码.csv,说明.txt}
 import { chromium } from '@playwright/test';
 
-const BASE = process.env.BASE || 'http://111.229.37.220';
-const USER = process.env.USER_NAME || 'TY002';
-const PASS = process.env.PASS || '123456';
+function requireSmokeEnv(name) {
+  const value = process.env[name];
+  if (!value) {
+    console.error(`缺少环境变量 ${name}: 冒烟脚本已移除全部内置凭据(审计 F1), 请显式注入后重跑。`);
+    process.exit(1);
+  }
+  return value;
+}
+const BASE = requireSmokeEnv('AIGICRM_SMOKE_BASE');
+const USER = requireSmokeEnv('AIGICRM_SMOKE_USER');
+const PASS = requireSmokeEnv('AIGICRM_SMOKE_PASS');
 const results = [];
 let consoleErrors = [];
 let badResponses = 0;
