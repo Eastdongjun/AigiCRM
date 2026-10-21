@@ -38,6 +38,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.ArgumentMatchers.contains;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.mock;
 import org.mockito.ArgumentCaptor;
@@ -1292,5 +1294,201 @@ class ApprovalServiceTest {
         BusinessException ex3 = assertThrows(BusinessException.class, () -> svc.approve(34L, "同意", 4000));
         assertTrue(ex3.getMessage().contains("1~3650"), "实际: " + ex3.getMessage());
         verify(nodeMapper, never()).update(isNull(), any());
+    }
+
+    // ===== 【A3 2026-10-20】审批编号 MAX+1 取号并发兜底(有限重试) =====
+    // 真实并发集成测试(仅一方成功或双方不同号)需 Testcontainers/MySQL, 仓库测试栈为纯 mock 单测
+    // (审计 F7, P2), 本组以 mock 钉"冲突→退让重试→超限抛原始异常"语义。
+
+    @Test
+    void submit_codeConflict_retriesWithBumpedSuffix_thenSucceeds() {
+        SecurityUser u = new SecurityUser();
+        u.setUserId(7L);
+        u.setDataScope("all");
+        setCurrentUser(u);
+
+        BizSeaPool pool = new BizSeaPool();
+        pool.setId(3L);
+        pool.setCustomerId(42L);
+        pool.setStatus("available");
+        BizSeaPoolMapper seaPoolMapper = mock(BizSeaPoolMapper.class);
+        when(seaPoolMapper.selectOne(any())).thenReturn(pool);
+        when(seaPoolMapper.update(isNull(), any())).thenReturn(1);
+
+        BizApprovalMapper approvalMapper = mock(BizApprovalMapper.class);
+        when(approvalMapper.selectMaxCodeByPrefix(anyString(), any())).thenReturn(0);
+        // 并发事务已抢占 max+1 号: 首次 insert 撞唯一键, 第二次(退让 max+2)成功。
+        // 重试复用同一实体(编号字段被改写), 用 thenAnswer 在调用时刻快照编号。
+        java.util.List<String> codesAtInsert = new java.util.ArrayList<>();
+        when(approvalMapper.insert(any(BizApproval.class))).thenAnswer(inv -> {
+            codesAtInsert.add(((BizApproval) inv.getArgument(0)).getApprovalCode());
+            if (codesAtInsert.size() == 1) {
+                throw new org.springframework.dao.DuplicateKeyException("Duplicate entry 'P2026-001'");
+            }
+            return 1;
+        });
+
+        ApprovalService svc = newService(seaPoolMapper, approvalMapper, mock(BizApprovalNodeMapper.class));
+        assertDoesNotThrow(() -> svc.submit("claim", 42L, null, null));
+        verify(approvalMapper, times(2)).insert(any(BizApproval.class));
+        String p = "P" + java.time.Year.now().getValue() + "-";
+        assertEquals(java.util.List.of(p + "001", p + "002"), codesAtInsert,
+                "首次按 max+1 取号; 冲突后必须退让一号(max+2), 不得重复使用被抢占的号码");
+    }
+
+    @Test
+    void submit_codeConflict_exhaustsRetries_rethrowsOriginal() {
+        SecurityUser u = new SecurityUser();
+        u.setUserId(7L);
+        u.setDataScope("all");
+        setCurrentUser(u);
+
+        BizSeaPool pool = new BizSeaPool();
+        pool.setId(3L);
+        pool.setCustomerId(42L);
+        pool.setStatus("available");
+        BizSeaPoolMapper seaPoolMapper = mock(BizSeaPoolMapper.class);
+        when(seaPoolMapper.selectOne(any())).thenReturn(pool);
+        when(seaPoolMapper.update(isNull(), any())).thenReturn(1);
+
+        BizApprovalMapper approvalMapper = mock(BizApprovalMapper.class);
+        when(approvalMapper.selectMaxCodeByPrefix(anyString(), any())).thenReturn(0);
+        org.springframework.dao.DuplicateKeyException boom =
+                new org.springframework.dao.DuplicateKeyException("持续冲突");
+        when(approvalMapper.insert(any(BizApproval.class))).thenThrow(boom);
+
+        ApprovalService svc = newService(seaPoolMapper, approvalMapper, mock(BizApprovalNodeMapper.class));
+        org.springframework.dao.DuplicateKeyException ex = assertThrows(
+                org.springframework.dao.DuplicateKeyException.class, () -> svc.submit("claim", 42L, null, null));
+        assertEquals(boom, ex, "超限必须抛原始异常(不吞错、不改语义为业务异常)");
+        verify(approvalMapper, times(3)).insert(any(BizApproval.class)); // 上限=首次+2次重试
+    }
+
+    // ===== 【A3 2026-10-21 复核补验】取号行锁 + 真实多线程并发 =====
+    // 共用装配: 需要持有 approvalMapper/jdbc/configMapper/customerMapper 实例做验证。
+
+    private ApprovalService submitFixtureService(BizApprovalMapper approvalMapper,
+                                                 org.springframework.jdbc.core.JdbcTemplate jdbc,
+                                                 BizApprovalConfigMapper configMapper,
+                                                 ApprovalConfigService approvalConfigService,
+                                                 BizCustomerMapper customerMapper,
+                                                 com.aigicrm.common.engine.CustomerAccessService access) {
+        return new ApprovalService(configMapper, approvalMapper, mock(BizApprovalNodeMapper.class),
+                mock(BizApprovalFlowMapper.class), customerMapper,
+                mock(SysUserMapper.class), mock(SysUserRoleMapper.class), mock(SysDeptMapper.class),
+                mock(BizSeaPoolMapper.class), mock(SeaService.class),
+                mock(com.aigicrm.common.scope.OrgScopeResolver.class), mock(SeaConfigService.class),
+                access, mock(SysUserService.class), approvalConfigService,
+                mock(com.aigicrm.module.system.service.SysConfigService.class),
+                jdbc, mock(com.aigicrm.security.SecurityAuditService.class));
+    }
+
+    /** 【A3 取号行锁】有集团上下文时: 先锁集团行(sys_group FOR UPDATE), 取号走 FOR UPDATE 锁定读 */
+    @Test
+    void submit_withGroupContext_locksGroupRowAndUsesForUpdateMaxRead() {
+        SecurityUser u = new SecurityUser();
+        u.setUserId(7L);
+        u.setRoleCodes(java.util.List.of("06")); // 非 admin
+        u.setCurrentGroupId(5L);                 // 集团上下文 → 走取号行锁路径
+        setCurrentUser(u);
+
+        BizApprovalMapper approvalMapper = mock(BizApprovalMapper.class);
+        when(approvalMapper.selectMaxCodeByPrefixForUpdate(anyString(), eq(5L))).thenReturn(0);
+        org.springframework.jdbc.core.JdbcTemplate jdbc = mock(org.springframework.jdbc.core.JdbcTemplate.class);
+        BizApprovalConfigMapper configMapper = mock(BizApprovalConfigMapper.class);
+        when(configMapper.selectCount(any())).thenReturn(1L);
+        ApprovalConfigService approvalConfigService = mock(ApprovalConfigService.class);
+        when(approvalConfigService.createNodes(any(), anyString())).thenReturn(java.util.List.of(8L));
+        BizCustomerMapper customerMapper = mock(BizCustomerMapper.class);
+        com.aigicrm.module.customer.entity.BizCustomer normal =
+                new com.aigicrm.module.customer.entity.BizCustomer();
+        normal.setStatus("normal");
+        when(customerMapper.selectById(any())).thenReturn(normal);
+        com.aigicrm.common.engine.CustomerAccessService access =
+                mock(com.aigicrm.common.engine.CustomerAccessService.class);
+        when(access.canView(any())).thenReturn(true);
+
+        ApprovalService svc = submitFixtureService(approvalMapper, jdbc, configMapper,
+                approvalConfigService, customerMapper, access);
+        try {
+            assertDoesNotThrow(() -> svc.submit("extend", 51L, null, null));
+        } finally {
+            org.springframework.security.core.context.SecurityContextHolder.clearContext();
+        }
+        verify(jdbc).queryForList(contains("sys_group"), eq(Long.class), eq(5L));
+        verify(approvalMapper).selectMaxCodeByPrefixForUpdate(anyString(), eq(5L));
+        verify(approvalMapper, never()).selectMaxCodeByPrefix(anyString(), any());
+    }
+
+    /**
+     * 【A3 并发验证·线程级】真实多线程并发提交(3 个不同客户的延期单, 现实中同前缀取号竞争场景)
+     * + 线程安全模拟唯一索引(取号读与插入判重均看最新"已提交"集合): 验收命题"仅一方成功占用
+     * 每个号"——3 方必须全部成功且编号互不相同(任一 500/重试超限都会在此暴露)。
+     * 非真实 DB(仓库无 Testcontainers/H2, 审计 F7)——真实数据库级并发集成测试仍 BLOCKED。
+     * 无集团上下文(无锁路径)下验证; 有集团上下文时生产路径由集团行锁串行化
+     * (见 submit_withGroupContext_locksGroupRowAndUsesForUpdateMaxRead)。
+     */
+    @Test
+    void submit_concurrentThreads_simulatedUniqueIndex_allSucceedWithDistinctCodes() throws Exception {
+        SecurityUser u = new SecurityUser();
+        u.setUserId(7L);
+        u.setRoleCodes(java.util.List.of("06")); // 非 admin 且无集团上下文 → 无锁路径, 纯退让重试
+        setCurrentUser(u);
+
+        BizApprovalMapper approvalMapper = mock(BizApprovalMapper.class);
+        java.util.Set<String> committedCodes =
+                java.util.Collections.newSetFromMap(new java.util.concurrent.ConcurrentHashMap<>());
+        when(approvalMapper.selectMaxCodeByPrefix(anyString(), any())).thenAnswer(inv -> {
+            String pfx = inv.getArgument(0);
+            return committedCodes.stream()
+                    .filter(code -> code.startsWith(pfx))
+                    .mapToInt(code -> Integer.parseInt(code.substring(pfx.length())))
+                    .max().orElse(0);
+        });
+        when(approvalMapper.insert(any(BizApproval.class))).thenAnswer(inv -> {
+            BizApproval a = inv.getArgument(0);
+            if (!committedCodes.add(a.getApprovalCode())) {
+                throw new org.springframework.dao.DuplicateKeyException("dup " + a.getApprovalCode());
+            }
+            return 1;
+        });
+        when(approvalMapper.selectCount(any())).thenReturn(0L); // 各客户均无在途延期单
+
+        BizApprovalConfigMapper configMapper = mock(BizApprovalConfigMapper.class);
+        when(configMapper.selectCount(any())).thenReturn(1L);
+        ApprovalConfigService approvalConfigService = mock(ApprovalConfigService.class);
+        when(approvalConfigService.createNodes(any(), anyString())).thenReturn(java.util.List.of(8L));
+        BizCustomerMapper customerMapper = mock(BizCustomerMapper.class);
+        com.aigicrm.module.customer.entity.BizCustomer normal =
+                new com.aigicrm.module.customer.entity.BizCustomer();
+        normal.setStatus("normal");
+        when(customerMapper.selectById(any())).thenReturn(normal);
+        com.aigicrm.common.engine.CustomerAccessService access =
+                mock(com.aigicrm.common.engine.CustomerAccessService.class);
+        when(access.canView(any())).thenReturn(true);
+
+        ApprovalService svc = submitFixtureService(approvalMapper,
+                mock(org.springframework.jdbc.core.JdbcTemplate.class), configMapper,
+                approvalConfigService, customerMapper, access);
+        try {
+            java.util.concurrent.ExecutorService pool = java.util.concurrent.Executors.newFixedThreadPool(3);
+            java.util.List<java.util.concurrent.Future<?>> futures = new java.util.ArrayList<>();
+            long[] customerIds = {51L, 52L, 53L};
+            for (long cid : customerIds) {
+                futures.add(pool.submit(() -> svc.submit("extend", cid, null, null)));
+            }
+            for (java.util.concurrent.Future<?> f : futures) {
+                try {
+                    f.get();
+                } catch (Exception e) {
+                    throw new AssertionError("并发提交任一方失败(含重试超限)即验收不通过", e);
+                }
+            }
+            pool.shutdown();
+        } finally {
+            org.springframework.security.core.context.SecurityContextHolder.clearContext();
+        }
+        assertEquals(3, committedCodes.size(),
+                "3 方并发提交必须全部成功且编号互不相同(集合去重后恰为 3 → 仅一方占用每个号)");
     }
 }

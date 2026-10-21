@@ -394,7 +394,11 @@ public class CustomerService {
 
     @Transactional
     public void create(BizCustomer customer) {
-        customer.setCustomerCode(generateCustomerCode(customer));
+        // 【A1 2026-10-20】approved_extend_days 是审批域服务端派生字段, 新建一律强制置 0:
+        // 请求体显式携带的值(接口直调可注入, 全仓 PC/小程序表单均无此字段)不得进入到期日公式。
+        // 合法写入点仅三类: 审批通过累加(ApprovalService.executeApprovalAction)、捞取回私海清零
+        // (SeaService.completeClaim)、开票基准前移清零(advanceLastInvoiceDate)。
+        customer.setApprovedExtendDays(0);
         // 【D3 2026-10-18 用户裁决】新建/导入未填注册日时服务端兜底为当天,
         // 再由统一公式算出 expireDate/adjustDate——不硬拒绝,但不再产生无保护期基准的新客户。
         // 存量无日期客户按 D2 裁决维持现状, 不在此修复(仅新建路径)。
@@ -418,7 +422,55 @@ public class CustomerService {
         // 【P2-2 2026-08-11】ORG 锚点依赖 biz_customer.dept_id, 此前从不落库导致 ORG 范围配置不可用。
         // 客户归属部门=负责人(owner)的部门(与"数据范围按负责人部门归属"锚点决策一致)。
         syncCustomerDeptId(customer, customer.getOwnerId());
-        customerMapper.insert(customer);
+        // 【A3 2026-10-20/21 复核修复】取号+插入改为"集团行 FOR UPDATE 取号锁 + 唯一键冲突
+        // 有限重试"(编号生成移到插入前一刻, prefix 只依赖 regionId/officeId, 与原首行生成等价):
+        // MAX+1 取号原本无行锁, 并发建客户算出同一编号, 后提交方撞 uk_tenant_customer_code
+        // 直接 500; 详见 insertWithCodeGenerationRetry 注释(死锁刻意不捕获: InnoDB 死锁回滚
+        // 整个事务, 事务内重试会造成部分提交)。
+        insertWithCodeGenerationRetry(customer);
+    }
+
+    /** 【A3 2026-10-20】取号重试上限: 首次 + 2 次退让(并发建客常见为 2~3 方同抢一号) */
+    private static final int CODE_GEN_MAX_ATTEMPTS = 3;
+
+    /**
+     * 【A3 2026-10-20 取号行锁 + 有限重试；2026-10-21 复核修复】客户编号 MAX+1 取号并发兜底:
+     * <ul>
+     *   <li>【取号行锁】先对集团行 SELECT ... FOR UPDATE(取号前把同集团并发建客串行化,
+     *       锁粒度=集团(tenant), 与唯一键 (tenant_id, customer_code) 同维; 写法沿用
+     *       ApprovalService 的 jdbc 行锁先例)。同集团 contenders 在锁上排队, 取号读数即最新
+     *       已提交值, 正常路径不再产生 1062。无集团上下文(null)时不加锁, 退让重试兜底。</li>
+     *   <li>【有限重试】捕获 DuplicateKeyException(1062 唯一键冲突, MySQL 语句级失败,
+     *       事务保持完整, 同事务内重试安全)后按 bump 递增退让重试, 上限
+     *       {@link #CODE_GEN_MAX_ATTEMPTS} 次, 超限抛原始异常(不吞错)。
+     *       <b>刻意不捕获 ConcurrencyFailureException(死锁 1213/锁等待超时 1205)</b>:
+     *       InnoDB 死锁回滚的是整个事务而非单条语句, 在 @Transactional 内捕获继续执行
+     *       会造成"前序写已回滚、后续写随提交重新生效"的部分提交, 故死锁必须原样传播
+     *       (与修复前行为一致), 不做事务内重试。</li>
+     *   <li>biz_customer 仅有 (tenant_id, customer_code) 一个唯一键(V2026.09.21.3),
+     *       DuplicateKeyException 即编号冲突, 退让重试恰对症。</li>
+     * </ul>
+     * 真实并发集成测试受限于仓库无 Testcontainers/H2(审计 F7, P2): 已补真实多线程 +
+     * 模拟唯一索引(READ COMMITTED 语义)的并发单测钉"各方全部成功且编号互不相同"。
+     */
+    private void insertWithCodeGenerationRetry(BizCustomer customer) {
+        // 【A3 2026-10-21 取号行锁】集团行锁(同租户串行取号); 集团行不存在/无集团上下文时
+        // 查询返回空或不执行, 无锁降级 → 由下方唯一键冲突退让重试兜底, 不阻断创建。
+        Long tenantId = com.aigicrm.common.scope.GroupScopeUtil.currentGroupOrNull();
+        if (tenantId != null) {
+            jdbc.queryForList("SELECT id FROM sys_group WHERE id = ? FOR UPDATE", Long.class, tenantId);
+        }
+        RuntimeException last = null;
+        for (int attempt = 1; attempt <= CODE_GEN_MAX_ATTEMPTS; attempt++) {
+            try {
+                customer.setCustomerCode(generateCustomerCode(customer, attempt - 1));
+                customerMapper.insert(customer);
+                return;
+            } catch (org.springframework.dao.DuplicateKeyException e) {
+                last = e;
+            }
+        }
+        if (last != null) throw last;
     }
 
     /**
@@ -495,25 +547,46 @@ public class CustomerService {
     }
 
     private String generateCustomerCode(BizCustomer customer) {
+        return generateCustomerCode(customer, 0);
+    }
+
+    /**
+     * @param bump 取号退让偏移(A3 并发兜底): 0=首次取号 max+1; 重试时按 max+1+bump
+     *             递增, 避开已被并发事务抢占的号码(见 {@link #insertWithCodeGenerationRetry})。
+     */
+    private String generateCustomerCode(BizCustomer customer, int bump) {
         String rule = configService.getValue("customer.code.rule");
         if (rule == null) rule = "region_date_seq";
 
         // 获取大区编码: 优先用客户所属大区(regionId), 未选则回退到按办事处反查
         String regionCode = getRegionCode(customer.getRegionId() != null
                 ? customer.getRegionId() : customer.getOfficeId());
+        Long tenantId = com.aigicrm.common.scope.GroupScopeUtil.currentGroupOrNull();
 
         if ("region_seq".equals(rule)) {
             // 大区首字母-顺序号: NM-001
             String prefix = regionCode + "-";
-            int maxSeq = customerMapper.selectMaxCodeByPrefix(prefix, prefix.length(), com.aigicrm.common.scope.GroupScopeUtil.currentGroupOrNull());
-            return prefix + String.format("%03d", maxSeq + 1);
+            return prefix + String.format("%03d", currentMaxSeq(prefix, prefix.length(), tenantId) + 1 + bump);
         } else {
             // region_date_seq: 大区首字母-年月-顺序号: NM-202606-001
             String yearMonth = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMM"));
             String prefix = regionCode + "-" + yearMonth + "-";
-            int maxSeq = customerMapper.selectMaxCodeByPrefix(prefix, prefix.length(), com.aigicrm.common.scope.GroupScopeUtil.currentGroupOrNull());
-            return prefix + String.format("%03d", maxSeq + 1);
+            return prefix + String.format("%03d", currentMaxSeq(prefix, prefix.length(), tenantId) + 1 + bump);
         }
+    }
+
+    /**
+     * 【A3 2026-10-21】当前前缀最大序号: 有集团上下文时走 FOR UPDATE 锁定读(读最新已提交值,
+     * 不受本事务 REPEATABLE READ 旧快照影响——普通 SELECT 在同事务内取号会复用并发事务已
+     * 提交的号码); 无集团上下文时退回普通读(无锁, 由调用方唯一键冲突退让重试兜底)。
+     * 调用方须已持有同集团取号串行化锁({@link #insertWithCodeGenerationRetry})。
+     */
+    private int currentMaxSeq(String prefix, int prefixLen, Long tenantId) {
+        if (tenantId != null) {
+            Integer max = customerMapper.selectMaxCodeByPrefixForUpdate(prefix, prefixLen, tenantId);
+            return max != null ? max : 0;
+        }
+        return customerMapper.selectMaxCodeByPrefix(prefix, prefixLen, tenantId);
     }
 
     private String getRegionCode(Long officeId) {
@@ -541,7 +614,10 @@ public class CustomerService {
 
     @Transactional
     public void update(BizCustomer customer) {
-        BizCustomer existing = customerMapper.selectById(customer.getId());
+        // 【A1 2026-10-20】读现值改用悲观锁(ApprovalService 延期执行同款先例):
+        // update 全程复制库内 approved_extend_days, 若无行锁, "读到旧值→并发审批累加提交→
+        // 本单 updateById 写回旧值"会丢一次累加; 锁内读改写保证与审批路径串行。
+        BizCustomer existing = customerMapper.selectByIdForUpdate(customer.getId());
         if (existing == null) throw new BusinessException("客户不存在");
         // 【2026-08-10 池级权限】编辑校验: 客户在公海池内用池编辑权限, 否则负责人/管理员(checkOwnerOrAdmin 语义由 canEdit 覆盖)
         if (!customerAccessService.canEdit(customer.getId())) {
@@ -577,6 +653,17 @@ public class CustomerService {
         // 不再遗留旧负责人部门(原实现仅 admin 且 owner 变更时才同步, 且空部门跳过)。
         Long effectiveOwnerId = customer.getOwnerId() != null ? customer.getOwnerId() : existing.getOwnerId();
         Long effectiveDeptId = syncCustomerDeptId(customer, effectiveOwnerId);
+        // 【A1 2026-10-20】延期/到期三字段冻结为服务端派生, 普通编辑"不可写也不可静默清零":
+        // ① approved_extend_days 一律以库内值覆盖请求值——表单不传(null)时公式按 0 重算会把
+        //   已批延期从 expireDate 静默清零(最常触发), 显式传值则可任意拉长保护期;
+        // ② expireDate/adjustDate 先剥掉请求体携带值, 再统一由 calculateExpireDates 公式产生;
+        //   无基准日(极端 legacy 行)时保持 null, updateById 只写非 null 字段即保留库内值,
+        //   请求体任何情况下都不可直写到期日。
+        // 合法写入点(不受本冻结影响): 审批通过累加(ApprovalService)、捞取回私海清零(SeaService)、
+        // 开票基准前移清零(advanceLastInvoiceDate)。
+        customer.setApprovedExtendDays(existing.getApprovedExtendDays());
+        customer.setExpireDate(null);
+        customer.setAdjustDate(null);
         calculateExpireDates(customer);
         customerMapper.updateById(customer);
         // updateById 只写非 null 字段: owner 无部门时显式清空 dept_id, 防旧部门残留
@@ -610,6 +697,15 @@ public class CustomerService {
         return SecurityUtils.isAdmin() || SecurityUtils.hasAuthority("customer:date:edit");
     }
 
+    /**
+     * 【A5 2026-10-20】客户列表删除入口补事务: 删除内核是"软删客户→删分享→清 pending 提醒→
+     * 删除快照"一组关联写, 原实现无事务, 任一步失败留下"客户已删、分享/提醒还在"的半删状态
+     * (每语句自动提交); 公海入口 deleteFromSeaPool 已有 @Transactional, 两入口口径必须一致。
+     * 自调用核查: 全仓仅 CustomerController 经代理调用本方法(grep 无 CustomerService 内部
+     * this.delete 调用), 注解经代理生效; 内核 deleteCustomerRecord 是私有方法, 事务边界
+     * 落在两个公共入口(delete/deleteFromSeaPool)上, 二者均已 @Transactional。
+     */
+    @Transactional
     public void delete(Long id) {
         BizCustomer existing = customerMapper.selectById(id);
         if (existing == null) return;

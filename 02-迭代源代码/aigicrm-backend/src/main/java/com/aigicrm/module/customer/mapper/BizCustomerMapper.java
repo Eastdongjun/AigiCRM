@@ -18,6 +18,19 @@ public interface BizCustomerMapper extends BaseMapper<BizCustomer> {
     int selectMaxCodeByPrefix(@Param("prefix") String prefix, @Param("prefixLen") int prefixLen, @Param("tenantId") Long tenantId);
 
     /**
+     * 【A3 2026-10-21 取号行锁】同前缀取号的锁定读(FOR UPDATE): 锁定读读最新已提交值,
+     * 不受本事务 REPEATABLE READ 旧快照影响(普通 SELECT 在同事务内重读仍是旧快照, 取号会
+     * 复用已被并发事务提交的号码)。仅在 tenantId 非 null 时使用(调用方保证);
+     * CAST+ORDER BY+LIMIT 1 保持与 {@link #selectMaxCodeByPrefix} 一致的数字序语义(纯字符串
+     * DESC 在序号跨位数时如 999→1000 会倒序取错)。无匹配行返回 null(=该前缀首个号码)。
+     * 调用方须在事务内使用, 且先持有同集团取号串行化锁(CustomerService 取号路径)。
+     */
+    @Select("SELECT CAST(SUBSTRING(customer_code, #{prefixLen} + 1) AS UNSIGNED) FROM biz_customer "
+            + "WHERE tenant_id = #{tenantId} AND customer_code LIKE CONCAT(#{prefix}, '%') "
+            + "ORDER BY CAST(SUBSTRING(customer_code, #{prefixLen} + 1) AS UNSIGNED) DESC LIMIT 1 FOR UPDATE")
+    Integer selectMaxCodeByPrefixForUpdate(@Param("prefix") String prefix, @Param("prefixLen") int prefixLen, @Param("tenantId") Long tenantId);
+
+    /**
      * 【审查 backend-3 2026-10-18】客户行悲观锁: 延期审批执行侧读改写 approved_extend_days
      * 必须在锁内完成, 否则两张在途延期单并发通过时互相覆盖(少加天数)。
      * 仅取未删除行; 调用方须在事务内使用。

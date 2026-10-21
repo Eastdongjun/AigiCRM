@@ -25,9 +25,9 @@
 
 - 读:`customer:view` + `finance:view`(无 finance:view 时页签返回空,不报错)。
 - 增删:`finance:manage` **或**(`customer:edit` + `finance:view`)——V2026.09.23.4 起 finance:manage 为可勾选专职授权码,两类持有者都可操作。
-  > ⚠️【体检 2026-10-12 已知缺口】阶段数据保存端点叠加 assertCanEdit(非 admin 须 customer:edit):
-  > 仅持 finance:manage 的专职授权码用户在后端会被拒(小程序入口焊死/PC 按钮可见必败)——
-  > "专职授权点"与防御纵深冲突,待产品裁决(放开 assertCanEdit 或收紧授权码语义),暂登记不改动。
+  > ✅【E1 闭环 2026-10-21】阶段数据保存端点(POST stage-amounts)已由 assertCanEdit 改为与发票/回款端点
+  > 同口径的 assertCanManageFinance:仅持 finance:manage 的专职授权码用户可保存(不再要求 customer:edit),
+  > 上方"两类持有者都可操作"的承诺对全部财务写端点一致成立。2026-10-12 登记的已知缺口就此关闭。
 
 ## 3. 与保护期的联动(核心业务规则)
 

@@ -355,18 +355,19 @@ public class ApprovalService {
         }
 
         String prefix = "P" + Year.now().getValue() + "-";
-        int maxCode = approvalMapper.selectMaxCodeByPrefix(prefix, com.aigicrm.common.scope.GroupScopeUtil.currentGroupOrNull());
-        String approvalCode = prefix + String.format("%03d", maxCode + 1);
 
         BizApproval approval = new BizApproval();
-        approval.setApprovalCode(approvalCode);
         approval.setApprovalType(type);
         approval.setApplicantId(applicantId);
         approval.setCustomerId(customerId);
         approval.setActionAfterApprove(actionAfterApprove);
         approval.setExtraData(extraData);
         approval.setStatus("reviewing");
-        approvalMapper.insert(approval);
+        // 【A3 2026-10-20/21 复核修复】取号+插入改为"集团行 FOR UPDATE 取号锁 + 锁定读 +
+        // 唯一键冲突有限重试": MAX+1 取号原本无行锁, 并发提交会算出同一编号, 后提交方撞
+        // uk_tenant_approval_code 直接 500; 详见 insertWithCodeGenerationRetry 注释
+        // (死锁刻意不捕获: InnoDB 死锁回滚整个事务, 事务内重试会造成部分提交)。
+        insertWithCodeGenerationRetry(approval, prefix);
 
         // 1. 优先查找管理员配置的审批流程（BizApprovalConfig，多行=串行阶段）
         Long activeConfigCount = approvalConfigMapper.selectCount(
@@ -448,6 +449,53 @@ public class ApprovalService {
             throw new BusinessException("审批流程解析出的审批人全部是申请人本人(自审自批已被禁止)，请联系管理员配置独立审批人后再提交");
         }
         approvalMapper.updateById(approval);
+    }
+
+    /** 【A3 2026-10-20】审批编号取号重试上限: 首次 + 2 次退让(并发提交常见为 2~3 方同抢一号) */
+    private static final int CODE_GEN_MAX_ATTEMPTS = 3;
+
+    /**
+     * 【A3 2026-10-20 取号行锁 + 有限重试；2026-10-21 复核修复】审批编号 MAX+1 取号
+     * (selectMaxCodeByPrefix 普通 SELECT)并发兜底, 与 CustomerService 客户编号同款:
+     * <ul>
+     *   <li>【取号行锁】先对集团行 SELECT ... FOR UPDATE(本文件 :226/:300 的 jdbc 行锁先例
+     *       同款写法), 同集团并发提交在取号前串行化, 取号读数即最新已提交值; 无集团上下文
+     *       (null)时不加锁, 退让重试兜底。</li>
+     *   <li>【有限重试】仅捕获 DuplicateKeyException(1062, MySQL 语句级失败, 事务完整,
+     *       同事务内重试安全——submit 在 insert 前已有池行/客户行写锁的场景下, 1062 重试
+     *       不会丢失这些前序写)。按 bump 递增退让, 上限 {@link #CODE_GEN_MAX_ATTEMPTS} 次,
+     *       超限抛原始异常(不吞错)。
+     *       <b>刻意不捕获 ConcurrencyFailureException(死锁 1213)</b>: InnoDB 死锁回滚整个
+     *       事务而非单条语句, 在 @Transactional 内捕获继续执行会造成"前序写(如 claim 的
+     *       池行锁定)已回滚、审批单与节点随提交重新生效"的部分提交——池行静默回到 available
+     *       而审批单在途。死锁必须原样传播, 不做事务内重试。</li>
+     * </ul>
+     * 真实并发集成测试受限于仓库无 Testcontainers/H2(审计 F7, P2): 已补真实多线程 +
+     * 模拟唯一索引的并发单测钉"各方全部成功且编号互不相同"。
+     */
+    private void insertWithCodeGenerationRetry(BizApproval approval, String prefix) {
+        // 【A3 2026-10-21 取号行锁】集团行锁(同租户串行取号); 无集团上下文时无锁降级,
+        // 由唯一键冲突退让重试兜底。
+        Long tenantId = com.aigicrm.common.scope.GroupScopeUtil.currentGroupOrNull();
+        if (tenantId != null) {
+            jdbc.queryForList("SELECT id FROM sys_group WHERE id = ? FOR UPDATE", Long.class, tenantId);
+        }
+        RuntimeException last = null;
+        for (int attempt = 1; attempt <= CODE_GEN_MAX_ATTEMPTS; attempt++) {
+            try {
+                // 锁定读读最新已提交值(不受本事务 RR 旧快照影响); 无集团上下文退回普通读+退让重试
+                int maxCode = tenantId != null
+                        ? java.util.Objects.requireNonNullElse(
+                                approvalMapper.selectMaxCodeByPrefixForUpdate(prefix, tenantId), 0)
+                        : approvalMapper.selectMaxCodeByPrefix(prefix, tenantId);
+                approval.setApprovalCode(prefix + String.format("%03d", maxCode + 1 + (attempt - 1)));
+                approvalMapper.insert(approval);
+                return;
+            } catch (org.springframework.dao.DuplicateKeyException e) {
+                last = e;
+            }
+        }
+        if (last != null) throw last;
     }
 
     /**

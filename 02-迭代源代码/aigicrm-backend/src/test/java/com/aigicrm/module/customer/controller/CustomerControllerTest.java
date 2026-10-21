@@ -147,4 +147,45 @@ class CustomerControllerTest {
         assertEquals(200, capped.size(), "250 个 id 必须截断到 200");
         assertEquals(200L, capped.get(199), "截断保序取前 200");
     }
+
+    // ===== 【E1 2026-10-21】阶段总额保存与发票端点统一 assertCanManageFinance =====
+    // @PreAuthorize 本层不参与纯单测(无 Spring Security 过滤链), 断言落在曾实际拒绝
+    // "仅持 finance:manage"用户的服务层对象校验上: gate 必须从 assertCanEdit 换成
+    // assertCanManageFinance(CustomerAccessService: finance:manage 放行, 否则回退 assertCanEdit)。
+
+    @Test
+    void saveStageAmount_usesFinanceManageGate_notPlainEditGate() {
+        CustomerService customerService = mock(CustomerService.class);
+        CustomerAccessService accessService = mock(CustomerAccessService.class);
+        CustomerController controller = new CustomerController(customerService, mock(SeaService.class),
+                mock(com.aigicrm.common.idempotency.IdempotencyService.class), accessService);
+
+        controller.saveStageAmount(11L, stageAmountRequest());
+
+        // gate 换成 assertCanManageFinance: "仅持 finance:manage"用户(非负责人)由此放行保存
+        verify(accessService).assertCanManageFinance(11L);
+        verify(accessService, never()).assertCanEdit(anyLong());
+        // gate 通过即落服务(200 路径)
+        verify(customerService).saveStageAmount(eq(11L), any(com.aigicrm.module.customer.dto.StageAmountRequest.class));
+    }
+
+    @Test
+    void saveStageAmount_rejectedBeforeServiceWhenFinanceGateFails() {
+        CustomerService customerService = mock(CustomerService.class);
+        CustomerAccessService accessService = mock(CustomerAccessService.class);
+        doThrow(new BusinessException("无权编辑该客户"))
+                .when(accessService).assertCanManageFinance(11L);
+        CustomerController controller = new CustomerController(customerService, mock(SeaService.class),
+                mock(com.aigicrm.common.idempotency.IdempotencyService.class), accessService);
+
+        assertThrows(BusinessException.class, () -> controller.saveStageAmount(11L, stageAmountRequest()));
+        verify(customerService, never())
+                .saveStageAmount(anyLong(), any(com.aigicrm.module.customer.dto.StageAmountRequest.class));
+    }
+
+    private com.aigicrm.module.customer.dto.StageAmountRequest stageAmountRequest() {
+        return new com.aigicrm.module.customer.dto.StageAmountRequest(
+                java.time.LocalDate.now().getYear(), "H1",
+                new java.math.BigDecimal("12.5"), null);
+    }
 }

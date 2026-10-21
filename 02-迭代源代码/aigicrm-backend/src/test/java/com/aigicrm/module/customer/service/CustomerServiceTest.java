@@ -49,7 +49,11 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;import static org.junit.jupiter.api.Assertions.assertNotNull;import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.contains;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.never;
@@ -192,6 +196,8 @@ class CustomerServiceTest {
 
         BizCustomerMapper customerMapper = mock(BizCustomerMapper.class);
         when(customerMapper.selectById(7L)).thenReturn(existing);
+        // 【A1 2026-10-20】update 读现值改悲观锁(selectByIdForUpdate), 测试随之钉同款 stub
+        when(customerMapper.selectByIdForUpdate(7L)).thenReturn(existing);
         com.aigicrm.common.engine.CustomerAccessService access =
                 mock(com.aigicrm.common.engine.CustomerAccessService.class);
         when(access.canEdit(7L)).thenReturn(true);
@@ -221,6 +227,7 @@ class CustomerServiceTest {
 
         BizCustomerMapper customerMapper = mock(BizCustomerMapper.class);
         when(customerMapper.selectById(8L)).thenReturn(existing);
+        when(customerMapper.selectByIdForUpdate(8L)).thenReturn(existing);
         com.aigicrm.common.engine.CustomerAccessService access =
                 mock(com.aigicrm.common.engine.CustomerAccessService.class);
         when(access.canEdit(8L)).thenReturn(true);
@@ -720,6 +727,7 @@ class CustomerServiceTest {
         existing.setStatus("normal");
         BizCustomerMapper customerMapper = mock(BizCustomerMapper.class);
         when(customerMapper.selectById(1L)).thenReturn(existing);
+        when(customerMapper.selectByIdForUpdate(1L)).thenReturn(existing);
         CustomerAccessService accessService = mock(CustomerAccessService.class);
         when(accessService.canEdit(1L)).thenReturn(true);
         when(accessService.isInSeaPool(1L)).thenReturn(true);
@@ -741,6 +749,7 @@ class CustomerServiceTest {
         existing.setStatus("normal");
         BizCustomerMapper customerMapper = mock(BizCustomerMapper.class);
         when(customerMapper.selectById(1L)).thenReturn(existing);
+        when(customerMapper.selectByIdForUpdate(1L)).thenReturn(existing);
         CustomerAccessService accessService = mock(CustomerAccessService.class);
         when(accessService.canEdit(1L)).thenReturn(true);
         when(accessService.isInSeaPool(1L)).thenReturn(true);
@@ -770,6 +779,7 @@ class CustomerServiceTest {
         existing.setStatus("normal");
         BizCustomerMapper customerMapper = mock(BizCustomerMapper.class);
         when(customerMapper.selectById(2L)).thenReturn(existing);
+        when(customerMapper.selectByIdForUpdate(2L)).thenReturn(existing);
         CustomerAccessService accessService = mock(CustomerAccessService.class);
         when(accessService.canEdit(2L)).thenReturn(true);
         when(accessService.isInSeaPool(2L)).thenReturn(false);
@@ -794,6 +804,7 @@ class CustomerServiceTest {
         existing.setProtectionStatus("none");
         BizCustomerMapper customerMapper = mock(BizCustomerMapper.class);
         when(customerMapper.selectById(3L)).thenReturn(existing);
+        when(customerMapper.selectByIdForUpdate(3L)).thenReturn(existing);
         CustomerAccessService accessService = mock(CustomerAccessService.class);
         when(accessService.canEdit(3L)).thenReturn(true);
         when(accessService.isInSeaPool(3L)).thenReturn(false);
@@ -819,6 +830,7 @@ class CustomerServiceTest {
         existing.setProtectionStatus("none");
         BizCustomerMapper customerMapper = mock(BizCustomerMapper.class);
         when(customerMapper.selectById(4L)).thenReturn(existing);
+        when(customerMapper.selectByIdForUpdate(4L)).thenReturn(existing);
         CustomerAccessService accessService = mock(CustomerAccessService.class);
         when(accessService.canEdit(4L)).thenReturn(true);
         when(accessService.isInSeaPool(4L)).thenReturn(false);
@@ -843,6 +855,7 @@ class CustomerServiceTest {
         existing.setStatus("normal");
         BizCustomerMapper customerMapper = mock(BizCustomerMapper.class);
         when(customerMapper.selectById(5L)).thenReturn(existing);
+        when(customerMapper.selectByIdForUpdate(5L)).thenReturn(existing);
         CustomerAccessService accessService = mock(CustomerAccessService.class);
         when(accessService.canEdit(5L)).thenReturn(true);
         when(accessService.isInSeaPool(5L)).thenReturn(false);
@@ -867,6 +880,7 @@ class CustomerServiceTest {
         existing.setStatus("normal");
         BizCustomerMapper customerMapper = mock(BizCustomerMapper.class);
         when(customerMapper.selectById(1L)).thenReturn(existing);
+        when(customerMapper.selectByIdForUpdate(1L)).thenReturn(existing);
         CustomerAccessService accessService = mock(CustomerAccessService.class);
         when(accessService.canEdit(1L)).thenReturn(true);
         when(accessService.isInSeaPool(1L)).thenReturn(true);
@@ -892,6 +906,7 @@ class CustomerServiceTest {
         existing.setStatus("normal");
         BizCustomerMapper customerMapper = mock(BizCustomerMapper.class);
         when(customerMapper.selectById(1L)).thenReturn(existing);
+        when(customerMapper.selectByIdForUpdate(1L)).thenReturn(existing);
         CustomerAccessService accessService = mock(CustomerAccessService.class);
         when(accessService.canEdit(1L)).thenReturn(true);
         when(accessService.isInSeaPool(1L)).thenReturn(false);
@@ -974,6 +989,7 @@ class CustomerServiceTest {
         existing.setStatus("normal");
         BizCustomerMapper customerMapper = mock(BizCustomerMapper.class);
         when(customerMapper.selectById(1L)).thenReturn(existing);
+        when(customerMapper.selectByIdForUpdate(1L)).thenReturn(existing);
         CustomerAccessService accessService = mock(CustomerAccessService.class);
         when(accessService.canEdit(1L)).thenReturn(true);
         when(accessService.isInSeaPool(1L)).thenReturn(false);
@@ -1233,6 +1249,7 @@ class CustomerServiceTest {
         existing.setDeptId(5L);
         BizCustomerMapper customerMapper = mock(BizCustomerMapper.class);
         when(customerMapper.selectById(1L)).thenReturn(existing);
+        when(customerMapper.selectByIdForUpdate(1L)).thenReturn(existing);
         SysUserMapper userMapper = mock(SysUserMapper.class);
         SysUser newOwner = new SysUser();
         newOwner.setId(300L); newOwner.setDeptId(9L);
@@ -1274,6 +1291,7 @@ class CustomerServiceTest {
         existing.setDeptId(5L); // 旧负责人部门(应被清空)
         BizCustomerMapper customerMapper = mock(BizCustomerMapper.class);
         when(customerMapper.selectById(1L)).thenReturn(existing);
+        when(customerMapper.selectByIdForUpdate(1L)).thenReturn(existing);
         SysUserMapper userMapper = mock(SysUserMapper.class);
         SysUser newOwner = new SysUser();
         newOwner.setId(300L); newOwner.setDeptId(null); // 新负责人无部门
@@ -1316,6 +1334,7 @@ class CustomerServiceTest {
         existing.setDeptId(5L); // 库内旧值
         BizCustomerMapper customerMapper = mock(BizCustomerMapper.class);
         when(customerMapper.selectById(1L)).thenReturn(existing);
+        when(customerMapper.selectByIdForUpdate(1L)).thenReturn(existing);
         SysUserMapper userMapper = mock(SysUserMapper.class);
         SysUser owner = new SysUser();
         owner.setId(200L); owner.setDeptId(9L); // owner 已调整到部门 9
@@ -2406,5 +2425,422 @@ class CustomerServiceTest {
         BusinessException ex = assertThrows(BusinessException.class, () -> svc.deleteFromSeaPool(501L));
         assertTrue(ex.getMessage().contains("请先在公海管理删除"), "实际: " + ex.getMessage());
         verify(customerMapper, never()).deleteById(anyLong());
+    }
+
+    // ===== 【A1 2026-10-20】approved_extend_days/expire_date 服务端派生不变量 =====
+    // 不变量: 请求体不可写; update 保留库内值; 审批通过累加(见 ExtendApprovalConcurrencyTest
+    // .approveExtend_locksCustomerBeforeAccumulating); 入海/开票基准前移可清零(合法写入点, 不在本组钉)。
+
+    /** A1 回归①(默认路径,最常触发): 普通编辑(表单不传 approvedExtendDays)不得把已批延期静默清零 */
+    @Test
+    void update_normalEdit_keepsApprovedExtendDays_andServerFormulaExpireDate() {
+        BizCustomer existing = new BizCustomer();
+        existing.setId(7L);
+        existing.setRegisterDate(java.time.LocalDate.of(2026, 1, 1));
+        existing.setApprovedExtendDays(30); // 库内已批延期 30 天
+        BizCustomerMapper customerMapper = mock(BizCustomerMapper.class);
+        when(customerMapper.selectByIdForUpdate(7L)).thenReturn(existing);
+        CustomerAccessService access = mock(CustomerAccessService.class);
+        when(access.canEdit(7L)).thenReturn(true);
+        when(access.isInSeaPool(7L)).thenReturn(false);
+        CustomerService svc = newService(mock(BizInvoiceMapper.class), mock(BizPaymentMapper.class),
+                customerMapper, mock(OrgScopeResolver.class), mock(BizContactMapper.class), access);
+
+        BizCustomer req = new BizCustomer();
+        req.setId(7L);
+        req.setCustomerName("只改名字"); // PC 表单 payload 无 approvedExtendDays 字段 → 请求侧为 null
+        req.setExpireDate(java.time.LocalDate.of(2099, 12, 31)); // 直调接口携带的到期日必须被丢弃
+        try (MockedStatic<SecurityUtils> sec = mockStatic(SecurityUtils.class)) {
+            sec.when(SecurityUtils::isAdmin).thenReturn(false);
+            sec.when(() -> SecurityUtils.hasAuthority("customer:date:edit")).thenReturn(false);
+            svc.update(req);
+        }
+        ArgumentCaptor<BizCustomer> captor = ArgumentCaptor.forClass(BizCustomer.class);
+        verify(customerMapper).updateById(captor.capture());
+        BizCustomer saved = captor.getValue();
+        assertEquals(30, saved.getApprovedExtendDays(), "已批延期必须以库内值保留, 不得按 null=0 清零");
+        assertEquals(java.time.LocalDate.of(2026, 1, 1).plusDays(360 + 30), saved.getExpireDate(),
+                "到期日=注册日+360+已批延期(服务端公式), 不取请求体 2099 值");
+    }
+
+    /** A1 回归②(显式注入): PUT 显式传 approvedExtendDays=5000 不得生效(不可任意拉长保护期) */
+    @Test
+    void update_explicitApprovedExtendDaysInjection_isIgnored() {
+        BizCustomer existing = new BizCustomer();
+        existing.setId(7L);
+        existing.setRegisterDate(java.time.LocalDate.of(2026, 1, 1));
+        existing.setApprovedExtendDays(30);
+        BizCustomerMapper customerMapper = mock(BizCustomerMapper.class);
+        when(customerMapper.selectByIdForUpdate(7L)).thenReturn(existing);
+        CustomerAccessService access = mock(CustomerAccessService.class);
+        when(access.canEdit(7L)).thenReturn(true);
+        when(access.isInSeaPool(7L)).thenReturn(false);
+        CustomerService svc = newService(mock(BizInvoiceMapper.class), mock(BizPaymentMapper.class),
+                customerMapper, mock(OrgScopeResolver.class), mock(BizContactMapper.class), access);
+
+        BizCustomer req = new BizCustomer();
+        req.setId(7L);
+        req.setCustomerName("正常改名");
+        req.setApprovedExtendDays(5000); // 越权注入
+        try (MockedStatic<SecurityUtils> sec = mockStatic(SecurityUtils.class)) {
+            sec.when(SecurityUtils::isAdmin).thenReturn(false);
+            sec.when(() -> SecurityUtils.hasAuthority("customer:date:edit")).thenReturn(false);
+            svc.update(req);
+        }
+        ArgumentCaptor<BizCustomer> captor = ArgumentCaptor.forClass(BizCustomer.class);
+        verify(customerMapper).updateById(captor.capture());
+        assertEquals(30, captor.getValue().getApprovedExtendDays(), "显式注入必须被库内值覆盖");
+        assertEquals(java.time.LocalDate.of(2026, 1, 1).plusDays(360 + 30), captor.getValue().getExpireDate(),
+                "到期日仍按库内 30 天重算, 不得按 5000 天延长");
+    }
+
+    /** A1 回归③(与审批路径的闭环): 审批累加后的库内值(如 100+360=460)在后续普通编辑中不丢失 */
+    @Test
+    void update_afterApprovalAccumulation_normalEditDoesNotLoseApprovedDays() {
+        BizCustomer existing = new BizCustomer();
+        existing.setId(7L);
+        existing.setRegisterDate(java.time.LocalDate.of(2026, 1, 1));
+        existing.setApprovedExtendDays(460); // 审批通过累加后的库内值(写入方: ApprovalService)
+        BizCustomerMapper customerMapper = mock(BizCustomerMapper.class);
+        when(customerMapper.selectByIdForUpdate(7L)).thenReturn(existing);
+        CustomerAccessService access = mock(CustomerAccessService.class);
+        when(access.canEdit(7L)).thenReturn(true);
+        when(access.isInSeaPool(7L)).thenReturn(false);
+        CustomerService svc = newService(mock(BizInvoiceMapper.class), mock(BizPaymentMapper.class),
+                customerMapper, mock(OrgScopeResolver.class), mock(BizContactMapper.class), access);
+
+        BizCustomer req = new BizCustomer();
+        req.setId(7L);
+        req.setCustomerName("审批后又改名字");
+        try (MockedStatic<SecurityUtils> sec = mockStatic(SecurityUtils.class)) {
+            sec.when(SecurityUtils::isAdmin).thenReturn(false);
+            sec.when(() -> SecurityUtils.hasAuthority("customer:date:edit")).thenReturn(false);
+            svc.update(req);
+        }
+        ArgumentCaptor<BizCustomer> captor = ArgumentCaptor.forClass(BizCustomer.class);
+        verify(customerMapper).updateById(captor.capture());
+        assertEquals(460, captor.getValue().getApprovedExtendDays(), "审批累加成果不得被普通编辑覆盖丢失");
+    }
+
+    /** A1 回归④: create 强制置 0, 请求体携带的 approvedExtendDays/expireDate 不进入公式与落库 */
+    @Test
+    void create_forcesApprovedExtendDaysZero_andServerExpireDate() {
+        BizCustomerMapper customerMapper = mock(BizCustomerMapper.class);
+        CustomerService svc = newService(mock(BizInvoiceMapper.class), mock(BizPaymentMapper.class),
+                customerMapper, mock(OrgScopeResolver.class));
+        BizCustomer req = new BizCustomer();
+        req.setCustomerName("新客户");
+        req.setRegisterDate(java.time.LocalDate.of(2026, 1, 1));
+        req.setApprovedExtendDays(999); // 新建即注入延期
+        req.setExpireDate(java.time.LocalDate.of(2099, 12, 31));
+        try (MockedStatic<SecurityUtils> ms = mockStatic(SecurityUtils.class)) {
+            ms.when(SecurityUtils::isAdmin).thenReturn(false);
+            ms.when(SecurityUtils::getCurrentUserId).thenReturn(100L);
+            svc.create(req);
+        }
+        ArgumentCaptor<BizCustomer> captor = ArgumentCaptor.forClass(BizCustomer.class);
+        verify(customerMapper).insert(captor.capture());
+        BizCustomer saved = captor.getValue();
+        assertEquals(0, saved.getApprovedExtendDays(), "新建必须强制 approvedExtendDays=0");
+        assertEquals(java.time.LocalDate.of(2026, 1, 1).plusDays(360), saved.getExpireDate(),
+                "新建到期日=注册日+360+0(服务端公式), 不取请求体 2099 值");
+    }
+
+    // ===== 【A3 2026-10-20】客户编号 MAX+1 取号并发兜底(有限重试) =====
+    // 真实并发集成测试(仅一方成功或双方不同号)需 Testcontainers/MySQL, 仓库测试栈为纯 mock 单测
+    // (审计 F7, P2), 本组以 mock 钉"冲突→退让重试→超限抛原始异常"语义。
+
+    @Test
+    void create_codeConflict_retriesWithBumpedSuffix_thenSucceeds() {
+        BizCustomerMapper customerMapper = mock(BizCustomerMapper.class);
+        when(customerMapper.selectMaxCodeByPrefix(anyString(), anyInt(), any())).thenReturn(0);
+        // 并发事务已抢占 max+1 号: 首次 insert 撞唯一键, 第二次(退让 max+2)成功。
+        // 重试复用同一实体(编号字段被改写), 用 thenAnswer 在调用时刻快照编号, 避免
+        // ArgumentCaptor 存引用导致两次捕获值都是终态。
+        java.util.List<String> codesAtInsert = new java.util.ArrayList<>();
+        when(customerMapper.insert(any(BizCustomer.class))).thenAnswer(inv -> {
+            codesAtInsert.add(((BizCustomer) inv.getArgument(0)).getCustomerCode());
+            if (codesAtInsert.size() == 1) {
+                throw new org.springframework.dao.DuplicateKeyException("Duplicate entry 'C-202610-001'");
+            }
+            return 1;
+        });
+        CustomerService svc = newService(mock(BizInvoiceMapper.class), mock(BizPaymentMapper.class),
+                customerMapper, mock(OrgScopeResolver.class));
+        BizCustomer req = new BizCustomer();
+        try (MockedStatic<SecurityUtils> ms = mockStatic(SecurityUtils.class)) {
+            ms.when(SecurityUtils::isAdmin).thenReturn(false);
+            ms.when(SecurityUtils::getCurrentUserId).thenReturn(100L);
+            assertDoesNotThrow(() -> svc.create(req));
+        }
+        verify(customerMapper, times(2)).insert(any(BizCustomer.class));
+        String ym = java.time.YearMonth.now().toString().replace("-", ""); // region_date_seq 规则的年月段
+        assertEquals(java.util.List.of("C-" + ym + "-001", "C-" + ym + "-002"), codesAtInsert,
+                "首次按 max+1 取号; 冲突后必须退让一号(max+2), 不得重复使用被抢占的号码");
+    }
+
+    @Test
+    void create_codeConflict_exhaustsRetries_rethrowsOriginal() {
+        BizCustomerMapper customerMapper = mock(BizCustomerMapper.class);
+        when(customerMapper.selectMaxCodeByPrefix(anyString(), anyInt(), any())).thenReturn(0);
+        org.springframework.dao.DuplicateKeyException boom =
+                new org.springframework.dao.DuplicateKeyException("持续冲突");
+        when(customerMapper.insert(any(BizCustomer.class))).thenThrow(boom);
+        CustomerService svc = newService(mock(BizInvoiceMapper.class), mock(BizPaymentMapper.class),
+                customerMapper, mock(OrgScopeResolver.class));
+        BizCustomer req = new BizCustomer();
+        try (MockedStatic<SecurityUtils> ms = mockStatic(SecurityUtils.class)) {
+            ms.when(SecurityUtils::isAdmin).thenReturn(false);
+            ms.when(SecurityUtils::getCurrentUserId).thenReturn(100L);
+            org.springframework.dao.DuplicateKeyException ex = assertThrows(
+                    org.springframework.dao.DuplicateKeyException.class, () -> svc.create(req));
+            assertEquals(boom, ex, "超限必须抛原始异常(不吞错、不改语义为业务异常)");
+        }
+        verify(customerMapper, times(3)).insert(any(BizCustomer.class)); // 上限=首次+2次重试
+    }
+
+    // ===== 【A5 2026-10-20】客户删除内核事务 =====
+
+    /**
+     * A5 回滚依赖面: 删除内核(软删→删分享→清提醒→留痕)是同一事务, 注解缺失即回归
+     * (原缺陷正是 delete 无 @Transactional 而公海入口有)。真实 DB 级回滚验证需
+     * Testcontainers/H2(审计 F7, P2, 本批 BLOCKED), 此处钉两个事务边界注解不被误删。
+     */
+    @Test
+    void delete_bothPublicEntriesAreTransactional() throws NoSuchMethodException {
+        assertTrue(java.lang.reflect.Modifier.isPublic(
+                        CustomerService.class.getMethod("delete", Long.class).getModifiers()),
+                "delete 必须保持 public(经代理调用, 注解才生效; 全仓仅 CustomerController 调用, 无自调用)");
+        assertNotNull(CustomerService.class.getMethod("delete", Long.class)
+                .getAnnotation(org.springframework.transaction.annotation.Transactional.class),
+                "客户列表删除入口必须带 @Transactional(A5)");
+        assertNotNull(CustomerService.class.getMethod("deleteFromSeaPool", Long.class)
+                .getAnnotation(org.springframework.transaction.annotation.Transactional.class),
+                "公海删除入口必须保持 @Transactional(A5, 与列表入口同口径)");
+    }
+
+    /**
+     * A5 异常回滚(mock 级): 提醒清理失败时异常必须向外传播(不被吞), 且客户软删先于失败发生
+     * ——即"客户已删、提醒还在"的半删状态只能靠事务回滚消除。DB 级行为本批无法验证(F7)。
+     */
+    @Test
+    void delete_reminderCleanupFailure_propagatesAfterCustomerSoftDelete() {
+        BizCustomerMapper customerMapper = mock(BizCustomerMapper.class);
+        when(customerMapper.selectById(501L)).thenReturn(new BizCustomer());
+        BizSeaPoolMapper seaPoolMapper = mock(BizSeaPoolMapper.class);
+        when(seaPoolMapper.selectCount(any())).thenReturn(0L);
+        BizInvoiceMapper invoiceMapper = mock(BizInvoiceMapper.class);
+        when(invoiceMapper.selectCount(any())).thenReturn(0L);
+        BizPaymentMapper paymentMapper = mock(BizPaymentMapper.class);
+        when(paymentMapper.selectCount(any())).thenReturn(0L);
+        com.aigicrm.module.approval.mapper.BizApprovalMapper approvalMapper =
+                mock(com.aigicrm.module.approval.mapper.BizApprovalMapper.class);
+        when(approvalMapper.selectCount(any())).thenReturn(0L);
+        com.aigicrm.module.customer.mapper.BizCustomerShareMapper shareMapper =
+                mock(com.aigicrm.module.customer.mapper.BizCustomerShareMapper.class);
+        com.aigicrm.module.reminder.mapper.BizReminderMapper reminderMapper =
+                mock(com.aigicrm.module.reminder.mapper.BizReminderMapper.class);
+        when(reminderMapper.delete(any())).thenThrow(new RuntimeException("提醒清理失败(模拟 DB 故障)"));
+        CustomerAccessService access = mock(CustomerAccessService.class);
+        when(access.canDelete(501L)).thenReturn(true);
+
+        CustomerService svc = new CustomerService(
+                customerMapper, mock(BizCustomerLogMapper.class), invoiceMapper,
+                shareMapper, mock(BizCustomerIndicatorMapper.class), mock(BizContactMapper.class),
+                paymentMapper, mock(com.aigicrm.module.customer.mapper.BizCustomerStageAmountMapper.class),
+                seaPoolMapper, mock(SysUserMapper.class), mock(SysDeptMapper.class), reminderMapper,
+                mock(JdbcTemplate.class), mock(SysConfigService.class), mock(OrgScopeResolver.class), access,
+                mock(com.aigicrm.module.system.service.RolePermScopeService.class), approvalMapper,
+                mock(com.aigicrm.module.system.mapper.SysLogMapper.class));
+
+        RuntimeException ex = assertThrows(RuntimeException.class, () -> svc.delete(501L),
+                "清理失败必须传播出去交给 @Transactional 回滚, 不得吞掉留下半删状态");
+        assertTrue(ex.getMessage().contains("提醒清理失败"));
+        // 客户软删发生在失败之前 → 一致性只能由事务回滚保证(与注解测试互为印证)
+        org.mockito.InOrder order = org.mockito.Mockito.inOrder(customerMapper, reminderMapper);
+        order.verify(customerMapper).deleteById(501L);
+        order.verify(reminderMapper).delete(any());
+    }
+
+    // ===== 【A5 2026-10-21 复核补验】真实 Spring 事务代理验证(无 DB 环境下的最大可验证档) =====
+    // 审计 F7(无 Testcontainers/H2)之下, 用真实 DataSourceTransactionManager + 真实
+    // @Transactional 代理织入, 仅 JDBC Connection 用 mock: 验证回滚/提交指令真实下发,
+    // 比"注解存在+异常传播"的静态证据高一档; 数据库级物理回滚仍待 DB 测试栈。
+
+    /** 删除内核装配(两用): reminderFails=true 时提醒清理抛错 */
+    private CustomerService newDeleteKernelService(BizCustomerMapper customerMapper,
+                                                   com.aigicrm.module.reminder.mapper.BizReminderMapper reminderMapper,
+                                                   CustomerAccessService access) {
+        BizInvoiceMapper invoiceMapper = mock(BizInvoiceMapper.class);
+        when(invoiceMapper.selectCount(any())).thenReturn(0L);
+        BizPaymentMapper paymentMapper = mock(BizPaymentMapper.class);
+        when(paymentMapper.selectCount(any())).thenReturn(0L);
+        com.aigicrm.module.approval.mapper.BizApprovalMapper approvalMapper =
+                mock(com.aigicrm.module.approval.mapper.BizApprovalMapper.class);
+        when(approvalMapper.selectCount(any())).thenReturn(0L);
+        com.aigicrm.module.sea.mapper.BizSeaPoolMapper seaPoolMapper =
+                mock(com.aigicrm.module.sea.mapper.BizSeaPoolMapper.class);
+        when(seaPoolMapper.selectCount(any())).thenReturn(0L);
+        return new CustomerService(
+                customerMapper, mock(BizCustomerLogMapper.class), invoiceMapper,
+                mock(com.aigicrm.module.customer.mapper.BizCustomerShareMapper.class),
+                mock(BizCustomerIndicatorMapper.class), mock(BizContactMapper.class),
+                paymentMapper, mock(com.aigicrm.module.customer.mapper.BizCustomerStageAmountMapper.class),
+                seaPoolMapper, mock(SysUserMapper.class), mock(SysDeptMapper.class), reminderMapper,
+                mock(JdbcTemplate.class), mock(SysConfigService.class), mock(OrgScopeResolver.class), access,
+                mock(com.aigicrm.module.system.service.RolePermScopeService.class), approvalMapper,
+                mock(com.aigicrm.module.system.mapper.SysLogMapper.class));
+    }
+
+    /** 经真实 @Transactional 代理调用 delete 的被测对象(代理由 CGLIB 生成, 事务管理器绑定 mock 数据源) */
+    private CustomerService proxiedDeleteService(boolean reminderFails, java.sql.Connection[] connOut) throws Exception {
+        javax.sql.DataSource ds = mock(javax.sql.DataSource.class);
+        java.sql.Connection conn = mock(java.sql.Connection.class);
+        when(ds.getConnection()).thenReturn(conn);
+        connOut[0] = conn;
+        BizCustomerMapper customerMapper = mock(BizCustomerMapper.class);
+        when(customerMapper.selectById(501L)).thenReturn(new BizCustomer());
+        com.aigicrm.module.reminder.mapper.BizReminderMapper reminderMapper =
+                mock(com.aigicrm.module.reminder.mapper.BizReminderMapper.class);
+        if (reminderFails) {
+            when(reminderMapper.delete(any())).thenThrow(new RuntimeException("提醒清理失败(模拟 DB 故障)"));
+        }
+        CustomerAccessService access = mock(CustomerAccessService.class);
+        when(access.canDelete(501L)).thenReturn(true);
+        CustomerService target = newDeleteKernelService(customerMapper, reminderMapper, access);
+
+        org.springframework.jdbc.datasource.DataSourceTransactionManager tm =
+                new org.springframework.jdbc.datasource.DataSourceTransactionManager(ds);
+        org.springframework.aop.framework.ProxyFactory pf = new org.springframework.aop.framework.ProxyFactory(target);
+        pf.addAdvice(new org.springframework.transaction.interceptor.TransactionInterceptor(
+                tm, new org.springframework.transaction.annotation.AnnotationTransactionAttributeSource()));
+        return (CustomerService) pf.getProxy();
+    }
+
+    @Test
+    void delete_reminderCleanupFailure_realTxProxyIssuesRollback() throws Exception {
+        java.sql.Connection[] connOut = new java.sql.Connection[1];
+        CustomerService proxied = proxiedDeleteService(true, connOut);
+        java.sql.Connection conn = connOut[0];
+
+        RuntimeException ex = assertThrows(RuntimeException.class, () -> proxied.delete(501L));
+        assertTrue(ex.getMessage().contains("提醒清理失败"));
+        verify(conn).rollback(); // 真实事务代理必须对连接下发 rollback——半删状态整体回滚
+        verify(conn, never()).commit();
+    }
+
+    @Test
+    void delete_success_realTxProxyCommits() throws Exception {
+        java.sql.Connection[] connOut = new java.sql.Connection[1];
+        CustomerService proxied = proxiedDeleteService(false, connOut);
+        java.sql.Connection conn = connOut[0];
+
+        assertDoesNotThrow(() -> proxied.delete(501L));
+        verify(conn).commit(); // 正常路径走真实提交, 证明代理事务链路本身健全
+        verify(conn, never()).rollback();
+    }
+
+    // ===== 【A3 2026-10-21 复核补验】取号行锁 + 真实多线程并发 =====
+
+    /** 【A3 取号行锁】有集团上下文时: 先锁集团行(sys_group FOR UPDATE), 取号走 FOR UPDATE 锁定读 */
+    @Test
+    void create_withGroupContext_locksGroupRowAndUsesForUpdateMaxRead() {
+        BizCustomerMapper customerMapper = mock(BizCustomerMapper.class);
+        JdbcTemplate jdbc = mock(JdbcTemplate.class);
+        when(customerMapper.selectMaxCodeByPrefixForUpdate(anyString(), anyInt(), eq(5L))).thenReturn(2);
+        CustomerService svc = new CustomerService(
+                customerMapper, mock(BizCustomerLogMapper.class), mock(BizInvoiceMapper.class),
+                mock(BizCustomerShareMapper.class), mock(BizCustomerIndicatorMapper.class),
+                mock(BizContactMapper.class), mock(BizPaymentMapper.class),
+                mock(com.aigicrm.module.customer.mapper.BizCustomerStageAmountMapper.class),
+                mock(com.aigicrm.module.sea.mapper.BizSeaPoolMapper.class),
+                mock(SysUserMapper.class), mock(SysDeptMapper.class), mock(BizReminderMapper.class),
+                jdbc, mock(SysConfigService.class), mock(OrgScopeResolver.class),
+                mock(CustomerAccessService.class), mock(com.aigicrm.module.system.service.RolePermScopeService.class),
+                mock(com.aigicrm.module.approval.mapper.BizApprovalMapper.class),
+                mock(com.aigicrm.module.system.mapper.SysLogMapper.class));
+
+        SecurityUser u = new SecurityUser();
+        u.setUserId(100L);
+        u.setRoleCodes(List.of("06")); // 非 admin
+        u.setCurrentGroupId(5L);       // 集团上下文 → 走取号行锁路径
+        org.springframework.security.core.context.SecurityContextHolder.getContext()
+                .setAuthentication(new org.springframework.security.authentication.UsernamePasswordAuthenticationToken(u, null));
+        try {
+            svc.create(new BizCustomer());
+        } finally {
+            org.springframework.security.core.context.SecurityContextHolder.clearContext();
+        }
+        // 集团行锁先于取号(同租户建客在取号前串行化)
+        verify(jdbc).queryForList(contains("sys_group"), eq(Long.class), eq(5L));
+        // 取号走 FOR UPDATE 锁定读(读最新已提交值, 不受本事务 RR 旧快照影响), 不再走普通读
+        verify(customerMapper).selectMaxCodeByPrefixForUpdate(anyString(), anyInt(), eq(5L));
+        verify(customerMapper, never()).selectMaxCodeByPrefix(anyString(), anyInt(), any());
+        ArgumentCaptor<BizCustomer> captor = ArgumentCaptor.forClass(BizCustomer.class);
+        verify(customerMapper).insert(captor.capture());
+        String ym = java.time.YearMonth.now().toString().replace("-", "");
+        assertEquals("C-" + ym + "-003", captor.getValue().getCustomerCode(), "锁定读 max=2 → 取号 003");
+    }
+
+    /**
+     * 【A3 并发验证·线程级】真实多线程并发建客 + 线程安全模拟唯一索引(取号读与插入判重
+     * 均看最新"已提交"集合, READ COMMITTED 语义): 验收命题"仅一方成功占用每个号"——
+     * 3 方并发必须全部成功且编号互不相同(任一 500/重试超限都会在此暴露)。
+     * 非真实 DB(仓库无 Testcontainers/H2, 审计 F7)——真实数据库级并发集成测试仍 BLOCKED;
+     * 本测试钉住退让重试机制在线程级交叠下不产生同号/失败。无集团上下文(无锁路径)下验证,
+     * 有集团上下文时生产路径由集团行锁串行化(见 create_withGroupContext_locksGroupRowAndUsesForUpdateMaxRead)。
+     * 线程数=3 与 CODE_GEN_MAX_ATTEMPTS 对齐: 每次取号失败必然对应一个竞争者成功,
+     * 3 方至多失败 2 次, 第 3 次尝试必然得号(确定性论证, 不抖动)。
+     */
+    @Test
+    void create_concurrentThreads_simulatedUniqueIndex_allSucceedWithDistinctCodes() throws Exception {
+        BizCustomerMapper customerMapper = mock(BizCustomerMapper.class);
+        java.util.Set<String> committedCodes =
+                java.util.Collections.newSetFromMap(new java.util.concurrent.ConcurrentHashMap<>());
+        when(customerMapper.selectMaxCodeByPrefix(anyString(), anyInt(), any())).thenAnswer(inv -> {
+            String pfx = inv.getArgument(0);
+            return committedCodes.stream()
+                    .filter(code -> code.startsWith(pfx))
+                    .mapToInt(code -> Integer.parseInt(code.substring(pfx.length())))
+                    .max().orElse(0);
+        });
+        when(customerMapper.insert(any(BizCustomer.class))).thenAnswer(inv -> {
+            BizCustomer c = inv.getArgument(0);
+            if (!committedCodes.add(c.getCustomerCode())) {
+                throw new org.springframework.dao.DuplicateKeyException("dup " + c.getCustomerCode());
+            }
+            return 1;
+        });
+        CustomerService svc = newService(mock(BizInvoiceMapper.class), mock(BizPaymentMapper.class),
+                customerMapper, mock(OrgScopeResolver.class));
+
+        SecurityUser u = new SecurityUser();
+        u.setUserId(100L);
+        u.setRoleCodes(List.of("06")); // 非 admin 且无集团上下文 → 无锁路径, 纯退让重试
+        org.springframework.security.core.context.SecurityContextHolder.getContext()
+                .setAuthentication(new org.springframework.security.authentication.UsernamePasswordAuthenticationToken(u, null));
+        try {
+            java.util.concurrent.ExecutorService pool = java.util.concurrent.Executors.newFixedThreadPool(3);
+            java.util.List<java.util.concurrent.Future<?>> futures = new java.util.ArrayList<>();
+            for (int i = 0; i < 3; i++) {
+                futures.add(pool.submit(() -> {
+                    BizCustomer c = new BizCustomer();
+                    c.setCustomerName("并发客户" + Thread.currentThread().getName());
+                    svc.create(c);
+                }));
+            }
+            for (java.util.concurrent.Future<?> f : futures) {
+                try {
+                    f.get();
+                } catch (Exception e) {
+                    throw new AssertionError("并发建客任一方失败(含重试超限)即验收不通过", e);
+                }
+            }
+            pool.shutdown();
+        } finally {
+            org.springframework.security.core.context.SecurityContextHolder.clearContext();
+        }
+        assertEquals(3, committedCodes.size(),
+                "3 方并发建客必须全部成功且编号互不相同(集合去重后恰为 3 → 仅一方占用每个号)");
     }
 }

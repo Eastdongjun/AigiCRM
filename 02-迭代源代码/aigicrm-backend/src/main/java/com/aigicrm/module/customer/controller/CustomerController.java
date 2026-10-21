@@ -390,7 +390,12 @@ public class CustomerController {
     @PostMapping("/{id}/stage-amounts")
     public Result<Void> saveStageAmount(@PathVariable Long id,
                                         @RequestBody com.aigicrm.module.customer.dto.StageAmountRequest req) {
-        accessService.assertCanEdit(id);
+        // 【E1 2026-10-21 产品拍板"放开"】阶段总额保存与发票/回款端点统一对象校验:
+        // assertCanManageFinance(持 finance:manage 的专职财务可对任意客户保存, 录财务 ≠ 编辑
+        // 客户资料; 未持者维持 assertCanEdit 口径)。原 assertCanEdit 使"仅持 finance:manage"
+        // 用户在 @PreAuthorize 放行后仍被拒(BusinessException 400), 与 finance.md §2
+        // "两类持有者都可操作"的承诺矛盾(2026-10-12 已登记缺口, 详见该文档闭环记录)。
+        accessService.assertCanManageFinance(id);
         customerService.saveStageAmount(id, req);
         return Result.ok();
     }
