@@ -33,7 +33,8 @@ vi.mock('@/utils/download', () => ({ downloadFile: vi.fn() }))
 
 import { useCustomerDetail } from './useCustomerDetail'
 import { ElMessage } from 'element-plus'
-import { getCustomer, saveIndicator } from '@/api/customer'
+import { getCustomer, getCustomerLogs, getIndicator, getShares, saveIndicator } from '@/api/customer'
+import { getScoreByCustomer } from '@/api/incentive'
 import { submitApproval } from '@/api/approval'
 
 describe('useCustomerDetail 激励Tab文件能力', () => {
@@ -85,11 +86,59 @@ describe('useCustomerDetail 激励Tab文件能力', () => {
     expect(ElMessage.error).toHaveBeenCalledWith('没有访问权限')
   })
 
-  it('详情加载失败后解除 loading 锁并显示可恢复错误', async () => {
+  // 【B5 2026-10-21】首屏 getCustomer 失败：页面级错误态(loadError)承载信息，不再额外弹 toast
+  //（响应拦截器对 HTTP 错误已弹过一次，页面 catch 再弹即审计指出的双 toast）
+  it('首屏加载失败：解除 loading 锁、置 loadError、不再弹 ElMessage', async () => {
     getCustomer.mockRejectedValueOnce(new Error('network down'))
     await detail.loadAll()
     expect(detail.loading.value).toBe(false)
-    expect(ElMessage.error).toHaveBeenCalledWith('network down')
+    expect(detail.customer.value).toBe(null)
+    expect(detail.loadError.value).toBe('network down')
+    expect(ElMessage.error).not.toHaveBeenCalled()
+  })
+
+  it('首屏失败后重试成功：loadError 清空、客户主体恢复', async () => {
+    getCustomer.mockRejectedValueOnce(new Error('network down'))
+    await detail.loadAll()
+    expect(detail.loadError.value).toBe('network down')
+    getCustomer.mockResolvedValueOnce({ data: { id: 1, customerName: '恢复客户' } })
+    await detail.loadAll()
+    expect(detail.customer.value?.customerName).toBe('恢复客户')
+    expect(detail.loadError.value).toBe(null)
+    expect(detail.loading.value).toBe(false)
+  })
+
+  // 【B5 2026-10-21】9 路分区 Promise.all → allSettled：单路失败只丢该分区并记录，其余照常写回
+  it('分区单路失败（核心指标）不影响其他分区数据写回', async () => {
+    getCustomer.mockResolvedValueOnce({ data: { id: 1, customerName: '客户甲' } })
+    getCustomerLogs.mockResolvedValueOnce({ data: [{ id: 11, content: '日志A' }] })
+    getShares.mockResolvedValueOnce({ data: [{ id: 21, sharedToUserName: '张三' }] })
+    getScoreByCustomer.mockResolvedValueOnce({ data: 8 })
+    getIndicator.mockRejectedValueOnce(new Error('indicator boom'))
+    await detail.loadAll()
+    // 客户主体与其余分区正常
+    expect(detail.customer.value?.customerName).toBe('客户甲')
+    expect(detail.logs.value).toHaveLength(1)
+    expect(detail.shares.value).toHaveLength(1)
+    expect(detail.incentiveScore.value).toBe(8)
+    // 失败分区：保持缺省并记录到 sectionErrors，页面无整体错误
+    expect(detail.indicator.value).toBe(null)
+    expect(detail.loadError.value).toBe(null)
+    expect(detail.loading.value).toBe(false)
+    const failed = detail.sectionErrors.value.find((s) => s.label === '核心指标')
+    expect(failed).toBeTruthy()
+    expect(failed.message).toBe('indicator boom')
+  })
+
+  it('分区全部成功：sectionErrors 为空', async () => {
+    getCustomer.mockResolvedValueOnce({ data: { id: 1, customerName: '客户乙' } })
+    getCustomerLogs.mockResolvedValueOnce({ data: [] })
+    getShares.mockResolvedValueOnce({ data: [] })
+    getScoreByCustomer.mockResolvedValueOnce({ data: 0 })
+    getIndicator.mockResolvedValueOnce({ data: null })
+    await detail.loadAll()
+    expect(detail.sectionErrors.value).toHaveLength(0)
+    expect(detail.loading.value).toBe(false)
   })
 
   // 【PR-09】客户转移: 提交 transfer 审批, extraData 携带 newOwnerId; 未选/选当前负责人拦截

@@ -3,6 +3,8 @@ import { getUserInfo, logout as apiLogout } from '@/api/auth'
 import { getPendingCount } from '@/api/reminder'
 import { getApprovalStatistics } from '@/api/approval'
 import { getPublicConfig } from '@/api/system'
+// 【B1 安全修复 2026-10-21】登录页共享的"记住账号/口令"键常量与清理函数
+import { clearRememberedPassword } from '@/views/login/remembered-auth'
 
 export const useUserStore = defineStore('user', {
   state: () => ({
@@ -114,6 +116,9 @@ export const useUserStore = defineStore('user', {
       apiLogout().catch(() => {})
       this.$reset()
       localStorage.removeItem('token')
+      // 【B1 安全修复 2026-10-21】退出/普通改密(layout submitPassword → logout)统一清除
+      // 旧版本遗留的口令键；"记住账号"键保留(记住账号功能不变)
+      clearRememberedPassword()
     }
   }
 })

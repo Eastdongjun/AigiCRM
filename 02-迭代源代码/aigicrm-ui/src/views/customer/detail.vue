@@ -1,5 +1,16 @@
 <template>
-  <div class="customer-detail" v-if="customer" v-loading="loading">
+  <!-- 【B5 2026-10-21】v-loading 从 v-if="customer" 同元素拆到外层容器：首屏加载期间遮罩可渲染；
+       客户主体缺失时不再整页空白——首屏失败渲染页面级错误态（重试/返回），分区失败渲染警示条 -->
+  <div class="customer-detail" v-loading="loading">
+    <!-- 【B5 2026-10-21】分区单路失败警示条：allSettled 后仅失败分区记录在此，其余内容照常展示 -->
+    <el-alert
+      v-if="customer && sectionErrors.length"
+      class="section-error-bar" type="warning" :closable="false" show-icon
+      :title="`部分数据加载失败：${sectionErrors.map(s => s.label).join('、')}，对应内容可能缺失`">
+      <el-button link type="primary" @click="loadAll">重试加载</el-button>
+    </el-alert>
+
+    <template v-if="customer">
     <!-- 导航行 -->
     <div class="top-bar">
       <!-- 【UI 整改 2026-10-08】返回改 goBack：从列表进来时携带 tab/搜索词/页码带参回跳，返回不再丢筛选 -->
@@ -141,6 +152,19 @@
       </el-select>
       <template #footer><el-button @click="showShareDialog=false">取消</el-button><el-button type="primary" @click="handleAddShare">确认分享</el-button></template>
     </el-dialog>
+    </template>
+
+    <!-- 【B5 2026-10-21】首屏 getCustomer 失败：页面级错误态 + 重试/返回（原先只剩 toast、页面空白无出路） -->
+    <div v-else-if="loadError" class="detail-error">
+      <el-icon class="detail-error-icon"><Warning /></el-icon>
+      <div class="detail-error-title">客户详情加载失败</div>
+      <div class="detail-error-msg">{{ loadError }}</div>
+      <div class="detail-error-actions">
+        <el-button type="primary" @click="loadAll">重试</el-button>
+        <el-button @click="goBack">{{ readonly ? '返回公海池' : '返回客户列表' }}</el-button>
+      </div>
+    </div>
+    <div v-else class="detail-empty">未找到该客户</div>
   </div>
 </template>
 
@@ -165,7 +189,7 @@ const canEditCustomer = userStore.hasPermission('customer:edit')
 const canShareCustomer = computed(() => userStore.hasPermission('customer:edit') && !userStore.isAdmin())
 
 const {
-  customer, loading, activeTab, readonly, readonlyTag, handleEdit,
+  customer, loading, loadError, sectionErrors, activeTab, readonly, readonlyTag, handleEdit,
   showShareDialog, shares, shareUserIds, allUsers, handleAddShare, handleRemoveShare,
   expireLevel, statusLabel, incentiveScore, indicator, totalScore, expireDaysLeft, latestLog,
   avatarColor, indicatorTotal, incentiveRecords,
@@ -203,6 +227,14 @@ watch(customer, (v) => { if (v?.customerName) loadIncentiveRecords() })
 </script>
 
 <style scoped>
+/* 【B5 2026-10-21】首屏失败页面级错误态与分区失败警示条 */
+.section-error-bar { margin-bottom: 12px }
+.detail-error { min-height: 60vh; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; color: var(--text-muted) }
+.detail-error-icon { font-size: 48px; color: var(--el-color-danger) }
+.detail-error-title { font-size: 18px; font-weight: 600; color: #1f2329 }
+.detail-error-msg { font-size: 13px; word-break: break-all }
+.detail-error-actions { margin-top: 12px; display: flex; gap: 8px }
+.detail-empty { min-height: 60vh; display: flex; align-items: center; justify-content: center; color: var(--text-muted) }
 .top-bar { display:flex; justify-content:space-between; align-items:center; margin-bottom:16px }
 /* 【UI 整改 2026-10-08】返回链接改主题变量，不再硬编码 var(--el-color-primary) */
 .back-link { color:var(--el-color-primary); font-size:14px; cursor:pointer; display:flex; align-items:center; gap:4px }

@@ -61,4 +61,16 @@ describe('user store', () => {
     expect(store.permissions.size).toBe(0)
     expect(localStorage.getItem('token')).toBeNull()
   })
+
+  // 【B1】普通改密(layout submitPassword → userStore.logout)与退出登录统一走此清理
+  it('logout 清除口令遗留键，保留"记住账号"键（B1）', () => {
+    localStorage.setItem('token', 'abc')
+    localStorage.setItem('aigicrm_remember_username', 'NO001')
+    localStorage.setItem('aigicrm_remember_password', btoa(['legacy', '-enc'].join('')))
+    const store = useUserStore()
+    store.logout()
+    expect(localStorage.getItem('token')).toBeNull()
+    expect(localStorage.getItem('aigicrm_remember_password')).toBeNull()
+    expect(localStorage.getItem('aigicrm_remember_username')).toBe('NO001')
+  })
 })

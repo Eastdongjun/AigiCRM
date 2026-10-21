@@ -30,7 +30,7 @@
             <div class="form-options">
               <div class="remember-group">
                 <el-checkbox v-model="form.rememberUser">记住账号</el-checkbox>
-                <el-checkbox v-model="form.rememberPass">记住密码</el-checkbox>
+                <!-- 【B1 安全修复 2026-10-21】"记住密码"下线：口令不再落盘 localStorage（原 base64 可逆存储） -->
               </div>
               <a class="forgot-link" href="javascript:void(0)" @click="forgotPwdVisible = true">忘记密码?</a>
             </div>
@@ -48,12 +48,13 @@
 </template>
 
 <script setup>
-import { ref, reactive, watch, onMounted } from 'vue'
+import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { login } from '@/api/auth'
 import { getPublicConfig } from '@/api/system'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import ForgotPasswordDialog from './ForgotPasswordDialog.vue'
+import { REMEMBER_KEY_USER, clearRememberedPassword } from './remembered-auth'
 
 const router = useRouter()
 const formRef = ref(null)
@@ -68,49 +69,33 @@ const systemLogo = ref('')
 const form = reactive({
   username: '',
   password: '',
-  // 【2026-10-17 用户口径】两个独立勾选项: 记住账号 / 记住密码。默认只勾"记住账号"
-  // (隐私保守默认); 记住密码依赖账号(无账号的密码无从回填)——勾密码自动带勾账号, 取消账号连密码一起取消
-  rememberUser: true,
-  rememberPass: false
+  // 【2026-10-17 用户口径】"记住账号"默认勾选（隐私保守默认）。
+  // 【B1 安全修复 2026-10-21】"记住密码"勾选项下线：口令不再以任何形式写入 localStorage，
+  // 原 base64 可逆落盘属 high 级安全问题（退出/改密/重置均不清除），安全优先移除。
+  rememberUser: true
 })
-watch(() => form.rememberPass, (v) => { if (v) form.rememberUser = true })
-watch(() => form.rememberUser, (v) => { if (!v) form.rememberPass = false })
 
-// 【记住账号密码 2026-10-17】此前"记住我"只记账号。密码以 base64(UTF-8 安全编码)存
-// localStorage——内网企业系统的常规取舍: 防"路过瞟一眼明文", 不防本机有控制权的人;
-// 若后续要求更高再换 WebCrypto + 设备绑定密钥。
-const REMEMBER_KEY_USER = 'aigicrm_remember_username'
-const REMEMBER_KEY_PASS = 'aigicrm_remember_password'
-const encodePass = (p) => btoa(unescape(encodeURIComponent(p || '')))
-const decodePass = (s) => { try { return decodeURIComponent(escape(atob(s || ''))) } catch { return '' } }
-function saveRemembered(username, password) {
-  localStorage.setItem(REMEMBER_KEY_USER, username)
-  localStorage.setItem(REMEMBER_KEY_PASS, encodePass(password))
-}
-function clearRemembered() {
-  localStorage.removeItem(REMEMBER_KEY_USER)
-  localStorage.removeItem(REMEMBER_KEY_PASS)
-}
-/** 按两个独立勾选项落盘: 只记账号 / 账号+密码 / 全不记(密码项取消时密码必清) */
-function persistRemembered(password) {
-  if (form.rememberPass) saveRemembered(form.username, password)
-  else if (form.rememberUser) {
-    localStorage.setItem(REMEMBER_KEY_USER, form.username)
-    localStorage.removeItem(REMEMBER_KEY_PASS)
-  } else clearRemembered()
+// 【B1 安全修复 2026-10-21】口令持久化整体移除，只保留"记住账号"。
+// 旧版本遗留在浏览器里的 aigicrm_remember_password 由 clearRememberedPassword()
+// 在登录页挂载、登录成功（含强制改密两条分支）时统一清除（见 remembered-auth.js）。
+/** 只落盘/清除"记住账号"键；任何路径都不写口令，并顺手清掉口令遗留键 */
+function persistRemembered() {
+  try {
+    if (form.rememberUser) localStorage.setItem(REMEMBER_KEY_USER, form.username)
+    else localStorage.removeItem(REMEMBER_KEY_USER)
+    clearRememberedPassword()
+  } catch { /* 存储不可用(隐私模式等)时静默 */ }
 }
 
 onMounted(async () => {
+  // 【B1 安全修复 2026-10-21】只回填"记住账号"；同时清除旧版本遗留的口令键且不回填口令
+  // （覆盖管理员重置等场景：用户下次打开登录页时，浏览器里过期的口令残留被清掉）
   const saved = localStorage.getItem(REMEMBER_KEY_USER)
   if (saved) {
     form.username = saved
     form.rememberUser = true
-    const savedPass = decodePass(localStorage.getItem(REMEMBER_KEY_PASS))
-    if (savedPass) {
-      form.password = savedPass
-      form.rememberPass = true
-    }
   }
+  clearRememberedPassword()
   try {
     const res = await getPublicConfig()
     const cfg = res.data || {}
@@ -157,19 +142,21 @@ const handleLogin = async () => {
         })
         const { changePassword } = await import('@/api/system')
         await changePassword({ oldPassword: form.password, newPassword: value })
-        // 改密成功: 记住密码须存"新"密码(旧口令已作废)
-        persistRemembered(value)
+        // 【B1 安全修复 2026-10-21】强制改密成功后不再把"新口令"写入 localStorage
+        // （原 persistRemembered(value) 属 high 级问题：新口令重新落盘）；只保留"记住账号"
+        persistRemembered()
         localStorage.removeItem('token')
         ElMessage.success('密码已修改，请用新密码重新登录')
         return
       } catch (e) {
-        persistRemembered(form.password)
+        // 【B1 安全修复 2026-10-21】取消强制改密分支不再把"旧口令"写回 localStorage
+        persistRemembered()
         localStorage.removeItem('token')
         ElMessage.warning('未完成密码修改，请重新登录')
         return
       }
     }
-    persistRemembered(form.password)
+    persistRemembered()
     ElMessage.success('登录成功')
     router.push('/dashboard')
   } catch (e) {

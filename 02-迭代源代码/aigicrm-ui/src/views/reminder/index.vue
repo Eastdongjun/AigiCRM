@@ -32,7 +32,7 @@
     <!-- 表格区域 -->
     <div class="table-area">
       <div class="table-wrap" ref="tableWrapRef">
-      <el-table v-loading="listLoading" :data="pagedData" stripe style="width:100%" size="default" :height="tableHeight"
+      <el-table v-loading="listLoading" :data="tableData" stripe style="width:100%" size="default" :height="tableHeight"
         @row-click="openDetail" :row-style="{ cursor: 'pointer' }" title="点击查看提醒详情">
         <el-table-column label="类型" width="70" align="center">
           <template #default="{ row }">
@@ -93,7 +93,8 @@
           :total="total"
           :page-sizes="pageSizes(query.size)"
           layout="sizes, prev, pager, next, jumper"
-          @size-change="query.current = 1"
+          @current-change="loadData"
+          @size-change="handleSizeChange"
           :pager-count="5"
           size="small"
           background
@@ -104,14 +105,14 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted, onBeforeUnmount, nextTick } from 'vue'
+import { ref, reactive, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { getExpiringList, getReminderList, processReminder, ensureExpiring } from '@/api/reminder'
 import { submitApproval } from '@/api/approval'
 import { getScopeDepts, getScopeUsers } from '@/api/system'
 import { useUserStore } from '@/store/user'
-import { paginate, pageSizes } from '@/utils/pagination'
+import { pageSizes } from '@/utils/pagination'
 import { buildReminderDetailLocation, remainingDaysTagType, remainingDaysText } from '@/utils/reminder-detail'
 import { confirmAction } from '@/utils/confirm'
 // 【C10 三轮 2026-10-09】表格空值占位唯一 formatter
@@ -135,92 +136,127 @@ const query = reactive({
   ownerId: null
 })
 
+// 【B2 2026-10-21 二轮·服务端分页】合并列表的六段固定拼接序（分享3类 → 开票2类 → 到期）。
+// 每段都是独立的服务端分页源（/reminder/list 或 /reminder/expiring-list，均返回 MyBatis-Plus
+// IPage 的真实 total，keyword/ownerId/deptId 与展示同口径叠加）；段内服务端排序稳定
+// （reminder: orderByDesc(createdAt)，expiring: orderByAsc(expireDate)），因此
+// "全局第 k 条 = 某段第 k-段偏移 条"的映射在翻页间不重不漏。
+const SEGMENTS = [
+  { key: 'share_to', kind: 'share' },
+  { key: 'share_by', kind: 'share' },
+  { key: 'share_owner', kind: 'share' },
+  { key: 'invoice_overdue', kind: 'invoice' },
+  { key: 'invoice_never', kind: 'invoice' },
+  { key: 'expiring', kind: 'expiring' },
+]
+const SHARE_LABELS = { share_to: '客户已分享给你', share_by: '你分享了客户', share_owner: '你的客户被分享' }
+
+// 【B2 二轮】单段按服务端分页取一页，返回映射后的行 + 该段服务端真实 total。
+// 三路统一携带 keyword（/reminder/list 自 C1 2026-10-21 起服务端消费 keyword，
+// ReminderService.applyKeywordScope：客户名/编码/类型标签匹配，与 owner/dept 范围 AND 叠加，
+// total 与筛选同口径）——客户端不再做合并后二次过滤。
+const fetchSegmentPage = async (seg, current, size) => {
+  if (seg.kind === 'expiring') {
+    const res = await getExpiringList({ current, size, keyword: query.keyword, deptId: query.deptId, ownerId: query.ownerId })
+    const rows = (res.data?.records || []).map(r => ({ ...r, _type: 'expiring' }))
+    return { rows, total: Number(res.data?.total ?? rows.length), current, size }
+  }
+  const res = await getReminderList({ current, size, type: seg.key, status: 'pending', keyword: query.keyword, ownerId: query.ownerId, deptId: query.deptId })
+  const rows = (res.data?.records || []).map(item => ({
+    reminderId: item.id,
+    customerId: item.customerId,
+    customerName: item.customerName,
+    ownerName: item.ownerName,
+    officeName: item.officeName || '',
+    reminderType: item.reminderType,
+    ...(seg.kind === 'share'
+      ? { _type: 'share', _shareLabel: SHARE_LABELS[seg.key] || seg.key }
+      : {
+          _type: 'invoice',
+          _invoiceType: seg.key,
+          _invoiceTagType: seg.key === 'invoice_overdue' ? 'danger' : 'warning',
+          _invoiceLabel: seg.key === 'invoice_overdue'
+            ? `已超期 ${(item.overdueDays || 0)} 天未开票`
+            : '待首次开票',
+        }),
+  }))
+  return { rows, total: Number(res.data?.total ?? rows.length), current, size }
+}
+
+// 【B2 二轮】取段内行区间 [a,b)：按页大小对齐成块逐块请求（区间长度≤页大小，最多跨 2 块），
+// 拼接后本地精确切片。probe 为探测阶段已取回的该段第 1 块（存在且页大小一致时直接复用免请求）。
+const fetchSegmentRange = async (seg, a, b, size, probe) => {
+  const firstBlock = Math.floor(a / size)
+  const lastBlock = Math.floor((b - 1) / size)
+  const blocks = []
+  for (let blk = firstBlock; blk <= lastBlock; blk++) {
+    if (blk === 0 && probe && probe.current === 1 && probe.size === size && probe.rows.length >= a) {
+      blocks.push(probe.rows)
+    } else {
+      const r = await fetchSegmentPage(seg, blk + 1, size).catch(() => null)
+      if (!r) break
+      blocks.push(r.rows)
+      if (!r.rows.length) break // 段越界（total 比取数时变小）：截断循环防死循环
+    }
+  }
+  const merged = blocks.flat()
+  const base = firstBlock * size
+  return merged.slice(a - base, b - base)
+}
+
+// 【B2 二轮】请求序号守卫：翻页/筛选快速切换时旧响应不覆盖新页（同 recycle.vue 的 listSeq 模式）
+let loadSeq = 0
+
 const search = () => { query.current = 1; loadData() }
+const handleSizeChange = () => { query.current = 1; loadData() }
+
 const loadData = async () => {
+  const seq = ++loadSeq
   listLoading.value = true
   try {
-    const res = await getExpiringList(query)
-    const expiring = (res.data?.records || []).map(r => ({ ...r, _type: 'expiring' }))
-    // 追加分享提醒
-    let shareRecords = []
-    try {
-      const types = ['share_to', 'share_by', 'share_owner']
-      const labelMap = { share_to: '客户已分享给你', share_by: '你分享了客户', share_owner: '你的客户被分享' }
-      // 【性能 2026-08-08】三个分享类型互不依赖，串行 for 改为 Promise.all 并发
-      // 【M8 修复】三路(分享/开票/到期)统一携带 keyword/ownerId/deptId
-      // 【工作流复核确认修复】窗口 20→200(超出上限的提醒在本页永不可见不可处理); keyword 后端 /reminder/list
-      // 不消费,改为合并后统一按客户名客户端过滤(此前搜索对分享/开票路完全无效)
-      const srs = await Promise.all(types.map(t =>
-        getReminderList({ current: 1, size: 200, type: t, status: 'pending', ownerId: query.ownerId, deptId: query.deptId })))
-      for (let i = 0; i < types.length; i++) {
-        const t = types[i]
-        for (const item of (srs[i]?.data?.records || [])) {
-          shareRecords.push({
-            reminderId: item.id,
-            customerId: item.customerId,
-            customerName: item.customerName,
-            ownerName: item.ownerName,
-            officeName: item.officeName || '',
-            _type: 'share',
-            reminderType: item.reminderType,
-            _shareLabel: labelMap[item.reminderType] || item.reminderType,
-          })
-        }
+    const size = Math.max(1, Number(query.size) || 1)
+    const page = Math.max(1, Number(query.current) || 1)
+    const start = (page - 1) * size
+    const end = start + size
+    // 阶段一：并发探测六段的服务端真实 total（首段直接取整页，页 1 时可复用为当前页块）
+    const probes = await Promise.all(SEGMENTS.map((seg, i) =>
+      fetchSegmentPage(seg, 1, i === 0 ? size : 1).catch(() => null)))
+    const totals = probes.map(p => (p && p.total) || 0)
+    // 阶段二：按段拼接序计算全局偏移，把当前页 [start,end) 映射到触及段的段内区间并取块
+    const rows = []
+    let offset = 0
+    for (let i = 0; i < SEGMENTS.length && offset < end; i++) {
+      const segLen = totals[i]
+      const segStart = offset
+      const segEnd = offset + segLen
+      if (end > segStart && start < segEnd && segLen > 0) {
+        const a = Math.max(start, segStart) - segStart
+        const b = Math.min(end, segEnd) - segStart
+        rows.push(...await fetchSegmentRange(SEGMENTS[i], a, b, size, probes[i]))
       }
-    } catch {}
-    // 追加开票提醒（超期 invoice_overdue + 待首次开票 invoice_never）
-    let invoiceRecords = []
-    try {
-      const itypes = ['invoice_overdue', 'invoice_never']
-      // 【工作流复核确认修复】窗口 20→200, 同分享路; keyword 同样走合并后客户端过滤
-      const irs = await Promise.all(itypes.map(t =>
-        getReminderList({ current: 1, size: 200, type: t, status: 'pending', ownerId: query.ownerId, deptId: query.deptId })))
-      for (let i = 0; i < itypes.length; i++) {
-        const t = itypes[i]
-        for (const item of (irs[i]?.data?.records || [])) {
-          invoiceRecords.push({
-            reminderId: item.id,
-            customerId: item.customerId,
-            customerName: item.customerName,
-            ownerName: item.ownerName,
-            officeName: item.officeName || '',
-            _type: 'invoice',
-            reminderType: t,
-            _invoiceType: t,
-            _invoiceTagType: t === 'invoice_overdue' ? 'danger' : 'warning',
-            _invoiceLabel: t === 'invoice_overdue'
-              ? `已超期 ${(item.overdueDays || 0)} 天未开票`
-              : '待首次开票',
-          })
-        }
-      }
-    } catch {}
-    // 【工作流复核确认修复】合并后按搜索词统一客户端过滤(后端仅到期路支持 keyword; 到期路已滤,
-    // 分享/开票路在此补齐), 避免搜索后无关行全量混入
-    const kw = (query.keyword || '').trim().toLowerCase()
-    const merged = kw
-      ? [...shareRecords, ...invoiceRecords, ...expiring].filter(r =>
-          String(r.customerName || '').toLowerCase().includes(kw))
-      : [...shareRecords, ...invoiceRecords, ...expiring]
-    tableData.value = merged
-    total.value = tableData.value.length
+      offset += segLen
+    }
+    if (seq !== loadSeq) return
+    // 服务端分页口径：当前页行 + 分页器 total = 六段服务端 total 之和（真实、与筛选同口径），
+    // 翻页/筛选每次重新取数；不再存在"只取 15 条/200 条当全量"的客户端假分页
+    tableData.value = rows
+    total.value = totals.reduce((s, t) => s + t, 0)
   } catch (e) {
   } finally {
-    listLoading.value = false
+    if (seq === loadSeq) listLoading.value = false
   }
 }
 
-// 客户端分页
-const pagedData = computed(() => paginate(tableData.value, query.current, query.size))
-
 const handleClearAll = async () => {
+  // 【B2 二轮 2026-10-21】服务端分页后 tableData=当前页行：批量处理只覆盖当前页，
+  // 弹窗文案如实标注"当前页 N 条 / 筛选共 M 条"（与 C3 建议口径一致），不再声称"所有提醒"
+  const targets = tableData.value.filter(r => r.reminderId)
   try {
     // 【UI 整改 2026-10-08】确认弹窗收敛到 confirmAction：批量清空属批量不可逆操作，红色确认钮
-    await confirmAction('确认清空所有提醒？分享/开票提醒标记已处理，到期提醒标记已跟进。', '一键清空', { confirmText: '清空' })
+    await confirmAction(`确认清空当前页 ${targets.length} 条提醒？（当前筛选共 ${total.value} 条，其余页需翻页逐页处理）分享/开票提醒标记已处理，到期提醒标记已跟进。`, '一键清空(当前页)', { confirmText: '清空' })
   } catch { return }
-  const all = tableData.value.filter(r => r.reminderId)
   let done = 0
-  for (const r of all) {
+  for (const r of targets) {
     try { await processReminder(r.reminderId); done++ } catch {}
   }
   ElMessage.success(`已处理 ${done} 条提醒`)

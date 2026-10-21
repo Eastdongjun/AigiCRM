@@ -133,28 +133,61 @@ export function useCustomerDetail() {
     const message = error?.response?.data?.message || error?.message || fallback
     ElMessage.error(message === 'Error' ? fallback : message)
   }
+  // 【B5 2026-10-21】错误文案提取与 notifyActionFailure 同口径，但不弹 toast：
+  // 首屏失败由页面级错误态承载、分区失败由警示条承载（避免响应拦截器+页面 catch 双 toast）
+  const messageOf = (error, fallback = '加载失败') => {
+    const message = error?.response?.data?.message || error?.message || fallback
+    return message === 'Error' ? fallback : message
+  }
+
+  // 【B5 2026-10-21】首屏 getCustomer 失败 → 页面级错误态(detail.vue 渲染) + 重试；
+  // 分区单路失败 → sectionErrors 记录({label,message})，其余分区照常写回
+  const loadError = ref(null)
+  const sectionErrors = ref([])
 
   const loadAll = async () => {
+    loading.value = true
+    loadError.value = null
+    sectionErrors.value = []
+    // 首屏锚点：客户主体拿不到时后续分区无意义，直接进入页面级错误态（不再弹 toast）
     try {
       const cRes = await getCustomer(customerId.value); customer.value = cRes.data
-      const [lRes, invRes, summRes, payRes, paySummRes, cRes2, indRes, shaRes, scoreRes, stageRes] = await Promise.all([
-        getCustomerLogs(customerId.value),
-        canViewFinance.value ? getInvoices(customerId.value) : Promise.resolve({ data: [] }),
-        canViewFinance.value ? getInvoiceSummary(customerId.value) : Promise.resolve({ data: { totalCount: 0, totalAmount: 0 } }),
-        canViewFinance.value ? getPayments(customerId.value) : Promise.resolve({ data: [] }),
-        canViewFinance.value ? getPaymentSummary(customerId.value) : Promise.resolve({ data: { totalCount: 0, totalAmount: 0 } }),
-        canViewContacts.value ? getContacts(customerId.value) : Promise.resolve({ data: [] }),
-        getIndicator(customerId.value), getShares(customerId.value), getScoreByCustomer(customerId.value),
-        canViewFinance.value ? getStageAmounts(customerId.value) : Promise.resolve({ data: null }),
-      ])
-      logs.value = lRes.data || []; invoices.value = invRes.data || []; invoiceSummary.value = summRes.data || {}
-      payments.value = payRes.data || []; paymentSummary.value = paySummRes.data || {}; contacts.value = cRes2.data || []
-      if (stageRes.data) stageSummary.value = stageRes.data
-      indicator.value = indRes.data; shares.value = shaRes.data || []; incentiveScore.value = scoreRes.data || 0
-      if (indicator.value) {
-        INDICATOR_FIELDS.forEach((f) => { indicatorForm[f.field] = indicator.value[f.field] || 0 })
-      }
-    } catch (e) { notifyActionFailure(e, '客户详情加载失败') } finally { loading.value = false }
+    } catch (e) {
+      customer.value = null
+      loadError.value = messageOf(e, '客户详情加载失败')
+      loading.value = false
+      return
+    }
+    // 【B5 2026-10-21】10 路 Promise.all → 首屏 getCustomer 单独锚定 + 9 路分区 allSettled：
+    // 单路失败只丢该分区并记录，不再连坐丢弃全部已成功数据；无权限分区(财务/联系人)不发请求。
+    // apply 内用 res?.data 防御（fulfilled 但响应体缺失时按空数据降级，不让写回阶段抛错）
+    const tasks = [
+      { label: '跟进日志', p: getCustomerLogs(customerId.value), apply: (res) => { logs.value = res?.data || [] } },
+      canViewFinance.value ? { label: '开票记录', p: getInvoices(customerId.value), apply: (res) => { invoices.value = res?.data || [] } } : null,
+      canViewFinance.value ? { label: '开票汇总', p: getInvoiceSummary(customerId.value), apply: (res) => { invoiceSummary.value = res?.data || {} } } : null,
+      canViewFinance.value ? { label: '回款记录', p: getPayments(customerId.value), apply: (res) => { payments.value = res?.data || [] } } : null,
+      canViewFinance.value ? { label: '回款汇总', p: getPaymentSummary(customerId.value), apply: (res) => { paymentSummary.value = res?.data || {} } } : null,
+      canViewContacts.value ? { label: '联系人', p: getContacts(customerId.value), apply: (res) => { contacts.value = res?.data || [] } } : null,
+      {
+        label: '核心指标', p: getIndicator(customerId.value), apply: (res) => {
+          indicator.value = res?.data ?? null
+          if (indicator.value) {
+            INDICATOR_FIELDS.forEach((f) => { indicatorForm[f.field] = indicator.value[f.field] || 0 })
+          }
+        },
+      },
+      { label: '分享信息', p: getShares(customerId.value), apply: (res) => { shares.value = res?.data || [] } },
+      { label: '激励积分', p: getScoreByCustomer(customerId.value), apply: (res) => { incentiveScore.value = res?.data || 0 } },
+      canViewFinance.value ? { label: '阶段总额', p: getStageAmounts(customerId.value), apply: (res) => { if (res?.data) stageSummary.value = res.data } } : null,
+    ].filter(Boolean)
+    const results = await Promise.allSettled(tasks.map((t) => t.p))
+    const failures = []
+    results.forEach((r, i) => {
+      if (r.status === 'fulfilled') tasks[i].apply(r.value)
+      else failures.push({ label: tasks[i].label, message: messageOf(r.reason) })
+    })
+    sectionErrors.value = failures
+    loading.value = false
   }
   const loadDicts = async () => {
     try { const res = await getCategoryTree(); catMap.value = (res.data||[]).reduce((m,c)=>{ m[c.id]=c; (c.children||[]).forEach(s=>m[s.id]=s); return m },{}) } catch(e) {}
@@ -283,6 +316,7 @@ export function useCustomerDetail() {
   return {
     customerId, route, router, userStore, isAdmin, readonly, readonlyTag,
     loading, activeTab, customer, logs, newLog, invoices, invoiceSummary, payments, paymentSummary, canViewFinance, canViewContacts, expireDaysLeft, latestLog,
+    loadError, sectionErrors,
     contacts, indicator, shares, allUsers, incentiveScore, incentiveRecords, catMap,
     showInvoiceDialog, showPaymentDialog, showContactDialog, showShareDialog, shareUserIds, editingContact,
     showTransferDialog, transferUserId,

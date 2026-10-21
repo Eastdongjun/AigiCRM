@@ -100,6 +100,8 @@ import { ref, reactive, computed, onBeforeUnmount } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Iphone, Check, User, Lock } from '@element-plus/icons-vue'
 import { forgotPasswordLookup, forgotPasswordSendCode, forgotPasswordReset } from '@/api/auth'
+// 【B1 安全修复 2026-10-21】重置成功后清除"记住账号/口令"遗留键(口令已变更，旧口令键不可留)
+import { clearRemembered } from './remembered-auth'
 
 const props = defineProps({ modelValue: Boolean })
 const emit = defineEmits(['update:modelValue'])
@@ -186,6 +188,9 @@ async function handleNext() {
         newPassword: form.newPassword
       })
       ElMessage.success('密码重置成功，请重新登录')
+      // 【B1 安全修复 2026-10-21】重置成功后清除"记住账号/口令"键：
+      // 口令已作废不可留，账号键一并清除(重置流程可能在他人/他机操作，保守全清)
+      clearRemembered()
       visible.value = false
     } catch (_e) { /* interceptor handles */ }
     finally { submitting.value = false }
