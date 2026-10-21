@@ -55,8 +55,10 @@ try {
   if (await pager.isVisible() && await pager.isEnabled()) {
     await pager.click();
     await page.waitForTimeout(1500);
-    const idxText = await page.locator('.el-table__body .el-table__index').first().textContent().catch(() => '?');
-    ok('翻页生效(第2页首行序号>30)', parseInt(idxText) > 30, `首行序号=${idxText}`);
+    // 【2026-10-21 生产实跑修正】Element Plus 无 .el-table__index 类(Element UI 时代类名),
+    // 首列是 selection 复选框, 序号在行内第二格 td:nth-child(2); 旧选择器在此 DOM 恒 0 命中。
+    const idxText = await page.locator('.el-table__body-wrapper .el-table__row td:nth-child(2) .cell').first().textContent().catch(() => '?');
+    ok('翻页生效(第2页首行序号>30)', parseInt(String(idxText).trim()) > 30, `首行序号=${idxText}`);
   } else {
     // 单页数据时 btn-next 禁用属正常，校验总数文本存在即可
     const t = await page.locator('.el-pagination__total').first().textContent().catch(() => '');

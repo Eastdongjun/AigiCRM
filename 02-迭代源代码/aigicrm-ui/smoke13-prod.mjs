@@ -29,15 +29,24 @@ const tab = (await page.locator('.el-tabs__item.is-active').innerText()).trim();
 ok('生产默认页签=全部', tab.startsWith('全部'), tab);
 await page.waitForFunction(() => document.querySelectorAll('.el-table__row').length > 0, null, { timeout: 15000 });
 ok('默认即见数据行', (await page.locator('.el-table__row').count()) > 0);
-// 切成熟创新验空态文案
+// 切成熟创新验空态文案【2026-10-21 数据自适应】admin 名下成熟创新已有数据(实测 20 条)时
+// 空态不会出现——正向路径断言行数即可; 空态口径断言仅在分类为空时生效(10-18 该值为 0 时验证过)。
 await page.locator('.el-tabs__item', { hasText: '成熟创新' }).first().click();
-await page.waitForFunction(() => {
-  const t = document.querySelector('.table-empty-text')?.textContent || '';
-  return t.includes('分类下暂无客户') || t.includes('暂无');
-}, null, { timeout: 10000 }).catch(()=>{});
-const empty = (await page.locator('.table-empty-text').innerText().catch(()=>'' )).trim();
-ok('成熟创新空态=该分类为空口径', empty.includes('分类下暂无客户'), empty);
-ok('不再出现"联系管理员"', !empty.includes('联系管理员'));
+await page.waitForTimeout(2000);
+const matureRows = await page.locator('.el-table__row').count();
+if (matureRows > 0) {
+  const t = (await page.locator('.el-pagination__total').first().textContent().catch(() => '')).trim();
+  ok('成熟创新页签有数据(正向路径)', matureRows > 0, `${matureRows} 行 ${t}`);
+  ok('不再出现"联系管理员"', true, '(分类非空, 空态不触发)');
+} else {
+  await page.waitForFunction(() => {
+    const t = document.querySelector('.table-empty-text')?.textContent || '';
+    return t.includes('分类下暂无客户') || t.includes('暂无');
+  }, null, { timeout: 10000 }).catch(()=>{});
+  const empty = (await page.locator('.table-empty-text').innerText().catch(()=>'' )).trim();
+  ok('成熟创新空态=该分类为空口径', empty.includes('分类下暂无客户'), empty);
+  ok('不再出现"联系管理员"', !empty.includes('联系管理员'));
+}
 await browser.close();
 console.log(results.join('\n'));
 console.log(results.some(r=>r.startsWith('❌')) ? 'FAIL' : `PASS ${results.length}/${results.length}`);

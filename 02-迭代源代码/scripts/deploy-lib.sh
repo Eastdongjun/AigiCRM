@@ -137,10 +137,20 @@ ssh_prod() {
   done
   return "$_rc"
 }
-# 测试通道：密码登录经 SSHPASS env + sshpass -e（口令不进 argv；旧 sshpass -p "$TEST_PASS" 写法已移除）
+# 测试通道：公钥优先（【D4-3 2026-10-21】TEST_KEY 配置即走 -i 公钥——BatchMode 下 ssh 不做
+# 密码认证, 且本机 sshpass 为 expect 包装器不支持 -e, 口令通道实测不可达；此为整改报告
+# §4.3「给测试服配公钥」的落法）。TEST_KEY 缺席时保留 sshpass -e 密码回退（真 sshpass 机器可用）。
 ssh_test_once() {
+  if [ -n "${TEST_KEY:-}" ]; then
+    if [ ! -r "$TEST_KEY" ]; then
+      echo "错误: TEST_KEY 不存在或不可读: $TEST_KEY" >&2
+      return 1
+    fi
+    ssh -i "$TEST_KEY" ${AIGICRM_SSH_OPTS[@]+"${AIGICRM_SSH_OPTS[@]}"} "${TEST_USER}@${TEST_HOST}" "$@"
+    return $?
+  fi
   if [ -z "${TEST_PASS:-}" ]; then
-    echo "错误: 缺少 TEST_PASS（请在部署 env 配置）" >&2
+    echo "错误: 缺少 TEST_PASS 或 TEST_KEY（请在部署 env 配置）" >&2
     return 1
   fi
   SSHPASS="$TEST_PASS" sshpass -e ssh ${AIGICRM_SSH_OPTS[@]+"${AIGICRM_SSH_OPTS[@]}"} "${TEST_USER}@${TEST_HOST}" "$@"
@@ -170,9 +180,18 @@ scp_prod() {
   done
   return "$_rc"
 }
+# 【D4-3 2026-10-21】scp 测试通道同 ssh_test_once：TEST_KEY 公钥优先, 缺席才走 sshpass -e
 scp_test_once() {
+  if [ -n "${TEST_KEY:-}" ]; then
+    if [ ! -r "$TEST_KEY" ]; then
+      echo "错误: TEST_KEY 不存在或不可读: $TEST_KEY" >&2
+      return 1
+    fi
+    scp -i "$TEST_KEY" ${AIGICRM_SSH_OPTS[@]+"${AIGICRM_SSH_OPTS[@]}"} "$@"
+    return $?
+  fi
   if [ -z "${TEST_PASS:-}" ]; then
-    echo "错误: 缺少 TEST_PASS（请在部署 env 配置）" >&2
+    echo "错误: 缺少 TEST_PASS 或 TEST_KEY（请在部署 env 配置）" >&2
     return 1
   fi
   SSHPASS="$TEST_PASS" sshpass -e scp ${AIGICRM_SSH_OPTS[@]+"${AIGICRM_SSH_OPTS[@]}"} "$@"
@@ -213,10 +232,12 @@ check_prod_tls() {
     return 1
   fi
   # 到期检查：已过期=硬失败；14 天内到期=告警(不阻断，但必须有人跟进续期)
-  local leaf
-  leaf="$(printf '' | openssl s_client -connect "$host:$port" -servername "$host" -showcerts 2>/dev/null | openssl x509 -noout -checkend 0 2>/dev/null)"
-  if [ "$?" -ne 0 ] || [ -z "$leaf" ]; then
-    echo "❌ 无法读取/解析 $host 证书(到期检查失败)" >&2
+  # 【ops 瑕疵③修复 2026-10-21】checkend 成功时本就静默(仅在临期/失败时输出), 旧实现
+  # 捕获输出后以 [ -z "$leaf" ] 判空 → 有效证书必被误判"无法读取"。改为纯管道退出码判定
+  # (x509 解析失败或已过期均非零)。真连生产首跑实证: 链校验通过而此步恒败。
+  if ! printf '' | openssl s_client -connect "$host:$port" -servername "$host" -showcerts 2>/dev/null \
+      | openssl x509 -noout -checkend 0 >/dev/null 2>&1; then
+    echo "❌ $host 证书已过期或无法读取叶子证书(到期检查失败)" >&2
     return 1
   fi
   if ! printf '' | openssl s_client -connect "$host:$port" -servername "$host" -showcerts 2>/dev/null \
