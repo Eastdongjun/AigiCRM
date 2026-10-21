@@ -337,4 +337,28 @@ class SeaServiceTest {
         // 【体检 P1 2026-10-12】INV-05 四路径全量口径: 捞取完成同样清全部类型 pending 提醒
         verify(customerService).cleanPendingReminders(500L);
     }
+
+    @Test
+    void completeClaim_rejectsWhenPoolClaimedByAnotherUser() {
+        // 【B2 加固 2026-10-21·backend-customer 域移交】completeClaim 按 customerId+pending_approval
+        // 定位池行后原样覆写 claimUserId——若行已被他人重新认领(锁超时释放后他人接管), 审批通过
+        // 会把客户判给错误的人。守卫: 行上申请人非空且≠审批人 → 抛错回滚, 不写池不写客户。
+        BizSeaPool pool = new BizSeaPool();
+        pool.setId(100L);
+        pool.setCustomerId(500L);
+        pool.setStatus("pending_approval");
+        pool.setClaimUserId(8L); // 池行现属申请人 8, 而本审批申请人是 7
+        BizSeaPoolMapper poolMapper = mock(BizSeaPoolMapper.class);
+        when(poolMapper.selectOne(any())).thenReturn(pool);
+        BizCustomerMapper custMapper = mock(BizCustomerMapper.class);
+        SeaService svc = new SeaService(poolMapper, mock(BizSeaConfigMapper.class), custMapper,
+                mock(SysUserMapper.class), mock(SysDeptMapper.class), mock(SeaConfigService.class),
+                mock(CustomerService.class), mock(com.aigicrm.module.system.service.SysConfigService.class));
+
+        BusinessException ex = assertThrows(BusinessException.class, () -> svc.completeClaim(500L, 7L));
+        assertTrue(String.valueOf(ex.getMessage()).contains("已被他人申请"), "报错须指明认领冲突: " + ex.getMessage());
+        verify(poolMapper, never()).updateById(any(BizSeaPool.class));
+        verify(custMapper, never()).updateById(any(BizCustomer.class));
+        verify(custMapper, never()).update(any(), any());
+    }
 }

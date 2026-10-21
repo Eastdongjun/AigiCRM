@@ -61,7 +61,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.doNothing;
-import static org.mockito.Mockito.verify;import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.doReturn;import static org.mockito.Mockito.spy;import static org.mockito.Mockito.verify;import static org.mockito.Mockito.when;
 
 class CustomerServiceTest {
 
@@ -154,6 +154,23 @@ class CustomerServiceTest {
                 mock(com.aigicrm.common.engine.CustomerAccessService.class),
                 mock(com.aigicrm.module.system.service.RolePermScopeService.class), mock(com.aigicrm.module.approval.mapper.BizApprovalMapper.class),
                 auditMapper);
+    }
+
+    @Test
+    void existsByName_emptyScopeShortCircuits_noEmptyInClause() {
+        // 【B1 2026-10-21·整改残余修复】ORG 锚点+可见部门零在职用户时 getCurrentScopeUserIds 返回
+        // 非 null 空集, 旧实现 w.in(空集) 生成 IN () 触发 SQL 500(建客查重路径)。守卫后空集直接
+        // 判不重名且不触库; 非空集照常走 IN 查询(同时钉住不得借机 fail-open 略过查重)。
+        BizCustomerMapper customerMapper = mock(BizCustomerMapper.class);
+        when(customerMapper.selectCount(any())).thenReturn(0L);
+        CustomerService svc = spy(newService(mock(BizInvoiceMapper.class), mock(BizPaymentMapper.class),
+                customerMapper, mock(OrgScopeResolver.class)));
+        doReturn(List.of()).when(svc).getCurrentScopeUserIds();
+        assertFalse(svc.existsByName("同名客户"));
+        verify(customerMapper, never()).selectCount(any());
+        doReturn(List.of(5L)).when(svc).getCurrentScopeUserIds();
+        assertFalse(svc.existsByName("同名客户"));
+        verify(customerMapper, times(1)).selectCount(any());
     }
 
     @Test

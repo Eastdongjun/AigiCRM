@@ -522,6 +522,12 @@ public class CustomerService {
         }
         List<Long> scopeUserIds = getCurrentScopeUserIds();
         if (scopeUserIds != null) {
+            // 【整改残余 B1 2026-10-21】空集守卫(fail-closed): A6 后 ORG 锚点+可见部门零在职
+            // 用户时 getCurrentScopeUserIds 返回非 null 空集, w.in(空集) 会生成 IN () 触发 SQL
+            // 500(建客查重路径)。空范围=无任何可见属主, 查重必然不命中, 直接短路不触库。
+            if (scopeUserIds.isEmpty()) {
+                return false;
+            }
             w.in(BizCustomer::getOwnerId, scopeUserIds);
         }
         return customerMapper.selectCount(w) > 0;

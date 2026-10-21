@@ -242,6 +242,15 @@ public class SeaService {
                 .last("LIMIT 1"));
         if (pool == null) return;
 
+        // 【B2 加固 2026-10-21·backend-customer 域移交】提交认领时 ApprovalService 以原子锁写入
+        // claimUserId(available→pending_approval), 锁超时释放(CustomerExpireTask.releaseStaleClaimLocks)
+        // 清申请人回 available。若本行现属其他申请人, 说明本审批对应的认领已被取代——原样覆写会把
+        // 客户判给错误的人(错配认领链另一半)。fail-closed: 抛错回滚审批通过流程;
+        // claimUserId 为空(历史脏数据)视为无主可认领, 照常完成。
+        if (pool.getClaimUserId() != null && !pool.getClaimUserId().equals(claimUserId)) {
+            throw new BusinessException("公海认领状态已变化(该客户已被他人申请)，当前审批无法完成，请刷新后重试");
+        }
+
         pool.setClaimUserId(claimUserId);
         pool.setClaimDate(LocalDateTime.now());
         pool.setStatus("claimed");
