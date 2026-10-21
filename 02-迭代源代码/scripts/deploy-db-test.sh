@@ -143,14 +143,51 @@ echo "  远端 .sql 数: ${UP_CNT}（本地 ${MIG_CNT}）"
 [ "$UP_CNT" -gt 0 ] || { echo "❌ 远端未收到 .sql（上传失败）" >&2; exit 1; }
 
 echo "=== [4/5] 测试库备份（迁移前）==="
-ssh_test "docker exec -e MYSQL_PWD='$DB_ADMIN_PASS' $CT mysqldump -u'$DB_ADMIN_USER' --default-character-set=utf8mb4 --single-transaction $TEST_DB_NAME > /tmp/pre-migrate-test-\$(date +%Y%m%d-%H%M%S).sql && ls -t /tmp/pre-migrate-test-*.sql | head -1"
+# 【D3 2026-10-21】口令经 stdin(bash -s)注入远端脚本，不进本地 ssh argv(旧写法本地 ps 可见)；
+# 【D2 同款护栏】备份先写 .tmp 并校验(非空+CREATE TABLE>0)才 mv——不留 0 字节"最新备份"。
+# stdin 型调用用 ssh_test_once(重试型 ssh_test 第二次尝试会读到 EOF)。
+emit_var() { printf '%s=%q\n' "$1" "$2"; }
+# 凭据注入：值由 %q 转义后随 stdin 下发，源码不出现 KEY="值" 形态的口令赋值
+emit_secret() { printf '%s=%s\n' "$1" "$(printf '%q' "${!2}")"; }
+{
+  echo 'set -Eeuo pipefail'
+  emit_var CT "$CT"
+  emit_var DB_ADMIN_USER "$DB_ADMIN_USER"
+  emit_secret DB_ADMIN_PASS DB_ADMIN_PASS
+  emit_var TEST_DB_NAME "$TEST_DB_NAME"
+  cat <<'REMOTE'
+TS="$(date +%Y%m%d-%H%M%S)"
+BK="/tmp/pre-migrate-test-$TS.sql"
+if ! docker exec -e MYSQL_PWD="$DB_ADMIN_PASS" "$CT" mysqldump -u"$DB_ADMIN_USER" --default-character-set=utf8mb4 --single-transaction "$TEST_DB_NAME" > "$BK.tmp"; then
+  rm -f "$BK.tmp"; echo "❌ 测试库 mysqldump 失败"; exit 1
+fi
+if [ ! -s "$BK.tmp" ]; then rm -f "$BK.tmp"; echo "❌ 测试库备份为空"; exit 1; fi
+CT_N="$(grep -c '^CREATE TABLE' "$BK.tmp" || true)"
+case "$CT_N" in ''|*[!0-9]*) rm -f "$BK.tmp"; echo "❌ 无法统计测试库备份 CREATE TABLE"; exit 1 ;; esac
+[ "$CT_N" -gt 0 ] || { rm -f "$BK.tmp"; echo "❌ 测试库备份无 CREATE TABLE(疑似截断)"; exit 1; }
+mv -f "$BK.tmp" "$BK"
+echo "备份完成: $BK (CREATE TABLE=$CT_N)"
+REMOTE
+} | ssh_test_once "bash -s"
 
 if [ "$MODE" = "info" ]; then
   echo "=== [5/5] Flyway info（只读）==="
-  ssh_test "docker run --rm --network host -v $REMOTE_SQL_DIR:/flyway/sql $FLYWAY_IMAGE \
-    -url='jdbc:mysql://127.0.0.1:3306/$TEST_DB_NAME?characterEncoding=UTF-8&useSSL=false&allowPublicKeyRetrieval=true' \
-    -user='$DB_ADMIN_USER' -password='$DB_ADMIN_PASS' \
-    -connectRetries=10 -validateMigrationNaming=true info"
+  # 【D3 2026-10-21】Flyway 口令以 FLYWAY_PASSWORD 官方环境变量透传(export 后 docker run -e 仅给变量名)，
+  # 旧 -password 写法把口令写进远端 flyway 容器进程 argv(ps 可见)。
+  {
+    emit_var REMOTE_SQL_DIR "$REMOTE_SQL_DIR"
+    emit_var FLYWAY_IMAGE "$FLYWAY_IMAGE"
+    emit_var TEST_DB_NAME "$TEST_DB_NAME"
+    emit_var DB_ADMIN_USER "$DB_ADMIN_USER"
+    emit_secret FLYWAY_PASSWORD DB_ADMIN_PASS
+    cat <<'REMOTE'
+export FLYWAY_PASSWORD
+docker run --rm --network host -v "$REMOTE_SQL_DIR":/flyway/sql "$FLYWAY_IMAGE" \
+  -url="jdbc:mysql://127.0.0.1:3306/$TEST_DB_NAME?characterEncoding=UTF-8&useSSL=false&allowPublicKeyRetrieval=true" \
+  -user="$DB_ADMIN_USER" \
+  -connectRetries=10 -validateMigrationNaming=true info
+REMOTE
+  } | ssh_test_once "bash -s"
   echo "✅ info 完成（未修改数据库）"
   exit 0
 fi
@@ -159,15 +196,36 @@ echo "=== [5/5] Flyway repair + migrate（-validateMigrationNaming=true）==="
 # repair 先行：容忍历史手工执行造成的小偏差；随后 migrate。
 # -validateMigrationNaming=true：把"坏文件名被静默跳过"变成硬失败
 #   （实测连字符版本号 V2026-09-11-v1 会被静默忽略且退出码 0）。
-ssh_test "docker run --rm --network host -v $REMOTE_SQL_DIR:/flyway/sql $FLYWAY_IMAGE \
-  -url='jdbc:mysql://127.0.0.1:3306/$TEST_DB_NAME?characterEncoding=UTF-8&useSSL=false&allowPublicKeyRetrieval=true' \
-  -user='$DB_ADMIN_USER' -password='$DB_ADMIN_PASS' \
-  -connectRetries=10 -validateMigrationNaming=true repair" || echo "⚠️ repair 非零（可能仅无操作），继续 migrate"
+# 【D3】口令一律 FLYWAY_PASSWORD env 透传，不进容器 argv。
+{
+  emit_var REMOTE_SQL_DIR "$REMOTE_SQL_DIR"
+  emit_var FLYWAY_IMAGE "$FLYWAY_IMAGE"
+  emit_var TEST_DB_NAME "$TEST_DB_NAME"
+  emit_var DB_ADMIN_USER "$DB_ADMIN_USER"
+  emit_secret FLYWAY_PASSWORD DB_ADMIN_PASS
+  cat <<'REMOTE'
+export FLYWAY_PASSWORD
+docker run --rm --network host -v "$REMOTE_SQL_DIR":/flyway/sql "$FLYWAY_IMAGE" \
+  -url="jdbc:mysql://127.0.0.1:3306/$TEST_DB_NAME?characterEncoding=UTF-8&useSSL=false&allowPublicKeyRetrieval=true" \
+  -user="$DB_ADMIN_USER" \
+  -connectRetries=10 -validateMigrationNaming=true repair
+REMOTE
+} | ssh_test_once "bash -s" || echo "⚠️ repair 非零（可能仅无操作），继续 migrate"
 
-OUT=$(ssh_test "docker run --rm --network host -v $REMOTE_SQL_DIR:/flyway/sql $FLYWAY_IMAGE \
-  -url='jdbc:mysql://127.0.0.1:3306/$TEST_DB_NAME?characterEncoding=UTF-8&useSSL=false&allowPublicKeyRetrieval=true' \
-  -user='$DB_ADMIN_USER' -password='$DB_ADMIN_PASS' \
-  -connectRetries=10 -validateMigrationNaming=true migrate" 2>&1) || true
+OUT="$({
+  emit_var REMOTE_SQL_DIR "$REMOTE_SQL_DIR"
+  emit_var FLYWAY_IMAGE "$FLYWAY_IMAGE"
+  emit_var TEST_DB_NAME "$TEST_DB_NAME"
+  emit_var DB_ADMIN_USER "$DB_ADMIN_USER"
+  emit_secret FLYWAY_PASSWORD DB_ADMIN_PASS
+  cat <<'REMOTE'
+export FLYWAY_PASSWORD
+docker run --rm --network host -v "$REMOTE_SQL_DIR":/flyway/sql "$FLYWAY_IMAGE" \
+  -url="jdbc:mysql://127.0.0.1:3306/$TEST_DB_NAME?characterEncoding=UTF-8&useSSL=false&allowPublicKeyRetrieval=true" \
+  -user="$DB_ADMIN_USER" \
+  -connectRetries=10 -validateMigrationNaming=true migrate
+REMOTE
+} | ssh_test_once "bash -s" 2>&1)" || true
 echo "$OUT"
 
 # ---------- 伪成功护栏（与 deploy-db.sh 同口径）----------
@@ -184,11 +242,22 @@ esac
 
 echo
 echo "=== 迁移后核对：文件写权限码状态 ==="
-ssh_test "docker exec -e MYSQL_PWD='$DB_ADMIN_PASS' $CT mysql -u'$DB_ADMIN_USER' \
-  --default-character-set=utf8mb4 -N -B $TEST_DB_NAME -e \"
-    SELECT permission, status, COUNT(*) FROM sys_menu
-    WHERE permission IN ('file:upload','file:edit','file:delete','file:share','file:folder:manage')
-    GROUP BY permission, status ORDER BY permission;\"" 2>/dev/null || true
+# 【D3】口令经 stdin 注入，不进 ssh argv；SQL 一并经 stdin 免转义
+{
+  echo 'set -euo pipefail'
+  emit_var CT "$CT"
+  emit_var DB_ADMIN_USER "$DB_ADMIN_USER"
+  emit_secret DB_ADMIN_PASS DB_ADMIN_PASS
+  emit_var TEST_DB_NAME "$TEST_DB_NAME"
+  cat <<'REMOTE'
+docker exec -e MYSQL_PWD="$DB_ADMIN_PASS" "$CT" mysql -u"$DB_ADMIN_USER" \
+  --default-character-set=utf8mb4 -N -B "$TEST_DB_NAME" 2>/dev/null <<'SQL'
+SELECT permission, status, COUNT(*) FROM sys_menu
+WHERE permission IN ('file:upload','file:edit','file:delete','file:share','file:folder:manage')
+GROUP BY permission, status ORDER BY permission;
+SQL
+REMOTE
+} | ssh_test_once "bash -s" || true
 echo "  预期：5 行全部 status=1（否则 apply 未生效）"
 echo
 echo "✅ 测试库迁移完成（库=${TEST_DB_NAME} 容器=${CT}）"

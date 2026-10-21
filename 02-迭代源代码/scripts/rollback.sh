@@ -45,6 +45,11 @@ esac
 # 注意：这里**不调用** check_deploy_arch —— 后端容器缺失/架构偏航正是需要回滚的场景，
 # 架构自检会把"后端容器不在"判为偏差而阻断恢复；架构合规由部署前自检负责。
 assert_prod_env_pinned
+# 【D6】TLS 预检在回滚路径只告警不阻断：证书链损坏时恰恰可能正是需要回滚的事故现场，
+# 不应被 TLS 预检挡住恢复动作；但去 -k 后的公网验证会因此失败并如实报错。
+if ! check_prod_tls; then
+  echo "⚠️ TLS 预检未通过：回滚仍可继续(恢复路径)，但回滚后公网验证可能因证书校验失败而报错" >&2
+fi
 
 emit_var() { printf '%s=%q\n' "$1" "$2"; }
 emit_common_env() {
@@ -113,6 +118,36 @@ ROOT_PW="$(docker exec "$MYSQL_C" printenv MYSQL_ROOT_PASSWORD 2>/dev/null || tr
 docker exec -e MYSQL_PWD="$ROOT_PW" "$MYSQL_C" mysql -uroot -N -B -e 'SELECT 1' >/dev/null \
   || { echo "❌ 容器内 root 口令连通性校验失败" >&2; exit 1; }
 
+# 【D1 2026-10-21 审计修复】导入前先给当前生产库留快照——三条恢复路径中此前唯独 DB 没有
+# "回滚前快照"（frontend 有 cp -a dist、backend 有 cp -p app.jar）。选错备份/备份过旧直接覆盖
+# 现网且无退路。快照写到 NAS 备份目录，先落 .tmp 并校验(非空 + CREATE TABLE>0)后才 mv，
+# 失败即 exit 1（现网未被改动）。
+SNAP="$NAS_BACKUP_DIR/pre-restore-$(date +%Y%m%d-%H%M%S).sql"
+mkdir -p "$NAS_BACKUP_DIR"
+echo "回滚前生产库快照: $SNAP"
+if ! docker exec -e MYSQL_PWD="$ROOT_PW" "$MYSQL_C" \
+     mysqldump -uroot --default-character-set=utf8mb4 --single-transaction "$DB_NAME" > "$SNAP.tmp"; then
+  rm -f "$SNAP.tmp"
+  echo "❌ 回滚前快照 mysqldump 失败，拒绝导入(现网未被改动)" >&2
+  exit 1
+fi
+SNAP_CT="$(grep -c '^CREATE TABLE' "$SNAP.tmp" || true)"
+if [ ! -s "$SNAP.tmp" ]; then
+  rm -f "$SNAP.tmp"
+  echo "❌ 回滚前快照为空，拒绝导入" >&2
+  exit 1
+fi
+case "$SNAP_CT" in
+  ''|*[!0-9]*)
+    rm -f "$SNAP.tmp"
+    echo "❌ 无法统计回滚前快照中的 CREATE TABLE(ct=${SNAP_CT:-<空>})，拒绝导入" >&2
+    exit 1
+    ;;
+esac
+[ "$SNAP_CT" -gt 0 ] || { rm -f "$SNAP.tmp"; echo "❌ 回滚前快照无 CREATE TABLE(不像 SQL dump)，拒绝导入" >&2; exit 1; }
+mv -f "$SNAP.tmp" "$SNAP"
+echo "快照校验通过: CREATE TABLE=$SNAP_CT ($(wc -c < "$SNAP" | tr -d '[:space:]') bytes)"
+
 echo "开始恢复（失败即中止）..."
 $READ_DUMP "$dump" | docker exec -i -e MYSQL_PWD="$ROOT_PW" "$MYSQL_C" \
   mysql -uroot --default-character-set=utf8mb4 "$DB_NAME"
@@ -129,7 +164,7 @@ esac
   || { echo "❌ 恢复后表数($TABLES)少于 dump 中 CREATE TABLE($EXPECTED_TABLES)" >&2; exit 1; }
 [ "$KEY_TABLES" = "2" ] \
   || { echo "❌ 关键表缺失(sys_user/biz_customer 命中 $KEY_TABLES/2)" >&2; exit 1; }
-echo "DB_ROLLBACK_OK dump=$dump tables=$TABLES expected_create=$EXPECTED_TABLES"
+echo "DB_ROLLBACK_OK dump=$dump tables=$TABLES expected_create=$EXPECTED_TABLES pre_restore_snapshot=$SNAP"
 REMOTE
   } > "$REMOTE_SCRIPT"
   set +e
@@ -336,16 +371,32 @@ image_jar_md5() {
 start_backend() {
   docker stop "${APP_SLUG}-backend" >/dev/null 2>&1 || true
   docker rm "${APP_SLUG}-backend" >/dev/null 2>&1 || true
-  docker run -d --name "${APP_SLUG}-backend" --network "${APP_SLUG}_default" --restart always \
+  # 【D3 2026-10-21】机密(DB/JWT/OSS 口令)经 0600 env-file 注入，不进 docker run argv
+  #（旧写法把明文口令作为 -e KEY=VALUE 参数写进远端 docker 进程 argv，同机 ps 可见）；非机密项保持 -e 便于排查。
+  local envf
+  envf="$(mktemp /tmp/aigicrm-backend-env.XXXXXX)"
+  chmod 600 "$envf"
+  {
+    printf 'DB_PASSWORD=%s\n' "$APP_DB_PASSWORD"
+    printf 'JWT_SECRET=%s\n' "$JWT_SECRET"
+    printf 'OSS_ACCESS_KEY_ID=%s\n' "$OSS_ACCESS_KEY_ID"
+    printf 'OSS_ACCESS_KEY_SECRET=%s\n' "$OSS_ACCESS_KEY_SECRET"
+  } > "$envf"
+  if ! docker run -d --name "${APP_SLUG}-backend" --network "${APP_SLUG}_default" --restart always \
     -p 127.0.0.1:8080:8080 \
-    -e DB_HOST=mysql -e DB_PORT=3306 -e DB_NAME="$DB_NAME" -e DB_USER="$APP_DB_USER" -e DB_PASSWORD="$APP_DB_PASSWORD" \
+    --env-file "$envf" \
+    -e DB_HOST=mysql -e DB_PORT=3306 -e DB_NAME="$DB_NAME" -e DB_USER="$APP_DB_USER" \
     -e REDIS_HOST=redis -e REDIS_PORT=6379 -e SPRING_PROFILES_ACTIVE=prod -e TENANT_ENABLE=true \
     -e UPLOAD_DIR=/app/uploads -e STORAGE_TYPE=local -e TZ=Asia/Shanghai \
-    -e OSS_ENDPOINT=oss-cn-beijing.aliyuncs.com -e OSS_ACCESS_KEY_ID="$OSS_ACCESS_KEY_ID" \
-    -e OSS_ACCESS_KEY_SECRET="$OSS_ACCESS_KEY_SECRET" -e OSS_BUCKET_NAME="$OSS_BUCKET_NAME" \
-    -e CORS_ORIGINS=https://www.aigicrm.com -e JWT_SECRET="$JWT_SECRET" \
+    -e OSS_ENDPOINT=oss-cn-beijing.aliyuncs.com -e OSS_BUCKET_NAME="$OSS_BUCKET_NAME" \
+    -e CORS_ORIGINS=https://www.aigicrm.com \
     -v /Aigicrm/files/uploads:/app/uploads -v "${APP_SLUG}-logs:/app/logs" \
-    "${APP_SLUG}-backend:${BACKEND_TAG}" >/dev/null
+    "${APP_SLUG}-backend:${BACKEND_TAG}" >/dev/null; then
+    rm -f "$envf"
+    echo "❌ docker run 后端容器失败" >&2
+    return 1
+  fi
+  rm -f "$envf"
   docker inspect "${APP_SLUG}-backend" --format '{{range .Mounts}}{{.Source}} {{end}}' \
     | grep -q '/Aigicrm/files/uploads' \
     || { echo "❌ 上传挂载不是 NAS 路径 /Aigicrm/files/uploads" >&2; return 1; }
@@ -433,7 +484,9 @@ check_health_retry
 
 BODY_FILE="$(mktemp /tmp/aigicrm-rollback-check.XXXXXX)"
 trap 'rm -f "$BODY_FILE"; cleanup_remote_script' EXIT
-CODE="$(curl -sk --connect-timeout 10 --max-time 30 -H 'Cache-Control: no-cache' \
+# 【D6 2026-10-21】去掉 -k：证书过期/域不符/被替换必须让回滚后验证失败(如实报错)；
+# 部署机 CA 不含生产链时用 AIGICRM_CACERT 显式指定。
+CODE="$(curl -s $CURL_CA_OPTS --connect-timeout 10 --max-time 30 -H 'Cache-Control: no-cache' \
   -o "$BODY_FILE" -w '%{http_code}' "https://www.aigicrm.com/?rollback=$RUN_TS")"
 ENTRY_LIVE="$(grep -oE 'assets/index-[A-Za-z0-9_-]+\.js' "$BODY_FILE" 2>/dev/null | head -1 || true)"
 [ "$CODE" = "200" ] \
@@ -442,7 +495,7 @@ grep -q 'id="app"' "$BODY_FILE" \
   || { echo "❌ 回滚后首页 body 缺少 app 根节点" >&2; exit 1; }
 [ -n "$ENTRY_LIVE" ] \
   || { echo "❌ 回滚后首页 body 未引用 assets/index-*.js" >&2; exit 1; }
-[ "$(curl -sk --connect-timeout 10 --max-time 30 -o /dev/null -w '%{http_code}' "https://www.aigicrm.com/$ENTRY_LIVE")" = "200" ] \
+[ "$(curl -s $CURL_CA_OPTS --connect-timeout 10 --max-time 30 -o /dev/null -w '%{http_code}' "https://www.aigicrm.com/$ENTRY_LIVE")" = "200" ] \
   || { echo "❌ 回滚后入口资源 $ENTRY_LIVE 非 200" >&2; exit 1; }
 if [ -n "$FRONTEND_ENTRY" ]; then
   [ "$ENTRY_LIVE" = "$FRONTEND_ENTRY" ] \

@@ -22,6 +22,12 @@ DEPLOY_DATA_DIR="${DEPLOY_DATA_DIR:-/data/aigicrm}"
 # "门禁校验/重启/回滚使用的镜像"指向不同对象（门禁校验错对象，或部署新版、回滚旧 tag）。
 BACKEND_TAG="${BACKEND_TAG:-2.7.0}"
 
+# 生产实际部署目录(实测 2026-09-23:容器 WorkingDir=/data/ycmn,jar+compose 均在此;
+# 旧默认 /root/aigicrm 为历史残留,env 未显式覆盖时以实测值为准)
+if [ "${DEPLOY_DIR:-}" = "/root/aigicrm" ] || [ -z "${DEPLOY_DIR:-}" ]; then
+  DEPLOY_DIR="/data/ycmn"
+fi
+
 # DB 凭据必须存在（禁止脚本内硬编码，一律经 env 注入）
 #
 # 【2026-09-12】仅测试环境的脚本（如 deploy-db-test.sh）**不需要**生产 DB_PASSWORD，
@@ -42,51 +48,184 @@ fi
 HEALTH_CHECK_USER="${HEALTH_CHECK_USER:-admin}"
 HEALTH_CHECK_PASS="${HEALTH_CHECK_PASS:-}"
 
-SSH_OPTS="${SSH_OPTS:--o ConnectTimeout=20 -o StrictHostKeyChecking=no}"
+# ============================================================
+# 【D4 2026-10-21 审计修复】SSH 通道加固（旧默认关闭主机密钥校验 + sshpass -p 密码回退）
+#   - 生产/备份/数据库维护通道一律强制 StrictHostKeyChecking=yes + BatchMode=yes + 固定 known_hosts；
+#   - OpenSSH 对同一参数取"第一个获得的值"：若把 =yes 追加在用户 SSH_OPTS(=no) 之后**不会生效**。
+#     因此这里不透传用户 SSH_OPTS 中的校验类参数，而是剔除后由脚本重建（剔除会打印告警）；
+#   - 生产通道移除 sshpass 密码回退：仅公钥(PROD_KEY)，缺失即 fail-closed，不再静默回落密码通道；
+#   - 测试通道仍可密码登录，但一律 SSHPASS=<val> sshpass -e（口令经 env，不进 argv，本机 ps 不可见）。
+#
+# known_hosts 固定：默认 ~/.ssh/known_hosts，可用 AIGICRM_KNOWN_HOSTS 指向项目内钉死指纹的文件。
+# 首次采集（离线核对指纹后）：
+#   ssh-keyscan -t ed25519,ecdsa,rsa <PROD_HOST> <TEST_HOST> >> ~/.ssh/known_hosts
+# 文件缺失即失败——不接受交互式首次确认（BatchMode 下也无法交互），避免"看似修好实则未校验"。
+# ============================================================
+KNOWN_HOSTS_FILE="${AIGICRM_KNOWN_HOSTS:-$HOME/.ssh/known_hosts}"
+if [ ! -f "$KNOWN_HOSTS_FILE" ]; then
+  echo "错误: known_hosts 文件不存在: $KNOWN_HOSTS_FILE" >&2
+  echo "  先离线核对主机指纹后固定: ssh-keyscan -t ed25519,ecdsa,rsa <host> >> <file>" >&2
+  echo "  并设置 AIGICRM_KNOWN_HOSTS=<file>（缺省 ~/.ssh/known_hosts）。在指纹落地前拒绝连接(fail-closed)。" >&2
+  exit 1
+fi
+
+# 清洗用户 SSH_OPTS：主机密钥校验类参数(-o StrictHostKeyChecking/BatchMode/UserKnownHostsFile/
+# PasswordAuthentication)由脚本强制钉死，用户值**成对**剔除并告警(逐词剔除会把 -o 与其参数拆散，
+# 留下孤立的 -o 使 ssh 直接报错)。保留项追加在强制项之后——OpenSSH 同参数取第一个值，强制项在前。
+SSH_OPTS="${SSH_OPTS:-}"
+AIGICRM_SSH_OPTS_STR="-o BatchMode=yes -o ConnectTimeout=${SSH_CONNECT_TIMEOUT:-20} -o StrictHostKeyChecking=yes -o UserKnownHostsFile=$KNOWN_HOSTS_FILE"
+if [ -n "$SSH_OPTS" ]; then
+  _DROPPED=""
+  _KEPT=""
+  # shellcheck disable=SC2206 # 需要按词拆分逐对检查
+  _WORDS=($SSH_OPTS)
+  _I=0
+  while [ "$_I" -lt "${#_WORDS[@]}" ]; do
+    _W="${_WORDS[$_I]}"
+    case "$_W" in
+      -o)
+        _NV="${_WORDS[$((_I+1))]:-}"
+        case "$_NV" in
+          StrictHostKeyChecking=*|BatchMode=*|UserKnownHostsFile=*|PasswordAuthentication=*)
+            _DROPPED="${_DROPPED:+$_DROPPED }$_NV" ;;
+          *) _KEPT="$_KEPT -o $_NV" ;;
+        esac
+        _I=$((_I+2)) ;;
+      # 粘连写法 -oKey=Value 同样剔除
+      -oStrictHostKeyChecking=*|-oBatchMode=*|-oUserKnownHostsFile=*|-oPasswordAuthentication=*)
+        _DROPPED="${_DROPPED:+$_DROPPED }${_W#-o}"
+        _I=$((_I+1)) ;;
+      *)
+        _KEPT="$_KEPT $_W"
+        _I=$((_I+1)) ;;
+    esac
+  done
+  if [ -n "$_DROPPED" ]; then
+    echo "⚠️ SSH_OPTS 中的主机密钥校验类选项已被忽略(脚本强制 StrictHostKeyChecking=yes + BatchMode + UserKnownHostsFile): $_DROPPED" >&2
+  fi
+  # 去除多余空白后追加(路径含空格的 -o 值不被支持，见上方 known_hosts 说明)
+  [ -n "$_KEPT" ] && AIGICRM_SSH_OPTS_STR="$AIGICRM_SSH_OPTS_STR$(printf '%s' "$_KEPT")"
+  unset _DROPPED _KEPT _WORDS _I _W _NV
+fi
+AIGICRM_SSH_OPTS=($AIGICRM_SSH_OPTS_STR)
 
 # 单次 ssh(不做重试)。供需要 stdin 的脚本(printf | ssh_prod_once "bash -s")与
 # 轮询类调用使用——带重试的 ssh_prod 在第一次尝试已消费 stdin, 重试时会读到 EOF。
+# 【D4】仅公钥认证：PROD_KEY 必须由部署 env 显式注入(不再有写死的本机路径默认值，
+# 换机器不再静默回退密码通道)；缺失/不可读即 fail-closed。
 ssh_prod_once() {
-  if [ -f "$PROD_KEY" ]; then
-    ssh -i "$PROD_KEY" -o BatchMode=yes $SSH_OPTS "${PROD_USER}@${PROD_HOST}" "$@"
-  else
-    sshpass -p "$PROD_PASS" ssh $SSH_OPTS "${PROD_USER}@${PROD_HOST}" "$@"
+  if [ -z "${PROD_KEY:-}" ]; then
+    echo "错误: 缺少 PROD_KEY（请在部署 env 显式注入私钥路径；密码通道已按 D4 移除）" >&2
+    return 1
   fi
+  if [ ! -r "$PROD_KEY" ]; then
+    echo "错误: PROD_KEY 不存在或不可读: $PROD_KEY" >&2
+    return 1
+  fi
+  ssh -i "$PROD_KEY" ${AIGICRM_SSH_OPTS[@]+"${AIGICRM_SSH_OPTS[@]}"} "${PROD_USER}@${PROD_HOST}" "$@"
 }
 
 # ssh 封装带重试(连接建立类瞬时失败自动重试; 3 次后放弃)。
 # 注: 重试仅对"连接未建立"的失败安全——绝大多数瞬时失败(连接重置/拒绝)发生在此阶段, 远程命令未执行;
 # 部署类命令自身幂等(备份覆盖/rm -rf 先行/容器重启), 重试不会造成重复副作用。
 ssh_prod() {
-  for _ in 1 2 3; do
-    ssh_prod_once "$@" && return 0
+  local _rc=0 _i
+  for _i in 1 2 3; do
+    if ssh_prod_once "$@"; then return 0; fi
+    _rc=$?
     sleep 2
   done
-  return 1
+  return "$_rc"
+}
+# 测试通道：密码登录经 SSHPASS env + sshpass -e（口令不进 argv；旧 sshpass -p "$TEST_PASS" 写法已移除）
+ssh_test_once() {
+  if [ -z "${TEST_PASS:-}" ]; then
+    echo "错误: 缺少 TEST_PASS（请在部署 env 配置）" >&2
+    return 1
+  fi
+  SSHPASS="$TEST_PASS" sshpass -e ssh ${AIGICRM_SSH_OPTS[@]+"${AIGICRM_SSH_OPTS[@]}"} "${TEST_USER}@${TEST_HOST}" "$@"
 }
 ssh_test() {
-  for _ in 1 2 3; do
-    sshpass -p "$TEST_PASS" ssh $SSH_OPTS "${TEST_USER}@${TEST_HOST}" "$@" && return 0
+  local _rc=0 _i
+  for _i in 1 2 3; do
+    if ssh_test_once "$@"; then return 0; fi
+    _rc=$?
     sleep 2
   done
-  return 1
+  return "$_rc"
 }
-# 【2026-09-23 生产通道修复】生产 sshd 已收敛为仅公钥(密码登录被服务端拒绝),
-# ssh_prod/scp_prod 优先使用 PROD_KEY 密钥;未配置密钥时回退旧密码通道(测试机仍可用)。
-PROD_KEY="${PROD_KEY:-/Users/dongjun/东来/项目/02-已上线/01-AIGICRM/06-部署与运维/阿里云环境/aigicrm.com.pem}"
-# 生产实际部署目录(实测 2026-09-23:容器 WorkingDir=/data/ycmn,jar+compose 均在此;
-# 旧默认 /root/aigicrm 为历史残留,env 未显式覆盖时以实测值为准)
-if [ "${DEPLOY_DIR:-}" = "/root/aigicrm" ] || [ -z "${DEPLOY_DIR:-}" ]; then
-  DEPLOY_DIR="/data/ycmn"
-fi
-scp_prod() {
-  if [ -f "$PROD_KEY" ]; then
-    scp -i "$PROD_KEY" -o BatchMode=yes $SSH_OPTS "$@"
-  else
-    sshpass -p "$PROD_PASS" scp $SSH_OPTS "$@"
+scp_prod_once() {
+  if [ -z "${PROD_KEY:-}" ] || [ ! -r "$PROD_KEY" ]; then
+    echo "错误: PROD_KEY 缺失或不可读（scp 生产通道仅公钥；密码回退已按 D4 移除）" >&2
+    return 1
   fi
+  scp -i "$PROD_KEY" ${AIGICRM_SSH_OPTS[@]+"${AIGICRM_SSH_OPTS[@]}"} "$@"
 }
-scp_test()  { sshpass -p "$TEST_PASS" scp $SSH_OPTS "$@"; }
+scp_prod() {
+  local _rc=0 _i
+  for _i in 1 2 3; do
+    if scp_prod_once "$@"; then return 0; fi
+    _rc=$?
+    sleep 2
+  done
+  return "$_rc"
+}
+scp_test_once() {
+  if [ -z "${TEST_PASS:-}" ]; then
+    echo "错误: 缺少 TEST_PASS（请在部署 env 配置）" >&2
+    return 1
+  fi
+  SSHPASS="$TEST_PASS" sshpass -e scp ${AIGICRM_SSH_OPTS[@]+"${AIGICRM_SSH_OPTS[@]}"} "$@"
+}
+scp_test() {
+  local _rc=0 _i
+  for _i in 1 2 3; do
+    if scp_test_once "$@"; then return 0; fi
+    _rc=$?
+    sleep 2
+  done
+  return "$_rc"
+}
+
+# 【D3/D6 辅助】curl 走系统 CA 校验；如部署机 CA 不含生产链，用 AIGICRM_CACERT 显式指定 CA 包。
+# 不得再使用 -k（D6：证书过期/域不符/被替换必须使门禁失败）。
+CURL_CA_OPTS=""
+[ -n "${AIGICRM_CACERT:-}" ] && CURL_CA_OPTS="--cacert $AIGICRM_CACERT"
+
+# ============================================================
+# 【D6 2026-10-21 审计修复】生产 TLS 证书预检（只读，不连接后端、不带凭据）
+# 去 curl -k 之前必须先证明部署机能以系统 CA 完整校验 www.aigicrm.com 证书链；
+# 且证书过期不得被门禁放过。链校验失败 = 硬失败：先修链/固定 CA(AIGICRM_CACERT)，
+# 不允许为了过门禁保留 -k。各部署/回滚脚本在**破坏性动作之前**调用本函数。
+# ============================================================
+check_prod_tls() {
+  local host="${1:-www.aigicrm.com}" port="${2:-443}" out
+  command -v openssl >/dev/null 2>&1 \
+    || { echo "❌ TLS 预检需要 openssl（本机未安装）" >&2; return 1; }
+  if ! out="$(printf '' | openssl s_client -connect "$host:$port" -servername "$host" -verify_return_error 2>&1)"; then
+    echo "❌ TLS 链校验失败($host:$port)——先修证书链或用 AIGICRM_CACERT 固定 CA，不得以 -k 绕过" >&2
+    printf '%s\n' "$out" | grep -E 'verify error|Verify return|alert' | head -5 >&2 || true
+    return 1
+  fi
+  if ! printf '%s\n' "$out" | grep -q 'Verify return code: 0 (ok)'; then
+    echo "❌ TLS 校验返回码非 ok($host:$port):" >&2
+    printf '%s\n' "$out" | grep 'Verify return' >&2 || true
+    return 1
+  fi
+  # 到期检查：已过期=硬失败；14 天内到期=告警(不阻断，但必须有人跟进续期)
+  local leaf
+  leaf="$(printf '' | openssl s_client -connect "$host:$port" -servername "$host" -showcerts 2>/dev/null | openssl x509 -noout -checkend 0 2>/dev/null)"
+  if [ "$?" -ne 0 ] || [ -z "$leaf" ]; then
+    echo "❌ 无法读取/解析 $host 证书(到期检查失败)" >&2
+    return 1
+  fi
+  if ! printf '' | openssl s_client -connect "$host:$port" -servername "$host" -showcerts 2>/dev/null \
+      | openssl x509 -noout -checkend 1209600 >/dev/null 2>&1; then
+    echo "⚠️  $host 证书将在 14 天内到期，请立即安排续期（本次不阻断）" >&2
+  fi
+  echo "✅ TLS 证书校验通过 ($host:$port, 系统 CA 链完整, 未过期)"
+  return 0
+}
 
 # 生产健康检查(【2026-09-23 重设计】无凭据探活):
 # 旧法=真实登录，admin 初口令首登强制改密后必 401 假失败；且失败登录会写安全审计并累计
@@ -98,7 +237,9 @@ scp_test()  { sshpass -p "$TEST_PASS" scp $SSH_OPTS "$@"; }
 check_health() {
   local base="${1:-https://www.aigicrm.com}"
   local resp code
-  resp=$(curl -sk --connect-timeout 10 --max-time 20 -w "\n%{http_code}" "$base/api/system/configs/public")
+  # 【D6 2026-10-21】去掉 -k：证书过期/域不符/被替换必须让健康检查失败。
+  # 部署机 CA 不含生产链时用 AIGICRM_CACERT 显式指定（部署前 check_prod_tls 预检会先暴露此问题）。
+  resp=$(curl -s $CURL_CA_OPTS --connect-timeout 10 --max-time 20 -w "\n%{http_code}" "$base/api/system/configs/public")
   code="${resp##*$'\n'}"
   if [ "$code" = "200" ] && printf '%s' "$resp" | grep -qE '"code":[[:space:]]*200'; then
     echo "✅ 健康检查通过 (公共配置接口 200: nginx→后端→DB 全链可达)"

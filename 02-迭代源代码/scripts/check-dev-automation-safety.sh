@@ -16,6 +16,16 @@ targets=(
   "scripts/verify-sea-claim-matrix.sh"
 )
 
+# 【审计 F1 2026-10-21】生产浏览器冒烟脚本(aigicrm-ui/*smoke*.mjs, 曾硬编码生产地址与账号口令)
+#   纳入守卫目标: 跟踪+未忽略的冒烟脚本动态枚举, 新增脚本自动覆盖, 不必逐个登记。
+while IFS= read -r rel; do
+  [ -n "$rel" ] || continue
+  targets+=("$rel")
+done < <(
+  git -C "$ROOT" -c core.quotePath=false ls-files --cached --others --exclude-standard -- aigicrm-ui 2>/dev/null |
+    grep -E '^aigicrm-ui/[^/]*smoke[^/]*\.mjs$' || true
+)
+
 forbidden='(^|[;&|[:space:]])(ssh|scp|rsync|mysql|flyway|docker([[:space:]]+compose)?|kubectl|helm)([[:space:]]|$)|git[[:space:]]+(push|commit|add|reset|checkout)|deploy-(backend|frontend|db)|auto-pipeline|smoke-test\.sh[[:space:]]+prod|prod(uction)?[[:space:]]+(deploy|migration|smoke)'
 
 status=0

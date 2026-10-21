@@ -52,6 +52,11 @@ SHA_FILE="$DEST/SHA256SUMS"
 MIRROR_SOURCE_DATE_FILE="$DEST/.mirror-source-date"
 MIRROR_DEGRADED_FILE="$DEST/.mirror-degraded"
 MIRROR_HARD_FAIL_FILE="$DEST/.mirror-hard-fail"
+# 【D5 2026-10-21】"本次 dump 通过完整性校验"标记：只有它存在时，过期删除（retention）才允许执行。
+# 传输 md5 只证明"拉到的=服务器上的"，不证明"服务器上的没被截断"；SQL 完整性校验
+#（CREATE TABLE>0 + Dump completed 结束标记）通过才 touch 本文件。
+MIRROR_INTEGRITY_OK_FILE="$DEST/.mirror-integrity-ok"
+MIRROR_INTEGRITY_INFO_FILE="$DEST/.mirror-integrity-info"
 SKIPPED_FILE="$DEST/.skipped-archives"
 MIRROR_DEGRADED=0
 
@@ -81,7 +86,8 @@ done
 mkdir -p "$DEST" || die "无法创建备份目录: $DEST"
 [ -w "$DEST" ] || die "备份目录不可写: $DEST"
 touch "$DEST/.write-test" && rm -f "$DEST/.write-test" || die "备份目录写入测试失败: $DEST"
-rm -f "$SKIPPED_FILE" "$MIRROR_DEGRADED_FILE" "$MIRROR_HARD_FAIL_FILE"
+rm -f "$SKIPPED_FILE" "$MIRROR_DEGRADED_FILE" "$MIRROR_HARD_FAIL_FILE" \
+      "$MIRROR_INTEGRITY_OK_FILE" "$MIRROR_INTEGRITY_INFO_FILE"
 : > "$SHA_FILE"
 
 # 【IH5】计算两个 YYYYMMDD 的日差（后者减前者，单位天）；python3 缺席时退回 macOS date
@@ -144,6 +150,9 @@ archive_if_exists() {
 }
 
 # ---- 镜像拉新（缺配置/密钥/主机直接失败；网络/拉取失败默认失败，可显式降级）----
+# 【D5 2026-10-21】SQL 完整性校验失败也走 mirror_fail；但无论是否允许降级(AIGICRM_BACKUP_ALLOW_DEGRADED=1)，
+# 失败时都**不会** touch .mirror-integrity-ok ⇒ 下方过期删除(retention)被跳过——
+# "有备份"不等于"备份可用"，截断 dump 不得触发旧可恢复备份的删除。
 refresh_prod_mirror() {
   rm -f "$MIRROR_SOURCE_DATE_FILE"
   local env_file="${AIGICRM_DEPLOY_ENV:-$HOME/.aigicrm-deploy.env}"
@@ -169,8 +178,17 @@ refresh_prod_mirror() {
       printf 'PROD_HOST missing\n' > "$MIRROR_HARD_FAIL_FILE"
       exit 1
     fi
+    # 【D4 2026-10-21】备份通道同样强制主机密钥校验：StrictHostKeyChecking=yes + BatchMode + 固定
+    # known_hosts（默认 ~/.ssh/known_hosts，可 AIGICRM_KNOWN_HOSTS 指定）。旧默认不校验主机密钥，
+    # 使 D5 的 md5 取自未验证主机——中间人可同时提供截断 dump 与匹配 md5。known_hosts 缺失按配置不完整硬失败。
+    local kh="${AIGICRM_KNOWN_HOSTS:-$HOME/.ssh/known_hosts}"
+    if [ ! -f "$kh" ]; then
+      log "ERROR: known_hosts 不存在($kh)——先离线核对指纹后 ssh-keyscan 固定(或设 AIGICRM_KNOWN_HOSTS)"
+      printf 'known_hosts missing\n' > "$MIRROR_HARD_FAIL_FILE"
+      exit 1
+    fi
     local host="${PROD_USER:-root}@${PROD_HOST}"
-    local opts="-o BatchMode=yes -o ConnectTimeout=20 -o StrictHostKeyChecking=no"
+    local opts="-o BatchMode=yes -o ConnectTimeout=20 -o StrictHostKeyChecking=yes -o UserKnownHostsFile=$kh"
     local latest
     if ! latest="$(ssh -i "$key" $opts "$host" \
       "ls -1 /Aigicrm/files/backup/daily/ 2>/dev/null | grep -E '^[0-9]{8}\$' | sort | tail -1")"; then
@@ -214,8 +232,29 @@ refresh_prod_mirror() {
       mirror_fail "dump md5 不符(远端=$remote_md5 本地=$local_md5)" || exit 1
       exit 0
     fi
+    # 【D5 2026-10-21】SQL 完整性校验：传输 md5 只证明"与服务器一致"，不证明"服务器上的没被截断"。
+    # 服务器侧 mysqldump 因磁盘满/进程被杀而截断时，文件非空且 md5"正确"，旧逻辑会把截断 dump
+    # 当"当天新鲜备份"归档并删掉更早的可恢复备份。校验 = CREATE TABLE 计数>0 + "-- Dump completed" 结束标记。
+    local ct completed integrity_ok=1
+    ct="$(grep -c '^CREATE TABLE' "$tmp_dump" || true)"
+    completed=0
+    grep -q -e '-- Dump completed' "$tmp_dump" && completed=1 || true
+    printf 'create_table=%s dump_completed=%s md5=%s source=daily/%s\n' \
+      "$ct" "$completed" "$local_md5" "$latest" > "$MIRROR_INTEGRITY_INFO_FILE"
+    [ "$completed" -eq 1 ] || integrity_ok=0
+    case "$ct" in
+      ''|*[!0-9]*) integrity_ok=0 ;;
+      *) [ "$ct" -gt 0 ] || integrity_ok=0 ;;
+    esac
+    if [ "$integrity_ok" -ne 1 ]; then
+      rm -f "$tmp_dump"
+      mirror_fail "dump SQL 完整性校验失败(CREATE TABLE=${ct:-<非数字>}, Dump completed=${completed})——疑似截断，拒绝归档并保留旧备份" || exit 1
+      exit 0
+    fi
     mv -f "$tmp_dump" "$PROD_MIRROR_DIR/database/ycmn-production.sql"
-    log "mirror refresh: 库 dump 已拉新并通过 md5 校验(daily/$latest → ycmn-production.sql)"
+    # 完整性全绿才允许今晚的过期删除（见文件尾 retention 门）
+    printf 'ok\n' > "$MIRROR_INTEGRITY_OK_FILE"
+    log "mirror refresh: 库 dump 已拉新并通过 md5+SQL 完整性校验(daily/$latest → ycmn-production.sql)"
     # 两个关键部署配置小文件顺带对齐（Dockerfile-run/nginx-ssl.conf，服务器为准）。
     # 辅助文件拉取失败只告警（保留既有镜像），不冒充"新鲜"。
     mkdir -p "$PROD_MIRROR_DIR/deploy"
@@ -356,6 +395,17 @@ shasum -a 256 "$DEST"/*.tar.gz > "$SHA_FILE" || die "生成 SHA256SUMS 失败"
   echo "## Skipped (not counted as success)"
   if [ -s "$SKIPPED_FILE" ]; then cat "$SKIPPED_FILE"; else echo "(none)"; fi
   echo
+  echo "## Dump integrity (D5)"
+  # 【D5】本次 dump 的 SQL 完整性校验结果（md5 只证明传输一致，不证明可恢复）；
+  # 未通过时下方 retention 被跳过——旧备份一个都不删。
+  if [ -f "$MIRROR_INTEGRITY_OK_FILE" ]; then
+    echo "- ✅ 完整性校验通过: $(cat "$MIRROR_INTEGRITY_INFO_FILE" 2>/dev/null || echo 'info 缺失')"
+    echo "- 过期删除: 已按保留策略执行(${RETENTION_DAYS} 天窗口)"
+  else
+    echo "- ❌ 完整性校验未通过或本次未拉新: $(cat "$MIRROR_INTEGRITY_INFO_FILE" 2>/dev/null || echo '无校验信息(未取到 dump)')"
+    echo "- 过期删除: **已跳过**——旧备份全部保留，人工核查后再清理(D5 fail-closed)"
+  fi
+  echo
   echo "## Mirror freshness"
   # 【IH5】先报告服务器 daily 源头日期并与本地当日比对——本地 mtime 只能证明"拉过"，
   # 不能证明"拉的是当天"；源头断档时此处必须一眼可见
@@ -394,18 +444,25 @@ fi
 
 log "retention cutoff: keep $CUTOFF through $TODAY"
 
-find "$BACKUP_ROOT" -mindepth 1 -maxdepth 1 -type d | while IFS= read -r dir; do
-  base="$(basename "$dir")"
-  case "$base" in
-    [0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9])
-      if [ "$base" -lt "$CUTOFF" ]; then
-        log "delete expired backup set: $dir"
-        find "$dir" -type f -delete
-        find "$dir" -depth -type d -empty -exec rmdir {} \;
-      fi
-      ;;
-  esac
-done
+# 【D5 2026-10-21】过期删除硬门：只有本次 dump 通过完整性校验(md5 + CREATE TABLE + Dump completed)
+# 才允许删旧备份。降级(AIGICRM_BACKUP_ALLOW_DEGRADED=1)只影响"是否打包现有镜像"，
+# **不影响本门**——完整性失败/未拉新时一律保留全部旧备份，宁可占盘也不删唯一可恢复点。
+if [ ! -f "$MIRROR_INTEGRITY_OK_FILE" ]; then
+  log "SKIP retention: 本次备份未通过 dump 完整性校验(或未拉新/降级)，不删除任何旧备份(D5 fail-closed)"
+else
+  find "$BACKUP_ROOT" -mindepth 1 -maxdepth 1 -type d | while IFS= read -r dir; do
+    base="$(basename "$dir")"
+    case "$base" in
+      [0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9])
+        if [ "$base" -lt "$CUTOFF" ]; then
+          log "delete expired backup set: $dir"
+          find "$dir" -type f -delete
+          find "$dir" -depth -type d -empty -exec rmdir {} \;
+        fi
+        ;;
+    esac
+  done
+fi
 
 log "backup complete: artifacts=$ARTIFACTS total_bytes=$TOTAL_BYTES dir_size=$(du -sh "$DEST" | awk '{print $1}')"
 sed -n '1,160p' "$MANIFEST"

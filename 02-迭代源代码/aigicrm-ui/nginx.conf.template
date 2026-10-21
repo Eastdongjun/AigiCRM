@@ -9,9 +9,26 @@
 # 【file-4 2026-10-17】下载 token 走 query string（...?token=<jwt>），默认 combined 日志的
 # $request 会把完整 URL（含 token）明文写进 access.log。这里生成脱敏副本 $request_redacted：
 # 仅把 token 参数值替换为 ***，其余 URL 原样保留；访问日志只用该变量。请求本身不被改写。
-map $request $request_redacted {
+#
+# 【D7 2026-10-21 审计修复】与 nginx/nginx-ssl.conf 同批：旧贪婪正则在多 token URL 下只遮蔽
+# 最后一个 token=。改用链式 map（非贪婪 + 负向前瞻跳过已脱敏项）逐个脱敏，三级 + 兜底，
+# 行为与生产配置完全一致；双 token 用例由 scripts/check-nginx-token-redaction.sh 守护。
+map $request $req_redact_1 {
     default $request;
-    "~^(?<req_pre>.*[?&]token=)[^&\s]*(?<req_post>.*)$" $req_pre***$req_post;
+    "~^(?<pre1>.*?[?&]token=)(?!\*\*\*)[^&\s]*(?<post1>.*)$" $pre1***$post1;
+}
+map $req_redact_1 $req_redact_2 {
+    default $req_redact_1;
+    "~^(?<pre2>.*?[?&]token=)(?!\*\*\*)[^&\s]*(?<post2>.*)$" $pre2***$post2;
+}
+map $req_redact_2 $req_redact_3 {
+    default $req_redact_2;
+    "~^(?<pre3>.*?[?&]token=)(?!\*\*\*)[^&\s]*(?<post3>.*)$" $pre3***$post3;
+}
+map $req_redact_3 $request_redacted {
+    default $req_redact_3;
+    # 兜底：三级后仍含未脱敏 token= 值 → 丢弃整个 query（保留方法与路径），绝不输出残余 JWT
+    "~^(?<guard_pre>.*?\?).*[?&]token=(?!\*\*\*)[^&\s].*$" ${guard_pre}token=***&more-redacted;
 }
 log_format aigicrm_redacted '$remote_addr - $remote_user [$time_local] "$request_redacted" '
                              '$status $body_bytes_sent "$http_referer" '

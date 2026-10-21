@@ -19,6 +19,9 @@ source "$SCRIPT_DIR/deploy-lib.sh"
 # 【2026-09-12】生产环境前置硬门禁（见 deploy-lib.sh: assert_prod_env_pinned）
 assert_prod_env_pinned
 check_deploy_arch
+# 【D6 2026-10-21】破坏性动作(备份覆盖/迁移)前先做只读 TLS 预检：去 -k 后健康检查
+# 依赖系统 CA 能校验生产证书链；链不完整时在此暴露(而不是迁移完才发现健康检查必失败)。
+check_prod_tls
 
 MIGRATION_DIR="${1:-$SCRIPT_DIR/../aigicrm-backend/src/main/resources/db/migration}"
 
@@ -71,18 +74,23 @@ ssh_prod "
   PW=\$(docker exec ${APP_SLUG}-mysql sh -c 'printf %s \"\$MYSQL_ROOT_PASSWORD\"')
   TABLE_CNT=\$(docker exec -e MYSQL_PWD=\"\$PW\" ${APP_SLUG}-mysql mysql -uroot -N -e \"SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='$DB_NAME'\" 2>/dev/null)
   echo \"迁移前: 表数 \$TABLE_CNT\"
+  # 【D3 2026-10-21】Flyway 口令改经环境变量传递：export FLYWAY_PASSWORD 后 docker run -e FLYWAY_PASSWORD
+  # (只给变量名，不带 =值)——旧写法 -password=\"\$PW\" 会把 root 口令写进远端 flyway 容器进程 argv(ps 可见)。
+  export FLYWAY_PASSWORD=\"\$PW\"
   REPAIR=\$(docker run --rm --network ${APP_SLUG}_default -v $DEPLOY_DIR/flyway-sql:/flyway/sql \
+    -e FLYWAY_PASSWORD \
     flyway/flyway:9.22.3-alpine \
     -url='jdbc:mysql://${APP_SLUG}-mysql:3306/$DB_NAME?characterEncoding=UTF-8&connectionCollation=utf8mb4_general_ci&useSSL=false&allowPublicKeyRetrieval=true' \
-    -user=root -password=\"\$PW\" \
+    -user=root \
     -validateMigrationNaming=true \
     -ignoreMigrationPatterns='*:missing' \
     repair 2>&1) || true
   echo \"\$REPAIR\" | grep -E 'Repairing|Successfully repaired|not necessary' | head -6
   OUT=\$(docker run --rm --network ${APP_SLUG}_default -v $DEPLOY_DIR/flyway-sql:/flyway/sql \
+    -e FLYWAY_PASSWORD \
     flyway/flyway:9.22.3-alpine \
     -url='jdbc:mysql://${APP_SLUG}-mysql:3306/$DB_NAME?characterEncoding=UTF-8&connectionCollation=utf8mb4_general_ci&useSSL=false&allowPublicKeyRetrieval=true' \
-    -user=root -password=\"\$PW\" \
+    -user=root \
     -validateMigrationNaming=true \
     -baselineOnMigrate=true \
     -ignoreMigrationPatterns='*:missing' \

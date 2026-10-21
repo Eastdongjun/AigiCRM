@@ -84,10 +84,25 @@ fi
 # ---- 执行模式 ----
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 # local: 本机 mysql 客户端直连
-mysql_direct() { mysql -h"$DB_HOST" -u"$DB_USER" -p"$DB_PASS" "$DB_NAME" -N -e "$1" 2>/dev/null; }
+# 【D3 2026-10-21】口令经 MYSQL_PWD env 传递，不再作 -p 参数进本机 argv(ps 可见)
+mysql_direct() { MYSQL_PWD="$DB_PASS" mysql -h"$DB_HOST" -u"$DB_USER" "$DB_NAME" -N -e "$1" 2>/dev/null; }
 # remote: 经 ssh + docker exec -i 从 stdin 喂 SQL, 免去远程引号转义;
 # 无 -h 走容器默认 socket(同 deploy-db.sh 的连接模式, 不依赖 TCP 监听)
-mysql_remote() { printf '%s' "$1" | "$SSH_FN" "docker exec -i $CONTAINER mysql -u$DB_USER -p$DB_PASS $DB_NAME -N --default-character-set=utf8mb4 2>/dev/null"; }
+# 【D3/D4 2026-10-21】旧写法把 DB_USER/DB_PASS 拼进 ssh 命令行 argv(本机 ps 可见明文口令)；
+# 现改为整段远端脚本 + SQL + 口令全部经 stdin(bash -s)传递，远端口令只进 docker exec 的 env。
+mysql_remote() {
+  {
+    printf 'DB_PASS=%q\n' "$DB_PASS"
+    printf 'DB_USER=%q\n' "$DB_USER"
+    printf 'DB_NAME=%q\n' "$DB_NAME"
+    printf 'CONTAINER=%q\n' "$CONTAINER"
+    cat <<'MREMOTE'
+docker exec -i -e MYSQL_PWD="$DB_PASS" "$CONTAINER" mysql -u"$DB_USER" "$DB_NAME" -N --default-character-set=utf8mb4 2>/dev/null <<'SQL'
+MREMOTE
+    printf '%s\n' "$1"
+    echo 'SQL'
+  } | "$SSH_FN" "bash -s"
+}
 
 if [ "$MODE" = "auto" ]; then
   if command -v mysql >/dev/null 2>&1; then MODE=local; else MODE=remote; fi
@@ -95,11 +110,22 @@ fi
 
 if [ "$MODE" = "remote" ]; then
   source "$SCRIPT_DIR/deploy-lib.sh"
-  if [ "$DB_HOST" = "${PROD_HOST:-}" ]; then SSH_FN=ssh_prod
-  elif [ "$DB_HOST" = "${TEST_HOST:-}" ]; then SSH_FN=ssh_test
+  # 【D4】stdin 型调用必须用 *_once 封装——重试型 ssh_prod/ssh_test 第二次尝试会读到 EOF
+  if [ "$DB_HOST" = "${PROD_HOST:-}" ]; then SSH_FN=ssh_prod_once
+  elif [ "$DB_HOST" = "${TEST_HOST:-}" ]; then SSH_FN=ssh_test_once
   elif [ -n "${DB_SSH_HOST:-}" ]; then
     SSH_FN=ssh_custom
-    ssh_custom() { sshpass -p "${DB_SSH_PASS:-}" ssh ${SSH_OPTS:--o ConnectTimeout=20 -o StrictHostKeyChecking=no} "${DB_SSH_USER:-root}@$DB_SSH_HOST" "$@"; }
+    # 【D4 2026-10-21】主机密钥校验强制开启(复用 deploy-lib 的 AIGICRM_SSH_OPTS_STR；
+    # 未 source deploy-lib 的兜底值同样 =yes+BatchMode+固定 known_hosts)；口令经 SSHPASS env + sshpass -e
+    ssh_custom() {
+      local -a o=()
+      if [ -n "${AIGICRM_SSH_OPTS_STR:-}" ]; then
+        read -r -a o <<< "$AIGICRM_SSH_OPTS_STR"
+      else
+        read -r -a o <<< "-o BatchMode=yes -o ConnectTimeout=20 -o StrictHostKeyChecking=yes -o UserKnownHostsFile=$HOME/.ssh/known_hosts"
+      fi
+      SSHPASS="${DB_SSH_PASS:-}" sshpass -e ssh "${o[@]}" "${DB_SSH_USER:-root}@$DB_SSH_HOST" "$@"
+    }
   else
     echo "错误: remote 模式无法确定 SSH 目标(DB_HOST 未匹配 PROD_HOST/TEST_HOST 且未设置 DB_SSH_HOST)" >&2
     exit 1

@@ -49,8 +49,23 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 # RUN_CMD/SSH_FN are selected from validated local functions at runtime.
 # shellcheck disable=SC2329
 mysql_direct() { MYSQL_PWD="$DB_PASS" mysql -h"$DB_HOST" -u"$DB_USER" "$DB_NAME" -N -e "$1" 2>/dev/null; }
+# 【D3/D4 2026-10-21】旧写法把 DB_PASS/DB_USER 拼进 ssh 命令行 argv(本机 ps 可见口令)；
+# 现改为整段远端脚本 + SQL + 口令全部经 stdin(bash -s)传递，远端口令只进 docker exec 的 env。
+# stdin 型调用必须用 *_once 封装(重试型封装第二次尝试会读到 EOF)。
 # shellcheck disable=SC2329
-mysql_remote() { printf '%s' "$1" | "$SSH_FN" "docker exec -i \"$CONTAINER\" env MYSQL_PWD=\"$DB_PASS\" mysql -u\"$DB_USER\" \"$DB_NAME\" -N --default-character-set=utf8mb4 2>/dev/null"; }
+mysql_remote() {
+  {
+    printf 'DB_PASS=%q\n' "$DB_PASS"
+    printf 'DB_USER=%q\n' "$DB_USER"
+    printf 'DB_NAME=%q\n' "$DB_NAME"
+    printf 'CONTAINER=%q\n' "$CONTAINER"
+    cat <<'MREMOTE'
+docker exec -i -e MYSQL_PWD="$DB_PASS" "$CONTAINER" mysql -u"$DB_USER" "$DB_NAME" -N --default-character-set=utf8mb4 2>/dev/null <<'SQL'
+MREMOTE
+    printf '%s\n' "$1"
+    echo 'SQL'
+  } | "$SSH_FN" "bash -s"
+}
 
 if [ "$MODE" = "auto" ]; then
   if command -v mysql >/dev/null 2>&1; then MODE=local; else MODE=remote; fi
@@ -60,14 +75,23 @@ if [ "$MODE" = "remote" ]; then
   # shellcheck source=deploy-lib.sh
   # shellcheck disable=SC1091
   source "$SCRIPT_DIR/deploy-lib.sh"
-  if [ "$DB_HOST" = "${PROD_HOST:-}" ]; then SSH_FN=ssh_prod
-  elif [ "$DB_HOST" = "${TEST_HOST:-}" ]; then SSH_FN=ssh_test
+  # 【D4】stdin 型调用必须用 *_once 封装——重试型 ssh_prod/ssh_test 第二次尝试会读到 EOF
+  if [ "$DB_HOST" = "${PROD_HOST:-}" ]; then SSH_FN=ssh_prod_once
+  elif [ "$DB_HOST" = "${TEST_HOST:-}" ]; then SSH_FN=ssh_test_once
   elif [ -n "${DB_SSH_HOST:-}" ]; then
     SSH_FN=ssh_custom
     # shellcheck disable=SC2329
     ssh_custom() {
+      # 【D4 2026-10-21】默认/兜底 opts 均为主机密钥校验开启(=yes + BatchMode + 固定 known_hosts，
+      # 复用 deploy-lib 的 AIGICRM_SSH_OPTS_STR)；口令经 SSHPASS env + sshpass -e，不进 argv。
+      # 注意：不能把 =yes 追加在用户 SSH_OPTS 之后覆盖 =no——OpenSSH 同参数取第一个值，
+      # deploy-lib 已在源头剔除用户校验类参数，这里直接使用其结果。
       local -a ssh_opts=()
-      read -r -a ssh_opts <<< "${SSH_OPTS:--o ConnectTimeout=20 -o StrictHostKeyChecking=no}"
+      if [ -n "${AIGICRM_SSH_OPTS_STR:-}" ]; then
+        read -r -a ssh_opts <<< "$AIGICRM_SSH_OPTS_STR"
+      else
+        read -r -a ssh_opts <<< "-o BatchMode=yes -o ConnectTimeout=20 -o StrictHostKeyChecking=yes -o UserKnownHostsFile=$HOME/.ssh/known_hosts"
+      fi
       SSHPASS="${DB_SSH_PASS:-}" sshpass -e ssh "${ssh_opts[@]}" "${DB_SSH_USER:-root}@$DB_SSH_HOST" "$@"
     }
   else

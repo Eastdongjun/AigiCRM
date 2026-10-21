@@ -14,6 +14,9 @@ source "$SCRIPT_DIR/deploy-lib.sh"
 assert_prod_env_pinned
 # 【ops-3】架构自检改为 fail-closed（见 deploy-lib.sh: check_deploy_arch）
 check_deploy_arch
+# 【D6 2026-10-21】破坏性动作(备份覆盖/容器重建)前只读 TLS 预检：健康检查已去 -k，
+# 证书链在部署机系统 CA 下不可校验时在此失败，避免"部署成功→健康检查必败→误触发自动回滚"。
+check_prod_tls
 
 # 【IL2·2026-10-08 审查修复】生产镜像 tag 单一来源 BACKEND_TAG 定义在 deploy-lib.sh——
 # 2026-10-08 复核遗留修复时上提：rollback.sh 回滚重建同样引用，杜绝"部署新版、回滚旧 tag"错位。
@@ -135,20 +138,35 @@ image_jar_md5() {
 start_backend() {
   docker stop "${APP_SLUG}-backend" >/dev/null 2>&1 || true
   docker rm "${APP_SLUG}-backend" >/dev/null 2>&1 || true
-  docker run -d --name "${APP_SLUG}-backend" --network "${APP_SLUG}_default" --restart always \
+  # 【D3 2026-10-21】机密(DB/JWT/OSS 口令)经 0600 env-file 注入，不进 docker run argv
+  #（旧写法把明文口令作为 -e KEY=VALUE 参数写进远端 docker 进程 argv，同机 ps 可见）。
+  local envf
+  envf="$(mktemp /tmp/aigicrm-backend-env.XXXXXX)"
+  chmod 600 "$envf"
+  {
+    printf 'DB_PASSWORD=%s\n' "$APP_DB_PASSWORD"
+    printf 'JWT_SECRET=%s\n' "$JWT_SECRET"
+    printf 'OSS_ACCESS_KEY_ID=%s\n' "$OSS_ACCESS_KEY_ID"
+    printf 'OSS_ACCESS_KEY_SECRET=%s\n' "$OSS_ACCESS_KEY_SECRET"
+  } > "$envf"
+  if ! docker run -d --name "${APP_SLUG}-backend" --network "${APP_SLUG}_default" --restart always \
     -p 127.0.0.1:8080:8080 \
-    -e DB_HOST=mysql -e DB_PORT=3306 -e DB_NAME="$DB_NAME" -e DB_USER="$APP_DB_USER" -e DB_PASSWORD="$APP_DB_PASSWORD" \
+    --env-file "$envf" \
+    -e DB_HOST=mysql -e DB_PORT=3306 -e DB_NAME="$DB_NAME" -e DB_USER="$APP_DB_USER" \
     -e REDIS_HOST=redis -e REDIS_PORT=6379 \
     -e SPRING_PROFILES_ACTIVE=prod \
     -e TENANT_ENABLE=true \
     -e UPLOAD_DIR=/app/uploads -e STORAGE_TYPE=local -e TZ=Asia/Shanghai \
-    -e OSS_ENDPOINT=oss-cn-beijing.aliyuncs.com -e OSS_ACCESS_KEY_ID="$OSS_ACCESS_KEY_ID" \
-    -e OSS_ACCESS_KEY_SECRET="$OSS_ACCESS_KEY_SECRET" -e OSS_BUCKET_NAME="$OSS_BUCKET_NAME" \
+    -e OSS_ENDPOINT=oss-cn-beijing.aliyuncs.com -e OSS_BUCKET_NAME="$OSS_BUCKET_NAME" \
     -e CORS_ORIGINS=https://www.aigicrm.com \
-    -e JWT_SECRET="$JWT_SECRET" \
     -v /Aigicrm/files/uploads:/app/uploads \
     -v "${APP_SLUG}-logs:/app/logs" \
-    "${APP_SLUG}-backend:${BACKEND_TAG}" >/dev/null
+    "${APP_SLUG}-backend:${BACKEND_TAG}" >/dev/null; then
+    rm -f "$envf"
+    echo "❌ docker run 后端容器失败" >&2
+    return 1
+  fi
+  rm -f "$envf"
   # 上传文件必须在 NAS；误挂旧 upload-data 卷会造成"文件消失"假象
   if ! docker inspect "${APP_SLUG}-backend" --format '{{range .Mounts}}{{.Source}} {{end}}' | grep -q '/Aigicrm/files/uploads'; then
     echo "❌ 上传挂载不是 NAS 路径 /Aigicrm/files/uploads" >&2
@@ -232,16 +250,31 @@ build_image() {
 start_backend() {
   docker stop "${APP_SLUG}-backend" >/dev/null 2>&1 || true
   docker rm "${APP_SLUG}-backend" >/dev/null 2>&1 || true
-  docker run -d --name "${APP_SLUG}-backend" --network "${APP_SLUG}_default" --restart always \
+  # 【D3 2026-10-21】同上：机密经 0600 env-file 注入，不进 docker run argv
+  local envf
+  envf="$(mktemp /tmp/aigicrm-backend-env.XXXXXX)"
+  chmod 600 "$envf"
+  {
+    printf 'DB_PASSWORD=%s\n' "$APP_DB_PASSWORD"
+    printf 'JWT_SECRET=%s\n' "$JWT_SECRET"
+    printf 'OSS_ACCESS_KEY_ID=%s\n' "$OSS_ACCESS_KEY_ID"
+    printf 'OSS_ACCESS_KEY_SECRET=%s\n' "$OSS_ACCESS_KEY_SECRET"
+  } > "$envf"
+  if ! docker run -d --name "${APP_SLUG}-backend" --network "${APP_SLUG}_default" --restart always \
     -p 127.0.0.1:8080:8080 \
-    -e DB_HOST=mysql -e DB_PORT=3306 -e DB_NAME="$DB_NAME" -e DB_USER="$APP_DB_USER" -e DB_PASSWORD="$APP_DB_PASSWORD" \
+    --env-file "$envf" \
+    -e DB_HOST=mysql -e DB_PORT=3306 -e DB_NAME="$DB_NAME" -e DB_USER="$APP_DB_USER" \
     -e REDIS_HOST=redis -e REDIS_PORT=6379 -e SPRING_PROFILES_ACTIVE=prod -e TENANT_ENABLE=true \
     -e UPLOAD_DIR=/app/uploads -e STORAGE_TYPE=local -e TZ=Asia/Shanghai \
-    -e OSS_ENDPOINT=oss-cn-beijing.aliyuncs.com -e OSS_ACCESS_KEY_ID="$OSS_ACCESS_KEY_ID" \
-    -e OSS_ACCESS_KEY_SECRET="$OSS_ACCESS_KEY_SECRET" -e OSS_BUCKET_NAME="$OSS_BUCKET_NAME" \
-    -e CORS_ORIGINS=https://www.aigicrm.com -e JWT_SECRET="$JWT_SECRET" \
+    -e OSS_ENDPOINT=oss-cn-beijing.aliyuncs.com -e OSS_BUCKET_NAME="$OSS_BUCKET_NAME" \
+    -e CORS_ORIGINS=https://www.aigicrm.com \
     -v /Aigicrm/files/uploads:/app/uploads -v "${APP_SLUG}-logs:/app/logs" \
-    "${APP_SLUG}-backend:${BACKEND_TAG}" >/dev/null
+    "${APP_SLUG}-backend:${BACKEND_TAG}" >/dev/null; then
+    rm -f "$envf"
+    echo "❌ docker run 后端容器失败" >&2
+    return 1
+  fi
+  rm -f "$envf"
 }
 wait_started() {
   local i

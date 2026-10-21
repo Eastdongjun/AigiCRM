@@ -22,6 +22,9 @@ COMMIT=$(git_commit)
 # 必须在任何远端动作之前 fail-closed。
 assert_prod_env_pinned
 check_deploy_arch
+# 【D6 2026-10-21】破坏性动作(备份/切换线上入口)前只读 TLS 预检：公网验证已去 -k，
+# 证书链在部署机系统 CA 下不可校验时在此失败，避免"切换成功→公网校验必败→误恢复旧入口"。
+check_prod_tls
 
 TS="$(date +%Y%m%d-%H%M%S)"
 TARBALL="/tmp/${APP_SLUG}-dist-${TS}.tgz"
@@ -158,7 +161,8 @@ LIVE_SHA="$(printf '%s\n' "$REMOTE_OUT" | sed -n 's/^LIVE_INDEX_SHA=//p' | tail 
 echo "=== [5/6] 公网验证（HTTP 200 / body 含 app 根 / 入口资源 200 / 入口 hash） ==="
 BODY_FILE="$(mktemp /tmp/aigicrm-frontend-check.XXXXXX)"
 trap 'rm -f "$BODY_FILE"; cleanup_local' EXIT
-CODE="$(curl -sk --connect-timeout 10 --max-time 30 -H 'Cache-Control: no-cache' \
+# 【D6 2026-10-21】去掉 -k：证书过期/域不符/被替换必须让公网验证失败。
+CODE="$(curl -s $CURL_CA_OPTS --connect-timeout 10 --max-time 30 -H 'Cache-Control: no-cache' \
   -o "$BODY_FILE" -w '%{http_code}' "https://www.aigicrm.com/?deploy=$TS")"
 if [ "$CODE" != "200" ] \
    || ! grep -q 'id="app"' "$BODY_FILE" \
@@ -183,7 +187,7 @@ REMOTE_RESTORE
   } | ssh_prod_once "bash -s" || echo "❌ 旧入口恢复失败，请人工使用 $BACKUP_DIR 回滚" >&2
   exit 1
 fi
-ENTRY_CODE="$(curl -sk --connect-timeout 10 --max-time 30 -o /dev/null -w '%{http_code}' \
+ENTRY_CODE="$(curl -s $CURL_CA_OPTS --connect-timeout 10 --max-time 30 -o /dev/null -w '%{http_code}' \
   "https://www.aigicrm.com/$ENTRY")"
 if [ "$ENTRY_CODE" != "200" ]; then
   echo "❌ 入口资源 $ENTRY 返回 HTTP $ENTRY_CODE，正在恢复旧入口 ..." >&2
