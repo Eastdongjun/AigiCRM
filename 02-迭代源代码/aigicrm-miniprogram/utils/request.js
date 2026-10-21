@@ -42,11 +42,15 @@ function redirectToLoginOnce() {
 // 筛选/表单页大量传空串表示"该项不参与", 发给后端会改变查询/更新语义, 故保留);
 // 不再剥字面 'null'/'undefined' 字符串——传输层静默改写请求体会吞掉合法的用户输入
 // (如备注里真实写着 "null"), 脏值应在调用方源头修正, 而非此处统一篡改。
-function sanitizeData(data) {
+// 【C4 2026-10-21】keepEmpty 选项(opt-in): 默认 GET 查询参数与 body 仍剥空串(全局改成保留
+// 会把 '' 写进本应为 NULL 的字段/改变所有筛选语义, 复核与架构裁决均要求按调用点开启);
+// 仅"空串=清空字段"的编辑调用处(联系人更新/激励编辑 PUT)显式开启——此时只剥
+// undefined/null、保留空串, 后端"非 null 即合并/updateById 写空串"才能把库内旧值真正清掉。
+function sanitizeData(data, keepEmpty) {
   if (!data || typeof data !== 'object' || Array.isArray(data)) return data || {}
   return Object.keys(data).reduce((result, key) => {
     const value = data[key]
-    if (value !== undefined && value !== null && value !== '') result[key] = value
+    if (value !== undefined && value !== null && (keepEmpty || value !== '')) result[key] = value
     return result
   }, {})
 }
@@ -62,7 +66,8 @@ function request(options) {
       method: options.method || 'GET',
       // 【工作流复核确认修复】显式 30s 超时(原无配置, 弱网按微信默认 60s 挂起, 按钮 loading 转满全程); 与 PC 同口径
       timeout: options.timeout || 30000,
-      data: sanitizeData(options.data),
+      // 【C4 2026-10-21】keepEmpty 由调用方 opt-in(见 sanitizeData 注释); 默认行为不变
+      data: sanitizeData(options.data, options.keepEmpty === true),
       header: {
         'content-type': 'application/json',
         ...(token ? { Authorization: 'Bearer ' + token } : {}),

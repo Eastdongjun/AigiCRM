@@ -1,4 +1,5 @@
-const { getCustomerList } = require('../../../api/customer')
+// 【C2 2026-10-21】getCustomer 供草稿恢复按 id 补拉客户(本地不再持有全量客户列表)
+const { getCustomerList, getCustomer } = require('../../../api/customer')
 const { getCategoryTree, addRecord, getRecords, updateRecord, removeRecordFile } = require('../../../api/incentive')
 const { getDownloadUrl, getDownloadToken, uploadFile } = require('../../../api/file')
 const { getDictData } = require('../../../api/system')
@@ -33,6 +34,9 @@ function defaultSlots() {
 }
 
 const MAX_FILES_PER_SLOT = 5
+
+// 【C2 2026-10-21】客户选择半屏服务端分页页大小: 滚到底追加下一页
+const CUSTOMER_SHEET_PAGE_SIZE = 20
 
 function defaultPeriod() {
   return `${new Date().getFullYear()}全年`
@@ -214,7 +218,9 @@ function slotCountText(slot) {
 }
 
 function canSubmitUpload(data, selectedCategory, categories) {
-  const hasCustomer = data.selectedCustomerIndex >= 0 && Boolean(data.customers[data.selectedCustomerIndex])
+  // 【C2 2026-10-21】选中态改为客户对象快照(selectedCustomer): 服务端分页后数组下标不再稳定,
+  // 不可用 customers[selectedCustomerIndex] 判定(跨页/刷新后下标指向错位客户)
+  const hasCustomer = Boolean(data.selectedCustomer && data.selectedCustomer.id != null)
   const hasCategory = data.selectedCategoryIndex >= 0 && Boolean(selectedCategory)
   if (!hasCustomer || !hasCategory) return false
   const code = categoryCodeOf(selectedCategory, categories)
@@ -242,8 +248,16 @@ function uploadProgressText(data) {
   return `${data.uploadProgressFile} - ${Number(data.uploadProgress || 0)}%`
 }
 
-function selectedCustomer(data) {
-  return data.selectedCustomerIndex >= 0 ? data.customers[data.selectedCustomerIndex] : null
+/** 【C2 2026-10-21】客户选择半屏改服务端搜索+分页后, 选中客户以对象快照承载:
+ *  快照在选中/回填/草稿恢复时写入(selectedCustomer), 不依赖当前页数组下标,
+ *  翻页/搜索刷新后选中态与提交归属(customer.id)不会错位。 */
+function selectedCustomerOf(data) {
+  return (data && data.selectedCustomer) || null
+}
+
+function customerPickerView(customer) {
+  const name = customer ? (customer.customerName || customer.name || '') : ''
+  return { text: name || '请选择客户', className: name ? '' : 'placeholder' }
 }
 
 function customerConfirmMeta(customer) {
@@ -287,7 +301,7 @@ function buildUploadViewState(data) {
   const selectedSlotIndex = Number(data.selectedSlotIndex) || 0
   const categories = data.categories || []
   const selectedCategory = categories[data.selectedCategoryIndex]
-  const customer = selectedCustomer(data)
+  const customer = selectedCustomerOf(data)
   // 【I2】未选分类时初始 selectedSlotIndex=0 指向隐藏的通用佐证槽; 视图/上传都回落到首个可见槽,
   // 否则文件写进隐藏槽后既不展示也不进提交快照(被静默丢弃)
   const selectedSlot = data.fileSlots[selectedSlotIndex]
@@ -329,7 +343,7 @@ function buildUploadViewState(data) {
     })
     .filter((slot) => slot.visible)
   return {
-    customerPicker: pickerTextView(data.customerNames, data.selectedCustomerIndex, '请选择客户'),
+    customerPicker: customerPickerView(customer),
     showCustomerConfirm: Boolean(customer),
     selectedCustomerName: customer ? (customer.customerName || customer.name || '未命名客户') : '',
     selectedCustomerMeta: customerConfirmMeta(customer),
@@ -389,19 +403,36 @@ function buildUploadViewState(data) {
   }
 }
 
+/** 【C2 2026-10-21】演示模式客户选择半屏的数据源(演示无后端, 本地过滤不分页) */
+const DEMO_SHEET_CUSTOMERS = [
+  { id: 1, customerName: '华东智能制造集团', industry: '制造业' }
+]
+
+/** 半屏行视图: 服务端分页行/演示行统一形状, 选中按 id 定位(不按下标) */
+function toSheetItem(item) {
+  return {
+    id: item.id,
+    name: item.customerName || item.name || '未命名客户',
+    meta: [item.industry, item.devType].filter(Boolean).join(' · '),
+    industry: item.industry || ''
+  }
+}
+
 Page({
   data: {
-    customers: [],
-    customerNames: [],
-    // 【#3 2026-10-12】客户选择半屏搜索层: open/keyword/filtered[{index,name,meta}]/total
-    customerSheet: { open: false, keyword: '', filtered: [], total: 0 },
+    // 【C2 2026-10-21】客户选中态=对象快照+id(原 customers 前100数组+下标随服务端分页下线)
+    selectedCustomer: null,
+    selectedCustomerId: '',
+    // 【#3 2026-10-12 + C2 2026-10-21】客户选择半屏: open/keyword/filtered[{id,name,meta}]/
+    // total=服务端匹配总数(非本页行数)/page/finished(无更多); 真实模式走服务端搜索+分页
+    // (getCustomerList keyword/current/size), 演示模式本地过滤
+    customerSheet: { open: false, keyword: '', filtered: [], total: 0, page: 1, loading: false, finished: false },
     categories: [],
     categoryNames: [],
     industryOptions: [],
     selectedIndustryIndex: -1,
     periodOptions: buildPeriodOptions(),
     selectedPeriodIndex: Math.max(buildPeriodOptions().indexOf(defaultPeriod()), 0),
-    selectedCustomerIndex: -1,
     selectedCategoryIndex: -1,
     categoryParentNodes: [],
     selectedParentCategoryIndex: -1,
@@ -428,10 +459,9 @@ Page({
     selectedSlotIndex: 0,
     fileSlots: defaultSlots(),
     uploadView: buildUploadViewState({
-      customerNames: [],
+      selectedCustomer: null,
       categoryNames: [],
       industryOptions: [],
-      selectedCustomerIndex: -1,
       selectedCategoryIndex: -1,
       selectedIndustryIndex: -1,
       relatedCatOptions: ['涂层类', '防滑板类', '机封类', '密封类', '润滑类'],
@@ -493,20 +523,20 @@ Page({
 
   loadOptions() {
     if (getApp().globalData.demoMode) {
-      const customers = [{ id: 1, customerName: '华东智能制造集团', industry: '制造业' }]
       const categories = [{ id: 1, parentId: 0, categoryCode: 'trial', name: '产品试点', score: 3 }, { id: 2, parentId: 0, categoryCode: 'exchange', name: '交流拜访', score: 1 }]
-      this.setData({ customers, customerNames: customers.map((item) => item.customerName), categories, categoryParentNodes: deriveCategoryParents(categories), categoryNames: categories.map((item) => item.name) }, () => this.refreshUploadViewState())
+      this.setData({ categories, categoryParentNodes: deriveCategoryParents(categories), categoryNames: categories.map((item) => item.name) }, () => this.refreshUploadViewState())
       if (this.data.editId) this.loadEditRecord()
       return
     }
-    Promise.all([getCustomerList({ current: 1, size: 100 }), getCategoryTree()]).then(([customerRes, categoryRes]) => {
+    // 【C2 2026-10-21】不再预拉"前 100 个客户"——客户选择半屏改服务端搜索+分页, 打开/输入时按需
+    // 拉取(getCustomerList keyword/current/size); 后端按 createdAt DESC 排序, 旧实现里新客户会把
+    // 老客户挤出首屏, 第 101 个之后的客户永远选不到。此处只加载分类树。
+    getCategoryTree().then((categoryRes) => {
       if (this._unloaded) return // 【六轮复检修复】进页秒退不再对已卸载页 setData
-      const page = customerRes && (customerRes.records || customerRes.data || customerRes)
-      const customers = Array.isArray(page) ? page : (page.records || [])
       const categories = flattenCategories(categoryRes || [])
-      this.setData({ customers, customerNames: customers.map((item) => item.customerName || item.name || '未命名客户'), categories, categoryParentNodes: deriveCategoryParents(categories), categoryNames: categories.map((item) => item.name) }, () => this.refreshUploadViewState())
+      this.setData({ categories, categoryParentNodes: deriveCategoryParents(categories), categoryNames: categories.map((item) => item.name) }, () => this.refreshUploadViewState())
       if (this.data.editId) this.loadEditRecord()
-      else this.tryRestoreDraft() // 【PR-13】新建模式: 选项就绪后检查草稿恢复(客户/分类索引依赖选项)
+      else this.tryRestoreDraft() // 【PR-13】新建模式: 选项就绪后检查草稿恢复(分类索引依赖选项)
       // 【五轮复检修复】草稿恢复的已上传图片同样需要 dlToken 才能显示远端缩略图(原只编辑模式取)
       if (!this.data.editId) {
         getDownloadToken().then((res) => {
@@ -539,15 +569,12 @@ Page({
   },
 
   fillEditRecord(record) {
-    // 【2026-09-22 编辑入口补齐】客户选项来自 getCustomerList 首页(size:100),客户总数超页时
-    // 记录归属客户不在选项内 → 回填 -1 → 提交被"请补齐客户和分类"拦截。编辑态把记录
-    // 自带客户补进选项头部,保证任意客户的记录都可编辑(提交时 customerId 等值回传,归属不变)。
-    let customers = this.data.customers
-    let customerIndex = customers.findIndex((item) => String(item.id) === String(record.customerId))
-    if (customerIndex === -1 && record.customerId) {
-      customers = [{ id: record.customerId, customerName: record.customerName || record.name || '未命名客户', industry: record.industry || '' }, ...customers]
-      customerIndex = 0
-    }
+    // 【C2 2026-10-21】客户选择改服务端分页后, 编辑态不再把记录客户 unshift 进本地"前100"选项
+    // 兜底——选中态直接以记录自带客户快照(selectedCustomer)承载, 任意客户的记录都可编辑
+    // (提交时 customerId 等值回传, 归属不变), 半屏内按 id 高亮。
+    const customer = record.customerId
+      ? { id: record.customerId, customerName: record.customerName || record.name || '未命名客户', industry: record.industry || '' }
+      : null
     const categoryIndex = this.data.categories.findIndex((item) => String(item.id) === String(record.categoryId))
     const industryIndex = record.industry ? this.data.industryOptions.indexOf(record.industry) : -1
     const ownerId = record.userId || record.salespersonId || record.createBy || record.createdBy
@@ -573,9 +600,8 @@ Page({
       }
     })
     this.setData({
-      customers,
-      customerNames: customers.map((item) => item.customerName || item.name || '未命名客户'),
-      selectedCustomerIndex: customerIndex,
+      selectedCustomer: customer,
+      selectedCustomerId: customer ? customer.id : '',
       selectedCategoryIndex: categoryIndex,
       selectedParentCategoryIndex: parentIndexOfCategory(this.data.categories, this.data.categoryParentNodes, categoryIndex),
       selectedIndustryIndex: industryIndex,
@@ -593,44 +619,80 @@ Page({
     }, () => this.refreshUploadViewState())
   },
 
-  chooseCustomer(e) {
-    const index = Number(e.detail.value)
-    this.applyCustomerSelection(index)
-  },
-  // 【#3 2026-10-12】半屏搜索层: 打开/输入过滤/选中复用同一赋值链路
-  applyCustomerSelection(index) {
-    const customer = this.data.customers[index]
-    if (!customer) return
+  // 【#3 2026-10-12】半屏搜索层; 【C2 2026-10-21】真实模式改服务端搜索+分页:
+  // 打开/清空重拉第 1 页、输入防抖 300ms 后按 keyword 搜索第 1 页、滚到底追加下一页;
+  // 请求带序号守卫, 慢返回的旧页不得覆盖新搜索结果。
+  applyCustomerSelection(customer) {
+    if (!customer || customer.id === undefined || customer.id === null) return
     const industryIndex = customer.industry ? this.data.industryOptions.indexOf(customer.industry) : -1
-    this.setData({ selectedCustomerIndex: index, selectedIndustryIndex: industryIndex }, () => this.refreshUploadViewState())
+    this.setData({ selectedCustomer: customer, selectedCustomerId: customer.id, selectedIndustryIndex: industryIndex }, () => this.refreshUploadViewState())
   },
   openCustomerSheet() {
-    this.setData({ 'customerSheet.open': true, 'customerSheet.keyword': '' }, () => this.refreshCustomerSheet())
+    this.setData({ 'customerSheet.open': true, 'customerSheet.keyword': '' }, () => this.fetchCustomerSheetPage(1, false))
   },
   closeCustomerSheet() {
     this.setData({ 'customerSheet.open': false })
   },
   clearCustomerKeyword() {
-    this.setData({ 'customerSheet.keyword': '' }, () => this.refreshCustomerSheet())
+    this.setData({ 'customerSheet.keyword': '' }, () => this.fetchCustomerSheetPage(1, false))
   },
   inputCustomerKeyword(e) {
-    this.setData({ 'customerSheet.keyword': (e.detail.value || '').trim() }, () => this.refreshCustomerSheet())
+    this.setData({ 'customerSheet.keyword': (e.detail.value || '').trim() })
+    if (this._sheetKeywordTimer) clearTimeout(this._sheetKeywordTimer)
+    this._sheetKeywordTimer = setTimeout(() => {
+      this._sheetKeywordTimer = null
+      if (this._unloaded) return
+      this.fetchCustomerSheetPage(1, false)
+    }, 300)
   },
-  refreshCustomerSheet() {
+  /** 拉取半屏一页客户(真实模式服务端分页/搜索; 演示模式本地过滤不分页) */
+  fetchCustomerSheetPage(page, append) {
+    if (getApp().globalData.demoMode) return this.filterDemoCustomerSheet()
+    if (this.data.customerSheet.loading) return
+    const seq = (this._customerSheetSeq = (this._customerSheetSeq || 0) + 1)
+    const keyword = (this.data.customerSheet.keyword || '').trim()
+    this.setData({ 'customerSheet.loading': true })
+    getCustomerList({ current: page, size: CUSTOMER_SHEET_PAGE_SIZE, keyword }).then((res) => {
+      // 【C2】序号守卫: 旧请求慢返回(输入快于响应)不得覆盖新搜索结果
+      if (this._unloaded || seq !== this._customerSheetSeq) return
+      const pageData = res && res.records ? res : ((res && res.data) || {})
+      const rows = pageData.records || []
+      const total = Number(pageData.total) || 0
+      const items = rows.map(toSheetItem)
+      const filtered = append ? (this.data.customerSheet.filtered || []).concat(items) : items
+      this.setData({
+        'customerSheet.filtered': filtered,
+        'customerSheet.total': total, // 【C2】total 用服务端匹配总数, 不再用本页行数冒充
+        'customerSheet.page': page,
+        'customerSheet.finished': filtered.length >= total || !items.length,
+        'customerSheet.loading': false
+      })
+    }).catch((error) => {
+      if (this._unloaded || seq !== this._customerSheetSeq) return
+      this.setData({ 'customerSheet.loading': false })
+      showError(error, '客户列表加载失败')
+    })
+  },
+  /** 演示模式: 固定候选本地过滤(演示无后端) */
+  filterDemoCustomerSheet() {
     const keyword = (this.data.customerSheet.keyword || '').toLowerCase()
-    const customers = this.data.customers || []
-    const filtered = customers
-      .map((item, index) => ({
-        index,
-        name: item.customerName || item.name || '未命名客户',
-        meta: [item.industry, item.devType].filter(Boolean).join(' · ')
-      }))
+    const filtered = DEMO_SHEET_CUSTOMERS.map(toSheetItem)
       .filter((item) => !keyword || item.name.toLowerCase().includes(keyword) || (item.meta && item.meta.toLowerCase().includes(keyword)))
-    this.setData({ 'customerSheet.filtered': filtered, 'customerSheet.total': customers.length })
+    this.setData({ 'customerSheet.filtered': filtered, 'customerSheet.total': filtered.length, 'customerSheet.finished': true, 'customerSheet.loading': false })
   },
+  /** 滚动到底追加下一页(scroll-view scrolltolower) */
+  loadMoreCustomers() {
+    const sheet = this.data.customerSheet
+    if (sheet.loading || sheet.finished) return
+    this.fetchCustomerSheetPage(Number(sheet.page) + 1, true)
+  },
+  // 【C2 2026-10-21】选中按 customerId 定位(原数组下标在翻页/搜索后会指向错位客户)
   pickCustomer(e) {
-    const index = Number(e.currentTarget.dataset.index)
-    this.setData({ 'customerSheet.open': false }, () => this.applyCustomerSelection(index))
+    const id = e.currentTarget.dataset.id
+    const row = (this.data.customerSheet.filtered || []).find((item) => String(item.id) === String(id))
+    if (!row) return
+    const customer = { id: row.id, customerName: row.name, industry: row.industry || '' }
+    this.setData({ 'customerSheet.open': false }, () => this.applyCustomerSelection(customer))
   },
   noop() {},
   applyCategorySelection(selectedCategoryIndex) {
@@ -918,7 +980,7 @@ Page({
     // 此处按缺失项逐条校验并 toast, 保证用户知道为何不能提交(原先 submitDisabled 早退
     // 会把"请补齐客户和分类"/"请至少上传 1 个文件"两条提示挡成不可达死代码)
     if (this.data.loading || this._removingFile) return // 提交中/移除在途重复点击静默忽略(已有全屏 loading 反馈)【复检修复: 与移除入口防线对称】
-    const customer = this.data.customers[this.data.selectedCustomerIndex]
+    const customer = this.data.selectedCustomer // 【C2】选中客户=对象快照, 不再按下标取
     const category = this.data.categories[this.data.selectedCategoryIndex]
     if (!customer || !category) {
       wx.showToast({ title: '请补齐客户和分类', icon: 'none' })
@@ -1036,15 +1098,21 @@ Page({
     wx.showLoading({ title: '保存中' })
     const selectedIndustry = this.data.industryOptions[this.data.selectedIndustryIndex] || customer.industry || ''
     const selectedPeriod = this.data.periodOptions[this.data.selectedPeriodIndex] || defaultPeriod()
+    // 【C4 2026-10-21】文本字段清空语义按模式区分:
+    // - 编辑态发 ''(后端 updateRecord"非 null 即合并", '' 才能把库内旧值真正清空;
+    //   原先 trim() || null 发 null=未提供, 用户清空后旧值复活, 界面却报保存成功);
+    // - 新建态维持 || null(库内不写空串, 与既有口径一致)。
+    // industry 是 picker 选择值不会清成 '', 维持原语义。
+    const clearableText = (value) => this.data.editId ? value : (value || null)
     const payload = {
       customerId: customer.id,
       categoryId: category.id,
       period: selectedPeriod,
       industry: selectedIndustry || null,
-      relatedProducts: this.data.relatedProducts.trim() || null,
-      specificProduct: this.data.specificProduct.trim() || null,
-      preInstallQuestion: this.data.preInstallQuestion.trim() || null,
-      remark: this.data.remark.trim() || null,
+      relatedProducts: clearableText(this.data.relatedProducts.trim()),
+      specificProduct: clearableText(this.data.specificProduct.trim()),
+      preInstallQuestion: clearableText(this.data.preInstallQuestion.trim()),
+      remark: clearableText(this.data.remark.trim()),
       shared: this.data.shared ? 1 : 0
     }
     const idsBySlot = uploadedIds.reduce((acc, item) => {
@@ -1062,7 +1130,8 @@ Page({
       delete payload.categoryId
       delete payload.period
       if (!this.data.canToggleShare) delete payload.shared
-      return updateRecord(this.data.editId, payload)
+      // 【C4】keepEmpty: PUT body 保留 ''(仅剥 undefined/null), 清空字段才能落库生效
+      return updateRecord(this.data.editId, payload, { keepEmpty: true })
     }
     return addRecord(payload)
   },
@@ -1075,6 +1144,8 @@ Page({
   onUnload() {
     // 【L12】标记已卸载: 草稿保存请求照常发出完成, 仅回调里不再对已卸载页面 setData
     this._unloaded = true
+    // 【C2 2026-10-21】半屏搜索防抖定时器随页面销毁清理
+    if (this._sheetKeywordTimer) { clearTimeout(this._sheetKeywordTimer); this._sheetKeywordTimer = null }
     // 【M12 对齐 customer/form 2026-10-07】已成功提交后卸载不再触发草稿自动保存
     // (autoSaveDraft 首行有同款守卫, 此处短路是双保险)
     if (this._submitted) return
@@ -1085,7 +1156,7 @@ Page({
     if (getApp().globalData.demoMode || this.data.editId || this.data.loading || this._submitted) return
     // 演示模式/编辑态/加载中不存草稿; 【M12 对齐 customer/form 2026-10-07】提交成功后草稿已被
     // deleteFormDraft 清除, 再存回即"草稿复活", 恢复再提交=激励重复入库 → _submitted 一律不存(上方守卫)
-    const customer = this.data.customers[this.data.selectedCustomerIndex]
+    const customer = this.data.selectedCustomer // 【C2】选中客户=对象快照
     const category = this.data.categories[this.data.selectedCategoryIndex]
     if (!customer || !category) return // 关键选项未选齐不存(等价"空表单不存")
     const uploadedFiles = []
@@ -1111,7 +1182,8 @@ Page({
     }, this.data.draftVersion).then((result) => {
       // 【L12】页面已卸载: 存储本身已完成, 只是跳过界面回写(draftVersion 无处可用)
       if (this._unloaded) return
-      const d = result && result.data
+      // 【C2 修复附带】同 tryRestoreDraft: 解包后的草稿行直接读 version(旧 result.data 恒 undefined)
+      const d = result && (result.version !== undefined ? result : result.data)
       if (d && d.version) this.setData({ draftVersion: d.version })
     }).catch(() => {}) // 自动保存静默失败,不打扰用户
   },
@@ -1119,33 +1191,51 @@ Page({
   tryRestoreDraft() {
     if (getApp().globalData.demoMode || this.data.editId) return
     getFormDraft('incentive_upload').then((result) => {
-      const draft = result && result.data
+      if (this._unloaded) return
+      // 【C2 修复附带】request 层已解包 body.data → then 入参即草稿行 {draftType,draftData,version,updatedAt}
+      // (后端 FormDraftService.toRow 无 data 键; 旧代码读 result.data 恒 undefined, 恢复弹窗实际永远不弹)
+      const draft = result && (result.draftData !== undefined ? result : result.data)
       if (!draft || !draft.draftData) return
       let parsed
       try { parsed = JSON.parse(draft.draftData) } catch (e) { return }
       if (!parsed || !parsed.customerId || !parsed.categoryId) return
-      const customer = (this.data.customers || []).find((item) => String(item.id) === String(parsed.customerId))
       const category = (this.data.categories || []).find((item) => String(item.id) === String(parsed.categoryId))
-      if (!customer || !category) {
-        // 选项已失效(客户/分类被删), 草稿无法落地即清
+      if (!category) {
+        // 分类已删除, 草稿无法落地即清(分类树全量拉取, 本地判定可靠)
         deleteFormDraft('incentive_upload').catch(() => {})
         return
       }
-      wx.showModal({
-        title: '发现未完成的草稿',
-        content: `客户"${customer.customerName}"的激励上传未完成(保存于 ${String(draft.updatedAt || '').slice(0, 16)}),是否恢复?`,
-        confirmText: '恢复',
-        cancelText: '放弃',
-        success: (res) => {
-          if (res.confirm) this.applyDraft(parsed, draft.version || 1)
-          else deleteFormDraft('incentive_upload').catch(() => {})
+      // 【C2 2026-10-21】客户改服务端分页后本地不再持有全量客户列表, 草稿客户一律按 id 单独
+      // 补拉(getCustomer)。只有确实 404/无权限(客户已删/不可见)才清草稿; 网络错误等临时失败
+      // 保留草稿待下次恢复——不得把用户未完成的录入当"选项失效"误删(旧实现本地列表找不到即删)。
+      getCustomer(parsed.customerId).then((customer) => {
+        if (this._unloaded) return
+        if (!customer || !customer.id) {
+          deleteFormDraft('incentive_upload').catch(() => {})
+          return
+        }
+        wx.showModal({
+          title: '发现未完成的草稿',
+          content: `客户"${customer.customerName || customer.name || '未命名客户'}"的激励上传未完成(保存于 ${String(draft.updatedAt || '').slice(0, 16)}),是否恢复?`,
+          confirmText: '恢复',
+          cancelText: '放弃',
+          success: (res) => {
+            if (res.confirm) this.applyDraft(parsed, customer, draft.version || 1)
+            else deleteFormDraft('incentive_upload').catch(() => {})
+          }
+        })
+      }).catch((error) => {
+        if (this._unloaded) return
+        // 404=客户已删除 / 403=不在数据范围: 草稿指向的客户永久不可达, 清掉;
+        // 其余(超时/5xx)为临时失败, 保留草稿下次再试, 静默不打扰
+        if (error && (error.statusCode === 404 || error.statusCode === 403)) {
+          deleteFormDraft('incentive_upload').catch(() => {})
         }
       })
     }).catch(() => {})
   },
 
-  applyDraft(parsed, version) {
-    const customerIndex = this.data.customers.findIndex((item) => String(item.id) === String(parsed.customerId))
+  applyDraft(parsed, customer, version) {
     const category = this.data.categories.find((item) => String(item.id) === String(parsed.categoryId))
     const categoryIndex = this.data.categories.indexOf(category)
     const industryIndex = parsed.industry ? this.data.industryOptions.indexOf(parsed.industry) : -1
@@ -1162,8 +1252,10 @@ Page({
         existing: true
       }))
     }))
+    // 【C2】选中客户=按 id 补拉到的客户快照(不再依赖本地列表下标)
     this.setData({
-      selectedCustomerIndex: customerIndex,
+      selectedCustomer: { id: customer.id, customerName: customer.customerName || customer.name || '未命名客户', industry: customer.industry || parsed.industry || '' },
+      selectedCustomerId: customer.id,
       selectedCategoryIndex: categoryIndex,
       selectedParentCategoryIndex: parentIndexOfCategory(this.data.categories, this.data.categoryParentNodes, categoryIndex),
       selectedIndustryIndex: industryIndex,

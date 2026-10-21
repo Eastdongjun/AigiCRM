@@ -89,3 +89,5 @@
 .cs-item-name { color: #172033; font-size: 28rpx; font-weight: 600; }
 .cs-item-meta { margin-top: 6rpx; color: #94a3b8; font-size: 22rpx; }
 .cs-empty { padding: 60rpx 0; text-align: center; color: #94a3b8; font-size: 25rpx; }
+/* 【C2 2026-10-21】服务端分页加载状态行: 加载中/没有更多 */
+.cs-more { padding: 24rpx 0; text-align: center; color: #94a3b8; font-size: 23rpx; }

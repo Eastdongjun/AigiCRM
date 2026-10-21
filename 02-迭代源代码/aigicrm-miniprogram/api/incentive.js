@@ -52,8 +52,10 @@ function getGrantCheck() {
   return request({ url: '/api/incentive/permission/check' })
 }
 
-function updateRecord(id, data) {
-  return request({ url: '/api/incentive/records/' + id, method: 'PUT', data })
+// 【C4 2026-10-21】options.keepEmpty(可选): 编辑态清空字段需发 ''(后端"非 null 即合并", ''
+// 才能清掉库内旧值), 调用方显式开启后传输层保留空串; 缺省行为不变(剥空串)。
+function updateRecord(id, data, options) {
+  return request({ url: '/api/incentive/records/' + id, method: 'PUT', data, keepEmpty: !!(options && options.keepEmpty) })
 }
 
 // 【用户裁决 2026-10-10】移除记录槽位中的单个已有文件（上传错了需要修改）：

@@ -303,7 +303,7 @@ grep -q 'fillEditRecord' "$upload_page" || { echo "FAIL: incentive upload edit m
 grep -q 'existingFiles' "$upload_page" || { echo "FAIL: incentive upload edit mode does not preserve existing slot files" >&2; exit 1; }
 grep -q 'fileUrl' "$upload_page" || { echo "FAIL: incentive upload edit mode does not preserve path-backed existing files" >&2; exit 1; }
 grep -q 'isDownloadReference' "$upload_page" || { echo "FAIL: incentive upload edit mode must reject MIME-only fake download references" >&2; exit 1; }
-grep -q 'updateRecord(this.data.editId, payload)' "$upload_page" || { echo "FAIL: incentive upload edit mode does not call updateRecord PUT" >&2; exit 1; }
+grep -q 'updateRecord(this.data.editId, payload, { keepEmpty: true })' "$upload_page" || { echo "FAIL: incentive upload edit mode does not call updateRecord PUT with keepEmpty (C4: cleared fields must reach backend as empty string)" >&2; exit 1; }
 grep -q 'fetchExistingFile' "$upload_page" || { echo "FAIL: incentive upload edit mode cannot preview/download existing server files" >&2; exit 1; }
 grep -q 'getDownloadUrl' "$upload_page" || { echo "FAIL: incentive upload edit mode must use normalized file download URLs" >&2; exit 1; }
 grep -q 'buildPeriodOptions' "$upload_page" || { echo "FAIL: incentive upload period options are missing" >&2; exit 1; }
@@ -551,6 +551,26 @@ grep -q 'bindtap="openIncentive"' "$profile_wxml" || { echo "FAIL: profile incen
 ! grep -Eq 'cases-page|case-(card|category|status|title|customer|meta|accent|main)' "$app_wxss" || { echo "FAIL: global mini-program styles still carry standalone case UI styles" >&2; exit 1; }
 grep -q "incentive.index.*已实现" "$manifest" || { echo "FAIL: incentive.index manifest status is stale" >&2; exit 1; }
 grep -q "incentive.recordDelete.*已实现" "$manifest" || { echo "FAIL: incentive record delete manifest status is stale" >&2; exit 1; }
+# 【C4 2026-10-21】编辑态清空字段发 ''(后端 updateRecord 非 null 即合并, '' 才能清掉库内旧值);
+# 新建态维持 || null。清空语义按模式分支的 clearableText 是唯一出口, 不得回退成一律 || null。
+grep -q 'const clearableText = (value) => this.data.editId ? value : (value || null)' "$upload_page" || { echo "FAIL: incentive upload cleared-text semantics must branch on edit mode (C4)" >&2; exit 1; }
+# 【C2 2026-10-21】客户选择半屏改服务端搜索+分页(原固定前100条本地过滤, 第101个客户选不到):
+# 请求必须带 keyword/current/size 且 total 用服务端值; 选中按 customerId; 草稿恢复按 id 补拉。
+grep -q 'getCustomerList({ current: page, size: CUSTOMER_SHEET_PAGE_SIZE, keyword })' "$upload_page" || { echo "FAIL: incentive upload customer sheet must query server-side with keyword/current/size (C2)" >&2; exit 1; }
+grep -q "'customerSheet.total': total" "$upload_page" || { echo "FAIL: incentive upload customer sheet total must come from server (C2)" >&2; exit 1; }
+grep -q 'loadMoreCustomers' "$upload_page" || { echo "FAIL: incentive upload customer sheet must support server pagination append (C2)" >&2; exit 1; }
+grep -q 'bindscrolltolower="loadMoreCustomers"' "$upload_wxml" || { echo "FAIL: incentive upload customer sheet UI must trigger pagination on scroll (C2)" >&2; exit 1; }
+grep -q 'data-id="{{item.id}}"' "$upload_wxml" || { echo "FAIL: incentive upload customer sheet must select by customerId, not array index (C2)" >&2; exit 1; }
+grep -q "item.id === selectedCustomerId" "$upload_wxml" || { echo "FAIL: incentive upload customer sheet highlight must key on customerId (C2)" >&2; exit 1; }
+# 【C2】草稿客户按 id 补拉(getCustomer); 只有 404/403 才清草稿, 不得本地列表找不到即删
+grep -q 'getCustomer(parsed.customerId)' "$upload_page" || { echo "FAIL: incentive upload draft restore must re-fetch customer by id (C2)" >&2; exit 1; }
+grep -q "error.statusCode === 404 || error.statusCode === 403" "$upload_page" || { echo "FAIL: incentive upload draft must only be dropped when customer is 404/403, not on transient errors (C2)" >&2; exit 1; }
+grep -q 'getCustomerList, getCustomer' "$upload_page" || { echo "FAIL: incentive upload must import getCustomer for draft restore (C2)" >&2; exit 1; }
+# 【C2】防回潮: 不得退回"拉前100客户本地过滤"的旧选择器
+if grep -q 'size: 100\|size:100' "$upload_page"; then
+  echo "FAIL: incentive upload must not go back to fixed first-100 customer fetch (C2)" >&2
+  exit 1
+fi
 # 【PR-13 残余 2026-09-20】激励上传表单草稿接线(复刻客户表单议题四模式)
 UPLOAD_JS="$ROOT/aigicrm-miniprogram/pages/incentive/upload/index.js"
 for pattern in \

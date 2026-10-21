@@ -44,9 +44,22 @@ if ! rg -Fq "hasPermission('customer:add')" "$HOME"; then
 fi
 
 # 【PR-05 2026-09-19】真实模式改为客户+指标同事务组合提交(旧两步 addCustomer/updateCustomer+补存指标已废弃)
-for pattern in "hasPermission(id ? 'customer:edit' : 'customer:add')" "readDemoCustomers().find" "getApp().globalData.demoMode" "saveDemoCustomer({ ...form, indicator: { ...this.data.indicatorForm } }, this.data.isEdit ? this.data.id : '')" "updateCustomerWithIndicator(this.data.id, { customer: form, indicator: this.indicatorPayload() })" "saveCustomerWithIndicator({ customer: form, indicator: this.indicatorPayload() }, createSubmitKey)"; do
+# 【C5 2026-10-21】提交幂等键绑定表单实例(this._submitKey, onLoad 生成/成功与销毁清空):
+# 原模块级 createSubmitKey 会在"超时失败→另开新客户表单"时被新实例复用, 后端按键回放旧客户 id
+for pattern in "hasPermission(id ? 'customer:edit' : 'customer:add')" "readDemoCustomers().find" "getApp().globalData.demoMode" "saveDemoCustomer({ ...form, indicator: { ...this.data.indicatorForm } }, this.data.isEdit ? this.data.id : '')" "updateCustomerWithIndicator(this.data.id, { customer: form, indicator: this.indicatorPayload() })" "this._submitKey = newSubmitKey()" "saveCustomerWithIndicator({ customer: form, indicator: this.indicatorPayload() }, this._submitKey)"; do
   if ! rg -Fq "$pattern" "$FORM"; then
     echo "FAIL: customer form missing $pattern"
+    exit 1
+  fi
+done
+# 【C5 2026-10-21】防回潮: 模块级幂等键变量不得复活(跨实例复用=新客户静默未建); 键须随实例销毁清理
+if rg -n "let +createSubmitKey|var +createSubmitKey" "$FORM"; then
+  echo "FAIL: customer form must not keep a module-level submit key (C5: bind key to form instance)"
+  exit 1
+fi
+for pattern in "this._submitKey = null" "this._submitKeyName"; do
+  if ! rg -Fq "$pattern" "$FORM"; then
+    echo "FAIL: customer form instance submit key lifecycle missing $pattern"
     exit 1
   fi
 done

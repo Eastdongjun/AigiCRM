@@ -45,8 +45,18 @@ require_line 'processAll' "$PAGE_JS"
 require_line 'extend(e)' "$PAGE_JS"
 require_line 'processingAll' "$PAGE_JS"
 require_line 'selectedReminderIndex' "$PAGE_JS"
-require_line '清空当前提醒' "$PAGE_JS"
+# 【C3 2026-10-21】批量确认弹窗点明"当前页 N 条"并展示筛选全量 total,不再误称清空全部筛选结果
+require_line '清空当前页提醒' "$PAGE_JS"
+require_line '当前筛选共' "$PAGE_JS"
+reject_line '全部标记为已处理' "$PAGE_JS"
+reject_line '清空当前提醒' "$PAGE_JS"
 require_line 'Promise.all(rows.map((item) => processReminder(item.id)' "$PAGE_JS"
+# 【C1 2026-10-21】真实模式搜索/分页与 total 同口径:keyword 交 /reminder/list 服务端消费,
+# 翻页重新请求;客户端过滤只允许存在于演示分支(filterRemindersDemo)
+reject_line 'this.filterReminders(' "$PAGE_JS"
+require_line 'filterRemindersDemo' "$PAGE_JS"
+require_line 'keyword: this.data.keyword.trim() || undefined' "$PAGE_JS"
+require_line 'onPagerChange' "$PAGE_JS"
 # 【契约重钉 2026-10-15】延期文案统一"保护期延长360天"(INV-11: 与 PC 客户详情提交的延期单同文案)
 require_line "actionAfterApprove: '保护期延长360天'" "$PAGE_JS"
 require_line 'processActionLabel' "$PAGE_JS"

@@ -177,7 +177,8 @@ function buildReminderView(state) {
     expiringModeClass: state.viewMode === 'expiring' ? MODE_BUTTONS.expiring : MODE_BUTTONS.inactive,
     deptLabel: dept.name || '全部部门',
     ownerLabel: owner.name || '全部负责人',
-    listCountText: `当前列表 ${reminders.length} 条`,
+    // 【C3 2026-10-21】"一键清空"旁的数量文案点明"当前页/筛选共"两级口径，与确认弹窗一致
+    listCountText: `当前页 ${reminders.length} 条 / 筛选共 ${Number(state.total) || 0} 条`,
     disableProcessAll: Boolean(loading || state.processingAll || reminders.length === 0),
     showLoading: loading && reminders.length === 0,
     pagerLoading: Boolean(loading),
@@ -264,7 +265,7 @@ Page({
     const size = pageSize > 0 ? pageSize : 10
     const targetPage = Math.max(1, Number(page) || 1)
     if (getApp().globalData.demoMode) {
-      const filtered = this.filterReminders(reminderRecords
+      const filtered = this.filterRemindersDemo(reminderRecords
         .filter((item) => !isProcessed(item.id))
         .map((item) => normalizeReminder(item, this.reminderNormalizeOptions())))
       // 演示模式无服务端分页：对本地过滤结果做客户端分页
@@ -284,7 +285,10 @@ Page({
       // 【S6】到期客户行接口不返回 type，按当前视图补默认类型，避免统一兜底成"跟进提醒"
       const rows = normalizePage(payload).map((item) => normalizeReminder(item, this.reminderNormalizeOptions()))
       const rawTotal = pageTotal(payload)
-      const reminders = this.filterReminders(rows)
+      // 【C1 2026-10-21】真实模式不再对当前页做客户端过滤：keyword 交由后端 /reminder/list
+      // 消费(先按客户名/编码映射 customerId，再与 owner/dept 范围叠加)，rows 与 total 同口径；
+      // 翻页/搜索都携带 keyword 重新请求。删除旧兜底(只过滤当前页+total 仍是未过滤总数)。
+      const reminders = rows
       // total 优先用服务端总数；缺失时按"本页是否取满"兜底，保证 pager 能前进且不停在空页
       const total = rawTotal > 0
         ? rawTotal
@@ -305,15 +309,16 @@ Page({
     })
   },
 
-  // 【体检 P1 2026-10-12】待处理模式的 keyword 后端 /reminder/list 不消费(形参零引用),
-  // PC 已知情改客户端过滤而 MP 未同步——搜索框可见但恒无效; 此处同款客户端兜底。
-  // 到期模式走 /expiring-list, 后端已消费 keyword, 不重复过滤。
-  // 【分页 2026-10-18】过滤作用于当前页数据；搜索会重置回第 1 页重新请求。
+  // 【C1 2026-10-21】真实模式两种视图的 keyword 都交服务端消费：待处理走 /reminder/list
+  // (keyword 与 total 同口径)，到期走 /expiring-list(后端本就消费 keyword)；
+  // 客户端不再有任何"只过滤当前页"的兜底，翻页重新请求完整口径数据。
   reminderNormalizeOptions() {
     return { defaultType: this.data.viewMode === 'expiring' ? 'expiring' : '' }
   },
 
-  filterReminders(rows) {
+  // 【C1 2026-10-21】演示模式专用：无服务端可依赖，按 keyword 对本地全量过滤后再分页。
+  // 仅 demo 分支调用；真实模式如需搜索语义应改后端，禁止回流本方法。
+  filterRemindersDemo(rows) {
     if (this.data.viewMode === 'expiring') return rows
     const kw = this.data.keyword.trim().toLowerCase()
     if (!kw) return rows
@@ -478,9 +483,15 @@ Page({
   processAll() {
     const rows = (this.data.reminders || []).filter((item) => item && item.id)
     if (!rows.length || this.data.processingAll) return
+    // 【C3 2026-10-21】批量只作用于当前页(无"按筛选条件清空全部"的服务端批量接口)：
+    // 文案明确"当前页 N 条"并同屏展示筛选全量 total，避免被误读为已清空整个筛选结果。
+    const total = Math.max(Number(this.data.total) || 0, rows.length)
+    const scopeText = total > rows.length
+      ? `当前筛选共 ${total} 条，其余 ${total - rows.length} 条需翻页分批处理`
+      : `当前筛选共 ${total} 条，已全部在本页`
     wx.showModal({
-      title: '清空当前提醒',
-      content: `确认将当前筛选出的 ${rows.length} 条提醒全部标记为已处理？`,
+      title: '清空当前页提醒',
+      content: `确认将当前页 ${rows.length} 条提醒标记为已处理？${scopeText}。`,
       success: (result) => {
         if (!result.confirm) return
         if (getApp().globalData.demoMode) {
@@ -493,7 +504,8 @@ Page({
         this.applyState({ processingAll: true })
         Promise.all(rows.map((item) => processReminder(item.id).then(() => true).catch(() => false))).then((results) => {
           const done = results.filter(Boolean).length
-          wx.showToast({ title: `已处理 ${done} 条`, icon: 'success' })
+          // 完成提示同样点明"当前页"范围，与确认弹窗口径一致(C3)
+          wx.showToast({ title: `已处理当前页 ${done} 条`, icon: 'success' })
           this.applyState({ selectedReminder: null })
           this.refresh()
         }).catch((error) => showError(error, '批量处理失败')).finally(() => {

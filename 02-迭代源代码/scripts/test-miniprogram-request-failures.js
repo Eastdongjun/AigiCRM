@@ -98,7 +98,42 @@ async function main() {
   auth.clearToken()
   assert.equal(auth.getToken(), '')
 
-  console.log('PASS: miniprogram request failure, token expiry, logout cleanup, and env-isolated token keys are recoverable.')
+  // 【C4 2026-10-21】空串语义: 默认(GET 查询参数与 body)仍剥空串——筛选/表单页大量传空串
+  // 表示"该项不参与", 全局保留会改变查询/更新语义; keepEmpty 选项(opt-in)下只剥
+  // undefined/null、保留空串——"空串=清空字段"的编辑调用处(联系人更新/激励编辑 PUT)
+  // 依赖它把 '' 送到后端(后端非 null 即合并/写空串, 库内旧值才能真正清掉)。
+  let captured = null
+  nextResponse = (options) => { captured = options; options.success({ statusCode: 200, data: { code: 200, data: { ok: true } } }) }
+
+  await request({ url: '/api/default-body', method: 'PUT', data: { name: '张三', position: '', phone: '', ext: null, count: 0, flag: false } })
+  assert.deepEqual(captured.data, { name: '张三', count: 0, flag: false }, '默认 body: 空串与 null 一并剥除, 0/false 不受影响')
+
+  await request({ url: '/api/keep-empty', method: 'PUT', data: { name: '张三', position: '', phone: '', ext: null, count: 0 }, keepEmpty: true })
+  assert.deepEqual(captured.data, { name: '张三', position: '', phone: '', count: 0 }, 'keepEmpty body: 空串保留(清空字段唯一表达), null 仍剥')
+
+  await request({ url: '/api/query', data: { keyword: '', page: 2 } })
+  assert.deepEqual(captured.data, { page: 2 }, 'GET 查询参数默认仍剥空串(既有筛选语义不变)')
+
+  // 调用方接线: 联系人更新必带 keepEmpty(空串清空职位/电话/备注), 联系人新建不带;
+  // 激励编辑 keepEmpty 显式开启、缺省不发(默认剥空串)。
+  const customerApi = requireWithinMiniRoot('../aigicrm-miniprogram/api/customer')
+  const incentiveApi = requireWithinMiniRoot('../aigicrm-miniprogram/api/incentive')
+
+  await customerApi.updateCustomerContact(1, 2, { name: '张三', position: '', phone: '', remark: '' })
+  assert.equal(captured.method, 'PUT')
+  assert.deepEqual(captured.data, { name: '张三', position: '', phone: '', remark: '' }, '联系人更新: 清空字段以空串落请求体')
+
+  await customerApi.addCustomerContact(1, { name: '张三', position: '', remark: '' })
+  assert.deepEqual(captured.data, { name: '张三' }, '联系人新建: 维持默认剥空串语义')
+
+  await incentiveApi.updateRecord(5, { customerId: 1, remark: '', relatedProducts: '' }, { keepEmpty: true })
+  assert.equal(captured.method, 'PUT')
+  assert.deepEqual(captured.data, { customerId: 1, remark: '', relatedProducts: '' }, '激励编辑 keepEmpty: 清空字段保留空串')
+
+  await incentiveApi.updateRecord(5, { customerId: 1, remark: '' })
+  assert.deepEqual(captured.data, { customerId: 1 }, '激励编辑缺省选项: 仍剥空串(兼容旧调用)')
+
+  console.log('PASS: miniprogram request failure, token expiry, logout cleanup, env-isolated token keys, and C4 empty-string clear semantics are recoverable.')
 }
 
 main().catch((error) => {

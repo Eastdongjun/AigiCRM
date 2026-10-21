@@ -25,7 +25,10 @@ function deleteCustomer(id) { return request({ url: '/api/customer/' + id, metho
 function checkCustomerName(name) { return request({ url: '/api/customer/check-name', data: { name } }) }
 function getCustomerContacts(id) { return request({ url: '/api/customer/' + id + '/contacts' }) }
 function addCustomerContact(id, data) { return request({ url: '/api/customer/' + id + '/contacts', method: 'POST', data }) }
-function updateCustomerContact(id, contactId, data) { return request({ url: '/api/customer/' + id + '/contacts/' + contactId, method: 'PUT', data }) }
+// 【C4 2026-10-21】联系人编辑"清空字段"依赖空串语义: 后端 updateById 默认 NOT_NULL 跳过缺失/null
+// 字段, 空串才是清空职位/电话/备注的唯一表达。此处 keepEmpty 保留空串(仅剥 undefined/null);
+// 新建(addCustomerContact)维持默认剥空串, 语义不变。
+function updateCustomerContact(id, contactId, data) { return request({ url: '/api/customer/' + id + '/contacts/' + contactId, method: 'PUT', data, keepEmpty: true }) }
 function deleteCustomerContact(id, contactId) { return request({ url: '/api/customer/' + id + '/contacts/' + contactId, method: 'DELETE' }) }
 function getCustomerLogs(id) { return request({ url: '/api/customer/' + id + '/logs' }) }
 function addCustomerLog(id, data) { return request({ url: '/api/customer/' + id + '/logs', method: 'POST', data }) }

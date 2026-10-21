@@ -157,6 +157,8 @@
 </view>
 
 <!-- 【#3 2026-10-12】客户选择改半屏搜索层: 关键字过滤客户名称,替代滚轮 picker -->
+<!-- 【C2 2026-10-21】真实模式改服务端搜索+分页(getCustomerList keyword/current/size): 滚到底
+     追加下一页, total=服务端匹配总数; 选中按 customerId 定位(翻页后下标会错位) -->
 <view wx:if="{{customerSheet.open}}" class="cs-mask" bindtap="closeCustomerSheet">
   <view class="cs-sheet" catchtap="noop">
     <view class="cs-sheet-head">
@@ -167,13 +169,15 @@
       <input class="cs-search-input" value="{{customerSheet.keyword}}" placeholder="输入关键字搜索客户名称" confirm-type="search" bindinput="inputCustomerKeyword" />
       <text wx:if="{{customerSheet.keyword}}" class="cs-search-clear" bindtap="clearCustomerKeyword">清空</text>
     </view>
-    <view class="cs-count-row" wx:if="{{customerSheet.keyword}}">匹配 {{customerSheet.filtered.length}} / {{customerSheet.total}} 个客户</view>
-    <scroll-view scroll-y class="cs-list">
-      <view wx:for="{{customerSheet.filtered}}" wx:key="index" class="cs-item {{item.index === selectedCustomerIndex ? 'on' : ''}}" data-index="{{item.index}}" bindtap="pickCustomer">
+    <view class="cs-count-row">{{customerSheet.keyword ? '匹配 ' : '共 '}}{{customerSheet.total}} 个客户</view>
+    <scroll-view scroll-y class="cs-list" bindscrolltolower="loadMoreCustomers">
+      <view wx:for="{{customerSheet.filtered}}" wx:key="id" class="cs-item {{item.id === selectedCustomerId ? 'on' : ''}}" data-id="{{item.id}}" bindtap="pickCustomer">
         <view class="cs-item-name">{{item.name}}</view>
         <view wx:if="{{item.meta}}" class="cs-item-meta">{{item.meta}}</view>
       </view>
-      <view wx:if="{{!customerSheet.filtered.length}}" class="cs-empty">没有匹配「{{customerSheet.keyword}}」的客户</view>
+      <view wx:if="{{customerSheet.loading}}" class="cs-more">加载中…</view>
+      <view wx:if="{{!customerSheet.loading && customerSheet.finished && customerSheet.filtered.length}}" class="cs-more">没有更多了</view>
+      <view wx:if="{{!customerSheet.loading && !customerSheet.filtered.length}}" class="cs-empty">没有匹配「{{customerSheet.keyword}}」的客户</view>
     </scroll-view>
   </view>
 </view>

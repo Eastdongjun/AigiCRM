@@ -8,11 +8,17 @@ const { readDemoCustomers, saveDemoCustomer } = require('../../../utils/demo-cus
 // 【D24/D25 2026-10-04】五项指标配置/求和/视图、核心阈值提示、返回兜底统一引用组内共享模块
 const { INDICATOR_FIELDS, sumIndicatorScore, buildIndicatorItems, CORE_THRESHOLD_TIP, navigateBackWithFallback } = require('../shared')
 
-// 【PR-05 残余 20260921】提交幂等键:同一次提交(含重试/重复发包)共用一个键,成功后换新;
-// 小程序无 crypto.randomUUID,用时间戳+随机串(键只需唯一,服务端按 用户+键 作用域隔离)
-let createSubmitKey = null
+/** 【PR-05 残余 20260921 + C5 2026-10-21】提交幂等键生成器: 小程序无 crypto.randomUUID,
+ *  用时间戳+随机串(键只需唯一, 服务端按 用户+键 作用域隔离)。
+ *  【C5】键的生命周期绑定表单实例(onLoad 生成 → this._submitKey, 成功提交/onUnload 清空),
+ *  不再是模块级变量——模块级键在"首次提交超时(服务端实际已落库)→用户另开表单建下一个客户"
+ *  时会被新实例复用, 后端命中同键直接回放上一位客户的 id(缓存 24h), 新客户静默未建、
+ *  界面却报"新增成功"。键非凭据(服务端按 用户+键 隔离, 可预测性无攻击面), 需要的只是
+ *  唯一性——单调计数器兜底同毫秒碰撞, Math.random 增补熵, 小程序环境无 secrets 可用。 */
+let submitKeySeq = 0
 function newSubmitKey() {
-  return 'mp-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 12)
+  submitKeySeq += 1
+  return 'mp-' + Date.now().toString(36) + '-' + submitKeySeq.toString(36) + '-' + Math.random().toString(36).slice(2, 12)
 }
 
 /** 【L7 2026-10-04】本地时区当天。此前用 toISOString()（UTC），东八区 0:00-8:00 间
@@ -149,6 +155,10 @@ Page({
     }, () => this.refreshFormView())
     // 【A4 三轮 2026-10-09】导航栏标题与 PC 对齐（新增客户/编辑客户）：原固定「客户表单」，PC 无此概念
     wx.setNavigationBarTitle({ title: id ? '编辑客户' : '新增客户' })
+    // 【C5 2026-10-21】新建提交幂等键绑定本表单实例(onLoad 生成): 同一实例的超时重试复用同键
+    // (服务端已落库时回放同一客户 id, 不重复建客); 成功提交/onUnload 清空; 另开的新实例必是新键。
+    this._submitKey = newSubmitKey()
+    this._submitKeyName = ''
     // 【M13 2026-10-04】记录选项加载 Promise：草稿恢复确认时挂在它后面，
     // 保证 applyCustomer 重算 picker 索引时下拉候选已就绪(选项未加载时索引恒为 -1)
     this.optionsPromise = this.loadOptions().then(() => (id ? this.loadDetail() : this.prefillOwner()))
@@ -454,15 +464,27 @@ Page({
     // 消除"建客户成功、存指标失败→界面报保存失败但客户已入库,重试重复建客"。
     // 演示模式仍本地两步(saveDemoCustomer 自带指标)。
     // 【PR-05 残余 20260921】真实模式新建分支携带幂等键(编辑分支为 PUT,无重复建客风险)
-    if (!getApp().globalData.demoMode && !this.data.isEdit && !createSubmitKey) createSubmitKey = newSubmitKey()
+    // 【C5 2026-10-21】键绑定表单实例(this._submitKey): 重试同一份表单复用同键; 客户名变化
+    // 视为"换了客户"则换新键(防止把上一个客户的回放 id 安到新客户头上); 兜底: 未经 onLoad
+    // 构建的实例(测试/自动化)在提交时懒生成, 保证键永远来自当前实例。
+    if (!getApp().globalData.demoMode && !this.data.isEdit) {
+      const submitName = String(form.customerName || '').trim()
+      if (!this._submitKey || (this._submitKeyName && this._submitKeyName !== submitName)) {
+        this._submitKey = newSubmitKey()
+      }
+      this._submitKeyName = submitName
+    }
     const action = getApp().globalData.demoMode
       ? Promise.resolve(saveDemoCustomer({ ...form, indicator: { ...this.data.indicatorForm } }, this.data.isEdit ? this.data.id : ''))
       : (this.data.isEdit
           ? updateCustomerWithIndicator(this.data.id, { customer: form, indicator: this.indicatorPayload() })
-          : saveCustomerWithIndicator({ customer: form, indicator: this.indicatorPayload() }, createSubmitKey))
+          : saveCustomerWithIndicator({ customer: form, indicator: this.indicatorPayload() }, this._submitKey))
     action
       .then(() => {
-        createSubmitKey = null // 成功后换新键,下一次新建客户是全新提交
+        // 【C5 2026-10-21】成功后清键(实例级): 本实例若再发起一次新建(理论上成功后即返回),
+        // 也是全新提交; 编辑/演示分支清空无副作用
+        this._submitKey = null
+        this._submitKeyName = ''
         // 【M12 2026-10-04】置已提交标志：500ms 后 navigateBack 触发 onUnload→autoSaveDraft，
         // 此前会把刚 deleteFormDraft 清掉的草稿原样存回(新建成功后草稿"复活")
         this.submitted = true
@@ -476,7 +498,12 @@ Page({
 
   // 【议题四裁决】表单草稿:离开自动保存(新建模式,仅真实环境;7 天保留/版本冲突)
   onHide() { this.autoSaveDraft() },
-  onUnload() { this.autoSaveDraft() },
+  onUnload() {
+    // 【C5 2026-10-21】页面销毁清键: 键生命周期=表单实例生命周期, 不留给下一个新客户实例复用
+    this._submitKey = null
+    this._submitKeyName = ''
+    this.autoSaveDraft()
+  },
 
   autoSaveDraft() {
     // 【M12 2026-10-04】已成功提交的表单不再存草稿(内容已入库,存回即"复活"已清掉的草稿)
