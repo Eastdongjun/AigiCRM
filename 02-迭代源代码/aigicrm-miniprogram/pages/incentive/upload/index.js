@@ -648,7 +648,9 @@ Page({
   /** 拉取半屏一页客户(真实模式服务端分页/搜索; 演示模式本地过滤不分页) */
   fetchCustomerSheetPage(page, append) {
     if (getApp().globalData.demoMode) return this.filterDemoCustomerSheet()
-    if (this.data.customerSheet.loading) return
+    // 【B4 2026-10-21】去掉 loading 早退: 旧实现在途时直接丢弃新搜索且不补发(复现实证
+    // "输入=华东而列表仍显示旧关键词结果")。改为新请求递增 seq 取代在途请求, 旧响应由下方
+    // 序号守卫丢弃; 翻页入口 loadMoreCustomers 自带 loading/finished 守卫, 不会重复触底追加。
     const seq = (this._customerSheetSeq = (this._customerSheetSeq || 0) + 1)
     const keyword = (this.data.customerSheet.keyword || '').trim()
     this.setData({ 'customerSheet.loading': true })

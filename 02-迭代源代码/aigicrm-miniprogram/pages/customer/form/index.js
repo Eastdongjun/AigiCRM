@@ -514,7 +514,9 @@ Page({
     if (!form.customerName || !form.customerName.trim()) return // 空表单不存
     saveFormDraft('customer_form', { form, indicatorForm: this.data.indicatorForm }, this.data.draftVersion)
       .then((result) => {
-        const d = result && result.data
+        // 【B3 2026-10-21】request 层已解包 body.data → then 入参即保存结果行, 直接读 version
+        // (旧 result.data 恒 undefined, draftVersion 回写失效; 对齐 upload 页 C2 修复附带)
+        const d = result && (result.version !== undefined ? result : result.data)
         if (d && d.version) this.setData({ draftVersion: d.version })
       })
       .catch(() => {}) // 自动保存静默失败(网络差等),不打扰用户
@@ -533,7 +535,9 @@ Page({
   tryRestoreDraft() {
     if (getApp().globalData.demoMode) return
     getFormDraft('customer_form').then((result) => {
-      const draft = result && result.data
+      // 【B3 2026-10-21】request 层已解包 body.data → then 入参即草稿行 {draftType,draftData,version,updatedAt}
+      // (后端 FormDraftService.toRow 无 data 键; 旧代码读 result.data 恒 undefined, 恢复弹窗真实环境永远不弹)
+      const draft = result && (result.draftData !== undefined ? result : result.data)
       if (!draft || !draft.draftData) return
       let parsed
       try { parsed = JSON.parse(draft.draftData) } catch (e) { return }

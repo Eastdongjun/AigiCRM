@@ -224,6 +224,33 @@ async function main() {
   assert.ok(!('remark' in post.data), '新建空字段维持 null(剥除)语义, 不发空串')
   assert.ok(!('relatedProducts' in post.data))
   assert.equal(post.data.customerId, 9)
+
+  // ========== 4. 【B4 2026-10-21】防抖在途竞态: 新搜索不得被在途请求丢弃 ==========
+  page = createUploadPage()
+  const heldRequests = []
+  const seenKeywords = []
+  const origRequest = global.wx.request
+  global.wx.request = (opts) => { requests.push(opts); seenKeywords.push((opts.data && opts.data.keyword) || '(空)'); heldRequests.push(opts) }
+  page.setData({ 'customerSheet.keyword': '华东' })
+  page.fetchCustomerSheetPage(1, false) // 第一发(华东): 应答挂起
+  page.setData({ 'customerSheet.keyword': '苏州' })
+  page.fetchCustomerSheetPage(1, false) // 第二发(苏州): 旧实现被 loading 早退直接丢弃
+  assert.equal(heldRequests.length, 2, '在途时新搜索必须照发(旧实现 loading 早退丢弃且不补发, 复现"输入=华东仍显示旧关键词结果")')
+  assert.equal(seenKeywords[0], '华东')
+  assert.equal(seenKeywords[1], '苏州')
+  // 后发的(苏州)先返回: 列表呈现苏州结果, loading 归位
+  heldRequests[1].success(ok({ records: [{ id: 21, customerName: '苏州精密制造' }], total: 1 }))
+  await tick()
+  assert.equal(page.data.customerSheet.loading, false, '最新请求完成后 loading 归位')
+  assert.equal(page.data.customerSheet.total, 1)
+  assert.equal(page.data.customerSheet.filtered.length, 1)
+  assert.equal(page.data.customerSheet.filtered[0].name, '苏州精密制造')
+  // 先发的(华东)慢返回: 序号守卫丢弃, 不得覆盖苏州结果
+  heldRequests[0].success(ok({ records: [{ id: 11, customerName: '华东老结果' }], total: 99 }))
+  await tick()
+  assert.equal(page.data.customerSheet.filtered[0].name, '苏州精密制造', '旧请求慢返回不得覆盖新结果')
+  assert.equal(page.data.customerSheet.total, 1, 'total 不得被旧请求回写')
+  global.wx.request = origRequest
 }
 
 main().then(() => console.log('PASS: incentive upload (C2 server-side customer search/pagination + draft refetch by id, C4 edit-mode empty-string clear)')).catch((e) => { console.error(e && e.stack || e); process.exit(1) })

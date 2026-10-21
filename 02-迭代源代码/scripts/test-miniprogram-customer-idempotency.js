@@ -125,6 +125,36 @@ await tick()
 assert.equal(lastRequest.method, 'PUT', '编辑走 PUT')
 assert.equal(lastRequest.header['Idempotency-Key'], undefined, '编辑分支无幂等键')
 respondOk()
+
+// 4. 【B3 2026-10-21】草稿恢复解包: request 层已解包 body.data, then 入参即草稿行
+// (旧代码读 result.data 恒 undefined → 恢复弹窗真实环境永远不弹)
+// 自带请求捕获: 3f 提交成功会异步补发 deleteFormDraft(DELETE), 不依赖共享 lastRequest 槽位
+const page3 = createFormPage()
+const draftModals = []
+const draftRequests = []
+const origShowModal = global.wx.showModal
+const origDraftRequest = global.wx.request
+global.wx.showModal = (opts) => { draftModals.push(opts) }
+global.wx.request = (opts) => { lastRequest = opts; pending = opts; draftRequests.push(opts) }
+page3.tryRestoreDraft()
+await tick()
+const draftGet = draftRequests.find((r) => r.method === 'GET' && String(r.url).indexOf('/api/draft/customer_form') >= 0)
+assert.ok(draftGet, '草稿读取必须发出 GET /api/draft/customer_form')
+draftGet.success({ statusCode: 200, data: { code: 200, data: { draftType: 'customer_form', draftData: JSON.stringify({ form: { customerName: '草稿客户甲' } }), version: 3, updatedAt: '2026-10-21 10:00:00' } } })
+await tick()
+assert.equal(draftModals.length, 1, '解包修复后恢复弹窗必须弹出(旧 result.data 恒 undefined, 弹窗永不触发)')
+assert.equal(draftModals[0].title, '发现未完成的草稿')
+
+// 4b. 【B3】autoSaveDraft 版本回写: 直接读解包后的行 version(旧 result.data 恒 undefined 回写失效)
+page3.autoSaveDraft()
+await tick()
+const draftPut = draftRequests.find((r) => r.method === 'PUT' && String(r.url).indexOf('/api/draft/customer_form') >= 0)
+assert.ok(draftPut, '草稿保存必须发出 PUT /api/draft/customer_form')
+draftPut.success({ statusCode: 200, data: { code: 200, data: { version: 5, updatedAt: '2026-10-21 10:01:00' } } })
+await tick()
+assert.equal(page3.data.draftVersion, 5, 'draftVersion 必须从解包后的保存结果行读取')
+global.wx.showModal = origShowModal
+global.wx.request = origDraftRequest
 }
 
 main().then(() => console.log('PASS: miniprogram customer idempotency (header passthrough, instance-bound key: retry same key, new customer/name new key, no key on edit)')).catch((e) => { console.error(e.message); process.exit(1) })
