@@ -132,6 +132,12 @@ public class OrgScopeResolver {
      * 统一解析: 列表/统计/单条判定共用。
      * OWNER 锚点 → visibleUserIds(负责人集合, null=全部); ORG 锚点 → visibleDeptIds(部门集合)。
      * 多角色并集; 任一 all → 全量; 系统开关仅 OWNER 锚点生效(ORG 由部门树天然覆盖)。
+     * 【A6 2026-10-20 审计】ORG 锚点同时把 visibleDeptIds 展开为部门下在职用户集(deleted=0,status=1)
+     * 写入 visibleUserIds——旧实现固定 List.of(), 使按负责人维度消费 ScopeDecision 的链路
+     * (CustomerService.getCurrentScopeUserIds → 统计 applyCustomerScope/applyFileScope)在管理员
+     * 配置 ORG 锚点后拿到空集: 无守卫时生成 IN () 语法错误 500, 有守卫时统计全 0。
+     * 展开口径: 空部门集 → 空 userIds(不可见); all(deptIds==null) → null(不过滤); 其余 → 部门在职用户。
+     * 消费方按部门过滤的列表路径(CustomerService.applyDataScope ORG 分支读 visibleDeptIds)不变。
      */
     public ScopeDecision resolveScope(ScopeRequest req) {
         if (req == null || req.getUser() == null) return ScopeDecision.none();
@@ -148,7 +154,7 @@ public class OrgScopeResolver {
             }
             ScopeDecision d = new ScopeDecision();
             d.setVisibleDeptIds(deptIds);
-            d.setVisibleUserIds(deptIds == null ? null : List.of());
+            d.setVisibleUserIds(deptIds == null ? null : usersInDepts(new LinkedHashSet<>(deptIds)));
             return d;
         }
         // OWNER 锚点

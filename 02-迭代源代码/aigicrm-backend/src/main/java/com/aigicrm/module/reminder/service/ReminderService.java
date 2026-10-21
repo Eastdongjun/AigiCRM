@@ -89,6 +89,21 @@ public class ReminderService {
         }
     }
 
+    /**
+     * 【C1 2026-10-21 接口契约·后端为 owner】/api/reminder/list 的 keyword 服务端消费口径:
+     * <ul>
+     *   <li><b>匹配字段</b>(OR 组合): 客户名 customer_name LIKE %kw% / 客户编码 customer_code LIKE %kw%
+     *       (先查 biz_customer 映射为 customerId 集合, @TableLogic 自动排除已删客户; 大小写随库排序规则,
+     *       与 /expiring-list 的既有 like(customerName, keyword) 同一行为) 或 提醒类型(类型中文标签或
+     *       原始类型码包含 kw, 标签映射与小程序 reminderTypeLabel 同源, 见 {@link #REMINDER_TYPE_LABELS});</li>
+     *   <li><b>叠加方式</b>(AND): keyword 条件与 type/status/officeId/dept 子树/owner 数据范围同 wrapper 叠加,
+     *       不是替代——与 {@link #applyOwnerScope} 的可见集合相交;</li>
+     *   <li><b>空集守卫</b>: 客户与类型均无命中时 eq(customerId, -1L) 恒空(与 applyOwnerScope 的 -1L 哨兵同口径),
+     *       禁止生成 IN ();</li>
+     *   <li><b>total 同口径</b>: 分页/计数共用同一 wrapper, selectPage 的 total 即筛选后总数,
+     *       前端不得再用未过滤总数。</li>
+     * </ul>
+     */
     public IPage<BizReminder> page(int current, int size, String type, String keyword,
                                     Long officeId, Long ownerId, String status, Long deptId) {
         LambdaQueryWrapper<BizReminder> wrapper = new LambdaQueryWrapper<>();
@@ -114,6 +129,9 @@ public class ReminderService {
             wrapper.in(BizReminder::getOfficeId, subtree);
         }
         applyOwnerScope(wrapper, ownerId, (List<Long>) pre.get(1));
+        // 【C1 2026-10-21】keyword 真正参与 SQL 过滤(此前形参零引用, 前端只能对当前页做客户端过滤,
+        // total 仍是未过滤总数): 口径见方法 javadoc; 客户维查询独立于上方并发段, 保持 dept/owner 解析调度不变
+        applyKeywordScope(wrapper, keyword);
         wrapper.orderByDesc(BizReminder::getCreatedAt);
 
         IPage<BizReminder> page = reminderMapper.selectPage(new Page<>(current, size), wrapper);
@@ -174,6 +192,74 @@ public class ReminderService {
             }
         }
         return page;
+    }
+
+    /**
+     * 【C1 2026-10-21】提醒类型中文标签映射——与小程序 pages/reminder/index.js 的 reminderTypeLabel
+     * 同源(后端为唯一权威源, 前端如有漂移以本表为准)。keyword 命中标签或原始类型码(不区分大小写,
+     * 子串包含)即按该 reminderType 过滤。biz_reminder 无"提醒内容"列, 用户可见的行内容
+     * 即"客户名/编码 + 类型标签", 故内容维等价于类型标签维。
+     */
+    private static final Map<String, String> REMINDER_TYPE_LABELS;
+    static {
+        Map<String, String> m = new LinkedHashMap<>();
+        m.put("expiring", "到期提醒");
+        m.put("expire", "到期提醒");
+        m.put("protect_expiring", "到期提醒");
+        m.put("invoice", "开票提醒");
+        m.put("invoice_overdue", "开票超期提醒");
+        m.put("invoice_never", "待首次开票提醒");
+        m.put("share_to", "客户已分享给你");
+        m.put("share_by", "你分享了客户");
+        m.put("share_owner", "你的客户被分享");
+        m.put("follow", "跟进提醒");
+        REMINDER_TYPE_LABELS = java.util.Collections.unmodifiableMap(m);
+    }
+
+    /** keyword 命中的 reminderType 集合: 标签或类型码包含 kw(均小写化比较) */
+    private static List<String> matchReminderTypes(String keyword) {
+        String needle = keyword.toLowerCase(java.util.Locale.ROOT);
+        List<String> hit = new ArrayList<>();
+        REMINDER_TYPE_LABELS.forEach((code, label) -> {
+            if (label.toLowerCase(java.util.Locale.ROOT).contains(needle)
+                    || code.toLowerCase(java.util.Locale.ROOT).contains(needle)) {
+                hit.add(code);
+            }
+        });
+        return hit;
+    }
+
+    /**
+     * 【C1 2026-10-21】keyword → SQL 条件(AND 叠加在 type/status/office/dept/owner 之上):
+     * (customer_id IN 命中客户集合 OR reminder_type IN 命中类型集合); 双空集时 eq(customerId, -1L)
+     * 恒空守卫(与 applyOwnerScope 的 -1L 哨兵同口径), 保证 total 与行集同为空而非 IN () 500。
+     */
+    private void applyKeywordScope(LambdaQueryWrapper<BizReminder> wrapper, String keyword) {
+        if (!StringUtils.hasText(keyword)) return;
+        String kw = keyword.trim();
+        List<Long> customerIds = customerMapper.selectList(new LambdaQueryWrapper<BizCustomer>()
+                        .select(BizCustomer::getId)
+                        // 嵌套 and: name LIKE ? OR code LIKE ? 作为整组条件, 不与 @TableLogic 的 deleted=0 产生优先级歧义
+                        .and(w -> w.like(BizCustomer::getCustomerName, kw)
+                                .or()
+                                .like(BizCustomer::getCustomerCode, kw)))
+                .stream().map(BizCustomer::getId).filter(java.util.Objects::nonNull).toList();
+        List<String> typeCodes = matchReminderTypes(kw);
+        if (customerIds.isEmpty() && typeCodes.isEmpty()) {
+            wrapper.eq(BizReminder::getCustomerId, -1L); // 空集守卫: 恒不命中, 空页
+            return;
+        }
+        wrapper.and(w -> {
+            boolean hasCustomer = false;
+            if (!customerIds.isEmpty()) {
+                w.in(BizReminder::getCustomerId, customerIds);
+                hasCustomer = true;
+            }
+            if (!typeCodes.isEmpty()) {
+                if (hasCustomer) w.or();
+                w.in(BizReminder::getReminderType, typeCodes);
+            }
+        });
     }
 
     public IPage<Map<String, Object>> expiringPage(int current, int size, String keyword,

@@ -320,6 +320,150 @@ class ReminderServiceTest {
         org.junit.jupiter.api.Assertions.assertEquals(1, result.getTotal(), "total 应同步扣减孤儿数");
     }
 
+    // ====== 【C1 2026-10-21】page() keyword 服务端消费: 客户名/编码 → customerId, 类型标签 → reminderType =====
+
+    /** keyword 命中客户名/编码: wrapper 按 customerId 集合过滤, total 与行集同口径(单一 wrapper 分页) */
+    @Test
+    void page_keywordMatchesCustomerNameOrCode_filtersByCustomerId() {
+        authenticate(1L, "all");
+        when(scopeResolver.resolveModuleUsers(any(), anyString())).thenReturn(null);
+        BizCustomer byName = new BizCustomer();
+        byName.setId(11L);
+        byName.setCustomerName("山西平阳重工");
+        BizCustomer byCode = new BizCustomer();
+        byCode.setId(12L);
+        byCode.setCustomerCode("NM-2026-012");
+        when(customerMapper.selectList(any())).thenReturn(List.of(byName, byCode));
+        // 模拟 DB 按 wrapper 过滤后的分页结果: 1 行, total=1(与筛选同口径)
+        BizReminder hit = new BizReminder();
+        hit.setId(101L);
+        hit.setCustomerId(11L);
+        Page<BizReminder> p = new Page<>(1, 15);
+        p.setTotal(1);
+        p.setRecords(List.of(hit));
+        when(reminderMapper.selectPage(any(), any())).thenReturn(p);
+        // 回填: 客户 11 存活(避免被 F15① 孤儿过滤误伤)
+        when(customerMapper.selectBatchIds(any())).thenReturn(List.of(byName));
+
+        var result = service.page(1, 15, null, "平阳", null, null, null, null);
+
+        assertEquals(1L, result.getTotal(), "total 应为筛选后总数");
+        assertEquals(101L, result.getRecords().get(0).getId());
+        org.mockito.ArgumentCaptor<LambdaQueryWrapper<BizReminder>> captor =
+                org.mockito.ArgumentCaptor.forClass(LambdaQueryWrapper.class);
+        verify(reminderMapper).selectPage(any(), captor.capture());
+        String segment = captor.getValue().getSqlSegment();
+        org.junit.jupiter.api.Assertions.assertTrue(segment.contains("customer_id IN"),
+                "应按命中客户集合过滤: " + segment);
+        var params = captor.getValue().getParamNameValuePairs();
+        org.junit.jupiter.api.Assertions.assertTrue(params.containsValue(11L) && params.containsValue(12L),
+                "客户名与编码命中的客户都应在集合内: " + params.values());
+    }
+
+    /** keyword 命中类型标签/类型码: 映射为 reminderType 集合("到期"→expiring/expire/protect_expiring) */
+    @Test
+    void page_keywordMatchesTypeLabel_mapsToReminderTypes() {
+        authenticate(1L, "all");
+        when(scopeResolver.resolveModuleUsers(any(), anyString())).thenReturn(null);
+        when(customerMapper.selectList(any())).thenReturn(List.of()); // 客户维无命中
+        Page<BizReminder> p = new Page<>(1, 15);
+        p.setTotal(0);
+        p.setRecords(List.of());
+        when(reminderMapper.selectPage(any(), any())).thenReturn(p);
+
+        service.page(1, 15, null, "到期", null, null, null, null);
+        org.mockito.ArgumentCaptor<LambdaQueryWrapper<BizReminder>> labelCaptor =
+                org.mockito.ArgumentCaptor.forClass(LambdaQueryWrapper.class);
+        verify(reminderMapper).selectPage(any(), labelCaptor.capture());
+        String labelSegment = labelCaptor.getValue().getSqlSegment();
+        org.junit.jupiter.api.Assertions.assertTrue(labelSegment.contains("reminder_type IN"),
+                "类型标签应映射为 reminder_type 集合: " + labelSegment);
+        var labelParams = labelCaptor.getValue().getParamNameValuePairs();
+        org.junit.jupiter.api.Assertions.assertTrue(
+                labelParams.containsValue("expiring") && labelParams.containsValue("expire")
+                        && labelParams.containsValue("protect_expiring"),
+                "\"到期\" 应命中三个到期类类型: " + labelParams.values());
+
+        // 原始类型码同样命中(不区分大小写)
+        service.page(1, 15, null, "SHARE_TO", null, null, null, null);
+        org.mockito.ArgumentCaptor<LambdaQueryWrapper<BizReminder>> codeCaptor =
+                org.mockito.ArgumentCaptor.forClass(LambdaQueryWrapper.class);
+        verify(reminderMapper, times(2)).selectPage(any(), codeCaptor.capture());
+        LambdaQueryWrapper<BizReminder> second = codeCaptor.getAllValues().get(1);
+        second.getSqlSegment(); // MP wrapper 惰性求值: 先渲染 SQL 才会写入 paramNameValuePairs
+        org.junit.jupiter.api.Assertions.assertTrue(second.getSqlSegment().contains("reminder_type IN"),
+                "类型码命中也应走 reminder_type 集合: " + second.getSqlSegment());
+        org.junit.jupiter.api.Assertions.assertTrue(second.getParamNameValuePairs().containsValue("share_to"),
+                "类型码 share_to 应命中(大小写不敏感): " + second.getParamNameValuePairs().values());
+    }
+
+    /** keyword 双空集(客户与类型均无命中): eq(customerId, -1L) 恒空守卫, 不生成 IN () */
+    @Test
+    void page_keywordNoMatch_usesMinusOneSentinelInsteadOfEmptyIn() {
+        authenticate(1L, "all");
+        when(scopeResolver.resolveModuleUsers(any(), anyString())).thenReturn(null);
+        when(customerMapper.selectList(any())).thenReturn(List.of());
+        Page<BizReminder> p = new Page<>(1, 15);
+        p.setTotal(0);
+        p.setRecords(List.of());
+        when(reminderMapper.selectPage(any(), any())).thenReturn(p);
+
+        var result = service.page(1, 15, null, "不存在的关键词XYZ", null, null, null, null);
+
+        assertEquals(0L, result.getTotal(), "无命中 → 空页");
+        org.mockito.ArgumentCaptor<LambdaQueryWrapper<BizReminder>> captor =
+                org.mockito.ArgumentCaptor.forClass(LambdaQueryWrapper.class);
+        verify(reminderMapper).selectPage(any(), captor.capture());
+        String segment = captor.getValue().getSqlSegment();
+        org.junit.jupiter.api.Assertions.assertTrue(segment.contains("customer_id ="),
+                "空集应退化为 eq 哨兵(与 applyOwnerScope 的 -1L 同口径): " + segment);
+        org.junit.jupiter.api.Assertions.assertFalse(segment.contains("IN ()"),
+                "不得生成 IN () 空集合语法: " + segment);
+        org.junit.jupiter.api.Assertions.assertTrue(captor.getValue().getParamNameValuePairs().containsValue(-1L),
+                "哨兵值应为 -1L");
+    }
+
+    /** keyword 与 owner 数据范围叠加(AND 相交), 非替代: 范围外的命中客户行不可见 */
+    @Test
+    void page_keywordStacksWithOwnerScope() {
+        authenticate(1L, "self");
+        when(scopeResolver.resolveModuleUsers(any(), anyString())).thenReturn(List.of(1L));
+        BizCustomer matched = new BizCustomer();
+        matched.setId(11L);
+        matched.setCustomerName("平阳重工");
+        when(customerMapper.selectList(any())).thenReturn(List.of(matched));
+        Page<BizReminder> p = new Page<>(1, 15);
+        p.setTotal(0);
+        p.setRecords(List.of());
+        when(reminderMapper.selectPage(any(), any())).thenReturn(p);
+
+        service.page(1, 15, null, "平阳", null, null, null, null);
+
+        org.mockito.ArgumentCaptor<LambdaQueryWrapper<BizReminder>> captor =
+                org.mockito.ArgumentCaptor.forClass(LambdaQueryWrapper.class);
+        verify(reminderMapper).selectPage(any(), captor.capture());
+        String segment = captor.getValue().getSqlSegment();
+        org.junit.jupiter.api.Assertions.assertTrue(segment.contains("owner_id"),
+                "keyword 不得绕过 owner 数据范围: " + segment);
+        org.junit.jupiter.api.Assertions.assertTrue(segment.contains("customer_id IN"),
+                "keyword 客户过滤应同时存在(AND 叠加): " + segment);
+    }
+
+    /** 无 keyword 时行为不变: 不发起客户维查询(既有口径回归) */
+    @Test
+    void page_withoutKeyword_skipsCustomerLookup() {
+        authenticate(1L, "all");
+        when(scopeResolver.resolveModuleUsers(any(), anyString())).thenReturn(null);
+        Page<BizReminder> p = new Page<>(1, 15);
+        p.setTotal(0);
+        p.setRecords(List.of());
+        when(reminderMapper.selectPage(any(), any())).thenReturn(p);
+
+        service.page(1, 15, null, null, null, null, null, null);
+
+        verify(customerMapper, never()).selectList(any());
+    }
+
     private void authenticate(Long userId, String dataScope) {
         SecurityUser user = new SecurityUser();
         user.setUserId(userId);

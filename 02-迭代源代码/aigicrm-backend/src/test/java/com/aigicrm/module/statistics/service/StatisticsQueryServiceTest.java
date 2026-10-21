@@ -426,6 +426,65 @@ class StatisticsQueryServiceTest {
         }
     }
 
+    /**
+     * 【A6 2026-10-20 审计】空集守卫: getCurrentScopeUserIds 返回非 null 空集合
+     * (如 ORG 锚点部门无在职用户)时, applyCustomerScope/applyFileScope 必须显式 1=0,
+     * 不得生成 IN () 语法错误(500), 也不得放行全量。
+     */
+    @Test
+    void analysis_emptyScopeSet_appliesFalsePredicateInsteadOfEmptyIn() {
+        when(customerService.getCurrentScopeUserIds()).thenReturn(List.of());
+        when(customerMapper.selectCount(org.mockito.ArgumentMatchers.any())).thenReturn(0L);
+        when(fileMapper.selectCount(org.mockito.ArgumentMatchers.any())).thenReturn(0L);
+        when(deptMapper.selectList(org.mockito.ArgumentMatchers.any())).thenReturn(List.of());
+        when(customerMapper.selectList(org.mockito.ArgumentMatchers.any())).thenReturn(List.of());
+
+        var result = service.analysis(2026, null, null);
+
+        // 全部统计口径在空集下都是 0(而非报错/全量)
+        assertEquals(0L, result.get("totalCustomers"));
+        var captured = new java.util.ArrayList<LambdaQueryWrapper<com.aigicrm.module.customer.entity.BizCustomer>>();
+        verify(customerMapper, org.mockito.Mockito.atLeastOnce()).selectCount(
+                org.mockito.ArgumentMatchers.argThat(w -> {
+                    captured.add((LambdaQueryWrapper<com.aigicrm.module.customer.entity.BizCustomer>) w);
+                    return true;
+                }));
+        assertFalse(captured.isEmpty(), "应发生客户统计查询");
+        for (var w : captured) {
+            String segment = w.getSqlSegment();
+            assertTrue(segment.contains("1=0"), "空集应显式 1=0, 实际: " + segment);
+            assertFalse(segment.contains("IN ()"), "不得生成 IN () 空集合语法(500 根因): " + segment);
+        }
+        var fileCaptured = new java.util.ArrayList<LambdaQueryWrapper<com.aigicrm.module.file.entity.BizFile>>();
+        verify(fileMapper, org.mockito.Mockito.atLeastOnce()).selectCount(
+                org.mockito.ArgumentMatchers.argThat(w -> {
+                    fileCaptured.add((LambdaQueryWrapper<com.aigicrm.module.file.entity.BizFile>) w);
+                    return true;
+                }));
+        for (var w : fileCaptured) {
+            assertTrue(w.getSqlSegment().contains("1=0"), "applyFileScope 空集同样 1=0: " + w.getSqlSegment());
+        }
+    }
+
+    /**
+     * 【A6】teamActivities 空集: 直接返回空列表, 六路来源不各发恒空查询
+     * (语义等同 1=0, 且杜绝 IN () 空集合 SQL)。
+     */
+    @Test
+    void teamActivities_emptyScopeSet_returnsEmptyWithoutQueryingSources() {
+        when(customerService.getCurrentScopeUserIds()).thenReturn(List.of());
+
+        var result = service.teamActivities();
+
+        assertTrue(result.isEmpty(), "空集范围 → 空动态");
+        verify(customerLogMapper, org.mockito.Mockito.never()).selectList(org.mockito.ArgumentMatchers.any());
+        verify(incentiveRecordMapper, org.mockito.Mockito.never()).selectList(org.mockito.ArgumentMatchers.any());
+        verify(fileMapper, org.mockito.Mockito.never()).selectList(org.mockito.ArgumentMatchers.any());
+        verify(approvalMapper, org.mockito.Mockito.never()).selectList(org.mockito.ArgumentMatchers.any());
+        verify(customerMapper, org.mockito.Mockito.never()).selectList(org.mockito.ArgumentMatchers.any());
+        verify(sysLogMapper, org.mockito.Mockito.never()).selectList(org.mockito.ArgumentMatchers.any());
+    }
+
     private BigDecimal money(String value) {
         return new BigDecimal(value);
     }

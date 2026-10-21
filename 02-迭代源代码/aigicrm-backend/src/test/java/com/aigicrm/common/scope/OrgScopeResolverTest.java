@@ -661,4 +661,73 @@ class OrgScopeResolverTest {
         assertEquals(Set.of(1L), new HashSet<>(r.resolveScope(req).getVisibleUserIds()),
                 "USER 级 * * 通配(custom)应覆盖 ROLE 级 customer view(region), 而非取 region 全大区");
     }
+
+    // ===== 【A6 2026-10-20 审计】ORG 锚点 visibleUserIds 展开为部门在职用户 =====
+
+    private com.aigicrm.common.scope.ScopeRequest orgAnchorReq(SecurityUser s, String scope) {
+        // 无 scopeConfigs → scopeCodes 回退用户 dataScope(即构造参数 scope)
+        return com.aigicrm.common.scope.ScopeRequest.builder()
+                .user(s).module("statistics").action("view")
+                .anchor(com.aigicrm.common.scope.ScopeRequest.AnchorType.ORG)
+                .build();
+    }
+
+    /** ORG 锚点 + dept 范围: visibleUserIds = 部门子树在职用户(deleted=0,status=1), 不再是空集合 */
+    @Test
+    void resolveScope_orgAnchor_expandsDeptUsersIntoVisibleUserIds() {
+        // 部门树: 11 → 12; 用户 1(部门11,在职), 2(部门12,在职), 3(部门12,已删), 4(部门12,停用)
+        when(deptMapper.selectList(any(LambdaQueryWrapper.class))).thenAnswer(inv -> {
+            LambdaQueryWrapper<SysDept> w = inv.getArgument(0);
+            assertStatusFiltered(w);
+            Long parent = columnValues(w).getOrDefault("parent_id", List.of()).stream().findFirst().orElse(null);
+            if (Objects.equals(parent, 11L)) return List.of(dept(12L, 11L));
+            return List.of();
+        });
+        when(userMapper.selectList(any(LambdaQueryWrapper.class))).thenAnswer(inv -> {
+            LambdaQueryWrapper<SysUser> w = inv.getArgument(0);
+            assertStatusFiltered(w);
+            Map<String, List<Long>> cols = columnValues(w);
+            Set<Long> deptIds = new HashSet<>(cols.getOrDefault("dept_id", List.of()));
+            if (deptIds.containsAll(List.of(11L, 12L))) {
+                // usersInDepts 一次 in(11,12): deleted=0/status=1 过滤后剩 1、2;
+                // 已删 3 与停用 4 均不可见(口径与 OWNER 链路的 usersInDepts 一致)
+                return List.of(user(1L, 11L, null), user(2L, 12L, null));
+            }
+            return List.of();
+        });
+        OrgScopeResolver r = new OrgScopeResolver(userMapper, deptMapper, configService,
+                mock(com.aigicrm.module.system.mapper.SysRoleOrgMapper.class), null);
+
+        com.aigicrm.common.scope.ScopeDecision d = r.resolveScope(orgAnchorReq(su(9L, "dept", 11L), "dept"));
+
+        assertEquals(List.of(11L, 12L), d.getVisibleDeptIds(), "ORG 锚点部门集合语义不变");
+        assertEquals(Set.of(1L, 2L), new HashSet<>(d.getVisibleUserIds()),
+                "visibleUserIds 应为部门子树在职用户, 而非空集合(旧实现 List.of())");
+        assertFalse(d.isAll());
+    }
+
+    /** ORG 锚点 + all 范围: visibleUserIds=null(全量不过滤), 不做无谓的用户展开查询 */
+    @Test
+    void resolveScope_orgAnchorAll_keepsNullVisibleUserIds() {
+        OrgScopeResolver r = new OrgScopeResolver(userMapper, deptMapper, configService,
+                mock(com.aigicrm.module.system.mapper.SysRoleOrgMapper.class), null);
+        com.aigicrm.common.scope.ScopeDecision d = r.resolveScope(orgAnchorReq(su(9L, "all", 11L), "all"));
+
+        assertNull(d.getVisibleDeptIds());
+        assertNull(d.getVisibleUserIds(), "all 语义=不过滤, 不得被展开成空/部分集合");
+        assertTrue(d.isAll());
+        verify(userMapper, never()).selectList(any(LambdaQueryWrapper.class));
+    }
+
+    /** ORG 锚点 + 部门集为空(用户无部门): visibleUserIds=空集合(不可见), 由消费方 1=0/空页守卫兜底 */
+    @Test
+    void resolveScope_orgAnchorEmptyDepts_yieldsEmptyVisibleUserIds() {
+        OrgScopeResolver r = new OrgScopeResolver(userMapper, deptMapper, configService,
+                mock(com.aigicrm.module.system.mapper.SysRoleOrgMapper.class), null);
+        com.aigicrm.common.scope.ScopeDecision d = r.resolveScope(orgAnchorReq(su(9L, "self", null), "self"));
+
+        assertEquals(List.of(), d.getVisibleDeptIds());
+        assertEquals(List.of(), d.getVisibleUserIds(), "空部门集 → 空用户集(不可见), 不得回退成全量");
+        verify(userMapper, never()).selectList(any(LambdaQueryWrapper.class));
+    }
 }

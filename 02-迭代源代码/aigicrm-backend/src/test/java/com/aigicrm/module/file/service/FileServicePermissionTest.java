@@ -1184,4 +1184,128 @@ class FileServicePermissionTest {
 
         java.nio.file.Files.deleteIfExists(f);
     }
+
+    // ====== 【A7 2026-10-20 审计】replaceFile 事务化: afterCommit 删旧 + 失败补偿新媒体 =====
+    // 注: @Transactional 的真实回滚需要 Spring 上下文(审计 F4 为 P2, 本仓库纯 mock 单测),
+    // 此处以调用顺序/补偿行为锁定: ①旧文件删除只发生在 afterCommit 回调; ②失败路径 best-effort
+    // 清理已落盘新媒体(防孤儿); ③重试按库内旧值重算配额差额, 不因上次失败漂移。
+
+    /** 【A7】本组用例隔离的本地存储根(共享 tmpdir 下 private/1 有其它用例产物, 断言目录内容需隔离) */
+    private java.nio.file.Path a7IsolatedRoot() throws Exception {
+        java.nio.file.Path root = java.nio.file.Files.createTempDirectory("aigicrm-replace-tx-");
+        ReflectionTestUtils.setField(svc, "uploadDir", root.toString());
+        return root;
+    }
+
+    private java.nio.file.Path a7WriteOldFile(java.nio.file.Path root) throws Exception {
+        java.nio.file.Path old = root.resolve("private/1/old.txt");
+        java.nio.file.Files.createDirectories(old.getParent());
+        java.nio.file.Files.writeString(old, "old-content");
+        return old;
+    }
+
+    /** 活动事务同步下: 方法体内不得物理删旧文件, 只有 afterCommit 回调才删 */
+    @Test
+    void replaceFile_withActiveTxSync_oldFileDeletedOnlyAfterCommit() throws Exception {
+        java.nio.file.Path root = a7IsolatedRoot();
+        java.nio.file.Path oldFile = a7WriteOldFile(root);
+
+        when(fileMapper.selectById(9L)).thenReturn(aReplaceableFile());
+        MultipartFile mf = new MockMultipartFile("file", "new.txt", "text/plain",
+                "new-content".getBytes(StandardCharsets.UTF_8));
+
+        org.springframework.transaction.support.TransactionSynchronizationManager.initSynchronization();
+        try {
+            try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
+                m.when(SecurityUtils::getCurrentUserId).thenReturn(1L);
+                when(folderPermissionService.checkFile(9L, FolderPermissionService.P_EDIT, 1L)).thenReturn(true);
+
+                BizFile result = svc.replaceFile(9L, mf);
+
+                // 事务尚未提交: 旧文件必须还在(回滚路径可完整还原), 新文件已落盘
+                assertTrue(java.nio.file.Files.exists(oldFile),
+                        "afterCommit 前不得物理删除旧文件(否则回滚后文件不可恢复)");
+                assertTrue(java.nio.file.Files.exists(root.resolve(result.getOssKey())));
+                var syncs = org.springframework.transaction.support.TransactionSynchronizationManager
+                        .getSynchronizations();
+                assertEquals(1, syncs.size(), "应恰好注册一个 afterCommit 删除回调");
+
+                // 模拟提交: 回调触发旧文件物理删除
+                syncs.forEach(org.springframework.transaction.support.TransactionSynchronization::afterCommit);
+                assertFalse(java.nio.file.Files.exists(oldFile), "提交后旧文件应被物理删除");
+            }
+        } finally {
+            org.springframework.transaction.support.TransactionSynchronizationManager.clearSynchronization();
+        }
+        // 配额差额在事务内(同一方法调用): 新 11B - 旧 10B = +1
+        verify(userMapper).adjustStorageUsed(1L, 1L);
+    }
+
+    /** 配额调整失败(事务将回滚): 返回失败 + best-effort 清理新媒体, 旧文件保持原样 */
+    @Test
+    void replaceFile_quotaAdjustFailure_cleansNewMediaAndKeepsOldFile() throws Exception {
+        java.nio.file.Path root = a7IsolatedRoot();
+        java.nio.file.Path oldFile = a7WriteOldFile(root);
+
+        when(fileMapper.selectById(9L)).thenReturn(aReplaceableFile());
+        MultipartFile mf = new MockMultipartFile("file", "new.txt", "text/plain",
+                "new-content".getBytes(StandardCharsets.UTF_8));
+        when(userMapper.adjustStorageUsed(org.mockito.ArgumentMatchers.anyLong(),
+                org.mockito.ArgumentMatchers.anyLong()))
+                .thenThrow(new RuntimeException("quota adjust boom"));
+
+        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
+            m.when(SecurityUtils::getCurrentUserId).thenReturn(1L);
+            when(folderPermissionService.checkFile(9L, FolderPermissionService.P_EDIT, 1L)).thenReturn(true);
+
+            BusinessException ex = assertThrows(BusinessException.class, () -> svc.replaceFile(9L, mf));
+            assertTrue(ex.getMessage().contains("文件替换失败"), "实际: " + ex.getMessage());
+        }
+
+        // 旧文件未动(事务回滚后台账仍指向它, 内容必须可下载)
+        assertTrue(java.nio.file.Files.exists(oldFile), "失败路径不得删除旧文件");
+        assertEquals("old-content", java.nio.file.Files.readString(oldFile));
+        // 新媒体已被补偿清理: 目录内只剩 old.txt(无孤儿 new*.txt)
+        try (java.util.stream.Stream<java.nio.file.Path> dir =
+                     java.nio.file.Files.list(oldFile.getParent())) {
+            var names = dir.map(p -> p.getFileName().toString()).toList();
+            assertEquals(List.of("old.txt"), names, "失败后不应残留新媒体孤儿: " + names);
+        }
+    }
+
+    /** 失败后重试成功: 配额差额按库内旧值重算(两次同为 +1), 终态旧删新在、无孤儿 */
+    @Test
+    void replaceFile_retryAfterQuotaFailure_quotaDeltaStable() throws Exception {
+        java.nio.file.Path root = a7IsolatedRoot();
+        java.nio.file.Path oldFile = a7WriteOldFile(root);
+
+        // 每次调用返回全新旧台账(模拟真实 DB: 失败已回滚, 重试读到的仍是未替换的旧行)
+        when(fileMapper.selectById(9L)).thenAnswer(inv -> aReplaceableFile());
+        MultipartFile mf = new MockMultipartFile("file", "new.txt", "text/plain",
+                "new-content".getBytes(StandardCharsets.UTF_8));
+        when(userMapper.adjustStorageUsed(org.mockito.ArgumentMatchers.anyLong(),
+                org.mockito.ArgumentMatchers.anyLong()))
+                .thenThrow(new RuntimeException("first attempt fails"))
+                .thenReturn(1); // 重试成功
+
+        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
+            m.when(SecurityUtils::getCurrentUserId).thenReturn(1L);
+            when(folderPermissionService.checkFile(9L, FolderPermissionService.P_EDIT, 1L)).thenReturn(true);
+
+            // 第一次: 配额失败 → 报错(事务语义下 updateById 一并回滚, 单测以异常传播锁定)
+            assertThrows(BusinessException.class, () -> svc.replaceFile(9L, mf));
+            // 第二次: 成功(库内旧值未变 → 差额同为 11-10=+1, 不漂移)
+            BizFile result = svc.replaceFile(9L, mf);
+
+            verify(userMapper, times(2)).adjustStorageUsed(1L, 1L);
+            // 终态: 旧文件已删(无事务同步环境, afterCommit 退化为立即执行), 新文件在
+            assertFalse(java.nio.file.Files.exists(oldFile), "成功后旧文件应删除");
+            assertTrue(java.nio.file.Files.exists(root.resolve(result.getOssKey())));
+            // 无孤儿: 目录内只有新文件一个条目
+            try (java.util.stream.Stream<java.nio.file.Path> dir =
+                         java.nio.file.Files.list(oldFile.getParent())) {
+                assertEquals(1, dir.count(), "重试成功后目录内只应有新媒体, 无孤儿残留");
+            }
+        }
+    }
 }

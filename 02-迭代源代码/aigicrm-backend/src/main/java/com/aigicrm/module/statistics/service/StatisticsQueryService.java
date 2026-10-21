@@ -956,6 +956,12 @@ public class StatisticsQueryService {
         // （管理员全量 / 负责人本组织 / 销售本人）。visible=null 表示全量不过滤。
         List<Long> visibleUserIds = customerService.getCurrentScopeUserIds();
         boolean scopeAll = (visibleUserIds == null);
+        // 【A6 2026-10-20 审计】空集守卫: ORG 锚点已在 OrgScopeResolver 展开为部门在职用户,
+        // 但部门无在职用户/解析兜底返回空集时, in(空集合) 生成 IN () 语法错误(500)——
+        // 六路来源同口径恒空, 直接返回空列表, 不再各发一条恒空查询(语义等同 1=0)。
+        if (!scopeAll && visibleUserIds.isEmpty()) {
+            return activities;
+        }
 
         LambdaQueryWrapper<BizCustomerLog> logWrapper = new LambdaQueryWrapper<>();
         if (!scopeAll) logWrapper.in(BizCustomerLog::getUserId, visibleUserIds);
@@ -1055,15 +1061,28 @@ public class StatisticsQueryService {
      * （管理员全量 / 负责人本组织 / 销售本人，含系统级开关）。覆盖 dashboard/经营分析/日报周报等查询。
      * ⚠️ 例外: 核心客户指标(indicatorStats)按设计为"六项指标全员可见", 明确不做数据范围过滤
      * （见该方法内注释）。getCurrentScopeUserIds 返回 null=全量不过滤。
+     * 【A6 2026-10-20 审计】空集(非 null 空集合)显式 1=0: MyBatis-Plus 3.5.17 的 in(空集合)
+     * 生成 IN () 语法错误→统计接口 500。空集语义=范围内无可见用户, 恒空结果, 不得报错也不得放行全量。
      */
     private void applyCustomerScope(LambdaQueryWrapper<BizCustomer> wrapper) {
         List<Long> userIds = customerService.getCurrentScopeUserIds();
-        if (userIds != null) wrapper.in(BizCustomer::getOwnerId, userIds);
+        if (userIds == null) return; // all：不过滤
+        if (userIds.isEmpty()) {
+            wrapper.apply("1=0");
+            return;
+        }
+        wrapper.in(BizCustomer::getOwnerId, userIds);
     }
 
+    /** 同 applyCustomerScope 的空集守卫(上传者维度)【A6】 */
     private void applyFileScope(LambdaQueryWrapper<BizFile> wrapper) {
         List<Long> userIds = customerService.getCurrentScopeUserIds();
-        if (userIds != null) wrapper.in(BizFile::getUploaderId, userIds);
+        if (userIds == null) return; // all：不过滤
+        if (userIds.isEmpty()) {
+            wrapper.apply("1=0");
+            return;
+        }
+        wrapper.in(BizFile::getUploaderId, userIds);
     }
 
     private Map<String, Object> buildActivity(String title, SysUser user, LocalDateTime time) {
