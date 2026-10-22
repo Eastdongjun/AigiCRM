@@ -26,6 +26,25 @@ export const CustomerListKey = Symbol('customerList')
 // 导出常量供 spec 钉住默认值，防止后续重构悄悄翻回 'innovate'。
 export const CUSTOMER_LIST_DEFAULT_TAB = 'all'
 
+// 【B4 2026-10-20】列设置白名单提升为模块级导出(与 DEFAULT_TAB 同款钉法):
+// MainTable 的 vis() 门控列必须都在此清单内, 缺位=列永久隐藏且设置器无开关可开。
+// 导出供 useCustomerList.spec 做白名单一致性守卫。
+export const CUSTOMER_ALL_COLS = [
+  { key: 'customerCode', label: '编号' }, { key: 'customerName', label: '客户全称' }, { key: 'invoiceName', label: '开票名称' },
+  { key: 'groupName', label: '集团' }, { key: 'branchCompany', label: '分公司' },
+  { key: 'unitName', label: '所属单位' },
+  // 【B4 2026-10-20】负责人/上级补进白名单——此前 MainTable 用 vis() 门控这两列但
+  // 白名单缺位, 列被永久隐藏且列设置器(只遍历白名单)无开关可开(全局债务审计 B4)
+  { key: 'ownerName', label: '负责人' }, { key: 'managerName', label: '上级' },
+  { key: 'industry', label: '行业' }, { key: 'capacity', label: '产能' },
+  // 【2026-09-13】终端列：字段此前只存在于库与导入模板，列表/详情/表单都无展示或录入入口
+  { key: 'hasTerminal', label: '终端' },
+  { key: 'province', label: '省市' }, { key: 'address', label: '厂址' }, { key: 'registerDate', label: '注册日' },
+  { key: 'lastInvoiceDate', label: '最近开票' }, { key: 'transferDate', label: '转移日' }, { key: 'expireDate', label: '到期日' },
+  { key: 'adjustDate', label: '调整日' }, { key: 'regionName', label: '大区' }, { key: 'officeName', label: '办事处' },
+  { key: 'deptName', label: '部门' },
+]
+
 /** 子组件注入父级 customer/list.vue 提供的共享上下文 */
 export function injectCustomerList() {
   const ctx = inject(CustomerListKey)
@@ -92,17 +111,7 @@ export function useCustomerList() {
   const adjustDays = ref(180)
 
   // ---- 列设置（localStorage 持久化；【UI 整改 2026-10-08】此前为内存态，刷新即重置为全列）----
-  const allCols = [
-    { key: 'customerCode', label: '编号' }, { key: 'customerName', label: '客户全称' }, { key: 'invoiceName', label: '开票名称' },
-    { key: 'groupName', label: '集团' }, { key: 'branchCompany', label: '分公司' },
-    { key: 'unitName', label: '所属单位' }, { key: 'industry', label: '行业' }, { key: 'capacity', label: '产能' },
-    // 【2026-09-13】终端列：字段此前只存在于库与导入模板，列表/详情/表单都无展示或录入入口
-    { key: 'hasTerminal', label: '终端' },
-    { key: 'province', label: '省市' }, { key: 'address', label: '厂址' }, { key: 'registerDate', label: '注册日' },
-    { key: 'lastInvoiceDate', label: '最近开票' }, { key: 'transferDate', label: '转移日' }, { key: 'expireDate', label: '到期日' },
-    { key: 'adjustDate', label: '调整日' }, { key: 'regionName', label: '大区' }, { key: 'officeName', label: '办事处' },
-    { key: 'deptName', label: '部门' },
-  ]
+  const allCols = CUSTOMER_ALL_COLS
   const VISIBLE_COLS_KEY = 'aigicrm.customer.visibleCols'
   const defaultVisibleCols = () => allCols.map(c => c.key)
   const loadVisibleCols = () => {
