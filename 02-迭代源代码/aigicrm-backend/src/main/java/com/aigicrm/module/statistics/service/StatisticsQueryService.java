@@ -153,7 +153,7 @@ public class StatisticsQueryService {
     private final BizCustomerLogMapper customerLogMapper;
     private final BizIncentiveRecordMapper incentiveRecordMapper;
     private final BizIncentiveCategoryMapper incentiveCategoryMapper;
-    // 【2026-09-23】客户排行四项激励聚合与激励模块分享制同口径(applyShareVisibility),复用其授权判定
+    // 【2026-09-23】客户排行四项服务聚合与激励模块分享制同口径(applyShareVisibility),复用其授权判定
     private final com.aigicrm.module.incentive.service.IncentiveService incentiveService;
     private final BizFileMapper fileMapper;
     private final BizCustomerIndicatorMapper indicatorMapper;
@@ -623,7 +623,7 @@ public class StatisticsQueryService {
 
     /**
      * 客户排行
-     * 【需求】统一展示客户对象的四项激励、客情商务关系深度、核心客户六项指标排行
+     * 【需求】统一展示客户对象的四项服务、客情商务关系深度、核心客户六项指标排行
      * 【业务规则】三类排行均为客户口径，按分值降序；0 分客户不展示；
      *             核心三态=年度开票/回款双>=100万为真核心, 有数据未双达标为争核心(裁决 2026-10-10)
      */
@@ -647,7 +647,7 @@ public class StatisticsQueryService {
         LambdaQueryWrapper<BizIncentiveRecord> recordWrapper = new LambdaQueryWrapper<>();
         recordWrapper.isNotNull(BizIncentiveRecord::getCustomerId);
         if (period != null && !period.isBlank()) recordWrapper.eq(BizIncentiveRecord::getPeriod, period);
-        // 【2026-09-23 口径对齐】四项激励聚合改走激励模块分享制(admin/专项授权→全部；否则本人+他人shared=1)。
+        // 【2026-09-23 口径对齐】四项服务聚合改走激励模块分享制(admin/专项授权→全部；否则本人+他人shared=1)。
         // 原 G2(2026-09-21) 按客户数据可见性收口: SELF/team 销售的激励排行只剩名下客户 → 用户实测
         // "客户排行只看得到自己的"；与激励统计页客户排行Tab(getCustomerRecords 分享制)及同页
         // 个人排行(全员)口径冲突。分享记录引用的他人客户允许展示客户名(与 getCustomerRecords 一致)；

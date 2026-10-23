@@ -79,7 +79,7 @@ class StatisticsQueryServiceTest {
     @Mock private BizCustomerLogMapper customerLogMapper;
     @Mock private BizIncentiveRecordMapper incentiveRecordMapper;
     @Mock private BizIncentiveCategoryMapper incentiveCategoryMapper;
-    // 【2026-09-23】客户排行四项激励聚合改走激励模块分享制(applyShareVisibility 复用)
+    // 【2026-09-23】客户排行四项服务聚合改走激励模块分享制(applyShareVisibility 复用)
     @Mock private com.aigicrm.module.incentive.service.IncentiveService incentiveService;
     @Mock private BizFileMapper fileMapper;
     @Mock private BizCustomerIndicatorMapper indicatorMapper;
@@ -216,7 +216,7 @@ class StatisticsQueryServiceTest {
     }
 
     /**
-     * 【2026-09-23 回归】客户排行的四项激励聚合=激励模块分享制(本人+他人shared=1)，
+     * 【2026-09-23 回归】客户排行的四项服务聚合=激励模块分享制(本人+他人shared=1)，
      * 不再按客户数据可见性收口。修复前：记录被 visibleCustomers 过滤，登录人名下之外的客户
      * 激励行被整体剔除——SELF/team 销售打开客户排行"只看得到自己的，看不到别人的"。
      */
