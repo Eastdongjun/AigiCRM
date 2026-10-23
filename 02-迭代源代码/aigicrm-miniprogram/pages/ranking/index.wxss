@@ -46,7 +46,7 @@
 .rank-core-badge.quasi { background: #ffedd5; color: #c2410c; border-color: #fed7aa; }
 .rank-core-badge.none { background: #f1f5f9; color: #64748b; border-color: #e2e8f0; }
 
-/* 【#12 2026-10-13】四项激励明细三列表格(类型/条数/得分+合计行) */
+/* 【#12 2026-10-13】四项服务明细三列表格(类型/条数/得分+合计行) */
 .rank-stat-table { margin-top: 16rpx; background: #f6f8fc; border-radius: 12rpx; overflow: hidden; }
 .rank-stat-row { display: grid; grid-template-columns: minmax(0, 1fr) 110rpx 110rpx; align-items: center; padding: 10rpx 16rpx; }
 .rank-stat-row + .rank-stat-row { border-top: 1rpx solid #e8edf5; }

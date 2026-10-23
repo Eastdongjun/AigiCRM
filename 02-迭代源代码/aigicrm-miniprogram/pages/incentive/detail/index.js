@@ -1,4 +1,4 @@
-// 四项激励客户详情(2026-09-20 小程序同步轮):对齐 PC search.vue 定稿的
+// 四项服务客户详情(2026-09-20 小程序同步轮):对齐 PC search.vue 定稿的
 // 「三联拨盘 + 位置语义 + 记录卡」设计 —— 年/月/日用原生 picker-view(iOS 滚轮),
 // 拨到哪显示哪、无数据置暗仍可选、整月兜底、每月完整天数、年份自增、回到今天、实时时钟。
 const { deleteRecord, getCustomerRecords, getGrantCheck, getScoreByCustomer, markIncentiveRead } = require('../../../api/incentive')
@@ -187,7 +187,7 @@ function buildItemView(record, canDelete, canEdit, now, token) {
     timeText: date ? `${pad2(date.getHours())}:${pad2(date.getMinutes())}` : (record && record.createdAt) || '',
     relativeText: relativeDayText(record && record.createdAt, now),
     stageColor,
-    stageText: (record && (record.category || record.categoryName)) || '四项激励',
+    stageText: (record && (record.category || record.categoryName)) || '四项服务',
     stageSub: (record && record.categoryName) || '',
     scoreText: `+${(record && (record.score || record.points)) || 0} 分`,
     scoreColor: stageColor,
@@ -337,7 +337,7 @@ Page({
   onLoad(options) {
     if (!requireLogin()) return
     if (!getApp().globalData.demoMode && !hasPermission('incentive:view')) {
-      wx.showToast({ title: '没有四项激励查看权限', icon: 'none' })
+      wx.showToast({ title: '没有四项服务查看权限', icon: 'none' })
       setTimeout(() => wx.navigateBack(), 500)
       return
     }
@@ -413,10 +413,10 @@ Page({
     return getCustomerRecords().then((rows) => {
       const row = (rows || []).find((customer) => (customer.records || []).some((item) => String(item.id) === String(this.data.id)))
       const record = row && row.records.find((item) => String(item.id) === String(this.data.id))
-      if (!record) throw new Error('找不到四项激励记录')
+      if (!record) throw new Error('找不到四项服务记录')
       this.applyCustomer(row, row.records, record)
       if (record.unread) this.markFocusedRead(record)
-    }).catch((error) => showError(error, '四项激励详情加载失败')).finally(() => this.setDetailData({ loading: false }))
+    }).catch((error) => showError(error, '四项服务详情加载失败')).finally(() => this.setDetailData({ loading: false }))
   },
   // 建立客户台账态:该客户全部记录 + 拨盘初始对位(聚焦记录所在月,无则最新月)
   applyCustomer(row, records, focused) {
@@ -552,15 +552,15 @@ Page({
   editRecord(event) {
     const item = this.data.detailView.items[Number(event.currentTarget.dataset.itemIndex)]
     const record = item && this.data.records.find((row) => String(row.id) === String(item.id))
-    if (!record || !record.id || !this.canEditRecord(record)) return wx.showToast({ title: '没有四项激励编辑权限', icon: 'none' })
+    if (!record || !record.id || !this.canEditRecord(record)) return wx.showToast({ title: '没有四项服务编辑权限', icon: 'none' })
     wx.navigateTo({ url: '/pages/incentive/upload/index?id=' + record.id })
   },
   removeRecord(event) {
     const item = this.data.detailView.items[Number(event.currentTarget.dataset.itemIndex)]
     const record = item && this.data.records.find((row) => String(row.id) === String(item.id))
-    if (!record || !record.id || !this.canDeleteRecord(record)) return wx.showToast({ title: '没有四项激励删除权限', icon: 'none' })
+    if (!record || !record.id || !this.canDeleteRecord(record)) return wx.showToast({ title: '没有四项服务删除权限', icon: 'none' })
     wx.showModal({
-      title: '删除四项激励记录',
+      title: '删除四项服务记录',
       content: `确认删除“${record.customerName || record.categoryName || '该记录'}”？`,
       success: (result) => {
         if (!result.confirm) return
@@ -580,7 +580,7 @@ Page({
             patch.selDay = 0
           }
           this.setDetailData(patch)
-        }).catch((error) => showError(error, '删除四项激励记录失败'))
+        }).catch((error) => showError(error, '删除四项服务记录失败'))
       }
     })
   },

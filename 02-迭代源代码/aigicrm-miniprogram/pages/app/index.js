@@ -29,7 +29,7 @@ const TILE_SUBTITLES = {
 // apps 里放应用 key，构建时按当前账号权限过滤，空模块整块隐藏。
 const APP_MODULES = [
   { key: 'customer', title: '客户经营', subtitle: '客户资产、排行与核心指标', apps: ['customer', 'ranking', 'indicator'] },
-  { key: 'incentive', title: '四项激励', subtitle: '记录、上传与积分', apps: ['incentiveQuery', 'incentiveUpload'] },
+  { key: 'incentive', title: '四项服务', subtitle: '记录、上传与积分', apps: ['incentiveQuery', 'incentiveUpload'] },
   { key: 'workflow', title: '流程协同', subtitle: '审批、提醒与公海协作', apps: ['approval', 'reminder', 'sea'] },
   { key: 'analytics', title: '经营分析', subtitle: '全局统计与趋势', apps: ['statistics'] }
 ]
@@ -85,8 +85,8 @@ Page({
     const apps = [
       // 【A4 2026-10-08 二轮】宫格命名与 PC 生产菜单名对齐（客户列表/核心客户六项指标），消除跨端页面名漂移
       { key: 'customer', title: '客户列表', subtitle: '客户列表、详情与新增', color: 'blue', permission: 'customer:view' },
-      { key: 'incentiveUpload', title: '四项激励上传', subtitle: '记录、槽位文件与客户积分', color: 'green', permission: 'incentive:add' },
-      { key: 'incentiveQuery', title: '四项激励', subtitle: '分类树、统计、排行与记录', color: 'teal', permission: 'incentive:view' },
+      { key: 'incentiveUpload', title: '四项服务上传', subtitle: '记录、槽位文件与客户积分', color: 'green', permission: 'incentive:add' },
+      { key: 'incentiveQuery', title: '四项服务', subtitle: '分类树、统计、排行与记录', color: 'teal', permission: 'incentive:view' },
       { key: 'ranking', title: '客户排行', subtitle: '激励、客情、核心指标排行', color: 'purple', permission: 'statistics:view' },
       { key: 'indicator', title: '核心客户六项指标', subtitle: '核心客户指标总览', color: 'indigo', permission: 'statistics:view' },
       { key: 'statistics', title: '统计分析', subtitle: '客户、审批与公海摘要', color: 'cyan', permission: 'statistics:view' },
@@ -101,7 +101,7 @@ Page({
     const key = e.currentTarget.dataset.key
     const routes = { customer: '/pages/customer/index', incentiveUpload: '/pages/incentive/upload/index', incentiveQuery: '/pages/incentive/index', reminder: '/pages/reminder/index', approval: '/pages/approval/index', sea: '/pages/sea/index', indicator: '/pages/indicator/index', statistics: '/pages/statistics/index', ranking: '/pages/ranking/index' }
     // 【#11 2026-10-12】tabBar 页必须 switchTab:navigateTo 跳 tabBar 页静默失败,
-    // 应用中心点「四项激励」(pages/incentive/index 为底部 tab)无反应的根因
+    // 应用中心点「四项服务」(pages/incentive/index 为底部 tab)无反应的根因
     const tabPages = ['/pages/home/index', '/pages/incentive/index', '/pages/files/index', '/pages/app/index', '/pages/profile/index']
     const url = routes[key]
     if (!url) return

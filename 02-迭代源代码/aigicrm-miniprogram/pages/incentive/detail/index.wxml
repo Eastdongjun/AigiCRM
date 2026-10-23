@@ -2,7 +2,7 @@
   <view class="hero">
     <view class="row">
       <view>
-        <view class="hero-title">四项激励详情</view>
+        <view class="hero-title">四项服务详情</view>
         <view class="hero-sub">客户台账 · 年月日转盘 · 记录明细</view>
       </view>
       <button class="ghost-btn" bindtap="goBack">返回</button>
@@ -168,7 +168,7 @@
     </block>
   </block>
 
-  <view wx:if="{{detailView.showEmpty}}" class="card muted">暂无四项激励详情</view>
+  <view wx:if="{{detailView.showEmpty}}" class="card muted">暂无四项服务详情</view>
 
   <view wx:if="{{previewVideoPath}}" class="video-layer">
     <video src="{{previewVideoPath}}" controls class="video-player"></video>

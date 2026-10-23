@@ -32,7 +32,7 @@ function bytesToSize(value) {
   return `${size.toFixed(fixed)} ${units[index]}`
 }
 
-/** 四项激励记录 → 可检索文件行：客户名/上传人/记录时间来自激励记录，文件来自各槽位 */
+/** 四项服务记录 → 可检索文件行：客户名/上传人/记录时间来自激励记录，文件来自各槽位 */
 function buildIncentiveFileRows(groups) {
   const map = new Map()
   ;(groups || []).forEach((group) => {
@@ -254,7 +254,7 @@ function formatDateTimeText(value) {
 }
 
 function buildFileRowView(item, data) {
-  const canMutateOwnTab = data.activeTab !== '分享给我' && data.activeTab !== '四项激励'
+  const canMutateOwnTab = data.activeTab !== '分享给我' && data.activeTab !== '四项服务'
   // 【mp-4 2026-10-17】行操作按当前文件夹 ACL + downloadable 收敛（与 PC FileTable 同口径）；
   // 后端列表不返回 canDownload/isEvidence，downloadable/perms 来自文件夹树（getFolderTree 逐夹回填）。
   const folderPerms = Array.isArray(data.folderPerms) ? data.folderPerms : []
@@ -301,7 +301,7 @@ function isDemoMode() {
 // 不再出现"公共计数 0 但列表明明有条目"。演示数据没有 scope/分享关系:
 // 公共与私人共用非激励文件, 分享给我没有可展示的分享数据
 function demoFileMatchesTab(item, activeTab) {
-  if (activeTab === '四项激励') return item.folder === '激励资料'
+  if (activeTab === '四项服务') return item.folder === '激励资料'
   if (activeTab === '分享给我') return false
   return item.folder !== '激励资料'
 }
@@ -328,7 +328,7 @@ function buildFileView(data) {
   // 【分页 2026-10-18】条数优先用服务端 total；拿不到时退回本页条数
   const totalFiles = Number(data.total)
   const fileCount = Number.isFinite(totalFiles) && totalFiles > 0 ? totalFiles : files.length
-  const isIncentiveTab = data.activeTab === '四项激励'
+  const isIncentiveTab = data.activeTab === '四项服务'
   const showFolderCard = !isIncentiveTab && data.activeTab !== '分享给我'
   return {
     showUploadAction,
@@ -338,7 +338,7 @@ function buildFileView(data) {
     showFolderList: !hasActiveFolder,
     showClearFolder: hasActiveFolder,
     breadcrumbText: hasActiveFolder ? `全部文件 › ${data.activeFolderName}` : '',
-    listTitle: isIncentiveTab ? '四项激励文件' : (hasActiveFolder ? '' : '最近文件'),
+    listTitle: isIncentiveTab ? '四项服务文件' : (hasActiveFolder ? '' : '最近文件'),
     showFolderCard,
     folders,
     // 【PR-04】兜底文件夹卡片（客户文档/团队共享）仅演示模式显示；真实模式空就是空
@@ -360,7 +360,7 @@ function buildFileView(data) {
 }
 
 Page({
-  data: { keyword: '', activeTab: '公共', activeFolderId: '', activeFolderName: '', tabs: ['公共', '私人', '四项激励', '分享给我'], tabCounts: { 公共: 0, 私人: 0, 四项激励: 0, 分享给我: 0 }, folders: [], files: [], filteredFiles: [], capacity: { used: '-', total: '-', percent: 0, hint: '存储统计加载中' }, canUpload: false, canReplace: false, canDelete: false, canShare: false, canManageFolder: false, canViewFolderAcl: false, canDevUploadSmoke: false, uploading: false, replacingId: '', loaded: false, loading: false, page: 1, pageSize: 10, total: 0, folderPerms: [], folderDownloadable: 1, aclVisible: false, aclLoading: false, aclFolderName: '', aclRows: [], previewing: false, previewVideoPath: '', actionSheet: { visible: false, index: -1, name: '', actions: [] }, storageApplyInfo: { enabled: false, canApply: false, reason: '', used: 0, quota: 0, maxQuota: 0, allowDecrease: false }, storageApplyForm: { visible: false, submitting: false, quotaInput: '', reasonInput: '', errorText: '' }, storageApplyView: buildStorageApplyView({}), fileView: buildFileView({ tabs: ['公共', '私人', '四项激励', '分享给我'], tabCounts: { 公共: 0, 私人: 0, 四项激励: 0, 分享给我: 0 }, folders: [], filteredFiles: [], activeTab: '公共', activeFolderName: '', previewVideoPath: '', total: 0 }) },
+  data: { keyword: '', activeTab: '公共', activeFolderId: '', activeFolderName: '', tabs: ['公共', '私人', '四项服务', '分享给我'], tabCounts: { 公共: 0, 私人: 0, 四项服务: 0, 分享给我: 0 }, folders: [], files: [], filteredFiles: [], capacity: { used: '-', total: '-', percent: 0, hint: '存储统计加载中' }, canUpload: false, canReplace: false, canDelete: false, canShare: false, canManageFolder: false, canViewFolderAcl: false, canDevUploadSmoke: false, uploading: false, replacingId: '', loaded: false, loading: false, page: 1, pageSize: 10, total: 0, folderPerms: [], folderDownloadable: 1, aclVisible: false, aclLoading: false, aclFolderName: '', aclRows: [], previewing: false, previewVideoPath: '', actionSheet: { visible: false, index: -1, name: '', actions: [] }, storageApplyInfo: { enabled: false, canApply: false, reason: '', used: 0, quota: 0, maxQuota: 0, allowDecrease: false }, storageApplyForm: { visible: false, submitting: false, quotaInput: '', reasonInput: '', errorText: '' }, storageApplyView: buildStorageApplyView({}), fileView: buildFileView({ tabs: ['公共', '私人', '四项服务', '分享给我'], tabCounts: { 公共: 0, 私人: 0, 四项服务: 0, 分享给我: 0 }, folders: [], filteredFiles: [], activeTab: '公共', activeFolderName: '', previewVideoPath: '', total: 0 }) },
 
   setFileData(patch) {
     const nextData = { ...this.data, ...patch }
@@ -403,7 +403,7 @@ Page({
   /** 当前 Tab/文件夹的有效权限：根目录沿用 PC useFilePage 的默认口径，
    *  选中文件夹时使用 getFolderTree 返回的该夹 perms/downloadable（管理员 perms 为全量）。 */
   resolveFolderPermissions(data) {
-    if (data.activeTab === '四项激励' || data.activeTab === '分享给我') {
+    if (data.activeTab === '四项服务' || data.activeTab === '分享给我') {
       return { perms: ['view', 'download'], downloadable: 1 }
     }
     if (!data.activeFolderId) {
@@ -501,9 +501,9 @@ Page({
       this.setFileData({ folders, files, filteredFiles: files, capacity: demoCapacity, tabCounts: this.demoTabCounts(demoFiles), loaded: true, loading: false, page: safePage, pageSize, total })
       return
     }
-    // 四项激励 tab：文件行要带客户/人员/时间做检索，改用激励记录接口摊平文件；
+    // 四项服务 tab：文件行要带客户/人员/时间做检索，改用激励记录接口摊平文件；
     // 无 incentive:view 时退回通用文件接口（仅文件名检索），避免空 tab。
-    if (this.data.activeTab === '四项激励' && hasPermission('incentive:view')) {
+    if (this.data.activeTab === '四项服务' && hasPermission('incentive:view')) {
       return this.loadIncentiveFiles(page, pageSize)
     }
     // 【M20】请求序号守卫：Tab/筛选/翻页快速切换时，慢返回的旧响应直接丢弃，防止覆盖新列表
@@ -576,7 +576,7 @@ Page({
     if (!failed && page === 1) this.loadTabCounts()
   },
 
-  /** 四项激励文件：一次拉取激励记录，摊平为客户/人员/时间可检索的文件行；分页与搜索均在本地完成 */
+  /** 四项服务文件：一次拉取激励记录，摊平为客户/人员/时间可检索的文件行；分页与搜索均在本地完成 */
   loadIncentiveFiles(page = 1, pageSize = this.data.pageSize || 10) {
     const requestSeq = (this._incentiveReqSeq = (this._incentiveReqSeq || 0) + 1)
     this._filesLoading = true
@@ -586,13 +586,13 @@ Page({
       const rows = buildIncentiveFileRows(Array.isArray(groups) ? groups : [])
       this._incentiveFileRows = rows
       // Tab 徽标与可检索文件行同口径，避免徽标 1727、列表 1829 的错位
-      this.setFileData({ tabCounts: { ...this.data.tabCounts, '四项激励': rows.length } })
+      this.setFileData({ tabCounts: { ...this.data.tabCounts, '四项服务': rows.length } })
       this.applyIncentiveFileFilter(page, pageSize)
     }).catch((error) => {
       if (requestSeq !== this._incentiveReqSeq) return
       this._incentiveFileRows = []
       this.setFileData({ loading: false, files: [], filteredFiles: [], total: 0, page: 1 })
-      showErrorWithRetry(error, '四项激励文件加载失败', () => this.loadIncentiveFiles(1, pageSize))
+      showErrorWithRetry(error, '四项服务文件加载失败', () => this.loadIncentiveFiles(1, pageSize))
     }).finally(() => {
       if (requestSeq === this._incentiveReqSeq) this._filesLoading = false
     })
@@ -622,7 +622,7 @@ Page({
     const detail = (event && event.detail) || {}
     const page = Math.max(1, Number(detail.page) || 1)
     const pageSize = Number(detail.pageSize) || this.data.pageSize || 10
-    if (this.data.activeTab === '四项激励' && this._incentiveFileRows) {
+    if (this.data.activeTab === '四项服务' && this._incentiveFileRows) {
       this.applyIncentiveFileFilter(page, pageSize)
       return
     }
@@ -630,9 +630,9 @@ Page({
   },
 
   activeFileScope() {
-    // 【对齐 PC 2026-09-20】公共=public / 私人=private / 四项激励=incentive, 分享给我走独立接口
+    // 【对齐 PC 2026-09-20】公共=public / 私人=private / 四项服务=incentive, 分享给我走独立接口
     if (this.data.activeTab === '公共') return 'public'
-    if (this.data.activeTab === '四项激励') return 'incentive'
+    if (this.data.activeTab === '四项服务') return 'incentive'
     return 'private'
   },
 
@@ -673,7 +673,7 @@ Page({
         tabCounts: {
           公共: pageTotal(publicFiles),
           私人: pageTotal(privateFiles),
-          四项激励: pageTotal(incentiveFiles),
+          四项服务: pageTotal(incentiveFiles),
           分享给我: Number((sharedCount && (sharedCount.data ?? sharedCount)) || 0)
         }
       })
@@ -719,8 +719,8 @@ Page({
 
   onKeywordInput(event) {
     const keyword = event.detail.value
-    if (this.data.activeTab === '四项激励' && this._incentiveFileRows) {
-      // 四项激励：客户/人员/时间/文件名都在本地行上，输入即筛选
+    if (this.data.activeTab === '四项服务' && this._incentiveFileRows) {
+      // 四项服务：客户/人员/时间/文件名都在本地行上，输入即筛选
       this.setFileData({ keyword })
       this.applyIncentiveFileFilter(1, this.data.pageSize, keyword)
       return
@@ -736,7 +736,7 @@ Page({
     this.setFileData({ keyword, filteredFiles: this.filterFiles(this.data.files, { ...this.data, keyword }) })
   },
   searchFiles() {
-    if (this.data.activeTab === '四项激励' && this._incentiveFileRows) {
+    if (this.data.activeTab === '四项服务' && this._incentiveFileRows) {
       this.applyIncentiveFileFilter(1, this.data.pageSize)
       return
     }
@@ -746,7 +746,7 @@ Page({
   onTabTap(event) {
     const activeTab = event.currentTarget.dataset.tab
     // 【分页】切换 Tab 属于筛选变化：清空文件夹并回到第 1 页
-    this.setFileData({ activeTab, activeFolderId: '', activeFolderName: '', page: 1, ...(activeTab === '四项激励' ? { keyword: '' } : {}) })
+    this.setFileData({ activeTab, activeFolderId: '', activeFolderName: '', page: 1, ...(activeTab === '四项服务' ? { keyword: '' } : {}) })
     this.loadFiles({ page: 1 })
   },
   openFolder(event) {
@@ -978,7 +978,7 @@ Page({
   },
   replaceListFile(event) {
     // 【mp-4】文件夹 edit ACL + 非激励佐证 scope 才允许替换（后端 replaceFile 对佐证直接拒绝）
-    if (!this.data.canReplace || this.data.activeTab === '分享给我' || this.data.activeTab === '四项激励' || !this.hasFolderPermission('edit')) return wx.showToast({ title: '没有文件替换权限', icon: 'none' })
+    if (!this.data.canReplace || this.data.activeTab === '分享给我' || this.data.activeTab === '四项服务' || !this.hasFolderPermission('edit')) return wx.showToast({ title: '没有文件替换权限', icon: 'none' })
     const item = this.findFile(event)
     if (!item || !item.id || String(item.id).startsWith('file-')) return wx.showToast({ title: '演示文件暂不可替换', icon: 'none' })
     if (item.fileScope === 'incentive') return wx.showToast({ title: '激励佐证文件不能替换，请在激励模块删除后重新上传', icon: 'none' })
@@ -1063,7 +1063,7 @@ Page({
     return wx.saveFile(options)
   },
   shareFile(event) {
-    if (!this.data.canShare || this.data.activeTab === '分享给我' || this.data.activeTab === '公共' || this.data.activeTab === '四项激励' || !this.hasFolderPermission('share')) return
+    if (!this.data.canShare || this.data.activeTab === '分享给我' || this.data.activeTab === '公共' || this.data.activeTab === '四项服务' || !this.hasFolderPermission('share')) return
     const item = this.data.filteredFiles[event.currentTarget.dataset.index]
     if (!item || !item.id || String(item.id).startsWith('file-')) return wx.showToast({ title: '演示文件暂不可分享', icon: 'none' })
     getCustomerSimpleUsers().then((users) => {

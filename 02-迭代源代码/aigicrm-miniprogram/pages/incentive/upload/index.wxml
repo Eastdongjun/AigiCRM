@@ -1,7 +1,7 @@
 <view class="page">
   <view class="hero upload-hero">
-    <view class="hero-title">四项激励上传</view>
-    <view class="hero-sub">提交四项激励记录，关联客户、分类与现场佐证。</view>
+    <view class="hero-title">四项服务上传</view>
+    <view class="hero-sub">提交四项服务记录，关联客户、分类与现场佐证。</view>
   </view>
   <view class="card form-card">
     <view class="form-section-title">基础信息</view>

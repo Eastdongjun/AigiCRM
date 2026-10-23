@@ -16,11 +16,11 @@
     </view>
   </view>
   <view class="card score-top-card">{{rankingView.topScoreText}}</view>
-  <!-- 【2026-09-23 需求同步】四项激励个人排行(按人员统计, 与 PC 激励统计-个人排行同口径; 周期与积分排行联动) -->
+  <!-- 【2026-09-23 需求同步】四项服务个人排行(按人员统计, 与 PC 激励统计-个人排行同口径; 周期与积分排行联动) -->
   <view class="section-head">
     <view>
       <view class="section-title">激励个人排行</view>
-      <view class="section-sub">按人员统计四项激励总额，公司级口径</view>
+      <view class="section-sub">按人员统计四项服务总额，公司级口径</view>
     </view>
     <picker mode="selector" range="{{periodOptions}}" range-key="label" value="{{periodIndex}}" bindchange="onPeriodChange">
       <view class="period-chip">{{rankingView.scorePeriodText}}</view>
@@ -71,7 +71,7 @@
   <view class="section-head customer-section-head">
     <view>
       <view class="section-title">客户排行</view>
-      <view class="section-sub">四项激励、客情关系、核心指标统一客户口径</view>
+      <view class="section-sub">四项服务、客情关系、核心指标统一客户口径</view>
     </view>
     <picker mode="selector" range="{{customerPeriodOptions}}" range-key="label" value="{{customerPeriodIndex}}" bindchange="onCustomerPeriodChange">
       <view class="period-chip">{{rankingView.customerPeriodText}}</view>
@@ -96,7 +96,7 @@
           <text class="rank-kv-value">{{kv.value}}</text>
         </view>
       </view>
-      <!-- 【#12 2026-10-13】四项激励明细三列表格(类型/条数/得分+合计行),替代两行长文本 -->
+      <!-- 【#12 2026-10-13】四项服务明细三列表格(类型/条数/得分+合计行),替代两行长文本 -->
       <view wx:if="{{item.showIncentive}}" class="rank-stat-table">
         <view class="rank-stat-row head">
           <text class="rank-stat-name">激励类型</text>

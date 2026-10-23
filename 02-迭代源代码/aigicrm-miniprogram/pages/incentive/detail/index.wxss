@@ -1,4 +1,4 @@
-/* 四项激励客户详情 —— PC 定稿设计的小程序同步版(2026-09-20)
+/* 四项服务客户详情 —— PC 定稿设计的小程序同步版(2026-09-20)
    色板与 PC search.vue 对齐:主蓝 #1d4ed8/#2563eb、阶段色 visit 橙 / exchange 蓝 / plan 紫 / trial 绿 */
 .incentive-detail-page { padding-bottom: 48rpx; background: #f4f7fc; min-height: 100vh; }
 .incentive-detail-page .hero { position: relative; overflow: hidden; background: linear-gradient(135deg, #1d3fae, #2f6bf0 60%, #4d8cf5); }

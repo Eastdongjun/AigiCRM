@@ -460,7 +460,7 @@ Page({
     if (!requireLogin()) return
     this.setData({ apiBase: (getApp().globalData && getApp().globalData.apiBaseUrl) || '' })
     if (!getApp().globalData.demoMode && !hasPermission('incentive:view')) {
-      wx.showToast({ title: '没有四项激励查看权限', icon: 'none' })
+      wx.showToast({ title: '没有四项服务查看权限', icon: 'none' })
       wx.switchTab({ url: '/pages/home/index' })
       return
     }
@@ -601,7 +601,7 @@ Page({
       const records = this.rebuildRecordViews(decorated)
       this.setData({ allRecords: records, records, categories: ['全部', ...new Set(records.map((item) => item.category))], summary: buildSummary(records) }, () => this.refreshIncentiveView())
       this.sort()
-    }).catch((error) => showErrorWithRetry(error, '四项激励加载失败', () => this.loadRecords())).finally(() => {
+    }).catch((error) => showErrorWithRetry(error, '四项服务加载失败', () => this.loadRecords())).finally(() => {
       this.setData({ loading: false }, () => this.refreshIncentiveView())
     })
   },
@@ -705,7 +705,7 @@ Page({
       const categoryTree = flattenCategoryTree(rows || [])
       this.setData({ categoryTree, categoryTreeView: buildCategoryTreeView(categoryTree) }, () => this.refreshIncentiveView())
       this.loadCategoryStats()
-    }).catch((error) => showErrorWithRetry(error, '四项激励分类加载失败', () => this.loadCategories()))
+    }).catch((error) => showErrorWithRetry(error, '四项服务分类加载失败', () => this.loadCategories()))
   },
 
   loadCategoryStats() {
@@ -731,7 +731,7 @@ Page({
         }
       }).filter((item) => item.id !== undefined && item.id !== null && item.id !== '') : []
       this.setData({ categoryStats }, () => { this.refreshIncentiveView(); this.applyCategoryStatsPaging(1, this.data.categoryStatsPageSize) })
-    }).catch((error) => showErrorWithRetry(error, '四项激励统计加载失败', () => this.loadCategoryStats()))
+    }).catch((error) => showErrorWithRetry(error, '四项服务统计加载失败', () => this.loadCategoryStats()))
   },
 
   loadReadStats() {
@@ -1118,7 +1118,7 @@ Page({
 
   // 【对齐 PC 2026-09-20】显式上传入口: 与 PC「子分类→上传文件」同口径, 常驻页头(权限 incentive:add)
   goUpload() {
-    if (!this.data.canUploadEvidence) return wx.showToast({ title: '没有四项激励上传权限', icon: 'none' })
+    if (!this.data.canUploadEvidence) return wx.showToast({ title: '没有四项服务上传权限', icon: 'none' })
     wx.navigateTo({ url: '/pages/incentive/upload/index' })
   },
 

@@ -57,10 +57,10 @@
         <view class="hm-quick-icon">＋</view><text class="hm-quick-title">新客户</text>
       </view>
       <view class="hm-quick-item" hover-class="hm-quick-active" bindtap="openIncentive">
-        <view class="hm-quick-icon">激</view><text class="hm-quick-title">四项激励</text>
+        <view class="hm-quick-icon">激</view><text class="hm-quick-title">四项服务</text>
       </view>
       <view class="hm-quick-item" hover-class="hm-quick-active" bindtap="openIncentiveUpload">
-        <view class="hm-quick-icon">传</view><text class="hm-quick-title">四项激励上传</text>
+        <view class="hm-quick-icon">传</view><text class="hm-quick-title">四项服务上传</text>
       </view>
       <view class="hm-quick-item" hover-class="hm-quick-active" bindtap="openApproval">
         <view class="hm-quick-icon">审</view><text class="hm-quick-title">审批管理</text>

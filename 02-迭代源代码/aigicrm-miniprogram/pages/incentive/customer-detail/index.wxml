@@ -23,7 +23,7 @@
   <view wx:elif="{{!record}}" class="cd-empty-page">客户激励数据不存在</view>
   <block wx:else>
     <view wx:if="{{!inside}}" class="cd-cover">
-      <view class="cd-spine"><text>四项激励档案 · {{coverYear}}</text></view>
+      <view class="cd-spine"><text>四项服务档案 · {{coverYear}}</text></view>
       <view wx:if="{{coverUnread}}" class="cd-ribbon">未读 {{coverUnread}}</view>
       <view class="cd-cover-body">
         <view class="cd-kicker">FOUR INCENTIVE ARCHIVE</view>
@@ -63,7 +63,7 @@
         <button class="cd-back" bindtap="closeArchive" aria-label="合上档案">←</button>
         <view class="cd-top-main">
           <b>{{coverTitle || record.name}}</b>
-          <text>四项激励档案 · {{coverYear}}</text>
+          <text>四项服务档案 · {{coverYear}}</text>
         </view>
         <!-- 需求C 已批准能力: 客户档案跳转入口(档案化重设计曾丢失, 契约钉逮回) -->
         <button wx:if="{{record.customerId}}" class="cd-customer-chip" bindtap="onOpenCustomer">客户档案 ›</button>

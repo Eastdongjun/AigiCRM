@@ -3,7 +3,7 @@
   <view class="hero">
     <view class="row">
       <view>
-        <view class="hero-title">四项激励</view>
+        <view class="hero-title">四项服务</view>
         <view class="hero-sub">分类 · 上传 · 积分 · 统计 · 阅读</view>
       </view>
       <button class="ghost-btn" bindtap="refresh" loading="{{incentiveView.refreshLoading}}">{{incentiveView.refreshText}}</button>
@@ -14,12 +14,16 @@
     </view>
   </view>
 
+  <!-- 【2026-10-21 用户令】隐藏客户/记录/文件/积分四块汇总卡(数据加载保留: 未读数等仍被
+       下方统计区消费), 只移除展示层 -->
+  <!--
   <view class="summary-grid">
     <view class="summary-cell"><text>{{summary.customers}}</text><text>客户</text></view>
     <view class="summary-cell"><text>{{summary.records}}</text><text>记录</text></view>
     <view class="summary-cell"><text>{{summary.files}}</text><text>文件</text></view>
     <view class="summary-cell"><text>{{summary.score}}</text><text>积分</text></view>
   </view>
+  -->
 
   <view class="mobile-tabs">
     <view wx:for="{{tabs}}" wx:key="key" class="mobile-tab {{item.className}}" data-key="{{item.key}}" bindtap="switchTab">{{item.label}}</view>
@@ -99,7 +103,7 @@
     <view class="incentive-pager">
       <pager wx:if="{{pagerTotal > 10}}" page="{{page}}" pageSize="{{pageSize}}" total="{{pagerTotal}}" loading="{{incentiveView.pagerLoading}}" bind:change="onPagerChange" />
     </view>
-    <view wx:if="{{incentiveView.showRecordEmpty}}" class="card muted">暂无四项激励记录</view>
+    <view wx:if="{{incentiveView.showRecordEmpty}}" class="card muted">暂无四项服务记录</view>
     <video wx:if="{{previewVideoPath}}" src="{{previewVideoPath}}" controls class="record-file-video"></video>
   </view>
 

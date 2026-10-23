@@ -1,4 +1,4 @@
-// 【2026-10-20 一客一册】客户四项激励档案：封面 → 打开 → 左侧时间轴 + 右侧按时间一页一条记录。
+// 【2026-10-20 一客一册】客户四项服务档案：封面 → 打开 → 左侧时间轴 + 右侧按时间一页一条记录。
 // 数据仍由列表页 eventChannel 传入（record 客户聚合 + children 子记录），零后端改动。
 // 附件走现有文件能力：图片 wx.previewImage、视频 wx.previewMedia、文档/文本 fetchRemoteAttachment（下载后 openDocument/文本查看页）。
 const { deleteRecord, markIncentiveRead } = require('../../../api/incentive')
@@ -271,7 +271,7 @@ Page({
           ? `共 ${record.countText || `${children.length} 条`}记录，最近一次为 ${latest.dateText} ${latest.titleText}。`
           : '尚未建立激励记录，上传第一条佐证后会自动成册。'
       })
-      wx.setNavigationBarTitle({ title: '四项激励档案', fail: () => {} })
+      wx.setNavigationBarTitle({ title: '四项服务档案', fail: () => {} })
     }
     const elapsed = Date.now() - (this._openedAt || 0)
     this._payloadApplyTimer = setTimeout(apply, Math.max(0, SKELETON_MIN_MS - elapsed))
@@ -414,10 +414,10 @@ Page({
   },
 
   removeRecord(record) {
-    if (!record || !record.canDelete) return wx.showToast({ title: '没有四项激励删除权限', icon: 'none' })
+    if (!record || !record.canDelete) return wx.showToast({ title: '没有四项服务删除权限', icon: 'none' })
     if (getApp().globalData.demoMode) return wx.showToast({ title: '演示记录不可删除', icon: 'none' })
     wx.showModal({
-      title: '删除四项激励记录',
+      title: '删除四项服务记录',
       content: `确认删除“${record.titleText || '该记录'}”？`,
       success: (result) => {
         if (!result.confirm) return
@@ -425,14 +425,14 @@ Page({
           wx.showToast({ title: '已删除', icon: 'success' })
           getApp().globalData.forceRefresh.incentive = true
           wx.navigateBack()
-        }).catch((error) => showError(error, '删除四项激励记录失败'))
+        }).catch((error) => showError(error, '删除四项服务记录失败'))
       }
     })
   },
 
   onAppend() {
     const record = this.data.currentRecord
-    if (!record || !record.canEdit) return wx.showToast({ title: '没有四项激励追加权限', icon: 'none' })
+    if (!record || !record.canEdit) return wx.showToast({ title: '没有四项服务追加权限', icon: 'none' })
     this.goAppend(record.id)
   },
 

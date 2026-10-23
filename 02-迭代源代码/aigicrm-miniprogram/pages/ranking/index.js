@@ -162,7 +162,7 @@ function buildRankingView(data) {
       { label: '评分周期', value: scorePeriodText },
       { label: '积分榜单', value: scoreTab.title || '个人排行' },
       { label: '客户周期', value: customerPeriodText },
-      { label: '客户榜单', value: customerTab.title || '四项激励' }
+      { label: '客户榜单', value: customerTab.title || '四项服务' }
     ],
     showScoreEmpty: !loading && Number(data.scoreTotal || 0) === 0,
     showCustomerEmpty: !loading && Number(data.customerTotal || 0) === 0
@@ -174,7 +174,7 @@ Page({
     activeTab: 'incentive',
     scoreActiveTab: 'personal',
     tabs: [
-      { key: 'incentive', title: '四项激励' },
+      { key: 'incentive', title: '四项服务' },
       { key: 'relationship', title: '客情关系' },
       { key: 'core', title: '核心指标' }
     ],
@@ -209,12 +209,12 @@ Page({
       { key: 'dept', title: '部门排行' }
     ], 'personal'),
     tabsView: tabView([
-      { key: 'incentive', title: '四项激励' },
+      { key: 'incentive', title: '四项服务' },
       { key: 'relationship', title: '客情关系' },
       { key: 'core', title: '核心指标' }
     ], 'incentive'),
     loading: false,
-    // 【2026-09-23 需求同步】四项激励个人排行(按人员聚合, 与 PC 激励统计个人排行同口径)
+    // 【2026-09-23 需求同步】四项服务个人排行(按人员聚合, 与 PC 激励统计个人排行同口径)
     // incentiveBoard 保留接口完整榜，incentiveBoardView 为当前页切片
     incentiveBoard: [],
     incentiveBoardView: [],
@@ -335,7 +335,7 @@ Page({
           { rank: 2, deptName: '华南办', totalScore: 342, participantCount: 5, avgScore: 68 }
         ]
       }
-      // 【2026-09-23 需求同步】demo 档四项激励个人排行
+      // 【2026-09-23 需求同步】demo 档四项服务个人排行
       const incentiveBoard = [
         { rank: 1, realName: '张三', officeName: '华东办', totalScore: 128, recordCount: 9 },
         { rank: 2, realName: '李四', officeName: '华南办', totalScore: 96, recordCount: 7 }
@@ -398,7 +398,7 @@ Page({
             return {}
           })
         : Promise.resolve({}),
-      // 【2026-09-23 需求同步】四项激励个人排行(按人员聚合, 与 PC 激励统计同口径)
+      // 【2026-09-23 需求同步】四项服务个人排行(按人员聚合, 与 PC 激励统计同口径)
       canIncentive
         ? getScoreboard({ period }).catch((error) => {
             showError(error, '激励个人排行加载失败')

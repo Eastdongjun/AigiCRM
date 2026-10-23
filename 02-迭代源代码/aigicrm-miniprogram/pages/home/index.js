@@ -179,7 +179,7 @@ Page({
 
   openIncentive() {
     if (!hasPermission('incentive:view') && !getApp().globalData.demoMode) {
-      wx.showToast({ title: '没有四项激励查看权限', icon: 'none' })
+      wx.showToast({ title: '没有四项服务查看权限', icon: 'none' })
       return
     }
     wx.switchTab({ url: '/pages/incentive/index' }) // tabBar 页必须 switchTab, navigateTo 会被微信拒绝(死按钮)
@@ -187,7 +187,7 @@ Page({
 
   openIncentiveUpload() {
     if (!hasPermission('incentive:add') && !getApp().globalData.demoMode) {
-      wx.showToast({ title: '没有四项激励上传权限', icon: 'none' })
+      wx.showToast({ title: '没有四项服务上传权限', icon: 'none' })
       return
     }
     wx.navigateTo({ url: '/pages/incentive/upload/index' })

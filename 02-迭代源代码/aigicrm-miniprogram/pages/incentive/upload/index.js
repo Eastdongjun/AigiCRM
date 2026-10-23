@@ -496,7 +496,7 @@ Page({
     if (!requireLogin()) return
     const editId = options.id || ''
     if (!getApp().globalData.demoMode && !editId && !hasPermission('incentive:add')) {
-      wx.showToast({ title: '没有四项激励上传权限', icon: 'none' })
+      wx.showToast({ title: '没有四项服务上传权限', icon: 'none' })
       wx.navigateBack()
       return
     }
@@ -555,7 +555,7 @@ Page({
       if (this._unloaded) return // 【五轮复检修复】加载在途卸载不再对已销毁页 setData
       const records = Array.isArray(rows) ? rows : (rows && (rows.records || rows.data || rows.list)) || []
       const record = records.find((item) => String(item.id) === String(this.data.editId))
-      if (!record) throw new Error('找不到四项激励记录')
+      if (!record) throw new Error('找不到四项服务记录')
       this.fillEditRecord(record)
       // 【四轮复检修复】编辑模式取下载 token 供已有图片远端缩略图(详情页同模式)。
       // request 层已解包 body.data → then 入参就是 {token}(四轮复检证实原 res.data.token 恒 undefined);
@@ -565,7 +565,7 @@ Page({
         this.setData({ dlToken: (res && (res.token || (res.data && res.data.token))) || '' },
           () => this.refreshUploadViewState())
       }).catch(() => { if (!this._unloaded) this.setData({ dlToken: '' }) })
-    }).catch((error) => showError(error, '四项激励记录加载失败'))
+    }).catch((error) => showError(error, '四项服务记录加载失败'))
   },
 
   fillEditRecord(record) {
@@ -1022,7 +1022,7 @@ Page({
       return this.saveRecordWithFiles(doneIds, customer, category, isSingleSlot)
         .then(() => this.finishSubmit())
         .catch((error) => {
-          showError(error, '四项激励上传失败')
+          showError(error, '四项服务上传失败')
           this.setUploadData({ loading: false })
           wx.hideLoading()
         })
@@ -1073,7 +1073,7 @@ Page({
       this.saveRecordWithFiles(doneIds.concat(uploadedIds), customer, category, isSingleSlot)
         .then(() => this.finishSubmit())
         .catch((error) => {
-          showError(error, '四项激励上传失败')
+          showError(error, '四项服务上传失败')
           this.setUploadData({ loading: false })
           wx.hideLoading()
         })

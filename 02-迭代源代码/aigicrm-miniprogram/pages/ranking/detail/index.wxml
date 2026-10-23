@@ -3,7 +3,7 @@
     <view class="row">
       <view>
         <view class="hero-title">排行明细</view>
-        <view class="hero-sub">个人四项激励积分表现</view>
+        <view class="hero-sub">个人四项服务积分表现</view>
       </view>
       <button class="ghost-btn" bindtap="goBack">返回</button>
     </view>
