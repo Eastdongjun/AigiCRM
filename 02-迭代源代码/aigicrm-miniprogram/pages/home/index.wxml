@@ -1,31 +1,23 @@
 <view class="page home-page">
-  <!-- 【2026-10-23 Apple 风改版】顶栏并入 hero：品牌+铃铛一行、问候+日期一行、
-       大数字与标签并排、三块预警 chip 卡压成一条细行（原顶部占高过多，用户反馈）。 -->
+  <!-- 【2026-10-23 二轮重设计】用户三令: AIGICRM 居中放大 / 「我的客户 N 家」块整块移除 /
+       顶部再压缩。结构=居中品牌头(无卡) + 深蓝薄数据卡(问候一行+三格预警一行)。
+       .hm-hero 类名保留在薄卡上——verify-mobile-shell 以 .hm-brand/.hm-hero 取文本断言。 -->
+  <view class="hm-head">
+    <view class="hm-bell" bindtap="openReminder">
+      <view class="hm-bell-icon"></view>
+      <view wx:if="{{pendingCount}}" class="hm-bell-dot">{{pendingCount}}</view>
+    </view>
+    <view class="hm-brand">
+      <text class="hm-brand-name">{{appName}}</text>
+      <text class="hm-brand-sub">移动客户经营驾驶舱</text>
+    </view>
+  </view>
+
   <view class="hm-hero">
     <view class="hm-hero-glow"></view>
-    <view class="hm-hero-top">
-      <view class="hm-brand">
-        <text class="hm-brand-name">{{appName}}</text>
-        <text class="hm-brand-sub">移动客户经营驾驶舱</text>
-      </view>
-      <view class="hm-bell" bindtap="openReminder">
-        <view class="hm-bell-icon"></view>
-        <view wx:if="{{pendingCount}}" class="hm-bell-dot">{{pendingCount}}</view>
-      </view>
-    </view>
-    <view class="hm-hero-line">
-      <view class="hm-hero-copy">
-        <view class="hm-hero-greet">{{today.greeting}}，{{userName}}</view>
-        <view class="hm-hero-meta">{{orgName}}<text wx:if="{{roleName}}"> · {{roleName}}</text></view>
-      </view>
-      <view class="hm-hero-date">{{today.date}} {{today.weekday}}</view>
-    </view>
-    <view class="hm-hero-metric">
-      <view class="hm-hero-value">{{overview.totalText}}<text>家</text></view>
-      <view class="hm-hero-side">
-        <view class="hm-hero-label">我的客户</view>
-        <view wx:if="{{overview.total}}" class="hm-hero-rate">保护率 {{overview.protectionRate}}%</view>
-      </view>
+    <view class="hm-greet-row">
+      <text class="hm-hero-greet">{{today.greeting}}，{{userName}}</text>
+      <text class="hm-hero-date">{{today.date}} {{today.weekday}}</text>
     </view>
     <view class="hm-hero-stats">
       <view class="hm-stat"><text class="hm-stat-value">{{overview.warnText}}</text><text class="hm-stat-label">即将到期</text></view>
@@ -40,8 +32,11 @@
 
   <view wx:if="{{showDashboardCards}}" class="hm-section">
     <view class="hm-section-head">
-      <text class="hm-section-title">客户结构</text>
-      <text class="hm-section-sub">按状态分布</text>
+      <view class="hm-head-left">
+        <text class="hm-section-title">客户结构</text>
+        <text class="hm-section-sub">按状态分布</text>
+      </view>
+      <text wx:if="{{overview.total}}" class="hm-rate-chip">保护率 {{overview.protectionRate}}%</text>
     </view>
     <view class="card hm-chart">
       <view wx:for="{{overview.rows}}" wx:key="label" class="hm-chart-row">

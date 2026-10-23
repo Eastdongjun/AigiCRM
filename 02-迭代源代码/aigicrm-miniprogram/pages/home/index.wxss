@@ -1,61 +1,45 @@
-/* 首页 2026-10-23 Apple 风改版：灰底(#f5f5f7)白卡大留白 + 顶栏并入 hero 压缩 +
-   常用功能 SVG 线性图标(渐变瓦片) + 细分隔预警行。类名统一 hm- 前缀。
-   图标走内联 SVG data URI(白色描边叠在渐变瓦片上), 零图片资源。 */
+/* 首页 2026-10-23 二轮重设计(Apple 风): 居中品牌头(无卡) + 深蓝薄数据卡(问候一行+三格预警一行)。
+   用户三令: AIGICRM 居中放大 / 移除「我的客户 N 家」指标块 / 顶部再压缩。
+   类名统一 hm- 前缀; .hm-hero 保留在薄卡上(verify-mobile-shell 以 .hm-brand/.hm-hero 取文本)。
+   图标走内联 SVG data URI, 零图片资源。 */
 
 page { background: #f5f5f7; }
 .home-page { padding-bottom: 56rpx; }
 
-/* ---------- hero：顶栏并入的深蓝细卡 ---------- */
-.hm-hero {
-  position: relative;
-  overflow: hidden;
-  border-radius: 34rpx;
-  padding: 26rpx 28rpx 24rpx;
-  color: #fff;
-  background: linear-gradient(140deg, #0b1230 0%, #152a63 48%, #1e47c0 100%);
-  box-shadow: 0 24rpx 48rpx rgba(11, 18, 48, .26);
+/* ---------- 居中品牌头(无卡片, Apple 官网式) ---------- */
+.hm-head { position: relative; padding: 22rpx 0 6rpx; text-align: center; }
+.hm-brand { display: flex; flex-direction: column; align-items: center; gap: 6rpx; }
+.hm-brand-name {
+  font-size: 40rpx;
+  font-weight: 800;
+  letter-spacing: 6rpx;
+  color: #1d1d1f;
 }
-.hm-hero-glow {
-  position: absolute;
-  top: -150rpx;
-  right: -110rpx;
-  width: 380rpx;
-  height: 380rpx;
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(96, 165, 250, .32) 0%, rgba(96, 165, 250, 0) 68%);
-}
-.hm-hero-top {
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-.hm-brand { display: flex; flex-direction: column; gap: 2rpx; }
-.hm-brand-name { font-size: 26rpx; font-weight: 800; letter-spacing: 3rpx; color: #fff; }
-.hm-brand-sub { font-size: 18rpx; color: rgba(255, 255, 255, .5); letter-spacing: 1rpx; }
+.hm-brand-sub { font-size: 18rpx; color: #86868b; letter-spacing: 3rpx; }
 .hm-bell {
-  position: relative;
-  width: 64rpx;
-  height: 64rpx;
+  position: absolute;
+  top: 18rpx;
+  right: 4rpx;
+  width: 60rpx;
+  height: 60rpx;
   border-radius: 50%;
-  background: rgba(255, 255, 255, .12);
-  border: 1rpx solid rgba(255, 255, 255, .18);
+  background: rgba(29, 29, 31, .05);
   display: flex;
   align-items: center;
   justify-content: center;
 }
 .hm-bell-icon {
-  width: 32rpx;
-  height: 32rpx;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23ffffff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M18.2 15.4v-4.6a6.2 6.2 0 1 0-12.4 0v4.6L4.4 17.6h15.2z'/%3E%3Cpath d='M10 20.2a2.3 2.3 0 0 0 4 0'/%3E%3C/svg%3E");
+  width: 30rpx;
+  height: 30rpx;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%231d1d1f' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M18.2 15.4v-4.6a6.2 6.2 0 1 0-12.4 0v4.6L4.4 17.6h15.2z'/%3E%3Cpath d='M10 20.2a2.3 2.3 0 0 0 4 0'/%3E%3C/svg%3E");
   background-size: contain;
   background-position: center;
   background-repeat: no-repeat;
 }
 .hm-bell-dot {
   position: absolute;
-  top: -6rpx;
-  right: -6rpx;
+  top: -4rpx;
+  right: -4rpx;
   min-width: 28rpx;
   height: 28rpx;
   padding: 0 7rpx;
@@ -67,75 +51,49 @@ page { background: #f5f5f7; }
   line-height: 28rpx;
   text-align: center;
   font-weight: 700;
-  border: 2rpx solid #16265c;
+  border: 2rpx solid #f5f5f7;
 }
-.hm-hero-line {
+
+/* ---------- 深蓝薄数据卡: 问候一行 + 三格预警一行 ---------- */
+.hm-hero {
   position: relative;
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 18rpx;
-  margin-top: 28rpx;
-}
-.hm-hero-copy { flex: 1; min-width: 0; }
-.hm-hero-greet { font-size: 30rpx; font-weight: 700; letter-spacing: .5rpx; }
-.hm-hero-meta {
-  margin-top: 6rpx;
-  font-size: 19rpx;
-  color: rgba(255, 255, 255, .55);
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  border-radius: 32rpx;
+  padding: 24rpx 28rpx 22rpx;
+  margin-top: 20rpx;
+  color: #fff;
+  background: linear-gradient(140deg, #0b1230 0%, #152a63 48%, #1e47c0 100%);
+  box-shadow: 0 20rpx 40rpx rgba(11, 18, 48, .24);
 }
-.hm-hero-date { flex-shrink: 0; padding-top: 8rpx; font-size: 20rpx; color: rgba(255, 255, 255, .55); }
-.hm-hero-metric {
+.hm-hero-glow {
+  position: absolute;
+  top: -170rpx;
+  right: -120rpx;
+  width: 380rpx;
+  height: 380rpx;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(96, 165, 250, .3) 0%, rgba(96, 165, 250, 0) 68%);
+}
+.hm-greet-row {
   position: relative;
   display: flex;
-  align-items: flex-end;
+  align-items: baseline;
   justify-content: space-between;
-  gap: 20rpx;
-  margin-top: 22rpx;
+  gap: 16rpx;
 }
-.hm-hero-value {
-  font-size: 64rpx;
-  font-weight: 800;
-  line-height: 1;
-  letter-spacing: -2rpx;
-}
-.hm-hero-value text {
-  margin-left: 8rpx;
-  font-size: 22rpx;
-  font-weight: 500;
-  letter-spacing: 0;
-  color: rgba(255, 255, 255, .6);
-}
-.hm-hero-side {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 10rpx;
-  padding-bottom: 4rpx;
-}
-.hm-hero-label { font-size: 21rpx; color: rgba(255, 255, 255, .6); }
-.hm-hero-rate {
-  padding: 6rpx 16rpx;
-  border: 1rpx solid rgba(255, 255, 255, .16);
-  border-radius: 999rpx;
-  font-size: 19rpx;
-  color: rgba(255, 255, 255, .85);
-  background: rgba(255, 255, 255, .1);
-}
+.hm-hero-greet { font-size: 27rpx; font-weight: 700; letter-spacing: .5rpx; }
+.hm-hero-date { flex-shrink: 0; font-size: 19rpx; color: rgba(255, 255, 255, .55); }
 .hm-hero-stats {
   position: relative;
   display: flex;
   align-items: center;
-  margin-top: 26rpx;
-  padding-top: 22rpx;
+  margin-top: 22rpx;
+  padding-top: 20rpx;
   border-top: 1rpx solid rgba(255, 255, 255, .14);
 }
 .hm-stat { flex: 1; text-align: center; }
-.hm-stat-value { display: block; font-size: 32rpx; font-weight: 800; line-height: 1.1; }
-.hm-stat-label { display: block; margin-top: 6rpx; font-size: 18rpx; color: rgba(255, 255, 255, .52); }
+.hm-stat-value { display: block; font-size: 34rpx; font-weight: 800; line-height: 1.1; }
+.hm-stat-label { display: block; margin-top: 7rpx; font-size: 17rpx; color: rgba(255, 255, 255, .52); }
 .hm-stat-sep { width: 1rpx; height: 44rpx; background: rgba(255, 255, 255, .14); flex-shrink: 0; }
 
 /* ---------- 待办条 ---------- */
@@ -163,10 +121,20 @@ page { background: #f5f5f7; }
   margin-bottom: 16rpx;
   padding: 0 6rpx;
 }
+.hm-head-left { display: flex; align-items: baseline; gap: 14rpx; }
 .hm-section-title { font-size: 30rpx; font-weight: 800; color: #1d1d1f; letter-spacing: .3rpx; }
 .hm-section-sub { font-size: 20rpx; color: #86868b; }
 .hm-section-right { display: flex; align-items: baseline; gap: 18rpx; }
 .hm-link { font-size: 21rpx; color: #2563eb; font-weight: 600; }
+.hm-rate-chip {
+  padding: 5rpx 16rpx;
+  border-radius: 999rpx;
+  background: #e3eeff;
+  border: 1rpx solid #cddefc;
+  color: #1d4ed8;
+  font-size: 19rpx;
+  font-weight: 600;
+}
 
 /* ---------- 客户结构条形图 ---------- */
 .home-page .card { border-radius: 28rpx; box-shadow: 0 10rpx 30rpx rgba(15, 23, 42, .05); }

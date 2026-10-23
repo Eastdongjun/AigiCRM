@@ -137,9 +137,9 @@ async function verifyHomePage(miniProgram) {
     ...(await textList(await page.$$('.hm-quick-item'))),
     ...(await textList(await page.$$('.hm-warning')))
   ].join('\n')
-  // 【2026-10-20 重锚】首页改为 hero + 客户结构图 + 单色入口 + 预警列表;
-  // 预警行按本测试注入的 expiring 夹具渲染(经 homeView 视图模型)
-  for (const expected of ['AIGICRM', '张三', '我的客户', '今日到期', '新客户', '四项服务', '四项服务上传', '审批管理', '提醒', '客户统计', '华东智能制造集团']) {
+  // 【2026-10-23 二轮重锚】首页重设计: 用户令移除「我的客户 N 家」大数字指标块
+  // (AIGICRM 居中放大+顶部再压缩), '我的客户'文本不再呈现于页面; 保护率迁至客户结构段头。
+  for (const expected of ['AIGICRM', '张三', '今日到期', '新客户', '四项服务', '四项服务上传', '审批管理', '提醒', '客户统计', '华东智能制造集团']) {
     assert(pageText.includes(expected), `home page missing ${expected}`)
   }
 

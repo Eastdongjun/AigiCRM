@@ -51,7 +51,9 @@ require_line 'applyState(patch' "$PROFILE_JS"
 # 不再有独立“当前岗位”行; 下方仍钉 heroSubText 绑定。
 require_line '当前集团' "$PROFILE_WXML"
 require_line '数据范围' "$PROFILE_WXML"
-require_line 'profileView.userInitialText' "$PROFILE_WXML"
+# 【2026-10-23 重锚】3f41f3c1(2026-10-20 用户令"我的页去掉姓名首字大头像")移除了
+# 首字头像, 原 require profileView.userInitialText 随之陈旧; 改为防复活守卫(头像不得回归)
+! grep -q 'profileView.userInitialText' "$PROFILE_WXML" || fail 'profile avatar initial was removed by user order (3f41f3c1); do not revive it'
 require_line 'profileView.heroSubText' "$PROFILE_WXML"
 require_line 'profileView.showGroupCard' "$PROFILE_WXML"
 require_line 'profileView.currentGroupText' "$PROFILE_WXML"
