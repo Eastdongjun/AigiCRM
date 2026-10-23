@@ -24,6 +24,8 @@
     "pages/files/detail/index",
     "pages/files/textview/index",
     "pages/incentive/index",
+    "pages/incentive/home/index",
+    "pages/incentive/records/index",
     "pages/incentive/upload/index",
     "pages/incentive/detail/index",
     "pages/incentive/customer-detail/index",
@@ -64,7 +66,7 @@
         "text": "首页"
       },
       {
-        "pagePath": "pages/incentive/index",
+        "pagePath": "pages/incentive/home/index",
         "text": "四项服务"
       },
       {

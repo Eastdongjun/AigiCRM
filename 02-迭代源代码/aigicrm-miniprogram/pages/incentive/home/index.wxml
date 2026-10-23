@@ -1,0 +1,91 @@
+<wxs src="../thumb.wxs" module="thumb" />
+<!-- 【2026-10-23 四项服务拆分·用户令】tabBar「四项服务」=轻量客户记录快查视图:
+     只显示客户与记录(搜索/筛选/上传入口保留), 不含分类树/统计/排行/阅读;
+     完整能力(分类树/统计/排行/阅读/一客一册档案)在应用中心「四项服务应用」(pages/incentive/index)。 -->
+<view class="page incentive-workbench">
+  <view class="hero">
+    <view class="row">
+      <view>
+        <view class="hero-title">四项服务</view>
+        <view class="hero-sub">客户 · 记录 · 上传</view>
+      </view>
+      <button class="ghost-btn" bindtap="refresh" loading="{{incentiveView.refreshLoading}}">{{incentiveView.refreshText}}</button>
+    </view>
+    <view wx:if="{{canUploadEvidence}}" class="upload-entry-row">
+      <button class="upload-entry-btn" bindtap="goUpload">＋ 上传激励</button>
+      <text class="upload-entry-hint">大类 → 子类 → 槽位佐证,与 PC 上传同口径</text>
+    </view>
+  </view>
+
+  <view class="card incentive-search-card">
+    <view class="incentive-search-row">
+      <input class="incentive-search-input" value="{{keyword}}" placeholder="搜索客户 / 产品 / 关键字" confirm-type="search" bindinput="inputKeyword" bindconfirm="searchRecords" />
+      <button class="mini-action" bindtap="searchRecords" loading="{{incentiveView.searchLoading}}">{{incentiveView.searchText}}</button>
+      <button class="mini-action secondary" bindtap="resetRecordFilters">清空</button>
+    </view>
+    <view class="incentive-advanced-filters">
+      <picker mode="selector" range="{{industries}}" value="{{selectedIndustryIndex}}" bindchange="chooseIndustry">
+        <view class="filter-chip">{{incentiveView.industryText}}</view>
+      </picker>
+      <picker mode="selector" range="{{devTypes}}" value="{{selectedDevTypeIndex}}" bindchange="chooseDevType">
+        <view class="filter-chip">{{incentiveView.devTypeText}}</view>
+      </picker>
+      <picker mode="selector" range="{{productOptions}}" value="{{selectedProductIndex}}" bindchange="chooseProduct">
+        <view class="filter-chip">{{incentiveView.productText}}</view>
+      </picker>
+      <picker mode="selector" range="{{orgOptions}}" range-key="label" value="{{selectedOrgIndex}}" bindchange="chooseOrg">
+        <view class="filter-chip">{{incentiveView.orgText}}</view>
+      </picker>
+      <picker mode="date" value="{{startDate}}" bindchange="chooseStartDate">
+        <view class="filter-chip">{{incentiveView.startDateText}}</view>
+      </picker>
+      <picker mode="date" value="{{endDate}}" bindchange="chooseEndDate">
+        <view class="filter-chip">{{incentiveView.endDateText}}</view>
+      </picker>
+    </view>
+  </view>
+  <view class="incentive-filter-head">
+    <view class="section-title no-margin">客户维度明细</view>
+    <view class="incentive-filter-actions">
+      <picker mode="selector" range="{{categories}}" bindchange="chooseCategory">
+        <view class="ranking-tab active">{{category}}⌄</view>
+      </picker>
+      <picker mode="selector" range="{{userNames}}" value="{{selectedUserIndex}}" bindchange="chooseUser">
+        <view class="ranking-tab">{{incentiveView.userText}}</view>
+      </picker>
+      <picker mode="selector" range="{{orderOptions}}" value="{{selectedOrderIndex}}" bindchange="chooseOrder">
+        <view class="ranking-tab">{{incentiveView.orderText}}</view>
+      </picker>
+    </view>
+  </view>
+  <view wx:if="{{incentiveView.showLoading}}" class="card muted">{{incentiveView.loadingText}}</view>
+  <!-- 轻量视图封面卡: 与完整版同卡型, 但无「档案」角标/未读红点(阅读机制只在完整应用),
+       点卡进客户记录页(上下滚动, 非档案翻页) -->
+  <block wx:for="{{pagedRecords}}" wx:key="id">
+    <view class="cust-card" data-index="{{index}}" bindtap="openCustomer">
+      <view class="cust-cover">
+        <image wx:if="{{item.coverFile.id && apiBase && dlToken}}" class="cust-cover-img" src="{{thumb.thumbSrc(item.coverFile, apiBase, dlToken)}}" mode="aspectFill" lazy-load="{{true}}" />
+        <view wx:else class="cust-cover-fallback">{{item.coverChar}}</view>
+      </view>
+      <view class="cust-body">
+        <view class="cust-name-row">
+          <text class="cust-name">{{item.name}}</text>
+        </view>
+        <view class="cust-meta">
+          <text class="cust-pill">{{item.industry}}</text>
+          <text wx:if="{{item.category}}" class="cust-pill blue">{{item.category}}</text>
+        </view>
+        <view class="cust-nums">{{item.countText}} · {{item.fileCountText}}</view>
+      </view>
+      <view class="cust-score">
+        <text class="cust-score-num">{{item.score}}</text>
+        <text class="cust-score-unit">分</text>
+      </view>
+      <view class="cust-arrow">›</view>
+    </view>
+  </block>
+  <view class="incentive-pager">
+    <pager wx:if="{{pagerTotal > 10}}" page="{{page}}" pageSize="{{pageSize}}" total="{{pagerTotal}}" loading="{{incentiveView.pagerLoading}}" bind:change="onPagerChange" />
+  </view>
+  <view wx:if="{{incentiveView.showRecordEmpty}}" class="card muted">暂无四项服务记录</view>
+</view>

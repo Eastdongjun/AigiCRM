@@ -48,7 +48,7 @@ grep -q "四项服务分类加载失败" "$page" || { echo "FAIL: incentive cate
 grep -q "四项服务统计加载失败" "$page" || { echo "FAIL: incentive stats load failure copy must use four-incentive naming" >&2; exit 1; }
 # 【钉随需求C】列表页删除弹窗/失败文案随操作下游退役——customer-detail 已钉
 grep -q "四项服务记录加载失败" "$upload_page" || { echo "FAIL: incentive upload edit-record load failure copy must use four-incentive naming" >&2; exit 1; }
-grep -q '"navigationBarTitleText":"四项服务"' "$json" || { echo "FAIL: incentive index title must use four-incentive naming" >&2; exit 1; }
+grep -q '"navigationBarTitleText":"四项服务应用"' "$json" || { echo "FAIL: incentive workbench title must use four-services-app naming (2026-10-23 拆分: 完整版=四项服务应用)" >&2; exit 1; }
 grep -q '"navigationBarTitleText":"四项服务详情"' "$detail_json" || { echo "FAIL: incentive detail title must use four-incentive naming" >&2; exit 1; }
 grep -q '<view class="hero-title">四项服务详情</view>' "$detail_wxml" || { echo "FAIL: incentive detail hero title must use four-incentive naming" >&2; exit 1; }
 grep -q '暂无四项服务详情' "$detail_wxml" || { echo "FAIL: incentive detail empty state must use four-incentive naming" >&2; exit 1; }
@@ -540,7 +540,15 @@ grep -q '记录人：' "$timeline_page" || { echo "FAIL: customer timeline creat
 ! grep -Eq "logs\\.length|wx:for-index=\"groupIndex\"|wx:for-index=\"fileIndex\"|item\\.type ===|item\\.fileGroups &&|item\\.content \\|\\||item\\.preInstallQuestion\\}\\}|item\\.remark\\}\\}|creatorName \\|\\||userName|item\\.categoryName \\|\\||group\\.files\\.length|specificProduct|relatedProducts" "$timeline_wxml" || { echo "FAIL: customer timeline WXML must not keep incentive/file branching logic" >&2; exit 1; }
 ! grep -q '{{loading}}' "$timeline_wxml" || { echo "FAIL: customer timeline WXML must not bind raw loading state directly" >&2; exit 1; }
 ! grep -q '!loading && showEmpty' "$timeline_wxml" || { echo "FAIL: customer timeline WXML must not duplicate empty-state loading logic" >&2; exit 1; }
-grep -q '"pagePath": "pages/incentive/index"' "$app_json" || { echo "FAIL: incentive tab is not bound to the PC-parity incentive workbench" >&2; exit 1; }
+# 【2026-10-23 四项服务拆分·用户令】tabBar「四项服务」=轻量客户记录页(home); 完整工作台(index)
+# 不再是 tabBar 页, 由应用中心「四项服务应用」navigateTo 进入。此处钉两层: tabBar 绑 home +
+# home 页标题=四项服务 + 应用中心入口指向完整版。
+grep -q '"pagePath": "pages/incentive/home/index"' "$app_json" || { echo "FAIL: incentive tab must bind to the lightweight customer-records home page" >&2; exit 1; }
+home_json="$ROOT/aigicrm-miniprogram/pages/incentive/home/index.json"
+grep -q '"navigationBarTitleText":"四项服务"' "$home_json" || { echo "FAIL: incentive tab home title must be 四项服务 (lightweight view)" >&2; exit 1; }
+! grep -q 'pages/incentive/customer-detail' "$ROOT/aigicrm-miniprogram/pages/incentive/home/index.js" || { echo "FAIL: lightweight home must not navigate into the archive customer-detail (2026-10-23 用户令: 不进档案界面)" >&2; exit 1; }
+grep -q "incentiveQuery: '/pages/incentive/index'" "$ROOT/aigicrm-miniprogram/pages/app/index.js" || { echo "FAIL: app center 四项服务应用 entry must route to the full workbench" >&2; exit 1; }
+grep -q "title: '四项服务应用'" "$ROOT/aigicrm-miniprogram/pages/app/index.js" || { echo "FAIL: app center must name the full workbench entry 四项服务应用" >&2; exit 1; }
 ! grep -q '"pagePath": "pages/cases/index"' "$app_json" || { echo "FAIL: stale cases tab still exposes an alternate incentive surface" >&2; exit 1; }
 # 【2026-10-05】cases 兼容壳已删: 原直接读取 pages/cases/* 文件的重定向/标题/样式检查随之移除,
 # 保留上方 app.json 防回潮与下方 profile 入口/app.wxss 全局样式防回潮检查

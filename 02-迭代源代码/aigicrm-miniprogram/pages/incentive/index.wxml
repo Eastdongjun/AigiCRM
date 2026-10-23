@@ -3,7 +3,7 @@
   <view class="hero">
     <view class="row">
       <view>
-        <view class="hero-title">四项服务</view>
+        <view class="hero-title">四项服务应用</view>
         <view class="hero-sub">分类 · 上传 · 积分 · 统计 · 阅读</view>
       </view>
       <button class="ghost-btn" bindtap="refresh" loading="{{incentiveView.refreshLoading}}">{{incentiveView.refreshText}}</button>

@@ -182,7 +182,7 @@ Page({
       wx.showToast({ title: '没有四项服务查看权限', icon: 'none' })
       return
     }
-    wx.switchTab({ url: '/pages/incentive/index' }) // tabBar 页必须 switchTab, navigateTo 会被微信拒绝(死按钮)
+    wx.switchTab({ url: '/pages/incentive/home/index' }) // tabBar 页必须 switchTab, navigateTo 会被微信拒绝(死按钮)【2026-10-23 拆分: tabBar=轻量客户记录】
   },
 
   openIncentiveUpload() {

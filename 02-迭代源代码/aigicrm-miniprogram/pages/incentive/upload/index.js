@@ -974,7 +974,7 @@ Page({
       wx.navigateBack()
       return
     }
-    wx.switchTab({ url: '/pages/incentive/index' }) // 无栈兜底同样必须 switchTab
+    wx.switchTab({ url: '/pages/incentive/home/index' }) // 无栈兜底同样必须 switchTab【2026-10-23 拆分: tabBar=轻量客户记录】
   },
 
   submit() {
@@ -1288,7 +1288,8 @@ Page({
     wx.showToast({ title: this.data.editId ? '追加成功' : '上传成功', icon: 'success' })
     // 【PR-12 2026-09-19 首批】激励列表是 tabBar 页,navigateTo 跳 tab 会被微信拒绝
     // (此前静默失败,用户停在原页);switchTab 回列表,配合列表 onShow 刷新即见新记录
-    wx.switchTab({ url: '/pages/incentive/index' })
+    // 【2026-10-23 拆分】tabBar 四项服务=轻量客户记录页(home), 完整工作台在应用中心
+    wx.switchTab({ url: '/pages/incentive/home/index' })
     this.setUploadData({ loading: false, uploadProgress: 0, uploadProgressFile: '' })
     wx.hideLoading()
   }

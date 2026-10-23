@@ -87,7 +87,7 @@ Page({
   },
 
   openCustomers() { wx.navigateTo({ url: '/pages/customer/index' }) },
-  openIncentive() { wx.switchTab({ url: '/pages/incentive/index' }) }, // tabBar 页必须 switchTab(navigateTo 被拒=死按钮)
+  openIncentive() { wx.switchTab({ url: '/pages/incentive/home/index' }) }, // tabBar 页必须 switchTab(navigateTo 被拒=死按钮)【2026-10-23 拆分: tabBar=轻量客户记录】
   openClaims() { wx.navigateTo({ url: '/pages/sea/index' }) },
   openPassword() { wx.navigateTo({ url: '/pages/profile/password/index' }) },
   openScope() { wx.navigateTo({ url: '/pages/profile/scope/index' }) },
