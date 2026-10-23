@@ -155,7 +155,9 @@ async function verifyHomePage(miniProgram) {
   const navigations = await miniProgram.evaluate(() => globalThis.__shellNavigationCalls || [])
   for (const expectedUrl of [
     '/pages/customer/form/index',
-    '/pages/incentive/index',
+    // 【2026-10-23 拆分批补锚】首页四项服务快捷入口随 tabBar 拆分改指轻量页(switchTab),
+    // 原钉 /pages/incentive/index 已陈旧——完整工作台入口在应用中心, 不再由首页直达
+    '/pages/incentive/home/index',
     '/pages/incentive/upload/index',
     '/pages/approval/index',
     '/pages/reminder/index',

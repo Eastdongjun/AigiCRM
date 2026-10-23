@@ -63,23 +63,33 @@
     "list": [
       {
         "pagePath": "pages/home/index",
-        "text": "首页"
+        "text": "首页",
+        "iconPath": "assets/tabbar/home.png",
+        "selectedIconPath": "assets/tabbar/home-active.png"
       },
       {
         "pagePath": "pages/incentive/home/index",
-        "text": "四项服务"
+        "text": "四项服务",
+        "iconPath": "assets/tabbar/service.png",
+        "selectedIconPath": "assets/tabbar/service-active.png"
       },
       {
         "pagePath": "pages/files/index",
-        "text": "文件"
+        "text": "文件",
+        "iconPath": "assets/tabbar/files.png",
+        "selectedIconPath": "assets/tabbar/files-active.png"
       },
       {
         "pagePath": "pages/app/index",
-        "text": "应用"
+        "text": "应用",
+        "iconPath": "assets/tabbar/apps.png",
+        "selectedIconPath": "assets/tabbar/apps-active.png"
       },
       {
         "pagePath": "pages/profile/index",
-        "text": "我的"
+        "text": "我的",
+        "iconPath": "assets/tabbar/profile.png",
+        "selectedIconPath": "assets/tabbar/profile-active.png"
       }
     ]
   },

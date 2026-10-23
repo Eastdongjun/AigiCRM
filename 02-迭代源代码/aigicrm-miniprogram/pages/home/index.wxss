@@ -1,38 +1,61 @@
-/* 首页 2026-10-20 改版：深蓝驾驶舱 + 客户结构图 + 单色功能入口 + 预警列表。
-   类名统一 hm- 前缀，避免与 app.wxss 旧首页样式互相覆盖。 */
+/* 首页 2026-10-23 Apple 风改版：灰底(#f5f5f7)白卡大留白 + 顶栏并入 hero 压缩 +
+   常用功能 SVG 线性图标(渐变瓦片) + 细分隔预警行。类名统一 hm- 前缀。
+   图标走内联 SVG data URI(白色描边叠在渐变瓦片上), 零图片资源。 */
 
+page { background: #f5f5f7; }
 .home-page { padding-bottom: 56rpx; }
 
-.hm-topbar {
+/* ---------- hero：顶栏并入的深蓝细卡 ---------- */
+.hm-hero {
+  position: relative;
+  overflow: hidden;
+  border-radius: 34rpx;
+  padding: 26rpx 28rpx 24rpx;
+  color: #fff;
+  background: linear-gradient(140deg, #0b1230 0%, #152a63 48%, #1e47c0 100%);
+  box-shadow: 0 24rpx 48rpx rgba(11, 18, 48, .26);
+}
+.hm-hero-glow {
+  position: absolute;
+  top: -150rpx;
+  right: -110rpx;
+  width: 380rpx;
+  height: 380rpx;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(96, 165, 250, .32) 0%, rgba(96, 165, 250, 0) 68%);
+}
+.hm-hero-top {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 4rpx 4rpx 24rpx;
 }
 .hm-brand { display: flex; flex-direction: column; gap: 2rpx; }
-.hm-brand-name {
-  font-size: 28rpx;
-  font-weight: 800;
-  letter-spacing: 3rpx;
-  color: #14213d;
-}
-.hm-brand-sub { font-size: 20rpx; color: #8a9ab3; letter-spacing: 1rpx; }
+.hm-brand-name { font-size: 26rpx; font-weight: 800; letter-spacing: 3rpx; color: #fff; }
+.hm-brand-sub { font-size: 18rpx; color: rgba(255, 255, 255, .5); letter-spacing: 1rpx; }
 .hm-bell {
   position: relative;
-  width: 68rpx;
-  height: 68rpx;
+  width: 64rpx;
+  height: 64rpx;
   border-radius: 50%;
-  background: #fff;
+  background: rgba(255, 255, 255, .12);
+  border: 1rpx solid rgba(255, 255, 255, .18);
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 8rpx 20rpx rgba(37, 72, 130, .08);
 }
-.hm-bell-glyph { font-size: 25rpx; font-weight: 700; color: #33507a; }
+.hm-bell-icon {
+  width: 32rpx;
+  height: 32rpx;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23ffffff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M18.2 15.4v-4.6a6.2 6.2 0 1 0-12.4 0v4.6L4.4 17.6h15.2z'/%3E%3Cpath d='M10 20.2a2.3 2.3 0 0 0 4 0'/%3E%3C/svg%3E");
+  background-size: contain;
+  background-position: center;
+  background-repeat: no-repeat;
+}
 .hm-bell-dot {
   position: absolute;
-  top: -4rpx;
-  right: -4rpx;
+  top: -6rpx;
+  right: -6rpx;
   min-width: 28rpx;
   height: 28rpx;
   padding: 0 7rpx;
@@ -44,129 +67,110 @@
   line-height: 28rpx;
   text-align: center;
   font-weight: 700;
+  border: 2rpx solid #16265c;
 }
-
-.hm-hero {
-  position: relative;
-  overflow: hidden;
-  border-radius: 30rpx;
-  padding: 30rpx 30rpx 28rpx;
-  color: #fff;
-  background: linear-gradient(135deg, #0d1733 0%, #16337a 55%, #1d4ed8 100%);
-  box-shadow: 0 22rpx 46rpx rgba(13, 23, 51, .26);
-}
-.hm-hero-glow {
-  position: absolute;
-  top: -150rpx;
-  right: -110rpx;
-  width: 380rpx;
-  height: 380rpx;
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(96, 165, 250, .34) 0%, rgba(96, 165, 250, 0) 68%);
-}
-.hm-hero-head {
+.hm-hero-line {
   position: relative;
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: 18rpx;
+  margin-top: 28rpx;
 }
 .hm-hero-copy { flex: 1; min-width: 0; }
 .hm-hero-greet { font-size: 30rpx; font-weight: 700; letter-spacing: .5rpx; }
 .hm-hero-meta {
-  margin-top: 8rpx;
-  font-size: 21rpx;
-  line-height: 1.5;
-  color: rgba(255, 255, 255, .62);
-  overflow: hidden;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-}
-.hm-hero-date {
-  flex-shrink: 0;
-  text-align: right;
-  font-size: 24rpx;
-  font-weight: 600;
-  color: rgba(255, 255, 255, .9);
-}
-.hm-hero-date text {
-  display: block;
-  margin-top: 4rpx;
-  font-size: 18rpx;
-  font-weight: 400;
+  margin-top: 6rpx;
+  font-size: 19rpx;
   color: rgba(255, 255, 255, .55);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
-.hm-hero-metric { position: relative; margin-top: 30rpx; }
+.hm-hero-date { flex-shrink: 0; padding-top: 8rpx; font-size: 20rpx; color: rgba(255, 255, 255, .55); }
+.hm-hero-metric {
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 20rpx;
+  margin-top: 22rpx;
+}
 .hm-hero-value {
-  font-size: 74rpx;
+  font-size: 64rpx;
   font-weight: 800;
   line-height: 1;
   letter-spacing: -2rpx;
 }
 .hm-hero-value text {
   margin-left: 8rpx;
-  font-size: 24rpx;
+  font-size: 22rpx;
   font-weight: 500;
   letter-spacing: 0;
-  color: rgba(255, 255, 255, .62);
+  color: rgba(255, 255, 255, .6);
 }
-.hm-hero-label { margin-top: 8rpx; font-size: 21rpx; color: rgba(255, 255, 255, .58); }
+.hm-hero-side {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 10rpx;
+  padding-bottom: 4rpx;
+}
+.hm-hero-label { font-size: 21rpx; color: rgba(255, 255, 255, .6); }
 .hm-hero-rate {
-  display: inline-block;
-  margin-top: 12rpx;
   padding: 6rpx 16rpx;
-  border: 1rpx solid rgba(255, 255, 255, .2);
+  border: 1rpx solid rgba(255, 255, 255, .16);
   border-radius: 999rpx;
   font-size: 19rpx;
-  color: rgba(255, 255, 255, .82);
-  background: rgba(255, 255, 255, .07);
+  color: rgba(255, 255, 255, .85);
+  background: rgba(255, 255, 255, .1);
 }
-.hm-hero-chips {
+.hm-hero-stats {
   position: relative;
   display: flex;
-  gap: 12rpx;
-  margin-top: 28rpx;
+  align-items: center;
+  margin-top: 26rpx;
+  padding-top: 22rpx;
+  border-top: 1rpx solid rgba(255, 255, 255, .14);
 }
-.hm-hero-chip {
-  flex: 1;
-  padding: 16rpx 18rpx;
-  border-radius: 16rpx;
-  background: rgba(255, 255, 255, .08);
-  border: 1rpx solid rgba(255, 255, 255, .1);
-}
-.hm-chip-value { display: block; font-size: 30rpx; font-weight: 700; line-height: 1.1; }
-.hm-chip-label { display: block; margin-top: 6rpx; font-size: 18rpx; color: rgba(255, 255, 255, .56); }
+.hm-stat { flex: 1; text-align: center; }
+.hm-stat-value { display: block; font-size: 32rpx; font-weight: 800; line-height: 1.1; }
+.hm-stat-label { display: block; margin-top: 6rpx; font-size: 18rpx; color: rgba(255, 255, 255, .52); }
+.hm-stat-sep { width: 1rpx; height: 44rpx; background: rgba(255, 255, 255, .14); flex-shrink: 0; }
 
+/* ---------- 待办条 ---------- */
 .hm-task {
   display: flex;
   align-items: center;
   gap: 12rpx;
   margin-top: 18rpx;
   padding: 18rpx 22rpx;
-  border-radius: 16rpx;
-  border: 1rpx solid #dbe7fb;
-  background: #eef4ff;
-  color: #1d4ed8;
+  border-radius: 20rpx;
+  border: 1rpx solid #e8e8ed;
+  background: #fff;
+  color: #1d1d1f;
   font-size: 22rpx;
 }
 .hm-task-dot { width: 10rpx; height: 10rpx; border-radius: 50%; background: #f59e0b; flex-shrink: 0; }
 
-.hm-section { margin-top: 32rpx; }
+/* ---------- 分区标题(Apple 式大标题+次级灰) ---------- */
+.hm-section { margin-top: 44rpx; }
 .hm-section-head {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
   gap: 16rpx;
-  margin-bottom: 14rpx;
-  padding: 0 4rpx;
+  margin-bottom: 16rpx;
+  padding: 0 6rpx;
 }
-.hm-section-title { font-size: 27rpx; font-weight: 800; color: #172033; letter-spacing: .5rpx; }
-.hm-section-sub { font-size: 20rpx; color: #94a3b8; }
+.hm-section-title { font-size: 30rpx; font-weight: 800; color: #1d1d1f; letter-spacing: .3rpx; }
+.hm-section-sub { font-size: 20rpx; color: #86868b; }
 .hm-section-right { display: flex; align-items: baseline; gap: 18rpx; }
-.hm-link { font-size: 21rpx; color: #2563eb; font-weight: 500; }
+.hm-link { font-size: 21rpx; color: #2563eb; font-weight: 600; }
 
-.hm-chart { padding: 14rpx 26rpx; border-radius: 24rpx; }
+/* ---------- 客户结构条形图 ---------- */
+.home-page .card { border-radius: 28rpx; box-shadow: 0 10rpx 30rpx rgba(15, 23, 42, .05); }
+.hm-chart { padding: 14rpx 26rpx; }
 .hm-chart-row {
   display: flex;
   align-items: center;
@@ -180,7 +184,7 @@
   align-items: center;
   gap: 10rpx;
   font-size: 22rpx;
-  color: #5b6b82;
+  color: #6e6e73;
 }
 .hm-chart-dot { width: 12rpx; height: 12rpx; border-radius: 50%; }
 .hm-chart-dot.primary { background: #2563eb; }
@@ -190,7 +194,7 @@
   flex: 1;
   height: 12rpx;
   border-radius: 999rpx;
-  background: #eef3fb;
+  background: #f0f0f3;
   overflow: hidden;
 }
 .hm-chart-fill {
@@ -208,63 +212,67 @@
   text-align: right;
   font-size: 24rpx;
   font-weight: 700;
-  color: #172033;
+  color: #1d1d1f;
 }
 .hm-chart-value text {
   margin-left: 8rpx;
   font-size: 18rpx;
   font-weight: 400;
-  color: #94a3b8;
+  color: #86868b;
 }
 
+/* ---------- 常用功能：渐变瓦片 + 白色线性图标 ---------- */
 .hm-quick {
   display: flex;
   flex-wrap: wrap;
-  padding: 18rpx 10rpx 22rpx;
-  border-radius: 24rpx;
+  padding: 22rpx 10rpx 24rpx;
 }
 .hm-quick-item {
   position: relative;
   width: 33.333%;
-  padding: 16rpx 0 14rpx;
+  padding: 14rpx 0 12rpx;
   text-align: center;
 }
 .hm-quick-active { opacity: .72; }
 .hm-quick-icon {
-  width: 66rpx;
-  height: 66rpx;
+  width: 76rpx;
+  height: 76rpx;
   margin: 0 auto 12rpx;
-  border-radius: 18rpx;
-  background: #eef4ff;
-  color: #1d4ed8;
-  font-size: 26rpx;
-  font-weight: 700;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: inset 0 0 0 1rpx rgba(29, 78, 216, .08);
+  border-radius: 22rpx;
+  box-shadow: 0 6rpx 16rpx rgba(15, 23, 42, .16), inset 0 2rpx 0 rgba(255, 255, 255, .28);
+  background-repeat: no-repeat, no-repeat;
+  background-position: center, center;
+  background-size: 40rpx 40rpx, 100% 100%;
 }
-.hm-quick-title { font-size: 21rpx; color: #46556d; font-weight: 500; }
-.hm-quick-badge {
-  display: inline-block;
-  margin-left: 6rpx;
-  padding: 1rpx 8rpx;
-  border-radius: 999rpx;
-  background: #ef4444;
-  color: #fff;
-  font-size: 16rpx;
-  line-height: 24rpx;
-  vertical-align: 2rpx;
+.hm-quick-icon.ic-customer {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23ffffff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='9' cy='8' r='3.2'/%3E%3Cpath d='M3.5 19c.7-3.2 2.9-4.8 5.5-4.8 1 0 2 .25 2.8.75'/%3E%3Cpath d='M17.5 8.5v6M14.5 11.5h6'/%3E%3C/svg%3E"), linear-gradient(135deg, #60a5fa, #1d4ed8);
 }
+.hm-quick-icon.ic-service {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23ffffff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='4' y='4' width='6.6' height='6.6' rx='1.8'/%3E%3Crect x='13.4' y='4' width='6.6' height='6.6' rx='1.8'/%3E%3Crect x='4' y='13.4' width='6.6' height='6.6' rx='1.8'/%3E%3Crect x='13.4' y='13.4' width='6.6' height='6.6' rx='1.8'/%3E%3C/svg%3E"), linear-gradient(135deg, #2dd4bf, #0f9488);
+}
+.hm-quick-icon.ic-upload {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23ffffff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 15.5V5'/%3E%3Cpath d='M8 9l4-4 4 4'/%3E%3Cpath d='M4.5 15v3a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2v-3'/%3E%3C/svg%3E"), linear-gradient(135deg, #4ade80, #16a34a);
+}
+.hm-quick-icon.ic-approval {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23ffffff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='8.4'/%3E%3Cpath d='M8.4 12.4l2.5 2.5 4.7-5.2'/%3E%3C/svg%3E"), linear-gradient(135deg, #a78bfa, #6d28d9);
+}
+.hm-quick-icon.ic-reminder {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23ffffff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M18.2 15.4v-4.6a6.2 6.2 0 1 0-12.4 0v4.6L4.4 17.6h15.2z'/%3E%3Cpath d='M10 20.2a2.3 2.3 0 0 0 4 0'/%3E%3C/svg%3E"), linear-gradient(135deg, #fbbf24, #f97316);
+}
+.hm-quick-icon.ic-stats {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23ffffff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5.5 19.5v-6'/%3E%3Cpath d='M12 19.5V6'/%3E%3Cpath d='M18.5 19.5v-9'/%3E%3C/svg%3E"), linear-gradient(135deg, #38bdf8, #0369a1);
+}
+.hm-quick-title { font-size: 21rpx; color: #1d1d1f; font-weight: 600; }
 
-.hm-warnings { padding: 6rpx 24rpx; border-radius: 24rpx; }
+/* ---------- 到期预警列表 ---------- */
+.hm-warnings { padding: 6rpx 24rpx; }
 .hm-warning {
   display: flex;
   align-items: center;
   gap: 16rpx;
   padding: 22rpx 0;
 }
-.hm-warning + .hm-warning { border-top: 1rpx solid #f1f5fb; }
+.hm-warning + .hm-warning { border-top: 1rpx solid #f2f2f4; }
 .hm-warning-days {
   flex-shrink: 0;
   padding: 7rpx 14rpx;
@@ -278,10 +286,10 @@
 .hm-warning-name {
   font-size: 24rpx;
   font-weight: 650;
-  color: #172033;
+  color: #1d1d1f;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.hm-warning-meta { margin-top: 6rpx; font-size: 19rpx; color: #94a3b8; }
-.hm-warning-arrow { flex-shrink: 0; font-size: 28rpx; color: #c1ccdc; font-weight: 600; }
+.hm-warning-meta { margin-top: 6rpx; font-size: 19rpx; color: #86868b; }
+.hm-warning-arrow { flex-shrink: 0; font-size: 28rpx; color: #c7c7cc; font-weight: 600; }

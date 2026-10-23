@@ -1,33 +1,38 @@
 <view class="page home-page">
-  <view class="hm-topbar">
-    <view class="hm-brand">
-      <text class="hm-brand-name">AIGICRM</text>
-      <text class="hm-brand-sub">移动客户经营驾驶舱</text>
-    </view>
-    <view class="hm-bell" bindtap="openReminder">
-      <text class="hm-bell-glyph">铃</text>
-      <view wx:if="{{pendingCount}}" class="hm-bell-dot">{{pendingCount}}</view>
-    </view>
-  </view>
-
+  <!-- 【2026-10-23 Apple 风改版】顶栏并入 hero：品牌+铃铛一行、问候+日期一行、
+       大数字与标签并排、三块预警 chip 卡压成一条细行（原顶部占高过多，用户反馈）。 -->
   <view class="hm-hero">
     <view class="hm-hero-glow"></view>
-    <view class="hm-hero-head">
+    <view class="hm-hero-top">
+      <view class="hm-brand">
+        <text class="hm-brand-name">{{appName}}</text>
+        <text class="hm-brand-sub">移动客户经营驾驶舱</text>
+      </view>
+      <view class="hm-bell" bindtap="openReminder">
+        <view class="hm-bell-icon"></view>
+        <view wx:if="{{pendingCount}}" class="hm-bell-dot">{{pendingCount}}</view>
+      </view>
+    </view>
+    <view class="hm-hero-line">
       <view class="hm-hero-copy">
         <view class="hm-hero-greet">{{today.greeting}}，{{userName}}</view>
         <view class="hm-hero-meta">{{orgName}}<text wx:if="{{roleName}}"> · {{roleName}}</text></view>
       </view>
-      <view class="hm-hero-date">{{today.date}}<text>{{today.weekday}}</text></view>
+      <view class="hm-hero-date">{{today.date}} {{today.weekday}}</view>
     </view>
     <view class="hm-hero-metric">
       <view class="hm-hero-value">{{overview.totalText}}<text>家</text></view>
-      <view class="hm-hero-label">我的客户</view>
-      <view wx:if="{{overview.total}}" class="hm-hero-rate">保护率 {{overview.protectionRate}}%</view>
+      <view class="hm-hero-side">
+        <view class="hm-hero-label">我的客户</view>
+        <view wx:if="{{overview.total}}" class="hm-hero-rate">保护率 {{overview.protectionRate}}%</view>
+      </view>
     </view>
-    <view class="hm-hero-chips">
-      <view class="hm-hero-chip"><text class="hm-chip-value">{{overview.warnText}}</text><text class="hm-chip-label">即将到期</text></view>
-      <view class="hm-hero-chip"><text class="hm-chip-value">{{overview.expiredText}}</text><text class="hm-chip-label">已超期</text></view>
-      <view class="hm-hero-chip"><text class="hm-chip-value">{{overview.todayExpiringText}}</text><text class="hm-chip-label">今日到期</text></view>
+    <view class="hm-hero-stats">
+      <view class="hm-stat"><text class="hm-stat-value">{{overview.warnText}}</text><text class="hm-stat-label">即将到期</text></view>
+      <view class="hm-stat-sep"></view>
+      <view class="hm-stat"><text class="hm-stat-value">{{overview.expiredText}}</text><text class="hm-stat-label">已超期</text></view>
+      <view class="hm-stat-sep"></view>
+      <view class="hm-stat"><text class="hm-stat-value">{{overview.todayExpiringText}}</text><text class="hm-stat-label">今日到期</text></view>
     </view>
   </view>
 
@@ -54,22 +59,22 @@
     </view>
     <view class="card hm-quick">
       <view class="hm-quick-item" hover-class="hm-quick-active" bindtap="openNewCustomer">
-        <view class="hm-quick-icon">＋</view><text class="hm-quick-title">新客户</text>
+        <view class="hm-quick-icon ic-customer"></view><text class="hm-quick-title">新客户</text>
       </view>
       <view class="hm-quick-item" hover-class="hm-quick-active" bindtap="openIncentive">
-        <view class="hm-quick-icon">激</view><text class="hm-quick-title">四项服务</text>
+        <view class="hm-quick-icon ic-service"></view><text class="hm-quick-title">四项服务</text>
       </view>
       <view class="hm-quick-item" hover-class="hm-quick-active" bindtap="openIncentiveUpload">
-        <view class="hm-quick-icon">传</view><text class="hm-quick-title">四项服务上传</text>
+        <view class="hm-quick-icon ic-upload"></view><text class="hm-quick-title">四项服务上传</text>
       </view>
       <view class="hm-quick-item" hover-class="hm-quick-active" bindtap="openApproval">
-        <view class="hm-quick-icon">审</view><text class="hm-quick-title">审批管理</text>
+        <view class="hm-quick-icon ic-approval"></view><text class="hm-quick-title">审批管理</text>
       </view>
       <view class="hm-quick-item" hover-class="hm-quick-active" bindtap="openReminder">
-        <view class="hm-quick-icon">铃</view><text class="hm-quick-title">提醒</text>
+        <view class="hm-quick-icon ic-reminder"></view><text class="hm-quick-title">提醒</text>
       </view>
       <view class="hm-quick-item" hover-class="hm-quick-active" bindtap="openStatistics">
-        <view class="hm-quick-icon">统</view><text class="hm-quick-title">客户统计</text>
+        <view class="hm-quick-icon ic-stats"></view><text class="hm-quick-title">客户统计</text>
       </view>
     </view>
   </view>
