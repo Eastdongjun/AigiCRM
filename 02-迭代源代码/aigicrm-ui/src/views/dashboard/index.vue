@@ -90,7 +90,7 @@
         </div>
         <el-icon class="stat-icon" :size="22"><Trophy /></el-icon>
       </div>
-      <div class="stat-card" v-if="isSalesRole">
+      <div class="stat-card" v-if="isSalesRole && canViewReadStats">
         <div class="stat-info">
           <div class="stat-label">我的阅读完成</div>
           <div class="stat-num">{{ myReadCount || 0 }}<span class="stat-unit">/{{ myReadTotal || 0 }}</span></div>
@@ -347,6 +347,8 @@ const myScore = ref(0)
 const myUploadCount = ref(0)
 const myReadCount = ref(0)
 const myReadTotal = ref(0)
+// 【B3】阅读统计卡权限门控: incentive:read-stats 默认仅 admin, 无权限隐藏卡片且不发起请求
+const canViewReadStats = computed(() => userStore.hasPermission('incentive:read-stats'))
 
 const loadRoleData = async () => {
   if (!isSalesRole.value) return
@@ -357,7 +359,12 @@ const loadRoleData = async () => {
     // 「全年」(defaultRecordPeriod 与写入口同口径)
     const [boardRes, readRes] = await Promise.all([
       import('@/api/incentive').then(m => m.getScoreboard({ period: defaultRecordPeriod() })),
-      import('@/api/incentive').then(m => m.getReadStats ? m.getReadStats() : Promise.resolve({ data: [] })),
+      // 【B3 2026-10-20】原写法引用 api 模块不存在的 getReadStats 导出(条件恒 false), 阅读卡恒 0/0——
+      // 改真实导出 getIncentiveReadStats(无参=本月口径, 与卡片文案一致); incentive:read-stats
+      // 默认仅 admin(其他角色需勾选), 无权限不发请求防 403 弹错, 卡片由模板 v-if 隐藏
+      canViewReadStats.value
+        ? import('@/api/incentive').then(m => m.getIncentiveReadStats())
+        : Promise.resolve({ data: [] }),
     ])
     const mine = (boardRes?.data || []).find(r => r.userId === userStore.userId)
     myScore.value = mine?.totalScore || 0
