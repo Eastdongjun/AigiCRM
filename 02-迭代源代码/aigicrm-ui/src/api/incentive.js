@@ -77,7 +77,7 @@ export function getIncentiveReadRanking(params) {
   return request.get('/incentive/read-ranking', { params })
 }
 
-// 四项激励权限
+// 四项服务权限
 export function checkIncentivePermission() {
   return request.get('/incentive/permission/check')
 }

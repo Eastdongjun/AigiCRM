@@ -10,7 +10,7 @@
         <ul class="features">
           <li>客户 360° 经营台账</li>
           <li>公海流转与到期看护</li>
-          <li>四项激励 · 数据洞察</li>
+          <li>四项服务 · 数据洞察</li>
         </ul>
       </div>
       <div class="login-right">

@@ -1,8 +1,8 @@
 <template>
-  <!-- 个人排行: 按人员统计四项激励(与客户排行同构: 排名+姓名/办事处+总积分+分类矩阵+三阶段+记录数) -->
+  <!-- 个人排行: 按人员统计四项服务(与客户排行同构: 排名+姓名/办事处+总积分+分类矩阵+三阶段+记录数) -->
   <div class="card">
     <div class="table-header">
-      <span class="matrix-title">{{ period || '全部周期' }} 四项激励个人排行</span>
+      <span class="matrix-title">{{ period || '全部周期' }} 四项服务个人排行</span>
       <span class="header-right-actions">
         <span class="rank-count">{{ personBoard.length }}人</span>
         <!-- 【2026-09-23 需求】导出受独立权限点控制, 管理员在角色管理权限树勾选授予(V2026.09.23.7) -->

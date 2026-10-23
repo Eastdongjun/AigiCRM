@@ -58,7 +58,7 @@
       </div>
 
       <div class="content-body">
-        <!-- 左侧: 文件夹树（四项激励和分享给我Tab不显示） -->
+        <!-- 左侧: 文件夹树（四项服务和分享给我Tab不显示） -->
         <template v-if="activeTab !== 'incentive' && activeTab !== 'shared_to_me'">
           <FolderPanel />
           <!-- 分隔线 -->

@@ -21,7 +21,7 @@ const permModules = computed(() => {
     { name: '工作台', items: [] },
     { name: '客户管理', items: [] },
     { name: '文件管理', items: [] },
-    { name: '四项激励', items: [] },
+    { name: '四项服务', items: [] },
     { name: '提醒管理', items: [] },
     { name: '公海管理', items: [] },
     { name: '审批管理', items: [] },
@@ -32,7 +32,7 @@ const permModules = computed(() => {
     { name: '系统管理', items: [] },
   ]
   const labelMap = {
-    'dashboard': '工作台', 'customer': '客户管理', 'file': '文件管理', 'incentive': '四项激励',
+    'dashboard': '工作台', 'customer': '客户管理', 'file': '文件管理', 'incentive': '四项服务',
     'reminder': '提醒管理', 'sea': '公海管理', 'approval': '审批管理', 'statistics': '统计分析',
     'score': '积分管理', 'indicator': '核心客户指标', 'task': '任务管理', 'system': '系统管理',
   }
@@ -142,7 +142,7 @@ const loadPermData = async () => {
   }))
 }
 
-// 四项激励权限
+// 四项服务权限
 const permList = ref([])
 const showPermDialog = ref(false)
 // 【2026-08-16 授权表化】编辑/删除恢复按人勾选（不再由角色判定），permForm 含四个专项开关

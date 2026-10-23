@@ -131,7 +131,7 @@
       </el-tab-pane>
       <el-tab-pane name="incentive">
         <template #label>
-          <span>四项激励 <el-tag size="small" type="warning">{{ incentiveRecords.length }}</el-tag></span>
+          <span>四项服务 <el-tag size="small" type="warning">{{ incentiveRecords.length }}</el-tag></span>
         </template>
         <IncentiveTab />
       </el-tab-pane>

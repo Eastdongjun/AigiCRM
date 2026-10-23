@@ -222,7 +222,7 @@ export function useCustomerDetail() {
   }
   // 【修复 2026-08-14】下载 token 未就绪时不拼 token=（避免必然 403 的空 token 请求）
   const fileUrl = (id) => { const t = getDownloadToken(); return t ? '/api/file/download/' + id + '?token=' + t : '/api/file/download/' + id }
-  // 【缩略图墙 2026-10-17】客户详情·四项激励 Tab 图片直接显示缩略图(≤300px, 亚秒加载), 点开放大看原图
+  // 【缩略图墙 2026-10-17】客户详情·四项服务 Tab 图片直接显示缩略图(≤300px, 亚秒加载), 点开放大看原图
   const thumbUrl = (id) => { const u = fileUrl(id); return u.includes('?') ? u + '&thumbnail=1' : u + '?thumbnail=1' }
   const filePreviewVisible = ref(false), filePreviewUrl = ref(''), filePreviewType = ref('image'), filePreviewName = ref('')
   // 激励Tab文件预览:复用 FilePreview 全格式阅读器。类型判定走 previewKindOf(按文件名→

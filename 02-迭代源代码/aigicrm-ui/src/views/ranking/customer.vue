@@ -3,7 +3,7 @@
     <div class="page-head">
       <div>
         <h3 class="page-title">客户排行</h3>
-        <p class="page-desc">按客户统一查看四项激励、客情商务关系深度、核心客户六项指标</p>
+        <p class="page-desc">按客户统一查看四项服务、客情商务关系深度、核心客户六项指标</p>
       </div>
       <el-select v-model="period" class="period-select" size="small" @change="loadData">
         <el-option v-for="p in periodOptions" :key="p.value" :label="p.label" :value="p.value" />
@@ -12,7 +12,7 @@
 
     <div class="stat-row">
       <div class="stat-card">
-        <div class="sc-label">四项激励客户</div>
+        <div class="sc-label">四项服务客户</div>
         <div class="sc-num blue">{{ incentiveRanking.length }}</div>
         <div class="sc-desc">本周期有激励积分的客户</div>
       </div>
@@ -39,7 +39,7 @@
     </div>
 
     <div class="tab-bar">
-      <span class="tab-item" :class="{ active: activeTab === 'incentive' }" @click="activeTab = 'incentive'">四项激励客户排行</span>
+      <span class="tab-item" :class="{ active: activeTab === 'incentive' }" @click="activeTab = 'incentive'">四项服务客户排行</span>
       <span class="tab-item" :class="{ active: activeTab === 'relationship' }" @click="activeTab = 'relationship'">客情商务关系深度排行</span>
       <span class="tab-item" :class="{ active: activeTab === 'indicator' }" @click="activeTab = 'indicator'">核心客户六项指标排行</span>
       <!-- 【裁决 2026-10-10】核心类型筛选: 区分真核心/争核心 -->

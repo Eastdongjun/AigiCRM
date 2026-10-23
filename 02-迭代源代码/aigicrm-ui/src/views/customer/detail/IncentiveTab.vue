@@ -48,7 +48,7 @@
       </div>
     </div>
   </div>
-  <div v-else class="empty-text" style="padding:40px">该客户暂无四项激励记录</div>
+  <div v-else class="empty-text" style="padding:40px">该客户暂无四项服务记录</div>
   <FilePreview v-model:visible="filePreviewVisible" :url="filePreviewUrl" :type="filePreviewType" :file-name="filePreviewName" />
 </template>
 

@@ -31,7 +31,7 @@ export function useIncentiveStats() {
   const catStat = ref({ byCategory: [], totalFiles: 0, totalScore: 0 })  // 全员聚合 — 供激励统计表
   const categories = ref([])
   const scoreboard = ref([])
-  // 【2026-09-23 需求】个人排行: 按人员统计四项激励(后端 /incentive/scoreboard 按人聚合)
+  // 【2026-09-23 需求】个人排行: 按人员统计四项服务(后端 /incentive/scoreboard 按人聚合)
   const personBoard = ref([])
   const personPageNum = ref(1)
   const personPageSize = ref(15)
@@ -133,7 +133,7 @@ export function useIncentiveStats() {
         getRecords({ period: p, userId: userStore.userId }),
         getCategoryStats({ period: p }),
         getCustomerRecords({ period: p }),
-        // 【2026-09-23 个人排行】按人员聚合四项激励(总积分/分类细分/三阶段文件)
+        // 【2026-09-23 个人排行】按人员聚合四项服务(总积分/分类细分/三阶段文件)
         getScoreboard({ period: p }),
       ])
 

@@ -77,15 +77,15 @@ const routes = [
         component: () => import('@/views/incentive/index.vue'),
         // 【2026-09-13 口径统一】本路由即「激励上传」页：菜单码、后端上传接口 @PreAuthorize、
         // 小程序上传入口用的都是 incentive:add（此前路由写 incentive:view，与菜单码不一致）
-        // 【A1 三轮 2026-10-09】meta.title 四项激励→激励上传：生产侧栏菜单项名为「激励上传」（菜单名来自后端 menuName，
-        // 不受此影响），原 title 使面包屑显示「首页/四项激励」与高亮菜单项不同词；补 parentTitle 与激励查询/统计同构三级
-        meta: { title: '激励上传', parentTitle: '四项激励', icon: 'Trophy', permission: 'incentive:add' }
+        // 【A1 三轮 2026-10-09】meta.title 四项服务→激励上传：生产侧栏菜单项名为「激励上传」（菜单名来自后端 menuName，
+        // 不受此影响），原 title 使面包屑显示「首页/四项服务」与高亮菜单项不同词；补 parentTitle 与激励查询/统计同构三级
+        meta: { title: '激励上传', parentTitle: '四项服务', icon: 'Trophy', permission: 'incentive:add' }
       },
       {
         path: 'incentive/stats',
         name: 'IncentiveStats',
         component: () => import('@/views/incentive/stats.vue'),
-        meta: { title: '激励统计', parentTitle: '四项激励', icon: 'TrendCharts', permission: 'incentive:view' }
+        meta: { title: '激励统计', parentTitle: '四项服务', icon: 'TrendCharts', permission: 'incentive:view' }
       },
       {
         // 【2026-09-13】激励统计表格行的下钻明细页（子页面）；侧边栏来自后端菜单树，本路由不会出现在菜单里
@@ -98,7 +98,7 @@ const routes = [
         path: 'incentive/search',
         name: 'IncentiveSearch',
         component: () => import('@/views/incentive/search.vue'),
-        meta: { title: '激励查询', parentTitle: '四项激励', icon: 'Search', permission: 'incentive:view' }
+        meta: { title: '激励查询', parentTitle: '四项服务', icon: 'Search', permission: 'incentive:view' }
       },
       {
         path: 'incentive/ranking',

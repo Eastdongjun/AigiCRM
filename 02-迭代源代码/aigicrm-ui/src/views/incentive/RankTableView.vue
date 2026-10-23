@@ -2,7 +2,7 @@
   <!-- 客户排行：客户激励统计矩阵（按模板：基础信息 + 激励政策分列） -->
   <div class="card">
     <div class="table-header">
-      <span class="matrix-title">{{ period || '全部周期' }} 四项激励客户排行</span>
+      <span class="matrix-title">{{ period || '全部周期' }} 四项服务客户排行</span>
       <span class="header-right-actions">
         <span class="rank-count">{{ scoreboard.length }}个客户</span>
         <!-- 2026-10-04 D11：exportRank 清理死掉的部门排行分支后不再需要参数 -->

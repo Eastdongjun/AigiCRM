@@ -12,7 +12,7 @@
         <span class="tab-item" :class="{ active: activeTab === 'rank' }" @click="activeTab = 'rank'">
           <el-icon><User /></el-icon> 客户排行
         </span>
-        <!-- 【2026-09-23 需求】个人排行: 按人员统计四项激励数据 -->
+        <!-- 【2026-09-23 需求】个人排行: 按人员统计四项服务数据 -->
         <span class="tab-item" :class="{ active: activeTab === 'person' }" @click="activeTab = 'person'">
           <el-icon><Trophy /></el-icon> 个人排行
         </span>
@@ -30,7 +30,7 @@
     <!-- 客户排行 -->
     <RankTableView v-if="activeTab === 'rank'" />
 
-    <!-- 个人排行(按人员统计四项激励) -->
+    <!-- 个人排行(按人员统计四项服务) -->
     <PersonRankTableView v-if="activeTab === 'person'" />
   </div>
 </template>

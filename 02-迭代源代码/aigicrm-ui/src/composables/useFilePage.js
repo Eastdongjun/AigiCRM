@@ -73,7 +73,7 @@ export function useFilePage() {
   const tabs = computed(() => [
     { label: '公共', value: 'public', count: publicCount.value },
     { label: '私人', value: 'private', count: privateCount.value },
-    { label: '四项激励', value: 'incentive', count: incentiveCount.value },
+    { label: '四项服务', value: 'incentive', count: incentiveCount.value },
     { label: '分享给我', value: 'shared_to_me', count: sharedToMeCount.value }
   ])
 
