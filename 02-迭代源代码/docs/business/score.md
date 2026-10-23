@@ -2,7 +2,7 @@
 
 > 来源锚点:`ScoreController`、`ScoreService`、`BizScoreItem/BizScoreEntry/BizScoreParticipant`。核实日期 2026-09-24。
 >
-> **先澄清一个易混点:积分(score)与激励(incentive)是两套独立体系**——积分=管理方定义积分项、按人按期录入的考核分;激励=四项激励分类下带佐证文件的业务记录分(见 [incentive.md](incentive.md))。两者数据源、权限码、页面均独立,不可混称。
+> **先澄清一个易混点:积分(score)与激励(incentive)是两套独立体系**——积分=管理方定义积分项、按人按期录入的考核分;激励=四项服务分类下带佐证文件的业务记录分(见 [incentive.md](incentive.md))。两者数据源、权限码、页面均独立,不可混称。
 
 ## 1. 三层模型
 

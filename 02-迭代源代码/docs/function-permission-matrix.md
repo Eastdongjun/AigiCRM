@@ -259,13 +259,13 @@ Legend: `V` view, `C` create, `U` update, `D` delete, `I` import, `E` export, `A
 
 | Menu/Page | Button/Action | API | Permission | Data Scope | Operation Type | PC | Mobile |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| 四项激励 | Category list | `GET /api/incentive/categories` | `incentive:view` | Tenant/group | Read | Yes | Implemented |
-| 四项激励 | Create/edit/delete category | `POST/PUT/DELETE /api/incentive/categories...` | `incentive:edit` | Admin/config scope | Config mutation | Yes | No first release |
-| 四项激励 | Record list | `GET /api/incentive/records` | `incentive:view` | Upload owner, share visibility, role scope | Read | Yes | Implemented |
-| 四项激励 | Upload/add record | `POST /api/incentive/records` | `incentive:add` | Customer access and uploader identity | Create | Yes | Implemented |
-| 四项激励 | Edit own/permitted record | `PUT /api/incentive/records/{id}` | Method allows service-layer ownership/permitted edit | Owner/permitted editor | Update | Yes | Implemented |
-| 四项激励 | Delete own/permitted record | `DELETE /api/incentive/records/{id}` | Service-layer ownership/permitted delete | Owner/permitted editor/admin | Delete | Yes | Implemented |
-| 四项激励 | Recalculate records | `POST /api/incentive/records/recalculate` | `incentive:edit` | Config/admin scope | Batch mutation | Yes | No |
+| 四项服务 | Category list | `GET /api/incentive/categories` | `incentive:view` | Tenant/group | Read | Yes | Implemented |
+| 四项服务 | Create/edit/delete category | `POST/PUT/DELETE /api/incentive/categories...` | `incentive:edit` | Admin/config scope | Config mutation | Yes | No first release |
+| 四项服务 | Record list | `GET /api/incentive/records` | `incentive:view` | Upload owner, share visibility, role scope | Read | Yes | Implemented |
+| 四项服务 | Upload/add record | `POST /api/incentive/records` | `incentive:add` | Customer access and uploader identity | Create | Yes | Implemented |
+| 四项服务 | Edit own/permitted record | `PUT /api/incentive/records/{id}` | Method allows service-layer ownership/permitted edit | Owner/permitted editor | Update | Yes | Implemented |
+| 四项服务 | Delete own/permitted record | `DELETE /api/incentive/records/{id}` | Service-layer ownership/permitted delete | Owner/permitted editor/admin | Delete | Yes | Implemented |
+| 四项服务 | Recalculate records | `POST /api/incentive/records/recalculate` | `incentive:edit` | Config/admin scope | Batch mutation | Yes | No |
 | 激励查询 | Customer score | `GET /api/incentive/score/customer/{customerId}` | `incentive:view` | Same incentive/customer visibility | Read/statistics | Yes | Implemented |
 | 激励查询 | Scoreboard | `GET /api/incentive/scoreboard` | `incentive:view` | Role/share/customer visibility | Read/statistics | Yes | Implemented |
 | 激励查询 | Ranking | `GET /api/incentive/ranking` | `incentive:view` | Role/share/customer visibility | Read/statistics | Yes | Implemented |

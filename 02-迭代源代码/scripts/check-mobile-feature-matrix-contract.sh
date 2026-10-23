@@ -39,7 +39,7 @@ grep -Fq '| Dashboard | `dashboard:view` | Approval widget uses approval permiss
   || fail "system functional blueprint dashboard mobile phase is stale"
 grep -Fq '| Approval | `approval:view` | `approval:approve/reject` | Mobile list/detail/approve/reject and business-flow submission implemented |' "$BLUEPRINT" \
   || fail "system functional blueprint approval mobile phase is stale"
-grep -Fq '| Legacy incentive alias | `pages/cases/index`, `pages/cases/detail/index` | `incentive:view` | Compatibility alias | Historical links redirect to 四项激励 workbench/detail; they must not reintroduce a separate case concept or independent data source. |' "$BLUEPRINT" \
+grep -Fq '| Legacy incentive alias | `pages/cases/index`, `pages/cases/detail/index` | `incentive:view` | Compatibility alias | Historical links redirect to 四项服务 workbench/detail; they must not reintroduce a separate case concept or independent data source. |' "$BLUEPRINT" \
   || fail "system functional blueprint legacy cases alias boundary is stale"
 grep -Fq '| Mobile high-risk boundary needs live QA | Mobile now has selected destructive actions: customer delete, contact delete, finance delete, file delete, incentive record delete and public-sea row delete. Each must stay behind explicit permissions, row/detail confirmation and backend service guards; imports/exports, system admin, file ACL mutation, incentive category config, sea import/config and score entry remain PC-only. | Run WeChat DevTools/manual QA with granted and denied accounts, then compare PC/mobile behavior against the same backend data. |' "$BLUEPRINT" \
   || fail "system functional blueprint mobile high-risk boundary is stale"
@@ -161,11 +161,11 @@ require_line '| 文件管理 | Path download | `GET /api/file/download/**` | `fi
 require_line '| 文件分享 | Share file | `POST /api/file/{id}/share` | `file:share` | File owner/share permission | Share mutation | Yes | Implemented |'
 require_line '| 文件分享 | Shared to me | `GET /api/file/shared-to-me`, `/count` | `file:view` | Files shared to current user | Read | Yes | Implemented |'
 require_line '| 文件夹 ACL | View ACL | `GET /api/file/folders/{id}/acl` | `file:acl:manage` | Folder ACL manager | Read | Yes | Implemented |'
-require_line '| 四项激励 | Category list | `GET /api/incentive/categories` | `incentive:view` | Tenant/group | Read | Yes | Implemented |'
-require_line '| 四项激励 | Record list | `GET /api/incentive/records` | `incentive:view` | Upload owner, share visibility, role scope | Read | Yes | Implemented |'
-require_line '| 四项激励 | Upload/add record | `POST /api/incentive/records` | `incentive:add` | Customer access and uploader identity | Create | Yes | Implemented |'
-require_line '| 四项激励 | Edit own/permitted record | `PUT /api/incentive/records/{id}` | Method allows service-layer ownership/permitted edit | Owner/permitted editor | Update | Yes | Implemented |'
-require_line '| 四项激励 | Delete own/permitted record | `DELETE /api/incentive/records/{id}` | Service-layer ownership/permitted delete | Owner/permitted editor/admin | Delete | Yes | Implemented |'
+require_line '| 四项服务 | Category list | `GET /api/incentive/categories` | `incentive:view` | Tenant/group | Read | Yes | Implemented |'
+require_line '| 四项服务 | Record list | `GET /api/incentive/records` | `incentive:view` | Upload owner, share visibility, role scope | Read | Yes | Implemented |'
+require_line '| 四项服务 | Upload/add record | `POST /api/incentive/records` | `incentive:add` | Customer access and uploader identity | Create | Yes | Implemented |'
+require_line '| 四项服务 | Edit own/permitted record | `PUT /api/incentive/records/{id}` | Method allows service-layer ownership/permitted edit | Owner/permitted editor | Update | Yes | Implemented |'
+require_line '| 四项服务 | Delete own/permitted record | `DELETE /api/incentive/records/{id}` | Service-layer ownership/permitted delete | Owner/permitted editor/admin | Delete | Yes | Implemented |'
 require_line '| 激励查询 | Customer score | `GET /api/incentive/score/customer/{customerId}` | `incentive:view` | Same incentive/customer visibility | Read/statistics | Yes | Implemented |'
 require_line '| 激励统计 | Category stats | `GET /api/incentive/category-stats` | `incentive:view` | Role/share/customer visibility | Read/statistics | Yes | Implemented |'
 require_line '| 激励配置 | User selector | `GET /api/incentive/users` | `incentive:view` | Backend user scope | Read | Yes | Implemented |'

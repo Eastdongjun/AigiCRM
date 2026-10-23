@@ -55,7 +55,7 @@ LEGACY_REDIRECT_SHELLS = {
 def tab_target_violations(tab_pages):
     """navigateTo/redirectTo 到 tabBar 页会被微信直接拒绝(fail 回调缺失即静默死按钮)。
 
-    【2026-09-20 实证】home 四项激励卡片/profile 激励入口/upload 取消兜底三处均为此缺陷。
+    【2026-09-20 实证】home 四项服务卡片/profile 激励入口/upload 取消兜底三处均为此缺陷。
     到 tab 页唯一合法路径是 switchTab。
     """
     hits = []

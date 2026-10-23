@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // 文件库 scope 冒烟测试(2026-09-22 批次乙)
-// 钉住: ①activeFileScope 四 tab 映射(公共=public/私人=private/四项激励=incentive, 分享给我走独立接口)
+// 钉住: ①activeFileScope 四 tab 映射(公共=public/私人=private/四项服务=incentive, 分享给我走独立接口)
 //      ②真实模式 filterFiles 不再按文件夹文字二次筛选(G2 修复); 演示模式保留文字法
 //      ③上传按钮门控: 仅公共/私人 tab 显示(canUpload)
 
@@ -27,7 +27,7 @@ function createPage() {
   const page = createPage()
   assert.equal((() => { page.data.activeTab = '公共'; return page.activeFileScope() })(), 'public')
   assert.equal((() => { page.data.activeTab = '私人'; return page.activeFileScope() })(), 'private')
-  assert.equal((() => { page.data.activeTab = '四项激励'; return page.activeFileScope() })(), 'incentive')
+  assert.equal((() => { page.data.activeTab = '四项服务'; return page.activeFileScope() })(), 'incentive')
   assert.equal((() => { page.data.activeTab = '分享给我'; return page.activeFileScope() })(), 'private', '分享给我不进 scope 参数(走独立接口)')
 }
 
@@ -35,7 +35,7 @@ function createPage() {
 {
   demoMode = false
   const page = createPage()
-  page.data.activeTab = '四项激励'
+  page.data.activeTab = '四项服务'
   page.data.keyword = ''
   const rows = [{ name: 'a.png', folder: '未分类' }, { name: 'b.png', folder: '激励资料' }]
   const filtered = page.filterFiles(rows)
@@ -46,7 +46,7 @@ function createPage() {
 {
   demoMode = true
   const page = createPage()
-  page.data.activeTab = '四项激励'
+  page.data.activeTab = '四项服务'
   page.data.keyword = ''
   const rows = [{ name: 'a.png', folder: '未分类' }, { name: 'b.png', folder: '激励资料' }]
   const filtered = page.filterFiles(rows)

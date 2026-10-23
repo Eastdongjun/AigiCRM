@@ -122,7 +122,7 @@ async function verifyFileCenterPage(miniProgram) {
   // 【2026-09-22 校准】files 页 9/21 重构走 fileView 视图模型, 须走 setFileData 重建
   await page.callMethod('setFileData', {
     activeTab: '私人',
-    tabCounts: { 公共: 0, 私人: 3, 四项激励: 1, 分享给我: 1 },
+    tabCounts: { 公共: 0, 私人: 3, 四项服务: 1, 分享给我: 1 },
     folders: [{ id: 11, name: '客户文档' }, { id: 12, name: '激励资料' }],
     files,
     filteredFiles: files,
@@ -150,7 +150,7 @@ async function verifyFileCenterPage(miniProgram) {
   assert(privateParams.keyword === '方案', `file center list params must send keyword to backend: ${JSON.stringify(privateParams)}`)
   assert(privateParams.scope === 'private', `file center list params must send private scope for private tab: ${JSON.stringify(privateParams)}`)
   assert(privateParams.folderId === 11, `file center list params must keep selected folder for private tab: ${JSON.stringify(privateParams)}`)
-  await page.callMethod('setFileData', { keyword: '激励', activeTab: '四项激励', activeFolderId: 11 })
+  await page.callMethod('setFileData', { keyword: '激励', activeTab: '四项服务', activeFolderId: 11 })
   const incentiveParams = await page.callMethod('buildFileListParams')
   assert(incentiveParams.keyword === '激励', `file center incentive params must send keyword to backend: ${JSON.stringify(incentiveParams)}`)
   assert(incentiveParams.scope === 'incentive', `file center incentive params must send incentive scope: ${JSON.stringify(incentiveParams)}`)
@@ -164,7 +164,7 @@ async function verifyFileCenterPage(miniProgram) {
     assert(rowText.includes(expected), `file center list missing PC metadata ${expected}: ${rowText}`)
   }
   const tabText = (await textList(await page.$$('.file-tab'))).join('\n')
-  for (const expected of ['公共0', '私人3', '四项激励1', '分享给我1']) {
+  for (const expected of ['公共0', '私人3', '四项服务1', '分享给我1']) {
     assert(tabText.includes(expected), `file center tab count missing ${expected}: ${tabText}`)
   }
 

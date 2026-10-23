@@ -30,32 +30,32 @@ automator_script="$ROOT/scripts/miniprogram/verify-incentive-attachments.mjs"
 matrix="$ROOT/docs/function-permission-matrix.md"
 grep -q "hasPermission('incentive:view')" "$page" || { echo "FAIL: incentive view gate is missing" >&2; exit 1; }
 grep -q "hasPermission('incentive:add')" "$page" || { echo "FAIL: incentive upload gate is missing" >&2; exit 1; }
-grep -q "没有四项激励查看权限" "$page" || { echo "FAIL: incentive view denial copy must use four-incentive naming" >&2; exit 1; }
-grep -q "没有四项激励查看权限" "$detail_page" || { echo "FAIL: incentive detail view denial copy must use four-incentive naming" >&2; exit 1; }
+grep -q "没有四项服务查看权限" "$page" || { echo "FAIL: incentive view denial copy must use four-incentive naming" >&2; exit 1; }
+grep -q "没有四项服务查看权限" "$detail_page" || { echo "FAIL: incentive detail view denial copy must use four-incentive naming" >&2; exit 1; }
 # 【2026-10-17 钉随需求C】b8d62e3f 把 removeRecord/appendRecord 系操作全下游到
 # customer-detail 详情页, 列表页只留 openCustomerDetail 入口——删除/追加文案钉随迁
 CUSTDETAIL="$ROOT/aigicrm-miniprogram/pages/incentive/customer-detail/index.js"
 CUSTDETAIL_WXML="$ROOT/aigicrm-miniprogram/pages/incentive/customer-detail/index.wxml"
-grep -q "没有四项激励删除权限" "$CUSTDETAIL" || { echo "FAIL: incentive customer-detail delete denial copy must use four-incentive naming" >&2; exit 1; }
-grep -q "没有四项激励删除权限" "$detail_page" || { echo "FAIL: incentive detail delete denial copy must use four-incentive naming" >&2; exit 1; }
-grep -q "没有四项激励上传权限" "$upload_page" || { echo "FAIL: incentive upload denial copy must use four-incentive naming" >&2; exit 1; }
-grep -q "四项激励上传失败" "$upload_page" || { echo "FAIL: incentive upload failure copy must use four-incentive naming" >&2; exit 1; }
-grep -q "四项激励详情加载失败" "$detail_page" || { echo "FAIL: incentive detail load failure copy must use four-incentive naming" >&2; exit 1; }
-grep -q "删除四项激励记录" "$detail_page" || { echo "FAIL: incentive detail delete modal copy must use four-incentive naming" >&2; exit 1; }
-grep -q "删除四项激励记录失败" "$detail_page" || { echo "FAIL: incentive detail delete failure copy must use four-incentive naming" >&2; exit 1; }
-grep -q "四项激励加载失败" "$page" || { echo "FAIL: incentive list load failure copy must use four-incentive naming" >&2; exit 1; }
-grep -q "四项激励分类加载失败" "$page" || { echo "FAIL: incentive category load failure copy must use four-incentive naming" >&2; exit 1; }
-grep -q "四项激励统计加载失败" "$page" || { echo "FAIL: incentive stats load failure copy must use four-incentive naming" >&2; exit 1; }
+grep -q "没有四项服务删除权限" "$CUSTDETAIL" || { echo "FAIL: incentive customer-detail delete denial copy must use four-incentive naming" >&2; exit 1; }
+grep -q "没有四项服务删除权限" "$detail_page" || { echo "FAIL: incentive detail delete denial copy must use four-incentive naming" >&2; exit 1; }
+grep -q "没有四项服务上传权限" "$upload_page" || { echo "FAIL: incentive upload denial copy must use four-incentive naming" >&2; exit 1; }
+grep -q "四项服务上传失败" "$upload_page" || { echo "FAIL: incentive upload failure copy must use four-incentive naming" >&2; exit 1; }
+grep -q "四项服务详情加载失败" "$detail_page" || { echo "FAIL: incentive detail load failure copy must use four-incentive naming" >&2; exit 1; }
+grep -q "删除四项服务记录" "$detail_page" || { echo "FAIL: incentive detail delete modal copy must use four-incentive naming" >&2; exit 1; }
+grep -q "删除四项服务记录失败" "$detail_page" || { echo "FAIL: incentive detail delete failure copy must use four-incentive naming" >&2; exit 1; }
+grep -q "四项服务加载失败" "$page" || { echo "FAIL: incentive list load failure copy must use four-incentive naming" >&2; exit 1; }
+grep -q "四项服务分类加载失败" "$page" || { echo "FAIL: incentive category load failure copy must use four-incentive naming" >&2; exit 1; }
+grep -q "四项服务统计加载失败" "$page" || { echo "FAIL: incentive stats load failure copy must use four-incentive naming" >&2; exit 1; }
 # 【钉随需求C】列表页删除弹窗/失败文案随操作下游退役——customer-detail 已钉
-grep -q "四项激励记录加载失败" "$upload_page" || { echo "FAIL: incentive upload edit-record load failure copy must use four-incentive naming" >&2; exit 1; }
-grep -q '"navigationBarTitleText":"四项激励"' "$json" || { echo "FAIL: incentive index title must use four-incentive naming" >&2; exit 1; }
-grep -q '"navigationBarTitleText":"四项激励详情"' "$detail_json" || { echo "FAIL: incentive detail title must use four-incentive naming" >&2; exit 1; }
-grep -q '<view class="hero-title">四项激励详情</view>' "$detail_wxml" || { echo "FAIL: incentive detail hero title must use four-incentive naming" >&2; exit 1; }
-grep -q '暂无四项激励详情' "$detail_wxml" || { echo "FAIL: incentive detail empty state must use four-incentive naming" >&2; exit 1; }
-grep -q '暂无四项激励记录' "$wxml" || { echo "FAIL: incentive list empty state must use four-incentive naming" >&2; exit 1; }
-grep -q "typeText: '四项激励'" "$timeline_page" || { echo "FAIL: customer timeline incentive type label must use four-incentive naming" >&2; exit 1; }
-grep -q '"navigationBarTitleText":"四项激励上传"' "$upload_json" || { echo "FAIL: incentive upload title must use four-incentive naming" >&2; exit 1; }
-grep -q '<view class="hero-title">四项激励上传</view>' "$upload_wxml" || { echo "FAIL: incentive upload hero title must use four-incentive naming" >&2; exit 1; }
+grep -q "四项服务记录加载失败" "$upload_page" || { echo "FAIL: incentive upload edit-record load failure copy must use four-incentive naming" >&2; exit 1; }
+grep -q '"navigationBarTitleText":"四项服务"' "$json" || { echo "FAIL: incentive index title must use four-incentive naming" >&2; exit 1; }
+grep -q '"navigationBarTitleText":"四项服务详情"' "$detail_json" || { echo "FAIL: incentive detail title must use four-incentive naming" >&2; exit 1; }
+grep -q '<view class="hero-title">四项服务详情</view>' "$detail_wxml" || { echo "FAIL: incentive detail hero title must use four-incentive naming" >&2; exit 1; }
+grep -q '暂无四项服务详情' "$detail_wxml" || { echo "FAIL: incentive detail empty state must use four-incentive naming" >&2; exit 1; }
+grep -q '暂无四项服务记录' "$wxml" || { echo "FAIL: incentive list empty state must use four-incentive naming" >&2; exit 1; }
+grep -q "typeText: '四项服务'" "$timeline_page" || { echo "FAIL: customer timeline incentive type label must use four-incentive naming" >&2; exit 1; }
+grep -q '"navigationBarTitleText":"四项服务上传"' "$upload_json" || { echo "FAIL: incentive upload title must use four-incentive naming" >&2; exit 1; }
+grep -q '<view class="hero-title">四项服务上传</view>' "$upload_wxml" || { echo "FAIL: incentive upload hero title must use four-incentive naming" >&2; exit 1; }
 grep -q 'categoryTree' "$page" || { echo "FAIL: incentive mobile category tree is missing" >&2; exit 1; }
 grep -q 'getCategoryStats' "$page" || { echo "FAIL: incentive mobile category stats is missing" >&2; exit 1; }
 grep -q 'getRecords' "$page" || { echo "FAIL: incentive mobile category stats detail does not load shared records" >&2; exit 1; }

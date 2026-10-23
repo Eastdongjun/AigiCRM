@@ -139,7 +139,7 @@ async function verifyHomePage(miniProgram) {
   ].join('\n')
   // 【2026-10-20 重锚】首页改为 hero + 客户结构图 + 单色入口 + 预警列表;
   // 预警行按本测试注入的 expiring 夹具渲染(经 homeView 视图模型)
-  for (const expected of ['AIGICRM', '张三', '我的客户', '今日到期', '新客户', '四项激励', '四项激励上传', '审批管理', '提醒', '客户统计', '华东智能制造集团']) {
+  for (const expected of ['AIGICRM', '张三', '我的客户', '今日到期', '新客户', '四项服务', '四项服务上传', '审批管理', '提醒', '客户统计', '华东智能制造集团']) {
     assert(pageText.includes(expected), `home page missing ${expected}`)
   }
 
@@ -183,7 +183,7 @@ async function verifyHomePermissionDenials(miniProgram) {
   await page.callMethod('openSea')
   await page.waitFor(300)
   const toasts = await miniProgram.evaluate(() => globalThis.__shellToastCalls || [])
-  for (const expected of ['没有四项激励上传权限', '没有审批权限', '没有提醒权限', '没有统计查看权限', '没有公海权限']) {
+  for (const expected of ['没有四项服务上传权限', '没有审批权限', '没有提醒权限', '没有统计查看权限', '没有公海权限']) {
     assert(toasts.some((item) => item.title === expected), `home permission toast missing ${expected}: ${JSON.stringify(toasts)}`)
   }
 }
@@ -231,7 +231,7 @@ async function verifyPcOnlyBoundary(miniProgram) {
     'file:acl:manage',
     'incentive:view',
     'incentive:edit',
-    // 【2026-09-22 校准】应用中心"四项激励上传"入口守 incentive:add(pages/app/index.js:33),
+    // 【2026-09-22 校准】应用中心"四项服务上传"入口守 incentive:add(pages/app/index.js:33),
     // 旧授权集缺此码 → 入口被正确隐藏而断言误报缺失
     'incentive:add',
     'system:config:view',
@@ -252,7 +252,7 @@ async function verifyPcOnlyBoundary(miniProgram) {
   const apps = await page.data('apps')
   const appText = (await textList(await page.$$('.ap-tile'))).join('\n')
   const rendered = `${apps.map((item) => `${item.key}:${item.title}:${item.subtitle}`).join('\n')}\n${appText}`
-  for (const expected of ['四项激励上传', '四项激励', '分类树、统计、排行与记录']) {
+  for (const expected of ['四项服务上传', '四项服务', '分类树、统计、排行与记录']) {
     assert(rendered.includes(expected), `app center missing four-incentive naming ${expected}: ${rendered}`)
   }
 

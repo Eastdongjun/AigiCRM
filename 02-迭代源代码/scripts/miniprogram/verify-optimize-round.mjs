@@ -118,7 +118,7 @@ async function main() {
     return { fileTabs: (pg.data.fileView && pg.data.fileView.tabs ? pg.data.fileView.tabs : []).map((t) => t.label) }
   })
   const labels = d.fileTabs
-  assert(JSON.stringify(labels) === JSON.stringify(['公共', '私人', '四项激励', '分享给我']), `file tabs mismatch: ${labels.join(',')}`)
+  assert(JSON.stringify(labels) === JSON.stringify(['公共', '私人', '四项服务', '分享给我']), `file tabs mismatch: ${labels.join(',')}`)
   await shot('opt6-8-files-head')
 
   // 6. 应用中心图标(第 9 条)

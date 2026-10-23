@@ -80,7 +80,7 @@ cat >"$GOOD_RECONCILIATION" <<'EOF'
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | 登录与权限 | staging / same backend | sales-admin / limited-user | pc-screenshot-login-redacted.png | mp-screenshot-login-redacted.png | allow/deny matrix redacted | 通过 | 无差异 |
 | 客户与联系人/财务/指标/时间轴 | staging / same backend | sales-admin / limited-user | pc-customer-redacted.png | mp-customer-redacted.png | customer API same ids redacted | 通过 | 无差异 |
-| 四项激励与附件 | staging / same backend | sales-admin / limited-user | pc-incentive-redacted.png | mp-incentive-redacted.png | install slots preview/download redacted | 通过 | 无差异 |
+| 四项服务与附件 | staging / same backend | sales-admin / limited-user | pc-incentive-redacted.png | mp-incentive-redacted.png | install slots preview/download redacted | 通过 | 无差异 |
 | 文件中心 | staging / same backend | sales-admin / limited-user | pc-file-redacted.png | mp-file-redacted.png | file permission matrix redacted | 通过 | 无差异 |
 | 审批/公海/提醒/统计/排行 | staging / same backend | sales-admin / limited-user | pc-workbench-redacted.png | mp-workbench-redacted.png | module APIs same filters redacted | 通过 | 无差异 |
 | PC-only 边界 | staging / same backend | sales-admin / limited-user | pc-admin-boundary-redacted.png | mp-no-admin-boundary-redacted.png | PC-only actions hidden on mobile | 通过 | 无差异 |
@@ -90,7 +90,7 @@ cat >"$BAD_RECONCILIATION" <<'EOF'
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | 登录与权限 | staging / same backend | sales-admin / limited-user | pc.png | mp.png | token=abc123 | 通过 | 无差异 |
 | 客户与联系人/财务/指标/时间轴 | staging / same backend | sales-admin / limited-user | pc.png | mp.png | customer API same ids redacted | 通过 | 无差异 |
-| 四项激励与附件 | staging / same backend | sales-admin / limited-user | pc.png | mp.png | install slots preview/download redacted | 通过 | 无差异 |
+| 四项服务与附件 | staging / same backend | sales-admin / limited-user | pc.png | mp.png | install slots preview/download redacted | 通过 | 无差异 |
 | 文件中心 | staging / same backend | sales-admin / limited-user | pc.png | mp.png | file permission matrix redacted | 通过 | 无差异 |
 | 审批/公海/提醒/统计/排行 | staging / same backend | sales-admin / limited-user | pc.png | mp.png | module APIs same filters redacted | 通过 | 无差异 |
 | PC-only 边界 | staging / same backend | sales-admin / limited-user | pc.png | mp.png | PC-only actions hidden on mobile | 通过 | 无差异 |
@@ -101,7 +101,7 @@ if python3 "$RECONCILIATION_CHECK" "$BAD_RECONCILIATION" >/dev/null 2>&1; then
   fail 'reconciliation evidence validator must reject evidence containing sensitive token traces'
 fi
 grep -Fq '| 验收项 | 后端环境 | 账号角色/权限组合 | PC 证据 | 小程序证据 | 接口/权限结果 | 结论 | 遗留差异 |' "$DOC" || fail 'reconciliation template must capture PC/mobile/interface evidence and conclusion'
-grep -Fq '四项激励与附件' "$DOC" || fail 'reconciliation template must include incentive attachment parity'
+grep -Fq '四项服务与附件' "$DOC" || fail 'reconciliation template must include incentive attachment parity'
 grep -Fq '安装前/中/后/跟踪文件可预览或下载；阅读状态同步' "$DOC" || fail 'reconciliation template must verify incentive slots and read state'
 grep -Fq '结论只允许填写“通过 / 失败 / 阻塞”' "$DOC" || fail 'reconciliation template must constrain conclusion states'
 echo 'PASS: mobile manual QA checklist covers project root, business parity, and PC-only boundaries.'

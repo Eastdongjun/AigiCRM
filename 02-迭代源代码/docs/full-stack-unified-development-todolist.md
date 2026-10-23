@@ -57,7 +57,7 @@ Each module is complete only when all items below are satisfied:
 | Mobile file preview | Implemented | `pages/file`, `api/file.js` |
 | Mobile file overview | Implemented | `pages/files`, `api/file.js`, `file:view` guard |
 | Mobile incentive read sync | Implemented | `pages/incentive`, `api/incentive.js`, backend `biz_incentive_read` |
-| Mobile legacy incentive alias | Implemented | `pages/cases` only redirects historical links into the 四项激励 workbench/detail; no separate case data surface |
+| Mobile legacy incentive alias | Implemented | `pages/cases` only redirects historical links into the 四项服务 workbench/detail; no separate case data surface |
 | Mobile approval action | Implemented | `pages/approval`, `api/approval.js` |
 | Mobile reminder list/process | Implemented | `pages/reminder`, `api/reminder.js` |
 | Mobile public sea operations | Implemented | `pages/sea`, `api/sea.js`, backend `canClaim/canEdit/canDelete` |

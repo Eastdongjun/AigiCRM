@@ -40,7 +40,7 @@
 | `incentive:person-rank:export` | 个人排行导出 | 3 | `NULL` | 启用 | 系统管理员,行政,销售总监 |
 | `incentive:read-ranking:view` | 本月激励查询阅读排行榜 | 2 | `/system/incentive-read-ranking` | 启用 | 系统管理员 |
 | `incentive:read-stats` | 激励查询阅读统计 | 3 | `NULL` | 启用 | 系统管理员,行政,销售员,销售总监 |
-| `incentive:view` | 四项激励 / 激励查询 / 激励统计 | 2 | `/incentive-group / /incentive/search / /incentive/stats` | 启用 | 系统管理员,行政,销售员,销售总监 |
+| `incentive:view` | 四项服务 / 激励查询 / 激励统计 | 2 | `/incentive-group / /incentive/search / /incentive/stats` | 启用 | 系统管理员,行政,销售员,销售总监 |
 | `incentive:view-all` | 激励查看(全部)（历史残留, 不作为运行时授权(改由授权表按人核定)） | 3 | `NULL` | **停用** | — |
 | `incentive:view-shared` | 激励查看(已分享)（历史残留, 不作为运行时授权(改由授权表按人核定)） | 3 | `NULL` | **停用** | — |
 | `ranking:customer:view` | 客户排行查看 | 3 | `NULL` | 启用 | — |

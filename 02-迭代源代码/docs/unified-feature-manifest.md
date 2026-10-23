@@ -56,7 +56,7 @@
 | `file.folderManage` | 文件 | 文件夹面板管理 | `pages/files/index` 与 `pages/files/folder-form/index` | `file:folder:manage`+文件夹 ACL | 文件夹 ACL | 创建/更新/删除 | 已实现 |
 | `file.aclView` | 文件 | 文件夹 ACL 弹窗只读 | `pages/files/index` 只读 ACL 弹窗 | `file:acl:manage` | 文件夹管理 ACL | 读取权限 | 已实现 |
 | `file.aclManage` | 文件 | 文件夹 ACL 弹窗授权 | 默认 `PC-only` | `file:acl:manage` | 文件夹管理 ACL | 授予/撤销 | `PC-only` |
-| `incentive.index` | 激励(四项激励) | `/incentive` | `pages/incentive/index`、`pages/incentive/detail/index`、`pages/incentive/upload/index` | 读 `incentive:view`;上传 `incentive:add` | 激励分类/用户授权范围 | 读取/创建 | 已实现 |
+| `incentive.index` | 激励(四项服务) | `/incentive` | `pages/incentive/index`、`pages/incentive/detail/index`、`pages/incentive/upload/index` | 读 `incentive:view`;上传 `incentive:add` | 激励分类/用户授权范围 | 读取/创建 | 已实现 |
 | `incentive.customerDetail` | 激励 | 客户激励详情(列表封面卡点入,分类锚点+照片墙+历史记录+吸底操作) | `pages/incentive/customer-detail/index`(2026-10-16 需求C 新增,数据经 eventChannel 传整卡聚合) | 读 `incentive:view`(与列表同口径);已读/追加/删除继承本人或授权 `canEdit`/`canDelete` | 激励分享制(本人全部+他人已分享) | 读取/更新已读/跳转详情 | 已实现 |
 | `incentive.legacyCasesAlias` | 激励 | 旧激励链接 | `pages/incentive/index` ⟦更正 10-07:cases 重定向壳随 1b3c865b 删除,兼容由历史路由表外无引用保证⟧ | `incentive:view` | 激励分类/用户授权范围 | 兼容导航 | 已实现 |
 | `incentive.search` | 激励 | `/incentive/search` | `pages/incentive/index` | `incentive:view` | 激励分享制(本人全部+他人已分享) | 读取 | 已实现 |
@@ -84,7 +84,7 @@
 | `sea.delete` | 公海 | 公海行删除,`/api/sea/pool/{id}` | `pages/sea/index` 行删除 | `sea:pool:delete`+行 `canDelete` 且 `available` 状态 | 池删除范围 | 删除 | 已实现 |
 | `sea.config` | 公海 | 系统配置/公海池管理 | 默认 `PC-only` | `sea:config:view/edit` | 配置范围 | 配置增删改查 | `PC-only` |
 | `statistics.dashboard` | 统计 | `/statistics`、`/indicator` | PC 仪表盘;`pages/home/index`、`pages/statistics/index`、`pages/statistics/detail/index`、`pages/indicator/index` | `statistics:view` 或适用的 `dashboard:view` | 统一客户数据范围 | 统计 | 已实现 |
-| `statistics.customerRankings` | 统计 | `/ranking/customer`(考核与分析→客户排行:四项激励/客情/六项指标三类排行) | `pages/ranking/index` 排行中心 | `statistics:view` | 四项激励聚合=激励分享制;指标/客情=客户可见范围(口径差异系 G2 安全设计,待产品裁决是否统一) | 统计 | 已实现 ⟦补录 09-24:英文版未单列;口径注释反映 09-24 修复⟧ |
+| `statistics.customerRankings` | 统计 | `/ranking/customer`(考核与分析→客户排行:四项服务/客情/六项指标三类排行) | `pages/ranking/index` 排行中心 | `statistics:view` | 四项服务聚合=激励分享制;指标/客情=客户可见范围(口径差异系 G2 安全设计,待产品裁决是否统一) | 统计 | 已实现 ⟦补录 09-24:英文版未单列;口径注释反映 09-24 修复⟧ |
 | `score.entry` | 积分 | `/score/entry` | 默认 `PC-only` | 页面 `score:entry`,**批量录入 `/score/entries/batch` 也是 `score:entry`**(积分项 CRUD 才是 `score:manage`) ⟦修正 09-24:原文"写 score:manage"为英文原文笔误,与代码不符;GPT 二轮审查 P1-013 抓出⟧ | 集团内积分可见集合 | 批量录入/创建更新 | `PC-only` |
 | `score.ranking` | 积分 | `/score/ranking` | `pages/ranking/index`、`pages/ranking/detail/index`、`pages/customer/detail/index` 客户下钻 | `score:view` | 可见用户 | 读取/统计 | 已实现 |
 | `system.user` | 系统 | `/system/user` | `PC-only` | `system:user:*` | 组织管理员/用户管理范围 | 账号增删改查 | `PC-only` |

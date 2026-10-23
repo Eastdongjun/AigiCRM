@@ -111,7 +111,7 @@ async function verifyProfileHome(miniProgram) {
     ...(await textList(await page.$$('.menu-item'))),
     ...(await textList(await page.$$('button')))
   ].join('\n')
-  for (const expected of ['张三', '华东办事处', '销售经理', '当前岗位', '当前集团', '数据范围', '我的客户', '我的四项激励', '我的捞取记录', '修改密码', '数据权限说明', '微信绑定', '意见反馈', '退出登录']) {
+  for (const expected of ['张三', '华东办事处', '销售经理', '当前岗位', '当前集团', '数据范围', '我的客户', '我的四项服务', '我的捞取记录', '修改密码', '数据权限说明', '微信绑定', '意见反馈', '退出登录']) {
     assert(pageText.includes(expected), `profile home missing ${expected}`)
   }
 

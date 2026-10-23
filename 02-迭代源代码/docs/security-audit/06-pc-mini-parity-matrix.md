@@ -12,7 +12,7 @@
 | 客户 查看/增/改/删/分享/释放 | ✅ 列表+详情+高级筛选 | ✅ 列表+筛选+详情+编辑入口 | customer:view/add/edit/delete + share(经edit) | ✅ 对齐(2026-09-21 批次修复保护状态域后) |
 | 客户 导入/导出 | ✅ | ❌ 无 | customer:import/export | PC-only(设计如此,移动端不做批量) |
 | 联系人/财务 | ✅ Tab+按钮 | ⚠️ 详情只读字段 | contact:manage/finance:view/manage | 小程序无写入口(API 可达但 UI 未暴露, 后端双端同守卫) |
-| 四项激励 查看/上传/改/删 | ✅ | ✅(含两级分类+拨盘详情) | incentive:view/add/edit | ✅ 对齐(主要佐证槽 2026-09-21 对齐) |
+| 四项服务 查看/上传/改/删 | ✅ | ✅(含两级分类+拨盘详情) | incentive:view/add/edit | ✅ 对齐(主要佐证槽 2026-09-21 对齐) |
 | 激励统计/阅读排行 | ✅ | ✅(统计+钻取) | incentive:view/read-stats/read-ranking:view | ✅ |
 | 文件 四scope/上传/下载/分享/ACL | ✅ | ✅ 四scope+上传下载分享; ACL 仅 PC | file:*(acl:manage PC-only) | ✅ 对齐(2026-09-21 修复激励tab筛选后); ACL 属管理面 PC-only 合理 |
 | 公海 查看/捞取/删除 | ✅ | ✅ 查看+捞取 | sea:view/claim(删除池级ACL) | ✅ |

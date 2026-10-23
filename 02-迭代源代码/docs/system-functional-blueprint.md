@@ -39,9 +39,9 @@ Important boundary:
 | 客户管理 | 编辑客户 | Edit customer form | `/customer/edit/:id` | `customer:edit` | `views/customer/add.vue` |
 | 客户管理 | 客户详情 | Detail tabs: info/logs/finance/indicator/incentive | `/customer/detail/:id` | `customer:view` | `views/customer/detail.vue` |
 | 文件管理 | 文件管理 | Folder/file table/upload/share/ACL | `/file` | `file:view` | `views/file/index.vue` |
-| 四项激励 | 四项激励 | Record upload/category/record table | `/incentive` | `incentive:view` | `views/incentive/index.vue` |
-| 四项激励 | 激励统计 | Category/dept/person statistics | `/incentive/stats` | `incentive:view` | `views/incentive/stats.vue` |
-| 四项激励 | 激励查询 | Customer grouped incentive records/read state | `/incentive/search` | `incentive:view` | `views/incentive/search.vue` |
+| 四项服务 | 四项服务 | Record upload/category/record table | `/incentive` | `incentive:view` | `views/incentive/index.vue` |
+| 四项服务 | 激励统计 | Category/dept/person statistics | `/incentive/stats` | `incentive:view` | `views/incentive/stats.vue` |
+| 四项服务 | 激励查询 | Customer grouped incentive records/read state | `/incentive/search` | `incentive:view` | `views/incentive/search.vue` |
 | 提醒管理 | 提醒管理 | Expiring/customer reminder list/process | `/reminder` | `reminder:view` | `views/reminder/index.vue` |
 | 公海管理 | 公海池 | Sea customer list/statistics/filter/import/claim/edit/delete | `/sea` | `sea:view` | `views/sea/index.vue` |
 | 公海管理 | 捞取记录 | My claim approval records | `/sea/records` | `sea:view` | `views/sea/records.vue` |
@@ -68,7 +68,7 @@ Important boundary:
 | Customer | `pages/customer/index` | `customer:view` | Implemented read-focused | Same backend customer list/detail/counts. |
 | File | `pages/files/index` | `file:view` | Implemented operations | Unified file center; legacy `pages/file/index` redirects here. Preview/download/upload/share/delete/folder management and ACL read are implemented; ACL mutation stays PC-only. |
 | Incentive | `pages/incentive/index` | `incentive:view` | Implemented query/upload/stats | Record query, upload/edit/delete, customer score, ranking, read-state and read stats are implemented; category config stays PC-only. |
-| Legacy incentive alias | `pages/cases/index`, `pages/cases/detail/index` | `incentive:view` | Compatibility alias | Historical links redirect to 四项激励 workbench/detail; they must not reintroduce a separate case concept or independent data source. |
+| Legacy incentive alias | `pages/cases/index`, `pages/cases/detail/index` | `incentive:view` | Compatibility alias | Historical links redirect to 四项服务 workbench/detail; they must not reintroduce a separate case concept or independent data source. |
 | Approval | `pages/approval/index` | `approval:view` | Implemented approve/reject | Action buttons gated by approve/reject permissions. |
 | Public Sea | `pages/sea/index` | `sea:view` | Implemented claim/edit/delete | Not a tab to stay under WeChat tab limit; list/stats/pool selector, claim submission, permitted edit route and permitted row delete are implemented; import/config stay PC-only. |
 
@@ -457,7 +457,7 @@ Source references: dashboard `StatisticsQueryService.java:120-152`, daily/weekly
 | Permission scopes | 系统设置/权限范围 | `role_perm_scope` | Module/action-level row scope |
 | Sea pools | 公海配置 | `biz_sea_config` | Visible pools and pool-level actions |
 | Approval config | 审批配置 | `biz_approval_config`, flow/node config | Approval routing and approver resolution |
-| Incentive categories | 四项激励/系统设置 | `biz_incentive_category` | Score type and category tree |
+| Incentive categories | 四项服务/系统设置 | `biz_incentive_category` | Score type and category tree |
 | Score items | 学分管理 | `biz_score_item` | Score grid/ranking dimensions |
 
 ## 12. Completeness Gaps Before V2
