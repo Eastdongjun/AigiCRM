@@ -3,17 +3,13 @@
      只显示客户与记录(搜索/筛选/上传入口保留), 不含分类树/统计/排行/阅读;
      完整能力(分类树/统计/排行/阅读/一客一册档案)在应用中心「四项服务应用」(pages/incentive/index)。 -->
 <view class="page incentive-workbench">
-  <view class="hero">
-    <view class="row">
-      <view>
-        <view class="hero-title">四项服务</view>
-        <view class="hero-sub">客户 · 记录 · 上传</view>
-      </view>
-      <button class="ghost-btn" bindtap="refresh" loading="{{incentiveView.refreshLoading}}">{{incentiveView.refreshText}}</button>
-    </view>
-    <view wx:if="{{canUploadEvidence}}" class="upload-entry-row">
-      <button class="upload-entry-btn" bindtap="goUpload">＋ 上传激励</button>
-      <text class="upload-entry-hint">大类 → 子类 → 槽位佐证,与 PC 上传同口径</text>
+  <!-- 【2026-10-23 用户反馈: 顶部太占空间】hero 大卡压成单行细条: 标题+刷新+上传同行,
+       删副标题与上传提示语; 搜索卡/筛选胶囊同步收紧(见本页 wxss 覆盖段) -->
+  <view class="hm-bar">
+    <text class="hm-bar-title">四项服务</text>
+    <view class="hm-bar-actions">
+      <button class="hm-bar-btn ghost" bindtap="refresh" loading="{{incentiveView.refreshLoading}}">↻ 刷新</button>
+      <button wx:if="{{canUploadEvidence}}" class="hm-bar-btn solid" bindtap="goUpload">＋ 上传</button>
     </view>
   </view>
 

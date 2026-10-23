@@ -2,3 +2,36 @@
    完整版(pages/incentive/index.wxss)是样式的单一事实源, 本页只挑用其中 hero/搜索/封面卡/分页
    相关类; 分类树/统计/排行/阅读的样式在本页无对应 WXML 节点, 引入亦不生效。 */
 @import "../index.wxss";
+
+/* ===== 【2026-10-23 用户反馈: 顶部太占空间】轻量页顶部压缩覆盖 =====
+   hero 大卡(标题+副标题+刷新+上传+提示语 5 行)压成单行细条; 搜索卡与筛选胶囊收紧。
+   覆盖声明置于 @import 之后, 同特异性时后者生效——只影响本页, 完整版工作台不受影响。 */
+.hm-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14rpx 24rpx;
+  background: linear-gradient(135deg, #1d3fae, #2f6bf0 60%, #4d8cf5);
+  color: #fff;
+}
+.hm-bar-title { font-size: 30rpx; font-weight: 800; letter-spacing: 2rpx; }
+.hm-bar-actions { display: flex; align-items: center; gap: 14rpx; }
+.hm-bar-btn {
+  margin: 0;
+  padding: 0 22rpx;
+  height: 52rpx;
+  line-height: 52rpx;
+  font-size: 22rpx;
+  border-radius: 999rpx;
+  border: none;
+}
+.hm-bar-btn::after { border: none; }
+.hm-bar-btn.ghost { background: rgba(255, 255, 255, .16); color: #fff; border: 1rpx solid rgba(255, 255, 255, .55); }
+.hm-bar-btn.solid { background: #fff; color: #1d4ed8; font-weight: 700; }
+
+.incentive-search-card { padding: 12rpx 16rpx; margin-top: 14rpx; }
+.incentive-search-row .incentive-search-input { height: 58rpx; }
+.incentive-advanced-filters { margin-top: 10rpx; }
+.filter-chip { padding: 6rpx 16rpx; font-size: 20rpx; }
+.incentive-filter-head { margin: 14rpx 0 10rpx; }
+.cust-card { margin-bottom: 14rpx; }
