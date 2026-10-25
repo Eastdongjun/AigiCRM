@@ -1,23 +1,17 @@
 <view class="page files-page">
-  <!-- 2026-10-20 顶部重设计：原「大蓝卡 + 大图标」占屏过高，改为紧凑身份条 + 单行容量 -->
+  <!-- 2026-10-23 二轮压缩(用户令"文件管理/存储空间区域太大"): 两行细条——
+       标题+容量+上传一行, 进度条+申请扩容一行; 删副标题/「存储空间」标签/提示语 -->
   <view class="files-top">
     <view class="files-top-row">
-      <view class="files-top-copy">
-        <view class="files-top-title">文件管理</view>
-        <view class="files-top-sub">资料统一管理，协作随时可见</view>
-      </view>
+      <view class="files-top-title">文件管理</view>
+      <view class="files-top-cap">{{capacity.used}}<text> / {{capacity.total}}</text></view>
       <button wx:if="{{fileView.showUploadAction}}" class="files-top-upload" loading="{{uploading}}" bindtap="uploadFile">＋ 上传</button>
     </view>
-    <view class="files-top-storage">
-      <view class="files-top-storage-meta">
-        <text class="files-top-storage-label">存储空间</text>
-        <view class="files-top-storage-value">{{capacity.used}}<text> / {{capacity.total}}</text></view>
-        <!-- 【D1-A 2026-10-18】仅 canApply 显示入口; 不可申请时透出后端短原因(未授权/在途/已上限) -->
-        <button wx:if="{{storageApplyView.showApplyAction}}" class="files-top-apply" bindtap="openStorageApply">申请扩容 ›</button>
-        <text wx:elif="{{storageApplyView.showReason}}" class="files-top-reason">{{storageApplyView.reasonText}}</text>
-      </view>
+    <view class="files-top-meter">
       <view class="files-top-progress"><view style="width:{{capacity.percent}}%"></view></view>
-      <view class="files-top-hint">{{capacity.hint}}</view>
+      <!-- 【D1-A 2026-10-18】仅 canApply 显示入口; 不可申请时透出后端短原因(未授权/在途/已上限) -->
+      <button wx:if="{{storageApplyView.showApplyAction}}" class="files-top-apply" bindtap="openStorageApply">申请扩容 ›</button>
+      <text wx:elif="{{storageApplyView.showReason}}" class="files-top-reason">{{storageApplyView.reasonText}}</text>
     </view>
   </view>
   <button wx:if="{{canDevUploadSmoke}}" class="btn files-smoke-btn" loading="{{uploading}}" bindtap="runDevUploadSmoke">本地上传自测</button>
