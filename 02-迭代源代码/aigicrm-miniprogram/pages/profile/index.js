@@ -1,6 +1,7 @@
 const { loadCurrentUser, switchGroup: switchSessionGroup } = require('../../api/auth')
 const { logout, requireLogin } = require('../../utils/auth')
 const { showError } = require('../../utils/feedback')
+const { dataScopeLabel } = require('../../utils/label-maps')
 
 function buildProfileView(data) {
   const groupIds = Array.isArray(data.groupIds) ? data.groupIds : []
@@ -62,7 +63,7 @@ Page({
         userInitial: userName ? userName.slice(0, 1) : '用',
         roleName: user.roleName || '未设置岗位',
         orgName: user.deptName || '未设置组织',
-        scopeName: user.dataScopeName || '按权限范围',
+        scopeName: dataScopeLabel(user.dataScope),
         positionNames: (user.positions || []).map((position) => position.name).filter(Boolean).join('、') || '未设置岗位',
         groupIds: user.groupIds || [],
         groupNames: user.groupNames || {},

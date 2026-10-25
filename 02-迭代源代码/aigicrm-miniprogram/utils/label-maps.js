@@ -62,7 +62,26 @@ function claimStatusText(status) {
   return map[status] || status || '-'
 }
 
+// 【C8 2026-10-22】数据范围代码 → 文案: 与 PC layout/index.vue 的 scopeMap 同源(逐键一致),
+// 未知/缺失代码回退「按权限范围」——MP 两页此前读后端不存在的 dataScopeName, 永远落此兜底。
+function dataScopeLabel(code) {
+  const map = {
+    self: '仅本人',
+    team: '本人及下级',
+    dept: '本部门及以下',
+    office: '本办事处及以下',
+    region: '本大区及以下',
+    all: '全部数据',
+    custom: '自定义',
+    org: '本部门',
+    org_and_children: '本部门及子级',
+    dept_and_children: '本部门及子级'
+  }
+  return map[code] || '按权限范围'
+}
+
 module.exports = {
+  dataScopeLabel,
   approvalStatusText,
   approvalTypeLabel,
   claimStatusText,

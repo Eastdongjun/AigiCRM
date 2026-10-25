@@ -312,10 +312,11 @@ def main() -> int:
         # 【钉随需求A 2026-10-16】行内分享按钮收敛进「···」面板; 分享可达入口=面板按钮,
         # shareFile 的权限显隐钉保留在 check-mobile-file-boundary.sh(if (showShare) sheetActions.push)
         ("···", "openActionSheet", "aigicrm-miniprogram/pages/files/index.wxml"),
-        ("＋新客户", "openNewCustomer", "aigicrm-miniprogram/pages/home/index.wxml"),
-        # 【2026-10-20 钉随代码】首页驾驶舱改版(d5d3c6a6): 快捷项=汉字图标块+标题, 原 ♜/✓ 字形图标退役
-        ("激四项服务", "openIncentive", "aigicrm-miniprogram/pages/home/index.wxml"),
-        ("审审批管理", "openApproval", "aigicrm-miniprogram/pages/home/index.wxml"),
+        # 【2026-10-22 钉随代码】首页改版+四项激励→四项服务更名批: 快捷项=CSS 图标类(ic-*)+纯标题,
+        # 解析标签不再带字形前缀(原 ＋/激/审 前缀随汉字图标块退役)
+        ("新客户", "openNewCustomer", "aigicrm-miniprogram/pages/home/index.wxml"),
+        ("四项服务", "openIncentive", "aigicrm-miniprogram/pages/home/index.wxml"),
+        ("审批管理", "openApproval", "aigicrm-miniprogram/pages/home/index.wxml"),
         ("全部提醒 ›", "openReminder", "aigicrm-miniprogram/pages/home/index.wxml"),
         ("打开", "previewAttachment", "aigicrm-miniprogram/pages/incentive/detail/index.wxml"),
         ("下载", "downloadAttachment", "aigicrm-miniprogram/pages/incentive/detail/index.wxml"),
