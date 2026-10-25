@@ -6,12 +6,15 @@
 /* ===== 【2026-10-23 用户反馈: 顶部太占空间】轻量页顶部压缩覆盖 =====
    hero 大卡(标题+副标题+刷新+上传+提示语 5 行)压成单行细条; 搜索卡与筛选胶囊收紧。
    覆盖声明置于 @import 之后, 同特异性时后者生效——只影响本页, 完整版工作台不受影响。 */
+/* 【2026-10-25 用户令"边框做圆的,参考文件页"】与 files-top 同款: 深蓝渐变圆角卡+投影 */
 .hm-bar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 14rpx 24rpx;
-  background: linear-gradient(135deg, #1d3fae, #2f6bf0 60%, #4d8cf5);
+  padding: 20rpx 24rpx;
+  border-radius: 26rpx;
+  background: linear-gradient(135deg, #0d1733 0%, #16337a 58%, #1d4ed8 100%);
+  box-shadow: 0 18rpx 38rpx rgba(13, 23, 51, .22);
   color: #fff;
 }
 .hm-bar-title { font-size: 30rpx; font-weight: 800; letter-spacing: 2rpx; }
