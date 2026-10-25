@@ -17,7 +17,7 @@
   box-shadow: 0 18rpx 38rpx rgba(13, 23, 51, .22);
   color: #fff;
 }
-.hm-bar-title { font-size: 30rpx; font-weight: 800; letter-spacing: 2rpx; }
+.hm-bar-title { font-size: 32rpx; font-weight: 800; letter-spacing: 2rpx; }
 .hm-bar-actions { display: flex; align-items: center; gap: 14rpx; }
 .hm-bar-btn {
   margin: 0;

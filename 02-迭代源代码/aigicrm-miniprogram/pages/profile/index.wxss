@@ -10,19 +10,21 @@
 /* 【用户裁决C 2026-10-13】我的页头部紧凑化: 头像80rpx横排+右侧姓名/岗位, 高度对齐其他页 hero;
    原 112rpx 头像三行竖排约 290rpx, 偏大且与全站 hero 语言不齐 */
 /* 2026-10-20 用户令：去掉姓名首字大头像，改成「当前账号」overline + 姓名 + 岗位，右侧登录状态 */
+/* 【2026-10-25 用户令】三 tab 页(应用/我的/四项服务)顶部卡壳统一: 26rpx 圆角 + 同款渐变
+   + 同投影 + 32rpx 标题, 与 ap-hero/hm-bar/files-top 一套规格; 内容与文案不变 */
 .profile-hero {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: 20rpx;
-  padding: 30rpx 32rpx;
-  border-radius: 28rpx;
+  padding: 20rpx 24rpx;
+  border-radius: 26rpx;
   background: linear-gradient(135deg, #0d1733 0%, #16337a 58%, #1d4ed8 100%);
   box-shadow: 0 18rpx 38rpx rgba(13, 23, 51, .22);
 }
 .profile-hero-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 8rpx; }
 .profile-hero-overline { font-size: 18rpx; letter-spacing: .16em; color: rgba(255, 255, 255, .55); }
-.profile-hero .profile-name { margin-top: 0; font-size: 38rpx; }
+.profile-hero .profile-name { margin-top: 0; font-size: 32rpx; font-weight: 800; }
 .profile-hero .hero-sub { margin-top: 0; font-size: 22rpx; color: rgba(255, 255, 255, .7); }
 .profile-hero-status {
   flex-shrink: 0;

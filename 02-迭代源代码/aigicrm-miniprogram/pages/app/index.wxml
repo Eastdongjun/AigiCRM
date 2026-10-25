@@ -1,6 +1,5 @@
 <view class="page app-page">
   <view class="ap-hero">
-    <view class="ap-hero-glow"></view>
     <view class="ap-hero-eyebrow">APPLICATION CENTER</view>
     <view class="ap-hero-title">应用中心</view>
     <view class="ap-hero-sub">按业务模块组织，快速找到要用的工具</view>
