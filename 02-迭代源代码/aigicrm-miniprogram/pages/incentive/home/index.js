@@ -190,6 +190,8 @@ Page({
 
   // 与完整版同款回流契约: 上传/删除后 forceRefresh.incentive 命中即强制刷新; 30s 节流只拦纯回流
   onShow() {
+    // 【2026-10-24 自定义 tabBar】每页独立实例, onShow 同步选中态(勿删, 否则选中滞留旧页)
+    if (typeof this.getTabBar === 'function' && this.getTabBar()) this.getTabBar().setData({ selected: 1 })
     if (this._loadedOnce) {
       const forceRefresh = getApp().globalData.forceRefresh
       if (forceRefresh && forceRefresh.incentive) {

@@ -4,7 +4,8 @@
    图标走内联 SVG data URI, 零图片资源。 */
 
 page { background: #f5f5f7; }
-.home-page { padding-bottom: 56rpx; }
+/* 底部留白让位自定义 tabBar(覆盖层 ~110rpx+安全区) */
+.home-page { padding-bottom: calc(150rpx + env(safe-area-inset-bottom)); }
 
 /* ---------- 居中品牌头(无卡片, Apple 官网式) ---------- */
 .hm-head { position: relative; padding: 22rpx 0 6rpx; text-align: center; }

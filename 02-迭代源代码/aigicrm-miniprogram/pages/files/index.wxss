@@ -153,6 +153,9 @@
 .files-top-apply::after { border: 0; }
 .files-top-reason { flex-shrink: 0; font-size: 18rpx; color: rgba(255, 255, 255, .5); }
 
+/* 底部留白让位自定义 tabBar(覆盖层 ~110rpx+安全区) */
+.files-page { padding-bottom: calc(150rpx + env(safe-area-inset-bottom)); }
+
 /* 2026-10-20 文件夹管理：从「一行三个小按钮」改为紧凑行 + ··· 操作菜单 */
 .folder-manage-row { display: flex; align-items: center; gap: 14rpx; padding: 18rpx 0; border-top: 1rpx solid #eef2f7; }
 .folder-manage-row:first-of-type { border-top: 0; }

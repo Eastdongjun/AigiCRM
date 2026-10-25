@@ -1,0 +1,13 @@
+<!-- 自定义 tabBar: 毛玻璃底条 + iOS 式双态图标(未选灰线框/选中蓝实底, 见 index.wxss) -->
+<view class="tabbar">
+  <view
+    wx:for="{{tabs}}"
+    wx:key="key"
+    class="tab t-{{item.key}} {{selected === index ? 'active' : ''}}"
+    data-index="{{index}}"
+    bindtap="onTap"
+  >
+    <view class="tab-icon"></view>
+    <text class="tab-label">{{item.title}}</text>
+  </view>
+</view>

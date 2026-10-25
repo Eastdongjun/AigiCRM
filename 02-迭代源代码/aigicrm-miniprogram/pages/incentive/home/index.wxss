@@ -35,3 +35,6 @@
 .filter-chip { padding: 6rpx 16rpx; font-size: 20rpx; }
 .incentive-filter-head { margin: 14rpx 0 10rpx; }
 .cust-card { margin-bottom: 14rpx; }
+
+/* 底部留白让位自定义 tabBar(覆盖层 ~110rpx+安全区); 覆盖完整版导入的 36rpx */
+.incentive-workbench { padding-bottom: calc(150rpx + env(safe-area-inset-bottom)); }

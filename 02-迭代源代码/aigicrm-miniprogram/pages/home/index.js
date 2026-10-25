@@ -100,6 +100,8 @@ Page({
   // 【2026-09-20 功能体检】tab 页数据仅 onLoad 加载一次, 处理提醒/任务后回首页全为旧数;
   // 对齐 incentive/approval 的 onShow 刷新模式(PR-12 首批同款): 首显后每次显示刷新
   onShow() {
+    // 【2026-10-24 自定义 tabBar】每页独立实例, onShow 同步选中态(勿删, 否则选中滞留旧页)
+    if (typeof this.getTabBar === 'function' && this.getTabBar()) this.getTabBar().setData({ selected: 0 })
     if (!this._loadedOnce) {
       this._loadedOnce = true
       return

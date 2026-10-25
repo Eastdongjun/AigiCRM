@@ -1,7 +1,8 @@
 /* 应用中心 2026-10-20 改版：按业务模块分组的卡片墙，替代 9 个入口平铺。
    统一深蓝 + 浅蓝图标，不再使用彩虹色图标。 */
 
-.app-page { padding-bottom: 56rpx; }
+/* 底部留白让位自定义 tabBar(覆盖层 ~110rpx+安全区) */
+.app-page { padding-bottom: calc(150rpx + env(safe-area-inset-bottom)); }
 
 .ap-hero {
   position: relative;

@@ -4,6 +4,9 @@
 .profile-feedback-action{border:1rpx solid #d8e1ee;background:#f8fafc;color:#475569}
 .profile-logout-action{border:0;background:#ef4444;color:#fff}
 
+/* 【2026-10-24 自定义 tabBar】底部留白让位覆盖层(~110rpx+安全区) */
+.profile-page { padding-bottom: calc(150rpx + env(safe-area-inset-bottom)); }
+
 /* 【用户裁决C 2026-10-13】我的页头部紧凑化: 头像80rpx横排+右侧姓名/岗位, 高度对齐其他页 hero;
    原 112rpx 头像三行竖排约 290rpx, 偏大且与全站 hero 语言不齐 */
 /* 2026-10-20 用户令：去掉姓名首字大头像，改成「当前账号」overline + 姓名 + 岗位，右侧登录状态 */

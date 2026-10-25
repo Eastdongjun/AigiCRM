@@ -1,0 +1,80 @@
+/* 自定义 tabBar(2026-10-24 用户令"底部做好看"): 毛玻璃底条 + SF Symbols 式双态图标
+   —— 未选=灰线框, 选中=蓝实底。图标全部内联 SVG data URI, 零图片资源。
+   z-index=50: 在页面内容之上, 但低于各页弹层 mask(z-60), 弹出面板可完整遮住底条。 */
+.tabbar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 50;
+  display: flex;
+  padding: 12rpx 8rpx calc(12rpx + env(safe-area-inset-bottom));
+  /* .94: 模拟器/部分安卓不支持 backdrop-filter 时, 滚动内容透字残影不可见 */
+  background: rgba(255, 255, 255, .94);
+  backdrop-filter: blur(24px) saturate(1.6);
+  -webkit-backdrop-filter: blur(24px) saturate(1.6);
+  border-top: 1rpx solid rgba(15, 23, 42, .08);
+}
+.tab {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5rpx;
+}
+.tab-icon {
+  width: 52rpx;
+  height: 52rpx;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 52rpx 52rpx;
+  transition: transform .18s ease;
+}
+.tab.active .tab-icon { transform: translateY(-2rpx); }
+.tab-label {
+  font-size: 20rpx;
+  color: #86868b;
+  font-weight: 400;
+  line-height: 1.2;
+}
+.tab.active .tab-label { color: #1d4ed8; font-weight: 700; }
+
+/* ---------- 首页: 线框房 / 实底房(门洞 evenodd 镂空) ---------- */
+.t-home .tab-icon {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2386868b' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4.5 10.6 12 4.4l7.5 6.2v8.2a1.6 1.6 0 0 1-1.6 1.6H6.1a1.6 1.6 0 0 1-1.6-1.6Z'/%3E%3Cpath d='M9.6 20.4v-5.6h4.8v5.6'/%3E%3C/svg%3E");
+}
+.t-home.active .tab-icon {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%231d4ed8'%3E%3Cpath fill-rule='evenodd' d='M4.5 10.6 12 4.4l7.5 6.2v8.2a1.6 1.6 0 0 1-1.6 1.6H6.1a1.6 1.6 0 0 1-1.6-1.6Zm5.1 9.8v-4.4h4.8v4.4Z'/%3E%3C/svg%3E");
+}
+
+/* ---------- 四项服务: 线框四方格 / 实底四方格 ---------- */
+.t-service .tab-icon {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2386868b' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='4' y='4' width='6.9' height='6.9' rx='2'/%3E%3Crect x='13.1' y='4' width='6.9' height='6.9' rx='2'/%3E%3Crect x='4' y='13.1' width='6.9' height='6.9' rx='2'/%3E%3Crect x='13.1' y='13.1' width='6.9' height='6.9' rx='2'/%3E%3C/svg%3E");
+}
+.t-service.active .tab-icon {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%231d4ed8'%3E%3Crect x='4' y='4' width='6.9' height='6.9' rx='2.2'/%3E%3Crect x='13.1' y='4' width='6.9' height='6.9' rx='2.2'/%3E%3Crect x='4' y='13.1' width='6.9' height='6.9' rx='2.2'/%3E%3Crect x='13.1' y='13.1' width='6.9' height='6.9' rx='2.2'/%3E%3C/svg%3E");
+}
+
+/* ---------- 文件: 线框文件夹 / 实底文件夹 ---------- */
+.t-files .tab-icon {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2386868b' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3.8 7.6A1.6 1.6 0 0 1 5.4 6h4.3l2.1 2.7h6.8a1.6 1.6 0 0 1 1.6 1.6v7.7a1.6 1.6 0 0 1-1.6 1.6H5.4a1.6 1.6 0 0 1-1.6-1.6Z'/%3E%3C/svg%3E");
+}
+.t-files.active .tab-icon {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%231d4ed8'%3E%3Cpath d='M3.8 7.6A1.6 1.6 0 0 1 5.4 6h4.3l2.1 2.7h6.8a1.6 1.6 0 0 1 1.6 1.6v7.7a1.6 1.6 0 0 1-1.6 1.6H5.4a1.6 1.6 0 0 1-1.6-1.6Z'/%3E%3C/svg%3E");
+}
+
+/* ---------- 应用: 线框四圆 / 实底四圆 ---------- */
+.t-apps .tab-icon {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2386868b' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='8.6' cy='8.6' r='3.3'/%3E%3Ccircle cx='15.4' cy='8.6' r='3.3'/%3E%3Ccircle cx='8.6' cy='15.4' r='3.3'/%3E%3Ccircle cx='15.4' cy='15.4' r='3.3'/%3E%3C/svg%3E");
+}
+.t-apps.active .tab-icon {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%231d4ed8'%3E%3Ccircle cx='8.6' cy='8.6' r='3.5'/%3E%3Ccircle cx='15.4' cy='8.6' r='3.5'/%3E%3Ccircle cx='8.6' cy='15.4' r='3.5'/%3E%3Ccircle cx='15.4' cy='15.4' r='3.5'/%3E%3C/svg%3E");
+}
+
+/* ---------- 我的: 线框人像 / 实底人像 ---------- */
+.t-profile .tab-icon {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2386868b' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='8.2' r='3.7'/%3E%3Cpath d='M5.2 20c.8-3.5 3.4-5.3 6.8-5.3s6 1.8 6.8 5.3'/%3E%3C/svg%3E");
+}
+.t-profile.active .tab-icon {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%231d4ed8'%3E%3Ccircle cx='12' cy='8.2' r='3.7'/%3E%3Cpath d='M5.2 20c.8-3.5 3.4-5.3 6.8-5.3s6 1.8 6.8 5.3Z'/%3E%3C/svg%3E");
+}

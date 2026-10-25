@@ -74,7 +74,10 @@ grep -Fq 'searchFiles' "$PAGE" || fail 'mobile file page no longer has explicit 
 grep -Fq 'bindconfirm="searchFiles"' "$WXML" || fail 'mobile file search input no longer submits with keyboard search'
 grep -Fq 'bindtap="searchFiles"' "$WXML" || fail 'mobile file search button disappeared'
 grep -Fq '.search-action' "$WXSS" || fail 'mobile file search action is not styled as a compact control'
-grep -Fq '{{capacity.hint}}' "$WXML" || fail 'mobile file storage card does not show dynamic storage hint'
+# 【2026-10-24 重锚】d1c17aaf 用户令"文件页顶部区域太大"——容量提示语行整行移除,
+# 加载/未同步状态由 used/total 的 '-' 占位表达; hint 数据字段仍在 js(勿删归一化),
+# 但展示层不得回摆多行提示。原 require {{capacity.hint}} 改为防复活守卫。
+! grep -Fq '{{capacity.hint}}' "$WXML" || fail 'files-top was compressed by user order (d1c17aaf); capacity.hint line must not come back'
 grep -Fq 'tab-count' "$WXML" || fail 'mobile file tabs no longer display PC tab counts'
 grep -Fq 'fileView.tabs' "$WXML" || fail 'mobile file tabs must render normalized tab view state'
 grep -Fq 'item.countText' "$WXML" || fail 'mobile file tabs must display normalized tab counts'

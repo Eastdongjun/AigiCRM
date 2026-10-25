@@ -97,6 +97,11 @@ Page({
     this.setData({ apps, appView: buildAppView(apps) })
   },
 
+  // 【2026-10-24 自定义 tabBar】每页独立实例, onShow 同步选中态(勿删, 否则选中滞留旧页)
+  onShow() {
+    if (typeof this.getTabBar === 'function' && this.getTabBar()) this.getTabBar().setData({ selected: 3 })
+  },
+
   openApp(e) {
     const key = e.currentTarget.dataset.key
     // 【2026-10-23 四项服务拆分】完整工作台(pages/incentive/index)不再是 tabBar 页,

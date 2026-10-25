@@ -462,6 +462,8 @@ Page({
   },
 
   onShow() {
+    // 【2026-10-24 自定义 tabBar】每页独立实例, onShow 同步选中态(勿删, 否则选中滞留旧页)
+    if (typeof this.getTabBar === 'function' && this.getTabBar()) this.getTabBar().setData({ selected: 2 })
     // 【M20】onShow 防重入：列表请求进行中则跳过本次刷新，避免每次返回页面叠加并发请求
     // 【容量止血 2026-10-05】再加 30s 节流：回流 3 个请求的放大器之一；30s 内回流不重拉，
     // 上传/删除成功后的显式刷新路径不受影响（只拦 onShow 重入）。

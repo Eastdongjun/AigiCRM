@@ -47,6 +47,11 @@ Page({
     profileView: buildProfileView(DEMO_PROFILE_STATE)
   },
 
+  // 【2026-10-24 自定义 tabBar】每页独立实例, onShow 同步选中态(勿删, 否则选中滞留旧页)
+  onShow() {
+    if (typeof this.getTabBar === 'function' && this.getTabBar()) this.getTabBar().setData({ selected: 4 })
+  },
+
   onLoad() {
     if (!requireLogin()) return
     if (getApp().globalData.demoMode) return
