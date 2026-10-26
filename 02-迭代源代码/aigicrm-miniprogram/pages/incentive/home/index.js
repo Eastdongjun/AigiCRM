@@ -3,6 +3,7 @@
 // 轻量页默认=打散记录流(不绑客户, 一次上传=一条记录, 按上传时间排), 「按客户」可切回归集视图。
 // 数据链路同源(getCustomerRecords 按客户分组 + 本地筛选排序), 打散=分组结果拉平, 不加接口。
 const { getCustomerRecords, getGrantCheck, getUsers } = require('../../../api/incentive')
+const { getDownloadToken } = require('../../../api/file')
 const { getDepts } = require('../../../api/system')
 const { incentiveRecords } = require('../../../data/demo')
 const { hasPermission, requireLogin } = require('../../../utils/auth')
@@ -11,6 +12,13 @@ const { buildIncentiveFiles, buildIncentiveFileGroups } = require('../../../util
 const { paginate } = require('../../../utils/paging')
 const { buildDeptLevelOptions } = require('../../../utils/tree')
 
+// 缩略图凭证: 模块级缓存(与完整版同款机制, 本页独立一份); 失败不阻断列表(退化为首字面卡)
+let dlTokenCache = ''
+let dlTokenCacheUserId = null
+function setHomeDlToken(token, userId) {
+  dlTokenCache = token || ''
+  dlTokenCacheUserId = token ? (userId ?? null) : null
+}
 const TAG_COLORS = { 安装前: '#b45309', 安装中: '#1d4fd7', 安装后: '#047857', 跟踪: '#7c3aed', 佐证: '#64748b' }
 
 function normalizeRecords(customers) {
@@ -209,13 +217,16 @@ Page({
 
   onLoad() {
     if (!requireLogin()) return
+    this.setData({ apiBase: (getApp().globalData && getApp().globalData.apiBaseUrl) || '' })
     if (!getApp().globalData.demoMode && !hasPermission('incentive:view')) {
       wx.showToast({ title: '没有四项服务查看权限', icon: 'none' })
       wx.switchTab({ url: '/pages/home/index' })
       return
     }
     this.setData({ canUploadEvidence: !getApp().globalData.demoMode && hasPermission('incentive:add') })
-    this.loadRecords()
+    this.ensureDlToken().then(() => {
+      this.loadRecords()
+    })
     this.loadUsers()
     this.loadOrgs()
     this._loadedOnce = true
@@ -234,7 +245,9 @@ Page({
       const now = Date.now()
       if (now - (this._lastShowTs || 0) < 30000) return
       this._lastShowTs = now
-      this.loadRecords()
+      this.ensureDlToken().then(() => {
+        this.loadRecords()
+      })
     }
   },
 
@@ -529,6 +542,28 @@ Page({
     const first = children[0]
     if (!first || !first.id) return wx.showToast({ title: '该客户暂无记录', icon: 'none' })
     wx.navigateTo({ url: '/pages/incentive/detail/index?id=' + first.id })
+  },
+
+  ensureDlToken() {
+    if (getApp().globalData.demoMode) return Promise.resolve()
+    const user = getApp().globalData.currentUser
+    const userId = user ? (user.id != null ? user.id : user.username) : null
+    const cacheUsable = Boolean(dlTokenCache) && dlTokenCacheUserId != null && dlTokenCacheUserId === userId
+    if (!cacheUsable && dlTokenCache) {
+      setHomeDlToken('', null)
+      this._dlTokenPromise = null
+    }
+    if (cacheUsable && !this.data.dlToken) this.setData({ dlToken: dlTokenCache })
+    if (cacheUsable || this._dlTokenPromise) return this._dlTokenPromise || Promise.resolve()
+    this._dlTokenPromise = getDownloadToken().then((result) => {
+      this._dlTokenPromise = null
+      const token = result && (result.token || (result.data && result.data.token)) || ''
+      setHomeDlToken(token, userId)
+      this.setData({ dlToken: token })
+    }).catch(() => {
+      this._dlTokenPromise = null
+    }).then(() => {})
+    return this._dlTokenPromise
   },
 
   refresh() {

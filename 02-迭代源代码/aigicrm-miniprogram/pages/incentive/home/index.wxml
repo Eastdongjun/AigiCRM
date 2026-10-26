@@ -1,3 +1,4 @@
+<wxs src="../thumb.wxs" module="thumb" />
 <!-- 【2026-10-23 四项服务拆分·用户令】tabBar「四项服务」=轻量客户记录快查视图:
      只显示客户与记录(搜索/筛选/上传入口保留), 不含分类树/统计/排行/阅读;
      完整能力(分类树/统计/排行/阅读/一客一册档案)在应用中心「四项服务应用」(pages/incentive/index)。 -->
@@ -84,14 +85,32 @@
     </view>
   </block>
 
-  <!-- 按客户(2026-10-26 用户令"就显示客户名称列表,点进去就是拨盘"): 纯名称清单一行一客户,
-       封面卡/缩略图/分值胶囊退役(完整版四项服务应用的客户排列不受影响); 点名进拨盘详情页 -->
+  <!-- 按客户归集(可切换回归): 与完整版同卡型, 但无「档案」角标/未读红点(阅读机制只在完整应用),
+       点卡进拨盘详情页 -->
   <block wx:else>
-    <view wx:for="{{pagedRecords}}" wx:key="id" class="cust-list-row" data-index="{{index}}" bindtap="openCustomer">
-      <text class="cust-list-name">{{item.name}}</text>
-      <text class="cust-list-count">{{item.countText}}</text>
-      <text class="cust-arrow">›</text>
+  <block wx:for="{{pagedRecords}}" wx:key="id">
+    <view class="cust-card" data-index="{{index}}" bindtap="openCustomer">
+      <view class="cust-cover">
+        <image wx:if="{{item.coverFile.id && apiBase && dlToken}}" class="cust-cover-img" src="{{thumb.thumbSrc(item.coverFile, apiBase, dlToken)}}" mode="aspectFill" lazy-load="{{true}}" />
+        <view wx:else class="cust-cover-fallback">{{item.coverChar}}</view>
+      </view>
+      <view class="cust-body">
+        <view class="cust-name-row">
+          <text class="cust-name">{{item.name}}</text>
+        </view>
+        <view class="cust-meta">
+          <text class="cust-pill">{{item.industry}}</text>
+          <text wx:if="{{item.category}}" class="cust-pill blue">{{item.category}}</text>
+        </view>
+        <view class="cust-nums">{{item.countText}} · {{item.fileCountText}}</view>
+      </view>
+      <view class="cust-score">
+        <text class="cust-score-num">{{item.score}}</text>
+        <text class="cust-score-unit">分</text>
+      </view>
+      <view class="cust-arrow">›</view>
     </view>
+  </block>
   </block>
   <view class="incentive-pager">
     <pager wx:if="{{(listMode === 'time' ? flatPagerTotal : pagerTotal) > 10}}" page="{{page}}" pageSize="{{pageSize}}" total="{{listMode === 'time' ? flatPagerTotal : pagerTotal}}" loading="{{incentiveView.pagerLoading}}" bind:change="onPagerChange" />

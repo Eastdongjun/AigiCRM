@@ -534,10 +534,11 @@ grep -q 'switchListMode' "$HOME_JS" || { echo "FAIL: lightweight home must keep 
 grep -q 'bindtap="switchListMode"' "$HOME_WXML" || { echo "FAIL: lightweight home view toggle UI is missing" >&2; exit 1; }
 grep -q 'class="flat-rec"' "$HOME_WXML" || { echo "FAIL: lightweight home flat record row UI is missing" >&2; exit 1; }
 grep -q "'/pages/incentive/detail/index?id=' + row.id" "$HOME_JS" || { echo "FAIL: flat record rows must open the dial detail by record id" >&2; exit 1; }
-# 【2026-10-26 二次澄清·用户令"就显示客户名称列表,点进去就是拨盘"】按客户=纯名称清单(名+条数+箭头),
-# 封面卡从轻量页退役(完整版四项服务应用的客户封面卡不动)
-grep -q 'class="cust-list-row"' "$HOME_WXML" || { echo "FAIL: lightweight home customer mode must be a plain customer-name list" >&2; exit 1; }
-! grep -q 'cust-card\|cust-cover' "$HOME_WXML" || { echo "FAIL: lightweight home cover cards retired 2026-10-26 (plain name list only; full workbench keeps its own cards)" >&2; exit 1; }
+# 【2026-10-26 三次澄清·用户令"按照客户排列,和之前的版本一样"(参考截图=客户封面卡)】按客户=封面卡
+# 客户列表(缩略图/首字+客户名+行业胶囊+条数·文件数+分值胶囊; 一次上传=一条记录,攒在客户名下,点卡进拨盘);
+# 纯名称清单试版被用户否决,防复活
+grep -q 'class="cust-card"' "$HOME_WXML" || { echo "FAIL: lightweight home customer mode must be the cover-card customer list (user reference screenshot 2026-10-26)" >&2; exit 1; }
+! grep -q 'cust-list-row' "$HOME_WXML" || { echo "FAIL: lightweight home plain name list was rejected 2026-10-26 (cover cards restored per user screenshot)" >&2; exit 1; }
 ! grep -q '"pagePath": "pages/cases/index"' "$app_json" || { echo "FAIL: stale cases tab still exposes an alternate incentive surface" >&2; exit 1; }
 # 【2026-10-05】cases 兼容壳已删: 原直接读取 pages/cases/* 文件的重定向/标题/样式检查随之移除,
 # 保留上方 app.json 防回潮与下方 profile 入口/app.wxss 全局样式防回潮检查

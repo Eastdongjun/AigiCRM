@@ -57,12 +57,5 @@
 .flat-rec-score { font-size: 30rpx; font-weight: 900; color: #1d4fd7; line-height: 1; }
 .flat-rec-unit { font-size: 18rpx; color: #7d9bd8; }
 
-/* 【2026-10-26 用户令"就显示客户名称列表"】按客户=纯名称清单: 一行一客户(名+条数+箭头),
-   封面卡从轻量页退役(完整版四项服务应用的客户封面卡不受影响) */
-.cust-list-row { display: flex; align-items: center; gap: 14rpx; background: #fff; border-radius: 18rpx; padding: 22rpx; margin-bottom: 12rpx; box-shadow: 0 6rpx 18rpx rgba(48, 78, 112, .04); }
-.cust-list-row:active { background: #f8fbff; }
-.cust-list-name { flex: 1; min-width: 0; color: #172033; font-size: 26rpx; font-weight: 700; line-height: 1.4; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
-.cust-list-count { flex-shrink: 0; color: #94a3b8; font-size: 20rpx; }
-
 /* 底部留白让位自定义 tabBar(覆盖层 ~110rpx+安全区); 覆盖完整版导入的 36rpx */
 .incentive-workbench { padding-bottom: calc(150rpx + env(safe-area-inset-bottom)); }
