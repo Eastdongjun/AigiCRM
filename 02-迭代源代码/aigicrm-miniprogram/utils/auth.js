@@ -63,6 +63,9 @@ function logout() {
   // 此前只清本地, 退出后 token 在有效期内服务端仍可用; PC 已同款修复, 此处对齐。
   // 函数内惰性 require 避免 utils/auth ↔ api/auth 循环依赖; 尽力而为, 失败不阻断本地登出
   try { require('../api/auth').logout().catch(() => {}) } catch (e) { /* 网络异常不阻断登出 */ }
+  // 【2026-10-27 深度检查修复】登出同时清文件预览本地缓存——缓存键虽已带用户/环境维度,
+  // 但旧条目仍在盘上, 换号后无权用户不应能离线打开上一账号缓存过的文件(fail-open, 失败不阻断)
+  try { require('./file-cache').clear() } catch (e) { /* 清缓存失败不阻断登出 */ }
   clearToken()
   globalData.currentUser = null
   globalData.permissions = []

@@ -12,6 +12,7 @@ FOLDER_FORM_WXML="$ROOT/aigicrm-miniprogram/pages/files/folder-form/index.wxml"
 LEGACY_PAGE="$ROOT/aigicrm-miniprogram/pages/file/index.js"
 LEGACY_WXML="$ROOT/aigicrm-miniprogram/pages/file/index.wxml"
 DETAIL="$ROOT/aigicrm-miniprogram/pages/files/detail/index.js"
+CACHE="$ROOT/aigicrm-miniprogram/utils/file-cache.js"
 CONTROLLER="$ROOT/aigicrm-backend/src/main/java/com/aigicrm/module/file/controller/FileController.java"
 MANIFEST="$ROOT/docs/unified-feature-manifest.md"
 AUTOMATOR_PACKAGE="$ROOT/scripts/miniprogram/package.json"
@@ -110,6 +111,17 @@ grep -Fq "this.previewFile(event)" "$PAGE" || fail 'mobile file one-tap open mus
 grep -Fq "require('../../utils/file-cache')" "$PAGE" || fail 'mobile file preview cache module is not wired'
 grep -Fq 'fileCache.lookup(item)' "$PAGE" || fail 'mobile file preview must check the local cache before downloading'
 grep -Fq 'fileCache.store(item, result.tempFilePath)' "$PAGE" || fail 'mobile file preview must store downloads into the local cache'
+# 【2026-10-27 深度检查修复批】缓存安全三钉: ①键带用户/环境维度+version 优先(替换换版即失效)
+# ②登出清缓存(auth.js logout 接 clear) ③惰性 DIR——模块顶层读 wx.env 曾把 Node 契约桩打崩(contracts 假红根因)
+grep -Fq 'function scopeSlug()' "$CACHE" || fail 'mobile file cache key must be scoped by user and api env (cross-account offline read fix)'
+grep -Fq 'item.version || item.updatedAt' "$CACHE" || fail 'mobile file cache key must prefer the backend version field (replace bumps version, not updatedAt)'
+grep -Fq "module.exports = { lookup, store, clear }" "$CACHE" || fail 'mobile file cache must export clear() for logout'
+grep -Fq "require('./file-cache').clear()" "$ROOT/aigicrm-miniprogram/utils/auth.js" || fail 'mobile logout must clear the file preview cache (cross-account leak fix)'
+grep -Fq "wx.env.USER_DATA_PATH + '/file-cache'" "$CACHE" && ! grep -Fq '^const DIR' "$CACHE" || fail 'mobile file cache must resolve its dir lazily, never at module top level'
+# 【同批】点行预览与下载同门(无下载权限提前拦, 缓存命中不得绕过); dlToken 缓存带用户维度(换号即废)
+grep -Fq "if (!this.canDownloadItem(item)) return wx.showToast({ title: '该文件夹已关闭下载', icon: 'none' })
+    this.fetchFile(item, 'preview')" "$PAGE" || fail 'mobile file preview must gate on download permission like downloadFile'
+grep -Fq 'this._dlTokenUserId !== userId' "$PAGE" || fail 'mobile files dlToken cache must be invalidated on account switch'
 # 【2026-10-26 二令"还是做成之前列表展示,但列表要呈现预览的小图"】四项服务 tab 回归时间分组
 # 列表行, 行首图片=缩略小图(一次性 dlToken URL); 同日更早的图片墙(墙瓦片/previewWallImage)退役
 grep -Fq 'function isImageRow(item)' "$PAGE" || fail 'mobile file incentive row thumbnail classifier is missing'

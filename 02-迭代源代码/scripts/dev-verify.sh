@@ -526,6 +526,12 @@ local_contracts() {
   run "$ROOT/scripts/check-incentive-search-detail-contract.sh"
   run "$ROOT/scripts/check-incentive-stats-detail-contract.sh"
   run "$ROOT/scripts/check-reminder-detail-contract.sh"
+  # 【2026-10-27 深度检查修复】以下四份契约曾无任何执行入口(git log -S 为证): 守卫存在但无强制力——
+  # customer-center(客户列表/详情) / profile(我的页) / shell(工作台/应用中心) / reminder(提醒中心)
+  run "$ROOT/scripts/check-mobile-reminder-contract.sh"
+  run "$ROOT/scripts/check-mobile-customer-center-contract.sh"
+  run "$ROOT/scripts/check-mobile-profile-contract.sh"
+  run "$ROOT/scripts/check-mobile-shell-contract.sh"
   run "$ROOT/scripts/check-mobile-ranking-contract.sh"
   run "$ROOT/scripts/check-mobile-feature-matrix-contract.sh"
   run python3 "$ROOT/scripts/check-mobile-live-qa-boundary.py"

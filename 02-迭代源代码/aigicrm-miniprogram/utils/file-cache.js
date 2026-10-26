@@ -1,22 +1,33 @@
 // 【2026-10-26 用户令"文件管理默认下载缓存"】文件预览本地缓存:
-// 预览下载落到 USER_DATA_PATH/file-cache, 同版本文件再次打开秒开(不重新请求);
-// key = 文件id + updatedAt(文件被替换/更新后自动失效), LRU 淘汰, 默认上限 200MB。
+// 预览下载落到 USER_DATA_PATH/file-cache, 同版本文件再次打开秒开(不重新请求), LRU 淘汰。
+// 【2026-10-27 深度检查修复批】
+//   · 目录路径改为首次使用时求值——模块顶层读 wx.env 会让 Node 契约测试(桩无 wx.env) require 即崩
+//   · 缓存键加入 用户+环境 维度, 并提供 clear(): 登出/换号即清——否则同设备换账号可离线打开
+//     上一账号缓存的无权文件(绕过服务端下载鉴权)
+//   · 键的版本段优先取 version(后端替换文件只 +version 不刷新 updatedAt), 换版即失效
+//   · 上限 200→150MB: 给 fs.saveFile/临时文件等共享 USER_DATA_PATH 额度的写入留余量
 // 所有操作 fail-open: 缓存目录不可写/索引损坏时静默退回直下, 绝不阻塞预览主链路。
-const DIR = wx.env.USER_DATA_PATH + '/file-cache'
-const INDEX_PATH = DIR + '/index.json'
-const MAX_TOTAL_BYTES = 200 * 1024 * 1024
+const MAX_TOTAL_BYTES = 150 * 1024 * 1024
 
 let indexCache = null
+let dirPath = ''
 
 function fs() {
   return wx.getFileSystemManager()
 }
 
+/** 目录惰性求值(勿在模块顶层读 wx.env——Node 测试环境无此全局) */
+function dir() {
+  if (!dirPath) dirPath = wx.env.USER_DATA_PATH + '/file-cache'
+  return dirPath
+}
+
 function ensureDir() {
+  const d = dir()
   try {
-    fs().accessSync(DIR)
+    fs().accessSync(d)
   } catch (e) {
-    try { fs().mkdirSync(DIR, true) } catch (e2) { /* 不可写则放弃缓存 */ }
+    try { fs().mkdirSync(d, true) } catch (e2) { /* 不可写则放弃缓存 */ }
   }
 }
 
@@ -24,7 +35,7 @@ function loadIndex() {
   if (indexCache) return indexCache
   ensureDir()
   try {
-    indexCache = JSON.parse(fs().readFileSync(INDEX_PATH, 'utf8') || '{}') || {}
+    indexCache = JSON.parse(fs().readFileSync(dir() + '/index.json', 'utf8') || '{}') || {}
   } catch (e) {
     indexCache = {}
   }
@@ -34,7 +45,7 @@ function loadIndex() {
 function saveIndex() {
   try {
     ensureDir()
-    fs().writeFileSync(INDEX_PATH, JSON.stringify(indexCache || {}))
+    fs().writeFileSync(dir() + '/index.json', JSON.stringify(indexCache || {}))
   } catch (e) { /* 索引持久化失败只影响下次冷启动的命中率 */ }
 }
 
@@ -43,9 +54,25 @@ function suffixOf(name) {
   return /^[a-zA-Z0-9]{1,6}$/.test(s) ? s.toLowerCase() : 'bin'
 }
 
+/** 当前缓存归属(用户+接口环境); 换号/换环境后键自然错开, 旧条目等 LRU 淘汰或 clear() 清掉 */
+function scopeSlug() {
+  let userId = ''
+  let apiBase = ''
+  try {
+    const app = typeof getApp === 'function' ? getApp() : null
+    const user = app && app.globalData && app.globalData.currentUser
+    userId = String((user && (user.id != null ? user.id : user.username)) || '')
+    apiBase = String((app && app.globalData && app.globalData.apiBaseUrl) || '')
+  } catch (e) { /* 取不到归属时按空串, 与历史键兼容 */ }
+  return (userId + '~' + apiBase).replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 40)
+}
+
 function cacheKey(item) {
-  const raw = String(item.id || item.ossKey || item.fileUrl || 'f') + '_' + String(item.updatedAt || '')
-  return raw.replace(/[^a-zA-Z0-9_-]/g, '').slice(-72) + '.' + suffixOf(item.name)
+  const scope = scopeSlug()
+  const id = String(item.id || item.ossKey || item.fileUrl || 'f').replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 40)
+  // 版本段优先 version(后端替换文件 setVersion+1 而不刷新 updatedAt), 没有再退 updatedAt
+  const ver = String(item.version || item.updatedAt || '').replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 32)
+  return (scope + '.' + id + '.' + ver + '.' + suffixOf(item.name)).slice(0, 120)
 }
 
 /** 命中返回本地路径并刷新 LRU; 未命中/文件已被系统清理返回 '' */
@@ -67,7 +94,7 @@ function store(item, tempFilePath) {
   try {
     ensureDir()
     const key = cacheKey(item)
-    const dest = DIR + '/' + key
+    const dest = dir() + '/' + key
     let size = 0
     try {
       try { fs().unlinkSync(dest) } catch (e) {}
@@ -95,4 +122,18 @@ function store(item, tempFilePath) {
   }
 }
 
-module.exports = { lookup, store }
+/** 清空整个缓存目录(登出/换号调用): 删目录下全部文件并复位索引; 失败静默(fail-open) */
+function clear() {
+  try {
+    indexCache = null
+    const d = dir()
+    try {
+      const names = fs().readdirSync(d) || []
+      names.forEach((name) => {
+        try { fs().unlinkSync(d + '/' + name) } catch (e) { /* 单个失败不阻断 */ }
+      })
+    } catch (e) { /* 目录不存在=本来就空 */ }
+  } catch (e) { /* 清缓存永不抛错 */ }
+}
+
+module.exports = { lookup, store, clear }

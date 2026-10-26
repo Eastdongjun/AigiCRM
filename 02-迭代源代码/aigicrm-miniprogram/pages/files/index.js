@@ -625,9 +625,20 @@ Page({
     })
   },
 
-  /** 一次性下载 token(列表行缩略 URL 用): 页内缓存, 失败返回空串=行首退化为类型色块(不阻塞) */
+  /** 下载 token(列表行缩略 URL 用): 页内缓存, 失败返回空串=行首退化为类型色块(不阻塞)。
+      【2026-10-27 深度检查修复】缓存加用户维度: tabBar 页实例常驻, 换号后 onLoad 不重跑,
+      旧账号 token 会让缩略图整批 401——对齐轻量页口径(currentUser 变化即重取) */
   ensureDlToken() {
     if (getApp().globalData.demoMode) return Promise.resolve('')
+    const user = getApp().globalData.currentUser
+    const userId = user ? (user.id != null ? user.id : user.username) : null
+    if (this._dlTokenUserId != null && this._dlTokenUserId !== userId) {
+      this._dlTokenUserId = userId
+      this._dlTokenPromise = null
+      if (this.data.dlToken) this.setData({ dlToken: '' })
+    } else if (this._dlTokenUserId == null) {
+      this._dlTokenUserId = userId
+    }
     if (this.data.dlToken) return Promise.resolve(this.data.dlToken)
     if (this._dlTokenPromise) return this._dlTokenPromise
     this._dlTokenPromise = getDownloadToken().then((result) => {
@@ -991,6 +1002,9 @@ Page({
   previewFile(event) {
     const item = this.findFile(event)
     if (!item || ((!item.id || String(item.id).startsWith('file-')) && !item.ossKey && !item.fileUrl)) return wx.showToast({ title: '演示文件暂不可预览', icon: 'none' })
+    // 【2026-10-27 深度检查修复】预览走下载管线, 与下载同门: 无下载权限提前拦(缓存命中更不许绕过),
+    // 否则文件夹 downloadable=0/无 download ACL 时点行只会打到后端 403 报"文件下载失败"
+    if (!this.canDownloadItem(item)) return wx.showToast({ title: '该文件夹已关闭下载', icon: 'none' })
     this.fetchFile(item, 'preview')
   },
   downloadFile(event) {
