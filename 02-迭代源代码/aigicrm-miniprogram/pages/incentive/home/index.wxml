@@ -40,9 +40,14 @@
       </picker>
     </view>
   </view>
-  <!-- 【2026-10-26 用户令"客户维度明细几个字不要了"】标题移除, 筛选行骨架(pickers)原位保留 -->
+  <!-- 【2026-10-26 用户令"客户维度明细几个字不要了"】标题移除, 筛选行骨架(pickers)原位保留;
+       【同日打散令】前置双视图切换: time=打散记录流(默认, 按上传时间) / customer=按客户归集封面卡 -->
   <view class="incentive-filter-head">
     <view class="incentive-filter-actions">
+      <view class="mode-switch">
+        <view class="mode-chip {{listMode === 'time' ? 'active' : ''}}" data-mode="time" bindtap="switchListMode">按时间</view>
+        <view class="mode-chip {{listMode === 'customer' ? 'active' : ''}}" data-mode="customer" bindtap="switchListMode">按客户</view>
+      </view>
       <picker mode="selector" range="{{categories}}" bindchange="chooseCategory">
         <view class="ranking-tab active">{{category}}⌄</view>
       </picker>
@@ -55,8 +60,34 @@
     </view>
   </view>
   <view wx:if="{{incentiveView.showLoading}}" class="card muted">{{incentiveView.loadingText}}</view>
-  <!-- 轻量视图封面卡: 与完整版同卡型, 但无「档案」角标/未读红点(阅读机制只在完整应用),
-       点卡进客户记录页(上下滚动, 非档案翻页) -->
+
+  <!-- 打散记录流(轻量页默认): 一次上传=一条记录, 不绑客户归集, 按上传时间排(排序胶囊四档通用);
+       点行直达该条记录的拨盘详情页 -->
+  <block wx:if="{{listMode === 'time'}}">
+    <view wx:for="{{pagedFlatRecords}}" wx:key="id" class="flat-rec" data-index="{{index}}" bindtap="openFlatRecord">
+      <view class="flat-rec-main">
+        <view class="flat-rec-name">{{item.customerName}}</view>
+        <view class="flat-rec-meta">
+          <text wx:if="{{item.categoryName}}" class="flat-rec-pill">{{item.categoryName}}</text>
+          <text wx:if="{{item.productText}}" class="flat-rec-product">{{item.productText}}</text>
+        </view>
+        <view class="flat-rec-sub">
+          <text>{{item.timeText}}</text>
+          <text wx:if="{{item.uploaderName}}"> · {{item.uploaderName}}</text>
+          <text wx:if="{{item.fileCount}}"> · {{item.fileCount}}个文件</text>
+        </view>
+      </view>
+      <view class="flat-rec-side">
+        <text class="flat-rec-score">{{item.score}}</text>
+        <text class="flat-rec-unit">分</text>
+      </view>
+      <view class="cust-arrow">›</view>
+    </view>
+  </block>
+
+  <!-- 按客户归集(可切换回归): 与完整版同卡型, 但无「档案」角标/未读红点(阅读机制只在完整应用),
+       点卡进拨盘详情页 -->
+  <block wx:else>
   <block wx:for="{{pagedRecords}}" wx:key="id">
     <view class="cust-card" data-index="{{index}}" bindtap="openCustomer">
       <view class="cust-cover">
@@ -80,8 +111,9 @@
       <view class="cust-arrow">›</view>
     </view>
   </block>
+  </block>
   <view class="incentive-pager">
-    <pager wx:if="{{pagerTotal > 10}}" page="{{page}}" pageSize="{{pageSize}}" total="{{pagerTotal}}" loading="{{incentiveView.pagerLoading}}" bind:change="onPagerChange" />
+    <pager wx:if="{{(listMode === 'time' ? flatPagerTotal : pagerTotal) > 10}}" page="{{page}}" pageSize="{{pageSize}}" total="{{listMode === 'time' ? flatPagerTotal : pagerTotal}}" loading="{{incentiveView.pagerLoading}}" bind:change="onPagerChange" />
   </view>
   <view wx:if="{{incentiveView.showRecordEmpty}}" class="card muted">暂无四项服务记录</view>
 </view>

@@ -524,6 +524,16 @@ grep -q '"navigationBarTitleText":"四项服务"' "$home_json" || { echo "FAIL: 
 ! grep -q 'pages/incentive/customer-detail' "$ROOT/aigicrm-miniprogram/pages/incentive/home/index.js" || { echo "FAIL: lightweight home must not navigate into the archive customer-detail (2026-10-23 用户令: 不进档案界面)" >&2; exit 1; }
 grep -q "incentiveQuery: '/pages/incentive/index'" "$ROOT/aigicrm-miniprogram/pages/app/index.js" || { echo "FAIL: app center 四项服务应用 entry must route to the full workbench" >&2; exit 1; }
 grep -q "title: '四项服务应用'" "$ROOT/aigicrm-miniprogram/pages/app/index.js" || { echo "FAIL: app center must name the full workbench entry 四项服务应用" >&2; exit 1; }
+# 【2026-10-26 用户令·排法分工】轻量页(home)与完整版(index)排法分开: 完整版保持按客户归集封面卡;
+# 轻量页默认打散记录流(不绑客户, 按上传时间排), 「按客户」可切回归集。钉默认态/切换器/打散构建/点行直达。
+HOME_JS="$ROOT/aigicrm-miniprogram/pages/incentive/home/index.js"
+HOME_WXML="$ROOT/aigicrm-miniprogram/pages/incentive/home/index.wxml"
+grep -q "listMode: 'time'" "$HOME_JS" || { echo "FAIL: lightweight home must default to the flat by-time record stream (2026-10-26 用户令)" >&2; exit 1; }
+grep -q 'function buildFlatRecordRows' "$HOME_JS" || { echo "FAIL: lightweight home flat record stream builder is missing" >&2; exit 1; }
+grep -q 'switchListMode' "$HOME_JS" || { echo "FAIL: lightweight home must keep the time/customer view toggle" >&2; exit 1; }
+grep -q 'bindtap="switchListMode"' "$HOME_WXML" || { echo "FAIL: lightweight home view toggle UI is missing" >&2; exit 1; }
+grep -q 'class="flat-rec"' "$HOME_WXML" || { echo "FAIL: lightweight home flat record row UI is missing" >&2; exit 1; }
+grep -q "'/pages/incentive/detail/index?id=' + row.id" "$HOME_JS" || { echo "FAIL: flat record rows must open the dial detail by record id" >&2; exit 1; }
 ! grep -q '"pagePath": "pages/cases/index"' "$app_json" || { echo "FAIL: stale cases tab still exposes an alternate incentive surface" >&2; exit 1; }
 # 【2026-10-05】cases 兼容壳已删: 原直接读取 pages/cases/* 文件的重定向/标题/样式检查随之移除,
 # 保留上方 app.json 防回潮与下方 profile 入口/app.wxss 全局样式防回潮检查

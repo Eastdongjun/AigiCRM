@@ -1,8 +1,7 @@
 // 【2026-10-23 四项服务拆分·用户令】tabBar「四项服务」= 轻量客户记录快查视图。
-// 只保留: 客户维度封面卡列表(搜索/高级筛选/排序/分类筛选 picker/10-30 分页)+ 上传入口;
-// 不含: 分类树/统计/排行/阅读(未读红点)——完整能力在应用中心「四项服务应用」(pages/incentive/index)。
-// 数据链路与完整版同源(getCustomerRecords 按客户分组 + 本地筛选排序), 点客户进 records 页
-// (上下滚动的记录列表, 非一客一册档案翻页)。
+// 【2026-10-26 用户令】轻量页与完整版(四项服务应用)排法分工: 完整版=按客户归集封面卡(原地不动);
+// 轻量页默认=打散记录流(不绑客户, 一次上传=一条记录, 按上传时间排), 「按客户」可切回归集视图。
+// 数据链路同源(getCustomerRecords 按客户分组 + 本地筛选排序), 打散=分组结果拉平, 不加接口。
 const { getCustomerRecords, getGrantCheck, getUsers } = require('../../../api/incentive')
 const { getDownloadToken } = require('../../../api/file')
 const { getDepts } = require('../../../api/system')
@@ -110,7 +109,7 @@ function buildIncentiveView(data) {
     endDateText: `${data.endDate || '截止日期'}⌄`,
     userText: `${pickOption(data.userNames, data.selectedUserIndex, '全部人员')}⌄`,
     orderText: `${pickOption(data.orderOptions, data.selectedOrderIndex, '最新记录在前')}⌄`,
-    showRecordEmpty: !isLoading && (data.records || []).length === 0
+    showRecordEmpty: !isLoading && ((data.listMode === 'time' ? data.flatRecords : data.records) || []).length === 0
   }
 }
 
@@ -124,6 +123,39 @@ const ORDER_VALUES = ['time-desc', 'time-asc', 'score-desc', 'score-asc']
 // 封面卡时间 = 其最新一条记录的 createdAt(normalizeRecords 的 detail 即最新子记录)
 function coverTimeOf(item) {
   return String((item && item.detail && item.detail.createdAt) || item.createdAt || '')
+}
+
+// 【2026-10-26 打散视图】一条上传记录 → 记录流行(客户名来自所属分组, 行自带分类/产品/上传人/分值/时间)
+function buildFlatRow(record, customerName) {
+  const files = record.files || buildIncentiveFiles(record)
+  const time = String(record.createdAt || record.createTime || '')
+  return {
+    id: record.id,
+    customerName: record.customerName || customerName || '未命名客户',
+    categoryName: record.categoryName || record.category || record.type || '',
+    productText: [record.specificProduct, record.relatedProducts, record.product].filter(Boolean).join(' · '),
+    uploaderName: record.userName || record.updatedByName || record.createByName || '',
+    score: Number(record.score) || 0,
+    createdAt: time,
+    timeText: time.replace('T', ' ').slice(0, 16),
+    fileCount: (files || []).length
+  }
+}
+
+/** 打散记录流: 全部分组的子记录拉平(分组无子记录时兜底把分组本身当一条, 兼容演示数据) */
+function buildFlatRecordRows(groups, childMap) {
+  const rows = []
+  ;(groups || []).forEach((group) => {
+    const children = (childMap && childMap[group.id]) || group.records || []
+    if ((children || []).length) {
+      children.forEach((record) => {
+        if (record && record.id !== undefined && record.id !== null) rows.push(buildFlatRow(record, group.name))
+      })
+    } else if (group && group.id !== undefined && group.createdAt) {
+      rows.push(buildFlatRow(group, group.name))
+    }
+  })
+  return rows
 }
 const FALLBACK_ORGS = [
   { id: 1, deptName: '内蒙古大区', deptType: 2, parentId: 0 },
@@ -147,6 +179,11 @@ Page({
     order: 'time-desc',
     orderOptions: ORDER_OPTIONS,
     selectedOrderIndex: 0,
+    // 【2026-10-26 打散视图】轻量页默认 time=打散记录流(用户令), customer=按客户归集封面卡
+    listMode: 'time',
+    flatRecords: [],
+    pagedFlatRecords: [],
+    flatPagerTotal: 0,
     category: '全部',
     categoryNames: [],
     categories: ['全部'],
@@ -339,23 +376,53 @@ Page({
     if (this.data.order === 'time-asc') records.sort((a, b) => coverTimeOf(a).localeCompare(coverTimeOf(b)))
     if (this.data.order === 'time-desc') records.sort((a, b) => coverTimeOf(b).localeCompare(coverTimeOf(a)))
     const paged = paginate(records, 1, this.data.pageSize)
+    // 【打散视图】记录流与封面卡共用筛选(分组已过服务端+本地筛选, 拉平即继承),
+    // 分类/关键词/日期在行上二次过滤, 排序四档作用于单条记录(时间=行自身 createdAt)
+    const keywordFlat = (this.data.keyword || '').trim().toLowerCase()
+    let flat = buildFlatRecordRows(this.data.allRecords, this._childRawById).filter((row) => {
+      if (categoryNames.length && categoryNames.indexOf(row.categoryName) === -1) return false
+      if (keywordFlat) {
+        const haystack = `${row.customerName} ${row.categoryName} ${row.productText} ${row.uploaderName} ${row.timeText}`.toLowerCase()
+        if (!haystack.includes(keywordFlat)) return false
+      }
+      const dateValue = row.createdAt.slice(0, 10)
+      if (this.data.startDate && dateValue && dateValue < this.data.startDate) return false
+      if (this.data.endDate && dateValue && dateValue > this.data.endDate) return false
+      return true
+    })
+    if (this.data.order === 'score-asc') flat.sort((a, b) => a.score - b.score)
+    if (this.data.order === 'score-desc') flat.sort((a, b) => b.score - a.score)
+    if (this.data.order === 'time-asc') flat.sort((a, b) => a.createdAt.localeCompare(b.createdAt))
+    if (this.data.order === 'time-desc') flat.sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+    const pagedFlat = paginate(flat, 1, this.data.pageSize)
     this.setData({
       records,
       pagedRecords: paged.rows,
       page: paged.page,
       pageSize: paged.pageSize,
-      pagerTotal: paged.total
+      pagerTotal: paged.total,
+      flatRecords: flat,
+      pagedFlatRecords: pagedFlat.rows,
+      flatPagerTotal: pagedFlat.total
     }, () => this.refreshIncentiveView())
   },
 
   applyPaging(page, pageSize) {
-    const paged = paginate(this.data.records, page === undefined ? this.data.page : page, pageSize || this.data.pageSize)
-    this.setData({
-      pagedRecords: paged.rows,
+    // 打散视图与客户视图各自分页, pager 组件按 listMode 取对应总数
+    const source = this.data.listMode === 'time' ? this.data.flatRecords : this.data.records
+    const paged = paginate(source, page === undefined ? this.data.page : page, pageSize || this.data.pageSize)
+    const patch = {
       page: paged.page,
       pageSize: paged.pageSize,
       pagerTotal: paged.total
-    })
+    }
+    if (this.data.listMode === 'time') {
+      patch.pagedFlatRecords = paged.rows
+      patch.flatPagerTotal = paged.total
+    } else {
+      patch.pagedRecords = paged.rows
+    }
+    this.setData(patch)
   },
 
   onPagerChange(e) {
@@ -443,6 +510,25 @@ Page({
   goUpload() {
     if (!this.data.canUploadEvidence) return wx.showToast({ title: '没有四项服务上传权限', icon: 'none' })
     wx.navigateTo({ url: '/pages/incentive/upload/index' })
+  },
+
+  // 【2026-10-26 用户令】轻量页双视图切换: time=打散记录流(默认) / customer=按客户归集封面卡
+  switchListMode(e) {
+    const mode = e.currentTarget.dataset.mode
+    if (mode !== 'time' && mode !== 'customer') return
+    if (mode === this.data.listMode) return
+    this.setData({ listMode: mode, page: 1 }, () => {
+      this.applyPaging(1)
+      this.refreshIncentiveView()
+    })
+  },
+
+  // 打散视图点行: 该条记录直达拨盘详情页(与点客户卡同款 detail?id=记录id)
+  openFlatRecord(e) {
+    const index = Number(e.currentTarget.dataset.index)
+    const row = this.data.pagedFlatRecords[index]
+    if (!row || !row.id) return
+    wx.navigateTo({ url: '/pages/incentive/detail/index?id=' + row.id })
   },
 
   // 【2026-10-26 用户令"展示按拨盘来,不要一个客户一个档案"】点客户直达既有拨盘详情页
