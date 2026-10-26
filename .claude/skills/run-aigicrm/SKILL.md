@@ -101,21 +101,21 @@ cd <unit>
 /usr/local/bin/python3 .claude/skills/run-aigicrm/driver.py --user u --password p --out /tmp/x.png
 ```
 
-driver 登录 admin/admin123(测试服库的 admin 密码)，等 dashboard 元素"客户总数"出现即成功。
+driver 登录凭据从 `~/.aigicrm-deploy.env` 读取（HEALTH_CHECK_USER/PASS，勿在文档/命令行写明文），等 dashboard 元素"客户总数"出现即成功。
 已登录会话可 `--screenshot-only` 直接开目标页截图。截图落 `/tmp/*.png`，非空白校验用：
 `python3 -c "from PIL import Image;from statistics import pstdev;... uniq colors / luminance std"`。
 
 ## Run（human 路径）
 
-前端 dev server 起来后浏览器开 `http://localhost:3000`，admin/admin123 登录。无头下 driver 是唯一交互方式。
+前端 dev server 起来后浏览器开 `http://localhost:3000`，用 env 注入的测试账号登录（凭据见 `~/.aigicrm-deploy.env`，文档不落明文）。无头下 driver 是唯一交互方式。
 
 ## 停服
 
 ```bash
 # 后端/前端进程
 pkill -f aigicrm-backend-1.0.0.jar; pkill -f "vite"
-# MySQL 独立实例
-mysqladmin -h127.0.0.1 -P3308 -uroot -p123456 shutdown
+# MySQL 独立实例(口令经 env 注入, 勿写明文)
+mysqladmin -h127.0.0.1 -P3308 -uroot -p"$LOCAL_MYSQL_ROOT_PASSWORD" shutdown
 # Redis 6380
 redis-cli -p 6380 shutdown nosave
 ```
@@ -141,7 +141,7 @@ redis-cli -p 6380 shutdown nosave
 | 重启报 `Port 8080 was already in use` | 前进程未完全退出: `lsof -ti :8080 \| xargs kill -9`, 确认端口空后再启 |
 | 启动失败 `Access key id should not be null or empty` | 注入 `OSS_ACCESS_KEY_ID=local-oss-key OSS_ACCESS_KEY_SECRET=local-oss-secret` |
 | 启动失败 `JWT_SECRET` 相关/WeakKey | 注入 ≥32 字符 `JWT_SECRET=$(openssl rand -hex 32)` |
-| 登录 401 账号或密码错误 | 测试服库 admin 密码是 `admin123`(不是 123456)；`--user/--password` 换账号 |
+| 登录 401 账号或密码错误 | 凭据以 `~/.aigicrm-deploy.env` 为准(env 注入, 文档不落明文)；`--user/--password` 换账号 |
 | driver 超时等不到"客户总数" | 后端没起/起挂：看 `/tmp/aigicrm-backend.log` 是否 `Started AigicrmApplication`；前端 3000 是否 VITE ready |
-| MySQL 连接拒绝 | 确认 3308 独立实例在(日志 `/tmp/aigicrm-mysql.log`)，`mysql -h127.0.0.1 -P3308 -uroot -p123456` 能进 |
+| MySQL 连接拒绝 | 确认 3308 独立实例在(日志 `/tmp/aigicrm-mysql.log`)，root 口令经 env 注入后 `mysql -h127.0.0.1 -P3308 -uroot -p` 交互输入 |
 | driver `ModuleNotFoundError: playwright` | 用 `/usr/local/bin/python3`(该解释器装了 playwright)，不是系统 `python3` |

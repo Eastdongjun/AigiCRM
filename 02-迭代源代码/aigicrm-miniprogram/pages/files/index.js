@@ -73,8 +73,8 @@ function buildIncentiveFileRows(groups) {
   return Array.from(map.values()).sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt)))
 }
 
-// 【2026-10-26 图片墙→列表小图】<image> 标签无法携带 Authorization 头, 行缩略 URL 追加一次性
-// 下载 token(与激励详情页 thumbUrlOf 同款口径)
+// 【2026-10-26 图片墙→列表小图】<image> 标签无法携带 Authorization 头, 行缩略 URL 追加短时效
+// 下载 token(1h, scope=download, 登出随主 token 联动撤销——非一次性, 1h 内可复用)
 function withDownloadToken(url, token) {
   if (!url || !token) return ''
   const sep = url.indexOf('?') >= 0 ? '&' : '?'
@@ -291,7 +291,7 @@ function buildFileRowView(item, data) {
   if (showDelete) sheetActions.push({ key: 'delete', label: '删除', danger: true })
   const sizePrefix = item.size && item.size !== '-' ? `${item.size} · ` : ''
   // 【2026-10-26 用户令"还是做成之前列表展示,但列表要呈现预览的小图"】四项服务行首图片=缩略小图
-  // (一次性 dlToken URL, 无 token/非图片退化为类型色块, 不阻塞列表), 其余 tab 保持类型色块
+  // (短时效 dlToken URL, 无 token/非图片退化为类型色块, 不阻塞列表), 其余 tab 保持类型色块
   const rowThumbUrl = data.activeTab === '四项服务' && isImageRow(item)
     ? withDownloadToken(getDownloadUrl({ id: item.id, ossKey: item.ossKey || item.fileUrl }, true), data.dlToken || '')
     : ''
@@ -606,7 +606,7 @@ Page({
     const requestSeq = (this._incentiveReqSeq = (this._incentiveReqSeq || 0) + 1)
     this._filesLoading = true
     this.setFileData({ loading: true, page: 1, folders: [] })
-    // 【列表小图】行缩略 URL 需一次性下载 token(<image> 无法带鉴权头), 与记录拉取并行
+    // 【列表小图】行缩略 URL 需短时效下载 token(1h, <image> 无法带鉴权头), 与记录拉取并行
     const tokenReady = this.ensureDlToken()
     return getCustomerRecords({}).then((groups) => {
       if (requestSeq !== this._incentiveReqSeq) return

@@ -123,10 +123,10 @@ grep -Fq "if (!this.canDownloadItem(item)) return wx.showToast({ title: '该文�
     this.fetchFile(item, 'preview')" "$PAGE" || fail 'mobile file preview must gate on download permission like downloadFile'
 grep -Fq 'this._dlTokenUserId !== userId' "$PAGE" || fail 'mobile files dlToken cache must be invalidated on account switch'
 # 【2026-10-26 二令"还是做成之前列表展示,但列表要呈现预览的小图"】四项服务 tab 回归时间分组
-# 列表行, 行首图片=缩略小图(一次性 dlToken URL); 同日更早的图片墙(墙瓦片/previewWallImage)退役
+# 列表行, 行首图片=缩略小图(短时效 1h dlToken URL); 同日更早的图片墙(墙瓦片/previewWallImage)退役
 grep -Fq 'function isImageRow(item)' "$PAGE" || fail 'mobile file incentive row thumbnail classifier is missing'
 grep -Fq "rowThumbUrl = data.activeTab === '四项服务' && isImageRow(item)" "$PAGE" || fail 'mobile file incentive rows must build thumbnails for the incentive tab only'
-grep -Fq 'withDownloadToken(getDownloadUrl({ id: item.id, ossKey: item.ossKey || item.fileUrl }, true), data.dlToken' "$PAGE" || fail 'mobile file row thumbnails must carry the one-time download token'
+grep -Fq 'withDownloadToken(getDownloadUrl({ id: item.id, ossKey: item.ossKey || item.fileUrl }, true), data.dlToken' "$PAGE" || fail 'mobile file row thumbnails must carry the short-TTL download token'
 grep -Fq 'class="file-thumb-sq"' "$WXML" || fail 'mobile file incentive row thumbnail UI disappeared'
 ! grep -Fq 'files-wall' "$WXML" || fail 'mobile file photo wall was replaced by list rows (user order 2026-10-26); do not bring it back'
 ! grep -Fq 'previewWallImage' "$PAGE" "$WXML" || fail 'mobile file wall tap handler was removed with the wall (user order 2026-10-26)'

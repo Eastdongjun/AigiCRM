@@ -156,7 +156,7 @@ docker exec aigicrm-mysql mysql -uroot -p'[DB密码]' aigicrm
 docker exec shared-mysql mysql -uroot -p'[DB密码]' aigicrm
 ```
 
-⚠️ DB 密码：生产在容器 env / Mac `~/.aigicrm-deploy.env`；测试统一 `123456`。
+⚠️ DB 密码：生产与测试均不落文档——生产在容器 env / Mac `~/.aigicrm-deploy.env`；测试口令同样从 env 读取。
 
 ### 4.2 关键表
 
