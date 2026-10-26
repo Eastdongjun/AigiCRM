@@ -39,3 +39,9 @@
   color: rgba(255, 255, 255, .82);
 }
 .profile-status-dot { width: 10rpx; height: 10rpx; border-radius: 50%; background: #4ade80; }
+
+/* 【2026-10-26 用户令"合并到一个区域"】当前集团+数据范围两卡并一卡: 两行, 细线分隔;
+   覆盖 app.wxss 的 .scope-card 单行 flex 布局(仅本页生效) */
+.scope-merged { flex-direction: column; align-items: stretch; gap: 18rpx; }
+.scope-line { display: flex; align-items: center; min-width: 0; }
+.scope-line.with-divider { border-top: 1rpx solid #eef2f7; padding-top: 18rpx; }
