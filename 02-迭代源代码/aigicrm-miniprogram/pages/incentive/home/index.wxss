@@ -42,8 +42,11 @@
 /* ===== 【2026-10-26 用户令·打散视图】轻量页双视图 =====
    time=打散记录流(默认, 不绑客户按上传时间排) / customer=按客户归集封面卡(完整版排法)
    【同日令"这俩胶囊做醒目一些"】切换器加大加实底: 选中=品牌蓝实底白字, 未选=白底描边 */
-.mode-switch { display: inline-flex; padding: 6rpx; gap: 6rpx; border-radius: 999rpx; background: #e3ebf6; box-shadow: inset 0 2rpx 6rpx rgba(15, 23, 42, .05); }
-.mode-chip { height: 56rpx; line-height: 56rpx; padding: 0 30rpx; border-radius: 999rpx; background: #fff; color: #52657f; font-size: 24rpx; font-weight: 800; border: 1rpx solid #dbe4f0; }
+/* 【同日修正"按时间/按客户字没显示全"】app.wxss 的 filter-actions 是横向滚动条(flex 子项可被压缩,
+   定高胶囊内文字换行即被裁); 本页改允许换行 + 切换器/胶囊禁收缩不换行, 四胶囊自动分两行 */
+.incentive-filter-actions { flex-wrap: wrap; overflow-x: visible; }
+.mode-switch { display: inline-flex; flex-shrink: 0; padding: 6rpx; gap: 6rpx; border-radius: 999rpx; background: #e3ebf6; box-shadow: inset 0 2rpx 6rpx rgba(15, 23, 42, .05); }
+.mode-chip { height: 56rpx; line-height: 56rpx; padding: 0 30rpx; border-radius: 999rpx; background: #fff; color: #52657f; font-size: 24rpx; font-weight: 800; border: 1rpx solid #dbe4f0; white-space: nowrap; }
 .mode-chip.active { background: #1d4ed8; border-color: #1d4ed8; color: #fff; box-shadow: 0 8rpx 18rpx rgba(29, 78, 216, .32); }
 
 .flat-rec { display: flex; align-items: center; gap: 16rpx; background: #fff; border-radius: 20rpx; padding: 16rpx 18rpx; margin-bottom: 14rpx; box-shadow: 0 8rpx 22rpx rgba(48, 78, 112, .05); }
