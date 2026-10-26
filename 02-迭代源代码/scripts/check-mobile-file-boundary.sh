@@ -110,12 +110,14 @@ grep -Fq "this.previewFile(event)" "$PAGE" || fail 'mobile file one-tap open mus
 grep -Fq "require('../../utils/file-cache')" "$PAGE" || fail 'mobile file preview cache module is not wired'
 grep -Fq 'fileCache.lookup(item)' "$PAGE" || fail 'mobile file preview must check the local cache before downloading'
 grep -Fq 'fileCache.store(item, result.tempFilePath)' "$PAGE" || fail 'mobile file preview must store downloads into the local cache'
-# 【2026-10-26 用户令"图片可预览当前页/不显示文件名/翻页自动预览"】四项服务 tab 改图片墙:
-# 当前页缩略直出(token 追加在 URL), 翻页由视图重建自动加载; 清单行仅其余 tab 渲染
-grep -Fq "wallTiles: isIncentiveTab ? buildWallTiles(files, data.dlToken" "$PAGE" || fail 'mobile file incentive tab must build thumbnail wall tiles for the current page'
-grep -Fq 'withDownloadToken(getDownloadUrl(ref, true), token)' "$PAGE" || fail 'mobile file wall thumbnails must carry the one-time download token'
-grep -Fq 'class="files-wall"' "$WXML" || fail 'mobile file incentive tab wall UI disappeared'
-grep -Fq 'bindtap="previewWallImage"' "$WXML" || fail 'mobile file wall tap-to-preview action disappeared'
+# 【2026-10-26 二令"还是做成之前列表展示,但列表要呈现预览的小图"】四项服务 tab 回归时间分组
+# 列表行, 行首图片=缩略小图(一次性 dlToken URL); 同日更早的图片墙(墙瓦片/previewWallImage)退役
+grep -Fq 'function isImageRow(item)' "$PAGE" || fail 'mobile file incentive row thumbnail classifier is missing'
+grep -Fq "rowThumbUrl = data.activeTab === '四项服务' && isImageRow(item)" "$PAGE" || fail 'mobile file incentive rows must build thumbnails for the incentive tab only'
+grep -Fq 'withDownloadToken(getDownloadUrl({ id: item.id, ossKey: item.ossKey || item.fileUrl }, true), data.dlToken' "$PAGE" || fail 'mobile file row thumbnails must carry the one-time download token'
+grep -Fq 'class="file-thumb-sq"' "$WXML" || fail 'mobile file incentive row thumbnail UI disappeared'
+! grep -Fq 'files-wall' "$WXML" || fail 'mobile file photo wall was replaced by list rows (user order 2026-10-26); do not bring it back'
+! grep -Fq 'previewWallImage' "$PAGE" "$WXML" || fail 'mobile file wall tap handler was removed with the wall (user order 2026-10-26)'
 grep -Fq 'previewFile' "$PAGE" || fail 'mobile file list preview action disappeared'
 grep -Fq 'downloadFile' "$PAGE" || fail 'mobile file list download action disappeared'
 grep -Fq 'wx.downloadFile' "$PAGE" || fail 'mobile file list cannot download files for preview'

@@ -73,7 +73,7 @@ function buildIncentiveFileRows(groups) {
   return Array.from(map.values()).sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt)))
 }
 
-// 【2026-10-26 图片墙】<image> 标签无法携带 Authorization 头, 缩略/预览 URL 追加一次性
+// 【2026-10-26 图片墙→列表小图】<image> 标签无法携带 Authorization 头, 行缩略 URL 追加一次性
 // 下载 token(与激励详情页 thumbUrlOf 同款口径)
 function withDownloadToken(url, token) {
   if (!url || !token) return ''
@@ -81,26 +81,11 @@ function withDownloadToken(url, token) {
   return url + sep + 'token=' + encodeURIComponent(token)
 }
 
-const WALL_IMAGE_EXTS = ['JPG', 'JPEG', 'PNG', 'GIF', 'WEBP', 'BMP']
+const IMAGE_EXTS = ['JPG', 'JPEG', 'PNG', 'GIF', 'WEBP', 'BMP']
 
-/** 图片墙瓦片: 图片=缩略直出(点开全屏预览), 视频=播放面, 文档=类型面; 均不带文件名 */
-function buildWallTiles(files, token) {
-  return (files || []).map((item) => {
-    const isImage = item.fileType === 'image' || WALL_IMAGE_EXTS.includes(String(item.type || '').toUpperCase())
-    const ref = { id: item.id, ossKey: item.ossKey || item.fileUrl }
-    const thumbUrl = isImage ? withDownloadToken(getDownloadUrl(ref, true), token) : ''
-    const fullUrl = isImage ? withDownloadToken(getDownloadUrl(ref), token) : ''
-    return {
-      id: item.id,
-      flatIndex: item.flatIndex,
-      isImage,
-      isVideo: item.fileType === 'video',
-      showThumb: isImage && Boolean(thumbUrl),
-      thumbUrl,
-      fullUrl,
-      typeText: item.typeText
-    }
-  })
+/** 图片行判定: fileType 媒体分类优先, 扩展名兜底(四项服务列表行的缩略小图/类型色块分流) */
+function isImageRow(item) {
+  return item.fileType === 'image' || IMAGE_EXTS.includes(String(item.type || '').toUpperCase())
 }
 
 // 【D1-A】配额展示保留一位小数(10.5 GB 不能显示成 11 GB);文件大小仍走上面的既有口径
@@ -305,8 +290,15 @@ function buildFileRowView(item, data) {
   if (showShare) sheetActions.push({ key: 'share', label: '分享' })
   if (showDelete) sheetActions.push({ key: 'delete', label: '删除', danger: true })
   const sizePrefix = item.size && item.size !== '-' ? `${item.size} · ` : ''
+  // 【2026-10-26 用户令"还是做成之前列表展示,但列表要呈现预览的小图"】四项服务行首图片=缩略小图
+  // (一次性 dlToken URL, 无 token/非图片退化为类型色块, 不阻塞列表), 其余 tab 保持类型色块
+  const rowThumbUrl = data.activeTab === '四项服务' && isImageRow(item)
+    ? withDownloadToken(getDownloadUrl({ id: item.id, ossKey: item.ossKey || item.fileUrl }, true), data.dlToken || '')
+    : ''
   return {
     ...item,
+    showRowThumb: Boolean(rowThumbUrl),
+    rowThumbUrl,
     typeText: item.type || 'FILE',
     nameText: item.name || '未命名文件',
     folderText: item.folder || '未分类',
@@ -378,9 +370,6 @@ function buildFileView(data) {
     showManageEmpty: !hasManageFolders,
     fileGroups,
     files,
-    // 【2026-10-26 用户令"图片可预览当前页/不显示文件名/翻页自动预览"】四项服务 tab 改图片墙:
-    // 当前页(filteredFiles 即本页切片)文件直出缩略图, 无文件名清单; 翻页重建视图自动加载新页缩略
-    wallTiles: isIncentiveTab ? buildWallTiles(files, data.dlToken || '') : [],
     fileCountText: `共 ${fileCount} 个文件`,
     showFileList: files.length > 0,
     showEmpty: files.length === 0 && !data.previewVideoPath && !loading,
@@ -617,7 +606,7 @@ Page({
     const requestSeq = (this._incentiveReqSeq = (this._incentiveReqSeq || 0) + 1)
     this._filesLoading = true
     this.setFileData({ loading: true, page: 1, folders: [] })
-    // 【图片墙】缩略/预览 URL 需一次性下载 token(<image> 无法带鉴权头), 与记录拉取并行
+    // 【列表小图】行缩略 URL 需一次性下载 token(<image> 无法带鉴权头), 与记录拉取并行
     const tokenReady = this.ensureDlToken()
     return getCustomerRecords({}).then((groups) => {
       if (requestSeq !== this._incentiveReqSeq) return
@@ -636,7 +625,7 @@ Page({
     })
   },
 
-  /** 一次性下载 token(图片墙 URL 用): 页内缓存, 失败返回空串=墙瓦片退化为类型面(不阻塞) */
+  /** 一次性下载 token(列表行缩略 URL 用): 页内缓存, 失败返回空串=行首退化为类型色块(不阻塞) */
   ensureDlToken() {
     if (getApp().globalData.demoMode) return Promise.resolve('')
     if (this.data.dlToken) return Promise.resolve(this.data.dlToken)
@@ -651,19 +640,6 @@ Page({
       return ''
     })
     return this._dlTokenPromise
-  },
-
-  /** 图片墙瓦片点击: 图片=全屏预览(可左右滑完当前页所有图片), 视频/文档=走一步预览管线 */
-  previewWallImage(event) {
-    const index = Number(event.currentTarget.dataset.index)
-    const tile = (this.data.fileView.wallTiles || [])[index]
-    if (!tile) return
-    if (tile.isImage && tile.fullUrl) {
-      const urls = (this.data.fileView.wallTiles || []).filter((item) => item.isImage && item.fullUrl).map((item) => item.fullUrl)
-      wx.previewImage({ urls: urls.length ? urls : [tile.fullUrl], current: tile.fullUrl, fail: (error) => showError(error, '图片预览失败') })
-      return
-    }
-    this.openFile({ currentTarget: { dataset: { index: tile.flatIndex } } })
   },
 
   applyIncentiveFileFilter(page = 1, pageSize = this.data.pageSize || 10, keywordOverride) {
