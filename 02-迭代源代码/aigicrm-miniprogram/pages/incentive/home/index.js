@@ -65,8 +65,9 @@ function buildFileGroupView(fileGroups) {
 
 function buildRecordView(record) {
   const fileGroupsView = buildFileGroupView(record.fileGroups)
-  // 与完整版同款: 原始 records/files/fileGroups 大数组不进 data(存页面内存), 视图只带封面/计数字段
-  const { records: _omitRecords, files: _omitFiles, fileGroups: _omitGroups, ...rest } = record
+  // 与完整版同款: 原始 records/files/fileGroups 大数组不进 data(存页面内存), 视图只带封面/计数字段;
+  // 【2026-10-27 瘦身】detail(最新子记录原样, 含扁平文件字段)同样剥出 data, 时间折算成 coverTime 标量
+  const { records: _omitRecords, files: _omitFiles, fileGroups: _omitGroups, detail, ...rest } = record
   let coverFile = null
   for (let gi = 0; gi < fileGroupsView.length && !coverFile; gi += 1) {
     const hit = (fileGroupsView[gi].files || []).find((file) => file.type === 'image' && file.id)
@@ -74,6 +75,7 @@ function buildRecordView(record) {
   }
   return {
     ...rest,
+    coverTime: String((detail && detail.createdAt) || record.createdAt || ''),
     scoreText: `${record.score || 0} 分`,
     countText: `${record.count || 0}条`,
     fileCountText: `${(record.files || []).length}文件`,
@@ -109,7 +111,7 @@ function buildIncentiveView(data) {
     endDateText: `${data.endDate || '截止日期'}⌄`,
     userText: `${pickOption(data.userNames, data.selectedUserIndex, '全部人员')}⌄`,
     orderText: `${pickOption(data.orderOptions, data.selectedOrderIndex, '最新记录在前')}⌄`,
-    showRecordEmpty: !isLoading && ((data.listMode === 'time' ? data.flatRecords : data.records) || []).length === 0
+    showRecordEmpty: !isLoading && ((data.listMode === 'time' ? data.flatRecordCount : data.recordCount) || 0) === 0
   }
 }
 
@@ -120,9 +122,11 @@ const PRODUCT_OPTIONS = ['全部产品', '防腐', '加固', '钢结构', '煤�
 // 「默认排序」即接口顺序=最新在前, 由首档承接; 值 time-*/score-* 交 sort() 分派
 const ORDER_OPTIONS = ['最新记录在前', '最早记录在前', '分值从高到低', '分值从低到高']
 const ORDER_VALUES = ['time-desc', 'time-asc', 'score-desc', 'score-asc']
-// 封面卡时间 = 其最新一条记录的 createdAt(normalizeRecords 的 detail 即最新子记录)
+// 封面卡时间 = 其最新一条记录的 createdAt(normalizeRecords 的 detail 即最新子记录)。
+// 【2026-10-27 瘦身】视图行不再携带 detail 原始记录(其扁平文件字段/ID数组会整份进 setData),
+// 时间在 buildRecordView 里折算成标量 coverTime 带出, 排序只认 coverTime
 function coverTimeOf(item) {
-  return String((item && item.detail && item.detail.createdAt) || item.createdAt || '')
+  return String((item && item.coverTime) || (item && item.detail && item.detail.createdAt) || (item && item.createdAt) || '')
 }
 
 // 【2026-10-26 打散视图】一条上传记录 → 记录流行(客户名只进检索不显示, 行首=该记录首图缩略)
@@ -181,17 +185,21 @@ Page({
       orgOptions: [{ id: '', deptName: '全部组织', label: '全部组织' }],
       orderOptions: ORDER_OPTIONS,
       userNames: ['全部人员'],
-      records: [],
+      recordCount: 0,
+      flatRecordCount: 0,
+      listMode: 'time',
       loading: false
     }),
     order: 'time-desc',
     orderOptions: ORDER_OPTIONS,
     selectedOrderIndex: 0,
-    // 【2026-10-26 打散视图】轻量页默认 time=打散记录流(用户令), customer=按客户归集封面卡
+    // 【2026-10-26 打散视图】轻量页默认 time=打散记录流(用户令), customer=按客户归集封面卡。
+    // 【2026-10-27 深度检查瘦身】全量数组(allRecords/records/flatRecords)改存页面实例 this._*,
+    // data 只留 paged 切片与计数——排序/筛选不再整包 setData(项目瘦身基线: thumb.wxs 233KB 教训)
     listMode: 'time',
-    flatRecords: [],
     pagedFlatRecords: [],
     flatPagerTotal: 0,
+    flatRecordCount: 0,
     category: '全部',
     categoryNames: [],
     categories: ['全部'],
@@ -209,8 +217,7 @@ Page({
     users: [],
     userNames: ['全部人员'],
     selectedUserIndex: 0,
-    allRecords: [],
-    records: [],
+    recordCount: 0,
     pagedRecords: [],
     page: 1,
     pageSize: 10,
@@ -263,21 +270,23 @@ Page({
     const app = getApp()
     if (app.globalData.demoMode) {
       const decorated = incentiveRecords.map((item) => ({ category: item.category || item.type || item.categoryName || '未分类', count: item.count || 1, files: buildIncentiveFiles(item), fileGroups: buildIncentiveFileGroups(item), ...item }))
-      const records = this.rebuildRecordViews(decorated)
-      const filtered = this.applyLocalRecordFilters(records)
-      this.setData({ allRecords: records, records: filtered, categories: ['全部', ...new Set(records.map((item) => item.category))] }, () => this.sort())
+      this.applyRecordSource(this.rebuildRecordViews(decorated))
       return
     }
 
     this.setData({ loading: true }, () => this.refreshIncentiveView())
     const params = this.buildRecordParams()
     getCustomerRecords(params).then((rows) => {
-      const decorated = normalizeRecords(rows)
-      const records = this.rebuildRecordViews(decorated)
-      this.setData({ allRecords: records, records, categories: ['全部', ...new Set(records.map((item) => item.category))] }, () => this.sort())
+      this.applyRecordSource(this.rebuildRecordViews(normalizeRecords(rows)))
     }).catch((error) => showErrorWithRetry(error, '四项服务加载失败', () => this.loadRecords())).finally(() => {
       this.setData({ loading: false }, () => this.refreshIncentiveView())
     })
+  },
+
+  /** 全量视图行落实例字段(不进 data), data 只带分类选项——排序/筛选产物同样只留切片(瘦身基线) */
+  applyRecordSource(records) {
+    this._allRecords = records
+    this.setData({ categories: ['全部', ...new Set((records || []).map((item) => item.category))] }, () => this.sort())
   },
 
   rebuildRecordViews(decorated) {
@@ -378,7 +387,7 @@ Page({
         return name && categoryNames.indexOf(name) !== -1
       })
     }
-    let records = this.applyLocalRecordFilters(this.data.allRecords).filter(childMatches)
+    let records = this.applyLocalRecordFilters(this._allRecords || []).filter(childMatches)
     if (this.data.order === 'score-asc') records.sort((a, b) => (Number(a.score) || 0) - (Number(b.score) || 0))
     if (this.data.order === 'score-desc') records.sort((a, b) => (Number(b.score) || 0) - (Number(a.score) || 0))
     if (this.data.order === 'time-asc') records.sort((a, b) => coverTimeOf(a).localeCompare(coverTimeOf(b)))
@@ -387,7 +396,7 @@ Page({
     // 【打散视图】记录流与封面卡共用筛选(分组已过服务端+本地筛选, 拉平即继承),
     // 分类/关键词/日期在行上二次过滤, 排序四档作用于单条记录(时间=行自身 createdAt)
     const keywordFlat = (this.data.keyword || '').trim().toLowerCase()
-    let flat = buildFlatRecordRows(this.data.allRecords, this._childRawById).filter((row) => {
+    let flat = buildFlatRecordRows(this._allRecords || [], this._childRawById).filter((row) => {
       if (categoryNames.length && categoryNames.indexOf(row.categoryName) === -1) return false
       if (keywordFlat) {
         const haystack = `${row.customerName} ${row.categoryName} ${row.productText} ${row.uploaderName} ${row.timeText}`.toLowerCase()
@@ -403,22 +412,25 @@ Page({
     if (this.data.order === 'time-asc') flat.sort((a, b) => a.createdAt.localeCompare(b.createdAt))
     if (this.data.order === 'time-desc') flat.sort((a, b) => b.createdAt.localeCompare(a.createdAt))
     const pagedFlat = paginate(flat, 1, this.data.pageSize)
+    // 瘦身: 全量 records/flat 只存实例, data 只带当前页切片与计数(渲染只用 paged*)
+    this._records = records
+    this._flatRecords = flat
     this.setData({
-      records,
       pagedRecords: paged.rows,
       page: paged.page,
       pageSize: paged.pageSize,
       pagerTotal: paged.total,
-      flatRecords: flat,
       pagedFlatRecords: pagedFlat.rows,
-      flatPagerTotal: pagedFlat.total
+      flatPagerTotal: pagedFlat.total,
+      recordCount: records.length,
+      flatRecordCount: flat.length
     }, () => this.refreshIncentiveView())
   },
 
   applyPaging(page, pageSize) {
-    // 打散视图与客户视图各自分页, pager 组件按 listMode 取对应总数
-    const source = this.data.listMode === 'time' ? this.data.flatRecords : this.data.records
-    const paged = paginate(source, page === undefined ? this.data.page : page, pageSize || this.data.pageSize)
+    // 打散视图与客户视图各自分页, pager 组件按 listMode 取对应总数(源在实例字段)
+    const source = this.data.listMode === 'time' ? this._flatRecords : this._records
+    const paged = paginate(source || [], page === undefined ? this.data.page : page, pageSize || this.data.pageSize)
     const patch = {
       page: paged.page,
       pageSize: paged.pageSize,
