@@ -38,6 +38,9 @@ export function useCustomerDetail() {
   const route = useRoute(); const router = useRouter(); const userStore = useUserStore()
   const canViewFinance = computed(() => userStore.hasPermission('finance:view'))
   const canViewContacts = computed(() => userStore.hasPermission('contact:view'))
+  // 【2026-10-27 深度检查修复】激励分区补门控(B5 模式此前漏了激励): 自定义角色无 incentive:view 时
+  // 不发请求、不报"部分数据加载失败"告警条、四项服务 Tab 不渲染(否则空态文案误导)
+  const canViewIncentive = computed(() => userStore.hasPermission('incentive:view'))
   const isAdmin = computed(() => userStore.isAdmin())
   const readonly = computed(() => {
     const from = route.query.from
@@ -177,7 +180,7 @@ export function useCustomerDetail() {
         },
       },
       { label: '分享信息', p: getShares(customerId.value), apply: (res) => { shares.value = res?.data || [] } },
-      { label: '激励积分', p: getScoreByCustomer(customerId.value), apply: (res) => { incentiveScore.value = res?.data || 0 } },
+      canViewIncentive.value ? { label: '激励积分', p: getScoreByCustomer(customerId.value), apply: (res) => { incentiveScore.value = res?.data || 0 } } : null,
       canViewFinance.value ? { label: '阶段总额', p: getStageAmounts(customerId.value), apply: (res) => { if (res?.data) stageSummary.value = res.data } } : null,
     ].filter(Boolean)
     const results = await Promise.allSettled(tasks.map((t) => t.p))
@@ -194,6 +197,7 @@ export function useCustomerDetail() {
   }
   const loadUsers = async () => { try { allUsers.value = (await getSimpleUserList()).data||[] } catch(e) {} }
   const loadIncentiveRecords = async () => {
+    if (!canViewIncentive.value) return // 无 incentive:view 不发请求(与后端 @PreAuthorize 同口径)
     try {
       // 【修复 2026-08-12】/incentive/records 返回数组非分页对象，且按 customerId 过滤（去掉 current/size）
       const res = await request.get('/incentive/records', { params: { customerId: customerId.value } })
@@ -315,7 +319,7 @@ export function useCustomerDetail() {
 
   return {
     customerId, route, router, userStore, isAdmin, readonly, readonlyTag,
-    loading, activeTab, customer, logs, newLog, invoices, invoiceSummary, payments, paymentSummary, canViewFinance, canViewContacts, expireDaysLeft, latestLog,
+    loading, activeTab, customer, logs, newLog, invoices, invoiceSummary, payments, paymentSummary, canViewFinance, canViewContacts, canViewIncentive, expireDaysLeft, latestLog,
     loadError, sectionErrors,
     contacts, indicator, shares, allUsers, incentiveScore, incentiveRecords, catMap,
     showInvoiceDialog, showPaymentDialog, showContactDialog, showShareDialog, shareUserIds, editingContact,

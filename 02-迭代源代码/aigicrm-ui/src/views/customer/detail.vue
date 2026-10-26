@@ -76,7 +76,8 @@
 
     <!-- 数据卡片 -->
     <div class="stat-cards">
-      <div class="stat-card">
+      <!-- 【2026-10-27 深度检查修复】激励积分卡随 incentive:view 门控(无权限不显示 0 分误导) -->
+      <div v-if="canViewIncentive" class="stat-card">
         <div class="stat-icon-box gold"><el-icon><Trophy /></el-icon></div>
         <div class="stat-body">
           <div class="stat-num">{{ incentiveScore }}</div>
@@ -129,7 +130,8 @@
         </template>
         <IndicatorTab />
       </el-tab-pane>
-      <el-tab-pane name="incentive">
+      <!-- 【2026-10-27 深度检查修复】四项服务 Tab 随 incentive:view 门控: 无权限不发请求、不渲染误导性空态 -->
+      <el-tab-pane v-if="canViewIncentive" name="incentive">
         <template #label>
           <span>四项服务 <el-tag size="small" type="warning">{{ incentiveRecords.length }}</el-tag></span>
         </template>
@@ -196,6 +198,7 @@ const {
   coreType, coreTypeLabel, stageSummary, annualInvoiceAmount, annualPaymentAmount,
   canViewFinance,
   canViewContacts,
+  canViewIncentive,
   route, router,
   loadAll, loadDicts, loadUsers, loadIncentiveRecords,
 } = detail

@@ -82,10 +82,16 @@ export function useFilePage() {
     return allFolders.value.filter(f => f.folderType === activeTab.value)
   })
 
+  // 【2026-10-27 深度检查修复】文件夹"新建/重命名/删除"后端另要求全局权限码 file:folder:manage
+  // (FileController @PreAuthorize, 可按角色勾选)——前端显隐此前只看 ACL/属主链, 取消勾选后按钮
+  // 可见点击即 403。显隐与后端门槛取"与": 全局码 + 原有 ACL 维度同时满足才显示。
+  const canManageFolders = computed(() => userStore.hasPermission('file:folder:manage'))
+
   // 新建文件夹：公共/私人 Tab 按当前文件夹 upload 权限显示（不再仅管理员/本人写死）。
   // 公共根目录对齐后端"仅管理员可建夹"门槛（非管理员公共根 upload=传文件权限,不授予建夹）；
   // 子夹按当前文件夹 upload 权限（ACL 判定）。
   const canCreateFolder = computed(() => {
+    if (!canManageFolders.value) return false
     if (activeTab.value === 'incentive' || activeTab.value === 'shared_to_me') return false
     if (activeTab.value === 'public' && selectedFolderId.value == null) return isAdmin.value
     return folderPerms.value.includes('upload')
@@ -338,7 +344,7 @@ export function useFilePage() {
     uploadVisible, createFolderVisible, renameFolderVisible, renameFolderTarget,
     shareDialogVisible, shareFileTarget, aclDialogVisible, aclFolder, storageApplyVisible,
     previewVisible, previewUrl, previewType, previewName, previewSize,
-    isAdmin, tabs, currentFolders, canCreateFolder,
+    isAdmin, tabs, currentFolders, canCreateFolder, canManageFolders,
     loadFolderPerms, loadFolders, loadFiles, loadTabCounts, loadStorage, loadStorageApplyInfo, refreshAll,
     switchTab, selectFolder, searchFiles,
     openUpload, openCreateFolder, openRenameFolder, openShareDialog, openAclDialog, openStorageApply,

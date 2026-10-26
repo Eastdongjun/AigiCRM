@@ -20,6 +20,7 @@ vi.mock('@/api/customer', () => ({
   getContacts: vi.fn(), addContact: vi.fn(), updateContact: vi.fn(), deleteContact: vi.fn(),
   getIndicator: vi.fn(), saveIndicator: vi.fn(), saveRelationship: vi.fn(),
   getShares: vi.fn(), addShares: vi.fn(), removeShare: vi.fn(), getSimpleUserList: vi.fn(),
+  getStageAmounts: vi.fn(() => Promise.resolve({ data: null })),
 }))
 vi.mock('@/api/system', () => ({ getDictData: vi.fn() }))
 vi.mock('@/api/approval', () => ({ submitApproval: vi.fn() }))
@@ -32,6 +33,7 @@ vi.mock('@/utils/token', () => ({
 vi.mock('@/utils/download', () => ({ downloadFile: vi.fn() }))
 
 import { useCustomerDetail } from './useCustomerDetail'
+import { useUserStore } from '@/store/user'
 import { ElMessage } from 'element-plus'
 import { getCustomer, getCustomerLogs, getIndicator, getShares, saveIndicator } from '@/api/customer'
 import { getScoreByCustomer } from '@/api/incentive'
@@ -42,6 +44,9 @@ describe('useCustomerDetail 激励Tab文件能力', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
     vi.clearAllMocks()
+    // 【2026-10-27 深度检查修复】激励分区补了 incentive:view 门控(与财务/联系人同款 B5 模式):
+    // 桩权限补齐三码, 否则激励积分 task 不发请求、incentiveScore 恒 0
+    useUserStore().permissions = new Set(['finance:view', 'contact:view', 'incentive:view'])
     detail = useCustomerDetail()
   })
 
