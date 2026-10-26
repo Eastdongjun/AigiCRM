@@ -1,9 +1,9 @@
 <view class="page app-page">
+  <!-- 【2026-10-26 用户令"顶部大小块与四项服务保持一致"】压成与 hm-bar 同尺寸单行卡:
+       标题 + 右侧已开通数; eyebrow/副标题行移除 -->
   <view class="ap-hero">
-    <view class="ap-hero-eyebrow">APPLICATION CENTER</view>
     <view class="ap-hero-title">应用中心</view>
-    <view class="ap-hero-sub">按业务模块组织，快速找到要用的工具</view>
-    <view class="ap-hero-meta">已开通 {{appView.totalText}} 个应用 · {{appView.groupText}}</view>
+    <text class="ap-hero-meta">已开通 {{appView.totalText}} 个应用 · {{appView.groupText}}</text>
   </view>
 
   <block wx:for="{{appView.groups}}" wx:for-item="module" wx:key="key">

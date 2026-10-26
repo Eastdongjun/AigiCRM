@@ -4,8 +4,8 @@
 /* 底部留白让位自定义 tabBar(覆盖层 ~110rpx+安全区) */
 .app-page { padding-bottom: calc(150rpx + env(safe-area-inset-bottom)); }
 
-/* 【2026-10-25 用户令】三 tab 页(应用/我的/四项服务)顶部卡壳统一: 26rpx 圆角 +
-   同款深蓝渐变 + 同投影, 应用页去掉 glow 装饰与其余两页对齐; 内容与文案不变 */
+/* 【2026-10-25 统一卡壳】+【2026-10-26 用户令"与四项服务顶部同尺寸"】单行卡(对齐 hm-bar):
+   26rpx 圆角 + 深蓝渐变 + 同投影 + 32rpx/800 标题 + 右侧小字已开通数, 高度 ≈ hm-bar */
 .ap-hero {
   position: relative;
   overflow: hidden;
@@ -14,31 +14,25 @@
   color: #fff;
   background: linear-gradient(135deg, #0d1733 0%, #16337a 58%, #1d4ed8 100%);
   box-shadow: 0 18rpx 38rpx rgba(13, 23, 51, .22);
-}
-.ap-hero-eyebrow {
-  position: relative;
-  font-size: 17rpx;
-  letter-spacing: 4rpx;
-  color: rgba(255, 255, 255, .52);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16rpx;
 }
 .ap-hero-title {
   position: relative;
-  margin-top: 8rpx;
   font-size: 32rpx;
   font-weight: 800;
   letter-spacing: 1rpx;
-}
-.ap-hero-sub {
-  position: relative;
-  margin-top: 8rpx;
-  font-size: 21rpx;
-  color: rgba(255, 255, 255, .66);
+  flex-shrink: 0;
 }
 .ap-hero-meta {
   position: relative;
-  margin-top: 14rpx;
-  font-size: 19rpx;
-  color: rgba(255, 255, 255, .52);
+  font-size: 20rpx;
+  color: rgba(255, 255, 255, .6);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .ap-module {
