@@ -534,6 +534,11 @@ grep -q 'switchListMode' "$HOME_JS" || { echo "FAIL: lightweight home must keep 
 grep -q 'bindtap="switchListMode"' "$HOME_WXML" || { echo "FAIL: lightweight home view toggle UI is missing" >&2; exit 1; }
 grep -q 'class="flat-rec"' "$HOME_WXML" || { echo "FAIL: lightweight home flat record row UI is missing" >&2; exit 1; }
 grep -q "'/pages/incentive/detail/index?id=' + row.id" "$HOME_JS" || { echo "FAIL: flat record rows must open the dial detail by record id" >&2; exit 1; }
+# 【2026-10-26 四次令"按时间的列表不要呈现客户名称,呈现图片"+"胶囊做醒目"】打散行首=记录首图缩略
+# (coverFile/flat-cover, 无图退分类首字面), 客户名只留检索不显示; 切换胶囊改品牌蓝实底加大
+grep -q 'class="flat-cover"' "$HOME_WXML" || { echo "FAIL: flat record rows must lead with the record image thumbnail (user order 2026-10-26)" >&2; exit 1; }
+grep -q "coverFile: coverFile || {}" "$HOME_JS" || { echo "FAIL: flat row cover image derivation is missing" >&2; exit 1; }
+! grep -q 'flat-rec-name' "$HOME_WXML" "$HOME_JS" || { echo "FAIL: flat record rows must not display customer names (search-only, user order 2026-10-26)" >&2; exit 1; }
 # 【2026-10-26 三次澄清·用户令"按照客户排列,和之前的版本一样"(参考截图=客户封面卡)】按客户=封面卡
 # 客户列表(缩略图/首字+客户名+行业胶囊+条数·文件数+分值胶囊; 一次上传=一条记录,攒在客户名下,点卡进拨盘);
 # 纯名称清单试版被用户否决,防复活

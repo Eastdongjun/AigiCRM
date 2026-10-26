@@ -62,11 +62,15 @@
   <view wx:if="{{incentiveView.showLoading}}" class="card muted">{{incentiveView.loadingText}}</view>
 
   <!-- 打散记录流(轻量页默认): 一次上传=一条记录, 不绑客户归集, 按上传时间排(排序胶囊四档通用);
+       【同日令"不呈现客户名称,呈现图片"】行首=该记录首图缩略(无图退分类首字面), 客户名只留检索;
        点行直达该条记录的拨盘详情页 -->
   <block wx:if="{{listMode === 'time'}}">
     <view wx:for="{{pagedFlatRecords}}" wx:key="id" class="flat-rec" data-index="{{index}}" bindtap="openFlatRecord">
+      <view class="flat-cover">
+        <image wx:if="{{item.coverFile.id && apiBase && dlToken}}" class="flat-cover-img" src="{{thumb.thumbSrc(item.coverFile, apiBase, dlToken)}}" mode="aspectFill" lazy-load="{{true}}" />
+        <view wx:else class="flat-cover-fallback">{{item.coverChar}}</view>
+      </view>
       <view class="flat-rec-main">
-        <view class="flat-rec-name">{{item.customerName}}</view>
         <view class="flat-rec-meta">
           <text wx:if="{{item.categoryName}}" class="flat-rec-pill">{{item.categoryName}}</text>
           <text wx:if="{{item.productText}}" class="flat-rec-product">{{item.productText}}</text>

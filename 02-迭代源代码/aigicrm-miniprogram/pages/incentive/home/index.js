@@ -125,14 +125,22 @@ function coverTimeOf(item) {
   return String((item && item.detail && item.detail.createdAt) || item.createdAt || '')
 }
 
-// 【2026-10-26 打散视图】一条上传记录 → 记录流行(客户名来自所属分组, 行自带分类/产品/上传人/分值/时间)
+// 【2026-10-26 打散视图】一条上传记录 → 记录流行(客户名只进检索不显示, 行首=该记录首图缩略)
 function buildFlatRow(record, customerName) {
   const files = record.files || buildIncentiveFiles(record)
   const time = String(record.createdAt || record.createTime || '')
+  const categoryName = record.categoryName || record.category || record.type || ''
+  // 行首封面: 记录文件里的首张图(与客户封面卡同款取图口径); 无图退化分类首字面
+  let coverFile = null
+  for (let i = 0; i < (files || []).length && !coverFile; i += 1) {
+    if (files[i] && files[i].type === 'image' && files[i].id) coverFile = { id: files[i].id }
+  }
   return {
     id: record.id,
     customerName: record.customerName || customerName || '未命名客户',
-    categoryName: record.categoryName || record.category || record.type || '',
+    categoryName,
+    coverFile: coverFile || {},
+    coverChar: (categoryName || '记').trim().charAt(0).toUpperCase(),
     productText: [record.specificProduct, record.relatedProducts, record.product].filter(Boolean).join(' · '),
     uploaderName: record.userName || record.updatedByName || record.createByName || '',
     score: Number(record.score) || 0,

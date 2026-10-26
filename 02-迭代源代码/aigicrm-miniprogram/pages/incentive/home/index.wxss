@@ -40,19 +40,23 @@
 .cust-card { margin-bottom: 14rpx; }
 
 /* ===== 【2026-10-26 用户令·打散视图】轻量页双视图 =====
-   time=打散记录流(默认, 不绑客户按上传时间排) / customer=按客户归集封面卡(完整版排法) */
-.mode-switch { display: inline-flex; padding: 4rpx; gap: 4rpx; border-radius: 999rpx; background: #e8eef7; }
-.mode-chip { height: 44rpx; line-height: 44rpx; padding: 0 22rpx; border-radius: 999rpx; color: #64748b; font-size: 21rpx; font-weight: 700; }
-.mode-chip.active { background: #fff; color: #1d4ed8; box-shadow: 0 4rpx 10rpx rgba(15, 23, 42, .08); }
+   time=打散记录流(默认, 不绑客户按上传时间排) / customer=按客户归集封面卡(完整版排法)
+   【同日令"这俩胶囊做醒目一些"】切换器加大加实底: 选中=品牌蓝实底白字, 未选=白底描边 */
+.mode-switch { display: inline-flex; padding: 6rpx; gap: 6rpx; border-radius: 999rpx; background: #e3ebf6; box-shadow: inset 0 2rpx 6rpx rgba(15, 23, 42, .05); }
+.mode-chip { height: 56rpx; line-height: 56rpx; padding: 0 30rpx; border-radius: 999rpx; background: #fff; color: #52657f; font-size: 24rpx; font-weight: 800; border: 1rpx solid #dbe4f0; }
+.mode-chip.active { background: #1d4ed8; border-color: #1d4ed8; color: #fff; box-shadow: 0 8rpx 18rpx rgba(29, 78, 216, .32); }
 
-.flat-rec { display: flex; align-items: center; gap: 16rpx; background: #fff; border-radius: 20rpx; padding: 18rpx 20rpx; margin-bottom: 14rpx; box-shadow: 0 8rpx 22rpx rgba(48, 78, 112, .05); }
+.flat-rec { display: flex; align-items: center; gap: 16rpx; background: #fff; border-radius: 20rpx; padding: 16rpx 18rpx; margin-bottom: 14rpx; box-shadow: 0 8rpx 22rpx rgba(48, 78, 112, .05); }
 .flat-rec:active { background: #f8fbff; }
+/* 【同日令"不要呈现客户名称,呈现图片"】行首=记录首图缩略方块(与客户封面卡同款渐变兜底面) */
+.flat-cover { position: relative; flex-shrink: 0; width: 108rpx; height: 108rpx; border-radius: 16rpx; overflow: hidden; background: linear-gradient(150deg, #0d1733, #13255e 58%, #1d4ed8); }
+.flat-cover-img { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.flat-cover-fallback { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: #dbe6ff; font-size: 44rpx; font-weight: 900; }
 .flat-rec-main { flex: 1; min-width: 0; }
-.flat-rec-name { color: #172033; font-size: 26rpx; font-weight: 800; line-height: 1.35; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
-.flat-rec-meta { display: flex; align-items: center; gap: 10rpx; flex-wrap: wrap; margin-top: 8rpx; }
-.flat-rec-pill { flex-shrink: 0; font-size: 19rpx; padding: 3rpx 14rpx; border-radius: 999rpx; background: #eef4ff; color: #1d4fd7; }
-.flat-rec-product { min-width: 0; font-size: 20rpx; color: #64748b; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.flat-rec-sub { margin-top: 8rpx; font-size: 20rpx; color: #94a3b8; }
+.flat-rec-meta { display: flex; align-items: center; gap: 10rpx; flex-wrap: wrap; }
+.flat-rec-pill { flex-shrink: 0; font-size: 20rpx; padding: 4rpx 16rpx; border-radius: 999rpx; background: #eef4ff; color: #1d4fd7; font-weight: 700; }
+.flat-rec-product { min-width: 0; font-size: 21rpx; color: #475569; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.flat-rec-sub { margin-top: 10rpx; font-size: 20rpx; color: #94a3b8; }
 .flat-rec-side { flex-shrink: 0; display: flex; align-items: baseline; gap: 4rpx; background: #f4f8ff; border: 1rpx solid #dce8fb; border-radius: 16rpx; padding: 10rpx 16rpx; }
 .flat-rec-score { font-size: 30rpx; font-weight: 900; color: #1d4fd7; line-height: 1; }
 .flat-rec-unit { font-size: 18rpx; color: #7d9bd8; }
