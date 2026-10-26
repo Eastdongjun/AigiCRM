@@ -405,7 +405,8 @@ def main() -> int:
         },
         "customer.filter": {"pages/customer/filter/index"},
         "customer.log": {"pages/customer/detail/index", "pages/customer/log/index"},
-        "customer.timeline": {"pages/customer/detail/index", "pages/customer/timeline/index"},
+        # 2026-10-26 用户令: 客户跟进时间线页退役, customer.timeline 仅剩详情页跟进日志区块
+        "customer.timeline": {"pages/customer/detail/index"},
         "customer.indicator": {"pages/customer/detail/index", "pages/customer/indicator/index"},
         "customer.relationship": {"pages/customer/detail/index"},
         "app.launcher": {"pages/app/index"},

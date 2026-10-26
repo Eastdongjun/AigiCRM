@@ -9,8 +9,9 @@ api="$ROOT/aigicrm-miniprogram/api/incentive.js"
 upload_page="$ROOT/aigicrm-miniprogram/pages/incentive/upload/index.js"
 upload_wxml="$ROOT/aigicrm-miniprogram/pages/incentive/upload/index.wxml"
 upload_json="$ROOT/aigicrm-miniprogram/pages/incentive/upload/index.json"
-timeline_page="$ROOT/aigicrm-miniprogram/pages/customer/timeline/index.js"
-timeline_wxml="$ROOT/aigicrm-miniprogram/pages/customer/timeline/index.wxml"
+# 【2026-10-26 用户令】客户跟进时间线页(pages/customer/timeline)整页退役——timeline_page/timeline_wxml
+# 变量与数十条正向钉移除, 换防复活守卫(见下方 2026-10-26 块)
+customer_detail_page="$ROOT/aigicrm-miniprogram/pages/customer/detail/index.js"
 wxml="$ROOT/aigicrm-miniprogram/pages/incentive/index.wxml"
 style="$ROOT/aigicrm-miniprogram/pages/incentive/index.wxss"
 json="$ROOT/aigicrm-miniprogram/pages/incentive/index.json"
@@ -53,7 +54,7 @@ grep -q '"navigationBarTitleText":"四项服务详情"' "$detail_json" || { echo
 grep -q '<view class="hero-title">四项服务详情</view>' "$detail_wxml" || { echo "FAIL: incentive detail hero title must use four-incentive naming" >&2; exit 1; }
 grep -q '暂无四项服务详情' "$detail_wxml" || { echo "FAIL: incentive detail empty state must use four-incentive naming" >&2; exit 1; }
 grep -q '暂无四项服务记录' "$wxml" || { echo "FAIL: incentive list empty state must use four-incentive naming" >&2; exit 1; }
-grep -q "typeText: '四项服务'" "$timeline_page" || { echo "FAIL: customer timeline incentive type label must use four-incentive naming" >&2; exit 1; }
+# 【2026-10-26】timeline 四项服务命名钉随页面退役(防复活守卫见下方 2026-10-26 块)
 grep -q '"navigationBarTitleText":"四项服务上传"' "$upload_json" || { echo "FAIL: incentive upload title must use four-incentive naming" >&2; exit 1; }
 grep -q '<view class="hero-title">四项服务上传</view>' "$upload_wxml" || { echo "FAIL: incentive upload hero title must use four-incentive naming" >&2; exit 1; }
 grep -q 'categoryTree' "$page" || { echo "FAIL: incentive mobile category tree is missing" >&2; exit 1; }
@@ -77,7 +78,8 @@ grep -q 'verifyUploadPage' "$automator_script" || { echo "FAIL: incentive DevToo
 grep -q 'verifyDetailPage' "$automator_script" || { echo "FAIL: incentive DevTools automator does not verify detail attachments" >&2; exit 1; }
 grep -q 'verifyListPage' "$automator_script" || { echo "FAIL: incentive DevTools automator does not verify list attachments" >&2; exit 1; }
 grep -q 'verifyReadStatsPage' "$automator_script" || { echo "FAIL: incentive DevTools automator does not verify read stats/ranking UI" >&2; exit 1; }
-grep -q 'verifyTimelinePage' "$automator_script" || { echo "FAIL: incentive DevTools automator does not verify customer timeline attachments" >&2; exit 1; }
+# 【2026-10-26 时间线页退役】verifyTimelinePage 随页移除, 此钉翻转为防复活
+! grep -q 'verifyTimelinePage' "$automator_script" || { echo "FAIL: customer timeline page was removed 2026-10-26; automator must not verify it back" >&2; exit 1; }
 grep -q '__aigicrmAttachmentActionsPatched' "$automator_script" || { echo "FAIL: incentive DevTools automator does not patch native attachment actions" >&2; exit 1; }
 grep -q 'attachmentActionCalls' "$automator_script" || { echo "FAIL: incentive DevTools automator does not assert native attachment action calls" >&2; exit 1; }
 grep -q 'selected-file-thumb' "$automator_script" || { echo "FAIL: incentive DevTools automator does not assert upload thumbnail rendering" >&2; exit 1; }
@@ -87,8 +89,9 @@ grep -q 'upload page selected document must call openDocument' "$automator_scrip
 grep -q 'upload page selected document download must call saveFile' "$automator_script" || { echo "FAIL: incentive DevTools automator does not assert upload selected-document download action" >&2; exit 1; }
 grep -q 'file-tile' "$automator_script" || { echo "FAIL: incentive DevTools automator does not assert detail attachment tiles" >&2; exit 1; }
 grep -q 'wall-tile' "$automator_script" || { echo "FAIL: incentive DevTools automator does not assert list attachment tiles" >&2; exit 1; }  # 【#4 2026-10-12】列表佐证改照片墙重锚
-grep -q 'timeline-file-row' "$automator_script" || { echo "FAIL: incentive DevTools automator does not assert customer timeline attachment rows" >&2; exit 1; }
-grep -q 'timeline-attachments.png' "$automator_script" || { echo "FAIL: incentive DevTools automator does not capture customer timeline attachment evidence" >&2; exit 1; }
+# 【2026-10-26 时间线页退役】timeline-file-row / timeline-attachments.png 断言随页移除, 翻转为防复活
+! grep -q 'timeline-file-row' "$automator_script" || { echo "FAIL: customer timeline page was removed 2026-10-26; automator must not assert its UI back" >&2; exit 1; }
+! grep -q 'timeline-attachments.png' "$automator_script" || { echo "FAIL: customer timeline page was removed 2026-10-26; automator must not capture its evidence back" >&2; exit 1; }
 grep -q 'read-stats-ranking.png' "$automator_script" || { echo "FAIL: incentive DevTools automator does not capture read stats/ranking evidence" >&2; exit 1; }
 grep -q "switchTab', eventWithDataset({ key: 'reads' })" "$automator_script" || { echo "FAIL: incentive DevTools automator does not switch to read stats/ranking tab" >&2; exit 1; }
 grep -q "read page expected stats and ranking panels" "$automator_script" || { echo "FAIL: incentive DevTools automator does not assert read stats/ranking panels" >&2; exit 1; }
@@ -99,7 +102,8 @@ grep -q "assertAttachmentTags(wallFiles, \\['安装前', '安装中', '安装后
 for anchor_token in 'rebuildRecordViews' 'chooseOrder' 'wall-act-btn' 'records[0].childRecordsView[0].unread' 'sepDial' 'download/301'; do
   grep -qF "$anchor_token" "$automator_script" || { echo "FAIL: incentive automator must keep anchored assertion token: $anchor_token" >&2; exit 1; }
 done
-grep -q "assertAttachmentTags(files, \\['安装前', '安装中', '安装后', '跟踪', '佐证'\\], 'timeline page')" "$automator_script" || { echo "FAIL: incentive DevTools automator does not assert all PC attachment slots on timeline page" >&2; exit 1; }
+# 【2026-10-26 时间线页退役】'timeline page' 槽位断言随页移除, 翻转为防复活
+! grep -q "'timeline page'" "$automator_script" || { echo "FAIL: customer timeline page was removed 2026-10-26; automator must not assert its attachment slots back" >&2; exit 1; }
 grep -q 'calls.downloadFile.length === 3' "$automator_script" || { echo "FAIL: incentive DevTools automator does not assert image preview, document preview, and document download fetches" >&2; exit 1; }
 grep -q 'calls.previewImage.length === 1' "$automator_script" || { echo "FAIL: incentive DevTools automator does not assert previewImage calls" >&2; exit 1; }
 grep -q 'calls.openDocument.length === 1' "$automator_script" || { echo "FAIL: incentive DevTools automator does not assert document open calls" >&2; exit 1; }
@@ -503,49 +507,14 @@ grep -q 'previewAttachment' "$detail_wxml" || { echo "FAIL: incentive detail pre
 grep -q 'downloadAttachment' "$detail_wxml" || { echo "FAIL: incentive detail download action is missing" >&2; exit 1; }
 grep -q 'detailView.previewLoading' "$detail_wxml" || { echo "FAIL: incentive detail attachment UI must use normalized preview loading" >&2; exit 1; }
 ! grep -q 'loading="{{previewing}}"' "$detail_wxml" || { echo "FAIL: incentive detail WXML must not bind raw previewing state directly" >&2; exit 1; }
-grep -q 'getRecords({ customerId' "$timeline_page" || { echo "FAIL: customer timeline does not load incentive records" >&2; exit 1; }
-grep -q 'groupTimeline' "$timeline_page" || { echo "FAIL: customer timeline does not group records by month like PC detail" >&2; exit 1; }
-grep -q 'timelineGroups' "$timeline_page" || { echo "FAIL: customer timeline grouped state is missing" >&2; exit 1; }
-grep -q 'buildTimelineItemView' "$timeline_page" || { echo "FAIL: customer timeline WXML state must be normalized in JS" >&2; exit 1; }
-grep -q 'buildTimelineView' "$timeline_page" || { echo "FAIL: customer timeline shell state must be normalized in JS" >&2; exit 1; }
-grep -q 'setTimelineData' "$timeline_page" || { echo "FAIL: customer timeline normalized state refresh helper is missing" >&2; exit 1; }
-grep -q 'showFiles' "$timeline_page" || { echo "FAIL: customer timeline attachment visibility must be normalized in JS" >&2; exit 1; }
-grep -q 'metaTags' "$timeline_page" || { echo "FAIL: customer timeline incentive meta tags must be normalized in JS" >&2; exit 1; }
-grep -q 'showEmpty' "$timeline_page" || { echo "FAIL: customer timeline empty state must be normalized in JS" >&2; exit 1; }
-grep -q 'preInstallQuestionText' "$timeline_page" || { echo "FAIL: customer timeline detail text must be normalized in JS" >&2; exit 1; }
-grep -q 'remarkText' "$timeline_page" || { echo "FAIL: customer timeline remark text must be normalized in JS" >&2; exit 1; }
-grep -q 'goIncentiveDetail' "$timeline_page" || { echo "FAIL: customer timeline cannot open incentive detail records" >&2; exit 1; }
-grep -q 'detailLabelOf' "$timeline_page" || { echo "FAIL: customer timeline detail labels do not follow PC category semantics" >&2; exit 1; }
-grep -q 'remarkLabelOf' "$timeline_page" || { echo "FAIL: customer timeline remark labels do not follow PC category semantics" >&2; exit 1; }
-grep -q 'incentiveCodeOf' "$timeline_page" || { echo "FAIL: customer timeline cannot classify incentive categories for mobile labels" >&2; exit 1; }
-grep -q 'preInstallQuestion' "$timeline_page" || { echo "FAIL: customer timeline does not keep incentive detail descriptions" >&2; exit 1; }
-grep -q 'createByName' "$timeline_page" || { echo "FAIL: customer timeline normal logs do not preserve PC creator names" >&2; exit 1; }
-grep -q 'isTrialRecord' "$timeline_page" || { echo "FAIL: customer timeline does not keep trial remark boundary" >&2; exit 1; }
-grep -q 'wx.downloadFile' "$timeline_page" || { echo "FAIL: customer timeline attachments cannot be downloaded from server" >&2; exit 1; }
-grep -q 'getDownloadUrl' "$timeline_page" || { echo "FAIL: customer timeline attachments must use normalized download URLs" >&2; exit 1; }
-grep -q 'wx.previewImage' "$timeline_page" || { echo "FAIL: customer timeline images cannot preview" >&2; exit 1; }
-grep -q 'wx.openDocument' "$timeline_page" || { echo "FAIL: customer timeline documents cannot open" >&2; exit 1; }
-grep -q 'getFileSystemManager' "$timeline_page" || { echo "FAIL: customer timeline attachments cannot save locally" >&2; exit 1; }
-grep -q 'previewLoading' "$timeline_page" || { echo "FAIL: customer timeline attachment loading state must be normalized in JS" >&2; exit 1; }
-grep -q 'timeline-month' "$timeline_wxml" || { echo "FAIL: customer timeline monthly grouped UI is missing" >&2; exit 1; }
-grep -q 'timelineView.showLoading' "$timeline_wxml" || { echo "FAIL: customer timeline loading card must use normalized visibility" >&2; exit 1; }
-grep -q 'timelineView.showEmpty' "$timeline_wxml" || { echo "FAIL: customer timeline empty card must use normalized visibility" >&2; exit 1; }
-grep -q 'timeline-month-count' "$timeline_wxml" || { echo "FAIL: customer timeline monthly count UI is missing" >&2; exit 1; }
-grep -q 'timeline-files' "$timeline_wxml" || { echo "FAIL: customer timeline attachment UI is missing" >&2; exit 1; }
-grep -q 'timeline-meta' "$timeline_wxml" || { echo "FAIL: customer timeline incentive period/product UI is missing" >&2; exit 1; }
-grep -q 'specificProduct' "$timeline_page" || { echo "FAIL: customer timeline specific product UI is missing" >&2; exit 1; }
-grep -q 'relatedProducts' "$timeline_page" || { echo "FAIL: customer timeline related product UI is missing" >&2; exit 1; }
-grep -q 'wx:for="{{item.metaTags}}"' "$timeline_wxml" || { echo "FAIL: customer timeline normalized meta tag UI is missing" >&2; exit 1; }
-grep -q 'timeline-detail-block' "$timeline_wxml" || { echo "FAIL: customer timeline incentive detail block UI is missing" >&2; exit 1; }
-grep -q 'catchtap="previewAttachment"' "$timeline_wxml" || { echo "FAIL: customer timeline preview UI is missing" >&2; exit 1; }
-grep -q 'catchtap="downloadAttachment"' "$timeline_wxml" || { echo "FAIL: customer timeline download UI is missing" >&2; exit 1; }
-grep -q 'timelineView.previewLoading' "$timeline_wxml" || { echo "FAIL: customer timeline attachment UI must use normalized preview loading" >&2; exit 1; }
-! grep -q 'loading="{{previewing}}"' "$timeline_wxml" || { echo "FAIL: customer timeline WXML must not bind raw previewing state directly" >&2; exit 1; }
-grep -q 'catchtap="goIncentiveDetail"' "$timeline_wxml" || { echo "FAIL: customer timeline incentive detail UI is missing" >&2; exit 1; }
-grep -q '记录人：' "$timeline_page" || { echo "FAIL: customer timeline creator UI is missing" >&2; exit 1; }
-! grep -Eq "logs\\.length|wx:for-index=\"groupIndex\"|wx:for-index=\"fileIndex\"|item\\.type ===|item\\.fileGroups &&|item\\.content \\|\\||item\\.preInstallQuestion\\}\\}|item\\.remark\\}\\}|creatorName \\|\\||userName|item\\.categoryName \\|\\||group\\.files\\.length|specificProduct|relatedProducts" "$timeline_wxml" || { echo "FAIL: customer timeline WXML must not keep incentive/file branching logic" >&2; exit 1; }
-! grep -q '{{loading}}' "$timeline_wxml" || { echo "FAIL: customer timeline WXML must not bind raw loading state directly" >&2; exit 1; }
-! grep -q '!loading && showEmpty' "$timeline_wxml" || { echo "FAIL: customer timeline WXML must not duplicate empty-state loading logic" >&2; exit 1; }
+# 【2026-10-26 用户令「客户服务记录 小程序上不要这个页面」】客户跟进时间线页
+# pages/customer/timeline 整页退役(44→43页), 原本块 43 条正向钉随之移除。
+# 防复活守卫(欠账七式⑥): 页面文件/app.json 注册/客户详情跟进入口不得回潮。
+# 口径: 详情页「跟进日志」区块保留(customer:view 读取普通日志), 激励记录时间线随页移除。
+[ ! -e "$ROOT/aigicrm-miniprogram/pages/customer/timeline" ] || { echo "FAIL: customer timeline page must stay removed (2026-10-26 user order)" >&2; exit 1; }
+! grep -q 'pages/customer/timeline' "$app_json" || { echo "FAIL: app.json must not re-register the removed customer timeline page" >&2; exit 1; }
+! grep -q 'openTimeline' "$customer_detail_page" || { echo "FAIL: customer detail must not re-introduce a timeline entry (page removed 2026-10-26)" >&2; exit 1; }
+grep -q 'showActionCard: hasDetail && (canViewContacts || !isAdmin() || canEdit)' "$customer_detail_page" || { echo "FAIL: customer detail action card must not render empty after timeline entry removal" >&2; exit 1; }
 # 【2026-10-23 四项服务拆分·用户令】tabBar「四项服务」=轻量客户记录页(home); 完整工作台(index)
 # 不再是 tabBar 页, 由应用中心「四项服务应用」navigateTo 进入。此处钉两层: tabBar 绑 home +
 # home 页标题=四项服务 + 应用中心入口指向完整版。

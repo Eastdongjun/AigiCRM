@@ -166,7 +166,6 @@
     <view class="detail-action-grid">
       <button wx:if="{{detailView.showContactsAction}}" class="customer-detail-link-action" bindtap="openContacts"><text class="detail-action-symbol">人</text><text>联系人</text></button>
       <button wx:if="{{detailView.showSharesAction}}" class="customer-detail-link-action" bindtap="openShares"><text class="detail-action-symbol">享</text><text>分享</text></button>
-      <button class="customer-detail-link-action" bindtap="openTimeline"><text class="detail-action-symbol">记</text><text>跟进</text></button>
     </view>
     <button wx:if="{{detailView.showLogAction}}" class="btn detail-primary-action" bindtap="openLogForm">新增跟进记录</button>
   </view>

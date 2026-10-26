@@ -205,14 +205,13 @@ async function verifyCustomerDetailPage(miniProgram) {
     ...(await textList(await page.$$('.indicator-summary-item'))),
     ...(await textList(await page.$$('button')))
   ].join('\n')
-  for (const expected of ['华东智能制造集团', '产能(万吨)', '终端客户', '销售一部', '王总', '华东制造分公司', '浦东制造基地', '注册日', '最近开票', '自动化客户详情备注', '财务摘要', '客情 · 商务关系深度', '核心客户六项指标', '开票门槛', '回款门槛', '编辑六项指标', '联系人', '分享', '跟进', '新增跟进记录']) {
+  for (const expected of ['华东智能制造集团', '产能(万吨)', '终端客户', '销售一部', '王总', '华东制造分公司', '浦东制造基地', '注册日', '最近开票', '自动化客户详情备注', '财务摘要', '客情 · 商务关系深度', '核心客户六项指标', '开票门槛', '回款门槛', '编辑六项指标', '联系人', '分享', '新增跟进记录']) {
     assert(pageText.includes(expected), `customer detail missing ${expected}`)
   }
 
   await page.callMethod('openFinance')
   await page.callMethod('openContacts')
   await page.callMethod('openShares')
-  await page.callMethod('openTimeline')
   await page.callMethod('openLogForm')
   await page.callMethod('openIndicatorForm')
   await page.callMethod('submitExtendApproval')
@@ -224,7 +223,6 @@ async function verifyCustomerDetailPage(miniProgram) {
     '/pages/customer/finance/index?id=501',
     '/pages/customer/contact/index?id=501',
     '/pages/customer/share/index?id=501',
-    '/pages/customer/timeline/index?id=501',
     '/pages/customer/log/index?id=501',
     '/pages/customer/indicator/index?id=501'
   ]) {

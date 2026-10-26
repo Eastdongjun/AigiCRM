@@ -583,80 +583,8 @@ async function verifyReadStatsPage(miniProgram) {
   await screenshot(miniProgram, 'read-stats-ranking.png')
 }
 
-async function verifyTimelinePage(miniProgram) {
-  await enableDemoMode(miniProgram)
-  const page = await miniProgram.reLaunch('/pages/customer/timeline/index?id=501')
-  await page.waitFor(1000)
-
-  await page.setData({
-    customerName: '自动化测试客户',
-    logs: [
-      {
-        id: 'timeline-log-1',
-        type: 'log',
-        typeText: '跟进',
-        content: '自动化注入的普通跟进记录',
-        time: '2026-09-15 18:00:00',
-        creatorName: '跟进记录人',
-        files: []
-      },
-      {
-        id: 'timeline-9001',
-        type: 'incentive',
-        typeText: '激励',
-        content: '自动化注入的客户时间轴激励附件记录',
-        time: '2026-09-15 17:45:00',
-        creatorName: '测试用户',
-        files: [
-          { id: 301, name: '时间轴现场照片.jpg', tag: '安装前', type: 'image', typeText: '图片' },
-          { id: 302, name: '时间轴安装中方案.pdf', tag: '安装中', type: 'document', typeText: '文档' },
-          { id: 303, name: '时间轴验收照片.png', tag: '安装后', type: 'image', typeText: '图片' },
-          { id: 304, name: '时间轴跟踪记录.txt', tag: '跟踪', type: 'document', typeText: '文档' },
-          { id: 305, name: '时间轴佐证材料.docx', tag: '佐证', type: 'document', typeText: '文档' }
-        ]
-      }
-    ],
-    loading: false,
-    previewing: false
-  })
-  // 【2026-09-20 修正】时间轴渲染走 item.fileGroups(归一化分组),平铺 files 不驱动 UI;按播种文件补组
-  const timelineLogs = await page.data('logs')
-  timelineLogs[1].fileGroups = [{ key: 'pre', label: '附件', hint: '自动化注入的时间轴附件', files: timelineLogs[1].files }]
-  await page.setData({ [`logs[1].fileGroups`]: timelineLogs[1].fileGroups })
-  await page.callMethod('rebuildTimelineGroups')
-  await page.waitFor(500)
-
-  assert((await page.$$('.timeline-month')).length === 1, 'timeline page monthly grouped section is missing')
-  assert((await page.$$('.timeline-month-count')).length === 1, 'timeline page monthly grouped count is missing')
-  assert((await page.$$('.timeline-files')).length === 1, 'timeline page attachment list is missing')
-  const pageText = (await textList(await page.$$('.timeline-card'))).join('\n')
-  assert(pageText.includes('记录人：跟进记录人'), `timeline page normal log creator is missing: ${pageText}`)
-  const files = await page.data('logs[1].files')
-  assertAttachmentTags(files, ['安装前', '安装中', '安装后', '跟踪', '佐证'], 'timeline page')
-  assert((await page.$$('.timeline-file-row')).length === 5, 'timeline page attachment rows are missing')
-
-  const buttons = await textList(await page.$$('button'))
-  assert(buttons.includes('详情'), 'timeline page must show incentive detail button')
-  assert(buttons.filter((text) => text === '打开').length === 5, 'timeline page must show open button per attachment')
-  assert(buttons.filter((text) => text === '下载').length === 5, 'timeline page must show download button per attachment')
-
-  await resetAttachmentActionCalls(miniProgram)
-  await enableRealAttachmentMode(miniProgram)
-  await page.callMethod('previewAttachment', eventWithDataset({ logIndex: 1, fileIndex: 0 }))
-  await page.waitFor(300)
-  await page.setData({ previewing: false })
-  await page.callMethod('previewAttachment', eventWithDataset({ logIndex: 1, fileIndex: 1 }))
-  await page.waitFor(300)
-  await page.setData({ previewing: false })
-  await page.callMethod('downloadAttachment', eventWithDataset({ logIndex: 1, fileIndex: 1 }))
-  await page.waitFor(300)
-  const calls = await attachmentActionCalls(miniProgram)
-  assert(calls.downloadFile.length === 3, `timeline page attachment actions must call downloadFile: ${actionCallSummary(calls)}`)
-  assert(calls.previewImage.length === 1, `timeline page downloaded image must call previewImage: ${actionCallSummary(calls)}`)
-  assert(calls.openDocument.length === 1, `timeline page document preview must call openDocument: ${actionCallSummary(calls)}`)
-  assert(calls.saveFile.length === 1, `timeline page document download must call saveFile: ${actionCallSummary(calls)}`)
-  await screenshot(miniProgram, 'timeline-attachments.png')
-}
+// 【2026-10-26 用户令】客户跟进时间线页随「客户服务记录」页面移除退役(44→43页),
+// 时间轴验证段整段删除; 详情/列表页的附件动作断言保留。
 
 async function main() {
   const miniProgram = await automator.connect({ wsEndpoint })
@@ -666,13 +594,12 @@ async function main() {
     await verifyDetailPage(miniProgram)
     await verifyListPage(miniProgram)
     await verifyReadStatsPage(miniProgram)
-    await verifyTimelinePage(miniProgram)
   } finally {
     await restoreAttachmentActionMocks(miniProgram)
     await restoreAppEnv(miniProgram)
     miniProgram.disconnect()
   }
-  console.log('PASS: DevTools automator verified incentive upload, list, detail, read stats/ranking, and customer timeline attachment UI.')
+  console.log('PASS: DevTools automator verified incentive upload, list, detail, and read stats/ranking attachment UI.')
 }
 
 main().catch((error) => {

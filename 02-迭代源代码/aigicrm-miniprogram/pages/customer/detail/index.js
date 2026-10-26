@@ -191,7 +191,8 @@ function buildDetailView(data) {
       ? '该客户仍在公海池中，请先在公海管理删除，或捞取回私海后再操作。'
       : '删除客户会移除该客户资料，操作不可恢复。有开票/回款记录的客户不允许删除，停止跟进请使用「归档」。',
     isSeaCustomer,
-    showActionCard: hasDetail,
+    // 【2026-10-26 用户令】跟进时间线页移除后, 操作卡须至少剩一个可见入口才渲染(防空卡)
+    showActionCard: hasDetail && (canViewContacts || !isAdmin() || canEdit),
     showContactsAction: hasDetail && canViewContacts,
     // 【L4 2026-10-12 测试报告】平台 admin 无集团归属, 分享接口必 403「无有效集团归属，禁止共享」
     // ——入口隐藏防误导(与 PC detail.vue canShareCustomer 同口径)
@@ -538,9 +539,6 @@ Page({
   openLogForm() {
     if (!this.data.canEdit) return wx.showToast({ title: '没有编辑权限', icon: 'none' })
     wx.navigateTo({ url: `/pages/customer/log/index?id=${this.data.id}` })
-  },
-  openTimeline() {
-    wx.navigateTo({ url: `/pages/customer/timeline/index?id=${this.data.id}` })
   },
   openIndicatorForm() {
     if (!this.data.canEdit) return wx.showToast({ title: '没有编辑权限', icon: 'none' })

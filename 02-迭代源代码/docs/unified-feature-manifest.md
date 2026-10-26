@@ -38,7 +38,7 @@
 | `customer.finance` | 客户 | 客户详情财务页签 | `pages/customer/detail/index`、`pages/customer/finance/index`、`pages/customer/finance/form/index` | 读 `customer:view`+`finance:view`;增删 `finance:manage` 或(`customer:edit`+`finance:view`) ⟦修正 09-24:原文为"增删仅 customer:edit",V2026.09.23.4 起 finance:manage 为专职授权码⟧ | 同客户可见/可编辑范围 | 财务记录读取/创建/删除 | 已实现 |
 | `customer.contact` | 客户 | 客户详情联系人页签 | `pages/customer/detail/index`、`pages/customer/contact/index`、`pages/customer/contact/form/index`、`pages/customer/contact/detail/index` | 读 `customer:view`+`contact:view`;增改删 `customer:edit` 或 `contact:manage` ⟦修正 09-24:原文为"增改删仅 customer:edit",V2026.09.23.4 起 contact:manage 为专职授权码⟧ | 同客户可见/可编辑范围 | 联系人读取/创建/更新/删除 | 已实现 |
 | `customer.log` | 客户 | 客户详情跟进记录页签 | `pages/customer/detail/index` 与 `pages/customer/log/index` | 读 `customer:view`;创建 `customer:edit` | 同客户可见/可编辑范围 | 跟进记录读取/创建 | 已实现 |
-| `customer.timeline` | 客户 | 客户详情完整时间线 | `pages/customer/detail/index` 与 `pages/customer/timeline/index` | `customer:view` | 同客户可见范围 | 读取时间线 | 已实现 |
+| `customer.timeline` | 客户 | 客户详情跟进日志区块 | `pages/customer/detail/index` | `customer:view` | 同客户可见范围 | 跟进日志读取(⟦2026-10-26 用户令移除独立时间线页 `pages/customer/timeline/index`,详情页「跟进」入口与四项服务记录时间线随页退役⟧) | 已实现(降级) |
 | `customer.indicator` | 客户 | 客户详情核心指标页签 | `pages/customer/detail/index` 与 `pages/customer/indicator/index` | 读 `customer:view`;保存 `customer:edit` | 同客户可见/可编辑范围 | 六项指标读取/更新 | 已实现 |
 | `customer.relationship` | 客户 | 客户详情客情评分 | `pages/customer/detail/index` | `customer:edit` | 同客户可编辑范围 | 更新客情评分 | 已实现 |
 | `customer.filter` | 客户 | 客户表格高级筛选 | `pages/customer/filter/index` | `customer:view` | 统一客户数据范围 | 筛选/搜索 | 已实现 |

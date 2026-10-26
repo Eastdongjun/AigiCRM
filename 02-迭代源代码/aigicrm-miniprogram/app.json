@@ -16,7 +16,6 @@
     "pages/customer/contact/detail/index",
     "pages/customer/share/index",
     "pages/customer/log/index",
-    "pages/customer/timeline/index",
     "pages/customer/filter/index",
     "pages/customer/indicator/index",
     "pages/files/index",
