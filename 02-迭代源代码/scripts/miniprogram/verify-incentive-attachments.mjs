@@ -388,150 +388,126 @@ async function verifyListPage(miniProgram) {
   assert(params.orgIds === '21', `list page orgIds param is missing: ${JSON.stringify(params)}`)
   assert(params.startDate === '2026-09-01' && params.endDate === '2026-09-30', `list page date params are missing: ${JSON.stringify(params)}`)
 
+  // 【2026-10-27 深度检查重写】本段原钉 b8d62e3f(10-17)前的旧列表 UI(incentive-record-card/
+  // toggleCustomerRecords/markChildRecordRead/previewAttachment/downloadAttachment 已随操作下沉
+  // customer-detail 退役)。现行工作台形态: ①客户记录 tab=cust-card 封面卡(openCustomerDetail 入口)
+  // ②排序四档(time-desc默认/time-asc/score-desc/score-asc, 2026-10-26 重锚) ③列表附件=统计明细
+  // 抽屉的佐证照片墙(wall-tile/wall-act-btn → previewStatDetailAttachment/downloadStatDetailAttachment)。
   const item = {
     id: 9001,
     customerId: 501,
-    name: '自动化测试客户',
-    customerName: '自动化测试客户',
+    name: '低分客户',
+    customerName: '低分客户',
     industry: '制造业',
-    score: 12,
+    score: 1,
     count: 1,
     category: '产品试点',
     unread: false,
-    summary: '自动化注入的列表附件记录',
-    files: [
-      { id: 301, name: '安装前照片.jpg', tag: '安装前', type: 'image', typeText: '图片' },
-      { id: 302, name: '安装中方案.pdf', tag: '安装中', type: 'document', typeText: '文档' },
-      { id: 303, name: '安装后验收.png', tag: '安装后', type: 'image', typeText: '图片' },
-      { id: 304, name: '跟踪记录.txt', tag: '跟踪', type: 'document', typeText: '文档' },
-      { id: 305, name: '佐证材料.docx', tag: '佐证', type: 'document', typeText: '文档' }
-    ],
-    records: [{ id: 9002, categoryName: '安装后跟踪', unread: true, canEdit: false, canDelete: false }],
-    detail: { id: 9001 }
+    summary: '自动化注入的列表排序记录',
+    createdAt: '2026-09-10 08:00:00',
+    files: [],
+    fileGroups: [],
+    records: [{ id: 9002, categoryName: '安装后跟踪', unread: false, canEdit: false, canDelete: false }],
+    detail: { id: 9001, createdAt: '2026-09-10 08:00:00' }
   }
-  item.fileGroups = [{ key: 'pre', label: '附件', hint: '自动化注入的列表附件', files: item.files }]
-  // 【2026-09-20 修正】列表页已归一化为 buildRecordView 渲染(showFiles/fileGroupsView 由数据派生),
-  // 裸 setData records 不再驱动附件 UI;播种类目后重置筛选用 sort() 重建归一化视图
-  await page.setData({
-    keyword: '',
-    selectedUserIndex: 0,
-    selectedIndustryIndex: 0,
-    selectedDevTypeIndex: 0,
-    selectedProductIndex: 0,
-    selectedOrgIndex: 0,
-    startDate: '',
-    endDate: '',
-    category: '全部',
-    order: '',
-    selectedOrderIndex: 0,
-    allRecords: [item],
-    loading: false
-  })
-  await page.callMethod('sort')
-  await page.waitFor(500)
-
-  assert(await page.data('order') === '', 'list page score order should default to PC-like unsorted state')
-  // 【F23 重锚 2026-10-13】setData 瘦身后裸注入不再驱动附件 UI: 视图经 rebuildRecordViews 构建、
-  // 原始 records/files/fileGroups 存页面内存(_allDecorated/_childRawById)——注入必须走同一归一化链路
-  const orderViews = await page.callMethod('rebuildRecordViews', [
-    { ...item, id: 9001, name: '低分客户', score: 1 },
-    { ...item, id: 9003, name: '高分客户', score: 9 }
-  ])
-  await page.setData({ allRecords: orderViews, records: orderViews, category: '全部' })
-  await page.callMethod('sort')
-  assert(await page.data('records[0].name') === '低分客户', 'default score order must preserve source order')
-  await page.callMethod('chooseOrder', { detail: { value: 1 } })
-  assert(await page.data('records[0].name') === '高分客户', 'descending score order must put high score first')
-  await page.callMethod('chooseOrder', { detail: { value: 2 } })
-  assert(await page.data('records[0].name') === '低分客户', 'ascending score order must put low score first')
-
-  // 【F7 复审钉 2026-10-13】排序/筛选态真实点击瓦片: 视图 records 是内存装饰源的重排子集,
-  // 裸下标寻址会打开错误客户的文件。注入两条不同分数、不同附件 id 的记录, 降序后 tap 第二张
-  // 卡(低分, 附件 id 301 系)的首瓦片"打开", 断言 previewImage 收到的 url 属于低分记录(301),
-  // 而非榜首高分记录(311 系)。单记录注入 + tap 首瓦片的老形态测不出此回归(fileIndex=0 与
-  // recordIndex=0 恒重合), 本段同时补上 F25 钉的真实区分度。
   const highItem = {
     ...item,
     id: 9003,
     name: '高分客户',
-    files: item.files.map((f, i) => ({ ...f, id: 311 + i })),
-    fileGroups: [{ key: 'pre', label: '附件', hint: '高分记录附件', files: item.files.map((f, i) => ({ ...f, id: 311 + i })) }],
-    records: [{ id: 9004, categoryName: '高分子记录', unread: false, canEdit: false, canDelete: false }]
+    customerName: '高分客户',
+    score: 9,
+    createdAt: '2026-09-20 09:30:00',
+    detail: { id: 9003, createdAt: '2026-09-20 09:30:00' }
   }
-  const twoViews = await page.callMethod('rebuildRecordViews', [
-    { ...item, id: 9001, name: '低分客户', score: 1 },
-    highItem
-  ])
-  await page.setData({ allRecords: twoViews, records: twoViews, category: '全部' })
+  const seeded = await page.callMethod('rebuildRecordViews', [item, highItem])
+  await page.setData({ allRecords: seeded, records: seeded, category: '全部', order: 'time-desc', selectedOrderIndex: 0, loading: false })
   await page.callMethod('sort')
-  await page.callMethod('chooseOrder', { detail: { value: 1 } }) // 降序: records=[高分, 低分]
   await page.waitFor(400)
-  assert(await page.data('records[0].name') === '高分客户', 'desc order must put high score first before tapping')
-  await resetAttachmentActionCalls(miniProgram)
-  await enableRealAttachmentMode(miniProgram)
-  const orderCards = await page.$$('.incentive-record-card')
-  assert(orderCards.length === 2, `sorted view must render 2 cards, got ${orderCards.length}`)
-  const lowCardOpenBtn = await orderCards[1].$('.wall-act-btn')
-  assert(lowCardOpenBtn, 'low-score card must expose wall open button')
-  await lowCardOpenBtn.tap()
-  await page.waitFor(300)
-  const sortedTapCalls = await attachmentActionCalls(miniProgram)
-  assert(sortedTapCalls.previewImage.length === 1,
-    `sorted-state tap must open image preview: ${actionCallSummary(sortedTapCalls)}`)
-  const tappedUrls = ((sortedTapCalls.downloadFile[0] || {}).url || '') + ',' + ((sortedTapCalls.previewImage[0] || {}).urls || []).join(',')
-  assert(tappedUrls.includes('download/301'),
-    `sorted-state tap on low-score card must open its own file (id 301), got: ${tappedUrls}`)
+  // 排序四档(2026-10-26 语义): 0=最新记录在前(默认) 1=最早在前 2=分值高→低 3=分值低→高
+  assert(await page.data('order') === 'time-desc', 'list page order must default to latest-first (time-desc)')
+  assert(await page.data('records[0].name') === '高分客户', 'time-desc default must put the newest record first')
+  await page.callMethod('chooseOrder', { detail: { value: 1 } })
+  assert(await page.data('records[0].name') === '低分客户', 'time-asc must put the oldest record first')
+  await page.callMethod('chooseOrder', { detail: { value: 2 } })
+  assert(await page.data('records[0].name') === '高分客户', 'score-desc must put the high score first')
+  await page.callMethod('chooseOrder', { detail: { value: 3 } })
+  assert(await page.data('records[0].name') === '低分客户', 'score-asc must put the low score first')
 
-  const views = await page.callMethod('rebuildRecordViews', [item])
-  await page.setData({ allRecords: views, records: views, order: '', selectedOrderIndex: 0 })
-  await page.callMethod('sort')
-  await page.waitFor(300)
-  const fileGroupsView = await page.data('records[0].fileGroupsView')
-  const wallFiles = (fileGroupsView || []).flatMap((group) => group.files || [])
+  // 客户记录 tab 现行卡型: cust-card 封面卡(点卡走 openCustomerDetail 下沉详情页)
+  const cards = await page.$$('.cust-card')
+  assert(cards.length === 2, `workbench customer tab must render 2 cust-cards, got ${cards.length}`)
+  const cardText = (await textList(cards)).join('\n')
+  assert(cardText.includes('低分客户') && cardText.includes('高分客户'), 'cust-cards must expose customer names')
+
+  // 列表附件现行载体: 统计明细抽屉的佐证照片墙——statDetail=索引寻址源, statDetailView=渲染源
+  const wallFiles = [
+    { id: 301, name: '安装前照片.jpg', tag: '安装前', type: 'image', typeText: '图片' },
+    { id: 302, name: '安装中方案.pdf', tag: '安装中', type: 'document', typeText: '文档' },
+    { id: 303, name: '安装后验收.png', tag: '安装后', type: 'image', typeText: '图片' },
+    { id: 304, name: '跟踪记录.txt', tag: '跟踪', type: 'document', typeText: '文档' },
+    { id: 305, name: '佐证材料.docx', tag: '佐证', type: 'document', typeText: '文档' }
+  ]
+  await page.callMethod('switchTab', eventWithDataset({ key: 'stats' }))
+  await page.setData({
+    statDetail: {
+      visible: true,
+      loading: false,
+      name: '产品试点',
+      records: [{ id: 9001, customerName: '低分客户', fileGroups: [{ key: 'pre', label: '附件', files: wallFiles }] }],
+      totalScore: 1,
+      keyword: '',
+      page: 1,
+      pageSize: 10
+    },
+    statDetailView: {
+      metaText: '共 1 条 · 1 分',
+      pagedRecords: [{
+        id: 9001,
+        sourceIndex: 0,
+        customerName: '低分客户',
+        metaText: '2026-09-10 · 测试用户',
+        scoreText: '1 分',
+        remarkText: '自动化注入的统计明细附件',
+        showFiles: true,
+        fileGroupsView: [{
+          key: 'pre',
+          label: '附件',
+          countText: '5 个',
+          groupIndex: 0,
+          files: wallFiles.map((file, fileIndex) => ({ ...file, fileIndex, showTag: true, tagText: file.tag, tagColor: '#64748b' }))
+        }]
+      }]
+    }
+  })
+  await page.waitFor(400)
+  assert((await page.$$('.wall-tile')).length === 5, 'stats-detail wall must render 5 attachment tiles')
   assertAttachmentTags(wallFiles, ['安装前', '安装中', '安装后', '跟踪', '佐证'], 'list page')
-  assert((await page.$$('.wall-tile')).length === 5, 'list page attachment tiles are missing')  // 【#4 2026-10-12】佐证照片墙重锚
-  const listText = (await textList(await page.$$('.incentive-record-card'))).join('\n')
-  assert(listText.includes('已读'), 'list page must expose read status for customer records')
-  await page.callMethod('toggleCustomerRecords', eventWithDataset({ index: 0 }))
-  await page.waitFor(300)
-  const childText = (await textList(await page.$$('.customer-record-list'))).join('\n')
-  assert(childText.includes('未读'), 'list page expanded child records must expose read status')
-  await page.callMethod('markChildRecordRead', 0, 0)
-  assert(await page.data('records[0].childRecordsView[0].unread') === false, 'child record detail open must mark child record read')
-  await page.setData({ 'records[0].unread': true, 'records[0].childRecordsView[0].unread': true })
-  await page.callMethod('markRecordRead', 0)
-  assert(await page.data('records[0].unread') === false, 'record detail open must mark customer record read')
-  assert(await page.data('records[0].childRecordsView[0].unread') === false, 'record detail open must mark all child records read')
 
-  const buttons = await textList(await page.$$('button'))
-  assert(buttons.filter((text) => text === '打开').length === 5, 'list page must show open button per attachment')
-  assert(buttons.filter((text) => text === '下载').length === 5, 'list page must show download button per attachment')
-
-  // 【F25 2026-10-13】真实点击瓦片按钮(经 WXML 绑定与 dataset 传递): 合成 dataset 的 callMethod
-  // 绕过模板绑定, 测不出 wx:for 内层 index 遮蔽外层 record index 的回归(H2 同款)
+  // 【F25 存续】真实点击墙按钮(经 WXML 绑定与 dataset 传递): 图(301)打开=downloadFile+previewImage
   await resetAttachmentActionCalls(miniProgram)
   await enableRealAttachmentMode(miniProgram)
-  const openButtons = await page.$$('.wall-act-btn')
-  assert(openButtons.length >= 2, 'list page wall action buttons are missing')
-  await openButtons[0].tap()
+  const actButtons = await page.$$('.wall-act-btn')
+  assert(actButtons.length === 10, `stats-detail wall must expose open+download per attachment, got ${actButtons.length}`)
+  await actButtons[0].tap()
   await page.waitFor(300)
-  const tapCalls = await attachmentActionCalls(miniProgram)
-  assert(tapCalls.previewImage.length === 1, `wall tile tap must open image preview via template binding: ${actionCallSummary(tapCalls)}`)
+  await page.setData({ previewing: false })
+  const wallTapCalls = await attachmentActionCalls(miniProgram)
+  assert(wallTapCalls.previewImage.length === 1, `wall tile open must open image preview: ${actionCallSummary(wallTapCalls)}`)
+  const tappedUrls = ((wallTapCalls.downloadFile[0] || {}).url || '') + ',' + ((wallTapCalls.previewImage[0] || {}).urls || []).join(',')
+  assert(tappedUrls.includes('download/301'),
+    `wall tap must open its own file (id 301), got: ${tappedUrls}`)
   await resetAttachmentActionCalls(miniProgram)
 
-  await page.callMethod('previewAttachment', eventWithDataset({ recordIndex: 0, fileIndex: 0 }))
+  await page.callMethod('previewStatDetailAttachment', eventWithDataset({ detailIndex: 0, groupIndex: 0, fileIndex: 1 }))
   await page.waitFor(300)
   await page.setData({ previewing: false })
-  await page.callMethod('previewAttachment', eventWithDataset({ recordIndex: 0, fileIndex: 1 }))
-  await page.waitFor(300)
-  await page.setData({ previewing: false })
-  await page.callMethod('downloadAttachment', eventWithDataset({ recordIndex: 0, fileIndex: 1 }))
+  await page.callMethod('downloadStatDetailAttachment', eventWithDataset({ detailIndex: 0, groupIndex: 0, fileIndex: 1 }))
   await page.waitFor(300)
   const calls = await attachmentActionCalls(miniProgram)
-  assert(calls.downloadFile.length === 3, `list page attachment actions must call downloadFile: ${actionCallSummary(calls)}`)
-  assert(calls.previewImage.length === 1, `list page downloaded image must call previewImage: ${actionCallSummary(calls)}`)
+  assert(calls.downloadFile.length === 2, `list page attachment actions must call downloadFile: ${actionCallSummary(calls)}`)
   assert(calls.openDocument.length === 1, `list page document preview must call openDocument: ${actionCallSummary(calls)}`)
   assert(calls.saveFile.length === 1, `list page document download must call saveFile: ${actionCallSummary(calls)}`)
+  await page.callMethod('closeStatDetail')
   await screenshot(miniProgram, 'list-attachments.png')
 }
 

@@ -99,7 +99,10 @@ grep -q "assertAttachmentTags(files, \\['安装前', '安装中', '安装后', '
 grep -q "assertAttachmentTags(wallFiles, \\['安装前', '安装中', '安装后', '跟踪', '佐证'\\], 'list page')" "$automator_script" || { echo "FAIL: incentive DevTools automator does not assert all PC attachment slots on list page" >&2; exit 1; }
 # 【F23 复审钉 2026-10-13】重锚后的关键断言字面量锚定(grep -F 固定串): 防脚本退化回旧数据模型
 # (裸 setData 注入/choose 旧方法名/records[0].files)或删掉排序态真实 tap 归属断言。
-for anchor_token in 'rebuildRecordViews' 'chooseOrder' 'wall-act-btn' 'records[0].childRecordsView[0].unread' 'sepDial' 'download/301'; do
+# 【2026-10-27 深度检查重写】旧列表 UI(incentive-record-card/childRecordsView 已读链)随 b8d62e3f
+# 操作下沉退役——token 'records[0].childRecordsView[0].unread' 换成现行统计明细抽屉的
+# 'statDetailView.pagedRecords'(列表附件的真实载体)
+for anchor_token in 'rebuildRecordViews' 'chooseOrder' 'wall-act-btn' 'statDetailView.pagedRecords' 'sepDial' 'download/301'; do
   grep -qF "$anchor_token" "$automator_script" || { echo "FAIL: incentive automator must keep anchored assertion token: $anchor_token" >&2; exit 1; }
 done
 # 【2026-10-26 时间线页退役】'timeline page' 槽位断言随页移除, 翻转为防复活

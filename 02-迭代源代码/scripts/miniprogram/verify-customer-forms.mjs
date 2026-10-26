@@ -199,56 +199,60 @@ async function verifyContacts(miniProgram) {
 }
 
 async function verifyFinance(miniProgram) {
+  // 【2026-10-27 深度检查重写】原段钉 0e747a5f(10-11 阶段总额制)前的旧财务明细 UI
+  // (hero-title/.tabs/开票明细/回款明细/deleteRecord/switchTab)已随改版退役; 现行结构 =
+  // fin-top 单行卡 + 判定卡 + 阶段行卡(编辑入口) + 折叠规则/历史 + 阶段录入表单页。
   await enableDemoUser(miniProgram)
-  await miniProgram.evaluate(() => wx.setStorageSync('demoFinance', { 501: { invoices: [{ id: 'inv-1', invoiceNo: 'INV-AUTO-1', invoiceType: '增值税专票', invoiceCompany: '自动化开票单位', amount: 120000, invoiceDate: '2026-09-01', status: '已开票' }], payments: [{ id: 'pay-1', paymentNo: 'PAY-AUTO-1', amount: 60000, paymentDate: '2026-09-08', paymentMethod: '银行转账', remark: '自动化回款备注', status: '已回款' }] } }))
   let page = await miniProgram.reLaunch('/pages/customer/finance/index?id=501')
   await page.waitFor(700)
 
-  let pageText = [
-    ...(await textList(await page.$$('.hero-title'))),
-    ...(await textList(await page.$$('.tabs'))),
-    ...(await textList(await page.$$('.finance-row'))),
+  const shellText = [
+    ...(await textList(await page.$$('.fin-top'))),
     ...(await textList(await page.$$('button')))
   ].join('\n')
-  for (const expected of ['财务明细', '开票明细', '回款明细', 'INV-AUTO-1', '增值税专票', '自动化开票单位', '新增开票', '删除']) {
-    assert(pageText.includes(expected), `finance invoice page missing ${expected}`)
+  for (const expected of ['阶段性开票回款', '返回']) {
+    assert(shellText.includes(expected), `finance stage page shell missing ${expected}`)
   }
 
-  await page.callMethod('openForm')
-  const invoiceRows = await page.data('invoices')
-  const invoiceIndex = invoiceRows.findIndex((item) => item.id === 'inv-1')
-  assert(invoiceIndex >= 0, `seeded invoice inv-1 not found: ${JSON.stringify(invoiceRows)}`)
-  await page.callMethod('deleteRecord', eventWithDataset({ mode: 'invoice', index: invoiceIndex }))
+  // 阶段数据走同一视图链路: stageSummary → buildStageView(refreshStageView)
+  await page.setData({
+    loading: false,
+    stageSummary: {
+      baseYear: 2026,
+      coreType: 'core',
+      annualInvoiceAmount: 120,
+      annualPaymentAmount: 60,
+      rows: [
+        { periodYear: 2026, periodType: 'half', periodLabel: '2026 半年', invoiceAmount: 120, paymentAmount: 60, updatedByName: '测试用户', updatedAt: '2026-09-08 10:00:00' }
+      ]
+    }
+  })
+  await page.callMethod('refreshStageView')
   await page.waitFor(300)
-  await page.callMethod('switchTab', eventWithDataset({ tab: 'payment' }))
-  await page.waitFor(100)
-  pageText = [
-    ...(await textList(await page.$$('.finance-row'))),
-    ...(await textList(await page.$$('button')))
+  assert(await page.data('stageView.hasVerdict') === true, 'stage summary must drive the verdict card')
+  const stageText = [
+    ...(await textList(await page.$$('.stage-verdict-card'))),
+    ...(await textList(await page.$$('.stage-row-card')))
   ].join('\n')
-  for (const expected of ['PAY-AUTO-1', '银行转账', '自动化回款备注']) {
-    assert(pageText.includes(expected), `finance payment row missing ${expected}: ${pageText}`)
+  for (const expected of ['2026 半年', '阶段内开票', '阶段性回款', '120', '60', '真核心']) {
+    assert(stageText.includes(expected), `finance stage view missing ${expected}: ${stageText}`)
   }
-  const paymentRows = await page.data('payments')
-  const paymentIndex = paymentRows.findIndex((item) => item.id === 'pay-1')
-  assert(paymentIndex >= 0, `seeded payment pay-1 not found: ${JSON.stringify(paymentRows)}`)
-  await page.callMethod('deleteRecord', eventWithDataset({ mode: 'payment', index: paymentIndex }))
-  await page.waitFor(300)
-  const modals = await miniProgram.evaluate(() => globalThis.__customerFormsModalCalls || [])
-  assert(modals.some((item) => item.title === '删除开票记录'), `invoice delete confirmation missing: ${JSON.stringify(modals)}`)
-  assert(modals.some((item) => item.title === '删除回款记录'), `payment delete confirmation missing: ${JSON.stringify(modals)}`)
+  assert((await page.$$('.stage-row-card .text-btn')).length >= 1, 'stage row must expose the 编辑 action for editors')
+  // 折叠交互: 录入与保护期规则默认收起, 点开展开; 历史开关可翻转
+  assert(await page.data('noteOpen') === false, 'note must start collapsed (2026-10-26 layout order)')
+  await page.callMethod('toggleNote')
+  assert(await page.data('noteOpen') === true, 'toggleNote must expand the rule note')
+  await page.callMethod('toggleHistory')
+  await page.waitFor(200)
   await screenshot(miniProgram, 'customer-finance-list.png')
 
-  page = await miniProgram.reLaunch('/pages/customer/finance/form/index?id=501&mode=invoice')
+  // 阶段录入表单(现行 openForm 目标页): 周期年份+开票/回款至少一项, 提交走 demo 通道
+  page = await miniProgram.reLaunch('/pages/customer/finance/form/index?id=501')
   await page.waitFor(500)
-  await page.callMethod('submit')
-  await page.callMethod('input', eventWithDataset({ field: 'invoiceDate' }, '2026-09-15'))
-  await page.callMethod('input', eventWithDataset({ field: 'invoiceNumber' }, 'INV-AUTO-2'))
-  await page.callMethod('input', eventWithDataset({ field: 'amount' }, '180000'))
+  await page.callMethod('input', eventWithDataset({ field: 'invoiceAmount' }, '180'))
+  assert(await page.data('form.invoiceAmount') === 180, `stage form input not applied: ${JSON.stringify(await page.data('form'))}`)
   await page.callMethod('submit')
   await page.waitFor(700)
-  const afterInvoice = await miniProgram.evaluate(() => wx.getStorageSync('demoFinance')['501'])
-  assert(afterInvoice.invoices.some((item) => item.invoiceNumber === 'INV-AUTO-2'), `invoice form did not save: ${JSON.stringify(afterInvoice)}`)
   await screenshot(miniProgram, 'customer-finance-form.png')
 }
 
