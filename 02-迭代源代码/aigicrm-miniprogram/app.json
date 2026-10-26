@@ -25,7 +25,6 @@
     "pages/files/textview/index",
     "pages/incentive/index",
     "pages/incentive/home/index",
-    "pages/incentive/records/index",
     "pages/incentive/upload/index",
     "pages/incentive/detail/index",
     "pages/incentive/customer-detail/index",

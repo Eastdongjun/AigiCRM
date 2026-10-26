@@ -437,19 +437,17 @@ Page({
     wx.navigateTo({ url: '/pages/incentive/upload/index' })
   },
 
-  // 【2026-10-23 用户令】轻量视图点客户 → 客户记录页(上下滚动, 不进一客一册档案/无翻页);
-  // 原始子记录经 eventChannel 传递, 视图字段由 records 页自建(绑定契约: 派生字段同目录生产)
+  // 【2026-10-26 用户令"展示按拨盘来,不要一个客户一个档案"】点客户直达既有拨盘详情页
+  // (pages/incentive/detail: 年/月/日三联转盘+按所选日期的记录, 一次上传=一条记录,
+  // 编辑/追加/删除/预览操作全保留); 原 records 平铺清单页随本批退役。
   openCustomer(e) {
     const index = Number(e.currentTarget.dataset.index)
     const record = this.data.pagedRecords[index]
     if (!record) return
     const children = (this._childRawById && this._childRawById[record.id]) || []
-    wx.navigateTo({
-      url: '/pages/incentive/records/index',
-      success: (res) => {
-        res.eventChannel.emit('payload', { record, children })
-      }
-    })
+    const first = children[0]
+    if (!first || !first.id) return wx.showToast({ title: '该客户暂无记录', icon: 'none' })
+    wx.navigateTo({ url: '/pages/incentive/detail/index?id=' + first.id })
   },
 
   ensureDlToken() {

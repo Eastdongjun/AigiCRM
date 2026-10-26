@@ -1,12 +1,12 @@
-<view class="page">
-  <view class="hero">
-    <view class="row">
-      <view>
-        <view class="hero-title">阶段性开票回款</view>
-        <view class="hero-sub">半年末 / 年末录入总额（2026-10-10 起总额制）</view>
-      </view>
-      <button class="ghost-btn" bindtap="goBack">返回</button>
+<view class="page finance-page">
+  <!-- 【2026-10-26 用户令"布局合理化"】顶部统一深蓝圆角卡(与文件页/详情页同族) +
+       阶段卡三指标一行化(原四行 label:value) + 规则长文改折叠(与历史明细同款) -->
+  <view class="fin-top">
+    <view class="fin-top-copy">
+      <view class="fin-top-title">阶段性开票回款</view>
+      <view class="fin-top-sub">半年末 / 年末录入总额（2026-10-10 起总额制）</view>
     </view>
+    <button class="fin-top-back" bindtap="goBack">返回</button>
   </view>
 
   <view wx:if="{{stageView.showLoading}}" class="card muted">加载中...</view>
@@ -24,21 +24,39 @@
     <view class="card stage-row-card">
       <view class="row stage-row-head">
         <text class="stage-period">{{item.periodLabel}}</text>
-        <button wx:if="{{stageView.showAddAction}}" class="text-btn" data-year="{{item.periodYear}}" data-type="{{item.periodType}}" catchtap="openForm">编辑</button>
+        <view class="stage-head-right">
+          <text class="stage-upd-text">{{item.updText}}</text>
+          <button wx:if="{{stageView.showAddAction}}" class="text-btn" data-year="{{item.periodYear}}" data-type="{{item.periodType}}" catchtap="openForm">编辑</button>
+        </view>
       </view>
-      <view class="detail-row"><text>阶段内开票额</text><text>{{item.invoiceText}} 万</text></view>
-      <view class="detail-row"><text>阶段性回款额</text><text>{{item.paymentText}} 万</text></view>
-      <view class="detail-row"><text>阶段差额(开票−回款)</text><text>{{item.gapText}} 万</text></view>
-      <view class="detail-row stage-upd-row"><text>更新</text><text>{{item.updText}}</text></view>
+      <view class="stage-metrics">
+        <view class="stage-metric">
+          <text class="stage-metric-label">阶段内开票</text>
+          <view class="stage-metric-value">{{item.invoiceText}}<text>万</text></view>
+        </view>
+        <view class="stage-metric">
+          <text class="stage-metric-label">阶段性回款</text>
+          <view class="stage-metric-value">{{item.paymentText}}<text>万</text></view>
+        </view>
+        <view class="stage-metric">
+          <text class="stage-metric-label">差额(开票−回款)</text>
+          <view class="stage-metric-value">{{item.gapText}}<text>万</text></view>
+        </view>
+      </view>
     </view>
   </block>
   <view wx:if="{{stageView.emptyText}}" class="card muted">{{stageView.emptyText}}</view>
 
-  <view class="card stage-note">
-    半年末录「上半年 / 下半年」总额，年末录「全年」总额；全年行与上/下半年独立录入，核心判定优先取全年行。真核心 = 判定年度开票、回款均 ≥ 100 万；争核心 = 有阶段数据但未双达标。录入开票额 &gt; 0 的阶段会刷新保护期起算日（按阶段末日期计，未到期的阶段按当天计，只延长不缩短），保护期 = 起算日 + 保护天数 + 已批准延期。
-  </view>
-
   <button wx:if="{{stageView.showAddAction}}" class="btn finance-add-btn" bindtap="openForm">录入阶段数据</button>
+
+  <!-- 录入与保护期规则(原文)折叠: 默认收起, 点标题行展开 -->
+  <view class="card history-toggle-card" bindtap="toggleNote">
+    <view class="row">
+      <text class="history-toggle-title">录入与保护期规则</text>
+      <text class="muted">{{noteOpen ? '收起 ▲' : '展开 ▼'}}</text>
+    </view>
+  </view>
+  <view wx:if="{{noteOpen}}" class="card stage-note">半年末录「上半年 / 下半年」总额，年末录「全年」总额；全年行与上/下半年独立录入，核心判定优先取全年行。真核心 = 判定年度开票、回款均 ≥ 100 万；争核心 = 有阶段数据但未双达标。录入开票额 &gt; 0 的阶段会刷新保护期起算日（按阶段末日期计，未到期的阶段按当天计，只延长不缩短），保护期 = 起算日 + 保护天数 + 已批准延期。</view>
 
   <!-- 历史逐笔明细(只读): 2026-10-10 逐笔录入制时期的台账, 首次展开懒加载 -->
   <view class="card history-toggle-card" bindtap="toggleHistory">

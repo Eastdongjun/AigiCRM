@@ -92,6 +92,8 @@ Page({
     stageSummary: null,
     historyOpen: false,
     historyLoaded: false,
+    // 【2026-10-26 布局合理化】录入与保护期规则长文改折叠展示(默认收起)
+    noteOpen: false,
     invoices: [],
     payments: [],
     stageView: buildStageView({ loading: false })
@@ -145,6 +147,11 @@ Page({
     getCustomerStageAmounts(this.data.id).then((summary) => {
       this.applyState({ stageSummary: summary || {} })
     }).catch((error) => showError(error, '阶段开票回款加载失败')).finally(() => this.applyState({ loading: false }))
+  },
+
+  /** 【2026-10-26 布局合理化】录入与保护期规则说明折叠开关(默认收起, 与历史明细同款折叠) */
+  toggleNote() {
+    this.setData({ noteOpen: !this.data.noteOpen })
   },
 
   /** 历史逐笔明细(2026-10-10 逐笔录入制时期的台账)只读折叠; 首次展开懒加载一次 */
