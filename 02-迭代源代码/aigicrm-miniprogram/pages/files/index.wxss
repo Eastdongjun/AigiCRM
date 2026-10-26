@@ -153,34 +153,36 @@
 .files-top-apply::after { border: 0; }
 .files-top-reason { flex-shrink: 0; font-size: 18rpx; color: rgba(255, 255, 255, .5); }
 
-/* 【2026-10-26 用户令】四项服务 tab 图片墙: 三列方瓦片, 图片缩略直出(无文件名),
-   视频=播放面, 文档=类型面; 翻页由视图重建自动加载新页缩略(lazy-load) */
-.files-wall { display: flex; flex-wrap: wrap; gap: 12rpx; margin-top: 8rpx; }
+/* 【2026-10-26 用户令】四项服务 tab 图片墙: 小方格(四列正方形, 同日二令"太密集,做成小格子"),
+   图片缩略直出(无文件名), 视频=播放面, 文档=类型面; 翻页由视图重建自动加载新页缩略(lazy-load)。
+   页内容宽 694rpx(750-2×28), 4 列 gap 10rpx ⇒ 边长 (694-30)/4=166rpx, 高度钉死成正方形
+   (aspect-ratio 在部分机型不生效, 沿用固定高方案) */
+.files-wall { display: flex; flex-wrap: wrap; gap: 10rpx; margin-top: 8rpx; }
 .files-tile {
-  width: calc((100% - 24rpx) / 3);
-  height: 218rpx;
-  border-radius: 18rpx;
+  width: calc((100% - 30rpx) / 4);
+  height: 166rpx;
+  border-radius: 10rpx;
   overflow: hidden;
   background: #eef3fa;
-  box-shadow: 0 6rpx 16rpx rgba(15, 23, 42, .08);
+  box-shadow: 0 4rpx 10rpx rgba(15, 23, 42, .06);
 }
 .files-tile-img { width: 100%; height: 100%; }
-.files-tile-face { width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10rpx; }
+.files-tile-face { width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8rpx; }
 .files-tile-face.video { background: #172033; }
 .files-tile-play {
-  width: 64rpx;
-  height: 64rpx;
+  width: 44rpx;
+  height: 44rpx;
   border-radius: 50%;
   background: rgba(255, 255, 255, .16);
   border: 1rpx solid rgba(255, 255, 255, .4);
   color: #fff;
-  font-size: 26rpx;
+  font-size: 20rpx;
   display: flex;
   align-items: center;
   justify-content: center;
 }
 .files-tile-face.doc { background: #eef3fa; color: #475569; }
-.files-tile-type { font-size: 22rpx; font-weight: 700; letter-spacing: 1rpx; }
+.files-tile-type { font-size: 20rpx; font-weight: 700; letter-spacing: 1rpx; }
 
 /* 底部留白让位自定义 tabBar(覆盖层 ~110rpx+安全区) */
 .files-page { padding-bottom: calc(150rpx + env(safe-area-inset-bottom)); }
