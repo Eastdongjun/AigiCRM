@@ -177,6 +177,9 @@ public class CustomerExpireTask {
                     // 避免产生 pool_id=NULL 的孤儿公海记录（普通用户不可见、也捞不了，变死数据）
                     if (seaService.matchSeaConfig(customer.getOfficeId()) != null) {
                         seaService.addToSea(customer.getId(), "保护期满");
+                        // 【A8 2026-10-26】成功入池才计数——汇总"入海%d"与指标 entered_sea_total
+                        // 此前恒 0(addToSea 抛错走 catch 不计, 语义正确)
+                        enteredSea++;
                         log.info("客户 {} 保护期已到，进入公海", customer.getCustomerName());
                     } else {
                         log.info("客户 {} 所在办事处未配置公海池，保持过期状态", customer.getCustomerName());

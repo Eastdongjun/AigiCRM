@@ -225,6 +225,34 @@ class CustomerExpireTaskTest {
     }
 
     /**
+     * 【A8 2026-10-26】入海计数钉: enteredSea 此前声明后从不自增——汇总日志永远"入海0"、
+     * 指标 customer_expire_entered_sea_total 恒 0, 运维无法从日志/监控判断自动入海是否执行。
+     * 成功入池(配置了公海池的到期客户)必须让计数与指标各 +1。
+     */
+    @Test
+    void expiredCustomer_entersSea_incrementsEnteredSeaCounterAndMetric() {
+        BizCustomer expired = new BizCustomer();
+        expired.setId(7L);
+        expired.setCustomerName("到期入海客户");
+        expired.setExpireDate(java.time.LocalDate.now().minusDays(1));
+        expired.setProtectionStatus("active");
+        expired.setStatus("normal");
+        expired.setOwnerId(11L);
+        expired.setOfficeId(3L);
+
+        // 1)保护期到期批次 2)开票超期(空) 3)从未开票(空)
+        when(customerMapper.selectList(any())).thenReturn(List.of(expired), List.of(), List.of());
+        when(seaService.matchSeaConfig(3L)).thenReturn(100L);
+
+        task.checkCustomerExpire();
+
+        verify(seaService).addToSea(7L, "保护期满");
+        org.junit.jupiter.api.Assertions.assertEquals(1.0,
+                meterRegistry.counter("customer_expire_entered_sea_total").count(),
+                "成功入池 1 条, 指标 customer_expire_entered_sea_total 必须 +1(原实现恒 0)");
+    }
+
+    /**
      * 【H2 2026-10-08】2AM 任务链系统身份包装:任务体内以 admin(id=1) 认证运行(租户拦截器
      * 对 admin 放行=跨集团,prod 下查询不再被改写为恒空),结束后还原为进入前的认证(通常 null)。
      */
