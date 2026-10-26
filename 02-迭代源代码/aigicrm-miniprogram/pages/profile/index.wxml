@@ -1,12 +1,15 @@
 <view class="page profile-page">
-  <!-- 2026-10-20 用户令：去掉姓名首字大头像，姓名/岗位左对齐，右侧只保留登录状态 -->
+  <!-- 2026-10-20 用户令：去掉姓名首字大头像；【2026-10-26 用户令"名字岗位等信息按左右方式"】
+       岗位不再垫在名字下面, 与名字同行分列左右 -->
   <view class="hero profile-hero">
-    <view class="profile-hero-main">
+    <view class="profile-hero-row">
       <view class="profile-hero-overline">当前账号</view>
-      <view class="profile-name">{{profileView.userNameText}}</view>
-      <view class="hero-sub">{{profileView.heroSubText}}</view>
+      <view class="profile-hero-status"><text class="profile-status-dot"></text>已登录</view>
     </view>
-    <view class="profile-hero-status"><text class="profile-status-dot"></text>已登录</view>
+    <view class="profile-hero-line">
+      <view class="profile-name">{{profileView.userNameText}}</view>
+      <view class="hero-sub profile-hero-sub">{{profileView.heroSubText}}</view>
+    </view>
   </view>
   <!-- 【2026-10-26 用户令"合并到一个区域"】当前集团+数据范围由两张卡并为一张(两行,细线分隔),
        集团切换 picker/说明文案全保留 -->
