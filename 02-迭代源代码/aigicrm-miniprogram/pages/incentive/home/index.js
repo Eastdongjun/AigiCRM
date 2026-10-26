@@ -109,7 +109,7 @@ function buildIncentiveView(data) {
     startDateText: `${data.startDate || '开始日期'}⌄`,
     endDateText: `${data.endDate || '截止日期'}⌄`,
     userText: `${pickOption(data.userNames, data.selectedUserIndex, '全部人员')}⌄`,
-    orderText: `${pickOption(data.orderOptions, data.selectedOrderIndex, '默认排序')}⌄`,
+    orderText: `${pickOption(data.orderOptions, data.selectedOrderIndex, '最新记录在前')}⌄`,
     showRecordEmpty: !isLoading && (data.records || []).length === 0
   }
 }
@@ -117,7 +117,14 @@ function buildIncentiveView(data) {
 const INDUSTRIES = ['全部行业', '冶金', '煤矿', '化工', '电力', '有色金属', '机械', '工程公司', '维修厂', '其他终端客户']
 const DEV_TYPES = ['全部类型', '成熟创新', '突破开拓', '铺垫宣传']
 const PRODUCT_OPTIONS = ['全部产品', '防腐', '加固', '钢结构', '煤气管道', '公共区', '装置区', '水泵', '渣泵', '介质泵', '静密封', '动密封', '橡胶密封', '润滑油', '润滑脂', '润滑剂']
-const SCORE_ORDER_OPTIONS = ['默认排序', '分值从高到低', '分值从低到高']
+// 【2026-10-26 用户令"要有按时间排序"】原三档(默认/分值高低)改四档: 时间两档显式化,
+// 「默认排序」即接口顺序=最新在前, 由首档承接; 值 time-*/score-* 交 sort() 分派
+const ORDER_OPTIONS = ['最新记录在前', '最早记录在前', '分值从高到低', '分值从低到高']
+const ORDER_VALUES = ['time-desc', 'time-asc', 'score-desc', 'score-asc']
+// 封面卡时间 = 其最新一条记录的 createdAt(normalizeRecords 的 detail 即最新子记录)
+function coverTimeOf(item) {
+  return String((item && item.detail && item.detail.createdAt) || item.createdAt || '')
+}
 const FALLBACK_ORGS = [
   { id: 1, deptName: '内蒙古大区', deptType: 2, parentId: 0 },
   { id: 11, deptName: '内蒙办', deptType: 3, parentId: 1 },
@@ -132,13 +139,13 @@ Page({
       devTypes: DEV_TYPES,
       productOptions: PRODUCT_OPTIONS,
       orgOptions: [{ id: '', deptName: '全部组织', label: '全部组织' }],
-      orderOptions: SCORE_ORDER_OPTIONS,
+      orderOptions: ORDER_OPTIONS,
       userNames: ['全部人员'],
       records: [],
       loading: false
     }),
-    order: '',
-    orderOptions: SCORE_ORDER_OPTIONS,
+    order: 'time-desc',
+    orderOptions: ORDER_OPTIONS,
     selectedOrderIndex: 0,
     category: '全部',
     categoryNames: [],
@@ -327,8 +334,10 @@ Page({
       })
     }
     let records = this.applyLocalRecordFilters(this.data.allRecords).filter(childMatches)
-    if (this.data.order === 'asc') records.sort((a, b) => (Number(a.score) || 0) - (Number(b.score) || 0))
-    if (this.data.order === 'desc') records.sort((a, b) => (Number(b.score) || 0) - (Number(a.score) || 0))
+    if (this.data.order === 'score-asc') records.sort((a, b) => (Number(a.score) || 0) - (Number(b.score) || 0))
+    if (this.data.order === 'score-desc') records.sort((a, b) => (Number(b.score) || 0) - (Number(a.score) || 0))
+    if (this.data.order === 'time-asc') records.sort((a, b) => coverTimeOf(a).localeCompare(coverTimeOf(b)))
+    if (this.data.order === 'time-desc') records.sort((a, b) => coverTimeOf(b).localeCompare(coverTimeOf(a)))
     const paged = paginate(records, 1, this.data.pageSize)
     this.setData({
       records,
@@ -416,7 +425,7 @@ Page({
       selectedOrgIndex: 0,
       selectedUserIndex: 0,
       selectedOrderIndex: 0,
-      order: '',
+      order: 'time-desc',
       category: '全部',
       categoryNames: [],
       startDate: '',
@@ -426,9 +435,8 @@ Page({
   },
 
   chooseOrder(e) {
-    const orderMap = ['', 'desc', 'asc']
     const index = Number(e.detail.value) || 0
-    this.setData({ selectedOrderIndex: index, order: orderMap[index] || '' }, () => this.refreshIncentiveView())
+    this.setData({ selectedOrderIndex: index, order: ORDER_VALUES[index] || 'time-desc' }, () => this.refreshIncentiveView())
     this.sort()
   },
 

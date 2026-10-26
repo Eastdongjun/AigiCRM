@@ -295,7 +295,7 @@ function buildIncentiveView(data) {
     startDateText: `${data.startDate || '开始日期'}⌄`,
     endDateText: `${data.endDate || '截止日期'}⌄`,
     userText: `${pickOption(data.userNames, data.selectedUserIndex, '全部人员')}⌄`,
-    orderText: `${pickOption(data.orderOptions, data.selectedOrderIndex, '默认排序')}⌄`,
+    orderText: `${pickOption(data.orderOptions, data.selectedOrderIndex, '最新记录在前')}⌄`,
     readPeriodText: `${pickOption(data.readPeriodOptions, data.selectedReadPeriodIndex, data.readPeriod || currentMonth(), 'label')}⌄`,
     showRecordEmpty: !isLoading && (data.records || []).length === 0,
     // 【工作流复核确认修复】空态统一加 !isLoading 守卫(与 records tab 同口径, 弱网首屏不显示"暂无"假空态)
@@ -316,7 +316,13 @@ function buildIncentiveView(data) {
 const INDUSTRIES = ['全部行业', '冶金', '煤矿', '化工', '电力', '有色金属', '机械', '工程公司', '维修厂', '其他终端客户']
 const DEV_TYPES = ['全部类型', '成熟创新', '突破开拓', '铺垫宣传']
 const PRODUCT_OPTIONS = ['全部产品', '防腐', '加固', '钢结构', '煤气管道', '公共区', '装置区', '水泵', '渣泵', '介质泵', '静密封', '动密封', '橡胶密封', '润滑油', '润滑脂', '润滑剂']
-const SCORE_ORDER_OPTIONS = ['默认排序', '分值从高到低', '分值从低到高']
+// 【2026-10-26 用户令"要有按时间排序"】与轻量页(pages/incentive/home)同款四档,
+// 「默认排序」(=接口顺序=最新在前)由首档显式承接
+const ORDER_OPTIONS = ['最新记录在前', '最早记录在前', '分值从高到低', '分值从低到高']
+const ORDER_VALUES = ['time-desc', 'time-asc', 'score-desc', 'score-asc']
+function coverTimeOf(item) {
+  return String((item && item.detail && item.detail.createdAt) || item.createdAt || '')
+}
 const FALLBACK_ORGS = [
   { id: 1, deptName: '内蒙古大区', deptType: 2, parentId: 0 },
   { id: 11, deptName: '内蒙办', deptType: 3, parentId: 1 },
@@ -355,7 +361,7 @@ Page({
       devTypes: DEV_TYPES,
       productOptions: PRODUCT_OPTIONS,
       orgOptions: [{ id: '', deptName: '全部组织', label: '全部组织' }],
-      orderOptions: SCORE_ORDER_OPTIONS,
+      orderOptions: ORDER_OPTIONS,
       userNames: ['全部人员'],
       readPeriodOptions: buildReadPeriodOptions(),
       readPeriod: currentMonth(),
@@ -368,8 +374,8 @@ Page({
       readRanking: [],
       loading: false
     }),
-    order: '',
-    orderOptions: SCORE_ORDER_OPTIONS,
+    order: 'time-desc',
+    orderOptions: ORDER_OPTIONS,
     selectedOrderIndex: 0,
     category: '全部',
     categoryNames: [],
@@ -919,8 +925,10 @@ Page({
     }
     let records = this.applyLocalRecordFilters(this.data.allRecords).filter(childMatches)
     // 【setData 瘦身】视图对象直接排序(全部筛选字段在视图顶层), 重建会丢懒加载的子记录明细
-    if (this.data.order === 'asc') records.sort((a, b) => (Number(a.score) || 0) - (Number(b.score) || 0))
-    if (this.data.order === 'desc') records.sort((a, b) => (Number(b.score) || 0) - (Number(a.score) || 0))
+    if (this.data.order === 'score-asc') records.sort((a, b) => (Number(a.score) || 0) - (Number(b.score) || 0))
+    if (this.data.order === 'score-desc') records.sort((a, b) => (Number(b.score) || 0) - (Number(a.score) || 0))
+    if (this.data.order === 'time-asc') records.sort((a, b) => coverTimeOf(a).localeCompare(coverTimeOf(b)))
+    if (this.data.order === 'time-desc') records.sort((a, b) => coverTimeOf(b).localeCompare(coverTimeOf(a)))
     // 【分页 2026-10-18】排序/筛选/加载后一律回第 1 页; 分页切片与 total 同一次 setData 落定
     const paged = paginate(records, 1, this.data.pageSize)
     this.setData({
@@ -1097,7 +1105,7 @@ Page({
       selectedOrgIndex: 0,
       selectedUserIndex: 0,
       selectedOrderIndex: 0,
-      order: '',
+      order: 'time-desc',
       // 【I3】清空必须连分类筛选一起复位: 否则 sort() 仍按旧 categoryNames 过滤, 重新拉取也恢复不了完整列表
       category: '全部',
       categoryNames: [],
@@ -1110,9 +1118,8 @@ Page({
   // 【D32 2026-10-04】排序 picker 由无宾语的 choose 改名 chooseOrder(与 chooseUser/chooseOrg 命名一致);
   // 不用 sort 是因本页已有记录排序方法 sort(), 避免覆盖
   chooseOrder(e) {
-    const orderMap = ['', 'desc', 'asc']
     const index = Number(e.detail.value) || 0
-    this.setData({ selectedOrderIndex: index, order: orderMap[index] || '' }, () => this.refreshIncentiveView())
+    this.setData({ selectedOrderIndex: index, order: ORDER_VALUES[index] || 'time-desc' }, () => this.refreshIncentiveView())
     this.sort()
   },
 

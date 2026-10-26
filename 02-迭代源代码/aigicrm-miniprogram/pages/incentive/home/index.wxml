@@ -40,8 +40,8 @@
       </picker>
     </view>
   </view>
+  <!-- 【2026-10-26 用户令"客户维度明细几个字不要了"】标题移除, 筛选行骨架(pickers)原位保留 -->
   <view class="incentive-filter-head">
-    <view class="section-title no-margin">客户维度明细</view>
     <view class="incentive-filter-actions">
       <picker mode="selector" range="{{categories}}" bindchange="chooseCategory">
         <view class="ranking-tab active">{{category}}⌄</view>

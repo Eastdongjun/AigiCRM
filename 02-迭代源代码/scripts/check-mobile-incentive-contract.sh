@@ -129,10 +129,16 @@ grep -q 'applyOrgs' "$page" || { echo "FAIL: incentive mobile org tree is not fl
 grep -q 'params.orgIds = String(org.id)' "$page" || { echo "FAIL: incentive mobile org filter is not sent as orgIds like PC" >&2; exit 1; }
 grep -q 'params.startDate = this.data.startDate' "$page" || { echo "FAIL: incentive mobile startDate filter is not sent to customer-records" >&2; exit 1; }
 grep -q 'params.endDate = this.data.endDate' "$page" || { echo "FAIL: incentive mobile endDate filter is not sent to customer-records" >&2; exit 1; }
-grep -q "order: ''" "$page" || { echo "FAIL: incentive mobile score ordering must default to PC-like unsorted state" >&2; exit 1; }
+# 【2026-10-26 重锚】用户令"要有按时间排序": 排序改四档(最新/最早记录在前+分值高低),
+# 默认档=「最新记录在前」(time-desc)——与原"不排序=接口顺序(createdAt 倒序)"行为等价,
+# 由隐性默认改显式档位; 旧 order:'' 与 asc/desc 字面量随旧三档退役
+grep -q "order: 'time-desc'" "$page" || { echo "FAIL: incentive mobile order must default to latest-record-first (time-desc, user order 2026-10-26)" >&2; exit 1; }
 grep -q 'selectedOrderIndex: 0' "$page" || { echo "FAIL: incentive mobile score order picker default index is missing" >&2; exit 1; }
-grep -q "if (this.data.order === 'asc')" "$page" || { echo "FAIL: incentive mobile score ascending order branch is missing" >&2; exit 1; }
-grep -q "if (this.data.order === 'desc')" "$page" || { echo "FAIL: incentive mobile score descending order branch is missing" >&2; exit 1; }
+grep -q "if (this.data.order === 'score-asc')" "$page" || { echo "FAIL: incentive mobile score ascending order branch is missing" >&2; exit 1; }
+grep -q "if (this.data.order === 'score-desc')" "$page" || { echo "FAIL: incentive mobile score descending order branch is missing" >&2; exit 1; }
+grep -q "if (this.data.order === 'time-asc')" "$page" || { echo "FAIL: incentive mobile time ascending order branch is missing (user order 2026-10-26)" >&2; exit 1; }
+grep -q "if (this.data.order === 'time-desc')" "$page" || { echo "FAIL: incentive mobile time descending order branch is missing (user order 2026-10-26)" >&2; exit 1; }
+grep -q 'ORDER_VALUES' "$page" || { echo "FAIL: incentive mobile order picker values must map to the four sort modes" >&2; exit 1; }
 grep -q "orderOptions" "$wxml" || { echo "FAIL: incentive mobile score order picker does not bind stable options" >&2; exit 1; }
 grep -q 'resetRecordFilters' "$page" || { echo "FAIL: incentive mobile PC-parity query filters cannot be reset" >&2; exit 1; }
 grep -q 'buildRecordView' "$page" || { echo "FAIL: incentive mobile customer record WXML state must be normalized in JS" >&2; exit 1; }
