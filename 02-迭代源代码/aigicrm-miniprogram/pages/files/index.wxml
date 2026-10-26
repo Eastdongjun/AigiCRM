@@ -59,7 +59,7 @@
       <view class="sheet-file-name">{{actionSheet.name}}</view>
       <view class="sheet-grid">
         <view wx:for="{{actionSheet.actions}}" wx:key="key" wx:for-item="act" class="sheet-act {{act.key === 'delete' ? 'danger' : ''}}" data-act="{{act.key}}" catchtap="onSheetAction">
-          <text class="sheet-act-icon">{{act.key === 'open' ? '▸' : act.key === 'download' ? '⇣' : act.key === 'share' ? '↗' : act.key === 'replace' ? '⇄' : '✕'}}</text>
+          <text class="sheet-act-icon">{{act.key === 'open' ? '▸' : act.key === 'download' ? '⇣' : act.key === 'share' ? '↗' : '✕'}}</text>
           <text>{{act.label}}</text>
         </view>
       </view>

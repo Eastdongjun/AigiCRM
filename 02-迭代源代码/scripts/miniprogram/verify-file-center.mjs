@@ -168,13 +168,15 @@ async function verifyFileCenterPage(miniProgram) {
     assert(tabText.includes(expected), `file center tab count missing ${expected}: ${tabText}`)
   }
 
+  // 【2026-10-26 重锚】用户令"一次点击一步打开": 点行 openFile 直接走预览下载(不再跳详情页);
+  // mock 环境缓存必未命中(lookup fail-open 返回''), 断言 downloadFile 携带鉴权头被调用
   await page.callMethod('openFile', eventWithDataset({ index: 0 }))
-  await page.waitFor(100)
-  const navigations = await miniProgram.evaluate(() => globalThis.__fileNavigationCalls || [])
-  const detailUrl = navigations.find((item) => item.url && item.url.includes('/pages/files/detail/index?'))
-  assert(detailUrl, `file center detail navigation missing: ${JSON.stringify(navigations)}`)
-  assert(decodeURIComponent(detailUrl.url).includes('uploaderName=张三'), `file detail navigation missing uploader metadata: ${JSON.stringify(detailUrl)}`)
-  assert(decodeURIComponent(detailUrl.url).includes('updatedAt=今天 09:30'), `file detail navigation missing updated time metadata: ${JSON.stringify(detailUrl)}`)
+  await page.waitFor(200)
+  await page.setData({ previewing: false })
+  const fileActions = await miniProgram.evaluate(() => globalThis.__fileActionCalls || { downloadFile: [] })
+  const previewCall = (fileActions.downloadFile || []).find((item) => item.url && item.url.includes('/api/file/download/'))
+  assert(previewCall, `file center one-tap preview download missing: ${JSON.stringify(fileActions.downloadFile)}`)
+  assert(previewCall.header && String(previewCall.header.Authorization || '').includes('Bearer'), `file center one-tap preview must carry auth header: ${JSON.stringify(previewCall)}`)
 
   await resetFileActionCalls(miniProgram)
   await page.callMethod('previewFile', eventWithDataset({ index: 0 }))

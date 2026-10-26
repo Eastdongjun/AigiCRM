@@ -1,4 +1,6 @@
-const { getFolders, getStorageInfo, getStorageApplyInfo, getSharedToMe, getSharedToMeCount, getFileList, uploadFile, replaceFile, deleteFile, deleteFolder, getFolderAcl, shareFile: shareFileApi, getDownloadUrl, createFolder } = require('../../api/file')
+const { getFolders, getStorageInfo, getStorageApplyInfo, getSharedToMe, getSharedToMeCount, getFileList, uploadFile, deleteFile, deleteFolder, getFolderAcl, shareFile: shareFileApi, getDownloadUrl, createFolder } = require('../../api/file')
+// 【2026-10-26 用户令"默认下载缓存"】预览文件本地缓存(同版本秒开, LRU 200MB 上限)
+const fileCache = require('../../utils/file-cache')
 const { getCustomerRecords } = require('../../api/incentive')
 const { buildIncentiveFiles } = require('../../utils/incentive-files')
 const { getCustomerSimpleUsers } = require('../../api/customer')
@@ -261,16 +263,13 @@ function buildFileRowView(item, data) {
   const downloadable = data.folderDownloadable !== 0
   // 行级 canDownload=false 仍然优先；再叠加当前文件夹的下载开关与 download 权限
   const showDownload = item.canDownload !== false && downloadable && folderPerms.includes('download')
-  // 激励文件（scope=incentive，folderId=null）是计分佐证，后端 replaceFile 直接拒绝；
-  // 列表未返回 isEvidence，按 scope 保守隐藏替换。
-  const showReplace = Boolean(data.canReplace && canMutateOwnTab && folderPerms.includes('edit') && item.fileScope !== 'incentive')
+  // 【2026-10-26 用户令"三个点不需要替换"】替换入口从操作面板移除(详情页与后端 API 不动)
   const showDelete = Boolean(data.canDelete && canMutateOwnTab && folderPerms.includes('delete'))
   const showShare = Boolean(data.canShare && canMutateOwnTab && data.activeTab !== '公共' && folderPerms.includes('share'))
   // 【需求A】行内按钮全部收进「⋯」半屏面板;打开保留为整行首选操作(点行=打开)
   const sheetActions = [{ key: 'open', label: '打开' }]
   if (showDownload) sheetActions.push({ key: 'download', label: '下载' })
   if (showShare) sheetActions.push({ key: 'share', label: '分享' })
-  if (showReplace) sheetActions.push({ key: 'replace', label: '替换' })
   if (showDelete) sheetActions.push({ key: 'delete', label: '删除', danger: true })
   const sizePrefix = item.size && item.size !== '-' ? `${item.size} · ` : ''
   return {
@@ -286,8 +285,7 @@ function buildFileRowView(item, data) {
     metaExtra: `${item.folder || '未分类'} · ${item.uploaderName || '—'}`,
     bucket: parseUpdatedBucket(item.updatedAt),
     canDownload: showDownload,
-    sheetActions,
-    replaceLoading: String(data.replacingId || '') === String(item.id || '')
+    sheetActions
   }
 }
 
@@ -360,7 +358,7 @@ function buildFileView(data) {
 }
 
 Page({
-  data: { keyword: '', activeTab: '公共', activeFolderId: '', activeFolderName: '', tabs: ['公共', '私人', '四项服务', '分享给我'], tabCounts: { 公共: 0, 私人: 0, 四项服务: 0, 分享给我: 0 }, folders: [], files: [], filteredFiles: [], capacity: { used: '-', total: '-', percent: 0, hint: '存储统计加载中' }, canUpload: false, canReplace: false, canDelete: false, canShare: false, canManageFolder: false, canViewFolderAcl: false, canDevUploadSmoke: false, uploading: false, replacingId: '', loaded: false, loading: false, page: 1, pageSize: 10, total: 0, folderPerms: [], folderDownloadable: 1, aclVisible: false, aclLoading: false, aclFolderName: '', aclRows: [], previewing: false, previewVideoPath: '', actionSheet: { visible: false, index: -1, name: '', actions: [] }, storageApplyInfo: { enabled: false, canApply: false, reason: '', used: 0, quota: 0, maxQuota: 0, allowDecrease: false }, storageApplyForm: { visible: false, submitting: false, quotaInput: '', reasonInput: '', errorText: '' }, storageApplyView: buildStorageApplyView({}), fileView: buildFileView({ tabs: ['公共', '私人', '四项服务', '分享给我'], tabCounts: { 公共: 0, 私人: 0, 四项服务: 0, 分享给我: 0 }, folders: [], filteredFiles: [], activeTab: '公共', activeFolderName: '', previewVideoPath: '', total: 0 }) },
+  data: { keyword: '', activeTab: '公共', activeFolderId: '', activeFolderName: '', tabs: ['公共', '私人', '四项服务', '分享给我'], tabCounts: { 公共: 0, 私人: 0, 四项服务: 0, 分享给我: 0 }, folders: [], files: [], filteredFiles: [], capacity: { used: '-', total: '-', percent: 0, hint: '存储统计加载中' }, canUpload: false, canDelete: false, canShare: false, canManageFolder: false, canViewFolderAcl: false, canDevUploadSmoke: false, uploading: false, loaded: false, loading: false, page: 1, pageSize: 10, total: 0, folderPerms: [], folderDownloadable: 1, aclVisible: false, aclLoading: false, aclFolderName: '', aclRows: [], previewing: false, previewVideoPath: '', actionSheet: { visible: false, index: -1, name: '', actions: [] }, storageApplyInfo: { enabled: false, canApply: false, reason: '', used: 0, quota: 0, maxQuota: 0, allowDecrease: false }, storageApplyForm: { visible: false, submitting: false, quotaInput: '', reasonInput: '', errorText: '' }, storageApplyView: buildStorageApplyView({}), fileView: buildFileView({ tabs: ['公共', '私人', '四项服务', '分享给我'], tabCounts: { 公共: 0, 私人: 0, 四项服务: 0, 分享给我: 0 }, folders: [], filteredFiles: [], activeTab: '公共', activeFolderName: '', previewVideoPath: '', total: 0 }) },
 
   setFileData(patch) {
     const nextData = { ...this.data, ...patch }
@@ -456,7 +454,7 @@ Page({
     } catch (_) { /* API missing or unavailable → fail-closed */ }
     const isLocalApi = /^https?:\/\/(127\.0\.0\.1|localhost|192\.168\.|10\.|172\.(1[6-9]|2\d|3[0-1])\.)/.test(apiBaseUrl)
     const canDevUploadSmoke = !globalData.demoMode && isLocalApi && isDevelopEnv
-    this.setFileData({ canUpload: globalData.demoMode || hasPermission('file:upload'), canReplace: !globalData.demoMode && hasPermission('file:edit'), canDelete: !globalData.demoMode && hasPermission('file:delete'), canShare: !globalData.demoMode && hasPermission('file:share'), canManageFolder: globalData.demoMode || hasPermission('file:folder:manage'), canViewFolderAcl: !globalData.demoMode && hasPermission('file:acl:manage'), canDevUploadSmoke })
+    this.setFileData({ canUpload: globalData.demoMode || hasPermission('file:upload'), canDelete: !globalData.demoMode && hasPermission('file:delete'), canShare: !globalData.demoMode && hasPermission('file:share'), canManageFolder: globalData.demoMode || hasPermission('file:folder:manage'), canViewFolderAcl: !globalData.demoMode && hasPermission('file:acl:manage'), canDevUploadSmoke })
     this.loadFiles()
     this.loadStorageApplyInfo()
   },
@@ -939,14 +937,9 @@ Page({
     }
   },
   openFile(event) {
-    const index = Number(event.currentTarget.dataset.index)
-    const item = this.data.filteredFiles[index]
-    if (!item || ((!item.id || String(item.id).startsWith('file-')) && !item.ossKey && !item.fileUrl)) return wx.showToast({ title: '演示文件暂不可预览', icon: 'none' })
-    // 【mp-4】详情页沿用列表行算出的最终门控（文件夹 ACL/downloadable + scope），
-    // 不在详情页仅凭全局权限码重新放开替换/下载。
-    const rowView = (this.data.fileView.files || [])[index] || {}
-    const canReplace = (rowView.sheetActions || []).some((action) => action.key === 'replace')
-    wx.navigateTo({ url: `/pages/files/detail/index?id=${item.id || ''}&path=${encodeURIComponent(item.ossKey || item.fileUrl || '')}&name=${encodeURIComponent(item.name)}&type=${item.type}&size=${encodeURIComponent(item.size)}&folder=${encodeURIComponent(item.folder)}&uploaderName=${encodeURIComponent(item.uploaderName || '')}&updatedAt=${encodeURIComponent(item.updatedAt || '')}&scope=${encodeURIComponent(item.fileScope || '')}&canReplace=${canReplace ? 1 : 0}&canDownload=${rowView.canDownload ? 1 : 0}` })
+    // 【2026-10-26 用户令"一次点击一步打开"】点行直接预览(图片/视频/文档/文本按类型分派),
+    // 不再经过文件详情页; 操作面板「打开」同路; 缓存命中时秒开, 未命中下载后落缓存。
+    this.previewFile(event)
   },
   findFile(event) {
     return this.data.filteredFiles[event.currentTarget.dataset.index]
@@ -978,39 +971,15 @@ Page({
       }
     })
   },
-  replaceListFile(event) {
-    // 【mp-4】文件夹 edit ACL + 非激励佐证 scope 才允许替换（后端 replaceFile 对佐证直接拒绝）
-    if (!this.data.canReplace || this.data.activeTab === '分享给我' || this.data.activeTab === '四项服务' || !this.hasFolderPermission('edit')) return wx.showToast({ title: '没有文件替换权限', icon: 'none' })
-    const item = this.findFile(event)
-    if (!item || !item.id || String(item.id).startsWith('file-')) return wx.showToast({ title: '演示文件暂不可替换', icon: 'none' })
-    if (item.fileScope === 'incentive') return wx.showToast({ title: '激励佐证文件不能替换，请在激励模块删除后重新上传', icon: 'none' })
-    if (this.data.replacingId) return
-    wx.chooseMessageFile({
-      count: 1,
-      type: 'file',
-      success: (res) => {
-        const file = res.tempFiles && res.tempFiles[0]
-        if (!file || !file.path) return
-        this.setFileData({ replacingId: item.id })
-        wx.showLoading({ title: '替换中...' })
-        replaceFile(item.id, file.path).then((result) => {
-          const version = result && result.version ? `，版本 ${result.version}` : ''
-          // 【L17】先 hideLoading 再 showToast（共用原生单例，见 uploadFile 处注释）
-          wx.hideLoading()
-          wx.showToast({ title: `替换成功${version}`, icon: 'success' })
-          this.data.activeFolderId
-            ? this.openFolder({ currentTarget: { dataset: { id: this.data.activeFolderId, name: this.data.activeFolderName } } })
-            : this.loadFiles()
-          this.loadTabCounts()
-        }).catch((error) => { wx.hideLoading(); showError(error, '替换失败') }).finally(() => {
-          this.setFileData({ replacingId: '' })
-        })
-      },
-      fail: (error) => { if (error && error.errMsg && !error.errMsg.includes('cancel')) showError(error, '选择文件失败') }
-    })
-  },
+  // 【2026-10-26 用户令"三个点不需要替换"】列表页替换处理器与状态位随面板替换入口一并移除;
+  // 后端替换 API 与 PC 端能力不动, 详情页文件保留(契约仍钉其归一化字段与替换能力)。
   fetchFile(item, mode) {
     if (this.data.previewing) return
+    // 【2026-10-26 默认缓存】预览先查本地缓存: 同版本文件(含被替换前的旧版)秒开不再请求
+    if (mode === 'preview') {
+      const cached = fileCache.lookup(item)
+      if (cached) return this.openDownloadedFile(item, cached)
+    }
     const downloadUrl = getDownloadUrl({ id: item.id, ossKey: item.ossKey || item.fileUrl })
     if (!downloadUrl) return showError(new Error('缺少下载地址'), '文件下载失败')
     this.setData({ previewing: true })
@@ -1024,7 +993,9 @@ Page({
       success: (result) => {
         if (result.statusCode !== 200) return showError(new Error('文件下载失败'), '文件下载失败')
         if (mode === 'download') return this.saveDownloadedFile(result.tempFilePath)
-        this.openDownloadedFile(item, result.tempFilePath)
+        // 【默认缓存】预览下载落地缓存(失败 fail-open 用临时路径), 下次同版本秒开
+        const cached = fileCache.store(item, result.tempFilePath)
+        this.openDownloadedFile(item, cached || result.tempFilePath)
       },
       fail: (error) => showError(error, '文件下载失败'),
       complete: () => { done = true; wx.hideLoading(); this.setData({ previewing: false }) }
@@ -1104,7 +1075,6 @@ Page({
     if (act === 'open') return this.openFile(synthetic)
     if (act === 'download') return this.downloadFile(synthetic)
     if (act === 'share') return this.shareFile(synthetic)
-    if (act === 'replace') return this.replaceListFile(synthetic)
     if (act === 'delete') return this.removeFile(synthetic)
   },
   switchTab(event) { wx.switchTab({ url: event.currentTarget.dataset.url }) }

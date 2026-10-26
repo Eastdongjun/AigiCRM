@@ -66,7 +66,9 @@ grep -Fq 'item.downloadable === 0' "$PAGE" || fail 'mobile file page no longer h
 grep -Fq "perms.includes('download')" "$PAGE" || fail 'mobile file page no longer honors folder download permission'
 grep -Fq 'buildFileView' "$PAGE" || fail 'mobile file page must normalize page view state before WXML'
 grep -Fq 'buildFileRowView' "$PAGE" || fail 'mobile file rows must be normalized before WXML'
-grep -Fq 'replaceLoading' "$PAGE" || fail 'mobile file replace loading state must be normalized before WXML'
+# 【2026-10-26 重锚】用户令"三个点不需要替换"——替换入口随 replaceListFile 一并退役,
+# replaceLoading/replacingId/showReplace 状态位清退, 此钉改为防复活守卫
+! grep -Fq 'replaceLoading' "$PAGE" || fail 'file replace was retired by user order (2026-10-26); replaceLoading must not come back'
 grep -Fq 'showManageFolders' "$PAGE" || fail 'mobile file folder management visibility must be normalized before WXML'
 grep -Fq 'showManageEmpty' "$PAGE" || fail 'mobile file folder management empty state must be normalized before WXML'
 grep -Fq 'setFileData' "$PAGE" || fail 'mobile file page must refresh normalized view state with data changes'
@@ -100,9 +102,14 @@ grep -Fq 'uploaderName' "$PAGE" || fail 'mobile file list no longer preserves up
 grep -Fq 'typeof item.fileSize === '\''number'\''' "$PAGE" || fail 'mobile file list no longer formats numeric file sizes'
 grep -Fq 'uploaderNameText' "$PAGE" || fail 'mobile file list no longer normalizes uploader metadata'
 grep -Fq 'file.metaExtra' "$WXML" || fail 'mobile file list no longer displays uploader metadata'
-grep -Fq 'uploaderName=' "$PAGE" || fail 'mobile file detail navigation no longer passes uploader metadata'
-grep -Fq 'updatedAt=' "$PAGE" || fail 'mobile file detail navigation no longer passes updated time metadata'
-grep -Fq 'path=' "$PAGE" || fail 'mobile file detail navigation no longer passes path download fallback'
+# 【2026-10-26 重锚】用户令"一次点击一步打开 + 默认下载缓存": 点行 openFile 直达预览(委托
+# previewFile→fetchFile), 列表页不再跳文件详情页(详情页文件保留, 契约仍钉其归一化字段);
+# 缓存走 utils/file-cache(lookup 命中秒开 / store 落地, 均 fail-open)。
+grep -Fq "this.previewFile(event)" "$PAGE" || fail 'mobile file one-tap open must delegate to the preview pipeline'
+! grep -Fq '/pages/files/detail/index?' "$PAGE" || fail 'file list must not navigate back to the detail page (one-tap open, user order 2026-10-26)'
+grep -Fq "require('../../utils/file-cache')" "$PAGE" || fail 'mobile file preview cache module is not wired'
+grep -Fq 'fileCache.lookup(item)' "$PAGE" || fail 'mobile file preview must check the local cache before downloading'
+grep -Fq 'fileCache.store(item, result.tempFilePath)' "$PAGE" || fail 'mobile file preview must store downloads into the local cache'
 grep -Fq 'previewFile' "$PAGE" || fail 'mobile file list preview action disappeared'
 grep -Fq 'downloadFile' "$PAGE" || fail 'mobile file list download action disappeared'
 grep -Fq 'wx.downloadFile' "$PAGE" || fail 'mobile file list cannot download files for preview'
@@ -117,8 +124,9 @@ grep -Fq 'catchtap="openActionSheet"' "$WXML" || fail 'mobile file list download
 # 但 WXML 不再引用 item.showXxx, 改为渲染 actionSheet.actions(下载/分享/替换/删除按归一化结果进面板)
 grep -Fq 'const showDownload = item.canDownload !== false' "$PAGE" || fail 'mobile file list download visibility is not normalized like PC'
 grep -Fq "if (showDownload) sheetActions.push({ key: 'download'" "$PAGE" || fail 'mobile file list download UI no longer hides non-downloadable rows like PC'
-grep -Fq "if (showReplace) sheetActions.push({ key: 'replace'" "$PAGE" || fail 'mobile file list replace UI must use normalized row visibility'
-grep -Fq 'replaceLoading: String(data.replacingId' "$PAGE" || fail 'mobile file list replace UI must use normalized row loading state'
+# 【2026-10-26 重锚】用户令"三个点不需要替换"——面板替换项退役, 两钉改防复活
+! grep -Fq "sheetActions.push({ key: 'replace'" "$PAGE" || fail 'file sheet replace action was retired by user order (2026-10-26)'
+! grep -Fq 'replacingId' "$PAGE" || fail 'file replace state was retired by user order (2026-10-26); replacingId must not come back'
 grep -Fq "if (showDelete) sheetActions.push({ key: 'delete'" "$PAGE" || fail 'mobile file list delete UI must use normalized row visibility'
 grep -Fq "if (showShare) sheetActions.push({ key: 'share'" "$PAGE" || fail 'mobile file list share UI must use normalized row visibility'
 grep -Fq 'catchtap="onSheetAction"' "$WXML" || fail 'mobile file action sheet dispatch UI disappeared'
@@ -158,14 +166,17 @@ grep -Fq 'calls.openDocument.length === 1' "$AUTOMATOR_SCRIPT" || fail 'file cen
 grep -Fq 'file-center-actions.png' "$AUTOMATOR_SCRIPT" || fail 'file center DevTools automator does not capture UI evidence'
 grep -Fq '张三' "$AUTOMATOR_SCRIPT" || fail 'file center DevTools automator does not verify uploader metadata'
 grep -Fq '私人3' "$AUTOMATOR_SCRIPT" || fail 'file center DevTools automator does not verify tab count metadata'
-grep -Fq 'uploaderName=张三' "$AUTOMATOR_SCRIPT" || fail 'file center DevTools automator does not verify detail uploader metadata'
-grep -Fq 'updatedAt=今天 09:30' "$AUTOMATOR_SCRIPT" || fail 'file center DevTools automator does not verify detail update-time metadata'
+# 【2026-10-26 重锚】详情页跳转断言(uploaderName=/updatedAt=)随"一步打开"退役
 grep -Fq '2.8 MB' "$AUTOMATOR_SCRIPT" || fail 'file center DevTools automator does not verify formatted file size metadata'
 grep -Fq 'aclVisible: true' "$AUTOMATOR_SCRIPT" || fail 'file center DevTools automator does not verify folder ACL modal'
+# 【2026-10-26 重锚】用户令"一次点击一步打开"——automator 详情页跳转断言退役,
+# 改钉一步预览下载断言; 用户令"三个点不需要替换"——列表页替换入口/权限门/调用清退
+# (后端 replaceFile API 与详情页替换能力保留: 下方两处钉 API/详情页)
+grep -Fq 'one-tap preview download missing' "$AUTOMATOR_SCRIPT" || fail 'file center DevTools automator does not verify one-tap preview download'
 grep -Fq 'replaceFile' "$API" || fail 'mobile file replace API contract disappeared'
-grep -Fq "hasPermission('file:edit')" "$PAGE" || fail 'mobile file list replace permission gate disappeared'
-grep -Fq 'replaceListFile' "$PAGE" || fail 'mobile file list replace action disappeared'
-grep -Fq 'replaceFile(item.id, file.path)' "$PAGE" || fail 'mobile file list replace action does not call backend replace API'
+! grep -Fq "hasPermission('file:edit')" "$PAGE" || fail 'file list replace permission gate was retired by user order (2026-10-26)'
+! grep -Fq 'replaceListFile' "$PAGE" || fail 'file list replace action was retired by user order (2026-10-26)'
+! grep -Fq "replaceFile(item.id, file.path)" "$PAGE" || fail 'file list replace call was retired by user order (2026-10-26)'
 # 【钉随需求A】行内 replaceListFile 收敛到操作面板 onSheetAction(JS 方法保留)
 grep -Fq 'catchtap="openActionSheet"' "$WXML" || fail 'mobile file list replace UI disappeared'
 ! grep -Fq 'replacingId===item.id' "$WXML" || fail 'mobile file WXML must not compare replacing id directly'
