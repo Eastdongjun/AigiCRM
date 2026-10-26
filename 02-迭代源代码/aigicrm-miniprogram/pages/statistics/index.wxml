@@ -1,13 +1,8 @@
 <view class="page statistics-page">
-  <view class="stats-hero">
-    <view>
-      <view class="stats-kicker">经营看板</view>
-      <view class="stats-title">统计分析</view>
-      <view class="stats-sub">客户、审批、保护期风险一屏掌握</view>
-      <view class="stats-hero-metrics">
-        <text wx:for="{{statsView.heroMetrics}}" wx:key="*this">{{item}}</text>
-      </view>
-    </view>
+  <!-- 【2026-10-26 用户令"统计分析页面 注意骨架"】顶部四行 hero(看板语/副标题/指标胶囊)压成单行细条,
+       统一深蓝语言; 指标胶囊数字与下方经营信号区重复(本月新增/待审批), 删之不丢数据 -->
+  <view class="stats-hero stats-hero-bar">
+    <text class="stats-bar-title">统计分析</text>
     <button class="stats-refresh" bindtap="refresh" loading="{{statsView.refreshLoading}}">{{statsView.refreshText}}</button>
   </view>
 
@@ -80,15 +75,15 @@
     </view>
   </view>
 
+  <view class="stats-section-head"><text>保护期雷达</text><button class="text-btn" bindtap="openDetail">展开</button></view>
   <view class="card stats-risk-panel">
-    <view class="stats-section-head slim"><text>保护期雷达</text><button class="text-btn" bindtap="openDetail">展开</button></view>
     <view class="stats-grid">
       <view wx:for="{{statsView.riskTiles}}" wx:key="label" class="stats-tile {{item.tone}}"><view>{{item.value}}</view><text>{{item.label}}</text></view>
     </view>
   </view>
 
+  <view class="stats-section-head"><text>经营分析</text><button class="stats-refresh-btn" bindtap="refresh">↻</button></view>
   <view class="card stats-risk-panel">
-    <view class="stats-section-head"><text>经营分析</text><button class="stats-refresh-btn" bindtap="refresh">↻</button></view>
     <view class="stats-grid">
       <view wx:for="{{statsView.analysisTiles}}" wx:key="label" class="stats-tile {{item.tone}}"><view>{{item.value}}</view><text>{{item.label}}</text></view>
     </view>

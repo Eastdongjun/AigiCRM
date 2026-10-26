@@ -142,10 +142,7 @@ function buildStatsView(state = {}) {
     refreshText: loading ? '刷新中' : '刷新',
     showLoading: loading,
     loadingText: '统计分析加载中...',
-    heroMetrics: [
-      `本月新增 ${stats.monthNew || 0}`,
-      `待审批 ${approvalStats.pending || 0}`
-    ],
+    // 【2026-10-26 骨架合理化】heroMetrics 胶囊随 hero 压单行移除(本月新增/待审批在经营信号区重复呈现)
     yearLabel,
     deptLabel,
     filterSummary: `${yearLabel} · ${deptLabel}`,

@@ -2,6 +2,27 @@
   padding-bottom: 40rpx;
 }
 
+/* 【2026-10-26 用户令"统计分析页面 注意骨架"】hero 压单行细条: 与四项服务/应用中心顶部统一
+   (26rpx 圆角+深蓝渐变+同款阴影), 覆盖 app.wxss .stats-hero 的四行排版与装饰圆 */
+.stats-hero-bar {
+  align-items: center;
+  padding: 20rpx 24rpx;
+  border-radius: 26rpx;
+  background: linear-gradient(135deg, #0d1733 0%, #16337a 58%, #1d4ed8 100%);
+  box-shadow: 0 18rpx 38rpx rgba(13, 23, 51, .22);
+}
+
+.stats-hero-bar:after {
+  display: none;
+}
+
+.stats-bar-title {
+  font-size: 32rpx;
+  font-weight: 800;
+  color: #fff;
+  letter-spacing: 1rpx;
+}
+
 .stats-detail-action {
   display: flex;
   width: 236rpx;
