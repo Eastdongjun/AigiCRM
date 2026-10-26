@@ -60,7 +60,8 @@ class FileQuotaConcurrencyTest {
         svc = new FileService(fileMapper, mock(BizFileFolderMapper.class), mock(BizFileShareMapper.class),
                 mock(com.aigicrm.module.file.mapper.BizFolderAclMapper.class),
                 mock(com.aigicrm.module.incentive.mapper.BizIncentiveRecordMapper.class),
-                userMapper, provider, null /* ossConfig 本地模式不触 */, folderPermissionService);
+                userMapper, provider, null /* ossConfig 本地模式不触 */, folderPermissionService,
+                mock(org.springframework.jdbc.core.JdbcTemplate.class)); // 2026-10-27 shareFile 集团边界校验新增依赖
         ReflectionTestUtils.setField(svc, "storageType", "local");
         ReflectionTestUtils.setField(svc, "uploadDir", root.toString());
         when(folderPermissionService.check(anyLong(), org.mockito.ArgumentMatchers.<String>any(), anyLong())).thenReturn(true);

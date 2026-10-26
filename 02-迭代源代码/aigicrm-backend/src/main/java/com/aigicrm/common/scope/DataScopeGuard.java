@@ -13,6 +13,12 @@ import java.util.Set;
 /**
  * 统一归属校验（设计文档 §6）：写操作（PUT/DELETE/share）目标记录 owner
  * 必须 ∈ 当前用户可见范围；可见范围 = Resolver 结果 ∪ 分享授予（调用方传入）∪ 本人
+ *
+ * 【2026-10-27 深度检查标注】⚠️ 本组件当前无任何运行时消费者（实际归属守卫在各 Service 内联实现，
+ * 本类仅作为设计落点保留并有测试覆盖）。若未来接线请注意其语义是 fail-open 家族：
+ * resolver.resolve()==null（all 档）与 isVisible 的 scope==null 均按"放行"处理——
+ * 对新写路径接线前必须先确认调用方已把 null 语义等价为"管理员/全量档"，
+ * 否则应改用各 Service 的显式范围判定，不要默认本类兜底。
  */
 @Component
 @RequiredArgsConstructor

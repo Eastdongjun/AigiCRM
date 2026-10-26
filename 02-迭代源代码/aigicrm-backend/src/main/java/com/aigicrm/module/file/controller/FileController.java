@@ -33,11 +33,17 @@ public class FileController {
     /** 【D1=A 2026-10-18】在途 storage 单判定(与提交侧同一口径) */
     private final com.aigicrm.module.approval.service.ApprovalService approvalService;
 
-    /** F2: 签发短时下载专用 token（1h，scope=download，仅下载/导出路径可用）——主 JWT 不再进 URL/日志 */
+    /** F2: 签发短时下载专用 token（1h，scope=download，仅下载/导出路径可用）——主 JWT 不再进 URL/日志。
+     *  【2026-10-27 深度检查修复】dlToken 携带当前主 token 的 jti: 登出拉黑主 token 后, 派生下载 token 联动失效 */
     @GetMapping("/download-token")
-    public Result<Map<String, Object>> downloadToken() {
+    public Result<Map<String, Object>> downloadToken(jakarta.servlet.http.HttpServletRequest request) {
         Map<String, Object> data = new java.util.HashMap<>();
-        data.put("token", jwtTokenProvider.generateDownloadToken(SecurityUtils.getCurrentUserId()));
+        String auth = request != null ? request.getHeader("Authorization") : null;
+        String parentJti = null;
+        if (auth != null && auth.startsWith("Bearer ")) {
+            parentJti = jwtTokenProvider.getJtiFromToken(auth.substring(7));
+        }
+        data.put("token", jwtTokenProvider.generateDownloadToken(SecurityUtils.getCurrentUserId(), parentJti));
         return Result.ok(data);
     }
 

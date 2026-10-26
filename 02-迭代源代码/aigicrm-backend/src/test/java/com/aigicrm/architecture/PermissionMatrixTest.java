@@ -580,7 +580,8 @@ public class PermissionMatrixTest {
     void fileDownloadTokenEndpoint_issuesScopedShortLivedTokensOnlyForDownloadPaths() throws Exception {
         Class<com.aigicrm.module.file.controller.FileController> controller =
                 com.aigicrm.module.file.controller.FileController.class;
-        Method downloadToken = controller.getDeclaredMethod("downloadToken");
+        // 【2026-10-27 深度检查修复】downloadToken 增加 HttpServletRequest 入参(取主 token jti 联动撤销)
+        Method downloadToken = controller.getDeclaredMethod("downloadToken", jakarta.servlet.http.HttpServletRequest.class);
 
         assertTrue(downloadToken.isAnnotationPresent(org.springframework.web.bind.annotation.GetMapping.class),
                 "FileController.downloadToken 必须保留 GET 入口");
@@ -598,7 +599,8 @@ public class PermissionMatrixTest {
         } catch (IOException e) {
             throw new IllegalStateException("读取 FileController 源码失败", e);
         }
-        assertTrue(controllerBody.contains("jwtTokenProvider.generateDownloadToken(SecurityUtils.getCurrentUserId())"),
+        // 【2026-10-27 深度检查修复】第二个参数是父 token jti(登出联动撤销), 签发对象仍是当前登录用户
+        assertTrue(controllerBody.contains("jwtTokenProvider.generateDownloadToken(SecurityUtils.getCurrentUserId(), parentJti)"),
                 "downloadToken 必须用当前登录用户签发下载专用 token，不能签发匿名或固定用户 token");
 
         Path providerSrc = Paths.get("src/main/java/com/aigicrm/security/JwtTokenProvider.java")

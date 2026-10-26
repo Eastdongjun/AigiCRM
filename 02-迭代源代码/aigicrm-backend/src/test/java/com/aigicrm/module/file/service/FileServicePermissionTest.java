@@ -58,7 +58,8 @@ class FileServicePermissionTest {
     private final FolderPermissionService folderPermissionService = mock(FolderPermissionService.class);
     private final BizFolderAclMapper folderAclMapper = mock(BizFolderAclMapper.class);
     private final FileService svc = new FileService(fileMapper, folderMapper, fileShareMapper, folderAclMapper,
-            incentiveRecordMapper, userMapper, providerOf(ossClient), ossConfig, folderPermissionService);
+            incentiveRecordMapper, userMapper, providerOf(ossClient), ossConfig, folderPermissionService,
+            mock(org.springframework.jdbc.core.JdbcTemplate.class)); // 2026-10-27 shareFile 集团边界校验新增依赖
 
     private java.nio.file.Path thumbCacheDir;
 

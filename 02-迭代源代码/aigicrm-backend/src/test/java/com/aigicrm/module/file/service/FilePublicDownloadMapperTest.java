@@ -50,7 +50,8 @@ class FilePublicDownloadMapperTest {
             mock(SysUserMapper.class),
             providerOf(mock(OSS.class)),
             mock(OssConfig.class),
-            mock(FolderPermissionService.class));
+            mock(FolderPermissionService.class),
+            mock(org.springframework.jdbc.core.JdbcTemplate.class)); // 2026-10-27 shareFile 集团边界校验新增依赖
 
     private static ObjectProvider<OSS> providerOf(OSS client) {
         return new ObjectProvider<>() {

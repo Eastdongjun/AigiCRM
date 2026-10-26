@@ -43,6 +43,15 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                     filterChain.doFilter(request, response);
                     return;
                 }
+                // 【2026-10-27 深度检查修复】下载 token 随主 token 注销联动撤销: dlToken 带签发时主
+                // token 的 pjti——主 token 被拉黑(登出/踢下线)后其派生下载 token 一并失效
+                if ("download".equals(jwtTokenProvider.getScopeFromToken(token))) {
+                    String parentJti = jwtTokenProvider.getParentJtiFromToken(token);
+                    if (parentJti != null && jwtTokenProvider.isBlacklisted(parentJti)) {
+                        filterChain.doFilter(request, response);
+                        return;
+                    }
+                }
                 // 【修复 2026-08-10 P2-13】改密后早于改密时刻签发的旧 token 立即失效(含"记住我"7 天 token)
                 if (jwtTokenProvider.isInvalidatedByPasswordChange(token)) {
                     filterChain.doFilter(request, response);

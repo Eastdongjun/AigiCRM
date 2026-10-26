@@ -171,17 +171,36 @@ public class JwtTokenProvider {
         }
     }
 
-    /** 短时下载专用 token：scope=download，1h 有效（<img> 缩略图/导出无法带 header，避免主 JWT 进 URL/日志） */
+    /** 短时下载专用 token：scope=download，1h 有效（<img> 缩略图/导出无法带 header，避免主 JWT 进 URL/日志）。
+     *  【2026-10-27 深度检查修复】嵌入签发时主 token 的 jti(pjti)——主 token 注销拉黑后,
+     *  其派生的下载 token 随之失效(JwtAuthFilter 联检), 不再"登出后 1h 内仍可下载" */
     public String generateDownloadToken(Long userId) {
+        return generateDownloadToken(userId, null);
+    }
+
+    public String generateDownloadToken(Long userId, String parentJti) {
         Date now = new Date();
-        return Jwts.builder()
+        JwtBuilder builder = Jwts.builder()
                 .id(UUID.randomUUID().toString()) // 【修复 2026-08-10 P1-07】补充 jti，黑名单机制对下载 token 生效
                 .subject(String.valueOf(userId))
                 .claim("scope", "download")
                 .issuedAt(now)
                 .expiration(new Date(now.getTime() + DOWNLOAD_TOKEN_TTL_MS))
-                .signWith(getSigningKey())
-                .compact();
+                .signWith(getSigningKey());
+        if (parentJti != null && !parentJti.isBlank()) {
+            builder.claim("pjti", parentJti);
+        }
+        return builder.compact();
+    }
+
+    /** 下载 token 携带的父(主)token jti; 无该声明(历史 token)返回 null */
+    public String getParentJtiFromToken(String token) {
+        try {
+            Claims claims = Jwts.parser().verifyWith(getSigningKey()).build().parseSignedClaims(token).getPayload();
+            return claims.get("pjti", String.class);
+        } catch (JwtException | IllegalArgumentException e) {
+            return null;
+        }
     }
 
     // ==================== 改密后旧 token 失效 (P2-13 2026-08-10) ====================

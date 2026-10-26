@@ -12,6 +12,7 @@ import com.aigicrm.module.file.entity.BizFileShare;
 import com.aigicrm.module.file.entity.BizFolderAcl;
 import com.aigicrm.module.file.mapper.BizFileMapper;
 import com.aigicrm.module.file.mapper.BizFileFolderMapper;
+import org.springframework.jdbc.core.JdbcTemplate;
 import com.aigicrm.module.file.mapper.BizFileShareMapper;
 import com.aigicrm.module.file.mapper.BizFolderAclMapper;
 import com.aigicrm.module.incentive.entity.BizIncentiveRecord;
@@ -75,6 +76,8 @@ public class FileService {
     private final ObjectProvider<OSS> ossClientProvider;
     private final OssConfig ossConfig;
     private final FolderPermissionService folderPermissionService;
+    // 【2026-10-27 深度检查修复】shareFile 集团边界校验需要(同 CustomerService.addShares 范式)
+    private final JdbcTemplate jdbc;
 
     @Value("${file.storage-type:local}")
     private String storageType;
@@ -229,6 +232,13 @@ public class FileService {
         // （与 pageFiles/getFolderTree 的 scope 白名单对称，防止任意 scope 落盘后绕过查询过滤/占用存储）
         if (scope == null || !("public".equals(scope) || "private".equals(scope) || "incentive".equals(scope))) {
             throw new BusinessException(403, "非法的文件范围");
+        }
+
+        // 【2026-10-27 深度检查修复】无夹 public 上传补管理员门槛: 该路径落盘 public/{userId}/ 且
+        // file_scope=public 后立即进入匿名无鉴权下载通道(/api/file/download/public/**), 与
+        // "根级公共文件夹仅管理员可建"门槛对称——普通用户要发公共资源, 走公共文件夹(ACL 判定)。
+        if ("public".equals(scope) && folderId == null && !SecurityUtils.isAdmin()) {
+            throw new BusinessException("公共根目录文件仅管理员可上传");
         }
 
         // 【文件权限体系】上传到文件夹需文件夹上传权限（管理员/本人/上级链/ACL upload）
@@ -750,7 +760,9 @@ public class FileService {
                 }
                 return;
             }
-            if (file.getOssUrl() != null && file.getOssUrl().startsWith("http")) {
+            // 【2026-10-27 深度检查修复】OSS 302 与 FileController 路由白名单同口径:
+            // startsWith("http") 可被 httpx:// 绕过, 收紧为 https:// (OSS 地址均 https)
+            if (file.getOssUrl() != null && file.getOssUrl().startsWith("https://")) {
                 response.setStatus(302);
                 response.setHeader(HttpHeaders.LOCATION, file.getOssUrl());
                 return;
@@ -1060,7 +1072,7 @@ public class FileService {
     /** 仅供匿名 Logo 路径使用：只取 public 范围文件的 OSS 地址（与 downloadPublic 同授权口径） */
     public String getOssUrlByKey(String fileKey) {
         BizFile file = getPublicFileByKey(fileKey);
-        if (file != null && file.getOssUrl() != null && file.getOssUrl().startsWith("http")) {
+        if (file != null && file.getOssUrl() != null && file.getOssUrl().startsWith("https://")) {
             return file.getOssUrl();
         }
         return null;
@@ -1365,6 +1377,20 @@ public class FileService {
                 throw new BusinessException("无权分享该文件");
             }
         }
+        // 【2026-10-27 深度检查修复·PR-22 批次四同款】文件共享不得绕过集团边界: 此前跨集团分享
+        // 静默成功——写入乙集团用户永远看不到的死行(biz_file_share 被租户拦截器按查看者集团改写)。
+        if (!userIds.isEmpty()) {
+            Long group = com.aigicrm.common.scope.GroupScopeUtil.currentGroupOrNull();
+            if (group != null) {
+                List<Long> groupMembers = com.aigicrm.common.scope.GroupScopeUtil.userIdsInGroup(jdbc, group);
+                List<Long> foreign = userIds.stream().filter(uid -> !groupMembers.contains(uid)).toList();
+                if (!foreign.isEmpty()) {
+                    throw new BusinessException("不能共享给其他集团用户（目标用户不在当前集团）");
+                }
+            } else {
+                throw new BusinessException(403, "无有效集团归属，禁止共享");
+            }
+        }
         for (Long uid : userIds) {
             Long count = fileShareMapper.selectCount(
                     new LambdaQueryWrapper<BizFileShare>()
@@ -1379,7 +1405,6 @@ public class FileService {
             }
         }
     }
-
     public IPage<BizFile> pageSharedToMe(int current, int size, String keyword) {
         Long userId = SecurityUtils.getCurrentUserId();
         List<BizFileShare> shares = fileShareMapper.selectList(
