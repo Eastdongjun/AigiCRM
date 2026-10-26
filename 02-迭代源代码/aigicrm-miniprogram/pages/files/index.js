@@ -1,4 +1,4 @@
-const { getFolders, getStorageInfo, getStorageApplyInfo, getSharedToMe, getSharedToMeCount, getFileList, uploadFile, deleteFile, deleteFolder, getFolderAcl, shareFile: shareFileApi, getDownloadUrl, createFolder } = require('../../api/file')
+const { getFolders, getStorageInfo, getStorageApplyInfo, getSharedToMe, getSharedToMeCount, getFileList, uploadFile, deleteFile, deleteFolder, getFolderAcl, shareFile: shareFileApi, getDownloadUrl, getDownloadToken, createFolder } = require('../../api/file')
 // 【2026-10-26 用户令"默认下载缓存"】预览文件本地缓存(同版本秒开, LRU 200MB 上限)
 const fileCache = require('../../utils/file-cache')
 const { getCustomerRecords } = require('../../api/incentive')
@@ -50,6 +50,9 @@ function buildIncentiveFileRows(groups) {
           id: file.id,
           name,
           type: extension,
+          // 【2026-10-26 图片墙】保留 buildIncentiveFiles 的媒体分类(image/video/其他),
+          // 四项服务 tab 的墙瓦片按它出缩略/播放/文档面
+          fileType: file.type || '',
           size: typeof file.size === 'number' ? bytesToSize(file.size) : (file.size || '-'),
           folder: customerName,
           customerName,
@@ -68,6 +71,36 @@ function buildIncentiveFileRows(groups) {
     })
   })
   return Array.from(map.values()).sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt)))
+}
+
+// 【2026-10-26 图片墙】<image> 标签无法携带 Authorization 头, 缩略/预览 URL 追加一次性
+// 下载 token(与激励详情页 thumbUrlOf 同款口径)
+function withDownloadToken(url, token) {
+  if (!url || !token) return ''
+  const sep = url.indexOf('?') >= 0 ? '&' : '?'
+  return url + sep + 'token=' + encodeURIComponent(token)
+}
+
+const WALL_IMAGE_EXTS = ['JPG', 'JPEG', 'PNG', 'GIF', 'WEBP', 'BMP']
+
+/** 图片墙瓦片: 图片=缩略直出(点开全屏预览), 视频=播放面, 文档=类型面; 均不带文件名 */
+function buildWallTiles(files, token) {
+  return (files || []).map((item) => {
+    const isImage = item.fileType === 'image' || WALL_IMAGE_EXTS.includes(String(item.type || '').toUpperCase())
+    const ref = { id: item.id, ossKey: item.ossKey || item.fileUrl }
+    const thumbUrl = isImage ? withDownloadToken(getDownloadUrl(ref, true), token) : ''
+    const fullUrl = isImage ? withDownloadToken(getDownloadUrl(ref), token) : ''
+    return {
+      id: item.id,
+      flatIndex: item.flatIndex,
+      isImage,
+      isVideo: item.fileType === 'video',
+      showThumb: isImage && Boolean(thumbUrl),
+      thumbUrl,
+      fullUrl,
+      typeText: item.typeText
+    }
+  })
 }
 
 // 【D1-A】配额展示保留一位小数(10.5 GB 不能显示成 11 GB);文件大小仍走上面的既有口径
@@ -345,6 +378,9 @@ function buildFileView(data) {
     showManageEmpty: !hasManageFolders,
     fileGroups,
     files,
+    // 【2026-10-26 用户令"图片可预览当前页/不显示文件名/翻页自动预览"】四项服务 tab 改图片墙:
+    // 当前页(filteredFiles 即本页切片)文件直出缩略图, 无文件名清单; 翻页重建视图自动加载新页缩略
+    wallTiles: isIncentiveTab ? buildWallTiles(files, data.dlToken || '') : [],
     fileCountText: `共 ${fileCount} 个文件`,
     showFileList: files.length > 0,
     showEmpty: files.length === 0 && !data.previewVideoPath && !loading,
@@ -358,7 +394,7 @@ function buildFileView(data) {
 }
 
 Page({
-  data: { keyword: '', activeTab: '公共', activeFolderId: '', activeFolderName: '', tabs: ['公共', '私人', '四项服务', '分享给我'], tabCounts: { 公共: 0, 私人: 0, 四项服务: 0, 分享给我: 0 }, folders: [], files: [], filteredFiles: [], capacity: { used: '-', total: '-', percent: 0, hint: '存储统计加载中' }, canUpload: false, canDelete: false, canShare: false, canManageFolder: false, canViewFolderAcl: false, canDevUploadSmoke: false, uploading: false, loaded: false, loading: false, page: 1, pageSize: 10, total: 0, folderPerms: [], folderDownloadable: 1, aclVisible: false, aclLoading: false, aclFolderName: '', aclRows: [], previewing: false, previewVideoPath: '', actionSheet: { visible: false, index: -1, name: '', actions: [] }, storageApplyInfo: { enabled: false, canApply: false, reason: '', used: 0, quota: 0, maxQuota: 0, allowDecrease: false }, storageApplyForm: { visible: false, submitting: false, quotaInput: '', reasonInput: '', errorText: '' }, storageApplyView: buildStorageApplyView({}), fileView: buildFileView({ tabs: ['公共', '私人', '四项服务', '分享给我'], tabCounts: { 公共: 0, 私人: 0, 四项服务: 0, 分享给我: 0 }, folders: [], filteredFiles: [], activeTab: '公共', activeFolderName: '', previewVideoPath: '', total: 0 }) },
+  data: { keyword: '', activeTab: '公共', activeFolderId: '', activeFolderName: '', tabs: ['公共', '私人', '四项服务', '分享给我'], tabCounts: { 公共: 0, 私人: 0, 四项服务: 0, 分享给我: 0 }, folders: [], files: [], filteredFiles: [], capacity: { used: '-', total: '-', percent: 0, hint: '存储统计加载中' }, canUpload: false, canDelete: false, canShare: false, canManageFolder: false, canViewFolderAcl: false, canDevUploadSmoke: false, uploading: false, loaded: false, loading: false, page: 1, pageSize: 10, total: 0, folderPerms: [], folderDownloadable: 1, aclVisible: false, aclLoading: false, aclFolderName: '', aclRows: [], previewing: false, dlToken: '', previewVideoPath: '', actionSheet: { visible: false, index: -1, name: '', actions: [] }, storageApplyInfo: { enabled: false, canApply: false, reason: '', used: 0, quota: 0, maxQuota: 0, allowDecrease: false }, storageApplyForm: { visible: false, submitting: false, quotaInput: '', reasonInput: '', errorText: '' }, storageApplyView: buildStorageApplyView({}), fileView: buildFileView({ tabs: ['公共', '私人', '四项服务', '分享给我'], tabCounts: { 公共: 0, 私人: 0, 四项服务: 0, 分享给我: 0 }, folders: [], filteredFiles: [], activeTab: '公共', activeFolderName: '', previewVideoPath: '', total: 0 }) },
 
   setFileData(patch) {
     const nextData = { ...this.data, ...patch }
@@ -581,13 +617,15 @@ Page({
     const requestSeq = (this._incentiveReqSeq = (this._incentiveReqSeq || 0) + 1)
     this._filesLoading = true
     this.setFileData({ loading: true, page: 1, folders: [] })
+    // 【图片墙】缩略/预览 URL 需一次性下载 token(<image> 无法带鉴权头), 与记录拉取并行
+    const tokenReady = this.ensureDlToken()
     return getCustomerRecords({}).then((groups) => {
       if (requestSeq !== this._incentiveReqSeq) return
       const rows = buildIncentiveFileRows(Array.isArray(groups) ? groups : [])
       this._incentiveFileRows = rows
       // Tab 徽标与可检索文件行同口径，避免徽标 1727、列表 1829 的错位
       this.setFileData({ tabCounts: { ...this.data.tabCounts, '四项服务': rows.length } })
-      this.applyIncentiveFileFilter(page, pageSize)
+      return tokenReady.then(() => this.applyIncentiveFileFilter(page, pageSize))
     }).catch((error) => {
       if (requestSeq !== this._incentiveReqSeq) return
       this._incentiveFileRows = []
@@ -596,6 +634,36 @@ Page({
     }).finally(() => {
       if (requestSeq === this._incentiveReqSeq) this._filesLoading = false
     })
+  },
+
+  /** 一次性下载 token(图片墙 URL 用): 页内缓存, 失败返回空串=墙瓦片退化为类型面(不阻塞) */
+  ensureDlToken() {
+    if (getApp().globalData.demoMode) return Promise.resolve('')
+    if (this.data.dlToken) return Promise.resolve(this.data.dlToken)
+    if (this._dlTokenPromise) return this._dlTokenPromise
+    this._dlTokenPromise = getDownloadToken().then((result) => {
+      this._dlTokenPromise = null
+      const token = (result && (result.token || (result.data && result.data.token))) || ''
+      this.setData({ dlToken: token })
+      return token
+    }).catch(() => {
+      this._dlTokenPromise = null
+      return ''
+    })
+    return this._dlTokenPromise
+  },
+
+  /** 图片墙瓦片点击: 图片=全屏预览(可左右滑完当前页所有图片), 视频/文档=走一步预览管线 */
+  previewWallImage(event) {
+    const index = Number(event.currentTarget.dataset.index)
+    const tile = (this.data.fileView.wallTiles || [])[index]
+    if (!tile) return
+    if (tile.isImage && tile.fullUrl) {
+      const urls = (this.data.fileView.wallTiles || []).filter((item) => item.isImage && item.fullUrl).map((item) => item.fullUrl)
+      wx.previewImage({ urls: urls.length ? urls : [tile.fullUrl], current: tile.fullUrl, fail: (error) => showError(error, '图片预览失败') })
+      return
+    }
+    this.openFile({ currentTarget: { dataset: { index: tile.flatIndex } } })
   },
 
   applyIncentiveFileFilter(page = 1, pageSize = this.data.pageSize || 10, keywordOverride) {

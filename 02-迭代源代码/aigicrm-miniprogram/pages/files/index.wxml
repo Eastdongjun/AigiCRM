@@ -36,6 +36,16 @@
   </view>
   <view wx:if="{{fileView.showLoading}}" class="muted">{{fileView.loadingText}}</view>
   <view wx:if="{{fileView.showFileList}}" class="file-list">
+    <!-- 【2026-10-26 用户令】四项服务 tab = 图片墙: 当前页图片缩略直出不显示文件名,
+         翻页重建视图自动加载新页缩略; 点图全屏预览(可滑完当前页图片), 视频/文档走一步预览 -->
+    <view wx:if="{{activeTab === '四项服务'}}" class="files-wall">
+      <view wx:for="{{fileView.wallTiles}}" wx:key="id" wx:for-item="tile" class="files-tile" data-index="{{index}}" bindtap="previewWallImage">
+        <image wx:if="{{tile.showThumb}}" class="files-tile-img" src="{{tile.thumbUrl}}" mode="aspectFill" lazy-load="{{true}}" />
+        <view wx:elif="{{tile.isVideo}}" class="files-tile-face video"><view class="files-tile-play">▶</view></view>
+        <view wx:else class="files-tile-face doc"><text class="files-tile-type">{{tile.typeText}}</text></view>
+      </view>
+    </view>
+    <block wx:else>
     <block wx:for="{{fileView.fileGroups}}" wx:key="key" wx:for-item="group" wx:for-index="groupIdx">
       <view class="file-group-head">{{group.label}} · {{group.count}}</view>
       <view wx:for="{{group.files}}" wx:key="id" wx:for-item="file" class="file-row" data-index="{{file.flatIndex}}" bindtap="openFile" bind:longpress="openActionSheet">
@@ -47,6 +57,7 @@
         </view>
         <view class="file-more-btn" catchtap="openActionSheet" data-index="{{file.flatIndex}}">···</view>
       </view>
+    </block>
     </block>
   </view>
   <video wx:if="{{previewVideoPath}}" src="{{previewVideoPath}}" controls class="file-preview-video"></video>

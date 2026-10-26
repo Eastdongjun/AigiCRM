@@ -110,6 +110,12 @@ grep -Fq "this.previewFile(event)" "$PAGE" || fail 'mobile file one-tap open mus
 grep -Fq "require('../../utils/file-cache')" "$PAGE" || fail 'mobile file preview cache module is not wired'
 grep -Fq 'fileCache.lookup(item)' "$PAGE" || fail 'mobile file preview must check the local cache before downloading'
 grep -Fq 'fileCache.store(item, result.tempFilePath)' "$PAGE" || fail 'mobile file preview must store downloads into the local cache'
+# 【2026-10-26 用户令"图片可预览当前页/不显示文件名/翻页自动预览"】四项服务 tab 改图片墙:
+# 当前页缩略直出(token 追加在 URL), 翻页由视图重建自动加载; 清单行仅其余 tab 渲染
+grep -Fq "wallTiles: isIncentiveTab ? buildWallTiles(files, data.dlToken" "$PAGE" || fail 'mobile file incentive tab must build thumbnail wall tiles for the current page'
+grep -Fq 'withDownloadToken(getDownloadUrl(ref, true), token)' "$PAGE" || fail 'mobile file wall thumbnails must carry the one-time download token'
+grep -Fq 'class="files-wall"' "$WXML" || fail 'mobile file incentive tab wall UI disappeared'
+grep -Fq 'bindtap="previewWallImage"' "$WXML" || fail 'mobile file wall tap-to-preview action disappeared'
 grep -Fq 'previewFile' "$PAGE" || fail 'mobile file list preview action disappeared'
 grep -Fq 'downloadFile' "$PAGE" || fail 'mobile file list download action disappeared'
 grep -Fq 'wx.downloadFile' "$PAGE" || fail 'mobile file list cannot download files for preview'
