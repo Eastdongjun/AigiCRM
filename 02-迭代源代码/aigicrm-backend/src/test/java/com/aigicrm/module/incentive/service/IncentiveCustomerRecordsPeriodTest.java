@@ -43,7 +43,7 @@ class IncentiveCustomerRecordsPeriodTest {
         try (MockedStatic<com.aigicrm.security.SecurityUtils> m = mockStatic(com.aigicrm.security.SecurityUtils.class)) {
             m.when(com.aigicrm.security.SecurityUtils::isAdmin).thenReturn(true);
             m.when(com.aigicrm.security.SecurityUtils::getCurrentUserId).thenReturn(1L);
-            target.getCustomerRecords(null, null, null, null, null, null, period, null, null, null, null);
+            target.getCustomerRecords(null, null, null, null, null, null, period, null, null, null, null, null);
         }
         @SuppressWarnings("unchecked") // LambdaQueryWrapper 泛型擦除，捕获必需的 unchecked（与 IncentiveSpecificProductTest 同款）
         ArgumentCaptor<com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<BizIncentiveRecord>> cap =

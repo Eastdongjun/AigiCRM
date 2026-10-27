@@ -476,10 +476,19 @@ grep -q 'showTrialRemark' "$detail_wxml" || { echo "FAIL: incentive detail trial
 grep -q 'detailLabelOf' "$detail_page" || { echo "FAIL: incentive detail label does not follow PC category semantics" >&2; exit 1; }
 grep -q 'remarkLabelOf' "$detail_page" || { echo "FAIL: incentive detail remark label does not follow PC category semantics" >&2; exit 1; }
 grep -q 'incentiveCodeOf' "$detail_page" || { echo "FAIL: incentive detail cannot classify record categories for mobile labels" >&2; exit 1; }
+# 【性能 2026-10-27】拨盘详情页数据拉取: recordId 定位只拉该记录所属客户一组(此前全量 544KB 再
+# 客户端线性查找); 旧后端不识别 recordId 返回全量时须回退客户端查找(两侧兼容), 不得回退成无参全量
+grep -q 'getCustomerRecords({ recordId: this.data.id })' "$detail_page" || { echo "FAIL: incentive detail must locate its record via the recordId-scoped customer-records query" >&2; exit 1; }
+grep -q 'list.length === 1 ? list\[0\] : null' "$detail_page" || { echo "FAIL: incentive detail must consume the single-group recordId response with a full-list fallback" >&2; exit 1; }
 # 【2026-09-20 小程序同步轮】三联拨盘:原生 picker-view 三列(iOS 滚轮),钉住 PC 定稿语义防回退——
 # 位置语义(拨到哪显示哪)/整月兜底/每月完整天数(闰年自动)/年份自增/回到今天/实时时钟/「此时间无数据」空态
 grep -q '<picker-view' "$detail_wxml" || { echo "FAIL: incentive detail dial must use native picker-view columns" >&2; exit 1; }
 grep -q 'bindchange="onDialChange"' "$detail_wxml" || { echo "FAIL: incentive detail dial change handler is missing" >&2; exit 1; }
+# 【性能 2026-10-27】拨盘滚动局部更新: 滚轮连发时不再整页重建 detailView(整包 setData 是滑动掉帧
+# 直接来源), 只以路径键写回联动区; 全量重建与局部更新共用 buildDialPane 同一口径防漂移
+grep -q 'function buildDialPane' "$detail_page" || { echo "FAIL: incentive detail dial pane builder must be shared by full rebuild and dial changes" >&2; exit 1; }
+grep -q 'applyDialSelection(selYear, selMonth, selDay, columnsChanged)' "$detail_page" || { echo "FAIL: incentive detail dial changes must go through the partial-update path" >&2; exit 1; }
+grep -q "'detailView.dialMonths': pane.dialMonths" "$detail_page" || { echo "FAIL: incentive detail partial update must write only the affected detailView keys" >&2; exit 1; }
 grep -q 'detailView.dialYears' "$detail_wxml" || { echo "FAIL: incentive detail year dial must render normalized years" >&2; exit 1; }
 grep -q 'detailView.dialMonths' "$detail_wxml" || { echo "FAIL: incentive detail month dial must render normalized months" >&2; exit 1; }
 grep -q 'detailView.dialDays' "$detail_wxml" || { echo "FAIL: incentive detail day dial must render normalized days" >&2; exit 1; }

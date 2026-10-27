@@ -210,42 +210,61 @@ function safeApp() {
   return typeof getApp === 'function' ? getApp() : null
 }
 
-function buildDetailView(data) {
+// 删除/编辑授权: admin∨专项授权∨本人记录(与后端守卫同口径)——模块级供全量重建与拨盘局部更新共用
+function canDeleteOf(data, record) {
   const app = safeApp()
-  const demoMode = Boolean(app && app.globalData && app.globalData.demoMode)
-  const user = (app && app.globalData && app.globalData.currentUser) || {}
-  const userId = user.id || user.userId || ''
-  const canDeleteRecords = Boolean(data.canDeleteRecords)
-  const canDeleteOf = (record) => {
-    if (!record || demoMode) return false
-    const ownerId = record.userId || record.salespersonId
-    return Boolean(canDeleteRecords || (userId && ownerId && String(userId) === String(ownerId)))
+  if (!record || (app && app.globalData && app.globalData.demoMode)) return false
+  if (data.canDeleteRecords) return true
+  const ownerId = record.userId || record.salespersonId
+  const userId = currentUserId()
+  return Boolean(userId && ownerId && String(userId) === String(ownerId))
+}
+
+function canEditOf(data, record) {
+  const app = safeApp()
+  if (!record || (app && app.globalData && app.globalData.demoMode)) return false
+  if (data.canEditRecords) return true
+  const ownerId = record.userId || record.salespersonId
+  const userId = currentUserId()
+  return Boolean(userId && ownerId && String(userId) === String(ownerId))
+}
+
+/** 拨盘联动区(随 selYear/selMonth/selMonth/selDay 变化的全部字段)。全量重建(buildDetailView)
+    与拨盘滚动局部更新(applyDialSelection)共用同一出口, 防两条路径口径漂移。 */
+function buildDialPane(effective, groups, dialYears, now) {
+  const dialMonths = buildDialMonths(groups, effective.selYear, now)
+  const dialDays = buildDialDays(groups, effective.selYear, effective.selMonth, now)
+  const yearIndex = Math.max(0, dialYears.findIndex((item) => item.key === String(effective.selYear)))
+  const dayIndex = Math.min(Math.max(effective.selDay, 0), dialDays.length - 1)
+  const activeGroup = groups.find((group) => group.key === `${effective.selYear}-${pad2(effective.selMonth)}`) || null
+  const displayRecords = !activeGroup ? [] : (effective.selDay ? activeGroup.items.filter((record) => {
+    const date = parseDate(record.createdAt)
+    return date ? date.getDate() === effective.selDay : false
+  }) : activeGroup.items)
+  const items = displayRecords.map((record) => buildItemView(record, canDeleteOf(effective, record), canEditOf(effective, record), now, effective.dlToken || ''))
+  const paneLabelText = `${effective.selYear}年${effective.selMonth}月${effective.selDay ? ` · ${effective.selDay}日` : ''}`
+  return {
+    dialMonths,
+    dialDays,
+    dialValue: [yearIndex, effective.selMonth - 1, dayIndex],
+    paneLabelText,
+    paneCountText: `${items.length} 条`,
+    showPaneEmpty: !effective.loading && (effective.records || []).length > 0 && items.length === 0,
+    paneEmptyTitle: `${paneLabelText}，此时间无数据`,
+    items
   }
-  // 编辑/追加文件与删除同口径: admin ∨ can_edit 授权 ∨ 本人记录(后端 updateRecord 同守卫)
-  const canEditRecords = Boolean(data.canEditRecords)
-  const canEditOf = (record) => {
-    if (!record || demoMode) return false
-    const ownerId = record.userId || record.salespersonId
-    return Boolean(canEditRecords || (userId && ownerId && String(userId) === String(ownerId)))
-  }
+}
+
+function buildDetailView(data, groups) {
   const now = new Date()
   const loading = Boolean(data.loading)
   const records = data.records || []
-  const groups = groupRecordsByMonth(records)
-  const dialYears = buildDialYears(groups, now)
+  const recordGroups = groups || groupRecordsByMonth(records)
+  const dialYears = buildDialYears(recordGroups, now)
   const selYear = data.selYear || (dialYears.length ? dialYears[dialYears.length - 1].key : String(now.getFullYear()))
   const selMonth = Number(data.selMonth) || now.getMonth() + 1
   const selDay = Number(data.selDay) || 0
-  const dialMonths = buildDialMonths(groups, selYear, now)
-  const dialDays = buildDialDays(groups, selYear, selMonth, now)
-  const yearIndex = Math.max(0, dialYears.findIndex((item) => item.key === String(selYear)))
-  const dayIndex = Math.min(Math.max(selDay, 0), dialDays.length - 1)
-  const activeGroup = groups.find((group) => group.key === `${selYear}-${pad2(selMonth)}`) || null
-  const displayRecords = !activeGroup ? [] : (selDay ? activeGroup.items.filter((record) => {
-    const date = parseDate(record.createdAt)
-    return date ? date.getDate() === selDay : false
-  }) : activeGroup.items)
-  const items = displayRecords.map((record) => buildItemView(record, canDeleteOf(record), canEditOf(record), now, data.dlToken || ''))
+  const pane = buildDialPane({ ...data, selYear, selMonth, selDay }, recordGroups, dialYears, now)
   const customer = data.customer || {}
   const customerName = customer.customerName || (data.record && (data.record.customerName || data.record.name)) || ''
   const latest = records.reduce((best, item) => {
@@ -254,7 +273,6 @@ function buildDetailView(data) {
   }, null)
   const latestDate = latest ? parseDate(latest.createdAt) : null
   const unreadCount = records.filter((record) => record.unread).length
-  const paneLabelText = `${selYear}年${selMonth}月${selDay ? ` · ${selDay}日` : ''}`
   const scoreValue = data.customerScore !== null && data.customerScore !== undefined
     ? data.customerScore
     : customer.totalScore || 0
@@ -270,23 +288,15 @@ function buildDetailView(data) {
     scoreText: String(scoreValue),
     scoreCaption: '客户累计积分',
     recordCountText: `${records.length} 条记录`,
-    monthCountText: `${groups.length} 个月份`,
+    monthCountText: `${recordGroups.length} 个月份`,
     showUnread: unreadCount > 0,
     unreadCountText: `${unreadCount} 未读`,
     showDial: records.length > 0,
     dialYears,
-    dialMonths,
-    dialDays,
-    dialValue: [yearIndex, selMonth - 1, dayIndex],
     nowDateText: `${now.getFullYear()}-${pad2(now.getMonth() + 1)}-${pad2(now.getDate())} 周${WEEK_LABELS[now.getDay()]}`,
     nowTimeText: `${pad2(now.getHours())}:${pad2(now.getMinutes())}:${pad2(now.getSeconds())}`,
-    paneLabelText,
-    paneCountText: `${items.length} 条`,
-    showPaneEmpty: !loading && records.length > 0 && items.length === 0,
-    paneEmptyTitle: `${paneLabelText}，此时间无数据`,
-    paneEmptyHint: '拨动上方年 / 月 / 日转盘，深色选项才有激励记录',
-    items,
-    previewLoading: Boolean(data.previewing)
+    previewLoading: Boolean(data.previewing),
+    ...pane
   }
 }
 
@@ -318,9 +328,17 @@ Page({
     canDeleteRecords: false,
     canEditRecords: false
   },
+  /** 按月分组缓存: records 引用不变即复用(拨盘滚动反复重分组是滑动掉帧来源之一) */
+  dialGroupsOf(records) {
+    if (this._dialGroupsFor !== records || !this._dialGroups) {
+      this._dialGroups = groupRecordsByMonth(records || [])
+      this._dialGroupsFor = records
+    }
+    return this._dialGroups
+  },
   setDetailData(patch) {
     const next = { ...this.data, ...patch }
-    const detailView = buildDetailView(next)
+    const detailView = buildDetailView(next, this.dialGroupsOf(next.records))
     this.setData({
       ...patch,
       detailView
@@ -410,9 +428,16 @@ Page({
       this.setDetailData({ loading: false, customerScore: siblings.reduce((sum, row) => sum + (Number(row.score) || 0), 0) })
       return Promise.resolve()
     }
-    return getCustomerRecords().then((rows) => {
-      const row = (rows || []).find((customer) => (customer.records || []).some((item) => String(item.id) === String(this.data.id)))
-      const record = row && row.records.find((item) => String(item.id) === String(this.data.id))
+    // 【性能 2026-10-27】recordId 定位只拉该记录所属客户的一组数据(此前全量 544KB 再客户端
+    // 线性查找一条); 旧后端不识别该参数会返回全量 → 回退客户端查找, 两侧兼容
+    return getCustomerRecords({ recordId: this.data.id }).then((rows) => {
+      const list = Array.isArray(rows) ? rows : []
+      let row = list.length === 1 ? list[0] : null
+      let record = row && (row.records || []).find((item) => String(item.id) === String(this.data.id))
+      if (!record) {
+        row = list.find((customer) => (customer.records || []).some((item) => String(item.id) === String(this.data.id))) || null
+        record = row && (row.records || []).find((item) => String(item.id) === String(this.data.id))
+      }
       if (!record) throw new Error('找不到四项服务记录')
       this.applyCustomer(row, row.records, record)
       if (record.unread) this.markFocusedRead(record)
@@ -491,15 +516,42 @@ Page({
     if (!yearItem || !monthItem || !dayItem) return
     const yearChanged = yearItem.key !== String(this.data.selYear)
     const monthChanged = monthItem.m !== Number(this.data.selMonth)
-    this.setDetailData({
-      selYear: yearItem.key,
-      selMonth: monthItem.m,
-      selDay: yearChanged || monthChanged ? 0 : dayItem.d
-    })
+    this.applyDialSelection(yearItem.key, monthItem.m, yearChanged || monthChanged ? 0 : dayItem.d, yearChanged || monthChanged)
   },
   goToday() {
     const now = new Date()
-    this.setDetailData({ selYear: String(now.getFullYear()), selMonth: now.getMonth() + 1, selDay: now.getDate() })
+    this.applyDialSelection(String(now.getFullYear()), now.getMonth() + 1, now.getDate(), true)
+  },
+  /** 【性能 2026-10-27】拨盘局部更新: 只重算联动区(月/日列/面板记录卡)并以路径键写回,
+      不再整页重建 detailView——hero/未读角标/记录数等静态字段与拨盘无关, 滚轮连发时
+      整包 setData 是滑动掉帧的直接来源。与 buildDetailView 共用 buildDialPane 同一口径。 */
+  applyDialSelection(selYear, selMonth, selDay, columnsChanged) {
+    const dial = this.data.detailView
+    const groups = this.dialGroupsOf(this.data.records)
+    const dialYears = (dial && dial.dialYears && dial.dialYears.length) ? dial.dialYears : buildDialYears(groups, new Date())
+    const pane = buildDialPane({ ...this.data, selYear, selMonth, selDay }, groups, dialYears, new Date())
+    this.setData({
+      selYear,
+      selMonth,
+      selDay,
+      'detailView.dialMonths': pane.dialMonths,
+      'detailView.dialDays': pane.dialDays,
+      'detailView.dialValue': pane.dialValue,
+      'detailView.paneLabelText': pane.paneLabelText,
+      'detailView.paneCountText': pane.paneCountText,
+      'detailView.showPaneEmpty': pane.showPaneEmpty,
+      'detailView.paneEmptyTitle': pane.paneEmptyTitle,
+      'detailView.items': pane.items
+    })
+    // 【picker-view 修复 2026-09-20】列数据与 value 同帧 setData 时列不按 value 滚动:
+    // 列重排(年/月变化)下一拍重申同值 value 触发对位; 纯拨日不重排列无需重申
+    if (columnsChanged) {
+      if (this._dialValueTimer) clearTimeout(this._dialValueTimer)
+      this._dialValueTimer = setTimeout(() => {
+        this._dialValueTimer = null
+        this.setData({ 'detailView.dialValue': pane.dialValue })
+      }, 50)
+    }
   },
   findAttachment(event) {
     const dataset = event.currentTarget.dataset

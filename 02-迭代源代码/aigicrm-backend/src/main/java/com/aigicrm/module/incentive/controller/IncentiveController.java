@@ -182,8 +182,11 @@ public class IncentiveController {
             @RequestParam(required = false) String orgIds,
             @RequestParam(required = false) String devType,
             @RequestParam(required = false) String product,
-            @RequestParam(required = false) String keyword) {
-        return Result.ok(incentiveService.getCustomerRecords(industry, mainCategoryId, customerName, salesperson, startDate, endDate, period, orgIds, devType, product, keyword));
+            @RequestParam(required = false) String keyword,
+            // 【性能 2026-10-27】recordId 定位: 小程序拨盘详情页只拉该记录所属客户的一组数据,
+            // 替代"全量下载所有客户记录再客户端线性查找"(生产实测全量 544KB/TTFB 0.9s)
+            @RequestParam(required = false) Long recordId) {
+        return Result.ok(incentiveService.getCustomerRecords(industry, mainCategoryId, customerName, salesperson, startDate, endDate, period, orgIds, devType, product, keyword, recordId));
     }
 
     @PreAuthorize("hasAuthority('incentive:view')")

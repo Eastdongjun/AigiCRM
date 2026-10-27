@@ -168,7 +168,7 @@ class IncentiveSpecificProductTest {
             m.when(com.aigicrm.security.SecurityUtils::getCurrentUserId).thenReturn(1L);
 
             // keyword 命中"具体产品"场景（无客户名）；period 位随 P1-1 新增（无周期筛选传 null）
-            svc.getCustomerRecords(null, null, null, null, null, null, null, null, null, null, "XX密封圈");
+            svc.getCustomerRecords(null, null, null, null, null, null, null, null, null, null, "XX密封圈", null);
         }
 
         @SuppressWarnings("unchecked") // forClass 需具体类, LambdaQueryWrapper 泛型参数擦除, 必须的 unchecked

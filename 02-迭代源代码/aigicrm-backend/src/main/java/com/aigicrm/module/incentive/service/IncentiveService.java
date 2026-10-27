@@ -1035,11 +1035,22 @@ public class IncentiveService {
     /** 按客户分组查询激励记录 — 多维度筛选（2026-08-01 新增 product/keyword 搜索与四区排序） */
     public List<Map<String, Object>> getCustomerRecords(String industry, Long mainCategoryId,
             String customerName, String salesperson, String startDate, String endDate, String period,
-            String orgIds, String devType, String product, String keyword) {
+            String orgIds, String devType, String product, String keyword, Long recordId) {
         LambdaQueryWrapper<BizIncentiveRecord> wrapper = new LambdaQueryWrapper<>();
         wrapper.isNotNull(BizIncentiveRecord::getCustomerId);
         // 【2026-08-08 分享制】激励查询明细按分享制可见：admin/专项授权→全部，否则本人+已分享（未分享对他人不可见）
         applyShareVisibility(wrapper);
+        // 【性能 2026-10-27】recordId 定位: 先按分享可见性取种子记录, 命中即把查询收窄到
+        // 该记录所属客户(与全量接口的可见性口径一致——返回组内仍只含本人+已分享记录);
+        // 种子不可见/不存在 → 空结果(与全量里找不到该记录同语义)。
+        if (recordId != null) {
+            LambdaQueryWrapper<BizIncentiveRecord> seed = new LambdaQueryWrapper<>();
+            seed.eq(BizIncentiveRecord::getId, recordId).isNotNull(BizIncentiveRecord::getCustomerId);
+            applyShareVisibility(seed);
+            List<BizIncentiveRecord> seedRows = recordMapper.selectList(seed);
+            if (seedRows.isEmpty()) return List.of();
+            wrapper.eq(BizIncentiveRecord::getCustomerId, seedRows.get(0).getCustomerId());
+        }
         // 【P1-1/M2 2026-10-17】period 过滤补齐：前端统计页一直传 period，此前后端不收导致筛选静默失效；
         // 空白不放行等值（与 getRecords/categoryStats/scoreboard 同守卫——空串当 period='' 匹配必然 0 条）
         if (period != null && !period.isBlank()) wrapper.eq(BizIncentiveRecord::getPeriod, period);
