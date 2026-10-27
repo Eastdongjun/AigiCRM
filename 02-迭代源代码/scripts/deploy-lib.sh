@@ -73,7 +73,9 @@ fi
 # PasswordAuthentication)由脚本强制钉死，用户值**成对**剔除并告警(逐词剔除会把 -o 与其参数拆散，
 # 留下孤立的 -o 使 ssh 直接报错)。保留项追加在强制项之后——OpenSSH 同参数取第一个值，强制项在前。
 SSH_OPTS="${SSH_OPTS:-}"
-AIGICRM_SSH_OPTS_STR="-o BatchMode=yes -o ConnectTimeout=${SSH_CONNECT_TIMEOUT:-20} -o StrictHostKeyChecking=yes -o UserKnownHostsFile=$KNOWN_HOSTS_FILE"
+# 【2026-10-27 生产事故】ServerAlive 心跳必配: 远端 docker build 挂死(0 CPU)时连接不会断,
+# 本地脚本死等假象=ssh挂——心跳让死连接 ~60s 内暴露; 与远端命令自身 timeout 配套。
+AIGICRM_SSH_OPTS_STR="-o BatchMode=yes -o ConnectTimeout=${SSH_CONNECT_TIMEOUT:-20} -o StrictHostKeyChecking=yes -o UserKnownHostsFile=$KNOWN_HOSTS_FILE -o ServerAliveInterval=15 -o ServerAliveCountMax=4"
 if [ -n "$SSH_OPTS" ]; then
   _DROPPED=""
   _KEPT=""

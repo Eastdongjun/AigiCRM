@@ -358,7 +358,8 @@ fi
 SWITCHED=0
 build_image() {
   cd "$DEPLOY_DIR"
-  if ! docker build -q -t "${APP_SLUG}-backend:${BACKEND_TAG}" -f Dockerfile-run . >/tmp/dbuild.out 2>&1; then
+  # 【2026-10-27 生产事故】buildkit 生产挂死, 回滚通道同样走经典构建器+硬超时(与 deploy-backend 同款)
+  if ! timeout 240 env DOCKER_BUILDKIT=0 docker build -q -t "${APP_SLUG}-backend:${BACKEND_TAG}" -f Dockerfile-run . >/tmp/dbuild.out 2>&1; then
     tail -5 /tmp/dbuild.out >&2
     return 1
   fi

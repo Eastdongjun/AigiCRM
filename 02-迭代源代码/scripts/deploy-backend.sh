@@ -125,7 +125,9 @@ echo "=== [3/5] 校验上传并原子替换, 重建镜像 (jar md5 门禁) ==="
 SWITCHED=0
 build_image() {
   cd "$DEPLOY_DIR"
-  if ! docker build -q -t "${APP_SLUG}-backend:${BACKEND_TAG}" -f Dockerfile-run . >/tmp/dbuild.out 2>&1; then
+  # 【2026-10-27 生产事故】buildkit 在生产 dockerd 上 0 CPU 挂死(连极小构建都挂, 4 次实证),
+  # 容器运行时正常——改经典构建器(DOCKER_BUILDKIT=0)并加 240s 硬超时, 挂死可暴露而非死等。
+  if ! timeout 240 env DOCKER_BUILDKIT=0 docker build -q -t "${APP_SLUG}-backend:${BACKEND_TAG}" -f Dockerfile-run . >/tmp/dbuild.out 2>&1; then
     tail -5 /tmp/dbuild.out >&2
     return 1
   fi
@@ -245,7 +247,8 @@ if ! check_health_retry; then
     cat <<'REMOTE_ROLLBACK'
 build_image() {
   cd "$DEPLOY_DIR"
-  docker build -q -t "${APP_SLUG}-backend:${BACKEND_TAG}" -f Dockerfile-run . >/tmp/dbuild.out 2>&1 || { tail -5 /tmp/dbuild.out >&2; return 1; }
+  # 【2026-10-27 生产事故】同上: 回滚重建也走经典构建器+硬超时, 防回滚路径再挂死
+  timeout 240 env DOCKER_BUILDKIT=0 docker build -q -t "${APP_SLUG}-backend:${BACKEND_TAG}" -f Dockerfile-run . >/tmp/dbuild.out 2>&1 || { tail -5 /tmp/dbuild.out >&2; return 1; }
 }
 start_backend() {
   docker stop "${APP_SLUG}-backend" >/dev/null 2>&1 || true
