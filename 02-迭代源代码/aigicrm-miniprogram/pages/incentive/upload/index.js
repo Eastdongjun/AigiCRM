@@ -1029,13 +1029,19 @@ Page({
     }
     let uploadedIndex = doneIds.length
     const total = doneIds.length + pending.length
+    this._progressNotifyTs = 0
     const uploadOne = (item) => new Promise((resolve) => {
       const fileName = item.fileName || '附件'
       this.setFileUploadState(item, 'uploading')
       this.setUploadData({ uploadProgressFile: fileName, uploadProgress: Math.min(99, Math.round((uploadedIndex / total) * 100)) })
       uploadFile(item.filePath, null, 'incentive', {
         onProgress: (event) => {
+          // 【性能 2026-10-27】进度通知节流 150ms(收尾 100% 直通): onProgress 高频连发,
+          // 每 tick 重建 uploadView 再 setData 是上传期间掉帧来源之一
           const fileProgress = Number(event.progress || 0)
+          const now = Date.now()
+          if (fileProgress < 100 && now - (this._progressNotifyTs || 0) < 150) return
+          this._progressNotifyTs = now
           this.setUploadData({ uploadProgressFile: fileName, uploadProgress: Math.min(99, Math.round(((uploadedIndex + fileProgress / 100) / total) * 100)) })
         }
       }).then((uploaded) => {

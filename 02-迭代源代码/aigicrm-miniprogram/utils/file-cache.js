@@ -11,6 +11,9 @@ const MAX_TOTAL_BYTES = 150 * 1024 * 1024
 
 let indexCache = null
 let dirPath = ''
+// 【性能 2026-10-27】索引落盘节流: lookup 命中只刷内存 lastUsed, 至多 60s 落一次盘
+// (此前每次命中都同步重写整个 index.json); store 写入新内容仍立即落盘
+let lastIndexSaveAt = 0
 
 function fs() {
   return wx.getFileSystemManager()
@@ -46,6 +49,7 @@ function saveIndex() {
   try {
     ensureDir()
     fs().writeFileSync(dir() + '/index.json', JSON.stringify(indexCache || {}))
+    lastIndexSaveAt = Date.now()
   } catch (e) { /* 索引持久化失败只影响下次冷启动的命中率 */ }
 }
 
@@ -82,7 +86,7 @@ function lookup(item) {
     if (!entry || !entry.path) return ''
     fs().accessSync(entry.path)
     entry.lastUsed = Date.now()
-    saveIndex()
+    if (Date.now() - lastIndexSaveAt >= 60000) saveIndex()
     return entry.path
   } catch (e) {
     return ''

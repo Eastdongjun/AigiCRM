@@ -46,6 +46,8 @@ function buildIncentiveFileRows(groups) {
         if (!file || !file.id) return
         const name = file.name || file.fileName || '未命名文件'
         const extension = name.includes('.') ? name.split('.').pop().toUpperCase() : 'FILE'
+        const uploaderName = record.userName || record.updatedByName || ''
+        const recordCategory = record.categoryName || record.category || ''
         const row = {
           id: file.id,
           name,
@@ -56,14 +58,17 @@ function buildIncentiveFileRows(groups) {
           size: typeof file.size === 'number' ? bytesToSize(file.size) : (file.size || '-'),
           folder: customerName,
           customerName,
-          uploaderName: record.userName || record.updatedByName || '',
+          uploaderName,
           updatedAt: recordTime,
           fileScope: 'incentive',
           canDownload: true,
-          recordCategory: record.categoryName || record.category || '',
+          recordCategory,
           tag: file.tag || '',
           ossKey: file.ossKey || '',
-          fileUrl: file.fileUrl || ''
+          fileUrl: file.fileUrl || '',
+          // 【性能 2026-10-27】检索小写索引随行预建: 每键过滤只做 includes, 不再每次拼整串
+          // (行数 ~1700, 名/客户/上传人/分类/标签/时间同口径)
+          _search: `${name} ${customerName} ${uploaderName} ${recordCategory} ${file.tag || ''} ${recordTime} ${formatDateTimeText(recordTime)}`.toLowerCase()
         }
         const existing = map.get(file.id)
         if (!existing || String(recordTime) > String(existing.updatedAt)) map.set(file.id, row)
@@ -612,6 +617,8 @@ Page({
       if (requestSeq !== this._incentiveReqSeq) return
       const rows = buildIncentiveFileRows(Array.isArray(groups) ? groups : [])
       this._incentiveFileRows = rows
+      // 【性能 2026-10-27】行缓存时间戳: 页内 tab 切换在 30s 窗内复用, 不再每次全量重拉
+      this._incentiveRowsTs = Date.now()
       // Tab 徽标与可检索文件行同口径，避免徽标 1727、列表 1829 的错位
       this.setFileData({ tabCounts: { ...this.data.tabCounts, '四项服务': rows.length } })
       return tokenReady.then(() => this.applyIncentiveFileFilter(page, pageSize))
@@ -656,10 +663,8 @@ Page({
   applyIncentiveFileFilter(page = 1, pageSize = this.data.pageSize || 10, keywordOverride) {
     const keyword = String(keywordOverride !== undefined ? keywordOverride : (this.data.keyword || '')).trim().toLowerCase()
     const all = this._incentiveFileRows || []
-    const filtered = !keyword ? all : all.filter((item) => {
-      const haystack = `${item.name || ''} ${item.customerName || ''} ${item.uploaderName || ''} ${item.recordCategory || ''} ${item.tag || ''} ${item.updatedAt || ''} ${formatDateTimeText(item.updatedAt)}`
-      return haystack.toLowerCase().includes(keyword)
-    })
+    // 【性能 2026-10-27】行进列时已预建 _search 小写索引, 键入只做 includes(原每键重拼 ~1700 行整串)
+    const filtered = !keyword ? all : all.filter((item) => (item._search || '').includes(keyword))
     const size = pageSize > 0 ? pageSize : 10
     const total = filtered.length
     const totalPages = Math.max(1, Math.ceil(total / size))
@@ -802,7 +807,26 @@ Page({
     const activeTab = event.currentTarget.dataset.tab
     // 【分页】切换 Tab 属于筛选变化：清空文件夹并回到第 1 页
     this.setFileData({ activeTab, activeFolderId: '', activeFolderName: '', page: 1, ...(activeTab === '四项服务' ? { keyword: '' } : {}) })
+    // 【性能 2026-10-27】四项服务 tab 页内切换在缓存窗内复用已拉取的全量行(只重放本地过滤分页),
+    // 不再每次点 tab 都全量重拉(生产 ~1700 文件行); 刷新/重试/写后回流仍走全量
+    if (activeTab === '四项服务' && this.consumeIncentiveRowsCache()) return
     this.loadFiles({ page: 1 })
+  },
+
+  /** 四项服务行缓存(30s 窗, 与 onShow 节流同窗): 新鲜即重放本地过滤返回 true。
+      行来自激励记录——上传/删除记录置 forceRefresh.incentive(归轻量页消费, 此处只读击穿不清除),
+      文件域写置 forceRefresh.files(本页消费即清); 任一命中或缓存过期都回 false 走全量。 */
+  consumeIncentiveRowsCache() {
+    const flags = getApp().globalData.forceRefresh
+    if (flags && flags.incentive) this._incentiveRowsTs = 0
+    if (flags && flags.files) {
+      flags.files = false
+      this._incentiveRowsTs = 0
+    }
+    if (!this._incentiveFileRows || !this._incentiveFileRows.length) return false
+    if (Date.now() - (this._incentiveRowsTs || 0) >= 30000) return false
+    this.ensureDlToken().then(() => this.applyIncentiveFileFilter(1, this.data.pageSize))
+    return true
   },
   openFolder(event) {
     const rawFolderId = event.currentTarget.dataset.id

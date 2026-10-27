@@ -523,6 +523,9 @@ Page({
   },
 
   sort() {
+    // 【性能 2026-10-27】按当前视图单算: 筛选/排序变化只重算展示中的那套全量行,
+    // 另一套标脏待切换视图时补算(此前每次双算两套, 生产 516 条记录时中端机可感);
+    // 两套共用 _allRecords/_childRawById 源, 口径不变
     const categoryNames = this.data.categoryNames || []
     const childMatches = (item) => {
       if (!categoryNames.length) return true
@@ -533,44 +536,47 @@ Page({
         return name && categoryNames.indexOf(name) !== -1
       })
     }
-    let records = this.applyLocalRecordFilters(this._allRecords || []).filter(childMatches)
-    if (this.data.order === 'score-asc') records.sort((a, b) => (Number(a.score) || 0) - (Number(b.score) || 0))
-    if (this.data.order === 'score-desc') records.sort((a, b) => (Number(b.score) || 0) - (Number(a.score) || 0))
-    if (this.data.order === 'time-asc') records.sort((a, b) => coverTimeOf(a).localeCompare(coverTimeOf(b)))
-    if (this.data.order === 'time-desc') records.sort((a, b) => coverTimeOf(b).localeCompare(coverTimeOf(a)))
-    const paged = paginate(records, 1, this.data.pageSize)
-    // 【打散视图】记录流与封面卡共用筛选(分组已过服务端+本地筛选, 拉平即继承),
-    // 分类/关键词/日期在行上二次过滤, 排序四档作用于单条记录(时间=行自身 createdAt)
-    const keywordFlat = (this.data.keyword || '').trim().toLowerCase()
-    let flat = buildFlatRecordRows(this._allRecords || [], this._childRawById).filter((row) => {
-      if (categoryNames.length && categoryNames.indexOf(row.categoryName) === -1) return false
-      if (keywordFlat) {
-        const haystack = `${row.customerName} ${row.categoryName} ${row.productText} ${row.uploaderName} ${row.timeText}`.toLowerCase()
-        if (!haystack.includes(keywordFlat)) return false
-      }
-      const dateValue = row.createdAt.slice(0, 10)
-      if (this.data.startDate && dateValue && dateValue < this.data.startDate) return false
-      if (this.data.endDate && dateValue && dateValue > this.data.endDate) return false
-      return true
-    })
-    if (this.data.order === 'score-asc') flat.sort((a, b) => a.score - b.score)
-    if (this.data.order === 'score-desc') flat.sort((a, b) => b.score - a.score)
-    if (this.data.order === 'time-asc') flat.sort((a, b) => a.createdAt.localeCompare(b.createdAt))
-    if (this.data.order === 'time-desc') flat.sort((a, b) => b.createdAt.localeCompare(a.createdAt))
-    const pagedFlat = paginate(flat, 1, this.data.pageSize)
-    // 瘦身: 全量 records/flat 只存实例, data 只带当前页切片与计数(渲染只用 paged*)
-    this._records = records
-    this._flatRecords = flat
-    this.setData({
-      pagedRecords: paged.rows,
-      page: paged.page,
-      pageSize: paged.pageSize,
-      pagerTotal: paged.total,
-      pagedFlatRecords: pagedFlat.rows,
-      flatPagerTotal: pagedFlat.total,
-      recordCount: records.length,
-      flatRecordCount: flat.length
-    }, () => this.refreshIncentiveView())
+    const patch = { page: 1, pageSize: this.data.pageSize || 10 }
+    this._otherModeDirty = true
+    if (this.data.listMode === 'time') {
+      // 【打散视图】记录流与封面卡共用筛选(分组已过服务端+本地筛选, 拉平即继承),
+      // 分类/关键词/日期在行上二次过滤, 排序四档作用于单条记录(时间=行自身 createdAt)
+      const keywordFlat = (this.data.keyword || '').trim().toLowerCase()
+      let flat = buildFlatRecordRows(this._allRecords || [], this._childRawById).filter((row) => {
+        if (categoryNames.length && categoryNames.indexOf(row.categoryName) === -1) return false
+        if (keywordFlat) {
+          const haystack = `${row.customerName} ${row.categoryName} ${row.productText} ${row.uploaderName} ${row.timeText}`.toLowerCase()
+          if (!haystack.includes(keywordFlat)) return false
+        }
+        const dateValue = row.createdAt.slice(0, 10)
+        if (this.data.startDate && dateValue && dateValue < this.data.startDate) return false
+        if (this.data.endDate && dateValue && dateValue > this.data.endDate) return false
+        return true
+      })
+      if (this.data.order === 'score-asc') flat.sort((a, b) => a.score - b.score)
+      if (this.data.order === 'score-desc') flat.sort((a, b) => b.score - a.score)
+      if (this.data.order === 'time-asc') flat.sort((a, b) => a.createdAt.localeCompare(b.createdAt))
+      if (this.data.order === 'time-desc') flat.sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+      const pagedFlat = paginate(flat, 1, patch.pageSize)
+      // 瘦身: 全量 flat 只存实例, data 只带当前页切片与计数(渲染只用 pagedFlatRecords)
+      this._flatRecords = flat
+      patch.pagedFlatRecords = pagedFlat.rows
+      patch.flatPagerTotal = pagedFlat.total
+      patch.flatRecordCount = flat.length
+    } else {
+      let records = this.applyLocalRecordFilters(this._allRecords || []).filter(childMatches)
+      if (this.data.order === 'score-asc') records.sort((a, b) => (Number(a.score) || 0) - (Number(b.score) || 0))
+      if (this.data.order === 'score-desc') records.sort((a, b) => (Number(b.score) || 0) - (Number(a.score) || 0))
+      if (this.data.order === 'time-asc') records.sort((a, b) => coverTimeOf(a).localeCompare(coverTimeOf(b)))
+      if (this.data.order === 'time-desc') records.sort((a, b) => coverTimeOf(b).localeCompare(coverTimeOf(a)))
+      const paged = paginate(records, 1, patch.pageSize)
+      // 瘦身: 全量 records 只存实例, data 只带当前页切片与计数(渲染只用 pagedRecords)
+      this._records = records
+      patch.pagedRecords = paged.rows
+      patch.pagerTotal = paged.total
+      patch.recordCount = records.length
+    }
+    this.setData(patch, () => this.refreshIncentiveView())
   },
 
   applyPaging(page, pageSize) {
@@ -677,7 +683,9 @@ Page({
     if (mode !== 'time' && mode !== 'customer') return
     if (mode === this.data.listMode) return
     this.setData({ listMode: mode, page: 1 }, () => {
-      this.applyPaging(1)
+      // 【性能 2026-10-27】sort 只算当前视图, 切到标脏的另一套时补算一次(切片/计数随批落地)
+      if (this._otherModeDirty) this.sort()
+      else this.applyPaging(1)
       this.refreshIncentiveView()
     })
   },

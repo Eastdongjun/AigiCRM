@@ -127,6 +127,12 @@ grep -Fq 'this._dlTokenUserId !== userId' "$PAGE" || fail 'mobile files dlToken 
 grep -Fq 'function isImageRow(item)' "$PAGE" || fail 'mobile file incentive row thumbnail classifier is missing'
 grep -Fq "rowThumbUrl = data.activeTab === '四项服务' && isImageRow(item)" "$PAGE" || fail 'mobile file incentive rows must build thumbnails for the incentive tab only'
 grep -Fq 'withDownloadToken(getDownloadUrl({ id: item.id, ossKey: item.ossKey || item.fileUrl }, true), data.dlToken' "$PAGE" || fail 'mobile file row thumbnails must carry the short-TTL download token'
+# 【性能 2026-10-27】四项服务 tab 页内切换 30s 缓存窗: 复用已拉取全量行只重放本地过滤,
+# 不再每次点 tab 全量重拉(生产 ~1700 行); forceRefresh.incentive 只读击穿(消费权在轻量页),
+# forceRefresh.files 本页消费即清——两标记任一命中必须走全量, 防写后回流见旧数
+grep -Fq 'this._incentiveRowsTs = Date.now()' "$PAGE" || fail 'mobile file incentive rows must stamp the cache timestamp on load'
+grep -Fq 'this.consumeIncentiveRowsCache()' "$PAGE" || fail 'mobile file incentive tab must reuse the cached rows inside the 30s window'
+grep -Fq 'flags.incentive) this._incentiveRowsTs = 0' "$PAGE" || fail 'mobile file incentive cache must be pierced by the incentive force-refresh flag (read-only)'
 grep -Fq 'class="file-thumb-sq"' "$WXML" || fail 'mobile file incentive row thumbnail UI disappeared'
 ! grep -Fq 'files-wall' "$WXML" || fail 'mobile file photo wall was replaced by list rows (user order 2026-10-26); do not bring it back'
 ! grep -Fq 'previewWallImage' "$PAGE" "$WXML" || fail 'mobile file wall tap handler was removed with the wall (user order 2026-10-26)'
