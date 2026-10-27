@@ -48,8 +48,10 @@
         <view class="mode-chip {{listMode === 'time' ? 'active' : ''}}" data-mode="time" bindtap="switchListMode">按时间</view>
         <view class="mode-chip {{listMode === 'customer' ? 'active' : ''}}" data-mode="customer" bindtap="switchListMode">按客户</view>
       </view>
-      <picker mode="selector" range="{{categories}}" bindchange="chooseCategory">
-        <view class="ranking-tab active">{{category}}⌄</view>
+      <!-- 【B 案 2026-10-27】分类筛选两级化: 双列滚轮(大类=产品试点/交流拜访/外出参观/两谈两做方案,
+           子类=该大类下涂层类/使用报告/高层拜访…), 替代原只列子类名的单列 picker -->
+      <picker mode="multiSelector" range="{{categoryRange}}" value="{{categoryValue}}" bindcolumnchange="onCategoryColumnChange" bindchange="chooseCategory" bindcancel="onCategoryCancel">
+        <view class="ranking-tab">{{incentiveView.categoryText}}⌄</view>
       </picker>
       <picker mode="selector" range="{{userNames}}" value="{{selectedUserIndex}}" bindchange="chooseUser">
         <view class="ranking-tab">{{incentiveView.userText}}</view>

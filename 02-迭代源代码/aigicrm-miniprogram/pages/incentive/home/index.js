@@ -2,7 +2,7 @@
 // 【2026-10-26 用户令】轻量页与完整版(四项服务应用)排法分工: 完整版=按客户归集封面卡(原地不动);
 // 轻量页默认=打散记录流(不绑客户, 一次上传=一条记录, 按上传时间排), 「按客户」可切回归集视图。
 // 数据链路同源(getCustomerRecords 按客户分组 + 本地筛选排序), 打散=分组结果拉平, 不加接口。
-const { getCustomerRecords, getGrantCheck, getUsers } = require('../../../api/incentive')
+const { getCustomerRecords, getCategoryTree, getGrantCheck, getUsers } = require('../../../api/incentive')
 const { getDownloadToken } = require('../../../api/file')
 const { getDepts } = require('../../../api/system')
 const { incentiveRecords } = require('../../../data/demo')
@@ -95,6 +95,12 @@ function pickOption(options, index, fallback, key) {
 
 function buildIncentiveView(data) {
   const isLoading = Boolean(data.loading)
+  // 两级分类胶囊文案只跟随"已确认"的选择(categoryMainIndex/categorySubIndex):
+  // 滚轮位置(categoryValue)在 columnchange 即变, 用户取消时轮子回弹、文案不得跟着走
+  const catMainIndex = Number(data.categoryMainIndex) || 0
+  const catSubIndex = Number(data.categorySubIndex) || 0
+  const catMain = (data.categoryMains || [CATEGORY_ALL])[catMainIndex] || CATEGORY_ALL
+  const catSub = (data.categorySubs || ['全部'])[catSubIndex] || '全部'
   return {
     refreshLoading: isLoading,
     refreshText: isLoading ? '刷新中' : '刷新',
@@ -111,6 +117,7 @@ function buildIncentiveView(data) {
     endDateText: `${data.endDate || '截止日期'}⌄`,
     userText: `${pickOption(data.userNames, data.selectedUserIndex, '全部人员')}⌄`,
     orderText: `${pickOption(data.orderOptions, data.selectedOrderIndex, '最新记录在前')}⌄`,
+    categoryText: catMainIndex === 0 ? (catSubIndex === 0 || catSub === '全部' ? '分类' : catSub) : (catSubIndex === 0 || catSub === '全部' ? catMain : `${catMain}·${catSub}`),
     showRecordEmpty: !isLoading && ((data.listMode === 'time' ? data.flatRecordCount : data.recordCount) || 0) === 0
   }
 }
@@ -118,6 +125,17 @@ function buildIncentiveView(data) {
 const INDUSTRIES = ['全部行业', '冶金', '煤矿', '化工', '电力', '有色金属', '机械', '工程公司', '维修厂', '其他终端客户']
 const DEV_TYPES = ['全部类型', '成熟创新', '突破开拓', '铺垫宣传']
 const PRODUCT_OPTIONS = ['全部产品', '防腐', '加固', '钢结构', '煤气管道', '公共区', '装置区', '水泵', '渣泵', '介质泵', '静密封', '动密封', '橡胶密封', '润滑油', '润滑脂', '润滑剂']
+// 【2026-10-27 用户令 B 案】分类筛选改两级(大类→子类): 原扁平 picker 只列子类名, 四大主类
+// (产品试点/交流拜访/外出参观/两谈两做方案)不可选, 且选项只从"每客户最新一条"收集会漏分类。
+// 两级数据源=分类树接口; 树不可用时降级为"全部分类 + 记录推导子类"单层(fail-open)。
+const CATEGORY_ALL = '全部分类'
+// 演示态分类树(与生产树同形: categoryName/children)
+const DEMO_CATEGORY_TREE = [
+  { categoryName: '产品试点', children: [{ categoryName: '涂层类' }, { categoryName: '楼梯板类' }, { categoryName: '机封类' }, { categoryName: '密封类' }, { categoryName: '润滑类' }] },
+  { categoryName: '交流拜访', children: [{ categoryName: '技术交流会' }, { categoryName: '高层拜访' }] },
+  { categoryName: '外出参观', children: [{ categoryName: '南京工厂参观' }, { categoryName: '终端考察' }] },
+  { categoryName: '两谈两做方案', children: [{ categoryName: '项目方案' }, { categoryName: '价值服务手册' }, { categoryName: '使用报告' }] }
+]
 // 【2026-10-26 用户令"要有按时间排序"】原三档(默认/分值高低)改四档: 时间两档显式化,
 // 「默认排序」即接口顺序=最新在前, 由首档承接; 值 time-*/score-* 交 sort() 分派
 const ORDER_OPTIONS = ['最新记录在前', '最早记录在前', '分值从高到低', '分值从低到高']
@@ -200,9 +218,17 @@ Page({
     pagedFlatRecords: [],
     flatPagerTotal: 0,
     flatRecordCount: 0,
-    category: '全部',
+    category: CATEGORY_ALL,
     categoryNames: [],
     categories: ['全部'],
+    // 【B 案】两级分类选择器(multiSelector 双列): 大类列=全部分类+四大类, 子类列=全部+该大类子类;
+    // categoryValue=滚轮位置(columnchange 即变, 取消时回弹), categoryMain/SubIndex=已确认选择(驱动文案与过滤)
+    categoryMains: [CATEGORY_ALL],
+    categorySubs: ['全部'],
+    categoryRange: [[CATEGORY_ALL], ['全部']],
+    categoryValue: [0, 0],
+    categoryMainIndex: 0,
+    categorySubIndex: 0,
     industries: INDUSTRIES,
     devTypes: DEV_TYPES,
     productOptions: PRODUCT_OPTIONS,
@@ -239,6 +265,8 @@ Page({
       return
     }
     this.setData({ canUploadEvidence: !getApp().globalData.demoMode && hasPermission('incentive:add') })
+    this._categoryChildrenByMain = null
+    this.loadCategoryTree()
     this.ensureDlToken().then(() => {
       this.loadRecords()
     })
@@ -286,7 +314,125 @@ Page({
   /** 全量视图行落实例字段(不进 data), data 只带分类选项——排序/筛选产物同样只留切片(瘦身基线) */
   applyRecordSource(records) {
     this._allRecords = records
-    this.setData({ categories: ['全部', ...new Set((records || []).map((item) => item.category))] }, () => this.sort())
+    const categories = ['全部', ...new Set((records || []).map((item) => item.category))]
+    const patch = { categories }
+    // 分类树不可用(降级态): 子类列=全部+记录推导分类, 记录源更新时同列刷新
+    if (!this._categoryChildrenByMain) {
+      const subs = this.categorySubsOf(0)
+      patch.categorySubs = subs
+      patch.categoryRange = [this.data.categoryMains || [CATEGORY_ALL], subs]
+    }
+    this.setData(patch, () => this.sort())
+  },
+
+  // 【B 案】两级分类: 大类列=全部分类+四大主类; 子类列=全部+该大类子类(树不可用时=记录推导分类)
+  loadCategoryTree() {
+    if (getApp().globalData.demoMode) {
+      this.applyCategoryTree(DEMO_CATEGORY_TREE)
+      return
+    }
+    getCategoryTree().then((rows) => {
+      this.applyCategoryTree(Array.isArray(rows) ? rows : [])
+    }).catch(() => {
+      // fail-open: 树拉不到不阻断列表, 筛选降级为"全部分类+记录子类"单层
+      this.applyCategoryTree(null)
+    })
+  },
+
+  applyCategoryTree(nodes) {
+    if (nodes && nodes.length) {
+      const mains = []
+      const childrenByMain = {}
+      ;(nodes || []).forEach((node) => {
+        const name = node && (node.categoryName || node.name)
+        if (!name) return
+        mains.push(name)
+        childrenByMain[name] = (node.children || [])
+          .map((child) => (child && (child.categoryName || child.name)) || '')
+          .filter(Boolean)
+      })
+      if (!mains.length) {
+        this.applyCategoryTree(null)
+        return
+      }
+      this._categoryChildrenByMain = childrenByMain
+      this.setData({ categoryMains: [CATEGORY_ALL, ...mains] }, () => this.syncCategoryPicker())
+      return
+    }
+    this._categoryChildrenByMain = null
+    const subs = this.categorySubsOf(0)
+    this.setData({ categoryMains: [CATEGORY_ALL], categorySubs: subs, categoryRange: [[CATEGORY_ALL], subs] }, () => this.syncCategoryPicker())
+  },
+
+  /** 当前大类下的子类列(树态: 全部+该大类子类; 降级态: 全部+记录推导分类) */
+  categorySubsOf(mainIndex) {
+    const children = this._categoryChildrenByMain
+    if (!children) {
+      return ['全部', ...(this.data.categories || []).filter((name) => name && name !== '全部')]
+    }
+    if (Number(mainIndex) <= 0) return ['全部']
+    const main = (this.data.categoryMains || [])[Number(mainIndex)]
+    return ['全部', ...((main && children[main]) || [])]
+  },
+
+  /** 大类列/子类列变化后同步 range 与 value(选中越界即回夹) */
+  syncCategoryPicker() {
+    const mains = this.data.categoryMains || [CATEGORY_ALL]
+    const value = this.data.categoryValue || [0, 0]
+    const mainIndex = Math.min(Math.max(0, Number(value[0]) || 0), mains.length - 1)
+    const subs = this.categorySubsOf(mainIndex)
+    const subIndex = Math.min(Math.max(0, Number(value[1]) || 0), subs.length - 1)
+    this.setData({
+      categorySubs: subs,
+      categoryRange: [mains, subs],
+      categoryValue: [mainIndex, subIndex]
+    }, () => this.refreshIncentiveView())
+  },
+
+  /** 滚轮联动: 大类列变化即刷新子类列并归零; 子类列滚动不落 data(取消选择时滚轮回弹到 data.value) */
+  onCategoryColumnChange(e) {
+    const detail = (e && e.detail) || {}
+    if (Number(detail.column) !== 0) return
+    const mainIndex = Math.max(0, Number(detail.value) || 0)
+    const subs = this.categorySubsOf(mainIndex)
+    this.setData({
+      categorySubs: subs,
+      categoryRange: [this.data.categoryMains || [CATEGORY_ALL], subs],
+      categoryValue: [mainIndex, 0]
+    })
+  },
+
+  /** 确认两级选择 → categoryNames(过滤机制不变: 客户视图按子记录分类匹配, 打散视图按行分类匹配) */
+  chooseCategory(e) {
+    const pair = (e && e.detail && e.detail.value) || [0, 0]
+    const mains = this.data.categoryMains || [CATEGORY_ALL]
+    const mainIndex = Math.min(Math.max(0, Number(pair[0]) || 0), mains.length - 1)
+    const subs = this.categorySubsOf(mainIndex)
+    const subIndex = Math.min(Math.max(0, Number(pair[1]) || 0), subs.length - 1)
+    const sub = subs[subIndex] || '全部'
+    let names = []
+    if (mainIndex > 0) {
+      // 大类·全部子类 → 该大类全部子类名; 大类·子类 → 单个子类名
+      names = subIndex > 0 && sub !== '全部' ? [sub] : subs.slice(1)
+    } else if (!this._categoryChildrenByMain && subIndex > 0 && sub !== '全部') {
+      // 降级态: 大类列只有"全部分类", 子类列直接按名过滤
+      names = [sub]
+    }
+    this.setData({
+      categoryValue: [mainIndex, subIndex],
+      categoryMainIndex: mainIndex,
+      categorySubIndex: subIndex,
+      categorySubs: subs,
+      categoryRange: [mains, subs],
+      category: mainIndex > 0 ? mains[mainIndex] : (names.length === 1 ? sub : CATEGORY_ALL),
+      categoryNames: names
+    }, () => this.refreshIncentiveView())
+    this.sort()
+  },
+
+  /** 取消选择: 滚轮回弹到已确认位置(文案/过滤只认已确认选择, 无需回滚) */
+  onCategoryCancel() {
+    this.setData({ categoryValue: [Number(this.data.categoryMainIndex) || 0, Number(this.data.categorySubIndex) || 0] })
   },
 
   rebuildRecordViews(decorated) {
@@ -450,16 +596,6 @@ Page({
     this.applyPaging(Number(detail.page) || 1, Number(detail.pageSize) || this.data.pageSize)
   },
 
-  chooseCategory(e) {
-    this.applyCategoryFilter(this.data.categories[e.detail.value] || '全部')
-  },
-
-  applyCategoryFilter(label) {
-    const names = label && label !== '全部' ? [label] : []
-    this.setData({ category: label || '全部', categoryNames: names }, () => this.refreshIncentiveView())
-    this.sort()
-  },
-
   chooseUser(e) {
     this.setData({ selectedUserIndex: Number(e.detail.value) || 0 }, () => this.refreshIncentiveView())
     this.loadRecords()
@@ -513,11 +649,14 @@ Page({
       selectedUserIndex: 0,
       selectedOrderIndex: 0,
       order: 'time-desc',
-      category: '全部',
+      category: CATEGORY_ALL,
       categoryNames: [],
+      categoryValue: [0, 0],
+      categoryMainIndex: 0,
+      categorySubIndex: 0,
       startDate: '',
       endDate: ''
-    }, () => this.refreshIncentiveView())
+    }, () => { this.syncCategoryPicker(); this.refreshIncentiveView() })
     this.loadRecords()
   },
 

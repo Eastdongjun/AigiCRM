@@ -547,6 +547,16 @@ grep -q "coverFile: coverFile || {}" "$HOME_JS" || { echo "FAIL: flat row cover 
 # 纯名称清单试版被用户否决,防复活
 grep -q 'class="cust-card"' "$HOME_WXML" || { echo "FAIL: lightweight home customer mode must be the cover-card customer list (user reference screenshot 2026-10-26)" >&2; exit 1; }
 ! grep -q 'cust-list-row' "$HOME_WXML" || { echo "FAIL: lightweight home plain name list was rejected 2026-10-26 (cover cards restored per user screenshot)" >&2; exit 1; }
+# 【2026-10-27 用户令 B 案】轻量页分类筛选两级化(大类→子类): 原单列 picker 只列子类名,
+# 四大主类(产品试点/交流拜访/外出参观/两谈两做方案)不可选且选项从"每客户最新一条"收集会漏分类;
+# 改 multiSelector 双列滚轮(大类列=全部分类+四大类, 子类列=全部+该大类子类), 数据源=分类树接口,
+# 树不可用降级为"全部分类+记录推导子类"单层。选大类=按全部子类名集合过滤(categoryNames 机制不变)。
+grep -q 'mode="multiSelector" range="{{categoryRange}}"' "$HOME_WXML" || { echo "FAIL: lightweight home category filter must be the two-column main/sub picker (user order B 2026-10-27)" >&2; exit 1; }
+grep -q 'bindcolumnchange="onCategoryColumnChange"' "$HOME_WXML" || { echo "FAIL: lightweight home two-column category picker must relink the sub column on main change" >&2; exit 1; }
+! grep -q 'range="{{categories}}"' "$HOME_WXML" || { echo "FAIL: lightweight home must not fall back to the flat sub-name-only category picker (replaced 2026-10-27)" >&2; exit 1; }
+grep -q "getCategoryTree" "$HOME_JS" || { echo "FAIL: lightweight home two-level category filter must load the category tree" >&2; exit 1; }
+grep -q "CATEGORY_ALL = '全部分类'" "$HOME_JS" || { echo "FAIL: lightweight home category main column must keep the all-categories entry" >&2; exit 1; }
+grep -q "names = subIndex > 0 && sub !== '全部' ? \[sub\] : subs.slice(1)" "$HOME_JS" || { echo "FAIL: lightweight home main-category selection must filter by its full sub-category name set" >&2; exit 1; }
 ! grep -q '"pagePath": "pages/cases/index"' "$app_json" || { echo "FAIL: stale cases tab still exposes an alternate incentive surface" >&2; exit 1; }
 # 【2026-10-05】cases 兼容壳已删: 原直接读取 pages/cases/* 文件的重定向/标题/样式检查随之移除,
 # 保留上方 app.json 防回潮与下方 profile 入口/app.wxss 全局样式防回潮检查
