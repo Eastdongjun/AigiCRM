@@ -68,7 +68,16 @@ function mockData() {
     }
     return Promise.resolve({ data: [] })
   })
-  getCategoryTree.mockResolvedValue({ data: [{ id: 1, name: '涂层类', children: [] }] })
+  // 树 mock 用真实形状（嵌套两级, categoryName/parentId）——2026-10-28 两级分类筛选的数据源
+  getCategoryTree.mockResolvedValue({ data: [
+    { id: 4, categoryName: '产品试点', parentId: 0, children: [
+      { id: 40, categoryName: '涂层类', parentId: 4, children: [] },
+      { id: 41, categoryName: '楼梯板类', parentId: 4, children: [] },
+    ] },
+    { id: 2, categoryName: '交流拜访', parentId: 0, children: [
+      { id: 20, categoryName: '技术交流会', parentId: 2, children: [] },
+    ] },
+  ] })
 }
 
 // 缩略图用例：带一张图片文件的客户数据
@@ -126,6 +135,48 @@ describe('incentive/search.vue 分页与搜索测试', () => {
     expect(wrapper.vm.pageNum).toBe(1)
   })
 
+  it('开发类型两级分类（2026-10-28 与小程序轻量页同口径）: 一级发 mainCategoryId, 二级联动子类并客户端过滤', async () => {
+    const wrapper = mount(SearchView, { global: mountGlobal })
+    await flushPromises()
+    // 三客户: A 涂层类+楼梯板类, B 仅楼梯板类, C 高层拜访(其他大类)
+    request.get.mockImplementation((url) => {
+      if (url === '/incentive/customer-records') return Promise.resolve({ data: [
+        { id: 1, customerName: '客户A', totalScore: 9, records: [
+          { id: 11, categoryName: '涂层类', score: 5, createdAt: '2026-08-01' },
+          { id: 12, categoryName: '楼梯板类', score: 4, createdAt: '2026-08-02' },
+        ] },
+        { id: 2, customerName: '客户B', totalScore: 3, records: [
+          { id: 21, categoryName: '楼梯板类', score: 3, createdAt: '2026-08-03' },
+        ] },
+        { id: 3, customerName: '客户C', totalScore: 2, records: [
+          { id: 31, categoryName: '高层拜访', score: 2, createdAt: '2026-08-04' },
+        ] },
+      ] })
+      return Promise.resolve({ data: [] })
+    })
+    request.get.mockClear()
+    // 一级=产品试点(id 4) → 请求带 mainCategoryId（大类含子孙类由服务端收窄）
+    wrapper.vm.fMainCat = 4
+    await wrapper.vm.doSearch()
+    const call = request.get.mock.calls.find(([url]) => url === '/incentive/customer-records')
+    expect(call[1].params.mainCategoryId).toBe(4)
+    // 二级选项联动 = 该大类子类；未选二级时不做客户端过滤
+    expect(wrapper.vm.subCats).toEqual(['涂层类', '楼梯板类'])
+    expect(wrapper.vm.custs.map((c) => c.customerName)).toEqual(['客户A', '客户B', '客户C'])
+    // 二级=涂层类 → 只留有涂层类记录的客户；记录集与 totalScore 随过滤结果走
+    wrapper.vm.fSubCat = '涂层类'
+    await wrapper.vm.doSearch()
+    expect(wrapper.vm.custs.map((c) => c.customerName)).toEqual(['客户A'])
+    expect(wrapper.vm.custs[0].records.map((r) => r.id)).toEqual([11])
+    expect(wrapper.vm.custs[0].totalScore).toBe(5)
+    // 大类切换清空二级；doReset 清空两级
+    wrapper.vm.onMainCatChange()
+    expect(wrapper.vm.fSubCat).toBe('')
+    wrapper.vm.doReset()
+    expect(wrapper.vm.fMainCat).toBeNull()
+    expect(wrapper.vm.fSubCat).toBe('')
+  })
+
   it('scoreOrder 仅做客户端排序, 不作为死参数发给后端（P2-6）', async () => {
     // 后端 /incentive/customer-records 不收 scoreOrder(排序由前端 sortByScore 完成)；
     // 死参数不仅无效, 还会让"排序筛选"看起来是服务端语义——误导排障
@@ -153,7 +204,11 @@ describe('incentive/search.vue 缩略图下载 token（空 token 403 修复 2026
       if (url === '/system/depts') return Promise.resolve({ data: [] })
       return Promise.resolve({ data: [] })
     })
-    getCategoryTree.mockResolvedValue({ data: [{ id: 1, name: '涂层类', children: [] }] })
+    getCategoryTree.mockResolvedValue({ data: [
+      { id: 4, categoryName: '产品试点', parentId: 0, children: [
+        { id: 40, categoryName: '涂层类', parentId: 4, children: [] },
+      ] },
+    ] })
   })
 
   it('下载 token 未就绪时 thumbUrl 不拼接 token=（不产生必然 403 的无效请求）', async () => {

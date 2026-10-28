@@ -49,7 +49,17 @@
           </div>
           <div class="adv-field">
             <label class="adv-field-label"><el-icon><PriceTag /></el-icon> 开发类型</label>
-            <el-select v-model="fDevType" placeholder="全部类型" clearable @change="doSearch" size="small"><el-option v-for="d in devTypes" :key="d" :label="d" :value="d" /></el-select>
+            <!-- 【2026-10-28 用户令】开发类型改两级分类（与小程序轻量页 B 案同口径）: 一级=分类树大类
+                 (外出参观/交流拜访/两谈两做方案/产品试点), 二级=该大类子类。一级走后端 mainCategoryId
+                 (接口按大类含子孙类过滤), 二级按子类名客户端过滤记录。原硬编码三项扁平筛选退役。 -->
+            <div style="display:flex;gap:8px">
+              <el-select v-model="fMainCat" placeholder="一级分类" clearable @change="onMainCatChange" size="small" style="flex:1">
+                <el-option v-for="c in mainCats" :key="c.id" :label="c.categoryName" :value="c.id" />
+              </el-select>
+              <el-select v-model="fSubCat" placeholder="二级分类" clearable :disabled="!fMainCat" @change="doSearch" size="small" style="flex:1">
+                <el-option v-for="s in subCats" :key="s" :label="s" :value="s" />
+              </el-select>
+            </div>
           </div>
           <div class="adv-field span-2">
             <label class="adv-field-label"><el-icon><Calendar /></el-icon> 日期范围</label>
@@ -137,7 +147,9 @@ import { thumbUrl, getFiles, getMain, getCls, scoreColor } from './search-helper
 import SearchLightbox from './SearchLightbox.vue'
 import SearchDetailDialog from './SearchDetailDialog.vue'
 
-const fCustomer=ref(''),fSales=ref(''),fIndustry=ref(''),fDevType=ref(''),fDateRange=ref(null),fOrgIds=ref([]),showFilter=ref(false)
+const fCustomer=ref(''),fSales=ref(''),fIndustry=ref(''),fDateRange=ref(null),fOrgIds=ref([]),showFilter=ref(false)
+// 【2026-10-28 两级分类】一级=大类 id(发后端 mainCategoryId), 二级=子类名(客户端按记录 categoryName 过滤)
+const fMainCat=ref(null),fSubCat=ref('')
 const fProdCat=ref(''),fProdSub=ref('')
 const scoreOrder=ref('')
 const custs=ref([]),catMap=ref({})
@@ -154,9 +166,15 @@ const onSizeChange = (size) => { pageSize.value = size; pageNum.value = 1 }
 const pagedCusts = computed(() => paginate(custs.value, pageNum.value, pageSize.value))
 const detailVisible=ref(false),detailCust=ref(null)
 const industries=['冶金','煤矿','化工','电力','有色金属','机械','工程公司','维修厂','其他终端客户']
-const devTypes=['成熟创新','突破开拓','铺垫宣传']
+// 一级分类选项=分类树顶层（getCategoryTree 返回嵌套树, 顶层数组即大类, loadCats 里灌入）
+const mainCats=ref([])
+const subCats=computed(()=>{
+  const m=mainCats.value.find(c=>c.id===fMainCat.value)
+  return ((m&&m.children)||[]).map(c=>c.categoryName)
+})
+function onMainCatChange(){ fSubCat.value=''; doSearch() }
 const userList=ref([]),orgTree=ref([])
-const activeFilterCount=computed(()=>[fSales.value,fIndustry.value,fDevType.value,fDateRange.value,fOrgIds.value?.length>0].filter(v=>!!v).length)
+const activeFilterCount=computed(()=>[fSales.value,fIndustry.value,fMainCat.value,fSubCat.value,fDateRange.value,fOrgIds.value?.length>0].filter(v=>!!v).length)
 
 // 灯箱：委托子组件打开；缩略图失败标记随打开重置（原 preview 行为）
 const lightbox = ref(null)
@@ -175,7 +193,7 @@ async function doSearch(){
   // 主搜索框：客户名 + 关键字（相关产品）双匹配（后端 OR 组合）
   if(fCustomer.value){p.customerName=fCustomer.value;p.keyword=fCustomer.value}
   if(fSales.value)p.salesperson=fSales.value;if(fIndustry.value)p.industry=fIndustry.value
-  if(fDevType.value)p.devType=fDevType.value
+  if(fMainCat.value)p.mainCategoryId=fMainCat.value
   if(fDateRange.value?.length===2){p.startDate=fDateRange.value[0];p.endDate=fDateRange.value[1]}
   if(fOrgIds.value?.length){p.orgIds=fOrgIds.value.join(',')}
   if(fProdSub.value)p.product=fProdSub.value
@@ -187,7 +205,15 @@ async function doSearch(){
   try{
     const res=await request.get('/incentive/customer-records',{params:p})
     if (seq !== searchSeq) return   // 已有更新的请求在途/完成，丢弃本次旧响应
-    const rows=(res.data||[]).filter(c=>c.records?.length>0&&c.customerName)
+    const rows0=(res.data||[]).filter(c=>c.records?.length>0&&c.customerName)
+    // 二级分类(子类名)客户端过滤: 客户命中=有该子类记录, 卡片记录集与 totalScore 随过滤结果走
+    // (与小程序轻量页"大类·子类→按子记录分类名匹配"同语义; 一级大类已由 mainCategoryId 在服务端收窄)
+    let rows=rows0
+    if(fSubCat.value){
+      rows=rows0.map(c=>({...c,records:c.records.filter(r=>r.categoryName===fSubCat.value)}))
+        .filter(c=>c.records.length>0)
+      rows.forEach(c=>{c.totalScore=c.records.reduce((s,r)=>s+(r.score||0),0)})
+    }
     rows.forEach(c=>{c.isNew=(c.records||[]).some(r=>isCurrentMonth(r.createdAt));c.unread=(c.records||[]).some(r=>r.unread)})
     custs.value=sortByScore(rows,scoreOrder.value)
   }catch(e){
@@ -196,8 +222,8 @@ async function doSearch(){
     if (seq === searchSeq) loading.value = false
   }
 }
-function doReset(){fCustomer.value='';fSales.value='';fIndustry.value='';fDevType.value='';fDateRange.value=null;fOrgIds.value=[];fProdCat.value='';fProdSub.value='';scoreOrder.value='';doSearch()}
-async function loadCats(){try{const res=await cachedGet('categoryTree',getCategoryTree);const walk=l=>{l.forEach(c=>{catMap.value[c.id]=c;if(c.children)walk(c.children)})};walk(res.data||[])}catch(e){}}
+function doReset(){fCustomer.value='';fSales.value='';fIndustry.value='';fMainCat.value=null;fSubCat.value='';fDateRange.value=null;fOrgIds.value=[];fProdCat.value='';fProdSub.value='';scoreOrder.value='';doSearch()}
+async function loadCats(){try{const res=await cachedGet('categoryTree',getCategoryTree);const tree=res.data||[];mainCats.value=tree;const walk=l=>{l.forEach(c=>{catMap.value[c.id]=c;if(c.children)walk(c.children)})};walk(tree)}catch(e){}}
 async function loadUsers(){try{const res=await cachedGet('incentiveUsers',()=>request.get('/incentive/users'));userList.value=res.data||[]}catch(e){}}
 async function loadOrgs(){try{const res=await cachedGet('depts',()=>request.get('/system/depts'));const list=res.data||[]
   const build=(list,pId=0)=>list.filter(d=>Number(d.parentId)===Number(pId)).sort((a,b)=>(a.sortOrder||0)-(b.sortOrder||0)).map(d=>{const ch=build(list,d.id);return ch.length?{...d,children:ch}:{...d}})
