@@ -22,7 +22,7 @@ import request from '@/utils/request'
 import { getDownloadToken, refreshDownloadToken } from '@/utils/token'
 import { downloadFile } from '@/utils/download'
 import { useUserStore } from '@/store/user'
-import { INDICATOR_FIELDS, sumIndicatorScore, RELATIONSHIP_OPTIONS_FALLBACK, fetchRelationshipOptions } from '@/utils/customer-fields'
+import { INDICATOR_FIELDS, sumIndicatorScore, RELATIONSHIP_OPTIONS_FALLBACK, fetchRelationshipOptions, fetchIndicatorDictOptions } from '@/utils/customer-fields'
 import { mediaTypeOf, previewKindOf } from '@/utils/media-type'
 
 export const CustomerDetailKey = Symbol('customerDetail')
@@ -90,6 +90,8 @@ export function useCustomerDetail() {
   fetchRelationshipOptions(getDictData).then((options) => {
     relationshipOptions.value = options.map((o) => ({ label: o.dictLabel, value: o.dictValue, icon: o.dictValue }))
   })
+  // 【2026-10-29 字典接线】指标 03~06 选项随 core_indicator_03..06 字典原地覆盖(失败静默保持静态表)
+  fetchIndicatorDictOptions(getDictData)
   // 五项指标定义与新增/编辑表单共用同一份口径（utils/customer-fields.js），避免两处标签漂移
   const indicatorDefs = ref(INDICATOR_FIELDS)
   const indicatorTotal = computed(() => sumIndicatorScore(indicatorForm))

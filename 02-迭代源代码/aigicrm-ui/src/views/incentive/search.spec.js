@@ -72,6 +72,14 @@ function mockData() {
         { dictValue: '成熟创新' }, { dictValue: '突破开拓' }, { dictValue: '铺垫宣传' }, { dictValue: '新建改建扩建大修' },
       ] })
     }
+    if (url === '/system/dict/data/industry') {
+      // 系统设置→行业数据列表（2026-10-29 改字典驱动; 含「新行业」——原硬编码缺该项）
+      return Promise.resolve({ data: [
+        { dictValue: '冶金' }, { dictValue: '煤矿' }, { dictValue: '化工' }, { dictValue: '电力' },
+        { dictValue: '有色金属' }, { dictValue: '机械' }, { dictValue: '工程公司' }, { dictValue: '维修厂' },
+        { dictValue: '其他终端客户' }, { dictValue: '新行业', status: 0 }, { dictValue: '新行业' },
+      ] })
+    }
     return Promise.resolve({ data: [] })
   })
   // 树 mock 用真实形状（嵌套两级, categoryName/parentId）——2026-10-28 两级分类筛选的数据源
@@ -204,6 +212,28 @@ describe('incentive/search.vue 分页与搜索测试', () => {
     const w2 = mount(SearchView, { global: mountGlobal })
     await flushPromises()
     expect(w2.vm.devTypeOptions).toEqual(['成熟创新', '突破开拓', '铺垫宣传', '新建改建扩建大修'])
+  })
+
+  it('行业下拉=系统字典驱动(2026-10-29): 停用项过滤、含「新行业」, 选中发 industry 参数, 字典失败兜底含新行业', async () => {
+    const wrapper = mount(SearchView, { global: mountGlobal })
+    await flushPromises()
+    // 字典驱动: status=0 的重复项被过滤, 全量 10 项含「新行业」(原硬编码 9 项缺它)
+    expect(wrapper.vm.industries).toEqual(['冶金', '煤矿', '化工', '电力', '有色金属', '机械', '工程公司', '维修厂', '其他终端客户', '新行业'])
+    request.get.mockClear()
+    wrapper.vm.fIndustry = '新行业'
+    await wrapper.vm.doSearch()
+    const call = request.get.mock.calls.find(([url]) => url === '/incentive/customer-records')
+    expect(call[1].params.industry).toBe('新行业')
+    // 字典接口失败 → 兜底仍为全量(含「新行业」), 不再回到旧的 9 项硬编码
+    request.get.mockImplementation((url) => {
+      if (url === '/system/dict/data/industry') return Promise.reject(new Error('dict down'))
+      if (url === '/incentive/customer-records') return Promise.resolve({ data: [] })
+      return Promise.resolve({ data: [] })
+    })
+    const w2 = mount(SearchView, { global: mountGlobal })
+    await flushPromises()
+    expect(w2.vm.industries).toContain('新行业')
+    expect(w2.vm.industries).toHaveLength(10)
   })
 
   it('scoreOrder 仅做客户端排序, 不作为死参数发给后端（P2-6）', async () => {

@@ -65,6 +65,41 @@ export async function fetchRelationshipOptions(getDictData) {
   }
 }
 
+// 【2026-10-29 字典接线】指标 03~06 选项改调系统字典(core_indicator_03..06, 建于 2026-06-12 但一直零引用,
+// 界面此前只用下方静态表——字典与代码已漂移一字: 指标03 字典「有数编码」vs 旧静态表「有效编码」,
+// 接线后以字典为权威, 文案差异在系统设置里改字典即可全端生效)。
+// 与 fetchRelationshipOptions 同模式: 按 dictValue 数值落位、原地覆盖静态 options,
+// 表单/详情/排行等所有 INDICATOR_FIELDS 消费方零改动跟随; 单项失败/空字典保持静态表(fail-open)。
+// 映射: INDICATOR_FIELDS.code('03'~'06') ↔ 字典 core_indicator_03..06; 指标02(高层客情)仍走 relationship_depth。
+const INDICATOR_DICT_TARGETS = [
+  { code: '03', dict: 'core_indicator_03' },
+  { code: '04', dict: 'core_indicator_04' },
+  { code: '05', dict: 'core_indicator_05' },
+  { code: '06', dict: 'core_indicator_06' }
+]
+
+export async function fetchIndicatorDictOptions(getDictData) {
+  const results = await Promise.allSettled(
+    INDICATOR_DICT_TARGETS.map((t) => getDictData(t.dict))
+  )
+  results.forEach((result, index) => {
+    if (result.status !== 'fulfilled') return
+    const res = result.value
+    const rows = Array.isArray(res) ? res : Array.isArray(res?.data) ? res.data : null
+    const options = (rows || [])
+      .filter((r) => r && r.dictValue !== null && r.dictValue !== undefined && r.status !== 0)
+      .map((r) => ({ dictValue: String(r.dictValue), dictLabel: r.dictLabel }))
+      .filter((r) => r.dictLabel)
+    if (!options.length) return
+    const entry = INDICATOR_FIELDS.find((f) => f.code === INDICATOR_DICT_TARGETS[index].code)
+    if (!entry) return
+    // 按 dictValue 数值排序落位(0~3 档), 字典端调 sort_order 不影响档位语义
+    options.sort((a, b) => Number(a.dictValue) - Number(b.dictValue))
+    entry.options.length = 0
+    entry.options.push(...options)
+  })
+}
+
 /** 五项评分字段定义：options 的 dictValue 为字符串（与后端字典返回口径一致），分值 0-3 */
 export const INDICATOR_FIELDS = [
   {

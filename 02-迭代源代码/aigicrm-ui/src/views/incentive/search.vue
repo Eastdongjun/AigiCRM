@@ -176,7 +176,18 @@ const pageSize = ref(8)
 const onSizeChange = (size) => { pageSize.value = size; pageNum.value = 1 }
 const pagedCusts = computed(() => paginate(custs.value, pageNum.value, pageSize.value))
 const detailVisible=ref(false),detailCust=ref(null)
-const industries=['冶金','煤矿','化工','电力','有色金属','机械','工程公司','维修厂','其他终端客户']
+// 【2026-10-29 字典接线】行业选项改调系统字典(industry); 兜底=当前字典全量(含「新行业」, 原硬编码
+// 缺该项致新行业客户筛不出)。改字典后此兜底需人工同步(门禁 check-dict-source-contract.sh 盯调用不删)。
+const INDUSTRY_FALLBACK=['冶金','煤矿','化工','电力','有色金属','机械','工程公司','维修厂','其他终端客户','新行业']
+const industries=ref([])
+async function loadIndustries(){
+  try{
+    const res=await getDictData('industry')
+    const list=(res.data||[]).filter(d=>d&&d.status!==0).sort((a,b)=>(a.sortOrder??0)-(b.sortOrder??0)).map(d=>d.dictValue).filter(Boolean)
+    if(!list.length) throw new Error('empty dict')
+    industries.value=list
+  }catch(e){ industries.value=[...INDUSTRY_FALLBACK] }
+}
 // 一级分类选项=分类树顶层（getCategoryTree 返回嵌套树, 顶层数组即大类, loadCats 里灌入）
 const mainCats=ref([])
 const subCats=computed(()=>{
@@ -253,7 +264,7 @@ async function loadOrgs(){try{const res=await cachedGet('depts',()=>request.get(
   const fixed=filtered.map(d=>({...d,parentId:rootIds.has(d.parentId)?d.parentId:0}))
   orgTree.value=build(fixed)}catch(e){}}
 
-onMounted(()=>{loadCats();loadDevTypes();loadUsers();loadOrgs();doSearch()})
+onMounted(()=>{loadCats();loadDevTypes();loadIndustries();loadUsers();loadOrgs();doSearch()})
 </script>
 
 <style scoped>

@@ -40,8 +40,10 @@ const INDICATOR_FIELDS = ['relationshipScore', 'indicator02', 'indicator03', 'in
 const RELATIONSHIP_OPTIONS = ['商务少', '纯商务', '感情商务', '多样性']
 
 /** 字典行 → 客情选项数组; 空返回 null(调用方保持兜底文案)。
- * 下标=dictValue(0-3): 行缺失的档位用兜底文案补位(防下标前移), 脏值(非0-3整数)丢弃。 */
-function relationshipOptionsFromDict(rows) {
+ * 下标=dictValue(0-3): 行缺失的档位用兜底文案补位(防下标前移), 脏值(非0-3整数)丢弃。
+ * slotFallback: 指标接线复用时传该项自身静态表, 缺档补位不再错拿客情文案。 */
+function relationshipOptionsFromDict(rows, slotFallback) {
+  const fallback = slotFallback || RELATIONSHIP_OPTIONS
   const valid = (rows || []).filter((r) => r && r.dictValue !== null && r.dictValue !== undefined && r.status !== 0)
   if (!valid.length) return null
   const byValue = {}
@@ -54,7 +56,7 @@ function relationshipOptionsFromDict(rows) {
   })
   if (maxValue < 0) return null
   const labels = []
-  for (let v = 0; v <= maxValue; v++) labels.push(byValue[v] || RELATIONSHIP_OPTIONS[v] || `档位${v}`)
+  for (let v = 0; v <= maxValue; v++) labels.push(byValue[v] || fallback[v] || `档位${v}`)
   return labels
 }
 
@@ -67,6 +69,32 @@ function fetchRelationshipDictOptions(getDictData) {
       return labels
     })
     .catch(() => null)
+}
+
+// 【2026-10-29 字典接线】指标 03~06 选项改调系统字典 core_indicator_03..06(建于 2026-06-12 但一直零引用,
+// 此前只有下方静态表——字典「有数编码」vs 静态「有效编码」已漂移, 接线后以字典为权威)。
+// 与客情同模式: 下标=dictValue 落位、原地覆盖 INDICATOR_ITEMS[1..4].options, 单项失败保持静态表(fail-open)。
+// 映射: items[1].field indicator02↔core_indicator_03, [2]indicator03↔04, [3]indicator04↔05, [4]indicator05↔06。
+const INDICATOR_DICT_TARGETS = [
+  { index: 1, dict: 'core_indicator_03' },
+  { index: 2, dict: 'core_indicator_04' },
+  { index: 3, dict: 'core_indicator_05' },
+  { index: 4, dict: 'core_indicator_06' }
+]
+
+/** 拉后台字典批量覆盖指标 03~06 选项(传入 api.getDictData; 全部失败静默保持兜底) */
+function fetchIndicatorDictOptions(getDictData) {
+  return Promise.all(
+    INDICATOR_DICT_TARGETS.map((t) => getDictData(t.dict).catch(() => null))
+  ).then((lists) => {
+    lists.forEach((rows, i) => {
+      const item = INDICATOR_ITEMS[INDICATOR_DICT_TARGETS[i].index]
+      if (!item) return
+      // 复用客情的下标落位算法: 行缺失档位用该项自身静态表补位(防下标前移), 脏值丢弃
+      const labels = relationshipOptionsFromDict(rows, item.options)
+      if (labels) item.options = labels
+    })
+  }).catch(() => null)
 }
 
 const INDICATOR_ITEMS = [
@@ -203,6 +231,7 @@ module.exports = {
   RELATIONSHIP_OPTIONS,
   relationshipOptionsFromDict,
   fetchRelationshipDictOptions,
+  fetchIndicatorDictOptions,
   sumIndicatorScore,
   buildIndicatorItems,
   CORE_INVOICE_AMOUNT_THRESHOLD,

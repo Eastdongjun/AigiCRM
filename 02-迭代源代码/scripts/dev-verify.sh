@@ -537,6 +537,8 @@ local_contracts() {
   run python3 "$ROOT/scripts/check-mobile-live-qa-boundary.py"
   run "$ROOT/scripts/check-mobile-pc-only-boundary.sh"
   run "$ROOT/scripts/check-mobile-pc-api-parity-contract.sh"
+  # 【2026-10-29 字典来源契约】系统字典清单对账+接线钉+防复活钉(回应"字典建了业务端硬编码不用"审计)
+  run "$ROOT/scripts/check-dict-source-contract.sh"
   run "$ROOT/scripts/check-sensitive-permission-contract.sh"
   run "$ROOT/scripts/check-jwt-secret-contract.sh"
   # 【F1 2026-10-21】全量 secret 扫描(p1-p6 形态, 含 aigicrm-ui/*.mjs)+其行为测试;

@@ -13,7 +13,7 @@ import {
 } from '@/api/customer'
 import { getDeptList, getDictData } from '@/api/system'
 import regionData from '@/utils/region-data'
-import { INDICATOR_FIELDS, sumIndicatorScore, fetchRelationshipOptions } from '@/utils/customer-fields'
+import { INDICATOR_FIELDS, sumIndicatorScore, fetchRelationshipOptions, fetchIndicatorDictOptions } from '@/utils/customer-fields'
 import { INDUSTRY_FALLBACK_OPTIONS } from '@/utils/dict-fallback'
 import { useUserStore } from '@/store/user'
 
@@ -365,6 +365,8 @@ export function useCustomerForm() {
     // 【F4 复审 2026-10-13】编辑表单的客情选项随字典: 幂等触发(fetchRelationshipOptions 原地
     // 同步 INDICATOR_FIELDS[0].options 引用的兜底数组), 失败静默保持兜底文案
     fetchRelationshipOptions(getDictData)
+    // 【2026-10-29 字典接线】指标 03~06 选项随 core_indicator_03..06 字典原地覆盖(失败静默保持静态表)
+    fetchIndicatorDictOptions(getDictData)
 
     if (isEdit.value) {
       try {

@@ -4,7 +4,7 @@
 // 数据链路同源(getCustomerRecords 按客户分组 + 本地筛选排序), 打散=分组结果拉平, 不加接口。
 const { getCustomerRecords, getCategoryTree, getGrantCheck, getUsers } = require('../../../api/incentive')
 const { getDownloadToken } = require('../../../api/file')
-const { getDepts } = require('../../../api/system')
+const { getDepts, getDictData } = require('../../../api/system')
 const { incentiveRecords } = require('../../../data/demo')
 const { hasPermission, requireLogin } = require('../../../utils/auth')
 const { showError, showErrorWithRetry } = require('../../../utils/feedback')
@@ -122,7 +122,9 @@ function buildIncentiveView(data) {
   }
 }
 
-const INDUSTRIES = ['全部行业', '冶金', '煤矿', '化工', '电力', '有色金属', '机械', '工程公司', '维修厂', '其他终端客户']
+// 【2026-10-29 字典接线】行业选项=系统字典 industry 优先(loadIndustryOptions 拉取覆盖 data.industries),
+// 本常量降级为字典缺行/接口失败兜底; 兜底已含字典现量「新行业」(原硬编码缺该项致筛不出)。
+const INDUSTRIES = ['全部行业', '冶金', '煤矿', '化工', '电力', '有色金属', '机械', '工程公司', '维修厂', '其他终端客户', '新行业']
 const DEV_TYPES = ['全部类型', '成熟创新', '突破开拓', '铺垫宣传']
 const PRODUCT_OPTIONS = ['全部产品', '防腐', '加固', '钢结构', '煤气管道', '公共区', '装置区', '水泵', '渣泵', '介质泵', '静密封', '动密封', '橡胶密封', '润滑油', '润滑脂', '润滑剂']
 // 【2026-10-27 用户令 B 案】分类筛选改两级(大类→子类): 原扁平 picker 只列子类名, 四大主类
@@ -267,6 +269,7 @@ Page({
     this.setData({ canUploadEvidence: !getApp().globalData.demoMode && hasPermission('incentive:add') })
     this._categoryChildrenByMain = null
     this.loadCategoryTree()
+    this.loadIndustryOptions()
     this.ensureDlToken().then(() => {
       this.loadRecords()
     })
@@ -337,6 +340,21 @@ Page({
       // fail-open: 树拉不到不阻断列表, 筛选降级为"全部分类+记录子类"单层
       this.applyCategoryTree(null)
     })
+  },
+
+  // 【2026-10-29 字典接线】行业筛选选项=系统字典 industry(字典加值即跟随); 失败/空保持兜底常量(fail-open)
+  loadIndustryOptions() {
+    if (getApp().globalData.demoMode) return
+    getDictData('industry').then((rows) => {
+      const labels = (Array.isArray(rows) ? rows : [])
+        .filter((r) => r && r.status !== 0)
+        .map((r) => r && r.dictValue)
+        .filter(Boolean)
+      if (!labels.length) return
+      const industries = ['全部行业', ...labels]
+      const selectedIndustryIndex = Math.min(this.data.selectedIndustryIndex || 0, industries.length - 1)
+      this.setData({ industries, selectedIndustryIndex }, () => this.refreshIncentiveView())
+    }).catch(() => {})
   },
 
   applyCategoryTree(nodes) {

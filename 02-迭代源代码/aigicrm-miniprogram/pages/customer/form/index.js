@@ -6,7 +6,7 @@ const { showError, showErrorWithRetry } = require('../../../utils/feedback')
 const { getFormDraft, saveFormDraft, deleteFormDraft } = require('../../../api/draft')
 const { readDemoCustomers, saveDemoCustomer } = require('../../../utils/demo-customers')
 // 【D24/D25 2026-10-04】五项指标配置/求和/视图、核心阈值提示、返回兜底统一引用组内共享模块
-const { INDICATOR_FIELDS, sumIndicatorScore, buildIndicatorItems, CORE_THRESHOLD_TIP, navigateBackWithFallback } = require('../shared')
+const { INDICATOR_FIELDS, sumIndicatorScore, buildIndicatorItems, CORE_THRESHOLD_TIP, navigateBackWithFallback, fetchIndicatorDictOptions } = require('../shared')
 
 /** 【PR-05 残余 20260921 + C5 2026-10-21】提交幂等键生成器: 小程序无 crypto.randomUUID,
  *  用时间戳+随机串(键只需唯一, 服务端按 用户+键 作用域隔离)。
@@ -58,7 +58,9 @@ const FALLBACK = {
   offices: [{ id: 11, deptName: '内蒙办', parentId: 1 }, { id: 21, deptName: '山西办', parentId: 2 }],
   users: [{ id: 1, realName: '张三' }, { id: 2, realName: '李四' }],
   industry: ['煤矿', '化工', '电力', '洗煤厂', '有色', '其他'],
-  devType: ['成熟创新', '突破开拓', '铺垫宣传'],
+  // 【2026-10-29 字典对账批】devType 兜底补第四类「新建改建扩建大修」(与 PC useCustomerForm 兜底/字典同口径;
+  // 此前 MP 漏补——字典接口失败时下拉会缺项, PC 同位置 2026-10 前已修)
+  devType: ['成熟创新', '突破开拓', '铺垫宣传', '新建改建扩建大修'],
   groups: ['陕煤集团', '国家能源集团']
 }
 
@@ -201,6 +203,13 @@ Page({
       }),
       getCustomerGroupNames().then((list) => this.setGroupOptions((list || []).filter(Boolean))).catch(() => this.setGroupOptions([]))
     ])
+    // 【2026-10-29 字典接线】指标 03~06 选项随 core_indicator_03..06 字典覆盖(shared 原地改 INDICATOR_ITEMS),
+    // 成功后按当前表单重建指标 picker; 失败静默保持静态表(编辑页表单稍后加载, 届时构建自然取到新选项)
+    if (!getApp().globalData.demoMode) {
+      fetchIndicatorDictOptions(getDictData).then(() => {
+        this.setData({ indicatorItems: buildIndicatorItems(this.data.indicatorForm) })
+      })
+    }
   },
 
   setGroupOptions(list) {

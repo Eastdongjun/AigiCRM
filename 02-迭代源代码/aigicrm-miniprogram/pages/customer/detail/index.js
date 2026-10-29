@@ -5,7 +5,7 @@ const { showError, showErrorWithRetry } = require('../../../utils/feedback')
 const { readDemoCustomers } = require('../../../utils/demo-customers')
 // 【D24/D25 2026-10-04】状态文案、五项指标配置、核心客户阈值统一引用组内 shared(单一出处)
 // 【#10 2026-10-12】客情选项同步走 shared 新文案 + 后台字典 relationship_depth 覆盖
-const { customerStatusLabel, INDICATOR_FIELDS, INDICATOR_ITEMS, CORE_INVOICE_AMOUNT_THRESHOLD, CORE_PAYMENT_AMOUNT_THRESHOLD, CORE_INDICATOR_SCORE_THRESHOLD, INDICATOR_MAX_SCORE, RELATIONSHIP_OPTIONS, fetchRelationshipDictOptions } = require('../shared')
+const { customerStatusLabel, INDICATOR_FIELDS, INDICATOR_ITEMS, CORE_INVOICE_AMOUNT_THRESHOLD, CORE_PAYMENT_AMOUNT_THRESHOLD, CORE_INDICATOR_SCORE_THRESHOLD, INDICATOR_MAX_SCORE, RELATIONSHIP_OPTIONS, fetchRelationshipDictOptions, fetchIndicatorDictOptions } = require('../shared')
 const { getDictData } = require('../../../api/system')
 
 const INITIAL_RELATIONSHIP_OPTIONS = RELATIONSHIP_OPTIONS.map((label, value) => ({ label, value }))
@@ -320,6 +320,11 @@ Page({
         relationshipOptions: options,
         relationshipOptionsView: buildRelationshipOptions(options, this.data.indicator, this.data.canEdit)
       })
+    })
+    // 【2026-10-29 字典接线】指标 03~06 选项随 core_indicator_03..06 字典覆盖(shared 原地改 INDICATOR_ITEMS),
+    // 成功后用当前页面态重建详情视图(指标行文案即时跟随字典); 失败静默保持静态表
+    fetchIndicatorDictOptions(getDictData).then(() => {
+      this.setData({ detailView: buildDetailView(this.data) })
     })
   },
 
