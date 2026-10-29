@@ -48,10 +48,11 @@
             <el-select v-model="fIndustry" placeholder="全部行业" clearable @change="doSearch" size="small"><el-option v-for="i in industries" :key="i" :label="i" :value="i" /></el-select>
           </div>
           <div class="adv-field">
-            <label class="adv-field-label"><el-icon><PriceTag /></el-icon> 开发类型</label>
-            <!-- 【2026-10-28 用户令】开发类型改两级分类（与小程序轻量页 B 案同口径）: 一级=分类树大类
+            <label class="adv-field-label"><el-icon><PriceTag /></el-icon> 分类</label>
+            <!-- 【2026-10-28 用户令】分类两级化（与小程序轻量页 B 案同口径）: 一级=分类树大类
                  (外出参观/交流拜访/两谈两做方案/产品试点), 二级=该大类子类。一级走后端 mainCategoryId
-                 (接口按大类含子孙类过滤), 二级按子类名客户端过滤记录。原硬编码三项扁平筛选退役。 -->
+                 (接口按大类含子孙类过滤), 二级按子类名客户端过滤记录。标签用「分类」与 MP 对齐,
+                 与下方「开发类型」(客户属性字典)是两个不同的轴。 -->
             <div style="display:flex;gap:8px">
               <el-select v-model="fMainCat" placeholder="一级分类" clearable @change="onMainCatChange" size="small" style="flex:1">
                 <el-option v-for="c in mainCats" :key="c.id" :label="c.categoryName" :value="c.id" />
@@ -60,6 +61,15 @@
                 <el-option v-for="s in subCats" :key="s" :label="s" :value="s" />
               </el-select>
             </div>
+          </div>
+          <div class="adv-field">
+            <label class="adv-field-label"><el-icon><PriceTag /></el-icon> 开发类型</label>
+            <!-- 【2026-10-29 用户令】改调系统字典(系统设置→开发类型数据列表, /system/dict/data/dev_type,
+                 isAuthenticated 即可拉): 原硬编码三项缺「新建改建扩建大修」, 字典后续增删值下拉自动跟随;
+                 接口失败兜底=四项全量(与客户表单 useCustomerForm 兜底同口径) -->
+            <el-select v-model="fDevType" placeholder="全部类型" clearable filterable @change="doSearch" size="small">
+              <el-option v-for="d in devTypeOptions" :key="d" :label="d" :value="d" />
+            </el-select>
           </div>
           <div class="adv-field span-2">
             <label class="adv-field-label"><el-icon><Calendar /></el-icon> 日期范围</label>
@@ -135,6 +145,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { getCategoryTree } from '@/api/incentive'
+import { getDictData } from '@/api/system'
 import { isCurrentMonth, sortByScore } from '@/utils/incentive-read'
 import { cachedGet } from '@/utils/layout-cache'
 import { Search, User, VideoPlay, Document, Filter, Folder, OfficeBuilding, PriceTag, Calendar, MapLocation, Picture } from '@element-plus/icons-vue'
@@ -147,7 +158,7 @@ import { thumbUrl, getFiles, getMain, getCls, scoreColor } from './search-helper
 import SearchLightbox from './SearchLightbox.vue'
 import SearchDetailDialog from './SearchDetailDialog.vue'
 
-const fCustomer=ref(''),fSales=ref(''),fIndustry=ref(''),fDateRange=ref(null),fOrgIds=ref([]),showFilter=ref(false)
+const fCustomer=ref(''),fSales=ref(''),fIndustry=ref(''),fDevType=ref(''),fDateRange=ref(null),fOrgIds=ref([]),showFilter=ref(false)
 // 【2026-10-28 两级分类】一级=大类 id(发后端 mainCategoryId), 二级=子类名(客户端按记录 categoryName 过滤)
 const fMainCat=ref(null),fSubCat=ref('')
 const fProdCat=ref(''),fProdSub=ref('')
@@ -173,8 +184,17 @@ const subCats=computed(()=>{
   return ((m&&m.children)||[]).map(c=>c.categoryName)
 })
 function onMainCatChange(){ fSubCat.value=''; doSearch() }
+// 开发类型选项=系统字典 dev_type（与客户表单同源同兜底口径）
+const DEV_TYPE_FALLBACK=['成熟创新','突破开拓','铺垫宣传','新建改建扩建大修']
+const devTypeOptions=ref([])
+async function loadDevTypes(){
+  try{
+    const res=await getDictData('dev_type')
+    devTypeOptions.value=(res.data||[]).map(d=>d.dictValue)
+  }catch(e){ devTypeOptions.value=[...DEV_TYPE_FALLBACK] }
+}
 const userList=ref([]),orgTree=ref([])
-const activeFilterCount=computed(()=>[fSales.value,fIndustry.value,fMainCat.value,fSubCat.value,fDateRange.value,fOrgIds.value?.length>0].filter(v=>!!v).length)
+const activeFilterCount=computed(()=>[fSales.value,fIndustry.value,fMainCat.value,fSubCat.value,fDevType.value,fDateRange.value,fOrgIds.value?.length>0].filter(v=>!!v).length)
 
 // 灯箱：委托子组件打开；缩略图失败标记随打开重置（原 preview 行为）
 const lightbox = ref(null)
@@ -194,6 +214,7 @@ async function doSearch(){
   if(fCustomer.value){p.customerName=fCustomer.value;p.keyword=fCustomer.value}
   if(fSales.value)p.salesperson=fSales.value;if(fIndustry.value)p.industry=fIndustry.value
   if(fMainCat.value)p.mainCategoryId=fMainCat.value
+  if(fDevType.value)p.devType=fDevType.value
   if(fDateRange.value?.length===2){p.startDate=fDateRange.value[0];p.endDate=fDateRange.value[1]}
   if(fOrgIds.value?.length){p.orgIds=fOrgIds.value.join(',')}
   if(fProdSub.value)p.product=fProdSub.value
@@ -222,7 +243,7 @@ async function doSearch(){
     if (seq === searchSeq) loading.value = false
   }
 }
-function doReset(){fCustomer.value='';fSales.value='';fIndustry.value='';fMainCat.value=null;fSubCat.value='';fDateRange.value=null;fOrgIds.value=[];fProdCat.value='';fProdSub.value='';scoreOrder.value='';doSearch()}
+function doReset(){fCustomer.value='';fSales.value='';fIndustry.value='';fMainCat.value=null;fSubCat.value='';fDevType.value='';fDateRange.value=null;fOrgIds.value=[];fProdCat.value='';fProdSub.value='';scoreOrder.value='';doSearch()}
 async function loadCats(){try{const res=await cachedGet('categoryTree',getCategoryTree);const tree=res.data||[];mainCats.value=tree;const walk=l=>{l.forEach(c=>{catMap.value[c.id]=c;if(c.children)walk(c.children)})};walk(tree)}catch(e){}}
 async function loadUsers(){try{const res=await cachedGet('incentiveUsers',()=>request.get('/incentive/users'));userList.value=res.data||[]}catch(e){}}
 async function loadOrgs(){try{const res=await cachedGet('depts',()=>request.get('/system/depts'));const list=res.data||[]
@@ -232,7 +253,7 @@ async function loadOrgs(){try{const res=await cachedGet('depts',()=>request.get(
   const fixed=filtered.map(d=>({...d,parentId:rootIds.has(d.parentId)?d.parentId:0}))
   orgTree.value=build(fixed)}catch(e){}}
 
-onMounted(()=>{loadCats();loadUsers();loadOrgs();doSearch()})
+onMounted(()=>{loadCats();loadDevTypes();loadUsers();loadOrgs();doSearch()})
 </script>
 
 <style scoped>

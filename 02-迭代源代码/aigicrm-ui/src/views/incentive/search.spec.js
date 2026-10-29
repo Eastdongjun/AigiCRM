@@ -66,6 +66,12 @@ function mockData() {
     if (url === '/system/depts') {
       return Promise.resolve({ data: [{ id: 2, parentId: 1, deptName: '山西大区', deptType: 2 }] })
     }
+    if (url === '/system/dict/data/dev_type') {
+      // 系统设置→开发类型数据列表（2026-10-29 改字典驱动, 四项全量含「新建改建扩建大修」）
+      return Promise.resolve({ data: [
+        { dictValue: '成熟创新' }, { dictValue: '突破开拓' }, { dictValue: '铺垫宣传' }, { dictValue: '新建改建扩建大修' },
+      ] })
+    }
     return Promise.resolve({ data: [] })
   })
   // 树 mock 用真实形状（嵌套两级, categoryName/parentId）——2026-10-28 两级分类筛选的数据源
@@ -175,6 +181,29 @@ describe('incentive/search.vue 分页与搜索测试', () => {
     wrapper.vm.doReset()
     expect(wrapper.vm.fMainCat).toBeNull()
     expect(wrapper.vm.fSubCat).toBe('')
+  })
+
+  it('开发类型下拉=系统字典驱动(2026-10-29): 四项全量含第四类, 选中发 devType 参数, 字典失败兜底四项', async () => {
+    const wrapper = mount(SearchView, { global: mountGlobal })
+    await flushPromises()
+    // 选项来自 /system/dict/data/dev_type（不再硬编码缺项）
+    expect(wrapper.vm.devTypeOptions).toEqual(['成熟创新', '突破开拓', '铺垫宣传', '新建改建扩建大修'])
+    request.get.mockClear()
+    wrapper.vm.fDevType = '新建改建扩建大修'
+    await wrapper.vm.doSearch()
+    const call = request.get.mock.calls.find(([url]) => url === '/incentive/customer-records')
+    expect(call[1].params.devType).toBe('新建改建扩建大修')
+    wrapper.vm.doReset()
+    expect(wrapper.vm.fDevType).toBe('')
+    // 字典接口失败 → 兜底仍为四项全量（与客户表单 useCustomerForm 兜底同口径）
+    request.get.mockImplementation((url) => {
+      if (url === '/system/dict/data/dev_type') return Promise.reject(new Error('dict down'))
+      if (url === '/incentive/customer-records') return Promise.resolve({ data: [] })
+      return Promise.resolve({ data: [] })
+    })
+    const w2 = mount(SearchView, { global: mountGlobal })
+    await flushPromises()
+    expect(w2.vm.devTypeOptions).toEqual(['成熟创新', '突破开拓', '铺垫宣传', '新建改建扩建大修'])
   })
 
   it('scoreOrder 仅做客户端排序, 不作为死参数发给后端（P2-6）', async () => {
