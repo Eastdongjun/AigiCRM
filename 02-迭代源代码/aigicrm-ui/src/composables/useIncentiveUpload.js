@@ -178,15 +178,12 @@ export function useIncentiveUpload() {
     return map
   })
 
-  // 支持2级/3级结构的分组
+  // 分类树 = 两级记录分类 + 三级产品目录(2026-10-29 归树批): 记录只挂二级(涂层类等),
+  // 三级(防腐/水泵等)仅供上传弹窗"产品大类/细分产品"取值, 不进左侧子项、不可作为上传分类
   const groupedChildren = computed(() => {
     const parent = activeParent.value
     if (!parent) return []
-    const children = categories.value.filter(c => c.parentId === parent.id)
-    return children.map(child => {
-      const grandchildren = categories.value.filter(c => c.parentId === child.id)
-      return { ...child, items: grandchildren.length > 0 ? grandchildren : null }
-    })
+    return categories.value.filter(c => c.parentId === parent.id).map(child => ({ ...child, items: null }))
   })
 
   // 记录增强：从分类树计算 大类·子类 和 所属分组

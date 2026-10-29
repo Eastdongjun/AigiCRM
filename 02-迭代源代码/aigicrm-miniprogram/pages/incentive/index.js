@@ -59,7 +59,8 @@ function flattenCategoryTree(nodes = [], level = 0, result = [], parent = null) 
       parentId: (parent && parent.id) || item.parentId || 0,
       parentName: (parent && parent.name) || ''
     })
-    if (item.children && item.children.length) flattenCategoryTree(item.children, level + 1, result, { id: item.id, name })
+    // 记录分类只取前两级; 第三级自归树批起是产品目录(防腐/水泵等), 不进分类浏览
+    if (level < 2 && item.children && item.children.length) flattenCategoryTree(item.children, level + 1, result, { id: item.id, name })
   })
   return result
 }

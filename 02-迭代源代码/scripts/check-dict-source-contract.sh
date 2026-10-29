@@ -84,6 +84,10 @@ require_contains "'trial'" "$MP/pages/incentive/home/index.js" "MP轻量页产�
 require_contains "'trial'" "$MP/pages/incentive/index.js" "MP完整版产品清单未接树派生"
 # 唯一入口成立的前提: 激励类别管理页能渲染/维护第三级
 require_contains "cat-grand-list" "$UI/views/system/CategoryManager.vue" "激励类别管理缺三级渲染(产品小类不可维护)"
+# 记录分类只取前两级(第三级=产品目录不进记录分类; 左侧子项取值错位事故 2026-10-29)
+require_contains "items: null" "$UI/composables/useIncentiveUpload.js" "PC左侧子项取到三级(记录分类必须停二级)"
+require_contains "level < 2" "$MP/pages/incentive/index.js" "MP完整版分类浏览缺两级截断"
+require_contains "depth < 2" "$MP/pages/incentive/upload/index.js" "MP上传页分类缺两级截断"
 
 echo "=== [防复活钉] 已修复的硬编码选项源禁止回潮 ==="
 reject_regex() {
@@ -93,5 +97,7 @@ reject_regex() {
 # PC 激励查询: 选项禁止回到静态硬编码数组(兜底常量 INDUSTRY_FALLBACK/DEV_TYPE_FALLBACK 除外)
 reject_regex "const industries\s*=\s*\[" "$UI/views/incentive/search.vue" "行业选项回潮硬编码(应 getDictData('industry'))"
 reject_regex "const devTypes\s*=\s*\[" "$UI/views/incentive/search.vue" "开发类型回潮硬编码(应 getDictData('dev_type'))"
+# PC 上传 composable: 孙级节点禁止再被当记录分类消费(产品目录派生在 product-catalog.js 内部, 不受此钉)
+reject_regex "grandchildren" "$UI/composables/useIncentiveUpload.js" "PC又把孙级当记录分类(第三级只属于产品目录)"
 
 echo 'PASS: 字典来源契约通过(清单对账+接线钉+防复活钉)。'
