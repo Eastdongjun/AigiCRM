@@ -227,4 +227,42 @@ describe('useIncentiveUpload 品类判定与提交序列化', () => {
     await list.loadRecords()
     expect(getRecords).toHaveBeenCalledWith(expect.objectContaining({ period: undefined }))
   })
+
+  // 2026-10-29 左侧子分类联动 + 筛选栏新增(行业/时间范围)
+  it('左侧分类联动: 选中只留该 categoryId 记录, 再点取消恢复, selectedCategoryName 供标签展示', () => {
+    list.records.value = [
+      { id: 11, categoryId: 4, customerName: 'A', createdAt: '2026-10-20 10:00:00' },
+      { id: 12, categoryId: 2, customerName: 'B', createdAt: '2026-10-21 10:00:00' },
+    ]
+    expect(list.filteredRecords.value.length).toBe(2)
+
+    list.toggleCategoryFilter(4)
+    expect(list.selectedCategoryId.value).toBe(4)
+    expect(list.selectedCategoryName.value).toBe('密封试点')
+    expect(list.filteredRecords.value.map((r) => r.id)).toEqual([11])
+
+    list.toggleCategoryFilter(4)
+    expect(list.selectedCategoryId.value).toBe(null)
+    expect(list.selectedCategoryName.value).toBe('')
+    expect(list.filteredRecords.value.length).toBe(2)
+  })
+
+  it('行业与时间范围筛选: 行业等值过滤, 时间按上传日期闭区间过滤', () => {
+    list.records.value = [
+      { id: 21, categoryId: 4, industry: '化工', createdAt: '2026-10-01 09:00:00' },
+      { id: 22, categoryId: 4, industry: '电力', createdAt: '2026-10-15 09:00:00' },
+      { id: 23, categoryId: 4, industry: '化工', createdAt: '2026-11-01 09:00:00' },
+    ]
+    list.filterIndustry.value = '化工'
+    // 同品类按时间倒序: 23 在前
+    expect(list.filteredRecords.value.map((r) => r.id)).toEqual([23, 21])
+
+    list.filterIndustry.value = ''
+    list.filterDateRange.value = ['2026-10-01', '2026-10-31']
+    expect(list.filteredRecords.value.map((r) => r.id)).toEqual([22, 21])
+
+    // 清空区间恢复全量
+    list.filterDateRange.value = []
+    expect(list.filteredRecords.value.length).toBe(3)
+  })
 })

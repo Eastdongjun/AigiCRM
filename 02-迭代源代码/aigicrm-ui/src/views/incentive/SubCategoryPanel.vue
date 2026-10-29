@@ -1,33 +1,25 @@
 <template>
-  <!-- 左侧：子分类列表（可折叠：窄屏表格优先拿宽度，收起后留 36px 细轨可随时展开） -->
+  <!-- 左侧：子分类列表（点行=筛选右侧表格，再点同一行取消；「上传文件」按钮独立入口不受行点击影响） -->
   <div class="left-panel" :class="{ collapsed: panelCollapsed }">
     <template v-if="!panelCollapsed">
       <div class="sub-hint">
         <el-tag type="danger" size="small" effect="plain">{{ activeParent?.categoryName }}</el-tag>
-        <span class="sub-hint-text">— 选择子项上传文件</span>
+        <span class="sub-hint-text">— 点击行筛选 / 上传</span>
         <el-button class="fold-btn" size="small" text :icon="CaretLeft" title="收起子分类面板" aria-label="收起子分类面板" @click="setPanelExpanded(false)" />
       </div>
 
-      <div v-for="group in groupedChildren" :key="group.id" class="sub-group">
-        <template v-if="group.items">
-          <div class="group-header">{{ group.categoryName }}</div>
-          <div v-for="item in group.items" :key="item.id" class="sub-item">
-            <span class="sub-name">{{ item.categoryName }}</span>
-            <div class="sub-actions">
-              <span class="score-badge" :class="'score-' + Math.min(item.score ?? 0, 3)">{{ item.score ?? 0 }}分</span>
-              <el-button v-if="userStore.hasPermission('incentive:add')" size="small" plain :icon="Upload" @click="startUpload(item)">上传文件</el-button>
-            </div>
-          </div>
-        </template>
-        <template v-else>
-          <div class="sub-item flat">
-            <span class="sub-name">{{ group.categoryName }}</span>
-            <div class="sub-actions">
-              <span class="score-badge" :class="'score-' + Math.min(group.score ?? 0, 3)">{{ group.score ?? 0 }}分</span>
-              <el-button v-if="userStore.hasPermission('incentive:add')" size="small" plain :icon="Upload" @click="startUpload(group)">上传文件</el-button>
-            </div>
-          </div>
-        </template>
+      <div
+        v-for="child in groupedChildren"
+        :key="child.id"
+        class="sub-item"
+        :class="{ active: selectedCategoryId === child.id }"
+        @click="toggleCategoryFilter(child.id)"
+      >
+        <span class="sub-name">{{ child.categoryName }}</span>
+        <div class="sub-actions">
+          <span class="score-badge" :class="'score-' + Math.min(child.score ?? 0, 3)">{{ child.score ?? 0 }}分</span>
+          <el-button v-if="userStore.hasPermission('incentive:add')" size="small" plain :icon="Upload" @click.stop="startUpload(child)">上传文件</el-button>
+        </div>
       </div>
     </template>
 
@@ -43,7 +35,7 @@ import { ref } from 'vue'
 import { Upload, CaretLeft, CaretRight } from '@element-plus/icons-vue'
 import { injectIncentiveUpload } from '@/composables/useIncentiveUpload'
 
-const { userStore, activeParent, groupedChildren, startUpload } = injectIncentiveUpload()
+const { userStore, activeParent, groupedChildren, startUpload, selectedCategoryId, toggleCategoryFilter } = injectIncentiveUpload()
 
 // 折叠偏好持久化；首次访问按屏幕宽度给默认值（<1600 时表格需要宽度，默认收起）。
 // 【工作流复检修复 2026-10-10】"阻止所有 Cookie"的 Safari/部分内嵌 WebView 里 localStorage
@@ -67,11 +59,11 @@ const setPanelExpanded = (expanded) => {
 .fold-btn { flex-shrink:0; margin-left:auto }
 .fold-rail { display:flex; flex-direction:column; align-items:center; gap:8px; padding-top:4px }
 .rail-text { writing-mode:vertical-rl; font-size:11px; color:var(--el-text-color-secondary); letter-spacing:2px }
-.sub-group { margin-bottom:4px }
-.group-header { font-size:13px; font-weight:700; color:#1f2329; padding:10px 0 6px 12px; border-left:3px solid var(--el-color-primary); margin-top:8px }
-.sub-item { display:flex; justify-content:space-between; align-items:center; padding:10px 0 10px 12px; border-bottom:1px solid #f5f5f5; transition:background .15s }
+.sub-item { display:flex; justify-content:space-between; align-items:center; padding:10px 0 10px 12px; border-bottom:1px solid #f5f5f5; transition:background .15s; cursor:pointer }
 .sub-item:hover { background:#f0f4ff }
-.sub-item.flat { padding-left:0 }
+/* 行选中=右侧表格正按此子分类过滤(品牌蓝描边与文字同色系, 与页面Tab激活语言一致) */
+.sub-item.active { background:#f0f4ff; box-shadow:inset 3px 0 0 var(--el-color-primary) }
+.sub-item.active .sub-name { color:var(--el-color-primary); font-weight:700 }
 .sub-name { font-size:13px; color:#333; font-weight:500 }
 .sub-actions { display:flex; align-items:center; gap:10px }
 .score-badge { display:inline-block; min-width:28px; text-align:center; padding:2px 8px; border-radius: var(--radius-md); font-size:12px; font-weight:600 }

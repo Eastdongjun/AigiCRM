@@ -75,6 +75,12 @@ export function useIncentiveUpload() {
   const filterCustomer = ref('')
   const filterGroup = ref('')
   const filterTier = ref('')
+  // 左侧子分类选中(行点击联动右侧表格; null=当前大类全部, 再点同一行取消)
+  const selectedCategoryId = ref(null)
+  const toggleCategoryFilter = (id) => { selectedCategoryId.value = selectedCategoryId.value === id ? null : id }
+  // 行业筛选(字典 industry,与上传口径同源; 注意与上传弹窗的 selectedIndustry 互不相干) + 上传日期区间
+  const filterIndustry = ref('')
+  const filterDateRange = ref([])
 
   // 客户选择相关
   const showCustomerDialog = ref(false)
@@ -248,6 +254,14 @@ export function useIncentiveUpload() {
     }
     if (filterGroup.value) list = list.filter(r => r.groupName === filterGroup.value)
     if (filterTier.value) list = list.filter(r => r.tier === filterTier.value)
+    // 左侧子分类联动: 记录挂二级分类, 按记录 categoryId 精确匹配(数值归一防字符串/数字互串)
+    if (selectedCategoryId.value != null) list = list.filter(r => Number(r.categoryId) === Number(selectedCategoryId.value))
+    if (filterIndustry.value) list = list.filter(r => (r.industry || '') === filterIndustry.value)
+    // createdAt=「YYYY-MM-DD HH:mm:ss」, 取前 10 位与区间端点(YYYY-MM-DD)字典序比较
+    if (filterDateRange.value && filterDateRange.value.length === 2) {
+      const [from, to] = filterDateRange.value
+      list = list.filter(r => { const d = String(r.createdAt || '').slice(0, 10); return d >= from && d <= to })
+    }
     return [...list].sort((a, b) => {
       const d = mainOrderOf(a) - mainOrderOf(b)
       if (d !== 0) return d
@@ -261,7 +275,9 @@ export function useIncentiveUpload() {
     return filteredRecords.value.slice(start, start + pageSize.value)
   })
   // 筛选条件变化时回到第 1 页
-  watch([searchText, filterCustomer, filterGroup, filterTier, activeTab, selectedUser, selectedPeriod], () => { pageNum.value = 1 })
+  watch([searchText, filterCustomer, filterGroup, filterTier, selectedCategoryId, filterIndustry, filterDateRange, activeTab, selectedUser, selectedPeriod], () => { pageNum.value = 1 })
+  // 筛选栏「已选分类」可关标签用: 当前选中子分类名(未选=空串)
+  const selectedCategoryName = computed(() => selectedCategoryId.value != null ? (categoryMap.value[selectedCategoryId.value]?.categoryName || '') : '')
 
   const scoreColor = (score) => {
     // 【B5 2026-10-08】语义色字面量改主题变量（内联样式支持 CSS 变量），与全站色板同源
@@ -807,7 +823,8 @@ export function useIncentiveUpload() {
     }
   }
 
-  watch(activeTab, () => { filterGroup.value = ''; filterTier.value = ''; loadRecords() })
+  // 切大类Tab: 清分类级筛选(含左侧选中的子分类——它属于旧大类, 不清会跨大类串数据)
+  watch(activeTab, () => { filterGroup.value = ''; filterTier.value = ''; selectedCategoryId.value = null; loadRecords() })
   watch(selectedPeriod, loadRecords)
   watch(selectedUser, loadRecords)
   watch(selectedCustomerId, (newId) => {
@@ -823,6 +840,7 @@ export function useIncentiveUpload() {
     previewVisible, previewUrl, previewType, previewName, fileUrl,
     parseFids, splitNames, fileType, previewFile, previewCardFile,
     searchText, filterCustomer, filterGroup, filterTier, filterGroupOptions, filterTierOptions,
+    selectedCategoryId, selectedCategoryName, toggleCategoryFilter, filterIndustry, filterDateRange,
     showCustomerDialog, selectedCustomerId, customerOptions, customerLoading, sharedCustomerIds,
     pendingChild, pendingReplace, fileInputRef, shareToTeam,
     uploading, uploadProgress, uploadProgressText, totalNewFiles,

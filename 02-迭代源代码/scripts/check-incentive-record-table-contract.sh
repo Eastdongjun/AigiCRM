@@ -10,6 +10,8 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 INDEX_VIEW="$ROOT/aigicrm-ui/src/views/incentive/index.vue"
 RECORD_TABLE="$ROOT/aigicrm-ui/src/views/incentive/RecordTable.vue"
 RECORD_TABLE_SPEC="$ROOT/aigicrm-ui/src/views/incentive/RecordTable.spec.js"
+SUB_CATEGORY_PANEL="$ROOT/aigicrm-ui/src/views/incentive/SubCategoryPanel.vue"
+FILTER_BAR="$ROOT/aigicrm-ui/src/views/incentive/IncentiveFilterBar.vue"
 UPLOAD_COMPOSABLE="$ROOT/aigicrm-ui/src/composables/useIncentiveUpload.js"
 UPLOAD_COMPOSABLE_SPEC="$ROOT/aigicrm-ui/src/composables/useIncentiveUpload.spec.js"
 PAGINATION_UTIL="$ROOT/aigicrm-ui/src/utils/pagination.js"
@@ -35,10 +37,24 @@ assert_contains() {
 }
 
 for file in \
-  "$INDEX_VIEW" "$RECORD_TABLE" "$RECORD_TABLE_SPEC" "$UPLOAD_COMPOSABLE" "$UPLOAD_COMPOSABLE_SPEC" \
+  "$INDEX_VIEW" "$RECORD_TABLE" "$RECORD_TABLE_SPEC" "$SUB_CATEGORY_PANEL" "$FILTER_BAR" "$UPLOAD_COMPOSABLE" "$UPLOAD_COMPOSABLE_SPEC" \
   "$PAGINATION_UTIL" "$API" "$CONTROLLER" "$ARCH_TEST" "$API_DOC" "$FEATURE_AUDIT"; do
   assert_file "$file"
 done
+
+# 【2026-10-29 左面板联动+筛选扩展】点左侧子分类=右侧表格按记录 categoryId 过滤(记录挂二级,数值归一);
+# 筛选栏新增行业(字典)/时间范围(闭区间,前10位字典序); 切大类Tab自动清选中防跨大类串数据
+assert_contains "$UPLOAD_COMPOSABLE" "toggleCategoryFilter"
+assert_contains "$UPLOAD_COMPOSABLE" "selectedCategoryId.value === id ? null : id"
+assert_contains "$UPLOAD_COMPOSABLE" "Number(r.categoryId) === Number(selectedCategoryId.value)"
+assert_contains "$UPLOAD_COMPOSABLE" "filterDateRange.value.length === 2"
+assert_contains "$UPLOAD_COMPOSABLE_SPEC" "左侧分类联动"
+assert_contains "$SUB_CATEGORY_PANEL" "toggleCategoryFilter(child.id)"
+assert_contains "$SUB_CATEGORY_PANEL" "active: selectedCategoryId === child.id"
+assert_contains "$SUB_CATEGORY_PANEL" "@click.stop=\"startUpload(child)\""
+assert_contains "$FILTER_BAR" "filterIndustry"
+assert_contains "$FILTER_BAR" "filterDateRange"
+assert_contains "$FILTER_BAR" "value-format=\"YYYY-MM-DD\""
 
 assert_contains "$INDEX_VIEW" "provide(IncentiveUploadKey, upload)"
 assert_contains "$INDEX_VIEW" "<RecordTable />"
