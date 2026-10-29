@@ -9,7 +9,7 @@ const { requireLogin, hasPermission } = require('../../../utils/auth')
 const { fetchRemoteAttachment, saveDownloadedFileToDisk, isTextFileName, openTextView } = require('../../../utils/attachment')
 const { showError, showErrorWithRetry } = require('../../../utils/feedback')
 
-function flattenCategories(nodes = [], result = []) {
+function flattenCategories(nodes = [], result = [], depth = 1) {
   nodes.forEach((item) => {
     result.push({
       id: item.id,
@@ -18,9 +18,28 @@ function flattenCategories(nodes = [], result = []) {
       name: item.categoryName || item.name || '未命名分类',
       score: item.score || 0
     })
-    if (item.children && item.children.length) flattenCategories(item.children, result)
+    // 【2026-10-29 归树批】三级(产品小类)只用于产品目录派生, 不进分类选项扁平表——
+    // 保持分类两级选择行为与 seed 前完全一致
+    if (depth < 2 && item.children && item.children.length) flattenCategories(item.children, result, depth + 1)
   })
   return result
+}
+
+// 【2026-10-29 归树批】产品目录(大类→小类)从分类树"产品试点"分支派生(系统设置→激励类别管理维护);
+// 树缺行/接口失败时由 data.relatedCatOptions/productCats 的兜底常量接管(fail-open)
+function deriveProductCatalog(nodes = []) {
+  const trial = (nodes || []).find((n) => n && ((n.categoryCode || '') === 'trial' || n.categoryName === '产品试点' || n.name === '产品试点'))
+  const cats = {}
+  const keys = []
+  ;(((trial && trial.children) || [])).forEach((child) => {
+    const name = (child && (child.categoryName || child.name)) || ''
+    if (!name) return
+    const subs = ((child && child.children) || []).map((g) => (g && (g.categoryName || g.name)) || '').filter(Boolean)
+    if (!subs.length) return
+    keys.push(name)
+    cats[name] = subs
+  })
+  return keys.length ? { keys, cats } : null
 }
 
 function defaultSlots() {
@@ -535,6 +554,9 @@ Page({
       if (this._unloaded) return // 【六轮复检修复】进页秒退不再对已卸载页 setData
       const categories = flattenCategories(categoryRes || [])
       this.setData({ categories, categoryParentNodes: deriveCategoryParents(categories), categoryNames: categories.map((item) => item.name) }, () => this.refreshUploadViewState())
+      // 【2026-10-29 归树批】产品大类/小类随树派生(三级结构就绪即覆盖兜底常量)
+      const derived = deriveProductCatalog(categoryRes || [])
+      if (derived) this.setData({ relatedCatOptions: derived.keys, productCats: derived.cats })
       if (this.data.editId) this.loadEditRecord()
       else this.tryRestoreDraft() // 【PR-13】新建模式: 选项就绪后检查草稿恢复(分类索引依赖选项)
       // 【五轮复检修复】草稿恢复的已上传图片同样需要 dlToken 才能显示远端缩略图(原只编辑模式取)

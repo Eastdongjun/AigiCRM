@@ -73,6 +73,18 @@ require_contains "fetchIndicatorDictOptions(getDictData)" "$MP/pages/customer/de
 require_contains "fetchIndicatorDictOptions(getDictData)" "$MP/pages/customer/form/index.js" "MP客户表单未拉指标字典"
 require_contains "'新建改建扩建大修'" "$MP/pages/customer/form/index.js" "MP开发类型兜底缺第四类"
 
+echo "=== [接线钉·产品目录归树 2026-10-29] 产品目录唯一来源=分类树(系统设置→激励类别管理) ==="
+# PC: 三处消费方必须走树派生(buildProductCatsFromTree), 常量只作兜底
+require_contains "buildProductCatsFromTree" "$UI/views/incentive/product-catalog.js" "PC产品目录缺树派生函数"
+require_contains "buildProductCatsFromTree" "$UI/views/incentive/search.vue" "PC激励查询产品目录未走树派生"
+require_contains "buildProductCatsFromTree" "$UI/composables/useIncentiveUpload.js" "PC上传弹窗产品目录未走树派生"
+# MP: 上传页树派生 + 两列表页产品清单接树(trial 分支锚)
+require_contains "deriveProductCatalog" "$MP/pages/incentive/upload/index.js" "MP上传页产品目录未走树派生"
+require_contains "'trial'" "$MP/pages/incentive/home/index.js" "MP轻量页产品清单未接树派生"
+require_contains "'trial'" "$MP/pages/incentive/index.js" "MP完整版产品清单未接树派生"
+# 唯一入口成立的前提: 激励类别管理页能渲染/维护第三级
+require_contains "cat-grand-list" "$UI/views/system/CategoryManager.vue" "激励类别管理缺三级渲染(产品小类不可维护)"
+
 echo "=== [防复活钉] 已修复的硬编码选项源禁止回潮 ==="
 reject_regex() {
   local pattern="$1" file="$2" msg="$3"

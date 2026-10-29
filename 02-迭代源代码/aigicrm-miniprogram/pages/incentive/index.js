@@ -317,7 +317,9 @@ function buildIncentiveView(data) {
 // 本常量降级为字典缺行/接口失败兜底; 兜底已含字典现量「新行业」(原硬编码缺该项致筛不出)。
 const INDUSTRIES = ['全部行业', '冶金', '煤矿', '化工', '电力', '有色金属', '机械', '工程公司', '维修厂', '其他终端客户', '新行业']
 const DEV_TYPES = ['全部类型', '成熟创新', '突破开拓', '铺垫宣传']
-const PRODUCT_OPTIONS = ['全部产品', '防腐', '加固', '钢结构', '煤气管道', '公共区', '装置区', '水泵', '渣泵', '介质泵', '静密封', '动密封', '橡胶密封', '润滑油', '润滑脂', '润滑剂']
+// 【2026-10-29 归树批】产品筛选选项=分类树"产品试点"分支派生(loadCategories 树就绪后覆盖), 本常量降级为
+// 兜底; 兜底补上此前手抄漏掉的「其他」(与 PC 目录对齐——旧 MP 扁平清单只有 15 个小类)。
+const PRODUCT_OPTIONS = ['全部产品', '防腐', '加固', '钢结构', '煤气管道', '其他', '公共区', '装置区', '水泵', '渣泵', '介质泵', '静密封', '动密封', '橡胶密封', '润滑油', '润滑脂', '润滑剂']
 // 【2026-10-26 用户令"要有按时间排序"】与轻量页(pages/incentive/home)同款四档,
 // 「默认排序」(=接口顺序=最新在前)由首档显式承接
 const ORDER_OPTIONS = ['最新记录在前', '最早记录在前', '分值从高到低', '分值从低到高']
@@ -728,6 +730,20 @@ Page({
     getCategoryTree().then((rows) => {
       const categoryTree = flattenCategoryTree(rows || [])
       this.setData({ categoryTree, categoryTreeView: buildCategoryTreeView(categoryTree) }, () => this.refreshIncentiveView())
+      // 【2026-10-29 归树批】产品筛选选项随树"产品试点"分支派生(大类→小类拉平); 无三级结构保持兜底
+      const trial = (rows || []).find((n) => n && ((n.categoryCode || '') === 'trial' || (n.categoryName || n.name) === '产品试点'))
+      const productNames = []
+      ;(((trial && trial.children) || [])).forEach((child) => {
+        ;((child && child.children) || []).forEach((g) => {
+          const name = (g && (g.categoryName || g.name)) || ''
+          if (name && productNames.indexOf(name) < 0) productNames.push(name)
+        })
+      })
+      if (productNames.length) {
+        const productOptions = ['全部产品', ...productNames]
+        const selectedProductIndex = Math.min(this.data.selectedProductIndex || 0, productOptions.length - 1)
+        this.setData({ productOptions, selectedProductIndex }, () => this.refreshIncentiveView())
+      }
       this.loadCategoryStats()
     }).catch((error) => showErrorWithRetry(error, '四项服务分类加载失败', () => this.loadCategories()))
   },

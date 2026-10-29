@@ -236,6 +236,36 @@ describe('incentive/search.vue 分页与搜索测试', () => {
     expect(w2.vm.industries).toHaveLength(10)
   })
 
+  it('产品目录树派生(2026-10-29 归树批): 分类树"产品试点"三级结构就绪即覆盖兜底常量', async () => {
+    // 树带三级: 产品试点 → 涂层类 → 防腐/加固(小类) —— 产品大类/小类选项应来自树而非 PRODUCT_CATS 兜底
+    getCategoryTree.mockResolvedValue({ data: [
+      { id: 4, categoryName: '产品试点', categoryCode: 'trial', parentId: 0, children: [
+        { id: 40, categoryName: '涂层类', parentId: 4, children: [
+          { id: 400, categoryName: '树派生防腐', parentId: 40, children: [] },
+          { id: 401, categoryName: '树派生加固', parentId: 40, children: [] },
+        ] },
+        { id: 44, categoryName: '润滑类', parentId: 4, children: [
+          { id: 440, categoryName: '树派生润滑油', parentId: 44, children: [] },
+        ] },
+      ] },
+    ] })
+    const wrapper = mount(SearchView, { global: mountGlobal })
+    await flushPromises()
+    expect(wrapper.vm.productCatKeys).toEqual(['涂层类', '润滑类'])
+    expect(wrapper.vm.productCats['涂层类']).toEqual(['树派生防腐', '树派生加固'])
+    expect(wrapper.vm.productCats['润滑类']).toEqual(['树派生润滑油'])
+    // 兜底路径: 树无三级结构(旧库未跑 seed 迁移) → 保持常量
+    getCategoryTree.mockResolvedValue({ data: [
+      { id: 4, categoryName: '产品试点', categoryCode: 'trial', parentId: 0, children: [
+        { id: 40, categoryName: '涂层类', parentId: 4, children: [] },
+      ] },
+    ] })
+    const w2 = mount(SearchView, { global: mountGlobal })
+    await flushPromises()
+    expect(w2.vm.productCatKeys).toContain('涂层类')
+    expect(w2.vm.productCats['涂层类']).toEqual(['防腐', '加固', '钢结构', '煤气管道', '其他'])
+  })
+
   it('scoreOrder 仅做客户端排序, 不作为死参数发给后端（P2-6）', async () => {
     // 后端 /incentive/customer-records 不收 scoreOrder(排序由前端 sortByScore 完成)；
     // 死参数不仅无效, 还会让"排序筛选"看起来是服务端语义——误导排障

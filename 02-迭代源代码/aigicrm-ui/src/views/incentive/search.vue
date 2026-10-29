@@ -152,7 +152,9 @@ import { Search, User, VideoPlay, Document, Filter, Folder, OfficeBuilding, Pric
 import request from '@/utils/request'
 import { paginate, pageSizes } from '@/utils/pagination'
 // 【D10 2026-10-04】五大类产品目录改共享常量（原与 useIncentiveUpload.js 各硬编码一份）
-import { PRODUCT_CATS as productCats, PRODUCT_CAT_KEYS as productCatKeys } from './product-catalog'
+// 【2026-10-29 归树批】产品目录权威来源=分类树"产品试点"分支(系统设置→激励类别管理),
+// loadCats 里经 buildProductCatsFromTree 派生覆盖; 常量为树缺行/接口失败兜底
+import { PRODUCT_CATS, PRODUCT_CAT_KEYS, buildProductCatsFromTree } from './product-catalog'
 // 【D9 2026-10-04】文件/分类纯工具拆至共享模块；灯箱与详情弹窗拆为子组件
 import { thumbUrl, getFiles, getMain, getCls, scoreColor } from './search-helpers'
 import SearchLightbox from './SearchLightbox.vue'
@@ -161,6 +163,9 @@ import SearchDetailDialog from './SearchDetailDialog.vue'
 const fCustomer=ref(''),fSales=ref(''),fIndustry=ref(''),fDevType=ref(''),fDateRange=ref(null),fOrgIds=ref([]),showFilter=ref(false)
 // 【2026-10-28 两级分类】一级=大类 id(发后端 mainCategoryId), 二级=子类名(客户端按记录 categoryName 过滤)
 const fMainCat=ref(null),fSubCat=ref('')
+// 【2026-10-29 归树批】产品大类/小类选项: 树派生优先, 常量兜底
+const productCats=ref(PRODUCT_CATS)
+const productCatKeys=ref(PRODUCT_CAT_KEYS)
 const fProdCat=ref(''),fProdSub=ref('')
 const scoreOrder=ref('')
 const custs=ref([]),catMap=ref({})
@@ -255,7 +260,7 @@ async function doSearch(){
   }
 }
 function doReset(){fCustomer.value='';fSales.value='';fIndustry.value='';fMainCat.value=null;fSubCat.value='';fDevType.value='';fDateRange.value=null;fOrgIds.value=[];fProdCat.value='';fProdSub.value='';scoreOrder.value='';doSearch()}
-async function loadCats(){try{const res=await cachedGet('categoryTree',getCategoryTree);const tree=res.data||[];mainCats.value=tree;const walk=l=>{l.forEach(c=>{catMap.value[c.id]=c;if(c.children)walk(c.children)})};walk(tree)}catch(e){}}
+async function loadCats(){try{const res=await cachedGet('categoryTree',getCategoryTree);const tree=res.data||[];mainCats.value=tree;const walk=l=>{l.forEach(c=>{catMap.value[c.id]=c;if(c.children)walk(c.children)})};walk(tree);const derived=buildProductCatsFromTree(tree);if(derived){productCats.value=derived.cats;productCatKeys.value=derived.keys}}catch(e){}}
 async function loadUsers(){try{const res=await cachedGet('incentiveUsers',()=>request.get('/incentive/users'));userList.value=res.data||[]}catch(e){}}
 async function loadOrgs(){try{const res=await cachedGet('depts',()=>request.get('/system/depts'));const list=res.data||[]
   const build=(list,pId=0)=>list.filter(d=>Number(d.parentId)===Number(pId)).sort((a,b)=>(a.sortOrder||0)-(b.sortOrder||0)).map(d=>{const ch=build(list,d.id);return ch.length?{...d,children:ch}:{...d}})

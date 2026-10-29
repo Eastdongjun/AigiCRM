@@ -33,9 +33,26 @@
           <div v-show="!collapsed.has(top.id)" class="cat-group-body">
             <el-table v-if="top.children && top.children.length" :data="top.children" size="small" style="width:100%"
               :header-cell-style="{ background: '#f7f9fc', color: '#4e5969', fontWeight: 600, borderBottom: '1px solid #eef0f4' }">
+              <!-- 【2026-10-29 归树批】产品目录第三级(小类)在展开行维护——树二级=产品大类, 三级=细分小类 -->
+              <el-table-column type="expand" width="34">
+                <template #default="{ row }">
+                  <div v-if="row.children && row.children.length" class="cat-grand-list">
+                    <div v-for="g in row.children" :key="g.id" class="cat-grand-item">
+                      <span class="cat-grand-name">{{ g.categoryName }}</span>
+                      <span :class="g.status === 1 ? 'cat-status-on' : 'cat-status-off'"><i></i>{{ g.status === 1 ? '启用' : '禁用' }}</span>
+                      <template v-if="userStore.hasPermission('incentive:edit')">
+                        <el-button link type="primary" size="small" @click="openCategoryDialog(g, row.id)">编辑</el-button>
+                        <el-button link type="danger" size="small" @click="handleDeleteCategory(g)">删除</el-button>
+                      </template>
+                    </div>
+                  </div>
+                  <div v-else class="cat-grand-empty">无三级子项（产品大类下的细分小类在此维护）</div>
+                </template>
+              </el-table-column>
               <el-table-column label="类别名称" min-width="160">
                 <template #default="{ row }">
                   <span class="cat-child-name">{{ row.categoryName }}</span>
+                  <span v-if="row.children && row.children.length" class="cat-grand-count">+{{ row.children.length }} 小类</span>
                 </template>
               </el-table-column>
               <el-table-column prop="categoryCode" label="编码" width="120">

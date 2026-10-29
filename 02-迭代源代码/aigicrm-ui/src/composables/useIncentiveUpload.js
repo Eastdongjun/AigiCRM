@@ -14,7 +14,7 @@ import request from '@/utils/request'
 import { getDownloadToken, refreshDownloadToken } from '@/utils/token'
 import { buildPeriodOptions, periodQueryValue, defaultRecordPeriod } from '@/utils/incentive-period'
 // 【D10 2026-10-04】五大类产品目录改为共享常量（原先与 incentive/search.vue 各硬编码一份）
-import { PRODUCT_CATS, PRODUCT_CAT_KEYS } from '@/views/incentive/product-catalog'
+import { PRODUCT_CATS, PRODUCT_CAT_KEYS, buildProductCatsFromTree } from '@/views/incentive/product-catalog'
 import { INDUSTRY_FALLBACK_OPTIONS } from '@/utils/dict-fallback'
 import { mediaTypeOf, isImageName } from '@/utils/media-type'
 
@@ -111,8 +111,10 @@ export function useIncentiveUpload() {
   const selectedIndustry = ref('')
   const relatedProducts = ref('')
   const specificProduct = ref('')
-  const productCats = PRODUCT_CATS
-  const productCatKeys = PRODUCT_CAT_KEYS
+  // 【2026-10-29 归树批】产品大类/小类=分类树"产品试点"分支派生(loadCategories 树就绪后覆盖),
+  // 常量为树缺行/接口失败兜底; 唯一维护入口=系统设置→激励类别管理
+  const productCats = ref(PRODUCT_CATS)
+  const productCatKeys = ref(PRODUCT_CAT_KEYS)
   const relatedCat = ref('')
   const relatedSub = ref('')
   watch([relatedCat, relatedSub], () => { relatedProducts.value = relatedCat.value && relatedSub.value ? relatedCat.value + '-' + relatedSub.value : relatedCat.value || relatedSub.value })
@@ -299,6 +301,12 @@ export function useIncentiveUpload() {
       }
       flatten(res.data || [])
       categories.value = flat
+      // 【2026-10-29 归树批】产品目录随树派生(三级结构就绪即覆盖兜底常量)
+      const derivedCatalog = buildProductCatsFromTree(res.data || [])
+      if (derivedCatalog) {
+        productCats.value = derivedCatalog.cats
+        productCatKeys.value = derivedCatalog.keys
+      }
 
       if (parentCategories.value.length > 0 && !activeTab.value) {
         activeTab.value = String(parentCategories.value[0].id)
