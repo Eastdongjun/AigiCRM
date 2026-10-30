@@ -423,6 +423,13 @@ grep -q 'catchtap="chooseFile"' "$upload_wxml" || { echo "FAIL: incentive upload
 grep -q 'selected-file-thumb' "$upload_wxml" || { echo "FAIL: incentive upload selected image thumbnail is missing" >&2; exit 1; }
 grep -q 'wx:for="{{slot.files}}"' "$upload_wxml" || { echo "FAIL: incentive upload selected file list no longer renders multiple files per slot" >&2; exit 1; }
 grep -q 'data-file-index' "$upload_wxml" || { echo "FAIL: incentive upload selected file actions do not target per-slot file index" >&2; exit 1; }
+# 【2026-10-30 同槽翻页】同一上传格子内左右翻页: swiper 横滑+页码指示+深层补丁回调; 行式平铺禁止回潮
+grep -q 'class="slot-swiper"' "$upload_wxml" || { echo "FAIL: incentive upload slot swiper paging is missing" >&2; exit 1; }
+grep -q 'bindchange="onSlotPageChange"' "$upload_wxml" || { echo "FAIL: incentive upload slot page change handler is unwired" >&2; exit 1; }
+grep -q 'selected-slot-page' "$upload_wxml" || { echo "FAIL: incentive upload slot page indicator is missing" >&2; exit 1; }
+grep -q 'onSlotPageChange' "$upload_page" || { echo "FAIL: incentive upload slot paging handler is missing in JS" >&2; exit 1; }
+grep -q 'slotPages' "$upload_page" || { echo "FAIL: incentive upload slot paging state is missing in JS" >&2; exit 1; }
+! grep -q 'selected-file-row' "$upload_wxml" || { echo "FAIL: incentive upload per-file flat rows must not return (same-slot paging replaced them)" >&2; exit 1; }
 grep -q 'item.countText' "$upload_wxml" || { echo "FAIL: incentive upload slot count UI is missing" >&2; exit 1; }
 grep -q 'class="form-actions"' "$upload_wxml" || { echo "FAIL: incentive upload footer actions are not grouped like PC dialog actions" >&2; exit 1; }
 grep -q 'bindtap="cancelUpload"' "$upload_wxml" || { echo "FAIL: incentive upload cancel UI is missing" >&2; exit 1; }

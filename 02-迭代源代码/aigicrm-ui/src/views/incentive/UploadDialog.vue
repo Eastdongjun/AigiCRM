@@ -65,19 +65,8 @@
           <span class="dlg-sec-title">{{ slotLabel }}</span>
           <span class="dlg-sec-tip">至少 1 个，最多 {{ MAX_FILES }} 个</span>
         </div>
-        <div class="file-slot-cards">
-          <div v-for="(file, idx) in installFiles.pre" :key="idx" class="file-card has" @click.stop="previewCardFile(file)">
-            <img v-if="(file._existing ? (thumbsReady && file.id) : true) && isImage(file.name) && !file._thumbFailed" :src="file._existing ? existingThumb(file) : getObjectURL(file)" class="file-card-img" @error="file._thumbFailed = true" />
-            <div v-else class="file-card-icon"><el-icon :size="file._existing?20:24"><Document /></el-icon></div>
-            <span v-if="fileType(file.name) === 'video'" class="file-card-play"><el-icon><VideoPlay /></el-icon></span>
-            <!-- 已有文件也可移除（用户裁决 2026-10-10：上传错了需要修改；确认后走后端原子移除） -->
-            <span class="file-card-del" role="button" tabindex="0" aria-label="移除文件" @click.stop="handleRemoveSlotFile('pre', idx)" @keydown.enter.stop.prevent="handleRemoveSlotFile('pre', idx)"><el-icon><Close /></el-icon></span>
-            <span class="file-card-name">{{ file.name?.substring(0, 12) }}{{ file.name?.length > 12 ? '…' : '' }}</span>
-          </div>
-          <div v-if="installFiles.pre.length < MAX_FILES" class="file-card add" @click="pickFile('pre')">
-            <el-icon :size="28"><Plus /></el-icon>
-          </div>
-        </div>
+        <!-- 【2026-10-30 用户令: 同一格子内左右翻页】槽位单卡轮播(箭头+页码), 不再整排平铺 -->
+        <FileSlotPager slot-key="pre" :files="installFiles.pre" />
       </div>
 
       <!-- 安装文件：三槽（trial） -->
@@ -94,20 +83,8 @@
               <span class="file-slot-label">{{ slot.label }}</span>
               <span class="file-slot-count">{{ installFiles[slot.key].length }}/{{ MAX_FILES }}</span>
             </div>
-            <div class="file-slot-cards">
-              <div v-for="(file, idx) in installFiles[slot.key]" :key="idx" class="file-card has" @click.stop="previewCardFile(file)">
-                <img v-if="(file._existing ? (thumbsReady && file.id) : true) && isImage(file.name) && !file._thumbFailed" :src="file._existing ? existingThumb(file) : getObjectURL(file)" class="file-card-img" @error="file._thumbFailed = true" />
-                <div v-else class="file-card-icon">
-                  <el-icon :size="file._existing?20:24"><Document /></el-icon>
-                </div>
-                <span v-if="fileType(file.name) === 'video'" class="file-card-play"><el-icon><VideoPlay /></el-icon></span>
-                <span class="file-card-del" role="button" tabindex="0" aria-label="移除文件" @click.stop="handleRemoveSlotFile(slot.key, idx)" @keydown.enter.stop.prevent="handleRemoveSlotFile(slot.key, idx)"><el-icon><Close /></el-icon></span>
-                <span class="file-card-name">{{ file.name?.substring(0, 12) }}{{ file.name?.length > 12 ? '…' : '' }}</span>
-              </div>
-              <div v-if="installFiles[slot.key].length < MAX_FILES" class="file-card add" @click="pickFile(slot.key)">
-                <el-icon :size="28"><Plus /></el-icon>
-              </div>
-            </div>
+            <!-- 【2026-10-30 用户令: 同一格子内左右翻页】槽位单卡轮播(箭头+页码), 不再整排平铺 -->
+            <FileSlotPager :slot-key="slot.key" :files="installFiles[slot.key]" />
           </div>
         </div>
       </div>
@@ -119,19 +96,8 @@
           <span class="dlg-sec-title">跟踪记录</span>
           <span class="dlg-sec-tip">不加分</span>
         </div>
-        <div class="file-slot-cards">
-          <div v-for="(file, idx) in trackFile" :key="idx" class="file-card has" @click.stop="previewCardFile(file)">
-            <img v-if="(file._existing ? (thumbsReady && file.id) : true) && isImage(file.name) && !file._thumbFailed" :src="file._existing ? existingThumb(file) : getObjectURL(file)" class="file-card-img" @error="file._thumbFailed = true" />
-            <div v-else class="file-card-icon"><el-icon :size="20"><Document /></el-icon></div>
-            <span v-if="fileType(file.name) === 'video'" class="file-card-play"><el-icon><VideoPlay /></el-icon></span>
-            <span class="file-card-del" role="button" tabindex="0" aria-label="移除文件" @click.stop="handleRemoveSlotFile('track', idx)" @keydown.enter.stop.prevent="handleRemoveSlotFile('track', idx)"><el-icon><Close /></el-icon></span>
-            <span class="file-card-name">{{ file.name?.substring(0, 12) }}{{ file.name?.length > 12 ? '…' : '' }}</span>
-          </div>
-          <div v-if="trackFile.length < MAX_FILES" class="file-card add" @click="pickTrackFile()">
-            <el-icon :size="28"><Plus /></el-icon>
-            <span style="font-size:12px;color:var(--el-color-info);margin-top:4px">选择文件</span>
-          </div>
-        </div>
+        <!-- 【2026-10-30 用户令: 同一格子内左右翻页】跟踪记录槽同款单卡轮播 -->
+        <FileSlotPager slot-key="track" :files="trackFile" track-mode />
       </div>
 
       <!-- 审计信息（编辑/追加时展示：上传人/上传日期/最后修改人/最后修改时间） -->
@@ -185,6 +151,7 @@
 <script setup>
 import { ElMessage } from 'element-plus'
 import { injectIncentiveUpload } from '@/composables/useIncentiveUpload'
+import FileSlotPager from './FileSlotPager.vue'
 
 const {
   showCustomerDialog, pendingReplace, pendingChild,
@@ -192,8 +159,7 @@ const {
   selectedIndustry, industryOptions, relatedCat, relatedSub, productCatKeys, productCats,
   categoryCodeOf, specificProduct,
   secTitle, detailLabel, isSingleSlot, preInstallQuestion, isTrial, remarkLabel, remarkText,
-  slotLabel, MAX_FILES, installFiles, isImage, existingThumb, thumbsReady, fileType, getObjectURL, removeSlotFile, handleRemoveSlotFile, pickFile, previewCardFile,
-    fileSlots, trackFile, pickTrackFile,
+  slotLabel, MAX_FILES, installFiles, fileSlots,
   shareToTeam, uploading, totalNewFiles, uploadProgress, uploadProgressText, canSubmit, confirmUpload,
   canToggleShare, formatDate,
 } = injectIncentiveUpload()
@@ -253,20 +219,7 @@ const handleDialogBeforeClose = (done) => {
 .file-slot-label { font-size:13px; font-weight:600; color:#333 }
 .file-slot-count { font-size:12px; color:var(--el-color-info); margin-left:auto }
 
-.file-slot-cards { display:flex; flex-wrap:wrap; gap:8px }
-.file-card { width:104px; height:118px; border:2px dashed #dcdfe6; border-radius: var(--radius-md); display:flex; flex-direction:column; align-items:center; justify-content:center; cursor:pointer; transition:all .2s; position:relative; overflow:hidden; background:#fff }
-.file-card:hover { border-color:var(--el-color-primary); background:var(--el-color-primary-light-9) }
-.file-card.add { gap:2px }
-.file-card.add .el-icon { color: var(--text-placeholder) } .file-card.add:hover .el-icon { color:var(--el-color-primary) }
-.file-card.has { border-style:solid; border-color:#d4e8d4; background:#f6fdf6; cursor:default }
-.file-card.has:hover { border-color:#a3d9a3 }
-.file-card-img { width:100%; height:100%; object-fit:cover; border-radius:8px }
-.file-card-icon { display:flex; align-items:center; justify-content:center; color:var(--el-color-info) }
-.file-card-play { position:absolute; left:50%; top:38%; transform:translate(-50%,-50%); width:24px; height:24px; border-radius:50%; background:rgba(0,0,0,.55); color:#fff; display:flex; align-items:center; justify-content:center; font-size:13px; pointer-events:none }
-.file-card-del { position:absolute; top:2px; right:2px; width:20px; height:20px; border-radius:50%; background:rgba(0,0,0,.5); color:#fff; display:flex; align-items:center; justify-content:center; font-size:12px; opacity:0; transition:opacity .15s }
-.file-card:hover .file-card-del { opacity:1 }
-.file-card-name { font-size:12px; color:#606266; text-align:center; margin-top:2px; max-width:96px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; padding:0 2px }
-.file-card-del:hover { background:var(--el-color-danger) }
+/* 文件卡/翻页样式随单卡轮播重构移入 FileSlotPager.vue(2026-10-30) */
 
 .dlg-footer-btns { display:flex; justify-content:flex-end; gap:10px; margin-top:8px }
 .up-card-preview{width:100%;height:90px;overflow:hidden;display:flex;align-items:center;justify-content:center;background:#f5f5f5;border-radius: var(--radius-sm);margin-bottom:6px}
@@ -290,8 +243,4 @@ const handleDialogBeforeClose = (done) => {
 .progress-bar { height: 6px; background: #e8e8e8; border-radius: 3px; overflow: hidden }
 .progress-fill { height: 100%; background: linear-gradient(90deg, var(--el-color-primary), var(--el-color-primary-light-3)); border-radius: 3px; transition: width .3s ease }
 .progress-text { font-size: 12px; color: var(--el-color-info); margin-top: 4px; text-align: center }
-/* 【复检修复】触屏设备无稳定 hover, 移除 X 恒可见(原来 opacity:0 只 hover 显) */
-@media (hover: none) {
-  .file-card-del { opacity: 1 }
-}
 </style>

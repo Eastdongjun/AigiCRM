@@ -12,6 +12,8 @@ RECORD_TABLE="$ROOT/aigicrm-ui/src/views/incentive/RecordTable.vue"
 RECORD_TABLE_SPEC="$ROOT/aigicrm-ui/src/views/incentive/RecordTable.spec.js"
 SUB_CATEGORY_PANEL="$ROOT/aigicrm-ui/src/views/incentive/SubCategoryPanel.vue"
 FILTER_BAR="$ROOT/aigicrm-ui/src/views/incentive/IncentiveFilterBar.vue"
+FILE_SLOT_PAGER="$ROOT/aigicrm-ui/src/views/incentive/FileSlotPager.vue"
+UPLOAD_DIALOG="$ROOT/aigicrm-ui/src/views/incentive/UploadDialog.vue"
 UPLOAD_COMPOSABLE="$ROOT/aigicrm-ui/src/composables/useIncentiveUpload.js"
 UPLOAD_COMPOSABLE_SPEC="$ROOT/aigicrm-ui/src/composables/useIncentiveUpload.spec.js"
 PAGINATION_UTIL="$ROOT/aigicrm-ui/src/utils/pagination.js"
@@ -37,10 +39,20 @@ assert_contains() {
 }
 
 for file in \
-  "$INDEX_VIEW" "$RECORD_TABLE" "$RECORD_TABLE_SPEC" "$SUB_CATEGORY_PANEL" "$FILTER_BAR" "$UPLOAD_COMPOSABLE" "$UPLOAD_COMPOSABLE_SPEC" \
+  "$INDEX_VIEW" "$RECORD_TABLE" "$RECORD_TABLE_SPEC" "$SUB_CATEGORY_PANEL" "$FILTER_BAR" "$FILE_SLOT_PAGER" "$UPLOAD_DIALOG" "$UPLOAD_COMPOSABLE" "$UPLOAD_COMPOSABLE_SPEC" \
   "$PAGINATION_UTIL" "$API" "$CONTROLLER" "$ARCH_TEST" "$API_DOC" "$FEATURE_AUDIT"; do
   assert_file "$file"
 done
+
+# 【2026-10-30 同槽翻页】上传弹窗三个槽区(单槽/三槽/跟踪记录)统一走单卡轮播组件:
+# 只渲染当前文件+箭头+页码; 整排平铺卡片形态禁止回潮
+assert_contains "$UPLOAD_DIALOG" "FileSlotPager slot-key=\"pre\""
+assert_contains "$UPLOAD_DIALOG" ":slot-key=\"slot.key\""
+assert_contains "$UPLOAD_DIALOG" "track-mode"
+assert_contains "$FILE_SLOT_PAGER" "pager-count"
+assert_contains "$FILE_SLOT_PAGER" "handleRemoveSlotFile(slotKey, idx)"
+# 弹窗内不得再出现整排平铺卡片(该形态已收敛进 FileSlotPager 单卡轮播)
+grep -Fq 'class="file-card has"' "$UPLOAD_DIALOG" && fail "上传弹窗平铺文件卡回潮(应统一走 FileSlotPager 单卡翻页)"
 
 # 【2026-10-29 左面板联动+筛选扩展】点左侧子分类=右侧表格按记录 categoryId 过滤(记录挂二级,数值归一);
 # 筛选栏新增行业(字典)/时间范围(闭区间,前10位字典序); 切大类Tab自动清选中防跨大类串数据

@@ -334,6 +334,8 @@ function buildUploadViewState(data) {
     ready: Boolean(slot.fileName),
     countText: slotCountText(slot)
   }))
+  // 【2026-10-30 同槽翻页】每槽当前页备忘: swiper bindchange 写入, 视图重建时钳回合法位
+  const slotPages = data.slotPages || {}
   const selectedFileSlotsView = data.fileSlots
     .map((slot, slotIndex) => {
       const files = (slot.files || []).map((file, fileIndex) => ({
@@ -344,6 +346,8 @@ function buildUploadViewState(data) {
         // 依次用本地临时路径 → 服务端文件 id → 附件 URL 兜底, 最后按下标保证唯一
         fileKey: file.filePath || (file.fileId ? `id-${file.fileId}` : (file.fileUrl ? `url-${file.fileUrl}` : `idx-${fileIndex}`)),
         isImage: file.fileKind === 'image' || isImageFile(file.fileName, file.filePath),
+        // 【2026-10-30 同槽翻页】非图片页的类型面文案
+        kindText: file.fileKind === 'video' ? '视频' : (file.fileKind === 'image' ? '图片' : '文档'),
         // 【三轮复检修复】已有图片接入远端缩略图(原只绑本地 filePath, existing 恒空串=灰底空白)
         thumbUrl: (file.existing && file.fileId && (file.fileKind === 'image' || isImageFile(file.fileName, '')) && data.dlToken)
           ? (getDownloadUrl({ id: file.fileId }, true) + '&token=' + encodeURIComponent(data.dlToken))
@@ -361,6 +365,12 @@ function buildUploadViewState(data) {
       }
     })
     .filter((slot) => slot.visible)
+    // 【2026-10-30 同槽翻页】补翻页视图字段: viewIndex=深层 setData 路径锚, current/pageText=swiper 当前页与页码
+    .map((slot, viewIndex) => {
+      const pageCount = slot.files.length
+      const current = Math.min(slotPages[slot.slotIndex] || 0, Math.max(0, pageCount - 1))
+      return { ...slot, viewIndex, current, pageText: pageCount > 1 ? `${current + 1}/${pageCount}` : '' }
+    })
   return {
     customerPicker: customerPickerView(customer),
     showCustomerConfirm: Boolean(customer),
@@ -477,6 +487,9 @@ Page({
     auditRecord: null,
     selectedSlotIndex: 0,
     fileSlots: defaultSlots(),
+    // 【2026-10-30 同槽翻页】每槽当前页/上次文件数备忘(重建视图时新增跳最新页, 删减钳回末位)
+    slotPages: {},
+    slotFileCounts: {},
     uploadView: buildUploadViewState({
       selectedCustomer: null,
       categoryNames: [],
@@ -508,7 +521,29 @@ Page({
 
   setUploadData(patch) {
     const next = { ...this.data, ...patch }
-    this.setData({ ...patch, uploadView: buildUploadViewState(next) })
+    // 【2026-10-30 同槽翻页】维护每槽当前页: 该槽文件新增→跳最新一页(刚选的立即可见), 删减/清空→钳回末位
+    const slotPages = { ...(next.slotPages || {}) }
+    const slotFileCounts = { ...(next.slotFileCounts || {}) }
+    ;(next.fileSlots || []).forEach((slot, i) => {
+      const n = (slot.files || []).length
+      if (n > (slotFileCounts[i] ?? 0)) slotPages[i] = Math.max(0, n - 1)
+      else slotPages[i] = Math.min(slotPages[i] || 0, Math.max(0, n - 1))
+      slotFileCounts[i] = n
+    })
+    this.setData({ ...patch, slotPages, slotFileCounts, uploadView: buildUploadViewState({ ...next, slotPages }) })
+  },
+
+  // 【2026-10-30 同槽翻页】swiper 滑动回调: 只补丁当前槽的 current/pageText 深层路径, 不整树重建
+  onSlotPageChange(e) {
+    const viewIndex = Number(e.currentTarget.dataset.viewIndex)
+    const slotIndex = Number(e.currentTarget.dataset.slotIndex)
+    const count = Number(e.currentTarget.dataset.count) || 0
+    const current = Math.max(0, Math.min(Number(e.detail.current) || 0, Math.max(0, count - 1)))
+    this.setData({
+      [`slotPages.${slotIndex}`]: current,
+      [`uploadView.selectedFileSlotsView[${viewIndex}].current`]: current,
+      [`uploadView.selectedFileSlotsView[${viewIndex}].pageText`]: count > 1 ? `${current + 1}/${count}` : ''
+    })
   },
 
   onLoad(options = {}) {

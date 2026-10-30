@@ -124,21 +124,31 @@
       </view>
     </view>
     <view class="selected-file-list">
+      <!-- 【2026-10-30 用户令: 同一上传格子内左右翻页】每槽一格 swiper 横滑, 头部页码 N/M; 预览/下载/移除随页 -->
       <view wx:for="{{uploadView.selectedFileSlotsView}}" wx:for-item="slot" wx:key="key" class="selected-slot-group">
-        <view wx:for="{{slot.files}}" wx:for-item="file" wx:key="fileKey" class="selected-file-row">
-          <image wx:if="{{file.isImage}}" class="selected-file-thumb" src="{{file.thumbUrl || file.filePath}}" mode="aspectFill" catchtap="previewSelectedFile" data-index="{{slot.slotIndex}}" data-file-index="{{file.fileIndex}}" />
-          <view class="selected-file-main">
-            <text class="selected-file-label">{{slot.label}} {{file.displayIndex}}</text>
-            <text class="selected-file-name">{{file.fileName}}</text>
-            <!-- PR-13 首批:逐文件上传状态(待上传/上传中/已上传/失败原因) -->
-            <text wx:if="{{file.uploadStateText}}" class="{{file.uploadStateClass}}">{{file.uploadStateText}}</text>
-          </view>
-          <view class="selected-file-actions">
-            <button class="file-action" loading="{{uploadView.fileActionLoading}}" catchtap="previewSelectedFile" data-index="{{slot.slotIndex}}" data-file-index="{{file.fileIndex}}">预览</button>
-            <button class="file-action secondary" loading="{{uploadView.fileActionLoading}}" catchtap="downloadSelectedFile" data-index="{{slot.slotIndex}}" data-file-index="{{file.fileIndex}}">下载</button>
-            <button class="file-action danger" catchtap="removeSelectedFile" data-index="{{slot.slotIndex}}" data-file-index="{{file.fileIndex}}">移除</button>
-          </view>
+        <view class="selected-slot-head">
+          <text class="selected-slot-title">{{slot.label}}</text>
+          <text wx:if="{{slot.pageText}}" class="selected-slot-page">{{slot.pageText}}</text>
         </view>
+        <swiper class="slot-swiper" current="{{slot.current}}" data-view-index="{{slot.viewIndex}}" data-slot-index="{{slot.slotIndex}}" data-count="{{slot.files.length}}" bindchange="onSlotPageChange">
+          <swiper-item wx:for="{{slot.files}}" wx:for-item="file" wx:key="fileKey">
+            <view class="slot-file-page">
+              <image wx:if="{{file.isImage}}" class="selected-file-thumb" src="{{file.thumbUrl || file.filePath}}" mode="aspectFill" catchtap="previewSelectedFile" data-index="{{slot.slotIndex}}" data-file-index="{{file.fileIndex}}" />
+              <view wx:else class="slot-type-thumb" catchtap="previewSelectedFile" data-index="{{slot.slotIndex}}" data-file-index="{{file.fileIndex}}">
+                <text class="slot-type-text">{{file.kindText}}</text>
+              </view>
+              <view class="slot-file-meta">
+                <text class="selected-file-name">{{file.fileName}}</text>
+                <text wx:if="{{file.uploadStateText}}" class="{{file.uploadStateClass}}">{{file.uploadStateText}}</text>
+              </view>
+              <view class="selected-file-actions">
+                <button class="file-action" loading="{{uploadView.fileActionLoading}}" catchtap="previewSelectedFile" data-index="{{slot.slotIndex}}" data-file-index="{{file.fileIndex}}">预览</button>
+                <button class="file-action secondary" loading="{{uploadView.fileActionLoading}}" catchtap="downloadSelectedFile" data-index="{{slot.slotIndex}}" data-file-index="{{file.fileIndex}}">下载</button>
+                <button class="file-action danger" catchtap="removeSelectedFile" data-index="{{slot.slotIndex}}" data-file-index="{{file.fileIndex}}">移除</button>
+              </view>
+            </view>
+          </swiper-item>
+        </swiper>
       </view>
     </view>
     <view wx:if="{{uploadView.showUploadProgress}}" class="upload-progress-panel">
