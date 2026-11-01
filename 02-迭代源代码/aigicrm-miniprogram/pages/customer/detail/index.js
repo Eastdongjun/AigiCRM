@@ -464,7 +464,7 @@ Page({
     if (!this.data.id) return
     if (!getApp().globalData.demoMode && !hasPermission('approval:view')) return wx.showToast({ title: '没有审批提交权限', icon: 'none' })
     if (getApp().globalData.demoMode) return wx.showToast({ title: '延期申请已提交', icon: 'success' })
-    submitApproval({ type: 'extend', customerId: String(this.data.id), actionAfterApprove: '保护期+360天' }).then(() => {
+    submitApproval({ type: 'extend', customerId: String(this.data.id), actionAfterApprove: '保护期延长(天数以审批单为准)' }).then(() => {
       wx.showToast({ title: '延期申请已提交', icon: 'success' })
     }).catch((error) => showError(error, '提交失败'))
   },

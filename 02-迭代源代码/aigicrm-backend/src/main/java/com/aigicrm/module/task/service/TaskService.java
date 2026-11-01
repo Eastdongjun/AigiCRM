@@ -159,7 +159,13 @@ public class TaskService {
         }
         if (update.getTitle() != null) existing.setTitle(update.getTitle());
         if (update.getDetail() != null) existing.setDetail(update.getDetail());
-        if (update.getDueDate() != null) existing.setDueDate(update.getDueDate());
+        // 【2026-11-01 审计修复】与 create 同口径守卫(原可把截止改成过去日期, 绕过录入约束)
+        if (update.getDueDate() != null) {
+            if (update.getDueDate().isBefore(java.time.LocalDate.now())) {
+                throw new BusinessException("计划时间不能早于今天");
+            }
+            existing.setDueDate(update.getDueDate());
+        }
         taskMapper.updateById(existing);
     }
 

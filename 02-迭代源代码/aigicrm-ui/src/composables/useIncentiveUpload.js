@@ -780,15 +780,15 @@ export function useIncentiveUpload() {
         // 初始上传人不变、上传时间不被重置；categoryId/period 保留原记录值(不随编辑覆盖)。
         const editPayload = {
           customerId: selectedCustomerId.value,
-          industry: selectedIndustry.value || null,
-          relatedProducts: relatedProducts.value || null,
-          specificProduct: specificProduct.value || null,
-          preInstallQuestion: preInstallQuestion.value || null,
+          industry: selectedIndustry.value ?? null,
+          relatedProducts: relatedProducts.value ?? null,
+          specificProduct: specificProduct.value ?? null,
+          preInstallQuestion: preInstallQuestion.value ?? null,
           filePreId: finalPreId,
           fileMidId: finalMidId,
           filePostId: finalPostId,
           fileTrackId: finalTrackId,
-          remark: remarkText.value || null,
+          remark: remarkText.value ?? null,
         }
         // 【2026-08-12】分享仅本人可改：编辑他人记录时不携带 shared（后端也会忽略），保持原值
         if (canToggleShare.value) editPayload.shared = shareToTeam.value ? 1 : 0
@@ -799,16 +799,16 @@ export function useIncentiveUpload() {
           customerId: selectedCustomerId.value,
           // 筛选选「全部」时按当年「全年」落库，避免写入空周期（历史数据同为"全年"口径）
           period: selectedPeriod.value || defaultRecordPeriod(),
-          industry: selectedIndustry.value || null,
-          relatedProducts: relatedProducts.value || null,
-          specificProduct: specificProduct.value || null,
-          preInstallQuestion: preInstallQuestion.value || null,
+          industry: selectedIndustry.value ?? null,
+          relatedProducts: relatedProducts.value ?? null,
+          specificProduct: specificProduct.value ?? null,
+          preInstallQuestion: preInstallQuestion.value ?? null,
           filePreId: toJson(preIds),
           // 单槽品类（visit/exchange/plan）：不提交中/后/跟踪槽
           fileMidId: isSingleSlot.value ? null : toJson(midIds),
           filePostId: isSingleSlot.value ? null : toJson(postIds),
           fileTrackId: isSingleSlot.value ? null : toJson(trackIds),
-          remark: remarkText.value || null,
+          remark: remarkText.value ?? null,
           shared: shareToTeam.value ? 1 : 0
         })
       }

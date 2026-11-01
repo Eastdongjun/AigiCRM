@@ -140,7 +140,7 @@
           </div>
           <div class="donut-legend">
             <!-- 【A3 2026-10-08】行业扇区/图例行可下钻：点击落到客户列表同行业筛选，与工作台"点击直达"预期一致 -->
-            <div v-for="seg in donutSegs" :key="seg.name" class="dl-row drillable" title="点击查看该行业客户" @click="drillCustomer({ industry: seg.name })">
+            <div v-for="seg in donutSegs" :key="seg.name" class="dl-row" :class="{ drillable: !seg.synthetic }" :title="seg.synthetic ? '' : '点击查看该行业客户'" @click="!seg.synthetic && drillCustomer({ industry: seg.name })">
               <span class="dl-dot" :style="{ background: seg.color }"></span>
               <span class="dl-name">{{ seg.name }}</span>
               <div class="dl-track"><div class="dl-fill" :style="{ width: seg.pct + '%', background: seg.color }"></div></div>
@@ -260,8 +260,12 @@ import { getScoreRanking } from '@/api/score'
 import { getScopeDepts } from '@/api/system'
 // 【B6 三轮 2026-10-09】汇总数(年累计/月均/年度文件)统一千分位口径
 import { formatInt } from '@/utils/format'
+import { useUserStore } from '@/store/user'
 
 const router = useRouter()
+// 【2026-11-01 审计修复】Top5 需 score:view(原无门控: 403 静默吞成假"暂无学分数据"; 与 MP 同口径不发必败请求)
+const userStore = useUserStore()
+const canScoreView = computed(() => userStore.hasPermission('score:view'))
 const currentYear = new Date().getFullYear()
 const currentMonth = new Date().getMonth() + 1
 const filterYear = ref(currentYear)
@@ -293,7 +297,10 @@ const DONUT_COLORS = ['#1d4ed8', '#6083e4', '#93b0ec', '#c2d0f5', '#fbbf24', '#c
 const donutSegs = computed(() => {
   const d = analysis.value.industryStats || {}
   const entries = Object.entries(d).sort((a, b) => b[1] - a[1])
-  const total = entries.reduce((s, e) => s + e[1], 0) || 1
+  const filledTotal = entries.reduce((s, e) => s + e[1], 0) || 1
+  // 【2026-11-01 审计修复】分母统一=已填+未填(原各行分母不一: 图例百分比合计>100% 且未填段在环上被 clamp 成 0 宽)
+  const noIndustryPre = Math.max(0, (analysis.value.totalCustomers || 0) - filledTotal)
+  const total = filledTotal + noIndustryPre
   const top = entries.slice(0, 5).map(([name, count]) => ({
     name, count, pct: (count / total) * 100,
     pctLabel: ((count / total) * 100).toFixed(1)
@@ -305,12 +312,13 @@ const donutSegs = computed(() => {
   }
   // 【工作流复核确认修复】行业为空的客户计入"未填行业"段: 原实现既不进扇区也不进"其他",
   // 图例合计与中心数字(totalCustomers)对不上(实测 268 vs 272)
-  const noIndustry = Math.max(0, (analysis.value.totalCustomers || 0) - total)
+  const noIndustry = noIndustryPre
   if (noIndustry > 0) {
-    top.push({ name: '未填行业', count: noIndustry, pct: (noIndustry / (total + noIndustry)) * 100,
-      pctLabel: ((noIndustry / (total + noIndustry)) * 100).toFixed(1) })
+    top.push({ name: '未填行业', count: noIndustry, pct: (noIndustry / total) * 100,
+      pctLabel: ((noIndustry / total) * 100).toFixed(1) })
   }
-  return top.map((s, i) => ({ ...s, color: DONUT_COLORS[i % DONUT_COLORS.length] }))
+  // 合成段(其他/未填行业)无对应行业字典值, 标记不可下钻(原点击后跳空列表)
+  return top.map((s, i) => ({ ...s, color: DONUT_COLORS[i % DONUT_COLORS.length], synthetic: s.name === '其他' || s.name === '未填行业' }))
 })
 
 const donutStyle = computed(() => {
@@ -395,7 +403,7 @@ const loadAll = async () => {
   pageLoading.value = true
   try {
     try { const r = await getAnalysis({ year: filterYear.value, deptId: filterOffice.value, officeId: null }); analysis.value = r.data || {} } catch {}
-    try { const r = await getScoreRanking({ type: 'personal' }); scoreTop5.value = (r.data || []).slice(0, 5) } catch {}
+    if (canScoreView.value) { try { const r = await getScoreRanking({ type: 'personal' }); scoreTop5.value = (r.data || []).slice(0, 5) } catch {} }
     try { const r = await getScopeDepts(); officeList.value = r.data || [] } catch {}
   } finally {
     pageLoading.value = false

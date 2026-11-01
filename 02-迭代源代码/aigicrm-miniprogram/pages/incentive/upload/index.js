@@ -64,7 +64,7 @@ function defaultPeriod() {
 function buildPeriodOptions() {
   const currentYear = new Date().getFullYear()
   const options = []
-  for (let year = currentYear + 4; year >= currentYear - 1; year -= 1) {
+  for (let year = currentYear + 1; year >= currentYear - 5; year -= 1) {
     options.push(`${year}全年`, `${year}下半年`, `${year}上半年`)
   }
   return options

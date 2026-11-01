@@ -16,6 +16,7 @@ function customerStatusLabel(status) {
     protected: '保护期',
     expired: '超期',
     sea: '公海',
+    archived: '已归档',
     active: '正常',
     available: '公海'
   }

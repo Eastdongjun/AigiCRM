@@ -234,6 +234,8 @@ async function doSearch(){
   if(fDateRange.value?.length===2){p.startDate=fDateRange.value[0];p.endDate=fDateRange.value[1]}
   if(fOrgIds.value?.length){p.orgIds=fOrgIds.value.join(',')}
   if(fProdSub.value)p.product=fProdSub.value
+  // 【2026-11-01 审计修复】只选大类也发参(后端 product=LIKE, 大类名可前缀命中 大类-小类)
+  else if(fProdCat.value)p.product=fProdCat.value
   const seq = ++searchSeq
   // 【2026-08-08 首次加载体验】加 loading 态，避免首次并发请求时误显示"暂无数据"
   loading.value = true

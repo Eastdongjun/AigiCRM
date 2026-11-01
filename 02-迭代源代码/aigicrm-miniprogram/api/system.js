@@ -1,5 +1,11 @@
 const request = require('../utils/request')
 
+/** 【2026-11-01 审计修复】范围感知部门树(与 PC getScopeDepts 同源 /common/scope/depts);
+ *  统计页等部门下拉用——原 /system/depts 全量, 用户可选到数据范围外部门(名义与实际统计不符) */
+function getScopeDepts() {
+  return request({ url: '/api/common/scope/depts' })
+}
+
 /** 部门列表（大区 deptType=2 / 办事处 deptType=3）——客户表单"所属大区/办事处"下拉用。
  *  后端 /api/system/depts 已按 FEAT-20260804-DICT-DEPT-READ 放宽为"登录即可读"，
  *  普通销售在小程序端同样可读，不会 403。 */
@@ -23,6 +29,7 @@ function getScopeUsers() {
 // 均已改引 ./draft, system 模块回归纯系统字典/部门/范围职责。
 module.exports = {
   getDepts,
+  getScopeDepts,
   getDictData,
   getScopeUsers
 }

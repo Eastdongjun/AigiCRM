@@ -47,7 +47,7 @@ Page({
 
   onLoad(options) {
     if (!requireLogin()) return
-    if (!getApp().globalData.demoMode && (!hasPermission('finance:view') || !hasPermission('customer:edit'))) {
+    if (!getApp().globalData.demoMode && !(hasPermission('finance:manage') || (hasPermission('customer:edit') && hasPermission('finance:view')))) {
       wx.showToast({ title: '没有财务编辑权限', icon: 'none' })
       wx.navigateBack()
       return

@@ -474,7 +474,7 @@ Page({
     submitApproval({
       type: 'extend',
       customerId: String(item.customerId),
-      actionAfterApprove: '保护期延长360天'
+      actionAfterApprove: '保护期延长(天数以审批单为准)'
     }).then(() => {
       wx.showToast({ title: '延期申请已提交', icon: 'success' })
     }).catch((error) => showError(error, '延期申请失败'))

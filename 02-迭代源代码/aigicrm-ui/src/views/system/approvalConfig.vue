@@ -41,7 +41,12 @@
           <el-input v-model="form.flowName" placeholder="如：客户报备审批" />
         </el-form-item>
         <el-form-item label="流程类型" required>
-          <el-input v-model="form.flowType" placeholder="英文标识，如：customer_report" :disabled="!!form.id" />
+          <el-select v-model="form.flowType" :disabled="!!form.id" placeholder="选择流程类型" style="width:100%">
+            <el-option label="公海捞取 (claim)" value="claim" />
+            <el-option label="客户转移 (transfer)" value="transfer" />
+            <el-option label="保护期延期 (extend)" value="extend" />
+            <el-option label="存储扩容 (storage)" value="storage" />
+          </el-select>
         </el-form-item>
         <el-divider content-position="left">审批人设置</el-divider>
         <el-form-item label="审批人类型">

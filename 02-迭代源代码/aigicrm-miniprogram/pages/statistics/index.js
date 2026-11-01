@@ -1,6 +1,6 @@
 const { getAnalysis, getDashboardData } = require('../../api/statistics')
 const { getScoreRanking } = require('../../api/score')
-const { getDepts } = require('../../api/system')
+const { getScopeDepts } = require('../../api/system')
 const { requireLogin, hasPermission } = require('../../utils/auth')
 const { showErrorWithRetry } = require('../../utils/feedback')
 // 【E6 去重】组织树构建原与 incentive applyOrgs / sea applyDepts 三处同构, 收敛到 utils/tree
@@ -30,7 +30,8 @@ function buildMonthlySummary(values = []) {
   const peakIndex = normalized.findIndex((value) => value === max)
   return {
     total: sum(normalized),
-    average: normalized.length ? Math.round(sum(normalized) / normalized.length) : 0,
+    // 【2026-11-01 审计修复】月均分母: 当前年按已过月截断(原恒除以12, 未来月零值拉低当前年月均; 与 PC M9 同口径)
+    average: normalized.length ? Math.round(sum(normalized) / (Number(state.selectedYear || CURRENT_YEAR) === CURRENT_YEAR ? new Date().getMonth() + 1 : 12)) : 0,
     peak: peakIndex >= 0 && max > 0 ? MONTH_LABELS[peakIndex] : '-',
     bars: normalized.map((value, index) => ({
       label: MONTH_LABELS[index],
@@ -355,7 +356,9 @@ Page({
       return
     }
     // 【PR-04】真实模式接口失败：报错并只保留"全部部门"，不回退演示部门
-    getDepts().then((rows) => {
+    // 【2026-11-01 审计修复】改范围感知部门树(/common/scope/depts, 与 PC 同源)——
+    // 原 /system/depts 全量, 用户可选到数据范围外部门(选了名义与实际统计不符且无提示)
+    getScopeDepts().then((rows) => {
       this.applyDepts(rows || [])
     }).catch((error) => {
       showErrorWithRetry(error, '部门加载失败，请重试', () => this.loadDepts())

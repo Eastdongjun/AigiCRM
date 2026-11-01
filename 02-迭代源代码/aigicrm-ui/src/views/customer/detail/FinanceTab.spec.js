@@ -3,6 +3,8 @@ import { mount, flushPromises } from '@vue/test-utils'
 import { ref, nextTick } from 'vue'
 import ElementPlus from 'element-plus'
 import FinanceTab from './FinanceTab.vue'
+// 【2026-11-01 审计修复】组件新增财务写门控(finance:manage∨edit∧view), 测试恒授权可写视角
+vi.mock('@/store/user', () => ({ useUserStore: () => ({ hasPermission: (code) => code === 'finance:manage' || code === 'customer:edit' || code === 'finance:view' }) }))
 import { CustomerDetailKey } from '@/composables/useCustomerDetail'
 
 /**

@@ -57,8 +57,8 @@ reject_line 'this.filterReminders(' "$PAGE_JS"
 require_line 'filterRemindersDemo' "$PAGE_JS"
 require_line 'keyword: this.data.keyword.trim() || undefined' "$PAGE_JS"
 require_line 'onPagerChange' "$PAGE_JS"
-# 【契约重钉 2026-10-15】延期文案统一"保护期延长360天"(INV-11: 与 PC 客户详情提交的延期单同文案)
-require_line "actionAfterApprove: '保护期延长360天'" "$PAGE_JS"
+# 【契约重钉 2026-11-01】延期文案改"天数以审批单为准"(天数可配置+审批人可调, 写死360误导; 与 PC/MP 三处同文案)
+require_line "actionAfterApprove: '保护期延长(天数以审批单为准)'" "$PAGE_JS"
 require_line 'processActionLabel' "$PAGE_JS"
 require_line 'canExtend' "$PAGE_JS"
 require_line 'const catchUp = app.globalData.demoMode || !isAdmin() ? Promise.resolve() : ensureExpiring().catch(() => {})' "$PAGE_JS"

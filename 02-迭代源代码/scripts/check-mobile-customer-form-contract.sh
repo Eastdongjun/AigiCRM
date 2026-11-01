@@ -320,8 +320,8 @@ if rg -n "mode==='invoice'|tab==='invoice'|tab==='payment'|\\|\\| '开票记录'
   echo "FAIL: mobile finance WXML must not keep mode/tab fallback branching logic"
   exit 1
 fi
-if ! rg -Fq "hasPermission('finance:view') || !hasPermission('customer:edit')" "$ROOT/aigicrm-miniprogram/pages/customer/finance/form/index.js"; then
-  echo "FAIL: mobile finance form direct entry must require finance:view plus customer:edit"
+if ! rg -Fq "hasPermission('finance:manage') || (hasPermission('customer:edit') && hasPermission('finance:view'))" "$ROOT/aigicrm-miniprogram/pages/customer/finance/form/index.js"; then
+  echo "FAIL: mobile finance form entry must match backend gate (finance:manage OR customer:edit AND finance:view)"
   exit 1
 fi
 

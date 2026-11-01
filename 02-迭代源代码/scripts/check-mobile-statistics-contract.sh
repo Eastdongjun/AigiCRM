@@ -36,7 +36,7 @@ grep -q "dailyRows" "$page_js" || { echo "FAIL: statistics detail daily rows are
 grep -q "weeklyRows" "$page_js" || { echo "FAIL: statistics detail weekly rows are not normalized" >&2; exit 1; }
 grep -q "getAnalysis" "$ROOT/aigicrm-miniprogram/pages/statistics/index.js" || { echo "FAIL: statistics overview does not load analysis data" >&2; exit 1; }
 grep -q "getScoreRanking" "$ROOT/aigicrm-miniprogram/pages/statistics/index.js" || { echo "FAIL: statistics overview does not load PC score ranking data" >&2; exit 1; }
-grep -q "getDepts" "$ROOT/aigicrm-miniprogram/pages/statistics/index.js" || { echo "FAIL: statistics overview does not load PC department filter options" >&2; exit 1; }
+grep -q "getScopeDepts" "$ROOT/aigicrm-miniprogram/pages/statistics/index.js" || { echo "FAIL: statistics overview does not load PC department filter options" >&2; exit 1; }
 grep -q "buildAnalysisParams" "$ROOT/aigicrm-miniprogram/pages/statistics/index.js" || { echo "FAIL: statistics overview does not build PC analysis filter params" >&2; exit 1; }
 grep -q "params.deptId = dept.id" "$ROOT/aigicrm-miniprogram/pages/statistics/index.js" || { echo "FAIL: statistics overview does not pass deptId to analysis like PC" >&2; exit 1; }
 grep -q "const params = { year }" "$ROOT/aigicrm-miniprogram/pages/statistics/index.js" || { echo "FAIL: statistics overview does not pass year to analysis like PC" >&2; exit 1; }

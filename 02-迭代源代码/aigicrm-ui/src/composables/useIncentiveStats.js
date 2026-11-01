@@ -45,7 +45,9 @@ export function useIncentiveStats() {
   const catIcons = { visit: 'location', exchange: 'chat', plan: 'document', trial: 'box' }
 
   // ---- 统计 ----
-  const totalCategories = computed(() => categories.value.filter(c => c.parentId !== 0).length)
+  // 【2026-11-01 审计修复】激励事项数只计二级(归树批后扁平树含16个三级小类, 原口径虚高16)
+  const topIds = new Set(categories.value.filter(c => c.parentId === 0).map(c => c.id))
+  const totalCategories = computed(() => categories.value.filter(c => topIds.has(c.parentId)).length)
   const shareableCount = computed(() => {
     return categories.value.filter(c => c.parentId !== 0 && c.categoryName?.includes('共享')).length
   })

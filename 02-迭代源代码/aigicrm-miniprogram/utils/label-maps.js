@@ -9,7 +9,7 @@ function approvalTypeLabel(type) {
     claim: '捞取',
     transfer: '转移',
     extend: '延期',
-    storage: '空间',
+    storage: '存储扩容',
     customer_release: '客户释放',
     customer_transfer: '客户转交',
     return_to_pool: '退回公海'

@@ -11,7 +11,7 @@
             回款 <b class="red">{{ fmtWan(stageSummary.annualPaymentAmount) }}</b> 万
           </span>
           <el-tag size="small" :type="coreType === 'core' ? 'success' : coreType === 'quasi' ? 'warning' : 'info'" effect="dark">{{ coreTypeLabel }}</el-tag>
-          <el-button v-if="!readonly" size="small" type="primary" @click="openStageDialog(null)">+ 录入阶段数据</el-button>
+          <el-button v-if="!readonly && canWriteFinance" size="small" type="primary" @click="openStageDialog(null)">+ 录入阶段数据</el-button>
         </div>
       </div>
       <el-table :data="stageRows" stripe size="small" v-if="stageRows.length">
@@ -40,7 +40,7 @@
             <span class="upd-meta">{{ row.updatedByName || '—' }} · {{ fmtStamp(row.updatedAt) }}</span>
           </template>
         </el-table-column>
-        <el-table-column v-if="!readonly" label="操作" width="80" align="center">
+        <el-table-column v-if="!readonly && canWriteFinance" label="操作" width="80" align="center">
           <template #default="{row}">
             <el-button link type="primary" size="small" @click="openStageDialog(row)">编辑</el-button>
           </template>
@@ -160,6 +160,7 @@
 <script setup>
 import { computed } from 'vue'
 import { injectCustomerDetail } from '@/composables/useCustomerDetail'
+import { useUserStore } from '@/store/user'
 import { formatWan, dashIfEmpty } from '@/utils/format'
 import { FINANCE_LEDGER_STATUS, statusOf } from '@/utils/status-maps'
 
@@ -168,6 +169,13 @@ const {
   stageSummary, showStageDialog, stageForm, openStageDialog, handleSaveStageAmount,
   coreType, coreTypeLabel,
 } = injectCustomerDetail()
+
+// 【2026-11-01 审计修复】财务写门控三处统一为后端口径: finance:manage ∨ (customer:edit ∧ finance:view)
+// (原仅判 readonly, 只持 finance:view 者可见可点、保存必 403; MP 端同批对齐)
+const userStore = useUserStore()
+const canWriteFinance = computed(() =>
+  userStore.hasPermission('finance:manage')
+  || (userStore.hasPermission('customer:edit') && userStore.hasPermission('finance:view')))
 
 const stageRows = computed(() => stageSummary.value.rows || [])
 const maxYear = new Date().getFullYear() + 1

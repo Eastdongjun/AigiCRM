@@ -106,7 +106,7 @@ Page({
       wx.navigateBack()
       return
     }
-    this.setData({ id: options.id || '', canEdit: getApp().globalData.demoMode || hasPermission('customer:edit') }, () => this.refreshStageView())
+    this.setData({ id: options.id || '', canEdit: getApp().globalData.demoMode || hasPermission('finance:manage') || (hasPermission('customer:edit') && hasPermission('finance:view')) }, () => this.refreshStageView())
     this.load()
   },
 

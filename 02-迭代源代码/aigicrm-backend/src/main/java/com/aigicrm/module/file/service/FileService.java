@@ -168,7 +168,14 @@ public class FileService {
         if (scope != null && !scope.isEmpty()) {
             wrapper.eq(BizFile::getFileScope, scope);
             if ("incentive".equals(scope)) {
-                // 自己的 + 其他人共享的激励文件（与下载可见性同源，30s 缓存见 incentiveVisibleFileIds）
+                // 【2026-11-01 审计修复】admin/持 incentive:view-all 全量旁路——与激励侧 applyShareVisibility
+                // 同口径(原文件侧无旁路: 总监在 MP 四项服务tab可见的未分享激励文件, PC 文件中心不出现,
+                // 且下载分支无旁路时会出现"MP 可见 PC 下载 403"的双端分叉)
+                if (incentiveViewAllGranted()) {
+                    // 全量可见, 不加可见性过滤
+                } else
+                // 自己的 + 其他挂了分享的激励文件（与下载可见性同源，30s 缓存见 incentiveVisibleFileIds）
+                {
                 Set<Long> sharedFileIds = incentiveVisibleFileIds(userId);
 
                 if (sharedFileIds.isEmpty()) {
@@ -176,6 +183,7 @@ public class FileService {
                 } else {
                     wrapper.and(w -> w.eq(BizFile::getUploaderId, userId)
                             .or().in(BizFile::getId, sharedFileIds));
+                }
                 }
             }
         }
@@ -1242,13 +1250,25 @@ public class FileService {
      * 激励记录中的文件，全员可下载（与 pageFiles incentive 分支同规则，销售总监可下载下属激励材料）；
      * 非管理员还受夹内文件下载开关约束（1=允许下载，0/空=仅预览，管理员全权；激励文件 folderId=null 不受开关约束）。
      */
+    /** 激励"查看全部"资格: admin 或 biz_incentive_grant.can_view_all=1(与 IncentiveService.canViewAll 同语义;
+     *  经 jdbc 轻查避免跨模块注入服务/加构造参——文件侧列表与下载双分支共用) */
+    private boolean incentiveViewAllGranted() {
+        if (SecurityUtils.isAdmin()) return true;
+        Long uid = SecurityUtils.getCurrentUserId();
+        if (uid == null) return false;
+        Long n = jdbc.queryForObject(
+                "SELECT COUNT(*) FROM biz_incentive_grant WHERE user_id = ? AND can_view_all = 1", Long.class, uid);
+        return n != null && n > 0;
+    }
+
     public boolean canDownloadFile(BizFile file, Long userId) {
         boolean canDownload = canAccessFile(file, userId);
         if (!canDownload && file.getFolderId() != null) {
             canDownload = folderPermissionService.checkFile(file.getId(), FolderPermissionService.P_DOWNLOAD, userId);
         }
         if (!canDownload && "incentive".equals(file.getFileScope())) {
-            canDownload = isIncentiveFileVisible(file.getId(), userId);
+            // 【2026-11-01 审计修复】与列表旁路同口径: admin/激励授权 can_view_all 可下载(原仅本人+shared)
+            canDownload = incentiveViewAllGranted() || isIncentiveFileVisible(file.getId(), userId);
         }
         if (!canDownload) {
             return false;

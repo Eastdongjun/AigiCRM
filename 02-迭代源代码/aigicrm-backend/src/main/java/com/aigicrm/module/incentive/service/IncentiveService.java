@@ -327,10 +327,12 @@ public class IncentiveService {
             List<BizIncentiveCategory> children = categoryMapper.selectList(
                     new LambdaQueryWrapper<BizIncentiveCategory>().eq(BizIncentiveCategory::getParentId, parentCategoryId)
             );
-            List<Long> childIds = children.stream().map(BizIncentiveCategory::getId).toList();
-            if (!childIds.isEmpty()) {
-                wrapper.in(BizIncentiveRecord::getCategoryId, childIds);
-            }
+            // 【2026-11-01 审计修复】IN 含父 id 本身(直接挂大类的记录原查不出); 大类无子类时
+            // 原来不加任何条件=显式传父类却返回全部, 退化为父 id 等值
+            List<Long> ids = new java.util.ArrayList<>();
+            ids.add(parentCategoryId);
+            ids.addAll(children.stream().map(BizIncentiveCategory::getId).toList());
+            wrapper.in(BizIncentiveRecord::getCategoryId, ids);
         }
         wrapper.orderByDesc(BizIncentiveRecord::getCreatedAt);
         List<BizIncentiveRecord> records = recordMapper.selectList(wrapper);

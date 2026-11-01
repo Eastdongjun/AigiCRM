@@ -298,7 +298,7 @@ const handleExtend = async (row) => {
     await confirmAction(`确定为「${row.customerName || '该客户'}」提交保护期延期审批？`, '申请延期', { confirmText: '提交审批' })
   } catch { return }
   try {
-    await submitApproval({ type: 'extend', customerId: String(row.customerId), actionAfterApprove: '保护期延长360天' })
+    await submitApproval({ type: 'extend', customerId: String(row.customerId), actionAfterApprove: '保护期延长(天数以审批单为准)' })
     ElMessage.success('延期申请已提交，等待审批')
   } catch (e) {}
 }

@@ -98,7 +98,7 @@
         </div>
         <el-icon class="stat-icon" :size="22"><Reading /></el-icon>
       </div>
-      <div class="stat-card drill" v-if="!isSalesRole" role="button" tabindex="0"
+      <div class="stat-card drill" v-if="canViewApprovals" role="button" tabindex="0"
         @click="$router.push('/approval')" @keydown="onCardKeydown($event, () => $router.push('/approval'))">
         <div class="stat-info">
           <div class="stat-label">待我审批</div>
@@ -321,7 +321,7 @@ const weeklyCustomerTotal = computed(() => weeklyCustomer.value.reduce((s, d) =>
 const weeklyFileTotal = computed(() => weeklyFile.value.reduce((s, d) => s + d.value, 0))
 
 // ——— 审批类型标签 ———
-const typeLabel = (t) => ({ claim: '客户捞取申请', transfer: '客户转让申请', extend: '保护期延长申请', storage: '入库申请' }[t] || t)
+const typeLabel = (t) => ({ claim: '客户捞取申请', transfer: '客户转让申请', extend: '保护期延长申请', storage: '存储扩容申请' }[t] || t)
 
 // ——— 数据加载 ———
 const lastRefreshedAt = ref('')
@@ -349,6 +349,9 @@ const myReadCount = ref(0)
 const myReadTotal = ref(0)
 // 【B3】阅读统计卡权限门控: incentive:read-stats 默认仅 admin, 无权限隐藏卡片且不发起请求
 const canViewReadStats = computed(() => userStore.hasPermission('incentive:read-stats'))
+// 【2026-11-01 审计修复】待我审批卡改按权限码门控(原只判非销售角色: 无 approval:view 者可见可点、跳转即 403)
+const canViewApprovals = computed(() => userStore.hasPermission('approval:view'))
+const canViewReminders = computed(() => userStore.hasPermission('reminder:view'))
 
 const loadRoleData = async () => {
   if (!isSalesRole.value) return
@@ -392,6 +395,7 @@ const loadStatsData = async () => {
   lastRefreshedAt.value = new Date().toLocaleTimeString('zh-CN', { hour12: false })
 }
 const loadReminders = async () => {
+  if (!canViewReminders.value) return
   try {
     const r = await getExpiringList({ current: 1, size: 5 })
     const list = r.data?.records || []
@@ -435,6 +439,7 @@ const loadActivities = async () => {
   try { const r = await getTeamActivities(); activities.value = r.data || [] } catch {}
 }
 const loadApprovals = async () => {
+  if (!canViewApprovals.value) return
   try {
     const r = await getApprovalList({ current: 1, size: 3, tab: 'pending' })
     approvals.value = r.data?.records || []
