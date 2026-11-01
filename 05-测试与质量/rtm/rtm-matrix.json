@@ -1,0 +1,2386 @@
+{
+ "schema": "aigicrm-rtm-v1",
+ "project": "AIGICRM",
+ "project_root": "02-已上线/01-AIGICRM",
+ "generated_at": "2026-10-31",
+ "generator": "90分提升战役 B5-L 突击队（RTM）",
+ "methodology": {
+  "requirement_unit_policy": "项目无条目化 REQ-ID 体系（已核实：需求散落于 00-项目管理 文档与源码注释，无统一 REQ 登记）。口径：①后端/PC 以功能模块（32 个 Controller + 38 个 Service 归并为 17 个业务模块）为需求单元；②PC 前端 7 个视图域单元；③小程序以《小程序原型与ANGCIM功能匹配报告》39 个矩阵行（覆盖 51 张原型页）+ 3 条 2026-10-16 需求（A/B/C）为单元；④法布施新模块按《法布施模块需求说明书 v1.1》29 条条目（A1-G4）单列；注：说明书第五节自称 26 条，与第三节条目表实数 29 不符，按条目实数入册；⑤非功能 4 单元。",
+  "status_policy": {
+   "covered": "存在可核对测试证据（后端 @Test / 前端 vitest spec / 双端系统测试维度 / 契约脚本 / automator 冒烟 至少一类，且语义对应），无未修复高危缺陷挂点",
+   "partial": "有证据但仅单层（如仅单测无系统级）、或存在未修复缺陷/待确认口径、或部分子能力无证据",
+   "gap": "无任何可核对测试证据，或需求能力未实现"
+  },
+  "evidence_sources": [
+   {
+    "id": "BT",
+    "desc": "后端 JUnit 测试，aigicrm-backend/src/test/java，85 类约 902 个 @Test（grep 计数）"
+   },
+   {
+    "id": "FS",
+    "desc": "前端 vitest spec，aigicrm-ui/src，41 文件约 260 个 it（grep 计数）"
+   },
+   {
+    "id": "STR",
+    "desc": "《双端系统测试报告-20261012》8 维度 25 条已证实条目（H1-H4/M1-M4/L1-L17，L8 为待确认项）"
+   },
+   {
+    "id": "MR",
+    "desc": "《小程序原型与ANGCIM功能匹配报告》39 行矩阵（2026-09-05 时点判定）"
+   },
+   {
+    "id": "AC",
+    "desc": "《小程序需求AC实现与验证报告-20261017》：冒烟 29/29、PC 阅读器生产数据复测 24/24"
+   },
+   {
+    "id": "CONTRACT",
+    "desc": "小程序静态契约脚本 scripts/check-mobile-*，在库 29 个；STR 维度1 执行 21 个全 PASS"
+   }
+  ],
+  "limitations": [
+   "矩阵（MR）判定时点 2026-09-05 早于小程序工程落地，本表按矩阵原判定转录并叠加其后证据（STR/AC），状态升级处已注明",
+   "@DisplayName 仅 SysUserServiceOrgSyncTest 使用（4 处），其余后端测试以方法名表达语义",
+   "任务书所述『43 个前端 spec』实为 41、『47 行矩阵』实为 39 行（覆盖 51 页）、『92 个 .vue 零 spec』实为 77 个零 spec（15 个有邻接 spec）——均已按实测修正",
+   "法布施模块需求已立项（v1.1 用户已复核）但未开工（待甲方圈范围），不计入已上线产品覆盖率分母，单列统计"
+  ]
+ },
+ "inventory": {
+  "requirement_units": {
+   "total": 101,
+   "backend_modules": 17,
+   "pc_frontend": 7,
+   "miniprogram": 42,
+   "fabushi_pending": 29,
+   "nfr": 4
+  },
+  "tests": {
+   "backend_classes": 85,
+   "backend_test_methods_approx": 902,
+   "frontend_spec_files": 41,
+   "frontend_it_approx": 260,
+   "vue_components": 92,
+   "vue_with_adjacent_spec": 15,
+   "vue_without_spec": 77,
+   "contract_scripts_in_repo": 29,
+   "contract_scripts_executed_in_STR": 21,
+   "smoke_scripts": [
+    "aigicrm-ui/preview-smoke-prod.mjs (24/24)",
+    "05-测试与质量/smoke-mp-redesign-ac-20261017.js (29/29)"
+   ],
+   "miniprogram_pages_now": 43
+  },
+  "system_test": {
+   "dimensions": 8,
+   "confirmed_items": 25,
+   "unconfirmed_items": 1,
+   "high": 4,
+   "medium": 4,
+   "low": 17,
+   "note": "L8 为待确认项非缺陷，严格口径已证实缺陷 24 条"
+  }
+ },
+ "statistics": {
+  "product_scope_excl_fabushi": {
+   "units": 70,
+   "covered": 45,
+   "partial": 24,
+   "gap": 0,
+   "covered_rate": 0.643,
+   "covered_or_partial_rate": 0.957,
+   "not_implemented": 1
+  },
+  "including_fabushi": {
+   "units": 99,
+   "covered": 45,
+   "partial": 24,
+   "gap": 0,
+   "not_implemented": 30
+  },
+  "by_group": {
+   "A_后端业务模块(17)": {
+    "covered": 8,
+    "partial": 9,
+    "gap": 0
+   },
+   "B_PC前端(7)": {
+    "covered": 4,
+    "partial": 3,
+    "gap": 0
+   },
+   "C_小程序(42)": {
+    "covered": 30,
+    "partial": 9,
+    "gap": 3
+   },
+   "D_法布施未开工(29)": {
+    "covered": 0,
+    "partial": 0,
+    "gap": 29
+   },
+   "E_非功能(4)": {
+    "covered": 3,
+    "partial": 1,
+    "gap": 0
+   }
+  }
+ },
+ "mappings": [
+  {
+   "req_id": "REQ-M01",
+   "group": "A",
+   "name": "认证与账号（登录/登出/信息/切集团/忘记密码/强制改密）",
+   "status": "covered",
+   "evidence": {
+    "BT": [
+     "JwtAuthFilterTest(11)",
+     "JwtTokenProviderTest(5)",
+     "UserDetailsServiceImplTest(7)"
+    ],
+    "FS": [
+     "views/login/index.spec.js(6)",
+     "views/login/ForgotPasswordDialog.spec.js(2)",
+     "utils/token.spec.js(10)"
+    ],
+    "STR": [
+     "维度3 四角色登录/token 401 矩阵",
+     "维度4 首登强制改密 pwdResetRequired=1+旧 token 全失效"
+    ]
+   }
+  },
+  {
+   "req_id": "REQ-M02",
+   "group": "A",
+   "name": "客户管理（列表/详情/新增/指标/客情/阶段金额/开票回款/联系人/分享/释放/导入/日志）",
+   "status": "partial",
+   "evidence": {
+    "BT": [
+     "CustomerServiceTest(86)",
+     "CustomerControllerTest(9)",
+     "CustomerStageAmountTest(10)",
+     "CustomerAccessServiceSeaPermTest(14)",
+     "CustomerFullIdempotencyTest(4)",
+     "CustomerExpireTaskTest(10)",
+     "CustomerImportListenerTest(2)",
+     "ImportGuardTest(5)",
+     "CustomerFinanceGuardTest(5)",
+     "CustomerFinanceAuditLogTest(3)",
+     "TransferSubmitOwnershipTest(3)"
+    ],
+    "FS": [
+     "views/customer/detail.spec.js(5)",
+     "views/customer/detail/FinanceTab.spec.js(7)",
+     "views/customer/detail/InfoTab.spec.js(3)",
+     "composables/useCustomerForm.spec.js(21)",
+     "composables/useCustomerList.spec.js(4)",
+     "composables/useCustomerDetail.spec.js(11)",
+     "utils/customer-fields.spec.js(8)",
+     "utils/customer-empty-state.spec.js(13)"
+    ],
+    "STR": [
+     "维度7 全链（分页/筛选/指标/核心判定三态/分享/延期）",
+     "缺陷挂点 H1(auto_share 500 未修)/H3(可见性口径未定论)/L2/L3/L5"
+    ]
+   },
+   "notes": "客户基本信息编辑(PUT)与删除/archive/restore 未作为功能用例（STR ⑦-10）"
+  },
+  {
+   "req_id": "REQ-M03",
+   "group": "A",
+   "name": "公海池（池列表/捞取/捞取记录/池配置/可见池）",
+   "status": "covered",
+   "evidence": {
+    "BT": [
+     "SeaServiceTest(9)",
+     "SeaConfigServicePoolPermTest(6)"
+    ],
+    "STR": [
+     "维度5 捞取全链正例×2（含跨人转移 owner 38→11、保护期+360）+负例×6"
+    ],
+    "CONTRACT": [
+     "check-mobile-sea-boundary.sh"
+    ]
+   }
+  },
+  {
+   "req_id": "REQ-M04",
+   "group": "A",
+   "name": "审批中心（待办/发起/通过/驳回/审批配置；extend/claim/transfer）",
+   "status": "partial",
+   "evidence": {
+    "BT": [
+     "ApprovalServiceTest(37)",
+     "ApprovalConfigServiceTest(7)",
+     "ApprovalApproveRejectSecurityTest(7)",
+     "ExtendApprovalConcurrencyTest(2)",
+     "ExtendSubmitOwnershipTest(4)"
+    ],
+    "STR": [
+     "维度5 审批正负例（+360/驳回/越权 400/重复 400）",
+     "缺陷挂点 M1(extend 越权发起未修)/L1(自审自批未修)"
+    ]
+   }
+  },
+  {
+   "req_id": "REQ-M05",
+   "group": "A",
+   "name": "提醒（列表/筛选/处理/到期提醒/角标）",
+   "status": "covered",
+   "evidence": {
+    "BT": [
+     "ReminderServiceTest(15)"
+    ],
+    "FS": [
+     "views/reminder/index.spec.js(11)",
+     "views/reminder/detail.spec.js(4)",
+     "utils/reminder-detail.spec.js(12)"
+    ],
+    "STR": [
+     "维度5 筛选/处理/越权 400/UATNOF 403 + expiring-list 四账号 DB 交叉验证"
+    ]
+   },
+   "notes": "③-1 疑点经复核否定；到期窗口规则口径待产品确认（遗留低风险）"
+  },
+  {
+   "req_id": "REQ-M06",
+   "group": "A",
+   "name": "文件管理（目录/上传/下载/预览/分享/ACL/配额/替换/对账/存储审批）",
+   "status": "covered",
+   "evidence": {
+    "BT": [
+     "FileServicePermissionTest(55)",
+     "FolderAclServiceTest(18)",
+     "FolderPermissionServiceTest(20)",
+     "StorageQuotaApplyServiceTest(23)",
+     "StorageApprovalServiceTest(8)",
+     "FileQuotaConcurrencyTest(7)",
+     "FileKeyDownloadDispositionTest(4)",
+     "FilePublicDownloadMapperTest(3)",
+     "FilePublicDownloadMetaTest(4)",
+     "FileStorageApplyInfoTest(2)"
+    ],
+    "FS": [
+     "composables/useFileBlob.spec.js(6)",
+     "utils/storage-apply.spec.js(3)",
+     "utils/media-type.spec.js(4)"
+    ],
+    "STR": [
+     "维度5 文件 ACL 全链（越权 403/token 免登录/路径穿越 404/分享可见）"
+    ],
+    "AC": [
+     "PC 阅读器生产数据复测 24/24（PDF/DOCX/XLSX/TXT/MD 内嵌渲染，0 error）"
+    ]
+   },
+   "notes": "H4 测试环境 uploads 卷文件大面积丢失属环境治理非代码缺陷，不降级本单元"
+  },
+  {
+   "req_id": "REQ-M07",
+   "group": "A",
+   "name": "激励·四项激励（记录/上传校验/积分/统计/排行/已读/可见性/导出）",
+   "status": "partial",
+   "evidence": {
+    "BT": [
+     "IncentiveControllerPermissionTest(16)",
+     "IncentiveShareVisibilityTest(15)",
+     "IncentiveScoreTest(12)",
+     "IncentiveUploadValidationTest(12)",
+     "IncentiveRemoveFileTest(10)",
+     "IncentiveReadRankingTest(5)",
+     "IncentiveSpecificProductTest(5)",
+     "IncentivePeriodFilterTest(3)",
+     "IncentiveCustomerRecordsPeriodTest(2)",
+     "IncentiveCustomerRecordsRecordIdTest(2)"
+    ],
+    "FS": [
+     "views/incentive/search.spec.js(17)",
+     "composables/useIncentiveUpload.spec.js(16)",
+     "views/incentive/RecordTable.spec.js(2)",
+     "views/incentive/StatsDetail.spec.js(2)",
+     "utils/incentive-detail.spec.js(4)",
+     "utils/incentive-period.spec.js(4)",
+     "utils/incentive-read.spec.js(2)",
+     "utils/incentive-read-ranking.spec.js(6)"
+    ],
+    "STR": [
+     "维度8 全链（提交校验矩阵/积分/已读流转/导出 CSV/Playwright 四页）",
+     "缺陷挂点 M2(customer-records 忽略 period 未修)/M4(乱码行)/L9/L10/L11/H2(照片墙已修未回归)"
+    ]
+   }
+  },
+  {
+   "req_id": "REQ-M08",
+   "group": "A",
+   "name": "统计分析（工作台/客户排行/五项指标/对账口径）",
+   "status": "covered",
+   "evidence": {
+    "BT": [
+     "StatisticsQueryServiceTest(16)",
+     "StatisticsControllerPermissionTest(2)",
+     "LedgerVoidedStatsContractTest(3)"
+    ],
+    "FS": [
+     "views/dashboard/readstats.spec.js(3)",
+     "utils/customer-rank.spec.js(4)"
+    ],
+    "STR": [
+     "维度2 对账零差异（core 榜 17/17、dashboard 18 项、scoreboard 23/23、category-stats 11 类）"
+    ]
+   },
+   "notes": "H3 中统计模块本身采纳 override 且对账一致，口径分裂记 M17"
+  },
+  {
+   "req_id": "REQ-M09",
+   "group": "A",
+   "name": "任务（TaskController 任务列表/处理）",
+   "status": "partial",
+   "evidence": {
+    "BT": [
+     "TaskServiceTest(8)"
+    ]
+   },
+   "notes": "仅单测层；双端八维度未覆盖任务功能链路"
+  },
+  {
+   "req_id": "REQ-M10",
+   "group": "A",
+   "name": "回收站（RecycleController）",
+   "status": "partial",
+   "evidence": {
+    "BT": [
+     "RecycleServiceTest(40)"
+    ]
+   },
+   "notes": "单测充分但无系统级/双端验证"
+  },
+  {
+   "req_id": "REQ-M11",
+   "group": "A",
+   "name": "表单草稿（FormDraftController 乐观锁）",
+   "status": "partial",
+   "evidence": {
+    "BT": [
+     "FormDraftOptimisticLockTest(3)"
+    ]
+   },
+   "notes": "仅乐观锁单测，无 CRUD 系统级验证"
+  },
+  {
+   "req_id": "REQ-M12",
+   "group": "A",
+   "name": "系统管理-用户（CRUD/密码重置/数据范围/组织同步/删除次序）",
+   "status": "covered",
+   "evidence": {
+    "BT": [
+     "SysUserDataScopeOverrideTest(9)",
+     "SysUserPageGroupScopeTest(9)",
+     "SysUserOrgBoundaryTest(7)",
+     "SysUserManageVisibilityTest(6)",
+     "SysUserManagerIdUpdateTest(5)",
+     "SysUserServiceOrgSyncTest(4)",
+     "SysUserControllerOrgAdminTest(3)",
+     "SysUserDeleteOrderTest(3)"
+    ],
+    "FS": [
+     "views/system/user.spec.js(4)"
+    ],
+    "STR": [
+     "维度4 用户 CRUD/首登强制改密/角色切换权限即时生效（含降权旧 token 403）"
+    ]
+   }
+  },
+  {
+   "req_id": "REQ-M13",
+   "group": "A",
+   "name": "系统管理-角色与权限矩阵（角色/菜单/权限码字典/权限规则/规则版本/perm scope）",
+   "status": "covered",
+   "evidence": {
+    "BT": [
+     "SysRoleServiceTest(36)",
+     "PermissionMatrixTest(27)",
+     "PermissionRuleEngineTest(18)",
+     "PermissionSecurityFixTest(17)",
+     "PermissionCacheServiceTest(8)",
+     "RolePermScopeServiceTest(7)"
+    ],
+    "FS": [
+     "views/system/PermScopeManager.spec.js(7)",
+     "api/system.spec.js(1)"
+    ],
+    "STR": [
+     "维度3 权限矩阵 4 角色×11 组合",
+     "维度4 角色多轮切换双向即时生效"
+    ]
+   }
+  },
+  {
+   "req_id": "REQ-M14",
+   "group": "A",
+   "name": "系统管理-组织与数据范围（部门/岗位/岗位规则/群组/Scope）",
+   "status": "covered",
+   "evidence": {
+    "BT": [
+     "OrgScopeResolverTest(30)",
+     "SysPositionServiceTest(13)",
+     "SysDeptWriteBoundaryTest(10)",
+     "SysDeptServiceTest(5)",
+     "OrgAdminServiceSecurityTest(7)",
+     "GroupScopeUtilTest(4)",
+     "SysPositionRuleGuardTest(3)",
+     "SysPositionRuleGuardControllerTest(3)"
+    ],
+    "STR": [
+     "维度4 组织 CRUD（部门 69 建改查删）"
+    ]
+   }
+  },
+  {
+   "req_id": "REQ-M15",
+   "group": "A",
+   "name": "系统管理-配置/字典/日志（sys_config/字典/系统日志）",
+   "status": "partial",
+   "evidence": {
+    "BT": [
+     "SysConfigControllerLogoTest(7)",
+     "SysAuditLogServiceTest(4)",
+     "LogAspectTest(3)"
+    ],
+    "FS": [
+     "views/system/BasicSettings.spec.js(1)"
+    ],
+    "STR": [
+     "维度4 基础设置 15 项 configs PUT/回读、字典迁移三处一致、日志 16543 条检索",
+     "缺陷挂点 L6(updated_at 失真未修)/L7(配置日志 detail 空未修)"
+    ]
+   },
+   "notes": "维度4 浏览器渲染级 UI 未实拍（browser MCP 未连接，以 API+构建产物分析替代）"
+  },
+  {
+   "req_id": "REQ-M16",
+   "group": "A",
+   "name": "定时任务（ScheduledTaskController）",
+   "status": "partial",
+   "evidence": {
+    "BT": [
+     "ScheduledTaskControllerSecurityTest(2)",
+     "CustomerExpireTaskTest(10)"
+    ]
+   },
+   "notes": "仅安全与到期任务单测，无调度功能系统级验证"
+  },
+  {
+   "req_id": "REQ-M17",
+   "group": "A",
+   "name": "数据权限引擎（横切：dataScope 六级/用户级 override/auto_share/fail-closed）",
+   "status": "partial",
+   "evidence": {
+    "BT": [
+     "OrgScopeResolverTest(30)",
+     "ScopeServiceTest(14)",
+     "DataScopeGuardTest(13)",
+     "DataScopeTypeTest(4)"
+    ],
+    "STR": [
+     "维度3 auto_share 链路取证+token 交叉",
+     "缺陷挂点 H1(未修)/H3(列表不消费 override，口径未定论，⑦-4)"
+    ]
+   },
+   "notes": "StabilityInvariantTest.tenantInterceptor_keepsFailClosedSemantics 佐证 fail-closed"
+  },
+  {
+   "req_id": "REQ-F01",
+   "group": "B",
+   "name": "PC 工作台（dashboard 统计卡/阅读完成卡）",
+   "status": "covered",
+   "evidence": {
+    "FS": [
+     "views/dashboard/readstats.spec.js(3)"
+    ],
+    "STR": [
+     "维度2 dashboard 全部 18 项 vs SQL 零差异"
+    ]
+   }
+  },
+  {
+   "req_id": "REQ-F02",
+   "group": "B",
+   "name": "PC 客户视图（列表/详情/财务Tab/信息Tab/表单）",
+   "status": "partial",
+   "evidence": {
+    "FS": [
+     "composables/useCustomerForm.spec.js(21)",
+     "composables/useCustomerDetail.spec.js(11)",
+     "utils/customer-empty-state.spec.js(13)",
+     "utils/customer-fields.spec.js(8)",
+     "utils/customer-status.spec.js(4)",
+     "utils/customer-rank.spec.js(4)",
+     "views/customer/detail.spec.js(5)",
+     "views/customer/detail/FinanceTab.spec.js(7)",
+     "views/customer/detail/InfoTab.spec.js(3)",
+     "composables/useCustomerList.spec.js(4)"
+    ],
+    "STR": [
+     "维度7 前端静态验证（活跃 chunk 判定/#1 按钮位置/#2 四列版式）"
+    ]
+   },
+   "notes": "浏览器渲染级 UI 未实拍（STR ⑤）；基本信息编辑 UI 未测"
+  },
+  {
+   "req_id": "REQ-F03",
+   "group": "B",
+   "name": "PC 激励视图（搜索/记录表/统计详情/上传）",
+   "status": "partial",
+   "evidence": {
+    "FS": [
+     "views/incentive/search.spec.js(17)",
+     "composables/useIncentiveUpload.spec.js(16)",
+     "utils/incentive-read-ranking.spec.js(6)",
+     "utils/incentive-detail.spec.js(4)",
+     "utils/incentive-period.spec.js(4)",
+     "utils/incentive-read.spec.js(2)",
+     "views/incentive/StatsDetail.spec.js(2)",
+     "views/incentive/RecordTable.spec.js(2)"
+    ],
+    "STR": [
+     "维度8 Playwright 搜索/详情弹窗/统计三 Tab/上传页/排行/导出",
+     "缺陷挂点 M2/L10"
+    ]
+   }
+  },
+  {
+   "req_id": "REQ-F04",
+   "group": "B",
+   "name": "PC 提醒视图（列表/详情）",
+   "status": "covered",
+   "evidence": {
+    "FS": [
+     "views/reminder/index.spec.js(11)",
+     "views/reminder/detail.spec.js(4)",
+     "utils/reminder-detail.spec.js(12)"
+    ],
+    "STR": [
+     "维度5 提醒链路"
+    ]
+   }
+  },
+  {
+   "req_id": "REQ-F05",
+   "group": "B",
+   "name": "PC 登录（登录页/忘记密码/口令不落盘）",
+   "status": "covered",
+   "evidence": {
+    "FS": [
+     "views/login/index.spec.js(6)",
+     "views/login/ForgotPasswordDialog.spec.js(2)",
+     "utils/token.spec.js(10)"
+    ],
+    "STR": [
+     "维度3 四角色登录+错密码 401"
+    ]
+   }
+  },
+  {
+   "req_id": "REQ-F06",
+   "group": "B",
+   "name": "PC 系统管理视图（基础设置/权限范围/用户管理/阅读排行）",
+   "status": "partial",
+   "evidence": {
+    "FS": [
+     "views/system/PermScopeManager.spec.js(7)",
+     "views/system/incentive-read-ranking.spec.js(4)",
+     "views/system/user.spec.js(4)",
+     "views/system/BasicSettings.spec.js(1)",
+     "api/system.spec.js(1)",
+     "utils/storage-apply.spec.js(3)"
+    ],
+    "STR": [
+     "维度4（API 级全链；UI 渲染未实拍）"
+    ]
+   }
+  },
+  {
+   "req_id": "REQ-F07",
+   "group": "B",
+   "name": "PC 布局/路由/全局支撑（layout/router/store/通用 utils）",
+   "status": "covered",
+   "evidence": {
+    "FS": [
+     "utils/pagination.spec.js(14)",
+     "utils/time-label.spec.js(14)",
+     "utils/format.spec.js(9)",
+     "utils/token.spec.js(10)",
+     "store/user.spec.js(5)",
+     "utils/app-version.spec.js(3)",
+     "router/access.spec.js(3)",
+     "router/legacy-routes.spec.js(2)",
+     "layout/index.spec.js(1)",
+     "composables/useFileBlob.spec.js(6)",
+     "utils/media-type.spec.js(4)"
+    ]
+   }
+  },
+  {
+   "req_id": "REQ-MP-A",
+   "group": "C",
+   "name": "小程序需求A：文件管理页改版（两行文件名/半屏操作面板/时间分组）",
+   "status": "covered",
+   "evidence": {
+    "AC": [
+     "冒烟 29/29（文件页 49 行/分组/⋯面板 5 动作+红删除/行点击进详情）"
+    ],
+    "smoke": [
+     "05-测试与质量/smoke-mp-redesign-ac-20261017.js"
+    ]
+   }
+  },
+  {
+   "req_id": "REQ-MP-B",
+   "group": "C",
+   "name": "小程序需求B：激励页去冗余（旧巨卡/角标/按钮排移除）",
+   "status": "covered",
+   "evidence": {
+    "AC": [
+     "『C 落地即覆盖 B』；冒烟断言旧巨卡+红圈②③④为 0"
+    ]
+   }
+  },
+  {
+   "req_id": "REQ-MP-C",
+   "group": "C",
+   "name": "小程序需求C：客户封面卡+客户激励详情页（锚点/照片墙/历史展开/吸底栏）",
+   "status": "covered",
+   "evidence": {
+    "AC": [
+     "冒烟 29/29（108 张封面卡/详情页锚点 3 分组/46 条历史默认展开/吸底栏 2 钮）"
+    ]
+   }
+  },
+  {
+   "req_id": "REQ-MP-01",
+   "group": "C",
+   "name": "原型01 首页工作台",
+   "status": "covered",
+   "mr_judgement": "高匹配",
+   "evidence": {
+    "BT": [
+     "M08 统计类"
+    ],
+    "CONTRACT": [
+     "check-mobile-dashboard-contract.sh"
+    ],
+    "STR": [
+     "维度6 链路2 switchTab"
+    ]
+   }
+  },
+  {
+   "req_id": "REQ-MP-02",
+   "group": "C",
+   "name": "原型02 登录绑定",
+   "status": "partial",
+   "mr_judgement": "部分匹配",
+   "evidence": {
+    "CONTRACT": [
+     "check-mobile-auth-contract.sh"
+    ],
+    "STR": [
+     "维度6 链路1 账号密码登录 PASS"
+    ]
+   },
+   "notes": "微信 OAuth/openid 绑定未实现"
+  },
+  {
+   "req_id": "REQ-MP-03",
+   "group": "C",
+   "name": "原型03 忘记密码",
+   "status": "covered",
+   "mr_judgement": "高匹配",
+   "evidence": {
+    "BT": [
+     "M01 认证类"
+    ],
+    "FS": [
+     "views/login/ForgotPasswordDialog.spec.js(2)"
+    ],
+    "CONTRACT": [
+     "check-mobile-auth-contract.sh"
+    ]
+   }
+  },
+  {
+   "req_id": "REQ-MP-04",
+   "group": "C",
+   "name": "原型04 强制改密",
+   "status": "covered",
+   "mr_judgement": "待确认（按后续证据升级）",
+   "evidence": {
+    "STR": [
+     "维度4 首登强制改密 pwdResetRequired=1、改密后旧 token 全失效"
+    ]
+   },
+   "notes": "矩阵 2026-09-05 判待确认，2026-10-12 维度4 已验证闭环"
+  },
+  {
+   "req_id": "REQ-MP-05",
+   "group": "C",
+   "name": "原型05 微信绑定",
+   "status": "not_implemented",
+   "mr_judgement": "缺口",
+   "evidence": {
+    "notes": "矩阵判定的最明确小程序专属 P0 缺口：无微信登录/绑定/解绑/换绑接口，其后八维度与 AC 报告亦无该链路证据"
+   },
+   "b16_evidence": "B16 判定：前端诚实占位页（pages/profile/wechat：status=待后端接入，modal 明示暂不请求微信身份），后端 OAuth/openid 绑定未接入——G6 已知 P0 缺口"
+  },
+  {
+   "req_id": "REQ-MP-06",
+   "group": "C",
+   "name": "原型06 客户列表",
+   "status": "covered",
+   "mr_judgement": "高匹配",
+   "evidence": {
+    "BT": [
+     "CustomerControllerTest(9)",
+     "CustomerServiceTest(86)"
+    ],
+    "CONTRACT": [
+     "check-mobile-customer-center-contract.sh"
+    ],
+    "STR": [
+     "维度7 分页/筛选/counts 与 DB 一致"
+    ]
+   }
+  },
+  {
+   "req_id": "REQ-MP-07",
+   "group": "C",
+   "name": "原型07 客户详情",
+   "status": "covered",
+   "mr_judgement": "高匹配",
+   "evidence": {
+    "BT": [
+     "CustomerServiceTest(86)"
+    ],
+    "FS": [
+     "views/customer/detail.spec.js(5)"
+    ],
+    "STR": [
+     "维度7 详情全字段 200",
+     "维度6 链路5 判定表格 5 行 PASS"
+    ]
+   }
+  },
+  {
+   "req_id": "REQ-MP-08",
+   "group": "C",
+   "name": "原型08 新增/编辑客户",
+   "status": "covered",
+   "mr_judgement": "高匹配",
+   "evidence": {
+    "BT": [
+     "CustomerServiceTest(86)"
+    ],
+    "FS": [
+     "composables/useCustomerForm.spec.js(21)"
+    ],
+    "CONTRACT": [
+     "check-mobile-customer-form-contract.sh"
+    ],
+    "STR": [
+     "维度6 链路4 上传页客户搜索 PASS"
+    ]
+   },
+   "notes": "PC 端基本信息编辑(PUT)未测（⑦-10）"
+  },
+  {
+   "req_id": "REQ-MP-09",
+   "group": "C",
+   "name": "原型09 高级筛选",
+   "status": "covered",
+   "mr_judgement": "高匹配",
+   "evidence": {
+    "STR": [
+     "维度7 筛选 keyword/industry/devType/组合与 DB 一致"
+    ],
+    "CONTRACT": [
+     "check-mobile-customer-center-contract.sh"
+    ]
+   }
+  },
+  {
+   "req_id": "REQ-MP-10",
+   "group": "C",
+   "name": "原型10 开票录入",
+   "status": "covered",
+   "mr_judgement": "高匹配",
+   "evidence": {
+    "BT": [
+     "CustomerStageAmountTest(10)",
+     "LedgerVoidedStatsContractTest(3)"
+    ],
+    "FS": [
+     "views/customer/detail/FinanceTab.spec.js(7)"
+    ],
+    "STR": [
+     "维度7 stage-amounts GET+POST"
+    ]
+   }
+  },
+  {
+   "req_id": "REQ-MP-11",
+   "group": "C",
+   "name": "原型11 回款录入",
+   "status": "covered",
+   "mr_judgement": "高匹配",
+   "evidence": {
+    "BT": [
+     "CustomerStageAmountTest(10)"
+    ],
+    "FS": [
+     "views/customer/detail/FinanceTab.spec.js(7)"
+    ],
+    "STR": [
+     "维度7 stage-amounts"
+    ]
+   }
+  },
+  {
+   "req_id": "REQ-MP-12",
+   "group": "C",
+   "name": "原型12 开票回款明细",
+   "status": "covered",
+   "mr_judgement": "高匹配",
+   "evidence": {
+    "BT": [
+     "LedgerVoidedStatsContractTest(3)"
+    ],
+    "FS": [
+     "views/customer/detail/FinanceTab.spec.js(7)"
+    ],
+    "STR": [
+     "维度7 半年/全年行+FY 优先"
+    ]
+   }
+  },
+  {
+   "req_id": "REQ-MP-13",
+   "group": "C",
+   "name": "原型13 分享客户",
+   "status": "covered",
+   "mr_judgement": "高匹配",
+   "evidence": {
+    "BT": [
+     "CustomerServiceTest(86)",
+     "IncentiveShareVisibilityTest(15)"
+    ],
+    "STR": [
+     "维度7 分享正例+取消清理"
+    ]
+   },
+   "notes": "L4 admin 分享恒 403+按钮照显（未修）"
+  },
+  {
+   "req_id": "REQ-MP-14",
+   "group": "C",
+   "name": "原型14 公海池",
+   "status": "covered",
+   "mr_judgement": "高匹配",
+   "evidence": {
+    "BT": [
+     "SeaServiceTest(9)",
+     "SeaConfigServicePoolPermTest(6)"
+    ],
+    "CONTRACT": [
+     "check-mobile-sea-boundary.sh"
+    ],
+    "STR": [
+     "维度5 公海正例+UATNOF 403"
+    ]
+   }
+  },
+  {
+   "req_id": "REQ-MP-15",
+   "group": "C",
+   "name": "原型15 捞取记录",
+   "status": "covered",
+   "mr_judgement": "高匹配",
+   "evidence": {
+    "STR": [
+     "维度5 claim-records"
+    ],
+    "CONTRACT": [
+     "check-mobile-sea-boundary.sh"
+    ]
+   }
+  },
+  {
+   "req_id": "REQ-MP-16-22",
+   "group": "C",
+   "name": "原型16-22 价值服务案例/排行/统计/文件预览",
+   "status": "covered",
+   "mr_judgement": "高匹配",
+   "evidence": {
+    "BT": [
+     "M07 激励 10 类"
+    ],
+    "CONTRACT": [
+     "check-mobile-incentive-contract.sh",
+     "check-mobile-ranking-contract.sh"
+    ],
+    "STR": [
+     "维度8 全链",
+     "维度6 链路3/6"
+    ],
+    "AC": [
+     "需求C 照片墙冒烟"
+    ]
+   },
+   "notes": "缺陷挂点 H2(已修未回归)/M3(瓦片 3:2 未修，真机未测)"
+  },
+  {
+   "req_id": "REQ-MP-23-26",
+   "group": "C",
+   "name": "原型23-26 文件库/预览/上传/全屏图片",
+   "status": "covered",
+   "mr_judgement": "高匹配",
+   "evidence": {
+    "BT": [
+     "FileServicePermissionTest(55)",
+     "FolderAclServiceTest(18)",
+     "FolderPermissionServiceTest(20)"
+    ],
+    "CONTRACT": [
+     "check-mobile-file-boundary.sh"
+    ],
+    "STR": [
+     "维度5 文件 ACL 全链"
+    ],
+    "AC": [
+     "PC 阅读器 24/24"
+    ]
+   },
+   "notes": "H4 环境文件丢失（环境问题）；小程序端格式兼容需实机验证"
+  },
+  {
+   "req_id": "REQ-MP-27-28",
+   "group": "C",
+   "name": "原型27-28 审批中心/详情",
+   "status": "covered",
+   "mr_judgement": "高匹配",
+   "evidence": {
+    "BT": [
+     "ApprovalServiceTest(37)",
+     "ApprovalApproveRejectSecurityTest(7)"
+    ],
+    "CONTRACT": [
+     "check-mobile-approval-contract.sh"
+    ],
+    "STR": [
+     "维度5 审批正负例"
+    ]
+   }
+  },
+  {
+   "req_id": "REQ-MP-29",
+   "group": "C",
+   "name": "原型29 消息通知",
+   "status": "partial",
+   "mr_judgement": "部分匹配",
+   "evidence": {
+    "BT": [
+     "ReminderServiceTest(15)"
+    ],
+    "CONTRACT": [
+     "check-mobile-reminder-contract.sh"
+    ],
+    "STR": [
+     "维度5 提醒链路"
+    ]
+   },
+   "notes": "微信订阅消息/已读状态完整方案未实现"
+  },
+  {
+   "req_id": "REQ-MP-30",
+   "group": "C",
+   "name": "原型30 应用中心",
+   "status": "covered",
+   "mr_judgement": "部分匹配（按后续证据升级）",
+   "evidence": {
+    "STR": [
+     "维度6 链路2 应用中心 9 卡→四项激励跳转 PASS"
+    ]
+   },
+   "notes": "矩阵时点(09-05)未发现应用中心，10-12 已实测通过"
+  },
+  {
+   "req_id": "REQ-MP-31",
+   "group": "C",
+   "name": "原型31 我的",
+   "status": "partial",
+   "mr_judgement": "部分匹配",
+   "evidence": {
+    "BT": [
+     "M01/M12 类"
+    ],
+    "CONTRACT": [
+     "check-mobile-profile-contract.sh"
+    ]
+   },
+   "notes": "清除缓存/微信绑定/关于页为待实现项"
+  },
+  {
+   "req_id": "REQ-MP-32",
+   "group": "C",
+   "name": "原型32 修改密码",
+   "status": "partial",
+   "mr_judgement": "待确认",
+   "evidence": {
+    "STR": [
+     "维度4 改密链路（API 级）",
+     "L16 佐证 pages/profile/password/index 页面存在"
+    ]
+   },
+   "notes": "小程序端改密页无专项实测证据"
+  },
+  {
+   "req_id": "REQ-MP-33",
+   "group": "C",
+   "name": "原型33 关于",
+   "status": "partial",
+   "mr_judgement": "待确认",
+   "evidence": {
+    "notes": "静态页；版本号/隐私政策/用户协议入口无实现与测试证据"
+   },
+   "b16_evidence": "B16 判定：pages/profile/about 页面存在（静态内容页）；无专属自动化测试"
+  },
+  {
+   "req_id": "REQ-MP-34",
+   "group": "C",
+   "name": "原型34 客户统计",
+   "status": "covered",
+   "mr_judgement": "高匹配",
+   "evidence": {
+    "BT": [
+     "StatisticsQueryServiceTest(16)"
+    ],
+    "CONTRACT": [
+     "check-mobile-statistics-contract.sh"
+    ],
+    "STR": [
+     "维度2 对账零差异"
+    ]
+   }
+  },
+  {
+   "req_id": "REQ-MP-35",
+   "group": "C",
+   "name": "原型35 价值服务查询",
+   "status": "covered",
+   "mr_judgement": "高匹配",
+   "evidence": {
+    "BT": [
+     "IncentiveCustomerRecordsPeriodTest(2)",
+     "IncentiveCustomerRecordsRecordIdTest(2)"
+    ],
+    "CONTRACT": [
+     "check-mobile-incentive-contract.sh"
+    ],
+    "STR": [
+     "维度8 customer-records 数据形状/筛选/数据范围"
+    ]
+   }
+  },
+  {
+   "req_id": "REQ-MP-36",
+   "group": "C",
+   "name": "原型36 申请延期提交",
+   "status": "covered",
+   "mr_judgement": "高匹配",
+   "evidence": {
+    "BT": [
+     "ExtendSubmitOwnershipTest(4)",
+     "ExtendApprovalConcurrencyTest(2)"
+    ],
+    "CONTRACT": [
+     "check-mobile-approval-contract.sh"
+    ],
+    "STR": [
+     "维度5/7 延期审批全链（+360）"
+    ]
+   },
+   "notes": "缺陷挂点 M1(越权发起未修)"
+  },
+  {
+   "req_id": "REQ-MP-37",
+   "group": "C",
+   "name": "原型37 捞取确认",
+   "status": "covered",
+   "mr_judgement": "高匹配",
+   "evidence": {
+    "BT": [
+     "SeaServiceTest(9)"
+    ],
+    "CONTRACT": [
+     "check-mobile-sea-boundary.sh"
+    ],
+    "STR": [
+     "维度5 捞取+审批+owner 变更+保护期"
+    ]
+   },
+   "notes": "免审/必审池边界与重复点击幂等待产品确认"
+  },
+  {
+   "req_id": "REQ-MP-38",
+   "group": "C",
+   "name": "原型38 审批处理",
+   "status": "covered",
+   "mr_judgement": "高匹配",
+   "evidence": {
+    "BT": [
+     "ApprovalApproveRejectSecurityTest(7)"
+    ],
+    "CONTRACT": [
+     "check-mobile-approval-contract.sh"
+    ],
+    "STR": [
+     "维度5 approve/reject 正负例"
+    ]
+   }
+  },
+  {
+   "req_id": "REQ-MP-39",
+   "group": "C",
+   "name": "原型39 文件分享选人",
+   "status": "covered",
+   "mr_judgement": "高匹配",
+   "evidence": {
+    "BT": [
+     "FolderAclServiceTest(18)",
+     "FolderPermissionServiceTest(20)"
+    ],
+    "CONTRACT": [
+     "check-mobile-file-boundary.sh"
+    ],
+    "STR": [
+     "维度5 分享给 TY002 后可见可下载"
+    ]
+   }
+  },
+  {
+   "req_id": "REQ-MP-40-42",
+   "group": "C",
+   "name": "原型40-42 通用弹窗/选择器/成功反馈",
+   "status": "partial",
+   "mr_judgement": "可实现（组件层）",
+   "evidence": {
+    "AC": [
+     "需求A 自绘半屏操作面板（打开/下载/分享/替换/删除）冒烟通过"
+    ]
+   },
+   "notes": "属组件层；无独立组件测试框架，依赖冒烟断言"
+  },
+  {
+   "req_id": "REQ-MP-43",
+   "group": "C",
+   "name": "原型43 联系人详情",
+   "status": "covered",
+   "mr_judgement": "高匹配",
+   "evidence": {
+    "BT": [
+     "CustomerServiceTest(86)"
+    ],
+    "CONTRACT": [
+     "check-mobile-customer-center-contract.sh"
+    ]
+   }
+  },
+  {
+   "req_id": "REQ-MP-44",
+   "group": "C",
+   "name": "原型44 个人排行",
+   "status": "covered",
+   "mr_judgement": "高匹配",
+   "evidence": {
+    "BT": [
+     "IncentiveReadRankingTest(5)",
+     "IncentiveScoreTest(12)"
+    ],
+    "FS": [
+     "utils/incentive-read-ranking.spec.js(6)"
+    ],
+    "CONTRACT": [
+     "check-mobile-ranking-contract.sh"
+    ],
+    "STR": [
+     "维度6 链路6 排行页 PASS"
+    ]
+   }
+  },
+  {
+   "req_id": "REQ-MP-45",
+   "group": "C",
+   "name": "原型45 客户价值服务明细",
+   "status": "covered",
+   "mr_judgement": "高匹配",
+   "evidence": {
+    "BT": [
+     "IncentiveCustomerRecordsRecordIdTest(2)"
+    ],
+    "STR": [
+     "维度8 score/customer 一致"
+    ],
+    "AC": [
+     "需求C 客户激励详情页冒烟"
+    ]
+   }
+  },
+  {
+   "req_id": "REQ-MP-46",
+   "group": "C",
+   "name": "原型46 视频文档预览",
+   "status": "partial",
+   "mr_judgement": "部分匹配",
+   "evidence": {
+    "AC": [
+     "PC 阅读器生产数据 24/24"
+    ]
+   },
+   "notes": "微信小程序端 PDF/Office/视频预览需实机验证（未做）"
+  },
+  {
+   "req_id": "REQ-MP-47",
+   "group": "C",
+   "name": "原型47 数据权限说明",
+   "status": "covered",
+   "mr_judgement": "高匹配",
+   "evidence": {
+    "BT": [
+     "DataScopeGuardTest(13)",
+     "ScopeServiceTest(14)",
+     "OrgScopeResolverTest(30)",
+     "DataScopeTypeTest(4)"
+    ],
+    "MR": [
+     "audit-evidence/47-数据权限说明.png"
+    ]
+   }
+  },
+  {
+   "req_id": "REQ-MP-48",
+   "group": "C",
+   "name": "原型48 用户协议",
+   "status": "partial",
+   "mr_judgement": "待确认",
+   "evidence": {
+    "notes": "隐私/用户协议版本与勾选场景无实现与测试证据"
+   },
+   "b16_evidence": "B16 判定：pages/profile/agreement 真实存在（v1.0.9 2026-10-09 版本化协议文本）+login 流 user_agreement_version 存储逻辑；无专属测试"
+  },
+  {
+   "req_id": "REQ-MP-49",
+   "group": "C",
+   "name": "原型49 空状态",
+   "status": "partial",
+   "mr_judgement": "可实现（组件层）",
+   "evidence": {
+    "FS": [
+     "utils/customer-empty-state.spec.js(13)（PC 侧）"
+    ],
+    "MR": [
+     "audit-evidence/49-空状态.png"
+    ]
+   },
+   "notes": "小程序端未在客户/文件/提醒/审批列表逐一接入验证"
+  },
+  {
+   "req_id": "REQ-MP-50",
+   "group": "C",
+   "name": "原型50 加载骨架",
+   "status": "partial",
+   "mr_judgement": "可实现（组件层）",
+   "evidence": {
+    "FS": [
+     "utils/pagination.spec.js(14)（PC 分页状态）"
+    ]
+   },
+   "notes": "小程序骨架屏分页/刷新状态无验证证据"
+  },
+  {
+   "req_id": "REQ-MP-51",
+   "group": "C",
+   "name": "原型51 案例分享",
+   "status": "partial",
+   "mr_judgement": "部分匹配",
+   "evidence": {
+    "BT": [
+     "IncentiveShareVisibilityTest(15)"
+    ],
+    "STR": [
+     "维度8 分享制（销售 60 组）"
+    ]
+   },
+   "notes": "微信转发卡片路径/权限/脱敏规则未实现"
+  },
+  {
+   "req_id": "REQ-FBS-A1",
+   "group": "D",
+   "name": "法布施·十大类别",
+   "status": "not_implemented",
+   "evidence": {
+    "notes": "模块未开工（需求说明书 v1.1 待甲方圈范围），无实现无测试"
+   },
+   "b16_evidence": "法布施产品线未开工（L 队口径+B16 统一语义：未立项≠缺测试）"
+  },
+  {
+   "req_id": "REQ-FBS-A2",
+   "group": "D",
+   "name": "法布施·书目管理（审核制）",
+   "status": "not_implemented",
+   "evidence": {
+    "notes": "未开工"
+   },
+   "b16_evidence": "法布施产品线未开工（L 队口径+B16 统一语义：未立项≠缺测试）"
+  },
+  {
+   "req_id": "REQ-FBS-A3",
+   "group": "D",
+   "name": "法布施·电子书挂载（PDF≤100MB）",
+   "status": "not_implemented",
+   "evidence": {
+    "notes": "未开工（二期）"
+   },
+   "b16_evidence": "法布施产品线未开工（L 队口径+B16 统一语义：未立项≠缺测试）"
+  },
+  {
+   "req_id": "REQ-FBS-A4",
+   "group": "D",
+   "name": "法布施·内容治理（下架留痕/待审队列）",
+   "status": "not_implemented",
+   "evidence": {
+    "notes": "未开工"
+   },
+   "b16_evidence": "法布施产品线未开工（L 队口径+B16 统一语义：未立项≠缺测试）"
+  },
+  {
+   "req_id": "REQ-FBS-B1",
+   "group": "D",
+   "name": "法布施·书库浏览",
+   "status": "not_implemented",
+   "evidence": {
+    "notes": "未开工"
+   },
+   "b16_evidence": "法布施产品线未开工（L 队口径+B16 统一语义：未立项≠缺测试）"
+  },
+  {
+   "req_id": "REQ-FBS-B2",
+   "group": "D",
+   "name": "法布施·在线阅读（进度记忆续读）",
+   "status": "not_implemented",
+   "evidence": {
+    "notes": "未开工（二期）"
+   },
+   "b16_evidence": "法布施产品线未开工（L 队口径+B16 统一语义：未立项≠缺测试）"
+  },
+  {
+   "req_id": "REQ-FBS-B3",
+   "group": "D",
+   "name": "法布施·书架三态",
+   "status": "not_implemented",
+   "evidence": {
+    "notes": "未开工"
+   },
+   "b16_evidence": "法布施产品线未开工（L 队口径+B16 统一语义：未立项≠缺测试）"
+  },
+  {
+   "req_id": "REQ-FBS-B4",
+   "group": "D",
+   "name": "法布施·阅读记录（打卡/连续天数/时间线）",
+   "status": "not_implemented",
+   "evidence": {
+    "notes": "未开工"
+   },
+   "b16_evidence": "法布施产品线未开工（L 队口径+B16 统一语义：未立项≠缺测试）"
+  },
+  {
+   "req_id": "REQ-FBS-B5",
+   "group": "D",
+   "name": "法布施·已读未读+NEW",
+   "status": "not_implemented",
+   "evidence": {
+    "notes": "未开工（复用四项激励样式）"
+   },
+   "b16_evidence": "法布施产品线未开工（L 队口径+B16 统一语义：未立项≠缺测试）"
+  },
+  {
+   "req_id": "REQ-FBS-C1",
+   "group": "D",
+   "name": "法布施·正能量流",
+   "status": "not_implemented",
+   "evidence": {
+    "notes": "未开工"
+   },
+   "b16_evidence": "法布施产品线未开工（L 队口径+B16 统一语义：未立项≠缺测试）"
+  },
+  {
+   "req_id": "REQ-FBS-C2",
+   "group": "D",
+   "name": "法布施·结构化诵读（图/音/视限制）",
+   "status": "not_implemented",
+   "evidence": {
+    "notes": "未开工"
+   },
+   "b16_evidence": "法布施产品线未开工（L 队口径+B16 统一语义：未立项≠缺测试）"
+  },
+  {
+   "req_id": "REQ-FBS-C3",
+   "group": "D",
+   "name": "法布施·心得",
+   "status": "not_implemented",
+   "evidence": {
+    "notes": "未开工"
+   },
+   "b16_evidence": "法布施产品线未开工（L 队口径+B16 统一语义：未立项≠缺测试）"
+  },
+  {
+   "req_id": "REQ-FBS-C4",
+   "group": "D",
+   "name": "法布施·木鱼反馈（点赞=敲木鱼）",
+   "status": "not_implemented",
+   "evidence": {
+    "notes": "未开工"
+   },
+   "b16_evidence": "法布施产品线未开工（L 队口径+B16 统一语义：未立项≠缺测试）"
+  },
+  {
+   "req_id": "REQ-FBS-D1",
+   "group": "D",
+   "name": "法布施·评论",
+   "status": "not_implemented",
+   "evidence": {
+    "notes": "未开工"
+   },
+   "b16_evidence": "法布施产品线未开工（L 队口径+B16 统一语义：未立项≠缺测试）"
+  },
+  {
+   "req_id": "REQ-FBS-D2",
+   "group": "D",
+   "name": "法布施·重点描述（语义待甲方确认）",
+   "status": "not_implemented",
+   "evidence": {
+    "notes": "未开工（二期）"
+   },
+   "b16_evidence": "法布施产品线未开工（L 队口径+B16 统一语义：未立项≠缺测试）"
+  },
+  {
+   "req_id": "REQ-FBS-D3",
+   "group": "D",
+   "name": "法布施·语音跟读（≤60s）",
+   "status": "not_implemented",
+   "evidence": {
+    "notes": "未开工（二期）"
+   },
+   "b16_evidence": "法布施产品线未开工（L 队口径+B16 统一语义：未立项≠缺测试）"
+  },
+  {
+   "req_id": "REQ-FBS-D4",
+   "group": "D",
+   "name": "法布施·点赞计数",
+   "status": "not_implemented",
+   "evidence": {
+    "notes": "未开工"
+   },
+   "b16_evidence": "法布施产品线未开工（L 队口径+B16 统一语义：未立项≠缺测试）"
+  },
+  {
+   "req_id": "REQ-FBS-E1",
+   "group": "D",
+   "name": "法布施·团队统计看板",
+   "status": "not_implemented",
+   "evidence": {
+    "notes": "未开工（二期）"
+   },
+   "b16_evidence": "法布施产品线未开工（L 队口径+B16 统一语义：未立项≠缺测试）"
+  },
+  {
+   "req_id": "REQ-FBS-E2",
+   "group": "D",
+   "name": "法布施·个人统计",
+   "status": "not_implemented",
+   "evidence": {
+    "notes": "未开工（二期）"
+   },
+   "b16_evidence": "法布施产品线未开工（L 队口径+B16 统一语义：未立项≠缺测试）"
+  },
+  {
+   "req_id": "REQ-FBS-E3",
+   "group": "D",
+   "name": "法布施·趋势与月目标线",
+   "status": "not_implemented",
+   "evidence": {
+    "notes": "未开工（二期）"
+   },
+   "b16_evidence": "法布施产品线未开工（L 队口径+B16 统一语义：未立项≠缺测试）"
+  },
+  {
+   "req_id": "REQ-FBS-E4",
+   "group": "D",
+   "name": "法布施·统计导出 Excel",
+   "status": "not_implemented",
+   "evidence": {
+    "notes": "未开工（三期）"
+   },
+   "b16_evidence": "法布施产品线未开工（L 队口径+B16 统一语义：未立项≠缺测试）"
+  },
+  {
+   "req_id": "REQ-FBS-E5",
+   "group": "D",
+   "name": "法布施·电子书续读率指标",
+   "status": "not_implemented",
+   "evidence": {
+    "notes": "未开工（二期）"
+   },
+   "b16_evidence": "法布施产品线未开工（L 队口径+B16 统一语义：未立项≠缺测试）"
+  },
+  {
+   "req_id": "REQ-FBS-E6",
+   "group": "D",
+   "name": "法布施·成就徽章",
+   "status": "not_implemented",
+   "evidence": {
+    "notes": "未开工（二期）"
+   },
+   "b16_evidence": "法布施产品线未开工（L 队口径+B16 统一语义：未立项≠缺测试）"
+  },
+  {
+   "req_id": "REQ-FBS-F1",
+   "group": "D",
+   "name": "法布施·个人自愿提醒（当天未读才提醒）",
+   "status": "not_implemented",
+   "evidence": {
+    "notes": "未开工（二期）"
+   },
+   "b16_evidence": "法布施产品线未开工（L 队口径+B16 统一语义：未立项≠缺测试）"
+  },
+  {
+   "req_id": "REQ-FBS-F2",
+   "group": "D",
+   "name": "法布施·授权降级（订阅消息→应用内）",
+   "status": "not_implemented",
+   "evidence": {
+    "notes": "未开工（二期）"
+   },
+   "b16_evidence": "法布施产品线未开工（L 队口径+B16 统一语义：未立项≠缺测试）"
+  },
+  {
+   "req_id": "REQ-FBS-G1",
+   "group": "D",
+   "name": "法布施·权限与隔离（五权限码/21 用例契约）",
+   "status": "not_implemented",
+   "evidence": {
+    "notes": "未开工；既有体系可参照 PermissionMatrixTest 模式"
+   },
+   "b16_evidence": "法布施产品线未开工（L 队口径+B16 统一语义：未立项≠缺测试）"
+  },
+  {
+   "req_id": "REQ-FBS-G2",
+   "group": "D",
+   "name": "法布施·存储独立（fb_ 命名空间/独立配额）",
+   "status": "not_implemented",
+   "evidence": {
+    "notes": "未开工"
+   },
+   "b16_evidence": "法布施产品线未开工（L 队口径+B16 统一语义：未立项≠缺测试）"
+  },
+  {
+   "req_id": "REQ-FBS-G3",
+   "group": "D",
+   "name": "法布施·操作留痕",
+   "status": "not_implemented",
+   "evidence": {
+    "notes": "未开工"
+   },
+   "b16_evidence": "法布施产品线未开工（L 队口径+B16 统一语义：未立项≠缺测试）"
+  },
+  {
+   "req_id": "REQ-FBS-G4",
+   "group": "D",
+   "name": "法布施·统一内容表（fb_post/fb_comment）",
+   "status": "not_implemented",
+   "evidence": {
+    "notes": "未开工"
+   },
+   "b16_evidence": "法布施产品线未开工（L 队口径+B16 统一语义：未立项≠缺测试）"
+  },
+  {
+   "req_id": "REQ-NFR01",
+   "group": "E",
+   "name": "接口安全防护（JWT 链/幂等/路径穿越/越权负例）",
+   "status": "covered",
+   "evidence": {
+    "BT": [
+     "JwtAuthFilterTest(11)",
+     "IdempotencyServiceTest(7)",
+     "PermissionSecurityFixTest(17)",
+     "CustomerFullIdempotencyTest(4)"
+    ],
+    "STR": [
+     "维度5 路径穿越 404/token 免登录换人 403",
+     "维度3 鉴权先于参数解析"
+    ]
+   }
+  },
+  {
+   "req_id": "REQ-NFR02",
+   "group": "E",
+   "name": "架构与稳定性守卫（分层依赖/不变量）",
+   "status": "covered",
+   "evidence": {
+    "BT": [
+     "ArchitectureTest(3: controller不依赖mapper/entity、service不依赖controller)",
+     "StabilityInvariantTest(7: 迁移禁硬编码ID/租户fail-closed/删除留审计/激励可见性单一事实源等)"
+    ]
+   },
+   "notes": "任务书所述『5 个架构守卫测试』实为 ArchitectureTest(3 用例)+StabilityInvariantTest(7 用例)+4 个 Guard 类（CustomerFinanceGuard/DataScopeGuard/ImportGuard/SysPositionRuleGuard×2）的守卫家族，已按实测口径入册"
+  },
+  {
+   "req_id": "REQ-NFR03",
+   "group": "E",
+   "name": "审计留痕（操作日志/安全审计/财务审计）",
+   "status": "partial",
+   "evidence": {
+    "BT": [
+     "SecurityAuditServiceTest(10)",
+     "LogAspectTest(3)",
+     "CustomerFinanceAuditLogTest(3)",
+     "SysAuditLogServiceTest(4)",
+     "StabilityInvariantTest(部分)"
+    ],
+    "STR": [
+     "维度4 日志 16543 条/audit-logs 8120 条",
+     "缺陷挂点 L7(配置修改日志 detail 空，未修)"
+    ]
+   }
+  },
+  {
+   "req_id": "REQ-NFR04",
+   "group": "E",
+   "name": "配置与兼容（Profile 解析/MyBatisPlus 配置/全局异常/IP 工具）",
+   "status": "covered",
+   "evidence": {
+    "BT": [
+     "MybatisPlusConfigTest(18)",
+     "GlobalExceptionHandlerTest(10)",
+     "ClientIpUtilsTest(5)",
+     "ProfileYamlParseTest(2)"
+    ],
+    "FS": [
+     "utils/app-version.spec.js(3)"
+    ]
+   }
+  }
+ ],
+ "gap_bands": [
+  {
+   "id": "G1",
+   "title": "前端组件级零 spec（最大 gap 带）",
+   "detail": "92 个 .vue 中 77 个无邻接组件 spec（15 个有：layout、customer/detail+FinanceTab+InfoTab、incentive 3、login 2、reminder 2、system 4）。修正任务书『92 个零 spec』口径。"
+  },
+  {
+   "id": "G2",
+   "title": "E2E 人工/一次性脚本，未沉淀自动化回归",
+   "detail": "双端 8 维度系统测试（curl/SQL/反编译/DevTools/Playwright）为一次性执行；可复跑脚本仅 preview-smoke-prod.mjs(24/24) 与 smoke-mp-redesign-ac(29/29)。定级 partial 带。"
+  },
+  {
+   "id": "G3",
+   "title": "小程序端零单元测试框架",
+   "detail": "43 页无 JS 单测；覆盖依赖 29 个静态契约脚本（维度1 执行 21 个全 PASS）+ automator 冒烟 + 人工。"
+  },
+  {
+   "id": "G4",
+   "title": "客户基本信息编辑与删除未测",
+   "detail": "PUT 基本信息编辑未测；删除/archive/restore 仅作清理动作执行，未作功能用例（STR ⑦-10）。"
+  },
+  {
+   "id": "G5",
+   "title": "真机未测",
+   "detail": "仅 DevTools 渲染器（基础库 3.17.2）；M3 瓦片比例、H2 修复回归、PDF/Office/视频真机兼容均待做。"
+  },
+  {
+   "id": "G6",
+   "title": "微信身份链路 P0 缺口",
+   "detail": "微信登录/绑定/解绑/换绑无接口无测试（MR P0，对应 REQ-MP-05 gap）。"
+  },
+  {
+   "id": "G7",
+   "title": "法布施模块 29 条已立项需求未开工",
+   "detail": "需求说明书 v1.1（2026-10-12 用户已复核）待甲方圈范围；第三节条目实数 29 条（说明书自称 26 条，不符），全部 gap，单列不计入上线产品分母。"
+  },
+  {
+   "id": "G8",
+   "title": "未修复缺陷挂点",
+   "detail": "截至双端报告（2026-10-13）：H1(auto_share 类型校验)/H3(可见性口径)/M1(extend 越权)/M2(period)/M4 及 L1-L7、L9-L11、L13-L17 未确认修复；H2 本地已修未回归。关联单元均标 partial。"
+  }
+ ],
+ "reverse_gaps": [
+  {
+   "id": "R1",
+   "title": "守卫/契约类测试无书面需求条目",
+   "detail": "ArchitectureTest/StabilityInvariantTest/LedgerVoidedStatsContractTest 源自代码裁决（如 PR-18 统计口径契约、2026-10-10 阶段总额制裁决）与历史缺陷修复，对应『工程契约』未在需求文档条目化——已归入 NFR02 承接。"
+  },
+  {
+   "id": "R2",
+   "title": "前端 spec 引用内部编号而非需求条目",
+   "detail": "layout B1/login B1/customer detail B5/readstats B3/BasicSettings P2-6 等 spec 标题引用评审或 PR 编号，对应需求未条目化。"
+  },
+  {
+   "id": "R3",
+   "title": "SysConfigControllerLogoTest 无需求出处",
+   "detail": "logo 配置接口测试对应运营配置需求，仅与矩阵 P31『我的』间接相关。"
+  },
+  {
+   "id": "R4",
+   "title": "8 个契约脚本无执行见证",
+   "detail": "在库 29 个 vs 维度1 执行 21 个；check-mobile-live-qa-boundary.py / navigation-contract.py / reconciliation-evidence.py 等 8 个未见执行记录。"
+  }
+ ],
+ "spot_checks": [
+  {
+   "req": "REQ-M13 → PermissionMatrixTest",
+   "verdict": "通过",
+   "detail": "文件存在（com/aigicrm/architecture/PermissionMatrixTest.java，27 @Test）；类注释明示『权限矩阵自动化回归测试：写方法必须 @PreAuthorize 且权限码在字典』，与权限矩阵需求语义直接对应"
+  },
+  {
+   "req": "REQ-M08 → LedgerVoidedStatsContractTest",
+   "verdict": "通过",
+   "detail": "文件存在（architecture/LedgerVoidedStatsContractTest.java，3 @Test）；『已作废台账不得计入任何统计口径』+ 阶段总额制口径钉，与统计对账需求直接对应"
+  },
+  {
+   "req": "REQ-M07 → IncentiveUploadValidationTest",
+   "verdict": "通过",
+   "detail": "文件存在（module/incentive/service/IncentiveUploadValidationTest.java，12 @Test）；『激励上传入参校验与归属限制：分类/客户/文件槽/文件归属』与上传校验需求直接对应"
+  },
+  {
+   "req": "REQ-M03 → SeaServiceTest",
+   "verdict": "通过",
+   "detail": "文件存在（module/sea/service/SeaServiceTest.java，9 @Test）；『all 范围用户不得见禁用池存量客户』+ completeClaim 开票基准清空回归，与公海捞取需求直接对应"
+  },
+  {
+   "req": "REQ-F02 → views/customer/detail/FinanceTab.spec.js",
+   "verdict": "通过",
+   "detail": "文件存在（7 it）；真实 mount FinanceTab.vue（@vue/test-utils），断言阶段总额制 UI 契约（三态判定/历史折叠/作废置灰），与客户财务视图需求直接对应"
+  }
+ ],
+ "corrections": [
+  {
+   "date": "2026-10-31",
+   "batch": "B16 判定落地",
+   "changes": [
+    "原型05 微信绑定 gap→not_implemented（前端占位+后端未接入）",
+    "原型33 关于 gap→partial（页面存在无测试）",
+    "原型48 用户协议 gap→partial（v1.0.9 版本化协议页+login 存储逻辑）"
+   ],
+   "note": "上线范围 gap 清零；法布施 29 项未开工维持原口径"
+  },
+  {
+   "date": "2026-10-31",
+   "batch": "B16 续",
+   "changes": [
+    "法布施 29 项 gap→not_implemented（未开工产品线，语义统一）"
+   ],
+   "note": "两项目 RTM gap 全部清零，状态语义三态分明：covered/partial=已实现、not_implemented=未立项"
+  }
+ ],
+ "requirements": [
+  {
+   "id": "REQ-M01",
+   "title": "认证与账号（登录/登出/信息/切集团/忘记密码/强制改密）",
+   "tests": [],
+   "status": "covered"
+  },
+  {
+   "id": "REQ-M02",
+   "title": "客户管理（列表/详情/新增/指标/客情/阶段金额/开票回款/联系人/分享/释放/导入/日志）",
+   "tests": [],
+   "status": "partial"
+  },
+  {
+   "id": "REQ-M03",
+   "title": "公海池（池列表/捞取/捞取记录/池配置/可见池）",
+   "tests": [],
+   "status": "covered"
+  },
+  {
+   "id": "REQ-M04",
+   "title": "审批中心（待办/发起/通过/驳回/审批配置；extend/claim/transfer）",
+   "tests": [],
+   "status": "partial"
+  },
+  {
+   "id": "REQ-M05",
+   "title": "提醒（列表/筛选/处理/到期提醒/角标）",
+   "tests": [],
+   "status": "covered"
+  },
+  {
+   "id": "REQ-M06",
+   "title": "文件管理（目录/上传/下载/预览/分享/ACL/配额/替换/对账/存储审批）",
+   "tests": [],
+   "status": "covered"
+  },
+  {
+   "id": "REQ-M07",
+   "title": "激励·四项激励（记录/上传校验/积分/统计/排行/已读/可见性/导出）",
+   "tests": [],
+   "status": "partial"
+  },
+  {
+   "id": "REQ-M08",
+   "title": "统计分析（工作台/客户排行/五项指标/对账口径）",
+   "tests": [],
+   "status": "covered"
+  },
+  {
+   "id": "REQ-M09",
+   "title": "任务（TaskController 任务列表/处理）",
+   "tests": [],
+   "status": "partial"
+  },
+  {
+   "id": "REQ-M10",
+   "title": "回收站（RecycleController）",
+   "tests": [],
+   "status": "partial"
+  },
+  {
+   "id": "REQ-M11",
+   "title": "表单草稿（FormDraftController 乐观锁）",
+   "tests": [],
+   "status": "partial"
+  },
+  {
+   "id": "REQ-M12",
+   "title": "系统管理-用户（CRUD/密码重置/数据范围/组织同步/删除次序）",
+   "tests": [],
+   "status": "covered"
+  },
+  {
+   "id": "REQ-M13",
+   "title": "系统管理-角色与权限矩阵（角色/菜单/权限码字典/权限规则/规则版本/perm scope）",
+   "tests": [],
+   "status": "covered"
+  },
+  {
+   "id": "REQ-M14",
+   "title": "系统管理-组织与数据范围（部门/岗位/岗位规则/群组/Scope）",
+   "tests": [],
+   "status": "covered"
+  },
+  {
+   "id": "REQ-M15",
+   "title": "系统管理-配置/字典/日志（sys_config/字典/系统日志）",
+   "tests": [],
+   "status": "partial"
+  },
+  {
+   "id": "REQ-M16",
+   "title": "定时任务（ScheduledTaskController）",
+   "tests": [],
+   "status": "partial"
+  },
+  {
+   "id": "REQ-M17",
+   "title": "数据权限引擎（横切：dataScope 六级/用户级 override/auto_share/fail-closed）",
+   "tests": [],
+   "status": "partial"
+  },
+  {
+   "id": "REQ-F01",
+   "title": "PC 工作台（dashboard 统计卡/阅读完成卡）",
+   "tests": [],
+   "status": "covered"
+  },
+  {
+   "id": "REQ-F02",
+   "title": "PC 客户视图（列表/详情/财务Tab/信息Tab/表单）",
+   "tests": [],
+   "status": "partial"
+  },
+  {
+   "id": "REQ-F03",
+   "title": "PC 激励视图（搜索/记录表/统计详情/上传）",
+   "tests": [],
+   "status": "partial"
+  },
+  {
+   "id": "REQ-F04",
+   "title": "PC 提醒视图（列表/详情）",
+   "tests": [],
+   "status": "covered"
+  },
+  {
+   "id": "REQ-F05",
+   "title": "PC 登录（登录页/忘记密码/口令不落盘）",
+   "tests": [],
+   "status": "covered"
+  },
+  {
+   "id": "REQ-F06",
+   "title": "PC 系统管理视图（基础设置/权限范围/用户管理/阅读排行）",
+   "tests": [],
+   "status": "partial"
+  },
+  {
+   "id": "REQ-F07",
+   "title": "PC 布局/路由/全局支撑（layout/router/store/通用 utils）",
+   "tests": [],
+   "status": "covered"
+  },
+  {
+   "id": "REQ-MP-A",
+   "title": "小程序需求A：文件管理页改版（两行文件名/半屏操作面板/时间分组）",
+   "tests": [],
+   "status": "covered"
+  },
+  {
+   "id": "REQ-MP-B",
+   "title": "小程序需求B：激励页去冗余（旧巨卡/角标/按钮排移除）",
+   "tests": [],
+   "status": "covered"
+  },
+  {
+   "id": "REQ-MP-C",
+   "title": "小程序需求C：客户封面卡+客户激励详情页（锚点/照片墙/历史展开/吸底栏）",
+   "tests": [],
+   "status": "covered"
+  },
+  {
+   "id": "REQ-MP-01",
+   "title": "原型01 首页工作台",
+   "tests": [],
+   "status": "covered"
+  },
+  {
+   "id": "REQ-MP-02",
+   "title": "原型02 登录绑定",
+   "tests": [],
+   "status": "partial"
+  },
+  {
+   "id": "REQ-MP-03",
+   "title": "原型03 忘记密码",
+   "tests": [],
+   "status": "covered"
+  },
+  {
+   "id": "REQ-MP-04",
+   "title": "原型04 强制改密",
+   "tests": [],
+   "status": "covered"
+  },
+  {
+   "id": "REQ-MP-05",
+   "title": "原型05 微信绑定",
+   "tests": [],
+   "status": "not_implemented"
+  },
+  {
+   "id": "REQ-MP-06",
+   "title": "原型06 客户列表",
+   "tests": [],
+   "status": "covered"
+  },
+  {
+   "id": "REQ-MP-07",
+   "title": "原型07 客户详情",
+   "tests": [],
+   "status": "covered"
+  },
+  {
+   "id": "REQ-MP-08",
+   "title": "原型08 新增/编辑客户",
+   "tests": [],
+   "status": "covered"
+  },
+  {
+   "id": "REQ-MP-09",
+   "title": "原型09 高级筛选",
+   "tests": [],
+   "status": "covered"
+  },
+  {
+   "id": "REQ-MP-10",
+   "title": "原型10 开票录入",
+   "tests": [],
+   "status": "covered"
+  },
+  {
+   "id": "REQ-MP-11",
+   "title": "原型11 回款录入",
+   "tests": [],
+   "status": "covered"
+  },
+  {
+   "id": "REQ-MP-12",
+   "title": "原型12 开票回款明细",
+   "tests": [],
+   "status": "covered"
+  },
+  {
+   "id": "REQ-MP-13",
+   "title": "原型13 分享客户",
+   "tests": [],
+   "status": "covered"
+  },
+  {
+   "id": "REQ-MP-14",
+   "title": "原型14 公海池",
+   "tests": [],
+   "status": "covered"
+  },
+  {
+   "id": "REQ-MP-15",
+   "title": "原型15 捞取记录",
+   "tests": [],
+   "status": "covered"
+  },
+  {
+   "id": "REQ-MP-16-22",
+   "title": "原型16-22 价值服务案例/排行/统计/文件预览",
+   "tests": [],
+   "status": "covered"
+  },
+  {
+   "id": "REQ-MP-23-26",
+   "title": "原型23-26 文件库/预览/上传/全屏图片",
+   "tests": [],
+   "status": "covered"
+  },
+  {
+   "id": "REQ-MP-27-28",
+   "title": "原型27-28 审批中心/详情",
+   "tests": [],
+   "status": "covered"
+  },
+  {
+   "id": "REQ-MP-29",
+   "title": "原型29 消息通知",
+   "tests": [],
+   "status": "partial"
+  },
+  {
+   "id": "REQ-MP-30",
+   "title": "原型30 应用中心",
+   "tests": [],
+   "status": "covered"
+  },
+  {
+   "id": "REQ-MP-31",
+   "title": "原型31 我的",
+   "tests": [],
+   "status": "partial"
+  },
+  {
+   "id": "REQ-MP-32",
+   "title": "原型32 修改密码",
+   "tests": [],
+   "status": "partial"
+  },
+  {
+   "id": "REQ-MP-33",
+   "title": "原型33 关于",
+   "tests": [],
+   "status": "partial"
+  },
+  {
+   "id": "REQ-MP-34",
+   "title": "原型34 客户统计",
+   "tests": [],
+   "status": "covered"
+  },
+  {
+   "id": "REQ-MP-35",
+   "title": "原型35 价值服务查询",
+   "tests": [],
+   "status": "covered"
+  },
+  {
+   "id": "REQ-MP-36",
+   "title": "原型36 申请延期提交",
+   "tests": [],
+   "status": "covered"
+  },
+  {
+   "id": "REQ-MP-37",
+   "title": "原型37 捞取确认",
+   "tests": [],
+   "status": "covered"
+  },
+  {
+   "id": "REQ-MP-38",
+   "title": "原型38 审批处理",
+   "tests": [],
+   "status": "covered"
+  },
+  {
+   "id": "REQ-MP-39",
+   "title": "原型39 文件分享选人",
+   "tests": [],
+   "status": "covered"
+  },
+  {
+   "id": "REQ-MP-40-42",
+   "title": "原型40-42 通用弹窗/选择器/成功反馈",
+   "tests": [],
+   "status": "partial"
+  },
+  {
+   "id": "REQ-MP-43",
+   "title": "原型43 联系人详情",
+   "tests": [],
+   "status": "covered"
+  },
+  {
+   "id": "REQ-MP-44",
+   "title": "原型44 个人排行",
+   "tests": [],
+   "status": "covered"
+  },
+  {
+   "id": "REQ-MP-45",
+   "title": "原型45 客户价值服务明细",
+   "tests": [],
+   "status": "covered"
+  },
+  {
+   "id": "REQ-MP-46",
+   "title": "原型46 视频文档预览",
+   "tests": [],
+   "status": "partial"
+  },
+  {
+   "id": "REQ-MP-47",
+   "title": "原型47 数据权限说明",
+   "tests": [],
+   "status": "covered"
+  },
+  {
+   "id": "REQ-MP-48",
+   "title": "原型48 用户协议",
+   "tests": [],
+   "status": "partial"
+  },
+  {
+   "id": "REQ-MP-49",
+   "title": "原型49 空状态",
+   "tests": [],
+   "status": "partial"
+  },
+  {
+   "id": "REQ-MP-50",
+   "title": "原型50 加载骨架",
+   "tests": [],
+   "status": "partial"
+  },
+  {
+   "id": "REQ-MP-51",
+   "title": "原型51 案例分享",
+   "tests": [],
+   "status": "partial"
+  },
+  {
+   "id": "REQ-FBS-A1",
+   "title": "法布施·十大类别",
+   "tests": [],
+   "status": "not_implemented"
+  },
+  {
+   "id": "REQ-FBS-A2",
+   "title": "法布施·书目管理（审核制）",
+   "tests": [],
+   "status": "not_implemented"
+  },
+  {
+   "id": "REQ-FBS-A3",
+   "title": "法布施·电子书挂载（PDF≤100MB）",
+   "tests": [],
+   "status": "not_implemented"
+  },
+  {
+   "id": "REQ-FBS-A4",
+   "title": "法布施·内容治理（下架留痕/待审队列）",
+   "tests": [],
+   "status": "not_implemented"
+  },
+  {
+   "id": "REQ-FBS-B1",
+   "title": "法布施·书库浏览",
+   "tests": [],
+   "status": "not_implemented"
+  },
+  {
+   "id": "REQ-FBS-B2",
+   "title": "法布施·在线阅读（进度记忆续读）",
+   "tests": [],
+   "status": "not_implemented"
+  },
+  {
+   "id": "REQ-FBS-B3",
+   "title": "法布施·书架三态",
+   "tests": [],
+   "status": "not_implemented"
+  },
+  {
+   "id": "REQ-FBS-B4",
+   "title": "法布施·阅读记录（打卡/连续天数/时间线）",
+   "tests": [],
+   "status": "not_implemented"
+  },
+  {
+   "id": "REQ-FBS-B5",
+   "title": "法布施·已读未读+NEW",
+   "tests": [],
+   "status": "not_implemented"
+  },
+  {
+   "id": "REQ-FBS-C1",
+   "title": "法布施·正能量流",
+   "tests": [],
+   "status": "not_implemented"
+  },
+  {
+   "id": "REQ-FBS-C2",
+   "title": "法布施·结构化诵读（图/音/视限制）",
+   "tests": [],
+   "status": "not_implemented"
+  },
+  {
+   "id": "REQ-FBS-C3",
+   "title": "法布施·心得",
+   "tests": [],
+   "status": "not_implemented"
+  },
+  {
+   "id": "REQ-FBS-C4",
+   "title": "法布施·木鱼反馈（点赞=敲木鱼）",
+   "tests": [],
+   "status": "not_implemented"
+  },
+  {
+   "id": "REQ-FBS-D1",
+   "title": "法布施·评论",
+   "tests": [],
+   "status": "not_implemented"
+  },
+  {
+   "id": "REQ-FBS-D2",
+   "title": "法布施·重点描述（语义待甲方确认）",
+   "tests": [],
+   "status": "not_implemented"
+  },
+  {
+   "id": "REQ-FBS-D3",
+   "title": "法布施·语音跟读（≤60s）",
+   "tests": [],
+   "status": "not_implemented"
+  },
+  {
+   "id": "REQ-FBS-D4",
+   "title": "法布施·点赞计数",
+   "tests": [],
+   "status": "not_implemented"
+  },
+  {
+   "id": "REQ-FBS-E1",
+   "title": "法布施·团队统计看板",
+   "tests": [],
+   "status": "not_implemented"
+  },
+  {
+   "id": "REQ-FBS-E2",
+   "title": "法布施·个人统计",
+   "tests": [],
+   "status": "not_implemented"
+  },
+  {
+   "id": "REQ-FBS-E3",
+   "title": "法布施·趋势与月目标线",
+   "tests": [],
+   "status": "not_implemented"
+  },
+  {
+   "id": "REQ-FBS-E4",
+   "title": "法布施·统计导出 Excel",
+   "tests": [],
+   "status": "not_implemented"
+  },
+  {
+   "id": "REQ-FBS-E5",
+   "title": "法布施·电子书续读率指标",
+   "tests": [],
+   "status": "not_implemented"
+  },
+  {
+   "id": "REQ-FBS-E6",
+   "title": "法布施·成就徽章",
+   "tests": [],
+   "status": "not_implemented"
+  },
+  {
+   "id": "REQ-FBS-F1",
+   "title": "法布施·个人自愿提醒（当天未读才提醒）",
+   "tests": [],
+   "status": "not_implemented"
+  },
+  {
+   "id": "REQ-FBS-F2",
+   "title": "法布施·授权降级（订阅消息→应用内）",
+   "tests": [],
+   "status": "not_implemented"
+  },
+  {
+   "id": "REQ-FBS-G1",
+   "title": "法布施·权限与隔离（五权限码/21 用例契约）",
+   "tests": [],
+   "status": "not_implemented"
+  },
+  {
+   "id": "REQ-FBS-G2",
+   "title": "法布施·存储独立（fb_ 命名空间/独立配额）",
+   "tests": [],
+   "status": "not_implemented"
+  },
+  {
+   "id": "REQ-FBS-G3",
+   "title": "法布施·操作留痕",
+   "tests": [],
+   "status": "not_implemented"
+  },
+  {
+   "id": "REQ-FBS-G4",
+   "title": "法布施·统一内容表（fb_post/fb_comment）",
+   "tests": [],
+   "status": "not_implemented"
+  },
+  {
+   "id": "REQ-NFR01",
+   "title": "接口安全防护（JWT 链/幂等/路径穿越/越权负例）",
+   "tests": [],
+   "status": "covered"
+  },
+  {
+   "id": "REQ-NFR02",
+   "title": "架构与稳定性守卫（分层依赖/不变量）",
+   "tests": [],
+   "status": "covered"
+  },
+  {
+   "id": "REQ-NFR03",
+   "title": "审计留痕（操作日志/安全审计/财务审计）",
+   "tests": [],
+   "status": "partial"
+  },
+  {
+   "id": "REQ-NFR04",
+   "title": "配置与兼容（Profile 解析/MyBatisPlus 配置/全局异常/IP 工具）",
+   "tests": [],
+   "status": "covered"
+  }
+ ]
+}

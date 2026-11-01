@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>法布施 · PC管理端原型 · 骨架版</title>
+<!-- 2026-10-31 骨架版：按现有 PC 真实骨架重设计——真实侧边菜单树(views目录对齐)、激励页的
+     cat-tabs 胶囊分类条(active=hero-gradient)、筛选栏+左右分栏(左子面板/右表格)、Element Plus 表格。 -->
+<style>
+  :root { --hero-gradient:linear-gradient(135deg,#16337a 0%,#1d4ed8 58%,#2563eb 100%); --radius-md:10px; --radius-lg:16px; }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:#dde5f0; font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Helvetica Neue",Arial,"Microsoft YaHei",sans-serif; color:#1f2329; }
+  .canvas { padding:30px 34px 36px; }
+  .board-head { margin-bottom:20px; }
+  .board-title { font-size:22px; font-weight:900; color:#172033; }
+  .board-title .board-tag { display:inline-block; margin-left:10px; padding:3px 10px; border-radius:999px; background:#1d4ed8; color:#fff; font-size:11px; font-weight:700; vertical-align:3px; }
+  .board-sub { margin-top:8px; font-size:13px; color:#5b6b84; }
+  .frames { display:grid; grid-template-columns:1fr 1fr; gap:30px 32px; }
+  .frame-wrap { text-align:center; }
+  .frame-label { margin-top:12px; font-size:14px; font-weight:800; color:#2a3a55; }
+  .frame-note { margin-top:4px; font-size:12px; color:#7c8ba1; }
+  .frame { width:1280px; background:#fff; border-radius:12px; box-shadow:0 18px 44px rgba(23,38,68,.22), 0 0 0 10px #172033, 0 0 0 12px #31435f; overflow:hidden; }
+  .chrome { height:38px; background:#f1f3f7; border-bottom:1px solid #e3e7ee; display:flex; align-items:center; padding:0 14px; gap:8px; }
+  .dot { width:11px; height:11px; border-radius:50%; }
+  .d1{background:#ff5f57}.d2{background:#febc2e}.d3{background:#28c840}
+  .url { flex:1; margin-left:10px; height:22px; border-radius:999px; background:#fff; border:1px solid #e3e7ee; color:#8b98ab; font-size:11px; display:flex; align-items:center; padding:0 12px; text-align:left; }
+  .url:before { content:"🔒"; font-size:9px; margin-right:4px; opacity:.8; }
+  .app { display:flex; height:760px; background:#f0f2f5; }
+  .sidebar { width:200px; background:#001629; flex-shrink:0; display:flex; flex-direction:column; }
+  .logo { height:56px; display:flex; align-items:center; padding:0 16px; gap:9px; }
+  .logo-mark { width:28px; height:28px; border-radius:8px; background:linear-gradient(135deg,#1d4ed8,#12b8cf); color:#fff; font-size:13px; font-weight:900; display:flex; align-items:center; justify-content:center; }
+  .logo-text { color:#fff; font-size:14px; font-weight:700; letter-spacing:1px; }
+  .menu { flex:1; padding:6px 0 20px; text-align:left; overflow:hidden; }
+  .menu-group { padding:14px 20px 5px; font-size:11px; color:#5e7290; font-weight:700; letter-spacing:1px; }
+  .menu-item { display:flex; align-items:center; gap:9px; padding:0 20px; height:40px; color:#bfcbd9; font-size:13px; }
+  .menu-item .mi { width:15px; text-align:center; font-size:13px; opacity:.85; }
+  .menu-item.active { background:#0d2237; color:#6083e4; font-weight:700; box-shadow:inset 3px 0 0 #6083e4; }
+  .menu-item.short { height:36px; font-size:12.5px; }
+  .mcount { margin-left:auto; background:#f56c6c; color:#fff; font-size:9px; border-radius:999px; padding:1.5px 6px; font-style:normal; font-weight:700; }
+  .main { flex:1; display:flex; flex-direction:column; min-width:0; }
+  .header { height:56px; background:#fff; border-bottom:1px solid #e4e7ed; display:flex; align-items:center; padding:0 20px; flex-shrink:0; }
+  .collapse { font-size:17px; color:#4e5969; margin-right:14px; }
+  .crumb { font-size:13px; color:#4e5969; }
+  .crumb b { color:#1f2329; font-weight:600; }
+  .crumb i { font-style:normal; color:#c0c4cc; margin:0 6px; }
+  .header-right { margin-left:auto; display:flex; align-items:center; gap:18px; }
+  .bell { position:relative; font-size:16px; color:#4e5969; }
+  .bell-dot { position:absolute; top:-4px; right:-7px; background:#f56c6c; color:#fff; font-size:9px; border-radius:999px; padding:1px 4px; font-weight:700; }
+  .group-sel { font-size:12.5px; color:#4e5969; background:#f4f6fa; border:1px solid #e4e7ed; border-radius:8px; padding:5px 12px; }
+  .user { display:flex; align-items:center; gap:9px; }
+  .avatar { width:32px; height:32px; border-radius:50%; background:#1d4ed8; color:#fff; font-size:14px; font-weight:700; display:flex; align-items:center; justify-content:center; }
+  .user-meta { text-align:left; } .user-meta b { display:block; font-size:12.5px; } .user-meta span { font-size:10.5px; color:#909399; }
+  .content { flex:1; padding:12px 16px; overflow:hidden; text-align:left; position:relative; display:flex; flex-direction:column; gap:10px; }
+  /* 真实激励页骨架：胶囊分类条 */
+  .cat-tabs-bar { flex-shrink:0; }
+  .cat-tabs { display:flex; gap:0; background:#f2f4f7; border-radius:12px; padding:4px; overflow:hidden; }
+  .cat-tab { flex:1; display:flex; align-items:center; justify-content:center; gap:6px; padding:9px 6px; font-size:13px; color:#606266; border-radius:8px; font-weight:500; white-space:nowrap; }
+  .cat-tab.active { font-weight:700; color:#fff; background:var(--hero-gradient); box-shadow:0 2px 8px rgba(29,78,216,.28); }
+  .cat-tab .badge { font-size:11px; padding:1px 6px; border-radius:8px; background:rgba(0,0,0,.08); font-weight:600; }
+  .cat-tab.active .badge { background:rgba(255,255,255,.25); }
+  /* 筛选栏 */
+  .filter-card { background:#fff; border-radius:8px; box-shadow:0 1px 4px rgba(31,35,41,.08); padding:12px 16px; display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+  .fl { font-size:13px; color:#4e5969; }
+  .sel { height:30px; border:1px solid #dcdfe6; border-radius:10px; background:#fff; color:#4e5969; font-size:12.5px; padding:0 9px; display:inline-flex; align-items:center; gap:12px; min-width:100px; }
+  .sel.arrow:after { content:"▾"; color:#c0c4cc; }
+  .inp { height:30px; border:1px solid #dcdfe6; border-radius:10px; color:#c0c4cc; font-size:12.5px; padding:0 10px; display:inline-flex; align-items:center; min-width:130px; }
+  .btn { height:30px; padding:0 14px; border-radius:10px; font-size:12.5px; display:inline-flex; align-items:center; gap:5px; }
+  .btn.primary { background:#1d4ed8; color:#fff; font-weight:600; }
+  .btn.plain { border:1px solid #dcdfe6; background:#fff; color:#4e5969; }
+  .btn.green { background:#179050; color:#fff; font-weight:600; }
+  .btn.text { color:#1d4ed8; padding:0 6px; } .btn.text.danger { color:#f56c6c; }
+  .spacer { flex:1; }
+  /* 左右布局（SubCategoryPanel + RecordTable） */
+  .main-layout { flex:1; display:flex; gap:10px; min-height:0; }
+  .sub-panel { width:262px; flex-shrink:0; background:#fff; border-radius:8px; box-shadow:0 1px 4px rgba(31,35,41,.08); padding:12px; display:flex; flex-direction:column; text-align:left; }
+  .sub-title { font-size:14px; font-weight:700; margin-bottom:8px; }
+  .sub-title:before { content:""; display:inline-block; width:4px; height:14px; background:#1d4ed8; border-radius:2px; margin-right:8px; vertical-align:-2px; }
+  .sub-search { height:30px; border:1px solid #dcdfe6; border-radius:4px; color:#c0c4cc; font-size:12px; padding:0 10px; display:flex; align-items:center; margin-bottom:8px; }
+  .sub-row { display:flex; align-items:center; gap:8px; padding:9px 10px; border-radius:6px; font-size:13px; color:#4e5960; }
+  .sub-row .cnt { margin-left:auto; font-size:11px; color:#909399; background:#f4f4f5; border-radius:999px; padding:1px 7px; }
+  .sub-row.active { background:#e8edfb; color:#1d4ed8; font-weight:700; }
+  .sub-row.active .cnt { background:rgba(29,78,216,.15); color:#1d4ed8; }
+  .table-card { flex:1; background:#fff; border-radius:8px; box-shadow:0 1px 4px rgba(31,35,41,.08); display:flex; flex-direction:column; min-width:0; overflow:hidden; }
+  table { width:100%; border-collapse:collapse; font-size:12.5px; }
+  th { background:#f5f7fa; color:#909399; font-weight:600; text-align:left; padding:10px 12px; border-bottom:1px solid #ebeef5; white-space:nowrap; }
+  td { padding:10px 12px; border-bottom:1px solid #ebeef5; color:#1f2329; white-space:nowrap; }
+  tr:last-child td { border-bottom:0; }
+  th.num, td.num { text-align:right; font-variant-numeric:tabular-nums; }
+  td:last-child { padding-left:16px; }
+  .tag { display:inline-block; padding:2px 8px; border-radius:6px; font-size:11px; line-height:1.5; }
+  .tag.blue { background:#e8edfb; color:#1d4ed8; } .tag.gray { background:#f4f4f5; color:#909399; }
+  .tag.orange { background:#fdf3e8; color:#c8761c; } .tag.green { background:#e8f7ef; color:#179050; }
+  .em { font-weight:700; }
+  .sub2 { font-size:11px; color:#909399; margin-top:2px; }
+  .pager { display:flex; align-items:center; justify-content:flex-end; gap:8px; padding:10px 16px; font-size:12px; color:#606266; }
+  .pg { min-width:26px; height:26px; border:1px solid #dcdfe6; border-radius:6px; display:inline-flex; align-items:center; justify-content:center; padding:0 6px; }
+  .pg.on { background:#1d4ed8; border-color:#1d4ed8; color:#fff; }
+  .toolbar { display:flex; align-items:center; gap:10px; padding:10px 16px 0; }
+  /* 统计看板 */
+  .kcards { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; }
+  .kcard { background:#fff; border-radius:8px; box-shadow:0 1px 4px rgba(31,35,41,.08); padding:15px 17px 13px; position:relative; }
+  .kv { font-size:26px; font-weight:900; color:#172033; }
+  .kv i { font-style:normal; font-size:12px; color:#909399; font-weight:600; margin-left:3px; }
+  .kl { font-size:12px; color:#909399; margin-top:5px; }
+  .kt { font-size:11px; color:#179050; background:#e8f7ef; border-radius:999px; padding:2px 9px; display:inline-block; margin-top:8px; }
+  .kt.blue { color:#1d4ed8; background:#e8edfb; }
+  .kico { position:absolute; right:14px; top:13px; width:34px; height:34px; border-radius:9px; display:flex; align-items:center; justify-content:center; font-size:15px; background:#e8edfb; }
+  .panel-title { font-size:14px; font-weight:700; margin-bottom:2px; }
+  .panel-title:before { content:""; display:inline-block; width:4px; height:14px; background:#1d4ed8; border-radius:2px; margin-right:8px; vertical-align:-2px; }
+  .hbar-row { display:flex; align-items:center; gap:10px; padding:7px 0; }
+  .hbar-lbl { width:76px; font-size:12.5px; color:#4e5969; text-align:right; }
+  .hbar-track { flex:1; height:12px; border-radius:999px; background:#f0f2f5; overflow:hidden; }
+  .hbar-track i { display:block; height:100%; border-radius:999px; background:linear-gradient(90deg,#2364d8,#12b8cf); }
+  .hbar-val { width:36px; font-size:12.5px; color:#1d4ed8; font-weight:800; }
+  .rk { width:24px; height:24px; border-radius:6px; background:#f0f2f5; color:#4e5969; font-size:12px; font-weight:800; display:inline-flex; align-items:center; justify-content:center; }
+  .rk.top { background:#1d4ed8; color:#fff; }
+  tr:nth-child(3) .rk.top { background:#3e8df3; } tr:nth-child(4) .rk.top { background:#12b8cf; }
+  .rb { height:7px; border-radius:999px; background:#f0f2f5; overflow:hidden; width:100%; }
+  .rb i { display:block; height:100%; background:linear-gradient(90deg,#3e8df3,#2364d8); border-radius:999px; }
+  .chart { position:relative; display:flex; align-items:flex-end; gap:6px; height:96px; margin-top:12px; border-bottom:1px solid #e4e7ed; background-image:repeating-linear-gradient(to top,transparent 0 23px,#f0f2f5 23px 24px); }
+  .chart:before { content:"月目标 80%"; position:absolute; left:0; right:0; bottom:80%; border-top:1.5px dashed #f0a35e; color:#c8761c; font-size:10px; text-align:right; line-height:1; padding-top:3px; padding-right:4px; }
+</style>
+</head>
+<body>
+<div class="canvas">
+  <div class="board-head">
+    <div class="board-title">法布施 · PC管理端原型 · 骨架版<span class="board-tag">按现有项目骨架重设计 · 2026-10-31</span></div>
+    <div class="board-sub">骨架取自现有系统：真实侧边菜单树（业务运营/法布施/数据分析/系统管理）｜ 四项激励页的胶囊分类条（active=hero-gradient 深蓝）｜ 筛选栏 + 左子面板/右表格分栏 ｜ Element Plus 表格规范</div>
+  </div>
+
+  <div class="frames">
+
+    <!-- ① 书目管理（旗舰：胶囊分类 + 左右分栏） -->
+    <div class="frame-wrap"><div class="frame">
+      <div class="chrome"><span class="dot d1"></span><span class="dot d2"></span><span class="dot d3"></span><span class="url">https://crm.aigicrm.com/#/fabushi/book</span></div>
+      <div class="app">
+        <div class="sidebar">
+          <div class="logo"><div class="logo-mark">运</div><span class="logo-text">AIGICRM</span></div>
+          <div class="menu">
+            <div class="menu-group">业务运营</div>
+            <div class="menu-item short"><span class="mi">◧</span>工作台</div>
+            <div class="menu-item short"><span class="mi">☰</span>客户管理</div>
+            <div class="menu-item short"><span class="mi">☱</span>公海捞取</div>
+            <div class="menu-item short"><span class="mi">✓</span>审批管理</div>
+            <div class="menu-item short"><span class="mi">♧</span>提醒中心</div>
+            <div class="menu-item short"><span class="mi">▣</span>文件管理</div>
+            <div class="menu-group">法布施</div>
+            <div class="menu-item short"><span class="mi">◎</span>类别管理</div>
+            <div class="menu-item short active"><span class="mi">▤</span>书目管理</div>
+            <div class="menu-item short"><span class="mi">✎</span>内容治理<em class="mcount">3</em></div>
+            <div class="menu-item short"><span class="mi">▥</span>统计看板</div>
+            <div class="menu-group">数据分析</div>
+            <div class="menu-item short"><span class="mi">♜</span>四项激励</div>
+            <div class="menu-item short"><span class="mi">▤</span>排行榜</div>
+            <div class="menu-item short"><span class="mi">▥</span>统计分析</div>
+            <div class="menu-group">系统管理</div>
+            <div class="menu-item short"><span class="mi">☺</span>用户管理</div>
+            <div class="menu-item short"><span class="mi">⛨</span>角色权限</div>
+            <div class="menu-item short"><span class="mi">⚙</span>系统设置</div>
+          </div>
+        </div>
+        <div class="main">
+          <div class="header"><span class="collapse">≡</span><span class="crumb">首页 <i>/</i> 法布施 <i>/</i> <b>书目管理</b></span><div class="header-right"><span class="bell">◔<span class="bell-dot">3</span></span><span class="group-sel">▣ 艾志集团 ▾</span><div class="user"><div class="avatar">张</div><div class="user-meta"><b>张东来</b><span>销售部 · 销售总监</span></div></div></div></div>
+          <div class="content">
+            <div class="cat-tabs-bar"><div class="cat-tabs">
+              <div class="cat-tab active"><span>弟子规</span><span class="badge">4</span></div>
+              <div class="cat-tab"><span>了凡四训</span><span class="badge">3</span></div>
+              <div class="cat-tab"><span>论语</span><span class="badge">3</span></div>
+              <div class="cat-tab"><span>道德经</span><span class="badge">2</span></div>
+              <div class="cat-tab"><span>孝经</span><span class="badge">1</span></div>
+              <div class="cat-tab"><span>国外类</span><span class="badge">5</span></div>
+              <div class="cat-tab"><span>实用类</span><span class="badge">2</span></div>
+              <div class="cat-tab"><span>全部 ▾</span></div>
+            </div></div>
+            <div class="filter-card">
+              <span class="fl">电子书</span><span class="sel arrow">全部</span>
+              <span class="fl">状态</span><span class="sel arrow">启用</span>
+              <span class="fl">关键词</span><span class="inp">书名 / 作者</span>
+              <span class="btn primary">查询</span><span class="btn plain">重置</span>
+              <span class="spacer"></span><span class="btn plain">待审核 (2)</span><span class="btn primary">＋ 新增书目</span>
+            </div>
+            <div class="main-layout">
+              <div class="sub-panel">
+                <div class="sub-title">书目 · 弟子规类</div>
+                <div class="sub-search">⌕ 搜索书目</div>
+                <div class="sub-row active"><span>📖</span>《弟子规》<span class="cnt">21</span></div>
+                <div class="sub-row"><span>📖</span>《细讲弟子规》<span class="cnt">14</span></div>
+                <div class="sub-row"><span>📖</span>《弟子规易解》<span class="cnt">5</span></div>
+                <div class="sub-row"><span>📖</span>《弟子规·三字经合刊》<span class="cnt">9</span></div>
+                <div style="margin-top:auto;padding-top:10px;"><span class="btn text" style="font-size:12px;">＋ 提交新书目（审核后展示）</span></div>
+              </div>
+              <div class="table-card">
+                <div class="toolbar"><span style="font-size:14px;font-weight:700;">《弟子规》 · 作品明细</span><span class="tag gray">电子书 360页已挂载</span><span class="btn text">替换PDF</span><span class="spacer"></span><span class="btn text">编辑书目</span><span class="btn text danger">停用</span></div>
+                <table>
+                  <tr><th>作品 / 章节</th><th>类型</th><th>作者</th><th>素材</th><th>互动</th><th>发布时间</th><th>操作</th></tr>
+                  <tr><td class="em">总叙诵读 · 序</td><td><span class="tag blue">诵读</span></td><td>王晓兰</td><td><span class="tag gray">图2</span> <span class="tag gray">音4</span></td><td>木鱼8 · 评论3</td><td>10-12 09:30</td><td><span class="btn text">详情</span><span class="btn text danger">下架</span></td></tr>
+                  <tr><td class="em">入则孝诵读 · 第一部分·第二章</td><td><span class="tag blue">诵读</span></td><td>李长青</td><td><span class="tag gray">图3</span> <span class="tag gray">音6</span> <span class="tag gray">视1</span></td><td>木鱼12 · 评论5</td><td>10-11 20:15</td><td><span class="btn text">详情</span><span class="btn text danger">下架</span></td></tr>
+                  <tr><td class="em">读《弟子规》有感</td><td><span class="tag green">心得</span></td><td>张东来</td><td><span class="tag gray">图1</span></td><td>木鱼9 · 评论4</td><td>10-10 18:33</td><td><span class="btn text">详情</span><span class="btn text danger">下架</span></td></tr>
+                  <tr><td class="em">谨而信 · 通读打卡</td><td><span class="tag blue">诵读</span></td><td>赵一鸣</td><td><span class="tag gray">音10</span></td><td>木鱼6 · 评论2</td><td>10-09 16:07</td><td><span class="btn text">详情</span><span class="btn text danger">下架</span></td></tr>
+                  <tr><td class="em">正能量 · 晨读打卡第30天</td><td><span class="tag orange">正能量</span></td><td>陈慧</td><td><span class="tag gray">图3</span></td><td>木鱼9 · 评论2</td><td>10-12 18:40</td><td><span class="btn text">详情</span><span class="btn text danger">下架</span></td></tr>
+                </table>
+                <div class="pager">共 21 条<span class="pg">‹</span><span class="pg on">1</span><span class="pg">2</span><span class="pg">3</span><span class="pg">›</span>10条/页</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      </div>
+      <div class="frame-label">① 书目管理（分类胶囊 + 左右分栏骨架）</div>
+      <div class="frame-note">左=书列表面板 · 右=该书作品表格（四项激励页同构）</div>
+    </div>
+
+    <!-- ② 内容治理 -->
+    <div class="frame-wrap"><div class="frame">
+      <div class="chrome"><span class="dot d1"></span><span class="dot d2"></span><span class="dot d3"></span><span class="url">https://crm.aigicrm.com/#/fabushi/content</span></div>
+      <div class="app">
+        <div class="sidebar">
+          <div class="logo"><div class="logo-mark">运</div><span class="logo-text">AIGICRM</span></div>
+          <div class="menu">
+            <div class="menu-group">业务运营</div>
+            <div class="menu-item short"><span class="mi">◧</span>工作台</div>
+            <div class="menu-item short"><span class="mi">☰</span>客户管理</div>
+            <div class="menu-item short"><span class="mi">☱</span>公海捞取</div>
+            <div class="menu-item short"><span class="mi">✓</span>审批管理</div>
+            <div class="menu-item short"><span class="mi">♧</span>提醒中心</div>
+            <div class="menu-item short"><span class="mi">▣</span>文件管理</div>
+            <div class="menu-group">法布施</div>
+            <div class="menu-item short"><span class="mi">◎</span>类别管理</div>
+            <div class="menu-item short"><span class="mi">▤</span>书目管理</div>
+            <div class="menu-item short active"><span class="mi">✎</span>内容治理<em class="mcount">3</em></div>
+            <div class="menu-item short"><span class="mi">▥</span>统计看板</div>
+            <div class="menu-group">数据分析</div>
+            <div class="menu-item short"><span class="mi">♜</span>四项激励</div>
+            <div class="menu-item short"><span class="mi">▤</span>排行榜</div>
+            <div class="menu-item short"><span class="mi">▥</span>统计分析</div>
+            <div class="menu-group">系统管理</div>
+            <div class="menu-item short"><span class="mi">☺</span>用户管理</div>
+            <div class="menu-item short"><span class="mi">⛨</span>角色权限</div>
+            <div class="menu-item short"><span class="mi">⚙</span>系统设置</div>
+          </div>
+        </div>
+        <div class="main" style="position:relative;">
+          <div class="header"><span class="collapse">≡</span><span class="crumb">首页 <i>/</i> 法布施 <i>/</i> <b>内容治理</b></span><div class="header-right"><span class="bell">◔<span class="bell-dot">3</span></span><span class="group-sel">▣ 艾志集团 ▾</span><div class="user"><div class="avatar">张</div><div class="user-meta"><b>张东来</b><span>销售部 · 销售总监</span></div></div></div></div>
+          <div style="position:absolute;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;z-index:20;">
+            <div style="width:560px;background:#fff;border-radius:8px;box-shadow:0 12px 32px rgba(0,0,0,.25);overflow:hidden;text-align:left;">
+              <div style="display:flex;justify-content:space-between;align-items:center;padding:15px 20px;border-bottom:1px solid #ebeef5;font-size:15px;font-weight:700;">诵读作品详情<span style="color:#909399;font-size:16px;">✕</span></div>
+              <div style="padding:16px 20px;">
+                <div style="display:flex;align-items:center;gap:10px;">
+                  <div style="width:34px;height:34px;border-radius:50%;background:#12b8cf;color:#fff;font-size:14px;font-weight:700;display:flex;align-items:center;justify-content:center;">李</div>
+                  <div><b style="font-size:13.5px;">李长青</b><span class="sub2" style="display:block;margin-top:2px;">客服部 · 10-12 20:15 · 弟子规类《了凡四训》› 第一部分·第一章</span></div>
+                </div>
+                <div style="display:flex;gap:8px;margin-top:14px;">
+                  <div style="width:80px;height:80px;border-radius:6px;background:linear-gradient(135deg,#7ea4e8,#4d7fd6);color:rgba(255,255,255,.85);font-size:10px;display:flex;align-items:center;justify-content:center;">书页 P8</div>
+                  <div style="width:80px;height:80px;border-radius:6px;background:linear-gradient(135deg,#9ad0c9,#5aa7a0);color:rgba(255,255,255,.85);font-size:10px;display:flex;align-items:center;justify-content:center;">书页 P9</div>
+                  <div style="width:80px;height:80px;border-radius:6px;background:linear-gradient(135deg,#2c3e5d,#4a6b9e);color:rgba(255,255,255,.85);font-size:10px;display:flex;align-items:center;justify-content:center;">▶ 视频</div>
+                </div>
+                <div style="display:flex;align-items:center;gap:9px;margin-top:12px;background:#f8fbff;border:1px solid #e2eaf4;border-radius:999px;padding:8px 14px;">
+                  <span style="width:26px;height:26px;border-radius:50%;background:linear-gradient(135deg,#2364d8,#3e8df3);color:#fff;font-size:10px;display:flex;align-items:center;justify-content:center;">▶</span>
+                  <div style="flex:1;display:flex;gap:2.5px;align-items:center;height:16px;"><i style="width:2.5px;height:7px;background:#8fb4f0;border-radius:2px;"></i><i style="width:2.5px;height:12px;background:#8fb4f0;border-radius:2px;"></i><i style="width:2.5px;height:5px;background:#8fb4f0;border-radius:2px;"></i><i style="width:2.5px;height:13px;background:#8fb4f0;border-radius:2px;"></i><i style="width:2.5px;height:9px;background:#8fb4f0;border-radius:2px;"></i><i style="width:2.5px;height:11px;background:#8fb4f0;border-radius:2px;"></i><i style="width:2.5px;height:6px;background:#8fb4f0;border-radius:2px;"></i><i style="width:2.5px;height:14px;background:#8fb4f0;border-radius:2px;"></i></div>
+                  <span style="font-size:11px;color:#697991;font-weight:700;">1/6 段 0:42</span>
+                </div>
+                <div style="margin:14px 0 4px;font-size:13px;font-weight:700;">互动 · 5 评论 / 3 重点 / 2 语音跟读</div>
+                <div style="display:flex;gap:10px;padding:10px 0;border-top:1px solid #f0f2f5;"><div style="width:26px;height:26px;border-radius:50%;background:#4285f4;color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;">王</div><div><b style="font-size:12px;">王晓兰</b> <span class="tag gray" style="font-size:10px;">语音跟读 0:32</span><span class="sub2" style="display:block;margin-top:3px;">"极善之人，数固拘他不定"这段读得最有味道！</span></div></div>
+              </div>
+              <div style="padding:12px 20px;border-top:1px solid #ebeef5;display:flex;justify-content:flex-end;gap:10px;"><span class="btn plain" style="height:32px;">关闭</span><span class="btn" style="height:32px;background:#f56c6c;color:#fff;font-weight:600;">下架该作品</span></div>
+            </div>
+          </div>
+          <div class="content">
+            <div class="cat-tabs-bar"><div class="cat-tabs">
+              <div class="cat-tab"><span>心得</span><span class="badge">109</span></div>
+              <div class="cat-tab active"><span>诵读作品</span><span class="badge">86</span></div>
+              <div class="cat-tab"><span>正能量</span><span class="badge">47</span></div>
+              <div class="cat-tab"><span>待审核</span><span class="badge" style="background:#fde2e2;color:#f56c6c;">3</span></div>
+            </div></div>
+            <div class="filter-card">
+              <span class="fl">类别</span><span class="sel arrow">全部</span>
+              <span class="fl">书目</span><span class="sel arrow">全部</span>
+              <span class="fl">作者</span><span class="sel arrow">全部</span>
+              <span class="fl">日期</span><span class="inp" style="min-width:170px;">开始 ~ 结束</span>
+              <span class="btn primary">查询</span><span class="btn plain">重置</span>
+            </div>
+            <div class="table-card">
+              <table>
+                <tr><th>作品 / 章节</th><th>书目</th><th>作者</th><th>素材</th><th>互动</th><th>发布时间</th><th>操作</th></tr>
+                <tr><td class="em">立命之学第一章诵读</td><td>《了凡四训》</td><td>李长青</td><td><span class="tag gray">图3</span> <span class="tag gray">音6</span> <span class="tag gray">视1</span></td><td>木鱼12 · 评论5</td><td>10-12 20:15</td><td><span class="btn text">详情</span><span class="btn text danger">下架</span></td></tr>
+                <tr><td class="em">弟子规总叙诵读</td><td>《弟子规》</td><td>王晓兰</td><td><span class="tag gray">图2</span> <span class="tag gray">音4</span></td><td>木鱼8 · 评论3</td><td>10-12 09:30</td><td><span class="btn text">详情</span><span class="btn text danger">下架</span></td></tr>
+                <tr><td class="em">改过之法跟读示范</td><td>《了凡四训》</td><td>周文静</td><td><span class="tag gray">音10</span></td><td>木鱼15 · 评论6</td><td>10-10 18:42</td><td><span class="btn text">详情</span><span class="btn text danger">下架</span></td></tr>
+                <tr><td class="em">学而第一齐读</td><td>《论语译注》</td><td>赵一鸣</td><td><span class="tag gray">视2</span></td><td>木鱼6 · 评论2</td><td>10-09 16:07</td><td><span class="btn text">详情</span><span class="btn text danger">下架</span></td></tr>
+              </table>
+              <div class="pager">共 86 条<span class="pg">‹</span><span class="pg on">1</span><span class="pg">2</span><span class="pg">…</span><span class="pg">9</span><span class="pg">›</span>10条/页</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      </div>
+      <div class="frame-label">② 内容治理（分类胶囊骨架）</div>
+      <div class="frame-note">心得/诵读/正能量/待审核 四类分治 + 详情弹窗</div>
+    </div>
+
+    <!-- ③ 类别管理 -->
+    <div class="frame-wrap"><div class="frame">
+      <div class="chrome"><span class="dot d1"></span><span class="dot d2"></span><span class="dot d3"></span><span class="url">https://crm.aigicrm.com/#/fabushi/category</span></div>
+      <div class="app">
+        <div class="sidebar">
+          <div class="logo"><div class="logo-mark">运</div><span class="logo-text">AIGICRM</span></div>
+          <div class="menu">
+            <div class="menu-group">业务运营</div>
+            <div class="menu-item short"><span class="mi">◧</span>工作台</div>
+            <div class="menu-item short"><span class="mi">☰</span>客户管理</div>
+            <div class="menu-item short"><span class="mi">☱</span>公海捞取</div>
+            <div class="menu-item short"><span class="mi">✓</span>审批管理</div>
+            <div class="menu-item short"><span class="mi">♧</span>提醒中心</div>
+            <div class="menu-item short"><span class="mi">▣</span>文件管理</div>
+            <div class="menu-group">法布施</div>
+            <div class="menu-item short active"><span class="mi">◎</span>类别管理</div>
+            <div class="menu-item short"><span class="mi">▤</span>书目管理</div>
+            <div class="menu-item short"><span class="mi">✎</span>内容治理<em class="mcount">3</em></div>
+            <div class="menu-item short"><span class="mi">▥</span>统计看板</div>
+            <div class="menu-group">数据分析</div>
+            <div class="menu-item short"><span class="mi">♜</span>四项激励</div>
+            <div class="menu-item short"><span class="mi">▤</span>排行榜</div>
+            <div class="menu-item short"><span class="mi">▥</span>统计分析</div>
+            <div class="menu-group">系统管理</div>
+            <div class="menu-item short"><span class="mi">☺</span>用户管理</div>
+            <div class="menu-item short"><span class="mi">⛨</span>角色权限</div>
+            <div class="menu-item short"><span class="mi">⚙</span>系统设置</div>
+          </div>
+        </div>
+        <div class="main">
+          <div class="header"><span class="collapse">≡</span><span class="crumb">首页 <i>/</i> 法布施 <i>/</i> <b>类别管理</b></span><div class="header-right"><span class="bell">◔<span class="bell-dot">3</span></span><span class="group-sel">▣ 艾志集团 ▾</span><div class="user"><div class="avatar">张</div><div class="user-meta"><b>张东来</b><span>销售部 · 销售总监</span></div></div></div></div>
+          <div class="content">
+            <div class="filter-card">
+              <span class="fl">类别名称</span><span class="inp" style="min-width:140px;">请输入类别名称</span>
+              <span class="fl">状态</span><span class="sel arrow">全部</span>
+              <span class="btn primary">查询</span><span class="btn plain">重置</span>
+              <span class="spacer"></span><span class="btn primary">＋ 新增类别</span>
+            </div>
+            <div class="table-card">
+              <table>
+                <tr><th class="num">排序</th><th>类别名称</th><th>说明</th><th class="num">书目数</th><th class="num">作品数</th><th class="num">电子书</th><th>最近更新</th><th>状态</th><th>操作</th></tr>
+                <tr><td class="num">1</td><td class="em">弟子规</td><td>蒙学根本 · 弟子规相关读本</td><td class="num">4</td><td class="num">28</td><td class="num">2 本</td><td>10-12 20:15</td><td><span class="tag blue">启用</span></td><td><span class="btn text">编辑</span><span class="btn text">停用</span></td></tr>
+                <tr><td class="num">2</td><td class="em">了凡四训</td><td>立命改过 · 积善谦德</td><td class="num">3</td><td class="num">21</td><td class="num">1 本</td><td>10-12 20:15</td><td><span class="tag blue">启用</span></td><td><span class="btn text">编辑</span><span class="btn text">停用</span></td></tr>
+                <tr><td class="num">3</td><td class="em">太上感应篇</td><td>因果教育读本</td><td class="num">2</td><td class="num">9</td><td class="num">1 本</td><td>10-09 16:40</td><td><span class="tag blue">启用</span></td><td><span class="btn text">编辑</span><span class="btn text">停用</span></td></tr>
+                <tr><td class="num">4</td><td class="em">十善业道经</td><td>十善业基础经典</td><td class="num">2</td><td class="num">7</td><td class="num">—</td><td>10-08 11:22</td><td><span class="tag blue">启用</span></td><td><span class="btn text">编辑</span><span class="btn text">停用</span></td></tr>
+                <tr><td class="num">5</td><td class="em">群书治要</td><td>治要选读</td><td class="num">2</td><td class="num">6</td><td class="num">—</td><td>10-06 09:05</td><td><span class="tag blue">启用</span></td><td><span class="btn text">编辑</span><span class="btn text">停用</span></td></tr>
+                <tr><td class="num">6</td><td class="em">论语</td><td>论语章句与讲义</td><td class="num">3</td><td class="num">12</td><td class="num">1 本</td><td>10-07 18:33</td><td><span class="tag blue">启用</span></td><td><span class="btn text">编辑</span><span class="btn text">停用</span></td></tr>
+                <tr><td class="num">7</td><td class="em">道德经</td><td>道德经诵读本</td><td class="num">2</td><td class="num">8</td><td class="num">—</td><td>10-05 14:10</td><td><span class="tag blue">启用</span></td><td><span class="btn text">编辑</span><span class="btn text">停用</span></td></tr>
+                <tr><td class="num">8</td><td class="em">孝经</td><td>孝道教育读本</td><td class="num">1</td><td class="num">4</td><td class="num">1 本</td><td>10-02 10:47</td><td><span class="tag blue">启用</span></td><td><span class="btn text">编辑</span><span class="btn text">停用</span></td></tr>
+                <tr><td class="num">9</td><td class="em">国外类</td><td>国外译作（名称待甲方确认）</td><td class="num">5</td><td class="num">11</td><td class="num">2 本</td><td>09-30 19:58</td><td><span class="tag blue">启用</span></td><td><span class="btn text">编辑</span><span class="btn text">停用</span></td></tr>
+                <tr><td class="num">10</td><td class="em">实用类</td><td>工作实用书籍</td><td class="num">2</td><td class="num">3</td><td class="num">—</td><td>09-27 08:16</td><td><span class="tag gray">停用</span></td><td><span class="btn text">编辑</span><span class="btn text">启用</span></td></tr>
+              </table>
+              <div class="pager">共 10 条<span class="pg">‹</span><span class="pg on">1</span><span class="pg">›</span>10条/页</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      </div>
+      <div class="frame-label">③ 类别管理</div>
+      <div class="frame-note">预置10大类 · 增改停 · 留痕</div>
+    </div>
+
+    <!-- ④ 统计看板 -->
+    <div class="frame-wrap"><div class="frame">
+      <div class="chrome"><span class="dot d1"></span><span class="dot d2"></span><span class="dot d3"></span><span class="url">https://crm.aigicrm.com/#/fabushi/stats</span></div>
+      <div class="app">
+        <div class="sidebar">
+          <div class="logo"><div class="logo-mark">运</div><span class="logo-text">AIGICRM</span></div>
+          <div class="menu">
+            <div class="menu-group">业务运营</div>
+            <div class="menu-item short"><span class="mi">◧</span>工作台</div>
+            <div class="menu-item short"><span class="mi">☰</span>客户管理</div>
+            <div class="menu-item short"><span class="mi">☱</span>公海捞取</div>
+            <div class="menu-item short"><span class="mi">✓</span>审批管理</div>
+            <div class="menu-item short"><span class="mi">♧</span>提醒中心</div>
+            <div class="menu-item short"><span class="mi">▣</span>文件管理</div>
+            <div class="menu-group">法布施</div>
+            <div class="menu-item short"><span class="mi">◎</span>类别管理</div>
+            <div class="menu-item short"><span class="mi">▤</span>书目管理</div>
+            <div class="menu-item short"><span class="mi">✎</span>内容治理<em class="mcount">3</em></div>
+            <div class="menu-item short active"><span class="mi">▥</span>统计看板</div>
+            <div class="menu-group">数据分析</div>
+            <div class="menu-item short"><span class="mi">♜</span>四项激励</div>
+            <div class="menu-item short"><span class="mi">▤</span>排行榜</div>
+            <div class="menu-item short"><span class="mi">▥</span>统计分析</div>
+            <div class="menu-group">系统管理</div>
+            <div class="menu-item short"><span class="mi">☺</span>用户管理</div>
+            <div class="menu-item short"><span class="mi">⛨</span>角色权限</div>
+            <div class="menu-item short"><span class="mi">⚙</span>系统设置</div>
+          </div>
+        </div>
+        <div class="main">
+          <div class="header"><span class="collapse">≡</span><span class="crumb">首页 <i>/</i> 法布施 <i>/</i> <b>统计看板</b></span><div class="header-right"><span class="bell">◔<span class="bell-dot">3</span></span><span class="group-sel">▣ 艾志集团 ▾</span><div class="user"><div class="avatar">张</div><div class="user-meta"><b>张东来</b><span>销售部 · 销售总监</span></div></div></div></div>
+          <div class="content">
+            <div class="filter-card" style="margin-bottom:0;">
+              <span class="fl">统计范围</span><span class="sel arrow">艾志集团 · 全员</span>
+              <span class="fl">周期</span><span class="sel arrow">2026-10</span>
+              <span class="btn primary">查询</span><span class="btn plain">对比上月</span>
+              <span class="spacer"></span><span class="btn green">⬡ 导出报表 (Excel)</span>
+            </div>
+            <div class="kcards">
+              <div class="kcard"><span class="kico" style="color:#1d4ed8;">◧</span><div class="kv">32<i>/58 人</i></div><div class="kl">今日已读人数</div><span class="kt">55% 覆盖率</span></div>
+              <div class="kcard"><span class="kico" style="color:#1d4ed8;">✎</span><div class="kv">109</div><div class="kl">本月心得 + 诵读</div><span class="kt">↑ 18% vs 上月</span></div>
+              <div class="kcard"><span class="kico" style="color:#1d4ed8;">◷</span><div class="kv">214<i>小时</i></div><div class="kl">团队阅读总时长</div><span class="kt">人均 3.7 小时</span></div>
+              <div class="kcard"><span class="kico" style="color:#1d4ed8;">↻</span><div class="kv">96%</div><div class="kl">在线阅读续读率</div><span class="kt blue">进度记忆生效</span></div>
+            </div>
+            <div style="display:grid;grid-template-columns:1.25fr 1fr;gap:14px;flex:1;min-height:0;">
+              <div class="table-card" style="padding:14px 16px;">
+                <div class="panel-title">成员阅读榜 · 本月 TOP</div>
+                <table>
+                  <tr><th style="width:44px;">名次</th><th>成员</th><th>部门</th><th>作品</th><th>时长</th><th style="width:180px;">阅读量</th></tr>
+                  <tr><td><span class="rk top">1</span></td><td class="em">王晓兰</td><td>销售一部</td><td class="num">28 篇</td><td class="num">9.6 h</td><td><div class="rb"><i style="width:93%;"></i></div></td></tr>
+                  <tr><td><span class="rk top">2</span></td><td class="em">李长青</td><td>客服部</td><td class="num">24 篇</td><td class="num">8.2 h</td><td><div class="rb"><i style="width:80%;"></i></div></td></tr>
+                  <tr><td><span class="rk top">3</span></td><td class="em">张东来</td><td>销售部</td><td class="num">13 篇</td><td class="num">7.1 h</td><td><div class="rb"><i style="width:69%;"></i></div></td></tr>
+                  <tr><td><span class="rk">4</span></td><td class="em">周文静</td><td>行政部</td><td class="num">19 篇</td><td class="num">6.4 h</td><td><div class="rb"><i style="width:62%;"></i></div></td></tr>
+                  <tr><td><span class="rk">5</span></td><td class="em">陈慧</td><td>客服部</td><td class="num">15 篇</td><td class="num">5.8 h</td><td><div class="rb"><i style="width:56%;"></i></div></td></tr>
+                </table>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:14px;min-height:0;">
+                <div class="table-card" style="padding:14px 16px;flex:1;">
+                  <div class="panel-title">类别热度分布</div>
+                  <div class="hbar-row"><span class="hbar-lbl">弟子规</span><div class="hbar-track"><i style="width:88%;"></i></div><span class="hbar-val">38</span></div>
+                  <div class="hbar-row"><span class="hbar-lbl">了凡四训</span><div class="hbar-track"><i style="width:74%;"></i></div><span class="hbar-val">32</span></div>
+                  <div class="hbar-row"><span class="hbar-lbl">论语</span><div class="hbar-track"><i style="width:52%;"></i></div><span class="hbar-val">18</span></div>
+                  <div class="hbar-row"><span class="hbar-lbl">道德经</span><div class="hbar-track"><i style="width:38%;"></i></div><span class="hbar-val">13</span></div>
+                  <div class="hbar-row"><span class="hbar-lbl">国外类</span><div class="hbar-track"><i style="width:23%;"></i></div><span class="hbar-val">8</span></div>
+                </div>
+                <div class="table-card" style="padding:14px 16px;">
+                  <div class="panel-title">每日一读 · 达成趋势</div>
+                  <div class="chart">
+                    <div style="flex:1;background:linear-gradient(180deg,#3e8df3,#b3d1f9);border-radius:4px 4px 0 0;height:52%;"></div>
+                    <div style="flex:1;background:linear-gradient(180deg,#3e8df3,#b3d1f9);border-radius:4px 4px 0 0;height:66%;"></div>
+                    <div style="flex:1;background:linear-gradient(180deg,#3e8df3,#b3d1f9);border-radius:4px 4px 0 0;height:48%;"></div>
+                    <div style="flex:1;background:linear-gradient(180deg,#3e8df3,#b3d1f9);border-radius:4px 4px 0 0;height:74%;"></div>
+                    <div style="flex:1;background:linear-gradient(180deg,#3e8df3,#b3d1f9);border-radius:4px 4px 0 0;height:60%;"></div>
+                    <div style="flex:1;background:linear-gradient(180deg,#3e8df3,#b3d1f9);border-radius:4px 4px 0 0;height:82%;"></div>
+                    <div style="flex:1;background:linear-gradient(180deg,#f59e0b,#fbbf24);border-radius:4px 4px 0 0;height:94%;position:relative;"><span style="position:absolute;top:-18px;left:50%;transform:translateX(-50%);font-size:10px;color:#b45309;font-weight:800;">55</span></div>
+                  </div>
+                  <div style="display:flex;justify-content:space-between;font-size:10px;color:#909399;margin-top:6px;"><span>10-06</span><span>10-07</span><span>10-08</span><span>10-09</span><span>10-10</span><span>10-11</span><span>今日</span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      </div>
+      <div class="frame-label">④ 统计看板</div>
+      <div class="frame-note">四联指标 + 成员榜 + 热度 + 趋势 · 可导出</div>
+    </div>
+
+  </div>
+</div>
+</body>
+</html>

@@ -1,0 +1,665 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>法布施 · 小程序端原型 · 骨架版</title>
+<!-- 2026-10-31 骨架版：用户令"参考目前项目的骨架重新设计"。全部屏幕改用现有小程序真实页面骨架——
+     激励工作台(hero+summary-grid+mobile-tabs+搜索卡)/record-file-group 分组行/customer-record 评论行/
+     statistics 页 stats-hero 族/files-manage 设置行/应用中心 ap-module 新版(10-26)。样式类名与真实 wxss 同名。 -->
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:#dde5f0; font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Helvetica Neue",Arial,sans-serif; color:#172033; }
+  .canvas { zoom:1.22; padding:30px 34px 36px; }
+  .board-head { margin-bottom:18px; }
+  .board-title { font-size:22px; font-weight:900; }
+  .board-title .board-tag { display:inline-block; margin-left:10px; padding:3px 10px; border-radius:999px; background:#1d4ed8; color:#fff; font-size:11px; font-weight:700; vertical-align:3px; }
+  .board-sub { margin-top:8px; font-size:13px; color:#5b6b84; }
+  .row-label { display:flex; align-items:center; gap:10px; margin:22px 2px 14px; font-size:15px; font-weight:850; color:#24344f; }
+  .row-label .ln { flex:1; height:1px; background:#c3cfe2; }
+  .row-label .no { color:#fff; background:#1d4ed8; border-radius:6px; padding:2px 8px; font-size:11px; font-weight:800; }
+  .phones { display:flex; gap:26px; align-items:flex-start; flex-wrap:wrap; }
+  .phone-wrap { text-align:center; }
+  .phone-label { margin-top:12px; font-size:13px; font-weight:800; color:#2a3a55; }
+  .phone-note { margin-top:4px; font-size:11px; color:#7c8ba1; line-height:1.5; }
+  .phone { width:375px; height:812px; background:#f5f7fb; border-radius:42px; box-shadow:0 18px 44px rgba(23,38,68,.22), 0 0 0 10px #172033, 0 0 0 12px #31435f; overflow:hidden; position:relative; flex-shrink:0; }
+  .phone:before { content:""; position:absolute; top:9px; left:50%; transform:translateX(-50%); width:98px; height:24px; border-radius:999px; background:#101a2e; z-index:10; }
+  .statusbar { position:absolute; top:0; left:0; right:0; height:22px; display:flex; justify-content:space-between; align-items:center; padding:0 18px; font-size:11px; font-weight:700; color:#111; z-index:9; }
+  .sicons { display:flex; align-items:center; gap:5px; }
+  .sig { font-size:8px; letter-spacing:1px; }
+  .batt { display:inline-block; width:20px; height:10px; border:1.5px solid currentColor; border-radius:3px; position:relative; opacity:.9; }
+  .batt:before { content:""; position:absolute; right:-4.5px; top:2.5px; width:2.5px; height:3px; background:currentColor; border-radius:0 2px 2px 0; }
+  .batt:after { content:""; position:absolute; left:1.5px; top:1.5px; bottom:1.5px; width:62%; background:currentColor; border-radius:1.5px; }
+  .nav { position:absolute; top:22px; left:0; right:0; height:44px; background:#f4f8ff; border-bottom:.5px solid #e6ecf5; display:flex; align-items:center; justify-content:center; z-index:8; }
+  .nav-back { position:absolute; left:12px; font-size:20px; color:#2a3a55; font-weight:600; }
+  .nav-title { font-size:16px; font-weight:700; }
+  .nav-act { position:absolute; right:105px; font-size:12px; color:#2364d8; font-weight:700; }
+  .nav:after { content:""; position:absolute; right:7px; top:6px; width:87px; height:32px; border-radius:999px; background-color:#fff; border:1px solid rgba(78,90,113,.28); background-image:radial-gradient(circle 3px at 26px 15px,#4e5969 99%,transparent),radial-gradient(circle 3px at 44px 15px,#4e5969 99%,transparent),linear-gradient(#4e5969,#4e5969); background-size:87px 30px,87px 30px,20px 3px; background-position:0 0,0 0,58px 13.5px; background-repeat:no-repeat; box-shadow:0 1px 3px rgba(23,38,68,.08); }
+  .body { position:absolute; top:66px; left:0; right:0; bottom:0; overflow:hidden; padding:14px 14px 12px; }
+  .body.with-tab { bottom:78px; }
+  .tabbar { position:absolute; left:0; right:0; bottom:0; height:78px; background:#fff; border-top:.5px solid #e6ecf5; display:flex; padding:8px 6px 26px; z-index:9; }
+  .tab-item { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; font-size:10px; color:#8ea3c0; font-weight:600; }
+  .tab-item.active { color:#1d4ed8; font-weight:800; }
+
+  /* ═══ 真实 app.wxss / incentive.wxss 骨架类（rpx→px ÷2） ═══ */
+  .page { padding:14px; }
+  .card { background:#fff; border:1px solid rgba(210,220,235,.82); border-radius:12px; box-shadow:0 6px 16px rgba(35,57,96,.07); }
+  .hero { padding:17px 16px; border-radius:16px; color:#fff; background:linear-gradient(135deg,#2348bf,#4285f4); box-shadow:0 9px 21px #b8cdf8; }
+  .hero-title { font-size:21px; font-weight:700; }
+  .hero-sub { margin-top:6px; font-size:12px; opacity:.85; }
+  .ghost-btn { display:inline-block; background:rgba(255,255,255,.16); color:#fff; border:1px solid rgba(255,255,255,.35); border-radius:12px; padding:5px 9px; font-size:12px; }
+  .upload-entry-row { margin-top:12px; }
+  .upload-entry-btn { display:inline-flex; align-items:center; background:rgba(255,255,255,.94); color:#1d4ed8; border-radius:999px; padding:7px 16px; font-size:13px; font-weight:800; box-shadow:0 6px 14px rgba(13,23,51,.22); }
+  .upload-entry-hint { margin-left:9px; font-size:11px; color:rgba(255,255,255,.85); }
+  .summary-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:6px; margin:9px 0; }
+  .summary-cell { min-height:55px; border-radius:11px; background:#fff; border:1px solid #e5edf6; display:flex; flex-direction:column; align-items:center; justify-content:center; box-shadow:0 4px 12px rgba(35,57,96,.05); }
+  .summary-cell b { font-size:17px; font-weight:850; color:#172033; }
+  .summary-cell span { margin-top:3px; font-size:11px; color:#7c8ba1; }
+  .mobile-tabs { display:grid; grid-template-columns:repeat(5,1fr); gap:5px; margin:9px 0 11px; }
+  .mobile-tab { height:32px; border-radius:9px; background:#f1f5f9; color:#52657f; font-size:12px; font-weight:750; display:flex; align-items:center; justify-content:center; }
+  .mobile-tab.active { background:#2563eb; color:#fff; box-shadow:0 5px 12px rgba(37,99,235,.18); }
+  .incentive-search-card { margin-bottom:9px; padding:9px; }
+  .incentive-search-row { display:flex; align-items:center; gap:5px; }
+  .incentive-search-input { flex:1; min-width:0; height:29px; padding:0 9px; border:1px solid #dbe7f5; border-radius:8px; background:#f8fbff; color:#172033; font-size:12px; display:flex; align-items:center; }
+  .mini-action { height:24px; line-height:22px; padding:0 7px; border:1px solid #bfdbfe; border-radius:999px; background:#eff6ff; color:#2563eb; font-size:10.5px; font-weight:650; display:inline-flex; align-items:center; }
+  .mini-action.secondary { border-color:#d9e2ec; background:#fff; color:#475569; }
+  .mini-action.danger { border-color:#fecaca; background:#fff5f5; color:#dc2626; }
+  .incentive-advanced-filters { display:flex; flex-wrap:wrap; gap:5px; margin-top:7px; }
+  .filter-chip { height:25px; line-height:23px; padding:0 8px; border:1px solid #d9e2ec; border-radius:999px; background:#fff; color:#475569; font-size:11px; font-weight:750; }
+  .filter-chip.active { background:#2563eb; border-color:#2563eb; color:#fff; }
+  .record-file-group { margin-top:6px; border:1px solid #e6edf7; border-radius:9px; overflow:hidden; background:#fbfdff; }
+  .record-file-group:first-child { margin-top:0; }
+  .record-file-group-head { display:flex; align-items:center; justify-content:space-between; gap:8px; padding:6px 8px; background:#f8fbff; border-bottom:1px solid #edf3fa; color:#334155; font-size:10.5px; font-weight:850; }
+  .record-file-row { display:flex; align-items:center; gap:6px; padding:7px; border-top:1px solid #edf3fa; }
+  .record-file-group-head + .record-file-row, .record-file-row:first-child { border-top:0; }
+  .record-file-icon { width:29px; height:29px; border-radius:8px; background:#eef2f7; color:#64748b; font-size:10px; font-weight:850; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+  .record-file-icon.image { background:#eff6ff; color:#2563eb; }
+  .record-file-icon.video { background:#fef3c7; color:#b45309; }
+  .record-file-icon.audio { background:#ecfdf5; color:#047857; }
+  .record-file-main { flex:1; min-width:0; }
+  .record-file-name { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:#172033; font-size:12px; font-weight:800; }
+  .record-file-meta { margin-top:2px; color:#7c8ba1; font-size:10.5px; }
+  .customer-record-row { padding:9px; border-top:1px solid #e8eef7; }
+  .customer-record-row:first-child { border-top:0; }
+  .customer-record-head { display:flex; align-items:flex-start; justify-content:space-between; gap:8px; }
+  .customer-record-title { color:#172033; font-size:12.5px; font-weight:850; }
+  .customer-record-meta { margin-top:3px; color:#7c8ba1; font-size:10.5px; line-height:1.4; }
+  .customer-record-summary { margin-top:6px; color:#52627f; font-size:11.5px; line-height:1.55; }
+  .form-section-title { position:relative; margin:2px 0 12px; padding-left:9px; font-size:15px; font-weight:850; }
+  .form-section-title:before { content:""; position:absolute; left:0; top:4px; width:3px; height:14px; border-radius:999px; background:#2364d8; }
+  .polished-select { display:flex; align-items:center; justify-content:space-between; height:39px; padding:0 11px; border:1px solid #d8e3f1; border-radius:9px; background:#f8fbff; font-size:13.5px; font-weight:650; }
+  .detail-primary-action { margin-top:9px; width:100%; height:38px; border-radius:11px; background:linear-gradient(135deg,#2364d8,#3e8df3); box-shadow:0 7px 13px rgba(35,100,216,.22); font-weight:800; color:#fff; font-size:14px; display:flex; align-items:center; justify-content:center; }
+  .secondary-btn { box-sizing:border-box; height:38px; border-radius:11px; border:1px solid #dbe4f0; background:#f7f9fc; color:#41516a; font-size:13.5px; font-weight:700; display:flex; align-items:center; justify-content:center; }
+  .tabs { display:flex; gap:8px; margin:11px 1px 9px; }
+  .tab { flex:1; text-align:center; background:#fff; color:#64748b; border-radius:11px; padding:9px 0; font-size:12.5px; box-shadow:0 4px 10px rgba(35,57,96,.06); }
+  .tab.active { background:#2563eb; color:#fff; font-weight:700; }
+  .search-bar { display:flex; align-items:center; margin-bottom:9px; }
+  .search-input { flex:1; height:39px; padding:0 12px; border:1px solid #dbeafe; border-radius:9px; background:#fff; font-size:13.5px; color:#94a3b8; display:flex; align-items:center; }
+  /* statistics 页骨架族 */
+  .stats-hero { position:relative; overflow:hidden; border-radius:15px; background:linear-gradient(135deg,#16356f,#2364d8 58%,#0f9ba8); color:#fff; box-shadow:0 10px 22px rgba(35,100,216,.22); padding:16px 14px; }
+  .stats-hero:after { content:""; position:absolute; right:-27px; bottom:-36px; width:105px; height:105px; border-radius:50%; border:14px solid rgba(255,255,255,.12); }
+  .stats-kicker { font-size:10px; font-weight:800; opacity:.72; letter-spacing:1px; }
+  .stats-title { margin-top:4px; font-size:20px; font-weight:900; }
+  .stats-sub { margin-top:6px; font-size:12px; opacity:.86; }
+  .stats-hero-metrics { display:flex; gap:5px; margin-top:10px; flex-wrap:wrap; }
+  .stats-hero-metrics span { padding:4px 7px; border-radius:999px; background:rgba(255,255,255,.16); font-size:10.5px; }
+  .stats-tabs { margin:11px 0 10px; white-space:nowrap; }
+  .stats-tab { display:inline-flex; align-items:center; min-width:58px; height:31px; margin-right:6px; padding:0 10px; border-radius:999px; background:#fff; border:1px solid #dbe4f0; color:#52627a; font-size:12px; font-weight:650; }
+  .stats-tab.active { background:#172033; color:#fff; border-color:#172033; }
+  .stats-list-card { padding:12px; }
+  .stats-card-title { position:relative; margin-bottom:5px; padding-left:9px; font-size:14.5px; font-weight:850; }
+  .stats-card-title:before { content:""; position:absolute; left:0; top:4px; width:3px; height:13px; border-radius:999px; background:#2364d8; }
+  .stats-list-row { display:flex; align-items:center; justify-content:space-between; min-height:43px; border-bottom:1px solid #eef2f7; color:#52627a; font-size:13px; }
+  .stats-list-row:last-child { border-bottom:0; }
+  .stats-list-row b { color:#172033; font-size:15px; font-weight:850; }
+  .stats-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:10px; }
+  .stats-tile { padding:11px; border-radius:11px; background:#f8fbff; border:1px solid rgba(210,220,235,.82); }
+  .stats-tile b { font-size:21px; font-weight:900; line-height:1; color:#172033; }
+  .stats-tile span { display:block; margin-top:6px; color:#697991; font-size:11.5px; }
+  /* files-manage 设置行骨架 */
+  .files-manage-card { padding:11px 12px; border:1px solid rgba(210,220,235,.82); border-radius:12px; background:#fff; box-shadow:0 6px 16px rgba(35,57,96,.06); }
+  .files-manage-head { display:flex; align-items:center; justify-content:space-between; color:#172033; font-size:14px; font-weight:850; }
+  .files-manage-row { display:flex; align-items:center; justify-content:space-between; gap:9px; min-height:39px; border-top:1px solid #eef2f7; color:#52627a; font-size:12.5px; }
+  /* 应用中心新版骨架（10-26） */
+  .ap-hero { position:relative; overflow:hidden; border-radius:13px; padding:10px 12px; color:#fff; background:linear-gradient(135deg,#0d1733 0%,#16337a 58%,#1d4ed8 100%); box-shadow:0 9px 19px rgba(13,23,51,.22); display:flex; align-items:center; justify-content:space-between; gap:8px; }
+  .ap-hero-title { font-size:16px; font-weight:800; letter-spacing:.5px; }
+  .ap-hero-meta { font-size:10px; color:rgba(255,255,255,.6); }
+  .ap-module { margin-top:12px; padding:13px 12px 12px; border-radius:12px; background:#fff; border:1px solid rgba(210,220,235,.7); box-shadow:0 6px 16px rgba(35,57,96,.06); }
+  .ap-module-head { display:flex; align-items:center; gap:8px; }
+  .ap-module-index { width:27px; height:27px; flex-shrink:0; border-radius:7px; background:#eef4ff; color:#1d4ed8; font-size:10px; font-weight:700; display:flex; align-items:center; justify-content:center; }
+  .ap-module-title { font-size:13.5px; font-weight:800; color:#172033; }
+  .ap-module-sub { margin-top:2px; font-size:9.5px; color:#94a3b8; }
+  .ap-module-count { margin-left:auto; flex-shrink:0; font-size:9px; color:#94a3b8; }
+  .ap-grid { display:flex; flex-wrap:wrap; justify-content:space-between; gap:7px; margin-top:10px; }
+  .ap-tile { width:48%; display:flex; align-items:center; gap:6px; padding:9px 8px; border-radius:9px; background:#f8fbff; border:1px solid #e7effa; }
+  .ap-icon { width:26px; height:26px; flex-shrink:0; border-radius:7px; background:#eaf2ff; color:#1d4ed8; font-size:11px; font-weight:700; display:flex; align-items:center; justify-content:center; }
+  .ap-tile-main { flex:1; min-width:0; }
+  .ap-tile-title { font-size:11.5px; font-weight:700; color:#172033; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .ap-tile-sub { margin-top:2px; font-size:9px; color:#94a3b8; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .ap-arrow { flex-shrink:0; font-size:12px; color:#b6c5da; font-weight:600; }
+
+  /* ═══ 法布施专属层 ═══ */
+  .pill { display:inline-block; background:#eef5ff; color:#2563eb; border-radius:999px; padding:2px 8px; font-size:10px; font-weight:600; }
+  .tag-new { background:#fffbeb; color:#b45309; border-radius:4px; padding:1.5px 6px; font-size:10px; font-weight:700; }
+  .b-type { display:inline-block; border-radius:999px; padding:2px 8px; font-size:10px; font-weight:700; }
+  .b-song{background:#eef5ff;color:#1d4ed8}.b-xinde{background:#ecfeff;color:#0e7490}.b-znl{background:#fffbeb;color:#b45309}.b-pdf{background:#eef5ff;color:#1d4ed8}
+  .muted { color:#64748b; }
+  .section-heading { display:flex; justify-content:space-between; align-items:center; margin:12px 2px 8px; font-size:14.5px; font-weight:850; }
+  .section-heading .more { font-size:11px; color:#64748b; font-weight:400; }
+  .cover { width:44px; height:60px; border-radius:6px; color:#fff; display:flex; align-items:flex-end; justify-content:center; padding-bottom:5px; font-size:10px; font-weight:700; margin-right:11px; flex-shrink:0; box-shadow:0 5px 10px rgba(35,57,96,.2); position:relative; overflow:hidden; }
+  .cover:before { content:""; position:absolute; left:0; top:0; bottom:0; width:4px; background:rgba(255,255,255,.3); }
+  .prog { height:5px; border-radius:999px; background:#eef3f9; margin-top:7px; overflow:hidden; }
+  .prog i { display:block; height:100%; border-radius:999px; background:linear-gradient(90deg,#2364d8,#10b981); }
+  .switch { width:44px; height:25px; border-radius:999px; background:#2364d8; position:relative; flex-shrink:0; }
+  .switch i { position:absolute; right:2.5px; top:2.5px; width:20px; height:20px; border-radius:50%; background:#fff; box-shadow:0 2px 4px rgba(0,0,0,.2); }
+  .note-box { margin-top:11px; padding:10px 12px; border-radius:10px; background:#fffbeb; border:1px solid #fde9c0; color:#a16207; font-size:10.5px; line-height:1.65; }
+  .cal-grid { display:grid; grid-template-columns:repeat(7,1fr); gap:5px; }
+  .cal-cell { height:28px; border-radius:8px; background:#f4f7fb; display:flex; align-items:center; justify-content:center; font-size:10px; color:#8b9ab0; }
+  .cal-cell.hd { background:transparent; color:#7c8ba1; font-size:9.5px; }
+  .cal-cell.done { background:#e8f7ef; color:#0f9d63; font-weight:800; }
+  .cal-cell.today { background:#1d4ed8; color:#fff; font-weight:800; box-shadow:0 0 0 2px #f5f7fb,0 0 0 4px #1d4ed8; }
+  .hbar-row { display:flex; align-items:center; gap:8px; padding:6px 0; }
+  .hbar-lbl { width:60px; font-size:10.5px; color:#52627a; font-weight:650; text-align:right; }
+  .hbar-track { flex:1; height:9px; border-radius:999px; background:#eef3f9; overflow:hidden; }
+  .hbar-track i { display:block; height:100%; border-radius:999px; background:linear-gradient(90deg,#2364d8,#12b8cf); }
+  .hbar-val { width:26px; font-size:10.5px; color:#2364d8; font-weight:800; }
+  .rank-no { width:20px; height:20px; border-radius:6px; background:#eef4fb; color:#52627a; font-size:10.5px; font-weight:800; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+  .rank-no.top { background:#1d4ed8; color:#fff; }
+  .rr2 .rank-no.top { background:#3e8df3; } .rr3 .rank-no.top { background:#12b8cf; }
+  .rank-bar { height:5px; border-radius:999px; background:#eef3f9; margin-top:5px; overflow:hidden; }
+  .rank-bar i { display:block; height:100%; background:linear-gradient(90deg,#3e8df3,#2364d8); border-radius:999px; }
+  .player { display:flex; align-items:center; gap:8px; background:#f8fbff; border:1px solid #e2eaf4; border-radius:999px; padding:6px 11px; flex:1; }
+  .play-btn { width:24px; height:24px; border-radius:50%; background:linear-gradient(135deg,#2364d8,#3e8df3); color:#fff; font-size:9px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+  .wave { flex:1; display:flex; align-items:center; gap:2px; height:16px; }
+  .wave i { width:2.5px; border-radius:2px; background:#8fb4f0; }
+  .dur { font-size:10.5px; color:#697991; font-weight:700; white-space:nowrap; }
+  .reader { position:absolute; top:66px; left:0; right:0; bottom:0; display:flex; flex-direction:column; }
+  .reader-head { background:#1c2b45; color:#fff; padding:10px 14px; margin-top:22px; display:flex; align-items:center; gap:9px; }
+  .reader-page { flex:1; background:#e9e4d8; padding:12px 14px 0; overflow:hidden; }
+  .paper { background:#fffdf6; border-radius:4px; box-shadow:0 4px 12px rgba(60,50,20,.18), inset 0 0 20px rgba(120,100,60,.09); height:100%; padding:16px 18px; font-family:"Songti SC","STSong",serif; overflow:hidden; position:relative; }
+  .paper:before { content:""; position:absolute; right:20px; top:0; width:13px; height:46px; background:linear-gradient(180deg,#e05252,#c23a3a); clip-path:polygon(0 0,100% 0,100% 100%,50% 80%,0 100%); }
+  .paper h4 { text-align:center; font-size:14px; letter-spacing:2px; color:#3a2f1e; margin-bottom:10px; }
+  .paper p { font-size:11.5px; line-height:1.9; color:#43371f; text-indent:2em; margin-bottom:8px; }
+  .paper .note-line { text-align:center; font-size:9px; color:#b9ad8e; margin-top:8px; }
+  .reader-foot { background:#1c2b45; padding:8px 14px 14px; color:#fff; }
+  .reader-ctl { display:flex; align-items:center; gap:10px; }
+  .pg-btn { width:34px; height:30px; border-radius:8px; background:rgba(255,255,255,.14); border:1px solid rgba(255,255,255,.3); color:#fff; font-size:13px; display:flex; align-items:center; justify-content:center; }
+  .rprog { flex:1; height:5px; border-radius:999px; background:rgba(255,255,255,.2); position:relative; }
+  .rprog i { position:absolute; left:0; top:0; height:100%; width:34%; border-radius:999px; background:linear-gradient(90deg,#3e8df3,#10b981); }
+  .reader-tip { margin-top:8px; text-align:center; font-size:10px; color:#9fd8bd; }
+  .muyu-stage { position:relative; height:240px; background:radial-gradient(circle at 50% 42%,#f7e9c9 0%,#f2dfb4 46%,#e9d196 100%); border-radius:16px; overflow:hidden; display:flex; flex-direction:column; align-items:center; justify-content:center; }
+  .muyu { width:128px; height:92px; border-radius:50% 50% 46% 46%/62% 62% 40% 40%; background:radial-gradient(ellipse at 32% 26%,#d99c66 0%,#b0703a 46%,#7d4e22 100%); box-shadow:0 14px 26px rgba(93,58,20,.4), inset 0 -8px 14px rgba(0,0,0,.18); position:relative; }
+  .muyu:before { content:""; position:absolute; left:14%; right:14%; top:40%; height:9px; border-radius:999px; background:#5c3a17; box-shadow:inset 0 2px 3px rgba(0,0,0,.5); }
+  .muyu:after { content:""; position:absolute; left:24%; top:22%; width:30px; height:12px; border-radius:50%; background:rgba(255,255,255,.28); filter:blur(1px); }
+  .mallet { position:absolute; width:86px; height:10px; border-radius:6px; background:linear-gradient(#caa06a,#9a7444); transform:rotate(-38deg); top:100px; right:70px; }
+  .mallet:before { content:""; position:absolute; right:-12px; top:-9px; width:28px; height:28px; border-radius:50%; background:radial-gradient(circle at 35% 30%,#e8c197,#b3834e 70%); }
+  .ripple { position:absolute; width:150px; height:150px; border-radius:50%; border:2px solid rgba(146,100,40,.4); top:58px; }
+  .plus-one { position:absolute; top:40px; right:84px; font-size:22px; font-weight:900; color:#c2410c; text-shadow:0 2px 6px rgba(255,255,255,.6); }
+  .sfx { margin-top:14px; font-size:13px; font-weight:900; color:#7d4e22; letter-spacing:3px; }
+  .merit span { display:inline-block; background:#fff; border:1px solid #e6cf9a; color:#a16207; border-radius:999px; padding:5px 13px; font-size:12px; font-weight:800; }
+  .muyu-glow { position:absolute; width:210px; height:210px; border-radius:50%; background:radial-gradient(circle,rgba(255,214,120,.55),rgba(255,214,120,0) 65%); top:10px; left:50%; transform:translateX(-50%); }
+  .muyu-cushion { width:168px; height:24px; border-radius:50%; background:radial-gradient(ellipse at 50% 40%,#9c4141,#702828); box-shadow:0 10px 16px rgba(60,20,20,.35); margin-top:-10px; }
+  .sarc { position:absolute; width:14px; height:24px; border:2.5px solid #a16207; border-left:0; border-radius:0 14px 14px 0; opacity:.85; }
+  .spark { position:absolute; color:#e8a23d; font-size:12px; font-weight:900; }
+  .sunset3 { background:linear-gradient(180deg,#5b7bd5 0%,#f2886b 55%,#f5b971 100%); position:relative; }
+  .sunset2 { background:linear-gradient(180deg,#7a6bd0 0%,#e9628f 100%); }
+  .sunset1 { background:linear-gradient(180deg,#31406f 0%,#b46a9e 55%,#f2a06b 100%); }
+  .sunset3:after { content:""; position:absolute; width:16px; height:16px; border-radius:50%; background:#ffe9a8; box-shadow:0 0 12px 5px rgba(255,220,140,.75); right:8px; bottom:16px; }
+  .img-tile-s { width:54px; height:54px; border-radius:8px; display:flex; align-items:center; justify-content:center; color:rgba(255,255,255,.78); font-size:9px; }
+  .vid-cover { height:100px; border-radius:10px; background:linear-gradient(135deg,#2c3e5d,#4a6b9e); position:relative; display:flex; align-items:center; justify-content:center; }
+  .vid-play { width:42px; height:42px; border-radius:50%; background:rgba(255,255,255,.9); color:#2364d8; font-size:15px; display:flex; align-items:center; justify-content:center; box-shadow:0 6px 14px rgba(0,0,0,.3); }
+  .vid-len { position:absolute; right:9px; bottom:8px; background:rgba(0,0,0,.55); color:#fff; font-size:9.5px; border-radius:5px; padding:2px 7px; }
+</style>
+</head>
+<body>
+<div class="canvas">
+  <div class="board-head">
+    <div class="board-title">法布施 · 小程序端原型 · 骨架版<span class="board-tag">按现有项目骨架重设计 · 2026-10-31</span></div>
+    <div class="board-sub">每屏骨架取自现有页面：A1=激励工作台(hero+四联格+页签+搜索卡) ｜ A3=搜索卡+筛选chip ｜ A4/B4=record-file-group 分组行 ｜ B2=表单段+polished-select ｜ C2/C4/C5=statistics 页 stats-hero 族 ｜ C3=files-manage 设置行 ｜ C6=应用中心 ap-module 新版 ｜ 独立模块 · 入口在应用宫格</div>
+  </div>
+
+  <div class="row-label"><span class="no">A</span>发现与书库<span class="ln"></span></div>
+  <div class="phones">
+
+    <div class="phone-wrap"><div class="phone">
+      <div class="statusbar"><span>9:41</span><span></span><span class="sicons"><span class="sig">▂▄▆</span><span class="batt"></span></span></div>
+      <div class="nav"><span class="nav-back">‹</span><div class="nav-title">法布施</div></div>
+      <div class="body">
+        <div class="hero">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+            <div><div class="hero-title">法布施</div><div class="hero-sub">共读 · 诵读 · 正能量 · 团队共修</div></div>
+            <span class="ghost-btn">刷新</span>
+          </div>
+          <div class="upload-entry-row"><span class="upload-entry-btn">＋ 上传正能量</span><span class="upload-entry-hint">心得 / 诵读 / 美图，与 PC 同口径</span></div>
+        </div>
+        <div class="summary-grid">
+          <div class="summary-cell"><b>26</b><span>书目</span></div>
+          <div class="summary-cell"><b>109</b><span>心得</span></div>
+          <div class="summary-cell"><b>86</b><span>诵读</span></div>
+          <div class="summary-cell"><b>32</b><span>今日已读</span></div>
+        </div>
+        <div class="mobile-tabs">
+          <div class="mobile-tab active">书库</div><div class="mobile-tab">正能量</div><div class="mobile-tab">书架</div><div class="mobile-tab">记录</div><div class="mobile-tab">统计</div>
+        </div>
+        <div class="card incentive-search-card">
+          <div class="incentive-search-row"><div class="incentive-search-input">搜索书目 / 心得 / 关键字</div><span class="mini-action">搜索</span></div>
+          <div class="incentive-advanced-filters"><span class="filter-chip active">弟子规</span><span class="filter-chip">了凡四训</span><span class="filter-chip">论语</span><span class="filter-chip">道德经</span><span class="filter-chip">更多 ▾</span></div>
+        </div>
+        <div class="card" style="padding:0;">
+          <div class="customer-record-row">
+            <div class="customer-record-head"><div><div class="customer-record-title">李长青 · 诵读《了凡四训》第一部分·第二章 <span class="tag-new">NEW</span></div><div class="customer-record-meta">图2 · 音6 · 视1 · 今天 20:15 · 客服部</div></div><span class="pill">木鱼 12</span></div>
+            <div class="customer-record-summary">"从前种种，譬如昨日死；从后种种，譬如今日生。"把这句话抄在工位上，每天下班前对一次承诺清单。</div>
+          </div>
+          <div class="customer-record-row">
+            <div class="customer-record-head"><div><div class="customer-record-title">陈慧 · 正能量 · 下班路上的晚霞</div><div class="customer-record-meta">图3 · 今天 18:40 · 客服部</div></div><span class="pill">木鱼 9</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="phone-label">A1 · 法布施工作台（激励工作台骨架）</div>
+    <div class="phone-note">hero+四联格+五页签+搜索卡+动态流<br>与四项激励工作台同构</div></div>
+
+    <div class="phone-wrap"><div class="phone">
+      <div class="statusbar"><span>9:41</span><span></span><span class="sicons"><span class="sig">▂▄▆</span><span class="batt"></span></span></div>
+      <div class="nav"><span class="nav-back">‹</span><div class="nav-title">正能量</div><span class="nav-act">＋发布</span></div>
+      <div class="body">
+        <div class="search-bar"><div class="search-input">⌕ 搜一搜正能量 / 同事</div></div>
+        <div class="card" style="padding:12px 14px 11px;margin-bottom:10px;">
+          <div class="customer-record-row" style="padding:0 0 9px;border-bottom:1px solid #eef2f7;">
+            <div class="customer-record-head"><div><div class="customer-record-title">陈慧 <span class="tag-new">NEW</span></div><div class="customer-record-meta">今天 18:40 · 客服部</div></div></div>
+          </div>
+          <div class="customer-record-summary" style="margin-top:9px;">下班路上的晚霞。想起《了凡四训》那句"一切福田，不离方寸"——好事总会发生，先把自己的心照顾好。</div>
+          <div style="display:flex;gap:6px;margin-top:9px;"><div class="img-tile-s sunset3">晚霞 1</div><div class="img-tile-s sunset2">晚霞 2</div><div class="img-tile-s sunset1">晚霞 3</div></div>
+          <div style="display:flex;gap:8px;margin-top:10px;"><span class="mini-action">木鱼 9</span><span class="mini-action secondary">评论 2</span></div>
+        </div>
+        <div class="card" style="padding:12px 14px 11px;">
+          <div class="customer-record-row" style="padding:0 0 9px;border-bottom:1px solid #eef2f7;">
+            <div class="customer-record-head"><div><div class="customer-record-title">王晓兰</div><div class="customer-record-meta">今天 12:02 · 销售一部</div></div></div>
+          </div>
+          <div class="customer-record-summary" style="margin-top:9px;">今日座右铭："见人善，即思齐"。观摩了张哥整场谈判，学到的比看十本书都多。</div>
+          <div style="display:flex;gap:8px;margin-top:10px;"><span class="mini-action">木鱼 6</span><span class="mini-action secondary">评论 1</span></div>
+          <div style="margin-top:9px;padding:8px 10px;background:#f8fbff;border-radius:9px;font-size:10.5px;color:#52627a;"><b style="color:#26364d;">张东来</b>：明天晨会你也分享十分钟？</div>
+        </div>
+      </div>
+    </div>
+    <div class="phone-label">A2 · 正能量流</div>
+    <div class="phone-note">搜索条+动态卡+mini-action<br>（第一类上传）</div></div>
+
+    <div class="phone-wrap"><div class="phone">
+      <div class="statusbar"><span>9:41</span><span></span><span class="sicons"><span class="sig">▂▄▆</span><span class="batt"></span></span></div>
+      <div class="nav"><span class="nav-back">‹</span><div class="nav-title">弟子规类 · 书目</div></div>
+      <div class="body">
+        <div class="card incentive-search-card">
+          <div class="incentive-search-row"><div class="incentive-search-input">搜索书名 / 作者</div><span class="mini-action">搜索</span><span class="mini-action secondary">清空</span></div>
+          <div class="incentive-advanced-filters"><span class="filter-chip active">全部</span><span class="filter-chip">有电子书</span><span class="filter-chip">有诵读</span></div>
+        </div>
+        <div class="card" style="padding:4px;">
+          <div class="record-file-row" style="border-top:0;">
+            <div class="record-file-icon image">书</div>
+            <div class="record-file-main"><div class="record-file-name">《弟子规》 <span class="tag-new">NEW</span></div><div class="record-file-meta">(清)李毓秀 · 中华书局 2016 · 360页</div><div class="record-file-meta">心得 12 · 诵读 9 · <span class="b-type b-pdf">电子书</span></div></div>
+            <span style="color:#b6c5da;font-weight:600;">›</span>
+          </div>
+          <div class="record-file-row">
+            <div class="record-file-icon">书</div>
+            <div class="record-file-main"><div class="record-file-name">《细讲弟子规》</div><div class="record-file-meta">蔡礼旭 · 世界知识出版社 2007 · 452页</div><div class="record-file-meta">心得 8 · 诵读 6</div></div>
+            <span style="color:#b6c5da;font-weight:600;">›</span>
+          </div>
+          <div class="record-file-row">
+            <div class="record-file-icon image">书</div>
+            <div class="record-file-main"><div class="record-file-name">《弟子规易解》</div><div class="record-file-meta">传统文化出版社 2019 · 208页</div><div class="record-file-meta">心得 3 · 诵读 2 · <span class="b-type b-pdf">电子书</span></div></div>
+            <span style="color:#b6c5da;font-weight:600;">›</span>
+          </div>
+        </div>
+        <div style="margin-top:10px;display:flex;align-items:center;justify-content:space-between;">
+          <span style="font-size:11px;color:#64748b;">人人可加书目 · 管理员审核后展示</span>
+          <span class="mini-action">＋ 新增书目</span>
+        </div>
+      </div>
+    </div>
+    <div class="phone-label">A3 · 书目列表（record-file-row 骨架）</div>
+    <div class="phone-note">搜索卡+筛选chip+书目行<br>电子书标识</div></div>
+
+    <div class="phone-wrap"><div class="phone">
+      <div class="statusbar"><span>9:41</span><span></span><span class="sicons"><span class="sig">▂▄▆</span><span class="batt"></span></span></div>
+      <div class="nav"><span class="nav-back">‹</span><div class="nav-title">了凡四训</div><span class="nav-act">⭐ 收藏</span></div>
+      <div class="body">
+        <div class="card" style="padding:12px 14px;">
+          <div class="customer-record-head"><div class="customer-record-title" style="font-size:15px;">《了凡四训》 <span class="pill">全员可见</span></div><span class="tag-new">NEW</span></div>
+          <div class="customer-record-meta">(明)袁了凡 · 中华书局 2016 · 288页</div>
+          <div class="stats-list-row" style="min-height:34px;"><span>心得 / 诵读 / 评论 / 已读</span><b>12 / 9 / 23 / 18</b></div>
+          <div style="display:flex;gap:8px;margin-top:9px;"><div class="detail-primary-action" style="flex:1;">📖 在线阅读</div><div class="secondary-btn" style="flex:1;">🎙 发布诵读</div></div>
+        </div>
+        <div class="tabs"><div class="tab active">结构诵读 (9)</div><div class="tab">心得 (12)</div></div>
+        <div class="record-file-group">
+          <div class="record-file-group-head"><span>第一部分 · 立命之学 › 第一章</span><span>2 个作品</span></div>
+          <div class="record-file-row">
+            <div class="record-file-icon image">图</div>
+            <div class="record-file-main"><div class="record-file-name">李长青 · 诵读 P8-P10 <span class="tag-new">NEW</span></div><div class="record-file-meta">音6 · 视1 · 今天 20:15 · 木鱼 12</div></div>
+            <span class="mini-action">详情</span>
+          </div>
+          <div class="record-file-row">
+            <div class="record-file-icon audio">音</div>
+            <div class="record-file-main"><div class="record-file-name">周文静 · 跟读示范</div><div class="record-file-meta">音频 10 段 · 10-10 · 木鱼 15</div></div>
+            <span class="mini-action">详情</span>
+          </div>
+        </div>
+        <div class="record-file-group">
+          <div class="record-file-group-head"><span>第二部分 · 改过之法</span><span>3 个作品</span></div>
+        </div>
+        <div class="record-file-group">
+          <div class="record-file-group-head"><span>序</span><span>2 个作品</span></div>
+        </div>
+        <div style="margin-top:10px;text-align:center;"><span class="mini-action secondary">＋ 搭建新章节结构</span></div>
+      </div>
+    </div>
+    <div class="phone-label">A4 · 书详情（分组骨架）</div>
+    <div class="phone-note">详情卡+tabs+章节分组<br>（序/部分/章 结构树入口）</div></div>
+  </div>
+
+  <div class="row-label"><span class="no">B</span>在线阅读与诵读上传<span class="ln"></span></div>
+  <div class="phones">
+
+    <div class="phone-wrap"><div class="phone">
+      <div class="statusbar" style="color:#fff;z-index:10;"><span>9:41</span><span></span><span class="sicons"><span class="sig">▂▄▆</span><span class="batt"></span></span></div>
+      <div class="reader">
+        <div class="reader-head" style="margin-top:22px;">
+          <span style="font-size:17px;">‹</span>
+          <div style="flex:1;text-align:center;"><div style="font-size:13px;font-weight:800;">了凡四训</div><div style="font-size:9px;opacity:.72;margin-top:2px;">第一部分 · 立命之学</div></div>
+          <span style="font-size:11px;background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.3);border-radius:999px;padding:4px 10px;">目录</span>
+        </div>
+        <div class="reader-page"><div class="paper">
+          <h4>第一部分 · 立命之学（二）</h4>
+          <p>云谷问曰："凡人所以不得作圣者，只为妄念相缠耳。汝坐三日，不见起一妄念，何也？"</p>
+          <p>余曰："吾为孔先生算定，荣辱生死，皆有定数，故要妄想。"</p>
+          <p>云谷笑曰："我待汝是豪杰，原来只是凡夫。"</p>
+          <p>问其故。曰："人未能无心，终为阴阳所缚，安得无数？但惟凡人有数；极善之人，数固拘他不定；极恶之人，数亦拘他不定。"</p>
+          <div class="note-line">— 第 8 页 · 共 288 页 —</div>
+        </div></div>
+        <div class="reader-foot">
+          <div class="reader-ctl"><span class="pg-btn">‹</span><div class="rprog"><i></i></div><span style="font-size:11px;font-weight:700;">8 / 288</span><span class="pg-btn">›</span></div>
+          <div class="reader-tip">✓ 进度已自动记忆 · 下次从第 8 页继续（书架同步）</div>
+        </div>
+      </div>
+    </div>
+    <div class="phone-label">B1 · 在线阅读（PDF 逐页）</div>
+    <div class="phone-note">进度自动记忆 · 续读直达<br>沉浸深色工具栏</div></div>
+
+    <div class="phone-wrap"><div class="phone">
+      <div class="statusbar"><span>9:41</span><span></span><span class="sicons"><span class="sig">▂▄▆</span><span class="batt"></span></span></div>
+      <div class="nav"><span class="nav-back">‹</span><div class="nav-title">发布诵读</div></div>
+      <div class="body" style="padding-bottom:62px;">
+        <div class="form-section-title">书目与章节</div>
+        <div class="polished-select"><span>弟子规类 · 《了凡四训》</span><span style="color:#2364d8;font-size:11px;">更换 ›</span></div>
+        <div style="display:flex;gap:6px;margin-top:7px;flex-wrap:wrap;"><span class="filter-chip">序</span><span class="filter-chip active">第一部分</span><span class="filter-chip">第一章</span><span class="filter-chip">第一节</span></div>
+        <div class="form-section-title" style="margin-top:16px;">诵读图片 <span style="font-size:10px;color:#64748b;font-weight:400;">1-5 页/次</span></div>
+        <div class="card" style="padding:4px;">
+          <div class="record-file-row" style="border-top:0;"><div class="record-file-icon image">图</div><div class="record-file-main"><div class="record-file-name">书页 P8.jpg</div><div class="record-file-meta">可预览 / 可删除</div></div><span class="mini-action secondary">删除</span></div>
+          <div class="record-file-row"><div class="record-file-icon image">图</div><div class="record-file-main"><div class="record-file-name">书页 P9.jpg</div><div class="record-file-meta">可预览 / 可删除</div></div><span class="mini-action secondary">删除</span></div>
+          <div class="record-file-row"><div class="record-file-icon">＋</div><div class="record-file-main"><div class="record-file-name" style="color:#2563eb;">继续添加（2/5）</div></div><span class="mini-action">选图</span></div>
+        </div>
+        <div class="form-section-title" style="margin-top:16px;">诵读语音 <span style="font-size:10px;color:#64748b;font-weight:400;">1-10 段 · ≤60s/段</span></div>
+        <div class="card" style="padding:4px;">
+          <div class="record-file-row" style="border-top:0;"><div class="record-file-icon audio">音</div><div class="record-file-main"><div class="player"><span class="play-btn">▶</span><div class="wave"><i style="height:6px"></i><i style="height:12px"></i><i style="height:8px"></i><i style="height:14px"></i><i style="height:5px"></i><i style="height:11px"></i><i style="height:7px"></i><i style="height:13px"></i><i style="height:9px"></i><i style="height:6px"></i></div><span class="dur">0:42</span></div></div><span class="mini-action secondary">重录</span></div>
+          <div class="record-file-row"><div class="record-file-icon audio">音</div><div class="record-file-main"><div class="player"><span class="play-btn">▶</span><div class="wave"><i style="height:9px"></i><i style="height:5px"></i><i style="height:12px"></i><i style="height:7px"></i><i style="height:13px"></i><i style="height:6px"></i><i style="height:11px"></i><i style="height:8px"></i><i style="height:12px"></i><i style="height:9px"></i></div><span class="dur">0:58</span></div></div><span class="mini-action secondary">重录</span></div>
+          <div class="record-file-row"><div class="record-file-icon" style="color:#dc2626;">●</div><div class="record-file-main"><div class="record-file-name" style="color:#dc2626;">录制第 3 段（已录 2/10）</div></div><span class="mini-action danger">开始</span></div>
+        </div>
+        <div class="form-section-title" style="margin-top:16px;">诵读视频 <span style="font-size:10px;color:#64748b;font-weight:400;">1-5 段</span></div>
+        <div class="card" style="padding:4px;">
+          <div class="record-file-row" style="border-top:0;"><div class="record-file-icon video">视</div><div class="record-file-main"><div class="record-file-name">诵读视频 1.mp4</div><div class="record-file-meta">可预览 / 计入个人配额</div></div><span class="mini-action secondary">删除</span></div>
+        </div>
+        <div class="detail-primary-action" style="position:absolute;left:14px;right:14px;bottom:12px;box-shadow:0 -4px 10px rgba(23,38,68,.05),0 7px 13px rgba(35,100,216,.22);">提交诵读</div>
+      </div>
+    </div>
+    <div class="phone-label">B2 · 发布诵读（表单段+分组行）</div>
+    <div class="phone-note">章节选择+三素材分组行<br>mini-action 重录/删除</div></div>
+
+    <div class="phone-wrap"><div class="phone">
+      <div class="statusbar"><span>9:41</span><span></span><span class="sicons"><span class="sig">▂▄▆</span><span class="batt"></span></span></div>
+      <div class="nav"><span class="nav-back">‹</span><div class="nav-title">提交成功</div></div>
+      <div class="body">
+        <div class="muyu-stage">
+          <div class="muyu-glow"></div><div class="ripple"></div>
+          <span class="spark" style="top:32px;left:calc(50% - 116px);">✦</span>
+          <span class="spark" style="top:92px;left:calc(50% + 126px);font-size:9px;opacity:.75;">✦</span>
+          <span class="sarc" style="top:56px;left:calc(50% + 82px);"></span>
+          <span class="sarc" style="top:50px;left:calc(50% + 100px);opacity:.5;"></span>
+          <div class="muyu"></div><div class="muyu-cushion"></div><div class="mallet"></div>
+          <div class="plus-one">+1</div>
+          <div class="sfx">笃——</div>
+          <div class="merit"><span>功德 +1 · 今日已敲 3 次</span></div>
+        </div>
+        <div class="card" style="margin-top:12px;padding:12px 14px;">
+          <div class="customer-record-title">✓ 诵读已发布</div>
+          <div class="customer-record-summary">《了凡四训》第一部分·第一章 · 图2 音2 视1，已通知书友，快去看看大家的评论吧。</div>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:12px;"><div class="secondary-btn" style="flex:1;">再敲一下</div><div class="detail-primary-action" style="flex:1;">查看作品</div></div>
+        <div style="margin-top:10px;text-align:center;font-size:10px;color:#64748b;">点赞别人的作品也是敲木鱼 · 木鱼声可在设置里关闭</div>
+      </div>
+    </div>
+    <div class="phone-label">B3 · 提交成功 · 木鱼动画</div>
+    <div class="phone-note">敲击动画 + "+1" + 音效<br>点赞同款反馈</div></div>
+
+    <div class="phone-wrap"><div class="phone">
+      <div class="statusbar"><span>9:41</span><span></span><span class="sicons"><span class="sig">▂▄▆</span><span class="batt"></span></span></div>
+      <div class="nav"><span class="nav-back">‹</span><div class="nav-title">诵读作品</div></div>
+      <div class="body">
+        <div style="display:flex;align-items:center;gap:6px;font-size:10.5px;color:#52627a;background:#f8fbff;border:1px solid #e2eaf4;border-radius:9px;padding:7px 11px;"><span class="pill">弟子规类</span>《了凡四训》<em style="font-style:normal;color:#2364d8;font-weight:700;">› 第一部分·第一章</em></div>
+        <div class="card" style="padding:11px 13px;margin-top:9px;">
+          <div class="customer-record-head"><div><div class="customer-record-title">李长青 <span class="tag-new">NEW</span></div><div class="customer-record-meta">今天 20:15 · 客服部 · 木鱼 12 · 评论 5</div></div></div>
+        </div>
+        <div class="record-file-group">
+          <div class="record-file-group-head"><span>诵读图片 · 3</span><span>P8-P10</span></div>
+          <div class="record-file-row"><div class="record-file-icon image">图</div><div class="record-file-main"><div class="record-file-name">书页 P8.jpg</div><div class="record-file-meta">可预览 / 可下载</div></div><span class="mini-action">打开</span><span class="mini-action secondary">下载</span></div>
+          <div class="record-file-row"><div class="record-file-icon image">图</div><div class="record-file-main"><div class="record-file-name">书页 P9.jpg</div><div class="record-file-meta">可预览 / 可下载</div></div><span class="mini-action">打开</span><span class="mini-action secondary">下载</span></div>
+        </div>
+        <div class="record-file-group">
+          <div class="record-file-group-head"><span>诵读语音 · 6 段</span><span>每段 ≤60s</span></div>
+          <div class="record-file-row"><div class="record-file-icon audio">音</div><div class="record-file-main"><div class="player"><span class="play-btn">▶</span><div class="wave"><i style="height:7px"></i><i style="height:12px"></i><i style="height:5px"></i><i style="height:13px"></i><i style="height:9px"></i><i style="height:11px"></i><i style="height:6px"></i><i style="height:14px"></i><i style="height:8px"></i><i style="height:10px"></i></div><span class="dur">1/6 段 0:42</span></div></div></div>
+        </div>
+        <div class="record-file-group">
+          <div class="record-file-group-head"><span>诵读视频 · 1</span><span>02:14</span></div>
+          <div class="record-file-row" style="padding-bottom:9px;"><div class="vid-cover" style="height:88px;"><span class="vid-play">▶</span><span class="vid-len">02:14</span></div></div>
+        </div>
+        <div style="display:flex;gap:6px;margin-top:9px;"><span class="mini-action">木鱼 12</span><span class="mini-action secondary">评论 5</span><span class="mini-action secondary">重点描述</span><span class="mini-action secondary">跟读</span></div>
+        <div class="section-heading">评论 · 语音跟读</div>
+        <div class="card" style="padding:4px;">
+          <div class="customer-record-row"><div class="customer-record-head"><div class="customer-record-title" style="font-size:11.5px;">王晓兰 · 跟读 0:32</div><span class="muted" style="font-size:9.5px;">09:35</span></div><div class="customer-record-summary" style="font-size:11px;">"极善之人，数固拘他不定"这段读得最有味道！</div></div>
+          <div class="customer-record-row"><div class="customer-record-head"><div class="customer-record-title" style="font-size:11.5px;">陈慧 · 重点</div><span class="muted" style="font-size:9.5px;">昨天</span></div><div class="customer-record-summary" style="font-size:11px;">标记重点：P8 第二段"极善极恶数拘不定"。</div></div>
+        </div>
+      </div>
+    </div>
+    <div class="phone-label">B4 · 诵读作品详情（分组骨架）</div>
+    <div class="phone-note">图/音/视三分组+mini-action<br>评论/重点/跟读互动</div></div>
+  </div>
+
+  <div class="row-label"><span class="no">C</span>个人中心与统计 · 导航落位<span class="ln"></span></div>
+  <div class="phones">
+
+    <div class="phone-wrap"><div class="phone">
+      <div class="statusbar"><span>9:41</span><span></span><span class="sicons"><span class="sig">▂▄▆</span><span class="batt"></span></span></div>
+      <div class="nav"><span class="nav-back">‹</span><div class="nav-title">我的书架</div><span class="nav-act">继续阅读 ›</span></div>
+      <div class="body">
+        <div class="stats-tabs"><span class="stats-tab active">在读 (3)</span><span class="stats-tab">已读完 (2)</span><span class="stats-tab">收藏 (5)</span></div>
+        <div class="card" style="padding:11px 13px;margin-bottom:9px;display:flex;align-items:center;">
+          <div class="cover" style="background:linear-gradient(150deg,#1d4ed8,#3e8df3);">了凡四训</div>
+          <div style="flex:1;min-width:0;"><div class="customer-record-title">《了凡四训》 <span class="b-type b-pdf">电子书</span></div><div class="customer-record-meta">昨天 20:15 · 第一部分·第一章</div><div class="prog"><i style="width:35%;"></i></div><div style="font-size:10px;color:#2364d8;font-weight:800;margin-top:3px;">已读 35% · 第 8/288 页</div></div>
+          <span class="mini-action">继续读</span>
+        </div>
+        <div class="card" style="padding:11px 13px;margin-bottom:9px;display:flex;align-items:center;">
+          <div class="cover" style="background:linear-gradient(150deg,#f59e0b,#e8a23d);">弟子规</div>
+          <div style="flex:1;min-width:0;"><div class="customer-record-title">《弟子规》 <span class="b-type b-song">诵读</span></div><div class="customer-record-meta">今天 09:30 · 我的诵读 2 段</div><div class="prog"><i style="width:62%;"></i></div><div style="font-size:10px;color:#2364d8;font-weight:800;margin-top:3px;">结构进度 62%</div></div>
+          <span class="mini-action">去诵读</span>
+        </div>
+        <div class="card" style="padding:11px 13px;display:flex;align-items:center;">
+          <div class="cover" style="background:linear-gradient(150deg,#14b8a6,#10b981);">论语</div>
+          <div style="flex:1;min-width:0;"><div class="customer-record-title">《论语译注》</div><div class="customer-record-meta">3 天前 · 心得 2 篇</div><div class="prog"><i style="width:12%;"></i></div><div style="font-size:10px;color:#2364d8;font-weight:800;margin-top:3px;">已读 12% · 第 38/324 页</div></div>
+          <span class="mini-action">继续读</span>
+        </div>
+        <div class="section-heading">已读完</div>
+        <div class="card" style="padding:10px 13px;display:flex;gap:9px;align-items:center;">
+          <div class="cover" style="background:linear-gradient(150deg,#64748b,#475569);width:34px;height:46px;">孝经</div>
+          <div style="flex:1;"><div class="customer-record-title" style="font-size:12.5px;">《孝经》 ✓ 100%</div><div class="customer-record-meta">10-02 读完 · 累计 6.5 小时</div></div>
+          <span class="mini-action secondary">回顾</span>
+        </div>
+      </div>
+    </div>
+    <div class="phone-label">C1 · 我的书架</div>
+    <div class="phone-note">在读/已读完/收藏 · 进度条<br>一键续读</div></div>
+
+    <div class="phone-wrap"><div class="phone">
+      <div class="statusbar"><span>9:41</span><span></span><span class="sicons"><span class="sig">▂▄▆</span><span class="batt"></span></span></div>
+      <div class="nav"><span class="nav-back">‹</span><div class="nav-title">阅读记录</div></div>
+      <div class="body">
+        <div class="card" style="padding:11px 12px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;"><span style="font-size:13px;font-weight:850;">2026年10月 · 已读 9/12 天</span><span class="pill">每日一读</span></div>
+          <div class="cal-grid">
+            <span class="cal-cell hd">一</span><span class="cal-cell hd">二</span><span class="cal-cell hd">三</span><span class="cal-cell hd">四</span><span class="cal-cell hd">五</span><span class="cal-cell hd">六</span><span class="cal-cell hd">日</span>
+            <span class="cal-cell">29</span><span class="cal-cell">30</span><span class="cal-cell done">1 ✓</span><span class="cal-cell done">2 ✓</span><span class="cal-cell">3</span><span class="cal-cell done">4 ✓</span><span class="cal-cell done">5 ✓</span>
+            <span class="cal-cell done">6 ✓</span><span class="cal-cell done">7 ✓</span><span class="cal-cell">8</span><span class="cal-cell done">9 ✓</span><span class="cal-cell done">10 ✓</span><span class="cal-cell today">11 今</span>
+            <span class="cal-cell done">12 ✓</span><span class="cal-cell">13</span><span class="cal-cell">14</span><span class="cal-cell">15</span><span class="cal-cell">16</span><span class="cal-cell">17</span><span class="cal-cell">18</span>
+          </div>
+        </div>
+        <div class="stats-grid">
+          <div class="stats-tile"><b>5 天</b><span>连续阅读</span></div>
+          <div class="stats-tile"><b>26 天</b><span>累计打卡</span></div>
+          <div class="stats-tile"><b>12 小时</b><span>本月时长</span></div>
+          <div class="stats-tile"><b>13 篇</b><span>本月作品</span></div>
+        </div>
+        <div class="card stats-list-card">
+          <div class="stats-card-title">近三日时间线</div>
+          <div class="stats-list-row"><span>今天 · 诵读 + 评论 2</span><b>15 分钟</b></div>
+          <div class="stats-list-row"><span>昨天 · 在线阅读 P5-P8</span><b>22 分钟</b></div>
+          <div class="stats-list-row"><span>10-10 · 心得 + 互动</span><b>获赞 7</b></div>
+        </div>
+      </div>
+    </div>
+    <div class="phone-label">C2 · 阅读记录（stats 骨架）</div>
+    <div class="phone-note">打卡日历 + stats-tile 四格<br>+ stats-list-row 时间线</div></div>
+
+    <div class="phone-wrap"><div class="phone">
+      <div class="statusbar"><span>9:41</span><span></span><span class="sicons"><span class="sig">▂▄▆</span><span class="batt"></span></span></div>
+      <div class="nav"><span class="nav-back">‹</span><div class="nav-title">阅读提醒</div></div>
+      <div class="body">
+        <div class="files-manage-card">
+          <div class="files-manage-head">阅读提醒设置</div>
+          <div class="files-manage-row"><span>阅读提醒（到点未读才提醒）</span><span class="switch"><i></i></span></div>
+          <div class="files-manage-row"><span>提醒频率</span><span style="display:flex;gap:5px;"><span class="filter-chip active">每天</span><span class="filter-chip">工作日</span><span class="filter-chip">休息日</span></span></div>
+          <div class="files-manage-row"><span>提醒时间（已读不打扰）</span><span class="pill" style="font-size:12px;font-weight:800;">20:00 ›</span></div>
+          <div class="files-manage-row"><span>提醒范围</span><span style="font-size:11px;color:#52627a;">在读书目 + 团队动态</span></div>
+        </div>
+        <div class="note-box">ℹ️ 微信订阅消息需本人授权、每次提醒消耗一次授权额度，额度用尽自动降级为应用内提醒；完全自愿，随时可关。</div>
+        <div class="card" style="margin-top:12px;padding:12px 14px;">
+          <div class="stats-card-title" style="margin-bottom:8px;">预览 · 提醒样式</div>
+          <div style="padding:10px 12px;background:#f8fbff;border:1px solid #e2eaf4;border-radius:10px;">
+            <div style="font-size:11.5px;font-weight:800;">法布施 · 每日一读</div>
+            <div style="font-size:10.5px;color:#52627a;margin-top:4px;line-height:1.6;">今天还没读书哦～《了凡四训》停在第一部分·第一章，10 分钟就能读完，读完记得传心得。</div>
+            <div style="font-size:9.5px;color:#64748b;margin-top:5px;">今天 20:00</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="phone-label">C3 · 阅读提醒（files-manage 骨架）</div>
+    <div class="phone-note">设置行骨架+授权说明<br>个人自愿</div></div>
+
+    <div class="phone-wrap"><div class="phone">
+      <div class="statusbar"><span>9:41</span><span></span><span class="sicons"><span class="sig">▂▄▆</span><span class="batt"></span></span></div>
+      <div class="nav"><span class="nav-back">‹</span><div class="nav-title">阅读统计</div><span class="nav-act">10月 ▾</span></div>
+      <div class="body">
+        <div class="stats-hero">
+          <div class="stats-kicker">READING STATS</div>
+          <div class="stats-title">团队阅读统计</div>
+          <div class="stats-sub">10月 · 艾志集团 · 58 人</div>
+          <div class="stats-hero-metrics"><span>今日已读 32 人</span><span>作品 109</span><span>时长 214h</span></div>
+        </div>
+        <div class="stats-tabs"><span class="stats-tab active">团队</span><span class="stats-tab">个人</span></div>
+        <div class="card stats-list-card">
+          <div class="stats-card-title">成员阅读榜 · 本月</div>
+          <div class="stats-list-row" style="gap:8px;"><span style="display:flex;align-items:center;gap:8px;flex:1;"><span class="rank-no top">1</span>王晓兰</span><span style="display:flex;align-items:center;gap:8px;flex:1;"><span class="rank-bar" style="flex:1;"><i style="width:93%;"></i></span></span><b>28 篇</b></div>
+          <div class="stats-list-row rr2" style="gap:8px;"><span style="display:flex;align-items:center;gap:8px;flex:1;"><span class="rank-no top">2</span>李长青</span><span style="display:flex;align-items:center;gap:8px;flex:1;"><span class="rank-bar" style="flex:1;"><i style="width:80%;"></i></span></span><b>24 篇</b></div>
+          <div class="stats-list-row rr3" style="gap:8px;"><span style="display:flex;align-items:center;gap:8px;flex:1;"><span class="rank-no top">3</span>周文静</span><span style="display:flex;align-items:center;gap:8px;flex:1;"><span class="rank-bar" style="flex:1;"><i style="width:63%;"></i></span></span><b>19 篇</b></div>
+          <div class="stats-list-row" style="gap:8px;"><span style="display:flex;align-items:center;gap:8px;flex:1;"><span class="rank-no">4</span>陈慧</span><span style="display:flex;align-items:center;gap:8px;flex:1;"><span class="rank-bar" style="flex:1;"><i style="width:50%;"></i></span></span><b>15 篇</b></div>
+          <div class="stats-list-row" style="gap:8px;"><span style="display:flex;align-items:center;gap:8px;flex:1;"><span class="rank-no">5</span>我（张东来）</span><span style="display:flex;align-items:center;gap:8px;flex:1;"><span class="rank-bar" style="flex:1;"><i style="width:43%;"></i></span></span><b>13 篇</b></div>
+        </div>
+        <div class="card stats-list-card">
+          <div class="stats-card-title">类别热度 · 阅读分布</div>
+          <div class="hbar-row"><span class="hbar-lbl">弟子规</span><div class="hbar-track"><i style="width:88%;"></i></div><span class="hbar-val">38</span></div>
+          <div class="hbar-row"><span class="hbar-lbl">了凡四训</span><div class="hbar-track"><i style="width:74%;"></i></div><span class="hbar-val">32</span></div>
+          <div class="hbar-row"><span class="hbar-lbl">论语</span><div class="hbar-track"><i style="width:52%;"></i></div><span class="hbar-val">18</span></div>
+          <div class="hbar-row"><span class="hbar-lbl">道德经</span><div class="hbar-track"><i style="width:38%;"></i></div><span class="hbar-val">13</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="phone-label">C4 · 统计 · 团队（stats-hero 骨架）</div>
+    <div class="phone-note">真实统计页骨架：hero+页签<br>+榜卡+分布卡</div></div>
+
+    <div class="phone-wrap"><div class="phone">
+      <div class="statusbar"><span>9:41</span><span></span><span class="sicons"><span class="sig">▂▄▆</span><span class="batt"></span></span></div>
+      <div class="nav"><span class="nav-back">‹</span><div class="nav-title">阅读统计</div><span class="nav-act">10月 ▾</span></div>
+      <div class="body">
+        <div class="stats-hero">
+          <div class="stats-kicker">MY READING</div>
+          <div class="stats-title">我的十月</div>
+          <div class="stats-sub">张东来 · 销售部 · 部门第 3</div>
+          <div class="stats-hero-metrics"><span>时长 42h</span><span>连续 5 天</span><span>完读 3 本</span></div>
+        </div>
+        <div class="stats-tabs"><span class="stats-tab">团队</span><span class="stats-tab active">个人</span></div>
+        <div class="stats-grid">
+          <div class="stats-tile"><b>42 小时</b><span>阅读时长</span></div>
+          <div class="stats-tile"><b>5 天</b><span>连续阅读</span></div>
+          <div class="stats-tile"><b>13 篇</b><span>发布作品</span></div>
+          <div class="stats-tile"><b>47</b><span>收获木鱼</span></div>
+        </div>
+        <div class="card stats-list-card">
+          <div class="stats-card-title">我的类别分布</div>
+          <div class="hbar-row"><span class="hbar-lbl">了凡四训</span><div class="hbar-track"><i style="width:82%;"></i></div><span class="hbar-val">16</span></div>
+          <div class="hbar-row"><span class="hbar-lbl">弟子规</span><div class="hbar-track"><i style="width:62%;"></i></div><span class="hbar-val">12</span></div>
+          <div class="hbar-row"><span class="hbar-lbl">论语</span><div class="hbar-track"><i style="width:41%;"></i></div><span class="hbar-val">8</span></div>
+          <div class="hbar-row"><span class="hbar-lbl">实用类</span><div class="hbar-track"><i style="width:26%;"></i></div><span class="hbar-val">5</span></div>
+        </div>
+        <div class="card" style="padding:10px 13px;display:flex;gap:6px;flex-wrap:wrap;margin-top:10px;">
+          <span class="pill">首次诵读</span><span class="pill">连续 5 天</span><span class="pill">百次木鱼</span><span class="pill">读完 3 本</span>
+        </div>
+      </div>
+    </div>
+    <div class="phone-label">C5 · 统计 · 个人（stats 骨架）</div>
+    <div class="phone-note">hero+四格tile+分布<br>+成就徽章</div></div>
+
+    <div class="phone-wrap"><div class="phone">
+      <div class="statusbar"><span>9:41</span><span></span><span class="sicons"><span class="sig">▂▄▆</span><span class="batt"></span></span></div>
+      <div class="nav"><div class="nav-title">应用</div></div>
+      <div class="body with-tab">
+        <div class="ap-hero"><div class="ap-hero-title">应用中心</div><div class="ap-hero-meta">已开通 9 个应用 · 艾志集团</div></div>
+        <div class="ap-module">
+          <div class="ap-module-head"><div class="ap-module-index">01</div><div style="flex:1;min-width:0;"><div class="ap-module-title">法布施 · 共读分享 <span class="tag-new">NEW</span></div><div class="ap-module-sub">在线阅读 · 诵读 · 正能量</div></div><div class="ap-module-count">2 个</div></div>
+          <div class="ap-grid">
+            <div class="ap-tile"><div class="ap-icon">法</div><div class="ap-tile-main"><div class="ap-tile-title">法布施</div><div class="ap-tile-sub">书库 · 书架 · 统计</div></div><div class="ap-arrow">›</div></div>
+            <div class="ap-tile"><div class="ap-icon">正</div><div class="ap-tile-main"><div class="ap-tile-title">正能量</div><div class="ap-tile-sub">名言 · 美图 · 心得</div></div><div class="ap-arrow">›</div></div>
+          </div>
+        </div>
+        <div class="ap-module">
+          <div class="ap-module-head"><div class="ap-module-index">02</div><div style="flex:1;min-width:0;"><div class="ap-module-title">客户经营</div><div class="ap-module-sub">客户档案与业绩</div></div><div class="ap-module-count">4 个</div></div>
+          <div class="ap-grid">
+            <div class="ap-tile"><div class="ap-icon">客</div><div class="ap-tile-main"><div class="ap-tile-title">客户管理</div><div class="ap-tile-sub">档案 · 联系人 · 动态</div></div><div class="ap-arrow">›</div></div>
+            <div class="ap-tile"><div class="ap-icon">海</div><div class="ap-tile-main"><div class="ap-tile-title">公海捞取</div><div class="ap-tile-sub">认领 · 释放</div></div><div class="ap-arrow">›</div></div>
+            <div class="ap-tile"><div class="ap-icon">批</div><div class="ap-tile-main"><div class="ap-tile-title">审批管理</div><div class="ap-tile-sub">待办 · 记录</div></div><div class="ap-arrow">›</div></div>
+            <div class="ap-tile"><div class="ap-icon">提</div><div class="ap-tile-main"><div class="ap-tile-title">提醒中心</div><div class="ap-tile-sub">到期预警</div></div><div class="ap-arrow">›</div></div>
+          </div>
+        </div>
+        <div class="ap-module">
+          <div class="ap-module-head"><div class="ap-module-index">03</div><div style="flex:1;min-width:0;"><div class="ap-module-title">协同与数据</div><div class="ap-module-sub">文件与经营分析</div></div><div class="ap-module-count">3 个</div></div>
+          <div class="ap-grid">
+            <div class="ap-tile"><div class="ap-icon">档</div><div class="ap-tile-main"><div class="ap-tile-title">文件中心</div><div class="ap-tile-sub">原底部栏入口</div></div><div class="ap-arrow">›</div></div>
+            <div class="ap-tile"><div class="ap-icon">激</div><div class="ap-tile-main"><div class="ap-tile-title">四项激励</div><div class="ap-tile-sub">上传 · 积分</div></div><div class="ap-arrow">›</div></div>
+            <div class="ap-tile"><div class="ap-icon">统</div><div class="ap-tile-main"><div class="ap-tile-title">统计分析</div><div class="ap-tile-sub">客户 · 排行</div></div><div class="ap-arrow">›</div></div>
+          </div>
+        </div>
+      </div>
+      <div class="tabbar">
+        <div class="tab-item">首页</div><div class="tab-item">四项激励</div><div class="tab-item">文件</div><div class="tab-item active">应用</div><div class="tab-item">我的</div>
+      </div>
+    </div>
+    <div class="phone-label">C6 · 应用中心（ap-module 新版骨架）</div>
+    <div class="phone-note">法布施=01号模块组 · 底部栏原样<br>（真实 10-26 版应用页结构）</div></div>
+  </div>
+</div>
+</body>
+</html>
