@@ -33,26 +33,11 @@
           <div v-show="!collapsed.has(top.id)" class="cat-group-body">
             <el-table v-if="top.children && top.children.length" :data="top.children" size="small" style="width:100%"
               :header-cell-style="{ background: '#f7f9fc', color: '#4e5969', fontWeight: 600, borderBottom: '1px solid #eef0f4' }">
-              <!-- 【2026-10-29 归树批】产品目录第三级(小类)在展开行维护——树二级=产品大类, 三级=细分小类 -->
-              <el-table-column type="expand" width="34">
-                <template #default="{ row }">
-                  <div v-if="row.children && row.children.length" class="cat-grand-list">
-                    <div v-for="g in row.children" :key="g.id" class="cat-grand-item">
-                      <span class="cat-grand-name">{{ g.categoryName }}</span>
-                      <span :class="g.status === 1 ? 'cat-status-on' : 'cat-status-off'"><i></i>{{ g.status === 1 ? '启用' : '禁用' }}</span>
-                      <template v-if="userStore.hasPermission('incentive:edit')">
-                        <el-button link type="primary" size="small" @click="openCategoryDialog(g, row.id)">编辑</el-button>
-                        <el-button link type="danger" size="small" @click="handleDeleteCategory(g)">删除</el-button>
-                      </template>
-                    </div>
-                  </div>
-                  <div v-else class="cat-grand-empty">无三级子项（产品大类下的细分小类在此维护）</div>
-                </template>
-              </el-table-column>
+              <!-- 【2026-11-01 用户令: 三级小类不要呈现】产品目录第三级(小类)自管理页撤下:
+                   数据保留在分类树(上传弹窗"细分产品"下拉照常派生), 维护走 SQL/迁移 -->
               <el-table-column label="类别名称" min-width="160">
                 <template #default="{ row }">
                   <span class="cat-child-name">{{ row.categoryName }}</span>
-                  <span v-if="row.children && row.children.length" class="cat-grand-count">+{{ row.children.length }} 小类</span>
                 </template>
               </el-table-column>
               <el-table-column prop="categoryCode" label="编码" width="120">
@@ -230,16 +215,11 @@ const roleClass = (role) => {
   return 'role-sale'
 }
 
-// 【2026-11-01 审计修复】上级选项=顶级+二级(第三级=产品小类, 挂二级下); 缩进区分层级
-const categoryParentOptions = computed(() => {
-  const opts = categoryTree.value.map(c => ({ id: c.id, categoryName: c.categoryName, depth: 0 }))
-  for (const c of categoryTree.value) {
-    for (const child of (c.children || [])) {
-      opts.push({ id: child.id, categoryName: `　${c.categoryName} / ${child.categoryName}`, depth: 1 })
-    }
-  }
-  return opts
-})
+// 【2026-11-01 用户令: 三级小类不要呈现】上级选项只列顶级(三级自管理页撤下, 数据层保留、
+// 上传弹窗"细分产品"照常派生; 新增三级仅经 SQL/迁移, 避免 UI 创建不可见节点)
+const categoryParentOptions = computed(() =>
+  categoryTree.value.map(c => ({ id: c.id, categoryName: c.categoryName }))
+)
 
 const toggleCategory = (id) => {
   const s = new Set(collapsed.value)

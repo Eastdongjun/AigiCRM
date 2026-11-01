@@ -82,8 +82,8 @@ require_contains "buildProductCatsFromTree" "$UI/composables/useIncentiveUpload.
 require_contains "deriveProductCatalog" "$MP/pages/incentive/upload/index.js" "MP上传页产品目录未走树派生"
 require_contains "'trial'" "$MP/pages/incentive/home/index.js" "MP轻量页产品清单未接树派生"
 require_contains "'trial'" "$MP/pages/incentive/index.js" "MP完整版产品清单未接树派生"
-# 唯一入口成立的前提: 激励类别管理页能渲染/维护第三级
-require_contains "cat-grand-list" "$UI/views/system/CategoryManager.vue" "激励类别管理缺三级渲染(产品小类不可维护)"
+# 【2026-11-01 用户令: 三级小类不要呈现】三级自管理页撤下(数据层保留, 上传弹窗"细分产品"照常派生, 维护走SQL)——防复活
+! grep -Fq "cat-grand" "$UI/views/system/CategoryManager.vue" || fail "激励类别管理三级小类呈现回潮(用户令移除)"
 # 记录分类只取前两级(第三级=产品目录不进记录分类; 左侧子项取值错位事故 2026-10-29)
 require_contains "items: null" "$UI/composables/useIncentiveUpload.js" "PC左侧子项取到三级(记录分类必须停二级)"
 require_contains "level < 2" "$MP/pages/incentive/index.js" "MP完整版分类浏览缺两级截断"
