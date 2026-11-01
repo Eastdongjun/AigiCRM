@@ -99,6 +99,11 @@ reject_regex "const industries\s*=\s*\[" "$UI/views/incentive/search.vue" "行�
 reject_regex "const devTypes\s*=\s*\[" "$UI/views/incentive/search.vue" "开发类型回潮硬编码(应 getDictData('dev_type'))"
 # PC 上传 composable: 孙级节点禁止再被当记录分类消费(产品目录派生在 product-catalog.js 内部, 不受此钉)
 reject_regex "grandchildren" "$UI/composables/useIncentiveUpload.js" "PC又把孙级当记录分类(第三级只属于产品目录)"
+# 【2026-11-01 兜底对表】行业兜底常量必须与生产字典实值对表(10项, 含最新增的 其他终端客户/新行业;
+# 此前 6 项兜底里 洗煤厂/有色/其他 三个幽灵值——字典失败时筛选必空/上传写非法值, 与 dev_type 同族)
+require_contains "'其他终端客户', '新行业'" "$UI/utils/dict-fallback.js" "行业兜底常量与字典实值脱钩"
+reject_regex "洗煤厂" "$UI/utils/dict-fallback.js" "行业兜底含字典不存在的幽灵值"
+require_contains "INDUSTRY_FALLBACK_OPTIONS" "$UI/views/sea/index.vue" "公海页行业兜底未并入共享常量(私有副本同源漂移)"
 
 echo "=== [术语钉·学分改名 2026-11-01] score 模块统一学名分(菜单/页面/导出), 周期只留全年+左列冻结 ==="
 require_contains "学分录入" "$UI/views/score/entry.vue" "PC学分录入页未更名"

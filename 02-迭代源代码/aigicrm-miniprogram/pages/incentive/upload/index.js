@@ -377,7 +377,7 @@ function buildUploadViewState(data) {
     selectedCustomerName: customer ? (customer.customerName || customer.name || '未命名客户') : '',
     selectedCustomerMeta: customerConfirmMeta(customer),
     categoryPicker: pickerTextView(data.categoryNames, data.selectedCategoryIndex, '请选择分类'),
-    // 【对齐 PC 2026-09-20】分类两级选择: 大类(产品试点/两谈两做/外出参观/交流拜访) → 子类(涂层类/楼梯板类…);
+    // 【对齐 PC 2026-09-20】分类两级选择: 大类(产品试点/两谈两做/外出参观/交流拜访) → 子类(涂层类/防滑板类…);
     // selectedCategoryIndex 仍指向全量 categories, 兼容草稿恢复与编辑回填
     categoryParentNames: (data.categoryParentNodes || []).map((item) => item.name),
     categoryParentPicker: pickerTextView((data.categoryParentNodes || []).map((item) => item.name), data.selectedParentCategoryIndex, '请选择大类'),

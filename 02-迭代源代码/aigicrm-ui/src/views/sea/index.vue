@@ -146,6 +146,7 @@ import { Upload, Tickets } from '@element-plus/icons-vue'
 import { getSeaList, getSeaStatistics, getVisibleSeaConfigs, deleteSeaPool, importSeaCustomers } from '@/api/sea'
 import { downloadImportTemplate } from '@/api/customer'
 import { getDictData, getScopeDepts } from '@/api/system'
+import { INDUSTRY_FALLBACK_OPTIONS } from '@/utils/dict-fallback'
 import { submitApproval } from '@/api/approval'
 import { useUserStore } from '@/store/user'
 import { pageSizes } from '@/utils/pagination'
@@ -332,7 +333,7 @@ onMounted(async () => {
   try {
     const res = await getDictData('industry')
     industryOptions.value = (res.data || []).map(d => d.dictValue)
-  } catch (e) { industryOptions.value = ['煤矿', '化工', '电力', '洗煤厂', '有色'] }
+  } catch (e) { industryOptions.value = INDUSTRY_FALLBACK_OPTIONS } // 【2026-11-01 兜底对表】并入共享常量(原5项私有副本同源漂移)
 })
 </script>
 

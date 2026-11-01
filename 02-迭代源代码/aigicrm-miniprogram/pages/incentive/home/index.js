@@ -135,7 +135,7 @@ const PRODUCT_OPTIONS = ['全部产品', '防腐', '加固', '钢结构', '煤�
 const CATEGORY_ALL = '全部分类'
 // 演示态分类树(与生产树同形: categoryName/children)
 const DEMO_CATEGORY_TREE = [
-  { categoryName: '产品试点', children: [{ categoryName: '涂层类' }, { categoryName: '楼梯板类' }, { categoryName: '机封类' }, { categoryName: '密封类' }, { categoryName: '润滑类' }] },
+  { categoryName: '产品试点', children: [{ categoryName: '涂层类' }, { categoryName: '防滑板类' }, { categoryName: '机封类' }, { categoryName: '密封类' }, { categoryName: '润滑类' }] },
   { categoryName: '交流拜访', children: [{ categoryName: '技术交流会' }, { categoryName: '高层拜访' }] },
   { categoryName: '外出参观', children: [{ categoryName: '南京工厂参观' }, { categoryName: '终端考察' }] },
   { categoryName: '两谈两做方案', children: [{ categoryName: '项目方案' }, { categoryName: '价值服务手册' }, { categoryName: '使用报告' }] }

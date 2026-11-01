@@ -2,8 +2,10 @@
 //
 // 此前「行业」兜底列表在三处各内联一份完整副本（useCustomerForm/useCustomerList/
 // useIncentiveUpload 的 getDictData('industry') 失败分支），口径易漂移；抽出共享常量。
-// 注：views/sea/index.vue 还有一份 5 项（无「其他」）的公海页私有兜底，属页面私有口径，
-// 不在本共享范围内，如后续统一应先核对公海页业务口径。
+// 【2026-11-01 兜底对表】兜底常量与生产字典实值对表(此前 6 项兜底里有三个字典不存在的幽灵值,
+// 且缺 冶金/机械/工程公司/维修厂/其他终端客户/新行业——字典接口失败时
+// 筛选必空、上传会写出非法行业值, 与 10-29 修的 dev_type 同族)。字典增删须同步改这里。
+// views/sea/index.vue 的公海页兜底已并入本常量(原 5 项私有副本同源漂移, 一并消除)。
 
-/** 行业字典(getDictData('industry'))加载失败时的兜底选项 */
-export const INDUSTRY_FALLBACK_OPTIONS = ['煤矿', '化工', '电力', '洗煤厂', '有色', '其他']
+/** 行业字典(getDictData('industry'))加载失败时的兜底选项 = 生产字典 10 项实值 */
+export const INDUSTRY_FALLBACK_OPTIONS = ['冶金', '煤矿', '化工', '电力', '有色金属', '机械', '工程公司', '维修厂', '其他终端客户', '新行业']
