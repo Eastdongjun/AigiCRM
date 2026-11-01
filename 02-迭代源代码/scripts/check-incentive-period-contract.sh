@@ -76,9 +76,11 @@ assert_contains "$CUSTOMER_RANKING" "const period = ref('')"
 assert_contains "$CUSTOMER_RANKING" "const periodOptions = buildPeriodOptions()"
 assert_contains "$CUSTOMER_RANKING" "getCustomerRankings({ period: periodQueryValue(period.value) })"
 
-assert_contains "$SCORE_RANKING" "import { buildPeriodOptions, defaultRecordPeriod } from '@/utils/incentive-period'"
+# 【2026-11-01 学分及时更新】排行默认周期与录入对齐=当前半年(currentHalfPeriod),
+# 并支持 ?period= 预选(录入页"查看排行"直达); 原默认 defaultRecordPeriod()(全年)致新录学分默认视图不可见
+assert_contains "$SCORE_RANKING" "import { buildPeriodOptions, currentHalfPeriod } from '@/utils/incentive-period'"
 assert_contains "$SCORE_RANKING" "buildPeriodOptions().filter((option) => option.value)"
-assert_contains "$SCORE_RANKING" "const selectedPeriod = ref(defaultRecordPeriod())"
+assert_contains "$SCORE_RANKING" "String(route.query.period || '') || currentHalfPeriod()"
 assert_contains "$SCORE_RANKING" "const params = { period: selectedPeriod.value }"
 
 echo "PASS: incentive and score period options, default periods, and query semantics are aligned."

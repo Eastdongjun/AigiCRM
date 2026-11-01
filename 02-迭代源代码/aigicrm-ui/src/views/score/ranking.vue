@@ -4,7 +4,7 @@
     <div class="rank-hero">
       <div class="rh-top">
         <div class="rh-left">
-          <h2 class="rh-title">积分排行</h2>
+          <h2 class="rh-title">学分排行</h2>
           <p class="rh-sub">按评分汇总展示个人与部门排行 · 数据周期 {{ selectedPeriod || '全部' }}</p>
         </div>
         <div class="rh-actions">
@@ -13,7 +13,7 @@
             <!-- 【2026-09-12】移除硬编码的"全部"：得分接口按周期等值过滤，空周期必然 0 条（避免给出无效选项） -->
             <el-option v-for="p in periodOptions" :key="p.value" :label="p.label" :value="p.value" />
           </el-select>
-          <el-button size="small" class="rh-ghost" @click="showRules = true">积分规则</el-button>
+          <el-button size="small" class="rh-ghost" @click="showRules = true">学分规则</el-button>
         </div>
       </div>
     </div>
@@ -29,22 +29,22 @@
       <div class="stat-card">
         <div class="stat-label">参与人数</div>
         <div class="stat-num">{{ stats.participantCount || 0 }}</div>
-        <div class="stat-desc">本期有积分记录的人员</div>
+        <div class="stat-desc">本期有学分记录的人员</div>
       </div>
       <div class="stat-card">
         <div class="stat-label">参与部门</div>
         <div class="stat-num">{{ stats.deptCount || 0 }}</div>
-        <div class="stat-desc">本期有积分记录的部门</div>
+        <div class="stat-desc">本期有学分记录的部门</div>
       </div>
       <div class="stat-card">
-        <div class="stat-label">最高积分</div>
+        <div class="stat-label">最高学分</div>
         <div class="stat-num">{{ stats.topScore || 0 }}</div>
         <div class="stat-desc">{{ stats.topScoreName || '-' }} · {{ stats.topItemCount || 0 }}个文件</div>
       </div>
       <div class="stat-card">
         <div class="stat-label">文件总数</div>
         <div class="stat-num">{{ stats.totalItemCount || 0 }}</div>
-        <div class="stat-desc">当前周期累计积分文件数</div>
+        <div class="stat-desc">当前周期累计学分文件数</div>
       </div>
     </div>
 
@@ -53,13 +53,13 @@
         <span class="rank-title">个人排行</span>
         <span class="rank-count">{{ personalList.length }}人</span>
       </div>
-      <el-table :data="pagedPersonal" stripe style="width:100%" size="small" empty-text="本周期暂无个人积分记录，可在「积分录入」提交评分">
+      <el-table :data="pagedPersonal" stripe style="width:100%" size="small" empty-text="本周期暂无个人学分记录，可在「学分录入」提交评分">
         <el-table-column label="排名" min-width="60" align="center">
           <template #default="{ row }"><span class="rank-num">{{ row.rank }}</span></template>
         </el-table-column>
         <el-table-column prop="realName" label="姓名" min-width="120" />
         <el-table-column prop="officeName" label="办事处" min-width="100" />
-        <el-table-column label="总积分" min-width="100" align="right" header-align="right">
+        <el-table-column label="总学分" min-width="100" align="right" header-align="right">
           <template #default="{ row }"><strong>{{ row.totalScore }}分</strong></template>
         </el-table-column>
         <el-table-column label="文件数" min-width="80" align="right" header-align="right">
@@ -83,44 +83,49 @@
       <div class="rank-header">
         <span class="rank-title">部门排行</span>
       </div>
-      <el-table :data="pagedDept" stripe style="width:100%" size="small" empty-text="本周期暂无部门积分记录，可在「积分录入」提交评分">
+      <el-table :data="pagedDept" stripe style="width:100%" size="small" empty-text="本周期暂无部门学分记录，可在「学分录入」提交评分">
         <el-table-column label="排名" min-width="60" align="center">
           <template #default="{ row }"><span class="rank-num">{{ row.rank }}</span></template>
         </el-table-column>
         <el-table-column prop="deptName" label="部门" min-width="140" />
-        <el-table-column label="总积分" min-width="100" align="right" header-align="right">
+        <el-table-column label="总学分" min-width="100" align="right" header-align="right">
           <template #default="{ row }"><strong>{{ row.totalScore }}分</strong></template>
         </el-table-column>
         <el-table-column label="参与人数" min-width="100" align="right" header-align="right">
           <template #default="{ row }">{{ row.participantCount }}人</template>
         </el-table-column>
-        <el-table-column label="人均积分" min-width="100" align="right" header-align="right">
+        <el-table-column label="人均学分" min-width="100" align="right" header-align="right">
           <template #default="{ row }">{{ row.avgScore }}分</template>
         </el-table-column>
       </el-table>
       <el-pagination v-if="deptList.length > pageSize" v-model:current-page="pageNum" :page-size="pageSize" :total="deptList.length" :page-sizes="pageSizes(pageSize)" layout="sizes, prev, pager, next, jumper" size="small" background @size-change="onSizeChange" style="justify-content:flex-end;margin-top:12px" />
     </div>
 
-    <el-dialog v-model="showRules" title="积分规则" width="500px">
+    <el-dialog v-model="showRules" title="学分规则" width="500px">
       <p>1. 每半年对所有同事进行产品知识评分</p>
       <p>2. 每项评分不超出该行设定的区间范围</p>
-      <p>3. 总积分 = 所有评分项得分之和</p>
-      <p>4. 排名按总积分降序，同分按评分项数降序</p>
+      <p>3. 总学分 = 所有评分项得分之和</p>
+      <p>4. 排名按总学分降序，同分按评分项数降序</p>
     </el-dialog>
   </div>
 </template>
 
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import { getScoreRanking, getScoreRankingStats } from '@/api/score'
-import { buildPeriodOptions, defaultRecordPeriod } from '@/utils/incentive-period'
+import { buildPeriodOptions, currentHalfPeriod } from '@/utils/incentive-period'
 import { pageSizes } from '@/utils/pagination'
 
 const activeTab = ref('personal')
 // 【2026-09-12】选项统一含「全年」（库内得分数据是 2026全年）；得分接口按周期等值过滤，
-// 不支持"全部"，故这里去掉「全部」选项，并把默认周期设为当年「全年」（原来默认空串 ⇒ 必然 0 条）。
+// 不支持"全部"，故这里去掉「全部」选项。
+// 【2026-11-01 及时更新】默认周期从「全年」改为当前半年(与 /score/entry 录入口径一致)——
+// 学分录入只写半年周期, 原默认「全年」导致新录学分在排行默认视图不可见(生产实证: 26条在全年,
+// 新录3条落下半年); 支持 ?period= 预选(录入页"查看排行"带当前周期直达)。
+const route = useRoute()
 const periodOptions = buildPeriodOptions().filter((option) => option.value)
-const selectedPeriod = ref(defaultRecordPeriod())
+const selectedPeriod = ref(String(route.query.period || '') || currentHalfPeriod())
 const personalList = ref([])
 const deptList = ref([])
 const stats = ref({})

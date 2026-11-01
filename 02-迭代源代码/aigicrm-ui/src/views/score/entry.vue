@@ -3,7 +3,7 @@
     <!-- 头部 -->
     <div class="se-head">
       <div class="se-head-left">
-        <h2>积分录入</h2>
+        <h2>学分录入</h2>
         <div class="se-period">
           <el-select v-model="year" class="se-year">
             <el-option v-for="y in yearOptions" :key="y" :label="y" :value="y" />
@@ -18,6 +18,8 @@
         <template v-if="isAdmin">
           <span class="se-hint">输入 0-{{ maxRange }} 分</span>
           <el-button type="primary" @click="handleSave" :loading="saving">保存</el-button>
+          <!-- 【2026-11-01 及时更新】保存后带当前周期直达排行(排行默认周期已与录入对齐) -->
+          <el-button @click="goRanking">查看排行</el-button>
           <el-button @click="handleExport">导出</el-button>
         </template>
         <el-tag v-else type="info">只读</el-tag>
@@ -113,6 +115,7 @@
 
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
+import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { confirmAction } from '@/utils/confirm'
 import { Plus, Delete } from '@element-plus/icons-vue'
@@ -159,7 +162,10 @@ const getUserTotal = (userId) => { let s=0; for(const item of items.value) s+=sc
 
 // 保存失败由拦截器统一提示具体原因，本地不再弹笼统"保存失败"造成双重提示；
 // 【C12 2026-10-08 二轮】失败分支显式留痕(console.error)，避免静默失败被误读为保存成功
-const handleSave = async () => { saving.value=true; try { const entries=[]; for(const item of items.value) for(const u of visibleUsers.value) { const s=scores.value[item.id+'_'+u.id]; if(s!==undefined&&s!==''&&s!==null) entries.push({itemId:item.id,userId:u.id,score:s}) }; await batchSaveEntries({period:period.value,entries,participantIds:visibleUsers.value.map(u=>u.id)}); ElMessage.success('保存成功') } catch(e){ console.error('积分保存失败', e) }; saving.value=false }
+const handleSave = async () => { saving.value=true; try { const entries=[]; for(const item of items.value) for(const u of visibleUsers.value) { const s=scores.value[item.id+'_'+u.id]; if(s!==undefined&&s!==''&&s!==null) entries.push({itemId:item.id,userId:u.id,score:s}) }; await batchSaveEntries({period:period.value,entries,participantIds:visibleUsers.value.map(u=>u.id)}); ElMessage.success('保存成功') } catch(e){ console.error('学分保存失败', e) }; saving.value=false }
+// 【2026-11-01 及时更新】带当前录入周期跳排行, 保证"录完即看"周期必对齐
+const router = useRouter()
+const goRanking = () => router.push({ path: '/score/ranking', query: { period: period.value } })
 const handleAddRow = async () => { try { const r=await addScoreItem({category:'',product:'',scoreMin:0,scoreMax:5}); if(r.data) items.value.push(r.data); ElMessage.success('已添加') } catch{} }
 // 删除行：确认框取消 → 直接返回不动数据；接口失败 → 拦截器已提示，本地不再叠加（行不删除）
 const handleDeleteRow = async (item, idx) => {
@@ -176,7 +182,7 @@ const handleExport = async () => {
   await refreshDownloadToken()
   const t = getDownloadToken() || ''
   const url = `/api/score/export/grid?period=${encodeURIComponent(period.value)}${t ? '&token=' + encodeURIComponent(t) : ''}`
-  await downloadFile(url, { name: '积分统计-' + (period.value || '') + '.xlsx' })
+  await downloadFile(url, { name: '学分统计-' + (period.value || '') + '.xlsx' })
 }
 
 watch(period, loadGrid)

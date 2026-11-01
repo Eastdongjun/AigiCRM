@@ -26,7 +26,7 @@ const permModules = computed(() => {
     { name: '公海管理', items: [] },
     { name: '审批管理', items: [] },
     { name: '统计分析', items: [] },
-    { name: '积分管理', items: [] },
+    { name: '学分管理', items: [] },
     { name: '核心客户指标', items: [] },
     { name: '任务管理', items: [] },
     { name: '系统管理', items: [] },
@@ -34,7 +34,7 @@ const permModules = computed(() => {
   const labelMap = {
     'dashboard': '工作台', 'customer': '客户管理', 'file': '文件管理', 'incentive': '四项服务',
     'reminder': '提醒管理', 'sea': '公海管理', 'approval': '审批管理', 'statistics': '统计分析',
-    'score': '积分管理', 'indicator': '核心客户指标', 'task': '任务管理', 'system': '系统管理',
+    'score': '学分管理', 'indicator': '核心客户指标', 'task': '任务管理', 'system': '系统管理',
   }
   const flatten = (nodes) => {
     for (const n of nodes) {

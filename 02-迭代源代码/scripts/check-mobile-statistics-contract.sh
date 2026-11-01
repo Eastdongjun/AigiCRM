@@ -69,7 +69,7 @@ grep -q "月度新增客户" "$ROOT/aigicrm-miniprogram/pages/statistics/index.w
 grep -q "月度文件上传" "$ROOT/aigicrm-miniprogram/pages/statistics/index.wxml" || { echo "FAIL: statistics overview has no monthly file trend" >&2; exit 1; }
 grep -q "客户状态分布" "$ROOT/aigicrm-miniprogram/pages/statistics/index.wxml" || { echo "FAIL: statistics overview has no customer status distribution" >&2; exit 1; }
 grep -q "行业分布" "$ROOT/aigicrm-miniprogram/pages/statistics/index.wxml" || { echo "FAIL: statistics overview has no PC industry distribution" >&2; exit 1; }
-grep -q "人员积分 Top5" "$ROOT/aigicrm-miniprogram/pages/statistics/index.wxml" || { echo "FAIL: statistics overview has no PC score top5" >&2; exit 1; }
+grep -q "人员学分 Top5" "$ROOT/aigicrm-miniprogram/pages/statistics/index.wxml" || { echo "FAIL: statistics overview has no PC score top5" >&2; exit 1; }
 grep -q "办事处对比" "$ROOT/aigicrm-miniprogram/pages/statistics/index.wxml" || { echo "FAIL: statistics overview has no office comparison panel" >&2; exit 1; }
 grep -q 'statsView.customerAsset.protectionWidth' "$ROOT/aigicrm-miniprogram/pages/statistics/index.wxml" || { echo "FAIL: statistics overview protection progress is not bound to normalized data" >&2; exit 1; }
 grep -q 'statsView.riskTiles' "$ROOT/aigicrm-miniprogram/pages/statistics/index.wxml" || { echo "FAIL: statistics overview risk radar does not use normalized tiles" >&2; exit 1; }

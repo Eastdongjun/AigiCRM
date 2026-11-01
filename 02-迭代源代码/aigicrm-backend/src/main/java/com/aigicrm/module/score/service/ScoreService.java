@@ -46,7 +46,7 @@ public class ScoreService {
         return scopeResolver.resolveModuleUsersWithinGroup(SecurityUtils.getCurrentUser(), "score");
     }
 
-    // ====== 积分项 CRUD ======
+    // ====== 学分项 CRUD(2026-11-01 模块更名: 积分→学分, 仅文案; 权限码/表/接口不动) ======
 
     public List<BizScoreItem> listItems() {
         LambdaQueryWrapper<BizScoreItem> w = new LambdaQueryWrapper<>();
@@ -69,7 +69,7 @@ public class ScoreService {
     }
 
     public void deleteItem(Long id) {
-        // 【体检 P1 2026-10-12】级联删除该积分项的全部评分明细: 前端确认弹窗承诺"所有周期数据
+        // 【体检 P1 2026-10-12】级联删除该学分项的全部评分明细: 前端确认弹窗承诺"所有周期数据
         // 一并删除", 此前只删 item 行——孤儿 entry 继续进排行(幽灵分数), 且仅当他人再保存同周期
         // 才被顺带清扫; 无 FK 无级联(DDL), 须业务层显式删
         entryMapper.delete(new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<com.aigicrm.module.score.entity.BizScoreEntry>()
@@ -185,11 +185,11 @@ public class ScoreService {
             }
             BizScoreItem chkItem = itemMap.get(chkItemId);
             if (chkItem == null) {
-                throw new BusinessException("积分项不存在: " + chkItemId);
+                throw new BusinessException("学分项不存在: " + chkItemId);
             }
             Integer v = chk.getValue();
             if (v < chkItem.getScoreMin() || v > chkItem.getScoreMax()) {
-                throw new BusinessException("分数超出积分项范围: " + chkItem.getCategory() + "/" + chkItem.getProduct()
+                throw new BusinessException("分数超出学分项范围: " + chkItem.getCategory() + "/" + chkItem.getProduct()
                         + " 允许 " + chkItem.getScoreMin() + "~" + chkItem.getScoreMax() + ", 实得 " + v);
             }
         }
@@ -377,9 +377,10 @@ public class ScoreService {
         stats.put("topScore", topScore);
         stats.put("topScoreName", topName);
         stats.put("totalItemCount", totalItems);
-        // 最高积分者的项数
+        // 最高学分者的项数
         if (!personal.isEmpty()) {
-            stats.put("topItemCount", personal.get(0).getOrDefault("itemCount", 0));
+            // 【2026-11-01 学分改名】导出文件名与"最高学分者"注释同步更名
+        stats.put("topItemCount", personal.get(0).getOrDefault("itemCount", 0));
         }
         return stats;
     }
@@ -449,7 +450,7 @@ public class ScoreService {
         rows.add(totalRow);
 
         // 写出
-        String fileName = URLEncoder.encode(period + "积分录入.xlsx", StandardCharsets.UTF_8);
+        String fileName = URLEncoder.encode(period + "学分录入.xlsx", StandardCharsets.UTF_8);
         response.setContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
         response.setHeader("Content-Disposition", "attachment;filename=" + fileName);
         EasyExcel.write(response.getOutputStream())

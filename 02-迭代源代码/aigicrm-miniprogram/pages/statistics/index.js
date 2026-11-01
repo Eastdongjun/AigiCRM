@@ -325,7 +325,7 @@ Page({
       }),
       canScore
         ? getScoreRanking({ type: 'personal' }).catch((error) => {
-            showErrorWithRetry(error, '积分排行加载失败', () => this.loadStats())
+            showErrorWithRetry(error, '学分排行加载失败', () => this.loadStats())
             return []
           })
         : Promise.resolve([])

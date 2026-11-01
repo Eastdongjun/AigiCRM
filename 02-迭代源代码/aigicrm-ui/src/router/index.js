@@ -104,7 +104,7 @@ const routes = [
         path: 'incentive/ranking',
         name: 'LegacyIncentiveRanking',
         component: () => import('@/views/score/ranking.vue'),
-        meta: { title: '积分排行', parentTitle: '考核与分析', activeMenu: '/score/ranking', icon: 'Medal', permission: 'score:view' }
+        meta: { title: '学分排行', parentTitle: '考核与分析', activeMenu: '/score/ranking', icon: 'Medal', permission: 'score:view' }
       },
       // 提醒管理
       {
@@ -160,13 +160,13 @@ const routes = [
         path: 'score/entry',
         name: 'ScoreEntry',
         component: () => import('@/views/score/entry.vue'),
-        meta: { title: '积分录入', parentTitle: '考核与分析', icon: 'Edit', permission: 'score:entry' }
+        meta: { title: '学分录入', parentTitle: '考核与分析', icon: 'Edit', permission: 'score:entry' }
       },
       {
         path: 'score/ranking',
         name: 'ScoreRanking',
         component: () => import('@/views/score/ranking.vue'),
-        meta: { title: '积分排行', parentTitle: '考核与分析', icon: 'Medal', permission: 'score:view' }
+        meta: { title: '学分排行', parentTitle: '考核与分析', icon: 'Medal', permission: 'score:view' }
       },
       {
         path: 'ranking/customer',

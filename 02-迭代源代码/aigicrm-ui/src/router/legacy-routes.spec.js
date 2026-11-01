@@ -12,6 +12,13 @@ describe('legacy menu route compatibility', () => {
     expect(source).toContain("permission: 'score:view'")
   })
 
+  // 【2026-11-01 学分改名】score 模块路由标题统一学名分(菜单名随 V2026.11.01.1 迁移)
+  it('titles score routes with 学分 wording after the credit rename', () => {
+    expect(source).toContain("title: '学分录入'")
+    expect(source).toContain("title: '学分排行'")
+    expect(source).not.toContain("title: '积分")
+  })
+
   it('keeps system dept organization route and legacy department menu path aligned', () => {
     expect(source).toContain("path: 'system/org'")
     expect(source).toContain("name: 'DeptManage'")
