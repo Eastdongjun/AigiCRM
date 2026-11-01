@@ -33,14 +33,9 @@ export function periodQueryValue(value) {
   return value ? value : undefined
 }
 
-/** 写入口的周期兜底：界面选的是"全部"时，按当前年份的「全年」落库。 */
+/** 写入口的周期兜底：界面选的是"全部"时，按当前年份的「全年」落库。
+ *  学分模块(score)自 2026-11-01 起录入与排行均只认「全年」。 */
 export function defaultRecordPeriod(now = new Date()) {
   return `${now.getFullYear()}全年`
-}
-
-/** 学分模块的"当前半年"周期(2026-11-01): 与 /score/entry 的年+半年选择器同语义(1-6月=上半年)。
- *  学分录入只写半年周期, 学分排行默认也须落在本周期——原默认「全年」导致新录学分在默认视图不可见。 */
-export function currentHalfPeriod(now = new Date()) {
-  return `${now.getFullYear()}${now.getMonth() < 6 ? '上' : '下'}半年`
 }
 

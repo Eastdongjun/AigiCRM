@@ -8,10 +8,7 @@
           <el-select v-model="year" class="se-year">
             <el-option v-for="y in yearOptions" :key="y" :label="y" :value="y" />
           </el-select>
-          <div class="se-half">
-            <span :class="{on:half==='上'}" @click="half='上'">上半年</span>
-            <span :class="{on:half==='下'}" @click="half='下'">下半年</span>
-          </div>
+          <span class="se-year-suffix">全年</span>
         </div>
       </div>
       <div class="se-head-right">
@@ -101,7 +98,8 @@
             </tr>
             <tr class="se-total-row">
               <td class="col-idx"></td>
-              <td colspan="3"><strong>合计</strong></td>
+              <td colspan="2" class="col-prod se-total-label"><strong>合计</strong></td>
+              <td class="col-range"></td>
               <td class="col-op"></td>
               <td class="col-user" v-for="u in visibleUsers" :key="'t'+u.id"><strong>{{ getUserTotal(u.id) }}</strong></td>
               <td class="col-add-user"></td>
@@ -132,8 +130,8 @@ const isAdmin = computed(() => userStore.hasPermission('score:manage'))
 
 const currentYear = new Date().getFullYear()
 const year = ref(currentYear)
-const half = ref(new Date().getMonth() < 6 ? '上' : '下')
-const period = computed(() => `${year.value}${half.value}半年`)
+// 【2026-11-01 用户令】学分周期只留「全年」(原 上/下 半年切换退役; 存量半年数据由 V2026.11.01.2 并入全年)
+const period = computed(() => `${year.value}全年`)
 const yearOptions = computed(() => { const l=[]; for(let y=currentYear+1;y>=2024;y--)l.push(y);return l })
 
 const items = ref([]), userPool = ref([]), visibleUsers = ref([]), scores = ref({}), saving = ref(false)
@@ -195,11 +193,9 @@ onMounted(() => { loadDicts(); loadGrid() })
 .se-head { display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; flex-shrink:0 }
 .se-head-left { display:flex; align-items:center; gap:16px }
 .se-head-left h2 { font-size:20px; font-weight:700; color:#1f2329; margin:0 }
-.se-period { display:flex; align-items:center; gap:0; background:#f2f4f7; border-radius:8px; overflow:hidden }
-.se-year { width:80px } .se-year :deep(.el-input__wrapper) { box-shadow:none; background:transparent }
-.se-half { display:flex }
-.se-half span { padding:7px 14px; font-size:13px; cursor:pointer; color:#606266; transition:all .15s; border-radius: var(--radius-sm); margin:2px }
-.se-half span.on { background:#fff; color:var(--el-color-primary); font-weight:600; box-shadow:0 1px 3px rgba(0,0,0,.08) }
+.se-period { display:flex; align-items:center; gap:0; background:#f2f4f7; border-radius:8px; overflow:hidden; padding-right:12px }
+.se-year { width:90px } .se-year :deep(.el-input__wrapper) { box-shadow:none; background:transparent }
+.se-year-suffix { font-size:13px; font-weight:600; color:#4e5969; padding-left:6px }
 .se-head-right { display:flex; align-items:center; gap:10px }
 .se-hint { font-size:12px; color:var(--el-color-info) }
 
@@ -212,6 +208,19 @@ onMounted(() => { loadDicts(); loadGrid() })
 
 .col-idx { width:36px; color:var(--el-color-info) } .col-cat { min-width:110px; width:110px } .col-prod { min-width:200px; width:200px } .col-range { min-width:90px; width:90px }
 .col-op { width:44px } .col-user { min-width:72px; width:72px } .col-add-user { width:36px }
+
+/* 【2026-11-01 用户令: 最左侧栏冻结】同事列横向滚动时 #/大类/产品 三列钉在左侧;
+   单元格须不透明底色, 否则滚动内容从冻结列底下透出 */
+.se-table td.col-idx, .se-table th.col-idx { position:sticky; left:0; z-index:1; background:#fff }
+.se-table td.col-cat, .se-table th.col-cat { position:sticky; left:36px; z-index:1; background:#fff }
+.se-table td.col-prod, .se-table th.col-prod { position:sticky; left:146px; z-index:1; background:#fff; box-shadow:4px 0 8px rgba(31,35,41,.06) }
+/* 表头本身已 sticky top(z2); 冻结列在表头内要更高一层(z3), 否则横向滚动时内容穿过表头 */
+.se-table thead th.col-idx, .se-table thead th.col-cat, .se-table thead th.col-prod { z-index:3 }
+/* 行悬停/合计行底色需盖过冻结列白底(规则在后, 同特异性后者胜) */
+.se-data-row:hover td.col-idx, .se-data-row:hover td.col-cat, .se-data-row:hover td.col-prod { background:#fafbfc }
+.se-total-row td.col-idx, .se-total-row td.col-cat { background:#f5f7fa }
+/* 合计行"合计"格横跨 大类+产品 两冻结列, 粘左偏移取大类列起点 */
+.se-total-row td.se-total-label { left:36px; background:#f5f7fa; text-align:left; padding-left:12px }
 
 .se-th-group th { background:#f2f4f7; font-size:13px; font-weight:600; color:#1f2329; padding:10px 6px }
 .se-th-label { font-size:13px; font-weight:600 }

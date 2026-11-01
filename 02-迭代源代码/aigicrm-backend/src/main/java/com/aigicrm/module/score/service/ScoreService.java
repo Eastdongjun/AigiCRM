@@ -490,9 +490,12 @@ public class ScoreService {
     private String getPrevPeriod(String period) {
         if (period == null || period.isEmpty() || "全部".equals(period)) return null;
         try {
-            // "2026上半年" → year=2026, half=上
+            // "2026全年" → year=2026; 半年口径已退役(V2026.11.01.2 存量并入全年), 全年的上一期=上年全年
             String yearStr = period.substring(0, 4);
             int year = Integer.parseInt(yearStr);
+            if (period.contains("全年")) {
+                return (year - 1) + "全年";
+            }
             if (period.contains("上")) {
                 return (year - 1) + "下半年";
             } else {

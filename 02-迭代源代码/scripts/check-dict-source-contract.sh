@@ -100,19 +100,23 @@ reject_regex "const devTypes\s*=\s*\[" "$UI/views/incentive/search.vue" "开发�
 # PC 上传 composable: 孙级节点禁止再被当记录分类消费(产品目录派生在 product-catalog.js 内部, 不受此钉)
 reject_regex "grandchildren" "$UI/composables/useIncentiveUpload.js" "PC又把孙级当记录分类(第三级只属于产品目录)"
 
-echo "=== [术语钉·学分改名 2026-11-01] score 模块统一学名分(菜单/页面/导出), 排行默认周期=当前半年 ==="
+echo "=== [术语钉·学分改名 2026-11-01] score 模块统一学名分(菜单/页面/导出), 周期只留全年+左列冻结 ==="
 require_contains "学分录入" "$UI/views/score/entry.vue" "PC学分录入页未更名"
 require_contains "查看排行" "$UI/views/score/entry.vue" "PC录入页缺查看排行直达入口"
+require_contains 'year.value}全年' "$UI/views/score/entry.vue" "录入周期未收敛为全年"
+require_contains "position:sticky" "$UI/views/score/entry.vue" "录入表缺左列冻结"
 require_contains "学分排行" "$UI/views/score/ranking.vue" "PC学分排行页未更名"
-require_contains "currentHalfPeriod" "$UI/views/score/ranking.vue" "排行默认周期未与录入对齐(当前半年)"
+require_contains "option.label.endsWith('全年')" "$UI/views/score/ranking.vue" "排行周期选项未收敛为全年"
 require_contains "route.query.period" "$UI/views/score/ranking.vue" "排行缺 ?period= 预选支持"
 require_contains "'学分排行'" "$UI/router/index.js" "路由标题未更名"
 require_contains "学分管理" "$UI/composables/usePermissionData.js" "权限分组未更名"
 require_contains "人员学分 Top5" "$MP/pages/statistics/index.wxml" "MP统计页Top5未更名"
 require_contains "学分录入.xlsx" "$BE/com/aigicrm/module/score/service/ScoreService.java" "后端导出文件名未更名"
-# 防复活: score 模块源文件不得再出现旧称"积分"(历史注释除外——只盯用户可见文案位)
+# 防复活: score 模块旧称与已退役的半年口径禁止回潮(历史注释行文避开 上半年/下半年 字样)
 ! grep -Fq '积分录入' "$UI/views/score/entry.vue" || fail "score 页面积分旧称回潮(entry)"
 ! grep -Fq '积分排行' "$UI/views/score/ranking.vue" || fail "score 页面积分旧称回潮(ranking)"
 ! grep -Fq '人员积分' "$MP/pages/statistics/index.wxml" || fail "MP统计页积分旧称回潮"
+! grep -Eq '上半年|下半年' "$UI/views/score/entry.vue" || fail "学分录入半年口径回潮(应只留全年)"
+! grep -Eq '上半年|下半年' "$UI/views/score/ranking.vue" || fail "学分排行半年口径回潮(应只留全年)"
 
 echo 'PASS: 字典来源契约通过(清单对账+接线钉+防复活钉)。'

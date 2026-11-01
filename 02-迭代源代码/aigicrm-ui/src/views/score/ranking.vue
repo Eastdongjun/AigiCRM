@@ -114,18 +114,15 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { getScoreRanking, getScoreRankingStats } from '@/api/score'
-import { buildPeriodOptions, currentHalfPeriod } from '@/utils/incentive-period'
+import { buildPeriodOptions, defaultRecordPeriod } from '@/utils/incentive-period'
 import { pageSizes } from '@/utils/pagination'
 
 const activeTab = ref('personal')
-// 【2026-09-12】选项统一含「全年」（库内得分数据是 2026全年）；得分接口按周期等值过滤，
-// 不支持"全部"，故这里去掉「全部」选项。
-// 【2026-11-01 及时更新】默认周期从「全年」改为当前半年(与 /score/entry 录入口径一致)——
-// 学分录入只写半年周期, 原默认「全年」导致新录学分在排行默认视图不可见(生产实证: 26条在全年,
-// 新录3条落下半年); 支持 ?period= 预选(录入页"查看排行"带当前周期直达)。
+// 【2026-11-01 用户令】学分周期只留「全年」(半年选项退役, 存量已由 V2026.11.01.2 并入全年);
+// 录入与排行同写同显全年, "录完即看"天然对齐; ?period= 预选保留(录入页"查看排行"直达)。
 const route = useRoute()
-const periodOptions = buildPeriodOptions().filter((option) => option.value)
-const selectedPeriod = ref(String(route.query.period || '') || currentHalfPeriod())
+const periodOptions = buildPeriodOptions().filter((option) => option.value && option.label.endsWith('全年'))
+const selectedPeriod = ref(String(route.query.period || '') || defaultRecordPeriod())
 const personalList = ref([])
 const deptList = ref([])
 const stats = ref({})
