@@ -103,6 +103,7 @@ reject_regex "grandchildren" "$UI/composables/useIncentiveUpload.js" "PC又把�
 echo "=== [术语钉·学分改名 2026-11-01] score 模块统一学名分(菜单/页面/导出), 周期只留全年+左列冻结 ==="
 require_contains "学分录入" "$UI/views/score/entry.vue" "PC学分录入页未更名"
 require_contains "查看排行" "$UI/views/score/entry.vue" "PC录入页缺查看排行直达入口"
+require_contains "goRanking()" "$UI/views/score/entry.vue" "保存成功后未自动跳转排行(录入后直接显示排行)"
 require_contains 'year.value}全年' "$UI/views/score/entry.vue" "录入周期未收敛为全年"
 require_contains "position:sticky" "$UI/views/score/entry.vue" "录入表缺左列冻结"
 require_contains "学分排行" "$UI/views/score/ranking.vue" "PC学分排行页未更名"

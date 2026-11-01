@@ -158,9 +158,8 @@ const getScore = (itemId, userId) => scores.value[itemId+'_'+userId] ?? ''
 const setScore = (itemId, userId, event) => { const v=parseInt(event.target.value)||0; const item=items.value.find(i=>i.id===itemId); const mx=item?.scoreMax||5; const mn=item?.scoreMin||0; event.target.value=Math.max(mn,Math.min(mx,v)); scores.value[itemId+'_'+userId]=Math.max(mn,Math.min(mx,v)) }
 const getUserTotal = (userId) => { let s=0; for(const item of items.value) s+=scores.value[item.id+'_'+userId]||0; return s }
 
-// 保存失败由拦截器统一提示具体原因，本地不再弹笼统"保存失败"造成双重提示；
-// 【C12 2026-10-08 二轮】失败分支显式留痕(console.error)，避免静默失败被误读为保存成功
-const handleSave = async () => { saving.value=true; try { const entries=[]; for(const item of items.value) for(const u of visibleUsers.value) { const s=scores.value[item.id+'_'+u.id]; if(s!==undefined&&s!==''&&s!==null) entries.push({itemId:item.id,userId:u.id,score:s}) }; await batchSaveEntries({period:period.value,entries,participantIds:visibleUsers.value.map(u=>u.id)}); ElMessage.success('保存成功') } catch(e){ console.error('学分保存失败', e) }; saving.value=false }
+// 【2026-11-01 用户令: 录入后直接显示排行】保存成功即带当前周期跳转排行页, 打开就是刚录的结果
+const handleSave = async () => { saving.value=true; try { const entries=[]; for(const item of items.value) for(const u of visibleUsers.value) { const s=scores.value[item.id+'_'+u.id]; if(s!==undefined&&s!==''&&s!==null) entries.push({itemId:item.id,userId:u.id,score:s}) }; await batchSaveEntries({period:period.value,entries,participantIds:visibleUsers.value.map(u=>u.id)}); ElMessage.success('保存成功'); goRanking() } catch(e){ console.error('学分保存失败', e) }; saving.value=false }
 // 【2026-11-01 及时更新】带当前录入周期跳排行, 保证"录完即看"周期必对齐
 const router = useRouter()
 const goRanking = () => router.push({ path: '/score/ranking', query: { period: period.value } })
