@@ -53,6 +53,13 @@ assert_contains "$FILE_SLOT_PAGER" "pager-count"
 assert_contains "$FILE_SLOT_PAGER" "handleRemoveSlotFile(slotKey, idx)"
 # 弹窗内不得再出现整排平铺卡片(该形态已收敛进 FileSlotPager 单卡轮播)
 grep -Fq 'class="file-card has"' "$UPLOAD_DIALOG" && fail "上传弹窗平铺文件卡回潮(应统一走 FileSlotPager 单卡翻页)"
+# 【2026-11-01 用户令: 上传了就更新】激励排行缓存写穿失效: 五个写口(增/改/删/移文件/全量重算)
+# 落库即清排行缓存, 下次查询现算——写后必即时, 读重负载仍有30s兜底
+INCENTIVE_SERVICE="$ROOT/aigicrm-backend/src/main/java/com/aigicrm/module/incentive/service/IncentiveService.java"
+assert_file "$INCENTIVE_SERVICE"
+assert_contains "$INCENTIVE_SERVICE" "private void evictScoreboardCache()"
+EVICT_CALLS=$(grep -c "evictScoreboardCache();" "$INCENTIVE_SERVICE")
+[ "$EVICT_CALLS" -ge 5 ] || fail "激励排行写穿失效调用点不足(应≥5: add/update/delete/removeFile/recalcAll), 实际 $EVICT_CALLS"
 
 # 【2026-10-29 左面板联动+筛选扩展】点左侧子分类=右侧表格按记录 categoryId 过滤(记录挂二级,数值归一);
 # 筛选栏新增行业(字典)/时间范围(闭区间,前10位字典序); 切大类Tab自动清选中防跨大类串数据

@@ -372,6 +372,7 @@ public class IncentiveService {
     public void deleteRecord(Long id) {
         jdbc.update("DELETE FROM biz_incentive_read WHERE record_id = ?", id);
         recordMapper.deleteById(id);
+        evictScoreboardCache();
     }
 
     /**
@@ -461,6 +462,7 @@ public class IncentiveService {
         existing.setScore(calcScore(existing, category, base));
 
         recordMapper.updateById(existing);
+        evictScoreboardCache();
     }
 
     /** 【六轮复检修复】槽位共享校验: 格式正则 + 长度上限, create/update 同口径 */
@@ -585,6 +587,7 @@ public class IncentiveService {
             default -> { /* unreachable */ }
         }
         recordMapper.update(null, uw);
+        evictScoreboardCache();
     }
 
     /** 批量重算所有历史记录的积分（按新规则） */
@@ -613,6 +616,7 @@ public class IncentiveService {
                 }
             }
         }
+        evictScoreboardCache();
         return changed;
     }
 
@@ -635,6 +639,7 @@ public class IncentiveService {
         incRecord.setScore(calcScore(incRecord, category, base));
         incRecord.setUserId(SecurityUtils.getCurrentUserId());
         recordMapper.insert(incRecord);
+        evictScoreboardCache();
     }
 
     /**
@@ -869,6 +874,16 @@ public class IncentiveService {
     private record ScoreboardCacheEntry(List<Map<String, Object>> value, long expireAt) {}
     private final java.util.concurrent.ConcurrentHashMap<String, ScoreboardCacheEntry> scoreboardCache =
             new java.util.concurrent.ConcurrentHashMap<>();
+
+    /**
+     * 【2026-11-01 用户令: 上传了就更新】激励排行缓存写穿失效: 记录 增/改/删/移文件/全量重算
+     * 五个写口的瞬间清空排行缓存, 下一次查询现算——读侧重负载仍有 30s 缓存兜底, 但写后必即时
+     * (清的是公司级少量键, 开销可忽略)。前端写后强制刷新机制(小程序 forceRefresh.incentive /
+     * PC 保存后重进页)配合此失效, 构成"上传完立刻见新排行"的完整链路。
+     */
+    private void evictScoreboardCache() {
+        scoreboardCache.clear();
+    }
 
     public List<Map<String, Object>> scoreboard(String period) {
         // 【C3 2026-10-08】缓存键补集团+身份两维:原键只有 period,而 biz_incentive_record 在租户白名单内——
