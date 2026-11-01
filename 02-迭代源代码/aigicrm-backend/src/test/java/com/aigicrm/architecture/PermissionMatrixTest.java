@@ -479,14 +479,27 @@ public class PermissionMatrixTest {
     @Test
     void folderAclEndpoints_requireFileAclManage() {
         Set<String> annotated = new TreeSet<>();
+        String permissionsAuthority = null;
         for (Method m : com.aigicrm.module.file.controller.FolderAclController.class.getDeclaredMethods()) {
             PreAuthorize pa = m.getAnnotation(PreAuthorize.class);
-            if (pa != null && extractAuthorityCodes(pa.value()).equals(Set.of("file:acl:manage"))) {
+            if (pa == null) {
+                continue;
+            }
+            if (extractAuthorityCodes(pa.value()).equals(Set.of("file:acl:manage"))) {
                 annotated.add(m.getName());
             }
+            if (m.getName().equals("permissions")) {
+                permissionsAuthority = pa.value();
+            }
         }
-        assertEquals(Set.of("listAcl", "saveAcl", "removeAcl", "setDownloadable", "permissions", "aclRoles"), annotated,
-                "FolderAclController 6 个端点必须全部携带 hasAuthority('file:acl:manage')");
+        // 2026-11-01 对齐设计（控制器注释为证）：ACL 写/读端点 5 个维持
+        // file:acl:manage；permissions 读端点刻意降为 file:view——非 admin 夹主/
+        // 上级链打开弹窗需要按 ACL 自身权限放行（前端按钮权限退化兜底），
+        // 降级只缩小要求不放大攻击面（原断言 6 端点全 acl:manage 已过时）。
+        assertEquals(Set.of("listAcl", "saveAcl", "removeAcl", "setDownloadable", "aclRoles"), annotated,
+                "FolderAclController ACL 管理 5 端点必须携带 hasAuthority('file:acl:manage')");
+        assertEquals("hasAuthority('file:view')", permissionsAuthority,
+                "permissions 读端点必须为 file:view（夹主弹窗放行设计，控制器注释为证）");
     }
 
     /** 文件删除是高风险动作：入口必须要求 file:delete，服务层仍必须保留文件夹级 P_DELETE 守卫。 */
