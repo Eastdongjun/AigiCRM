@@ -1,5 +1,5 @@
 <view class="page">
-  <view class="hero"><view class="row"><view><view class="hero-title">排行中心</view><view class="hero-sub">客户贡献与积分排行统一查看</view></view><button class="ghost-btn" bindtap="refresh" loading="{{rankingView.refreshLoading}}">{{rankingView.refreshText}}</button></view></view>
+  <view class="hero"><view class="row"><view><view class="hero-title">排行中心</view><view class="hero-sub">客户贡献与学分排行统一查看</view></view><button class="ghost-btn" bindtap="refresh" loading="{{rankingView.refreshLoading}}">{{rankingView.refreshText}}</button></view></view>
   <view class="summary-grid">
     <view wx:for="{{rankingView.summaryCards}}" wx:key="key" class="summary-cell"><text>{{item.valueText}}</text><text>{{item.label}}</text></view>
   </view>
@@ -16,7 +16,7 @@
     </view>
   </view>
   <view class="card score-top-card">{{rankingView.topScoreText}}</view>
-  <!-- 【2026-09-23 需求同步】四项服务个人排行(按人员统计, 与 PC 激励统计-个人排行同口径; 周期与积分排行联动) -->
+  <!-- 【2026-09-23 需求同步】四项服务个人排行(按人员统计, 与 PC 激励统计-个人排行同口径; 周期与学分排行联动) -->
   <view class="section-head">
     <view>
       <view class="section-title">激励个人排行</view>
@@ -40,7 +40,7 @@
   <view wx:if="{{!incentiveBoard.length}}" class="card muted">暂无激励个人排行数据</view>
   <view class="section-head">
     <view>
-      <view class="section-title">积分排行</view>
+      <view class="section-title">学分排行</view>
       <view class="section-sub">个人/部门排行使用评分周期，与 PC 端同一接口口径</view>
     </view>
     <picker mode="selector" range="{{periodOptions}}" range-key="label" value="{{periodIndex}}" bindchange="onPeriodChange">
@@ -63,10 +63,10 @@
     </view>
   </block>
   <pager wx:if="{{scoreTotal > 10}}" page="{{scorePage}}" pageSize="{{scorePageSize}}" total="{{scoreTotal}}" loading="{{rankingView.showLoading}}" bind:change="onScorePagerChange" />
-  <view wx:if="{{rankingView.showScoreEmpty}}" class="card muted">暂无积分排行数据</view>
+  <view wx:if="{{rankingView.showScoreEmpty}}" class="card muted">暂无学分排行数据</view>
   <view class="card score-rule-card">
-    <view>积分规则</view>
-    <text>总积分按周期内评分项汇总；同分优先比较文件数，文件数相同再按姓名排序。</text>
+    <view>学分规则</view>
+    <text>总学分按周期内评分项汇总；同分优先比较文件数，文件数相同再按姓名排序。</text>
   </view>
   <view class="section-head customer-section-head">
     <view>

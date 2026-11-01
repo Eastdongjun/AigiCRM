@@ -71,7 +71,7 @@
                 </el-select>
               </td>
               <td class="col-prod">
-                <el-select v-model="item.product" size="small" :disabled="!isAdmin" placeholder="选择产品">
+                <el-select v-model="item.product" size="small" :disabled="!isAdmin" placeholder="选择产品" @change="onProductChange(item)">
                   <!-- 2026-10-04 D14：产品下拉接线按大类联动过滤（原 getProductOptions 定义后从未接线） -->
                   <el-option v-for="p in getProductOptions(item.category)" :key="p.dictLabel" :label="p.dictLabel" :value="p.dictLabel" />
                 </el-select>
@@ -149,7 +149,11 @@ const getProductOptions = (catCode) => {
   const filtered = productOptions.value.filter(p => p.dictValue === catCode)
   return filtered.length ? filtered : productOptions.value
 }
-const onCategoryChange = (item) => { item.product = '' }
+// 【2026-11-01 审计修复】大类/产品改动即时落库(原仅区间落库, 改大类/产品刷新即回退);
+// 失败由拦截器提示, 本地不回滚展示值(下次加载以库为准)
+const persistItem = async (item, patch) => { if (!item.id) return; try { await updateScoreItem(item.id, patch) } catch {} }
+const onCategoryChange = (item) => { item.product = ''; persistItem(item, { category: item.category, product: '' }) }
+const onProductChange = (item) => { persistItem(item, { product: item.product }) }
 const onRangeChange = async (item, val) => { const p=val.split('-'); item.scoreMin=parseInt(p[0])||0; item.scoreMax=parseInt(p[1])||5; if(item.id) try{await updateScoreItem(item.id,{scoreMin:item.scoreMin,scoreMax:item.scoreMax})}catch{} }
 
 const loadGrid = async () => { try { const d=(await getScoreGrid(period.value)).data||{}; items.value=d.items||[]; userPool.value=d.pool||[]; visibleUsers.value=d.users||[]; scores.value=d.scores||{} } catch{} }

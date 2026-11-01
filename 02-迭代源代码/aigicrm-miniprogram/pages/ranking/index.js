@@ -8,19 +8,27 @@ const { paginate } = require('../../utils/paging')
 // 排行榜客户端分页默认页大小（<pager> 可选 10/30）
 const DEFAULT_PAGE_SIZE = 10
 
-function buildPeriodOptions() {
+// 【2026-11-01 审计修复】学分周期只留「全年」(与 PC 对齐, 存量半年已并入全年; 选半年必查0条);
+// 年份窗对齐 PC buildPeriodOptions(当前+1~-5)。客户排行仍用全周期选项(客户模块多周期口径)。
+function buildScorePeriodOptions() {
   const year = new Date().getFullYear()
   const periods = []
-  for (let current = year + 4; current >= year - 1; current -= 1) {
+  for (let current = year + 1; current >= year - 5; current -= 1) {
     periods.push({ label: `${current}全年`, value: `${current}全年` })
-    periods.push({ label: `${current}下半年`, value: `${current}下半年` })
-    periods.push({ label: `${current}上半年`, value: `${current}上半年` })
   }
   return periods
 }
 
 function buildCustomerPeriodOptions() {
-  return [{ label: '全部', value: '' }, ...buildPeriodOptions()]
+  const year = new Date().getFullYear()
+  // 客户排行保留多周期口径(含"全部"); 学分榜见 buildScorePeriodOptions(只留全年)
+  const opts = [{ label: '全部', value: '' }]
+  for (let current = year + 1; current >= year - 5; current -= 1) {
+    opts.push({ label: `${current}全年`, value: `${current}全年` })
+    opts.push({ label: `${current}下半年`, value: `${current}下半年` })
+    opts.push({ label: `${current}上半年`, value: `${current}上半年` })
+  }
+  return opts
 }
 
 function defaultRecordPeriod() {
@@ -31,7 +39,7 @@ function defaultPeriodIndex(periods) {
   return Math.max(0, periods.findIndex((item) => item.value === defaultRecordPeriod()))
 }
 
-const SCORE_PERIOD_OPTIONS = buildPeriodOptions()
+const SCORE_PERIOD_OPTIONS = buildScorePeriodOptions()
 const CUSTOMER_PERIOD_OPTIONS = buildCustomerPeriodOptions()
 
 function scoreListView(rows, activeTab, startIndex = 0) {
@@ -131,7 +139,7 @@ function buildSummaryCards(stats = {}) {
   return [
     { key: 'participantCount', label: '参与人数', valueText: String(stats.participantCount || 0) },
     { key: 'deptCount', label: '参与部门', valueText: String(stats.deptCount || 0) },
-    { key: 'topScore', label: '最高积分', valueText: String(stats.topScore || 0) },
+    { key: 'topScore', label: '最高学分', valueText: String(stats.topScore || 0) },
     { key: 'totalItemCount', label: '文件总数', valueText: String(stats.totalItemCount || 0) }
   ]
 }
@@ -154,13 +162,13 @@ function buildRankingView(data) {
     showLoading: loading,
     loadingText: '加载中...',
     summaryCards: buildSummaryCards(stats),
-    topScoreText: `最高积分：${stats.topScoreName || '-'} · ${stats.topScore || 0} 分 · ${stats.topItemCount || 0} 个文件`,
+    topScoreText: `最高学分：${stats.topScoreName || '-'} · ${stats.topScore || 0} 分 · ${stats.topItemCount || 0} 个文件`,
     scorePeriodText,
     customerPeriodText,
     contextSummary: `${scorePeriodText} · ${scoreTab.title || '个人排行'} · 客户${customerPeriodText}`,
     contextChips: [
       { label: '评分周期', value: scorePeriodText },
-      { label: '积分榜单', value: scoreTab.title || '个人排行' },
+      { label: '学分榜单', value: scoreTab.title || '个人排行' },
       { label: '客户周期', value: customerPeriodText },
       { label: '客户榜单', value: customerTab.title || '四项服务' }
     ],
@@ -241,7 +249,7 @@ Page({
     if (!requireLogin()) return
     // 【mp-3 2026-10-17】页面首个必发请求 /statistics/customer-rankings 后端只认 statistics:view；
     // 入口宫格也按 statistics:view 展示。此前页面放行 score:view/ranking:customer:view 会造成
-    // 有入口必有权限、有权限却无入口的误拦截/死链。积分榜区块仍单独按 score:view 门控。
+    // 有入口必有权限、有权限却无入口的误拦截/死链。学分榜区块仍单独按 score:view 门控。
     if (!getApp().globalData.demoMode && !hasPermission('statistics:view')) {
       wx.showToast({ title: '没有排行查看权限', icon: 'none' })
       wx.switchTab({ url: '/pages/home/index' })
@@ -372,7 +380,7 @@ Page({
     // 刷新/切换时间范围：两个榜单各自回到第 1 页（页大小保留用户选择）
     this.setRankingData({ loading: true, scorePage: 1, customerPage: 1, incentivePage: 1 })
     const period = this.currentPeriod()
-    // 【体检 P1 2026-10-12】按权限门控请求: 页面入口是三码 OR, 但积分榜三路要 score:view、
+    // 【体检 P1 2026-10-12】按权限门控请求: 页面入口是三码 OR, 但学分榜三路要 score:view、
     // 激励个人榜要 incentive:view——只持部分权限的角色此前每次进页必吃 4 条 403 弹错。
     // 无对应权限的区块直接置空(空态), 不再发起必败请求; demo 模式恒放开
     const demo = Boolean(getApp().globalData.demoMode)
@@ -382,19 +390,19 @@ Page({
       getCustomerRankings({ period: this.currentCustomerPeriodParam() }),
       canScore
         ? getScoreRanking({ period, type: 'personal' }).catch((error) => {
-            showError(error, '个人积分排行加载失败')
+            showError(error, '个人学分排行加载失败')
             return []
           })
         : Promise.resolve([]),
       canScore
         ? getScoreRanking({ period, type: 'dept' }).catch((error) => {
-            showError(error, '部门积分排行加载失败')
+            showError(error, '部门学分排行加载失败')
             return []
           })
         : Promise.resolve([]),
       canScore
         ? getRankingStats({ period }).catch((error) => {
-            showError(error, '积分统计加载失败')
+            showError(error, '学分统计加载失败')
             return {}
           })
         : Promise.resolve({}),

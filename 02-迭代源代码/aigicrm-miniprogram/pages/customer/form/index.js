@@ -184,6 +184,12 @@ Page({
       return Promise.resolve()
     }
     // 【PR-04】真实模式接口失败：报错并置空选项，保留用户已输入内容；不回退演示数据
+    // 【2026-11-01 审计修复】指标字典接线原写在下方 return 之后=不可达死代码, 前移到 return 之前
+    if (!getApp().globalData.demoMode) {
+      fetchIndicatorDictOptions(getDictData).then(() => {
+        this.setData({ indicatorItems: buildIndicatorItems(this.data.indicatorForm) })
+      })
+    }
     return Promise.all([
       getDepts().then((list) => this.applyDepts(list || [])).catch((error) => {
         showErrorWithRetry(error, '部门加载失败，请重试', () => this.loadOptions())
@@ -203,13 +209,6 @@ Page({
       }),
       getCustomerGroupNames().then((list) => this.setGroupOptions((list || []).filter(Boolean))).catch(() => this.setGroupOptions([]))
     ])
-    // 【2026-10-29 字典接线】指标 03~06 选项随 core_indicator_03..06 字典覆盖(shared 原地改 INDICATOR_ITEMS),
-    // 成功后按当前表单重建指标 picker; 失败静默保持静态表(编辑页表单稍后加载, 届时构建自然取到新选项)
-    if (!getApp().globalData.demoMode) {
-      fetchIndicatorDictOptions(getDictData).then(() => {
-        this.setData({ indicatorItems: buildIndicatorItems(this.data.indicatorForm) })
-      })
-    }
   },
 
   setGroupOptions(list) {

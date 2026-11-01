@@ -230,9 +230,16 @@ const roleClass = (role) => {
   return 'role-sale'
 }
 
-const categoryParentOptions = computed(() =>
-  categoryTree.value.map(c => ({ id: c.id, categoryName: c.categoryName }))
-)
+// 【2026-11-01 审计修复】上级选项=顶级+二级(第三级=产品小类, 挂二级下); 缩进区分层级
+const categoryParentOptions = computed(() => {
+  const opts = categoryTree.value.map(c => ({ id: c.id, categoryName: c.categoryName, depth: 0 }))
+  for (const c of categoryTree.value) {
+    for (const child of (c.children || [])) {
+      opts.push({ id: child.id, categoryName: `　${c.categoryName} / ${child.categoryName}`, depth: 1 })
+    }
+  }
+  return opts
+})
 
 const toggleCategory = (id) => {
   const s = new Set(collapsed.value)

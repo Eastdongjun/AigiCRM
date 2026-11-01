@@ -1002,14 +1002,18 @@ public class CustomerService {
 
     public long countInProtectionByScope() {
         LambdaQueryWrapper<BizCustomer> w = new LambdaQueryWrapper<>();
-        w.eq(BizCustomer::getDeleted, 0).eq(BizCustomer::getProtectionStatus, "active");
+        // 【2026-11-01 审计修复】排公海/归档——归档只改 status 不重置 protectionStatus, 不排则
+        // 工作台"在保护期/即将到期"与统计页同指标(已排)数字错位; 口径与同文件已超期统计对齐
+        w.eq(BizCustomer::getDeleted, 0).eq(BizCustomer::getProtectionStatus, "active")
+                .notIn(BizCustomer::getStatus, "sea", "archived");
         applyDataScope(w);
         return customerMapper.selectCount(w);
     }
 
     public long countExpiringByScope() {
         LambdaQueryWrapper<BizCustomer> w = new LambdaQueryWrapper<>();
-        w.eq(BizCustomer::getDeleted, 0).eq(BizCustomer::getProtectionStatus, "expiring");
+        w.eq(BizCustomer::getDeleted, 0).eq(BizCustomer::getProtectionStatus, "expiring")
+                .notIn(BizCustomer::getStatus, "sea", "archived");
         applyDataScope(w);
         return customerMapper.selectCount(w);
     }

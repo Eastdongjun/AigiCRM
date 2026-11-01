@@ -125,7 +125,8 @@ function buildIncentiveView(data) {
 // 【2026-10-29 字典接线】行业选项=系统字典 industry 优先(loadIndustryOptions 拉取覆盖 data.industries),
 // 本常量降级为字典缺行/接口失败兜底; 兜底已含字典现量「新行业」(原硬编码缺该项致筛不出)。
 const INDUSTRIES = ['全部行业', '冶金', '煤矿', '化工', '电力', '有色金属', '机械', '工程公司', '维修厂', '其他终端客户', '新行业']
-const DEV_TYPES = ['全部类型', '成熟创新', '突破开拓', '铺垫宣传']
+// 【2026-11-01 审计修复】兜底补第四类(新建改建扩建大修), 真实选项由 loadDevTypeOptions 字典覆盖
+const DEV_TYPES = ['全部类型', '成熟创新', '突破开拓', '铺垫宣传', '新建改建扩建大修']
 // 【2026-10-29 归树批】产品筛选选项=分类树"产品试点"分支派生(applyCategoryTree 里覆盖), 本常量降级为
 // 兜底; 兜底补上此前手抄漏掉的「其他」(与 PC 目录对齐——旧 MP 扁平清单只有 15 个小类)。
 const PRODUCT_OPTIONS = ['全部产品', '防腐', '加固', '钢结构', '煤气管道', '其他', '公共区', '装置区', '水泵', '渣泵', '介质泵', '静密封', '动密封', '橡胶密封', '润滑油', '润滑脂', '润滑剂']
@@ -272,6 +273,7 @@ Page({
     this._categoryChildrenByMain = null
     this.loadCategoryTree()
     this.loadIndustryOptions()
+    this.loadDevTypeOptions()
     this.ensureDlToken().then(() => {
       this.loadRecords()
     })
@@ -356,6 +358,22 @@ Page({
       const industries = ['全部行业', ...labels]
       const selectedIndustryIndex = Math.min(this.data.selectedIndustryIndex || 0, industries.length - 1)
       this.setData({ industries, selectedIndustryIndex }, () => this.refreshIncentiveView())
+    }).catch(() => {})
+  },
+
+  // 【2026-11-01 审计修复】开发类型选项=系统字典 dev_type(原硬编码3项缺"新建改建扩建大修",
+  // 第4类客户在本页筛不出; 与行业接线同模式)
+  loadDevTypeOptions() {
+    if (getApp().globalData.demoMode) return
+    getDictData('dev_type').then((rows) => {
+      const labels = (Array.isArray(rows) ? rows : [])
+        .filter((r) => r && r.status !== 0)
+        .map((r) => r && r.dictValue)
+        .filter(Boolean)
+      if (!labels.length) return
+      const devTypes = ['全部类型', ...labels]
+      const selectedDevTypeIndex = Math.min(this.data.selectedDevTypeIndex || 0, devTypes.length - 1)
+      this.setData({ devTypes, selectedDevTypeIndex }, () => this.refreshIncentiveView())
     }).catch(() => {})
   },
 

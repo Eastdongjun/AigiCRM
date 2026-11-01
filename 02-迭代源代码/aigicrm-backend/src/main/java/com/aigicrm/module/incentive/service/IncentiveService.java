@@ -257,9 +257,19 @@ public class IncentiveService {
             category.setParentId(0L);
             return;
         }
+        // 【2026-11-01 审计修复】放行三级(第三级=产品小类, 归树批后的既定结构, 唯一维护入口须可用);
+        // 仍拒绝四级: 父必须挂在顶级(父=顶级→本节点二级) 或 挂在二级(父=二级→本节点三级)
         BizIncentiveCategory parent = categoryMapper.selectById(parentId);
-        if (parent == null || (parent.getParentId() != null && parent.getParentId() != 0L)) {
-            throw new BusinessException("上级类别不存在或不允许三级嵌套，最多支持一级/二级");
+        if (parent == null) {
+            throw new BusinessException("上级类别不存在");
+        }
+        Long grandId = parent.getParentId();
+        if (grandId == null || grandId == 0L) {
+            return; // 父=顶级 → 本节点为二级
+        }
+        BizIncentiveCategory grand = categoryMapper.selectById(grandId);
+        if (grand == null || grand.getParentId() == null || grand.getParentId() != 0L) {
+            throw new BusinessException("最多支持三级（第三级为产品小类），不允许四级嵌套");
         }
     }
 

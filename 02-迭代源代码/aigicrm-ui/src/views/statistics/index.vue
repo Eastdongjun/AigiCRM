@@ -238,14 +238,14 @@
         </div>
 
         <div class="biz-col">
-          <div class="biz-title">人员积分 Top5</div>
+          <div class="biz-title">人员学分 Top5</div>
           <div v-for="(r, i) in scoreTop5" :key="i" class="top5-row">
             <span class="top5-rank" :class="'r'+(i+1)">{{ i+1 }}</span>
             <span class="top5-name">{{ r.realName }}</span>
             <div class="top5-track"><div class="top5-fill" :style="{ width: top5BarWidth(r.totalScore) + '%' }"></div></div>
             <strong class="top5-score">{{ r.totalScore }}</strong>
           </div>
-          <div v-if="!scoreTop5.length" class="biz-note">暂无积分数据</div>
+          <div v-if="!scoreTop5.length" class="biz-note">暂无学分数据</div>
         </div>
       </div>
     </div>

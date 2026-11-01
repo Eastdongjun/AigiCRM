@@ -40,7 +40,11 @@ public class FolderAclController {
     }
 
     @GetMapping("/{id}/permissions")
-    @PreAuthorize("hasAuthority('file:acl:manage')")
+    // 【2026-11-01 审计修复】行级按钮权限的读取端点: PC 文件中心每次点选文件夹都调它做
+    // 替换/删除/下载按钮显隐——原挂 file:acl:manage(仅 admin/05/0/06), 普通用户必 403 弹窗,
+    // 前端 catch 后按钮权限退化为默认全量。降为 file:view(与 folder 树内嵌 perms 同读权限);
+    // ACL 写端点(saveAcl/removeAcl/setDownloadable/listAcl/aclRoles)仍维持 file:acl:manage。
+    @PreAuthorize("hasAuthority('file:view')")
     public Result<Map<String, Object>> permissions(@PathVariable Long id) {
         return Result.ok(aclService.permissions(id, SecurityUtils.getCurrentUserId()));
     }
