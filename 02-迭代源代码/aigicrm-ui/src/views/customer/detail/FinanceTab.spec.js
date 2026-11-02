@@ -1,10 +1,12 @@
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
 import { ref, nextTick } from 'vue'
 import ElementPlus from 'element-plus'
 import FinanceTab from './FinanceTab.vue'
-// 【2026-11-01 审计修复】组件新增财务写门控(finance:manage∨edit∧view), 测试恒授权可写视角
-vi.mock('@/store/user', () => ({ useUserStore: () => ({ hasPermission: (code) => code === 'finance:manage' || code === 'customer:edit' || code === 'finance:view' }) }))
+// 【2026-11-01 审计修复】组件新增财务写门控(finance:manage∨edit∧view), 默认授权可写视角;
+// 【2026-11-02】改为可参数化权限集合(个别用例清空/收窄以验证无权视角), beforeEach 复位
+const mockPermCodes = new Set(['finance:manage', 'customer:edit', 'finance:view'])
+vi.mock('@/store/user', () => ({ useUserStore: () => ({ hasPermission: (code) => mockPermCodes.has(code) }) }))
 import { CustomerDetailKey } from '@/composables/useCustomerDetail'
 
 /**
@@ -62,6 +64,13 @@ async function settle(wrapper) {
 }
 
 describe('客户详情 FinanceTab 阶段总额制(2026-10-10)', () => {
+  beforeEach(() => {
+    mockPermCodes.clear()
+    mockPermCodes.add('finance:manage')
+    mockPermCodes.add('customer:edit')
+    mockPermCodes.add('finance:view')
+  })
+
   it('主体为阶段表: 周期/两金额/差额/更新人, 判定头展示基准年与年度金额', async () => {
     const { wrapper } = mountFinanceTab({
       stageRows: [stageRow(), stageRow({ id: 2, periodType: 'FY', periodLabel: '2026全年', invoiceAmount: 150, paymentAmount: 110 })],
@@ -78,7 +87,7 @@ describe('客户详情 FinanceTab 阶段总额制(2026-10-10)', () => {
     expect(text).toContain('40.00万')
   })
 
-  it('录入按钮存在且触发新建弹窗; readonly 下隐藏', async () => {
+  it('录入按钮存在且触发新建弹窗', async () => {
     const openStageDialog = vi.fn()
     const { wrapper } = mountFinanceTab({ handlers: { openStageDialog } })
     await settle(wrapper)
@@ -88,12 +97,27 @@ describe('客户详情 FinanceTab 阶段总额制(2026-10-10)', () => {
     expect(openStageDialog).toHaveBeenCalledWith(null)
   })
 
-  it('readonly(共享/公海只读)不显示录入与编辑操作', async () => {
+  // 【裁决 2026-11-02】readonly(公海/共享只读入口)不再锁财务写入口: 持财务写权者(行政/财务专责代录)
+  // 从只读入口进详情仍可录开票回款——与后端 2026-10-18 代录口径对齐。防"后端放、前端藏"回退。
+  it('readonly(共享/公海只读)下持财务写权仍显示录入与编辑', async () => {
     const { wrapper } = mountFinanceTab({ readonly: true, stageRows: [stageRow()] })
     await settle(wrapper)
     const text = wrapper.text()
-    expect(text).not.toContain('录入阶段数据')
-    expect(wrapper.findAll('button').every((b) => !b.text().includes('编辑'))).toBe(true)
+    expect(text).toContain('录入阶段数据')
+    expect(wrapper.findAll('button').some((b) => b.text().trim() === '编辑')).toBe(true)
+  })
+
+  // 防改过头: 无财务写权(只读访客/仅 finance:view)时, readonly 与正常态均不得出现写入口
+  it('无财务写权时 readonly 与正常态均不显示录入与编辑操作', async () => {
+    mockPermCodes.clear()
+    mockPermCodes.add('finance:view')
+    for (const readonly of [true, false]) {
+      const { wrapper } = mountFinanceTab({ readonly, stageRows: [stageRow()] })
+      await settle(wrapper)
+      const text = wrapper.text()
+      expect(text).not.toContain('+ 录入阶段数据')
+      expect(wrapper.findAll('button').every((b) => b.text().trim() !== '编辑')).toBe(true)
+    }
   })
 
   it('行内"编辑"按钮以行参触发 openStageDialog(编辑制 upsert 入口)', async () => {

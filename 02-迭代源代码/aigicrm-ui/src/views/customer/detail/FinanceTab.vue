@@ -11,7 +11,10 @@
             回款 <b class="red">{{ fmtWan(stageSummary.annualPaymentAmount) }}</b> 万
           </span>
           <el-tag size="small" :type="coreType === 'core' ? 'success' : coreType === 'quasi' ? 'warning' : 'info'" effect="dark">{{ coreTypeLabel }}</el-tag>
-          <el-button v-if="!readonly && canWriteFinance" size="small" type="primary" @click="openStageDialog(null)">+ 录入阶段数据</el-button>
+          <!-- 【裁决 2026-11-02】财务写入口不再被 readonly(公海/共享只读入口)锁定: 只读锁客户资料编辑,
+               不锁财务代录(行政/财务专责代非本人客户录开票回款)——与后端 2026-10-18 代录口径(finance:manage
+               放开对象归属)对齐, 此前"后端放、前端藏"两头不一致 -->
+          <el-button v-if="canWriteFinance" size="small" type="primary" @click="openStageDialog(null)">+ 录入阶段数据</el-button>
         </div>
       </div>
       <el-table :data="stageRows" stripe size="small" v-if="stageRows.length">
@@ -40,7 +43,7 @@
             <span class="upd-meta">{{ row.updatedByName || '—' }} · {{ fmtStamp(row.updatedAt) }}</span>
           </template>
         </el-table-column>
-        <el-table-column v-if="!readonly && canWriteFinance" label="操作" width="80" align="center">
+        <el-table-column v-if="canWriteFinance" label="操作" width="80" align="center">
           <template #default="{row}">
             <el-button link type="primary" size="small" @click="openStageDialog(row)">编辑</el-button>
           </template>
@@ -165,13 +168,15 @@ import { formatWan, dashIfEmpty } from '@/utils/format'
 import { FINANCE_LEDGER_STATUS, statusOf } from '@/utils/status-maps'
 
 const {
-  readonly, invoices, invoiceSummary, payments, paymentSummary,
+  invoices, invoiceSummary, payments, paymentSummary,
   stageSummary, showStageDialog, stageForm, openStageDialog, handleSaveStageAmount,
   coreType, coreTypeLabel,
 } = injectCustomerDetail()
 
 // 【2026-11-01 审计修复】财务写门控三处统一为后端口径: finance:manage ∨ (customer:edit ∧ finance:view)
 // (原仅判 readonly, 只持 finance:view 者可见可点、保存必 403; MP 端同批对齐)
+// 【裁决 2026-11-02】readonly(公海/共享只读入口)不再参与财务写门控——只读锁客户资料编辑不锁财务代录,
+// 与后端 2026-10-18 代录口径(finance:manage 放开对象归属)对齐; 组件不再消费 readonly。
 const userStore = useUserStore()
 const canWriteFinance = computed(() =>
   userStore.hasPermission('finance:manage')
