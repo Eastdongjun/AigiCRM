@@ -1096,6 +1096,9 @@ public class IncentiveService {
         if (product != null && !product.isBlank()) {
             wrapper.like(BizIncentiveRecord::getRelatedProducts, product);
         }
+        // 【2026-11-02 用户令: 深度检索】关键词命中扩到 备注(remark)+详情描述(preInstallQuestion),
+        // 原只命中 相关产品/具体产品/客户名; 可见性过滤(applyShareVisibility)在 wrapper 最前,
+        // 深度检索只在用户有权看的记录集合内进行
         if (keyword != null && !keyword.isBlank()) {
             if (customerName != null && !customerName.isBlank()) {
                 List<BizCustomer> matched = customerMapper.selectList(
@@ -1103,16 +1106,22 @@ public class IncentiveService {
                 );
                 if (matched.isEmpty()) {
                     wrapper.and(w -> w.like(BizIncentiveRecord::getRelatedProducts, keyword)
-                            .or().like(BizIncentiveRecord::getSpecificProduct, keyword));
+                            .or().like(BizIncentiveRecord::getSpecificProduct, keyword)
+                            .or().like(BizIncentiveRecord::getRemark, keyword)
+                            .or().like(BizIncentiveRecord::getPreInstallQuestion, keyword));
                 } else {
                     List<Long> cids = matched.stream().map(BizCustomer::getId).toList();
                     wrapper.and(w -> w.in(BizIncentiveRecord::getCustomerId, cids)
                         .or().like(BizIncentiveRecord::getRelatedProducts, keyword)
-                        .or().like(BizIncentiveRecord::getSpecificProduct, keyword));
+                        .or().like(BizIncentiveRecord::getSpecificProduct, keyword)
+                        .or().like(BizIncentiveRecord::getRemark, keyword)
+                        .or().like(BizIncentiveRecord::getPreInstallQuestion, keyword));
                 }
             } else {
                 wrapper.and(w -> w.like(BizIncentiveRecord::getRelatedProducts, keyword)
-                        .or().like(BizIncentiveRecord::getSpecificProduct, keyword));
+                        .or().like(BizIncentiveRecord::getSpecificProduct, keyword)
+                        .or().like(BizIncentiveRecord::getRemark, keyword)
+                        .or().like(BizIncentiveRecord::getPreInstallQuestion, keyword));
             }
         }
         if (salesperson != null && !salesperson.isBlank()) {

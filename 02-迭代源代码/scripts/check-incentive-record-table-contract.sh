@@ -60,6 +60,11 @@ assert_file "$INCENTIVE_SERVICE"
 assert_contains "$INCENTIVE_SERVICE" "private void evictScoreboardCache()"
 EVICT_CALLS=$(grep -c "evictScoreboardCache();" "$INCENTIVE_SERVICE")
 [ "$EVICT_CALLS" -ge 5 ] || fail "激励排行写穿失效调用点不足(应≥5: add/update/delete/removeFile/recalcAll), 实际 $EVICT_CALLS"
+# 【2026-11-02 用户令: 深度检索】关键词必须命中 备注+详情(applyShareVisibility 先套=检索继承权限)
+REMARK_HITS=$(grep -c "getRemark, keyword" "$INCENTIVE_SERVICE")
+DETAIL_HITS=$(grep -c "getPreInstallQuestion, keyword" "$INCENTIVE_SERVICE")
+[ "$REMARK_HITS" -ge 3 ] || fail "关键词深度检索缺备注命中(应≥3分支), 实际 $REMARK_HITS"
+[ "$DETAIL_HITS" -ge 3 ] || fail "关键词深度检索缺详情命中(应≥3分支), 实际 $DETAIL_HITS"
 
 # 【2026-10-29 左面板联动+筛选扩展】点左侧子分类=右侧表格按记录 categoryId 过滤(记录挂二级,数值归一);
 # 筛选栏新增行业(字典)/时间范围(闭区间,前10位字典序); 切大类Tab自动清选中防跨大类串数据

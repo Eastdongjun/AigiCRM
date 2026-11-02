@@ -528,7 +528,8 @@ Page({
     const startDate = this.data.startDate
     const endDate = this.data.endDate
     return records.filter((item) => {
-      const text = [item.customerName, item.name, item.summary, item.remark, item.description, item.relatedProducts, item.specificProduct, item.product].filter(Boolean).join(' ').toLowerCase()
+      // 【2026-11-02 用户令: 深度检索】关键词命中: 客户/文件名/备注/详情/产品 全字段
+      const text = [item.customerName, item.name, item.summary, item.remark, item.description, item.detail, item.preInstallQuestion, item.relatedProducts, item.specificProduct, item.product].filter(Boolean).join(' ').toLowerCase()
       if (keyword && !text.includes(keyword)) return false
       if (industry && industry !== '全部行业' && item.industry !== industry) return false
       if (devType && devType !== '全部类型' && item.devType && item.devType !== devType) return false
