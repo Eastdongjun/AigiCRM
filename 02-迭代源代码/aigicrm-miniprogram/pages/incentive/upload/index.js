@@ -634,9 +634,10 @@ Page({
         id: r.id,
         categoryName: r.categoryName || r.category || r.type || '',
         industry: r.industry || '',
-        uploaderName: r.userName || r.updatedByName || r.createByName || r.realName || '',
         customerName: r.customerName || '未命名客户',
-        fileCount: [r.filePreId, r.fileMidId, r.filePostId, r.fileId].filter(Boolean).length,
+        filePre: r.filePreName || '',
+        fileMid: r.fileMidName || '',
+        filePost: r.filePostName || '',
         timeText: String(r.createdAt || r.createTime || '').replace('T', ' ').slice(0, 16)
       }))
       this.setData({ subcatRecords: selected })

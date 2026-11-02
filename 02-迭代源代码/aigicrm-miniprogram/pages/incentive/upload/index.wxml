@@ -35,23 +35,34 @@
       </scroll-view>
     </view>
 
-    <!-- right-panel: 已有记录列表(与 PC RecordTable 同构: 双行行卡) -->
+    <!-- right-panel: 已有记录表格(与 PC RecordTable 同构: 表头+斑马纹+文件标签) -->
     <view class="prp">
+      <!-- 表头(与 PC el-table header 同构) -->
+      <view class="prp-thead">
+        <text class="pth pth-cat">大类·子类</text>
+        <text class="pth pth-file">安装文件</text>
+        <text class="pth pth-cust">客户</text>
+      </view>
       <scroll-view class="prp-scroll" scroll-y>
         <block wx:if="{{uploadView.showCategorySummary && subcatRecords.length}}">
-          <view wx:for="{{subcatRecords}}" wx:key="id" class="prp-row">
-            <view class="prp-main">
+          <view wx:for="{{subcatRecords}}" wx:key="id" class="prp-row {{index % 2 === 1 ? 'stripe' : ''}}">
+            <view class="prp-cell pth-cat">
               <text class="prp-cat">{{item.categoryName}}</text>
-              <text class="prp-meta" wx:if="{{item.industry || item.uploaderName}}">{{item.industry}}{{item.industry && item.uploaderName ? ' · ' : ''}}{{item.uploaderName}}</text>
+              <text class="prp-meta" wx:if="{{item.industry}}">{{item.industry}}</text>
             </view>
-            <view class="prp-side">
+            <view class="prp-cell pth-file">
+              <text wx:if="{{item.filePre}}" class="ftag"><b>前</b>{{item.filePre}}</text>
+              <text wx:if="{{item.fileMid}}" class="ftag"><b>中</b>{{item.fileMid}}</text>
+              <text wx:if="{{item.filePost}}" class="ftag"><b>后</b>{{item.filePost}}</text>
+              <text wx:if="{{!item.filePre && !item.fileMid && !item.filePost}}" class="prp-meta">—</text>
+            </view>
+            <view class="prp-cell pth-cust">
               <text class="prp-customer">{{item.customerName}}</text>
-              <text class="prp-files">{{item.fileCount}}个文件</text>
             </view>
           </view>
         </block>
         <view wx:if="{{uploadView.showCategorySummary && !subcatRecords.length}}" class="prp-empty">
-          暂无已上传文件\n点击左侧子分类行的「上传」按钮开始
+          暂无已上传文件
         </view>
         <view wx:if="{{!uploadView.showCategorySummary}}" class="prp-empty">← 点击左侧子分类</view>
       </scroll-view>
