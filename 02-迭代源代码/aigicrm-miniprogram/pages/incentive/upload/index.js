@@ -640,13 +640,25 @@ Page({
         fileKind: firstFile.fileKind || ''
       }
     })
+    // 【2026-11-03 PC 对齐补遗】相关产品双下拉回显原值(PC startReplace 同款"大类-小类"拆分):
+    // 找不到对应选项时 index=-1 显示 placeholder, relatedProducts 字符串本身照常回传不丢值
+    const relatedProducts = record.relatedProducts || ''
+    const dashIndex = relatedProducts.indexOf('-')
+    const relatedCatName = dashIndex > 0 ? relatedProducts.slice(0, dashIndex) : ''
+    const relatedSubName = dashIndex > 0 ? relatedProducts.slice(dashIndex + 1) : ''
+    const relatedCatIndex = relatedCatName ? this.data.relatedCatOptions.indexOf(relatedCatName) : -1
+    const relatedSubOptions = relatedCatIndex >= 0 ? (this.data.productCats[relatedCatName] || []) : []
+    const relatedSubIndex = relatedSubName ? relatedSubOptions.indexOf(relatedSubName) : -1
     this.setData({
       selectedCustomer: customer,
       selectedCustomerId: customer ? customer.id : '',
       selectedCategoryIndex: categoryIndex,
       selectedParentCategoryIndex: parentIndexOfCategory(this.data.categories, this.data.categoryParentNodes, categoryIndex),
       selectedIndustryIndex: industryIndex,
-      relatedProducts: record.relatedProducts || '',
+      relatedProducts,
+      selectedRelatedCatIndex: relatedCatIndex,
+      relatedSubOptions,
+      selectedRelatedSubIndex: relatedSubIndex,
       specificProduct: record.specificProduct || '',
       preInstallQuestion: record.preInstallQuestion || '',
       remark: record.remark || '',
@@ -1284,13 +1296,23 @@ Page({
       }))
     }))
     // 【C2】选中客户=按 id 补拉到的客户快照(不再依赖本地列表下标)
+    // 【2026-11-03 PC 对齐补遗】相关产品双下拉回显(与 fillEditRecord 同款拆分)
+    const draftRelated = parsed.relatedProducts || ''
+    const draftDash = draftRelated.indexOf('-')
+    const draftCatName = draftDash > 0 ? draftRelated.slice(0, draftDash) : ''
+    const draftSubName = draftDash > 0 ? draftRelated.slice(draftDash + 1) : ''
+    const draftCatIndex = draftCatName ? this.data.relatedCatOptions.indexOf(draftCatName) : -1
+    const draftSubOptions = draftCatIndex >= 0 ? (this.data.productCats[draftCatName] || []) : []
     this.setData({
       selectedCustomer: { id: customer.id, customerName: customer.customerName || customer.name || '未命名客户', industry: customer.industry || parsed.industry || '' },
       selectedCustomerId: customer.id,
       selectedCategoryIndex: categoryIndex,
       selectedParentCategoryIndex: parentIndexOfCategory(this.data.categories, this.data.categoryParentNodes, categoryIndex),
       selectedIndustryIndex: industryIndex,
-      relatedProducts: parsed.relatedProducts || '',
+      relatedProducts: draftRelated,
+      selectedRelatedCatIndex: draftCatIndex,
+      relatedSubOptions: draftSubOptions,
+      selectedRelatedSubIndex: draftSubName ? draftSubOptions.indexOf(draftSubName) : -1,
       specificProduct: parsed.specificProduct || '',
       preInstallQuestion: parsed.preInstallQuestion || '',
       remark: parsed.remark || '',
