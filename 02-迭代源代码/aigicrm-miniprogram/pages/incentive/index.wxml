@@ -223,76 +223,82 @@
       <!-- 【2026-11-02 用户令·PC 同款排行】排名(前3奖牌徽章🥇🥈🥉)+首字头像(前3彩色渐变)+姓名/办事处
            +激励总额胶囊(蓝底白字)+合计, 与 PC PersonRankTableView 同构;
            【同日二次令】追加四大类(产品试点/两谈两做/交流拜访/外出参观)及其子类列(条数+分), 横滚看全部 -->
-      <scroll-view class="rank-tbl-scroll" scroll-x enhanced show-scrollbar="{{false}}">
-        <view class="rank-tbl">
-          <view class="rank-table-head">
-            <text class="rth rth-rank">排名</text>
-            <text class="rth rth-name">人员</text>
-            <text class="rth rth-score">激励总额</text>
-            <text class="rth rth-total">合计</text>
-            <block wx:for="{{rankParents}}" wx:key="id" wx:for-item="parent">
-              <text class="rth rth-group-title" style="width: {{parent.children.length * 130}}rpx;">{{parent.categoryName}}</text>
-            </block>
-          </view>
-          <view class="rank-subhead">
-            <!-- 冻结列占位(排名/姓名)由 padding-left 让出, 此处空占位仅保激励总额/合计之后的子类流 -->
-            <text class="rsh rth-score"></text>
-            <text class="rsh rth-total"></text>
-            <block wx:for="{{rankParents}}" wx:key="id" wx:for-item="parent">
-              <text wx:for="{{parent.children}}" wx:key="id" class="rsh rth-sub">{{item.categoryName}}</text>
-            </block>
-          </view>
+      <!-- 【2026-11-02 用户令·真冻结】排名/姓名列放在 scroll-view 外面做独立左栏(滚动区兄弟节点,
+           滚动时物理不动); 激励总额/合计/子类矩阵在右栏 scroll-view 内横滚; 两栏行高固定值对齐 -->
+      <view class="rank-split">
+        <view class="rank-frozen">
+          <view class="fz-head"><text class="fz-th">排名</text><text class="fz-th fz-th-name">人员</text></view>
+          <view class="fz-subhead"></view>
           <block wx:for="{{scoreboardPaged}}" wx:key="id" wx:for-item="row">
-            <view class="rank-table-row">
-              <view class="rtd rtd-rank">
-                <text wx:if="{{row.rank <= 3}}" class="rank-medal rank-medal-{{row.rank}}">{{row.rank === 1 ? '🥇' : row.rank === 2 ? '🥈' : '🥉'}}</text>
+            <view class="fz-row">
+              <view class="fz-rank">
+                <text wx:if="{{row.rank <= 3}}" class="rank-medal-sm rank-medal-{{row.rank}}">{{row.rank === 1 ? '🥇' : row.rank === 2 ? '🥈' : '🥉'}}</text>
                 <text wx:else class="rank-num">{{row.rank}}</text>
               </view>
-              <view class="rtd rtd-name">
-                <!-- 【2026-11-02 用户令】去掉姓名前的首字头像; 姓名列冻结不随横滚移动 -->
-                <view class="name-col">
-                  <text class="{{row.rank <= 3 ? 'name-top' : 'name-cell'}}">{{row.name}}</text>
-                  <text class="name-office">{{row.officeText}}</text>
-                </view>
+              <view class="fz-name">
+                <text class="{{row.rank <= 3 ? 'name-top' : 'name-cell'}}">{{row.name}}</text>
+                <text class="name-office">{{row.officeText}}</text>
               </view>
-              <view class="rtd rtd-score"><text class="score-pill">{{row.scoreNum}}<text class="pill-unit">分</text></text></view>
-              <view class="rtd rtd-total">{{row.recordCountText}}</view>
-              <block wx:for="{{rankParents}}" wx:key="id" wx:for-item="parent">
-                <block wx:for="{{parent.children}}" wx:key="id" wx:for-item="child">
-                  <view class="rtd rtd-cat">
-                    <block wx:if="{{row.byCategory[child.id]}}">
-                      <text class="cat-cnt">{{row.byCategory[child.id][0]}}条</text>
-                      <text class="cat-score {{row.byCategory[child.id][1] === 0 ? 'zero' : ''}}">{{row.byCategory[child.id][1]}}分</text>
-                    </block>
-                    <text wx:else class="cat-dash">—</text>
-                  </view>
-                </block>
-              </block>
             </view>
           </block>
         </view>
-      </scroll-view>
+        <scroll-view class="rank-tbl-scroll" scroll-x enhanced show-scrollbar="{{false}}">
+          <view class="rank-tbl">
+            <view class="rank-table-head">
+              <text class="rth rth-score">激励总额</text>
+              <text class="rth rth-total">合计</text>
+              <block wx:for="{{rankParents}}" wx:key="id" wx:for-item="parent">
+                <text class="rth rth-group-title" style="width: {{parent.children.length * 130}}rpx;">{{parent.categoryName}}</text>
+              </block>
+            </view>
+            <view class="rank-subhead">
+              <text class="rsh rth-score"></text>
+              <text class="rsh rth-total"></text>
+              <block wx:for="{{rankParents}}" wx:key="id" wx:for-item="parent">
+                <text wx:for="{{parent.children}}" wx:key="id" class="rsh rth-sub">{{item.categoryName}}</text>
+              </block>
+            </view>
+            <block wx:for="{{scoreboardPaged}}" wx:key="id" wx:for-item="row">
+              <view class="rank-table-row">
+                <view class="rtd rtd-score"><text class="score-pill">{{row.scoreNum}}<text class="pill-unit">分</text></text></view>
+                <view class="rtd rtd-total">{{row.recordCountText}}</view>
+                <block wx:for="{{rankParents}}" wx:key="id" wx:for-item="parent">
+                  <block wx:for="{{parent.children}}" wx:key="id" wx:for-item="child">
+                    <view class="rtd rtd-cat">
+                      <block wx:if="{{row.byCategory[child.id]}}">
+                        <text class="cat-cnt">{{row.byCategory[child.id][0]}}条</text>
+                        <text class="cat-score {{row.byCategory[child.id][1] === 0 ? 'zero' : ''}}">{{row.byCategory[child.id][1]}}分</text>
+                      </block>
+                      <text wx:else class="cat-dash">—</text>
+                    </view>
+                  </block>
+                </block>
+              </view>
+            </block>
+          </view>
+        </scroll-view>
+      </view>
       <pager wx:if="{{scoreboardTotal > 10}}" page="{{scoreboardPage}}" pageSize="{{scoreboardPageSize}}" total="{{scoreboardTotal}}" loading="{{incentiveView.pagerLoading}}" bind:change="onScoreboardPagerChange" />
       <view wx:if="{{incentiveView.showScoreboardEmpty}}" class="muted">暂无个人学分排行</view>
     </view>
     <view class="card ranking-panel">
       <view class="section-title">部门排行</view>
-      <!-- 【2026-11-02 PC 同款】部门排行同表格化: 排名/部门/总分胶囊/人数/均分 -->
-      <view class="rank-table-head">
-        <text class="rth rth-rank">排名</text>
-        <text class="rth rth-name">部门</text>
-        <text class="rth rth-score">总学分</text>
-        <text class="rth rth-total">均分</text>
+      <!-- 【2026-11-02 PC 同款】部门排行同表格化: 排名/部门/总分胶囊/人数/均分(窄表无需冻结/横滚) -->
+      <view class="dept-tbl-head">
+        <text class="dth dth-rank">排名</text>
+        <text class="dth dth-name">部门</text>
+        <text class="dth dth-score">总学分</text>
+        <text class="dth dth-total">均分</text>
       </view>
       <block wx:for="{{deptPaged}}" wx:key="id">
-        <view class="rank-table-row">
-          <view class="rtd rtd-rank">
-            <text wx:if="{{item.rank <= 3}}" class="rank-medal rank-medal-{{item.rank}}">{{item.rank === 1 ? '🥇' : item.rank === 2 ? '🥈' : '🥉'}}</text>
+        <view class="dept-tbl-row">
+          <view class="dtd dtd-rank">
+            <text wx:if="{{item.rank <= 3}}" class="rank-medal-sm rank-medal-{{item.rank}}">{{item.rank === 1 ? '🥇' : item.rank === 2 ? '🥈' : '🥉'}}</text>
             <text wx:else class="rank-num">{{item.rank}}</text>
           </view>
-          <view class="rtd rtd-name"><text class="name-cell dept-name">{{item.name}}</text></view>
-          <view class="rtd rtd-score"><text class="score-pill dept-pill">{{item.scoreNum}}<text class="pill-unit">分</text></text></view>
-          <view class="rtd rtd-total">{{item.avgText}}</view>
+          <view class="dtd dtd-name"><text class="name-cell dept-name">{{item.name}}</text></view>
+          <view class="dtd dtd-score"><text class="score-pill dept-pill">{{item.scoreNum}}<text class="pill-unit">分</text></text></view>
+          <view class="dtd dtd-total">{{item.avgText}}</view>
         </view>
       </block>
       <pager wx:if="{{deptTotal > 10}}" page="{{deptPage}}" pageSize="{{deptPageSize}}" total="{{deptTotal}}" loading="{{incentiveView.pagerLoading}}" bind:change="onDeptPagerChange" />

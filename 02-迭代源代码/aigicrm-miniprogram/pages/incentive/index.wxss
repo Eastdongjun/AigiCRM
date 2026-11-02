@@ -127,37 +127,44 @@
    与 PC PersonRankTableView 同构: 排名列(前3奖牌徽章🥇🥈🥉渐变底, 其余数字)+
    首字头像(前3彩色渐变/其余蓝)+姓名粗体/办事处灰小字+激励总额胶囊(蓝底白字)+合计列
    【二次令追加】四大类+子类列(条数+分), 整表横向滚动 */
-.rank-tbl-scroll { width: 100%; }
+/* 旧整表滚动形态样式已随真冻结双栏布局退役, 统一见下方 rank-split 段 */
+/* ===== 【2026-11-02 用户令·真冻结】双栏布局 =====
+   左栏(冻结)=排名+姓名, 是 scroll-view 的兄弟节点不在其内, 滚动时物理不动;
+   右栏=激励总额/合计/子类矩阵在 scroll-view 内横滚; 两栏行高固定值像素级对齐:
+   表头行 48rpx + 子类头行 36rpx + 数据行 76rpx(每行 border-bottom 1rpx 计入) */
+.rank-split { display: flex; margin-top: 12rpx; border: 1rpx solid #e3ebf7; border-radius: 10rpx; overflow: hidden; }
+.rank-frozen { flex: none; width: 158rpx; background: #fff; z-index: 2; }
+.fz-head { display: flex; align-items: center; height: 48rpx; padding: 0 6rpx; background: #eef4ff; box-sizing: border-box; }
+.fz-th { flex: none; font-size: 20rpx; color: #33507e; font-weight: 700; }
+.fz-th:first-child { width: 48rpx; text-align: center; }
+.fz-th-name { width: 96rpx; }
+.fz-subhead { height: 36rpx; background: #f7fafd; border-bottom: 1rpx solid #e3ebf7; }
+.fz-row { display: flex; align-items: center; height: 76rpx; border-bottom: 1rpx solid #eef2f8; box-sizing: border-box; }
+.fz-row:last-of-type { border-bottom: 0; }
+.fz-rank { flex: none; width: 48rpx; display: flex; justify-content: center; }
+.fz-name { flex: 1; min-width: 0; display: flex; flex-direction: column; overflow: hidden; }
+.rank-medal-sm { display: inline-flex; align-items: center; justify-content: center; width: 40rpx; height: 40rpx; border-radius: 50%; font-size: 22rpx; box-shadow: 0 2rpx 6rpx rgba(0,0,0,.1); }
+/* 右栏滚动表: 行高与冻结栏逐行对齐(48/36/76) */
+.rank-tbl-scroll { flex: 1; min-width: 0; }
 .rank-tbl { display: inline-block; min-width: 100%; }
-.rank-table-head { display: flex; align-items: center; padding: 14rpx 8rpx; background: #eef4ff; border-radius: 10rpx 10rpx 0 0; margin-top: 12rpx; }
-.rth { flex: none; font-size: 21rpx; color: #33507e; font-weight: 700; }
-.rth-rank { width: 48rpx; text-align: center; }
-.rth-name { width: 96rpx; }
+.rank-table-head { display: flex; align-items: center; height: 48rpx; padding: 0 8rpx; background: #eef4ff; box-sizing: border-box; }
+.rth { flex: none; font-size: 20rpx; color: #33507e; font-weight: 700; }
 .rth-score { width: 130rpx; text-align: center; }
 .rth-total { width: 90rpx; text-align: right; padding-right: 8rpx; }
 .rth-group-title { font-size: 20rpx; text-align: center; color: #2563eb; padding: 0 4rpx; white-space: nowrap; overflow: hidden; }
-.rank-subhead { display: flex; align-items: center; padding: 8rpx 8rpx; background: #f7fafd; border-bottom: 1rpx solid #e3ebf7; }
+.rank-subhead { display: flex; align-items: center; height: 36rpx; padding: 0 8rpx; background: #f7fafd; border-bottom: 1rpx solid #e3ebf7; box-sizing: border-box; }
 .rsh { flex: none; font-size: 19rpx; color: #64748b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .rth-sub { width: 130rpx; text-align: center; }
-.rank-table-row { display: flex; align-items: center; padding: 14rpx 8rpx; border-bottom: 1rpx solid #eef2f8; background: #fff; }
-.rank-table-row:last-of-type { border-bottom: 0; border-radius: 0 0 10rpx 10rpx; }
+.rank-table-row { display: flex; align-items: center; height: 76rpx; padding: 0 8rpx; border-bottom: 1rpx solid #eef2f8; background: #fff; box-sizing: border-box; }
+.rank-table-row:last-of-type { border-bottom: 0; }
 .rtd { flex: none; }
-.rtd-rank { width: 76rpx; display: flex; justify-content: center; }
-/* 【2026-11-02 用户令】姓名列冻结: 排名列+姓名列固定左侧, 不随横滚移动
-   (实现=行内 fixed 列绝对定位+行 padding-left 让出空间; 微信 flex 表格无原生 freeze) */
-/* 【2026-11-02 用户令·四调】冻结区再压缩: 排名48+姓名96=160rpx 总宽;
-   办事处小字改放姓名右侧同行(省一行高), 姓名超长省略 */
-.rank-table-head, .rank-subhead, .rank-table-row { position: relative; padding-left: 160rpx; }
-.rth-rank, .rth-name, .rtd-rank, .rtd-name { position: absolute; z-index: 2; }
-.rth-rank, .rtd-rank { left: 6rpx; width: 48rpx; text-align: center; }
-.rth-name, .rtd-name { left: 58rpx; width: 96rpx; }
-.rank-table-head .rth-rank, .rank-table-head .rth-name { background: #eef4ff; }
-.rank-subhead .rsh { background: #f7fafd; }
-.rank-table-row .rtd-rank, .rank-table-row .rtd-name { background: #fff; }
-.rank-table-row:active .rtd-rank, .rank-table-row:active .rtd-name { background: #f7faff; }
-.rtd-name { display: flex; flex-direction: column; justify-content: center; }
-/* 冻结列右缘投影分界线: 与滚动区视觉分离 */
-.rtd-name, .rth-name { box-shadow: 6rpx 0 8rpx -6rpx rgba(0,0,0,.08); }
+.rtd-score { width: 130rpx; display: flex; justify-content: center; }
+.rtd-total { width: 90rpx; text-align: right; padding-right: 8rpx; color: #64748b; font-size: 21rpx; }
+.rtd-cat { width: 130rpx; display: flex; flex-direction: column; align-items: center; gap: 2rpx; }
+.cat-cnt { font-size: 19rpx; color: #64748b; line-height: 1.3; }
+.cat-score { font-size: 20rpx; color: #1d4fd7; font-weight: 700; line-height: 1.3; }
+.cat-score.zero { color: #94a3b8; font-weight: 400; }
+.cat-dash { font-size: 19rpx; color: #cbd5e1; }
 .rtd-score { width: 130rpx; display: flex; justify-content: center; }
 .rtd-total { width: 90rpx; text-align: right; padding-right: 8rpx; color: #64748b; font-size: 21rpx; }
 .rtd-cat { width: 130rpx; display: flex; flex-direction: column; align-items: center; gap: 2rpx; }
@@ -269,3 +276,18 @@
 .c-file { width: 80rpx; justify-content: flex-end; }
 .c-score { width: 90rpx; justify-content: flex-end; color: #1d4fd7; font-weight: 800; }
 .incentive-pager { margin-top:  18rpx; }
+
+/* ===== 【2026-11-02】部门排行窄表(无需冻结/横滚) ===== */
+.dept-tbl-head { display: flex; align-items: center; height: 48rpx; padding: 0 8rpx; background: #eef4ff; border: 1rpx solid #e3ebf7; border-bottom: 0; border-radius: 10rpx 10rpx 0 0; box-sizing: border-box; }
+.dth { flex: none; font-size: 20rpx; color: #33507e; font-weight: 700; }
+.dth-rank { width: 56rpx; text-align: center; }
+.dth-name { flex: 1; min-width: 0; }
+.dth-score { width: 130rpx; text-align: center; }
+.dth-total { width: 90rpx; text-align: right; padding-right: 8rpx; }
+.dept-tbl-row { display: flex; align-items: center; height: 64rpx; padding: 0 8rpx; background: #fff; border: 1rpx solid #e3ebf7; border-top: 0; box-sizing: border-box; }
+.dept-tbl-row:last-of-type { border-radius: 0 0 10rpx 10rpx; }
+.dtd { flex: none; }
+.dtd-rank { width: 56rpx; display: flex; justify-content: center; }
+.dtd-name { flex: 1; min-width: 0; overflow: hidden; }
+.dtd-score { width: 130rpx; display: flex; justify-content: center; }
+.dtd-total { width: 90rpx; text-align: right; padding-right: 8rpx; color: #64748b; font-size: 21rpx; }
