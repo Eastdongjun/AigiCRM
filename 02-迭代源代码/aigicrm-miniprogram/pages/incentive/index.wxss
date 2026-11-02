@@ -291,3 +291,25 @@
 .dtd-name { flex: 1; min-width: 0; overflow: hidden; }
 .dtd-score { width: 130rpx; display: flex; justify-content: center; }
 .dtd-total { width: 90rpx; text-align: right; padding-right: 8rpx; color: #64748b; font-size: 21rpx; }
+
+/* ===== 【2026-11-02 用户令】表格细线增强辨识 =====
+   纵向列分隔线: 滚动区每个数据格/表头格右缘加竖细线; 冻结栏与滚动区之间加粗分界;
+   横向行线加色调深一档; 斑马纹隔行浅底, 行列交叉更易读 */
+/* 纵线: 滚动区单元格(激励总额/合计/子类格) */
+.rtd-score, .rtd-total, .rtd-cat { border-right: 1rpx solid #edf1f7; }
+.rtd-cat:last-child { border-right: 0; }
+/* 表头/子类头同样加纵线与数据列对齐 */
+.rth-score, .rth-total, .rth-group-title { border-right: 1rpx solid #dde7f3; }
+.rsh.rth-score, .rsh.rth-total, .rsh.rth-sub { border-right: 1rpx solid #edf1f7; }
+/* 横线加深 + 斑马纹 */
+.rank-table-row { border-bottom: 1rpx solid #e4eaf3; }
+.rank-table-row:nth-child(odd) { background: #fafcff; }
+.fz-row { border-bottom: 1rpx solid #e4eaf3; }
+.fz-row:nth-child(odd) { background: #fafcff; }
+/* 冻结栏与滚动区交界竖线(加粗半档) */
+.rank-frozen { border-right: 1rpx solid #d5e0ee; }
+/* 部门排行窄表纵线+斑马纹 */
+.dtd-rank, .dtd-name, .dtd-score { border-right: 1rpx solid #edf1f7; }
+.dth-rank, .dth-name, .dth-score { border-right: 1rpx solid #dde7f3; }
+.dept-tbl-row { border-bottom: 1rpx solid #e4eaf3; }
+.dept-tbl-row:nth-child(odd) { background: #fafcff; }
