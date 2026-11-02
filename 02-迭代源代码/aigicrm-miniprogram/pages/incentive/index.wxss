@@ -313,3 +313,9 @@
 .dth-rank, .dth-name, .dth-score { border-right: 1rpx solid #dde7f3; }
 .dept-tbl-row { border-bottom: 1rpx solid #e4eaf3; }
 .dept-tbl-row:nth-child(odd) { background: #fafcff; }
+
+/* ===== 【2026-11-03 用户令】排行 tab 内三页签(客户/个人/部门) =====
+   复用 app.wxss .tabs/.tab 胶囊语言, 尺寸降半档以区分主 tab 层级; 切换纯显示不发请求 */
+.rank-subtabs { margin: 0 0 16rpx; }
+.rank-subtabs .tab { padding: 12rpx 0; font-size: 23rpx; border-radius: 18rpx; }
+.rank-panel-actions { margin-bottom: 12rpx; }

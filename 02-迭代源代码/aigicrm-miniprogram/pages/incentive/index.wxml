@@ -213,10 +213,14 @@
   </view>
 
   <view wx:if="{{incentiveView.showRanking}}">
-    <view class="card ranking-panel">
-      <view class="section-row">
-        <view class="section-title no-margin">客户排行</view>
-      </view>
+    <!-- 【2026-11-03 用户令】排行改三页签: 客户/个人/部门 切换显示(原三块纵向堆叠); 数据已加载,
+         切换纯显示不发请求; 各块原表格/分页/空态结构不动 -->
+    <view class="tabs rank-subtabs">
+      <view class="tab {{incentiveView.customerTabClass}}" data-tab="customer" bindtap="switchRankTab">客户排行</view>
+      <view class="tab {{incentiveView.scoreboardTabClass}}" data-tab="scoreboard" bindtap="switchRankTab">个人学分榜</view>
+      <view class="tab {{incentiveView.deptTabClass}}" data-tab="dept" bindtap="switchRankTab">部门排行</view>
+    </view>
+    <view wx:if="{{incentiveView.showRankCustomer}}" class="card ranking-panel">
       <!-- 【2026-11-02 用户令】客户排行=客户维度学分榜(与个人排行同款双栏冻结表格), 数据=客户聚合按总学分降序 -->
       <view class="rank-split">
         <view class="rank-frozen">
@@ -274,9 +278,10 @@
       <pager wx:if="{{customerRankTotal > 10}}" page="{{customerRankPage}}" pageSize="{{customerRankPageSize}}" total="{{customerRankTotal}}" loading="{{incentiveView.pagerLoading}}" bind:change="onCustomerRankPagerChange" />
       <view wx:if="{{incentiveView.showCustomerRankEmpty}}" class="muted">暂无客户排行</view>
     </view>
-    <view class="card ranking-panel">
-      <view class="section-row">
-        <view class="section-title no-margin">个人学分榜</view> <!-- 【工作流复核确认修复】数据源为按人员聚合的 scoreboard, 原名"客户学分榜"名实不符 -->
+    <view wx:if="{{incentiveView.showRankScoreboard}}" class="card ranking-panel">
+      <view class="section-row rank-panel-actions">
+        <!-- 【工作流复核确认修复】数据源为按人员聚合的 scoreboard(原"客户学分榜"名实不符);
+             2026-11-03 三页签化: 标题由页签承载, 此行只留右对齐刷新按钮 -->
         <button class="stats-refresh-btn" bindtap="loadScoreboard">↻</button>
       </view>
       <!-- 【2026-11-02 用户令·PC 同款排行】排名(前3奖牌徽章🥇🥈🥉)+首字头像(前3彩色渐变)+姓名/办事处
@@ -340,8 +345,7 @@
       <pager wx:if="{{scoreboardTotal > 10}}" page="{{scoreboardPage}}" pageSize="{{scoreboardPageSize}}" total="{{scoreboardTotal}}" loading="{{incentiveView.pagerLoading}}" bind:change="onScoreboardPagerChange" />
       <view wx:if="{{incentiveView.showScoreboardEmpty}}" class="muted">暂无个人学分排行</view>
     </view>
-    <view class="card ranking-panel">
-      <view class="section-title">部门排行</view>
+    <view wx:if="{{incentiveView.showRankDept}}" class="card ranking-panel">
       <!-- 【2026-11-02 PC 同款】部门排行同表格化: 排名/部门/总分胶囊/人数/均分(窄表无需冻结/横滚) -->
       <view class="dept-tbl-head">
         <text class="dth dth-rank">排名</text>

@@ -317,14 +317,25 @@ function pickOption(options, index, fallback, key) {
   return item || fallback
 }
 
+// 【2026-11-03 用户令】排行 tab 内三页签: 客户/个人学分榜/部门(原三块纵向堆叠改切换显示);
+// 页签文案以字面量写在 WXML(契约钉 个人学分榜/部门排行), 激活态由视图归一化 className 提供
+const RANK_TAB_KEYS = ['customer', 'scoreboard', 'dept']
+
 function buildIncentiveView(data) {
   const isLoading = Boolean(data.loading)
+  const rankTab = data.rankTab || 'customer'
   return {
     showRecords: data.activeTab === 'records',
     showCategories: data.activeTab === 'categories',
     showStats: data.activeTab === 'stats',
     showRanking: data.activeTab === 'ranking',
     showReads: data.activeTab === 'reads',
+    customerTabClass: rankTab === 'customer' ? 'active' : '',
+    scoreboardTabClass: rankTab === 'scoreboard' ? 'active' : '',
+    deptTabClass: rankTab === 'dept' ? 'active' : '',
+    showRankCustomer: rankTab === 'customer',
+    showRankScoreboard: rankTab === 'scoreboard',
+    showRankDept: rankTab === 'dept',
     refreshLoading: isLoading,
     refreshText: isLoading ? '刷新中' : '刷新',
     searchLoading: isLoading,
@@ -407,8 +418,10 @@ Page({
     // 【2026-11-02 应用中心拆分】初始 tab 可被 onLoad 的 ?tab= 参数覆盖(激励统计直达 stats)
     activeTab: 'records',
     tabs: buildTabs('records'),
+    rankTab: 'customer', // 【2026-11-03 用户令】排行 tab 内三页签, 默认客户排行
     incentiveView: buildIncentiveView({
       activeTab: 'records',
+      rankTab: 'customer',
       industries: INDUSTRIES,
       devTypes: DEV_TYPES,
       productOptions: PRODUCT_OPTIONS,
@@ -1190,6 +1203,13 @@ Page({
     this.setData({ activeTab, tabs: buildTabs(activeTab) }, () => this.refreshIncentiveView())
     // 【分页 2026-10-18】切回列表 tab 时回第 1 页, 避免停留在旧页码
     if (activeTab === 'records') this.applyPaging(1)
+  },
+
+  // 【2026-11-03 用户令】排行 tab 内三页签切换(客户/个人/部门): 数据已加载, 纯显示切换不发请求
+  switchRankTab(e) {
+    const rankTab = e.currentTarget.dataset.tab || 'customer'
+    if (!RANK_TAB_KEYS.includes(rankTab) || rankTab === this.data.rankTab) return
+    this.setData({ rankTab }, () => this.refreshIncentiveView())
   },
 
   chooseCategory(e) {
