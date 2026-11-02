@@ -1,10 +1,11 @@
 /* 四项服务客户详情 —— PC 定稿设计的小程序同步版(2026-09-20)
    色板与 PC search.vue 对齐:主蓝 #1d4ed8/#2563eb、阶段色 visit 橙 / exchange 蓝 / plan 紫 / trial 绿 */
 .incentive-detail-page { padding-bottom: 48rpx; background: #f4f7fc; min-height: 100vh; }
-.incentive-detail-page .hero { position: relative; overflow: hidden; background: linear-gradient(135deg, #1d3fae, #2f6bf0 60%, #4d8cf5); }
-.incentive-detail-page .hero .row { align-items: flex-start; }
-.incentive-detail-page .hero-title { font-size: 36rpx; letter-spacing: 2rpx; }
-.incentive-detail-page .hero-sub { opacity: .82; font-size: 22rpx; }
+/* 【2026-11-02 用户令】顶部介绍框压缩: padding 36/32→18/24, 圆角 32→20, 去投影省高; 副标题缩小 */
+.incentive-detail-page .hero { position: relative; overflow: hidden; background: linear-gradient(135deg, #1d3fae, #2f6bf0 60%, #4d8cf5); padding: 18rpx 24rpx; border-radius: 20rpx; box-shadow: none; }
+.incentive-detail-page .hero .row { align-items: center; }
+.incentive-detail-page .hero-title { font-size: 30rpx; letter-spacing: 1rpx; font-weight: 700; }
+.incentive-detail-page .hero-sub { margin-top: 2rpx; opacity: .8; font-size: 20rpx; }
 
 /* 客户台账卡:独立白底边框卡(骨架图独立框),左身份右合计。
    【2026-10-26 用户令"客户名称那个框太大,占太多空间"】整卡压缩: 头像 92→64、大分值 56→38、
