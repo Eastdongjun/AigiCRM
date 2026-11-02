@@ -490,6 +490,7 @@ Page({
     shared: true,
     canToggleShare: true,
     editId: '',
+    showUploadSheet: false, // 【2026-11-02】上传表单=底部弹层(与 PC UploadDialog 同语义)
     auditRecord: null,
     selectedSlotIndex: 0,
     fileSlots: defaultSlots(),
@@ -830,11 +831,12 @@ Page({
   tapCategoryChild(e) {
     this.chooseCategoryChild({ detail: { value: String(Number(e.currentTarget.dataset.index) || 0) } })
   },
-  // 【2026-11-02 PC 同构】子分类行的"上传"按钮=选子类并滚到表单(表单自动展开因 showCategorySummary 变 true)
+  // 【2026-11-02 PC 同构】子分类行的"上传"按钮=选子类+弹出底部上传表单(与 PC UploadDialog 同语义)
   tapUploadFromSubcat(e) {
     this.chooseCategoryChild({ detail: { value: String(Number(e.currentTarget.dataset.index) || 0) } })
-    // 【导航契约】不用 pageScrollTo(破坏返回滚动保持), 用户自然下滑即可见表单
+    this.setData({ showUploadSheet: true })
   },
+  closeUploadSheet() { this.setData({ showUploadSheet: false }) },
   chooseIndustry(e) { this.setData({ selectedIndustryIndex: Number(e.detail.value) }, () => this.refreshUploadViewState()) },
   choosePeriod(e) { this.setData({ selectedPeriodIndex: Number(e.detail.value) }, () => this.refreshUploadViewState()) },
   chooseRelatedCat(e) {
@@ -1400,6 +1402,7 @@ Page({
     // "写完回来立刻见结果";节流只拦纯回流,不拦写后回流
     getApp().globalData.forceRefresh.incentive = true
     if (!this.data.editId) deleteFormDraft('incentive_upload').catch(() => {}) // 【PR-13】提交成功清草稿
+    this.setData({ showUploadSheet: false }) // 关弹层
     wx.showToast({ title: this.data.editId ? '追加成功' : '上传成功', icon: 'success' })
     // 【PR-12 2026-09-19 首批】激励列表是 tabBar 页,navigateTo 跳 tab 会被微信拒绝
     // (此前静默失败,用户停在原页);switchTab 回列表,配合列表 onShow 刷新即见新记录

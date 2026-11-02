@@ -69,12 +69,17 @@
     </view>
   </view>
 
-  <!-- 3) 上传表单(选好子类后展开; 与 PC UploadDialog 同语义) -->
-  <view class="card form-card" wx:if="{{uploadView.showCategorySummary}}">
-    <view class="form-section-title">{{uploadView.categorySectionTitle}}</view>
-    <view class="category-summary">
-      <text>{{uploadView.categoryScoreText}}</text>
-    </view>
+  <!-- 3) 上传表单=底部弹层(与 PC UploadDialog 同语义): 点左面板"上传"按钮弹出 -->
+  <view wx:if="{{showUploadSheet && uploadView.showCategorySummary}}" class="us-mask" bindtap="closeUploadSheet">
+    <view class="us-sheet" catchtap="noop">
+      <view class="us-sheet-head">
+        <text class="us-sheet-title">{{uploadView.categorySectionTitle}}</text>
+        <text class="us-sheet-close" bindtap="closeUploadSheet">✕</text>
+      </view>
+      <scroll-view class="us-sheet-body" scroll-y>
+        <view class="category-summary">
+          <text>{{uploadView.categoryScoreText}}</text>
+        </view>
     <view class="field">
       <text class="label">客户 *</text>
       <view class="picker-card" bindtap="openCustomerSheet">
@@ -208,11 +213,11 @@
       </view>
       <view class="upload-progress-text">{{uploadView.uploadProgressText}}</view>
     </view>
-    <view class="form-actions">
-      <button class="form-action cancel-action" bindtap="cancelUpload" disabled="{{uploadView.cancelDisabled}}">{{uploadView.cancelText}}</button>
-      <!-- M18: disabled 只表达"提交中";表单未就绪保持可点(submitIncomplete 置灰样式),点击由 submit() toast 缺失原因。
-           disabled 绑定名 submitDisabled 为契约脚本钉住的字面量, 勿改 -->
-      <button class="form-action submit-action {{uploadView.submitIncomplete ? 'action-disabled' : ''}}" bindtap="submit" loading="{{uploadView.submitLoading}}" disabled="{{uploadView.submitDisabled}}">{{uploadView.submitText}}</button>
+      <view class="form-actions">
+        <button class="form-action cancel-action" bindtap="cancelUpload" disabled="{{uploadView.cancelDisabled}}">{{uploadView.cancelText}}</button>
+        <button class="form-action submit-action {{uploadView.submitIncomplete ? 'action-disabled' : ''}}" bindtap="submit" loading="{{uploadView.submitLoading}}" disabled="{{uploadView.submitDisabled}}">{{uploadView.submitText}}</button>
+      </view>
+      </scroll-view>
     </view>
   </view>
 </view>
