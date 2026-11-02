@@ -202,6 +202,11 @@ grep -q 'rec-table' "$wxml" || { echo "FAIL: incentive mobile query list must be
 grep -q 'pagedTableRows' "$wxml" || { echo "FAIL: record table must render pagedTableRows rows" >&2; exit 1; }
 grep -q 'openRecordDetail' "$wxml" || { echo "FAIL: record table rows must tap into record detail" >&2; exit 1; }
 grep -q 'buildRecordTableRows' "$page" || { echo "FAIL: record table row builder is missing" >&2; exit 1; }
+# 【2026-11-02 用户令·PC 同款排行】个人/部门排行表格化: 前三奖牌徽章+首字头像+胶囊分值
+grep -q 'rank-medal' "$wxml" || { echo "FAIL: rank medal badges (top-3) are missing" >&2; exit 1; }
+grep -q 'rank-table-head' "$wxml" || { echo "FAIL: rank table header row is missing" >&2; exit 1; }
+grep -q 'score-pill' "$wxml" || { echo "FAIL: score pill badge is missing" >&2; exit 1; }
+grep -q 'avatarChar' "$page" || { echo "FAIL: rank row avatar char field is missing" >&2; exit 1; }
 ! grep -q 'class="cust-card"' "$wxml" || { echo "FAIL: full-version query list must not regress to cover cards (retired 2026-11-02)" >&2; exit 1; }
 # 【钉随需求C】data-child-index 随操作下游退役——customer-detail 用 data-index
 grep -q 'data-index' "$CUSTDETAIL_WXML" || { echo "FAIL: incentive mobile customer detail list child record actions lack record index" >&2; exit 1; }

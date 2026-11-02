@@ -220,14 +220,31 @@
         <view class="section-title no-margin">个人学分榜</view> <!-- 【工作流复核确认修复】数据源为按人员聚合的 scoreboard, 原名"客户学分榜"名实不符 -->
         <button class="stats-refresh-btn" bindtap="loadScoreboard">↻</button>
       </view>
+      <!-- 【2026-11-02 用户令·PC 同款排行】排名(前3奖牌徽章🥇🥈🥉)+首字头像(前3彩色渐变)+姓名/办事处
+           +激励总额胶囊(蓝底白字)+合计, 与 PC PersonRankTableView 同构 -->
+      <view class="rank-table-head">
+        <text class="rth rth-rank">排名</text>
+        <text class="rth rth-name">人员</text>
+        <text class="rth rth-score">激励总额</text>
+        <text class="rth rth-total">合计</text>
+      </view>
       <block wx:for="{{scoreboardPaged}}" wx:key="id">
-        <view class="score-row">
-          <view class="score-rank">{{item.rank}}</view>
-          <view class="score-main">
-            <view class="score-name">{{item.name}}</view>
-            <view class="score-meta">{{item.metaText}}</view>
+        <view class="rank-table-row">
+          <view class="rtd rtd-rank">
+            <text wx:if="{{item.rank <= 3}}" class="rank-medal rank-medal-{{item.rank}}">{{item.rank === 1 ? '🥇' : item.rank === 2 ? '🥈' : '🥉'}}</text>
+            <text wx:else class="rank-num">{{item.rank}}</text>
           </view>
-          <view class="score-value">{{item.scoreText}}</view>
+          <view class="rtd rtd-name">
+            <view class="name-wrap">
+              <text class="name-avatar av-{{item.rank <= 3 ? item.rank : 4}}">{{item.avatarChar}}</text>
+              <view class="name-col">
+                <text class="{{item.rank <= 3 ? 'name-top' : 'name-cell'}}">{{item.name}}</text>
+                <text class="name-office">{{item.officeText}}</text>
+              </view>
+            </view>
+          </view>
+          <view class="rtd rtd-score"><text class="score-pill">{{item.scoreNum}}<text class="pill-unit">分</text></text></view>
+          <view class="rtd rtd-total">{{item.recordCountText}}</view>
         </view>
       </block>
       <pager wx:if="{{scoreboardTotal > 10}}" page="{{scoreboardPage}}" pageSize="{{scoreboardPageSize}}" total="{{scoreboardTotal}}" loading="{{incentiveView.pagerLoading}}" bind:change="onScoreboardPagerChange" />
@@ -235,14 +252,22 @@
     </view>
     <view class="card ranking-panel">
       <view class="section-title">部门排行</view>
+      <!-- 【2026-11-02 PC 同款】部门排行同表格化: 排名/部门/总分胶囊/人数/均分 -->
+      <view class="rank-table-head">
+        <text class="rth rth-rank">排名</text>
+        <text class="rth rth-name">部门</text>
+        <text class="rth rth-score">总学分</text>
+        <text class="rth rth-total">均分</text>
+      </view>
       <block wx:for="{{deptPaged}}" wx:key="id">
-        <view class="score-row">
-          <view class="score-rank dept">{{item.rank}}</view>
-          <view class="score-main">
-            <view class="score-name">{{item.name}}</view>
-            <view class="score-meta">{{item.metaText}}</view>
+        <view class="rank-table-row">
+          <view class="rtd rtd-rank">
+            <text wx:if="{{item.rank <= 3}}" class="rank-medal rank-medal-{{item.rank}}">{{item.rank === 1 ? '🥇' : item.rank === 2 ? '🥈' : '🥉'}}</text>
+            <text wx:else class="rank-num">{{item.rank}}</text>
           </view>
-          <view class="score-value">{{item.scoreText}}</view>
+          <view class="rtd rtd-name"><text class="name-cell dept-name">{{item.name}}</text></view>
+          <view class="rtd rtd-score"><text class="score-pill dept-pill">{{item.scoreNum}}<text class="pill-unit">分</text></text></view>
+          <view class="rtd rtd-total">{{item.avgText}}</view>
         </view>
       </block>
       <pager wx:if="{{deptTotal > 10}}" page="{{deptPage}}" pageSize="{{deptPageSize}}" total="{{deptTotal}}" loading="{{incentiveView.pagerLoading}}" bind:change="onDeptPagerChange" />

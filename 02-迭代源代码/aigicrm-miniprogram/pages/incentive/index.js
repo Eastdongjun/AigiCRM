@@ -124,7 +124,13 @@ function normalizeScoreRows(rows, type) {
     records: item.recordCount || item.count || item.totalRecords || 0,
     categoryCount: item.categoryCount || (item.byCategory ? Object.keys(item.byCategory).length : 0),
     metaText: `${item.recordCount || item.count || item.totalRecords || 0} 条记录 · ${item.categoryCount || (item.byCategory ? Object.keys(item.byCategory).length : 0)} 类`,
-    scoreText: `${item.totalScore || item.score || item.points || 0} 分`
+    scoreText: `${item.totalScore || item.score || item.points || 0} 分`,
+    // 【2026-11-02 用户令·PC 同款排行】表格化字段: 姓名首字头像/办事处/分数/合计/均分(与 PC 同构)
+    avatarChar: String(item.realName || item.userName || item.deptName || item.name || '?').trim().charAt(0).toUpperCase(),
+    officeText: item.officeName || item.deptName || '—',
+    scoreNum: Number(item.totalScore || item.score || item.points) || 0,
+    recordCountText: `${item.recordCount || item.count || item.totalRecords || 0} 条`,
+    avgText: item.avgScore !== undefined ? `${item.avgScore}` : (item.participantCount ? `${Math.round(((Number(item.totalScore) || 0) / item.participantCount) * 10) / 10}` : '—')
   }))
 }
 

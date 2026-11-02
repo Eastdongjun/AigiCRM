@@ -123,6 +123,45 @@
 .score-meta{margin-top:6rpx;color:#7c8ba1;font-size:22rpx}
 .score-value{color:#172033;font-size:26rpx;font-weight:850;white-space:nowrap}
 
+/* ===== 【2026-11-02 用户令·PC 同款排行】个人/部门排行表格化 =====
+   与 PC PersonRankTableView 同构: 排名列(前3奖牌徽章🥇🥈🥉渐变底, 其余数字)+
+   首字头像(前3彩色渐变/其余蓝)+姓名粗体/办事处灰小字+激励总额胶囊(蓝底白字)+合计列 */
+.rank-table-head { display: flex; align-items: center; padding: 14rpx 8rpx; background: #eef4ff; border-radius: 10rpx; margin-top: 12rpx; }
+.rth { flex: none; font-size: 21rpx; color: #33507e; font-weight: 700; }
+.rth-rank { width: 76rpx; text-align: center; }
+.rth-name { flex: 1; min-width: 0; }
+.rth-score { width: 130rpx; text-align: center; }
+.rth-total { width: 90rpx; text-align: right; padding-right: 8rpx; }
+.rank-table-row { display: flex; align-items: center; padding: 16rpx 8rpx; border-bottom: 1rpx solid #eef2f8; }
+.rank-table-row:last-of-type { border-bottom: 0; }
+.rtd { flex: none; }
+.rtd-rank { width: 76rpx; display: flex; justify-content: center; }
+.rtd-name { flex: 1; min-width: 0; }
+.rtd-score { width: 130rpx; display: flex; justify-content: center; }
+.rtd-total { width: 90rpx; text-align: right; padding-right: 8rpx; color: #64748b; font-size: 21rpx; }
+/* 前三奖牌徽章 */
+.rank-medal { display: inline-flex; align-items: center; justify-content: center; width: 52rpx; height: 52rpx; border-radius: 50%; font-size: 26rpx; box-shadow: 0 3rpx 8rpx rgba(0,0,0,.12); }
+.rank-medal-1 { background: linear-gradient(135deg, #fbbf24, #f59e0b); }
+.rank-medal-2 { background: linear-gradient(135deg, #e2e8f0, #cbd5e1); }
+.rank-medal-3 { background: linear-gradient(135deg, #fcd7b6, #d97706); }
+.rank-num { color: #64748b; font-weight: 600; font-size: 24rpx; }
+/* 首字头像 */
+.name-wrap { display: flex; align-items: center; gap: 12rpx; }
+.name-avatar { width: 52rpx; height: 52rpx; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 24rpx; font-weight: 700; color: #fff; flex-shrink: 0; }
+.av-1 { background: linear-gradient(135deg, #f59e0b, #fbbf24); }
+.av-2 { background: linear-gradient(135deg, #94a3b8, #cbd5e1); }
+.av-3 { background: linear-gradient(135deg, #d97706, #fcd7b6); }
+.av-4 { background: linear-gradient(135deg, #2563eb, #3b82f6); }
+.name-col { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.name-top { color: #1f2329; font-size: 26rpx; font-weight: 850; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.name-cell { color: #172033; font-size: 24rpx; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.name-office { color: #7c8ba1; font-size: 20rpx; margin-top: 2rpx; }
+.dept-name { font-weight: 700; }
+/* 激励总额/总学分胶囊 */
+.score-pill { display: inline-flex; align-items: baseline; gap: 2rpx; background: #2563eb; color: #fff; border-radius: 999rpx; padding: 6rpx 16rpx; font-size: 24rpx; font-weight: 800; }
+.score-pill.dept-pill { background: #059669; }
+.pill-unit { font-size: 18rpx; opacity: .85; font-weight: 400; }
+
 /* 「更新」重设计: 圆形图标按钮(与统计分析页同款) */
 .stats-refresh-btn { width: 56rpx; height: 56rpx; min-width: 0; margin: 0; padding: 0; border-radius: 50%;
   border: 1rpx solid #cfe0f7; background: #f5f9ff; color: #1d4ed8; font-size: 30rpx; line-height: 54rpx;
