@@ -235,8 +235,7 @@
             </block>
           </view>
           <view class="rank-subhead">
-            <text class="rsh rth-rank"></text>
-            <text class="rsh rth-name"></text>
+            <!-- 冻结列占位(排名/姓名)由 padding-left 让出, 此处空占位仅保激励总额/合计之后的子类流 -->
             <text class="rsh rth-score"></text>
             <text class="rsh rth-total"></text>
             <block wx:for="{{rankParents}}" wx:key="id" wx:for-item="parent">
@@ -250,12 +249,10 @@
                 <text wx:else class="rank-num">{{row.rank}}</text>
               </view>
               <view class="rtd rtd-name">
-                <view class="name-wrap">
-                  <text class="name-avatar av-{{row.rank <= 3 ? row.rank : 4}}">{{row.avatarChar}}</text>
-                  <view class="name-col">
-                    <text class="{{row.rank <= 3 ? 'name-top' : 'name-cell'}}">{{row.name}}</text>
-                    <text class="name-office">{{row.officeText}}</text>
-                  </view>
+                <!-- 【2026-11-02 用户令】去掉姓名前的首字头像; 姓名列冻结不随横滚移动 -->
+                <view class="name-col">
+                  <text class="{{row.rank <= 3 ? 'name-top' : 'name-cell'}}">{{row.name}}</text>
+                  <text class="name-office">{{row.officeText}}</text>
                 </view>
               </view>
               <view class="rtd rtd-score"><text class="score-pill">{{row.scoreNum}}<text class="pill-unit">分</text></text></view>

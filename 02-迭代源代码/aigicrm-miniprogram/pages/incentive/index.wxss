@@ -143,7 +143,17 @@
 .rank-table-row:last-of-type { border-bottom: 0; border-radius: 0 0 10rpx 10rpx; }
 .rtd { flex: none; }
 .rtd-rank { width: 76rpx; display: flex; justify-content: center; }
-.rtd-name { width: 220rpx; }
+/* 【2026-11-02 用户令】姓名列冻结: 排名列+姓名列固定左侧, 不随横滚移动
+   (实现=行内 fixed 列绝对定位+行 padding-left 让出空间; 微信 flex 表格无原生 freeze) */
+.rank-table-head, .rank-subhead, .rank-table-row { position: relative; padding-left: 366rpx; }
+.rth-rank, .rth-name, .rtd-rank, .rtd-name { position: absolute; left: 8rpx; z-index: 2; background: inherit; }
+.rth-rank, .rtd-rank { left: 8rpx; width: 76rpx; }
+.rth-name, .rtd-name { left: 84rpx; width: 270rpx; }
+.rank-table-head .rth-rank, .rank-table-head .rth-name { background: #eef4ff; }
+.rank-subhead .rsh { background: #f7fafd; }
+.rank-table-row .rtd-rank, .rank-table-row .rtd-name { background: #fff; }
+.rank-table-row:active .rtd-rank, .rank-table-row:active .rtd-name { background: #f7faff; }
+.rtd-name { display: flex; align-items: center; }
 .rtd-score { width: 130rpx; display: flex; justify-content: center; }
 .rtd-total { width: 90rpx; text-align: right; padding-right: 8rpx; color: #64748b; font-size: 21rpx; }
 .rtd-cat { width: 130rpx; display: flex; flex-direction: column; align-items: center; gap: 2rpx; }
