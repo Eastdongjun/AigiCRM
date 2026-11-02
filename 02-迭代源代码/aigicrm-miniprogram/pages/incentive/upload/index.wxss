@@ -98,60 +98,63 @@
 /* 【C2 2026-10-21】服务端分页加载状态行: 加载中/没有更多 */
 .cs-more { padding: 24rpx 0; text-align: center; color: #94a3b8; font-size: 23rpx; }
 
-/* ===== 【2026-11-02 用户令·平铺直选】上传页四大类/子类 chips ===== */
-.upload-cat-row { display: flex; flex-wrap: wrap; gap: 12rpx; margin-top: 12rpx; }
-.upload-cat-row.sub { margin-top: 10rpx; padding-left: 12rpx; border-left: 4rpx solid #dbeafe; }
-.upload-cat-chip {
-  padding: 10rpx 24rpx; font-size: 24rpx; line-height: 1.4;
-  color: #1f3b73; background: #fff; border: 2rpx solid #c9d6f2; border-radius: 999rpx;
-}
-.upload-cat-chip.on { color: #fff; background: #2f6bff; border-color: #2f6bff; font-weight: 500; box-shadow: 0 4rpx 10rpx rgba(47,107,255,.25); }
-.upload-cat-chip.sub { font-size: 22rpx; padding: 8rpx 20rpx; color: #475569; background: #f8fafc; border-color: #e2e8f0; }
-.upload-cat-chip.on-sub { color: #fff; background: #059669; border-color: #059669; font-weight: 500; }
+/* ===== 【2026-11-02 用户令·PC 骨架完全复刻】cat-tabs-bar → main-layout(left+right) =====
+   与 PC index.vue 逐组件同构: pcat-bar=cat-tabs-bar / pcat-tab=cat-tab /
+   pmain=main-layout / plp=left-panel / prp=right-panel */
+.upload-pc-page { display: flex; flex-direction: column; gap: 14rpx; }
 
-/* ===== 【2026-11-02 用户令·PC 同构】子分类列表(与 PC 左面板同款: 名称+分值+上传按钮) ===== */
-.browse-card { margin-top: 14rpx; }
-.subcat-list { margin-top: 14rpx; }
-.subcat-row {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 16rpx 12rpx; border-bottom: 1rpx solid #eef2f8; border-radius: 8rpx;
+/* 1) cat-tabs-bar(灰底胶囊容器+等宽Tab+深蓝渐变激活+记录数徽章, 与 PC cat-tabs 同款) */
+.pcat-bar { flex-shrink: 0; }
+.pcat-tabs { display: flex; background: #f2f4f7; border-radius: 20rpx; padding: 6rpx; }
+.pcat-tab {
+  flex: 1; display: flex; align-items: center; justify-content: center; gap: 8rpx;
+  padding: 16rpx 8rpx; border-radius: 16rpx; transition: all .2s;
 }
-.subcat-row:last-child { border-bottom: 0; }
-.subcat-row.active { background: #f0f7ff; }
-.subcat-info { flex: 1; min-width: 0; display: flex; align-items: center; gap: 12rpx; }
-.subcat-name { font-size: 26rpx; color: #172033; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.subcat-score { flex-shrink: 0; font-size: 21rpx; color: #1d4fd7; font-weight: 600; background: #eff6ff; border-radius: 999rpx; padding: 2rpx 12rpx; }
-.subcat-upload-btn { flex-shrink: 0; margin: 0; margin-left: 12rpx; }
-.subcat-empty { text-align: center; padding: 24rpx 0; font-size: 24rpx; color: #94a3b8; }
+.pcat-tab.active {
+  background: linear-gradient(135deg, #1d3fae, #2f6bf0 60%, #4d8cf5);
+  box-shadow: 0 4rpx 14rpx rgba(29, 78, 216, .28);
+}
+.pcat-name { font-size: 23rpx; color: #606266; font-weight: 500; white-space: nowrap; }
+.pcat-tab.active .pcat-name { color: #fff; font-weight: 700; }
+.pcat-badge { font-size: 18rpx; padding: 1rpx 10rpx; border-radius: 8rpx; background: rgba(0,0,0,.08); font-weight: 600; color: #606266; }
+.pcat-tab.active .pcat-badge { background: rgba(255,255,255,.25); color: #fff; }
 
-/* ===== 【2026-11-02 用户令·PC 同构】左右分栏: 左=子分类竖列 / 右=记录+上传 ===== */
-.upload-cat-tabs { width: 100%; }
-.upload-split {
-  display: flex; margin-top: 14rpx; border: 1rpx solid #e3ebf7; border-radius: 12rpx;
-  overflow: hidden; height: 560rpx; /* 与 PC main-layout flex 同构 */
+/* 2) main-layout(flex row + border + radius, 与 PC main-layout 同款) */
+.pmain {
+  display: flex; border: 1rpx solid #e8ecf1; border-radius: 20rpx;
+  overflow: hidden; height: 600rpx; background: #fff;
 }
-/* 左侧子分类竖列(与 PC left-panel 240px 同语义, 比例约 1/3) */
-.upload-left {
-  flex: none; width: 32%; background: #fafbfd; border-right: 1rpx solid #f0f2f5;
-  overflow-y: auto;
+
+/* 2a) left-panel(子分类竖列, 与 PC left-panel 240px 同语义=30%) */
+.plp { flex: none; width: 30%; background: #fafbfd; border-right: 1rpx solid #f0f2f5; display: flex; flex-direction: column; }
+.plp-hint { display: flex; align-items: center; gap: 8rpx; padding: 14rpx 14rpx 10rpx; }
+.plp-hint-tag { flex-shrink: 0; font-size: 19rpx; color: #dc2626; background: #fef2f2; border: 1rpx solid #fecaca; border-radius: 6rpx; padding: 2rpx 8rpx; }
+.plp-hint-text { flex: 1; min-width: 0; font-size: 18rpx; color: #9099a6; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.plp-scroll { flex: 1; overflow-y: auto; }
+.plp-item {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 16rpx 10rpx 16rpx 16rpx; border-bottom: 1rpx solid #f5f5f5;
 }
-.left-sub-item {
+.plp-item.active { background: #f0f4ff; box-shadow: inset 4rpx 0 0 #2563eb; }
+.plp-item.active .plp-name { color: #2563eb; font-weight: 700; }
+.plp-name { flex: 1; min-width: 0; font-size: 22rpx; color: #333; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.plp-actions { flex-shrink: 0; display: flex; align-items: center; gap: 6rpx; }
+.plp-score { font-size: 19rpx; color: #1d4fd7; font-weight: 600; background: #eff6ff; border-radius: 8rpx; padding: 2rpx 10rpx; }
+.plp-upload { margin: 0; padding: 0 16rpx; height: 44rpx; line-height: 44rpx; font-size: 20rpx; border-radius: 10rpx; background: #2563eb; color: #fff; }
+.plp-empty { text-align: center; padding: 28rpx 0; font-size: 20rpx; color: #94a3b8; }
+
+/* 2b) right-panel(已有记录列表, 与 PC right-panel flex:1 同构) */
+.prp { flex: 1; min-width: 0; background: #fff; padding: 14rpx 16rpx; display: flex; flex-direction: column; }
+.prp-scroll { flex: 1; overflow-y: auto; }
+/* 双行行卡(与 PC RecordTable 双行 cell 同构: 主行=分类名, meta=行业·上传人, 右侧=客户+文件数) */
+.prp-row {
   display: flex; align-items: center; justify-content: space-between;
-  padding: 18rpx 12rpx; border-bottom: 1rpx solid #f5f5f5;
+  padding: 14rpx 8rpx; border-bottom: 1rpx solid #f0f2f5;
 }
-.left-sub-item.active { background: #f0f4ff; box-shadow: inset 4rpx 0 0 #2563eb; }
-.left-sub-item.active .left-sub-name { color: #2563eb; font-weight: 700; }
-.left-sub-name { font-size: 22rpx; color: #333; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.left-sub-score { flex-shrink: 0; font-size: 19rpx; color: #1d4fd7; font-weight: 600; }
-.left-sub-empty { text-align: center; padding: 24rpx 0; font-size: 20rpx; color: #94a3b8; }
-/* 右侧记录区(与 PC RecordTable 同语义) */
-.upload-right { flex: 1; min-width: 0; padding: 14rpx; overflow-y: auto; }
-.right-upload-btn { width: 100%; margin-bottom: 14rpx; }
-.right-rec-row {
-  display: flex; align-items: center; padding: 14rpx 8rpx;
-  border-bottom: 1rpx solid #eef2f8;
-}
-.right-rec-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
-.right-rec-customer { font-size: 24rpx; color: #172033; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.right-rec-meta { font-size: 20rpx; color: #64748b; margin-top: 4rpx; }
-.right-rec-empty { text-align: center; padding: 32rpx 0; font-size: 22rpx; color: #94a3b8; }
+.prp-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.prp-cat { font-size: 24rpx; color: #172033; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.prp-meta { font-size: 19rpx; color: #94a3b8; margin-top: 4rpx; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.prp-side { flex-shrink: 0; margin-left: 12rpx; display: flex; flex-direction: column; align-items: flex-end; }
+.prp-customer { font-size: 22rpx; color: #333; font-weight: 500; max-width: 200rpx; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.prp-files { font-size: 19rpx; color: #64748b; margin-top: 4rpx; }
+.prp-empty { text-align: center; padding: 40rpx 20rpx; font-size: 22rpx; color: #94a3b8; line-height: 1.6; }

@@ -380,8 +380,9 @@ function buildUploadViewState(data) {
     // 【对齐 PC 2026-09-20】分类两级选择: 大类(产品试点/两谈两做/外出参观/交流拜访) → 子类(涂层类/防滑板类…);
     // selectedCategoryIndex 仍指向全量 categories, 兼容草稿恢复与编辑回填
     categoryParentNames: (data.categoryParentNodes || []).map((item) => item.name),
-    // 【2026-11-02 用户令·平铺直选】四大类/子类 chips 数据(与 PC 左面板同语义)
-    categoryParents: (data.categoryParentNodes || []).map((item) => ({ id: item.index, name: item.name })),
+    // 【2026-11-02 用户令·PC 同构】四大类/子类 chips 数据(与 PC 左面板同语义)
+    categoryParents: (data.categoryParentNodes || []).map((item) => ({ id: item.index, name: item.name, count: item.count || item._recordCount || 0 })),
+    activeParentName: (data.categoryParentNodes && data.categoryParentNodes[data.selectedParentCategoryIndex] && data.categoryParentNodes[data.selectedParentCategoryIndex].name) || '',
     selectedParentId: data.selectedParentCategoryIndex >= 0 ? data.categoryParentNodes[data.selectedParentCategoryIndex] && data.categoryParentNodes[data.selectedParentCategoryIndex].index : -1,
     categoryChildren: activeParentChildren(data).map((item) => ({ id: item.index, name: item.name, score: item.score || 0 })),
     selectedChildId: data.selectedCategoryIndex >= 0 ? data.selectedCategoryIndex : -1,
@@ -628,8 +629,11 @@ Page({
         return cid !== undefined && String(cid) === String(selectedChildId)
       }).map((r) => ({
         id: r.id,
+        categoryName: r.categoryName || r.category || r.type || '',
+        industry: r.industry || '',
+        uploaderName: r.userName || r.updatedByName || r.createByName || r.realName || '',
         customerName: r.customerName || '未命名客户',
-        fileCount: (r.filePreId || r.fileMidId || r.filePostId || r.fileId) ? 3 : 0,
+        fileCount: [r.filePreId, r.fileMidId, r.filePostId, r.fileId].filter(Boolean).length,
         timeText: String(r.createdAt || r.createTime || '').replace('T', ' ').slice(0, 16)
       }))
       this.setData({ subcatRecords: selected })
@@ -825,7 +829,7 @@ Page({
   // 【2026-11-02 PC 同构】子分类行的"上传"按钮=选子类并滚到表单(表单自动展开因 showCategorySummary 变 true)
   tapUploadFromSubcat(e) {
     this.chooseCategoryChild({ detail: { value: String(Number(e.currentTarget.dataset.index) || 0) } })
-    wx.pageScrollTo({ selector: '.form-card', duration: 300 })
+    // 【导航契约】不用 pageScrollTo(破坏返回滚动保持), 用户自然下滑即可见表单
   },
   chooseIndustry(e) { this.setData({ selectedIndustryIndex: Number(e.detail.value) }, () => this.refreshUploadViewState()) },
   choosePeriod(e) { this.setData({ selectedPeriodIndex: Number(e.detail.value) }, () => this.refreshUploadViewState()) },

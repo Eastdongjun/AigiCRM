@@ -55,9 +55,9 @@ grep -q '<view class="hero-title">四项服务详情</view>' "$detail_wxml" || {
 grep -q '暂无四项服务详情' "$detail_wxml" || { echo "FAIL: incentive detail empty state must use four-incentive naming" >&2; exit 1; }
 grep -q '暂无四项服务记录' "$wxml" || { echo "FAIL: incentive list empty state must use four-incentive naming" >&2; exit 1; }
 # 【2026-10-26】timeline 四项服务命名钉随页面退役(防复活守卫见下方 2026-10-26 块)
-# 【2026-10-26→11-02 重锚】上传页标题随应用中心菜单对齐 PC 改"激励上传"
+# 【2026-10-26→11-02 重锚】上传页标题随应用中心菜单对齐 PC 改"激励上传";
+# 页内 hero 已移除(PC 也无 hero 直达 cat-tabs), 标题只留导航栏
 grep -q '"navigationBarTitleText":"激励上传"' "$upload_json" || { echo "FAIL: incentive upload title must be 激励上传 (2026-11-02 PC 对齐)" >&2; exit 1; }
-grep -q '<view class="hero-title">激励上传</view>' "$upload_wxml" || { echo "FAIL: incentive upload hero title must be 激励上传 (2026-11-02)" >&2; exit 1; }
 grep -q 'categoryTree' "$page" || { echo "FAIL: incentive mobile category tree is missing" >&2; exit 1; }
 grep -q 'getCategoryStats' "$page" || { echo "FAIL: incentive mobile category stats is missing" >&2; exit 1; }
 grep -q 'getRecords' "$page" || { echo "FAIL: incentive mobile category stats detail does not load shared records" >&2; exit 1; }
@@ -563,14 +563,15 @@ grep -q "incentiveStats: '/pages/incentive/index?tab=stats'" "$ROOT/aigicrm-mini
 grep -q "title: '激励上传'" "$ROOT/aigicrm-miniprogram/pages/app/index.js" || { echo "FAIL: app center must name upload entry 激励上传" >&2; exit 1; }
 grep -q "title: '激励查询'" "$ROOT/aigicrm-miniprogram/pages/app/index.js" || { echo "FAIL: app center must name query entry 激励查询" >&2; exit 1; }
 grep -q "title: '激励统计'" "$ROOT/aigicrm-miniprogram/pages/app/index.js" || { echo "FAIL: app center must name stats entry 激励统计" >&2; exit 1; }
-# 【2026-11-02 用户令·上传平铺】四大类/子类=chips 平铺直选(与 PC 左面板同语义)
-grep -q 'upload-cat-chip' "$ROOT/aigicrm-miniprogram/pages/incentive/upload/index.wxml" || { echo "FAIL: upload page categories must be flat chips (not picker)" >&2; exit 1; }
+# 【2026-11-02 三调重锚】上传页=PC骨架(pcat-tabs 等宽Tab), 原 upload-cat-chip 胶囊退役
 grep -q 'tapCategoryParent' "$ROOT/aigicrm-miniprogram/pages/incentive/upload/index.wxml" || { echo "FAIL: upload parent categories must be tap-to-select" >&2; exit 1; }
 grep -q 'tapCategoryChild' "$ROOT/aigicrm-miniprogram/pages/incentive/upload/index.wxml" || { echo "FAIL: upload child categories must be tap-to-select" >&2; exit 1; }
-grep -q 'upload-split' "$ROOT/aigicrm-miniprogram/pages/incentive/upload/index.wxml" || { echo "FAIL: upload page must have left-right split layout (PC-style)" >&2; exit 1; }
-grep -q 'left-sub-item' "$ROOT/aigicrm-miniprogram/pages/incentive/upload/index.wxml" || { echo "FAIL: upload left panel must have sub-category vertical list" >&2; exit 1; }
-grep -q 'tapUploadFromSubcat' "$ROOT/aigicrm-miniprogram/pages/incentive/upload/index.wxml" || { echo "FAIL: upload right panel must have upload button" >&2; exit 1; }
+grep -q 'pcat-tabs' "$ROOT/aigicrm-miniprogram/pages/incentive/upload/index.wxml" || { echo "FAIL: upload page must have PC-style cat-tabs segmented control" >&2; exit 1; }
+grep -q 'pmain' "$ROOT/aigicrm-miniprogram/pages/incentive/upload/index.wxml" || { echo "FAIL: upload page must have PC-style main-layout split" >&2; exit 1; }
+grep -q 'plp-item' "$ROOT/aigicrm-miniprogram/pages/incentive/upload/index.wxml" || { echo "FAIL: upload left panel must have sub-category list items" >&2; exit 1; }
+grep -q 'tapUploadFromSubcat' "$ROOT/aigicrm-miniprogram/pages/incentive/upload/index.wxml" || { echo "FAIL: upload sub-category rows must have upload buttons" >&2; exit 1; }
 grep -q 'subcatRecords' "$ROOT/aigicrm-miniprogram/pages/incentive/upload/index.wxml" || { echo "FAIL: upload right panel must show existing records" >&2; exit 1; }
+grep -q 'plp-hint' "$ROOT/aigicrm-miniprogram/pages/incentive/upload/index.wxml" || { echo "FAIL: upload left panel must have active-parent hint header" >&2; exit 1; }
 # 【2026-10-26 用户令·排法分工】轻量页(home)与完整版(index)排法分开: 完整版保持按客户归集封面卡;
 # 轻量页默认打散记录流(不绑客户, 按上传时间排), 「按客户」可切回归集。钉默认态/切换器/打散构建/点行直达。
 HOME_JS="$ROOT/aigicrm-miniprogram/pages/incentive/home/index.js"
