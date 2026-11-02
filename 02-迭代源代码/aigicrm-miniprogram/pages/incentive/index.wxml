@@ -72,34 +72,31 @@
       </view>
     </view>
     <view wx:if="{{incentiveView.showLoading}}" class="card muted">{{incentiveView.loadingText}}</view>
-    <!-- 【需求B+C 2026-10-16】客户维度=紧凑封面卡: 列表页只留识别信息(封面/名称/行业·大类/学分/未读),
-         全部明细与操作下沉到客户激励详情页(openCustomerDetail);原红圈①②③④从列表页消失 -->
-    <!-- 【分页 2026-10-18】列表只渲染当页切片 pagedRecords; 客户名称移到卡片正文(不再压封面图) -->
-    <block wx:for="{{pagedRecords}}" wx:key="id">
-      <view class="cust-card" data-index="{{index}}" bindtap="openCustomerDetail">
-        <view class="cust-cover">
-          <image wx:if="{{item.coverFile.id && apiBase && dlToken}}" class="cust-cover-img" src="{{thumb.thumbSrc(item.coverFile, apiBase, dlToken)}}" mode="aspectFill" lazy-load="{{true}}" />
-          <view wx:else class="cust-cover-fallback">{{item.coverChar}}</view>
-          <view class="cust-cover-badge">档案</view>
+    <!-- 【2026-11-02 用户令·PC 同构表格】查询区从客户封面卡改为横向表格: 每行一条记录,
+         列=客户/分类/产品/时间/上传人/文件/学分, 横向滚动直接看全部列(与 PC 激励查询表格同构);
+         点行直达记录详情(拨盘页)。原 10-16 需求B+C 封面卡形态退役 -->
+    <scroll-view class="rec-table-scroll" scroll-x enhanced show-scrollbar="{{false}}">
+      <view class="rec-table">
+        <view class="rec-tr rec-th">
+          <view class="rec-td c-cust">客户</view>
+          <view class="rec-td c-cat">分类</view>
+          <view class="rec-td c-prod">产品</view>
+          <view class="rec-td c-date">时间</view>
+          <view class="rec-td c-user">上传人</view>
+          <view class="rec-td c-file">文件</view>
+          <view class="rec-td c-score">学分</view>
         </view>
-        <view class="cust-body">
-          <view class="cust-name-row">
-            <text wx:if="{{item.unread}}" class="cust-unread-dot"></text>
-            <text class="cust-name">{{item.name}}</text>
-          </view>
-          <view class="cust-meta">
-            <text class="cust-pill">{{item.industry}}</text>
-            <text wx:if="{{item.category}}" class="cust-pill blue">{{item.category}}</text>
-          </view>
-          <view class="cust-nums">{{item.countText}} · {{item.fileCountText}}</view>
+        <view wx:for="{{pagedTableRows}}" wx:key="id" class="rec-tr" data-id="{{item.id}}" bindtap="openRecordDetail">
+          <view class="rec-td c-cust">{{item.customerName}}</view>
+          <view class="rec-td c-cat">{{item.categoryName}}</view>
+          <view class="rec-td c-prod">{{item.productText || '—'}}</view>
+          <view class="rec-td c-date">{{item.timeText}}</view>
+          <view class="rec-td c-user">{{item.uploaderName || '—'}}</view>
+          <view class="rec-td c-file">{{item.fileCount}}</view>
+          <view class="rec-td c-score">{{item.score}}</view>
         </view>
-        <view class="cust-score">
-          <text class="cust-score-num">{{item.score}}</text>
-          <text class="cust-score-unit">分</text>
-        </view>
-        <view class="cust-arrow">›</view>
       </view>
-    </block>
+    </scroll-view>
     <view class="incentive-pager">
       <pager wx:if="{{pagerTotal > 10}}" page="{{page}}" pageSize="{{pageSize}}" total="{{pagerTotal}}" loading="{{incentiveView.pagerLoading}}" bind:change="onPagerChange" />
     </view>

@@ -21,6 +21,39 @@ function setIncentiveDlToken(token, userId) {
 const TAG_COLORS = { 安装前: '#b45309', 安装中: '#1d4fd7', 安装后: '#047857', 跟踪: '#7c3aed', 佐证: '#64748b' }
 // 【setData 瘦身 2026-10-13】缩略图 URL 拼接移交 thumb.wxs(渲染层), 此处仅维护 token 供其引用
 
+// 【2026-11-02 用户令·PC 同构表格】查询区客户封面卡 → 横向表格(每行一条记录, 列=客户/分类/产品/
+// 时间/上传人/文件/学分, 横滚看全部列)。行数据=客户聚合 records[] 拉平, 字段口径与轻量页
+// buildFlatRow 同源(同 API 同映射); 点行直达记录详情(拨盘页 detail?id=)。
+function buildRecordRow(record, customerName) {
+  const files = record.files || buildIncentiveFiles(record)
+  const time = String(record.createdAt || record.createTime || '')
+  const categoryName = record.categoryName || record.category || record.type || ''
+  return {
+    id: record.id,
+    customerName: record.customerName || customerName || '未命名客户',
+    categoryName: categoryName || '未分类',
+    productText: [record.specificProduct, record.relatedProducts, record.product].filter(Boolean).join(' · '),
+    uploaderName: record.userName || record.updatedByName || record.createByName || '',
+    score: Number(record.score) || 0,
+    timeText: time.replace('T', ' ').slice(0, 16),
+    timeRaw: time,
+    fileCount: (files || []).length
+  }
+}
+
+function buildRecordTableRows(customerGroups) {
+  const rows = []
+  ;(customerGroups || []).forEach((group) => {
+    const children = (group && group.records) || []
+    children.forEach((record) => {
+      if (record && record.id !== undefined && record.id !== null) {
+        rows.push(buildRecordRow(record, group.name || group.customerName))
+      }
+    })
+  })
+  return rows
+}
+
 function normalizeRecords(customers) {
   return (customers || []).map((customer) => {
     const records = customer.records || []
@@ -976,16 +1009,19 @@ Page({
       })
     }
     let records = this.applyLocalRecordFilters(this.data.allRecords).filter(childMatches)
-    // 【setData 瘦身】视图对象直接排序(全部筛选字段在视图顶层), 重建会丢懒加载的子记录明细
-    if (this.data.order === 'score-asc') records.sort((a, b) => (Number(a.score) || 0) - (Number(b.score) || 0))
-    if (this.data.order === 'score-desc') records.sort((a, b) => (Number(b.score) || 0) - (Number(a.score) || 0))
-    if (this.data.order === 'time-asc') records.sort((a, b) => coverTimeOf(a).localeCompare(coverTimeOf(b)))
-    if (this.data.order === 'time-desc') records.sort((a, b) => coverTimeOf(b).localeCompare(coverTimeOf(a)))
+    // 【2026-11-02 用户令·PC 同构表格】客户聚合拉平为记录行(列=客户/分类/产品/时间/上传人/文件/学分),
+    // 排序作用在记录行上(与 PC 表格同构: 分值=单条记录分, 时间=记录 createdAt)
+    let tableRows = buildRecordTableRows(records)
+    // 排序: 与 PC 表格同构(分值=单条记录分, 时间=记录 createdAt), 默认时间倒序
+    if (this.data.order === 'score-asc') tableRows.sort((a, b) => a.score - b.score)
+    else if (this.data.order === 'score-desc') tableRows.sort((a, b) => b.score - a.score)
+    else if (this.data.order === 'time-asc') tableRows.sort((a, b) => String(a.timeRaw).localeCompare(String(b.timeRaw)))
+    else if (this.data.order === 'time-desc') tableRows.sort((a, b) => String(b.timeRaw).localeCompare(String(a.timeRaw)))
     // 【分页 2026-10-18】排序/筛选/加载后一律回第 1 页; 分页切片与 total 同一次 setData 落定
-    const paged = paginate(records, 1, this.data.pageSize)
+    const paged = paginate(tableRows, 1, this.data.pageSize)
     this.setData({
       records,
-      pagedRecords: paged.rows,
+      pagedTableRows: paged.rows,
       page: paged.page,
       pageSize: paged.pageSize,
       pagerTotal: paged.total,
@@ -993,12 +1029,25 @@ Page({
     }, () => this.refreshIncentiveView())
   },
 
+  // 【2026-11-02 用户令·表格】点行直达记录详情(拨盘页, 与轻量页同款跳转)
+  openRecordDetail(e) {
+    const id = e.currentTarget.dataset.id
+    if (!id) return
+    wx.navigateTo({ url: '../incentive/detail/index?id=' + id })
+  },
+
   // 【分页 2026-10-18】客户端分页: 页码/页大小变化时重算当页切片; 用 paginate 返回的 page
   // 写回 data, 数据变少(删记录/筛选收紧)时自动 clamp 到最后一页
   applyPaging(page, pageSize) {
-    const paged = paginate(this.data.records, page === undefined ? this.data.page : page, pageSize || this.data.pageSize)
+    // 【2026-11-02 表格】翻页切片对象=排序后的记录行(与 sort() 落定的同序, 此处按当前序重建)
+    const rows = buildRecordTableRows(this.data.records)
+    if (this.data.order === 'score-asc') rows.sort((a, b) => a.score - b.score)
+    else if (this.data.order === 'score-desc') rows.sort((a, b) => b.score - a.score)
+    else if (this.data.order === 'time-asc') rows.sort((a, b) => String(a.timeRaw).localeCompare(String(b.timeRaw)))
+    else if (this.data.order === 'time-desc') rows.sort((a, b) => String(b.timeRaw).localeCompare(String(a.timeRaw)))
+    const paged = paginate(rows, page === undefined ? this.data.page : page, pageSize || this.data.pageSize)
     this.setData({
-      pagedRecords: paged.rows,
+      pagedTableRows: paged.rows,
       page: paged.page,
       pageSize: paged.pageSize,
       pagerTotal: paged.total

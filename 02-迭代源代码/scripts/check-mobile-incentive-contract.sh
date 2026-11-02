@@ -195,8 +195,14 @@ grep -q 'chooseStartDate' "$wxml" || { echo "FAIL: incentive mobile start date q
 grep -q 'chooseEndDate' "$wxml" || { echo "FAIL: incentive mobile end date query UI is missing" >&2; exit 1; }
 # 【钉随需求C】"全部记录"链接改为整卡点击 openCustomerDetail(封面卡即入口)
 grep -q 'openCustomerDetail' "$page" || { echo "FAIL: incentive mobile customer detail list all-records entry is missing" >&2; exit 1; }
-# 【钉随需求C】customer-record-list 重设计为 cust-card 封面卡 + cd-wall-card 分组照片墙
-grep -q 'cust-card' "$wxml" || { echo "FAIL: incentive mobile customer detail list expanded timeline UI is missing" >&2; exit 1; }
+# 【2026-11-02 用户令·PC 同构表格】完整版查询区从客户封面卡(2026-10-16 需求C)翻案为横向表格:
+# 每行一条记录(客户/分类/产品/时间/上传人/文件/学分七列, 横滚看全), 点行直达记录详情;
+# cd-wall-card 分组照片墙钉随封面卡退役移除(客户详情页照片墙不受影响, 见 CUSTDETAIL 段钉)
+grep -q 'rec-table' "$wxml" || { echo "FAIL: incentive mobile query list must be the PC-style horizontal record table (2026-11-02 用户令)" >&2; exit 1; }
+grep -q 'pagedTableRows' "$wxml" || { echo "FAIL: record table must render pagedTableRows rows" >&2; exit 1; }
+grep -q 'openRecordDetail' "$wxml" || { echo "FAIL: record table rows must tap into record detail" >&2; exit 1; }
+grep -q 'buildRecordTableRows' "$page" || { echo "FAIL: record table row builder is missing" >&2; exit 1; }
+! grep -q 'class="cust-card"' "$wxml" || { echo "FAIL: full-version query list must not regress to cover cards (retired 2026-11-02)" >&2; exit 1; }
 # 【钉随需求C】data-child-index 随操作下游退役——customer-detail 用 data-index
 grep -q 'data-index' "$CUSTDETAIL_WXML" || { echo "FAIL: incentive mobile customer detail list child record actions lack record index" >&2; exit 1; }
 ! grep -Eq "item\\.files\\.length|item\\.fileGroups &&|item\\.records &&|item\\.expanded \\?|child\\.categoryName \\|\\||child\\.period \\|\\||child\\.score \\|\\||child\\.preInstallQuestion \\|\\||child\\.fileGroups &&|group\\.files\\.length" "$wxml" || { echo "FAIL: incentive mobile records WXML must not keep record/file fallback branching logic" >&2; exit 1; }

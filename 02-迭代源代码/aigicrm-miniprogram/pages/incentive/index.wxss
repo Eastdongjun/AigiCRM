@@ -163,8 +163,8 @@
 
 /* 【需求C 2026-10-16】客户封面卡: 列表页一客户一卡(封面/名称/行业·大类/学分/未读点),
    整卡点入 customer-detail 详情页;替代原"一卡近一屏"的巨卡 */
-/* 【分页+名称上移 2026-10-18】左侧封面缩为 128rpx 方块(图/首字兜底+「档案」角标),
-   客户名称移入正文首行(最多两行, 前导未读圆点), 封面不再叠遮罩/名称/分数文字 */
+/* 【2026-11-02 共享标注】完整版查询区已翻案为下方横向表格(本页不再用封面卡),
+   但轻量页(home)「按客户」模式经 @import 本文件复用封面卡全套样式——保留, 勿删 */
 .cust-card { position: relative; display: flex; align-items: center; gap: 18rpx; background: #fff; border-radius: 22rpx; padding: 20rpx; margin-top: 16rpx; box-shadow: 0 8rpx 22rpx rgba(48, 78, 112, .05); }
 .cust-card:active { background: #f8fbff; }
 .cust-cover { position: relative; flex-shrink: 0; width: 128rpx; height: 128rpx; border-radius: 18rpx; overflow: hidden; background: linear-gradient(150deg, #0d1733, #13255e 58%, #1d4ed8); }
@@ -183,4 +183,22 @@
 .cust-score-num { font-size: 32rpx; font-weight: 900; color: #1d4fd7; line-height: 1; }
 .cust-score-unit { font-size: 18rpx; color: #7d9bd8; }
 .cust-arrow { flex-shrink: 0; color: #b6c5da; font-size: 34rpx; font-weight: 700; }
-.incentive-pager { margin-top: 18rpx; }
+
+/* ===== 【2026-11-02 用户令·PC 同构表格】完整版查询区横向表格 =====
+   每行一条记录, 列=客户/分类/产品/时间/上传人/文件/学分, 横滚看全部列, 点行直达记录详情 */
+.rec-table-scroll { width: 100%; margin-top: 14rpx; }
+.rec-table { display: inline-block; min-width: 100%; border-radius: 14rpx; overflow: hidden; border: 1rpx solid #e3ebf7; background: #fff; }
+.rec-tr { display: flex; align-items: stretch; }
+.rec-th { background: #eef4ff; }
+.rec-th .rec-td { color: #33507e; font-weight: 700; font-size: 21rpx; }
+.rec-tr + .rec-tr { border-top: 1rpx solid #eef2f8; }
+.rec-tr:not(.rec-th):active { background: #f7faff; }
+.rec-td { flex: none; display: flex; align-items: center; padding: 14rpx 12rpx; font-size: 21rpx; color: #2b3a52; line-height: 1.45; box-sizing: border-box; }
+.c-cust { width: 210rpx; font-weight: 600; }
+.c-cat { width: 150rpx; }
+.c-prod { width: 190rpx; }
+.c-date { width: 175rpx; color: #64748b; }
+.c-user { width: 120rpx; }
+.c-file { width: 80rpx; justify-content: flex-end; }
+.c-score { width: 90rpx; justify-content: flex-end; color: #1d4fd7; font-weight: 800; }
+.incentive-pager { margin-top:  18rpx; }
