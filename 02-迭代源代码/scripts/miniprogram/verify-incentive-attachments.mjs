@@ -173,15 +173,20 @@ async function verifyUploadPage(miniProgram) {
   await page.waitFor(1000)
 
   const labels = await textList(await page.$$('.label'))
-  for (const label of ['客户 *', '激励大类 *', '团队共享', '文件槽位 *']) {
+  // 【2026-11-03 纯表单页】"文件槽位 *"随槽选择器退役(每槽独立区块取代两步式)
+  for (const label of ['客户 *', '激励大类 *', '团队共享']) {
     assert(labels.includes(label), `upload page missing label: ${label}`)
   }
 
-  // 【2026-09-22 校准】默认 selectedSlotIndex=0 是隐藏的 fileId 遗留槽(仅旧数据回填, 界面一律隐藏);
-  // 真机流程先选分类把索引拨到可见槽, 沙箱须同样预设到 1(安装前), 否则文件进隐藏槽不渲染
-  await page.setData({ selectedSlotIndex: 1 })
-  await page.callMethod('setSelectedSlotFile', '/tmp/aigicrm-preview-test.jpg', '现场照片.jpg', 'image')
-  await page.callMethod('setSelectedSlotFile', '/tmp/aigicrm-preview-test-2.jpg', '现场照片-补充.jpg', 'image')
+  // 【2026-11-03 校准】分类=表单内两级选择, 演示树大类(产品试点/trial)无子类→选大类即定分类,
+  // 文件区随 showCategorySummary 渲染每槽独立区块; 未选分类时区块不出现(与 PC 弹窗由左侧
+  // 面板定分类后弹出的语义一致)
+  await page.callMethod('chooseCategoryParent', { detail: { value: '0' } })
+  await page.waitFor(300)
+  // 【2026-11-03 校准】setSlotFile 按槽 key 直达写入(不再有 selectedSlotIndex 当前槽);
+  // filePreId 在 defaultSlots 顺序中仍为 fileSlots[1], dataset index 同步
+  await page.callMethod('setSlotFile', 'filePreId', '/tmp/aigicrm-preview-test.jpg', '现场照片.jpg', 'image')
+  await page.callMethod('setSlotFile', 'filePreId', '/tmp/aigicrm-preview-test-2.jpg', '现场照片-补充.jpg', 'image')
   await page.waitFor(500)
   await miniProgram.pageScrollTo(1200)
   await page.waitFor(500)
@@ -190,16 +195,16 @@ async function verifyUploadPage(miniProgram) {
   assert(fileSlots[1].fileName === '现场照片.jpg', 'upload page selected file name was not set')
   assert(fileSlots[1].fileKind === 'image', 'upload page selected file kind was not image')
   assert(fileSlots[1].files.length === 2, 'upload page selected slot must keep multiple files like PC')
-  assert((await page.$$('.selected-file-row')).length === 2, 'upload page selected-file rows are missing')
+  assert((await page.$$('.slot-block')).length === 4, 'upload page trial category must render 3 install blocks + 1 track block')
   assert((await page.$$('.selected-file-thumb')).length === 2, 'upload page selected image thumbnails are missing')
 
   const buttons = await textList(await page.$$('button'))
-  for (const button of ['预览', '下载', '移除', '提交激励']) {
+  for (const button of ['预览', '下载', '移除', '上传并提交']) {
     assert(buttons.includes(button), `upload page missing button: ${button}`)
   }
 
   await resetAttachmentActionCalls(miniProgram)
-  // 【2026-09-22 校准】文件已随 selectedSlotIndex=1 落在安装前槽(fileSlots[1]), dataset index 同步
+  // 【2026-09-22 校准】文件已落在安装前槽(fileSlots[1]), dataset index 同步
   await page.callMethod('previewSelectedFile', eventWithDataset({ index: 1, fileIndex: 1 }))
   await page.waitFor(100)
   await page.callMethod('downloadSelectedFile', eventWithDataset({ index: 1, fileIndex: 1 }))
@@ -208,8 +213,7 @@ async function verifyUploadPage(miniProgram) {
   assert(calls.previewImage.length >= 1, `upload page selected image must call previewImage: ${actionCallSummary(calls)}`)
   assert(calls.saveFile.length >= 1, `upload page selected image download must call saveFile: ${actionCallSummary(calls)}`)
 
-  await page.setData({ selectedSlotIndex: 1 })
-  await page.callMethod('setSelectedSlotFile', '/tmp/aigicrm-preview-test.pdf', '安装方案.pdf', 'file')
+  await page.callMethod('setSlotFile', 'filePreId', '/tmp/aigicrm-preview-test.pdf', '安装方案.pdf', 'file')
   await page.waitFor(100)
   await resetAttachmentActionCalls(miniProgram)
   // 【2026-09-22 校准】pdf 为安装前槽第 3 个文件(files[2]); 无 fileIndex 时 fallback 到 slot 自身

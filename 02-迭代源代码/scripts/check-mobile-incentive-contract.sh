@@ -334,9 +334,12 @@ grep -q 'isDownloadReference' "$upload_page" || { echo "FAIL: incentive upload e
 grep -q 'updateRecord(this.data.editId, payload, { keepEmpty: true })' "$upload_page" || { echo "FAIL: incentive upload edit mode does not call updateRecord PUT with keepEmpty (C4: cleared fields must reach backend as empty string)" >&2; exit 1; }
 grep -q 'fetchExistingFile' "$upload_page" || { echo "FAIL: incentive upload edit mode cannot preview/download existing server files" >&2; exit 1; }
 grep -q 'getDownloadUrl' "$upload_page" || { echo "FAIL: incentive upload edit mode must use normalized file download URLs" >&2; exit 1; }
-grep -q 'buildPeriodOptions' "$upload_page" || { echo "FAIL: incentive upload period options are missing" >&2; exit 1; }
-grep -q 'selectedPeriodIndex' "$upload_page" || { echo "FAIL: incentive upload selected period state is missing" >&2; exit 1; }
-grep -q 'choosePeriod' "$upload_page" || { echo "FAIL: incentive upload period picker handler is missing" >&2; exit 1; }
+# 【2026-11-03 PC 逻辑对齐·周期字段退役】PC 弹窗无周期字段(落库=筛选值||当年全年), MP 纯表单页
+# 无筛选栏 → 落库恒 defaultPeriod() 当年全年; 表单周期 picker/选项构建/处理函数防复活
+! grep -q 'buildPeriodOptions' "$upload_page" || { echo "FAIL: incentive upload period options must stay retired (PC has no in-form period)" >&2; exit 1; }
+! grep -q 'selectedPeriodIndex' "$upload_page" || { echo "FAIL: incentive upload selected period state must stay retired" >&2; exit 1; }
+! grep -q 'choosePeriod' "$upload_page" || { echo "FAIL: incentive upload period picker handler must stay retired" >&2; exit 1; }
+grep -q 'const selectedPeriod = defaultPeriod()' "$upload_page" || { echo "FAIL: incentive upload create payload must default period to current full year (PC empty-filter parity)" >&2; exit 1; }
 grep -q 'period: selectedPeriod' "$upload_page" || { echo "FAIL: incentive upload create payload does not use selected period" >&2; exit 1; }
 grep -q 'canToggleShare' "$upload_page" || { echo "FAIL: incentive upload edit mode must track PC share-toggle owner boundary" >&2; exit 1; }
 grep -q 'delete payload.categoryId' "$upload_page" || { echo "FAIL: incentive upload edit mode must preserve original PC category" >&2; exit 1; }
@@ -369,16 +372,23 @@ grep -q 'incentiveDetailLabel' "$upload_page" || { echo "FAIL: incentive upload 
 grep -q 'incentiveRemarkLabel' "$upload_page" || { echo "FAIL: incentive upload remark label must follow PC category semantics" >&2; exit 1; }
 grep -q "code === 'plan'" "$upload_page" || { echo "FAIL: incentive upload detail label must handle PC plan category semantics" >&2; exit 1; }
 grep -q "code === 'visit' || code === 'exchange'" "$upload_page" || { echo "FAIL: incentive upload detail label must handle PC visit/exchange category semantics" >&2; exit 1; }
-grep -q 'periodDisabled' "$upload_page" || { echo "FAIL: incentive upload edit-mode period lock must be normalized in JS" >&2; exit 1; }
-grep -q 'showPeriodArrow' "$upload_page" || { echo "FAIL: incentive upload period picker arrow visibility must be normalized in JS" >&2; exit 1; }
-grep -q 'showPeriodPreserveHint' "$upload_page" || { echo "FAIL: incentive upload edit-mode period hint visibility must be normalized in JS" >&2; exit 1; }
+! grep -q 'periodDisabled' "$upload_page" || { echo "FAIL: incentive upload edit-mode period lock must stay retired" >&2; exit 1; }
+! grep -q 'showPeriodArrow' "$upload_page" || { echo "FAIL: incentive upload period picker arrow must stay retired" >&2; exit 1; }
+! grep -q 'showPeriodPreserveHint' "$upload_page" || { echo "FAIL: incentive upload edit-mode period hint must stay retired" >&2; exit 1; }
 grep -q 'upload edit mode existing file must download before preview/save' "$automator_script" || { echo "FAIL: incentive automator must verify upload edit-mode existing-file fetches" >&2; exit 1; }
 grep -q 'upload edit mode existing image must call previewImage' "$automator_script" || { echo "FAIL: incentive automator must verify upload edit-mode existing image preview" >&2; exit 1; }
 grep -q 'upload edit mode existing file download must call saveFile' "$automator_script" || { echo "FAIL: incentive automator must verify upload edit-mode existing-file save" >&2; exit 1; }
 grep -q 'buildUploadViewState' "$upload_page" || { echo "FAIL: incentive upload display state must be normalized in JS" >&2; exit 1; }
 grep -q 'refreshUploadViewState' "$upload_page" || { echo "FAIL: incentive upload view state refresh is missing" >&2; exit 1; }
-grep -q 'selectedFileSlotsView' "$upload_page" || { echo "FAIL: incentive upload selected-file visibility must be normalized in JS" >&2; exit 1; }
-grep -q 'slotOptionsView' "$upload_page" || { echo "FAIL: incentive upload slot classes must be normalized in JS" >&2; exit 1; }
+# 【2026-11-03 PC 逻辑对齐·每槽独立区块】selectedFileSlotsView/slotOptionsView(先选槽再上传两步式)
+# 随槽选择器退役; installSlotBlocks/trackSlotBlocks=PC FileSlotPager 同语义(每槽独立区块)
+grep -q 'buildSlotBlocks' "$upload_page" || { echo "FAIL: incentive upload per-slot blocks must be normalized in JS" >&2; exit 1; }
+grep -q 'installSlotBlocks' "$upload_page" || { echo "FAIL: incentive upload install slot blocks are missing" >&2; exit 1; }
+grep -q 'trackSlotBlocks' "$upload_page" || { echo "FAIL: incentive upload track slot blocks are missing" >&2; exit 1; }
+grep -q 'setSlotFile' "$upload_page" || { echo "FAIL: incentive upload must write files straight into the target PC slot by key" >&2; exit 1; }
+grep -q 'slot.hidden) return null' "$upload_page" || { echo "FAIL: incentive upload slot blocks must skip hidden non-PC slots in JS" >&2; exit 1; }
+! grep -q 'selectedFileSlotsView' "$upload_page" || { echo "FAIL: incentive upload selected-file list view must stay retired" >&2; exit 1; }
+! grep -q 'slotOptionsView' "$upload_page" || { echo "FAIL: incentive upload slot-selector classes must stay retired" >&2; exit 1; }
 grep -q 'auditRows' "$upload_page" || { echo "FAIL: incentive upload audit rows must be normalized in JS like PC" >&2; exit 1; }
 grep -q 'auditRecord: record' "$upload_page" || { echo "FAIL: incentive upload edit mode must expose PC audit info" >&2; exit 1; }
 grep -q 'chooseImage' "$upload_page" || { echo "FAIL: incentive upload image picker action is missing" >&2; exit 1; }
@@ -388,19 +398,26 @@ grep -q 'wx.previewImage' "$upload_page" || { echo "FAIL: incentive upload selec
 grep -q 'wx.openDocument' "$upload_page" || { echo "FAIL: incentive upload selected documents cannot open" >&2; exit 1; }
 # 【E5 去重 2026-10-05】上传页保存能力改用共享 saveDownloadedFileToDisk(能力本体在 utils/attachment.js)
 grep -q 'saveDownloadedFileToDisk' "$upload_page" || { echo "FAIL: incentive upload selected files cannot save locally" >&2; exit 1; }
-grep -q '文件槽位' "$upload_wxml" || { echo "FAIL: incentive upload slot UI is missing" >&2; exit 1; }
-grep -q 'wx:for="{{uploadView.slotOptionsView}}"' "$upload_wxml" || { echo "FAIL: incentive upload UI does not render normalized PC slot options" >&2; exit 1; }
-grep -q 'wx:if="{{item.visible}}"' "$upload_wxml" || { echo "FAIL: incentive upload UI does not hide non-PC slots from normalized state" >&2; exit 1; }
-grep -q 'wx:for="{{uploadView.selectedFileSlotsView}}"' "$upload_wxml" || { echo "FAIL: incentive upload selected-file UI does not use normalized visible slots" >&2; exit 1; }
+! grep -q '文件槽位' "$upload_wxml" || { echo "FAIL: incentive upload slot-selector UI must stay retired (per-slot blocks replace it)" >&2; exit 1; }
+! grep -q 'slot-selector' "$upload_wxml" || { echo "FAIL: incentive upload slot-selector markup must stay retired" >&2; exit 1; }
+grep -q 'wx:for="{{uploadView.installSlotBlocks}}"' "$upload_wxml" || { echo "FAIL: incentive upload UI must render per-slot install blocks" >&2; exit 1; }
+grep -q 'wx:for="{{uploadView.trackSlotBlocks}}"' "$upload_wxml" || { echo "FAIL: incentive upload UI must render track slot blocks (trial only)" >&2; exit 1; }
+grep -q 'data-slot-key' "$upload_wxml" || { echo "FAIL: incentive upload pick actions must target slots by key" >&2; exit 1; }
 grep -q '相关产品' "$upload_wxml" || { echo "FAIL: incentive upload related product UI is missing" >&2; exit 1; }
 grep -q 'disabled="{{uploadView.relatedSubDisabled}}"' "$upload_wxml" || { echo "FAIL: incentive upload product subcategory picker must be disabled until product category is selected" >&2; exit 1; }
 grep -q 'uploadView.relatedSubPickerClass' "$upload_wxml" || { echo "FAIL: incentive upload product subcategory picker class must be normalized" >&2; exit 1; }
-grep -q '记录周期' "$upload_wxml" || { echo "FAIL: incentive upload period UI is missing" >&2; exit 1; }
-grep -q 'bindchange="choosePeriod"' "$upload_wxml" || { echo "FAIL: incentive upload period picker UI is missing" >&2; exit 1; }
-grep -q '保留原记录周期' "$upload_wxml" || { echo "FAIL: incentive upload edit period preserve copy is missing" >&2; exit 1; }
-grep -q 'disabled="{{uploadView.periodDisabled}}"' "$upload_wxml" || { echo "FAIL: incentive upload period picker must use normalized edit-mode disabled state" >&2; exit 1; }
-grep -q 'uploadView.showPeriodArrow' "$upload_wxml" || { echo "FAIL: incentive upload period picker arrow must use normalized visibility" >&2; exit 1; }
-grep -q 'uploadView.showPeriodPreserveHint' "$upload_wxml" || { echo "FAIL: incentive upload period preserve hint must use normalized visibility" >&2; exit 1; }
+! grep -q '记录周期' "$upload_wxml" || { echo "FAIL: incentive upload period UI must stay retired (PC dialog has no in-form period)" >&2; exit 1; }
+! grep -q '保留原记录周期' "$upload_wxml" || { echo "FAIL: incentive upload period preserve copy must stay retired" >&2; exit 1; }
+# 【2026-11-03 PC 逻辑对齐·纯表单页】新形态正钉: 提交文案/文件区节头/500MB 提示/追加头/分类锁定
+grep -q "data.editId ? '追加提交' : '上传并提交'" "$upload_page" || { echo "FAIL: incentive upload submit copy must match PC dialog (上传并提交/追加提交)" >&2; exit 1; }
+grep -q 'filesSectionTitle' "$upload_page" || { echo "FAIL: incentive upload file section title must follow PC category semantics" >&2; exit 1; }
+grep -q '单文件最大 500MB' "$upload_wxml" || { echo "FAIL: incentive upload 500MB format hint is missing (PC dialog parity)" >&2; exit 1; }
+grep -q '追加文件' "$upload_wxml" || { echo "FAIL: incentive upload append header copy is missing (PC dialog parity)" >&2; exit 1; }
+grep -q 'categoryLocked' "$upload_page" || { echo "FAIL: incentive upload edit mode must lock category picker (PC keeps original categoryId)" >&2; exit 1; }
+# 浏览式骨架防复活(2026-11-03 用户令: 直接是上传表单页, 不显示那么多数据)
+! grep -Eq 'pcat-|plp-|prp-' "$upload_wxml" || { echo "FAIL: incentive upload browsing skeleton (cat-tabs/split panels/record table) must stay retired" >&2; exit 1; }
+! grep -q 'inputRelatedProducts' "$upload_page" || { echo "FAIL: incentive upload related-products manual input must stay retired (PC is pure double picker)" >&2; exit 1; }
+! grep -q 'showUploadSheet' "$upload_page" || { echo "FAIL: incentive upload bottom-sheet wrapper must stay retired (form is the page)" >&2; exit 1; }
 ! grep -Eq '!!editId|!editId|wx:if="\{\{editId\}\}"' "$upload_wxml" || { echo "FAIL: incentive upload WXML must not branch directly on editId" >&2; exit 1; }
 grep -q 'uploadView.detailLabel' "$upload_wxml" || { echo "FAIL: incentive upload detail field label must use normalized PC category label" >&2; exit 1; }
 grep -q 'uploadView.remarkLabel' "$upload_wxml" || { echo "FAIL: incentive upload remark field label must use normalized PC category label" >&2; exit 1; }
@@ -436,7 +453,7 @@ grep -q 'uploadView.fileActionLoading' "$upload_wxml" || { echo "FAIL: incentive
 grep -q 'catchtap="chooseImage"' "$upload_wxml" || { echo "FAIL: incentive upload image picker UI is missing" >&2; exit 1; }
 grep -q 'catchtap="chooseFile"' "$upload_wxml" || { echo "FAIL: incentive upload file picker UI is missing" >&2; exit 1; }
 grep -q 'selected-file-thumb' "$upload_wxml" || { echo "FAIL: incentive upload selected image thumbnail is missing" >&2; exit 1; }
-grep -q 'wx:for="{{slot.files}}"' "$upload_wxml" || { echo "FAIL: incentive upload selected file list no longer renders multiple files per slot" >&2; exit 1; }
+grep -q 'wx:for="{{block.files}}"' "$upload_wxml" || { echo "FAIL: incentive upload selected file list no longer renders multiple files per slot" >&2; exit 1; }
 grep -q 'data-file-index' "$upload_wxml" || { echo "FAIL: incentive upload selected file actions do not target per-slot file index" >&2; exit 1; }
 # 【2026-10-30 同槽翻页】同一上传格子内左右翻页: swiper 横滑+页码指示+深层补丁回调; 行式平铺禁止回潮
 grep -q 'class="slot-swiper"' "$upload_wxml" || { echo "FAIL: incentive upload slot swiper paging is missing" >&2; exit 1; }
@@ -445,8 +462,8 @@ grep -q 'selected-slot-page' "$upload_wxml" || { echo "FAIL: incentive upload sl
 grep -q 'onSlotPageChange' "$upload_page" || { echo "FAIL: incentive upload slot paging handler is missing in JS" >&2; exit 1; }
 grep -q 'slotPages' "$upload_page" || { echo "FAIL: incentive upload slot paging state is missing in JS" >&2; exit 1; }
 ! grep -q 'selected-file-row' "$upload_wxml" || { echo "FAIL: incentive upload per-file flat rows must not return (same-slot paging replaced them)" >&2; exit 1; }
-grep -q 'item.countText' "$upload_wxml" || { echo "FAIL: incentive upload slot count UI is missing" >&2; exit 1; }
-grep -q 'class="form-actions"' "$upload_wxml" || { echo "FAIL: incentive upload footer actions are not grouped like PC dialog actions" >&2; exit 1; }
+grep -q 'block.countText' "$upload_wxml" || { echo "FAIL: incentive upload slot count UI is missing" >&2; exit 1; }
+grep -q 'class="fixed-actions"' "$upload_wxml" || { echo "FAIL: incentive upload footer actions are not grouped like PC dialog actions" >&2; exit 1; }
 grep -q 'bindtap="cancelUpload"' "$upload_wxml" || { echo "FAIL: incentive upload cancel UI is missing" >&2; exit 1; }
 grep -q 'uploadView.cancelDisabled' "$upload_wxml" || { echo "FAIL: incentive upload cancel button does not bind normalized disabled state" >&2; exit 1; }
 grep -q 'uploadView.submitLoading' "$upload_wxml" || { echo "FAIL: incentive upload submit button must use normalized loading state" >&2; exit 1; }
@@ -456,7 +473,7 @@ grep -q '预览' "$upload_wxml" || { echo "FAIL: incentive upload selected-file 
 grep -q '下载' "$upload_wxml" || { echo "FAIL: incentive upload selected-file download copy is unclear" >&2; exit 1; }
 grep -q '选图片' "$upload_wxml" || { echo "FAIL: incentive upload image picker copy is unclear" >&2; exit 1; }
 grep -q '选文件' "$upload_wxml" || { echo "FAIL: incentive upload file picker copy is unclear" >&2; exit 1; }
-grep -q '预览图片/打开文档' "$upload_wxml" "$upload_page" || { echo "FAIL: incentive upload selected-file guidance is missing" >&2; exit 1; }
+! grep -q '预览图片/打开文档' "$upload_page" || { echo "FAIL: incentive upload current-slot guidance copy must stay retired (per-slot pages carry their own 预览/下载/移除 actions)" >&2; exit 1; }
 grep -q '.cancel-action' "$ROOT/aigicrm-miniprogram/pages/incentive/upload/index.wxss" || { echo "FAIL: incentive upload cancel button style is missing" >&2; exit 1; }
 grep -q '.submit-action' "$ROOT/aigicrm-miniprogram/pages/incentive/upload/index.wxss" || { echo "FAIL: incentive upload submit action style is missing" >&2; exit 1; }
 ! grep -Eq "selected[A-Za-z]+Index >= 0 \\?|fileSlots\\[selectedSlotIndex\\]|selectedSlotIndex === index|editId && !canToggleShare|file\\.fileKind === 'image'|fileIndex \\+ 1" "$upload_wxml" || { echo "FAIL: incentive upload WXML must not keep picker/slot/file branching logic" >&2; exit 1; }
@@ -563,15 +580,21 @@ grep -q "incentiveStats: '/pages/incentive/index?tab=stats'" "$ROOT/aigicrm-mini
 grep -q "title: '激励上传'" "$ROOT/aigicrm-miniprogram/pages/app/index.js" || { echo "FAIL: app center must name upload entry 激励上传" >&2; exit 1; }
 grep -q "title: '激励查询'" "$ROOT/aigicrm-miniprogram/pages/app/index.js" || { echo "FAIL: app center must name query entry 激励查询" >&2; exit 1; }
 grep -q "title: '激励统计'" "$ROOT/aigicrm-miniprogram/pages/app/index.js" || { echo "FAIL: app center must name stats entry 激励统计" >&2; exit 1; }
-# 【2026-11-02 三调重锚】上传页=PC骨架(pcat-tabs 等宽Tab), 原 upload-cat-chip 胶囊退役
-grep -q 'tapCategoryParent' "$ROOT/aigicrm-miniprogram/pages/incentive/upload/index.wxml" || { echo "FAIL: upload parent categories must be tap-to-select" >&2; exit 1; }
-grep -q 'tapCategoryChild' "$ROOT/aigicrm-miniprogram/pages/incentive/upload/index.wxml" || { echo "FAIL: upload child categories must be tap-to-select" >&2; exit 1; }
-grep -q 'pcat-tabs' "$ROOT/aigicrm-miniprogram/pages/incentive/upload/index.wxml" || { echo "FAIL: upload page must have PC-style cat-tabs segmented control" >&2; exit 1; }
-grep -q 'pmain' "$ROOT/aigicrm-miniprogram/pages/incentive/upload/index.wxml" || { echo "FAIL: upload page must have PC-style main-layout split" >&2; exit 1; }
-grep -q 'plp-item' "$ROOT/aigicrm-miniprogram/pages/incentive/upload/index.wxml" || { echo "FAIL: upload left panel must have sub-category list items" >&2; exit 1; }
-grep -q 'tapUploadFromSubcat' "$ROOT/aigicrm-miniprogram/pages/incentive/upload/index.wxml" || { echo "FAIL: upload sub-category rows must have upload buttons" >&2; exit 1; }
-grep -q 'subcatRecords' "$ROOT/aigicrm-miniprogram/pages/incentive/upload/index.wxml" || { echo "FAIL: upload right panel must show existing records" >&2; exit 1; }
-grep -q 'plp-hint' "$ROOT/aigicrm-miniprogram/pages/incentive/upload/index.wxml" || { echo "FAIL: upload left panel must have active-parent hint header" >&2; exit 1; }
+# 【2026-11-03 用户令翻案·纯表单页】点"激励上传"直接进上传表单页, 11-02 的 PC 浏览式骨架
+# (pcat-tabs/左右分栏/右侧记录表格/底部弹层)全部退役; 记录浏览由"激励查询"完整版承载。
+# 防复活守卫(欠账七式⑥): 浏览骨架交互与数据源不得回潮。
+! grep -q 'tapCategoryParent' "$ROOT/aigicrm-miniprogram/pages/incentive/upload/index.wxml" || { echo "FAIL: upload browsing parent-chip taps must stay retired (form page)" >&2; exit 1; }
+! grep -q 'tapCategoryChild' "$ROOT/aigicrm-miniprogram/pages/incentive/upload/index.wxml" || { echo "FAIL: upload browsing child-chip taps must stay retired (form page)" >&2; exit 1; }
+! grep -q 'pcat-tabs' "$ROOT/aigicrm-miniprogram/pages/incentive/upload/index.wxml" || { echo "FAIL: upload cat-tabs browsing skeleton must stay retired (2026-11-03 用户令)" >&2; exit 1; }
+! grep -q 'pmain' "$ROOT/aigicrm-miniprogram/pages/incentive/upload/index.wxml" || { echo "FAIL: upload main-layout split must stay retired (2026-11-03 用户令)" >&2; exit 1; }
+! grep -q 'plp-item' "$ROOT/aigicrm-miniprogram/pages/incentive/upload/index.wxml" || { echo "FAIL: upload left sub-category panel must stay retired" >&2; exit 1; }
+! grep -q 'tapUploadFromSubcat' "$ROOT/aigicrm-miniprogram/pages/incentive/upload/index.wxml" || { echo "FAIL: upload sub-category-row upload buttons must stay retired" >&2; exit 1; }
+! grep -q 'subcatRecords' "$ROOT/aigicrm-miniprogram/pages/incentive/upload/index.wxml" || { echo "FAIL: upload right record table must stay retired (不显示那么多数据)" >&2; exit 1; }
+! grep -q 'plp-hint' "$ROOT/aigicrm-miniprogram/pages/incentive/upload/index.wxml" || { echo "FAIL: upload left panel hint header must stay retired" >&2; exit 1; }
+! grep -q 'loadSubcatRecords' "$ROOT/aigicrm-miniprogram/pages/incentive/upload/index.js" || { echo "FAIL: upload record-table data loading must stay retired" >&2; exit 1; }
+# 新形态正钉: 表单即页面(分类两级 picker 在表单内), getRecords 仅服务编辑回填
+grep -q 'bindchange="chooseCategoryParent"' "$ROOT/aigicrm-miniprogram/pages/incentive/upload/index.wxml" || { echo "FAIL: upload form must pick parent category in-form" >&2; exit 1; }
+grep -q 'bindchange="chooseCategoryChild"' "$ROOT/aigicrm-miniprogram/pages/incentive/upload/index.wxml" || { echo "FAIL: upload form must pick child category in-form" >&2; exit 1; }
 # 【2026-10-26 用户令·排法分工】轻量页(home)与完整版(index)排法分开: 完整版保持按客户归集封面卡;
 # 轻量页默认打散记录流(不绑客户, 按上传时间排), 「按客户」可切回归集。钉默认态/切换器/打散构建/点行直达。
 HOME_JS="$ROOT/aigicrm-miniprogram/pages/incentive/home/index.js"

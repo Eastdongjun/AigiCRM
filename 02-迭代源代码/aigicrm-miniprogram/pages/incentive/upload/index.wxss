@@ -1,83 +1,109 @@
-.upload-hero{position:relative;overflow:hidden}
-.form-card{margin-top:24rpx;padding:30rpx 28rpx}
-.form-section-title{margin-bottom:6rpx;color:#172033;font-size:30rpx;font-weight:850}
-.compact-title{font-size:26rpx;margin-bottom:16rpx}
-.field{margin-top:24rpx}
-.label{display:block;margin-bottom:12rpx;color:#34445c;font-size:24rpx;font-weight:750}
-.picker-card{display:flex;align-items:center;justify-content:space-between;min-height:86rpx;box-sizing:border-box;padding:0 24rpx;border:1rpx solid #d8e3f1;border-radius:20rpx;background:#f8fbff;color:#172033;font-size:27rpx}
-.picker-card.disabled{border-color:#e2e8f0;background:#f1f5f9;color:#94a3b8}
-.customer-confirm{display:flex;align-items:center;justify-content:space-between;gap:16rpx;margin-top:12rpx;padding:14rpx 18rpx;border:1rpx solid #d9f0df;border-radius:8rpx;background:#f7fdf8;color:#256b3f;font-size:23rpx}
-.customer-confirm-name{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:800}
-.customer-confirm-meta{flex-shrink:0;color:#5f8a6a;font-size:22rpx}
-.category-summary{display:flex;align-items:center;justify-content:space-between;gap:16rpx;margin-top:12rpx;padding:14rpx 18rpx;border:1rpx solid #dce8f6;border-radius:8rpx;background:#fff;color:#475569;font-size:23rpx;font-weight:700}
-.category-summary text:last-child{flex-shrink:0;color:#2563eb}
-.placeholder{color:#96a4b8}
-.picker-arrow{margin-left:16rpx;color:#8da0ba;font-size:26rpx}
-.input{width:100%;min-height:86rpx;box-sizing:border-box;padding:0 22rpx;border:1rpx solid #d8e3f1;border-radius:20rpx;background:#f8fbff;color:#172033;font-size:27rpx}
-.textarea{width:100%;min-height:188rpx;box-sizing:border-box;padding:20rpx 22rpx;border:1rpx solid #d8e3f1;border-radius:20rpx;background:#f8fbff;color:#172033;font-size:27rpx;line-height:1.6}
-.inline-pickers{display:grid;grid-template-columns:1fr 1fr;gap:14rpx;margin-bottom:14rpx}
-.picker-card.compact{min-height:78rpx;padding:0 18rpx;font-size:24rpx}
-.switch-row{display:flex;align-items:center;justify-content:space-between;gap:24rpx;padding:20rpx 22rpx;border:1rpx solid #e4ecf6;border-radius:22rpx;background:#fbfdff}
-.audit-panel{margin-top:24rpx;padding:22rpx;border:1rpx solid #e8ddf6;border-radius:22rpx;background:#fdfbff}
-.audit-grid{display:grid;grid-template-columns:1fr 1fr;gap:14rpx}
-.audit-item{min-width:0;padding:16rpx 18rpx;border-radius:18rpx;background:#f7f3ff}
-.audit-label{display:block;color:#7c6f96;font-size:22rpx}
-.audit-value{display:block;margin-top:6rpx;color:#34445c;font-size:24rpx;font-weight:800;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.no-gap{margin-bottom:0}
-.field-hint{margin-top:8rpx;color:#7c8ba1;font-size:22rpx;line-height:1.45}
-.upload-slot{display:flex;align-items:center;min-height:118rpx;box-sizing:border-box;padding:24rpx;border:2rpx dashed #bcd5ff;border-radius:24rpx;background:#f8fbff}
-.upload-icon{width:64rpx;height:64rpx;margin-right:18rpx;border-radius:20rpx;background:#eef5ff;color:#2364d8;display:flex;align-items:center;justify-content:center;font-size:34rpx;font-weight:800}
-.upload-copy{flex:1;min-width:0}
-.upload-title{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#1f3f7a;font-size:27rpx;font-weight:800}
-.upload-hint{margin-top:8rpx;color:#7c8ba1;font-size:22rpx;line-height:1.45}
-.upload-actions{display:flex;align-items:center;gap:12rpx;margin-top:18rpx}
-.upload-action{height:58rpx;line-height:56rpx;margin:0;padding:0 22rpx;border:1rpx solid #d9e2ec;border-radius:999rpx;background:#fff;color:#475569;font-size:23rpx;font-weight:750}
-.upload-action::after{border:0}
-.upload-action.primary{border-color:#bfdbfe;background:#eff6ff;color:#2563eb}
-.slot-selector{display:grid;grid-template-columns:repeat(2,1fr);gap:12rpx;margin-bottom:16rpx}
-.slot-option{min-height:72rpx;border-radius:18rpx;background:#f1f5f9;color:#52657f;font-size:24rpx;font-weight:750;display:flex;align-items:center;justify-content:space-between;gap:10rpx;padding:0 18rpx;box-sizing:border-box}
-.slot-option.active{background:#2563eb;color:#fff;box-shadow:0 10rpx 22rpx rgba(37,99,235,.18)}
-.slot-ready{min-width:42rpx;padding:4rpx 10rpx;border-radius:999rpx;background:rgba(255,255,255,.24);font-size:20rpx;text-align:center}
-.selected-file-list{margin-top:18rpx;border:1rpx solid #e5edf6;border-radius:20rpx;overflow:hidden}
-/* 【2026-10-30 同槽翻页】每槽一格 swiper 横滑: 头部槽名+页码, 页内=大图/类型面+文件名状态+动作行 */
-.selected-slot-group{border-top:1rpx solid #eef3f9;padding:0 18rpx}
-.selected-slot-group:first-child{border-top:0}
-.selected-slot-head{display:flex;align-items:center;justify-content:space-between;padding:16rpx 0 8rpx}
-.selected-slot-title{font-size:24rpx;font-weight:700;color:#1f2d3d}
-.selected-slot-page{font-size:22rpx;font-weight:700;color:#2563eb;background:#eef4ff;border-radius:999rpx;padding:2rpx 16rpx;font-variant-numeric:tabular-nums}
-.slot-swiper{height:430rpx}
-.slot-file-page{display:flex;flex-direction:column}
-.selected-file-thumb{width:100%;height:260rpx;border-radius:14rpx;background:#eef2f7;display:block}
-.slot-type-thumb{width:100%;height:260rpx;border-radius:14rpx;background:linear-gradient(135deg,#f0f4fa,#e6edf7);display:flex;align-items:center;justify-content:center}
-.slot-type-text{font-size:32rpx;font-weight:800;color:#52657f;letter-spacing:4rpx}
-.slot-file-meta{display:flex;align-items:center;justify-content:space-between;gap:12rpx;margin-top:10rpx}
-.slot-file-meta .selected-file-name{flex:1;min-width:0}
-.selected-file-name{display:block;color:#52657f;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.selected-file-actions{display:flex;align-items:center;gap:8rpx;flex-shrink:0;margin-top:12rpx}
-.file-action{height:52rpx;line-height:50rpx;margin:0;padding:0 16rpx;border:1rpx solid #bfdbfe;border-radius:999rpx;background:#eff6ff;color:#2563eb;font-size:22rpx}
-.file-action::after{border:0}
-.file-action.secondary{border-color:#d9e2ec;background:#f8fafc;color:#475569}
-.file-action.danger{border-color:#fecdd3;background:#fff1f2;color:#e11d48}
-.upload-progress-panel{margin-top:24rpx;padding:18rpx;border:1rpx solid #dce8f6;border-radius:8rpx;background:#f8fbff}
-.upload-progress-track{height:12rpx;overflow:hidden;border-radius:999rpx;background:#e5edf6}
-.upload-progress-fill{height:100%;min-width:8rpx;border-radius:999rpx;background:#2563eb;transition:width .16s ease}
-.upload-progress-text{margin-top:10rpx;color:#52657f;font-size:22rpx;line-height:30rpx;word-break:break-all}
-.form-actions{display:grid;grid-template-columns:180rpx 1fr;gap:16rpx;margin-top:32rpx}
-.form-action{height:74rpx;line-height:72rpx;margin:0;border-radius:16rpx;font-size:25rpx;font-weight:800}
-.form-action::after{border:0}
-.cancel-action{border:1rpx solid #d9e2ec;background:#fff;color:#52657f}
-.submit-action{background:#2563eb;color:#fff;box-shadow:0 12rpx 24rpx rgba(37,99,235,.16)}
-.form-action[disabled],.form-action.action-disabled{background:#d8e1ed!important;color:#7c8ba1!important;box-shadow:none!important}
+/* 【2026-11-03 用户令·纯表单页】浏览式骨架样式(四大类Tab/左右分栏/记录表格/底部弹层)随形态退役;
+   本文件=激励上传表单页唯一样式源: 分节白卡(对齐 PC UploadDialog 分节) + 每槽独立文件区块 +
+   客户半屏搜索层(cs-*) + 吸底操作条。 */
+.upload-form-page { padding: 24rpx 28rpx 0; box-sizing: border-box; }
+
+/* 编辑态头(对齐 PC 弹窗头: 追加文件+子分类tag) */
+.edit-header { display: flex; align-items: center; gap: 14rpx; padding: 18rpx 24rpx; border: 1rpx solid #dce8f6; border-radius: 20rpx; background: #f8fbff; }
+.edit-title { font-size: 30rpx; font-weight: 850; color: #172033; }
+.edit-cat-tag { padding: 4rpx 16rpx; border-radius: 8rpx; background: #fff7ed; border: 1rpx solid #fed7aa; color: #c2560c; font-size: 22rpx; font-weight: 700; }
+
+/* 分节白卡(对齐 PC UploadDialog 的 dlg-section 分节语义) */
+.form-section { margin-top: 24rpx; padding: 26rpx 28rpx; border: 1rpx solid #e4ecf6; border-radius: 22rpx; background: #fff; }
+.form-section-title { margin-bottom: 6rpx; color: #172033; font-size: 30rpx; font-weight: 850; }
+.form-section-title-row { display: flex; align-items: baseline; justify-content: space-between; gap: 16rpx; }
+.form-section-title-row .form-section-title { margin-bottom: 0; }
+.section-tip { flex-shrink: 0; color: #94a3b8; font-size: 22rpx; }
+.compact-title { font-size: 26rpx; margin-bottom: 16rpx; }
+
+.field { margin-top: 24rpx; }
+.form-section .field:first-of-type { margin-top: 18rpx; }
+.label { display: block; margin-bottom: 12rpx; color: #34445c; font-size: 24rpx; font-weight: 750; }
+.picker-card { display: flex; align-items: center; justify-content: space-between; min-height: 86rpx; box-sizing: border-box; padding: 0 24rpx; border: 1rpx solid #d8e3f1; border-radius: 20rpx; background: #f8fbff; color: #172033; font-size: 27rpx; }
+.picker-card.disabled { border-color: #e2e8f0; background: #f1f5f9; color: #94a3b8; }
+.customer-confirm { display: flex; align-items: center; justify-content: space-between; gap: 16rpx; margin-top: 12rpx; padding: 14rpx 18rpx; border: 1rpx solid #d9f0df; border-radius: 8rpx; background: #f7fdf8; color: #256b3f; font-size: 23rpx; }
+.customer-confirm-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 800; }
+.customer-confirm-meta { flex-shrink: 0; color: #5f8a6a; font-size: 22rpx; }
+.category-summary { display: flex; align-items: center; justify-content: space-between; gap: 16rpx; margin-top: 12rpx; padding: 14rpx 18rpx; border: 1rpx solid #dce8f6; border-radius: 8rpx; background: #fff; color: #475569; font-size: 23rpx; font-weight: 700; }
+.category-summary text:last-child { flex-shrink: 0; color: #2563eb; }
+.placeholder { color: #96a4b8; }
+.picker-arrow { margin-left: 16rpx; color: #8da0ba; font-size: 26rpx; }
+.input { width: 100%; min-height: 86rpx; box-sizing: border-box; padding: 0 22rpx; border: 1rpx solid #d8e3f1; border-radius: 20rpx; background: #f8fbff; color: #172033; font-size: 27rpx; }
+.textarea { width: 100%; min-height: 188rpx; box-sizing: border-box; padding: 20rpx 22rpx; border: 1rpx solid #d8e3f1; border-radius: 20rpx; background: #f8fbff; color: #172033; font-size: 27rpx; line-height: 1.6; }
+.inline-pickers { display: grid; grid-template-columns: 1fr 1fr; gap: 14rpx; }
+.picker-card.compact { min-height: 78rpx; padding: 0 18rpx; font-size: 24rpx; }
+.no-gap { margin-bottom: 0; }
+.field-hint { margin-top: 8rpx; color: #7c8ba1; font-size: 22rpx; line-height: 1.45; }
+
+/* 未选分类时的文件区引导 */
+.pick-category-first { padding: 56rpx 24rpx; text-align: center; color: #94a3b8; font-size: 25rpx; line-height: 1.6; }
+
+/* ===== 每槽独立区块(与 PC FileSlotPager 同语义: 标题+计数 → swiper 文件页 → 本槽添加入口) ===== */
+.slot-block { margin-top: 20rpx; padding: 18rpx 20rpx; border: 1rpx solid #e5edf6; border-radius: 20rpx; background: #fbfdff; }
+.slot-block-head { display: flex; align-items: center; gap: 10rpx; }
+.slot-dot { width: 14rpx; height: 14rpx; border-radius: 50%; flex-shrink: 0; }
+.dot-pre { background: #2563eb; }
+.dot-mid { background: #f59e0b; }
+.dot-post { background: #16a34a; }
+.slot-block-label { color: #1f2d3d; font-size: 25rpx; font-weight: 750; }
+/* 【2026-10-30 同槽翻页】页码 N/M(蓝底胶囊, 等宽数字) */
+.selected-slot-page { font-size: 22rpx; font-weight: 700; color: #2563eb; background: #eef4ff; border-radius: 999rpx; padding: 2rpx 16rpx; font-variant-numeric: tabular-nums; }
+.slot-block-count { margin-left: auto; color: #7c8ba1; font-size: 22rpx; font-variant-numeric: tabular-nums; }
+.slot-add-row { display: flex; align-items: center; gap: 12rpx; margin-top: 16rpx; }
+.slot-full-hint { margin-top: 14rpx; color: #94a3b8; font-size: 22rpx; }
+
+/* 添加按钮(每槽独立入口; 微信能力=相册 chooseMedia + 聊天文件 chooseMessageFile 两通道) */
+.upload-action { height: 58rpx; line-height: 56rpx; margin: 0; padding: 0 22rpx; border: 1rpx solid #d9e2ec; border-radius: 999rpx; background: #fff; color: #475569; font-size: 23rpx; font-weight: 750; }
+.upload-action::after { border: 0; }
+.upload-action.primary { border-color: #bfdbfe; background: #eff6ff; color: #2563eb; }
+
+/* 【2026-10-30 同槽翻页】每槽一格 swiper 横滑: 页内=大图/类型面+文件名状态+动作行 */
+.slot-swiper { height: 430rpx; margin-top: 12rpx; }
+.slot-file-page { display: flex; flex-direction: column; }
+.selected-file-thumb { width: 100%; height: 260rpx; border-radius: 14rpx; background: #eef2f7; display: block; }
+.slot-type-thumb { width: 100%; height: 260rpx; border-radius: 14rpx; background: linear-gradient(135deg, #f0f4fa, #e6edf7); display: flex; align-items: center; justify-content: center; }
+.slot-type-text { font-size: 32rpx; font-weight: 800; color: #52657f; letter-spacing: 4rpx; }
+.slot-file-meta { display: flex; align-items: center; justify-content: space-between; gap: 12rpx; margin-top: 10rpx; }
+.slot-file-meta .selected-file-name { flex: 1; min-width: 0; }
+.selected-file-name { display: block; color: #52657f; font-size: 24rpx; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.slot-file-actions { display: flex; align-items: center; gap: 8rpx; flex-shrink: 0; margin-top: 12rpx; }
+.file-action { height: 52rpx; line-height: 50rpx; margin: 0; padding: 0 16rpx; border: 1rpx solid #bfdbfe; border-radius: 999rpx; background: #eff6ff; color: #2563eb; font-size: 22rpx; }
+.file-action::after { border: 0; }
+.file-action.secondary { border-color: #d9e2ec; background: #f8fafc; color: #475569; }
+.file-action.danger { border-color: #fecdd3; background: #fff1f2; color: #e11d48; }
+
+/* 审计信息(编辑/追加时, 对齐 PC 弹窗审计区) */
+.audit-panel { margin-top: 24rpx; padding: 22rpx; border: 1rpx solid #e8ddf6; border-radius: 22rpx; background: #fdfbff; }
+.audit-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14rpx; }
+.audit-item { min-width: 0; padding: 16rpx 18rpx; border-radius: 18rpx; background: #f7f3ff; }
+.audit-label { display: block; color: #7c6f96; font-size: 22rpx; }
+.audit-value { display: block; margin-top: 6rpx; color: #34445c; font-size: 24rpx; font-weight: 800; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* 团队共享 + 格式提示(对齐 PC 弹窗文案) */
+.switch-row { display: flex; align-items: center; justify-content: space-between; gap: 24rpx; padding: 20rpx 22rpx; border: 1rpx solid #e4ecf6; border-radius: 22rpx; background: #fbfdff; margin-top: 24rpx; }
+.dlg-tip { margin-top: 14rpx; color: #94a3b8; font-size: 22rpx; line-height: 1.5; }
+
+/* 上传进度(提交中逐文件反馈) */
+.upload-progress-panel { margin-top: 24rpx; padding: 18rpx; border: 1rpx solid #dce8f6; border-radius: 8rpx; background: #f8fbff; }
+.upload-progress-track { height: 12rpx; overflow: hidden; border-radius: 999rpx; background: #e5edf6; }
+.upload-progress-fill { height: 100%; min-width: 8rpx; border-radius: 999rpx; background: #2563eb; transition: width .16s ease; }
+.upload-progress-text { margin-top: 10rpx; color: #52657f; font-size: 22rpx; line-height: 30rpx; word-break: break-all; }
 
 /* 【PR-13 首批 2026-09-19】逐文件上传状态标签 */
-.upload-state { display:inline-block; margin-top:6rpx; padding:2rpx 12rpx; border-radius:8rpx; font-size:22rpx; }
-.upload-state.pending { background:#f1f5f9; color:#94a3b8; }
-.upload-state.uploading { background:#dbeafe; color:#2563eb; }
-.upload-state.done { background:#dcfce7; color:#16a34a; }
-.upload-state.failed { background:#fee2e2; color:#dc2626; }
+.upload-state { display: inline-block; margin-top: 6rpx; padding: 2rpx 12rpx; border-radius: 8rpx; font-size: 22rpx; }
+.upload-state.pending { background: #f1f5f9; color: #94a3b8; }
+.upload-state.uploading { background: #dbeafe; color: #2563eb; }
+.upload-state.done { background: #dcfce7; color: #16a34a; }
+.upload-state.failed { background: #fee2e2; color: #dc2626; }
 
-/* 两级分类: 子类选择器跟在大类下方 */
-.category-child-picker { margin-top: 16rpx; }
+/* 吸底操作条(文案对齐 PC: 上传并提交/追加提交) */
+.fixed-actions { position: fixed; left: 0; right: 0; bottom: 0; z-index: 10; display: grid; grid-template-columns: 200rpx 1fr; gap: 16rpx; padding: 16rpx 28rpx calc(16rpx + env(safe-area-inset-bottom)); background: rgba(255, 255, 255, .96); box-shadow: 0 -6rpx 24rpx rgba(15, 23, 42, .06); }
+.form-action { height: 74rpx; line-height: 72rpx; margin: 0; border-radius: 16rpx; font-size: 25rpx; font-weight: 800; }
+.form-action::after { border: 0; }
+.cancel-action { border: 1rpx solid #d9e2ec; background: #fff; color: #52657f; }
+.submit-action { background: #2563eb; color: #fff; box-shadow: 0 12rpx 24rpx rgba(37, 99, 235, .16); }
+.form-action[disabled], .form-action.action-disabled { background: #d8e1ed !important; color: #7c8ba1 !important; box-shadow: none !important; }
+.actions-spacer { height: calc(120rpx + env(safe-area-inset-bottom)); }
 
 /* 【#3 2026-10-12】客户选择半屏搜索层 */
 .cs-mask { position: fixed; inset: 0; z-index: 30; background: rgba(15, 23, 42, .5); display: flex; align-items: flex-end; }
@@ -97,104 +123,3 @@
 .cs-empty { padding: 60rpx 0; text-align: center; color: #94a3b8; font-size: 25rpx; }
 /* 【C2 2026-10-21】服务端分页加载状态行: 加载中/没有更多 */
 .cs-more { padding: 24rpx 0; text-align: center; color: #94a3b8; font-size: 23rpx; }
-
-/* ===== 【2026-11-02 用户令·PC 骨架完全复刻】cat-tabs-bar → main-layout(left+right) =====
-   与 PC index.vue 逐组件同构: pcat-bar=cat-tabs-bar / pcat-tab=cat-tab /
-   pmain=main-layout / plp=left-panel / prp=right-panel */
-.upload-pc-page { display: flex; flex-direction: column; gap: 14rpx; }
-
-/* 1) cat-tabs-bar(灰底胶囊容器+等宽Tab+深蓝渐变激活+记录数徽章, 与 PC cat-tabs 同款) */
-.pcat-bar { flex-shrink: 0; }
-.pcat-tabs { display: flex; background: #f2f4f7; border-radius: 20rpx; padding: 6rpx; }
-.pcat-tab {
-  flex: 1; display: flex; align-items: center; justify-content: center; gap: 8rpx;
-  padding: 16rpx 8rpx; border-radius: 16rpx; transition: all .2s;
-}
-.pcat-tab.active {
-  background: linear-gradient(135deg, #1d3fae, #2f6bf0 60%, #4d8cf5);
-  box-shadow: 0 4rpx 14rpx rgba(29, 78, 216, .28);
-}
-.pcat-name { font-size: 23rpx; color: #606266; font-weight: 500; white-space: nowrap; }
-.pcat-tab.active .pcat-name { color: #fff; font-weight: 700; }
-.pcat-badge { font-size: 18rpx; padding: 1rpx 10rpx; border-radius: 8rpx; background: rgba(0,0,0,.08); font-weight: 600; color: #606266; }
-.pcat-tab.active .pcat-badge { background: rgba(255,255,255,.25); color: #fff; }
-
-/* 2) main-layout(flex row + border + radius, 与 PC main-layout 同款) */
-.pmain {
-  display: flex; border: 1rpx solid #e8ecf1; border-radius: 20rpx;
-  overflow: hidden; flex: 1; min-height: 500rpx; background: #fff;
-}
-
-/* 2a) left-panel(子分类竖列, 与 PC left-panel 240px 同语义=30%) */
-.plp { flex: none; width: 30%; background: #fafbfd; border-right: 1rpx solid #f0f2f5; display: flex; flex-direction: column; }
-.plp-hint { display: flex; align-items: center; gap: 8rpx; padding: 14rpx 14rpx 10rpx; }
-.plp-hint-tag { flex-shrink: 0; font-size: 19rpx; color: #dc2626; background: #fef2f2; border: 1rpx solid #fecaca; border-radius: 6rpx; padding: 2rpx 8rpx; }
-.plp-hint-text { flex: 1; min-width: 0; font-size: 18rpx; color: #9099a6; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.plp-scroll { flex: 1; overflow-y: auto; }
-.plp-item {
-  display: flex; justify-content: space-between; align-items: center;
-  padding: 16rpx 10rpx 16rpx 16rpx; border-bottom: 1rpx solid #f5f5f5;
-}
-.plp-item.active { background: #f0f4ff; box-shadow: inset 4rpx 0 0 #2563eb; }
-.plp-item.active .plp-name { color: #2563eb; font-weight: 700; }
-.plp-name { flex: 1; min-width: 0; font-size: 22rpx; color: #333; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.plp-actions { flex-shrink: 0; display: flex; align-items: center; gap: 6rpx; }
-.plp-score { font-size: 19rpx; color: #1d4fd7; font-weight: 600; background: #eff6ff; border-radius: 8rpx; padding: 2rpx 10rpx; }
-.plp-upload { margin: 0; padding: 0 16rpx; height: 44rpx; line-height: 44rpx; font-size: 20rpx; border-radius: 10rpx; background: #2563eb; color: #fff; }
-.plp-empty { text-align: center; padding: 28rpx 0; font-size: 20rpx; color: #94a3b8; }
-
-/* 2b) right-panel(已有记录列表, 与 PC right-panel flex:1 同构) */
-.prp { flex: 1; min-width: 0; background: #fff; padding: 14rpx 16rpx; display: flex; flex-direction: column; }
-.prp-scroll { flex: 1; overflow-y: auto; }
-/* 双行行卡(与 PC RecordTable 双行 cell 同构: 主行=分类名, meta=行业·上传人, 右侧=客户+文件数) */
-.prp-row {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 14rpx 8rpx; border-bottom: 1rpx solid #f0f2f5;
-}
-.prp-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
-.prp-cat { font-size: 24rpx; color: #172033; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.prp-meta { font-size: 19rpx; color: #94a3b8; margin-top: 4rpx; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.prp-side { flex-shrink: 0; margin-left: 12rpx; display: flex; flex-direction: column; align-items: flex-end; }
-.prp-customer { font-size: 22rpx; color: #333; font-weight: 500; max-width: 200rpx; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.prp-files { font-size: 19rpx; color: #64748b; margin-top: 4rpx; }
-.prp-empty { text-align: center; padding: 40rpx 20rpx; font-size: 22rpx; color: #94a3b8; line-height: 1.6; }
-
-/* ===== right-panel=PC RecordTable 同构(表头+斑马纹+文件标签) ===== */
-.prp { flex: 1; min-width: 0; background: #fff; display: flex; flex-direction: column; }
-.prp-thead { display: flex; align-items: center; padding: 12rpx 10rpx; background: #f7f9fc; border-bottom: 2rpx solid #e8ecf1; flex-shrink: 0; }
-.pth { flex: none; font-size: 19rpx; color: #9099a6; font-weight: 600; }
-.pth-cat { width: 32%; }
-.pth-file { width: 44%; }
-.pth-cust { width: 24%; }
-.prp-scroll { flex: 1; min-height: 0; overflow-y: auto; }
-.prp-row { display: flex; align-items: flex-start; padding: 12rpx 10rpx; border-bottom: 1rpx solid #f0f2f5; }
-.prp-row.stripe { background: #fafbfc; }
-/* 三列各自等宽+溢出省略(表头与数据行同宽对齐); 用 prp-c1/c2/c3 替代 prp-cell */
-.prp-c1 { width: 32%; flex-shrink: 0; display: flex; flex-direction: column; gap: 2rpx; padding-right: 6rpx; box-sizing: border-box; overflow: hidden; }
-.prp-c2 { width: 44%; flex-shrink: 0; display: flex; flex-direction: column; gap: 4rpx; padding-right: 6rpx; box-sizing: border-box; overflow: hidden; }
-.prp-c3 { width: 24%; flex-shrink: 0; box-sizing: border-box; overflow: hidden; }
-.prp-cat { font-size: 21rpx; color: #172033; font-weight: 600; line-height: 1.3; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.prp-meta { font-size: 17rpx; color: #94a3b8; line-height: 1.3; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.prp-customer { font-size: 20rpx; color: #333; line-height: 1.4; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-/* 文件标签: 每行独立, 溢出省略 */
-.ftag {
-  display: inline-flex; align-items: center; gap: 4rpx; align-self: flex-start;
-  font-size: 17rpx; color: #475569; background: #f1f5f9; border-radius: 6rpx;
-  padding: 2rpx 8rpx; max-width: 100%;
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
-.ftag b { color: #2563eb; font-size: 15rpx; flex-shrink: 0; }
-
-/* ===== 【2026-11-02 用户令】上传表单=底部弹层(与 PC UploadDialog 同语义) =====
-   复用客户选择器 cs-sheet 同款骨架: 全屏遮罩+底部圆角面板 */
-.us-mask { position: fixed; inset: 0; z-index: 20; background: rgba(15, 23, 42, .5); display: flex; align-items: flex-end; }
-.us-sheet {
-  width: 100%; max-height: 82vh; background: #f5f7fa;
-  border-radius: 32rpx 32rpx 0 0; padding: 24rpx 28rpx 40rpx; box-sizing: border-box;
-  display: flex; flex-direction: column;
-}
-.us-sheet-head { display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
-.us-sheet-title { font-size: 30rpx; font-weight: 800; color: #172033; }
-.us-sheet-close { padding: 8rpx 16rpx; color: #94a3b8; font-size: 30rpx; }
-.us-sheet-body { flex: 1; min-height: 0; overflow-y: auto; margin-top: 14rpx; }
-.us-sheet-body .form-card { margin-top: 0; background: transparent; box-shadow: none; padding: 0; }

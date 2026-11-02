@@ -1,85 +1,39 @@
-<view class="page upload-pc-page">
-  <!-- ===== 完全复刻 PC 骨架: cat-tabs-bar → main-layout(left-panel + right-panel) ===== -->
-  <!-- 1) cat-tabs-bar(与 PC cat-tabs 同构: 灰底胶囊容器+等宽tab+深蓝渐变激活+记录数徽章) -->
-  <view class="pcat-bar">
-    <view class="pcat-tabs">
-      <view wx:for="{{uploadView.categoryParents}}" wx:key="id"
-            class="pcat-tab {{item.id === uploadView.selectedParentId ? 'active' : ''}}"
-            data-index="{{index}}" bindtap="tapCategoryParent">
-        <text class="pcat-name">{{item.name}}</text>
-        <text class="pcat-badge">{{item.count || 0}}</text>
-      </view>
-    </view>
+<!-- 【2026-11-03 用户令·PC 逻辑对齐+纯表单页】点"激励上传"直接进本表单页(不再有浏览式四大类Tab/
+     左右分栏/右侧记录表格); 表单分节与字段语义对齐 PC UploadDialog: 基本信息→安装详情→
+     安装文件(每槽独立区块,不再有"先选槽位再上传")→跟踪记录(trial)→审计→共享→吸底提交。 -->
+<view class="page upload-form-page">
+  <!-- 编辑态头(对齐 PC 弹窗头: 追加文件+子分类tag; 新增态由导航栏"激励上传"承载) -->
+  <view wx:if="{{uploadView.editCategoryName}}" class="edit-header">
+    <text class="edit-title">追加文件</text>
+    <text class="edit-cat-tag">{{uploadView.editCategoryName}}</text>
   </view>
 
-  <!-- 2) main-layout(与 PC flex row 同构): left-panel + right-panel -->
-  <view class="pmain">
-    <!-- left-panel: 子分类列表(与 PC SubCategoryPanel 同构) -->
-    <view class="plp">
-      <view class="plp-hint">
-        <text class="plp-hint-tag">{{uploadView.activeParentName}}</text>
-        <text class="plp-hint-text">筛选/上传</text>
-      </view>
-      <scroll-view class="plp-scroll" scroll-y>
-        <view wx:for="{{uploadView.categoryChildren}}" wx:key="id"
-              class="plp-item {{item.id === uploadView.selectedChildId ? 'active' : ''}}"
-              data-index="{{index}}" bindtap="tapCategoryChild">
-          <text class="plp-name">{{item.name}}</text>
-          <view class="plp-actions">
-            <text class="plp-score">{{item.score}}分</text>
-            <button wx:if="{{canUpload}}" class="plp-upload" size="mini"
-                    data-index="{{index}}" catchtap="tapUploadFromSubcat">上传</button>
-          </view>
+  <!-- ①基本信息 -->
+  <view class="form-section">
+    <view class="form-section-title">基本信息</view>
+    <view class="field">
+      <text class="label">激励大类 *</text>
+      <picker mode="selector" range="{{uploadView.categoryParentNames}}" bindchange="chooseCategoryParent" disabled="{{uploadView.categoryLocked}}">
+        <view class="picker-card {{uploadView.categoryLocked ? 'disabled' : ''}}">
+          <text class="{{uploadView.categoryParentPicker.className}}">{{uploadView.categoryParentPicker.text}}</text>
+          <text wx:if="{{!uploadView.categoryLocked}}" class="picker-arrow">⌄</text>
         </view>
-        <view wx:if="{{!uploadView.categoryChildren.length}}" class="plp-empty">暂无子分类</view>
-      </scroll-view>
+      </picker>
     </view>
-
-    <!-- right-panel: 已有记录表格(与 PC RecordTable 同构: 表头+斑马纹+文件标签) -->
-    <view class="prp">
-      <!-- 表头(与 PC el-table header 同构) -->
-      <view class="prp-thead">
-        <text class="pth pth-cat">大类·子类</text>
-        <text class="pth pth-file">安装文件</text>
-        <text class="pth pth-cust">客户</text>
-      </view>
-      <scroll-view class="prp-scroll" scroll-y>
-        <block wx:if="{{uploadView.showCategorySummary && subcatRecords.length}}">
-          <view wx:for="{{subcatRecords}}" wx:key="id" class="prp-row {{index % 2 === 1 ? 'stripe' : ''}}">
-            <view class="prp-c1">
-              <text class="prp-cat">{{item.categoryName}}</text>
-              <text class="prp-meta" wx:if="{{item.industry}}">{{item.industry}}</text>
-            </view>
-            <view class="prp-c2">
-              <text wx:if="{{item.filePre}}" class="ftag"><b>前</b>{{item.filePre}}</text>
-              <text wx:if="{{item.fileMid}}" class="ftag"><b>中</b>{{item.fileMid}}</text>
-              <text wx:if="{{item.filePost}}" class="ftag"><b>后</b>{{item.filePost}}</text>
-              <text wx:if="{{!item.filePre && !item.fileMid && !item.filePost}}" class="prp-meta">—</text>
-            </view>
-            <view class="prp-c3">
-              <text class="prp-customer">{{item.customerName}}</text>
-            </view>
-          </view>
-        </block>
-        <view wx:if="{{uploadView.showCategorySummary && !subcatRecords.length}}" class="prp-empty">
-          暂无已上传文件
+    <view wx:if="{{uploadView.showCategoryChild}}" class="field">
+      <text class="label">激励子类 *</text>
+      <picker mode="selector" range="{{uploadView.categoryChildNames}}" bindchange="chooseCategoryChild" disabled="{{uploadView.categoryLocked}}">
+        <view class="picker-card {{uploadView.categoryLocked ? 'disabled' : ''}}">
+          <text class="{{uploadView.categoryChildPicker.className}}">{{uploadView.categoryChildPicker.text}}</text>
+          <text wx:if="{{!uploadView.categoryLocked}}" class="picker-arrow">⌄</text>
         </view>
-        <view wx:if="{{!uploadView.showCategorySummary}}" class="prp-empty">← 点击左侧子分类</view>
-      </scroll-view>
+      </picker>
     </view>
-  </view>
-
-  <!-- 3) 上传表单=底部弹层(与 PC UploadDialog 同语义): 点左面板"上传"按钮弹出 -->
-  <view wx:if="{{showUploadSheet && uploadView.showCategorySummary}}" class="us-mask" bindtap="closeUploadSheet">
-    <view class="us-sheet" catchtap="noop">
-      <view class="us-sheet-head">
-        <text class="us-sheet-title">{{uploadView.categorySectionTitle}}</text>
-        <text class="us-sheet-close" bindtap="closeUploadSheet">✕</text>
-      </view>
-      <scroll-view class="us-sheet-body" scroll-y>
-        <view class="category-summary">
-          <text>{{uploadView.categoryScoreText}}</text>
-        </view>
+    <view wx:if="{{uploadView.categoryLocked}}" class="field-hint">追加文件时保留原分类，与 PC 端编辑逻辑一致。</view>
+    <view wx:if="{{uploadView.showCategorySummary}}" class="category-summary">
+      <text>子类分值</text>
+      <text>{{uploadView.categoryScoreText}}</text>
+    </view>
     <view class="field">
       <text class="label">客户 *</text>
       <view class="picker-card" bindtap="openCustomerSheet">
@@ -101,16 +55,6 @@
       </picker>
     </view>
     <view class="field">
-      <text class="label">记录周期 *</text>
-      <picker mode="selector" range="{{periodOptions}}" value="{{selectedPeriodIndex}}" bindchange="choosePeriod" disabled="{{uploadView.periodDisabled}}">
-        <view class="{{uploadView.periodPickerClass}}">
-          <text>{{uploadView.periodPickerText}}</text>
-          <text wx:if="{{uploadView.showPeriodArrow}}" class="picker-arrow">⌄</text>
-        </view>
-      </picker>
-      <view wx:if="{{uploadView.showPeriodPreserveHint}}" class="field-hint">追加文件时保留原记录周期，与 PC 端编辑逻辑一致。</view>
-    </view>
-    <view class="field">
       <text class="label">相关产品</text>
       <view class="inline-pickers">
         <picker mode="selector" range="{{relatedCatOptions}}" bindchange="chooseRelatedCat">
@@ -126,12 +70,16 @@
           </view>
         </picker>
       </view>
-      <input class="input" value="{{relatedProducts}}" bindinput="inputRelatedProducts" placeholder="可手动补充，如：涂层类-防腐" />
     </view>
     <view wx:if="{{uploadView.showSpecificProduct}}" class="field">
       <text class="label">具体产品</text>
       <input class="input" value="{{specificProduct}}" bindinput="inputSpecificProduct" placeholder="产品试点可填写具体产品或型号" />
     </view>
+  </view>
+
+  <!-- ②安装详情(标题随品类: 安装详情/参观详情/方案详情, 与 PC secTitle 同源) -->
+  <view class="form-section">
+    <view class="form-section-title">{{uploadView.categorySectionTitle}}</view>
     <view class="field">
       <text class="label">{{uploadView.detailLabel}}</text>
       <textarea class="textarea" value="{{preInstallQuestion}}" bindinput="inputPreInstallQuestion" placeholder="{{uploadView.detailPlaceholder}}" />
@@ -140,89 +88,135 @@
       <text class="label">{{uploadView.remarkLabel}}</text>
       <textarea class="textarea" value="{{remark}}" bindinput="inputRemark" placeholder="{{uploadView.remarkPlaceholder}}" />
     </view>
-    <view class="field switch-row">
-      <view>
-        <text class="label no-gap">团队共享</text>
-        <view class="field-hint">开启后团队成员可见；关闭后仅本人、管理员或授权人员可见。</view>
-        <view wx:if="{{uploadView.shareLocked}}" class="field-hint">仅上传人可修改共享状态，追加他人记录时保持原值。</view>
+  </view>
+
+  <!-- ③安装文件: 每槽独立区块(与 PC FileSlotPager 同语义; 无"槽位选择器"两步式) -->
+  <block wx:if="{{uploadView.showCategorySummary}}">
+    <view class="form-section">
+      <view class="form-section-title-row">
+        <text class="form-section-title">{{uploadView.filesSectionTitle}}</text>
+        <text class="section-tip">{{uploadView.filesSectionTip}}</text>
       </view>
-      <switch checked="{{shared}}" disabled="{{uploadView.shareLocked}}" bindchange="toggleShared" color="#2563eb" />
-    </view>
-    <view wx:if="{{uploadView.showAudit}}" class="audit-panel">
-      <view class="form-section-title compact-title">审计信息</view>
-      <view class="audit-grid">
-        <view wx:for="{{uploadView.auditRows}}" wx:key="label" class="audit-item">
-          <text class="audit-label">{{item.label}}</text>
-          <text class="audit-value">{{item.valueText}}</text>
+      <view wx:for="{{uploadView.installSlotBlocks}}" wx:for-item="block" wx:key="key" class="slot-block">
+        <view class="slot-block-head">
+          <text wx:if="{{block.dotClass}}" class="slot-dot {{block.dotClass}}"></text>
+          <text class="slot-block-label">{{block.label}}</text>
+          <text wx:if="{{block.pageText}}" class="selected-slot-page">{{block.pageText}}</text>
+          <text class="slot-block-count">{{block.countText}}</text>
         </view>
-      </view>
-    </view>
-    <view class="field">
-      <text class="label">文件槽位 *</text>
-      <view class="slot-selector">
-        <view wx:for="{{uploadView.slotOptionsView}}" wx:key="key" wx:if="{{item.visible}}" class="{{item.className}}" data-index="{{item.originalIndex}}" bindtap="chooseSlot">
-          <text>{{item.label}}</text>
-          <text wx:if="{{item.ready}}" class="slot-ready">{{item.countText}}</text>
-        </view>
-      </view>
-      <view class="upload-slot">
-        <view class="upload-icon">＋</view>
-        <view class="upload-copy">
-          <view class="upload-title">{{uploadView.currentSlotTitle}}</view>
-          <view class="upload-hint">{{uploadView.currentSlotHint}}</view>
-          <view class="upload-actions" wx:if="{{!uploadView.currentSlotFull}}">
-            <button class="upload-action primary" catchtap="chooseImage">选图片</button>
-            <button class="upload-action" catchtap="chooseFile">选文件</button>
-          </view>
-          <!-- 【工作流复核确认修复】满员隐藏添加入口(PC 同口径), 避免点了被吞 -->
-          <view class="upload-hint" wx:else>该槽位已满（每槽最多 5 个文件）</view>
-        </view>
-      </view>
-    </view>
-    <view class="selected-file-list">
-      <!-- 【2026-10-30 用户令: 同一上传格子内左右翻页】每槽一格 swiper 横滑, 头部页码 N/M; 预览/下载/移除随页 -->
-      <view wx:for="{{uploadView.selectedFileSlotsView}}" wx:for-item="slot" wx:key="key" class="selected-slot-group">
-        <view class="selected-slot-head">
-          <text class="selected-slot-title">{{slot.label}}</text>
-          <text wx:if="{{slot.pageText}}" class="selected-slot-page">{{slot.pageText}}</text>
-        </view>
-        <swiper class="slot-swiper" current="{{slot.current}}" data-view-index="{{slot.viewIndex}}" data-slot-index="{{slot.slotIndex}}" data-count="{{slot.files.length}}" bindchange="onSlotPageChange">
-          <swiper-item wx:for="{{slot.files}}" wx:for-item="file" wx:key="fileKey">
+        <swiper wx:if="{{block.files.length}}" class="slot-swiper" current="{{block.current}}"
+                data-list="install" data-view-index="{{block.viewIndex}}" data-slot-index="{{block.slotIndex}}"
+                data-count="{{block.files.length}}" bindchange="onSlotPageChange">
+          <swiper-item wx:for="{{block.files}}" wx:for-item="file" wx:key="fileKey">
             <view class="slot-file-page">
-              <image wx:if="{{file.isImage}}" class="selected-file-thumb" src="{{file.thumbUrl || file.filePath}}" mode="aspectFill" catchtap="previewSelectedFile" data-index="{{slot.slotIndex}}" data-file-index="{{file.fileIndex}}" />
-              <view wx:else class="slot-type-thumb" catchtap="previewSelectedFile" data-index="{{slot.slotIndex}}" data-file-index="{{file.fileIndex}}">
+              <image wx:if="{{file.isImage}}" class="selected-file-thumb" src="{{file.thumbUrl || file.filePath}}" mode="aspectFill" catchtap="previewSelectedFile" data-index="{{block.slotIndex}}" data-file-index="{{file.fileIndex}}" />
+              <view wx:else class="slot-type-thumb" catchtap="previewSelectedFile" data-index="{{block.slotIndex}}" data-file-index="{{file.fileIndex}}">
                 <text class="slot-type-text">{{file.kindText}}</text>
               </view>
               <view class="slot-file-meta">
                 <text class="selected-file-name">{{file.fileName}}</text>
                 <text wx:if="{{file.uploadStateText}}" class="{{file.uploadStateClass}}">{{file.uploadStateText}}</text>
               </view>
-              <view class="selected-file-actions">
-                <button class="file-action" loading="{{uploadView.fileActionLoading}}" catchtap="previewSelectedFile" data-index="{{slot.slotIndex}}" data-file-index="{{file.fileIndex}}">预览</button>
-                <button class="file-action secondary" loading="{{uploadView.fileActionLoading}}" catchtap="downloadSelectedFile" data-index="{{slot.slotIndex}}" data-file-index="{{file.fileIndex}}">下载</button>
-                <button class="file-action danger" catchtap="removeSelectedFile" data-index="{{slot.slotIndex}}" data-file-index="{{file.fileIndex}}">移除</button>
+              <view class="slot-file-actions">
+                <button class="file-action" loading="{{uploadView.fileActionLoading}}" catchtap="previewSelectedFile" data-index="{{block.slotIndex}}" data-file-index="{{file.fileIndex}}">预览</button>
+                <button class="file-action secondary" loading="{{uploadView.fileActionLoading}}" catchtap="downloadSelectedFile" data-index="{{block.slotIndex}}" data-file-index="{{file.fileIndex}}">下载</button>
+                <button class="file-action danger" catchtap="removeSelectedFile" data-index="{{block.slotIndex}}" data-file-index="{{file.fileIndex}}">移除</button>
               </view>
             </view>
           </swiper-item>
         </swiper>
+        <view wx:if="{{!block.full}}" class="slot-add-row">
+          <button class="upload-action primary" catchtap="chooseImage" data-slot-key="{{block.key}}">选图片</button>
+          <button class="upload-action" catchtap="chooseFile" data-slot-key="{{block.key}}">选文件</button>
+        </view>
+        <view wx:else class="slot-full-hint">该槽位已满（每槽最多 5 个文件）</view>
       </view>
     </view>
-    <view wx:if="{{uploadView.showUploadProgress}}" class="upload-progress-panel">
-      <view class="upload-progress-track">
-        <view class="upload-progress-fill" style="width: {{uploadView.uploadProgressWidth}};"></view>
+
+    <!-- 跟踪记录(仅 trial, 与 PC 同款"不加分"提示) -->
+    <view wx:if="{{uploadView.trackSlotBlocks.length}}" class="form-section">
+      <view class="form-section-title-row">
+        <text class="form-section-title">跟踪记录</text>
+        <text class="section-tip">不加分</text>
       </view>
-      <view class="upload-progress-text">{{uploadView.uploadProgressText}}</view>
+      <view wx:for="{{uploadView.trackSlotBlocks}}" wx:for-item="block" wx:key="key" class="slot-block">
+        <view class="slot-block-head">
+          <text class="slot-block-label">{{block.label}}</text>
+          <text wx:if="{{block.pageText}}" class="selected-slot-page">{{block.pageText}}</text>
+          <text class="slot-block-count">{{block.countText}}</text>
+        </view>
+        <swiper wx:if="{{block.files.length}}" class="slot-swiper" current="{{block.current}}"
+                data-list="track" data-view-index="{{block.viewIndex}}" data-slot-index="{{block.slotIndex}}"
+                data-count="{{block.files.length}}" bindchange="onSlotPageChange">
+          <swiper-item wx:for="{{block.files}}" wx:for-item="file" wx:key="fileKey">
+            <view class="slot-file-page">
+              <image wx:if="{{file.isImage}}" class="selected-file-thumb" src="{{file.thumbUrl || file.filePath}}" mode="aspectFill" catchtap="previewSelectedFile" data-index="{{block.slotIndex}}" data-file-index="{{file.fileIndex}}" />
+              <view wx:else class="slot-type-thumb" catchtap="previewSelectedFile" data-index="{{block.slotIndex}}" data-file-index="{{file.fileIndex}}">
+                <text class="slot-type-text">{{file.kindText}}</text>
+              </view>
+              <view class="slot-file-meta">
+                <text class="selected-file-name">{{file.fileName}}</text>
+                <text wx:if="{{file.uploadStateText}}" class="{{file.uploadStateClass}}">{{file.uploadStateText}}</text>
+              </view>
+              <view class="slot-file-actions">
+                <button class="file-action" loading="{{uploadView.fileActionLoading}}" catchtap="previewSelectedFile" data-index="{{block.slotIndex}}" data-file-index="{{file.fileIndex}}">预览</button>
+                <button class="file-action secondary" loading="{{uploadView.fileActionLoading}}" catchtap="downloadSelectedFile" data-index="{{block.slotIndex}}" data-file-index="{{file.fileIndex}}">下载</button>
+                <button class="file-action danger" catchtap="removeSelectedFile" data-index="{{block.slotIndex}}" data-file-index="{{file.fileIndex}}">移除</button>
+              </view>
+            </view>
+          </swiper-item>
+        </swiper>
+        <view wx:if="{{!block.full}}" class="slot-add-row">
+          <button class="upload-action primary" catchtap="chooseImage" data-slot-key="{{block.key}}">选图片</button>
+          <button class="upload-action" catchtap="chooseFile" data-slot-key="{{block.key}}">选文件</button>
+        </view>
+        <view wx:else class="slot-full-hint">该槽位已满（每槽最多 5 个文件）</view>
+      </view>
     </view>
-      <view class="form-actions">
-        <button class="form-action cancel-action" bindtap="cancelUpload" disabled="{{uploadView.cancelDisabled}}">{{uploadView.cancelText}}</button>
-        <button class="form-action submit-action {{uploadView.submitIncomplete ? 'action-disabled' : ''}}" bindtap="submit" loading="{{uploadView.submitLoading}}" disabled="{{uploadView.submitDisabled}}">{{uploadView.submitText}}</button>
+  </block>
+  <view wx:else class="form-section">
+    <view class="pick-category-first">选择激励大类与子类后上传文件</view>
+  </view>
+
+  <!-- ④审计信息(编辑/追加时, 与 PC 弹窗审计区同款) -->
+  <view wx:if="{{uploadView.showAudit}}" class="audit-panel">
+    <view class="form-section-title compact-title">审计信息</view>
+    <view class="audit-grid">
+      <view wx:for="{{uploadView.auditRows}}" wx:key="label" class="audit-item">
+        <text class="audit-label">{{item.label}}</text>
+        <text class="audit-value">{{item.valueText}}</text>
       </view>
-      </scroll-view>
     </view>
   </view>
+
+  <!-- ⑤团队共享 + 格式提示(对齐 PC 弹窗提示文案) -->
+  <view class="field switch-row">
+    <view>
+      <text class="label no-gap">团队共享</text>
+      <view class="field-hint">开启后团队成员可见；关闭后仅本人、管理员或授权人员可见。</view>
+      <view wx:if="{{uploadView.shareLocked}}" class="field-hint">仅上传人可修改共享状态，追加他人记录时保持原值。</view>
+    </view>
+    <switch checked="{{shared}}" disabled="{{uploadView.shareLocked}}" bindchange="toggleShared" color="#2563eb" />
+  </view>
+  <view class="dlg-tip">单文件最大 500MB，支持图片、视频、PDF、Word、Excel、压缩包等格式</view>
+
+  <!-- 上传进度(提交中逐文件反馈) -->
+  <view wx:if="{{uploadView.showUploadProgress}}" class="upload-progress-panel">
+    <view class="upload-progress-track">
+      <view class="upload-progress-fill" style="width: {{uploadView.uploadProgressWidth}};"></view>
+    </view>
+    <view class="upload-progress-text">{{uploadView.uploadProgressText}}</view>
+  </view>
+
+  <!-- 吸底操作条(文案对齐 PC: 上传并提交/追加提交) -->
+  <view class="fixed-actions">
+    <button class="form-action cancel-action" bindtap="cancelUpload" disabled="{{uploadView.cancelDisabled}}">{{uploadView.cancelText}}</button>
+    <button class="form-action submit-action {{uploadView.submitIncomplete ? 'action-disabled' : ''}}" bindtap="submit" loading="{{uploadView.submitLoading}}" disabled="{{uploadView.submitDisabled}}">{{uploadView.submitText}}</button>
+  </view>
+  <view class="actions-spacer"></view>
 </view>
 
-<!-- 【#3 2026-10-12】客户选择改半屏搜索层: 关键字过滤客户名称,替代滚轮 picker -->
+<!-- 【#3 2026-10-12】客户选择半屏搜索层: 关键字过滤客户名称,替代滚轮 picker -->
 <!-- 【C2 2026-10-21】真实模式改服务端搜索+分页(getCustomerList keyword/current/size): 滚到底
      追加下一页, total=服务端匹配总数; 选中按 customerId 定位(翻页后下标会错位) -->
 <view wx:if="{{customerSheet.open}}" class="cs-mask" bindtap="closeCustomerSheet">

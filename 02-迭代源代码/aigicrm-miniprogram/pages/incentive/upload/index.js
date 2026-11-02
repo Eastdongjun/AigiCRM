@@ -57,17 +57,10 @@ const MAX_FILES_PER_SLOT = 5
 // 【C2 2026-10-21】客户选择半屏服务端分页页大小: 滚到底追加下一页
 const CUSTOMER_SHEET_PAGE_SIZE = 20
 
+// 【2026-11-03 PC 逻辑对齐】表单周期字段退役(PC 弹窗无周期, 落库周期取筛选值);
+// MP 纯表单页无筛选栏 → 新增落库恒当年全年, 与 PC 默认筛选"全部"的落库口径一致
 function defaultPeriod() {
   return `${new Date().getFullYear()}全年`
-}
-
-function buildPeriodOptions() {
-  const currentYear = new Date().getFullYear()
-  const options = []
-  for (let year = currentYear + 1; year >= currentYear - 5; year -= 1) {
-    options.push(`${year}全年`, `${year}下半年`, `${year}上半年`)
-  }
-  return options
 }
 
 function parseIds(value) {
@@ -180,10 +173,6 @@ function currentUserId() {
   return user.id || user.userId || ''
 }
 
-function selectedText(options, index, placeholder) {
-  return index >= 0 && options[index] ? options[index] : placeholder
-}
-
 function pickerTextView(options, index, placeholder) {
   const selected = index >= 0 && Boolean(options[index])
   return {
@@ -232,8 +221,8 @@ function slotFileCount(slot) {
 }
 
 function slotCountText(slot) {
-  const count = slotFileCount(slot)
-  return count > 0 ? `${count}/${MAX_FILES_PER_SLOT}` : ''
+  // 【PC 对齐】恒显示 N/5(PC file-slot-count 同款), 不再"有文件才显示"
+  return `${slotFileCount(slot)}/${MAX_FILES_PER_SLOT}`
 }
 
 function canSubmitUpload(data, selectedCategory, categories) {
@@ -316,32 +305,18 @@ function parentIndexOfCategory(categories, parentNodes, categoryIndex) {
   return parent ? parentNodes.indexOf(parent) : -1
 }
 
-function buildUploadViewState(data) {
-  const selectedSlotIndex = Number(data.selectedSlotIndex) || 0
-  const categories = data.categories || []
-  const selectedCategory = categories[data.selectedCategoryIndex]
-  const customer = selectedCustomerOf(data)
-  // 【I2】未选分类时初始 selectedSlotIndex=0 指向隐藏的通用佐证槽; 视图/上传都回落到首个可见槽,
-  // 否则文件写进隐藏槽后既不展示也不进提交快照(被静默丢弃)
-  const selectedSlot = data.fileSlots[selectedSlotIndex]
-  const currentSlot = (selectedSlot && !selectedSlot.hidden ? selectedSlot : data.fileSlots.find((slot) => !slot.hidden)) || {}
-  const hasCurrentFile = Boolean(currentSlot.fileName)
-  const slotOptionsView = data.fileSlots.map((slot, index) => ({
-    ...slot,
-    originalIndex: index,
-    visible: !slot.hidden,
-    className: `slot-option${selectedSlotIndex === index ? ' active' : ''}`,
-    ready: Boolean(slot.fileName),
-    countText: slotCountText(slot)
-  }))
-  // 【2026-10-30 同槽翻页】每槽当前页备忘: swiper bindchange 写入, 视图重建时钳回合法位
+/** 【2026-11-03 PC 逻辑对齐·每槽独立区块】与 PC FileSlotPager 同语义: install=安装文件槽
+ *  (单槽类 1 块/trial 前·中·后 3 块), track=跟踪记录槽(仅 trial); 每块=标题+计数+swiper 文件页
+ *  (同槽翻页/预览/下载/移除)+本槽独立添加入口——取代原"先选槽位 chips 再上传"两步式。 */
+function buildSlotBlocks(data) {
   const slotPages = data.slotPages || {}
-  const selectedFileSlotsView = data.fileSlots
+  const SLOT_DOTS = { filePreId: 'dot-pre', fileMidId: 'dot-mid', filePostId: 'dot-post' }
+  const blocks = (data.fileSlots || [])
     .map((slot, slotIndex) => {
+      if (!slot || slot.hidden) return null
       const files = (slot.files || []).map((file, fileIndex) => ({
         ...file,
         fileIndex,
-        displayIndex: fileIndex + 1,
         // 【L11】existing/草稿恢复文件 filePath 恒为空串, 直接拿 filePath 当 wx:key 会整组重复:
         // 依次用本地临时路径 → 服务端文件 id → 附件 URL 兜底, 最后按下标保证唯一
         fileKey: file.filePath || (file.fileId ? `id-${file.fileId}` : (file.fileUrl ? `url-${file.fileUrl}` : `idx-${fileIndex}`)),
@@ -358,38 +333,51 @@ function buildUploadViewState(data) {
         uploadStateClass: `upload-state ${file.uploadedId ? 'done' : (file.uploadState || 'pending')}`
       }))
       return {
-        ...slot,
+        key: slot.key,
         slotIndex,
+        label: slot.label,
+        dotClass: SLOT_DOTS[slot.key] || '',
         files,
-        visible: !slot.hidden && Boolean(slot.fileName)
+        full: files.length >= MAX_FILES_PER_SLOT,
+        countText: slotCountText(slot)
       }
     })
-    .filter((slot) => slot.visible)
-    // 【2026-10-30 同槽翻页】补翻页视图字段: viewIndex=深层 setData 路径锚, current/pageText=swiper 当前页与页码
-    .map((slot, viewIndex) => {
-      const pageCount = slot.files.length
-      const current = Math.min(slotPages[slot.slotIndex] || 0, Math.max(0, pageCount - 1))
-      return { ...slot, viewIndex, current, pageText: pageCount > 1 ? `${current + 1}/${pageCount}` : '' }
-    })
+    .filter(Boolean)
+  // 【2026-10-30 同槽翻页】翻页字段: viewIndex=各自数组内深层 setData 路径锚, current/pageText=swiper 当前页与页码
+  const withPager = (list) => list.map((block, viewIndex) => {
+    const pageCount = block.files.length
+    const current = Math.min(slotPages[block.slotIndex] || 0, Math.max(0, pageCount - 1))
+    return { ...block, viewIndex, current, pageText: pageCount > 1 ? `${current + 1}/${pageCount}` : '' }
+  })
   return {
+    install: withPager(blocks.filter((block) => block.key !== 'fileTrackId')),
+    track: withPager(blocks.filter((block) => block.key === 'fileTrackId'))
+  }
+}
+
+function buildUploadViewState(data) {
+  const categories = data.categories || []
+  const selectedCategory = categories[data.selectedCategoryIndex]
+  const customer = selectedCustomerOf(data)
+  const code = categoryCodeOf(selectedCategory, categories)
+  const isSingleSlot = ['visit', 'exchange', 'plan'].includes(code)
+  const slotBlocks = buildSlotBlocks(data)
+  const childCategories = activeParentChildren(data)
+  return {
+    // 编辑态头(对齐 PC 弹窗头: 追加文件+子分类 tag); 编辑态分类只读(PC 编辑不覆盖 categoryId)
+    editCategoryName: data.editId && selectedCategory ? selectedCategory.name : '',
+    categoryLocked: Boolean(data.editId),
+    // 【对齐 PC 2026-09-20】分类两级选择: 大类(产品试点/两谈两做/外出参观/交流拜访) → 子类(涂层类/防滑板类…);
+    // selectedCategoryIndex 仍指向全量 categories, 兼容草稿恢复与编辑回填
+    categoryParentNames: (data.categoryParentNodes || []).map((item) => item.name),
+    categoryParentPicker: pickerTextView((data.categoryParentNodes || []).map((item) => item.name), data.selectedParentCategoryIndex, '请选择大类'),
+    showCategoryChild: Boolean(childCategories.length),
+    categoryChildNames: childCategories.map((item) => item.name),
+    categoryChildPicker: pickerTextView(childCategories.map((item) => item.name), childCategories.findIndex((item) => item.index === data.selectedCategoryIndex), '请选择子类'),
     customerPicker: customerPickerView(customer),
     showCustomerConfirm: Boolean(customer),
     selectedCustomerName: customer ? (customer.customerName || customer.name || '未命名客户') : '',
     selectedCustomerMeta: customerConfirmMeta(customer),
-    categoryPicker: pickerTextView(data.categoryNames, data.selectedCategoryIndex, '请选择分类'),
-    // 【对齐 PC 2026-09-20】分类两级选择: 大类(产品试点/两谈两做/外出参观/交流拜访) → 子类(涂层类/防滑板类…);
-    // selectedCategoryIndex 仍指向全量 categories, 兼容草稿恢复与编辑回填
-    categoryParentNames: (data.categoryParentNodes || []).map((item) => item.name),
-    // 【2026-11-02 用户令·PC 同构】四大类/子类 chips 数据(与 PC 左面板同语义)
-    categoryParents: (data.categoryParentNodes || []).map((item) => ({ id: item.index, name: item.name, count: item.count || item._recordCount || 0 })),
-    activeParentName: (data.categoryParentNodes && data.categoryParentNodes[data.selectedParentCategoryIndex] && data.categoryParentNodes[data.selectedParentCategoryIndex].name) || '',
-    selectedParentId: data.selectedParentCategoryIndex >= 0 ? data.categoryParentNodes[data.selectedParentCategoryIndex] && data.categoryParentNodes[data.selectedParentCategoryIndex].index : -1,
-    categoryChildren: activeParentChildren(data).map((item) => ({ id: item.index, name: item.name, score: item.score || 0 })),
-    selectedChildId: data.selectedCategoryIndex >= 0 ? data.selectedCategoryIndex : -1,
-    categoryParentPicker: pickerTextView((data.categoryParentNodes || []).map((item) => item.name), data.selectedParentCategoryIndex, '请选择大类'),
-    showCategoryChild: Boolean(activeParentChildren(data).length),
-    categoryChildNames: activeParentChildren(data).map((item) => item.name),
-    categoryChildPicker: pickerTextView(activeParentChildren(data).map((item) => item.name), activeParentChildren(data).findIndex((item) => item.index === data.selectedCategoryIndex), '请选择子类'),
     industryPicker: pickerTextView(data.industryOptions, data.selectedIndustryIndex, '请选择行业'),
     relatedCatPicker: pickerTextView(data.relatedCatOptions, data.selectedRelatedCatIndex, '产品大类'),
     relatedSubPicker: pickerTextView(data.relatedSubOptions, data.selectedRelatedSubIndex, '细分产品'),
@@ -404,30 +392,25 @@ function buildUploadViewState(data) {
     detailPlaceholder: '记录客户现场问题、安装前情况、过程效果或试点背景',
     remarkLabel: incentiveRemarkLabel(selectedCategory),
     remarkPlaceholder: '补充安装过程、效果反馈、跟踪说明或其他备注',
-    periodPickerText: selectedText(data.periodOptions, data.selectedPeriodIndex, '请选择周期'),
-    periodPickerClass: `picker-card${data.editId ? ' disabled' : ''}`,
-    periodDisabled: Boolean(data.editId),
-    showPeriodArrow: !data.editId,
-    showPeriodPreserveHint: Boolean(data.editId),
+    // 文件区节头(对齐 PC: 单槽类=现场照片/方案文件+至少1最多5; trial=安装文件+每槽最多5)
+    filesSectionTitle: isSingleSlot ? singleSlotLabel(code) : '安装文件',
+    filesSectionTip: isSingleSlot ? `至少 1 个，最多 ${MAX_FILES_PER_SLOT} 个` : `每槽位最多 ${MAX_FILES_PER_SLOT} 个文件`,
+    installSlotBlocks: slotBlocks.install,
+    trackSlotBlocks: slotBlocks.track,
     shareLocked: Boolean(data.editId && !data.canToggleShare),
     submitLoading: Boolean(data.loading),
     // 【M18 2026-10-04】submitDisabled 只表达"提交中"禁用: 表单未就绪不再进 disabled(微信原生禁用
     // 按钮会吞掉点击, 用户点不出任何反馈), 改为 submitIncomplete 置灰样式 + submit() 点击时 toast 原因
     submitDisabled: Boolean(data.loading),
     submitIncomplete: !canSubmitUpload(data, selectedCategory, categories),
-    submitText: data.loading ? '提交中' : '提交激励',
+    // 【PC 对齐】提交按钮文案与 PC 弹窗同款(上传并提交/追加提交)
+    submitText: data.loading ? '提交中' : (data.editId ? '追加提交' : '上传并提交'),
     cancelText: data.editId ? '取消追加' : '取消上传',
     cancelDisabled: Boolean(data.loading),
     showUploadProgress: Boolean(data.loading && data.uploadProgressFile),
     uploadProgressText: uploadProgressText(data),
     uploadProgressWidth: `${Number(data.uploadProgress || 0)}%`,
     fileActionLoading: Boolean(data.fileActionLoading),
-    currentSlotTitle: hasCurrentFile ? currentSlot.fileName : `选择${currentSlot.label || '槽位'}文件`,
-    currentSlotHint: hasCurrentFile ? '已选择文件，可预览图片/打开文档，也可下载保存；每个槽位最多 5 个文件' : (currentSlot.hint || ''),
-    // 【工作流复核确认修复】当前槽满员标记(满员隐藏添加入口, 与 PC 同口径)
-    currentSlotFull: (currentSlot.files || []).length >= MAX_FILES_PER_SLOT,
-    slotOptionsView,
-    selectedFileSlotsView,
     showAudit: Boolean(data.editId && data.auditRecord),
     auditRows: data.auditRecord ? [
       { label: '上传人', valueText: textOrDash(data.auditRecord.userName || data.auditRecord.createByName || data.auditRecord.createdByName) },
@@ -463,11 +446,8 @@ Page({
     // (getCustomerList keyword/current/size), 演示模式本地过滤
     customerSheet: { open: false, keyword: '', filtered: [], total: 0, page: 1, loading: false, finished: false },
     categories: [],
-    categoryNames: [],
     industryOptions: [],
     selectedIndustryIndex: -1,
-    periodOptions: buildPeriodOptions(),
-    selectedPeriodIndex: Math.max(buildPeriodOptions().indexOf(defaultPeriod()), 0),
     selectedCategoryIndex: -1,
     categoryParentNodes: [],
     selectedParentCategoryIndex: -1,
@@ -490,16 +470,13 @@ Page({
     shared: true,
     canToggleShare: true,
     editId: '',
-    showUploadSheet: false, // 【2026-11-02】上传表单=底部弹层(与 PC UploadDialog 同语义)
     auditRecord: null,
-    selectedSlotIndex: 0,
     fileSlots: defaultSlots(),
     // 【2026-10-30 同槽翻页】每槽当前页/上次文件数备忘(重建视图时新增跳最新页, 删减钳回末位)
     slotPages: {},
     slotFileCounts: {},
     uploadView: buildUploadViewState({
       selectedCustomer: null,
-      categoryNames: [],
       industryOptions: [],
       selectedCategoryIndex: -1,
       selectedIndustryIndex: -1,
@@ -507,12 +484,9 @@ Page({
       relatedSubOptions: [],
       selectedRelatedCatIndex: -1,
       selectedRelatedSubIndex: -1,
-      periodOptions: buildPeriodOptions(),
-      selectedPeriodIndex: Math.max(buildPeriodOptions().indexOf(defaultPeriod()), 0),
       editId: '',
       canToggleShare: true,
       auditRecord: null,
-      selectedSlotIndex: 0,
       fileSlots: defaultSlots(),
       fileActionLoading: false
     }),
@@ -541,15 +515,17 @@ Page({
   },
 
   // 【2026-10-30 同槽翻页】swiper 滑动回调: 只补丁当前槽的 current/pageText 深层路径, 不整树重建
+  // 【2026-11-03 每槽独立区块】swiper 分属 install/track 两个数组, 按 data-list 选深层路径
   onSlotPageChange(e) {
+    const list = e.currentTarget.dataset.list === 'track' ? 'trackSlotBlocks' : 'installSlotBlocks'
     const viewIndex = Number(e.currentTarget.dataset.viewIndex)
     const slotIndex = Number(e.currentTarget.dataset.slotIndex)
     const count = Number(e.currentTarget.dataset.count) || 0
     const current = Math.max(0, Math.min(Number(e.detail.current) || 0, Math.max(0, count - 1)))
     this.setData({
       [`slotPages.${slotIndex}`]: current,
-      [`uploadView.selectedFileSlotsView[${viewIndex}].current`]: current,
-      [`uploadView.selectedFileSlotsView[${viewIndex}].pageText`]: count > 1 ? `${current + 1}/${count}` : ''
+      [`uploadView.${list}[${viewIndex}].current`]: current,
+      [`uploadView.${list}[${viewIndex}].pageText`]: count > 1 ? `${current + 1}/${count}` : ''
     })
   },
 
@@ -564,7 +540,6 @@ Page({
     this.setData({ editId }, () => this.refreshUploadViewState())
     this.loadIndustries()
     this.loadOptions()
-    this.loadSubcatRecords() // 【2026-11-02 PC 同构】右侧已有记录
   },
 
   loadIndustries() {
@@ -586,7 +561,7 @@ Page({
   loadOptions() {
     if (getApp().globalData.demoMode) {
       const categories = [{ id: 1, parentId: 0, categoryCode: 'trial', name: '产品试点', score: 3 }, { id: 2, parentId: 0, categoryCode: 'exchange', name: '交流拜访', score: 1 }]
-      this.setData({ categories, categoryParentNodes: deriveCategoryParents(categories), categoryNames: categories.map((item) => item.name) }, () => this.refreshUploadViewState())
+      this.setData({ categories, categoryParentNodes: deriveCategoryParents(categories) }, () => this.refreshUploadViewState())
       if (this.data.editId) this.loadEditRecord()
       return
     }
@@ -596,7 +571,7 @@ Page({
     getCategoryTree().then((categoryRes) => {
       if (this._unloaded) return // 【六轮复检修复】进页秒退不再对已卸载页 setData
       const categories = flattenCategories(categoryRes || [])
-      this.setData({ categories, categoryParentNodes: deriveCategoryParents(categories), categoryNames: categories.map((item) => item.name) }, () => this.refreshUploadViewState())
+      this.setData({ categories, categoryParentNodes: deriveCategoryParents(categories) }, () => this.refreshUploadViewState())
       // 【2026-10-29 归树批】产品大类/小类随树派生(三级结构就绪即覆盖兜底常量)
       const derived = deriveProductCatalog(categoryRes || [])
       if (derived) this.setData({ relatedCatOptions: derived.keys, productCats: derived.cats })
@@ -613,36 +588,8 @@ Page({
     }).catch((error) => showError(error, '上传选项加载失败'))
   },
 
-    // 【2026-11-02 PC 同构】右侧已有记录: 拉全量后按选中子类过滤(与 PC RecordTable 同数据源)
-    loadSubcatRecords() {
-    if (getApp().globalData.demoMode) { this.setData({ subcatRecords: [], allRawRecords: [] }); return }
-    getRecords({}).then((rows) => {
-        if (this._unloaded) return
-        const records = Array.isArray(rows) ? rows : (rows && (rows.records || rows.data || rows.data?.records || rows.list)) || []
-        this.setData({ allRawRecords: records }, () => this.refreshSubcatRecords())
-      }).catch(() => { if (!this._unloaded) this.setData({ subcatRecords: [] }) })
-    },
-    refreshSubcatRecords() {
-      const all = this.data.allRawRecords || []
-      // 【修复】selectedCategoryIndex 是 categories 数组下标, 取出该分类的真实数据库 id 再匹配
-      const selectedCategory = this.data.categories && this.data.categories[this.data.selectedCategoryIndex]
-      const selectedChildId = selectedCategory && selectedCategory.id
-      if (!selectedChildId) { this.setData({ subcatRecords: [] }); return }
-      const selected = all.filter((r) => {
-        const cid = r.categoryId || r.childId
-        return cid !== undefined && String(cid) === String(selectedChildId)
-      }).map((r) => ({
-        id: r.id,
-        categoryName: r.categoryName || r.category || r.type || '',
-        industry: r.industry || '',
-        customerName: r.customerName || '未命名客户',
-        filePre: r.filePreName || '',
-        fileMid: r.fileMidName || '',
-        filePost: r.filePostName || '',
-        timeText: String(r.createdAt || r.createTime || '').replace('T', ' ').slice(0, 16)
-      }))
-      this.setData({ subcatRecords: selected })
-    },
+    // 【2026-11-03 纯表单页】右侧已有记录表格随浏览式骨架退役(用户令"不显示那么多数据"):
+    // 记录拉取/子类过滤两方法已删, 记录浏览由"激励查询"完整版承载。
 
   loadEditRecord() {
     if (!this.data.editId) return
@@ -675,8 +622,6 @@ Page({
     const industryIndex = record.industry ? this.data.industryOptions.indexOf(record.industry) : -1
     const ownerId = record.userId || record.salespersonId || record.createBy || record.createdBy
     const userId = currentUserId()
-    const periodOptions = this.data.periodOptions.includes(record.period) ? this.data.periodOptions : [record.period, ...this.data.periodOptions].filter(Boolean)
-    const selectedPeriodIndex = periodOptions.indexOf(record.period || defaultPeriod())
     const slotFiles = {
       fileId: existingFiles(record.fileId || record.fileIds, record.fileName, record.fileUrl || record.filePath || record.ossKey || record.fileKey),
       filePreId: existingFiles(record.filePreId || record.filePreIds, record.filePreName, record.filePreUrl || record.filePrePath || record.filePreOssKey),
@@ -701,8 +646,6 @@ Page({
       selectedCategoryIndex: categoryIndex,
       selectedParentCategoryIndex: parentIndexOfCategory(this.data.categories, this.data.categoryParentNodes, categoryIndex),
       selectedIndustryIndex: industryIndex,
-      periodOptions,
-      selectedPeriodIndex: Math.max(selectedPeriodIndex, 0),
       relatedProducts: record.relatedProducts || '',
       specificProduct: record.specificProduct || '',
       preInstallQuestion: record.preInstallQuestion || '',
@@ -710,8 +653,7 @@ Page({
       shared: record.shared !== 0,
       canToggleShare: Boolean(userId && ownerId && String(userId) === String(ownerId)),
       auditRecord: record,
-      fileSlots,
-      selectedSlotIndex: Math.max(fileSlots.findIndex((slot) => !slot.hidden), 0)
+      fileSlots
     }, () => this.refreshUploadViewState())
   },
 
@@ -796,13 +738,7 @@ Page({
   applyCategorySelection(selectedCategoryIndex) {
     const category = this.data.categories[selectedCategoryIndex]
     const fileSlots = applyCategorySlotMode(this.data.fileSlots, category, this.data.categories)
-    const selectedSlot = fileSlots[this.data.selectedSlotIndex]
-    const firstVisibleSlotIndex = fileSlots.findIndex((slot) => !slot.hidden)
-    this.setData({
-      selectedCategoryIndex,
-      fileSlots,
-      selectedSlotIndex: selectedSlot && !selectedSlot.hidden ? this.data.selectedSlotIndex : Math.max(firstVisibleSlotIndex, 0)
-    }, () => { this.refreshUploadViewState(); this.refreshSubcatRecords() })
+    this.setData({ selectedCategoryIndex, fileSlots }, () => this.refreshUploadViewState())
   },
   // 【对齐 PC】先选大类; 无子类的大类直接成为最终分类
   chooseCategoryParent(e) {
@@ -822,23 +758,7 @@ Page({
     if (!child) return
     this.applyCategorySelection(child.index)
   },
-  // 【2026-11-02 用户令·平铺直选】四大类 chips 点击(dataset.index=大类下标)
-  tapCategoryParent(e) {
-    const index = Number(e.currentTarget.dataset.index) || 0
-    this.chooseCategoryParent({ detail: { value: String(index) } })
-  },
-  // 子类 chips 点击(dataset.index=子类在当前大类 children 中的下标)
-  tapCategoryChild(e) {
-    this.chooseCategoryChild({ detail: { value: String(Number(e.currentTarget.dataset.index) || 0) } })
-  },
-  // 【2026-11-02 PC 同构】子分类行的"上传"按钮=选子类+弹出底部上传表单(与 PC UploadDialog 同语义)
-  tapUploadFromSubcat(e) {
-    this.chooseCategoryChild({ detail: { value: String(Number(e.currentTarget.dataset.index) || 0) } })
-    this.setData({ showUploadSheet: true })
-  },
-  closeUploadSheet() { this.setData({ showUploadSheet: false }) },
   chooseIndustry(e) { this.setData({ selectedIndustryIndex: Number(e.detail.value) }, () => this.refreshUploadViewState()) },
-  choosePeriod(e) { this.setData({ selectedPeriodIndex: Number(e.detail.value) }, () => this.refreshUploadViewState()) },
   chooseRelatedCat(e) {
     const index = Number(e.detail.value)
     const name = this.data.relatedCatOptions[index]
@@ -860,8 +780,6 @@ Page({
     const sub = this.data.relatedSubOptions[index] || ''
     this.setData({ selectedRelatedSubIndex: index, relatedProducts: cat && sub ? `${cat}-${sub}` : cat || sub }, () => this.refreshUploadViewState())
   },
-  chooseSlot(e) { this.setData({ selectedSlotIndex: Number(e.currentTarget.dataset.index) }, () => this.refreshUploadViewState()) },
-  inputRelatedProducts(e) { this.setData({ relatedProducts: e.detail.value }) },
   inputSpecificProduct(e) { this.setData({ specificProduct: e.detail.value }) },
   inputPreInstallQuestion(e) { this.setData({ preInstallQuestion: e.detail.value }) },
   inputRemark(e) { this.setData({ remark: e.detail.value }) },
@@ -873,17 +791,11 @@ Page({
     this.setData({ shared: e.detail.value }, () => this.refreshUploadViewState())
   },
 
-  setSelectedSlotFile(filePath, fileName, fileKind) {
-    let index = this.data.selectedSlotIndex
-    let slot = this.data.fileSlots[index]
-    let redirected = false
-    // 【I2】当前指向隐藏槽(未选分类时的初始态/切换分类后的残留)时, 自动落到首个可见槽并提示;
-    // 隐藏槽在 selectedFileSlotsView 不展示、submit 也跳过, 静默写入等于丢文件
-    if (!slot || slot.hidden) {
-      index = this.data.fileSlots.findIndex((item) => !item.hidden)
-      slot = this.data.fileSlots[index]
-      redirected = true
-    }
+  /** 【2026-11-03 PC 逻辑对齐·每槽独立区块】按槽 key 直达写入(调用方=data-slot-key), 取代
+   *  原"先选当前槽再上传"两步式; 隐藏槽(旧数据 fileId 槽)不可达——wxml 只渲染可见槽。 */
+  setSlotFile(slotKey, filePath, fileName, fileKind) {
+    const index = this.data.fileSlots.findIndex((item) => item && item.key === slotKey && !item.hidden)
+    const slot = index >= 0 ? this.data.fileSlots[index] : null
     if (!slot) {
       wx.showToast({ title: '请先选择分类后再上传文件', icon: 'none' })
       return
@@ -899,18 +811,16 @@ Page({
       fileKind: fileKind || (isImageFile(fileName, filePath) ? 'image' : 'file')
     }).slice(0, MAX_FILES_PER_SLOT)
     const firstFile = files[0] || {}
-    const patch = {
+    this.setData({
       [`fileSlots[${index}].files`]: files,
       [`fileSlots[${index}].filePath`]: firstFile.filePath || '',
       [`fileSlots[${index}].fileName`]: firstFile.fileName || '',
       [`fileSlots[${index}].fileKind`]: firstFile.fileKind || ''
-    }
-    if (redirected) patch.selectedSlotIndex = index
-    this.setData(patch, () => this.refreshUploadViewState())
-    if (redirected) wx.showToast({ title: `未选择分类，文件已放入「${slot.label}」`, icon: 'none' })
+    }, () => this.refreshUploadViewState())
   },
 
-  chooseImage() {
+  chooseImage(e) {
+    const slotKey = e.currentTarget.dataset.slotKey
     wx.chooseMedia({
       count: MAX_FILES_PER_SLOT,
       mediaType: ['image'],
@@ -920,19 +830,20 @@ Page({
         files.forEach((file, index) => {
           if (!file || !file.tempFilePath) return
           const suffix = (file.tempFilePath.match(/\.[a-z0-9]+$/i) || ['.jpg'])[0]
-          this.setSelectedSlotFile(file.tempFilePath, `现场图片${index + 1}${suffix}`, 'image')
+          this.setSlotFile(slotKey, file.tempFilePath, `现场图片${index + 1}${suffix}`, 'image')
         })
       },
       fail: (error) => { if (error && error.errMsg && !error.errMsg.includes('cancel')) showError(error, '选择图片失败') }
     })
   },
 
-  chooseFile() {
+  chooseFile(e) {
+    const slotKey = e.currentTarget.dataset.slotKey
     wx.chooseMessageFile({ count: MAX_FILES_PER_SLOT, type: 'file', success: (res) => {
       const files = res.tempFiles || []
       files.forEach((file) => {
         if (file && file.path) {
-          this.setSelectedSlotFile(file.path, file.name || '已选择文件')
+          this.setSlotFile(slotKey, file.path, file.name || '已选择文件')
         }
       })
     }, fail: (error) => { if (error && error.errMsg && !error.errMsg.includes('cancel')) showError(error, '选择文件失败') } })
@@ -1216,7 +1127,9 @@ Page({
   saveRecordWithFiles(uploadedIds, customer, category, isSingleSlot) {
     wx.showLoading({ title: '保存中' })
     const selectedIndustry = this.data.industryOptions[this.data.selectedIndustryIndex] || customer.industry || ''
-    const selectedPeriod = this.data.periodOptions[this.data.selectedPeriodIndex] || defaultPeriod()
+    // 【2026-11-03 PC 逻辑对齐】周期字段退役: 新增落库恒当年全年(=PC 默认筛选"全部"的落库口径);
+    // 编辑态 period 已从 payload 剥除(保留库内原值), 不受影响
+    const selectedPeriod = defaultPeriod()
     // 【C4 2026-10-21】文本字段清空语义按模式区分:
     // - 编辑态发 ''(后端 updateRecord"非 null 即合并", '' 才能把库内旧值真正清空;
     //   原先 trim() || null 发 null=未提供, 用户清空后旧值复活, 界面却报保存成功);
@@ -1291,7 +1204,6 @@ Page({
       customerId: customer.id,
       categoryId: category.id,
       industry: this.data.industryOptions[this.data.selectedIndustryIndex] || customer.industry || '',
-      period: this.data.periodOptions[this.data.selectedPeriodIndex] || defaultPeriod(),
       relatedProducts: this.data.relatedProducts || '',
       specificProduct: this.data.specificProduct || '',
       preInstallQuestion: this.data.preInstallQuestion || '',
@@ -1358,8 +1270,8 @@ Page({
     const category = this.data.categories.find((item) => String(item.id) === String(parsed.categoryId))
     const categoryIndex = this.data.categories.indexOf(category)
     const industryIndex = parsed.industry ? this.data.industryOptions.indexOf(parsed.industry) : -1
-    const periodOptions = this.data.periodOptions.includes(parsed.period) ? this.data.periodOptions : [parsed.period, ...this.data.periodOptions].filter(Boolean)
     // 已上传附件按 id 恢复为 existing 条目(与编辑态 existingFiles 同形状, 提交端 recognized existing&&fileId)
+    // 【2026-11-03】旧草稿的 period 字段随周期字段退役一并忽略(不参与恢复)
     const fileSlots = applyCategorySlotMode(defaultSlots(), category, this.data.categories).map((slot) => ({
       ...slot,
       files: (parsed.uploadedFiles || []).filter((file) => file.key === slot.key).map((file) => ({
@@ -1378,16 +1290,13 @@ Page({
       selectedCategoryIndex: categoryIndex,
       selectedParentCategoryIndex: parentIndexOfCategory(this.data.categories, this.data.categoryParentNodes, categoryIndex),
       selectedIndustryIndex: industryIndex,
-      periodOptions,
-      selectedPeriodIndex: Math.max(periodOptions.indexOf(parsed.period || defaultPeriod()), 0),
       relatedProducts: parsed.relatedProducts || '',
       specificProduct: parsed.specificProduct || '',
       preInstallQuestion: parsed.preInstallQuestion || '',
       remark: parsed.remark || '',
       shared: parsed.shared !== false,
       fileSlots,
-      draftVersion: version,
-      selectedSlotIndex: Math.max(fileSlots.findIndex((slot) => !slot.hidden), 0)
+      draftVersion: version
     }, () => this.refreshUploadViewState())
   },
 
@@ -1402,7 +1311,6 @@ Page({
     // "写完回来立刻见结果";节流只拦纯回流,不拦写后回流
     getApp().globalData.forceRefresh.incentive = true
     if (!this.data.editId) deleteFormDraft('incentive_upload').catch(() => {}) // 【PR-13】提交成功清草稿
-    this.setData({ showUploadSheet: false }) // 关弹层
     wx.showToast({ title: this.data.editId ? '追加成功' : '上传成功', icon: 'success' })
     // 【PR-12 2026-09-19 首批】激励列表是 tabBar 页,navigateTo 跳 tab 会被微信拒绝
     // (此前静默失败,用户停在原页);switchTab 回列表,配合列表 onShow 刷新即见新记录
