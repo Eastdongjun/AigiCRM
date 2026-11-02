@@ -1200,7 +1200,8 @@ public class PermissionMatrixTest {
                 serviceBody.indexOf("private Map<String, Object> toUserMap"));
         assertFalse(batchSaveBody.contains("entryMapper.delete("),
                 "ScoreService.batchSave 不得重新引入按周期批量删除分数记录，防止移出可见名单后历史分数丢失");
-        assertTrue(serviceBody.contains("【2026-08-08 设计规则：积分排行全员可见】")
+        // 【术语统一 2026-11-02】注释字面量随"积分→学分"重锚(设计规则语义不变)
+        assertTrue(serviceBody.contains("【2026-08-08 设计规则：学分排行全员可见】")
                         && serviceBody.contains("public List<Map<String, Object>> ranking(String period)")
                         && serviceBody.contains("if (period != null && !period.isEmpty() && !\"全部\".equals(period))")
                         && serviceBody.contains("getPrevRanks(period)")

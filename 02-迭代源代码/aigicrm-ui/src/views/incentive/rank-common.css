@@ -74,7 +74,7 @@
 .cell-score.zero { color: var(--chart-amber); }
 .cell-dash { color: #d5dae1; }
 .num-cell { color: #5f6672; font-weight: 500; }
-/* 总积分：蓝色徽章 */
+/* 总学分：蓝色徽章 */
 .score-pill {
   display: inline-block;
   min-width: 42px;

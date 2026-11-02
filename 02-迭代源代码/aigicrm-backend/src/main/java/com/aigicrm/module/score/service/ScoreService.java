@@ -40,13 +40,13 @@ public class ScoreService {
     private final SysDictService dictService;
     private final OrgScopeResolver scopeResolver;
 
-    /** 【2026-09-19 接入权限矩阵】积分可见用户集合：矩阵 (score,view) 显式配置优先，未配置回退角色数据范围 */
+    /** 【2026-09-19 接入权限矩阵】学分可见用户集合：矩阵 (score,view) 显式配置优先，未配置回退角色数据范围 */
     private List<Long> visibleUserIds() {
         // 【GPT三轮 ACL-P1-001 2026-09-22】sys_user 非租户表, null(all) 必须集团收口, 否则放大为全平台
         return scopeResolver.resolveModuleUsersWithinGroup(SecurityUtils.getCurrentUser(), "score");
     }
 
-    // ====== 学分项 CRUD(2026-11-01 模块更名: 积分→学分, 仅文案; 权限码/表/接口不动) ======
+    // ====== 学分项 CRUD(2026-11-01 模块更名: 学分→学分, 仅文案; 权限码/表/接口不动) ======
 
     public List<BizScoreItem> listItems() {
         LambdaQueryWrapper<BizScoreItem> w = new LambdaQueryWrapper<>();
@@ -82,7 +82,7 @@ public class ScoreService {
     public Map<String, Object> getGrid(String period) {
         Map<String, Object> result = new HashMap<>();
 
-        // 所有积分项
+        // 所有学分项
         List<BizScoreItem> items = listItems();
         result.put("items", items);
 
@@ -163,8 +163,8 @@ public class ScoreService {
             submitted.put(itemId + "_" + userId, score != null ? score : 0);
         }
 
-        // 【GPT复审 P1-03 修复 2026-09-21】服务端强制校验: 目标人员在可管理范围、积分项存在、
-        // 分数落在积分项 min~max —— 此前信任客户端, 直接 API 调用可写范围外人员与异常分值
+        // 【GPT复审 P1-03 修复 2026-09-21】服务端强制校验: 目标人员在可管理范围、学分项存在、
+        // 分数落在学分项 min~max —— 此前信任客户端, 直接 API 调用可写范围外人员与异常分值
         List<Long> saveVisible = visibleUserIds();
         // 【GPT三轮 SCORE-P1-002 2026-09-22】participantIds 独立于 entries 构造并直接落库,
         // 必须与 submitted 同口径逐一校验: 旧代码只校验 submitted, 范围外 userId 不提交 entry
@@ -259,7 +259,7 @@ public class ScoreService {
     // ====== 排行榜 ======
 
     public List<Map<String, Object>> ranking(String period) {
-        // 【2026-08-08 设计规则：积分排行全员可见】查全部条目，不做数据范围过滤（公司级排行）
+        // 【2026-08-08 设计规则：学分排行全员可见】查全部条目，不做数据范围过滤（公司级排行）
         LambdaQueryWrapper<BizScoreEntry> w = new LambdaQueryWrapper<>();
         if (period != null && !period.isEmpty() && !"全部".equals(period)) {
             w.eq(BizScoreEntry::getPeriod, period);

@@ -221,7 +221,7 @@ grep -q 'getReadRanking({ period: this.data.readPeriod })' "$page" || { echo "FA
 grep -q 'chooseReadPeriod' "$page" || { echo "FAIL: incentive mobile read period state handler is missing" >&2; exit 1; }
 grep -q 'read-period-row' "$style" || { echo "FAIL: incentive mobile read period selector style is missing" >&2; exit 1; }
 grep -q '阅读排行' "$wxml" || { echo "FAIL: incentive mobile read ranking UI is missing" >&2; exit 1; }
-grep -q '客户积分榜' "$wxml" || { echo "FAIL: incentive mobile scoreboard UI is missing" >&2; exit 1; }
+grep -q '个人学分榜' "$wxml" || { echo "FAIL: incentive mobile scoreboard UI is missing" >&2; exit 1; }
 grep -q '部门排行' "$wxml" || { echo "FAIL: incentive mobile dept ranking UI is missing" >&2; exit 1; }
 grep -q 'openStatDetail' "$page" || { echo "FAIL: incentive mobile category stats cannot drill into PC stats detail" >&2; exit 1; }
 grep -q 'statDetail.records' "$page" || { echo "FAIL: incentive mobile category stats detail state is missing" >&2; exit 1; }
@@ -474,7 +474,7 @@ grep -q 'showDeleteAction' "$detail_page" || { echo "FAIL: incentive detail dele
 grep -q 'getGrantCheck' "$detail_page" || { echo "FAIL: incentive detail does not load delete grant" >&2; exit 1; }
 grep -q 'removeRecord' "$detail_page" || { echo "FAIL: incentive detail record delete action is missing" >&2; exit 1; }
 grep -q 'deleteRecord(record.id)' "$detail_page" || { echo "FAIL: incentive detail record delete does not call delete API" >&2; exit 1; }
-grep -q '客户累计积分' "$detail_page" || { echo "FAIL: incentive detail customer score row is missing from normalized state" >&2; exit 1; }
+grep -q '客户累计学分' "$detail_page" || { echo "FAIL: incentive detail customer score row is missing from normalized state" >&2; exit 1; }
 grep -q '相关产品' "$detail_page" || { echo "FAIL: incentive detail related product row is missing from normalized state" >&2; exit 1; }
 grep -q '具体产品' "$detail_page" || { echo "FAIL: incentive detail specific product row is missing from normalized state" >&2; exit 1; }
 grep -q "'周期'" "$detail_page" || { echo "FAIL: incentive detail period row is missing from normalized state" >&2; exit 1; }

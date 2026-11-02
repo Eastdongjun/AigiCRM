@@ -64,7 +64,7 @@ export function slotFiles(record, slot) {
   return ids.map((id, index) => ({ id, name: names[index] || `附件${index + 1}` }))
 }
 
-/** 明细合计积分（表头展示用）。 */
+/** 明细合计学分（表头展示用）。 */
 export function sumScore(records) {
   return (records || []).reduce((total, record) => total + (Number(record?.score) || 0), 0)
 }

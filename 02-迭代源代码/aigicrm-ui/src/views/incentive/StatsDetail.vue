@@ -9,7 +9,7 @@
         </div>
         <div class="meta">
           <span>周期：<b>{{ period || '全部' }}</b></span>
-          <span>细分积分：<b>{{ score || '—' }}</b></span>
+          <span>细分学分：<b>{{ score || '—' }}</b></span>
           <span>记录：<b>{{ records.length }}</b> 条</span>
           <span>合计：<b class="blue">{{ totalScore }}</b> 分</span>
         </div>

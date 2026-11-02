@@ -316,7 +316,7 @@ Page({
     }
     this.setStatisticsData({ loading: true })
     // 【权限门控】/score/ranking 后端要求 score:view; 自定义角色可只授 statistics:view(角色菜单可任意勾选),
-    // 无权限时直接置空, 不发必败请求、不弹 403 重试窗(与 ranking 页积分区块同口径)
+    // 无权限时直接置空, 不发必败请求、不弹 403 重试窗(与 ranking 页学分区块同口径)
     const canScore = hasPermission('score:view')
     return Promise.all([
       getDashboardData(),

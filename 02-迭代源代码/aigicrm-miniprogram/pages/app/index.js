@@ -15,7 +15,7 @@ const APP_ICONS = {
 // 半宽卡片里的副标题要能一行放下，完整副标题仍保留在 apps 数据里供无障碍/契约使用。
 const TILE_SUBTITLES = {
   customer: '客户列表与新增',
-  incentiveUpload: '记录、文件与积分',
+  incentiveUpload: '记录、文件与学分',
   incentiveQuery: '分类、统计、排行与阅读',
   reminder: '到期与待办提醒',
   approval: '处理审批事项',
@@ -85,7 +85,7 @@ Page({
     const apps = [
       // 【A4 2026-10-08 二轮】宫格命名与 PC 生产菜单名对齐（客户列表/核心客户六项指标），消除跨端页面名漂移
       { key: 'customer', title: '客户列表', subtitle: '客户列表、详情与新增', color: 'blue', permission: 'customer:view' },
-      { key: 'incentiveUpload', title: '四项服务上传', subtitle: '记录、槽位文件与客户积分', color: 'green', permission: 'incentive:add' },
+      { key: 'incentiveUpload', title: '四项服务上传', subtitle: '记录、槽位文件与客户学分', color: 'green', permission: 'incentive:add' },
       { key: 'incentiveQuery', title: '四项服务应用', subtitle: '分类树、统计、排行、阅读与一客一册', color: 'teal', permission: 'incentive:view' },
       { key: 'ranking', title: '客户排行', subtitle: '激励、客情、核心指标排行', color: 'purple', permission: 'statistics:view' },
       { key: 'indicator', title: '核心客户六项指标', subtitle: '核心客户指标总览', color: 'indigo', permission: 'statistics:view' },

@@ -344,7 +344,7 @@ describe('incentive/search.vue 缩略图下载 token（空 token 403 修复 2026
     })
     await flushPromises()
 
-    // 概览区：吸顶条 + 头像 + 客户名 + 累计积分
+    // 概览区：吸顶条 + 头像 + 客户名 + 累计学分
     expect(wrapper.find('.dtl-bar-name').text()).toBe('邯钢能嘉')
     expect(wrapper.find('.dtl-hero-name').text()).toBe('邯钢能嘉')
     expect(wrapper.find('.dtl-avatar').text()).toBe('邯')
@@ -363,7 +363,7 @@ describe('incentive/search.vue 缩略图下载 token（空 token 403 修复 2026
     expect(dialCols[2].findAll('.dtl-dial-item')).toHaveLength(31)          // 9月30天+整月=31项(每月都有完整天数)
     expect(wrapper.findAll('.dtl-item')).toHaveLength(1)   // 默认展示 9 月的 1 条
     expect(wrapper.findAll('.dtl-score')).toHaveLength(1)
-    expect(wrapper.text()).toContain('累计积分')
+    expect(wrapper.text()).toContain('累计学分')
   })
 
   it('查看详情：无记录时展示空态而不是空白', async () => {

@@ -14,7 +14,7 @@
       <div class="se-head-right">
         <template v-if="isAdmin">
           <!-- 【P2 修复 2026-11-02】原"输入 0-{maxRange}分"恒用全表最大值, 行级 max 更小时误导; 表内区间列已展示各行上下限 -->
-          <span class="se-hint">分值按各积分项上限输入（见表内区间列）</span>
+          <span class="se-hint">分值按各学分项上限输入（见表内区间列）</span>
           <el-button type="primary" @click="handleSave" :loading="saving">保存</el-button>
           <!-- 【2026-11-01 及时更新】保存后带当前周期直达排行(排行默认周期已与录入对齐) -->
           <el-button @click="goRanking">查看排行</el-button>

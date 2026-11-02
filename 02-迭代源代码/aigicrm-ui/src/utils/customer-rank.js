@@ -4,7 +4,7 @@
 
 /**
  * 按负责人过滤客户排行行。
- * @param rows 后端 customer-records 行(已按总积分降序,rank 已赋值)
+ * @param rows 后端 customer-records 行(已按总学分降序,rank 已赋值)
  * @param userId 当前登录人 id
  * @param salesOnly 是否启用销售过滤(角色含 06 且非 admin 时为 true)
  */

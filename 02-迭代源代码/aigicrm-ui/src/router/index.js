@@ -162,7 +162,7 @@ const routes = [
         path: 'statistics',
         name: 'Statistics',
         component: () => import('@/views/statistics/index.vue'),
-        // 【A1 2026-10-08 二轮】补 parentTitle：与积分录入/积分排行同挂「考核与分析」组，同组面包屑深度一致
+        // 【A1 2026-10-08 二轮】补 parentTitle：与学分录入/学分排行同挂「考核与分析」组，同组面包屑深度一致
         meta: { title: '统计分析', parentTitle: '考核与分析', icon: 'TrendCharts', permission: 'statistics:view' }
       },
       {

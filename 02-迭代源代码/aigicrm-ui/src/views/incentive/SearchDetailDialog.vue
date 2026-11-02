@@ -24,7 +24,7 @@
         </div>
         <div class="dtl-hero-score">
           <div class="dtl-score-line"><span class="dtl-score-big">{{ cust.totalScore }}</span><span class="dtl-score-unit">分</span></div>
-          <div class="dtl-score-caption">累计积分</div>
+          <div class="dtl-score-caption">累计学分</div>
           <div class="dtl-hero-sub">
             <span><b>{{ recordTotal }}</b> 条记录</span>
             <span><b>{{ recordsByMonth.length }}</b> 个月份</span>

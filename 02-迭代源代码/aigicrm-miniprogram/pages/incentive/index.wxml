@@ -4,7 +4,7 @@
     <view class="row">
       <view>
         <view class="hero-title">四项服务应用</view>
-        <view class="hero-sub">分类 · 上传 · 积分 · 统计 · 阅读</view>
+        <view class="hero-sub">分类 · 上传 · 学分 · 统计 · 阅读</view>
       </view>
       <button class="ghost-btn" bindtap="refresh" loading="{{incentiveView.refreshLoading}}">{{incentiveView.refreshText}}</button>
     </view>
@@ -14,14 +14,14 @@
     </view>
   </view>
 
-  <!-- 【2026-10-21 用户令】隐藏客户/记录/文件/积分四块汇总卡(数据加载保留: 未读数等仍被
+  <!-- 【2026-10-21 用户令】隐藏客户/记录/文件/学分四块汇总卡(数据加载保留: 未读数等仍被
        下方统计区消费), 只移除展示层 -->
   <!--
   <view class="summary-grid">
     <view class="summary-cell"><text>{{summary.customers}}</text><text>客户</text></view>
     <view class="summary-cell"><text>{{summary.records}}</text><text>记录</text></view>
     <view class="summary-cell"><text>{{summary.files}}</text><text>文件</text></view>
-    <view class="summary-cell"><text>{{summary.score}}</text><text>积分</text></view>
+    <view class="summary-cell"><text>{{summary.score}}</text><text>学分</text></view>
   </view>
   -->
 
@@ -72,7 +72,7 @@
       </view>
     </view>
     <view wx:if="{{incentiveView.showLoading}}" class="card muted">{{incentiveView.loadingText}}</view>
-    <!-- 【需求B+C 2026-10-16】客户维度=紧凑封面卡: 列表页只留识别信息(封面/名称/行业·大类/积分/未读),
+    <!-- 【需求B+C 2026-10-16】客户维度=紧凑封面卡: 列表页只留识别信息(封面/名称/行业·大类/学分/未读),
          全部明细与操作下沉到客户激励详情页(openCustomerDetail);原红圈①②③④从列表页消失 -->
     <!-- 【分页 2026-10-18】列表只渲染当页切片 pagedRecords; 客户名称移到卡片正文(不再压封面图) -->
     <block wx:for="{{pagedRecords}}" wx:key="id">
@@ -220,7 +220,7 @@
   <view wx:if="{{incentiveView.showRanking}}">
     <view class="card ranking-panel">
       <view class="section-row">
-        <view class="section-title no-margin">个人积分榜</view> <!-- 【工作流复核确认修复】数据源为按人员聚合的 scoreboard, 原名"客户积分榜"名实不符 -->
+        <view class="section-title no-margin">个人学分榜</view> <!-- 【工作流复核确认修复】数据源为按人员聚合的 scoreboard, 原名"客户学分榜"名实不符 -->
         <button class="stats-refresh-btn" bindtap="loadScoreboard">↻</button>
       </view>
       <block wx:for="{{scoreboardPaged}}" wx:key="id">
@@ -234,7 +234,7 @@
         </view>
       </block>
       <pager wx:if="{{scoreboardTotal > 10}}" page="{{scoreboardPage}}" pageSize="{{scoreboardPageSize}}" total="{{scoreboardTotal}}" loading="{{incentiveView.pagerLoading}}" bind:change="onScoreboardPagerChange" />
-      <view wx:if="{{incentiveView.showScoreboardEmpty}}" class="muted">暂无个人积分排行</view>
+      <view wx:if="{{incentiveView.showScoreboardEmpty}}" class="muted">暂无个人学分排行</view>
     </view>
     <view class="card ranking-panel">
       <view class="section-title">部门排行</view>

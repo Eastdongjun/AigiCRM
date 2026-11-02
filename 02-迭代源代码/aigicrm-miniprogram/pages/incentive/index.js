@@ -850,7 +850,7 @@ Page({
     }
     Promise.all([
       getScoreboard().catch((error) => {
-        showError(error, '个人积分榜加载失败')
+        showError(error, '个人学分榜加载失败')
         return []
       }),
       getRanking({ type: 'dept' }).catch((error) => {

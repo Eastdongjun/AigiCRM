@@ -286,7 +286,7 @@ function buildDetailView(data, groups) {
     industryText: customer.industry || '',
     lastUpdateText: latestDate ? `${latestDate.getFullYear()}-${pad2(latestDate.getMonth() + 1)}-${pad2(latestDate.getDate())} ${pad2(latestDate.getHours())}:${pad2(latestDate.getMinutes())}` : '—',
     scoreText: String(scoreValue),
-    scoreCaption: '客户累计积分',
+    scoreCaption: '客户累计学分',
     recordCountText: `${records.length} 条记录`,
     monthCountText: `${recordGroups.length} 个月份`,
     showUnread: unreadCount > 0,
@@ -489,7 +489,7 @@ Page({
     if (!record || !record.customerId || getApp().globalData.demoMode) return
     getScoreByCustomer(record.customerId).then((score) => {
       this.setDetailData({ customerScore: Number(score || 0) })
-    }).catch((error) => showError(error, '客户累计积分加载失败'))
+    }).catch((error) => showError(error, '客户累计学分加载失败'))
   },
   // 缩略图凭证:取一次复用;之后每次拨盘重建记录卡都会直接带上签名 URL
   loadThumbnails() {

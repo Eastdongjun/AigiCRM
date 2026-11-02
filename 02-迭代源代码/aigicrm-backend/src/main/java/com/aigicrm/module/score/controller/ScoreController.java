@@ -18,7 +18,7 @@ public class ScoreController {
 
     private final ScoreService scoreService;
 
-    // ====== 积分项 ======
+    // ====== 学分项 ======
 
     @PostMapping("/items")
     @PreAuthorize("hasAuthority('score:manage')")
@@ -90,7 +90,7 @@ public class ScoreController {
 
     @GetMapping("/export/grid")
     // 【修复 2026-10-08 需求对齐】导出与前端按钮同门(score:manage,录入页仅管理员可见导出按钮);
-    // 原挂 score:view 使只读查看者可直连 API 导出全量积分
+    // 原挂 score:view 使只读查看者可直连 API 导出全量学分
     @PreAuthorize("hasAuthority('score:manage')")
     public void exportGrid(@RequestParam String period, HttpServletResponse response) throws Exception {
         scoreService.exportGrid(period, response);

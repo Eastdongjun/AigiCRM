@@ -51,7 +51,7 @@ export function useIncentiveStats() {
   const shareableCount = computed(() => {
     return categories.value.filter(c => c.parentId !== 0 && c.categoryName?.includes('共享')).length
   })
-  // 顶部卡片：个人口径（当前登录人本周期 文件数 / 积分）
+  // 顶部卡片：个人口径（当前登录人本周期 文件数 / 学分）
   const fileCountOf = (r) => {
     let n = 0
     if (r.filePreId) n++
@@ -85,7 +85,7 @@ export function useIncentiveStats() {
       .filter(g => g.children.length > 0)
   })
 
-  // 分组数据：按大类分组，统计每个子类的文件数(=积分数量)、总积分与阶段分布（按数据范围）
+  // 分组数据：按大类分组，统计每个子类的文件数(=学分数量)、总学分与阶段分布（按数据范围）
   const groupedData = computed(() => {
     const parents = categories.value.filter(c => c.parentId === 0)
     return parents.map((parent) => {
@@ -135,7 +135,7 @@ export function useIncentiveStats() {
         getRecords({ period: p, userId: userStore.userId }),
         getCategoryStats({ period: p }),
         getCustomerRecords({ period: p }),
-        // 【2026-09-23 个人排行】按人员聚合四项服务(总积分/分类细分/三阶段文件)
+        // 【2026-09-23 个人排行】按人员聚合四项服务(总学分/分类细分/三阶段文件)
         getScoreboard({ period: p }),
       ])
 
@@ -169,7 +169,7 @@ export function useIncentiveStats() {
           !userStore.isAdmin() && (userStore.roles || []).includes('06'),
         )
       }
-      // 【2026-09-23 个人排行】后端已按总积分降序并给出 rank/realName/officeName/byCategory
+      // 【2026-09-23 个人排行】后端已按总学分降序并给出 rank/realName/officeName/byCategory
       if (pbRes.status === 'fulfilled') {
         personBoard.value = pbRes.value?.data || []
         personPageNum.value = 1

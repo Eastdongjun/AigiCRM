@@ -9,6 +9,7 @@
 import { computed } from 'vue'
 import MetricStrip from '@/components/MetricStrip.vue'
 import { injectIncentiveStats } from '@/composables/useIncentiveStats'
+import { CREDIT_TOTAL_LABEL } from '@/utils/terminology'
 
 const { userStore, period, totalCategories, shareableCount, totalRecords, totalScore } = injectIncentiveStats()
 
@@ -16,6 +17,6 @@ const metrics = computed(() => [
   { num: totalCategories.value, label: '激励事项数', desc: '从激励配置读取' },
   { num: shareableCount.value, label: '可共享项数', desc: '名称含"可共享"的项' },
   { num: totalRecords.value, label: '本周期文件', desc: `${userStore.realName || '—'} · ${period.value || '全部周期'} 共上传 ${totalRecords.value} 个文件` },
-  { num: totalScore.value, label: '总积分', desc: '每个文件按子类分值计分' },
+  { num: totalScore.value, label: CREDIT_TOTAL_LABEL, desc: '每个文件按子类分值计分' },
 ])
 </script>

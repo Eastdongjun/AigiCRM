@@ -182,7 +182,7 @@ export function useCustomerDetail() {
         },
       },
       { label: '分享信息', p: getShares(customerId.value), apply: (res) => { shares.value = res?.data || [] } },
-      canViewIncentive.value ? { label: '激励积分', p: getScoreByCustomer(customerId.value), apply: (res) => { incentiveScore.value = res?.data || 0 } } : null,
+      canViewIncentive.value ? { label: '激励学分', p: getScoreByCustomer(customerId.value), apply: (res) => { incentiveScore.value = res?.data || 0 } } : null,
       canViewFinance.value ? { label: '阶段总额', p: getStageAmounts(customerId.value), apply: (res) => { if (res?.data) stageSummary.value = res.data } } : null,
     ].filter(Boolean)
     const results = await Promise.allSettled(tasks.map((t) => t.p))
@@ -212,7 +212,7 @@ export function useCustomerDetail() {
   const detailLabelOf = (r) => { const code = parentCodeOf(r); const sub = getSubCategory(r) || r.categoryName || ''; if (code === 'plan') return sub + '文件详情描述'; if (code === 'visit' || code === 'exchange') return sub + '详情描述'; return sub + '安装详情' }
   const isTrialRec = (r) => parentCodeOf(r).startsWith('trial')
   // 【UI 整改 2026-10-08】exchange 主色走 var(--el-color-primary)，不再硬编码 #409eff
-  // 【B5 2026-10-08 二轮】四类积分色全部走主题令牌/品牌色阶，plan 不再使用第三方紫 #9c27b0
+  // 【B5 2026-10-08 二轮】四类学分色全部走主题令牌/品牌色阶，plan 不再使用第三方紫 #9c27b0
   const scoreColor = (r) => { const c = catMap.value[r.categoryId]; if (!c) return '#333'; const p = catMap.value[c.parentId]; const gp = p ? catMap.value[p.parentId] : null; const code = (gp && gp.parentId === 0 ? gp.categoryCode : p?.categoryCode) || ''; return { visit: 'var(--el-color-warning)', exchange: 'var(--el-color-primary)', plan: '#6083e4', trial: 'var(--el-color-success)' }[code] || '#333' }
   function parseId(v){if(!v)return null;if(typeof v==='number')return v;try{const a=JSON.parse(v);return Array.isArray(a)?a[0]:v}catch{return v}}
   const getFiles = (r) => { const f = []; if (r.filePreId) f.push({ id: parseId(r.filePreId), label: r.filePreName || '文件', type: detectType(r.filePreName), tag: '安装前' }); if (r.fileMidId) f.push({ id: parseId(r.fileMidId), label: r.fileMidName || '文件', type: detectType(r.fileMidName), tag: '安装中' }); if (r.filePostId) f.push({ id: parseId(r.filePostId), label: r.filePostName || '文件', type: detectType(r.filePostName), tag: '安装后' }); if (r.fileId) f.push({ id: parseId(r.fileId), label: r.fileName || '文件', type: detectType(r.fileName), tag: '' }); return f }

@@ -459,7 +459,7 @@ export function useIncentiveUpload() {
   // 删除记录
   const handleDeleteRecord = async (row) => {
     try {
-      await confirmAction(`确定删除「${row.fileName || '该记录'}」？删除后不可恢复，积分将随之移除。`, '删除激励记录', { confirmText: '确认删除' })
+      await confirmAction(`确定删除「${row.fileName || '该记录'}」？删除后不可恢复，学分将随之移除。`, '删除激励记录', { confirmText: '确认删除' })
       await deleteRecord(row.id)
       ElMessage.success('删除成功')
       loadRecords()
@@ -600,7 +600,7 @@ export function useIncentiveUpload() {
   }
 
   // 【用户裁决 2026-10-10】移除已有文件（上传错了需要修改）：立即真实生效，
-  // 专用接口原子完成 槽位剔除→重算积分→盖修改人章；物理文件保留只解除引用。
+  // 专用接口原子完成 槽位剔除→重算学分→盖修改人章；物理文件保留只解除引用。
   // 与 removeSlotFile（新文件本地剔除）分流，避免"攒到提交才生效"与删空槽假成功。
   const SLOT_LABELS = { pre: '安装前', mid: '安装中', post: '安装后', track: '跟踪记录' }
   // 【四轮复检修复】移除请求在途计数: 提交快照读的是本地列表, 在途移除未落地前提交会把
@@ -617,7 +617,7 @@ export function useIncentiveUpload() {
     removingInFlight.value++
     try {
       await confirmAction(
-        `从「${label}」移除文件「${shortName}」？移除后本条记录积分将按最新规则重算，原文件仍保留在文件库中可追溯。`,
+        `从「${label}」移除文件「${shortName}」？移除后本条记录学分将按最新规则重算，原文件仍保留在文件库中可追溯。`,
         '移除文件',
         { confirmText: '移除' }
       )
@@ -628,8 +628,8 @@ export function useIncentiveUpload() {
       // await 后按对象身份重新定位再 splice（删除按 fileId 在后端原子完成，此处只对齐本地视图）
       const i = list.indexOf(f)
       if (i >= 0) list.splice(i, 1)
-      ElMessage.success('已移除，积分已重算')
-      // 【六轮复检修复】移除在后端已盖修改人章/重算积分, 用最新记录刷新 pendingReplace,
+      ElMessage.success('已移除，学分已重算')
+      // 【六轮复检修复】移除在后端已盖修改人章/重算学分, 用最新记录刷新 pendingReplace,
       // 弹窗审计区(最后修改人/时间)不再停留在旧快照
       await loadRecords()
       const fresh = records.value.find((r) => r.id === pendingReplace.value?.id)

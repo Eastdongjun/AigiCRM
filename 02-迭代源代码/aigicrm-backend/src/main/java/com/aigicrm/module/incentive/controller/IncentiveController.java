@@ -72,7 +72,7 @@ public class IncentiveController {
     }
 
     /**
-     * 更新记录（追加/删除文件时调用，自动重算积分）。
+     * 更新记录（追加/删除文件时调用，自动重算学分）。
      * 设计 §6：归属校验全部交给方法内守卫（isAdmin ∨ can_edit 迁移授权 ∨ 记录本人）——
      * 去掉方法级 @PreAuthorize 硬码，已卸 edit 码的销售员仍可改本人记录（本人恒可）。
      * 登录保护由 SecurityConfig anyRequest().authenticated() 兜底。
@@ -89,7 +89,7 @@ public class IncentiveController {
 
     /**
      * 【用户裁决 2026-10-10】编辑历史文件时可移除单个已有文件（上传错了需要修改）。
-     * 服务端原子完成"槽位数组剔除该文件ID→重算积分→盖修改人章"；物理文件保留只解除引用。
+     * 服务端原子完成"槽位数组剔除该文件ID→重算学分→盖修改人章"；物理文件保留只解除引用。
      * 权限同 updateRecord：admin ∨ incentive:manage 授权 ∨ 本人记录。
      */
     @PreAuthorize("hasAuthority('incentive:view')")
@@ -118,7 +118,7 @@ public class IncentiveController {
     }
 
 
-    /** 批量重算所有历史记录积分（按最新规则） */
+    /** 批量重算所有历史记录学分（按最新规则） */
     @PreAuthorize("hasAuthority('incentive:edit')")
     @PostMapping("/records/recalculate")
     public Result<java.util.Map<String, Object>> recalculateAll() {
@@ -215,7 +215,7 @@ public class IncentiveController {
         return Result.ok(incentiveService.readRanking(period));
     }
 
-    /** 激励统计表(全员口径): 按子类聚合文件数/总积分 + 周期总计 */
+    /** 激励统计表(全员口径): 按子类聚合文件数/总学分 + 周期总计 */
     @PreAuthorize("hasAuthority('incentive:view')")
     @GetMapping("/category-stats")
     public Result<Map<String, Object>> categoryStats(@RequestParam(required = false) String period) {

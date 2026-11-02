@@ -10,9 +10,9 @@
         <tr>
           <th class="col-cat">激励大类</th>
           <th class="col-sub">激励细分</th>
-          <th class="col-score">激励积分</th>
+          <th class="col-score">激励学分</th>
           <th class="col-count">数量</th>
-          <th class="col-total">总积分</th>
+          <th class="col-total">总学分</th>
           <th class="col-op">明细</th>
         </tr>
       </thead>
@@ -47,8 +47,8 @@
         </template>
       </tbody>
       <tfoot>
-        <!-- 合计行严格按列对齐：激励积分是单项分值，不做合计（留 —）；数量列=文件总数；
-             总积分列=积分总和；“共 X 项”属于规则条数，跟随合计标签，不再占用激励积分列 -->
+        <!-- 合计行严格按列对齐：激励学分是单项分值，不做合计（留 —）；数量列=文件总数；
+             总学分列=学分总和；“共 X 项”属于规则条数，跟随合计标签，不再占用激励学分列 -->
         <tr class="total-row">
           <td colspan="2"><strong>合计</strong><span class="total-sub">共 {{ totalCategories }} 项</span></td>
           <td class="col-score">—</td>

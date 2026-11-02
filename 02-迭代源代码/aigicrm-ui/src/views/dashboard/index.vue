@@ -83,7 +83,7 @@
       <div class="stat-card drill" v-if="isSalesRole" role="button" tabindex="0"
         @click="$router.push('/score/ranking')" @keydown="onCardKeydown($event, () => $router.push('/score/ranking'))">
         <div class="stat-info">
-          <div class="stat-label">我的激励积分</div>
+          <div class="stat-label">我的激励学分</div>
           <div class="stat-num">{{ myScore || 0 }}</div>
           <!-- 【体检 P1】口径随数据源改为全年周期(scoreboard 按年聚合), 原文案"本月上传"与实际口径不符 -->
           <div class="stat-sub">四项服务 · 本年上传 {{ myUploadCount || 0 }} 次</div>

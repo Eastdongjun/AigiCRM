@@ -957,7 +957,7 @@ Page({
     const fileIndex = Number(event.currentTarget.dataset.fileIndex || 0)
     const slot = this.data.fileSlots[index] || {}
     const file = (slot.files || [])[fileIndex] || {}
-    // 【用户裁决 2026-10-10】已有文件移除须立即真实生效：走后端原子接口(剔除→重算积分→审计)。
+    // 【用户裁决 2026-10-10】已有文件移除须立即真实生效：走后端原子接口(剔除→重算学分→审计)。
     // 此前本地剔除是假删——编辑提交 payload 只带本次新上传ID, 该槽没传新文件时后端 null 合并跳过, 刷新后文件复活。
     if (file.existing && file.fileId && this.data.editId) {
       this.removeExistingFileRemotely(slot, file, index)
@@ -988,7 +988,7 @@ Page({
     const fileName = (file.fileName || '').slice(0, 20)
     wx.showModal({
       title: '移除文件',
-      content: `从「${slotName}」移除「${fileName}」？移除后积分将按最新规则重算，原文件仍保留在文件库可追溯。`,
+      content: `从「${slotName}」移除「${fileName}」？移除后学分将按最新规则重算，原文件仍保留在文件库可追溯。`,
       confirmText: '移除',
       confirmColor: '#e54d42',
       success: (res) => {
@@ -1009,10 +1009,10 @@ Page({
               [`fileSlots[${index}].fileName`]: firstFile.fileName || '',
               [`fileSlots[${index}].fileKind`]: firstFile.fileKind || ''
             }, () => this.refreshUploadViewState())
-            // 【五轮复检修复】后端已重算积分, 置刷新标记防列表 30s 节流导致返回时数据陈旧
+            // 【五轮复检修复】后端已重算学分, 置刷新标记防列表 30s 节流导致返回时数据陈旧
             const gData = getApp().globalData
             if (gData.forceRefresh) gData.forceRefresh.incentive = true
-            wx.showToast({ title: '已移除并重算积分', icon: 'none', duration: 2000 })
+            wx.showToast({ title: '已移除并重算学分', icon: 'none', duration: 2000 })
           })
           .catch((err) => {
             this._removingFile = false

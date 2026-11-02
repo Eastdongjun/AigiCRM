@@ -59,7 +59,7 @@ function updateRecord(id, data, options) {
 }
 
 // 【用户裁决 2026-10-10】移除记录槽位中的单个已有文件（上传错了需要修改）：
-// 后端原子完成 剔除槽位文件ID→重算积分→盖修改人章；物理文件保留只解除引用
+// 后端原子完成 剔除槽位文件ID→重算学分→盖修改人章；物理文件保留只解除引用
 function removeRecordFile(recordId, slot, fileId) {
   return request({ url: '/api/incentive/records/' + recordId + '/remove-file', method: 'POST', data: { slot, fileId } })
 }

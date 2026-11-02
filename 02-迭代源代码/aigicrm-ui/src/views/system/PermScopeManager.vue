@@ -166,7 +166,7 @@ const SCOPE_OWNER_HINTS = {
   dashboard: '跟随各模块',
   indicator: '统计分析口径',
   statistics: '统计分析口径',
-  score: '积分规则',
+  score: '学分规则',
 }
 const isScopeDriven = (item) => scopeTargetOf(item.permission) !== null
 const scopeOwnerOf = (item) => SCOPE_OWNER_HINTS[moduleOf(item.permission)] || '模块自身规则'

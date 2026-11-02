@@ -76,12 +76,12 @@
 
     <!-- 数据卡片 -->
     <div class="stat-cards">
-      <!-- 【2026-10-27 深度检查修复】激励积分卡随 incentive:view 门控(无权限不显示 0 分误导) -->
+      <!-- 【2026-10-27 深度检查修复】激励学分卡随 incentive:view 门控(无权限不显示 0 分误导) -->
       <div v-if="canViewIncentive" class="stat-card">
         <div class="stat-icon-box gold"><el-icon><Trophy /></el-icon></div>
         <div class="stat-body">
           <div class="stat-num">{{ incentiveScore }}</div>
-          <div class="stat-label">激励积分</div>
+          <div class="stat-label">激励学分</div>
         </div>
       </div>
       <div class="stat-card">

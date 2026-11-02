@@ -14,7 +14,7 @@
       <div class="stat-card">
         <div class="sc-label">四项服务客户</div>
         <div class="sc-num blue">{{ incentiveRanking.length }}</div>
-        <div class="sc-desc">本周期有激励积分的客户</div>
+        <div class="sc-desc">本周期有激励学分的客户</div>
       </div>
       <div class="stat-card">
         <div class="sc-label">客情有分客户</div>

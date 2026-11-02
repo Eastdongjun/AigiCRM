@@ -289,7 +289,7 @@ public class IncentiveService {
         if (childCount != null && childCount > 0) {
             throw new BusinessException("该类别下有 " + childCount + " 个子项，请先删除子项");
         }
-        // 【七轮复检修复】记录引用守卫: 悬空 category_id 的存量记录被编辑/移除时重算积分
+        // 【七轮复检修复】记录引用守卫: 悬空 category_id 的存量记录被编辑/移除时重算学分
         // 会以 category=null 得 base=0 把 score 静默落 0 分(无外键约束兜底, 须应用层拦截)
         Long usedCount = recordMapper.selectCount(
                 new LambdaQueryWrapper<BizIncentiveRecord>().eq(BizIncentiveRecord::getCategoryId, id));
@@ -388,10 +388,10 @@ public class IncentiveService {
     }
 
     /**
-     * 更新激励记录（追加/删除文件、编辑业务字段时调用），自动重算积分
+     * 更新激励记录（追加/删除文件、编辑业务字段时调用），自动重算学分
      *
      * 【需求】激励记录追加文件/更正信息时不重置初始上传人(userId)与上传时间(createdAt)
-     * 【方法】按 id 查原记录，非 null 字段合并进原记录后按最新积分规则重算再落库
+     * 【方法】按 id 查原记录，非 null 字段合并进原记录后按最新学分规则重算再落库
      * 【业务规则】归属校验在 Controller 完成(admin ∨ can_edit 授权 ∨ 本人)；
      *             归属客户 customerId 仅 admin/专项授权可变更，本人编辑保持原值；
      *             分享开关 shared 仅记录本人可改(admin 编辑他人记录时忽略)
@@ -528,7 +528,7 @@ public class IncentiveService {
     /**
      * 移除记录某槽位中的单个文件（【用户裁决 2026-10-10】上传错了需要修改）
      *
-     * 【方法】解析槽位 JSON 数组 → 剔除该文件 ID → 显式 SET 写回（含清空为 NULL）→ 重算积分 → 盖修改人章
+     * 【方法】解析槽位 JSON 数组 → 剔除该文件 ID → 显式 SET 写回（含清空为 NULL）→ 重算学分 → 盖修改人章
      * 【业务规则】物理文件保留（biz_file 原件不动），只解除记录槽位引用——文件原件留在文件库
      *             可查可重挂；操作级留痕(何时谁移除了哪个文件)为 V2 审计日志事项，当前仅盖
      *             最后修改人/时间章；
@@ -602,7 +602,7 @@ public class IncentiveService {
         evictScoreboardCache();
     }
 
-    /** 批量重算所有历史记录的积分（按新规则） */
+    /** 批量重算所有历史记录的学分（按新规则） */
     @Transactional
     public int recalculateAllScores() {
         List<BizIncentiveRecord> all = recordMapper.selectList(null);
@@ -720,7 +720,7 @@ public class IncentiveService {
     }
 
     /**
-     * 积分规则（2026-08-01 单槽化改造后；2026-08-10 plan 规则修正）：
+     * 学分规则（2026-08-01 单槽化改造后；2026-08-10 plan 规则修正）：
      * 1. 两谈两做方案(plan)：方案文件任一存在即 +base，不论文件数量（多文件也只积一次）
      * 2. 外出参观(visit)/交流拜访(exchange)：安装文件任一槽有文件 → +base
      * 3. 其他（含产品试点 trial）：安装前+安装中+安装后 三文件齐全 → +base
@@ -829,7 +829,7 @@ public class IncentiveService {
             .collect(Collectors.joining(", "));
     }
 
-    /** 激励统计表(全员口径): 按子类聚合文件数/总积分, 并给出周期总文件数/总积分 */
+    /** 激励统计表(全员口径): 按子类聚合文件数/总学分, 并给出周期总文件数/总学分 */
     public Map<String, Object> categoryStats(String period) {
         LambdaQueryWrapper<BizIncentiveRecord> wrapper = new LambdaQueryWrapper<>();
         if (period != null && !period.isBlank()) wrapper.eq(BizIncentiveRecord::getPeriod, period);
@@ -878,7 +878,7 @@ public class IncentiveService {
         return result;
     }
 
-    // 个人积分榜
+    // 个人学分榜
     // 【容量加固 2026-10-06】30s TTL 缓存(公司级,按 period 键,照 RolePermScopeService 同款模式)：
     // 原实现每次请求全表 selectList + JVM 聚合,而结果是公司级全员相同的(并发仿真 600 用户时 p50 4.6s)；
     // 全员共享同缓存命中率极高；激励记录写入后最迟 30s 反映(排行页天然容忍)。
@@ -1019,10 +1019,10 @@ public class IncentiveService {
     }
 
     /**
-     * 获取客户关联的激励积分总分
+     * 获取客户关联的激励学分总分
      */
     public int getScoreByCustomerId(Long customerId) {
-        // 【2026-08-08 分享制 防越权】积分只按当前用户可见记录计算（admin/专项授权→全部，否则本人+已分享）
+        // 【2026-08-08 分享制 防越权】学分只按当前用户可见记录计算（admin/专项授权→全部，否则本人+已分享）
         LambdaQueryWrapper<BizIncentiveRecord> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(BizIncentiveRecord::getCustomerId, customerId);
         applyShareVisibility(wrapper);

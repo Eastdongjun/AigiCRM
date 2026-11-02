@@ -45,7 +45,7 @@ describe('useCustomerDetail 激励Tab文件能力', () => {
     setActivePinia(createPinia())
     vi.clearAllMocks()
     // 【2026-10-27 深度检查修复】激励分区补了 incentive:view 门控(与财务/联系人同款 B5 模式):
-    // 桩权限补齐三码, 否则激励积分 task 不发请求、incentiveScore 恒 0
+    // 桩权限补齐三码, 否则激励学分 task 不发请求、incentiveScore 恒 0
     useUserStore().permissions = new Set(['finance:view', 'contact:view', 'incentive:view'])
     detail = useCustomerDetail()
   })
