@@ -131,8 +131,8 @@
 .rank-tbl { display: inline-block; min-width: 100%; }
 .rank-table-head { display: flex; align-items: center; padding: 14rpx 8rpx; background: #eef4ff; border-radius: 10rpx 10rpx 0 0; margin-top: 12rpx; }
 .rth { flex: none; font-size: 21rpx; color: #33507e; font-weight: 700; }
-.rth-rank { width: 56rpx; text-align: center; }
-.rth-name { width: 150rpx; }
+.rth-rank { width: 48rpx; text-align: center; }
+.rth-name { width: 96rpx; }
 .rth-score { width: 130rpx; text-align: center; }
 .rth-total { width: 90rpx; text-align: right; padding-right: 8rpx; }
 .rth-group-title { font-size: 20rpx; text-align: center; color: #2563eb; padding: 0 4rpx; white-space: nowrap; overflow: hidden; }
@@ -145,17 +145,17 @@
 .rtd-rank { width: 76rpx; display: flex; justify-content: center; }
 /* 【2026-11-02 用户令】姓名列冻结: 排名列+姓名列固定左侧, 不随横滚移动
    (实现=行内 fixed 列绝对定位+行 padding-left 让出空间; 微信 flex 表格无原生 freeze) */
-/* 【2026-11-02 用户令·三调】姓名列收窄(270→150rpx)+办事处并入姓名下方同列;
-   排名列压缩(76→56rpx); 冻结区总宽 8+56+6+150+8=228rpx */
-.rank-table-head, .rank-subhead, .rank-table-row { position: relative; padding-left: 228rpx; }
+/* 【2026-11-02 用户令·四调】冻结区再压缩: 排名48+姓名96=160rpx 总宽;
+   办事处小字改放姓名右侧同行(省一行高), 姓名超长省略 */
+.rank-table-head, .rank-subhead, .rank-table-row { position: relative; padding-left: 160rpx; }
 .rth-rank, .rth-name, .rtd-rank, .rtd-name { position: absolute; z-index: 2; }
-.rth-rank, .rtd-rank { left: 8rpx; width: 56rpx; text-align: center; }
-.rth-name, .rtd-name { left: 70rpx; width: 150rpx; }
+.rth-rank, .rtd-rank { left: 6rpx; width: 48rpx; text-align: center; }
+.rth-name, .rtd-name { left: 58rpx; width: 96rpx; }
 .rank-table-head .rth-rank, .rank-table-head .rth-name { background: #eef4ff; }
 .rank-subhead .rsh { background: #f7fafd; }
 .rank-table-row .rtd-rank, .rank-table-row .rtd-name { background: #fff; }
 .rank-table-row:active .rtd-rank, .rank-table-row:active .rtd-name { background: #f7faff; }
-.rtd-name { display: flex; align-items: center; }
+.rtd-name { display: flex; flex-direction: column; justify-content: center; }
 /* 冻结列右缘投影分界线: 与滚动区视觉分离 */
 .rtd-name, .rth-name { box-shadow: 6rpx 0 8rpx -6rpx rgba(0,0,0,.08); }
 .rtd-score { width: 130rpx; display: flex; justify-content: center; }
@@ -183,7 +183,7 @@
 .name-col { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 .name-top { color: #1f2329; font-size: 22rpx; font-weight: 850; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .name-cell { color: #172033; font-size: 22rpx; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.name-office { color: #7c8ba1; font-size: 18rpx; margin-top: 2rpx; }
+.name-office { color: #7c8ba1; font-size: 17rpx; margin-top: 1rpx; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 96rpx; }
 .dept-name { font-weight: 700; }
 /* 激励总额/总学分胶囊 */
 .score-pill { display: inline-flex; align-items: baseline; gap: 2rpx; background: #2563eb; color: #fff; border-radius: 999rpx; padding: 6rpx 16rpx; font-size: 24rpx; font-weight: 800; }
