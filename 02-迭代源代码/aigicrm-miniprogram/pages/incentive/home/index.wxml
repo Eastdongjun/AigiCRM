@@ -84,10 +84,7 @@
           <text wx:if="{{item.fileCount}}"> · {{item.fileCount}}个文件</text>
         </view>
       </view>
-      <view class="flat-rec-side">
-        <text class="flat-rec-score">{{item.score}}</text>
-        <text class="flat-rec-unit">分</text>
-      </view>
+      <!-- 【2026-11-02 用户令】展示页不呈现分值, flat-rec-side(分数+单位)移除 -->
       <view class="cust-arrow">›</view>
     </view>
   </block>
@@ -111,10 +108,7 @@
         </view>
         <view class="cust-nums">{{item.countText}} · {{item.fileCountText}}</view>
       </view>
-      <view class="cust-score">
-        <text class="cust-score-num">{{item.score}}</text>
-        <text class="cust-score-unit">分</text>
-      </view>
+      <!-- 【2026-11-02 用户令】展示页不呈现分值, cust-score(封面卡分数)移除 -->
       <view class="cust-arrow">›</view>
     </view>
   </block>

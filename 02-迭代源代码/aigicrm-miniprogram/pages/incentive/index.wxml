@@ -4,7 +4,7 @@
     <view class="row">
       <view>
         <view class="hero-title">四项服务应用</view>
-        <view class="hero-sub">分类 · 上传 · 学分 · 统计 · 阅读</view>
+        <view class="hero-sub">分类 · 上传 · 统计 · 阅读</view>
       </view>
       <button class="ghost-btn" bindtap="refresh" loading="{{incentiveView.refreshLoading}}">{{incentiveView.refreshText}}</button>
     </view>
@@ -84,7 +84,6 @@
           <view class="rec-td c-date">时间</view>
           <view class="rec-td c-user">上传人</view>
           <view class="rec-td c-file">文件</view>
-          <view class="rec-td c-score">学分</view>
         </view>
         <view wx:for="{{pagedTableRows}}" wx:key="id" class="rec-tr" data-id="{{item.id}}" bindtap="openRecordDetail">
           <view class="rec-td c-cust">{{item.customerName}}</view>
@@ -93,7 +92,6 @@
           <view class="rec-td c-date">{{item.timeText}}</view>
           <view class="rec-td c-user">{{item.uploaderName || '—'}}</view>
           <view class="rec-td c-file">{{item.fileCount}}</view>
-          <view class="rec-td c-score">{{item.score}}</view>
         </view>
       </view>
     </scroll-view>
@@ -124,7 +122,7 @@
         <view class="category-node-main">
           <text class="category-node-name">{{item.name}}</text>
           <view class="category-node-meta">
-            <text wx:if="{{item.score}}" class="category-chip score">{{item.score}} 分</text>
+            <!-- 【2026-11-02 用户令】展示页不呈现分值, 分值 chip 移除 -->
             <text class="category-chip">{{item.count}} 条</text>
           </view>
         </view>
@@ -148,7 +146,7 @@
         <view class="stat-name">{{item.name}}</view>
         <view wx:if="{{item.parentName}}" class="stat-parent">{{item.parentName}}</view>
       </view>
-      <view class="stat-value">{{item.count}} 文件 / {{item.score}} 分 ›</view>
+      <view class="stat-value">{{item.count}} 文件 ›</view>
     </view>
     <pager wx:if="{{categoryStatsTotal > 10}}" page="{{categoryStatsPage}}" pageSize="{{categoryStatsPageSize}}" total="{{categoryStatsTotal}}" loading="{{incentiveView.pagerLoading}}" bind:change="onCategoryStatsPagerChange" />
     <view wx:if="{{incentiveView.showCategoryStatsEmpty}}" class="muted">暂无统计</view>
