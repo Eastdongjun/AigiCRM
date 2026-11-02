@@ -30,7 +30,7 @@
 | `customer.list` | 客户 | `/customer` | `pages/customer/index` | `customer:view` | 统一客户数据范围 | 读取 | 已实现 |
 | `customer.detail` | 客户 | `/customer/detail/:id` | `pages/customer/detail/index` | `customer:view` | 负责人/分享/组织范围 | 读取 | 已实现 |
 | `customer.add` | 客户 | `/customer/add` | `pages/customer/form/index` | `customer:add` | 当前用户/集团 | 创建 | 已实现 |
-| `customer.edit` | 客户 | `/customer/edit/:id`、详情编辑 | `pages/customer/form/index?id=:id` | `customer:edit` | 可编辑客户范围 | 更新 | 已实现 |
+| `customer.edit` | 客户 | `/customer/edit/:id`、详情编辑 | `pages/customer/form/index?id=:id` | `customer:edit`;叠加码:注册日 `customer:date:edit`(总监0/行政05/admin)、**最近开票日 `customer:invoice-date:edit`(2026-11-02 翻案纯推导裁决:人工设定=新基准清延期重算,后台角色管理勾选,目标=行政/销售总监/系统管理员)** | 可编辑客户范围 | 更新 | 已实现 |
 | `customer.delete` | 客户 | 客户表格/详情删除 | `pages/customer/detail/index` 危险区删除 | `customer:delete` | 可编辑客户范围 | 删除 | 已实现 |
 | `customer.release` | 客户/公海 | 客户表格/详情释放 | `pages/customer/detail/index` | `customer:edit` | 可编辑客户范围 | 工作流/更新 | 已实现 |
 | `customer.transfer` | 客户 | 客户详情「转移客户」按钮,提交 transfer 审批 | 审批列表/详情可展示转移类单据;发起入口仅在 PC | 入口 `customer:edit` + 提交端 `approval:view`;执行侧校验接收人在册启用+同集团(admin 可跨集团) | 可编辑客户范围+同集团接收人 | 工作流/创建 | 发起 `PC-only`(审批展示已实现) ⟦补录 09-24⟧ |
