@@ -217,6 +217,67 @@
   <view wx:if="{{incentiveView.showRanking}}">
     <view class="card ranking-panel">
       <view class="section-row">
+        <view class="section-title no-margin">客户排行</view>
+      </view>
+      <!-- 【2026-11-02 用户令】客户排行=客户维度学分榜(与个人排行同款双栏冻结表格), 数据=客户聚合按总学分降序 -->
+      <view class="rank-split">
+        <view class="rank-frozen">
+          <view class="fz-head"><text class="fz-th">排名</text><text class="fz-th fz-th-name">客户</text></view>
+          <view class="fz-subhead"></view>
+          <block wx:for="{{customerRankPaged}}" wx:key="id">
+            <view class="fz-row">
+              <view class="fz-rank">
+                <text wx:if="{{item.rank <= 3}}" class="rank-medal-sm rank-medal-{{item.rank}}">{{item.rank === 1 ? '🥇' : item.rank === 2 ? '🥈' : '🥉'}}</text>
+                <text wx:else class="rank-num">{{item.rank}}</text>
+              </view>
+              <view class="fz-name">
+                <text class="{{item.rank <= 3 ? 'name-top' : 'name-cell'}}">{{item.name}}</text>
+                <text class="name-office">{{item.industryText}}</text>
+              </view>
+            </view>
+          </block>
+        </view>
+        <scroll-view class="rank-tbl-scroll" scroll-x enhanced show-scrollbar="{{false}}">
+          <view class="rank-tbl">
+            <view class="rank-table-head">
+              <text class="rth rth-score">总学分</text>
+              <text class="rth rth-total">记录</text>
+              <block wx:for="{{rankParents}}" wx:key="id" wx:for-item="parent">
+                <text class="rth rth-group-title" style="width: {{parent.children.length * 130}}rpx;">{{parent.categoryName}}</text>
+              </block>
+            </view>
+            <view class="rank-subhead">
+              <text class="rsh rth-score"></text>
+              <text class="rsh rth-total"></text>
+              <block wx:for="{{rankParents}}" wx:key="id" wx:for-item="parent">
+                <text wx:for="{{parent.children}}" wx:key="id" class="rsh rth-sub">{{item.categoryName}}</text>
+              </block>
+            </view>
+            <block wx:for="{{customerRankPaged}}" wx:key="id">
+              <view class="rank-table-row">
+                <view class="rtd rtd-score"><text class="score-pill">{{item.scoreNum}}<text class="pill-unit">分</text></text></view>
+                <view class="rtd rtd-total">{{item.recordCountText}}</view>
+                <block wx:for="{{rankParents}}" wx:key="id" wx:for-item="parent">
+                  <block wx:for="{{parent.children}}" wx:key="id" wx:for-item="child">
+                    <view class="rtd rtd-cat">
+                      <block wx:if="{{item.byCategory[child.id]}}">
+                        <text class="cat-cnt">{{item.byCategory[child.id][0]}}条</text>
+                        <text class="cat-score {{item.byCategory[child.id][1] === 0 ? 'zero' : ''}}">{{item.byCategory[child.id][1]}}分</text>
+                      </block>
+                      <text wx:else class="cat-dash">—</text>
+                    </view>
+                  </block>
+                </block>
+              </view>
+            </block>
+          </view>
+        </scroll-view>
+      </view>
+      <pager wx:if="{{customerRankTotal > 10}}" page="{{customerRankPage}}" pageSize="{{customerRankPageSize}}" total="{{customerRankTotal}}" loading="{{incentiveView.pagerLoading}}" bind:change="onCustomerRankPagerChange" />
+      <view wx:if="{{incentiveView.showCustomerRankEmpty}}" class="muted">暂无客户排行</view>
+    </view>
+    <view class="card ranking-panel">
+      <view class="section-row">
         <view class="section-title no-margin">个人学分榜</view> <!-- 【工作流复核确认修复】数据源为按人员聚合的 scoreboard, 原名"客户学分榜"名实不符 -->
         <button class="stats-refresh-btn" bindtap="loadScoreboard">↻</button>
       </view>

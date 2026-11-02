@@ -344,6 +344,7 @@ function buildIncentiveView(data) {
     showCategoryEmpty: !isLoading && (data.categoryTree || []).length === 0,
     showCategoryStatsEmpty: !isLoading && (data.categoryStats || []).length === 0,
     showScoreboardEmpty: !isLoading && (data.scoreboard || []).length === 0,
+    showCustomerRankEmpty: !isLoading && (data.customerRanking || []).length === 0,
     showDeptRankingEmpty: !isLoading && (data.deptRanking || []).length === 0,
     showReadStatsEmpty: !isLoading && (data.readStats || []).length === 0,
     // 【I5】加载失败与"确实没有数据"分开: 失败时展示错误+重试, 不再伪装成"暂无排行"
@@ -497,6 +498,11 @@ Page({
     deptPageSize: 10,
     deptTotal: 0,
     deptPaged: [],
+    customerRanking: [],
+    customerRankPage: 1,
+    customerRankPageSize: 10,
+    customerRankTotal: 0,
+    customerRankPaged: [],
     canViewReadStats: false,
     canViewReadRanking: false,
     canUploadEvidence: false,
@@ -1044,7 +1050,7 @@ Page({
       pageSize: paged.pageSize,
       pagerTotal: paged.total,
       summary: buildSummary(records)
-    }, () => this.refreshIncentiveView())
+    }, () => { this.refreshIncentiveView(); this.buildCustomerRanking() })
   },
 
   // 【2026-11-02 用户令·表格】点行直达记录详情(拨盘页, 与轻量页同款跳转)
@@ -1091,6 +1097,39 @@ Page({
   applyScoreboardPaging(page, pageSize) {
     const paged = paginate(this.data.scoreboard, page, pageSize)
     this.setData({ scoreboardPaged: paged.rows, scoreboardPage: paged.page, scoreboardPageSize: paged.pageSize, scoreboardTotal: paged.total })
+  },
+  // 【2026-11-02 用户令】客户排行=客户聚合按总学分降序, 双栏冻结表格(与个人排行同款);
+  // 数据源=this.data.records(客户维度聚合, 已含子记录), byCategory 从子记录聚合
+  buildCustomerRanking() {
+    const rows = (this.data.records || []).map((c) => {
+      const byCategory = {}
+      ;((c.records || [])).forEach((r) => {
+        const cid = r.categoryId || r.childId
+        if (!cid) return
+        if (!byCategory[cid]) byCategory[cid] = [0, 0]
+        byCategory[cid][0] += 1
+        byCategory[cid][1] += Number(r.score) || 0
+      })
+      return {
+        id: c.id,
+        name: c.name || c.customerName || '未命名客户',
+        industryText: c.industry || '—',
+        scoreNum: Number(c.score) || 0,
+        recordCountText: `${((c.records || [])).length} 条`,
+        byCategory
+      }
+    }).sort((a, b) => b.scoreNum - a.scoreNum).map((row, idx) => ({ ...row, rank: idx + 1 }))
+    this.setData({ customerRanking: rows }, () => this.applyCustomerRankPaging(1, this.data.customerRankPageSize || 10))
+  },
+  applyCustomerRankPaging(page, pageSize) {
+    const paged = paginate(this.data.customerRanking || [], page, pageSize)
+    this.setData({ customerRankPaged: paged.rows, customerRankPage: paged.page, customerRankPageSize: paged.pageSize, customerRankTotal: paged.total })
+  },
+  onCustomerRankPagerChange(e) {
+    const detail = e.detail || {}
+    const current = this.data.customerRankPageSize || 10
+    const size = Number(detail.pageSize) || current
+    this.applyCustomerRankPaging(size === current ? (Number(detail.page) || 1) : 1, size)
   },
   onScoreboardPagerChange(e) {
     const detail = e.detail || {}
