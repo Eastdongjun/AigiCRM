@@ -130,7 +130,9 @@ function normalizeScoreRows(rows, type) {
     officeText: item.officeName || item.deptName || '—',
     scoreNum: Number(item.totalScore || item.score || item.points) || 0,
     recordCountText: `${item.recordCount || item.count || item.totalRecords || 0} 条`,
-    avgText: item.avgScore !== undefined ? `${item.avgScore}` : (item.participantCount ? `${Math.round(((Number(item.totalScore) || 0) / item.participantCount) * 10) / 10}` : '—')
+    avgText: item.avgScore !== undefined ? `${item.avgScore}` : (item.participantCount ? `${Math.round(((Number(item.totalScore) || 0) / item.participantCount) * 10) / 10}` : '—'),
+    // 【2026-11-02 用户令·子类列】保留原始 byCategory 映射(childId → [count, score]), 供表格子类列渲染
+    byCategory: item.byCategory || {}
   }))
 }
 
@@ -441,6 +443,7 @@ Page({
     selectedUserIndex: 0,
     categoryTree: [],
     categoryTreeView: [],
+    rankParents: [],
     categoryStats: [],
     categoryStatsPage: 1,
     categoryStatsPageSize: 10,
@@ -786,7 +789,16 @@ Page({
     }
     getCategoryTree().then((rows) => {
       const categoryTree = flattenCategoryTree(rows || [])
-      this.setData({ categoryTree, categoryTreeView: buildCategoryTreeView(categoryTree) }, () => this.refreshIncentiveView())
+      // 【2026-11-02 用户令·排行子类列】大类→子类分组结构(与 PC rankParents 同构), 供排行表格展开列
+      const rankParents = (rows || [])
+        .filter((n) => n && ((n.parentId !== undefined ? n.parentId === 0 : !n.parent)))
+        .map((parent) => ({
+          id: parent.id,
+          categoryName: parent.categoryName || parent.name || '',
+          children: ((parent.children || [])).map((c) => ({ id: c.id, categoryName: c.categoryName || c.name || '' }))
+        }))
+        .filter((g) => g.children.length > 0 && g.categoryName)
+      this.setData({ categoryTree, categoryTreeView: buildCategoryTreeView(categoryTree), rankParents }, () => this.refreshIncentiveView())
       // 【2026-10-29 归树批】产品筛选选项随树"产品试点"分支派生(大类→小类拉平); 无三级结构保持兜底
       const trial = (rows || []).find((n) => n && ((n.categoryCode || '') === 'trial' || (n.categoryName || n.name) === '产品试点'))
       const productNames = []

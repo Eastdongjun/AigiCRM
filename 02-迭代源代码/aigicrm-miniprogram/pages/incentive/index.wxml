@@ -221,32 +221,60 @@
         <button class="stats-refresh-btn" bindtap="loadScoreboard">↻</button>
       </view>
       <!-- 【2026-11-02 用户令·PC 同款排行】排名(前3奖牌徽章🥇🥈🥉)+首字头像(前3彩色渐变)+姓名/办事处
-           +激励总额胶囊(蓝底白字)+合计, 与 PC PersonRankTableView 同构 -->
-      <view class="rank-table-head">
-        <text class="rth rth-rank">排名</text>
-        <text class="rth rth-name">人员</text>
-        <text class="rth rth-score">激励总额</text>
-        <text class="rth rth-total">合计</text>
-      </view>
-      <block wx:for="{{scoreboardPaged}}" wx:key="id">
-        <view class="rank-table-row">
-          <view class="rtd rtd-rank">
-            <text wx:if="{{item.rank <= 3}}" class="rank-medal rank-medal-{{item.rank}}">{{item.rank === 1 ? '🥇' : item.rank === 2 ? '🥈' : '🥉'}}</text>
-            <text wx:else class="rank-num">{{item.rank}}</text>
+           +激励总额胶囊(蓝底白字)+合计, 与 PC PersonRankTableView 同构;
+           【同日二次令】追加四大类(产品试点/两谈两做/交流拜访/外出参观)及其子类列(条数+分), 横滚看全部 -->
+      <scroll-view class="rank-tbl-scroll" scroll-x enhanced show-scrollbar="{{false}}">
+        <view class="rank-tbl">
+          <view class="rank-table-head">
+            <text class="rth rth-rank">排名</text>
+            <text class="rth rth-name">人员</text>
+            <text class="rth rth-score">激励总额</text>
+            <text class="rth rth-total">合计</text>
+            <block wx:for="{{rankParents}}" wx:key="id" wx:for-item="parent">
+              <text class="rth rth-group-title" style="width: {{parent.children.length * 130}}rpx;">{{parent.categoryName}}</text>
+            </block>
           </view>
-          <view class="rtd rtd-name">
-            <view class="name-wrap">
-              <text class="name-avatar av-{{item.rank <= 3 ? item.rank : 4}}">{{item.avatarChar}}</text>
-              <view class="name-col">
-                <text class="{{item.rank <= 3 ? 'name-top' : 'name-cell'}}">{{item.name}}</text>
-                <text class="name-office">{{item.officeText}}</text>
+          <view class="rank-subhead">
+            <text class="rsh rth-rank"></text>
+            <text class="rsh rth-name"></text>
+            <text class="rsh rth-score"></text>
+            <text class="rsh rth-total"></text>
+            <block wx:for="{{rankParents}}" wx:key="id" wx:for-item="parent">
+              <text wx:for="{{parent.children}}" wx:key="id" class="rsh rth-sub">{{item.categoryName}}</text>
+            </block>
+          </view>
+          <block wx:for="{{scoreboardPaged}}" wx:key="id" wx:for-item="row">
+            <view class="rank-table-row">
+              <view class="rtd rtd-rank">
+                <text wx:if="{{row.rank <= 3}}" class="rank-medal rank-medal-{{row.rank}}">{{row.rank === 1 ? '🥇' : row.rank === 2 ? '🥈' : '🥉'}}</text>
+                <text wx:else class="rank-num">{{row.rank}}</text>
               </view>
+              <view class="rtd rtd-name">
+                <view class="name-wrap">
+                  <text class="name-avatar av-{{row.rank <= 3 ? row.rank : 4}}">{{row.avatarChar}}</text>
+                  <view class="name-col">
+                    <text class="{{row.rank <= 3 ? 'name-top' : 'name-cell'}}">{{row.name}}</text>
+                    <text class="name-office">{{row.officeText}}</text>
+                  </view>
+                </view>
+              </view>
+              <view class="rtd rtd-score"><text class="score-pill">{{row.scoreNum}}<text class="pill-unit">分</text></text></view>
+              <view class="rtd rtd-total">{{row.recordCountText}}</view>
+              <block wx:for="{{rankParents}}" wx:key="id" wx:for-item="parent">
+                <block wx:for="{{parent.children}}" wx:key="id" wx:for-item="child">
+                  <view class="rtd rtd-cat">
+                    <block wx:if="{{row.byCategory[child.id]}}">
+                      <text class="cat-cnt">{{row.byCategory[child.id][0]}}条</text>
+                      <text class="cat-score {{row.byCategory[child.id][1] === 0 ? 'zero' : ''}}">{{row.byCategory[child.id][1]}}分</text>
+                    </block>
+                    <text wx:else class="cat-dash">—</text>
+                  </view>
+                </block>
+              </block>
             </view>
-          </view>
-          <view class="rtd rtd-score"><text class="score-pill">{{item.scoreNum}}<text class="pill-unit">分</text></text></view>
-          <view class="rtd rtd-total">{{item.recordCountText}}</view>
+          </block>
         </view>
-      </block>
+      </scroll-view>
       <pager wx:if="{{scoreboardTotal > 10}}" page="{{scoreboardPage}}" pageSize="{{scoreboardPageSize}}" total="{{scoreboardTotal}}" loading="{{incentiveView.pagerLoading}}" bind:change="onScoreboardPagerChange" />
       <view wx:if="{{incentiveView.showScoreboardEmpty}}" class="muted">暂无个人学分排行</view>
     </view>

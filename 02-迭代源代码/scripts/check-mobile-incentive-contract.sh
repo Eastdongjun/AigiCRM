@@ -207,6 +207,9 @@ grep -q 'rank-medal' "$wxml" || { echo "FAIL: rank medal badges (top-3) are miss
 grep -q 'rank-table-head' "$wxml" || { echo "FAIL: rank table header row is missing" >&2; exit 1; }
 grep -q 'score-pill' "$wxml" || { echo "FAIL: score pill badge is missing" >&2; exit 1; }
 grep -q 'avatarChar' "$page" || { echo "FAIL: rank row avatar char field is missing" >&2; exit 1; }
+grep -q 'rankParents' "$page" || { echo "FAIL: rank sub-category group structure (rankParents) is missing" >&2; exit 1; }
+grep -q 'rtd-cat' "$wxml" || { echo "FAIL: rank sub-category columns are missing from the table" >&2; exit 1; }
+grep -q 'byCategory' "$page" || { echo "FAIL: score rows must keep byCategory for sub-category cells" >&2; exit 1; }
 ! grep -q 'class="cust-card"' "$wxml" || { echo "FAIL: full-version query list must not regress to cover cards (retired 2026-11-02)" >&2; exit 1; }
 # 【钉随需求C】data-child-index 随操作下游退役——customer-detail 用 data-index
 grep -q 'data-index' "$CUSTDETAIL_WXML" || { echo "FAIL: incentive mobile customer detail list child record actions lack record index" >&2; exit 1; }

@@ -125,18 +125,32 @@
 
 /* ===== 【2026-11-02 用户令·PC 同款排行】个人/部门排行表格化 =====
    与 PC PersonRankTableView 同构: 排名列(前3奖牌徽章🥇🥈🥉渐变底, 其余数字)+
-   首字头像(前3彩色渐变/其余蓝)+姓名粗体/办事处灰小字+激励总额胶囊(蓝底白字)+合计列 */
-.rank-table-head { display: flex; align-items: center; padding: 14rpx 8rpx; background: #eef4ff; border-radius: 10rpx; margin-top: 12rpx; }
+   首字头像(前3彩色渐变/其余蓝)+姓名粗体/办事处灰小字+激励总额胶囊(蓝底白字)+合计列
+   【二次令追加】四大类+子类列(条数+分), 整表横向滚动 */
+.rank-tbl-scroll { width: 100%; }
+.rank-tbl { display: inline-block; min-width: 100%; }
+.rank-table-head { display: flex; align-items: center; padding: 14rpx 8rpx; background: #eef4ff; border-radius: 10rpx 10rpx 0 0; margin-top: 12rpx; }
 .rth { flex: none; font-size: 21rpx; color: #33507e; font-weight: 700; }
 .rth-rank { width: 76rpx; text-align: center; }
-.rth-name { flex: 1; min-width: 0; }
+.rth-name { width: 220rpx; }
 .rth-score { width: 130rpx; text-align: center; }
 .rth-total { width: 90rpx; text-align: right; padding-right: 8rpx; }
-.rank-table-row { display: flex; align-items: center; padding: 16rpx 8rpx; border-bottom: 1rpx solid #eef2f8; }
-.rank-table-row:last-of-type { border-bottom: 0; }
+.rth-group-title { font-size: 20rpx; text-align: center; color: #2563eb; padding: 0 4rpx; white-space: nowrap; overflow: hidden; }
+.rank-subhead { display: flex; align-items: center; padding: 8rpx 8rpx; background: #f7fafd; border-bottom: 1rpx solid #e3ebf7; }
+.rsh { flex: none; font-size: 19rpx; color: #64748b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rth-sub { width: 130rpx; text-align: center; }
+.rank-table-row { display: flex; align-items: center; padding: 14rpx 8rpx; border-bottom: 1rpx solid #eef2f8; background: #fff; }
+.rank-table-row:last-of-type { border-bottom: 0; border-radius: 0 0 10rpx 10rpx; }
 .rtd { flex: none; }
 .rtd-rank { width: 76rpx; display: flex; justify-content: center; }
-.rtd-name { flex: 1; min-width: 0; }
+.rtd-name { width: 220rpx; }
+.rtd-score { width: 130rpx; display: flex; justify-content: center; }
+.rtd-total { width: 90rpx; text-align: right; padding-right: 8rpx; color: #64748b; font-size: 21rpx; }
+.rtd-cat { width: 130rpx; display: flex; flex-direction: column; align-items: center; gap: 2rpx; }
+.cat-cnt { font-size: 19rpx; color: #64748b; line-height: 1.3; }
+.cat-score { font-size: 20rpx; color: #1d4fd7; font-weight: 700; line-height: 1.3; }
+.cat-score.zero { color: #94a3b8; font-weight: 400; }
+.cat-dash { font-size: 19rpx; color: #cbd5e1; }
 .rtd-score { width: 130rpx; display: flex; justify-content: center; }
 .rtd-total { width: 90rpx; text-align: right; padding-right: 8rpx; color: #64748b; font-size: 21rpx; }
 /* 前三奖牌徽章 */
