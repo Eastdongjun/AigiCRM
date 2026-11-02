@@ -4,13 +4,13 @@
 // 数据链路同源(getCustomerRecords 按客户分组 + 本地筛选排序), 打散=分组结果拉平, 不加接口。
 const { getCustomerRecords, getCategoryTree, getGrantCheck, getUsers } = require('../../../api/incentive')
 const { getDownloadToken } = require('../../../api/file')
-const { getDepts, getDictData } = require('../../../api/system')
+const { getDictData } = require('../../../api/system')
 const { incentiveRecords } = require('../../../data/demo')
 const { hasPermission, requireLogin } = require('../../../utils/auth')
 const { showError, showErrorWithRetry } = require('../../../utils/feedback')
 const { buildIncentiveFiles, buildIncentiveFileGroups } = require('../../../utils/incentive-files')
 const { paginate } = require('../../../utils/paging')
-const { buildDeptLevelOptions } = require('../../../utils/tree')
+// 【2026-11-02 用户令】组织筛选退役: buildDeptLevelOptions 引用随之移除
 
 // 缩略图凭证: 模块级缓存(与完整版同款机制, 本页独立一份); 失败不阻断列表(退化为首字面卡)
 let dlTokenCache = ''
@@ -109,11 +109,7 @@ function buildIncentiveView(data) {
     showLoading: isLoading,
     pagerLoading: isLoading,
     loadingText: '加载中...',
-    // 【2026-11-02 平铺直选】行业/产品改 chips 直选(wxml 消费 selectedXxxIndex), 原 picker 文案退役
-    devTypeText: `${pickOption(data.devTypes, data.selectedDevTypeIndex, '全部类型')}⌄`,
-    orgText: `${pickOption(data.orgOptions, data.selectedOrgIndex, '全部组织', 'label')}⌄`,
-    startDateText: `${data.startDate || '开始日期'}⌄`,
-    endDateText: `${data.endDate || '截止日期'}⌄`,
+    // 【2026-11-02 用户令】类型/组织/日期范围筛选退役(wxml 已删), 对应视图文案一并清理
     userText: `${pickOption(data.userNames, data.selectedUserIndex, '全部人员')}⌄`,
     orderText: `${pickOption(data.orderOptions, data.selectedOrderIndex, '最新记录在前')}⌄`,
     categoryText: catMainIndex === 0 ? (catSubIndex === 0 || catSub === '全部' ? '分类' : catSub) : (catSubIndex === 0 || catSub === '全部' ? catMain : `${catMain}·${catSub}`),
@@ -124,8 +120,7 @@ function buildIncentiveView(data) {
 // 【2026-10-29 字典接线】行业选项=系统字典 industry 优先(loadIndustryOptions 拉取覆盖 data.industries),
 // 本常量降级为字典缺行/接口失败兜底; 兜底已含字典现量「新行业」(原硬编码缺该项致筛不出)。
 const INDUSTRIES = ['全部行业', '冶金', '煤矿', '化工', '电力', '有色金属', '机械', '工程公司', '维修厂', '其他终端客户', '新行业']
-// 【2026-11-01 审计修复】兜底补第四类(新建改建扩建大修), 真实选项由 loadDevTypeOptions 字典覆盖
-const DEV_TYPES = ['全部类型', '成熟创新', '突破开拓', '铺垫宣传', '新建改建扩建大修']
+// 【2026-11-02 用户令】DEV_TYPES 兜底常量随类型筛选退役移除
 // 【2026-10-29 归树批】产品筛选选项=分类树"产品试点"分支派生(applyCategoryTree 里覆盖), 本常量降级为
 // 兜底; 兜底补上此前手抄漏掉的「其他」(与 PC 目录对齐——旧 MP 扁平清单只有 15 个小类)。
 const PRODUCT_OPTIONS = ['全部产品', '防腐', '加固', '钢结构', '煤气管道', '其他', '公共区', '装置区', '水泵', '渣泵', '介质泵', '静密封', '动密封', '橡胶密封', '润滑油', '润滑脂', '润滑剂']
@@ -191,20 +186,13 @@ function buildFlatRecordRows(groups, childMap) {
   })
   return rows
 }
-const FALLBACK_ORGS = [
-  { id: 1, deptName: '内蒙古大区', deptType: 2, parentId: 0 },
-  { id: 11, deptName: '内蒙办', deptType: 3, parentId: 1 },
-  { id: 2, deptName: '山西大区', deptType: 2, parentId: 0 },
-  { id: 21, deptName: '山西办', deptType: 3, parentId: 2 }
-]
+// 【2026-11-02 用户令】组织筛选退役: FALLBACK_ORGS/DEV_TYPES 兜底常量随之移除
 
 Page({
   data: {
     incentiveView: buildIncentiveView({
       industries: INDUSTRIES,
-      devTypes: DEV_TYPES,
       productOptions: PRODUCT_OPTIONS,
-      orgOptions: [{ id: '', deptName: '全部组织', label: '全部组织' }],
       orderOptions: ORDER_OPTIONS,
       userNames: ['全部人员'],
       recordCount: 0,
@@ -234,16 +222,10 @@ Page({
     categoryMainIndex: 0,
     categorySubIndex: 0,
     industries: INDUSTRIES,
-    devTypes: DEV_TYPES,
     productOptions: PRODUCT_OPTIONS,
-    orgOptions: [{ id: '', deptName: '全部组织', label: '全部组织' }],
     keyword: '',
     selectedIndustryIndex: 0,
-    selectedDevTypeIndex: 0,
     selectedProductIndex: 0,
-    selectedOrgIndex: 0,
-    startDate: '',
-    endDate: '',
     users: [],
     userNames: ['全部人员'],
     selectedUserIndex: 0,
@@ -272,12 +254,10 @@ Page({
     this._categoryChildrenByMain = null
     this.loadCategoryTree()
     this.loadIndustryOptions()
-    this.loadDevTypeOptions()
     this.ensureDlToken().then(() => {
       this.loadRecords()
     })
     this.loadUsers()
-    this.loadOrgs()
     this._loadedOnce = true
   },
 
@@ -360,21 +340,8 @@ Page({
     }).catch(() => {})
   },
 
-  // 【2026-11-01 审计修复】开发类型选项=系统字典 dev_type(原硬编码3项缺"新建改建扩建大修",
-  // 第4类客户在本页筛不出; 与行业接线同模式)
-  loadDevTypeOptions() {
-    if (getApp().globalData.demoMode) return
-    getDictData('dev_type').then((rows) => {
-      const labels = (Array.isArray(rows) ? rows : [])
-        .filter((r) => r && r.status !== 0)
-        .map((r) => r && r.dictValue)
-        .filter(Boolean)
-      if (!labels.length) return
-      const devTypes = ['全部类型', ...labels]
-      const selectedDevTypeIndex = Math.min(this.data.selectedDevTypeIndex || 0, devTypes.length - 1)
-      this.setData({ devTypes, selectedDevTypeIndex }, () => this.refreshIncentiveView())
-    }).catch(() => {})
-  },
+  // 【2026-11-02 用户令】类型筛选退役(页面只留搜索+行业/产品平铺):
+  // 原 loadDevTypeOptions(字典 dev_type 接线, 2026-11-01 审计修复引入)随筛选一起移除
 
   applyCategoryTree(nodes) {
     if (nodes && nodes.length) {
@@ -501,45 +468,31 @@ Page({
     const keyword = (this.data.keyword || '').trim()
     const selectedUser = this.data.users[this.data.selectedUserIndex - 1]
     const industry = this.data.industries[this.data.selectedIndustryIndex]
-    const devType = this.data.devTypes[this.data.selectedDevTypeIndex]
     const product = this.data.productOptions[this.data.selectedProductIndex]
-    const org = this.data.orgOptions[this.data.selectedOrgIndex]
     if (keyword) {
       params.customerName = keyword
       params.keyword = keyword
     }
     if (selectedUser) params.salesperson = selectedUser.realName || selectedUser.userName || selectedUser.name
     if (industry && industry !== '全部行业') params.industry = industry
-    if (devType && devType !== '全部类型') params.devType = devType
     if (product && product !== '全部产品') params.product = product
-    if (org && org.id) params.orgIds = String(org.id)
-    if (this.data.startDate) params.startDate = this.data.startDate
-    if (this.data.endDate) params.endDate = this.data.endDate
+    // 【2026-11-02 用户令】类型/组织/日期范围筛选退役(页面只留搜索+行业/产品平铺), 不再发参
     return params
   },
 
   applyLocalRecordFilters(records) {
     const keyword = (this.data.keyword || '').trim().toLowerCase()
     const industry = this.data.industries[this.data.selectedIndustryIndex]
-    const devType = this.data.devTypes[this.data.selectedDevTypeIndex]
     const product = this.data.productOptions[this.data.selectedProductIndex]
-    const org = this.data.orgOptions[this.data.selectedOrgIndex]
-    const startDate = this.data.startDate
-    const endDate = this.data.endDate
     return records.filter((item) => {
       // 【2026-11-02 用户令: 深度检索】关键词命中: 客户/文件名/备注/详情/产品 全字段
       const text = [item.customerName, item.name, item.summary, item.remark, item.description, item.detail, item.preInstallQuestion, item.relatedProducts, item.specificProduct, item.product].filter(Boolean).join(' ').toLowerCase()
       if (keyword && !text.includes(keyword)) return false
       if (industry && industry !== '全部行业' && item.industry !== industry) return false
-      if (devType && devType !== '全部类型' && item.devType && item.devType !== devType) return false
       if (product && product !== '全部产品') {
         const productText = [item.relatedProducts, item.specificProduct, item.product].filter(Boolean).join(' ').toLowerCase()
         if (productText && !productText.includes(product.toLowerCase())) return false
       }
-      if (org && org.id && item.officeId && String(item.officeId) !== String(org.id)) return false
-      const dateValue = String(item.createdAt || item.createTime || '').slice(0, 10)
-      if (startDate && dateValue && dateValue < startDate) return false
-      if (endDate && dateValue && dateValue > endDate) return false
       return true
     })
   },
@@ -556,23 +509,7 @@ Page({
     }).catch((error) => showErrorWithRetry(error, '人员筛选加载失败', () => this.loadUsers()))
   },
 
-  loadOrgs() {
-    if (getApp().globalData.demoMode) {
-      this.applyOrgs(FALLBACK_ORGS)
-      return
-    }
-    getDepts().then((rows) => {
-      this.applyOrgs(rows || [])
-    }).catch((error) => {
-      showErrorWithRetry(error, '组织列表加载失败，请重试', () => this.loadOrgs())
-      this.applyOrgs([])
-    })
-  },
-
-  applyOrgs(list) {
-    const result = buildDeptLevelOptions(list, { rootLabel: '全部组织', fallbackName: '未命名组织' })
-    this.setData({ orgOptions: result, selectedOrgIndex: Math.min(this.data.selectedOrgIndex, result.length - 1) }, () => this.refreshIncentiveView())
-  },
+  // 【2026-11-02 用户令】组织筛选退役: loadOrgs/applyOrgs 随筛选一起移除(数据只留搜索+行业/产品)
 
   sort() {
     // 【性能 2026-10-27】按当前视图单算: 筛选/排序变化只重算展示中的那套全量行,
@@ -600,9 +537,7 @@ Page({
           const haystack = `${row.customerName} ${row.categoryName} ${row.productText} ${row.uploaderName} ${row.timeText}`.toLowerCase()
           if (!haystack.includes(keywordFlat)) return false
         }
-        const dateValue = row.createdAt.slice(0, 10)
-        if (this.data.startDate && dateValue && dateValue < this.data.startDate) return false
-        if (this.data.endDate && dateValue && dateValue > this.data.endDate) return false
+        // 【2026-11-02 用户令】日期范围筛选退役, 客户视图的起止日期本地过滤随之移除
         return true
       })
       if (this.data.order === 'score-asc') flat.sort((a, b) => a.score - b.score)
@@ -676,11 +611,6 @@ Page({
     this.loadRecords()
   },
 
-  chooseDevType(e) {
-    this.setData({ selectedDevTypeIndex: Number(e.detail.value) || 0 }, () => this.refreshIncentiveView())
-    this.loadRecords()
-  },
-
   chooseProduct(e) {
     const idx = Number(e.currentTarget.dataset.index) || 0
     if (idx === this.data.selectedProductIndex) return
@@ -688,28 +618,14 @@ Page({
     this.loadRecords()
   },
 
-  chooseOrg(e) {
-    this.setData({ selectedOrgIndex: Number(e.detail.value) || 0 }, () => this.refreshIncentiveView())
-    this.loadRecords()
-  },
-
-  chooseStartDate(e) {
-    this.setData({ startDate: e.detail.value || '' }, () => this.refreshIncentiveView())
-    this.loadRecords()
-  },
-
-  chooseEndDate(e) {
-    this.setData({ endDate: e.detail.value || '' }, () => this.refreshIncentiveView())
-    this.loadRecords()
-  },
+  // 【2026-11-02 用户令】chooseDevType/chooseOrg/chooseStartDate/chooseEndDate
+  // 随类型/组织/日期筛选退役一并移除(交互只留搜索+行业/产品平铺 chips)
 
   resetRecordFilters() {
     this.setData({
       keyword: '',
       selectedIndustryIndex: 0,
-      selectedDevTypeIndex: 0,
       selectedProductIndex: 0,
-      selectedOrgIndex: 0,
       selectedUserIndex: 0,
       selectedOrderIndex: 0,
       order: 'time-desc',
@@ -717,9 +633,7 @@ Page({
       categoryNames: [],
       categoryValue: [0, 0],
       categoryMainIndex: 0,
-      categorySubIndex: 0,
-      startDate: '',
-      endDate: ''
+      categorySubIndex: 0
     }, () => { this.syncCategoryPicker(); this.refreshIncentiveView() })
     this.loadRecords()
   },
@@ -794,6 +708,5 @@ Page({
   refresh() {
     this.loadRecords()
     this.loadUsers()
-    this.loadOrgs()
   }
 })

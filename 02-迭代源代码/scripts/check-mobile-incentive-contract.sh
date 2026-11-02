@@ -560,6 +560,9 @@ grep -q 'wx:for="{{productOptions}}"' "$HOME_WXML" || { echo "FAIL: product chip
 grep -q 'currentTarget.dataset.index' "$HOME_JS" || { echo "FAIL: chip tap handlers must read dataset index" >&2; exit 1; }
 ! grep -q 'range="{{industries}}"' "$HOME_WXML" || { echo "FAIL: industry must not regress to picker dropdown" >&2; exit 1; }
 ! grep -q 'range="{{productOptions}}"' "$HOME_WXML" || { echo "FAIL: product must not regress to picker dropdown" >&2; exit 1; }
+# 【2026-11-02 用户令·二次收口】类型/组织/日期范围筛选整体退役: 筛选只留顶部全局检索+行业/产品平铺
+! grep -q 'chooseDevType\|chooseOrg\|chooseStartDate\|chooseEndDate' "$HOME_JS" "$HOME_WXML" || { echo "FAIL: devType/org/date-range filters were retired (2026-11-02 用户令), do not revive" >&2; exit 1; }
+! grep -q 'mode="date"' "$HOME_WXML" || { echo "FAIL: date pickers were retired from home filters" >&2; exit 1; }
 grep -q 'bindtap="switchListMode"' "$HOME_WXML" || { echo "FAIL: lightweight home view toggle UI is missing" >&2; exit 1; }
 grep -q 'class="flat-rec"' "$HOME_WXML" || { echo "FAIL: lightweight home flat record row UI is missing" >&2; exit 1; }
 grep -q "'/pages/incentive/detail/index?id=' + row.id" "$HOME_JS" || { echo "FAIL: flat record rows must open the dial detail by record id" >&2; exit 1; }
