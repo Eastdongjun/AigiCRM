@@ -15,6 +15,15 @@ const routes = [
     component: () => import('@/views/error/403.vue'),
     meta: { title: '无权限' }
   },
+  // 【手机文件上传 2026-11-02】小程序 web-view 容器页: 微信小程序无法直接访问手机文件系统,
+  // 经本 H5 页 <input type="file"> 调起手机文件选择器后直传后端。
+  // 鉴权自治: 登录 token 由小程序 URL 参数带入(见下方守卫白名单), 不依赖 PC 端 localStorage。
+  {
+    path: '/mp-file-picker',
+    name: 'MpFilePicker',
+    component: () => import('@/views/mp/FilePicker.vue'),
+    meta: { title: '手机文件上传' }
+  },
   // 【C12 2026-10-08 二轮】404 兜底：深链错误路径不再白屏（catchAll 放最后，不拦截已定义路由）
   {
     path: '/:pathMatch(.*)*',
@@ -278,7 +287,8 @@ const router = createRouter({
 const BRAND_NAME = 'AIGICRM'
 router.beforeEach(async (to, from, next) => {
   document.title = (to.meta.title ? to.meta.title + ' - ' : '') + BRAND_NAME
-  if (to.path === '/login') {
+  // /mp-file-picker 为小程序 web-view 容器页(鉴权自治: URL 带 token 直连后端), 不走 PC 登录态
+  if (to.path === '/login' || to.path === '/mp-file-picker') {
     next()
   } else if (!isTokenValid()) {
     // token 缺失或已过期：提前清掉，避免带坏 token 进入页面触发一堆 403

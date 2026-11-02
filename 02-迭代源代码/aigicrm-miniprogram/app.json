@@ -22,6 +22,7 @@
     "pages/files/folder-form/index",
     "pages/files/detail/index",
     "pages/files/textview/index",
+    "pages/files/picker/index",
     "pages/incentive/index",
     "pages/incentive/home/index",
     "pages/incentive/upload/index",

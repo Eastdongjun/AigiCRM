@@ -12,6 +12,10 @@ FOLDER_FORM_WXML="$ROOT/aigicrm-miniprogram/pages/files/folder-form/index.wxml"
 LEGACY_PAGE="$ROOT/aigicrm-miniprogram/pages/file/index.js"
 LEGACY_WXML="$ROOT/aigicrm-miniprogram/pages/file/index.wxml"
 DETAIL="$ROOT/aigicrm-miniprogram/pages/files/detail/index.js"
+PICKER="$ROOT/aigicrm-miniprogram/pages/files/picker/index.js"
+APPJSON="$ROOT/aigicrm-miniprogram/app.json"
+ROUTER="$ROOT/aigicrm-ui/src/router/index.js"
+H5_PICKER="$ROOT/aigicrm-ui/src/views/mp/FilePicker.vue"
 CACHE="$ROOT/aigicrm-miniprogram/utils/file-cache.js"
 CONTROLLER="$ROOT/aigicrm-backend/src/main/java/com/aigicrm/module/file/controller/FileController.java"
 MANIFEST="$ROOT/docs/unified-feature-manifest.md"
@@ -240,4 +244,23 @@ grep -Fq '@PostMapping("/{id}/share")' "$CONTROLLER" || fail 'backend file share
 grep -Fq '@PostMapping("/{id}/replace")' "$CONTROLLER" || fail 'backend file replace route disappeared'
 grep -Fq '`file.folderManage` | 文件 | 文件夹面板管理 | `pages/files/index` 与 `pages/files/folder-form/index`' "$MANIFEST" || fail 'file folderManage manifest does not point to mobile folder management'
 grep -Fq '`file.aclView` | 文件 | 文件夹 ACL 弹窗只读 | `pages/files/index` 只读 ACL 弹窗' "$MANIFEST" || fail 'file aclView manifest does not protect mobile read-only ACL view'
+
+# 【手机文件上传 2026-11-02 用户令"调用上传手机文件的接口"】三入口+H5 选传页+web-view 容器:
+# 微信小程序无手机文件系统 API(官方仅 chooseMessageFile/chooseMedia), 经 H5 /mp-file-picker
+# 的 <input type=file> 调起手机文件选择器直传; 三入口 actionSheet 形态与各链路钉死防回退。
+grep -Fq "'手机文件', '从相册选择', '从聊天选择'" "$PAGE" || fail 'mobile file upload three-entry action sheet disappeared'
+grep -Fq 'pickFromDevice' "$PAGE" || fail 'mobile file device-picker entry disappeared'
+grep -Fq 'wx.chooseMedia' "$PAGE" || fail 'mobile file album entry (chooseMedia) disappeared'
+grep -Fq 'this.pickFromChat()' "$PAGE" || fail 'mobile file chat entry (chooseMessageFile) must stay as third entry'
+grep -Fq 'doUploadFile' "$PAGE" || fail 'mobile file unified upload segment disappeared'
+grep -Fq 'pages/files/picker/index' "$APPJSON" || fail 'mobile file picker web-view page not registered in app.json'
+grep -Fq "globalData.apiBaseUrl + '/mp-file-picker?'" "$PICKER" || fail 'picker page must load H5 from apiBaseUrl with token'
+grep -Fq 'forceRefresh.files = true' "$PICKER" || fail 'picker page must trigger PR-12 post-write refresh'
+grep -Fq "hasPermission('file:upload')" "$PICKER" || fail 'picker page must gate on file:upload (deep-link guard)'
+grep -Fq "path: '/mp-file-picker'" "$ROUTER" || fail 'PC router must register /mp-file-picker H5 page'
+grep -Fq "to.path === '/mp-file-picker'" "$ROUTER" || fail 'router guard must whitelist /mp-file-picker (URL-token auth)'
+grep -Fq "input.type = 'file'" "$H5_PICKER" || fail 'H5 picker must use native file input'
+grep -Fq '/api/file/upload' "$H5_PICKER" || fail 'H5 picker must upload to file upload endpoint'
+grep -Fq 'wx.miniProgram.navigateBack' "$H5_PICKER" || fail 'H5 picker must return to miniprogram after upload'
+grep -Fq 'MicroMessenger' "$H5_PICKER" || fail 'H5 picker must restrict to WeChat webview'
 echo 'PASS: mobile file high-risk boundary is aligned.'

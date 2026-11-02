@@ -49,7 +49,7 @@
 | `file.list` | 文件 | `/file` | `pages/files/index` ⟦更正 10-07:旧 file 页及重定向壳随 1b3c865b 死页面清理删除,无存量导航可达⟧ | `file:view` | 文件夹 ACL+负责人/分享 | 读取 | 已实现 |
 | `file.download` | 文件 | 文件列表/操作 | `pages/files/detail/index` | `file:view`+文件夹下载权 | 文件夹 ACL | 下载 | 已实现 |
 | `file.textView` | 文件 | 文本类文件在线查看(txt/csv/md/log/json, utf-8+GBK 回退, 2MB 读取/500KB 渲染护栏) | `pages/files/textview/index`(2026-10-17 MP 在线查看补全新增, 文件页/详情页/激励附件/上传页四入口跳入) | `file:view`+文件夹下载权(与 file.download 同口径, 先落盘再读) | 文件夹 ACL | 读取 | 已实现 |
-| `file.upload` | 文件 | 文件工具栏/弹窗 | `pages/files/index` | `file:upload`+文件夹 ACL | 文件夹 ACL | 上传 | 已实现 |
+| `file.upload` | 文件 | 文件工具栏/弹窗 | `pages/files/index`(2026-11-02 三入口 actionSheet: 手机文件/从相册 chooseMedia/从聊天 chooseMessageFile)+`pages/files/picker/index`(web-view H5 `/mp-file-picker`, 微信无手机文件系统 API 经 H5 `<input type=file>` 调起手机文件选择器直传) | `file:upload`+文件夹 ACL | 文件夹 ACL | 上传 | 已实现 |
 | `file.share` | 文件 | 文件行/弹窗分享 | `pages/files/index` 分享操作 | `file:share`+文件夹 ACL | 文件夹 ACL | 授予/分享 | 已实现 |
 | `file.replace` | 文件 | 文件行替换 | `pages/files/detail/index` 操作菜单 | `file:edit`+文件夹 ACL | 文件夹 ACL | 更新 | 已实现 |
 | `file.delete` | 文件 | 文件行删除 | `pages/files/index` 删除操作 | `file:delete`+文件夹 ACL | 文件夹 ACL | 删除 | 已实现 |

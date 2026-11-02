@@ -1,0 +1,2 @@
+<!-- web-view 自动铺满: 手机文件选择器由 H5 页(/mp-file-picker)承载 -->
+<web-view src="{{src}}"></web-view>

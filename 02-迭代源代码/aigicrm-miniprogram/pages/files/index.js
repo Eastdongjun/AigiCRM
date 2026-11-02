@@ -974,14 +974,52 @@ Page({
     if (!this.data.canUpload) return wx.showToast({ title: '没有文件上传权限', icon: 'none' })
     if (getApp().globalData.demoMode) return wx.showToast({ title: '演示模式暂不上传文件', icon: 'none' })
     if (this.data.uploading) return
+    // 【手机文件上传 2026-11-02 用户令"调用上传手机文件的接口"】三入口:
+    // 手机文件(web-view H5 文件选择器,调起手机文件管理器)/从相册(chooseMedia)/从聊天(chooseMessageFile 原通道)
+    wx.showActionSheet({
+      itemList: ['手机文件', '从相册选择', '从聊天选择'],
+      success: (res) => {
+        if (res.tapIndex === 0) return this.pickFromDevice()
+        if (res.tapIndex === 1) return this.pickFromAlbum()
+        this.pickFromChat()
+      },
+      fail: () => { /* 用户取消 */ }
+    })
+  },
+
+  // 手机文件: web-view 内嵌 H5(/mp-file-picker)用 <input type="file"> 调起手机文件选择器
+  pickFromDevice() {
+    const folderId = this.data.activeFolderId || ''
+    wx.navigateTo({ url: '/pages/files/picker/index?folderId=' + folderId + '&scope=' + this.activeFileScope() })
+  },
+
+  // 从相册选择: 图片/视频(chooseMedia, 含拍摄)
+  pickFromAlbum() {
+    wx.chooseMedia({
+      count: 1, mediaType: ['image', 'video'], sourceType: ['album', 'camera'],
+      success: (res) => {
+        const f = res.tempFiles && res.tempFiles[0]
+        if (f && f.tempFilePath) this.doUploadFile(f.tempFilePath)
+      },
+      fail: (error) => { if (error && error.errMsg && !error.errMsg.includes('cancel')) showError(error, '选择文件失败') }
+    })
+  },
+
+  // 从聊天选择: chooseMessageFile 原通道(微信小程序无法直接访问手机文件系统前的唯一文档入口,保留)
+  pickFromChat() {
     wx.chooseMessageFile({ count: 1, type: 'file', success: (result) => {
       const file = result.tempFiles && result.tempFiles[0]
       if (!file || !file.path) return
-      this.setData({ uploading: true })
-      wx.showLoading({ title: '上传中' })
-      // 【L17】loading 与 toast 共用原生单例：必须先 hideLoading 再 showToast，否则成功提示被 finally 里的 hideLoading 一并关掉
-      uploadFile(file.path, this.data.activeFolderId || null, this.activeFileScope()).then(() => { wx.hideLoading(); wx.showToast({ title: '上传成功', icon: 'success' }); this.data.activeFolderId ? this.openFolder({ currentTarget: { dataset: { id: this.data.activeFolderId, name: this.data.activeFolderName } } }) : this.loadFiles() }).catch((error) => { wx.hideLoading(); showError(error, '上传失败') }).finally(() => { this.setData({ uploading: false }) })
+      this.doUploadFile(file.path)
     }, fail: (error) => { if (error && error.errMsg && !error.errMsg.includes('cancel')) showError(error, '选择文件失败') } })
+  },
+
+  // 统一上传段(相册/聊天共用; 手机文件走 H5 页直传不经此)
+  doUploadFile(filePath) {
+    this.setData({ uploading: true })
+    wx.showLoading({ title: '上传中' })
+    // 【L17】loading 与 toast 共用原生单例：必须先 hideLoading 再 showToast，否则成功提示被 finally 里的 hideLoading 一并关掉
+    uploadFile(filePath, this.data.activeFolderId || null, this.activeFileScope()).then(() => { wx.hideLoading(); wx.showToast({ title: '上传成功', icon: 'success' }); this.data.activeFolderId ? this.openFolder({ currentTarget: { dataset: { id: this.data.activeFolderId, name: this.data.activeFolderName } } }) : this.loadFiles() }).catch((error) => { wx.hideLoading(); showError(error, '上传失败') }).finally(() => { this.setData({ uploading: false }) })
   },
   runDevUploadSmoke() {
     if (!this.data.canDevUploadSmoke) return wx.showToast({ title: '仅本地开发可用', icon: 'none' })
