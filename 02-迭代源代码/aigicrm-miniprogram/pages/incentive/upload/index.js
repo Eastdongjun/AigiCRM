@@ -623,7 +623,10 @@ Page({
     },
     refreshSubcatRecords() {
       const all = this.data.allRawRecords || []
-      const selectedChildId = this.data.selectedCategoryIndex // 全量 categories 中的 index
+      // 【修复】selectedCategoryIndex 是 categories 数组下标, 取出该分类的真实数据库 id 再匹配
+      const selectedCategory = this.data.categories && this.data.categories[this.data.selectedCategoryIndex]
+      const selectedChildId = selectedCategory && selectedCategory.id
+      if (!selectedChildId) { this.setData({ subcatRecords: [] }); return }
       const selected = all.filter((r) => {
         const cid = r.categoryId || r.childId
         return cid !== undefined && String(cid) === String(selectedChildId)

@@ -38,8 +38,8 @@
     <!-- right-panel: 已有记录列表(与 PC RecordTable 同构: 双行行卡) -->
     <view class="prp">
       <scroll-view class="prp-scroll" scroll-y>
-        <block wx:if="{{uploadView.showCategorySummary && uploadView.subcatRecords.length}}">
-          <view wx:for="{{uploadView.subcatRecords}}" wx:key="id" class="prp-row">
+        <block wx:if="{{uploadView.showCategorySummary && subcatRecords.length}}">
+          <view wx:for="{{subcatRecords}}" wx:key="id" class="prp-row">
             <view class="prp-main">
               <text class="prp-cat">{{item.categoryName}}</text>
               <text class="prp-meta" wx:if="{{item.industry || item.uploaderName}}">{{item.industry}}{{item.industry && item.uploaderName ? ' · ' : ''}}{{item.uploaderName}}</text>
@@ -50,7 +50,7 @@
             </view>
           </view>
         </block>
-        <view wx:if="{{uploadView.showCategorySummary && !uploadView.subcatRecords.length}}" class="prp-empty">
+        <view wx:if="{{uploadView.showCategorySummary && !subcatRecords.length}}" class="prp-empty">
           暂无已上传文件\n点击左侧子分类行的「上传」按钮开始
         </view>
         <view wx:if="{{!uploadView.showCategorySummary}}" class="prp-empty">← 点击左侧子分类</view>
