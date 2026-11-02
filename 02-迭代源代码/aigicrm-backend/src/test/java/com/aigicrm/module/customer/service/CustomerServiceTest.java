@@ -197,15 +197,17 @@ class CustomerServiceTest {
     }
 
     /**
-     * 【裁决 2026-09-24】最近开票日=纯推导字段: 任何角色(含 admin/customer:date:edit)经客户编辑接口
-     * 直改一律拒绝,纠错走财务页发票补录/作废——替换原"总监或行政可改"双轨(人工值会被重算静默覆盖)。
+     * 【裁决 2026-11-02 用户名单】最近开票日人工维护: 持 customer:invoice-date:edit(行政/总监/admin,
+     * 名单=毛颖娜/肖赟/李艳梅/马吉亮/admin)可直改——覆盖 2026-09-24"纯推导任何角色不可直改"裁决。
+     * 人工设定=新基准语义(与开票前移同款): 清零已批延期 + 按 max(注册日,新开票日)+360 重算保护期。
      */
     @Test
-    void update_rejectsManualLastInvoiceDateChange_evenForAdmin() {
+    void update_manualLastInvoiceDateChange_withInvoiceDateEditAuthority_setsNewBaseline() {
         BizCustomer existing = new BizCustomer();
         existing.setId(7L);
         existing.setLastInvoiceDate(java.time.LocalDate.of(2026, 1, 1));
         existing.setRegisterDate(java.time.LocalDate.of(2025, 6, 1));
+        existing.setApprovedExtendDays(30); // 已批延期必须被清零(新基准360天已覆盖,叠加=双重延长)
         BizCustomer requested = new BizCustomer();
         requested.setId(7L);
         requested.setLastInvoiceDate(java.time.LocalDate.of(2026, 9, 1));
@@ -223,10 +225,77 @@ class CustomerServiceTest {
                 customerMapper, mock(OrgScopeResolver.class), mock(BizContactMapper.class), access);
 
         try (org.mockito.MockedStatic<SecurityUtils> sec = org.mockito.Mockito.mockStatic(SecurityUtils.class)) {
+            sec.when(SecurityUtils::isAdmin).thenReturn(false);
+            sec.when(() -> SecurityUtils.hasAuthority("customer:invoice-date:edit")).thenReturn(true);
+            service.update(requested);
+            org.mockito.ArgumentCaptor<BizCustomer> cap = org.mockito.ArgumentCaptor.forClass(BizCustomer.class);
+            verify(customerMapper).updateById(cap.capture());
+            assertEquals(java.time.LocalDate.of(2026, 9, 1), cap.getValue().getLastInvoiceDate(), "人工设定的新基准必须落库");
+            assertEquals(0, cap.getValue().getApprovedExtendDays(), "新基准上已批延期必须清零");
+            assertEquals(java.time.LocalDate.of(2026, 9, 1).plusDays(360), cap.getValue().getExpireDate(),
+                    "到期日=新基准+360(未配置时默认保护天数)");
+        }
+    }
+
+    /** admin 直改同样放行(isAdmin 短路, 无需码)——2026-09-24"含admin一律拒绝"钉翻转 */
+    @Test
+    void update_manualLastInvoiceDateChange_adminAllowed() {
+        BizCustomer existing = new BizCustomer();
+        existing.setId(70L);
+        existing.setLastInvoiceDate(java.time.LocalDate.of(2026, 1, 1));
+        existing.setRegisterDate(java.time.LocalDate.of(2025, 6, 1));
+        BizCustomer requested = new BizCustomer();
+        requested.setId(70L);
+        requested.setLastInvoiceDate(java.time.LocalDate.of(2026, 10, 1));
+        requested.setRegisterDate(java.time.LocalDate.of(2025, 6, 1));
+
+        BizCustomerMapper customerMapper = mock(BizCustomerMapper.class);
+        when(customerMapper.selectById(70L)).thenReturn(existing);
+        when(customerMapper.selectByIdForUpdate(70L)).thenReturn(existing);
+        com.aigicrm.common.engine.CustomerAccessService access =
+                mock(com.aigicrm.common.engine.CustomerAccessService.class);
+        when(access.canEdit(70L)).thenReturn(true);
+        when(access.isInSeaPool(70L)).thenReturn(false);
+        CustomerService service = newService(mock(BizInvoiceMapper.class), mock(BizPaymentMapper.class),
+                customerMapper, mock(OrgScopeResolver.class), mock(BizContactMapper.class), access);
+
+        try (org.mockito.MockedStatic<SecurityUtils> sec = org.mockito.Mockito.mockStatic(SecurityUtils.class)) {
             sec.when(SecurityUtils::isAdmin).thenReturn(true);
-            sec.when(() -> SecurityUtils.hasAuthority("customer:date:edit")).thenReturn(true);
+            sec.when(() -> SecurityUtils.hasAuthority("customer:invoice-date:edit")).thenReturn(false);
+            service.update(requested);
+            verify(customerMapper).updateById(org.mockito.ArgumentMatchers.argThat((BizCustomer c) ->
+                    java.time.LocalDate.of(2026, 10, 1).equals(c.getLastInvoiceDate())));
+        }
+    }
+
+    /** 无码非 admin 直改仍拒绝(纯推导口径对名单外人不变), 文案指明授权与财务页两条正路 */
+    @Test
+    void update_rejectsManualLastInvoiceDateChange_withoutInvoiceDateEditAuthority() {
+        BizCustomer existing = new BizCustomer();
+        existing.setId(71L);
+        existing.setLastInvoiceDate(java.time.LocalDate.of(2026, 1, 1));
+        existing.setRegisterDate(java.time.LocalDate.of(2025, 6, 1));
+        BizCustomer requested = new BizCustomer();
+        requested.setId(71L);
+        requested.setLastInvoiceDate(java.time.LocalDate.of(2026, 9, 1));
+        requested.setRegisterDate(java.time.LocalDate.of(2025, 6, 1));
+
+        BizCustomerMapper customerMapper = mock(BizCustomerMapper.class);
+        when(customerMapper.selectById(71L)).thenReturn(existing);
+        when(customerMapper.selectByIdForUpdate(71L)).thenReturn(existing);
+        com.aigicrm.common.engine.CustomerAccessService access =
+                mock(com.aigicrm.common.engine.CustomerAccessService.class);
+        when(access.canEdit(71L)).thenReturn(true);
+        when(access.isInSeaPool(71L)).thenReturn(false);
+        CustomerService service = newService(mock(BizInvoiceMapper.class), mock(BizPaymentMapper.class),
+                customerMapper, mock(OrgScopeResolver.class), mock(BizContactMapper.class), access);
+
+        try (org.mockito.MockedStatic<SecurityUtils> sec = org.mockito.Mockito.mockStatic(SecurityUtils.class)) {
+            sec.when(SecurityUtils::isAdmin).thenReturn(false);
+            sec.when(() -> SecurityUtils.hasAuthority("customer:invoice-date:edit")).thenReturn(false);
+            sec.when(() -> SecurityUtils.hasAuthority("customer:date:edit")).thenReturn(true); // 持注册日码也不放行开票日
             BusinessException ex = assertThrows(BusinessException.class, () -> service.update(requested));
-            assertTrue(ex.getMessage().contains("由开票记录自动推导"));
+            assertTrue(ex.getMessage().contains("仅授权人员"), "拒绝文案须指明仅授权人员可维护: " + ex.getMessage());
         }
     }
 

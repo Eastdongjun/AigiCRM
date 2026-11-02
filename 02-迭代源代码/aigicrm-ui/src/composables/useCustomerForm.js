@@ -70,6 +70,9 @@ export function useCustomerForm() {
   const devTypeOptions = ref([])
   const isEdit = computed(() => !!route.params.id)
   const canEditProtectedDates = computed(() => !isEdit.value || userStore.isAdmin() || userStore.hasPermission('customer:date:edit'))
+  // 【裁决 2026-11-02 用户名单】最近开票日人工维护: customer:invoice-date:edit(行政/总监/admin)。
+  // 仅编辑态可改(新建默认留空口径不变——防从未开票客户被默认记为当天开票)
+  const canEditInvoiceDate = computed(() => isEdit.value && (userStore.isAdmin() || userStore.hasPermission('customer:invoice-date:edit')))
   // 【2026-08-10 池级权限】公海池内客户(status=sea)负责人不可改——后端会拒绝, 前端直接禁用防误导
   const isPoolCustomer = computed(() => customerStatus.value === 'sea')
   const detailQuery = computed(() => (route.query.from ? { from: route.query.from } : {}))
@@ -404,7 +407,7 @@ export function useCustomerForm() {
   return {
     formRef, dupInfo, loading, regions, offices, users, groupNameOptions,
     filteredOffices, regionValue, industryOptions, devTypeOptions,
-    isEdit, isPoolCustomer, canEditProtectedDates, detailQuery, contacts, contactErrors, form, rules,
+    isEdit, isPoolCustomer, canEditProtectedDates, canEditInvoiceDate, detailQuery, contacts, contactErrors, form, rules,
     indicatorForm, indicatorTotal, indicatorLoaded,
     devTypeTagStyle, devTypeTagText, onRegionChange,
     handleRegionChange, addContactRow, goBack, checkDup, handleSubmit, loadFormData,

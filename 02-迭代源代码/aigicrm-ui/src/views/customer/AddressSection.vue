@@ -22,9 +22,13 @@
         <el-date-picker v-model="form.registerDate" type="date" value-format="YYYY-MM-DD" placeholder="选择日期" style="width:100%" :disabled="!canEditProtectedDates" />
       </el-form-item>
       <el-form-item label="最近开票日">
-        <!-- 裁决 2026-09-24: 纯推导字段(最后一次非作废开票),任何角色不可直改;补录/作废走客户详情「开票回款」页签 -->
-        <el-input :model-value="form.lastInvoiceDate || '尚未开票'" disabled class="derived-input" />
-        <div class="field-hint">由开票记录自动推导（较晚于注册日者 + 360 天计保护期）；如需修正请到客户详情「开票回款」页签补录或作废发票</div>
+        <!-- 【裁决 2026-11-02 用户名单】持 customer:invoice-date:edit(行政/总监/admin)可人工维护:
+             设定=新基准(清零已批延期+重算保护期), 与开票自动推导"只前进"共存; 其余角色仍只读展示 -->
+        <el-date-picker v-if="canEditInvoiceDate" v-model="form.lastInvoiceDate" type="date" value-format="YYYY-MM-DD" placeholder="尚未开票(可留空)" style="width:100%" clearable />
+        <el-input v-else :model-value="form.lastInvoiceDate || '尚未开票'" disabled class="derived-input" />
+        <div class="field-hint">{{ canEditInvoiceDate
+          ? '人工设定=新基准：将清零已批延期并按 max(注册日, 此日期) + 360 天重算保护期；后续更晚的开票仍会自动前移'
+          : '由开票记录自动推导（较晚于注册日者 + 360 天计保护期）；如需修正请到客户详情「开票回款」页签补录或作废发票' }}</div>
       </el-form-item>
     </div>
   </div>
@@ -34,7 +38,7 @@
 import { injectCustomerForm } from '@/composables/useCustomerForm'
 import './add-common.css'
 
-const { form, regionValue, regionData, canEditProtectedDates, handleRegionChange } = injectCustomerForm()
+const { form, regionValue, regionData, canEditProtectedDates, canEditInvoiceDate, handleRegionChange } = injectCustomerForm()
 </script>
 
 <style scoped>

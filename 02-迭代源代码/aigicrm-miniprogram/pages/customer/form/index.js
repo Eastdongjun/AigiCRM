@@ -118,7 +118,7 @@ Page({
     coreThresholdTip: CORE_THRESHOLD_TIP,
     industryIndex: -1, devTypeIndex: 0, terminalIndex: 0,
     regionIndex: -1, officeIndex: -1, ownerIndex: -1, managerIndex: -1, groupIndex: -1,
-    region: [], deptName: '', customerStatus: '', isPoolCustomer: false, originalOwnerId: null, canEditDates: true,
+    region: [], deptName: '', customerStatus: '', isPoolCustomer: false, originalOwnerId: null, canEditDates: true, canEditInvoiceDate: false,
     checkingName: false,
     dupInfo: { exists: false, createdBy: '', createdAt: '' },
     formView: buildFormView({
@@ -152,8 +152,11 @@ Page({
     this.setData({
       id,
       isEdit: !!id,
-      // 编辑态注册日/最近开票日仅 admin 或 customer:date:edit 可改（与 PC canEditProtectedDates 一致）
-      canEditDates: !id || getApp().globalData.demoMode || isAdmin() || hasPermission('customer:date:edit')
+      // 编辑态注册日仅 admin 或 customer:date:edit 可改（与 PC canEditProtectedDates 一致）
+      canEditDates: !id || getApp().globalData.demoMode || isAdmin() || hasPermission('customer:date:edit'),
+      // 【裁决 2026-11-02 用户名单】最近开票日人工维护: customer:invoice-date:edit(行政/总监/admin);
+      // 仅编辑态可改(新建默认留空口径不变), 与 PC canEditInvoiceDate 一致
+      canEditInvoiceDate: Boolean(id) && (getApp().globalData.demoMode || isAdmin() || hasPermission('customer:invoice-date:edit'))
     }, () => this.refreshFormView())
     // 【A4 三轮 2026-10-09】导航栏标题与 PC 对齐（新增客户/编辑客户）：原固定「客户表单」，PC 无此概念
     wx.setNavigationBarTitle({ title: id ? '编辑客户' : '新增客户' })

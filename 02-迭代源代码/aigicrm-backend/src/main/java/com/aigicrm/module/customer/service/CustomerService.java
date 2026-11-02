@@ -653,7 +653,7 @@ public class CustomerService {
                 throw new BusinessException("客户状态/保护状态变更请通过归档、恢复、释放或保护期机制操作");
             }
         }
-        protectCustomerDateFields(existing, customer);
+        boolean invoiceDateManuallyChanged = protectCustomerDateFields(existing, customer);
         // 【P2-2 2026-08-12 A3】始终按最终负责人(请求显式或库内现有)重同步 dept_id——
         // 负责人变更(admin 转交)与负责人部门调整都跟随; owner 无部门时显式清空,
         // 不再遗留旧负责人部门(原实现仅 admin 且 owner 变更时才同步, 且空部门跳过)。
@@ -666,8 +666,9 @@ public class CustomerService {
         //   无基准日(极端 legacy 行)时保持 null, updateById 只写非 null 字段即保留库内值,
         //   请求体任何情况下都不可直写到期日。
         // 合法写入点(不受本冻结影响): 审批通过累加(ApprovalService)、捞取回私海清零(SeaService)、
-        // 开票基准前移清零(advanceLastInvoiceDate)。
-        customer.setApprovedExtendDays(existing.getApprovedExtendDays());
+        // 开票基准前移清零(advanceLastInvoiceDate)、人工维护新基准清零(customer:invoice-date:edit, 2026-11-02)。
+        // Integer.valueOf 防三元 int/Integer 混合拆箱 NPE(既有用例 existing.approvedExtendDays=null 常态)
+        customer.setApprovedExtendDays(invoiceDateManuallyChanged ? Integer.valueOf(0) : existing.getApprovedExtendDays());
         customer.setExpireDate(null);
         customer.setAdjustDate(null);
         calculateExpireDates(customer);
@@ -683,24 +684,38 @@ public class CustomerService {
         return requested != null && !requested.equals(existing);
     }
 
-    private void protectCustomerDateFields(BizCustomer existing, BizCustomer requested) {
-        // 【裁决 2026-09-24】最近开票日=纯推导字段(refreshLastInvoiceDate 以最后一次非作废开票维护):
-        // 任何角色(含 admin/customer:date:edit 持有者)不得经客户编辑接口直改,
-        // 纠错走财务页发票补录/作废——替换原"总监或行政可改"的双轨(人工改值会被下次开票重算静默覆盖)。
-        if (fieldChanged(existing.getLastInvoiceDate(), requested.getLastInvoiceDate())) {
-            throw new BusinessException("最近开票日由开票记录自动推导，请在客户财务页补录或作废发票");
+    /**
+     * @return true=本次请求人工改了最近开票日(调用方据此清零已批延期——新基准 360 天已覆盖旧延期,
+     *         叠加会双重延长; 到期日统一由 update 末尾的 calculateExpireDates 重算, 此处不重复算)
+     */
+    private boolean protectCustomerDateFields(BizCustomer existing, BizCustomer requested) {
+        // 【裁决 2026-11-02 用户名单】最近开票日人工维护: 持 customer:invoice-date:edit(行政/总监/admin
+        // 绑定, 名单=毛颖娜/肖赟/李艳梅/马吉亮/admin)可直改——覆盖 2026-09-24"纯推导任何角色不可直改"裁决。
+        // 人工设定=新基准语义(与开票前移同款); 自动推导"只前进"与其共存(更晚开票照常前移, 作废回算跟随剩余真实票)。
+        boolean invoiceDateManuallyChanged = fieldChanged(existing.getLastInvoiceDate(), requested.getLastInvoiceDate());
+        if (invoiceDateManuallyChanged && !canEditInvoiceDate()) {
+            throw new BusinessException("最近开票日由开票记录自动推导，仅授权人员可维护（或经客户财务页补录/作废发票调整）");
         }
-        requested.setLastInvoiceDate(existing.getLastInvoiceDate());
+        if (!invoiceDateManuallyChanged) {
+            requested.setLastInvoiceDate(existing.getLastInvoiceDate());
+        }
         // 注册日仍为受控可改字段: customer:date:edit 权限(总监0/行政05/admin 绑定)
-        if (canMaintainProtectedCustomerDates()) return;
-        if (fieldChanged(existing.getRegisterDate(), requested.getRegisterDate())) {
-            throw new BusinessException("注册日录入后仅总监或行政可修改");
+        if (!canMaintainProtectedCustomerDates()) {
+            if (fieldChanged(existing.getRegisterDate(), requested.getRegisterDate())) {
+                throw new BusinessException("注册日录入后仅总监或行政可修改");
+            }
+            requested.setRegisterDate(existing.getRegisterDate());
         }
-        requested.setRegisterDate(existing.getRegisterDate());
+        return invoiceDateManuallyChanged;
     }
 
     private boolean canMaintainProtectedCustomerDates() {
         return SecurityUtils.isAdmin() || SecurityUtils.hasAuthority("customer:date:edit");
+    }
+
+    /** 【2026-11-02】最近开票日人工维护权限 */
+    private boolean canEditInvoiceDate() {
+        return SecurityUtils.isAdmin() || SecurityUtils.hasAuthority("customer:invoice-date:edit");
     }
 
     /**
