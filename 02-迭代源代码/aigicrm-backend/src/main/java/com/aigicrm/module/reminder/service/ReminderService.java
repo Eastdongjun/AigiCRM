@@ -486,6 +486,8 @@ public class ReminderService {
         BizReminder reminder = reminderMapper.selectById(id);
         if (reminder == null) return;
         assertVisible(reminder, "无权处理该提醒");
+        // 【P2 修复 2026-11-02】已处理提醒幂等跳过: 原无状态守卫, 重复点"处理"会反复覆盖 processedAt
+        if (!"pending".equals(reminder.getStatus())) return;
         reminder.setStatus("processed");
         reminder.setProcessedAt(LocalDateTime.now());
         reminderMapper.updateById(reminder);

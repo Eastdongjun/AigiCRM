@@ -216,48 +216,50 @@ class StatisticsQueryServiceTest {
     }
 
     /**
-     * 【2026-09-23 回归】客户排行的四项服务聚合=激励模块分享制(本人+他人shared=1)，
-     * 不再按客户数据可见性收口。修复前：记录被 visibleCustomers 过滤，登录人名下之外的客户
-     * 激励行被整体剔除——SELF/team 销售打开客户排行"只看得到自己的，看不到别人的"。
+     * 【口径统一 2026-11-02 用户裁决选项一】客户排行三类(四项服务/客情/六项指标)=客户可见范围同基线:
+     * 你能看到哪些客户, 排行就按哪些客户算。曾于 2026-09-23 由 G2 改分享制(销售反馈"只看到自己客户"),
+     * 2026-11-02 用户拍板三类排行统一客户可见范围——分享记录引用的范围外客户不再进入排行。
+     * (激励个人排行维持公司级=2026-09-24"允许暴露"裁决, 不属客户维度)
      */
     @Test
-    void customerRankingsIncentiveAggregationUsesShareVisibilityNotCustomerScope() {
-        var othersCustomer = new com.aigicrm.module.customer.entity.BizCustomer();
-        othersCustomer.setId(999L);
-        othersCustomer.setOwnerId(8L);
-        othersCustomer.setCustomerName("他人负责客户");
-        othersCustomer.setIndustry("煤矿");
+    void customerRankingsIncentiveAggregationUsesCustomerVisibilityBaseline() {
+        var visibleCustomer = new com.aigicrm.module.customer.entity.BizCustomer();
+        visibleCustomer.setId(500L);
+        visibleCustomer.setOwnerId(7L);
+        visibleCustomer.setCustomerName("可见客户");
+        visibleCustomer.setIndustry("煤矿");
+        var visibleRecord = new com.aigicrm.module.incentive.entity.BizIncentiveRecord();
+        visibleRecord.setCustomerId(500L);
+        visibleRecord.setUserId(7L);
+        visibleRecord.setShared(1);
+        visibleRecord.setScore(5);
+        // 范围外客户的"已分享"记录: 旧分享制口径会进排行, 新基线必须剔除
         var sharedRecord = new com.aigicrm.module.incentive.entity.BizIncentiveRecord();
         sharedRecord.setCustomerId(999L);
         sharedRecord.setUserId(8L);
         sharedRecord.setShared(1);
-        sharedRecord.setScore(5);
+        sharedRecord.setScore(9);
 
         when(incentiveCategoryMapper.selectList(null)).thenReturn(List.of());
         when(incentiveRecordMapper.selectList(org.mockito.ArgumentMatchers.<com.baomidou.mybatisplus.core.conditions.Wrapper<com.aigicrm.module.incentive.entity.BizIncentiveRecord>>any()))
-                .thenReturn(List.of(sharedRecord));
-        when(customerMapper.selectBatchIds(org.mockito.ArgumentMatchers.<java.util.Collection<Long>>any()))
-                .thenReturn(List.of(othersCustomer));
+                .thenReturn(List.of(visibleRecord, sharedRecord));
         var owner = new com.aigicrm.module.system.entity.SysUser();
-        owner.setId(8L);
-        owner.setRealName("张三");
+        owner.setId(7L);
+        owner.setRealName("本人");
         when(userMapper.selectBatchIds(org.mockito.ArgumentMatchers.<java.util.Collection<Long>>any()))
                 .thenReturn(List.of(owner));
-        // indicatorStats(客情/指标排行)内部依赖: 全空,聚焦激励排行断言
-        when(customerService.getAllActiveCustomers()).thenReturn(List.of());
+        // 客户可见范围=仅 500(999 在范围外, 即使记录 shared=1 也不进排行)
+        when(customerService.getAllActiveCustomers()).thenReturn(List.of(visibleCustomer));
         when(indicatorMapper.selectList(null)).thenReturn(List.of());
         when(stageAmountMapper.selectList(org.mockito.ArgumentMatchers.any())).thenReturn(List.of());
 
         var result = service.customerRankings(null);
 
-        // 他人客户(登录人不可见范围)的激励行必须出现——口径=激励分享制,非客户可见性
         @SuppressWarnings("unchecked")
         var incentiveRanking = (List<java.util.Map<String, Object>>) result.get("incentiveRanking");
-        assertEquals(1, incentiveRanking.size());
-        assertEquals(999L, incentiveRanking.get(0).get("customerId"));
+        assertEquals(1, incentiveRanking.size(), "范围外客户的分享记录不得进入排行(2026-11-02 统一基线)");
+        assertEquals(500L, incentiveRanking.get(0).get("customerId"));
         assertEquals(5, incentiveRanking.get(0).get("totalScore"));
-        // 过滤确实委托给激励模块单源(applyShareVisibility),统计侧不再自造口径
-        verify(incentiveService).applyShareVisibility(org.mockito.ArgumentMatchers.<com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<com.aigicrm.module.incentive.entity.BizIncentiveRecord>>any());
     }
 
     @Test

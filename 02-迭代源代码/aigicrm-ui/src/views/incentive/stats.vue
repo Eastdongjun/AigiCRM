@@ -38,6 +38,7 @@
 <script setup>
 import { provide, onMounted, watch } from 'vue'
 import { useIncentiveStats, IncentiveStatsKey } from '@/composables/useIncentiveStats'
+import { useLiveRefresh } from '@/composables/useLiveRefresh'
 import StatsCards from './StatsCards.vue'
 import StatsTableView from './StatsTableView.vue'
 import RankTableView from './RankTableView.vue'
@@ -51,6 +52,8 @@ const { loading, activeTab, period, periodOptions, loadData } = stats
 
 watch(period, loadData)
 onMounted(loadData)
+// 【非实时 A 方案 2026-11-02】激励统计聚焦重拉+30s 轮询(页面可见时; 后端 scoreboard 30s 缓存命中为主)
+useLiveRefresh(loadData)
 </script>
 
 <style scoped>

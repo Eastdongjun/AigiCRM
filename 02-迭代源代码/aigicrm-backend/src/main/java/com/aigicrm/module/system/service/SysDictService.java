@@ -24,6 +24,21 @@ public class SysDictService {
     private final SysDictDataMapper dictDataMapper;
     private final BizCustomerMapper customerMapper;
 
+    /** 【P2 修复 2026-11-02】同一字典类型内 dictLabel/dictValue 唯一(编辑时排除自身) */
+    private void assertDictDataUnique(SysDictData data) {
+        if (data.getDictTypeId() == null) return;
+        for (SysDictData existing : dictDataMapper.selectList(new LambdaQueryWrapper<SysDictData>()
+                .eq(SysDictData::getDictTypeId, data.getDictTypeId()))) {
+            if (data.getId() != null && data.getId().equals(existing.getId())) continue;
+            if (data.getDictLabel() != null && data.getDictLabel().equals(existing.getDictLabel())) {
+                throw new BusinessException("字典标签「" + data.getDictLabel() + "」在该类型下已存在");
+            }
+            if (data.getDictValue() != null && data.getDictValue().equals(existing.getDictValue())) {
+                throw new BusinessException("字典键值「" + data.getDictValue() + "」在该类型下已存在");
+            }
+        }
+    }
+
     // 字典code → 客户表字段的映射
     private static final Map<String, String> DICT_COLUMN_MAP = Map.of(
             "industry", "industry",
@@ -82,6 +97,9 @@ public class SysDictService {
     }
 
     public void createData(SysDictData data) {
+        // 【P2 修复 2026-11-02】字典项查重: 同一字典类型内 dictLabel/dictValue 均不得重复
+        // (原无查重, 可录重复项致下拉同名/引用键歧义)
+        assertDictDataUnique(data);
         dictDataMapper.insert(data);
     }
 
@@ -89,6 +107,7 @@ public class SysDictService {
     public void updateData(SysDictData data) {
         // 查旧值，判断 dictValue 是否变了
         SysDictData old = dictDataMapper.selectById(data.getId());
+        assertDictDataUnique(data);
         dictDataMapper.updateById(data);
 
         if (old != null && old.getDictValue() != null

@@ -20,7 +20,6 @@
     "pages/customer/indicator/index",
     "pages/files/index",
     "pages/files/folder-form/index",
-    "pages/files/detail/index",
     "pages/files/textview/index",
     "pages/files/picker/index",
     "pages/incentive/index",

@@ -257,6 +257,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { getAnalysis } from '@/api/statistics'
 import { getScoreRanking } from '@/api/score'
+import { useLiveRefresh } from '@/composables/useLiveRefresh'
 import { getScopeDepts } from '@/api/system'
 // 【B6 三轮 2026-10-09】汇总数(年累计/月均/年度文件)统一千分位口径
 import { formatInt } from '@/utils/format'
@@ -411,6 +412,8 @@ const loadAll = async () => {
 }
 
 onMounted(loadAll)
+// 【非实时 A 方案 2026-11-02】统计页聚焦重拉+30s 轮询(页面可见时)
+useLiveRefresh(loadAll)
 </script>
 
 <style scoped>

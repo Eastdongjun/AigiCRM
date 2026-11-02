@@ -21,7 +21,8 @@
         <el-table-column label="操作" width="130" align="center" fixed="right">
           <template #default="{ row }">
             <el-button v-if="canEditGroup" link type="primary" size="small" @click="openDialog(row)">编辑</el-button>
-            <el-button v-if="canDeleteGroup" link type="danger" size="small" @click="handleDelete(row)">删除</el-button>
+            <!-- 【P2 修复 2026-11-02】后端 delete=置 status=0 软禁用(可重新启用恢复), 原文案"删除后不可恢复"与行为相反 -->
+            <el-button v-if="canDeleteGroup" link type="danger" size="small" @click="handleDelete(row)">禁用</el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -128,10 +129,10 @@ const handleSave = async () => {
 
 const handleDelete = async (row) => {
   try {
-    // 【UI 整改 2026-10-08】删除类确认走 confirmAction：红色确认钮 + 取消左置
-    await confirmAction(`确定删除集团「${row.groupName}」？删除后不可恢复。`, '删除确认', { confirmText: '删除' })
+    // 【P2 修复 2026-11-02】后端行为=软禁用(status=0), 文案与行为对齐; 重新编辑启用即恢复
+    await confirmAction(`确定禁用集团「${row.groupName}」？禁用后不可新建/选用，可随时重新启用。`, '禁用确认', { confirmText: '禁用' })
     await deleteGroup(row.id)
-    ElMessage.success('删除成功')
+    ElMessage.success('已禁用')
     loadData()
   } catch (e) {}
 }

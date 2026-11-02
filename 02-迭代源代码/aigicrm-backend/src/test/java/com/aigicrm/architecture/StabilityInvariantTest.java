@@ -128,15 +128,18 @@ class StabilityInvariantTest {
     }
 
     /**
-     * INV-SCOPE-001|激励可见性口径单源:统计客户排行复用 IncentiveService.applyShareVisibility
-     * 源自事故 2026-09-24:统计侧自造客户可见性过滤 → 与激励模块分享制两套口径打架(用户报"客户排行只看到自己")。
-     * 统计侧不得再自造激励记录过滤逻辑。
+     * INV-SCOPE-001|统计客户排行口径单源:三类排行(四项服务/客情/六项指标)统一客户可见范围基线
+     * 演进: 2026-09-24 分享制单源(applyShareVisibility 复用) → 【2026-11-02 用户裁决选项一】三类排行
+     * 统一"客户可见范围"(visibleCustomers 同一入口, 与客情/指标 G2 同基线)——统计侧不得自造过滤,
+     * 也不得回退分享制(单页丰富度让位于全系统数据边界一致)。
      */
     @Test
     void incentiveVisibility_singleSourceOfTruth() {
         String src = readSource("com/aigicrm/module/statistics/service/StatisticsQueryService.java", "StatisticsQueryService");
-        assertTrue(src.contains("incentiveService.applyShareVisibility"),
-                "INV-SCOPE-001: 客户排行激励聚合必须复用激励模块的 applyShareVisibility(口径单源)");
+        assertTrue(src.contains("visibleCustomers(customerService.getAllActiveCustomers())"),
+                "INV-SCOPE-001: 客户排行三类必须统一走 visibleCustomers 客户可见范围基线(2026-11-02 裁决选项一)");
+        assertTrue(!src.contains("applyShareVisibility(recordWrapper)"),
+                "INV-SCOPE-001: 统计客户排行不得回退分享制过滤");
     }
 
     /**

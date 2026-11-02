@@ -647,25 +647,15 @@ public class StatisticsQueryService {
         LambdaQueryWrapper<BizIncentiveRecord> recordWrapper = new LambdaQueryWrapper<>();
         recordWrapper.isNotNull(BizIncentiveRecord::getCustomerId);
         if (period != null && !period.isBlank()) recordWrapper.eq(BizIncentiveRecord::getPeriod, period);
-        // 【2026-09-23 口径对齐】四项服务聚合改走激励模块分享制(admin/专项授权→全部；否则本人+他人shared=1)。
-        // 原 G2(2026-09-21) 按客户数据可见性收口: SELF/team 销售的激励排行只剩名下客户 → 用户实测
-        // "客户排行只看得到自己的"；与激励统计页客户排行Tab(getCustomerRecords 分享制)及同页
-        // 个人排行(全员)口径冲突。分享记录引用的他人客户允许展示客户名(与 getCustomerRecords 一致)；
-        // 指标/客情排行(indicatorStats)维持 G2 客户可见性口径不变。
-        incentiveService.applyShareVisibility(recordWrapper);
-        List<BizIncentiveRecord> records = incentiveRecordMapper.selectList(recordWrapper);
-
-        // 行基底=分享可见记录引用的客户(批量取,含当前账号数据范围外的客户;ownerName 为 exist=false 字段需回填)
-        Set<Long> referencedIds = new HashSet<>();
-        for (BizIncentiveRecord r : records) {
-            if (r.getCustomerId() != null) referencedIds.add(r.getCustomerId());
-        }
+        // 【口径统一 2026-11-02 用户裁决选项一】四项服务客户排行=客户可见范围(与客情/六项指标 G2 同基线):
+        // 你能看到哪些客户, 三类排行就按哪些客户算。曾于 2026-09-23 由 G2 改分享制(销售反馈
+        // "客户排行只看得到自己的"), 2026-11-02 用户拍板三类排行统一客户可见范围基线——单页丰富度
+        // 让位于全系统数据边界一致; 分享记录引用的范围外客户不再进入本排行。
+        // (激励个人排行维持公司级聚合=2026-09-24"允许暴露"裁决, 不属客户维度, 不受本口径影响)
         Map<Long, BizCustomer> customerMap = new HashMap<>();
-        if (!referencedIds.isEmpty()) {
-            for (BizCustomer c : customerMapper.selectBatchIds(referencedIds)) customerMap.put(c.getId(), c);
-            fillCustomerOwnerNames(customerMap.values());
-        }
-        records = records.stream()
+        for (BizCustomer c : visibleCustomers(customerService.getAllActiveCustomers())) customerMap.put(c.getId(), c);
+        if (!customerMap.isEmpty()) fillCustomerOwnerNames(customerMap.values());
+        List<BizIncentiveRecord> records = incentiveRecordMapper.selectList(recordWrapper).stream()
                 .filter(r -> r.getCustomerId() != null && customerMap.containsKey(r.getCustomerId()))
                 .collect(java.util.stream.Collectors.toList());
         Map<Long, Map<String, Object>> incentiveRows = new LinkedHashMap<>();

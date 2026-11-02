@@ -3,7 +3,7 @@ package com.aigicrm.common.enums;
 import lombok.Getter;
 
 /**
- * 数据权限范围枚举（六级）
+ * 数据权限范围枚举（七档有效值 + 2 个 @Deprecated 废弃常量）
  *
  * 声明序即宽松度降序: all < custom < region < office < dept < team < self
  * （注意：2 个 @Deprecated 常量 ORG_AND_CHILDREN/ORG 夹在 DEPT 与 TEAM 之间，

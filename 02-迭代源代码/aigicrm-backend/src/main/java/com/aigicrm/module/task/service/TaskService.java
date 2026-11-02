@@ -131,6 +131,10 @@ public class TaskService {
         if ("completed".equals(task.getStatus())) {
             throw new BusinessException("已完成的任务不能取消");
         }
+        // 【P2 修复 2026-11-02】已取消任务不能重复取消(原漏挡, 重复取消会反复覆盖取消原因)
+        if ("cancelled".equals(task.getStatus())) {
+            throw new BusinessException("该任务已取消");
+        }
         task.setStatus("cancelled");
         task.setCompletionNote("取消原因: " + reason.trim());
         taskMapper.updateById(task);
@@ -140,6 +144,13 @@ public class TaskService {
     @Transactional
     public void transfer(Long id, Long newAssigneeId) {
         BizTask task = getOwnOrManaged(id);
+        // 【P2 修复 2026-11-02】终态任务不可转交(原无守卫, 已完成/已取消仍可换人制造僵尸归属)
+        if ("completed".equals(task.getStatus())) {
+            throw new BusinessException("已完成的任务不能转交");
+        }
+        if ("cancelled".equals(task.getStatus())) {
+            throw new BusinessException("已取消的任务不能转交");
+        }
         SysUser newAssignee = userMapper.selectById(newAssigneeId);
         if (newAssignee == null || newAssignee.getStatus() == null || newAssignee.getStatus() != 1) {
             throw new BusinessException("新责任人不存在或已停用");

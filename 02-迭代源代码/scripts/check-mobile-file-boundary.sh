@@ -11,7 +11,6 @@ FOLDER_FORM="$ROOT/aigicrm-miniprogram/pages/files/folder-form/index.js"
 FOLDER_FORM_WXML="$ROOT/aigicrm-miniprogram/pages/files/folder-form/index.wxml"
 LEGACY_PAGE="$ROOT/aigicrm-miniprogram/pages/file/index.js"
 LEGACY_WXML="$ROOT/aigicrm-miniprogram/pages/file/index.wxml"
-DETAIL="$ROOT/aigicrm-miniprogram/pages/files/detail/index.js"
 PICKER="$ROOT/aigicrm-miniprogram/pages/files/picker/index.js"
 APPJSON="$ROOT/aigicrm-miniprogram/app.json"
 ROUTER="$ROOT/aigicrm-ui/src/router/index.js"
@@ -170,21 +169,13 @@ grep -Fq 'fileView.showManageEmpty' "$WXML" || fail 'mobile file folder manageme
 ! grep -Fq 'fileView.folders.length' "$WXML" || fail 'mobile file WXML must not inspect folder array length directly'
 ! grep -Fq 'item.uploaderName ||' "$WXML" || fail 'mobile file WXML must not duplicate uploader fallback logic'
 ! grep -Fq "activeTab !== '共享给我'" "$WXML" || fail 'mobile file WXML must not duplicate shared-tab action visibility logic'
-grep -Fq 'getDownloadUrl' "$DETAIL" || fail 'mobile file detail no longer supports path-download fallback'
-# 【mp-0 2026-10-18】参数统一走 safeDecodeParam（单次解码+非法转义回退），不再裸 decodeURIComponent
-grep -Fq 'uploaderName: safeDecodeParam' "$DETAIL" || fail 'mobile file detail no longer receives uploader metadata'
-grep -Fq 'updatedAt: safeDecodeParam' "$DETAIL" || fail 'mobile file detail no longer receives updated time metadata'
-grep -Fq 'buildDetailView' "$DETAIL" || fail 'mobile file detail must normalize view state before WXML'
-grep -Fq 'setDetailData' "$DETAIL" || fail 'mobile file detail must refresh normalized view state with data changes'
-grep -Fq 'detailView.typeText' "$ROOT/aigicrm-miniprogram/pages/files/detail/index.wxml" || fail 'mobile file detail must display normalized file type text'
-grep -Fq 'detailView.uploaderNameText' "$ROOT/aigicrm-miniprogram/pages/files/detail/index.wxml" || fail 'mobile file detail must display normalized uploader text'
-grep -Fq '上传者' "$ROOT/aigicrm-miniprogram/pages/files/detail/index.wxml" || fail 'mobile file detail no longer displays uploader metadata'
-grep -Fq '更新时间' "$ROOT/aigicrm-miniprogram/pages/files/detail/index.wxml" || fail 'mobile file detail no longer displays updated time metadata'
-! grep -Fq 'type ||' "$ROOT/aigicrm-miniprogram/pages/files/detail/index.wxml" || fail 'mobile file detail WXML must not duplicate type fallback logic'
-! grep -Fq 'folder ||' "$ROOT/aigicrm-miniprogram/pages/files/detail/index.wxml" || fail 'mobile file detail WXML must not duplicate folder fallback logic'
-! grep -Fq 'size ||' "$ROOT/aigicrm-miniprogram/pages/files/detail/index.wxml" || fail 'mobile file detail WXML must not duplicate size fallback logic'
-! grep -Fq 'uploaderName ||' "$ROOT/aigicrm-miniprogram/pages/files/detail/index.wxml" || fail 'mobile file detail WXML must not duplicate uploader fallback logic'
-! grep -Fq 'updatedAt ||' "$ROOT/aigicrm-miniprogram/pages/files/detail/index.wxml" || fail 'mobile file detail WXML must not duplicate update-time fallback logic'
+# 【P2 清理 2026-11-02】pages/files/detail 死页删除(全端零导航实证, 文件预览一步打开后退役):
+# 防复活钉——目录不得回归; MP 替换通道(api replaceFile)随之删除(后端端点保留)
+if [ -e "$ROOT/aigicrm-miniprogram/pages/files/detail" ]; then
+  fail 'mobile files/detail page was retired as dead navigation (P2 2026-11-02); do not revive'
+fi
+! grep -Fq 'replaceFile' "$API" || fail 'mobile file replace channel retired with dead detail page; backend endpoint stays'
+# (原 detail 页 WXML 规范化钉随死页删除, 2026-11-02)
 grep -Fq 'verify:file-center' "$AUTOMATOR_PACKAGE" || fail 'file center DevTools automator script is not exposed'
 grep -Fq 'verifyFileCenterPage' "$AUTOMATOR_SCRIPT" || fail 'file center DevTools automator does not verify page UI'
 grep -Fq 'mockWxMethod' "$AUTOMATOR_SCRIPT" || fail 'file center DevTools automator does not mock native file actions'
@@ -201,17 +192,15 @@ grep -Fq '2.8 MB' "$AUTOMATOR_SCRIPT" || fail 'file center DevTools automator do
 grep -Fq 'aclVisible: true' "$AUTOMATOR_SCRIPT" || fail 'file center DevTools automator does not verify folder ACL modal'
 # 【2026-10-26 重锚】用户令"一次点击一步打开"——automator 详情页跳转断言退役,
 # 改钉一步预览下载断言; 用户令"三个点不需要替换"——列表页替换入口/权限门/调用清退
-# (后端 replaceFile API 与详情页替换能力保留: 下方两处钉 API/详情页)
+# 【P2 2026-11-02 二次重锚】详情页(替换能力最后载体)作为死页删除, MP 替换 API 通道一并退役
+# (后端 /file/{id}/replace 端点保留待裁决)
 grep -Fq 'one-tap preview download missing' "$AUTOMATOR_SCRIPT" || fail 'file center DevTools automator does not verify one-tap preview download'
-grep -Fq 'replaceFile' "$API" || fail 'mobile file replace API contract disappeared'
 ! grep -Fq "hasPermission('file:edit')" "$PAGE" || fail 'file list replace permission gate was retired by user order (2026-10-26)'
 ! grep -Fq 'replaceListFile' "$PAGE" || fail 'file list replace action was retired by user order (2026-10-26)'
 ! grep -Fq "replaceFile(item.id, file.path)" "$PAGE" || fail 'file list replace call was retired by user order (2026-10-26)'
 # 【钉随需求A】行内 replaceListFile 收敛到操作面板 onSheetAction(JS 方法保留)
 grep -Fq 'catchtap="openActionSheet"' "$WXML" || fail 'mobile file list replace UI disappeared'
 ! grep -Fq 'replacingId===item.id' "$WXML" || fail 'mobile file WXML must not compare replacing id directly'
-grep -Fq "hasPermission('file:edit')" "$DETAIL" || fail 'mobile file replace permission gate disappeared'
-grep -Fq 'chooseMessageFile' "$DETAIL" || fail 'mobile file replace picker disappeared'
 grep -Fq "hasPermission('file:folder:manage')" "$PAGE" || fail 'mobile file folder manage permission gate disappeared'
 grep -Fq 'openFolderForm' "$PAGE" || fail 'mobile file folder create navigation disappeared'
 grep -Fq 'openFolderEdit' "$PAGE" || fail 'mobile file folder edit navigation disappeared'
@@ -234,7 +223,7 @@ grep -Fq '保存名称' "$FOLDER_FORM" || fail 'mobile file folder rename form c
 ! grep -Eq "id \\?|\\{\\{id|\\{\\{name\\}\\}|\\{\\{saving\\}\\}|maxlength=\"60\"" "$FOLDER_FORM_WXML" \
   || fail 'mobile file folder form WXML must not keep id/name/saving fallback logic'
 grep -Fq "showError(error, '分享失败')" "$PAGE" || fail 'mobile file share failure feedback disappeared'
-grep -Fq 'catch((error) => showError(error, '\''替换失败'\''))' "$DETAIL" || fail 'mobile file replace failure feedback disappeared'
+# 【P2 2026-11-02】detail 页替换反馈钉随死页删除(见上方防复活钉)
 # 【2026-10-07 钉随代码】1b3c865b 死页面清理删除 pages/file 跳转壳(app.json 已无该注册, 无存量导航可达);
 # 兼容目标"不再有旧文件中心"由"页面不存在"达成, 保底防复活
 if [ -e "$LEGACY_PAGE" ] || [ -e "$LEGACY_WXML" ]; then

@@ -5,7 +5,8 @@
       <div class="rh-top">
         <div class="rh-left">
           <h2 class="rh-title">学分排行</h2>
-          <p class="rh-sub">按评分汇总展示个人与部门排行 · 数据周期 {{ selectedPeriod || '全部' }}</p>
+          <!-- 【P2 2026-11-02】周期必有值(默认全年), 原 || '全部' 为死兜底且"全部"选项已移除(09-12) -->
+          <p class="rh-sub">按评分汇总展示个人与部门排行 · 数据周期 {{ selectedPeriod }}</p>
         </div>
         <div class="rh-actions">
           <span class="rh-flbl">评分周期</span>
@@ -115,6 +116,7 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { getScoreRanking, getScoreRankingStats } from '@/api/score'
 import { buildPeriodOptions, defaultRecordPeriod } from '@/utils/incentive-period'
+import { useLiveRefresh } from '@/composables/useLiveRefresh'
 import { pageSizes } from '@/utils/pagination'
 
 const activeTab = ref('personal')
@@ -164,6 +166,8 @@ function trendIcon(value) {
 
 watch(activeTab, loadData)
 onMounted(loadData)
+// 【非实时 A 方案 2026-11-02】学分排行聚焦重拉+30s 轮询(页面可见时)
+useLiveRefresh(loadData)
 </script>
 
 <style scoped>

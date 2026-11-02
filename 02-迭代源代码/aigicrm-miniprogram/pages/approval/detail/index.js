@@ -250,7 +250,8 @@ Page({
       return
     }
     const request = type === 'approve' ? approveApproval : rejectApproval
-    request(approval.id, { comment: this.data.comment.trim() || '移动端处理' }).then(() => {
+    // 【P2 修复 2026-11-02】通过时空意见传空串(原回退'移动端处理'文案, 时间线里显示误导); 驳回仍强制原因(上方校验)
+    request(approval.id, { comment: this.data.comment.trim() }).then(() => {
       wx.showToast({ title: type === 'approve' ? '已通过' : '已驳回', icon: 'success' })
       setTimeout(() => wx.navigateBack(), 500)
     }).catch((error) => showError(error, '处理失败'))

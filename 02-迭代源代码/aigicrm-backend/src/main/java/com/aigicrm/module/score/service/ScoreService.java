@@ -291,10 +291,12 @@ public class ScoreService {
         List<Map<String, Object>> result = new ArrayList<>();
         int rank = 0;
         for (Map.Entry<Long, Integer> entry : sorted) {
-            rank++;
             Long uid = entry.getKey();
             SysUser user = userMapper.selectById(uid);
+            // 【P2 修复 2026-11-02】rank++ 先于用户判空: 软删用户被 continue 后名次跳号(1,3,4)。
+            // 判空通过才占名次, 趋势(prevRanks)口径同步不受影响。
             if (user == null) continue;
+            rank++;
 
             String officeName = "";
             if (user.getDeptId() != null) {
@@ -432,7 +434,7 @@ public class ScoreService {
             row.add(item.getScoreMin() + "-" + item.getScoreMax());
             for (SysUser u : allUsers) {
                 int score = scoreMap.getOrDefault(item.getId() + "_" + u.getId(), 0);
-                row.add(score > 0 ? score : null);
+                row.add(score); // 【P2 修复 2026-11-02】0 分导出为 0 而非空白(原 score>0?score:null 把 0 分当无分)
                 userTotals.merge(u.getId(), score, Integer::sum);
             }
             rows.add(row);
@@ -490,17 +492,13 @@ public class ScoreService {
     private String getPrevPeriod(String period) {
         if (period == null || period.isEmpty() || "全部".equals(period)) return null;
         try {
-            // "2026全年" → year=2026; 半年口径已退役(V2026.11.01.2 存量并入全年), 全年的上一期=上年全年
-            String yearStr = period.substring(0, 4);
-            int year = Integer.parseInt(yearStr);
-            if (period.contains("全年")) {
+            // 【P2 清理 2026-11-02】半年口径已退役(V2026.11.01.2 存量并入全年), 半年分支删除;
+            // 周期唯一形态="XXXX全年", 上一期=上年全年; 其他历史脏格式回退 null(无趋势)
+            if (period.length() >= 4 && period.endsWith("全年")) {
+                int year = Integer.parseInt(period.substring(0, 4));
                 return (year - 1) + "全年";
             }
-            if (period.contains("上")) {
-                return (year - 1) + "下半年";
-            } else {
-                return year + "上半年";
-            }
+            return null;
         } catch (Exception e) {
             return null;
         }

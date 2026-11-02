@@ -47,11 +47,11 @@
 | `task.view` | 待办任务 | `/task` 任务页;工作台任务统计角标 | `pages/home/index` 工作台任务区(`/api/task/list`、`/api/task/statistics`) | `task:view` | 本人任务(管理范围见 task.manage) | 读取/统计 | 已实现 ⟦补录 09-24:英文版整模块缺失,模块 09-19 上线且为 V2026.09.23.1 权限事故主角⟧ |
 | `task.manage` | 待办任务 | 任务页创建/完成/取消/转交 | 管理操作仅 PC | `task:manage` | 任务指派/管理范围 | 创建/完成/取消/编辑转交 | 管理操作 `PC-only` ⟦补录 09-24⟧ |
 | `file.list` | 文件 | `/file` | `pages/files/index` ⟦更正 10-07:旧 file 页及重定向壳随 1b3c865b 死页面清理删除,无存量导航可达⟧ | `file:view` | 文件夹 ACL+负责人/分享 | 读取 | 已实现 |
-| `file.download` | 文件 | 文件列表/操作 | `pages/files/detail/index` | `file:view`+文件夹下载权 | 文件夹 ACL | 下载 | 已实现 |
+| `file.download` | 文件 | 文件列表/操作 | `pages/files/index`(2026-11-02 重锚: 一步打开预览+下载缓存, 原 detail 死页已删) | `file:view`+文件夹下载权 | 文件夹 ACL | 下载 | 已实现 |
 | `file.textView` | 文件 | 文本类文件在线查看(txt/csv/md/log/json, utf-8+GBK 回退, 2MB 读取/500KB 渲染护栏) | `pages/files/textview/index`(2026-10-17 MP 在线查看补全新增, 文件页/详情页/激励附件/上传页四入口跳入) | `file:view`+文件夹下载权(与 file.download 同口径, 先落盘再读) | 文件夹 ACL | 读取 | 已实现 |
 | `file.upload` | 文件 | 文件工具栏/弹窗 | `pages/files/index`(2026-11-02 三入口 actionSheet: 手机文件/从相册 chooseMedia/从聊天 chooseMessageFile)+`pages/files/picker/index`(web-view H5 `/mp-file-picker`, 微信无手机文件系统 API 经 H5 `<input type=file>` 调起手机文件选择器直传) | `file:upload`+文件夹 ACL | 文件夹 ACL | 上传 | 已实现 |
 | `file.share` | 文件 | 文件行/弹窗分享 | `pages/files/index` 分享操作 | `file:share`+文件夹 ACL | 文件夹 ACL | 授予/分享 | 已实现 |
-| `file.replace` | 文件 | 文件行替换 | `pages/files/detail/index` 操作菜单 | `file:edit`+文件夹 ACL | 文件夹 ACL | 更新 | 已实现 |
+| `file.replace` | 文件 | 文件行替换 | **无前端入口(2026-11-02 P2 清理: PC 面板替换 2026-10-26 已去, MP 唯一入口死页已删——后端端点保留待裁决)** | `file:edit`+文件夹 ACL | 文件夹 ACL | 更新 | planned(无UI) |
 | `file.delete` | 文件 | 文件行删除 | `pages/files/index` 删除操作 | `file:delete`+文件夹 ACL | 文件夹 ACL | 删除 | 已实现 |
 | `file.folderManage` | 文件 | 文件夹面板管理 | `pages/files/index` 与 `pages/files/folder-form/index` | `file:folder:manage`+文件夹 ACL | 文件夹 ACL | 创建/更新/删除 | 已实现 |
 | `file.aclView` | 文件 | 文件夹 ACL 弹窗只读 | `pages/files/index` 只读 ACL 弹窗 | `file:acl:manage` | 文件夹管理 ACL | 读取权限 | 已实现 |

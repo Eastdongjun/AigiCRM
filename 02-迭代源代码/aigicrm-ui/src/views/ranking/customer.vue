@@ -136,6 +136,7 @@ import { computed, onMounted, ref } from 'vue'
 import { getCustomerRankings } from '@/api/statistics'
 import { buildPeriodOptions, periodQueryValue } from '@/utils/incentive-period'
 import { getDictData } from '@/api/system'
+import { useLiveRefresh } from '@/composables/useLiveRefresh'
 import { RELATIONSHIP_OPTIONS_FALLBACK, fetchRelationshipOptions } from '@/utils/customer-fields'
 
 const loading = ref(false)
@@ -197,6 +198,8 @@ onMounted(() => {
   // 局限: FALLBACK 非响应式, fetch 晚于首次渲染时标签随下一次重渲染(切tab/翻页)更新。
   fetchRelationshipOptions(getDictData)
 })
+// 【非实时 A 方案 2026-11-02】客户排行聚焦重拉+30s 轮询(页面可见时)
+useLiveRefresh(loadData)
 </script>
 
 <style scoped>
