@@ -32,21 +32,23 @@
 .hm-bar-btn.ghost { background: rgba(255, 255, 255, .16); color: #fff; border: 1rpx solid rgba(255, 255, 255, .55); }
 .hm-bar-btn.solid { background: #fff; color: #1d4ed8; font-weight: 700; }
 
-.incentive-search-card { padding: 12rpx 16rpx; margin-top: 14rpx; }
-.incentive-search-row .incentive-search-input { height: 58rpx; }
-.incentive-advanced-filters { margin-top: 10rpx; }
-.filter-chip { padding: 6rpx 16rpx; font-size: 20rpx; }
-.incentive-filter-head { margin: 14rpx 0 10rpx; }
+/* 【2026-11-03 用户令"顶部区域边框面太大"】搜索/筛选白卡两刀收紧: 卡内距/行距/输入框高降档,
+   卡下外距(完整版基础 18rpx)收到 8rpx, 圆角同步收小; 胶囊切换器(mode-chip)尺寸不动
+   (2026-10-26"做醒目"用户裁决)。 */
+.incentive-search-card { padding: 6rpx 12rpx; margin-top: 10rpx; margin-bottom: 8rpx; border-radius: 18rpx; }
+.incentive-search-row .incentive-search-input { height: 48rpx; }
+.incentive-advanced-filters { margin-top: 6rpx; }
+.incentive-filter-head { margin: 8rpx 0 6rpx; }
 .cust-card { margin-bottom: 14rpx; }
 
 /* ===== 【2026-11-02 用户令·平铺直选】行业/产品 chips 行 =====
    行业=系统字典动态(新增行业自动呈现); 产品=分类树"产品试点"分支动态派生。
    横向滚动一行(scroll-x), 胶囊样式与 10-26 醒目化切换器同语言: 选中=品牌蓝实底白字。 */
 .flat-chip-row { width: 100%; white-space: nowrap; }
-.flat-chip-row + .flat-chip-row { margin-top: 10rpx; }
+.flat-chip-row + .flat-chip-row { margin-top: 4rpx; }
 .flat-chip-row-inner { display: inline-flex; gap: 10rpx; padding: 2rpx 2rpx 2rpx 0; }
 .flat-chip {
-  flex: none; padding: 8rpx 22rpx; font-size: 22rpx; line-height: 1.4;
+  flex: none; padding: 5rpx 18rpx; font-size: 22rpx; line-height: 1.4;
   color: #1f3b73; background: #fff; border: 2rpx solid #c9d6f2; border-radius: 999rpx;
   transition: all .12s ease;
 }
