@@ -10,7 +10,7 @@
   </view>
 
   <view wx:if="{{detailView.hasRecord}}" class="card customer-card">
-    <view class="customer-avatar">{{detailView.heroInitial}}</view>
+    <!-- 【2026-11-02 用户令】客户名前不加首字头像; 2026-10-26 深夜曾压缩(92→64rpx), 今整体移除 -->
     <view class="customer-main">
       <view class="customer-name">{{detailView.customerName}}</view>
       <view class="customer-tags">

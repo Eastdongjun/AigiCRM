@@ -281,7 +281,7 @@ function buildDetailView(data, groups) {
     loadingText: '加载中...',
     hasRecord: Boolean(data.record),
     showEmpty: !loading && !data.record,
-    heroInitial: (customerName || '?').charAt(0),
+    // 【2026-11-02 用户令】首字头像(heroInitial)随 customer-avatar 移除退役
     customerName,
     industryText: customer.industry || '',
     lastUpdateText: latestDate ? `${latestDate.getFullYear()}-${pad2(latestDate.getMonth() + 1)}-${pad2(latestDate.getDate())} ${pad2(latestDate.getHours())}:${pad2(latestDate.getMinutes())}` : '—',

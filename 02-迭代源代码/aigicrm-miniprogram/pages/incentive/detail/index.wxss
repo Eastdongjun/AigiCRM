@@ -10,9 +10,7 @@
    【2026-10-26 用户令"客户名称那个框太大,占太多空间"】整卡压缩: 头像 92→64、大分值 56→38、
    内距/间距同步收小, 信息一条不删(宁全勿截), 高度约砍三分之一 */
 .customer-card { display: flex; align-items: center; gap: 16rpx; margin-top: 20rpx; padding: 18rpx 20rpx; }
-.customer-avatar { width: 64rpx; height: 64rpx; border-radius: 20rpx; flex-shrink: 0; color: #fff; font-size: 28rpx; font-weight: 700;
-  display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #2364d8, #4d8cf5);
-  box-shadow: 0 6rpx 14rpx rgba(35, 100, 216, .24); }
+/* 【2026-11-02 用户令】customer-avatar(首字头像)随需求移除, 样式一并退役 */
 .customer-main { flex: 1; min-width: 0; }
 /* white-space:normal 显式声明:覆盖 app.wxss .customer-name 的全局 nowrap+ellipsis,保住本页 2 行截断 */
 .customer-name { font-size: 28rpx; font-weight: 800; color: #172033; line-height: 1.35; word-break: break-all; white-space: normal;
