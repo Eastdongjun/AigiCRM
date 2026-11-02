@@ -1,38 +1,27 @@
-// 【2026-11-03 hero 压缩验证】完整版四项服务应用页: 顶栏元素存在性+截图
+// 【2026-11-03 统计分析空白排查】data 全量 + console 错误捕获
 import automator from 'miniprogram-automator'
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 
 async function main() {
-  let mini
-  try {
-    mini = await automator.connect({ wsEndpoint: 'ws://localhost:9423' })
-    console.log('[connect] ok(复用实例)')
-  } catch (e) {
-    mini = await automator.launch({
-      cliPath: '/Applications/wechatwebdevtools.app/Contents/MacOS/cli',
-      projectPath: '/Users/dongjun/东来/项目/02-已上线/01-AIGICRM/02-迭代源代码/aigicrm-miniprogram',
-      port: 9423,
-      timeout: 90000
-    })
-    console.log('[launch] ok')
-    await sleep(12000)
+  const mini = await automator.connect({ wsEndpoint: 'ws://localhost:9423' })
+  console.log('[connect] ok')
+  const logs = []
+  mini.on('console', (msg) => logs.push(`[${msg.type}] ${msg.args && msg.args.join(' ')}`))
+  mini.on('exception', (err) => logs.push(`[exception] ${err && (err.message || err.errorMessage)}`))
+  const page = await mini.reLaunch('/pages/statistics/index')
+  console.log('[page]', page.path)
+  await sleep(8000)
+  const data = await page.data()
+  const keys = Object.keys(data).sort()
+  console.log('[data 键]', keys.join(', '))
+  for (const k of keys) {
+    const v = data[k]
+    if (v === null || v === undefined || typeof v !== 'object') console.log(`  ${k} =`, JSON.stringify(v))
+    else if (Array.isArray(v)) console.log(`  ${k}: Array[${v.length}]`)
+    else console.log(`  ${k}:`, JSON.stringify(v).slice(0, 200))
   }
-  let page = await mini.reLaunch('/pages/incentive/index')
-  console.log('[reLaunch] ->', page.path)
-  await sleep(3000)
-  page = await mini.currentPage()
-  const hero = await page.$('.workbench-hero')
-  console.log('[单行顶栏] 存在 =', Boolean(hero))
-  const title = await page.$('.workbench-hero-title')
-  if (title) console.log('[标题] =', await title.text())
-  const btns = await page.$$('.workbench-hero-actions .hero-bar-btn')
-  console.log('[右侧按钮数]', btns.length, '(期望2: 刷新+上传)')
-  for (const b of btns) console.log('  -', await b.text())
-  const oldHero = await page.$('.upload-entry-row')
-  console.log('[旧两行结构残留] =', Boolean(oldHero), '(期望 false)')
-  await mini.screenshot({ path: '/Users/dongjun/东来/项目/02-已上线/01-AIGICRM/02-迭代源代码/scripts/miniprogram/hero-compact.png' })
-  console.log('[screenshot] saved')
+  console.log('[console 日志]', logs.length ? logs.slice(0, 12).join('\n') : '(无输出)')
   await mini.disconnect()
 }
 
