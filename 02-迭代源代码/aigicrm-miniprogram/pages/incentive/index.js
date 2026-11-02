@@ -41,10 +41,13 @@ function buildRecordRow(record, customerName) {
   }
 }
 
-function buildRecordTableRows(customerGroups) {
+function buildRecordTableRows(customerGroups, childRawById) {
   const rows = []
   ;(customerGroups || []).forEach((group) => {
-    const children = (group && group.records) || []
+    // 【修复 2026-11-03】入参是 buildRecordView 瘦身后的组(2026-10-13 性能批已剔除 records/files/
+    // fileGroups 大数组, 原始子记录存页面内存 _childRawById)——与轻量页 buildFlatRecordRows 同源,
+    // 从 _childRawById 取子记录; 组自带 records(未来兼容/演示路径)优先
+    const children = (group && group.records) || (childRawById && group && childRawById[group.id]) || []
     children.forEach((record) => {
       if (record && record.id !== undefined && record.id !== null) {
         rows.push(buildRecordRow(record, group.name || group.customerName))
@@ -1047,7 +1050,8 @@ Page({
     let records = this.applyLocalRecordFilters(this.data.allRecords).filter(childMatches)
     // 【2026-11-02 用户令·PC 同构表格】客户聚合拉平为记录行(列=客户/分类/产品/时间/上传人/文件/学分),
     // 排序作用在记录行上(与 PC 表格同构: 分值=单条记录分, 时间=记录 createdAt)
-    let tableRows = buildRecordTableRows(records)
+    // 【修复 2026-11-03】瘦身组不带 records 子数组, 原始子记录从 _childRawById 取(同轻量页)
+    let tableRows = buildRecordTableRows(records, this._childRawById)
     // 排序: 与 PC 表格同构(分值=单条记录分, 时间=记录 createdAt), 默认时间倒序
     if (this.data.order === 'score-asc') tableRows.sort((a, b) => a.score - b.score)
     else if (this.data.order === 'score-desc') tableRows.sort((a, b) => b.score - a.score)
@@ -1076,7 +1080,8 @@ Page({
   // 写回 data, 数据变少(删记录/筛选收紧)时自动 clamp 到最后一页
   applyPaging(page, pageSize) {
     // 【2026-11-02 表格】翻页切片对象=排序后的记录行(与 sort() 落定的同序, 此处按当前序重建)
-    const rows = buildRecordTableRows(this.data.records)
+    // 【修复 2026-11-03】同 sort(): 瘦身组子记录从 _childRawById 取
+    const rows = buildRecordTableRows(this.data.records, this._childRawById)
     if (this.data.order === 'score-asc') rows.sort((a, b) => a.score - b.score)
     else if (this.data.order === 'score-desc') rows.sort((a, b) => b.score - a.score)
     else if (this.data.order === 'time-asc') rows.sort((a, b) => String(a.timeRaw).localeCompare(String(b.timeRaw)))
