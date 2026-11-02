@@ -55,6 +55,13 @@ class CustomerExpireTaskTest {
             mock(org.springframework.security.core.userdetails.UserDetailsService.class);
     private final CustomerExpireTask task = new CustomerExpireTask(customerMapper, reminderMapper, seaService, configService, meterRegistry, approvalMapper, approvalNodeMapper, seaPoolMapper, userDetailsService);
 
+    @org.junit.jupiter.api.BeforeEach
+    void stubReminderSelectList() {
+        // 【2026-11-02】doCheckCustomerExpire 新增 expiring 悬挂回收(reminderMapper.selectList 查 pending),
+        // mock 未打桩返回 null 会让所有 checkCustomerExpire 用例在回收处 NPE——统一桩空列表
+        when(reminderMapper.selectList(any())).thenReturn(List.of());
+    }
+
     @Test
     void neverInvoiced_createsInvoiceNever_notOverdue9999() {
         BizCustomer overdue = new BizCustomer();
@@ -128,9 +135,11 @@ class CustomerExpireTaskTest {
     }
 
     /**
-     * 【裁决 2026-09-24 GPT清单P1-018 带默认值】从未开票提醒建客宽限期(invoice.never.grace.days, 默认30, 0=无宽限):
+     * 【裁决 2026-09-24 GPT清单P1-018 带默认值】从未开票提醒宽限期(invoice.never.grace.days, 0=无宽限)。
+     * 【裁决 2026-11-02 用户口径修正】基准从 created_at(入库时间)改为 register_date(业务注册日, NULL 回退
+     * created_at), 默认宽限 30→360(一年保护期内不催首次开票)。
      * mapper 为 mock, SQL 过滤不会真执行, 故除行为断言外还捕获第 3 次 selectList(从未开票查询)的 wrapper,
-     * 断言 created_at < (今天-30)0点 条件确实下推——否则宽限内用例缺少代码改动也会绿。
+     * 断言 register_date < (今天-360) 条件确实下推——否则宽限内用例缺少代码改动也会绿。
      */
     private com.baomidou.mybatisplus.core.conditions.AbstractWrapper<BizCustomer, ?, ?> captureNeverQuery() {
         org.mockito.ArgumentCaptor<com.baomidou.mybatisplus.core.conditions.Wrapper<BizCustomer>> cap =
@@ -140,12 +149,11 @@ class CustomerExpireTaskTest {
         com.baomidou.mybatisplus.core.conditions.AbstractWrapper<BizCustomer, ?, ?> neverQuery =
                 (com.baomidou.mybatisplus.core.conditions.AbstractWrapper<BizCustomer, ?, ?>) cap.getAllValues().get(2);
         org.junit.jupiter.api.Assertions.assertTrue(
-                neverQuery.getTargetSql().contains("created_at"),
-                "从未开票查询应含 created_at 宽限条件, 实际: " + neverQuery.getTargetSql());
-        java.time.LocalDateTime expectedCutoff = LocalDate.now().minusDays(30).atStartOfDay();
+                neverQuery.getTargetSql().contains("register_date"),
+                "从未开票查询应以 register_date 为宽限基准(2026-11-02 口径), 实际: " + neverQuery.getTargetSql());
         org.junit.jupiter.api.Assertions.assertTrue(
-                neverQuery.getParamNameValuePairs().containsValue(expectedCutoff),
-                "宽限阈值应为(今天-30)0点(默认30, 未单独配配置键), 实际参数: " + neverQuery.getParamNameValuePairs());
+                neverQuery.getParamNameValuePairs().containsValue(LocalDate.now().minusDays(360)),
+                "宽限阈值应为(今天-360)(默认对齐一年保护期), 实际参数: " + neverQuery.getParamNameValuePairs());
         return neverQuery;
     }
 
@@ -153,13 +161,16 @@ class CustomerExpireTaskTest {
     void neverInvoiced_withinGraceDays_noReminder() {
         BizCustomer fresh = new BizCustomer();
         fresh.setId(21L);
-        fresh.setCustomerName("建客10天客户(宽限内)");
+        fresh.setCustomerName("注册10天客户(保护期内)");
         fresh.setLastInvoiceDate(null);
         fresh.setOwnerId(12L);
         fresh.setOfficeId(4L);
-        fresh.setCreatedAt(java.time.LocalDateTime.now().minusDays(10));
+        // 【2026-11-02 基准钉】register_date=10 天前(保护期内)而 created_at=400 天前——
+        // 生产实证场景(记录先建、注册日导入时才补), 基准必须是注册日, 按入库时间会误判宽限已过
+        fresh.setRegisterDate(LocalDate.now().minusDays(10));
+        fresh.setCreatedAt(java.time.LocalDateTime.now().minusDays(400));
 
-        // selectList 调用顺序：1)保护期到期 2)开票超期(非空) 3)从未开票(NULL+created_at宽限过滤, 建客10天<宽限30天被排除)
+        // selectList 调用顺序：1)保护期到期 2)开票超期(非空) 3)从未开票(NULL+注册日宽限过滤, 注册10天<360被排除)
         when(customerMapper.selectList(any())).thenReturn(List.of(), List.of(), List.of());
         when(reminderMapper.selectCount(any())).thenReturn(0L);
 
@@ -173,13 +184,13 @@ class CustomerExpireTaskTest {
     void neverInvoiced_beyondGraceDays_createsReminder() {
         BizCustomer aged = new BizCustomer();
         aged.setId(22L);
-        aged.setCustomerName("建客40天客户(宽限外)");
+        aged.setCustomerName("注册400天客户(保护期外)");
         aged.setLastInvoiceDate(null);
         aged.setOwnerId(12L);
         aged.setOfficeId(4L);
-        aged.setCreatedAt(java.time.LocalDateTime.now().minusDays(40));
+        aged.setRegisterDate(LocalDate.now().minusDays(400));
 
-        // 建客40天 > 宽限30天, 未被 created_at 条件排除, 照常建 invoice_never 提醒
+        // 注册400天 > 宽限360天, 未被 register_date 条件排除, 照常建 invoice_never 提醒
         when(customerMapper.selectList(any())).thenReturn(List.of(), List.of(), List.of(aged));
         when(reminderMapper.selectCount(any())).thenReturn(0L);
 
@@ -188,6 +199,62 @@ class CustomerExpireTaskTest {
         captureNeverQuery();
         verify(reminderMapper).insert(argThat((BizReminder r) ->
                 "invoice_never".equals(r.getReminderType()) && r.getOverdueDays() == 0));
+    }
+
+    /**
+     * 【修复 2026-11-02】悬挂 expiring 提醒回收: 到期日被推远(延期/重新开票)后,
+     * 窗口期生成的临期提醒必须每晚被关闭(processed 留痕); 真临期的不能误关。
+     */
+    @Test
+    void staleExpiringReminder_pushedExpireDate_getsRecycled_realExpiringKept() {
+        BizReminder stale = new BizReminder();
+        stale.setId(101L);
+        stale.setCustomerId(61L);
+        stale.setReminderType("expiring");
+        stale.setStatus("pending");
+        BizReminder live = new BizReminder();
+        live.setId(102L);
+        live.setCustomerId(62L);
+        live.setReminderType("expiring");
+        live.setStatus("pending");
+
+        when(reminderMapper.selectList(any())).thenReturn(List.of(stale, live));
+        // 61=到期日已推远至 2027(窗口外) 62=真临期(+10 天)
+        BizCustomer pushed = new BizCustomer();
+        pushed.setId(61L);
+        pushed.setDeleted(0);
+        pushed.setExpireDate(LocalDate.now().plusDays(380));
+        BizCustomer real = new BizCustomer();
+        real.setId(62L);
+        real.setDeleted(0);
+        real.setExpireDate(LocalDate.now().plusDays(10));
+        when(customerMapper.selectBatchIds(any())).thenReturn(List.of(pushed, real));
+
+        task.checkCustomerExpire();
+
+        // 悬挂的被关闭留痕, 真临期不动
+        verify(reminderMapper).updateById(argThat((BizReminder r) ->
+                r.getId().equals(101L) && "processed".equals(r.getStatus()) && r.getProcessedAt() != null));
+        verify(reminderMapper, never()).updateById(argThat((BizReminder r) ->
+                r.getId().equals(102L)));
+    }
+
+    /** 【2026-11-02】孤儿 expiring 提醒(客户已物理删, selectBatchIds 查不到)同样回收 */
+    @Test
+    void staleExpiringReminder_orphanCustomer_getsRecycled() {
+        BizReminder orphan = new BizReminder();
+        orphan.setId(103L);
+        orphan.setCustomerId(999L);
+        orphan.setReminderType("expiring");
+        orphan.setStatus("pending");
+
+        when(reminderMapper.selectList(any())).thenReturn(List.of(orphan));
+        when(customerMapper.selectBatchIds(any())).thenReturn(List.of());
+
+        task.checkCustomerExpire();
+
+        verify(reminderMapper).updateById(argThat((BizReminder r) ->
+                r.getId().equals(103L) && "processed".equals(r.getStatus())));
     }
 
     /**

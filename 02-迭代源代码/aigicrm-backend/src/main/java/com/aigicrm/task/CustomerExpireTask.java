@@ -246,6 +246,8 @@ public class CustomerExpireTask {
                     System.currentTimeMillis());
         }
 
+        // 【修复 2026-11-02】回收悬挂的 expiring 提醒(到期日被推远后旧临期提醒一直 pending 的工作台脏数据)
+        recycleStaleExpiringReminders(warningDate);
         // 检查开票超一年的客户
         checkInvoiceOverdue(today);
         // 【裁决 2026-09-24】公海捞取审批锁超时释放(sea.claim.lock.days, 默认3天/0=不启用)
@@ -287,20 +289,65 @@ public class CustomerExpireTask {
             createInvoiceReminder(customer, "invoice_overdue", overdueDays);
         }
 
-        // 【裁决 2026-09-24 GPT清单P1-018 带默认值】从未开票提醒建客宽限期: 系统设置 invoice.never.grace.days
-        // (默认30,0=无宽限保持原行为)。建客 created_at 早于(今天-宽限天数)才纳入催首次开票,
-        // 刚建的客户不再当晚被催开票;按日界(当天0点)比较,任务凌晨2点跑不受时分影响。
-        int neverGraceDays = getConfigInt("invoice.never.grace.days", 30);
+        // 【裁决 2026-09-24 GPT清单P1-018 带默认值】从未开票提醒建客宽限期: 系统设置 invoice.never.grace.days。
+        // 【裁决 2026-11-02 用户口径修正】宽限基准从 created_at(系统入库时间)改为 register_date(业务注册日),
+        //   默认宽限从 30 天改为 360 天(对齐"新客户按注册日有一年保护期,保护期内不催首次开票"):
+        //   生产实证 7 月建记录/10 月导入才填注册日的客户,按 created_at 起算 30 天宽限,注册 22 天即被催开票。
+        //   register_date 为 NULL 的脏数据回退 created_at(按日界)。0=无宽限保持"从未开票即提醒"。
+        int neverGraceDays = getConfigInt("invoice.never.grace.days", 360);
         List<BizCustomer> neverInvoiced = customerMapper.selectList(
                 new LambdaQueryWrapper<BizCustomer>()
                         .eq(BizCustomer::getDeleted, 0)
                         .notIn(BizCustomer::getStatus, "sea", "archived") // 【B5 2026-09-22】归档不参与统计/提醒/到期检查(统一口径)
                         .isNull(BizCustomer::getLastInvoiceDate)
-                        // 宽限天数<=0 时跳过 created_at 条件(条件重载),保持原"从未开票即提醒"行为
-                        .lt(neverGraceDays > 0, BizCustomer::getCreatedAt, today.minusDays(neverGraceDays).atStartOfDay())
+                        // 宽限天数<=0 时跳过宽限条件(条件重载),保持原"从未开票即提醒"行为;
+                        // 注册日早于宽限界限 OR (注册日为空且回退 created_at 早于界限)——OR 必须嵌套在 and 内,
+                        // 否则会把前面的 deleted/status/lastInvoiceDate 条件一起卷进 OR
+                        .and(neverGraceDays > 0, w -> w
+                                .lt(BizCustomer::getRegisterDate, today.minusDays(neverGraceDays))
+                                .or(ww -> ww.isNull(BizCustomer::getRegisterDate)
+                                        .lt(BizCustomer::getCreatedAt, today.minusDays(neverGraceDays).atStartOfDay())))
         );
         for (BizCustomer customer : neverInvoiced) {
             createInvoiceReminder(customer, "invoice_never", 0);
+        }
+    }
+
+    /**
+     * 【修复 2026-11-02】回收悬挂的 expiring 提醒。
+     * 窗口内(30 天临期)生成的提醒, 在到期日被推远(延期批准/重新开票刷新保护期)后已不处于临期窗口,
+     * 但此前只有生成侧没有回收侧, 旧提醒一直 pending 挂在提醒工作台(生产实证: 张家峁 expire 已推至
+     * 2027-11, 10-23 生成的 30 天临期提醒仍 pending)。每晚自愈式回收, 覆盖所有推远路径;
+     * 关闭=processed 留痕(不物理删, 与"发票可删留痕"同一审计口径), 工作台/角标均按 pending 过滤即自净。
+     * 孤儿提醒(客户已物理删)与到期日为空的行一并回收。
+     */
+    private void recycleStaleExpiringReminders(LocalDate warningDate) {
+        List<BizReminder> pendingExpiring = reminderMapper.selectList(
+                new LambdaQueryWrapper<BizReminder>()
+                        .eq(BizReminder::getReminderType, "expiring")
+                        .eq(BizReminder::getStatus, "pending"));
+        if (pendingExpiring.isEmpty()) return;
+        java.util.Set<Long> customerIds = pendingExpiring.stream()
+                .map(BizReminder::getCustomerId).collect(java.util.stream.Collectors.toSet());
+        java.util.Map<Long, BizCustomer> customerMap = customerMapper.selectBatchIds(customerIds).stream()
+                .collect(java.util.stream.Collectors.toMap(BizCustomer::getId, c -> c));
+        int recycled = 0;
+        for (BizReminder reminder : pendingExpiring) {
+            BizCustomer customer = customerMap.get(reminder.getCustomerId());
+            boolean stale = customer == null
+                    || Integer.valueOf(1).equals(customer.getDeleted())
+                    || customer.getExpireDate() == null
+                    || customer.getExpireDate().isAfter(warningDate);
+            if (stale) {
+                reminder.setStatus("processed");
+                reminder.setProcessedAt(java.time.LocalDateTime.now());
+                reminderMapper.updateById(reminder);
+                recycled++;
+            }
+        }
+        if (recycled > 0) {
+            log.info("回收悬挂 expiring 提醒 {} 条(到期日已推远/客户已删/到期日缺失)", recycled);
+            meterRegistry.counter("customer_expire_stale_expiring_recycled_total").increment(recycled);
         }
     }
 

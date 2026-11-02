@@ -190,9 +190,12 @@ class CustomerStageAmountTest {
             assertEquals(LocalDate.of(2026, 6, 30), c1.getValue().getLastInvoiceDate());
             assertEquals(LocalDate.of(2026, 6, 30).plusDays(360), c1.getValue().getExpireDate());
 
-            // ② 现有开票日已晚于阶段末 → 不回退(不动保护期)
+            // ② 现有开票日已晚于起算日 → 不回退(不动保护期)
+            // 【日期脆弱修复 2026-11-02】原硬编码 2026-11-01 在日历越过该日后永久反转:
+            // H2(未到期)阶段起算日=当天, 今天≥2026-11-02 时起算日已晚于 11-01 → 触发前移更新,
+            // never 断言必红(git stash 实证 HEAD 即红)。改为相对日期, 永保"现有开票日 > 起算日"语义。
             reset(customerMapper);
-            when(customerMapper.selectById(501L)).thenReturn(customerWith(LocalDate.of(2026, 11, 1)));
+            when(customerMapper.selectById(501L)).thenReturn(customerWith(LocalDate.now().plusDays(5)));
             service.saveStageAmount(501L, new StageAmountRequest(2026, "H2", bd("10"), bd("0")));
             verify(customerMapper, never()).updateById(any(BizCustomer.class));
 
