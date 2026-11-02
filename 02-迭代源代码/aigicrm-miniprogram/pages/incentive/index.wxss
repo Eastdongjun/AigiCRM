@@ -161,15 +161,15 @@
 .rank-num { color: #64748b; font-weight: 600; font-size: 24rpx; }
 /* 首字头像 */
 .name-wrap { display: flex; align-items: center; gap: 12rpx; }
-.name-avatar { width: 52rpx; height: 52rpx; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 24rpx; font-weight: 700; color: #fff; flex-shrink: 0; }
+.name-avatar { width: 44rpx; height: 44rpx; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 21rpx; font-weight: 700; color: #fff; flex-shrink: 0; }
 .av-1 { background: linear-gradient(135deg, #f59e0b, #fbbf24); }
 .av-2 { background: linear-gradient(135deg, #94a3b8, #cbd5e1); }
 .av-3 { background: linear-gradient(135deg, #d97706, #fcd7b6); }
 .av-4 { background: linear-gradient(135deg, #2563eb, #3b82f6); }
 .name-col { flex: 1; min-width: 0; display: flex; flex-direction: column; }
-.name-top { color: #1f2329; font-size: 26rpx; font-weight: 850; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.name-cell { color: #172033; font-size: 24rpx; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.name-office { color: #7c8ba1; font-size: 20rpx; margin-top: 2rpx; }
+.name-top { color: #1f2329; font-size: 22rpx; font-weight: 850; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.name-cell { color: #172033; font-size: 22rpx; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.name-office { color: #7c8ba1; font-size: 18rpx; margin-top: 2rpx; }
 .dept-name { font-weight: 700; }
 /* 激励总额/总学分胶囊 */
 .score-pill { display: inline-flex; align-items: baseline; gap: 2rpx; background: #2563eb; color: #fff; border-radius: 999rpx; padding: 6rpx 16rpx; font-size: 24rpx; font-weight: 800; }
