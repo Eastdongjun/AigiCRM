@@ -62,6 +62,8 @@ public class CustomerService {
     private final com.aigicrm.module.approval.mapper.BizApprovalMapper approvalMapper;
     // 【裁决 2026-09-24】财务删除审计(sys_log 快照留痕)
     private final com.aigicrm.module.system.mapper.SysLogMapper financeAuditLogMapper;
+    /** 【生命线 2026-11-02 裁决D】客户日期事件追加记录 */
+    private final CustomerEventService customerEventService;
 
     /**
      * 【容量加固·客户列表服务端分页 2026-10-05】列表统一查询条件对象:
@@ -408,6 +410,8 @@ public class CustomerService {
         // 【裁决 2026-09-24】最近开票日=纯推导字段(最后一次非作废开票的日期): 创建时一律清空,
         // 不接受表单直带——历史开票请在客户财务页补录发票记录(自动驱动保护期,全程留痕)
         customer.setLastInvoiceDate(null);
+        // 【2026-11-02 裁决B】捞取日期=审批域派生字段(仅 applyClaimReset 写入), 创建时一律清空
+        customer.setClaimDate(null);
         calculateExpireDates(customer);
         customer.setStatus("normal");
         customer.setProtectionStatus("active");
@@ -428,6 +432,10 @@ public class CustomerService {
         // 直接 500; 详见 insertWithCodeGenerationRetry 注释(死锁刻意不捕获: InnoDB 死锁回滚
         // 整个事务, 事务内重试会造成部分提交)。
         insertWithCodeGenerationRetry(customer);
+        // 【生命线 2026-11-02 裁决D】建档事件(create 为创建唯一入口, 手工/导入/代建均经此)
+        customerEventService.record(customer.getId(), CustomerEventService.TYPE_CREATED,
+                customer.getRegisterDate() != null ? customer.getRegisterDate() : LocalDate.now(),
+                "客户建档", null, customer.getCustomerCode(), SecurityUtils.getCurrentUserId());
     }
 
     /** 【A3 2026-10-20】取号重试上限: 首次 + 2 次退让(并发建客常见为 2~3 方同抢一号) */
@@ -671,8 +679,18 @@ public class CustomerService {
         customer.setApprovedExtendDays(invoiceDateManuallyChanged ? Integer.valueOf(0) : existing.getApprovedExtendDays());
         customer.setExpireDate(null);
         customer.setAdjustDate(null);
+        // 【2026-11-02 裁决B】捞取日期=审批域派生字段(仅 applyClaimReset 写入), 通用编辑不得直改
+        customer.setClaimDate(existing.getClaimDate());
         calculateExpireDates(customer);
         customerMapper.updateById(customer);
+        // 【生命线 2026-11-02 裁决D】人工维护最近开票日事件(customer:invoice-date:edit 持码者操作)
+        if (invoiceDateManuallyChanged) {
+            customerEventService.record(customer.getId(), CustomerEventService.TYPE_INVOICE_MANUAL,
+                    customer.getLastInvoiceDate(), "人工维护最近开票日(新基准重算保护期)",
+                    existing.getLastInvoiceDate() != null ? existing.getLastInvoiceDate().toString() : null,
+                    customer.getLastInvoiceDate() != null ? customer.getLastInvoiceDate().toString() : null,
+                    SecurityUtils.getCurrentUserId());
+        }
         // updateById 只写非 null 字段: owner 无部门时显式清空 dept_id, 防旧部门残留
         if (effectiveDeptId == null && existing.getDeptId() != null) {
             persistCustomerDeptId(customer.getId(), null);
@@ -1412,37 +1430,85 @@ public class CustomerService {
     }
 
     /**
-     * 【议题一裁决 2026-09-19 保护期决策表】统一公式:
-     * expireDate = 开票推导到期日(随开票增删浮动,管理员可配天数) + approved_extend_days
+     * 【2026-11-02 口径批·用户裁决 A/B】三线取最晚公式:
+     * expireDate = MAX(建档线, 开票线, 捞取线) + approved_extend_days
      * <ul>
-     *   <li>删票回算开票推导部分(纠正误录);已审批延期不收回(信任审批);两者独立叠加;</li>
-     *   <li>【延期规则收敛 2026-10-18 · 审计 biz-0】仅当新开票/阶段总额把最近开票日真正前移
-     *       (新值晚于旧值)时清零 approved_extend_days——新基准上的保护期已覆盖旧延期,不得双重叠加;
-     *       补录早于当前基准的旧票不清零。addInvoice 与 saveStageAmount 共用
-     *       advanceLastInvoiceDate,到期日只重算一次;删票/作废回算不重置;</li>
-     *   <li>天数走 sys_config: customer.protection.days(360)/customer.adjust.days(180),
+     *   <li>建档线 = 注册日 + customer.protection.days(365) —— 有捞取线时不参与:
+     *       存量捞取户的注册日已被旧捞取逻辑覆写为捞取日(不可信); 新流程下捞取线(claim+180)
+     *       数学上恒压建档线(捞取必然发生在建档 365 天保护期耗尽之后), 忽略无损;</li>
+     *   <li>开票线 = 最近开票日 + protection.days(365) —— 开票不断续命; 捞取时最近开票日置空
+     *       (老票基准不延续新周期), advanceLastInvoiceDate 守卫防老票经删票回算回填;</li>
+     *   <li>捞取线 = 捞取日 + customer.adjust.days(180) —— 公海捞取后的短保护期(裁决B);</li>
+     *   <li>adjustDate 语义改造(裁决C): 捞取到期日 = 捞取日 + adjust.days, 仅捞取客户有值
+     *       (原"调整日"=基准+180 纯展示字段, 全系统无业务消费, 生产列表列头同步改名);</li>
+     *   <li>三线全空(极端 legacy 行)时保持库内值不动(updateById 只写非 null 字段);</li>
+     *   <li>【延期规则收敛 2026-10-18】仅当新开票/阶段总额把最近开票日真正前移(新值晚于旧值)时
+     *       清零 approved_extend_days; 补录旧票不清零。删票/作废回算不重置;</li>
+     *   <li>天数走 sys_config: customer.protection.days(365)/customer.adjust.days(180),
      *       管理员可在系统设置修改——延期天数自 2026-10-17 延期B 起进审批单 extraData.extendDays
      *       (提交快照+审批人可调),存量单回退 customer.extend.days(ApprovalService 消费)。</li>
+     *   <li>【回归免疫 2026-10-09 公海死循环】三线 MAX 语义天然覆盖旧 max(开票日,注册日) 口径:
+     *       legacy 老票(2015/2024 年)的开票线永远早于捞取线/建档线, 不会把基准拖回过去。</li>
      * </ul>
      */
     private void calculateExpireDates(BizCustomer customer) {
-        // 【回归修复 2026-10-09 公海死循环事故】基准日=max(最近开票日, 注册日)。
-        // 10-08 需求对齐批为统一两路径口径改为 COALESCE(开票日优先), 引入回归: legacy 客户的老发票
-        // (生产实证 2015/2024 年)永远把基准拖回过去——捞取/延期给的保护期(expire=起算日+360)在下一次
-        // 重算时被覆盖成过去日期, 凌晨任务判过期踢回公海, 用户陷入"捞取→掉海→再捞"死循环
-        // (生产 302/303 双客户三轮实证)。max 语义: 开票晚于注册日照常刷新保护期; 老票/补录旧票
-        // 不得把基准拉到客户建立/最近捞取日之前——两路径(本方法与延期审批)同用 max 保持一致。
-        LocalDate baseDate = customer.getLastInvoiceDate() != null && customer.getRegisterDate() != null
-                ? (customer.getLastInvoiceDate().isAfter(customer.getRegisterDate())
-                        ? customer.getLastInvoiceDate() : customer.getRegisterDate())
-                : (customer.getLastInvoiceDate() != null ? customer.getLastInvoiceDate() : customer.getRegisterDate());
-        if (baseDate != null) {
-            int protectionDays = getConfigInt("customer.protection.days", 360);
-            int adjustDays = getConfigInt("customer.adjust.days", 180);
-            int extendDays = customer.getApprovedExtendDays() != null ? customer.getApprovedExtendDays() : 0;
-            customer.setExpireDate(baseDate.plusDays(protectionDays).plusDays(extendDays));
-            customer.setAdjustDate(baseDate.plusDays(adjustDays));
+        LocalDate invoice = customer.getLastInvoiceDate();
+        LocalDate register = customer.getRegisterDate();
+        LocalDate claim = customer.getClaimDate();
+        int protectionDays = getConfigInt("customer.protection.days", 365);
+        int adjustDays = getConfigInt("customer.adjust.days", 180);
+        int extendDays = customer.getApprovedExtendDays() != null ? customer.getApprovedExtendDays() : 0;
+
+        LocalDate expireBase = null;
+        // 开票线
+        if (invoice != null) {
+            expireBase = invoice.plusDays(protectionDays);
         }
+        // 建档线(仅有捞取线时不参与, 见方法注释)
+        if (claim == null && register != null) {
+            LocalDate registerLine = register.plusDays(protectionDays);
+            expireBase = expireBase == null || registerLine.isAfter(expireBase) ? registerLine : expireBase;
+        }
+        // 捞取线(裁决B: 捞取后 180 天短保护)
+        if (claim != null) {
+            LocalDate claimLine = claim.plusDays(adjustDays);
+            expireBase = expireBase == null || claimLine.isAfter(expireBase) ? claimLine : expireBase;
+        }
+        if (expireBase != null) {
+            customer.setExpireDate(expireBase.plusDays(extendDays));
+        }
+        // 捞取到期日(裁决C): 仅捞取客户有值; 非捞取客户置 null(存量已由 V2026.11.02.4 清理)
+        customer.setAdjustDate(claim != null ? claim.plusDays(adjustDays) : null);
+    }
+
+    /** 【2026-11-02 裁决B】捞取成功后的日期重置(SeaService.completeClaim 唯一调用, 单一公式源):
+     *  写捞取日期、清零已批延期(原负责人任内审批不跨周期残留)、按三线公式算到期/捞取到期日;
+     *  并把最近开票日显式置空(老票基准不延续新周期, updateById 的 NOT_NULL 策略不写 null 必须显式 set)。
+     *  调用方需先 customer.setLastInvoiceDate(null) 保证公式按新周期计算。 */
+    @Transactional
+    public void applyClaimReset(BizCustomer customer, LocalDate claimDate) {
+        customer.setClaimDate(claimDate);
+        customer.setApprovedExtendDays(0);
+        calculateExpireDates(customer);
+        customerMapper.updateById(customer);
+        customerMapper.update(null, new com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper<BizCustomer>()
+                .eq(BizCustomer::getId, customer.getId())
+                .set(BizCustomer::getLastInvoiceDate, null));
+    }
+
+    /** 【2026-11-02 副本收敛】延期审批执行(ApprovalService.extend case 调用, 单一公式源):
+     *  累加已批延期天数并按三线公式重算; 三线全空时以当天起算(业务口径: 从未设置保护期=即日起延期)。 */
+    @Transactional
+    public void applyExtendApproval(BizCustomer customer, int extendDays) {
+        int accumulated = customer.getApprovedExtendDays() != null ? customer.getApprovedExtendDays() : 0;
+        customer.setApprovedExtendDays(accumulated + extendDays);
+        calculateExpireDates(customer);
+        if (customer.getExpireDate() == null) {
+            customer.setExpireDate(LocalDate.now().plusDays(customer.getApprovedExtendDays()));
+        }
+        customer.setProtectionStatus("active");
+        customer.setStatus("normal");
+        customerMapper.updateById(customer);
     }
 
     private int getConfigInt(String key, int defaultValue) {
@@ -1698,12 +1764,21 @@ public class CustomerService {
      */
     private boolean advanceLastInvoiceDate(BizCustomer customer, LocalDate candidateDate) {
         if (customer == null || candidateDate == null) return false;
+        // 【2026-11-02 裁决B 守卫】捞取后新周期: 早于捞取日的老票日期不得经删票/作废回算回填
+        // 最近开票日(捞取置空后 current=null, 无此守卫会把上一周期的老票日期写回, 开票线复活
+        // 拉长保护期, 架空"捞取重新起算")。
+        if (customer.getClaimDate() != null && candidateDate.isBefore(customer.getClaimDate())) return false;
         LocalDate current = customer.getLastInvoiceDate();
         if (current != null && !candidateDate.isAfter(current)) return false;
         customer.setLastInvoiceDate(candidateDate);
         customer.setApprovedExtendDays(0);
         calculateExpireDates(customer);
         customerMapper.updateById(customer);
+        // 【生命线 2026-11-02 裁决D】开票推进事件(逐笔 addInvoice 与阶段 saveStageAmount 共用本口)
+        customerEventService.record(customer.getId(), CustomerEventService.TYPE_INVOICE_ADV,
+                candidateDate, "开票推进最近开票日",
+                current != null ? current.toString() : null, candidateDate.toString(),
+                com.aigicrm.security.SecurityUtils.getCurrentUserId());
         return true;
     }
 

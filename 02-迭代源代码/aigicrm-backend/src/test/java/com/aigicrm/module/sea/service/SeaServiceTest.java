@@ -92,7 +92,7 @@ class SeaServiceTest {
         // SeaService 字段顺序: seaPoolMapper, seaConfigMapper, customerMapper, userMapper, deptMapper, seaConfigService, customerService, configService
         SeaService seaService = new SeaService(poolMapper, configMapper, custMapper,
                 userMapper, deptMapper, configService, customerService,
-                mock(com.aigicrm.module.system.service.SysConfigService.class));
+                mock(com.aigicrm.module.customer.service.CustomerEventService.class));
 
         // page() 内部: visiblePoolIds() = [10](启用池), 禁用池 20 被排除
         IPage<BizSeaPool> result = seaService.page(1, 15, null, null, null, null, null, null, "available");
@@ -154,7 +154,7 @@ class SeaServiceTest {
         });
         SeaService service = new SeaService(poolMapper, configMapper, customerMapper(),
                 mock(SysUserMapper.class), mock(SysDeptMapper.class), configService, mock(CustomerService.class),
-                mock(com.aigicrm.module.system.service.SysConfigService.class));
+                mock(com.aigicrm.module.customer.service.CustomerEventService.class));
 
         IPage<BizSeaPool> page = service.page(1, 15, null, null, null, null, null, null, "available");
 
@@ -169,7 +169,7 @@ class SeaServiceTest {
     private SeaService newSeaService(BizSeaPoolMapper poolMapper, SeaConfigService configService) {
         return new SeaService(poolMapper, mock(BizSeaConfigMapper.class), customerMapper(),
                 mock(SysUserMapper.class), mock(SysDeptMapper.class), configService, mock(CustomerService.class),
-                mock(com.aigicrm.module.system.service.SysConfigService.class));
+                mock(com.aigicrm.module.customer.service.CustomerEventService.class));
     }
 
     @Test
@@ -235,7 +235,7 @@ class SeaServiceTest {
         BizCustomerMapper custMapper = customerMapper();
         SeaService svc = new SeaService(poolMapper, mock(BizSeaConfigMapper.class), custMapper,
                 mock(SysUserMapper.class), mock(SysDeptMapper.class), configService, customerService,
-                mock(com.aigicrm.module.system.service.SysConfigService.class));
+                mock(com.aigicrm.module.customer.service.CustomerEventService.class));
 
         assertThrows(BusinessException.class, () -> svc.deletePool(1L));
         verify(custMapper, never()).deleteById(org.mockito.ArgumentMatchers.anyLong());
@@ -264,7 +264,7 @@ class SeaServiceTest {
         CustomerService customerService = mock(CustomerService.class);
         SeaService svc = new SeaService(poolMapper, mock(BizSeaConfigMapper.class), custMapper,
                 mock(SysUserMapper.class), mock(SysDeptMapper.class), configService, customerService,
-                mock(com.aigicrm.module.system.service.SysConfigService.class));
+                mock(com.aigicrm.module.customer.service.CustomerEventService.class));
 
         svc.deletePool(1L);
 
@@ -307,10 +307,33 @@ class SeaServiceTest {
         when(sysConfig.getValue("customer.protection.days")).thenReturn("180"); // 管理员改过配置
         when(sysConfig.getValue("customer.adjust.days")).thenReturn("90");
 
-        CustomerService customerService = mock(CustomerService.class);
+        // 【2026-11-02 裁决B 收敛】completeClaim 经 CustomerService.applyClaimReset 真公式重置
+        // (捞取线=捞取日+adjust.days), 注入 spy 包裹的真实例: 公式走真逻辑, removeAllShares/
+        // cleanPendingReminders 仍可 verify(末尾两断言依赖)
+        CustomerService customerService = org.mockito.Mockito.spy(new CustomerService(
+                custMapper,
+                mock(com.aigicrm.module.customer.mapper.BizCustomerLogMapper.class),
+                mock(com.aigicrm.module.customer.mapper.BizInvoiceMapper.class),
+                mock(com.aigicrm.module.customer.mapper.BizCustomerShareMapper.class),
+                mock(com.aigicrm.module.customer.mapper.BizCustomerIndicatorMapper.class),
+                mock(com.aigicrm.module.customer.mapper.BizContactMapper.class),
+                mock(com.aigicrm.module.customer.mapper.BizPaymentMapper.class),
+                mock(com.aigicrm.module.customer.mapper.BizCustomerStageAmountMapper.class),
+                mock(BizSeaPoolMapper.class),
+                mock(SysUserMapper.class), mock(SysDeptMapper.class),
+                mock(com.aigicrm.module.reminder.mapper.BizReminderMapper.class),
+                mock(org.springframework.jdbc.core.JdbcTemplate.class),
+                sysConfig,
+                mock(com.aigicrm.common.scope.OrgScopeResolver.class),
+                mock(com.aigicrm.common.engine.CustomerAccessService.class),
+                mock(com.aigicrm.module.system.service.RolePermScopeService.class),
+                mock(com.aigicrm.module.approval.mapper.BizApprovalMapper.class),
+                mock(com.aigicrm.module.system.mapper.SysLogMapper.class),
+                mock(com.aigicrm.module.customer.service.CustomerEventService.class)));
         SeaService svc = new SeaService(poolMapper, mock(BizSeaConfigMapper.class), custMapper,
                 mock(SysUserMapper.class), mock(SysDeptMapper.class), mock(SeaConfigService.class),
-                customerService, sysConfig);
+                customerService,
+                mock(com.aigicrm.module.customer.service.CustomerEventService.class));
 
         svc.completeClaim(500L, 7L);
 
@@ -319,9 +342,10 @@ class SeaServiceTest {
         verify(custMapper).updateById(cap.capture());
         BizCustomer saved = cap.getValue();
         assertEquals(7L, saved.getOwnerId());
-        assertEquals(today, saved.getRegisterDate(), "登记日应重置为捞取日");
-        assertEquals(today.plusDays(180), saved.getExpireDate(), "保护期天数应走 sys_config(180),不再硬编码360");
-        assertEquals(today.plusDays(90), saved.getAdjustDate(), "调整期天数应走 sys_config(90)");
+        assertEquals(today, saved.getClaimDate(), "捞取日期=当天(裁决B, 独立字段)");
+        org.junit.jupiter.api.Assertions.assertNull(saved.getRegisterDate(), "注册日不再被捞取覆写(裁决B, 本用例未设注册日应保持空)");
+        assertEquals(today.plusDays(90), saved.getExpireDate(), "到期日=捞取日+adjust.days(90, 裁决B短保护)");
+        assertEquals(today.plusDays(90), saved.getAdjustDate(), "捞取到期日=捞取日+adjust.days(90, 裁决C)");
         assertEquals(java.lang.Integer.valueOf(0), saved.getApprovedExtendDays(), "捞取必须清零历史延期,防叠加架空公海回收");
 
         @SuppressWarnings("unchecked")
@@ -353,7 +377,7 @@ class SeaServiceTest {
         BizCustomerMapper custMapper = mock(BizCustomerMapper.class);
         SeaService svc = new SeaService(poolMapper, mock(BizSeaConfigMapper.class), custMapper,
                 mock(SysUserMapper.class), mock(SysDeptMapper.class), mock(SeaConfigService.class),
-                mock(CustomerService.class), mock(com.aigicrm.module.system.service.SysConfigService.class));
+                mock(CustomerService.class), mock(com.aigicrm.module.customer.service.CustomerEventService.class));
 
         BusinessException ex = assertThrows(BusinessException.class, () -> svc.completeClaim(500L, 7L));
         assertTrue(String.valueOf(ex.getMessage()).contains("已被他人申请"), "报错须指明认领冲突: " + ex.getMessage());

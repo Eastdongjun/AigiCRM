@@ -36,7 +36,8 @@ class CustomerFullIdempotencyTest {
         IdempotencyService idempotency = mock(IdempotencyService.class);
         CustomerController controller = new CustomerController(
                 customerService, mock(SeaService.class), idempotency,
-                mock(com.aigicrm.common.engine.CustomerAccessService.class));
+                mock(com.aigicrm.common.engine.CustomerAccessService.class),
+                mock(com.aigicrm.module.customer.service.CustomerEventService.class));
         return new Svc(controller, customerService, idempotency);
     }
 

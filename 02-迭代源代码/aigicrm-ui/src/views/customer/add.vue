@@ -7,7 +7,7 @@
       </el-button>
       <div class="title-wrap">
         <h2 class="add-title">{{ isEdit ? '编辑客户' : '新增客户' }}</h2>
-        <span class="add-sub">带 <span class="req-star">*</span> 为必填 · 客户全称自动查重 · 保护期 = 注册日/开票日较晚者 + 360 天</span>
+        <span class="add-sub">带 <span class="req-star">*</span> 为必填 · 客户全称自动查重 · 保护期 = 建档/开票较晚者 + 365 天（公海捞取后 180 天）</span>
       </div>
     </div>
 

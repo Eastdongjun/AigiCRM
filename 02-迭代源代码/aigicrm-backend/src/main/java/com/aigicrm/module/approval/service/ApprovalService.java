@@ -59,6 +59,10 @@ public class ApprovalService {
     // 【P0 2026-10-16 体检修复】延期审批 extend 分支的归属/查看权限校验
     private final com.aigicrm.common.engine.CustomerAccessService customerAccessService;
     private final SysUserService userService;
+    /** 【2026-11-02 副本收敛】延期公式统一走 CustomerService(CustomerService 不依赖本服务, 无环) */
+    private final com.aigicrm.module.customer.service.CustomerService customerService;
+    /** 【生命线 2026-11-02 裁决D】延期/转移事件记录 */
+    private final com.aigicrm.module.customer.service.CustomerEventService customerEventService;
     /** 【PR-02】节点实例化收敛到 ApprovalConfigService.createNodes(唯一的实例化入口) */
     private final ApprovalConfigService approvalConfigService;
     /** 【议题一裁决】延期/保护期天数走系统配置(管理员可改) */
@@ -874,29 +878,20 @@ public class ApprovalService {
                         throw new BusinessException("客户已进入公海，该延期审批不再适用；请驳回此单（捞取回私海后再发起）");
                     }
                     int extendDays = resolveExtendDays(approval);
-                    int accumulated = customer.getApprovedExtendDays() != null
-                            ? customer.getApprovedExtendDays() : 0;
-                    customer.setApprovedExtendDays(accumulated + extendDays);
-                    // 重算开票推导部分并叠加累计延期(唯一公式,与开票增删路径同源)
-                    // 【回归修复 2026-10-09 公海死循环】基准日=max(开票日,注册日)——COALESCE(开票日优先)
-                    // 使 legacy 老票(生产实证 2015/2024 年)把基准拖回过去,延期审批一通过到期日即变
-                    // 过去日期,凌晨任务踢回公海(302/303 "捞取→掉海→再捞"死循环)。与
-                    // CustomerService.calculateExpireDates 同口径。
-                    java.time.LocalDate baseDate = customer.getLastInvoiceDate() != null && customer.getRegisterDate() != null
-                            ? (customer.getLastInvoiceDate().isAfter(customer.getRegisterDate())
-                                    ? customer.getLastInvoiceDate() : customer.getRegisterDate())
-                            : (customer.getLastInvoiceDate() != null ? customer.getLastInvoiceDate() : customer.getRegisterDate());
-                    java.time.LocalDate invoiceExpiry = baseDate != null
-                            ? baseDate.plusDays(getConfigInt("customer.protection.days", 360)) : null;
-                    if (invoiceExpiry != null) {
-                        customer.setExpireDate(invoiceExpiry.plusDays(customer.getApprovedExtendDays()));
-                    } else {
-                        // 无基准日:以当前日期起算(业务口径: 从未设置保护期=即日起延期)
-                        customer.setExpireDate(java.time.LocalDate.now().plusDays(customer.getApprovedExtendDays()));
-                    }
-                    customer.setProtectionStatus("active");
-                    customer.setStatus("normal");
-                    customerMapper.updateById(customer);
+                    // 【2026-11-02 副本收敛】延期累加+到期日重算统一走 CustomerService.applyExtendApproval:
+                    // 原此处内联公式与 CustomerService.calculateExpireDates 为双副本(2026-10-09 公海死循环
+                    // 修复时两处同改的教训), 三线口径批(365/捞取180)收敛为单一来源。
+                    // 悲观锁语义不变: selectByIdForUpdate 的行锁在本 approve 事务内持有到提交,
+                    // applyExtendApproval 的读改写全部发生在锁内。
+                    java.time.LocalDate expireBefore = customer.getExpireDate();
+                    customerService.applyExtendApproval(customer, extendDays);
+                    // 【生命线 2026-11-02 裁决D】延期事件(操作人=批准人)
+                    customerEventService.record(customer.getId(),
+                            com.aigicrm.module.customer.service.CustomerEventService.TYPE_EXTEND,
+                            LocalDate.now(), "延期审批通过(+" + extendDays + " 天)",
+                            expireBefore != null ? expireBefore.toString() : null,
+                            customer.getExpireDate() != null ? customer.getExpireDate().toString() : null,
+                            SecurityUtils.getCurrentUserId());
                 }
             }
             case "transfer" -> {
@@ -946,6 +941,16 @@ public class ApprovalService {
                                     .set(BizCustomer::getOwnerId, newOwnerId)
                                     .set(BizCustomer::getTransferDate, LocalDate.now())
                                     .set(BizCustomer::getDeptId, newOwner.getDeptId()));
+                            // 【生命线 2026-11-02 裁决D】转移事件(变更前后=新旧负责人名)
+                            String oldOwnerName = null;
+                            SysUser oldOwner = customer.getOwnerId() != null
+                                    ? userMapper.selectById(customer.getOwnerId()) : null;
+                            if (oldOwner != null) oldOwnerName = oldOwner.getRealName();
+                            customerEventService.record(customer.getId(),
+                                    com.aigicrm.module.customer.service.CustomerEventService.TYPE_TRANSFERRED,
+                                    LocalDate.now(), "转移审批通过, 负责人变更",
+                                    oldOwnerName, newOwner.getRealName(),
+                                    SecurityUtils.getCurrentUserId());
                         }
                     } catch (BusinessException be) {
                         throw be; // 业务校验失败直接透传(不走通用 catch 拼接)

@@ -152,8 +152,8 @@ class CustomerExpireTaskTest {
                 neverQuery.getTargetSql().contains("register_date"),
                 "从未开票查询应以 register_date 为宽限基准(2026-11-02 口径), 实际: " + neverQuery.getTargetSql());
         org.junit.jupiter.api.Assertions.assertTrue(
-                neverQuery.getParamNameValuePairs().containsValue(LocalDate.now().minusDays(360)),
-                "宽限阈值应为(今天-360)(默认对齐一年保护期), 实际参数: " + neverQuery.getParamNameValuePairs());
+                neverQuery.getParamNameValuePairs().containsValue(LocalDate.now().minusDays(365)),
+                "宽限阈值应为(今天-365)(默认对齐一年保护期, 2026-11-02 口径A 一年=365天), 实际参数: " + neverQuery.getParamNameValuePairs());
         return neverQuery;
     }
 

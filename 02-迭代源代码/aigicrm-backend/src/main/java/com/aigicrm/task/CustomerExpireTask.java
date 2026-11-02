@@ -291,10 +291,11 @@ public class CustomerExpireTask {
 
         // 【裁决 2026-09-24 GPT清单P1-018 带默认值】从未开票提醒建客宽限期: 系统设置 invoice.never.grace.days。
         // 【裁决 2026-11-02 用户口径修正】宽限基准从 created_at(系统入库时间)改为 register_date(业务注册日),
-        //   默认宽限从 30 天改为 360 天(对齐"新客户按注册日有一年保护期,保护期内不催首次开票"):
+        //   默认宽限从 30 天改为一年(对齐"新客户按注册日有一年保护期,保护期内不催首次开票"):
         //   生产实证 7 月建记录/10 月导入才填注册日的客户,按 created_at 起算 30 天宽限,注册 22 天即被催开票。
         //   register_date 为 NULL 的脏数据回退 created_at(按日界)。0=无宽限保持"从未开票即提醒"。
-        int neverGraceDays = getConfigInt("invoice.never.grace.days", 360);
+        // 【口径批 2026-11-02 裁决A】一年=365 天(原 360); sys_config 存量值由 V2026.11.02.4 对齐。
+        int neverGraceDays = getConfigInt("invoice.never.grace.days", 365);
         List<BizCustomer> neverInvoiced = customerMapper.selectList(
                 new LambdaQueryWrapper<BizCustomer>()
                         .eq(BizCustomer::getDeleted, 0)

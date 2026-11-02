@@ -32,6 +32,7 @@ public class CustomerController {
     private final SeaService seaService;
     private final com.aigicrm.common.idempotency.IdempotencyService idempotencyService;
     private final CustomerAccessService accessService;
+    private final com.aigicrm.module.customer.service.CustomerEventService customerEventService;
 
     // 【2026-09-13 移除「客户文件」功能】原 GET/POST/DELETE /{id}/files 三个端点及其
     // CustomerFileRelationService 依赖已整体删除（用户确认：小程序内部使用，该需求作废）。
@@ -279,6 +280,15 @@ public class CustomerController {
     public Result<List<BizCustomerLog>> getLogs(@PathVariable Long id) {
         accessService.assertCanView(id);
         return Result.ok(customerService.getLogs(id));
+    }
+
+    /** 【生命线 2026-11-02 裁决D】客户完整生命线: 建档/开票推进/人工维护开票日/延期/释放/捞取/转移,
+     *  时间倒序; 可见性与详情同口径(customer:view + assertCanView 数据范围)。 */
+    @PreAuthorize("hasAuthority('customer:view')")
+    @GetMapping("/{id}/events")
+    public Result<List<com.aigicrm.module.customer.entity.BizCustomerEvent>> getEvents(@PathVariable Long id) {
+        accessService.assertCanView(id);
+        return Result.ok(customerEventService.listByCustomer(id));
     }
 
     @PreAuthorize("hasAuthority('customer:edit')")

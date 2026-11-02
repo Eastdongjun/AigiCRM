@@ -75,7 +75,8 @@ class CustomerFinanceAuditLogTest {
                 mock(com.aigicrm.common.engine.CustomerAccessService.class),
                 mock(com.aigicrm.module.system.service.RolePermScopeService.class),
                 mock(com.aigicrm.module.approval.mapper.BizApprovalMapper.class),
-                financeAuditLogMapper);
+                financeAuditLogMapper,
+                mock(com.aigicrm.module.customer.service.CustomerEventService.class));
     }
 
     @Test

@@ -13,7 +13,7 @@
         <el-input v-model="form.address" placeholder="如：榆神工业区" />
       </el-form-item>
       <el-form-item label="保护期">
-        <div class="protect-hint"><el-icon><Timer /></el-icon> 注册日/开票日 + 360天</div>
+        <div class="protect-hint"><el-icon><Timer /></el-icon> 建档/开票 + 365天；捞取后 180天</div>
       </el-form-item>
     </div>
 
@@ -27,8 +27,16 @@
         <el-date-picker v-if="canEditInvoiceDate" v-model="form.lastInvoiceDate" type="date" value-format="YYYY-MM-DD" placeholder="尚未开票(可留空)" style="width:100%" clearable />
         <el-input v-else :model-value="form.lastInvoiceDate || '尚未开票'" disabled class="derived-input" />
         <div class="field-hint">{{ canEditInvoiceDate
-          ? '人工设定=新基准：将清零已批延期并按 max(注册日, 此日期) + 360 天重算保护期；后续更晚的开票仍会自动前移'
-          : '由开票记录自动推导（较晚于注册日者 + 360 天计保护期）；如需修正请到客户详情「开票回款」页签补录或作废发票' }}</div>
+          ? '人工设定=新基准：将清零已批延期并按 建档/开票/捞取三线取最晚 + 365 天（捞取后 180 天）重算保护期；后续更晚的开票仍会自动前移'
+          : '由开票记录自动推导（三线取最晚 + 365 天计保护期）；如需修正请到客户详情「开票回款」页签补录或作废发票' }}</div>
+      </el-form-item>
+    </div>
+
+    <div class="form-row two">
+      <el-form-item label="捞取日期">
+        <!-- 【2026-11-02 裁决B】捞取日期=审批域派生字段(仅捞取审批写), 表单只读展示; 从未捞取留空 -->
+        <el-input :model-value="form.claimDate || '从未捞取'" disabled class="derived-input" />
+        <div class="field-hint">最近一次公海捞取成功日，由系统自动记录；捞取后保护期 180 天</div>
       </el-form-item>
     </div>
   </div>

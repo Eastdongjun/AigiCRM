@@ -55,7 +55,10 @@ class TransferSubmitOwnershipTest {
                 configMapper, approvalMapper, nodeMapper, flowMapper,
                 customerMapper, userMapper, mock(SysUserRoleMapper.class), mock(SysDeptMapper.class),
                 seaPoolMapper, mock(SeaService.class), mock(OrgScopeResolver.class), mock(SeaConfigService.class),
-                accessService, mock(SysUserService.class), approvalConfigService,
+                accessService, mock(SysUserService.class),
+                mock(com.aigicrm.module.customer.service.CustomerService.class),
+                mock(com.aigicrm.module.customer.service.CustomerEventService.class),
+                approvalConfigService,
                 mock(SysConfigService.class), mock(JdbcTemplate.class), mock(SecurityAuditService.class));
     }
 

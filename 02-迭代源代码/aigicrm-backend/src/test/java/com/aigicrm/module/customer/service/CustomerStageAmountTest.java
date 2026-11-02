@@ -68,7 +68,8 @@ class CustomerStageAmountTest {
             mock(com.aigicrm.common.engine.CustomerAccessService.class),
             mock(com.aigicrm.module.system.service.RolePermScopeService.class),
             mock(com.aigicrm.module.approval.mapper.BizApprovalMapper.class),
-            mock(SysLogMapper.class));
+            mock(SysLogMapper.class),
+            mock(com.aigicrm.module.customer.service.CustomerEventService.class));
 
     @BeforeAll
     static void initTableInfo() {
@@ -188,7 +189,7 @@ class CustomerStageAmountTest {
             ArgumentCaptor<BizCustomer> c1 = ArgumentCaptor.forClass(BizCustomer.class);
             verify(customerMapper, times(1)).updateById(c1.capture());
             assertEquals(LocalDate.of(2026, 6, 30), c1.getValue().getLastInvoiceDate());
-            assertEquals(LocalDate.of(2026, 6, 30).plusDays(360), c1.getValue().getExpireDate());
+            assertEquals(LocalDate.of(2026, 6, 30).plusDays(365), c1.getValue().getExpireDate());
 
             // ② 现有开票日已晚于起算日 → 不回退(不动保护期)
             // 【日期脆弱修复 2026-11-02】原硬编码 2026-11-01 在日历越过该日后永久反转:
@@ -245,7 +246,7 @@ class CustomerStageAmountTest {
         BizCustomer saved = cap.getValue();
         assertEquals(stageEnd, saved.getLastInvoiceDate(), "阶段总额前移最近开票日");
         assertEquals(0, saved.getApprovedExtendDays(), "前移必须清零已批延期,防与新保护期双重叠加");
-        assertEquals(stageEnd.plusDays(360), saved.getExpireDate(), "到期日只按新基准+360 重算一次");
+        assertEquals(stageEnd.plusDays(365), saved.getExpireDate(), "到期日只按新基准+365 重算一次(2026-11-02 口径A)");
     }
 
     /**

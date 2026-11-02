@@ -80,10 +80,38 @@ class ApprovalServiceTest {
                 mock(SeaConfigService.class),
                 mock(com.aigicrm.common.engine.CustomerAccessService.class),
                 mock(SysUserService.class),
+                mock(com.aigicrm.module.customer.service.CustomerService.class),
+                mock(com.aigicrm.module.customer.service.CustomerEventService.class),
                 mock(ApprovalConfigService.class),
                 mock(com.aigicrm.module.system.service.SysConfigService.class),
                 mock(org.springframework.jdbc.core.JdbcTemplate.class),
                 mock(com.aigicrm.security.SecurityAuditService.class));
+    }
+
+    /** 【2026-11-02 副本收敛】延期公式已收敛进 CustomerService.applyExtendApproval(三线/365),
+     *  extend 执行用例注入真实例(其余依赖全 mock; configService 返回 null → 公式走默认 365/180)。 */
+    private static com.aigicrm.module.customer.service.CustomerService realCustomerService(BizCustomerMapper customerMapper) {
+        return new com.aigicrm.module.customer.service.CustomerService(
+                customerMapper,
+                mock(com.aigicrm.module.customer.mapper.BizCustomerLogMapper.class),
+                mock(com.aigicrm.module.customer.mapper.BizInvoiceMapper.class),
+                mock(com.aigicrm.module.customer.mapper.BizCustomerShareMapper.class),
+                mock(com.aigicrm.module.customer.mapper.BizCustomerIndicatorMapper.class),
+                mock(com.aigicrm.module.customer.mapper.BizContactMapper.class),
+                mock(com.aigicrm.module.customer.mapper.BizPaymentMapper.class),
+                mock(com.aigicrm.module.customer.mapper.BizCustomerStageAmountMapper.class),
+                mock(com.aigicrm.module.sea.mapper.BizSeaPoolMapper.class),
+                mock(SysUserMapper.class),
+                mock(SysDeptMapper.class),
+                mock(com.aigicrm.module.reminder.mapper.BizReminderMapper.class),
+                mock(org.springframework.jdbc.core.JdbcTemplate.class),
+                mock(com.aigicrm.module.system.service.SysConfigService.class),
+                mock(com.aigicrm.common.scope.OrgScopeResolver.class),
+                mock(com.aigicrm.common.engine.CustomerAccessService.class),
+                mock(com.aigicrm.module.system.service.RolePermScopeService.class),
+                mock(BizApprovalMapper.class),
+                mock(com.aigicrm.module.system.mapper.SysLogMapper.class),
+                mock(com.aigicrm.module.customer.service.CustomerEventService.class));
     }
 
     private static com.aigicrm.module.approval.entity.BizApprovalNode node(Long id, Long approverId, int order,
@@ -153,6 +181,8 @@ class ApprovalServiceTest {
                 seaConfigService,
                 mock(com.aigicrm.common.engine.CustomerAccessService.class),
                 mock(SysUserService.class),
+                mock(com.aigicrm.module.customer.service.CustomerService.class),
+                mock(com.aigicrm.module.customer.service.CustomerEventService.class),
                 configService,
                 mock(com.aigicrm.module.system.service.SysConfigService.class),
                 mock(org.springframework.jdbc.core.JdbcTemplate.class),
@@ -389,6 +419,8 @@ class ApprovalServiceTest {
                 mock(SeaConfigService.class),
                 accessService,
                 mock(SysUserService.class),
+                mock(com.aigicrm.module.customer.service.CustomerService.class),
+                mock(com.aigicrm.module.customer.service.CustomerEventService.class),
                 configService,
                 mock(com.aigicrm.module.system.service.SysConfigService.class),
                 jdbc,
@@ -761,7 +793,7 @@ class ApprovalServiceTest {
                 mock(BizSeaPoolMapper.class), mock(SeaService.class),
                 mock(com.aigicrm.common.scope.OrgScopeResolver.class), mock(SeaConfigService.class),
                 mock(com.aigicrm.common.engine.CustomerAccessService.class),
-                mock(SysUserService.class), mock(ApprovalConfigService.class),
+                mock(SysUserService.class), mock(com.aigicrm.module.customer.service.CustomerService.class), mock(com.aigicrm.module.customer.service.CustomerEventService.class), mock(ApprovalConfigService.class),
                 mock(com.aigicrm.module.system.service.SysConfigService.class),
                 mock(org.springframework.jdbc.core.JdbcTemplate.class),
                 mock(com.aigicrm.security.SecurityAuditService.class));
@@ -841,7 +873,7 @@ class ApprovalServiceTest {
                 mock(BizSeaPoolMapper.class), mock(SeaService.class),
                 mock(com.aigicrm.common.scope.OrgScopeResolver.class), mock(SeaConfigService.class),
                 accessCfg,
-                mock(SysUserService.class), configService, 
+                mock(SysUserService.class), mock(com.aigicrm.module.customer.service.CustomerService.class), mock(com.aigicrm.module.customer.service.CustomerEventService.class), configService,
                 mock(com.aigicrm.module.system.service.SysConfigService.class),
                 mock(org.springframework.jdbc.core.JdbcTemplate.class),
                 mock(com.aigicrm.security.SecurityAuditService.class));
@@ -882,7 +914,7 @@ class ApprovalServiceTest {
                 mock(BizSeaPoolMapper.class), mock(SeaService.class),
                 mock(com.aigicrm.common.scope.OrgScopeResolver.class), mock(SeaConfigService.class),
                 accessOk,
-                mock(SysUserService.class), mock(ApprovalConfigService.class), 
+                mock(SysUserService.class), mock(com.aigicrm.module.customer.service.CustomerService.class), mock(com.aigicrm.module.customer.service.CustomerEventService.class), mock(ApprovalConfigService.class),
                 mock(com.aigicrm.module.system.service.SysConfigService.class),
                 mock(org.springframework.jdbc.core.JdbcTemplate.class),
                 mock(com.aigicrm.security.SecurityAuditService.class));
@@ -949,7 +981,7 @@ class ApprovalServiceTest {
                 mock(BizSeaPoolMapper.class), mock(SeaService.class),
                 mock(com.aigicrm.common.scope.OrgScopeResolver.class), mock(SeaConfigService.class),
                 mock(com.aigicrm.common.engine.CustomerAccessService.class),
-                mock(SysUserService.class), mock(ApprovalConfigService.class), 
+                mock(SysUserService.class), mock(com.aigicrm.module.customer.service.CustomerService.class), mock(com.aigicrm.module.customer.service.CustomerEventService.class), mock(ApprovalConfigService.class),
                 mock(com.aigicrm.module.system.service.SysConfigService.class),
                 mock(org.springframework.jdbc.core.JdbcTemplate.class),
                 mock(com.aigicrm.security.SecurityAuditService.class));
@@ -1001,7 +1033,10 @@ class ApprovalServiceTest {
                 mock(BizSeaPoolMapper.class), mock(SeaService.class),
                 mock(com.aigicrm.common.scope.OrgScopeResolver.class),
                 mock(SeaConfigService.class),
-                mock(com.aigicrm.common.engine.CustomerAccessService.class), mock(SysUserService.class), mock(ApprovalConfigService.class),
+                mock(com.aigicrm.common.engine.CustomerAccessService.class), mock(SysUserService.class),
+                realCustomerService(customerMapper),
+                mock(com.aigicrm.module.customer.service.CustomerEventService.class),
+                mock(ApprovalConfigService.class),
                 mock(com.aigicrm.module.system.service.SysConfigService.class),
                 mock(org.springframework.jdbc.core.JdbcTemplate.class),
                 mock(com.aigicrm.security.SecurityAuditService.class));
@@ -1012,8 +1047,8 @@ class ApprovalServiceTest {
                 ArgumentCaptor.forClass(com.aigicrm.module.customer.entity.BizCustomer.class);
         verify(customerMapper).updateById(cap.capture());
         com.aigicrm.module.customer.entity.BizCustomer saved = cap.getValue();
-        // 基准=max(2015-05-12, 2026-07-28)=注册(捞取)日: expire=2026-07-28+360(保护)+360(本次延期)
-        java.time.LocalDate expected = java.time.LocalDate.of(2026, 7, 28).plusDays(360).plusDays(360);
+        // 基准=max(2015-05-12, 2026-07-28)=注册日: expire=2026-07-28+365(保护,2026-11-02口径A)+360(本次延期)
+        java.time.LocalDate expected = java.time.LocalDate.of(2026, 7, 28).plusDays(365).plusDays(360);
         assertEquals(expected, saved.getExpireDate(), "实际: " + saved.getExpireDate());
         assertEquals(360, saved.getApprovedExtendDays());
         assertTrue(saved.getExpireDate().isAfter(java.time.LocalDate.now()), "延期后到期日必须在未来");
@@ -1081,7 +1116,7 @@ class ApprovalServiceTest {
                 mock(BizSeaPoolMapper.class), mock(SeaService.class),
                 mock(com.aigicrm.common.scope.OrgScopeResolver.class), mock(SeaConfigService.class),
                 accessCfg,
-                mock(SysUserService.class), configService,
+                mock(SysUserService.class), mock(com.aigicrm.module.customer.service.CustomerService.class), mock(com.aigicrm.module.customer.service.CustomerEventService.class), configService,
                 mock(com.aigicrm.module.system.service.SysConfigService.class),
                 mock(org.springframework.jdbc.core.JdbcTemplate.class),
                 mock(com.aigicrm.security.SecurityAuditService.class));
@@ -1130,7 +1165,10 @@ class ApprovalServiceTest {
                 mock(SysUserMapper.class), mock(SysUserRoleMapper.class), mock(SysDeptMapper.class),
                 mock(BizSeaPoolMapper.class), mock(SeaService.class),
                 mock(com.aigicrm.common.scope.OrgScopeResolver.class), mock(SeaConfigService.class),
-                accessCfg, mock(SysUserService.class), approvalConfigService, configService,
+                accessCfg, mock(SysUserService.class),
+                mock(com.aigicrm.module.customer.service.CustomerService.class),
+                mock(com.aigicrm.module.customer.service.CustomerEventService.class),
+                approvalConfigService, configService,
                 mock(org.springframework.jdbc.core.JdbcTemplate.class),
                 mock(com.aigicrm.security.SecurityAuditService.class));
 
@@ -1188,6 +1226,8 @@ class ApprovalServiceTest {
                 mock(BizSeaPoolMapper.class), mock(SeaService.class),
                 mock(com.aigicrm.common.scope.OrgScopeResolver.class), mock(SeaConfigService.class),
                 mock(com.aigicrm.common.engine.CustomerAccessService.class), mock(SysUserService.class),
+                realCustomerService(customerMapper),
+                mock(com.aigicrm.module.customer.service.CustomerEventService.class),
                 mock(ApprovalConfigService.class),
                 mock(com.aigicrm.module.system.service.SysConfigService.class),
                 mock(org.springframework.jdbc.core.JdbcTemplate.class),
@@ -1200,7 +1240,7 @@ class ApprovalServiceTest {
         verify(customerMapper).updateById(cap.capture());
         com.aigicrm.module.customer.entity.BizCustomer saved = cap.getValue();
         assertEquals(90, saved.getApprovedExtendDays(), "执行天数须取审批单 extraData(90), 非 sys_config 默认(360)");
-        java.time.LocalDate expected = java.time.LocalDate.of(2026, 1, 1).plusDays(360).plusDays(90);
+        java.time.LocalDate expected = java.time.LocalDate.of(2026, 1, 1).plusDays(365).plusDays(90);
         assertEquals(expected, saved.getExpireDate(), "实际: " + saved.getExpireDate());
     }
 
@@ -1239,6 +1279,8 @@ class ApprovalServiceTest {
                 mock(BizSeaPoolMapper.class), mock(SeaService.class),
                 mock(com.aigicrm.common.scope.OrgScopeResolver.class), mock(SeaConfigService.class),
                 mock(com.aigicrm.common.engine.CustomerAccessService.class), mock(SysUserService.class),
+                realCustomerService(customerMapper),
+                mock(com.aigicrm.module.customer.service.CustomerEventService.class),
                 mock(ApprovalConfigService.class),
                 mock(com.aigicrm.module.system.service.SysConfigService.class),
                 mock(org.springframework.jdbc.core.JdbcTemplate.class),
@@ -1277,6 +1319,8 @@ class ApprovalServiceTest {
                 mock(BizSeaPoolMapper.class), mock(SeaService.class),
                 mock(com.aigicrm.common.scope.OrgScopeResolver.class), mock(SeaConfigService.class),
                 mock(com.aigicrm.common.engine.CustomerAccessService.class), mock(SysUserService.class),
+                mock(com.aigicrm.module.customer.service.CustomerService.class),
+                mock(com.aigicrm.module.customer.service.CustomerEventService.class),
                 mock(ApprovalConfigService.class),
                 mock(com.aigicrm.module.system.service.SysConfigService.class),
                 mock(org.springframework.jdbc.core.JdbcTemplate.class),
@@ -1378,7 +1422,10 @@ class ApprovalServiceTest {
                 mock(SysUserMapper.class), mock(SysUserRoleMapper.class), mock(SysDeptMapper.class),
                 mock(BizSeaPoolMapper.class), mock(SeaService.class),
                 mock(com.aigicrm.common.scope.OrgScopeResolver.class), mock(SeaConfigService.class),
-                access, mock(SysUserService.class), approvalConfigService,
+                access, mock(SysUserService.class),
+                mock(com.aigicrm.module.customer.service.CustomerService.class),
+                mock(com.aigicrm.module.customer.service.CustomerEventService.class),
+                approvalConfigService,
                 mock(com.aigicrm.module.system.service.SysConfigService.class),
                 jdbc, mock(com.aigicrm.security.SecurityAuditService.class));
     }

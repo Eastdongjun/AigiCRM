@@ -34,7 +34,7 @@ public class MybatisPlusConfig {
      */
     private static final Set<String> TENANT_TABLES = Set.of(
             "biz_approval", "biz_approval_config", "biz_approval_flow", "biz_approval_node",
-            "biz_contact", "biz_customer", "biz_customer_indicator", "biz_customer_log",
+            "biz_contact", "biz_customer", "biz_customer_event", "biz_customer_indicator", "biz_customer_log",
             "biz_customer_share", "biz_customer_stage_amount", "biz_customer_transfer",
             "biz_file", "biz_file_folder", "biz_file_share", "biz_folder_acl",
             "biz_incentive_category", "biz_incentive_permission", "biz_incentive_record",

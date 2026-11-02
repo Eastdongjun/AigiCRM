@@ -25,7 +25,7 @@ class CustomerControllerTest {
         CustomerAccessService accessService = mock(CustomerAccessService.class);
         BizCustomer customer = customer(11L, 200L);
         when(customerService.getById(11L)).thenReturn(customer);
-        CustomerController controller = new CustomerController(customerService, seaService, mock(com.aigicrm.common.idempotency.IdempotencyService.class), accessService);
+        CustomerController controller = new CustomerController(customerService, seaService, mock(com.aigicrm.common.idempotency.IdempotencyService.class), accessService, mock(com.aigicrm.module.customer.service.CustomerEventService.class));
 
         try (MockedStatic<SecurityUtils> security = mockStatic(SecurityUtils.class)) {
             security.when(SecurityUtils::getCurrentUserId).thenReturn(100L);
@@ -46,7 +46,7 @@ class CustomerControllerTest {
         customer.setOfficeId(7L);
         when(customerService.getById(11L)).thenReturn(customer);
         when(seaService.matchSeaConfig(7L)).thenReturn(null);
-        CustomerController controller = new CustomerController(customerService, seaService, mock(com.aigicrm.common.idempotency.IdempotencyService.class), accessService);
+        CustomerController controller = new CustomerController(customerService, seaService, mock(com.aigicrm.common.idempotency.IdempotencyService.class), accessService, mock(com.aigicrm.module.customer.service.CustomerEventService.class));
 
         try (MockedStatic<SecurityUtils> security = mockStatic(SecurityUtils.class)) {
             security.when(SecurityUtils::getCurrentUserId).thenReturn(100L);
@@ -67,7 +67,7 @@ class CustomerControllerTest {
         customer.setOfficeId(7L);
         when(customerService.getById(11L)).thenReturn(customer);
         when(seaService.matchSeaConfig(7L)).thenReturn(1L);
-        CustomerController controller = new CustomerController(customerService, seaService, mock(com.aigicrm.common.idempotency.IdempotencyService.class), accessService);
+        CustomerController controller = new CustomerController(customerService, seaService, mock(com.aigicrm.common.idempotency.IdempotencyService.class), accessService, mock(com.aigicrm.module.customer.service.CustomerEventService.class));
 
         try (MockedStatic<SecurityUtils> security = mockStatic(SecurityUtils.class)) {
             security.when(SecurityUtils::getCurrentUserId).thenReturn(100L);
@@ -86,7 +86,7 @@ class CustomerControllerTest {
         CustomerAccessService accessService = mock(CustomerAccessService.class);
         when(customerService.getInvoices(11L)).thenReturn(List.of());
         when(customerService.getInvoiceSummary(11L)).thenReturn(Map.of("totalCount", 4, "totalAmount", 120));
-        CustomerController controller = new CustomerController(customerService, seaService, mock(com.aigicrm.common.idempotency.IdempotencyService.class), accessService);
+        CustomerController controller = new CustomerController(customerService, seaService, mock(com.aigicrm.common.idempotency.IdempotencyService.class), accessService, mock(com.aigicrm.module.customer.service.CustomerEventService.class));
 
         try (MockedStatic<SecurityUtils> security = mockStatic(SecurityUtils.class)) {
             security.when(() -> SecurityUtils.hasAuthority("finance:view")).thenReturn(false);
@@ -101,7 +101,8 @@ class CustomerControllerTest {
     void contactsEndpoint_doesNotQueryWithoutContactPermission() {
         CustomerService customerService = mock(CustomerService.class);
         CustomerController controller = new CustomerController(customerService, mock(SeaService.class),
-                mock(com.aigicrm.common.idempotency.IdempotencyService.class), mock(CustomerAccessService.class));
+                mock(com.aigicrm.common.idempotency.IdempotencyService.class), mock(CustomerAccessService.class),
+                mock(com.aigicrm.module.customer.service.CustomerEventService.class));
         try (MockedStatic<SecurityUtils> security = mockStatic(SecurityUtils.class)) {
             security.when(() -> SecurityUtils.hasAuthority("contact:view")).thenReturn(false);
             controller.getContacts(11L);
@@ -114,7 +115,8 @@ class CustomerControllerTest {
         CustomerService customerService = mock(CustomerService.class);
         when(customerService.listGroupNames()).thenReturn(List.of("陕煤集团"));
         CustomerController controller = new CustomerController(customerService, mock(SeaService.class),
-                mock(com.aigicrm.common.idempotency.IdempotencyService.class), mock(CustomerAccessService.class));
+                mock(com.aigicrm.common.idempotency.IdempotencyService.class), mock(CustomerAccessService.class),
+                mock(com.aigicrm.module.customer.service.CustomerEventService.class));
 
         assertEquals(List.of("陕煤集团"), controller.groupNames().getData());
         verify(customerService).listGroupNames();
@@ -158,7 +160,8 @@ class CustomerControllerTest {
         CustomerService customerService = mock(CustomerService.class);
         CustomerAccessService accessService = mock(CustomerAccessService.class);
         CustomerController controller = new CustomerController(customerService, mock(SeaService.class),
-                mock(com.aigicrm.common.idempotency.IdempotencyService.class), accessService);
+                mock(com.aigicrm.common.idempotency.IdempotencyService.class), accessService,
+                mock(com.aigicrm.module.customer.service.CustomerEventService.class));
 
         controller.saveStageAmount(11L, stageAmountRequest());
 
@@ -176,7 +179,8 @@ class CustomerControllerTest {
         doThrow(new BusinessException("无权编辑该客户"))
                 .when(accessService).assertCanManageFinance(11L);
         CustomerController controller = new CustomerController(customerService, mock(SeaService.class),
-                mock(com.aigicrm.common.idempotency.IdempotencyService.class), accessService);
+                mock(com.aigicrm.common.idempotency.IdempotencyService.class), accessService,
+                mock(com.aigicrm.module.customer.service.CustomerEventService.class));
 
         assertThrows(BusinessException.class, () -> controller.saveStageAmount(11L, stageAmountRequest()));
         verify(customerService, never())

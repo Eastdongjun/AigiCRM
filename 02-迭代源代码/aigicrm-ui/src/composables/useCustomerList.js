@@ -41,7 +41,8 @@ export const CUSTOMER_ALL_COLS = [
   { key: 'hasTerminal', label: '终端' },
   { key: 'province', label: '省市' }, { key: 'address', label: '厂址' }, { key: 'registerDate', label: '注册日' },
   { key: 'lastInvoiceDate', label: '最近开票' }, { key: 'transferDate', label: '转移日' }, { key: 'expireDate', label: '到期日' },
-  { key: 'adjustDate', label: '调整日' }, { key: 'regionName', label: '大区' }, { key: 'officeName', label: '办事处' },
+  { key: 'claimDate', label: '捞取日期' },
+  { key: 'adjustDate', label: '捞取到期日' }, { key: 'regionName', label: '大区' }, { key: 'officeName', label: '办事处' },
   { key: 'deptName', label: '部门' },
 ]
 

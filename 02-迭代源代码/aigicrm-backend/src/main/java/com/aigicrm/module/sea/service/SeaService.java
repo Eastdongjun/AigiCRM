@@ -47,7 +47,8 @@ public class SeaService {
     private final SysDeptMapper deptMapper;
     private final SeaConfigService seaConfigService;
     private final CustomerService customerService;
-    private final SysConfigService configService;
+    /** 【生命线 2026-11-02 裁决D】捞取/释放事件记录 */
+    private final com.aigicrm.module.customer.service.CustomerEventService customerEventService;
 
     /**
      * 当前用户可见且启用的公海池ID——【P2-4 2026-10-19】永不返回 null(方法名随 B1 修复对齐:
@@ -198,6 +199,17 @@ public class SeaService {
         customer.setStatus("sea");
         customer.setProtectionStatus("expired");
         customerMapper.updateById(customer);
+        // 【生命线 2026-11-02 裁决D】释放事件(手动释放/到期自动/导入/离职四调用点统一经此入口)
+        Long releaseOperator;
+        try {
+            releaseOperator = SecurityUtils.getCurrentUserId();
+        } catch (Exception noRequestContext) {
+            releaseOperator = null; // 凌晨任务自动入池无请求上下文, 事件显示"系统"
+        }
+        customerEventService.record(customerId,
+                com.aigicrm.module.customer.service.CustomerEventService.TYPE_RELEASED,
+                LocalDate.now(), "释放进公海" + (StringUtils.hasText(reason) ? "：" + reason : ""),
+                null, null, releaseOperator);
 
         // 【修复 FEAT-20260804-SHARE-CLEANUP】客户进入公海即失去原负责人归属，此前不清理
         // biz_customer_share，导致原来被分享查看的同事在客户易主后仍长期保留访问权限。
@@ -259,25 +271,19 @@ public class SeaService {
         // 更新客户归属
         BizCustomer customer = customerMapper.selectById(pool.getCustomerId());
         if (customer != null) {
-            // 【修复 2026-10-08 需求对齐 P1】捞取=归新负责人重新起算,与文档 customer-lifecycle.md §3
-            // "唯一公式"同口径(customer-lifecycle.md:27-33):
-            // ①保护期/调整期天数走 sys_config(此前硬编码 360/180,管理员改配置对捞取路径不生效);
-            // ②清零 approvedExtendDays——延期是原负责人任内的审批,跨公海生命周期残留会在下次开票/
-            //   编辑触发 calculateExpireDates 时叠加进新保护期(公海回收机制被架空,复核实证);
-            // ③显式置空 lastInvoiceDate——开票推导基准随新周期重置;updateById 的 NOT_NULL 策略
-            //   不写 null 字段,必须用 LambdaUpdateWrapper 显式 set。
+            // 【2026-11-02 裁决B/C 公式收敛】捞取日期独立字段 claim_date 参与三线公式(捞取线=捞取日+180
+            // 短保护, 裁决B); 注册日不再被覆写(保留真实建档日语义, 覆写曾致原建档日丢失);
+            // 天数/清延期/置空最近开票日/公式统一走 CustomerService.applyClaimReset 单一来源。
             LocalDate today = LocalDate.now();
             customer.setOwnerId(claimUserId);
             customer.setStatus("normal");
             customer.setProtectionStatus("active");
-            customer.setRegisterDate(today);
-            customer.setExpireDate(today.plusDays(getConfigInt("customer.protection.days", 360)));
-            customer.setAdjustDate(today.plusDays(getConfigInt("customer.adjust.days", 180)));
-            customer.setApprovedExtendDays(0);
-            customerMapper.updateById(customer);
-            customerMapper.update(null, new LambdaUpdateWrapper<BizCustomer>()
-                    .eq(BizCustomer::getId, customer.getId())
-                    .set(BizCustomer::getLastInvoiceDate, null));
+            customer.setLastInvoiceDate(null); // 实体同步置空, 公式按新周期计算(DB 落空在 applyClaimReset)
+            customerService.applyClaimReset(customer, today);
+            // 【生命线 2026-11-02 裁决D】捞取事件(操作人=捞取审批通过时的当前审批人)
+            customerEventService.record(customerId,
+                    com.aigicrm.module.customer.service.CustomerEventService.TYPE_CLAIMED, today,
+                    "公海捞取成功, 180 天短保护期开始", null, today.toString(), claimUserId);
 
             // 【修复 FEAT-20260804-SHARE-CLEANUP】客户被捞取后归属新负责人，清理原有分享记录，
             // 避免原负责人分享出去的同事在客户易主后仍长期保留访问权限
@@ -286,19 +292,6 @@ public class SeaService {
             // 池内期间理论无新生成, 此处兜底入海时点之后的漏网死行
             customerService.cleanPendingReminders(customerId);
         }
-    }
-
-    /** 与 CustomerService.getConfigInt 同口径:sys_config 脏值/缺省回退默认值 */
-    private int getConfigInt(String key, int defaultValue) {
-        String val = configService.getValue(key);
-        if (val != null) {
-            try {
-                return Integer.parseInt(val.trim());
-            } catch (NumberFormatException ignored) {
-                // 配置脏值回退默认值
-            }
-        }
-        return defaultValue;
     }
 
     /**

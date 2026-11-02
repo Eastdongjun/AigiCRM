@@ -548,6 +548,7 @@ local_contracts() {
   run "$ROOT/scripts/check-prod-config-contract.sh"
   run "$ROOT/scripts/check-client-ip-contract.sh"
   run "$ROOT/scripts/check-customer-status-contract.sh"
+  run "$ROOT/scripts/check-customer-protection-365-contract.sh"
   run "$ROOT/scripts/check-legacy-routes-contract.sh"
   run "$ROOT/scripts/check-customer-share-contract.sh"
   run "$ROOT/scripts/check-file-permission-contract.sh"

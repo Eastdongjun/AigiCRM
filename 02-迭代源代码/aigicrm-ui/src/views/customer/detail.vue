@@ -141,6 +141,8 @@
            （小程序为公司内部使用、不面向客户 ⇒ 不再需要"按客户关联文件"的能力）已作废；
            后端端点与关联表 biz_customer_file 由 V2026.09.13.5 迁移一并删除。 -->
       <el-tab-pane label="跟进日志" name="logs"><LogsTab /></el-tab-pane>
+      <!-- 【生命线 2026-11-02 裁决D】客户关键日期事件全记录(建档/开票/延期/释放/捞取/转移) -->
+      <el-tab-pane label="生命线" name="events"><EventsTab /></el-tab-pane>
     </el-tabs>
 
     <!-- 分享弹窗 -->
@@ -179,6 +181,7 @@ import FinanceTab from './detail/FinanceTab.vue'
 import IndicatorTab from './detail/IndicatorTab.vue'
 import IncentiveTab from './detail/IncentiveTab.vue'
 import LogsTab from './detail/LogsTab.vue'
+import EventsTab from './detail/EventsTab.vue'
 
 // 共享上下文: 父级实例化一次并 provide,各 tab 子组件 inject
 const detail = useCustomerDetail()

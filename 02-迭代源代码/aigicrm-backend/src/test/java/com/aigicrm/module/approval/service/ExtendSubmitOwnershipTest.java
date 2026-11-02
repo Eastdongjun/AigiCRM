@@ -62,6 +62,8 @@ class ExtendSubmitOwnershipTest {
                 seaPoolMapper, mock(SeaService.class), mock(OrgScopeResolver.class), seaConfigService,
                 accessService,
                 mock(com.aigicrm.module.system.service.SysUserService.class),
+                mock(com.aigicrm.module.customer.service.CustomerService.class),
+                mock(com.aigicrm.module.customer.service.CustomerEventService.class),
                 approvalConfigService,
                 mock(com.aigicrm.module.system.service.SysConfigService.class),
                 mock(org.springframework.jdbc.core.JdbcTemplate.class),

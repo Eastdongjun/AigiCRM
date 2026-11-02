@@ -75,15 +75,43 @@ class ExtendApprovalConcurrencyTest {
     private final JdbcTemplate jdbc = mock(JdbcTemplate.class);
     private final CommerceStubs commerce = new CommerceStubs();
 
-    /** 构造依赖较多, 抽出避免用例重复 */
+    /** 构造依赖较多, 抽出避免用例重复。
+     *  【2026-11-02 副本收敛】延期累加+公式已收敛进 CustomerService.applyExtendApproval,
+     *  注入真实例(共用本类 customerMapper)保住"锁内读改写累加"断言; config 返回 null→默认 365。 */
     private ApprovalService service() {
         return new ApprovalService(
                 configMapper, approvalMapper, nodeMapper, flowMapper, customerMapper,
                 userMapper, mock(SysUserRoleMapper.class), mock(SysDeptMapper.class),
                 mock(BizSeaPoolMapper.class), mock(SeaService.class), mock(OrgScopeResolver.class),
                 mock(SeaConfigService.class), commerce.accessService, mock(SysUserService.class),
+                realCustomerService(customerMapper),
+                mock(com.aigicrm.module.customer.service.CustomerEventService.class),
                 mock(ApprovalConfigService.class), mock(SysConfigService.class), jdbc,
                 mock(SecurityAuditService.class));
+    }
+
+    private static com.aigicrm.module.customer.service.CustomerService realCustomerService(BizCustomerMapper customerMapper) {
+        return new com.aigicrm.module.customer.service.CustomerService(
+                customerMapper,
+                mock(com.aigicrm.module.customer.mapper.BizCustomerLogMapper.class),
+                mock(com.aigicrm.module.customer.mapper.BizInvoiceMapper.class),
+                mock(com.aigicrm.module.customer.mapper.BizCustomerShareMapper.class),
+                mock(com.aigicrm.module.customer.mapper.BizCustomerIndicatorMapper.class),
+                mock(com.aigicrm.module.customer.mapper.BizContactMapper.class),
+                mock(com.aigicrm.module.customer.mapper.BizPaymentMapper.class),
+                mock(com.aigicrm.module.customer.mapper.BizCustomerStageAmountMapper.class),
+                mock(com.aigicrm.module.sea.mapper.BizSeaPoolMapper.class),
+                mock(SysUserMapper.class),
+                mock(SysDeptMapper.class),
+                mock(com.aigicrm.module.reminder.mapper.BizReminderMapper.class),
+                mock(JdbcTemplate.class),
+                mock(SysConfigService.class),
+                mock(OrgScopeResolver.class),
+                mock(CustomerAccessService.class),
+                mock(com.aigicrm.module.system.service.RolePermScopeService.class),
+                mock(BizApprovalMapper.class),
+                mock(com.aigicrm.module.system.mapper.SysLogMapper.class),
+                mock(com.aigicrm.module.customer.service.CustomerEventService.class));
     }
 
     private static final class CommerceStubs {

@@ -129,7 +129,8 @@ class CustomerServiceTest {
                 resolver,
                 accessService,
                 mock(com.aigicrm.module.system.service.RolePermScopeService.class), mock(com.aigicrm.module.approval.mapper.BizApprovalMapper.class),
-                mock(com.aigicrm.module.system.mapper.SysLogMapper.class));
+                mock(com.aigicrm.module.system.mapper.SysLogMapper.class),
+                mock(com.aigicrm.module.customer.service.CustomerEventService.class));
     }
 
     /** 裁决 2026-09-24: 财务删除留痕钉用——可注入 SysLogMapper 以断言审计快照 */
@@ -153,7 +154,8 @@ class CustomerServiceTest {
                 resolver,
                 mock(com.aigicrm.common.engine.CustomerAccessService.class),
                 mock(com.aigicrm.module.system.service.RolePermScopeService.class), mock(com.aigicrm.module.approval.mapper.BizApprovalMapper.class),
-                auditMapper);
+                auditMapper,
+                mock(com.aigicrm.module.customer.service.CustomerEventService.class));
     }
 
     @Test
@@ -232,8 +234,8 @@ class CustomerServiceTest {
             verify(customerMapper).updateById(cap.capture());
             assertEquals(java.time.LocalDate.of(2026, 9, 1), cap.getValue().getLastInvoiceDate(), "人工设定的新基准必须落库");
             assertEquals(0, cap.getValue().getApprovedExtendDays(), "新基准上已批延期必须清零");
-            assertEquals(java.time.LocalDate.of(2026, 9, 1).plusDays(360), cap.getValue().getExpireDate(),
-                    "到期日=新基准+360(未配置时默认保护天数)");
+            assertEquals(java.time.LocalDate.of(2026, 9, 1).plusDays(365), cap.getValue().getExpireDate(),
+                    "到期日=新基准+365(未配置时默认保护天数, 2026-11-02 口径A)");
         }
     }
 
@@ -357,7 +359,8 @@ class CustomerServiceTest {
                 resolver,
                 mock(com.aigicrm.common.engine.CustomerAccessService.class),
                 mock(com.aigicrm.module.system.service.RolePermScopeService.class), mock(com.aigicrm.module.approval.mapper.BizApprovalMapper.class),
-                mock(com.aigicrm.module.system.mapper.SysLogMapper.class));
+                mock(com.aigicrm.module.system.mapper.SysLogMapper.class),
+                mock(com.aigicrm.module.customer.service.CustomerEventService.class));
 
         BizInvoice invoice = new BizInvoice();
         invoice.setId(5L);
@@ -531,7 +534,8 @@ class CustomerServiceTest {
                 mock(CustomerAccessService.class),
                 mock(com.aigicrm.module.system.service.RolePermScopeService.class),
                 mock(com.aigicrm.module.approval.mapper.BizApprovalMapper.class),
-                mock(com.aigicrm.module.system.mapper.SysLogMapper.class));
+                mock(com.aigicrm.module.system.mapper.SysLogMapper.class),
+                mock(com.aigicrm.module.customer.service.CustomerEventService.class));
 
         // 【门禁修复 2026-10-08】同文件列表路径测试既定模式:mockStatic 钉死 getCurrentUser=null,
         // 否则 surefire 同 JVM 复用线程上,先跑的 ApprovalServiceTest/SeaServiceTest 等类
@@ -613,7 +617,8 @@ class CustomerServiceTest {
                 access,
                 mock(com.aigicrm.module.system.service.RolePermScopeService.class),
                 approvalMapper,
-                mock(com.aigicrm.module.system.mapper.SysLogMapper.class));
+                mock(com.aigicrm.module.system.mapper.SysLogMapper.class),
+                mock(com.aigicrm.module.customer.service.CustomerEventService.class));
 
         // 在途审批 2 条 → 拒删并提示先处理审批
         when(approvalMapper.selectCount(any())).thenReturn(2L);
@@ -1047,8 +1052,8 @@ class CustomerServiceTest {
         BizCustomer saved = captor.getValue();
         assertEquals(java.time.LocalDate.now(), saved.getRegisterDate(), "缺失注册日必须按当天兜底");
         assertNotNull(saved.getExpireDate(), "兜底后必须生成保护期到期日");
-        assertEquals(java.time.LocalDate.now().plusDays(360), saved.getExpireDate(),
-                "默认保护期 360 天（config mock 返回 null 时走默认值）");
+        assertEquals(java.time.LocalDate.now().plusDays(365), saved.getExpireDate(),
+                "默认保护期 365 天（config mock 返回 null 时走默认值, 2026-11-02 口径A）");
     }
 
     @Test
@@ -1189,7 +1194,8 @@ class CustomerServiceTest {
                 resolver,
                 mock(com.aigicrm.common.engine.CustomerAccessService.class),
                 mock(com.aigicrm.module.system.service.RolePermScopeService.class), mock(com.aigicrm.module.approval.mapper.BizApprovalMapper.class),
-                mock(com.aigicrm.module.system.mapper.SysLogMapper.class));
+                mock(com.aigicrm.module.system.mapper.SysLogMapper.class),
+                mock(com.aigicrm.module.customer.service.CustomerEventService.class));
     }
 
     /** 【批② 统一数据访问层】resolver 桩: 统一入口 resolveScope(ScopeRequest) 返回指定 userIds */
@@ -1285,7 +1291,8 @@ class CustomerServiceTest {
                 mock(JdbcTemplate.class), mock(SysConfigService.class),
                 mock(OrgScopeResolver.class), mock(CustomerAccessService.class),
                 mock(com.aigicrm.module.system.service.RolePermScopeService.class), mock(com.aigicrm.module.approval.mapper.BizApprovalMapper.class),
-                mock(com.aigicrm.module.system.mapper.SysLogMapper.class));
+                mock(com.aigicrm.module.system.mapper.SysLogMapper.class),
+                mock(com.aigicrm.module.customer.service.CustomerEventService.class));
         BizCustomer req = new BizCustomer();
         try (MockedStatic<SecurityUtils> ms = mockStatic(SecurityUtils.class)) {
             ms.when(SecurityUtils::isAdmin).thenReturn(false);
@@ -1315,7 +1322,8 @@ class CustomerServiceTest {
                 mock(JdbcTemplate.class), mock(SysConfigService.class),
                 mock(OrgScopeResolver.class), mock(CustomerAccessService.class),
                 mock(com.aigicrm.module.system.service.RolePermScopeService.class), mock(com.aigicrm.module.approval.mapper.BizApprovalMapper.class),
-                mock(com.aigicrm.module.system.mapper.SysLogMapper.class));
+                mock(com.aigicrm.module.system.mapper.SysLogMapper.class),
+                mock(com.aigicrm.module.customer.service.CustomerEventService.class));
         BizCustomer req = new BizCustomer();
         try (MockedStatic<SecurityUtils> ms = mockStatic(SecurityUtils.class)) {
             ms.when(SecurityUtils::isAdmin).thenReturn(false);
@@ -1355,7 +1363,8 @@ class CustomerServiceTest {
                 mock(JdbcTemplate.class), mock(SysConfigService.class),
                 mock(OrgScopeResolver.class), accessService,
                 mock(com.aigicrm.module.system.service.RolePermScopeService.class), mock(com.aigicrm.module.approval.mapper.BizApprovalMapper.class),
-                mock(com.aigicrm.module.system.mapper.SysLogMapper.class));
+                mock(com.aigicrm.module.system.mapper.SysLogMapper.class),
+                mock(com.aigicrm.module.customer.service.CustomerEventService.class));
 
         BizCustomer req = new BizCustomer();
         req.setId(1L); req.setOwnerId(300L);
@@ -1395,7 +1404,8 @@ class CustomerServiceTest {
                 mock(JdbcTemplate.class), mock(SysConfigService.class),
                 mock(OrgScopeResolver.class), accessService,
                 mock(com.aigicrm.module.system.service.RolePermScopeService.class), mock(com.aigicrm.module.approval.mapper.BizApprovalMapper.class),
-                mock(com.aigicrm.module.system.mapper.SysLogMapper.class));
+                mock(com.aigicrm.module.system.mapper.SysLogMapper.class),
+                mock(com.aigicrm.module.customer.service.CustomerEventService.class));
 
         BizCustomer req = new BizCustomer();
         req.setId(1L); req.setOwnerId(300L);
@@ -1438,7 +1448,8 @@ class CustomerServiceTest {
                 mock(JdbcTemplate.class), mock(SysConfigService.class),
                 mock(OrgScopeResolver.class), accessService,
                 mock(com.aigicrm.module.system.service.RolePermScopeService.class), mock(com.aigicrm.module.approval.mapper.BizApprovalMapper.class),
-                mock(com.aigicrm.module.system.mapper.SysLogMapper.class));
+                mock(com.aigicrm.module.system.mapper.SysLogMapper.class),
+                mock(com.aigicrm.module.customer.service.CustomerEventService.class));
 
         BizCustomer req = new BizCustomer();
         req.setId(1L); // 不传 ownerId = 视为不修改负责人, 用库内 owner
@@ -1472,7 +1483,8 @@ class CustomerServiceTest {
                 mock(com.aigicrm.common.scope.OrgScopeResolver.class),
                 mock(CustomerAccessService.class),
                 mock(com.aigicrm.module.system.service.RolePermScopeService.class), mock(com.aigicrm.module.approval.mapper.BizApprovalMapper.class),
-                mock(com.aigicrm.module.system.mapper.SysLogMapper.class));
+                mock(com.aigicrm.module.system.mapper.SysLogMapper.class),
+                mock(com.aigicrm.module.customer.service.CustomerEventService.class));
         SecurityUser user = new SecurityUser();
         user.setUserId(74L);
         user.setCurrentGroupId(6L);
@@ -1525,7 +1537,8 @@ class CustomerServiceTest {
                 mock(com.aigicrm.common.scope.OrgScopeResolver.class),
                 mock(CustomerAccessService.class),
                 mock(com.aigicrm.module.system.service.RolePermScopeService.class), mock(com.aigicrm.module.approval.mapper.BizApprovalMapper.class),
-                mock(com.aigicrm.module.system.mapper.SysLogMapper.class));
+                mock(com.aigicrm.module.system.mapper.SysLogMapper.class),
+                mock(com.aigicrm.module.customer.service.CustomerEventService.class));
         SecurityUser user = new SecurityUser();
         user.setUserId(7L);
         user.setCurrentGroupId(1L);
@@ -1563,7 +1576,8 @@ class CustomerServiceTest {
                 mock(com.aigicrm.common.scope.OrgScopeResolver.class),
                 mock(CustomerAccessService.class),
                 mock(com.aigicrm.module.system.service.RolePermScopeService.class), mock(com.aigicrm.module.approval.mapper.BizApprovalMapper.class),
-                mock(com.aigicrm.module.system.mapper.SysLogMapper.class));
+                mock(com.aigicrm.module.system.mapper.SysLogMapper.class),
+                mock(com.aigicrm.module.customer.service.CustomerEventService.class));
         doAnswer(inv -> {
             inv.getArgument(0, BizCustomer.class).setId(501L);
             return 1;
@@ -1618,7 +1632,8 @@ class CustomerServiceTest {
                 mock(com.aigicrm.common.scope.OrgScopeResolver.class),
                 mock(CustomerAccessService.class),
                 mock(com.aigicrm.module.system.service.RolePermScopeService.class), mock(com.aigicrm.module.approval.mapper.BizApprovalMapper.class),
-                mock(com.aigicrm.module.system.mapper.SysLogMapper.class));
+                mock(com.aigicrm.module.system.mapper.SysLogMapper.class),
+                mock(com.aigicrm.module.customer.service.CustomerEventService.class));
         SecurityUser user = new SecurityUser();
         user.setUserId(9L);
 
@@ -1669,7 +1684,8 @@ class CustomerServiceTest {
                 mock(com.aigicrm.common.scope.OrgScopeResolver.class),
                 mock(CustomerAccessService.class),
                 mock(com.aigicrm.module.system.service.RolePermScopeService.class), mock(com.aigicrm.module.approval.mapper.BizApprovalMapper.class),
-                mock(com.aigicrm.module.system.mapper.SysLogMapper.class));
+                mock(com.aigicrm.module.system.mapper.SysLogMapper.class),
+                mock(com.aigicrm.module.customer.service.CustomerEventService.class));
         SecurityUser user = new SecurityUser();
         user.setUserId(7L);
 
@@ -1715,7 +1731,8 @@ class CustomerServiceTest {
                 mock(com.aigicrm.common.scope.OrgScopeResolver.class),
                 accessService,
                 mock(com.aigicrm.module.system.service.RolePermScopeService.class), mock(com.aigicrm.module.approval.mapper.BizApprovalMapper.class),
-                mock(com.aigicrm.module.system.mapper.SysLogMapper.class));
+                mock(com.aigicrm.module.system.mapper.SysLogMapper.class),
+                mock(com.aigicrm.module.customer.service.CustomerEventService.class));
 
         BusinessException ex = assertThrows(BusinessException.class, () -> svc.delete(501L));
         assertTrue(ex.getMessage().contains("不允许删除"), "实际: " + ex.getMessage());
@@ -1750,7 +1767,8 @@ class CustomerServiceTest {
                 mock(com.aigicrm.common.scope.OrgScopeResolver.class),
                 accessService,
                 mock(com.aigicrm.module.system.service.RolePermScopeService.class), mock(com.aigicrm.module.approval.mapper.BizApprovalMapper.class),
-                mock(com.aigicrm.module.system.mapper.SysLogMapper.class));
+                mock(com.aigicrm.module.system.mapper.SysLogMapper.class),
+                mock(com.aigicrm.module.customer.service.CustomerEventService.class));
 
         assertDoesNotThrow(() -> svc.delete(501L));
         verify(customerMapper).deleteById(501L);
@@ -1789,7 +1807,8 @@ class CustomerServiceTest {
                 accessService,
                 mock(com.aigicrm.module.system.service.RolePermScopeService.class),
                 mock(com.aigicrm.module.approval.mapper.BizApprovalMapper.class),
-                mock(com.aigicrm.module.system.mapper.SysLogMapper.class));
+                mock(com.aigicrm.module.system.mapper.SysLogMapper.class),
+                mock(com.aigicrm.module.customer.service.CustomerEventService.class));
 
         BusinessException ex = assertThrows(BusinessException.class, () -> svc.delete(501L));
         assertTrue(ex.getMessage().contains("请先在公海管理删除"), "提示须指向公海管理入口: " + ex.getMessage());
@@ -1830,7 +1849,8 @@ class CustomerServiceTest {
                 mock(com.aigicrm.common.scope.OrgScopeResolver.class),
                 accessService,
                 mock(com.aigicrm.module.system.service.RolePermScopeService.class), mock(com.aigicrm.module.approval.mapper.BizApprovalMapper.class),
-                mock(com.aigicrm.module.system.mapper.SysLogMapper.class));
+                mock(com.aigicrm.module.system.mapper.SysLogMapper.class),
+                mock(com.aigicrm.module.customer.service.CustomerEventService.class));
 
         svc.archive(501L);
         assertEquals("archived", cust.getStatus());
@@ -1867,7 +1887,8 @@ class CustomerServiceTest {
                 mock(OrgScopeResolver.class), accessService,
                 mock(com.aigicrm.module.system.service.RolePermScopeService.class),
                 mock(com.aigicrm.module.approval.mapper.BizApprovalMapper.class),
-                mock(com.aigicrm.module.system.mapper.SysLogMapper.class));
+                mock(com.aigicrm.module.system.mapper.SysLogMapper.class),
+                mock(com.aigicrm.module.customer.service.CustomerEventService.class));
 
         svc.delete(501L);
         // 删除是终态: 分享行与 pending 分享提醒一并清理(悬挂提醒回填不到客户名);
@@ -1910,7 +1931,8 @@ class CustomerServiceTest {
                 mock(OrgScopeResolver.class), accessService,
                 mock(com.aigicrm.module.system.service.RolePermScopeService.class),
                 mock(com.aigicrm.module.approval.mapper.BizApprovalMapper.class),
-                mock(com.aigicrm.module.system.mapper.SysLogMapper.class));
+                mock(com.aigicrm.module.system.mapper.SysLogMapper.class),
+                mock(com.aigicrm.module.customer.service.CustomerEventService.class));
 
         svc.archive(501L);
         assertEquals("archived", cust.getStatus());
@@ -1938,7 +1960,8 @@ class CustomerServiceTest {
                 mock(OrgScopeResolver.class), mock(CustomerAccessService.class),
                 mock(com.aigicrm.module.system.service.RolePermScopeService.class),
                 mock(com.aigicrm.module.approval.mapper.BizApprovalMapper.class),
-                mock(com.aigicrm.module.system.mapper.SysLogMapper.class));
+                mock(com.aigicrm.module.system.mapper.SysLogMapper.class),
+                mock(com.aigicrm.module.customer.service.CustomerEventService.class));
 
         // 入海/捞取/管理端清空三路径均经此口,分享撤销后三类 pending 提醒随分享失效
         svc.removeAllShares(501L);
@@ -1960,7 +1983,8 @@ class CustomerServiceTest {
                 mock(OrgScopeResolver.class), mock(CustomerAccessService.class),
                 mock(com.aigicrm.module.system.service.RolePermScopeService.class),
                 mock(com.aigicrm.module.approval.mapper.BizApprovalMapper.class),
-                mock(com.aigicrm.module.system.mapper.SysLogMapper.class));
+                mock(com.aigicrm.module.system.mapper.SysLogMapper.class),
+                mock(com.aigicrm.module.customer.service.CustomerEventService.class));
 
         svc.removeShare(501L, 66L);
         verify(shareMapper).delete(any());
@@ -2046,7 +2070,8 @@ class CustomerServiceTest {
                 mock(CustomerAccessService.class),
                 mock(com.aigicrm.module.system.service.RolePermScopeService.class),
                 mock(com.aigicrm.module.approval.mapper.BizApprovalMapper.class),
-                mock(com.aigicrm.module.system.mapper.SysLogMapper.class));
+                mock(com.aigicrm.module.system.mapper.SysLogMapper.class),
+                mock(com.aigicrm.module.customer.service.CustomerEventService.class));
 
         // 生产 302 号客户复刻: legacy 票 2024-09-11, 最近捞取(注册)日 2026-09-08, 已批延期 360 天。
         // COALESCE(开票日优先)旧口径算出 expire=2026-09-01(过去)→凌晨任务踢回公海→死循环
@@ -2070,7 +2095,7 @@ class CustomerServiceTest {
         service.voidInvoice(1L, 5L, "回算保护期(测试)");
 
         // 基准=max(开票日,注册日)=注册日(捞取承诺的保护期起点), 不得被 2024 年老票拖回过去
-        java.time.LocalDate expected = java.time.LocalDate.of(2026, 9, 8).plusDays(360).plusDays(360);
+        java.time.LocalDate expected = java.time.LocalDate.of(2026, 9, 8).plusDays(365).plusDays(360);
         assertEquals(expected, customer.getExpireDate(),
                 "expire 应=注册(捞取)日+360+已批延期, 实际: " + customer.getExpireDate());
         assertTrue(customer.getExpireDate().isAfter(java.time.LocalDate.now()), "捞取后保护期必须在未来");
@@ -2097,7 +2122,8 @@ class CustomerServiceTest {
                 mock(com.aigicrm.common.engine.CustomerAccessService.class),
                 mock(com.aigicrm.module.system.service.RolePermScopeService.class),
                 mock(com.aigicrm.module.approval.mapper.BizApprovalMapper.class),
-                mock(com.aigicrm.module.system.mapper.SysLogMapper.class));
+                mock(com.aigicrm.module.system.mapper.SysLogMapper.class),
+                mock(com.aigicrm.module.customer.service.CustomerEventService.class));
     }
 
     @Test
@@ -2163,7 +2189,8 @@ class CustomerServiceTest {
                 mock(com.aigicrm.common.engine.CustomerAccessService.class),
                 mock(com.aigicrm.module.system.service.RolePermScopeService.class),
                 mock(com.aigicrm.module.approval.mapper.BizApprovalMapper.class),
-                mock(com.aigicrm.module.system.mapper.SysLogMapper.class));
+                mock(com.aigicrm.module.system.mapper.SysLogMapper.class),
+                mock(com.aigicrm.module.customer.service.CustomerEventService.class));
         try (MockedStatic<SecurityUtils> sec = mockStatic(SecurityUtils.class)) {
             sec.when(SecurityUtils::isAdmin).thenReturn(false);
             sec.when(SecurityUtils::getCurrentUserId).thenReturn(11L);
@@ -2212,7 +2239,8 @@ class CustomerServiceTest {
                 mock(com.aigicrm.common.engine.CustomerAccessService.class),
                 mock(com.aigicrm.module.system.service.RolePermScopeService.class),
                 mock(com.aigicrm.module.approval.mapper.BizApprovalMapper.class),
-                mock(com.aigicrm.module.system.mapper.SysLogMapper.class));
+                mock(com.aigicrm.module.system.mapper.SysLogMapper.class),
+                mock(com.aigicrm.module.customer.service.CustomerEventService.class));
         try (MockedStatic<SecurityUtils> sec = mockStatic(SecurityUtils.class)) {
             sec.when(SecurityUtils::isAdmin).thenReturn(false);
             sec.when(SecurityUtils::getCurrentUserId).thenReturn(11L);
@@ -2281,7 +2309,8 @@ class CustomerServiceTest {
                 mock(CustomerAccessService.class),
                 mock(com.aigicrm.module.system.service.RolePermScopeService.class),
                 mock(com.aigicrm.module.approval.mapper.BizApprovalMapper.class),
-                mock(com.aigicrm.module.system.mapper.SysLogMapper.class));
+                mock(com.aigicrm.module.system.mapper.SysLogMapper.class),
+                mock(com.aigicrm.module.customer.service.CustomerEventService.class));
     }
 
     /** 【延期规则收敛 2026-10-18】新开票且最近开票日前移 → 清零已批准延期:
@@ -2304,7 +2333,8 @@ class CustomerServiceTest {
                 mock(CustomerAccessService.class),
                 mock(com.aigicrm.module.system.service.RolePermScopeService.class),
                 mock(com.aigicrm.module.approval.mapper.BizApprovalMapper.class),
-                mock(com.aigicrm.module.system.mapper.SysLogMapper.class));
+                mock(com.aigicrm.module.system.mapper.SysLogMapper.class),
+                mock(com.aigicrm.module.customer.service.CustomerEventService.class));
 
         // 旧票 2025-06-01 基准 + 已批延期 360;再开一张 2026-10-17 的新票
         BizInvoice fresh = new BizInvoice();
@@ -2329,9 +2359,9 @@ class CustomerServiceTest {
         }
 
         assertEquals(0, customer.getApprovedExtendDays(), "新开票且基准日前移必须清零已批准延期");
-        // 新基准=max(新票 2026-10-17, 注册 2025-01-01)=新票日: expire=新票日+360+0(旧延期不再叠加)
+        // 新基准=max(新票 2026-10-17, 注册 2025-01-01)=新票日: expire=新票日+365+0(旧延期不再叠加)
         assertEquals(java.time.LocalDate.of(2026, 10, 17), customer.getLastInvoiceDate());
-        assertEquals(java.time.LocalDate.of(2026, 10, 17).plusDays(360), customer.getExpireDate(),
+        assertEquals(java.time.LocalDate.of(2026, 10, 17).plusDays(365), customer.getExpireDate(),
                 "实际: " + customer.getExpireDate());
         // 前移时清零+重算一次性落库(advanceLastInvoiceDate 单次 updateById);不再有独立清零写
         verify(customerMapper, times(1)).updateById(customer);
@@ -2361,7 +2391,8 @@ class CustomerServiceTest {
                 mock(CustomerAccessService.class),
                 mock(com.aigicrm.module.system.service.RolePermScopeService.class),
                 mock(com.aigicrm.module.approval.mapper.BizApprovalMapper.class),
-                mock(com.aigicrm.module.system.mapper.SysLogMapper.class));
+                mock(com.aigicrm.module.system.mapper.SysLogMapper.class),
+                mock(com.aigicrm.module.customer.service.CustomerEventService.class));
 
         java.time.LocalDate newest = java.time.LocalDate.now().minusDays(30);
         BizInvoice existingNewest = new BizInvoice();
@@ -2477,7 +2508,8 @@ class CustomerServiceTest {
                 reminderMapper, mock(JdbcTemplate.class), mock(SysConfigService.class),
                 mock(OrgScopeResolver.class), mock(CustomerAccessService.class),
                 mock(com.aigicrm.module.system.service.RolePermScopeService.class),
-                mock(com.aigicrm.module.approval.mapper.BizApprovalMapper.class), logMapper);
+                mock(com.aigicrm.module.approval.mapper.BizApprovalMapper.class), logMapper,
+                mock(com.aigicrm.module.customer.service.CustomerEventService.class));
 
         svc.deleteFromSeaPool(501L);
 
@@ -2506,7 +2538,8 @@ class CustomerServiceTest {
                 mock(OrgScopeResolver.class), mock(CustomerAccessService.class),
                 mock(com.aigicrm.module.system.service.RolePermScopeService.class),
                 mock(com.aigicrm.module.approval.mapper.BizApprovalMapper.class),
-                mock(com.aigicrm.module.system.mapper.SysLogMapper.class));
+                mock(com.aigicrm.module.system.mapper.SysLogMapper.class),
+                mock(com.aigicrm.module.customer.service.CustomerEventService.class));
 
         BusinessException ex = assertThrows(BusinessException.class, () -> svc.deleteFromSeaPool(501L));
         assertTrue(ex.getMessage().contains("请先在公海管理删除"), "实际: " + ex.getMessage());
@@ -2545,7 +2578,7 @@ class CustomerServiceTest {
         verify(customerMapper).updateById(captor.capture());
         BizCustomer saved = captor.getValue();
         assertEquals(30, saved.getApprovedExtendDays(), "已批延期必须以库内值保留, 不得按 null=0 清零");
-        assertEquals(java.time.LocalDate.of(2026, 1, 1).plusDays(360 + 30), saved.getExpireDate(),
+        assertEquals(java.time.LocalDate.of(2026, 1, 1).plusDays(365 + 30), saved.getExpireDate(),
                 "到期日=注册日+360+已批延期(服务端公式), 不取请求体 2099 值");
     }
 
@@ -2576,7 +2609,7 @@ class CustomerServiceTest {
         ArgumentCaptor<BizCustomer> captor = ArgumentCaptor.forClass(BizCustomer.class);
         verify(customerMapper).updateById(captor.capture());
         assertEquals(30, captor.getValue().getApprovedExtendDays(), "显式注入必须被库内值覆盖");
-        assertEquals(java.time.LocalDate.of(2026, 1, 1).plusDays(360 + 30), captor.getValue().getExpireDate(),
+        assertEquals(java.time.LocalDate.of(2026, 1, 1).plusDays(365 + 30), captor.getValue().getExpireDate(),
                 "到期日仍按库内 30 天重算, 不得按 5000 天延长");
     }
 
@@ -2628,8 +2661,8 @@ class CustomerServiceTest {
         verify(customerMapper).insert(captor.capture());
         BizCustomer saved = captor.getValue();
         assertEquals(0, saved.getApprovedExtendDays(), "新建必须强制 approvedExtendDays=0");
-        assertEquals(java.time.LocalDate.of(2026, 1, 1).plusDays(360), saved.getExpireDate(),
-                "新建到期日=注册日+360+0(服务端公式), 不取请求体 2099 值");
+        assertEquals(java.time.LocalDate.of(2026, 1, 1).plusDays(365), saved.getExpireDate(),
+                "新建到期日=注册日+365+0(服务端公式, 2026-11-02 口径A), 不取请求体 2099 值");
     }
 
     // ===== 【A3 2026-10-20】客户编号 MAX+1 取号并发兜底(有限重试) =====
@@ -2737,7 +2770,8 @@ class CustomerServiceTest {
                 seaPoolMapper, mock(SysUserMapper.class), mock(SysDeptMapper.class), reminderMapper,
                 mock(JdbcTemplate.class), mock(SysConfigService.class), mock(OrgScopeResolver.class), access,
                 mock(com.aigicrm.module.system.service.RolePermScopeService.class), approvalMapper,
-                mock(com.aigicrm.module.system.mapper.SysLogMapper.class));
+                mock(com.aigicrm.module.system.mapper.SysLogMapper.class),
+                mock(com.aigicrm.module.customer.service.CustomerEventService.class));
 
         RuntimeException ex = assertThrows(RuntimeException.class, () -> svc.delete(501L),
                 "清理失败必须传播出去交给 @Transactional 回滚, 不得吞掉留下半删状态");
@@ -2775,7 +2809,8 @@ class CustomerServiceTest {
                 seaPoolMapper, mock(SysUserMapper.class), mock(SysDeptMapper.class), reminderMapper,
                 mock(JdbcTemplate.class), mock(SysConfigService.class), mock(OrgScopeResolver.class), access,
                 mock(com.aigicrm.module.system.service.RolePermScopeService.class), approvalMapper,
-                mock(com.aigicrm.module.system.mapper.SysLogMapper.class));
+                mock(com.aigicrm.module.system.mapper.SysLogMapper.class),
+                mock(com.aigicrm.module.customer.service.CustomerEventService.class));
     }
 
     /** 经真实 @Transactional 代理调用 delete 的被测对象(代理由 CGLIB 生成, 事务管理器绑定 mock 数据源) */
@@ -2844,7 +2879,8 @@ class CustomerServiceTest {
                 jdbc, mock(SysConfigService.class), mock(OrgScopeResolver.class),
                 mock(CustomerAccessService.class), mock(com.aigicrm.module.system.service.RolePermScopeService.class),
                 mock(com.aigicrm.module.approval.mapper.BizApprovalMapper.class),
-                mock(com.aigicrm.module.system.mapper.SysLogMapper.class));
+                mock(com.aigicrm.module.system.mapper.SysLogMapper.class),
+                mock(com.aigicrm.module.customer.service.CustomerEventService.class));
 
         SecurityUser u = new SecurityUser();
         u.setUserId(100L);
@@ -2928,5 +2964,138 @@ class CustomerServiceTest {
         }
         assertEquals(3, committedCodes.size(),
                 "3 方并发建客必须全部成功且编号互不相同(集合去重后恰为 3 → 仅一方占用每个号)");
+    }
+
+    // ===== 【口径批 2026-11-02 裁决A/B/C】三线公式/捞取重置/捞取守卫 =====
+
+    /** 裁决B: 捞取重置=短保护180天+捞取到期日; 注册日不被覆写; 已批延期清零; 最近开票日显式置空 */
+    @Test
+    void applyClaimReset_shortProtectionWithoutOverwritingRegister() {
+        BizCustomerMapper customerMapper = mock(BizCustomerMapper.class);
+        CustomerService service = new CustomerService(
+                customerMapper,
+                mock(BizCustomerLogMapper.class), mock(BizInvoiceMapper.class),
+                mock(BizCustomerShareMapper.class), mock(BizCustomerIndicatorMapper.class),
+                mock(BizContactMapper.class), mock(BizPaymentMapper.class),
+                mock(com.aigicrm.module.customer.mapper.BizCustomerStageAmountMapper.class),
+                mock(com.aigicrm.module.sea.mapper.BizSeaPoolMapper.class),
+                mock(SysUserMapper.class), mock(SysDeptMapper.class),
+                mock(BizReminderMapper.class), mock(JdbcTemplate.class),
+                mock(SysConfigService.class), mock(OrgScopeResolver.class),
+                mock(CustomerAccessService.class),
+                mock(com.aigicrm.module.system.service.RolePermScopeService.class),
+                mock(com.aigicrm.module.approval.mapper.BizApprovalMapper.class),
+                mock(com.aigicrm.module.system.mapper.SysLogMapper.class),
+                mock(com.aigicrm.module.customer.service.CustomerEventService.class));
+        BizCustomer customer = new BizCustomer();
+        customer.setId(1L);
+        customer.setRegisterDate(java.time.LocalDate.of(2025, 1, 1));
+        customer.setLastInvoiceDate(null); // 调用方(SeaService)置空后进入
+        customer.setApprovedExtendDays(90);
+        java.time.LocalDate claimDay = java.time.LocalDate.of(2026, 11, 2);
+
+        service.applyClaimReset(customer, claimDay);
+
+        assertEquals(claimDay, customer.getClaimDate(), "捞取日期=当天");
+        assertEquals(java.time.LocalDate.of(2025, 1, 1), customer.getRegisterDate(), "注册日不得被捞取覆写(裁决B)");
+        assertEquals(0, customer.getApprovedExtendDays(), "原负责人任内已批延期清零");
+        assertEquals(claimDay.plusDays(180), customer.getExpireDate(), "到期日=捞取日+180(短保护, 裁决B)");
+        assertEquals(claimDay.plusDays(180), customer.getAdjustDate(), "捞取到期日=捞取日+180(裁决C)");
+        verify(customerMapper).update(isNull(),
+                org.mockito.ArgumentMatchers.<LambdaUpdateWrapper<BizCustomer>>any());
+    }
+
+    /** 三线: 捞取后开了更晚的新票 → 开票线(365)压捞取线(180), 到期=开票日+365 */
+    @Test
+    void expireFormula_invoiceAfterClaim_invoiceLineWins() {
+        BizCustomerMapper customerMapper = mock(BizCustomerMapper.class);
+        CustomerService service = new CustomerService(
+                customerMapper, mock(BizCustomerLogMapper.class), mock(BizInvoiceMapper.class),
+                mock(BizCustomerShareMapper.class), mock(BizCustomerIndicatorMapper.class),
+                mock(BizContactMapper.class), mock(BizPaymentMapper.class),
+                mock(com.aigicrm.module.customer.mapper.BizCustomerStageAmountMapper.class),
+                mock(com.aigicrm.module.sea.mapper.BizSeaPoolMapper.class),
+                mock(SysUserMapper.class), mock(SysDeptMapper.class),
+                mock(BizReminderMapper.class), mock(JdbcTemplate.class),
+                mock(SysConfigService.class), mock(OrgScopeResolver.class),
+                mock(CustomerAccessService.class),
+                mock(com.aigicrm.module.system.service.RolePermScopeService.class),
+                mock(com.aigicrm.module.approval.mapper.BizApprovalMapper.class),
+                mock(com.aigicrm.module.system.mapper.SysLogMapper.class),
+                mock(com.aigicrm.module.customer.service.CustomerEventService.class));
+        BizCustomer customer = new BizCustomer();
+        customer.setId(1L);
+        customer.setRegisterDate(java.time.LocalDate.of(2025, 1, 1));
+        customer.setClaimDate(java.time.LocalDate.of(2026, 6, 1));
+        customer.setLastInvoiceDate(java.time.LocalDate.of(2026, 11, 10)); // 捞取后的新票
+
+        service.applyExtendApproval(customer, 0);
+
+        assertEquals(java.time.LocalDate.of(2026, 11, 10).plusDays(365), customer.getExpireDate(),
+                "开票晚于捞取日 → 开票线主导: 到期=开票日+365(回到正常保护)");
+        assertEquals("active", customer.getProtectionStatus());
+    }
+
+    /** 三线: 存量捞取户注册日曾被旧逻辑覆写为捞取日 → 建档线不参与, 不得变相拿到 365 */
+    @Test
+    void expireFormula_claimCustomer_registerLineExcluded() {
+        BizCustomerMapper customerMapper = mock(BizCustomerMapper.class);
+        CustomerService service = new CustomerService(
+                customerMapper, mock(BizCustomerLogMapper.class), mock(BizInvoiceMapper.class),
+                mock(BizCustomerShareMapper.class), mock(BizCustomerIndicatorMapper.class),
+                mock(BizContactMapper.class), mock(BizPaymentMapper.class),
+                mock(com.aigicrm.module.customer.mapper.BizCustomerStageAmountMapper.class),
+                mock(com.aigicrm.module.sea.mapper.BizSeaPoolMapper.class),
+                mock(SysUserMapper.class), mock(SysDeptMapper.class),
+                mock(BizReminderMapper.class), mock(JdbcTemplate.class),
+                mock(SysConfigService.class), mock(OrgScopeResolver.class),
+                mock(CustomerAccessService.class),
+                mock(com.aigicrm.module.system.service.RolePermScopeService.class),
+                mock(com.aigicrm.module.approval.mapper.BizApprovalMapper.class),
+                mock(com.aigicrm.module.system.mapper.SysLogMapper.class),
+                mock(com.aigicrm.module.customer.service.CustomerEventService.class));
+        BizCustomer customer = new BizCustomer();
+        customer.setId(1L);
+        customer.setRegisterDate(java.time.LocalDate.of(2026, 6, 1)); // 被旧逻辑覆写=捞取日(存量特征)
+        customer.setClaimDate(java.time.LocalDate.of(2026, 6, 1));
+        customer.setLastInvoiceDate(null);
+
+        service.applyExtendApproval(customer, 30);
+
+        // 建档线若参与: 2026-06-01+365+30; 正确口径(捞取线): 2026-06-01+180+30
+        assertEquals(java.time.LocalDate.of(2026, 6, 1).plusDays(180).plusDays(30), customer.getExpireDate(),
+                "有捞取线时建档线不参与(存量注册日已被覆写不可信), 到期=捞取日+180+延期");
+    }
+
+    /** 裁决B守卫: 捞取后早于捞取日的老票日期不得经 advance 回填最近开票日(防老票复活拉长保护期) */
+    @Test
+    void advanceGuard_oldInvoiceBeforeClaim_notBackfilled() {
+        BizCustomerMapper customerMapper = mock(BizCustomerMapper.class);
+        CustomerService service = new CustomerService(
+                customerMapper, mock(BizCustomerLogMapper.class), mock(BizInvoiceMapper.class),
+                mock(BizCustomerShareMapper.class), mock(BizCustomerIndicatorMapper.class),
+                mock(BizContactMapper.class), mock(BizPaymentMapper.class),
+                mock(com.aigicrm.module.customer.mapper.BizCustomerStageAmountMapper.class),
+                mock(com.aigicrm.module.sea.mapper.BizSeaPoolMapper.class),
+                mock(SysUserMapper.class), mock(SysDeptMapper.class),
+                mock(BizReminderMapper.class), mock(JdbcTemplate.class),
+                mock(SysConfigService.class), mock(OrgScopeResolver.class),
+                mock(CustomerAccessService.class),
+                mock(com.aigicrm.module.system.service.RolePermScopeService.class),
+                mock(com.aigicrm.module.approval.mapper.BizApprovalMapper.class),
+                mock(com.aigicrm.module.system.mapper.SysLogMapper.class),
+                mock(com.aigicrm.module.customer.service.CustomerEventService.class));
+        BizCustomer customer = new BizCustomer();
+        customer.setId(1L);
+        customer.setRegisterDate(java.time.LocalDate.of(2025, 1, 1));
+        customer.setClaimDate(java.time.LocalDate.of(2026, 11, 2));
+        customer.setLastInvoiceDate(null); // 捞取置空后
+
+        Object advanced = org.springframework.test.util.ReflectionTestUtils.invokeMethod(
+                service, "advanceLastInvoiceDate", customer, java.time.LocalDate.of(2024, 3, 1));
+
+        assertEquals(Boolean.FALSE, advanced, "早于捞取日的老票不得回填");
+        assertNull(customer.getLastInvoiceDate(), "最近开票日保持置空");
+        verify(customerMapper, never()).updateById(any(BizCustomer.class));
     }
 }

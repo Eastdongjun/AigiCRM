@@ -83,7 +83,8 @@
           <span :style="{ color: getExpireColor(row), fontWeight: 'bold' }">{{ row.expireDate || '—' }}</span>
         </template>
       </el-table-column>
-      <el-table-column v-if="vis('adjustDate')" prop="adjustDate" label="调整日" min-width="90">
+      <!-- 【2026-11-02 裁决C】"调整日"(基准+180纯展示)改名"捞取到期日"(捞取日+180, 仅捞取客户有值) -->
+      <el-table-column v-if="vis('adjustDate')" prop="adjustDate" label="捞取到期日" min-width="100">
         <template #default="{ row }"><span v-if="row.adjustDate">{{ row.adjustDate }}</span><span v-else>—</span></template>
       </el-table-column>
       <el-table-column v-if="vis('regionName')" prop="regionName" label="大区" min-width="70" :formatter="dashIfEmpty" />

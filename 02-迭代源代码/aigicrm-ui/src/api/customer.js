@@ -48,6 +48,11 @@ export function getCustomerLogs(id) {
   return request.get(`/customer/${id}/logs`)
 }
 
+// 【生命线 2026-11-02 裁决D】客户完整生命线事件(建档/开票/延期/释放/捞取/转移)
+export function getCustomerEvents(id) {
+  return request.get(`/customer/${id}/events`)
+}
+
 export function addCustomerLog(id, data) {
   return request.post(`/customer/${id}/logs`, data)
 }

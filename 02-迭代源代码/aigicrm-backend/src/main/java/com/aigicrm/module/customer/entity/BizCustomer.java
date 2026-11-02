@@ -61,10 +61,15 @@ public class BizCustomer {
     private LocalDate lastInvoiceDate;
     @ExcelProperty("到期日")
     private LocalDate expireDate;
-    @ExcelProperty("调整日")
+    /** 【2026-10-18→2026-11-02 语义改造C】捞取到期日=捞取日+180,仅捞取客户有值(原"调整日"=基准+180纯展示,无业务消费) */
+    @ExcelProperty("捞取到期日")
     private LocalDate adjustDate;
     @ExcelProperty("转移日")
     private LocalDate transferDate;
+    /** 【2026-11-02 裁决B】捞取日期=最近一次公海捞取成功日;从未捞取为NULL,多次捞取取最近。
+     *  参与到期公式捞取线(claim+180);捞取不再覆写注册日(注册日保留真实建档日语义)。 */
+    @ExcelProperty("捞取日期")
+    private LocalDate claimDate;
     /** 【议题一裁决 2026-09-19】累计已审批延期天数(只增不减);expireDate=开票推导+本值 */
     @ExcelIgnore
     private Integer approvedExtendDays;
