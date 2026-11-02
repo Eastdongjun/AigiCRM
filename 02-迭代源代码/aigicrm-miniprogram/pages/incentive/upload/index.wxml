@@ -18,7 +18,7 @@
     <view class="plp">
       <view class="plp-hint">
         <text class="plp-hint-tag">{{uploadView.activeParentName}}</text>
-        <text class="plp-hint-text">点击行筛选 / 上传</text>
+        <text class="plp-hint-text">筛选/上传</text>
       </view>
       <scroll-view class="plp-scroll" scroll-y>
         <view wx:for="{{uploadView.categoryChildren}}" wx:key="id"
@@ -46,17 +46,17 @@
       <scroll-view class="prp-scroll" scroll-y>
         <block wx:if="{{uploadView.showCategorySummary && subcatRecords.length}}">
           <view wx:for="{{subcatRecords}}" wx:key="id" class="prp-row {{index % 2 === 1 ? 'stripe' : ''}}">
-            <view class="prp-cell pth-cat">
+            <view class="prp-c1">
               <text class="prp-cat">{{item.categoryName}}</text>
               <text class="prp-meta" wx:if="{{item.industry}}">{{item.industry}}</text>
             </view>
-            <view class="prp-cell pth-file">
+            <view class="prp-c2">
               <text wx:if="{{item.filePre}}" class="ftag"><b>前</b>{{item.filePre}}</text>
               <text wx:if="{{item.fileMid}}" class="ftag"><b>中</b>{{item.fileMid}}</text>
               <text wx:if="{{item.filePost}}" class="ftag"><b>后</b>{{item.filePost}}</text>
               <text wx:if="{{!item.filePre && !item.fileMid && !item.filePost}}" class="prp-meta">—</text>
             </view>
-            <view class="prp-cell pth-cust">
+            <view class="prp-c3">
               <text class="prp-customer">{{item.customerName}}</text>
             </view>
           </view>
