@@ -567,8 +567,10 @@ grep -q "title: '激励统计'" "$ROOT/aigicrm-miniprogram/pages/app/index.js" |
 grep -q 'upload-cat-chip' "$ROOT/aigicrm-miniprogram/pages/incentive/upload/index.wxml" || { echo "FAIL: upload page categories must be flat chips (not picker)" >&2; exit 1; }
 grep -q 'tapCategoryParent' "$ROOT/aigicrm-miniprogram/pages/incentive/upload/index.wxml" || { echo "FAIL: upload parent categories must be tap-to-select" >&2; exit 1; }
 grep -q 'tapCategoryChild' "$ROOT/aigicrm-miniprogram/pages/incentive/upload/index.wxml" || { echo "FAIL: upload child categories must be tap-to-select" >&2; exit 1; }
-grep -q 'subcat-row' "$ROOT/aigicrm-miniprogram/pages/incentive/upload/index.wxml" || { echo "FAIL: upload page must show sub-category list rows (PC-style browse)" >&2; exit 1; }
-grep -q 'tapUploadFromSubcat' "$ROOT/aigicrm-miniprogram/pages/incentive/upload/index.wxml" || { echo "FAIL: upload sub-category rows must have upload buttons" >&2; exit 1; }
+grep -q 'upload-split' "$ROOT/aigicrm-miniprogram/pages/incentive/upload/index.wxml" || { echo "FAIL: upload page must have left-right split layout (PC-style)" >&2; exit 1; }
+grep -q 'left-sub-item' "$ROOT/aigicrm-miniprogram/pages/incentive/upload/index.wxml" || { echo "FAIL: upload left panel must have sub-category vertical list" >&2; exit 1; }
+grep -q 'tapUploadFromSubcat' "$ROOT/aigicrm-miniprogram/pages/incentive/upload/index.wxml" || { echo "FAIL: upload right panel must have upload button" >&2; exit 1; }
+grep -q 'subcatRecords' "$ROOT/aigicrm-miniprogram/pages/incentive/upload/index.wxml" || { echo "FAIL: upload right panel must show existing records" >&2; exit 1; }
 # 【2026-10-26 用户令·排法分工】轻量页(home)与完整版(index)排法分开: 完整版保持按客户归集封面卡;
 # 轻量页默认打散记录流(不绑客户, 按上传时间排), 「按客户」可切回归集。钉默认态/切换器/打散构建/点行直达。
 HOME_JS="$ROOT/aigicrm-miniprogram/pages/incentive/home/index.js"

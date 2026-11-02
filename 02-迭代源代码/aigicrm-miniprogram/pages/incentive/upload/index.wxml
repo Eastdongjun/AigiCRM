@@ -4,26 +4,44 @@
     <view class="hero-sub">选择分类，上传佐证记录</view>
   </view>
 
-  <!-- ===== 【2026-11-02 用户令·PC 同构】浏览区: 四大类 Tab + 子分类列表(带上传按钮) ===== -->
+  <!-- ===== 【2026-11-02 用户令·PC 同构】顶部四大类 Tab + 左右分栏(左=子分类 / 右=记录+上传) ===== -->
   <view class="card browse-card">
-    <view class="upload-cat-row">
-      <view wx:for="{{uploadView.categoryParents}}" wx:key="id"
-            class="upload-cat-chip {{item.id === uploadView.selectedParentId ? 'on' : ''}}"
-            data-index="{{index}}" bindtap="tapCategoryParent">{{item.name}}</view>
-    </view>
-    <!-- 子分类列表(与 PC 左面板同款: 名称+分值+上传按钮) -->
-    <view wx:if="{{uploadView.categoryChildren.length}}" class="subcat-list">
-      <view wx:for="{{uploadView.categoryChildren}}" wx:key="id"
-            class="subcat-row {{item.id === uploadView.selectedChildId ? 'active' : ''}}">
-        <view class="subcat-info" data-index="{{index}}" bindtap="tapCategoryChild">
-          <text class="subcat-name">{{item.name}}</text>
-          <text class="subcat-score">{{item.score}}分</text>
-        </view>
-        <button wx:if="{{canUpload}}" class="subcat-upload-btn" size="mini" type="primary"
-                data-index="{{index}}" bindtap="tapUploadFromSubcat">上传</button>
+    <!-- 顶部: 四大类 Tab(与 PC cat-tabs 同构) -->
+    <scroll-view class="upload-cat-tabs" scroll-x enhanced show-scrollbar="{{false}}">
+      <view class="upload-cat-row">
+        <view wx:for="{{uploadView.categoryParents}}" wx:key="id"
+              class="upload-cat-chip {{item.id === uploadView.selectedParentId ? 'on' : ''}}"
+              data-index="{{index}}" bindtap="tapCategoryParent">{{item.name}}</view>
       </view>
+    </scroll-view>
+    <!-- 左右分栏(与 PC main-layout flex 同构): 左=子分类竖列 / 右=选中子类记录+上传 -->
+    <view class="upload-split">
+      <scroll-view class="upload-left" scroll-y>
+        <view wx:for="{{uploadView.categoryChildren}}" wx:key="id"
+              class="left-sub-item {{item.id === uploadView.selectedChildId ? 'active' : ''}}"
+              data-index="{{index}}" bindtap="tapCategoryChild">
+          <text class="left-sub-name">{{item.name}}</text>
+          <text class="left-sub-score">{{item.score}}分</text>
+        </view>
+        <view wx:if="{{!uploadView.categoryChildren.length}}" class="left-sub-empty">暂无子类</view>
+      </scroll-view>
+      <scroll-view class="upload-right" scroll-y>
+        <!-- 右侧顶部: 上传按钮(与 PC 子分类行"上传文件"按钮同入口) -->
+        <button wx:if="{{canUpload && uploadView.showCategorySummary}}" class="right-upload-btn" size="mini" type="primary"
+                bindtap="tapUploadFromSubcat">上传文件</button>
+        <!-- 右侧: 选中子类的已有记录列表(与 PC RecordTable 同数据) -->
+        <block wx:if="{{uploadView.showCategorySummary}}">
+          <view wx:for="{{uploadView.subcatRecords}}" wx:key="id" class="right-rec-row">
+            <view class="right-rec-main">
+              <text class="right-rec-customer">{{item.customerName}}</text>
+              <text class="right-rec-meta">{{item.fileCount}}个文件 · {{item.timeText}}</text>
+            </view>
+          </view>
+          <view wx:if="{{!uploadView.subcatRecords.length}}" class="right-rec-empty">暂无记录，点击上方「上传文件」开始</view>
+        </block>
+        <view wx:else class="right-rec-empty">← 点击左侧子分类查看记录</view>
+      </scroll-view>
     </view>
-    <view wx:if="{{!uploadView.categoryChildren.length}}" class="muted subcat-empty">该大类暂无子分类</view>
   </view>
 
   <!-- ===== 上传表单(选好子类后展开; 编辑/草稿恢复自动展开) ===== -->

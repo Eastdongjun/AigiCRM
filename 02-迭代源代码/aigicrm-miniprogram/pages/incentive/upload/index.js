@@ -562,6 +562,7 @@ Page({
     this.setData({ editId }, () => this.refreshUploadViewState())
     this.loadIndustries()
     this.loadOptions()
+    this.loadSubcatRecords() // 【2026-11-02 PC 同构】右侧已有记录
   },
 
   loadIndustries() {
@@ -609,6 +610,30 @@ Page({
       }
     }).catch((error) => showError(error, '上传选项加载失败'))
   },
+
+    // 【2026-11-02 PC 同构】右侧已有记录: 拉全量后按选中子类过滤(与 PC RecordTable 同数据源)
+    loadSubcatRecords() {
+    if (getApp().globalData.demoMode) { this.setData({ subcatRecords: [], allRawRecords: [] }); return }
+    getRecords({}).then((rows) => {
+        if (this._unloaded) return
+        const records = Array.isArray(rows) ? rows : (rows && (rows.records || rows.data || rows.data?.records || rows.list)) || []
+        this.setData({ allRawRecords: records }, () => this.refreshSubcatRecords())
+      }).catch(() => { if (!this._unloaded) this.setData({ subcatRecords: [] }) })
+    },
+    refreshSubcatRecords() {
+      const all = this.data.allRawRecords || []
+      const selectedChildId = this.data.selectedCategoryIndex // 全量 categories 中的 index
+      const selected = all.filter((r) => {
+        const cid = r.categoryId || r.childId
+        return cid !== undefined && String(cid) === String(selectedChildId)
+      }).map((r) => ({
+        id: r.id,
+        customerName: r.customerName || '未命名客户',
+        fileCount: (r.filePreId || r.fileMidId || r.filePostId || r.fileId) ? 3 : 0,
+        timeText: String(r.createdAt || r.createTime || '').replace('T', ' ').slice(0, 16)
+      }))
+      this.setData({ subcatRecords: selected })
+    },
 
   loadEditRecord() {
     if (!this.data.editId) return
@@ -768,7 +793,7 @@ Page({
       selectedCategoryIndex,
       fileSlots,
       selectedSlotIndex: selectedSlot && !selectedSlot.hidden ? this.data.selectedSlotIndex : Math.max(firstVisibleSlotIndex, 0)
-    }, () => this.refreshUploadViewState())
+    }, () => { this.refreshUploadViewState(); this.refreshSubcatRecords() })
   },
   // 【对齐 PC】先选大类; 无子类的大类直接成为最终分类
   chooseCategoryParent(e) {

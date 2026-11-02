@@ -123,3 +123,35 @@
 .subcat-score { flex-shrink: 0; font-size: 21rpx; color: #1d4fd7; font-weight: 600; background: #eff6ff; border-radius: 999rpx; padding: 2rpx 12rpx; }
 .subcat-upload-btn { flex-shrink: 0; margin: 0; margin-left: 12rpx; }
 .subcat-empty { text-align: center; padding: 24rpx 0; font-size: 24rpx; color: #94a3b8; }
+
+/* ===== 【2026-11-02 用户令·PC 同构】左右分栏: 左=子分类竖列 / 右=记录+上传 ===== */
+.upload-cat-tabs { width: 100%; }
+.upload-split {
+  display: flex; margin-top: 14rpx; border: 1rpx solid #e3ebf7; border-radius: 12rpx;
+  overflow: hidden; height: 560rpx; /* 与 PC main-layout flex 同构 */
+}
+/* 左侧子分类竖列(与 PC left-panel 240px 同语义, 比例约 1/3) */
+.upload-left {
+  flex: none; width: 32%; background: #fafbfd; border-right: 1rpx solid #f0f2f5;
+  overflow-y: auto;
+}
+.left-sub-item {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 18rpx 12rpx; border-bottom: 1rpx solid #f5f5f5;
+}
+.left-sub-item.active { background: #f0f4ff; box-shadow: inset 4rpx 0 0 #2563eb; }
+.left-sub-item.active .left-sub-name { color: #2563eb; font-weight: 700; }
+.left-sub-name { font-size: 22rpx; color: #333; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.left-sub-score { flex-shrink: 0; font-size: 19rpx; color: #1d4fd7; font-weight: 600; }
+.left-sub-empty { text-align: center; padding: 24rpx 0; font-size: 20rpx; color: #94a3b8; }
+/* 右侧记录区(与 PC RecordTable 同语义) */
+.upload-right { flex: 1; min-width: 0; padding: 14rpx; overflow-y: auto; }
+.right-upload-btn { width: 100%; margin-bottom: 14rpx; }
+.right-rec-row {
+  display: flex; align-items: center; padding: 14rpx 8rpx;
+  border-bottom: 1rpx solid #eef2f8;
+}
+.right-rec-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.right-rec-customer { font-size: 24rpx; color: #172033; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.right-rec-meta { font-size: 20rpx; color: #64748b; margin-top: 4rpx; }
+.right-rec-empty { text-align: center; padding: 32rpx 0; font-size: 22rpx; color: #94a3b8; }
