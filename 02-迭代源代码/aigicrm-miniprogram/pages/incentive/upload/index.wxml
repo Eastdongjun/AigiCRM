@@ -18,18 +18,17 @@
     </view>
     <view class="field">
       <text class="label">激励大类 *</text>
-      <picker mode="selector" range="{{uploadView.categoryParentNames}}" bindchange="chooseCategoryParent">
-        <view class="picker-card">
-          <text class="{{uploadView.categoryParentPicker.className}}">{{uploadView.categoryParentPicker.text}}</text>
-          <text class="picker-arrow">⌄</text>
-        </view>
-      </picker>
-      <picker wx:if="{{uploadView.showCategoryChild}}" class="category-child-picker" mode="selector" range="{{uploadView.categoryChildNames}}" bindchange="chooseCategoryChild">
-        <view class="picker-card">
-          <text class="{{uploadView.categoryChildPicker.className}}">{{uploadView.categoryChildPicker.text}}</text>
-          <text class="picker-arrow">⌄</text>
-        </view>
-      </picker>
+      <!-- 【2026-11-02 用户令】四大类从下拉改为平铺直选(与 PC 左面板同语义): 点击大类→展开子类chips -->
+      <view class="upload-cat-row">
+        <view wx:for="{{uploadView.categoryParents}}" wx:key="id"
+              class="upload-cat-chip {{item.id === uploadView.selectedParentId ? 'on' : ''}}"
+              data-index="{{index}}" bindtap="tapCategoryParent">{{item.name}}</view>
+      </view>
+      <view wx:if="{{uploadView.showCategoryChild && uploadView.categoryChildren.length}}" class="upload-cat-row sub">
+        <view wx:for="{{uploadView.categoryChildren}}" wx:key="id"
+              class="upload-cat-chip sub {{item.id === uploadView.selectedChildId ? 'on-sub' : ''}}"
+              data-index="{{index}}" bindtap="tapCategoryChild">{{item.name}}</view>
+      </view>
       <view wx:if="{{uploadView.showCategorySummary}}" class="category-summary">
         <text>{{uploadView.categorySectionTitle}}</text>
         <text>{{uploadView.categoryScoreText}}</text>

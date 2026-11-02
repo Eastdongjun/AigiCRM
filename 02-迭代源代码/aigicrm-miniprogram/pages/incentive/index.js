@@ -401,6 +401,7 @@ function currentUserId() {
 
 Page({
   data: {
+    // 【2026-11-02 应用中心拆分】初始 tab 可被 onLoad 的 ?tab= 参数覆盖(激励统计直达 stats)
     activeTab: 'records',
     tabs: buildTabs('records'),
     incentiveView: buildIncentiveView({
@@ -516,8 +517,13 @@ Page({
     this.setData({ incentiveView: buildIncentiveView(this.data) })
   },
 
-  onLoad() {
+  onLoad(options) {
     if (!requireLogin()) return
+    // 【2026-11-02 应用中心拆分】激励查询/激励统计直达对应 tab(?tab=records/stats/ranking)
+    if (options && options.tab && ['records', 'categories', 'stats', 'ranking', 'reads'].indexOf(options.tab) >= 0) {
+      this.setData({ tabs: buildTabs(options.tab) })
+      this._pendingTab = options.tab
+    }
     this.setData({ apiBase: (getApp().globalData && getApp().globalData.apiBaseUrl) || '' })
     if (!getApp().globalData.demoMode && !hasPermission('incentive:view')) {
       wx.showToast({ title: '没有四项服务查看权限', icon: 'none' })
@@ -542,6 +548,12 @@ Page({
     this.loadScoreboard()
     this.loadReadStats()
     this.loadReadRanking()
+    // 【2026-11-02 应用中心拆分】onLoad 尾段把 ?tab= 参数落定(不覆盖则默认 records)
+    if (this._pendingTab) {
+      const tab = this._pendingTab
+      this._pendingTab = null
+      this.setData({ activeTab: tab, tabs: buildTabs(tab) }, () => this.refreshIncentiveView())
+    }
     this._loadedOnce = true
   },
 

@@ -380,6 +380,11 @@ function buildUploadViewState(data) {
     // 【对齐 PC 2026-09-20】分类两级选择: 大类(产品试点/两谈两做/外出参观/交流拜访) → 子类(涂层类/防滑板类…);
     // selectedCategoryIndex 仍指向全量 categories, 兼容草稿恢复与编辑回填
     categoryParentNames: (data.categoryParentNodes || []).map((item) => item.name),
+    // 【2026-11-02 用户令·平铺直选】四大类/子类 chips 数据(与 PC 左面板同语义)
+    categoryParents: (data.categoryParentNodes || []).map((item) => ({ id: item.index, name: item.name })),
+    selectedParentId: data.selectedParentCategoryIndex >= 0 ? data.categoryParentNodes[data.selectedParentCategoryIndex] && data.categoryParentNodes[data.selectedParentCategoryIndex].index : -1,
+    categoryChildren: activeParentChildren(data).map((item) => ({ id: item.index, name: item.name })),
+    selectedChildId: data.selectedCategoryIndex >= 0 ? data.selectedCategoryIndex : -1,
     categoryParentPicker: pickerTextView((data.categoryParentNodes || []).map((item) => item.name), data.selectedParentCategoryIndex, '请选择大类'),
     showCategoryChild: Boolean(activeParentChildren(data).length),
     categoryChildNames: activeParentChildren(data).map((item) => item.name),
@@ -782,6 +787,15 @@ Page({
     const child = parent && parent.children[Number(e.detail.value)]
     if (!child) return
     this.applyCategorySelection(child.index)
+  },
+  // 【2026-11-02 用户令·平铺直选】四大类 chips 点击(dataset.index=大类下标)
+  tapCategoryParent(e) {
+    const index = Number(e.currentTarget.dataset.index) || 0
+    this.chooseCategoryParent({ detail: { value: String(index) } })
+  },
+  // 子类 chips 点击(dataset.index=子类在当前大类 children 中的下标)
+  tapCategoryChild(e) {
+    this.chooseCategoryChild({ detail: { value: String(Number(e.currentTarget.dataset.index) || 0) } })
   },
   chooseIndustry(e) { this.setData({ selectedIndustryIndex: Number(e.detail.value) }, () => this.refreshUploadViewState()) },
   choosePeriod(e) { this.setData({ selectedPeriodIndex: Number(e.detail.value) }, () => this.refreshUploadViewState()) },

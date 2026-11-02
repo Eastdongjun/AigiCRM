@@ -97,3 +97,14 @@
 .cs-empty { padding: 60rpx 0; text-align: center; color: #94a3b8; font-size: 25rpx; }
 /* 【C2 2026-10-21】服务端分页加载状态行: 加载中/没有更多 */
 .cs-more { padding: 24rpx 0; text-align: center; color: #94a3b8; font-size: 23rpx; }
+
+/* ===== 【2026-11-02 用户令·平铺直选】上传页四大类/子类 chips ===== */
+.upload-cat-row { display: flex; flex-wrap: wrap; gap: 12rpx; margin-top: 12rpx; }
+.upload-cat-row.sub { margin-top: 10rpx; padding-left: 12rpx; border-left: 4rpx solid #dbeafe; }
+.upload-cat-chip {
+  padding: 10rpx 24rpx; font-size: 24rpx; line-height: 1.4;
+  color: #1f3b73; background: #fff; border: 2rpx solid #c9d6f2; border-radius: 999rpx;
+}
+.upload-cat-chip.on { color: #fff; background: #2f6bff; border-color: #2f6bff; font-weight: 500; box-shadow: 0 4rpx 10rpx rgba(47,107,255,.25); }
+.upload-cat-chip.sub { font-size: 22rpx; padding: 8rpx 20rpx; color: #475569; background: #f8fafc; border-color: #e2e8f0; }
+.upload-cat-chip.on-sub { color: #fff; background: #059669; border-color: #059669; font-weight: 500; }

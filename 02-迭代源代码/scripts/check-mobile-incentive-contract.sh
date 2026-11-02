@@ -555,8 +555,17 @@ grep -q '"pagePath": "pages/incentive/home/index"' "$app_json" || { echo "FAIL: 
 home_json="$ROOT/aigicrm-miniprogram/pages/incentive/home/index.json"
 grep -q '"navigationBarTitleText":"四项服务"' "$home_json" || { echo "FAIL: incentive tab home title must be 四项服务 (lightweight view)" >&2; exit 1; }
 ! grep -q 'pages/incentive/customer-detail' "$ROOT/aigicrm-miniprogram/pages/incentive/home/index.js" || { echo "FAIL: lightweight home must not navigate into the archive customer-detail (2026-10-23 用户令: 不进档案界面)" >&2; exit 1; }
-grep -q "incentiveQuery: '/pages/incentive/index'" "$ROOT/aigicrm-miniprogram/pages/app/index.js" || { echo "FAIL: app center 四项服务应用 entry must route to the full workbench" >&2; exit 1; }
-grep -q "title: '四项服务应用'" "$ROOT/aigicrm-miniprogram/pages/app/index.js" || { echo "FAIL: app center must name the full workbench entry 四项服务应用" >&2; exit 1; }
+# 【2026-11-02 用户令·应用中心菜单对齐 PC】三个入口=激励上传/激励查询/激励统计(与 PC 菜单同构):
+# 激励查询→?tab=records, 激励统计→?tab=stats, 激励上传→upload 页
+grep -q "incentiveQuery: '/pages/incentive/index?tab=records'" "$ROOT/aigicrm-miniprogram/pages/app/index.js" || { echo "FAIL: app center 激励查询 entry must route to records tab" >&2; exit 1; }
+grep -q "incentiveStats: '/pages/incentive/index?tab=stats'" "$ROOT/aigicrm-miniprogram/pages/app/index.js" || { echo "FAIL: app center 激励统计 entry must route to stats tab" >&2; exit 1; }
+grep -q "title: '激励上传'" "$ROOT/aigicrm-miniprogram/pages/app/index.js" || { echo "FAIL: app center must name upload entry 激励上传" >&2; exit 1; }
+grep -q "title: '激励查询'" "$ROOT/aigicrm-miniprogram/pages/app/index.js" || { echo "FAIL: app center must name query entry 激励查询" >&2; exit 1; }
+grep -q "title: '激励统计'" "$ROOT/aigicrm-miniprogram/pages/app/index.js" || { echo "FAIL: app center must name stats entry 激励统计" >&2; exit 1; }
+# 【2026-11-02 用户令·上传平铺】四大类/子类=chips 平铺直选(与 PC 左面板同语义)
+grep -q 'upload-cat-chip' "$ROOT/aigicrm-miniprogram/pages/incentive/upload/index.wxml" || { echo "FAIL: upload page categories must be flat chips (not picker)" >&2; exit 1; }
+grep -q 'tapCategoryParent' "$ROOT/aigicrm-miniprogram/pages/incentive/upload/index.wxml" || { echo "FAIL: upload parent categories must be tap-to-select" >&2; exit 1; }
+grep -q 'tapCategoryChild' "$ROOT/aigicrm-miniprogram/pages/incentive/upload/index.wxml" || { echo "FAIL: upload child categories must be tap-to-select" >&2; exit 1; }
 # 【2026-10-26 用户令·排法分工】轻量页(home)与完整版(index)排法分开: 完整版保持按客户归集封面卡;
 # 轻量页默认打散记录流(不绑客户, 按上传时间排), 「按客户」可切回归集。钉默认态/切换器/打散构建/点行直达。
 HOME_JS="$ROOT/aigicrm-miniprogram/pages/incentive/home/index.js"
