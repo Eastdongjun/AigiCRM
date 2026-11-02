@@ -203,13 +203,21 @@
   display: flex; align-items: center; justify-content: center; }
 .stats-refresh-btn::after { border: none; }
 
-/* 上传入口(hero 内主按钮行) */
-.upload-entry-row { display: flex; align-items: center; gap: 18rpx; margin-top: 22rpx; }
-.upload-entry-btn { margin: 0; width: auto; min-width: 220rpx; height: 68rpx; line-height: 68rpx; padding: 0 34rpx;
-  border-radius: 999rpx; background: rgba(255, 255, 255, .95); color: #1d4fd7; font-size: 27rpx; font-weight: 800;
-  box-shadow: 0 10rpx 22rpx rgba(15, 40, 90, .22); }
-.upload-entry-btn::after { border: none; }
-.upload-entry-hint { color: rgba(255, 255, 255, .78); font-size: 21rpx; }
+/* 【2026-11-03 用户令"参考应用中心顶部边框"】hero 两行大卡压成单行细条:
+   应用中心 ap-hero/轻量页 hm-bar 同款深蓝渐变+26rpx 圆角, 左标题+右小胶囊按钮;
+   原 upload-entry-row/btn/hint 样式随两行结构一并退役(wxml 零引用) */
+.workbench-hero {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 20rpx 24rpx; border-radius: 26rpx;
+  background: linear-gradient(135deg, #0d1733 0%, #16337a 58%, #1d4ed8 100%);
+  box-shadow: 0 18rpx 38rpx rgba(13, 23, 51, .22);
+}
+.workbench-hero-title { font-size: 32rpx; font-weight: 800; letter-spacing: 2rpx; color: #fff; }
+.workbench-hero-actions { display: flex; align-items: center; gap: 14rpx; }
+.hero-bar-btn { margin: 0; padding: 0 22rpx; height: 52rpx; line-height: 52rpx; font-size: 22rpx; border-radius: 999rpx; border: none; }
+.hero-bar-btn::after { border: none; }
+.hero-bar-btn.ghost { background: rgba(255, 255, 255, .16); color: #fff; border: 1rpx solid rgba(255, 255, 255, .55); }
+.hero-bar-btn.solid { background: #fff; color: #1d4ed8; font-weight: 700; }
 
 /* 【#4+#7 2026-10-12】佐证照片墙: 图片缩略图/视频封面/文档面卡统一瓦片, 行内底边严格对齐
    【M3 修复 2026-10-19】视频/文档面卡弃 aspect-ratio 改与图片同高 160rpx——

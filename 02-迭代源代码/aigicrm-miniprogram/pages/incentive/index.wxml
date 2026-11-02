@@ -1,16 +1,13 @@
 <wxs src="./thumb.wxs" module="thumb" />
 <view class="page incentive-workbench">
-  <view class="hero">
-    <view class="row">
-      <view>
-        <view class="hero-title">四项服务应用</view>
-        <view class="hero-sub">分类 · 上传 · 统计 · 阅读</view>
-      </view>
-      <button class="ghost-btn" bindtap="refresh" loading="{{incentiveView.refreshLoading}}">{{incentiveView.refreshText}}</button>
-    </view>
-    <view wx:if="{{canUploadEvidence}}" class="upload-entry-row">
-      <button class="upload-entry-btn" bindtap="goUpload">＋ 上传激励</button>
-      <text class="upload-entry-hint">大类 → 子类 → 槽位佐证,与 PC 上传同口径</text>
+  <!-- 【2026-11-03 用户令"这个框比较大,参考应用中心顶部边框"】hero 两行大卡压成单行细条
+       (应用中心 ap-hero/轻量页 hm-bar 同款语言): 左标题+右刷新/上传小胶囊; 副标题与
+       上传说明文字随压缩移除, 上传入口(incentive:add 门控)与刷新功能原样保留 -->
+  <view class="hero workbench-hero">
+    <view class="workbench-hero-title">四项服务应用</view>
+    <view class="workbench-hero-actions">
+      <button class="hero-bar-btn ghost" bindtap="refresh" loading="{{incentiveView.refreshLoading}}">{{incentiveView.refreshText}}</button>
+      <button wx:if="{{canUploadEvidence}}" class="hero-bar-btn solid" bindtap="goUpload">＋ 上传</button>
     </view>
   </view>
 

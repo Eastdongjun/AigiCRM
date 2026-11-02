@@ -1,4 +1,4 @@
-// 【2026-11-03 三页签实测】排行 tab: 页签渲染/切换/互斥 + 截图
+// 【2026-11-03 hero 压缩验证】完整版四项服务应用页: 顶栏元素存在性+截图
 import automator from 'miniprogram-automator'
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
@@ -22,30 +22,16 @@ async function main() {
   console.log('[reLaunch] ->', page.path)
   await sleep(3000)
   page = await mini.currentPage()
-  console.log('[currentPage]', page.path)
-  await page.callMethod('switchTab', { currentTarget: { dataset: { key: 'ranking' } } })
-  await sleep(2500)
-  let data = await page.data()
-  console.log('[切排行后] activeTab=%s rankTab=%s', data.activeTab, data.rankTab)
-  const tabs = await page.$$('.rank-subtabs .tab')
-  console.log('[页签数]', tabs.length, '(期望3)')
-  for (const t of tabs) console.log('  -', await t.text())
-  const v = data.incentiveView || {}
-  console.log('[互斥] customer=%s scoreboard=%s dept=%s (期望 true/false/false)', v.showRankCustomer, v.showRankScoreboard, v.showRankDept)
-  // 切到个人学分榜
-  await tabs[1].tap()
-  await sleep(1200)
-  data = await page.data()
-  console.log('[tap个人] rankTab=%s (期望 scoreboard)', data.rankTab)
-  // 切到部门排行
-  await tabs[2].tap()
-  await sleep(1200)
-  data = await page.data()
-  console.log('[tap部门] rankTab=%s (期望 dept)', data.rankTab)
-  // 切回客户排行并截图
-  await tabs[0].tap()
-  await sleep(1200)
-  await mini.screenshot({ path: '/Users/dongjun/东来/项目/02-已上线/01-AIGICRM/02-迭代源代码/scripts/miniprogram/rank-tabs.png' })
+  const hero = await page.$('.workbench-hero')
+  console.log('[单行顶栏] 存在 =', Boolean(hero))
+  const title = await page.$('.workbench-hero-title')
+  if (title) console.log('[标题] =', await title.text())
+  const btns = await page.$$('.workbench-hero-actions .hero-bar-btn')
+  console.log('[右侧按钮数]', btns.length, '(期望2: 刷新+上传)')
+  for (const b of btns) console.log('  -', await b.text())
+  const oldHero = await page.$('.upload-entry-row')
+  console.log('[旧两行结构残留] =', Boolean(oldHero), '(期望 false)')
+  await mini.screenshot({ path: '/Users/dongjun/东来/项目/02-已上线/01-AIGICRM/02-迭代源代码/scripts/miniprogram/hero-compact.png' })
   console.log('[screenshot] saved')
   await mini.disconnect()
 }
