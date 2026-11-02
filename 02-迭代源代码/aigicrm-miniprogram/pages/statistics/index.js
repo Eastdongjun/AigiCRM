@@ -24,14 +24,16 @@ function maxValue(values = []) {
   return Math.max(0, ...values.map((value) => Number(value || 0)))
 }
 
-function buildMonthlySummary(values = []) {
+function buildMonthlySummary(values = [], selectedYear) {
   const normalized = Array.from({ length: 12 }, (_, index) => Number(values[index] || 0))
   const max = maxValue(normalized)
   const peakIndex = normalized.findIndex((value) => value === max)
   return {
     total: sum(normalized),
     // 【2026-11-01 审计修复】月均分母: 当前年按已过月截断(原恒除以12, 未来月零值拉低当前年月均; 与 PC M9 同口径)
-    average: normalized.length ? Math.round(sum(normalized) / (Number(state.selectedYear || CURRENT_YEAR) === CURRENT_YEAR ? new Date().getMonth() + 1 : 12)) : 0,
+    // 【修复 2026-11-03】该批误引未定义的 state(ReferenceError)——Page 构造期 data 初始化即崩,
+    // 统计分析页整页白屏; 改为显式 selectedYear 参数, 缺省=本年(与默认筛选口径一致)
+    average: normalized.length ? Math.round(sum(normalized) / (Number(selectedYear || CURRENT_YEAR) === CURRENT_YEAR ? new Date().getMonth() + 1 : 12)) : 0,
     peak: peakIndex >= 0 && max > 0 ? MONTH_LABELS[peakIndex] : '-',
     bars: normalized.map((value, index) => ({
       label: MONTH_LABELS[index],
@@ -116,10 +118,10 @@ function buildIndustryRows(analysis = {}) {
   }))
 }
 
-function buildTrendState(analysis = {}) {
+function buildTrendState(analysis = {}, selectedYear) {
   return {
-    monthlyCustomerSummary: buildMonthlySummary(analysis.monthlyCustomers || []),
-    monthlyFileSummary: buildMonthlySummary(analysis.monthlyFiles || []),
+    monthlyCustomerSummary: buildMonthlySummary(analysis.monthlyCustomers || [], selectedYear),
+    monthlyFileSummary: buildMonthlySummary(analysis.monthlyFiles || [], selectedYear),
     statusRows: buildStatusRows(analysis),
     industryRows: buildIndustryRows(analysis)
   }
@@ -333,7 +335,7 @@ Page({
     ]).then(([data, analysis, ranking]) => this.setStatisticsData({
       stats: enrichDashboardStats(data || {}, analysis || {}),
       analysis: analysis || {},
-      ...buildTrendState(analysis || {}),
+      ...buildTrendState(analysis || {}, this.data.yearOptions[this.data.selectedYearIndex] || String(CURRENT_YEAR)),
       officeComparison: ((analysis && analysis.officeComparison) || []).slice(0, 3),
       scoreTop5: (ranking || []).slice(0, 5),
       expiringDetails: (data && data.expiringDetails) || []

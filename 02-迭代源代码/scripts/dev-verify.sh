@@ -589,6 +589,7 @@ local_contracts() {
   run node "$ROOT/scripts/test-miniprogram-files-scope.js"
   run node "$ROOT/scripts/test-miniprogram-data-scope-label.js"
   run node "$ROOT/scripts/test-miniprogram-reminder-list.js"
+  run node "$ROOT/scripts/test-miniprogram-statistics-page.js"
   run bash "$ROOT/scripts/test-sea-claim-matrix-safety.sh"
   run "$ROOT/scripts/check-prototype-state-contract.sh"
   run python3 "$ROOT/scripts/check-mobile-navigation-contract.py"
