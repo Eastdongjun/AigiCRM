@@ -55,8 +55,9 @@ grep -q '<view class="hero-title">四项服务详情</view>' "$detail_wxml" || {
 grep -q '暂无四项服务详情' "$detail_wxml" || { echo "FAIL: incentive detail empty state must use four-incentive naming" >&2; exit 1; }
 grep -q '暂无四项服务记录' "$wxml" || { echo "FAIL: incentive list empty state must use four-incentive naming" >&2; exit 1; }
 # 【2026-10-26】timeline 四项服务命名钉随页面退役(防复活守卫见下方 2026-10-26 块)
-grep -q '"navigationBarTitleText":"四项服务上传"' "$upload_json" || { echo "FAIL: incentive upload title must use four-incentive naming" >&2; exit 1; }
-grep -q '<view class="hero-title">四项服务上传</view>' "$upload_wxml" || { echo "FAIL: incentive upload hero title must use four-incentive naming" >&2; exit 1; }
+# 【2026-10-26→11-02 重锚】上传页标题随应用中心菜单对齐 PC 改"激励上传"
+grep -q '"navigationBarTitleText":"激励上传"' "$upload_json" || { echo "FAIL: incentive upload title must be 激励上传 (2026-11-02 PC 对齐)" >&2; exit 1; }
+grep -q '<view class="hero-title">激励上传</view>' "$upload_wxml" || { echo "FAIL: incentive upload hero title must be 激励上传 (2026-11-02)" >&2; exit 1; }
 grep -q 'categoryTree' "$page" || { echo "FAIL: incentive mobile category tree is missing" >&2; exit 1; }
 grep -q 'getCategoryStats' "$page" || { echo "FAIL: incentive mobile category stats is missing" >&2; exit 1; }
 grep -q 'getRecords' "$page" || { echo "FAIL: incentive mobile category stats detail does not load shared records" >&2; exit 1; }
@@ -566,6 +567,8 @@ grep -q "title: '激励统计'" "$ROOT/aigicrm-miniprogram/pages/app/index.js" |
 grep -q 'upload-cat-chip' "$ROOT/aigicrm-miniprogram/pages/incentive/upload/index.wxml" || { echo "FAIL: upload page categories must be flat chips (not picker)" >&2; exit 1; }
 grep -q 'tapCategoryParent' "$ROOT/aigicrm-miniprogram/pages/incentive/upload/index.wxml" || { echo "FAIL: upload parent categories must be tap-to-select" >&2; exit 1; }
 grep -q 'tapCategoryChild' "$ROOT/aigicrm-miniprogram/pages/incentive/upload/index.wxml" || { echo "FAIL: upload child categories must be tap-to-select" >&2; exit 1; }
+grep -q 'subcat-row' "$ROOT/aigicrm-miniprogram/pages/incentive/upload/index.wxml" || { echo "FAIL: upload page must show sub-category list rows (PC-style browse)" >&2; exit 1; }
+grep -q 'tapUploadFromSubcat' "$ROOT/aigicrm-miniprogram/pages/incentive/upload/index.wxml" || { echo "FAIL: upload sub-category rows must have upload buttons" >&2; exit 1; }
 # 【2026-10-26 用户令·排法分工】轻量页(home)与完整版(index)排法分开: 完整版保持按客户归集封面卡;
 # 轻量页默认打散记录流(不绑客户, 按上传时间排), 「按客户」可切回归集。钉默认态/切换器/打散构建/点行直达。
 HOME_JS="$ROOT/aigicrm-miniprogram/pages/incentive/home/index.js"

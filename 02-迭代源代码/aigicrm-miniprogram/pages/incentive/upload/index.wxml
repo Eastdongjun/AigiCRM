@@ -1,10 +1,37 @@
 <view class="page">
   <view class="hero upload-hero">
-    <view class="hero-title">四项服务上传</view>
-    <view class="hero-sub">提交四项服务记录，关联客户、分类与现场佐证。</view>
+    <view class="hero-title">激励上传</view>
+    <view class="hero-sub">选择分类，上传佐证记录</view>
   </view>
-  <view class="card form-card">
-    <view class="form-section-title">基础信息</view>
+
+  <!-- ===== 【2026-11-02 用户令·PC 同构】浏览区: 四大类 Tab + 子分类列表(带上传按钮) ===== -->
+  <view class="card browse-card">
+    <view class="upload-cat-row">
+      <view wx:for="{{uploadView.categoryParents}}" wx:key="id"
+            class="upload-cat-chip {{item.id === uploadView.selectedParentId ? 'on' : ''}}"
+            data-index="{{index}}" bindtap="tapCategoryParent">{{item.name}}</view>
+    </view>
+    <!-- 子分类列表(与 PC 左面板同款: 名称+分值+上传按钮) -->
+    <view wx:if="{{uploadView.categoryChildren.length}}" class="subcat-list">
+      <view wx:for="{{uploadView.categoryChildren}}" wx:key="id"
+            class="subcat-row {{item.id === uploadView.selectedChildId ? 'active' : ''}}">
+        <view class="subcat-info" data-index="{{index}}" bindtap="tapCategoryChild">
+          <text class="subcat-name">{{item.name}}</text>
+          <text class="subcat-score">{{item.score}}分</text>
+        </view>
+        <button wx:if="{{canUpload}}" class="subcat-upload-btn" size="mini" type="primary"
+                data-index="{{index}}" bindtap="tapUploadFromSubcat">上传</button>
+      </view>
+    </view>
+    <view wx:if="{{!uploadView.categoryChildren.length}}" class="muted subcat-empty">该大类暂无子分类</view>
+  </view>
+
+  <!-- ===== 上传表单(选好子类后展开; 编辑/草稿恢复自动展开) ===== -->
+  <view class="card form-card" wx:if="{{uploadView.showCategorySummary}}">
+    <view class="form-section-title">{{uploadView.categorySectionTitle}}</view>
+    <view class="category-summary">
+      <text>{{uploadView.categoryScoreText}}</text>
+    </view>
     <view class="field">
       <text class="label">客户 *</text>
       <view class="picker-card" bindtap="openCustomerSheet">
@@ -14,24 +41,6 @@
       <view wx:if="{{uploadView.showCustomerConfirm}}" class="customer-confirm">
         <text class="customer-confirm-name">{{uploadView.selectedCustomerName}}</text>
         <text class="customer-confirm-meta">{{uploadView.selectedCustomerMeta}}</text>
-      </view>
-    </view>
-    <view class="field">
-      <text class="label">激励大类 *</text>
-      <!-- 【2026-11-02 用户令】四大类从下拉改为平铺直选(与 PC 左面板同语义): 点击大类→展开子类chips -->
-      <view class="upload-cat-row">
-        <view wx:for="{{uploadView.categoryParents}}" wx:key="id"
-              class="upload-cat-chip {{item.id === uploadView.selectedParentId ? 'on' : ''}}"
-              data-index="{{index}}" bindtap="tapCategoryParent">{{item.name}}</view>
-      </view>
-      <view wx:if="{{uploadView.showCategoryChild && uploadView.categoryChildren.length}}" class="upload-cat-row sub">
-        <view wx:for="{{uploadView.categoryChildren}}" wx:key="id"
-              class="upload-cat-chip sub {{item.id === uploadView.selectedChildId ? 'on-sub' : ''}}"
-              data-index="{{index}}" bindtap="tapCategoryChild">{{item.name}}</view>
-      </view>
-      <view wx:if="{{uploadView.showCategorySummary}}" class="category-summary">
-        <text>{{uploadView.categorySectionTitle}}</text>
-        <text>{{uploadView.categoryScoreText}}</text>
       </view>
     </view>
     <view class="field">

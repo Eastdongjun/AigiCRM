@@ -108,3 +108,18 @@
 .upload-cat-chip.on { color: #fff; background: #2f6bff; border-color: #2f6bff; font-weight: 500; box-shadow: 0 4rpx 10rpx rgba(47,107,255,.25); }
 .upload-cat-chip.sub { font-size: 22rpx; padding: 8rpx 20rpx; color: #475569; background: #f8fafc; border-color: #e2e8f0; }
 .upload-cat-chip.on-sub { color: #fff; background: #059669; border-color: #059669; font-weight: 500; }
+
+/* ===== 【2026-11-02 用户令·PC 同构】子分类列表(与 PC 左面板同款: 名称+分值+上传按钮) ===== */
+.browse-card { margin-top: 14rpx; }
+.subcat-list { margin-top: 14rpx; }
+.subcat-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 16rpx 12rpx; border-bottom: 1rpx solid #eef2f8; border-radius: 8rpx;
+}
+.subcat-row:last-child { border-bottom: 0; }
+.subcat-row.active { background: #f0f7ff; }
+.subcat-info { flex: 1; min-width: 0; display: flex; align-items: center; gap: 12rpx; }
+.subcat-name { font-size: 26rpx; color: #172033; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.subcat-score { flex-shrink: 0; font-size: 21rpx; color: #1d4fd7; font-weight: 600; background: #eff6ff; border-radius: 999rpx; padding: 2rpx 12rpx; }
+.subcat-upload-btn { flex-shrink: 0; margin: 0; margin-left: 12rpx; }
+.subcat-empty { text-align: center; padding: 24rpx 0; font-size: 24rpx; color: #94a3b8; }

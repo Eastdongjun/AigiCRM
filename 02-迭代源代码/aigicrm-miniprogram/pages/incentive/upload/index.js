@@ -383,7 +383,7 @@ function buildUploadViewState(data) {
     // 【2026-11-02 用户令·平铺直选】四大类/子类 chips 数据(与 PC 左面板同语义)
     categoryParents: (data.categoryParentNodes || []).map((item) => ({ id: item.index, name: item.name })),
     selectedParentId: data.selectedParentCategoryIndex >= 0 ? data.categoryParentNodes[data.selectedParentCategoryIndex] && data.categoryParentNodes[data.selectedParentCategoryIndex].index : -1,
-    categoryChildren: activeParentChildren(data).map((item) => ({ id: item.index, name: item.name })),
+    categoryChildren: activeParentChildren(data).map((item) => ({ id: item.index, name: item.name, score: item.score || 0 })),
     selectedChildId: data.selectedCategoryIndex >= 0 ? data.selectedCategoryIndex : -1,
     categoryParentPicker: pickerTextView((data.categoryParentNodes || []).map((item) => item.name), data.selectedParentCategoryIndex, '请选择大类'),
     showCategoryChild: Boolean(activeParentChildren(data).length),
@@ -796,6 +796,11 @@ Page({
   // 子类 chips 点击(dataset.index=子类在当前大类 children 中的下标)
   tapCategoryChild(e) {
     this.chooseCategoryChild({ detail: { value: String(Number(e.currentTarget.dataset.index) || 0) } })
+  },
+  // 【2026-11-02 PC 同构】子分类行的"上传"按钮=选子类并滚到表单(表单自动展开因 showCategorySummary 变 true)
+  tapUploadFromSubcat(e) {
+    this.chooseCategoryChild({ detail: { value: String(Number(e.currentTarget.dataset.index) || 0) } })
+    wx.pageScrollTo({ selector: '.form-card', duration: 300 })
   },
   chooseIndustry(e) { this.setData({ selectedIndustryIndex: Number(e.detail.value) }, () => this.refreshUploadViewState()) },
   choosePeriod(e) { this.setData({ selectedPeriodIndex: Number(e.detail.value) }, () => this.refreshUploadViewState()) },
