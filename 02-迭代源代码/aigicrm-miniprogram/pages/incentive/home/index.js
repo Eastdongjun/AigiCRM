@@ -618,8 +618,8 @@ Page({
     this.loadRecords()
   },
 
-  // 【2026-11-02 用户令】chooseDevType/chooseOrg/chooseStartDate/chooseEndDate
-  // 随类型/组织/日期筛选退役一并移除(交互只留搜索+行业/产品平铺 chips)
+  // 【2026-11-02 用户令】原类型/组织/起止日期四个下拉筛选 handler 随筛选退役一并移除
+  // (交互只留搜索+行业/产品平铺 chips; 防复活钉见 check-mobile-incentive-contract)
 
   resetRecordFilters() {
     this.setData({
