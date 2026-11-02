@@ -39,6 +39,21 @@
 .incentive-filter-head { margin: 14rpx 0 10rpx; }
 .cust-card { margin-bottom: 14rpx; }
 
+/* ===== 【2026-11-02 用户令·平铺直选】行业/产品 chips 行 =====
+   行业=系统字典动态(新增行业自动呈现); 产品=分类树"产品试点"分支动态派生。
+   横向滚动一行(scroll-x), 胶囊样式与 10-26 醒目化切换器同语言: 选中=品牌蓝实底白字。 */
+.flat-chip-row { width: 100%; white-space: nowrap; }
+.flat-chip-row + .flat-chip-row { margin-top: 10rpx; }
+.flat-chip-row-inner { display: inline-flex; gap: 10rpx; padding: 2rpx 2rpx 2rpx 0; }
+.flat-chip {
+  flex: none; padding: 8rpx 22rpx; font-size: 22rpx; line-height: 1.4;
+  color: #1f3b73; background: #fff; border: 2rpx solid #c9d6f2; border-radius: 999rpx;
+  transition: all .12s ease;
+}
+.flat-chip.on { color: #fff; background: #2f6bff; border-color: #2f6bff; font-weight: 500; box-shadow: 0 4rpx 10rpx rgba(47,107,255,.25); }
+/* 剩余下拉(类型/组织/起止日期)与平铺两行同区排版 */
+.flat-picker-row { display: flex; flex-wrap: wrap; gap: 10rpx; margin-top: 10rpx; }
+
 /* ===== 【2026-10-26 用户令·打散视图】轻量页双视图 =====
    time=打散记录流(默认, 不绑客户按上传时间排) / customer=按客户归集封面卡(完整版排法)
    【同日令"这俩胶囊做醒目一些"】切换器加大加实底: 选中=品牌蓝实底白字, 未选=白底描边 */

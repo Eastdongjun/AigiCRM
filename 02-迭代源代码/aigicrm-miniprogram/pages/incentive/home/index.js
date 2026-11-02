@@ -109,9 +109,8 @@ function buildIncentiveView(data) {
     showLoading: isLoading,
     pagerLoading: isLoading,
     loadingText: '加载中...',
-    industryText: `${pickOption(data.industries, data.selectedIndustryIndex, '全部行业')}⌄`,
+    // 【2026-11-02 平铺直选】行业/产品改 chips 直选(wxml 消费 selectedXxxIndex), 原 picker 文案退役
     devTypeText: `${pickOption(data.devTypes, data.selectedDevTypeIndex, '全部类型')}⌄`,
-    productText: `${pickOption(data.productOptions, data.selectedProductIndex, '全部产品')}⌄`,
     orgText: `${pickOption(data.orgOptions, data.selectedOrgIndex, '全部组织', 'label')}⌄`,
     startDateText: `${data.startDate || '开始日期'}⌄`,
     endDateText: `${data.endDate || '截止日期'}⌄`,
@@ -668,8 +667,12 @@ Page({
     this.loadRecords()
   },
 
+  // 【2026-11-02 用户令·平铺直选】行业/产品从 picker 下拉改为平铺 chips 点击
+  // (e.currentTarget.dataset.index; picker 的 e.detail.value 口径退役)
   chooseIndustry(e) {
-    this.setData({ selectedIndustryIndex: Number(e.detail.value) || 0 }, () => this.refreshIncentiveView())
+    const idx = Number(e.currentTarget.dataset.index) || 0
+    if (idx === this.data.selectedIndustryIndex) return
+    this.setData({ selectedIndustryIndex: idx }, () => this.refreshIncentiveView())
     this.loadRecords()
   },
 
@@ -679,7 +682,9 @@ Page({
   },
 
   chooseProduct(e) {
-    this.setData({ selectedProductIndex: Number(e.detail.value) || 0 }, () => this.refreshIncentiveView())
+    const idx = Number(e.currentTarget.dataset.index) || 0
+    if (idx === this.data.selectedProductIndex) return
+    this.setData({ selectedProductIndex: idx }, () => this.refreshIncentiveView())
     this.loadRecords()
   },
 

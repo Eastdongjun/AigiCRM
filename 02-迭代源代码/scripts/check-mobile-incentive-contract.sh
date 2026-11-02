@@ -550,6 +550,16 @@ HOME_WXML="$ROOT/aigicrm-miniprogram/pages/incentive/home/index.wxml"
 grep -q "listMode: 'time'" "$HOME_JS" || { echo "FAIL: lightweight home must default to the flat by-time record stream (2026-10-26 用户令)" >&2; exit 1; }
 grep -q 'function buildFlatRecordRows' "$HOME_JS" || { echo "FAIL: lightweight home flat record stream builder is missing" >&2; exit 1; }
 grep -q 'switchListMode' "$HOME_JS" || { echo "FAIL: lightweight home must keep the time/customer view toggle" >&2; exit 1; }
+# 【2026-11-02 用户令·平铺直选】行业/产品筛选=平铺 chips 点击(数据动态: 行业=字典/产品=分类树派生, 不写死);
+# 不得回退 picker 下拉形态
+grep -q 'flat-chip-row' "$HOME_WXML" || { echo "FAIL: lightweight home industry/product filters must be flat chips (2026-11-02 用户令)" >&2; exit 1; }
+grep -q 'bindtap="chooseIndustry"' "$HOME_WXML" || { echo "FAIL: industry chips must be tap-to-select" >&2; exit 1; }
+grep -q 'bindtap="chooseProduct"' "$HOME_WXML" || { echo "FAIL: product chips must be tap-to-select" >&2; exit 1; }
+grep -q 'wx:for="{{industries}}"' "$HOME_WXML" || { echo "FAIL: industry chips must render from dynamic industries data (no hardcode)" >&2; exit 1; }
+grep -q 'wx:for="{{productOptions}}"' "$HOME_WXML" || { echo "FAIL: product chips must render from dynamic productOptions data (no hardcode)" >&2; exit 1; }
+grep -q 'currentTarget.dataset.index' "$HOME_JS" || { echo "FAIL: chip tap handlers must read dataset index" >&2; exit 1; }
+! grep -q 'range="{{industries}}"' "$HOME_WXML" || { echo "FAIL: industry must not regress to picker dropdown" >&2; exit 1; }
+! grep -q 'range="{{productOptions}}"' "$HOME_WXML" || { echo "FAIL: product must not regress to picker dropdown" >&2; exit 1; }
 grep -q 'bindtap="switchListMode"' "$HOME_WXML" || { echo "FAIL: lightweight home view toggle UI is missing" >&2; exit 1; }
 grep -q 'class="flat-rec"' "$HOME_WXML" || { echo "FAIL: lightweight home flat record row UI is missing" >&2; exit 1; }
 grep -q "'/pages/incentive/detail/index?id=' + row.id" "$HOME_JS" || { echo "FAIL: flat record rows must open the dial detail by record id" >&2; exit 1; }

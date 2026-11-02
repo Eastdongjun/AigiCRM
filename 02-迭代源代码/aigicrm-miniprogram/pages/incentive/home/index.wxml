@@ -20,24 +20,38 @@
       <button class="mini-action secondary" bindtap="resetRecordFilters">清空</button>
     </view>
     <view class="incentive-advanced-filters">
-      <picker mode="selector" range="{{industries}}" value="{{selectedIndustryIndex}}" bindchange="chooseIndustry">
-        <view class="filter-chip">{{incentiveView.industryText}}</view>
-      </picker>
-      <picker mode="selector" range="{{devTypes}}" value="{{selectedDevTypeIndex}}" bindchange="chooseDevType">
-        <view class="filter-chip">{{incentiveView.devTypeText}}</view>
-      </picker>
-      <picker mode="selector" range="{{productOptions}}" value="{{selectedProductIndex}}" bindchange="chooseProduct">
-        <view class="filter-chip">{{incentiveView.productText}}</view>
-      </picker>
-      <picker mode="selector" range="{{orgOptions}}" range-key="label" value="{{selectedOrgIndex}}" bindchange="chooseOrg">
-        <view class="filter-chip">{{incentiveView.orgText}}</view>
-      </picker>
-      <picker mode="date" value="{{startDate}}" bindchange="chooseStartDate">
-        <view class="filter-chip">{{incentiveView.startDateText}}</view>
-      </picker>
-      <picker mode="date" value="{{endDate}}" bindchange="chooseEndDate">
-        <view class="filter-chip">{{incentiveView.endDateText}}</view>
-      </picker>
+      <!-- 【2026-11-02 用户令】行业平铺直选(数据=系统字典 industry 动态拉取, 后台新增行业自动呈现, 不写死);
+           点击哪个行业就筛哪个行业 -->
+      <scroll-view class="flat-chip-row" scroll-x enhanced show-scrollbar="{{false}}">
+        <view class="flat-chip-row-inner">
+          <view wx:for="{{industries}}" wx:key="*this"
+                class="flat-chip {{index === selectedIndustryIndex ? 'on' : ''}}"
+                data-index="{{index}}" bindtap="chooseIndustry">{{item}}</view>
+        </view>
+      </scroll-view>
+      <!-- 【2026-11-02 用户令】产品平铺直选(数据=分类树"产品试点"分支动态派生, 新增产品自动呈现);
+           点击哪个产品就筛哪个产品的记录 -->
+      <scroll-view class="flat-chip-row" scroll-x enhanced show-scrollbar="{{false}}">
+        <view class="flat-chip-row-inner">
+          <view wx:for="{{productOptions}}" wx:key="*this"
+                class="flat-chip {{index === selectedProductIndex ? 'on' : ''}}"
+                data-index="{{index}}" bindtap="chooseProduct">{{item}}</view>
+        </view>
+      </scroll-view>
+      <view class="flat-picker-row">
+        <picker mode="selector" range="{{devTypes}}" value="{{selectedDevTypeIndex}}" bindchange="chooseDevType">
+          <view class="filter-chip">{{incentiveView.devTypeText}}</view>
+        </picker>
+        <picker mode="selector" range="{{orgOptions}}" range-key="label" value="{{selectedOrgIndex}}" bindchange="chooseOrg">
+          <view class="filter-chip">{{incentiveView.orgText}}</view>
+        </picker>
+        <picker mode="date" value="{{startDate}}" bindchange="chooseStartDate">
+          <view class="filter-chip">{{incentiveView.startDateText}}</view>
+        </picker>
+        <picker mode="date" value="{{endDate}}" bindchange="chooseEndDate">
+          <view class="filter-chip">{{incentiveView.endDateText}}</view>
+        </picker>
+      </view>
     </view>
   </view>
   <!-- 【2026-10-26 用户令"客户维度明细几个字不要了"】标题移除, 筛选行骨架(pickers)原位保留;
