@@ -131,8 +131,8 @@
 .rank-tbl { display: inline-block; min-width: 100%; }
 .rank-table-head { display: flex; align-items: center; padding: 14rpx 8rpx; background: #eef4ff; border-radius: 10rpx 10rpx 0 0; margin-top: 12rpx; }
 .rth { flex: none; font-size: 21rpx; color: #33507e; font-weight: 700; }
-.rth-rank { width: 76rpx; text-align: center; }
-.rth-name { width: 220rpx; }
+.rth-rank { width: 56rpx; text-align: center; }
+.rth-name { width: 150rpx; }
 .rth-score { width: 130rpx; text-align: center; }
 .rth-total { width: 90rpx; text-align: right; padding-right: 8rpx; }
 .rth-group-title { font-size: 20rpx; text-align: center; color: #2563eb; padding: 0 4rpx; white-space: nowrap; overflow: hidden; }
@@ -145,15 +145,19 @@
 .rtd-rank { width: 76rpx; display: flex; justify-content: center; }
 /* 【2026-11-02 用户令】姓名列冻结: 排名列+姓名列固定左侧, 不随横滚移动
    (实现=行内 fixed 列绝对定位+行 padding-left 让出空间; 微信 flex 表格无原生 freeze) */
-.rank-table-head, .rank-subhead, .rank-table-row { position: relative; padding-left: 366rpx; }
-.rth-rank, .rth-name, .rtd-rank, .rtd-name { position: absolute; left: 8rpx; z-index: 2; background: inherit; }
-.rth-rank, .rtd-rank { left: 8rpx; width: 76rpx; }
-.rth-name, .rtd-name { left: 84rpx; width: 270rpx; }
+/* 【2026-11-02 用户令·三调】姓名列收窄(270→150rpx)+办事处并入姓名下方同列;
+   排名列压缩(76→56rpx); 冻结区总宽 8+56+6+150+8=228rpx */
+.rank-table-head, .rank-subhead, .rank-table-row { position: relative; padding-left: 228rpx; }
+.rth-rank, .rth-name, .rtd-rank, .rtd-name { position: absolute; z-index: 2; }
+.rth-rank, .rtd-rank { left: 8rpx; width: 56rpx; text-align: center; }
+.rth-name, .rtd-name { left: 70rpx; width: 150rpx; }
 .rank-table-head .rth-rank, .rank-table-head .rth-name { background: #eef4ff; }
 .rank-subhead .rsh { background: #f7fafd; }
 .rank-table-row .rtd-rank, .rank-table-row .rtd-name { background: #fff; }
 .rank-table-row:active .rtd-rank, .rank-table-row:active .rtd-name { background: #f7faff; }
 .rtd-name { display: flex; align-items: center; }
+/* 冻结列右缘投影分界线: 与滚动区视觉分离 */
+.rtd-name, .rth-name { box-shadow: 6rpx 0 8rpx -6rpx rgba(0,0,0,.08); }
 .rtd-score { width: 130rpx; display: flex; justify-content: center; }
 .rtd-total { width: 90rpx; text-align: right; padding-right: 8rpx; color: #64748b; font-size: 21rpx; }
 .rtd-cat { width: 130rpx; display: flex; flex-direction: column; align-items: center; gap: 2rpx; }
