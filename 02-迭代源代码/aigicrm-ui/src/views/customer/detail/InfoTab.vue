@@ -46,9 +46,30 @@
       <div class="protect-dates">
         <div class="protect-date-item"><span class="pd-label">注册日</span><span class="pd-value">{{ customer.registerDate }}</span></div>
         <div class="protect-divider"><el-icon><ArrowRight /></el-icon></div>
-        <div class="protect-date-item"><span class="pd-label">最近开票</span><span class="pd-value">{{ customer.lastInvoiceDate || '—' }}</span></div>
+        <div class="protect-date-item">
+          <span class="pd-label">最近开票日</span>
+          <!-- 【2026-11-02 用户令】客户卡片上可维护最近开票日: 持 customer:invoice-date:edit(或admin)
+               点笔进入编辑, 人工设定=新基准(清零已批延期+三线公式重算保护期); 后端硬校验同码 -->
+          <span v-if="!invoiceDateEditing" class="pd-value">
+            {{ customer.lastInvoiceDate || '—' }}
+            <el-icon v-if="canEditInvoiceDate && !readonly" class="pd-edit" @click="startEditInvoiceDate"><Edit /></el-icon>
+          </span>
+          <span v-else class="pd-value pd-editing">
+            <el-date-picker v-model="invoiceDateDraft" type="date" value-format="YYYY-MM-DD" size="small"
+              placeholder="选择日期" style="width:130px" />
+            <el-button size="small" type="primary" :loading="invoiceDateSaving" @click="saveInvoiceDate">保存</el-button>
+            <el-button size="small" @click="invoiceDateEditing = false">取消</el-button>
+          </span>
+        </div>
         <div class="protect-divider"><el-icon><ArrowRight /></el-icon></div>
-        <div class="protect-date-item"><span class="pd-label">到期日 (360天)</span><span class="pd-value" :class="'exp-'+expireLevel">{{ customer.expireDate }}</span></div>
+        <div class="protect-date-item"><span class="pd-label">保护期到期日</span><span class="pd-value" :class="'exp-'+expireLevel">{{ customer.expireDate }}</span></div>
+        <!-- 【2026-11-02 口径批】捞取线字段: 从未捞取不显示, 捞取客户展示捞取日+捞取到期日(180天) -->
+        <template v-if="customer.claimDate">
+          <div class="protect-divider"><el-icon><ArrowRight /></el-icon></div>
+          <div class="protect-date-item"><span class="pd-label">捞取日期</span><span class="pd-value">{{ customer.claimDate }}</span></div>
+          <div class="protect-divider"><el-icon><ArrowRight /></el-icon></div>
+          <div class="protect-date-item"><span class="pd-label">捞取到期日(180天)</span><span class="pd-value">{{ customer.adjustDate || '—' }}</span></div>
+        </template>
       </div>
       <div class="protect-actions">
         <el-button v-if="!readonly" size="small" type="warning" @click="handleExtend"><el-icon><Calendar /></el-icon> 申请延期</el-button>
@@ -140,8 +161,10 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
+import { ElMessage } from 'element-plus'
 import { injectCustomerDetail } from '@/composables/useCustomerDetail'
+import { updateCustomer } from '@/api/customer'
 import { terminalLabel } from '@/utils/customer-fields'
 
 const {
@@ -149,8 +172,31 @@ const {
   openEditContact, handleSaveContact, handleDeleteContact, relationshipOptions,
   indicator, selectRelationship, expireLevel, statusLabel, handleExtend,
   openTransfer, confirmTransfer, showTransferDialog, transferUserId, allUsers,
-  indicatorDefs, indicatorForm, indicatorTotal, coreType,
+  indicatorDefs, indicatorForm, indicatorTotal, coreType, userStore, isAdmin, loadAll,
 } = injectCustomerDetail()
+
+// 【2026-11-02 用户令】最近开票日卡片内维护: 持 customer:invoice-date:edit(或 admin)可见编辑入口
+// (后端 protectCustomerDateFields 同码硬校验; 人工设定=新基准: 清零已批延期+三线公式重算+生命线留痕)
+const canEditInvoiceDate = computed(() => isAdmin.value || userStore.hasPermission('customer:invoice-date:edit'))
+const invoiceDateEditing = ref(false)
+const invoiceDateDraft = ref('')
+const invoiceDateSaving = ref(false)
+const startEditInvoiceDate = () => {
+  invoiceDateDraft.value = customer.value?.lastInvoiceDate || ''
+  invoiceDateEditing.value = true
+}
+const saveInvoiceDate = async () => {
+  if (!invoiceDateDraft.value || invoiceDateSaving.value) return
+  invoiceDateSaving.value = true
+  try {
+    await updateCustomer(customer.value.id, { lastInvoiceDate: invoiceDateDraft.value })
+    ElMessage.success('最近开票日已更新，保护期按新基准重算')
+    invoiceDateEditing.value = false
+    await loadAll()
+  } catch (e) {
+    // 错误提示由 request 拦截器处理(无权限 400 文案指明授权)
+  } finally { invoiceDateSaving.value = false }
+}
 
 // 核心指标摘要: 把当前分值翻译成「档位名 · 分值」(取值与指标页签同源 indicatorForm)
 const indicatorOptionLabel = (ind) => {
@@ -214,4 +260,8 @@ const transferCandidates = computed(() =>
 .relation-opt:hover { border-color:var(--el-color-primary); color:var(--el-color-primary) }
 .relation-opt.on { border-color:var(--el-color-primary); background:var(--el-color-primary-light-9); color:var(--el-color-primary); font-weight:600 }
 .empty-text { color: var(--text-placeholder); text-align:center; padding:24px 0; font-size:13px }
+/* 【2026-11-02】最近开票日卡片内维护: 编辑入口/编辑态 */
+.pd-edit { cursor:pointer; margin-left:4px; color:var(--el-color-primary); vertical-align:-2px }
+.pd-edit:hover { opacity:.75 }
+.pd-editing { display:inline-flex; align-items:center; gap:6px }
 </style>

@@ -32,6 +32,10 @@ function mountInfoTab(customer) {
           expireLevel: ref('blue'),
           statusLabel: ref('正常'),
           handleExtend: () => {},
+          // 【2026-11-02 最近开票日卡片维护】script 顶层消费的三个键
+          userStore: { hasPermission: () => false },
+          isAdmin: ref(false),
+          loadAll: async () => {},
         },
       },
     },
@@ -53,6 +57,32 @@ describe('客户详情 InfoTab 展示字段', () => {
     expect(text).toContain('NM-202609-001')
     expect(text).toContain('开票名称')
     expect(text).toContain('陕煤榆林化学有限公司')
+  })
+
+  it('【2026-11-02 口径批】保护期日期区五项: 注册日/最近开票日/到期日, 捞取客户加捞取日期+捞取到期日', () => {
+    const wrapper = mountInfoTab({
+      registerDate: '2025-01-01',
+      lastInvoiceDate: '2026-06-01',
+      expireDate: '2027-06-01',
+      claimDate: '2026-11-02',
+      adjustDate: '2027-05-01',
+    })
+    const text = wrapper.text()
+    expect(text).toContain('注册日')
+    expect(text).toContain('最近开票日')
+    expect(text).toContain('保护期到期日')
+    expect(text).toContain('捞取日期')
+    expect(text).toContain('捞取到期日(180天)')
+    expect(text).toContain('2026-11-02')
+    expect(text).toContain('2027-05-01')
+  })
+
+  it('【2026-11-02 口径批】从未捞取客户不显示捞取两项', () => {
+    const wrapper = mountInfoTab({ registerDate: '2025-01-01', claimDate: null })
+    const text = wrapper.text()
+    expect(text).toContain('注册日')
+    expect(text).not.toContain('捞取日期')
+    expect(text).not.toContain('捞取到期日')
   })
 
   it('归属信息展示所属部门（列表有「部门」列，详情也必须有）', () => {

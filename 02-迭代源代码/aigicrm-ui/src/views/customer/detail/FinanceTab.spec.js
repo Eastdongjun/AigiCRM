@@ -19,6 +19,7 @@ function mountFinanceTab({
   stageRows = [], coreType = '', baseYear = 0, annualInvoiceAmount = 0, annualPaymentAmount = 0,
   invoices = [], payments = [], invoiceSummary = { totalCount: 0, totalAmount: 0 },
   paymentSummary = { totalCount: 0, totalAmount: 0 }, readonly = false, handlers = {},
+  customer = {},
 } = {}) {
   const noop = () => {}
   const stageSummary = ref({ rows: stageRows, coreType, baseYear, annualInvoiceAmount, annualPaymentAmount })
@@ -29,6 +30,10 @@ function mountFinanceTab({
         plugins: [ElementPlus],
         provide: {
           [CustomerDetailKey]: {
+            // 【2026-11-02 最近开票日页签维护】script 顶层消费的键
+            customer: ref(customer),
+            isAdmin: ref(false),
+            loadAll: async () => {},
             readonly: ref(readonly),
             invoices: ref(invoices),
             invoiceSummary: ref(invoiceSummary),

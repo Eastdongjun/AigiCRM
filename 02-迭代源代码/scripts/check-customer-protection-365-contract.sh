@@ -21,6 +21,8 @@ ADDR_VUE="$ROOT/aigicrm-ui/src/views/customer/AddressSection.vue"
 MAIN_TABLE="$ROOT/aigicrm-ui/src/views/customer/MainTable.vue"
 USE_LIST="$ROOT/aigicrm-ui/src/composables/useCustomerList.js"
 DETAIL_VUE="$ROOT/aigicrm-ui/src/views/customer/detail.vue"
+DETAIL_INFO_TAB="$ROOT/aigicrm-ui/src/views/customer/detail/InfoTab.vue"
+DETAIL_FIN_TAB="$ROOT/aigicrm-ui/src/views/customer/detail/FinanceTab.vue"
 EVENTS_TAB="$ROOT/aigicrm-ui/src/views/customer/detail/EventsTab.vue"
 CUSTOMER_API="$ROOT/aigicrm-ui/src/api/customer.js"
 
@@ -71,5 +73,16 @@ assert_contains mig_events_table "$MIG_EVENTS" 'biz_customer_event'
 assert_contains add_hint_365 "$ADD_VUE" '+ 365 天'
 assert_not_contains add_hint_360 "$ADD_VUE" '+ 360 天'
 assert_contains addr_claim_date "$ADDR_VUE" '捞取日期'
+
+# ⑦ 【2026-11-02 用户令】最近开票日三入口维护(编辑表单/客户卡片/开票回款页签, 同码 customer:invoice-date:edit)
+#    + 客户卡片五项日期(注册/最近开票/到期/捞取日/捞取到期日)
+assert_contains info_inline_edit "$DETAIL_INFO_TAB" "hasPermission('customer:invoice-date:edit')"
+assert_contains info_inline_entry "$DETAIL_INFO_TAB" 'startEditInvoiceDate'
+assert_contains info_card_claim "$DETAIL_INFO_TAB" '捞取日期'
+assert_contains info_card_claim_due "$DETAIL_INFO_TAB" '捞取到期日(180天)'
+assert_not_contains info_card_360 "$DETAIL_INFO_TAB" '到期日 (360天)'
+assert_contains fin_bar_perm "$DETAIL_FIN_TAB" "hasPermission('customer:invoice-date:edit')"
+assert_contains fin_bar_save "$DETAIL_FIN_TAB" 'saveInvoiceDate'
+assert_contains fin_bar_label "$DETAIL_FIN_TAB" '最近开票日'
 
 echo "PASS: customer-protection-365 (A 365天 / B 捞取180+claim_date / C 捞取到期日 / D 生命线)"

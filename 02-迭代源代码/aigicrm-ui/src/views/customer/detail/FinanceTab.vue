@@ -1,5 +1,21 @@
 <template>
   <div>
+    <!-- 【2026-11-02 用户令】最近开票日在开票回款页签可维护: 持 customer:invoice-date:edit(或 admin)可改,
+         人工设定=新基准(清零已批延期+三线公式重算保护期+生命线留痕); 无码只读展示(后端同码硬校验) -->
+    <div class="invoice-date-bar">
+      <div class="idb-info">
+        <span class="idb-label">最近开票日</span>
+        <span class="idb-value">{{ customer?.lastInvoiceDate || '尚未开票' }}</span>
+        <span class="idb-sub">保护期到期 {{ customer?.expireDate || '—' }}</span>
+      </div>
+      <div class="idb-edit" v-if="canEditInvoiceDate">
+        <el-date-picker v-model="invoiceDateDraft" type="date" value-format="YYYY-MM-DD"
+          :placeholder="customer?.lastInvoiceDate || '选择日期'" size="small" style="width:140px" />
+        <el-button size="small" type="primary" :loading="invoiceDateSaving" @click="saveInvoiceDate">更新</el-button>
+        <span class="idb-hint">人工设定=新基准：清零已批延期并重算保护期</span>
+      </div>
+    </div>
+
     <!-- 【裁决 2026-10-10】主体: 阶段性开票回款(半年/全年总额录入制) -->
     <div class="finance-card">
       <div class="fin-head">
@@ -161,17 +177,37 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
+import { ElMessage } from 'element-plus'
 import { injectCustomerDetail } from '@/composables/useCustomerDetail'
 import { useUserStore } from '@/store/user'
 import { formatWan, dashIfEmpty } from '@/utils/format'
 import { FINANCE_LEDGER_STATUS, statusOf } from '@/utils/status-maps'
+import { updateCustomer } from '@/api/customer'
 
 const {
   invoices, invoiceSummary, payments, paymentSummary,
   stageSummary, showStageDialog, stageForm, openStageDialog, handleSaveStageAmount,
-  coreType, coreTypeLabel,
+  coreType, coreTypeLabel, customer, isAdmin, loadAll,
 } = injectCustomerDetail()
+
+// 【2026-11-02 用户令】最近开票日页签内维护(与 InfoTab 卡片/编辑表单同码三入口):
+// customer:invoice-date:edit(后台角色管理勾选)或 admin; 后端 protectCustomerDateFields 同码硬校验
+const canEditInvoiceDate = computed(() => isAdmin.value || userStore.hasPermission('customer:invoice-date:edit'))
+const invoiceDateDraft = ref('')
+const invoiceDateSaving = ref(false)
+const saveInvoiceDate = async () => {
+  if (!invoiceDateDraft.value || invoiceDateSaving.value) return
+  invoiceDateSaving.value = true
+  try {
+    await updateCustomer(customer.value.id, { lastInvoiceDate: invoiceDateDraft.value })
+    ElMessage.success('最近开票日已更新，保护期按新基准重算')
+    invoiceDateDraft.value = ''
+    await loadAll()
+  } catch (e) {
+    // 错误提示由 request 拦截器处理(无权限 400 文案指明授权)
+  } finally { invoiceDateSaving.value = false }
+}
 
 // 【2026-11-01 审计修复】财务写门控三处统一为后端口径: finance:manage ∨ (customer:edit ∧ finance:view)
 // (原仅判 readonly, 只持 finance:view 者可见可点、保存必 403; MP 端同批对齐)
@@ -223,4 +259,13 @@ const financeStatus = (s) => statusOf(FINANCE_LEDGER_STATUS, s)
 .period-picker { display:flex; align-items:center; gap:8px; width:100% }
 .period-join { color:#666; font-size:13px }
 .dialog-tip { color:var(--el-color-info); font-size:12px; line-height:1.7; padding:4px 2px 0 }
+/* 【2026-11-02】最近开票日维护条 */
+.invoice-date-bar { display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;
+  background:#f5f8ff; border:1px solid #dbe6ff; border-radius:10px; padding:10px 14px; margin-bottom:12px }
+.idb-info { display:flex; align-items:center; gap:10px; flex-wrap:wrap }
+.idb-label { font-size:13px; color:var(--el-color-info) }
+.idb-value { font-size:15px; font-weight:600; color:var(--el-color-primary) }
+.idb-sub { font-size:12px; color:var(--el-color-info) }
+.idb-edit { display:flex; align-items:center; gap:8px; flex-wrap:wrap }
+.idb-hint { font-size:12px; color:var(--el-color-info) }
 </style>
