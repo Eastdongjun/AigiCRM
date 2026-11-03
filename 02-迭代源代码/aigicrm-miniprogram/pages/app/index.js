@@ -28,8 +28,10 @@ const TILE_SUBTITLES = {
 // 应用中心按业务模块组织，而不是把 9 个入口平铺成菜单。
 // apps 里放应用 key，构建时按当前账号权限过滤，空模块整块隐藏。
 const APP_MODULES = [
-  { key: 'customer', title: '客户经营', subtitle: '客户资产、排行与核心指标', apps: ['customer', 'ranking', 'indicator'] },
+  { key: 'customer', title: '客户经营', subtitle: '客户资产与核心指标', apps: ['customer', 'indicator'] },
   { key: 'incentive', title: '四项服务', subtitle: '上传、查询与统计', apps: ['incentiveUpload', 'incentiveQuery', 'incentiveStats'] },
+  // 【2026-11-03 用户裁决】学分排行挪出客户经营, 新建「考核与分析」与 PC 菜单分组对齐
+  { key: 'assessment', title: '考核与分析', subtitle: '学分排行与周期口径', apps: ['ranking'] },
   { key: 'workflow', title: '流程协同', subtitle: '审批、提醒与公海协作', apps: ['approval', 'reminder', 'sea'] },
   { key: 'analytics', title: '经营分析', subtitle: '全局统计与趋势', apps: ['statistics'] }
 ]
