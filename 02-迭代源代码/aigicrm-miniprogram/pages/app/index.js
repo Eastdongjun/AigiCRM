@@ -2,6 +2,8 @@ const { hasPermission, requireLogin } = require('../../utils/auth')
 
 const APP_ICONS = {
   customer: '人',
+  customerCreate: '增',
+  files: '文',
   incentiveUpload: '传',
   incentiveQuery: '查',
   reminder: '铃',
@@ -15,6 +17,8 @@ const APP_ICONS = {
 // 半宽卡片里的副标题要能一行放下，完整副标题仍保留在 apps 数据里供无障碍/契约使用。
 const TILE_SUBTITLES = {
   customer: '客户列表与新增',
+  customerCreate: '录入客户档案',
+  files: '文件、文件夹与分享',
   incentiveUpload: '记录、文件与学分',
   incentiveQuery: '分类、统计、排行与阅读',
   reminder: '到期与待办提醒',
@@ -28,7 +32,9 @@ const TILE_SUBTITLES = {
 // 应用中心按业务模块组织，而不是把 9 个入口平铺成菜单。
 // apps 里放应用 key，构建时按当前账号权限过滤，空模块整块隐藏。
 const APP_MODULES = [
-  { key: 'customer', title: '客户经营', subtitle: '客户资产与核心指标', apps: ['customer', 'indicator'] },
+  { key: 'customer', title: '客户经营', subtitle: '客户资产与核心指标', apps: ['customer', 'customerCreate', 'indicator'] },
+  // 【2026-11-03 用户令"应用与 PC 对齐"】补文件管理(PC 正式菜单 file:view; tabBar 页 switchTab 直达)
+  { key: 'files', title: '文件管理', subtitle: '文件库、文件夹与分享', apps: ['files'] },
   { key: 'incentive', title: '四项服务', subtitle: '上传、查询与统计', apps: ['incentiveUpload', 'incentiveQuery', 'incentiveStats'] },
   // 【2026-11-03 用户裁决】学分排行挪出客户经营, 新建「考核与分析」与 PC 菜单分组对齐
   { key: 'assessment', title: '考核与分析', subtitle: '学分排行与周期口径', apps: ['ranking'] },
@@ -87,6 +93,9 @@ Page({
     const apps = [
       // 【A4 2026-10-08 二轮】宫格命名与 PC 生产菜单名对齐（客户列表/核心客户六项指标），消除跨端页面名漂移
       { key: 'customer', title: '客户列表', subtitle: '客户列表、详情与新增', color: 'blue', permission: 'customer:view' },
+      // 【2026-11-03 用户令"应用与 PC 对齐"】补新增客户直达卡(PC 该入口在列表页「+」按钮, 手机上给直达);
+      { key: 'customerCreate', title: '新增客户', subtitle: '录入客户档案信息', color: 'blue', permission: 'customer:add' },
+      { key: 'files', title: '文件管理', subtitle: '文件库、文件夹与分享', color: 'cyan', permission: 'file:view' },
       { key: 'incentiveUpload', title: '激励上传', subtitle: '四大类 · 子类 · 槽位佐证', color: 'green', permission: 'incentive:add' },
       { key: 'incentiveQuery', title: '激励查询', subtitle: '客户记录 · 分类 · 阅读', color: 'teal', permission: 'incentive:view' },
       { key: 'incentiveStats', title: '激励统计', subtitle: '统计 · 客户/个人/部门排行', color: 'amber', permission: 'incentive:view' },
@@ -111,7 +120,7 @@ Page({
     // 【2026-10-23 四项服务拆分】完整工作台(pages/incentive/index)不再是 tabBar 页,
     // 应用中心「四项服务应用」navigateTo 直达; tabBar 轻量客户记录在 pages/incentive/home/index
     // 【2026-11-03 用户令"查询和统计分开"】两入口带 mode 各锁页签集(query=记录/分类/阅读, stats=统计/排行)
-    const routes = { customer: '/pages/customer/index', incentiveUpload: '/pages/incentive/upload/index', incentiveQuery: '/pages/incentive/index?mode=query', incentiveStats: '/pages/incentive/index?mode=stats', reminder: '/pages/reminder/index', approval: '/pages/approval/index', sea: '/pages/sea/index', indicator: '/pages/indicator/index', statistics: '/pages/statistics/index', ranking: '/pages/ranking/index' }
+    const routes = { customer: '/pages/customer/index', customerCreate: '/pages/customer/form/index', files: '/pages/files/index', incentiveUpload: '/pages/incentive/upload/index', incentiveQuery: '/pages/incentive/index?mode=query', incentiveStats: '/pages/incentive/index?mode=stats', reminder: '/pages/reminder/index', approval: '/pages/approval/index', sea: '/pages/sea/index', indicator: '/pages/indicator/index', statistics: '/pages/statistics/index', ranking: '/pages/ranking/index' }
     // 【#11 2026-10-12】tabBar 页必须 switchTab:navigateTo 跳 tabBar 页静默失败
     const tabPages = ['/pages/home/index', '/pages/incentive/home/index', '/pages/files/index', '/pages/app/index', '/pages/profile/index']
     const url = routes[key]
