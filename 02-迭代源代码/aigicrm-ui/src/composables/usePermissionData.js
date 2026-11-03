@@ -38,6 +38,8 @@ const permModules = computed(() => {
     // 【2026-11-03 权限中心修复】finance:*(客户财务查看/管理)与 contact:*(联系人)业务上属客户域,
     // 但权限码前缀不在上表 → 此前掉进兜底"系统管理"组, 管理员在客户管理里找不到这两个码
     'finance': '客户管理', 'contact': '客户管理',
+    // 【2026-11-03 续修】ranking:customer:view(客户排行查看)同款孤儿前缀; 菜单树挂统计分析→客户排行, 归组随库
+    'ranking': '统计分析',
   }
   const flatten = (nodes) => {
     for (const n of nodes) {
