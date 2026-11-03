@@ -1,96 +1,113 @@
 <template>
-  <div class="perm-scope-manager">
-    <!-- 【批③ 2026-08-10】主体三级切换: 角色(矩阵) / 岗位 / 用户 -->
-    <div class="ps-tabs">
+  <div class="psm">
+    <!-- 【2026-11-03 权限中心重设计】骨架 = 给谁(主体chips) → 权限模块(左栏) → 权限明细(右栏行卡)。
+         旧版 12模块×N角色 密格矩阵每格塞三控件、说明糊成一团, 已整体退役;
+         数据链不变: 功能勾选 togglePerm→PUT /system/roles/{id}; 范围/锚点 perm-scopes 四函数。 -->
+    <div class="psm-bar">
       <el-radio-group v-model="assigneeMode" size="small" @change="onModeChange">
         <el-radio-button value="ROLE">按角色</el-radio-button>
         <el-radio-button value="POSITION">按岗位</el-radio-button>
         <el-radio-button value="USER">按用户</el-radio-button>
       </el-radio-group>
-      <el-select v-if="assigneeMode !== 'ROLE'" v-model="selectedKey" size="small" placeholder="选择岗位/用户"
-                 style="width: 220px; margin-left: 10px" filterable
+      <el-select v-if="assigneeMode !== 'ROLE'" v-model="selectedKey" size="small" placeholder="选择岗位 / 用户"
+                 style="width: 240px" filterable
                  :filter-method="assigneeMode === 'USER' ? searchUserOptions : undefined"
-                 @change="loadScopesForSelected"
-                 @focus="assigneeMode === 'USER' && searchUserOptions('')">
+                 @change="loadScopesForSelected" @focus="assigneeMode === 'USER' && searchUserOptions('')">
         <el-option v-for="o in assigneeOptions" :key="o.key" :label="o.label" :value="o.key" />
       </el-select>
-
-      <el-button size="small" style="margin-left: 8px" @click="loadAll">刷新</el-button>
+      <el-button size="small" @click="loadAll">刷新</el-button>
+      <span v-if="!canEditScope" class="psm-readonly">当前账号只读：需系统管理员 + system:config:edit 才能修改</span>
     </div>
-    <div class="ps-layout">
-      <!-- 左：模块导航 -->
-      <div class="ps-sidebar">
-        <div class="ps-sidebar-title">权限模块</div>
-        <div v-for="m in modules" :key="m.name" class="ps-nav" :class="{ active: current === m.name }"
-             @click="current = m.name">{{ m.name }}</div>
-      </div>
 
-      <!-- 右：该模块 权限项×角色 矩阵 -->
-      <div class="ps-body">
-        <div class="ps-tip">
-          每格 = <b>功能</b>(勾选=能做什么) + <b>范围</b>(下拉=对谁的数据) + <b>锚点</b>(按人/按组织)
-          · 范围未配置默认: 查看=角色数据范围, 编辑/删除/财务=仅本人; 锚点未配置按推荐保存: <b>查看类=按组织(看部门盘子), 编辑类=按人(跟负责人走)</b>
-          · 仅后端真实消费的权限项显示范围列；其余权限码隐藏控件并标注实际控制面（如文件夹权限/激励授权面板）
-          <!-- 【2026-09-13】只读角色（无 system:config:edit）不再显示可操作控件：此前能改下拉，
-               保存时才被后端 403，属"界面已改、实际没变"的误导 -->
-          <span v-if="!canEditScope" class="ps-readonly">（当前账号只读：需 system:config:edit 权限才能修改）</span>
-          <el-empty v-if="permLoadError" description="无权限查看权限矩阵或加载失败" />
-          <div v-else-if="curModule" class="ps-table-wrap">
-            <table class="perm-table">
-              <thead>
-                <tr>
-                  <th class="perm-item">权限项</th>
-                  <th v-for="col in matrixCols" :key="col.key" class="ps-role-col">
-                    {{ col.label }}
-                    <el-link v-if="canEditScope && assigneeMode !== 'ROLE'" type="danger" :underline="false" style="font-size:12px" @click="resetAssignee(col)">恢复默认</el-link>
-                    <el-link v-else-if="canEditScope" type="primary" :underline="false" style="font-size:12px" @click="resetRole(col)">恢复默认</el-link>
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="item in curModule.items" :key="item.id">
-                  <td class="perm-item">
-                    {{ item.label }}
-                    <span class="ps-action">{{ actionOf(item.permission) }}</span>
-                  </td>
-                  <td v-for="col in matrixCols" :key="col.key" class="ps-cell">
-                    <el-checkbox :model-value="col.isRole ? hasPerm(col.role, item) : false"
-                                 :disabled="!col.isRole || !canEditScope"
-                                 @change="() => col.isRole && togglePerm(col.role, item)" />
-                    <el-select v-if="isScopeDriven(item)" :model-value="scopeOf(col, item)" size="small" style="width:92px"
-                               :disabled="!canEditScope"
-                               @change="(s) => saveScope(col, item, s)">
-                      <el-option v-for="o in scopeOptions" :key="o.value" :label="o.label" :value="o.value" />
-                    </el-select>
-                    <el-select v-if="isScopeDriven(item)" :model-value="anchorOf(col, item)" size="small" style="width:70px"
-                               :disabled="!canEditScope"
-                               @change="(a) => saveScope(col, item, scopeOf(col, item), a)">
-                      <el-option value="OWNER" label="按人" />
-                      <el-option value="ORG" label="按组织" />
-                    </el-select>
-                    <span v-else class="ps-scope-na" :title="'该模块数据范围由' + scopeOwnerOf(item) + '控制，矩阵此处仅配置功能勾选'">
-                      {{ scopeOwnerOf(item) }}
-                    </span>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
+    <!-- ① 给谁: 角色chips(仅ROLE模式) -->
+    <div v-if="assigneeMode === 'ROLE'" class="psm-who">
+      <button v-for="r in allRoles" :key="r.id" class="psm-who-chip" :class="{ active: currentRoleId === r.id }"
+              @click="switchRole(r)">
+        <span class="psm-who-name">{{ r.roleName }}</span>
+        <span class="psm-who-count">{{ enabledTotalOf(r) }} 项</span>
+      </button>
+      <span v-if="!allRoles.length && !permLoadError" class="psm-who-empty">加载中…</span>
+    </div>
+
+    <el-empty v-if="permLoadError" description="无权限查看权限矩阵（缺少 system:menu:view / system:role:view）或加载失败" />
+    <div v-else-if="currentAssignee" class="psm-main">
+      <!-- ② 权限模块(左栏) -->
+      <aside class="psm-mods">
+        <div class="psm-mods-title">权限模块</div>
+        <button v-for="m in modules" :key="m.name" class="psm-mod" :class="{ active: current === m.name }"
+                @click="current = m.name">
+          <span class="psm-mod-name">{{ m.name }}</span>
+          <span class="psm-mod-count" :class="{ on: enabledCountOf(m) > 0 }">
+            <b>{{ enabledCountOf(m) }}</b>/{{ m.items.length }}
+          </span>
+        </button>
+      </aside>
+
+      <!-- ③ 权限明细(右栏) -->
+      <section class="psm-detail">
+        <header class="psm-head">
+          <div class="psm-head-text">
+            <div class="psm-head-title">{{ curModule?.name }}<span class="psm-head-sub"> · {{ currentAssigneeLabel }} · 已启用 {{ curEnabledCount }}/{{ curModule?.items.length }}</span></div>
+            <div class="psm-head-hint">勾选 = 能做什么 · 范围 = 对谁的数据 · 锚点未手选时按推荐自动保存（查看类=按组织看盘子，编辑类=按人跟负责人）</div>
+          </div>
+          <div v-if="canEditScope && isRoleMode" class="psm-head-actions">
+            <el-button size="small" @click="toggleModuleAll(false)">全不勾</el-button>
+            <el-button size="small" type="primary" plain @click="toggleModuleAll(true)">全勾</el-button>
+            <el-button size="small" type="danger" plain @click="resetCurrent">恢复默认范围</el-button>
+          </div>
+        </header>
+
+        <div class="psm-rows">
+          <div v-for="item in curModule?.items" :key="item.id" class="psm-row" :class="{ off: !isEnabled(item) }">
+            <el-checkbox class="psm-row-check" :model-value="isEnabled(item)"
+                         :disabled="!isRoleMode || !canEditScope" @change="() => onToggle(item)" />
+            <div class="psm-row-info">
+              <span class="psm-row-name">{{ item.label }}</span>
+              <code class="psm-row-code">{{ item.permission }}</code>
+            </div>
+            <div class="psm-row-ctrl">
+              <template v-if="isScopeDriven(item)">
+                <el-select :model-value="scopeOf(item)" size="small" class="psm-scope"
+                           :disabled="!canEditScope" @change="(s) => saveScope(item, s)">
+                  <el-option v-for="o in scopeOptions" :key="o.value" :label="o.label" :value="o.value" />
+                </el-select>
+                <el-select :model-value="anchorOf(item)" size="small" class="psm-anchor"
+                           :disabled="!canEditScope" @change="(a) => saveScope(item, scopeOf(item), a)">
+                  <el-option value="OWNER" label="按人" />
+                  <el-option value="ORG" label="按组织" />
+                </el-select>
+                <span v-if="anchorOf(item) === recommendedAnchorOf(item)" class="psm-rec" title="推荐锚点（未手选时自动按此保存）">荐</span>
+              </template>
+              <span v-else class="psm-na" :title="'该权限的数据范围由' + scopeOwnerOf(item) + '控制，这里只配置功能开关'">
+                {{ scopeOwnerOf(item) }}控制
+              </span>
+            </div>
           </div>
         </div>
-      </div>
+
+        <!-- 人话摘要: 配完一眼回读 -->
+        <footer class="psm-summary">
+          <b>{{ currentAssigneeLabel }}</b> 在「{{ curModule?.name }}」：
+          <template v-if="summaryLines.length">
+            <span v-for="(line, i) in summaryLines" :key="i" class="psm-sum-chip">{{ line }}</span>
+          </template>
+          <span v-else class="psm-sum-none">未启用任何权限项</span>
+        </footer>
+      </section>
     </div>
+    <el-empty v-else :description="assigneeMode === 'ROLE' ? '暂无角色可配置' : '请先选择岗位 / 用户'" />
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { usePermissionData } from '@/composables/usePermissionData'
 import { useUserStore } from '@/store/user'
 import {
   getRolePermScopes, updateRolePermScopes,
   getAssigneePermScopes, updateAssigneePermScopes,
-  getPositionList, getUserList,
+  getPositionList, getUserList, updateRole,
 } from '@/api/system'
 import './perm-common.css'
 
@@ -112,29 +129,35 @@ const scopeOptions = [
   { value: 'self', label: '仅本人' },
   { value: 'custom', label: '自定义组织' },
 ]
+const scopeLabelOf = (v) => scopeOptions.find(o => o.value === v)?.label || v
 
-// 主体三级: ROLE(角色矩阵) / POSITION / USER
+// ---- 主体三级: ROLE(默认, 角色chips) / POSITION / USER ----
 const assigneeMode = ref('ROLE')
 const selectedKey = ref('')
 const assigneeOptions = ref([])
 const positions = ref([])
+const currentRoleId = ref(null)
 
-// scopeMap[key][permission] = { scope, anchor }
+// scopeMap['{TYPE}:{key}'][permission] = { scope, anchor }
 const scopeMap = ref({})
 
-const matrixCols = computed(() => {
-  // 【修复 2026-08-11 P1】ROLE 模式携带完整角色对象(含 .id)：hasPerm/togglePerm 依赖 rolePermMap[role.id]，
-  // 此前 col 仅 {key,label} 无 .id，功能勾选列恒 false、点击无反应。POSITION/USER 无 RBAC 功能权限，
-  // 功能列禁用(仅范围/锚点可配)。
-  if (assigneeMode.value === 'ROLE') return allRoles.value.map(r => ({ key: `ROLE:${r.roleCode}`, label: r.roleName, role: r, isRole: true }))
-  if (!selectedKey.value) return []
+const isRoleMode = computed(() => assigneeMode.value === 'ROLE')
+const currentRole = computed(() => allRoles.value.find(r => r.id === currentRoleId.value))
+const currentAssignee = computed(() => {
+  if (isRoleMode.value) return currentRole.value || null
+  return selectedKey.value ? { key: selectedKey.value } : null
+})
+const currentAssigneeLabel = computed(() => {
+  if (isRoleMode.value) return currentRole.value?.roleName || ''
   const opt = assigneeOptions.value.find(o => o.key === selectedKey.value)
-  return [{ key: `${assigneeMode.value}:${selectedKey.value}`, label: opt?.label || selectedKey.value, isRole: false }]
+  return opt?.label || selectedKey.value
+})
+const assigneeScopeKey = computed(() => {
+  if (isRoleMode.value) return currentRole.value ? `ROLE:${currentRole.value.roleCode}` : ''
+  return selectedKey.value ? `${assigneeMode.value}:${selectedKey.value}` : ''
 })
 
 // 【2026-10-17 矩阵诚实化】权限码 → 后端运行时真实消费的 (module, action) 显式映射。
-// 旧实现用 permission.split(':')[1]：system:log:view 被解析成 (system, log) 死配置，
-// system:user:add 被解析成 (system, user)，后端永不读取，属于"配了不生效"的误导。
 // 只对下列明确消费的权限项显示范围/锚点控件；其余权限码隐藏控件并标注实际控制面。
 const PERMISSION_SCOPE_TARGETS = Object.freeze({
   'customer:view': { module: 'customer', action: 'view' },
@@ -150,17 +173,9 @@ const PERMISSION_SCOPE_TARGETS = Object.freeze({
   'sea:view': { module: 'sea', action: 'view' },
   'system:log:view': { module: 'system', action: 'view' },
 })
-
 const scopeTargetOf = (permission) => PERMISSION_SCOPE_TARGETS[permission] || null
-const actionOf = (permission) => {
-  const target = scopeTargetOf(permission)
-  if (target) return target.action
-  const parts = (permission || '').split(':')
-  return parts.length >= 2 ? parts[parts.length - 1] : ''
-}
-const moduleOf = (permission) => scopeTargetOf(permission)?.module || (permission || '').split(':')[0] || ''
 
-// 未接入范围矩阵的模块/权限码：隐去下拉，标注真实控制面，避免管理员误以为配置生效
+// 未接入范围矩阵的模块: 标注真实控制面, 避免管理员误以为配置生效
 const SCOPE_OWNER_HINTS = {
   incentive: '激励授权面板',
   file: '文件夹权限',
@@ -171,28 +186,59 @@ const SCOPE_OWNER_HINTS = {
   score: '学分规则',
 }
 const isScopeDriven = (item) => scopeTargetOf(item.permission) !== null
-const scopeOwnerOf = (item) => SCOPE_OWNER_HINTS[moduleOf(item.permission)] || '模块自身规则'
+const scopeOwnerOf = (item) => SCOPE_OWNER_HINTS[(item.permission || '').split(':')[0]] || '模块自身规则'
 
-// 后端配置以 (module, action) 为键返回；回显/保存都必须按映射后的键读写，
-// 否则 system:log:view 永远读不到已保存的 system:view 配置。
+// 后端配置以 (module, action) 为键; system:log:view 读写的都是 (system, view)
 const scopeKeyOf = (permission) => {
   const target = scopeTargetOf(permission)
   return target ? `${target.module}:${target.action}` : permission
 }
-const scopeOf = (col, item) => scopeMap.value[col.key]?.[scopeKeyOf(item.permission)]?.scope || 'self'
-// 【2026-11-03 权限中心·锚点推荐】未显式配置的格子在界面与保存时都按推荐锚点走:
-// 查看/统计类=按组织(看部门盘子), 编辑/删除/财务类=按人(跟负责人走)——存量已配置项不受影响。
-const recommendedAnchorOf = (item) => {
-  const action = scopeTargetOf(item.permission)?.action || ''
-  return action === 'view' ? 'ORG' : 'OWNER'
-}
-const anchorOf = (col, item) => scopeMap.value[col.key]?.[scopeKeyOf(item.permission)]?.anchor || recommendedAnchorOf(item)
+const scopeOf = (item) => scopeMap.value[assigneeScopeKey.value]?.[scopeKeyOf(item.permission)]?.scope || 'self'
+// 【锚点推荐】未显式配置的项在界面与保存时都按推荐走: 查看/统计类=按组织, 编辑/删除/财务类=按人
+const recommendedAnchorOf = (item) => (scopeTargetOf(item.permission)?.action === 'view' ? 'ORG' : 'OWNER')
+const anchorOf = (item) => scopeMap.value[assigneeScopeKey.value]?.[scopeKeyOf(item.permission)]?.anchor || recommendedAnchorOf(item)
 
-// 【2026-10-17】编辑门禁与后端对齐：PUT 需 system:config:edit（@PreAuthorize）且 requireAdmin()
-// 仅系统管理员可写；非 admin 即使持 config:edit 也只读，避免"界面已改、实际 403"的假成功。
-const userStore = useUserStore()
 const canEditScope = computed(() => userStore.isAdmin() && userStore.hasPermission('system:config:edit'))
+const userStore = useUserStore()
 
+// ---- 功能勾选(ROLE) ----
+const isEnabled = (item) => (isRoleMode.value && currentRole.value ? hasPerm(currentRole.value, item) : false)
+const enabledCountOf = (m) => m.items.filter(i => isEnabled(i)).length
+const enabledTotalOf = (r) => modules.value.reduce((sum, m) => sum + m.items.filter(i => hasPerm(r, i)).length, 0)
+const curEnabledCount = computed(() => (curModule.value ? enabledCountOf(curModule.value) : 0))
+
+const onToggle = (item) => {
+  if (!isRoleMode.value || !currentRole.value) return
+  togglePerm(currentRole.value, item)
+}
+
+// 模块级批量勾选: 单次 PUT 提交整个角色的 menuIds(旧逐项 toggle 会发 N 个请求)
+const toggleModuleAll = async (enable) => {
+  if (!isRoleMode.value || !currentRole.value || !curModule.value) return
+  const set = new Set(usePermissionDataRoleIds(currentRole.value) || [])
+  for (const item of curModule.value.items) {
+    if (enable) set.add(item.id)
+    else set.delete(item.id)
+  }
+  try {
+    await updateRole(currentRole.value.id, { menuIds: [...set] })
+    const inner = rolePermMapOf(currentRole.value)
+    inner.clear()
+    for (const id of set) inner.add(id)
+    ElMessage.success(`${currentRole.value.roleName} · ${curModule.value.name} 已${enable ? '全勾' : '全不勾'}`)
+  } catch (e) {
+    ElMessage.error('批量保存失败，请重试')
+  }
+}
+// rolePermMap 属共享单例, 这里取引用供批量回写(与 togglePerm 同一数据面)
+const { rolePermMap } = usePermissionData()
+const usePermissionDataRoleIds = (role) => [...(rolePermMap.value[role.id] || [])]
+const rolePermMapOf = (role) => {
+  if (!rolePermMap.value[role.id]) rolePermMap.value[role.id] = new Set()
+  return rolePermMap.value[role.id]
+}
+
+// ---- 范围/锚点读写(ROLE/POSITION/USER 同链) ----
 const loadScopesFor = async (assigneeType, assigneeKey) => {
   try {
     const res = assigneeType === 'ROLE'
@@ -203,25 +249,24 @@ const loadScopesFor = async (assigneeType, assigneeKey) => {
       map[`${cfg.module}:${cfg.action}`] = { scope: cfg.scope_level, anchor: cfg.anchor || 'OWNER' }
     }
     scopeMap.value[`${assigneeType}:${assigneeKey}`] = map
-  } catch {}
+  } catch { /* 读失败保持空(按默认语义展示) */ }
 }
 
-const saveScope = async (col, item, scopeLevel, anchor) => {
+const saveScope = async (item, scopeLevel, anchor) => {
   if (!canEditScope.value) { ElMessage.warning('无权限修改权限范围（需系统管理员 + system:config:edit）'); return }
-  // 未接入显式映射的权限码不写死配置（如 system:user:add / sea:config / customer:date）
   const target = scopeTargetOf(item.permission)
   if (!target) { ElMessage.warning('该权限项未接入数据范围配置'); return }
-  // 【锚点推荐】未显式选择锚点(切换范围)时按推荐: 查看类=按组织, 编辑/删除/财务类=按人
-  const finalAnchor = anchor || scopeMap.value[col.key]?.[scopeKeyOf(item.permission)]?.anchor || recommendedAnchorOf(item)
-  const key = col.key
+  const finalAnchor = anchor || scopeMap.value[assigneeScopeKey.value]?.[scopeKeyOf(item.permission)]?.anchor || recommendedAnchorOf(item)
+  const key = assigneeScopeKey.value
+  if (!key) { ElMessage.warning('请先选择要配置的角色 / 岗位 / 用户'); return }
   const entryKey = scopeKeyOf(item.permission)
   const [type, assigneeKey] = key.split(':')
   const prev = scopeMap.value[key]?.[entryKey] || { scope: 'self', anchor: 'OWNER' }
-  // 【危险组合警示】删除类×全部数据 = 全公司删除权, 保存前二次确认
+  // 危险组合二次确认: 删除/财务类 × 全部数据
   if (scopeLevel === 'all' && /delete|finance/.test(target.action)) {
     try {
       await ElMessageBox.confirm(
-        `正在授予「${col.label} · ${item.label} = 全部(总部级)」——这是全公司范围的高危组合，确认继续？`,
+        `正在授予「${currentAssigneeLabel.value} · ${item.label} = 全部(总部级)」——全公司范围的高危组合，确认继续？`,
         '高危授权确认', { type: 'warning', confirmButtonText: '确认授予', cancelButtonText: '取消' }
       )
     } catch { return }
@@ -231,32 +276,50 @@ const saveScope = async (col, item, scopeLevel, anchor) => {
     const cfg = [{ module: target.module, action: target.action, scopeLevel, anchor: finalAnchor }]
     if (type === 'ROLE') await updateRolePermScopes(assigneeKey, cfg)
     else await updateAssigneePermScopes(type, assigneeKey, cfg)
-    ElMessage.success(`${col.label} · ${item.label} 范围 → ${scopeOptions.find(o => o.value === scopeLevel)?.label}(${finalAnchor === 'ORG' ? '按组织' : '按人'})`)
+    ElMessage.success(`${item.label} → ${scopeLabelOf(scopeLevel)}（${finalAnchor === 'ORG' ? '按组织' : '按人'}）`)
   } catch (e) {
     scopeMap.value[key] = { ...(scopeMap.value[key] || {}), [entryKey]: prev }
     ElMessage.error('范围保存失败')
   }
 }
 
-// 恢复默认: 空列表=删除该主体全部配置
-const resetRole = async (col) => {
-  if (!canEditScope.value) { ElMessage.warning('无权限修改权限范围（需 system:config:edit）'); return }
-  const [, assigneeKey] = col.key.split(':')
-  try {
-    await updateRolePermScopes(assigneeKey, [])
-    scopeMap.value[col.key] = {}
-    ElMessage.success(`${col.label} 范围已恢复默认`)
-  } catch (e) { ElMessage.error('恢复默认失败') }
+const resetCurrent = async () => {
+  if (!canEditScope.value) { ElMessage.warning('无权限修改权限范围'); return }
+  if (isRoleMode.value && currentRole.value) {
+    try {
+      await updateRolePermScopes(currentRole.value.roleCode, [])
+      scopeMap.value[`ROLE:${currentRole.value.roleCode}`] = {}
+      ElMessage.success(`${currentRole.value.roleName} 的数据范围已恢复默认`)
+    } catch (e) { ElMessage.error('恢复默认失败') }
+  } else if (selectedKey.value) {
+    try {
+      await updateAssigneePermScopes(assigneeMode.value, selectedKey.value, [])
+      scopeMap.value[`${assigneeMode.value}:${selectedKey.value}`] = {}
+      ElMessage.success('数据范围已恢复默认')
+    } catch (e) { ElMessage.error('恢复默认失败') }
+  }
 }
 
-const resetAssignee = async (col) => {
-  if (!canEditScope.value) { ElMessage.warning('无权限修改权限范围（需 system:config:edit）'); return }
-  const [type, assigneeKey] = col.key.split(':')
-  try {
-    await updateAssigneePermScopes(type, assigneeKey, [])
-    scopeMap.value[col.key] = {}
-    ElMessage.success(`${col.label} 范围已恢复默认`)
-  } catch (e) { ElMessage.error('恢复默认失败') }
+// ---- 人话摘要 ----
+const summaryLines = computed(() => {
+  if (!curModule.value) return []
+  const lines = []
+  for (const item of curModule.value.items) {
+    if (!isEnabled(item)) continue
+    if (isScopeDriven(item)) {
+      lines.push(`${item.label} = ${scopeLabelOf(scopeOf(item))}·${anchorOf(item) === 'ORG' ? '按组织' : '按人'}`)
+    } else {
+      lines.push(`${item.label} = 开`)
+    }
+  }
+  return lines
+})
+
+// ---- 装载 ----
+const switchRole = async (role) => {
+  currentRoleId.value = role.id
+  await loadScopesFor('ROLE', role.roleCode)
+  if (!curModule.value && modules.value.length) current.value = modules.value[0].name
 }
 
 const loadScopesForSelected = async () => {
@@ -267,26 +330,23 @@ const loadScopesForSelected = async () => {
 const onModeChange = async () => {
   selectedKey.value = ''
   if (assigneeMode.value === 'ROLE') {
-    await loadAll()
+    if (!allRoles.value.length) await loadPermData()
+    if (allRoles.value.length && !currentRoleId.value) await switchRole(allRoles.value[0])
+    else if (currentRoleId.value) await loadScopesFor('ROLE', currentRole.value?.roleCode)
   } else {
-    // 岗位/用户列表(已按集团过滤的后端接口)
     try {
       if (assigneeMode.value === 'POSITION') {
         if (!positions.value.length) positions.value = (await getPositionList()).data || []
         assigneeOptions.value = positions.value.map(p => ({ key: String(p.id), label: `${p.name}（岗位）` }))
       } else {
-        // 【M1 2026-10-04】参数名对齐后端契约：GET /system/users 只认 current/size/keyword，
-        // 此前传 page 后端收不到（恒回第 1 页）；且 200 条封顶选不全，
-        // 改为聚焦/输入时走 searchUserOptions 按 keyword 远程检索（不整装截断列表）。
         await searchUserOptions('')
       }
     } catch { assigneeOptions.value = [] }
   }
 }
 
-// 【M1 2026-10-04】按用户：keyword 远程过滤（后端 SysUserController.page 支持 keyword），
-// 每次最多取 50 条匹配项；已选中项不在结果中时钉在首位，避免回显 label 退化成裸 key。
-let usersPrev = [] // 上一轮检索结果（含已选中项的 label 缓存）
+// 【M1 2026-10-04】按用户: keyword 远程检索(后端只认 current/size/keyword), 已选中项钉首防回显退化
+let usersPrev = []
 const searchUserOptions = async (query) => {
   try {
     const res = await getUserList({ current: 1, size: 50, keyword: query || undefined })
@@ -303,8 +363,13 @@ const searchUserOptions = async (query) => {
 
 const loadAll = async () => {
   await loadPermData()
-  // 【性能 2026-10-04】各角色的范围配置互不依赖，串行 for 改为 Promise.all 并发（参照 reminder 页 2026-08-08 改法）
-  await Promise.all(allRoles.value.map(role => loadScopesFor('ROLE', role.roleCode)))
+  if (allRoles.value.length) {
+    if (!currentRoleId.value || !allRoles.value.some(r => r.id === currentRoleId.value)) {
+      await switchRole(allRoles.value[0])
+    } else {
+      await loadScopesFor('ROLE', currentRole.value.roleCode)
+    }
+  }
   if (selectedKey.value) await loadScopesForSelected()
   if (!current.value && modules.value.length) current.value = modules.value[0].name
 }
@@ -313,20 +378,63 @@ onMounted(loadAll)
 </script>
 
 <style scoped>
-.perm-scope-manager { height: 100%; display: flex; flex-direction: column; }
-.ps-tabs { margin-bottom: 10px; display: flex; align-items: center; }
-.ps-layout { display: flex; flex: 1; min-height: 0; gap: 16px; }
-.ps-sidebar { width: 170px; flex-shrink: 0; border-right: 1px solid #ebe5f5; padding-right: 12px; overflow-y: auto; }
-.ps-sidebar-title { font-size: 12px; color: var(--el-color-info); padding: 4px 8px 8px; }
-.ps-nav { padding: 8px 10px; border-radius: var(--radius-sm); cursor: pointer; font-size: 13px; color: #606266; margin-bottom: 2px; }
-.ps-nav:hover { background: #f5f7fa; }
-.ps-nav.active { background: var(--el-color-primary-light-9); color: var(--el-color-primary); font-weight: 600; }
-.ps-body { flex: 1; overflow-y: auto; min-width: 0; }
-.ps-tip { font-size: 12px; color: #606266; margin-bottom: 10px; }
-.ps-readonly { color: var(--el-color-warning); }
-.ps-table-wrap { overflow-x: auto; }
-.ps-action { font-size: 12px; color: #6b7280; margin-left: 6px; }
-.ps-cell { text-align: center; min-width: 180px; white-space: nowrap; }
-.ps-scope-na { font-size: 12px; color: #6b7280; margin-left: 6px; cursor: help; }
-.ps-role-col { min-width: 130px; }
+.psm { height: 100%; display: flex; flex-direction: column; gap: 12px; }
+.psm-bar { display: flex; align-items: center; gap: 10px; }
+.psm-readonly { color: var(--el-color-warning); font-size: 12px; }
+
+/* ① 给谁: 角色chips */
+.psm-who { display: flex; gap: 8px; flex-wrap: wrap; }
+.psm-who-chip { display: inline-flex; align-items: center; gap: 8px; padding: 8px 14px; border: 1px solid #dcdfe6;
+  border-radius: 10px; background: #fff; cursor: pointer; transition: all .15s; }
+.psm-who-chip:hover { border-color: var(--el-color-primary-light-5); }
+.psm-who-chip.active { border-color: var(--el-color-primary); background: var(--el-color-primary-light-9);
+  box-shadow: 0 0 0 1px var(--el-color-primary) inset; }
+.psm-who-name { font-size: 14px; font-weight: 600; color: #303133; }
+.psm-who-chip.active .psm-who-name { color: var(--el-color-primary); }
+.psm-who-count { font-size: 12px; color: var(--el-color-info); }
+.psm-who-empty { font-size: 13px; color: var(--el-color-info); align-self: center; }
+
+/* ② + ③ 主体两栏 */
+.psm-main { display: flex; gap: 14px; flex: 1; min-height: 0; align-items: stretch; }
+.psm-mods { width: 200px; flex-shrink: 0; border: 1px solid #ebeef5; border-radius: 10px; padding: 8px;
+  overflow-y: auto; background: #fafbfc; display: flex; flex-direction: column; gap: 2px; }
+.psm-mods-title { font-size: 12px; color: var(--el-color-info); padding: 4px 8px 8px; }
+.psm-mod { display: flex; align-items: center; justify-content: space-between; padding: 9px 10px; border: none;
+  background: transparent; border-radius: 8px; cursor: pointer; font-size: 13px; color: #606266; text-align: left; }
+.psm-mod:hover { background: #f0f2f5; }
+.psm-mod.active { background: var(--el-color-primary); color: #fff; }
+.psm-mod.active .psm-mod-count { color: rgba(255,255,255,.85); }
+.psm-mod-count { font-size: 12px; color: var(--el-color-info); }
+.psm-mod-count b { color: var(--el-color-primary); font-weight: 600; }
+.psm-mod.active .psm-mod-count b { color: #fff; }
+
+/* ③ 明细 */
+.psm-detail { flex: 1; min-width: 0; border: 1px solid #ebeef5; border-radius: 10px; background: #fff;
+  display: flex; flex-direction: column; overflow: hidden; }
+.psm-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;
+  padding: 12px 16px; border-bottom: 1px solid #f0f2f5; }
+.psm-head-title { font-size: 15px; font-weight: 700; color: #1f2d3d; }
+.psm-head-sub { font-size: 12px; font-weight: 400; color: var(--el-color-info); }
+.psm-head-hint { font-size: 12px; color: var(--el-color-info); margin-top: 4px; }
+.psm-head-actions { display: flex; gap: 8px; flex-shrink: 0; }
+.psm-rows { flex: 1; overflow-y: auto; padding: 6px 10px; }
+.psm-row { display: flex; align-items: center; gap: 12px; padding: 9px 10px; border-radius: 8px; }
+.psm-row:hover { background: #f7f8fa; }
+.psm-row.off .psm-row-name, .psm-row.off .psm-row-code, .psm-row.off .psm-row-ctrl { opacity: .45; }
+.psm-row-check { flex-shrink: 0; }
+.psm-row-info { width: 300px; flex-shrink: 0; display: flex; align-items: center; gap: 8px; min-width: 0; }
+.psm-row-name { font-size: 13.5px; font-weight: 600; color: #303133; white-space: nowrap; }
+.psm-row-code { font-size: 11.5px; color: #909399; background: #f4f4f5; padding: 1px 6px; border-radius: 4px; }
+.psm-row-ctrl { display: flex; align-items: center; gap: 6px; }
+.psm-scope { width: 150px; }
+.psm-anchor { width: 100px; }
+.psm-rec { font-size: 11px; color: var(--el-color-success); border: 1px solid var(--el-color-success-light-5);
+  border-radius: 4px; padding: 0 4px; line-height: 16px; }
+.psm-na { font-size: 12px; color: #a8abb2; }
+
+/* 人话摘要 */
+.psm-summary { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; padding: 10px 16px;
+  border-top: 1px solid #f0f2f5; background: #fafbfc; font-size: 12.5px; color: #4e5969; }
+.psm-sum-chip { background: #eef2ff; color: #3b5bdb; border-radius: 6px; padding: 2px 8px; font-size: 12px; }
+.psm-sum-none { color: var(--el-color-info); }
 </style>
