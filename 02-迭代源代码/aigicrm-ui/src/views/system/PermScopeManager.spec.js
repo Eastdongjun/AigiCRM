@@ -170,11 +170,14 @@ describe('PermScopeManager 权限码 → 后端 (module, action) 显式映射', 
 
   it('只对真实消费的权限码显示范围控件', async () => {
     const wrapper = await mountWithPermissions(['system:config:view'], ['admin'])
-    for (const p of ['customer:view', 'customer:edit', 'customer:delete', 'customer:finance:edit', 'incentive:view',
-      'file:view', 'reminder:view', 'approval:view', 'task:view', 'sea:view', 'system:log:view']) {
+    // 【2026-11-03 范围对账】incentive/file 为死配置已摘; statistics/score 真消费已补
+    for (const p of ['customer:view', 'customer:edit', 'customer:delete', 'customer:finance:edit',
+      'reminder:view', 'approval:view', 'task:view', 'sea:view', 'system:log:view',
+      'statistics:view', 'score:view']) {
       expect(wrapper.vm.isScopeDriven({ permission: p }), p).toBe(true)
     }
-    for (const p of ['system:user:add', 'system:role:edit', 'sea:config', 'customer:date', 'statistics:view', 'system:menu:view']) {
+    for (const p of ['system:user:add', 'system:role:edit', 'sea:config', 'customer:date',
+      'incentive:view', 'file:view', 'system:menu:view']) {
       expect(wrapper.vm.isScopeDriven({ permission: p }), p).toBe(false)
     }
     // 七档范围选项与角色/人员表单一致（含 custom）

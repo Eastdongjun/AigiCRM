@@ -38,19 +38,20 @@ public class PermCenterService {
     private final IncentiveService incentiveService;
     private final CustomerService customerService;
 
-    /** 预览的范围解析目标(与前端权限矩阵 PERMISSION_SCOPE_TARGETS 映射同源 + 2026-11-03 新拆的财务编辑) */
+    /** 预览的范围解析目标(与前端权限矩阵 PERMISSION_SCOPE_TARGETS 映射同源; 2026-11-03 对账=摘死配置+补漏配) */
     private static final String[][] SCOPE_TARGETS = {
             {"customer", "view", "客户·查看"},
             {"customer", "edit", "客户·编辑"},
             {"customer", "delete", "客户·删除"},
             {"customer", "finance_edit", "开票回款·编辑"},
-            {"incentive", "view", "四项服务·查看"},
-            {"file", "view", "文件·查看"},
             {"reminder", "view", "提醒·查看"},
             {"approval", "view", "审批·查看"},
             {"task", "view", "任务·查看"},
             {"sea", "view", "公海·查看"},
-            {"system", "view", "日志·查看(system:log:view)"},
+            {"system", "view", "日志·查看(system:log:view, 审计日志共用)"},
+            // 【2026-11-03 范围对账】摘 incentive/file 死配置行, 补 statistics/score 真消费行
+            {"statistics", "view", "统计分析·查看(工作台/统计可见人员)"},
+            {"score", "view", "学分·查看"},
     };
 
     public Map<String, Object> preview(Long userId) {

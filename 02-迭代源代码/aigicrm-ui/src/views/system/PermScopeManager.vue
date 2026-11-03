@@ -165,13 +165,16 @@ const PERMISSION_SCOPE_TARGETS = Object.freeze({
   'customer:delete': { module: 'customer', action: 'delete' },
   // 【2026-11-03 拆码】开票回款编辑带独立数据范围(行政管大区财务不碰客户资料的正解)
   'customer:finance:edit': { module: 'customer', action: 'finance_edit' },
-  'incentive:view': { module: 'incentive', action: 'view' },
-  'file:view': { module: 'file', action: 'view' },
   'reminder:view': { module: 'reminder', action: 'view' },
   'approval:view': { module: 'approval', action: 'view' },
   'task:view': { module: 'task', action: 'view' },
   'sea:view': { module: 'sea', action: 'view' },
   'system:log:view': { module: 'system', action: 'view' },
+  // 【2026-11-03 范围对账修复】摘 incentive:view/file:view(后端零消费的死配置:
+  // 激励可见性=分享制+授权面板, 文件=文件夹权限, 统计文件计数走 statistics×view);
+  // 补 statistics/score(后端真实消费却没露出入口的漏配)
+  'statistics:view': { module: 'statistics', action: 'view' },
+  'score:view': { module: 'score', action: 'view' },
 })
 const scopeTargetOf = (permission) => PERMISSION_SCOPE_TARGETS[permission] || null
 
@@ -180,7 +183,7 @@ const SCOPE_OWNER_HINTS = {
   // 【2026-11-03 明确化】开关码的灰字直接写跟随谁, 免得"模块自身规则"让人再问一遍
   finance: '跟随客户范围(查看类=客户·查看, manage=全集团代录)',
   contact: '跟随客户范围(查看=客户·查看, 管理=客户·编辑)',
-  incentive: '激励授权面板',
+  incentive: '激励授权面板(分享制+授权表, 不走组织范围)',
   file: '文件夹权限',
   task: '按经办人',
   dashboard: '跟随各模块',
