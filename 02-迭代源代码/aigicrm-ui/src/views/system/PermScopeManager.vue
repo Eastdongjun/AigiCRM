@@ -79,7 +79,7 @@
                 <span v-if="anchorOf(item) === recommendedAnchorOf(item)" class="psm-rec" title="推荐锚点（未手选时自动按此保存）">荐</span>
               </template>
               <span v-else class="psm-na" :title="'该权限的数据范围由' + scopeOwnerOf(item) + '控制，这里只配置功能开关'">
-                {{ scopeOwnerOf(item) }}控制
+                跟随: {{ scopeOwnerOf(item) }}
               </span>
             </div>
           </div>
@@ -177,6 +177,9 @@ const scopeTargetOf = (permission) => PERMISSION_SCOPE_TARGETS[permission] || nu
 
 // 未接入范围矩阵的模块: 标注真实控制面, 避免管理员误以为配置生效
 const SCOPE_OWNER_HINTS = {
+  // 【2026-11-03 明确化】开关码的灰字直接写跟随谁, 免得"模块自身规则"让人再问一遍
+  finance: '跟随客户范围(查看类=客户·查看, manage=全集团代录)',
+  contact: '跟随客户范围(查看=客户·查看, 管理=客户·编辑)',
   incentive: '激励授权面板',
   file: '文件夹权限',
   task: '按经办人',
