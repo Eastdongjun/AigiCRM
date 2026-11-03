@@ -93,7 +93,7 @@ function customerListView(rows, activeTab, parents, startIndex = 0) {
       { key: 'invoice', label: '年度开票', value: `${item.invoiceTotal || 0} 万` },
       { key: 'payment', label: '年度回款', value: `${item.paymentTotal || 0} 万` }
     ],
-    // 【裁决 2026-10-10】核心三态: 年度开票/回款双>=100万=真核心, 有数据未双达标=争核心(后端 coreType)
+    // 【裁决 2026-10-10 + 2026-11-03 双门槛配置化】核心三态由后端 coreType 回传(门槛=系统配置, 前端只展示标签)
     coreFinanceText: `年度开票 ${item.invoiceTotal || 0} 万 · 年度回款 ${item.paymentTotal || 0} 万 · ${item.coreType === 'core' ? '真核心' : item.coreType === 'quasi' ? '争核心' : '非核心'}`,
     coreBadge: item.coreType === 'core'
       ? { text: '真核心', className: 'core' }

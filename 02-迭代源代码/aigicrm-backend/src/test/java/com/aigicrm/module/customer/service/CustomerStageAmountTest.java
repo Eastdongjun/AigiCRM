@@ -337,10 +337,11 @@ class CustomerStageAmountTest {
                 row(2026, "FY", "90", "120")));
         assertEquals("quasi", ReflectionTestUtils.invokeMethod(service, "computeCoreType", 501L));
 
-        // 基准年=最近有数据年: 2025 双达标, 2026 只有少量数据 → 基准年前移按 2026 判(quasi)
+        // 基准年=最近有数据年: 2025 双达标, 2026 只有少量数据 → 基准年前移按 2026 判;
+        // 2026 双值均低于争核心门槛(30/20 < 50) → ''(2026-11-03 双门槛起"有数据"不再自动 quasi)
         when(stageAmountMapper.selectList(any())).thenReturn(List.of(
                 row(2025, "FY", "500", "500"), row(2026, "H1", "30", "20")));
-        assertEquals("quasi", ReflectionTestUtils.invokeMethod(service, "computeCoreType", 501L));
+        assertEquals("", ReflectionTestUtils.invokeMethod(service, "computeCoreType", 501L));
 
         // 两值均 0 的行不算数据, 不得抬基准年(2026 全 0 行不遮蔽 2025 真数据)
         when(stageAmountMapper.selectList(any())).thenReturn(List.of(
@@ -368,7 +369,7 @@ class CustomerStageAmountTest {
             assertEquals("core", ins.getValue().getCoreType());
             assertEquals(1, ins.getValue().getIsCore());
 
-            // 有指标行 → 原位更新(core→quasi 时 is_core 归 0)
+            // 有指标行 → 原位更新(回款 20 低于争核心门槛 50 → 非核心, is_core 归 0)
             reset(indicatorMapper);
             BizCustomerIndicator existing = new BizCustomerIndicator();
             existing.setId(3L);
@@ -380,8 +381,78 @@ class CustomerStageAmountTest {
             ReflectionTestUtils.invokeMethod(service, "recalculateCoreStatus", 501L);
             ArgumentCaptor<BizCustomerIndicator> upd = ArgumentCaptor.forClass(BizCustomerIndicator.class);
             verify(indicatorMapper).updateById(upd.capture());
-            assertEquals("quasi", upd.getValue().getCoreType());
+            assertEquals("", upd.getValue().getCoreType());
             assertEquals(0, upd.getValue().getIsCore());
+        }
+    }
+
+    /** 【2026-11-03 门槛配置化】判定读 sys_config 双门槛, 脏值/非正数回退默认 50/100 */
+    @Test
+    void coreTypeReadsThresholdsFromConfig() {
+        when(configService.getValue(CustomerService.CORE_MINOR_WAN_KEY)).thenReturn("80");
+        when(configService.getValue(CustomerService.CORE_MAJOR_WAN_KEY)).thenReturn("200");
+        when(stageAmountMapper.selectList(any())).thenReturn(List.of(row(2026, "FY", "150", "150")));
+        // 双>=80 且未双>=200 → quasi(默认口径下此例是 core, 证明判定读的是配置而非死值)
+        assertEquals("quasi", ReflectionTestUtils.invokeMethod(service, "computeCoreType", 501L));
+
+        // 脏值/非正数回退默认 50/100: 双>=100 → core
+        when(configService.getValue(CustomerService.CORE_MINOR_WAN_KEY)).thenReturn("abc");
+        when(configService.getValue(CustomerService.CORE_MAJOR_WAN_KEY)).thenReturn("-1");
+        assertEquals("core", ReflectionTestUtils.invokeMethod(service, "computeCoreType", 501L));
+    }
+
+    /** 【2026-11-03 用户令"改门槛后自动刷新"】全量刷新: 按当前配置门槛重落 core_type/is_core,
+     *  只写有变化的行, 无指标行客户自动建行, 无阶段数据老行归位非核心 */
+    @Test
+    void recalculateAllCoreStatusesRefreshesByConfiguredThresholds() {
+        when(configService.getValue(CustomerService.CORE_MINOR_WAN_KEY)).thenReturn("50");
+        when(configService.getValue(CustomerService.CORE_MAJOR_WAN_KEY)).thenReturn("100");
+        java.util.function.BiFunction<Long, String, BizCustomerStageAmount> mk = (cid, amounts) -> {
+            String[] parts = amounts.split("/");
+            BizCustomerStageAmount r = new BizCustomerStageAmount();
+            r.setCustomerId(cid);
+            r.setPeriodYear(2026);
+            r.setPeriodType("FY");
+            r.setInvoiceAmount(new BigDecimal(parts[0]));
+            r.setPaymentAmount(new BigDecimal(parts[1]));
+            return r;
+        };
+        // 601 双>=100(core) 602 双>=50(quasi) 603 回款低于 50('')
+        when(stageAmountMapper.selectList(any())).thenReturn(List.of(
+                mk.apply(601L, "150/120"), mk.apply(602L, "60/55"), mk.apply(603L, "120/30")));
+        java.util.function.Function<Long, BizCustomerIndicator> ind = cid -> {
+            BizCustomerIndicator i = new BizCustomerIndicator();
+            i.setId(cid);
+            i.setCustomerId(cid);
+            i.setCoreType("quasi");
+            i.setIsCore(0);
+            return i;
+        };
+        BizCustomerIndicator staleCore = ind.apply(604L); // 有指标行但已无阶段数据, 落库残留 core
+        staleCore.setCoreType("core");
+        staleCore.setIsCore(1);
+        when(indicatorMapper.selectList(any())).thenReturn(List.of(ind.apply(601L), ind.apply(603L), staleCore));
+
+        try (MockedStatic<SecurityUtils> sec = mockStatic(SecurityUtils.class)) {
+            sec.when(SecurityUtils::getCurrentUserId).thenReturn(7L);
+
+            int changed = service.recalculateAllCoreStatuses();
+
+            // 601 quasi→core(变化), 602 无行→insert quasi, 603 quasi→''(变化), 604 core→''(变化) = 4
+            assertEquals(4, changed);
+            ArgumentCaptor<BizCustomerIndicator> ins = ArgumentCaptor.forClass(BizCustomerIndicator.class);
+            verify(indicatorMapper).insert(ins.capture());
+            assertEquals(602L, ins.getValue().getCustomerId());
+            assertEquals("quasi", ins.getValue().getCoreType());
+            assertEquals(0, ins.getValue().getIsCore());
+            ArgumentCaptor<BizCustomerIndicator> upd = ArgumentCaptor.forClass(BizCustomerIndicator.class);
+            verify(indicatorMapper, times(3)).updateById(upd.capture());
+            java.util.Map<Long, String> coreTypeByCustomer = new java.util.HashMap<>();
+            for (BizCustomerIndicator i : upd.getAllValues()) coreTypeByCustomer.put(i.getCustomerId(), i.getCoreType());
+            assertEquals("core", coreTypeByCustomer.get(601L));
+            assertEquals("", coreTypeByCustomer.get(603L));
+            assertEquals("", coreTypeByCustomer.get(604L));
+            assertEquals(0, staleCore.getIsCore(), "无阶段数据老行 is_core 同步归 0");
         }
     }
 

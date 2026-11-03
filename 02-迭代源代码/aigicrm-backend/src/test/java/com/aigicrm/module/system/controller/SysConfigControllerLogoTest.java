@@ -41,12 +41,15 @@ class SysConfigControllerLogoTest {
 
     private final SysConfigService configService = mock(SysConfigService.class);
     private final FileService fileService = mock(FileService.class);
+    // 【2026-11-03 门槛配置化】控制器新增 CustomerService(双门槛保存变化后全量刷新核心标签), Logo 用例不触达
+    private final com.aigicrm.module.customer.service.CustomerService customerService =
+            mock(com.aigicrm.module.customer.service.CustomerService.class);
     private SysConfigController controller;
 
     @BeforeEach
     void setUp() {
         reset(configService, fileService);
-        controller = new SysConfigController(configService, fileService);
+        controller = new SysConfigController(configService, fileService, customerService);
         ReflectionTestUtils.setField(controller, "uploadDir", root.toString());
     }
 

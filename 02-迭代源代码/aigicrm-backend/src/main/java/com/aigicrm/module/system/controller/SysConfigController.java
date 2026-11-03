@@ -29,12 +29,18 @@ public class SysConfigController {
 
     private final SysConfigService configService;
     private final FileService fileService;
+    // 【2026-11-03 门槛配置化】双门槛保存变化后触发全量刷新核心标签(CustomerService 只依赖 SysConfigService, 无循环)
+    private final com.aigicrm.module.customer.service.CustomerService customerService;
 
     @Value("${file.upload-dir:./uploads}")
     private String uploadDir;
 
     /** 系统 Logo 唯一允许的保存形式：本系统公共文件下载地址 */
     private static final String PUBLIC_DOWNLOAD_PREFIX = "/api/file/download/public/";
+
+    /** 【2026-11-03 用户令门槛配置化】核心客户判定双门槛键(万元): minor=争核心, major=真核心 */
+    private static final String CORE_MINOR_WAN_KEY = com.aigicrm.module.customer.service.CustomerService.CORE_MINOR_WAN_KEY;
+    private static final String CORE_MAJOR_WAN_KEY = com.aigicrm.module.customer.service.CustomerService.CORE_MAJOR_WAN_KEY;
 
     @GetMapping
     @PreAuthorize("hasAuthority('system:config:view')")
@@ -47,8 +53,66 @@ public class SysConfigController {
     public Result<Void> batchUpdate(@RequestBody List<SysConfig> configs) {
         List<SysConfig> safeConfigs = configs == null ? List.of() : configs;
         validateLogoConfigs(safeConfigs);
+        // 【2026-11-03 门槛配置化】保存前校验双门槛取值; 保存后若数值真实变化(前端会整表回传未改的键),
+        // 才全量刷新客户核心标签——未动门槛的常规保存不触发重算
+        String oldMinor = configService.getValue(CORE_MINOR_WAN_KEY);
+        String oldMajor = configService.getValue(CORE_MAJOR_WAN_KEY);
+        java.math.BigDecimal[] newThresholds = validateCoreThresholdConfigs(safeConfigs);
         configService.batchUpdate(safeConfigs);
+        if (newThresholds != null && (decimalValueChanged(oldMinor, newThresholds[0])
+                || decimalValueChanged(oldMajor, newThresholds[1]))) {
+            customerService.recalculateAllCoreStatuses();
+        }
         return Result.ok();
+    }
+
+    /** 旧值(库中字符串)与新值(已解析)数值比较; 旧值缺失/不可解析视为有变化(补齐即刷新) */
+    private boolean decimalValueChanged(String oldValue, java.math.BigDecimal newValue) {
+        if (oldValue == null || oldValue.isBlank()) return true;
+        try {
+            return new java.math.BigDecimal(oldValue.trim()).compareTo(newValue) != 0;
+        } catch (NumberFormatException e) {
+            return true;
+        }
+    }
+
+    /**
+     * 【2026-11-03 用户令"输入数字判断核心, 改后自动刷新"】核心客户双门槛校验(照 validateLogoConfigs 模式):
+     * 前端"保存全部配置"会回传未修改的键, 只校验请求里实际出现的两键; 返回解析后的 [minor, major]
+     * (两键都未出现返回 null); 非法取值直接 400, 不让脏门槛落库。
+     */
+    private java.math.BigDecimal[] validateCoreThresholdConfigs(List<SysConfig> configs) {
+        java.math.BigDecimal minor = null;
+        java.math.BigDecimal major = null;
+        for (SysConfig c : configs) {
+            if (c == null) continue;
+            if (CORE_MINOR_WAN_KEY.equals(c.getConfigKey())) minor = parseCoreThreshold(c, "争核心门槛");
+            else if (CORE_MAJOR_WAN_KEY.equals(c.getConfigKey())) major = parseCoreThreshold(c, "真核心门槛");
+        }
+        if (minor == null && major == null) return null;
+        if (minor == null) minor = parseCoreThreshold(configService.getValue(CORE_MINOR_WAN_KEY), "争核心门槛");
+        if (major == null) major = parseCoreThreshold(configService.getValue(CORE_MAJOR_WAN_KEY), "真核心门槛");
+        if (minor.compareTo(major) > 0) {
+            throw new BusinessException(400, "核心客户门槛不合法：争核心门槛(万)不能大于真核心门槛(万)");
+        }
+        return new java.math.BigDecimal[]{minor, major};
+    }
+
+    private java.math.BigDecimal parseCoreThreshold(SysConfig c, String label) {
+        return parseCoreThreshold(c == null ? null : c.getConfigValue(), label);
+    }
+
+    private java.math.BigDecimal parseCoreThreshold(String value, String label) {
+        java.math.BigDecimal parsed;
+        try {
+            parsed = value == null ? null : new java.math.BigDecimal(value.trim());
+        } catch (NumberFormatException e) {
+            throw new BusinessException(400, "核心客户" + label + "需为正数字(万元)");
+        }
+        if (parsed == null || parsed.signum() <= 0 || parsed.compareTo(new java.math.BigDecimal("1000000")) > 0) {
+            throw new BusinessException(400, "核心客户" + label + "需为大于 0 且不超过 1000000 的数字(万元)");
+        }
+        return parsed;
     }
 
     /**

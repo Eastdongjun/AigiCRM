@@ -29,12 +29,13 @@
       <div class="stat-card">
         <div class="sc-label">真核心</div>
         <div class="sc-num green">{{ coreCount }}</div>
-        <div class="sc-desc">年度开票、回款均≥100万</div>
+        <!-- 【2026-11-03 门槛配置化】门槛数字随接口回传(管理员可改), 不落死值 -->
+        <div class="sc-desc">年度开票、回款均≥{{ coreMajorWan }}万</div>
       </div>
       <div class="stat-card">
         <div class="sc-label">争核心</div>
         <div class="sc-num yellow">{{ quasiCount }}</div>
-        <div class="sc-desc">有阶段数据，门槛未双达标</div>
+        <div class="sc-desc">均≥{{ coreMinorWan }}万，未双达真核心门槛</div>
       </div>
     </div>
 
@@ -97,15 +98,16 @@
         <el-table-column prop="ownerName" label="负责人" min-width="90" />
         <el-table-column prop="industry" label="行业" min-width="95" />
         <!-- 两级表头: 一级=六项指标分类, 二级=具体指标(一级包含二级, 口径同 customer-fields INDICATOR_FIELDS) -->
-        <el-table-column label="年度门槛 ≥¥100万/年" align="center">
+        <!-- 【2026-11-03 门槛配置化】门槛数字/达标判定随接口回传配置(管理员可改), 不落死值 -->
+        <el-table-column :label="`年度门槛 ≥¥${coreMajorWan}万/年`" align="center">
           <el-table-column label="年度开票" min-width="95" align="center">
             <template #default="{ row }">
-              <span :class="{ 'threshold-miss': (Number(row.invoiceTotal) || 0) < 100 }">{{ moneyText(row.invoiceTotal) }}</span>
+              <span :class="{ 'threshold-miss': (Number(row.invoiceTotal) || 0) < coreMajorWan }">{{ moneyText(row.invoiceTotal) }}</span>
             </template>
           </el-table-column>
           <el-table-column label="年度回款" min-width="95" align="center">
             <template #default="{ row }">
-              <span :class="{ 'threshold-miss': (Number(row.paymentTotal) || 0) < 100 }">{{ moneyText(row.paymentTotal) }}</span>
+              <span :class="{ 'threshold-miss': (Number(row.paymentTotal) || 0) < coreMajorWan }">{{ moneyText(row.paymentTotal) }}</span>
             </template>
           </el-table-column>
         </el-table-column>
@@ -155,6 +157,9 @@ const relationshipRanking = computed(() => rankingData.value.relationshipRanking
 
 const coreCount = computed(() => indicatorRanking.value.filter(row => row.coreType === 'core').length)
 const quasiCount = computed(() => indicatorRanking.value.filter(row => row.coreType === 'quasi').length)
+// 【2026-11-03 门槛配置化】双门槛从统计接口回传(管理员在系统配置可改), 卡片/表头/达标判定共用
+const coreMinorWan = computed(() => Number(rankingData.value.coreMinorWan) || 50)
+const coreMajorWan = computed(() => Number(rankingData.value.coreMajorWan) || 100)
 // 【裁决 2026-10-10】核心类型筛选(真核心/争核心); 筛选后排名序号仍按原榜次呈现
 const coreFilter = ref('')
 const filteredIndicatorRanking = computed(() =>

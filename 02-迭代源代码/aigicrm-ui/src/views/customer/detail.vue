@@ -39,7 +39,7 @@
         </div>
       </div>
       <div class="hero-right">
-        <!-- 【裁决 2026-10-10】核心三态: 真核心(年度双>=100万)/争核心(有数据未双达标)/非核心 -->
+        <!-- 【裁决 2026-10-10 + 2026-11-03 双门槛配置化】核心三态: 真核心(年度双>=真核心门槛)/争核心(双>=争核心门槛未双达)/非核心 -->
         <div class="hero-badge" :class="coreType || 'non'">
           <el-icon><Medal /></el-icon> {{ coreTypeLabel }}
         </div>

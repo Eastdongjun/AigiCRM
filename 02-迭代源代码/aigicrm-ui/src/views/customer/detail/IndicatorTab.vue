@@ -4,7 +4,8 @@
     <div class="ind-row main-threshold">
       <span class="ind-num">01</span>
       <span class="ind-name">
-        开票回款 · 年度硬性门槛 ≥ ¥100万/年
+        <!-- 【2026-11-03 门槛配置化】门槛数字随摘要接口回传(管理员可改), 不落死值 -->
+        开票回款 · 年度硬性门槛 ≥ ¥{{ coreMajorWan }}万/年
         <span class="ind-detail" v-if="stageSummary.baseYear">
           按 {{ stageSummary.baseYear }} 年度：开票 {{ annualInvoiceAmount }} 万 · 回款 {{ annualPaymentAmount }} 万
         </span>
@@ -32,7 +33,7 @@ import { injectCustomerDetail } from '@/composables/useCustomerDetail'
 
 const {
   readonly, indicatorDefs, indicatorForm, indicatorTotal,
-  coreType, stageSummary, annualInvoiceAmount, annualPaymentAmount,
+  coreType, coreMajorWan, stageSummary, annualInvoiceAmount, annualPaymentAmount,
   handleSaveIndicator,
 } = injectCustomerDetail()
 </script>

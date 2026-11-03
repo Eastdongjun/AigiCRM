@@ -17,12 +17,14 @@ import { CustomerDetailKey } from '@/composables/useCustomerDetail'
  */
 function mountFinanceTab({
   stageRows = [], coreType = '', baseYear = 0, annualInvoiceAmount = 0, annualPaymentAmount = 0,
+  coreMinorWan = 50, coreMajorWan = 100,
   invoices = [], payments = [], invoiceSummary = { totalCount: 0, totalAmount: 0 },
   paymentSummary = { totalCount: 0, totalAmount: 0 }, readonly = false, handlers = {},
   customer = {},
 } = {}) {
   const noop = () => {}
-  const stageSummary = ref({ rows: stageRows, coreType, baseYear, annualInvoiceAmount, annualPaymentAmount })
+  const stageSummary = ref({ rows: stageRows, coreType, baseYear, annualInvoiceAmount, annualPaymentAmount,
+    coreMinorWan, coreMajorWan })
   return {
     stageSummary,
     wrapper: mount(FinanceTab, {
@@ -46,6 +48,9 @@ function mountFinanceTab({
             handleSaveStageAmount: handlers.handleSaveStageAmount || noop,
             coreType: ref(coreType),
             coreTypeLabel: ref(coreType === 'core' ? '真核心' : coreType === 'quasi' ? '争核心' : '非核心'),
+            // 【2026-11-03 门槛配置化】双门槛随摘要注入(脚注数字不落死值)
+            coreMinorWan: ref(coreMinorWan),
+            coreMajorWan: ref(coreMajorWan),
           },
         },
       },
@@ -160,12 +165,17 @@ describe('客户详情 FinanceTab 阶段总额制(2026-10-10)', () => {
     expect(btns).not.toContain('录入回款')
   })
 
-  it('口径脚注: 半年/全年总额制与真核心/争核心判定口径', async () => {
+  it('口径脚注: 半年/全年总额制与真核心/争核心判定口径, 门槛数字随配置回传不落死值', async () => {
     const { wrapper } = mountFinanceTab({})
     await settle(wrapper)
     const text = wrapper.text()
     expect(text).toContain('真核心 = 判定年度开票、回款均 ≥ 100 万')
-    expect(text).toContain('争核心 = 有阶段数据但未双达标')
+    expect(text).toContain('争核心 = 均达到争核心门槛(50 万)未双达标')
+    // 【2026-11-03 门槛配置化】摘要带自定义门槛时脚注数字同步(管理员改配置即改文案)
+    const { wrapper: w2 } = mountFinanceTab({ coreMinorWan: 80, coreMajorWan: 200 })
+    await settle(w2)
+    expect(w2.text()).toContain('均 ≥ 200 万')
+    expect(w2.text()).toContain('争核心门槛(80 万)')
     // 【L3 2026-10-12 测试报告】脚注与实现对齐: 起算日=阶段末(未到期按当天,只延长不缩短),
     // 非"按阶段末日期顺延"的旧误述
     expect(text).toContain('刷新保护期起算日')

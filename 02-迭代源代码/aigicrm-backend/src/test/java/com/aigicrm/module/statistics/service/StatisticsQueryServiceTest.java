@@ -91,6 +91,8 @@ class StatisticsQueryServiceTest {
     @Mock private BizApprovalMapper approvalMapper;
     // 【C1/C2 2026-10-08】dashboardScopeKey 非 admin 分支依赖锚点解析(service 构造注入,此前无该分支直达测试)
     @Mock private com.aigicrm.module.system.service.RolePermScopeService rolePermScopeService;
+    // 【2026-11-03 门槛配置化】核心三态双门槛读 sys_config(未 stub 时 getValue 返回 null → 回退默认 50/100)
+    @Mock private com.aigicrm.module.system.service.SysConfigService configService;
 
     @Test
     void dashboardUsesScopeAwareCustomerCountsIncludingTodayExpiring() {
@@ -288,15 +290,27 @@ class StatisticsQueryServiceTest {
                 ((LambdaQueryWrapper<SysLog>) wrapper).getSqlSegment().contains("user_id")));
     }
 
-    /** 【裁决 2026-10-10】核心三态=纯金额门槛(年度开票/回款双>=100万=core; 有数据未双达标=quasi)。
+    /** 【裁决 2026-10-10 + 2026-11-03 双门槛配置化】核心三态=纯金额门槛:
+     *  双>=真核心门槛(默认100万)=core; 双>=争核心门槛(默认50万)未双达真核心=quasi; 任一低于争核心门槛(含无数据)=''。
      *  五项评分不再参与判定(旧 isCoreCustomer 的 score>=12 条件废除)。 */
     @Test
     void coreType_pureAmountThresholds() {
-        assertEquals("core", StatisticsQueryService.coreTypeOf(money("100"), money("100")));
-        assertEquals("core", StatisticsQueryService.coreTypeOf(money("120"), money("150")));
-        assertEquals("quasi", StatisticsQueryService.coreTypeOf(money("99.99"), money("100")));
-        assertEquals("quasi", StatisticsQueryService.coreTypeOf(money("100"), money("99.99")));
-        assertEquals("quasi", StatisticsQueryService.coreTypeOf(money("5"), money("0")));
+        java.math.BigDecimal minor = money("50");
+        java.math.BigDecimal major = money("100");
+        assertEquals("core", StatisticsQueryService.coreTypeOf(money("100"), money("100"), minor, major));
+        assertEquals("core", StatisticsQueryService.coreTypeOf(money("120"), money("150"), minor, major));
+        assertEquals("quasi", StatisticsQueryService.coreTypeOf(money("99.99"), money("100"), minor, major));
+        assertEquals("quasi", StatisticsQueryService.coreTypeOf(money("100"), money("99.99"), minor, major));
+        // 争核心门槛边界: 双>=50 即 quasi(2026-11-03 起"有数据"不再自动 quasi)
+        assertEquals("quasi", StatisticsQueryService.coreTypeOf(money("50"), money("50"), minor, major));
+        // 任一低于争核心门槛即非核心(旧口径此两例为 quasi, 2026-11-03 起收紧)
+        assertEquals("", StatisticsQueryService.coreTypeOf(money("5"), money("0"), minor, major));
+        assertEquals("", StatisticsQueryService.coreTypeOf(money("120"), money("30"), minor, major));
+        assertEquals("", StatisticsQueryService.coreTypeOf(money("40"), money("60"), minor, major));
+        // 门槛为参数: 管理员改小后原非核心可回升 quasi/自定义档位
+        assertEquals("", StatisticsQueryService.coreTypeOf(money("55"), money("55"), money("60"), money("80")));
+        assertEquals("quasi", StatisticsQueryService.coreTypeOf(money("60"), money("60"), money("60"), money("80")));
+        assertEquals("core", StatisticsQueryService.coreTypeOf(money("80"), money("80"), money("60"), money("80")));
     }
 
     /** 年度口径: 最近有数据年 + 全年行有数据优先, 否则上半年+下半年合计; 两值均 0 的行不算数据 */

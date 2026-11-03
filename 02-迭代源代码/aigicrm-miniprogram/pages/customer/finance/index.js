@@ -72,6 +72,8 @@ function buildStageView(data) {
     paymentText: moneyText(summary.annualPaymentAmount),
     coreTagText: coreType === 'core' ? '真核心' : coreType === 'quasi' ? '争核心' : '非核心',
     coreTagClass: `stage-core-tag ${coreType === 'core' ? 'core' : coreType === 'quasi' ? 'quasi' : 'none'}`,
+    // 【2026-11-03 门槛配置化】门槛数字用摘要回传(兜底 50/100), 规则长文不落死值
+    stageNoteText: `半年末录「上半年 / 下半年」总额，年末录「全年」总额；全年行与上/下半年行独立录入，核心判定优先取全年行。真核心 = 判定年度开票、回款均 ≥ ${toNumber(summary.coreMajorWan) || 100} 万；争核心 = 均达到争核心门槛（${toNumber(summary.coreMinorWan) || 50} 万）未双达标；否则非核心。录入开票额 > 0 的阶段会刷新保护期起算日（按阶段末日期计，未到期的阶段按当天计，只延长不缩短），保护期 = 起算日 + 保护天数 + 已批准延期。`,
     stageRows,
     emptyText: !data.loading && stageRows.length === 0 ? '暂无阶段数据，点击下方「录入阶段数据」开始记录（半年末 / 年末录入总额）' : '',
     showAddAction: Boolean(data.canEdit),

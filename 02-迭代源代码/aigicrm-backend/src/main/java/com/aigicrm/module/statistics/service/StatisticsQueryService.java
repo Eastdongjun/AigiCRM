@@ -24,6 +24,7 @@ import com.aigicrm.module.system.entity.SysUser;
 import com.aigicrm.module.system.mapper.SysDeptMapper;
 import com.aigicrm.module.system.mapper.SysLogMapper;
 import com.aigicrm.module.system.mapper.SysUserMapper;
+import com.aigicrm.module.system.service.SysConfigService;
 import com.aigicrm.security.SecurityUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -53,14 +54,41 @@ import java.util.Set;
 @RequiredArgsConstructor
 public class StatisticsQueryService {
 
-    private static final java.math.BigDecimal CORE_THRESHOLD = new java.math.BigDecimal("100");
+    /** 【2026-11-03 用户令门槛配置化】核心客户判定双门槛 sys_config 键(万元, 键名与 CustomerService/迁移 V2026.11.03.1 同源)。 */
+    static final String CORE_MINOR_WAN_KEY = CustomerService.CORE_MINOR_WAN_KEY;
+    static final String CORE_MAJOR_WAN_KEY = CustomerService.CORE_MAJOR_WAN_KEY;
 
-    /** 【裁决 2026-10-10】核心三态: core=真核心(年度双>=100万) quasi=争核心(有数据未双达标)。
-     *  仅对"有阶段数据"的客户调用; 无数据客户即非核心, 无需进本方法。 */
-    static String coreTypeOf(java.math.BigDecimal invoice, java.math.BigDecimal payment) {
-        boolean invoiceMet = invoice != null && invoice.compareTo(CORE_THRESHOLD) >= 0;
-        boolean paymentMet = payment != null && payment.compareTo(CORE_THRESHOLD) >= 0;
-        return invoiceMet && paymentMet ? "core" : "quasi";
+    /** 【裁决 2026-10-10 纯金额三态 + 2026-11-03 双门槛配置化】核心三态:
+     *  core=真核心(年度开票、回款均>=真核心门槛) / quasi=争核心(均>=争核心门槛, 未双达真核心门槛) / ''=非核心(任一低于争核心门槛)。
+     *  门槛为参数不落死值(管理员在系统配置修改, 保存后全量刷新); 仅对"有阶段数据"的客户调用, 无数据客户即非核心。 */
+    static String coreTypeOf(java.math.BigDecimal invoice, java.math.BigDecimal payment,
+                             java.math.BigDecimal minorWan, java.math.BigDecimal majorWan) {
+        boolean invoiceMet = invoice != null && invoice.compareTo(majorWan) >= 0;
+        boolean paymentMet = payment != null && payment.compareTo(majorWan) >= 0;
+        if (invoiceMet && paymentMet) return "core";
+        boolean invoiceQuasi = invoice != null && invoice.compareTo(minorWan) >= 0;
+        boolean paymentQuasi = payment != null && payment.compareTo(minorWan) >= 0;
+        return invoiceQuasi && paymentQuasi ? "quasi" : "";
+    }
+
+    /** 每请求读一次双门槛配置(脏值/非正数回退默认 50/100); 统计接口同时回传给前端做门槛文案。 */
+    private java.math.BigDecimal[] coreThresholds() {
+        return new java.math.BigDecimal[]{
+                configDecimal(CORE_MINOR_WAN_KEY, new java.math.BigDecimal("50")),
+                configDecimal(CORE_MAJOR_WAN_KEY, new java.math.BigDecimal("100"))};
+    }
+
+    private java.math.BigDecimal configDecimal(String key, java.math.BigDecimal defaultValue) {
+        String val = configService.getValue(key);
+        if (val != null) {
+            try {
+                java.math.BigDecimal parsed = new java.math.BigDecimal(val.trim());
+                if (parsed.signum() > 0) return parsed;
+            } catch (NumberFormatException ignored) {
+                // 配置脏值回退默认值(注明吞因, 与 CustomerService.configDecimal 同款)
+            }
+        }
+        return defaultValue;
     }
 
     /** 阶段行"有数据" = 开票额或回款额任一 > 0(两值均 0 的行不算数据, 不驱动判定) */
@@ -165,6 +193,8 @@ public class StatisticsQueryService {
     private final BizApprovalMapper approvalMapper;
     // 【容量加固 2026-10-06】看板范围签名需要与 applyDataScope 同源的锚点解析(见 dashboardScopeKey)
     private final com.aigicrm.module.system.service.RolePermScopeService rolePermScopeService;
+    // 【2026-11-03 门槛配置化】核心三态双门槛从 sys_config 读(键同 CustomerService, 不落死值)
+    private final SysConfigService configService;
 
     /**
      * 看板汇总
@@ -427,6 +457,8 @@ public class StatisticsQueryService {
         // 逐笔发票/回款录入入口已下线改只读历史, 不再作为判定数据源
         Map<Long, java.math.BigDecimal[]> annualAmounts = annualAmountsByCustomer(
                 stageAmountMapper.selectList(null));
+        // 【2026-11-03 门槛配置化】双门槛读一次配置贯穿本请求; 一并回传给前端做门槛文案(不落死值)
+        java.math.BigDecimal[] coreThresholds = coreThresholds();
 
         // 【2026-09-13 修复"卡片全 0 而表格有数据"的口径不一致】
         // 此前四张卡片只统计"当前登录用户自己负责的客户"（myCustomers/myIndicators），而下方「客户排行」是
@@ -442,19 +474,22 @@ public class StatisticsQueryService {
             scoreSum += s;
             java.math.BigDecimal[] ann = annualAmounts.get(ind.getCustomerId());
             if (ann != null) {
-                if ("core".equals(coreTypeOf(ann[0], ann[1]))) coreCount++;
-                else quasiCount++;
+                String ct = coreTypeOf(ann[0], ann[1], coreThresholds[0], coreThresholds[1]);
+                if ("core".equals(ct)) coreCount++;
+                else if ("quasi".equals(ct)) quasiCount++;
             }
         }
         int qualifyCount = 0;
         for (BizCustomer c : allCustomers) {
             java.math.BigDecimal[] ann = annualAmounts.get(c.getId());
-            if (ann != null && ann[0].compareTo(CORE_THRESHOLD) >= 0 && ann[1].compareTo(CORE_THRESHOLD) >= 0) qualifyCount++;
+            if (ann != null && ann[0].compareTo(coreThresholds[1]) >= 0 && ann[1].compareTo(coreThresholds[1]) >= 0) qualifyCount++;
         }
 
         data.put("coveredCount", coveredCount);
         data.put("coreCount", coreCount);
         data.put("quasiCount", quasiCount);
+        data.put("coreMinorWan", coreThresholds[0]);
+        data.put("coreMajorWan", coreThresholds[1]);
         data.put("avgScore", coveredCount > 0 ? Math.round(scoreSum / coveredCount * 10) / 10.0 : 0);
         data.put("qualifyRate", allCustomers.size() > 0 ? Math.round(qualifyCount * 1000.0 / allCustomers.size()) / 10.0 : 0);
 
@@ -467,7 +502,7 @@ public class StatisticsQueryService {
             java.math.BigDecimal[] ann = annualAmounts.get(ind.getCustomerId());
             java.math.BigDecimal invTotal = ann != null ? ann[0] : java.math.BigDecimal.ZERO;
             java.math.BigDecimal paymentTotal = ann != null ? ann[1] : java.math.BigDecimal.ZERO;
-            String coreType = ann != null ? coreTypeOf(invTotal, paymentTotal) : "";
+            String coreType = ann != null ? coreTypeOf(invTotal, paymentTotal, coreThresholds[0], coreThresholds[1]) : "";
             Map<String, Object> row = new LinkedHashMap<>();
             row.put("customerId", ind.getCustomerId());
             row.put("customerName", c.getCustomerName());
@@ -506,7 +541,7 @@ public class StatisticsQueryService {
             if (c == null || c.getOwnerId() == null) continue;
             int s = indicatorScore(ind);
             java.math.BigDecimal[] ann = annualAmounts.get(ind.getCustomerId());
-            int core = (ann != null && "core".equals(coreTypeOf(ann[0], ann[1]))) ? 1 : 0;
+            int core = (ann != null && "core".equals(coreTypeOf(ann[0], ann[1], coreThresholds[0], coreThresholds[1]))) ? 1 : 0;
             ownerScores.computeIfAbsent(c.getOwnerId(), k -> new ArrayList<>()).add(new int[]{s, core});
         }
 
@@ -599,7 +634,7 @@ public class StatisticsQueryService {
             }
             int s = indicatorScore(ind);
             java.math.BigDecimal[] annT = annualAmounts.get(ind.getCustomerId());
-            int core = (annT != null && "core".equals(coreTypeOf(annT[0], annT[1]))) ? 1 : 0;
+            int core = (annT != null && "core".equals(coreTypeOf(annT[0], annT[1], coreThresholds[0], coreThresholds[1]))) ? 1 : 0;
             int[] agg = officeAgg.computeIfAbsent(officeName.isEmpty() ? "未知" : officeName, k -> new int[3]);
             agg[0] += s;
             agg[1] += 1;
@@ -701,6 +736,9 @@ public class StatisticsQueryService {
         data.put("indicatorRanking", indicatorRanking);
         data.put("coreCount", indicatorRanking.stream().filter(row -> "core".equals(row.get("coreType"))).count());
         data.put("quasiCount", indicatorRanking.stream().filter(row -> "quasi".equals(row.get("coreType"))).count());
+        // 【2026-11-03 门槛配置化】排行页门槛文案同源回传(与 indicatorStats 同一份配置读数)
+        data.put("coreMinorWan", indicatorStats.get("coreMinorWan"));
+        data.put("coreMajorWan", indicatorStats.get("coreMajorWan"));
         return data;
     }
 

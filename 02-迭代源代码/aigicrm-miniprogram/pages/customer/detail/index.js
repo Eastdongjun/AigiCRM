@@ -5,7 +5,7 @@ const { showError, showErrorWithRetry } = require('../../../utils/feedback')
 const { readDemoCustomers } = require('../../../utils/demo-customers')
 // 【D24/D25 2026-10-04】状态文案、五项指标配置、核心客户阈值统一引用组内 shared(单一出处)
 // 【#10 2026-10-12】客情选项同步走 shared 新文案 + 后台字典 relationship_depth 覆盖
-const { customerStatusLabel, INDICATOR_FIELDS, INDICATOR_ITEMS, CORE_INVOICE_AMOUNT_THRESHOLD, CORE_PAYMENT_AMOUNT_THRESHOLD, CORE_INDICATOR_SCORE_THRESHOLD, INDICATOR_MAX_SCORE, RELATIONSHIP_OPTIONS, fetchRelationshipDictOptions, fetchIndicatorDictOptions } = require('../shared')
+const { customerStatusLabel, INDICATOR_FIELDS, INDICATOR_ITEMS, CORE_INDICATOR_SCORE_THRESHOLD, INDICATOR_MAX_SCORE, RELATIONSHIP_OPTIONS, fetchRelationshipDictOptions, fetchIndicatorDictOptions } = require('../shared')
 const { getDictData } = require('../../../api/system')
 
 const INITIAL_RELATIONSHIP_OPTIONS = RELATIONSHIP_OPTIONS.map((label, value) => ({ label, value }))
@@ -72,12 +72,14 @@ function buildIndicatorSummary(stageSummary, indicator) {
   const paymentAmount = toNumber(stage.annualPaymentAmount)
   const scoreTotal = INDICATOR_FIELDS
     .reduce((sum, key) => sum + toNumber((indicator || {})[key]), 0)
-  // 【裁决 2026-10-10】核心三态=纯金额门槛(年度开票/回款双>=100万=真核心, 有数据未双达标=争核心,
-  // 无数据=非核心)。五项评分不再参与判定, 保留为客情参考; 判定结果由后端按阶段总额一处算好回传,
-  // 前端只消费 coreType, 不复刻口径(防两端漂移)。阈值常量仍引用 shared 单一出处。
+  // 【裁决 2026-10-10 + 2026-11-03 双门槛配置化】核心三态=纯金额门槛(年度开票/回款双>=真核心门槛=真核心,
+  // 双>=争核心门槛=争核心, 任一低于=非核心)。五项评分不参与判定; 判定结果由后端按阶段总额算好回传,
+  // 前端只消费 coreType 不复刻口径; 门槛数字用摘要回传 coreMinorWan/coreMajorWan(兜底 50/100), 不落死值。
   const coreType = stage.coreType || ''
-  const invoiceMet = invoiceAmount >= CORE_INVOICE_AMOUNT_THRESHOLD
-  const paymentMet = paymentAmount >= CORE_PAYMENT_AMOUNT_THRESHOLD
+  const coreMinorWan = toNumber(stage.coreMinorWan) || 50
+  const coreMajorWan = toNumber(stage.coreMajorWan) || 100
+  const invoiceMet = invoiceAmount >= coreMajorWan
+  const paymentMet = paymentAmount >= coreMajorWan
   const invoiceView = statusView(invoiceMet, '达标', '未达标')
   const paymentView = statusView(paymentMet, '达标', '未达标')
   // 五项评分=客情参考: 12 分线仅作"良好/参考"提示, 不再卡核心身份
@@ -90,6 +92,8 @@ function buildIndicatorSummary(stageSummary, indicator) {
   return {
     baseYear: toNumber(stage.baseYear),
     coreType,
+    coreMinorWan,
+    coreMajorWan,
     invoiceAmount,
     paymentAmount,
     invoiceMet,
@@ -247,8 +251,8 @@ function buildDetailView(data) {
     coreVerdictRows: stageError
       ? [{ key: 'stage', label: '开票回款', valueText: '加载失败', thresholdText: '-', statusText: '暂时无法判定', statusClass: 'warn' }]
       : [
-        { key: 'invoice', label: '年度开票', valueText: `${coreSummary.invoiceAmount} 万`, thresholdText: '≥100万/年', statusText: coreSummary.invoiceStatusText, statusClass: coreSummary.invoiceStatusClass },
-        { key: 'payment', label: '年度回款', valueText: `${coreSummary.paymentAmount} 万`, thresholdText: '≥100万/年', statusText: coreSummary.paymentStatusText, statusClass: coreSummary.paymentStatusClass },
+        { key: 'invoice', label: '年度开票', valueText: `${coreSummary.invoiceAmount} 万`, thresholdText: `≥${coreSummary.coreMajorWan}万/年`, statusText: coreSummary.invoiceStatusText, statusClass: coreSummary.invoiceStatusClass },
+        { key: 'payment', label: '年度回款', valueText: `${coreSummary.paymentAmount} 万`, thresholdText: `≥${coreSummary.coreMajorWan}万/年`, statusText: coreSummary.paymentStatusText, statusClass: coreSummary.paymentStatusClass },
         { key: 'relationship', label: '客情评分', valueText: `${toNumber(indicator.relationshipScore)} / 3`, thresholdText: '0-3分·参考', statusText: `${toNumber(indicator.relationshipScore)}分`, statusClass: toNumber(indicator.relationshipScore) >= 2 ? 'ok' : 'warn' },
         { key: 'score', label: '五项评分', valueText: `${coreSummary.scoreTotal} / ${INDICATOR_MAX_SCORE}`, thresholdText: `满分${INDICATOR_MAX_SCORE}·不计判定`, statusText: coreSummary.scoreStatusText, statusClass: coreSummary.scoreStatusClass }
       ],

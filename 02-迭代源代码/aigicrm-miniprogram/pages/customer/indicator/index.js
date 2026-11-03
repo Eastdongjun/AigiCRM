@@ -22,7 +22,7 @@ Page({
     id: '',
     form: {},
     indicatorItems: buildIndicatorItems({}),
-    // 【D25 2026-10-04】门槛提示由 shared 常量拼装，wxml 不再硬编码 100 万/12 分
+    // 【2026-11-03 门槛配置化】门槛提示由 shared 单一出处(不写死数字, 门槛=系统配置)
     coreThresholdTip: CORE_THRESHOLD_TIP,
     loading: false,
     loadFailed: false,

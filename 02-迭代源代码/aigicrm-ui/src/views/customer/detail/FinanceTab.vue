@@ -68,7 +68,8 @@
       <div v-else class="empty-text">暂无阶段数据，点击右上角「录入阶段数据」开始记录（半年末 / 年末录入总额）</div>
       <div class="ledger-note">
         录入口径：半年末录「上半年 / 下半年」总额，年末录「全年」总额；全年行与上/下半年行独立录入，核心判定优先取全年行（未录时按上半年+下半年合计）。
-        真核心 = 判定年度开票、回款均 ≥ 100 万；争核心 = 有阶段数据但未双达标。录入开票额 &gt; 0 的阶段会刷新保护期起算日（按阶段末日期计，未到期的阶段按当天计，只延长不缩短），保护期 = 起算日 + 保护天数 + 已批准延期。
+        <!-- 【2026-11-03 门槛配置化】门槛数字随摘要接口回传(管理员可改), 不落死值 -->
+        真核心 = 判定年度开票、回款均 ≥ {{ coreMajorWan }} 万；争核心 = 均达到争核心门槛({{ coreMinorWan }} 万)未双达标；否则非核心。录入开票额 &gt; 0 的阶段会刷新保护期起算日（按阶段末日期计，未到期的阶段按当天计，只延长不缩短），保护期 = 起算日 + 保护天数 + 已批准延期。
       </div>
     </div>
 
@@ -188,7 +189,7 @@ import { updateCustomer } from '@/api/customer'
 const {
   invoices, invoiceSummary, payments, paymentSummary,
   stageSummary, showStageDialog, stageForm, openStageDialog, handleSaveStageAmount,
-  coreType, coreTypeLabel, customer, isAdmin, loadAll,
+  coreType, coreTypeLabel, coreMinorWan, coreMajorWan, customer, isAdmin, loadAll,
 } = injectCustomerDetail()
 
 // 【2026-11-02 用户令】最近开票日页签内维护(与 InfoTab 卡片/编辑表单同码三入口):

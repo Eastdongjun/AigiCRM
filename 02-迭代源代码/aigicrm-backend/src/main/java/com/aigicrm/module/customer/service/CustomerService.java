@@ -1873,22 +1873,53 @@ public class CustomerService {
         recalculateCoreStatus(customerId);
     }
 
-    /** 【裁决 2026-10-10】核心客户年度门槛(万元): 开票、回款均 >= 100 万/年。
-     *  与 StatisticsQueryService.CORE_THRESHOLD、MP shared.js 同口径, 改动须三处同步。 */
-    private static final BigDecimal CORE_ANNUAL_THRESHOLD = new BigDecimal("100");
+    /** 【2026-11-03 用户令门槛配置化】核心客户判定双门槛 sys_config 键(万元):
+     *  minor=争核心门槛(默认 50), major=真核心门槛(默认 100); seed 见迁移 V2026.11.03.1。
+     *  键名跨包共用(StatisticsQueryService/SysConfigController), 判定与统计同源。 */
+    public static final String CORE_MINOR_WAN_KEY = "customer.core.minor.wan";
+    public static final String CORE_MAJOR_WAN_KEY = "customer.core.major.wan";
+    private static final BigDecimal CORE_MINOR_WAN_DEFAULT = new BigDecimal("50");
+    private static final BigDecimal CORE_MAJOR_WAN_DEFAULT = new BigDecimal("100");
+
+    /** 读双门槛配置; 脏值/非正数回退默认(与 getConfigInt 同款回退模式, 门槛永不因配置脏值失效)。 */
+    private BigDecimal[] coreThresholds() {
+        return new BigDecimal[]{
+                configDecimal(CORE_MINOR_WAN_KEY, CORE_MINOR_WAN_DEFAULT),
+                configDecimal(CORE_MAJOR_WAN_KEY, CORE_MAJOR_WAN_DEFAULT)};
+    }
+
+    private BigDecimal configDecimal(String key, BigDecimal defaultValue) {
+        String val = configService.getValue(key);
+        if (val != null) {
+            try {
+                BigDecimal parsed = new BigDecimal(val.trim());
+                if (parsed.signum() > 0) return parsed;
+            } catch (NumberFormatException ignored) {
+                // 配置脏值回退默认值:解析失败/非正数返回 defaultValue(注明吞因,消除 S1166)
+            }
+        }
+        return defaultValue;
+    }
 
     /**
-     * 【裁决 2026-10-10】核心客户三态判定(纯金额门槛, 五项评分不再参与, 保留为客情参考)。
+     * 【裁决 2026-10-10 纯金额三态 + 2026-11-03 双门槛配置化】核心客户三态判定(五项评分不参与, 保留为客情参考)。
      * 年度口径 = 最近有数据年(全年行有数据时优先取全年行, 否则上半年+下半年合计):
-     *   core  = 真核心: 基准年开票 >= 100 万 且 回款 >= 100 万;
-     *   quasi = 争核心: 有阶段数据但未双达标;
-     *   ''    = 非核心: 无任何有数据阶段行(开票、回款均 <= 0 的行不算数据)。
-     * 与迁移 V2026.10.10.1 回填口径同源, 改动须两处同步。
+     *   core  = 真核心: 基准年开票、回款均 >= 真核心门槛(customer.core.major.wan, 默认 100 万);
+     *   quasi = 争核心: 均达标争核心门槛(customer.core.minor.wan, 默认 50 万), 未双达真核心门槛;
+     *   ''    = 非核心: 任一低于争核心门槛(含无任何有数据阶段行; 开票、回款均 <= 0 的行不算数据)。
+     * 门槛由管理员在系统配置修改, 保存后由 SysConfigController 触发 recalculateAllCoreStatuses 全量刷新。
+     * 与 StatisticsQueryService.coreTypeOf / 迁移 V2026.11.03.1 回填同口径, 改动须三处同步。
      */
     private String computeCoreType(Long customerId) {
         List<BizCustomerStageAmount> rows = stageAmountMapper.selectList(
                 new LambdaQueryWrapper<BizCustomerStageAmount>()
                         .eq(BizCustomerStageAmount::getCustomerId, customerId));
+        BigDecimal[] thresholds = coreThresholds();
+        return computeCoreTypeFromRows(rows, thresholds[0], thresholds[1]);
+    }
+
+    /** computeCoreType 的纯函数核(单户与全量刷新共用): rows = 该客户全部阶段行, 门槛为参数不落死值。 */
+    static String computeCoreTypeFromRows(List<BizCustomerStageAmount> rows, BigDecimal minorWan, BigDecimal majorWan) {
         int baseYear = rows.stream()
                 .filter(r -> isPositiveAmount(r.getInvoiceAmount()) || isPositiveAmount(r.getPaymentAmount()))
                 .mapToInt(BizCustomerStageAmount::getPeriodYear).max().orElse(0);
@@ -1915,12 +1946,15 @@ public class CustomerService {
             invoice = halves[0];
             payment = halves[1];
         }
-        boolean invoiceMet = invoice != null && invoice.compareTo(CORE_ANNUAL_THRESHOLD) >= 0;
-        boolean paymentMet = payment != null && payment.compareTo(CORE_ANNUAL_THRESHOLD) >= 0;
-        return invoiceMet && paymentMet ? "core" : "quasi";
+        boolean invoiceMet = invoice != null && invoice.compareTo(majorWan) >= 0;
+        boolean paymentMet = payment != null && payment.compareTo(majorWan) >= 0;
+        if (invoiceMet && paymentMet) return "core";
+        boolean invoiceQuasi = invoice != null && invoice.compareTo(minorWan) >= 0;
+        boolean paymentQuasi = payment != null && payment.compareTo(minorWan) >= 0;
+        return invoiceQuasi && paymentQuasi ? "quasi" : "";
     }
 
-    private boolean isPositiveAmount(BigDecimal v) {
+    private static boolean isPositiveAmount(BigDecimal v) {
         return v != null && v.signum() > 0;
     }
 
@@ -1942,6 +1976,56 @@ public class CustomerService {
         indicatorMapper.updateById(indicator);
     }
 
+    /**
+     * 【2026-11-03 用户令"改门槛后自动刷新"】按当前双门槛配置全量刷新核心三态落库。
+     * 触发: SysConfigController 保存双门槛配置变化后调用; 幂等可重放(只写有变化的行)。
+     * 全量阶段行一次载入内存分组(数百户规模无需分页); 无指标行的客户自动建行、
+     * 已无阶段数据的老行归位非核心(与单客户 recalculateCoreStatus 同语义)。
+     * @return 发生变化的客户数
+     */
+    @Transactional
+    public int recalculateAllCoreStatuses() {
+        BigDecimal[] thresholds = coreThresholds();
+        Map<Long, List<BizCustomerStageAmount>> rowsByCustomer = stageAmountMapper.selectList(null).stream()
+                .filter(r -> r.getCustomerId() != null)
+                .collect(Collectors.groupingBy(BizCustomerStageAmount::getCustomerId));
+        Map<Long, BizCustomerIndicator> indicatorByCustomer = indicatorMapper.selectList(null).stream()
+                .filter(i -> i.getCustomerId() != null)
+                .collect(Collectors.toMap(BizCustomerIndicator::getCustomerId, i -> i, (a, b) -> a));
+        Long userId = SecurityUtils.getCurrentUserId();
+        int changed = 0;
+        for (var entry : rowsByCustomer.entrySet()) {
+            String coreType = computeCoreTypeFromRows(entry.getValue(), thresholds[0], thresholds[1]);
+            changed += upsertCoreStatus(indicatorByCustomer.get(entry.getKey()), entry.getKey(), coreType, userId);
+        }
+        // 阶段数据已被清空的老行(如阶段行全删): 归位非核心, 防旧标签残留
+        for (var entry : indicatorByCustomer.entrySet()) {
+            if (rowsByCustomer.containsKey(entry.getKey())) continue;
+            changed += upsertCoreStatus(entry.getValue(), entry.getKey(), "", userId);
+        }
+        return changed;
+    }
+
+    /** 单户核心三态落库(缺行插入/有变化更新, 返回 1=有变化 0=无变化)。 */
+    private int upsertCoreStatus(BizCustomerIndicator indicator, Long customerId, String coreType, Long userId) {
+        int isCore = "core".equals(coreType) ? 1 : 0;
+        if (indicator == null) {
+            indicator = new BizCustomerIndicator();
+            indicator.setCustomerId(customerId);
+            indicator.setCoreType(coreType);
+            indicator.setIsCore(isCore);
+            indicator.setUpdatedBy(userId);
+            indicatorMapper.insert(indicator);
+            return 1;
+        }
+        if (Objects.equals(indicator.getCoreType(), coreType) && Objects.equals(indicator.getIsCore(), isCore)) return 0;
+        indicator.setCoreType(coreType);
+        indicator.setIsCore(isCore);
+        indicator.setUpdatedBy(userId);
+        indicatorMapper.updateById(indicator);
+        return 1;
+    }
+
     private int zeroIfNull(Integer val) { return val == null ? 0 : val; }
 
     // ====== 阶段开票回款(2026-10-10 半年/全年总额录入制) ======
@@ -1961,7 +2045,8 @@ public class CustomerService {
 
     /**
      * 阶段列表 + 判定摘要(一处算好, PC/MP 两端直接展示, 避免口径两端复刻漂移)。
-     * 返回: rows(年倒序, 年内 全年>下半年>上半年), baseYear/annualInvoiceAmount/annualPaymentAmount/coreType。
+     * 返回: rows(年倒序, 年内 全年>下半年>上半年), baseYear/annualInvoiceAmount/annualPaymentAmount/coreType,
+     * 以及当前双门槛 coreMinorWan/coreMajorWan(万元, 前端门槛文案不落死值)。
      */
     public Map<String, Object> getStageAmountSummary(Long customerId) {
         List<BizCustomerStageAmount> rows = stageAmountMapper.selectList(
@@ -1985,7 +2070,11 @@ public class CustomerService {
 
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("rows", rows);
-        result.put("coreType", computeCoreType(customerId));
+        // 复用已载入的 rows 判定(免二次查询); 双门槛一并回传, 前端门槛文案不落死值
+        BigDecimal[] coreThresholds = coreThresholds();
+        result.put("coreType", computeCoreTypeFromRows(rows, coreThresholds[0], coreThresholds[1]));
+        result.put("coreMinorWan", coreThresholds[0]);
+        result.put("coreMajorWan", coreThresholds[1]);
         result.put("baseYear", 0);
         result.put("annualInvoiceAmount", BigDecimal.ZERO);
         result.put("annualPaymentAmount", BigDecimal.ZERO);

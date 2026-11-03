@@ -88,7 +88,31 @@ fi
 # 逐笔 invoice/payment mapper 不再用于判定——钉随重锚为阶段总额 mapper
 grep -Fq 'BizCustomerStageAmountMapper' "$STATS" || fail 'statistics must load stage-amount totals (2026-10-10 ruling)'
 grep -Fq 'coreTypeOf' "$STATS" || fail 'statistics must centralize core-customer threshold logic (coreTypeOf)'  # 【钉随裁决】三态化后入口=coreTypeOf(真核心/争核心)
-grep -Fq '开票、回款均 ≥ 100万' "$DOC" || fail 'operator documentation must state both financial thresholds'
+# 【2026-11-03 门槛配置化】文档钉随重锚: 双门槛(真核心/争核心)措辞替代旧单门槛 100 万字面量
+grep -Fq '开票、回款均 ≥ 真核心门槛' "$DOC" || fail 'operator documentation must state the dual financial thresholds (major/minor)'
 grep -Fq '五项评分满分 15 分' "$DOC" || fail 'operator documentation must state the 5-item / 15-point rule'
 
-echo 'PASS: 六项指标契约一致（1 硬门槛 + 5 项评分，上限 15 分；口径唯一来源 utils/customer-fields.js；indicator06 确认不参与计分）'
+# ---- 7) 【2026-11-03 用户令门槛配置化】双门槛不落死值: 配置键/管理入口/自动刷新全链正钉 + 硬编码反钉 ----
+CS="$ROOT/aigicrm-backend/src/main/java/com/aigicrm/module/customer/service/CustomerService.java"
+CONFCTL="$ROOT/aigicrm-backend/src/main/java/com/aigicrm/module/system/controller/SysConfigController.java"
+MIG="$ROOT/aigicrm-backend/src/main/resources/db/migration/V2026.11.03.1__core_threshold_config.sql"
+BASIC="$ROOT/aigicrm-ui/src/views/system/BasicSettings.vue"
+grep -Fq 'customer.core.minor.wan' "$MIG" || fail 'migration V2026.11.03.1 must seed customer.core.minor.wan'
+grep -Fq 'customer.core.major.wan' "$MIG" || fail 'migration V2026.11.03.1 must seed customer.core.major.wan'
+grep -Fq 'CORE_MINOR_WAN_KEY = "customer.core.minor.wan"' "$CS" || fail 'CustomerService must define the minor threshold config key'
+grep -Fq 'CORE_MAJOR_WAN_KEY = "customer.core.major.wan"' "$CS" || fail 'CustomerService must define the major threshold config key'
+grep -Fq 'configDecimal' "$CS" || fail 'CustomerService must read thresholds from sys_config (configDecimal)'
+grep -Fq 'configDecimal' "$STATS" || fail 'StatisticsQueryService must read thresholds from sys_config (configDecimal)'
+grep -Fq 'recalculateAllCoreStatuses' "$CS" || fail 'CustomerService must expose full core-status refresh (recalculateAllCoreStatuses)'
+grep -Fq 'recalculateAllCoreStatuses' "$CONFCTL" || fail 'SysConfigController must trigger full refresh after threshold change'
+grep -Fq 'customer.core.major.wan' "$BASIC" || fail 'admin UI (BasicSettings) must bind the major threshold config key'
+grep -Fq 'customer.core.minor.wan' "$BASIC" || fail 'admin UI (BasicSettings) must bind the minor threshold config key'
+# 反钉: 判定服务不得再出现写死门槛常量(配置化后唯一来源=sys_config, 脏值回退默认仅作兜底)
+if grep -Fq 'CORE_ANNUAL_THRESHOLD' "$CS"; then
+  fail 'CustomerService must not hardcode CORE_ANNUAL_THRESHOLD (config-driven since 2026-11-03)'
+fi
+if grep -Fq 'CORE_THRESHOLD' "$STATS"; then
+  fail 'StatisticsQueryService must not hardcode CORE_THRESHOLD (config-driven since 2026-11-03)'
+fi
+
+echo 'PASS: 六项指标契约一致（1 硬门槛 + 5 项评分，上限 15 分；口径唯一来源 utils/customer-fields.js；indicator06 确认不参与计分；核心双门槛=系统配置不落死值，保存即全量刷新）'

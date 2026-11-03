@@ -122,29 +122,28 @@ const buildIndicatorItems = (form) => INDICATOR_ITEMS.map((item) => {
   }
 })
 
-// ===== 核心客户判定阈值（单一出处；与 PC 端 aigicrm-ui/src/utils/customer-fields.js 同口径） =====
+// ===== 核心客户判定（口径与 PC 端 aigicrm-ui 同源；门槛数字不在前端落死值） =====
 
-/** 【裁决 2026-10-10】核心客户三态=纯金额门槛(与后端 CustomerService/StatisticsQueryService 同口径):
- *  真核心 core   = 判定年度(最近有数据年, 全年行优先否则上半年+下半年合计)开票、回款均 >= 100 万;
- *  争核心 quasi  = 有阶段数据但未双达标;
- *  非核心 ''     = 无任何有数据阶段行。
- *  五项评分不再参与判定(保留为客情参考, 12 分线仅作"良好/参考"提示);
- *  判定结果由后端按阶段总额(biz_customer_stage_amount)一处算好回传, 前端只消费 coreType。 */
-const CORE_INVOICE_AMOUNT_THRESHOLD = 100
-const CORE_PAYMENT_AMOUNT_THRESHOLD = 100
+/** 【裁决 2026-10-10 纯金额三态 + 2026-11-03 双门槛配置化】(与后端 CustomerService/StatisticsQueryService 同口径):
+ *  真核心 core   = 判定年度(最近有数据年, 全年行优先否则上半年+下半年合计)开票、回款均 >= 真核心门槛;
+ *  争核心 quasi  = 均达到争核心门槛, 未双达真核心门槛;
+ *  非核心 ''     = 任一低于争核心门槛(含无任何有数据阶段行)。
+ *  双门槛(万元, 默认 争核心50/真核心100)由管理员在 PC 系统配置修改, 保存后后端自动全量刷新核心标签;
+ *  判定结果由后端按阶段总额(biz_customer_stage_amount)一处算好回传, 前端只消费 coreType;
+ *  门槛数字需要展示时用摘要/统计接口回传的 coreMinorWan/coreMajorWan(带默认兜底), 勿再写常量。 */
 const CORE_INDICATOR_SCORE_THRESHOLD = 12
 
 /** 五项评分满分（5 项 × 3 分），详情页「x / 15」展示用 */
 const INDICATOR_MAX_SCORE = 15
 
-/** 核心三态展示标签(与后端 core_type 枚举一一对应) */
+/** 核心三态展示标签(与后端 core_type 枚举一一对应; 2026-11-03 用户裁决沿用现名) */
 function coreTypeLabel(coreType) {
   return coreType === 'core' ? '真核心' : coreType === 'quasi' ? '争核心' : '非核心'
 }
 
-/** 表单/指标维护页的门槛提示文案：由常量拼装，wxml 不再硬编码数字。
- *  【2026-10-10】核心判定已改纯金额三态, 此处文案同步(五项为客情参考)。 */
-const CORE_THRESHOLD_TIP = `核心判定（2026-10-10 起）：年度开票、回款均 >= ${CORE_INVOICE_AMOUNT_THRESHOLD} 万为真核心，有阶段数据未双达标为争核心。五项评分为客情参考，不参与判定。`
+/** 表单/指标维护页的门槛提示文案(不写死数字): 门槛由管理员在系统配置设定,
+ *  数字口径以摘要/统计接口回传为准(coreMinorWan/coreMajorWan)。 */
+const CORE_THRESHOLD_TIP = '核心判定：年度开票、回款均达到真核心门槛为真核心，均达到争核心门槛为争核心（门槛由管理员在系统配置设定）。五项评分为客情参考，不参与判定。'
 
 // ===== 表单页返回兜底（各表单 goBack 共用；栈内多页正常返回，直达页跳回 fallback） =====
 
@@ -235,8 +234,6 @@ module.exports = {
   fetchIndicatorDictOptions,
   sumIndicatorScore,
   buildIndicatorItems,
-  CORE_INVOICE_AMOUNT_THRESHOLD,
-  CORE_PAYMENT_AMOUNT_THRESHOLD,
   CORE_INDICATOR_SCORE_THRESHOLD,
   INDICATOR_MAX_SCORE,
   CORE_THRESHOLD_TIP,

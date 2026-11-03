@@ -135,7 +135,8 @@
       <div class="relation-title"><el-icon color="var(--el-color-primary)"><TrendCharts /></el-icon> 核心客户指标</div>
       <div class="ind-sum-row ind-sum-threshold">
         <span class="ind-num">01</span>
-        <span class="ind-name">开票回款 · 年度硬性门槛 ≥ ¥100万/年</span>
+        <!-- 【2026-11-03 门槛配置化】门槛数字随摘要接口回传(管理员可改), 不落死值 -->
+        <span class="ind-name">开票回款 · 年度硬性门槛 ≥ ¥{{ coreMajorWan }}万/年</span>
         <span class="ind-status" :class="coreType === 'core' ? 'pass' : coreType === 'quasi' ? 'half' : 'fail'">
           {{ coreType === 'core' ? '✓ 真核心' : coreType === 'quasi' ? '◐ 争核心' : '— 非核心' }}
         </span>
@@ -172,7 +173,7 @@ const {
   openEditContact, handleSaveContact, handleDeleteContact, relationshipOptions,
   indicator, selectRelationship, expireLevel, statusLabel, handleExtend,
   openTransfer, confirmTransfer, showTransferDialog, transferUserId, allUsers,
-  indicatorDefs, indicatorForm, indicatorTotal, coreType, userStore, isAdmin, loadAll,
+  indicatorDefs, indicatorForm, indicatorTotal, coreType, coreMajorWan, userStore, isAdmin, loadAll,
 } = injectCustomerDetail()
 
 // 【2026-11-02 用户令】最近开票日卡片内维护: 持 customer:invoice-date:edit(或 admin)可见编辑入口

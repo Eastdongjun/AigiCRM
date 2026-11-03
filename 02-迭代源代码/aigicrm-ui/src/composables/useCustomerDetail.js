@@ -95,16 +95,19 @@ export function useCustomerDetail() {
   // 五项指标定义与新增/编辑表单共用同一份口径（utils/customer-fields.js），避免两处标签漂移
   const indicatorDefs = ref(INDICATOR_FIELDS)
   const indicatorTotal = computed(() => sumIndicatorScore(indicatorForm))
-  // 【裁决 2026-10-10】核心判定=纯金额三态, 金额源=阶段总额年度口径(后端算好回传):
-  // core=真核心(年度双>=100万) / quasi=争核心(有数据未双达标) / ''=非核心(无数据);
+  // 【裁决 2026-10-10 + 2026-11-03 双门槛配置化】核心判定=纯金额三态, 金额源=阶段总额年度口径(后端算好回传):
+  // core=真核心(年度双>=真核心门槛) / quasi=争核心(双>=争核心门槛未双达真核心) / ''=非核心(任一低于争核心门槛);
+  // 双门槛由管理员在系统配置修改, 摘要接口回传 coreMinorWan/coreMajorWan(兜底 50/100), 前端不落死值;
   // 五项评分不再参与判定, indicatorTotal 仅为客情参考
   const coreType = computed(() => stageSummary.value.coreType || '')
   const isCore = computed(() => coreType.value === 'core')
   const coreTypeLabel = computed(() => ({ core: '真核心', quasi: '争核心' }[coreType.value] || '非核心'))
+  const coreMinorWan = computed(() => Number(stageSummary.value.coreMinorWan) || 50)
+  const coreMajorWan = computed(() => Number(stageSummary.value.coreMajorWan) || 100)
   const annualInvoiceAmount = computed(() => Number(stageSummary.value.annualInvoiceAmount) || 0)
   const annualPaymentAmount = computed(() => Number(stageSummary.value.annualPaymentAmount) || 0)
-  const invoiceThresholdMet = computed(() => annualInvoiceAmount.value >= 100)
-  const paymentThresholdMet = computed(() => annualPaymentAmount.value >= 100)
+  const invoiceThresholdMet = computed(() => annualInvoiceAmount.value >= coreMajorWan.value)
+  const paymentThresholdMet = computed(() => annualPaymentAmount.value >= coreMajorWan.value)
   const bothThresholdMet = computed(() => invoiceThresholdMet.value && paymentThresholdMet.value)
   const totalScore = computed(() => incentiveScore.value + (indicator.value?.relationshipScore||0))
   const expireLevel = computed(() => {
@@ -329,7 +332,7 @@ export function useCustomerDetail() {
     stageSummary, showStageDialog, stageForm, openStageDialog, handleSaveStageAmount,
     invoiceForm, paymentForm, contactForm, indicatorForm,
     avatarColor, relationshipOptions, indicatorDefs, indicatorTotal, invoiceThresholdMet,
-    paymentThresholdMet, bothThresholdMet, isCore, coreType, coreTypeLabel,
+    paymentThresholdMet, bothThresholdMet, isCore, coreType, coreTypeLabel, coreMinorWan, coreMajorWan,
     annualInvoiceAmount, annualPaymentAmount, totalScore, expireLevel, statusLabel,
     loadAll: loadAllFn, loadDicts: loadDictsFn, loadUsers: loadUsersFn, loadIncentiveRecords,
     getMainCategory, getSubCategory, parentCodeOf, detailLabelOf, isTrialRec, scoreColor,

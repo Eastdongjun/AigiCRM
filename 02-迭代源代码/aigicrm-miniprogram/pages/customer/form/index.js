@@ -114,7 +114,7 @@ Page({
     industryOptions: [], devTypeOptions: [], terminalOptions: TERMINAL_OPTIONS,
     indicatorForm: emptyIndicatorForm(), indicatorItems: buildIndicatorItems(emptyIndicatorForm()), indicatorLoaded: false, indicatorLoadFailed: false, indicatorTotal: 0,
     manualGroupLabel: MANUAL_GROUP_LABEL,
-    // 【D25 2026-10-04】核心客户门槛提示由 shared 常量拼装，wxml 不再硬编码 100 万/12 分
+    // 【2026-11-03 门槛配置化】门槛提示由 shared 单一出处(不写死数字, 门槛=系统配置)
     coreThresholdTip: CORE_THRESHOLD_TIP,
     industryIndex: -1, devTypeIndex: 0, terminalIndex: 0,
     regionIndex: -1, officeIndex: -1, ownerIndex: -1, managerIndex: -1, groupIndex: -1,

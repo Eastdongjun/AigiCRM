@@ -42,6 +42,31 @@
         <template #suffix>天</template>
       </el-input>
     </el-form-item>
+    <!-- 【2026-11-03 用户令门槛配置化】核心客户判定双门槛(万元): 管理员可改, 保存后后端自动全量刷新核心标签 -->
+    <el-form-item label="真核心门槛">
+      <div class="retention-field">
+        <el-input-number
+          v-model="coreMajorWan"
+          :min="1" :max="CORE_THRESHOLD_MAX" :step="10" :precision="0"
+          controls-position="right" style="width: 180px"
+          aria-label="真核心门槛(万元)"
+        />
+        <span class="retention-unit">万</span>
+        <span class="retention-hint">年度开票、回款均≥该值为真核心</span>
+      </div>
+    </el-form-item>
+    <el-form-item label="争核心门槛">
+      <div class="retention-field">
+        <el-input-number
+          v-model="coreMinorWan"
+          :min="1" :max="CORE_THRESHOLD_MAX" :step="10" :precision="0"
+          controls-position="right" style="width: 180px"
+          aria-label="争核心门槛(万元)"
+        />
+        <span class="retention-unit">万</span>
+        <span class="retention-hint">均≥该值未双达真核心门槛=争核心，否则非核心；保存后自动按新门槛刷新全部客户核心标签</span>
+      </div>
+    </el-form-item>
     <el-form-item label="默认存储空间">
       <el-input :model-value="storageGb" @update:model-value="onStorageGb" style="width: 300px">
         <template #suffix>GB</template>
@@ -186,6 +211,28 @@ const retentionDays = computed({
   }
 })
 
+// 【2026-11-03 门槛配置化】核心客户判定双门槛(万元, retentionDays 同款模式):
+// major=真核心门槛(默认100), minor=争核心门槛(默认50); 保存后后端按新门槛全量刷新核心标签。
+const CORE_MAJOR_KEY = 'customer.core.major.wan'
+const CORE_MINOR_KEY = 'customer.core.minor.wan'
+const CORE_THRESHOLD_MAX = 1000000
+const coreMajorWan = computed({
+  get() {
+    const n = Number(configMap[CORE_MAJOR_KEY])
+    if (!Number.isFinite(n)) return 100
+    return Math.min(CORE_THRESHOLD_MAX, Math.max(1, Math.trunc(n)))
+  },
+  set(val) { configMap[CORE_MAJOR_KEY] = String(val ?? 100) }
+})
+const coreMinorWan = computed({
+  get() {
+    const n = Number(configMap[CORE_MINOR_KEY])
+    if (!Number.isFinite(n)) return 50
+    return Math.min(CORE_THRESHOLD_MAX, Math.max(1, Math.trunc(n)))
+  },
+  set(val) { configMap[CORE_MINOR_KEY] = String(val ?? 50) }
+})
+
 const normalizeSwitchValue = (value, defaultValue = 'true') => {
   if (value === undefined || value === null || value === '') return defaultValue
   if (value === true || value === 1) return 'true'
@@ -306,6 +353,26 @@ const handleSave = async () => {
   configMap[STORAGE_MAX_QUOTA_KEY] = String(gbToBytes(maxQuotaGb))
   configMap[STORAGE_APPLY_USERS_KEY] = JSON.stringify(normalizeStorageApplyUsers(storageApplyUsers.value))
   configMap[STORAGE_APPLY_ENABLED_KEY] = storageApplyEnabled.value ? 'true' : 'false'
+  // 【2026-11-03 门槛配置化】核心客户双门槛保存前兜底校验: 1–1000000 整数且 minor ≤ major
+  // (输入控件已限制, 此处防程序化赋值/历史脏值提交; 后端 SysConfigController 同款校验双保险)
+  const coreMajor = Number(configMap[CORE_MAJOR_KEY])
+  const coreMinor = Number(configMap[CORE_MINOR_KEY])
+  if (!Number.isInteger(coreMajor) || coreMajor < 1 || coreMajor > CORE_THRESHOLD_MAX
+    || !Number.isInteger(coreMinor) || coreMinor < 1 || coreMinor > CORE_THRESHOLD_MAX) {
+    ElMessage.error(`核心客户门槛需为 1–${CORE_THRESHOLD_MAX} 的整数（万元）`)
+    return false
+  }
+  if (coreMinor > coreMajor) {
+    ElMessage.error('争核心门槛（万）不能大于真核心门槛（万）')
+    return false
+  }
+  configMap[CORE_MAJOR_KEY] = String(coreMajor)
+  configMap[CORE_MINOR_KEY] = String(coreMinor)
+  // 门槛是否变化(旧值在已加载列表里): 变化时保存成功文案提示已刷新核心标签
+  const coreThresholdChanged = [CORE_MAJOR_KEY, CORE_MINOR_KEY].some(k => {
+    const old = configs.value.find(c => c.configKey === k)
+    return String(old?.configValue ?? '') !== String(configMap[k] ?? '')
+  })
   try {
     // 客户默认共享规则:把 autoShare 序列化写回 configMap,随保存一并提交(否则该配置永不更新)
     configMap['customer.auto_share'] = JSON.stringify({
@@ -324,7 +391,7 @@ const handleSave = async () => {
       description: metaByKey[key]?.description ?? null
     }))
     await updateConfigs(updated)
-    ElMessage.success('设置已保存')
+    ElMessage.success(coreThresholdChanged ? '设置已保存，已按新门槛刷新全部客户核心标签' : '设置已保存')
     await loadConfigs()
     userStore.loadSystemConfig()
     return true

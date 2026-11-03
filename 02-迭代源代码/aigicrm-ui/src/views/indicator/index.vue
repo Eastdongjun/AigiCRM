@@ -13,12 +13,13 @@
       <div class="stat-card">
         <div class="sc-label">真核心</div>
         <div class="sc-num green">{{ data.coreCount || 0 }}</div>
-        <div class="sc-desc">年度开票、回款均≥100万</div>
+        <!-- 【2026-11-03 门槛配置化】门槛数字随接口回传(管理员可改), 不落死值 -->
+        <div class="sc-desc">年度开票、回款均≥{{ data.coreMajorWan || 100 }}万</div>
       </div>
       <div class="stat-card">
         <div class="sc-label">争核心</div>
         <div class="sc-num yellow">{{ data.quasiCount || 0 }}</div>
-        <div class="sc-desc">有阶段数据，门槛未双达标</div>
+        <div class="sc-desc">均≥{{ data.coreMinorWan || 50 }}万，未双达真核心门槛</div>
       </div>
       <div class="stat-card">
         <div class="sc-label">指标平均分</div>

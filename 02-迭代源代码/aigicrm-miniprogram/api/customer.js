@@ -48,8 +48,9 @@ function addPayment(id, data) { return request({ url: '/api/customer/' + id + '/
 function deletePayment(id, paymentId, reason) { return request({ url: '/api/customer/' + id + '/payments/' + paymentId + '?reason=' + encodeURIComponent(reason || ''), method: 'DELETE' }) }
 function getCustomerIndicator(id) { return request({ url: '/api/customer/' + id + '/indicator' }) }
 function saveCustomerIndicator(id, data) { return request({ url: '/api/customer/' + id + '/indicator', method: 'POST', data }) }
-/** 【裁决 2026-10-10】开票回款阶段总额(半年/全年录入制): 返回 { rows, baseYear, annualInvoiceAmount, annualPaymentAmount, coreType }，
- *  判定口径后端一处算好(真核心/争核心/非核心)，前端只消费不复刻 */
+/** 【裁决 2026-10-10 + 2026-11-03 双门槛配置化】开票回款阶段总额(半年/全年录入制): 返回
+ *  { rows, baseYear, annualInvoiceAmount, annualPaymentAmount, coreType, coreMinorWan, coreMajorWan }，
+ *  判定口径后端一处算好(真核心/争核心/非核心)，门槛数字一并回传(管理员可改)，前端只消费不复刻 */
 function getCustomerStageAmounts(id) { return request({ url: '/api/customer/' + id + '/stage-amounts' }) }
 function saveCustomerStageAmount(id, data) { return request({ url: '/api/customer/' + id + '/stage-amounts', method: 'POST', data }) }
 function saveCustomerRelationship(id, score) { return request({ url: '/api/customer/' + id + '/relationship', method: 'PUT', data: { score } }) }

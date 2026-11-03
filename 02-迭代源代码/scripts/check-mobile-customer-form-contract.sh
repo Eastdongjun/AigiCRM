@@ -79,10 +79,17 @@ for pattern in "INDICATOR_ITEMS" "optionsView" "className: value === score ? 'sc
   fi
 done
 
-# 【D25 锚点重钉 2026-10-05】核心客户门槛数字(100 万/100 万/12 分)由 shared 常量拼装 CORE_THRESHOLD_TIP,wxml 引用绑定
-for pattern in "CORE_INVOICE_AMOUNT_THRESHOLD = 100" "CORE_PAYMENT_AMOUNT_THRESHOLD = 100" "CORE_INDICATOR_SCORE_THRESHOLD = 12" "CORE_THRESHOLD_TIP"; do
+# 【2026-11-03 门槛配置化重钉】核心双门槛(争核心50/真核心100)改由管理员在系统配置设定,
+# MP 不再落死值: 金额门槛常量退役(反钉), 12 分客情参考线与 CORE_THRESHOLD_TIP(无数字通用文案)保留(正钉)
+for pattern in "CORE_INDICATOR_SCORE_THRESHOLD = 12" "CORE_THRESHOLD_TIP" "coreTypeLabel"; do
   if ! rg -Fq "$pattern" "$SHARED"; then
-    echo "FAIL: mobile customer core threshold constants missing in shared: $pattern"
+    echo "FAIL: mobile customer core threshold tip/label missing in shared: $pattern"
+    exit 1
+  fi
+done
+for pattern in "CORE_INVOICE_AMOUNT_THRESHOLD" "CORE_PAYMENT_AMOUNT_THRESHOLD"; do
+  if rg -Fq "$pattern" "$SHARED"; then
+    echo "FAIL: mobile shared must not hardcode amount threshold constants (config-driven since 2026-11-03): $pattern"
     exit 1
   fi
 done
