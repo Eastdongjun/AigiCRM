@@ -35,6 +35,9 @@ const permModules = computed(() => {
     'dashboard': '工作台', 'customer': '客户管理', 'file': '文件管理', 'incentive': '四项服务',
     'reminder': '提醒管理', 'sea': '公海管理', 'approval': '审批管理', 'statistics': '统计分析',
     'score': '学分管理', 'indicator': '核心客户指标', 'task': '任务管理', 'system': '系统管理',
+    // 【2026-11-03 权限中心修复】finance:*(客户财务查看/管理)与 contact:*(联系人)业务上属客户域,
+    // 但权限码前缀不在上表 → 此前掉进兜底"系统管理"组, 管理员在客户管理里找不到这两个码
+    'finance': '客户管理', 'contact': '客户管理',
   }
   const flatten = (nodes) => {
     for (const n of nodes) {
