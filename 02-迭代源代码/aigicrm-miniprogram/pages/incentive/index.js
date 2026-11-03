@@ -297,14 +297,26 @@ function buildRecordView(record) {
   }
 }
 
-function buildTabs(activeTab) {
-  return [
-    { key: 'records', label: '客户记录' },
-    { key: 'categories', label: '分类树' },
-    { key: 'stats', label: '统计' },
-    { key: 'ranking', label: '排行' },
-    { key: 'reads', label: '阅读' }
-  ].map((item) => ({
+// 【2026-11-03 用户令"查询和统计分开"】应用中心「激励查询/激励统计」两个入口不再共用同一套
+// 页签(原五 tab 同页互切=两个应用混在一页): 按入口模式锁定页签集——
+// query=客户记录/分类树/阅读(查询侧), stats=统计/排行(统计侧); 标题随模式分开
+const ALL_TABS = [
+  { key: 'records', label: '客户记录' },
+  { key: 'categories', label: '分类树' },
+  { key: 'stats', label: '统计' },
+  { key: 'ranking', label: '排行' },
+  { key: 'reads', label: '阅读' }
+]
+const TAB_SETS = {
+  query: ['records', 'categories', 'reads'],
+  stats: ['stats', 'ranking']
+}
+const TAB_MODE_DEFAULTS = { query: 'records', stats: 'stats' }
+const TAB_MODE_TITLES = { query: '激励查询', stats: '激励统计' }
+
+function buildTabs(activeTab, mode = 'query') {
+  const keys = TAB_SETS[mode] || TAB_SETS.query
+  return ALL_TABS.filter((item) => keys.indexOf(item.key) >= 0).map((item) => ({
     ...item,
     className: activeTab === item.key ? 'active' : ''
   }))
@@ -324,7 +336,9 @@ const RANK_TAB_KEYS = ['customer', 'scoreboard', 'dept']
 function buildIncentiveView(data) {
   const isLoading = Boolean(data.loading)
   const rankTab = data.rankTab || 'customer'
+  const tabMode = data.tabMode || 'query'
   return {
+    heroTitle: TAB_MODE_TITLES[tabMode] || TAB_MODE_TITLES.query,
     showRecords: data.activeTab === 'records',
     showCategories: data.activeTab === 'categories',
     showStats: data.activeTab === 'stats',
@@ -418,9 +432,11 @@ Page({
     // 【2026-11-02 应用中心拆分】初始 tab 可被 onLoad 的 ?tab= 参数覆盖(激励统计直达 stats)
     activeTab: 'records',
     tabs: buildTabs('records'),
+    tabMode: 'query', // 【2026-11-03 分开批】查询/统计入口模式(锁页签集+定标题)
     rankTab: 'customer', // 【2026-11-03 用户令】排行 tab 内三页签, 默认客户排行
     incentiveView: buildIncentiveView({
       activeTab: 'records',
+      tabMode: 'query',
       rankTab: 'customer',
       industries: INDUSTRIES,
       devTypes: DEV_TYPES,
@@ -535,11 +551,18 @@ Page({
 
   onLoad(options) {
     if (!requireLogin()) return
-    // 【2026-11-02 应用中心拆分】激励查询/激励统计直达对应 tab(?tab=records/stats/ranking)
-    if (options && options.tab && ['records', 'categories', 'stats', 'ranking', 'reads'].indexOf(options.tab) >= 0) {
-      this.setData({ tabs: buildTabs(options.tab) })
-      this._pendingTab = options.tab
-    }
+    // 【2026-11-03 用户令"查询和统计分开"】入口模式锁定页签集: ?mode=query|stats(应用中心两入口
+    // 分别带); 兼容旧 ?tab= 深链(tab∈统计侧推导 stats 模式)。tab 不属当前模式集时归位模式默认。
+    let tabMode = 'query'
+    if (options && options.mode === 'stats') tabMode = 'stats'
+    else if (options && options.mode === 'query') tabMode = 'query'
+    else if (options && ['stats', 'ranking'].indexOf(options.tab) >= 0) tabMode = 'stats'
+    const modeKeys = TAB_SETS[tabMode]
+    let initialTab = TAB_MODE_DEFAULTS[tabMode]
+    if (options && options.tab && modeKeys.indexOf(options.tab) >= 0) initialTab = options.tab
+    this._tabMode = tabMode
+    this.setData({ tabMode, activeTab: initialTab, tabs: buildTabs(initialTab, tabMode) })
+    wx.setNavigationBarTitle({ title: TAB_MODE_TITLES[tabMode] })
     this.setData({ apiBase: (getApp().globalData && getApp().globalData.apiBaseUrl) || '' })
     if (!getApp().globalData.demoMode && !hasPermission('incentive:view')) {
       wx.showToast({ title: '没有四项服务查看权限', icon: 'none' })
@@ -564,12 +587,7 @@ Page({
     this.loadScoreboard()
     this.loadReadStats()
     this.loadReadRanking()
-    // 【2026-11-02 应用中心拆分】onLoad 尾段把 ?tab= 参数落定(不覆盖则默认 records)
-    if (this._pendingTab) {
-      const tab = this._pendingTab
-      this._pendingTab = null
-      this.setData({ activeTab: tab, tabs: buildTabs(tab) }, () => this.refreshIncentiveView())
-    }
+    // 【2026-11-03 分开批】初始 tab/页签集已在 onLoad 头部落定(带模式), 原 _pendingTab 尾段机制移除
     this._loadedOnce = true
   },
 
@@ -1200,7 +1218,7 @@ Page({
 
   switchTab(e) {
     const activeTab = e.currentTarget.dataset.key || 'records'
-    this.setData({ activeTab, tabs: buildTabs(activeTab) }, () => this.refreshIncentiveView())
+    this.setData({ activeTab, tabs: buildTabs(activeTab, this._tabMode || 'query') }, () => this.refreshIncentiveView())
     // 【分页 2026-10-18】切回列表 tab 时回第 1 页, 避免停留在旧页码
     if (activeTab === 'records') this.applyPaging(1)
   },

@@ -4,7 +4,7 @@
        (应用中心 ap-hero/轻量页 hm-bar 同款语言): 左标题+右刷新/上传小胶囊; 副标题与
        上传说明文字随压缩移除, 上传入口(incentive:add 门控)与刷新功能原样保留 -->
   <view class="hero workbench-hero">
-    <view class="workbench-hero-title">四项服务应用</view>
+    <view class="workbench-hero-title">{{incentiveView.heroTitle}}</view>
     <view class="workbench-hero-actions">
       <button class="hero-bar-btn ghost" bindtap="refresh" loading="{{incentiveView.refreshLoading}}">{{incentiveView.refreshText}}</button>
       <button wx:if="{{canUploadEvidence}}" class="hero-bar-btn solid" bindtap="goUpload">＋ 上传</button>

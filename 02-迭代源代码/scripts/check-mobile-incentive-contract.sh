@@ -575,8 +575,13 @@ grep -q '"navigationBarTitleText":"四项服务"' "$home_json" || { echo "FAIL: 
 ! grep -q 'pages/incentive/customer-detail' "$ROOT/aigicrm-miniprogram/pages/incentive/home/index.js" || { echo "FAIL: lightweight home must not navigate into the archive customer-detail (2026-10-23 用户令: 不进档案界面)" >&2; exit 1; }
 # 【2026-11-02 用户令·应用中心菜单对齐 PC】三个入口=激励上传/激励查询/激励统计(与 PC 菜单同构):
 # 激励查询→?tab=records, 激励统计→?tab=stats, 激励上传→upload 页
-grep -q "incentiveQuery: '/pages/incentive/index?tab=records'" "$ROOT/aigicrm-miniprogram/pages/app/index.js" || { echo "FAIL: app center 激励查询 entry must route to records tab" >&2; exit 1; }
-grep -q "incentiveStats: '/pages/incentive/index?tab=stats'" "$ROOT/aigicrm-miniprogram/pages/app/index.js" || { echo "FAIL: app center 激励统计 entry must route to stats tab" >&2; exit 1; }
+# 【2026-11-03 用户令"查询和统计分开"】两入口带 mode 各锁页签集, 不得退回同页五 tab 互切
+grep -q "incentiveQuery: '/pages/incentive/index?mode=query'" "$ROOT/aigicrm-miniprogram/pages/app/index.js" || { echo "FAIL: app center 激励查询 entry must route with mode=query (split from stats)" >&2; exit 1; }
+grep -q "incentiveStats: '/pages/incentive/index?mode=stats'" "$ROOT/aigicrm-miniprogram/pages/app/index.js" || { echo "FAIL: app center 激励统计 entry must route with mode=stats (split from query)" >&2; exit 1; }
+grep -q 'TAB_SETS' "$ROOT/aigicrm-miniprogram/pages/incentive/index.js" || { echo "FAIL: incentive workbench must lock tab sets per mode" >&2; exit 1; }
+grep -q "TAB_MODE_TITLES = { query: '激励查询', stats: '激励统计' }" "$ROOT/aigicrm-miniprogram/pages/incentive/index.js" || { echo "FAIL: incentive workbench titles must split per mode" >&2; exit 1; }
+grep -q 'incentiveView.heroTitle' "$ROOT/aigicrm-miniprogram/pages/incentive/index.wxml" || { echo "FAIL: incentive hero title must follow entry mode" >&2; exit 1; }
+grep -q 'setNavigationBarTitle' "$ROOT/aigicrm-miniprogram/pages/incentive/index.js" || { echo "FAIL: incentive nav title must be set per mode" >&2; exit 1; }
 grep -q "title: '激励上传'" "$ROOT/aigicrm-miniprogram/pages/app/index.js" || { echo "FAIL: app center must name upload entry 激励上传" >&2; exit 1; }
 grep -q "title: '激励查询'" "$ROOT/aigicrm-miniprogram/pages/app/index.js" || { echo "FAIL: app center must name query entry 激励查询" >&2; exit 1; }
 grep -q "title: '激励统计'" "$ROOT/aigicrm-miniprogram/pages/app/index.js" || { echo "FAIL: app center must name stats entry 激励统计" >&2; exit 1; }
