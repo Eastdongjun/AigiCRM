@@ -78,8 +78,8 @@
                 </el-select>
                 <span v-if="anchorOf(item) === recommendedAnchorOf(item)" class="psm-rec" title="推荐锚点（未手选时自动按此保存）">荐</span>
               </template>
-              <span v-else class="psm-na" :title="'该权限的数据范围由' + scopeOwnerOf(item) + '控制，这里只配置功能开关'">
-                跟随: {{ scopeOwnerOf(item) }}
+              <span v-else class="psm-na" :title="'该权限的数据范围' + scopeOwnerOf(item) + '，这里只配置功能开关'">
+                {{ scopeOwnerOf(item) }}
               </span>
             </div>
           </div>
@@ -192,7 +192,7 @@ const SCOPE_OWNER_HINTS = {
   score: '学分规则',
 }
 const isScopeDriven = (item) => scopeTargetOf(item.permission) !== null
-const scopeOwnerOf = (item) => SCOPE_OWNER_HINTS[(item.permission || '').split(':')[0]] || '模块自身规则'
+const scopeOwnerOf = (item) => SCOPE_OWNER_HINTS[(item.permission || '').split(':')[0]] || '由模块自身规则控制'
 
 // 后端配置以 (module, action) 为键; system:log:view 读写的都是 (system, view)
 const scopeKeyOf = (permission) => {
