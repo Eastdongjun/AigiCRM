@@ -17,6 +17,7 @@
 | `contact:view` | 客户联系人查看 | 3 | `NULL` | 启用 | 系统管理员 |
 | `customer:add` | 客户新增 / 新增客户 | 2 / 3 | ` / /customer/add` | 启用 | 系统管理员,行政,销售员,销售总监 |
 | `customer:date:edit` | 修改客户保护日期 | 3 | `NULL` | 启用 | 系统管理员,行政,销售员,销售总监 |
+| `customer:finance:edit` | 开票回款编辑(2026-11-03 拆码, 独立数据范围 customer×finance_edit) | 3 | `NULL` | 启用 | — |
 | `customer:delete` | 客户删除 | 3 | `` | 启用 | 系统管理员,行政,销售员,销售总监 |
 | `customer:edit` | 客户编辑 | 3 | `` | 启用 | 系统管理员,行政,销售员,销售总监 |
 | `customer:export` | 客户导出 | 3 | `` | 启用 | 系统管理员,行政,销售员,销售总监 |
@@ -104,6 +105,7 @@
 | `contact:view` | ✅ |   |   |   |
 | `customer:add` | ✅ | ✅ | ✅ | ✅ |
 | `customer:date:edit` | ✅ | ✅ | ✅ | ✅ |
+| `customer:finance:edit` |   |   |   |   |
 | `customer:delete` | ✅ | ✅ | ✅ | ✅ |
 | `customer:edit` | ✅ | ✅ | ✅ | ✅ |
 | `customer:export` | ✅ | ✅ | ✅ | ✅ |

@@ -188,20 +188,22 @@ public class PermissionMatrixTest {
                         + " 处——守卫缺失, 权限将无兜底");
     }
 
-    /** 财务写入端点必须同时要求客户编辑权限与财务查看权限，避免绕过财务页签可见性直接写入。 */
+    /** 财务写入端点三通道口径(钉随 2026-11-03 拆码裁决):
+     *  ①finance:manage 财务代录全通 ②customer:finance:edit 独立财务编辑码(带自己的数据范围)
+     *  ③customer:edit∧finance:view 旧通道(整卡编辑范围)——三通道任一命中, 再过行级对象守卫。 */
     @Test
     void customerFinanceMutationEndpoints_requireCustomerEditAndFinanceView() throws Exception {
         Class<com.aigicrm.module.customer.controller.CustomerController> controller =
                 com.aigicrm.module.customer.controller.CustomerController.class;
 
         assertPreAuthorize(controller.getDeclaredMethod("addInvoice", Long.class, com.aigicrm.module.customer.entity.BizInvoice.class),
-                "hasAuthority('finance:manage') or (hasAuthority('customer:edit') and hasAuthority('finance:view'))");
+                "hasAuthority('finance:manage') or hasAuthority('customer:finance:edit') or (hasAuthority('customer:edit') and hasAuthority('finance:view'))");
         assertPreAuthorize(controller.getDeclaredMethod("deleteInvoice", Long.class, Long.class, String.class),
-                "hasAuthority('finance:manage') or (hasAuthority('customer:edit') and hasAuthority('finance:view'))");
+                "hasAuthority('finance:manage') or hasAuthority('customer:finance:edit') or (hasAuthority('customer:edit') and hasAuthority('finance:view'))");
         assertPreAuthorize(controller.getDeclaredMethod("addPayment", Long.class, com.aigicrm.module.customer.entity.BizPayment.class),
-                "hasAuthority('finance:manage') or (hasAuthority('customer:edit') and hasAuthority('finance:view'))");
+                "hasAuthority('finance:manage') or hasAuthority('customer:finance:edit') or (hasAuthority('customer:edit') and hasAuthority('finance:view'))");
         assertPreAuthorize(controller.getDeclaredMethod("deletePayment", Long.class, Long.class, String.class),
-                "hasAuthority('finance:manage') or (hasAuthority('customer:edit') and hasAuthority('finance:view'))");
+                "hasAuthority('finance:manage') or hasAuthority('customer:finance:edit') or (hasAuthority('customer:edit') and hasAuthority('finance:view'))");
     }
 
     /** 客户分享的产品口径：读取共享列表用 customer:view，新增/撤回共享沿用 customer:edit；

@@ -29,7 +29,7 @@
       <div class="ps-body">
         <div class="ps-tip">
           每格 = <b>功能</b>(勾选=能做什么) + <b>范围</b>(下拉=对谁的数据) + <b>锚点</b>(按人/按组织)
-          · 未配置默认: 查看=角色数据范围, 编辑/删除=仅本人, 锚点=按人
+          · 范围未配置默认: 查看=角色数据范围, 编辑/删除/财务=仅本人; 锚点未配置按推荐保存: <b>查看类=按组织(看部门盘子), 编辑类=按人(跟负责人走)</b>
           · 仅后端真实消费的权限项显示范围列；其余权限码隐藏控件并标注实际控制面（如文件夹权限/激励授权面板）
           <!-- 【2026-09-13】只读角色（无 system:config:edit）不再显示可操作控件：此前能改下拉，
                保存时才被后端 403，属"界面已改、实际没变"的误导 -->
@@ -84,7 +84,7 @@
 
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { usePermissionData } from '@/composables/usePermissionData'
 import { useUserStore } from '@/store/user'
 import {
@@ -102,15 +102,15 @@ const current = ref('')
 const modules = computed(() => permModules.value)
 const curModule = computed(() => modules.value.find(m => m.name === current.value))
 
-// 【2026-10-17】七档与角色/人员表单一致（含 custom 自定义组织）
+// 【2026-11-03 权限中心】七档标签层级化(对齐 总部→大区→办事处→部门→团队→个人 的组织阶梯)
 const scopeOptions = [
-  { value: 'all', label: '全部' },
-  { value: 'custom', label: '自定义组织' },
+  { value: 'all', label: '全部(总部级)' },
   { value: 'region', label: '本大区及以下' },
   { value: 'office', label: '本办事处及以下' },
   { value: 'dept', label: '本部门及以下' },
   { value: 'team', label: '本人及下级' },
   { value: 'self', label: '仅本人' },
+  { value: 'custom', label: '自定义组织' },
 ]
 
 // 主体三级: ROLE(角色矩阵) / POSITION / USER
@@ -140,6 +140,8 @@ const PERMISSION_SCOPE_TARGETS = Object.freeze({
   'customer:view': { module: 'customer', action: 'view' },
   'customer:edit': { module: 'customer', action: 'edit' },
   'customer:delete': { module: 'customer', action: 'delete' },
+  // 【2026-11-03 拆码】开票回款编辑带独立数据范围(行政管大区财务不碰客户资料的正解)
+  'customer:finance:edit': { module: 'customer', action: 'finance_edit' },
   'incentive:view': { module: 'incentive', action: 'view' },
   'file:view': { module: 'file', action: 'view' },
   'reminder:view': { module: 'reminder', action: 'view' },
@@ -178,7 +180,13 @@ const scopeKeyOf = (permission) => {
   return target ? `${target.module}:${target.action}` : permission
 }
 const scopeOf = (col, item) => scopeMap.value[col.key]?.[scopeKeyOf(item.permission)]?.scope || 'self'
-const anchorOf = (col, item) => scopeMap.value[col.key]?.[scopeKeyOf(item.permission)]?.anchor || 'OWNER'
+// 【2026-11-03 权限中心·锚点推荐】未显式配置的格子在界面与保存时都按推荐锚点走:
+// 查看/统计类=按组织(看部门盘子), 编辑/删除/财务类=按人(跟负责人走)——存量已配置项不受影响。
+const recommendedAnchorOf = (item) => {
+  const action = scopeTargetOf(item.permission)?.action || ''
+  return action === 'view' ? 'ORG' : 'OWNER'
+}
+const anchorOf = (col, item) => scopeMap.value[col.key]?.[scopeKeyOf(item.permission)]?.anchor || recommendedAnchorOf(item)
 
 // 【2026-10-17】编辑门禁与后端对齐：PUT 需 system:config:edit（@PreAuthorize）且 requireAdmin()
 // 仅系统管理员可写；非 admin 即使持 config:edit 也只读，避免"界面已改、实际 403"的假成功。
@@ -198,21 +206,32 @@ const loadScopesFor = async (assigneeType, assigneeKey) => {
   } catch {}
 }
 
-const saveScope = async (col, item, scopeLevel, anchor = anchorOf(col, item)) => {
+const saveScope = async (col, item, scopeLevel, anchor) => {
   if (!canEditScope.value) { ElMessage.warning('无权限修改权限范围（需系统管理员 + system:config:edit）'); return }
   // 未接入显式映射的权限码不写死配置（如 system:user:add / sea:config / customer:date）
   const target = scopeTargetOf(item.permission)
   if (!target) { ElMessage.warning('该权限项未接入数据范围配置'); return }
+  // 【锚点推荐】未显式选择锚点(切换范围)时按推荐: 查看类=按组织, 编辑/删除/财务类=按人
+  const finalAnchor = anchor || scopeMap.value[col.key]?.[scopeKeyOf(item.permission)]?.anchor || recommendedAnchorOf(item)
   const key = col.key
   const entryKey = scopeKeyOf(item.permission)
   const [type, assigneeKey] = key.split(':')
   const prev = scopeMap.value[key]?.[entryKey] || { scope: 'self', anchor: 'OWNER' }
-  scopeMap.value[key] = { ...(scopeMap.value[key] || {}), [entryKey]: { scope: scopeLevel, anchor } }
+  // 【危险组合警示】删除类×全部数据 = 全公司删除权, 保存前二次确认
+  if (scopeLevel === 'all' && /delete|finance/.test(target.action)) {
+    try {
+      await ElMessageBox.confirm(
+        `正在授予「${col.label} · ${item.label} = 全部(总部级)」——这是全公司范围的高危组合，确认继续？`,
+        '高危授权确认', { type: 'warning', confirmButtonText: '确认授予', cancelButtonText: '取消' }
+      )
+    } catch { return }
+  }
+  scopeMap.value[key] = { ...(scopeMap.value[key] || {}), [entryKey]: { scope: scopeLevel, anchor: finalAnchor } }
   try {
-    const cfg = [{ module: target.module, action: target.action, scopeLevel, anchor }]
+    const cfg = [{ module: target.module, action: target.action, scopeLevel, anchor: finalAnchor }]
     if (type === 'ROLE') await updateRolePermScopes(assigneeKey, cfg)
     else await updateAssigneePermScopes(type, assigneeKey, cfg)
-    ElMessage.success(`${col.label} · ${item.label} 范围 → ${scopeOptions.find(o => o.value === scopeLevel)?.label}(${anchor === 'ORG' ? '按组织' : '按人'})`)
+    ElMessage.success(`${col.label} · ${item.label} 范围 → ${scopeOptions.find(o => o.value === scopeLevel)?.label}(${finalAnchor === 'ORG' ? '按组织' : '按人'})`)
   } catch (e) {
     scopeMap.value[key] = { ...(scopeMap.value[key] || {}), [entryKey]: prev }
     ElMessage.error('范围保存失败')

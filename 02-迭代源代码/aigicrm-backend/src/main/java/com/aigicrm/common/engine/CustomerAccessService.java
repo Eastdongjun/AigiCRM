@@ -189,13 +189,35 @@ public class CustomerAccessService {
      * 要求 finance:manage 或 (customer:edit+finance:view),这里只放宽对象归属维度。
      * 【审查 backend-4 2026-10-18】权限码放行前必须先过客户存在/未删/同集团校验——
      * 否则代录可对任意 id（含已删/他集团）落发票回款，并把孤儿数据写进台账。
+     * 【2026-11-03 用户裁决拆码】新增独立通道 customer:finance:edit(开票回款编辑):
+     * 带自己的数据范围(role_perm_scope customer×finance_edit, 未配置默认 OWNER/self),
+     * 行政场景正解=勾该码+范围大区, 不再借道 customer:edit 获得整卡编辑权;
+     * 旧两支(finance:manage 全通 / customer:edit∧编辑范围)原样保留, 三通道任一命中即放行。
      */
     public void assertCanManageFinance(Long customerId) {
         assertFinanceCustomerWritable(customerId);
         if (SecurityUtils.hasAuthority("finance:manage")) {
             return;
         }
+        if (SecurityUtils.hasAuthority("customer:finance:edit") && canFinanceEdit(customerId)) {
+            return;
+        }
         assertCanEdit(customerId);
+    }
+
+    /**
+     * 【2026-11-03 拆码】customer:finance:edit 的对象级判定(与 canEdit 同构, 仅码与范围 action 不同):
+     * 池内客户=功能码 ∧ 池 PERM_EDIT; 非池客户=统一层 finance_edit 范围判定(锚点未配置默认按人)。
+     */
+    private boolean canFinanceEdit(Long customerId) {
+        BizCustomer customer = customerMapper.selectById(customerId);
+        if (customer == null) return false;
+        com.aigicrm.module.sea.entity.BizSeaPool pool = findActivePool(customerId);
+        if (pool != null && pool.getPoolId() != null) {
+            return seaConfigService.hasPoolPerm(pool.getPoolId(), com.aigicrm.module.sea.service.SeaConfigService.PERM_EDIT,
+                    SecurityUtils.getCurrentUser());
+        }
+        return canAccessCustomer(SecurityUtils.getCurrentUser(), "finance_edit", customer);
     }
 
     /**

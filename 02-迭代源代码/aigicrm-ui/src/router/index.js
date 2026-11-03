@@ -233,6 +233,14 @@ const routes = [
         component: () => import('@/views/system/config.vue'),
         meta: { title: '系统设置', icon: 'Tools', permission: 'system:config:view' }
       },
+      // 【统一权限配置中心 2026-11-03】门面统一+收口单入口: 功能勾选/数据范围锚点/公海名单/激励授权
+      // 全部聚合于此; 原系统设置"权限体系/权限管理"两 Tab 与角色管理的功能勾选弹窗收口(菜单由迁移 seed)
+      {
+        path: 'system/perm-center',
+        name: 'PermCenter',
+        component: () => import('@/views/system/PermCenter.vue'),
+        meta: { title: '权限中心', icon: 'Lock', permission: 'system:config:view' }
+      },
       {
         path: 'system/log',
         name: 'SystemLog',

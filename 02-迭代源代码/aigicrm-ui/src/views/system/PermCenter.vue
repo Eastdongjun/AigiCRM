@@ -1,0 +1,230 @@
+<template>
+  <div class="perm-center">
+    <!-- 【2026-11-03 用户裁决"门面统一+收口单入口"】全系统权限配置唯一可写入口:
+         ①功能与范围(角色/岗位/用户×功能勾选×范围锚点) ②专项权限(公海名单/激励授权)
+         ③生效预览(引擎实时算任意人的真实权限) ④变更审计(append-only 时间线)。 -->
+    <div class="pc-header">
+      <div>
+        <h3 class="pc-title">权限中心</h3>
+        <p class="pc-sub">功能勾选 · 数据范围与锚点 · 公海名单 · 激励授权 —— 唯一配置入口，保存即生效（用户刷新页面即可见）</p>
+      </div>
+    </div>
+
+    <el-tabs v-model="activePane" class="pc-tabs">
+      <!-- ===== ① 功能与范围: 原"权限体系/权限管理"两 Tab 合一(锚点按推荐, 范围层级化) ===== -->
+      <el-tab-pane label="功能与范围" name="scope">
+        <PermScopeManager />
+      </el-tab-pane>
+
+      <!-- ===== ② 专项权限: 公海池名单(按角色引用) + 激励授权(按角色批量), 从系统设置收编 ===== -->
+      <el-tab-pane label="专项权限" name="special" lazy>
+        <div class="pc-sec">
+          <div class="pc-sec-head">公海池名单<span class="pc-sec-hint">查看 / 编辑 / 删除 / 导入 / 捞取 · 名单可勾部门/人员/角色（勾角色=成员自动获得，换届免改）</span></div>
+          <SeaConfigManager />
+        </div>
+        <div class="pc-sec" style="margin-top:20px">
+          <div class="pc-sec-head">
+            激励专项授权
+            <span class="pc-sec-hint">查看分享 / 查看全部 / 编辑他人 / 删除他人 · 支持按角色批量（如"全员互看"= 勾三个角色）</span>
+            <el-button v-if="canEdit" type="primary" size="small" style="margin-left:auto" @click="openPermDialog">添加授权</el-button>
+          </div>
+          <el-table :data="permList" size="small" style="width:100%">
+            <el-table-column prop="realName" label="人员" min-width="140">
+              <template #default="scope">
+                {{ scope?.row?.realName }} <span class="pc-muted">({{ scope?.row?.username }})</span>
+                <span class="pc-muted"> · {{ scope?.row?.officeName || '—' }}</span>
+              </template>
+            </el-table-column>
+            <el-table-column label="专项权限" min-width="220">
+              <template #default="scope">
+                <el-tag v-if="scope?.row?.canViewShared" size="small" type="info" class="pc-pill">已分享</el-tag>
+                <el-tag v-if="scope?.row?.canViewAll" size="small" type="success" class="pc-pill">全部</el-tag>
+                <el-tag v-if="scope?.row?.canEdit" size="small" type="warning" class="pc-pill">编辑</el-tag>
+                <el-tag v-if="scope?.row?.canDelete" size="small" type="danger" class="pc-pill">删除</el-tag>
+                <span v-if="!scope?.row?.canViewShared && !scope?.row?.canViewAll && !scope?.row?.canEdit && !scope?.row?.canDelete" class="pc-muted">仅本人</span>
+              </template>
+            </el-table-column>
+            <el-table-column label="操作" width="80" align="center">
+              <template #default="scope">
+                <el-button v-if="canEdit" link type="danger" size="small" @click="revokePerm(scope?.row?.id)">撤销</el-button>
+              </template>
+            </el-table-column>
+          </el-table>
+          <el-empty v-if="!permList.length" description="暂无授权人员，点击「添加授权」配置" :image-size="64" />
+        </div>
+        <PermGrantDialog />
+      </el-tab-pane>
+
+      <!-- ===== ③ 生效预览: 搜任意人 → 引擎实时算出其真实拥有的一切 ===== -->
+      <el-tab-pane label="生效预览" name="preview" lazy>
+        <div class="pc-preview-bar">
+          <el-select v-model="previewUserId" filterable remote :remote-method="searchPreviewUsers" :loading="userSearching"
+                     placeholder="输入姓名 / 账号搜索，选人后实时计算其真实权限" style="width:320px" @change="changePreviewUser" @focus="searchPreviewUsers('')">
+            <el-option v-for="u in previewUserOptions" :key="u.id" :label="`${u.realName}（${u.username}）`" :value="u.id" />
+          </el-select>
+          <span class="pc-sec-hint">预览=与真实请求同一套引擎判定；数字为范围口径（可见客户数不含运行时规则条件）</span>
+        </div>
+        <div v-if="previewLoading" v-loading="true" class="pc-preview-body" style="min-height:200px" />
+        <div v-else-if="preview" class="pc-preview-body">
+          <div class="pc-user-card">
+            <b class="pc-user-name">{{ preview.user.realName }}</b>
+            <span class="pc-muted">（{{ preview.user.username }}）</span>
+            <el-tag size="small" type="info" class="pc-pill">{{ (preview.user.roleCodes || []).join(' / ') || '无角色' }}</el-tag>
+            <el-tag size="small" class="pc-pill">数据范围: {{ preview.user.dataScope }}</el-tag>
+            <el-tag v-if="preview.user.admin" size="small" type="danger" class="pc-pill">系统管理员(全通)</el-tag>
+            <el-tag size="small" type="success" class="pc-pill">功能码 {{ (preview.permissions || []).length }} 项</el-tag>
+          </div>
+          <el-table :data="preview.scopes" size="small" border style="width:100%">
+            <el-table-column prop="label" label="权限范围" min-width="150" />
+            <el-table-column prop="scope" label="生效范围" min-width="110">
+              <template #default="scope"><code class="pc-code">{{ scope?.row?.scope }}</code></template>
+            </el-table-column>
+            <el-table-column label="锚点" width="90">
+              <template #default="scope">{{ scope?.row?.anchor === 'ORG' ? '按组织' : '按人' }}</template>
+            </el-table-column>
+            <el-table-column label="可见人数" width="100">
+              <template #default="scope">
+                <span v-if="scope?.row?.visibleUserCount === -1">全部</span>
+                <span v-else>{{ scope?.row?.visibleUserCount }} 人</span>
+              </template>
+            </el-table-column>
+            <el-table-column label="可见部门" width="90">
+              <template #default="scope">{{ scope?.row?.visibleDeptCount != null ? scope?.row?.visibleDeptCount + ' 个' : '—' }}</template>
+            </el-table-column>
+            <el-table-column label="可见客户" width="110">
+              <template #default="scope">
+                <b v-if="scope?.row?.visibleCustomerCount != null" class="pc-hl">{{ scope?.row?.visibleCustomerCount }} 户</b>
+                <span v-else class="pc-muted">—</span>
+              </template>
+            </el-table-column>
+          </el-table>
+          <div class="pc-mini-sec">公海池判定</div>
+          <div class="pc-chips">
+            <span v-for="p in preview.seaPools" :key="p.poolId" class="pc-pool-chip">
+              {{ p.poolName }}<template v-if="p.status !== 1">（禁用）</template>：
+              <el-tag v-if="p.view" size="small" class="pc-pill">看</el-tag>
+              <el-tag v-if="p.edit" size="small" type="warning" class="pc-pill">编</el-tag>
+              <el-tag v-if="p.delete" size="small" type="danger" class="pc-pill">删</el-tag>
+              <el-tag v-if="p.claim" size="small" type="success" class="pc-pill">捞</el-tag>
+              <span v-if="!p.view && !p.edit && !p.delete && !p.claim" class="pc-muted">无权限</span>
+            </span>
+          </div>
+          <div class="pc-mini-sec">四项服务专项授权</div>
+          <div class="pc-chips">
+            <el-tag :type="preview.incentive.canViewShared ? 'info' : 'danger'" size="small" class="pc-pill">查看分享: {{ preview.incentive.canViewShared ? '开' : '关' }}</el-tag>
+            <el-tag :type="preview.incentive.canViewAll ? 'success' : 'info'" size="small" class="pc-pill">查看全部: {{ preview.incentive.canViewAll ? '开' : '关' }}</el-tag>
+            <el-tag :type="preview.incentive.canEdit ? 'warning' : 'info'" size="small" class="pc-pill">编辑他人: {{ preview.incentive.canEdit ? '开' : '关' }}</el-tag>
+            <el-tag :type="preview.incentive.canDelete ? 'danger' : 'info'" size="small" class="pc-pill">删除他人: {{ preview.incentive.canDelete ? '开' : '关' }}</el-tag>
+          </div>
+        </div>
+        <el-empty v-else description="搜索并选择一个人，实时查看 TA 的全部真实权限" :image-size="80" />
+      </el-tab-pane>
+
+      <!-- ===== ④ 变更审计: 范围/锚点/激励授权/系统配置 全量 append-only 时间线 ===== -->
+      <el-tab-pane label="变更审计" name="audit" lazy>
+        <el-table :data="auditRecords" size="small" border style="width:100%">
+          <el-table-column prop="createdAt" label="时间" width="170" />
+          <el-table-column prop="ruleKey" label="配置项" min-width="240">
+            <template #default="scope"><code class="pc-code">{{ scope?.row?.ruleKey }}</code></template>
+          </el-table-column>
+          <el-table-column prop="oldValue" label="旧值" min-width="130" />
+          <el-table-column prop="newValue" label="新值" min-width="130" />
+          <el-table-column prop="operatorName" label="操作人" width="110" />
+        </el-table>
+        <el-pagination v-if="auditTotal > auditSize" v-model:current-page="auditPage" :page-size="auditSize" :total="auditTotal"
+                       layout="prev, pager, next, total" style="margin-top:12px;justify-content:flex-end" @current-change="loadAudit" />
+      </el-tab-pane>
+    </el-tabs>
+  </div>
+</template>
+
+<script setup>
+import { ref, computed, onMounted } from 'vue'
+import PermScopeManager from './PermScopeManager.vue'
+import SeaConfigManager from './SeaConfigManager.vue'
+import PermGrantDialog from './PermGrantDialog.vue'
+import { usePermissionData } from '@/composables/usePermissionData'
+import { useUserStore } from '@/store/user'
+import { getUserList, getPermCenterPreview, getRuleVersions } from '@/api/system'
+
+const userStore = useUserStore()
+const canEdit = computed(() => userStore.isAdmin() && userStore.hasPermission('system:config:edit'))
+
+const activePane = ref('scope')
+
+// ---- 页签②: 激励专项授权(从系统设置 CategoryManager 收编, 复用共享 composable 单例) ----
+const { permList, loadPermList, openPermDialog, revokePerm } = usePermissionData()
+
+// ---- 页签③: 生效预览 ----
+const previewUserId = ref(null)
+const previewUserOptions = ref([])
+const userSearching = ref(false)
+const preview = ref(null)
+const previewLoading = ref(false)
+
+const searchPreviewUsers = async (query) => {
+  userSearching.value = true
+  try {
+    const res = await getUserList({ current: 1, size: 20, keyword: query || undefined })
+    previewUserOptions.value = res.data?.records || []
+  } catch (e) { /* 检索失败保留现有选项 */ }
+  userSearching.value = false
+}
+
+const loadPreview = async () => {
+  if (!previewUserId.value) { preview.value = null; return }
+  previewLoading.value = true
+  try {
+    preview.value = (await getPermCenterPreview(previewUserId.value)).data
+  } catch (e) { preview.value = null }
+  previewLoading.value = false
+}
+
+// 换人=全新预览(清旧结果再拉, 避免残留上一人的判定闪现)
+const changePreviewUser = () => {
+  preview.value = null
+  loadPreview()
+}
+
+// ---- 页签④: 变更审计(sys_rule_version append-only) ----
+const auditRecords = ref([])
+const auditPage = ref(1)
+const auditSize = 20
+const auditTotal = ref(0)
+const loadAudit = async () => {
+  try {
+    const res = await getRuleVersions({ current: auditPage.value, size: auditSize })
+    auditRecords.value = (res.data?.records || []).map(r => ({
+      createdAt: String(r.createdAt || r.created_at || '').replace('T', ' ').slice(0, 19),
+      ruleKey: r.ruleKey || r.rule_key,
+      oldValue: r.oldValue || r.old_value || '—',
+      newValue: r.newValue || r.new_value || '—',
+      operatorName: r.operatorName || r.operator_name || '—'
+    }))
+    auditTotal.value = Number(res.data?.total) || 0
+  } catch (e) { auditRecords.value = [] }
+}
+
+onMounted(() => { loadPermList() })
+</script>
+
+<style scoped>
+.perm-center { padding: 4px 0 16px; }
+.pc-header { margin-bottom: 8px; }
+.pc-title { font-size: 18px; font-weight: 700; color: #1f2d3d; margin: 0 0 4px; }
+.pc-sub { font-size: 12px; color: var(--el-color-info); margin: 0; }
+.pc-sec { margin-top: 6px; }
+.pc-sec-head { display: flex; align-items: center; gap: 10px; font-size: 14px; font-weight: 600; color: #1f2d3d; margin-bottom: 10px; }
+.pc-sec-hint { font-size: 12px; font-weight: 400; color: var(--el-color-info); }
+.pc-muted { color: var(--el-color-info); font-size: 12px; }
+.pc-pill { margin-right: 4px; }
+.pc-preview-bar { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+.pc-preview-body { display: flex; flex-direction: column; gap: 12px; }
+.pc-user-card { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 10px 12px; background: var(--el-color-primary-light-9); border-radius: 8px; }
+.pc-user-name { font-size: 15px; }
+.pc-mini-sec { font-size: 13px; font-weight: 600; color: #4e5969; margin-top: 4px; }
+.pc-chips { display: flex; flex-wrap: wrap; gap: 10px; }
+.pc-pool-chip { font-size: 13px; color: #4e5969; }
+.pc-code { background: #f4f4f5; padding: 1px 6px; border-radius: 4px; font-size: 12px; }
+.pc-hl { color: var(--el-color-primary); font-size: 14px; }
+</style>

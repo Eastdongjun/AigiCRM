@@ -31,7 +31,8 @@ class RolePermScopeServiceTest {
         JdbcTemplate jdbc = mock(JdbcTemplate.class);
         when(jdbc.queryForList(contains("scope_level"), eq(String.class), eq("admin"), eq("customer"), eq("view")))
                 .thenReturn(List.of());
-        RolePermScopeService svc = new RolePermScopeService(jdbc, mock(com.aigicrm.security.PermissionCacheService.class));
+        RolePermScopeService svc = new RolePermScopeService(jdbc, mock(com.aigicrm.security.PermissionCacheService.class),
+                mock(com.aigicrm.module.system.mapper.SysRuleVersionMapper.class));
         assertEquals(List.of("dept"), svc.effectiveScopes(user("admin"), "customer", "view"),
                 "查看未配置范围 → 沿用角色 data_scope");
     }
@@ -41,7 +42,8 @@ class RolePermScopeServiceTest {
         JdbcTemplate jdbc = mock(JdbcTemplate.class);
         when(jdbc.queryForList(contains("scope_level"), eq(String.class), eq("admin"), eq("customer"), eq("edit")))
                 .thenReturn(List.of());
-        RolePermScopeService svc = new RolePermScopeService(jdbc, mock(com.aigicrm.security.PermissionCacheService.class));
+        RolePermScopeService svc = new RolePermScopeService(jdbc, mock(com.aigicrm.security.PermissionCacheService.class),
+                mock(com.aigicrm.module.system.mapper.SysRuleVersionMapper.class));
         assertEquals(List.of("self"), svc.effectiveScopes(user("admin"), "customer", "edit"),
                 "编辑未配置范围 → 默认仅本人(兼容现状)");
     }
@@ -51,7 +53,8 @@ class RolePermScopeServiceTest {
         JdbcTemplate jdbc = mock(JdbcTemplate.class);
         when(jdbc.queryForList(contains("scope_level"), eq(String.class), eq("xingzheng"), eq("customer"), eq("delete")))
                 .thenReturn(List.of("dept"));
-        RolePermScopeService svc = new RolePermScopeService(jdbc, mock(com.aigicrm.security.PermissionCacheService.class));
+        RolePermScopeService svc = new RolePermScopeService(jdbc, mock(com.aigicrm.security.PermissionCacheService.class),
+                mock(com.aigicrm.module.system.mapper.SysRuleVersionMapper.class));
         assertEquals(List.of("dept"), svc.effectiveScopes(user("xingzheng"), "customer", "delete"),
                 "已配置范围 → 用配置值");
     }
@@ -59,7 +62,8 @@ class RolePermScopeServiceTest {
     @Test
     void updateRoleScopes_upsertsConfig() {
         JdbcTemplate jdbc = mock(JdbcTemplate.class);
-        RolePermScopeService svc = new RolePermScopeService(jdbc, mock(com.aigicrm.security.PermissionCacheService.class));
+        RolePermScopeService svc = new RolePermScopeService(jdbc, mock(com.aigicrm.security.PermissionCacheService.class),
+                mock(com.aigicrm.module.system.mapper.SysRuleVersionMapper.class));
         svc.updateRoleScopes("xingzheng", List.of(
                 Map.of("module", "customer", "action", "delete", "scopeLevel", "dept")));
         verify(jdbc).update(contains("INSERT INTO role_perm_scope"),
@@ -73,7 +77,8 @@ class RolePermScopeServiceTest {
     @Test
     void updateScopes_switchingAnchor_removesConflictingAnchorRows() {
         JdbcTemplate jdbc = mock(JdbcTemplate.class);
-        RolePermScopeService svc = new RolePermScopeService(jdbc, mock(com.aigicrm.security.PermissionCacheService.class));
+        RolePermScopeService svc = new RolePermScopeService(jdbc, mock(com.aigicrm.security.PermissionCacheService.class),
+                mock(com.aigicrm.module.system.mapper.SysRuleVersionMapper.class));
 
         svc.updateScopes(com.aigicrm.common.scope.ScopeConfig.ASSIGNEE_ROLE, "xingzheng",
                 List.of(Map.of("module", "customer", "action", "view",
@@ -90,7 +95,8 @@ class RolePermScopeServiceTest {
     @Test
     void anchorOf_readsEarliestDeterministically() {
         JdbcTemplate jdbc = mock(JdbcTemplate.class);
-        RolePermScopeService svc = new RolePermScopeService(jdbc, mock(com.aigicrm.security.PermissionCacheService.class));
+        RolePermScopeService svc = new RolePermScopeService(jdbc, mock(com.aigicrm.security.PermissionCacheService.class),
+                mock(com.aigicrm.module.system.mapper.SysRuleVersionMapper.class));
         when(jdbc.queryForList(contains("SELECT anchor"), eq(String.class), eq("xingzheng"), eq("customer"), eq("view")))
                 .thenReturn(List.of("ORG"));
 
@@ -108,7 +114,8 @@ class RolePermScopeServiceTest {
     @Test
     void lookup_readsEarliestDeterministically() {
         JdbcTemplate jdbc = mock(JdbcTemplate.class);
-        RolePermScopeService svc = new RolePermScopeService(jdbc, mock(com.aigicrm.security.PermissionCacheService.class));
+        RolePermScopeService svc = new RolePermScopeService(jdbc, mock(com.aigicrm.security.PermissionCacheService.class),
+                mock(com.aigicrm.module.system.mapper.SysRuleVersionMapper.class));
         when(jdbc.queryForList(contains("SELECT scope_level"), eq(String.class), eq("xingzheng"), eq("customer"), eq("view")))
                 .thenReturn(List.of("dept"));
 

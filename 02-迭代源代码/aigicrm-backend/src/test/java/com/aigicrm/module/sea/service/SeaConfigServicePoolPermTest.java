@@ -30,7 +30,9 @@ class SeaConfigServicePoolPermTest {
     private final BizSeaPoolMapper seaPoolMapper = mock(BizSeaPoolMapper.class);
     private final SysDeptMapper deptMapper = mock(SysDeptMapper.class);
     private final SysUserMapper userMapper = mock(SysUserMapper.class);
-    private final SeaConfigService svc = new SeaConfigService(configMapper, seaPoolMapper, deptMapper, userMapper);
+    // 【2026-11-03 权限中心 P3】池名单按角色引用: 构造器新增 SysRoleMapper
+    private final com.aigicrm.module.system.mapper.SysRoleMapper roleMapper = mock(com.aigicrm.module.system.mapper.SysRoleMapper.class);
+    private final SeaConfigService svc = new SeaConfigService(configMapper, seaPoolMapper, deptMapper, userMapper, roleMapper);
 
     private SecurityUser user(long id, Long deptId, String dataScope) {
         SecurityUser u = new SecurityUser();
@@ -46,6 +48,12 @@ class SeaConfigServicePoolPermTest {
         c.setEditDeptIds(editDeptIds);
         c.setEditUserIds(editUserIds);
         return c;
+    }
+
+    private com.aigicrm.module.system.entity.SysRole role(long id) {
+        com.aigicrm.module.system.entity.SysRole r = new com.aigicrm.module.system.entity.SysRole();
+        r.setId(id);
+        return r;
     }
 
     private SysDept dept(long id, Long parentId) {
@@ -103,6 +111,35 @@ class SeaConfigServicePoolPermTest {
         try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
             m.when(SecurityUtils::isAdmin).thenReturn(false);
             assertFalse(svc.hasPoolPerm(10L, SeaConfigService.PERM_EDIT, user(7L, 1L, "self")));
+        }
+    }
+
+    /** 【2026-11-03 权限中心 P3】名单按角色引用: 用户所属角色命中 edit_role_ids 即放行(部门/人员均未命中) */
+    @Test
+    void roleRefHit_grantsEdit() {
+        BizSeaConfig c = config(null, null);
+        c.setEditRoleIds("5"); // 池编辑名单引用角色5(如销售总监)
+        when(configMapper.selectById(10L)).thenReturn(c);
+        when(deptMapper.selectList(any())).thenReturn(List.of());
+        when(roleMapper.selectRolesByUserId(7L)).thenReturn(java.util.List.of(role(5L))); // 用户7持角色5
+        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
+            m.when(SecurityUtils::isAdmin).thenReturn(false);
+            assertTrue(svc.hasPoolPerm(10L, SeaConfigService.PERM_EDIT, user(7L, 999L, "self")),
+                    "角色引用命中应授予池编辑权限");
+        }
+    }
+
+    /** 【2026-11-03 P3】角色未命中(用户持角色6, 名单引用5)且部门/人员也未命中 → 拒 */
+    @Test
+    void roleRefMiss_rejects() {
+        BizSeaConfig c = config(null, null);
+        c.setEditRoleIds("5");
+        when(configMapper.selectById(10L)).thenReturn(c);
+        when(deptMapper.selectList(any())).thenReturn(List.of());
+        when(roleMapper.selectRolesByUserId(7L)).thenReturn(java.util.List.of(role(6L)));
+        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
+            m.when(SecurityUtils::isAdmin).thenReturn(false);
+            assertFalse(svc.hasPoolPerm(10L, SeaConfigService.PERM_EDIT, user(7L, 999L, "self")));
         }
     }
 

@@ -96,26 +96,21 @@
       </template>
     </el-dialog>
 
-    <!-- 权限分配对话框 -->
-    <el-dialog v-model="permDialogVisible" title="权限分配" width="500px">
-      <!-- 【安全 2026-08-11 P0 修复】check-strictly：关闭父子级联深传播。
-           此前默认级联+default-checked-keys 含目录行(menu_type=1, 祖先闭包写入)
-           时，打开弹窗即把目录下全部后代勾选(Playwright 实测销售员 37 绑定显示 76)，
-           点"保存权限"即授予几乎全部权限。check-strictly 使回显精确=role_menu 实际绑定，
-           勾选/取消均只影响自身节点，杜绝"打开即全选、保存即全量授权"。 -->
+    <!-- 权限分配对话框(2026-11-03 权限中心收口: 改只读展示 + 跳转, 可写入口唯一=权限中心) -->
+    <el-dialog v-model="permDialogVisible" title="权限分配（只读）" width="500px">
+      <el-alert type="info" :closable="false" style="margin-bottom:12px"
+                title="功能勾选已收口至「权限中心」"
+                description="勾选/取消权限请前往 系统管理 → 权限中心 → 功能与范围（保存即生效）；此处仅查看该角色当前绑定的权限码。" />
       <el-tree
-        ref="menuTreeRef"
         :data="menuTree"
         :props="{ label: 'menuName', children: 'children' }"
-        show-checkbox
         node-key="id"
         default-expand-all
-        check-strictly
         :default-checked-keys="checkedMenuIds"
       />
       <template #footer>
-        <el-button @click="permDialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="handleSavePerm">保存权限</el-button>
+        <el-button @click="permDialogVisible = false">关闭</el-button>
+        <el-button type="primary" @click="goPermCenter">去权限中心配置</el-button>
       </template>
     </el-dialog>
   </div>
@@ -123,6 +118,9 @@
 
 <script setup>
 import { ref, reactive, onMounted, computed, nextTick } from 'vue'
+import { useRouter } from 'vue-router'
+
+const router = useRouter()
 import { Plus } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import { confirmAction } from '@/utils/confirm'
@@ -140,7 +138,6 @@ const orgTree = ref([])
 const flatOrgs = ref([])
 const dialogVisible = ref(false)
 const permDialogVisible = ref(false)
-const menuTreeRef = ref(null)
 const checkedMenuIds = ref([])
 const currentRoleId = ref(null)
 const saving = ref(false)
@@ -273,16 +270,7 @@ const handleDelete = async (row) => {
   } catch (e) {}
 }
 
-/** 在菜单树中按 id 查找节点(取 menuType 过滤用) */
-const findMenuNode = (nodes, id) => {
-  for (const n of (nodes || [])) {
-    if (n.id === id) return n
-    const hit = findMenuNode(n.children, id)
-    if (hit) return hit
-  }
-  return null
-}
-
+// 【2026-11-03 权限中心收口】弹窗改只读: 只回显该角色当前绑定, 不再提供可写树
 const openPermDialog = async (row) => {
   currentRoleId.value = row.id
   try {
@@ -294,28 +282,12 @@ const openPermDialog = async (row) => {
     menuTree.value = res.data || []
   } catch (e) {}
   permDialogVisible.value = true
-  // 显式按实际绑定勾选(等渲染后)——default-checked-keys 仅首次挂载生效，多次打开需重建
-  requestAnimationFrame(() => {
-    menuTreeRef.value?.setCheckedKeys(checkedMenuIds.value)
-  })
 }
 
-const handleSavePerm = async () => {
-  // check-strictly 模式下 getCheckedKeys 返回用户实际勾选的节点(精确，无深传播)。
-  // 【P0 2026-08-12 对齐审计修复方向4】提交前过滤：仅提交真实权限载体(menu_type=2/3)，
-  //   不提交目录行(menu_type=1)。目录行无权限码，仅作菜单树显示锚点，由后端
-  //   saveRoleMenus 闭包按需补入(只补 type=1)；前端不再提交目录行、不再补父链，
-  //   杜绝"目录行入库 → 下次打开深传播全选"的 P0 放大器。
-  const checkedKeys = menuTreeRef.value.getCheckedKeys()
-  const menuIds = checkedKeys.filter(id => {
-    const node = findMenuNode(menuTree.value, id)
-    return node && node.menuType !== 1
-  })
-  try {
-    await updateRole(currentRoleId.value, { menuIds })
-    ElMessage.success('权限保存成功')
-    permDialogVisible.value = false
-  } catch (e) { ElMessage.error('权限保存失败') }
+// 跳权限中心功能与范围页签(唯一可写入口; 可写勾选链=矩阵 togglePerm → PUT /system/roles)
+const goPermCenter = () => {
+  permDialogVisible.value = false
+  router.push('/system/perm-center')
 }
 
 onMounted(() => {

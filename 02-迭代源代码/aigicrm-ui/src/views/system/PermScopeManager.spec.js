@@ -155,8 +155,9 @@ describe('PermScopeManager 权限码 → 后端 (module, action) 显式映射', 
     await wrapper.vm.saveScope(col, logItem, 'office')
     await flushPromises()
 
+    // 【2026-11-03 权限中心·锚点推荐】未显式选锚点时按推荐保存: 查看类(view)=按组织 ORG
     expect(updateRolePermScopes).toHaveBeenCalledWith('admin', [
-      { module: 'system', action: 'view', scopeLevel: 'office', anchor: 'OWNER' },
+      { module: 'system', action: 'view', scopeLevel: 'office', anchor: 'ORG' },
     ])
   })
 

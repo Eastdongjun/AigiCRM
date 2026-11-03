@@ -34,4 +34,31 @@ public class SysRuleVersionService {
         row.put("createdAt", rv.getCreatedAt());
         return row;
     }
+
+    /**
+     * 【2026-11-03 权限中心 B2】通用版本记录入口(供各模块服务/控制器记审计, 遵守"控制器不依赖 mapper"分层约束):
+     * operator 取当前会话(无会话上下文时留空); 失败不阻断调用方主流程(旁路降级)。
+     * 与 SysConfigService.recordRuleVersion 同口径, 收敛为单一可复用方法。
+     */
+    public void record(String ruleKey, String oldValue, String newValue, String remark) {
+        try {
+            SysRuleVersion rv = new SysRuleVersion();
+            rv.setRuleKey(ruleKey);
+            rv.setOldValue(oldValue);
+            rv.setNewValue(newValue);
+            rv.setRemark(remark);
+            try {
+                var user = com.aigicrm.security.SecurityUtils.getCurrentUser();
+                if (user != null) {
+                    rv.setOperatorId(user.getUserId());
+                    rv.setOperatorName(user.getUsername());
+                }
+            } catch (Exception ignore) {
+                // 无会话上下文(启动初始化等)时 operator 为空
+            }
+            ruleVersionMapper.insert(rv);
+        } catch (Exception e) {
+            // 版本记录失败不阻断调用方主流程(旁路降级)
+        }
+    }
 }

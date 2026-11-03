@@ -108,7 +108,8 @@ Page({
       wx.navigateBack()
       return
     }
-    this.setData({ id: options.id || '', canEdit: getApp().globalData.demoMode || hasPermission('finance:manage') || (hasPermission('customer:edit') && hasPermission('finance:view')) }, () => this.refreshStageView())
+    // 【2026-11-03 拆码对齐】后端第三通道 customer:finance:edit(开票回款编辑, 带独立数据范围)
+    this.setData({ id: options.id || '', canEdit: getApp().globalData.demoMode || hasPermission('finance:manage') || hasPermission('customer:finance:edit') || (hasPermission('customer:edit') && hasPermission('finance:view')) }, () => this.refreshStageView())
     this.load()
   },
 

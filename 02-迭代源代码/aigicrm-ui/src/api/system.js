@@ -211,3 +211,13 @@ export function updateAssigneePermScopes(type, key, configs) {
 export function getAuditLogList(params) {
   return request.get('/system/audit-logs', { params })
 }
+
+// ---- 统一权限配置中心(2026-11-03 用户裁决"门面统一+收口单入口") ----
+// 生效预览: 搜任意人 → 引擎实时算出其真实拥有的一切(功能码/各模块范围/公海逐池/激励四开关)
+export function getPermCenterPreview(userId) {
+  return request.get('/system/perm-center/preview', { params: { userId } })
+}
+// 权限变更审计时间线(append-only; 范围/锚点/激励授权/系统配置变更均入册)
+export function getRuleVersions(params) {
+  return request.get('/system/rule-versions', { params })
+}

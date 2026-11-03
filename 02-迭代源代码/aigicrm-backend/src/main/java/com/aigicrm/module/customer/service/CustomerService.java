@@ -1033,6 +1033,36 @@ public class CustomerService {
         return customerMapper.selectCount(w);
     }
 
+    /**
+     * 【2026-11-03 权限中心·生效预览】按任意目标用户的 customer×view 范围数客户(排 sea/archived, 与 countByScope 同口径)。
+     * 与 applyDataScope 的差异: ①目标用户作参数(不绑当前登录人) ②不含运行时规则引擎追加条件
+     * (预览只表达范围层, 规则条件属另一维度, 不在此复刻)——预览数字为范围口径的如实呈现。
+     */
+    public long countByScopeFor(com.aigicrm.security.SecurityUser target) {
+        if (target == null) return 0;
+        LambdaQueryWrapper<BizCustomer> w = new LambdaQueryWrapper<>();
+        w.eq(BizCustomer::getDeleted, 0).notIn(BizCustomer::getStatus, "sea", "archived");
+        com.aigicrm.common.scope.ScopeRequest req = com.aigicrm.common.scope.ScopeRequest.builder()
+                .user(target)
+                .module("customer")
+                .action("view")
+                .anchor(rolePermScopeService.anchorOf(target, "customer", "view"))
+                .build();
+        com.aigicrm.common.scope.ScopeDecision d = scopeResolver.resolveScope(req);
+        if (!d.isAll()) {
+            if (req.getAnchor() == com.aigicrm.common.scope.ScopeRequest.AnchorType.ORG) {
+                java.util.List<Long> deptIds = d.getVisibleDeptIds();
+                if (deptIds != null && !deptIds.isEmpty()) w.in(BizCustomer::getDeptId, deptIds);
+                else w.eq(BizCustomer::getDeptId, -1L);
+            } else {
+                java.util.List<Long> userIds = d.getVisibleUserIds();
+                if (userIds != null && !userIds.isEmpty()) w.in(BizCustomer::getOwnerId, userIds);
+                else w.eq(BizCustomer::getOwnerId, -1L);
+            }
+        }
+        return customerMapper.selectCount(w);
+    }
+
     public long countInProtectionByScope() {
         LambdaQueryWrapper<BizCustomer> w = new LambdaQueryWrapper<>();
         // 【2026-11-01 审计修复】排公海/归档——归档只改 status 不重置 protectionStatus, 不排则

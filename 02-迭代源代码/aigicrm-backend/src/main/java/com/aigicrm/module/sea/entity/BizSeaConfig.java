@@ -23,6 +23,11 @@ public class BizSeaConfig {
     private String importUserIds;
     private String claimDeptIds;
     private String claimUserIds;
+    // 【2026-11-03 权限中心 P3 角色引用】名单可直接勾角色, 角色成员命中即获对应池权限(成员变动自动跟随)
+    private String editRoleIds;     // 编辑角色ID(逗号分隔)
+    private String deleteRoleIds;   // 删除角色ID(逗号分隔)
+    private String importRoleIds;   // 导入角色ID(逗号分隔)
+    private String claimRoleIds;    // 捞取角色ID(逗号分隔)
     private Integer sortOrder;
     private Integer status;
     private LocalDateTime createdAt;

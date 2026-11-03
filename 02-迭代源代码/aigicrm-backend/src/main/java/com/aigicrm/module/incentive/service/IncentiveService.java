@@ -140,7 +140,8 @@ public class IncentiveService {
      * 【返回】授权行 Map；无记录或 userId 为空返回 null
      * 【注意】只读；实时查询不走权限缓存，面板改动即时生效
      */
-    private Map<String, Object> grantRow(Long userId) {
+    // 【2026-11-03 权限中心·生效预览】提 public: 预览接口按任意 userId 读四开关(不绑当前登录人)
+    public Map<String, Object> grantRow(Long userId) {
         if (userId == null) return null;
         try {
             return jdbc.queryForMap(

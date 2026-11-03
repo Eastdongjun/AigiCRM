@@ -147,6 +147,8 @@ const permList = ref([])
 const showPermDialog = ref(false)
 // 【2026-08-16 授权表化】编辑/删除恢复按人勾选（不再由角色判定），permForm 含四个专项开关
 const permForm = reactive({ canViewShared: true, canViewAll: true, canEdit: false, canDelete: false })
+// 【2026-11-03 权限中心 P3】按角色批量授权: 勾角色=其启用成员全体获得该组开关(后端展开并集)
+const grantRoleIds = ref([])
 const allUsers = ref([])
 // 层级人员树：大区 → 办事处 → 部门 → 人员（节点 key: 'd'+orgId / 'u'+userId）
 const orgUserTree = ref([])
@@ -215,16 +217,22 @@ const openPermDialog = async () => {
 const grantPerm = async () => {
   const checked = userTreeRef.value ? (userTreeRef.value.getCheckedKeys() || []).filter(k => String(k).startsWith('u')) : []
   const userIds = checked.map(k => Number(String(k).slice(1)))
-  if (!userIds.length) { ElMessage.warning('请选择人员'); return }
+  // 【2026-11-03 P3】按角色批量: 与勾选人员并集提交(后端展开启用成员 upsert); 两者至少选一
+  const roleIds = [...(grantRoleIds.value || [])]
+  if (!userIds.length && !roleIds.length) { ElMessage.warning('请选择人员或角色'); return }
   try {
     await request.post('/incentive/permission/grant', {
       userIds,
+      roleIds,
       canViewShared: permForm.canViewShared,
       canViewAll: permForm.canViewAll,
       canEdit: permForm.canEdit,
       canDelete: permForm.canDelete
     })
-    ElMessage.success(`已授权 ${userIds.length} 人`); showPermDialog.value = false; loadPermList()
+    ElMessage.success(`已授权 ${userIds.length} 人${roleIds.length ? ` + ${roleIds.length} 个角色成员` : ''}`)
+    showPermDialog.value = false
+    grantRoleIds.value = []
+    loadPermList()
   } catch(e) { ElMessage.error('授权失败') }
 }
 const revokePerm = async (id) => {
@@ -235,7 +243,7 @@ export function usePermissionData() {
   return {
     activeTab,
     permOverview, allRoles, menuTree, rolePermMap, permModules, hasPerm, togglePerm, loadPermData,
-    permList, showPermDialog, permForm, allUsers, orgUserTree, userTreeRef, selectedUserCount,
+    permList, showPermDialog, permForm, grantRoleIds, allUsers, orgUserTree, userTreeRef, selectedUserCount,
     loadPermList, loadAllUsers, loadOrgUserTree, checkAllUsers, clearUsers, onTreeCheck, openPermDialog, grantPerm, revokePerm,
     permLoadError,
   }

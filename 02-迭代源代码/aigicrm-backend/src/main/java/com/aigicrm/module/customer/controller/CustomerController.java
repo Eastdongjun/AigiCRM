@@ -325,7 +325,8 @@ public class CustomerController {
         return Result.ok(customerService.getInvoiceSummary(id));
     }
 
-    @PreAuthorize("hasAuthority('finance:manage') or (hasAuthority('customer:edit') and hasAuthority('finance:view'))")
+    // 【2026-11-03 拆码】新增第三通道 customer:finance:edit(开票回款编辑, 带自己的数据范围), 旧两支原样保留
+    @PreAuthorize("hasAuthority('finance:manage') or hasAuthority('customer:finance:edit') or (hasAuthority('customer:edit') and hasAuthority('finance:view'))")
     @PostMapping("/{id}/invoices")
     public Result<Void> addInvoice(@PathVariable Long id, @RequestBody BizInvoice invoice) {
         // 【决策6 2026-10-18】财务代录: finance:manage 持有者放开对象归属(不要求是负责人)
@@ -335,7 +336,8 @@ public class CustomerController {
     }
 
     /** 【PR-18 2026-09-19】台账确认(pending → confirmed) */
-    @PreAuthorize("hasAuthority('finance:manage') or (hasAuthority('customer:edit') and hasAuthority('finance:view'))")
+    // 【2026-11-03 拆码】新增第三通道 customer:finance:edit(开票回款编辑, 带自己的数据范围), 旧两支原样保留
+    @PreAuthorize("hasAuthority('finance:manage') or hasAuthority('customer:finance:edit') or (hasAuthority('customer:edit') and hasAuthority('finance:view'))")
     @PostMapping("/{id}/invoices/{invoiceId}/confirm")
     public Result<Void> confirmInvoice(@PathVariable Long id, @PathVariable Long invoiceId) {
         accessService.assertCanManageFinance(id); // 【决策6 2026-10-18】财务代录同 addInvoice
@@ -344,7 +346,8 @@ public class CustomerController {
     }
 
     /** 【PR-18】台账作废(保留记录) */
-    @PreAuthorize("hasAuthority('finance:manage') or (hasAuthority('customer:edit') and hasAuthority('finance:view'))")
+    // 【2026-11-03 拆码】新增第三通道 customer:finance:edit(开票回款编辑, 带自己的数据范围), 旧两支原样保留
+    @PreAuthorize("hasAuthority('finance:manage') or hasAuthority('customer:finance:edit') or (hasAuthority('customer:edit') and hasAuthority('finance:view'))")
     @PostMapping("/{id}/invoices/{invoiceId}/void")
     public Result<Void> voidInvoice(@PathVariable Long id, @PathVariable Long invoiceId,
                                     @RequestBody Map<String, String> body) {
@@ -354,7 +357,8 @@ public class CustomerController {
     }
 
     /** 【PR-18】回款确认 */
-    @PreAuthorize("hasAuthority('finance:manage') or (hasAuthority('customer:edit') and hasAuthority('finance:view'))")
+    // 【2026-11-03 拆码】新增第三通道 customer:finance:edit(开票回款编辑, 带自己的数据范围), 旧两支原样保留
+    @PreAuthorize("hasAuthority('finance:manage') or hasAuthority('customer:finance:edit') or (hasAuthority('customer:edit') and hasAuthority('finance:view'))")
     @PostMapping("/{id}/payments/{paymentId}/confirm")
     public Result<Void> confirmPayment(@PathVariable Long id, @PathVariable Long paymentId) {
         accessService.assertCanManageFinance(id); // 【决策6 2026-10-18】财务代录同 addInvoice
@@ -363,7 +367,8 @@ public class CustomerController {
     }
 
     /** 【PR-18】回款作废 */
-    @PreAuthorize("hasAuthority('finance:manage') or (hasAuthority('customer:edit') and hasAuthority('finance:view'))")
+    // 【2026-11-03 拆码】新增第三通道 customer:finance:edit(开票回款编辑, 带自己的数据范围), 旧两支原样保留
+    @PreAuthorize("hasAuthority('finance:manage') or hasAuthority('customer:finance:edit') or (hasAuthority('customer:edit') and hasAuthority('finance:view'))")
     @PostMapping("/{id}/payments/{paymentId}/void")
     public Result<Void> voidPayment(@PathVariable Long id, @PathVariable Long paymentId,
                                     @RequestBody Map<String, String> body) {
@@ -372,7 +377,8 @@ public class CustomerController {
         return Result.ok();
     }
 
-    @PreAuthorize("hasAuthority('finance:manage') or (hasAuthority('customer:edit') and hasAuthority('finance:view'))")
+    // 【2026-11-03 拆码】新增第三通道 customer:finance:edit(开票回款编辑, 带自己的数据范围), 旧两支原样保留
+    @PreAuthorize("hasAuthority('finance:manage') or hasAuthority('customer:finance:edit') or (hasAuthority('customer:edit') and hasAuthority('finance:view'))")
     @DeleteMapping("/{id}/invoices/{invoiceId}")
     public Result<Void> deleteInvoice(@PathVariable Long id, @PathVariable Long invoiceId,
                                       @RequestParam(required = false) String reason) {
@@ -396,7 +402,8 @@ public class CustomerController {
         return Result.ok(customerService.getStageAmountSummary(id));
     }
 
-    @PreAuthorize("hasAuthority('finance:manage') or (hasAuthority('customer:edit') and hasAuthority('finance:view'))")
+    // 【2026-11-03 拆码】新增第三通道 customer:finance:edit(开票回款编辑, 带自己的数据范围), 旧两支原样保留
+    @PreAuthorize("hasAuthority('finance:manage') or hasAuthority('customer:finance:edit') or (hasAuthority('customer:edit') and hasAuthority('finance:view'))")
     @PostMapping("/{id}/stage-amounts")
     public Result<Void> saveStageAmount(@PathVariable Long id,
                                         @RequestBody com.aigicrm.module.customer.dto.StageAmountRequest req) {
@@ -552,7 +559,8 @@ public class CustomerController {
         return Result.ok(customerService.getPaymentSummary(id));
     }
 
-    @PreAuthorize("hasAuthority('finance:manage') or (hasAuthority('customer:edit') and hasAuthority('finance:view'))")
+    // 【2026-11-03 拆码】新增第三通道 customer:finance:edit(开票回款编辑, 带自己的数据范围), 旧两支原样保留
+    @PreAuthorize("hasAuthority('finance:manage') or hasAuthority('customer:finance:edit') or (hasAuthority('customer:edit') and hasAuthority('finance:view'))")
     @PostMapping("/{id}/payments")
     public Result<Void> addPayment(@PathVariable Long id, @RequestBody BizPayment payment) {
         // 【决策6 2026-10-18】财务代录: finance:manage 持有者放开对象归属(不要求是负责人)
@@ -561,7 +569,8 @@ public class CustomerController {
         return Result.ok();
     }
 
-    @PreAuthorize("hasAuthority('finance:manage') or (hasAuthority('customer:edit') and hasAuthority('finance:view'))")
+    // 【2026-11-03 拆码】新增第三通道 customer:finance:edit(开票回款编辑, 带自己的数据范围), 旧两支原样保留
+    @PreAuthorize("hasAuthority('finance:manage') or hasAuthority('customer:finance:edit') or (hasAuthority('customer:edit') and hasAuthority('finance:view'))")
     @DeleteMapping("/{id}/payments/{paymentId}")
     public Result<Void> deletePayment(@PathVariable Long id, @PathVariable Long paymentId,
                                       @RequestParam(required = false) String reason) {

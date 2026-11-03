@@ -42,6 +42,32 @@ public class RolePermScopeService {
 
     private final JdbcTemplate jdbc;
     private final com.aigicrm.security.PermissionCacheService permissionCacheService;
+    // 【2026-11-03 权限中心 B2】范围配置变更记 sys_rule_version(审计时间线)
+    private final com.aigicrm.module.system.mapper.SysRuleVersionMapper ruleVersionMapper;
+
+    /** 【B2 审计】记一条范围变更版本(old 须在写入前读出; 失败不阻断主流程) */
+    private void recordScopeVersion(String assigneeType, String assigneeKey, String module, String action,
+                                     String oldValue, String newValue) {
+        try {
+            com.aigicrm.module.system.entity.SysRuleVersion rv = new com.aigicrm.module.system.entity.SysRuleVersion();
+            rv.setRuleKey("perm_scope:" + assigneeType + ":" + assigneeKey + ":" + module + ":" + action);
+            rv.setOldValue(oldValue);
+            rv.setNewValue(newValue);
+            rv.setRemark("数据范围/锚点配置");
+            try {
+                var user = com.aigicrm.security.SecurityUtils.getCurrentUser();
+                if (user != null) {
+                    rv.setOperatorId(user.getUserId());
+                    rv.setOperatorName(user.getUsername());
+                }
+            } catch (Exception ignore) {
+                // 无会话上下文时 operator 为空
+            }
+            ruleVersionMapper.insert(rv);
+        } catch (Exception e) {
+            // 版本记录失败不阻断配置变更(旁路降级, 与 SysConfigService.recordRuleVersion 同口径)
+        }
+    }
 
     /** 【2026-08-14 缓存自愈】全局权限版本递增：范围配置变更影响所有用户，evict 漏网/Redis 写失败时缓存与 DB 版本比对自愈 */
     private void bumpAllPermVersions() {
@@ -235,6 +261,13 @@ public class RolePermScopeService {
     public void updateScopes(String assigneeType, String assigneeKey, List<Map<String, Object>> configs) {
         if (configs == null) return;
         if (configs.isEmpty()) {
+            // 【B2 审计】清空=恢复默认, 逐 (module,action) 记旧值→默认
+            for (var row : jdbc.queryForList(
+                    "SELECT module, action, scope_level, anchor FROM role_perm_scope WHERE assignee_type=? AND assignee_key=?",
+                    assigneeType, assigneeKey)) {
+                recordScopeVersion(assigneeType, assigneeKey, String.valueOf(row.get("module")), String.valueOf(row.get("action")),
+                        row.get("scope_level") + "/" + row.get("anchor"), "默认(未配置)");
+            }
             jdbc.update("DELETE FROM role_perm_scope WHERE assignee_type=? AND assignee_key=?", assigneeType, assigneeKey);
             invalidate(assigneeKey);
             permissionCacheService.evictAll();
@@ -261,6 +294,13 @@ public class RolePermScopeService {
             // 旧唯一键含 anchor, 切换 OWNER/ORG 时旧行不会被 upsert 命中, 会遗留两条锚点
             // (anchorOf 取第一条无排序 → 口径漂移)。写入前先清掉同键其它锚点, 保留本锚点行
             // 走下方 upsert(保留 id/created_at); 迁移 V2026.10.18.4 同键去重并加四列唯一索引。
+            // 【B2 审计】旧值在清锚点/upsert 前读出
+            String oldScope = null;
+            for (var row : jdbc.queryForList(
+                    "SELECT scope_level, anchor FROM role_perm_scope WHERE assignee_type=? AND assignee_key=? AND module=? AND action=?",
+                    assigneeType, assigneeKey, module.toString(), action.toString())) {
+                oldScope = row.get("scope_level") + "/" + row.get("anchor");
+            }
             jdbc.update("DELETE FROM role_perm_scope WHERE assignee_type=? AND assignee_key=? "
                             + "AND module=? AND action=? AND anchor<>?",
                     assigneeType, assigneeKey, module.toString(), action.toString(), anchor.toUpperCase());
@@ -268,6 +308,7 @@ public class RolePermScopeService {
                     "INSERT INTO role_perm_scope (role_code, assignee_type, assignee_key, module, action, scope_level, anchor) VALUES (?,?,?,?,?,?,?) " +
                     "ON DUPLICATE KEY UPDATE scope_level=VALUES(scope_level), anchor=VALUES(anchor), role_code=VALUES(role_code)",
                     roleCode, assigneeType, assigneeKey, module.toString(), action.toString(), scope, anchor.toUpperCase());
+            recordScopeVersion(assigneeType, assigneeKey, module.toString(), action.toString(), oldScope, scope + "/" + anchor.toUpperCase());
             invalidate(assigneeKey);
         }
         // 【2026-08-14 评审 P2】evictAll/bump 提升到循环外：批量 N 条配置只做一次全量失效+全表版本递增

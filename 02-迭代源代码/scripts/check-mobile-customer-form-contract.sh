@@ -327,8 +327,9 @@ if rg -n "mode==='invoice'|tab==='invoice'|tab==='payment'|\\|\\| '开票记录'
   echo "FAIL: mobile finance WXML must not keep mode/tab fallback branching logic"
   exit 1
 fi
-if ! rg -Fq "hasPermission('finance:manage') || (hasPermission('customer:edit') && hasPermission('finance:view'))" "$ROOT/aigicrm-miniprogram/pages/customer/finance/form/index.js"; then
-  echo "FAIL: mobile finance form entry must match backend gate (finance:manage OR customer:edit AND finance:view)"
+# 【2026-11-03 拆码钉随重锚】财务编辑入口=三通道(finance:manage ∨ customer:finance:edit ∨ customer:edit∧finance:view), 与后端 @PreAuthorize 同口径
+if ! rg -Fq "hasPermission('finance:manage') || hasPermission('customer:finance:edit') || (hasPermission('customer:edit') && hasPermission('finance:view'))" "$ROOT/aigicrm-miniprogram/pages/customer/finance/form/index.js"; then
+  echo "FAIL: mobile finance form entry must match backend gate (finance:manage OR customer:finance:edit OR customer:edit AND finance:view)"
   exit 1
 fi
 

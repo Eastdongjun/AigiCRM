@@ -510,6 +510,8 @@ local_contracts() {
   run "$ROOT/scripts/check-sonar-status-contract.sh"
   run "$ROOT/scripts/check-dockerfile-contract.sh"
   run "$ROOT/scripts/check-indicator-contract.sh"
+  # 【2026-11-03 统一权限中心】门面统一+收口单入口+finance:edit 拆码+公海/激励按角色 契约
+  run "$ROOT/scripts/check-perm-center-contract.sh"
   run "$ROOT/scripts/check-read-stats-migration.sh"
   run "$ROOT/scripts/check-migration-contract.sh"
   run "$ROOT/scripts/check-migration-chain-contract.sh"

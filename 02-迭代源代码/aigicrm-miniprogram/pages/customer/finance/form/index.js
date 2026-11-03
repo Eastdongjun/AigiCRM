@@ -47,7 +47,8 @@ Page({
 
   onLoad(options) {
     if (!requireLogin()) return
-    if (!getApp().globalData.demoMode && !(hasPermission('finance:manage') || (hasPermission('customer:edit') && hasPermission('finance:view')))) {
+    // 【2026-11-03 拆码对齐】后端第三通道 customer:finance:edit(开票回款编辑, 带独立数据范围)
+    if (!getApp().globalData.demoMode && !(hasPermission('finance:manage') || hasPermission('customer:finance:edit') || (hasPermission('customer:edit') && hasPermission('finance:view')))) {
       wx.showToast({ title: '没有财务编辑权限', icon: 'none' })
       wx.navigateBack()
       return

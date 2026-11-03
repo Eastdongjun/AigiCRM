@@ -3,6 +3,9 @@
 
     <div class="section-box">
       <!-- 2026-08-08 布局重构：左侧导航 + 右侧内容 -->
+      <!-- 【2026-11-03 权限中心收口】"权限体系/权限管理/公海配置"三个 Tab 整体迁往独立页面
+           「权限中心」(/system/perm-center), 系统设置不再承载任何权限可写入口(防两处可写);
+           激励授权区块亦随迁, 此处仅保留类别管理。 -->
       <el-tabs v-model="activeTab" tab-position="left" class="settings-tabs">
         <!-- 基本设置 -->
         <el-tab-pane name="basic">
@@ -15,27 +18,12 @@
           <template #label><span class="tab-label"><el-icon><Notebook /></el-icon>字典管理</span></template>
           <DictManager />
         </el-tab-pane>
-        <!-- 公海配置 -->
+        <!-- 审批配置 -->
         <el-tab-pane name="approvalConfig"><template #label><span class="tab-label"><el-icon><Select /></el-icon>审批配置</span></template><ApprovalConfig /></el-tab-pane>
-        <el-tab-pane v-if="userStore.hasPermission('sea:config:view')" name="sea">
-          <template #label><span class="tab-label"><el-icon><Ship /></el-icon>公海配置</span></template>
-          <SeaConfigManager />
-        </el-tab-pane>
-        <!-- 激励类别与权限 -->
+        <!-- 激励类别管理(2026-11-03 起"与权限"三字移除: 专项授权已迁权限中心) -->
         <el-tab-pane name="incentiveCategory">
-          <template #label><span class="tab-label"><el-icon><Coin /></el-icon>激励类别与权限</span></template>
+          <template #label><span class="tab-label"><el-icon><Coin /></el-icon>激励类别管理</span></template>
           <CategoryManager />
-        </el-tab-pane>
-
-
-        <!-- 权限体系总览 -->
-        <el-tab-pane name="permOverview">
-          <template #label><span class="tab-label"><el-icon><Lock /></el-icon>权限体系</span></template>
-          <PermMatrixManager mode="overview" />
-        </el-tab-pane>
-        <el-tab-pane name="perm">
-          <template #label><span class="tab-label"><el-icon><Grid /></el-icon>权限管理</span></template>
-          <PermScopeManager />
         </el-tab-pane>
 
       </el-tabs>
@@ -46,23 +34,14 @@
 
 <script setup>
 import ApprovalConfig from '@/views/system/approvalConfig.vue'
-import { watch } from 'vue'
-import { Setting, Notebook, Select, Ship, Lock, Grid, Coin } from '@element-plus/icons-vue'
+import { Setting, Notebook, Select, Coin } from '@element-plus/icons-vue'
 import { usePermissionData } from '@/composables/usePermissionData'
 import DictManager from './DictManager.vue'
-import SeaConfigManager from './SeaConfigManager.vue'
 import BasicSettings from './BasicSettings.vue'
 import CategoryManager from './CategoryManager.vue'
-import PermMatrixManager from './PermMatrixManager.vue'
-import PermScopeManager from './PermScopeManager.vue'
 
-// 权限状态为模块级单例(composables/usePermissionData.js),各 tab 子组件共享;切到"权限矩阵"时加载
-const { activeTab, loadPermData } = usePermissionData()
-watch(activeTab, (tab) => { if (tab === 'perm') loadPermData() })
-
-// 权限判断(公海配置 tab 按 sea:config:view 门控, 销售员等无配置权限者不显示该 tab, 避免空态报错)
-import { useUserStore } from '@/store/user'
-const userStore = useUserStore()
+// activeTab 为模块级单例(composables/usePermissionData.js), 权限中心与设置页共享
+const { activeTab } = usePermissionData()
 </script>
 
 

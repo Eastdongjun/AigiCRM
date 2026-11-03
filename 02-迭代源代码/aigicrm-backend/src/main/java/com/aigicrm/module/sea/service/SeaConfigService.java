@@ -7,8 +7,10 @@ import com.aigicrm.module.sea.entity.BizSeaPool;
 import com.aigicrm.module.sea.mapper.BizSeaConfigMapper;
 import com.aigicrm.module.sea.mapper.BizSeaPoolMapper;
 import com.aigicrm.module.system.entity.SysDept;
+import com.aigicrm.module.system.entity.SysRole;
 import com.aigicrm.module.system.entity.SysUser;
 import com.aigicrm.module.system.mapper.SysDeptMapper;
+import com.aigicrm.module.system.mapper.SysRoleMapper;
 import com.aigicrm.module.system.mapper.SysUserMapper;
 import com.aigicrm.security.SecurityUser;
 import com.aigicrm.security.SecurityUtils;
@@ -27,6 +29,8 @@ public class SeaConfigService {
     private final BizSeaPoolMapper seaPoolMapper;
     private final SysDeptMapper deptMapper;
     private final SysUserMapper userMapper;
+    // 【2026-11-03 权限中心 P3】名单按角色引用: 用户角色交集命中
+    private final SysRoleMapper roleMapper;
 
     /** 全部公海池(供管理页面,含禁用池——禁用池也需可查看/重新启用) */
     public List<BizSeaConfig> list() {
@@ -127,12 +131,13 @@ public class SeaConfigService {
 
     /** 公海池是否对该用户可见: all数据范围全可见; 本人在可见人员中; 本人部门(或上级链含大区)在可见部门中 */
     public boolean isVisibleTo(BizSeaConfig config, SecurityUser user) {
-        return isInScope(config.getVisibleDeptIds(), config.getVisibleUserIds(), user, true);
+        return isInScope(config.getVisibleDeptIds(), config.getVisibleUserIds(), null, user, true);
     }
 
     /**
      * 池级权限判定（2026-08-10）: 用户是否对该池持有某操作权限。
      * admin 恒 true; 否则按 permType 取对应 *_dept_ids/*_user_ids 组织递归判定。
+     * 【2026-11-03 权限中心 P3】操作权限另可按 *_role_ids 角色引用命中(角色成员即获权, 成员变动自动跟随)。
      */
     public boolean hasPoolPerm(Long poolId, String permType, SecurityUser user) {
         if (poolId == null || user == null) return false;
@@ -140,26 +145,33 @@ public class SeaConfigService {
         BizSeaConfig config = configMapper.selectById(poolId);
         if (config == null) return false;
         return switch (permType) {
-            case PERM_VIEW -> isInScope(config.getVisibleDeptIds(), config.getVisibleUserIds(), user, true);
-            case PERM_EDIT -> isInScope(config.getEditDeptIds(), config.getEditUserIds(), user, false);
-            case PERM_DELETE -> isInScope(config.getDeleteDeptIds(), config.getDeleteUserIds(), user, false);
-            case PERM_IMPORT -> isInScope(config.getImportDeptIds(), config.getImportUserIds(), user, false);
-            case PERM_CLAIM -> isInScope(config.getClaimDeptIds(), config.getClaimUserIds(), user, false);
+            case PERM_VIEW -> isInScope(config.getVisibleDeptIds(), config.getVisibleUserIds(), null, user, true);
+            case PERM_EDIT -> isInScope(config.getEditDeptIds(), config.getEditUserIds(), config.getEditRoleIds(), user, false);
+            case PERM_DELETE -> isInScope(config.getDeleteDeptIds(), config.getDeleteUserIds(), config.getDeleteRoleIds(), user, false);
+            case PERM_IMPORT -> isInScope(config.getImportDeptIds(), config.getImportUserIds(), config.getImportRoleIds(), user, false);
+            case PERM_CLAIM -> isInScope(config.getClaimDeptIds(), config.getClaimUserIds(), config.getClaimRoleIds(), user, false);
             default -> false;
         };
     }
 
     /**
-     * 通用组织范围判定: 人员直命; 部门/上级链递归命中授权组织。
+     * 通用组织范围判定: 人员直命; 部门/上级链递归命中授权组织; 角色引用命中(2026-11-03)。
      * @param allowDataScopeAll dataScope=all 是否视为全放行——仅 VIEW(可见范围)允许(与旧 isVisibleTo 一致);
      *                          操作权限(edit/delete/import/claim)不因 all 放行, 必须命中池配置或 admin(上层短路)。
-     * deptIdsCsv/userIdsCsv 为空 → 无该权限(除 admin)。
+     * deptIdsCsv/userIdsCsv/roleIdsCsv 为空 → 无该权限(除 admin)。
      */
-    private boolean isInScope(String deptIdsCsv, String userIdsCsv, SecurityUser user, boolean allowDataScopeAll) {
+    private boolean isInScope(String deptIdsCsv, String userIdsCsv, String roleIdsCsv, SecurityUser user, boolean allowDataScopeAll) {
         if (user == null) return false;
         if (allowDataScopeAll && "all".equals(user.getDataScope())) return true;
         if (csvContains(userIdsCsv, user.getUserId())) return true;
         if (user.getDeptId() != null && csvContains(deptIdsCsv, user.getDeptId())) return true;
+        // 角色引用: 用户当前角色(启用)与授权角色交集命中即通过
+        if (StringUtils.hasText(roleIdsCsv) && user.getUserId() != null) {
+            Set<Long> authorizedRoles = parseIds(roleIdsCsv).stream().collect(Collectors.toSet());
+            for (SysRole role : roleMapper.selectRolesByUserId(user.getUserId())) {
+                if (role != null && role.getId() != null && authorizedRoles.contains(role.getId())) return true;
+            }
+        }
         // 上级链递归: 用户部门向上追溯, 命中授权组织(如大区 id)即可
         if (user.getDeptId() != null && StringUtils.hasText(deptIdsCsv)) {
             Set<Long> authorized = parseIds(deptIdsCsv).stream().collect(Collectors.toSet());
@@ -230,14 +242,18 @@ public class SeaConfigService {
                     .collect(Collectors.joining(", ")));
         }
         config.setVisibleNames(namesOf(config.getVisibleDeptIds(), config.getVisibleUserIds()));
-        // 【2026-08-10 池级权限】各操作权限名称(展示用)
-        config.setEditNames(namesOf(config.getEditDeptIds(), config.getEditUserIds()));
-        config.setDeleteNames(namesOf(config.getDeleteDeptIds(), config.getDeleteUserIds()));
-        config.setImportNames(namesOf(config.getImportDeptIds(), config.getImportUserIds()));
-        config.setClaimNames(namesOf(config.getClaimDeptIds(), config.getClaimUserIds()));
+        // 【2026-08-10 池级权限】各操作权限名称(展示用; 2026-11-03 起并入角色引用名)
+        config.setEditNames(namesOf(config.getEditDeptIds(), config.getEditUserIds(), config.getEditRoleIds()));
+        config.setDeleteNames(namesOf(config.getDeleteDeptIds(), config.getDeleteUserIds(), config.getDeleteRoleIds()));
+        config.setImportNames(namesOf(config.getImportDeptIds(), config.getImportUserIds(), config.getImportRoleIds()));
+        config.setClaimNames(namesOf(config.getClaimDeptIds(), config.getClaimUserIds(), config.getClaimRoleIds()));
     }
 
     private String namesOf(String deptIdsCsv, String userIdsCsv) {
+        return namesOf(deptIdsCsv, userIdsCsv, null);
+    }
+
+    private String namesOf(String deptIdsCsv, String userIdsCsv, String roleIdsCsv) {
         List<String> names = new ArrayList<>();
         for (Long id : parseIds(deptIdsCsv)) {
             SysDept dept = deptMapper.selectById(id);
@@ -246,6 +262,10 @@ public class SeaConfigService {
         for (Long id : parseIds(userIdsCsv)) {
             SysUser u = userMapper.selectById(id);
             if (u != null) names.add(u.getRealName());
+        }
+        for (Long id : parseIds(roleIdsCsv)) {
+            SysRole role = roleMapper.selectById(id);
+            if (role != null) names.add("角色:" + role.getRoleName());
         }
         return String.join(", ", names);
     }

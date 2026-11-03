@@ -10,6 +10,14 @@
       </div>
     </template>
     <div class="perm-grant-body">
+      <!-- 【2026-11-03 权限中心 P3】按角色批量: 勾角色=其启用成员全体获得下方开关(后端展开并集) -->
+      <div class="perm-grant-sec">
+        <div class="perm-grant-sec-title"><el-icon><Avatar /></el-icon> 按角色批量</div>
+        <el-select v-model="grantRoleIds" multiple collapse-tags collapse-tags-tooltip filterable clearable
+                   placeholder="如「全员互看」= 勾销售员+行政+销售总监；人员与角色可同时勾选（并集）" style="width:100%">
+          <el-option v-for="r in roleOptions" :key="r.id" :label="r.roleName" :value="r.id" />
+        </el-select>
+      </div>
       <!-- 选择人员 -->
       <div class="perm-grant-sec">
         <div class="perm-grant-sec-title"><el-icon><User /></el-icon> 选择人员</div>
@@ -74,12 +82,20 @@
 
 <script setup>
 // 共享"激励专项授权"弹窗（C4: 激励类别 tab 与权限矩阵共用 composable 单例状态，跨组件联动）
-import { Plus, Key, User, Lock, Check } from '@element-plus/icons-vue'
+import { ref, onMounted } from 'vue'
+import { Plus, Key, User, Lock, Check, Avatar } from '@element-plus/icons-vue'
 import { usePermissionData } from '@/composables/usePermissionData'
+import { getRoleList } from '@/api/system'
 import './perm-common.css'
 
 const {
-  showPermDialog, permForm, orgUserTree, userTreeRef, selectedUserCount,
+  showPermDialog, permForm, grantRoleIds, orgUserTree, userTreeRef, selectedUserCount,
   checkAllUsers, clearUsers, onTreeCheck, grantPerm,
 } = usePermissionData()
+
+// 【2026-11-03 P3】按角色批量的数据源(角色列表, 挂载时一次拉取)
+const roleOptions = ref([])
+onMounted(async () => {
+  try { roleOptions.value = (await getRoleList()).data || [] } catch (e) {}
+})
 </script>

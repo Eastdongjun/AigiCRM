@@ -25,6 +25,8 @@ public class IncentivePermissionController {
 
     private final JdbcTemplate jdbc;
     private final IncentiveService incentiveService;
+    // 【2026-11-03 权限中心 B2】授权变更记 sys_rule_version(审计时间线; 走 service, 控制器不依赖 mapper)
+    private final com.aigicrm.module.system.service.SysRuleVersionService ruleVersionService;
 
     /**
      * 激励授权面板列表：所有存在专项授权记录的用户及其四个开关
@@ -92,10 +94,36 @@ public class IncentivePermissionController {
         } else if (body.get("userId") != null) {
             userIds.add(Long.valueOf(body.get("userId").toString()));
         }
-        if (userIds.isEmpty()) throw new BusinessException("请选择要授权的人员");
+        // 【2026-11-03 权限中心 P3】按角色批量: roleIds 展开为启用角色的启用成员并集(仿审批 ROLE 展开语义),
+        // 与显式勾选的 userIds 合并去重后统一 upsert——"全员看全员的"= 勾 3 个角色替代 30 多人逐个点
+        Object rids = body.get("roleIds");
+        if (rids instanceof java.util.List) {
+            for (Object o : (java.util.List<?>) rids) {
+                if (o == null) continue;
+                Long roleId = Long.valueOf(o.toString());
+                // selectActiveUserIdsByRoleId: 角色 status=1 且成员 status=1/deleted=0(停用角色不展开)
+                userIds.addAll(jdbc.queryForList(
+                        "SELECT ur.user_id FROM sys_user_role ur " +
+                                "JOIN sys_role r ON r.id = ur.role_id " +
+                                "JOIN sys_user u ON u.id = ur.user_id " +
+                                "WHERE ur.role_id = ? AND r.status = 1 AND u.status = 1 AND u.deleted = 0",
+                        Long.class, roleId));
+            }
+            userIds = new java.util.ArrayList<>(new java.util.LinkedHashSet<>(userIds));
+        }
+        if (userIds.isEmpty()) throw new BusinessException("请选择要授权的人员或角色");
 
         Long operator = SecurityUtils.getCurrentUserId();
+        String newFlags = canViewShared + "," + canViewAll + "," + canEdit + "," + canDelete;
         for (Long userId : userIds) {
+            // 【B2 审计】旧值须在 upsert 前读(顺序不可颠倒)
+            String oldFlags = null;
+            var oldRows = jdbc.queryForList(
+                    "SELECT can_view_shared, can_view_all, can_edit, can_delete FROM biz_incentive_grant WHERE user_id = ?", userId);
+            if (!oldRows.isEmpty()) {
+                Map<String, Object> o = oldRows.get(0);
+                oldFlags = o.get("can_view_shared") + "," + o.get("can_view_all") + "," + o.get("can_edit") + "," + o.get("can_delete");
+            }
             jdbc.update("INSERT INTO biz_incentive_grant " +
                     "(user_id, can_view_shared, can_view_all, can_edit, can_delete, updated_by) " +
                     "VALUES (?,?,?,?,?,?) " +
@@ -103,8 +131,17 @@ public class IncentivePermissionController {
                     "can_view_all=VALUES(can_view_all), can_edit=VALUES(can_edit), " +
                     "can_delete=VALUES(can_delete), updated_by=VALUES(updated_by)",
                     userId, canViewShared, canViewAll, canEdit, canDelete, operator);
+            recordGrantVersion(userId, oldFlags, newFlags);
         }
         return Result.ok();
+    }
+
+    /**
+     * 【2026-11-03 权限中心 B2】激励授权变更记 sys_rule_version(权限中心审计时间线消费)。
+     * 无旧值=首次授予; 审计失败不阻断授权主流程(SysRuleVersionService.record 同口径)。
+     */
+    private void recordGrantVersion(Long userId, String oldFlags, String newFlags) {
+        ruleVersionService.record("incentive_grant:" + userId, oldFlags, newFlags, "激励专项授权");
     }
 
     private int toInt(Object v, int defaultValue) {
@@ -127,7 +164,18 @@ public class IncentivePermissionController {
     @DeleteMapping("/{id}")
     public Result<Void> revoke(@PathVariable Long id) {
         if (!SecurityUtils.isAdmin()) throw new BusinessException("仅系统管理员可撤销激励权限");
+        // 【B2 审计】删除前读旧值; 无行时撤销幂等直接成功不记版本
+        String oldFlags = null;
+        var oldRows = jdbc.queryForList(
+                "SELECT can_view_shared, can_view_all, can_edit, can_delete FROM biz_incentive_grant WHERE user_id = ?", id);
+        if (!oldRows.isEmpty()) {
+            Map<String, Object> o = oldRows.get(0);
+            oldFlags = o.get("can_view_shared") + "," + o.get("can_view_all") + "," + o.get("can_edit") + "," + o.get("can_delete");
+        }
         jdbc.update("DELETE FROM biz_incentive_grant WHERE user_id = ?", id);
+        if (oldFlags != null) {
+            recordGrantVersion(id, oldFlags, "默认(分享可见=开,其余=关)");
+        }
         return Result.ok();
     }
 

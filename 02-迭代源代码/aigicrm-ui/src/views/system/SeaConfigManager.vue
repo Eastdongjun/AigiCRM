@@ -89,7 +89,20 @@
             <template #title>
               <span style="font-weight:600">{{ sec.label }}</span>
               <el-tag size="small" :type="poolForm[sec.keys].length ? 'warning' : 'info'" style="margin-left:8px">{{ poolForm[sec.keys].length }} 项已选</el-tag>
+              <!-- 【2026-11-03 权限中心 P3】按角色引用: 勾角色=成员自动获得该权限, 换届免改名单 -->
+              <el-tag v-if="poolForm[sec.roleKeys].length" size="small" type="success" style="margin-left:4px">{{ poolForm[sec.roleKeys].length }} 角色</el-tag>
             </template>
+            <el-row style="margin-bottom:8px">
+              <el-col :span="24">
+                <div class="tree-card" style="display:flex;align-items:center;gap:10px;padding:8px 12px">
+                  <span style="font-size:13px;font-weight:600;color:#4e5969;flex-shrink:0">按角色引用</span>
+                  <el-select v-model="poolForm[sec.roleKeys]" multiple collapse-tags collapse-tags-tooltip filterable size="small"
+                             placeholder="勾选角色=其成员自动获得该权限（人员换届无需回来改名单）" style="flex:1" :disabled="!canEditSeaConfig">
+                    <el-option v-for="r in roleOptions" :key="r.id" :label="r.roleName" :value="r.id" />
+                  </el-select>
+                </div>
+              </el-col>
+            </el-row>
             <el-row :gutter="16">
               <el-col :span="14">
                 <div class="tree-card">
@@ -158,6 +171,7 @@ import { ElMessage } from 'element-plus'
 import { confirmAction } from '@/utils/confirm'
 import { Plus, OfficeBuilding, View, Sort, Select, Setting, User } from '@element-plus/icons-vue'
 import { getSeaConfigs, createSeaConfig, updateSeaConfig, deleteSeaConfig, getOrgTree } from '@/api/sea'
+import { getRoleList } from '@/api/system'
 import { useUserStore } from '@/store/user'
 
 const userStore = useUserStore()
@@ -166,18 +180,21 @@ const canEditSeaConfig = computed(() => userStore.hasPermission('sea:config:edit
 const seaPools = ref([])
 const orgTree = ref([])
 const poolDialogVisible = ref(false)
-const poolForm = reactive({ id: null, poolName: '', visibleKeys: [], editKeys: [], deleteKeys: [], importKeys: [], claimKeys: [], sortOrder: 0, status: 1 })
+const poolForm = reactive({ id: null, poolName: '', visibleKeys: [], editKeys: [], deleteKeys: [], importKeys: [], claimKeys: [], editRoleKeys: [], deleteRoleKeys: [], importRoleKeys: [], claimRoleKeys: [], sortOrder: 0, status: 1 })
 const seaLoadError = ref(false)
+// 【2026-11-03 权限中心 P3】按角色引用数据源(全部角色)
+const roleOptions = ref([])
 
-// 池级操作权限折叠区块配置(2026-08-10): label + poolForm keys 字段 + 后端 dept/user 字段名
+// 池级操作权限折叠区块配置(2026-08-10): label + poolForm keys 字段 + 后端 dept/user/role 字段名
 const permSections = [
-  { key: 'edit', label: '编辑权限', keys: 'editKeys', deptField: 'editDeptIds', userField: 'editUserIds' },
-  { key: 'delete', label: '删除权限', keys: 'deleteKeys', deptField: 'deleteDeptIds', userField: 'deleteUserIds' },
-  { key: 'import', label: '导入权限', keys: 'importKeys', deptField: 'importDeptIds', userField: 'importUserIds' },
-  { key: 'claim', label: '捞取权限', keys: 'claimKeys', deptField: 'claimDeptIds', userField: 'claimUserIds' }
+  { key: 'edit', label: '编辑权限', keys: 'editKeys', roleKeys: 'editRoleKeys', roleField: 'editRoleIds', deptField: 'editDeptIds', userField: 'editUserIds' },
+  { key: 'delete', label: '删除权限', keys: 'deleteKeys', roleKeys: 'deleteRoleKeys', roleField: 'deleteRoleIds', deptField: 'deleteDeptIds', userField: 'deleteUserIds' },
+  { key: 'import', label: '导入权限', keys: 'importKeys', roleKeys: 'importRoleKeys', roleField: 'importRoleIds', deptField: 'importDeptIds', userField: 'importUserIds' },
+  { key: 'claim', label: '捞取权限', keys: 'claimKeys', roleKeys: 'claimRoleKeys', roleField: 'claimRoleIds', deptField: 'claimDeptIds', userField: 'claimUserIds' }
 ]
 const permOpenSections = ref([]) // 默认全部折叠, 管理员按需展开
 const permInitKeys = ref({ edit: [], delete: [], import: [], claim: [] }) // 编辑时各权限初始值(提交对比防误清空)
+const permInitRoleKeys = ref({ edit: [], delete: [], import: [], claim: [] }) // 角色引用初始值(同上防误清空)
 
 const loadSeaPools = async () => {
   seaLoadError.value = false
@@ -191,6 +208,14 @@ const loadOrgTree = async () => {
   try {
     const res = await getOrgTree()
     orgTree.value = res.data || []
+  } catch (e) {}
+}
+
+// 【2026-11-03 权限中心 P3】角色引用数据源
+const loadRoleOptions = async () => {
+  try {
+    const res = await getRoleList()
+    roleOptions.value = res.data || []
   } catch (e) {}
 }
 
@@ -270,17 +295,26 @@ const bindSecTree = (secKey, el) => {
 }
 
 const handleAddPool = () => {
-  Object.assign(poolForm, { id: null, poolName: '', visibleKeys: [], editKeys: [], deleteKeys: [], importKeys: [], claimKeys: [], sortOrder: 0, status: 1 })
+  Object.assign(poolForm, { id: null, poolName: '', visibleKeys: [], editKeys: [], deleteKeys: [], importKeys: [], claimKeys: [],
+    editRoleKeys: [], deleteRoleKeys: [], importRoleKeys: [], claimRoleKeys: [], sortOrder: 0, status: 1 })
   permOpenSections.value = permSections.map(s => s.key) // 新增也展开权限区块
   permInitKeys.value = { edit: [], delete: [], import: [], claim: [] } // 新增默认全空
+  permInitRoleKeys.value = { edit: [], delete: [], import: [], claim: [] }
   poolDialogVisible.value = true
 }
+
+// CSV 角色 ID → 数组(回填用)
+const buildRoleKeys = (roleIdsCsv) => (roleIdsCsv || '').split(',').filter(Boolean).map(s => Number(s.trim()))
 
 const handleEditPool = (row) => {
   const newEdit = buildVisibleKeys(row.editDeptIds, row.editUserIds)
   const newDelete = buildVisibleKeys(row.deleteDeptIds, row.deleteUserIds)
   const newImport = buildVisibleKeys(row.importDeptIds, row.importUserIds)
   const newClaim = buildVisibleKeys(row.claimDeptIds, row.claimUserIds)
+  const newEditRoles = buildRoleKeys(row.editRoleIds)
+  const newDeleteRoles = buildRoleKeys(row.deleteRoleIds)
+  const newImportRoles = buildRoleKeys(row.importRoleIds)
+  const newClaimRoles = buildRoleKeys(row.claimRoleIds)
   Object.assign(poolForm, {
     id: row.id,
     poolName: row.poolName,
@@ -289,11 +323,16 @@ const handleEditPool = (row) => {
     deleteKeys: newDelete,
     importKeys: newImport,
     claimKeys: newClaim,
+    editRoleKeys: newEditRoles,
+    deleteRoleKeys: newDeleteRoles,
+    importRoleKeys: newImportRoles,
+    claimRoleKeys: newClaimRoles,
     sortOrder: row.sortOrder || 0,
     status: row.status === 0 ? 0 : 1
   })
   // 记录权限初始值: 提交时仅提交被修改的权限区块(未改动保留旧值, 防误清空)
   permInitKeys.value = { edit: [...newEdit], delete: [...newDelete], import: [...newImport], claim: [...newClaim] }
+  permInitRoleKeys.value = { edit: [...newEditRoles], delete: [...newDeleteRoles], import: [...newImportRoles], claim: [...newClaimRoles] }
   poolDialogVisible.value = true
   // 【2026-08-10 修复】编辑时展开所有权限区块——确保树渲染挂载后回填可靠, 避免折叠时回填失效导致误清空池权限
   permOpenSections.value = permSections.map(s => s.key)
@@ -347,6 +386,11 @@ const submitPool = async () => {
       const changed = JSON.stringify(poolForm[secKey + 'Keys'] || []) !== JSON.stringify(permInitKeys.value[secKey] || [])
       return changed ? split : undefined
     }
+    // 【2026-11-03 P3】角色引用同款防误清空: 未改动不传, 改动(含清空)提交 CSV
+    const roleVal = (secKey) => {
+      const changed = JSON.stringify([...(poolForm[secKey + 'RoleKeys'] || [])].sort()) !== JSON.stringify([...(permInitRoleKeys.value[secKey] || [])].sort())
+      return changed ? (poolForm[secKey + 'RoleKeys'] || []).join(',') : undefined
+    }
     const payload = {
       poolName: poolForm.poolName,
       visibleDeptIds: visible.dept,
@@ -355,6 +399,10 @@ const submitPool = async () => {
       ...(permVal('delete', del) !== undefined ? { deleteDeptIds: del.dept || '', deleteUserIds: del.user || '' } : {}),
       ...(permVal('import', imp) !== undefined ? { importDeptIds: imp.dept || '', importUserIds: imp.user || '' } : {}),
       ...(permVal('claim', claim) !== undefined ? { claimDeptIds: claim.dept || '', claimUserIds: claim.user || '' } : {}),
+      ...(roleVal('edit') !== undefined ? { editRoleIds: roleVal('edit') } : {}),
+      ...(roleVal('delete') !== undefined ? { deleteRoleIds: roleVal('delete') } : {}),
+      ...(roleVal('import') !== undefined ? { importRoleIds: roleVal('import') } : {}),
+      ...(roleVal('claim') !== undefined ? { claimRoleIds: roleVal('claim') } : {}),
       sortOrder: poolForm.sortOrder,
       status: poolForm.status
     }
@@ -372,7 +420,7 @@ const submitPool = async () => {
   }
 }
 
-onMounted(() => { loadSeaPools(); loadOrgTree() })
+onMounted(() => { loadSeaPools(); loadOrgTree(); loadRoleOptions() })
 </script>
 
 <style scoped>

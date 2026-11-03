@@ -121,4 +121,50 @@ class CustomerFinanceGuardTest {
             assertTrue(ex.getMessage().contains("无权编辑该客户"), "实际: " + ex.getMessage());
         }
     }
+
+    /** 【2026-11-03 拆码】仅持 customer:finance:edit(无 manage/无 customer:edit): 走独立 finance_edit 范围通道 */
+    @Test
+    void financeEditCode_inScope_passesWithoutCustomerEdit() {
+        when(customerMapper.selectTenantIdById(1L)).thenReturn(1L);
+        when(customerMapper.selectById(1L)).thenReturn(customer(1L));
+        OrgScopeResolver scopeResolver = mock(OrgScopeResolver.class);
+        when(scopeResolver.canAccess(any())).thenReturn(true);
+        CustomerAccessService svc2 = new CustomerAccessService(customerMapper, mock(BizCustomerShareMapper.class),
+                scopeResolver, mock(BizSeaPoolMapper.class), mock(SeaConfigService.class), mock(RolePermScopeService.class));
+
+        try (MockedStatic<SecurityUtils> sec = mockStatic(SecurityUtils.class)) {
+            sec.when(SecurityUtils::isAdmin).thenReturn(false);
+            sec.when(SecurityUtils::getCurrentGroupIds).thenReturn(List.of(1L));
+            com.aigicrm.security.SecurityUser su = new com.aigicrm.security.SecurityUser();
+            su.setUserId(7L);
+            sec.when(SecurityUtils::getCurrentUser).thenReturn(su);
+            sec.when(() -> SecurityUtils.hasAuthority("finance:manage")).thenReturn(false);
+            sec.when(() -> SecurityUtils.hasAuthority("customer:finance:edit")).thenReturn(true);
+            sec.when(() -> SecurityUtils.hasAuthority("customer:edit")).thenReturn(false);
+
+            assertDoesNotThrow(() -> svc2.assertCanManageFinance(1L));
+            // 判定走的是 customer×finance_edit(独立范围 action), 不是 edit
+            verify(scopeResolver).canAccess(org.mockito.ArgumentMatchers.argThat(
+                    req -> req != null && "finance_edit".equals(req.getAction())));
+        }
+    }
+
+    /** 【2026-11-03 拆码】持码但目标在 finance_edit 范围外 → 落回旧通道, 无 customer:edit → 拒 */
+    @Test
+    void financeEditCode_outOfScope_fallsBackAndRejected() {
+        when(customerMapper.selectTenantIdById(1L)).thenReturn(1L);
+        when(customerMapper.selectById(1L)).thenReturn(customer(1L));
+
+        try (MockedStatic<SecurityUtils> sec = mockStatic(SecurityUtils.class)) {
+            sec.when(SecurityUtils::isAdmin).thenReturn(false);
+            sec.when(SecurityUtils::getCurrentGroupIds).thenReturn(List.of(1L));
+            sec.when(() -> SecurityUtils.hasAuthority("finance:manage")).thenReturn(false);
+            sec.when(() -> SecurityUtils.hasAuthority("customer:finance:edit")).thenReturn(true);
+            sec.when(() -> SecurityUtils.hasAuthority("customer:edit")).thenReturn(false);
+
+            BusinessException ex = assertThrows(BusinessException.class,
+                    () -> svc.assertCanManageFinance(1L));
+            assertTrue(ex.getMessage().contains("无权编辑该客户"), "实际: " + ex.getMessage());
+        }
+    }
 }
