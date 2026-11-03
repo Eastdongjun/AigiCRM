@@ -156,11 +156,21 @@ function buildRankingView(data) {
   const customerPeriodText = pickLabel(data.customerPeriodOptions, data.customerPeriodIndex, '全部')
   const scoreTab = (data.scoreTabs || []).find((item) => item.key === data.scoreActiveTab) || {}
   const customerTab = (data.tabs || []).find((item) => item.key === data.activeTab) || {}
+  const rankTab = data.rankTab || 'score'
   return {
     refreshLoading: loading,
     refreshText: loading ? '刷新中' : '刷新',
     showLoading: loading,
     loadingText: '加载中...',
+    // 【2026-11-03 用户令"不要把所有内容放到一个页面里"】三主页签: 学分(默认)/客户/激励个人
+    mainTabs: [
+      { key: 'score', title: '学分排行' },
+      { key: 'customer', title: '客户排行' },
+      { key: 'incentive', title: '激励排行' }
+    ].map((item) => ({ ...item, className: rankTab === item.key ? 'active' : '' })),
+    showScorePane: rankTab === 'score',
+    showCustomerPane: rankTab === 'customer',
+    showIncentivePane: rankTab === 'incentive',
     summaryCards: buildSummaryCards(stats),
     topScoreText: `最高学分：${stats.topScoreName || '-'} · ${stats.topScore || 0} 分 · ${stats.topItemCount || 0} 个文件`,
     scorePeriodText,
@@ -179,6 +189,7 @@ function buildRankingView(data) {
 
 Page({
   data: {
+    rankTab: 'score', // 【2026-11-03 用户令】三主页签(学分/客户/激励), 默认学分排行
     activeTab: 'incentive',
     scoreActiveTab: 'personal',
     tabs: [
@@ -256,6 +267,13 @@ Page({
       return
     }
     this.loadRanking()
+  },
+
+  // 【2026-11-03 用户令"不要把所有内容放到一个页面里"】三主页签切换: 数据已加载, 纯显示切换不发请求
+  switchMainTab(e) {
+    const rankTab = e.currentTarget.dataset.key
+    if (['score', 'customer', 'incentive'].indexOf(rankTab) < 0 || rankTab === this.data.rankTab) return
+    this.setRankingData({ rankTab })
   },
 
   switchTab(e) {

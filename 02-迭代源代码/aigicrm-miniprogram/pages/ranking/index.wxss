@@ -56,3 +56,8 @@
 .rank-stat-num { text-align: right; color: #172033; font-size: 24rpx; font-weight: 700; }
 .rank-stat-row.total { border-top: 1rpx solid #d6deeb; }
 .rank-stat-row.total text { color: #172033; font-weight: 800; }
+
+/* ===== 【2026-11-03 用户令"学分排行重新设计,不要把所有内容放到一个页面里"】三主页签 =====
+   复用全局 .tabs/.tab 胶囊语言(与四项服务排行三页签同款), 尺寸降半档区分层级 */
+.rank-main-tabs { margin: 0 0 16rpx; }
+.rank-main-tabs .tab { padding: 12rpx 0; font-size: 23rpx; border-radius: 18rpx; }
