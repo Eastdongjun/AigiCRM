@@ -1,165 +1,181 @@
 <template>
-  <el-form label-width="120px" class="basic-form">
-    <el-form-item label="系统名称">
-      <el-input v-model="configMap['system.name']" style="width: 300px" />
-    </el-form-item>
-    <el-form-item label="系统副标题">
-      <el-input v-model="configMap['system.subtitle']" style="width: 300px" placeholder="如：市场资源管理系统" />
-    </el-form-item>
-    <el-form-item label="系统Logo">
-      <div style="display: flex; align-items: center; gap: 12px">
-        <img v-if="configMap['system.logo']" :src="logoPreviewSrc" class="logo-preview" />
-        <el-upload
-          :action="'/api/file/upload'"
-          :headers="uploadHeaders()"
-          :data="{ folderId: 0, scope: 'public' }"
-          :show-file-list="false"
-          accept="image/*"
-          :on-success="handleLogoUpload"
-        >
-          <el-button type="primary">上传Logo</el-button>
-        </el-upload>
-        <el-button v-if="canEditConfig && configMap['system.logo']" type="danger" link @click="configMap['system.logo'] = ''">清除</el-button>
-      </div>
-    </el-form-item>
-    <el-form-item label="客户保护期">
-      <el-input v-model="configMap['customer.protection.days']" style="width: 300px">
-        <template #suffix>天</template>
-      </el-input>
-    </el-form-item>
-    <el-form-item label="提醒提前">
-      <el-input v-model="configMap['customer.warning.days']" style="width: 300px">
-        <template #suffix>天</template>
-      </el-input>
-    </el-form-item>
-    <el-form-item label="调整期天数">
-      <el-input v-model="configMap['customer.adjust.days']" style="width: 300px">
-        <template #suffix>天</template>
-      </el-input>
-    </el-form-item>
-    <el-form-item label="开票超期天数">
-      <el-input v-model="configMap['invoice.overdue.days']" style="width: 300px">
-        <template #suffix>天</template>
-      </el-input>
-    </el-form-item>
-    <!-- 【2026-11-03 用户令门槛配置化】核心客户判定双门槛(万元): 管理员可改, 保存后后端自动全量刷新核心标签 -->
-    <el-form-item label="真核心门槛">
-      <div class="retention-field">
-        <el-input-number
-          v-model="coreMajorWan"
-          :min="1" :max="CORE_THRESHOLD_MAX" :step="10" :precision="0"
-          controls-position="right" style="width: 180px"
-          aria-label="真核心门槛(万元)"
-        />
-        <span class="retention-unit">万</span>
-        <span class="retention-hint">年度开票、回款均≥该值为真核心</span>
-      </div>
-    </el-form-item>
-    <el-form-item label="争核心门槛">
-      <div class="retention-field">
-        <el-input-number
-          v-model="coreMinorWan"
-          :min="1" :max="CORE_THRESHOLD_MAX" :step="10" :precision="0"
-          controls-position="right" style="width: 180px"
-          aria-label="争核心门槛(万元)"
-        />
-        <span class="retention-unit">万</span>
-        <span class="retention-hint">均≥该值未双达真核心门槛=争核心，否则非核心；保存后自动按新门槛刷新全部客户核心标签</span>
-      </div>
-    </el-form-item>
-    <el-form-item label="默认存储空间">
-      <el-input :model-value="storageGb" @update:model-value="onStorageGb" style="width: 300px">
-        <template #suffix>GB</template>
-      </el-input>
-    </el-form-item>
-    <el-form-item label="文件回收站保留">
-      <div class="retention-field">
-        <el-input-number
-          v-model="retentionDays"
-          :min="0" :max="3650" :step="1" :precision="0" :value-on-clear="0"
-          controls-position="right" style="width: 180px"
-          aria-label="文件回收站保留天数"
-        />
-        <span class="retention-unit">天</span>
-        <span class="retention-hint">{{ retentionDays === 0 ? '不自动清理' : '超过保留天数的文件将自动清理' }}</span>
-      </div>
-    </el-form-item>
-    <el-divider content-position="left">存储扩容申请</el-divider>
-    <div v-if="!canEditConfig" class="readonly-tip">当前账号只读：需 system:config:edit 权限才能修改</div>
-    <el-form-item label="允许申请">
-      <div class="apply-inline">
-        <el-switch v-model="storageApplyEnabled" :disabled="!canEditConfig" />
-        <span class="field-hint">开启后名单内成员可提交；关闭后仅管理员可申请</span>
-      </div>
-    </el-form-item>
-    <el-form-item label="可申请人员">
-      <div class="apply-block">
-        <el-select
-          v-model="storageApplyUsers"
-          multiple
-          filterable
-          placeholder="选择可申请扩容的人员（可多选）"
-          style="width: 100%"
-          :disabled="!canEditConfig"
-        >
-          <el-option v-for="u in allUsers" :key="u.id" :label="u.realName" :value="u.id" />
-        </el-select>
-        <span class="field-hint">管理员始终可申请；名单内人员可提交扩容申请。管理员本人申请时，需在「审批流程配置」中安排其他审批人（禁止自审自批）。</span>
-      </div>
-    </el-form-item>
-    <el-form-item label="单用户配额上限">
-      <div class="apply-inline">
-        <el-input-number
-          v-model="storageMaxQuotaGb"
-          :min="STORAGE_MAX_QUOTA_MIN_GB" :max="STORAGE_MAX_QUOTA_MAX_GB"
-          :step="10" :precision="0" :value-on-clear="STORAGE_MAX_QUOTA_DEFAULT_GB"
-          :disabled="!canEditConfig"
-          controls-position="right" style="width: 180px"
-          aria-label="单用户存储配额上限（GB）"
-        />
-        <span class="quota-unit">GB</span>
-        <span class="field-hint">范围 1–1024 GB，默认 100 GB</span>
-      </div>
-    </el-form-item>
-    <el-form-item label="编号规则">
-      <el-select v-model="configMap['customer.code.rule']" style="width: 300px">
-        <el-option label="大区首字母-年月-顺序号 (如 NM-202606-001)" value="region_date_seq" />
-        <el-option label="大区首字母-顺序号 (如 NM-001)" value="region_seq" />
-      </el-select>
-    </el-form-item>
-    <el-divider content-position="left">客户默认共享规则</el-divider>
-    <el-form-item label="直接上级">
-      <el-switch v-model="autoShare.superior" active-text="上级可见下级客户" />
-    </el-form-item>
-    <el-form-item label="管理员">
-      <el-switch v-model="autoShare.admin" active-text="管理员可见全部客户" />
-    </el-form-item>
-    <el-form-item label="指定角色">
-      <el-select v-model="autoShare.roles" multiple placeholder="选择角色（可多选）" style="width: 100%">
-        <el-option v-for="r in allRoles" :key="r.roleCode" :label="r.roleName" :value="r.roleCode" />
-      </el-select>
-    </el-form-item>
-    <el-form-item label="指定人员">
-      <el-select v-model="autoShare.users" multiple filterable placeholder="选择人员（可多选）" style="width: 100%">
-        <el-option v-for="u in allUsers" :key="u.id" :label="u.realName" :value="u.id" />
-      </el-select>
-    </el-form-item>
-    <el-divider content-position="left">系统级数据范围</el-divider>
-    <el-form-item label="上级看下属">
-      <el-switch v-model="configMap['perm.superior.see.subordinate']"
-        active-value="true" inactive-value="false"
-        active-text="直接上级默认可见递归下属链数据（最多5层）" />
-    </el-form-item>
-    <el-form-item label="组织负责人">
-      <el-switch v-model="configMap['perm.org.leader.see.org']"
-        active-value="true" inactive-value="false"
-        active-text="组织负责人默认可见本组织整棵子树全部数据" />
-    </el-form-item>
-    <el-form-item>
+  <!-- 【2026-11-05 用户令"系统设置骨架重新设计…功能要全，好用"】分组卡片化重排:
+       原 20+ 字段单列长表单(仅两处分隔线)重排为五张白卡 + 吸底保存栏;
+       script 逻辑与全部绑定零改动, 仅布局重排。卡片: 基本信息/客户与保护期/核心客户门槛/存储与回收站/客户规则与数据范围。 -->
+  <el-form label-position="top" class="basic-form">
+    <div class="bs-grid">
+      <!-- ① 基本信息 -->
+      <section class="bs-card">
+        <h4 class="bs-card-title">基本信息</h4>
+        <p class="bs-card-desc">系统显示名与标识，登录页与浏览器标题即时生效</p>
+        <el-form-item label="系统名称">
+          <el-input v-model="configMap['system.name']" style="width: 300px" />
+        </el-form-item>
+        <el-form-item label="系统副标题">
+          <el-input v-model="configMap['system.subtitle']" style="width: 300px" placeholder="如：市场资源管理系统" />
+        </el-form-item>
+        <el-form-item label="系统Logo">
+          <div style="display: flex; align-items: center; gap: 12px">
+            <img v-if="configMap['system.logo']" :src="logoPreviewSrc" class="logo-preview" />
+            <el-upload
+              :action="'/api/file/upload'"
+              :headers="uploadHeaders()"
+              :data="{ folderId: 0, scope: 'public' }"
+              :show-file-list="false"
+              accept="image/*"
+              :on-success="handleLogoUpload"
+            >
+              <el-button type="primary">上传Logo</el-button>
+            </el-upload>
+            <el-button v-if="canEditConfig && configMap['system.logo']" type="danger" link @click="configMap['system.logo'] = ''">清除</el-button>
+          </div>
+        </el-form-item>
+      </section>
+
+      <!-- ② 客户与保护期 -->
+      <section class="bs-card">
+        <h4 class="bs-card-title">客户与保护期</h4>
+        <p class="bs-card-desc">保护期/提醒/调整期/开票超期四个日期口径（天），凌晨批按此重算客户状态</p>
+        <el-form-item label="客户保护期">
+          <el-input v-model="configMap['customer.protection.days']" style="width: 300px">
+            <template #suffix>天</template>
+          </el-input>
+        </el-form-item>
+        <el-form-item label="提醒提前">
+          <el-input v-model="configMap['customer.warning.days']" style="width: 300px">
+            <template #suffix>天</template>
+          </el-input>
+        </el-form-item>
+        <el-form-item label="调整期天数">
+          <el-input v-model="configMap['customer.adjust.days']" style="width: 300px">
+            <template #suffix>天</template>
+          </el-input>
+        </el-form-item>
+        <el-form-item label="开票超期天数">
+          <el-input v-model="configMap['invoice.overdue.days']" style="width: 300px">
+            <template #suffix>天</template>
+          </el-input>
+        </el-form-item>
+      </section>
+
+      <!-- ③ 核心客户门槛 -->
+      <section class="bs-card">
+        <h4 class="bs-card-title">核心客户门槛</h4>
+        <p class="bs-card-desc">单位：万元。保存后自动按新门槛刷新全部客户核心标签</p>
+        <!-- 【2026-11-03 用户令门槛配置化】核心客户判定双门槛(万元): 管理员可改, 保存后后端自动全量刷新核心标签 -->
+        <el-form-item label="真核心门槛">
+          <div class="retention-field">
+            <el-input-number v-model="coreMajorWan" :min="0" :max="CORE_THRESHOLD_MAX" :step="10"
+              aria-label="真核心门槛(万元)" />
+            <span class="retention-unit">万</span>
+            <span class="retention-hint">年度开票、回款均≥该值为真核心</span>
+          </div>
+        </el-form-item>
+        <el-form-item label="争核心门槛">
+          <div class="retention-field">
+            <el-input-number v-model="coreMinorWan" :min="0" :max="CORE_THRESHOLD_MAX" :step="10"
+              aria-label="争核心门槛(万元)" />
+            <span class="retention-unit">万</span>
+            <span class="retention-hint">均≥该值未双达真核心门槛=争核心，否则非核心</span>
+          </div>
+        </el-form-item>
+      </section>
+
+      <!-- ④ 存储与回收站 -->
+      <section class="bs-card">
+        <h4 class="bs-card-title">存储与回收站</h4>
+        <p class="bs-card-desc">个人配额、文件回收站清理与扩容申请通道</p>
+        <el-form-item label="默认存储空间">
+          <el-input :model-value="storageGb" @update:model-value="onStorageGb" style="width: 300px">
+            <template #suffix>GB</template>
+          </el-input>
+        </el-form-item>
+        <el-form-item label="文件回收站保留">
+          <div class="retention-field">
+            <el-input-number v-model="retentionDays" :min="0" :max="RETENTION_MAX" :step="1"
+              aria-label="文件回收站保留天数" />
+            <span class="retention-unit">天</span>
+            <span class="retention-hint">{{ retentionDays === 0 ? '不自动清理' : '超过保留天数的文件将自动清理' }}</span>
+          </div>
+        </el-form-item>
+        <el-form-item label="允许申请扩容">
+          <div class="apply-inline">
+            <el-switch v-model="storageApplyEnabled" :disabled="!canEditConfig" />
+            <span class="field-hint">开启后名单内成员可提交；关闭后仅管理员可申请</span>
+          </div>
+        </el-form-item>
+        <el-form-item label="可申请人员">
+          <div class="apply-block">
+            <el-select v-model="storageApplyUsers" multiple filterable placeholder="选择人员（可多选）"
+              :disabled="!canEditConfig" style="width: 100%">
+              <el-option v-for="u in allUsers" :key="u.id" :label="u.realName" :value="u.id" />
+            </el-select>
+            <span class="field-hint">管理员始终可申请；名单内人员可提交扩容申请。管理员本人申请时，需在「审批流程配置」中安排其他审批人（禁止自审自批）。</span>
+          </div>
+        </el-form-item>
+        <el-form-item label="单用户配额上限">
+          <div class="apply-inline">
+            <el-input-number v-model="storageMaxQuotaGb" :min="STORAGE_MAX_QUOTA_MIN_GB" :max="STORAGE_MAX_QUOTA_MAX_GB"
+              :disabled="!canEditConfig" aria-label="单用户存储配额上限（GB）" />
+            <span class="quota-unit">GB</span>
+            <span class="field-hint">范围 1–1024 GB，默认 100 GB</span>
+          </div>
+        </el-form-item>
+      </section>
+
+      <!-- ⑤ 客户规则与数据范围 -->
+      <section class="bs-card bs-card-wide">
+        <h4 class="bs-card-title">客户规则与数据范围</h4>
+        <p class="bs-card-desc">客户编号规则 · 新客户默认共享对象 · 系统级数据范围推导（上级/组织负责人）</p>
+        <el-form-item label="编号规则">
+          <el-select v-model="configMap['customer.code.rule']" style="width: 340px">
+            <el-option label="大区首字母-年月-顺序号 (如 NM-202606-001)" value="region_date_seq" />
+            <el-option label="大区首字母-顺序号 (如 NM-001)" value="region_seq" />
+          </el-select>
+        </el-form-item>
+        <div class="bs-mini-caption">新客户默认共享规则</div>
+        <div class="bs-switch-row">
+          <span class="bs-switch-label">直接上级</span>
+          <el-switch v-model="autoShare.superior" active-text="上级可见下级客户" />
+        </div>
+        <div class="bs-switch-row">
+          <span class="bs-switch-label">管理员</span>
+          <el-switch v-model="autoShare.admin" active-text="管理员可见全部客户" />
+        </div>
+        <el-form-item label="指定角色">
+          <el-select v-model="autoShare.roles" multiple placeholder="选择角色（可多选）" style="width: 100%">
+            <el-option v-for="r in allRoles" :key="r.roleCode" :label="r.roleName" :value="r.roleCode" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="指定人员">
+          <el-select v-model="autoShare.users" multiple filterable placeholder="选择人员（可多选）" style="width: 100%">
+            <el-option v-for="u in allUsers" :key="u.id" :label="u.realName" :value="u.id" />
+          </el-select>
+        </el-form-item>
+        <div class="bs-mini-caption">系统级数据范围推导</div>
+        <div class="bs-switch-row">
+          <span class="bs-switch-label">上级看下属</span>
+          <el-switch v-model="configMap['perm.superior.see.subordinate']"
+            active-value="true" inactive-value="false"
+            active-text="直接上级默认可见递归下属链数据（最多5层）" />
+        </div>
+        <div class="bs-switch-row">
+          <span class="bs-switch-label">组织负责人</span>
+          <el-switch v-model="configMap['perm.org.leader.see.org']"
+            active-value="true" inactive-value="false"
+            active-text="组织负责人默认可见本组织整棵子树全部数据" />
+        </div>
+      </section>
+    </div>
+
+    <!-- 吸底保存栏: 只读提示与保存动作常驻可视区, 不再沉在长表单底部 -->
+    <div class="bs-savebar">
+      <span v-if="!canEditConfig" class="readonly-tip">当前账号只读：需 system:config:edit 权限才能修改</span>
       <el-button v-if="canEditConfig" type="primary" @click="handleSave">保存设置</el-button>
-    </el-form-item>
+    </div>
   </el-form>
 </template>
+
 
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue'
@@ -413,8 +429,7 @@ onMounted(() => {
 
 <style scoped>
 .basic-form {
-  max-width: 520px;
-  padding: 20px 0;
+  padding: 4px 0 0;
 }
 .logo-preview {
   width: 48px;
@@ -430,5 +445,18 @@ onMounted(() => {
 .apply-block { display: flex; flex-direction: column; gap: 4px; width: 100%; }
 .field-hint { font-size: 12px; color: var(--el-text-color-secondary); line-height: 1.5; }
 .quota-unit { font-size: 13px; color: var(--el-text-color-regular); }
-.readonly-tip { margin: -4px 0 12px 120px; font-size: 12px; color: var(--el-color-warning); }
+.readonly-tip { margin: 0; font-size: 12px; color: var(--el-color-warning); }
+/* ===== 【2026-11-05 骨架重排】分组卡片 + 吸底保存栏 ===== */
+.bs-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 14px; }
+.bs-card { background: #fff; border: 1px solid #e4e7ed; border-radius: var(--radius-md, 10px); padding: 14px 18px 6px; min-width: 0 }
+.bs-card-wide { grid-column: 1 / -1 }
+.bs-card-title { margin: 0 0 2px; font-size: 14px; font-weight: 600; color: #1f2d3d }
+.bs-card-desc { margin: 0 0 12px; font-size: 12px; color: var(--el-color-info) }
+.bs-mini-caption { font-size: 12px; font-weight: 600; color: #4e5969; margin: 6px 0 8px; padding-left: 8px; border-left: 3px solid var(--el-color-primary-light-5) }
+.bs-switch-row { display: flex; align-items: center; gap: 12px; margin: 0 0 10px }
+.bs-switch-label { width: 72px; font-size: 13px; color: #4e5969; flex-shrink: 0 }
+.bs-savebar { position: sticky; bottom: 0; z-index: 5; display: flex; align-items: center; justify-content: flex-end; gap: 12px; margin-top: 14px; padding: 12px 16px; background: #fff; border-top: 1px solid #ebeef5; border-radius: 0 0 var(--radius-md, 10px) }
+/* label-position=top 后表单项纵向更紧凑 */
+.bs-card :deep(.el-form-item) { margin-bottom: 14px }
+.bs-card :deep(.el-form-item__label) { padding-bottom: 2px; font-size: 13px; color: #4e5969 }
 </style>

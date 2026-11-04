@@ -60,7 +60,7 @@ describe('权限中心(2026-11-03 门面统一)', () => {
   it('生效预览: 选人后渲染引擎算出的范围表/公海判定/激励开关', async () => {
     const wrapper = mountCenter()
     // lazy 页签: 先激活"生效预览"再驱动预览流
-    const tab = wrapper.findAll('.el-tabs__item').find(w => w.text().includes('生效预览'))
+    const tab = wrapper.findAll('.pc-chip').find(w => w.text().includes('生效预览'))
     await tab.trigger('click')
     await flushPromises()
     const vm = wrapper.vm
@@ -81,7 +81,7 @@ describe('权限中心(2026-11-03 门面统一)', () => {
 
   it('变更审计: 消费 rule-versions 分页表(范围配置变更入册)', async () => {
     const wrapper = mountCenter()
-    const tab = wrapper.findAll('.el-tabs__item').find(w => w.text().includes('变更审计'))
+    const tab = wrapper.findAll('.pc-chip').find(w => w.text().includes('变更审计'))
     await tab.trigger('click')
     await flushPromises()
     await wrapper.vm.loadAudit()

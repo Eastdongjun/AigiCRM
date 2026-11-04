@@ -19,8 +19,9 @@ MP="$ROOT/aigicrm-miniprogram"
 fail() { echo "FAIL: $*" >&2; exit 1; }
 
 # ---- A. 唯一可写入口(2026-11-05 起入口位置=系统设置内「权限中心」页签) ----
-grep -Fq "<PermCenter embedded />" "$UI/views/system/config.vue" || fail 'config.vue must host PermCenter as embedded tab (2026-11-05 收敛)'
-grep -Fq 'name="permCenter"' "$UI/views/system/config.vue" || fail 'config.vue must register permCenter tab pane'
+# 【2026-11-05 骨架重排】config 弃 el-tabs 改自定义分组导航: 钉挂载形态+导航键(activeTab 语义不变)
+grep -Fq "<PermCenter v-show=\"activeTab === 'permCenter'\" embedded />" "$UI/views/system/config.vue" || fail 'config must host PermCenter embedded (2026-11-05 收敛+骨架v2)'
+grep -Fq "activeTab === 'permCenter'" "$UI/views/system/config.vue" || fail 'config nav must register permCenter item (activeTab key)'
 grep -Fq "defineProps({ embedded: { type: Boolean, default: false } })" "$UI/views/system/PermCenter.vue" || fail 'PermCenter must support embedded mode (hide own header in tab)'
 # 旧链接自愈: /system/perm-center 路由仅作重定向, 不得再直挂 PermCenter 组件(防独立页面回潮)
 grep -Fq "redirect: '/system/config'" "$UI/router/index.js" || fail 'router /system/perm-center must redirect to /system/config'
@@ -34,7 +35,7 @@ grep -Fq "PermScopeManager" "$UI/views/system/PermCenter.vue" || fail 'PermCente
 grep -Fq "SeaConfigManager" "$UI/views/system/PermCenter.vue" || fail 'PermCenter tab-2 must embed SeaConfigManager'
 grep -Fq "activeTab.value = 'permCenter'" "$UI/views/system/role.vue" || fail 'role.vue jump must land on 系统设置 permCenter tab'
 # 日志管理同款收敛(2026-11-05 用户令"日志管理也放到系统设置里面"): 页签按注册码 system:log:view 显隐
-grep -Fq 'name="log"' "$UI/views/system/config.vue" || fail 'config.vue must register log tab pane (日志管理收敛)'
+grep -Fq "activeTab === 'log'" "$UI/views/system/config.vue" || fail 'config nav must register log item (日志管理收敛, activeTab key)'
 grep -Fq "canViewLog" "$UI/views/system/config.vue" || fail 'config.vue log tab must gate by system:log:view (canViewLog)'
 grep -Fq "defineProps({ embedded: { type: Boolean, default: false } })" "$UI/views/system/log.vue" || fail 'log.vue must support embedded mode (hide own header in tab)'
 if grep -Fq "views/system/log.vue" "$UI/router/index.js"; then

@@ -1,30 +1,21 @@
 <template>
-  <!-- 【2026-11-05 用户令"系统设置里面的权限页面骨架你来优化"】embedded 骨架重排:
-       外层 config 深度样式本会把嵌套 el-tabs 硬掰成 200px 左列(横排页签被塞窄列→折行截断),
-       与其对抗不如顺势成体系: embedded 下内层页签正式转 tab-position=left 竖排,
-       复刻外层 settings-tabs 的 pill 语言(高亮底色/无下划线/左对齐), 两级左导航层级一致;
-       另补一行上下文说明(embedded 无页头, 口径说明不能丢)与空态卡(无码不再裸空)。 -->
-  <div class="perm-center" :class="{ embedded }">
-    <!-- 【2026-11-03 用户裁决"门面统一+收口单入口"】全系统权限配置唯一可写入口:
-         ①功能与范围(角色/岗位/用户×功能勾选×范围锚点) ②专项权限(公海名单/激励授权)
-         ③生效预览(引擎实时算任意人的真实权限) ④变更审计(append-only 时间线)。 -->
-    <!-- embedded(系统设置内页签形态)时隐藏自带大页头(页签标题已表意), 改一行上下文说明 -->
-    <div v-if="!embedded" class="pc-header">
-      <div>
-        <h3 class="pc-title">权限中心</h3>
-        <p class="pc-sub">功能勾选 · 数据范围与锚点 · 公海名单 · 激励授权 —— 唯一配置入口，保存即生效（用户刷新页面即可见）</p>
-      </div>
+  <!-- 【2026-11-05 用户令"系统设置骨架重新设计"】内层导航弃 el-tabs 改横向 chip 条:
+       config 外层曾对 el-tabs 写 :deep 全量样式会劫持嵌套页签(横排页签被塞窄列折行截断),
+       自定义 chip 无此劫持面; 四 pane 内容单份, visited-once+v-show 惰性挂载保持原 lazy 语义。
+       (embedded 仅为兼容入参保留, 全系统只有 系统设置 一处消费; 保存即生效口径常驻顶行) -->
+  <div class="perm-center">
+    <p class="pc-context">全系统权限唯一配置入口 · 保存即生效（用户刷新页面即可见）</p>
+    <div class="pc-chipbar">
+      <button class="pc-chip" :class="{ active: activePane === 'scope' }" @click="activePane = 'scope'">功能与范围</button>
+      <button class="pc-chip" :class="{ active: activePane === 'special' }" @click="activePane = 'special'">专项权限</button>
+      <button class="pc-chip" :class="{ active: activePane === 'preview' }" @click="activePane = 'preview'">生效预览</button>
+      <button class="pc-chip" :class="{ active: activePane === 'audit' }" @click="activePane = 'audit'">变更审计</button>
     </div>
-    <p v-else class="pc-context">全系统权限唯一配置入口 · 保存即生效（用户刷新页面即可见）</p>
+    <div class="pc-panebody">
 
-    <el-tabs v-model="activePane" class="pc-tabs" :tab-position="embedded ? 'left' : 'top'">
-      <!-- ===== ① 功能与范围: 原"权限体系/权限管理"两 Tab 合一(锚点按推荐, 范围层级化) ===== -->
-      <el-tab-pane label="功能与范围" name="scope">
-        <PermScopeManager />
-      </el-tab-pane>
+        <PermScopeManager v-show="activePane === 'scope'" />
+      <div v-if="paneVisited.has('special')" v-show="activePane === 'special'">
 
-      <!-- ===== ② 专项权限: 公海池名单(按角色引用) + 激励授权(按角色批量), 从系统设置收编 ===== -->
-      <el-tab-pane label="专项权限" name="special" lazy>
         <div class="pc-sec">
           <div class="pc-sec-head"><span class="pc-sec-title">公海池名单</span><span class="pc-sec-hint">查看 / 编辑 / 删除 / 导入 / 捞取 · 名单可勾部门/人员/角色（勾角色=成员自动获得，换届免改）</span></div>
           <SeaConfigManager />
@@ -60,10 +51,9 @@
           <el-empty v-if="!permList.length" description="暂无授权人员，点击「添加授权」配置" :image-size="64" />
         </div>
         <PermGrantDialog />
-      </el-tab-pane>
+      </div>
+      <div v-if="paneVisited.has('preview')" v-show="activePane === 'preview'">
 
-      <!-- ===== ③ 生效预览: 搜任意人 → 引擎实时算出其真实拥有的一切 ===== -->
-      <el-tab-pane label="生效预览" name="preview" lazy>
         <div class="pc-preview-bar">
           <el-select v-model="previewUserId" filterable remote :remote-method="searchPreviewUsers" :loading="userSearching"
                      placeholder="输入姓名 / 账号搜索，选人后实时计算其真实权限" style="width:320px" @change="changePreviewUser" @focus="searchPreviewUsers('')">
@@ -125,10 +115,9 @@
           </div>
         </div>
         <el-empty v-else description="搜索并选择一个人，实时查看 TA 的全部真实权限" :image-size="80" />
-      </el-tab-pane>
+      </div>
+      <div v-if="paneVisited.has('audit')" v-show="activePane === 'audit'">
 
-      <!-- ===== ④ 变更审计: 范围/锚点/激励授权/系统配置 全量 append-only 时间线 ===== -->
-      <el-tab-pane label="变更审计" name="audit" lazy>
         <el-table :data="auditRecords" size="small" border style="width:100%">
           <el-table-column prop="createdAt" label="时间" width="170" />
           <el-table-column prop="ruleKey" label="配置项" min-width="240">
@@ -140,13 +129,13 @@
         </el-table>
         <el-pagination v-if="auditTotal > auditSize" v-model:current-page="auditPage" :page-size="auditSize" :total="auditTotal"
                        layout="prev, pager, next, total" style="margin-top:12px;justify-content:flex-end" @current-change="loadAudit" />
-      </el-tab-pane>
-    </el-tabs>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, watch } from 'vue'
 import PermScopeManager from './PermScopeManager.vue'
 import SeaConfigManager from './SeaConfigManager.vue'
 import PermGrantDialog from './PermGrantDialog.vue'
@@ -162,6 +151,9 @@ const userStore = useUserStore()
 const canEdit = computed(() => userStore.isAdmin() && userStore.hasPermission('system:config:edit'))
 
 const activePane = ref('scope')
+// 惰性挂载: 专项权限/生效预览/变更审计 首访才渲染(原 el-tab-pane lazy 语义), 之后保态
+const paneVisited = reactive(new Set(['scope']))
+watch(activePane, (v) => { if (v) paneVisited.add(v) }, { immediate: true })
 
 // ---- 页签②: 激励专项授权(从系统设置 CategoryManager 收编, 复用共享 composable 单例) ----
 const { permList, loadPermList, openPermDialog, revokePerm } = usePermissionData()
@@ -220,22 +212,13 @@ onMounted(() => { loadPermList() })
 </script>
 
 <style scoped>
-.perm-center { padding: 4px 0 16px; }
-/* ===== embedded(系统设置内页签)骨架 ===== */
-.perm-center.embedded { padding: 0 0 8px; }
+.perm-center { padding: 2px 0 8px; }
 .pc-context { margin: 0 0 10px; font-size: 12px; color: var(--el-color-info); }
-/* 内层左列页签: 对齐外层 settings-tabs 的 pill 语言(窄列 132px, 左对齐, 高亮底色, 去下划线) */
-.perm-center.embedded .pc-tabs { height: calc(100vh - 210px); }
-.perm-center.embedded .pc-tabs :deep(.el-tabs__header) { width: 132px; margin-right: 14px; border-right: 1px solid #ebeef5; padding: 6px 0 6px 8px; }
-.perm-center.embedded .pc-tabs :deep(.el-tabs__nav-wrap::after) { display: none; }
-.perm-center.embedded .pc-tabs :deep(.el-tabs__active-bar) { display: none; }
-.perm-center.embedded .pc-tabs :deep(.el-tabs__item) { height: 38px; line-height: 38px; text-align: left; padding: 0 12px !important; margin: 3px 0; border-radius: 8px; font-size: 13px; color: #4b5563; transition: all .2s; }
-.perm-center.embedded .pc-tabs :deep(.el-tabs__item.is-active) { background: var(--el-color-primary-light-9); color: var(--el-color-primary); font-weight: 600; }
-.perm-center.embedded .pc-tabs :deep(.el-tabs__item:hover) { color: var(--el-color-primary); background: #f5f7fa; }
-.perm-center.embedded .pc-tabs :deep(.el-tabs__content) { padding: 0 4px 0 0; }
-.pc-header { margin-bottom: 8px; }
-.pc-title { font-size: 18px; font-weight: 700; color: #1f2d3d; margin: 0 0 4px; }
-.pc-sub { font-size: 12px; color: var(--el-color-info); margin: 0; }
+/* 横向 chip 条: 品牌蓝实底选中(醒目胶囊语言), 无 el-tabs 无劫持面 */
+.pc-chipbar { display: flex; gap: 8px; flex-wrap: wrap; margin: 0 0 14px; }
+.pc-chip { height: 32px; padding: 0 16px; border: none; border-radius: 16px; background: #f2f4f8; color: #4b5563; font-size: 13px; cursor: pointer; transition: all .2s; }
+.pc-chip:hover { color: var(--el-color-primary); }
+.pc-chip.active { background: var(--el-color-primary); color: #fff; font-weight: 600; }
 .pc-sec { margin-top: 6px; }
 .pc-sec-head { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 10px; font-size: 14px; color: #1f2d3d; margin-bottom: 10px; }
 .pc-sec-title { font-weight: 600; white-space: nowrap; flex-shrink: 0; }
