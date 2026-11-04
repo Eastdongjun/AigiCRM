@@ -99,7 +99,7 @@
       </view>
       <!-- 【2026-11-04 统一 H5 上传·用户令"所有上传都走 H5"】三通道: 选图片(chooseMedia)/
            手机文件(web-view H5 调起手机文件管理器直传, scope=incentive 回挂 fileId)/从聊天选择(chooseMessageFile)。 -->
-      <view class="field-hint">文档文件（PDF/Word 等）请点「手机文件」直接调起手机文件管理器上传；微信聊天中的文件可用「从聊天选择」。现场照片请用「选图片」。</view>
+      <view class="field-hint">文档文件（PDF/Word 等）请点「手机文件」直接调起手机文件管理器上传；微信聊天中的文件可用「从聊天选择」。照片/视频请用「拍照/相册」（可直接拍摄）。</view>
       <view wx:for="{{uploadView.installSlotBlocks}}" wx:for-item="block" wx:key="key" class="slot-block">
         <view class="slot-block-head">
           <text wx:if="{{block.dotClass}}" class="slot-dot {{block.dotClass}}"></text>
@@ -129,7 +129,7 @@
           </swiper-item>
         </swiper>
         <view wx:if="{{!block.full}}" class="slot-add-row">
-          <button class="upload-action primary" catchtap="chooseImage" data-slot-key="{{block.key}}">选图片</button>
+          <button class="upload-action primary" catchtap="chooseImage" data-slot-key="{{block.key}}">拍照/相册</button>
           <button class="upload-action" catchtap="pickFromDevice" data-slot-key="{{block.key}}">手机文件</button>
           <button class="upload-action" catchtap="chooseFile" data-slot-key="{{block.key}}">从聊天选择</button>
         </view>
@@ -171,7 +171,7 @@
           </swiper-item>
         </swiper>
         <view wx:if="{{!block.full}}" class="slot-add-row">
-          <button class="upload-action primary" catchtap="chooseImage" data-slot-key="{{block.key}}">选图片</button>
+          <button class="upload-action primary" catchtap="chooseImage" data-slot-key="{{block.key}}">拍照/相册</button>
           <button class="upload-action" catchtap="pickFromDevice" data-slot-key="{{block.key}}">手机文件</button>
           <button class="upload-action" catchtap="chooseFile" data-slot-key="{{block.key}}">从聊天选择</button>
         </view>

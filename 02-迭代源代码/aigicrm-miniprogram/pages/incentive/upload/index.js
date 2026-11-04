@@ -833,17 +833,23 @@ Page({
   },
 
   chooseImage(e) {
+    // 【2026-11-04 用户问"照片可调摄像头吗/视频可拍吗"】扩展为 拍照/相册/视频:
+    // chooseMedia sourceType 含 camera(系统弹 拍摄/从相册选择), mediaType 放开 video;
+    // fileKind='video' 下游已支持(kindText 视频/previewMedia 播放/提交走文件模块 uploadFile 不分类型)
     const slotKey = e.currentTarget.dataset.slotKey
     wx.chooseMedia({
       count: MAX_FILES_PER_SLOT,
-      mediaType: ['image'],
+      mediaType: ['image', 'video'],
       sourceType: ['album', 'camera'],
       success: (res) => {
         const files = res.tempFiles || []
         files.forEach((file, index) => {
           if (!file || !file.tempFilePath) return
           const suffix = (file.tempFilePath.match(/\.[a-z0-9]+$/i) || ['.jpg'])[0]
-          this.setSlotFile(slotKey, file.tempFilePath, `现场图片${index + 1}${suffix}`, 'image')
+          const isVideo = file.fileType === 'video'
+          const kind = isVideo ? 'video' : 'image'
+          const base = isVideo ? '现场视频' : '现场照片'
+          this.setSlotFile(slotKey, file.tempFilePath, `${base}${index + 1}${suffix}`, kind)
         })
       },
       fail: (error) => { if (error && error.errMsg && !error.errMsg.includes('cancel')) showError(error, '选择图片失败') }
@@ -854,11 +860,13 @@ Page({
     // 【2026-11-04 用户报"又跳微信"→ 2026-11-04 晚统一 H5 后保留为第三通道】从聊天选择=chooseMessageFile
     // 原通道(显式命名告知去向); 手机文件直传走 pickFromDevice(web-view H5 调起手机文件管理器)。
     const slotKey = e.currentTarget.dataset.slotKey
-    wx.chooseMessageFile({ count: MAX_FILES_PER_SLOT, type: 'file', success: (res) => {
+    wx.chooseMessageFile({ count: MAX_FILES_PER_SLOT, type: 'all', success: (res) => {
       const files = res.tempFiles || []
       files.forEach((file) => {
         if (file && file.path) {
-          this.setSlotFile(slotKey, file.path, file.name || '已选择文件')
+          const name = file.name || ''
+          const kind = /\.(mp4|mov|m4v|webm)$/i.test(name) ? 'video' : (isImageFile(name, file.path) ? 'image' : 'file')
+          this.setSlotFile(slotKey, file.path, name || '已选择文件', kind)
         }
       })
     }, fail: (error) => { if (error && error.errMsg && !error.errMsg.includes('cancel')) showError(error, '选择文件失败') } })

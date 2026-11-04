@@ -393,7 +393,8 @@ grep -q 'auditRows' "$upload_page" || { echo "FAIL: incentive upload audit rows 
 grep -q 'auditRecord: record' "$upload_page" || { echo "FAIL: incentive upload edit mode must expose PC audit info" >&2; exit 1; }
 grep -q 'chooseImage' "$upload_page" || { echo "FAIL: incentive upload image picker action is missing" >&2; exit 1; }
 grep -q 'wx.chooseMedia' "$upload_page" || { echo "FAIL: incentive upload cannot pick camera or album images" >&2; exit 1; }
-grep -q "mediaType: \\['image'\\]" "$upload_page" || { echo "FAIL: incentive upload image picker is not limited to images" >&2; exit 1; }
+# 【2026-11-04 用户问"视频上传可拍吗"】拍照/相册通道放开视频: mediaType 含 image+video(拍摄/相册均可), fileKind=video 下游 previewMedia 已支持
+grep -q "mediaType: \\['image', 'video'\\]" "$upload_page" || { echo "FAIL: incentive upload camera/album picker must allow image+video" >&2; exit 1; }
 grep -q 'wx.previewImage' "$upload_page" || { echo "FAIL: incentive upload selected images cannot preview" >&2; exit 1; }
 grep -q 'wx.openDocument' "$upload_page" || { echo "FAIL: incentive upload selected documents cannot open" >&2; exit 1; }
 # 【E5 去重 2026-10-05】上传页保存能力改用共享 saveDownloadedFileToDisk(能力本体在 utils/attachment.js)
@@ -471,10 +472,11 @@ grep -q 'disabled="{{uploadView.submitDisabled}}"' "$upload_wxml" || { echo "FAI
 grep -q 'uploadView.submitText' "$upload_wxml" || { echo "FAIL: incentive upload submit button must use normalized text" >&2; exit 1; }
 grep -q '预览' "$upload_wxml" || { echo "FAIL: incentive upload selected-file preview copy is unclear" >&2; exit 1; }
 grep -q '下载' "$upload_wxml" || { echo "FAIL: incentive upload selected-file download copy is unclear" >&2; exit 1; }
-grep -q '选图片' "$upload_wxml" || { echo "FAIL: incentive upload image picker copy is unclear" >&2; exit 1; }
+# 【2026-11-04 用户问"照片可调摄像头吗/视频可拍吗"】拍照/相册/视频通道钉(chooseMedia 拍摄+相册+视频)
+grep -q '拍照/相册' "$upload_wxml" || { echo "FAIL: incentive upload camera/album picker copy is unclear (拍照+相册+视频)" >&2; exit 1; }
 # 【2026-11-04 用户报"又跳微信"】文档类文件仅微信聊天通道(平台限制), 按钮显式命名+平台限制提示, 反钉旧含糊名「选文件」
 grep -q '从聊天选择' "$upload_wxml" || { echo "FAIL: incentive upload must keep the explicit 从聊天选择 channel" >&2; exit 1; }
-# 【2026-11-04 统一 H5 上传】三通道钉: 选图片/手机文件(H5 直传)/从聊天选择
+# 【2026-11-04 统一 H5 上传】三通道钉: 拍照/相册/手机文件(H5 直传)/从聊天选择
 grep -q '手机文件' "$upload_wxml" || { echo "FAIL: incentive upload must offer the H5 手机文件 channel" >&2; exit 1; }
 grep -q '直接调起手机文件管理器' "$upload_wxml" || { echo "FAIL: incentive upload hint must mention 直接调起手机文件管理器" >&2; exit 1; }
 ! grep -q '选文件' "$upload_wxml" || { echo "FAIL: incentive upload must not resurrect the vague 选文件 label (jumps into WeChat chat)" >&2; exit 1; }
