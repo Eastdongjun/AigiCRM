@@ -77,7 +77,13 @@ if [ -x "$SCRIPT_DIR/check-migration-contract.sh" ]; then
 fi
 
 echo "=== [1/5] 本地打包迁移目录（$MIG_CNT 个 .sql）==="
-tar czf "$PACK" --exclude='*/._*' --exclude='.DS_Store' -C "$MIGRATION_DIR" .
+# 【加固 2026-11-05 事故教训】排除数字旧版本迁移(V2~V33+, 其效果已含在 V1__baseline schema 快照内):
+# 快照库(生产快照)的 flyway 历史若缺这些旧行(实测缺 V2~V11), migrate 会把它们当 pending
+# 重新执行(2026-11-05 02:08 实证十支全部空转, 幂等守卫兜底未伤数据——属侥幸不可依赖)。
+# V1 必须保留(空库靠它建 schema); 日期版(2026.*)不受影响。
+tar czf "$PACK" --exclude='*/._*' --exclude='.DS_Store' \
+  --exclude='V[2-9]__*.sql' --exclude='V[0-9][0-9]__*.sql' \
+  -C "$MIGRATION_DIR" .
 [ -s "$PACK" ] || { echo "❌ 打包失败或产物为空" >&2; exit 1; }
 echo "  产物: $PACK ($(wc -c < "$PACK" | tr -d ' ') 字节)"
 
