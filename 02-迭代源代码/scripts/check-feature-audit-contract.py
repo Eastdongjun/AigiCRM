@@ -314,10 +314,13 @@ def main() -> int:
         ("···", "openActionSheet", "aigicrm-miniprogram/pages/files/index.wxml"),
         # 【2026-10-22 钉随代码】首页改版+四项激励→四项服务更名批: 快捷项=CSS 图标类(ic-*)+纯标题,
         # 解析标签不再带字形前缀(原 ＋/激/审 前缀随汉字图标块退役)
-        ("新客户", "openNewCustomer", "aigicrm-miniprogram/pages/home/index.wxml"),
+        # 【2026-11-04 统一命名】宫格入口名对齐 PC 菜单权威名: 新客户→新增客户/四项服务上传→激励上传/客户统计→统计分析/提醒→提醒管理
+        ("新增客户", "openNewCustomer", "aigicrm-miniprogram/pages/home/index.wxml"),
         ("四项服务", "openIncentive", "aigicrm-miniprogram/pages/home/index.wxml"),
+        ("激励上传", "openIncentiveUpload", "aigicrm-miniprogram/pages/home/index.wxml"),
+        ("统计分析", "openStatistics", "aigicrm-miniprogram/pages/home/index.wxml"),
+        ("提醒管理", "openReminder", "aigicrm-miniprogram/pages/home/index.wxml"),
         ("审批管理", "openApproval", "aigicrm-miniprogram/pages/home/index.wxml"),
-        ("全部提醒 ›", "openReminder", "aigicrm-miniprogram/pages/home/index.wxml"),
         ("打开", "previewAttachment", "aigicrm-miniprogram/pages/incentive/detail/index.wxml"),
         ("下载", "downloadAttachment", "aigicrm-miniprogram/pages/incentive/detail/index.wxml"),
         ("预览", "previewSelectedFile", "aigicrm-miniprogram/pages/incentive/upload/index.wxml"),

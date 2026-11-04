@@ -82,7 +82,7 @@
     </view>
   </view>
 
-  <view class="stats-section-head"><text>经营分析</text><button class="stats-refresh-btn" bindtap="refresh">↻</button></view>
+  <view class="stats-section-head"><text>业务总览</text><button class="stats-refresh-btn" bindtap="refresh">↻</button></view>
   <view class="card stats-risk-panel">
     <view class="stats-grid">
       <view wx:for="{{statsView.analysisTiles}}" wx:key="label" class="stats-tile {{item.tone}}"><view>{{item.value}}</view><text>{{item.label}}</text></view>

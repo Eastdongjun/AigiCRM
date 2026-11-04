@@ -80,4 +80,32 @@ grep -Fq "hasAuthority('score:view')" "$SCORE_CTRL" || fail 'backend /score/rank
 grep -Fq "customer-rankings" "$STAT_CTRL" || fail 'backend customer-rankings route is missing'
 sed -n '/customer-rankings/,+2p' "$STAT_CTRL" | grep -Fq "hasAuthority('statistics:view')" || fail 'backend /statistics/customer-rankings guard must stay statistics:view'
 
+# ---- E. 命名与数据来源同源（2026-11-04 用户令"统一命名 统一数据来源"）----
+# E1. MP 应用中心模块分组=PC 菜单分组: 考核与分析收纳 学分排行+统计分析+核心指标, 「经营分析」组撤销
+grep -Fq "apps: ['ranking', 'statistics', 'indicator']" "$MP/pages/app/index.js" || fail 'assessment module must host ranking/statistics/indicator apps (PC 考核与分析 group alignment)'
+if grep -q "'analytics'" "$MP/pages/app/index.js"; then
+  fail 'app-center must not keep the analytics module (statistics moved into 考核与分析, naming unified 2026-11-04)'
+fi
+# E2. 首页宫格入口名=PC 菜单权威名（反钉旧名回潮）
+grep -Fq '新增客户' "$MP/pages/home/index.wxml" || fail 'home grid must use PC menu name 新增客户'
+grep -Fq '激励上传' "$MP/pages/home/index.wxml" || fail 'home grid must use PC menu name 激励上传'
+grep -Fq '提醒管理' "$MP/pages/home/index.wxml" || fail 'home grid must use PC menu name 提醒管理'
+grep -Fq '统计分析' "$MP/pages/home/index.wxml" || fail 'home grid must use PC menu name 统计分析'
+grep -Eq '新客户|客户统计|四项服务上传' "$MP/pages/home/index.wxml" && fail 'home grid must not resurrect old entry names (新客户/客户统计/四项服务上传)'
+# E3. 统计家族双端同接口（同页同数据源）:
+#   统计分析: MP pages/statistics 与 PC views/statistics 同用 getAnalysis(+score ranking+scope depts)
+#   核心客户六项指标: 双端同用 getIndicatorStats
+grep -Fq "getAnalysis" "$MP/pages/statistics/index.js" || fail 'MP statistics page data source must stay getAnalysis (same as PC)'
+grep -Fq "getScoreRanking" "$MP/pages/statistics/index.js" || fail 'MP statistics page data source must stay getScoreRanking (same as PC)'
+grep -Fq "getScopeDepts" "$MP/pages/statistics/index.js" || fail 'MP statistics page data source must stay getScopeDepts (same as PC)'
+grep -Fq "getAnalysis" "$UI/views/statistics/index.vue" || fail 'PC statistics page data source must stay getAnalysis (same as MP)'
+grep -Fq "getScoreRanking" "$UI/views/statistics/index.vue" || fail 'PC statistics page data source must stay getScoreRanking (same as MP)'
+grep -Fq "getIndicatorStats" "$MP/pages/indicator/index.js" || fail 'MP indicator page data source must stay getIndicatorStats (same as PC)'
+grep -Fq "getIndicatorStats" "$UI/views/indicator/index.vue" || fail 'PC indicator page data source must stay getIndicatorStats (same as MP)'
+# E4. 统计分析页总览区块命名统一为「业务总览」（与 PC 业务总览口径一致, 反钉旧名经营分析）
+grep -Fq '业务总览' "$MP/pages/statistics/index.wxml" || fail 'statistics overview section must use unified name 业务总览'
+if grep -q '经营分析' "$MP/pages/statistics/index.wxml"; then
+  fail 'statistics overview section must not resurrect old name 经营分析 (unified to 业务总览)'
+fi
+
 echo "PASS: dual-end permission bindings reconcile with the perm-center registry (MP=${MP_CODES}c PC=$(printf '%s' "$PC_CODES" | grep -c ':')c registry=${REG_COUNT}c); ranking union-entry and any-of gating pinned."

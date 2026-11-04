@@ -139,7 +139,7 @@ async function verifyHomePage(miniProgram) {
   ].join('\n')
   // 【2026-10-23 二轮重锚】首页重设计: 用户令移除「我的客户 N 家」大数字指标块
   // (AIGICRM 居中放大+顶部再压缩), '我的客户'文本不再呈现于页面; 保护率迁至客户结构段头。
-  for (const expected of ['AIGICRM', '张三', '今日到期', '新客户', '四项服务', '四项服务上传', '审批管理', '提醒', '客户统计', '华东智能制造集团']) {
+  for (const expected of ['AIGICRM', '张三', '今日到期', '新增客户', '四项服务', '激励上传', '审批管理', '提醒管理', '统计分析', '华东智能制造集团']) {
     assert(pageText.includes(expected), `home page missing ${expected}`)
   }
 
@@ -254,7 +254,8 @@ async function verifyPcOnlyBoundary(miniProgram) {
   const apps = await page.data('apps')
   const appText = (await textList(await page.$$('.ap-tile'))).join('\n')
   const rendered = `${apps.map((item) => `${item.key}:${item.title}:${item.subtitle}`).join('\n')}\n${appText}`
-  for (const expected of ['四项服务上传', '四项服务', '分类树、统计、排行与记录']) {
+  // 【2026-11-04 统一命名】入口名对齐 PC 菜单权威名(激励上传), 模块副标题为当前文案
+  for (const expected of ['激励上传', '四项服务', '上传、查询与统计']) {
     assert(rendered.includes(expected), `app center missing four-incentive naming ${expected}: ${rendered}`)
   }
 

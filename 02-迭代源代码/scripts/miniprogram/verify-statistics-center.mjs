@@ -177,7 +177,7 @@ async function verifyStatisticsCenterPage(miniProgram) {
     ...(await textList(await page.$$('.stats-warning-row'))),
     ...(await textList(await page.$$('.stats-approval-card')))
   ].join('\n')
-  for (const expected of ['分析筛选', '2026', '全部部门', '经营分析', '月度趋势', '月度新增客户', '月度文件上传', '客户状态分布', '保护中', '行业分布', '制造业', '人员积分 Top5', '张三', '办事处对比', '审批摘要', '到期预警', '华东办事处', '待审批', '华东智能制造集团']) {
+  for (const expected of ['分析筛选', '2026', '全部部门', '业务总览', '月度趋势', '月度新增客户', '月度文件上传', '客户状态分布', '保护中', '行业分布', '制造业', '人员积分 Top5', '张三', '办事处对比', '审批摘要', '到期预警', '华东办事处', '待审批', '华东智能制造集团']) {
     assert(pageText.includes(expected), `statistics page missing ${expected}`)
   }
 

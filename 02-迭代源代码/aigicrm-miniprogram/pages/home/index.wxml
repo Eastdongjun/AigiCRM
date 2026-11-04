@@ -54,22 +54,22 @@
     </view>
     <view class="card hm-quick">
       <view class="hm-quick-item" hover-class="hm-quick-active" bindtap="openNewCustomer">
-        <view class="hm-quick-icon ic-customer"></view><text class="hm-quick-title">新客户</text>
+        <view class="hm-quick-icon ic-customer"></view><text class="hm-quick-title">新增客户</text>
       </view>
       <view class="hm-quick-item" hover-class="hm-quick-active" bindtap="openIncentive">
         <view class="hm-quick-icon ic-service"></view><text class="hm-quick-title">四项服务</text>
       </view>
       <view class="hm-quick-item" hover-class="hm-quick-active" bindtap="openIncentiveUpload">
-        <view class="hm-quick-icon ic-upload"></view><text class="hm-quick-title">四项服务上传</text>
+        <view class="hm-quick-icon ic-upload"></view><text class="hm-quick-title">激励上传</text>
       </view>
       <view class="hm-quick-item" hover-class="hm-quick-active" bindtap="openApproval">
         <view class="hm-quick-icon ic-approval"></view><text class="hm-quick-title">审批管理</text>
       </view>
       <view class="hm-quick-item" hover-class="hm-quick-active" bindtap="openReminder">
-        <view class="hm-quick-icon ic-reminder"></view><text class="hm-quick-title">提醒</text>
+        <view class="hm-quick-icon ic-reminder"></view><text class="hm-quick-title">提醒管理</text>
       </view>
       <view class="hm-quick-item" hover-class="hm-quick-active" bindtap="openStatistics">
-        <view class="hm-quick-icon ic-stats"></view><text class="hm-quick-title">客户统计</text>
+        <view class="hm-quick-icon ic-stats"></view><text class="hm-quick-title">统计分析</text>
       </view>
     </view>
   </view>

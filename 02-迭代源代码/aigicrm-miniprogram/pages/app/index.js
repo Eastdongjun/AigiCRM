@@ -32,14 +32,15 @@ const TILE_SUBTITLES = {
 // 应用中心按业务模块组织，而不是把 9 个入口平铺成菜单。
 // apps 里放应用 key，构建时按当前账号权限过滤，空模块整块隐藏。
 const APP_MODULES = [
-  { key: 'customer', title: '客户经营', subtitle: '客户资产与核心指标', apps: ['customer', 'customerCreate', 'indicator'] },
+  // 【2026-11-04 用户令"统一命名 统一数据来源"】模块分组与 PC 菜单分组逐一对齐:
+  //   客户经营=客户管理(PC 业务核心)/文件管理=文件管理/四项服务=四项服务/考核与分析=考核与分析(PC 组,
+  //   收纳 学分排行+统计分析+核心客户六项指标)/流程协同=公海·审批·提醒 协作面; 原「经营分析」组撤销。
+  { key: 'customer', title: '客户经营', subtitle: '客户列表、详情与新增', apps: ['customer', 'customerCreate'] },
   // 【2026-11-03 用户令"应用与 PC 对齐"】补文件管理(PC 正式菜单 file:view; tabBar 页 switchTab 直达)
   { key: 'files', title: '文件管理', subtitle: '文件库、文件夹与分享', apps: ['files'] },
   { key: 'incentive', title: '四项服务', subtitle: '上传、查询与统计', apps: ['incentiveUpload', 'incentiveQuery', 'incentiveStats'] },
-  // 【2026-11-03 用户裁决】学分排行挪出客户经营, 新建「考核与分析」与 PC 菜单分组对齐
-  { key: 'assessment', title: '考核与分析', subtitle: '学分排行与周期口径', apps: ['ranking'] },
-  { key: 'workflow', title: '流程协同', subtitle: '审批、提醒与公海协作', apps: ['approval', 'reminder', 'sea'] },
-  { key: 'analytics', title: '经营分析', subtitle: '全局统计与趋势', apps: ['statistics'] }
+  { key: 'assessment', title: '考核与分析', subtitle: '学分排行 · 统计分析 · 核心指标', apps: ['ranking', 'statistics', 'indicator'] },
+  { key: 'workflow', title: '流程协同', subtitle: '审批、提醒与公海协作', apps: ['approval', 'reminder', 'sea'] }
 ]
 
 function padIndex(index) {

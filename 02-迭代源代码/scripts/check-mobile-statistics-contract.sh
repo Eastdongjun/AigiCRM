@@ -58,7 +58,7 @@ grep -q "buildScoreRows" "$ROOT/aigicrm-miniprogram/pages/statistics/index.js" |
 grep -q "buildExpiringRows" "$ROOT/aigicrm-miniprogram/pages/statistics/index.js" || { echo "FAIL: statistics overview expiring rows are not normalized" >&2; exit 1; }
 grep -q "protectionRate: percent(inProtection, myCustomers)" "$ROOT/aigicrm-miniprogram/pages/statistics/index.js" || { echo "FAIL: statistics overview protection rate is not data-driven" >&2; exit 1; }
 grep -q "riskTotal: expiring + todayExpiring + expired" "$ROOT/aigicrm-miniprogram/pages/statistics/index.js" || { echo "FAIL: statistics overview risk total is not data-driven" >&2; exit 1; }
-grep -q "经营分析" "$ROOT/aigicrm-miniprogram/pages/statistics/index.wxml" || { echo "FAIL: statistics overview has no analysis panel" >&2; exit 1; }
+grep -q "业务总览" "$ROOT/aigicrm-miniprogram/pages/statistics/index.wxml" || { echo "FAIL: statistics overview has no business overview panel (unified naming 2026-11-04)" >&2; exit 1; }
 grep -q "经营信号" "$ROOT/aigicrm-miniprogram/pages/statistics/index.wxml" || { echo "FAIL: statistics overview has no signal summary panel" >&2; exit 1; }
 grep -q "分析筛选" "$ROOT/aigicrm-miniprogram/pages/statistics/index.wxml" || { echo "FAIL: statistics overview has no PC analysis filter panel" >&2; exit 1; }
 grep -q "chooseYear" "$ROOT/aigicrm-miniprogram/pages/statistics/index.wxml" || { echo "FAIL: statistics overview has no year filter UI" >&2; exit 1; }
