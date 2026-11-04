@@ -4,18 +4,10 @@ const { getScoreboard } = require('../../api/incentive')
 const { requireLogin, hasPermission } = require('../../utils/auth')
 const { showError } = require('../../utils/feedback')
 const { paginate } = require('../../utils/paging')
+const rankingTabs = require('../../utils/ranking-tabs.js')
 
 // 排行榜客户端分页默认页大小（<pager> 可选 10/30）
 const DEFAULT_PAGE_SIZE = 10
-
-// 【2026-11-04 注册表对齐】页内三榜各绑权限中心注册码（与 PC 菜单同源，不发明不特判）：
-//   学分榜=score:view / 客户榜=statistics:view / 激励榜=incentive:view。
-// 入口=注册码并集（任一命中可进），默认页签=第一个有权页签，各页签数据按各自码加载。
-const MAIN_TAB_PERMISSIONS = {
-  score: 'score:view',
-  customer: 'statistics:view',
-  incentive: 'incentive:view'
-}
 
 // 【2026-11-01 审计修复】学分周期只留「全年」(与 PC 对齐, 存量半年已并入全年; 选半年必查0条);
 // 年份窗对齐 PC buildPeriodOptions(当前+1~-5)。客户排行仍用全周期选项(客户模块多周期口径)。
@@ -174,12 +166,7 @@ function buildRankingView(data) {
     showLoading: loading,
     loadingText: '加载中...',
     // 【2026-11-03 用户令"不要把所有内容放到一个页面里"】三主页签: 学分(默认)/客户/激励个人
-    mainTabs: [
-      { key: 'score', title: '学分排行' },
-      { key: 'customer', title: '客户排行' },
-      { key: 'incentive', title: '激励排行' }
-    ].filter((item) => canTabs[item.key] !== false)
-      .map((item) => ({ ...item, className: rankTab === item.key ? 'active' : '' })),
+    mainTabs: rankingTabs.visibleMainTabs(canTabs).map((item) => ({ ...item, className: rankTab === item.key ? 'active' : '' })),
     showScorePane: rankTab === 'score',
     showCustomerPane: rankTab === 'customer',
     showIncentivePane: rankTab === 'incentive',
@@ -270,23 +257,18 @@ Page({
 
   onLoad() {
     if (!requireLogin()) return
-    // 【2026-11-04 注册表对齐重构】页内三榜各绑权限中心注册码（学分=score:view/客户=statistics:view/
-    // 激励=incentive:view，见 MAIN_TAB_PERMISSIONS）。入口=注册码并集（任一命中可进），
-    // 默认页签=第一个有权页签，各页签数据按各自码懒加载。
-    // 取代 2026-10-17 mp-3 的 statistics:view 单码补丁：该补丁使 score:view 持有者（如行政）
-    // 在手机端丢失整个排行入口，与 PC（按 score:view 可见学分排行）形成双端漂移。
+    // 【2026-11-04 注册表对齐重构】页内三榜各绑权限中心注册码（映射见 utils/ranking-tabs.js，
+    // 与 PC 菜单/后端守卫三方同源）。入口=注册码并集（任一命中可进），默认页签=第一个有权页签，
+    // 各页签数据按各自码懒加载。取代 2026-10-17 mp-3 的 statistics:view 单码补丁（双端漂移根因）。
+    // 单元测试: scripts/test-miniprogram-ranking-tabs.js（dev-verify contracts 链内运行）。
     const demo = Boolean(getApp().globalData.demoMode)
-    const canTabs = {
-      score: demo || hasPermission(MAIN_TAB_PERMISSIONS.score),
-      customer: demo || hasPermission(MAIN_TAB_PERMISSIONS.customer),
-      incentive: demo || hasPermission(MAIN_TAB_PERMISSIONS.incentive)
-    }
-    if (!canTabs.score && !canTabs.customer && !canTabs.incentive) {
+    const canTabs = rankingTabs.computeCanTabs(hasPermission, demo)
+    const firstAllowed = rankingTabs.firstAllowedTab(canTabs)
+    if (!firstAllowed) {
       wx.showToast({ title: '没有排行查看权限', icon: 'none' })
       wx.switchTab({ url: '/pages/home/index' })
       return
     }
-    const firstAllowed = ['score', 'customer', 'incentive'].find((key) => canTabs[key]) || 'score'
     this.setData({ canTabs, rankTab: firstAllowed })
     this.loadRanking()
   },
@@ -427,9 +409,9 @@ Page({
     //   激励个人榜要 incentive:view——无对应权限的区块直接置空(空态), 不发起必败请求;
     //   demo 模式恒放开。此前客户榜请求无条件必发, 是 10-17 单码入口补丁的根因。
     const demo = Boolean(getApp().globalData.demoMode)
-    const canScore = demo || hasPermission(MAIN_TAB_PERMISSIONS.score)
-    const canCustomer = demo || hasPermission(MAIN_TAB_PERMISSIONS.customer)
-    const canIncentive = demo || hasPermission(MAIN_TAB_PERMISSIONS.incentive)
+    const canScore = demo || hasPermission(rankingTabs.MAIN_TAB_PERMISSIONS.score)
+    const canCustomer = demo || hasPermission(rankingTabs.MAIN_TAB_PERMISSIONS.customer)
+    const canIncentive = demo || hasPermission(rankingTabs.MAIN_TAB_PERMISSIONS.incentive)
     Promise.all([
       canCustomer
         ? getCustomerRankings({ period: this.currentCustomerPeriodParam() }).catch((error) => {

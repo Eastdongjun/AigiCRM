@@ -34,7 +34,7 @@ MP_CODES=$(
     grep -rhoE "hasPermission\('[a-z]+:[a-z-]+(:[a-z-]+)?'\)" "$MP/pages" "$MP/utils" "$MP/components" 2>/dev/null || true
     grep -rhoE "permission: '[a-z]+:[a-z-]+(:[a-z-]+)?'" "$MP/pages" 2>/dev/null || true
     grep -rhoE "permissions: \[[^]]*\]" "$MP/pages" 2>/dev/null || true
-    sed -n '/const MAIN_TAB_PERMISSIONS = {/,/^}/p' "$MP/pages/ranking/index.js" 2>/dev/null || true
+    sed -n '/const MAIN_TAB_PERMISSIONS = {/,/^}/p' "$MP/utils/ranking-tabs.js" 2>/dev/null || true
   } | grep -oE "[a-z]+:[a-z-]+(:[a-z-]+)?" | sort -u
 )
 [ -n "$MP_CODES" ] || fail 'no MP permission bindings found'
@@ -53,14 +53,18 @@ PC_CODES=$(
 PC_DEAD=$(comm -23 <(printf '%s\n' "$PC_CODES") <(printf '%s\n' "$REGISTRY"))
 [ -z "$PC_DEAD" ] || fail "PC binds codes outside the permission registry: $(echo "$PC_DEAD" | tr '\n' ' ')"
 
-# ---- C. MP 排行页注册码并集 ----
-grep -Fq "score: 'score:view'" "$MP/pages/ranking/index.js" || fail 'ranking score tab must bind registry code score:view'
-grep -Fq "customer: 'statistics:view'" "$MP/pages/ranking/index.js" || fail 'ranking customer tab must bind registry code statistics:view'
-grep -Fq "incentive: 'incentive:view'" "$MP/pages/ranking/index.js" || fail 'ranking incentive tab must bind registry code incentive:view'
-grep -Fq "const canTabs = {" "$MP/pages/ranking/index.js" || fail 'ranking onLoad must compute per-tab registry permissions (canTabs)'
-grep -Fq "canTabs.score && !canTabs.customer && !canTabs.incentive" "$MP/pages/ranking/index.js" || fail 'ranking union-entry bounce (none-of) is missing'
+# ---- C. MP 排行页注册码并集（映射=utils/ranking-tabs.js 纯函数, 页面经 util 派生; 单测钉该 util）----
+UTIL="$MP/utils/ranking-tabs.js"
+grep -Fq "score: 'score:view'" "$UTIL" || fail 'ranking util must bind registry code score:view'
+grep -Fq "customer: 'statistics:view'" "$UTIL" || fail 'ranking util must bind registry code statistics:view'
+grep -Fq "incentive: 'incentive:view'" "$UTIL" || fail 'ranking util must bind registry code incentive:view'
+grep -Fq "const canTabs = rankingTabs.computeCanTabs(hasPermission, demo)" "$MP/pages/ranking/index.js" || fail 'ranking onLoad must derive canTabs via the pure util'
 grep -Fq "if (canTabs[rankTab] === false) return" "$MP/pages/ranking/index.js" || fail 'ranking must block switching to tabs without the registry code'
-grep -Fq "canTabs[item.key] !== false" "$MP/pages/ranking/index.js" || fail 'ranking main tabs must be filtered by per-tab registry codes'
+grep -Fq "rankingTabs.visibleMainTabs(canTabs)" "$MP/pages/ranking/index.js" || fail 'ranking main tabs must render via visibleMainTabs (per-tab registry codes)'
+# 反钉: 页面不得残留不带 rankingTabs. 前缀的裸引用(2026-11-04 曾因漏改 loadRanking 引发 ReferenceError, loading 恒挂)
+C_TOTAL=$(grep -c "MAIN_TAB_PERMISSIONS" "$MP/pages/ranking/index.js" || true)
+C_QUALIFIED=$(grep -c "rankingTabs.MAIN_TAB_PERMISSIONS" "$MP/pages/ranking/index.js" || true)
+[ "$C_TOTAL" = "$C_QUALIFIED" ] || fail "ranking page has $((C_TOTAL - C_QUALIFIED)) bare MAIN_TAB_PERMISSIONS reference(s) (must go through rankingTabs util)"
 grep -Fq "canCustomer" "$MP/pages/ranking/index.js" || fail 'ranking must skip the customer-rankings request without statistics:view'
 ! grep -q "hasPermission('statistics:view')" "$MP/pages/ranking/index.js" || fail 'ranking must not single-gate the whole page on statistics:view (registry union instead)'
 

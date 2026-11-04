@@ -514,6 +514,8 @@ local_contracts() {
   run "$ROOT/scripts/check-perm-center-contract.sh"
   # 【2026-11-04 双端权限绑定一致性】注册表对账(零死码)+MP排行注册码并集归位+接口守卫=注册码 契约
   run "$ROOT/scripts/check-dual-end-permission-binding-contract.sh"
+  # 【2026-11-04 TDD】排行页注册码并集纯函数单测(utils/ranking-tabs.js, 先红后绿)
+  run node "$ROOT/scripts/test-miniprogram-ranking-tabs.js"
   run "$ROOT/scripts/check-read-stats-migration.sh"
   run "$ROOT/scripts/check-migration-contract.sh"
   run "$ROOT/scripts/check-migration-chain-contract.sh"
