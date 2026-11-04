@@ -1,5 +1,6 @@
 const { getCategoryStats, getCategoryTree, getCustomerRecords, getGrantCheck, getRanking, getReadRanking, getReadStats, getRecords, getScoreboard, getUsers } = require('../../api/incentive')
 const { getDownloadUrl, getDownloadToken } = require('../../api/file')
+const { getCustomerList } = require('../../api/customer')
 const { getDepts, getDictData } = require('../../api/system')
 const { incentiveRecords } = require('../../data/demo')
 const { hasPermission, isAdmin, requireLogin } = require('../../utils/auth')
@@ -1148,26 +1149,62 @@ Page({
   },
   // 【2026-11-02 用户令】客户排行=客户聚合按总学分降序, 双栏冻结表格(与个人排行同款);
   // 数据源=this.data.records(客户维度聚合, 已含子记录), byCategory 从子记录聚合
-  buildCustomerRanking() {
-    const rows = (this.data.records || []).map((c) => {
-      const byCategory = {}
-      ;((c.records || [])).forEach((r) => {
-        const cid = r.categoryId || r.childId
-        if (!cid) return
-        if (!byCategory[cid]) byCategory[cid] = [0, 0]
-        byCategory[cid][0] += 1
-        byCategory[cid][1] += Number(r.score) || 0
+  // 【2026-11-04 用户令"客户排行只显示当前权限账号范围内的客户"】可见客户 id 集:
+  // /api/customer/list 本身按数据范围过滤, 取回 id 集作客户排行的收口基线(与后端
+  // customerRankings.visibleCustomers 客户可见范围口径一致); 60s 缓存; 取失败则维持原状不过滤。
+  ensureVisibleCustomerIds() {
+    const cached = this._visibleCustomerIds
+    if (cached && Date.now() - (this._visibleCustomerIdsTs || 0) < 60000) {
+      return Promise.resolve(cached)
+    }
+    const collected = new Set()
+    const fetchPage = (page) => {
+      return getCustomerList({ current: page, size: 500 }).then((res) => {
+        const records = (res && res.records) || []
+        records.forEach((c) => collected.add(c.id))
+        const total = (res && res.total) || 0
+        if (collected.size < total && page < 20) return fetchPage(page + 1)
+        return collected
       })
-      return {
-        id: c.id,
-        name: c.name || c.customerName || '未命名客户',
-        industryText: c.industry || '—',
-        scoreNum: Number(c.score) || 0,
-        recordCountText: `${((c.records || [])).length} 条`,
-        byCategory
+    }
+    return fetchPage(1).then((set) => {
+      this._visibleCustomerIds = set
+      this._visibleCustomerIdsTs = Date.now()
+      return set
+    }).catch(() => null)
+  },
+
+  buildCustomerRanking() {
+    const demo = Boolean(getApp().globalData.demoMode)
+    this.ensureVisibleCustomerIds().then((visibleIds) => {
+      let rows = (this.data.records || []).map((c) => {
+        const byCategory = {}
+        ;((c.records || [])).forEach((r) => {
+          const cid = r.categoryId || r.childId
+          if (!cid) return
+          if (!byCategory[cid]) byCategory[cid] = [0, 0]
+          byCategory[cid][0] += 1
+          byCategory[cid][1] += Number(r.score) || 0
+        })
+        return {
+          id: c.id,
+          customerId: c.customerId,
+          name: c.name || c.customerName || '未命名客户',
+          industryText: c.industry || '—',
+          scoreNum: Number(c.score) || 0,
+          recordCountText: `${((c.records || [])).length} 条`,
+          byCategory
+        }
+      })
+      // 【2026-11-04 用户令】范围收口: 只保留当前权限账号可见范围内的客户(演示模式不过滤;
+      // 可见集取失败时维持原状, 不虚增不误删)
+      if (!demo && visibleIds) {
+        rows = rows.filter((row) => visibleIds.has(row.customerId))
       }
-    }).sort((a, b) => b.scoreNum - a.scoreNum).map((row, idx) => ({ ...row, rank: idx + 1 }))
-    this.setData({ customerRanking: rows }, () => this.applyCustomerRankPaging(1, this.data.customerRankPageSize || 10))
+      rows.sort((a, b) => b.scoreNum - a.scoreNum)
+      rows = rows.map((row, idx) => ({ ...row, rank: idx + 1 }))
+      this.setData({ customerRanking: rows }, () => this.applyCustomerRankPaging(1, this.data.customerRankPageSize || 10))
+    })
   },
   applyCustomerRankPaging(page, pageSize) {
     const paged = paginate(this.data.customerRanking || [], page, pageSize)

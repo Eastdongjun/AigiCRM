@@ -237,6 +237,9 @@ grep -q 'chooseReadPeriod' "$page" || { echo "FAIL: incentive mobile read period
 grep -q 'read-period-row' "$style" || { echo "FAIL: incentive mobile read period selector style is missing" >&2; exit 1; }
 grep -q '阅读排行' "$wxml" || { echo "FAIL: incentive mobile read ranking UI is missing" >&2; exit 1; }
 grep -q '个人积分榜' "$wxml" || { echo "FAIL: incentive mobile scoreboard tab must read 个人积分榜 (2026-11-04 用户令 更新字)" >&2; exit 1; }
+# 【2026-11-04 用户令"客户排行只显示当前权限账号范围内的客户"】激励统计排行·客户排行=可见客户集收口
+grep -q 'ensureVisibleCustomerIds' "$page" || { echo "FAIL: customer ranking must scope rows via ensureVisibleCustomerIds (/api/customer/list 数据范围基线)" >&2; exit 1; }
+grep -q 'visibleIds.has(row.customerId)' "$page" || { echo "FAIL: customer ranking rows must be filtered to visible customer ids" >&2; exit 1; }
 grep -q '部门排行' "$wxml" || { echo "FAIL: incentive mobile dept ranking UI is missing" >&2; exit 1; }
 grep -q 'openStatDetail' "$page" || { echo "FAIL: incentive mobile category stats cannot drill into PC stats detail" >&2; exit 1; }
 grep -q 'statDetail.records' "$page" || { echo "FAIL: incentive mobile category stats detail state is missing" >&2; exit 1; }
