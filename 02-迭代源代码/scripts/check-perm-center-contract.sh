@@ -33,6 +33,17 @@ grep -Fq "/system/perm-center" "$MIG/V2026.11.03.2__perm_center_menu.sql" || fai
 grep -Fq "PermScopeManager" "$UI/views/system/PermCenter.vue" || fail 'PermCenter tab-1 must embed PermScopeManager'
 grep -Fq "SeaConfigManager" "$UI/views/system/PermCenter.vue" || fail 'PermCenter tab-2 must embed SeaConfigManager'
 grep -Fq "activeTab.value = 'permCenter'" "$UI/views/system/role.vue" || fail 'role.vue jump must land on 系统设置 permCenter tab'
+# 日志管理同款收敛(2026-11-05 用户令"日志管理也放到系统设置里面"): 页签按注册码 system:log:view 显隐
+grep -Fq 'name="log"' "$UI/views/system/config.vue" || fail 'config.vue must register log tab pane (日志管理收敛)'
+grep -Fq "canViewLog" "$UI/views/system/config.vue" || fail 'config.vue log tab must gate by system:log:view (canViewLog)'
+grep -Fq "defineProps({ embedded: { type: Boolean, default: false } })" "$UI/views/system/log.vue" || fail 'log.vue must support embedded mode (hide own header in tab)'
+if grep -Fq "views/system/log.vue" "$UI/router/index.js"; then
+  fail 'router must not load log.vue directly (standalone log page retired 2026-11-05)'
+fi
+[ -f "$MIG/V2026.11.05.2__merge_log_menu_into_settings.sql" ] || fail 'migration must drop the standalone log menu node'
+# 日志查看码注册表回归(.05.2 删页面节点会连带删码唯一载体, .05.3 按按钮行先例回注册, 防矩阵掉行/页签死码)
+grep -Fq "'system:log:view'" "$MIG/V2026.11.05.3__reregister_log_view_code.sql" || fail 'migration must re-register system:log:view as permission row'
+grep -Fq "WHERE NOT EXISTS (SELECT 1 FROM \`sys_menu\` x WHERE x.permission = 'system:log:view')" "$MIG/V2026.11.05.3__reregister_log_view_code.sql" || fail 'log view code re-registration must be idempotent'
 # 收口反钉: 系统设置页除权限中心整页收敛外, 不得零散承载权限/公海可写组件
 if grep -Eq "PermScopeManager|PermMatrixManager|SeaConfigManager" "$UI/views/system/config.vue"; then
   fail 'config.vue must not host permission/sea config directly (only via embedded PermCenter)'

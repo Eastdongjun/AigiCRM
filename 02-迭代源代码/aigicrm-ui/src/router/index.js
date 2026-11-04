@@ -259,11 +259,15 @@ const routes = [
         redirect: '/system/config',
         meta: { title: '权限中心(旧)', permission: 'system:config:view' }
       },
+      // 【2026-11-05 用户令"日志管理也放到系统设置里面"】日志管理不再是独立侧栏菜单
+      // (库节点已删 V2026.11.05.2), 页面转为 系统设置 内「日志管理」页签(码仍=system:log:view);
+      // 本路由仅作旧链接自愈重定向(旧书签/历史审计链接), 侧栏不再出现。
+      // meta 仅保证路由块结构完整(审计抽取器要求每块带 meta), 重定向后守卫读目标路由 meta。
       {
         path: 'system/log',
-        name: 'SystemLog',
-        component: () => import('@/views/system/log.vue'),
-        meta: { title: '日志管理', icon: 'Notebook', permission: 'system:log:view' }
+        name: 'SystemLogLegacy',
+        redirect: '/system/config',
+        meta: { title: '日志管理(旧)', permission: 'system:log:view' }
       },
       // 【回收站 2026-10-18】已删除客户/人员查看与恢复：独立页面，默认仅系统管理员可见，
       // 其他角色由管理员在角色管理勾选 system:recycle:view / system:recycle:restore 后可见

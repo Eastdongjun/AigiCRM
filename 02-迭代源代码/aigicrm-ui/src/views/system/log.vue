@@ -1,7 +1,8 @@
 <template>
-  <div class="log-page">
-    <!-- 标题 -->
-    <div class="page-header">
+  <!-- 【2026-11-05 用户令"日志管理也放到系统设置里面"】embedded=true 时作为系统设置内页签挂载:
+       隐藏自带页头、高度随页签内容区自适应; 功能(日志/审计多页签)零变化, 页面码仍=system:log:view -->
+  <div class="log-page" :class="{ embedded }">
+    <div v-if="!embedded" class="page-header">
       <div>
         <h2>日志管理</h2>
         <p class="page-desc">查看系统全模块的操作、登录、文件、人员与系统事件记录</p>
@@ -101,6 +102,9 @@ import { ref, reactive, computed, onMounted, onBeforeUnmount, nextTick } from 'v
 import { getLogList, getAuditLogList } from '@/api/system'
 import request from '@/utils/request'
 import { pageSizes } from '@/utils/pagination'
+
+// embedded(系统设置内页签形态)时隐藏自带页头(避免与页签标题双重「日志管理」)
+defineProps({ embedded: { type: Boolean, default: false } })
 
 const tableData = ref([])
 const total = ref(0)
@@ -228,6 +232,8 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .log-page { height: calc(100vh - 100px); display: flex; flex-direction: column; }
+/* embedded(系统设置页签)形态: 独立页头已隐藏, 高度对齐页签内容区(表高由 ResizeObserver 自适应) */
+.log-page.embedded { height: calc(100vh - 190px); }
 .page-header { margin-bottom: 12px; }
 .page-header h2 { font-size: 18px; font-weight: 600; color: #333; margin: 0 0 4px; }
 .page-desc { font-size: 13px; color: var(--text-muted); margin: 0; }

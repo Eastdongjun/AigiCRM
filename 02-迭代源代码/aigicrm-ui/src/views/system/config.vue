@@ -25,6 +25,12 @@
           <template #label><span class="tab-label"><el-icon><Coin /></el-icon>激励类别管理</span></template>
           <CategoryManager />
         </el-tab-pane>
+        <!-- 日志管理(2026-11-05 用户令"日志管理也放到系统设置里面": 独立侧栏菜单已删 V2026.11.05.2,
+             页签按注册码 system:log:view 显隐, 无码者不见此页签) -->
+        <el-tab-pane v-if="canViewLog" name="log" lazy>
+          <template #label><span class="tab-label"><el-icon><Notebook /></el-icon>日志管理</span></template>
+          <LogView embedded />
+        </el-tab-pane>
         <!-- 权限中心(2026-11-05 收敛: 功能勾选/数据范围锚点/公海名单/激励授权, lazy=点开才挂载) -->
         <el-tab-pane name="permCenter" lazy>
           <template #label><span class="tab-label"><el-icon><Lock /></el-icon>权限中心</span></template>
@@ -38,13 +44,20 @@
 </template>
 
 <script setup>
+import { computed } from 'vue'
 import ApprovalConfig from '@/views/system/approvalConfig.vue'
 import { Setting, Notebook, Select, Coin, Lock } from '@element-plus/icons-vue'
 import { usePermissionData } from '@/composables/usePermissionData'
+import { useUserStore } from '@/store/user'
 import DictManager from './DictManager.vue'
 import BasicSettings from './BasicSettings.vue'
 import CategoryManager from './CategoryManager.vue'
 import PermCenter from './PermCenter.vue'
+import LogView from './log.vue'
+
+const userStore = useUserStore()
+// 日志管理页签显隐=注册码 system:log:view(与原菜单节点同码, 零硬编码)
+const canViewLog = computed(() => userStore.hasPermission('system:log:view'))
 
 // activeTab 为模块级单例(composables/usePermissionData.js), 权限中心与设置页共享
 const { activeTab } = usePermissionData()
