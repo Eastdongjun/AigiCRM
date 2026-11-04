@@ -516,6 +516,8 @@ local_contracts() {
   run "$ROOT/scripts/check-dual-end-permission-binding-contract.sh"
   # 【2026-11-04 TDD】排行页注册码并集纯函数单测(utils/ranking-tabs.js, 先红后绿)
   run node "$ROOT/scripts/test-miniprogram-ranking-tabs.js"
+  # 【2026-11-04 TDD】激励上传手机文件 H5 回挂选取规则单测(utils/upload-handback.js, 先红后绿)
+  run node "$ROOT/scripts/test-miniprogram-upload-handback.js"
   run "$ROOT/scripts/check-read-stats-migration.sh"
   run "$ROOT/scripts/check-migration-contract.sh"
   run "$ROOT/scripts/check-migration-chain-contract.sh"

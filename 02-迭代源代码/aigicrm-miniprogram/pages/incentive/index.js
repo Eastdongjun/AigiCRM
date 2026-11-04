@@ -329,8 +329,8 @@ function pickOption(options, index, fallback, key) {
   return item || fallback
 }
 
-// 【2026-11-03 用户令】排行 tab 内三页签: 客户/个人学分榜/部门(原三块纵向堆叠改切换显示);
-// 页签文案以字面量写在 WXML(契约钉 个人学分榜/部门排行), 激活态由视图归一化 className 提供
+// 【2026-11-03 用户令】排行 tab 内三页签: 客户/个人积分榜/部门(2026-11-04 用户令"更新字 个人积分榜")(原三块纵向堆叠改切换显示);
+// 页签文案以字面量写在 WXML(契约钉 个人积分榜/部门排行), 激活态由视图归一化 className 提供
 const RANK_TAB_KEYS = ['customer', 'scoreboard', 'dept']
 
 function buildIncentiveView(data) {
@@ -953,7 +953,7 @@ Page({
     }
     Promise.all([
       getScoreboard().catch((error) => {
-        showError(error, '个人学分榜加载失败')
+        showError(error, '个人积分榜加载失败')
         return []
       }),
       getRanking({ type: 'dept' }).catch((error) => {

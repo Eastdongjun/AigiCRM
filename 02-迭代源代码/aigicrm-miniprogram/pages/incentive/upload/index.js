@@ -1,7 +1,8 @@
 // 【C2 2026-10-21】getCustomer 供草稿恢复按 id 补拉客户(本地不再持有全量客户列表)
 const { getCustomerList, getCustomer } = require('../../../api/customer')
 const { getCategoryTree, addRecord, getRecords, updateRecord, removeRecordFile } = require('../../../api/incentive')
-const { getDownloadUrl, getDownloadToken, uploadFile } = require('../../../api/file')
+const { getDownloadUrl, getDownloadToken, uploadFile, getFileList } = require('../../../api/file')
+const uploadHandback = require('../../../utils/upload-handback.js')
 const { getDictData } = require('../../../api/system')
 // 【E10】表单草稿接口自 api/system 迁至 api/draft(D38 域归位收尾), 引用随迁
 const { getFormDraft, saveFormDraft, deleteFormDraft } = require('../../../api/draft')
@@ -850,8 +851,8 @@ Page({
   },
 
   chooseFile(e) {
-    // 【2026-11-04 用户报"又跳微信"】微信小程序无法直调手机文件管理器(官方仅 chooseMessageFile 从聊天选),
-    // 按钮命名改为「从聊天选择」显式告知去向; 手机文件直传槽位需后端 H5 选择器改造(scope=incentive+fileId 回传), 待拍板。
+    // 【2026-11-04 用户报"又跳微信"→ 2026-11-04 晚统一 H5 后保留为第三通道】从聊天选择=chooseMessageFile
+    // 原通道(显式命名告知去向); 手机文件直传走 pickFromDevice(web-view H5 调起手机文件管理器)。
     const slotKey = e.currentTarget.dataset.slotKey
     wx.chooseMessageFile({ count: MAX_FILES_PER_SLOT, type: 'file', success: (res) => {
       const files = res.tempFiles || []
@@ -861,6 +862,63 @@ Page({
         }
       })
     }, fail: (error) => { if (error && error.errMsg && !error.errMsg.includes('cancel')) showError(error, '选择文件失败') } })
+  },
+
+  // 【2026-11-04 统一 H5 上传·用户令"所有上传都走 H5"】手机文件: web-view H5(/mp-file-picker?scope=incentive)
+  // 调起手机文件管理器直传(与文件管理页同源; H5 直传后自动返回), 返回后 onShow 按 上传人+导航时间
+  // 取回最新 incentive 域文件回挂槽位(existing+fileId → 提交时 uploadPendingFiles 直接进 doneIds 免二次上传)。
+  pickFromDevice(e) {
+    this._deviceSlotKey = e.currentTarget.dataset.slotKey || ''
+    this._deviceNavTs = Date.now()
+    wx.navigateTo({ url: '/pages/files/picker/index?scope=incentive' })
+  },
+
+  onShow() {
+    const slotKey = this._deviceSlotKey
+    if (!slotKey) return
+    this._deviceSlotKey = ''
+    const uploaderId = this.currentUserId()
+    const sinceTs = this._deviceNavTs || 0
+    if (!uploaderId) return
+    let tries = 0
+    const poll = () => {
+      tries += 1
+      getFileList({ scope: 'incentive', current: 1, size: 10 }).then((res) => {
+        const rec = uploadHandback.pickLatestOwnUpload((res && res.records) || [], uploaderId, sinceTs)
+        if (rec) return this.attachPreUploadedFile(slotKey, rec)
+        // H5 大文件上传耗时较长: 轮询 15 次×2s; 取消场景静默(无新文件即槽位不变)
+        if (tries < 15) setTimeout(poll, 2000)
+      }).catch(() => { if (tries < 15) setTimeout(poll, 2000) })
+    }
+    poll()
+  },
+
+  // 手机文件直传回挂: H5 已直传文件模块(scope=incentive), 槽位 existing+fileId(提交免二次上传;
+  // 预览/下载走 existing 分支 fetchExistingFile); 槽位移除仅摘除挂载不删服务端文件(未挂记录前为无害孤儿)。
+  attachPreUploadedFile(slotKey, rec) {
+    const index = this.data.fileSlots.findIndex((item) => item && item.key === slotKey && !item.hidden)
+    const slot = index >= 0 ? this.data.fileSlots[index] : null
+    if (!slot || !rec) return
+    if ((slot.files || []).length >= MAX_FILES_PER_SLOT) {
+      wx.showToast({ title: `每槽最多 ${MAX_FILES_PER_SLOT} 个文件，当前槽已满`, icon: 'none' })
+      return
+    }
+    const files = (slot.files || []).concat({
+      filePath: '',
+      fileName: rec.fileName || '手机文件',
+      fileKind: isImageFile(rec.fileName || '', '') ? 'image' : 'file',
+      fileId: rec.id,
+      uploadedId: rec.id,
+      existing: true
+    }).slice(0, MAX_FILES_PER_SLOT)
+    const firstFile = files[0] || {}
+    this.setData({
+      [`fileSlots[${index}].files`]: files,
+      [`fileSlots[${index}].filePath`]: firstFile.filePath || '',
+      [`fileSlots[${index}].fileName`]: firstFile.fileName || '',
+      [`fileSlots[${index}].fileKind`]: firstFile.fileKind || ''
+    }, () => this.refreshUploadViewState())
+    wx.showToast({ title: '手机文件已挂载', icon: 'success' })
   },
 
   selectedSlot(event) {

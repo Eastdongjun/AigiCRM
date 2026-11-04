@@ -236,7 +236,7 @@ grep -q 'getReadRanking({ period: this.data.readPeriod })' "$page" || { echo "FA
 grep -q 'chooseReadPeriod' "$page" || { echo "FAIL: incentive mobile read period state handler is missing" >&2; exit 1; }
 grep -q 'read-period-row' "$style" || { echo "FAIL: incentive mobile read period selector style is missing" >&2; exit 1; }
 grep -q '阅读排行' "$wxml" || { echo "FAIL: incentive mobile read ranking UI is missing" >&2; exit 1; }
-grep -q '个人学分榜' "$wxml" || { echo "FAIL: incentive mobile scoreboard UI is missing" >&2; exit 1; }
+grep -q '个人积分榜' "$wxml" || { echo "FAIL: incentive mobile scoreboard tab must read 个人积分榜 (2026-11-04 用户令 更新字)" >&2; exit 1; }
 grep -q '部门排行' "$wxml" || { echo "FAIL: incentive mobile dept ranking UI is missing" >&2; exit 1; }
 grep -q 'openStatDetail' "$page" || { echo "FAIL: incentive mobile category stats cannot drill into PC stats detail" >&2; exit 1; }
 grep -q 'statDetail.records' "$page" || { echo "FAIL: incentive mobile category stats detail state is missing" >&2; exit 1; }
@@ -473,8 +473,10 @@ grep -q '预览' "$upload_wxml" || { echo "FAIL: incentive upload selected-file 
 grep -q '下载' "$upload_wxml" || { echo "FAIL: incentive upload selected-file download copy is unclear" >&2; exit 1; }
 grep -q '选图片' "$upload_wxml" || { echo "FAIL: incentive upload image picker copy is unclear" >&2; exit 1; }
 # 【2026-11-04 用户报"又跳微信"】文档类文件仅微信聊天通道(平台限制), 按钮显式命名+平台限制提示, 反钉旧含糊名「选文件」
-grep -q '从聊天选择' "$upload_wxml" || { echo "FAIL: incentive upload doc-file picker must be explicit 从聊天选择 (WeChat platform constraint)" >&2; exit 1; }
-grep -q '受微信平台限制' "$upload_wxml" || { echo "FAIL: incentive upload must carry the WeChat platform constraint hint" >&2; exit 1; }
+grep -q '从聊天选择' "$upload_wxml" || { echo "FAIL: incentive upload must keep the explicit 从聊天选择 channel" >&2; exit 1; }
+# 【2026-11-04 统一 H5 上传】三通道钉: 选图片/手机文件(H5 直传)/从聊天选择
+grep -q '手机文件' "$upload_wxml" || { echo "FAIL: incentive upload must offer the H5 手机文件 channel" >&2; exit 1; }
+grep -q '直接调起手机文件管理器' "$upload_wxml" || { echo "FAIL: incentive upload hint must mention 直接调起手机文件管理器" >&2; exit 1; }
 ! grep -q '选文件' "$upload_wxml" || { echo "FAIL: incentive upload must not resurrect the vague 选文件 label (jumps into WeChat chat)" >&2; exit 1; }
 ! grep -q '预览图片/打开文档' "$upload_page" || { echo "FAIL: incentive upload current-slot guidance copy must stay retired (per-slot pages carry their own 预览/下载/移除 actions)" >&2; exit 1; }
 grep -q '.cancel-action' "$ROOT/aigicrm-miniprogram/pages/incentive/upload/index.wxss" || { echo "FAIL: incentive upload cancel button style is missing" >&2; exit 1; }

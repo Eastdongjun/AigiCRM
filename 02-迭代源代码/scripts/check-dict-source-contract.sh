@@ -127,9 +127,11 @@ require_contains "学分录入.xlsx" "$BE/com/aigicrm/module/score/service/Score
 
 # 【术语统一 2026-11-02 用户令"所有积分改学分"】全域归零钉: PC/MP/后端源码不得再出现"积分"
 # 白名单: terminology.js(术语主数据自身的改名说明)/legacy-routes.spec(反向钉)/迁移SQL(历史不可改)/契约脚本
+#         + pages/incentive/index.wxml(2026-11-04 用户令"更新字 个人积分榜": 激励统计排行页签用激励积分
+#           语义, 与 score 模块"学分"改名无关; 全域其余禁令维持不变)
 # (grep 无匹配返回 1, set -e 下命令替换会静默退出脚本——必须 || true 兜住)
 TERMDIR_UI=$(grep -rl '积分' "$UI" 2>/dev/null | grep -v 'terminology.js\|legacy-routes.spec.js' | head -3 || true)
-TERMDIR_MP=$(grep -rl '积分' "$MP/pages" "$MP/components" "$MP/utils" "$MP/api" "$MP/app.js" 2>/dev/null | grep -v 'terminology.js' | head -3 || true)
+TERMDIR_MP=$(grep -rl '积分' "$MP/pages" "$MP/components" "$MP/utils" "$MP/api" "$MP/app.js" 2>/dev/null | grep -v 'terminology.js\|pages/incentive/index.wxml\|pages/incentive/index.js' | head -3 || true)
 TERMDIR_BE=$(grep -rl '积分' "$BE" 2>/dev/null | grep -v '.mimosa\|.baseline' | head -3 || true)
 [ -z "$TERMDIR_UI" ] || fail "PC 仍有'积分'残留(术语统一2026-11-02): $TERMDIR_UI"
 [ -z "$TERMDIR_MP" ] || fail "MP 仍有'积分'残留(术语统一2026-11-02): $TERMDIR_MP"

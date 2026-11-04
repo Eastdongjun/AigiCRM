@@ -214,7 +214,7 @@
          切换纯显示不发请求; 各块原表格/分页/空态结构不动 -->
     <view class="tabs rank-subtabs">
       <view class="tab {{incentiveView.customerTabClass}}" data-tab="customer" bindtap="switchRankTab">客户排行</view>
-      <view class="tab {{incentiveView.scoreboardTabClass}}" data-tab="scoreboard" bindtap="switchRankTab">个人学分榜</view>
+      <view class="tab {{incentiveView.scoreboardTabClass}}" data-tab="scoreboard" bindtap="switchRankTab">个人积分榜</view>
       <view class="tab {{incentiveView.deptTabClass}}" data-tab="dept" bindtap="switchRankTab">部门排行</view>
     </view>
     <view wx:if="{{incentiveView.showRankCustomer}}" class="card ranking-panel">
@@ -340,7 +340,7 @@
         </scroll-view>
       </view>
       <pager wx:if="{{scoreboardTotal > 10}}" page="{{scoreboardPage}}" pageSize="{{scoreboardPageSize}}" total="{{scoreboardTotal}}" loading="{{incentiveView.pagerLoading}}" bind:change="onScoreboardPagerChange" />
-      <view wx:if="{{incentiveView.showScoreboardEmpty}}" class="muted">暂无个人学分排行</view>
+      <view wx:if="{{incentiveView.showScoreboardEmpty}}" class="muted">暂无个人积分排行</view>
     </view>
     <view wx:if="{{incentiveView.showRankDept}}" class="card ranking-panel">
       <!-- 【2026-11-02 PC 同款】部门排行同表格化: 排名/部门/总分胶囊/人数/均分(窄表无需冻结/横滚) -->

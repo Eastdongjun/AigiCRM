@@ -7,5 +7,5 @@ module.exports = {
   CREDIT_TOTAL_LABEL: '总学分',
   CREDIT_RANK_TITLE: '学分排行',
   CREDIT_CUSTOMER_ACCUM: '客户累计学分',
-  CREDIT_PERSON_BOARD: '个人学分榜'
+  CREDIT_PERSON_BOARD: '个人积分榜'
 }

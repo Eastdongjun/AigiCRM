@@ -97,9 +97,9 @@
         <text class="form-section-title">{{uploadView.filesSectionTitle}}</text>
         <text class="section-tip">{{uploadView.filesSectionTip}}</text>
       </view>
-      <!-- 【2026-11-04 用户报"又跳微信"】平台限制说明: 微信小程序无法直调手机文件管理器(官方仅
-           chooseMessageFile 从聊天选), 文档文件需先经微信聊天。手机文件直传=后端 H5 选择器改造(待用户拍板)。 -->
-      <view class="field-hint">文档文件（PDF/Word 等）受微信平台限制：请先把文件发送到任意微信聊天（如「文件传输助手」），再点「从聊天选择」；现场照片请用「选图片」。</view>
+      <!-- 【2026-11-04 统一 H5 上传·用户令"所有上传都走 H5"】三通道: 选图片(chooseMedia)/
+           手机文件(web-view H5 调起手机文件管理器直传, scope=incentive 回挂 fileId)/从聊天选择(chooseMessageFile)。 -->
+      <view class="field-hint">文档文件（PDF/Word 等）请点「手机文件」直接调起手机文件管理器上传；微信聊天中的文件可用「从聊天选择」。现场照片请用「选图片」。</view>
       <view wx:for="{{uploadView.installSlotBlocks}}" wx:for-item="block" wx:key="key" class="slot-block">
         <view class="slot-block-head">
           <text wx:if="{{block.dotClass}}" class="slot-dot {{block.dotClass}}"></text>
@@ -130,6 +130,7 @@
         </swiper>
         <view wx:if="{{!block.full}}" class="slot-add-row">
           <button class="upload-action primary" catchtap="chooseImage" data-slot-key="{{block.key}}">选图片</button>
+          <button class="upload-action" catchtap="pickFromDevice" data-slot-key="{{block.key}}">手机文件</button>
           <button class="upload-action" catchtap="chooseFile" data-slot-key="{{block.key}}">从聊天选择</button>
         </view>
         <view wx:else class="slot-full-hint">该槽位已满（每槽最多 5 个文件）</view>
@@ -171,6 +172,7 @@
         </swiper>
         <view wx:if="{{!block.full}}" class="slot-add-row">
           <button class="upload-action primary" catchtap="chooseImage" data-slot-key="{{block.key}}">选图片</button>
+          <button class="upload-action" catchtap="pickFromDevice" data-slot-key="{{block.key}}">手机文件</button>
           <button class="upload-action" catchtap="chooseFile" data-slot-key="{{block.key}}">从聊天选择</button>
         </view>
         <view wx:else class="slot-full-hint">该槽位已满（每槽最多 5 个文件）</view>
