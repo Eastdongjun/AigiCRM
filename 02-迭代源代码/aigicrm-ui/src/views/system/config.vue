@@ -41,12 +41,14 @@
 
       <!-- 内容区: visited-once 惰性挂载(重组件首访才加载, 之后 v-show 保态) -->
       <div class="cfg-content">
-        <template v-if="visited.has('basic')"><BasicSettings v-show="activeTab === 'basic'" /></template>
-        <template v-if="visited.has('dict')"><DictManager v-show="activeTab === 'dict'" /></template>
-        <template v-if="visited.has('approvalConfig')"><ApprovalConfig v-show="activeTab === 'approvalConfig'" /></template>
-        <template v-if="visited.has('incentiveCategory')"><CategoryManager v-show="activeTab === 'incentiveCategory'" /></template>
-        <template v-if="visited.has('permCenter')"><PermCenter v-show="activeTab === 'permCenter'" embedded /></template>
-        <template v-if="visited.has('log')"><LogView v-show="activeTab === 'log'" embedded /></template>
+        <!-- 每 pane 包一层普通 div 承载 v-show: 多根组件(如 DictManager 带根级对话框)上
+             v-show 会静默失效导致面板堆叠(2026-11-05 用户报"菜单和右边对应区域有bug"根因) -->
+        <div v-if="visited.has('basic')" v-show="activeTab === 'basic'"><BasicSettings /></div>
+        <div v-if="visited.has('dict')" v-show="activeTab === 'dict'"><DictManager /></div>
+        <div v-if="visited.has('approvalConfig')" v-show="activeTab === 'approvalConfig'"><ApprovalConfig /></div>
+        <div v-if="visited.has('incentiveCategory')" v-show="activeTab === 'incentiveCategory'"><CategoryManager /></div>
+        <div v-if="visited.has('permCenter')" v-show="activeTab === 'permCenter'"><PermCenter embedded /></div>
+        <div v-if="visited.has('log')" v-show="activeTab === 'log'"><LogView embedded /></div>
       </div>
     </div>
   </div>

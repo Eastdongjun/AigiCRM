@@ -13,7 +13,7 @@
     </div>
     <div class="pc-panebody">
 
-        <PermScopeManager v-show="activePane === 'scope'" />
+        <div v-show="activePane === 'scope'"><PermScopeManager /></div>
       <div v-if="paneVisited.has('special')" v-show="activePane === 'special'">
 
         <div class="pc-sec">
