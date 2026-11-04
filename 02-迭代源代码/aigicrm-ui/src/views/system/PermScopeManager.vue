@@ -29,7 +29,10 @@
       <span v-if="!allRoles.length && !permLoadError" class="psm-who-empty">加载中…</span>
     </div>
 
-    <el-empty v-if="permLoadError" description="无权限查看权限矩阵（缺少 system:menu:view / system:role:view）或加载失败" />
+    <div v-if="permLoadError" class="psm-empty">
+      <el-empty description="无权限查看权限矩阵（缺少 system:menu:view / system:role:view）或加载失败" />
+      <p class="psm-empty-hint">如需配置权限：请联系系统管理员为你勾选对应查看码，或以管理员账号进入 系统设置 → 权限中心 操作。</p>
+    </div>
     <div v-else-if="currentAssignee" class="psm-main">
       <!-- ② 权限模块(左栏) -->
       <aside class="psm-mods">
@@ -443,4 +446,8 @@ onMounted(loadAll)
   border-top: 1px solid #f0f2f5; background: #fafbfc; font-size: 12.5px; color: #4e5969; }
 .psm-sum-chip { background: #eef2ff; color: #3b5bdb; border-radius: 6px; padding: 2px 8px; font-size: 12px; }
 .psm-sum-none { color: var(--el-color-info); }
+
+/* 【2026-11-05】无码空态卡: 说明+可执行建议, 不再裸空 */
+.psm-empty { padding: 46px 0 30px; }
+.psm-empty-hint { text-align: center; font-size: 12px; color: var(--el-color-info); margin: 0 0 18px; }
 </style>

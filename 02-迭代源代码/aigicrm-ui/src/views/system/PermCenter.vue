@@ -1,17 +1,23 @@
 <template>
-  <div class="perm-center">
+  <!-- 【2026-11-05 用户令"系统设置里面的权限页面骨架你来优化"】embedded 骨架重排:
+       外层 config 深度样式本会把嵌套 el-tabs 硬掰成 200px 左列(横排页签被塞窄列→折行截断),
+       与其对抗不如顺势成体系: embedded 下内层页签正式转 tab-position=left 竖排,
+       复刻外层 settings-tabs 的 pill 语言(高亮底色/无下划线/左对齐), 两级左导航层级一致;
+       另补一行上下文说明(embedded 无页头, 口径说明不能丢)与空态卡(无码不再裸空)。 -->
+  <div class="perm-center" :class="{ embedded }">
     <!-- 【2026-11-03 用户裁决"门面统一+收口单入口"】全系统权限配置唯一可写入口:
          ①功能与范围(角色/岗位/用户×功能勾选×范围锚点) ②专项权限(公海名单/激励授权)
          ③生效预览(引擎实时算任意人的真实权限) ④变更审计(append-only 时间线)。 -->
-    <!-- embedded(系统设置内页签形态)时隐藏自带页头, 避免与页签标题双重「权限中心」 -->
+    <!-- embedded(系统设置内页签形态)时隐藏自带大页头(页签标题已表意), 改一行上下文说明 -->
     <div v-if="!embedded" class="pc-header">
       <div>
         <h3 class="pc-title">权限中心</h3>
         <p class="pc-sub">功能勾选 · 数据范围与锚点 · 公海名单 · 激励授权 —— 唯一配置入口，保存即生效（用户刷新页面即可见）</p>
       </div>
     </div>
+    <p v-else class="pc-context">全系统权限唯一配置入口 · 保存即生效（用户刷新页面即可见）</p>
 
-    <el-tabs v-model="activePane" class="pc-tabs">
+    <el-tabs v-model="activePane" class="pc-tabs" :tab-position="embedded ? 'left' : 'top'">
       <!-- ===== ① 功能与范围: 原"权限体系/权限管理"两 Tab 合一(锚点按推荐, 范围层级化) ===== -->
       <el-tab-pane label="功能与范围" name="scope">
         <PermScopeManager />
@@ -20,12 +26,12 @@
       <!-- ===== ② 专项权限: 公海池名单(按角色引用) + 激励授权(按角色批量), 从系统设置收编 ===== -->
       <el-tab-pane label="专项权限" name="special" lazy>
         <div class="pc-sec">
-          <div class="pc-sec-head">公海池名单<span class="pc-sec-hint">查看 / 编辑 / 删除 / 导入 / 捞取 · 名单可勾部门/人员/角色（勾角色=成员自动获得，换届免改）</span></div>
+          <div class="pc-sec-head"><span class="pc-sec-title">公海池名单</span><span class="pc-sec-hint">查看 / 编辑 / 删除 / 导入 / 捞取 · 名单可勾部门/人员/角色（勾角色=成员自动获得，换届免改）</span></div>
           <SeaConfigManager />
         </div>
         <div class="pc-sec" style="margin-top:20px">
           <div class="pc-sec-head">
-            激励专项授权
+            <span class="pc-sec-title">激励专项授权</span>
             <span class="pc-sec-hint">查看分享 / 查看全部 / 编辑他人 / 删除他人 · 支持按角色批量（如"全员互看"= 勾三个角色）</span>
             <el-button v-if="canEdit" type="primary" size="small" style="margin-left:auto" @click="openPermDialog">添加授权</el-button>
           </div>
@@ -215,11 +221,24 @@ onMounted(() => { loadPermList() })
 
 <style scoped>
 .perm-center { padding: 4px 0 16px; }
+/* ===== embedded(系统设置内页签)骨架 ===== */
+.perm-center.embedded { padding: 0 0 8px; }
+.pc-context { margin: 0 0 10px; font-size: 12px; color: var(--el-color-info); }
+/* 内层左列页签: 对齐外层 settings-tabs 的 pill 语言(窄列 132px, 左对齐, 高亮底色, 去下划线) */
+.perm-center.embedded .pc-tabs { height: calc(100vh - 210px); }
+.perm-center.embedded .pc-tabs :deep(.el-tabs__header) { width: 132px; margin-right: 14px; border-right: 1px solid #ebeef5; padding: 6px 0 6px 8px; }
+.perm-center.embedded .pc-tabs :deep(.el-tabs__nav-wrap::after) { display: none; }
+.perm-center.embedded .pc-tabs :deep(.el-tabs__active-bar) { display: none; }
+.perm-center.embedded .pc-tabs :deep(.el-tabs__item) { height: 38px; line-height: 38px; text-align: left; padding: 0 12px !important; margin: 3px 0; border-radius: 8px; font-size: 13px; color: #4b5563; transition: all .2s; }
+.perm-center.embedded .pc-tabs :deep(.el-tabs__item.is-active) { background: var(--el-color-primary-light-9); color: var(--el-color-primary); font-weight: 600; }
+.perm-center.embedded .pc-tabs :deep(.el-tabs__item:hover) { color: var(--el-color-primary); background: #f5f7fa; }
+.perm-center.embedded .pc-tabs :deep(.el-tabs__content) { padding: 0 4px 0 0; }
 .pc-header { margin-bottom: 8px; }
 .pc-title { font-size: 18px; font-weight: 700; color: #1f2d3d; margin: 0 0 4px; }
 .pc-sub { font-size: 12px; color: var(--el-color-info); margin: 0; }
 .pc-sec { margin-top: 6px; }
-.pc-sec-head { display: flex; align-items: center; gap: 10px; font-size: 14px; font-weight: 600; color: #1f2d3d; margin-bottom: 10px; }
+.pc-sec-head { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 10px; font-size: 14px; color: #1f2d3d; margin-bottom: 10px; }
+.pc-sec-title { font-weight: 600; white-space: nowrap; flex-shrink: 0; }
 .pc-sec-hint { font-size: 12px; font-weight: 400; color: var(--el-color-info); }
 .pc-muted { color: var(--el-color-info); font-size: 12px; }
 .pc-pill { margin-right: 4px; }
