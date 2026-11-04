@@ -126,6 +126,9 @@ const loadData = async () => {
   finally { loading.value = false }
 }
 onMounted(loadData)
+
+// 测试钩子: vitest 直驱分页状态(jsdom 下 el-pagination 按钮不渲染, 无法走 DOM 交互)
+defineExpose({ pageNum, pageSize, pagedRanking, rankOf })
 </script>
 
 <style scoped>
