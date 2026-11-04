@@ -472,7 +472,10 @@ grep -q 'uploadView.submitText' "$upload_wxml" || { echo "FAIL: incentive upload
 grep -q '预览' "$upload_wxml" || { echo "FAIL: incentive upload selected-file preview copy is unclear" >&2; exit 1; }
 grep -q '下载' "$upload_wxml" || { echo "FAIL: incentive upload selected-file download copy is unclear" >&2; exit 1; }
 grep -q '选图片' "$upload_wxml" || { echo "FAIL: incentive upload image picker copy is unclear" >&2; exit 1; }
-grep -q '选文件' "$upload_wxml" || { echo "FAIL: incentive upload file picker copy is unclear" >&2; exit 1; }
+# 【2026-11-04 用户报"又跳微信"】文档类文件仅微信聊天通道(平台限制), 按钮显式命名+平台限制提示, 反钉旧含糊名「选文件」
+grep -q '从聊天选择' "$upload_wxml" || { echo "FAIL: incentive upload doc-file picker must be explicit 从聊天选择 (WeChat platform constraint)" >&2; exit 1; }
+grep -q '受微信平台限制' "$upload_wxml" || { echo "FAIL: incentive upload must carry the WeChat platform constraint hint" >&2; exit 1; }
+! grep -q '选文件' "$upload_wxml" || { echo "FAIL: incentive upload must not resurrect the vague 选文件 label (jumps into WeChat chat)" >&2; exit 1; }
 ! grep -q '预览图片/打开文档' "$upload_page" || { echo "FAIL: incentive upload current-slot guidance copy must stay retired (per-slot pages carry their own 预览/下载/移除 actions)" >&2; exit 1; }
 grep -q '.cancel-action' "$ROOT/aigicrm-miniprogram/pages/incentive/upload/index.wxss" || { echo "FAIL: incentive upload cancel button style is missing" >&2; exit 1; }
 grep -q '.submit-action' "$ROOT/aigicrm-miniprogram/pages/incentive/upload/index.wxss" || { echo "FAIL: incentive upload submit action style is missing" >&2; exit 1; }

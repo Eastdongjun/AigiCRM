@@ -850,6 +850,8 @@ Page({
   },
 
   chooseFile(e) {
+    // 【2026-11-04 用户报"又跳微信"】微信小程序无法直调手机文件管理器(官方仅 chooseMessageFile 从聊天选),
+    // 按钮命名改为「从聊天选择」显式告知去向; 手机文件直传槽位需后端 H5 选择器改造(scope=incentive+fileId 回传), 待拍板。
     const slotKey = e.currentTarget.dataset.slotKey
     wx.chooseMessageFile({ count: MAX_FILES_PER_SLOT, type: 'file', success: (res) => {
       const files = res.tempFiles || []
