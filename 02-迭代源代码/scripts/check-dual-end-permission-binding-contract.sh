@@ -133,10 +133,20 @@ grep -Fq "{ key: 'incentiveReward', title: '四项激励', subtitle: '统计与�
 # F6. PC 激励统计路由=注册码 stats:view + 四项激励分组（反钉 11-04 拆码前的旧口径 incentive:view/四项服务 回潮）
 grep -Fq "meta: { title: '激励统计', parentTitle: '四项激励', icon: 'TrendCharts', permission: 'incentive:stats:view' }" "$UI/router/index.js" || fail 'PC incentive-stats route must bind incentive:stats:view under the 四项激励 group'
 grep -Fq "activeMenu: '/incentive/stats', icon: 'Document', permission: 'incentive:stats:view'" "$UI/router/index.js" || fail 'PC incentive-stats detail route must follow stats:view (drill-down same code as page)'
-# F7. PC 侧栏拆组迁移: 四项激励组节点 + 激励统计改挂 + 授权回填
-MIG_SPLIT="$MIG/V2026.11.04.2__split_incentive_reward_menu_group.sql"
-[ -f "$MIG_SPLIT" ] || fail 'incentive-reward sidebar group migration is missing'
-grep -Fq "'/incentive-reward-group'" "$MIG_SPLIT" || fail 'migration must create the 四项激励 sidebar group node (/incentive-reward-group)'
-grep -Fq "WHERE path = '/incentive/stats' AND menu_type = 2" "$MIG_SPLIT" || fail 'migration must re-parent the 激励统计 node under the new group'
+# F7. PC 侧栏结构(2026-11-05 用户令纠偏: "PC端还是叫四项激励，激励统计还是四项激励下面的"
+#     + "PC端也需要增加一个四项服务，四项服务的定位是给客户展示案例库的"):
+#     四项激励=上传/查询/统计一组(V2026.11.05.1 撤销 11-04.2 的 PC 拆组, 历史迁移文件按 flyway 不可变保留);
+#     四项服务=新建案例库组+案例库照片墙页(码复用 incentive:view, 三方同源零新码)
+MIG_FIX="$MIG/V2026.11.05.1__pc_menu_restructure_incentive_perm_center.sql"
+[ -f "$MIG_FIX" ] || fail 'PC menu restructure migration (2026-11-05) is missing'
+grep -Fq "SET menu_name = '四项激励'" "$MIG_FIX" || fail 'migration must rename /incentive-group back to 四项激励'
+grep -Fq "DELETE FROM sys_menu WHERE path = '/incentive-reward-group' AND menu_type = 2" "$MIG_FIX" || fail 'migration must dissolve the 11-04 standalone 四项激励 group'
+grep -Fq "'/service-case-group'" "$MIG_FIX" || fail 'migration must create the 四项服务 sidebar group (/service-case-group)'
+grep -Fq "'/case-library', 'incentive/case-library', 'incentive:view'" "$MIG_FIX" || fail 'migration must seed the 案例库 page node bound to incentive:view'
+grep -Fq "meta: { title: '案例库', parentTitle: '四项服务', icon: 'Picture', permission: 'incentive:view' }" "$UI/router/index.js" || fail 'PC case-library route must bind incentive:view under 四项服务'
+# 反钉: 激励上传/查询不得再挂「四项服务」名下(四项服务=案例库专用, 2026-11-05)
+if grep -Fq "parentTitle: '四项服务', icon: 'Trophy'" "$UI/router/index.js" || grep -Fq "parentTitle: '四项服务', icon: 'Search'" "$UI/router/index.js"; then
+  fail 'incentive upload/query must sit under 四项激励, not 四项服务 (2026-11-05)'
+fi
 
 echo "PASS: dual-end permission bindings reconcile with the perm-center registry (MP=${MP_CODES}c PC=$(printf '%s' "$PC_CODES" | grep -c ':')c registry=${REG_COUNT}c); ranking union-entry, any-of gating, and incentive stats/rank codes pinned."

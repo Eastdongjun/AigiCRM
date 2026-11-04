@@ -3,9 +3,9 @@
 
     <div class="section-box">
       <!-- 2026-08-08 布局重构：左侧导航 + 右侧内容 -->
-      <!-- 【2026-11-03 权限中心收口】"权限体系/权限管理/公海配置"三个 Tab 整体迁往独立页面
-           「权限中心」(/system/perm-center), 系统设置不再承载任何权限可写入口(防两处可写);
-           激励授权区块亦随迁, 此处仅保留类别管理。 -->
+      <!-- 【2026-11-03 权限中心收口 → 2026-11-05 用户令"权限中心收敛到系统设置里面"】
+           权限中心不再是独立侧栏菜单(库节点已删 V2026.11.05.1), 整页收敛为下方「权限中心」页签
+           (唯一可写入口不变, 只是入口位置; embedded 形态隐藏页头避免与页签双重标题)。 -->
       <el-tabs v-model="activeTab" tab-position="left" class="settings-tabs">
         <!-- 基本设置 -->
         <el-tab-pane name="basic">
@@ -25,6 +25,11 @@
           <template #label><span class="tab-label"><el-icon><Coin /></el-icon>激励类别管理</span></template>
           <CategoryManager />
         </el-tab-pane>
+        <!-- 权限中心(2026-11-05 收敛: 功能勾选/数据范围锚点/公海名单/激励授权, lazy=点开才挂载) -->
+        <el-tab-pane name="permCenter" lazy>
+          <template #label><span class="tab-label"><el-icon><Lock /></el-icon>权限中心</span></template>
+          <PermCenter embedded />
+        </el-tab-pane>
 
       </el-tabs>
     </div>
@@ -34,11 +39,12 @@
 
 <script setup>
 import ApprovalConfig from '@/views/system/approvalConfig.vue'
-import { Setting, Notebook, Select, Coin } from '@element-plus/icons-vue'
+import { Setting, Notebook, Select, Coin, Lock } from '@element-plus/icons-vue'
 import { usePermissionData } from '@/composables/usePermissionData'
 import DictManager from './DictManager.vue'
 import BasicSettings from './BasicSettings.vue'
 import CategoryManager from './CategoryManager.vue'
+import PermCenter from './PermCenter.vue'
 
 // activeTab 为模块级单例(composables/usePermissionData.js), 权限中心与设置页共享
 const { activeTab } = usePermissionData()

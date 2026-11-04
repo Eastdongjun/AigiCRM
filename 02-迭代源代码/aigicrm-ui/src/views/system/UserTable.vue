@@ -18,10 +18,8 @@
       </el-table-column>
       <el-table-column label="姓名" min-width="92">
         <template #default="{ row }">
-          <div class="user-cell">
-            <span class="user-avatar">{{ (row.realName || '?').slice(0, 1) }}</span>
-            <span class="user-name">{{ row.realName }}</span>
-          </div>
+          <!-- 【2026-11-05 用户令"人员管理前面那个首字都去掉，不要加那个首字的图标"】姓名列纯文字, 不再放首字头像 -->
+          <span class="user-name">{{ row.realName }}</span>
         </template>
       </el-table-column>
       <!-- 【A2 三轮 2026-10-09】13 列总宽 1435px 超 1440 主视口(内容区约 1172px)约 263px，
@@ -136,15 +134,7 @@ onBeforeUnmount(() => {
 }
 .list-error-bar { margin: 10px 14px 0; }
 
-/* 姓名列：首字头像 */
-.user-cell { display: flex; align-items: center; gap: 8px }
-.user-avatar {
-  width: 26px; height: 26px; border-radius: 50%;
-  background: linear-gradient(135deg, var(--el-color-primary), var(--el-color-primary-light-3));
-  color: #fff; font-size: 12px; font-weight: 600;
-  display: inline-flex; align-items: center; justify-content: center;
-  flex-shrink: 0;
-}
+/* 姓名列（2026-11-05 用户令: 首字头像已移除, 纯文字） */
 .user-name { font-weight: 500; color: #303133 }
 
 /* 直接上级空值 */

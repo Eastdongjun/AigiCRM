@@ -88,7 +88,8 @@ const routes = [
         // 小程序上传入口用的都是 incentive:add（此前路由写 incentive:view，与菜单码不一致）
         // 【A1 三轮 2026-10-09】meta.title 四项服务→激励上传：生产侧栏菜单项名为「激励上传」（菜单名来自后端 menuName，
         // 不受此影响），原 title 使面包屑显示「首页/四项服务」与高亮菜单项不同词；补 parentTitle 与激励查询/统计同构三级
-        meta: { title: '激励上传', parentTitle: '四项服务', icon: 'Trophy', permission: 'incentive:add' }
+        // 【2026-11-05 用户令"PC端还是叫四项激励"】parentTitle 归位四项激励(V2026.11.05.1 组名纠偏)
+        meta: { title: '激励上传', parentTitle: '四项激励', icon: 'Trophy', permission: 'incentive:add' }
       },
       {
         path: 'incentive/stats',
@@ -111,7 +112,17 @@ const routes = [
         path: 'incentive/search',
         name: 'IncentiveSearch',
         component: () => import('@/views/incentive/search.vue'),
-        meta: { title: '激励查询', parentTitle: '四项服务', icon: 'Search', permission: 'incentive:view' }
+        // 【2026-11-05 用户令"PC端还是叫四项激励"】parentTitle 归位四项激励(V2026.11.05.1 组名纠偏)
+        meta: { title: '激励查询', parentTitle: '四项激励', icon: 'Search', permission: 'incentive:view' }
+      },
+      {
+        // 【2026-11-05 用户令"四项服务的定位是给客户展示案例库的"】PC 端四项服务=案例库:
+        // 照片墙案例展示面(照片墙卡片+筛选+大图预览), 数据走 /incentive/customer-records
+        // (incentive:view 同码守护, 三方同源零新码零接口改动); 菜单节点由 V2026.11.05.1 seed
+        path: 'case-library',
+        name: 'CaseLibrary',
+        component: () => import('@/views/incentive/case-library.vue'),
+        meta: { title: '案例库', parentTitle: '四项服务', icon: 'Picture', permission: 'incentive:view' }
       },
       {
         path: 'incentive/ranking',
@@ -237,13 +248,16 @@ const routes = [
         component: () => import('@/views/system/config.vue'),
         meta: { title: '系统设置', icon: 'Tools', permission: 'system:config:view' }
       },
-      // 【统一权限配置中心 2026-11-03】门面统一+收口单入口: 功能勾选/数据范围锚点/公海名单/激励授权
-      // 全部聚合于此; 原系统设置"权限体系/权限管理"两 Tab 与角色管理的功能勾选弹窗收口(菜单由迁移 seed)
+      // 【统一权限配置中心 2026-11-03 收口单入口 → 2026-11-05 用户令"权限中心收敛到系统设置里面"】
+      // 权限中心不再是独立侧栏菜单(库节点已删 V2026.11.05.1), 页面转为 系统设置 内「权限中心」页签;
+      // 本路由仅作旧链接自愈重定向(旧书签/历史审计链接/外部直达), 侧栏不再出现。
+      // meta 仅保证路由块结构完整(审计抽取器要求每块带 meta, 无 meta 会吞并下一路由块);
+      // vue-router 重定向后守卫读的是目标路由(/system/config)的 meta, 此处不参与鉴权。
       {
         path: 'system/perm-center',
-        name: 'PermCenter',
-        component: () => import('@/views/system/PermCenter.vue'),
-        meta: { title: '权限中心', icon: 'Lock', permission: 'system:config:view' }
+        name: 'PermCenterLegacy',
+        redirect: '/system/config',
+        meta: { title: '权限中心(旧)', permission: 'system:config:view' }
       },
       {
         path: 'system/log',

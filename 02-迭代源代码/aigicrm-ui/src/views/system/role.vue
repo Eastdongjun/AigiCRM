@@ -99,8 +99,8 @@
     <!-- 权限分配对话框(2026-11-03 权限中心收口: 改只读展示 + 跳转, 可写入口唯一=权限中心) -->
     <el-dialog v-model="permDialogVisible" title="权限分配（只读）" width="500px">
       <el-alert type="info" :closable="false" style="margin-bottom:12px"
-                title="功能勾选已收口至「权限中心」"
-                description="勾选/取消权限请前往 系统管理 → 权限中心 → 功能与范围（保存即生效）；此处仅查看该角色当前绑定的权限码。" />
+                title="功能勾选已收口至「权限中心」（系统设置内页签）"
+                description="勾选/取消权限请前往 系统设置 → 权限中心 → 功能与范围（保存即生效）；此处仅查看该角色当前绑定的权限码。" />
       <el-tree
         :data="menuTree"
         :props="{ label: 'menuName', children: 'children' }"
@@ -126,8 +126,10 @@ import { ElMessage } from 'element-plus'
 import { confirmAction } from '@/utils/confirm'
 import { getRoleList, getRole, createRole, updateRole, deleteRole, getMenuTree, getDeptTree, getRoleOrgs } from '@/api/system'
 import { useUserStore } from '@/store/user'
+import { usePermissionData } from '@/composables/usePermissionData'
 
 const userStore = useUserStore()
+const { activeTab } = usePermissionData()
 const canAddRole = computed(() => userStore.hasPermission('system:role:add'))
 const canEditRole = computed(() => userStore.hasPermission('system:role:edit'))
 const canDeleteRole = computed(() => userStore.hasPermission('system:role:delete'))
@@ -285,9 +287,12 @@ const openPermDialog = async (row) => {
 }
 
 // 跳权限中心功能与范围页签(唯一可写入口; 可写勾选链=矩阵 togglePerm → PUT /system/roles)
+// 【2026-11-05 用户令"权限中心收敛到系统设置里面"】独立菜单已删(V2026.11.05.1),
+// 改跳 系统设置(/system/config) 的「权限中心」页签: activeTab 为模块级单例, 置值后跳转即落在该页签
 const goPermCenter = () => {
   permDialogVisible.value = false
-  router.push('/system/perm-center')
+  activeTab.value = 'permCenter'
+  router.push('/system/config')
 }
 
 onMounted(() => {

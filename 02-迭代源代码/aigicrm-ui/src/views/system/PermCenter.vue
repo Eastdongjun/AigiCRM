@@ -3,7 +3,8 @@
     <!-- 【2026-11-03 用户裁决"门面统一+收口单入口"】全系统权限配置唯一可写入口:
          ①功能与范围(角色/岗位/用户×功能勾选×范围锚点) ②专项权限(公海名单/激励授权)
          ③生效预览(引擎实时算任意人的真实权限) ④变更审计(append-only 时间线)。 -->
-    <div class="pc-header">
+    <!-- embedded(系统设置内页签形态)时隐藏自带页头, 避免与页签标题双重「权限中心」 -->
+    <div v-if="!embedded" class="pc-header">
       <div>
         <h3 class="pc-title">权限中心</h3>
         <p class="pc-sub">功能勾选 · 数据范围与锚点 · 公海名单 · 激励授权 —— 唯一配置入口，保存即生效（用户刷新页面即可见）</p>
@@ -146,6 +147,10 @@ import PermGrantDialog from './PermGrantDialog.vue'
 import { usePermissionData } from '@/composables/usePermissionData'
 import { useUserStore } from '@/store/user'
 import { getUserList, getPermCenterPreview, getRuleVersions } from '@/api/system'
+
+// 【2026-11-05 用户令"权限中心收敛到系统设置里面"】embedded=true 时作为系统设置内页签挂载:
+// 隐藏自带页头(避免与页签标题双重「权限中心」), 功能(四页签)零变化
+defineProps({ embedded: { type: Boolean, default: false } })
 
 const userStore = useUserStore()
 const canEdit = computed(() => userStore.isAdmin() && userStore.hasPermission('system:config:edit'))

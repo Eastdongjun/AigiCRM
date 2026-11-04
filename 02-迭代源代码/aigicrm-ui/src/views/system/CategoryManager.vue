@@ -110,7 +110,7 @@
       </template>
     </el-dialog>
 
-    <!-- 【2026-11-03 权限中心收口】激励专项授权区块与 PermGrantDialog 已迁往「权限中心」(/system/perm-center) 专项权限页签 -->
+    <!-- 【2026-11-03 权限中心收口; 2026-11-05 收敛进系统设置】激励专项授权区块与 PermGrantDialog 现位于 系统设置→权限中心 专项权限页签 -->
   </div>
 </template>
 
