@@ -35,7 +35,7 @@ const APP_MODULES = [
   // 【2026-11-04 用户令"统一命名 统一数据来源"】模块分组与 PC 菜单分组逐一对齐:
   //   客户经营=客户管理(PC 业务核心)/文件管理=文件管理/四项服务=四项服务/考核与分析=考核与分析(PC 组,
   //   收纳 学分排行+统计分析+核心客户六项指标)/流程协同=公海·审批·提醒 协作面; 原「经营分析」组撤销。
-  { key: 'customer', title: '客户经营', subtitle: '客户列表、详情与新增', apps: ['customer', 'customerCreate'] },
+  { key: 'customer', title: '客户经营', subtitle: '客户列表、详情与新增', apps: ['customer', 'customerCreate', 'indicator'] },
   // 【2026-11-03 用户令"应用与 PC 对齐"】补文件管理(PC 正式菜单 file:view; tabBar 页 switchTab 直达)
   { key: 'files', title: '文件管理', subtitle: '文件库、文件夹与分享', apps: ['files'] },
   // 【2026-11-04 用户令"四项服务和四项激励是两个不同的模块"】四项服务=记录业务(上传/查询/台账),
@@ -43,7 +43,8 @@ const APP_MODULES = [
   // PC 侧栏同批拆组(V2026.11.04.2 菜单树建组), 权限码两族本就独立(incentive:view/add vs stats:view/rank:view)
   { key: 'incentive', title: '四项服务', subtitle: '上传、查询与记录', apps: ['incentiveUpload', 'incentiveQuery'] },
   { key: 'incentiveReward', title: '四项激励', subtitle: '统计与排行', apps: ['incentiveStats'] },
-  { key: 'assessment', title: '考核与分析', subtitle: '学分排行 · 统计分析 · 核心指标', apps: ['ranking', 'statistics', 'indicator'] },
+  { key: 'assessment', title: '学分管理', subtitle: '学分排行', apps: ['ranking'] },
+  { key: 'statistics', title: '统计分析', subtitle: '客户 · 审批 · 公海摘要', apps: ['statistics'] },
   { key: 'workflow', title: '流程协同', subtitle: '审批、提醒与公海协作', apps: ['approval', 'reminder', 'sea'] }
 ]
 

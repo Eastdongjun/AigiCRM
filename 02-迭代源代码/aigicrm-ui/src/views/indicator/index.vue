@@ -41,13 +41,14 @@
           <span class="rank-count">{{ filteredRanking.length }}个客户</span>
         </div>
       </div>
-      <el-table :data="filteredRanking" stripe style="width:100%" size="small" empty-text="暂无数据，请先在客户详情中录入核心客户六项指标">
+      <el-table :data="pagedRanking" stripe style="width:100%" size="small" empty-text="暂无数据，请先在客户详情中录入核心客户六项指标">
         <el-table-column label="排名" min-width="55" align="center">
           <template #default="{ $index }">
-            <span v-if="$index === 0" class="medal">1</span>
-            <span v-else-if="$index === 1" class="medal">2</span>
-            <span v-else-if="$index === 2" class="medal">3</span>
-            <span v-else class="rank-num">{{ $index + 1 }}</span>
+            <!-- 【2026-11-05 用户令补翻页】分页后排名=绝对榜次(跨页连续), 非页内序号 -->
+            <span v-if="rankOf($index) === 1" class="medal">1</span>
+            <span v-else-if="rankOf($index) === 2" class="medal">2</span>
+            <span v-else-if="rankOf($index) === 3" class="medal">3</span>
+            <span v-else class="rank-num">{{ rankOf($index) }}</span>
           </template>
         </el-table-column>
         <el-table-column prop="customerName" label="客户" min-width="180" />
@@ -85,6 +86,10 @@
           </template>
         </el-table-column>
       </el-table>
+      <!-- 【2026-11-05 用户令】补翻页: 一次拉全量+前端切片(与激励查询/案例库同口径), 页大小可切 -->
+      <el-pagination v-model:current-page="pageNum" :page-size="pageSize" :total="filteredRanking.length"
+        :page-sizes="pageSizes(pageSize)" layout="sizes, prev, pager, next, total" size="small" background
+        style="margin-top:10px;justify-content:flex-end" @size-change="onSizeChange" />
       <div class="table-footer">
         <!-- 2026-10-04 D15：移除“更新时间: 渲染时刻”展示——/statistics/indicator-stats 不返回
              任何数据时间字段（见后端 StatisticsQueryService.indicatorStats），new Date() 属伪造时间 -->
@@ -95,8 +100,9 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { getIndicatorStats } from '@/api/statistics'
+import { paginate, pageSizes } from '@/utils/pagination'
 
 const data = ref({})
 const customerRanking = computed(() => data.value.customerRanking || [])
@@ -104,6 +110,14 @@ const customerRanking = computed(() => data.value.customerRanking || [])
 const coreFilter = ref('')
 const filteredRanking = computed(() =>
   !coreFilter.value ? customerRanking.value : customerRanking.value.filter(row => row.coreType === coreFilter.value))
+
+// 【2026-11-05 用户令补翻页】前端切片分页; 筛选变化回第一页; 排名=绝对榜次(跨页连续)
+const pageNum = ref(1)
+const pageSize = ref(20)
+const pagedRanking = computed(() => paginate(filteredRanking.value, pageNum.value, pageSize.value))
+const rankOf = (localIndex) => (pageNum.value - 1) * pageSize.value + localIndex + 1
+const onSizeChange = (size) => { pageSize.value = size; pageNum.value = 1 }
+watch(coreFilter, () => { pageNum.value = 1 })
 
 const loading = ref(false)
 const loadData = async () => {

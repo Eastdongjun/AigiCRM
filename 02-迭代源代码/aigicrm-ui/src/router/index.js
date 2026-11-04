@@ -128,7 +128,7 @@ const routes = [
         path: 'incentive/ranking',
         name: 'LegacyIncentiveRanking',
         component: () => import('@/views/score/ranking.vue'),
-        meta: { title: '学分排行', parentTitle: '考核与分析', activeMenu: '/score/ranking', icon: 'Medal', permission: 'score:view' }
+        meta: { title: '学分排行', parentTitle: '学分管理', activeMenu: '/score/ranking', icon: 'Medal', permission: 'score:view' }
       },
       // 提醒管理
       {
@@ -178,19 +178,19 @@ const routes = [
         name: 'Statistics',
         component: () => import('@/views/statistics/index.vue'),
         // 【A1 2026-10-08 二轮】补 parentTitle：与学分录入/学分排行同挂「考核与分析」组，同组面包屑深度一致
-        meta: { title: '统计分析', parentTitle: '考核与分析', icon: 'TrendCharts', permission: 'statistics:view' }
+        meta: { title: '统计分析', parentTitle: '统计分析', icon: 'TrendCharts', permission: 'statistics:view' }
       },
       {
         path: 'score/entry',
         name: 'ScoreEntry',
         component: () => import('@/views/score/entry.vue'),
-        meta: { title: '学分录入', parentTitle: '考核与分析', icon: 'Edit', permission: 'score:entry' }
+        meta: { title: '学分录入', parentTitle: '学分管理', icon: 'Edit', permission: 'score:entry' }
       },
       {
         path: 'score/ranking',
         name: 'ScoreRanking',
         component: () => import('@/views/score/ranking.vue'),
-        meta: { title: '学分排行', parentTitle: '考核与分析', icon: 'Medal', permission: 'score:view' }
+        meta: { title: '学分排行', parentTitle: '学分管理', icon: 'Medal', permission: 'score:view' }
       },
       {
         path: 'ranking/customer',
@@ -198,7 +198,7 @@ const routes = [
         component: () => import('@/views/ranking/customer.vue'),
         // 【A1 2026-10-08 二轮】parentTitle 校正：原写「统计分析」是把同组兄弟页当父级展示，
         // 统一改挂后端菜单组「考核与分析」，同组页面面包屑深度一致
-        meta: { title: '客户排行', parentTitle: '考核与分析', icon: 'DataLine', permission: 'statistics:view' }
+        meta: { title: '客户排行', parentTitle: '客户管理', icon: 'DataLine', permission: 'statistics:view' }
       },
       // 核心客户六项指标
       // 标题统一为「核心客户六项指标」：生产菜单(id=108)与页面 <h3> 均用此名，
@@ -207,9 +207,11 @@ const routes = [
         path: 'indicator',
         name: 'Indicator',
         component: () => import('@/views/indicator/index.vue'),
-        meta: { title: '核心客户六项指标', icon: 'Aim', permission: 'statistics:view' }
+        meta: { title: '核心客户六项指标', parentTitle: '客户管理', icon: 'Aim', permission: 'statistics:view' }
       },
-      // 系统管理
+      // 【2026-11-05 用户令模块归属对齐】核心客户六项指标/客户排行→客户管理; 学分录入/排行→学分管理(新组);
+// 统计分析→独立「统计分析」组; 考核与分析组撤销(V2026.11.05.4)。parentTitle 与菜单树同词。
+// 系统管理
       {
         path: 'system/user',
         name: 'UserManage',

@@ -76,8 +76,8 @@ grep -Fq "Array.isArray(item.permissions)" "$MP/pages/app/index.js" || fail 'app
 grep -Fq "path: 'score/ranking'" "$UI/router/index.js" || fail 'PC router must register score/ranking (score ranking menu)'
 grep -Fq "path: 'ranking/customer'" "$UI/router/index.js" || fail 'PC router must register ranking/customer (customer ranking menu)'
 grep -q "activeMenu: '/score/ranking'" "$UI/router/index.js" || fail 'PC score ranking route must anchor activeMenu /score/ranking'
-grep -q "title: '学分排行', parentTitle: '考核与分析', activeMenu: '/score/ranking', icon: 'Medal', permission: 'score:view'" "$UI/router/index.js" || fail 'PC score ranking menu must bind registry code score:view'
-grep -q "title: '客户排行', parentTitle: '考核与分析', icon: 'DataLine', permission: 'statistics:view'" "$UI/router/index.js" || fail 'PC customer ranking menu must bind registry code statistics:view'
+grep -q "title: '学分排行', parentTitle: '学分管理', activeMenu: '/score/ranking', icon: 'Medal', permission: 'score:view'" "$UI/router/index.js" || fail 'PC score ranking menu must bind registry code score:view (parentTitle=学分管理, 2026-11-05 模块对齐)'
+grep -q "title: '客户排行', parentTitle: '客户管理', icon: 'DataLine', permission: 'statistics:view'" "$UI/router/index.js" || fail 'PC customer ranking menu must bind registry code statistics:view (parentTitle=客户管理, 2026-11-05 用户拍板)'
 
 # ---- D. 接口守卫=注册码 ----
 grep -Fq "hasAuthority('score:view')" "$SCORE_CTRL" || fail 'backend /score/ranking guard must stay score:view'
@@ -85,10 +85,13 @@ grep -Fq "customer-rankings" "$STAT_CTRL" || fail 'backend customer-rankings rou
 sed -n '/customer-rankings/,+2p' "$STAT_CTRL" | grep -Fq "hasAuthority('statistics:view')" || fail 'backend /statistics/customer-rankings guard must stay statistics:view'
 
 # ---- E. 命名与数据来源同源（2026-11-04 用户令"统一命名 统一数据来源"）----
-# E1. MP 应用中心模块分组=PC 菜单分组: 考核与分析收纳 学分排行+统计分析+核心指标, 「经营分析」组撤销
-grep -Fq "apps: ['ranking', 'statistics', 'indicator']" "$MP/pages/app/index.js" || fail 'assessment module must host ranking/statistics/indicator apps (PC 考核与分析 group alignment)'
+# E1. MP 应用中心模块分组=PC 菜单分组(2026-11-05 用户令模块归属对齐, V2026.11.05.4):
+#     考核与分析组撤销 → 学分管理(学分排行) / 统计分析(独立) / 核心指标+客户排行 归 客户经营
+grep -Fq "{ key: 'assessment', title: '学分管理', subtitle: '学分排行', apps: ['ranking'] }," "$MP/pages/app/index.js" || fail 'assessment module must be renamed 学分管理 hosting ranking only'
+grep -Fq "{ key: 'statistics', title: '统计分析', subtitle: '客户 · 审批 · 公海摘要', apps: ['statistics'] }," "$MP/pages/app/index.js" || fail 'app-center must keep a standalone 统计分析 module'
+grep -Fq "apps: ['customer', 'customerCreate', 'indicator']" "$MP/pages/app/index.js" || fail 'customer module must host indicator app (核心客户六项指标归客户模块, 2026-11-05)'
 if grep -q "'analytics'" "$MP/pages/app/index.js"; then
-  fail 'app-center must not keep the analytics module (statistics moved into 考核与分析, naming unified 2026-11-04)'
+  fail 'app-center must not keep the analytics module (statistics standalone since 2026-11-05)'
 fi
 # E2. 首页宫格入口名=PC 菜单权威名（反钉旧名回潮）
 grep -Fq '新增客户' "$MP/pages/home/index.wxml" || fail 'home grid must use PC menu name 新增客户'
