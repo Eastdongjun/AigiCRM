@@ -100,13 +100,21 @@ Page({
       { key: 'incentiveQuery', title: '激励查询', subtitle: '客户记录 · 分类 · 阅读', color: 'teal', permission: 'incentive:view' },
       { key: 'incentiveStats', title: '激励统计', subtitle: '统计 · 客户/个人/部门排行', color: 'amber', permission: 'incentive:view' },
       // 【2026-11-03 用户裁决】入口卡片名与页面标题统一为「学分排行」(原「客户排行」名实不符)
-      { key: 'ranking', title: '学分排行', subtitle: '学分、客情、核心指标排行', color: 'purple', permission: 'statistics:view' },
+      // 【2026-11-04 注册表对齐】排行页内含三榜(学分=score:view/客户=statistics:view/激励=incentive:view)，
+      // 入口按注册码并集(any-of)显隐——与 PC 学分排行(score:view)、客户排行(statistics:view)菜单同源，不发明新码
+      { key: 'ranking', title: '学分排行', subtitle: '学分、客情、核心指标排行', color: 'purple', permissions: ['score:view', 'statistics:view', 'incentive:view'] },
       { key: 'indicator', title: '核心客户六项指标', subtitle: '核心客户指标总览', color: 'indigo', permission: 'statistics:view' },
       { key: 'statistics', title: '统计分析', subtitle: '客户、审批与公海摘要', color: 'cyan', permission: 'statistics:view' },
       { key: 'approval', title: '审批管理', subtitle: '处理和查看审批事项', color: 'green', permission: 'approval:view' },
       { key: 'reminder', title: '提醒管理', subtitle: '到期客户与待办提醒', color: 'red', permission: 'reminder:view' },
       { key: 'sea', title: '公海池', subtitle: '查看可见公海客户', color: 'orange', permission: 'sea:view' }
-    ].filter((item) => getApp().globalData.demoMode || hasPermission(item.permission))
+    ].filter((item) => {
+      // 【2026-11-04 注册表对齐】通用 any-of 门禁：permission=单码，permissions=注册码并集（多功能页用），
+      // 码值全部来自权限中心注册表，不在此处发明/特判
+      if (getApp().globalData.demoMode) return true
+      if (Array.isArray(item.permissions)) return item.permissions.some((code) => hasPermission(code))
+      return hasPermission(item.permission)
+    })
     this.setData({ apps, appView: buildAppView(apps) })
   },
 

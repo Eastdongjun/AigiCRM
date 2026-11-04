@@ -19,8 +19,15 @@ grep -q "getRankingStats" "$api" || { echo "FAIL: mobile ranking stats API wrapp
 ! grep -q "'/api/score/grid'" "$api" || { echo "FAIL: mobile score API exposes PC-only score entry grid" >&2; exit 1; }
 ! grep -q "'/api/score/entries/batch'" "$api" || { echo "FAIL: mobile score API exposes PC-only score entry batch write" >&2; exit 1; }
 ! grep -q "score:entry" "$page" || { echo "FAIL: mobile ranking page exposes PC-only score entry permission" >&2; exit 1; }
-grep -q "hasPermission('score:view')" "$page" || { echo "FAIL: mobile ranking permission guard is missing" >&2; exit 1; }
-grep -q "hasPermission('statistics:view')" "$page" || { echo "FAIL: mobile ranking statistics permission fallback is missing" >&2; exit 1; }
+grep -q "score: 'score:view'" "$page" || { echo "FAIL: mobile ranking score tab must bind registry code score:view (MAIN_TAB_PERMISSIONS)" >&2; exit 1; }
+grep -q "customer: 'statistics:view'" "$page" || { echo "FAIL: mobile ranking customer tab must bind registry code statistics:view (MAIN_TAB_PERMISSIONS)" >&2; exit 1; }
+grep -q "incentive: 'incentive:view'" "$page" || { echo "FAIL: mobile ranking incentive tab must bind registry code incentive:view (MAIN_TAB_PERMISSIONS)" >&2; exit 1; }
+grep -q "MAIN_TAB_PERMISSIONS" "$page" || { echo "FAIL: mobile ranking must gate tabs via MAIN_TAB_PERMISSIONS registry codes" >&2; exit 1; }
+# 【2026-11-04 注册表对齐】入口=注册码并集(任一命中可进), 取代 mp-3 的 statistics:view 单码补丁
+grep -q "canTabs.score && !canTabs.customer && !canTabs.incentive" "$page" || { echo "FAIL: mobile ranking union-entry bounce (none-of) is missing" >&2; exit 1; }
+grep -Fq "if (canTabs[rankTab] === false) return" "$page" || { echo "FAIL: mobile ranking must block switching to tabs the role has no code for" >&2; exit 1; }
+grep -q "canTabs\[item.key\] !== false" "$page" || { echo "FAIL: mobile ranking main tabs must be filtered by per-tab registry codes" >&2; exit 1; }
+! grep -q "hasPermission('statistics:view')" "$page" || { echo "FAIL: mobile ranking must not single-gate the whole page on statistics:view (registry union per tab instead)" >&2; exit 1; }
 grep -q "'/api/statistics/customer-rankings'" "$statistics_api" || { echo "FAIL: mobile customer ranking API route is missing" >&2; exit 1; }
 grep -q "getCustomerRankings" "$page" || { echo "FAIL: mobile ranking page does not load customer rankings" >&2; exit 1; }
 grep -q "currentPeriod()" "$page" || { echo "FAIL: mobile ranking page does not centralize the selected period" >&2; exit 1; }
