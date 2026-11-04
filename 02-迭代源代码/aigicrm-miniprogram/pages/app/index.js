@@ -38,7 +38,11 @@ const APP_MODULES = [
   { key: 'customer', title: '客户经营', subtitle: '客户列表、详情与新增', apps: ['customer', 'customerCreate'] },
   // 【2026-11-03 用户令"应用与 PC 对齐"】补文件管理(PC 正式菜单 file:view; tabBar 页 switchTab 直达)
   { key: 'files', title: '文件管理', subtitle: '文件库、文件夹与分享', apps: ['files'] },
-  { key: 'incentive', title: '四项服务', subtitle: '上传、查询与统计', apps: ['incentiveUpload', 'incentiveQuery', 'incentiveStats'] },
+  // 【2026-11-04 用户令"四项服务和四项激励是两个不同的模块"】四项服务=记录业务(上传/查询/台账),
+  // 四项激励=激励兑现面(激励统计: 分类统计+客户/个人/部门排行), 拆成两个模块组;
+  // PC 侧栏同批拆组(V2026.11.04.2 菜单树建组), 权限码两族本就独立(incentive:view/add vs stats:view/rank:view)
+  { key: 'incentive', title: '四项服务', subtitle: '上传、查询与记录', apps: ['incentiveUpload', 'incentiveQuery'] },
+  { key: 'incentiveReward', title: '四项激励', subtitle: '统计与排行', apps: ['incentiveStats'] },
   { key: 'assessment', title: '考核与分析', subtitle: '学分排行 · 统计分析 · 核心指标', apps: ['ranking', 'statistics', 'indicator'] },
   { key: 'workflow', title: '流程协同', subtitle: '审批、提醒与公海协作', apps: ['approval', 'reminder', 'sea'] }
 ]

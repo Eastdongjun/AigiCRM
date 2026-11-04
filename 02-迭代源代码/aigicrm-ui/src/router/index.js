@@ -94,14 +94,18 @@ const routes = [
         path: 'incentive/stats',
         name: 'IncentiveStats',
         component: () => import('@/views/incentive/stats.vue'),
-        meta: { title: '激励统计', parentTitle: '四项服务', icon: 'TrendCharts', permission: 'incentive:view' }
+        // 【2026-11-04 逐功能建码+拆组归位】激励统计=四项激励模块: 菜单节点(sys_menu /incentive/stats)已改绑
+        // incentive:stats:view(V2026.11.04.1), 此处路由守卫同步归位(存量角色已由迁移回填, 无人失权);
+        // parentTitle 四项服务→四项激励(侧栏拆组 V2026.11.04.2, 面包屑与侧栏高亮组同词)
+        meta: { title: '激励统计', parentTitle: '四项激励', icon: 'TrendCharts', permission: 'incentive:stats:view' }
       },
       {
         // 【2026-09-13】激励统计表格行的下钻明细页（子页面）；侧边栏来自后端菜单树，本路由不会出现在菜单里
         path: 'incentive/stats/detail/:childId',
         name: 'IncentiveStatsDetail',
         component: () => import('@/views/incentive/StatsDetail.vue'),
-        meta: { title: '激励明细', parentTitle: '激励统计', activeMenu: '/incentive/stats', icon: 'Document', permission: 'incentive:view' }
+        // 【2026-11-04 归位】下钻明细页跟主页同码 incentive:stats:view(原 incentive:view 为 11-04 拆码前的旧口径)
+        meta: { title: '激励明细', parentTitle: '激励统计', activeMenu: '/incentive/stats', icon: 'Document', permission: 'incentive:stats:view' }
       },
       {
         path: 'incentive/search',
