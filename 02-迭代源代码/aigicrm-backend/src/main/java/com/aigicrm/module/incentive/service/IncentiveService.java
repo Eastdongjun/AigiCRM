@@ -830,12 +830,53 @@ public class IncentiveService {
             .collect(Collectors.joining(", "));
     }
 
-    /** 激励统计表(全员口径): 按子类聚合文件数/总学分, 并给出周期总文件数/总学分 */
+    // ========== 【2026-11-04 用户令"四项服务/四项激励也设置上对应的数据的权限"】统计家族数据范围收口 ==========
+    // 与 StatisticsQueryService.customerRankings(visibleCustomers, 2026-11-02 客户可见范围基线)同模式:
+    // 按当前账号 数据范围解析 的可见人员集过滤记录; SecurityUser 缺席(系统任务/测试)/admin/解析为 null(=全部)
+    // 时不过滤(fail-open 同模式)。统计页签=客户维度收口(可见客户), 排行页签=人员维度收口(可见人员)。
+    private java.util.Set<Long> statsVisibleUserIds() {
+        com.aigicrm.security.SecurityUser user = SecurityUtils.getCurrentUser();
+        if (user == null || SecurityUtils.isAdmin()) return null;
+        java.util.List<Long> visible = scopeResolver.resolveModuleUsers(user, "statistics");
+        return visible == null ? null : new java.util.HashSet<>(visible);
+    }
+
+    /** 客户维度基线: active 非 sea/archived 且(未分配负责人保持全员可见 或 负责人在可见人员集内) */
+    private java.util.Set<Long> statsVisibleCustomerIds() {
+        java.util.Set<Long> users = statsVisibleUserIds();
+        if (users == null) return null;
+        java.util.Set<Long> ids = new java.util.HashSet<>();
+        for (BizCustomer c : customerMapper.selectList(new LambdaQueryWrapper<BizCustomer>()
+                .eq(BizCustomer::getDeleted, 0)
+                .notIn(BizCustomer::getStatus, "sea", "archived"))) {
+            if (c.getOwnerId() == null || users.contains(c.getOwnerId())) ids.add(c.getId());
+        }
+        return ids;
+    }
+
+    private List<BizIncentiveRecord> filterRecordsByVisibleCustomers(List<BizIncentiveRecord> records) {
+        java.util.Set<Long> ids = statsVisibleCustomerIds();
+        if (ids == null) return records;
+        return records.stream()
+                .filter(r -> r.getCustomerId() != null && ids.contains(r.getCustomerId()))
+                .collect(java.util.stream.Collectors.toList());
+    }
+
+    private List<BizIncentiveRecord> filterRecordsByVisibleUsers(List<BizIncentiveRecord> records) {
+        java.util.Set<Long> users = statsVisibleUserIds();
+        if (users == null) return records;
+        return records.stream()
+                .filter(r -> r.getUserId() != null && users.contains(r.getUserId()))
+                .collect(java.util.stream.Collectors.toList());
+    }
+
+    /** 激励统计表: 按子类聚合文件数/总学分, 并给出周期总文件数/总学分(数据按当前权限账号范围收口) */
     public Map<String, Object> categoryStats(String period) {
         LambdaQueryWrapper<BizIncentiveRecord> wrapper = new LambdaQueryWrapper<>();
         if (period != null && !period.isBlank()) wrapper.eq(BizIncentiveRecord::getPeriod, period);
-        // 【2026-08-08 分享制】激励统计表=公司级展示，不做可见性过滤，全员看到全公司聚合（含未分享）
-        List<BizIncentiveRecord> records = recordMapper.selectList(wrapper);
+        // 【2026-11-04 用户令"四项服务/四项激励也设置上对应的数据的权限"】统计表按当前权限账号
+        // 数据范围收口(可见客户基线), 取代 2026-08-08 全员口径(公司级→范围内, 与客户排行/PC 同基线)
+        List<BizIncentiveRecord> records = filterRecordsByVisibleCustomers(recordMapper.selectList(wrapper));
 
         Map<Long, int[]> byCat = new LinkedHashMap<>(); // categoryId -> [fileCount, totalScore, pre, mid, post]
         int totalFiles = 0, totalScore = 0;
@@ -905,8 +946,17 @@ public class IncentiveService {
         // 取不到集团=fail-closed 固定前缀),admin 用 "adm:" / 非 admin 用 "usr:" 区分。
         // 第二集团前置条件已补:第二集团上线即天然隔离,无需再动此键。
         String periodKey = (period == null || period.isBlank()) ? "" : period;
-        String key = com.aigicrm.common.scope.GroupScopeUtil.tenantCachePrefix()
-                + (SecurityUtils.isAdmin() ? "adm:" : "usr:") + periodKey;
+        // 【2026-11-04 数据范围收口】非 admin 榜单按调用人分键(各账号可见范围不同, 不得互染)
+        com.aigicrm.security.SecurityUser caller = SecurityUtils.getCurrentUser();
+        String callerPart;
+        if (caller == null) {
+            callerPart = "usr:sys:";
+        } else if (SecurityUtils.isAdmin()) {
+            callerPart = "adm:";
+        } else {
+            callerPart = "usr:" + caller.getUserId() + ":";
+        }
+        String key = com.aigicrm.common.scope.GroupScopeUtil.tenantCachePrefix() + callerPart + periodKey;
         ScoreboardCacheEntry hit = scoreboardCache.get(key);
         if (hit != null && System.currentTimeMillis() < hit.expireAt()) {
             return hit.value();
@@ -921,8 +971,9 @@ public class IncentiveService {
     private List<Map<String, Object>> computeScoreboard(String period) {
         LambdaQueryWrapper<BizIncentiveRecord> wrapper = new LambdaQueryWrapper<>();
         if (period != null && !period.isBlank()) wrapper.eq(BizIncentiveRecord::getPeriod, period);
-        // 【2026-08-08 分享制】个人排行=公司级展示，不做可见性过滤，全员看到全公司排行（含未分享）
-        List<BizIncentiveRecord> records = recordMapper.selectList(wrapper);
+        // 【2026-11-04 用户令"四项服务/四项激励也设置上对应的数据的权限"】个人榜(激励统计页签)按当前
+        // 权限账号数据范围收口(可见人员基线, 上传人在范围内的记录才计分), 取代 2026-08-08 公司级口径
+        List<BizIncentiveRecord> records = filterRecordsByVisibleUsers(recordMapper.selectList(wrapper));
 
         Map<Long, int[]> userAgg = new LinkedHashMap<>(); // userId -> [score, recordCount, pre, mid, post]
         Map<Long, java.util.Map<Long, int[]>> userByCat = new HashMap<>(); // userId -> categoryId -> [记录数, 分值]
