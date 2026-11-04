@@ -2,6 +2,14 @@
 // 排行页注册码并集逻辑·单元测试（TDD 2026-11-04: 先写本测试(红)→抽 utils/ranking-tabs.js(绿)→页面接线）
 // 被测模块: aigicrm-miniprogram/utils/ranking-tabs.js —— 纯函数, 零 wx 依赖, 权限判断函数由调用方注入。
 // 行为规格来源: 提交 2b129496(排行页权限绑定归位注册表) + 权限中心菜单注册表(学分排行=score:view 等)。
+//
+// 【已确认缝隙(2026-11-04 用户拍板 1-4, tdd 技能要求事先成文)】
+//   1. 纯函数模块导出面(本文件)         —— 抓注册码绑定/any-of/默认页签/页签过滤; 抓不到页面接线
+//   2. 页面级 automator 双角色实测       —— 抓接线类 bug(如裸引用 ReferenceError); 抓不到极端权限画像
+//      (scripts: /tmp/aigicrm-itest/mp-role-ranking-test.js, 断言 canTabs/页签/数据)
+//   3. 后端接口守卫矩阵 三账号×四接口   —— 抓守卫码与注册表漂移; 抓不到前端绑定
+//   4. 双端绑定契约 check-dual-end-permission-binding-contract —— 抓死码/发明码/双端不一致/命名回潮
+//      (含数据来源同源与命名统一 E 段); 抓不到运行时行为
 const assert = require('assert')
 
 const tabs = require('../aigicrm-miniprogram/utils/ranking-tabs.js')
