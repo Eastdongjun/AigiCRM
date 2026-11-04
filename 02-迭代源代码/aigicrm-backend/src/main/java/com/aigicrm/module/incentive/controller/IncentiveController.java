@@ -151,13 +151,15 @@ public class IncentiveController {
         return Result.ok(incentiveService.getScoreByCustomerId(customerId));
     }
 
-    @PreAuthorize("hasAuthority('incentive:view')")
+    // 【2026-11-04 用户令"逐功能建码"】排行数据面: 激励排行查看∨激励统计查看（统计页 PC 与排行页 MP 双端共用）
+    @PreAuthorize("hasAnyAuthority('incentive:stats:view','incentive:rank:view')")
     @GetMapping("/scoreboard")
     public Result<List<Map<String, Object>>> scoreboard(@RequestParam(required = false) String period) {
         return Result.ok(incentiveService.scoreboard(period));
     }
 
-    @PreAuthorize("hasAuthority('incentive:view')")
+    // 【2026-11-04 用户令"逐功能建码"】排行数据面: 激励排行查看∨激励统计查看（部门排行, 双端共用）
+    @PreAuthorize("hasAnyAuthority('incentive:stats:view','incentive:rank:view')")
     @GetMapping("/ranking")
     public Result<List<Map<String, Object>>> ranking(
             @RequestParam(defaultValue = "personal") String type,
@@ -216,7 +218,8 @@ public class IncentiveController {
     }
 
     /** 激励统计表(全员口径): 按子类聚合文件数/总学分 + 周期总计 */
-    @PreAuthorize("hasAuthority('incentive:view')")
+    // 【2026-11-04 用户令"逐功能建码"】统计数据面: 激励统计查看（激励统计页·统计页签/PC 激励统计菜单）
+    @PreAuthorize("hasAuthority('incentive:stats:view')")
     @GetMapping("/category-stats")
     public Result<Map<String, Object>> categoryStats(@RequestParam(required = false) String period) {
         return Result.ok(incentiveService.categoryStats(period));

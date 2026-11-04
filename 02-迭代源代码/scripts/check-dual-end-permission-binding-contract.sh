@@ -112,4 +112,20 @@ if grep -q '经营分析' "$MP/pages/statistics/index.wxml"; then
   fail 'statistics overview section must not resurrect old name 经营分析 (unified to 业务总览)'
 fi
 
-echo "PASS: dual-end permission bindings reconcile with the perm-center registry (MP=${MP_CODES}c PC=$(printf '%s' "$PC_CODES" | grep -c ':')c registry=${REG_COUNT}c); ranking union-entry and any-of gating pinned."
+# ---- F. 激励统计/排行 逐功能建码（2026-11-04 用户令）----
+# F1. 迁移注册: 两新码入 flyway seed(注册表), 零死码由 A 段注册表对账自动覆盖
+INCENT_CTRL="$BE/com/aigicrm/module/incentive/controller/IncentiveController.java"
+MIG_NEW="$MIG/V2026.11.04.1__incentive_stats_rank_permission_codes.sql"
+[ -f "$MIG_NEW" ] || fail 'incentive stats/rank permission migration is missing'
+grep -Fq "'incentive:stats:view'" "$MIG_NEW" || fail 'migration must seed incentive:stats:view (激励统计查看)'
+grep -Fq "'incentive:rank:view'" "$MIG_NEW" || fail 'migration must seed incentive:rank:view (激励排行查看)'
+# F2. MP 激励统计页: 双 pane 各绑注册码(统计=stats:view/排行=rank:view), 无权 pane 不渲染不发请求
+grep -q "incentive:stats:view" "$MP/pages/incentive/index.js" || fail 'MP incentive stats page must gate stats pane via incentive:stats:view'
+grep -q "incentive:rank:view" "$MP/pages/incentive/index.js" || fail 'MP incentive stats page must gate ranking pane via incentive:rank:view'
+# F3. 后端数据面守卫: 统计=stats:view; 排行数据面(scoreboard/ranking)=stats:view∨rank:view 双码
+grep -Fq "hasAuthority('incentive:stats:view')" "$INCENT_CTRL" || fail 'backend category-stats guard must stay incentive:stats:view'
+grep -Fq "hasAnyAuthority('incentive:stats:view','incentive:rank:view')" "$INCENT_CTRL" || fail 'backend scoreboard/ranking guard must accept stats:view or rank:view'
+# F4. 应用中心入口=注册码并集
+grep -Fq "permissions: ['incentive:stats:view', 'incentive:rank:view']" "$MP/pages/app/index.js" || fail 'app-center 激励统计 entry must use the registry-code union'
+
+echo "PASS: dual-end permission bindings reconcile with the perm-center registry (MP=${MP_CODES}c PC=$(printf '%s' "$PC_CODES" | grep -c ':')c registry=${REG_COUNT}c); ranking union-entry, any-of gating, and incentive stats/rank codes pinned."

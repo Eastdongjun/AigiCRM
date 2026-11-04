@@ -99,7 +99,8 @@ Page({
       { key: 'files', title: '文件管理', subtitle: '文件库、文件夹与分享', color: 'cyan', permission: 'file:view' },
       { key: 'incentiveUpload', title: '激励上传', subtitle: '四大类 · 子类 · 槽位佐证', color: 'green', permission: 'incentive:add' },
       { key: 'incentiveQuery', title: '激励查询', subtitle: '客户记录 · 分类 · 阅读', color: 'teal', permission: 'incentive:view' },
-      { key: 'incentiveStats', title: '激励统计', subtitle: '统计 · 客户/个人/部门排行', color: 'amber', permission: 'incentive:view' },
+      // 【2026-11-04 逐功能建码】激励统计页双 pane 各绑注册码(统计=stats:view/排行=rank:view), 入口=并集
+      { key: 'incentiveStats', title: '激励统计', subtitle: '统计 · 客户/个人/部门排行', color: 'amber', permissions: ['incentive:stats:view', 'incentive:rank:view'] },
       // 【2026-11-03 用户裁决】入口卡片名与页面标题统一为「学分排行」(原「客户排行」名实不符)
       // 【2026-11-04 注册表对齐】排行页内含三榜(学分=score:view/客户=statistics:view/激励=incentive:view)，
       // 入口按注册码并集(any-of)显隐——与 PC 学分排行(score:view)、客户排行(statistics:view)菜单同源，不发明新码

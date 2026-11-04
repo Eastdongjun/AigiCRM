@@ -9,6 +9,7 @@ const { showError, showErrorWithRetry } = require('../../utils/feedback')
 const { buildIncentiveFileGroups, buildIncentiveFiles } = require('../../utils/incentive-files')
 const { paginate } = require('../../utils/paging')
 const { buildDeptLevelOptions } = require('../../utils/tree')
+const incentivePanes = require('../../utils/incentive-panes.js')
 
 // 【#4+#7 2026-10-12】列表页佐证照片墙: 缩略图凭证模块级缓存(取一次复用), 未就绪时图片退化为
 // 文档面卡仍可点开大图; TAG_COLORS 与详情页同款槽位配色
@@ -315,8 +316,10 @@ const TAB_SETS = {
 const TAB_MODE_DEFAULTS = { query: 'records', stats: 'stats' }
 const TAB_MODE_TITLES = { query: '激励查询', stats: '激励统计' }
 
-function buildTabs(activeTab, mode = 'query') {
-  const keys = TAB_SETS[mode] || TAB_SETS.query
+function buildTabs(activeTab, mode = 'query', canStatsPanes) {
+  let keys = TAB_SETS[mode] || TAB_SETS.query
+  // 【2026-11-04 逐功能建码】stats 模式页签按各 pane 注册码过滤(无权页签不渲染)
+  if (mode === 'stats' && canStatsPanes) keys = keys.filter((key) => canStatsPanes[key])
   return ALL_TABS.filter((item) => keys.indexOf(item.key) >= 0).map((item) => ({
     ...item,
     className: activeTab === item.key ? 'active' : ''
@@ -342,8 +345,9 @@ function buildIncentiveView(data) {
     heroTitle: TAB_MODE_TITLES[tabMode] || TAB_MODE_TITLES.query,
     showRecords: data.activeTab === 'records',
     showCategories: data.activeTab === 'categories',
-    showStats: data.activeTab === 'stats',
-    showRanking: data.activeTab === 'ranking',
+    // 【2026-11-04 逐功能建码】pane 渲染=页签命中+注册码放行(无权 pane 不渲染)
+    showStats: data.activeTab === 'stats' && (data.canStatsPanes ? data.canStatsPanes.stats !== false : true),
+    showRanking: data.activeTab === 'ranking' && (data.canStatsPanes ? data.canStatsPanes.ranking !== false : true),
     showReads: data.activeTab === 'reads',
     customerTabClass: rankTab === 'customer' ? 'active' : '',
     scoreboardTabClass: rankTab === 'scoreboard' ? 'active' : '',
@@ -561,8 +565,23 @@ Page({
     const modeKeys = TAB_SETS[tabMode]
     let initialTab = TAB_MODE_DEFAULTS[tabMode]
     if (options && options.tab && modeKeys.indexOf(options.tab) >= 0) initialTab = options.tab
+    // 【2026-11-04 用户令"逐功能建码"】stats 模式双 pane 各绑注册码(统计=incentive:stats:view/
+    // 排行=incentive:rank:view, 见 utils/incentive-panes.js): 入口=注册码并集(任一命中可进),
+    // 默认 pane=第一个有权 pane, 无权 pane 不渲染不发请求。单元测试: scripts/test-miniprogram-incentive-panes.js。
+    let canStatsPanes = { stats: true, ranking: true }
+    if (tabMode === 'stats') {
+      const demo = Boolean(getApp().globalData.demoMode)
+      canStatsPanes = incentivePanes.computeStatsPanes(hasPermission, demo)
+      const firstAllowed = incentivePanes.firstAllowedStatsPane(canStatsPanes)
+      if (!firstAllowed) {
+        wx.showToast({ title: '没有统计排行权限', icon: 'none' })
+        wx.switchTab({ url: '/pages/home/index' })
+        return
+      }
+      if (!canStatsPanes[initialTab]) initialTab = firstAllowed
+    }
     this._tabMode = tabMode
-    this.setData({ tabMode, activeTab: initialTab, tabs: buildTabs(initialTab, tabMode) })
+    this.setData({ tabMode, activeTab: initialTab, tabs: buildTabs(initialTab, tabMode, canStatsPanes), canStatsPanes })
     wx.setNavigationBarTitle({ title: TAB_MODE_TITLES[tabMode] })
     this.setData({ apiBase: (getApp().globalData && getApp().globalData.apiBaseUrl) || '' })
     if (!getApp().globalData.demoMode && !hasPermission('incentive:view')) {
@@ -939,6 +958,9 @@ Page({
   },
 
   loadScoreboard() {
+    // 【2026-11-04 逐功能建码】排行数据面守卫(rank:view∨stats:view): 两者皆无则跳过(不发起必败请求)
+    const demo = Boolean(getApp().globalData.demoMode)
+    if (!demo && !hasPermission('incentive:rank:view') && !hasPermission('incentive:stats:view')) return
     if (getApp().globalData.demoMode) {
       this.setData({
         scoreboard: [
@@ -1255,7 +1277,9 @@ Page({
 
   switchTab(e) {
     const activeTab = e.currentTarget.dataset.key || 'records'
-    this.setData({ activeTab, tabs: buildTabs(activeTab, this._tabMode || 'query') }, () => this.refreshIncentiveView())
+    // 【2026-11-04 逐功能建码】stats 模式无权 pane 拒绝切换
+    if (this._tabMode === 'stats' && this.data.canStatsPanes && this.data.canStatsPanes[activeTab] === false) return
+    this.setData({ activeTab, tabs: buildTabs(activeTab, this._tabMode || 'query', this.data.canStatsPanes) }, () => this.refreshIncentiveView())
     // 【分页 2026-10-18】切回列表 tab 时回第 1 页, 避免停留在旧页码
     if (activeTab === 'records') this.applyPaging(1)
   },
