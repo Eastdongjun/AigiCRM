@@ -22,7 +22,12 @@
 #   · 走 ssh_test / scp_test，不碰 ssh_prod
 #   · **不**调用 check_deploy_arch（那是生产磁盘布局标准，测试服不满足也不应满足）
 #   · MySQL 容器默认 shared-mysql（测试服复用共享实例，见 docker-compose.yml 的 DB_HOST）
-#   · 库名取 ${TEST_DB_NAME:-aigicrm}
+#   · 库名取 ${TEST_DB_NAME:-aigicrm_prod_20261016}
+# 【修复 2026-11-05 产品化批】三处坏点清零(此前长期带病, 实际执行全靠手工绕过):
+#   ① flyway docker run 漏 -e FLYWAY_PASSWORD → 容器内无口令必 Access denied;
+#   ② --network host + 127.0.0.1 连不上无宿主端口的 shared-mysql → 改 --network shopjoy-net + 容器名直连;
+#   ③ 默认库名 aigicrm 已废弃 → 改生产快照库 aigicrm_prod_20261016。
+#   另增: 本地 env 无库凭据时从远端容器 Env 派生 root 口令(远端解析, 不回传不落盘)。
 #
 # 【凭据】需要以下三个键（~/.aigicrm-deploy.env）：
 #     TEST_PASS                —— SSH 登录测试服
@@ -51,7 +56,10 @@ case "${1:-}" in
 esac
 
 MIGRATION_DIR="$SCRIPT_DIR/../aigicrm-backend/src/main/resources/db/migration"
-TEST_DB_NAME="${TEST_DB_NAME:-aigicrm}"
+# 【修复 2026-11-05】测试库=生产快照库(2026-10-16 起), 旧默认 aigicrm 已废弃(迁错库假绿根因)
+TEST_DB_NAME="${TEST_DB_NAME:-aigicrm_prod_20261016}"
+# 【修复 2026-11-05】shared-mysql 无宿主端口, flyway 容器必须挂 shopjoy-net 以容器名直连
+TEST_DB_NETWORK="${TEST_DB_NETWORK:-shopjoy-net}"
 TEST_DB_CONTAINER="${TEST_DB_CONTAINER:-shared-mysql}"
 FLYWAY_IMAGE="flyway/flyway:9.22.3-alpine"
 REMOTE_SQL_DIR="/tmp/aigicrm-flyway-test"
@@ -100,9 +108,13 @@ if [ -n "${TEST_DB_ADMIN_USER:-}" ] && [ -n "${TEST_DB_ADMIN_PASSWORD:-}" ]; the
 elif [ -n "${TEST_DB_ROOT_PASSWORD:-}" ]; then
   DB_ADMIN_USER="${TEST_DB_ADMIN_USER:-root}"; DB_ADMIN_PASS="$TEST_DB_ROOT_PASSWORD"
   DB_CRED_SRC="TEST_DB_ROOT_PASSWORD(回退，user=${DB_ADMIN_USER})"
-elif [ -n "${DB_PASSWORD:-}" ] && [ "$DB_PASSWORD" != *REPLACE* ]; then
-  DB_ADMIN_USER="root"; DB_ADMIN_PASS="$DB_PASSWORD"
-  DB_CRED_SRC="DB_PASSWORD(回退, user=root) ⚠️ 这是生产/共享主的口令，请确认确实适用于测试库"
+fi
+# 【修复 2026-11-05】移除"DB_PASSWORD(生产口令)回退测试库"旧通道——生产口令对快照库 root 必然
+# Access denied(1045 实证), 且拿生产口令试测试库属于凭据越域使用; 专用凭据缺失时改走远端派生。
+USE_REMOTE_SECRET=0
+if [ -z "$DB_ADMIN_USER" ]; then
+  echo "  本地未配置测试库专用凭据 → 回退: 从远端 ${TEST_DB_CONTAINER} 容器 Env 派生 root 口令(远端解析, 不回传不落盘)"
+  DB_ADMIN_USER="root"; USE_REMOTE_SECRET=1
 fi
 
 for v in TEST_HOST TEST_USER TEST_PASS; do
@@ -111,18 +123,7 @@ for v in TEST_HOST TEST_USER TEST_PASS; do
     rm -f "$PACK"; exit 1
   fi
 done
-if [ -z "$DB_ADMIN_USER" ]; then
-  cat >&2 <<EOF
-❌ 缺少测试库管理员凭据。以下三选一（按优先级）：
-   1) TEST_DB_ADMIN_USER + TEST_DB_ADMIN_PASSWORD   （与 auto-pipeline.sh 一致，推荐）
-   2) TEST_DB_ROOT_PASSWORD                          （与 check-charset.sh 一致，user 默认 root）
-   3) DB_PASSWORD                                    （回退，user=root）
-   ⚠️ 注意：仓库内两套命名并存（TEST_DB_ADMIN_* 与 TEST_DB_ROOT_PASSWORD），
-      而 $ENV_FILE 中当前**两套都不存在**，故本脚本无法自行推断。
-   请在 $ENV_FILE 中补齐其一。
-EOF
-  rm -f "$PACK"; exit 1
-fi
+
 echo "  测试库凭据来源: $DB_CRED_SRC"
 
 echo "=== [2/5] 探测测试服 MySQL 容器 ==="
@@ -155,8 +156,12 @@ emit_secret() { printf '%s=%s\n' "$1" "$(printf '%q' "${!2}")"; }
   emit_var DB_ADMIN_USER "$DB_ADMIN_USER"
   emit_secret DB_ADMIN_PASS DB_ADMIN_PASS
   emit_var TEST_DB_NAME "$TEST_DB_NAME"
+  emit_var USE_REMOTE_SECRET "$USE_REMOTE_SECRET"
   cat <<'REMOTE'
 TS="$(date +%Y%m%d-%H%M%S)"
+if [ "$USE_REMOTE_SECRET" = "1" ]; then
+  DB_ADMIN_PASS="$(docker inspect "$CT" --format '{{range .Config.Env}}{{println .}}{{end}}' | grep '^MYSQL_ROOT_PASSWORD=' | cut -d= -f2-)"
+fi
 BK="/tmp/pre-migrate-test-$TS.sql"
 if ! docker exec -e MYSQL_PWD="$DB_ADMIN_PASS" "$CT" mysqldump -u"$DB_ADMIN_USER" --default-character-set=utf8mb4 --single-transaction "$TEST_DB_NAME" > "$BK.tmp"; then
   rm -f "$BK.tmp"; echo "❌ 测试库 mysqldump 失败"; exit 1
@@ -179,11 +184,17 @@ if [ "$MODE" = "info" ]; then
     emit_var FLYWAY_IMAGE "$FLYWAY_IMAGE"
     emit_var TEST_DB_NAME "$TEST_DB_NAME"
     emit_var DB_ADMIN_USER "$DB_ADMIN_USER"
+    emit_var CT "$CT"
+    emit_var TEST_DB_NETWORK "$TEST_DB_NETWORK"
+    emit_var USE_REMOTE_SECRET "$USE_REMOTE_SECRET"
     emit_secret FLYWAY_PASSWORD DB_ADMIN_PASS
     cat <<'REMOTE'
-export FLYWAY_PASSWORD
-docker run --rm --network host -v "$REMOTE_SQL_DIR":/flyway/sql "$FLYWAY_IMAGE" \
-  -url="jdbc:mysql://127.0.0.1:3306/$TEST_DB_NAME?characterEncoding=UTF-8&useSSL=false&allowPublicKeyRetrieval=true" \
+if [ "$USE_REMOTE_SECRET" = "1" ]; then
+  DB_ADMIN_PASS="$(docker inspect "$CT" --format '{{range .Config.Env}}{{println .}}{{end}}' | grep '^MYSQL_ROOT_PASSWORD=' | cut -d= -f2-)"
+fi
+export FLYWAY_PASSWORD="$DB_ADMIN_PASS"
+docker run --rm --network "$TEST_DB_NETWORK" -e FLYWAY_PASSWORD -v "$REMOTE_SQL_DIR":/flyway/sql "$FLYWAY_IMAGE" \
+  -url="jdbc:mysql://$CT:3306/$TEST_DB_NAME?characterEncoding=UTF-8&useSSL=false&allowPublicKeyRetrieval=true" \
   -user="$DB_ADMIN_USER" \
   -connectRetries=10 -validateMigrationNaming=true info
 REMOTE
@@ -202,11 +213,17 @@ echo "=== [5/5] Flyway repair + migrate（-validateMigrationNaming=true）==="
   emit_var FLYWAY_IMAGE "$FLYWAY_IMAGE"
   emit_var TEST_DB_NAME "$TEST_DB_NAME"
   emit_var DB_ADMIN_USER "$DB_ADMIN_USER"
+    emit_var CT "$CT"
+    emit_var TEST_DB_NETWORK "$TEST_DB_NETWORK"
+    emit_var USE_REMOTE_SECRET "$USE_REMOTE_SECRET"
   emit_secret FLYWAY_PASSWORD DB_ADMIN_PASS
   cat <<'REMOTE'
-export FLYWAY_PASSWORD
-docker run --rm --network host -v "$REMOTE_SQL_DIR":/flyway/sql "$FLYWAY_IMAGE" \
-  -url="jdbc:mysql://127.0.0.1:3306/$TEST_DB_NAME?characterEncoding=UTF-8&useSSL=false&allowPublicKeyRetrieval=true" \
+if [ "$USE_REMOTE_SECRET" = "1" ]; then
+  DB_ADMIN_PASS="$(docker inspect "$CT" --format '{{range .Config.Env}}{{println .}}{{end}}' | grep '^MYSQL_ROOT_PASSWORD=' | cut -d= -f2-)"
+fi
+export FLYWAY_PASSWORD="$DB_ADMIN_PASS"
+docker run --rm --network "$TEST_DB_NETWORK" -e FLYWAY_PASSWORD -v "$REMOTE_SQL_DIR":/flyway/sql "$FLYWAY_IMAGE" \
+  -url="jdbc:mysql://$CT:3306/$TEST_DB_NAME?characterEncoding=UTF-8&useSSL=false&allowPublicKeyRetrieval=true" \
   -user="$DB_ADMIN_USER" \
   -connectRetries=10 -validateMigrationNaming=true repair
 REMOTE
@@ -217,11 +234,17 @@ OUT="$({
   emit_var FLYWAY_IMAGE "$FLYWAY_IMAGE"
   emit_var TEST_DB_NAME "$TEST_DB_NAME"
   emit_var DB_ADMIN_USER "$DB_ADMIN_USER"
+    emit_var CT "$CT"
+    emit_var TEST_DB_NETWORK "$TEST_DB_NETWORK"
+    emit_var USE_REMOTE_SECRET "$USE_REMOTE_SECRET"
   emit_secret FLYWAY_PASSWORD DB_ADMIN_PASS
   cat <<'REMOTE'
-export FLYWAY_PASSWORD
-docker run --rm --network host -v "$REMOTE_SQL_DIR":/flyway/sql "$FLYWAY_IMAGE" \
-  -url="jdbc:mysql://127.0.0.1:3306/$TEST_DB_NAME?characterEncoding=UTF-8&useSSL=false&allowPublicKeyRetrieval=true" \
+if [ "$USE_REMOTE_SECRET" = "1" ]; then
+  DB_ADMIN_PASS="$(docker inspect "$CT" --format '{{range .Config.Env}}{{println .}}{{end}}' | grep '^MYSQL_ROOT_PASSWORD=' | cut -d= -f2-)"
+fi
+export FLYWAY_PASSWORD="$DB_ADMIN_PASS"
+docker run --rm --network "$TEST_DB_NETWORK" -e FLYWAY_PASSWORD -v "$REMOTE_SQL_DIR":/flyway/sql "$FLYWAY_IMAGE" \
+  -url="jdbc:mysql://$CT:3306/$TEST_DB_NAME?characterEncoding=UTF-8&useSSL=false&allowPublicKeyRetrieval=true" \
   -user="$DB_ADMIN_USER" \
   -connectRetries=10 -validateMigrationNaming=true migrate
 REMOTE
@@ -249,7 +272,11 @@ echo "=== 迁移后核对：文件写权限码状态 ==="
   emit_var DB_ADMIN_USER "$DB_ADMIN_USER"
   emit_secret DB_ADMIN_PASS DB_ADMIN_PASS
   emit_var TEST_DB_NAME "$TEST_DB_NAME"
+  emit_var USE_REMOTE_SECRET "$USE_REMOTE_SECRET"
   cat <<'REMOTE'
+if [ "$USE_REMOTE_SECRET" = "1" ]; then
+  DB_ADMIN_PASS="$(docker inspect "$CT" --format '{{range .Config.Env}}{{println .}}{{end}}' | grep '^MYSQL_ROOT_PASSWORD=' | cut -d= -f2-)"
+fi
 docker exec -e MYSQL_PWD="$DB_ADMIN_PASS" "$CT" mysql -u"$DB_ADMIN_USER" \
   --default-character-set=utf8mb4 -N -B "$TEST_DB_NAME" 2>/dev/null <<'SQL'
 SELECT permission, status, COUNT(*) FROM sys_menu
