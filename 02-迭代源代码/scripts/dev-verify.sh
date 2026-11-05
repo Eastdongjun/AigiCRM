@@ -514,6 +514,8 @@ local_contracts() {
   run "$ROOT/scripts/check-perm-center-contract.sh"
   # 【2026-11-05 产品化批】接口守卫全量覆盖(此前只抽查, 新端点漏挂守卫无人知晓)
   run "$ROOT/scripts/check-endpoint-guard-coverage.sh"
+  # 【2026-11-05 权限审计】按钮级敏感动作门禁覆盖(四项激励 G1/G2 审计的扫描器固化)
+  run python3 "$ROOT/scripts/check-action-gate-coverage.py"
   # 【2026-11-04 双端权限绑定一致性】注册表对账(零死码)+MP排行注册码并集归位+接口守卫=注册码 契约
   run "$ROOT/scripts/check-dual-end-permission-binding-contract.sh"
   # 【2026-11-04 TDD】排行页注册码并集纯函数单测(utils/ranking-tabs.js, 先红后绿)
