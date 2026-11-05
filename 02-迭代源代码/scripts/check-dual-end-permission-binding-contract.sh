@@ -68,8 +68,16 @@ C_QUALIFIED=$(grep -c "rankingTabs.MAIN_TAB_PERMISSIONS" "$MP/pages/ranking/inde
 grep -Fq "canCustomer" "$MP/pages/ranking/index.js" || fail 'ranking must skip the customer-rankings request without statistics:view'
 ! grep -q "hasPermission('statistics:view')" "$MP/pages/ranking/index.js" || fail 'ranking must not single-gate the whole page on statistics:view (registry union instead)'
 
-# ---- C2. 应用中心 any-of 通用门禁 ----
-grep -Fq "permissions: ['score:view', 'statistics:view', 'incentive:view']" "$MP/pages/app/index.js" || fail 'app-center ranking entry must use the registry-code union (score:view/statistics:view/incentive:view)'
+# ---- C2. 应用中心排行入口拆分（2026-11-06 用户令"客户排行归客户模块 学分排行归学分模块"）----
+# 两卡各绑单码+带 ?tab= 直达同页(取代 11-04 的三码并集单卡入口); 激励排行无独立卡(家在四项激励·激励统计)
+grep -Fq "{ key: 'customerRanking', title: '客户排行', subtitle: '客户四项排行', color: 'cyan', permission: 'statistics:view' }" "$MP/pages/app/index.js" || fail 'app-center 客户排行 card must live in customer module binding statistics:view (2026-11-06 split)'
+grep -Fq "{ key: 'ranking', title: '学分排行', subtitle: '个人与部门学分榜', color: 'purple', permission: 'score:view' }" "$MP/pages/app/index.js" || fail 'app-center 学分排行 card must bind score:view only (union entry retired 2026-11-06)'
+grep -Fq "customerRanking: '/pages/ranking/index?tab=customer'" "$MP/pages/app/index.js" || fail '客户排行 entry must deep-link tab=customer'
+grep -Fq "ranking: '/pages/ranking/index?tab=score'" "$MP/pages/app/index.js" || fail '学分排行 entry must deep-link tab=score'
+grep -Fq "MAIN_TAB_PARENTS" "$MP/utils/ranking-tabs.js" || fail 'ranking registry must declare MAIN_TAB_PARENTS (page titles follow PC menu groups)'
+# 反钉: 旧三码并集入口不得回潮
+grep -Fq "permissions: ['score:view', 'statistics:view', 'incentive:view']" "$MP/pages/app/index.js" && fail 'app-center ranking union entry must not revive (split 2026-11-06: 客户排行→客户经营/学分排行→学分管理)'
+# any-of 通用门禁机制仍须保留(激励统计等多功能卡在用)
 grep -Fq "Array.isArray(item.permissions)" "$MP/pages/app/index.js" || fail 'app-center must support permissions array (any-of) gating'
 
 # ---- B. 双端同源: 学分排行/客户排行 ----
@@ -89,7 +97,7 @@ sed -n '/customer-rankings/,+2p' "$STAT_CTRL" | grep -Fq "hasAuthority('statisti
 #     考核与分析组撤销 → 学分管理(学分排行) / 统计分析(独立) / 核心指标+客户排行 归 客户经营
 grep -Fq "{ key: 'assessment', title: '学分管理', subtitle: '学分排行', apps: ['ranking'] }," "$MP/pages/app/index.js" || fail 'assessment module must be renamed 学分管理 hosting ranking only'
 grep -Fq "{ key: 'statistics', title: '统计分析', subtitle: '客户 · 审批 · 公海摘要', apps: ['statistics'] }," "$MP/pages/app/index.js" || fail 'app-center must keep a standalone 统计分析 module'
-grep -Fq "apps: ['customer', 'customerCreate', 'indicator']" "$MP/pages/app/index.js" || fail 'customer module must host indicator app (核心客户六项指标归客户模块, 2026-11-05)'
+grep -Fq "apps: ['customer', 'customerCreate', 'customerRanking', 'indicator']" "$MP/pages/app/index.js" || fail 'customer module must host customerRanking+indicator (2026-11-06 入口拆分+核心客户六项指标归客户模块)'
 if grep -q "'analytics'" "$MP/pages/app/index.js"; then
   fail 'app-center must not keep the analytics module (statistics standalone since 2026-11-05)'
 fi

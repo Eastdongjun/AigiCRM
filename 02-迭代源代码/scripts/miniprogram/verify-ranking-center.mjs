@@ -158,7 +158,9 @@ async function verifyRankingCenterPage(miniProgram) {
     ...(await textList(await page.$$('.ranking-card'))),
     ...(await textList(await page.$$('.score-rule-card')))
   ].join('\n')
-  for (const expected of ['排行中心', '参与人数', '张三', '96', '42 个文件', '2026全年', '华东智能制造集团', '安装前', '积分规则']) {
+  // 【2026-11-06 重锚】'排行中心'系 11-03 重设计前旧标题(现仅存注释), 改钉现行默认标题;
+  // 入口拆分后标题随主页签动态化, 无参进入默认 score 榜='学分排行'
+  for (const expected of ['学分排行', '参与人数', '张三', '96', '42 个文件', '2026全年', '华东智能制造集团', '安装前', '积分规则']) {
     assert(initialText.includes(expected), `ranking page missing ${expected}`)
   }
 

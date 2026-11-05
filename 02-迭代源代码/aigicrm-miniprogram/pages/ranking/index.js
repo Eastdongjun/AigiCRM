@@ -167,6 +167,9 @@ function buildRankingView(data) {
     loadingText: '加载中...',
     // 【2026-11-03 用户令"不要把所有内容放到一个页面里"】三主页签: 学分(默认)/客户/激励个人
     mainTabs: rankingTabs.visibleMainTabs(canTabs).map((item) => ({ ...item, className: rankTab === item.key ? 'active' : '' })),
+    // 【2026-11-06 用户令入口拆分】标题/副标题随主页签动态对齐 PC 菜单组(学分管理/客户管理/四项激励)
+    heroTitle: rankingTabs.MAIN_TAB_TITLES[rankTab] || '学分排行',
+    heroSub: `${rankingTabs.MAIN_TAB_PARENTS[rankTab] || '学分管理'} · ${rankingTabs.MAIN_TAB_SUBS[rankTab] || ''}`,
     showScorePane: rankTab === 'score',
     showCustomerPane: rankTab === 'customer',
     showIncentivePane: rankTab === 'incentive',
@@ -252,15 +255,22 @@ Page({
 
   setRankingData(patch) {
     const next = { ...this.data, ...patch }
-    this.setData({ ...patch, rankingView: buildRankingView(next) })
+    const rankingView = buildRankingView(next)
+    this.setData({ ...patch, rankingView })
+    // 【2026-11-06 入口拆分】导航栏标题随主页签(客户排行入口进来不再显示「学分排行」)
+    if (rankingView.heroTitle && rankingView.heroTitle !== this._lastNavTitle) {
+      this._lastNavTitle = rankingView.heroTitle
+      wx.setNavigationBarTitle({ title: rankingView.heroTitle })
+    }
   },
 
-  onLoad() {
+  onLoad(options) {
     if (!requireLogin()) return
     // 【2026-11-04 注册表对齐重构】页内三榜各绑权限中心注册码（映射见 utils/ranking-tabs.js，
-    // 与 PC 菜单/后端守卫三方同源）。入口=注册码并集（任一命中可进），默认页签=第一个有权页签，
-    // 各页签数据按各自码懒加载。取代 2026-10-17 mp-3 的 statistics:view 单码补丁（双端漂移根因）。
-    // 单元测试: scripts/test-miniprogram-ranking-tabs.js（dev-verify contracts 链内运行）。
+    // 与 PC 菜单/后端守卫三方同源）。各页签数据按各自码懒加载。取代 2026-10-17 mp-3 的
+    // statistics:view 单码补丁（双端漂移根因）。单元测试: scripts/test-miniprogram-ranking-tabs.js。
+    // 【2026-11-06 用户令"客户排行归客户模块 学分排行归学分模块"】入口拆两卡带 ?tab= 直达;
+    // 默认页签=第一个有权页签, 仅当参数页签有权才采纳(参数不构成放行), 无权回退默认。
     const demo = Boolean(getApp().globalData.demoMode)
     const canTabs = rankingTabs.computeCanTabs(hasPermission, demo)
     const firstAllowed = rankingTabs.firstAllowedTab(canTabs)
@@ -269,7 +279,11 @@ Page({
       wx.switchTab({ url: '/pages/home/index' })
       return
     }
-    this.setData({ canTabs, rankTab: firstAllowed })
+    let rankTab = firstAllowed
+    if (options && options.tab && ['score', 'customer', 'incentive'].indexOf(options.tab) >= 0 && canTabs[options.tab]) {
+      rankTab = options.tab
+    }
+    this.setRankingData({ canTabs, rankTab })
     this.loadRanking()
   },
 

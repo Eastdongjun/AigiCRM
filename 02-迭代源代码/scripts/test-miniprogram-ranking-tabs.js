@@ -30,6 +30,18 @@ assert.deepStrictEqual(tabs.MAIN_TAB_PERMISSIONS, {
 })
 assert.deepStrictEqual(tabs.MAIN_TAB_ORDER, ['score', 'customer', 'incentive'])
 
+// ---- 1b. 页签归属 PC 菜单组+副题(2026-11-06 用户令入口拆分: 客户排行归客户模块/学分排行归学分模块) ----
+assert.deepStrictEqual(tabs.MAIN_TAB_PARENTS, {
+  score: '学分管理',
+  customer: '客户管理',
+  incentive: '四项激励'
+})
+assert.deepStrictEqual(tabs.MAIN_TAB_SUBS, {
+  score: '个人与部门学分榜',
+  customer: '客户四项排行',
+  incentive: '四项服务个人排行'
+})
+
 // ---- 2. computeCanTabs: 按注入的权限判断函数逐码计算 ----
 // 行政(score:view+incentive:view, 无 statistics:view)
 assert.deepStrictEqual(tabs.computeCanTabs(checker(XZ_PROFILE), false), {

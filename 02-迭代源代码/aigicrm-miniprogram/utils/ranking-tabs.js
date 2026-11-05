@@ -23,6 +23,21 @@ const MAIN_TAB_TITLES = {
   incentive: '激励排行'
 }
 
+// 【2026-11-06 用户令"客户排行归客户模块 学分排行归学分模块"】页签归属 PC 菜单组 + 页签副题:
+// 应用中心入口拆两卡(客户经营·客户排行 / 学分管理·学分排行)带 ?tab= 直达, 页标题/副标题随页签动态对齐。
+// 值=PC 菜单组名(勿改动——改动=菜单归属语义变更, 须与 PC 菜单/后端守卫三方同步)
+const MAIN_TAB_PARENTS = {
+  score: '学分管理',
+  customer: '客户管理',
+  incentive: '四项激励'
+}
+
+const MAIN_TAB_SUBS = {
+  score: '个人与部门学分榜',
+  customer: '客户四项排行',
+  incentive: '四项服务个人排行'
+}
+
 // 按注入的权限判断函数计算各页签可见性。hasPermissionFn: (code) => boolean; demoMode 时恒放开。
 function computeCanTabs(hasPermissionFn, demoMode) {
   const can = {}
@@ -51,6 +66,8 @@ module.exports = {
   MAIN_TAB_PERMISSIONS,
   MAIN_TAB_ORDER,
   MAIN_TAB_TITLES,
+  MAIN_TAB_PARENTS,
+  MAIN_TAB_SUBS,
   computeCanTabs,
   firstAllowedTab,
   visibleMainTabs
