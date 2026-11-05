@@ -286,11 +286,11 @@ fi
 docker exec -e MYSQL_PWD="$DB_ADMIN_PASS" "$CT" mysql -u"$DB_ADMIN_USER" \
   --default-character-set=utf8mb4 -N -B "$TEST_DB_NAME" 2>/dev/null <<'SQL'
 SELECT permission, status, COUNT(*) FROM sys_menu
-WHERE permission IN ('file:upload','file:delete','file:share','file:folder:manage')
+WHERE permission IN ('file:upload','file:edit','file:delete','file:share','file:folder:manage')
 GROUP BY permission, status ORDER BY permission;
 SQL
 REMOTE
 } | ssh_test_once "bash -s" || true
-echo "  预期：4 行全部 status=1（否则 apply 未生效）; file:edit 已随 2026-11-05 用户令删除(V2026.11.05.9), 不在清单"
+echo "  预期：5 行全部 status=1（否则 apply 未生效）"
 echo
 echo "✅ 测试库迁移完成（库=${TEST_DB_NAME} 容器=${CT}）"
