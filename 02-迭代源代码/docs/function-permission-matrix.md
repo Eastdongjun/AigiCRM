@@ -250,7 +250,7 @@ Legend: `V` view, `C` create, `U` update, `D` delete, `I` import, `E` export, `A
 | 文件管理 | Path download | `GET /api/file/download/**` | `file:view` | File path ACL | Download | Yes | Implemented |
 | 文件分享 | Share file | `POST /api/file/{id}/share` | `file:share` | File owner/share permission | Share mutation | Yes | Implemented |
 | 文件分享 | Shared to me | `GET /api/file/shared-to-me`, `/count` | `file:view` | Files shared to current user | Read | Yes | Implemented |
-| 文件夹 ACL | View ACL | `GET /api/file/folders/{id}/acl` | `file:acl:manage` | Folder ACL manager | Read | Yes | Implemented |
+| 文件夹 ACL | View ACL | `GET /api/file/folders/{id}/acl` | `file:acl:manage` | Folder ACL manager | Read | Yes | No first release (2026-11-05 用户令撤除 MP 只读弹窗, PC 权限设置保留) |
 | 文件夹 ACL | Add/remove ACL | `POST/DELETE /api/file/folders/{id}/acl...` | `file:acl:manage` | Folder ACL manager | ACL mutation | Yes | No first release |
 | 文件夹 ACL | Folder permissions | `GET /api/file/folders/{id}/permissions` | `file:acl:manage` | Folder ACL manager | Read | Yes | No first release |
 | 文件夹 ACL | Download setting | `PUT /api/file/folders/{id}/download` | `file:acl:manage` | Folder ACL manager | Update | Yes | No first release |

@@ -53,7 +53,8 @@ grep -Fq 'deleteFile(item.id)' "$PAGE" || fail 'mobile file delete action does n
 grep -Fq 'catchtap="openActionSheet"' "$WXML" || fail 'mobile file delete UI disappeared'
 # 【钉随需求A】mini-action danger 收敛为 sheet-act danger(操作面板内删除按钮)
 grep -Fq "act.key === 'delete' ? 'danger'" "$WXML" || fail 'mobile file delete UI is not visually scoped as a compact danger action'
-grep -Fq 'getFolderAcl' "$API" || fail 'mobile file folder ACL read API disappeared'
+# 【2026-11-05 用户令】MP 文件夹权限只读 API 通道随弹窗退役, 反钉防复活
+grep -Fq 'getFolderAcl' "$API" && fail 'mobile file folder ACL read API must not revive (removed 2026-11-05, PC-only)'
 grep -Fq 'getStorageInfo' "$PAGE" || fail 'mobile file page no longer loads storage statistics'
 grep -Fq 'normalizeCapacity' "$PAGE" || fail 'mobile file page no longer normalizes storage statistics'
 grep -Fq 'loadTabCounts' "$PAGE" || fail 'mobile file page no longer loads PC tab counts'
@@ -97,9 +98,11 @@ grep -Fq 'catchtap="openActionSheet"' "$WXML" || fail 'mobile file share action 
 grep -Fq 'class="folder-new-action"' "$WXML" || fail 'mobile file folder create action must use compact local style'
 grep -Fq '.folder-new-action' "$WXSS" || fail 'mobile file folder create compact style disappeared'
 grep -Fq 'getCustomerSimpleUsers' "$PAGE" || fail 'mobile file share user picker disappeared'
-grep -Fq "hasPermission('file:acl:manage')" "$PAGE" || fail 'mobile file folder ACL view permission gate disappeared'
-grep -Fq 'viewFolderAcl' "$PAGE" || fail 'mobile file folder ACL view action disappeared'
-grep -Fq "key: 'acl'" "$PAGE" || fail 'mobile file folder action menu lost ACL entry'
+# 【2026-11-05 用户令"小程序上没有权限设置的操作,拿掉"】文件夹权限只读弹窗退役(四钉翻防复活):
+# MP 从未具备权限设置实操作, 只读弹窗名实不符; PC 文件管理「权限设置」保留(GET /acl 归 PC 专用)
+grep -Fq "file:acl:manage" "$PAGE" && fail 'mobile file folder ACL view must not revive (removed 2026-11-05, PC-only permission settings)'
+grep -Fq 'viewFolderAcl' "$PAGE" && fail 'mobile file folder ACL view action must not revive (removed 2026-11-05)'
+grep -Fq "key: 'acl'" "$PAGE" && fail 'mobile file folder action menu ACL entry must not revive (removed 2026-11-05)'
 grep -Fq 'catchtap="openFolderActions"' "$WXML" || fail 'mobile file folder action menu UI disappeared'
 grep -Fq 'ossKey' "$PAGE" || fail 'mobile file list no longer preserves file path download key'
 grep -Fq 'uploaderName' "$PAGE" || fail 'mobile file list no longer preserves uploader metadata'
@@ -189,7 +192,7 @@ grep -Fq '张三' "$AUTOMATOR_SCRIPT" || fail 'file center DevTools automator do
 grep -Fq '私人3' "$AUTOMATOR_SCRIPT" || fail 'file center DevTools automator does not verify tab count metadata'
 # 【2026-10-26 重锚】详情页跳转断言(uploaderName=/updatedAt=)随"一步打开"退役
 grep -Fq '2.8 MB' "$AUTOMATOR_SCRIPT" || fail 'file center DevTools automator does not verify formatted file size metadata'
-grep -Fq 'aclVisible: true' "$AUTOMATOR_SCRIPT" || fail 'file center DevTools automator does not verify folder ACL modal'
+grep -Fq 'aclVisible' "$AUTOMATOR_SCRIPT" && fail 'file center DevTools automator ACL modal section must not revive (feature removed 2026-11-05)'
 # 【2026-10-26 重锚】用户令"一次点击一步打开"——automator 详情页跳转断言退役,
 # 改钉一步预览下载断言; 用户令"三个点不需要替换"——列表页替换入口/权限门/调用清退
 # 【P2 2026-11-02 二次重锚】详情页(替换能力最后载体)作为死页删除, MP 替换 API 通道一并退役
@@ -232,7 +235,8 @@ fi
 grep -Fq '@PostMapping("/{id}/share")' "$CONTROLLER" || fail 'backend file share route disappeared'
 grep -Fq '@PostMapping("/{id}/replace")' "$CONTROLLER" || fail 'backend file replace route disappeared'
 grep -Fq '`file.folderManage` | 文件 | 文件夹面板管理 | `pages/files/index` 与 `pages/files/folder-form/index`' "$MANIFEST" || fail 'file folderManage manifest does not point to mobile folder management'
-grep -Fq '`file.aclView` | 文件 | 文件夹 ACL 弹窗只读 | `pages/files/index` 只读 ACL 弹窗' "$MANIFEST" || fail 'file aclView manifest does not protect mobile read-only ACL view'
+# 【2026-11-05 用户令】aclView 功能撤除, manifest 行改退役记录(防把"已实现"钉回来)
+grep -Fq '`file.aclView` | 文件 | 文件夹权限只读弹窗 ⟦原 pages/files/index 只读弹窗' "$MANIFEST" || fail 'file aclView manifest must record the 2026-11-05 removal (MP permission popup removed, PC kept)'
 
 # 【手机文件上传 2026-11-02 用户令"调用上传手机文件的接口"】三入口+H5 选传页+web-view 容器:
 # 微信小程序无手机文件系统 API(官方仅 chooseMessageFile/chooseMedia), 经 H5 /mp-file-picker

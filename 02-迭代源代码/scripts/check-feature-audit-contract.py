@@ -413,7 +413,7 @@ def main() -> int:
         "customer.indicator": {"pages/customer/detail/index", "pages/customer/indicator/index"},
         "customer.relationship": {"pages/customer/detail/index"},
         "app.launcher": {"pages/app/index"},
-        "file.aclView": {"pages/files/index"},
+        # 【2026-11-05 用户令】file.aclView 撤除转 PC-only, 无 MP 页面承载, 移出 required pages
         "sea.edit": {"pages/sea/index", "pages/customer/form/index"},
         "sea.claim": {"pages/sea/index", "pages/sea/claim-detail/index"},
         "approval.detail": {"pages/approval/index", "pages/approval/detail/index"},

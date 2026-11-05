@@ -1,4 +1,4 @@
-const { getFolders, getStorageInfo, getStorageApplyInfo, getSharedToMe, getSharedToMeCount, getFileList, uploadFile, deleteFile, deleteFolder, getFolderAcl, shareFile: shareFileApi, getDownloadUrl, getDownloadToken, createFolder } = require('../../api/file')
+const { getFolders, getStorageInfo, getStorageApplyInfo, getSharedToMe, getSharedToMeCount, getFileList, uploadFile, deleteFile, deleteFolder, shareFile: shareFileApi, getDownloadUrl, getDownloadToken, createFolder } = require('../../api/file')
 // 【2026-10-26 用户令"默认下载缓存"】预览文件本地缓存(同版本秒开, LRU 200MB 上限)
 const fileCache = require('../../utils/file-cache')
 const { getCustomerRecords } = require('../../api/incentive')
@@ -191,26 +191,8 @@ function validateStorageApplyInput(form, info) {
   return { quota, reason }
 }
 
-const permissionLabels = {
-  view: '查看',
-  upload: '上传',
-  edit: '编辑',
-  delete: '删除',
-  share: '分享',
-  download: '下载'
-}
-
-function normalizeAclRows(rows) {
-  return (Array.isArray(rows) ? rows : []).map((row) => {
-    const perms = Array.isArray(row.perms) ? row.perms : String(row.perms || '').split(',').filter(Boolean)
-    return {
-      roleId: row.roleId,
-      roleName: row.roleName || '未命名角色',
-      permLabels: perms.map((item) => permissionLabels[item] || item)
-    }
-  })
-}
-
+// 【2026-11-05 用户令"小程序上没有权限设置的操作,拿掉"】文件夹权限只读弹窗整批退役:
+// MP 从未具备权限设置实操作, 只读弹窗名实不符; PC 文件管理「权限设置」保留。
 function pageRecords(response) {
   return response?.data?.records || response?.records || []
 }
@@ -381,14 +363,12 @@ function buildFileView(data) {
     // 首屏加载文案；翻页状态由 <pager loading> 承载
     showLoading: loading && files.length === 0,
     pagerLoading: loading,
-    loadingText: '加载中...',
-    aclRows: data.aclRows || [],
-    showAclRows: Boolean(data.aclRows && data.aclRows.length)
+    loadingText: '加载中...'
   }
 }
 
 Page({
-  data: { keyword: '', activeTab: '公共', activeFolderId: '', activeFolderName: '', tabs: ['公共', '私人', '四项服务', '分享给我'], tabCounts: { 公共: 0, 私人: 0, 四项服务: 0, 分享给我: 0 }, folders: [], files: [], filteredFiles: [], capacity: { used: '-', total: '-', percent: 0, hint: '存储统计加载中' }, canUpload: false, canDelete: false, canShare: false, canManageFolder: false, canViewFolderAcl: false, canDevUploadSmoke: false, uploading: false, loaded: false, loading: false, page: 1, pageSize: 10, total: 0, folderPerms: [], folderDownloadable: 1, aclVisible: false, aclLoading: false, aclFolderName: '', aclRows: [], previewing: false, dlToken: '', previewVideoPath: '', actionSheet: { visible: false, index: -1, name: '', actions: [] }, storageApplyInfo: { enabled: false, canApply: false, reason: '', used: 0, quota: 0, maxQuota: 0, allowDecrease: false }, storageApplyForm: { visible: false, submitting: false, quotaInput: '', reasonInput: '', errorText: '' }, storageApplyView: buildStorageApplyView({}), fileView: buildFileView({ tabs: ['公共', '私人', '四项服务', '分享给我'], tabCounts: { 公共: 0, 私人: 0, 四项服务: 0, 分享给我: 0 }, folders: [], filteredFiles: [], activeTab: '公共', activeFolderName: '', previewVideoPath: '', total: 0 }) },
+  data: { keyword: '', activeTab: '公共', activeFolderId: '', activeFolderName: '', tabs: ['公共', '私人', '四项服务', '分享给我'], tabCounts: { 公共: 0, 私人: 0, 四项服务: 0, 分享给我: 0 }, folders: [], files: [], filteredFiles: [], capacity: { used: '-', total: '-', percent: 0, hint: '存储统计加载中' }, canUpload: false, canDelete: false, canShare: false, canManageFolder: false, canDevUploadSmoke: false, uploading: false, loaded: false, loading: false, page: 1, pageSize: 10, total: 0, folderPerms: [], folderDownloadable: 1, previewing: false, dlToken: '', previewVideoPath: '', actionSheet: { visible: false, index: -1, name: '', actions: [] }, storageApplyInfo: { enabled: false, canApply: false, reason: '', used: 0, quota: 0, maxQuota: 0, allowDecrease: false }, storageApplyForm: { visible: false, submitting: false, quotaInput: '', reasonInput: '', errorText: '' }, storageApplyView: buildStorageApplyView({}), fileView: buildFileView({ tabs: ['公共', '私人', '四项服务', '分享给我'], tabCounts: { 公共: 0, 私人: 0, 四项服务: 0, 分享给我: 0 }, folders: [], filteredFiles: [], activeTab: '公共', activeFolderName: '', previewVideoPath: '', total: 0 }) },
 
   setFileData(patch) {
     const nextData = { ...this.data, ...patch }
@@ -484,7 +464,7 @@ Page({
     } catch (_) { /* API missing or unavailable → fail-closed */ }
     const isLocalApi = /^https?:\/\/(127\.0\.0\.1|localhost|192\.168\.|10\.|172\.(1[6-9]|2\d|3[0-1])\.)/.test(apiBaseUrl)
     const canDevUploadSmoke = !globalData.demoMode && isLocalApi && isDevelopEnv
-    this.setFileData({ canUpload: globalData.demoMode || hasPermission('file:upload'), canDelete: !globalData.demoMode && hasPermission('file:delete'), canShare: !globalData.demoMode && hasPermission('file:share'), canManageFolder: globalData.demoMode || hasPermission('file:folder:manage'), canViewFolderAcl: !globalData.demoMode && hasPermission('file:acl:manage'), canDevUploadSmoke })
+    this.setFileData({ canUpload: globalData.demoMode || hasPermission('file:upload'), canDelete: !globalData.demoMode && hasPermission('file:delete'), canShare: !globalData.demoMode && hasPermission('file:share'), canManageFolder: globalData.demoMode || hasPermission('file:folder:manage'), canDevUploadSmoke })
     this.loadFiles()
     this.loadStorageApplyInfo()
   },
@@ -917,9 +897,9 @@ Page({
     })
   },
   openFolderActions(event) {
+    // 【2026-11-05 用户令】权限设置入口撤除(MP 无 ACL 设置实操作), 菜单只留 重命名/删除
     const dataset = event.currentTarget.dataset || {}
     const actions = []
-    if (this.data.canViewFolderAcl) actions.push({ key: 'acl', label: '权限设置' })
     actions.push({ key: 'rename', label: '重命名' })
     actions.push({ key: 'delete', label: '删除' })
     wx.showActionSheet({
@@ -928,7 +908,6 @@ Page({
         const action = actions[result.tapIndex]
         if (!action) return
         const forwarded = { currentTarget: { dataset } }
-        if (action.key === 'acl') this.viewFolderAcl(forwarded)
         if (action.key === 'rename') this.openFolderEdit(forwarded)
         if (action.key === 'delete') this.removeFolder(forwarded)
       }
@@ -955,20 +934,6 @@ Page({
       deleteFolder(id).then(() => { wx.showToast({ title: '已删除', icon: 'success' }); this.loadFiles() }).catch((error) => showError(error, '删除失败'))
     } })
   },
-  viewFolderAcl(event) {
-    if (!this.data.canViewFolderAcl) return wx.showToast({ title: '没有文件夹权限查看权限', icon: 'none' })
-    const id = event.currentTarget.dataset.id
-    const name = event.currentTarget.dataset.name || '文件夹'
-    if (!id) return
-    this.setFileData({ aclVisible: true, aclLoading: true, aclFolderName: name, aclRows: [] })
-    getFolderAcl(id).then((response) => {
-      this.setFileData({ aclRows: normalizeAclRows(response && (response.data || response.records || response)) })
-    }).catch((error) => {
-      this.setFileData({ aclVisible: false })
-      showError(error, '权限加载失败')
-    }).finally(() => this.setFileData({ aclLoading: false }))
-  },
-  closeFolderAcl() { this.setFileData({ aclVisible: false, aclFolderName: '', aclRows: [] }) },
   noop() {},
   uploadFile() {
     if (!this.data.canUpload) return wx.showToast({ title: '没有文件上传权限', icon: 'none' })

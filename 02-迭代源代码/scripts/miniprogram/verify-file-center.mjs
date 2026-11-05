@@ -197,20 +197,7 @@ async function verifyFileCenterPage(miniProgram) {
   assert(calls.previewImage.length === 1, `file center image preview must call previewImage: ${JSON.stringify(calls)}`)
   assert(calls.openDocument.length === 1, `file center document preview must call openDocument: ${JSON.stringify(calls)}`)
 
-  // 【2026-09-22 校准】ACL 行渲染走 fileView.aclRows, 须 setFileData 重建
-  await page.callMethod('setFileData', {
-    aclVisible: true,
-    aclLoading: false,
-    aclFolderName: '客户文档',
-    aclRows: [
-      { roleId: 1, roleName: '销售经理', permLabels: ['查看', '下载'] },
-      { roleId: 2, roleName: '服务工程师', permLabels: ['查看'] }
-    ]
-  })
-  await page.waitFor(300)
-  assert((await page.$$('.modal-card')).length === 1, 'file center ACL modal is missing')
-  const modalText = (await textList(await page.$$('.files-manage-row'))).join('\n')
-  assert(modalText.includes('销售经理'), 'file center ACL modal missing role row')
+  // 【2026-11-05 用户令】文件夹权限只读弹窗随功能退役, 本段断言删除; PC 文件管理权限设置保留
   await screenshot(miniProgram, 'file-center-actions.png')
 }
 

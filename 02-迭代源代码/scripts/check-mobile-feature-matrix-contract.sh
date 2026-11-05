@@ -160,7 +160,8 @@ require_line '| 文件管理 | Replace file | `POST /api/file/{id}/replace` | `f
 require_line '| 文件管理 | Path download | `GET /api/file/download/**` | `file:view` | File path ACL | Download | Yes | Implemented |'
 require_line '| 文件分享 | Share file | `POST /api/file/{id}/share` | `file:share` | File owner/share permission | Share mutation | Yes | Implemented |'
 require_line '| 文件分享 | Shared to me | `GET /api/file/shared-to-me`, `/count` | `file:view` | Files shared to current user | Read | Yes | Implemented |'
-require_line '| 文件夹 ACL | View ACL | `GET /api/file/folders/{id}/acl` | `file:acl:manage` | Folder ACL manager | Read | Yes | Implemented |'
+# 【2026-11-05 用户令】MP 文件夹权限只读弹窗撤除(无设置实操作), View ACL 行改退役记录
+require_line '| 文件夹 ACL | View ACL | `GET /api/file/folders/{id}/acl` | `file:acl:manage` | Folder ACL manager | Read | Yes | No first release (2026-11-05 用户令撤除 MP 只读弹窗, PC 权限设置保留) |'
 require_line '| 四项服务 | Category list | `GET /api/incentive/categories` | `incentive:view` | Tenant/group | Read | Yes | Implemented |'
 require_line '| 四项服务 | Record list | `GET /api/incentive/records` | `incentive:view` | Upload owner, share visibility, role scope | Read | Yes | Implemented |'
 require_line '| 四项服务 | Upload/add record | `POST /api/incentive/records` | `incentive:add` | Customer access and uploader identity | Create | Yes | Implemented |'

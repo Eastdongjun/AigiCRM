@@ -80,7 +80,10 @@ require_pair "$PC_FILE" "/file/folders" "$MP_FILE" "/api/file/folders" "file fol
 require_pair "$PC_FILE" "/file/storage" "$MP_FILE" "/api/file/storage" "file storage"
 require_pair "$PC_FILE" "/file/shared-to-me" "$MP_FILE" "/api/file/shared-to-me" "files shared to me"
 require_pair "$PC_FILE" "/share" "$MP_FILE" "/share" "file share"
-require_pair "$PC_FILE" "/acl" "$MP_FILE" "/acl" "file ACL read"
+# 【2026-11-05 用户令"小程序上没有权限设置的操作,拿掉"】文件夹权限只读通道随弹窗退役:
+# PC 侧权限设置保留(/acl 归 PC 专用), MP api 不再暴露该路径(正反钉, 沿用 replace 行口径)
+require_in_file "$PC_FILE" "/acl" "PC folder ACL read"
+! grep -Fq "/acl" "$MP_FILE" || fail "MP file api should not expose /acl (MP ACL view popup removed 2026-11-05, PC-only permission settings)"
 # 【2026-11-05 翻案恢复+口径修正】file replace=PC 有/MP 有意无(MP 替换 UI 2026-11-02 随死页退役且不再恢复):
 # 旧 require_pair 的 MP 侧此前靠 api/file.js 注释里的路径字面量碰巧通过, 本次改为真实口径
 require_in_file "$PC_FILE" "/replace" "PC file replace"

@@ -54,7 +54,7 @@ function createFolder(data) { return request({ url: '/api/file/folders', method:
 function renameFolder(id, folderName) { return request({ url: '/api/file/folders/' + id, method: 'PUT', data: { folderName } }) }
 function deleteFolder(id) { return request({ url: '/api/file/folders/' + id, method: 'DELETE' }) }
 function deleteFile(id) { return request({ url: '/api/file/' + id, method: 'DELETE' }) }
-function getFolderAcl(id) { return request({ url: '/api/file/folders/' + id + '/acl' }) }
+// 【2026-11-05 用户令】文件夹权限只读通道随弹窗一并退役(MP 无权限设置实操作), PC 文件管理保留
 function getSharedToMe(params) { return request({ url: '/api/file/shared-to-me', data: params || {} }) }
 function getSharedToMeCount() { return request({ url: '/api/file/shared-to-me/count' }) }
 function shareFile(id, userIds) { return request({ url: '/api/file/' + id + '/share', method: 'POST', data: { userIds } }) }
@@ -94,7 +94,6 @@ module.exports = {
   renameFolder,
   deleteFolder,
   deleteFile,
-  getFolderAcl,
   getSharedToMe,
   getSharedToMeCount,
   shareFile,

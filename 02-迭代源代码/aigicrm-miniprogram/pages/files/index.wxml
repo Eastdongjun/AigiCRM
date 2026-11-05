@@ -80,21 +80,7 @@
     </block>
     <view wx:if="{{fileView.showManageEmpty}}" class="muted">暂无可管理文件夹</view>
   </view>
-  <view wx:if="{{aclVisible}}" class="modal-mask" catchtap="closeFolderAcl">
-    <view class="card modal-card" catchtap="noop">
-      <view class="modal-head"><view class="modal-title">权限：{{aclFolderName}}</view><button class="ghost-btn" bindtap="closeFolderAcl">关闭</button></view>
-      <view wx:if="{{aclLoading}}" class="muted">加载中...</view>
-      <block wx:elif="{{fileView.showAclRows}}">
-        <view wx:for="{{fileView.aclRows}}" wx:key="roleId" class="files-manage-row">
-          <text>{{item.roleName}}</text>
-          <view class="tag-list">
-            <text wx:for="{{item.permLabels}}" wx:for-item="perm" wx:key="*this" class="mini-tag">{{perm}}</text>
-          </view>
-        </view>
-      </block>
-      <view wx:else class="muted">暂无授权角色</view>
-    </view>
-  </view>
+  <!-- 【2026-11-05 用户令】文件夹权限只读弹窗退役(MP 无权限设置实操作), PC 权限设置保留 -->
   <!-- 【D1-A 2026-10-18】申请扩容弹窗: 当前配额/上限 + 申请后总配额(GB) + 理由, 页面内自定义样式 -->
   <view wx:if="{{storageApplyView.visible}}" class="modal-mask" catchtap="closeStorageApply">
     <view class="card modal-card storage-apply-modal" catchtap="noop">

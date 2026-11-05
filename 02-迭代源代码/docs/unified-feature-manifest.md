@@ -54,7 +54,7 @@
 | `file.replace` | 文件 | 文件行替换 | PC `pages/files/index` FileTable 行内替换入口(2026-11-05 曾令全链删除, **同日用户翻案恢复**——端点/服务/双端入口/权限码全部还原, MP 通道仍无 UI 为有意现状) | `file:edit`+文件夹 ACL | 文件夹 ACL | 更新 | 已实现 |
 | `file.delete` | 文件 | 文件行删除 | `pages/files/index` 删除操作 | `file:delete`+文件夹 ACL | 文件夹 ACL | 删除 | 已实现 |
 | `file.folderManage` | 文件 | 文件夹面板管理 | `pages/files/index` 与 `pages/files/folder-form/index` | `file:folder:manage`+文件夹 ACL | 文件夹 ACL | 创建/更新/删除 | 已实现 |
-| `file.aclView` | 文件 | 文件夹 ACL 弹窗只读 | `pages/files/index` 只读 ACL 弹窗 | `file:acl:manage` | 文件夹管理 ACL | 读取权限 | 已实现 |
+| `file.aclView` | 文件 | 文件夹权限只读弹窗 ⟦原 pages/files/index 只读弹窗; 2026-11-05 用户令"小程序上没有权限设置的操作,拿掉": MP 弹窗与只读通道撤除⟧ | PC 文件管理「权限设置」 | `file:acl:manage` | 文件夹管理 ACL | 读取权限 | PC-only |
 | `file.aclManage` | 文件 | 文件夹 ACL 弹窗授权 | 默认 `PC-only` | `file:acl:manage` | 文件夹管理 ACL | 授予/撤销 | `PC-only` |
 | `incentive.index` | 激励(四项服务应用) | `/incentive`(2026-10-23 拆分: 完整工作台不再是 tabBar 页,由应用中心「四项服务应用」进入) | `pages/incentive/index`、`pages/incentive/detail/index`、`pages/incentive/upload/index` | 读 `incentive:view`;上传 `incentive:add` | 激励分类/用户授权范围 | 读取/创建 | 已实现 |
 | `incentive.home` | 激励(四项服务) | tabBar 轻量客户记录(2026-10-23 用户令拆分: 只显示客户与记录,无分类树/统计/排行/阅读;2026-10-26 用户令改拨盘展示: 点客户直达既有 detail 年/月/日转盘页,一次上传=一条记录,不进一客一册档案;records 平铺清单页退役) | `pages/incentive/home/index`(点客户跳既有 `pages/incentive/detail/index`) | 读 `incentive:view`;上传 `incentive:add` | 激励分享制(本人全部+他人已分享) | 读取/跳转 | 已实现 |
