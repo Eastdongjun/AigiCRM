@@ -130,9 +130,10 @@ grep -Fq "hasAuthority('incentive:stats:view')" "$INCENT_CTRL" || fail 'backend 
 grep -Fq "hasAnyAuthority('incentive:stats:view','incentive:rank:view')" "$INCENT_CTRL" || fail 'backend scoreboard/ranking guard must accept stats:view or rank:view'
 # F4. 应用中心入口=注册码并集
 grep -Fq "permissions: ['incentive:stats:view', 'incentive:rank:view']" "$MP/pages/app/index.js" || fail 'app-center 激励统计 entry must use the registry-code union'
-# F5. 展示分组拆分（2026-11-04 用户令"四项服务和四项激励是两个不同的模块"）: 应用中心两模块组
-grep -Fq "{ key: 'incentive', title: '四项服务', subtitle: '上传、查询与记录', apps: ['incentiveUpload', 'incentiveQuery'] }" "$MP/pages/app/index.js" || fail 'app-center 四项服务 module must host upload/query only (激励统计 moved out to 四项激励)'
-grep -Fq "{ key: 'incentiveReward', title: '四项激励', subtitle: '统计与排行', apps: ['incentiveStats'] }" "$MP/pages/app/index.js" || fail 'app-center must keep a separate 四项激励 module hosting 激励统计'
+# F5. 应用中心四项激励单组（2026-11-05 用户令"应用中心里面的四项服务叫做四项激励, 激励上传/查询/统计
+#     都归属于四项激励"——推翻 11-04 MP 拆分, 对齐 PC 11-05 合并口径 V2026.11.05.1）; 独立组防复活
+grep -Fq "{ key: 'incentive', title: '四项激励', subtitle: '上传、查询与统计', apps: ['incentiveUpload', 'incentiveQuery', 'incentiveStats'] }" "$MP/pages/app/index.js" || fail 'app-center 四项激励 module must host upload/query/stats together (merged 2026-11-05, aligned with PC)'
+grep -Fq "key: 'incentiveReward'" "$MP/pages/app/index.js" && fail 'app-center must not resurrect the 11-04 standalone incentiveReward group (merged 2026-11-05)'
 # F6. PC 激励统计路由=注册码 stats:view + 四项激励分组（反钉 11-04 拆码前的旧口径 incentive:view/四项服务 回潮）
 grep -Fq "meta: { title: '激励统计', parentTitle: '四项激励', icon: 'TrendCharts', permission: 'incentive:stats:view' }" "$UI/router/index.js" || fail 'PC incentive-stats route must bind incentive:stats:view under the 四项激励 group'
 grep -Fq "activeMenu: '/incentive/stats', icon: 'Document', permission: 'incentive:stats:view'" "$UI/router/index.js" || fail 'PC incentive-stats detail route must follow stats:view (drill-down same code as page)'

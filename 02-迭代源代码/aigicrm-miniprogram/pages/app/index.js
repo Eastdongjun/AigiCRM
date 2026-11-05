@@ -38,11 +38,10 @@ const APP_MODULES = [
   { key: 'customer', title: '客户经营', subtitle: '客户列表、详情与新增', apps: ['customer', 'customerCreate', 'indicator'] },
   // 【2026-11-03 用户令"应用与 PC 对齐"】补文件管理(PC 正式菜单 file:view; tabBar 页 switchTab 直达)
   { key: 'files', title: '文件管理', subtitle: '文件库、文件夹与分享', apps: ['files'] },
-  // 【2026-11-04 用户令"四项服务和四项激励是两个不同的模块"】四项服务=记录业务(上传/查询/台账),
-  // 四项激励=激励兑现面(激励统计: 分类统计+客户/个人/部门排行), 拆成两个模块组;
-  // PC 侧栏同批拆组(V2026.11.04.2 菜单树建组), 权限码两族本就独立(incentive:view/add vs stats:view/rank:view)
-  { key: 'incentive', title: '四项服务', subtitle: '上传、查询与记录', apps: ['incentiveUpload', 'incentiveQuery'] },
-  { key: 'incentiveReward', title: '四项激励', subtitle: '统计与排行', apps: ['incentiveStats'] },
+  // 【2026-11-05 用户令"应用中心里面的四项服务叫做四项激励, 激励上传/查询/统计都归属于四项激励"】
+  // 应用中心合并为一组(推翻 11-04 MP 拆分; PC 已于 11-05 先行合并=V2026.11.05.1, MP 随行对齐);
+  // 权限码仍按入口各自注册码门禁(incentive:add / incentive:view / stats+rank 并集), 分组只是展示层
+  { key: 'incentive', title: '四项激励', subtitle: '上传、查询与统计', apps: ['incentiveUpload', 'incentiveQuery', 'incentiveStats'] },
   { key: 'assessment', title: '学分管理', subtitle: '学分排行', apps: ['ranking'] },
   { key: 'statistics', title: '统计分析', subtitle: '客户 · 审批 · 公海摘要', apps: ['statistics'] },
   { key: 'workflow', title: '流程协同', subtitle: '审批、提醒与公海协作', apps: ['approval', 'reminder', 'sea'] }
