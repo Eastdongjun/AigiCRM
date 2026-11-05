@@ -140,9 +140,9 @@
     </view>
     <!-- 【2026-11-05 用户令"按照一级 二级 这种层级统计"】一级分组头(聚合文件数) + 二级明细行 -->
     <block wx:for="{{categoryStatsGroups}}" wx:for-item="group" wx:key="parentId">
-      <view class="stat-group-head">
+      <view class="stat-group-head" data-parent-id="{{group.parentId}}" bindtap="openGroupStatDetail">
         <view class="stat-group-name">{{group.parentName}}</view>
-        <view class="stat-group-value">{{group.count}} 文件</view>
+        <view class="stat-group-value">{{group.count}} 文件 ›</view>
       </view>
       <view wx:for="{{group.children}}" wx:for-item="row" wx:key="id" class="stats-row stat-drill-row" data-id="{{row.id}}" bindtap="openStatDetail">
         <view>

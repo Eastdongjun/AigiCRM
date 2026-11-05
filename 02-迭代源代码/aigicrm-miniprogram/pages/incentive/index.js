@@ -1102,6 +1102,72 @@ Page({
 
   noop() {},
 
+  // 【2026-11-05 用户令"数据要能点开查看的"】一级分组头可点开: 明细=组内全部子类记录合并(不按单子类过滤);
+  // 请求口径与子级明细同源(getRecords, 大组带 parentCategoryId 直取, 「其他分类」兜底组全量拉回后按子类 id 收口)
+  openGroupStatDetail(e) {
+    const dataset = e.currentTarget.dataset || {}
+    const group = (this.data.categoryStatsGroups || []).find((item) => String(item.parentId) === String(dataset.parentId))
+    if (!group) return
+    const subtitle = `${(group.children || []).length} 个子类合计`
+    this.setData({
+      statDetail: {
+        visible: true,
+        loading: true,
+        name: group.parentName,
+        parentName: subtitle,
+        score: group.score || 0,
+        records: [],
+        totalScore: 0,
+        keyword: '',
+        page: 1,
+        pageSize: 10
+      },
+      statDetailView: buildStatDetailView({ visible: true, loading: true, parentName: subtitle, records: [], totalScore: 0, keyword: '', page: 1, pageSize: 10 })
+    })
+    const childIds = new Set((group.children || []).map((item) => String(item.id)))
+    const childNames = new Set((group.children || []).map((item) => item.name))
+    if (getApp().globalData.demoMode) {
+      const records = (incentiveRecords || [])
+        .filter((item) => childNames.has(item.categoryName || item.category || item.type))
+        .map(normalizeStatDetailRecord)
+      const statDetail = {
+        ...this.data.statDetail,
+        loading: false,
+        records,
+        totalScore: records.reduce((sum, item) => sum + (Number(item.score) || 0), 0)
+      }
+      this.setData({
+        'statDetail.loading': false,
+        'statDetail.records': records,
+        'statDetail.totalScore': statDetail.totalScore,
+        statDetailView: buildStatDetailView(statDetail)
+      })
+      return
+    }
+    const params = group.parentId ? { parentCategoryId: group.parentId } : {}
+    const requestSeq = this._statDetailSeq = (this._statDetailSeq || 0) + 1
+    getRecords(params).then((rows) => {
+      if (requestSeq !== this._statDetailSeq) return
+      const source = Array.isArray(rows) ? rows : (rows && (rows.records || rows.rows || rows.list || rows.data)) || []
+      const records = source
+        .filter((item) => childIds.has(String(item.categoryId || item.childId || item.categoryCode || item.category || '')))
+        .map(normalizeStatDetailRecord)
+      const totalScore = records.reduce((sum, item) => sum + (Number(item.score) || 0), 0)
+      const statDetail = { ...this.data.statDetail, records, totalScore }
+      this.setData({
+        'statDetail.records': records,
+        'statDetail.totalScore': totalScore,
+        statDetailView: buildStatDetailView(statDetail)
+      })
+    }).catch((error) => {
+      if (requestSeq === this._statDetailSeq) showError(error, '统计明细加载失败')
+    }).finally(() => {
+      if (requestSeq !== this._statDetailSeq) return
+      const statDetail = { ...this.data.statDetail, loading: false }
+      this.setData({ 'statDetail.loading': false, statDetailView: buildStatDetailView(statDetail) })
+    })
+  },
+
   /** 分类统计明细搜索：本地过滤全量明细，输入即筛选并回到第 1 页 */
   onStatDetailKeywordInput(e) {
     const keyword = (e && e.detail && e.detail.value) || ''
