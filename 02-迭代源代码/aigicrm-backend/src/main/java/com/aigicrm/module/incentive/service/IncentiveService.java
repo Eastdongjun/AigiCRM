@@ -209,6 +209,42 @@ public class IncentiveService {
         });
     }
 
+    // ========== 【2026-11-05 用户拍板 B"激励查询改走组织范围档位"(三面全改)】==========
+    // 激励查询/案例库/MP 查询共用的 customer-records 分组面, 可见性从"全员可见(无过滤)"
+    // 改为组织范围档位: 客户属当前账号 (customer,view) 数据范围 ∨ 本人上传恒可见。
+    // admin 恒全量; 专项授权 can_view_all=1 保持全量旁路; can_view_shared/shared=1 在本面
+    // 退役(仍作用于 /incentive/records 等记录列表面); 未分配负责人的客户保持全员可见
+    // (镜像统计家族口径); scoreboard 同款 30s 数据缓存窗内变更延迟生效。
+    private java.util.Set<Long> orgScopeVisibleCustomerIds() {
+        com.aigicrm.security.SecurityUser user = SecurityUtils.getCurrentUser();
+        if (user == null || SecurityUtils.isAdmin()) return null; // null=不过滤(全量)
+        java.util.List<Long> visibleUsers = scopeResolver.resolveModuleUsers(user, "customer");
+        java.util.Set<Long> ids = new java.util.HashSet<>();
+        for (BizCustomer c : customerMapper.selectList(new LambdaQueryWrapper<BizCustomer>()
+                .eq(BizCustomer::getDeleted, 0))) {
+            if (c.getOwnerId() == null || (visibleUsers != null && visibleUsers.contains(c.getOwnerId()))) {
+                ids.add(c.getId());
+            }
+        }
+        return ids;
+    }
+
+    private void applyOrgQueryVisibility(LambdaQueryWrapper<BizIncentiveRecord> wrapper) {
+        if (canSeeAllIncentive()) return; // 专项授权"查看全部"=全量旁路(授权面板语义保持)
+        java.util.Set<Long> ids = orgScopeVisibleCustomerIds();
+        Long me = SecurityUtils.getCurrentUserId();
+        if (ids == null) return; // 全量
+        wrapper.and(w -> {
+            if (ids.isEmpty()) {
+                if (me != null) w.eq(BizIncentiveRecord::getUserId, me);
+                else w.apply("1=0");
+            } else {
+                w.in(BizIncentiveRecord::getCustomerId, ids);
+                if (me != null) w.or().eq(BizIncentiveRecord::getUserId, me);
+            }
+        });
+    }
+
     /**
      * 分类角标统计：按当前账号权限可见范围（admin/有激励编辑删除授权 → 全量；
      * 否则 resolver 可见集合 U），每个分类含子分类聚合。
@@ -1119,15 +1155,15 @@ public class IncentiveService {
             String orgIds, String devType, String product, String keyword, Long recordId) {
         LambdaQueryWrapper<BizIncentiveRecord> wrapper = new LambdaQueryWrapper<>();
         wrapper.isNotNull(BizIncentiveRecord::getCustomerId);
-        // 【2026-08-08 分享制】激励查询明细按分享制可见：admin/专项授权→全部，否则本人+已分享（未分享对他人不可见）
-        applyShareVisibility(wrapper);
-        // 【性能 2026-10-27】recordId 定位: 先按分享可见性取种子记录, 命中即把查询收窄到
-        // 该记录所属客户(与全量接口的可见性口径一致——返回组内仍只含本人+已分享记录);
-        // 种子不可见/不存在 → 空结果(与全量里找不到该记录同语义)。
+        // 【2026-11-05 用户拍板 B"激励查询改走组织范围档位"】激励查询/案例库/MP 查询三面统一
+        // 改走组织范围: 客户属 (customer,view) 档位 ∨ 本人上传恒可见(原"全员可见"无过滤退役)
+        applyOrgQueryVisibility(wrapper);
+        // 【性能 2026-10-27】recordId 定位: 先按可见性取种子记录, 命中即把查询收窄到
+        // 该记录所属客户(与全量接口的可见性口径一致); 种子不可见/不存在 → 空结果。
         if (recordId != null) {
             LambdaQueryWrapper<BizIncentiveRecord> seed = new LambdaQueryWrapper<>();
             seed.eq(BizIncentiveRecord::getId, recordId).isNotNull(BizIncentiveRecord::getCustomerId);
-            applyShareVisibility(seed);
+            applyOrgQueryVisibility(seed);
             List<BizIncentiveRecord> seedRows = recordMapper.selectList(seed);
             if (seedRows.isEmpty()) return List.of();
             wrapper.eq(BizIncentiveRecord::getCustomerId, seedRows.get(0).getCustomerId());
