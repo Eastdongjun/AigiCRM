@@ -246,6 +246,10 @@ grep -Fq 'pickFromDevice' "$PAGE" || fail 'mobile file device-picker entry disap
 grep -Fq 'wx.chooseMedia' "$PAGE" || fail 'mobile file album entry (chooseMedia) disappeared'
 grep -Fq 'this.pickFromChat()' "$PAGE" || fail 'mobile file chat entry (chooseMessageFile) must stay as third entry'
 grep -Fq 'doUploadFile' "$PAGE" || fail 'mobile file unified upload segment disappeared'
+# 【2026-11-06 用户令"文件上传的时候没选文件夹吗"】上传前选文件夹(PC UploadDialog selectedFolderId 同口径):
+# 三入口统一先选目标文件夹再传(根目录可选, 默认=当前浏览文件夹), 面板钉死防回退
+grep -Fq 'beginUploadWithFolder' "$PAGE" || fail 'mobile file upload folder-select flow disappeared'
+grep -Fq '上传到文件夹' "$WXML" || fail 'mobile file upload folder-select modal disappeared'
 grep -Fq 'pages/files/picker/index' "$APPJSON" || fail 'mobile file picker web-view page not registered in app.json'
 grep -Fq "globalData.apiBaseUrl + '/mp-file-picker?'" "$PICKER" || fail 'picker page must load H5 from apiBaseUrl with token'
 grep -Fq 'forceRefresh.files = true' "$PICKER" || fail 'picker page must trigger PR-12 post-write refresh'
