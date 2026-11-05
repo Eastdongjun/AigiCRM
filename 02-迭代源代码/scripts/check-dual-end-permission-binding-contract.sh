@@ -75,6 +75,10 @@ grep -Fq "{ key: 'ranking', title: '学分排行', subtitle: '个人与部门学
 grep -Fq "customerRanking: '/pages/ranking/index?tab=customer'" "$MP/pages/app/index.js" || fail '客户排行 entry must deep-link tab=customer'
 grep -Fq "ranking: '/pages/ranking/index?tab=score'" "$MP/pages/app/index.js" || fail '学分排行 entry must deep-link tab=score'
 grep -Fq "MAIN_TAB_PARENTS" "$MP/utils/ranking-tabs.js" || fail 'ranking registry must declare MAIN_TAB_PARENTS (page titles follow PC menu groups)'
+# 单榜模式: 入口范围页签条隐藏+口径卡裁剪(学分入口不见客户/激励内容, 反之亦然)
+grep -Fq "scope = options.tab" "$MP/pages/ranking/index.js" || fail 'ranking must scope content to the entry tab (single-board mode, 2026-11-06)'
+grep -Fq 'wx:if="{{rankingView.mainTabs.length}}"' "$MP/pages/ranking/index.wxml" || fail 'ranking main-tab strip must hide in single-board scope mode'
+grep -Fq 'wx:if="{{rankingView.showContextCard}}"' "$MP/pages/ranking/index.wxml" || fail 'ranking context card must trim to entry scope'
 # 反钉: 旧三码并集入口不得回潮
 grep -Fq "permissions: ['score:view', 'statistics:view', 'incentive:view']" "$MP/pages/app/index.js" && fail 'app-center ranking union entry must not revive (split 2026-11-06: 客户排行→客户经营/学分排行→学分管理)'
 # any-of 通用门禁机制仍须保留(激励统计等多功能卡在用)

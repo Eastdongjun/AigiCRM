@@ -3,7 +3,7 @@
        三大榜(激励个人/学分/客户)+汇总+口径——改为三主页签切换, 各榜内容/周期/分页互不堆叠;
        summary 四格/最高学分条归入学分页签, 口径卡保留为页签上方的全局口径摘要(契约钉渲染)。 -->
   <view class="hero"><view class="row"><view><view class="hero-title">{{rankingView.heroTitle}}</view><view class="hero-sub">{{rankingView.heroSub}}</view></view><button class="ghost-btn" bindtap="refresh" loading="{{rankingView.refreshLoading}}">{{rankingView.refreshText}}</button></view></view>
-  <view class="ranking-context-card">
+  <view class="ranking-context-card" wx:if="{{rankingView.showContextCard}}">
     <view class="ranking-context-head">
       <text>当前排行口径</text>
       <view>{{rankingView.contextSummary}}</view>
@@ -15,7 +15,8 @@
       </view>
     </view>
   </view>
-  <view class="tabs rank-main-tabs">
+  <!-- 【2026-11-06 入口拆分】单榜模式(scope 非空)页签条隐藏: 学分入口不见客户/激励内容, 反之亦然 -->
+  <view class="tabs rank-main-tabs" wx:if="{{rankingView.mainTabs.length}}">
     <view wx:for="{{rankingView.mainTabs}}" wx:key="key" class="tab {{item.className}}" data-key="{{item.key}}" bindtap="switchMainTab">{{item.title}}</view>
   </view>
 
