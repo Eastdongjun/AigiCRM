@@ -40,7 +40,7 @@
       </view>
       <text>{{statsView.filterSummary}}</text>
     </view>
-    <view class="stats-signal-sub">{{statsView.signalSummary.subtitle}}</view>
+    <!-- 【2026-11-06 A 案骨架收口】subtitle 删除(客户数/保护率/待审批 与 tiles+资产卡重复) -->
     <view class="stats-signal-grid">
       <view wx:for="{{statsView.signalSummary.rows}}" wx:key="key" class="stats-signal-item {{item.tone}}">
         <text>{{item.label}}</text>
@@ -49,29 +49,16 @@
     </view>
   </view>
 
+  <!-- 【2026-11-06 A 案】资产卡=大数字+进度条(规模唯一出处); badge/红盒/chips/insights 删除(数字归信号卡/雷达/业务总览) -->
   <view class="stats-primary-card">
     <view class="stats-primary-top">
       <view>
         <view class="stats-primary-label">客户资产</view>
         <view class="stats-primary-value">{{statsView.customerAsset.total}}<text>家</text></view>
       </view>
-      <view class="stats-primary-badge">保护率 {{statsView.customerAsset.protectionRate}}%</view>
     </view>
     <view class="stats-progress-track">
       <view class="stats-progress-bar" style="width: {{statsView.customerAsset.protectionWidth}};"></view>
-    </view>
-    <view class="{{statsView.customerAsset.riskClass}}">
-      <text>{{statsView.customerAsset.riskTitle}}</text>
-      <view>{{statsView.customerAsset.riskText}}</view>
-    </view>
-    <view class="stats-primary-meta">
-      <text wx:for="{{statsView.customerAsset.meta}}" wx:key="*this">{{item}}</text>
-    </view>
-    <view class="stats-insight-row">
-      <view wx:for="{{statsView.customerAsset.insights}}" wx:key="label" class="stats-insight-item">
-        <text>{{item.label}}</text>
-        <view>{{item.value}}</view>
-      </view>
     </view>
   </view>
 

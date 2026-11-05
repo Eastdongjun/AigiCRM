@@ -154,9 +154,10 @@ function buildStatsView(state = {}) {
       { label: '组织范围', value: deptLabel }
     ],
     signalSummary: {
+      // 【2026-11-06 用户令骨架收口 A 案】删 subtitle(客户数/保护率/待审批 与 tiles+资产卡重复):
+      // 信号卡=标题+四格动作数字; 客户数归资产卡大数字、保护期分布归雷达
       className: `stats-signal-card ${signalTone}`,
       title: riskTotal > 0 ? '风险优先处理' : (protectionRate >= 70 ? '经营状态稳定' : '保护率待提升'),
-      subtitle: `客户 ${stats.myCustomers || 0} 家 · 保护率 ${protectionRate}% · 待审批 ${pendingApprovals}`,
       rows: [
         { key: 'monthNew', label: '本月新增', value: stats.monthNew || 0, tone: 'blue' },
         { key: 'protectionRate', label: '保护率', value: `${protectionRate}%`, tone: protectionRate >= 70 ? 'green' : 'orange' },
@@ -164,29 +165,17 @@ function buildStatsView(state = {}) {
         { key: 'pending', label: '待审批', value: pendingApprovals, tone: pendingApprovals > 0 ? 'orange' : 'green' }
       ]
     },
+    // 【2026-11-06 A 案】资产卡=大数字+进度条(规模唯一出处); 删 badge/红盒/chips/insights——
+    // 保护率/风险合计归信号 tile、即将到期/今日到期/保护期归雷达、已超期/年度新增归业务总览
     customerAsset: {
       total: stats.myCustomers || 0,
-      protectionRate: stats.protectionRate || 0,
-      protectionWidth: `${stats.protectionRate || 0}%`,
-      riskClass: riskTotal > 0 ? 'stats-risk-note warning' : 'stats-risk-note stable',
-      riskTitle: riskTotal > 0 ? `风险客户 ${riskTotal} 家` : '暂无保护期风险',
-      riskText: riskTotal > 0 ? `即将到期 ${stats.expiring || 0} · 今日到期 ${stats.todayExpiring || 0} · 已超期 ${stats.expired || analysis.expired || 0}` : '当前筛选范围内保护期状态稳定',
-      meta: [
-        `保护期 ${stats.inProtection || 0}`,
-        `即将到期 ${stats.expiring || 0}`,
-        `今日到期 ${stats.todayExpiring || 0}`
-      ],
-      insights: [
-        { label: '风险合计', value: stats.riskTotal || 0 },
-        { label: '已超期', value: stats.expired || analysis.expired || 0 },
-        { label: '年度新增', value: analysis.yearNew || 0 }
-      ]
+      protectionWidth: `${stats.protectionRate || 0}%`
     },
     riskTiles: [
+      // 【2026-11-06 A 案】保护期分布三格(删「本月新增」格——与信号卡 tile 重复, 且不属保护期语义)
       { tone: 'blue', value: stats.inProtection || 0, label: '保护中' },
       { tone: 'orange', value: stats.expiring || 0, label: '即将到期' },
-      { tone: 'red', value: stats.todayExpiring || 0, label: '今日到期' },
-      { tone: 'green', value: stats.monthNew || 0, label: '本月新增' }
+      { tone: 'red', value: stats.todayExpiring || 0, label: '今日到期' }
     ],
     analysisTiles: [
       { tone: 'blue', value: analysis.totalCustomers || 0, label: '客户总数' },

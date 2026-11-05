@@ -20,14 +20,16 @@ grep -q "stats.todayExpiring" "$ROOT/aigicrm-miniprogram/pages/statistics/index.
 grep -q "statsView.riskTiles" "$ROOT/aigicrm-miniprogram/pages/statistics/index.wxml" || { echo "FAIL: mobile statistics does not render normalized risk tiles" >&2; exit 1; }
 grep -q "filterSummary" "$ROOT/aigicrm-miniprogram/pages/statistics/index.js" || { echo "FAIL: mobile statistics filter summary must be normalized in JS" >&2; exit 1; }
 grep -q "filterChips" "$ROOT/aigicrm-miniprogram/pages/statistics/index.js" || { echo "FAIL: mobile statistics filter chips must be normalized in JS" >&2; exit 1; }
-grep -q "riskClass" "$ROOT/aigicrm-miniprogram/pages/statistics/index.js" || { echo "FAIL: mobile statistics customer risk note class must be normalized in JS" >&2; exit 1; }
-grep -q "riskTitle" "$ROOT/aigicrm-miniprogram/pages/statistics/index.js" || { echo "FAIL: mobile statistics customer risk note title must be normalized in JS" >&2; exit 1; }
-grep -q "riskText" "$ROOT/aigicrm-miniprogram/pages/statistics/index.js" || { echo "FAIL: mobile statistics customer risk note text must be normalized in JS" >&2; exit 1; }
+# 【2026-11-06 用户令骨架收口 A 案】资产卡红盒(riskClass/riskTitle/riskText)删除——风险数字归信号卡
+# tile、保护期分布归雷达 tiles; 三钉翻防复活(资产卡不再复读风险数字)
+grep -q "riskClass" "$ROOT/aigicrm-miniprogram/pages/statistics/index.js" && { echo "FAIL: statistics customer risk note must not revive (removed 2026-11-06, signal tile + radar own the numbers)" >&2; exit 1; }
+grep -q "riskTitle" "$ROOT/aigicrm-miniprogram/pages/statistics/index.js" && { echo "FAIL: statistics customer risk note title must not revive (removed 2026-11-06)" >&2; exit 1; }
+grep -q "riskText" "$ROOT/aigicrm-miniprogram/pages/statistics/index.js" && { echo "FAIL: statistics customer risk note text must not revive (removed 2026-11-06)" >&2; exit 1; }
 grep -q "statsView.filterSummary" "$ROOT/aigicrm-miniprogram/pages/statistics/index.wxml" || { echo "FAIL: mobile statistics filter summary UI is missing" >&2; exit 1; }
 grep -q "statsView.filterChips" "$ROOT/aigicrm-miniprogram/pages/statistics/index.wxml" || { echo "FAIL: mobile statistics filter chip UI is missing" >&2; exit 1; }
-grep -q "statsView.customerAsset.riskClass" "$ROOT/aigicrm-miniprogram/pages/statistics/index.wxml" || { echo "FAIL: mobile statistics customer risk note UI is missing" >&2; exit 1; }
+grep -q "statsView.customerAsset.riskClass" "$ROOT/aigicrm-miniprogram/pages/statistics/index.wxml" && { echo "FAIL: statistics asset-card risk note UI must not revive (removed 2026-11-06)" >&2; exit 1; }
 grep -q "stats-filter-head" "$ROOT/aigicrm-miniprogram/pages/statistics/index.wxss" || { echo "FAIL: mobile statistics refined filter header style is missing" >&2; exit 1; }
-grep -q "stats-risk-note" "$ROOT/aigicrm-miniprogram/pages/statistics/index.wxss" || { echo "FAIL: mobile statistics customer risk note style is missing" >&2; exit 1; }
+grep -q "stats-risk-note" "$ROOT/aigicrm-miniprogram/pages/statistics/index.wxss" && { echo "FAIL: statistics risk note style must not revive (removed 2026-11-06)" >&2; exit 1; }
 grep -q "refreshLoading" "$statistics_detail_js" || { echo "FAIL: mobile statistics detail refresh state must be normalized in JS" >&2; exit 1; }
 grep -q "refreshText" "$statistics_detail_js" || { echo "FAIL: mobile statistics detail refresh text must be normalized in JS" >&2; exit 1; }
 grep -q "backDisabled" "$statistics_detail_js" || { echo "FAIL: mobile statistics detail back disabled state must be normalized in JS" >&2; exit 1; }
