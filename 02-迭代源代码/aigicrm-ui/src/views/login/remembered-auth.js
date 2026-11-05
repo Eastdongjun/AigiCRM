@@ -73,6 +73,10 @@ const withTimeout = (p, ms = 800) => Promise.race([
 async function deviceKey() {
   // crypto.subtle 仅安全上下文(HTTPS/localhost)可用; HTTP 档返回 null → 走 xor 降级
   if (!(window.crypto && crypto.subtle)) return null
+  // 【2026-11-05 门禁修复】无 indexedDB 环境(Node 测试 env/极端 webview)直接降级 xor:
+  // 裸引用 indexedDB 会同步 ReferenceError → race 被立即拒绝后, withTimeout 的 800ms
+  // 超时分支迟到拒绝无人接 → unhandled rejection(vitest exit 1)。与上方 crypto 守卫同构。
+  if (typeof indexedDB === 'undefined') return null
   const cached = await withTimeout(idbGet(DEVICE_KEY_DB, 'k'))
   if (cached) return cached
   const k = await crypto.subtle.generateKey({ name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt'])
