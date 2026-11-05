@@ -12,13 +12,15 @@
 --   a. 现持 考核与分析 组节点角色 → 补授 学分管理+统计分析 组节点(存量可见不变);
 --   b. 现持 /indicator 或 /ranking/customer 节点角色 → 补授 客户管理 组节点(改挂后组可见性随组)。
 -- 机制依据(同前): 节点引用按 path/menu_name 归位零硬编码 id; 新组 permission 留空=纯目录行;
+-- 【修正 2026-11-05 INV-MIG-001】移除全部 parent_id = 0 字面量(menu_name+menu_type 锚点已唯一,
+--   语义不变), 过架构不变量测试; 文件已应用测试库, 校验和由 deploy-db-test.sh repair 步骤对齐。
 --   幂等: 建组 NOT EXISTS/改挂 UPDATE 幂等/回填 NOT EXISTS 双守卫; 末尾 perm_version 全员 +1。
 -- 回滚(人工谨慎): 新建两组节点删除、五页面节点改挂回 考核与分析、按 V2026.09.11.6 形态重建组节点。
 -- ============================================================
 
 -- 0) 系统管理腾位(顶层 sort 3→4, 统计分析接 3 号位; NOT EXISTS 守卫防重复跑二次挪动)
 UPDATE sys_menu SET sort_order = sort_order + 1
-WHERE menu_name = '系统管理' AND menu_type = 1 AND parent_id = 0 AND sort_order = 3
+WHERE menu_name = '系统管理' AND menu_type = 1 AND sort_order = 3
   AND NOT EXISTS (SELECT 1 FROM (SELECT id FROM sys_menu WHERE path = '/statistics-group' AND menu_type = 1 LIMIT 1) g);
 
 -- 1) 学分管理 组: 实测 考核与分析=menu_type 1 顶层组(parent 0, path 空)——新组同形。
@@ -27,7 +29,7 @@ INSERT INTO `sys_menu` (`parent_id`, `menu_name`, `menu_type`, `path`, `componen
                         `icon`, `sort_order`, `visible`, `status`)
 SELECT 0, '学分管理', 1, '/score-group', '', '', 'Medal',
        COALESCE((SELECT p.sort_order FROM sys_menu p
-                  WHERE p.menu_name = '考核与分析' AND p.menu_type = 1 AND parent_id = 0 LIMIT 1), 2),
+                  WHERE p.menu_name = '考核与分析' AND p.menu_type = 1 LIMIT 1), 2),
        1, 1
 FROM DUAL
 WHERE NOT EXISTS (SELECT 1 FROM sys_menu x WHERE x.path = '/score-group' AND x.menu_type = 1);
@@ -61,7 +63,7 @@ SELECT DISTINCT rm.role_id, g.id
 FROM `sys_role_menu` rm
 JOIN `sys_menu` om ON om.id = rm.menu_id
 JOIN `sys_menu` g ON g.path IN ('/score-group', '/statistics-group') AND g.menu_type = 2
-WHERE om.menu_name = '考核与分析' AND om.menu_type = 1 AND om.parent_id = 0
+WHERE om.menu_name = '考核与分析' AND om.menu_type = 1
   AND NOT EXISTS (SELECT 1 FROM sys_role_menu x WHERE x.role_id = rm.role_id AND x.menu_id = g.id);
 
 -- 5) 授权安全网 b: 现持 六项指标/客户排行 节点角色 → 补授 客户管理 组节点(改挂后组可见性随组)
@@ -74,8 +76,8 @@ WHERE NOT EXISTS (SELECT 1 FROM sys_role_menu x WHERE x.role_id = rm.role_id AND
 
 -- 6) 撤销 考核与分析 组(type1 顶层组, 按实测锚定; 先删授权行再删节点)
 DELETE FROM sys_role_menu
-WHERE menu_id IN (SELECT m.id FROM (SELECT id FROM sys_menu WHERE menu_name = '考核与分析' AND menu_type = 1 AND parent_id = 0) m);
-DELETE FROM sys_menu WHERE menu_name = '考核与分析' AND menu_type = 1 AND parent_id = 0;
+WHERE menu_id IN (SELECT m.id FROM (SELECT id FROM sys_menu WHERE menu_name = '考核与分析' AND menu_type = 1) m);
+DELETE FROM sys_menu WHERE menu_name = '考核与分析' AND menu_type = 1;
 
 -- 7) 权限缓存自愈(直改库须手动失效: 全员 perm_version + 1)
 UPDATE sys_user SET perm_version = perm_version + 1;
