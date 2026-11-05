@@ -837,7 +837,9 @@ public class IncentiveService {
     private java.util.Set<Long> statsVisibleUserIds() {
         com.aigicrm.security.SecurityUser user = SecurityUtils.getCurrentUser();
         if (user == null || SecurityUtils.isAdmin()) return null;
-        java.util.List<Long> visible = scopeResolver.resolveModuleUsers(user, "statistics");
+        // 【2026-11-05 用户拍板 B"四项激励独立数据范围"】改读独立档位 (incentive, stats_view),
+        // 不再跟随 (statistics, view); 存量角色由 V2026.11.05.7 回填拷贝统计分析档位, 行为不变。
+        java.util.List<Long> visible = scopeResolver.resolveModuleUsers(user, "incentive", "stats_view");
         return visible == null ? null : new java.util.HashSet<>(visible);
     }
 

@@ -99,10 +99,19 @@ public class OrgScopeResolver {
      * @return 可见 userIds;null=全量不过滤(all);空=仅本人语义由调用方兜底
      */
     public List<Long> resolveModuleUsers(SecurityUser user, String module) {
+        return resolveModuleUsers(user, module, "view");
+    }
+
+    /**
+     * 【2026-11-05 用户拍板 B"四项激励独立数据范围"】指定动作版:
+     * 四项激励统计/排行页(incentive:stats:view/rank:view)的可见人员改读 (incentive, stats_view)
+     * 独立档位, 不再跟随 (statistics, view); 存量由 V2026.11.05.7 回填拷贝, 行为不变。
+     */
+    public List<Long> resolveModuleUsers(SecurityUser user, String module, String action) {
         ScopeRequest req = ScopeRequest.builder()
                 .user(user)
                 .module(module)
-                .action("view")
+                .action(action)
                 .anchor(ScopeRequest.AnchorType.OWNER)
                 .build();
         ScopeDecision d = resolveScope(req);

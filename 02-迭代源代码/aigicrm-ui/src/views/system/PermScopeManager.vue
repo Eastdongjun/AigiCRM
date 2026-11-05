@@ -178,6 +178,10 @@ const PERMISSION_SCOPE_TARGETS = Object.freeze({
   // 补 statistics/score(后端真实消费却没露出入口的漏配)
   'statistics:view': { module: 'statistics', action: 'view' },
   'score:view': { module: 'score', action: 'view' },
+  // 【2026-11-05 用户拍板 B"四项激励独立数据范围"】两码共用 (incentive, stats_view) 独立档位,
+  // 与统计分析档位解耦; 存量由 V2026.11.05.7 回填拷贝, 后端 IncentiveService.statsVisibleUserIds 同步改读
+  'incentive:stats:view': { module: 'incentive', action: 'stats_view' },
+  'incentive:rank:view': { module: 'incentive', action: 'stats_view' },
 })
 const scopeTargetOf = (permission) => PERMISSION_SCOPE_TARGETS[permission] || null
 
@@ -195,7 +199,16 @@ const SCOPE_OWNER_HINTS = {
   score: '学分规则',
 }
 const isScopeDriven = (item) => scopeTargetOf(item.permission) !== null
-const scopeOwnerOf = (item) => SCOPE_OWNER_HINTS[(item.permission || '').split(':')[0]] || '由模块自身规则控制'
+// 按码覆盖提示优先(同前缀下不同码可属不同控制面, 如 incentive:stats:view≠incentive:view 的分享制)
+const PERMISSION_HINT_OVERRIDES = {
+  'incentive:stats:view': '四项激励独立数据范围(与统计分析档位解耦, 可分别勾选)',
+  'incentive:rank:view': '四项激励独立数据范围(与统计分析档位解耦, 可分别勾选)',
+}
+const scopeOwnerOf = (item) => {
+  const perm = item.permission || ''
+  if (PERMISSION_HINT_OVERRIDES[perm]) return PERMISSION_HINT_OVERRIDES[perm]
+  return SCOPE_OWNER_HINTS[perm.split(':')[0]] || '由模块自身规则控制'
+}
 
 // 后端配置以 (module, action) 为键; system:log:view 读写的都是 (system, view)
 const scopeKeyOf = (permission) => {

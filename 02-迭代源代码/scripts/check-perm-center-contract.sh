@@ -20,7 +20,7 @@ fail() { echo "FAIL: $*" >&2; exit 1; }
 
 # ---- A. 唯一可写入口(2026-11-05 起入口位置=系统设置内「权限中心」页签) ----
 # 【2026-11-05 骨架重排】config 弃 el-tabs 改自定义分组导航: 钉挂载形态+导航键(activeTab 语义不变)
-grep -Fq "<PermCenter v-show=\"activeTab === 'permCenter'\" embedded />" "$UI/views/system/config.vue" || fail 'config must host PermCenter embedded (2026-11-05 收敛+骨架v2)'
+grep -Fq "<PermCenter embedded />" "$UI/views/system/config.vue" || fail 'config must host PermCenter embedded (2026-11-05 收敛; v-show 由外层 wrapper div 承载, 兼容多根组件)'
 grep -Fq "activeTab === 'permCenter'" "$UI/views/system/config.vue" || fail 'config nav must register permCenter item (activeTab key)'
 grep -Fq "defineProps({ embedded: { type: Boolean, default: false } })" "$UI/views/system/PermCenter.vue" || fail 'PermCenter must support embedded mode (hide own header in tab)'
 # 旧链接自愈: /system/perm-center 路由仅作重定向, 不得再直挂 PermCenter 组件(防独立页面回潮)
@@ -88,5 +88,12 @@ grep -Fq "hasPoolPerm" "$BE/com/aigicrm/module/system/service/PermCenterService.
 grep -Fq "countByScopeFor" "$BE/com/aigicrm/module/customer/service/CustomerService.java" || fail 'CustomerService must expose countByScopeFor(target)'
 grep -Fq "recordScopeVersion" "$BE/com/aigicrm/module/system/service/RolePermScopeService.java" || fail 'scope changes must record sys_rule_version'
 grep -Fq "recordGrantVersion" "$BE/com/aigicrm/module/incentive/controller/IncentivePermissionController.java" || fail 'grant/revoke must record sys_rule_version'
+
+# ---- F. 四项激励独立数据范围(2026-11-05 用户拍板 B) ----
+grep -Fq "'incentive:stats:view': { module: 'incentive', action: 'stats_view' }" "$UI/views/system/PermScopeManager.vue" || fail 'PermScopeManager must map incentive:stats:view to (incentive,stats_view) scope target'
+grep -Fq "'incentive:rank:view': { module: 'incentive', action: 'stats_view' }" "$UI/views/system/PermScopeManager.vue" || fail 'PermScopeManager must map incentive:rank:view to the same (incentive,stats_view) scope target'
+grep -Fq 'resolveModuleUsers(user, "incentive", "stats_view")' "$BE/com/aigicrm/module/incentive/service/IncentiveService.java" || fail 'IncentiveService stats scope must read (incentive,stats_view) independent action'
+grep -Fq '{"incentive", "stats_view"' "$BE/com/aigicrm/module/system/service/PermCenterService.java" || fail 'PermCenter preview must include (incentive,stats_view) scope row'
+[ -f "$MIG/V2026.11.05.7__incentive_stats_scope_action_backfill.sql" ] || fail 'migration must backfill (statistics,view) rows to (incentive,stats_view)'
 
 echo 'PASS: 统一权限中心契约一致（唯一可写入口=系统设置内权限中心页签/finance:edit 拆码三通道/公海与激励按角色/生效预览/审计入册）'

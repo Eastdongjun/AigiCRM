@@ -29,6 +29,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.when;
@@ -107,7 +108,7 @@ class IncentiveServiceStatsScopeTest {
         try (MockedStatic<SecurityUtils> sec = mockStatic(SecurityUtils.class)) {
             sec.when(SecurityUtils::getCurrentUser).thenReturn(me());
             sec.when(SecurityUtils::isAdmin).thenReturn(false);
-            when(scopeResolver.resolveModuleUsers(any(), anyString())).thenReturn(List.of(ME));
+            when(scopeResolver.resolveModuleUsers(any(), anyString(), anyString())).thenReturn(List.of(ME));
 
             var result = service.categoryStats(null);
 
@@ -115,8 +116,8 @@ class IncentiveServiceStatsScopeTest {
             assertEquals(2, ((Number) result.get("totalFiles")).intValue());
             assertEquals(20, ((Number) result.get("totalScore")).intValue());
         }
-        // 数据范围解析只按 statistics 模块基线(与 customerRankings 同源), 调用一次
-        verify(scopeResolver).resolveModuleUsers(any(), anyString());
+        // 【2026-11-05 用户拍板 B】数据范围解析改按 (incentive, stats_view) 独立档位(不再跟随 statistics), 调用一次
+        verify(scopeResolver).resolveModuleUsers(any(), eq("incentive"), eq("stats_view"));
     }
 
     @Test
@@ -128,7 +129,7 @@ class IncentiveServiceStatsScopeTest {
         try (MockedStatic<SecurityUtils> sec = mockStatic(SecurityUtils.class)) {
             sec.when(SecurityUtils::getCurrentUser).thenReturn(me());
             sec.when(SecurityUtils::isAdmin).thenReturn(false);
-            when(scopeResolver.resolveModuleUsers(any(), anyString())).thenReturn(List.of(ME));
+            when(scopeResolver.resolveModuleUsers(any(), anyString(), anyString())).thenReturn(List.of(ME));
 
             var rows = service.scoreboard(null);
 
@@ -145,7 +146,7 @@ class IncentiveServiceStatsScopeTest {
         try (MockedStatic<SecurityUtils> sec = mockStatic(SecurityUtils.class)) {
             sec.when(SecurityUtils::getCurrentUser).thenReturn(me());
             sec.when(SecurityUtils::isAdmin).thenReturn(false);
-            when(scopeResolver.resolveModuleUsers(any(), anyString())).thenReturn(List.of(ME));
+            when(scopeResolver.resolveModuleUsers(any(), anyString(), anyString())).thenReturn(List.of(ME));
 
             var rows = service.deptRanking(null);
 
@@ -164,7 +165,7 @@ class IncentiveServiceStatsScopeTest {
             sec.when(SecurityUtils::isAdmin).thenReturn(true);
             var result = service.categoryStats(null);
             assertEquals(2, ((Number) result.get("totalFiles")).intValue());
-            verify(scopeResolver, never()).resolveModuleUsers(any(), anyString());
+            verify(scopeResolver, never()).resolveModuleUsers(any(), anyString(), anyString());
         }
     }
 }
