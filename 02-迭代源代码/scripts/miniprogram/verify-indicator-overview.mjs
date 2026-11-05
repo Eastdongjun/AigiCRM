@@ -80,8 +80,10 @@ async function verifyIndicatorOverviewPage(miniProgram) {
       qualifyRate: 66.7
     },
     ranking: [
-      { customerId: 501, customerName: '华东智能制造集团', core: true, totalScore: 13 },
-      { customerId: 502, customerName: '山西晋能集团中阳煤业', core: false, totalScore: 9 }
+      // 【2026-11-06 重锚】核心三态走 coreType(core/quasi/空, 与排行页/PC 同口径)——旧夹具只给 core
+      // 布尔, 期望'非核心'与现行视图(空值显示 —)漂移
+      { customerId: 501, customerName: '华东智能制造集团', core: true, coreType: 'core', totalScore: 13 },
+      { customerId: 502, customerName: '山西晋能集团中阳煤业', core: false, coreType: '', totalScore: 9 }
     ]
   })
   await page.waitFor(500)
@@ -97,7 +99,8 @@ async function verifyIndicatorOverviewPage(miniProgram) {
     ...(await textList(await page.$$('.section-title'))),
     ...(await textList(await page.$$('.rank-row')))
   ].join('\n')
-  for (const expected of ['核心客户六项指标', '覆盖客户', '12', '核心客户', '5', '平均分', '9.6 / 15', '财务达标率', '66.7%', '客户排行', '华东智能制造集团', '核心', '13', '山西晋能集团中阳煤业', '非核心', '9']) {
+  // 【2026-11-06 重锚】'非核心'→'—'(空 coreType 显示口径), '核心'由'真核心'覆盖
+  for (const expected of ['核心客户六项指标', '覆盖客户', '12', '核心客户', '5', '平均分', '9.6 / 15', '财务达标率', '66.7%', '客户排行', '华东智能制造集团', '真核心', '13', '山西晋能集团中阳煤业', '—', '9']) {
     assert(pageText.includes(expected), `indicator overview missing ${expected}`)
   }
 

@@ -25,6 +25,9 @@ function buildIndicatorView(state = {}) {
         : (item.core ? '真核心' : '—'),
     totalScore: normalizeNumber(item.totalScore)
   }))
+  // 【2026-11-06 用户令"注意翻页"】客户排行客户端分页(10/页, 与排行页/统计页同款 pager);
+  // rank 在全量映射时已按全局名次编号, 切页不重排
+  const pagerState = paginateRanking(ranking, state.indicatorPage, state.indicatorPageSize)
   return {
     showLoading: Boolean(state.loading),
     showMetrics: !state.loading,
@@ -34,9 +37,18 @@ function buildIndicatorView(state = {}) {
       { label: '平均分', value: `${normalizeNumber(stats.avgScore)} / ${INDICATOR_FULL_SCORE}`, className: 'metric-value' },
       { label: '财务达标率', value: `${normalizeNumber(stats.qualifyRate)}%`, className: 'metric-value' }
     ],
-    ranking,
+    ranking: pagerState.rows,
+    rankingTotal: pagerState.total,
     showRankingEmpty: ranking.length === 0
   }
+}
+
+function paginateRanking(list, page, pageSize) {
+  const total = (list || []).length
+  const safePage = Math.max(1, Number(page) || 1)
+  const safeSize = Math.max(1, Number(pageSize) || 10)
+  const start = (safePage - 1) * safeSize
+  return { rows: (list || []).slice(start, start + safeSize), page: safePage, pageSize: safeSize, total }
 }
 
 Page({
@@ -44,12 +56,24 @@ Page({
     loading: false,
     stats: {},
     ranking: [],
+    indicatorPage: 1,
+    indicatorPageSize: 10,
+    indicatorTotal: 0,
     indicatorView: buildIndicatorView({ loading: false, stats: {}, ranking: [] })
   },
 
   applyState(patch) {
     const next = { ...this.data, ...patch }
-    this.setData({ ...patch, indicatorView: buildIndicatorView(next) })
+    const indicatorView = buildIndicatorView(next)
+    this.setData({ ...patch, indicatorTotal: indicatorView.rankingTotal, indicatorView })
+  },
+
+  // 【2026-11-06 翻页】<pager> 回传 {page,pageSize}: 页大小变化时回第 1 页(与排行页同口径)
+  onIndicatorPagerChange(e) {
+    const detail = e.detail || {}
+    const pageSize = Number(detail.pageSize) || this.data.indicatorPageSize
+    const page = pageSize === this.data.indicatorPageSize ? (Number(detail.page) || 1) : 1
+    this.applyState({ indicatorPage: page, indicatorPageSize: pageSize })
   },
 
   onLoad() {

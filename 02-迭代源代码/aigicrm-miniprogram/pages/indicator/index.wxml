@@ -1,17 +1,21 @@
 <view class="page indicator-page">
+  <!-- 【2026-11-06 骨架对齐】hero/卡回归 app.wxss 全局统一语言(深蓝渐变/无边框), 页内旧样式覆盖退役 -->
   <view class="hero">
     <view class="hero-title">核心客户六项指标</view>
     <view class="hero-sub">开票、回款门槛 + 五项客户质量评分</view>
   </view>
   <view wx:if="{{indicatorView.showLoading}}" class="card muted">加载中...</view>
-  <view wx:if="{{indicatorView.showMetrics}}" class="grid indicator-grid">
+  <view wx:if="{{indicatorView.showMetrics}}" class="grid">
     <view wx:for="{{indicatorView.metrics}}" wx:key="label" class="metric card"><text>{{item.label}}</text><text class="{{item.className}}">{{item.value}}</text></view>
   </view>
   <view class="card indicator-rank-card">
     <view class="section-title">客户排行</view>
+    <!-- 【2026-11-06 用户令"注意骨架/翻页"】补列头(核心列无表头时"—"像噪声)+客户端翻页 -->
+    <view class="rank-head"><text class="rh-index"></text><text class="rh-name">客户</text><text class="rh-core">核心</text><text class="rh-score">总分</text></view>
     <block wx:for="{{indicatorView.ranking}}" wx:key="id">
-      <view class="rank-row"><text class="rank-index">{{item.rank}}</text><text class="rank-name">{{item.customerName}}</text><text>{{item.coreText}}</text><text class="rank-score">{{item.totalScore}}</text></view>
+      <view class="rank-row"><text class="rank-index">{{item.rank}}</text><text class="rank-name">{{item.customerName}}</text><text class="rank-core">{{item.coreText}}</text><text class="rank-score">{{item.totalScore}}</text></view>
     </block>
     <view wx:if="{{indicatorView.showRankingEmpty}}" class="muted">暂无排行数据</view>
+    <pager wx:if="{{indicatorTotal > 10}}" page="{{indicatorPage}}" pageSize="{{indicatorPageSize}}" total="{{indicatorTotal}}" loading="{{indicatorView.showLoading}}" bind:change="onIndicatorPagerChange" />
   </view>
 </view>

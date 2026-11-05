@@ -1,1 +1,20 @@
-.indicator-page{padding:28rpx;background:#f5f8fc;min-height:100vh;box-sizing:border-box}.hero{padding:34rpx 30rpx;border-radius:30rpx;background:linear-gradient(135deg,#173b86,#2364d8 58%,#0ea5b7);color:#fff;box-shadow:0 20rpx 44rpx rgba(35,100,216,.22)}.hero-title{font-size:40rpx;font-weight:900}.hero-sub{margin-top:12rpx;opacity:.86;font-size:24rpx;line-height:1.5}.indicator-grid{display:grid;grid-template-columns:1fr 1fr;gap:16rpx;margin-top:22rpx}.card{background:#fff;border-radius:24rpx;padding:24rpx;box-sizing:border-box;border:1rpx solid #e5edf6;box-shadow:0 10rpx 26rpx rgba(35,57,96,.05)}.metric{display:flex;flex-direction:column;gap:10rpx;color:#64748b}.metric-value{color:#2563eb;font-size:38rpx;font-weight:900}.metric-value.success{color:#16a34a}.indicator-rank-card{margin-top:22rpx}.section-title{font-size:30rpx;font-weight:850;margin-bottom:12rpx;color:#172033}.rank-row{display:flex;align-items:center;gap:14rpx;padding:18rpx 0;border-bottom:1rpx solid #eef2f7;color:#64748b;font-size:24rpx}.rank-row:last-child{border-bottom:0}.rank-index{width:38rpx;color:#2563eb;font-weight:800}.rank-name{flex:1;color:#1e293b;font-weight:750}.rank-score{color:#2563eb;font-weight:850}.muted{color:#94a3b8}
+.indicator-page{padding:28rpx;background:#f5f8fc;min-height:100vh;box-sizing:border-box}
+/* 【2026-11-06 用户令"注意顶部的边框和页面骨架"】hero/.card/.muted/.grid 回归 app.wxss 全局统一语言
+   (深蓝渐变 hero/无边框卡)——页内旧覆盖(亮蓝青尾渐变+1rpx 卡边框+40rpx 大标题)系 11-01 全局统一批漏网 */
+.indicator-page .section-title{font-size:30rpx;font-weight:800;margin-bottom:12rpx;color:#172033}
+.metric{display:flex;flex-direction:column;gap:10rpx;color:#64748b}
+.metric-value{color:#2563eb;font-size:38rpx;font-weight:900}
+.metric-value.success{color:#16a34a}
+.indicator-rank-card{margin-top:22rpx}
+/* 列头+列宽: 核心列有表头后「—」不再是悬浮噪声; 核心列右对齐定宽与总分列分清 */
+.rank-head{display:flex;align-items:center;gap:14rpx;padding:4rpx 0 12rpx;border-bottom:1rpx solid #e8eef6;color:#94a3b8;font-size:22rpx;font-weight:600}
+.rh-index{width:38rpx}
+.rh-name{flex:1}
+.rh-core{width:104rpx;text-align:right}
+.rh-score{min-width:56rpx;text-align:right}
+.rank-row{display:flex;align-items:center;gap:14rpx;padding:18rpx 0;border-bottom:1rpx solid #eef2f7;color:#64748b;font-size:24rpx}
+.rank-row:last-child{border-bottom:0}
+.rank-index{width:38rpx;color:#2563eb;font-weight:800}
+.rank-name{flex:1;color:#1e293b;font-weight:750}
+.rank-core{width:104rpx;text-align:right;color:#64748b}
+.rank-score{color:#2563eb;font-weight:850;min-width:56rpx;text-align:right}
