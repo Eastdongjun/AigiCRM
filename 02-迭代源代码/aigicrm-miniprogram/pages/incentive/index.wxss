@@ -86,15 +86,15 @@
 .category-node.is-active .category-node-name{color:#1d4ed8;font-weight:750}
 .category-active-tag{flex-shrink:0;padding:4rpx 10rpx;border-radius:999rpx;background:#1d4ed8;color:#fff;font-size:16rpx}
 .category-chevron{flex-shrink:0;color:#b6c5da;font-size:26rpx}
-.stat-drill-row{align-items:flex-start}
-.stat-name{color:#172033;font-size:26rpx;font-weight:800}
+.stat-drill-row{align-items:flex-start;padding-left:28rpx}
+.stat-name{color:#3a4759;font-size:25rpx;font-weight:600}
 .stat-parent{margin-top:6rpx;color:#7c8ba1;font-size:21rpx}
 .stat-value{color:#2563eb;font-size:24rpx;font-weight:800;text-align:right;white-space:nowrap}
-/* 【2026-11-05 层级化】一级分组头: 组名+聚合文件数; 二级行沿用 stats-row 明细行 */
-.stat-group-head{display:flex;align-items:center;justify-content:space-between;gap:20rpx;padding:20rpx 0 10rpx;margin-top:10rpx;border-top:1rpx solid #eef3f9}
-.stat-group-head:first-of-type{border-top:0;margin-top:0}
-.stat-group-name{color:#172033;font-size:24rpx;font-weight:800}
-.stat-group-value{color:#7c8ba1;font-size:22rpx;font-weight:600;white-space:nowrap}
+/* 【2026-11-05 层级化】一级分组头=品牌浅底横带(大字+品牌色聚合数); 二级行缩进降权重, 与一级拉开层级 */
+.stat-group-head{display:flex;align-items:center;justify-content:space-between;gap:20rpx;padding:18rpx 20rpx;margin-top:16rpx;background:#eef4ff;border-radius:14rpx}
+.stat-group-head:first-of-type{margin-top:4rpx}
+.stat-group-name{color:#172033;font-size:28rpx;font-weight:800}
+.stat-group-value{color:#1d4ed8;font-size:24rpx;font-weight:800;white-space:nowrap}
 .stats-detail-panel{margin-top:18rpx;padding-top:18rpx;border-top:1rpx solid #e7eef8}
 /* 2026-10-20 统计明细改为底部抽屉：不再把明细插在统计列表下方，避免上下来回滚动 */
 .stats-detail-mask{position:fixed;left:0;right:0;top:0;bottom:0;z-index:60;display:flex;align-items:flex-end;background:rgba(15,23,42,.42)}
