@@ -44,6 +44,9 @@ request.interceptors.request.use(
 // 响应拦截器
 request.interceptors.response.use(
   response => {
+    // 【2026-11-05 用户选 C"保持登录"】滑动续期: 后端在剩余寿命<半周期时回 X-New-Token, 静默换新
+    const newToken = response.headers && (response.headers['x-new-token'] || response.headers['X-New-Token'])
+    if (newToken) localStorage.setItem('token', newToken)
     // 【C2 2026-10-04】成功响应不再无条件重置 401 去重标记：
     // 过期临界窗口内，过期前发出、服务端在过期前已处理完的在途 200，其响应可能
     // 晚于同一批请求的 401 到达——无条件重置会让去重护栏失效，同批后续 401 再次

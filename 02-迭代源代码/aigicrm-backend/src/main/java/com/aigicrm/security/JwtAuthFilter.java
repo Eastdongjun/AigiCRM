@@ -113,6 +113,22 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             }
         }
 
+        // 【2026-11-05 用户选 C"保持登录"】滑动续期: 成功鉴权且剩余寿命<半周期 → X-New-Token 换发
+        // (前端 PC/MP 拦截器落盘; 续期失败不阻断本次请求; download 专用 token 不参与)
+        if (SecurityContextHolder.getContext().getAuthentication() != null
+                && !"download".equals(jwtTokenProvider.getScopeFromToken(token))) {
+            try {
+                if (jwtTokenProvider.shouldRenew(token)) {
+                    String renewed = jwtTokenProvider.renewToken(token);
+                    if (renewed != null && !renewed.isEmpty()) {
+                        response.setHeader("X-New-Token", renewed);
+                    }
+                }
+            } catch (Exception e) {
+                log.debug("token 滑动续期跳过: {}", e.getMessage());
+            }
+        }
+
         filterChain.doFilter(request, response);
     }
 

@@ -1,4 +1,4 @@
-const { clearToken, getToken } = require('./auth')
+const { clearToken, getToken, setToken } = require('./auth')
 // 【E7】getGlobalData/buildUrl 收敛至 app-context 单一出处(原两份复制移除, 行为不变)
 const { getGlobalData, buildUrl } = require('./app-context')
 
@@ -75,6 +75,10 @@ function request(options) {
         ...(options.header || {})
       },
       success(res) {
+        // 【2026-11-05 用户选 C"保持登录"】滑动续期: 后端剩余寿命<半周期时回 X-New-Token, 静默换新(MP 活跃即不掉线)
+        const newToken = res.header && (res.header['X-New-Token'] || res.header['x-new-token'])
+        // 须走 setToken(分环境组合键 token::apiBase), 直写 'token' 键会跨环境串用
+        if (newToken && typeof setToken === 'function') { try { setToken(newToken) } catch (e) {} }
         const body = res.data || {}
         if (res.statusCode >= 200 && res.statusCode < 300 && (body.code === undefined || body.code === 200)) {
           resolve(body.data !== undefined ? body.data : body)

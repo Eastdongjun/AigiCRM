@@ -182,8 +182,11 @@ public class AuthService {
         var user = userMapper.selectById(userId);
         securityAudit.groupSwitch(userId, user != null ? user.getUsername() : "",
                 jwtTokenProvider.getCurrentGroupIdFromToken(currentToken), groupId);
+        // 【2026-11-05 用户选 C"保持登录"】切集团重签保留原 token 的保持登录档(rm 声明),
+        // 否则多集团用户切换后从 7d 档回落 24h 档, 掉线窗口回归
+        boolean rememberTier = jwtTokenProvider.isRememberMeFromToken(currentToken);
         String token = jwtTokenProvider.generateToken(userId, user != null ? user.getUsername() : "",
-                false, groupId);
+                rememberTier, groupId);
         LoginResponse response = new LoginResponse();
         response.setToken(token);
         response.setUserId(userId);

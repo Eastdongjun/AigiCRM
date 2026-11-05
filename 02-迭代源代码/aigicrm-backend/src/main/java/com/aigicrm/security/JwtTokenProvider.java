@@ -77,10 +77,42 @@ public class JwtTokenProvider {
         if (currentGroupId != null) {
             builder.claim("currentGroupId", currentGroupId);
         }
+        // 【2026-11-05 用户选 C"保持登录"】记住续期策略: 滑动续期(JwtAuthFilter 半寿命重签)需知道
+        // 原 token 是 24h 还是 7d 档, 签发时写入 rm 声明(旧 token 无此声明=非保持登录档)
+        if (rememberMe) {
+            builder.claim("rm", true);
+        }
         return builder.signWith(getSigningKey()).compact();
     }
 
     /** 【批④】token 携带的会话集团(旧 token 无 claim 返回 null, 由调用方回退最小集团) */
+    /** token 是否为"保持登录"档(签发时 rememberMe=true; 旧 token 无 rm 声明=false) */
+    public boolean isRememberMeFromToken(String token) {
+        Claims claims = getClaims(token);
+        return Boolean.TRUE.equals(claims.get("rm", Boolean.class));
+    }
+
+    /**
+     * 【2026-11-05 用户选 C"保持登录"】滑动续期判定: 剩余寿命 < 该档半周期时续签。
+     * 24h 档 = 活跃 12h 后开始换发; 7d 档 = 活跃 3.5 天后开始换发。活跃即续 ⇒ 掉线窗口=半周期不活跃。
+     */
+    public boolean shouldRenew(String token) {
+        Claims claims = getClaims(token);
+        java.util.Date exp = claims.getExpiration();
+        if (exp == null) return false;
+        long ttl = Boolean.TRUE.equals(claims.get("rm", Boolean.class)) ? rememberExpiration : expiration;
+        long remaining = exp.getTime() - System.currentTimeMillis();
+        return remaining > 0 && remaining < ttl / 2;
+    }
+
+    /** 滑动续期: 按 token 内原策略(userId/username/rm/当前集团)签发新 token(新 jti; 旧 token 自然到期) */
+    public String renewToken(String token) {
+        Claims claims = getClaims(token);
+        boolean rm = Boolean.TRUE.equals(claims.get("rm", Boolean.class));
+        Long groupId = claims.get("currentGroupId", Long.class);
+        return generateToken(Long.parseLong(claims.getSubject()), claims.get("username", String.class), rm, groupId);
+    }
+
     public Long getCurrentGroupIdFromToken(String token) {
         try {
             Claims claims = getClaims(token);
@@ -98,6 +130,12 @@ public class JwtTokenProvider {
                 .parseSignedClaims(token)
                 .getPayload();
         return Long.parseLong(claims.getSubject());
+    }
+
+    /** token 内 username 声明(滑动续期/审计用) */
+    public String getUsernameFromToken(String token) {
+        Claims claims = getClaims(token);
+        return claims != null ? claims.get("username", String.class) : null;
     }
 
     // ==================== 会话撤销/黑名单 (M2 2026-08-10) ====================

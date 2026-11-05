@@ -31,6 +31,8 @@
               <div class="remember-group">
                 <el-checkbox v-model="form.rememberUser">记住账号</el-checkbox>
                 <!-- 【B1 安全修复 2026-10-21】"记住密码"下线：口令不再落盘 localStorage（原 base64 可逆存储） -->
+                <!-- 【2026-11-05 用户选 C"保持登录"】不落盘口令的等价体验: 勾选=签发 7 天档令牌+活跃滑动续期, 掉线窗口=7 天不活跃 -->
+                <el-checkbox v-model="form.rememberLogin">7 天内保持登录</el-checkbox>
               </div>
               <a class="forgot-link" href="javascript:void(0)" @click="forgotPwdVisible = true">忘记密码?</a>
             </div>
@@ -72,7 +74,8 @@ const form = reactive({
   // 【2026-10-17 用户口径】"记住账号"默认勾选（隐私保守默认）。
   // 【B1 安全修复 2026-10-21】"记住密码"勾选项下线：口令不再以任何形式写入 localStorage，
   // 原 base64 可逆落盘属 high 级安全问题（退出/改密/重置均不清除），安全优先移除。
-  rememberUser: true
+  rememberUser: true,
+  rememberLogin: true
 })
 
 // 【B1 安全修复 2026-10-21】口令持久化整体移除，只保留"记住账号"。
@@ -124,7 +127,8 @@ const handleLogin = async () => {
   loading.value = true
   try {
     form.username = form.username.trim()
-    const res = await login(form)
+    // 【2026-11-05 用户选 C"保持登录"】rememberMe=true → 后端签发 7 天档 JWT(滑动续期)
+    const res = await login({ ...form, rememberMe: form.rememberLogin })
     localStorage.setItem('token', res.data.token)
     // 【批④ 2026-08-10 多集团会话】登录响应带回集团信息(多集团用户顶部可切换)
     const { useUserStore } = await import('@/store/user')
