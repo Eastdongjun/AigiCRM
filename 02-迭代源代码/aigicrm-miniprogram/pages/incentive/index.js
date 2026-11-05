@@ -1294,7 +1294,10 @@ Page({
     this.ensureVisibleCustomerIds().then((visibleIds) => {
       let rows = (this.data.records || []).map((c) => {
         const byCategory = {}
-        ;((c.records || [])).forEach((r) => {
+        // 【修复 2026-11-05】瘦身组不带 records 子数组(2026-10-13 性能批剥离, 689b07fc 同款漏网):
+        // 子记录从 _childRawById 取, 组自带 records 优先(未来兼容/演示路径), 与 buildRecordTableRows 同习惯
+        const children = (c && c.records) || (this._childRawById && this._childRawById[c.id]) || []
+        ;(children).forEach((r) => {
           const cid = r.categoryId || r.childId
           if (!cid) return
           if (!byCategory[cid]) byCategory[cid] = [0, 0]
@@ -1307,7 +1310,7 @@ Page({
           name: c.name || c.customerName || '未命名客户',
           industryText: c.industry || '—',
           scoreNum: Number(c.score) || 0,
-          recordCountText: `${((c.records || [])).length} 条`,
+          recordCountText: `${children.length} 条`,
           byCategory
         }
       })
