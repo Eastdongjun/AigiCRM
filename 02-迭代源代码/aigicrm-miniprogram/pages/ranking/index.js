@@ -158,26 +158,25 @@ function buildRankingView(data) {
   const scoreTab = (data.scoreTabs || []).find((item) => item.key === data.scoreActiveTab) || {}
   const customerTab = (data.tabs || []).find((item) => item.key === data.activeTab) || {}
   const rankTab = data.rankTab || 'score'
-  // 【2026-11-06 用户令入口拆分】scope=入口范围(应用中心带 ?tab= 进入时=该页签): 单榜模式,
-  // 主页签条不渲染、口径卡只留本榜相关项; 无参(直达/automator 兼容)=全榜模式, 行为同前。
+  // 【2026-11-06 用户令入口拆分+追令"学分排行页面去掉无关内容"】scope=入口范围(应用中心带 ?tab=
+  // 进入时=该页签): 单榜模式——主页签条不渲染、口径卡整卡移除(周期/榜单页面上本有选择器, 纯重复);
+  // 无参(直达/automator 兼容)=全榜模式, 口径卡保留作三榜全局摘要, 行为同前。
   const scope = data.scope || ''
   // 【2026-11-04 注册表对齐】主页签按各榜注册码过滤（无权页签不渲染）；未初始化时乐观全显(demo/登录前兜底)
   const canTabs = data.canTabs || { score: true, customer: true, incentive: true }
-  // 口径卡按范围裁剪(单榜模式只留本榜口径; 全榜模式保留四项全局摘要)
-  const allChips = [
+  // 全榜模式口径卡四项(单榜模式整卡移除, 字段仍须存在供视图绑定)
+  const contextChips = [
     { label: '评分周期', value: scorePeriodText },
     { label: '学分榜单', value: scoreTab.title || '个人排行' },
     { label: '客户周期', value: customerPeriodText },
     { label: '客户榜单', value: customerTab.title || '四项服务' }
   ]
-  const scopeChips = { score: ['评分周期', '学分榜单'], customer: ['客户周期', '客户榜单'], incentive: [] }
-  const contextChips = scope ? allChips.filter((item) => scopeChips[scope].indexOf(item.label) >= 0) : allChips
   return {
     refreshLoading: loading,
     refreshText: loading ? '刷新' : '刷新',
     showLoading: loading,
     loadingText: '加载中...',
-    showContextCard: contextChips.length > 0,
+    showContextCard: !scope,
     // 【2026-11-03 用户令"不要把所有内容放到一个页面里"】三主页签: 学分(默认)/客户/激励个人; 单榜模式页签条隐藏
     mainTabs: scope ? [] : rankingTabs.visibleMainTabs(canTabs).map((item) => ({ ...item, className: rankTab === item.key ? 'active' : '' })),
     // 【2026-11-06 用户令入口拆分】标题/副标题随主页签动态对齐 PC 菜单组(学分管理/客户管理/四项激励)
@@ -190,9 +189,7 @@ function buildRankingView(data) {
     topScoreText: `最高学分：${stats.topScoreName || '-'} · ${stats.topScore || 0} 分 · ${stats.topItemCount || 0} 个文件`,
     scorePeriodText,
     customerPeriodText,
-    contextSummary: scope
-      ? (scope === 'customer' ? `客户${customerPeriodText} · ${customerTab.title || '四项服务'}` : `${scorePeriodText} · ${scoreTab.title || '个人排行'}`)
-      : `${scorePeriodText} · ${scoreTab.title || '个人排行'} · 客户${customerPeriodText}`,
+    contextSummary: `${scorePeriodText} · ${scoreTab.title || '个人排行'} · 客户${customerPeriodText}`,
     contextChips,
     showScoreEmpty: !loading && Number(data.scoreTotal || 0) === 0,
     showCustomerEmpty: !loading && Number(data.customerTotal || 0) === 0
