@@ -77,8 +77,3 @@ export function setFolderDownloadable(id, downloadable) {
 export function getFolderPermissions(id) {
   return request.get(`/file/folders/${id}/permissions`)
 }
-
-// 文件覆盖替换（multipart "file"），返回更新后文件（含 version）
-export function replaceFile(id, formData) {
-  return request.post(`/file/${id}/replace`, formData, { headers: { 'Content-Type': 'multipart/form-data' } })
-}

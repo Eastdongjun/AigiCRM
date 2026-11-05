@@ -240,7 +240,7 @@ Each module is complete only when all items below are satisfied:
 - [x] Shared-to-me view UI.
 - [x] Upload file.
 - [x] Share file. Mobile action is gated by `file:share` and uses the backend share endpoint.
-- [x] Replace file. Mobile detail action is gated by `file:edit` and uses the backend replacement endpoint.
+- [x] Replace file. Mobile detail action is gated by `file:edit` and uses the backend replacement endpoint.（**已退役 2026-11-05 用户令**：端点/权限码/双端入口全链删除，见 V2026.11.05.9）
 - [x] Delete file. Mobile action is gated by `file:delete` and folder/file ACL; ACL mutation and download-setting changes stay PC-only.
 
 ### 8.5 Mobile Incentive

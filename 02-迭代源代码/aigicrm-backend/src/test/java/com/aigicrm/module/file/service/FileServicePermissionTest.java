@@ -34,7 +34,6 @@ import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.ByteArrayInputStream;
-import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -547,96 +546,8 @@ class FileServicePermissionTest {
         }
     }
 
-    // ====== Task 6：覆盖替换接口 ======
 
-    private BizFile aReplaceableFile() {
-        BizFile file = new BizFile();
-        file.setId(9L);
-        file.setFolderId(100L);
-        file.setUploaderId(1L);
-        file.setFileScope("private");
-        file.setOssKey("private/1/old.txt");
-        file.setFileName("old.txt");
-        file.setFileSize(10L);
-        file.setVersion(1);
-        return file;
-    }
-
-    @Test
-    void replaceFile_withoutEditPermission_throws403() {
-        when(fileMapper.selectById(9L)).thenReturn(aReplaceableFile());
-        MultipartFile mf = new MockMultipartFile("file", "new.txt", "text/plain", new byte[25]);
-        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
-            m.when(SecurityUtils::getCurrentUserId).thenReturn(2L);
-            when(folderPermissionService.checkFile(9L, FolderPermissionService.P_EDIT, 2L)).thenReturn(false);
-            BusinessException ex = assertThrows(BusinessException.class, () -> svc.replaceFile(9L, mf));
-            assertEquals(403, ex.getCode());
-            verify(fileMapper, never()).updateById(any(BizFile.class));
-            verify(userMapper, never()).updateById(any(SysUser.class));
-        }
-    }
-
-    @Test
-    void replaceFile_fileNotFound_throws() {
-        when(fileMapper.selectById(9L)).thenReturn(null);
-        MultipartFile mf = new MockMultipartFile("file", "new.txt", "text/plain", new byte[25]);
-        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
-            m.when(SecurityUtils::getCurrentUserId).thenReturn(1L);
-            BusinessException ex = assertThrows(BusinessException.class, () -> svc.replaceFile(9L, mf));
-            assertEquals("文件不存在", ex.getMessage());
-            verify(folderPermissionService, never()).checkFile(any(), any(), any());
-            verify(fileMapper, never()).updateById(any(BizFile.class));
-        }
-    }
-
-    @Test
-    void replaceFile_success_versionIncrementsAndStorageDelta() {
-        when(fileMapper.selectById(9L)).thenReturn(aReplaceableFile());
-        MultipartFile mf = new MockMultipartFile("file", "new.txt", "text/plain", new byte[25]);
-        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
-            m.when(SecurityUtils::getCurrentUserId).thenReturn(1L);
-            when(folderPermissionService.checkFile(9L, FolderPermissionService.P_EDIT, 1L)).thenReturn(true);
-            BizFile result = svc.replaceFile(9L, mf);
-            // 版本+1 / replace_by / replaced_at / file_size / oss_key 更新
-            assertEquals(2, result.getVersion());
-            assertEquals(1L, result.getReplaceBy());
-            assertNotNull(result.getReplacedAt());
-            assertEquals(25L, result.getFileSize());
-            assertNotEquals("private/1/old.txt", result.getOssKey());
-            assertTrue(result.getOssKey().startsWith("private/1/"));
-            ArgumentCaptor<BizFile> fileCap = ArgumentCaptor.forClass(BizFile.class);
-            verify(fileMapper).updateById(fileCap.capture());
-            assertNotEquals("private/1/old.txt", fileCap.getValue().getOssKey());
-            assertTrue(fileCap.getValue().getOssKey().startsWith("private/1/"));
-            // 【2026-10-09 配额原子化】存储差额改 DB 端原子增减: delta = 25 - 10 = +15
-            verify(userMapper).adjustStorageUsed(eq(1L), eq(15L));
-            verify(userMapper, never()).updateById(any(SysUser.class));
-        }
-    }
-
-    @Test
-    void replaceFile_afterReplace_downloadReturnsNewContent() throws Exception {
-        when(fileMapper.selectById(9L)).thenReturn(aReplaceableFile());
-        BizFileFolder folder = new BizFileFolder();
-        folder.setId(100L);
-        folder.setDownloadable(1);
-        when(folderMapper.selectById(100L)).thenReturn(folder);
-        String newContent = "new content v2";
-        MultipartFile mf = new MockMultipartFile("file", "new.txt", "text/plain",
-                newContent.getBytes(StandardCharsets.UTF_8));
-        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
-            m.when(SecurityUtils::getCurrentUserId).thenReturn(1L);
-            m.when(SecurityUtils::isAdmin).thenReturn(false);
-            when(folderPermissionService.checkFile(9L, FolderPermissionService.P_EDIT, 1L)).thenReturn(true);
-            svc.replaceFile(9L, mf);
-            // 替换后同一 fileId 下载返回新内容（走更新后的 ossKey）
-            MockHttpServletResponse response = new MockHttpServletResponse();
-            svc.downloadById(9L, null, false, response);
-            assertEquals(200, response.getStatus());
-            assertEquals(newContent, response.getContentAsString());
-        }
-    }
-
+    // 【2026-11-05 用户令"替换文件功能删除"】replaceFile 四用例随端点/服务方法一并退役
     // ====== 最终修复轮（I-1 文件夹管理接入 ACL 判定 / M-1 删除级联 / M-2② ossUrl 修正）======
 
     @Test
@@ -724,25 +635,6 @@ class FileServicePermissionTest {
             BusinessException ex = assertThrows(BusinessException.class, () -> svc.createFolder(folder));
             assertEquals("公共文件夹只有管理员才能创建", ex.getMessage());
             verify(folderMapper, never()).insert(any(BizFileFolder.class));
-        }
-    }
-
-    @Test
-    void replaceFile_withoutOriginalFilename_ossUrlStillUpdated() {
-        // M-2②：originalFilename==null 时 ossUrl 也更新为新 key 的 URL（不保留指向已删旧文件的旧值）
-        when(fileMapper.selectById(9L)).thenReturn(aReplaceableFile());
-        SysUser user = new SysUser();
-        user.setId(1L);
-        user.setStorageUsed(100L);
-        user.setStorageQuota(1024L * 1024L);
-        when(userMapper.selectById(1L)).thenReturn(user);
-        MultipartFile mf = new MockMultipartFile("file", (String) null, "text/plain", new byte[25]);
-        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
-            m.when(SecurityUtils::getCurrentUserId).thenReturn(1L);
-            when(folderPermissionService.checkFile(9L, FolderPermissionService.P_EDIT, 1L)).thenReturn(true);
-            BizFile result = svc.replaceFile(9L, mf);
-            assertNotNull(result.getOssUrl());
-            assertTrue(result.getOssUrl().contains(result.getOssKey()), "ossUrl 应指向新 key: " + result.getOssUrl());
         }
     }
 
@@ -945,38 +837,8 @@ class FileServicePermissionTest {
         java.nio.file.Files.deleteIfExists(f);
     }
 
-    /** 【决策5 2026-10-18 用户裁决·佐证锁定】被任一激励记录槽位引用的文件=计分佐证,禁替换(防先传A得分再换B) */
-    @Test
-    void replaceFile_incentiveEvidenceFile_rejected() {
-        when(fileMapper.selectById(9L)).thenReturn(aReplaceableFile());
-        MultipartFile mf = new MockMultipartFile("file", "new.txt", "text/plain", new byte[25]);
-        BizIncentiveRecord evidence = new BizIncentiveRecord();
-        evidence.setFilePreIds(java.util.List.of(9L)); // 文件9挂在"安装前"槽
-        when(incentiveRecordMapper.selectList(any())).thenReturn(java.util.List.of(evidence));
-        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
-            m.when(SecurityUtils::getCurrentUserId).thenReturn(1L);
-            when(folderPermissionService.checkFile(9L, FolderPermissionService.P_EDIT, 1L)).thenReturn(true);
-            BusinessException ex = assertThrows(BusinessException.class, () -> svc.replaceFile(9L, mf));
-            assertTrue(ex.getMessage().contains("激励计分佐证"), "实际: " + ex.getMessage());
-            verify(fileMapper, never()).updateById(any(BizFile.class));
-        }
-    }
-
-    /** 佐证锁定不误伤: 无激励记录引用的普通文件照常可替换(存量成功用例的守卫回归) */
-    @Test
-    void replaceFile_nonEvidenceFile_guardSilent() {
-        when(fileMapper.selectById(9L)).thenReturn(aReplaceableFile());
-        MultipartFile mf = new MockMultipartFile("file", "new.txt", "text/plain", new byte[25]);
-        when(incentiveRecordMapper.selectList(any())).thenReturn(java.util.List.of());
-        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
-            m.when(SecurityUtils::getCurrentUserId).thenReturn(1L);
-            when(folderPermissionService.checkFile(9L, FolderPermissionService.P_EDIT, 1L)).thenReturn(true);
-            // 走到存储写入层(即已通过佐证守卫)即算通过——本地落盘成功后 updateById 必被调用
-            svc.replaceFile(9L, mf);
-            verify(fileMapper).updateById(any(BizFile.class));
-        }
-    }
-
+    // 【2026-11-05 用户令"替换文件功能删除"】佐证锁定两用例(incentiveEvidenceFile_rejected/nonEvidenceFile_guardSilent)随 replaceFile 退役;
+    //   佐证防换语义不再需要——替换通道已不存在, 删除仍走"删除后重传"重算
     // ====== 【性能 file-3 2026-10-18】缩略图字节缓存 / 激励可见集合缓存 ======
 
     @Test
@@ -1186,127 +1048,4 @@ class FileServicePermissionTest {
         java.nio.file.Files.deleteIfExists(f);
     }
 
-    // ====== 【A7 2026-10-20 审计】replaceFile 事务化: afterCommit 删旧 + 失败补偿新媒体 =====
-    // 注: @Transactional 的真实回滚需要 Spring 上下文(审计 F4 为 P2, 本仓库纯 mock 单测),
-    // 此处以调用顺序/补偿行为锁定: ①旧文件删除只发生在 afterCommit 回调; ②失败路径 best-effort
-    // 清理已落盘新媒体(防孤儿); ③重试按库内旧值重算配额差额, 不因上次失败漂移。
-
-    /** 【A7】本组用例隔离的本地存储根(共享 tmpdir 下 private/1 有其它用例产物, 断言目录内容需隔离) */
-    private java.nio.file.Path a7IsolatedRoot() throws Exception {
-        java.nio.file.Path root = java.nio.file.Files.createTempDirectory("aigicrm-replace-tx-");
-        ReflectionTestUtils.setField(svc, "uploadDir", root.toString());
-        return root;
-    }
-
-    private java.nio.file.Path a7WriteOldFile(java.nio.file.Path root) throws Exception {
-        java.nio.file.Path old = root.resolve("private/1/old.txt");
-        java.nio.file.Files.createDirectories(old.getParent());
-        java.nio.file.Files.writeString(old, "old-content");
-        return old;
-    }
-
-    /** 活动事务同步下: 方法体内不得物理删旧文件, 只有 afterCommit 回调才删 */
-    @Test
-    void replaceFile_withActiveTxSync_oldFileDeletedOnlyAfterCommit() throws Exception {
-        java.nio.file.Path root = a7IsolatedRoot();
-        java.nio.file.Path oldFile = a7WriteOldFile(root);
-
-        when(fileMapper.selectById(9L)).thenReturn(aReplaceableFile());
-        MultipartFile mf = new MockMultipartFile("file", "new.txt", "text/plain",
-                "new-content".getBytes(StandardCharsets.UTF_8));
-
-        org.springframework.transaction.support.TransactionSynchronizationManager.initSynchronization();
-        try {
-            try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
-                m.when(SecurityUtils::getCurrentUserId).thenReturn(1L);
-                when(folderPermissionService.checkFile(9L, FolderPermissionService.P_EDIT, 1L)).thenReturn(true);
-
-                BizFile result = svc.replaceFile(9L, mf);
-
-                // 事务尚未提交: 旧文件必须还在(回滚路径可完整还原), 新文件已落盘
-                assertTrue(java.nio.file.Files.exists(oldFile),
-                        "afterCommit 前不得物理删除旧文件(否则回滚后文件不可恢复)");
-                assertTrue(java.nio.file.Files.exists(root.resolve(result.getOssKey())));
-                var syncs = org.springframework.transaction.support.TransactionSynchronizationManager
-                        .getSynchronizations();
-                assertEquals(1, syncs.size(), "应恰好注册一个 afterCommit 删除回调");
-
-                // 模拟提交: 回调触发旧文件物理删除
-                syncs.forEach(org.springframework.transaction.support.TransactionSynchronization::afterCommit);
-                assertFalse(java.nio.file.Files.exists(oldFile), "提交后旧文件应被物理删除");
-            }
-        } finally {
-            org.springframework.transaction.support.TransactionSynchronizationManager.clearSynchronization();
-        }
-        // 配额差额在事务内(同一方法调用): 新 11B - 旧 10B = +1
-        verify(userMapper).adjustStorageUsed(1L, 1L);
-    }
-
-    /** 配额调整失败(事务将回滚): 返回失败 + best-effort 清理新媒体, 旧文件保持原样 */
-    @Test
-    void replaceFile_quotaAdjustFailure_cleansNewMediaAndKeepsOldFile() throws Exception {
-        java.nio.file.Path root = a7IsolatedRoot();
-        java.nio.file.Path oldFile = a7WriteOldFile(root);
-
-        when(fileMapper.selectById(9L)).thenReturn(aReplaceableFile());
-        MultipartFile mf = new MockMultipartFile("file", "new.txt", "text/plain",
-                "new-content".getBytes(StandardCharsets.UTF_8));
-        when(userMapper.adjustStorageUsed(org.mockito.ArgumentMatchers.anyLong(),
-                org.mockito.ArgumentMatchers.anyLong()))
-                .thenThrow(new RuntimeException("quota adjust boom"));
-
-        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
-            m.when(SecurityUtils::getCurrentUserId).thenReturn(1L);
-            when(folderPermissionService.checkFile(9L, FolderPermissionService.P_EDIT, 1L)).thenReturn(true);
-
-            BusinessException ex = assertThrows(BusinessException.class, () -> svc.replaceFile(9L, mf));
-            assertTrue(ex.getMessage().contains("文件替换失败"), "实际: " + ex.getMessage());
-        }
-
-        // 旧文件未动(事务回滚后台账仍指向它, 内容必须可下载)
-        assertTrue(java.nio.file.Files.exists(oldFile), "失败路径不得删除旧文件");
-        assertEquals("old-content", java.nio.file.Files.readString(oldFile));
-        // 新媒体已被补偿清理: 目录内只剩 old.txt(无孤儿 new*.txt)
-        try (java.util.stream.Stream<java.nio.file.Path> dir =
-                     java.nio.file.Files.list(oldFile.getParent())) {
-            var names = dir.map(p -> p.getFileName().toString()).toList();
-            assertEquals(List.of("old.txt"), names, "失败后不应残留新媒体孤儿: " + names);
-        }
-    }
-
-    /** 失败后重试成功: 配额差额按库内旧值重算(两次同为 +1), 终态旧删新在、无孤儿 */
-    @Test
-    void replaceFile_retryAfterQuotaFailure_quotaDeltaStable() throws Exception {
-        java.nio.file.Path root = a7IsolatedRoot();
-        java.nio.file.Path oldFile = a7WriteOldFile(root);
-
-        // 每次调用返回全新旧台账(模拟真实 DB: 失败已回滚, 重试读到的仍是未替换的旧行)
-        when(fileMapper.selectById(9L)).thenAnswer(inv -> aReplaceableFile());
-        MultipartFile mf = new MockMultipartFile("file", "new.txt", "text/plain",
-                "new-content".getBytes(StandardCharsets.UTF_8));
-        when(userMapper.adjustStorageUsed(org.mockito.ArgumentMatchers.anyLong(),
-                org.mockito.ArgumentMatchers.anyLong()))
-                .thenThrow(new RuntimeException("first attempt fails"))
-                .thenReturn(1); // 重试成功
-
-        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
-            m.when(SecurityUtils::getCurrentUserId).thenReturn(1L);
-            when(folderPermissionService.checkFile(9L, FolderPermissionService.P_EDIT, 1L)).thenReturn(true);
-
-            // 第一次: 配额失败 → 报错(事务语义下 updateById 一并回滚, 单测以异常传播锁定)
-            assertThrows(BusinessException.class, () -> svc.replaceFile(9L, mf));
-            // 第二次: 成功(库内旧值未变 → 差额同为 11-10=+1, 不漂移)
-            BizFile result = svc.replaceFile(9L, mf);
-
-            verify(userMapper, times(2)).adjustStorageUsed(1L, 1L);
-            // 终态: 旧文件已删(无事务同步环境, afterCommit 退化为立即执行), 新文件在
-            assertFalse(java.nio.file.Files.exists(oldFile), "成功后旧文件应删除");
-            assertTrue(java.nio.file.Files.exists(root.resolve(result.getOssKey())));
-            // 无孤儿: 目录内只有新文件一个条目
-            try (java.util.stream.Stream<java.nio.file.Path> dir =
-                         java.nio.file.Files.list(oldFile.getParent())) {
-                assertEquals(1, dir.count(), "重试成功后目录内只应有新媒体, 无孤儿残留");
-            }
-        }
-    }
 }

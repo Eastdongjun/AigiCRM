@@ -82,7 +82,6 @@ public class PermissionMatrixTest {
             "FileController.renameFolder",
             "FileController.deleteFolder",
             "FileController.deleteFile",
-            "FileController.replaceFile",
             "FileController.shareFile",
             "ReminderController.process");
 
@@ -550,9 +549,6 @@ public class PermissionMatrixTest {
         assertPreAuthorize(controller.getDeclaredMethod("upload",
                         org.springframework.web.multipart.MultipartFile.class, Long.class, String.class),
                 "hasAuthority('file:upload')");
-        assertPreAuthorize(controller.getDeclaredMethod("replaceFile", Long.class,
-                        org.springframework.web.multipart.MultipartFile.class),
-                "hasAuthority('file:edit')");
         assertPreAuthorize(controller.getDeclaredMethod("shareFile", Long.class, java.util.Map.class),
                 "hasAuthority('file:share')");
 
@@ -581,8 +577,6 @@ public class PermissionMatrixTest {
                 "FileService.renameFolder 必须保留文件夹 P_EDIT 权限守卫");
         assertTrue(body.contains("folderPermissionService.check(folder.getId(), FolderPermissionService.P_DELETE"),
                 "FileService.deleteFolder 必须保留文件夹 P_DELETE 权限守卫");
-        assertTrue(body.contains("folderPermissionService.checkFile(fileId, FolderPermissionService.P_EDIT"),
-                "FileService.replaceFile 必须保留文件 P_EDIT 权限守卫");
         assertTrue(body.contains("folderPermissionService.checkFile(file.getId(), FolderPermissionService.P_DOWNLOAD")
                         || body.contains("folderPermissionService.checkFile(fileId, FolderPermissionService.P_DOWNLOAD"),
                 "FileService 下载链路必须保留文件 P_DOWNLOAD 权限守卫");

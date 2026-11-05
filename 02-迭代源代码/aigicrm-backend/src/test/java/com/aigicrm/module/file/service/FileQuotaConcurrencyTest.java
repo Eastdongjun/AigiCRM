@@ -180,25 +180,5 @@ class FileQuotaConcurrencyTest {
         verify(userMapper, never()).adjustStorageUsed(anyLong(), org.mockito.ArgumentMatchers.anyLong());
     }
 
-    @Test
-    void replace_deltaQuota_atomicAdjust() throws java.io.IOException {
-        BizFile f = new BizFile();
-        f.setId(1L);
-        f.setOssKey("private/7/old.bin");
-        f.setFileName("old.bin");
-        f.setFileSize(80L);
-        f.setFileScope("private");
-        f.setUploaderId(7L);
-        f.setVersion(1);
-        when(fileMapper.selectById(1L)).thenReturn(f);
-        when(folderPermissionService.checkFile(eq(1L), org.mockito.ArgumentMatchers.<String>any(), anyLong())).thenReturn(true);
-        try (var m = org.mockito.Mockito.mockStatic(com.aigicrm.security.SecurityUtils.class)) {
-            m.when(com.aigicrm.security.SecurityUtils::getCurrentUserId).thenReturn(7L);
-            m.when(com.aigicrm.security.SecurityUtils::isAdmin).thenReturn(false);
-            svc.replaceFile(1L, file(120L));
-        }
-        // delta = 120 - 80 = +40, 数据库端原子增
-        verify(userMapper).adjustStorageUsed(eq(7L), eq(40L));
-        verify(userMapper, never()).updateById(any(SysUser.class));
-    }
+    // 【2026-11-05 用户令"替换文件功能删除"】replace_deltaQuota_atomicAdjust 随 replaceFile 退役
 }

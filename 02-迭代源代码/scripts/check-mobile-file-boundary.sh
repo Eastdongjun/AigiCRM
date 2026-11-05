@@ -170,11 +170,11 @@ grep -Fq 'fileView.showManageEmpty' "$WXML" || fail 'mobile file folder manageme
 ! grep -Fq 'item.uploaderName ||' "$WXML" || fail 'mobile file WXML must not duplicate uploader fallback logic'
 ! grep -Fq "activeTab !== '共享给我'" "$WXML" || fail 'mobile file WXML must not duplicate shared-tab action visibility logic'
 # 【P2 清理 2026-11-02】pages/files/detail 死页删除(全端零导航实证, 文件预览一步打开后退役):
-# 防复活钉——目录不得回归; MP 替换通道(api replaceFile)随之删除(后端端点保留)
+# 防复活钉——目录不得回归; MP 替换通道(api replaceFile)随之删除(【2026-11-05 用户令】后端端点亦已删)
 if [ -e "$ROOT/aigicrm-miniprogram/pages/files/detail" ]; then
   fail 'mobile files/detail page was retired as dead navigation (P2 2026-11-02); do not revive'
 fi
-! grep -Fq 'replaceFile' "$API" || fail 'mobile file replace channel retired with dead detail page; backend endpoint stays'
+! grep -Fq 'replaceFile' "$API" || fail 'mobile file replace channel retired with dead detail page; endpoint deleted by user order 2026-11-05'
 # (原 detail 页 WXML 规范化钉随死页删除, 2026-11-02)
 grep -Fq 'verify:file-center' "$AUTOMATOR_PACKAGE" || fail 'file center DevTools automator script is not exposed'
 grep -Fq 'verifyFileCenterPage' "$AUTOMATOR_SCRIPT" || fail 'file center DevTools automator does not verify page UI'
@@ -193,7 +193,7 @@ grep -Fq 'aclVisible: true' "$AUTOMATOR_SCRIPT" || fail 'file center DevTools au
 # 【2026-10-26 重锚】用户令"一次点击一步打开"——automator 详情页跳转断言退役,
 # 改钉一步预览下载断言; 用户令"三个点不需要替换"——列表页替换入口/权限门/调用清退
 # 【P2 2026-11-02 二次重锚】详情页(替换能力最后载体)作为死页删除, MP 替换 API 通道一并退役
-# (后端 /file/{id}/replace 端点保留待裁决)
+# (后端 /file/{id}/replace 端点已随 2026-11-05 用户令删除, 见下方防复活守卫)
 grep -Fq 'one-tap preview download missing' "$AUTOMATOR_SCRIPT" || fail 'file center DevTools automator does not verify one-tap preview download'
 ! grep -Fq "hasPermission('file:edit')" "$PAGE" || fail 'file list replace permission gate was retired by user order (2026-10-26)'
 ! grep -Fq 'replaceListFile' "$PAGE" || fail 'file list replace action was retired by user order (2026-10-26)'
@@ -230,7 +230,8 @@ if [ -e "$LEGACY_PAGE" ] || [ -e "$LEGACY_WXML" ]; then
   fail 'legacy file page must not be revived (removed with app.json registration in 1b3c865b)'
 fi
 grep -Fq '@PostMapping("/{id}/share")' "$CONTROLLER" || fail 'backend file share route disappeared'
-grep -Fq '@PostMapping("/{id}/replace")' "$CONTROLLER" || fail 'backend file replace route disappeared'
+# 【2026-11-05 用户令"替换文件这个功能不要了 删除了"】后端端点随之删除, 此钉翻为防复活守卫
+! grep -Fq '@PostMapping("/{id}/replace")' "$CONTROLLER" || fail 'backend file replace endpoint must stay deleted (user order 2026-11-05)'
 grep -Fq '`file.folderManage` | 文件 | 文件夹面板管理 | `pages/files/index` 与 `pages/files/folder-form/index`' "$MANIFEST" || fail 'file folderManage manifest does not point to mobile folder management'
 grep -Fq '`file.aclView` | 文件 | 文件夹 ACL 弹窗只读 | `pages/files/index` 只读 ACL 弹窗' "$MANIFEST" || fail 'file aclView manifest does not protect mobile read-only ACL view'
 

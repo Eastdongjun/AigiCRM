@@ -243,7 +243,6 @@ Legend: `V` view, `C` create, `U` update, `D` delete, `I` import, `E` export, `A
 | 文件管理 | Rename/update folder | `PUT /api/file/folders/{id}` | `file:folder:manage` | Folder owner/ACL | Update | Yes | Implemented |
 | 文件管理 | Delete folder | `DELETE /api/file/folders/{id}` | `file:folder:manage` | Folder owner/ACL | Delete | Yes | Implemented |
 | 文件管理 | Delete file | `DELETE /api/file/{id}` | `file:delete` | File owner/ACL | Delete | Yes | Implemented |
-| 文件管理 | Replace file | `POST /api/file/{id}/replace` | `file:edit` | File owner/ACL | Replace | Yes | Implemented |
 | 文件管理 | Storage stats | `GET /api/file/storage` | `file:view` | Current user/tenant | Read/statistics | Yes | Implemented |
 | 文件管理 | Download by id | `GET /api/file/download/{id}` | `file:view` | File ACL and token check | Download | Yes | Mobile preview/download |
 | 文件管理 | Public download | `GET /api/file/download/public/**` | Public token/path | Public share constraints | Download | Yes | Can preview if linked |

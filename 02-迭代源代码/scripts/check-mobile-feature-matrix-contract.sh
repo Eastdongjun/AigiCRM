@@ -156,7 +156,8 @@ require_line '| 文件管理 | Create folder | `POST /api/file/folders` | `file:
 require_line '| 文件管理 | Rename/update folder | `PUT /api/file/folders/{id}` | `file:folder:manage` | Folder owner/ACL | Update | Yes | Implemented |'
 require_line '| 文件管理 | Delete folder | `DELETE /api/file/folders/{id}` | `file:folder:manage` | Folder owner/ACL | Delete | Yes | Implemented |'
 require_line '| 文件管理 | Delete file | `DELETE /api/file/{id}` | `file:delete` | File owner/ACL | Delete | Yes | Implemented |'
-require_line '| 文件管理 | Replace file | `POST /api/file/{id}/replace` | `file:edit` | File owner/ACL | Replace | Yes | Implemented |'
+# 【2026-11-05 用户令】Replace file 随替换文件功能删除退役: 正向钉翻防复活守卫
+! grep -Fq 'POST /api/file/{id}/replace' "$MATRIX" || fail 'file replace endpoint was deleted by user order 2026-11-05; do not revive it in the matrix'
 require_line '| 文件管理 | Path download | `GET /api/file/download/**` | `file:view` | File path ACL | Download | Yes | Implemented |'
 require_line '| 文件分享 | Share file | `POST /api/file/{id}/share` | `file:share` | File owner/share permission | Share mutation | Yes | Implemented |'
 require_line '| 文件分享 | Shared to me | `GET /api/file/shared-to-me`, `/count` | `file:view` | Files shared to current user | Read | Yes | Implemented |'

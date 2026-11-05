@@ -12,7 +12,8 @@ FIX_MIGRATION="$ROOT/aigicrm-backend/src/main/resources/db/migration/V2026.09.11
 
 fail() { echo "FAIL: $*" >&2; exit 1; }
 
-for permission in file:upload file:edit file:delete file:share file:folder:manage; do
+# 【2026-11-05 用户令】file:edit 随替换文件功能删除退役, 从运行码清单摘除(迁移 V2026.11.05.9 已清死码)
+for permission in file:upload file:delete file:share file:folder:manage; do
   grep -Fq "'$permission'" "$MIGRATION" || fail "migration missing $permission"
   grep -Fq "hasAuthority('$permission')" "$CONTROLLER" || fail "controller missing $permission"
 done
@@ -26,7 +27,7 @@ grep -Fq "view_menu.permission = 'file:view'" "$MIGRATION" || fail 'migration do
 [ -f "$FIX_MIGRATION" ] || fail "missing enabling migration: $(basename "$FIX_MIGRATION")"
 grep -Eq "SET[[:space:]]+m\.?\`?status\`?[[:space:]]*=[[:space:]]*1" "$FIX_MIGRATION" \
   || fail 'enabling migration does not set status=1 on the file mutation codes'
-for permission in file:upload file:edit file:delete file:share file:folder:manage; do
+for permission in file:upload file:delete file:share file:folder:manage; do
   grep -Fq "'$permission'" "$FIX_MIGRATION" || fail "enabling migration does not cover $permission"
 done
 grep -Fq "view_menu.\`permission\` = 'file:view'" "$FIX_MIGRATION" \
@@ -40,7 +41,6 @@ for pair in \
   "file:folder:manage|@PutMapping(\"/folders/{id}\")" \
   "file:folder:manage|@DeleteMapping(\"/folders/{id}\")" \
   "file:delete|@DeleteMapping(\"/{id}\")" \
-  "file:edit|@PostMapping(\"/{id}/replace\")" \
   "file:share|@PostMapping(\"/{id}/share\")"; do
   permission="${pair%%|*}"
   mapping="${pair#*|}"
