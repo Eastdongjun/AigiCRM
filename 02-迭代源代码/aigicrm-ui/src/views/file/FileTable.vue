@@ -35,6 +35,9 @@
             <el-tooltip v-if="activeTab !== 'public' && activeTab !== 'shared_to_me' && folderPerms.includes('share')" content="分享" placement="top">
               <el-icon class="act-icon" @click.stop="openShareDialog(row)"><Share /></el-icon>
             </el-tooltip>
+            <el-tooltip v-if="folderPerms.includes('edit')" content="替换" placement="top">
+              <el-icon class="act-icon" @click.stop="openReplaceFile(row)"><Refresh /></el-icon>
+            </el-tooltip>
             <el-tooltip v-if="folderPerms.includes('delete')" content="删除" placement="top">
               <el-icon class="act-icon act-danger" @click.stop="handleDelete(row)"><Delete /></el-icon>
             </el-tooltip>
@@ -56,11 +59,17 @@
         @change="loadFiles"
       />
     </div>
+
+    <!-- 替换文件隐藏选择器 -->
+    <input ref="replaceFileInputRef" type="file" style="display:none" @change="handleReplaceChosen" />
   </div>
 </template>
 
 <script setup>
-// 【2026-11-05 用户令"替换文件功能删除"】行内替换入口/隐藏选择器/替换提交链已随后端端点一并退役
+import { ref } from 'vue'
+import { ElMessage } from 'element-plus'
+// 【D16】View 图标已由 main.js menuIconList 全局注册(app.component)，本地 import 冗余已删；模板 <View/> 仍可解析
+import { replaceFile } from '@/api/file'
 import { injectFilePage } from '@/composables/useFilePage'
 import { pageSizes } from '@/utils/pagination'
 
@@ -70,6 +79,38 @@ const {
   handlePreview, handleDownload, openShareDialog, handleDelete,
   formatSize, getFileExt, getFileExtLabel, getFileType,
 } = injectFilePage()
+
+// 文件替换（行操作触发，独立隐藏选择器）
+const replaceFileTarget = ref(null)
+const replaceFileInputRef = ref(null)
+const replacing = ref(false)
+
+const openReplaceFile = (row) => {
+  replaceFileTarget.value = row
+  replaceFileInputRef.value?.click()
+}
+
+const handleReplaceChosen = async (e) => {
+  const file = e.target.files?.[0]
+  e.target.value = ''
+  if (!file || !replaceFileTarget.value || replacing.value) return
+  const target = replaceFileTarget.value
+  replaceFileTarget.value = null
+  replacing.value = true
+  const formData = new FormData()
+  formData.append('file', file)
+  try {
+    const res = await replaceFile(target.id, formData)
+    ElMessage.success('替换成功，版本 ' + (res.data?.version ?? ''))
+    loadFiles()
+    loadFolders()
+    loadTabCounts()
+  } catch (err) {
+    // 错误提示由 request 拦截器统一处理
+  } finally {
+    replacing.value = false
+  }
+}
 </script>
 
 <style scoped>

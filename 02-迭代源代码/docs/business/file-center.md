@@ -8,6 +8,7 @@
 | --- | --- |
 | 浏览文件夹/列表/下载/存储查询 | `file:view` |
 | 上传 | `file:upload`(叠加文件夹 ACL) |
+| 替换 | `file:edit` |
 | 删除 | `file:delete` |
 | 分享 | `file:share` |
 | 文件夹增删改 | `file:folder:manage` |
@@ -23,7 +24,7 @@
 ### 3.1 配额与计费
 
 - 每人默认 **10 GB**(新用户取系统设置 `user.default.storage`,写入 `sys_user.storage_quota`);`GET /file/storage` 查询已用/配额。
-- 【2026-11-05 用户令】替换文件功能已删除(端点/服务方法/PC FileTable 入口一并退役,契约防复活守卫);配额只在删除(扣减)与上传(增加)时变化。
+- **私人文件按差额计扣**:替换文件时 storageUsed = 原已用 − 旧 size + 新 size(最小 0),不重复计费。
 - 配额调整只走 storage 类审批,不提供后台直接改配额入口。
 
 ### 3.2 申请资格(不新增权限码)

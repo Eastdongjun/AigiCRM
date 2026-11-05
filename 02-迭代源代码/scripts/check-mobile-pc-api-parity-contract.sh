@@ -81,9 +81,7 @@ require_pair "$PC_FILE" "/file/storage" "$MP_FILE" "/api/file/storage" "file sto
 require_pair "$PC_FILE" "/file/shared-to-me" "$MP_FILE" "/api/file/shared-to-me" "files shared to me"
 require_pair "$PC_FILE" "/share" "$MP_FILE" "/share" "file share"
 require_pair "$PC_FILE" "/acl" "$MP_FILE" "/acl" "file ACL read"
-# 【2026-11-05 用户令"替换文件功能删除"】file replace 双端通道已退役, 正向钉翻防复活守卫
-assert_absent_in_miniprogram_api "/replace" "file replace (retired 2026-11-05)"
-! grep -Fq "/replace" "$PC_FILE" || fail "PC file api still exposes /replace: endpoint deleted by user order 2026-11-05"
+require_pair "$PC_FILE" "/replace" "$MP_FILE" "/replace" "file replace"
 require_in_file "$MP_FILE" "/api/file/download/" "Mini Program file preview/download URL builder"
 require_in_file "$MP_FILE" "/api/file/upload" "Mini Program file upload"
 require_in_file "$MP_FILE" "/api/file/download-token" "Mini Program file download token"

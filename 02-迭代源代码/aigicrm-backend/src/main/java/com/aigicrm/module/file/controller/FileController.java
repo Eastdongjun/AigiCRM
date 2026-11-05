@@ -102,6 +102,13 @@ public class FileController {
         return Result.ok();
     }
 
+    /** 【文件权限体系 Task 6】覆盖替换：multipart file，版本+1（细粒度权限在 service 层 checkFile(P_EDIT)） */
+    @PreAuthorize("hasAuthority('file:edit')")
+    @PostMapping("/{id}/replace")
+    public Result<BizFile> replaceFile(@PathVariable Long id, @RequestParam("file") MultipartFile file) {
+        return Result.ok(fileService.replaceFile(id, file));
+    }
+
     @PreAuthorize("hasAuthority('file:view')")
     @GetMapping("/storage")
     public Result<Map<String, Object>> getStorageInfo() {

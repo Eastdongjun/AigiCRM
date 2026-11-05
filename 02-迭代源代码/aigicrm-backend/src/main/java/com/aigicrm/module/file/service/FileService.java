@@ -435,6 +435,115 @@ public class FileService {
         }
     }
 
+    /**
+     * 【文件权限体系 Task 6】覆盖替换：新文件先存后删旧（避免先删旧后存储失败导致文件丢失）。
+     * 更新 oss_key/oss_url/file_size/file_type/version+1/replace_by/replaced_at；
+     * 私人文件按差额调整配额（storageUsed = 原已用 - 旧size + 新size，最小 0）。
+     * 权限：文件夹 edit 权限（管理员/本人/上级链/ACL edit，见 FolderPermissionService.checkFile）。
+     * 【A7 2026-10-20 审计·事务化】旧实现 updateById→删旧文件→调配额三步无事务: 配额调整失败时
+     * 接口报"替换失败"但台账已提交、旧文件可能已物理删除, 用户重试会再次覆盖并少扣配额。
+     * 现口径: ①方法加 @Transactional, 台账更新与配额差额同事务提交/回滚;
+     * ②旧文件物理删除挪到 afterCommit——回滚时台账仍指向旧 key, 事务内先删旧文件会造成
+     * "返回失败但文件已丢"(不可逆); deleteStorage 自身吞异常(:540-555), 只能作 best-effort;
+     * ③新媒体(uploadStorage 在事务前段已落盘)在失败路径上 best-effort 清理, 防止回滚后留孤儿。
+     */
+    @org.springframework.transaction.annotation.Transactional
+    public BizFile replaceFile(Long fileId, MultipartFile newFile) {
+        BizFile file = fileMapper.selectById(fileId);
+        if (file == null) throw new BusinessException("文件不存在");
+        Long userId = SecurityUtils.getCurrentUserId();
+        if (!folderPermissionService.checkFile(fileId, FolderPermissionService.P_EDIT, userId)) {
+            throw new BusinessException(403, "没有访问权限，请联系管理员授权");
+        }
+        // 【决策5 2026-10-18 用户裁决·佐证锁定】激励计分佐证禁替换:佐证文件(安装前三槽/跟踪槽/旧单槽)
+        // 是计分依据(安装前三槽齐全即得分),同 ID 换内容会无声替换计分证据(先传A得分再换B)。
+        // 需更新佐证走激励模块"删除后重传"(删除触发重算,分数随新证据重出)。记录表为百级量,全量扫可接受。
+        assertNotIncentiveEvidence(fileId);
+        String scope = file.getFileScope() != null ? file.getFileScope() : "private";
+        String newKey = null;
+        try {
+            // 先存新文件（沿用原文件的 scope/uploaderId 目录，保证 key 下载路由语义一致）
+            // 【GPT三轮 FILE-P1-008】无扩展名拒绝后, replace 的 null 文件名场景改用旧文件扩展兜底
+            // (类型继承自已过白名单的旧文件, 治理语义不破), 保持 M-2② 的 ossUrl 更新行为可测
+            newKey = uploadStorage(newFile, scope, file.getUploaderId(), extOf(file.getFileName()));
+            String oldKey = file.getOssKey();
+            long oldSize = file.getFileSize() != null ? file.getFileSize() : 0L;
+            // ossUrl 与 upload 的 URL 方案一致：本地走 key 下载路由，OSS 走桶地址（保证替换后两种模式均可下载）
+            String newOssUrl = isLocal()
+                    ? "/api/file/download/" + newKey
+                    : "https://" + ossConfig.getBucketName() + "." + ossConfig.getEndpoint() + "/" + newKey;
+            file.setOssKey(newKey);
+            // 【安全修复】ossUrl 无条件更新为新 key 的 URL：旧对象已随 deleteStorage 删除，
+            // 保留旧 URL 会指向已删除文件（M-2②：originalFilename==null 时同样更新）
+            file.setOssUrl(newOssUrl);
+            file.setFileSize(newFile.getSize());
+            file.setFileType(newFile.getContentType());
+            file.setVersion((file.getVersion() == null ? 0 : file.getVersion()) + 1);
+            file.setReplaceBy(userId);
+            file.setReplacedAt(LocalDateTime.now());
+            fileMapper.updateById(file);
+            // 【性能 file-3】版本/ossKey 已变化，旧版本缩略图不再命中新 key；主动清掉避免磁盘残留
+            // (缓存清理幂等: 回滚场景只是多一次 miss, 无损)
+            evictThumbnailCache(fileId);
+            // 【P2 2026-10-09 配额并发修复】差额调整改数据库端原子(GREATEST 守护最小 0)——
+            // 【A7】与 updateById 同事务: 任一失败整体回滚, 配额与台账不再漂移
+            if ("private".equals(scope)) {
+                userMapper.adjustStorageUsed(file.getUploaderId(), newFile.getSize() - oldSize);
+            }
+            // 【A7】旧文件物理删除必须等事务提交: 注册 afterCommit, 回滚路径不执行
+            // (无事务上下文时——如直连调用/单测——退化为立即清理, 与旧行为一致)
+            String oldKeyToDelete = oldKey;
+            runAfterCommit(() -> deleteStorage(oldKeyToDelete));
+            return file;
+        } catch (BusinessException e) {
+            cleanupOrphanMedia(newKey);
+            throw e;
+        } catch (Exception e) {
+            cleanupOrphanMedia(newKey);
+            throw new BusinessException("文件替换失败: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 【A7】把动作注册到当前事务的 afterCommit; 无活动事务同步(直调/单测环境)时立即执行。
+     * 只在提交后执行——afterCompletion(STATUS_ROLLED_BACK) 不会触发本回调, 回滚时旧文件保持原样。
+     */
+    private void runAfterCommit(Runnable action) {
+        if (org.springframework.transaction.support.TransactionSynchronizationManager.isSynchronizationActive()) {
+            org.springframework.transaction.support.TransactionSynchronizationManager.registerSynchronization(
+                    new org.springframework.transaction.support.TransactionSynchronization() {
+                        @Override
+                        public void afterCommit() {
+                            action.run();
+                        }
+                    });
+        } else {
+            action.run();
+        }
+    }
+
+    /**
+     * 【A7】替换失败补偿: uploadStorage 已落盘的新媒体在事务回滚后成为孤儿(台账仍指向旧 key),
+     * best-effort 物理清理; deleteStorage 自身吞异常, 清理失败仅留孤儿文件(无数据正确性影响)。
+     * newKey 为 null 表示尚未写入新媒体(权限/佐证/白名单拦截), 无需清理。
+     */
+    private void cleanupOrphanMedia(String newKey) {
+        if (newKey == null || newKey.isEmpty()) return;
+        try {
+            deleteStorage(newKey);
+        } catch (Exception e) {
+            log.warn("替换失败后的新媒体清理异常 fileKey={}", newKey, e);
+        }
+    }
+
+    /** 【决策5 2026-10-18 用户裁决·佐证锁定】fileId 被任一激励记录引用(五槽任一)即为计分佐证,禁替换;
+     *  槽解析与上方共享激励文件的五槽读取同源(getFileIds/Pre/Mid/Post/Track) */
+    private void assertNotIncentiveEvidence(Long fileId) {
+        if (isIncentiveEvidence(fileId)) {
+            throw new BusinessException("该文件是激励计分佐证，不能替换；请在激励模块删除后重新上传（将重新计分）");
+        }
+    }
+
     /** 【回收站 2026-10-18】文件是否被任一激励记录五槽引用(供彻底删除守卫复用, 与替换守卫同源) */
     public boolean isIncentiveEvidence(Long fileId) {
         for (BizIncentiveRecord r : incentiveRecordMapper.selectList(new LambdaQueryWrapper<>())) {
@@ -449,7 +558,7 @@ public class FileService {
 
     /**
      * 实际存储写入（从 upload 抽出复用）：本地落盘回读校验 / OSS putObject。
-     * 返回存储 key（scope/userId 目录 + 唯一文件名），供 upload 共用，行为与原先一致。(replaceFile 已随 2026-11-05 用户令删除)
+     * 返回存储 key（scope/userId 目录 + 唯一文件名），供 upload 与 replaceFile 共用，行为与原先一致。
      */
     private String uploadStorage(MultipartFile file, String scope, Long userId) throws Exception {
         return uploadStorage(file, scope, userId, null);
@@ -1054,6 +1163,14 @@ public class FileService {
             "jpg", "jpeg", "png", "gif", "bmp", "webp", "heic",
             "mp3", "wav", "m4a", "mp4", "mov", "avi", "mkv",
             "zip", "rar", "7z", "tar", "gz");
+
+    /** 取文件名扩展(无扩展名返回 null); 供替换场景兜底继承 */
+    private static String extOf(String filename) {
+        if (filename == null) return null;
+        int dot = filename.lastIndexOf('.');
+        if (dot < 0 || dot == filename.length() - 1) return null;
+        return filename.substring(dot + 1).toLowerCase(java.util.Locale.ROOT);
+    }
 
     static void assertAllowedUploadType(String sanitizedFilename, String contentType) {
         String ext = "";

@@ -58,8 +58,8 @@ function getFolderAcl(id) { return request({ url: '/api/file/folders/' + id + '/
 function getSharedToMe(params) { return request({ url: '/api/file/shared-to-me', data: params || {} }) }
 function getSharedToMeCount() { return request({ url: '/api/file/shared-to-me/count' }) }
 function shareFile(id, userIds) { return request({ url: '/api/file/' + id + '/share', method: 'POST', data: { userIds } }) }
-// 【P2 清理 2026-11-02】MP 替换通道随死页 pages/files/detail 删除;
-// 【2026-11-05 用户令】后端替换端点亦已删除, 替换文件功能全链退役(迁移 V2026.11.05.9 清死码)
+// 【P2 清理 2026-11-02】MP 替换通道随死页 pages/files/detail 删除(全端唯一入口, 零导航实证);
+// 后端 /file/{id}/replace 端点保留(防翻案成本), 全端无 UI 消费现状记录于 manifest file.replace 行
 
 function uploadFile(filePath, folderId, scope, options = {}) {
   const globalData = getGlobalData()
