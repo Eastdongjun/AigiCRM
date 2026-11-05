@@ -193,7 +193,7 @@ grep -Fq 'aclVisible: true' "$AUTOMATOR_SCRIPT" || fail 'file center DevTools au
 # 【2026-10-26 重锚】用户令"一次点击一步打开"——automator 详情页跳转断言退役,
 # 改钉一步预览下载断言; 用户令"三个点不需要替换"——列表页替换入口/权限门/调用清退
 # 【P2 2026-11-02 二次重锚】详情页(替换能力最后载体)作为死页删除, MP 替换 API 通道一并退役
-# (后端 /file/{id}/replace 端点保留待裁决)
+# (【2026-11-05 翻案恢复】替换文件功能已全链还原, 此正向钉继续有效)
 grep -Fq 'one-tap preview download missing' "$AUTOMATOR_SCRIPT" || fail 'file center DevTools automator does not verify one-tap preview download'
 ! grep -Fq "hasPermission('file:edit')" "$PAGE" || fail 'file list replace permission gate was retired by user order (2026-10-26)'
 ! grep -Fq 'replaceListFile' "$PAGE" || fail 'file list replace action was retired by user order (2026-10-26)'

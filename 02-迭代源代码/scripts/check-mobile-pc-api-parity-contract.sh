@@ -81,7 +81,10 @@ require_pair "$PC_FILE" "/file/storage" "$MP_FILE" "/api/file/storage" "file sto
 require_pair "$PC_FILE" "/file/shared-to-me" "$MP_FILE" "/api/file/shared-to-me" "files shared to me"
 require_pair "$PC_FILE" "/share" "$MP_FILE" "/share" "file share"
 require_pair "$PC_FILE" "/acl" "$MP_FILE" "/acl" "file ACL read"
-require_pair "$PC_FILE" "/replace" "$MP_FILE" "/replace" "file replace"
+# 【2026-11-05 翻案恢复+口径修正】file replace=PC 有/MP 有意无(MP 替换 UI 2026-11-02 随死页退役且不再恢复):
+# 旧 require_pair 的 MP 侧此前靠 api/file.js 注释里的路径字面量碰巧通过, 本次改为真实口径
+require_in_file "$PC_FILE" "/replace" "PC file replace"
+! grep -Fq "/replace" "$MP_FILE" || fail "MP file api should not expose /replace (MP replace UI retired 2026-11-02, PC-only after 2026-11-05 restore)"
 require_in_file "$MP_FILE" "/api/file/download/" "Mini Program file preview/download URL builder"
 require_in_file "$MP_FILE" "/api/file/upload" "Mini Program file upload"
 require_in_file "$MP_FILE" "/api/file/download-token" "Mini Program file download token"
