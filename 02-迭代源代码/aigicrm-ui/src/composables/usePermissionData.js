@@ -21,7 +21,10 @@ const permModules = computed(() => {
     { name: '工作台', items: [] },
     { name: '客户管理', items: [] },
     { name: '文件管理', items: [] },
-    { name: '四项服务', items: [] },
+    // 【2026-11-05 用户令"四项激励里可按角色设置数据范围"】权限矩阵建「四项激励」模块组:
+    // incentive 全家族码(view/add/edit/delete/统计/排行/导出/阅读)归位此组(与 PC 侧栏新组对齐),
+    // 其中 incentive:stats:view/rank:view 带 (incentive,stats_view) 独立范围行(用户拍板 B)
+    { name: '四项激励', items: [] },
     { name: '提醒管理', items: [] },
     { name: '公海管理', items: [] },
     { name: '审批管理', items: [] },
@@ -32,7 +35,7 @@ const permModules = computed(() => {
     { name: '系统管理', items: [] },
   ]
   const labelMap = {
-    'dashboard': '工作台', 'customer': '客户管理', 'file': '文件管理', 'incentive': '四项服务',
+    'dashboard': '工作台', 'customer': '客户管理', 'file': '文件管理', 'incentive': '四项激励',
     'reminder': '提醒管理', 'sea': '公海管理', 'approval': '审批管理', 'statistics': '统计分析',
     'score': '学分管理', 'indicator': '核心客户指标', 'task': '任务管理', 'system': '系统管理',
     // 【2026-11-03 权限中心修复】finance:*(客户财务查看/管理)与 contact:*(联系人)业务上属客户域,
