@@ -269,8 +269,8 @@
 
 /* 【2026-11-05 公海式分区授权】编辑/删除独立折叠区 */
 .perm-grant-collapse { border: none; margin-top: 2px; }
-.perm-grant-collapse .el-collapse-item__header { height: 40px; background: #fafbfc; border-radius: 8px; padding: 0 12px; border: 1px solid #e9ecf1; margin-bottom: 6px; }
-.perm-grant-collapse .el-collapse-item__wrap { border-bottom: none; padding: 0 4px; }
-.perm-grant-collapse-title { display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; color: #303133; }
+.perm-grant-collapse.el-collapse .el-collapse-item__header { height: 40px; background: #fafbfc; border-radius: 8px; padding: 0 12px; border: 1px solid #e9ecf1; margin-bottom: 6px; }
+.perm-grant-collapse.el-collapse .el-collapse-item__wrap { border-bottom: none; padding: 0 4px; }
+.perm-grant-collapse-title { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; color: #303133; }
 .perm-grant-collapse-title .el-icon { color: var(--el-color-primary); }
 .perm-grant-hint { font-size: 12px; color: #9ca3af; margin-top: 8px; line-height: 1.5; }
