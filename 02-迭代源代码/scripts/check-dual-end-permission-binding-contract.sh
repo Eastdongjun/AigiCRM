@@ -141,8 +141,10 @@ grep -Fq "v-if=\"canStats\" class=\"tab-item\"" "$UI/views/incentive/stats.vue" 
 grep -Fq "v-if=\"canRank\" class=\"tab-item\"" "$UI/views/incentive/stats.vue" || fail 'PC rank/person tabs must gate by incentive:rank:view'
 grep -Fq "const canStats = computed(() => userStore.hasPermission('incentive:stats:view'))" "$UI/views/incentive/stats.vue" || fail 'stats.vue must derive canStats from registry code'
 grep -Fq "const canRank = computed(() => userStore.hasPermission('incentive:rank:view'))" "$UI/views/incentive/stats.vue" || fail 'stats.vue must derive canRank from registry code'
-# F6c. 客户排行导出按码门禁(G2, 对齐个人排行 incentive:person-rank:export 先例)
-grep -Fq "v-if=\"userStore.hasPermission('incentive:rank:view')\"" "$UI/views/incentive/RankTableView.vue" || fail 'customer-rank export button must gate by incentive:rank:view'
+# F6c. 客户排行导出独立码(2026-11-05 用户令"客户排行导出加码", 镜像个人排行 incentive:person-rank:export 先例):
+#      注册 incentive:rank:export(V2026.11.05.8, 默认仅 admin, 其他角色权限中心勾选授予) + 按钮 v-if 按码
+grep -Fq "v-if=\"userStore.hasPermission('incentive:rank:export')\"" "$UI/views/incentive/RankTableView.vue" || fail 'customer-rank export button must gate by dedicated code incentive:rank:export'
+grep -Fq "'incentive:rank:export'" "$MIG/V2026.11.05.8__customer_rank_export_permission.sql" || fail 'migration must register incentive:rank:export (customer rank export, 镜像先例)'
 # F7. PC 侧栏结构(2026-11-05 用户令纠偏: "PC端还是叫四项激励，激励统计还是四项激励下面的"
 #     + "PC端也需要增加一个四项服务，四项服务的定位是给客户展示案例库的"):
 #     四项激励=上传/查询/统计一组(V2026.11.05.1 撤销 11-04.2 的 PC 拆组, 历史迁移文件按 flyway 不可变保留);

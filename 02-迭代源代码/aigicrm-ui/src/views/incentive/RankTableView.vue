@@ -6,8 +6,9 @@
       <span class="header-right-actions">
         <span class="rank-count">{{ scoreboard.length }}个客户</span>
         <!-- 2026-10-04 D11：exportRank 清理死掉的部门排行分支后不再需要参数 -->
-        <!-- 【2026-11-05 G2 对齐个人排行导出门禁】客户排行导出=rank:view 持码者的数据动作 -->
-        <el-button v-if="userStore.hasPermission('incentive:rank:view')" size="small" type="primary" plain :icon="Download" @click="exportRank()">导出</el-button>
+        <!-- 【2026-11-05 用户令"客户排行导出加码"】独立导出码 incentive:rank:export(V2026.11.05.8 注册,
+             默认仅 admin, 对齐个人排行导出先例; 无码者仍可看列表, 仅不能一键导出) -->
+        <el-button v-if="userStore.hasPermission('incentive:rank:export')" size="small" type="primary" plain :icon="Download" @click="exportRank()">导出</el-button>
       </span>
     </div>
     <el-table :data="pagedScoreboard" style="width:100%" empty-text="当前周期暂无客户激励记录，上传激励文件后在此排行" class="rank-matrix"
