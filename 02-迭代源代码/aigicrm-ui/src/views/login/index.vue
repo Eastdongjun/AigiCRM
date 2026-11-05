@@ -30,7 +30,9 @@
             <div class="form-options">
               <div class="remember-group">
                 <el-checkbox v-model="form.rememberUser">记住账号</el-checkbox>
-                <!-- 【B1 安全修复 2026-10-21】"记住密码"下线：口令不再落盘 localStorage（原 base64 可逆存储） -->
+                <!-- 【2026-11-05 用户令"恢复记住密码"】按 10-21 审计自己的建议恢复: WebCrypto 设备密钥
+                     加密(HTTP 档降级弱混淆)+7 天有效期, 勾选即 7 天档令牌; 勾选自动联动"记住账号" -->
+                <el-checkbox v-model="form.rememberPassword" @change="onRememberPwdChange">记住密码</el-checkbox>
                 <!-- 【2026-11-05 用户选 C"保持登录"】不落盘口令的等价体验: 勾选=签发 7 天档令牌+活跃滑动续期, 掉线窗口=7 天不活跃 -->
                 <el-checkbox v-model="form.rememberLogin">7 天内保持登录</el-checkbox>
               </div>
@@ -56,7 +58,7 @@ import { login } from '@/api/auth'
 import { getPublicConfig } from '@/api/system'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import ForgotPasswordDialog from './ForgotPasswordDialog.vue'
-import { REMEMBER_KEY_USER, clearRememberedPassword } from './remembered-auth'
+import { REMEMBER_KEY_USER, clearRememberedPassword, clearRememberedAuth, loadRememberedAuth, saveRememberedAuth } from './remembered-auth'
 
 const router = useRouter()
 const formRef = ref(null)
@@ -75,13 +77,14 @@ const form = reactive({
   // 【B1 安全修复 2026-10-21】"记住密码"勾选项下线：口令不再以任何形式写入 localStorage，
   // 原 base64 可逆落盘属 high 级安全问题（退出/改密/重置均不清除），安全优先移除。
   rememberUser: true,
-  rememberLogin: true
+  rememberLogin: true,
+  rememberPassword: false
 })
 
 // 【B1 安全修复 2026-10-21】口令持久化整体移除，只保留"记住账号"。
 // 旧版本遗留在浏览器里的 aigicrm_remember_password 由 clearRememberedPassword()
 // 在登录页挂载、登录成功（含强制改密两条分支）时统一清除（见 remembered-auth.js）。
-/** 只落盘/清除"记住账号"键；任何路径都不写口令，并顺手清掉口令遗留键 */
+/** 只落盘/清除"记住账号"键（口令记忆由 save/clearRememberedAuth 异步承载）*/
 function persistRemembered() {
   try {
     if (form.rememberUser) localStorage.setItem(REMEMBER_KEY_USER, form.username)
@@ -90,13 +93,34 @@ function persistRemembered() {
   } catch { /* 存储不可用(隐私模式等)时静默 */ }
 }
 
+// 【2026-11-05 恢复记住密码】级联(镜像 2026-10-08 旧行为): 勾密码自动勾账号+保持登录;
+// 取消密码 → 清加密记忆(下次不再回填)
+async function onRememberPwdChange(v) {
+  if (v) {
+    form.rememberUser = true
+    form.rememberLogin = true
+  } else {
+    clearRememberedAuth()
+    form.password = ''
+  }
+}
+
 onMounted(async () => {
-  // 【B1 安全修复 2026-10-21】只回填"记住账号"；同时清除旧版本遗留的口令键且不回填口令
+  // 【B1 安全修复 2026-10-21】只回填"记住账号"；旧版本遗留的 base64 口令键清除且不回填
   // （覆盖管理员重置等场景：用户下次打开登录页时，浏览器里过期的口令残留被清掉）
   const saved = localStorage.getItem(REMEMBER_KEY_USER)
   if (saved) {
     form.username = saved
     form.rememberUser = true
+  }
+  // 【2026-11-05 用户令"恢复记住密码"】读取加密记忆(WebCrypto 设备密钥档/xor 降级档), 7 天过期
+  const remembered = await loadRememberedAuth()
+  if (remembered) {
+    form.username = remembered.username
+    form.password = remembered.password
+    form.rememberUser = true
+    form.rememberPassword = true
+    form.rememberLogin = true
   }
   clearRememberedPassword()
   try {
@@ -127,8 +151,9 @@ const handleLogin = async () => {
   loading.value = true
   try {
     form.username = form.username.trim()
-    // 【2026-11-05 用户选 C"保持登录"】rememberMe=true → 后端签发 7 天档 JWT(滑动续期)
-    const res = await login({ ...form, rememberMe: form.rememberLogin })
+    // 【2026-11-05 保持登录/恢复记住密码】记住密码或保持登录任一勾选 → 7 天档 JWT(滑动续期)
+    const rememberMe = form.rememberLogin || form.rememberPassword
+    const res = await login({ ...form, rememberMe })
     localStorage.setItem('token', res.data.token)
     // 【批④ 2026-08-10 多集团会话】登录响应带回集团信息(多集团用户顶部可切换)
     const { useUserStore } = await import('@/store/user')
@@ -148,6 +173,8 @@ const handleLogin = async () => {
         await changePassword({ oldPassword: form.password, newPassword: value })
         // 【B1 安全修复 2026-10-21】强制改密成功后不再把"新口令"写入 localStorage
         // （原 persistRemembered(value) 属 high 级问题：新口令重新落盘）；只保留"记住账号"
+        // 【2026-11-05】旧口令的加密记忆一并清除(改密后旧记忆无效)
+        clearRememberedAuth()
         persistRemembered()
         localStorage.removeItem('token')
         ElMessage.success('密码已修改，请用新密码重新登录')
@@ -161,6 +188,9 @@ const handleLogin = async () => {
       }
     }
     persistRemembered()
+    // 【2026-11-05 恢复记住密码】按勾选保存(设备密钥加密)或清除口令记忆
+    if (form.rememberPassword) await saveRememberedAuth(form.username, form.password)
+    else await clearRememberedAuth()
     ElMessage.success('登录成功')
     router.push('/dashboard')
   } catch (e) {

@@ -132,10 +132,22 @@ describe('登录页 B1: 口令不落盘 localStorage', () => {
     expect(localStorage.getItem(USER_KEY)).toBe('NO001')
   })
 
-  it('页面不再提供"记住密码"勾选项', async () => {
+  it('2026-11-05 用户翻案恢复: 提供"记住密码"勾选, 口令走加密档(auth_v2)且旧 base64 键仍禁写', async () => {
+    // 【翻案记录】10-21 B1 下线"记住密码" → 2026-11-05 用户令恢复, 按审计自己的建议实现:
+    // WebCrypto 设备密钥加密(jsdom 无 subtle → xor 降级档)+7 天有效期; 安全不变量保持:
+    // 明文口令永不落盘, 旧 aigicrm_remember_password base64 键依旧禁写。
     const wrapper = mountLogin()
     await flushPromises()
     expect(wrapper.text()).toContain('记住账号')
-    expect(wrapper.text()).not.toContain('记住密码')
+    expect(wrapper.text()).toContain('记住密码')
+    wrapper.vm.form.username = 'NO001'
+    wrapper.vm.form.password = PWD_INIT
+    wrapper.vm.form.rememberPassword = true
+    login.mockResolvedValue({ data: { token: 'tk-9', pwdResetRequired: 0, groupIds: [], currentGroupId: null } })
+    await wrapper.vm.handleLogin()
+    await flushPromises()
+    expect(localStorage.getItem('aigicrm_remember_auth_v2')).not.toBeNull()
+    expect(localStorage.getItem(PASS_KEY)).toBeNull()
+    expectNoPasswordAnywhere(PWD_INIT)
   })
 })
