@@ -1,3 +1,7 @@
+/* 【2026-11-06 骨架】五枚筛选胶囊 flex:1 挤压变形 → 内容自适应宽+横滚; 激活态由数据驱动(选中非默认才蓝) */
+.sea-page .tabs{display:flex;gap:12rpx;overflow-x:auto;white-space:nowrap;margin:24rpx 0 18rpx}
+.sea-page .tabs picker{flex:0 0 auto}
+.sea-page .tabs .tab{flex:0 0 auto;padding:14rpx 24rpx;font-size:24rpx}
 .sea-record-card{margin-top:20rpx}
 .sea-record-head{display:flex;align-items:flex-start;justify-content:space-between;gap:18rpx}
 .sea-record-title{flex:1;min-width:0;color:#172033;font-size:30rpx;font-weight:760;line-height:1.35}

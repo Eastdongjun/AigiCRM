@@ -98,6 +98,13 @@ function normalizeClaimRecord(item) {
   }
 }
 
+// 【2026-11-06 骨架】入池时间去 ISO 原始 'T' 格式, 统一 'YYYY-MM-DD HH:mm'
+function formatEnterDate(value) {
+  if (!value) return '-'
+  const text = String(value).replace('T', ' ')
+  return text.length >= 16 ? text.slice(0, 16) : text
+}
+
 function buildSeaRecordView(item, state = {}) {
   return {
     ...item,
@@ -108,7 +115,7 @@ function buildSeaRecordView(item, state = {}) {
     customerCodeText: item.customerCode || '-',
     ownerNameText: item.ownerName || '-',
     enterReasonText: item.enterReasonLabel || seaReasonText(item.enterReason),
-    enterDateText: item.enterDate || '-',
+    enterDateText: formatEnterDate(item.enterDate),
     permissionText: item.permissionText || '仅查看',
     claimLoading: String(state.claimingId || '') === String(item.id || ''),
     deleteLoading: String(state.deletingId || '') === String(item.id || '')
@@ -142,11 +149,18 @@ function buildSeaView(data) {
       { key: 'pendingApproval', label: '待审批捞取', valueText: String(stats.pendingApproval || 0) },
       { key: 'claimedThisMonth', label: '本月成功', valueText: String(stats.claimedThisMonth || 0) }
     ],
+    // 【2026-11-06 骨架】筛选胶囊激活态条件化(原五枚写死 active 全蓝, 选没选看不出);
+    // 注意默认项本身 label='全部部门'/'全部原因'(非空), 须与默认文案比较而非判空
     statusText: statusTextMap[data.status] || '全部状态',
+    statusActive: Boolean(data.status),
     poolText: data.poolId ? '已选公海池' : '全部公海池',
+    poolActive: Boolean(data.poolId),
     deptText: dept.label || '全部部门',
+    deptActive: (dept.label || '全部部门') !== '全部部门',
     industryText: data.industry || '全部行业',
+    industryActive: Boolean(data.industry),
     enterReasonText: reason.label || data.enterReason || '全部原因',
+    reasonActive: (reason.label || data.enterReason || '全部原因') !== '全部原因',
     refreshLoading: isLoading,
     refreshText: isLoading ? '刷新中' : '刷新',
     showLoading: isLoading,
