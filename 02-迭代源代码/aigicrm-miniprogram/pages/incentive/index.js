@@ -120,6 +120,40 @@ function buildSummary(records) {
   return { customers: records.length, records: recordCount, categories: categorySet.size, files: fileCount, unread: unreadCount, score }
 }
 
+// 【2026-11-05 用户令"这一页按照一级 二级 这种层级统计"】分类统计按一级→二级层级分组:
+// 基座=rankParents(树序「大类→子类」结构, 与 loadCategories 同源), 统计行按子类 id 挂靠,
+// 一级行聚合子类文件数/学分; 树上找不到归属的统计行兜底进「其他分类」尾组, 不丢数。
+function buildCategoryStatsGroups(rows, rankParents) {
+  const byChildId = {}
+  ;(rows || []).forEach((row) => { byChildId[String(row.id)] = row })
+  const used = new Set()
+  const groups = (rankParents || []).map((parent) => {
+    const children = []
+    let count = 0
+    let score = 0
+    ;(parent.children || []).forEach((child) => {
+      const row = byChildId[String(child.id)]
+      if (!row) return
+      used.add(String(row.id))
+      children.push(row)
+      count += Number(row.count) || 0
+      score += Number(row.score) || 0
+    })
+    return { parentId: parent.id, parentName: parent.categoryName, children, count, score }
+  }).filter((group) => group.children.length > 0)
+  const orphans = (rows || []).filter((row) => !used.has(String(row.id)))
+  if (orphans.length > 0) {
+    groups.push({
+      parentId: '',
+      parentName: '其他分类',
+      children: orphans,
+      count: orphans.reduce((sum, row) => sum + (Number(row.count) || 0), 0),
+      score: orphans.reduce((sum, row) => sum + (Number(row.score) || 0), 0)
+    })
+  }
+  return groups
+}
+
 function normalizeScoreRows(rows, type) {
   return (rows || []).map((item, index) => ({
     id: item.customerId || item.userId || item.deptId || item.id || `${type}-${index}`,
@@ -484,10 +518,7 @@ Page({
     categoryTreeView: [],
     rankParents: [],
     categoryStats: [],
-    categoryStatsPage: 1,
-    categoryStatsPageSize: 10,
-    categoryStatsTotal: 0,
-    categoryStatsPaged: [],
+    categoryStatsGroups: [],
     statDetail: {
       visible: false,
       loading: false,
@@ -891,7 +922,8 @@ Page({
 
   loadCategoryStats() {
     if (getApp().globalData.demoMode) {
-      this.setData({ categoryStats: [{ id: 'trial', name: '产品试点', count: 2, score: 45 }, { id: 'visit', name: '交流拜访', count: 3, score: 28 }] }, () => { this.refreshIncentiveView(); this.applyCategoryStatsPaging(1, this.data.categoryStatsPageSize) })
+      const demoStats = [{ id: 'trial', name: '产品试点', count: 2, score: 45 }, { id: 'visit', name: '交流拜访', count: 3, score: 28 }]
+      this.setData({ categoryStats: demoStats, categoryStatsGroups: buildCategoryStatsGroups(demoStats, this.data.rankParents) }, () => this.refreshIncentiveView())
       return
     }
     getCategoryStats().then((payload) => {
@@ -911,7 +943,7 @@ Page({
           score: item.totalScore || item.score || 0
         }
       }).filter((item) => item.id !== undefined && item.id !== null && item.id !== '') : []
-      this.setData({ categoryStats }, () => { this.refreshIncentiveView(); this.applyCategoryStatsPaging(1, this.data.categoryStatsPageSize) })
+      this.setData({ categoryStats, categoryStatsGroups: buildCategoryStatsGroups(categoryStats, this.data.rankParents) }, () => this.refreshIncentiveView())
     }).catch((error) => showErrorWithRetry(error, '四项服务统计加载失败', () => this.loadCategoryStats()))
   },
 
@@ -992,7 +1024,12 @@ Page({
   },
 
   openStatDetail(e) {
-    const stat = this.data.categoryStatsPaged[e.currentTarget.dataset.index]
+    // 【2026-11-05 层级化】WXML 传 data-id; 兼容 automator 老通道 dataset.index(平铺数组定位)
+    const dataset = e.currentTarget.dataset || {}
+    const rows = this.data.categoryStats || []
+    const stat = dataset.id !== undefined && dataset.id !== null && dataset.id !== ''
+      ? rows.find((row) => String(row.id) === String(dataset.id))
+      : rows[Number(dataset.index) || 0]
     if (!stat) return
     this.setData({
       statDetail: {
@@ -1154,17 +1191,7 @@ Page({
     this.applyPaging(Number(detail.page) || 1, Number(detail.pageSize) || this.data.pageSize)
   },
 
-  // 分类统计 / 个人与部门排行 / 阅读统计与排行：均为客户端分页，10/30 一页
-  applyCategoryStatsPaging(page, pageSize) {
-    const paged = paginate(this.data.categoryStats, page, pageSize)
-    this.setData({ categoryStatsPaged: paged.rows, categoryStatsPage: paged.page, categoryStatsPageSize: paged.pageSize, categoryStatsTotal: paged.total })
-  },
-  onCategoryStatsPagerChange(e) {
-    const detail = e.detail || {}
-    const current = this.data.categoryStatsPageSize || 10
-    const size = Number(detail.pageSize) || current
-    this.applyCategoryStatsPaging(size === current ? (Number(detail.page) || 1) : 1, size)
-  },
+  // 分类统计层级化(2026-11-05 用户令)后不再分页, 全量分组渲染; 其余排行仍为客户端分页 10/30 一页
   applyScoreboardPaging(page, pageSize) {
     const paged = paginate(this.data.scoreboard, page, pageSize)
     this.setData({ scoreboardPaged: paged.rows, scoreboardPage: paged.page, scoreboardPageSize: paged.pageSize, scoreboardTotal: paged.total })

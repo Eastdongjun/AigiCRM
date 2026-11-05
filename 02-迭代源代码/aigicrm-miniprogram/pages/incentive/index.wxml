@@ -138,14 +138,19 @@
     <view class="stats-row">
       <text>未读客户</text><text>{{summary.unread}}</text>
     </view>
-    <view wx:for="{{categoryStatsPaged}}" wx:key="name" class="stats-row stat-drill-row" data-index="{{index}}" bindtap="openStatDetail">
-      <view>
-        <view class="stat-name">{{item.name}}</view>
-        <view wx:if="{{item.parentName}}" class="stat-parent">{{item.parentName}}</view>
+    <!-- 【2026-11-05 用户令"按照一级 二级 这种层级统计"】一级分组头(聚合文件数) + 二级明细行 -->
+    <block wx:for="{{categoryStatsGroups}}" wx:for-item="group" wx:key="parentId">
+      <view class="stat-group-head">
+        <view class="stat-group-name">{{group.parentName}}</view>
+        <view class="stat-group-value">{{group.count}} 文件</view>
       </view>
-      <view class="stat-value">{{item.count}} 文件 ›</view>
-    </view>
-    <pager wx:if="{{categoryStatsTotal > 10}}" page="{{categoryStatsPage}}" pageSize="{{categoryStatsPageSize}}" total="{{categoryStatsTotal}}" loading="{{incentiveView.pagerLoading}}" bind:change="onCategoryStatsPagerChange" />
+      <view wx:for="{{group.children}}" wx:for-item="row" wx:key="id" class="stats-row stat-drill-row" data-id="{{row.id}}" bindtap="openStatDetail">
+        <view>
+          <view class="stat-name">{{row.name}}</view>
+        </view>
+        <view class="stat-value">{{row.count}} 文件 ›</view>
+      </view>
+    </block>
     <view wx:if="{{incentiveView.showCategoryStatsEmpty}}" class="muted">暂无统计</view>
     <view wx:if="{{statDetail.visible}}" class="stats-detail-mask" catchtap="closeStatDetail">
       <view class="stats-detail-sheet" catchtap="noop">

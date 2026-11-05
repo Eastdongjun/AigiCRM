@@ -90,6 +90,11 @@
 .stat-name{color:#172033;font-size:26rpx;font-weight:800}
 .stat-parent{margin-top:6rpx;color:#7c8ba1;font-size:21rpx}
 .stat-value{color:#2563eb;font-size:24rpx;font-weight:800;text-align:right;white-space:nowrap}
+/* 【2026-11-05 层级化】一级分组头: 组名+聚合文件数; 二级行沿用 stats-row 明细行 */
+.stat-group-head{display:flex;align-items:center;justify-content:space-between;gap:20rpx;padding:20rpx 0 10rpx;margin-top:10rpx;border-top:1rpx solid #eef3f9}
+.stat-group-head:first-of-type{border-top:0;margin-top:0}
+.stat-group-name{color:#172033;font-size:24rpx;font-weight:800}
+.stat-group-value{color:#7c8ba1;font-size:22rpx;font-weight:600;white-space:nowrap}
 .stats-detail-panel{margin-top:18rpx;padding-top:18rpx;border-top:1rpx solid #e7eef8}
 /* 2026-10-20 统计明细改为底部抽屉：不再把明细插在统计列表下方，避免上下来回滚动 */
 .stats-detail-mask{position:fixed;left:0;right:0;top:0;bottom:0;z-index:60;display:flex;align-items:flex-end;background:rgba(15,23,42,.42)}
