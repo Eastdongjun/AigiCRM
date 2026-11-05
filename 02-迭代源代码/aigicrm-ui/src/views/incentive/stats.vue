@@ -6,14 +6,17 @@
     <!-- Tab栏 -->
     <div class="tab-bar">
       <div class="tabs">
-        <span class="tab-item" :class="{ active: activeTab === 'table' }" @click="activeTab = 'table'">
+        <!-- 【2026-11-05 用户令"四项激励多少动作如何分权限仔细检查"G1】页签按码门禁(MP F2 同构):
+             统计表=stats:view(页面码) · 客户排行/个人排行=rank:view —— 此前页面码放行后三页签全可见,
+             与 MP 按码逐 pane 隐藏不一致。两码当前全角色同发, 存量可见不变; 未来可分别勾选。 -->
+        <span v-if="canStats" class="tab-item" :class="{ active: activeTab === 'table' }" @click="activeTab = 'table'">
           <el-icon><Grid /></el-icon> 激励统计表
         </span>
-        <span class="tab-item" :class="{ active: activeTab === 'rank' }" @click="activeTab = 'rank'">
+        <span v-if="canRank" class="tab-item" :class="{ active: activeTab === 'rank' }" @click="activeTab = 'rank'">
           <el-icon><User /></el-icon> 客户排行
         </span>
         <!-- 【2026-09-23 需求】个人排行: 按人员统计四项服务数据 -->
-        <span class="tab-item" :class="{ active: activeTab === 'person' }" @click="activeTab = 'person'">
+        <span v-if="canRank" class="tab-item" :class="{ active: activeTab === 'person' }" @click="activeTab = 'person'">
           <el-icon><Trophy /></el-icon> 个人排行
         </span>
       </div>
@@ -25,20 +28,21 @@
     </div>
 
     <!-- 激励统计表 -->
-    <StatsTableView v-if="activeTab === 'table'" />
+    <StatsTableView v-if="canStats && activeTab === 'table'" />
 
     <!-- 客户排行 -->
-    <RankTableView v-if="activeTab === 'rank'" />
+    <RankTableView v-if="canRank && activeTab === 'rank'" />
 
     <!-- 个人排行(按人员统计四项服务) -->
-    <PersonRankTableView v-if="activeTab === 'person'" />
+    <PersonRankTableView v-if="canRank && activeTab === 'person'" />
   </div>
 </template>
 
 <script setup>
-import { provide, onMounted, watch } from 'vue'
+import { provide, computed, onMounted, watch } from 'vue'
 import { useIncentiveStats, IncentiveStatsKey } from '@/composables/useIncentiveStats'
 import { useLiveRefresh } from '@/composables/useLiveRefresh'
+import { useUserStore } from '@/store/user'
 import StatsCards from './StatsCards.vue'
 import StatsTableView from './StatsTableView.vue'
 import RankTableView from './RankTableView.vue'
@@ -49,6 +53,15 @@ const stats = useIncentiveStats()
 provide(IncentiveStatsKey, stats)
 
 const { loading, activeTab, period, periodOptions, loadData } = stats
+
+// 页签码门禁(注册表模型: 与菜单码/路由码同源): 落地页签无码时回落到首个有码页签
+const userStore = useUserStore()
+const canStats = computed(() => userStore.hasPermission('incentive:stats:view'))
+const canRank = computed(() => userStore.hasPermission('incentive:rank:view'))
+watch([canStats, canRank], () => {
+  if (activeTab.value !== 'table' && !canRank.value) activeTab.value = 'table'
+  if (activeTab.value === 'table' && !canStats.value && canRank.value) activeTab.value = 'rank'
+}, { immediate: true })
 
 watch(period, loadData)
 onMounted(loadData)

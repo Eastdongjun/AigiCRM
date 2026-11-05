@@ -6,7 +6,8 @@
       <span class="header-right-actions">
         <span class="rank-count">{{ scoreboard.length }}个客户</span>
         <!-- 2026-10-04 D11：exportRank 清理死掉的部门排行分支后不再需要参数 -->
-        <el-button size="small" type="primary" plain :icon="Download" @click="exportRank()">导出</el-button>
+        <!-- 【2026-11-05 G2 对齐个人排行导出门禁】客户排行导出=rank:view 持码者的数据动作 -->
+        <el-button v-if="userStore.hasPermission('incentive:rank:view')" size="small" type="primary" plain :icon="Download" @click="exportRank()">导出</el-button>
       </span>
     </div>
     <el-table :data="pagedScoreboard" style="width:100%" empty-text="当前周期暂无客户激励记录，上传激励文件后在此排行" class="rank-matrix"
@@ -55,7 +56,9 @@
 import { Download } from '@element-plus/icons-vue'
 import { injectIncentiveStats } from '@/composables/useIncentiveStats'
 import { pageSizes } from '@/utils/pagination'
+import { useUserStore } from '@/store/user'
 
+const userStore = useUserStore()
 const {
   period, scoreboard, pagedScoreboard, rankParents, pageNum, pageSize, exportRank,
 } = injectIncentiveStats()

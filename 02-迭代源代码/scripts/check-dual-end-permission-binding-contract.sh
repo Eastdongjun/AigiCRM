@@ -136,6 +136,13 @@ grep -Fq "{ key: 'incentiveReward', title: '四项激励', subtitle: '统计与�
 # F6. PC 激励统计路由=注册码 stats:view + 四项激励分组（反钉 11-04 拆码前的旧口径 incentive:view/四项服务 回潮）
 grep -Fq "meta: { title: '激励统计', parentTitle: '四项激励', icon: 'TrendCharts', permission: 'incentive:stats:view' }" "$UI/router/index.js" || fail 'PC incentive-stats route must bind incentive:stats:view under the 四项激励 group'
 grep -Fq "activeMenu: '/incentive/stats', icon: 'Document', permission: 'incentive:stats:view'" "$UI/router/index.js" || fail 'PC incentive-stats detail route must follow stats:view (drill-down same code as page)'
+# F6b. PC 激励统计页页签按码门禁(2026-11-05 G1 修复, 与 MP F2 逐 pane 门禁同构): 三页签此前零门禁
+grep -Fq "v-if=\"canStats\" class=\"tab-item\"" "$UI/views/incentive/stats.vue" || fail 'PC stats tab 统计表 must gate by incentive:stats:view'
+grep -Fq "v-if=\"canRank\" class=\"tab-item\"" "$UI/views/incentive/stats.vue" || fail 'PC rank/person tabs must gate by incentive:rank:view'
+grep -Fq "const canStats = computed(() => userStore.hasPermission('incentive:stats:view'))" "$UI/views/incentive/stats.vue" || fail 'stats.vue must derive canStats from registry code'
+grep -Fq "const canRank = computed(() => userStore.hasPermission('incentive:rank:view'))" "$UI/views/incentive/stats.vue" || fail 'stats.vue must derive canRank from registry code'
+# F6c. 客户排行导出按码门禁(G2, 对齐个人排行 incentive:person-rank:export 先例)
+grep -Fq "v-if=\"userStore.hasPermission('incentive:rank:view')\"" "$UI/views/incentive/RankTableView.vue" || fail 'customer-rank export button must gate by incentive:rank:view'
 # F7. PC 侧栏结构(2026-11-05 用户令纠偏: "PC端还是叫四项激励，激励统计还是四项激励下面的"
 #     + "PC端也需要增加一个四项服务，四项服务的定位是给客户展示案例库的"):
 #     四项激励=上传/查询/统计一组(V2026.11.05.1 撤销 11-04.2 的 PC 拆组, 历史迁移文件按 flyway 不可变保留);
