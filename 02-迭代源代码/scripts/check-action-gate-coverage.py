@@ -73,8 +73,10 @@ ALLOW = {
          ("showImportDialog=false", "对话框关闭按钮")],
         "公海管理导入/筛选"),
     'system/PermGrantDialog.vue': (
-        [("clearUsers", "对话框内部动作: 上层添加授权入口已按 system:config:edit 门禁")],
-        "激励专项授权对话框"),
+        [("clearUsers", "对话框内部动作: 上层添加授权入口已按 system:config:edit 门禁"),
+         ("clearEditUsers", "对话框内部动作(清编辑区弹窗勾选, 无后端效果): 上层入口已按 system:config:edit 门禁"),
+         ("clearDeleteUsers", "对话框内部动作(清删除区弹窗勾选, 无后端效果): 上层入口已按 system:config:edit 门禁")],
+        "激励专项授权对话框(2026-11-05 公海式分区: 编辑/删除区清空钮同批)"),
     'system/SeaConfigManager.vue': (
         [("clearSeaSelection", "配置器内部动作(上层保存链守卫)"),
          ("clearSecSelection", "配置器内部动作(上层保存链守卫)")],

@@ -153,10 +153,22 @@ const loadPermData = async () => {
 // 四项服务权限
 const permList = ref([])
 const showPermDialog = ref(false)
-// 【2026-08-16 授权表化】编辑/删除恢复按人勾选（不再由角色判定），permForm 含四个专项开关
-const permForm = reactive({ canViewShared: true, canViewAll: true, canEdit: false, canDelete: false })
+// 【2026-08-16 授权表化】编辑/删除恢复按人勾选（不再由角色判定）
+// 【2026-11-05 公海式分区授权】编辑/删除拆独立折叠区(各自角色+人员名单, 对齐公海池级操作权限形态),
+//   permForm 仅余可见性两开关; canEdit/canDelete 改由分区名单表达
+const permForm = reactive({ canViewShared: true, canViewAll: true })
 // 【2026-11-03 权限中心 P3】按角色批量授权: 勾角色=其启用成员全体获得该组开关(后端展开并集)
 const grantRoleIds = ref([])
+// 【2026-11-05 公海式分区授权】编辑/删除独立区块(默认折叠, 对齐公海 permOpenSections)
+// ⚠️ 后端 /incentive/permission/grant 为四 flag 全量覆盖 upsert(ON DUPLICATE KEY UPDATE 全列),
+//   分区提交不能按区直发 roleIds(整组覆盖会抹掉成员已有授权)——必须前端逐人合并终态再分组, 见 grantPerm
+const permOpenSections = ref([])
+const editRoleIds = ref([])
+const deleteRoleIds = ref([])
+const editUserTreeRef = ref(null)
+const deleteUserTreeRef = ref(null)
+const editUserCount = ref(0)
+const deleteUserCount = ref(0)
 const allUsers = ref([])
 // 层级人员树：大区 → 办事处 → 部门 → 人员（节点 key: 'd'+orgId / 'u'+userId）
 const orgUserTree = ref([])
@@ -217,29 +229,86 @@ const clearUsers = () => {
 const onTreeCheck = () => {
   selectedUserCount.value = (userTreeRef.value?.getCheckedKeys() || []).filter(k => String(k).startsWith('u')).length
 }
+// 【2026-11-05 公海式分区授权】编辑/删除区树计数与清空(仅统计人员节点, u 前缀; 部门节点勾选=级联其下人员)
+const sectionUserIds = (treeRef) =>
+  ((treeRef.value?.getCheckedKeys()) || []).filter(k => String(k).startsWith('u')).map(k => Number(String(k).slice(1)))
+const onEditTreeCheck = () => { editUserCount.value = sectionUserIds(editUserTreeRef).length }
+const onDeleteTreeCheck = () => { deleteUserCount.value = sectionUserIds(deleteUserTreeRef).length }
+const clearEditUsers = () => { editUserTreeRef.value?.setCheckedKeys([]); editUserCount.value = 0 }
+const clearDeleteUsers = () => { deleteUserTreeRef.value?.setCheckedKeys([]); deleteUserCount.value = 0 }
 const openPermDialog = async () => {
   showPermDialog.value = true
-  await loadOrgUserTree()
+  // allUsers 供角色→成员前端展开(分区提交不发 roleIds, 见 grantPerm)
+  await Promise.all([loadOrgUserTree(), loadAllUsers()])
   clearUsers()
+  editRoleIds.value = []
+  deleteRoleIds.value = []
+  clearEditUsers()
+  clearDeleteUsers()
+  permOpenSections.value = []
 }
 const grantPerm = async () => {
-  const checked = userTreeRef.value ? (userTreeRef.value.getCheckedKeys() || []).filter(k => String(k).startsWith('u')) : []
-  const userIds = checked.map(k => Number(String(k).slice(1)))
-  // 【2026-11-03 P3】按角色批量: 与勾选人员并集提交(后端展开启用成员 upsert); 两者至少选一
-  const roleIds = [...(grantRoleIds.value || [])]
-  if (!userIds.length && !roleIds.length) { ElMessage.warning('请选择人员或角色'); return }
+  // ---- 三个区块的名单(可见性=角色批量+人员; 编辑/删除=独立折叠区名单) ----
+  const sharedUsers = sectionUserIds(userTreeRef)
+  const editUsers = sectionUserIds(editUserTreeRef)
+  const deleteUsers = sectionUserIds(deleteUserTreeRef)
+  const sharedRoles = [...(grantRoleIds.value || [])]
+  const editRoles = [...(editRoleIds.value || [])]
+  const deleteRoles = [...(deleteRoleIds.value || [])]
+  const anyPicked = [sharedUsers, editUsers, deleteUsers].some(a => a.length)
+    || [sharedRoles, editRoles, deleteRoles].some(a => a.length)
+  if (!anyPicked) { ElMessage.warning('请先在任一区块选择人员或角色'); return }
+  // ---- 角色→成员前端展开(单角色制: 业务角色的 sys_user_role 行=主角色, SysUser.roleId 即精确成员;
+  //      incentive_% 载体角色已在选项过滤, 此处不发 roleIds——后端按组展开会整组覆盖成员已有 flag) ----
+  const membersOf = (rid) => (allUsers.value || []).filter(u => u.roleId === rid).map(u => u.id)
+  // ---- 已有授权行做合并底座: grant 是四 flag 全量覆盖 upsert, 不带底座会把
+  //      "只加编辑权限"写成 (1,0,1,0), 抹掉该用户已有的 查看全部/删除 等授权 ----
+  const flag01 = (v) => (v === true || v === 1 || v === '1') ? 1 : 0
+  const existing = new Map()
+  for (const row of (permList.value || [])) existing.set(Number(row.userId), row)
+  const intent = new Map()
+  const touch = (uid) => {
+    if (!intent.has(uid)) {
+      const ex = existing.get(uid)
+      intent.set(uid, {
+        vs: ex ? flag01(ex.canViewShared) : 1, // 无记录=默认开(与后端 grantFlag defaultValue 同口径)
+        va: ex ? flag01(ex.canViewAll) : 0,
+        e: ex ? flag01(ex.canEdit) : 0,
+        d: ex ? flag01(ex.canDelete) : 0,
+      })
+    }
+    return intent.get(uid)
+  }
+  // 可见性区=显式意图: 两复选框按原值写入(保留"取消查看已分享=收窄"能力, IncentiveService.canViewShared 消费 0 为拒绝)
+  for (const uid of [...sharedUsers, ...sharedRoles.flatMap(membersOf)]) {
+    const t = touch(uid)
+    t.vs = flag01(permForm.canViewShared)
+    t.va = flag01(permForm.canViewAll)
+  }
+  // 编辑/删除区=∨ 合并(只加不减: 单独给某人编辑权限, 不动其可见性与已有删除权)
+  for (const uid of [...editUsers, ...editRoles.flatMap(membersOf)]) { touch(uid).e = 1 }
+  for (const uid of [...deleteUsers, ...deleteRoles.flatMap(membersOf)]) { touch(uid).d = 1 }
+  // ---- 终态相同者合组, 每组一次调用(全部显式四 flag, 不发 roleIds) ----
+  const groups = new Map()
+  for (const [uid, t] of intent) {
+    const key = `${t.vs},${t.va},${t.e},${t.d}`
+    if (!groups.has(key)) groups.set(key, [])
+    groups.get(key).push(uid)
+  }
   try {
-    await request.post('/incentive/permission/grant', {
-      userIds,
-      roleIds,
-      canViewShared: permForm.canViewShared,
-      canViewAll: permForm.canViewAll,
-      canEdit: permForm.canEdit,
-      canDelete: permForm.canDelete
-    })
-    ElMessage.success(`已授权 ${userIds.length} 人${roleIds.length ? ` + ${roleIds.length} 个角色成员` : ''}`)
+    let total = 0
+    for (const [key, uids] of groups) {
+      const [vs, va, e, d] = key.split(',').map(Number)
+      await request.post('/incentive/permission/grant', {
+        userIds: uids, canViewShared: vs, canViewAll: va, canEdit: e, canDelete: d,
+      })
+      total += uids.length
+    }
+    ElMessage.success(`已授权 ${total} 人`)
     showPermDialog.value = false
     grantRoleIds.value = []
+    editRoleIds.value = []
+    deleteRoleIds.value = []
     loadPermList()
   } catch(e) { ElMessage.error('授权失败') }
 }
@@ -252,7 +321,9 @@ export function usePermissionData() {
     activeTab,
     permOverview, allRoles, menuTree, rolePermMap, permModules, hasPerm, togglePerm, loadPermData,
     permList, showPermDialog, permForm, grantRoleIds, allUsers, orgUserTree, userTreeRef, selectedUserCount,
+    permOpenSections, editRoleIds, deleteRoleIds, editUserTreeRef, deleteUserTreeRef, editUserCount, deleteUserCount,
     loadPermList, loadAllUsers, loadOrgUserTree, checkAllUsers, clearUsers, onTreeCheck, openPermDialog, grantPerm, revokePerm,
+    onEditTreeCheck, onDeleteTreeCheck, clearEditUsers, clearDeleteUsers,
     permLoadError,
   }
 }
